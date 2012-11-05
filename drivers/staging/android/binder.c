@@ -2769,6 +2769,9 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = binder_ioctl_set_ctx_mgr(filp);
 		if (ret)
 			goto err;
+		ret = security_binder_set_context_mgr(proc->tsk);
+		if (ret < 0)
+			goto err;
 		break;
 	case BINDER_THREAD_EXIT:
 		binder_debug(BINDER_DEBUG_THREADS, "%d:%d exit\n",
