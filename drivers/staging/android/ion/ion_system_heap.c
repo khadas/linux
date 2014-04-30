@@ -34,6 +34,7 @@ static const int num_orders = ARRAY_SIZE(orders);
 static int order_to_index(unsigned int order)
 {
 	int i;
+
 	for (i = 0; i < num_orders; i++)
 		if (order == orders[i])
 			return i;
@@ -92,6 +93,7 @@ static void free_buffer_page(struct ion_system_heap *heap,
 
 	if (!cached) {
 		struct ion_page_pool *pool = heap->pools[order_to_index(order)];
+
 		ion_page_pool_free(pool, page);
 	} else {
 		__free_pages(page, order);
@@ -308,8 +310,10 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 							struct ion_system_heap,
 							heap);
 	int i;
+
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->pools[i];
+
 		seq_printf(s, "%d order %u highmem pages in pool = %lu total\n",
 			   pool->high_count, pool->order,
 			   (1 << pool->order) * PAGE_SIZE * pool->high_count);
