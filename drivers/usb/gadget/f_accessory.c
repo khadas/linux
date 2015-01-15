@@ -1200,7 +1200,8 @@ err:
 static void acc_disconnect(void)
 {
 	/* unregister all HID devices if USB is disconnected */
-	kill_all_hid_devices(_acc_dev);
+	if (_acc_dev)
+		kill_all_hid_devices(_acc_dev);
 }
 
 static void acc_cleanup(void)
