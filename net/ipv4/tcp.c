@@ -3330,3 +3330,4 @@ restart:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tcp_nuke_addr);

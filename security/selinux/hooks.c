@@ -392,23 +392,14 @@ static int selinux_is_sblabel_mnt(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
 
-	if (sbsec->behavior == SECURITY_FS_USE_XATTR ||
-	    sbsec->behavior == SECURITY_FS_USE_TRANS ||
-	    sbsec->behavior == SECURITY_FS_USE_TASK)
-		return 1;
-
-	/* Special handling for sysfs. Is genfs but also has setxattr handler*/
-	if (strncmp(sb->s_type->name, "sysfs", sizeof("sysfs")) == 0)
-		return 1;
-
-	/*
-	 * Special handling for rootfs. Is genfs but supports
-	 * setting SELinux context on in-core inodes.
-	 */
-	if (strncmp(sb->s_type->name, "rootfs", sizeof("rootfs")) == 0)
-		return 1;
-
-	return 0;
+	return sbsec->behavior == SECURITY_FS_USE_XATTR ||
+		sbsec->behavior == SECURITY_FS_USE_TRANS ||
+		sbsec->behavior == SECURITY_FS_USE_TASK ||
+		/* Special handling. Genfs but also in-core setxattr handler */
+		!strcmp(sb->s_type->name, "sysfs") ||
+		!strcmp(sb->s_type->name, "pstore") ||
+		!strcmp(sb->s_type->name, "debugfs") ||
+		!strcmp(sb->s_type->name, "rootfs");
 }
 
 static int sb_finish_set_opts(struct super_block *sb)
@@ -2831,6 +2822,7 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 
 static noinline int audit_inode_permission(struct inode *inode,
 					   u32 perms, u32 audited, u32 denied,
+					   int result,
 					   unsigned flags)
 {
 	struct common_audit_data ad;
@@ -2841,7 +2833,7 @@ static noinline int audit_inode_permission(struct inode *inode,
 	ad.u.inode = inode;
 
 	rc = slow_avc_audit(current_sid(), isec->sid, isec->sclass, perms,
-			    audited, denied, &ad, flags);
+			    audited, denied, result, &ad, flags);
 	if (rc)
 		return rc;
 	return 0;
@@ -2883,7 +2875,7 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	if (likely(!audited))
 		return rc;
 
-	rc2 = audit_inode_permission(inode, perms, audited, denied, flags);
+	rc2 = audit_inode_permission(inode, perms, audited, denied, rc, flags);
 	if (rc2)
 		return rc2;
 	return rc;

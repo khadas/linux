@@ -662,10 +662,17 @@ static ssize_t acc_write(struct file *fp, const char __user *buf,
 			break;
 		}
 
-		if (count > BULK_BUFFER_SIZE)
+		if (count > BULK_BUFFER_SIZE) {
 			xfer = BULK_BUFFER_SIZE;
-		else
+			/* ZLP, They will be more TX requests so not yet. */
+			req->zero = 0;
+		} else {
 			xfer = count;
+			/* If the data length is a multple of the
+			 * maxpacket size then send a zero length packet(ZLP).
+			*/
+			req->zero = ((xfer % dev->ep_in->maxpacket) == 0);
+		}
 		if (copy_from_user(req->buf, buf, xfer)) {
 			r = -EFAULT;
 			break;
@@ -1193,7 +1200,8 @@ err:
 static void acc_disconnect(void)
 {
 	/* unregister all HID devices if USB is disconnected */
-	kill_all_hid_devices(_acc_dev);
+	if (_acc_dev)
+		kill_all_hid_devices(_acc_dev);
 }
 
 static void acc_cleanup(void)

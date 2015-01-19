@@ -43,6 +43,7 @@
 #include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/mempolicy.h>
+#include <linux/sched.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -1920,7 +1921,7 @@ static int prctl_set_vma_anon_name(unsigned long start, unsigned long end,
 			tmp = end;
 
 		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-		error = prctl_update_vma_anon_name(vma, &prev, start, end,
+		error = prctl_update_vma_anon_name(vma, &prev, start, tmp,
 				(const char __user *)arg);
 		if (error)
 			return error;
@@ -1986,6 +1987,7 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		unsigned long, arg4, unsigned long, arg5)
 {
 	struct task_struct *me = current;
+	struct task_struct *tsk;
 	unsigned char comm[sizeof(me->comm)];
 	long error;
 
@@ -2128,6 +2130,26 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	case PR_GET_TID_ADDRESS:
 		error = prctl_get_tid_address(me, (int __user **)arg2);
 		break;
+	case PR_SET_TIMERSLACK_PID:
+		if (task_pid_vnr(current) != (pid_t)arg3 &&
+				!capable(CAP_SYS_NICE))
+			return -EPERM;
+		rcu_read_lock();
+		tsk = find_task_by_vpid((pid_t)arg3);
+		if (tsk == NULL) {
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+		get_task_struct(tsk);
+		rcu_read_unlock();
+		if (arg2 <= 0)
+			tsk->timer_slack_ns =
+				tsk->default_timer_slack_ns;
+		else
+			tsk->timer_slack_ns = arg2;
+		put_task_struct(tsk);
+		error = 0;
+		break;
 	case PR_SET_CHILD_SUBREAPER:
 		me->signal->is_child_subreaper = !!arg2;
 		break;
@@ -2139,12 +2161,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		if (arg2 != 1 || arg3 || arg4 || arg5)
 			return -EINVAL;
 
-		current->no_new_privs = 1;
+		task_set_no_new_privs(current);
 		break;
 	case PR_GET_NO_NEW_PRIVS:
 		if (arg2 || arg3 || arg4 || arg5)
 			return -EINVAL;
-		return current->no_new_privs ? 1 : 0;
+		return task_no_new_privs(current) ? 1 : 0;
 	case PR_SET_VMA:
 		error = prctl_set_vma(arg2, arg3, arg4, arg5);
 		break;
