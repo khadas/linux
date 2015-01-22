@@ -19,3 +19,5 @@ obj-y +=gpio/
 obj-y +=pinctrl/
 
 obj-y +=clk/
+
+obj-y +=i2c/

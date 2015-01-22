@@ -60,3 +60,22 @@
 &uart_AO {
 	status="okay";
 };
+
+&i2c_ao {
+  status = "okay";
+};
+
+&i2c_a {
+  status = "okay";
+};
+
+&i2c_b {
+  status = "okay";
+};
+
+&i2c_c {
+  status = "okay";
+};
+&i2c_d {
+  status = "okay";
+};

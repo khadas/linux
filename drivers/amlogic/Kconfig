@@ -16,4 +16,7 @@ source "drivers/amlogic/cpu_version/Kconfig"
 source "drivers/amlogic/gpio/Kconfig"
 
 source "drivers/amlogic/pinctrl/Kconfig"
+
+source "drivers/amlogic/i2c/Kconfig"
+
 endmenu

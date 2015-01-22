@@ -11,6 +11,10 @@
 #include "clk-pll.h"
 
 #define CLK_GATE_BASE 0x100B
+#define CLK_GATE_1050 0x1050
+#define CLK_GATE_1051 0x1051
+#define CLK_GATE_1052 0x1052
+#define CLK_GATE_1054 0x1054
 #define CLK_GATE_AO_BASE 0xc8100000
 #define OFFSET(x) (((x) - CLK_GATE_BASE)*4) /*(x -0x100B)*4 */
 
@@ -88,6 +92,16 @@ static struct amlogic_gate_clock meson8_periph_gate_clks[] __initdata = {
 /*uart*/
 	GATE(CLK_UART_AO, "uart_ao", "clk81_m_3",
 		OFFSET_AO(AO_RTI_GEN_CTNL_REG0), 3, 0, 0, 1),
+	GATE(CLK_I2C_AO, "i2c_ao", "clk81_m_3",
+		OFFSET_AO(AO_RTI_GEN_CTNL_REG0), 1, 0, 0, 1),
+	GATE(CLK_I2C_A, "i2c_a", "clk81_m_3",
+		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
+	GATE(CLK_I2C_B, "i2c_b", "clk81_m_3",
+		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
+	GATE(CLK_I2C_C, "i2c_c", "clk81_m_3",
+		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
+	GATE(CLK_I2C_D, "i2c_d", "clk81_m_3",
+		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
 };
 
 static  struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
@@ -192,7 +206,8 @@ static struct amlogic_pll_clock meson8m2_plls[] __initdata = {
 /*	[ddr_pll] = PLL(pll_1500, CLK_DDR_PLL, "ddr_pll", "xtal", DDRPLL_LOCK,
 		DDRPLL_CON0, NULL),*/
 static struct amlogic_clk_branch meson8m2_clk_branches[] __initdata = {
-	COMPOSITE(CLK_HDMI_SYS, "hdmi_sys_clk", mux_hdmi_sys_p, CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(CLK_HDMI_SYS, "hdmi_sys_clk", mux_hdmi_sys_p,
+		CLK_SET_RATE_NO_REPARENT,
 		OFFSET(HHI_HDMI_CLK_CNTL), 9, 2, 0,
 		OFFSET(HHI_HDMI_CLK_CNTL), 0, 6, 0,
 		OFFSET(HHI_HDMI_CLK_CNTL), 8, 0),

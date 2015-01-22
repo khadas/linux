@@ -114,6 +114,32 @@
 			amlogic,setmask=<10 0x185a>;
 			amlogic,pins="GPIOAO_0", "GPIOAO_1";
 		};
+		ao_i2c_master:ao_i2c{
+			amlogic,setmask=<10 0x60>;
+			amlogic,clrmask=<10 0x1800006>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
+		a_i2c_master:a_i2c{
+			//amlogic,setmask=<5 0xc0000000>;
+			//amlogic,clrmask=<9 0x58000 7 3000000>;
+			//amlogic,pins="GPIOZ_0","GPIOZ_1";
+
+			//amlogic,setmask=<5 0x300>;
+			//amlogic,clrmask=<6 0x900 8 11000>;
+			//amlogic,pins="GPIOZ_9","GPIOZ_10";
+
+			amlogic,setmask=<5 0xc0>;
+			amlogic,clrmask=<6 0xc0 8 0xc000>;
+			amlogic,pins="GPIOZ_11","GPIOZ_12";
+		};
+		b_i2c_master:b_i2c{
+			amlogic,setmask=<5 0xc000000>;
+			amlogic,pins="GPIOZ_2","GPIOZ_3";
+		};
+		d_i2c_master:d_i2c{
+			amlogic,setmask=<4 0xc>;
+			amlogic,pins="GPIOH_7","GPIOH_8";
+		};
 	};
 	gpio:gpio{
 		compatible = "amlogic,m8-gpio";
@@ -129,4 +155,23 @@
 	clocks = <&clock CLK_UART_AO>;
 	clock-names = "clk_uart";
 };
-
+&i2c_ao {
+	clocks = <&clock CLK_I2C_AO>;
+	clock-names = "clk_i2c";
+};
+&i2c_a {
+	clocks = <&clock CLK_I2C_A>;
+	clock-names = "clk_i2c";
+};
+&i2c_b {
+	clocks = <&clock CLK_I2C_B>;
+	clock-names = "clk_i2c";
+};
+&i2c_c {
+	clocks = <&clock CLK_I2C_C>;
+	clock-names = "clk_i2c";
+};
+&i2c_d {
+	clocks = <&clock CLK_I2C_D>;
+	clock-names = "clk_i2c";
+};
