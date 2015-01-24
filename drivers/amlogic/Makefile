@@ -13,3 +13,7 @@ obj-y +=clocksource/
 obj-y +=uart/
 
 obj-y +=cpu_version/
+
+obj-y +=gpio/
+
+obj-y +=pinctrl/
