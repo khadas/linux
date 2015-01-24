@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ * Device Tree binding constants for Meson8 clock controller.
 */
 
 #ifndef _DT_BINDINGS_CLOCK_MESON_8_H
