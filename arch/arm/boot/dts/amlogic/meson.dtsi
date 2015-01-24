@@ -50,7 +50,7 @@
 		pinctrl-0 = <&ao_uart_pins>;
 		status = "disabled";
 	};
-     cpu_version{
+	cpu_version{
 		reg=<0xc1107d4c 4
 			0xd9040000 4
 			0xc11081a8 4>;

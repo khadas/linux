@@ -434,4 +434,17 @@ void amlogic_clk_register_branches(struct amlogic_clk_branch *clk_list,
 				    unsigned int nr_clk);
 
 extern unsigned long _get_rate(const char *clk_name);
+#ifdef CONFIG_RESET_CONTROLLER
+void meson_register_rstc(struct device_node *np, unsigned int num_regs,
+			 void __iomem *ao_base, void __iomem *ot_base,
+			 unsigned int ao_off_id, u8 flags);
+#else
+static inline void meson_register_rstc(struct device_node *np,
+				       unsigned int num_regs,
+				       void __iomem *ao_base,
+				       void __iomem *ot_base,
+				       unsigned int ao_off_id, u8 flags)
+{
+}
+#endif
 #endif /* __AMLOGIC_CLK_H */

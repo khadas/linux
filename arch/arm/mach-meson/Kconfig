@@ -18,3 +18,4 @@ menuconfig ARCH_MESON
 	select HAVE_ARM_SCU
 	select SPARSE_IRQ
 	select COMMON_CLK
+	select ARCH_HAS_RESET_CONTROLLER

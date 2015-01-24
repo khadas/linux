@@ -320,6 +320,7 @@ void __init amlogic_clk_init(struct device_node *np, void __iomem *base,
 	clk_data.clk_num = nr_clks;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 #endif
+
 }
 
 /*

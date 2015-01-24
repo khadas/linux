@@ -17,7 +17,8 @@
 #define AO_RTI_GEN_CTNL_REG0 0xc8100040
 #define OFFSET_AO(x) (((x) - CLK_GATE_AO_BASE)*4)
 void __iomem *reg_base_cbus, *reg_base_aobus;
-
+#define MESON8_RSTC_N_REGS	6
+#define MESON8_AO_OFF		((MESON8_RSTC_N_REGS - 1) * BITS_PER_LONG + 3)
 /* list of PLLs */
 enum meson8m2_plls {
 	fixed_pll, sys_pll, vid_pll, g_pll, hdmi_pll,
@@ -234,6 +235,8 @@ static void __init meson8_clk_init(struct device_node *np)
 			ARRAY_SIZE(meson8_periph_gate_clks));
 	amlogic_clk_register_branches(meson8m2_clk_branches,
 				  ARRAY_SIZE(meson8m2_clk_branches));
+	meson_register_rstc(np, MESON8_RSTC_N_REGS, reg_base_aobus,
+		reg_base_cbus + OFFSET(0x1050), MESON8_AO_OFF, 0);
 
 	{
 		/* Dump clocks */
