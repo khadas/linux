@@ -11,3 +11,5 @@
 obj-y +=clocksource/
 
 obj-y +=uart/
+
+obj-y +=cpu_version/

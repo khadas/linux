@@ -1,0 +1,5 @@
+config AML_CPU_VERSION
+    bool "Amlogic cpu version support"
+    default y
+    help
+      This is the Amlogic CPU version interface driver
