@@ -1,0 +1,46 @@
+/dts-v1/;
+/include/ "meson8.dtsi"
+/{
+	amlogic-dt-id = "m8m2_n200_2G";
+	compatible = "AMLOGIC,mesonX";
+	model = "AMLOGIC";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	aliases {
+		serial0 = &uart_AO;
+	};
+
+	memory{
+		device_type = "memory";
+		linux,total-memory = <0x80000000>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        cma_0:region@0 {
+           region_name = "cma_0";
+           reg = <0 0x02400000>;
+           linux,contiguous-region;
+        };
+	};
+
+
+    	psci {
+		compatible = "arm,psci";
+		method = "firmware";
+		cpu_suspend = <0xC4000001>;
+		cpu_off = <0x84000002>;
+		cpu_on = <0x84000003>;
+		migrate = <0xC4000005>;
+		reg=<0xc4300000 0x4000
+			0xc110419c 0x4
+			0xc81000e4 0x4
+			0xc81000e0 0x4
+			0xd9000000 0x20000
+			0xc4300000 0x4000>;
+	};
+
+}; /* end of / */
+&uart_AO {
+	status="okay";
+};

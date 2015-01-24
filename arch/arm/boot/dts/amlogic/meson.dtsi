@@ -1,0 +1,52 @@
+
+
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+
+	L2:  cache-controller {
+          compatible = "arm,meson-pl310-cache";
+          reg = <0xc4200000 0x1000>;
+          arm,data-latency = <3 3 3>;
+          arm,tag-latency = <2 2 2>;
+          arm,filter-ranges = <0x100000 0xc0000000>;
+          cache-unified;
+          cache-level = <2>;
+          aux-instruction_prefetch;
+          aux-data_prefetch;
+          aux-ns_lockdown;
+          aux-force_no_write_alloc;
+          aux-cache_replace_policy_round_robin;
+          aux-early_write_response;
+          aux-full_line_of_zero;
+          aux-ns_int_ctrl;
+          aux-share_override;
+          prefetch-double_line_fill;
+          prefetch-prefetch_drop;
+          prefetch-prefetch_offset = <7>;
+    };
+
+	gic: interrupt-controller@c4301000 {
+		compatible = "arm,cortex-a9-gic";
+		reg = <0xc4301000 0x1000>,
+		      <0xc4300100 0x0100>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+	};
+
+	uart_AO: serial@c81004c0 {
+		compatible = "amlogic,meson-uart";
+		reg = <0xc81004c0 0x14>;
+		interrupts = <0 90 1>;
+		// clocks = <&clk81>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ao_uart_pins>;
+		status = "disabled";
+	};
+     cpu_version{
+		reg=<0xc1107d4c 4
+			0xd9040000 4
+			0xc11081a8 4>;
+	};
+}; /* end of / */

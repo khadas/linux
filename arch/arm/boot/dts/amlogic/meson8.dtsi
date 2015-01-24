@@ -1,0 +1,115 @@
+
+
+/include/ "meson.dtsi"
+
+/ {
+	model = "Amlogic Meson8 SoC";
+	compatible = "amlogic,meson8";
+
+	interrupt-parent = <&gic>;
+
+	  cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cpu@0 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x200>;
+        	timer=<&timer_f>;
+        };
+        cpu@1 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x1>;
+        	timer=<&timer_g>;
+        };
+        cpu@2 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x2>;
+        	timer=<&timer_h>;
+        };
+        cpu@3 {
+        	device_type = "cpu";
+        	compatible = "arm,cortex-a9";
+        	reg = <0x3>;
+        	timer=<&timer_i>;
+        };
+    };
+
+	timer{
+		compatible = "arm,meson-timer";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		reg=   <0xc1109990 4 0xc1109954 4>;
+		timer_f:timer-f{
+			timer_name="MESON TIMER-F";
+			clockevent-rating=<300>;
+			clockevent-shift=<20>;
+			clockevent-features=<0x03>;
+			interrupts = <0 60 0>;
+			bit_enable=<16>;
+			bit_mode=<12>;
+			bit_resolution=<0>;
+			reg=   <0xc1109994 4>;
+		};
+		timer_g:timer-g{
+			timer_name="MESON TIMER-G";
+			clockevent-rating=<300>;
+			clockevent-shift=<20>;
+			clockevent-features=<0x03>;
+			interrupts = <0 61 0>;
+			bit_enable=<17>;
+			bit_mode=<13>;
+			bit_resolution=<2>;
+			reg=<0xc1109998 4>;
+		};
+		timer_h:timer-h{
+			timer_name="MESON TIMER-H";
+			clockevent-rating=<300>;
+			clockevent-shift=<20>;
+			clockevent-features=<0x03>;
+			interrupts = <0 62 0>;
+			bit_enable=<18>;
+			bit_mode=<14>;
+			bit_resolution=<4>;
+			reg=<0xc110999c 4>;
+		};
+		timer_i:timer-i{
+			timer_name="MESON TIMER-I";
+			clockevent-rating=<300>;
+			clockevent-shift=<20>;
+			clockevent-features=<0x03>;
+			interrupts = <0 63 0>;
+			bit_enable=<19>;
+			bit_mode=<15>;
+			bit_resolution=<6>;
+			reg=<0xc11099a0 4>;
+		};
+	};
+	pinmux{
+		compatible = "amlogic,pinmux-m8";
+		dev_name = "pinmux";
+		#pinmux-cells=<2>;
+		reg=<0xc11080b0 40
+			0xc8100014 4
+			0xc11080e8 20
+			0xc1108120 20
+			0xc810002c 4>;
+		ao_uart_pins:ao_uart{
+			amlogic,setmask=<10 0x185a>;
+			amlogic,pins="GPIOAO_0", "GPIOAO_1";
+		};
+	};
+	gpio:gpio{
+		compatible = "amlogic,m8-gpio";
+		dev_name = "gpio";
+		#gpio-cells=<2>;
+		reg=<0xc1108030 48
+			0xc8100024 8
+			0xda000000 4
+			0xc1109880 16>;
+	};
+}; /* end of / */

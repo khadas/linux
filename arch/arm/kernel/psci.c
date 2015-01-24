@@ -17,17 +17,46 @@
 
 #include <linux/init.h>
 #include <linux/of.h>
-
 #include <asm/compiler.h>
 #include <asm/errno.h>
 #include <asm/opcodes-sec.h>
 #include <asm/opcodes-virt.h>
 #include <asm/psci.h>
-
+#include <linux/of_address.h>
+#include <linux/delay.h>
+#include <asm/smp_scu.h>
+#include <linux/io.h>
 struct psci_operations psci_ops;
+static inline void aml_set_reg32_mask(void __iomem *_reg, const uint32_t _mask)
+{
+	uint32_t _val;
+
+	_val = readl_relaxed(_reg) | _mask;
+
+	writel_relaxed(_val , _reg);
+}
+
+static inline void aml_write_reg32(void __iomem *_reg, const uint32_t _value)
+{
+	writel_relaxed(_value, _reg);
+}
+
+static inline void aml_clr_reg32_mask(void __iomem *_reg, const uint32_t _mask)
+{
+	writel_relaxed((readl_relaxed(_reg) & (~(_mask))), _reg);
+}
+
+static inline void
+aml_set_reg32_bits(void __iomem *_reg, uint32_t _value,
+uint32_t _start, uint32_t _len)
+{
+	writel_relaxed(((readl_relaxed(_reg) &
+					 ~(((1L << (_len))-1) << (_start)))
+					| ((unsigned)((_value)&((1L<<(_len))-1))
+					   << (_start))), _reg);
+}
 
 static int (*invoke_psci_fn)(u32, u32, u32, u32);
-
 enum psci_function {
 	PSCI_FN_CPU_SUSPEND,
 	PSCI_FN_CPU_ON,
@@ -43,6 +72,7 @@ static u32 psci_function_id[PSCI_FN_MAX];
 #define PSCI_RET_EINVAL			-2
 #define PSCI_RET_EPERM			-3
 #define PSCI_RET_EALREADYON		-4
+static DEFINE_SPINLOCK(clockfw_lock);
 
 static int psci_to_linux_errno(int errno)
 {
@@ -113,6 +143,166 @@ static noinline int __invoke_psci_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 	return function_id;
 }
 
+#define PSCI_VERSION			0x84000000
+#define PSCI_CPU_SUSPEND_AARCH32	0x84000001
+#define PSCI_CPU_OFF			0x84000002
+#define PSCI_CPU_ON_AARCH32		0x84000003
+#define PSCI_AFFINITY_INFO_AARCH32	0x84000004
+#define PSCI_MIG_AARCH32		0x84000005
+#define PSCI_MIG_INFO_TYPE		0x84000006
+#define PSCI_MIG_INFO_UP_CPU_AARCH32	0x84000007
+#define PSCI_SYSTEM_OFF			0x84000008
+#define PSCI_SYSTEM_RESET		0x84000009
+void __iomem *meson_cpu_power_ctrl;
+void __iomem *sys_cpu_clk_ctrl;
+void __iomem *rti_pwr_a9_ctrl1;
+void __iomem *rti_pwr_a9_ctrl0;
+void __iomem *meson_cpu_ctrl_reg;
+void __iomem *meson_cpu1_ctrl_addr_reg;
+void __iomem *io_peri_base;
+static void meson_set_cpu_power_ctrl(uint32_t cpu, int is_power_on)
+{
+	BUG_ON(cpu == 0);
+
+	if (is_power_on) {
+		/* SCU Power on CPU */
+		aml_set_reg32_bits(meson_cpu_power_ctrl + 0x8,
+						   0x0 , (cpu << 3), 2);
+
+#ifndef CONFIG_MESON_CPU_EMULATOR
+		/* Reset enable*/
+		aml_set_reg32_bits(sys_cpu_clk_ctrl, 1 , (cpu + 24), 1);
+		/* Power on*/
+		aml_set_reg32_bits(rti_pwr_a9_ctrl1, 0x0, ((cpu + 1) << 1), 2);
+		udelay(10);
+		/* Isolation disable */
+		aml_set_reg32_bits(rti_pwr_a9_ctrl0, 0x0, cpu, 1);
+		/* Reset disable */
+		aml_set_reg32_bits(sys_cpu_clk_ctrl, 0 , (cpu + 24), 1);
+#endif
+	} else{
+		aml_set_reg32_bits(meson_cpu_power_ctrl + 0x8,
+						   0x3, (cpu << 3), 2);
+
+#ifndef CONFIG_MESON_CPU_EMULATOR
+		/* Isolation enable */
+		aml_set_reg32_bits(rti_pwr_a9_ctrl0, 0x1, cpu, 1);
+		udelay(10);
+		/* Power off */
+		aml_set_reg32_bits(rti_pwr_a9_ctrl1, 0x3, ((cpu + 1) << 1), 2);
+#endif
+	}
+	dsb();
+	/* add comment*/
+	dmb();
+
+	/* pr_debug("----CPU %d\n",cpu); */
+	/* pr_debug("----MESON_CPU_POWER_CTRL_REG(%08x) = %08x\n", \
+	 MESON_CPU_POWER_CTRL_REG,aml_read_reg32(MESON_CPU_POWER_CTRL_REG)); */
+	/* pr_debug("----P_AO_RTI_PWR_A9_CNTL0(%08x)    = %08x\n", \
+	 P_AO_RTI_PWR_A9_CNTL0,aml_read_reg32(P_AO_RTI_PWR_A9_CNTL0)); */
+	/* pr_debug("----P_AO_RTI_PWR_A9_CNTL1(%08x)    = %08x\n", \
+	 P_AO_RTI_PWR_A9_CNTL1,aml_read_reg32(P_AO_RTI_PWR_A9_CNTL1)); */
+
+}
+
+static void meson_set_cpu_ctrl_reg(int cpu, int is_on)
+{
+	spin_lock(&clockfw_lock);
+	aml_set_reg32_bits(meson_cpu_ctrl_reg + 0x1ff80,
+					   is_on, cpu, 1);
+	aml_set_reg32_bits(meson_cpu_ctrl_reg + 0x1ff80, 1, 0, 1);
+
+	spin_unlock(&clockfw_lock);
+}
+
+static void meson_set_cpu_ctrl_addr(uint32_t cpu, const uint32_t addr)
+{
+	spin_lock(&clockfw_lock);
+
+	aml_write_reg32(((meson_cpu_ctrl_reg + 0x1ff84) + ((cpu-1) << 2)),
+					addr);
+
+	spin_unlock(&clockfw_lock);
+}
+static int meson_get_cpu_ctrl_addr(int cpu)
+{
+	return readl_relaxed((meson_cpu_ctrl_reg + 0x1ff84) + ((cpu-1) << 2));
+
+}
+
+static DEFINE_SPINLOCK(boot_lock);
+static int aml_psci_cpu_on(u32 cpu, unsigned long entry_point, u32 arg2)
+{
+		unsigned long timeout;
+		/*
+		* Set synchronisation state between this boot processor
+		* and the secondary one
+		*/
+		scu_enable((void __iomem *) io_peri_base);
+		spin_lock(&boot_lock);
+
+	/* check_and_rewrite_cpu_entry(); */
+		meson_set_cpu_ctrl_addr(cpu, (const uint32_t)entry_point);
+		meson_set_cpu_power_ctrl(cpu, 1);
+		timeout = jiffies + (10 * HZ);
+		while (meson_get_cpu_ctrl_addr(cpu)) {
+			if (!time_before(jiffies, timeout))
+				return -EPERM;
+		}
+
+		meson_set_cpu_ctrl_addr(cpu, (const uint32_t)entry_point);
+		meson_set_cpu_ctrl_reg(cpu, 1);
+		smp_wmb();
+		mb();
+
+		dsb_sev();
+
+		/*
+		 * now the secondary core is starting up let it run its
+		 * calibrations, then wait for it to finish
+		 */
+		spin_unlock(&boot_lock);
+		return 0;
+
+}
+
+static noinline int
+__invoke_psci_fn_firmware(u32 function_id, u32 arg0, u32 arg1, u32 arg2)
+{
+#if 0
+	static int test_flag;
+	unsigned p_addr;
+	unsigned addr;
+	unsigned long flag;
+	void (*pwrtest_entry)(unsigned, unsigned, unsigned, unsigned);
+	 addr = 0x04F04400;
+	spin_lock_irqsave(&boot_lock, flag);
+	p_addr = (unsigned)__phys_to_virt(addr);
+	pwrtest_entry =
+		(void (*)(unsigned, unsigned, unsigned, unsigned))p_addr;
+	if (test_flag != 1234) {
+		test_flag = 1234;
+		pwrtest_entry(0, 0, 0, IO_PL310_BASE & 0xffff0000);
+	}
+	pwrtest_entry(function_id, arg0, arg1, IO_PL310_BASE & 0xffff0000);
+	spin_unlock_irqrestore(&boot_lock, flag);
+#else
+	int ret =  -1;
+	pr_info("using fake psci\n");
+	switch (function_id) {
+	case PSCI_CPU_ON_AARCH32:
+		ret = aml_psci_cpu_on(arg0,  arg1, arg2);
+		break;
+	case PSCI_CPU_OFF:
+		break;
+	}
+	 return ret;
+#endif
+	return 0;
+
+}
+
 static int psci_cpu_suspend(struct psci_power_state state,
 			    unsigned long entry_point)
 {
@@ -135,12 +325,21 @@ static int psci_cpu_off(struct psci_power_state state)
 	err = invoke_psci_fn(fn, power_state, 0, 0);
 	return psci_to_linux_errno(err);
 }
-
+static struct device_node *NP;
+static int flag;
 static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
 {
 	int err;
 	u32 fn;
-
+	if (!flag) {
+		meson_cpu_power_ctrl = of_iomap(NP, 0);
+		sys_cpu_clk_ctrl = of_iomap(NP, 1);
+		rti_pwr_a9_ctrl1 = of_iomap(NP, 2);
+		rti_pwr_a9_ctrl0 = of_iomap(NP, 3);
+		meson_cpu_ctrl_reg = of_iomap(NP, 4);
+		io_peri_base = of_iomap(NP, 5);
+		flag = 1;
+	}
 	fn = psci_function_id[PSCI_FN_CPU_ON];
 	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
 	return psci_to_linux_errno(err);
@@ -170,11 +369,11 @@ void __init psci_init(void)
 	np = of_find_matching_node(NULL, psci_of_match);
 	if (!np)
 		return;
-
+	NP = np;
 	pr_info("probing function IDs from device-tree\n");
 
 	if (of_property_read_string(np, "method", &method)) {
-		pr_warning("missing \"method\" property\n");
+		pr_warn("missing \"method\" property\n");
 		goto out_put_node;
 	}
 
@@ -182,8 +381,10 @@ void __init psci_init(void)
 		invoke_psci_fn = __invoke_psci_fn_hvc;
 	} else if (!strcmp("smc", method)) {
 		invoke_psci_fn = __invoke_psci_fn_smc;
+	} else if (!strcmp("firmware", method)) {
+		invoke_psci_fn = __invoke_psci_fn_firmware;
 	} else {
-		pr_warning("invalid \"method\" property: %s\n", method);
+		pr_warn("invalid \"method\" property: %s\n", method);
 		goto out_put_node;
 	}
 

@@ -95,3 +95,5 @@ winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
 xlnx	Xilinx
+AMLOGIC Amlogic, Inc
+amlogic Amlogic, Inc

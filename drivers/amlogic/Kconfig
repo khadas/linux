@@ -1,0 +1,11 @@
+#
+# Amlogic driver configuration
+#
+menu "Amlogic Device Drivers"
+#
+#	Char devices
+#
+comment "meson timer driver"
+
+source "drivers/amlogic/clocksource/Kconfig"
+endmenu

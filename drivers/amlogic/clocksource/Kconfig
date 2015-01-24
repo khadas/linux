@@ -1,0 +1,6 @@
+config MESON_TIMER
+	bool "meson timer support"
+	def_bool y
+	select CLKSRC_OF if OF
+	help
+	  This is a new clocksource driver for amlogic timer
