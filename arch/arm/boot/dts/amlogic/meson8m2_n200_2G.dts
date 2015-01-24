@@ -23,7 +23,19 @@
            linux,contiguous-region;
         };
 	};
-
+	reserved-memory { 
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma { 
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x4000000>;
+			alignment = <0x2000>;
+			linux,cma-default; 
+		};
+	};
 
     	psci {
 		compatible = "arm,psci";
