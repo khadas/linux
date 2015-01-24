@@ -1,5 +1,6 @@
 #include "meson.dtsi"
 #include <dt-bindings/clock/meson8.h>
+#include <dt-bindings/reset/aml_meson8m2_gate.h>
 / {
 	model = "Amlogic Meson8 SoC";
 	compatible = "amlogic,meson8";
