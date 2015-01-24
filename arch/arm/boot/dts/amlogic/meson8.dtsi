@@ -1,6 +1,4 @@
-
-
-/include/ "meson.dtsi"
+#include "meson.dtsi"
 
 / {
 	model = "Amlogic Meson8 SoC";
@@ -88,6 +86,12 @@
 			bit_resolution=<6>;
 			reg=<0xc11099a0 4>;
 		};
+	};
+  clock: meson_clock {
+	      compatible = "amlogic,meson8m2-clock";
+	      reg = <0xc110402C 0x1000>,   //0x100B  0x1050:0xc1104140 - 0x10ea  0x268 ?
+		          <0xc8100000 0x1000>;   //AOBUS
+        #clock-cells = <1>;
 	};
 	pinmux{
 		compatible = "amlogic,pinmux-m8";

@@ -28,6 +28,9 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
+#include <linux/clk-private.h>
+#include <linux/clk-provider.h>
+
 /* Register offsets */
 #define AML_UART_WFIFO			0x00
 #define AML_UART_RFIFO			0x04
@@ -520,6 +523,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem, *res_irq;
 	struct uart_port *port;
+	struct clk *clk;
 	int ret = 0;
 
 	if (pdev->dev.of_node)
@@ -545,8 +549,20 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (!port)
 		return -ENOMEM;
 
+	clk = clk_get(&pdev->dev, "clk_uart");
+	if (IS_ERR(clk)) {
+		pr_err("%s: clock not found\n",
+		dev_name(&pdev->dev));
+	return PTR_ERR(clk);
+	}
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_err("uart: clock failed to prepare+enable: %d\n", ret);
+		clk_put(clk);
+		return ret;
+	}
 
-	port->uartclk = 141666666;
+	port->uartclk = clk->rate;
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
 	port->irq = res_irq->start;

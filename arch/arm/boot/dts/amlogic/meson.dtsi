@@ -1,6 +1,5 @@
-
-
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+#include <dt-bindings/clock/meson8.h>
 
 / {
 	interrupt-parent = <&gic>;
@@ -39,7 +38,8 @@
 		compatible = "amlogic,meson-uart";
 		reg = <0xc81004c0 0x14>;
 		interrupts = <0 90 1>;
-		// clocks = <&clk81>;
+		clocks = <&clock CLK_UART_AO>;
+		clock-names = "clk_uart";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ao_uart_pins>;
 		status = "disabled";

@@ -1,0 +1,137 @@
+/*
+ * Copyright (c) 2013 Amlogic, Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Common Clock Framework support for all PLL's in Amlogic platforms
+*/
+
+#ifndef __AMLOGIC_CLK_PLL_H
+#define __AMLOGIC_CLK_PLL_H
+
+enum amlogic_pll_type {
+	pll_1500,
+	pll_2500,
+	pll_2550,
+	pll_3000,
+};
+
+/* NOTE: Rate table should be kept sorted in descending order. */
+
+struct amlogic_pll_rate_table {
+	unsigned int rate;
+	unsigned int m;         /* aml */
+	unsigned int n;         /* aml */
+	unsigned int od;        /* aml */
+	unsigned int ext_div_n; /* aml */
+	unsigned int afc_dsel_bp_en; /* aml */
+	unsigned int afc_dsel_bp_in; /* aml */
+};
+
+
+#define PLL_2500_RATE(_rate, _m, _n, _od, _ext_div_n, _afc_dsel_bp_en, \
+		_afc_dsel_bp_in)  \
+	{							\
+		.rate	=	(_rate),				\
+		.m    = (_m),           \
+		.n    = (_n),           \
+		.od   = (_od),          \
+		.ext_div_n = (_ext_div_n), \
+		.afc_dsel_bp_en = (_afc_dsel_bp_en), \
+		.afc_dsel_bp_in = (_afc_dsel_bp_in), \
+	}
+
+struct amlogic_clk_pll {
+	struct clk_hw		hw;
+	void __iomem		*lock_reg;
+	void __iomem		*con_reg;
+	enum amlogic_pll_type	type;
+	unsigned int		rate_count;
+	struct amlogic_pll_rate_table *rate_table;
+};
+
+#define HHI_GCLK_MPEG0    0x1050
+#define HHI_GCLK_MPEG1    0x1051
+#define HHI_GCLK_MPEG2    0x1052
+#define HHI_GCLK_OTHER    0x1054
+#define HHI_GCLK_AO       0x1055
+
+#define HHI_VID_CLK_DIV   0x1059
+#define HHI_MPEG_CLK_CNTL 0x105d
+#define HHI_AUD_CLK_CNTL  0x105e
+#define HHI_VID_CLK_CNTL  0x105f
+#define HHI_AUD_CLK_CNTL2 0x1064
+/*cpu registers*/
+#define HHI_SYS_CPU_CLK_CNTL1 0x1057
+#define HHI_SYS_CPU_CLK_CNTL 0x1067
+
+/*fixed pll registers*/
+#define HHI_MPLL_CNTL  0x10a0
+#define HHI_MPLL_CNTL2 0x10a1
+#define HHI_MPLL_CNTL3 0x10a2
+#define HHI_MPLL_CNTL4 0x10a3
+#define HHI_MPLL_CNTL5 0x10a4
+#define HHI_MPLL_CNTL6 0x10a5
+#define HHI_MPLL_CNTL7 0x10a6
+#define HHI_MPLL_CNTL8 0x10a7
+#define HHI_MPLL_CNTL9 0x10a8
+#define HHI_MPLL_CNTL10 0x10a9
+/*sys pll registers*/
+#define HHI_SYS_PLL_CNTL 0x10c0
+#define HHI_SYS_PLL_CNTL2 0x10c1
+#define HHI_SYS_PLL_CNTL3 0x10c2
+#define HHI_SYS_PLL_CNTL4 0x10c3
+#define HHI_SYS_PLL_CNTL5 0x10c4
+/*ddr pll register */
+
+#define HHI_DPLL_TOP_0 0x10c6
+#define HHI_DPLL_TOP_1 0x10c7
+/*vid pll registers*/
+#define HHI_VID_PLL_CNTL 0x10c8
+#define HHI_VID_PLL_CNTL2 0x10c9
+#define HHI_VID_PLL_CNTL3 0x10ca
+#define HHI_VID_PLL_CNTL4 0x10cb
+#define HHI_VID_PLL_CNTL5 0x10cc
+#define HHI_VID_PLL_CNTL6 0x10cd
+/*gpll registers*/
+#define HHI_GP_PLL_CNTL 0x1010
+#define HHI_GP_PLL_CNTL2 0x1011
+#define HHI_GP_PLL_CNTL3 0x1012
+#define HHI_GP_PLL_CNTL4 0x1013
+#define HHI_GP_PLL_CNTL5 0x1014
+/*hdmi pll registers*/
+#define HHI_HDMI_PLL_CNTL 0x107c
+#define HHI_HDMI_PLL_CNTL1 0x107d
+#define HHI_HDMI_PLL_CNTL2 0x107e
+
+
+/*FIXED PLL/Multi-phase PLL */
+#define M8_MPLL_CNTL     (0xc00009a9)
+#define M8_MPLL_CNTL_2 (0xadc80000)
+#define M8_MPLL_CNTL_3 (0x0a57ca21)
+#define M8_MPLL_CNTL_4 (0x00010006)
+#define M8_MPLL_CNTL_5 (0xa5500e1a)
+#define M8_MPLL_CNTL_6 (0xf4454545)
+#define M8_MPLL_CNTL_7 (0x00000000)
+#define M8_MPLL_CNTL_8 (0x00000000)
+#define M8_MPLL_CNTL_9 (0x00000000)
+/*SYS PLL */
+#define M8_SYS_PLL_CNTL_2 (0x59C88000)
+#define M8_SYS_PLL_CNTL_3 (0xCA45B823)
+#define M8_SYS_PLL_CNTL_4 (0x0001D407)
+#define M8_SYS_PLL_CNTL_5 (0x00000870)
+
+/*ddr ctrl reg
+#define AM_DDR_PLL_CNTL     0xc8000400
+#define AM_DDR_PLL_CNTL1    0xc8000404
+#define AM_DDR_PLL_CNTL2    0xc8000408
+#define AM_DDR_PLL_CNTL3    0xc800040c
+#define AM_DDR_PLL_CNTL4    0xc8000410
+#define AM_DDR_PLL_STS      0xc8000414
+*/
+
+
+
+#endif /* __AMLOGIC_CLK_PLL_H */

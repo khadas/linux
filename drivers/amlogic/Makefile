@@ -17,3 +17,5 @@ obj-y +=cpu_version/
 obj-y +=gpio/
 
 obj-y +=pinctrl/
+
+obj-y +=clk/

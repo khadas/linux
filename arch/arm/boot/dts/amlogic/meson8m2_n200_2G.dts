@@ -1,5 +1,5 @@
 /dts-v1/;
-/include/ "meson8.dtsi"
+#include "meson8.dtsi"
 /{
 	amlogic-dt-id = "m8m2_n200_2G";
 	compatible = "AMLOGIC,mesonX";
@@ -23,17 +23,17 @@
            linux,contiguous-region;
         };
 	};
-	reserved-memory { 
+	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
-		linux,cma { 
+		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x4000000>;
 			alignment = <0x2000>;
-			linux,cma-default; 
+			linux,cma-default;
 		};
 	};
 

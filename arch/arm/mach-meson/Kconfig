@@ -17,3 +17,4 @@ menuconfig ARCH_MESON
 	select SMP
 	select HAVE_ARM_SCU
 	select SPARSE_IRQ
+	select COMMON_CLK
