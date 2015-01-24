@@ -372,6 +372,7 @@ struct clk_mux {
 
 extern const struct clk_ops clk_mux_ops;
 extern const struct clk_ops clk_mux_ro_ops;
+extern const struct clk_ops clk_mux_rw_ops;
 
 struct clk *clk_register_mux(struct device *dev, const char *name,
 		const char **parent_names, u8 num_parents, unsigned long flags,

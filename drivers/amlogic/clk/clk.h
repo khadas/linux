@@ -258,31 +258,130 @@ struct amlogic_clk_reg_dump {
 	u32	offset;
 	u32	value;
 };
-
-/**
- * struct amlogic_pll_clock: information about pll clock
- * @id: platform specific id of the clock.
- * @dev_name: name of the device to which this clock belongs.
- * @name: name of this pll clock.
- * @parent_name: name of the parent clock.
- * @flags: optional flags for basic clock.
- * @con_offset: offset of the register for configuring the PLL.
- * @lock_offset: offset of the register for locking the PLL.
- * @type: Type of PLL to be registered.
- * @alias: optional clock alias name to be assigned to this clock.
- */
-
-struct amlogic_pll_clock {
-	unsigned int		id;
-	const char		*dev_name;
-	const char		*name;
-	const char		*parent_name;
-	unsigned long		flags;
-	int			con_offset;
-	enum amlogic_pll_type	type;
-	const struct amlogic_pll_rate_table *rate_table;
-	const char              *alias;
+enum amlogic_clk_branch_type {
+	branch_composite,
 };
+
+#define COMPOSITE(_id, cname, pnames, f, mo, ms, mw, mf, dof, ds, dw,\
+		  df, go, gs, gf)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.mux_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_offset = dof,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_NOMUX(_id, cname, pname, f, mo, dof, ds, dw, df,	\
+			go, gs, gf)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.mux_offset	= mo,				\
+		.div_offset = dof,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_NOMUX_DIVTBL(_id, cname, pname, f, mo, df, ds, dw,\
+			       dof, dt, go, gs, gf)		\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.mux_offset	= mo,				\
+		.div_offset = dof,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.div_table	= dt,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_NODIV(_id, cname, pnames, f, mo, ms, mw, mf,	\
+			go, gs, gf)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.mux_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_NOGATE(_id, cname, pnames, f, mo, ms, mw, mf,	\
+			 dof, ds, dw, df)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.mux_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_offset = dof,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= -1,				\
+	}
+
+struct amlogic_clk_branch {
+	unsigned int			id;
+	enum amlogic_clk_branch_type	branch_type;
+	const char			*name;
+	const char			**parent_names;
+	u8				num_parents;
+	unsigned long			flags;
+	int				mux_offset;
+	u8				mux_shift;
+	u8				mux_width;
+	u8				mux_flags;
+	int				div_offset;
+	u8				div_shift;
+	u8				div_width;
+	u8				div_flags;
+	struct clk_div_table		*div_table;
+	int				gate_offset;
+	u8				gate_shift;
+	u8				gate_flags;
+};
+
 
 #define __PLL(_typ, _id, _dname, _name, _pname, _flags, _con,	\
 		_rtable, _alias)					\
@@ -331,6 +430,8 @@ extern void __init amlogic_clk_register_gate(
 
 extern void __init amlogic_clk_register_pll(struct amlogic_pll_clock *pll_list,
 				unsigned int nr_pll, void __iomem *base);
+void amlogic_clk_register_branches(struct amlogic_clk_branch *clk_list,
+				    unsigned int nr_clk);
 
 extern unsigned long _get_rate(const char *clk_name);
 #endif /* __AMLOGIC_CLK_H */

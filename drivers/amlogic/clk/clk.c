@@ -11,10 +11,122 @@ static struct clk_onecell_data clk_data;
 /* add a clock instance to the clock lookup table used for dt based lookup */
 void amlogic_clk_add_lookup(struct clk *clk, unsigned int id)
 {
-	if (clk_table && id) {
+	if (clk_table && id)
 		clk_table[id] = clk;
-	  /*pr_debug("%s: add a clock: clk_table[%d] is %s\n",
-		__func__, id, clk_table[id]->name);*/
+}
+
+/**
+ * Register a clock branch.
+ * Most clock branches have a form like
+ *
+ * src1 --|--\
+ *        |M |--[div]-[gate]-
+ * src2 --|--/
+ *
+ * sometimes without one of those components.
+ */
+static struct clk *amlogic_clk_register_branch(const char *name,
+		const char **parent_names, u8 num_parents, void __iomem *base,
+		int mux_offset, u8 mux_shift, u8 mux_width, u8 mux_flags,
+		int div_offset, u8 div_shift, u8 div_width, u8 div_flags,
+		struct clk_div_table *div_table, int gate_offset,
+		u8 gate_shift, u8 gate_flags, unsigned long flags,
+		spinlock_t *lock)
+{
+	struct clk *clk;
+	struct clk_mux *mux = NULL;
+	struct clk_gate *gate = NULL;
+	struct clk_divider *div = NULL;
+	const struct clk_ops *mux_ops = NULL, *div_ops = NULL,
+			     *gate_ops = NULL;
+
+	if (num_parents > 1) {
+		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		if (!mux)
+			return ERR_PTR(-ENOMEM);
+
+		mux->reg = base + mux_offset;
+		mux->shift = mux_shift;
+		mux->mask = BIT(mux_width) - 1;
+		mux->flags = mux_flags;
+		mux->lock = lock;
+		mux_ops = (mux_flags & CLK_MUX_READ_ONLY) ? &clk_mux_ro_ops
+							: &clk_mux_rw_ops;
+	}
+
+	if (gate_offset >= 0) {
+		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		if (!gate)
+			return ERR_PTR(-ENOMEM);
+
+		gate->flags = gate_flags;
+		gate->reg = base + gate_offset;
+		gate->bit_idx = gate_shift;
+		gate->lock = lock;
+		gate_ops = &clk_gate_ops;
+	}
+
+	if (div_width > 0) {
+		div = kzalloc(sizeof(*div), GFP_KERNEL);
+		if (!div)
+			return ERR_PTR(-ENOMEM);
+
+		div->flags = div_flags;
+		div->reg = base + div_offset;
+		div->shift = div_shift;
+		div->width = div_width;
+		div->lock = lock;
+		div->table = div_table;
+		div_ops = &clk_divider_ops;
+	}
+
+	clk = clk_register_composite(NULL, name, parent_names, num_parents,
+				     mux ? &mux->hw : NULL, mux_ops,
+				     div ? &div->hw : NULL, div_ops,
+				     gate ? &gate->hw : NULL, gate_ops,
+				     flags);
+
+	return clk;
+}
+void __init amlogic_clk_register_branches(
+				      struct amlogic_clk_branch *list,
+				      unsigned int nr_clk)
+{
+	struct clk *clk = NULL;
+	unsigned int idx;
+	unsigned long flags;
+
+	for (idx = 0; idx < nr_clk; idx++, list++) {
+		flags = list->flags;
+
+		/* catch simple muxes */
+		switch (list->branch_type) {
+		case branch_composite:
+			clk = amlogic_clk_register_branch(list->name,
+				list->parent_names, list->num_parents,
+				reg_base, list->mux_offset, list->mux_shift,
+				list->mux_width, list->mux_flags,
+				list->div_offset, list->div_shift, list->div_width,
+				list->div_flags, list->div_table,
+				list->gate_offset, list->gate_shift,
+				list->gate_flags, flags, &lock);
+			break;
+		}
+
+		/* none of the cases above matched */
+		if (!clk) {
+			pr_err("%s: unknown clock type %d\n",
+			       __func__, list->branch_type);
+			continue;
+		}
+
+		if (IS_ERR(clk)) {
+			pr_err("%s: failed to register clock %s: %ld\n",
+			       __func__, list->name, PTR_ERR(clk));
+			continue;
+		}
+
+		amlogic_clk_add_lookup(clk, list->id);
 	}
 }
 

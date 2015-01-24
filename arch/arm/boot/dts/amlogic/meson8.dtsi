@@ -1,5 +1,5 @@
 #include "meson.dtsi"
-
+#include <dt-bindings/clock/meson8.h>
 / {
 	model = "Amlogic Meson8 SoC";
 	compatible = "amlogic,meson8";
@@ -123,3 +123,8 @@
 			0xc1109880 16>;
 	};
 }; /* end of / */
+&uart_AO {
+	clocks = <&clock CLK_UART_AO>;
+	clock-names = "clk_uart";
+};
+

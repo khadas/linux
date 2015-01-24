@@ -21,8 +21,7 @@
 #define CLK_HDMI_PLL 6
 
 #define CLK_UART_AO 10
-
-
+#define HDMI_SYS_CLK 11
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		37
 

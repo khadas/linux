@@ -16,6 +16,7 @@
 
 #define AO_RTI_GEN_CTNL_REG0 0xc8100040
 #define OFFSET_AO(x) (((x) - CLK_GATE_AO_BASE)*4)
+void __iomem *reg_base_cbus, *reg_base_aobus;
 
 /* list of PLLs */
 enum meson8m2_plls {
@@ -32,6 +33,7 @@ PNAME(clk81_p3) = {"clk81_m_1", "clk81_g"};
 PNAME(cpu_p1) = {"ext_osc", "sys_pll"};
 PNAME(cpu_p2) = {"cpu_m_1", "sys_pll2", "sys_pll_div3", "sys_pll_divm"};
 PNAME(cpu_p3) = {"xtal", "cpu_m_2"};
+PNAME(mux_hdmi_sys_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock meson8_fixed_rate_ext_clks[] __initdata = {
@@ -87,7 +89,7 @@ static struct amlogic_gate_clock meson8_periph_gate_clks[] __initdata = {
 		OFFSET_AO(AO_RTI_GEN_CTNL_REG0), 3, 0, 0, 1),
 };
 
-static const struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
+static  struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
 	PLL_2500_RATE(24, 56, 1, 2, 6, 0, 0), /* fvco 1344, / 4, /14 */
 	PLL_2500_RATE(48, 64, 1, 2, 3, 0, 0), /* fvco 1536, / 4, / 8 */
 	PLL_2500_RATE(72, 72, 1, 2, 2, 1, 1), /* fvco 1728, / 4, / 6 */
@@ -178,21 +180,22 @@ static const struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
 	PLL_2500_RATE(2112, 73, 1, 0, 0, 0, 0), /* fvco 2112, / 1, / 1 */
 };
 
-static struct amlogic_pll_clock meson8m2_plls[nr_plls] __initdata = {
-	[fixed_pll] = PLL(pll_2550, CLK_FIXED_PLL, "fixed_pll", "xtal",
+static struct amlogic_pll_clock meson8m2_plls[] __initdata = {
+	PLL(pll_2550, CLK_FIXED_PLL, "fixed_pll", "xtal",
 		OFFSET(HHI_MPLL_CNTL), NULL),
-	[sys_pll] = PLL(pll_2500, CLK_SYS_PLL, "sys_pll", "xtal",
-		OFFSET(HHI_SYS_PLL_CNTL), NULL),
-	[vid_pll] = PLL(pll_3000, CLK_VID_PLL, "vid_pll", "xtal",
-		OFFSET(HHI_VID_PLL_CNTL), NULL),
-	[g_pll] = PLL(pll_1500, CLK_G_PLL, "g_pll", "xtal",
+	PLL(pll_2500, CLK_SYS_PLL, "sys_pll", "xtal",
+		OFFSET(HHI_SYS_PLL_CNTL), meson8m2_syspll_tbl),
+	PLL(pll_1500, CLK_G_PLL, "g_pll", "xtal",
 		OFFSET(HHI_GP_PLL_CNTL), NULL),
-	[hdmi_pll] = PLL(pll_3000, CLK_HDMI_PLL, "hdmi_pll", "xtal",
-		OFFSET(HHI_HDMI_PLL_CNTL), NULL),
 };
 /*	[ddr_pll] = PLL(pll_1500, CLK_DDR_PLL, "ddr_pll", "xtal", DDRPLL_LOCK,
 		DDRPLL_CON0, NULL),*/
-
+static struct amlogic_clk_branch meson8m2_clk_branches[] __initdata = {
+	COMPOSITE(HDMI_SYS_CLK, "hdmi_sys_clk", mux_hdmi_sys_p, 0,
+		OFFSET(HHI_HDMI_CLK_CNTL), 9, 2, 0,
+		OFFSET(HHI_HDMI_CLK_CNTL), 0, 6, 0,
+		OFFSET(HHI_HDMI_CLK_CNTL), 8, 0),
+};
 static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "amlogic,clock-xtal", .data = (void *)0, },
 	{},
@@ -201,7 +204,6 @@ static struct of_device_id ext_clk_match[] __initdata = {
 /* register meson8 clocks */
 static void __init meson8_clk_init(struct device_node *np)
 {
-	void __iomem *reg_base_cbus, *reg_base_aobus;
 
 	reg_base_cbus = of_iomap(np, 0);
 	reg_base_aobus = of_iomap(np, 1);
@@ -216,10 +218,9 @@ static void __init meson8_clk_init(struct device_node *np)
 	amlogic_clk_of_register_fixed_ext(meson8_fixed_rate_ext_clks,
 		  ARRAY_SIZE(meson8_fixed_rate_ext_clks), ext_clk_match);
 
-	meson8m2_plls[sys_pll].rate_table = meson8m2_syspll_tbl;
 	amlogic_clk_register_pll(meson8m2_plls,
 	    ARRAY_SIZE(meson8m2_plls), reg_base_cbus);
-
+	hdmi_clk_init(reg_base_cbus);
 	amlogic_clk_register_fixed_factor(meson8_fixed_factor_clks,
 			ARRAY_SIZE(meson8_fixed_factor_clks));
 
@@ -231,6 +232,8 @@ static void __init meson8_clk_init(struct device_node *np)
 			ARRAY_SIZE(meson8_gate_clks));
 	amlogic_clk_register_gate(meson8_periph_gate_clks,
 			ARRAY_SIZE(meson8_periph_gate_clks));
+	amlogic_clk_register_branches(meson8m2_clk_branches,
+				  ARRAY_SIZE(meson8m2_clk_branches));
 
 	{
 		/* Dump clocks */
@@ -243,10 +246,10 @@ static void __init meson8_clk_init(struct device_node *np)
 				"fclk_div4",
 				"fclk_div5",
 				"fclk_div7",
-	"clk81_m_1",
-	"clk81_m_2",
-	"clk81_d",
-	"clk81_g",
+				"clk81_m_1",
+				"clk81_m_2",
+				"clk81_d",
+				"clk81_g",
 				"clk81_m_3",
 				"uart_ao",
 				"cpu_m_1",
@@ -254,7 +257,9 @@ static void __init meson8_clk_init(struct device_node *np)
 				"cpu_m_3",
 				"sys_pll_div2",
 				"sys_pll_div3",
-				"sys_pll_divm"
+				"sys_pll_divm",
+				"hdmi_pll_lvds",
+				"hdmi_sys_clk"
 		};
 		int i;
 		int count = ARRAY_SIZE(clks);
@@ -264,6 +269,7 @@ static void __init meson8_clk_init(struct device_node *np)
 			pr_info("clkrate [ %s \t] : %lu\n", clk_name,
 				_get_rate(clk_name));
 		}
+
 	}
 	pr_info("meson8 clock initialization complete\n");
 }
