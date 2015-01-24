@@ -28,6 +28,7 @@
 #include "cache-tauros3.h"
 #include "cache-aurora-l2.h"
 
+
 #define CACHE_LINE_SIZE		32
 
 static void __iomem *l2x0_base;
@@ -51,7 +52,7 @@ struct l2x0_of_data {
 	struct outer_cache_fns outer_cache;
 };
 
-static bool of_init = false;
+static bool of_init;
 
 static inline bool is_pl310_rev(int rev)
 {
@@ -366,7 +367,7 @@ static void l2x0_unlock(u32 cache_id)
 
 void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 {
-	u32 aux;
+	u32 aux, prefetch, power, tag_lan, data_lan;
 	u32 way_size = 0;
 	int way_size_shift = L2X0_WAY_SIZE_SHIFT;
 	const char *type;
@@ -441,11 +442,16 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		l2x0_inv_all();
 
 		/* enable L2X0 */
+
 		writel_relaxed(L2X0_CTRL_EN, l2x0_base + L2X0_CTRL);
 	}
 
 	/* Re-read it in case some bits are reserved. */
 	aux = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
+	prefetch = readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
+	power = readl_relaxed(l2x0_base + L2X0_POWER_CTRL);
+	tag_lan = readl_relaxed(l2x0_base + L2X0_TAG_LATENCY_CTRL);
+	data_lan = readl_relaxed(l2x0_base + L2X0_DATA_LATENCY_CTRL);
 
 	/* Save the value for resuming. */
 	l2x0_saved_regs.aux_ctrl = aux;
@@ -461,8 +467,12 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 	}
 
 	pr_info("%s cache controller enabled\n", type);
-	pr_info("l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d kB\n",
-		l2x0_ways, l2x0_cache_id, aux, l2x0_size >> 10);
+	pr_info("l2x0: %d ways, %d sets, CACHE_ID 0x%08x,  Cache size: %d B\n",
+			l2x0_ways, l2x0_sets, l2x0_cache_id, l2x0_size);
+	pr_info("      AUX_CTRL 0x%08x, PERFETCH_CTRL 0x%08x, POWER_CTRL  0x%08x\n",
+		aux, prefetch, power);
+	pr_info("      TAG_LATENCY 0x%08x, DATA_LATENCY 0x%08x\n",
+		tag_lan, data_lan);
 }
 
 #ifdef CONFIG_OF
@@ -770,6 +780,7 @@ static void __init pl310_of_setup(const struct device_node *np,
 	if (filter[1]) {
 		writel_relaxed(ALIGN(filter[0] + filter[1], SZ_1M),
 			       l2x0_base + L2X0_ADDR_FILTER_END);
+
 		writel_relaxed((filter[0] & ~(SZ_1M - 1)) | L2X0_ADDR_FILTER_EN,
 			       l2x0_base + L2X0_ADDR_FILTER_START);
 	}
@@ -916,6 +927,227 @@ static void __init aurora_of_setup(const struct device_node *np,
 	*aux_mask &= ~mask;
 }
 
+
+#ifdef CONFIG_ARCH_MESON
+#define L2X0_AUX_CTRL_FULL_LINE_OF_ZERO_SHIFT		0
+#define L2X0_AUX_CTRL_HIGH_PRIORITY_FOR_SO_DEV_SHIFT	10
+#define L2X0_AUX_CTRL_STORE_BUFFER_DEV_LMT_SHIFT	11
+#define L2X0_AUX_CTRL_EXCLUSIVE_CACHE_CFG_SHIFT		12
+#define L2X0_AUX_CTRL_SHARED_ATTRIB_INVALID_SHIFT	13
+#define L2X0_AUX_CTRL_FORCE_WRITE_ALLOCATE_SHIFT	23
+#define L2X0_AUX_CTRL_FORCE_WRITE_ALLOCATE_MASK	(3 << 23)
+#define L2X0_AUX_CTRL_CACHE_REPLACE_POLICY_SHIFT	25
+
+#define L2X0_PREF_CTRL_DOUBLE_LINE_FILL_SHIFT	30
+#define L2X0_PREF_CTRL_INSTR_PREFETCH_SHIFT	29
+#define L2X0_PREF_CTRL_DATA_PREFETCH_SHIFT	28
+#define L2X0_PREF_CTRL_DLF_ON_WRAP_DISABLE_SHIFT	27
+#define L2X0_PREF_CTRL_PREFETCH_DROP_SHIFT	24
+#define L2X0_PREF_CTRL_INCR_DLF_SHIFT	23
+#define L2X0_PREF_CTRL_NOT_SAME_ID_EXEL_SEQ_SHIFT	21
+#define L2X0_PREF_CTRL_PERFETCH_OFFSET_SHIFT		0
+#define L2X0_PREF_CTRL_PERFETCH_OFFSET_MASK		(0x1f << 0)
+static void __init meson_of_setup(const struct device_node *np,
+				u32 *aux_val, u32 *aux_mask)
+{
+	u32 val = *aux_val;
+	u32 mask =  *aux_mask;
+
+	void *prefetch_reg = (void *)l2x0_base + L2X0_PREFETCH_CTRL;
+	u32 prefetch_val;
+	void *power_reg = (void *)l2x0_base + L2X0_POWER_CTRL;
+	u32 power_val;
+
+	int way_size = -1, ws_value;
+	int associativity = -1, assoc_value;
+	int prefetch_offset = -1;
+
+	if (of_property_read_bool(np, "aux-early_write_response")) {
+		val |= (1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-instruction_prefetch")) {
+		val |= (1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |= (1 << L2X0_PREF_CTRL_INSTR_PREFETCH_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (of_property_read_bool(np, "aux-data_prefetch")) {
+		val |= (1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT);
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |= (1 << L2X0_PREF_CTRL_DATA_PREFETCH_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (of_property_read_bool(np, "aux-ns_lockdown")) {
+		val |= (1 << L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-cache_replace_policy_round_robin")) {
+		val |= (1 << L2X0_AUX_CTRL_CACHE_REPLACE_POLICY_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_CACHE_REPLACE_POLICY_SHIFT);
+	} else{
+		val &= ~(1 << L2X0_AUX_CTRL_CACHE_REPLACE_POLICY_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_CACHE_REPLACE_POLICY_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-force_no_write_alloc")) {
+		val |= (1 << L2X0_AUX_CTRL_FORCE_WRITE_ALLOCATE_SHIFT);
+		mask &= ~L2X0_AUX_CTRL_FORCE_WRITE_ALLOCATE_MASK;
+	}
+
+	if (of_property_read_bool(np, "aux-store_buffer_device_limit")) {
+		val |= (1 << L2X0_AUX_CTRL_STORE_BUFFER_DEV_LMT_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_STORE_BUFFER_DEV_LMT_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-high_prio_for_so_dev_read")) {
+		val |= (1 << L2X0_AUX_CTRL_HIGH_PRIORITY_FOR_SO_DEV_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_HIGH_PRIORITY_FOR_SO_DEV_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-full_line_of_zero")) {
+		val |= (1 << L2X0_AUX_CTRL_FULL_LINE_OF_ZERO_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_FULL_LINE_OF_ZERO_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-ns_int_ctrl")) {
+		val |= (1 << L2X0_AUX_CTRL_NS_INT_CTRL_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_NS_INT_CTRL_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "aux-share_override")) {
+		val |= (1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT);
+		mask &= ~(1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT);
+	}
+
+	if (of_property_read_u32(np, "aux-way_size", &way_size) > 0) {
+		switch (way_size) {
+		case 16:
+			ws_value = 1;
+			break;
+		case 32:
+			ws_value = 2;
+			break;
+		case 64:
+			ws_value = 3;
+			break;
+		case 128:
+			ws_value = 4;
+			break;
+		case 256:
+			ws_value = 5;
+			break;
+		case 512:
+			ws_value = 6;
+			break;
+		default:
+			ws_value = 0;
+			break;
+		}
+		val |= (ws_value << L2X0_AUX_CTRL_WAY_SIZE_SHIFT);
+		mask &= ~L2X0_AUX_CTRL_WAY_SIZE_MASK;
+	}
+
+	if (!of_property_read_u32(np, "aux-associativity", &associativity)) {
+		if (associativity == 16)
+			assoc_value = 1;
+		else
+			assoc_value = 0;
+		val |= (assoc_value << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT);
+		mask &= ~(assoc_value << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT);
+	}
+
+	if (of_property_read_bool(np, "prefetch-double_line_fill")) {
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |= (1 << L2X0_PREF_CTRL_DOUBLE_LINE_FILL_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (of_property_read_bool(np,
+		"prefetch-double_line_fill_on_wrap_read_disable")) {
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |= (1 << L2X0_PREF_CTRL_DLF_ON_WRAP_DISABLE_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (of_property_read_bool(np, "prefetch-prefetch_drop")) {
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |= (1 << L2X0_PREF_CTRL_PREFETCH_DROP_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (of_property_read_bool(np, "prefetch-incr_double_line_fill")) {
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |= (1 << L2X0_PREF_CTRL_INCR_DLF_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (of_property_read_bool(np, "prefetch-not_same_id_excl_seq")) {
+		prefetch_val = readl_relaxed(prefetch_reg);
+		prefetch_val |=
+			(1 << L2X0_PREF_CTRL_NOT_SAME_ID_EXEL_SEQ_SHIFT);
+		writel_relaxed(prefetch_val, prefetch_reg);
+	}
+
+	if (!of_property_read_u32(np, "prefetch-prefetch_offset",
+		&prefetch_offset)) {
+		switch (prefetch_offset) {
+		case 0 ... 7:
+		case 15:
+		case 23:
+		case 31:
+			prefetch_val = readl_relaxed(prefetch_reg);
+			prefetch_val &= ~(L2X0_PREF_CTRL_PERFETCH_OFFSET_MASK);
+			prefetch_val |= (prefetch_offset
+				<< L2X0_PREF_CTRL_PERFETCH_OFFSET_SHIFT);
+			writel_relaxed(prefetch_val, prefetch_reg);
+			break;
+		default:
+			break;
+		}
+
+	}
+
+	if (of_property_read_bool(np, "power-dynamic_clk_gating")) {
+		power_val = readl_relaxed(power_reg);
+		power_val |= L2X0_DYNAMIC_CLK_GATING_EN;
+		writel_relaxed(power_val, power_reg);
+	}
+
+	if (of_property_read_bool(np, "power-standby_mode")) {
+		power_val = readl_relaxed(power_reg);
+		power_val |= L2X0_STNDBY_MODE_EN;
+		writel_relaxed(power_val, power_reg);
+	}
+
+	*aux_val = val;
+	*aux_mask = mask;
+
+	pl310_of_setup(np, aux_val, aux_mask);
+}
+
+static const struct l2x0_of_data meson_pl310_data = {
+	.setup = meson_of_setup,
+	.save  = pl310_save,
+	.outer_cache = {
+		.resume      = pl310_resume,
+		.inv_range   = l2x0_inv_range,
+		.clean_range = l2x0_clean_range,
+		.flush_range = l2x0_flush_range,
+		.sync        = l2x0_cache_sync,
+		.flush_all   = l2x0_flush_all,
+		.inv_all     = l2x0_inv_all,
+		.disable     = l2x0_disable,
+		.set_debug   = pl310_set_debug,
+	},
+};
+#endif
 static const struct l2x0_of_data pl310_data = {
 	.setup = pl310_of_setup,
 	.save  = pl310_save,
@@ -928,6 +1160,7 @@ static const struct l2x0_of_data pl310_data = {
 		.flush_all   = l2x0_flush_all,
 		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
+		.set_debug   = pl310_set_debug,
 	},
 };
 
@@ -994,8 +1227,10 @@ static const struct l2x0_of_data bcm_l2x0_data = {
 };
 
 static const struct of_device_id l2x0_ids[] __initconst = {
-	{ .compatible = "arm,l210-cache", .data = (void *)&l2x0_data },
-	{ .compatible = "arm,l220-cache", .data = (void *)&l2x0_data },
+#ifdef CONFIG_ARCH_MESON
+	{ .compatible = "arm,meson-pl310-cache",
+	.data = (void *)&meson_pl310_data },
+#endif
 	{ .compatible = "arm,pl310-cache", .data = (void *)&pl310_data },
 	{ .compatible = "bcm,bcm11351-a2-pl310-cache", /* deprecated name */
 	  .data = (void *)&bcm_l2x0_data},
