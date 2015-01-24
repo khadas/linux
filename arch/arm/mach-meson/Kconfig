@@ -1,0 +1,19 @@
+menuconfig ARCH_MESON
+	bool "Amlogic Meson SoCs" if ARCH_MULTI_V7
+	select GENERIC_IRQ_CHIP
+	select ARM_GIC
+	select CACHE_L2X0
+	select CPU_V7
+	select FIQ
+	select USE_OF
+	select GENERIC_ALLOCATOR
+	select GENERIC_CLOCKEVENTS
+	select ARCH_HAS_CPUFREQ
+	select AM_UART
+	select MIGHT_HAVE_CACHE_L2X0
+	select HAVE_SMP
+	select ARM_PSCI
+	select HAVE_ARM_SCU
+	select SMP
+	select HAVE_ARM_SCU
+	select SPARSE_IRQ
