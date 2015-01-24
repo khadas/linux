@@ -429,7 +429,7 @@ PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
 	$(Q)rm -f .tmp_quiet_recordmcount
-	$(Q)cp ./pre-commit ./.git/hooks/pre-commit
+	$(Q)cp ./scripts/amlogic/pre-commit ./.git/hooks/pre-commit
 	$(Q)chmod +x ./.git/hooks/pre-commit
 
 # To avoid any implicit rule to kick in, define an empty command.
