@@ -483,6 +483,7 @@ static struct clk *hdmi_clk_register(struct hdmi_clock *hdmi_clk)
 {
 	struct clk_init_data init;
 	struct clk *clk;
+	int ret;
 	init.name = hdmi_clk->name;
 	init.ops = hdmi_clk->ops;
 	init.flags = hdmi_clk->flags;
@@ -494,6 +495,12 @@ static struct clk *hdmi_clk_register(struct hdmi_clock *hdmi_clk)
 
 	if (IS_ERR(clk))
 		return ERR_PTR(-1);
+
+	ret = clk_register_clkdev(clk, hdmi_clk->name,
+					NULL);
+	if (ret)
+		pr_err("%s: failed to register lookup %s\n",
+			__func__, hdmi_clk->name);
 
 	return clk;
 }

@@ -51,7 +51,7 @@ static struct clk *amlogic_clk_register_branch(const char *name,
 		mux->flags = mux_flags;
 		mux->lock = lock;
 		mux_ops = (mux_flags & CLK_MUX_READ_ONLY) ? &clk_mux_ro_ops
-							: &clk_mux_rw_ops;
+							: &clk_mux_ops;
 	}
 
 	if (gate_offset >= 0) {
@@ -95,7 +95,7 @@ void __init amlogic_clk_register_branches(
 	struct clk *clk = NULL;
 	unsigned int idx;
 	unsigned long flags;
-
+	int ret;
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		flags = list->flags;
 
@@ -127,6 +127,14 @@ void __init amlogic_clk_register_branches(
 		}
 
 		amlogic_clk_add_lookup(clk, list->id);
+
+		if (list->name) {
+			ret = clk_register_clkdev(clk, list->name,
+						NULL);
+			if (ret)
+				pr_err("%s: failed to register lookup %s\n",
+						__func__, list->name);
+		}
 	}
 }
 
@@ -205,12 +213,12 @@ void __init amlogic_clk_register_mux(struct amlogic_mux_clock *list,
 		amlogic_clk_add_lookup(clk, list->id);
 
 		/* register a clock lookup only if a clock alias is specified */
-		if (list->alias) {
-			ret = clk_register_clkdev(clk, list->alias,
+		if (list->name) {
+			ret = clk_register_clkdev(clk, list->name,
 						list->dev_name);
 			if (ret)
 				pr_err("%s: failed to register lookup %s\n",
-						__func__, list->alias);
+						__func__, list->name);
 		}
 	}
 }
@@ -249,12 +257,12 @@ void __init amlogic_clk_register_div(struct amlogic_div_clock *list,
 		amlogic_clk_add_lookup(clk, list->id);
 
 		/* register a clock lookup only if a clock alias is specified */
-		if (list->alias) {
-			ret = clk_register_clkdev(clk, list->alias,
+		if (list->name) {
+			ret = clk_register_clkdev(clk, list->name,
 						list->dev_name);
 			if (ret)
 				pr_err("%s: failed to register lookup %s\n",
-						__func__, list->alias);
+						__func__, list->name);
 		}
 	}
 }
@@ -285,12 +293,12 @@ void __init amlogic_clk_register_gate(struct amlogic_gate_clock *list,
 		}
 
 		/* register a clock lookup only if a clock alias is specified */
-		if (list->alias) {
-			ret = clk_register_clkdev(clk, list->alias,
+		if (list->name) {
+			ret = clk_register_clkdev(clk, list->name,
 							list->dev_name);
 			if (ret)
 				pr_err("%s: failed to register lookup %s\n",
-					__func__, list->alias);
+					__func__, list->name);
 		}
 
 		amlogic_clk_add_lookup(clk, list->id);
