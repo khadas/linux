@@ -10,3 +10,4 @@
 
 obj-y +=clocksource/
 
+obj-y +=uart/

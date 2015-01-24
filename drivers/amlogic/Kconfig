@@ -8,4 +8,6 @@ menu "Amlogic Device Drivers"
 comment "meson timer driver"
 
 source "drivers/amlogic/clocksource/Kconfig"
+
+source "drivers/amlogic/uart/Kconfig"
 endmenu
