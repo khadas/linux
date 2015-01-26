@@ -24,6 +24,15 @@
           prefetch-double_line_fill;
           prefetch-prefetch_drop;
           prefetch-prefetch_offset = <7>;
+          l2_ctrl=<0x82000001>;
+          l2_aux=<0x82000002>;
+          l2_prefetch=<0x82000003>;
+          l2_taglatency=<0x82000004>;
+          l2_datalatency=<0x82000005>;
+          l2_filterstart=<0x82000006>;
+          l2_filterend=<0x82000007>;
+          l2_debug=<0x82000008>;
+          l2_power=<0x82000009>;
     };
 
 	gic: interrupt-controller@c4301000 {

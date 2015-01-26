@@ -54,6 +54,35 @@ struct l2x0_of_data {
 
 static bool of_init;
 
+#ifdef CONFIG_ARCH_MESON
+#include <asm/opcodes-sec.h>
+enum meson_pl310_function {
+	L2_FN_CTRL,
+	L2_FN_AUX,
+	L2_FN_PREFETCH,
+	L2_FN_TAGLATENCY,
+	L2_FN_DATALATENCY,
+	L2_FN_FILTERSTART,
+	L2_FN_FILTEREND,
+	L2_FN_DEBUG,
+	L2_FN_POWER,
+	L2_FN_MAX,
+};
+static u32 meson_pl310_function_id[L2_FN_MAX];
+
+static noinline void __invoke_meson_pl310_fn_smc(u32 function_id, u32 arg0)
+{
+	register unsigned r0 asm("r0") = meson_pl310_function_id[function_id];
+	register unsigned r1 asm("r1") = arg0;
+
+	asm volatile(
+			__asmeq("%0", "r0")
+			__asmeq("%1", "r1")
+			__SMC(0)
+		: : "r" (r0), "r" (r1));
+}
+#endif
+
 static inline bool is_pl310_rev(int rev)
 {
 	return (l2x0_cache_id &
@@ -108,7 +137,11 @@ static inline void debug_writel(unsigned long val)
 
 static void pl310_set_debug(unsigned long val)
 {
+#ifdef CONFIG_ARCH_MESON
+	__invoke_meson_pl310_fn_smc(L2_FN_DEBUG, val);
+#else
 	writel_relaxed(val, l2x0_base + L2X0_DEBUG_CTRL);
+#endif
 }
 #else
 /* Optimised out for non-errata case */
@@ -334,7 +367,11 @@ static void l2x0_disable(void)
 
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
 	__l2x0_flush_all();
+#ifdef CONFIG_ARCH_MESON
+	__invoke_meson_pl310_fn_smc(L2_FN_CTRL, 0);
+#else
 	writel_relaxed(0, l2x0_base + L2X0_CTRL);
+#endif
 	dsb(st);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
@@ -437,13 +474,20 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 		l2x0_unlock(l2x0_cache_id);
 
 		/* l2x0 controller is disabled */
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_AUX, aux);
+#else
 		writel_relaxed(aux, l2x0_base + L2X0_AUX_CTRL);
+#endif
 
 		l2x0_inv_all();
 
 		/* enable L2X0 */
-
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_CTRL, L2X0_CTRL_EN);
+#else
 		writel_relaxed(L2X0_CTRL_EN, l2x0_base + L2X0_CTRL);
+#endif
 	}
 
 	/* Re-read it in case some bits are reserved. */
@@ -760,29 +804,48 @@ static void __init pl310_of_setup(const struct device_node *np,
 
 	of_property_read_u32_array(np, "arm,tag-latency", tag, ARRAY_SIZE(tag));
 	if (tag[0] && tag[1] && tag[2])
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_TAGLATENCY,
+			((tag[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
+			((tag[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
+			((tag[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT));
+#else
 		writel_relaxed(
 			((tag[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
 			((tag[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
 			((tag[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT),
 			l2x0_base + L2X0_TAG_LATENCY_CTRL);
-
+#endif
 	of_property_read_u32_array(np, "arm,data-latency",
 				   data, ARRAY_SIZE(data));
 	if (data[0] && data[1] && data[2])
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_DATALATENCY,
+			((data[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
+			((data[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
+			((data[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT));
+#else
 		writel_relaxed(
 			((data[0] - 1) << L2X0_LATENCY_CTRL_RD_SHIFT) |
 			((data[1] - 1) << L2X0_LATENCY_CTRL_WR_SHIFT) |
 			((data[2] - 1) << L2X0_LATENCY_CTRL_SETUP_SHIFT),
 			l2x0_base + L2X0_DATA_LATENCY_CTRL);
+#endif
 
 	of_property_read_u32_array(np, "arm,filter-ranges",
 				   filter, ARRAY_SIZE(filter));
 	if (filter[1]) {
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_FILTEREND,
+			ALIGN(filter[0] + filter[1], SZ_1M));
+		__invoke_meson_pl310_fn_smc(L2_FN_FILTERSTART,
+			(filter[0] & ~(SZ_1M - 1)) | L2X0_ADDR_FILTER_EN);
+#else
 		writel_relaxed(ALIGN(filter[0] + filter[1], SZ_1M),
 			       l2x0_base + L2X0_ADDR_FILTER_END);
-
 		writel_relaxed((filter[0] & ~(SZ_1M - 1)) | L2X0_ADDR_FILTER_EN,
 			       l2x0_base + L2X0_ADDR_FILTER_START);
+#endif
 	}
 }
 
@@ -834,13 +897,20 @@ static void l2x0_resume(void)
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
 		/* restore aux ctrl and enable l2 */
 		l2x0_unlock(readl_relaxed(l2x0_base + L2X0_CACHE_ID));
-
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_AUX,
+			l2x0_saved_regs.aux_ctrl);
+#else
 		writel_relaxed(l2x0_saved_regs.aux_ctrl, l2x0_base +
 			L2X0_AUX_CTRL);
+#endif
 
 		l2x0_inv_all();
-
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_CTRL, L2X0_CTRL_EN);
+#else
 		writel_relaxed(L2X0_CTRL_EN, l2x0_base + L2X0_CTRL);
+#endif
 	}
 }
 
@@ -850,6 +920,16 @@ static void pl310_resume(void)
 
 	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
 		/* restore pl310 setup */
+#ifdef CONFIG_ARCH_MESON
+		__invoke_meson_pl310_fn_smc(L2_FN_TAGLATENCY,
+				l2x0_saved_regs.tag_latency);
+		__invoke_meson_pl310_fn_smc(L2_FN_DATALATENCY,
+				l2x0_saved_regs.data_latency);
+		__invoke_meson_pl310_fn_smc(L2_FN_FILTEREND,
+				l2x0_saved_regs.filter_end);
+		__invoke_meson_pl310_fn_smc(L2_FN_FILTERSTART,
+				l2x0_saved_regs.filter_start);
+#else
 		writel_relaxed(l2x0_saved_regs.tag_latency,
 			l2x0_base + L2X0_TAG_LATENCY_CTRL);
 		writel_relaxed(l2x0_saved_regs.data_latency,
@@ -858,16 +938,23 @@ static void pl310_resume(void)
 			l2x0_base + L2X0_ADDR_FILTER_END);
 		writel_relaxed(l2x0_saved_regs.filter_start,
 			l2x0_base + L2X0_ADDR_FILTER_START);
-
+#endif
 		l2x0_revision = readl_relaxed(l2x0_base + L2X0_CACHE_ID) &
 			L2X0_CACHE_ID_RTL_MASK;
 
 		if (l2x0_revision >= L2X0_CACHE_ID_RTL_R2P0) {
+#ifdef CONFIG_ARCH_MESON
+			__invoke_meson_pl310_fn_smc(L2_FN_PREFETCH,
+					l2x0_saved_regs.prefetch_ctrl);
+			__invoke_meson_pl310_fn_smc(L2_FN_POWER,
+					l2x0_saved_regs.pwr_ctrl);
+#else
 			writel_relaxed(l2x0_saved_regs.prefetch_ctrl,
 				l2x0_base + L2X0_PREFETCH_CTRL);
 			if (l2x0_revision >= L2X0_CACHE_ID_RTL_R3P0)
 				writel_relaxed(l2x0_saved_regs.pwr_ctrl,
 					l2x0_base + L2X0_POWER_CTRL);
+#endif
 		}
 	}
 
@@ -947,6 +1034,34 @@ static void __init aurora_of_setup(const struct device_node *np,
 #define L2X0_PREF_CTRL_NOT_SAME_ID_EXEL_SEQ_SHIFT	21
 #define L2X0_PREF_CTRL_PERFETCH_OFFSET_SHIFT		0
 #define L2X0_PREF_CTRL_PERFETCH_OFFSET_MASK		(0x1f << 0)
+
+static void meson_of_setup_function_id(const struct device_node *np)
+{
+	u32 id;
+	int i;
+	for (i = 0; i < L2_FN_MAX; i++)
+		meson_pl310_function_id[i]  = 0;
+
+	if (!of_property_read_u32 (np, "l2_ctrl", &id))
+		meson_pl310_function_id[L2_FN_CTRL] = id;
+	if (!of_property_read_u32 (np, "l2_aux", &id))
+		meson_pl310_function_id[L2_FN_AUX] = id;
+	if (!of_property_read_u32 (np, "l2_prefetch", &id))
+		meson_pl310_function_id[L2_FN_PREFETCH] = id;
+	if (!of_property_read_u32 (np, "l2_taglatency", &id))
+		meson_pl310_function_id[L2_FN_TAGLATENCY] = id;
+	if (!of_property_read_u32 (np, "l2_datalatency", &id))
+		meson_pl310_function_id[L2_FN_DATALATENCY] = id;
+	if (!of_property_read_u32 (np, "l2_filterstart", &id))
+		meson_pl310_function_id[L2_FN_FILTERSTART] = id;
+	if (!of_property_read_u32 (np, "l2_filterend", &id))
+		meson_pl310_function_id[L2_FN_FILTEREND] = id;
+	if (!of_property_read_u32 (np, "l2_debug", &id))
+		meson_pl310_function_id[L2_FN_DEBUG] = id;
+	if (!of_property_read_u32 (np, "l2_power", &id))
+		meson_pl310_function_id[L2_FN_POWER] = id;
+}
+
 static void __init meson_of_setup(const struct device_node *np,
 				u32 *aux_val, u32 *aux_mask)
 {
@@ -962,6 +1077,11 @@ static void __init meson_of_setup(const struct device_node *np,
 	int associativity = -1, assoc_value;
 	int prefetch_offset = -1;
 
+	prefetch_val = readl_relaxed(prefetch_reg);
+	power_val = readl_relaxed(power_reg);
+
+	meson_of_setup_function_id(np);
+
 	if (of_property_read_bool(np, "aux-early_write_response")) {
 		val |= (1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT);
 		mask &= ~(1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT);
@@ -970,17 +1090,13 @@ static void __init meson_of_setup(const struct device_node *np,
 	if (of_property_read_bool(np, "aux-instruction_prefetch")) {
 		val |= (1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
 		mask &= ~(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
-		prefetch_val = readl_relaxed(prefetch_reg);
 		prefetch_val |= (1 << L2X0_PREF_CTRL_INSTR_PREFETCH_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
 	}
 
 	if (of_property_read_bool(np, "aux-data_prefetch")) {
 		val |= (1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT);
 		mask &= ~(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT);
-		prefetch_val = readl_relaxed(prefetch_reg);
 		prefetch_val |= (1 << L2X0_PREF_CTRL_DATA_PREFETCH_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
 	}
 
 	if (of_property_read_bool(np, "aux-ns_lockdown")) {
@@ -1063,37 +1179,22 @@ static void __init meson_of_setup(const struct device_node *np,
 		mask &= ~(assoc_value << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT);
 	}
 
-	if (of_property_read_bool(np, "prefetch-double_line_fill")) {
-		prefetch_val = readl_relaxed(prefetch_reg);
+	if (of_property_read_bool(np, "prefetch-double_line_fill"))
 		prefetch_val |= (1 << L2X0_PREF_CTRL_DOUBLE_LINE_FILL_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
-	}
 
 	if (of_property_read_bool(np,
-		"prefetch-double_line_fill_on_wrap_read_disable")) {
-		prefetch_val = readl_relaxed(prefetch_reg);
+		"prefetch-double_line_fill_on_wrap_read_disable"))
 		prefetch_val |= (1 << L2X0_PREF_CTRL_DLF_ON_WRAP_DISABLE_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
-	}
 
-	if (of_property_read_bool(np, "prefetch-prefetch_drop")) {
-		prefetch_val = readl_relaxed(prefetch_reg);
+	if (of_property_read_bool(np, "prefetch-prefetch_drop"))
 		prefetch_val |= (1 << L2X0_PREF_CTRL_PREFETCH_DROP_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
-	}
 
-	if (of_property_read_bool(np, "prefetch-incr_double_line_fill")) {
-		prefetch_val = readl_relaxed(prefetch_reg);
+	if (of_property_read_bool(np, "prefetch-incr_double_line_fill"))
 		prefetch_val |= (1 << L2X0_PREF_CTRL_INCR_DLF_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
-	}
 
-	if (of_property_read_bool(np, "prefetch-not_same_id_excl_seq")) {
-		prefetch_val = readl_relaxed(prefetch_reg);
-		prefetch_val |=
-			(1 << L2X0_PREF_CTRL_NOT_SAME_ID_EXEL_SEQ_SHIFT);
-		writel_relaxed(prefetch_val, prefetch_reg);
-	}
+	if (of_property_read_bool(np, "prefetch-not_same_id_excl_seq"))
+		prefetch_val |= (1 <<
+				L2X0_PREF_CTRL_NOT_SAME_ID_EXEL_SEQ_SHIFT);
 
 	if (!of_property_read_u32(np, "prefetch-prefetch_offset",
 		&prefetch_offset)) {
@@ -1102,11 +1203,9 @@ static void __init meson_of_setup(const struct device_node *np,
 		case 15:
 		case 23:
 		case 31:
-			prefetch_val = readl_relaxed(prefetch_reg);
 			prefetch_val &= ~(L2X0_PREF_CTRL_PERFETCH_OFFSET_MASK);
-			prefetch_val |= (prefetch_offset
-				<< L2X0_PREF_CTRL_PERFETCH_OFFSET_SHIFT);
-			writel_relaxed(prefetch_val, prefetch_reg);
+			prefetch_val |= (prefetch_offset <<
+					L2X0_PREF_CTRL_PERFETCH_OFFSET_SHIFT);
 			break;
 		default:
 			break;
@@ -1114,17 +1213,16 @@ static void __init meson_of_setup(const struct device_node *np,
 
 	}
 
-	if (of_property_read_bool(np, "power-dynamic_clk_gating")) {
-		power_val = readl_relaxed(power_reg);
+	if (of_property_read_bool(np, "power-dynamic_clk_gating"))
 		power_val |= L2X0_DYNAMIC_CLK_GATING_EN;
-		writel_relaxed(power_val, power_reg);
-	}
 
-	if (of_property_read_bool(np, "power-standby_mode")) {
-		power_val = readl_relaxed(power_reg);
+	if (of_property_read_bool(np, "power-standby_mode"))
 		power_val |= L2X0_STNDBY_MODE_EN;
-		writel_relaxed(power_val, power_reg);
-	}
+
+	if (prefetch_val != readl_relaxed(prefetch_reg))
+		__invoke_meson_pl310_fn_smc(L2_FN_PREFETCH, prefetch_val);
+	if (power_val != readl_relaxed(power_reg))
+		__invoke_meson_pl310_fn_smc(L2_FN_POWER,	power_val);
 
 	*aux_val = val;
 	*aux_mask = mask;
