@@ -87,4 +87,8 @@ static inline bool is_meson_g9tv_cpu(void)
 		MESON_CPU_MAJOR_ID_MG9TV;
 }
 
+static inline u32 get_cpu_type(void)
+{
+	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR);
+}
 #endif
