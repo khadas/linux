@@ -12,28 +12,28 @@
         #size-cells = <0>;
 
         cpu@0 {
-        	device_type = "cpu";
-        	compatible = "arm,cortex-a9";
-        	reg = <0x200>;
-        	timer=<&timer_f>;
+		device_type = "cpu";
+		compatible = "arm,cortex-a9";
+		reg = <0x200>;
+		timer=<&timer_f>;
         };
         cpu@1 {
-        	device_type = "cpu";
-        	compatible = "arm,cortex-a9";
-        	reg = <0x1>;
-        	timer=<&timer_g>;
+		device_type = "cpu";
+		compatible = "arm,cortex-a9";
+		reg = <0x1>;
+		timer=<&timer_g>;
         };
         cpu@2 {
-        	device_type = "cpu";
-        	compatible = "arm,cortex-a9";
-        	reg = <0x2>;
-        	timer=<&timer_h>;
+		device_type = "cpu";
+		compatible = "arm,cortex-a9";
+		reg = <0x2>;
+		timer=<&timer_h>;
         };
         cpu@3 {
-        	device_type = "cpu";
-        	compatible = "arm,cortex-a9";
-        	reg = <0x3>;
-        	timer=<&timer_i>;
+		device_type = "cpu";
+		compatible = "arm,cortex-a9";
+		reg = <0x3>;
+		timer=<&timer_i>;
         };
     };
 
@@ -88,17 +88,50 @@
 			reg=<0xc11099a0 4>;
 		};
 	};
+	cpu_version{
+		compatible = "amlogic,cpu_version";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		a9_periph_base{
+			reg = <0xc4300000 0x4000>;
+		};
+		io_mmc_base{
+			reg = <0xc8000000 0x8000>;
+		};
+		io_usba_base{
+			reg = <0xc9040000 0x40000>;
+		};
+		io_usbb_base{
+			reg = <0xc90c0000 0x40000>;
+		};
+		io_eth_base{
+			reg = <0xc9410000 0x10000>;
+		};
+		io_cbus_base{
+			reg = <0xc1100000 0x100000>;
+		};
+		io_axi_base{
+			reg = <0xc1300000 0x200000>;
+		};
+		io_apb_base{
+			reg = <0xd0000000 0x200000>;
+		};
+		io_aobus_base{
+			reg = <0xc8100000 0x100000>;
+		};
+	};
 	meson_clk_msr{
 		compatible = "amlogic,m8m2_measure";
 		reg = <0xc110875c 0x4
 			0xc1108764 0x4>;
 	};
- 	clock: meson_clock {
+	clock: meson_clock {
 		compatible = "amlogic,meson8m2-clock";
 		reg = <0xc110402C 0x1000>,   //0x100B  0x1050:0xc1104140 - 0x10ea  0x268 ?
 		          <0xc8100000 0x1000>;   //AOBUS
-        	#clock-cells = <1>;
-        	#reset-cells = <1>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	pinmux{
@@ -150,7 +183,9 @@
 			0xda000000 4
 			0xc1109880 16>;
 	};
+
 }; /* end of / */
+
 &uart_AO {
 	clocks = <&clock CLK_UART_AO>;
 	clock-names = "clk_uart";

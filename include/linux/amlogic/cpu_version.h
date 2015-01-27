@@ -53,7 +53,6 @@
 #define MESON_CPU_VERSION_LVL_PACK	2
 #define MESON_CPU_VERSION_LVL_MISC	3
 #define MESON_CPU_VERSION_LVL_MAX	MESON_CPU_VERSION_LVL_MISC
-
 int  meson_cpu_version_init(void);
 int get_meson_cpu_version(int level);
 

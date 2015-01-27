@@ -19,3 +19,4 @@ menuconfig ARCH_MESON
 	select SPARSE_IRQ
 	select COMMON_CLK
 	select ARCH_HAS_RESET_CONTROLLER
+	select REGMAP_MMIO
