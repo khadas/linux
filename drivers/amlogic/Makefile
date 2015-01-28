@@ -8,18 +8,20 @@
 ##########################################
 
 
-obj-y +=clocksource/
+obj-y	+=clocksource/
 
-obj-y +=uart/
+obj-y	+=uart/
 
-obj-y +=cpu_version/
+obj-y	+=cpu_version/
 
-obj-y +=gpio/
+obj-y	+=gpio/
 
-obj-y +=pinctrl/
+obj-y	+=pinctrl/
 
-obj-y +=clk/
+obj-y	+=clk/
 
-obj-y +=i2c/
+obj-y 	+=rtc/
 
-obj-y +=rtc/
+obj-y	+=i2c/
+
+obj-y	+=iomap/

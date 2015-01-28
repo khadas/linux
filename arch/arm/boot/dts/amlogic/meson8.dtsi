@@ -88,31 +88,13 @@
 			reg=<0xc11099a0 4>;
 		};
 	};
-	cpu_version{
-		compatible = "amlogic,cpu_version";
+	cpu_iomap{
+		compatible = "amlogic,iomap";
 		#address-cells=<1>;
 		#size-cells=<1>;
 		ranges;
-		a9_periph_base{
-			reg = <0xc4300000 0x4000>;
-		};
-		io_mmc_base{
-			reg = <0xc8000000 0x8000>;
-		};
-		io_usba_base{
-			reg = <0xc9040000 0x40000>;
-		};
-		io_usbb_base{
-			reg = <0xc90c0000 0x40000>;
-		};
-		io_eth_base{
-			reg = <0xc9410000 0x10000>;
-		};
 		io_cbus_base{
 			reg = <0xc1100000 0x100000>;
-		};
-		io_axi_base{
-			reg = <0xc1300000 0x200000>;
 		};
 		io_apb_base{
 			reg = <0xd0000000 0x200000>;
@@ -121,6 +103,12 @@
 			reg = <0xc8100000 0x100000>;
 		};
 	};
+	cpu_version{
+		reg=<0xc1107d4c 4
+			0xc11081a8 4>;
+		smc-cmd = <0x82000011>;
+	};
+
 	meson_clk_msr{
 		compatible = "amlogic,m8m2_measure";
 		reg = <0xc110875c 0x4
