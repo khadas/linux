@@ -51,7 +51,7 @@
 		status = "disabled";
 	};
 	i2c_ao: i2c@c8100500{ /*I2C-AO*/
-		compatible = "amlogic,aml_i2c";
+		compatible = "amlogic,meson-i2c";
 		dev_name = "i2c-AO";
 		status = "disabled";
 		reg = <0xc8100500 0x1d>;
@@ -64,7 +64,7 @@
 		master_i2c_speed = <100000>;
 	};
 	i2c_a: i2c@c1108500{ /*I2C-A*/
-		compatible = "amlogic,aml_i2c";
+		compatible = "amlogic,meson-i2c";
 		dev_name = "i2c-A";
 		status = "disabled";
 		reg = <0xc1108500 0x20>;
@@ -77,7 +77,7 @@
 		master_i2c_speed = <300000>;
 	};
 	i2c_b: i2c@c11087c0{ /*I2C-B*/
-		compatible = "amlogic,aml_i2c";
+		compatible = "amlogic,meson-i2c";
 		dev_name = "i2c-B";
 		status = "disabled";
 		reg = <0xc11087c0 0x20>;
@@ -90,7 +90,7 @@
 		master_i2c_speed = <300000>;
 	};
 	i2c_c: i2c@c11087e0{ /*I2C-C*/
-		compatible = "amlogic,aml_i2c";
+		compatible = "amlogic,meson-i2c";
 		dev_name = "i2c-C";
 		status = "disabled";
 		reg = <0xc11087e0 0x20>;
@@ -103,7 +103,7 @@
 		master_i2c_speed = <300000>;
 	};
 	i2c_d: i2c@c1108d20{ /*I2C-D*/
-		compatible = "amlogic,aml_i2c";
+		compatible = "amlogic,meson-i2c";
 		dev_name = "i2c-D";
 		status = "disabled";
 		reg = <0xc1108d20 0x20>;
@@ -114,5 +114,10 @@
 		#size-cells = <0>;
 		use_pio = <0>;
 		master_i2c_speed = <300000>;
+	};
+	rtc@0xc8100740 {
+		compatible = "amlogic,meson-rtc";
+		reg = <0xc8100740 0x14
+			0xc8100040 0x4>;
 	};
 }; /* end of / */

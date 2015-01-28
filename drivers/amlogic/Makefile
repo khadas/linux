@@ -21,3 +21,5 @@ obj-y +=pinctrl/
 obj-y +=clk/
 
 obj-y +=i2c/
+
+obj-y +=rtc/

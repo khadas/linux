@@ -19,4 +19,6 @@ source "drivers/amlogic/pinctrl/Kconfig"
 
 source "drivers/amlogic/i2c/Kconfig"
 
+source "drivers/amlogic/rtc/Kconfig"
+
 endmenu
