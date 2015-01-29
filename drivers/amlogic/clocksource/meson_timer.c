@@ -259,6 +259,7 @@ void  clockevent_init_and_register(void)
 	phandle phandle =  -1;
 	int cpuidx = smp_processor_id();
 	u32 mpidr = cpu_logical_map(cpuidx);
+	u32 hwid;
 	struct device_node *cpu, *cpus, *timer;
 	struct meson_clock *mclk = &per_cpu(percpu_mesonclock, cpuidx);
 	struct clock_event_device *clock_evt =
@@ -267,20 +268,22 @@ void  clockevent_init_and_register(void)
 	if (!cpus)
 		return;
 	for_each_child_of_node(cpus, cpu) {
-		u32 hwid;
 		if (of_property_read_u32(cpu, "reg", &hwid)) {
 			pr_info(" * %s missing reg property\n",
 				     cpu->full_name);
 			return;
 		}
+		pr_info("hwid=%d,mpidr=%d\n", hwid, mpidr);
 		if (hwid == mpidr) {
 			pr_info("matching right\n");
 			break;
 		}
 	}
+	if (hwid != mpidr)
+		cpu = of_get_next_child(cpus, NULL);
+
 	if (of_property_read_u32(cpu, "timer", &phandle)) {
-		pr_info(" * %s missing timer property\n",
-				     cpu->full_name);
+		pr_info(" * missing timer property\n");
 			return;
 	}
 	timer = of_find_node_by_phandle(phandle);
