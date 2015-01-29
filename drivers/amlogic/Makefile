@@ -25,3 +25,5 @@ obj-y 	+=rtc/
 obj-y	+=i2c/
 
 obj-y	+=iomap/
+
+obj-y	+=aml_debug/
