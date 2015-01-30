@@ -8,22 +8,22 @@
 ##########################################
 
 
-obj-y	+=clocksource/
+obj-$(CONFIG_MESON_TIMER)	+=clocksource/
 
-obj-y	+=uart/
+obj-$(CONFIG_AM_UART)		+=uart/
 
-obj-y	+=cpu_version/
+obj-$(CONFIG_AML_CPU_VERSION)	+=cpu_version/
 
-obj-y	+=gpio/
+obj-$(CONFIG_GPIO_AMLOGIC)	+=gpio/
 
-obj-y	+=pinctrl/
+obj-$(CONFIG_PINCTRL_AMLOGIC)	+=pinctrl/
 
-obj-y	+=clk/
+obj-y				+=clk/
 
-obj-y 	+=rtc/
+obj-$(CONFIG_AML_RTC) 		+=rtc/
 
-obj-y	+=i2c/
+obj-$(CONFIG_I2C_AML)		+=i2c/
 
-obj-y	+=iomap/
+obj-$(CONFIG_AML_DEBUG)		+=aml_debug/
 
-obj-y	+=aml_debug/
+obj-$(CONFIG_REGMAP_MMIO)	+=iomap/

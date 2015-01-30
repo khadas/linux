@@ -21,4 +21,6 @@ source "drivers/amlogic/i2c/Kconfig"
 
 source "drivers/amlogic/rtc/Kconfig"
 
+source "drivers/amlogic/aml_debug/Kconfig"
+
 endmenu
