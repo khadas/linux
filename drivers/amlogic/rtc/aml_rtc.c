@@ -12,7 +12,6 @@
 #include <linux/workqueue.h>
 #include <linux/reset.h>
 #include <linux/amlogic/cpu_version.h>
-#include "aml_rtc.h"
 
 int c_dbg_lvl = 0;
 #define RTC_DBG(lvl, x...) do { if (c_dbg_lvl & lvl) pr_info(x); } while (0)
