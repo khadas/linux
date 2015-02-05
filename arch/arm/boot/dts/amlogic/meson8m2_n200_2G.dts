@@ -12,20 +12,9 @@
 
 	memory{
 		device_type = "memory";
-		linux,total-memory = <0x80000000>;
+        	#address-cells = <1>;
+        	#size-cells = <1>;
 
-        #address-cells = <1>;
-        #size-cells = <1>;
-
-        cma_0:region@0 {
-           region_name = "cma_0";
-           reg = <0 0x02400000>;
-           linux,contiguous-region;
-        };
-		linux,bl31 {
-			compatible = "aml_bl31_memory";
-			reg=<0x06100000 0x3000000>;
-		};
 	};
 	reserved-memory {
 		#address-cells = <1>;
