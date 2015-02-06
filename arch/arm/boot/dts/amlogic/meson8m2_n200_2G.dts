@@ -21,6 +21,11 @@
 		#size-cells = <1>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
+		secmon_reserved:linux,secmon {
+			compatible = "aml_secmon_memory";
+			reg = <0x06100000 0x03000000>;
+			no-map;
+		};
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -43,6 +48,12 @@
 			0xc81000e0 0x4
 			0xd9000000 0x20000
 			0xc4300000 0x4000>;
+	};
+	secmon {
+		compatible = "aml,secmon";
+		memory-region = <&secmon_reserved>;
+		in_base_func = <0x82000020>;
+		out_base_func = <0x82000021>;
 	};
 
 }; /* end of / */
