@@ -70,7 +70,7 @@ module_init(meson_secmon_init);
 void __iomem *get_secmon_sharemem_input_base(void)
 {
 	if (!sharemem_in_base) {
-		sharemem_in_base = ioremap(phy_in_base, IN_SIZE);
+		sharemem_in_base = ioremap_cache(phy_in_base, IN_SIZE);
 		if (!sharemem_in_base)
 			pr_info("secmon share mem in buffer remap fail!\n");
 		else
@@ -82,7 +82,7 @@ void __iomem *get_secmon_sharemem_input_base(void)
 void __iomem *get_secmon_sharemem_output_base(void)
 {
 	if (!sharemem_out_base) {
-		sharemem_out_base = ioremap(phy_out_base, OUT_SIZE);
+		sharemem_out_base = ioremap_cache(phy_out_base, OUT_SIZE);
 		if (!sharemem_out_base)
 			pr_info("secmon share mem out buffer remap fail!\n");
 		else
@@ -94,8 +94,10 @@ void __iomem *get_secmon_sharemem_output_base(void)
 
 static int secmon_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	sharemem_in_base = ioremap(phy_in_base, IN_SIZE);
-	sharemem_out_base = ioremap(phy_out_base, OUT_SIZE);
+	sharemem_in_base = ioremap_cache(phy_in_base, IN_SIZE);
+	sharemem_out_base = ioremap_cache(phy_out_base, OUT_SIZE);
+	pr_info("share in base: 0x%lx, share out base: 0x%lx\n",
+			(long)sharemem_in_base, (long)sharemem_out_base);
 	return 0;
 }
 static const struct reserved_mem_ops rmem_secmon_ops = {
