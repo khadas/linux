@@ -20,17 +20,9 @@
 #define CLK_VID_PLL 5
 #define CLK_HDMI_PLL 6
 
-#define CLK_UART_AO 10
+#define CLK_81       10
 #define CLK_HDMI_SYS 11
-#define CLK_UART_0 12
-#define CLK_UART_1 13
-#define CLK_UART_2 14
-#define CLK_UART_3 15
-#define CLK_I2C_AO 16
-#define CLK_I2C_A 17
-#define CLK_I2C_B 18
-#define CLK_I2C_C 19
-#define CLK_I2C_D 20
+
 
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100

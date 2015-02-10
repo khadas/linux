@@ -175,26 +175,26 @@
 }; /* end of / */
 
 &uart_AO {
-	clocks = <&clock CLK_UART_AO>;
+	clocks = <&clock CLK_81>;
 	clock-names = "clk_uart";
 };
 &i2c_ao {
-	clocks = <&clock CLK_I2C_AO>;
+	clocks = <&clock CLK_81>;
 	clock-names = "clk_i2c";
 };
 &i2c_a {
-	clocks = <&clock CLK_I2C_A>;
+	clocks = <&clock CLK_81>;
 	clock-names = "clk_i2c";
 };
 &i2c_b {
-	clocks = <&clock CLK_I2C_B>;
+	clocks = <&clock CLK_81>;
 	clock-names = "clk_i2c";
 };
 &i2c_c {
-	clocks = <&clock CLK_I2C_C>;
+	clocks = <&clock CLK_81>;
 	clock-names = "clk_i2c";
 };
 &i2c_d {
-	clocks = <&clock CLK_I2C_D>;
+	clocks = <&clock CLK_81>;
 	clock-names = "clk_i2c";
 };

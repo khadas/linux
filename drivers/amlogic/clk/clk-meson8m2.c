@@ -63,7 +63,7 @@ static struct amlogic_mux_clock meson8_mux_clks[] __initdata = {
 	MUX_A(0, "clk81_m_1", clk81_p1, OFFSET(HHI_MPEG_CLK_CNTL),
 		9, 1, "ext_osc", 0),
 	MUX(0, "clk81_m_2", clk81_p2, OFFSET(HHI_MPEG_CLK_CNTL), 12, 3, 0),
-	MUX(0, "clk81_m_3", clk81_p3, OFFSET(HHI_MPEG_CLK_CNTL), 8, 1, 0),
+	MUX(CLK_81, "clk81", clk81_p3, OFFSET(HHI_MPEG_CLK_CNTL), 8, 1, 0),
 /*cpu clk*/
 	MUX(0, "cpu_m_1", cpu_p1, OFFSET(HHI_SYS_CPU_CLK_CNTL), 0, 1, 0),
 	MUX(0, "cpu_m_2", cpu_p2, OFFSET(HHI_SYS_CPU_CLK_CNTL), 2, 2, 0),
@@ -84,25 +84,7 @@ static struct amlogic_gate_clock meson8_gate_clks[] __initdata = {
 	GATE(0, "clk81_g", "clk81_d", OFFSET(HHI_MPEG_CLK_CNTL), 7, 0, 0, 0),
 };
 
-/* Modules and sub-modules within the meson chip can be disabled by shutting
- * off the clock. There ars bits associated with either the MPEG_DOMAIN and
- * OTHER_DOMAIN gated clock enabled. If a bit is set high, the clock is enabled.
- */
-static struct amlogic_gate_clock meson8_periph_gate_clks[] __initdata = {
-/*uart*/
-	GATE(CLK_UART_AO, "uart_ao", "clk81_m_3",
-		OFFSET_AO(AO_RTI_GEN_CTNL_REG0), 3, 0, 0, 1),
-	GATE(CLK_I2C_AO, "i2c_ao", "clk81_m_3",
-		OFFSET_AO(AO_RTI_GEN_CTNL_REG0), 1, 0, 0, 1),
-	GATE(CLK_I2C_A, "i2c_a", "clk81_m_3",
-		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
-	GATE(CLK_I2C_B, "i2c_b", "clk81_m_3",
-		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
-	GATE(CLK_I2C_C, "i2c_c", "clk81_m_3",
-		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
-	GATE(CLK_I2C_D, "i2c_d", "clk81_m_3",
-		OFFSET(CLK_GATE_1050), 9, 0, 0, 0),
-};
+
 
 static  struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
 	PLL_2500_RATE(24, 56, 1, 2, 6, 0, 0), /* fvco 1344, / 4, /14 */
@@ -246,8 +228,6 @@ static void __init meson8_clk_init(struct device_node *np)
 			ARRAY_SIZE(meson8_div_clks));
 	amlogic_clk_register_gate(meson8_gate_clks,
 			ARRAY_SIZE(meson8_gate_clks));
-	amlogic_clk_register_gate(meson8_periph_gate_clks,
-			ARRAY_SIZE(meson8_periph_gate_clks));
 	amlogic_clk_register_branches(meson8m2_clk_branches,
 				  ARRAY_SIZE(meson8m2_clk_branches));
 	meson_register_rstc(np, MESON8_RSTC_N_REGS, reg_base_aobus,
@@ -268,8 +248,7 @@ static void __init meson8_clk_init(struct device_node *np)
 				"clk81_m_2",
 				"clk81_d",
 				"clk81_g",
-				"clk81_m_3",
-				"uart_ao",
+				"clk81",
 				"cpu_m_1",
 				"cpu_m_2",
 				"cpu_m_3",

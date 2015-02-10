@@ -273,9 +273,7 @@ void  clockevent_init_and_register(void)
 				     cpu->full_name);
 			return;
 		}
-		pr_info("hwid=%d,mpidr=%d\n", hwid, mpidr);
 		if (hwid == mpidr) {
-			pr_info("matching right\n");
 			break;
 		}
 	}
