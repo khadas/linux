@@ -56,6 +56,61 @@
 		out_base_func = <0x82000021>;
 	};
 
+	pmu {
+		compatible = "amlogic, aml_pmu_prober";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		driver_version = "v0.70";
+		axp202 {
+			compatible = "amlogic, axp_mfd";
+			sub_type = "axp20_mfd";
+			i2c_bus = "i2c_bus_ao";
+			interrupts = <0 66 2>;
+			reg = <0x34>;
+			soft_limit_to99 = <0>;
+			status = "disable";
+		};
+		aml1212 {
+			compatible = "amlogic, amlogic_pmu";
+			sub_type = "aml1212";
+			i2c_bus = "i2c_bus_ao";
+			interrupts = <0 66 2>;
+			reg = <0x35>;
+			soft_limit_to99 = <0>;
+			status = "disable";
+		};
+		rn5t618 {
+			compatible = "amlogic, ricoh_pmu";
+			sub_type = "rn5t618";
+			i2c_bus = "i2c_bus_ao";
+			interrupts = <0 66 2>;
+			reg = <0x32>;
+			soft_limit_to99 = <0>;
+			vbus_dcin_short_connect = <0>;
+			status = "okay";
+		};
+		aml1216 {
+			compatible = "amlogic, amlogic_pmu";
+			sub_type = "aml1216_pmu";
+			i2c_bus = "i2c_bus_ao";
+			interrupts = <0 66 2>;
+			reg = <0x35>;
+			soft_limit_to99 = <0>;
+			vbus_dcin_short_connect = <0>;
+			status = "disable";
+		};
+		aml1218{
+			compatible = "amlogic, amlogic_pmu";
+			sub_type = "aml1218_pmu";
+			i2c_bus = "i2c_bus_ao";
+			interrupts = <0 66 2>;
+			reg = <0x35>;
+			soft_limit_to99 = <0>;
+			vbus_dcin_short_connect = <1>;
+			status = "disable";
+		};
+	};
+
 }; /* end of / */
 &uart_AO {
 	status="okay";

@@ -1,0 +1,14 @@
+config AML_DVFS
+	boolean "Amlogic DVFS interface support"
+	default y
+	depends on AML_POWER_SUPPORT
+	help
+		interface for clock adjustment and power managment
+
+config MESON_CS_DCDC_REGULATOR
+	boolean "Meson Current Source DCDC Regulator support "
+	select REGULATOR
+	depends on AML_DVFS
+	help
+		meson current source control DCDC regulator.
+

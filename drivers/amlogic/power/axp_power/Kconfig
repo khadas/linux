@@ -1,0 +1,30 @@
+menuconfig AW_AXP
+	boolean "AXP Power drivers"
+	select I2C
+	select REGULATOR
+	depends on AMLOGIC_BOARD_HAS_PMU
+	default n
+	---help---
+		This option allows you to select AXP power driver
+
+if AW_AXP
+
+choice
+	prompt "AXP PMU type"
+	default AW_AXP20
+
+config AW_AXP20
+	boolean "AXP20 driver"
+	---help---
+		AXP20 driver
+
+endchoice
+
+config AXP_CHARGEINIT
+	boolean "AXP initial charging environment set"
+	default y
+
+config AXP_CHGCHANGE
+	boolean "AXP charging current set when suspend\resume\shutdown"
+	default y
+endif # !AW_AXP

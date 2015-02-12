@@ -1,0 +1,47 @@
+
+menu "Power Management Support"
+
+#############################################################
+#
+# NOTE:
+#
+# AMLOGIC_BOARD_HAS_PMU is general switch to compile on-board
+# PMU drivers, ALL new added PMU driver should be depend on
+# this config
+#
+############################################################
+config AML_POWER_SUPPORT
+	boolean "Amloigc power related driver support"
+	default y
+	help
+		Say y here if you want power related driver(pmu/dvfs) support
+
+
+config AMLOGIC_BOARD_HAS_PMU
+	boolean "Amlogic on board Power Management Unit support"
+	select POWER_SUPPLY
+	depends on AML_POWER_SUPPORT
+	default y
+	help
+		Say Y here if your board has Power Management Unit
+
+config AMLOGIC_PMU_OF
+	boolean "Amlogic Power OF support"
+	depends on I2C
+	depends on AMLOGIC_BOARD_HAS_PMU
+	default y
+	help
+		Power management device tree support
+
+
+config AML_PMU_ALGORITHM_SUPPORT
+	tristate "Amlogic PMU battery algorithm support"
+	select AML_RTC
+	help
+		Say y if your pmu device need this algorithm support
+
+source "drivers/amlogic/power/axp_power/Kconfig"
+source "drivers/amlogic/power/aml_pmu/Kconfig"
+source "drivers/amlogic/power/ricoh/Kconfig"
+source "drivers/amlogic/power/aml_dvfs/Kconfig"
+endmenu

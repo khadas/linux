@@ -24,6 +24,8 @@ obj-$(CONFIG_AML_RTC) 		+=rtc/
 
 obj-$(CONFIG_I2C_AML)		+=i2c/
 
+obj-$(CONFIG_AML_POWER_SUPPORT)	+= power/
+
 obj-$(CONFIG_AML_DEBUG)		+=aml_debug/
 
 obj-$(CONFIG_REGMAP_MMIO)	+=iomap/
