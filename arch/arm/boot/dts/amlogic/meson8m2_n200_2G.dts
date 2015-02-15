@@ -76,6 +76,125 @@
 		interrupt-names = "remoteirq";
 	};
 
+sdio{
+        compatible = "amlogic, aml_sdio";
+        dev_name = "aml_sdio.0";
+        status = "okay";
+        reg = <0xc1108c20 0x20>;
+        interrupts = <	0 28 1
+        				0 67 1
+        				0 69 1>;
+        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins", "emmc_clk_cmd_pins", "emmc_all_pins", "sdio_clk_cmd_pins", "sdio_all_pins","sd_1bit_pins"; // "jtag_pin", "uartao_default";
+        pinctrl-0 = <&sd_clk_cmd_pins>;
+        pinctrl-1 = <&sd_all_pins>;
+        pinctrl-2 = <&emmc_clk_cmd_pins>;
+        pinctrl-3 = <&emmc_all_pins>;
+        pinctrl-4 = <&sdio_clk_cmd_pins>;
+        pinctrl-5 = <&sdio_all_pins>;
+        pinctrl-6 = <&sd_1bit_pins>;
+	clocks = <&clock CLK_81>;
+	clock-names = "host_clksrc";
+        sd{
+            status = "okay";
+            port = <1>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            pinname = "sd";
+            ocr_avail = <0x200000>;          /**VDD voltage 3.3 ~ 3.4 */
+            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED";
+            f_min = <300000>;
+            f_max = <50000000>;
+            f_max_w = <50000000>;
+            max_req_size = <0x20000>;          /**128KB*/
+            gpio_dat3 = "CARD_4";
+            jtag_pin = "CARD_0";
+            gpio_cd = "CARD_6";
+            gpio_ro = "GPIOZ_0";
+            irq_in = <3>;
+            irq_out = <5>;
+            card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+        };
+        emmc{
+            status = "ok";
+            port = <2>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            pinname = "emmc";
+            ocr_avail = <0x200000>;          /**VDD voltage 3.3 ~ 3.4 */
+            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_ERASE", "MMC_CAP_HW_RESET"; // MMC_CAP_NEEDS_POLL -- for detect, MMC_CAP_NONREMOVABLE -- for eMMC/TSD
+            f_min = <300000>;
+            f_max = <50000000>;
+            f_max_w = <50000000>;
+            max_req_size = <0x20000>;          /**128KB*/
+            gpio_dat3 = "BOOT_3";
+            card_type = <1>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+        };
+//	sdio{
+//            status = "ok";
+//            port = <0>;          /*0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+//            pinname = "sdio";
+//            ocr_avail = <0x200000>;          /*VDD voltage 3.3 ~ 3.4 */
+//            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_SDIO_IRQ","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE";
+//            f_min = <300000>;
+//            f_max = <50000000>;
+//            max_req_size = <0x20000>;          /**128KB*/
+//            card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+//        };
+    };
+
+//    sdhc{
+//        compatible = "amlogic,aml_sdhc";
+//        dev_name = "aml_sdhc.0";
+//        status = "okay";
+//        reg = <0xc1108e00 0x3c>;
+//        pinctrl-names = "sdhc_sd_clk_cmd_pins", "sdhc_sd_all_pins", "sdhc_emmc_clk_cmd_pins", "sdhc_emmc_all_pins", "sdhc_sdio_clk_cmd_pins", "sdhc_sdio_all_pins";
+//        pinctrl-0 = <&sdhc_sd_clk_cmd_pins>;
+//        pinctrl-1 = <&sdhc_sd_all_pins>;
+//        pinctrl-2 = <&sdhc_emmc_clk_cmd_pins>;
+//        pinctrl-3 = <&sdhc_emmc_all_pins>;
+//        pinctrl-4 = <&sdhc_sdio_clk_cmd_pins>;
+//        pinctrl-5 = <&sdhc_sdio_all_pins>;
+//        //pinctrl-6 = <&sd_1bit_pins>;
+//
+//        // sd{
+//        //     status = "okay";
+//        //     port = <4>;          /**0:sdhc_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+//        //     pinname = "sd";
+//        //     ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
+//        //     caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED","MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104";
+//        //     f_min = <300000>;
+//        //     f_max = <100000000>;
+//        //     max_req_size = <0x20000>;          /**128KB*/
+//        //     gpio_dat3 = "CARD_4";
+//        //     //jtag_pin = "CARD_0";
+//        //     gpio_cd = "CARD_6";
+//        //     //gpio_ro = "GPIOZ_0";
+//        //     irq_in = <3>;
+//        //     irq_out = <5>;
+//        //     card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+//        // };
+//        emmc{
+//            status = "okay";
+//            port = <5>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+//            pinname = "emmc";
+//            ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
+//            caps = "MMC_CAP_8_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_ERASE", "MMC_CAP_HW_RESET"; // MMC_CAP_NEEDS_POLL -- for detect, MMC_CAP_NONREMOVABLE -- for eMMC/TSD
+//            caps2 = "MMC_CAP2_HS200_1_8V_SDR";
+//	    f_min = <300000>;
+//            f_max = <100000000>;
+//            max_req_size = <0x20000>;          /**128KB*/
+//            gpio_dat3 = "BOOT_3";
+//            card_type = <1>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+//        };
+//
+//        // sdio{
+//        //     status = "okay";
+//        //     port = <3>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+//        //     pinname = "sdio";
+//        //     ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
+//        //     caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE", "MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104";
+//        //     f_min = <300000>;
+//        //     f_max = <100000000>;
+//        //     max_req_size = <0x20000>;          /**128KB*/
+//        //     card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+//        // };
+//    };
 	pmu {
 		compatible = "amlogic, aml_pmu_prober";
 		#address-cells = <1>;

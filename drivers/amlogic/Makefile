@@ -37,3 +37,4 @@ obj-y	+=secmon/
 
 obj-$(CONFIG_AM_PHY)		+=ethernet/
 
+obj-$(CONFIG_MMC_AML) 		+= mmc/
