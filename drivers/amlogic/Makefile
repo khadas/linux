@@ -53,5 +53,7 @@ obj-$(CONFIG_AML_CANVAS) 	+= canvas/
 
 obj-y += amports/
 
-obj-$(CONFIG_AML_VFM) += vfm/
+obj-$(CONFIG_AML_VFM) 		+= vfm/
+
+obj-$(CONFIG_EFUSE)		+= efuse/
 

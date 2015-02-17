@@ -46,4 +46,6 @@ source "drivers/amlogic/secmon/Kconfig"
 source "drivers/amlogic/amports/Kconfig"
 
 source "drivers/amlogic/vfm/Kconfig"
+
+source "drivers/amlogic/efuse/Kconfig"
 endmenu

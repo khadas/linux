@@ -1,0 +1,22 @@
+#
+# Amlogic efuse device configuration
+#
+
+menu "EFUSE Support"
+
+config EFUSE
+	boolean	"EFUSE Driver"
+	default	n
+	help
+		EFUSE device driver.
+
+config	EFUSE_WRITE_VERSION_PERMIT
+	depends	on EFUSE
+	boolean	"efuse write version permit"
+	default	n
+	help
+		efuse version is prohibited writing in kernel default case, if it must be written, enable this config
+		if you don't understand efuse version, please don't enable this config
+
+
+endmenu

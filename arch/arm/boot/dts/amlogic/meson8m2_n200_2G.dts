@@ -476,6 +476,15 @@ sdio{
 	};
 	/* END OF AUDIO board specific */
 
+	efuse{
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		plat-pos = <0 454>;
+		plat-count = <48>;
+		usid-min = <8>; /*reserved*/
+		usid-max = <31>; /*reserved*/
+	};
 }; /* end of / */
 &uart_AO {
 	status="okay";
