@@ -1,0 +1,23 @@
+#
+# Remote control drivers
+#
+menuconfig MESON_REMOTE
+	bool "Meson Remotes"
+	default y
+	help
+	  Say Y here, and a list of supported remote controls will be displayed.
+	  This option doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if MESON_REMOTE
+
+config AM_REMOTE
+	tristate "Meson IR remote control support"
+	default n
+	help
+	  Say Y here if you want to use the Meson IR remote control.
+
+
+
+endif # MESON_REMOTE

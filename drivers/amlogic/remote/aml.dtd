@@ -1,0 +1,11 @@
+#ifdef CONFIG_AM_REMOTE
+//$$ DEVICE="meson-remote"
+//$$ L2 PROP_STR = "status"
+meson-remote{
+	compatible = "amlogic, meson, remote-keypad";
+	dev_name = "meson-remote";
+	status = "ok";
+	interrupts = <0 15 1>;
+	interrupt-names = "remoteirq";
+};
+#endif

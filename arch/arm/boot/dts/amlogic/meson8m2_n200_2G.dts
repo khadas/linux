@@ -56,6 +56,14 @@
 		out_base_func = <0x82000021>;
 	};
 
+	meson-remote {
+		compatible = "amlogic, meson, remote-keypad";
+		dev_name = "meson-remote";
+		status = "ok";
+		interrupts = <0 15 1>;
+		interrupt-names = "remoteirq";
+	};
+
 	pmu {
 		compatible = "amlogic, aml_pmu_prober";
 		#address-cells = <1>;
