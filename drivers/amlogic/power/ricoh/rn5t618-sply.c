@@ -28,6 +28,7 @@
 #include <linux/amlogic/ricoh_pmu.h>
 #include <linux/reboot.h>
 #include <linux/notifier.h>
+#include <linux/amlogic/usbtype.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/wakelock_android.h>

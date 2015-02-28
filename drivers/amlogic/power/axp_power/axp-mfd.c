@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/regulator/machine.h>
-
+#include <linux/amlogic/usbtype.h>
 #include <linux/of.h>
 #include <asm/setup.h>
 

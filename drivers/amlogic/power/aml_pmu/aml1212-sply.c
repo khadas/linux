@@ -30,6 +30,7 @@
 #include <linux/amlogic/aml_pmu.h>
 #include <linux/amlogic/battery_parameter.h>
 #include <linux/amlogic/aml_rtc.h>
+#include <linux/amlogic/usbtype.h>
 #ifdef CONFIG_RESET_TO_SYSTEM
 #include <linux/reboot.h>
 #include <linux/notifier.h>

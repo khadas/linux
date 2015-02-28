@@ -29,6 +29,7 @@
 #include "axp-mfd.h"
 #include <linux/amlogic/aml_rtc.h>
 #include <linux/amlogic/aml_pmu_common.h>
+#include <linux/amlogic/usbtype.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/wakelock_android.h>

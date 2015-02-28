@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/amlogic/aml_rtc.h>
 #include <linux/amlogic/aml_pmu.h>
+#include <linux/amlogic/usbtype.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>

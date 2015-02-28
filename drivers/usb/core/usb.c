@@ -349,9 +349,11 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 	.poweroff =	usb_dev_poweroff,
 	.restore =	usb_dev_restore,
 #ifdef CONFIG_PM_RUNTIME
+#if 0
 	.runtime_suspend =	usb_runtime_suspend,
 	.runtime_resume =	usb_runtime_resume,
 	.runtime_idle =		usb_runtime_idle,
+#endif
 #endif
 };
 
@@ -372,7 +374,7 @@ struct device_type usb_device_type = {
 	.name =		"usb_device",
 	.release =	usb_release_dev,
 	.uevent =	usb_dev_uevent,
-	.devnode = 	usb_devnode,
+	.devnode =	usb_devnode,
 #ifdef CONFIG_PM
 	.pm =		&usb_device_pm_ops,
 #endif
@@ -460,12 +462,12 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	} else {
 		/* match any labeling on the hubs; it's one-based */
 		if (parent->devpath[0] == '0') {
-			snprintf(dev->devpath, sizeof dev->devpath,
+			snprintf(dev->devpath, sizeof(dev->devpath),
 				"%d", port1);
 			/* Root ports are not counted in route string */
 			dev->route = 0;
 		} else {
-			snprintf(dev->devpath, sizeof dev->devpath,
+			snprintf(dev->devpath, sizeof(dev->devpath),
 				"%s.%d", parent->devpath, port1);
 			/* Route string assumes hubs have less than 16 ports */
 			if (port1 < 15)
@@ -766,10 +768,13 @@ struct urb *usb_buffer_map(struct urb *urb)
 	struct usb_bus		*bus;
 	struct device		*controller;
 
+	bus = urb->dev->bus;
+	controller = bus->controller;
+
 	if (!urb
 			|| !urb->dev
-			|| !(bus = urb->dev->bus)
-			|| !(controller = bus->controller))
+			|| !bus
+			|| !controlle)
 		return NULL;
 
 	if (controller->dma_mask) {
@@ -803,11 +808,14 @@ void usb_buffer_dmasync(struct urb *urb)
 	struct usb_bus		*bus;
 	struct device		*controller;
 
+	bus = urb->dev->bus;
+	controller = bus->controller;
+
 	if (!urb
 			|| !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 			|| !urb->dev
-			|| !(bus = urb->dev->bus)
-			|| !(controller = bus->controller))
+			|| !bus
+			|| !controller)
 		return;
 
 	if (controller->dma_mask) {
@@ -837,11 +845,14 @@ void usb_buffer_unmap(struct urb *urb)
 	struct usb_bus		*bus;
 	struct device		*controller;
 
+	bus = urb->dev->bus;
+	controller = bus->controller;
+
 	if (!urb
 			|| !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 			|| !urb->dev
-			|| !(bus = urb->dev->bus)
-			|| !(controller = bus->controller))
+			|| !bus
+			|| !controller)
 		return;
 
 	if (controller->dma_mask) {
@@ -889,9 +900,12 @@ int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 	struct usb_bus		*bus;
 	struct device		*controller;
 
+	bus = dev->bus;
+	controller = bus->controller;
+
 	if (!dev
-			|| !(bus = dev->bus)
-			|| !(controller = bus->controller)
+			|| !bus
+			|| !controller
 			|| !controller->dma_mask)
 		return -EINVAL;
 
@@ -925,9 +939,12 @@ void usb_buffer_dmasync_sg(const struct usb_device *dev, int is_in,
 	struct usb_bus		*bus;
 	struct device		*controller;
 
+	bus = dev->bus;
+	controller = bus->controller;
+
 	if (!dev
-			|| !(bus = dev->bus)
-			|| !(controller = bus->controller)
+			|| !bus
+			|| !controller
 			|| !controller->dma_mask)
 		return;
 
@@ -953,9 +970,12 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 	struct usb_bus		*bus;
 	struct device		*controller;
 
+	bus = dev->bus;
+	controller = bus->controller;
+
 	if (!dev
-			|| !(bus = dev->bus)
-			|| !(controller = bus->controller)
+			|| !bus
+			|| !controller
 			|| !controller->dma_mask)
 		return;
 
