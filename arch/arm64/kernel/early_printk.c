@@ -27,6 +27,7 @@
 #include <linux/serial_reg.h>
 
 #include <asm/fixmap.h>
+#include <linux/amlogic/aml_serial.h>
 
 static void __iomem *early_base;
 static void (*printch)(char ch);
@@ -40,6 +41,20 @@ static void pl011_printch(char ch)
 		;
 	writeb_relaxed(ch, early_base + UART01x_DR);
 	while (readl_relaxed(early_base + UART01x_FR) & UART01x_FR_BUSY)
+		;
+}
+
+/*
+ * PL011 single character TX.
+ */
+static void aml_uart_printch(char ch)
+{
+	while (readl_relaxed(early_base + MESON_AO_UART0_STATUS)
+				& MESON_UART_TX_FULL)
+		;
+	writeb_relaxed(ch, early_base + MESON_AO_UART0_WFIFO);
+	while (readl_relaxed(early_base + MESON_AO_UART0_STATUS)
+				& MESON_UART_TX_FULL)
 		;
 }
 
@@ -84,6 +99,7 @@ static const struct earlycon_match earlycon_match[] __initconst = {
 	{ .name = "smh", .printch = smh_printch, },
 	{ .name = "uart8250-8bit", .printch = uart8250_8bit_printch, },
 	{ .name = "uart8250-32bit", .printch = uart8250_32bit_printch, },
+	{ .name = "aml-uart", .printch = aml_uart_printch, },
 	{}
 };
 
@@ -142,12 +158,12 @@ static int __init setup_early_printk(char *buf)
 		buf = e;
 	}
 	/* no options parsing yet */
-
+	pr_info("paddr=%llx\n", paddr);
 	if (paddr) {
 		set_fixmap_io(FIX_EARLYCON_MEM_BASE, paddr);
 		early_base = (void __iomem *)fix_to_virt(FIX_EARLYCON_MEM_BASE);
 	}
-
+	pr_info("early_base = %p,%x\n", early_base, FIX_EARLYCON_MEM_BASE);
 	printch = match->printch;
 	early_console = &early_console_dev;
 	register_console(&early_console_dev);

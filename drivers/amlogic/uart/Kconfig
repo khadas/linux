@@ -3,8 +3,7 @@
 #
 
 config AM_UART
-    bool "Serial support"
-    depends on ARCH_MESON
+	bool "Serial support"
 	select SERIAL_CORE
 	default n
     help

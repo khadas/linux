@@ -9,8 +9,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	model = "Juno";
-	compatible = "arm,juno", "arm,vexpress";
+	model = "Amlogic GX";
+	compatible = "amlogic, Gx";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

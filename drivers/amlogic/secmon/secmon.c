@@ -5,8 +5,11 @@
 #include <linux/libfdt_env.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/io.h>
-#include <asm/opcodes-sec.h>
 #include <linux/platform_device.h>
+#include <asm/compiler.h>
+#ifndef CONFIG_ARM64
+#include <asm/opcodes-sec.h>
+#endif
 #undef pr_fmt
 #define pr_fmt(fmt) "secmon: " fmt
 
@@ -18,6 +21,17 @@ static long phy_out_base;
  #define IN_SIZE	0x1000
  #define OUT_SIZE 0x1000
 
+#ifdef CONFIG_ARM64
+static long get_sharemem_info(unsigned function_id)
+{
+	asm volatile(
+		__asmeq("%0", "x0")
+		"smc	#0\n"
+		: "+r" (function_id));
+
+	return function_id;
+}
+#else
 static long get_sharemem_info(unsigned function_id)
 {
 	register long r0 asm("r0") = function_id;
@@ -30,6 +44,7 @@ static long get_sharemem_info(unsigned function_id)
 
 	return r0;
 }
+#endif
 static int secmon_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
