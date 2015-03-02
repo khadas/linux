@@ -571,7 +571,24 @@ static void stmmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	}
 	spin_unlock_irq(&priv->lock);
 }
+#ifdef CONFIG_DWMAC_MESON
+static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int err;
 
+	if (priv->phydev == NULL)
+		return -EOPNOTSUPP;
+
+	err = phy_ethtool_set_wol(priv->phydev, wol);
+	/* Given that amlogic mac works without the micrel PHY driver,
+	 * this debugging hint is useful to have.
+	 */
+	if (err == -EOPNOTSUPP)
+		pr_info("Not support set_wol, was MICREL_PHY enabled?\n");
+	return err;
+}
+#else
 static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -604,7 +621,7 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	return 0;
 }
-
+#endif
 static int stmmac_ethtool_op_get_eee(struct net_device *dev,
 				     struct ethtool_eee *edata)
 {

@@ -57,7 +57,17 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 	};
-
+	ethmac: ethernet@0xc9410000{
+		compatible = "amlogic, meson8m2-rmii-dwmac";
+		reg = <0xc9410000 0x10000
+		0xc1108108 0x4>;
+		interrupts = <0 8 1>;
+		resets = <&clock GCLK_IDX_ETHERNET>;
+		reset-names = "ethpower";
+		interrupt-names = "macirq";
+		clocks = <&clock CLK_81>;
+		clock-names = "ethclk81";
+	};
 	meson-remote {
 		compatible = "amlogic, meson, remote-keypad";
 		dev_name = "meson-remote";
@@ -180,10 +190,6 @@
 };
 
 &i2c_ao {
-  status = "okay";
-};
-
-&i2c_a {
   status = "okay";
 };
 

@@ -30,145 +30,331 @@
 
 #include <linux/crc32.h>
 #include <asm/io.h>
-#include "dwmac100.h"
-
+#include "dwmac1000.h"
 static void dwmac100_core_init(void __iomem *ioaddr, int mtu)
 {
-	u32 value = readl(ioaddr + MAC_CONTROL);
-
-	writel((value | MAC_CORE_INIT), ioaddr + MAC_CONTROL);
-
+	u32 value = readl(ioaddr + GMAC_CONTROL);
+	value |= MAC_CORE_100_INIT;
+	writel(value, ioaddr + GMAC_CONTROL);
+	/* Mask GMAC interrupts */
+	writel(0x0, ioaddr + GMAC_INT_MASK);
+/*close mmc interrupts this funtion is s812  chip bug*/
+	 if (is_meson_m8m2_cpu()) {
+		pr_info("mask interrupts MMC\n");
+		writel(0xffffffff, ioaddr + ETH_MMC_ipc_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_tx);
+	 }
 #ifdef STMMAC_VLAN_TAG_USED
-	writel(ETH_P_8021Q, ioaddr + MAC_VLAN1);
+	/* Tag detection without filtering */
+	writel(0x0, ioaddr + GMAC_VLAN_TAG);
 #endif
-}
-
-static void dwmac100_dump_mac_regs(void __iomem *ioaddr)
-{
-	pr_info("\t----------------------------------------------\n"
-		"\t  DWMAC 100 CSR (base addr = 0x%p)\n"
-		"\t----------------------------------------------\n", ioaddr);
-	pr_info("\tcontrol reg (offset 0x%x): 0x%08x\n", MAC_CONTROL,
-		readl(ioaddr + MAC_CONTROL));
-	pr_info("\taddr HI (offset 0x%x): 0x%08x\n ", MAC_ADDR_HIGH,
-		readl(ioaddr + MAC_ADDR_HIGH));
-	pr_info("\taddr LO (offset 0x%x): 0x%08x\n", MAC_ADDR_LOW,
-		readl(ioaddr + MAC_ADDR_LOW));
-	pr_info("\tmulticast hash HI (offset 0x%x): 0x%08x\n",
-		MAC_HASH_HIGH, readl(ioaddr + MAC_HASH_HIGH));
-	pr_info("\tmulticast hash LO (offset 0x%x): 0x%08x\n",
-		MAC_HASH_LOW, readl(ioaddr + MAC_HASH_LOW));
-	pr_info("\tflow control (offset 0x%x): 0x%08x\n",
-		MAC_FLOW_CTRL, readl(ioaddr + MAC_FLOW_CTRL));
-	pr_info("\tVLAN1 tag (offset 0x%x): 0x%08x\n", MAC_VLAN1,
-		readl(ioaddr + MAC_VLAN1));
-	pr_info("\tVLAN2 tag (offset 0x%x): 0x%08x\n", MAC_VLAN2,
-		readl(ioaddr + MAC_VLAN2));
 }
 
 static int dwmac100_rx_ipc_enable(void __iomem *ioaddr)
 {
-	return 0;
+	u32 value = readl(ioaddr + GMAC_CONTROL);
+
+	value |= GMAC_CONTROL_IPC;
+	writel(value, ioaddr + GMAC_CONTROL);
+
+	value = readl(ioaddr + GMAC_CONTROL);
+
+	return !!(value & GMAC_CONTROL_IPC);
 }
 
-static int dwmac100_irq_status(void __iomem *ioaddr,
-			       struct stmmac_extra_stats *x)
+static void dwmac100_dump_regs(void __iomem *ioaddr)
 {
-	return 0;
+	int i;
+	pr_info("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
+
+	for (i = 0; i < 55; i++) {
+		int offset = i * 4;
+		pr_info("\tReg No. %d (offset 0x%x): 0x%08x\n", i,
+			offset, readl(ioaddr + offset));
+	}
 }
 
 static void dwmac100_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
-				   unsigned int reg_n)
+				    unsigned int reg_n)
 {
-	stmmac_set_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
+	stmmac_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
+			    GMAC_ADDR_LOW(reg_n));
 }
 
 static void dwmac100_get_umac_addr(void __iomem *ioaddr, unsigned char *addr,
-				   unsigned int reg_n)
+				    unsigned int reg_n)
 {
-	stmmac_get_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
+	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
+			    GMAC_ADDR_LOW(reg_n));
 }
 
 static void dwmac100_set_filter(struct net_device *dev, int id)
 {
 	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
-	u32 value = readl(ioaddr + MAC_CONTROL);
+	unsigned int value = 0;
+	unsigned int perfect_addr_number;
 
-	if (dev->flags & IFF_PROMISC) {
-		value |= MAC_CONTROL_PR;
-		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_IF | MAC_CONTROL_HO |
-			   MAC_CONTROL_HP);
-	} else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
-		   || (dev->flags & IFF_ALLMULTI)) {
-		value |= MAC_CONTROL_PM;
-		value &= ~(MAC_CONTROL_PR | MAC_CONTROL_IF | MAC_CONTROL_HO);
-		writel(0xffffffff, ioaddr + MAC_HASH_HIGH);
-		writel(0xffffffff, ioaddr + MAC_HASH_LOW);
-	} else if (netdev_mc_empty(dev)) {	/* no multicast */
-		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR | MAC_CONTROL_IF |
-			   MAC_CONTROL_HO | MAC_CONTROL_HP);
-	} else {
+	if (dev->flags & IFF_PROMISC)
+		value = GMAC_FRAME_FILTER_PR;
+	else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
+		 || (dev->flags & IFF_ALLMULTI)) {
+		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
+		writel(0xffffffff, ioaddr + GMAC_HASH_HIGH);
+		writel(0xffffffff, ioaddr + GMAC_HASH_LOW);
+	} else if (!netdev_mc_empty(dev)) {
 		u32 mc_filter[2];
 		struct netdev_hw_addr *ha;
 
-		/* Perfect filter mode for physical address and Hash
-		 * filter for multicast
-		 */
-		value |= MAC_CONTROL_HP;
-		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR |
-			   MAC_CONTROL_IF | MAC_CONTROL_HO);
+		/* Hash filter for multicast */
+		value = GMAC_FRAME_FILTER_HMC;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
 		netdev_for_each_mc_addr(ha, dev) {
 			/* The upper 6 bits of the calculated CRC are used to
 			 * index the contens of the hash table
 			 */
-			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+			int bit_nr = bitrev32(~crc32_le(~0, ha->addr, 6)) >> 26;
 			/* The most significant bit determines the register to
 			 * use (H/L) while the other 5 bits determine the bit
 			 * within the register.
 			 */
 			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 		}
-		writel(mc_filter[0], ioaddr + MAC_HASH_LOW);
-		writel(mc_filter[1], ioaddr + MAC_HASH_HIGH);
+		writel(mc_filter[0], ioaddr + GMAC_HASH_LOW);
+		writel(mc_filter[1], ioaddr + GMAC_HASH_HIGH);
 	}
 
-	writel(value, ioaddr + MAC_CONTROL);
+	/* Extra 16 regs are available in cores newer than the 3.40. */
+	if (id > DWMAC_CORE_3_40)
+		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES;
+	else
+		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES / 2;
+
+	/* Handle multiple unicast addresses (perfect filtering) */
+	if (netdev_uc_count(dev) > perfect_addr_number)
+		/* Switch to promiscuous mode if more than 16 addrs
+		 * are required
+		 */
+		value |= GMAC_FRAME_FILTER_PR;
+	else {
+		int reg = 1;
+		struct netdev_hw_addr *ha;
+
+		netdev_for_each_uc_addr(ha, dev) {
+			dwmac100_set_umac_addr(ioaddr, ha->addr, reg);
+			reg++;
+		}
+	}
+
+#ifdef FRAME_FILTER_DEBUG
+	/* Enable Receive all mode (to debug filtering_fail errors) */
+	value |= GMAC_FRAME_FILTER_RA;
+#endif
+	writel(value, ioaddr + GMAC_FRAME_FILTER);
+
 }
 
 static void dwmac100_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
-			       unsigned int fc, unsigned int pause_time)
+				unsigned int fc, unsigned int pause_time)
 {
-	unsigned int flow = MAC_FLOW_CTRL_ENABLE;
+	unsigned int flow = 0;
 
+	if (fc & FLOW_RX)
+		flow |= GMAC_FLOW_CTRL_RFE;
+	if (fc & FLOW_TX)
+		flow |= GMAC_FLOW_CTRL_TFE;
 	if (duplex)
-		flow |= (pause_time << MAC_FLOW_CTRL_PT_SHIFT);
-	writel(flow, ioaddr + MAC_FLOW_CTRL);
+		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
+
+	writel(flow, ioaddr + GMAC_FLOW_CTRL);
 }
 
-/* No PMT module supported on ST boards with this Eth chip. */
 static void dwmac100_pmt(void __iomem *ioaddr, unsigned long mode)
 {
-	return;
+	unsigned int pmt = 0;
+
+	if (mode & WAKE_MAGIC)
+		pmt |= power_down | magic_pkt_en;
+	if (mode & WAKE_UCAST)
+		pmt |= global_unicast;
+
+	writel(pmt, ioaddr + GMAC_PMT);
+}
+
+static int dwmac100_irq_status(void __iomem *ioaddr,
+				struct stmmac_extra_stats *x)
+{
+	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	int ret = 0;
+
+	/* Not used events (e.g. MMC interrupts) are not handled. */
+	if ((intr_status & mmc_tx_irq))
+		x->mmc_tx_irq_n++;
+	if (unlikely(intr_status & mmc_rx_irq))
+		x->mmc_rx_irq_n++;
+	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
+		x->mmc_rx_csum_offload_irq_n++;
+	if (unlikely(intr_status & pmt_irq)) {
+		/* clear the PMT bits 5 and 6 by reading the PMT status reg */
+		readl(ioaddr + GMAC_PMT);
+		x->irq_receive_pmt_irq_n++;
+	}
+	/* MAC trx/rx EEE LPI entry/exit interrupts */
+	if (intr_status & lpiis_irq) {
+		/* Clean LPI interrupt by reading the Reg 12 */
+		ret = readl(ioaddr + LPI_CTRL_STATUS);
+
+		if (ret & LPI_CTRL_STATUS_TLPIEN)
+			x->irq_tx_path_in_lpi_mode_n++;
+		if (ret & LPI_CTRL_STATUS_TLPIEX)
+			x->irq_tx_path_exit_lpi_mode_n++;
+		if (ret & LPI_CTRL_STATUS_RLPIEN)
+			x->irq_rx_path_in_lpi_mode_n++;
+		if (ret & LPI_CTRL_STATUS_RLPIEX)
+			x->irq_rx_path_exit_lpi_mode_n++;
+	}
+
+	if ((intr_status & pcs_ane_irq) || (intr_status & pcs_link_irq)) {
+		readl(ioaddr + GMAC_AN_STATUS);
+		x->irq_pcs_ane_n++;
+	}
+	if (intr_status & rgmii_irq) {
+		u32 status = readl(ioaddr + GMAC_S_R_GMII);
+		x->irq_rgmii_n++;
+
+		/* Save and dump the link status. */
+		if (status & GMAC_S_R_GMII_LINK) {
+			int speed_value = (status & GMAC_S_R_GMII_SPEED) >>
+			    GMAC_S_R_GMII_SPEED_SHIFT;
+			x->pcs_duplex = (status & GMAC_S_R_GMII_MODE);
+
+			if (speed_value == GMAC_S_R_GMII_SPEED_125)
+				x->pcs_speed = SPEED_1000;
+			else if (speed_value == GMAC_S_R_GMII_SPEED_25)
+				x->pcs_speed = SPEED_100;
+			else
+				x->pcs_speed = SPEED_10;
+
+			x->pcs_link = 1;
+			pr_debug("Link is Up - %d/%s\n", (int)x->pcs_speed,
+				 x->pcs_duplex ? "Full" : "Half");
+		} else {
+			x->pcs_link = 0;
+			pr_debug("Link is Down\n");
+		}
+	}
+
+	return ret;
+}
+
+static void dwmac100_set_eee_mode(void __iomem *ioaddr)
+{
+	u32 value;
+
+	/* Enable the link status receive on RGMII, SGMII ore SMII
+	 * receive path and instruct the transmit to enter in LPI
+	 * state.
+	 */
+	value = readl(ioaddr + LPI_CTRL_STATUS);
+	value |= LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_LPITXA;
+	writel(value, ioaddr + LPI_CTRL_STATUS);
+}
+
+static void dwmac100_reset_eee_mode(void __iomem *ioaddr)
+{
+	u32 value;
+
+	value = readl(ioaddr + LPI_CTRL_STATUS);
+	value &= ~(LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_LPITXA);
+	writel(value, ioaddr + LPI_CTRL_STATUS);
+}
+
+static void dwmac100_set_eee_pls(void __iomem *ioaddr, int link)
+{
+	u32 value;
+
+	value = readl(ioaddr + LPI_CTRL_STATUS);
+
+	if (link)
+		value |= LPI_CTRL_STATUS_PLS;
+	else
+		value &= ~LPI_CTRL_STATUS_PLS;
+
+	writel(value, ioaddr + LPI_CTRL_STATUS);
+}
+
+static void dwmac100_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
+{
+	int value = ((tw & 0xffff)) | ((ls & 0x7ff) << 16);
+
+	/* Program the timers in the LPI timer control register:
+	 * LS: minimum time (ms) for which the link
+	 *  status from PHY should be ok before transmitting
+	 *  the LPI pattern.
+	 * TW: minimum time (us) for which the core waits
+	 *  after it has stopped transmitting the LPI pattern.
+	 */
+	writel(value, ioaddr + LPI_TIMER_CTRL);
+}
+
+static void dwmac100_ctrl_ane(void __iomem *ioaddr, bool restart)
+{
+	u32 value;
+
+	value = readl(ioaddr + GMAC_AN_CTRL);
+	/* auto negotiation enable and External Loopback enable */
+	value = GMAC_AN_CTRL_ANE | GMAC_AN_CTRL_ELE;
+
+	if (restart)
+		value |= GMAC_AN_CTRL_RAN;
+
+	writel(value, ioaddr + GMAC_AN_CTRL);
+}
+
+static void dwmac100_get_adv(void __iomem *ioaddr, struct rgmii_adv *adv)
+{
+	u32 value = readl(ioaddr + GMAC_ANE_ADV);
+
+	if (value & GMAC_ANE_FD)
+		adv->duplex = DUPLEX_FULL;
+	if (value & GMAC_ANE_HD)
+		adv->duplex |= DUPLEX_HALF;
+
+	adv->pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
+
+	value = readl(ioaddr + GMAC_ANE_LPA);
+
+	if (value & GMAC_ANE_FD)
+		adv->lp_duplex = DUPLEX_FULL;
+	if (value & GMAC_ANE_HD)
+		adv->lp_duplex = DUPLEX_HALF;
+
+	adv->lp_pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
 }
 
 static const struct stmmac_ops dwmac100_ops = {
 	.core_init = dwmac100_core_init,
 	.rx_ipc = dwmac100_rx_ipc_enable,
-	.dump_regs = dwmac100_dump_mac_regs,
+	.dump_regs = dwmac100_dump_regs,
 	.host_irq_status = dwmac100_irq_status,
 	.set_filter = dwmac100_set_filter,
 	.flow_ctrl = dwmac100_flow_ctrl,
 	.pmt = dwmac100_pmt,
 	.set_umac_addr = dwmac100_set_umac_addr,
 	.get_umac_addr = dwmac100_get_umac_addr,
+	.set_eee_mode = dwmac100_set_eee_mode,
+	.reset_eee_mode = dwmac100_reset_eee_mode,
+	.set_eee_timer = dwmac100_set_eee_timer,
+	.set_eee_pls = dwmac100_set_eee_pls,
+	.ctrl_ane = dwmac100_ctrl_ane,
+	.get_adv = dwmac100_get_adv,
 };
 
 struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
 {
 	struct mac_device_info *mac;
-
+	u32 hwid = readl(ioaddr + GMAC_VERSION);
 	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
 	if (!mac)
 		return NULL;
@@ -176,14 +362,18 @@ struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
 	pr_info("\tDWMAC100\n");
 
 	mac->mac = &dwmac100_ops;
+#ifdef CONFIG_DWMAC_MESON
+	mac->dma = &dwmac1000_dma_ops;
+#else
 	mac->dma = &dwmac100_dma_ops;
+#endif
 
-	mac->link.port = MAC_CONTROL_PS;
-	mac->link.duplex = MAC_CONTROL_F;
-	mac->link.speed = 0;
-	mac->mii.addr = MAC_MII_ADDR;
-	mac->mii.data = MAC_MII_DATA;
-	mac->synopsys_uid = 0;
+	mac->link.port = GMAC_CONTROL_PS;
+	mac->link.duplex = GMAC_CONTROL_DM;
+	mac->link.speed = GMAC_CONTROL_FES;
+	mac->mii.addr = GMAC_MII_ADDR;
+	mac->mii.data = GMAC_MII_DATA;
+	mac->synopsys_uid = hwid;
 
 	return mac;
 }

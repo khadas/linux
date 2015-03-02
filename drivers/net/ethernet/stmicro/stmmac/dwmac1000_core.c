@@ -31,6 +31,9 @@
 #include <linux/ethtool.h>
 #include <asm/io.h>
 #include "dwmac1000.h"
+#ifdef CONFIG_DWMAC_MESON
+#include <linux/amlogic/cpu_version.h>
+#endif
 
 static void dwmac1000_core_init(void __iomem *ioaddr, int mtu)
 {
@@ -44,8 +47,14 @@ static void dwmac1000_core_init(void __iomem *ioaddr, int mtu)
 	writel(value, ioaddr + GMAC_CONTROL);
 
 	/* Mask GMAC interrupts */
-	writel(0x207, ioaddr + GMAC_INT_MASK);
-
+	writel(0x0, ioaddr + GMAC_INT_MASK);
+/*close mmc interrupts this funtion is s812  chip bug*/
+	if (is_meson_m8m2_cpu()) {
+		pr_info("mask interrupts MMC\n");
+		writel(0xffffffff, ioaddr + ETH_MMC_ipc_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_tx);
+	 }
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Tag detection without filtering */
 	writel(0x0, ioaddr + GMAC_VLAN_TAG);

@@ -51,6 +51,12 @@
 #include <linux/net_tstamp.h>
 #include "stmmac_ptp.h"
 #include "stmmac.h"
+#ifdef CONFIG_DWMAC_MESON
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/iomap.h>
+#include "am_eth_reg.h"
+#define STMMAC_XMIT_DEBUG
+#endif
 #include <linux/reset.h>
 
 #define STMMAC_ALIGN(x)	L1_CACHE_ALIGN(x)
@@ -147,7 +153,7 @@ static void stmmac_verify_args(void)
 	if (eee_timer < 0)
 		eee_timer = STMMAC_DEFAULT_LPI_TIMER;
 }
-
+#ifdef CONFIG_DWMAC_MESON
 /**
  * stmmac_clk_csr_set - dynamically set the MDC clock
  * @priv: driver private structure
@@ -165,7 +171,6 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 	u32 clk_rate;
 
 	clk_rate = clk_get_rate(priv->stmmac_clk);
-
 	/* Platform provided default clk_csr would be assumed valid
 	 * for all other cases except for the below mentioned ones.
 	 * For values higher than the IEEE 802.3 specified frequency
@@ -188,7 +193,8 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 			priv->clk_csr = STMMAC_CSR_250_300M;
 	}
 }
-
+#endif
+#if defined(STMMAC_XMIT_DEBUG) || defined(STMMAC_RX_DEBUG)
 static void print_pkt(unsigned char *buf, int len)
 {
 	int j;
@@ -200,6 +206,7 @@ static void print_pkt(unsigned char *buf, int len)
 	}
 	pr_debug("\n");
 }
+#endif
 
 /* minimum number of free TX descriptors required to wake up TX process */
 #define STMMAC_TX_THRESH(x)	(x->dma_tx_size/4)
@@ -455,6 +462,7 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	    config.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
 
+
 	if (priv->adv_ts) {
 		switch (config.rx_filter) {
 		case HWTSTAMP_FILTER_NONE:
@@ -708,13 +716,16 @@ static void stmmac_adjust_link(struct net_device *dev)
 			case 10:
 				if (priv->plat->has_gmac) {
 					ctrl |= priv->hw->link.port;
-					if (phydev->speed == SPEED_100) {
+					if (phydev->speed == SPEED_100)
 						ctrl |= priv->hw->link.speed;
-					} else {
+					else
 						ctrl &= ~(priv->hw->link.speed);
-					}
 				} else {
-					ctrl &= ~priv->hw->link.port;
+					ctrl |= priv->hw->link.port;
+					if (phydev->speed == SPEED_100)
+						ctrl |= priv->hw->link.speed;
+					else
+						ctrl &= ~(priv->hw->link.speed);
 				}
 				stmmac_hw_fix_mac_speed(priv);
 				break;
@@ -776,6 +787,538 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 		}
 	}
 }
+#ifdef CONFIG_DWMAC_MESON
+static int gPhyReg;
+static void __iomem *c_ioaddr;
+static ssize_t show_phy_reg(struct device *dev,
+				struct device_attribute *attr, char *buf) {
+	int ret = snprintf(buf, PAGE_SIZE, "current phy reg = 0x%x\n", gPhyReg);
+	return ret;
+}
+
+static ssize_t set_phy_reg(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count) {
+	int ovl;
+	int r = kstrtoint(buf, 0, &ovl);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	gPhyReg = ovl;
+	pr_info("---ovl=0x%x\n", ovl);
+	return count;
+}
+
+static ssize_t show_phy_regValue(struct device *dev,
+			struct device_attribute *attr, char *buf) {
+	struct phy_device *phy_dev = dev_get_drvdata(dev);
+	int ret = 0;
+	int val;
+#if 0
+	val = phy_read(phy_dev, gPhyReg);
+	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n", gPhyReg, val);
+#else
+	int i = 0;
+	for (i = 0; i < 32; i++)
+		pr_info("%d: 0x%x\n", i, phy_read(phy_dev, i));
+	val = phy_read(phy_dev, gPhyReg);
+	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n",
+		gPhyReg, val);
+#endif
+	return ret;
+}
+
+static ssize_t set_phy_regValue(struct device *dev,
+				struct device_attribute *attr,
+					const char *buf, size_t count) {
+	int ovl;
+	int ret;
+
+	struct phy_device *phy_dev = dev_get_drvdata(dev);
+	ret = kstrtoint(buf, 0, &ovl);
+	pr_info("---reg 0x%x: ovl=0x%x\n", gPhyReg, ovl);
+	phy_write(phy_dev, gPhyReg, ovl);
+	return count;
+}
+
+static struct device_attribute phy_reg_attrs[] = {
+	__ATTR(phy_reg, S_IRUGO | S_IWUSR, show_phy_reg, set_phy_reg),
+	__ATTR(phy_regValue, S_IRUGO | S_IWUSR,
+			show_phy_regValue, set_phy_regValue)
+};
+#if 1
+static struct phy_device *c_phy_dev;
+static void am_net_dump_phyreg(void)
+{
+	int reg = 0;
+	int val = 0;
+	if (c_phy_dev == NULL)
+		return;
+
+	pr_info("========== ETH PHY new regs ==========\n");
+	for (reg = 0; reg < 32; reg++) {
+		val = phy_read(c_phy_dev, reg);
+		pr_info("[reg_%d] 0x%x\n", reg, val);
+	}
+}
+
+
+static int am_net_read_phyreg(int argc, char **argv)
+{
+	int reg = 0;
+	int val = 0;
+	int r = 0;
+	if (c_phy_dev == NULL)
+		return -1;
+	if (argc < 2 || (argv == NULL) || (argv[0] == NULL)
+		|| (argv[1] == NULL)) {
+		pr_info("Invalid syntax\n");
+		return -1;
+	}
+	r = kstrtoint(argv[1], 0, &reg);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	if (reg >= 0 && reg <= 31) {
+		val = phy_read(c_phy_dev, reg);
+		pr_info("read phy [reg_%d] 0x%x\n", reg, val);
+	} else
+		pr_info("Invalid parameter\n");
+
+	return 0;
+}
+
+static int am_net_write_phyreg(int argc, char **argv)
+{
+	int reg = 0;
+	int val = 0;
+	int r = 0;
+	if (c_phy_dev == NULL)
+		return -1;
+	if (argc < 3 || (argv == NULL) || (argv[0] == NULL)
+			|| (argv[1] == NULL) || (argv[2] == NULL)) {
+		pr_info("Invalid syntax\n");
+		return -1;
+	}
+	r = kstrtoint(argv[1], 0, &reg);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	r = kstrtoint(argv[2], 0, &val);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	if (reg >= 0 && reg <= 31) {
+		phy_write(c_phy_dev, reg, val);
+		pr_info("write phy [reg_%d] 0x%x, 0x%x\n",
+				reg, val, phy_read(c_phy_dev, reg));
+	} else {
+		pr_info("Invalid parameter\n");
+	}
+
+	return 0;
+}
+static void am_net_dump_macreg(void)
+{
+	int reg = 0;
+	int val = 0;
+	pr_info("========== ETH_MAC regs ==========\n");
+	for (reg = ETH_MAC_0_Configuration;
+		reg <= ETH_MMC_rxicmp_err_octets; reg += 0x4) {
+		val = readl(c_ioaddr + reg);
+		pr_info("[0x%04x] 0x%x\n", reg, val);
+	}
+
+	pr_info("========== ETH_DMA regs ==========\n");
+	for (reg = ETH_DMA_0_Bus_Mode;
+		reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr; reg += 0x4) {
+		val = readl(c_ioaddr + reg);
+		pr_info("[0x%04x] 0x%x\n", reg, val);
+	}
+}
+
+
+static int am_net_read_macreg(int argc, char **argv)
+{
+	int reg = 0;
+	int val = 0;
+	int r = 0;
+	if (argc < 2 || (argv == NULL) || (argv[0] == NULL)
+		|| (argv[1] == NULL)) {
+		pr_info("Invalid syntax\n");
+		return -1;
+	}
+	r  = kstrtoint(argv[1], 0, &reg);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
+		val = readl(c_ioaddr + reg);
+		pr_info("read mac [0x4%x] 0x%x\n", reg, val);
+	} else {
+		pr_info("Invalid parameter\n");
+	}
+
+	return 0;
+}
+
+
+static int am_net_write_macreg(int argc, char **argv)
+{
+	int reg = 0;
+	int val = 0;
+	int r = 0;
+	if ((argc < 3) || (argv == NULL) || (argv[0] == NULL)
+			|| (argv[1] == NULL) || (argv[2] == NULL)) {
+		pr_info("Invalid syntax\n");
+		return -1;
+	}
+	r = kstrtoint(argv[1], 0, &reg);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	r = kstrtoint(argv[2], 0, &val);
+	if (r)
+		pr_info("kstrtoint failed\n");
+	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
+		writel(val, (c_ioaddr + reg));
+		pr_info("write mac [0x%x] 0x%x, 0x%x\n",
+			reg, val, readl(c_ioaddr + reg));
+	} else {
+		pr_info("Invalid parameter\n");
+	}
+
+	return 0;
+}
+static const char *g_phyreg_help = {
+	"Usage:\n"
+	"    echo d > phyreg;            //dump ethernet phy reg\n"
+	"    echo r reg > phyreg;        //read ethernet phy reg\n"
+	"    echo w reg val > phyreg;    //write ethernet phy reg\n"
+};
+
+static ssize_t eth_phyreg_help(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", g_phyreg_help);
+}
+
+static ssize_t eth_phyreg_func(struct class *class,
+struct class_attribute *attr, const char *buf, size_t count)
+{
+	int argc;
+	char *buff, *p, *para;
+	char *argv[4];
+	char cmd;
+
+	buff = kstrdup(buf, GFP_KERNEL);
+	p = buff;
+	for (argc = 0; argc < 4; argc++) {
+		para = strsep(&p, " ");
+		if (para == NULL)
+			break;
+		argv[argc] = para;
+	}
+	if (argc < 1 || argc > 4)
+		goto end;
+
+	cmd = argv[0][0];
+	switch (cmd) {
+	case 'r':
+	case 'R':
+		am_net_read_phyreg(argc, argv);
+		break;
+	case 'w':
+	case 'W':
+		am_net_write_phyreg(argc, argv);
+		break;
+	case 'd':
+	case 'D':
+		am_net_dump_phyreg();
+		break;
+	default:
+		goto end;
+	}
+
+	return count;
+
+end:
+	kfree(buff);
+	return 0;
+}
+
+static const char *g_macreg_help = {
+	"Usage:\n"
+	"    echo d > macreg;            //dump ethernet mac reg\n"
+	"    echo r reg > macreg;        //read ethernet mac reg\n"
+	"    echo w reg val > macreg;    //read ethernet mac reg\n"
+};
+
+
+static ssize_t eth_macreg_help(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", g_macreg_help);
+}
+
+
+static ssize_t eth_macreg_func(struct class *class,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	int argc;
+	char *buff, *p, *para;
+	char *argv[4];
+	char cmd;
+
+	buff = kstrdup(buf, GFP_KERNEL);
+	p = buff;
+	for (argc = 0; argc < 4; argc++) {
+		para = strsep(&p, " ");
+		if (para == NULL)
+			break;
+		argv[argc] = para;
+	}
+	if (argc < 1 || argc > 4)
+		goto end;
+
+	cmd = argv[0][0];
+	switch (cmd) {
+	case 'r':
+	case 'R':
+		am_net_read_macreg(argc, argv);
+		break;
+	case 'w':
+	case 'W':
+		am_net_write_macreg(argc, argv);
+		break;
+	case 'd':
+	case 'D':
+		am_net_dump_macreg();
+		break;
+	default:
+		goto end;
+	}
+
+	return count;
+
+end:
+	kfree(buff);
+	return 0;
+}
+static ssize_t eth_linkspeed_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+
+	int ret;
+	char buff[100];
+
+	if (c_phy_dev) {
+		phy_print_status(c_phy_dev);
+
+		genphy_update_link(c_phy_dev);
+		if (c_phy_dev->link)
+			strcpy(buff, "link status: link\n");
+		else
+			strcpy(buff, "link status: unlink\n");
+	} else
+		strcpy(buff, "link status: unlink\n");
+
+	ret = sprintf(buf, "%s\n", buff);
+
+	return ret;
+}
+int auto_cali(void)
+{
+	unsigned int value;
+	int I1, I2, I3, I4, I5;
+	int count = 99;
+	char problem[20] = {0};
+	char path[20] = {0};
+	int cali_rise = 0;
+	int cali_sel = 0;
+	pr_info("auto test cali\n");
+	for (cali_sel = 0; cali_sel < 4; cali_sel++) {
+		aml_read_cbus(PREG_ETH_REG1);
+		strcpy(problem, "no clock delay");
+		aml_write_cbus((aml_read_cbus
+		(PREG_ETH_REG0)&(~(0x1f << 25))), PREG_ETH_REG0);
+		I1 = 0;
+		I2 = 0;
+		I3 = 0;
+		I4 = 0;
+		I5 = 0;
+		for (cali_rise = 0; cali_rise <= 1; cali_rise++) {
+			count = 99;
+			aml_write_cbus((aml_read_cbus(PREG_ETH_REG0)
+			|(1 << 25)|(cali_rise << 26)
+			|(cali_sel << 27)), PREG_ETH_REG0);
+			while (count >= 0) {
+				value = aml_read_cbus(PREG_ETH_REG1);
+				if ((value>>15) & 0x1) {
+					count--;
+					switch (value&0x1f) {
+					case 0x0:
+						I1++;
+						break;
+					case 0x1:
+						I2++;
+						break;
+					case 0x2:
+						I3++;
+						break;
+					case 0x3:
+						I4++;
+						break;
+					case 0x4:
+						I5++;
+						break;
+					}
+				}
+			}
+		pr_info
+			(" I1 = %d; I2 = %d; I3 = %d; I4 = %d; I5 = %d;\n",
+			I1, I2, I3, I4, I5);
+		if ((I1 > 0) && (I2 > 0) && (I3 > 0) &&
+				(I4 > 0) && (I5 > 0))
+			strcpy(problem, "clock delay");
+		pr_info(" RXDATA Line %d have %s problem\n",
+				cali_sel, problem);
+		if ((I2+I1+I3) > (I5+I4+I3))
+			strcpy(path, "positive");
+		else
+			strcpy(path, "opposite");
+		if (strcmp(problem, "clock delay") == 0)
+			pr_info("Need debug to  delay %s direction\n",
+					path);
+		}
+	}
+	return 0;
+}
+static int am_net_cali(int argc, char **argv, int gate)
+{
+	int cali_rise = 0;
+	int cali_sel = 0;
+	int cali_start = 0;
+	int cali_time = 0;
+	int ii = 0;
+	int r = 0;
+	unsigned int value;
+	cali_start = gate;
+	if (gate == 3) {
+		auto_cali();
+		return 0;
+	}
+	if ((argc < 4) || (argv == NULL) || (argv[0] == NULL)
+			|| (argv[1] == NULL) || (argv[2] == NULL) ||
+			(argv[3] == NULL)) {
+		pr_info("Invalid syntax\n");
+		return -1;
+	}
+	r = kstrtoint(argv[1], 0, &cali_rise);
+	r = kstrtoint(argv[2], 0, &cali_sel);
+	r = kstrtoint(argv[3], 0, &cali_time);
+	aml_read_cbus(PREG_ETH_REG1);
+	aml_write_cbus(PREG_ETH_REG0,
+		aml_read_cbus(PREG_ETH_REG0)&(~(0x1f << 25)));
+	aml_write_cbus(PREG_ETH_REG0,
+		aml_read_cbus(PREG_ETH_REG0)|
+		(cali_start << 25)|(cali_rise << 26)|
+		(cali_sel << 27));
+	pr_info("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
+		cali_rise, cali_sel, cali_time, cali_start,
+			aml_read_cbus(PREG_ETH_REG0));
+	for (ii = 0; ii < cali_time; ii++) {
+		value = aml_read_cbus(PREG_ETH_REG1);
+		if ((value>>15) & 0x1) {
+			pr_info
+			("value = %x,len = %d,idx = %d,sel=%d,rise = %d\n",
+			value, (value>>5)&0x1f, (value&0x1f),
+			(value>>11)&0x7, (value>>14)&0x1);
+		}
+	}
+	return 0;
+}
+static ssize_t eth_cali_store(struct class *class, struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int argc;
+	char *buff, *p, *para;
+	char *argv[5];
+	char cmd;
+
+	buff = kstrdup(buf, GFP_KERNEL);
+	p = buff;
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8B) {
+		pr_info("Sorry ,this cpu is not support cali!\n");
+		goto end;
+	}
+	for (argc = 0; argc < 6; argc++) {
+		para = strsep(&p, " ");
+		if (para == NULL)
+			break;
+		argv[argc] = para;
+	}
+	if (argc < 1 || argc > 4)
+		goto end;
+
+	cmd = argv[0][0];
+		switch (cmd) {
+		case 'e':
+		case 'E':
+			am_net_cali(argc, argv, 1);
+			break;
+		case 'd':
+		case 'D':
+			am_net_cali(argc, argv, 0);
+			break;
+		case 'a':
+		case 'A':
+			am_net_cali(argc, argv, 3);
+			break;
+		default:
+			goto end;
+		}
+		return count;
+end:
+	kfree(buff);
+	return 0;
+}
+#define DRIVER_NAME "ethernet"
+
+static struct class *phy_sys_class;
+static CLASS_ATTR(phyreg, S_IWUSR | S_IRUGO, eth_phyreg_help, eth_phyreg_func);
+static CLASS_ATTR(macreg, S_IWUSR | S_IRUGO, eth_macreg_help, eth_macreg_func);
+static CLASS_ATTR(linkspeed, S_IWUSR | S_IRUGO, eth_linkspeed_show, NULL);
+static CLASS_ATTR(cali, S_IWUSR | S_IRUGO, NULL, eth_cali_store);
+#endif
+int gmac_create_sysfs(struct phy_device *phy_dev, void __iomem *ioaddr)
+{
+	int r;
+	int t;
+	int ret;
+	c_phy_dev  = phy_dev;
+	c_ioaddr = ioaddr;
+	dev_set_drvdata(&phy_dev->dev, phy_dev);
+	for (t = 0; t < ARRAY_SIZE(phy_reg_attrs); t++) {
+		r = device_create_file(&phy_dev->dev, &phy_reg_attrs[t]);
+		if (r) {
+			dev_err(&phy_dev->dev, "failed to create sysfs file\n");
+			return r;
+		}
+	}
+	phy_sys_class = class_create(THIS_MODULE, DRIVER_NAME);
+	ret = class_create_file(phy_sys_class, &class_attr_phyreg);
+	ret = class_create_file(phy_sys_class, &class_attr_macreg);
+	ret = class_create_file(phy_sys_class, &class_attr_linkspeed);
+	ret = class_create_file(phy_sys_class, &class_attr_cali);
+	return 0;
+}
+
+int gmac_remove_sysfs(struct phy_device *phy_dev)
+{
+	int t;
+
+	for (t = 0; t < ARRAY_SIZE(phy_reg_attrs); t++)
+		device_remove_file(&phy_dev->dev, &phy_reg_attrs[t]);
+	class_destroy(phy_sys_class);
+	c_phy_dev = NULL;
+	return 0;
+}
+#endif
+
 
 /**
  * stmmac_init_phy - PHY initialization
@@ -837,7 +1380,6 @@ static int stmmac_init_phy(struct net_device *dev)
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
-
 	return 0;
 }
 
@@ -1695,7 +2237,6 @@ static int stmmac_open(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
-
 	stmmac_check_ether_addr(priv);
 
 	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
@@ -2736,7 +3277,11 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	if ((phyaddr >= 0) && (phyaddr <= 31))
 		priv->plat->phy_addr = phyaddr;
 
+#ifdef CONFIG_DWMAC_MESON
+	priv->stmmac_clk = devm_clk_get(priv->device, "ethclk81");
+#else
 	priv->stmmac_clk = devm_clk_get(priv->device, STMMAC_RESOURCE_NAME);
+#endif
 	if (IS_ERR(priv->stmmac_clk)) {
 		dev_warn(priv->device, "%s: warning: cannot get CSR clock\n",
 			 __func__);
@@ -2744,9 +3289,14 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		goto error_clk_get;
 	}
 	clk_prepare_enable(priv->stmmac_clk);
-
+#ifdef CONFIG_DWMAC_MESON
+	priv->stmmac_rst = devm_reset_control_get(priv->device,
+						  "ethpower");
+#else
 	priv->stmmac_rst = devm_reset_control_get(priv->device,
 						  STMMAC_RESOURCE_NAME);
+
+#endif
 	if (IS_ERR(priv->stmmac_rst)) {
 		if (PTR_ERR(priv->stmmac_rst) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
@@ -2798,6 +3348,15 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		pr_err("%s: ERROR %i registering the device\n", __func__, ret);
 		goto error_netdev_register;
 	}
+#ifdef CONFIG_DWMAC_MESON
+	priv->stmmac_clk = clk_get(priv->device, "ethclk81");
+#else
+	priv->stmmac_clk = clk_get(priv->device, STMMAC_RESOURCE_NAME);
+#endif
+	if (IS_ERR(priv->stmmac_clk)) {
+		pr_warn("%s: warning: cannot get CSR clock\n", __func__);
+		goto error_clk_get;
+	}
 
 	/* If a specific clk_csr value is passed from the platform
 	 * this means that the CSR Clock Range selection cannot be
@@ -2809,6 +3368,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		stmmac_clk_csr_set(priv);
 	else
 		priv->clk_csr = priv->plat->clk_csr;
+	priv->clk_csr = STMMAC_CSR_150_250M;
 
 	stmmac_check_pcs_mode(priv);
 
@@ -2822,7 +3382,10 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 			goto error_mdio_register;
 		}
 	}
-
+#ifdef CONFIG_DWMAC_MESON
+	gmac_create_sysfs(priv->mii->phy_map[priv->plat->phy_addr],
+		priv->ioaddr);
+#endif
 	return priv;
 
 error_mdio_register:
@@ -2851,7 +3414,9 @@ int stmmac_dvr_remove(struct net_device *ndev)
 
 	priv->hw->dma->stop_rx(priv->ioaddr);
 	priv->hw->dma->stop_tx(priv->ioaddr);
-
+#ifdef CONFIG_DWMAC_MESON
+	gmac_remove_sysfs(priv->phydev);
+#endif
 	stmmac_set_mac(priv->ioaddr, false);
 	if (priv->pcs != STMMAC_PCS_RGMII && priv->pcs != STMMAC_PCS_TBI &&
 	    priv->pcs != STMMAC_PCS_RTBI)

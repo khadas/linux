@@ -47,7 +47,13 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 	}
 	if (limit < 0)
 		return -EBUSY;
-
+/*close mmc interrupts this funtion is s812  chip bug*/
+	 if (is_meson_m8m2_cpu()) {
+		pr_info("mask interrupts MMC\n");
+		writel(0xffffffff, ioaddr + ETH_MMC_ipc_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_tx);
+	}
 	/*
 	 * Set the DMA PBL (Programmable Burst Length) mode
 	 * Before stmmac core 3.50 this mode bit was 4xPBL, and
@@ -78,7 +84,13 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 		value |= DMA_BUS_MODE_ATDS;
 
 	writel(value, ioaddr + DMA_BUS_MODE);
-
+/*close mmc interrupts this funtion is s812  chip bug*/
+	 if (is_meson_m8m2_cpu()) {
+		pr_info("mask interrupts MMC\n");
+		writel(0xffffffff, ioaddr + ETH_MMC_ipc_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_rx);
+		writel(0xffffffff, ioaddr + ETH_MMC_intr_mask_tx);
+	}
 	/* In case of GMAC AXI configuration, program the DMA_AXI_BUS_MODE
 	 * for supported bursts.
 	 *

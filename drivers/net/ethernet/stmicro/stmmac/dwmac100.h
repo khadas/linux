@@ -27,7 +27,14 @@
 
 #include <linux/phy.h>
 #include "common.h"
-
+#ifdef CONFIG_DWMAC_MESON
+#include <linux/amlogic/cpu_version.h>
+#define ETH_MMC_ipc_intr_mask_rx        (0x0200)
+#define ETH_MMC_intr_mask_rx            (0x010C)
+#define ETH_MMC_intr_mask_tx            (0x0110)
+#define GMAC_CONTROL_IPC	0x00000400	/* Checksum Offload */
+#define  MAC_VERSION 0x0020
+#endif
 /*----------------------------------------------------------------------------
  *	 			MAC BLOCK defines
  *---------------------------------------------------------------------------*/

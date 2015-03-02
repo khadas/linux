@@ -28,8 +28,22 @@
 #include <linux/of_net.h>
 #include <linux/of_device.h>
 #include "stmmac.h"
-
+#ifdef CONFIG_DWMAC_MESON
+#include <linux/reset.h>
+#endif
 static const struct of_device_id stmmac_dt_ids[] = {
+#ifdef CONFIG_DWMAC_MESON
+	{ .compatible = "amlogic, meson6-dwmac",},
+	{ .compatible = "amlogic, meson8-rmii-dwmac",},
+	{ .compatible = "amlogic, meson8m2-rgmii-dwmac",},
+	{ .compatible = "amlogic, meson8m2-rmii-dwmac",
+		.data = &meson6_dwmac_data },
+	{ .compatible = "amlogic, meson8b-rgmii-dwmac",},
+	{ .compatible = "amlogic, meson8b-rmii-dwmac",
+		.data = &meson6_dwmac_data},
+	{ .compatible = "amlogic, meson6-rmii-dwmac",
+		.data = &meson6_dwmac_data},
+#endif
 #ifdef CONFIG_DWMAC_SUNXI
 	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
 #endif
@@ -47,8 +61,91 @@ static const struct of_device_id stmmac_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
+#ifdef CONFIG_DWMAC_MESON
+static u8 *DEFMAC;
+static unsigned int g_mac_addr_setup;
+static unsigned char chartonum(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'A' && c <= 'F')
+		return (c - 'A') + 10;
+	if (c >= 'a' && c <= 'f')
+		return (c - 'a') + 10;
+	return 0;
 
+}
+static int __init mac_addr_set(char *line)
+{
+	unsigned char mac[6];
+	int i = 0;
+	for (i = 0; i < 6 && line[0] != '\0' && line[1] != '\0'; i++) {
+		mac[i] = chartonum(line[0]) << 4 | chartonum(line[1]);
+		line += 3;
+	}
+	memcpy(DEFMAC, mac, 6);
+	pr_info("uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
+	DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4], DEFMAC[5]);
+	g_mac_addr_setup++;
+
+	return 1;
+}
+
+__setup("mac=", mac_addr_set);
+#endif
 #ifdef CONFIG_OF
+
+/* This function validates the number of Multicast filtering bins specified
+ * by the configuration through the device tree. The Synopsys GMAC supports
+ * 64 bins, 128 bins, or 256 bins. "bins" refer to the division of CRC
+ * number space. 64 bins correspond to 6 bits of the CRC, 128 corresponds
+ * to 7 bits, and 256 refers to 8 bits of the CRC. Any other setting is
+ * invalid and will cause the filtering algorithm to use Multicast
+ * promiscuous mode.
+ */
+static int dwmac1000_validate_mcast_bins(int mcast_bins)
+{
+	int x = mcast_bins;
+
+	switch (x) {
+	case HASH_TABLE_SIZE:
+	case 128:
+	case 256:
+		break;
+	default:
+		x = 0;
+		pr_info("Hash table entries set to unexpected value %d",
+			mcast_bins);
+		break;
+	}
+	return x;
+}
+
+/* This function validates the number of Unicast address entries supported
+ * by a particular Synopsys 10/100/1000 controller. The Synopsys controller
+ * supports 1, 32, 64, or 128 Unicast filter entries for it's Unicast filter
+ * logic. This function validates a valid, supported configuration is
+ * selected, and defaults to 1 Unicast address if an unsupported
+ * configuration is selected.
+ */
+static int dwmac1000_validate_ucast_entries(int ucast_entries)
+{
+	int x = ucast_entries;
+
+	switch (x) {
+	case 1:
+	case 32:
+	case 64:
+	case 128:
+		break;
+	default:
+		x = 1;
+		pr_info("Unicast table entries set to unexpected value %d\n",
+			ucast_entries);
+		break;
+	}
+	return x;
+}
 static int stmmac_probe_config_dt(struct platform_device *pdev,
 				  struct plat_stmmacenet_data *plat,
 				  const char **mac)
@@ -56,7 +153,6 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	const struct of_device_id *device;
-
 	if (!np)
 		return -ENODEV;
 
@@ -81,7 +177,14 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		plat->exit = data->exit;
 	}
 
+#ifdef CONFIG_DWMAC_MESON
+	if (g_mac_addr_setup)
+		*mac = DEFMAC;
+	else
+		*mac = of_get_mac_address(np);
+#else
 	*mac = of_get_mac_address(np);
+#endif
 	plat->interface = of_get_phy_mode(np);
 
 	/* Get max speed of operation from device tree */
@@ -101,9 +204,13 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
-	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
-					   sizeof(struct stmmac_mdio_bus_data),
-					   GFP_KERNEL);
+	if (plat->phy_bus_name)
+		plat->mdio_bus_data = NULL;
+	else
+		plat->mdio_bus_data =
+			devm_kzalloc(&pdev->dev,
+				     sizeof(struct stmmac_mdio_bus_data),
+				     GFP_KERNEL);
 
 	plat->force_sf_dma_mode = of_property_read_bool(np, "snps,force_sf_dma_mode");
 
@@ -112,6 +219,9 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 */
 	plat->maxmtu = JUMBO_LEN;
 
+	/* Set default value for unicast filter entries */
+	plat->unicast_filter_entries = 1;
+
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added
@@ -119,7 +229,8 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 */
 	if (of_device_is_compatible(np, "st,spear600-gmac") ||
 		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
-		of_device_is_compatible(np, "snps,dwmac")) {
+		of_device_is_compatible(np, "amlogic,meson8b-rgmii-dwmac") ||
+		of_device_is_compatible(np, "amlogic,meson8m2-rgmii-dwmac")) {
 		/* Note that the max-frame-size parameter as defined in the
 		 * ePAPR v1.1 spec is defined as max-frame-size, it's
 		 * actually used as the IEEE definition of MAC Client
@@ -128,11 +239,20 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		 * are clearly MTUs
 		 */
 		of_property_read_u32(np, "max-frame-size", &plat->maxmtu);
+		of_property_read_u32(np, "snps,multicast-filter-bins",
+				     &plat->multicast_filter_bins);
+		of_property_read_u32(np, "snps,perfect-filter-entries",
+				     &plat->unicast_filter_entries);
+		plat->unicast_filter_entries = dwmac1000_validate_ucast_entries(
+					       plat->unicast_filter_entries);
+		plat->multicast_filter_bins = dwmac1000_validate_mcast_bins(
+					      plat->multicast_filter_bins);
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.610") ||
+		of_device_is_compatible(np, "amlogic,meson6-dwmac") ||
 		of_device_is_compatible(np, "snps,dwmac-3.710")) {
 		plat->enh_desc = 1;
 		plat->bugged_jumbo = 1;
@@ -184,12 +304,11 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	struct stmmac_priv *priv = NULL;
 	struct plat_stmmacenet_data *plat_dat = NULL;
 	const char *mac = NULL;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
-
+	pr_info("ethernet base addr is %x\n", (unsigned int)addr);
 	plat_dat = dev_get_platdata(&pdev->dev);
 	if (pdev->dev.of_node) {
 		if (!plat_dat)
@@ -207,7 +326,6 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-
 	/* Custom setup (if needed) */
 	if (plat_dat->setup) {
 		plat_dat->bsp_priv = plat_dat->setup(pdev);

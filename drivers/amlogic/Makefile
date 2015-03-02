@@ -34,3 +34,6 @@ obj-$(CONFIG_AML_DEBUG)		+=aml_debug/
 obj-$(CONFIG_REGMAP_MMIO)	+=iomap/
 
 obj-y	+=secmon/
+
+obj-$(CONFIG_AM_PHY)		+=ethernet/
+

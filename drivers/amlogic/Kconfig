@@ -28,4 +28,6 @@ source "drivers/amlogic/aml_debug/Kconfig"
 
 source "drivers/amlogic/power/Kconfig"
 
+source "drivers/amlogic/ethernet/Kconfig"
+
 endmenu

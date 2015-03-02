@@ -1,0 +1,51 @@
+#
+# PHY Layer Configuration
+#
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NETDEVICES
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
+
+if PHYLIB
+comment "MII PHY device drivers"
+
+config AML_PHY
+	boolean "Drivers for AMLOGIC PHY"
+	default n
+	help
+		Currently has a driver for the AMLOGIC INTERNAL PHY
+		Support internal phy & pmu4 phy
+
+config	AML_SMSC
+	boolean "Drivers for SMSC LAN8720 PHYs"
+	default n
+	help
+		Currently supports the LAN83C185, LAN8187 and LAN8700
+		Lan8742 Lan8720 phys
+
+config	AML_ICPLUS
+	boolean "Drivers for ICPlus IP101GR PHYs"
+	default n
+	help
+		Currently supports the IP101gr  PHYs.
+		ip101gr not support wol.
+
+config	AML_MICREL
+	boolean "Driver for Micrel KSZ8091 PHYs"
+	default n
+	help
+		Supports the KSZ9031, ksz8091, KS8001
+		ksz8081 phys
+
+config	AML_REALTEK
+	boolean "Drivers for RTL8211F"
+	default n
+	help
+		Currently supports the RTL8211F
+		phys.
+
+endif # PHYLIB
+
