@@ -40,9 +40,9 @@ void __iomem *p_gpio_input_addr[5];
 void __iomem *ao_secure0_base;
 void __iomem *gpio_interrupt_base;
 #define GPIO_EDGE 0
-#define GPIO_SELECT_0_3 1
-#define GPIO_SELECT_4_7 2
-#define GPIO_FILTER_NUM 3
+#define GPIO_SELECT_0_3 (1*4)
+#define GPIO_SELECT_4_7 (2*4)
+#define GPIO_FILTER_NUM (3*4)
 int (*gpio_amlogic_name_to_num)(const char *name);
 int gpio_max;
 #define NONE 0xffffffff
@@ -440,7 +440,7 @@ int gpio_amlogic_direction_input(struct gpio_chip *chip, unsigned offset)
 	pr_debug("==%s==%d\n", __func__, __LINE__);
 	reg = GPIO_REG(amlogic_pins[offset].out_en_reg_bit);
 	bit = GPIO_BIT(amlogic_pins[offset].out_en_reg_bit);
-	writel_relaxed((readl_relaxed(p_gpio_oen_addr[reg]) & (~(1<<bit))), p_gpio_oen_addr[reg]);
+	aml_set_reg32_mask(p_gpio_oen_addr[reg], 1<<bit);
 	return 0;
 }
 

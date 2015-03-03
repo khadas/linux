@@ -268,9 +268,9 @@ static int iomap_probe(struct platform_device *pdev)
 				devm_regmap_init_mmio(&pdev->dev,
 					base, &meson_regmap_config);
 
-			if (IS_ERR(meson_reg_map)) {
-				pr_err("mux registers not found\n");
-				return PTR_ERR(meson_reg_map);
+			if (IS_ERR(meson_reg_map[i])) {
+				pr_err("iomap index %d registers not found\n", i);
+				return PTR_ERR(meson_reg_map[i]);
 			}
 			i++;
 	}
