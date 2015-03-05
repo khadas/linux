@@ -1,0 +1,18 @@
+comment "Amlogic VPU Drivers"
+
+menu "Amlogic VPU Driver"
+
+config AML_VPU
+	boolean "Amlogic VPU driver"
+	default y
+	help
+		"Amlogic VPU module init"
+
+config AML_VPU_DYNAMIC_ADJ
+	boolean "Amlogic VPU Dynamic Adjust"
+	default n
+	depends on AML_VPU
+	help
+		"Amlogic VPU frequency dynamic adjust"
+
+endmenu
