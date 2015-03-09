@@ -98,7 +98,7 @@ static unsigned int get_vpu_clk_level(unsigned int video_clk)
 	video_bw = video_clk + 1000000;
 
 	for (i = 0; i < vpu_conf.clk_level_max; i++) {
-		if (video_bw <= vpu_clk_table[vpu_conf.chip_type][i][0])
+		if (video_bw <= vpu_clk_table[i][0])
 			break;
 	}
 	clk_level = i;
@@ -220,8 +220,8 @@ static int change_vpu_clk(void *vconf1)
 	struct VPU_Conf_t *vconf = (struct VPU_Conf_t *)vconf1;
 
 	clk_level = vconf->clk_level;
-	temp = (vpu_clk_table[vpu_conf.chip_type][clk_level][1] << 9) |
-		(vpu_clk_table[vpu_conf.chip_type][clk_level][2] << 0);
+	temp = (vpu_clk_table[clk_level][1] << 9) |
+		(vpu_clk_table[clk_level][2] << 0);
 	aml_write32(P_HHI_VPU_CLK_CNTL, ((1 << 8) | temp));
 
 	return 0;
@@ -232,18 +232,18 @@ static void switch_vpu_clk(void)
 	unsigned int temp;
 
 	/* switch to second vpu clk patch */
-	temp = vpu_clk_table[vpu_conf.chip_type][0][1];
+	temp = vpu_clk_table[0][1];
 	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 25, 3);
-	temp = vpu_clk_table[vpu_conf.chip_type][0][2];
+	temp = vpu_clk_table[0][2];
 	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 16, 7);
 	aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 24, 1);
 	aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 31, 1);
 	udelay(10);
 	/* adjust first vpu clk frequency */
 	aml_setb32(P_HHI_VPU_CLK_CNTL, 0, 8, 1);
-	temp = vpu_clk_table[vpu_conf.chip_type][vpu_conf.clk_level][1];
+	temp = vpu_clk_table[vpu_conf.clk_level][1];
 	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 9, 3);
-	temp = vpu_clk_table[vpu_conf.chip_type][vpu_conf.clk_level][2];
+	temp = vpu_clk_table[vpu_conf.clk_level][2];
 	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 0, 7);
 	aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
 	udelay(20);
@@ -275,10 +275,10 @@ static int adjust_vpu_clk(unsigned int clk_level)
 #endif
 		break;
 	case VPU_CHIP_M8M2:
-		if (clk_level == 7) {
+		if (clk_level == 6) {
 			ret = switch_gp_pll_m8m2(1);
 			if (ret)
-				clk_level = 6;
+				clk_level = 5;
 		} else
 			ret = switch_gp_pll_m8m2(0);
 
@@ -306,7 +306,7 @@ static int adjust_vpu_clk(unsigned int clk_level)
 		aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
 
 	pr_info("set vpu clk: %uHz, readback: %uHz(0x%x)\n",
-			vpu_clk_table[vpu_conf.chip_type][clk_level][0],
+			vpu_clk_table[clk_level][0],
 			get_vpu_clk(), (aml_read32(P_HHI_VPU_CLK_CNTL)));
 
 	spin_unlock_irqrestore(&vpu_lock, flags);
@@ -340,8 +340,8 @@ static int set_vpu_clk(unsigned int vclk)
 
 	mux = ((aml_read32(P_HHI_VPU_CLK_CNTL) >> 9) & 0x7);
 	div = ((aml_read32(P_HHI_VPU_CLK_CNTL) >> 0) & 0x7f);
-	if ((mux != vpu_clk_table[vpu_conf.chip_type][clk_level][1])
-		|| (div != vpu_clk_table[vpu_conf.chip_type][clk_level][2])) {
+	if ((mux != vpu_clk_table[clk_level][1])
+		|| (div != vpu_clk_table[clk_level][2])) {
 		adjust_vpu_clk(clk_level);
 	}
 
@@ -379,7 +379,7 @@ unsigned int get_vpu_clk_vmod(unsigned int vmod)
 	vpu_mod = get_vpu_mod(vmod);
 	if ((vpu_mod >= VPU_MOD_START) && (vpu_mod < VPU_MAX)) {
 		vpu_clk = clk_vmod[vpu_mod - VPU_MOD_START];
-		vpu_clk = vpu_clk_table[vpu_conf.chip_type][vpu_clk][0];
+		vpu_clk = vpu_clk_table[vpu_clk][0];
 	} else {
 		vpu_clk = 0;
 		pr_info("unsupport vmod\n");
@@ -440,7 +440,7 @@ int request_vpu_clk_vmod(unsigned int vclk, unsigned int vmod)
 	clk_vmod[vpu_mod - VPU_MOD_START] = clk_level;
 	pr_info("request vpu clk holdings: %s %uHz\n",
 			vpu_mod_table[vpu_mod - VPU_MOD_START],
-			vpu_clk_table[vpu_conf.chip_type][clk_level][0]);
+			vpu_clk_table[clk_level][0]);
 
 	clk_level = get_vpu_clk_level_max_vmod();
 	if (clk_level != vpu_conf.clk_level)
@@ -711,6 +711,11 @@ static const char *vpu_usage_str = {
 "\n"
 "	request & release will change vpu clk if the max level in all vmod vpu clk holdings is unequal to current vpu clk level.\n"
 "	vclk both support level(1~10) and frequency value (unit in Hz).\n"
+"	vclk level & frequency:\n"
+"		0: 106.25M        1: 159.375M        2: 182.15M\n"
+"		3: 212.50M        4: 255.00M         5: 318.75M\n"
+"		6: 364.30M        7: 425.00M         8: 510.00M\n"
+"		9: 637.50M        10:696.00M\n"
 };
 
 static ssize_t vpu_debug_help(struct class *class,
@@ -724,9 +729,8 @@ static ssize_t vpu_debug(struct class *class, struct class_attribute *attr,
 {
 	unsigned int ret;
 	int i;
-	unsigned int tmp[2], temp, chip_type;
+	unsigned int tmp[2], temp;
 
-	chip_type = vpu_conf.chip_type;
 	switch (buf[0]) {
 	case 'g': /* get */
 		pr_info("get current vpu clk: %uHz\n", get_vpu_clk());
@@ -761,13 +765,13 @@ static ssize_t vpu_debug(struct class *class, struct class_attribute *attr,
 			for (i = VPU_MOD_START; i < VPU_MAX; i++) {
 				temp = i - VPU_MOD_START;
 				pr_info("%s:  %uHz(%u)\n", vpu_mod_table[temp],
-				vpu_clk_table[chip_type][clk_vmod[temp]][0],
+				vpu_clk_table[clk_vmod[temp]][0],
 				clk_vmod[temp]);
 			}
 		} else {
 			temp = tmp[1] - VPU_MOD_START;
 			pr_info("%s:  %uHz(%u)\n", vpu_mod_table[temp],
-			vpu_clk_table[chip_type][clk_vmod[temp]][0],
+			vpu_clk_table[clk_vmod[temp]][0],
 			clk_vmod[temp]);
 		}
 		break;
@@ -926,7 +930,7 @@ static int get_vpu_config(struct platform_device *pdev)
 
 		vpu_conf.clk_level = val;
 		pr_info("load vpu_clk in dts: %uHz(%u)\n",
-			vpu_clk_table[vpu_conf.chip_type][val][0],
+			vpu_clk_table[val][0],
 			vpu_conf.clk_level);
 	}
 
@@ -935,7 +939,7 @@ static int get_vpu_config(struct platform_device *pdev)
 
 static struct of_device_id vpu_of_table[] = {
 	{
-		.compatible = "amlogic,vpu",
+		.compatible = "amlogic, vpu",
 	},
 	{},
 };
