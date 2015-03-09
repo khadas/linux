@@ -28,6 +28,11 @@
 			reg = <0x06100000 0x03000000>;
 			no-map;
 		};
+		fb_reserved:linux,meson-fb {
+			compatible = "amlogic, fb-memory";
+			size = <0x2000000>;
+			no-map;
+		};
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -57,6 +62,26 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 	};
+	meson-vout {
+		compatible = "amlogic, meson-vout";
+		dev_name = "meson-vout";
+		status = "okay";
+	};
+	meson-fb {
+		compatible = "amlogic, meson-fb";
+		memory-region = <&fb_reserved>;
+		dev_name = "meson-fb";
+		status = "okay";
+		interrupts = <0 3 1
+			0 57 1>;
+		interrupt-names = "viu-vsync", "rdma";
+		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
+		vmode = <3>; /** 0:VMODE_720P 1:VMODE_LCD 2:VMODE_LVDS_1080P 3:VMODE_1080P */
+		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
+		4k2k_fb = <0>;
+		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+	};
+
 	ethmac: ethernet@0xc9410000{
 		compatible = "amlogic, meson8m2-rmii-dwmac";
 		reg = <0xc9410000 0x10000

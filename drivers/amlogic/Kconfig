@@ -34,4 +34,6 @@ source "drivers/amlogic/mmc/Kconfig"
 
 source "drivers/amlogic/vpu/Kconfig"
 
+source "drivers/amlogic/display/Kconfig"
+
 endmenu

@@ -1,0 +1,19 @@
+#
+# Video output configuration
+#
+menu "Amlogic VOUT2 Module"
+
+config AM_VOUT2
+	boolean "Video Output2 Module"
+	default n
+	help
+		Select to enable VOUT2 module
+
+config AM_TV_OUTPUT2
+	boolean "TV Output2 Module"
+	default n
+	select AM_VOUT2
+	help
+		TV output2 module
+
+endmenu

@@ -1,0 +1,45 @@
+#
+# Frame buffer configuration
+#
+menu "Amlogic OSD Module"
+
+config AM_FB
+	boolean "Amlogic OSD Support"
+	select FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select AM_CANVAS
+	select AM_VOUT
+	default y
+	help
+		This is the frame buffer device driver.
+
+config FB_OSD_SUPPORT_SYNC_FENCE
+	boolean "OSD SYNC FENCE"
+	default y
+	depends on AM_FB
+	help
+		Select to enable OSD SYNC FENCE.
+
+config FB_OSD_VSYNC_RDMA
+	boolean "OSD VSYNC RDMA"
+	default n
+	depends on AM_FB
+	help
+		Select to enable OSD VSYNC RDMA.
+
+config FB_OSD2_ENABLE
+	boolean "OSD2 Layer Support"
+	default y
+	depends on AM_FB
+	help
+		Select to enable OSD2 Layer.
+
+config FB_OSD2_CURSOR
+	boolean "OSD2 Cursor Support"
+	depends on FB_OSD2_ENABLE
+	default n
+	help
+		Select to enable OSD2 cursor.
+endmenu

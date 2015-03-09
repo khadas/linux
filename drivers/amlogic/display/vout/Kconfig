@@ -1,0 +1,47 @@
+#
+# Video output configuration
+#
+menu "Amlogic VOUT Module"
+
+config AM_VOUT
+	boolean "Video Output Module"
+	default y
+	help
+		Select to enable VOUT module
+
+config AM_TV_OUTPUT
+	boolean "TV Output Module"
+	default y
+	select AM_VOUT
+	help
+		TV output module
+
+config AML_VOUT_FRAMERATE_AUTOMATION
+	boolean "Framerate Automation"
+	default y
+	depends on AM_TV_OUTPUT
+	help
+		framerate adjustment automatically from video source
+
+config AML_VDAC_HW_SWITCH
+	boolean "vdac hardware switch"
+	default n
+	depends on AM_TV_OUTPUT
+	help
+		vdac hardware switch of cvbs/ypbpr for mx.
+
+config AM_LCD_OUTPUT
+	boolean "LCD Output Module"
+	default n
+	depends on AM_VOUT
+	help
+		LCD output module
+
+config AML_GAMMA_DEBUG
+	boolean "AML Gamma debug"
+	default n
+	depends on AM_LCD_OUTPUT
+	help
+		AML gamma debug
+
+endmenu

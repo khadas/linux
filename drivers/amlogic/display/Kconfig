@@ -1,0 +1,14 @@
+comment "Amlogic Display Driver"
+menuconfig AML_DISPLAY
+	bool "Amlogic Display Driver"
+	default y
+	help
+	  Display module includes OSD, VOUT, GE2D, LCD, backlight etc.
+	  If unsure, select 'Y'.
+
+if AML_DISPLAY
+source "drivers/amlogic/display/vout/Kconfig"
+source "drivers/amlogic/display/osd/Kconfig"
+source "drivers/amlogic/display/vout2/Kconfig"
+source "drivers/amlogic/display/osd_ext/Kconfig"
+endif

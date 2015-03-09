@@ -1,0 +1,44 @@
+/*
+ * Amlogic Frame buffer driver
+ *
+ * Copyright (C) 2015 Amlogic, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Author: Amlogic Platform-BJ <platform.bj@amlogic.com>
+ *
+ */
+
+#ifndef _OSD_ANTIFLICKER_H_
+#define _OSD_ANTIFLICKER_H_
+
+#include "osd_log.h"
+
+#ifdef CONFIG_AM_GE2D
+#define OSD_GE2D_ANTIFLICKER_SUPPORT 1
+#endif
+
+#ifdef OSD_GE2D_ANTIFLICKER_SUPPORT
+extern void osd_antiflicker_update_pan(u32 yoffset, u32 yres);
+extern int osd_antiflicker_task_start(void);
+extern void osd_antiflicker_task_stop(void);
+extern void osd_antiflicker_enable(u32 enable);
+#else
+static inline void osd_antiflicker_enable(u32 enable) {}
+static inline void osd_antiflicker_update_pan(u32 yoffset, u32 yres) {}
+static inline int osd_antiflicker_task_start(void)
+{
+	osd_log_info("++ osd_antiflicker depends on GE2D module!\n");
+	return 0;
+}
+static inline void osd_antiflicker_task_stop(void)
+{
+	osd_log_info("-- osd_antiflicker depends on GE2D module!\n");
+	return;
+}
+#endif
+
+#endif
+

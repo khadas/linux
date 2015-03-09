@@ -1,0 +1,8 @@
+# Makefile for FB and VOUT
+
+obj-$(CONFIG_AM_FB) += osd/
+obj-$(CONFIG_AM_FB_EXT) += osd_ext/
+obj-$(CONFIG_AM_VOUT) += vout/
+obj-$(CONFIG_AM_VOUT2) += vout2/
+
+
