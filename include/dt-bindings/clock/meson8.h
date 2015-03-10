@@ -18,12 +18,14 @@
 #define CLK_DDR_PLL 3
 #define CLK_G_PLL 4
 #define CLK_VID_PLL 5
-#define CLK_HDMI_PLL 6
-
+#define CLK_HDMITX_PLL 6
+#define CLK_FPLL_DIV_3 7
 #define CLK_81       10
-#define CLK_HDMI_SYS 11
-
-
+#define CLK_HDMITX_SYS 11
+#define CLK_HDMITX_ENCP 12
+#define CLK_HDMITX_ENCI 13
+#define CLK_HDMITX_PIXEL 14
+#define CLK_HDMITX_PHY 15
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
 

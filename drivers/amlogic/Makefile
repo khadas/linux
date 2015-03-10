@@ -21,6 +21,8 @@ obj-$(CONFIG_PINCTRL_AMLOGIC)	+=pinctrl/
 obj-$(CONFIG_AMLOGIC_USB)  	+= usb/
 obj-y				+=clk/
 
+obj-$(CONFIG_AML_HDMI_TX) 	+=hdmi/
+
 obj-$(CONFIG_AML_RTC) 		+=rtc/
 
 obj-$(CONFIG_AM_REMOTE)		+=remote/

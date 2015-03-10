@@ -188,7 +188,7 @@ static struct amlogic_pll_clock meson8m2_plls[] __initdata = {
 /*	[ddr_pll] = PLL(pll_1500, CLK_DDR_PLL, "ddr_pll", "xtal", DDRPLL_LOCK,
 		DDRPLL_CON0, NULL),*/
 static struct amlogic_clk_branch meson8m2_clk_branches[] __initdata = {
-	COMPOSITE(CLK_HDMI_SYS, "hdmi_sys_clk", mux_hdmi_sys_p,
+	COMPOSITE(CLK_HDMITX_SYS, "hdmi_sys_clk", mux_hdmi_sys_p,
 		CLK_SET_RATE_NO_REPARENT,
 		OFFSET(HHI_HDMI_CLK_CNTL), 9, 2, 0,
 		OFFSET(HHI_HDMI_CLK_CNTL), 0, 6, 0,

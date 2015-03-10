@@ -120,4 +120,13 @@
 		reg = <0xc8100740 0x14
 			0xc8100040 0x4>;
 	};
+	amhdmitx: amhdmitx{
+		compatible = "amlogic, amhdmitx";
+		dev_name = "amhdmitx";
+		status = "okay";
+		pinctrl-names="hdmitx_hpd", "hdmitx_ddc", "hdmitx_cec";
+		pinctrl-0=<&hdmitx_hpd>;
+		pinctrl-1=<&hdmitx_ddc>;
+		pinctrl-2=<&hdmitx_cec>;
+	};
 }; /* end of / */

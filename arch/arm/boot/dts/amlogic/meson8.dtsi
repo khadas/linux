@@ -161,6 +161,18 @@
 			amlogic,setmask=<4 0xc>;
 			amlogic,pins="GPIOH_7","GPIOH_8";
 		};
+		hdmitx_hpd: hdmitx_hpd {
+			amlogic,setmask=<1 0x04000000>;
+			amlogic,pins="GPIOH_0";
+		};
+		hdmitx_ddc: hdmitx_ddc {
+			amlogic,setmask=<1 0x03000000>;
+			amlogic,pins="GPIOH_1", "GPIOH_2";
+		};
+		hdmitx_cec: hdmitx_cec {
+			amlogic,setmask=<1 0x00800000>;
+			amlogic,pins="GPIOH_3";
+		};
 		sdhc_b_pins:sdhc_b_pin{
 			amlogic,setmask=<2 0xfc00>;
 			amlogic,clrmask=<2 0xf0 8 0x600>;
@@ -344,4 +356,14 @@
 &i2c_d {
 	clocks = <&clock CLK_81>;
 	clock-names = "clk_i2c";
+};
+
+&amhdmitx {
+	interrupts = <0 57 1>;   /* HPD , 57 + 32 = 89, no CEC*/
+	interrupt-names = "hdmitx_hpd";
+	clocks = <&clock CLK_HDMITX_SYS &clock CLK_HDMITX_ENCP
+		  &clock CLK_HDMITX_ENCI &clock CLK_HDMITX_PIXEL
+		  &clock CLK_HDMITX_PHY>;
+	clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp",
+		"hdmitx_clk_enci", "hdmitx_clk_pixel", "hdmitx_clk_phy";
 };

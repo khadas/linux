@@ -364,3 +364,14 @@ sdio{
 &i2c_d {
   status = "okay";
 };
+
+&amhdmitx {
+	vend-data = <&vend_data>;
+
+	vend_data: vend_data{
+	    vendor_name = "Amlogic";           /* Max Chars: 8     */
+	    vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
+	    product_desc = "M8M2 Mbox";        /* Max Chars: 16    */
+	    cec_osd_string = "Amlogic MBox";        /* Max Chars: 14    */
+	};
+};

@@ -219,10 +219,10 @@ static int waite_hpll_lock(struct amlogic_pll_clock *aml_pll,
 }
 
 static struct amlogic_pll_clock hdmi_plls[]  = {
-	HDMI_PLL(pll_3000_lvds, CLK_HDMI_PLL, "hdmi_pll_lvds", "xtal", 0,
+	HDMI_PLL(pll_3000_lvds, CLK_HDMITX_PLL, "hdmi_pll_lvds", "xtal", 0,
 		&hpll_ctrl, NULL, waite_hpll_lock, hpll_lvds_tbl,
 		&hpll_pll_lvds_conf, hpll_co_ctrl, pll_lvds_recalc_rate),
-	HDMI_PLL(pll_3000_lvds, CLK_HDMI_PLL, "hdmi_pll_phy", "xtal", 0,
+	HDMI_PLL(pll_3000_lvds, CLK_HDMITX_PHY, "hdmi_pll_phy", "xtal", 0,
 		&hpll_ctrl, NULL, waite_hpll_lock, hpll_phy_tbl,
 		&hpll_pll_phy_conf, hpll_co_ctrl, pll_hdmi_recalc_rate),
 };
@@ -358,6 +358,7 @@ struct hdmi_clock {
 	unsigned int encx_mask;
 	unsigned int ctrl_offset;
 	void __iomem *ctrl_reg;
+	u32 id;
 };
 #define  HDMI_CLK_TBL(_name, _pname, _ops, _flags) \
 {  \
@@ -366,7 +367,7 @@ struct hdmi_clock {
 	.ops = _ops,  \
 	.flags = _flags,  \
 }
-#define  HDMI_ENC_CLK_TBL(_name, _pname, _ops, _flags, _encx_tbl, _encx_shift, _ctrl_offset) \
+#define  HDMI_ENC_CLK_TBL(_name, _pname, _ops, _flags, _encx_tbl, _encx_shift, _ctrl_offset, _id) \
 {  \
 	.name = _name,  \
 	.parent_name = _pname,  \
@@ -377,6 +378,7 @@ struct hdmi_clock {
 	.encx_shift = _encx_shift, \
 	.encx_mask = 0xf, \
 	.ctrl_offset = _ctrl_offset, \
+	.id = _id, \
 }
 
 #define  CTS_XXX_TBL(_rate, _prate, _final_div, _xx_div) \
@@ -399,7 +401,7 @@ struct cts_encx_table cts_enci_tbl[] = {
 	CTS_XXX_TBL(27000000, 432000000, 4, 1),
 };
 struct cts_encx_table cts_pixel_tbl[] = {
-	CTS_XXX_TBL(148500000, 148500000, 1, 2),
+	CTS_XXX_TBL(148500000, 148500000, 1, 1),
 	CTS_XXX_TBL(108000000, 216000000, 4, 1),
 	CTS_XXX_TBL(74250000, 148500000, 1, 2),
 	CTS_XXX_TBL(54000000, 432000000, 4, 2),
@@ -475,9 +477,9 @@ static struct clk_ops encx_clk_ops = {
 
 struct hdmi_clock hdmi_clock_tbl[] = {
 	HDMI_CLK_TBL("vid_clk", "hdmi_pll_lvds", &vid_clk_ops, CLK_SET_RATE_PARENT),
-	HDMI_ENC_CLK_TBL("cts_encp_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_encp_tbl, 24, HHI_VID_CLK_DIV),
-	HDMI_ENC_CLK_TBL("cts_enci_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_enci_tbl, 28, HHI_VID_CLK_DIV),
-	HDMI_ENC_CLK_TBL("cts_pixel_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_pixel_tbl, 24, HHI_HDMI_CLK_CNTL),
+	HDMI_ENC_CLK_TBL("cts_encp_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_encp_tbl, 24, HHI_VID_CLK_DIV, CLK_HDMITX_ENCP),
+	HDMI_ENC_CLK_TBL("cts_enci_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_enci_tbl, 28, HHI_VID_CLK_DIV, CLK_HDMITX_ENCI),
+	HDMI_ENC_CLK_TBL("cts_pixel_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_pixel_tbl, 16, HHI_HDMI_CLK_CNTL, CLK_HDMITX_PIXEL),
 };
 static struct clk *hdmi_clk_register(struct hdmi_clock *hdmi_clk)
 {
@@ -501,7 +503,7 @@ static struct clk *hdmi_clk_register(struct hdmi_clock *hdmi_clk)
 	if (ret)
 		pr_err("%s: failed to register lookup %s\n",
 			__func__, hdmi_clk->name);
-
+	amlogic_clk_add_lookup(clk, hdmi_clk->id);
 	return clk;
 }
 /* register meson8 clocks */
