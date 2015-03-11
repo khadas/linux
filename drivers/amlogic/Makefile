@@ -27,6 +27,8 @@ obj-$(CONFIG_AML_RTC) 		+=rtc/
 
 obj-$(CONFIG_AM_REMOTE)		+=remote/
 
+obj-$(CONFIG_AM_IRBLASTER)	+=irblaster/
+
 obj-$(CONFIG_I2C_AML)		+=i2c/
 
 obj-$(CONFIG_AML_POWER_SUPPORT)	+= power/

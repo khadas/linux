@@ -26,6 +26,8 @@ source "drivers/amlogic/rtc/Kconfig"
 
 source "drivers/amlogic/remote/Kconfig"
 
+source "drivers/amlogic/irblaster/Kconfig"
+
 source "drivers/amlogic/aml_debug/Kconfig"
 
 source "drivers/amlogic/power/Kconfig"
