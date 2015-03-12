@@ -38,6 +38,4 @@ source "drivers/amlogic/vpu/Kconfig"
 
 source "drivers/amlogic/display/Kconfig"
 
-source "drivers/amlogic/canvas/Kconfig"
-
 endmenu

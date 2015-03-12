@@ -44,6 +44,3 @@ obj-$(CONFIG_MMC_AML) 		+= mmc/
 obj-$(CONFIG_AML_VPU) 		+= vpu/
 
 obj-$(CONFIG_AML_DISPLAY) 	+= display/
-
-obj-$(CONFIG_AML_CANVAS) 	+= canvas/
-
