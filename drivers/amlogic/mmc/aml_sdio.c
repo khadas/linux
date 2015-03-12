@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #include <linux/clk-private.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
+
 struct mmc_host *sdio_host = NULL;
 static struct mmc_claim aml_sdio_claim;
 #define	 sdio_cmd_busy_bit	 4
@@ -941,6 +942,7 @@ irqreturn_t aml_sdio_irq_thread(int irq, void *data)
 		if (mrq->data->flags & MMC_DATA_READ) {
 			aml_sg_copy_buffer(mrq->data->sg, mrq->data->sg_len,
 			host->bn_buf, mrq->data->blksz*mrq->data->blocks, 0);
+
 			sdio_dbg(AMLSD_DBG_RD_DATA, "R Cmd %d, %x-%x-%x-%x\n",
 			host->mrq->cmd->opcode,
 			host->bn_buf[0], host->bn_buf[1],
@@ -1409,32 +1411,19 @@ static int aml_sdio_probe(struct platform_device *pdev)
 				pdev->dev.of_node, 2);
 
 			pdata->irq_init(pdata);
-	#ifdef CONFIG_ARCH_MESONG9TV
 			ret = request_threaded_irq(host->irq_in,
 				(irq_handler_t)aml_sd_irq_cd, aml_irq_cd_thread,
 				IRQF_DISABLED, "mmc_in", (void *)pdata);
-	#else
-			ret = request_threaded_irq(host->irq_in,
-				(irq_handler_t)aml_sd_irq_cd, aml_irq_cd_thread,
-				IRQF_DISABLED, "mmc_in", (void *)pdata);
-	#endif
+
 			if (ret) {
 				sdio_err("Failed to request mmc IN detect\n");
 				goto probe_free_host;
 			}
-	#ifdef CONFIG_ARCH_MESONG9TV
+
 			ret |= request_threaded_irq(host->irq_out,
 				(irq_handler_t)aml_sd_irq_cd, aml_irq_cd_thread,
 				IRQF_DISABLED, "mmc_out", (void *)pdata);
-	#else
-			ret |= request_threaded_irq(host->irq_out,
-				(irq_handler_t)aml_sd_irq_cd, aml_irq_cd_thread,
-				IRQF_DISABLED, "mmc_out", (void *)pdata);
-	#endif
-			/* ret = request_irq(pdata->irq_in+INT_GPIO_0,
-			aml_sd_irq_cd, IRQF_DISABLED, "mmc_in", pdata); */
-			/* ret |= request_irq(pdata->irq_out+INT_GPIO_0,
-			aml_sd_irq_cd, IRQF_DISABLED, "mmc_out", pdata); */
+
 			if (ret) {
 				sdio_err("Failed to request mmc OUT detect\n");
 				goto fail_cd_irq_in;
