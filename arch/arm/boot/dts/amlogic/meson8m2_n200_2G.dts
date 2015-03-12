@@ -337,6 +337,13 @@ sdio{
 						"usb0",
 						"usb0_to_ddr";
 	};
+	canvas{        compatible = "amlogic, meson, canvas";
+        dev_name = "amlogic-canvas";
+        status = "ok";
+        reg = <0xc8006000 0x400>;
+
+    };
+
 
 }; /* end of / */
 &uart_AO {
