@@ -28,6 +28,7 @@
 #include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/usb-meson8.h>
+#include <linux/amlogic/cpu_version.h>
 
 /*
  * M chip USB clock setting
@@ -35,14 +36,15 @@
 
 static int init_count;
 
-int clk_enable_usb_meson8(struct platform_device *pdev, const char *s_clock_name, u32 usb_peri_reg)
+int clk_enable_usb_meson8(struct platform_device *pdev,
+			const char *s_clock_name, u32 usb_peri_reg)
 {
 	int port_idx;
 	const char *clk_name;
 	usb_peri_reg_t *peri;
 	usb_config_data_t config;
 	usb_ctrl_data_t control;
-	/*usb_adp_bc_data_t adp_bc;*/
+	usb_adp_bc_data_t adp_bc;
 	int clk_sel, clk_div, clk_src;
 	int time_dly = 500;
 	int i = 0;
@@ -102,18 +104,32 @@ int clk_enable_usb_meson8(struct platform_device *pdev, const char *s_clock_name
 	/* read back clock detected flag*/
 	control.d32 = peri->ctrl;
 
+	if (is_meson_m8m2_cpu() && (port_idx == USB_PORT_IDX_B)) {
+		adp_bc.d32 = peri->adp_bc;
+		adp_bc.b.aca_enable = 1;
+		peri->adp_bc = adp_bc.d32;
+		udelay(50);
+		adp_bc.d32 = peri->adp_bc;
+		if (adp_bc.b.aca_pin_float) {
+			dev_err(&pdev->dev, "USB-B ID detect failed!\n");
+			dev_err(&pdev->dev, "Please use the chip after version RevA1!\n");
+			return -1;
+		}
+	}
+
 	dmb();
 
 	return 0;
 }
 
-void clk_disable_usb_meson8(struct platform_device *pdev, const char *s_clock_name)
+void clk_disable_usb_meson8(struct platform_device *pdev,
+				const char *s_clock_name)
 {
 	return;
 }
 
 int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
-						u32 usb_peri_reg, const char *cpu_type)
+				u32 usb_peri_reg, const char *cpu_type)
 {
 	int ret = 0;
 
@@ -129,7 +145,8 @@ int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
 }
 EXPORT_SYMBOL(clk_enable_usb);
 
-int clk_disable_usb(struct platform_device *pdev, const char *s_clock_name, const char *cpu_type)
+int clk_disable_usb(struct platform_device *pdev,
+			const char *s_clock_name, const char *cpu_type)
 {
 	if (!pdev)
 		return -1;
