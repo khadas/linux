@@ -32,16 +32,18 @@
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/canvas/canvas_mgr.h>
 #if CONFIG_AML_VPU
 #include <linux/amlogic/vpu.h>
 #endif
 #ifdef CONFIG_AM_VIDEO
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/amports/canvas.h>
 #endif
 
 /* Local Headers */
 #include <vout/vpp.h>
+#include "osd_canvas.h"
 #include "osd_prot.h"
 #include "osd_antiflicker.h"
 #include "osd_clone.h"
@@ -911,13 +913,11 @@ void osd_setup_hw(u32 index,
 		osd_hw.fb_gem[index].addr = fbmem;
 		osd_hw.fb_gem[index].width = w;
 		osd_hw.fb_gem[index].height = yres_virtual;
-#if 0/* TODO */
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
 			      osd_hw.fb_gem[index].addr,
 			      osd_hw.fb_gem[index].width,
 			      osd_hw.fb_gem[index].height,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-#endif
 	}
 	if (color != osd_hw.color_info[index]) {
 		update_color_mode = 1;

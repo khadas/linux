@@ -24,23 +24,23 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
-/* #include <linux/amlogic/ge2d/ge2d_main.h> */
-/* #include <linux/amlogic/ge2d/ge2d.h> */
-/* #include <linux/amlogic/amports/canvas.h> */
-/* #include <mach/mod_gate.h> */
+#include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/ge2d/ge2d.h>
 
 /* Local Headers */
 #include <osd/osd_io.h>
 #include <osd/osd_log.h>
+#include <osd/osd_canvas.h>
 #include "osd_clone.h"
+
 
 #ifdef OSD_EXT_GE2D_CLONE_SUPPORT
 struct osd_ext_clone_s {
 	bool inited;
 	int angle;
 	int pan;
-	config_para_ex_t ge2d_config;
-	ge2d_context_t *ge2d_context;
+	struct config_para_ex_s ge2d_config;
+	struct ge2d_context_s *ge2d_context;
 };
 
 static DEFINE_MUTEX(osd_ext_clone_mutex);
@@ -55,8 +55,8 @@ static void osd_clone_process(void)
 	unsigned char x_rev = 0;
 	unsigned char y_rev = 0;
 	unsigned char xy_swap = 0;
-	config_para_ex_t *ge2d_config = &s_osd_ext_clone.ge2d_config;
-	ge2d_context_t *context = s_osd_ext_clone.ge2d_context;
+	struct config_para_ex_s *ge2d_config = &s_osd_ext_clone.ge2d_config;
+	struct ge2d_context_s *context = s_osd_ext_clone.ge2d_context;
 
 	canvas_read(OSD1_CANVAS_INDEX, &cs);
 	canvas_read(OSD3_CANVAS_INDEX, &cd);
@@ -77,7 +77,7 @@ static void osd_clone_process(void)
 		y_rev = 1;
 	}
 
-	memset(ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 	ge2d_config->alu_const_color = 0;
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0;
@@ -154,14 +154,12 @@ int osd_ext_clone_task_start(void)
 	}
 
 	osd_log_info("osd_ext_clone_task start.\n");
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	switch_mod_gate_by_name("ge2d", 1);
-#endif
 
 	if (s_osd_ext_clone.ge2d_context == NULL)
 		s_osd_ext_clone.ge2d_context = create_ge2d_work_queue();
 
-	memset(&s_osd_ext_clone.ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(&s_osd_ext_clone.ge2d_config,
+			0, sizeof(struct config_para_ex_s));
 	s_osd_ext_clone.inited = true;
 
 	return 0;
@@ -175,9 +173,6 @@ void osd_ext_clone_task_stop(void)
 	}
 
 	osd_log_info("osd_ext_clone_task stop.\n");
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	switch_mod_gate_by_name("ge2d", 0);
-#endif
 
 	if (s_osd_ext_clone.ge2d_context) {
 		destroy_ge2d_work_queue(s_osd_ext_clone.ge2d_context);

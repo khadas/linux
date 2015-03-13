@@ -32,9 +32,10 @@
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/canvas/canvas_mgr.h>
 #ifdef CONFIG_AM_VIDEO
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/amports/canvas.h>
 #endif
 
 /* Local Headers */
@@ -740,8 +741,6 @@ void osd_ext_setup(struct osd_ctl_s *osd_ext_ctl,
 		osd_ext_hw.fb_gem[index].width = w;
 		osd_ext_hw.fb_gem[index].height = yres_virtual;
 
-#if 0/* TODO */
-
 		if (fbmem == 0) {
 			canvas_config(osd_ext_hw.fb_gem[index].canvas_idx,
 				osd_hw->fb_gem[index].addr,
@@ -755,8 +754,6 @@ void osd_ext_setup(struct osd_ctl_s *osd_ext_ctl,
 				osd_ext_hw.fb_gem[index].height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		}
-
-#endif
 	}
 
 	if (color != osd_ext_hw.color_info[index]) {
@@ -2827,20 +2824,16 @@ void osd_ext_set_clone_hw(u32 index, u32 clone)
 				osd_hw->color_info[index];
 			memcpy(&pandata, &osd_ext_hw.pandata[index],
 					sizeof(struct pandata_s));
-#if 0 /* TODO */
 			canvas_update_addr(osd_ext_hw.fb_gem[index].canvas_idx,
 					osd_hw->fb_gem[index].addr);
-#endif
 		}
 	} else {
 		if (osd_ext_hw.angle[index])
 			osd_ext_clone_task_stop();
 		else {
 			color_info[index] = osd_ext_hw.color_info[index];
-#if 0 /* TODO */
 			canvas_update_addr(osd_ext_hw.fb_gem[index].canvas_idx,
 					osd_ext_hw.fb_gem[index].addr);
-#endif
 			osd_ext_hw.color_info[index] = color_info[index];
 			memcpy(&osd_ext_hw.pandata[index], &pandata,
 					sizeof(struct pandata_s));

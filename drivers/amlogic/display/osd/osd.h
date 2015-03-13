@@ -75,12 +75,6 @@
 #define INT_VIU2_VSYNC 45
 #define INT_RDMA 89
 
-#define OSD1_CANVAS_INDEX 0x40
-#define OSD2_CANVAS_INDEX 0x43
-#define OSD3_CANVAS_INDEX 0x41
-#define OSD4_CANVAS_INDEX 0x42
-#define ALLOC_CANVAS_INDEX 0x44
-
 #define OSD_MAX_BUF_NUM 3  /* fence relative */
 
 enum color_index_e {

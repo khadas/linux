@@ -2001,8 +2001,7 @@ failed1:
 	return ret;
 }
 
-static int
-osd_remove(struct platform_device *pdev)
+static int osd_remove(struct platform_device *pdev)
 {
 	struct fb_info *fbi;
 	int i = 0;
@@ -2095,8 +2094,7 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{},
 };
 
-static struct platform_driver
-	osd_driver = {
+static struct platform_driver osd_driver = {
 	.probe      = osd_probe,
 	.remove     = osd_remove,
 #ifdef CONFIG_PM

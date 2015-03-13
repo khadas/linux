@@ -25,12 +25,12 @@
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
-/* #include <linux/amlogic/ge2d/ge2d_main.h> */
-/* #include <linux/amlogic/ge2d/ge2d.h> */
-/* #include <mach/mod_gate.h> */
-/* #include <linux/amlogic/amports/canvas.h> */
+#include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/canvas/canvas_mgr.h>
+#include <linux/amlogic/ge2d/ge2d.h>
 
 /* Local Headers */
+#include "osd_canvas.h"
 #include "osd_antiflicker.h"
 #include "osd_log.h"
 #include "osd_io.h"
@@ -41,8 +41,8 @@ struct osd_antiflicker_s {
 	bool inited;
 	u32 yoffset;
 	u32 yres;
-	config_para_ex_t ge2d_config;
-	ge2d_context_t *ge2d_context;
+	struct config_para_ex_s ge2d_config;
+	struct ge2d_context_s *ge2d_context;
 };
 
 static DEFINE_MUTEX(osd_antiflicker_mutex);
@@ -61,9 +61,12 @@ static int osd_antiflicker_process(void)
 	u32 y0 = 0;
 	u32 y1 = 0;
 	u32 yres = 0;
+	struct config_para_ex_s *ge2d_config = NULL;
+	struct ge2d_context_s *context = NULL;
 
-	config_para_ex_t *ge2d_config = &ge2d_osd_antiflicker.ge2d_config;
-	ge2d_context_t *context = ge2d_osd_antiflicker.ge2d_context;
+	ge2d_config = &ge2d_osd_antiflicker.ge2d_config;
+	context = ge2d_osd_antiflicker.ge2d_context;
+
 	mutex_lock(&osd_antiflicker_mutex);
 
 	canvas_read(OSD1_CANVAS_INDEX, &cs);
@@ -75,7 +78,7 @@ static int osd_antiflicker_process(void)
 	}
 
 	yres = cs.height / ge2d_osd_antiflicker.yres;
-	memset(ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 	ge2d_config->alu_const_color = 0;
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0;
@@ -157,14 +160,12 @@ int osd_antiflicker_task_start(void)
 	}
 
 	osd_log_info("osd_antiflicker_task start.\n");
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	switch_mod_gate_by_name("ge2d", 1);
-#endif
 
 	if (ge2d_osd_antiflicker.ge2d_context == NULL)
 		ge2d_osd_antiflicker.ge2d_context = create_ge2d_work_queue();
 
-	memset(&ge2d_osd_antiflicker.ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(&ge2d_osd_antiflicker.ge2d_config,
+			0, sizeof(struct config_para_ex_s));
 	ge2d_osd_antiflicker.inited = true;
 
 	return 0;
@@ -178,9 +179,6 @@ void osd_antiflicker_task_stop(void)
 	}
 
 	osd_log_info("osd_antiflicker_task stop.\n");
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	switch_mod_gate_by_name("ge2d", 0);
-#endif
 
 	if (ge2d_osd_antiflicker.ge2d_context) {
 		destroy_ge2d_work_queue(ge2d_osd_antiflicker.ge2d_context);
