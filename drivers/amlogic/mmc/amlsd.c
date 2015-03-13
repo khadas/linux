@@ -1072,6 +1072,7 @@ void aml_sd_uart_detect(struct amlsd_platform *pdata)
 		} else {
 			if (pdata->is_in) {
 				pr_info("card out\n");
+				pdata->is_in = false;
 			} else if (is_jtag) {
 				is_jtag = false;
 				pr_info("\033[0;40;35m JTAG OUT \033[0m\n");
