@@ -1,7 +1,6 @@
 /*
  * Driver for the amlogic vpu controller
  *
- *
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -18,12 +17,12 @@
 #ifdef CONFIG_SMP
 #include <mach/smp.h>
 #endif
-#include <linux/amlogic/vout/vinfo.h>
 #endif
+#include <linux/amlogic/vout/vinfo.h>
 #include "vpu_reg.h"
 #include "vpu.h"
 
-#define VPU_VERION	"v01"
+#define VPU_VERION        "v01"
 
 /* #define LIMIT_VPU_CLK_LOW */
 static spinlock_t vpu_lock;
@@ -44,7 +43,6 @@ static struct VPU_Conf_t vpu_conf = {
 static enum vpu_mod_t get_vpu_mod(unsigned int vmod)
 {
 	unsigned int vpu_mod = VPU_MAX;
-#if 0
 	if (vmod < VMODE_MAX) {
 		switch (vmod) {
 		case VMODE_480I:
@@ -69,7 +67,6 @@ static enum vpu_mod_t get_vpu_mod(unsigned int vmod)
 	} else {
 		vpu_mod = VPU_MAX;
 	}
-#endif
 	return vpu_mod;
 }
 
@@ -357,7 +354,7 @@ set_vpu_clk_limit:
  *  Function: get_vpu_clk_vmod
  *      Get vpu clk holding frequency with specified vmod
  *
- *	Parameters:
+ *      Parameters:
  *      vmod - unsigned int, must be one of the following constants:
  *                 VMODE, VMODE is supported by VOUT
  *                 VPU_MOD, supported by vpu_mod_t
@@ -365,7 +362,7 @@ set_vpu_clk_limit:
  *  Returns:
  *      unsigned int, vpu clk frequency unit in Hz
  *
- *	Example:
+ *      Example:
  *      video_clk = get_vpu_clk_vmod(VMODE_720P);
  *      video_clk = get_vpu_clk_vmod(VPU_VIU_OSD1);
  *
