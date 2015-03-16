@@ -122,7 +122,7 @@
 		#reset-cells = <1>;
 	};
 
-	pinmux{
+	pinmux: pinmux{
 		compatible = "amlogic,pinmux-m8";
 		dev_name = "pinmux";
 		#pinmux-cells=<2>;
@@ -330,6 +330,37 @@
 			0xda000000 4
 			0xc1109880 16>;
 	};
+
+	/* AUDIO MESON8 DEVICES */
+	i2s_plat: i2s_platform {
+		compatible = "amlogic, aml-i2s";
+	};
+	pcm_plat: pcm_platform {
+		compatible = "amlogic, aml-pcm";
+	};
+	i2s_dai: I2S {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-i2s-dai";
+	};
+	spdif_dai: SPDIF {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-spdif-dai";
+	};
+	pcm_dai: PCM {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-pcm-dai";
+	};
+	spdif_codec: spdif_codec{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-spdif-codec";
+		pinctrl-names = "aml_audio_spdif";
+		pinctrl-0 = <&audio_spdif_pins>;
+	};
+	pcm_codec: pcm_codec{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, pcm2BT-codec";
+	};
+	/* endof AUDIO MESON8 DEVICES */
 
 }; /* end of / */
 

@@ -458,7 +458,7 @@ int gpio_amlogic_direction_output(struct gpio_chip *chip, unsigned offset, int v
 	unsigned int reg, bit;
 	if (offset == GPIO_BSD_EN) {
 		aml_clr_reg32_mask(p_gpio_output_addr[0], 1<<29);
-		aml_set_reg32_mask(ao_secure0_base, 1<<0);
+		/* aml_set_reg32_mask(ao_secure0_base, 1<<0);*/
 		if (value)
 			if (is_meson_m8_cpu())
 				aml_set_reg32_mask(p_gpio_output_addr[0], 1<<31);

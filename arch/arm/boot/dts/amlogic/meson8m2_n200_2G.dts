@@ -374,6 +374,49 @@ sdio{
 
     };
 
+	/* AUDIO board specific */
+	dummy_codec:dummy{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml_dummy_codec";
+		status = "okay";
+	};
+	aml_m8_snd {
+		compatible = "aml, aml_snd_m8";
+		status = "okay";
+		aml-sound-card,format = "i2s";
+		aml_sound_card,name = "AML-M8AUDIO";
+		aml,audio-routing =
+				"Ext Spk","LOUTL",
+				"Ext Spk","LOUTR";
+
+		mute_gpio = "GPIO_BSD_EN";
+		hp_disable;
+		hp_paraments = <800 300 0 5 1>;
+		pinctrl-names = "aml_snd_m8";
+		pinctrl-0 = <&audio_pins>;
+		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
+		codec_list = <&codec0 &codec1 &codec2>;
+		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
+		cpudai0: cpudai0 {
+			sound-dai = <&i2s_dai>;
+		};
+		cpudai1: cpudai1 {
+			sound-dai = <&spdif_dai>;
+		};
+		cpudai2: cpudai2 {
+			sound-dai = <&pcm_dai>;
+		};
+		codec0: codec0 {
+			sound-dai = <&dummy_codec>;
+		};
+		codec1: codec1 {
+			sound-dai = <&spdif_codec>;
+		};
+		codec2: codec2 {
+			sound-dai = <&pcm_codec>;
+		};
+	};
+	/* END OF AUDIO board specific */
 
 }; /* end of / */
 &uart_AO {
@@ -403,5 +446,21 @@ sdio{
 	    vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
 	    product_desc = "M8M2 Mbox";        /* Max Chars: 16    */
 	    cec_osd_string = "Amlogic MBox";        /* Max Chars: 14    */
+	};
+};
+
+&pinmux {
+	audio_pins:audio_pin{
+		amlogic,setmask=<3 0x78000000
+				10 0x78000000>;
+		amlogic,clrmask=<4 0x3c000
+				5 0x1000>;
+		amlogic,pins = "GPIOX_4","GPIOX_5","GPIOX_6","GPIOX_7",
+					"GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
+	};
+	audio_spdif_pins:audio_pin1{
+		amlogic,setmask=<1 0x80>;
+		amlogic,clrmask=<1 0x10000>;
+		amlogic,pins ="GPIOY_3";
 	};
 };

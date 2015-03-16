@@ -1,0 +1,12 @@
+menuconfig SND_AML_M8_SOC
+	tristate "Amlogic Meson8 ASoC"
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Amlogic Asoc interface. You will also need
+	  to select the audio interfaces to support below.
+
+if SND_AML_M8_SOC
+
+source "sound/soc/aml/m8/Kconfig"
+
+endif # SND_AML_M8_SOC
