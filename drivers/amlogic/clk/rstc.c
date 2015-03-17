@@ -36,6 +36,7 @@ struct meson_rstc {
 	unsigned int			ao_off_id;
 	u8				flags;
 	spinlock_t			lock;
+	s8				*id_ref;
 };
 
 static int meson_rstc_assert(struct reset_controller_dev *rcdev,
@@ -62,10 +63,11 @@ static int meson_rstc_assert(struct reset_controller_dev *rcdev,
 	}
 
 	spin_lock_irqsave(&rstc->lock, flags);
-
-	reg = readl(rstc_mem);
-	writel(reg & ~BIT(offset), rstc_mem);
-
+	if (--rstc->id_ref[id] <= 0) {
+		reg = readl(rstc_mem);
+		writel(reg & ~BIT(offset), rstc_mem);
+		rstc->id_ref[id] = 0;
+	}
 	spin_unlock_irqrestore(&rstc->lock, flags);
 
 	return 0;
@@ -92,10 +94,10 @@ static int meson_rstc_deassert(struct reset_controller_dev *rcdev,
 	}
 
 	spin_lock_irqsave(&rstc->lock, flags);
-
-	reg = readl(rstc_mem);
-	writel(reg | BIT(offset), rstc_mem);
-
+	if (rstc->id_ref[id]++ == 0) {
+		reg = readl(rstc_mem);
+		writel(reg | BIT(offset), rstc_mem);
+	}
 	spin_unlock_irqrestore(&rstc->lock, flags);
 
 	return 0;
@@ -119,6 +121,24 @@ static struct reset_control_ops meson_rstc_ops = {
 	.reset		= meson_rstc_reset,
 };
 
+static __init void meson_init_id_ref(struct meson_rstc *rstc)
+{
+	unsigned long flags;
+	int i, bank, offset;
+	void __iomem *rstc_mem;
+	u32 reg;
+	spin_lock_irqsave(&rstc->lock, flags);
+	for (i = 0; i < rstc->ao_off_id; i++) {
+		bank = i / BITS_PER_LONG;
+		offset = i % BITS_PER_LONG;
+		rstc_mem = rstc->ot_base + (bank << 2);
+		reg = readl(rstc_mem);
+		rstc->id_ref[i] = (reg & (1 << offset)) ? 1 : 0;
+		/* pr_info("id_ref[%d]: %d\n", i, rstc->id_ref[i]); */
+	}
+	spin_unlock_irqrestore(&rstc->lock, flags);
+}
+
 void __init meson_register_rstc(struct device_node *np, unsigned int num_regs,
 				void __iomem *ao_base, void __iomem *ot_base,
 				unsigned int ao_off_id, u8 flags)
@@ -129,6 +149,12 @@ void __init meson_register_rstc(struct device_node *np, unsigned int num_regs,
 	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
 	if (!rstc)
 		return;
+	rstc->id_ref = kzalloc(ao_off_id + 1, GFP_KERNEL);
+	if (!rstc->id_ref) {
+		pr_err("rstc->id_ref is not allocated\n");
+		kfree(rstc);
+		return;
+	}
 
 	spin_lock_init(&rstc->lock);
 
@@ -142,11 +168,13 @@ void __init meson_register_rstc(struct device_node *np, unsigned int num_regs,
 	rstc->rcdev.of_node = np;
 	rstc->rcdev.ops = &meson_rstc_ops;
 	rstc->ao_off_id = ao_off_id;
+	meson_init_id_ref(rstc);
 
 	ret = reset_controller_register(&rstc->rcdev);
 	if (ret) {
 		pr_err("%s: could not register reset controller: %d\n",
 		       __func__, ret);
+		kfree(rstc->id_ref);
 		kfree(rstc);
 	}
 }
