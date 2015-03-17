@@ -40,6 +40,10 @@
 			alignment = <0x2000>;
 			linux,cma-default;
 		};
+        ion_reserved:linux,ion-dev {
+            compatible = "amlogic, idev-mem";
+            size = <0x2000000>;
+        };
 	};
 
     	psci {
@@ -62,6 +66,10 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 	};
+    ion_dev {
+        compatible = "amlogic, ion_dev";
+        memory-region = <&ion_reserved>;
+    };
 	vpu {
 		compatible = "amlogic, vpu";
 		dev_name = "vpu";

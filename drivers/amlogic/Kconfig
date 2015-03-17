@@ -35,6 +35,8 @@ source "drivers/amlogic/mmc/Kconfig"
 
 source "drivers/amlogic/vpu/Kconfig"
 
+source "drivers/amlogic/ion_dev/Kconfig"
+
 source "drivers/amlogic/display/Kconfig"
 
 source "drivers/amlogic/canvas/Kconfig"
