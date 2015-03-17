@@ -2,8 +2,6 @@
 #ifndef CANVAS_REG_HEADER_
 #define CANVAS_REG_HEADER_
 
-
-
 /*
 register base.
 */
@@ -14,17 +12,12 @@ register base.
 #define DC_CAV_LUT_RDATAL  (0x0b << 2)
 #define DC_CAV_LUT_RDATAH  (0x0c << 2)
 
-
-
 /* M8M2/ */
 #define DC_CAV_LUT_DATAL_M8M2 (0x12 << 2)
 #define DC_CAV_LUT_DATAH_M8M2 (0x13 << 2)
 #define DC_CAV_LUT_ADDR_M8M2  (0x14 << 2)
 #define DC_CAV_LUT_RDATAL_M8M2  (0x15 << 2)
 #define DC_CAV_LUT_RDATAH_M8M2  (0x16 << 2)
-
-
-
 
 #define CANVAS_ADDR_LMASK       0x1fffffff
 #define CANVAS_WIDTH_LMASK      0x7
@@ -53,7 +46,7 @@ register base.
 
 #define MMC_PHY_CTRL              0x1380
 
-/****************logo relative part *************************************************/
+/****************logo relative part **************************/
 #define ASSIST_MBOX1_CLR_REG VDEC_ASSIST_MBOX1_CLR_REG
 #define ASSIST_MBOX1_MASK VDEC_ASSIST_MBOX1_MASK
 #define RESET_PSCALE        (1<<4)
@@ -70,7 +63,4 @@ register base.
 #define CANVAS_WRITE(x...)
 #define CANVAS_READ(x...)
 
-
-
 #endif
-

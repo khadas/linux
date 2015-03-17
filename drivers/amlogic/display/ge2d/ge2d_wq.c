@@ -511,7 +511,7 @@ static void build_ge2d_config(struct config_para_s *cfg,
 static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 {
 #define REG_OFFSET (0x20<<2)
-	canvas_t	canvas;
+	struct canvas_s	canvas;
 	unsigned	int	data32;
 	unsigned	int	bpp;
 	unsigned int	block_mode[] = {2, 4, 8, 16, 16, 32, 0, 24};

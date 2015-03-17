@@ -56,7 +56,7 @@ void osd_antiflicker_enable(u32 enable)
 static int osd_antiflicker_process(void)
 {
 	int ret = -1;
-	canvas_t cs, cd;
+	struct canvas_s cs, cd;
 	u32 x0 = 0;
 	u32 y0 = 0;
 	u32 y1 = 0;
