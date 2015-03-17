@@ -45,10 +45,10 @@ static void h_delay(void)
 		;
 }
 
-static void check_div(unsigned div)
+static unsigned check_div(unsigned div)
 {
 	if (div == -1)
-		return;
+		return -1;
 
 	switch (div) {
 	case 1:
@@ -69,8 +69,9 @@ static void check_div(unsigned div)
 	default:
 		break;
 	}
-}
 
+	return div;
+}
 
 static void wait_for_pll_locked(unsigned reg)
 {
@@ -480,48 +481,48 @@ static void set_clk_final_div(unsigned div)
 static void set_hdmi_tx_pixel_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_HDMI_CLK_CNTL, div, 16, 4);
 }
 static void set_encp_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_VID_CLK_DIV, div, 24, 4);
 }
 
 static void set_enci_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_VID_CLK_DIV, div, 28, 4);
 }
 
 static void set_enct_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_VID_CLK_DIV, div, 20, 4);
 }
 
 static void set_encl_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_VIID_CLK_DIV, div, 12, 4);
 }
 
 static void set_vdac0_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_VIID_CLK_DIV, div, 28, 4);
 }
 
 static void set_vdac1_div(unsigned div)
 {
 	check_clk_config(div);
-	check_div(div);
+	div = check_div(div);
 	vout_cbus_set_bits(HHI_VIID_CLK_DIV, div, 24, 4);
 }
 

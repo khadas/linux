@@ -136,6 +136,7 @@ int tvoutc_setclk(enum tvmode_e mode)
 	int xtal = 0;
 	sd = tvreg_vclk_sd;
 	hd = tvreg_vclk_hd;
+
 	/* TODO */
 	/* clk=clk_get_sys("clk_xtal", NULL); */
 	if (!clk) {

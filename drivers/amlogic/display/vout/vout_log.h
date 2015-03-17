@@ -17,7 +17,8 @@
 #include <stdarg.h>
 #include <linux/printk.h>
 
-#define VOUT_LOG_TAG "[VOUT]"
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define vout_log_info(fmt, ...) \
 	pr_info(fmt, ##__VA_ARGS__)

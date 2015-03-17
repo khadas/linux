@@ -228,6 +228,26 @@ static unsigned int *filter_table[] = {
 #define OSD_TYPE_TOP_FIELD 0
 #define OSD_TYPE_BOT_FIELD 1
 
+static void osd_mem_power_on(void)
+{
+#if CONFIG_AML_VPU
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_ON);
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_ON);
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_ON);
+#endif
+}
+
+#if 0
+static void osd_mem_power_off(void)
+{
+#if CONFIG_AML_VPU
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_DOWN);
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_DOWN);
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_DOWN);
+#endif
+}
+#endif
+
 static void osd_super_scale_mem_power_on(void)
 {
 #if CONFIG_AML_VPU
@@ -238,7 +258,7 @@ static void osd_super_scale_mem_power_on(void)
 static void osd_super_scale_mem_power_off(void)
 {
 #if CONFIG_AML_VPU
-	switch_vpu_mem_pd_vmod(VPU_VIU_OSDSR, VPU_MEM_POWER_ON);
+	switch_vpu_mem_pd_vmod(VPU_VIU_OSDSR, VPU_MEM_POWER_DOWN);
 #endif
 }
 
@@ -355,7 +375,7 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 	return  out_fence_fd;
 }
 
-static int  osd_wait_buf_ready(struct osd_fence_map_s *fence_map)
+static int osd_wait_buf_ready(struct osd_fence_map_s *fence_map)
 {
 	s32 ret = -1;
 	struct sync_fence *buf_ready_fence = NULL;
@@ -496,9 +516,9 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 		if ((osd_reg_read(RDMA_STATUS) & 0x0fffff0f) == 0)
 			break;
 	} while (1);
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+
 	osd_rdma_reset();
-#endif
+
 	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
 	osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
 	switch (output_type) {
@@ -628,13 +648,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	walk_through_update_list();
 	osd_update_3d_mode(osd_hw.mode_3d[OSD1].enable,
 			osd_hw.mode_3d[OSD2].enable);
-#endif
-#if 0
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
-	osd_rdma_reset();
-#endif
-#endif
-#ifndef CONFIG_FB_OSD_VSYNC_RDMA
+
 	if (!vsync_hit) {
 #ifdef FIQ_VSYNC
 		fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
@@ -643,6 +657,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 	}
 #endif
+
 #ifndef FIQ_VSYNC
 	return  IRQ_HANDLED;
 #endif
@@ -913,6 +928,14 @@ void osd_setup_hw(u32 index,
 		osd_hw.fb_gem[index].addr = fbmem;
 		osd_hw.fb_gem[index].width = w;
 		osd_hw.fb_gem[index].height = yres_virtual;
+		osd_log_info("osd[%d] canvas.idx =0x%x\n",
+				index, osd_hw.fb_gem[index].canvas_idx);
+		osd_log_info("osd[%d] canvas.addr=0x%x\n",
+				index, osd_hw.fb_gem[index].addr);
+		osd_log_info("osd[%d] canvas.width=0x%x\n",
+				index, osd_hw.fb_gem[index].width);
+		osd_log_info("osd[%d] canvas.height=0x%x\n",
+				index, osd_hw.fb_gem[index].height);
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
 			      osd_hw.fb_gem[index].addr,
 			      osd_hw.fb_gem[index].width,
@@ -930,6 +953,8 @@ void osd_setup_hw(u32 index,
 		add_to_update_list(index, OSD_ENABLE);
 	}
 #endif
+	osd_mem_power_on();
+
 	if (memcmp(&pan_data, &osd_hw.pandata[index],
 				sizeof(struct pandata_s)) != 0 ||
 	    memcmp(&disp_data, &osd_hw.dispdata[index],
@@ -1303,36 +1328,54 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	mutex_unlock(&osd_mutex);
 }
 
-
-void osd_get_info_hw(u32 index, s32(*posdval)[4], u32(*posdreg)[5],
-		     s32 info_flag)
+void osd_set_debug_hw(u32 index, u32 debug_flag)
 {
-	if (info_flag == 0) {
-		posdval[0][0] = osd_hw.pandata[index].x_start;
-		posdval[0][1] = osd_hw.pandata[index].x_end;
-		posdval[0][2] = osd_hw.pandata[index].y_start;
-		posdval[0][3] = osd_hw.pandata[index].y_end;
-		posdval[1][0] = osd_hw.dispdata[index].x_start;
-		posdval[1][1] = osd_hw.dispdata[index].x_end;
-		posdval[1][2] = osd_hw.dispdata[index].y_start;
-		posdval[1][3] = osd_hw.dispdata[index].y_end;
-		posdval[2][0] = osd_hw.scaledata[index].x_start;
-		posdval[2][1] = osd_hw.scaledata[index].x_end;
-		posdval[2][2] = osd_hw.scaledata[index].y_start;
-		posdval[2][3] = osd_hw.scaledata[index].y_end;
-	} else if (info_flag == 1) {
-		posdreg[0][0] = osd_reg_read(VIU_OSD1_BLK0_CFG_W0);
-		posdreg[0][1] = osd_reg_read(VIU_OSD1_BLK0_CFG_W1);
-		posdreg[0][2] = osd_reg_read(VIU_OSD1_BLK0_CFG_W2);
-		posdreg[0][3] = osd_reg_read(VIU_OSD1_BLK0_CFG_W3);
-		posdreg[0][4] = osd_reg_read(VIU_OSD1_BLK0_CFG_W4);
-		posdreg[1][0] = osd_reg_read(VIU_OSD2_BLK0_CFG_W0);
-		posdreg[1][1] = osd_reg_read(VIU_OSD2_BLK0_CFG_W1);
-		posdreg[1][2] = osd_reg_read(VIU_OSD2_BLK0_CFG_W2);
-		posdreg[1][3] = osd_reg_read(VIU_OSD2_BLK0_CFG_W3);
-		posdreg[1][4] = osd_reg_read(VIU_OSD2_BLK0_CFG_W4);
+	u32 reg = 0;
+	u32 offset = 0;
+	struct pandata_s *pdata = NULL;
+
+	if (debug_flag == 1) {
+		pdata = &osd_hw.pandata[index];
+		osd_log_info("pandata[%d]:\n", index);
+		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
+				pdata->x_start, pdata->x_end);
+		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
+				pdata->y_start, pdata->y_end);
+
+		pdata = &osd_hw.dispdata[index];
+		osd_log_info("dispdata[%d]\n", index);
+		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
+				pdata->x_start, pdata->x_end);
+		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
+				pdata->y_start, pdata->y_end);
+
+		pdata = &osd_hw.scaledata[index];
+		osd_log_info("scaledata[%d]\n", index);
+		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
+				pdata->x_start, pdata->x_end);
+		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
+				pdata->y_start, pdata->y_end);
+	} else if (debug_flag == 2) {
+		reg = VPU_VIU_VENC_MUX_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VPP_MISC;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU_OSD1_CTRL_STAT;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		if (index == 1)
+			offset = REG_OFFSET;
+		reg = offset + VIU_OSD1_BLK0_CFG_W0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU_OSD1_BLK0_CFG_W1;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU_OSD1_BLK0_CFG_W2;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU_OSD1_BLK0_CFG_W3;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU_OSD1_BLK0_CFG_W4;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	} else {
-		;/* ToDo */
+		osd_log_err("argument error\n");
 	}
 }
 
@@ -1386,8 +1429,11 @@ void osd_enable_3d_mode_hw(u32 index, u32 enable)
 				osd_hw.mode_3d[index].origin_scale.v_enable);
 	}
 }
+
 void osd_enable_hw(u32 index, u32 enable)
 {
+	osd_log_info("osd[%d] enable: %d\n", index, enable);
+
 	osd_hw.enable[index] = enable;
 	add_to_update_list(index, OSD_ENABLE);
 	osd_wait_vsync_hw();
@@ -3127,6 +3173,7 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_mode[OSD2] = 0;
 	}
 	memset(osd_hw.rotate, 0, sizeof(struct osd_rotate_s));
+
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 	INIT_LIST_HEAD(&post_fence_list);
 	mutex_init(&post_fence_list_lock);
@@ -3144,10 +3191,9 @@ void osd_init_hw(u32 logo_loaded)
 #ifdef FIQ_VSYNC
 	request_fiq(INT_VIU_VSYNC, &osd_fiq_isr);
 #endif
+
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	osd_rdma_enable(1);
-#endif
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	if (request_irq(INT_RDMA, &osd_rdma_isr,
 			IRQF_SHARED, "osd_rdma", (void *)"osd_rdma"))
 		osd_log_err("can't request irq for rdma\n");

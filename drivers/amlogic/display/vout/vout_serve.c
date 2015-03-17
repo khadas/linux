@@ -34,7 +34,6 @@
 #include <linux/amlogic/vout/vout_notify.h>
 
 /* Local Headers */
-/* #include <osd/osd.h> */
 #include "vout_log.h"
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

@@ -1079,38 +1079,54 @@ void osd_ext_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_ext_hw.free_dst_data[index].y_end = y1;
 }
 
-void osd_ext_get_info_hw(u32 index, s32(*posdval)[4], u32(*posdreg)[5],
-			 s32 info_flag)
+void osd_ext_set_debug_hw(u32 index, u32 debug_flag)
 {
-	if (info_flag == 0) {
-		posdval[0][0] = osd_ext_hw.pandata[index].x_start;
-		posdval[0][1] = osd_ext_hw.pandata[index].x_end;
-		posdval[0][2] = osd_ext_hw.pandata[index].y_start;
-		posdval[0][3] = osd_ext_hw.pandata[index].y_end;
+	u32 reg = 0;
+	u32 offset = 0;
+	struct pandata_s *pdata = NULL;
 
-		posdval[1][0] = osd_ext_hw.dispdata[index].x_start;
-		posdval[1][1] = osd_ext_hw.dispdata[index].x_end;
-		posdval[1][2] = osd_ext_hw.dispdata[index].y_start;
-		posdval[1][3] = osd_ext_hw.dispdata[index].y_end;
+	if (debug_flag == 1) {
+		pdata = &osd_ext_hw.pandata[index];
+		osd_log_info("pandata[%d]:\n", index);
+		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
+				pdata->x_start, pdata->x_end);
+		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
+				pdata->y_start, pdata->y_end);
 
-		posdval[2][0] = osd_ext_hw.scaledata[index].x_start;
-		posdval[2][1] = osd_ext_hw.scaledata[index].x_end;
-		posdval[2][2] = osd_ext_hw.scaledata[index].y_start;
-		posdval[2][3] = osd_ext_hw.scaledata[index].y_end;
-	} else if (info_flag == 1) {
-		posdreg[0][0] = osd_reg_read(VIU2_OSD1_BLK0_CFG_W0);
-		posdreg[0][1] = osd_reg_read(VIU2_OSD1_BLK0_CFG_W1);
-		posdreg[0][2] = osd_reg_read(VIU2_OSD1_BLK0_CFG_W2);
-		posdreg[0][3] = osd_reg_read(VIU2_OSD1_BLK0_CFG_W3);
-		posdreg[0][4] = osd_reg_read(VIU2_OSD1_BLK0_CFG_W4);
+		pdata = &osd_ext_hw.dispdata[index];
+		osd_log_info("dispdata[%d]\n", index);
+		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
+				pdata->x_start, pdata->x_end);
+		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
+				pdata->y_start, pdata->y_end);
 
-		posdreg[1][0] = osd_reg_read(VIU2_OSD2_BLK0_CFG_W0);
-		posdreg[1][1] = osd_reg_read(VIU2_OSD2_BLK0_CFG_W1);
-		posdreg[1][2] = osd_reg_read(VIU2_OSD2_BLK0_CFG_W2);
-		posdreg[1][3] = osd_reg_read(VIU2_OSD2_BLK0_CFG_W3);
-		posdreg[1][4] = osd_reg_read(VIU2_OSD2_BLK0_CFG_W4);
+		pdata = &osd_ext_hw.scaledata[index];
+		osd_log_info("scaledata[%d]\n", index);
+		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
+				pdata->x_start, pdata->x_end);
+		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
+				pdata->y_start, pdata->y_end);
+	} else if (debug_flag == 2) {
+		reg = VPU_VIU_VENC_MUX_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VPP_MISC;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU_OSD1_CTRL_STAT;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		if (index == 1)
+			offset = REG_OFFSET;
+		reg = offset + VIU2_OSD1_BLK0_CFG_W0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU2_OSD1_BLK0_CFG_W1;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU2_OSD1_BLK0_CFG_W2;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU2_OSD1_BLK0_CFG_W3;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU2_OSD1_BLK0_CFG_W4;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	} else {
-		;		/* ToDo */
+		osd_log_err("argument error\n");
 	}
 }
 

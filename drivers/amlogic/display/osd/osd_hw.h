@@ -56,8 +56,7 @@ extern void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1,
 				   s32 *y1);
 extern void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1);
 extern void osd_set_scale_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1);
-extern void osd_get_info_hw(u32 index, s32(*posdval)[4], u32(*posdreg)[5],
-			    s32 info_flag);
+extern void osd_set_debug_hw(u32 index, u32 flag);
 extern void osd_get_block_windows_hw(u32 index, u32 *windows);
 extern void osd_set_block_windows_hw(u32 index, u32 *windows);
 extern void osd_get_block_mode_hw(u32 index, u32 *mode);

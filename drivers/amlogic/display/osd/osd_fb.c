@@ -630,7 +630,7 @@ static void set_default_display_axis(struct fb_var_screeninfo *var,
 	return;
 }
 
-int osd_notify_callback(struct notifier_block *block, unsigned long cmd ,
+int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			void *para)
 {
 	const struct vinfo_s *vinfo;
@@ -643,10 +643,9 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd ,
 		osd_log_err("current vinfo NULL\n");
 		return -1;
 	}
-	osd_log_dbg("get current vmode=%s\n", vinfo->name);
+	osd_log_dbg("current vmode=%s\n", vinfo->name);
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
-		osd_log_dbg("recevie change mode message\n");
 		for (i = 0; i < OSD_COUNT; i++) {
 			fb_dev = gp_fbdev_list[i];
 			if (NULL == fb_dev)
@@ -1148,60 +1147,17 @@ static ssize_t store_debug(struct device *device, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
-	int osd_val[3][4] = {};
-	unsigned int osd_reg[2][5] = {};
-	int osd_info_flag = 0;
-	if (NULL != buf) {
-		if (strncmp(buf, "val", 3) == 0)
-			osd_info_flag = 1;
-		else if (strncmp(buf, "reg", 3) == 0)
-			osd_info_flag = 2;
-		osd_get_info_hw(fb_info->node, osd_val, osd_reg, osd_info_flag);
-	}
-	switch (osd_info_flag) {
-	case 1:
-		osd_log_info("pandata[%d].x_start :  %d\n"
-			     "pandata[%d].x_end   :  %d\n"
-			     "pandata[%d].y_start :  %d\n"
-			     "pandata[%d].y_end   :  %d\n",
-			     fb_info->node, osd_val[0][0], fb_info->node,
-			     osd_val[0][1], fb_info->node, osd_val[0][2],
-			     fb_info->node, osd_val[0][3]);
-		osd_log_info("dispdata[%d].x_start :  %d\n"
-			     "dispdata[%d].x_end   :  %d\n"
-			     "dispdata[%d].y_start :  %d\n"
-			     "dispdata[%d].y_end   :  %d\n",
-			     fb_info->node, osd_val[1][0], fb_info->node,
-			     osd_val[1][1], fb_info->node, osd_val[1][2],
-			     fb_info->node, osd_val[1][3]);
-		osd_log_info("scaledata[%d].x_start :  %d\n"
-			     "scaledata[%d].x_end   :  %d\n"
-			     "scaledata[%d].y_start :  %d\n"
-			     "scaledata[%d].y_end   :  %d\n",
-			     fb_info->node, osd_val[2][0], fb_info->node,
-			     osd_val[2][1], fb_info->node, osd_val[2][2],
-			     fb_info->node, osd_val[2][3]);
-		break;
-	case 2:
-		osd_log_info("[0x1a1b] : 0x%x\n"
-			     "[0x1a1c] : 0x%x\n"
-			     "[0x1a1d] : 0x%x\n"
-			     "[0x1a1e] : 0x%x\n"
-			     "[0x1a13] : 0x%x\n\n",
-			     osd_reg[0][0], osd_reg[0][1], osd_reg[0][2],
-			     osd_reg[0][3], osd_reg[0][4]);
-		osd_log_info("[0x1a3b] : 0x%x\n"
-			     "[0x1a3c] : 0x%x\n"
-			     "[0x1a3d] : 0x%x\n"
-			     "[0x1a3e] : 0x%x\n"
-			     "[0x1a64] : 0x%x\n",
-			     osd_reg[1][0], osd_reg[1][1], osd_reg[1][2],
-			     osd_reg[1][3], osd_reg[1][4]);
-		break;
-	default:
-		osd_log_err("argument error\n");
-		break;
-	}
+	int debug_flag = 0;
+
+	if (!buf)
+		return count;
+
+	if (strncmp(buf, "val", 3) == 0)
+		debug_flag = 1;
+	else if (strncmp(buf, "reg", 3) == 0)
+		debug_flag = 2;
+	osd_set_debug_hw(fb_info->node, debug_flag);
+
 	return count;
 }
 
@@ -1919,7 +1875,7 @@ static int osd_probe(struct platform_device *pdev)
 			}
 		}
 		osd_log_info("---------------clear fb%d memory\n", index);
-		memset((char *)fbdev->fb_mem_vaddr, 0x00, fbdev->fb_len);
+		memset((char *)fbdev->fb_mem_vaddr, 0x80, fbdev->fb_len);
 		/* get roataion from dtd */
 		if (index == DEV_OSD0) {
 			prop = of_get_property(pdev->dev.of_node,
