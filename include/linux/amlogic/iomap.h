@@ -78,5 +78,7 @@ extern  void aml_write_dosbus(unsigned int reg, unsigned int val);
 extern  void aml_dosbus_update_bits(unsigned int reg,
 		unsigned int mask, unsigned int val);
 
+extern int  aml_read_sec_reg(unsigned int reg);
+extern void  aml_write_sec_reg(unsigned int reg, unsigned int val);
 
 #endif

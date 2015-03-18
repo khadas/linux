@@ -25,6 +25,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
+#include <asm/opcodes-sec.h>
 
 
 void meson_regmap_lock(void *p)
@@ -247,6 +248,32 @@ void aml_dosbus_update_bits(unsigned int reg,
 }
 EXPORT_SYMBOL(aml_dosbus_update_bits);
 
+static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
+					 u32 arg2)
+{
+	asm volatile(
+			__asmeq("%0", "r0")
+			__asmeq("%1", "r1")
+			__asmeq("%2", "r2")
+			__asmeq("%3", "r3")
+			__SMC(0)
+		: "+r" (function_id)
+		: "r" (arg0), "r" (arg1), "r" (arg2));
+
+	return function_id;
+}
+
+
+int  aml_read_sec_reg(unsigned int reg)
+{
+	return __invoke_sec_fn_smc(0x82000035, reg, 0, 0);
+}
+
+void  aml_write_sec_reg(unsigned int reg, unsigned int val)
+{
+	 __invoke_sec_fn_smc(0x82000036, reg, val, 0);
+}
+
 
 
 static int iomap_probe(struct platform_device *pdev)
@@ -269,7 +296,8 @@ static int iomap_probe(struct platform_device *pdev)
 					base, &meson_regmap_config);
 
 			if (IS_ERR(meson_reg_map[i])) {
-				pr_err("iomap index %d registers not found\n", i);
+				pr_err("iomap index %d registers not found\n",
+					   i);
 				return PTR_ERR(meson_reg_map[i]);
 			}
 			i++;

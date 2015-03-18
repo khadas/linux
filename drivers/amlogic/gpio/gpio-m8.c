@@ -34,6 +34,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/of_address.h>
 #include "gpio-m8.h"
+#include <linux/amlogic/iomap.h>
 void __iomem *p_gpio_oen_addr[5];
 void __iomem *p_gpio_output_addr[5];
 void __iomem *p_gpio_input_addr[5];
@@ -455,10 +456,12 @@ int gpio_amlogic_get(struct gpio_chip *chip, unsigned offset)
 
 int gpio_amlogic_direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	unsigned int reg, bit;
+	unsigned int reg, bit, val;
 	if (offset == GPIO_BSD_EN) {
 		aml_clr_reg32_mask(p_gpio_output_addr[0], 1<<29);
-		/* aml_set_reg32_mask(ao_secure0_base, 1<<0);*/
+		val = aml_read_sec_reg(0xda004000);
+		val = val | (BIT(1));
+		aml_write_sec_reg(0xda004000, val);
 		if (value)
 			if (is_meson_m8_cpu())
 				aml_set_reg32_mask(p_gpio_output_addr[0], 1<<31);
