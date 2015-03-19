@@ -32,16 +32,13 @@ config AML_VDAC_HW_SWITCH
 
 config AM_LCD_OUTPUT
 	boolean "LCD Output Module"
-	default n
+	default y
 	depends on AM_VOUT
 	help
 		LCD output module
 
-config AML_GAMMA_DEBUG
-	boolean "AML Gamma debug"
-	default n
-	depends on AM_LCD_OUTPUT
-	help
-		AML gamma debug
+if AM_LCD_OUTPUT
+source "drivers/amlogic/display/vout/lcd/Kconfig"
+endif
 
 endmenu

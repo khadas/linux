@@ -7,5 +7,6 @@ endif
 obj-$(CONFIG_AM_TV_OUTPUT) += tv_vout.o
 
 obj-$(CONFIG_AM_LCD_OUTPUT) += lcd_vout.o
+obj-$(CONFIG_AM_LCD_OUTPUT) += lcd/
 
 ccflags-y += -Idrivers/amlogic/display/

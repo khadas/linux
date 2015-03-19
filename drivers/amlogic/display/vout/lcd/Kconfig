@@ -1,0 +1,13 @@
+comment "Amlogic LCD Output Drivers"
+
+config AML_GAMMA_DEBUG
+	boolean "AML Gamma debug"
+	default y
+	help
+		AML gamma debug
+
+config AML_LCD_EXTERN
+	boolean "Amlogic LCD external driver"
+	default y
+	help
+		"Amlogic LCD external driver, such as i2c initial..."
