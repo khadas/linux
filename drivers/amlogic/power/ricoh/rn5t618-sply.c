@@ -1652,7 +1652,6 @@ err_charger_init:
 	kfree(supply->battery_info);
 	kfree(supply);
 	input_unregister_device(rn5t618_power_key);
-	kfree(rn5t618_power_key);
 	RICOH_DBG("call %s exit, ret:%d", __func__, ret);
 	return ret;
 }
