@@ -88,6 +88,7 @@ static void osddev_setup(struct osd_fb_dev_s *fbdev)
 		     fbdev->fb_mem_paddr,
 		     fbdev->color);
 	mutex_unlock(&fbdev->lock);
+
 	return;
 }
 
@@ -212,7 +213,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	color_format_pt = _find_color_format(var);
 	if (color_format_pt == NULL || color_format_pt->color_index == 0)
 		return -EFAULT;
-	osd_log_dbg("select color format :index %d, bpp %d\n",
+	osd_log_info("select color format :index %d, bpp %d\n",
 		    color_format_pt->color_index,
 		    color_format_pt->bpp);
 	fbdev->color = color_format_pt;
@@ -229,7 +230,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->transp.length = color_format_pt->transp_length;
 	var->transp.msb_right = color_format_pt->transp_msb_right;
 	var->bits_per_pixel = color_format_pt->bpp;
-	osd_log_dbg("rgba(L/O):%d/%d-%d/%d-%d/%d-%d/%d\n",
+	osd_log_info("rgba(L/O):%d/%d-%d/%d-%d/%d-%d/%d\n",
 		    var->red.length, var->red.offset,
 		    var->green.length, var->green.offset,
 		    var->blue.length, var->blue.offset,
@@ -237,7 +238,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	fix->visual = color_format_pt->color_type;
 	/* adjust memory length. */
 	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
-	osd_log_info("xvirtual=%d,bpp:%d,kernel_line_length=%d\n",
+	osd_log_info("xvirtual=%d, bpp:%d, line_length=%d\n",
 		var->xres_virtual, var->bits_per_pixel, fix->line_length);
 	if (var->xres_virtual * var->yres_virtual * var->bits_per_pixel / 8 >
 			fbdev->fb_len) {
@@ -280,6 +281,7 @@ static int osd_set_par(struct fb_info *info)
 	else
 		osd_ctrl->disp_end_y = virt_end_y - 1;
 	osddev_setup((struct osd_fb_dev_s *)info->par);
+
 	return 0;
 }
 
@@ -313,9 +315,7 @@ osd_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	return 0;
 }
 
-static int
-osd_ioctl(struct fb_info *info, unsigned int cmd,
-	  unsigned long arg)
+static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)info->par;
 	void __user *argp = (void __user *)arg;
@@ -543,11 +543,11 @@ osd_ioctl(struct fb_info *info, unsigned int cmd,
 	mutex_unlock(&fbdev->lock);
 	return  ret;
 }
+
 static int osd_open(struct fb_info *info, int arg)
 {
 	return 0;
 }
-
 
 static int osd_blank(int blank_mode, struct fb_info *info)
 {
@@ -559,7 +559,8 @@ static int osd_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *fbi)
 {
 	osd_pan_display_hw(fbi->node, var->xoffset, var->yoffset);
-	/* osd_log_dbg("osd_pan_display:=>osd%d\n",fbi->node); */
+	osd_log_dbg("osd_pan_display:=>osd%d xoff=%d, yoff=%d\n",
+			fbi->node, var->xoffset, var->yoffset);
 	return 0;
 }
 
@@ -572,11 +573,8 @@ static int osd_cursor(struct fb_info *fbi, struct fb_cursor *var)
 		startx = fb_dev->osd_ctl.disp_start_x;
 		starty = fb_dev->osd_ctl.disp_start_y;
 	}
-	/* TODO */
-	/* mutex_lock(&(struct osd_fb_dev_s *)fbi->par->lock); */
 	osd_cursor_hw(fbi->node, (s16)var->hot.x, (s16)var->hot.y, (s16)startx,
 		      (s16)starty, fbi->var.xres, fbi->var.yres);
-	/* mutex_unlock(&(struct osd_fb_dev_s *)fbi->par->lock); */
 	return 0;
 }
 #endif
@@ -643,7 +641,7 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 		osd_log_err("current vinfo NULL\n");
 		return -1;
 	}
-	osd_log_dbg("current vmode=%s\n", vinfo->name);
+	osd_log_info("current vmode=%s\n", vinfo->name);
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
 		for (i = 0; i < OSD_COUNT; i++) {
@@ -1161,6 +1159,27 @@ static ssize_t store_debug(struct device *device, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_log_level(struct device *device,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	return snprintf(buf, 40, "%d\n", osd_log_level);
+}
+
+static ssize_t store_log_level(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("log_level: %d->%d\n", osd_log_level, res);
+	osd_log_level = res;
+
+	return count;
+}
+
 static ssize_t store_order(struct device *device, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -1628,6 +1647,8 @@ static struct device_attribute osd_attrs[] = {
 			show_free_scale_axis, store_free_scale_axis),
 	__ATTR(debug, S_IRUGO | S_IWUSR,
 			show_debug, store_debug),
+	__ATTR(log_level, S_IRUGO | S_IWUSR,
+			show_log_level, store_log_level),
 	__ATTR(window_axis, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_window_axis, store_window_axis),
 	__ATTR(freescale_mode, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -1800,6 +1821,7 @@ static int osd_probe(struct platform_device *pdev)
 		current_mode = VMODE_LVDS_1080P;
 		break;
 	case 3:
+		current_mode = VMODE_1080P;
 #ifdef CONFIG_AM_HDMI_ONLY
 		/* DisableVideoLayer(); */
 		hpd_state = read_hpd_gpio();
@@ -1838,6 +1860,7 @@ static int osd_probe(struct platform_device *pdev)
 		fbdev->fb_len = fb_rmem_size[index];
 		fbdev->fb_mem_paddr = fb_rmem_paddr[index];
 		fbdev->fb_mem_vaddr = fb_rmem_vaddr[index];
+
 		if (!fbdev->fb_mem_vaddr) {
 			osd_log_err("failed to ioremap frame buffer\n");
 			ret = -ENOMEM;
@@ -1876,6 +1899,7 @@ static int osd_probe(struct platform_device *pdev)
 		}
 		osd_log_info("---------------clear fb%d memory\n", index);
 		memset((char *)fbdev->fb_mem_vaddr, 0x80, fbdev->fb_len);
+
 		/* get roataion from dtd */
 		if (index == DEV_OSD0) {
 			prop = of_get_property(pdev->dev.of_node,
@@ -1918,9 +1942,8 @@ static int osd_probe(struct platform_device *pdev)
 		osd_check_var(var, fbi);
 		/* register frame buffer */
 		register_framebuffer(fbi);
+
 		osddev_setup(fbdev);
-		if (index == DEV_OSD0 && (rotation == 90 || rotation == 270))
-			osddev_setup(fbdev);
 		/* create device attribute files */
 		for (i = 0; i < ARRAY_SIZE(osd_attrs); i++)
 			ret = device_create_file(fbi->dev, &osd_attrs[i]);

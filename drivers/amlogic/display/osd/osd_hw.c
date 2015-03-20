@@ -333,8 +333,6 @@ static int out_fence_create(int *release_fence_fd, u32 *val, u32 buf_num)
 		goto error_ret;
 	}
 	sync_fence_install(outer_fence, out_fence_fd);
-	osd_log_dbg("---------------------------------------\n");
-	osd_log_dbg("return out fence fd:%d\n", out_fence_fd);
 	*release_fence_fd = out_fence_fd;
 	return out_fence_fd;
 
@@ -391,7 +389,7 @@ static int osd_wait_buf_ready(struct osd_fence_map_s *fence_map)
 	ret = sync_fence_wait(buf_ready_fence, -1);
 	if (ret < 0) {
 		osd_log_err("Sync Fence wait error:%d\n", ret);
-		osd_log_info("-----wait buf idx:[%d] ERROR\n"
+		osd_log_err("-----wait buf idx:[%d] ERROR\n"
 			"-----on screen buf idx:[%d]\n",
 			fence_map->buf_num, find_buf_num(fence_map->yres,
 			osd_hw.pandata[fence_map->fb_index].y_start));
@@ -932,9 +930,9 @@ void osd_setup_hw(u32 index,
 				index, osd_hw.fb_gem[index].canvas_idx);
 		osd_log_info("osd[%d] canvas.addr=0x%x\n",
 				index, osd_hw.fb_gem[index].addr);
-		osd_log_info("osd[%d] canvas.width=0x%x\n",
+		osd_log_info("osd[%d] canvas.width=0x%d\n",
 				index, osd_hw.fb_gem[index].width);
-		osd_log_info("osd[%d] canvas.height=0x%x\n",
+		osd_log_info("osd[%d] canvas.height=0x%d\n",
 				index, osd_hw.fb_gem[index].height);
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
 			      osd_hw.fb_gem[index].addr,
@@ -953,7 +951,6 @@ void osd_setup_hw(u32 index,
 		add_to_update_list(index, OSD_ENABLE);
 	}
 #endif
-	osd_mem_power_on();
 
 	if (memcmp(&pan_data, &osd_hw.pandata[index],
 				sizeof(struct pandata_s)) != 0 ||
@@ -1360,10 +1357,10 @@ void osd_set_debug_hw(u32 index, u32 debug_flag)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = VPP_MISC;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD1_CTRL_STAT;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		if (index == 1)
 			offset = REG_OFFSET;
+		reg = offset + VIU_OSD1_CTRL_STAT;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_BLK0_CFG_W0;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_BLK0_CFG_W1;
@@ -3173,6 +3170,8 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_mode[OSD2] = 0;
 	}
 	memset(osd_hw.rotate, 0, sizeof(struct osd_rotate_s));
+
+	osd_mem_power_on();
 
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 	INIT_LIST_HEAD(&post_fence_list);

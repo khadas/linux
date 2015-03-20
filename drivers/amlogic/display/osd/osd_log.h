@@ -17,9 +17,8 @@
 #include <stdarg.h>
 #include <linux/printk.h>
 
-#define OSD_LOG_LEVEL_INFO 0
+#define OSD_LOG_LEVEL_NULL 0
 #define OSD_LOG_LEVEL_DEBUG 1
-#define OSD_LOG_LEVEL_ERROR 2
 
 extern unsigned int osd_log_level;
 
@@ -34,11 +33,7 @@ extern unsigned int osd_log_level;
 
 #define osd_log_dbg(fmt, ...) \
 	do { \
-		if (osd_log_level == OSD_LOG_LEVEL_ERROR) { \
-			pr_err(fmt, ##__VA_ARGS__); \
-		} else if (osd_log_level == OSD_LOG_LEVEL_DEBUG) { \
-			pr_warn(fmt, ##__VA_ARGS__); \
-		} else if (osd_log_level == OSD_LOG_LEVEL_INFO) { \
+		if (osd_log_level == OSD_LOG_LEVEL_DEBUG) { \
 			pr_info(fmt, ##__VA_ARGS__); \
 		} \
 	} while (0)

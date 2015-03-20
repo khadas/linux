@@ -3,7 +3,7 @@
 
 #include "osd.h"
 
-#define REG_OFFSET (0x20<<2)
+#define REG_OFFSET (0x20)
 #define OSD_RELATIVE_BITS 0x33370
 extern void osd_set_color_key_hw(u32 index, u32 bpp, u32 colorkey);
 extern void osd_srckey_enable_hw(u32  index, u8 enable);
