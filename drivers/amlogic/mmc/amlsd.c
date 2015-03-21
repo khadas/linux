@@ -653,10 +653,10 @@ err:
 void of_amlsd_irq_init(struct amlsd_platform *pdata)
 {
 	if (pdata->irq_in && pdata->irq_out) {
-		amlogic_gpio_to_irq(pdata->gpio_cd, MODULE_NAME,
+		gpio_for_irq(pdata->gpio_cd,
 				AML_GPIO_IRQ(pdata->irq_in, FILTER_NUM7,
 				GPIO_IRQ_FALLING));
-		amlogic_gpio_to_irq(pdata->gpio_cd, MODULE_NAME,
+		gpio_for_irq(pdata->gpio_cd,
 				AML_GPIO_IRQ(pdata->irq_out, FILTER_NUM7,
 				GPIO_IRQ_RISING));
 	}
@@ -671,8 +671,7 @@ void of_amlsd_pwr_prepare(struct amlsd_platform *pdata)
 void of_amlsd_pwr_on(struct amlsd_platform *pdata)
 {
 	if (pdata->gpio_power)
-		amlogic_set_value(pdata->gpio_power, pdata->power_level,
-		 MODULE_NAME);
+		gpio_set_value(pdata->gpio_power, pdata->power_level);
 	/* if(pdata->port == MESON_SDIO_PORT_A) { */
 	/* extern_wifi_set_enable(1); //power on wifi */
     /* } */
@@ -681,8 +680,7 @@ void of_amlsd_pwr_on(struct amlsd_platform *pdata)
 void of_amlsd_pwr_off(struct amlsd_platform *pdata)
 {
 	if (pdata->gpio_power)
-		amlogic_set_value(pdata->gpio_power, !pdata->power_level,
-		 MODULE_NAME);
+		gpio_set_value(pdata->gpio_power, !pdata->power_level);
 	/* if(pdata->port == MESON_SDIO_PORT_A){ */
 	/* extern_wifi_set_enable(0); //power off wifi */
     /* } */
@@ -694,17 +692,16 @@ int of_amlsd_init(struct amlsd_platform *pdata)
 	BUG_ON(!pdata);
 
 	if (pdata->gpio_cd) {
-		ret = amlogic_gpio_request_one(pdata->gpio_cd,
+		ret = gpio_request_one(pdata->gpio_cd,
 			GPIOF_IN, MODULE_NAME);
 		CHECK_RET(ret);
 	}
 
 	if (pdata->gpio_ro) {
-		ret = amlogic_gpio_request_one(pdata->gpio_ro,
+		ret = gpio_request_one(pdata->gpio_ro,
 			GPIOF_IN, MODULE_NAME);
 		if (!ret) { /* ok */
-			ret = amlogic_set_pull_up_down(pdata->gpio_ro, 1,
-					MODULE_NAME);
+			ret = gpio_set_pullup(pdata->gpio_ro, 1);
 			CHECK_RET(ret);
 		} else {
 			sdio_err("request gpio_ro pin fail!\n");
@@ -713,11 +710,11 @@ int of_amlsd_init(struct amlsd_platform *pdata)
 
 	if (pdata->gpio_power) {
 		if (pdata->power_level) {
-			ret = amlogic_gpio_request_one(pdata->gpio_power,
+			ret = gpio_request_one(pdata->gpio_power,
 					GPIOF_OUT_INIT_LOW, MODULE_NAME);
 			CHECK_RET(ret);
 		} else {
-			ret = amlogic_gpio_request_one(pdata->gpio_power,
+			ret = gpio_request_one(pdata->gpio_power,
 					GPIOF_OUT_INIT_HIGH, MODULE_NAME);
 		CHECK_RET(ret);
 		}
@@ -853,7 +850,7 @@ int of_amlsd_ro(struct amlsd_platform *pdata)
 	int ret = 0; /* 0--read&write, 1--read only */
 
 	if (pdata->gpio_ro)
-		ret = amlogic_get_value(pdata->gpio_ro, MODULE_NAME);
+		ret = gpio_get_value(pdata->gpio_ro);
 	/* sdio_err("read-only?--%s\n", ret?"YES":"NO"); */
 	return ret;
 }
@@ -878,13 +875,11 @@ void aml_cs_high(struct amlsd_platform *pdata) /* chip select high */
 	&& (pdata->gpio_dat3 != 0)
 	&& (pdata->jtag_pin == 0)) { /* is NOT sd card */
 		aml_devm_pinctrl_put(pdata->host);
-		ret = amlogic_gpio_request_one(pdata->gpio_dat3,
+		ret = gpio_request_one(pdata->gpio_dat3,
 				GPIOF_OUT_INIT_HIGH, MODULE_NAME);
 		CHECK_RET(ret);
 		if (ret == 0) {
-			ret = amlogic_gpio_direction_output(pdata->gpio_dat3,
-				1, MODULE_NAME);
-
+			ret = gpio_direction_output(pdata->gpio_dat3, 1);
 			CHECK_RET(ret);
 		}
 	}
@@ -892,16 +887,12 @@ void aml_cs_high(struct amlsd_platform *pdata) /* chip select high */
 
 void aml_cs_dont_care(struct amlsd_platform *pdata) /* chip select don't care */
 {
-	int ret;
 
 	if ((pdata->mmc->ios.chip_select == MMC_CS_DONTCARE)
 	&& (pdata->gpio_dat3 != 0)
 	&& (pdata->jtag_pin == 0)
-	&& (amlogic_get_value(pdata->gpio_dat3, MODULE_NAME) >= 0)) {
-
-		ret = amlogic_gpio_free(pdata->gpio_dat3, MODULE_NAME);
-		CHECK_RET(ret);
-	}
+	&& (gpio_get_value(pdata->gpio_dat3) >= 0))
+		gpio_free(pdata->gpio_dat3);
 }
 
 static int aml_is_card_insert(struct amlsd_platform *pdata)
@@ -909,7 +900,7 @@ static int aml_is_card_insert(struct amlsd_platform *pdata)
 	int ret = 0;
 
 	if (pdata->gpio_cd)
-		ret = amlogic_get_value(pdata->gpio_cd, MODULE_NAME);
+		ret = gpio_get_value(pdata->gpio_cd);
 	sdio_err("card %s\n", ret?"OUT":"IN");
 	if (!pdata->gpio_cd_level)
 		ret = !ret; /* reverse, so ---- 0: no inserted  1: inserted */

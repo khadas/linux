@@ -2,7 +2,7 @@
 #define AML_M8_H
 
 #include <sound/soc.h>
-
+#include <linux/gpio/consumer.h>
 struct aml_audio_private_data {
 #if 0
 
@@ -48,6 +48,7 @@ struct aml_audio_private_data {
 	struct mutex lock;
 	struct snd_soc_jack jack;
 	void *data;
+	struct gpio_desc *mute_desc;
 
 	struct switch_dev sdev; /* for android */
 	struct switch_dev mic_sdev; /* for android */

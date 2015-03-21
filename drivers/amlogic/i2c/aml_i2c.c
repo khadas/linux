@@ -601,9 +601,8 @@ static int aml_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 	if (ret) {
 #ifdef ENABLE_GPIO_TRIGGER
 		if (i2c->trig_gpio >= 0) {
-			i = amlogic_get_value(i2c->trig_gpio, "aml_i2c_trig");
-			amlogic_gpio_direction_output(i2c->trig_gpio, !i,
-				"aml_i2c_trig");
+			i = gpiod_get_value(i2c->i2c_gdesc);
+			gpiod_direction_output(i2c->i2c_gdesc, !i);
 		}
 #endif
 		dev_err(&i2c_adap->dev,
@@ -738,26 +737,20 @@ err_arg:
 #ifdef ENABLE_GPIO_TRIGGER
 static int aml_i2c_set_trig_gpio(struct aml_i2c *i2c, char *gpio_name)
 {
-	int gpio;
-
 	mutex_lock(i2c->lock);
-	if (i2c->trig_gpio >= 0) {
+	if (i2c->i2c_gdesc) {
 		pr_info("free old trig_gpio(%d)!\n", i2c->trig_gpio);
-		amlogic_gpio_free(i2c->trig_gpio, "aml_i2c_trig");
+		gpiod_put(i2c->i2c_gdesc);
 		i2c->trig_gpio = -1;
 	}
-	gpio = amlogic_gpio_name_map_num(gpio_name);
-	if (gpio < 0) {
+	i2c->i2c_gdesc = gpiod_get(i2c->dev, gpio_name);
+	if (IS_ERR(i2c->i2c_gdesc)) {
 		pr_info("error: %s cannot map to gpio!\n",
 			gpio_name);
-	} else if (amlogic_gpio_request(gpio, "aml_i2c_trig")) {
-		pr_info("error: %s(%d) has been used!\n",
-			gpio_name, gpio);
 	} else {
-		pr_info("success: select %s(%d) as trig_gpio!\n",
-			gpio_name, gpio);
-		i2c->trig_gpio = gpio;
-		amlogic_gpio_direction_output(gpio, 1, "aml_i2c_trig");
+		pr_info("success: select %s as trig_gpio!\n",
+			gpio_name);
+		gpiod_direction_output(i2c->i2c_gdesc, 1);
 	}
 	mutex_unlock(i2c->lock);
 	return 0;

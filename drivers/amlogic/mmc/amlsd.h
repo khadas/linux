@@ -83,7 +83,9 @@ if (ret) \
 
 #define SD_PARSE_GPIO_NUM_PROP(node, prop_name, str, gpio_pin) {\
 	if (!of_property_read_string(node, prop_name, &str)) {\
-		gpio_pin = amlogic_gpio_name_map_num(str);\
+		gpio_pin = \
+		desc_to_gpio(of_get_named_gpiod_flags(node, \
+						      prop_name, 0, NULL));\
 		if (DEBUG_SD_OF) {	\
 			pr_info("get property:%25s, str:%s\n",\
 			prop_name, str);\

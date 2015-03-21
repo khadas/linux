@@ -64,7 +64,8 @@
 static dev_t hdmitx_id;
 static struct class *hdmitx_class;
 static struct device *hdmitx_dev;
-
+static struct gpio_desc *hdmi_gd;
+static struct device *hdmi_dev;
 static int set_disp_mode_auto(void);
 const struct vinfo_s *hdmi_get_current_vinfo(void);
 
@@ -1635,7 +1636,7 @@ static int pwr_type_match(struct device_node *np, const char *str,
 		NULL};	 /* match with dts file */
 	int i = 0;
 	int ret = 0;
-	int gpio_val;
+
 	struct pwr_ctl_var *var = (struct pwr_ctl_var *)pwr;
 
 	while (pwr_types_id[i]) {
@@ -1653,10 +1654,8 @@ static int pwr_type_match(struct device_node *np, const char *str,
 	var->type = CPU_GPO;
 	ret = of_property_read_string_index(np, pwr_col, 1, &str);
 	if (!ret) {
-		gpio_val = amlogic_gpio_name_map_num(str);
-		ret = amlogic_gpio_request(gpio_val, DEVICE_NAME);
-		if (!ret) {
-			var->var.gpo.pin = gpio_val;
+		hdmi_gd = gpiod_get(hdmi_dev, str);
+		if (!IS_ERR(hdmi_gd)) {
 			ret = of_property_read_string_index(np,
 				pwr_col, 2, &str);
 			if (!ret)
@@ -1713,20 +1712,14 @@ static void hdmitx_pwr_init(struct hdmi_pwr_ctl *ctl)
 {
 	if (ctl) {
 		if (ctl->pwr_5v_on.type == CPU_GPO)
-			amlogic_gpio_direction_output(
-				ctl->pwr_5v_on.var.gpo.pin,
-				ctl->pwr_5v_on.var.gpo.val,
-				DEVICE_NAME);
+			gpiod_direction_output(hdmi_gd,
+					       ctl->pwr_5v_on.var.gpo.val);
 		if (ctl->pwr_3v3_on.type == CPU_GPO)
-			amlogic_gpio_direction_output(
-				ctl->pwr_3v3_on.var.gpo.pin,
-				ctl->pwr_3v3_on.var.gpo.val,
-				DEVICE_NAME);
+			gpiod_direction_output(hdmi_gd,
+					       ctl->pwr_3v3_on.var.gpo.val);
 		if (ctl->pwr_hpll_vdd_on.type == CPU_GPO)
-			amlogic_gpio_direction_output(
-				ctl->pwr_hpll_vdd_on.var.gpo.pin,
-				ctl->pwr_hpll_vdd_on.var.gpo.val,
-				DEVICE_NAME);
+			gpiod_direction_output(hdmi_gd,
+					ctl->pwr_hpll_vdd_on.var.gpo.val);
 	}
 }
 
@@ -1740,7 +1733,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	phandle phandle;
 	struct device_node *init_data;
 #endif
-
+	hdmi_dev = &pdev->dev;
 	hdmi_print(IMP, SYS "amhdmitx_probe\n");
 
 	r = alloc_chrdev_region(&hdmitx_id, 0, HDMI_TX_COUNT,

@@ -90,22 +90,22 @@ static void gpiod_free(struct gpio_desc *desc);
 #ifdef CONFIG_DEBUG_FS
 #define gpiod_emerg(desc, fmt, ...)					       \
 	pr_emerg("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
-                 ##__VA_ARGS__)
+		 ##__VA_ARGS__)
 #define gpiod_crit(desc, fmt, ...)					       \
 	pr_crit("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
-                 ##__VA_ARGS__)
+		 ##__VA_ARGS__)
 #define gpiod_err(desc, fmt, ...)					       \
 	pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",  \
-                 ##__VA_ARGS__)
+		 ##__VA_ARGS__)
 #define gpiod_warn(desc, fmt, ...)					       \
 	pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
-                 ##__VA_ARGS__)
+		 ##__VA_ARGS__)
 #define gpiod_info(desc, fmt, ...)					       \
 	pr_info("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
-                ##__VA_ARGS__)
+		##__VA_ARGS__)
 #define gpiod_dbg(desc, fmt, ...)					       \
 	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
-                 ##__VA_ARGS__)
+		 ##__VA_ARGS__)
 #else
 #define gpiod_emerg(desc, fmt, ...)					\
 	pr_emerg("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
@@ -2132,6 +2132,45 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 }
 EXPORT_SYMBOL_GPL(gpiod_to_irq);
 
+int gpiod_for_irq(const struct gpio_desc *desc, unsigned int flag)
+{
+	struct gpio_chip	*chip;
+	int			offset;
+
+	if (!desc)
+		return -EINVAL;
+	chip = desc->chip;
+	offset = gpio_chip_hwgpio(desc);
+	return chip->set_gpio_to_irq ?
+		chip->set_gpio_to_irq(chip, offset, flag) : -ENXIO;
+}
+EXPORT_SYMBOL_GPL(gpiod_for_irq);
+
+int gpio_for_irq(unsigned gpio, unsigned int flag)
+{
+	return gpiod_for_irq(gpio_to_desc(gpio), flag);
+}
+EXPORT_SYMBOL_GPL(gpio_for_irq);
+
+int gpiod_set_pullup(const struct gpio_desc *desc, int val)
+{
+	struct gpio_chip	*chip;
+	int			offset;
+
+	if (!desc)
+		return -EINVAL;
+	chip = desc->chip;
+	offset = gpio_chip_hwgpio(desc);
+	return chip->set_pullup_down ?
+		chip->set_pullup_down(chip, offset, val) : -ENXIO;
+}
+EXPORT_SYMBOL_GPL(gpiod_set_pullup);
+int gpio_set_pullup(unsigned gpio, int val)
+{
+	return gpiod_set_pullup(gpio_to_desc(gpio), val);
+}
+EXPORT_SYMBOL_GPL(gpio_set_pullup);
+
 /**
  * gpiod_lock_as_irq() - lock a GPIO to be used as IRQ
  * @gpio: the GPIO line to lock as used for IRQ
@@ -2526,7 +2565,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 				? (chip->get(chip, i) ? "hi" : "lo")
 				: "?  ",
 			is_irq ? "IRQ" : "   ");
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 }
 
@@ -2586,8 +2625,8 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 	if (chip->label)
 		seq_printf(s, ", %s", chip->label);
 	if (chip->can_sleep)
-		seq_printf(s, ", can sleep");
-	seq_printf(s, ":\n");
+		seq_puts(s, ", can sleep");
+	seq_puts(s, ":\n");
 
 	if (chip->dbg_show)
 		chip->dbg_show(s, chip);

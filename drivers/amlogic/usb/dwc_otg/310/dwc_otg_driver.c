@@ -70,7 +70,7 @@
 
 #define DWC_DRIVER_VERSION	"3.10a 12-MAY-2014"
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
-
+static struct gpio_desc *usb_gd;
 static const char dwc_driver_name[] = "dwc_otg";
 extern int pcd_init(struct platform_device *pdev);
 extern int hcd_init(struct platform_device *pdev);
@@ -618,12 +618,12 @@ void set_usb_vbus_power(int pin, char is_power_on)
 		DWC_DEBUG("set usb port power on (board gpio %d)!\n", pin);
 		if (pin != -2)
 			/*set vbus on by gpio*/
-			amlogic_gpio_direction_output(pin, is_power_on, VBUS_POWER_GPIO_OWNER);
+			gpiod_direction_output(usb_gd, is_power_on);
 	} else {
 		DWC_DEBUG("set usb port power off (board gpio %d)!\n", pin);
 		if (pin != -2)
 			/*set vbus off by gpio first*/
-			amlogic_gpio_direction_output(pin, is_power_on, VBUS_POWER_GPIO_OWNER);
+			gpiod_direction_output(usb_gd, is_power_on);
 		/*notify pmu on vbus*/
 		dwc_otg_power_notifier_call(is_power_on);
 	}
@@ -718,7 +718,7 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 
 	if (otg_dev->core_if) {
 		if (otg_dev->core_if->vbus_power_pin != -2)
-			amlogic_gpio_free(otg_dev->core_if->vbus_power_pin, VBUS_POWER_GPIO_OWNER);
+			gpiod_put(usb_gd);
 		dwc_otg_cil_remove(otg_dev->core_if);
 	} else {
 		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->core_if NULL!\n", __func__);
@@ -856,8 +856,10 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 				if (strcmp(gpio_name, "PMU") == 0) {
 					gpio_vbus_power_pin = -2;
 				} else {
-					gpio_vbus_power_pin = amlogic_gpio_name_map_num(gpio_name);
-					amlogic_gpio_request(gpio_vbus_power_pin, VBUS_POWER_GPIO_OWNER);
+					usb_gd = gpiod_get_index(&pdev->dev,
+								 NULL, 0);
+					if (IS_ERR(usb_gd))
+						return -1;
 				}
 				prop = of_get_property(of_node, "gpio-work-mask", NULL);
 				if (prop)

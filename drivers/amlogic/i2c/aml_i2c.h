@@ -285,6 +285,7 @@ struct aml_i2c {
 	struct device *dev;
 	struct pinctrl *p;
 	const char *master_state_name;
+	struct gpio_desc *i2c_gdesc;
 };
 
 struct aml_i2c_platform {

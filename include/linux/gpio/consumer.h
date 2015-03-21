@@ -55,11 +55,15 @@ int gpiod_is_active_low(const struct gpio_desc *desc);
 int gpiod_cansleep(const struct gpio_desc *desc);
 
 int gpiod_to_irq(const struct gpio_desc *desc);
+int gpiod_for_irq(const struct gpio_desc *desc, unsigned int flag);
+int gpio_for_irq(unsigned gpio, unsigned int flag);
 
 /* Convert between the old gpio_ and new gpiod_ interfaces */
 struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+int gpiod_set_pullup(const struct gpio_desc *desc, int val);
+int gpio_set_pullup(unsigned gpio, int val);
 
 #else /* CONFIG_GPIOLIB */
 

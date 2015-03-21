@@ -65,29 +65,35 @@ struct gpio_chip {
 	struct module		*owner;
 	struct list_head        list;
 
-	int			(*request)(struct gpio_chip *chip,
+	int (*request)(struct gpio_chip *chip,
 						unsigned offset);
-	void			(*free)(struct gpio_chip *chip,
+	void (*free)(struct gpio_chip *chip,
 						unsigned offset);
-	int			(*get_direction)(struct gpio_chip *chip,
+	int (*get_direction)(struct gpio_chip *chip,
 						unsigned offset);
-	int			(*direction_input)(struct gpio_chip *chip,
+	int (*direction_input)(struct gpio_chip *chip,
 						unsigned offset);
-	int			(*direction_output)(struct gpio_chip *chip,
+	int (*direction_output)(struct gpio_chip *chip,
 						unsigned offset, int value);
-	int			(*get)(struct gpio_chip *chip,
+	int (*get)(struct gpio_chip *chip,
 						unsigned offset);
-	void			(*set)(struct gpio_chip *chip,
+	void (*set)(struct gpio_chip *chip,
 						unsigned offset, int value);
-	int			(*set_debounce)(struct gpio_chip *chip,
+	int (*set_debounce)(struct gpio_chip *chip,
 						unsigned offset,
 						unsigned debounce);
 
-	int			(*to_irq)(struct gpio_chip *chip,
+	int (*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
-	void			(*dbg_show)(struct seq_file *s,
+	void (*dbg_show)(struct seq_file *s,
 						struct gpio_chip *chip);
+	int (*set_pullup_down)(struct gpio_chip *chip,
+				unsigned int offset, int val);
+
+	int (*set_gpio_to_irq)(struct gpio_chip *chip, unsigned int gpio,
+							unsigned gpio_flag);
+
 	int			base;
 	u16			ngpio;
 	struct gpio_desc	*desc;

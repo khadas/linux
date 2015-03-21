@@ -171,9 +171,9 @@ sdio{
             f_max = <50000000>;
             f_max_w = <50000000>;
             max_req_size = <0x20000>;          /**128KB*/
-            gpio_dat3 = "CARD_4";
-            jtag_pin = "CARD_0";
-            gpio_cd = "CARD_6";
+            gpio_dat3 = <&gpio       CARD_4       GPIO_ACTIVE_HIGH>;
+            jtag_pin =  <&gpio       CARD_0       GPIO_ACTIVE_HIGH>;
+            gpio_cd =  <&gpio       CARD_6       GPIO_ACTIVE_HIGH>;
 //            gpio_ro = "GPIOZ_0";
             irq_in = <3>;
             irq_out = <5>;
@@ -253,7 +253,7 @@ sdio{
 	    	f_min = <300000>;
             f_max = <100000000>;
             max_req_size = <0x20000>;          /**128KB*/
-            gpio_dat3 = "BOOT_3";
+            gpio_dat3 =  <&gpio       BOOT_3       GPIO_ACTIVE_HIGH>;
             card_type = <1>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
         };
         // sdio{
@@ -363,6 +363,7 @@ sdio{
 		port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		gpio-vbus-power = "GPIOZ_1";
+		gpios = <&gpio       GPIOZ_1       GPIO_ACTIVE_HIGH>;
 		gpio-work-mask	= <1>; /**0: work on pulldown,1:work on pullup*/
 		phy-reg = <0xc1108800>;
 		phy-reg-size = <0x20>;

@@ -14,11 +14,11 @@ obj-$(CONFIG_AM_UART)		+=uart/
 
 obj-$(CONFIG_AML_CPU_VERSION)	+=cpu_version/
 
-obj-$(CONFIG_GPIO_AMLOGIC)	+=gpio/
 
 obj-$(CONFIG_PINCTRL_AMLOGIC)	+=pinctrl/
 
 obj-$(CONFIG_AMLOGIC_USB)  	+= usb/
+
 obj-y				+=clk/
 
 obj-$(CONFIG_AML_HDMI_TX) 	+=hdmi/

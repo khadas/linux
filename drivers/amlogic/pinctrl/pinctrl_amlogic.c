@@ -16,29 +16,98 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/device.h>
-#include <linux/amlogic/pinctrl-amlogic.h>
+#include <linux/amlogic/pinctrl_amlogic.h>
 #include <linux/pinctrl/pinctrl-state.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/vmalloc.h>
 #include "pinconf-amlogic.h"
 #include "../../pinctrl/core.h"
 #include <linux/amlogic/gpio-amlogic.h>
+#include <linux/of_address.h>
+int (*_gpio_name_map_num)(const char *name);
+struct amlogic_pmx *gl_pmx;
+struct regmap *int_reg;
+#define GPIO_EDGE 0
+#define GPIO_SELECT_0_3 1
+#define GPIO_SELECT_4_7 2
+#define GPIO_FILTER_NUM 3
 
 /* #define AML_PIN_DEBUG_GUP */
 const char *pctdev_name;
-/* #define debug */
-#ifdef debug
-#define dbg_print(...) {pr_info("===%s===%d===\n", __func__, __LINE__); pr_info(__VA_ARGS__); }
-#else
-#define dbg_print(...)
-#endif
 
-struct amlogic_pmx {
-	struct device *dev;
-	struct pinctrl_dev *pctl;
-	struct amlogic_pinctrl_soc_data *soc;
-	unsigned int pinmux_cell;
-};
+/**
+ * meson_get_bank() - find the bank containing a given pin
+ *
+ * @domain:	the domain containing the pin
+ * @pin:	the pin number
+ * @bank:	the found bank
+ *
+ * Return:	0 on success, a negative value on error
+ */
+static int meson_get_bank(struct meson_domain *domain, unsigned int pin,
+			  struct meson_bank **bank)
+{
+	int i;
+
+	for (i = 0; i < domain->data->num_banks; i++) {
+		if (pin >= domain->data->banks[i].first &&
+		    pin <= domain->data->banks[i].last) {
+			*bank = &domain->data->banks[i];
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * meson_get_domain_and_bank() - find domain and bank containing a given pin
+ *
+ * @pc:		Meson pin controller device
+ * @pin:	the pin number
+ * @domain:	the found domain
+ * @bank:	the found bank
+ *
+ * Return:	0 on success, a negative value on error
+ */
+static int meson_get_domain_and_bank(struct amlogic_pmx *pc, unsigned int pin,
+				     struct meson_domain **domain,
+				     struct meson_bank **bank)
+{
+	struct meson_domain *d;
+	int i;
+
+	for (i = 0; i < pc->soc->num_domains; i++) {
+		d = &pc->domains[i];
+		if (pin >= d->data->pin_base &&
+		    pin < d->data->pin_base + d->data->num_pins) {
+			*domain = d;
+			return meson_get_bank(d, pin, bank);
+		}
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * meson_calc_reg_and_bit() - calculate register and bit for a pin
+ *
+ * @bank:	the bank containing the pin
+ * @pin:	the pin number
+ * @reg_type:	the type of register needed (pull-enable, pull, etc...)
+ * @reg:	the computed register offset
+ * @bit:	the computed bit
+ */
+static void meson_calc_reg_and_bit(struct meson_bank *bank, unsigned int pin,
+				   enum meson_reg_type reg_type,
+				   unsigned int *reg, unsigned int *bit)
+{
+	struct meson_reg_desc *desc = &bank->regs[reg_type];
+
+	*reg = desc->reg * 4;
+	*bit = desc->bit + pin - bank->first;
+}
+
 
 /******************************************************************/
 static int amlogic_get_groups_count(struct pinctrl_dev *pctldev)
@@ -54,7 +123,8 @@ static const char *amloigc_get_group_name(struct pinctrl_dev *pctldev,
 	return apmx->soc->groups[group].name;
 }
 
-static int amlogic_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
+static int amlogic_get_group_pins(struct pinctrl_dev *pctldev,
+			       unsigned selector,
 			       const unsigned **pins,
 			       unsigned *num_pins)
 {
@@ -64,7 +134,8 @@ static int amlogic_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector
 	return 0;
 }
 #if 0
-static void amlogic_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
+static void amlogic_pin_dbg_show(struct pinctrl_dev *pctldev,
+		   struct seq_file *s,
 		   unsigned offset)
 {
 	seq_printf(s, " " DRIVER_NAME);
@@ -178,17 +249,28 @@ static int amlogic_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 			   unsigned group)
 {
 	struct amlogic_pmx *apmx = pinctrl_dev_get_drvdata(pctldev);
-	int i;
+	int i, dom, reg, ret;
 	struct amlogic_pin_group *pin_group =  &apmx->soc->groups[group];
 	struct amlogic_reg_mask *setmask = pin_group->setmask;
 	struct amlogic_reg_mask *clrmask = pin_group->clearmask;
+	struct meson_domain *domain = NULL;
 	for (i = 0; i < pin_group->num_clearmask; i++) {
-		aml_clr_reg32_mask(p_pin_mux_reg_addr[clrmask[i].reg], clrmask[i].mask);
-		dbg_print("clear reg=%x,mask=%x\n", clrmask[i].reg, clrmask[i].mask);
+		dom = clrmask[i].reg >> 4;
+		reg = clrmask[i].reg & 0xf;
+		domain = &apmx->domains[dom];
+		ret = regmap_update_bits(domain->reg_mux, reg * 4,
+					 clrmask[i].mask, 0);
+		if (ret)
+			return ret;
 	}
 	for (i = 0; i < pin_group->num_setmask; i++) {
-		aml_set_reg32_mask(p_pin_mux_reg_addr[setmask[i].reg], setmask[i].mask);
-		dbg_print("set reg=%d,mask=0x%x\n", setmask[i].reg, setmask[i].mask);
+		dom = setmask[i].reg >> 4;
+		reg = setmask[i].reg & 0xf;
+		domain = &apmx->domains[dom];
+		ret = regmap_update_bits(domain->reg_mux, reg * 4,
+					 setmask[i].mask, setmask[i].mask);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -197,20 +279,19 @@ static void amlogic_pmx_disable(struct pinctrl_dev *pctldev, unsigned selector,
 			     unsigned group)
 {
 	struct amlogic_pmx *apmx = pinctrl_dev_get_drvdata(pctldev);
-	int i;
+	int i, dom, reg;
 	struct amlogic_pin_group *pin_group =  &apmx->soc->groups[group];
 	struct amlogic_reg_mask *setmask = pin_group->setmask;
-	/* struct amlogic_reg_mask *clrmask=pin_group->clearmask; */
-#if 0
-	for (i = 0; i < pin_group->num_clearmask; i++) {
-		aml_set_reg32_mask(p_pin_mux_reg_addr[clrmask[i].reg], clrmask[i].mask);
-		dbg_print("clear reg=%x,mask=%x\n", clrmask[i].reg, clrmask[i].mask);
-	}
-#endif
+	struct meson_domain *domain = NULL;
+
 	for (i = 0; i < pin_group->num_setmask; i++) {
-		aml_clr_reg32_mask(p_pin_mux_reg_addr[setmask[i].reg], setmask[i].mask);
-		dbg_print("set reg=%d,mask=0x%x\n", setmask[i].reg, setmask[i].mask);
-       }
+
+		dom = setmask[i].reg >> 4;
+		reg = setmask[i].reg & 0xf;
+		domain = &apmx->domains[dom];
+		regmap_update_bits(domain->reg_mux, reg * 4,
+					 setmask[i].mask, 0);
+	}
 	return;
 }
 
@@ -227,7 +308,8 @@ static const char *amlogic_pmx_get_func_name(struct pinctrl_dev *pctldev,
 	return apmx->soc->functions[selector].name;
 }
 
-static int amlogic_pmx_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
+static int amlogic_pmx_get_groups(struct pinctrl_dev *pctldev,
+			       unsigned selector,
 			       const char * const **groups,
 			       unsigned * const num_groups)
 {
@@ -241,19 +323,22 @@ static int amlogic_gpio_request_enable(struct pinctrl_dev *pctldev,
 				    unsigned offset)
 {
 	struct pin_desc *desc;
+	struct amlogic_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	desc = pin_desc_get(pctldev, offset);
 	if (desc->mux_owner) {
-		pr_info("%s is using the pin %s as pinmux\n", desc->mux_owner, desc->name);
+		pr_info("%s is using the pin %s as pinmux\n",
+			desc->mux_owner, desc->name);
 		return -EINVAL;
 	}
-	return 0;
+	return	pmx->soc->meson_clear_pinmux(pmx, offset);
 }
 static int amlogic_pinctrl_request(struct pinctrl_dev *pctldev, unsigned offset)
 {
 	struct pin_desc *desc;
 	desc = pin_desc_get(pctldev, offset);
 	if (desc->gpio_owner) {
-		pr_info("%s is using the pin %s as gpio\n", desc->gpio_owner, desc->name);
+		pr_info("%s is using the pin %s as gpio\n",
+			desc->gpio_owner, desc->name);
 		return -EINVAL;
 	}
 	return 0;
@@ -296,6 +381,28 @@ int amlogic_pin_config_set(struct pinctrl_dev *pctldev,
 {
 	return 0;
 }
+int meson_config_pullup(unsigned int pin,
+					struct meson_domain *domain,
+					struct meson_bank *bank,
+					unsigned int config)
+{
+	int ret;
+	u16 pullarg = AML_PINCONF_UNPACK_PULL_ARG(config);
+	u16 pullen = AML_PINCONF_UNPACK_PULL_EN(config);
+	unsigned int reg, bit;
+	meson_calc_reg_and_bit(bank, pin, REG_PULLEN,
+				   &reg, &bit);
+	ret = regmap_update_bits(domain->reg_pullen, reg,
+				 BIT(bit), pullen ? BIT(bit) : 0);
+	if (ret)
+		return ret;
+
+	meson_calc_reg_and_bit(bank, pin, REG_PULL, &reg, &bit);
+	ret = regmap_update_bits(domain->reg_pull, reg,
+				 BIT(bit), pullarg ? BIT(bit) : 0);
+	return ret;
+
+}
 int amlogic_pin_config_group_set(struct pinctrl_dev *pctldev,
 				     unsigned group,
 				     unsigned long *configs,
@@ -310,24 +417,34 @@ int amlogic_pin_config_group_set(struct pinctrl_dev *pctldev,
 	const struct amlogic_pin_group *pin_group =  &apmx->soc->groups[group];
 	const unsigned int *pins = pin_group->pins;
 	const unsigned int num_pins = pin_group->num_pins;
-	dbg_print("config=0x%x\n", config);
+	struct meson_domain *domain;
+	struct meson_bank *bank;
 	if (AML_PCON_PULLUP == pullparam) {
 		for (i = 0; i < num_pins; i++)
-			ret = apmx->soc->meson_set_pullup(pins[i], config);
+			ret = meson_get_domain_and_bank(apmx, pins[i],
+							&domain, &bank);
+			if (ret)
+				return ret;
+			ret = meson_config_pullup(pins[i],
+						  domain, bank, config);
+			if (ret)
+				return ret;
 	}
 	if (AML_PCON_ENOUT == oenparam) {
 		for (i = 0; i < num_pins; i++) {
-			ret = apmx->soc->pin_map_to_direction(pins[i], &reg, &bit);
-			dbg_print("pin[%d]=%d,reg=%d,bit=%d\n", i, pins[i], reg, bit);
-			if (!ret) {
-				if (oenarg)
-					aml_set_reg32_mask(p_gpio_oen_addr[reg], 1<<bit);
-				else
-					aml_clr_reg32_mask(p_gpio_oen_addr[reg], 1<<bit);
-			}
+			ret = meson_get_domain_and_bank(apmx, pins[i],
+							&domain, &bank);
+			if (ret)
+				return ret;
+			meson_calc_reg_and_bit(bank, pins[i], REG_DIR,
+				   &reg, &bit);
+			ret =  regmap_update_bits(domain->reg_gpio, reg,
+				BIT(bit), oenarg ? BIT(bit) : 0);
+			if (ret)
+				return ret;
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static struct pinconf_ops amlogic_pconf_ops = {
@@ -377,7 +494,8 @@ static int amlogic_pinctrl_parse_group(struct platform_device *pdev,
 /*read amlogic pins through name*/
 	g->num_pins = of_property_count_strings(np, propname);
 	if (g->num_pins > 0) {
-		g->pins = devm_kzalloc(&pdev->dev, g->num_pins * sizeof(*g->pins),
+		g->pins = devm_kzalloc(&pdev->dev,
+				       g->num_pins * sizeof(*g->pins),
 				       GFP_KERNEL);
 		if (!g->pins) {
 			ret = -ENOMEM;
@@ -389,13 +507,16 @@ static int amlogic_pinctrl_parse_group(struct platform_device *pdev,
 							    i, &gpioname);
 			if (ret < 0) {
 				ret = -EINVAL;
-				dev_err(&pdev->dev, "read %s error\n", propname);
+				dev_err(&pdev->dev, "read %s error\n",
+					propname);
 				goto err;
 			}
-			ret = amlogic_gpio_name_map_num(gpioname);
+			ret = d->soc->name_to_pin(gpioname);
 			if (ret < 0) {
 				ret = -EINVAL;
-				dev_err(&pdev->dev, "%s change name to num  error\n", gpioname);
+				dev_err(&pdev->dev,
+					"%s change name to num  error\n",
+					gpioname);
 				goto err;
 			}
 			g->pins[i] = ret;
@@ -406,16 +527,19 @@ static int amlogic_pinctrl_parse_group(struct platform_device *pdev,
 		prop = of_find_property(np, pinctrl_set, &length);
 		if (!prop) {
 			ret = -EINVAL;
-			dev_err(&pdev->dev, "read %s length error\n", pinctrl_set);
+			dev_err(&pdev->dev,
+				"read %s length error\n", pinctrl_set);
 			goto err;
 		}
 		g->num_setmask = length / sizeof(u32);
 		if (g->num_setmask%d->pinmux_cell) {
 			dev_err(&pdev->dev, "num_setmask error must be multiples of 2\n");
-			g->num_setmask = (g->num_setmask/d->pinmux_cell)*d->pinmux_cell;
+			g->num_setmask =
+				(g->num_setmask/d->pinmux_cell)*d->pinmux_cell;
 		}
 		g->num_setmask = g->num_setmask/d->pinmux_cell;
-		g->setmask = devm_kzalloc(&pdev->dev, g->num_setmask * sizeof(*g->setmask),
+		g->setmask = devm_kzalloc(&pdev->dev,
+					g->num_setmask * sizeof(*g->setmask),
 				       GFP_KERNEL);
 		if (!g->setmask) {
 			ret = -ENOMEM;
@@ -423,10 +547,13 @@ static int amlogic_pinctrl_parse_group(struct platform_device *pdev,
 			goto err;
 		}
 
-		ret = of_property_read_u32_array(np, pinctrl_set, (u32 *)(g->setmask), length / sizeof(u32));
+		ret = of_property_read_u32_array(np, pinctrl_set,
+						 (u32 *)(g->setmask),
+						 length / sizeof(u32));
 		if (ret) {
 			ret = -EINVAL;
-			dev_err(&pdev->dev, "read %s data error\n", pinctrl_set);
+			dev_err(&pdev->dev, "read %s data error\n",
+				pinctrl_set);
 			goto err;
 		}
 	} else{
@@ -437,27 +564,35 @@ static int amlogic_pinctrl_parse_group(struct platform_device *pdev,
 	if (!of_property_read_u32(np, pinctrl_clr, &val)) {
 		prop = of_find_property(np, pinctrl_clr, &length);
 		if (!prop) {
-			dev_err(&pdev->dev, "read %s length error\n", pinctrl_clr);
+			dev_err(&pdev->dev, "read %s length error\n",
+				pinctrl_clr);
 			ret =  -EINVAL;
 			goto err;
 		}
 		g->num_clearmask = length / sizeof(u32);
 		if (g->num_clearmask%d->pinmux_cell) {
-			dev_err(&pdev->dev, "num_setmask error must be multiples of 2\n");
-			g->num_clearmask = (g->num_clearmask/d->pinmux_cell)*d->pinmux_cell;
+			dev_err(&pdev->dev,
+				"num_setmask error must be multiples of 2\n");
+			g->num_clearmask =
+			(g->num_clearmask/d->pinmux_cell)*d->pinmux_cell;
 		}
 		g->num_clearmask = g->num_clearmask/d->pinmux_cell;
-		g->clearmask = devm_kzalloc(&pdev->dev, g->num_clearmask * sizeof(*g->clearmask),
+		g->clearmask = devm_kzalloc(&pdev->dev,
+				g->num_clearmask * sizeof(*g->clearmask),
 				       GFP_KERNEL);
 		if (!g->clearmask) {
 			ret =  -ENOMEM;
 			dev_err(&pdev->dev, "malloc g->clearmask error\n");
 			goto err;
 		}
-		ret = of_property_read_u32_array(np, pinctrl_clr, (u32 *)(g->clearmask), length / sizeof(u32));
+		ret = of_property_read_u32_array(np,
+						 pinctrl_clr,
+						 (u32 *)(g->clearmask),
+						 length / sizeof(u32));
 		if (ret) {
 			ret = -EINVAL;
-			dev_err(&pdev->dev, "read %s data error\n", pinctrl_clr);
+			dev_err(&pdev->dev, "read %s data error\n",
+				pinctrl_clr);
 			goto err;
 		}
 	} else{
@@ -499,7 +634,10 @@ static int amlogic_pinctrl_probe_dt(struct platform_device *pdev,
 
 	/* Count total functions and groups */
 	fn = fnull;
+
 	for_each_child_of_node(np, child) {
+		if (of_find_property(child, "gpio-controller", NULL))
+			continue;
 		soc->ngroups++;
 		/* Skip pure pinconf node */
 		if (of_property_read_u32(child, pinctrl_set, &val) &&
@@ -529,6 +667,10 @@ static int amlogic_pinctrl_probe_dt(struct platform_device *pdev,
 	fn = fnull;
 	f = &soc->functions[idxf];
 	for_each_child_of_node(np, child) {
+
+		if (of_find_property(child, "gpio-controller", NULL))
+			continue;
+
 		if (of_property_read_u32(child, pinctrl_set, &val) &&
 			of_property_read_u32(child, pinctrl_clr, &val))
 			continue;
@@ -542,6 +684,10 @@ static int amlogic_pinctrl_probe_dt(struct platform_device *pdev,
 	idxf = 0;
 	fn = fnull;
 	for_each_child_of_node(np, child) {
+
+		if (of_find_property(child, "gpio-controller", NULL))
+			continue;
+
 		if (of_property_read_u32(child, pinctrl_set, &val) &&
 			of_property_read_u32(child, pinctrl_clr, &val)) {
 			ret = amlogic_pinctrl_parse_group(pdev, child,
@@ -581,6 +727,7 @@ err:
 }
 #ifdef AML_PIN_DEBUG_GUP
 #include <linux/amlogic/gpio-amlogic.h>
+/*extern struct pinctrl_pin_desc m8_pads[];*/
 static void amlogic_dump_pinctrl_data(struct platform_device *pdev)
 {
 	struct amlogic_pmx *d = platform_get_drvdata(pdev);
@@ -592,38 +739,366 @@ static void amlogic_dump_pinctrl_data(struct platform_device *pdev)
 	for (i = 0; i < soc->nfunctions; func++, i++) {
 		pr_info("function name:%s\n", func->name);
 		group = (char **)(func->groups);
-		for (j = 0; j < func->num_groups; group++, j++) {
+		for (j = 0; j < func->num_groups; group++, j++)
 			pr_info("\tgroup in function:%s\n", group[j]);
-		}
 	}
 	for (i = 0; i < soc->ngroups; groups++, i++) {
 		pr_info("group name:%s\n", groups->name);
 		for (j = 0; j < groups->num_pins; j++) {
 			pr_info("\t");
-			pr_info("pin num=%s", amlogic_pins[groups->pins[j]].name);
+			pr_info("pin num=%s", m8_pads[groups->pins[j]].name);
 		}
 		pr_info("\n");
 		for (j = 0; j < groups->num_setmask; j++) {
 			pr_info("\t");
-			pr_info("set reg=%d,mask=%x", groups->setmask[j].reg, groups->setmask[j].mask);
+			pr_info("set reg=0x%x,mask=0x%x",
+				groups->setmask[j].reg,
+				groups->setmask[j].mask);
 		}
 		pr_info("\n");
 		for (j = 0; j < groups->num_clearmask; j++) {
 			pr_info("\t");
-			pr_info("clear reg=%d,mask=%x", groups->clearmask[j].reg, groups->clearmask[j].mask);
+			pr_info("clear reg=0x%x,mask=0x%x",
+				groups->clearmask[j].reg,
+				groups->clearmask[j].mask);
 		}
 		pr_info("\n");
 	}
 }
 #endif
-struct pinctrl_dev *pctl;
 
-int  amlogic_pmx_probe(struct platform_device *pdev, struct amlogic_pinctrl_soc_data *soc_data)
+
+static int meson_gpio_request(struct gpio_chip *chip, unsigned gpio)
+{
+	return pinctrl_request_gpio(chip->base + gpio);
+}
+
+static void meson_gpio_free(struct gpio_chip *chip, unsigned gpio)
+{
+	pinctrl_free_gpio(chip->base + gpio);
+}
+
+static int meson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
+{
+	struct meson_domain *domain = to_meson_domain(chip);
+	unsigned int reg, bit, pin;
+	struct meson_bank *bank;
+	int ret;
+
+	pin = domain->data->pin_base + gpio;
+
+	ret = meson_get_bank(domain, pin, &bank);
+	if (ret)
+		return ret;
+
+	meson_calc_reg_and_bit(bank, pin, REG_DIR, &reg, &bit);
+
+	return regmap_update_bits(domain->reg_gpio, reg, BIT(bit), BIT(bit));
+}
+
+static int meson_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
+				       int value)
+{
+	struct meson_domain *domain = to_meson_domain(chip);
+	unsigned int reg, bit, pin;
+	struct meson_bank *bank;
+	int ret;
+
+	pin = domain->data->pin_base + gpio;
+	ret = gl_pmx->soc->soc_extern_gpio_output(domain, pin, value);
+	if (ret == 0)
+		return 0;
+
+	ret = meson_get_bank(domain, pin, &bank);
+	if (ret)
+		return ret;
+
+	meson_calc_reg_and_bit(bank, pin, REG_DIR, &reg, &bit);
+	ret = regmap_update_bits(domain->reg_gpio, reg, BIT(bit), 0);
+	if (ret)
+		return ret;
+
+	meson_calc_reg_and_bit(bank, pin, REG_OUT, &reg, &bit);
+
+	return regmap_update_bits(domain->reg_gpio, reg, BIT(bit),
+				  value ? BIT(bit) : 0);
+}
+
+static void meson_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
+{
+	struct meson_domain *domain = to_meson_domain(chip);
+	unsigned int reg, bit, pin;
+	struct meson_bank *bank;
+	int ret;
+
+	pin = domain->data->pin_base + gpio;
+	ret = gl_pmx->soc->soc_extern_gpio_output(domain, pin, value);
+	if (ret == 0)
+		return;
+
+	ret = meson_get_bank(domain, pin, &bank);
+	if (ret)
+		return;
+
+	meson_calc_reg_and_bit(bank, pin, REG_OUT, &reg, &bit);
+	regmap_update_bits(domain->reg_gpio, reg, BIT(bit),
+			   value ? BIT(bit) : 0);
+}
+
+static int meson_gpio_get(struct gpio_chip *chip, unsigned gpio)
+{
+	struct meson_domain *domain = to_meson_domain(chip);
+	unsigned int reg, bit, val, pin;
+	struct meson_bank *bank;
+	int ret;
+
+	pin = domain->data->pin_base + gpio;
+	ret = gl_pmx->soc->soc_extern_gpio_get(domain, pin);
+	if (ret != -1)
+		return ret;
+
+	ret = meson_get_bank(domain, pin, &bank);
+	if (ret)
+		return ret;
+
+	meson_calc_reg_and_bit(bank, pin, REG_IN, &reg, &bit);
+	regmap_read(domain->reg_gpio, reg, &val);
+	return !!(val & BIT(bit));
+}
+static int meson_gpio_set_pullup_down(struct gpio_chip *chip,
+				      unsigned  int gpio, int val)
+{
+	struct meson_domain *domain = to_meson_domain(chip);
+	unsigned int pin;
+	struct meson_bank *bank;
+	int ret, config;
+
+	pin = domain->data->pin_base + gpio;
+	ret = meson_get_bank(domain, pin, &bank);
+	if (ret)
+		return ret;
+	config = AML_PINCONF_PACK_PULL(AML_PCON_PULLUP, val);
+	config |= AML_PINCONF_PACK_PULLEN(AML_PCON_PULLUP, 1);
+	meson_config_pullup(pin, domain, bank, config);
+	return 0;
+}
+static int meson_gpio_to_irq(struct gpio_chip *chip,
+			     unsigned int gpio, unsigned gpio_flag)
+{
+	unsigned start_bit;
+	unsigned irq_bank = gpio_flag&0x7;
+	unsigned filter = (gpio_flag>>8)&0x7;
+	unsigned irq_type = (gpio_flag>>16)&0x3;
+	unsigned int pin;
+	unsigned type[] = {0x0,	/*GPIO_IRQ_HIGH*/
+				0x10000, /*GPIO_IRQ_LOW*/
+				0x1,	/*GPIO_IRQ_RISING*/
+				0x10001, /*GPIO_IRQ_FALLING*/
+				};
+	 /*set trigger type*/
+	struct meson_domain *domain = to_meson_domain(chip);
+	 pin = domain->data->pin_base + gpio;
+	 regmap_update_bits(int_reg, (GPIO_EDGE * 4),
+						0x10001<<irq_bank,
+						type[irq_type]<<irq_bank);
+	/*select pin*/
+	start_bit = (irq_bank&3)*8;
+	regmap_update_bits(int_reg,
+			irq_bank < 4?(GPIO_SELECT_0_3*4):(GPIO_SELECT_4_7*4),
+			0xff<<start_bit,
+			pin << start_bit);
+	/*set filter*/
+	start_bit = (irq_bank)*4;
+
+	regmap_update_bits(int_reg,  (GPIO_FILTER_NUM*4),
+			0x7<<start_bit, filter<<start_bit);
+	return 0;
+}
+struct pinctrl_dev *pctl;
+static int meson_gpiolib_register(struct amlogic_pmx  *pc)
+{
+	struct meson_domain *domain;
+	int i, ret;
+
+	for (i = 0; i < pc->soc->num_domains; i++) {
+		domain = &pc->domains[i];
+
+		domain->chip.label = domain->data->name;
+		domain->chip.dev = pc->dev;
+		domain->chip.request = meson_gpio_request;
+		domain->chip.free = meson_gpio_free;
+		domain->chip.direction_input = meson_gpio_direction_input;
+		domain->chip.direction_output = meson_gpio_direction_output;
+		domain->chip.get = meson_gpio_get;
+		domain->chip.set = meson_gpio_set;
+		domain->chip.set_pullup_down = meson_gpio_set_pullup_down;
+		domain->chip.set_gpio_to_irq = meson_gpio_to_irq;
+		domain->chip.base = -1;
+		domain->chip.ngpio = domain->data->num_pins;
+		domain->chip.can_sleep = false;
+		domain->chip.of_node = domain->of_node;
+		domain->chip.of_gpio_n_cells = 2;
+
+		ret = gpiochip_add(&domain->chip);
+		if (ret) {
+			dev_err(pc->dev, "can't add gpio chip %s\n",
+				domain->data->name);
+			goto fail;
+		}
+
+		ret = gpiochip_add_pin_range(&domain->chip, dev_name(pc->dev),
+					     0, domain->data->pin_base,
+					     domain->chip.ngpio);
+		if (ret) {
+			dev_err(pc->dev, "can't add pin range\n");
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	return ret;
+}
+
+static struct meson_domain_data *meson_get_domain_data(struct amlogic_pmx *pc,
+						       struct device_node *np)
+{
+	int i;
+
+	for (i = 0; i < pc->soc->num_domains; i++) {
+		if (!strcmp(np->name, pc->soc->domain_data[i].name))
+			return &pc->soc->domain_data[i];
+	}
+
+	return NULL;
+}
+
+static struct regmap_config meson_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
+static struct regmap *meson_map_resource(struct amlogic_pmx *pc,
+					 struct device_node *node, char *name)
+{
+	struct resource res;
+	void __iomem *base;
+	int i;
+
+	i = of_property_match_string(node, "reg-names", name);
+	if (of_address_to_resource(node, i, &res))
+		return ERR_PTR(-ENOENT);
+
+	base = devm_ioremap_resource(pc->dev, &res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	meson_regmap_config.max_register = resource_size(&res) - 4;
+	meson_regmap_config.name = kasprintf(GFP_KERNEL,
+						  "%s-%s", node->name,
+						  name);
+	if (!meson_regmap_config.name)
+		return ERR_PTR(-ENOMEM);
+
+	return devm_regmap_init_mmio(pc->dev, base, &meson_regmap_config);
+}
+
+static struct regmap *meson_map(struct device *dev,
+					 struct device_node *node, char *name)
+{
+	struct resource res;
+	void __iomem *base;
+	if (of_address_to_resource(node, 0, &res))
+		return ERR_PTR(-ENOENT);
+
+	base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	meson_regmap_config.max_register = resource_size(&res) - 4;
+	meson_regmap_config.name = kasprintf(GFP_KERNEL,
+						  "%s-%s", node->name,
+						  name);
+	if (!meson_regmap_config.name)
+		return ERR_PTR(-ENOMEM);
+
+	return devm_regmap_init_mmio(dev, base, &meson_regmap_config);
+}
+
+static int meson_pinctrl_parse_dt(struct amlogic_pmx  *pc,
+				  struct device_node *node)
+{
+	struct device_node *np;
+	struct meson_domain *domain;
+	int i = 0, num_domains = 0;
+
+	for_each_child_of_node(node, np) {
+		if (!of_find_property(np, "gpio-controller", NULL))
+			continue;
+		num_domains++;
+	}
+
+	if (num_domains != pc->soc->num_domains) {
+		dev_err(pc->dev, "wrong number of subnodes\n");
+		return -EINVAL;
+	}
+
+	pc->domains = devm_kzalloc(pc->dev, num_domains *
+				   sizeof(struct meson_domain), GFP_KERNEL);
+	if (!pc->domains)
+		return -ENOMEM;
+
+	for_each_child_of_node(node, np) {
+		if (!of_find_property(np, "gpio-controller", NULL))
+			continue;
+
+		domain = &pc->domains[i];
+
+		domain->data = meson_get_domain_data(pc, np);
+		if (!domain->data) {
+			dev_err(pc->dev, "domain data not found for node %s\n",
+				np->name);
+			return -ENODEV;
+		}
+
+		domain->of_node = np;
+
+		domain->reg_mux = meson_map_resource(pc, np, "mux");
+		if (IS_ERR(domain->reg_mux)) {
+			dev_err(pc->dev, "mux registers not found\n");
+			return PTR_ERR(domain->reg_mux);
+		}
+
+		domain->reg_pull = meson_map_resource(pc, np, "pull");
+		if (IS_ERR(domain->reg_pull)) {
+			dev_err(pc->dev, "pull registers not found\n");
+			return PTR_ERR(domain->reg_pull);
+		}
+
+		domain->reg_pullen = meson_map_resource(pc, np, "pull-enable");
+		/* Use pull region if pull-enable one is not present */
+		if (IS_ERR(domain->reg_pullen))
+			domain->reg_pullen = domain->reg_pull;
+
+		domain->reg_gpio = meson_map_resource(pc, np, "gpio");
+		if (IS_ERR(domain->reg_gpio)) {
+			dev_err(pc->dev, "gpio registers not found\n");
+			return PTR_ERR(domain->reg_gpio);
+		}
+
+		i++;
+	}
+
+	return 0;
+}
+
+int  amlogic_pmx_probe(struct platform_device *pdev,
+			struct amlogic_pinctrl_soc_data *soc_data)
 {
 	struct amlogic_pmx *apmx;
 	int ret, val;
 	pr_info("Init pinux probe!\n");
-	/* Create state holders etc for this driver */
 	apmx = devm_kzalloc(&pdev->dev, sizeof(*apmx), GFP_KERNEL);
 	if (!apmx) {
 		dev_err(&pdev->dev, "Can't alloc amlogic_pmx\n");
@@ -633,6 +1108,9 @@ int  amlogic_pmx_probe(struct platform_device *pdev, struct amlogic_pinctrl_soc_
 	apmx->soc = soc_data;
 	platform_set_drvdata(pdev, apmx);
 
+	ret = meson_pinctrl_parse_dt(apmx, pdev->dev.of_node);
+	if (ret)
+		return ret;
 	ret = of_property_read_u32(pdev->dev.of_node, "#pinmux-cells", &val);
 	if (ret) {
 		dev_err(&pdev->dev, "dt probe #pinmux-cells failed: %d\n", ret);
@@ -659,12 +1137,18 @@ int  amlogic_pmx_probe(struct platform_device *pdev, struct amlogic_pinctrl_soc_
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		goto err;
 	}
-	pinctrl_add_gpio_range(apmx->pctl, &amlogic_gpio_ranges);
+	ret = meson_gpiolib_register(apmx);
+	if (ret) {
+		pinctrl_unregister(apmx->pctl);
+		return ret;
+	}
+	/* pinctrl_add_gpio_range(apmx->pctl, &amlogic_gpio_ranges); */
 	pctdev_name = dev_name(&pdev->dev);
 	pinctrl_provide_dummies();
 	dev_info(&pdev->dev, "Probed amlogic pinctrl driver\n");
 	pctl = apmx->pctl;
-
+	int_reg = meson_map(&pdev->dev, pdev->dev.of_node, "Int");
+	gl_pmx = apmx;
 	return 0;
 err:
 	devm_kfree(&pdev->dev, apmx);

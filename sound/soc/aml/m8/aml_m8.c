@@ -221,7 +221,7 @@ static int aml_m8_set_spk(struct snd_kcontrol *kcontrol,
 	       aml_m8_spk_enabled);
 
 	msleep_interruptible(10);
-	amlogic_set_value(p_audio->gpio_mute, aml_m8_spk_enabled, "mute_spk");
+	gpiod_set_value(p_audio->mute_desc, aml_m8_spk_enabled);
 
 	if (aml_m8_spk_enabled == 1)
 		msleep_interruptible(100);
@@ -296,17 +296,13 @@ static int speaker_events(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		pr_info("speaker_events--mute =1\n");
-		amlogic_gpio_direction_output(p_audio->gpio_mute,
-			1, "mute_spk");
-		amlogic_set_value(p_audio->gpio_mute, 1, "mute_spk");
+		gpiod_direction_output(p_audio->mute_desc, 1);
 		aml_m8_spk_enabled = 1;
 		msleep(p_audio->sleep_time);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		pr_info("speaker_events--mute =0\n");
-		amlogic_gpio_direction_output(p_audio->gpio_mute,
-			0, "mute_spk");
-		amlogic_set_value(p_audio->gpio_mute, 0, "mute_spk");
+		gpiod_direction_output(p_audio->mute_desc, 0);
 		aml_m8_spk_enabled = 0;
 		break;
 	}
@@ -468,13 +464,11 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 	if (ret < 0)
 		pr_info("aml_snd_m8: faild to get mute_gpio!\n");
 	else
-		p_aml_audio->gpio_mute = amlogic_gpio_name_map_num(str);
+		p_aml_audio->mute_desc = gpiod_get(card->dev, str);
 
 	p_aml_audio->mute_inv =
 	    of_property_read_bool(card->dev->of_node, "mute_inv");
-	amlogic_gpio_request_one(p_aml_audio->gpio_mute, GPIOF_OUT_INIT_LOW,
-				 "mute_spk");
-	amlogic_set_value(p_aml_audio->gpio_mute, 0, "mute_spk");
+	gpiod_direction_output(p_aml_audio->mute_desc, GPIOF_OUT_INIT_LOW);
 
 }
 

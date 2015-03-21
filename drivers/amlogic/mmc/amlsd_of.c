@@ -111,6 +111,7 @@ int amlsd_get_reg_base(struct platform_device *pdev,
 	pr_info("host->base %x\n", (u32)host->base);
 	return 0;
 }
+#if 0
 
 static void aml_set_gpio_input(const char *pin_name)
 {
@@ -140,6 +141,7 @@ static int amlsd_init_pins_input(struct device_node *of_node,
 	};
 	return 0;
 }
+#endif
 
 int amlsd_get_platform_data(struct platform_device *pdev,
 		struct amlsd_platform *pdata,
@@ -162,7 +164,7 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 	amlsd_get_host_caps(child, pdata);
 	amlsd_get_host_caps2(child, pdata);
 
-	amlsd_init_pins_input(child, pdata);
+/*	amlsd_init_pins_input(child, pdata);*/
 
 		SD_PARSE_U32_PROP(child, "port",
 						prop, pdata->port);
@@ -199,11 +201,11 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 
 		SD_PARSE_STRING_PROP(child, "pinname",
 						str, pdata->pinname);
-	SD_PARSE_GPIO_NUM_PROP(child, "jtag_pin",
+		SD_PARSE_GPIO_NUM_PROP(child, "jtag_pin",
 						str, pdata->jtag_pin);
 		SD_PARSE_U32_PROP(child, "card_type",
 						prop, pdata->card_type);
-	SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3",
+		SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3",
 						str, pdata->gpio_dat3);
 
 		pdata->port_init = of_amlsd_init;

@@ -2,9 +2,10 @@
 
 
 config PINCTRL_AMLOGIC
-    bool "PINCTRL support"
+    bool "PINCTRL/GPIO support"
     select PINCTRL
     select PINMUX
     select PINCONF
+    select ARCH_REQUIRE_GPIOLIB
     help
-      This is the Amlogic PINCTRL interface driver
+      This is the Amlogic PINCTRL/GPIO  driver

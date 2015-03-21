@@ -1,6 +1,8 @@
 #include "meson.dtsi"
 #include <dt-bindings/clock/meson8.h>
 #include <dt-bindings/reset/aml_meson8m2_gate.h>
+#include <dt-bindings/gpio/meson8.h>
+#include <dt-bindings/gpio/gpio.h>
 / {
 	model = "Amlogic Meson8 SoC";
 	compatible = "amlogic,meson8";
@@ -121,23 +123,45 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
+	pinmux-sample{
+		compatible = "amlogic, pinmux-sample";
+
+		gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH
+				&gpio       BOOT_0       GPIO_ACTIVE_HIGH>;
+	};
 
 	pinmux: pinmux{
 		compatible = "amlogic,pinmux-m8";
 		dev_name = "pinmux";
 		#pinmux-cells=<2>;
-		reg=<0xc11080b0 40
-			0xc8100014 4
-			0xc11080e8 20
-			0xc1108120 20
-			0xc810002c 4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0xc1109880 0x10>;
+		ranges;
+		gpio: banks@c11080b0 {
+			reg = <0xc11080b0 0x28>,
+			<0xc11080e8 0x18>,
+			<0xc1108120 0x18>,
+			<0xc1108030 0x30>;
+			reg-names = "mux", "pull", "pull-enable", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+		gpio_ao: ao-bank@c1108030 {
+			reg = <0xc8100014 0x4>,
+			<0xc810002c 0x4>,
+			<0xc8100024 0x8>;
+			reg-names = "mux", "pull", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
 		ao_uart_pins:ao_uart{
-			amlogic,setmask=<10 0x185a>;
+			amlogic,setmask=<AO 0x1800>;
 			amlogic,pins="GPIOAO_0", "GPIOAO_1";
 		};
 		ao_i2c_master:ao_i2c{
-			amlogic,setmask=<10 0x60>;
-			amlogic,clrmask=<10 0x1800006>;
+			amlogic,setmask=<AO 0x60>;
+			amlogic,clrmask=<AO 0x1800006>;
 			amlogic,pins="GPIOAO_4","GPIOAO_5";
 		};
 		a_i2c_master:a_i2c{
@@ -320,15 +344,6 @@
             amlogic,pullup=<1>;
             amlogic,pullupen=<1>;
         };
-	};
-	gpio:gpio{
-		compatible = "amlogic,m8-gpio";
-		dev_name = "gpio";
-		#gpio-cells=<2>;
-		reg=<0xc1108030 48
-			0xc8100024 8
-			0xda000000 4
-			0xc1109880 16>;
 	};
 
 	/* AUDIO MESON8 DEVICES */

@@ -1,8 +1,0 @@
-# Amlogic GPIO
-
-
-config GPIO_AMLOGIC
-    bool "GPIO support"
-    select ARCH_REQUIRE_GPIOLIB
-    help
-      This is the Amlogic GPIO interface driver
