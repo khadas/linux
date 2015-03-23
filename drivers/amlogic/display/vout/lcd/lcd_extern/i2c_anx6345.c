@@ -351,13 +351,13 @@ static int lcd_extern_i2c_remove(void)
 	return ret;
 }
 
-static int get_lcd_extern_config(struct device_node *of_node,
+static int get_lcd_extern_config(struct platform_device *pdev,
 		struct lcd_extern_config_s *ext_cfg)
 {
 	int ret = 0;
 	struct aml_lcd_extern_driver_s *lcd_ext;
 
-	ret = get_lcd_extern_dt_data(of_node, ext_cfg);
+	ret = get_lcd_extern_dt_data(pdev, ext_cfg);
 	if (ret) {
 		pr_info("[error] %s: failed to get dt data\n", LCD_EXTERN_NAME);
 		return ret;
@@ -469,7 +469,7 @@ static int aml_anx6345_probe(struct platform_device *pdev)
 	}
 
 	pdev->dev.platform_data = ext_config;
-	ret = get_lcd_extern_config(pdev->dev.of_node, ext_config);
+	ret = get_lcd_extern_config(pdev, ext_config);
 	if (ret)
 		goto lcd_extern_probe_failed;
 

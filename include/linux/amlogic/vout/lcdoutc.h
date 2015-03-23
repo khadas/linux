@@ -85,9 +85,12 @@ enum Lcd_Power_Pmu_Gpio_e {
 	LCD_PWR_PMU_GPIO_MAX,
 };
 
-#define LCD_PWR_GPIO_OUTPUT_LOW       0
-#define LCD_PWR_GPIO_OUTPUT_HIGH      1
-#define LCD_PWR_GPIO_INPUT            2
+#define LCD_POWER_GPIO_OUTPUT_LOW       0
+#define LCD_POWER_GPIO_OUTPUT_HIGH      1
+#define LCD_POWER_GPIO_INPUT            2
+#define LCD_GPIO_OUTPUT_LOW             0
+#define LCD_GPIO_OUTPUT_HIGH            1
+#define LCD_GPIO_INPUT                  2
 
 /* **********************************
  * global control define
@@ -295,6 +298,12 @@ enum Bool_state_e {
 };
 
 /* Power Control */
+#define LCD_PWR_CTRL_STEP_MAX         15
+struct Lcd_CPU_GPIO_s {
+	char name[15];
+	struct gpio_desc *desc;
+};
+
 struct Lcd_Power_Config_s {
 	unsigned char type;
 	int gpio;
@@ -302,10 +311,10 @@ struct Lcd_Power_Config_s {
 	unsigned short delay;
 };
 
-#define LCD_PWR_CTRL_STEP_MAX         15
 struct Lcd_Power_Ctrl_s {
 	struct Lcd_Power_Config_s power_on_config[LCD_PWR_CTRL_STEP_MAX];
 	struct Lcd_Power_Config_s power_off_config[LCD_PWR_CTRL_STEP_MAX];
+	int cpu_gpio_num;
 	int power_on_step;
 	int power_off_step;
 	int (*power_ctrl)(enum Bool_state_e status);
@@ -352,14 +361,12 @@ extern void lcd_config_remove(struct Lcd_Config_s *pConf);
 #define DPRINT(...)                      pr_info(__VA_ARGS__)
 
 #define LCD_NAME                         "lcd"
-#define lcd_gpio_request(gpio)           amlogic_gpio_request(gpio, LCD_NAME)
-#define lcd_gpio_free(gpio)              amlogic_gpio_free(gpio, LCD_NAME)
-#define lcd_gpio_input(gpio)             \
-			amlogic_gpio_direction_input(gpio, LCD_NAME)
-#define lcd_gpio_output(gpio, val)       \
-			amlogic_gpio_direction_output(gpio, val, LCD_NAME)
-#define lcd_gpio_get_value(gpio)         amlogic_get_value(gpio, LCD_NAME)
-#define lcd_gpio_set_value(gpio, val)    amlogic_set_value(gpio, val, LCD_NAME)
+#define lcd_gpio_request(gpio)           gpio_request(gpio)
+#define lcd_gpio_free(gpio)              gpiod_free(gpio)
+#define lcd_gpio_input(gpio)             gpiod_direction_input(gpio)
+#define lcd_gpio_output(gpio, val)       gpiod_direction_output(gpio, val)
+#define lcd_gpio_get_value(gpio)         gpiod_get(gpio)
+#define lcd_gpio_set_value(gpio, val)    gpiod_set_value(gpio, val)
 
 /* **********************************
  * mipi-dsi read/write api

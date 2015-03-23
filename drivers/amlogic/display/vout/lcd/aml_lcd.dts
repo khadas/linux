@@ -114,6 +114,10 @@
 		edp_edid_timing_used=<0>;
 		rgb_base_coeff=<0xf0 0x74a>; /** rgb_base, rgb_coeff */
 
+		/* CPU GPIO port request, for lcd power on/off control */
+		GPIODV_29-gpios = <&gpio GPIODV_29 0>;
+		GPIODV_0-gpios = <&gpio GPIODV_0 0>;
+
 		/* lcd power ctrl (support up to 15 steps for power on/off) */
 		/** only for uboot, before lcd_power_on, no need config delay */
 		power_on_uboot="n","n","n";
