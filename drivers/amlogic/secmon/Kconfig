@@ -1,0 +1,7 @@
+# Amlogic secure monitor driver
+
+
+config AMLOGIC_SEC
+    bool "Amlogic secure monitor driver support"
+    help
+      This is the Amlogic secure monitor driver

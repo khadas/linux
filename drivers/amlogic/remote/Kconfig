@@ -3,7 +3,7 @@
 #
 menuconfig MESON_REMOTE
 	bool "Meson Remotes"
-	default y
+	default n
 	help
 	  Say Y here, and a list of supported remote controls will be displayed.
 	  This option doesn't affect the kernel.

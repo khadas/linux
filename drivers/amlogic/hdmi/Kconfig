@@ -4,7 +4,7 @@ menu "HDMI TX Support"
 
 config AML_HDMI_TX
     boolean "HDMI 1.4 Output Enable"
-    default y
+    default n
     select SWITCH
     select AM_DISPLAY_MODULE
     help

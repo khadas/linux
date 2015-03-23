@@ -4,7 +4,7 @@ menu "Amlogic VPU Driver"
 
 config AML_VPU
 	boolean "Amlogic VPU driver"
-	default y
+	default n
 	help
 		"Amlogic VPU module init"
 

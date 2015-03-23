@@ -54,8 +54,14 @@
 #define MESON_CPU_VERSION_LVL_MISC	3
 #define MESON_CPU_VERSION_LVL_MAX	MESON_CPU_VERSION_LVL_MISC
 int  meson_cpu_version_init(void);
+#ifdef CONFIG_AML_CPU_VERSION
 int get_meson_cpu_version(int level);
-
+#else
+static inline int get_meson_cpu_version(int level)
+{
+	return -1;
+}
+#endif
 static inline bool is_meson_m8_cpu(void)
 {
 	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) ==

@@ -1,0 +1,8 @@
+# Amlogic clock driver
+
+
+config AMLOGIC_CLK
+    bool "Amlogic clock driver  support"
+    select COMMON_CLK
+    help
+      This is the Amlogic Clock  driver

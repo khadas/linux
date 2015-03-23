@@ -1,1 +1,1 @@
-obj-y	+= secmon.o
+obj-$(CONFIG_AMLOGIC_SEC)	+= secmon.o

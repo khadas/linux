@@ -12,7 +12,7 @@ menu "Power Management Support"
 ############################################################
 config AML_POWER_SUPPORT
 	boolean "Amloigc power related driver support"
-	default y
+	default n
 	help
 		Say y here if you want power related driver(pmu/dvfs) support
 
@@ -21,7 +21,7 @@ config AMLOGIC_BOARD_HAS_PMU
 	boolean "Amlogic on board Power Management Unit support"
 	select POWER_SUPPLY
 	depends on AML_POWER_SUPPORT
-	default y
+	default n
 	help
 		Say Y here if your board has Power Management Unit
 
@@ -29,7 +29,7 @@ config AMLOGIC_PMU_OF
 	boolean "Amlogic Power OF support"
 	depends on I2C
 	depends on AMLOGIC_BOARD_HAS_PMU
-	default y
+	default n
 	help
 		Power management device tree support
 

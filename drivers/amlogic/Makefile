@@ -19,7 +19,7 @@ obj-$(CONFIG_PINCTRL_AMLOGIC)	+=pinctrl/
 
 obj-$(CONFIG_AMLOGIC_USB)  	+= usb/
 
-obj-y				+=clk/
+obj-$(CONFIG_AMLOGIC_CLK)	+=clk/
 
 obj-$(CONFIG_AML_HDMI_TX) 	+=hdmi/
 
@@ -37,7 +37,7 @@ obj-$(CONFIG_AML_DEBUG)		+=aml_debug/
 
 obj-$(CONFIG_REGMAP_MMIO)	+=iomap/
 
-obj-y	+=secmon/
+obj-$(CONFIG_AMLOGIC_SEC)	+=secmon/
 
 obj-$(CONFIG_AM_PHY)		+=ethernet/
 

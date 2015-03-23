@@ -39,4 +39,8 @@ source "drivers/amlogic/display/Kconfig"
 
 source "drivers/amlogic/canvas/Kconfig"
 
+source "drivers/amlogic/clk/Kconfig"
+
+source "drivers/amlogic/secmon/Kconfig"
+
 endmenu

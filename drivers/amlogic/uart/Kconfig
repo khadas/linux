@@ -6,13 +6,13 @@ config AM_UART
     bool "Serial support"
     depends on ARCH_MESON
 	select SERIAL_CORE
-	default y
+	default n
     help
 	Add support for the Amlogic serial port.
 
 config SERIAL_MESON_CONSOLE
 	bool "Console on Amlogic Serial port"
 	select SERIAL_CORE_CONSOLE
-	default y
+	default n
 	help
 		Support for running a console on the Amlogic serial

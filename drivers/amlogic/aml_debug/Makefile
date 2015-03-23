@@ -1,1 +1,1 @@
-obj-y	=debug.o
+obj-$(CONFIG_AML_DEBUG)	=debug.o

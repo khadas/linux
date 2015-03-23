@@ -2,7 +2,7 @@
 
 config AML_RTC
     bool "meson RTC support"
-    default y
+    default n
     select RTC_CLASS
     help
       This is the Amlogic internal Real Time Clock driver.
