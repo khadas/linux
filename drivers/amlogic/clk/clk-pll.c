@@ -32,7 +32,7 @@ static struct amlogic_pll_rate_table *amlogic_get_pll_settings(
 	return NULL;
 }
 static struct amlogic_pll_rate_table *aml_get_pll_settings(
-				struct amlogic_pll_clock *pll, unsigned long rate)
+		struct amlogic_pll_clock *pll, unsigned long rate)
 {
 	struct amlogic_pll_rate_table  *rate_table = pll->rate_table;
 	int i;
@@ -116,10 +116,11 @@ static const struct clk_ops amlogic_pll1500_clk_min_ops = {
 #define PLL2500_N_SHIFT 0x9
 #define PLL2500_N_MASK 0x1f
 
-static void aml_pll2500_set_reg32_bits(uint32_t _reg, const uint32_t _value,
+static void aml_pll2500_set_reg32_bits(void __iomem *_reg,
+				       const uint32_t _value,
 		const uint32_t _start, const uint32_t _len)
 {
-	writel(((readl((void *)_reg) & ~(((1L << (_len))-1) << (_start)))
+	writel(((readl(_reg) & ~(((1L << (_len))-1) << (_start)))
 		| ((unsigned)((_value)&((1L<<(_len))-1)) << (_start))),
 		(void *)_reg);
 }
@@ -127,10 +128,7 @@ static void aml_pll2500_set_reg32_bits(uint32_t _reg, const uint32_t _value,
 static inline void udelay_scaled(unsigned long usecs, unsigned int oldMHz,
 				 unsigned int newMHz)
 {
-	if (arm_delay_ops.ticks_per_jiffy)
 		udelay(usecs);
-	else
-		udelay(usecs * newMHz / oldMHz);
 }
 
 static unsigned long amlogic_pll2500_recalc_rate(struct clk_hw *hw,
@@ -224,16 +222,16 @@ static int amlogic_pll2500_set_rate(struct clk_hw *hw, unsigned long drate,
 	if ((rate->m != old_M) || (rate->n != old_N) || (rate->od != old_od)
 		|| (rate->ext_div_n != old_ext_div_n)) {
 SETPLL:
-		aml_pll2500_set_reg32_bits((uint32_t)(pll->con_reg
+		aml_pll2500_set_reg32_bits((pll->con_reg
 			+ (HHI_SYS_CPU_CLK_CNTL1 - HHI_SYS_PLL_CNTL)*4),
 			rate->ext_div_n, 20, 10);
 
 		if (rate->ext_div_n) {
-			aml_pll2500_set_reg32_bits((uint32_t)(pll->con_reg
+			aml_pll2500_set_reg32_bits((pll->con_reg
 			+ (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4),
 			3, 2, 2);
 		} else {
-			aml_pll2500_set_reg32_bits((uint32_t)(pll->con_reg
+			aml_pll2500_set_reg32_bits((pll->con_reg
 			+ (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4),
 			0, 2, 2);
 		}
@@ -256,9 +254,9 @@ SETPLL:
 			writel(M8_SYS_PLL_CNTL_5, pll->con_reg + 4*4);
 	  }
 
-	  aml_pll2500_set_reg32_bits((uint32_t)(pll->con_reg + 1*4),
+	  aml_pll2500_set_reg32_bits((pll->con_reg + 1*4),
 		rate->afc_dsel_bp_in, 12, 1);
-	  aml_pll2500_set_reg32_bits((uint32_t)(pll->con_reg + 1*4),
+	  aml_pll2500_set_reg32_bits((pll->con_reg + 1*4),
 		rate->afc_dsel_bp_en, 13, 1);
 
 	  writel(tmp, pll->con_reg);
@@ -268,11 +266,11 @@ SETPLL:
 	  new_cntl = readl(pll->con_reg);
 
 	  if ((new_cntl & (1<<31)) == 0) {
-			if (loop++ >= 10) {
-				loop = 0;
-				pr_err("CPU freq: %ld MHz, syspll (%x) can't lock:\n",
+		if (loop++ >= 10) {
+			loop = 0;
+			pr_err("CPU freq: %ld MHz, syspll (%x) can't lock:\n",
 					drate/1000000, new_cntl);
-				pr_err("  [10c0..10c4]%08x, %08x, %08x, %08x,"
+			pr_err("  [10c0..10c4]%08x, %08x, %08x, %08x,"
 					"%08x: [10a5]%08x, [10c7]%08x\n",
 					readl(pll->con_reg),
 					readl(pll->con_reg + 1*4),
@@ -283,17 +281,17 @@ SETPLL:
 						- HHI_SYS_PLL_CNTL)*4),
 					readl(pll->con_reg + (HHI_DPLL_TOP_1
 						- HHI_SYS_PLL_CNTL)*4)
-				);
-		    if (!((readl(pll->con_reg + (HHI_SYS_CPU_CLK_CNTL
+		);
+		if (!((readl(pll->con_reg + (HHI_SYS_CPU_CLK_CNTL
 						- HHI_DPLL_TOP_1)*4)) & 0x2)) {
-					pr_err("  SYS_TDC_CAL_DONE triggered, disable TDC_CAL_EN\n");
-		      aml_pll2500_set_reg32_bits((uint32_t)(pll->con_reg + 3*4),
+			pr_err("SYS_TDC_CAL_DONE triggered,dis TDC_CAL_EN\n");
+			aml_pll2500_set_reg32_bits((pll->con_reg + 3*4),
 						 0, 10, 1);
-					pr_err("  HHI_SYS_PLL_CNTL4: %08x\n",
+			pr_err("  HHI_SYS_PLL_CNTL4: %08x\n",
 						readl(pll->con_reg + 3*4));
-				} else{
+		} else{
 		      rate->afc_dsel_bp_in = !rate->afc_dsel_bp_in;
-					pr_err("  INV afc_dsel_bp_in, new afc_dsel_bp_in=%08x\n",
+		      pr_err("  INV afc_dsel_bp_in,new afc_dsel_bp_in=%08x\n",
 						rate->afc_dsel_bp_in);
 		      for (tmp = 0; tmp < pll->rate_count; tmp++) {
 				    if (drate == pll->rate_table[tmp].rate)
@@ -545,8 +543,10 @@ static void __init _amlogic_clk_register_pll(struct amlogic_pll_clock *pll_clk,
 
 	case pll_3000_lvds:
 			pll_clk->hw.init = &init;
-			pll_clk->pll_ctrl->con_reg = base+pll_clk->pll_ctrl->con_reg_offset;
-			pll_clk->pll_ctrl->lock_reg = base+pll_clk->pll_ctrl->lock_reg_offset;
+			pll_clk->pll_ctrl->con_reg =
+				base+pll_clk->pll_ctrl->con_reg_offset;
+			pll_clk->pll_ctrl->lock_reg =
+				base+pll_clk->pll_ctrl->lock_reg_offset;
 		if (!pll->rate_table)
 			init.ops = &amlogic_pll3000_clk_min_ops;
 		else

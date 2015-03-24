@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-
+#include <dt-bindings/clock/gxbb.h>
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";
@@ -104,11 +104,21 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 	};
+	clock: meson_clock {
+		compatible = "amlogic, gxbb-clock";
+		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/
+		          <0x0 0xc8100000 0x0 0x1000>;   //AOBUS
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
+
 	uart_AO: serial@c81004c0 {
 		compatible = "amlogic,meson-uart";
 		reg = <0x0 0xc81004c0 0x0 0x14>;
 		interrupts = <0 193 1>;
 		status = "okay";
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_uart";
 	};
 
 };

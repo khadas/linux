@@ -4,7 +4,6 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/printk.h>
 #include <linux/string.h>
-#include <asm/system_info.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/clk-provider.h>

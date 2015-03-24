@@ -341,16 +341,6 @@ void __init amlogic_clk_of_register_fixed_ext(
 			unsigned int nr_fixed_rate_clk,
 			struct of_device_id *clk_matches)
 {
-	const struct of_device_id *match;
-	struct device_node *np;
-	u32 freq;
-
-	for_each_matching_node_and_match(np, clk_matches, &match) {
-		of_property_read_u32(np, "clock-frequency", &freq);
-	if (of_property_read_u32(np, "clock-frequency", &freq))
-			continue;
-		fixed_rate_clk[(u32)match->data].fixed_rate = freq;
-	}
 
 	amlogic_clk_register_fixed_rate(fixed_rate_clk, nr_fixed_rate_clk);
 }
