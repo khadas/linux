@@ -1737,16 +1737,6 @@ EXPORT_SYMBOL(osd_resume_early);
 
 static int osd_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_AM_HDMI_ONLY
-	/* extern int read_hpd_gpio(void); */
-	enum vmode_e cvbs_mode = VMODE_MASK;
-	enum vmode_e hdmi_mode = VMODE_MASK;
-	int hpd_state = 0;
-#endif
-#ifdef CONFIG_AM_LOGO
-	logo_object_t  *init_logo_obj = NULL;
-	int logo_osd_index = 0;
-#endif
 	struct fb_info *fbi = NULL;
 	const struct vinfo_s *vinfo;
 	struct fb_var_screeninfo *var;
@@ -1754,6 +1744,8 @@ static int osd_probe(struct platform_device *pdev)
 	int  index, bpp;
 	struct osd_fb_dev_s *fbdev = NULL;
 	enum vmode_e current_mode = VMODE_MASK;
+	enum vmode_e logo_mode = VMODE_MASK;
+	int logo_index = -1;
 	const void *prop;
 	int prop_idx = 0;
 	int rotation = 0;
@@ -1822,24 +1814,20 @@ static int osd_probe(struct platform_device *pdev)
 		break;
 	case 3:
 		current_mode = VMODE_1080P;
-#ifdef CONFIG_AM_HDMI_ONLY
-		/* DisableVideoLayer(); */
-		hpd_state = read_hpd_gpio();
-		cvbs_mode = get_current_cvbs_vmode();
-		hdmi_mode = get_current_hdmi_vmode();
-		if (hpd_state == 0)
-			current_mode = cvbs_mode;
-		else
-			current_mode = hdmi_mode;
 		break;
-#endif
 	default:
 		current_mode = VMODE_MASK;
 		break;
 	}
-	if (current_mode < VMODE_MASK)
-		set_current_vmode(current_mode);
-	osd_init_hw(0);
+	/* if logo vmode not set, set vmode and init osd hw */
+	logo_mode = get_logo_vmode();
+	logo_index = osd_get_logo_index();
+	if (logo_mode >= VMODE_MAX) {
+		if (current_mode < VMODE_MASK)
+			set_current_vmode(current_mode);
+		osd_init_hw(0);
+	}
+
 	vinfo = get_current_vinfo();
 	osd_log_info("%s vinfo:%p\n", __func__, vinfo);
 	for (index = 0; index < OSD_COUNT; index++) {
@@ -1897,8 +1885,13 @@ static int osd_probe(struct platform_device *pdev)
 					fb_def_var[index].bits_per_pixel = 32;
 			}
 		}
-		osd_log_info("---------------clear fb%d memory\n", index);
-		memset((char *)fbdev->fb_mem_vaddr, 0x80, fbdev->fb_len);
+		/* clear osd buffer if not logo layer */
+		if ((logo_index < 0) || (logo_index != index)) {
+			osd_log_info("---------------clear fb%d memory\n",
+					index);
+			memset((char *)fbdev->fb_mem_vaddr, 0x80,
+					fbdev->fb_len);
+		}
 
 		/* get roataion from dtd */
 		if (index == DEV_OSD0) {
@@ -1943,7 +1936,10 @@ static int osd_probe(struct platform_device *pdev)
 		/* register frame buffer */
 		register_framebuffer(fbi);
 
-		osddev_setup(fbdev);
+		/* setup osd if not logo layer */
+		if ((logo_index < 0) || (logo_index != index))
+			osddev_setup(fbdev);
+
 		/* create device attribute files */
 		for (i = 0; i < ARRAY_SIZE(osd_attrs); i++)
 			ret = device_create_file(fbi->dev, &osd_attrs[i]);

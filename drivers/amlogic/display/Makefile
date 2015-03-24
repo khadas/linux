@@ -5,5 +5,5 @@ obj-$(CONFIG_AM_FB_EXT) += osd_ext/
 obj-$(CONFIG_AM_VOUT) += vout/
 obj-$(CONFIG_AM_VOUT2) += vout2/
 obj-$(CONFIG_AM_GE2D) += ge2d/
-
+obj-$(CONFIG_AM_LOGO) += logo/
 

@@ -12,4 +12,5 @@ source "drivers/amlogic/display/osd/Kconfig"
 source "drivers/amlogic/display/vout2/Kconfig"
 source "drivers/amlogic/display/osd_ext/Kconfig"
 source "drivers/amlogic/display/ge2d/Kconfig"
+source "drivers/amlogic/display/logo/Kconfig"
 endif

@@ -53,6 +53,8 @@ static struct class *vout_class;
 static DEFINE_MUTEX(vout_mutex);
 static char vout_mode[64];
 static char vout_axis[64];
+static u32 vout_logo_vmode = VMODE_INIT_NULL;
+
 
 static void set_vout_mode(char *name);
 static void set_vout_axis(char *axis);
@@ -167,6 +169,26 @@ static void set_vout_mode(char *name)
 	vout_log_info("new mode %s set ok\n", name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 }
+
+enum vmode_e get_logo_vmode(void)
+{
+	return vout_logo_vmode;
+}
+EXPORT_SYMBOL(get_logo_vmode);
+
+int set_logo_vmode(enum vmode_e mode)
+{
+	int ret = 0;
+
+	if (mode == VMODE_INIT_NULL)
+		return -1;
+
+	vout_logo_vmode = mode;
+	set_current_vmode(mode);
+
+	return ret;
+}
+EXPORT_SYMBOL(set_logo_vmode);
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 void update_vmode_status(char *name)

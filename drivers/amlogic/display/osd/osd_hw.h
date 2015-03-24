@@ -102,6 +102,8 @@ extern void osd_suspend_hw(void);
 extern void osd_resume_hw(void);
 extern void osd_init_hw(u32 logo_loaded);
 extern void osd_init_scan_mode(void);
+extern void osd_set_logo_index(u32 index);
+extern int osd_get_logo_index(void);
 extern void osd_get_hw_para(struct hw_para_s **para);
 
 #ifdef CONFIG_AM_FB_EXT

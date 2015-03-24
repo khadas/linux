@@ -84,7 +84,9 @@ extern const struct vinfo_s *get_current_vinfo2(void);
 extern enum vmode_e get_current_vmode2(void);
 extern int set_current_vmode2(enum vmode_e);
 extern enum vmode_e validate_vmode2(char *);
-extern void  set_vout2_mode_internal(char *name);
+extern void set_vout2_mode_internal(char *name);
+extern enum vmode_e get_logo_vmode(void);
+extern int set_logo_vmode(enum vmode_e);
 
 extern int vout2_suspend(void);
 extern int vout2_resume(void);

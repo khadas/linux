@@ -111,10 +111,10 @@ static update_func_t hw_func_array[HW_OSD_COUNT][HW_REG_INDEX_MAX] = {
 #endif
 
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
+#define remove_from_update_list(osd_idx, cmd_idx)
+#else
 #define remove_from_update_list(osd_idx, cmd_idx) \
 	(osd_hw.updated[osd_idx] &= ~(1<<cmd_idx))
-#else
-#define remove_from_update_list(osd_idx, cmd_idx)
 #endif
 
 #endif

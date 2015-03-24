@@ -1,0 +1,9 @@
+#
+# Amlogic Logo configuration
+#
+config AM_LOGO
+	boolean "Amlogic Logo Module"
+	default n
+	depends on AM_VOUT
+	help
+		Select to enable Logo module

@@ -196,9 +196,8 @@ static void set_tvmode_misc(enum tvmode_e mode)
 static int uboot_display_already(enum tvmode_e mode)
 {
 	enum tvmode_e source = TVMODE_MAX;
-#ifdef CONFIG_AM_LOGO
-	source = vmode_to_tvmode(get_resolution_vmode());
-#endif
+
+	source = vmode_to_tvmode(get_logo_vmode());
 	if (source == mode)
 		return 1;
 	else

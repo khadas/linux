@@ -86,6 +86,8 @@ struct mutex post_fence_list_lock;
 static void osd_pan_display_fence(struct osd_fence_map_s *fence_map);
 #endif
 
+static int osd_logo_index = -1;
+
 #ifdef CONFIG_AM_VIDEO
 static vframe_t vf;
 static struct vframe_provider_s osd_vf_prov;
@@ -884,14 +886,12 @@ void osd_setup_hw(u32 index,
 		  u32 fbmem,
 		  const struct color_bit_define_s *color)
 {
-	u32  w = (color->bpp * xres_virtual + 7) >> 3;
 	struct pandata_s disp_data;
 	struct pandata_s pan_data;
-#ifdef CONFIG_AM_LOGO
-	static u32 logo_setup_ok;
-#endif
 	int update_color_mode = 0;
 	int update_geometry = 0;
+	u32 w = (color->bpp * xres_virtual + 7) >> 3;
+
 	pan_data.x_start = xoffset;
 	pan_data.y_start = yoffset;
 	disp_data.x_start = disp_start_x;
@@ -930,9 +930,9 @@ void osd_setup_hw(u32 index,
 				index, osd_hw.fb_gem[index].canvas_idx);
 		osd_log_info("osd[%d] canvas.addr=0x%x\n",
 				index, osd_hw.fb_gem[index].addr);
-		osd_log_info("osd[%d] canvas.width=0x%d\n",
+		osd_log_info("osd[%d] canvas.width=%d\n",
 				index, osd_hw.fb_gem[index].width);
-		osd_log_info("osd[%d] canvas.height=0x%d\n",
+		osd_log_info("osd[%d] canvas.height=%d\n",
 				index, osd_hw.fb_gem[index].height);
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
 			      osd_hw.fb_gem[index].addr,
@@ -968,16 +968,7 @@ void osd_setup_hw(u32 index,
 	if (update_geometry)
 		osd_hw.reg[index][DISP_GEOMETRY].update_func();
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
-#ifdef CONFIG_AM_LOGO
-	if (!logo_setup_ok) {
-#ifdef FIQ_VSYNC
-		osd_fiq_isr();
-#else
-		vsync_isr(INT_VIU_VSYNC, NULL);
-#endif
-		logo_setup_ok++;
-	}
-#endif
+
 	if (osd_hw.antiflicker_mode)
 		osd_antiflicker_update_pan(yoffset, yres);
 	if (osd_hw.clone[index])
@@ -2301,8 +2292,10 @@ static void osd2_update_enable(void)
 				VSYNCOSD_CLR_MPEG_REG_MASK(VIU_OSD2_CTRL_STAT,
 						1 << 21);
 #ifndef CONFIG_FB_OSD2_CURSOR
+				/*
 				VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC,
 						VPP_OSD1_POSTBLEND);
+				*/
 #endif
 				VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC,
 						VPP_OSD2_POSTBLEND
@@ -3197,6 +3190,8 @@ void osd_init_hw(u32 logo_loaded)
 			IRQF_SHARED, "osd_rdma", (void *)"osd_rdma"))
 		osd_log_err("can't request irq for rdma\n");
 #endif
+	osd_log_info("%s() okay\n", __func__);
+
 	return;
 }
 
@@ -3312,6 +3307,17 @@ void osd_resume_hw(void)
 	osd_log_info("osd_resumed\n");
 	return;
 }
+
+int osd_get_logo_index(void)
+{
+	return osd_logo_index;
+}
+
+void osd_set_logo_index(u32 index)
+{
+	osd_logo_index = index;
+}
+
 
 void osd_get_hw_para(struct hw_para_s **para)
 {
