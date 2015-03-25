@@ -7,6 +7,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/gxbb.h>
+#include <dt-bindings/gpio/gxbb.h>
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";
@@ -111,7 +112,37 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
+	pinmux: pinmux{
+		compatible = "amlogic, pinmux-gxbb";
+		dev_name = "pinmux";
+		#pinmux-cells=<2>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		reg = <0x0 0xc1109880 0x0 0x10>;
+		ranges;
+		gpio: banks@c11080b0 {
+			reg = <0x0 0xc88344b0 0x0 0x28>,
+			<0x0 0xc88344e8 0x0 0x14>,
+			<0x0 0xc8834120 0x0 0x14>,
+			<0x0 0xc8834430 0x0 0x30>;
+			reg-names = "mux", "pull", "pull-enable", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+		gpio_ao: ao-bank@c1108030 {
+			reg = <0x0 0xc8100014 0x0 0x8>,
+			<0x0 0xc810002c 0x0 0x4>,
+			<0x0 0xc8100024 0x0 0x8>;
+			reg-names = "mux", "pull", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+		ao_uart_pins:ao_uart{
+			amlogic,setmask=<AO 0x1800>;
+			amlogic,pins="GPIOAO_0", "GPIOAO_1";
+		};
 
+	};
 	uart_AO: serial@c81004c0 {
 		compatible = "amlogic,meson-uart";
 		reg = <0x0 0xc81004c0 0x0 0x14>;

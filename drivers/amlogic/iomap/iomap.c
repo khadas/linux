@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/printk.h>
 #include <linux/string.h>
-#include <asm/system_info.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/regmap.h>
@@ -25,8 +24,10 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
+#include <asm/compiler.h>
+#ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
-
+#endif
 
 void meson_regmap_lock(void *p)
 {
@@ -247,7 +248,7 @@ void aml_dosbus_update_bits(unsigned int reg,
 		return;
 }
 EXPORT_SYMBOL(aml_dosbus_update_bits);
-
+#ifndef CONFIG_ARM64
 static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 					 u32 arg2)
 {
@@ -262,7 +263,22 @@ static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 
 	return function_id;
 }
+#else
+static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
+					 u32 arg2)
+{
+	asm volatile(
+			__asmeq("%0", "x0")
+			__asmeq("%1", "x1")
+			__asmeq("%2", "x2")
+			__asmeq("%3", "x3")
+			"smc	#0\n"
+		: "+r" (function_id)
+		: "r" (arg0), "r" (arg1), "r" (arg2));
 
+	return function_id;
+}
+#endif
 
 int  aml_read_sec_reg(unsigned int reg)
 {

@@ -582,7 +582,7 @@ static struct amlogic_pinctrl_soc_data gxbb_pinctrl = {
 };
 static struct of_device_id gxbb_pinctrl_of_table[] = {
 	{
-		.compatible = "amlogic,pinmux-gxbb",
+		.compatible = "amlogic, pinmux-gxbb",
 	},
 	{},
 };
