@@ -197,6 +197,16 @@
 			amlogic,setmask=<1 0x00800000>;
 			amlogic,pins="GPIOH_3";
 		};
+		lcd_backlight_pins:lcd_backlight{
+			amlogic,setmask=<3 0x1000000>;
+			amlogic,clrmask=<0 0x48 7 0x10000200>;
+			amlogic,pins = "GPIODV_9";
+		};
+		lcd_backlight_combo_pins:lcd_backlight_combo{
+			amlogic,setmask=<3 0x5000000>;
+			amlogic,clrmask=<0 0x48 7 0x18000200>;
+			amlogic,pins = "GPIODV_9","GPIODV_28";
+		};
 		sdhc_b_pins:sdhc_b_pin{
 			amlogic,setmask=<2 0xfc00>;
 			amlogic,clrmask=<2 0xf0 8 0x600>;

@@ -38,7 +38,7 @@
 #include <linux/reboot.h>
 #include <linux/of.h>
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
-#include <linux/amlogic/aml_lcd_bl.h>
+#include <linux/amlogic/vout/aml_tablet_bl.h>
 #endif
 #ifdef CONFIG_AMLOGIC_BOARD_HAS_PMU
 #include <linux/amlogic/aml_pmu_common.h>

@@ -1,0 +1,85 @@
+
+menu "Amlogic Backlight Support"
+
+config AMLOGIC_BACKLIGHT
+	boolean "Amlogic backlight support"
+	select BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+		Say Y here if you want to use the Amlogic backlight management.
+
+choice
+	prompt "Backlight tablet/tv mode select"
+	depends on AMLOGIC_BACKLIGHT
+	default AML_TABLET_LCD_BACKLIGHT_SUPPORT
+	help
+		Backlight mode select, by tablet or tv.
+
+config AML_TABLET_LCD_BACKLIGHT_SUPPORT
+	boolean "TABLET BL"
+
+config AML_TV_LCD_BACKLIGHT_SUPPORT
+	boolean "TV BL"
+
+endchoice
+
+if AML_TABLET_LCD_BACKLIGHT_SUPPORT
+
+source "drivers/amlogic/display/backlight/aml_tablet_bl_extern/Kconfig"
+endif
+
+
+if AML_TV_LCD_BACKLIGHT_SUPPORT
+
+config AML_BL_LATCH_ON_VSYNC
+	boolean "Backlight latch on vsync"
+	depends on AMLOGIC_BACKLIGHT
+	default n
+	help
+	  Say Y if you want to enable the Amlogic backlight latch on vsync.
+
+config AML_BL_PWM_ATTR
+	boolean "Backlight sys class attr"
+	default n
+	help
+	  Say Y if you want to enable the Amlogic backlight sys pwm attr.
+
+choice
+	prompt "Backlight control mode"
+	depends on AMLOGIC_BACKLIGHT
+	default AML_BL_CTL_GPIO
+	help
+	  Backlight control mode, by GPIO or PWM.
+
+config AML_BL_CTL_GPIO
+	boolean "GPIO"
+
+config AML_BL_CTL_PWM
+	boolean "PWM"
+
+endchoice
+
+
+
+config AML_LOCAL_DIMMING
+	boolean "Amlogic Local Dimming"
+	default n
+	help
+	  Amlogic local dimming support.
+
+config IW7023_BACKLIGHT
+	boolean "iW7023 Backlight"
+	default n
+	help
+	  iW7023 LED Driver for LCD Panel Backlight.
+
+config IW7023_USE_EEPROM
+	boolean "iW7023 use eeprom to backup data"
+	default n
+	help
+	  Say Y if you use eeprom to backup data of iw7023.
+
+
+endif
+
+endmenu

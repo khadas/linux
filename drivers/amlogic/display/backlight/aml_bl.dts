@@ -1,0 +1,22 @@
+backlight{
+	compatible = "amlogic, backlight";
+	dev_name = "backlight";
+	status = "okay";
+	pinctrl-names = "default","pwm_combo";
+	pinctrl-0 = <&lcd_backlight_pins>;	/** pwm_default pinmux */
+	pinctrl-1 = <&lcd_backlight_combo_pins>;	/** pwm_combo pinmux */
+
+	bl_level_default_uboot_kernel=<10 102>;	/** default brightness level for uboot & kernel */
+	bl_level_middle_mapping=<128 102>;	/** brightness middle level mapping to a new level*/
+	bl_level_max_min=<255 10>;	/** brightness level max & min, must match the rootfs setting*/
+
+	/* backlight power ctrl */
+	bl_power_on_delay=<200>; /** delay time before backlight power on(unit: ms) */
+	bl_ctrl_method=<1>;	/** backlight control method(0=gpio, 1=pwm_negative, 2=pwm_positive. 3=pwm_combo. 4=extern. decided by hardware design) */
+	GPIODV_28-gpios = <&gpio GPIODV_28 0>;
+	bl_gpio_port_on_off="GPIODV_28","1","0";	/** backlight control gpio port, (on/off:1=output high, 0=output low, 2=input) */
+	bl_gpio_dim_max_min=<0x0 0xf>;	/** brightness diming level_max, level_min : (0x0~0xf, negative logic, only for gpio control method) */
+	bl_pwm_port_gpio_used="PWM_C","1";	/** pwm_port_name(for pwm control method), pwm_gpio_used(0=use pwm_port only, 1=use bl_gpio_port to control on/off) */
+	bl_pwm_freq=<1000>;	/** backlight control pwm frequency(unit: Hz, only for pwm control method) */
+	bl_pwm_duty_max_min=<100 25>;	/** brightness diminig duty_max, duty_min : (unit: %, positive logic, only for pwm control method) */
+};
