@@ -185,6 +185,18 @@
 		status = "ok";
 	};
 
+    wifi{
+		compatible = "amlogic, aml_broadcm_wifi";
+		dev_name = "aml_broadcm_wifi";
+		status = "okay";
+		interrupt_pin = <&gpio       GPIOX_21       GPIO_ACTIVE_HIGH>;
+		interrupts = <	0 68 4>;
+		irq_trigger_type = "GPIO_IRQ_HIGH";
+		power_on_pin = <&gpio       GPIOAO_6       GPIO_ACTIVE_HIGH>;
+		power_on_pin2 = <&gpio       GPIOX_11       GPIO_ACTIVE_HIGH>;
+		clock_32k_pin = <&gpio       GPIOX_10       GPIO_ACTIVE_HIGH>;
+	};
+
 sdio{
         compatible = "amlogic, aml_sdio";
         dev_name = "aml_sdio.0";
@@ -298,17 +310,17 @@ sdio{
             gpio_dat3 =  <&gpio       BOOT_3       GPIO_ACTIVE_HIGH>;
             card_type = <1>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
         };
-        // sdio{
-//            status = "okay";
-        //     port = <3>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
-        //     pinname = "sdio";
-//            ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
-        //     caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE", "MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104";
-//	    f_min = <300000>;
-//            f_max = <100000000>;
-//            max_req_size = <0x20000>;          /**128KB*/
-        //     card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
-//        };
+        sdio{
+            status = "okay";
+            port = <3>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
+            pinname = "sdio";
+            ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
+            caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE", "MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104";
+	        f_min = <300000>;
+            f_max = <100000000>;
+            max_req_size = <0x20000>;          /**128KB*/
+            card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+        };
     };
 	pmu {
 		compatible = "amlogic, aml_pmu_prober";

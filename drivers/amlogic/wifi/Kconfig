@@ -1,0 +1,15 @@
+comment "Amlogic Wifi Driver"
+
+menuconfig AM_WIFI
+	boolean "WiFi support"
+	default n
+	help
+		select y to support wifi
+
+if AM_WIFI
+config AM_WIFI_SD_MMC
+	boolean "Amlogic SDIO Wi-Fi support"
+	depends on AM_WIFI
+	default n
+
+endif # AM_WIFI

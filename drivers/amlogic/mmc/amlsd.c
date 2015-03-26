@@ -1306,6 +1306,37 @@ void aml_emmc_hw_reset(struct mmc_host *mmc)
 	return;
 }
 
+static void sdio_rescan(struct mmc_host *host)
+{
+	int ret;
+
+	host->rescan_entered = 0;
+	host->host_rescan_disable = false;
+	mmc_detect_change(host, 0);
+	/* start the delayed_work */
+	ret = flush_work(&(host->detect.work));
+	/* wait for the delayed_work to finish */
+	if (!ret)
+		pr_info("Error: delayed_work mmc_rescan() already idle!\n");
+}
+
+
+void sdio_reinit(void)
+{
+
+	/* printk("\033[0;40;35m [%s] real init \033[0m\n", __func__); */
+	if (sdio_host) {
+		if (sdio_host->card)
+			sdio_reset_comm(sdio_host->card);
+		else
+		sdio_rescan(sdio_host);
+	} else {
+	    pr_info("Error: sdio_host is NULL\n");
+	}
+
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_reinit);
 
 /*-------------------debug---------------------*/
 

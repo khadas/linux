@@ -14,7 +14,6 @@ obj-$(CONFIG_AM_UART)		+=uart/
 
 obj-$(CONFIG_AML_CPU_VERSION)	+=cpu_version/
 
-
 obj-$(CONFIG_PINCTRL_AMLOGIC)	+=pinctrl/
 
 obj-$(CONFIG_AMLOGIC_USB)  	+= usb/
@@ -59,3 +58,4 @@ obj-$(CONFIG_EFUSE)		+= efuse/
 
 obj-$(CONFIG_POST_PROCESS_MANAGER) += ppmgr/
 
+obj-$(CONFIG_AM_WIFI) += wifi/

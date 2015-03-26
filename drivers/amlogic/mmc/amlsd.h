@@ -112,6 +112,8 @@ struct sd_caps {
 
 extern int storage_flag;
 
+extern int sdio_reset_comm(struct mmc_card *card);
+
 void aml_mmc_ver_msg_show(void);
 extern void aml_sdhc_init_debugfs(struct mmc_host *mmc);
 void aml_sdhc_print_reg_(u32 *buf);
