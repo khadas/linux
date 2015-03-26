@@ -155,7 +155,7 @@ _find_color_format(struct fb_var_screeninfo *var)
 		lower_margin = COLOR_INDEX_24_6666_A;
 		break;
 	case 3:
-		upper_margin = COLOR_INDEX_32_ABGR;
+		upper_margin = COLOR_INDEX_32_ARGB;
 		lower_margin = COLOR_INDEX_32_BGRA;
 		break;
 	case 4:
@@ -163,6 +163,7 @@ _find_color_format(struct fb_var_screeninfo *var)
 		lower_margin = COLOR_INDEX_YUV_422;
 		break;
 	default:
+		osd_log_err("unsupported color format.");
 		return NULL;
 	}
 	/*
@@ -213,6 +214,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	color_format_pt = _find_color_format(var);
 	if (color_format_pt == NULL || color_format_pt->color_index == 0)
 		return -EFAULT;
+
 	osd_log_info("select color format :index %d, bpp %d\n",
 		    color_format_pt->color_index,
 		    color_format_pt->bpp);
@@ -265,6 +267,7 @@ static int osd_set_par(struct fb_info *info)
 	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)info->par;
 	struct osd_ctl_s *osd_ctrl = &fbdev->osd_ctl;
 	u32 virt_end_x, virt_end_y;
+
 	vinfo = get_current_vinfo();
 	if (!vinfo) {
 		osd_log_err("current vinfo NULL\n");
