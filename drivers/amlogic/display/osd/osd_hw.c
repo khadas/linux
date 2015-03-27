@@ -1319,57 +1319,6 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	mutex_unlock(&osd_mutex);
 }
 
-void osd_set_debug_hw(u32 index, u32 debug_flag)
-{
-	u32 reg = 0;
-	u32 offset = 0;
-	struct pandata_s *pdata = NULL;
-
-	if (debug_flag == 1) {
-		pdata = &osd_hw.pandata[index];
-		osd_log_info("pandata[%d]:\n", index);
-		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
-				pdata->x_start, pdata->x_end);
-		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
-				pdata->y_start, pdata->y_end);
-
-		pdata = &osd_hw.dispdata[index];
-		osd_log_info("dispdata[%d]\n", index);
-		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
-				pdata->x_start, pdata->x_end);
-		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
-				pdata->y_start, pdata->y_end);
-
-		pdata = &osd_hw.scaledata[index];
-		osd_log_info("scaledata[%d]\n", index);
-		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
-				pdata->x_start, pdata->x_end);
-		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
-				pdata->y_start, pdata->y_end);
-	} else if (debug_flag == 2) {
-		reg = VPU_VIU_VENC_MUX_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_MISC;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		if (index == 1)
-			offset = REG_OFFSET;
-		reg = offset + VIU_OSD1_CTRL_STAT;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = offset + VIU_OSD1_BLK0_CFG_W0;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = offset + VIU_OSD1_BLK0_CFG_W1;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = offset + VIU_OSD1_BLK0_CFG_W2;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = offset + VIU_OSD1_BLK0_CFG_W3;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = offset + VIU_OSD1_BLK0_CFG_W4;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-	} else {
-		osd_log_err("argument error\n");
-	}
-}
-
 void osd_get_block_windows_hw(u32 index, u32 *windows)
 {
 	memcpy(windows, osd_hw.block_windows[index],

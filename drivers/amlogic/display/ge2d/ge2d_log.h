@@ -22,6 +22,8 @@
 #define GE2D_LOG_LEVEL_DEBUG 1
 
 extern unsigned int ge2d_log_level;
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #define ge2d_log_info(fmt, ...) \
 	pr_info(fmt, ##__VA_ARGS__)
 

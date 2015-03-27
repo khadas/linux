@@ -23,6 +23,7 @@
 #include <linux/reset.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/vout/color.h>
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
 #include <linux/amlogic/ge2d/ge2d.h>
@@ -361,12 +362,12 @@ static int ge2d_monitor_thread(void *data)
 		ret = down_interruptible(&manager->event.cmd_in_sem);
 		/* got new cmd arrived in signal */
 		/* switch_mod_gate_by_name("ge2d", 1); */
-		reset_control_assert(ge2d_rstc);
+		reset_control_deassert(ge2d_rstc);
 		while ((manager->current_wq =
 				get_next_work_queue(manager)) != NULL)
 			ge2d_process_work_queue(manager->current_wq);
 		/* switch_mod_gate_by_name("ge2d", 0); */
-		reset_control_deassert(ge2d_rstc);
+		reset_control_assert(ge2d_rstc);
 	}
 	ge2d_log_info("exit ge2d_monitor_thread\n");
 	return 0;
@@ -510,7 +511,7 @@ static void build_ge2d_config(struct config_para_s *cfg,
 
 static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 {
-#define REG_OFFSET (0x20<<2)
+#define REG_OFFSET (0x20)
 	struct canvas_s	canvas;
 	unsigned	int	data32;
 	unsigned	int	bpp;
