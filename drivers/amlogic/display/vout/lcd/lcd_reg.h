@@ -3,9 +3,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/vout/lcdoutc.h>
 
-extern void __iomem *reg_base_aobus;
 extern void __iomem *reg_base_cbus;
-extern void __iomem *reg_base_apbbus;
 
 /* ********************************
  * register offset address define
@@ -18,14 +16,58 @@ extern void __iomem *reg_base_apbbus;
 #define HHI_GCLK_MPEG1                             0x1051
 #define HHI_GCLK_MPEG2                             0x1052
 #define HHI_GCLK_OTHER                             0x1054
-#define HHI_GCLK_AO                                0x1055
 
+#define HHI_VIID_PLL_CNTL4                         0x1046
+#define HHI_VIID_PLL_CNTL                          0x1047
+#define HHI_VIID_PLL_CNTL2                         0x1048
+#define HHI_VIID_PLL_CNTL3                         0x1049
 #define HHI_VIID_CLK_DIV                           0x104a
+    #define DAC0_CLK_SEL           28
+    #define DAC1_CLK_SEL           24
+    #define DAC2_CLK_SEL           20
+    #define VCLK2_XD_RST           17
+    #define VCLK2_XD_EN            16
+    #define ENCL_CLK_SEL           12
+    #define VCLK2_XD                0
 #define HHI_VIID_CLK_CNTL                          0x104b
+    #define VCLK2_EN               19
+    #define VCLK2_CLK_IN_SEL       16
+    #define VCLK2_SOFT_RST         15
+    #define VCLK2_DIV12_EN          4
+    #define VCLK2_DIV6_EN           3
+    #define VCLK2_DIV4_EN           2
+    #define VCLK2_DIV2_EN           1
+    #define VCLK2_DIV1_EN           0
 #define HHI_VIID_DIVIDER_CNTL                      0x104c
+    #define DIV_CLK_IN_EN          16
+    #define DIV_CLK_SEL            15
+    #define DIV_POST_TCNT          12
+    #define DIV_LVDS_CLK_EN        11
+    #define DIV_LVDS_DIV2          10
+    #define DIV_POST_SEL            8
+    #define DIV_POST_SOFT_RST       7
+    #define DIV_PRE_SEL             4
+    #define DIV_PRE_SOFT_RST        3
+    #define DIV_POST_RST            1
+    #define DIV_PRE_RST             0
 #define HHI_VID_CLK_DIV                            0x1059
+    #define ENCI_CLK_SEL           28
+    #define ENCP_CLK_SEL           24
+    #define ENCT_CLK_SEL           20
+    #define VCLK_XD_RST            17
+    #define VCLK_XD_EN             16
+    #define ENCL_CLK_SEL           12
+    #define VCLK_XD1                8
+    #define VCLK_XD0                0
 #define HHI_VID_CLK_CNTL                           0x105f
+/* only for M8M2 & M8B */
 #define HHI_VID_CLK_CNTL2                          0x1065
+    #define HDMI_TX_PIXEL_GATE_VCLK  5
+    #define VDAC_GATE_VCLK           4
+    #define ENCL_GATE_VCLK           3
+    #define ENCP_GATE_VCLK           2
+    #define ENCT_GATE_VCLK           1
+    #define ENCI_GATE_VCLK           0
 #define HHI_VID_DIVIDER_CNTL                       0x1066
 #define HHI_EDP_APB_CLK_CNTL                       0x107b
 #define HHI_EDP_APB_CLK_CNTL_M8M2                  0x1082

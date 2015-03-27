@@ -62,7 +62,7 @@ static char *dpcd_strings[] = {
 	"5.4 Gbps"         /* 15 */
 };
 
-static struct EDP_Link_Config_s lconfig = {
+static struct EDP_Link_Config_s link_conf = {
 	.max_lane_count = 4,
 	.max_link_rate = VAL_EDP_TX_LINK_BW_SET_270,
 	.enhanced_framing_en = 0,
@@ -70,7 +70,7 @@ static struct EDP_Link_Config_s lconfig = {
 	.link_rate = VAL_EDP_TX_LINK_BW_SET_270,
 	.vswing = VAL_EDP_TX_PHY_VSWING_0,
 	.preemphasis = VAL_EDP_TX_PHY_PREEMPHASIS_0,
-	.ss_level = 0,
+	.ss_enable = 0,
 	.link_update = 0,
 	.training_settings = 0,
 	.main_stream_enable = 0,
@@ -91,7 +91,7 @@ static inline void trdp_wait(unsigned n)
 
 static struct EDP_Link_Config_s *dptx_get_link_config(void)
 {
-	return &lconfig;
+	return &link_conf;
 }
 
 static unsigned int dptx_wait_phy_ready(void)
@@ -1546,43 +1546,43 @@ static unsigned int trdp_select_training_settings(unsigned training_settings)
 	unsigned int status = 0;
 
 	switch (training_settings) {
-	case 0:	/* vswing 0, preemphasis 0 */
+	case 0: /* vswing 0, preemphasis 0 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_0);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_0);
 		break;
-	case 1:	/* vswing 0, preemphasis 1 */
+	case 1: /* vswing 0, preemphasis 1 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_0);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_1);
 		break;
-	case 2:	/* vswing 0, preemphasis 2 */
+	case 2: /* vswing 0, preemphasis 2 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_0);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_2);
 		break;
-	case 3:	/* vswing 0, preemphasis 3 */
+	case 3: /* vswing 0, preemphasis 3 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_0);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_3);
 		break;
-	case 4:	/* vswing 1, preemphasis 0 */
+	case 4: /* vswing 1, preemphasis 0 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_1);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_0);
 		break;
-	case 5:	/* vswing 1, preemphasis 1 */
+	case 5: /* vswing 1, preemphasis 1 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_1);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_1);
 		break;
-	case 6:	/* vswing 1, preemphasis 2 */
+	case 6: /* vswing 1, preemphasis 2 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_1);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_2);
 		break;
-	case 7:	/* vswing 2, preemphasis 0 */
+	case 7: /* vswing 2, preemphasis 0 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_2);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_0);
 		break;
-	case 8:	/* vswing 2, preemphasis 1 */
+	case 8: /* vswing 2, preemphasis 1 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_2);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_1);
 		break;
-	case 9:	/* vswing 3, preemphasis 0 */
+	case 9: /* vswing 3, preemphasis 0 */
 		trdp_preset_vswing(VAL_EDP_TX_PHY_VSWING_3);
 		trdp_preset_preemphasis(VAL_EDP_TX_PHY_PREEMPHASIS_0);
 		break;
@@ -2250,7 +2250,7 @@ static unsigned int dplpm_link_init(struct EDP_Link_Config_s *link_config)
 	unsigned int status = 0;
 	unsigned char link_rate = link_config->link_rate & 0xff;
 	unsigned char lane_count = link_config->lane_count & 0x7;
-	unsigned char ss_level = link_config->ss_level & 0xf;
+	unsigned char ss_enable = link_config->ss_enable;
 	unsigned char power_state;
 	unsigned core_id;
 
@@ -2278,7 +2278,7 @@ static unsigned int dplpm_link_init(struct EDP_Link_Config_s *link_config)
 		dptx_reg_write(EDP_TX_AUX_CLOCK_DIVIDER, 170);
 
 		status = dptx_init_lane_config(link_rate, lane_count);
-		status = dptx_init_downspread(ss_level);
+		status = dptx_init_downspread(ss_enable);
 
 		mdelay(10);
 		dptx_reg_write(EDP_TX_PHY_RESET, 0);
@@ -2292,7 +2292,7 @@ static unsigned int dplpm_link_init(struct EDP_Link_Config_s *link_config)
 		if (status)
 			return RET_EDP_TX_OPERATION_FAILED;
 
-		status = trdp_set_downspread(ss_level);
+		status = trdp_set_downspread(ss_enable);
 		if (status)
 			return RET_EDP_TX_OPERATION_FAILED;
 
@@ -2314,26 +2314,15 @@ static unsigned int dplpm_link_init(struct EDP_Link_Config_s *link_config)
 	return status;
 }
 
-static unsigned int dplpm_link_policy_maker(struct EDP_Link_Config_s *mlconfig,
-		struct EDP_MSA_s *vm)
+static unsigned int edp_link_on(struct EDP_MSA_s *vm)
 {
 	unsigned int status = 0;
 	struct EDP_Link_Config_s *link_config = dptx_get_link_config();
 
-	link_config->max_lane_count = mlconfig->max_lane_count;
-	link_config->max_link_rate = mlconfig->max_link_rate;
-	link_config->lane_count = mlconfig->lane_count;
-	link_config->link_rate = mlconfig->link_rate;
-	link_config->vswing = mlconfig->vswing;
-	link_config->preemphasis = mlconfig->preemphasis;
-	link_config->ss_level = mlconfig->ss_level;
-	link_config->link_adaptive = mlconfig->link_adaptive;
-	link_config->bit_rate = mlconfig->bit_rate;
-
 	status = dplpm_link_init(link_config);
 
 	if (status == RET_EDP_TX_OPERATION_SUCCESS) {
-		status = dplpm_maintain_link();
+		status = dplpm_maintain_link(); /* link_policy_maker */
 		if (lcd_print_flag > 0) {
 			trdp_dump_EDID();
 			trdp_dump_DPCD();
@@ -2351,14 +2340,6 @@ static unsigned int dplpm_link_policy_maker(struct EDP_Link_Config_s *mlconfig,
 		dptx_dump_MSA();
 	}
 
-	/* feedback link config to lcd driver */
-	mlconfig->max_lane_count = link_config->max_lane_count;
-	mlconfig->max_link_rate = link_config->max_link_rate;
-	mlconfig->lane_count = link_config->lane_count;
-	mlconfig->link_rate = link_config->link_rate;
-	mlconfig->vswing = link_config->vswing;
-	mlconfig->preemphasis = link_config->preemphasis;
-
 	return status;
 }
 
@@ -2374,12 +2355,72 @@ unsigned int edp_link_off(void)
 	return status;
 }
 
-unsigned int edp_host_on(struct EDP_Link_Config_s *mlconfig,
-		struct EDP_MSA_s *vm)
+unsigned char get_edp_config_index(const unsigned char *config_table,
+		unsigned char config_value)
+{
+	unsigned char index = 0;
+
+	while (index < 5) {
+		if ((config_value == config_table[index]) ||
+			(config_table[index] == VAL_EDP_TX_INVALID_VALUE)) {
+			break;
+		}
+		index++;
+	}
+	return index;
+}
+
+unsigned int edp_host_on(struct Lcd_Config_s *pConf)
 {
 	unsigned int status = 0;
+	struct EDP_MSA_s  vm;
+	struct EDP_Link_Config_s *lconf = dptx_get_link_config();
+	struct EDP_Config_s *econf;
+	unsigned char temp;
 
-	status = dplpm_link_policy_maker(mlconfig, vm);
+	econf = pConf->lcd_control.edp_config;
+
+	lconf->max_lane_count = 4;
+	lconf->max_link_rate = VAL_EDP_TX_LINK_BW_SET_270;
+	lconf->lane_count = econf->lane_count;
+	temp = (unsigned char)(pConf->lcd_timing.clk_ctrl >> CLK_CTRL_SS) & 0xf;
+	lconf->ss_enable = (temp > 0) ? 1 : 0;
+	lconf->link_adaptive = econf->link_adaptive;
+	lconf->bit_rate = econf->bit_rate;
+	lconf->link_rate = edp_link_rate_table[econf->link_rate];
+	lconf->vswing = edp_vswing_table[econf->vswing];
+	lconf->preemphasis = edp_preemphasis_table[econf->preemphasis];
+
+	/* edp main stream attribute */
+	vm.h_active = pConf->lcd_basic.h_active;
+	vm.v_active = pConf->lcd_basic.v_active;
+	vm.h_period = pConf->lcd_basic.h_period;
+	vm.v_period = pConf->lcd_basic.v_period;
+	vm.clk = pConf->lcd_timing.lcd_clk;
+	vm.hsync_pol = (pConf->lcd_timing.pol_ctrl >> POL_CTRL_HS) & 1;
+	vm.hsync_width = pConf->lcd_timing.hsync_width;
+	vm.hsync_bp = pConf->lcd_timing.hsync_bp;
+	vm.vsync_pol = (pConf->lcd_timing.pol_ctrl >> POL_CTRL_VS) & 1;
+	vm.vsync_width = pConf->lcd_timing.vsync_width;
+	vm.vsync_bp = pConf->lcd_timing.vsync_bp;
+	vm.ppc = 1;     /* pixels per clock cycle */
+	vm.cformat = 0; /* color format(0=RGB, 1=4:2:2, 2=Y only) */
+	vm.bpc = pConf->lcd_basic.lcd_bits; /* bits per color */
+	vm.sync_clock_mode = econf->sync_clock_mode & 1;
+
+	status = edp_link_on(&vm);
+
+	/* feedback link config to lcd driver */
+	econf->lane_count = lconf->lane_count;
+	econf->bit_rate = lconf->bit_rate;
+	econf->link_rate = get_edp_config_index(&edp_link_rate_table[0],
+				lconf->link_rate);
+	econf->vswing = get_edp_config_index(&edp_vswing_table[0],
+				lconf->vswing);
+	econf->preemphasis = get_edp_config_index(&edp_preemphasis_table[0],
+				lconf->preemphasis);
+
+	lcd_print("%s finish\n", __func__);
 	return status;
 }
 
@@ -2398,13 +2439,14 @@ void edp_host_off(void)
 	lcd_reg_setb(RESET4_MASK, 0, 11, 1);
 	lcd_reg_setb(RESET4_REGISTER, 1, 11, 1);
 	lcd_reg_setb(RESET4_MASK, 1, 11, 1);
+	lcd_print("%s finish\n", __func__);
 }
 
 void edp_edid_pre_enable(void)
 {
 	/* disable the transmitter */
 	dptx_reg_write(EDP_TX_TRANSMITTER_OUTPUT_ENABLE, 0);
-	dptx_reg_write(EDP_TX_PHY_RESET, 0xf);	/* reset the PHY */
+	dptx_reg_write(EDP_TX_PHY_RESET, 0xf); /* reset the PHY */
 
 	/* reset edp tx fifo */
 	lcd_reg_setb(RESET4_MASK, 0, 11, 1);

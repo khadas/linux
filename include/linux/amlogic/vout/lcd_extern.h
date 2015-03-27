@@ -33,18 +33,17 @@ struct lcd_extern_config_s {
 	int status;
 	int i2c_addr;
 	int i2c_bus;
-	struct Lcd_CPU_GPIO_s spi_cs;
-	struct Lcd_CPU_GPIO_s spi_clk;
-	struct Lcd_CPU_GPIO_s spi_data;
+	struct gpio_desc *spi_cs;
+	struct gpio_desc *spi_clk;
+	struct gpio_desc *spi_data;
 };
 
-#define LCD_EXTERN_DRIVER        "lcd_extern"
-#define lcd_extern_gpio_request(gpio)          gpio_request(gpio)
-#define lcd_extern_gpio_free(gpio)             gpiod_free(gpio)
-#define lcd_extern_gpio_input(gpio)            gpiod_direction_input(gpio)
-#define lcd_extern_gpio_output(gpio, val)      gpiod_direction_output(gpio, val)
-#define lcd_extern_gpio_get_value(gpio)        gpiod_get(gpio)
-#define lcd_extern_gpio_set_value(gpio, val)   gpiod_set_value(gpio, val)
+#define lcd_extern_gpio_request(dev, str)     gpiod_get(dev, str)
+#define lcd_extern_gpio_free(gdesc)           gpiod_put(gdesc)
+#define lcd_extern_gpio_input(gdesc)          gpiod_direction_input(gdesc)
+#define lcd_extern_gpio_output(gdesc, val)    gpiod_direction_output(gdesc, val)
+#define lcd_extern_gpio_get_value(gdesc)      gpiod_get_value(gdesc)
+#define lcd_extern_gpio_set_value(gdesc, val) gpiod_set_value(gdesc, val)
 
 extern struct aml_lcd_extern_driver_s *aml_lcd_extern_get_driver(void);
 extern enum Bool_check_e lcd_extern_driver_check(void);

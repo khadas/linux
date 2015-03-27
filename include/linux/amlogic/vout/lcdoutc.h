@@ -33,69 +33,62 @@ extern unsigned int lcd_print_flag;
 extern void lcd_print(const char *fmt, ...);
 
 /* **********************************
- * global define
+ * clk parameter bit define
+ * pll_ctrl, div_ctrl, clk_ctrl
  * ********************************** */
-#define FIN_FREQ                 (24 * 1000)
+/* ******** pll_ctrl ******** */
+/* [17:16] */
+#define PLL_CTRL_OD                 16
+/* [13:9] */
+#define PLL_CTRL_N                  9
+/* [8:0] */
+#define PLL_CTRL_M                  0
 
-/* clk_ctrl */
-#define CLK_CTRL_AUTO             31
+/* ******** div_ctrl ******** */
+/* [26:24] */
+#define DIV_CTRL_EDP_DIV1           24
+/* [23:20] */
+#define DIV_CTRL_EDP_DIV0           20
+/* [14:12] */
+#define DIV_CTRL_DIV_POST           12
+#define DIV_CTRL_LVDS_CLK_EN        11
+/*#define DIV_CTRL_PHY_CLK_DIV2       10*/
+/* [9:8] */
+#define DIV_CTRL_POST_SEL           8
+/* [6:4] */
+#define DIV_CTRL_DIV_PRE            4
+
+/* ******** clk_ctrl ******** */
+#define CLK_CTRL_AUTO               31
 /* #define CLK_CTRL_VCLK_SEL         30 */
 /* #define CLK_CTRL_DIV_SEL          29 */
 /* #define CLK_CTRL_PLL_SEL          28 */
-/* [27:12] //for specific CPU define */
-#define CLK_CTRL_RESERVED         12
+/* [27:16] */
+#define CLK_CTRL_FRAC               16
+/* [14:12] */
+#define CLK_CTRL_LEVEL              12
 /* [11:8] */
-#define CLK_CTRL_SS               8
+#define CLK_CTRL_SS                 8
 /* [7:0] */
-#define CLK_CTRL_XD               0
-
-/* pol_ctrl */
-#define POL_CTRL_CLK              6
-#define POL_CTRL_DE               2
-#define POL_CTRL_VS               1
-#define POL_CTRL_HS               0
-
-/* gamma_ctrl */
-#define GAMMA_CTRL_REV            4
-#define GAMMA_CTRL_EN             0
-
-enum Lcd_Gamma_Sel_e {
-	GAMMA_SEL_R = 0,
-	GAMMA_SEL_G,
-	GAMMA_SEL_B,
-};
+#define CLK_CTRL_XD                 0
 
 /* **********************************
- * power control define
+ * other parameter bit define
+ * pol_ctrl, gamma_ctrl
  * ********************************** */
-enum Lcd_Power_Type_e {
-	LCD_PWR_TYPE_CPU = 0,
-	LCD_PWR_TYPE_PMU,
-	LCD_PWR_TYPE_SIGNAL,
-	LCD_PWR_TYPE_INITIAL,
-	LCD_PWR_TYPE_MAX,
-};
+/* pol_ctrl */
+#define POL_CTRL_CLK                6
+#define POL_CTRL_DE                 2
+#define POL_CTRL_VS                 1
+#define POL_CTRL_HS                 0
 
-enum Lcd_Power_Pmu_Gpio_e {
-	LCD_PWR_PMU_GPIO0 = 0,
-	LCD_PWR_PMU_GPIO1,
-	LCD_PWR_PMU_GPIO2,
-	LCD_PWR_PMU_GPIO3,
-	LCD_PWR_PMU_GPIO4,
-	LCD_PWR_PMU_GPIO_MAX,
-};
-
-#define LCD_POWER_GPIO_OUTPUT_LOW       0
-#define LCD_POWER_GPIO_OUTPUT_HIGH      1
-#define LCD_POWER_GPIO_INPUT            2
-#define LCD_GPIO_OUTPUT_LOW             0
-#define LCD_GPIO_OUTPUT_HIGH            1
-#define LCD_GPIO_INPUT                  2
+/* gamma_ctrl */
+#define GAMMA_CTRL_REV              4
+#define GAMMA_CTRL_EN               0
 
 /* **********************************
  * global control define
  * ********************************** */
-extern const char *lcd_chip_table[];
 enum LCD_Chip_e {
 	LCD_CHIP_M6 = 0,
 	LCD_CHIP_M8,
@@ -104,7 +97,6 @@ enum LCD_Chip_e {
 	LCD_CHIP_MAX,
 };
 
-extern const char *lcd_type_table[];
 enum Lcd_Type_e {
 	LCD_DIGITAL_MIPI = 0,
 	LCD_DIGITAL_LVDS,
@@ -113,7 +105,7 @@ enum Lcd_Type_e {
 	LCD_DIGITAL_MINILVDS,
 	LCD_TYPE_MAX,
 };
-extern enum LCD_Chip_e lcd_chip_type;
+extern const char *lcd_type_table[];
 
 struct Lcd_Basic_s {
 	char *model_name;
@@ -214,9 +206,9 @@ struct Lcd_Effect_s {
 #define BIT_TRANS_CTRL_SWITCH     4
 struct DSI_Config_s {
 	unsigned char lane_num;
-	unsigned int bit_rate_max;
-	unsigned int bit_rate_min;
-	unsigned int bit_rate;
+	unsigned int bit_rate_max; /* MHz */
+	unsigned int bit_rate_min; /* MHz*/
+	unsigned int bit_rate; /* Hz */
 	unsigned int factor_denominator;
 	unsigned int factor_numerator;
 
@@ -306,7 +298,8 @@ struct Lcd_CPU_GPIO_s {
 
 struct Lcd_Power_Config_s {
 	unsigned char type;
-	int gpio;
+	int gpio; /* for cpu gpio, it is lcd_cpu_gpio struct index */
+	char gpio_name[15];
 	unsigned short value;
 	unsigned short delay;
 };
@@ -317,6 +310,7 @@ struct Lcd_Power_Ctrl_s {
 	int cpu_gpio_num;
 	int power_on_step;
 	int power_off_step;
+	unsigned char power_level; /* internal: 0=only power, 1=power+signal */
 	int (*power_ctrl)(enum Bool_state_e status);
 	int (*ports_ctrl)(enum Bool_state_e status);
 };
@@ -343,30 +337,58 @@ struct Lcd_Config_s {
 	struct Lcd_Misc_Ctrl_s lcd_misc_ctrl;
 };
 
+/* **********************************
+ * power control define
+ * ********************************** */
+enum Lcd_Power_Type_e {
+	LCD_POWER_TYPE_CPU = 0,
+	LCD_POWER_TYPE_PMU,
+	LCD_POWER_TYPE_SIGNAL,
+	LCD_POWER_TYPE_INITIAL,
+	LCD_POWER_TYPE_MAX,
+};
+
+enum Lcd_Power_Pmu_Gpio_e {
+	LCD_POWER_PMU_GPIO0 = 0,
+	LCD_POWER_PMU_GPIO1,
+	LCD_POWER_PMU_GPIO2,
+	LCD_POWER_PMU_GPIO3,
+	LCD_POWER_PMU_GPIO4,
+	LCD_POWER_PMU_GPIO_MAX,
+};
+
+#define LCD_POWER_GPIO_OUTPUT_LOW       0
+#define LCD_POWER_GPIO_OUTPUT_HIGH      1
+#define LCD_POWER_GPIO_INPUT            2
+#define LCD_GPIO_OUTPUT_LOW             0
+#define LCD_GPIO_OUTPUT_HIGH            1
+#define LCD_GPIO_INPUT                  2
+
+/* **********************************
+ * global control API
+ * ********************************** */
+extern enum LCD_Chip_e lcd_chip_type;
+
 enum Bool_check_e {
 	FALSE = 0,
 	TRUE = 1,
 };
 
-/* **********************************
- * global control API
- * ********************************** */
 extern int detect_dsi_init_table(struct device_node *m_node, int on_off);
+extern enum Bool_check_e lcd_chip_valid_check(struct Lcd_Config_s *pConf);
 
 extern struct Lcd_Config_s *get_lcd_config(void);
 extern void lcd_config_init(struct Lcd_Config_s *pConf);
 extern void lcd_config_probe(struct Lcd_Config_s *pConf);
 extern void lcd_config_remove(struct Lcd_Config_s *pConf);
 
-#define DPRINT(...)                      pr_info(__VA_ARGS__)
-
-#define LCD_NAME                         "lcd"
-#define lcd_gpio_request(gpio)           gpio_request(gpio)
-#define lcd_gpio_free(gpio)              gpiod_free(gpio)
-#define lcd_gpio_input(gpio)             gpiod_direction_input(gpio)
-#define lcd_gpio_output(gpio, val)       gpiod_direction_output(gpio, val)
-#define lcd_gpio_get_value(gpio)         gpiod_get(gpio)
-#define lcd_gpio_set_value(gpio, val)    gpiod_set_value(gpio, val)
+#define DPRINT(...)                       pr_info(__VA_ARGS__)
+#define lcd_gpio_request(dev, str)        gpiod_get(dev, str)
+#define lcd_gpio_free(gdesc)              gpiod_put(gdesc)
+#define lcd_gpio_input(gdesc)             gpiod_direction_input(gdesc)
+#define lcd_gpio_output(gdesc, val)       gpiod_direction_output(gdesc, val)
+#define lcd_gpio_get_value(gdesc)         gpiod_get_value(gdesc)
+#define lcd_gpio_set_value(gdesc, val)    gpiod_set_value(gdesc, val)
 
 /* **********************************
  * mipi-dsi read/write api

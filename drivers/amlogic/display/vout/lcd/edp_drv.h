@@ -196,6 +196,14 @@
 /* ********************************************************
  * edp control table
  * ******************************************************** */
+/* 8/10 coding */
+#define LINK_RATE_TO_CAPACITY(x)    (x * 8 / 10)
+static const unsigned edp_link_capacity_table[] = {/* Mbps */
+	LINK_RATE_TO_CAPACITY(1620),
+	LINK_RATE_TO_CAPACITY(2700),
+	LINK_RATE_TO_CAPACITY(5400),
+};
+
 #define VAL_EDP_TX_INVALID_VALUE    0xFF
 static const unsigned char edp_link_rate_table[] = {
 	VAL_EDP_TX_LINK_BW_SET_162,
@@ -206,14 +214,6 @@ static const unsigned char edp_link_rate_table[] = {
 
 static const unsigned char edp_lane_count_table[] = {
 	1, 2, 4, VAL_EDP_TX_INVALID_VALUE,
-};
-
-/* 8/10 coding */
-#define LINK_RATE_TO_CAPACITY(x)    (x * 8 / 10)
-static const unsigned edp_link_capacity_table[] = {/* Mbps */
-	LINK_RATE_TO_CAPACITY(1620),
-	LINK_RATE_TO_CAPACITY(2700),
-	LINK_RATE_TO_CAPACITY(5400),
 };
 
 static const unsigned char edp_vswing_table[] = {
@@ -275,7 +275,7 @@ struct EDP_MSA_s {
 	unsigned short v_active;
 	unsigned short h_period;
 	unsigned short v_period;
-	unsigned clk;
+	unsigned int clk;
 	unsigned short hsync_pol;
 	unsigned short hsync_width;
 	unsigned short hsync_bp;
@@ -297,7 +297,7 @@ struct EDP_Link_Config_s {
 	unsigned char link_rate;
 	unsigned char vswing;
 	unsigned char preemphasis;
-	unsigned char ss_level;
+	unsigned char ss_enable;
 	unsigned char link_update;
 	unsigned char training_settings;
 	unsigned char main_stream_enable;
@@ -359,11 +359,11 @@ struct EDP_EDID_Data_Type_s {
 		256-(sum(byte0:126)%256) =? 0x100-(sum(byte0:126) & 0xff) */
 };
 
-extern void edp_phy_config_update(unsigned char vswing_tx,
-				unsigned char preemp_tx);
+extern unsigned char get_edp_config_index(const unsigned char *config_table,
+		unsigned char config_value);
+extern void edp_phy_config_update(unsigned char vswing, unsigned char preemp);
 extern unsigned int edp_link_off(void);
-extern unsigned int edp_host_on(struct EDP_Link_Config_s *mlconfig,
-					struct EDP_MSA_s *vm);
+extern unsigned int edp_host_on(struct Lcd_Config_s *pConf);
 extern void edp_host_off(void);
 extern void edp_edid_pre_enable(void);
 extern void edp_edid_pre_disable(void);

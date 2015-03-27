@@ -57,7 +57,7 @@ static char *video_data_type_table[] = {
 };
 
 static struct DSI_Phy_s dsi_phy_config;
-static struct DSI_Vid_s dsi_vid_config;
+static struct DSI_Vid_s dsi_vconf;
 static struct DSI_Config_s *dConf;
 static unsigned char dsi_init_on_table_dft[] = {
 	0x05, 1, 0x11,
@@ -213,10 +213,7 @@ static void print_info(void)
 	DPRINT("================================================\n");
 	DPRINT("MIPI DSI Config\n");
 	DPRINT(" Lane Num:              %d\n", dConf->lane_num);
-	/* DPRINT(" Bit Rate min:          %dMHz\n",
-		(dConf->bit_rate_min / 1000)); */
-	DPRINT(" Bit Rate max:          %dMHz\n",
-		(dConf->bit_rate_max / 1000));
+	DPRINT(" Bit Rate max:          %dMHz\n", dConf->bit_rate_max);
 	DPRINT(" Bit Rate:              %d.%03dMHz\n",
 		(dConf->bit_rate / 1000000),
 		(dConf->bit_rate % 1000000) / 1000);
@@ -721,9 +718,10 @@ static void dsi_write_long_packet(struct DSI_Cmd_Request_s *req)
 			temp = 4;
 		else
 			temp = req->pld_count % 4;
-		for (j = 0; j < temp; j++)
+		for (j = 0; j < temp; j++) {
 			payload_data |= (((unsigned int)
 				req->payload[data_index+(i*4)+j]) << (j*8));
+		}
 
 		/* Check the pld fifo status before write to it,
 		do not need check every word */
@@ -1097,39 +1095,36 @@ static void mipi_dsi_phy_config(struct Lcd_Config_s *pConf)
 static void dsi_video_config(struct Lcd_Config_s *pConf)
 {
 	unsigned short h_period, hs_width, hs_bp;
-	unsigned int factor_den, factor_num;
+	unsigned int den, num;
 	unsigned short v_period, v_active, vs_width, vs_bp;
 
 	h_period = pConf->lcd_basic.h_period;
 	hs_width = pConf->lcd_timing.hsync_width;
 	hs_bp = pConf->lcd_timing.hsync_bp;
-	factor_den = pConf->lcd_control.mipi_config->factor_denominator;
-	factor_num = pConf->lcd_control.mipi_config->factor_numerator;
+	den = pConf->lcd_control.mipi_config->factor_denominator;
+	num = pConf->lcd_control.mipi_config->factor_numerator;
 
-	dsi_vid_config.hline = (h_period * factor_den + factor_num - 1) /
-				factor_num;
-	dsi_vid_config.hsa = (hs_width * factor_den + factor_num - 1) /
-				factor_num;
-	dsi_vid_config.hbp = (hs_bp * factor_den + factor_num - 1) /
-				factor_num;
+	dsi_vconf.hline = (h_period * den + num - 1) / num;
+	dsi_vconf.hsa = (hs_width * den + num - 1) / num;
+	dsi_vconf.hbp = (hs_bp * den + num - 1) / num;
 
 	v_period = pConf->lcd_basic.v_period;
 	v_active = pConf->lcd_basic.v_active;
 	vs_width = pConf->lcd_timing.vsync_width;
 	vs_bp = pConf->lcd_timing.vsync_bp;
-	dsi_vid_config.vsa = vs_width;
-	dsi_vid_config.vbp = vs_bp;
-	dsi_vid_config.vfp = v_period - v_active - vs_bp - vs_width;
-	dsi_vid_config.vact = v_active;
+	dsi_vconf.vsa = vs_width;
+	dsi_vconf.vbp = vs_bp;
+	dsi_vconf.vfp = v_period - v_active - vs_bp - vs_width;
+	dsi_vconf.vact = v_active;
 
 	lcd_print(" ============= VIDEO TIMING SETTING =============\n");
-	lcd_print(" HLINE        = %d\n", dsi_vid_config.hline);
-	lcd_print(" HSA          = %d\n", dsi_vid_config.hsa);
-	lcd_print(" HBP          = %d\n", dsi_vid_config.hbp);
-	lcd_print(" VSA          = %d\n", dsi_vid_config.vsa);
-	lcd_print(" VBP          = %d\n", dsi_vid_config.vbp);
-	lcd_print(" VFP          = %d\n", dsi_vid_config.vfp);
-	lcd_print(" VACT         = %d\n", dsi_vid_config.vact);
+	lcd_print(" HLINE        = %d\n", dsi_vconf.hline);
+	lcd_print(" HSA          = %d\n", dsi_vconf.hsa);
+	lcd_print(" HBP          = %d\n", dsi_vconf.hbp);
+	lcd_print(" VSA          = %d\n", dsi_vconf.vsa);
+	lcd_print(" VBP          = %d\n", dsi_vconf.vbp);
+	lcd_print(" VFP          = %d\n", dsi_vconf.vfp);
+	lcd_print(" VACT         = %d\n", dsi_vconf.vact);
 	lcd_print(" ================================================\n");
 }
 
@@ -1182,9 +1177,9 @@ static void dsi_non_burst_chunk_config(struct Lcd_Config_s *pConf)
 			chunk_overhead);
 	}
 
-	dsi_vid_config.pixel_per_chunk = pixel_per_chunk;
-	dsi_vid_config.num_of_chunk = num_of_chunk;
-	dsi_vid_config.vid_null_size = vid_null_size;
+	dsi_vconf.pixel_per_chunk = pixel_per_chunk;
+	dsi_vconf.num_of_chunk = num_of_chunk;
+	dsi_vconf.vid_null_size = vid_null_size;
 	lcd_print(" ============== NON_BURST SETTINGS =============\n");
 	lcd_print(" pixel_per_chunk       = %d\n", pixel_per_chunk);
 	lcd_print(" num_of_chunk          = %d\n", num_of_chunk);
@@ -1209,6 +1204,7 @@ static void startup_mipi_dsi_host(void)
 	dsi_reg_clr_mask(MIPI_DSI_TOP_SW_RESET, 0xf);
 	/* Enable dwc mipi_dsi_host's clock */
 	dsi_reg_set_mask(MIPI_DSI_TOP_CLK_CNTL, 0x3);
+	mdelay(10);
 }
 
 /* *************************************************************
@@ -1309,7 +1305,7 @@ static void set_mipi_dsi_host(unsigned int vcid, unsigned int chroma_subsample,
 			    (pclk period/byte clk period)*num_of_lane
 			     should be integer */
 			dsi_reg_write(MIPI_DSI_DWC_VID_PKT_SIZE_OS,
-				dsi_vid_config.pixel_per_chunk);
+				dsi_vconf.pixel_per_chunk);
 		}
 
 		/* 3.3   Configure number of chunks and null packet size
@@ -1320,27 +1316,23 @@ static void set_mipi_dsi_host(unsigned int vcid, unsigned int chroma_subsample,
 		} else {  /* non burst mode */
 			/* HACT/VID_PKT_SIZE */
 			dsi_reg_write(MIPI_DSI_DWC_VID_NUM_CHUNKS_OS,
-				dsi_vid_config.num_of_chunk);
+				dsi_vconf.num_of_chunk);
 			/* video null size */
 			dsi_reg_write(MIPI_DSI_DWC_VID_NULL_SIZE_OS,
-				dsi_vid_config.vid_null_size);
+				dsi_vconf.vid_null_size);
 		}
 
 		/* 4     Configure the video relative parameters according to
 			   the output type */
 		/* include horizontal timing and vertical line */
-		dsi_reg_write(MIPI_DSI_DWC_VID_HLINE_TIME_OS,
-			dsi_vid_config.hline);
-		dsi_reg_write(MIPI_DSI_DWC_VID_HSA_TIME_OS, dsi_vid_config.hsa);
-		dsi_reg_write(MIPI_DSI_DWC_VID_HBP_TIME_OS, dsi_vid_config.hbp);
-		dsi_reg_write(MIPI_DSI_DWC_VID_VSA_LINES_OS,
-			dsi_vid_config.vsa);
-		dsi_reg_write(MIPI_DSI_DWC_VID_VBP_LINES_OS,
-			dsi_vid_config.vbp);
-		dsi_reg_write(MIPI_DSI_DWC_VID_VFP_LINES_OS,
-			dsi_vid_config.vfp);
+		dsi_reg_write(MIPI_DSI_DWC_VID_HLINE_TIME_OS, dsi_vconf.hline);
+		dsi_reg_write(MIPI_DSI_DWC_VID_HSA_TIME_OS, dsi_vconf.hsa);
+		dsi_reg_write(MIPI_DSI_DWC_VID_HBP_TIME_OS, dsi_vconf.hbp);
+		dsi_reg_write(MIPI_DSI_DWC_VID_VSA_LINES_OS, dsi_vconf.vsa);
+		dsi_reg_write(MIPI_DSI_DWC_VID_VBP_LINES_OS, dsi_vconf.vbp);
+		dsi_reg_write(MIPI_DSI_DWC_VID_VFP_LINES_OS, dsi_vconf.vfp);
 		dsi_reg_write(MIPI_DSI_DWC_VID_VACTIVE_LINES_OS,
-			dsi_vid_config.vact);
+			dsi_vconf.vact);
 	}  /* operation_mode == OPERATION_VIDEO_MODE */
 
 	/* ----------------------------------------------------- */
@@ -1495,12 +1487,15 @@ void mipi_dsi_link_off(struct Lcd_Config_s *pConf)
 void set_mipi_dsi_control_config(struct Lcd_Config_s *pConf)
 {
 	unsigned int pclk, bit_rate, lcd_bits;
+	/* unit in kHz for calculation */
+	unsigned int bit_rate_max, bit_rate_min;
 	unsigned int operation_mode;
 	struct DSI_Config_s *mconf = pConf->lcd_control.mipi_config;
 	int n;
 	unsigned int temp;
 
-	pclk = pConf->lcd_timing.lcd_clk;
+	/* unit in kHz for calculation */
+	pclk = pConf->lcd_timing.lcd_clk / 1000;
 	operation_mode = ((mconf->operation_mode >> BIT_OP_MODE_DISP) & 1);
 	mconf->video_mode_type = MIPI_DSI_VIDEO_MODE_TYPE;
 	if (pConf->lcd_basic.lcd_bits == 6) {
@@ -1518,42 +1513,37 @@ void set_mipi_dsi_control_config(struct Lcd_Config_s *pConf)
 	if (mconf->bit_rate_max == 0) { /* auto calculate */
 		if ((operation_mode == OPERATION_VIDEO_MODE) &&
 			(mconf->video_mode_type != BURST_MODE)) {
-			temp = (pclk / 1000) * 4 * lcd_bits;
+			temp = pclk * 4 * lcd_bits;
 			bit_rate = temp / mconf->lane_num;
 		} else {
-			temp = (pclk / 1000) * 3 * lcd_bits;
+			temp = pclk * 3 * lcd_bits;
 			bit_rate = temp / mconf->lane_num;
 		}
-		mconf->bit_rate_min = 0;
 		n = 0;
-		while ((mconf->bit_rate_min < clk_Conf.pll_out_fmin) &&
-			(n < 50)) {
-			mconf->bit_rate_max =
-				bit_rate + 20000 + (n * (pclk / 1000));
-			mconf->bit_rate_min =
-				mconf->bit_rate_max - (pclk / 1000);
+		bit_rate_min = 0;
+		bit_rate_max = 0;
+		while ((bit_rate_min < clk_Conf.pll_out_fmin) && (n < 100)) {
+			bit_rate_max = bit_rate + (pclk / 2) + (n * pclk);
+			bit_rate_min = bit_rate_max - pclk;
 			n++;
 		}
-		if (mconf->bit_rate_max > MIPI_PHY_MAX_CLK_IN) {
-			mconf->bit_rate_max = MIPI_PHY_MAX_CLK_IN;
-			mconf->bit_rate_min =
-				mconf->bit_rate_max - (pclk / 1000);
-		}
-		DPRINT("mipi dsi bit_rate max=%dMHz\n",
-			(mconf->bit_rate_max / 1000));
+		mconf->bit_rate_max = bit_rate_max / 1000; /* unit: MHz*/
+		if (mconf->bit_rate_max > MIPI_PHY_CLK_MAX)
+			mconf->bit_rate_max = MIPI_PHY_CLK_MAX;
+
+		DPRINT("mipi dsi bit_rate max=%dMHz\n", mconf->bit_rate_max);
 	} else { /* user define */
-		mconf->bit_rate_min = mconf->bit_rate_max - (pclk / 1000);
-		if (mconf->bit_rate_max < clk_Conf.pll_out_fmin) {
+		if (mconf->bit_rate_max < clk_Conf.pll_out_fmin / 1000) {
 			DPRINT("[error]: mipi-dsi can't support bit_rate ");
 			DPRINT("%dMHz (min=%dMHz)\n",
-				(mconf->bit_rate_max / 1000),
+				mconf->bit_rate_max,
 				(clk_Conf.pll_out_fmin / 1000));
 		}
-		if (mconf->bit_rate_max > MIPI_PHY_MAX_CLK_IN) {
+		if (mconf->bit_rate_max > MIPI_PHY_CLK_MAX) {
 			DPRINT("[warning]: mipi-dsi bit_rate_max %dMHz ",
-				(mconf->bit_rate_max / 1000));
-			DPRINT("is out of spec (%dMHz)\n",
-				(MIPI_PHY_MAX_CLK_IN / 1000));
+				mconf->bit_rate_max);
+			DPRINT("is out of standard (%dMHz)\n",
+				MIPI_PHY_CLK_MAX);
 		}
 	}
 
@@ -1582,6 +1572,7 @@ void set_mipi_dsi_control_config_post(struct Lcd_Config_s *pConf)
 {
 	unsigned int pclk, lanebyteclk;
 	unsigned int operation_mode;
+	unsigned int den, num;
 	struct DSI_Config_s *mconf = pConf->lcd_control.mipi_config;
 
 	pclk = pConf->lcd_timing.lcd_clk;
@@ -1599,11 +1590,10 @@ void set_mipi_dsi_control_config_post(struct Lcd_Config_s *pConf)
 		mconf->factor_numerator = pclk/1000;
 		/* mconf->factor_denominator = 10; */
 	}
-	lcd_print("den=%d, num=%d, factor=%d.%02d\n",
-		mconf->factor_denominator, mconf->factor_numerator,
-		(mconf->factor_denominator / mconf->factor_numerator),
-		((mconf->factor_denominator % mconf->factor_numerator) * 100 /
-			mconf->factor_numerator));
+	den = mconf->factor_denominator;
+	num = mconf->factor_numerator;
+	lcd_print("den=%d, num=%d, factor=%d.%02d\n", den, num,
+		(den / num), ((den % num) * 100 / num));
 
 	operation_mode = ((mconf->operation_mode >> BIT_OP_MODE_DISP) & 1);
 	if (operation_mode == OPERATION_VIDEO_MODE) {
@@ -1760,20 +1750,10 @@ static int remove_dsi_attr(struct Lcd_Config_s *pConf)
 }
 /* ********************************************************* */
 
-static void check_dsi_bit_rate(struct Lcd_Config_s *pConf)
-{
-	/* ready for clock calculation in kHz */
-	if (pConf->lcd_control.mipi_config->bit_rate_max < 2000)
-		pConf->lcd_control.mipi_config->bit_rate_max *= 1000;
-	/*if (pConf->lcd_control.mipi_config->bit_rate_min < 2000)
-		pConf->lcd_control.mipi_config->bit_rate_min *= 1000;*/
-};
-
 void dsi_probe(struct Lcd_Config_s *pConf)
 {
 	dConf = pConf->lcd_control.mipi_config;
 	creat_dsi_attr(pConf);
-	check_dsi_bit_rate(pConf);
 }
 
 void dsi_remove(struct Lcd_Config_s *pConf)

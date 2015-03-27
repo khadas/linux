@@ -113,59 +113,50 @@ int get_lcd_extern_dt_data(struct platform_device *pdev,
 		if (err) {
 			pr_info("%s warning: get spi gpio_spi_cs failed\n",
 				pconf->name);
-			str = "none";
-			pconf->spi_cs.desc = NULL;
+			pconf->spi_cs = NULL;
 		} else {
-			gdesc = gpiod_get(&pdev->dev, str);
+			gdesc = lcd_extern_gpio_request(&pdev->dev, str);
 			if (IS_ERR(gdesc)) {
 				pr_info("failed to alloc lcd extern ");
 				pr_info("gpio (%s)\n", str);
-				str = "none";
-				pconf->spi_cs.desc = NULL;
+				pconf->spi_cs = NULL;
 			} else {
-				pconf->spi_cs.desc = gdesc;
+				pconf->spi_cs = gdesc;
+				DBG_PRINT("spi_cs gpio = %s\n", str);
 			}
 		}
-		strcpy(pconf->spi_cs.name, str);
-		DBG_PRINT("spi_cs gpio = %s\n", str);
 		err = of_property_read_string(of_node, "gpio_spi_clk", &str);
 		if (err) {
 			pr_info("%s warning: get spi gpio_spi_clk failed\n",
 				pconf->name);
-			str = "none";
-			pconf->spi_clk.desc = NULL;
+			pconf->spi_clk = NULL;
 		} else {
-			gdesc = gpiod_get(&pdev->dev, str);
+			gdesc = lcd_extern_gpio_request(&pdev->dev, str);
 			if (IS_ERR(gdesc)) {
 				pr_info("failed to alloc lcd extern ");
 				pr_info("gpio (%s)\n", str);
-				str = "none";
-				pconf->spi_clk.desc = NULL;
+				pconf->spi_clk = NULL;
 			} else {
-				pconf->spi_clk.desc = gdesc;
+				pconf->spi_clk = gdesc;
+				DBG_PRINT("spi_clk gpio = %s\n", str);
 			}
 		}
-		strcpy(pconf->spi_clk.name, str);
-		DBG_PRINT("spi_clk gpio = %s\n", str);
 		err = of_property_read_string(of_node, "gpio_spi_data", &str);
 		if (err) {
 			pr_info("%s warning: get spi gpio_spi_data failed\n",
 				pconf->name);
-			str = "none";
-			pconf->spi_data.desc = NULL;
+			pconf->spi_data = NULL;
 		} else {
-			gdesc = gpiod_get(&pdev->dev, str);
+			gdesc = lcd_extern_gpio_request(&pdev->dev, str);
 			if (IS_ERR(gdesc)) {
 				pr_info("failed to alloc lcd extern ");
 				pr_info("gpio (%s)\n", str);
-				str = "none";
-				pconf->spi_data.desc = NULL;
+				pconf->spi_data = NULL;
 			} else {
-				pconf->spi_data.desc = gdesc;
+				pconf->spi_data = gdesc;
+				DBG_PRINT("spi_data gpio = %s\n", str);
 			}
 		}
-		strcpy(pconf->spi_data.name, str);
-		DBG_PRINT("spi_data gpio = %s\n", str);
 		break;
 	case LCD_EXTERN_MIPI:
 		break;

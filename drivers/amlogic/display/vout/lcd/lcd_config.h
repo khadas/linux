@@ -7,185 +7,30 @@
 /* **********************************
  * lcd driver version
  * ********************************** */
-#define LCD_DRV_DATE      "20150310"
-
-/* **********************************
- * lcd driver version
- * ********************************** */
-/* for GAMMA_CNTL_PORT */
-	#define LCD_GAMMA_VCOM_POL       7
-	#define LCD_GAMMA_RVS_OUT        6
-	#define LCD_ADR_RDY              5
-	#define LCD_WR_RDY               4
-	#define LCD_RD_RDY               3
-	#define LCD_GAMMA_TR             2
-	#define LCD_GAMMA_SET            1
-	#define LCD_GAMMA_EN             0
-/* for GAMMA_ADDR_PORT */
-	#define LCD_H_RD                 12
-	#define LCD_H_AUTO_INC           11
-	#define LCD_H_SEL_R              10
-	#define LCD_H_SEL_G              9
-	#define LCD_H_SEL_B              8
-	#define LCD_HADR_MSB             7
-	#define LCD_HADR                 0
-
-/* for POL_CNTL_ADDR */
-	#define LCD_DCLK_SEL             14
-	#define LCD_TCON_VSYNC_SEL_DVI   11
-	#define LCD_TCON_HSYNC_SEL_DVI   10
-	#define LCD_TCON_DE_SEL_DVI      9
-	#define LCD_CPH3_POL             8
-	#define LCD_CPH2_POL             7
-	#define LCD_CPH1_POL             6
-	#define LCD_TCON_DE_SEL          5
-	#define LCD_TCON_VS_SEL          4
-	#define LCD_TCON_HS_SEL          3
-	#define LCD_DE_POL               2
-	#define LCD_VS_POL               1
-	#define LCD_HS_POL               0
-
-/* for DITH_CNTL_ADDR */
-	#define LCD_DITH10_EN            10
-	#define LCD_DITH8_EN             9
-	#define LCD_DITH_MD              8
-	#define LCD_DITH10_CNTL_MSB      7
-	#define LCD_DITH10_CNTL          4
-	#define LCD_DITH8_CNTL_MSB       3
-	#define LCD_DITH8_CNTL           0
-
-/* for INV_CNT_ADDR */
-	#define LCD_INV_EN               4
-	#define LCD_INV_CNT_MSB          3
-	#define LCD_INV_CNT              0
-
-/* for TCON_MISC_SEL_ADDR */
-	#define LCD_STH2_SEL             12
-	#define LCD_STH1_SEL             11
-	#define LCD_OEH_SEL              10
-	#define LCD_VCOM_SEL             9
-	#define LCD_DB_LINE_SW           8
-	#define LCD_CPV2_SEL             7
-	#define LCD_CPV1_SEL             6
-	#define LCD_STV2_SEL             5
-	#define LCD_STV1_SEL             4
-	#define LCD_OEV_UNITE            3
-	#define LCD_OEV3_SEL             2
-	#define LCD_OEV2_SEL             1
-	#define LCD_OEV1_SEL             0
-
-/* for DUAL_PORT_CNTL_ADDR */
-	#define LCD_ANALOG_SEL_CPH3      8
-	#define LCD_ANALOG_3PHI_CLK_SEL  7
-	#define LCD_LVDS_SEL54           6
-	#define LCD_LVDS_SEL27           5
-	#define LCD_TTL_SEL              4
-	#define LCD_DUAL_PIXEL           3
-	#define LCD_PORT_SWP             2
-	#define LCD_RGB_SWP              1
-	#define LCD_BIT_SWP              0
-
-/* for LVDS_PACK_CNTL_ADDR */
-	#define LCD_LD_CNT_MSB           7
-	#define LCD_LD_CNT               5
-	#define LCD_PN_SWP               4
-	#define LCD_RES                  3
-	#define LCD_LVDS_PORT_SWP        2
-	#define LCD_PACK_RVS             1
-	#define LCD_PACK_LITTLE          0
-
-/* for LVDS_PACK_CNTL_ADDR */
-	#define LVDS_USE_TCON            7
-	#define LVDS_DUAL                6
-	#define PN_SWP                   5
-	#define LSB_FIRST                4
-	#define LVDS_RESV                3
-	#define ODD_EVEN_SWP             2
-	#define LVDS_REPACK              0
+#define LCD_DRV_DATE      "20150326"
 
 /* **********************************
  * delay between video encoder & tcon
  * ********************************** */
-#define MIPI_DELAY                       8
-#define LVDS_DELAY                       8
-#define EDP_DELAY                        8
-#define TTL_DELAY                        19
+#define MIPI_DELAY                  8
+#define LVDS_DELAY                  8
+#define EDP_DELAY                   8
+#define TTL_DELAY                   19
 
 /* **********************************
- * lcd gamma control
+ * pll & clk parameter
  * ********************************** */
-static const unsigned int gamma_sel_table[3] = {
-	LCD_H_SEL_R,
-	LCD_H_SEL_G,
-	LCD_H_SEL_B,
-};
-
-/* **********************************
- * clk parameter auto generation
- * ********************************** */
-/* clk parameters bit */
-/* pll_ctrl */
-#define PLL_CTRL_LOCK               31
-#define PLL_CTRL_EN                 30
-#define PLL_CTRL_RST                29
-/* [10:9] */
-#define PLL_CTRL_OD                 9
-/* [28:24] */
-#define PLL_CTRL_N                  24
-/* [8:0] */
-#define PLL_CTRL_M                  0
-
-/* div_ctrl */
-/* [26:24] */
-#define DIV_CTRL_EDP_DIV1           24
-/* [23:20] */
-#define DIV_CTRL_EDP_DIV0           20
-/* [14:12] */
-#define DIV_CTRL_DIV_POST           12
-#define DIV_CTRL_LVDS_CLK_EN        11
-/*#define DIV_CTRL_PHY_CLK_DIV2       10*/
-/* [9:8] */
-#define DIV_CTRL_POST_SEL           8
-/* [6:4] */
-#define DIV_CTRL_DIV_PRE            4
-
-/* clk_ctrl */
-/* [27:16] */
-#define CLK_CTRL_FRAC               16
-/* [14:12] */
-#define CLK_CTRL_LEVEL              12
-
+/* ******** clk calculation ******** */
 #define PLL_WAIT_LOCK_CNT           200
-
-/* clk frequency limit */
-/* PLL */
-#define PLL_M_MIN                   2
-#define PLL_M_MAX                   511
-#define PLL_N_MIN                   1
-#define PLL_N_MAX                   1
-#define PLL_FREF_MIN                (5 * 1000)
-#define PLL_FREF_MAX                (25 * 1000)
-#define PLL_VCO_MIN                 (1200 * 1000)
-#define PLL_VCO_MAX                 (3000 * 1000)
-/* VIDEO */
-#define MIPI_PHY_MAX_CLK_IN         (1000 * 1000)
-#define DIV_PRE_MAX_CLK_IN          (1500 * 1000)
-#define DIV_POST_MAX_CLK_IN         (1000 * 1000)
-#define CRT_VID_MAX_CLK_IN          (1300 * 1000)
-#define ENCL_MAX_CLK_IN             (333 * 1000)
-
-/* lcd interface video clk */
-#define MIPI_MAX_VID_CLK_IN         ENCL_MAX_CLK_IN
-#define LVDS_MAX_VID_CLK_IN         ENCL_MAX_CLK_IN
-#define EDP_MAX_VID_CLK_IN          ENCL_MAX_CLK_IN
-#define TTL_MAX_VID_CLK_IN          ENCL_MAX_CLK_IN
-
+ /* frequency unit: kHz */
+#define FIN_FREQ                    (24 * 1000)
 /* clk max error */
 #define MAX_ERROR                   (2 * 1000)
 
+/* ******** register bit ******** */
+/* divider */
 #define CRT_VID_DIV_MAX             15
 
-#define OD_SEL_MAX                  3
 #define DIV_PRE_SEL_MAX             6
 #define EDP_DIV0_SEL_MAX            15
 #define EDP_DIV1_SEL_MAX            8
@@ -203,6 +48,99 @@ static const unsigned int edp_div1_table[8] = {
 	1, 2, 4, 5, 6, 7, 9, 13
 };
 
+/* **********************************
+ * M6
+ * ********************************** */
+/* ******** register bit ******** */
+/* PLL_CNTL */
+#define LCD_PLL_LOCK_M6             31
+#define LCD_PLL_PD_M6               30
+#define LCD_PLL_RST_M6              29
+#define LCD_PLL_OD_M6               16
+#define LCD_PLL_N_M6                9
+#define LCD_PLL_M_M6                0
+
+/* ******** frequency limit (unit: kHz) ******** */
+/* pll */
+#define PLL_M_MIN_M6                2
+#define PLL_M_MAX_M6                100
+#define PLL_N_MIN_M6                1
+#define PLL_N_MAX_M6                1
+#define PLL_OD_SEL_MAX_M6           2
+#define PLL_FREF_MIN_M6             (5 * 1000)
+#define PLL_FREF_MAX_M6             (30 * 1000)
+#define PLL_VCO_MIN_M6              (750 * 1000)
+#define PLL_VCO_MAX_M6              (1500 * 1000)
+
+/* video */
+#define DIV_PRE_CLK_IN_MAX_M6       (1300 * 1000)
+#define DIV_POST_CLK_IN_MAX_M6      (800 * 1000)
+#define CRT_VID_CLK_IN_MAX_M6       (600 * 1000)
+#define ENCL_CLK_IN_MAX_M6          (208 * 1000)
+
+/* **********************************
+ * M8
+ * ********************************** */
+/* ******** register bit ******** */
+/* PLL_CNTL */
+#define LCD_PLL_LOCK_M8             31
+#define LCD_PLL_EN_M8               30
+#define LCD_PLL_RST_M8              29
+#define LCD_PLL_N_M8                24
+#define LCD_PLL_OD_M8               9
+#define LCD_PLL_M_M8                0
+
+/* ******** frequency limit (unit: kHz) ******** */
+/* pll */
+#define PLL_M_MIN_M8                2
+#define PLL_M_MAX_M8                511
+#define PLL_N_MIN_M8                1
+#define PLL_N_MAX_M8                1
+#define PLL_OD_SEL_MAX_M8           3
+#define PLL_FREF_MIN_M8             (5 * 1000)
+#define PLL_FREF_MAX_M8             (25 * 1000)
+#define PLL_VCO_MIN_M8              (1200 * 1000)
+#define PLL_VCO_MAX_M8              (3000 * 1000)
+
+/* video */
+#define DIV_PRE_CLK_IN_MAX_M8       (1500 * 1000)
+#define DIV_POST_CLK_IN_MAX_M8      (1000 * 1000)
+#define CRT_VID_CLK_IN_MAX_M8       (1300 * 1000)
+#define ENCL_CLK_IN_MAX_M8          (333 * 1000)
+
+/* **********************************
+ * M8B
+ * ********************************** */
+/* ******** register bit ******** */
+/* PLL_CNTL */
+#define LCD_PLL_LOCK_M8B            31
+#define LCD_PLL_EN_M8B              30
+#define LCD_PLL_RST_M8B             29
+#define LCD_PLL_OD_M8B              16
+#define LCD_PLL_N_M8B               10
+#define LCD_PLL_M_M8B               0
+
+/* ******** frequency limit (unit: kHz) ******** */
+/* pll */
+#define PLL_M_MIN_M8B               2
+#define PLL_M_MAX_M8B               511
+#define PLL_N_MIN_M8B               1
+#define PLL_N_MAX_M8B               1
+#define PLL_OD_SEL_MAX_M8B          3
+#define PLL_FREF_MIN_M8B            (5 * 1000)
+#define PLL_FREF_MAX_M8B            (25 * 1000)
+#define PLL_VCO_MIN_M8B             (1200 * 1000)
+#define PLL_VCO_MAX_M8B             (3000 * 1000)
+
+/* video */
+#define DIV_PRE_CLK_IN_MAX_M8B      (1500 * 1000)
+#define DIV_POST_CLK_IN_MAX_M8B     (1000 * 1000)
+#define CRT_VID_CLK_IN_MAX_M8B      (1300 * 1000)
+#define ENCL_CLK_IN_MAX_M8B         (333 * 1000)
+
+/* **********************************
+ * clk config
+ * ********************************** */
 struct lcd_clk_config_s { /* unit: kHz */
 	/* IN-OUT parameters */
 	unsigned int fin;
@@ -211,7 +149,7 @@ struct lcd_clk_config_s { /* unit: kHz */
 	/* pll parameters */
 	unsigned int pll_m;
 	unsigned int pll_n;
-	unsigned int pll_od;
+	unsigned int pll_od_sel;
 	unsigned int pll_level;
 	unsigned int pll_frac;
 	unsigned int pll_fout;
@@ -221,25 +159,27 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int div_pre;
 	unsigned int div_post;
 	unsigned int xd;
-	unsigned int err_fmin;
 
 	/* clk path node parameters */
+	unsigned int ss_level_max;
 	unsigned int pll_m_max;
 	unsigned int pll_m_min;
 	unsigned int pll_n_max;
 	unsigned int pll_n_min;
+	unsigned int pll_od_sel_max;
+	unsigned int div_pre_sel_max;
+	unsigned int xd_max;
 	unsigned int pll_ref_fmax;
 	unsigned int pll_ref_fmin;
 	unsigned int pll_vco_fmax;
 	unsigned int pll_vco_fmin;
 	unsigned int pll_out_fmax;
 	unsigned int pll_out_fmin;
+	unsigned int div_pre_in_fmax;
 	unsigned int div_pre_out_fmax;
 	unsigned int div_post_out_fmax;
 	unsigned int xd_out_fmax;
-	unsigned int if_logic_fmax;
-	unsigned int if_phy_fmax;
-	unsigned int if_phy_fmin;
+	unsigned int err_fmin;
 };
 
 extern struct lcd_clk_config_s clk_Conf;
@@ -247,19 +187,39 @@ extern struct lcd_clk_config_s clk_Conf;
 /* **********************************
  * PHY Config
  * ********************************** */
-/* bit[15:11] */
-#define BIT_DPHY_LANE           11
+/* ******** M6 ******** */
+/* bit[6:0] */
+#define BIT_PHY_LANE_M6         0
+#define PHY_LANE_WIDTH_M6       7
 
 /* LVDS */
-#define LVDS_LANE_0             (1 << 4)
-#define LVDS_LANE_1             (1 << 3)
-#define LVDS_LANE_2             (1 << 1)
-#define LVDS_LANE_3             (1 << 0)
-#define LVDS_LANE_CLK           (1 << 2)
-#define LVDS_LANE_COUNT_3       (LVDS_LANE_CLK | LVDS_LANE_0 |\
-					LVDS_LANE_1 | LVDS_LANE_2)
-#define LVDS_LANE_COUNT_4       (LVDS_LANE_CLK | LVDS_LANE_0 |\
-					LVDS_LANE_1 | LVDS_LANE_2 | LVDS_LANE_3)
+#define LVDS_LANE_0_M6          (1 << 0)
+#define LVDS_LANE_1_M6          (1 << 1)
+#define LVDS_LANE_2_M6          (1 << 2)
+#define LVDS_LANE_3_M6          (1 << 3)
+#define LVDS_LANE_CLK_M6        (1 << 5)
+#define LVDS_LANE_COUNT_3_M6    (LVDS_LANE_CLK_M6 | LVDS_LANE_0_M6 |\
+				LVDS_LANE_1_M6 | LVDS_LANE_2_M6)
+#define LVDS_LANE_COUNT_4_M6    (LVDS_LANE_CLK_M6 | LVDS_LANE_0_M6 |\
+				LVDS_LANE_1_M6 | LVDS_LANE_2_M6 |\
+				LVDS_LANE_3_M6)
+
+/* ******** M8,M8b,M8M2 ******** */
+/* bit[15:11] */
+#define BIT_PHY_LANE_M8         11
+#define PHY_LANE_WIDTH_M8       5
+
+/* LVDS */
+#define LVDS_LANE_0_M8          (1 << 4)
+#define LVDS_LANE_1_M8          (1 << 3)
+#define LVDS_LANE_2_M8          (1 << 1)
+#define LVDS_LANE_3_M8          (1 << 0)
+#define LVDS_LANE_CLK_M8        (1 << 2)
+#define LVDS_LANE_COUNT_3_M8    (LVDS_LANE_CLK_M8 | LVDS_LANE_0_M8 |\
+				LVDS_LANE_1_M8 | LVDS_LANE_2_M8)
+#define LVDS_LANE_COUNT_4_M8    (LVDS_LANE_CLK_M8 | LVDS_LANE_0_M8 |\
+				LVDS_LANE_1_M8 | LVDS_LANE_2_M8 |\
+				LVDS_LANE_3_M8)
 
 /* MIPI-DSI */
 #define DSI_LANE_0              (1 << 4)

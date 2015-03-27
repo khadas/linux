@@ -58,19 +58,19 @@ static unsigned char spi_off_table[][2] = {
 
 static void set_lcd_csb(unsigned v)
 {
-	lcd_extern_gpio_output(ext_config->spi_cs.desc, v);
+	lcd_extern_gpio_output(ext_config->spi_cs, v);
 	udelay(SPI_DELAY);
 }
 
 static void set_lcd_scl(unsigned v)
 {
-	lcd_extern_gpio_output(ext_config->spi_clk.desc, v);
+	lcd_extern_gpio_output(ext_config->spi_clk, v);
 	udelay(SPI_DELAY);
 }
 
 static void set_lcd_sda(unsigned v)
 {
-	lcd_extern_gpio_output(ext_config->spi_data.desc, v);
+	lcd_extern_gpio_output(ext_config->spi_data, v);
 	udelay(SPI_DELAY);
 }
 

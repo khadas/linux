@@ -76,11 +76,11 @@ unsigned int lcd_print_flag = 0;
 #endif
 
 static struct lcd_dev_s *pDev;
-#ifdef CONFIG_AML_GAMMA_DEBUG
+#ifdef CONFIG_AML_LCD_GAMMA_DEBUG
 static struct class *gamma_debug_class;
 #endif
-static struct Lcd_CPU_GPIO_s lcd_cpu_gpio[LCD_PWR_CTRL_STEP_MAX];
 static enum Bool_state_e data_status = ON;
+static struct Lcd_CPU_GPIO_s lcd_cpu_gpio[LCD_PWR_CTRL_STEP_MAX];
 
 void lcd_print(const char *fmt, ...)
 {
@@ -99,46 +99,6 @@ static inline void lcd_mdelay(int n)
 }
 
 #ifdef CONFIG_USE_OF
-static void lcd_default_gamma_table(struct Lcd_Config_s *pConf,
-		unsigned int flag)
-{
-	int i;
-
-	if (flag == 0) { /* r */
-		for (i = 0; i < 256; i++)
-			pConf->lcd_effect.GammaTableR[i] = (i << 2);
-	} else if (flag == 1) { /* g */
-		for (i = 0; i < 256; i++)
-			pConf->lcd_effect.GammaTableG[i] = (i << 2);
-	} else if (flag == 2) { /* b */
-		for (i = 0; i < 256; i++)
-			pConf->lcd_effect.GammaTableB[i] = (i << 2);
-	} else if (flag == 3) { /* rgb */
-		for (i = 0; i < 256; i++) {
-			pConf->lcd_effect.GammaTableR[i] = (i << 2);
-			pConf->lcd_effect.GammaTableG[i] = (i << 2);
-			pConf->lcd_effect.GammaTableB[i] = (i << 2);
-		}
-	}
-}
-
-static void backlight_power_ctrl(enum Bool_state_e status)
-{
-	if (status == ON) {
-		if (data_status == OFF)
-			return;
-#ifdef CONFIG_AMLOGIC_BACKLIGHT
-		bl_power_on(LCD_BL_FLAG);
-#endif
-	} else {
-#ifdef CONFIG_AMLOGIC_BACKLIGHT
-		bl_power_off(LCD_BL_FLAG);
-#endif
-	}
-	lcd_print("%s(%s): data_status=%s\n", __func__,
-		(status ? "ON" : "OFF"), (data_status ? "ON" : "OFF"));
-}
-
 static void lcd_cpu_gpio_ctrl(int gpio, int value)
 {
 	struct gpio_desc *gdesc;
@@ -167,7 +127,7 @@ static int lcd_power_ctrl(enum Bool_state_e status)
 	struct aml_pmu_driver *pmu_drv;
 #endif
 #ifdef CONFIG_AML_LCD_EXTERN
-	struct aml_lcd_extern_driver_s *ext_driver;
+	struct aml_lcd_extern_driver_s *lcd_ext;
 #endif
 
 	pctrl = &(pDev->pConf->lcd_power_ctrl);
@@ -177,12 +137,12 @@ static int lcd_power_ctrl(enum Bool_state_e status)
 			lcd_print("%s %s step %d\n", __func__,
 				(status ? "ON" : "OFF"), i+1);
 			switch (pctrl->power_on_config[i].type) {
-			case LCD_PWR_TYPE_CPU:
+			case LCD_POWER_TYPE_CPU:
 				gpio = pctrl->power_on_config[i].gpio;
 				value = pctrl->power_on_config[i].value;
 				lcd_cpu_gpio_ctrl(gpio, value);
 				break;
-			case LCD_PWR_TYPE_PMU:
+			case LCD_POWER_TYPE_PMU:
 #ifdef CONFIG_AMLOGIC_BOARD_HAS_PMU
 				gpio = pctrl->power_on_config[i].gpio;
 				value = pctrl->power_on_config[i].value;
@@ -197,22 +157,26 @@ static int lcd_power_ctrl(enum Bool_state_e status)
 				}
 #endif
 				break;
-			case LCD_PWR_TYPE_SIGNAL:
+			case LCD_POWER_TYPE_SIGNAL:
+				if (pctrl->power_level == 0)
+					break;
 				if (pctrl->ports_ctrl == NULL)
 					lcd_print("no lcd_ports_ctrl\n");
 				else
 					ret = pctrl->ports_ctrl(ON);
 				break;
-			case LCD_PWR_TYPE_INITIAL:
+			case LCD_POWER_TYPE_INITIAL:
+				if (pctrl->power_level == 0)
+					break;
 #ifdef CONFIG_AML_LCD_EXTERN
-				ext_driver = aml_lcd_extern_get_driver();
-				if (ext_driver == NULL) {
+				lcd_ext = aml_lcd_extern_get_driver();
+				if (lcd_ext == NULL) {
 					DPRINT("no lcd_extern driver\n");
 				} else {
-					if (ext_driver->power_on) {
-						ext_driver->power_on();
+					if (lcd_ext->power_on) {
+						lcd_ext->power_on();
 						DPRINT("%s power on init\n",
-							ext_driver->name);
+							lcd_ext->name);
 					}
 				}
 #endif
@@ -233,12 +197,12 @@ static int lcd_power_ctrl(enum Bool_state_e status)
 			lcd_print("%s %s step %d\n", __func__,
 				(status ? "ON" : "OFF"), i+1);
 			switch (pctrl->power_off_config[i].type) {
-			case LCD_PWR_TYPE_CPU:
+			case LCD_POWER_TYPE_CPU:
 				gpio = pctrl->power_off_config[i].gpio;
 				value = pctrl->power_off_config[i].value;
 				lcd_cpu_gpio_ctrl(gpio, value);
 				break;
-			case LCD_PWR_TYPE_PMU:
+			case LCD_POWER_TYPE_PMU:
 #ifdef CONFIG_AMLOGIC_BOARD_HAS_PMU
 				gpio = pctrl->power_off_config[i].gpio;
 				value = pctrl->power_off_config[i].value;
@@ -253,22 +217,26 @@ static int lcd_power_ctrl(enum Bool_state_e status)
 				}
 #endif
 				break;
-			case LCD_PWR_TYPE_SIGNAL:
+			case LCD_POWER_TYPE_SIGNAL:
+				if (pctrl->power_level == 0)
+					break;
 				if (pctrl->ports_ctrl == NULL)
 					lcd_print("no lcd_ports_ctrl\n");
 				else
 					ret = pctrl->ports_ctrl(OFF);
 				break;
-			case LCD_PWR_TYPE_INITIAL:
+			case LCD_POWER_TYPE_INITIAL:
+				if (pctrl->power_level == 0)
+					break;
 #ifdef CONFIG_AML_LCD_EXTERN
-				ext_driver = aml_lcd_extern_get_driver();
-				if (ext_driver == NULL) {
+				lcd_ext = aml_lcd_extern_get_driver();
+				if (lcd_ext == NULL) {
 					DPRINT("no lcd_extern driver\n");
 				} else {
-					if (ext_driver->power_off) {
-						ext_driver->power_off();
+					if (lcd_ext->power_off) {
+						lcd_ext->power_off();
 						DPRINT("%s power off init\n",
-							ext_driver->name);
+							lcd_ext->name);
 					}
 				}
 #endif
@@ -287,6 +255,23 @@ static int lcd_power_ctrl(enum Bool_state_e status)
 	return ret;
 }
 #endif
+
+static void backlight_power_ctrl(enum Bool_state_e status)
+{
+	if (status == ON) {
+		if (data_status == OFF)
+			return;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+		bl_power_on(LCD_BL_FLAG);
+#endif
+	} else {
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+		bl_power_off(LCD_BL_FLAG);
+#endif
+	}
+	lcd_print("%s(%s): data_status=%s\n", __func__,
+		(status ? "ON" : "OFF"), (data_status ? "ON" : "OFF"));
+}
 
 void _enable_backlight(void)
 {
@@ -473,7 +458,7 @@ static void _init_vout(void)
 /* *********************************************************
  * gamma debug
  * ********************************************************* */
-#ifdef CONFIG_AML_GAMMA_DEBUG
+#ifdef CONFIG_AML_LCD_GAMMA_DEBUG
 static unsigned short gamma_adj_r[256];
 static unsigned short gamma_adj_g[256];
 static unsigned short gamma_adj_b[256];
@@ -1615,17 +1600,15 @@ static int remove_lcd_attr(void)
 }
 /* **************************** */
 
-static int lcd_reboot_notifier(struct notifier_block *nb,
-		unsigned long state, void *cmd)
+static int lcd_pmu_gpio_name_map_num(const char *name)
 {
-	lcd_print("[%s]: %lu\n", __func__, state);
-	if (pDev->pConf->lcd_misc_ctrl.lcd_status == 0)
-		return NOTIFY_DONE;
+	int index;
 
-	_disable_backlight();
-	_lcd_module_disable();
-
-	return NOTIFY_OK;
+	for (index = 0; index < LCD_POWER_PMU_GPIO_MAX; index++) {
+		if (!strcasecmp(name, lcd_power_pmu_gpio_table[index]))
+			break;
+	}
+	return index;
 }
 
 static int lcd_cpu_gpio_register_check(const char *name, int total_num)
@@ -1658,10 +1641,9 @@ static int lcd_cpu_gpio_register(const char *name, struct platform_device *pdev)
 	index = lcd_cpu_gpio_register_check(name, total_num);
 	if (index >= LCD_PWR_CTRL_STEP_MAX) { /* cpu gpio didn't register */
 		/* register gpio and save index */
-		gdesc = gpiod_get(&pdev->dev, name);
+		gdesc = lcd_gpio_request(&pdev->dev, name);
 		if (IS_ERR(gdesc)) {
-			DPRINT("failed to alloc lcd power ctrl gpio (%s)\n",
-				name);
+			DPRINT("failed to alloc lcd cpu gpio (%s)\n", name);
 			index = LCD_PWR_CTRL_STEP_MAX;
 		} else {
 			index = total_num;
@@ -1673,18 +1655,103 @@ static int lcd_cpu_gpio_register(const char *name, struct platform_device *pdev)
 	return index;
 }
 
-static int lcd_pmu_gpio_name_map_num(const char *name)
+static void lcd_power_gpio_register(struct Lcd_Power_Ctrl_s *pctrl,
+		struct platform_device *pdev)
 {
-	int index;
+	int i;
+	int gpio;
+	const char *str = NULL;
 
-	for (index = 0; index < LCD_PWR_PMU_GPIO_MAX; index++) {
-		if (!strcasecmp(name, lcd_power_pmu_gpio_table[index]))
+	/* initial lcd_cpu_gpio struct num */
+	pctrl->cpu_gpio_num = 0;
+	for (i = 0; i < LCD_PWR_CTRL_STEP_MAX; i++)
+		strcpy(lcd_cpu_gpio[i].name, "n");
+
+	for (i = 0; i < pctrl->power_on_step; i++) {
+		str = pctrl->power_on_config[i].gpio_name;
+		switch (pctrl->power_on_config[i].type) {
+		case LCD_POWER_TYPE_CPU:
+			/* for cpu gpio, it is lcd_cpu_gpio struct index */
+			gpio = lcd_cpu_gpio_register(str, pdev);
 			break;
+		case LCD_POWER_TYPE_PMU:
+			/* for pmu gpio, it is gpio mapping number */
+			gpio = lcd_pmu_gpio_name_map_num(str);
+			break;
+		default:
+			gpio = 0;
+			break;
+		}
+		pctrl->power_on_config[i].gpio = gpio;
+
+		lcd_print("power on step %d: type = %s(%d)\n", i+1,
+			lcd_power_type_table[pctrl->power_on_config[i].type],
+			pctrl->power_on_config[i].type);
+		lcd_print("power on step %d: gpio = %s(%d)\n", i+1,
+			((gpio < pctrl->cpu_gpio_num) ?
+			lcd_cpu_gpio[gpio].name : "none"),
+			pctrl->power_on_config[i].gpio);
+		lcd_print("power on step %d: value = %d\n", i+1,
+			pctrl->power_on_config[i].value);
+		lcd_print("power on step %d: delay = %d\n", i+1,
+			pctrl->power_on_config[i].delay);
 	}
-	return index;
+
+	for (i = 0; i < pctrl->power_off_step; i++) {
+		switch (pctrl->power_off_config[i].type) {
+		str = pctrl->power_off_config[i].gpio_name;
+		case LCD_POWER_TYPE_CPU:
+			/* for cpu gpio, it is lcd_cpu_gpio struct index */
+			gpio = lcd_cpu_gpio_register(str, pdev);
+			break;
+		case LCD_POWER_TYPE_PMU:
+			/* for pmu gpio, it is gpio mapping number */
+			gpio = lcd_pmu_gpio_name_map_num(str);
+			break;
+		default:
+			gpio = 0;
+			break;
+		}
+		pctrl->power_off_config[i].gpio = gpio;
+
+		lcd_print("power off step %d: type = %s(%d)\n", i+1,
+			lcd_power_type_table[pctrl->power_off_config[i].type],
+			pctrl->power_off_config[i].type);
+		lcd_print("power off step %d: gpio = %s(%d)\n", i+1,
+			((gpio < pctrl->cpu_gpio_num) ?
+			lcd_cpu_gpio[gpio].name : "none"),
+			pctrl->power_off_config[i].gpio);
+		lcd_print("power off step %d: value = %d\n", i+1,
+			pctrl->power_off_config[i].value);
+		lcd_print("power off step %d: delay = %d\n", i+1,
+			pctrl->power_off_config[i].delay);
+	}
 }
 
 #ifdef CONFIG_USE_OF
+static void lcd_default_gamma_table(struct Lcd_Config_s *pConf,
+		unsigned int flag)
+{
+	int i;
+
+	if (flag == 0) { /* r */
+		for (i = 0; i < 256; i++)
+			pConf->lcd_effect.GammaTableR[i] = (i << 2);
+	} else if (flag == 1) { /* g */
+		for (i = 0; i < 256; i++)
+			pConf->lcd_effect.GammaTableG[i] = (i << 2);
+	} else if (flag == 2) { /* b */
+		for (i = 0; i < 256; i++)
+			pConf->lcd_effect.GammaTableB[i] = (i << 2);
+	} else if (flag == 3) { /* rgb */
+		for (i = 0; i < 256; i++) {
+			pConf->lcd_effect.GammaTableR[i] = (i << 2);
+			pConf->lcd_effect.GammaTableG[i] = (i << 2);
+			pConf->lcd_effect.GammaTableB[i] = (i << 2);
+		}
+	}
+}
+
 #define MOD_LEN_MAX        30
 static int _get_lcd_model_timing(struct Lcd_Config_s *pConf,
 		struct platform_device *pdev)
@@ -2288,7 +2355,6 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 	int ret = 0;
 	const char *str;
 	unsigned char propname[20];
-	int val;
 	unsigned int para[LCD_PWR_CTRL_STEP_MAX];
 	int i;
 	int index;
@@ -2299,7 +2365,6 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 		return -1;
 	}
 	pctrl = &(pConf->lcd_power_ctrl);
-	pctrl->cpu_gpio_num = 0;
 	/* lcd power on */
 	for (i = 0; i < LCD_PWR_CTRL_STEP_MAX; i++) {
 		/*propname = kasprintf(GFP_KERNEL, "power_on_step_%d", i+1); */
@@ -2315,46 +2380,41 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 			break;
 		}
 		lcd_print("%s 0: %s\n", propname, str);
-		for (index = 0; index < LCD_PWR_TYPE_MAX; index++) {
+		for (index = 0; index < LCD_POWER_TYPE_MAX; index++) {
 			if (!strcasecmp(str, lcd_power_type_table[index]))
 				break;
 		}
 		pctrl->power_on_config[i].type = index;
 
-		if (pctrl->power_on_config[i].type < LCD_PWR_TYPE_SIGNAL) {
-			ret = of_property_read_string_index(pdev->dev.of_node,
-				propname, 1, &str);
-			if (ret) {
-				DPRINT("failed to get %s index 1\n", propname);
-			} else {
-				if (pctrl->power_on_config[i].type ==
-					LCD_PWR_TYPE_CPU) {
-					val = lcd_cpu_gpio_register(str, pdev);
-					pctrl->power_on_config[i].gpio = val;
-				} else if (pctrl->power_on_config[i].type ==
-					LCD_PWR_TYPE_PMU) {
-					val = lcd_pmu_gpio_name_map_num(str);
-					pctrl->power_on_config[i].gpio = val;
-				}
-			}
-			ret = of_property_read_string_index(pdev->dev.of_node,
-				propname, 2, &str);
-			if (ret) {
-				DPRINT("failed to get %s\n", propname);
-			} else {
-				if ((strcasecmp(str, "output_low") == 0) ||
-					(strcasecmp(str, "0") == 0)) {
-					pctrl->power_on_config[i].value =
-						LCD_GPIO_OUTPUT_LOW;
-				} else if ((strcasecmp(str, "output_high") == 0)
-					|| (strcasecmp(str, "1") == 0)) {
-					pctrl->power_on_config[i].value =
-						LCD_GPIO_OUTPUT_HIGH;
-				} else if ((strcasecmp(str, "input") == 0) ||
-					(strcasecmp(str, "2") == 0)) {
-					pctrl->power_on_config[i].value =
-						LCD_GPIO_INPUT;
-				}
+		/* only for gpio control */
+		if (pctrl->power_on_config[i].type >= LCD_POWER_TYPE_SIGNAL)
+			continue;
+		ret = of_property_read_string_index(pdev->dev.of_node,
+			propname, 1, &str);
+		if (ret) {
+			DPRINT("failed to get %s index 1\n", propname);
+			strcpy(pctrl->power_on_config[i].gpio_name, "none");
+		} else {
+			strcpy(pctrl->power_on_config[i].gpio_name, str);
+		}
+		ret = of_property_read_string_index(pdev->dev.of_node,
+			propname, 2, &str);
+		if (ret) {
+			DPRINT("failed to get %s\n", propname);
+			pctrl->power_on_config[i].value = LCD_GPIO_INPUT;
+		} else {
+			if ((strcasecmp(str, "output_low") == 0) ||
+				(strcasecmp(str, "0") == 0)) {
+				pctrl->power_on_config[i].value =
+					LCD_GPIO_OUTPUT_LOW;
+			} else if ((strcasecmp(str, "output_high") == 0)
+				|| (strcasecmp(str, "1") == 0)) {
+				pctrl->power_on_config[i].value =
+					LCD_GPIO_OUTPUT_HIGH;
+			} else if ((strcasecmp(str, "input") == 0) ||
+				(strcasecmp(str, "2") == 0)) {
+				pctrl->power_on_config[i].value =
+					LCD_GPIO_INPUT;
 			}
 		}
 	}
@@ -2386,46 +2446,41 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 			break;
 		}
 		lcd_print("%s 0: %s\n", propname, str);
-		for (index = 0; index < LCD_PWR_TYPE_MAX; index++) {
+		for (index = 0; index < LCD_POWER_TYPE_MAX; index++) {
 			if (!strcasecmp(str, lcd_power_type_table[index]))
 				break;
 		}
 		pctrl->power_off_config[i].type = index;
 
-		if (pctrl->power_off_config[i].type < LCD_PWR_TYPE_SIGNAL) {
-			ret = of_property_read_string_index(pdev->dev.of_node,
-				propname, 1, &str);
-			if (ret) {
-				DPRINT("failed to get %s index 1\n", propname);
-			} else {
-				if (pctrl->power_off_config[i].type ==
-					LCD_PWR_TYPE_CPU) {
-					val = lcd_cpu_gpio_register(str, pdev);
-					pctrl->power_off_config[i].gpio = val;
-				} else if (pctrl->power_off_config[i].type ==
-					LCD_PWR_TYPE_PMU) {
-					val = lcd_pmu_gpio_name_map_num(str);
-					pctrl->power_off_config[i].gpio = val;
-				}
-			}
-			ret = of_property_read_string_index(pdev->dev.of_node,
-				propname, 2, &str);
-			if (ret) {
-				DPRINT("failed to get %s index 2\n", propname);
-			} else {
-				if ((strcasecmp(str, "output_low") == 0) ||
-					(strcasecmp(str, "0") == 0)) {
-					pctrl->power_off_config[i].value =
-						LCD_GPIO_OUTPUT_LOW;
-				} else if ((strcasecmp(str, "output_high") == 0)
-					|| (strcasecmp(str, "1") == 0)) {
-					pctrl->power_off_config[i].value =
-						LCD_GPIO_OUTPUT_HIGH;
-				} else if ((strcasecmp(str, "input") == 0) ||
-					(strcasecmp(str, "2") == 0)) {
-					pctrl->power_off_config[i].value =
-						LCD_GPIO_INPUT;
-				}
+		/* only for gpio control */
+		if (pctrl->power_off_config[i].type >= LCD_POWER_TYPE_SIGNAL)
+			continue;
+		ret = of_property_read_string_index(pdev->dev.of_node,
+			propname, 1, &str);
+		if (ret) {
+			DPRINT("failed to get %s index 1\n", propname);
+			strcpy(pctrl->power_off_config[i].gpio_name, "none");
+		} else {
+			strcpy(pctrl->power_off_config[i].gpio_name, str);
+		}
+		ret = of_property_read_string_index(pdev->dev.of_node,
+			propname, 2, &str);
+		if (ret) {
+			DPRINT("failed to get %s index 2\n", propname);
+			pctrl->power_off_config[i].value = LCD_GPIO_INPUT;
+		} else {
+			if ((strcasecmp(str, "output_low") == 0) ||
+				(strcasecmp(str, "0") == 0)) {
+				pctrl->power_off_config[i].value =
+					LCD_GPIO_OUTPUT_LOW;
+			} else if ((strcasecmp(str, "output_high") == 0)
+				|| (strcasecmp(str, "1") == 0)) {
+				pctrl->power_off_config[i].value =
+					LCD_GPIO_OUTPUT_HIGH;
+			} else if ((strcasecmp(str, "input") == 0) ||
+				(strcasecmp(str, "2") == 0)) {
+				pctrl->power_off_config[i].value =
+					LCD_GPIO_INPUT;
 			}
 		}
 	}
@@ -2443,32 +2498,6 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 		}
 	}
 
-	for (i = 0; i < pctrl->power_on_step; i++) {
-		lcd_print("power on step %d: type = %s(%d)\n", i+1,
-			lcd_power_type_table[pctrl->power_on_config[i].type],
-			pctrl->power_on_config[i].type);
-		lcd_print("power on step %d: gpio = %d\n", i+1,
-			pctrl->power_on_config[i].gpio);
-		lcd_print("power on step %d: value = %s(%d)\n", i+1,
-			lcd_cpu_gpio[pctrl->power_on_config[i].gpio].name,
-			pctrl->power_on_config[i].value);
-		lcd_print("power on step %d: delay = %d\n", i+1,
-			pctrl->power_on_config[i].delay);
-	}
-
-	for (i = 0; i < pctrl->power_off_step; i++) {
-		lcd_print("power off step %d: type = %s(%d)\n", i+1,
-			lcd_power_type_table[pctrl->power_off_config[i].type],
-			pctrl->power_off_config[i].type);
-		lcd_print("power off step %d: gpio = %s(%d)\n", i+1,
-			lcd_cpu_gpio[pctrl->power_off_config[i].gpio].name,
-			pctrl->power_off_config[i].gpio);
-		lcd_print("power off step %d: value = %d\n", i+1,
-			pctrl->power_off_config[i].value);
-		lcd_print("power off step %d: delay = %d\n", i+1,
-			pctrl->power_off_config[i].delay);
-	}
-
 	pConf->lcd_misc_ctrl.pin = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(pConf->lcd_misc_ctrl.pin))
 		DPRINT("get lcd ttl ports pinmux error\n");
@@ -2477,9 +2506,30 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 }
 #endif
 
-static void lcd_config_assign(struct Lcd_Config_s *pConf)
+static void lcd_config_assign(struct Lcd_Config_s *pConf,
+		struct platform_device *pdev)
 {
+	lcd_power_gpio_register(&pConf->lcd_power_ctrl, pdev);
+
+	/* internal control:
+	0=only power for edp_edid_probe, 1=power+signal for normal */
+	pConf->lcd_power_ctrl.power_level = 1;
 	pConf->lcd_power_ctrl.power_ctrl = lcd_power_ctrl;
+
+	creat_lcd_class();
+}
+
+static int lcd_reboot_notifier(struct notifier_block *nb,
+		unsigned long state, void *cmd)
+{
+	lcd_print("[%s]: %lu\n", __func__, state);
+	if (pDev->pConf->lcd_misc_ctrl.lcd_status == 0)
+		return NOTIFY_DONE;
+
+	_disable_backlight();
+	_lcd_module_disable();
+
+	return NOTIFY_OK;
 }
 
 #ifdef CONFIG_USE_OF
@@ -2510,12 +2560,10 @@ static int lcd_probe(struct platform_device *pdev)
 	_get_lcd_default_config(pDev->pConf, pdev);
 	_get_lcd_power_config(pDev->pConf, pdev);
 #else
-	pDev->pConf =
-		(struct Lcd_Config_s *)(pdev->dev.platform_data->lcd_conf);
+	pDev->pConf = (struct Lcd_Config_s *)(pdev->dev.platform_data->pConf);
 #endif
 
-	creat_lcd_class();
-	lcd_config_assign(pDev->pConf);
+	lcd_config_assign(pDev->pConf, pdev);
 	lcd_config_probe(pDev->pConf);
 	save_lcd_config(pDev->pConf);
 
@@ -2523,16 +2571,16 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_config_init(pDev->pConf);
 	_init_vout();
 
+	ret = creat_lcd_attr();
+#ifdef CONFIG_AML_LCD_GAMMA_DEBUG
+	save_original_gamma(pDev->pConf);
+	ret = creat_lcd_gamma_attr();
+#endif
+
 	lcd_reboot_nb.notifier_call = lcd_reboot_notifier;
 	ret = register_reboot_notifier(&lcd_reboot_nb);
 	if (ret)
 		DPRINT("notifier register lcd_reboot_notifier fail!\n");
-
-	ret = creat_lcd_attr();
-#ifdef CONFIG_AML_GAMMA_DEBUG
-	save_original_gamma(pDev->pConf);
-	ret = creat_lcd_gamma_attr();
-#endif
 
 	DPRINT("LCD probe ok\n");
 	return 0;
@@ -2545,7 +2593,7 @@ static int lcd_remove(struct platform_device *pdev)
 	lcd_config_remove(pDev->pConf);
 	remove_lcd_attr();
 	remove_lcd_class();
-#ifdef CONFIG_AML_GAMMA_DEBUG
+#ifdef CONFIG_AML_LCD_GAMMA_DEBUG
 	remove_lcd_gamma_attr();
 #endif
 

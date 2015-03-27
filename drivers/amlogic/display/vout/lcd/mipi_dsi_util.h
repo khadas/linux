@@ -446,9 +446,12 @@ enum tv_enc_lcd_type_e {
 #define DCS_CMD_CODE_SOFT_RESET           0xc
 
 /* ********************************************************
- * DPHY timing
+ * DPHY standard timing
  * ******************************************************** */
-/*      DPHY timing parameter       Value (unit: 0.01ns) */
+/* unit: MHz */
+#define MIPI_PHY_CLK_MAX            1000
+
+/* **** DPHY timing parameter       Value (unit: 0.01ns) **** */
 /* >100ns (4M) */
 #define DPHY_TIME_LP_TESC(ui)       (250 * 100)
 /* >50ns */
