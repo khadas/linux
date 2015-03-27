@@ -16,6 +16,7 @@
 #ifndef __LINUX_AMLOGIC_GPIO_AMLOGIC_H
 #define __LINUX_AMLOGIC_GPIO_AMLOGIC_H
 #include <linux/types.h>
+#include <linux/io.h>
 #define GPIO_REG_BIT(reg, bit) ((reg<<5)|bit)
 #define GPIO_REG(value) ((value>>5))
 #define GPIO_BIT(value) ((value&0x1F))

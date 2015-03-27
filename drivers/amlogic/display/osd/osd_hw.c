@@ -39,6 +39,9 @@
 #endif
 #ifdef CONFIG_AM_VIDEO
 #include <linux/amlogic/amports/vframe_receiver.h>
+#include <linux/amlogic/amports/vframe_provider.h>
+
+#include <linux/amlogic/canvas/canvas.h>
 #endif
 
 /* Local Headers */
@@ -89,7 +92,7 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map);
 static int osd_logo_index = -1;
 
 #ifdef CONFIG_AM_VIDEO
-static vframe_t vf;
+static struct vframe_s vf;
 static struct vframe_provider_s osd_vf_prov;
 static unsigned char osd_vf_prov_init;
 #endif
@@ -410,7 +413,7 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 #endif
 
 #ifdef CONFIG_AM_VIDEO
-static vframe_t *osd_vf_peek(void *arg)
+static struct vframe_s *osd_vf_peek(void *arg)
 {
 	if (osd_vf_need_update && (vf.width > 0) && (vf.height > 0))
 		return &vf;
@@ -418,7 +421,7 @@ static vframe_t *osd_vf_peek(void *arg)
 		return NULL;
 }
 
-static vframe_t *osd_vf_get(void *arg)
+static struct vframe_s *osd_vf_get(void *arg)
 {
 	if (osd_vf_need_update) {
 		vf_ext_light_unreg_provider(&osd_vf_prov);

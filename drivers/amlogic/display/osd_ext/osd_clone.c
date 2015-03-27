@@ -48,7 +48,7 @@ static struct osd_ext_clone_s s_osd_ext_clone;
 
 static void osd_clone_process(void)
 {
-	canvas_t cs, cd;
+	struct canvas_s cs, cd;
 	u32 x0 = 0;
 	u32 y0 = 0;
 	u32 y1 = 0;

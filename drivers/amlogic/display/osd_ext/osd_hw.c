@@ -77,7 +77,7 @@ static void osd_ext_pan_display_fence(struct osd_fence_map_s *fence_map);
 
 #ifdef CONFIG_AM_VIDEO
 #define PROVIDER_NAME "osd_ext"
-static vframe_t vf;
+static struct vframe_s vf;
 static struct vframe_provider_s osd_ext_vf_prov;
 static unsigned char osd_ext_vf_prov_init;
 #endif
@@ -365,7 +365,7 @@ int osd_ext_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 #endif
 
 #ifdef CONFIG_AM_VIDEO
-static vframe_t *osd_ext_vf_peek(void *arg)
+static struct vframe_s *osd_ext_vf_peek(void *arg)
 {
 	if ((osd_ext_vf_need_update && (vf.width > 0) && (vf.height > 0)))
 		return &vf;
@@ -373,7 +373,7 @@ static vframe_t *osd_ext_vf_peek(void *arg)
 		return NULL;
 }
 
-static vframe_t *osd_ext_vf_get(void *arg)
+static struct vframe_s *osd_ext_vf_get(void *arg)
 {
 	if (osd_ext_vf_need_update) {
 		vf_ext_light_unreg_provider(&osd_ext_vf_prov);

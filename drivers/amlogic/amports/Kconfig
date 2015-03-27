@@ -1,0 +1,252 @@
+#
+# Amlogic streaming device configuration
+#
+config  AM_PTSSERVER
+	boolean
+	default n
+
+config  H264_4K2K_SINGLE_CORE
+	boolean
+	default n
+
+
+config  VSYNC_RDMA
+	boolean "VSYNC CBUS RDMA"
+	default n
+	---help---
+	  Select to enable VSYNC CBUS RDMA.
+
+config TVIN_VIUIN
+	boolean "Amlogic TVIN VIUIN device"
+	default n
+	---help---
+	  VIUIN device driver.
+
+config AM_VIDEO
+	boolean "Video management"
+	default y
+	select AM_CANVAS
+	select AM_PTSMGR
+	select AM_TIMESYNC
+	select AM_PTSSERVER
+	---help---
+	  Driver for video display.
+
+config AM_VIDEO2
+	boolean "Video2 management"
+	default n
+	select AM_VIDEO
+	---help---
+	  Driver for video2 display.
+
+config KEEP_FRAME_RESERVED
+	boolean "Video keep frame used reserved buffer"
+	default n
+	depends on  AM_VIDEO
+	---help---
+	  Select to enable reserved buffer for last frame keeep.
+
+config SUPPORT_VIDEO_ON_VPP2
+	boolean "Support video on vpp2"
+	default n
+	depends on !AM_VIDEO2
+	---help---
+	  Support displaying video on vpp2
+
+config GE2D_KEEP_FRAME
+	boolean "Amlogic Video protect video streambuf framebuf"
+	default n
+	depends on  AM_VIDEO
+	---help---
+		Select to enable protect video streambuf framebuf.
+
+menu "Video Decoders"
+	depends on AM_VIDEO
+
+config AM_VDEC_MPEG12
+	tristate "Amlogic MPEG1/2 Video Decoder"
+	default y
+	select AM_PTSSERVER
+	---help---
+	   Driver for mpeg1/2 video decoder.
+	   select AM_PTSSERVER...
+	   select for build for support mpeg1 &2
+	   ...
+
+config AM_VDEC_MPEG4
+	tristate "Amlogic MPEG4 Video Decoder"
+	default y
+	select AM_PTSSERVER
+	---help---
+	  Driver for mpeg4 video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_VC1
+	tristate "Amlogic VC1 Video Decoder"
+	default y
+	select AM_PTSSERVER
+	---help---
+	  Driver for vc1 video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_H264
+	tristate "Amlogic H264 Video Decoder"
+	default y
+	select AM_PTSSERVER
+	---help---
+	  Driver for h264 video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_H264MVC
+	tristate "Amlogic H264MVC Video Decoder"
+	default y
+	select AM_PTSSERVER
+	---help---
+	  Driver for h264mvc video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_H264_4K2K
+        tristate "Amlogic H264_4K2K Video Decoder"
+        default y
+
+        select AM_PTSSERVER
+        ---help---
+          Driver for h264 4Kx2K video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_H265
+        tristate "Amlogic H265 Video Decoder"
+        default y
+
+        select AM_PTSSERVER
+        ---help---
+          Driver for h265 video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_MJPEG
+	tristate "Amlogic Motion JPEG Video Decoder"
+	default y
+
+	select AM_PTSSERVER
+	---help---
+	  Driver for motion jpeg video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_ENCODER
+	tristate "Amlogic AVC encoder"
+	default n
+
+	select AM_PTSSERVER
+	---help---
+	  Driver for avc encoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_JPEG_ENCODER
+	tristate "Amlogic jpeg encoder"
+	default n
+
+	select AM_PTSSERVER
+	---help---
+	  Driver for jpeg encoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_PIC_DEC
+	tristate "Amlogic picture decoder"
+	default n
+
+	select AM_PTSSERVER
+	---help---
+	  Driver for picture decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_REAL
+	tristate "Amlogic Real Video Decoder"
+	default y
+
+	select AM_PTSSERVER
+	---help---
+	  Driver for real video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_AVS
+	tristate "Amlogic AVS Video Decoder"
+    default y
+
+	select AM_PTSSERVER
+	---help---
+	  Driver for avs video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_JPEGDEC
+	tristate "Amlogic HW jpeg decoder"
+	default n
+
+	select AM_PTSSERVER
+	---help---
+	  Select to enable HW jpeg decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+
+config AM_TIMESYNC
+	boolean "Amlogic Time sync driver"
+	default y
+	---help---
+	  AV sync and play rate control management.
+
+config AM_STREAMING
+	boolean "Amlogic AV Streaming support"
+	default y
+	select AM_PTSSERVER
+	---help---
+	  Driver for the AV streaming ports.
+
+config AM_SUBTITLE
+	boolean "Amlogic SubTitle support"
+	default n
+	---help---
+	  Internal Sub Title support driver
+
+config AM_VIDEOCAPTURE
+	boolean "Amlogic Video Capture support"
+	default n
+	---help---
+		Internal Video Capture driver
+endmenu
+

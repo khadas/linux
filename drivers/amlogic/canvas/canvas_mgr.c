@@ -485,6 +485,8 @@ static void canvas_pool_config(void)
 	canvas_pool_init();
 
 	canvas_pool_register_const_canvas(0, 0x25, "amvdec");
+	canvas_pool_register_const_canvas(0x78, 0xbf, "amvdec");
+	canvas_pool_register_const_canvas(0x60, 0x65, "display");
 	canvas_pool_register_const_canvas(0x40, 0x44, "osd");
 	/*please add static canvas later. */
 }
@@ -493,7 +495,7 @@ int amcanvas_manager_init(void)
 {
 	int r;
 	canvas_pool_config();
-	canvas_pool_dump_canvas_info();
+	/* canvas_pool_dump_canvas_info(); */
 	r = class_register(&canvas_class);
 	return r;
 }

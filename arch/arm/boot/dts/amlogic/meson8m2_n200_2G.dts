@@ -33,6 +33,21 @@
 			size = <0x2000000>;
 			no-map;
 		};
+
+		/*  DISP&MM-A/V stream */
+		streambuf_reserved:linux,mesonstream {
+			compatible = "amlogic, stream-memory";
+			size = <0x2000000>;
+			no-map;
+		};
+
+		/*  DISP&MM-A/V stream */
+		vdec_reserved:linux,vdec {
+			compatible = "amlogic, vdec-memory";
+			size = <0xc000000>;
+			no-map;
+		};
+
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -109,6 +124,41 @@
 		reset-names = "ge2d";
 	};
 
+    mesonstream {
+		compatible = "amlogic, codec, streambuf";
+		memory-region = <&streambuf_reserved>;
+                dev_name = "mesonstream";
+                status = "okay";
+		resets = <&clock GCLK_IDX_HIU_PARSER_TOP
+			&clock GCLK_IDX_VPU_INTR
+			&clock GCLK_IDX_DEMUX
+			&clock GCLK_IDX_DOS
+			&clock GCLK_IDX_MEDIA_CPU>;
+			reset-names = "parser_top",
+				"vpu_intr",
+				"demux",
+				"vdec",
+				"audio";
+			interrupts = <0 3 1
+				0 23 1
+				0 32 1
+				0 43 1
+				0 44 1
+				0 45 1>;
+			interrupt-names = "vsync",
+					"demux",
+					"parser",
+					"mailbox_0",
+					"mailbox_1",
+					"mailbox_2";
+    };
+
+    vdec {
+        compatible = "amlogic, vdec";
+                memory-region = <&vdec_reserved>;
+                dev_name = "vdec.0";
+                status = "okay";
+    };
 	ethmac: ethernet@0xc9410000{
 		compatible = "amlogic, meson8m2-rmii-dwmac";
 		reg = <0xc9410000 0x10000
@@ -380,7 +430,6 @@ sdio{
         dev_name = "amlogic-canvas";
         status = "ok";
         reg = <0xc8006000 0x400>;
-
     };
 
 	/* AUDIO board specific */
