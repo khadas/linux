@@ -315,8 +315,18 @@ struct Lcd_Power_Ctrl_s {
 	int (*ports_ctrl)(enum Bool_state_e status);
 };
 
+struct Lcd_Clk_Gate_Ctrl_s {
+	struct reset_control *enct;
+	struct reset_control *venct;
+	struct reset_control *venct1;
+	struct reset_control *encl;
+	struct reset_control *vencl;
+	struct reset_control *edp;
+};
+
 struct Lcd_Misc_Ctrl_s {
 	struct pinctrl *pin;
+	struct Lcd_Clk_Gate_Ctrl_s rstc;
 	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
 	struct class *debug_class;
 	unsigned char lcd_status;

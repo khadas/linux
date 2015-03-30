@@ -22,6 +22,13 @@
 			&lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_off>;
 		pinctrl-7 = <&lcd_ttl_rgb_8bit_pins_off &lcd_ttl_clk_pins_off
 			&lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_off>;
+		resets = <&clock GCLK_IDX_VCLK2_ENCT
+			&clock GCLK_IDX_VCLK2_VENCT
+			&clock GCLK_IDX_VCLK2_VENCT1
+			&clock GCLK_IDX_VCLK2_ENCL
+			&clock GCLK_IDX_VCLK2_VENCL
+			&clock GCLK_IDX_EDP_CLK>;
+		reset-names = "enct","venct","venct1","encl","vencl","edp";
 
 		/** lcd model name for uboot driver */
 		lcd_model_name ="lcd_B080XAN01";
@@ -115,8 +122,8 @@
 		rgb_base_coeff=<0xf0 0x74a>; /** rgb_base, rgb_coeff */
 
 		/* CPU GPIO port request, for lcd power on/off control */
-		GPIODV_29-gpios = <&gpio GPIODV_29 0>;
-		GPIODV_0-gpios = <&gpio GPIODV_0 0>;
+		GPIODV_29-gpios = <&gpio GPIODV_29 GPIO_ACTIVE_HIGH>;
+		GPIODV_0-gpios = <&gpio GPIODV_0 GPIO_ACTIVE_HIGH>;
 
 		/* lcd power ctrl (support up to 15 steps for power on/off) */
 		/** only for uboot, before lcd_power_on, no need config delay */

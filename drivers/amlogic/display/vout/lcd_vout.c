@@ -26,17 +26,18 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <asm/fiq.h>
+#include <linux/delay.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+#include <linux/of.h>
+#include <linux/reset.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vout/lcdoutc.h>
 #ifdef CONFIG_AML_LCD_EXTERN
 #include <linux/amlogic/vout/lcd_extern.h>
 #endif
-#include <asm/fiq.h>
-#include <linux/delay.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/of.h>
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 #include <linux/amlogic/vout/aml_tablet_bl.h>
 #endif
@@ -2359,6 +2360,7 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 	int i;
 	int index;
 	struct Lcd_Power_Ctrl_s *pctrl;
+	struct Lcd_Misc_Ctrl_s *mctrl;
 
 	if (pdev->dev.of_node == NULL) {
 		DPRINT("dev of_node is null\n");
@@ -2498,9 +2500,47 @@ static int _get_lcd_power_config(struct Lcd_Config_s *pConf,
 		}
 	}
 
-	pConf->lcd_misc_ctrl.pin = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(pConf->lcd_misc_ctrl.pin))
+	mctrl = &pConf->lcd_misc_ctrl;
+	mctrl->pin = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(mctrl->pin))
 		DPRINT("get lcd ttl ports pinmux error\n");
+
+	if (lcd_chip_type == LCD_CHIP_M6) {
+		mctrl->rstc.enct = devm_reset_control_get(&pdev->dev, "enct");
+		if (IS_ERR(mctrl->rstc.enct)) {
+			DPRINT("get reset control enct error\n");
+			ret = -1;
+		}
+		mctrl->rstc.venct = devm_reset_control_get(&pdev->dev, "venct");
+		if (IS_ERR(mctrl->rstc.venct)) {
+			DPRINT("get reset control venct error\n");
+			ret = -1;
+		}
+		mctrl->rstc.venct1 = devm_reset_control_get(&pdev->dev,
+					"venct1");
+		if (IS_ERR(mctrl->rstc.venct1)) {
+			DPRINT("get reset control venct1 error\n");
+			ret = -1;
+		}
+	}
+	mctrl->rstc.encl = devm_reset_control_get(&pdev->dev, "encl");
+	if (IS_ERR(mctrl->rstc.encl)) {
+		DPRINT("get reset control encl error\n");
+		ret = -1;
+	}
+	mctrl->rstc.vencl = devm_reset_control_get(&pdev->dev, "vencl");
+	if (IS_ERR(mctrl->rstc.vencl)) {
+		DPRINT("get reset control vencl error\n");
+		ret = -1;
+	}
+	if ((lcd_chip_type == LCD_CHIP_M8) ||
+		(lcd_chip_type == LCD_CHIP_M8M2)) {
+		mctrl->rstc.edp = devm_reset_control_get(&pdev->dev, "edp");
+		if (IS_ERR(mctrl->rstc.edp)) {
+			DPRINT("get reset control edp error\n");
+			ret = -1;
+		}
+	}
 
 	return ret;
 }

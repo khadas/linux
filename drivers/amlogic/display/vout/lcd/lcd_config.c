@@ -26,14 +26,14 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <asm/fiq.h>
+#include <linux/delay.h>
+#include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vpu.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/lcdoutc.h>
-#include <asm/fiq.h>
-#include <linux/delay.h>
-#include <linux/of.h>
 #include "lcd_reg.h"
 #include "lcd_config.h"
 #include "mipi_dsi_util.h"
@@ -1609,16 +1609,32 @@ static void set_video_adjust(struct Lcd_Config_s *pConf)
 	lcd_reg_write(VPP_VADJ_CTRL, 0xf); /* enable video adjust */
 }
 
-static void switch_lcd_mod_gate(enum Bool_state_e status)
+static void switch_lcd_clk_gate(enum Bool_state_e status)
 {
+	struct Lcd_Clk_Gate_Ctrl_s *rstc;
+
+	rstc = &lcd_Conf->lcd_misc_ctrl.rstc;
 	if (status) {
 		switch (lcd_Conf->lcd_basic.lcd_type) {
 		case LCD_DIGITAL_EDP:
-			lcd_reg_setb(HHI_GCLK_OTHER, 1, 31, 1);
+			reset_control_deassert(rstc->edp);
+			reset_control_deassert(rstc->encl);
+			reset_control_deassert(rstc->vencl);
+			break;
 		case LCD_DIGITAL_MIPI:
 		case LCD_DIGITAL_LVDS:
+			reset_control_deassert(rstc->encl);
+			reset_control_deassert(rstc->vencl);
+			break;
 		case LCD_DIGITAL_TTL:
-			lcd_reg_setb(HHI_GCLK_OTHER, 1, 25, 1);
+			if (lcd_chip_type == LCD_CHIP_M6) {
+				reset_control_deassert(rstc->enct);
+				reset_control_deassert(rstc->venct);
+				reset_control_deassert(rstc->venct1);
+			} else {
+				reset_control_deassert(rstc->encl);
+				reset_control_deassert(rstc->vencl);
+			}
 			break;
 		default:
 			break;
@@ -1626,11 +1642,24 @@ static void switch_lcd_mod_gate(enum Bool_state_e status)
 	} else {
 		switch (lcd_Conf->lcd_basic.lcd_type) {
 		case LCD_DIGITAL_EDP:
-			lcd_reg_setb(HHI_GCLK_OTHER, 0, 31, 1);
+			reset_control_assert(rstc->edp);
+			reset_control_assert(rstc->encl);
+			reset_control_assert(rstc->vencl);
+			break;
 		case LCD_DIGITAL_MIPI:
 		case LCD_DIGITAL_LVDS:
+			reset_control_assert(rstc->encl);
+			reset_control_assert(rstc->vencl);
+			break;
 		case LCD_DIGITAL_TTL:
-			lcd_reg_setb(HHI_GCLK_OTHER, 0, 25, 1);
+			if (lcd_chip_type == LCD_CHIP_M6) {
+				reset_control_assert(rstc->enct);
+				reset_control_assert(rstc->venct);
+				reset_control_assert(rstc->venct1);
+			} else {
+				reset_control_assert(rstc->encl);
+				reset_control_assert(rstc->vencl);
+			}
 			break;
 		default:
 			break;
@@ -1677,7 +1706,7 @@ static void _init_lcd_driver(struct Lcd_Config_s *pConf)
 	if (lcd_chip_valid_check(pConf) == FALSE)
 		return;
 
-	switch_lcd_mod_gate(ON);
+	switch_lcd_clk_gate(ON);
 	set_clk_lcd(pConf);
 	set_venc_lcd(pConf);
 	set_tcon_lcd(pConf);
@@ -1762,7 +1791,7 @@ static void _disable_lcd_driver(struct Lcd_Config_s *pConf)
 		break;
 	}
 
-	switch_lcd_mod_gate(OFF);
+	switch_lcd_clk_gate(OFF);
 	switch_vpu_mem_pd_vmod(VMODE_LCD, VPU_MEM_POWER_DOWN);
 	release_vpu_clk_vmod(VMODE_LCD);
 	DPRINT("disable lcd display driver\n");

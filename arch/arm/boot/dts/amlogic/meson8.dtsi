@@ -354,6 +354,69 @@
             amlogic,pullup=<1>;
             amlogic,pullupen=<1>;
         };
+
+	lcd_ttl_hvsync_pins_on:lcd_ttl_hvsync_on{
+		amlogic,setmask=<8 0x1800000>;
+		amlogic,clrmask=<0 0x3c0300 6 0xc00000>;
+		amlogic,pins = "GPIODV_24","GPIODV_25";
+	};
+	lcd_ttl_hvsync_pins_off:lcd_ttl_hvsync_off{
+		amlogic,clrmask=<0 0x3c0300 6 0xc00000 8 0x1800000>;
+		amlogic,pins = "GPIODV_24","GPIODV_25";
+		amlogic,enable-output=<1>;
+	};
+
+	lcd_ttl_de_pins_on:lcd_ttl_de_on{
+		amlogic,setmask=<8 0x10000000>;
+		amlogic,clrmask=<0 0x400 6 0x100000 8 0x80000>;
+		amlogic,pins = "GPIODV_27";
+	};
+	lcd_ttl_de_pins_off:lcd_ttl_de_off{
+		amlogic,clrmask=<0 0x400 6 0x100000 8 0x10080000>;
+		amlogic,pins = "GPIODV_27";
+		amlogic,enable-output=<1>;
+	};
+
+	lcd_ttl_clk_pins_on:lcd_ttl_clk_on{
+		amlogic,setmask=<8 0x400000>;
+		amlogic,clrmask=<0 0x80 6 0x200000 8 0x300000>;
+		amlogic,pins = "GPIODV_26";
+	};
+	lcd_ttl_clk_pins_off:lcd_ttl_clk_off{
+		amlogic,clrmask=<0 0x80 6 0x200000 8 0x700000>;
+		amlogic,pins = "GPIODV_26";
+		amlogic,enable-output=<1>;
+	};
+
+	lcd_ttl_rgb_8bit_pins_on:lcd_ttl_rgb_8bit_on{
+		amlogic,setmask=<0 0x3f>;
+		amlogic,clrmask=<0 0x40 3 0x1000000 7 0x1003ffff 8 0xe000000>;
+		amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R0~R7 */
+			"GPIODV_8","GPIODV_9","GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G0~G7 */
+			"GPIODV_16","GPIODV_17","GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B0~B7 */
+	};
+	lcd_ttl_rgb_8bit_pins_off:lcd_ttl_rgb_8bit_off{
+		amlogic,clrmask=<0 0x7f 3 0x1000000 7 0x1003ffff 8 0xe000000>;
+		amlogic,pins = "GPIODV_0","GPIODV_1","GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R0~R7 */
+			"GPIODV_8","GPIODV_9","GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G0~G7 */
+			"GPIODV_16","GPIODV_17","GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B0~B7 */
+		amlogic,enable-output=<1>;
+	};
+
+	lcd_ttl_rgb_6bit_pins_on:lcd_ttl_rgb_6bit_on{
+		amlogic,setmask=<0 0x15>;
+		amlogic,clrmask=<0 0x40 7 0xfcfc>;
+		amlogic,pins = "GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R2~R7 */
+			"GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G2~G7 */
+			"GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B2~B7 */
+	};
+	lcd_ttl_rgb_6bit_pins_off:lcd_ttl_rgb_6bit_off{
+		amlogic,clrmask=<0 0x55 7 0xfcfc>;
+		amlogic,pins = "GPIODV_2","GPIODV_3","GPIODV_4","GPIODV_5","GPIODV_6","GPIODV_7", /* R2~R7 */
+			"GPIODV_10","GPIODV_11","GPIODV_12","GPIODV_13","GPIODV_14","GPIODV_15", /* G2~G7 */
+			"GPIODV_18","GPIODV_19","GPIODV_20","GPIODV_21","GPIODV_22","GPIODV_23"; /* B2~B7 */
+		amlogic,enable-output=<1>;
+        };
 	};
 
 	/* AUDIO MESON8 DEVICES */

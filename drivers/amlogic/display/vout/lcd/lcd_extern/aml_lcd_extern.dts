@@ -31,9 +31,9 @@
 		status = "disabled";
 
 		type = <1>; /** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
-		GPIODV_1-gpios = <&gpio GPIODV_1 0>;
-		GPIODV_16-gpios = <&gpio GPIODV_16 0>;
-		GPIODV_17-gpios = <&gpio GPIODV_17 0>;
+		GPIODV_1-gpios = <&gpio GPIODV_1 GPIO_ACTIVE_HIGH>;
+		GPIODV_16-gpios = <&gpio GPIODV_16 GPIO_ACTIVE_HIGH>;
+		GPIODV_17-gpios = <&gpio GPIODV_17 GPIO_ACTIVE_HIGH>;
 		gpio_spi_cs="GPIODV_1";
 		gpio_spi_clk="GPIODV_16";
 		gpio_spi_data="GPIODV_17";
