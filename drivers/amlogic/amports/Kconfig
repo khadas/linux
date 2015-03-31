@@ -24,7 +24,7 @@ config TVIN_VIUIN
 
 config AM_VIDEO
 	boolean "Video management"
-	default y
+	default n
 	select AM_CANVAS
 	select AM_PTSMGR
 	select AM_TIMESYNC

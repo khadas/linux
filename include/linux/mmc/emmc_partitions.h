@@ -53,8 +53,15 @@ struct mmc_partitions_fmt {
 	int checksum;
 	struct partitions partitions[MAX_MMC_PART_NUM];
 };
-
+#ifdef CONFIG_MMC_AML
 int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk);
+#else
+static inline int aml_emmc_partition_ops(struct mmc_card *card,
+					 struct gendisk *disk)
+{
+	return -1;
+}
+#endif
 unsigned int mmc_capacity(struct mmc_card *card);
 int mmc_read_internal(struct mmc_card *card,
 	unsigned dev_addr, unsigned blocks, void *buf);

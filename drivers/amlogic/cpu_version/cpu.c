@@ -20,14 +20,15 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/printk.h>
 #include <linux/string.h>
-#include <asm/system_info.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
-#include <asm/opcodes-sec.h>
+#include <asm/compiler.h>
 static int meson_cpu_version[MESON_CPU_VERSION_LVL_MAX+1];
 void __iomem  *assist_hw_rev;
 void __iomem  *bootrom_base;
 void __iomem  *metal_version;
+#ifndef CONFIG_ARM64
+#include <asm/opcodes-sec.h>
 static noinline int __invoke_meson_smc(u32 id)
 {
 		register unsigned r0 asm("r0") = id;
@@ -37,6 +38,17 @@ static noinline int __invoke_meson_smc(u32 id)
 		: : "r" (r0));
 		return r0;
 }
+#else
+static noinline int __invoke_meson_smc(u32 id)
+{
+		register unsigned r0 asm("x0") = id;
+		asm volatile(
+		__asmeq("%0", "x0")
+		"smc	#0\n"
+		: : "r" (r0));
+		return r0;
+}
+#endif
 int get_meson_cpu_version(int level)
 {
 	if (level >= 0 && level <= MESON_CPU_VERSION_LVL_MAX)
@@ -48,7 +60,6 @@ EXPORT_SYMBOL(get_meson_cpu_version);
 int __init meson_cpu_version_init(void)
 {
 	unsigned int version, ver;
-	int rev;
 	u32 cmd;
 	struct device_node *cpu_version;
 	cpu_version = of_find_node_by_path("/cpu_version");
@@ -56,7 +67,7 @@ int __init meson_cpu_version_init(void)
 		assist_hw_rev = of_iomap(cpu_version, 0);
 		metal_version = of_iomap(cpu_version, 1);
 	} else{
-		BUG();
+		return 0;
 	}
 	meson_cpu_version[MESON_CPU_VERSION_LVL_MAJOR] =
 		readl_relaxed(assist_hw_rev);
@@ -91,11 +102,6 @@ int __init meson_cpu_version_init(void)
 		meson_cpu_version[MESON_CPU_VERSION_LVL_PACK],
 		meson_cpu_version[MESON_CPU_VERSION_LVL_MISC]
 		);
-	rev = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR);
-	rev <<= 24;
-	system_serial_high = rev;
-	rev = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
-	system_rev = rev;
 	return 0;
 }
 early_initcall(meson_cpu_version_init);

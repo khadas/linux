@@ -1,1 +1,1 @@
-obj-y	+=iomap.o
+obj-$(CONFIG_AMLOGIC_IOMAP)	+=iomap.o

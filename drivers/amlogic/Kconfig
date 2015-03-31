@@ -9,6 +9,8 @@ source "drivers/amlogic/uart/Kconfig"
 
 source "drivers/amlogic/cpu_version/Kconfig"
 
+source "drivers/amlogic/iomap/Kconfig"
+
 source "drivers/amlogic/pinctrl/Kconfig"
 
 source "drivers/amlogic/usb/Kconfig"

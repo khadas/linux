@@ -105,6 +105,22 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 	};
+	cpu_iomap{
+		compatible = "amlogic,iomap";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		io_cbus_base{
+			reg = <0x0 0xc1100000 0x0 0x100000>;
+		};
+		io_apb_base{
+			reg = <0x0 0xd0000000 0x0 0x200000>;
+		};
+		io_aobus_base{
+			reg = <0x0 0xc8100000 0x0 0x100000>;
+		};
+	};
+
 	clock: meson_clock {
 		compatible = "amlogic, gxbb-clock";
 		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/
@@ -151,5 +167,12 @@
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_uart";
 	};
+
+	cpu_version{
+		reg=<0x0 0xc1107d4c 0x0 0x4
+			0x0 0xc11081a8 0x0 0x4>;
+	};
+
+
 
 };
