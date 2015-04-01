@@ -457,7 +457,7 @@ struct sdio_reg {
 
 
 /* CBUS reg definition */
-#define	ISA_TIMERE			0x2555
+#define	ISA_TIMERE			0x2655
 #define	HHI_GCLK_MPEG0		0x1050
 #define	ASSIST_POR_CONFIG	0x1f55
 
