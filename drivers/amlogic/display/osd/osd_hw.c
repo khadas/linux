@@ -56,6 +56,7 @@
 
 #include "osd_hw.h"
 #include "osd_hw_def.h"
+#include "../ppmgr/ppmgr_pri.h"
 
 #ifdef CONFIG_AML_VSYNC_FIQ_ENABLE
 #define  FIQ_VSYNC

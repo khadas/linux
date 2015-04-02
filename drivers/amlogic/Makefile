@@ -57,3 +57,5 @@ obj-$(CONFIG_AML_VFM) 		+= vfm/
 
 obj-$(CONFIG_EFUSE)		+= efuse/
 
+obj-$(CONFIG_POST_PROCESS_MANAGER) += ppmgr/
+

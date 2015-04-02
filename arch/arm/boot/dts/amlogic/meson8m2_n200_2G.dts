@@ -47,7 +47,11 @@
 			size = <0xc000000>;
 			no-map;
 		};
-
+		/*  POST PROCESS MANAGER */
+		ppmgr_reserved:linux,ppmgr {
+			compatible = "amlogic, ppmgr_memory";
+			size = <0x2000000>;
+		};
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -59,6 +63,7 @@
             compatible = "amlogic, idev-mem";
             size = <0x2000000>;
         };
+
 	};
 
     	psci {
@@ -148,6 +153,12 @@
         compatible = "amlogic, vdec";
                 memory-region = <&vdec_reserved>;
                 dev_name = "vdec.0";
+                status = "okay";
+    };
+    ppmgr {
+        compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
+                memory-region = <&ppmgr_reserved>;
+                dev_name = "ppmgr";
                 status = "okay";
     };
 	ethmac: ethernet@0xc9410000{

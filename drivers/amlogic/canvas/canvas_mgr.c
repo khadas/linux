@@ -488,6 +488,7 @@ static void canvas_pool_config(void)
 	canvas_pool_register_const_canvas(0x78, 0xbf, "amvdec");
 	canvas_pool_register_const_canvas(0x60, 0x65, "display");
 	canvas_pool_register_const_canvas(0x40, 0x44, "osd");
+	canvas_pool_register_const_canvas(0x70, 0x77, "ppmgr");
 	/*please add static canvas later. */
 }
 

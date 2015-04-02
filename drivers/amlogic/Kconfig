@@ -50,4 +50,6 @@ source "drivers/amlogic/amports/Kconfig"
 source "drivers/amlogic/vfm/Kconfig"
 
 source "drivers/amlogic/efuse/Kconfig"
+
+source "drivers/amlogic/ppmgr/Kconfig"
 endmenu
