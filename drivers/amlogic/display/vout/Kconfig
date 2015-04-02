@@ -32,7 +32,7 @@ config AML_VDAC_HW_SWITCH
 
 config AM_LCD_OUTPUT
 	boolean "LCD Output Module"
-	default y
+	default n
 	depends on AM_VOUT
 	help
 		LCD output module
