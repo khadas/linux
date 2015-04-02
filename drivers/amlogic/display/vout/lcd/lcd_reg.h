@@ -898,6 +898,7 @@ extern void __iomem *reg_base_cbus;
 // Bit 0	if true, the output result of VPP is saturated */
 #define VPP_MISC                                   0x1d26
 
+#define VPP2_POSTBLEND_H_SIZE                      0x1921
 #define VPP_POSTBLEND_H_SIZE                       0x1d21
 /* Bit 3	minus black level enable for vadj2
  * Bit 2	Video adjustment enable for vadj2

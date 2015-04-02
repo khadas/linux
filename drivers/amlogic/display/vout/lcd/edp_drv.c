@@ -13,9 +13,10 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/amlogic/vout/lcdoutc.h>
-#include "edp_drv.h"
-#include "edp_tx_reg.h"
 #include "lcd_reg.h"
+#include "edp_tx_reg.h"
+#include "lcd_control.h"
+#include "edp_drv.h"
 
 /* *************************************
  * dptx for operation eDP Host (Tx)
@@ -60,6 +61,13 @@ static char *dpcd_strings[] = {
 	"Other (No EDID)", /* 13 */
 	"1.2",             /* 14 */
 	"5.4 Gbps"         /* 15 */
+};
+
+const char *edp_link_rate_string_table[] = {
+	"1.62Gbps",
+	"2.70Gbps",
+	"5.40Gbps",
+	"invalid",
 };
 
 static struct EDP_Link_Config_s link_conf = {
@@ -2481,6 +2489,73 @@ void edp_edid_pre_disable(void)
 	lcd_reg_setb(RESET4_MASK, 1, 11, 1);
 }
 
+void edp_link_config_select(struct Lcd_Config_s *pConf)
+{
+	unsigned bit_rate, band_width;
+	unsigned i, j, done = 0;
+	struct EDP_Config_s *econf;
+
+	econf = pConf->lcd_control.edp_config;
+	bit_rate = (pConf->lcd_timing.lcd_clk / 1000) *
+		pConf->lcd_basic.lcd_bits * 3 / 1000;  /* Mbps */
+	econf->bit_rate = bit_rate;
+
+	if (econf->link_user == 0) {/* auto calculate */
+		i = 0;
+		while ((edp_lane_count_table[i] <= econf->max_lane_count) &&
+			(done == 0)) {
+			for (j = 0; j <= 1; j++) {
+				band_width = edp_link_capacity_table[j] *
+					edp_lane_count_table[i];
+				if (band_width > bit_rate) {
+					econf->link_rate = j;
+					econf->lane_count =
+						edp_lane_count_table[i];
+					done = 1;
+					break;
+				}
+			}
+			if (done == 0)
+				i++;
+		}
+		if (done == 0) {
+			econf->link_rate = 1;
+			econf->lane_count = econf->max_lane_count;
+			DPRINT("Error: bit_rate is out of support, ");
+			DPRINT("should reduce frame rate(pixel clock)\n");
+		} else {
+			DPRINT("select edp link_rate=%s, lane_count=%u\n",
+				edp_link_rate_string_table[econf->link_rate],
+				econf->lane_count);
+		}
+	} else { /* verify user define */
+		i = get_edp_config_index(&edp_lane_count_table[0],
+			econf->lane_count);
+		while ((edp_lane_count_table[i] <= econf->max_lane_count) &&
+			(done == 0)) {
+			band_width = edp_link_capacity_table[econf->link_rate] *
+				edp_lane_count_table[i];
+			if (band_width > bit_rate) {
+				econf->lane_count = edp_lane_count_table[i];
+				done = 1;
+			} else {
+				i++;
+			}
+		}
+		if (done == 0) {
+			econf->lane_count = econf->max_lane_count;
+			DPRINT("Error: bandwidth is not enough at ");
+			DPRINT("link_rate=%s, lane_count=%d\n",
+				edp_link_rate_string_table[econf->link_rate],
+				econf->lane_count);
+		} else {
+			DPRINT("set edp link_rate=%s, lane_count=%u\n",
+				edp_link_rate_string_table[econf->link_rate],
+				econf->lane_count);
+		}
+	}
+}
+
 /* *********************************************** */
 
 static const char *edp_usage_str = {
@@ -2513,6 +2588,8 @@ static ssize_t edp_debug(struct class *class,
 	unsigned num = 0;
 	int i;
 
+	if (lcd_chip_valid_check() == FALSE)
+		return -EINVAL;
 	switch (buf[0]) {
 	case 'r': /* read */
 		num = 1;
@@ -2606,14 +2683,13 @@ static struct class_attribute edp_debug_class_attrs[] = {
 	__ATTR(edp, S_IRUGO | S_IWUSR, edp_debug_help, edp_debug),
 };
 
-static int creat_edp_attr(struct Lcd_Config_s *pConf)
+int creat_edp_attr(struct class *debug_class)
 {
 	int i;
 
 	/* create class attr */
 	for (i = 0; i < ARRAY_SIZE(edp_debug_class_attrs); i++) {
-		if (class_create_file(pConf->lcd_misc_ctrl.debug_class,
-			&edp_debug_class_attrs[i])) {
+		if (class_create_file(debug_class, &edp_debug_class_attrs[i])) {
 			DPRINT("create edp debug attribute %s fail\n",
 				edp_debug_class_attrs[i].attr.name);
 		}
@@ -2621,17 +2697,15 @@ static int creat_edp_attr(struct Lcd_Config_s *pConf)
 
 	return 0;
 }
-static int remove_edp_attr(struct Lcd_Config_s *pConf)
+int remove_edp_attr(struct class *debug_class)
 {
 	int i;
 
-	if (pConf->lcd_misc_ctrl.debug_class == NULL)
+	if (debug_class == NULL)
 		return -1;
 
-	for (i = 0; i < ARRAY_SIZE(edp_debug_class_attrs); i++) {
-		class_remove_file(pConf->lcd_misc_ctrl.debug_class,
-			&edp_debug_class_attrs[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(edp_debug_class_attrs); i++)
+		class_remove_file(debug_class, &edp_debug_class_attrs[i]);
 
 	return 0;
 }
@@ -2722,12 +2796,3 @@ int edp_edid_timing_probe(struct Lcd_Config_s *pConf)
 	return 0;
 }
 
-void edp_probe(struct Lcd_Config_s *pConf)
-{
-	creat_edp_attr(pConf);
-}
-
-void edp_remove(struct Lcd_Config_s *pConf)
-{
-	remove_edp_attr(pConf);
-}

@@ -1,0 +1,41 @@
+menuconfig AML_LCD_EXTERN
+	boolean "LCD external driver support"
+	default y
+	help
+		"Amlogic LCD external driver support, such as i2c initial..."
+
+config AML_LCD_EXTERN_I2C_ANX6345
+	boolean "LCD external i2c_anx6345 driver"
+	default n
+	depends on AML_LCD_EXTERN
+	help
+		"Amlogic LCD external i2c_anx6345 init driver"
+
+config AML_LCD_EXTERN_I2C_TC101
+	boolean "LCD external i2c_tc101 driver"
+	default n
+	depends on AML_LCD_EXTERN
+	help
+		"Amlogic LCD external i2c_tc101 init driver"
+
+config AML_LCD_EXTERN_SPI_LD070WS2
+	boolean "LCD external spi_LD070SW2 driver"
+	default n
+	depends on AML_LCD_EXTERN
+	help
+		"Amlogic LCD external spi_LD070SW2 init driver"
+
+config AML_LCD_EXTERN_MIPI_KD080D13
+	boolean "LCD external mipi_KD080D13 driver"
+	default n
+	depends on AML_LCD_EXTERN
+	help
+		"Amlogic LCD external mipi_KD080D13 init driver"
+
+config AML_LCD_EXTERN_MIPI_N070ICN
+	boolean "LCD external mipi_N070ICN driver"
+	default n
+	depends on AML_LCD_EXTERN
+	help
+		"Amlogic LCD external mipi_N070ICN init driver"
+

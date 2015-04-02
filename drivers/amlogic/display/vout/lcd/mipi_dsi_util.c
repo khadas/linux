@@ -8,9 +8,9 @@
 #ifdef CONFIG_AML_LCD_EXTERN
 #include <linux/amlogic/vout/lcd_extern.h>
 #endif
-#include "mipi_dsi_reg.h"
 #include "lcd_reg.h"
-#include "lcd_config.h"
+#include "mipi_dsi_reg.h"
+#include "lcd_control.h"
 #include "mipi_dsi_util.h"
 
 /* *************************************************************
@@ -78,26 +78,29 @@ static inline void print_mipi_cmd_status(int cnt, unsigned status)
 	}
 }
 
-int detect_dsi_init_table(struct device_node *m_node, int on_off)
+int dsi_init_table_detect(struct device_node *m_node,
+		struct DSI_Config_s *mConf, int on_off)
 {
-	unsigned char *dsi_table;
 	int ret = 0;
+	unsigned char *dsi_table;
 	unsigned char propname[15];
 	int i, j;
 	int n_max;
 	unsigned int *para; /* num 100 array */
 	unsigned int val;
 
+	if (mConf == NULL)
+		return -1;
 	if (on_off) {
-		if (dConf->dsi_init_on == NULL)
+		if (mConf->dsi_init_on == NULL)
 			return -1;
-		dsi_table = dConf->dsi_init_on;
+		dsi_table = mConf->dsi_init_on;
 		n_max = DSI_INIT_ON_MAX;
 		sprintf(propname, "dsi_init_on");
 	} else {
-		if (dConf->dsi_init_off == NULL)
+		if (mConf->dsi_init_off == NULL)
 			return -1;
-		dsi_table = dConf->dsi_init_off;
+		dsi_table = mConf->dsi_init_off;
 		n_max = DSI_INIT_OFF_MAX;
 		sprintf(propname, "dsi_init_off");
 	}
@@ -152,22 +155,22 @@ int detect_dsi_init_table(struct device_node *m_node, int on_off)
 	return ret;
 }
 
-static void print_dsi_init_table(int on_off)
+static void dsi_init_table_print(struct DSI_Config_s *mConf, int on_off)
 {
 	int i, j, n;
 	int n_max;
 	unsigned char *dsi_table;
 
 	if (on_off) {
-		if (dConf->dsi_init_on == NULL)
+		if (mConf->dsi_init_on == NULL)
 			return;
-		dsi_table = dConf->dsi_init_on;
+		dsi_table = mConf->dsi_init_on;
 		n_max = DSI_INIT_ON_MAX;
 		DPRINT("DSI INIT ON:\n");
 	} else {
-		if (dConf->dsi_init_off == NULL)
+		if (mConf->dsi_init_off == NULL)
 			return;
-		dsi_table = dConf->dsi_init_off;
+		dsi_table = mConf->dsi_init_off;
 		n_max = DSI_INIT_OFF_MAX;
 		DPRINT("DSI INIT OFF:\n");
 	}
@@ -245,8 +248,8 @@ static void print_info(void)
 	DPRINT("DSI LP escape clock:    %d.%03dMHz\n",
 		(temp / 1000000), (temp % 1000000) / 1000);
 
-	print_dsi_init_table(1); /* dsi_init_on table */
-	print_dsi_init_table(0); /* dsi_init_off table */
+	dsi_init_table_print(dConf, 1); /* dsi_init_on table */
+	dsi_init_table_print(dConf, 0); /* dsi_init_off table */
 
 	DPRINT("DSI INIT EXTERN:        %d\n", dConf->lcd_extern_init);
 	DPRINT("================================================\n");
@@ -1488,13 +1491,16 @@ void set_mipi_dsi_control_config(struct Lcd_Config_s *pConf)
 {
 	unsigned int pclk, bit_rate, lcd_bits;
 	/* unit in kHz for calculation */
-	unsigned int bit_rate_max, bit_rate_min;
+	unsigned int bit_rate_max, bit_rate_min, pll_out_fmin;
 	unsigned int operation_mode;
 	struct DSI_Config_s *mconf = pConf->lcd_control.mipi_config;
+	struct lcd_clk_config_s *cConf;
 	int n;
 	unsigned int temp;
 
 	/* unit in kHz for calculation */
+	cConf = get_lcd_clk_config();
+	pll_out_fmin = cConf->pll_out_fmin;
 	pclk = pConf->lcd_timing.lcd_clk / 1000;
 	operation_mode = ((mconf->operation_mode >> BIT_OP_MODE_DISP) & 1);
 	mconf->video_mode_type = MIPI_DSI_VIDEO_MODE_TYPE;
@@ -1522,7 +1528,7 @@ void set_mipi_dsi_control_config(struct Lcd_Config_s *pConf)
 		n = 0;
 		bit_rate_min = 0;
 		bit_rate_max = 0;
-		while ((bit_rate_min < clk_Conf.pll_out_fmin) && (n < 100)) {
+		while ((bit_rate_min < pll_out_fmin) && (n < 100)) {
 			bit_rate_max = bit_rate + (pclk / 2) + (n * pclk);
 			bit_rate_min = bit_rate_max - pclk;
 			n++;
@@ -1533,11 +1539,10 @@ void set_mipi_dsi_control_config(struct Lcd_Config_s *pConf)
 
 		DPRINT("mipi dsi bit_rate max=%dMHz\n", mconf->bit_rate_max);
 	} else { /* user define */
-		if (mconf->bit_rate_max < clk_Conf.pll_out_fmin / 1000) {
+		if (mconf->bit_rate_max < pll_out_fmin / 1000) {
 			DPRINT("[error]: mipi-dsi can't support bit_rate ");
 			DPRINT("%dMHz (min=%dMHz)\n",
-				mconf->bit_rate_max,
-				(clk_Conf.pll_out_fmin / 1000));
+				mconf->bit_rate_max, (pll_out_fmin / 1000));
 		}
 		if (mconf->bit_rate_max > MIPI_PHY_CLK_MAX) {
 			DPRINT("[warning]: mipi-dsi bit_rate_max %dMHz ",
@@ -1662,6 +1667,8 @@ static ssize_t dsi_debug(struct class *class,
 	unsigned num = 0;
 	int i;
 
+	if (lcd_chip_valid_check() == FALSE)
+		return -EINVAL;
 	switch (buf[0]) {
 	case 'r': /* read */
 		num = 1;
@@ -1718,14 +1725,13 @@ static struct class_attribute dsi_debug_class_attrs[] = {
 	__ATTR(dsi, S_IRUGO | S_IWUSR, dsi_debug_help, dsi_debug),
 };
 
-static int creat_dsi_attr(struct Lcd_Config_s *pConf)
+int creat_dsi_attr(struct class *debug_class)
 {
 	int i;
 
 	/* create class attr */
 	for (i = 0; i < ARRAY_SIZE(dsi_debug_class_attrs); i++) {
-		if (class_create_file(pConf->lcd_misc_ctrl.debug_class,
-			&dsi_debug_class_attrs[i])) {
+		if (class_create_file(debug_class, &dsi_debug_class_attrs[i])) {
 			DPRINT("create dsi debug attribute %s fail\n",
 				dsi_debug_class_attrs[i].attr.name);
 		}
@@ -1733,18 +1739,15 @@ static int creat_dsi_attr(struct Lcd_Config_s *pConf)
 
 	return 0;
 }
-static int remove_dsi_attr(struct Lcd_Config_s *pConf)
+int remove_dsi_attr(struct class *debug_class)
 {
 	int i;
 
-	if (pConf->lcd_misc_ctrl.debug_class == NULL)
+	if (debug_class == NULL)
 		return -1;
 
-	for (i = 0; i < ARRAY_SIZE(dsi_debug_class_attrs); i++) {
-		class_remove_file(pConf->lcd_misc_ctrl.debug_class,
-			&dsi_debug_class_attrs[i]);
-	}
-	class_destroy(pConf->lcd_misc_ctrl.debug_class);
+	for (i = 0; i < ARRAY_SIZE(dsi_debug_class_attrs); i++)
+		class_remove_file(debug_class, &dsi_debug_class_attrs[i]);
 
 	return 0;
 }
@@ -1753,11 +1756,10 @@ static int remove_dsi_attr(struct Lcd_Config_s *pConf)
 void dsi_probe(struct Lcd_Config_s *pConf)
 {
 	dConf = pConf->lcd_control.mipi_config;
-	creat_dsi_attr(pConf);
 }
 
-void dsi_remove(struct Lcd_Config_s *pConf)
+void dsi_remove(void)
 {
-	remove_dsi_attr(pConf);
+	dConf = NULL;
 }
 

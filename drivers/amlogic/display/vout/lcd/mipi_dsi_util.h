@@ -530,6 +530,6 @@ extern void mipi_dsi_link_off(struct Lcd_Config_s *pConf);
 extern void mipi_dsi_host_on(struct Lcd_Config_s *pConf);
 extern void mipi_dsi_host_off(void);
 extern void dsi_probe(struct Lcd_Config_s *pConf);
-extern void dsi_remove(struct Lcd_Config_s *pConf);
+extern void dsi_remove(void);
 
 #endif

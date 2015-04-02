@@ -1,12 +1,8 @@
 
 config AML_LCD_GAMMA_DEBUG
-	boolean "LCD Gamma debug"
+	boolean "LCD Gamma debug support"
 	default y
 	help
 		Amlogic LCD gamma debug
 
-config AML_LCD_EXTERN
-	boolean "LCD external driver"
-	default y
-	help
-		"Amlogic LCD external driver, such as i2c initial..."
+source "drivers/amlogic/display/vout/lcd/lcd_extern/Kconfig"

@@ -33,6 +33,14 @@ extern unsigned int lcd_print_flag;
 extern void lcd_print(const char *fmt, ...);
 
 /* **********************************
+ * check function return boolean define
+ * ********************************** */
+enum Bool_check_e {
+	FALSE = 0,
+	TRUE = 1,
+};
+
+/* **********************************
  * clk parameter bit define
  * pll_ctrl, div_ctrl, clk_ctrl
  * ********************************** */
@@ -107,8 +115,9 @@ enum Lcd_Type_e {
 };
 extern const char *lcd_type_table[];
 
+#define MOD_LEN_MAX        30
 struct Lcd_Basic_s {
-	char *model_name;
+	char model_name[MOD_LEN_MAX];
 	u16 h_active;    /* Horizontal display area */
 	u16 v_active;    /* Vertical display area */
 	u16 h_period;    /* Horizontal total period time */
@@ -305,14 +314,15 @@ struct Lcd_Power_Config_s {
 };
 
 struct Lcd_Power_Ctrl_s {
+	struct Lcd_CPU_GPIO_s cpu_gpio[LCD_PWR_CTRL_STEP_MAX];
+	int cpu_gpio_num;
 	struct Lcd_Power_Config_s power_on_config[LCD_PWR_CTRL_STEP_MAX];
 	struct Lcd_Power_Config_s power_off_config[LCD_PWR_CTRL_STEP_MAX];
-	int cpu_gpio_num;
 	int power_on_step;
 	int power_off_step;
 	unsigned char power_level; /* internal: 0=only power, 1=power+signal */
 	int (*power_ctrl)(enum Bool_state_e status);
-	int (*ports_ctrl)(enum Bool_state_e status);
+	void (*backlight_power_ctrl)(enum Bool_state_e status);
 };
 
 struct Lcd_Clk_Gate_Ctrl_s {
@@ -328,12 +338,13 @@ struct Lcd_Misc_Ctrl_s {
 	struct pinctrl *pin;
 	struct Lcd_Clk_Gate_Ctrl_s rstc;
 	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
-	struct class *debug_class;
 	unsigned char lcd_status;
 	void (*module_enable)(void);
 	void (*module_disable)(void);
+	void (*vso_adjust)(unsigned int val);
 	void (*lcd_test)(unsigned int num);
 	void (*print_version)(void);
+	void (*edp_apb_clk_prepare)(void);
 	void (*edp_edid_load)(void);
 };
 
@@ -379,17 +390,12 @@ enum Lcd_Power_Pmu_Gpio_e {
  * ********************************** */
 extern enum LCD_Chip_e lcd_chip_type;
 
-enum Bool_check_e {
-	FALSE = 0,
-	TRUE = 1,
-};
+extern void lcd_init_vout(void);
 
-extern int detect_dsi_init_table(struct device_node *m_node, int on_off);
-extern enum Bool_check_e lcd_chip_valid_check(struct Lcd_Config_s *pConf);
-
-extern struct Lcd_Config_s *get_lcd_config(void);
+extern struct Lcd_Config_s *get_lcd_of_config(void);
 extern void lcd_config_init(struct Lcd_Config_s *pConf);
-extern void lcd_config_probe(struct Lcd_Config_s *pConf);
+extern void lcd_config_probe(struct Lcd_Config_s *pConf,
+		struct platform_device *pdev);
 extern void lcd_config_remove(struct Lcd_Config_s *pConf);
 
 #define DPRINT(...)                       pr_info(__VA_ARGS__)
