@@ -137,8 +137,8 @@ static int tsdemux_request_irq(irq_handler_t handler, void *data)
 		demux_data = data;
 		/*TODO irq */
 
-		r = request_irq(INT_DEMUX, tsdemux_default_isr_handler,
-						IRQF_SHARED, "tsdemux-irq",
+		r = vdec_request_irq(DEMUX_IRQ, tsdemux_default_isr_handler,
+						"tsdemux-irq",
 						(void *)tsdemux_irq_id);
 
 		WRITE_MPEG_REG(STB_INT_MASK, (1 << SUB_PES_READY)
@@ -162,7 +162,7 @@ static int tsdemux_free_irq(void)
 		WRITE_MPEG_REG(STB_INT_MASK, 0);
 		/*TODO irq */
 
-		free_irq(INT_DEMUX, (void *)tsdemux_irq_id);
+		vdec_free_irq(DEMUX_IRQ, (void *)tsdemux_irq_id);
 
 		r = 0;
 	}
@@ -404,9 +404,9 @@ static ssize_t _tsdemux_write(const char __user *buf, size_t count,
 				return -EFAULT;
 
 			dma_addr =
-				dma_map_single(&amstream_pdev->dev, fetchbuf,
+				dma_map_single(NULL, fetchbuf,
 						FETCHBUF_SIZE, DMA_TO_DEVICE);
-			if (dma_mapping_error(&amstream_pdev->dev, dma_addr))
+			if (dma_mapping_error(NULL, dma_addr))
 				return -EFAULT;
 
 
@@ -418,13 +418,14 @@ static ssize_t _tsdemux_write(const char __user *buf, size_t count,
 
 		if (isphybuf)
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, (u32) buf);
-		else
+		else {
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
+			dma_unmap_single(NULL, dma_addr,
+					FETCHBUF_SIZE, DMA_TO_DEVICE);
+		}
 
 		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
-		if (dma_addr)
-			dma_unmap_single(&amstream_pdev->dev, dma_addr,
-					FETCHBUF_SIZE, DMA_TO_DEVICE);
+
 
 		ret =
 			wait_event_interruptible_timeout(wq, fetch_done != 0,
@@ -658,8 +659,8 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc)
 	}
 	/*TODO irq */
 
-	r = request_irq(INT_PARSER, parser_isr,
-			IRQF_SHARED, "tsdemux-fetch", (void *)tsdemux_fetch_id);
+	r = vdec_request_irq(PARSER_IRQ, parser_isr,
+			"tsdemux-fetch", (void *)tsdemux_fetch_id);
 
 	if (r)
 		goto err3;
@@ -675,8 +676,8 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc)
 #ifndef ENABLE_DEMUX_DRIVER
 	/*TODO irq */
 
-	r = request_irq(INT_DEMUX, tsdemux_isr,
-			IRQF_SHARED, "tsdemux-irq", (void *)tsdemux_irq_id);
+	r = vdec_request_irq(DEMUX_IRQ, tsdemux_isr,
+			"tsdemux-irq", (void *)tsdemux_irq_id);
 
 	WRITE_MPEG_REG(STB_INT_MASK, (1 << SUB_PES_READY)
 				   | (1 << NEW_PDTS_READY)
@@ -741,13 +742,13 @@ void tsdemux_release(void)
 	WRITE_MPEG_REG(PARSER_AUDIO_HOLE, 0);
 	/*TODO irq */
 
-	free_irq(INT_PARSER, (void *)tsdemux_fetch_id);
+	vdec_free_irq(PARSER_IRQ, (void *)tsdemux_fetch_id);
 
 #ifndef ENABLE_DEMUX_DRIVER
 	WRITE_MPEG_REG(STB_INT_MASK, 0);
 	/*TODO irq */
 
-	free_irq(INT_DEMUX, (void *)tsdemux_irq_id);
+	vdec_free_irq(DEMUX_IRQ, (void *)tsdemux_irq_id);
 
 #else
 
@@ -774,6 +775,7 @@ void tsdemux_release(void)
 	   switch_mod_gate_by_type(MOD_DEMUX, 0);
 	 */
 	/* #endif */
+	amports_switch_gate("demux", 0);
 
 }
 

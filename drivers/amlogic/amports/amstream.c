@@ -1123,77 +1123,6 @@ static ssize_t amstream_userdata_read(struct file *file, char __user *buf,
 	return retVal;
 }
 
-struct gate_swtch_node {
-	struct reset_control *reset_ctl;
-	const char *name;
-};
-struct gate_swtch_node gates[] = {
-	{
-		.name = "demux",
-	},
-	{
-		.name = "parser_top",
-	},
-	{
-		.name = "vpu_intr",
-	},
-	{
-		.name = "vdec",
-	},
-	{
-		.name = "audio",
-	}
-};
-
-/*
-resets = <&clock GCLK_IDX_HIU_PARSER_TOP
-	    &clock GCLK_IDX_VPU_INTR
-	    &clock GCLK_IDX_DEMUX
-	    &clock GCLK_IDX_DOS
-	    &clock GCLK_IDX_MEDIA_CPU>;
-resets-names = "parser_top",
-		"vpu_intr",
-		"demux",
-		"vdec",
-		"audio";
-*/
-
-static int clock_gate_init(void)
-{
-	int i;
-	for (i = 0; i < sizeof(gates) / sizeof(struct gate_swtch_node); i++) {
-		pr_err("try get gate %s\n", gates[i].name);
-		gates[i].reset_ctl = devm_reset_control_get(
-			&amstream_pdev->dev, gates[i].name);
-		if (IS_ERR_OR_NULL(gates[i].reset_ctl))
-			gates[i].reset_ctl = NULL;
-		else {
-			pr_info("get gate %s control ok %p\n", gates[i].name,
-				gates[i].reset_ctl);
-		}
-	}
-	return 0;
-}
-
-int amports_switch_gate(const char *name, int enable)
-{
-	int i;
-	for (i = 0; i < sizeof(gates) / sizeof(struct gate_swtch_node); i++) {
-		if (!strcmp(name, gates[i].name)) {
-			pr_err("openclose:%d gate %s control\n", enable,
-				   gates[i].name);
-			if (gates[i].reset_ctl) {
-				if (enable)
-					reset_control_deassert(
-						gates[i].reset_ctl);
-				else
-					reset_control_assert(
-						gates[i].reset_ctl);
-			}
-		}
-	}
-	return 0;
-}
 
 static int amstream_open(struct inode *inode, struct file *file)
 {
@@ -1324,25 +1253,30 @@ static int amstream_release(struct inode *inode, struct file *file)
 			}
 			/* TODO: mod gate */
 			/* switch_mod_gate_by_name("vdec", 0); */
+			amports_switch_gate("vdec", 0);
 		}
 
 		if (this->type & PORT_TYPE_AUDIO) {
 			/* TODO: mod gate */
 			/* switch_mod_gate_by_name("audio", 0); */
+			amports_switch_gate("audio", 0);
 		}
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8
 			&& !is_meson_mtvd_cpu()) {
 			/* TODO: clc gate */
 			/* /CLK_GATE_OFF(VPU_INTR); */
+			amports_switch_gate("vpu_intr", 0);
 		}
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
 			/* TODO: clc gate */
 			/* CLK_GATE_OFF(HIU_PARSER_TOP); */
+			amports_switch_gate("parser_top", 0);
 		}
 		/* TODO: mod gate */
 		/* switch_mod_gate_by_name("demux", 0); */
+		amports_switch_gate("demux", 0);
 	}
 	mutex_unlock(&amstream_mutex);
 	return 0;
@@ -2010,6 +1944,7 @@ static ssize_t bufs_show(struct class *class, struct class_attribute *attr,
 					/* TODO: mod gate */
 					/* switch_mod_gate_by_name("vdec", 0);
 					*/
+					amports_switch_gate("vdec", 0);
 				}
 			} else
 				pbuf += sprintf(pbuf, "\tbuf no used.\n");
@@ -2297,7 +2232,7 @@ static int amstream_probe(struct platform_device *pdev)
 	init_waitqueue_head(&amstream_userdata_wait);
 	reset_canuse_buferlevel(10000);
 	amstream_pdev = pdev;
-	clock_gate_init();
+	amports_clock_gate_init(&amstream_pdev->dev);
 	return 0;
 
 	/*

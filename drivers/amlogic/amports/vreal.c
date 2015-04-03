@@ -751,8 +751,8 @@ s32 vreal_init(void)
 	/* enable AMRISC side protocol */
 	vreal_prot_init();
 
-	if (request_irq(INT_VDEC, vreal_isr,
-		IRQF_SHARED, "vreal-irq", (void *)vreal_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1,  vreal_isr,
+		    "vreal-irq", (void *)vreal_dec_id)) {
 		amvdec_disable();
 
 		pr_info("vreal irq register error.\n");
@@ -865,7 +865,7 @@ static int amvdec_real_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_ISR_REG) {
-		free_irq(INT_VDEC, (void *)vreal_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vreal_dec_id);
 		stat &= ~STAT_ISR_REG;
 	}
 

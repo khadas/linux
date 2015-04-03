@@ -29,7 +29,10 @@
 #include <linux/amlogic/gpio-amlogic.h>
 #include <linux/amlogic/canvas/canvas.h>
 
-/* #include <linux/amlogic/logo/logo.h> */
+#ifdef CONFIG_GE2D_KEEP_FRAME
+#include <linux/amlogic/ge2d/ge2d.h>
+#include <linux/amlogic/canvas/canvas_mgr.h>
+#endif
 #include <linux/amlogic/register.h>
 #if defined(CONFIG_AM_VECM)
 #include <linux/amlogic/aml_common.h>
@@ -159,7 +162,7 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 #define BRIDGE_IRQ_SET() WRITE_CBUS_REG(ISA_TIMERC, 1)
 #endif
 
-/* /#define RESERVE_CLR_FRAME */
+#define RESERVE_CLR_FRAME
 
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 
@@ -758,9 +761,13 @@ static int noneseamless_play_clone_rate = 5;
 #endif
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
-static ge2d_context_t *ge2d_video_context;
+static int display_canvas_y_dup;
+static int display_canvas_u_dup;
+static int display_canvas_v_dup;
+static struct ge2d_context_s *ge2d_video_context;
 static int ge2d_videotask_init(void)
 {
+	const char *keep_owner = "keepframe";
 	if (ge2d_video_context == NULL)
 		ge2d_video_context = create_ge2d_work_queue();
 
@@ -768,6 +775,12 @@ static int ge2d_videotask_init(void)
 		pr_info("create_ge2d_work_queue video task failed\n");
 		return -1;
 	}
+	if (!display_canvas_y_dup)
+		display_canvas_y_dup = canvas_pool_map_alloc_canvas(keep_owner);
+	if (!display_canvas_u_dup)
+		display_canvas_u_dup = canvas_pool_map_alloc_canvas(keep_owner);
+	if (!display_canvas_v_dup)
+		display_canvas_v_dup = canvas_pool_map_alloc_canvas(keep_owner);
 	pr_info("create_ge2d_work_queue video task ok\n");
 
 	return 0;
@@ -779,6 +792,13 @@ static int ge2d_videotask_release(void)
 		destroy_ge2d_work_queue(ge2d_video_context);
 		ge2d_video_context = NULL;
 	}
+	if (display_canvas_y_dup)
+		canvas_pool_map_free_canvas(display_canvas_y_dup);
+	if (display_canvas_u_dup)
+		canvas_pool_map_free_canvas(display_canvas_u_dup);
+	if (display_canvas_v_dup)
+		canvas_pool_map_free_canvas(display_canvas_v_dup);
+
 	return 0;
 }
 
@@ -788,10 +808,10 @@ static int ge2d_store_frame_YUV444(u32 cur_index)
 	struct canvas_s cs, cd;
 	ulong yaddr;
 	u32 ydupindex;
-	config_para_ex_t ge2d_config;
-	memset(&ge2d_config, 0, sizeof(config_para_ex_t));
+	struct config_para_ex_s ge2d_config;
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
-	ydupindex = DISPLAY_CANVAS_YDUP_INDEX;
+	ydupindex = display_canvas_y_dup;
 
 	pr_info("ge2d_store_frame_YUV444 cur_index:s:0x%x\n", cur_index);
 	/* pr_info("ge2d_store_frame cur_index:d:0x%x\n", canvas_tab[0]); */
@@ -862,11 +882,11 @@ static int ge2d_store_frame_NV21(u32 cur_index)
 	struct canvas_s cs0, cs1, cd;
 	ulong yaddr, uaddr;
 	u32 ydupindex, udupindex;
-	config_para_ex_t ge2d_config;
-	memset(&ge2d_config, 0, sizeof(config_para_ex_t));
+	struct config_para_ex_s ge2d_config;
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
-	ydupindex = DISPLAY_CANVAS_YDUP_INDEX;
-	udupindex = DISPLAY_CANVAS_UDUP_INDEX;
+	ydupindex = display_canvas_y_dup;
+	udupindex = display_canvas_u_dup;
 
 	pr_info("ge2d_store_frame_NV21 cur_index:s:0x%x\n", cur_index);
 
@@ -947,12 +967,12 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	struct canvas_s cs, cd;
 	ulong yaddr, uaddr, vaddr;
 	u32 ydupindex, udupindex, vdupindex;
-	config_para_ex_t ge2d_config;
-	memset(&ge2d_config, 0, sizeof(config_para_ex_t));
+	struct config_para_ex_s ge2d_config;
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
-	ydupindex = DISPLAY_CANVAS_YDUP_INDEX;
-	udupindex = DISPLAY_CANVAS_UDUP_INDEX;
-	vdupindex = DISPLAY_CANVAS_VDUP_INDEX;
+	ydupindex = display_canvas_y_dup;
+	udupindex = display_canvas_u_dup;
+	vdupindex = display_canvas_v_dup;
 
 	pr_info("ge2d_store_frame_YUV420 cur_index:s:0x%x\n", cur_index);
 	/* operation top line */
@@ -1313,7 +1333,7 @@ int ext_register_end_frame_callback(struct amvideocap_req *req)
 	return 0;
 }
 
-#if 0				/* TODO keep */
+#ifdef CONFIG_AM_VIDEOCAPTURE
 static int ext_frame_capture_poll(int endflags)
 {
 	mutex_lock(&video_module_mutex);
@@ -3969,7 +3989,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 }
 
-#if 0
+#ifdef RESERVE_CLR_FRAME
 static int alloc_keep_buffer(void)
 {
 	amlog_mask(LOG_MASK_KEEPBUF, "alloc_keep_buffer\n");
@@ -4102,8 +4122,8 @@ static void vsync_fiq_up(void)
 #else
 	int r;
 	/*TODO irq     */
-	r = request_irq(INT_VIU_VSYNC, &vsync_isr,
-			IRQF_SHARED, "vsync", (void *)video_dev_id);
+	r = vdec_request_irq(VSYNC_IRQ, &vsync_isr,
+			"vsync", (void *)video_dev_id);
 
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
@@ -4118,7 +4138,7 @@ static void vsync_fiq_down(void)
 	free_fiq(INT_VIU_VSYNC, &vsync_fisr);
 #else
 	/*TODO irq */
-	free_irq(INT_VIU_VSYNC, (void *)video_dev_id);
+	vdec_free_irq(VSYNC_IRQ, (void *)video_dev_id);
 #endif
 }
 
@@ -4345,7 +4365,6 @@ unsigned int get_post_canvas(void)
 	return post_canvas;
 }
 
-#if 0				/* TODO keep */
 static int canvas_dup(ulong *dst, ulong src_paddr, ulong size)
 {
 	void __iomem *p = ioremap_wc(src_paddr, size);
@@ -4359,10 +4378,8 @@ static int canvas_dup(ulong *dst, ulong src_paddr, ulong size)
 
 	return 0;
 }
-#endif
 unsigned int vf_keep_current(void)
 {
-#if 0				/* TODO keep */
 	u32 cur_index;
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
@@ -4377,8 +4394,9 @@ unsigned int vf_keep_current(void)
 	if (debug_flag & DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT)
 		return 0;
 
+#ifdef CONFIG_AM_VIDEOCAPTURE
 	ext_frame_capture_poll(1);	/*pull  if have capture end frame */
-
+#endif
 	if (blackout | force_blackout)
 		return 0;
 
@@ -4551,7 +4569,6 @@ unsigned int vf_keep_current(void)
 			pr_info("%s: VIDTYPE_VIU_420\n", __func__);
 #endif
 	}
-#endif
 	return 0;
 
 }
@@ -4951,7 +4968,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_SET_3D_TYPE:
 		{
 #ifdef TV_3D_FUNCTION_OPEN
-			unsigned int set_3d
+			unsigned int set_3d =
 				VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE,
 			unsigned int type = (unsigned int)arg;
 			if (type != process_3d_type) {

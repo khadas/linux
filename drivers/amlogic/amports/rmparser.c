@@ -106,8 +106,8 @@ s32 rmparser_init(void)
 
 	/* enable interrupt */
 
-	r = request_irq(INT_PARSER, rm_parser_isr,
-			IRQF_SHARED, "rmparser", (void *)rmparser_id);
+	r = vdec_request_irq(PARSER_IRQ, rm_parser_isr,
+			"rmparser", (void *)rmparser_id);
 
 	if (r) {
 		pr_info("RM parser irq register failed.\n");
@@ -169,10 +169,10 @@ static ssize_t _rmparser_write(const char __user *buf, size_t count)
 		if (copy_from_user(fetchbuf, p, len))
 			return -EFAULT;
 		dma_addr =
-			dma_map_single(&amstream_pdev->dev,
+			dma_map_single(NULL,
 					fetchbuf, FETCHBUF_SIZE,
 					DMA_TO_DEVICE);
-		if (dma_mapping_error(&amstream_pdev->dev, dma_addr))
+		if (dma_mapping_error(NULL, dma_addr))
 			return -EFAULT;
 
 		fetch_done = 0;
@@ -183,7 +183,7 @@ static ssize_t _rmparser_write(const char __user *buf, size_t count)
 		WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
 
 		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
-		dma_unmap_single(&amstream_pdev->dev, dma_addr,
+		dma_unmap_single(NULL, dma_addr,
 						 FETCHBUF_SIZE, DMA_TO_DEVICE);
 		ret =
 			wait_event_interruptible_timeout(rm_wq, fetch_done != 0,

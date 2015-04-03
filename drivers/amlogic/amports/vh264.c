@@ -31,7 +31,7 @@
 #include "streambuf.h"
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
-#include <linux/amlogic/logo/logo.h>
+#include <linux/amlogic/ge2d/ge2d.h>
 #endif
 
 #define DRIVER_NAME "amvdec_h264"
@@ -265,7 +265,7 @@ static s32 vh264_init(void);
 static bool pts_discontinue;
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
-static ge2d_context_t *ge2d_videoh264_context;
+static struct ge2d_context_s *ge2d_videoh264_context;
 
 static int ge2d_videoh264task_init(void)
 {
@@ -293,10 +293,10 @@ static int ge2d_canvas_dup(struct canvas_s *srcy, struct canvas_s *srcu,
 		u32 desindex)
 {
 
-	config_para_ex_t ge2d_config;
+	struct config_para_ex_s ge2d_config;
 	pr_info("[%s]h264 ADDR srcy[0x%lx] srcu[0x%lx] des[0x%lx]\n",
 		   __func__, srcy->addr, srcu->addr, des->addr);
-	memset(&ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	ge2d_config.alu_const_color = 0;
 	ge2d_config.bitmask_en = 0;
@@ -2184,9 +2184,8 @@ static s32 vh264_init(void)
 #ifdef HANDLE_H264_IRQ
 	/*TODO irq */
 
-	if (request_irq(INT_VDEC, vh264_isr,
-				IRQF_SHARED, "vh264-irq",
-				(void *)vh264_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1, vh264_isr,
+			"vh264-irq", (void *)vh264_dec_id)) {
 		pr_info("vh264 irq register error.\n");
 		amvdec_disable();
 		return -ENOENT;
@@ -2245,7 +2244,7 @@ static int vh264_stop(int mode)
 		WRITE_VREG(ASSIST_MBOX1_MASK, 0);
 		/*TODO irq */
 
-		free_irq(INT_VDEC, (void *)vh264_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vh264_dec_id);
 
 		stat &= ~STAT_ISR_REG;
 	}

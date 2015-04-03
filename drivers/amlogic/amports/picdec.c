@@ -146,8 +146,8 @@ struct semaphore pic_vb_done_sema;
 
 static wait_queue_head_t frame_ready;
 
-static int render_frame(ge2d_context_t *context,
-		config_para_ex_t *ge2d_config);
+static int render_frame(struct ge2d_context_s *context,
+		struct config_para_ex_s *ge2d_config);
 static void post_frame(void);
 
 /************************************************
@@ -266,8 +266,8 @@ int get_unused_picdec_index(void)
 	return -1;
 }
 
-static int render_frame(ge2d_context_t *context,
-		config_para_ex_t *ge2d_config)
+static int render_frame(struct ge2d_context_s *context,
+		struct config_para_ex_s *ge2d_config)
 {
 
 	struct vframe_s *new_vf;
@@ -344,13 +344,13 @@ static int render_frame_block(void)
 
 	unsigned long time_use = 0;
 
-	config_para_ex_t ge2d_config;
+	struct config_para_ex_s ge2d_config;
 
-	ge2d_context_t *context = picdec_device.context;
+	struct ge2d_context_s *context = picdec_device.context;
 
 	do_gettimeofday(&start);
 
-	memset(&ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	index = get_unused_picdec_index();
 
@@ -756,8 +756,8 @@ int picdec_pre_process(void)
 	return 0;
 }
 
-int fill_color(struct vframe_s *vf, ge2d_context_t *context,
-			   config_para_ex_t *ge2d_config)
+int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
+			   struct config_para_ex_s *ge2d_config)
 {
 
 	struct io_mapping *mapping_wc;
@@ -970,7 +970,7 @@ int fill_color(struct vframe_s *vf, ge2d_context_t *context,
 #if 0
 	struct canvas_s cs0, cs1, cs2, cd;
 
-	memset(ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	ge2d_config->alu_const_color = 0;	/* 0x000000ff; */
 	ge2d_config->bitmask_en = 0;
@@ -1098,7 +1098,7 @@ int fill_color(struct vframe_s *vf, ge2d_context_t *context,
 
 	fillrect(context, 0, 0, vf->width, vf->height / 2, test_b);
 
-	memset(ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	return 0;
 
@@ -1172,8 +1172,8 @@ static void rotate_adjust(int w_in, int h_in, int *w_out, int *h_out, int angle)
 	*h_out = h;
 }
 
-int picdec_fill_buffer(struct vframe_s *vf, ge2d_context_t *context,
-					   config_para_ex_t *ge2d_config)
+int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
+					   struct config_para_ex_s *ge2d_config)
 {
 
 	struct canvas_s cs0, cs1, cs2;
@@ -1192,7 +1192,7 @@ int picdec_fill_buffer(struct vframe_s *vf, ge2d_context_t *context,
 
 	fill_color(vf, context, ge2d_config);
 
-	/* memset(&ge2d_config,0,sizeof(config_para_ex_t)); */
+	/* memset(&ge2d_config,0,sizeof(struct config_para_ex_s)); */
 	canvas_config(PIC_DEC_SOURCE_CANVAS,
 				  (ulong)(picdec_device.assit_buf_start),
 				  canvas_width * 3, canvas_height,
@@ -1384,9 +1384,9 @@ static int picdec_task(void *data)
 
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
 
-	ge2d_context_t *context = create_ge2d_work_queue();
+	struct ge2d_context_s *context = create_ge2d_work_queue();
 
-	config_para_ex_t ge2d_config;
+	struct config_para_ex_s ge2d_config;
 
 #ifdef CONFIG_AMLCAP_LOG_TIME_USEFORFRAMES
 	struct timeval start;
@@ -1398,7 +1398,7 @@ static int picdec_task(void *data)
 #endif				/*
 				 */
 
-	memset(&ge2d_config, 0, sizeof(config_para_ex_t));
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	amlog_level(LOG_LEVEL_HIGH, "picdec task is running\n ");
 	sched_setscheduler(current, SCHED_FIFO, &param);
@@ -1689,7 +1689,7 @@ void get_picdec_buf_info(resource_size_t *start, unsigned int *size,
 static int picdec_open(struct inode *inode, struct file *file)
 {
 
-	ge2d_context_t *context = NULL;
+	struct ge2d_context_s *context = NULL;
 
 	int ret = 0;
 
@@ -1710,12 +1710,12 @@ static long picdec_ioctl(struct file *filp, unsigned int cmd,
 
 	int ret = 0;
 
-	ge2d_context_t *context;
+	struct ge2d_context_s *context;
 
 	void __user *argp;
 
 	/* struct source_input_s* input; */
-	context = (ge2d_context_t *) filp->private_data;
+	context = (struct ge2d_context_s *) filp->private_data;
 
 	argp = (void __user *)args;
 
@@ -1770,7 +1770,8 @@ static long picdec_ioctl(struct file *filp, unsigned int cmd,
 static int picdec_release(struct inode *inode, struct file *file)
 {
 
-	ge2d_context_t *context = (ge2d_context_t *) file->private_data;
+	struct ge2d_context_s *context =
+		(struct ge2d_context_s *) file->private_data;
 
 	pr_info("picdec stop start");
 

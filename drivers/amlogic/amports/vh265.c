@@ -4797,9 +4797,8 @@ static s32 vh265_init(void)
 	/* enable AMRISC side protocol */
 	vh265_prot_init();
 
-	if (request_irq(INT_VDEC, vh265_isr,
-				IRQF_SHARED, "vh265-irq",
-				(void *)vh265_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1, vh265_isr,
+				"vh265-irq", (void *)vh265_dec_id)) {
 		pr_info("vh265 irq register error.\n");
 		amhevc_disable();
 		return -ENOENT;
@@ -4893,7 +4892,7 @@ static int vh265_stop(void)
 
 	if (stat & STAT_ISR_REG) {
 		WRITE_VREG(HEVC_ASSIST_MBOX1_MASK, 0);
-		free_irq(INT_VDEC, (void *)vh265_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vh265_dec_id);
 		stat &= ~STAT_ISR_REG;
 	}
 

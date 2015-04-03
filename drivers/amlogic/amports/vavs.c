@@ -795,8 +795,8 @@ static s32 vavs_init(void)
 	vavs_prot_init();
 
 #ifdef HANDLE_AVS_IRQ
-	if (request_irq(INT_AMVENCODER, vavs_isr,
-				IRQF_SHARED, "vavs-irq", (void *)vavs_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1, vavs_isr,
+			"vavs-irq", (void *)vavs_dec_id)) {
 		amvdec_disable();
 		pr_info("vavs irq register error.\n");
 		return -ENOENT;
@@ -876,7 +876,7 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_ISR_REG) {
-		free_irq(INT_AMVENCODER, (void *)vavs_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vavs_dec_id);
 		stat &= ~STAT_ISR_REG;
 	}
 

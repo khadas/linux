@@ -1311,9 +1311,8 @@ static s32 vh264mvc_init(void)
 	vh264mvc_prot_init();
 
 #ifdef HANDLE_h264mvc_IRQ
-	if (request_irq(INT_VDEC, vh264mvc_isr,
-				IRQF_SHARED, "vh264mvc-irq",
-				(void *)vh264mvc_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1, vh264mvc_isr,
+			"vh264mvc-irq", (void *)vh264mvc_dec_id)) {
 		pr_info("vh264mvc irq register error.\n");
 		amvdec_disable();
 		return -ENOENT;
@@ -1357,7 +1356,7 @@ static int vh264mvc_stop(void)
 	if (stat & STAT_ISR_REG) {
 		WRITE_VREG(ASSIST_MBOX1_MASK, 0);
 #ifdef HANDLE_h264mvc_IRQ
-		free_irq(INT_VDEC, (void *)vh264mvc_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vh264mvc_dec_id);
 #endif
 		stat &= ~STAT_ISR_REG;
 	}

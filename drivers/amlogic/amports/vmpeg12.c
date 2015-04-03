@@ -843,8 +843,8 @@ static s32 vmpeg12_init(void)
 	/* enable AMRISC side protocol */
 	vmpeg12_prot_init();
 
-	r = request_irq(INT_VDEC, vmpeg12_isr,
-		IRQF_SHARED, "vmpeg12-irq", (void *)vmpeg12_dec_id);
+	r = vdec_request_irq(VDEC_IRQ_1, vmpeg12_isr,
+		    "vmpeg12-irq", (void *)vmpeg12_dec_id);
 
 	if (r) {
 		amvdec_disable();
@@ -924,7 +924,7 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_ISR_REG) {
-		free_irq(INT_VDEC, (void *)vmpeg12_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vmpeg12_dec_id);
 		stat &= ~STAT_ISR_REG;
 	}
 

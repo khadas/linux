@@ -42,7 +42,7 @@ struct picdec_device_s {
 	int disp_height;
 	int frame_render;
 	int frame_post;
-	ge2d_context_t *context;
+	struct ge2d_context_s *context;
 	int cur_index;
 	struct io_mapping *mapping;
 };
@@ -59,8 +59,8 @@ void stop_picdec_task(void);
 int picdec_buffer_init(void);
 void get_picdec_buf_info(resource_size_t *start, unsigned int *size,
 						 struct io_mapping **mapping);
-int picdec_fill_buffer(struct vframe_s *vf, ge2d_context_t *context,
-					   config_para_ex_t *ge2d_config);
+int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
+	struct config_para_ex_s *ge2d_config);
 extern void set_freerun_mode(int mode);
 
 extern int start_picdec_task(void);

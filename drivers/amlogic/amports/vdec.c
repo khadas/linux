@@ -37,6 +37,7 @@ static DEFINE_SPINLOCK(lock);
 static int inited_vcodec_num;
 static int poweron_clock_level;
 static unsigned int debug_trace_num = 16 * 20;
+static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
 static struct platform_device *vdec_core_device;
 struct am_reg {
@@ -519,6 +520,7 @@ static ssize_t amrisc_regs_show(struct class *class,
 		/*
 		   switch_mod_gate_by_type(MOD_VDEC, 0);
 		 */
+		amports_switch_gate("vdec", 0);
 	}
 	ret = pbuf - buf;
 	return ret;
@@ -582,6 +584,7 @@ static ssize_t dump_trace_show(struct class *class,
 		/*
 		   switch_mod_gate_by_type(MOD_VDEC, 0);
 		 */
+		amports_switch_gate("vdec", 0);
 	}
 	for (i = 0; i < debug_trace_num; i++) {
 		if (i % 4 == 0) {
@@ -637,6 +640,50 @@ static ssize_t show_poweron_clock_level(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", poweron_clock_level);
+}
+
+/*irq num as same as .dts*/
+/*
+	interrupts = <0 3 1
+		0 23 1
+		0 32 1
+		0 43 1
+		0 44 1
+		0 45 1>;
+	interrupt-names = "vsync",
+		"demux",
+		"parser",
+		"mailbox_0",
+		"mailbox_1",
+		"mailbox_2";
+*/
+s32 vdec_request_irq(enum vdec_irq_num num, irq_handler_t handler,
+				const char *devname, void *dev)
+{
+	s32 res_irq;
+	s32 ret = 0;
+	if (num >= VDEC_IRQ_MAX) {
+		pr_err("[%s] request irq error, irq num too big!", __func__);
+		return -EINVAL;
+	}
+	res_irq = platform_get_irq(vdec_core_device, num);
+	if (res_irq < 0) {
+		pr_err("[%s] get irq error!", __func__);
+		return -EINVAL;
+	}
+	vdec_irq[num] = res_irq;
+	ret = request_irq(vdec_irq[num], handler,
+	IRQF_SHARED, devname, dev);
+	return ret;
+}
+
+void vdec_free_irq(enum vdec_irq_num num, void *dev)
+{
+	if (num >= VDEC_IRQ_MAX) {
+		pr_err("[%s] request irq error, irq num too big!", __func__);
+		return;
+	}
+	free_irq(vdec_irq[num], dev);
 }
 
 static struct class_attribute vdec_class_attrs[] = {

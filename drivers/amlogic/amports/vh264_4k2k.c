@@ -1361,9 +1361,8 @@ static s32 vh264_4k2k_init(void)
 	/* enable AMRISC side protocol */
 	vh264_4k2k_prot_init();
 
-	if (request_irq(INT_VDEC, vh264_4k2k_isr,
-					IRQF_SHARED, "vh264_4k2k-irq",
-					(void *)vh264_4k2k_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1, vh264_4k2k_isr,
+			"vh264_4k2k-irq", (void *)vh264_4k2k_dec_id)) {
 		pr_info("vh264_4k2k irq register error.\n");
 		amvdec_disable();
 		if (!H264_4K2K_SINGLE_CORE)
@@ -1373,11 +1372,11 @@ static s32 vh264_4k2k_init(void)
 	}
 #if 1 /* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if (!H264_4K2K_SINGLE_CORE) {
-		if (request_irq(INT_VDEC2, vh264_4k2k_vdec2_isr,
-					IRQF_SHARED, "vh264_4k2k-vdec2-irq",
-					(void *)vh264_4k2k_dec_id2)) {
+		if (vdec_request_irq(VDEC_IRQ_0, vh264_4k2k_vdec2_isr,
+				"vh264_4k2k-vdec2-irq",
+				(void *)vh264_4k2k_dec_id2)) {
 			pr_info("vh264_4k2k irq register error.\n");
-			free_irq(INT_VDEC, (void *)vh264_4k2k_dec_id);
+			vdec_free_irq(VDEC_IRQ_1, (void *)vh264_4k2k_dec_id);
 			amvdec_disable();
 			amvdec2_disable();
 			return -ENOENT;
@@ -1437,10 +1436,10 @@ static int vh264_4k2k_stop(void)
 		if (!H264_4K2K_SINGLE_CORE)
 			WRITE_VREG(VDEC2_ASSIST_MBOX0_MASK, 0);
 
-		free_irq(INT_VDEC, (void *)vh264_4k2k_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vh264_4k2k_dec_id);
 #if 1 /* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if (!H264_4K2K_SINGLE_CORE)
-			free_irq(INT_VDEC2, (void *)vh264_4k2k_dec_id2);
+			vdec_free_irq(VDEC_IRQ_0, (void *)vh264_4k2k_dec_id2);
 #endif
 		stat &= ~STAT_ISR_REG;
 	}

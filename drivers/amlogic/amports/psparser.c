@@ -809,9 +809,9 @@ static ssize_t _psparser_write(const char __user *buf, size_t count)
 			return -EFAULT;
 
 		dma_addr =
-		    dma_map_single(&amstream_pdev->dev,
+		    dma_map_single(NULL,
 			    fetchbuf, FETCHBUF_SIZE, DMA_TO_DEVICE);
-		if (dma_mapping_error(&amstream_pdev->dev, dma_addr))
+		if (dma_mapping_error(NULL, dma_addr))
 			return -EFAULT;
 
 
@@ -822,7 +822,7 @@ static ssize_t _psparser_write(const char __user *buf, size_t count)
 		WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
 
 		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
-		dma_unmap_single(&amstream_pdev->dev, dma_addr,
+		dma_unmap_single(NULL, dma_addr,
 						 FETCHBUF_SIZE, DMA_TO_DEVICE);
 		ret =
 		    wait_event_interruptible_timeout(wq, fetch_done != 0,
@@ -954,8 +954,8 @@ s32 psparser_init(u32 vid, u32 aid, u32 sid)
 	audio_data_parsed = 0;
 	/*TODO irq */
 
-	r = request_irq(INT_PARSER, parser_isr,
-		IRQF_SHARED, "psparser", (void *)psparser_id);
+	r = vdec_request_irq(PARSER_IRQ, parser_isr,
+		"psparser", (void *)psparser_id);
 
 	if (r) {
 		pr_info("PS Demux irq register failed.\n");
@@ -988,7 +988,7 @@ void psparser_release(void)
 	WRITE_MPEG_REG(PARSER_INT_ENABLE, 0);
 	/*TODO irq */
 
-	free_irq(INT_PARSER, (void *)psparser_id);
+	vdec_free_irq(PARSER_IRQ, (void *)psparser_id);
 
 	pts_stop(PTS_TYPE_VIDEO);
 	pts_stop(PTS_TYPE_AUDIO);

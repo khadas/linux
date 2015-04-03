@@ -901,8 +901,8 @@ static s32 vmpeg4_init(void)
 	/* enable AMRISC side protocol */
 	vmpeg4_prot_init();
 
-	if (request_irq(INT_VDEC, vmpeg4_isr,
-			IRQF_SHARED, "vmpeg4-irq", (void *)vmpeg4_dec_id)) {
+	if (vdec_request_irq(VDEC_IRQ_1, vmpeg4_isr,
+			"vmpeg4-irq", (void *)vmpeg4_dec_id)) {
 		amvdec_disable();
 
 		amlog_level(LOG_LEVEL_ERROR, "vmpeg4 irq register error.\n");
@@ -977,7 +977,7 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_ISR_REG) {
-		free_irq(INT_VDEC, (void *)vmpeg4_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vmpeg4_dec_id);
 		stat &= ~STAT_ISR_REG;
 	}
 

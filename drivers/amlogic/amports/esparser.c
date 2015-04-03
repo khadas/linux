@@ -127,11 +127,12 @@ static ssize_t _esparser_write(const char __user *buf,
 			if (copy_from_user(fetchbuf, p, len))
 				return -EFAULT;
 			dma_addr = dma_map_single(
-					&amstream_pdev->dev, fetchbuf,
+					NULL, fetchbuf,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
-			if (dma_mapping_error(&amstream_pdev->dev,
-					(dma_addr_t) dma_addr))
+			if (dma_mapping_error(NULL,
+						(dma_addr_t) dma_addr))
 				return -EFAULT;
+
 		}
 
 		/* wmb(); don't need */
@@ -148,11 +149,11 @@ static ssize_t _esparser_write(const char __user *buf,
 
 		if (isphybuf)
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, (u32) buf);
-		else
+		else {
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
-
-		dma_unmap_single(&amstream_pdev->dev, dma_addr,
-				FETCHBUF_SIZE, DMA_TO_DEVICE);
+			dma_unmap_single(NULL, dma_addr,
+					FETCHBUF_SIZE, DMA_TO_DEVICE);
+		}
 		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
 
 		search_done = 0;
@@ -421,8 +422,8 @@ s32 esparser_init(struct stream_buf_s *buf)
 
 	if (first_use) {
 		/*TODO irq */
-		r = request_irq(INT_PARSER, esparser_isr,
-			IRQF_SHARED, "parser", (void *)esparser_id);
+		r = vdec_request_irq(PARSER_IRQ, esparser_isr,
+			"parser", (void *)esparser_id);
 
 		if (r) {
 			pr_info("esparser_init: irq register failed.\n");
@@ -495,7 +496,7 @@ void esparser_release(struct stream_buf_s *buf)
 		WRITE_MPEG_REG(PARSER_INT_ENABLE, 0);
 		/*TODO irq */
 
-		free_irq(INT_PARSER, (void *)esparser_id);
+		vdec_free_irq(PARSER_IRQ, (void *)esparser_id);
 
 		if (search_pattern) {
 			dma_unmap_single(NULL, search_pattern_map,

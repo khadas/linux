@@ -704,8 +704,8 @@ static s32 vmjpeg_init(void)
 	/* enable AMRISC side protocol */
 	vmjpeg_prot_init();
 
-	r = request_irq(INT_VDEC, vmjpeg_isr,
-			IRQF_SHARED, "vmjpeg-irq", (void *)vmjpeg_dec_id);
+	r = vdec_request_irq(VDEC_IRQ_1, vmjpeg_isr,
+			"vmjpeg-irq", (void *)vmjpeg_dec_id);
 
 	if (r) {
 		amvdec_disable();
@@ -796,7 +796,7 @@ static int amvdec_mjpeg_remove(struct platform_device *pdev)
 	}
 
 	if (stat & STAT_ISR_REG) {
-		free_irq(INT_VDEC, (void *)vmjpeg_dec_id);
+		vdec_free_irq(VDEC_IRQ_1, (void *)vmjpeg_dec_id);
 		stat &= ~STAT_ISR_REG;
 	}
 
