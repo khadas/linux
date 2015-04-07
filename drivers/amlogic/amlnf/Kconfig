@@ -1,0 +1,54 @@
+#
+# Amlogic NAND device configuration
+#
+
+menuconfig AML_NAND
+	bool "Meson NAND Device Support(For NEXT GEN NAND DRIV)"
+	default n
+	help
+	  Amlogic nand drvier support.
+	  when it is Y here, we use aml nand driver, need choice below;
+	  when it is n here, need not other choice,we do not use aml nand
+	  driver.
+
+if	AML_NAND
+
+config AML_NEXT_GEN_NAND
+	bool "Meson NAND flash device(Next gen driver)"
+	default n
+	help
+	  Support for NAND flash
+	  on Amlogic Meson
+	  platforms for Next gen driver
+	  here
+
+config AML_NFTL_NEW
+	tristate "Meson NAND flash new nftl"
+	default m
+	help
+	  Support for NAND flash
+	  on Amlogic Meson platforms
+	  for Next nftl
+	  here
+
+config AML_NAND_KEY
+	bool "Meson key data store in nand device(dev/nand_key) support"
+	depends on AML_NEXT_GEN_NAND
+	default n
+	help
+	  Support key variable store in NAND device
+	  if say Y here , select
+	  if say N here , do not select
+	  ---
+
+config SECURE_NAND
+	bool "Meson secure data store in nand device support"
+	depends on AML_NEXT_GEN_NAND
+	default n
+	help
+	  Support secure storage in NAND device
+	  ---
+	  ---
+	  ---
+endif
+

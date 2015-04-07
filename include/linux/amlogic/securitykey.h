@@ -2,10 +2,10 @@
 #define __SECURITYKEY__
 
 #include <linux/cdev.h>
-struct{
+struct securitykey_dev_t {
 	struct cdev cdev;
 	unsigned int flags;
-} securitykey_dev_t;
+};
 
 
 #define AML_KEYS_INSTALL_ID     _IO('f', 0x10)

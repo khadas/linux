@@ -1,0 +1,73 @@
+
+#include "amlnf_cfg.h"
+
+#include <linux/module.h>
+#include <linux/types.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/ioport.h>
+#include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/clk.h>
+#include <linux/slab.h>
+#include<linux/delay.h>
+#include <linux/cdev.h>
+#include <linux/sched.h>
+/*
+#include <linux/earlysuspend.h>
+#include <mach/pinmux.h>
+*/
+#include <linux/err.h>
+/*#include <linux/io.h>*/
+#include <linux/bitops.h>
+#include <linux/crc32.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+#include <linux/reboot.h>
+#include <asm/div64.h>
+/*#include <mach/clock.h>*/
+#include <linux/list.h>
+#include <linux/sizes.h>
+/*#include <mach/am_regs.h>*/
+#include <linux/kthread.h>
+#include <linux/kmod.h>
+#include <linux/blkdev.h>
+#include <linux/blkpg.h>
+#include <linux/freezer.h>
+#include <linux/spinlock.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/mutex.h>
+
+#ifdef AML_NAND_RB_IRQ
+/*#include <mach/irqs.h>*/
+#include <linux/interrupt.h>
+#endif
+
+#ifdef AML_NAND_DMA_POLLING
+#ifdef CONFIG_HIGH_RES_TIMERS
+#include <linux/ktime.h>
+#include <linux/hrtimer.h>
+#endif
+#endif
+
+
+#ifdef AML_NAND_DBG
+#define aml_nand_dbg(fmt, ...) dev_warn(KERN_WARNING "%s: line:%d " fmt "\n", \
+		__func__, __LINE__, ##__VA_ARGS__)
+
+#define aml_nand_msg(fmt, ...) dev_warn(KERN_WARNING "%s: line:%d " fmt "\n", \
+		__func__, __LINE__, ##__VA_ARGS__)
+#else
+#define aml_nand_dbg(fmt, ...)
+#define aml_nand_msg(fmt, ...) pr_info(fmt "\n",  ##__VA_ARGS__)
+#endif
+
+
+
+
