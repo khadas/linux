@@ -12,6 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/major.h>
 #include <linux/of.h>
+#include <linux/reset.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -223,7 +224,6 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			pr_info("aiu i2s playback enable\n\n");
 			audio_out_i2s_enable(1);
-			audio_hw_958_enable(1);
 		} else {
 			audio_in_i2s_enable(1);
 			ppp = (int *)(rtd->dma_area + rtd->dma_bytes * 2 - 8);
@@ -237,7 +237,6 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			pr_info("aiu i2s playback disable\n\n");
 			audio_out_i2s_enable(0);
-			audio_hw_958_enable(0);
 		} else {
 			audio_in_i2s_enable(0);
 		}
@@ -339,10 +338,17 @@ static const struct snd_soc_component_driver aml_component = {
 	.name = "aml-i2s-dai",
 };
 
+static const char *const gate_names[] = {
+	"top_glue", "aud_buf", "i2s_out", "amclk_measure",
+	"aififo2", "aud_mixer", "mixer_reg", "adc",
+	"top_level", "aoclk", "aud_in"
+};
+
 static int aml_i2s_dai_probe(struct platform_device *pdev)
 {
 	struct aml_i2s *i2s = NULL;
-	int ret = 0;
+	struct reset_control *audio_reset;
+	int ret = 0, i;
 
 	i2s = kzalloc(sizeof(struct aml_i2s), GFP_KERNEL);
 	if (!i2s) {
@@ -356,15 +362,23 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 		pr_info("i2s get no clk src setting, use the default mpll 0\n");
 		i2s->mpll = 0;
 	}
-	/* enable i2s MPLL and power gate first */
-/* WRITE_MPEG_REG_BITS(MPLL_I2S_CNTL, 1,14, 1); */
-/* audio_aiu_pg_enable(1); */
+	/* enable i2s power gate first */
+	for (i = 0; i < ARRAY_SIZE(gate_names); i++) {
+		audio_reset = devm_reset_control_get(&pdev->dev, gate_names[i]);
+		if (IS_ERR(audio_reset)) {
+			dev_err(&pdev->dev, "Can't get aml audio gate\n");
+			return PTR_ERR(audio_reset);
+		}
+		reset_control_deassert(audio_reset);
+	}
+
 	/* enable the mclk because m8 codec need it to setup */
 	if (i2s->old_samplerate != 48000) {
 		ALSA_PRINT("enterd %s,old_samplerate:%d,sample_rate=%d\n",
 			   __func__, i2s->old_samplerate, 48000);
 		i2s->old_samplerate = 48000;
-/* audio_set_i2s_clk(AUDIO_CLK_FREQ_48, AUDIO_CLK_256FS, i2s->mpll); */
+		audio_set_i2s_clk(AUDIO_CLK_FREQ_48,
+			AUDIO_CLK_256FS, i2s->mpll);
 	}
 	aml_i2s_play();
 	return snd_soc_register_component(&pdev->dev, &aml_component,

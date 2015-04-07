@@ -38,7 +38,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/of_gpio.h>
-
+#include <linux/io.h>
 #define DRV_NAME "aml_snd_card"
 /* extern struct device *spdif_dev; */
 
@@ -449,22 +449,22 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static void aml_m8_pinmux_init(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
-	const char *str = NULL;
-	int ret;
-	p_aml_audio = snd_soc_card_get_drvdata(card);
-	p_aml_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "aml_snd_m8");
+	int val;
 
+	p_aml_audio = snd_soc_card_get_drvdata(card);
+	val = aml_read_sec_reg(0xda004004);
+	pr_info("audio use jtag pinmux as i2s output, read val =%x\n",
+		aml_read_sec_reg(0xda004004));
+	val = val & (~((1<<8) | (1<<1)));
+	aml_write_sec_reg(0xda004004, val);
+	p_aml_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "aml_snd_m8");
 	if (IS_ERR(p_aml_audio->pin_ctl)) {
-		pr_info("=%s==,aml_m8_pinmux_init error!\n", __func__);
+		pr_info("%s,aml_m8_pinmux_init error!\n", __func__);
 		return;
 	}
 	/* p_audio = p_aml_audio; */
 
-	ret = of_property_read_string(card->dev->of_node, "mute_gpio", &str);
-	if (ret < 0)
-		pr_info("aml_snd_m8: faild to get mute_gpio!\n");
-	else
-		p_aml_audio->mute_desc = gpiod_get(card->dev, str);
+	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
 
 	p_aml_audio->mute_inv =
 	    of_property_read_bool(card->dev->of_node, "mute_inv");
@@ -640,7 +640,6 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 		goto err;
 
 	aml_m8_pinmux_init(card);
-
 	return 0;
  err:
 	dev_err(dev, "Can't probe snd_soc_card\n");

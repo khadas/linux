@@ -591,24 +591,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	struct aml_audio_buffer *tmp_buf = buffer->private_data;
 	void *ubuf = tmp_buf->buffer_start;
 	struct audio_stream *s = &prtd->s;
-	int force_reinit_958 = 0;
-	force_reinit_958 = (IEC958_mode_codec == 0
-			    && (aml_read_cbus(AIU_MEM_IEC958_START_PTR) !=
-				aml_read_cbus(AIU_MEM_I2S_START_PTR)));
-	if (s && s->device_type == AML_AUDIO_I2SOUT && (trigger_underrun)) {
-		pr_info("i2s out trigger underrun force_reinit_958/%d",
-		       force_reinit_958);
-
-		trigger_underrun = 0;
-		return -EFAULT;
-	}
-	if (s && s->device_type == AML_AUDIO_I2SOUT && force_reinit_958) {
-		pr_info("i2s out trigger underrun force_reinit_958/%d",
-		       force_reinit_958);
-		audio_hw_958_enable(0);
-		aml_hw_iec958_init(substream);
-		audio_hw_958_enable(1);
-	}
 
 	if (s->device_type == AML_AUDIO_I2SOUT)
 		aml_i2s_alsa_write_addr = frames_to_bytes(runtime, pos);

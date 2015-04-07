@@ -451,7 +451,7 @@ sdio{
 				"Ext Spk","LOUTL",
 				"Ext Spk","LOUTR";
 
-		mute_gpio = "GPIO_BSD_EN";
+		mute_gpio-gpios = <&gpio GPIO_BSD_EN 0>;
 		hp_disable;
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
@@ -523,7 +523,7 @@ sdio{
 &pinmux {
 	audio_pins:audio_pin{
 		amlogic,setmask=<3 0x78000000
-				10 0x78000000>;
+				AO 0x78000000>;
 		amlogic,clrmask=<4 0x3c000
 				5 0x1000>;
 		amlogic,pins = "GPIOX_4","GPIOX_5","GPIOX_6","GPIOX_7",

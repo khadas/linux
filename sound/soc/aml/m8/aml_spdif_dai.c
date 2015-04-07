@@ -16,6 +16,7 @@
 #include <linux/debugfs.h>
 #include <linux/major.h>
 #include <linux/of.h>
+#include <linux/reset.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -52,12 +53,9 @@ static unsigned last_iec_clock = -1;
 unsigned int IEC958_mode_codec;
 EXPORT_SYMBOL(IEC958_mode_codec);
 
-/* static  unsigned  playback_substream_handle = 0 ; */
 static int iec958buf[32 + 16];
 void aml_spdif_play(void)
 {
-/* return; */
-#if 1
 	struct _aiu_958_raw_setting_t set;
 	struct _aiu_958_channel_status_t chstat;
 	struct snd_pcm_substream substream;
@@ -79,7 +77,7 @@ void aml_spdif_play(void)
 		ALSA_PRINT("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
 			   last_iec_clock, AUDIO_CLK_FREQ_48);
 		last_iec_clock = AUDIO_CLK_FREQ_48;
-		/* audio_set_958_clk(AUDIO_CLK_FREQ_48,AUDIO_CLK_256FS); */
+		audio_set_958_clk(AUDIO_CLK_FREQ_48, AUDIO_CLK_256FS);
 	}
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 	memset(iec958buf, 0, sizeof(iec958buf));
@@ -93,10 +91,7 @@ void aml_spdif_play(void)
 	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x1 << 4);
 #endif
 	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
-	/* audio_spdifout_pg_enable(1); */
 	audio_hw_958_enable(1);
-
-#endif
 }
 
 static void aml_spdif_play_stop(void)
@@ -219,7 +214,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		ALSA_PRINT("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
 			   last_iec_clock, sample_rate);
 		last_iec_clock = sample_rate;
-		/* audio_set_958_clk(sample_rate, AUDIO_CLK_256FS); */
+		audio_set_958_clk(sample_rate, AUDIO_CLK_256FS);
 	}
 	pr_info("----aml_hw_iec958_init,runtime->rate=%d,sample_rate=%d--\n",
 	       runtime->rate, sample_rate);
@@ -544,9 +539,26 @@ static const struct snd_soc_component_driver aml_component = {
 	.name = "aml-spdif-dai",
 };
 
+static const char *const gate_names[] = {
+	"iec958", "iec958_amclk"
+};
+
 static int aml_dai_spdif_probe(struct platform_device *pdev)
 {
+	int i;
+	struct reset_control *spdif_reset;
+
 	ALSA_PRINT("aml_spdif_probe\n");
+	/* enable spdif power gate first */
+	for (i = 0; i < ARRAY_SIZE(gate_names); i++) {
+		spdif_reset = devm_reset_control_get(&pdev->dev, gate_names[i]);
+		if (IS_ERR(spdif_reset)) {
+			dev_err(&pdev->dev, "Can't get aml audio gate\n");
+			return PTR_ERR(spdif_reset);
+		}
+		reset_control_deassert(spdif_reset);
+	}
+	aml_spdif_play();
 	return snd_soc_register_component(&pdev->dev, &aml_component,
 					  aml_spdif_dai,
 					  ARRAY_SIZE(aml_spdif_dai));
@@ -581,7 +593,6 @@ static struct platform_driver aml_spdif_dai_driver = {
 static int __init aml_dai_spdif_init(void)
 {
 	ALSA_PRINT("enter aml_dai_spdif_init\n");
-	aml_spdif_play();
 	return platform_driver_register(&aml_spdif_dai_driver);
 }
 

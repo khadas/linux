@@ -429,23 +429,55 @@
 	};
 
 	/* AUDIO MESON8 DEVICES */
-	i2s_plat: i2s_platform {
-		compatible = "amlogic, aml-i2s";
-	};
-	pcm_plat: pcm_platform {
-		compatible = "amlogic, aml-pcm";
-	};
 	i2s_dai: I2S {
 		#sound-dai-cells = <0>;
+		resets = <
+			&clock GCLK_IDX_AIU_AI_TOP_GLUE
+			&clock GCLK_IDX_AUD_BUF
+			&clock GCLK_IDX_AIU_I2S_OUT
+			&clock GCLK_IDX_AIU_AMCLK_MEASURE
+			&clock GCLK_IDX_AIU_AIFIFO2
+			&clock GCLK_IDX_AIU_AUD_MIXER
+			&clock GCLK_IDX_AIU_MIXER_REG
+			&clock GCLK_IDX_AIU_ADC
+			&clock GCLK_IDX_AIU_TOP_LEVEL
+			&clock GCLK_IDX_AIU_AOCLK
+			&clock GCLK_IDX_AUD_IN
+		>;
+		reset-names =
+			"top_glue",
+			"aud_buf",
+			"i2s_out",
+			"amclk_measure",
+			"aififo2",
+			"aud_mixer",
+			"mixer_reg",
+			"adc",
+			"top_level",
+			"aoclk",
+			"aud_in";
 		compatible = "amlogic, aml-i2s-dai";
 	};
 	spdif_dai: SPDIF {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-spdif-dai";
+		resets = <
+			&clock GCLK_IDX_AIU_IEC958
+			&clock GCLK_IDX_AIU_ICE958_AMCLK
+		>;
+		reset-names =
+			"iec958",
+			"iec958_amclk";
 	};
 	pcm_dai: PCM {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-pcm-dai";
+	};
+	i2s_plat: i2s_platform {
+		compatible = "amlogic, aml-i2s";
+	};
+	pcm_plat: pcm_platform {
+		compatible = "amlogic, aml-pcm";
 	};
 	spdif_codec: spdif_codec{
 		#sound-dai-cells = <0>;

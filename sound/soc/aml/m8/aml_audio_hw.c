@@ -517,7 +517,7 @@ void audio_util_set_dac_format(unsigned format)
 void audio_util_set_dac_958_format(unsigned format)
 {
 	/* 958 divisor more, if true, divided by 2, 4, 6, 8 */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 12, 1 << 12);
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 12, 0);
 #if IEC958_OVERCLOCK == 1
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
 	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
