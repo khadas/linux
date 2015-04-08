@@ -14,7 +14,6 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/register.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/delay.h>
@@ -28,6 +27,7 @@
 #include "amports_priv.h"
 #include "vdec.h"
 #include "amvdec.h"
+#include "amports_reg.h"
 
 #include "vh264_4k2k_mc.h"
 

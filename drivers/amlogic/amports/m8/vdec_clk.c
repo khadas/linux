@@ -1,6 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/amlogic/register.h>
 
 #include "../vdec_reg.h"
 
@@ -8,7 +7,7 @@
 
 #include "../vdec.h"
 #include "../vdec_clk.h"
-
+#include "../amports_reg.h"
 /*
 HHI_VDEC_CLK_CNTL
 0x1078[11:9] (fclk = 2550MHz)

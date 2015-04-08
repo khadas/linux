@@ -14,7 +14,6 @@
 #include <linux/amlogic/amports/ptsserv.h>
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/amlogic/amports/vframe_provider.h>
-#include <linux/amlogic/register.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 
@@ -33,6 +32,7 @@
 #include "tsdemux.h"
 #include <linux/reset.h>
 #include "amports_priv.h"
+#include "amports_reg.h"
 
 static const char tsdemux_fetch_id[] = "tsdemux-fetch-id";
 static const char tsdemux_irq_id[] = "tsdemux-irq-id";

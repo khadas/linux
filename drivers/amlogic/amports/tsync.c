@@ -10,10 +10,10 @@
 #else
 /* #include <mach/am_regs.h> */
 #endif
-#include <linux/amlogic/register.h>
 #include "vdec_reg.h"
 #include "amvdec.h"
 #include "tsync_pcr.h"
+#include "amports_reg.h"
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* TODO: for stream buffer register bit define only */

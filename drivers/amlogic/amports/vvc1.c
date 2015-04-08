@@ -13,11 +13,11 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/register.h>
 
 #include "vdec_reg.h"
 #include "amvdec.h"
 #include "vc1_mc.h"
+#include "amports_reg.h"
 
 #define DRIVER_NAME "amvdec_vc1"
 #define MODULE_NAME "amvdec_vc1"

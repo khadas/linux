@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
-#include <linux/amlogic/register.h>
 #include <linux/amlogic/canvas/canvas.h>
 
 #include "vdec.h"
@@ -29,6 +28,7 @@
 #include "vh264_mc.h"
 #include "vh264.h"
 #include "streambuf.h"
+#include "amports_reg.h"
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 #include <linux/amlogic/ge2d/ge2d.h>

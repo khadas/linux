@@ -17,12 +17,12 @@
 
 #include <linux/uaccess.h>
 /* #include <mach/am_regs.h> */
-#include <linux/amlogic/register.h>
 #include "vdec_reg.h"
 #include "streambuf_reg.h"
 #include "streambuf.h"
 #include "psparser.h"
 #include "amports_priv.h"
+#include "amports_reg.h"
 
 #define TIMESTAMP_IONLY 1
 #define SAVE_SCR 0

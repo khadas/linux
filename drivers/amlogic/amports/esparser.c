@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/amports/ptsserv.h>
-#include <linux/amlogic/register.h>
 
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
@@ -28,6 +27,7 @@
 #include "streambuf.h"
 #include "esparser.h"
 #include "amports_priv.h"
+#include "amports_reg.h"
 
 #define SAVE_SCR 0
 

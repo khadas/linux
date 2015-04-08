@@ -33,7 +33,6 @@
 #include <linux/amlogic/ge2d/ge2d.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
 #endif
-#include <linux/amlogic/register.h>
 #if defined(CONFIG_AM_VECM)
 #include <linux/amlogic/aml_common.h>
 #endif
@@ -52,6 +51,7 @@
 #include <linux/uaccess.h>
 
 #include "amports_config.h"
+#include "amports_reg.h"
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 #include <linux/amlogic/vpu.h>

@@ -12,11 +12,11 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/register.h>
 #include <linux/amlogic/canvas/canvas.h>
 
 #include "vdec_reg.h"
 #include "vmpeg4.h"
+#include "amports_reg.h"
 
 /* #define CONFIG_AM_VDEC_MPEG4_LOG */
 #ifdef CONFIG_AM_VDEC_MPEG4_LOG

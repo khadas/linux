@@ -7,7 +7,7 @@
 
 #include <linux/amlogic/amports/aformat.h>
 #include <linux/amlogic/amports/ptsserv.h>
-#include <linux/amlogic/register.h>
+#include "amports_reg.h"
 /* #include <mach/am_regs.h> */
 
 #include "streambuf.h"

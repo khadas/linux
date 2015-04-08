@@ -12,7 +12,6 @@
 
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/video_prot.h>
-#include <linux/amlogic/register.h>
 #include <linux/amlogic/gpio-amlogic.h>
 
 #include <linux/amlogic/iomap.h>
@@ -27,6 +26,7 @@
 #endif
 #include "amlog.h"
 #include "vdec_reg.h"
+#include "amports_reg.h"
 
 /* vpp filter coefficients */
 #define COEF_BICUBIC         0

@@ -18,11 +18,11 @@
 #include <linux/amlogic/amports/vformat.h>
 /* #include <mach/am_regs.h> */
 #include <linux/module.h>
-#include <linux/amlogic/register.h>
 #include "vdec_reg.h"
 #include "streambuf_reg.h"
 #include "amvdec.h"
 #include "vavs_mc.h"
+#include "amports_reg.h"
 
 #define DRIVER_NAME "amvdec_avs"
 #define MODULE_NAME "amvdec_avs"

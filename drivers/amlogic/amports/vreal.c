@@ -9,7 +9,6 @@
 
 #include <linux/amlogic/canvas/canvas.h>
 
-#include <linux/amlogic/register.h>
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/amlogic/amports/vformat.h>
@@ -32,6 +31,7 @@
 
 #include "rmparser.h"
 #include "vreal.h"
+#include "amports_reg.h"
 
 #define DRIVER_NAME "amvdec_real"
 #define MODULE_NAME "amvdec_real"

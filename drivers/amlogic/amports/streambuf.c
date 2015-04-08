@@ -12,7 +12,6 @@
 #include <linux/io.h>
 #include <linux/amlogic/amports/ptsserv.h>
 #include <linux/amlogic/amports/vformat.h>
-#include <linux/amlogic/register.h>
 #include <linux/amlogic/iomap.h>
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
@@ -23,7 +22,7 @@
 #include "streambuf_reg.h"
 #include "streambuf.h"
 #include "amports_config.h"
-
+#include "amports_reg.h"
 #include "amports_priv.h"
 
 #define STBUF_SIZE   (64*1024)

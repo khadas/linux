@@ -20,7 +20,6 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/register.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/slab.h>
@@ -32,6 +31,7 @@
 #include "vdec.h"
 #include "amvdec.h"
 #include "vh265_mc.h"
+#include "amports_reg.h"
 
 /* #define ERROR_HANDLE_DEBUG */
 #define USE_BUF_BLOCK

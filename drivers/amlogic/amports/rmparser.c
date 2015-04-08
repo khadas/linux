@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/amlogic/amports/ptsserv.h>
-#include <linux/amlogic/register.h>
 /* #include <mach/am_regs.h> */
 #include <linux/uaccess.h>
 
@@ -24,6 +23,7 @@
 #include "streambuf_reg.h"
 #include "rmparser.h"
 #include "amports_priv.h"
+#include "amports_reg.h"
 #include <linux/delay.h>
 
 #define MANAGE_PTS

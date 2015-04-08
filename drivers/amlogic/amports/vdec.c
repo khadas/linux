@@ -12,7 +12,6 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/amports/vformat.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/amlogic/register.h>
 #include "vdec_reg.h"
 #include "vdec.h"
 #include <linux/of.h>
@@ -25,6 +24,7 @@
 
 #include "amports_config.h"
 #include "amvdec.h"
+#include "amports_reg.h"
 
 #include "vdec_clk.h"
 #include <linux/reset.h>

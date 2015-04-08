@@ -6,7 +6,6 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/amports/vformat.h>
-#include <linux/amlogic/register.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include "vdec.h"
@@ -25,6 +24,7 @@
 #include "vdec_reg.h"
 #include "amvdec.h"
 #include "amports_config.h"
+#include "amports_reg.h"
 
 #define MC_SIZE (4096 * 4)
 

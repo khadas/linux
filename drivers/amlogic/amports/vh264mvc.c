@@ -15,11 +15,11 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/atomic.h>
-#include <linux/amlogic/register.h>
 
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
+#include "amports_reg.h"
 
 #include "vdec.h"
 #include "vdec_reg.h"

@@ -17,7 +17,6 @@
 #include <linux/amlogic/amports/tsync.h>
 #include <linux/amlogic/amports/ptsserv.h>
 #include <linux/amlogic/amports/timestamp.h>
-#include <linux/amlogic/register.h>
 
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -46,6 +45,7 @@
 #include "amports_priv.h"
 #include "amports_config.h"
 #include "tsync_pcr.h"
+#include "amports_reg.h"
 
 #include <linux/firmware.h>
 

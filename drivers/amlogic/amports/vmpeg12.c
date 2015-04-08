@@ -12,11 +12,11 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/register.h>
 #include <linux/amlogic/cpu_version.h>
 
 #include "vdec_reg.h"
 #include "vmpeg12.h"
+#include "amports_reg.h"
 
 #ifdef CONFIG_AM_VDEC_MPEG12_LOG
 #define AMLOG

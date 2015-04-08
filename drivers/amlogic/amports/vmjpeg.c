@@ -11,9 +11,9 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
-#include <linux/amlogic/register.h>
 
 #include "vdec_reg.h"
+#include "amports_reg.h"
 
 #ifdef CONFIG_AM_VDEC_MJPEG_LOG
 #define AMLOG
