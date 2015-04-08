@@ -28,7 +28,7 @@
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
 #endif
-
+#if 0
 void meson_regmap_lock(void *p)
 {
 	return;
@@ -46,28 +46,42 @@ static struct regmap_config meson_regmap_config = {
 	.lock = meson_regmap_lock,
 	.unlock = meson_regmap_unlock,
 };
-
+#endif
 
 static const struct of_device_id iomap_dt_match[] = {
 	{ .compatible = "amlogic,iomap" },
 	{ /* sentinel */ },
 };
-struct regmap *meson_reg_map[IO_BUS_MAX];
+void __iomem *meson_reg_map[IO_BUS_MAX];
 
 int aml_reg_read(u32 bus_type, unsigned int reg, unsigned int *val)
 {
+#if 0
 	if ((bus_type >= IO_CBUS_BASE) && (bus_type < IO_BUS_MAX))
 		return regmap_read(meson_reg_map[bus_type], reg, val);
 	else
+		return -1;
+#endif
+	if ((bus_type >= IO_CBUS_BASE) && (bus_type < IO_BUS_MAX)) {
+		*val = readl((meson_reg_map[bus_type]+reg));
+		return 0;
+	} else
 		return -1;
 }
 EXPORT_SYMBOL(aml_reg_read);
 
 int aml_reg_write(u32 bus_type, unsigned int reg, unsigned int val)
 {
+#if 0
 	if ((bus_type >= IO_CBUS_BASE) && (bus_type < IO_BUS_MAX))
 		return regmap_write(meson_reg_map[bus_type], reg, val);
 	else
+		return -1;
+#endif
+	if ((bus_type >= IO_CBUS_BASE) && (bus_type < IO_BUS_MAX)) {
+		writel(val, (meson_reg_map[bus_type]+reg));
+		return 0;
+	} else
 		return -1;
 }
 EXPORT_SYMBOL(aml_reg_write);
@@ -76,10 +90,21 @@ int aml_regmap_update_bits(u32 bus_type,
 					unsigned int reg, unsigned int mask,
 					unsigned int val)
 {
+#if 0
 	if ((bus_type >= IO_CBUS_BASE) && (bus_type < IO_BUS_MAX))
 		return regmap_update_bits(meson_reg_map[bus_type],
 				reg, mask, val);
 	else
+		return -1;
+#endif
+	if ((bus_type >= IO_CBUS_BASE) && (bus_type < IO_BUS_MAX)) {
+		unsigned int tmp, orig;
+		aml_reg_read(bus_type, reg, &orig);
+		tmp = orig & ~mask;
+		tmp |= val & mask;
+		aml_reg_write(bus_type, reg, tmp);
+		return 0;
+	} else
 		return -1;
 }
 EXPORT_SYMBOL(aml_regmap_update_bits);
@@ -295,7 +320,7 @@ void  aml_write_sec_reg(unsigned int reg, unsigned int val)
 static int iomap_probe(struct platform_device *pdev)
 {
 	int i = 0;
-	void __iomem *base;
+/* void __iomem *base; */
 	struct resource res;
 	struct device_node *np, *child;
 	np = pdev->dev.of_node;
@@ -303,6 +328,7 @@ static int iomap_probe(struct platform_device *pdev)
 	for_each_child_of_node(np, child) {
 			if (of_address_to_resource(child, 0, &res))
 				return -1;
+#if 0
 			base = ioremap(res.start, resource_size(&res));
 			meson_regmap_config.max_register =
 				resource_size(&res) - 4;
@@ -316,6 +342,9 @@ static int iomap_probe(struct platform_device *pdev)
 					   i);
 				return PTR_ERR(meson_reg_map[i]);
 			}
+#endif
+			meson_reg_map[i] =
+				ioremap(res.start, resource_size(&res));
 			i++;
 	}
 	pr_info("amlogic iomap probe done\n");
