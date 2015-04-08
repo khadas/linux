@@ -357,7 +357,7 @@ size_t aml_sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 {
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
-	unsigned int sg_flags = 0;
+	unsigned int sg_flags = SG_MITER_ATOMIC;
 
 	if (to_buffer)
 		sg_flags |= SG_MITER_FROM_SG;
