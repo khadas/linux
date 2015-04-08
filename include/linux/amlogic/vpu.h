@@ -33,8 +33,8 @@ enum vpu_mod_t {
 	VPU_VENCL,            /* reg1[23:22] */
 	VPU_VENCI,            /* reg1[25:24] */
 	VPU_ISP,              /* reg1[27:26] */
-	VPU_CVD2,             /* reg1[29:28] */
-	VPU_ATV_DMD,          /* reg1[31:30] */
+	VPU_CVD2,             /* reg1[29:28]  //G9TV & G9BB only */
+	VPU_ATV_DMD,          /* reg1[31:30]  //G9TV & G9BB only */
 	VPU_VIU_SRSCL,        /* reg0[21:20]  //G9TV only */
 	VPU_VIU_OSDSR,        /* reg0[23:22]  //G9TV only */
 	VPU_REV,              /* reg0[25:24]  //G9TV only */

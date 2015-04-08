@@ -24,7 +24,6 @@
 
 #define VPU_VERION        "v01"
 
-/* #define LIMIT_VPU_CLK_LOW */
 static spinlock_t vpu_lock;
 static spinlock_t vpu_mem_lock;
 static DEFINE_MUTEX(vpu_mutex);
@@ -435,7 +434,7 @@ int request_vpu_clk_vmod(unsigned int vclk, unsigned int vmod)
 	}
 
 	clk_vmod[vpu_mod - VPU_MOD_START] = clk_level;
-	pr_info("request vpu clk holdings: %s %uHz\n",
+	pr_info("request vpu clk: %s %uHz\n",
 			vpu_mod_table[vpu_mod - VPU_MOD_START],
 			vpu_clk_table[clk_level][0]);
 
@@ -486,7 +485,7 @@ int release_vpu_clk_vmod(unsigned int vmod)
 	}
 
 	clk_vmod[vpu_mod - VPU_MOD_START] = clk_level;
-	pr_info("release vpu clk holdings: %s\n",
+	pr_info("release vpu clk: %s\n",
 		vpu_mod_table[vpu_mod - VPU_MOD_START]);
 
 	clk_level = get_vpu_clk_level_max_vmod();
@@ -893,6 +892,16 @@ static void detect_vpu_chip(void)
 		vpu_conf.chip_type = VPU_CHIP_G9TV;
 		vpu_conf.clk_level_dft = CLK_LEVEL_DFT_G9TV;
 		vpu_conf.clk_level_max = CLK_LEVEL_MAX_G9TV;
+		break;
+	/* case MESON_CPU_MAJOR_ID_MG9BB:
+		vpu_conf.chip_type = VPU_CHIP_G9BB;
+		vpu_conf.clk_level_dft = CLK_LEVEL_DFT_G9BB;
+		vpu_conf.clk_level_max = CLK_LEVEL_MAX_G9BB;
+		break; */
+	case MESON_CPU_MAJOR_ID_GXBB:
+		vpu_conf.chip_type = VPU_CHIP_GXBB;
+		vpu_conf.clk_level_dft = CLK_LEVEL_DFT_GXBB;
+		vpu_conf.clk_level_max = CLK_LEVEL_MAX_GXBB;
 		break;
 	default:
 		vpu_conf.chip_type = VPU_CHIP_MAX;

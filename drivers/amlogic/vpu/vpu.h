@@ -7,6 +7,7 @@ enum VPU_Chip_e {
 	VPU_CHIP_M8M2,
 	VPU_CHIP_G9TV,
 	VPU_CHIP_G9BB,
+	VPU_CHIP_GXBB,
 	VPU_CHIP_MAX,
 };
 
@@ -16,6 +17,7 @@ static char *vpu_chip_name[] = {
 	"m8m2",
 	"g9tv",
 	"g9baby",
+	"gxbaby",
 	"invalid",
 };
 
@@ -28,6 +30,7 @@ struct VPU_Conf_t {
 	unsigned int     mem_pd1;
 };
 
+/* #define LIMIT_VPU_CLK_LOW */
 
 /* ************************************************ */
 /* VPU frequency table, important. DO NOT modify!! */
@@ -53,6 +56,10 @@ struct VPU_Conf_t {
 /* freq max=212M, default=212M */
 #define CLK_LEVEL_DFT_G9BB     3
 #define CLK_LEVEL_MAX_G9BB     4
+/* GXBB */
+/* freq max=212M, default=212M */
+#define CLK_LEVEL_DFT_GXBB     3
+#define CLK_LEVEL_MAX_GXBB     4
 static unsigned int vpu_clk_table[12][3] = {/* compatible for all chip */
 	/* frequency   clk_mux   div */
 	{106250000,    1,        7}, /* 0 */
