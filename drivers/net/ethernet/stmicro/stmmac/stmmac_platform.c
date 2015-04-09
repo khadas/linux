@@ -29,7 +29,10 @@
 #include <linux/of_device.h>
 #include "stmmac.h"
 #ifdef CONFIG_DWMAC_MESON
+#include <linux/amlogic/iomap.h>
+#include "am_eth_reg.h"
 #include <linux/reset.h>
+#include <linux/gpio/consumer.h>
 #endif
 static const struct of_device_id stmmac_dt_ids[] = {
 #ifdef CONFIG_DWMAC_MESON
@@ -153,9 +156,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	const struct of_device_id *device;
+	struct gpio_desc *gdesc;
+	struct pinctrl *pin_ctl;
 	if (!np)
 		return -ENODEV;
-
 	device = of_match_device(stmmac_dt_ids, &pdev->dev);
 	if (!device)
 		return -ENODEV;
@@ -175,6 +179,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		plat->free = data->free;
 		plat->init = data->init;
 		plat->exit = data->exit;
+		plat->mc_val = 0x7d21;
 	}
 
 #ifdef CONFIG_DWMAC_MESON
@@ -182,11 +187,26 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		*mac = DEFMAC;
 	else
 		*mac = of_get_mac_address(np);
+	aml_write_cbus(plat->mc_val, PREG_ETH_REG0);
 #else
 	*mac = of_get_mac_address(np);
 #endif
 	plat->interface = of_get_phy_mode(np);
-
+	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "etherent_pinmux");
+	/* reset pin choose pull high 100ms than pull low*/
+	gdesc = gpiod_get(&pdev->dev, "rst_pin");
+	if (!IS_ERR(gdesc)) {
+		gpiod_direction_output(gdesc, 0);
+		mdelay(10);
+		gpiod_direction_output(gdesc, 1);
+	}
+	/* Get mec mode & clock setting value  set it in cbus2050*/
+	if (of_property_read_u32(np, "mc_val", &plat->mc_val))
+		aml_write_cbus(plat->mc_val, PREG_ETH_REG0);
+	else {
+		pr_info("detect cbus[2050]=null, plesae setting val\n");
+		pr_info(" IF RGMII setting 0x7d21 else rmii setting 0x1000");
+	}
 	/* Get max speed of operation from device tree */
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
 		plat->max_speed = -1;

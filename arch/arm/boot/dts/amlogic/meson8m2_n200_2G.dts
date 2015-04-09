@@ -166,6 +166,10 @@
 		reg = <0xc9410000 0x10000
 		0xc1108108 0x4>;
 		interrupts = <0 8 1>;
+		pinctrl-names = "etherent_pinmux";
+                pinctrl-0 = <&ethernet_pinmuxs>;
+		rst_pin-gpios = <&gpio GPIOH_5 0>;
+		mc_val = <0x1000>;
 		resets = <&clock GCLK_IDX_ETHERNET>;
 		reset-names = "ethpower";
 		interrupt-names = "macirq";
@@ -540,5 +544,11 @@ sdio{
 		amlogic,setmask=<1 0x80>;
 		amlogic,clrmask=<1 0x10000>;
 		amlogic,pins ="GPIOY_3";
+	};
+
+	ethernet_pinmuxs:eth_pin{
+		amlogic,setmask=<6 0xffff>;
+		amlogic,clrmask=<  >;
+		amlogic,pins = " "," ";
 	};
 };
