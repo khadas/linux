@@ -61,3 +61,5 @@ obj-$(CONFIG_POST_PROCESS_MANAGER) += ppmgr/
 obj-$(CONFIG_AM_WIFI) += wifi/
 
 obj-$(CONFIG_AML_POWER_RESET) += reset/
+
+obj-$(CONFIG_BT_DEVICE) += bluetooth/

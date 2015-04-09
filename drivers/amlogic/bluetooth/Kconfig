@@ -1,0 +1,10 @@
+menu "Amlogic Bt Rfkill Driver"
+
+config BT_DEVICE
+    boolean "BT Device support"
+    depends on BT && RFKILL
+    select BACKLIGHT_CLASS_DEVICE
+    default n
+    ---help---
+      Say Y here if you want to use the BT device.
+endmenu

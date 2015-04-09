@@ -185,6 +185,13 @@
 		status = "ok";
 	};
 
+	bt-dev{
+        compatible = "amlogic, bt-dev";
+        dev_name = "bt-dev";
+        status = "ok";
+        gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
+    };
+
     wifi{
 		compatible = "amlogic, aml_broadcm_wifi";
 		dev_name = "aml_broadcm_wifi";
