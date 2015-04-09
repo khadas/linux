@@ -338,7 +338,7 @@ static bool aml_sg_miter_next(struct sg_mapping_iter *miter)
 	miter->consumed = miter->length = miter->__remaining;
 
 	if (PageHighMem(miter->page)) {
-		pr_info(KERN_DEBUG "AML_SDHC miter_next highmem\n");
+		/*pr_info(KERN_DEBUG "AML_SDHC miter_next highmem\n"); */
 		local_irq_save(flags);
 		miter->addr = kmap_atomic(miter->page) + miter->__offset;
 		local_irq_restore(flags);
