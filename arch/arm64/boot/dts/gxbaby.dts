@@ -182,7 +182,7 @@
 		compatible = "amlogic, vpu";
 		dev_name = "vpu";
 		status = "ok";
-		clk_level = <6>;
+		clk_level = <3>;
 		/**	0: 106.25M    1: 159.375M    2: 182.15M    3: 212.50M
 			4: 255.00M    5: 318.75M     6: 364.30M    7: 425.00M
 			8: 510.00M    9: 637.50M    10: 696.00M */
