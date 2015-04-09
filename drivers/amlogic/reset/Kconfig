@@ -1,0 +1,8 @@
+# Amlogic PINCTRL
+
+
+config AML_POWER_RESET
+	bool "Amlogic Board level reset or power off"
+	default n
+    	help
+		This is the Amlogic Board reset or poweroff  driver

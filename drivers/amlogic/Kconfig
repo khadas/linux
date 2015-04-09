@@ -55,4 +55,5 @@ source "drivers/amlogic/ppmgr/Kconfig"
 
 source "drivers/amlogic/wifi/Kconfig"
 
+source "drivers/amlogic/reset/Kconfig"
 endmenu
