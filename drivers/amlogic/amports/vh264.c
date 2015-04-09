@@ -25,7 +25,6 @@
 #include "vdec.h"
 #include "vdec_reg.h"
 #include "amvdec.h"
-#include "vh264_mc.h"
 #include "vh264.h"
 #include "streambuf.h"
 #include "amports_reg.h"
@@ -2095,85 +2094,44 @@ static s32 vh264_init(void)
 		return -ENOMEM;
 	}
 
-	pr_info
-	("264 ucode swap area: physical address 0x%x, cpu virtual addr %p\n",
-	 mc_dma_handle, mc_cpu_addr);
-	/*while for easy break out, always  run once. */
-	while (debugfirmware) {
-		int size;
-		char *mbuf, *mc;
-		const char *pvh264_header_mc, *pvh264_data_mc, *pvh264_mmco_mc,
-			  *pvh264_list_mc, *pvh264_slice_mc;
-		pr_info("start debug load firmware ...\n");
-		mbuf = kmalloc(4096 * 4 * 6, GFP_KERNEL);
-		if (!mbuf) {
-			pr_info("vh264_init: Cannot malloc mbuf  memory1\n");
-			break;
-		}
-		memset(mbuf, 0, 4096 * 4 * 6);
-		size = request_video_firmware("vh264_mc", mbuf, 4096 * 4 * 6);
-		if (size < 0 || size < (0x800 + 0x400 * 4) * 4) {
-			pr_info("vh264_init: not valied ucode for vh264");
-			kfree(mbuf);
-			break;
-		}
-		pvh264_header_mc = mbuf + (0x800 + 0x400 * 2) * 4;
-		pvh264_data_mc = mbuf + (0x800 + 0x400 * 1) * 4;
-		pvh264_mmco_mc = mbuf + (0x800 + 0x400 * 4) * 4;
-		pvh264_list_mc = mbuf + (0x800 + 0x400 * 3) * 4;
-		pvh264_slice_mc = mbuf + (0x800 + 0x400 * 0) * 4;
-		mc = kmalloc(4096 * 4, GFP_KERNEL);
-		if (!mc) {
-			kfree(mbuf);
-			pr_info("vh264_init: Cannot malloc mbuf  memory3\n");
-			break;
-		}
-		memcpy(mc, mbuf, 0x800 * 4);
-		memcpy(mc + 0x800 * 4, pvh264_data_mc, 0x400 * 4);
-		memcpy(mc + 0x800 * 4 + 0x400 * 4, pvh264_list_mc, 0x400 * 4);
-		if (amvdec_loadmc((const u32 *)mc) < 0) {
-			kfree(mbuf);
-			kfree(mc);
-			dma_free_coherent(NULL, MC_TOTAL_SIZE, mc_cpu_addr,
-							  mc_dma_handle);
-			mc_cpu_addr = NULL;
-			break;
-		}
-
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_HEADER, pvh264_header_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_DATA, pvh264_data_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_MMCO, pvh264_mmco_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_LIST, pvh264_list_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_SLICE, pvh264_slice_mc,
-			   MC_SWAP_SIZE);
-
-		kfree(mbuf);
-		kfree(mc);
-		firmwareloaded = 1;
-		break;
-	};
+	pr_info("264 ucode swap area: phyaddr 0x%x, cpu vaddr %p\n",
+		mc_dma_handle, mc_cpu_addr);
 
 	if (!firmwareloaded) {
+		int r0 , r1 , r2 , r3 , r4 , r5;
 		pr_info("start load orignal firmware ...\n");
-		if (amvdec_loadmc(vh264_mc) < 0) {
+		r0 = amvdec_loadmc_ex(VFORMAT_H264, "vh264_mc", NULL);
+
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_HEADER, vh264_header_mc,
+			   MC_SWAP_SIZE);*/
+		r1 = get_decoder_firmware_data(VFORMAT_H264, "vh264_header_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_HEADER, MC_SWAP_SIZE);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_DATA, vh264_data_mc,
+			   MC_SWAP_SIZE);
+		*/
+		r2 = get_decoder_firmware_data(VFORMAT_H264, "vh264_data_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_DATA, MC_SWAP_SIZE);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_MMCO, vh264_mmco_mc,
+			   MC_SWAP_SIZE);
+		*/
+		r3 = get_decoder_firmware_data(VFORMAT_H264, "vh264_mmco_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_MMCO, MC_SWAP_SIZE);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_LIST, vh264_list_mc,
+			   MC_SWAP_SIZE);
+		*/
+		r4 = get_decoder_firmware_data(VFORMAT_H264, "vh264_list_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_LIST, MC_SWAP_SIZE);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_SLICE, vh264_slice_mc,
+			   MC_SWAP_SIZE);
+		*/
+		r5 = get_decoder_firmware_data(VFORMAT_H264, "vh264_slice_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_SLICE, MC_SWAP_SIZE);
+		if (r0 < 0 || r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0 || r5 < 0) {
+			pr_err("264 load orignal firmware error %d,%d,%d,%d,%d,%d\n",
+				r0 , r1 , r2 , r3 , r4 , r5);
 			amvdec_disable();
 			return -EBUSY;
 		}
-
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_HEADER, vh264_header_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_DATA, vh264_data_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_MMCO, vh264_mmco_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_LIST, vh264_list_mc,
-			   MC_SWAP_SIZE);
-		memcpy((u8 *) mc_cpu_addr + MC_OFFSET_SLICE, vh264_slice_mc,
-			   MC_SWAP_SIZE);
 	}
 
 	stat |= STAT_MC_LOAD;

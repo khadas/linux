@@ -54,6 +54,7 @@
 #include <linux/libfdt_env.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/reset.h>
+#include "arch/firmware.h"
 
 #define DEVICE_NAME "amstream-dev"
 #define DRIVER_NAME "amstream"
@@ -2042,6 +2043,7 @@ static ssize_t videobufused_show(struct class *class,
 static ssize_t vcodec_profile_show(struct class *class,
 			struct class_attribute *attr, char *buf)
 {
+	show_all_buildin_firmwares();
 	return vcodec_profile_read(buf);
 }
 
@@ -2132,14 +2134,15 @@ static struct class_attribute amstream_class_attrs[] = {
 static struct class amstream_class = {
 		.name = "amstream",
 		.class_attrs = amstream_class_attrs,
-	};
+};
 
-int request_video_firmware(const char *file_name, char *buf, int size)
+int amstream_request_firmware_from_sys(const char *file_name,
+		char *buf, int size)
 {
 	const struct firmware *firmware;
 	int err = 0;
 	struct device *micro_dev;
-	pr_err("try load %s  ...", file_name);
+	pr_info("try load %s  ...", file_name);
 	micro_dev = device_create(&amstream_class,
 			NULL, MKDEV(AMSTREAM_MAJOR, 100),
 			NULL, "videodec");

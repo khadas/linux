@@ -1,0 +1,124 @@
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/types.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/device.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+
+#include <linux/amlogic/amports/vformat.h>
+#include <linux/amlogic/cpu_version.h>
+#include "../amports_priv.h"
+#include "../vdec.h"
+#include "chips.h"
+
+#define VIDEO_FIRMWARE_FATHER_NAME "video"
+/*
+#define MESON_CPU_MAJOR_ID_M6		0x16
+#define MESON_CPU_MAJOR_ID_M6TV		0x17
+#define MESON_CPU_MAJOR_ID_M6TVL	0x18
+#define MESON_CPU_MAJOR_ID_M8		0x19
+#define MESON_CPU_MAJOR_ID_MTVD		0x1A
+#define MESON_CPU_MAJOR_ID_M8B		0x1B
+#define MESON_CPU_MAJOR_ID_MG9TV	0x1C
+#define MESON_CPU_MAJOR_ID_M8M2		0x1D
+#define MESON_CPU_MAJOR_ID_GXBB		0x1F
+
+*/
+struct type_name {
+
+	int type;
+
+	const char *name;
+};
+static const struct type_name cpu_type_name[] = {
+	{MESON_CPU_MAJOR_ID_M6, "m6"},
+	{MESON_CPU_MAJOR_ID_M6TV, "m6tv"},
+	{MESON_CPU_MAJOR_ID_M6TVL, "m6tvl"},
+	{MESON_CPU_MAJOR_ID_M8, "m8"},
+	{MESON_CPU_MAJOR_ID_MTVD, "mtvd"},
+	{MESON_CPU_MAJOR_ID_M8B, "m8b"},
+	{MESON_CPU_MAJOR_ID_MG9TV, "mg9tv"},
+	{MESON_CPU_MAJOR_ID_M8M2, "m8"},
+	{MESON_CPU_MAJOR_ID_GXBB, "gxbb"},
+	{0, NULL},
+};
+
+static const char *get_type_name(const struct type_name *typename, int size,
+								 int type)
+{
+
+	const char *name = "unknow";
+
+	int i;
+
+	for (i = 0; i < size; i++) {
+
+		if (type == typename[i].type)
+
+			name = typename[i].name;
+
+	}
+
+	return name;
+}
+
+const char *get_cpu_type_name(void)
+{
+
+	return get_type_name(cpu_type_name,
+		sizeof(cpu_type_name) / sizeof(struct type_name),
+		get_cpu_type());
+}
+
+/*
+enum vformat_e {
+	VFORMAT_MPEG12 = 0,
+	VFORMAT_MPEG4,
+	VFORMAT_H264,
+	VFORMAT_MJPEG,
+	VFORMAT_REAL,
+	VFORMAT_JPEG,
+	VFORMAT_VC1,
+	VFORMAT_AVS,
+	VFORMAT_YUV,
+	VFORMAT_H264MVC,
+	VFORMAT_H264_4K2K,
+	VFORMAT_HEVC,
+	VFORMAT_MAX
+};
+*/
+static const struct type_name vformat_type_name[] = {
+	{VFORMAT_MPEG12, "mpeg12"},
+	{VFORMAT_MPEG4, "mpeg4"},
+	{VFORMAT_H264, "h264"},
+	{VFORMAT_MJPEG, "mjpeg"},
+	{VFORMAT_REAL, "real"},
+	{VFORMAT_JPEG, "jpeg"},
+	{VFORMAT_VC1, "vc1"},
+	{VFORMAT_AVS, "avs"},
+	{VFORMAT_YUV, "yuv"},
+	{VFORMAT_H264MVC, "h264mvc"},
+	{VFORMAT_H264_4K2K, "h264_4k"},
+	{VFORMAT_HEVC, "hevc"},
+	{VFORMAT_YUV, "yuv"},
+	{0, NULL},
+};
+
+const char *get_video_format_name(enum vformat_e type)
+{
+
+	return get_type_name(vformat_type_name,
+			sizeof(vformat_type_name) / sizeof(struct type_name),
+			type);
+}
+
+static struct chip_vdec_info_s current_chip_info;
+
+struct chip_vdec_info_s *get_current_vdec_chip(void)
+{
+
+	return &current_chip_info;
+}

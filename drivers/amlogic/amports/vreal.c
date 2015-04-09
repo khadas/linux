@@ -24,7 +24,6 @@
 #include "vdec_reg.h"
 #include "vreal.h"
 #include "amvdec.h"
-#include "vreal_mc.h"
 
 #include "streambuf.h"
 #include "streambuf_reg.h"
@@ -729,7 +728,7 @@ s32 vreal_init(void)
 			;
 
 		pr_info("load VIDEO_DEC_FORMAT_REAL_8\n");
-		if (amvdec_loadmc(vreal_mc_8) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_REAL, "vreal_mc_8", NULL) < 0) {
 			amvdec_disable();
 
 			pr_info("failed\n");
@@ -737,7 +736,7 @@ s32 vreal_init(void)
 		}
 	} else if (vreal_amstream_dec_info.format == VIDEO_DEC_FORMAT_REAL_9) {
 		pr_info("load VIDEO_DEC_FORMAT_REAL_9\n");
-		if (amvdec_loadmc(vreal_mc_9) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_REAL, "vreal_mc_9", NULL) < 0) {
 			amvdec_disable();
 
 			pr_info("failed\n");

@@ -33,7 +33,6 @@
 MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 
 #include "amvdec.h"
-#include "vmpeg4_mc.h"
 
 #define DRIVER_NAME "amvdec_mpeg4"
 #define MODULE_NAME "amvdec_mpeg4"
@@ -857,7 +856,8 @@ static s32 vmpeg4_init(void)
 
 	if (vmpeg4_amstream_dec_info.format == VIDEO_DEC_FORMAT_MPEG4_3) {
 		amlog_level(LOG_LEVEL_INFO, "load VIDEO_DEC_FORMAT_MPEG4_3\n");
-		if (amvdec_loadmc(vmpeg4_mc_311) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_MPEG4,
+				"vmpeg4_mc_311", NULL) < 0) {
 			amvdec_disable();
 
 			amlog_level(LOG_LEVEL_ERROR,
@@ -867,7 +867,7 @@ static s32 vmpeg4_init(void)
 	} else if (vmpeg4_amstream_dec_info.format ==
 				VIDEO_DEC_FORMAT_MPEG4_4) {
 		amlog_level(LOG_LEVEL_INFO, "load VIDEO_DEC_FORMAT_MPEG4_4\n");
-		if (amvdec_loadmc(vmpeg4_mc_4) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_MPEG4, "vmpeg4_mc_4", NULL) < 0) {
 			amvdec_disable();
 
 			amlog_level(LOG_LEVEL_ERROR,
@@ -877,7 +877,7 @@ static s32 vmpeg4_init(void)
 	} else if (vmpeg4_amstream_dec_info.format ==
 				VIDEO_DEC_FORMAT_MPEG4_5) {
 		amlog_level(LOG_LEVEL_INFO, "load VIDEO_DEC_FORMAT_MPEG4_5\n");
-		if (amvdec_loadmc(vmpeg4_mc_5) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_MPEG4, "vmpeg4_mc_5", NULL) < 0) {
 			amvdec_disable();
 
 			amlog_level(LOG_LEVEL_ERROR,
@@ -886,7 +886,7 @@ static s32 vmpeg4_init(void)
 		}
 	} else if (vmpeg4_amstream_dec_info.format == VIDEO_DEC_FORMAT_H263) {
 		amlog_level(LOG_LEVEL_INFO, "load VIDEO_DEC_FORMAT_H263\n");
-		if (amvdec_loadmc(h263_mc) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_MPEG4, "h263_mc", NULL) < 0) {
 			amvdec_disable();
 
 			amlog_level(LOG_LEVEL_ERROR,

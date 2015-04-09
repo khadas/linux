@@ -3,6 +3,7 @@
 #include "streambuf.h"
 #include "amports_gate.h"
 #include <linux/amlogic/amports/vframe.h>
+#include "arch/firmware.h"
 
 struct stream_buf_s *get_buf_by_type(u32 type);
 
@@ -16,7 +17,8 @@ int calculation_stream_ext_delayed_ms(u8 type);
 int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index);
 int ext_put_video_frame(struct vframe_s *vf);
 int ext_register_end_frame_callback(struct amvideocap_req *req);
-int request_video_firmware(const char *file_name, char *buf, int size);
+int amstream_request_firmware_from_sys(const char *file_name,
+		char *buf, int size);
 void set_vsync_pts_inc_mode(int inc);
 
 void set_real_audio_info(void *arg);

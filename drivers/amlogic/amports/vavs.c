@@ -21,7 +21,6 @@
 #include "vdec_reg.h"
 #include "streambuf_reg.h"
 #include "amvdec.h"
-#include "vavs_mc.h"
 #include "amports_reg.h"
 
 #define DRIVER_NAME "amvdec_avs"
@@ -776,13 +775,13 @@ static s32 vavs_init(void)
 	vavs_local_init();
 
 	if (debug_flag & 2) {
-		if (amvdec_loadmc(vavs_mc_debug) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc_debug", NULL) < 0) {
 			amvdec_disable();
 			pr_info("failed\n");
 			return -EBUSY;
 		}
 	} else {
-		if (amvdec_loadmc(vavs_mc) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc", NULL) < 0) {
 			amvdec_disable();
 			pr_info("failed\n");
 			return -EBUSY;

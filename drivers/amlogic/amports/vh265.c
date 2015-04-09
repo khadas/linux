@@ -4730,9 +4730,11 @@ static int vh265_local_init(void)
 	if (frame_width && frame_height)
 		frame_ar = frame_height * 0x100 / frame_width;
 	error_watchdog_count = 0;
-
+/*
+TODO:FOR VERSION
+*/
 	pr_info("h265: ver (%d,%d) decinfo: %dx%d rate=%d\n", h265_version,
-		   h265_ucode_v, frame_width, frame_height, frame_dur);
+		   0, frame_width, frame_height, frame_dur);
 
 	if (frame_dur == 0)
 		frame_dur = 96000 / 24;
@@ -4767,28 +4769,13 @@ static s32 vh265_init(void)
 
 	amhevc_enable();
 	if (debug & H265_DEBUG_LOAD_UCODE_FROM_FILE) {
-		int size;
-		char *mbuf;
 		pr_info("load ucode from file of vh265_mc\n");
-		mbuf = kmalloc(4096 * 8, GFP_KERNEL);
-		if (!mbuf) {
-			pr_info("vh265_init: Cannot malloc mbuf  memory1\n");
-			return -EBUSY;
-		}
-		memset(mbuf, 0, 4096 * 8);
-		size = request_video_firmware("vh265_mc", mbuf, 4096 * 8);
-		if (size <= 0) {
-			pr_info("vh265_init: not valied ucode for vh265");
-			kfree(mbuf);
-			return -EBUSY;
-		}
-		if (amhevc_loadmc((const u32 *)mbuf) < 0) {
+		if (amhevc_loadmc_ex(VFORMAT_HEVC,
+				"vh265_mc_debug", NULL) < 0) {
 			amhevc_disable();
-			kfree(mbuf);
 			return -EBUSY;
 		}
-		kfree(mbuf);
-	} else if (amhevc_loadmc(vh265_mc) < 0) {
+	} else if (amhevc_loadmc_ex(VFORMAT_HEVC, "vh265_mc", NULL) < 0) {
 		amhevc_disable();
 		return -EBUSY;
 	}

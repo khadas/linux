@@ -26,7 +26,7 @@
 #include "amvdec.h"
 #include "amports_reg.h"
 
-#include "vdec_clk.h"
+#include "arch/clk.h"
 #include <linux/reset.h>
 
 static DEFINE_SPINLOCK(lock);

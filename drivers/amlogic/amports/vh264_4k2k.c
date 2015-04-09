@@ -29,7 +29,6 @@
 #include "amvdec.h"
 #include "amports_reg.h"
 
-#include "vh264_4k2k_mc.h"
 
 
 #if  0 /* MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6TVD */
@@ -1177,7 +1176,8 @@ static void vh264_4k2k_prot_init(void)
 	WRITE_VREG(MDEC_PIC_DC_THRESH, 0x404038aa);
 	if (!H264_4K2K_SINGLE_CORE) {
 		WRITE_VREG(VDEC2_MDEC_PIC_DC_THRESH, 0x404038aa);
-		amvenc_dos_top_reg_fix();
+		/*TODO for M8
+		amvenc_dos_top_reg_fix();*/
 	}
 #ifdef DOUBLE_WRITE
 	WRITE_VREG(MDEC_DOUBLEW_CFG0, (0 << 31) |	/* half y address */
@@ -1288,6 +1288,7 @@ static void vh264_4k2k_local_init(void)
 
 static s32 vh264_4k2k_init(void)
 {
+	int r1 , r2, r3;
 	void __iomem *p =
 		ioremap_nocache(work_space_adr, DECODER_WORK_SPACE_SIZE);
 
@@ -1308,13 +1309,15 @@ static s32 vh264_4k2k_init(void)
 	amvdec_enable();
 
 	if (H264_4K2K_SINGLE_CORE) {
-		if (amvdec_loadmc(vh264_4k2k_mc_single) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_H264_4K2K, "vh264_4k2k_mc_single",
+				NULL) < 0) {
 			amvdec_disable();
 			iounmap(p);
 			return -EBUSY;
 		}
 	} else {
-		if (amvdec_loadmc(vh264_4k2k_mc) < 0) {
+		if (amvdec_loadmc_ex(VFORMAT_H264_4K2K,
+				"vh264_4k2k_mc", NULL) < 0) {
 			amvdec_disable();
 			iounmap(p);
 			return -EBUSY;
@@ -1324,38 +1327,69 @@ static s32 vh264_4k2k_init(void)
 	if (!H264_4K2K_SINGLE_CORE) {
 		amvdec2_enable();
 
-		if (amvdec2_loadmc(vh264_4k2k_mc) < 0) {
+		if (amvdec2_loadmc_ex(VFORMAT_H264_4K2K,
+				"vh264_4k2k_mc", NULL) < 0) {
 			amvdec_disable();
 			amvdec2_disable();
 			iounmap(p);
 			return -EBUSY;
 		}
 	}
-
+	r1 = r2 = r3 = 0;
 	if (H264_4K2K_SINGLE_CORE) {
-		memcpy(p,
+		/*memcpy(p,
 			   vh264_4k2k_header_mc_single,
 			   sizeof(vh264_4k2k_header_mc_single));
+		*/
 
-		memcpy((void *)((ulong) p + 0x1000),
+		r1 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
+				"vh264_4k2k_header_mc_single",
+				p, 0x1000);
+
+		/*memcpy((void *)((ulong) p + 0x1000),
 			   vh264_4k2k_mmco_mc_single,
-			   sizeof(vh264_4k2k_mmco_mc_single));
+			   sizeof(vh264_4k2k_mmco_mc_single));*/
 
-		memcpy((void *)((ulong) p + 0x3000),
+		r2 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
+				"vh264_4k2k_mmco_mc_single",
+				(void *)((ulong) p + 0x1000), 0x2000);
+
+		/*memcpy((void *)((ulong) p + 0x3000),
 			   vh264_4k2k_slice_mc_single,
-			   sizeof(vh264_4k2k_slice_mc_single));
+			   sizeof(vh264_4k2k_slice_mc_single));*/
+
+		r3 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
+				"vh264_4k2k_slice_mc_single",
+				(void *)((ulong) p + 0x3000), 0x4000);
 	} else {
-		memcpy(p, vh264_4k2k_header_mc, sizeof(vh264_4k2k_header_mc));
+		/*memcpy(p, vh264_4k2k_header_mc,
+					sizeof(vh264_4k2k_header_mc));*/
 
-		memcpy((void *)((ulong) p + 0x1000),
-			   vh264_4k2k_mmco_mc, sizeof(vh264_4k2k_mmco_mc));
+		r1 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
+				"vh264_4k2k_header_mc",
+				p, 0x1000);
 
-		memcpy((void *)((ulong) p + 0x3000),
-			   vh264_4k2k_slice_mc, sizeof(vh264_4k2k_slice_mc));
+		/*memcpy((void *)((ulong) p + 0x1000),
+			   vh264_4k2k_mmco_mc, sizeof(vh264_4k2k_mmco_mc));*/
+		r2 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
+				"vh264_4k2k_mmco_mc",
+				(void *)((ulong) p + 0x1000), 0x2000);
+		/*memcpy((void *)((ulong) p + 0x3000),
+			   vh264_4k2k_slice_mc, sizeof(vh264_4k2k_slice_mc));*/
+		r3 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
+				"vh264_4k2k_slice_mc",
+				(void *)((ulong) p + 0x3000), 0x4000);
 	}
 
 	iounmap(p);
-
+	if (r1 < 0 || r2 < 0 || r3 < 0) {
+		amvdec_disable();
+		if (!H264_4K2K_SINGLE_CORE)
+			amvdec2_disable();
+		pr_info("vh264_4k2k load firmware error %d,%d,%d\n",
+						r1, r2, r3);
+		return -EBUSY;
+	}
 	stat |= STAT_MC_LOAD;
 
 	/* enable AMRISC side protocol */

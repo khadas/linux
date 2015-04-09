@@ -30,7 +30,6 @@
 MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 
 #include "amvdec.h"
-#include "vmpeg12_mc.h"
 
 #define DRIVER_NAME "amvdec_mpeg12"
 #define MODULE_NAME "amvdec_mpeg12"
@@ -833,7 +832,7 @@ static s32 vmpeg12_init(void)
 
 	amvdec_enable();
 
-	if (amvdec_loadmc(vmpeg12_mc) < 0) {
+	if (amvdec_loadmc_ex(VFORMAT_MPEG12, "vmpeg12_mc", NULL) < 0) {
 		amvdec_disable();
 		return -EBUSY;
 	}

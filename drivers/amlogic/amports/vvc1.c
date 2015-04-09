@@ -916,7 +916,7 @@ static s32 vvc1_init(void)
 	} else
 		pr_info("not supported VC1 format\n");
 
-	if (amvdec_loadmc(vc1_mc) < 0) {
+	if (amvdec_loadmc_ex(VFORMAT_VC1, "vc1_mc", NULL) < 0) {
 		amvdec_disable();
 
 		pr_info("failed\n");

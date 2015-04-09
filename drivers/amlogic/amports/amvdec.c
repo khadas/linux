@@ -25,6 +25,7 @@
 #include "amvdec.h"
 #include "amports_config.h"
 #include "amports_reg.h"
+#include "arch/firmware.h"
 
 #define MC_SIZE (4096 * 4)
 
@@ -222,14 +223,17 @@ int amvdec_wake_unlock(void)
 #define amvdec_wake_unlock()
 #endif
 
-static s32 am_loadmc_ex(const char *name, char *def, s32(*load)(const u32 *))
+static s32 am_loadmc_ex(enum vformat_e type,
+		const char *name, char *def, s32(*load)(const u32 *))
 {
 	char *mc_addr = kmalloc(4096 * 4, GFP_KERNEL);
 	char *pmc_addr = def;
 	int err;
-	if (mc_addr) {
+
+	if (!def && mc_addr) {
 		int loaded;
-		loaded = request_video_firmware(name, mc_addr, (4096 * 4));
+		loaded = get_decoder_firmware_data(type,
+					name, mc_addr, (4096 * 4));
 		if (loaded > 0)
 			pmc_addr = mc_addr;
 	}
@@ -238,13 +242,16 @@ static s32 am_loadmc_ex(const char *name, char *def, s32(*load)(const u32 *))
 		return -1;
 	}
 	err = (*load)((u32 *) pmc_addr);
-	if (err < 0)
+	if (err < 0) {
+		pr_info("loading firmware %s to vdec ram  failed!\n", name);
 		return err;
+	}
 	kfree(mc_addr);
+	pr_info("loading firmware %s to vdec ram  ok!\n", name);
 	return err;
 }
 
-s32 amvdec_loadmc(const u32 *p)
+static s32 amvdec_loadmc(const u32 *p)
 {
 	ulong timeout;
 	s32 ret = 0;
@@ -297,12 +304,12 @@ s32 amvdec_loadmc(const u32 *p)
 	return ret;
 }
 
-s32 amvdec_loadmc_ex(const char *name, char *def)
+s32 amvdec_loadmc_ex(enum vformat_e type, const char *name, char *def)
 {
-	return am_loadmc_ex(name, def, &amvdec_loadmc);
+	return am_loadmc_ex(type, name, def, &amvdec_loadmc);
 }
 
-s32 amvdec2_loadmc(const u32 *p)
+static s32 amvdec2_loadmc(const u32 *p)
 {
 	if (has_vdec2()) {
 		ulong timeout;
@@ -359,15 +366,15 @@ s32 amvdec2_loadmc(const u32 *p)
 		return 0;
 }
 
-s32 amvdec2_loadmc_ex(const char *name, char *def)
+s32 amvdec2_loadmc_ex(enum vformat_e type, const char *name, char *def)
 {
 	if (has_vdec2())
-		return am_loadmc_ex(name, def, &amvdec2_loadmc);
+		return am_loadmc_ex(type, name, def, &amvdec2_loadmc);
 	else
 		return 0;
 }
 
-s32 amhcodec_loadmc(const u32 *p)
+static s32 amhcodec_loadmc(const u32 *p)
 {
 #ifdef AMVDEC_USE_STATIC_MEMORY
 	if (mc_addr == NULL) {
@@ -400,12 +407,12 @@ s32 amhcodec_loadmc(const u32 *p)
 	return 0;
 }
 
-s32 amhcodec_loadmc_ex(const char *name, char *def)
+s32 amhcodec_loadmc_ex(enum vformat_e type, const char *name, char *def)
 {
-	return am_loadmc_ex(name, def, &amhcodec_loadmc);
+	return am_loadmc_ex(type, name, def, &amhcodec_loadmc);
 }
 
-s32 amhevc_loadmc(const u32 *p)
+static s32 amhevc_loadmc(const u32 *p)
 {
 	ulong timeout;
 	s32 ret = 0;
@@ -461,10 +468,10 @@ s32 amhevc_loadmc(const u32 *p)
 	return ret;
 }
 
-s32 amhevc_loadmc_ex(const char *name, char *def)
+s32 amhevc_loadmc_ex(enum vformat_e type, const char *name, char *def)
 {
 	if (has_hevc_vdec())
-		return am_loadmc_ex(name, def, &amhevc_loadmc);
+		return am_loadmc_ex(type, name, def, &amhevc_loadmc);
 	else
 		return 0;
 }

@@ -693,7 +693,7 @@ static s32 vmjpeg_init(void)
 
 	vmjpeg_local_init();
 
-	if (amvdec_loadmc(vmjpeg_mc) < 0) {
+	if (amvdec_loadmc_ex(VFORMAT_MJPEG, "vmjpeg_mc", NULL) < 0) {
 		amvdec_disable();
 
 		return -EBUSY;

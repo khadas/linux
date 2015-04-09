@@ -25,7 +25,7 @@
 #include "vdec_reg.h"
 
 #include "amvdec.h"
-#include "vh264mvc_mc.h"
+
 #define TIME_TASK_PRINT_ENABLE  0x100
 #define PUT_PRINT_ENABLE    0x200
 
@@ -1274,6 +1274,7 @@ static void vh264mvc_local_init(void)
 
 static s32 vh264mvc_init(void)
 {
+	int r1, r2, r3, r4;
 	void __iomem *p = ioremap_nocache(work_space_adr, work_space_size);
 
 	if (!p) {
@@ -1290,20 +1291,29 @@ static s32 vh264mvc_init(void)
 
 	amvdec_enable();
 
-	if (amvdec_loadmc(vh264mvc_mc) < 0) {
+
+	r1 = amvdec_loadmc_ex(VFORMAT_H264MVC, "vh264mvc_mc", NULL);
+
+	/*memcpy(p, vh264mvc_header_mc, sizeof(vh264mvc_header_mc));*/
+	r2 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_header_mc",
+					p, 0x1000);
+
+	/*memcpy((void *)((ulong) p + 0x1000),
+		   vh264mvc_mmco_mc, sizeof(vh264mvc_mmco_mc));
+	*/
+	r3 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_mmco_mc",
+					(void *)((ulong) p + 0x1000), 0x2000);
+
+	/*memcpy((void *)((ulong) p + 0x3000),
+		   vh264mvc_slice_mc, sizeof(vh264mvc_slice_mc));
+	*/
+	r4 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_slice_mc",
+					(void *)((ulong) p + 0x3000), 0x4000);
+	iounmap(p);
+	if (r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0) {
 		amvdec_disable();
 		return -EBUSY;
 	}
-
-	memcpy(p, vh264mvc_header_mc, sizeof(vh264mvc_header_mc));
-
-	memcpy((void *)((ulong) p + 0x1000),
-		   vh264mvc_mmco_mc, sizeof(vh264mvc_mmco_mc));
-
-	memcpy((void *)((ulong) p + 0x3000),
-		   vh264mvc_slice_mc, sizeof(vh264mvc_slice_mc));
-
-	iounmap(p);
 
 	stat |= STAT_MC_LOAD;
 

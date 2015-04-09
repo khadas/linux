@@ -1,6 +1,7 @@
 #ifndef AMVDEC_H
 #define AMVDEC_H
 #include "amports_config.h"
+#include <linux/amlogic/amports/vformat.h>
 
 #define UCODE_ALIGN         8
 #define UCODE_ALIGN_MASK    7UL
@@ -12,28 +13,34 @@ struct amvdec_dec_reg_s {
 	struct dec_sysinfo *dec_sysinfo;
 };				/*amvdec_dec_reg_t */
 
-extern s32 amvdec_loadmc(const u32 *p);
+
 extern void amvdec_start(void);
 extern void amvdec_stop(void);
 extern void amvdec_enable(void);
 extern void amvdec_disable(void);
-s32 amvdec_loadmc_ex(const char *name, char *def);
+s32 amvdec_loadmc_ex(enum vformat_e type, const char *name, char *def);
 
-extern s32 amvdec2_loadmc(const u32 *p);
+
 extern void amvdec2_start(void);
 extern void amvdec2_stop(void);
 extern void amvdec2_enable(void);
 extern void amvdec2_disable(void);
+s32 amvdec2_loadmc_ex(enum vformat_e type, const char *name, char *def);
 
-extern s32 amhevc_loadmc(const u32 *p);
+
+
 extern void amhevc_start(void);
 extern void amhevc_stop(void);
 extern void amhevc_enable(void);
 extern void amhevc_disable(void);
+s32 amhevc_loadmc_ex(enum vformat_e type, const char *name, char *def);
 
-extern s32 amhcodec_loadmc(const u32 *p);
+
+
 extern void amhcodec_start(void);
 extern void amhcodec_stop(void);
+s32 amhcodec_loadmc_ex(enum vformat_e type, const char *name, char *def);
+
 
 extern int amvdev_pause(void);
 extern int amvdev_resume(void);
