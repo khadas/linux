@@ -1,0 +1,26 @@
+menu "Amlogic ion video support"
+
+config VIDEOBUF2_ION
+	tristate "videobuf2-ion video device support"
+	select VIDEO_DEV
+	select VIDEO_V4L2
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	select DMA_SHARED_BUFFER
+	default n
+
+	---help---
+		capture ion video to user
+		select to enable capture ion video to user
+		enabled by default
+		good luck
+
+
+config AMLOGIC_IONVIDEO
+	tristate "Amlogic ion video device support"
+        select VIDEOBUF2_ION
+	default n
+
+	---help---
+	capture ion video to user
+endmenu

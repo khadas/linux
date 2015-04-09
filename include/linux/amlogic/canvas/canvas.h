@@ -36,6 +36,9 @@ struct canvas_s {
 /*for progressive mjpeg (nv21 output)use*/
 #define PPMGR_DEINTERLACE_BUF_NV21_CANVAS 0x7a
 
+#define PPMGR2_MAX_CANVAS 8
+#define PPMGR2_CANVAS_INDEX 0x70    /* 0x70-0x7f for PPMGR2 (IONVIDEO)/ */
+
 extern void canvas_config(u32 index, ulong addr, u32 width, u32 height,
 			  u32 wrap, u32 blkmode);
 
