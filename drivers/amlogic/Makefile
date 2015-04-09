@@ -50,7 +50,7 @@ obj-$(CONFIG_AML_DISPLAY) 	+= display/
 
 obj-$(CONFIG_AML_CANVAS) 	+= canvas/
 
-obj-y += amports/
+obj-$(CONFIG_AM_VIDEO)         += amports/
 
 obj-$(CONFIG_AML_VFM) 		+= vfm/
 
