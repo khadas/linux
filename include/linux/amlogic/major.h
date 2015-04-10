@@ -4,6 +4,7 @@
 /* Amlogic extension */
 #define AML_BASE		CHRDEV_MAJOR_HASH_SIZE
 #define AMSTREAM_MAJOR		(0+(AML_BASE))
+#define AUDIODSP_MAJOR		(2+(AML_BASE))
 #define AMVIDEO_MAJOR		(9+(AML_BASE))
 #define AMVIDEO2_MAJOR		(12+(AML_BASE))
 /*

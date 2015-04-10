@@ -4,7 +4,7 @@
 #include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/amlogic/iomap.h>
-#include "audin_regs.h"
+#include <linux/amlogic/sound/audin_regs.h>
 #include "aml_audio_hw_pcm2bt.h"
 
 /* #define PCM_DEBUG */

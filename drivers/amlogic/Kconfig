@@ -51,6 +51,12 @@ source "drivers/amlogic/vfm/Kconfig"
 
 source "drivers/amlogic/efuse/Kconfig"
 
+source "drivers/amlogic/amaudio/Kconfig"
+
+source "drivers/amlogic/amaudio2/Kconfig"
+
+source "drivers/amlogic/audiodsp/Kconfig"
+
 source "drivers/amlogic/ppmgr/Kconfig"
 
 source "drivers/amlogic/wifi/Kconfig"

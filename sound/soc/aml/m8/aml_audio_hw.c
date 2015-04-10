@@ -7,9 +7,9 @@
 
 /* Amlogic headers */
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/sound/audin_regs.h>
 #include "aml_audio_hw.h"
-#include "aiu_regs.h"
-#include "audin_regs.h"
 
 unsigned ENABLE_IEC958 = 1;
 unsigned IEC958_MODE = AIU_958_MODE_PCM16;
@@ -386,17 +386,16 @@ void audio_in_spdif_enable(int flag)
 	}
 }
 
-#if 0
 int if_audio_in_i2s_enable(void)
 {
-	return READ_MPEG_REG_BITS(AUDIN_I2SIN_CTRL, I2SIN_EN, 1);
+	return aml_read_cbus(AUDIN_I2SIN_CTRL) & (1 << 15);
 }
 
 int if_audio_in_spdif_enable(void)
 {
-	return READ_MPEG_REG_BITS(AUDIN_SPDIF_MODE, 31, 1);
+	return aml_read_cbus(AUDIN_SPDIF_MODE) & (1 << 31);
 }
-#endif
+
 unsigned int audio_in_i2s_rd_ptr(void)
 {
 	unsigned int val;
@@ -825,17 +824,16 @@ void audio_enable_ouput(int flag)
 	/* audio_out_enabled(flag); */
 }
 
-#if 0
 int if_audio_out_enable(void)
 {
-	return aml_read_cbus(AIU_MEM_I2S_CONTROL, 1, 2);
+	return aml_read_cbus(AIU_MEM_I2S_CONTROL) & (0x3<<1);
 }
 
 int if_958_audio_out_enable(void)
 {
-	return aml_read_cbus(AIU_MEM_IEC958_CONTROL, 1, 2);
+	return aml_read_cbus(AIU_MEM_IEC958_CONTROL) & (0x3<<1);
 }
-#endif
+
 unsigned int read_i2s_rd_ptr(void)
 {
 	unsigned int val;

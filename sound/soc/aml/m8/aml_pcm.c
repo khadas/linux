@@ -19,7 +19,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include "audin_regs.h"
+#include <linux/amlogic/sound/audin_regs.h>
 /* #include "aml_i2s.h" */
 #include "aml_pcm.h"
 #include "aml_audio_hw_pcm2bt.h"

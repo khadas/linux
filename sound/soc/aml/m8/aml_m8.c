@@ -33,7 +33,7 @@
 #include "aml_i2s.h"
 #include "aml_m8.h"
 #include "aml_audio_hw.h"
-#include "audin_regs.h"
+#include <linux/amlogic/sound/audin_regs.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/aml_gpio_consumer.h>

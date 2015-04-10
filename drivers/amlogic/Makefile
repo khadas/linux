@@ -65,3 +65,11 @@ obj-$(CONFIG_AML_POWER_RESET) 	+= reset/
 obj-$(CONFIG_BT_DEVICE) 	+= bluetooth/
 
 obj-$(CONFIG_AMLOGIC_IONVIDEO) 	+= ionvideo/
+
+obj-$(CONFIG_AML_AUDIO_DSP)	+= audiodsp/
+
+obj-$(CONFIG_AMAUDIO)		+= amaudio/
+
+obj-$(CONFIG_AMAUDIO2)		+= amaudio2/
+
+

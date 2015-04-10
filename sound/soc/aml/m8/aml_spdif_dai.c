@@ -30,7 +30,7 @@
 #include "aml_spdif_dai.h"
 #include "aml_i2s.h"
 #include "aml_notify.h"
-#include "aiu_regs.h"
+#include <linux/amlogic/sound/aiu_regs.h>
 
 /* #define DEBUG_ALSA_SPDIF_DAI */
 #define ALSA_PRINT(fmt, args...)	pr_info("[aml-spdif-dai]" fmt, ##args)

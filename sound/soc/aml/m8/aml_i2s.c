@@ -26,7 +26,7 @@
 #include "aml_i2s.h"
 #include "aml_spdif_dai.h"
 #include "aml_audio_hw.h"
-#include "aiu_regs.h"
+#include <linux/amlogic/sound/aiu_regs.h>
 #define USE_HRTIMER 0
 #define HRTIMER_PERIOD (1000000000UL/1000)
 /* #define DEBUG_ALSA_PLATFRORM */
