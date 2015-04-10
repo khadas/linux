@@ -33,7 +33,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 
-static char __initdata nfversion[] = "0.30";
+static char nfversion[] __initdata = "0.30";
 
 static struct {
 	struct mutex				mutex;
@@ -360,7 +360,7 @@ done:
 static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
-	struct net *net = sock_net(skb->sk);
+	/*struct net *net = sock_net(skb->sk);*/
 	int msglen;
 
 	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
@@ -447,7 +447,7 @@ static int __init nfnetlink_init(void)
 {
 	int i;
 
-	for (i=0; i<NFNL_SUBSYS_COUNT; i++)
+	for (i = 0; i < NFNL_SUBSYS_COUNT; i++)
 		mutex_init(&table[i].mutex);
 
 	pr_info("Netfilter messages via NETLINK v%s.\n", nfversion);
