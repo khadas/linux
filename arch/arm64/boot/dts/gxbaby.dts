@@ -184,6 +184,11 @@
 			0x0 0xc11081a8 0x0 0x4>;
 	};
 
-
+	canvas{
+		compatible = "amlogic, meson, canvas";
+		dev_name = "amlogic-canvas";
+		status = "ok";
+		reg = <0xc8838000 0x400>;
+	};
 
 };

@@ -19,6 +19,8 @@ register base.
 #define DC_CAV_LUT_RDATAL_M8M2  (0x15 << 2)
 #define DC_CAV_LUT_RDATAH_M8M2  (0x16 << 2)
 
+
+
 #define CANVAS_ADDR_LMASK       0x1fffffff
 #define CANVAS_WIDTH_LMASK      0x7
 #define CANVAS_WIDTH_LWID       3

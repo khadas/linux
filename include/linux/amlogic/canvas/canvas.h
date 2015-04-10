@@ -10,11 +10,15 @@ amlogic canvas.h
 
 struct canvas_s {
 	struct kobject kobj;
+	u32 index;
 	ulong addr;
 	u32 width;
 	u32 height;
 	u32 wrap;
 	u32 blkmode;
+	u32 endian;
+	u32 dataL;
+	u32 dataH;
 };
 
 #define CANVAS_ADDR_NOWRAP      0x00
