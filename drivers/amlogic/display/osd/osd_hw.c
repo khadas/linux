@@ -1373,7 +1373,7 @@ void osd_enable_3d_mode_hw(u32 index, u32 enable)
 
 void osd_enable_hw(u32 index, u32 enable)
 {
-	osd_log_info("osd[%d] enable: %d\n", index, enable);
+	osd_log_dbg("osd[%d] enable: %d\n", index, enable);
 
 	osd_hw.enable[index] = enable;
 	add_to_update_list(index, OSD_ENABLE);
@@ -2508,7 +2508,7 @@ static   void  osd2_update_order(void)
 		osd_reg_clr_mask(VPP_MISC, VPP_POST_FG_OSD2 | VPP_PRE_FG_OSD2);
 		break;
 	case  OSD_ORDER_10:
-		osd_reg_clr_mask(VPP_MISC, VPP_POST_FG_OSD2 | VPP_PRE_FG_OSD2);
+		osd_reg_set_mask(VPP_MISC, VPP_POST_FG_OSD2 | VPP_PRE_FG_OSD2);
 		break;
 	default:
 		break;
@@ -2525,7 +2525,7 @@ static   void  osd1_update_order(void)
 		osd_reg_clr_mask(VPP_MISC, VPP_POST_FG_OSD2 | VPP_PRE_FG_OSD2);
 		break;
 	case  OSD_ORDER_10:
-		osd_reg_clr_mask(VPP_MISC, VPP_POST_FG_OSD2 | VPP_PRE_FG_OSD2);
+		osd_reg_set_mask(VPP_MISC, VPP_POST_FG_OSD2 | VPP_PRE_FG_OSD2);
 		break;
 	default:
 		break;
@@ -3153,8 +3153,13 @@ void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w,
 		   u32 osd_h)
 {
 	struct pandata_s disp_tmp;
+
 	if (index != 1)
 		return;
+
+	osd_log_dbg("cursor: x=%d, y=%d, x0=%d, y0=%d, w=%d, h=%d\n",
+			x, y, xstart, ystart, osd_w, osd_h);
+
 	if (osd_hw.free_scale_mode[OSD1]) {
 		if (osd_hw.free_scale_enable[OSD1])
 			memcpy(&disp_tmp, &osd_hw.cursor_dispdata[OSD1],

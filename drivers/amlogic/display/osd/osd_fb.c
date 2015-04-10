@@ -215,7 +215,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (color_format_pt == NULL || color_format_pt->color_index == 0)
 		return -EFAULT;
 
-	osd_log_info("select color format :index %d, bpp %d\n",
+	osd_log_dbg("select color format :index %d, bpp %d\n",
 		    color_format_pt->color_index,
 		    color_format_pt->bpp);
 	fbdev->color = color_format_pt;
@@ -232,7 +232,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->transp.length = color_format_pt->transp_length;
 	var->transp.msb_right = color_format_pt->transp_msb_right;
 	var->bits_per_pixel = color_format_pt->bpp;
-	osd_log_info("rgba(L/O):%d/%d-%d/%d-%d/%d-%d/%d\n",
+	osd_log_dbg("rgba(L/O):%d/%d-%d/%d-%d/%d-%d/%d\n",
 		    var->red.length, var->red.offset,
 		    var->green.length, var->green.offset,
 		    var->blue.length, var->blue.offset,
@@ -240,7 +240,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	fix->visual = color_format_pt->color_type;
 	/* adjust memory length. */
 	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
-	osd_log_info("xvirtual=%d, bpp:%d, line_length=%d\n",
+	osd_log_dbg("xvirtual=%d, bpp:%d, line_length=%d\n",
 		var->xres_virtual, var->bits_per_pixel, fix->line_length);
 	if (var->xres_virtual * var->yres_virtual * var->bits_per_pixel / 8 >
 			fbdev->fb_len) {

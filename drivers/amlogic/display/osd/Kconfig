@@ -11,13 +11,13 @@ config AM_FB
 	select FB_CFB_IMAGEBLIT
 	select AM_CANVAS
 	select AM_VOUT
-	default y
+	default n
 	help
 		This is the frame buffer device driver.
 
 config FB_OSD_SUPPORT_SYNC_FENCE
 	boolean "OSD SYNC FENCE"
-	default y
+	default n
 	depends on AM_FB
 	help
 		Select to enable OSD SYNC FENCE.
@@ -31,7 +31,7 @@ config FB_OSD_VSYNC_RDMA
 
 config FB_OSD2_ENABLE
 	boolean "OSD2 Layer Support"
-	default y
+	default n
 	depends on AM_FB
 	help
 		Select to enable OSD2 Layer.

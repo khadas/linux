@@ -5,20 +5,20 @@ menu "Amlogic VOUT Module"
 
 config AM_VOUT
 	boolean "Video Output Module"
-	default y
+	default n
 	help
 		Select to enable VOUT module
 
 config AM_TV_OUTPUT
 	boolean "TV Output Module"
-	default y
+	default n
 	select AM_VOUT
 	help
 		TV output module
 
 config AML_VOUT_FRAMERATE_AUTOMATION
 	boolean "Framerate Automation"
-	default y
+	default n
 	depends on AM_TV_OUTPUT
 	help
 		framerate adjustment automatically from video source

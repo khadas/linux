@@ -3,6 +3,6 @@
 #
 config  AM_GE2D
 	boolean "Amlogic GE2D Module"
-	default y
+	default n
 	help
 		Select to enable GE2D graphic 2D engine.
