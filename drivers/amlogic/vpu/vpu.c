@@ -107,7 +107,7 @@ unsigned int get_vpu_clk(void)
 	unsigned int clk_freq;
 	unsigned int clk_source, clk_div;
 
-	switch ((aml_read32(P_HHI_VPU_CLK_CNTL) >> 9) & 0x7) {
+	switch (vpu_reg_getb(HHI_VPU_CLK_CNTL, 9, 3)) {
 	case 0:
 		clk_source = 637500000;
 		break;
@@ -134,7 +134,7 @@ unsigned int get_vpu_clk(void)
 		break;
 	}
 
-	clk_div = ((aml_read32(P_HHI_VPU_CLK_CNTL) >> 0) & 0x7f) + 1;
+	clk_div = vpu_reg_getb(HHI_VPU_CLK_CNTL, 0, 7) + 1;
 	clk_freq = clk_source / clk_div;
 
 	return clk_freq;
@@ -148,27 +148,27 @@ static int switch_gp_pll_m8m2(int flag)
 	if (flag) { /* enable gp_pll */
 		/* M=182, N=3, OD=2. gp_pll=24*M/N/2^OD=364M */
 		/* set gp_pll frequency fixed to 364M */
-		aml_write32(P_HHI_GP_PLL_CNTL, 0x206b6);
-		aml_setb32(P_HHI_GP_PLL_CNTL, 1, 30, 1); /* enable */
+		vpu_reg_write(HHI_GP_PLL_CNTL, 0x206b6);
+		vpu_reg_setb(HHI_GP_PLL_CNTL, 1, 30, 1); /* enable */
 		do {
 			udelay(10);
 			/* reset */
-			aml_setb32(P_HHI_GP_PLL_CNTL, 1, 29, 1);
+			vpu_reg_setb(HHI_GP_PLL_CNTL, 1, 29, 1);
 			udelay(50);
 			/* release reset */
-			aml_setb32(P_HHI_GP_PLL_CNTL, 0, 29, 1);
+			vpu_reg_setb(HHI_GP_PLL_CNTL, 0, 29, 1);
 			udelay(50);
 			cnt--;
 			if (cnt == 0)
 				break;
-		} while ((aml_read32(P_HHI_GP_PLL_CNTL)&(1<<31)) == 0);
+		} while (vpu_reg_getb(HHI_GP_PLL_CNTL, 31, 1) == 0);
 		if (cnt == 0) {
 			ret = 1;
-			aml_setb32(P_HHI_GP_PLL_CNTL, 0, 30, 1);
+			vpu_reg_setb(HHI_GP_PLL_CNTL, 0, 30, 1);
 			pr_info("[error]: GP_PLL lock failed, can't use the clk source!\n");
 		}
 	} else { /* disable gp_pll */
-		aml_setb32(P_HHI_GP_PLL_CNTL, 0, 30, 1);
+		vpu_reg_setb(HHI_GP_PLL_CNTL, 0, 30, 1);
 	}
 
 	return ret;
@@ -181,30 +181,30 @@ static int switch_gp1_pll_g9tv(int flag)
 
 	if (flag) { /* enable gp1_pll */
 		/* GP1 DPLL 696MHz output*/
-		aml_write32(P_HHI_GP1_PLL_CNTL, 0x6a01023a);
-		aml_write32(P_HHI_GP1_PLL_CNTL2, 0x69c80000);
-		aml_write32(P_HHI_GP1_PLL_CNTL3, 0x0a5590c4);
-		aml_write32(P_HHI_GP1_PLL_CNTL4, 0x0000500d);
-		aml_write32(P_HHI_GP1_PLL_CNTL, 0x4a01023a);
+		vpu_reg_write(HHI_GP1_PLL_CNTL, 0x6a01023a);
+		vpu_reg_write(HHI_GP1_PLL_CNTL2, 0x69c80000);
+		vpu_reg_write(HHI_GP1_PLL_CNTL3, 0x0a5590c4);
+		vpu_reg_write(HHI_GP1_PLL_CNTL4, 0x0000500d);
+		vpu_reg_write(HHI_GP1_PLL_CNTL, 0x4a01023a);
 		do {
 			udelay(10);
 			/* reset */
-			aml_setb32(P_HHI_GP1_PLL_CNTL, 1, 29, 1);
+			vpu_reg_setb(HHI_GP1_PLL_CNTL, 1, 29, 1);
 			udelay(50);
 			/* release reset */
-			aml_setb32(P_HHI_GP1_PLL_CNTL, 0, 29, 1);
+			vpu_reg_setb(HHI_GP1_PLL_CNTL, 0, 29, 1);
 			udelay(50);
 			cnt--;
 			if (cnt == 0)
 				break;
-		} while ((aml_read32(P_HHI_GP1_PLL_CNTL)&(1<<31)) == 0);
+		} while (vpu_reg_getb(HHI_GP1_PLL_CNTL, 31, 1) == 0);
 		if (cnt == 0) {
 			ret = 1;
-			aml_setb32(P_HHI_GP1_PLL_CNTL, 0, 30, 1);
+			vpu_reg_setb(HHI_GP1_PLL_CNTL, 0, 30, 1);
 			pr_info("[error]: GP_PLL lock failed, can't use the clk source!\n");
 		}
 	} else { /* disable gp1_pll */
-		aml_setb32(P_HHI_GP1_PLL_CNTL, 0, 30, 1);
+		vpu_reg_setb(HHI_GP1_PLL_CNTL, 0, 30, 1);
 	}
 
 	return ret;
@@ -218,7 +218,7 @@ static int change_vpu_clk(void *vconf1)
 	clk_level = vconf->clk_level;
 	temp = (vpu_clk_table[clk_level][1] << 9) |
 		(vpu_clk_table[clk_level][2] << 0);
-	aml_write32(P_HHI_VPU_CLK_CNTL, ((1 << 8) | temp));
+	vpu_reg_write(HHI_VPU_CLK_CNTL, ((1 << 8) | temp));
 
 	return 0;
 }
@@ -229,23 +229,23 @@ static void switch_vpu_clk(void)
 
 	/* switch to second vpu clk patch */
 	temp = vpu_clk_table[0][1];
-	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 25, 3);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, temp, 25, 3);
 	temp = vpu_clk_table[0][2];
-	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 16, 7);
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 24, 1);
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 31, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, temp, 16, 7);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 1, 24, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 1, 31, 1);
 	udelay(10);
 	/* adjust first vpu clk frequency */
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 0, 8, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 0, 8, 1);
 	temp = vpu_clk_table[vpu_conf.clk_level][1];
-	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 9, 3);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, temp, 9, 3);
 	temp = vpu_clk_table[vpu_conf.clk_level][2];
-	aml_setb32(P_HHI_VPU_CLK_CNTL, temp, 0, 7);
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, temp, 0, 7);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 1, 8, 1);
 	udelay(20);
 	/* switch back to first vpu clk patch */
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 0, 31, 1);
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 0, 24, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 0, 31, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 0, 24, 1);
 }
 
 static int adjust_vpu_clk(unsigned int clk_level)
@@ -273,8 +273,10 @@ static int adjust_vpu_clk(unsigned int clk_level)
 	case VPU_CHIP_M8M2:
 		if (clk_level == 6) {
 			ret = switch_gp_pll_m8m2(1);
-			if (ret)
+			if (ret) {
 				clk_level = 5;
+				vpu_conf.clk_level = clk_level;
+			}
 		} else
 			ret = switch_gp_pll_m8m2(0);
 
@@ -283,8 +285,10 @@ static int adjust_vpu_clk(unsigned int clk_level)
 	case VPU_CHIP_G9TV:
 		if (clk_level == 10) {
 			ret = switch_gp1_pll_g9tv(1);
-			if (ret)
+			if (ret) {
 				clk_level = 9;
+				vpu_conf.clk_level = clk_level;
+			}
 		} else
 			ret = switch_gp1_pll_g9tv(0);
 
@@ -298,12 +302,12 @@ static int adjust_vpu_clk(unsigned int clk_level)
 		break;
 	}
 
-	if (((aml_read32(P_HHI_VPU_CLK_CNTL) >> 8) & 1) == 0)
-		aml_setb32(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
+	if (vpu_reg_getb(HHI_VPU_CLK_CNTL, 8, 1) == 0)
+		vpu_reg_setb(HHI_VPU_CLK_CNTL, 1, 8, 1);
 
 	pr_info("set vpu clk: %uHz, readback: %uHz(0x%x)\n",
 			vpu_clk_table[clk_level][0],
-			get_vpu_clk(), (aml_read32(P_HHI_VPU_CLK_CNTL)));
+			get_vpu_clk(), (vpu_reg_read(HHI_VPU_CLK_CNTL)));
 
 	spin_unlock_irqrestore(&vpu_lock, flags);
 	return ret;
@@ -334,8 +338,8 @@ static int set_vpu_clk(unsigned int vclk)
 	}
 #endif
 
-	mux = ((aml_read32(P_HHI_VPU_CLK_CNTL) >> 9) & 0x7);
-	div = ((aml_read32(P_HHI_VPU_CLK_CNTL) >> 0) & 0x7f);
+	mux = vpu_reg_getb(HHI_VPU_CLK_CNTL, 9, 3);
+	div = vpu_reg_getb(HHI_VPU_CLK_CNTL, 0, 7);
 	if ((mux != vpu_clk_table[clk_level][1])
 		|| (div != vpu_clk_table[clk_level][2])) {
 		adjust_vpu_clk(clk_level);
@@ -523,8 +527,8 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	unsigned vpu_mod;
 	unsigned mem_bit = 0;
 	unsigned long flags = 0;
-	void __iomem *_reg0;
-	void __iomem *_reg1;
+	unsigned int _reg0;
+	unsigned int _reg1;
 
 	if (vpu_conf.chip_type == VPU_CHIP_MAX) {
 		pr_info("invalid VPU in current CPU type\n");
@@ -534,77 +538,77 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	spin_lock_irqsave(&vpu_mem_lock, flags);
 
 	flag = (flag > 0) ? 1 : 0;
-	_reg0 = P_HHI_VPU_MEM_PD_REG0;
-	_reg1 = P_HHI_VPU_MEM_PD_REG1;
+	_reg0 = HHI_VPU_MEM_PD_REG0;
+	_reg1 = HHI_VPU_MEM_PD_REG1;
 	vpu_mod = get_vpu_mod(vmod);
 	if ((vpu_mod >= VPU_VIU_OSD1) && (vpu_mod <= VPU_DI_POST)) {
 		mem_bit = (vpu_mod - VPU_VIU_OSD1) * 2;
 		if (flag)
-			aml_setb32(_reg0, 0x3, mem_bit, 2);
+			vpu_reg_setb(_reg0, 0x3, mem_bit, 2);
 		else
-			aml_setb32(_reg0, 0, mem_bit, 2);
+			vpu_reg_setb(_reg0, 0, mem_bit, 2);
 	} else if (vpu_mod == VPU_SHARP) {
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
 			if (flag)
-				aml_setb32(_reg0, 0x3, 30, 2);
+				vpu_reg_setb(_reg0, 0x3, 30, 2);
 			else
-				aml_setb32(_reg0, 0, 30, 2);
+				vpu_reg_setb(_reg0, 0, 30, 2);
 		}
 	} else if ((vpu_mod >= VPU_VIU2_OSD1) &&
 			(vpu_mod <= VPU_VIU2_OSD_SCALE)) {
 		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
 			mem_bit = (vpu_mod - VPU_VIU2_OSD1) * 2;
 			if (flag)
-				aml_setb32(_reg1, 0x3, mem_bit, 2);
+				vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
 			else
-				aml_setb32(_reg1, 0, mem_bit, 2);
+				vpu_reg_setb(_reg1, 0, mem_bit, 2);
 		}
 	} else if ((vpu_mod >= VPU_VDIN_AM_ASYNC) &&
 			(vpu_mod <= VPU_VPUARB2_AM_ASYNC)) {
 		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
 			mem_bit = (vpu_mod - VPU_VDIN_AM_ASYNC + 7) * 2;
 			if (flag)
-				aml_setb32(_reg1, 0x3, mem_bit, 2);
+				vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
 			else
-				aml_setb32(_reg1, 0, mem_bit, 2);
+				vpu_reg_setb(_reg1, 0, mem_bit, 2);
 		}
 	} else if ((vpu_mod >= VPU_VENCP) && (vpu_mod <= VPU_VENCI)) {
 		mem_bit = (vpu_mod - VPU_VENCP + 10) * 2;
 		if (flag)
-			aml_setb32(_reg1, 0x3, mem_bit, 2);
+			vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
 		else
-			aml_setb32(_reg1, 0, mem_bit, 2);
+			vpu_reg_setb(_reg1, 0, mem_bit, 2);
 	} else if (vpu_mod == VPU_ISP) {
 		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
 			if (flag)
-				aml_setb32(_reg1, 0x3, 26, 2);
+				vpu_reg_setb(_reg1, 0x3, 26, 2);
 			else
-				aml_setb32(_reg1, 0, 26, 2);
+				vpu_reg_setb(_reg1, 0, 26, 2);
 		}
 	} else if ((vpu_mod >= VPU_CVD2) && (vpu_mod <= VPU_ATV_DMD)) {
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
 			mem_bit = (vpu_mod - VPU_CVD2 + 7) * 2;
 			if (flag)
-				aml_setb32(_reg1, 0x3, mem_bit, 2);
+				vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
 			else
-				aml_setb32(_reg1, 0, mem_bit, 2);
+				vpu_reg_setb(_reg1, 0, mem_bit, 2);
 		}
 	} else if ((vpu_mod >= VPU_VIU_SRSCL) && (vpu_mod <= VPU_REV)) {
 		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
 			mem_bit = (vpu_mod - VPU_VIU_SRSCL + 10) * 2;
 			if (flag)
-				aml_setb32(_reg0, 0x3, mem_bit, 2);
+				vpu_reg_setb(_reg0, 0x3, mem_bit, 2);
 			else
-				aml_setb32(_reg0, 0, mem_bit, 2);
+				vpu_reg_setb(_reg0, 0, mem_bit, 2);
 		}
 	} else if (vpu_mod == VPU_D2D3) {
 		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
 			if (flag)
-				aml_setb32(_reg1, 0xf, 0, 4);
+				vpu_reg_setb(_reg1, 0xf, 0, 4);
 			else
-				aml_setb32(_reg1, 0, 0, 4);
+				vpu_reg_setb(_reg1, 0, 0, 4);
 		}
 	} else {
 		pr_info("switch_vpu_mem_pd: unsupport vpu mod\n");
@@ -620,25 +624,25 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 {
 	unsigned int vpu_mod;
 	unsigned int mem_bit = 0;
-	void __iomem *_reg0;
-	void __iomem *_reg1;
+	unsigned int _reg0;
+	unsigned int _reg1;
 
 	if (vpu_conf.chip_type == VPU_CHIP_MAX) {
 		pr_info("invalid VPU in current CPU type\n");
 		return 0;
 	}
 
-	_reg0 = P_HHI_VPU_MEM_PD_REG0;
-	_reg1 = P_HHI_VPU_MEM_PD_REG1;
+	_reg0 = HHI_VPU_MEM_PD_REG0;
+	_reg1 = HHI_VPU_MEM_PD_REG1;
 	vpu_mod = get_vpu_mod(vmod);
 	if ((vpu_mod >= VPU_VIU_OSD1) && (vpu_mod <= VPU_DI_POST)) {
 		mem_bit = (vpu_mod - VPU_VIU_OSD1) * 2;
-		return (aml_getb32(_reg0, mem_bit, 2) == 0) ?
+		return (vpu_reg_getb(_reg0, mem_bit, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 	} else if (vpu_mod == VPU_SHARP) {
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
-			return (aml_getb32(_reg0, 30, 2) == 0) ?
+			return (vpu_reg_getb(_reg0, 30, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
@@ -646,7 +650,7 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 			(vpu_mod <= VPU_VIU2_OSD_SCALE)) {
 		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
 			mem_bit = (vpu_mod - VPU_VIU2_OSD1) * 2;
-			return (aml_getb32(_reg1, mem_bit, 2) == 0) ?
+			return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
@@ -654,17 +658,17 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 			(vpu_mod <= VPU_VPUARB2_AM_ASYNC)) {
 		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
 			mem_bit = (vpu_mod - VPU_VDIN_AM_ASYNC + 7) * 2;
-			return (aml_getb32(_reg1, mem_bit, 2) == 0) ?
+			return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
 	} else if ((vpu_mod >= VPU_VENCP) && (vpu_mod <= VPU_VENCI)) {
 		mem_bit = (vpu_mod - VPU_VENCP + 10) * 2;
-		return (aml_getb32(_reg1, mem_bit, 2) == 0) ?
+		return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
 			VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 	} else if (vpu_mod == VPU_ISP) {
 		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
-			return (aml_getb32(_reg1, 26, 2) == 0) ?
+			return (vpu_reg_getb(_reg1, 26, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
@@ -672,20 +676,20 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
 			mem_bit = (vpu_mod - VPU_CVD2 + 7) * 2;
-			return (aml_getb32(_reg1, mem_bit, 2) == 0) ?
+			return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
 	} else if ((vpu_mod >= VPU_VIU_SRSCL) && (vpu_mod <= VPU_REV)) {
 		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
 			mem_bit = (vpu_mod - VPU_VIU_SRSCL + 10) * 2;
-			return (aml_getb32(_reg0, mem_bit, 2) == 0) ?
+			return (vpu_reg_getb(_reg0, mem_bit, 2) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
 	} else if (vpu_mod == VPU_D2D3) {
 		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			return (aml_getb32(_reg1, 0, 4) == 0) ?
+			return (vpu_reg_getb(_reg1, 0, 4) == 0) ?
 				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
 		} else
 			return -1;
@@ -799,58 +803,48 @@ static void vpu_driver_init(void)
 {
 	set_vpu_clk(vpu_conf.clk_level);
 
-	aml_setb32(P_AO_RTI_GEN_PWR_SLEEP0, 0, 8, 1); /* [8] power on */
-	aml_write32(P_HHI_VPU_MEM_PD_REG0, vpu_conf.mem_pd0);
-	aml_write32(P_HHI_VPU_MEM_PD_REG1, vpu_conf.mem_pd1);
-	aml_setb32(P_HHI_MEM_PD_REG0, 0, 8, 8); /* MEM-PD */
+	vpu_ao_setb(AO_RTI_GEN_PWR_SLEEP0, 0, 8, 1); /* [8] power on */
+	vpu_reg_write(HHI_VPU_MEM_PD_REG0, vpu_conf.mem_pd0);
+	vpu_reg_write(HHI_VPU_MEM_PD_REG1, vpu_conf.mem_pd1);
+	vpu_reg_setb(HHI_MEM_PD_REG0, 0, 8, 8); /* MEM-PD */
 	udelay(2);
 
 	/* Reset VIU + VENC */
 	/* Reset VENCI + VENCP + VADC + VENCL */
 	/* Reset HDMI-APB + HDMI-SYS + HDMI-TX + HDMI-CEC */
-	aml_write32(P_RESET0_MASK, aml_read32(P_RESET0_MASK) &
-			(~((0x1 << 5) | (0x1<<10))));
-	aml_write32(P_RESET4_MASK, aml_read32(P_RESET4_MASK) &
-			(~((0x1 << 6) | (0x1<<7) | (0x1<<9) | (0x1<<13))));
-	aml_write32(P_RESET2_MASK, aml_read32(P_RESET2_MASK) &
-			(~((0x1 << 2) | (0x1<<3) | (0x1<<11) | (0x1<<15))));
-	aml_write32(P_RESET2_REGISTER, ((0x1 << 2) | (0x1<<3) |
-			(0x1<<11) | (0x1<<15)));
+	vpu_clr_mask(RESET0_MASK, ((1 << 5) | (1<<10)));
+	vpu_clr_mask(RESET4_MASK, ((1 << 6) | (1<<7) | (1<<9) | (1<<13)));
+	vpu_clr_mask(RESET2_MASK, ((1 << 2) | (1<<3) | (1<<11) | (1<<15)));
+	vpu_reg_write(RESET2_REGISTER, ((1 << 2) | (1<<3) | (1<<11) | (1<<15)));
 	/* reset this will cause VBUS reg to 0 */
-	aml_write32(P_RESET4_REGISTER, ((0x1 << 6) | (0x1<<7) |
-			(0x1<<9) | (0x1<<13)));
-	aml_write32(P_RESET0_REGISTER, ((0x1 << 5) | (0x1<<10)));
-	aml_write32(P_RESET4_REGISTER, ((0x1 << 6) | (0x1<<7) |
-			(0x1<<9) | (0x1<<13)));
-	aml_write32(P_RESET2_REGISTER, ((0x1 << 2) | (0x1<<3) |
-			(0x1<<11) | (0x1<<15)));
-	aml_write32(P_RESET0_MASK, aml_read32(P_RESET0_MASK) |
-			((0x1 << 5) | (0x1<<10)));
-	aml_write32(P_RESET4_MASK, aml_read32(P_RESET4_MASK) |
-			((0x1 << 6) | (0x1<<7) | (0x1<<9) | (0x1<<13)));
-	aml_write32(P_RESET2_MASK, aml_read32(P_RESET2_MASK) |
-			((0x1 << 2) | (0x1<<3) | (0x1<<11) | (0x1<<15)));
+	vpu_reg_write(RESET4_REGISTER, ((1 << 6) | (1<<7) | (1<<9) | (1<<13)));
+	vpu_reg_write(RESET0_REGISTER, ((1 << 5) | (1<<10)));
+	vpu_reg_write(RESET4_REGISTER, ((1 << 6) | (1<<7) | (1<<9) | (1<<13)));
+	vpu_reg_write(RESET2_REGISTER, ((1 << 2) | (1<<3) | (1<<11) | (1<<15)));
+	vpu_set_mask(RESET0_MASK, ((1 << 5) | (1<<10)));
+	vpu_set_mask(RESET4_MASK, ((1 << 6) | (1<<7) | (1<<9) | (1<<13)));
+	vpu_set_mask(RESET2_MASK, ((1 << 2) | (1<<3) | (1<<11) | (1<<15)));
 
 	/* Remove VPU_HDMI ISO */
-	aml_setb32(P_AO_RTI_GEN_PWR_SLEEP0, 0, 9, 1); /* [9] VPU_HDMI */
+	vpu_ao_setb(AO_RTI_GEN_PWR_SLEEP0, 0, 9, 1); /* [9] VPU_HDMI */
 }
 static void vpu_driver_disable(void)
 {
-	vpu_conf.mem_pd0 = aml_read32(P_HHI_VPU_MEM_PD_REG0);
-	vpu_conf.mem_pd1 = aml_read32(P_HHI_VPU_MEM_PD_REG1);
+	vpu_conf.mem_pd0 = vpu_reg_read(HHI_VPU_MEM_PD_REG0);
+	vpu_conf.mem_pd1 = vpu_reg_read(HHI_VPU_MEM_PD_REG1);
 
 	/* Power down VPU_HDMI */
 	/* Enable Isolation */
-	aml_setb32(P_AO_RTI_GEN_PWR_SLEEP0, 1, 9, 1); /* ISO */
+	vpu_ao_setb(AO_RTI_GEN_PWR_SLEEP0, 1, 9, 1); /* ISO */
 	/* Power off memory */
-	aml_write32(P_HHI_VPU_MEM_PD_REG0, 0xffffffff);
-	aml_write32(P_HHI_VPU_MEM_PD_REG1, 0xffffffff);
-	aml_setb32(P_HHI_MEM_PD_REG0, 0xff, 8, 8); /* HDMI MEM-PD */
+	vpu_reg_write(HHI_VPU_MEM_PD_REG0, 0xffffffff);
+	vpu_reg_write(HHI_VPU_MEM_PD_REG1, 0xffffffff);
+	vpu_reg_setb(HHI_MEM_PD_REG0, 0xff, 8, 8); /* HDMI MEM-PD */
 
 	/* Power down VPU domain */
-	aml_setb32(P_AO_RTI_GEN_PWR_SLEEP0, 1, 8, 1); /* PDN */
+	vpu_ao_setb(AO_RTI_GEN_PWR_SLEEP0, 1, 8, 1); /* PDN */
 
-	aml_setb32(P_HHI_VPU_CLK_CNTL, 0, 8, 1);
+	vpu_reg_setb(HHI_VPU_CLK_CNTL, 0, 8, 1);
 }
 #endif
 #ifdef CONFIG_PM

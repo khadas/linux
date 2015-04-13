@@ -1,6 +1,6 @@
 #ifndef __VPU_REG_H__
 #define __VPU_REG_H__
-#include <linux/types.h>
+#include <linux/amlogic/iomap.h>
 
 extern void __iomem *reg_base_aobus;
 extern void __iomem *reg_base_cbus;
@@ -54,6 +54,8 @@ extern void __iomem *reg_base_cbus;
 /* ********************************
  * register access api
  * ********************************* */
+#if 0
+/* use physical address */
 static inline uint32_t aml_read32(void __iomem *_reg)
 {
 	return readl_relaxed(_reg);
@@ -93,5 +95,53 @@ static inline void aml_clr32_mask(void __iomem *_reg,
 {
 	writel_relaxed((readl_relaxed(_reg) & (~(_mask))), _reg);
 }
+#else
+/* use offset address */
+static inline uint32_t vpu_reg_read(unsigned int _reg)
+{
+	return aml_read_cbus(_reg);
+};
+
+static inline void vpu_reg_write(unsigned int _reg, unsigned int _value)
+{
+	aml_write_cbus(_reg, _value);
+};
+
+static inline void vpu_reg_setb(unsigned int _reg,
+		unsigned int _value,
+		unsigned int _start,
+		unsigned int _len)
+{
+	aml_write_cbus(_reg, ((aml_read_cbus(_reg) &
+			~(((1L << (_len))-1) << (_start))) |
+			(((_value)&((1L<<(_len))-1)) << (_start))));
+}
+
+static inline uint32_t vpu_reg_getb(unsigned int _reg,
+		unsigned int _start, unsigned int _len)
+{
+	return (aml_read_cbus(_reg) >> (_start)) & ((1L << (_len)) - 1);
+}
+
+static inline void vpu_set_mask(unsigned int _reg, unsigned int _mask)
+{
+	aml_write_cbus(_reg, (aml_read_cbus(_reg) | (_mask)));
+}
+
+static inline void vpu_clr_mask(unsigned int _reg, unsigned int _mask)
+{
+	aml_write_cbus(_reg, (aml_read_cbus(_reg) & (~(_mask))));
+}
+
+static inline void vpu_ao_setb(unsigned int _reg,
+		unsigned int _value,
+		unsigned int _start,
+		unsigned int _len)
+{
+	aml_write_aobus(_reg, ((aml_read_aobus(_reg) &
+			~(((1L << (_len))-1) << (_start))) |
+			(((_value)&((1L<<(_len))-1)) << (_start))));
+}
+#endif
 
 #endif
