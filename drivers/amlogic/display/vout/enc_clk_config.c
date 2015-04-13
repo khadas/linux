@@ -332,7 +332,7 @@ static void set_hpll_hdmi_od(unsigned div)
 		break;
 	case 4:
 		/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6 */
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6)
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6)
 			vout_cbus_set_bits(HHI_VID_PLL_CNTL, 3, 18, 2);
 		else {
 			/* #else */
