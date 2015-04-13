@@ -15,10 +15,10 @@ ifneq ($(KBUILD_SRC),)
 TOP_KBUILD_SRC := $(KBUILD_SRC)/
 endif
 
-$(obj)/dsp_data.o:
-	@cp $(TOP_KBUILD_SRC)drivers/amlogic/audiodsp/dsp_data.z \
-        drivers/amlogic/audiodsp/dsp_data.o
-audiodsp-objs += dsp_data.o
+# $(obj)/dsp_data.o:
+#	@cp $(TOP_KBUILD_SRC)drivers/amlogic/audiodsp/dsp_data.z \
+#        drivers/amlogic/audiodsp/dsp_data.o
+# audiodsp-objs += dsp_data.o
 
 obj-$(CONFIG_AML_AUDIO_DSP)    +=audiodsp.o
 
