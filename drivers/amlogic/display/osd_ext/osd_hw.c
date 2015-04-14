@@ -32,8 +32,10 @@
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#ifdef CONFIG_AML_CANVAS
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
+#endif
 #ifdef CONFIG_AM_VIDEO
 #include <linux/amlogic/amports/vframe_receiver.h>
 #endif
@@ -741,6 +743,7 @@ void osd_ext_setup(struct osd_ctl_s *osd_ext_ctl,
 		osd_ext_hw.fb_gem[index].width = w;
 		osd_ext_hw.fb_gem[index].height = yres_virtual;
 
+#ifdef CONFIG_AML_CANVAS
 		if (fbmem == 0) {
 			canvas_config(osd_ext_hw.fb_gem[index].canvas_idx,
 				osd_hw->fb_gem[index].addr,
@@ -754,6 +757,7 @@ void osd_ext_setup(struct osd_ctl_s *osd_ext_ctl,
 				osd_ext_hw.fb_gem[index].height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		}
+#endif
 	}
 
 	if (color != osd_ext_hw.color_info[index]) {

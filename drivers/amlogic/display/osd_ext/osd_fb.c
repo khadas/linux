@@ -13,6 +13,7 @@
 
 /* Linux Headers */
 #include <linux/version.h>
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -543,6 +544,19 @@ static int osd_ext_ioctl(struct fb_info *info, unsigned int cmd,
 	return  0;
 }
 
+#ifdef CONFIG_COMPAT
+static int osd_ext_compat_ioctl(struct fb_info *info,
+		unsigned int cmd, unsigned long arg)
+{
+	unsigned long ret;
+
+	arg = (unsigned long)compat_ptr(arg);
+	ret = osd_ext_ioctl(info, cmd, arg);
+
+	return ret;
+}
+#endif
+
 static int osd_ext_open(struct fb_info *info, int arg)
 {
 	return 0;
@@ -586,6 +600,9 @@ static struct fb_ops osd_ext_ops = {
 	.fb_cursor      = NULL,
 #endif
 	.fb_ioctl       = osd_ext_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl = osd_ext_compat_ioctl,
+#endif
 	.fb_open        = osd_ext_open,
 	.fb_blank       = osd_ext_blank,
 	.fb_pan_display = osd_ext_pan_display,

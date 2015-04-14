@@ -28,7 +28,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vout/vinfo.h>
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 #include <linux/amlogic/vpu.h>
 #endif
 
@@ -306,7 +306,7 @@ static int tv_set_current_vmode(enum vmode_e mod)
 	if (mod & VMODE_LOGO_BIT_MASK)
 		return 0;
 
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
 		switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
 		request_vpu_clk_vmod(info->vinfo->video_clk, info->vinfo->mode);
@@ -342,7 +342,7 @@ static int tv_vmode_is_supported(enum vmode_e mode)
 static int tv_module_disable(enum vmode_e cur_vmod)
 {
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 		if (info->vinfo) {
 			release_vpu_clk_vmod(info->vinfo->mode);
 			switch_vpu_mem_pd_vmod(info->vinfo->mode,

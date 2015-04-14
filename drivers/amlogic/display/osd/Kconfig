@@ -19,6 +19,10 @@ config FB_OSD_SUPPORT_SYNC_FENCE
 	boolean "OSD SYNC FENCE"
 	default n
 	depends on AM_FB
+	select STAGING
+	select ANDROID
+	select SYNC
+	select SW_SYNC
 	help
 		Select to enable OSD SYNC FENCE.
 

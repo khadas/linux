@@ -32,16 +32,16 @@
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#ifdef CONFIG_AML_CANVAS
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
-#if CONFIG_AML_VPU
+#endif
+#ifdef CONFIG_AML_VPU
 #include <linux/amlogic/vpu.h>
 #endif
 #ifdef CONFIG_AM_VIDEO
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/amports/vframe_provider.h>
-
-#include <linux/amlogic/canvas/canvas.h>
 #endif
 
 /* Local Headers */
@@ -236,7 +236,7 @@ static unsigned int *filter_table[] = {
 
 static void osd_mem_power_on(void)
 {
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_ON);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_ON);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_ON);
@@ -246,7 +246,7 @@ static void osd_mem_power_on(void)
 #if 0
 static void osd_mem_power_off(void)
 {
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_DOWN);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_DOWN);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_DOWN);
@@ -256,14 +256,14 @@ static void osd_mem_power_off(void)
 
 static void osd_super_scale_mem_power_on(void)
 {
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSDSR, VPU_MEM_POWER_ON);
 #endif
 }
 
 static void osd_super_scale_mem_power_off(void)
 {
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSDSR, VPU_MEM_POWER_DOWN);
 #endif
 }
@@ -938,11 +938,13 @@ void osd_setup_hw(u32 index,
 				index, osd_hw.fb_gem[index].width);
 		osd_log_info("osd[%d] canvas.height=%d\n",
 				index, osd_hw.fb_gem[index].height);
+#ifdef CONFIG_AML_CANVAS
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
 			      osd_hw.fb_gem[index].addr,
 			      osd_hw.fb_gem[index].width,
 			      osd_hw.fb_gem[index].height,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+#endif
 	}
 	if (color != osd_hw.color_info[index]) {
 		update_color_mode = 1;

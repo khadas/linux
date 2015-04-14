@@ -13,6 +13,7 @@
 
 /* Linux Headers */
 #include <linux/version.h>
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -371,7 +372,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOPUT_OSD_ROTATE_ANGLE:
 		break;
 	case FBIOPUT_OSD_BLOCK_MODE:
-		block_mode = (u32)argp;
+		ret = copy_from_user(&block_mode, argp, sizeof(u32));
 		break;
 	case FBIOPUT_OSD_BLOCK_WINDOWS:
 		ret = copy_from_user(&block_windows, argp, 8 * sizeof(u32));
@@ -547,6 +548,19 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	return  ret;
 }
 
+#ifdef CONFIG_COMPAT
+static int osd_compat_ioctl(struct fb_info *info,
+		unsigned int cmd, unsigned long arg)
+{
+	unsigned long ret;
+
+	arg = (unsigned long)compat_ptr(arg);
+	ret = osd_ioctl(info, cmd, arg);
+
+	return ret;
+}
+#endif
+
 static int osd_open(struct fb_info *info, int arg)
 {
 	return 0;
@@ -604,6 +618,9 @@ static struct fb_ops osd_ops = {
 	.fb_cursor      = osd_cursor,
 #endif
 	.fb_ioctl       = osd_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl = osd_compat_ioctl,
+#endif
 	.fb_open        = osd_open,
 	.fb_blank       = osd_blank,
 	.fb_pan_display = osd_pan_display,
@@ -2065,8 +2082,8 @@ static int __init rmem_fb_setup(struct reserved_mem *rmem)
 	fb_rmem.base = rmem->base;
 	fb_rmem.size = rmem->size;
 	rmem->ops = &rmem_fb_ops;
-	osd_log_info("Reserved memory: created fb at 0x%x, size %ld MiB\n",
-		     rmem->base, (unsigned long)rmem->size / SZ_1M);
+	osd_log_info("Reserved memory: created fb at 0x%p, size %ld MiB\n",
+		     (void *)rmem->base, (unsigned long)rmem->size / SZ_1M);
 	return 0;
 }
 RESERVEDMEM_OF_DECLARE(fb, "amlogic, fb-memory", rmem_fb_setup);
