@@ -416,9 +416,10 @@ static ssize_t _tsdemux_write(const char __user *buf, size_t count,
 
 		wmb();		/* Ensure fetchbuf  contents visible */
 
-		if (isphybuf)
-			WRITE_MPEG_REG(PARSER_FETCH_ADDR, (u32) buf);
-		else {
+		if (isphybuf) {
+			u32 buf_32 = (unsigned long)buf & 0xffffffff;
+			WRITE_MPEG_REG(PARSER_FETCH_ADDR, buf_32);
+		} else {
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
 			dma_unmap_single(NULL, dma_addr,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);

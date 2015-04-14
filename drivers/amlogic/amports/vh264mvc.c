@@ -1244,8 +1244,9 @@ static void vh264mvc_local_init(void)
 	if (frame_dur == 0)
 		frame_dur = 96000 / 24;
 
-	pts_outside = ((u32) vh264mvc_amstream_dec_info.param) & 0x01;
-	sync_outside = ((u32) vh264mvc_amstream_dec_info.param & 0x02) >> 1;
+	pts_outside = ((unsigned long) vh264mvc_amstream_dec_info.param) & 0x01;
+	sync_outside = ((unsigned long) vh264mvc_amstream_dec_info.param & 0x02)
+			>> 1;
 
 	/**/ dpb_start_addr[0] = -1;
 	dpb_start_addr[1] = -1;

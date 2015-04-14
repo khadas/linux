@@ -132,7 +132,8 @@ static u32 dec_control;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size, ccbuf_phyAddress;
+static unsigned long buf_start;
+static u32 buf_size, ccbuf_phyAddress;
 static DEFINE_SPINLOCK(lock);
 
 static u32 frame_rpt_state;
@@ -864,7 +865,7 @@ static s32 vmpeg12_init(void)
 #endif
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-		(void *)vmpeg12_amstream_dec_info.rate);
+		(void *)((unsigned long)vmpeg12_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 

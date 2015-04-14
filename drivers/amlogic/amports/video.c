@@ -4328,10 +4328,16 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 			pr_info("%s VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT\n",
 			       __func__);
 		}
-	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT)
-		set_vframe_rate_hint((int)data);
-	else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT)
+	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
+#ifdef CONFIG_AM_VOUT
+		if (data != NULL)
+			set_vframe_rate_hint((unsigned long)(data));
+#endif
+	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
+#ifdef CONFIG_AM_VOUT
 		set_vframe_rate_end_hint();
+#endif
+	}
 	return 0;
 }
 
@@ -5881,6 +5887,7 @@ static ssize_t vframe_states_show(struct class *cla,
 	return ret;
 }
 
+#ifdef CONFIG_AM_VOUT
 static ssize_t device_resolution_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
@@ -5899,6 +5906,7 @@ static ssize_t device_resolution_show(struct class *cla,
 	else
 		return sprintf(buf, "0x0\n");
 }
+#endif
 
 static ssize_t video_filename_show(struct class *cla,
 				   struct class_attribute *attr, char *buf)
@@ -6241,7 +6249,9 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       S_IRUGO | S_IWUSR,
 	       slowsync_repeat_enable_show,
 	       slowsync_repeat_enable_store),
+#ifdef CONFIG_AM_VOUT
 	__ATTR_RO(device_resolution),
+#endif
 	__ATTR_RO(frame_addr),
 	__ATTR_RO(frame_canvas_width),
 	__ATTR_RO(frame_canvas_height),
@@ -6396,8 +6406,15 @@ static int __init vpp_axis_reverse(char *str)
 
 __setup("panel_reverse=", vpp_axis_reverse);
 #endif
+
+struct vframe_s *get_cur_dispbuf(void)
+{
+	return cur_dispbuf;
+}
+
 static struct device *amvideo_dev;
 
+#ifdef CONFIG_AM_VOUT
 int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 			 void *para)
 {
@@ -6464,6 +6481,7 @@ int vout2_notify_callback(struct notifier_block *block, unsigned long cmd,
 }
 #endif
 
+
 static struct notifier_block vout_notifier = {
 	.notifier_call = vout_notify_callback,
 };
@@ -6474,10 +6492,6 @@ static struct notifier_block vout2_notifier = {
 };
 #endif
 
-struct vframe_s *get_cur_dispbuf(void)
-{
-	return cur_dispbuf;
-}
 
 static void vout_hook(void)
 {
@@ -6516,6 +6530,7 @@ static void vout_hook(void)
 	}
 #endif
 }
+#endif
 
 #if 1		/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 
@@ -6679,7 +6694,11 @@ static void super_scaler_init(void)
 	WRITE_VCBUS_REG(0x312e, 0x00017f00);
 }
 #endif
+#ifdef CONFIG_KEEP_FRAME_RESERVED
+static int video_init(void)
+#else
 static int __init video_init(void)
+#endif
 {
 	int r = 0;
 	/*
@@ -6777,7 +6796,9 @@ static int __init video_init(void)
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 #endif
 
+#ifdef CONFIG_AM_VOUT
 	vout_hook();
+#endif
 
 #ifdef CONFIG_VSYNC_RDMA
 	dispbuf_to_put_num = DISPBUF_TO_PUT_MAX;
@@ -6849,7 +6870,11 @@ static int __init video_init(void)
 	return r;
 }
 
+#ifdef CONFIG_KEEP_FRAME_RESERVED
+static void video_exit(void)
+#else
 static void __exit video_exit(void)
+#endif
 {
 	vf_unreg_receiver(&video_vf_recv);
 
@@ -6890,8 +6915,9 @@ static int video_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_get_res;
 	}
-	pr_info("keep reserved %s y start %x, end %x\n", __func__, res->start,
-	       res->end);
+	pr_info("keep reserved %s y start %p, end %p\n", __func__,
+		(void *)res->start,
+		(void *)res->end);
 	keep_y_addr = res->start;
 	y_buffer_size = res->end - res->start + 1;
 	keep_y_addr_remap = ioremap_nocache(keep_y_addr, y_buffer_size);
@@ -6909,7 +6935,8 @@ static int video_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_get_res;
 	}
-	pr_info("%s u start %x, end %x\n", __func__, res->start, res->end);
+	pr_info("%s u start %p, end %p\n", __func__,
+		(void *)res->start, (void *)res->end);
 	keep_u_addr = res->start;
 	u_buffer_size = res->end - res->start + 1;
 	keep_u_addr_remap = ioremap_nocache(keep_u_addr, u_buffer_size);
@@ -6927,7 +6954,8 @@ static int video_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_get_res;
 	}
-	pr_info("%s v start %x, end %x\n", __func__, res->start, res->end);
+	pr_info("%s v start %p, end %p\n", __func__,
+		(void *)res->start, (void *)res->end);
 	keep_v_addr = res->start;
 	v_buffer_size = res->end - res->start + 1;
 	keep_v_addr_remap = ioremap_nocache(keep_v_addr, v_buffer_size);

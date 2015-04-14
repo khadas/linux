@@ -168,7 +168,8 @@ static struct vframe_s switching_fense_vf;
 
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size;
+static unsigned long buf_start;
+static u32 buf_size;
 static s32 buf_offset;
 static u32 ucode_map_start;
 static u32 pts_outside;
@@ -238,8 +239,8 @@ static u32 first_offset;
 static u32 first_pts;
 static u64 first_pts64;
 static bool first_pts_cached;
-static u32 sei_data_buffer;
-static u32 sei_data_buffer_phys;
+static unsigned long sei_data_buffer;
+static unsigned long sei_data_buffer_phys;
 static ulong *sei_data_buffer_remap;
 
 #define MC_OFFSET_HEADER    0x0000
@@ -1714,7 +1715,8 @@ static void vh264_isr(void)
 		user_data_poc.poc_number = READ_VREG(AV_SCRATCH_M);
 		set_userdata_poc(user_data_poc);
 		WRITE_VREG(AV_SCRATCH_J, 0);
-		wakeup_userdata_poll(sei_itu35_wp, (int)sei_data_buffer,
+		wakeup_userdata_poll(sei_itu35_wp,
+				(unsigned long)sei_data_buffer_phys,
 				USER_DATA_SIZE, sei_itu35_data_length);
 	}
 #ifdef HANDLE_H264_IRQ
@@ -1978,17 +1980,21 @@ static void vh264_local_init(void)
 	vh264_ratio = vh264_amstream_dec_info.ratio;
 	/* vh264_ratio = 0x100; */
 
-	vh264_rotation = (((u32) vh264_amstream_dec_info.param) >> 16) & 0xffff;
+	vh264_rotation = (((unsigned long) vh264_amstream_dec_info.param)
+				>> 16) & 0xffff;
 
 	frame_buffer_size = AVIL_DPB_BUFF_SIZE + buf_size - DEFAULT_MEM_SIZE;
 	frame_prog = 0;
 	frame_width = vh264_amstream_dec_info.width;
 	frame_height = vh264_amstream_dec_info.height;
 	frame_dur = vh264_amstream_dec_info.rate;
-	pts_outside = ((u32) vh264_amstream_dec_info.param) & 0x01;
-	sync_outside = ((u32) vh264_amstream_dec_info.param & 0x02) >> 1;
-	use_idr_framerate = ((u32) vh264_amstream_dec_info.param & 0x04) >> 2;
-	max_refer_buf = !(((u32) vh264_amstream_dec_info.param & 0x10) >> 4);
+	pts_outside = ((unsigned long) vh264_amstream_dec_info.param) & 0x01;
+	sync_outside = ((unsigned long) vh264_amstream_dec_info.param & 0x02)
+			>> 1;
+	use_idr_framerate = ((unsigned long) vh264_amstream_dec_info.param
+				& 0x04) >> 2;
+	max_refer_buf = !(((unsigned long) vh264_amstream_dec_info.param
+				& 0x10) >> 4);
 
 	pr_info
 	("H264 sysinfo: %dx%d duration=%d, pts_outside=%d, ",
@@ -1996,12 +2002,12 @@ static void vh264_local_init(void)
 	pr_info("sync_outside=%d, use_idr_framerate=%d\n",
 	 sync_outside, use_idr_framerate);
 
-	if ((u32) vh264_amstream_dec_info.param & 0x08)
+	if ((unsigned long) vh264_amstream_dec_info.param & 0x08)
 		ucode_type = UCODE_IP_ONLY_PARAM;
 	else
 		ucode_type = 0;
 
-	if ((u32) vh264_amstream_dec_info.param & 0x20)
+	if ((unsigned long) vh264_amstream_dec_info.param & 0x20)
 		error_recovery_mode_in = 1;
 	else
 		error_recovery_mode_in = 3;
@@ -2094,8 +2100,8 @@ static s32 vh264_init(void)
 		return -ENOMEM;
 	}
 
-	pr_info("264 ucode swap area: phyaddr 0x%x, cpu vaddr %p\n",
-		mc_dma_handle, mc_cpu_addr);
+	pr_info("264 ucode swap area: phyaddr %p, cpu vaddr %p\n",
+		(void *)mc_dma_handle, mc_cpu_addr);
 
 	if (!firmwareloaded) {
 		int r0 , r1 , r2 , r3 , r4 , r5;
@@ -2164,7 +2170,7 @@ static s32 vh264_init(void)
 #endif
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-					   (void *)frame_dur);
+					   (void *)((unsigned long)frame_dur));
 
 	stat |= STAT_VF_HOOK;
 
@@ -2503,7 +2509,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 				   __func__);
 			return -ENOMEM;
 		}
-		sei_data_buffer_phys = virt_to_phys((u8 *) sei_data_buffer);
+		sei_data_buffer_phys = virt_to_phys((void *)sei_data_buffer);
 
 		sei_data_buffer_remap =
 			ioremap_nocache(sei_data_buffer_phys, USER_DATA_SIZE);
@@ -2520,7 +2526,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 		   sei_data_buffer, sei_data_buffer_phys,
 		   (u32)sei_data_buffer_remap); */
 	}
-	pr_info("amvdec_h264 mem-addr=%lx,buff_offset=%x,buf_start=%x\n",
+	pr_info("amvdec_h264 mem-addr=%lx,buff_offset=%x,buf_start=%lx\n",
 		   pdata->mem_start, buf_offset, buf_start);
 
 	if (vh264_init() < 0) {

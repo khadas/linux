@@ -95,7 +95,8 @@ static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static u32 frame_width, frame_height, frame_dur;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size;
+static unsigned long buf_start;
+static u32 buf_size;
 static DEFINE_SPINLOCK(lock);
 
 static inline u32 index2canvas0(u32 index)
@@ -728,7 +729,7 @@ static s32 vmjpeg_init(void)
 #endif
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-			(void *)vmjpeg_amstream_dec_info.rate);
+			(void *)((unsigned long)vmjpeg_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 

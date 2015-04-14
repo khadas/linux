@@ -337,7 +337,7 @@ void set_trickmode_func(int (*trickmode_func)(unsigned long trickmode));
 void wakeup_sub_poll(void);
 void set_userdata_poc(struct userdata_poc_info_t poc);
 void init_userdata_fifo(void);
-int wakeup_userdata_poll(int wp, int start_phyaddr, int buf_size,
+int wakeup_userdata_poll(int wp, unsigned long start_phyaddr, int buf_size,
 						 int data_length);
 int get_sub_type(void);
 

@@ -48,7 +48,7 @@ struct pts_table_s {
 	u32 lookup_cache_offset;
 	bool lookup_cache_valid;
 	u32 lookup_cache_pts;
-	u32 buf_start;
+	unsigned long buf_start;
 	u32 buf_size;
 	int first_checkin_pts;
 	int first_lookup_ok;

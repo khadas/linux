@@ -502,7 +502,7 @@ union param_u {
 };
 
 struct buff_s {
-	u32 buf_start;
+	unsigned long buf_start;
 	u32 buf_size;
 	u32 buf_end;
 };
@@ -510,8 +510,8 @@ struct buff_s {
 struct BuffInfo_s {
 	u32 max_width;
 	u32 max_height;
-	u32 start_adr;
-	u32 end_adr;
+	unsigned long start_adr;
+	unsigned long end_adr;
 	struct buff_s ipp;
 	struct buff_s sao_abv;
 	struct buff_s sao_vb;
@@ -742,43 +742,43 @@ static void init_buff_spec(struct BuffInfo_s *buf_spec)
 	}
 
 	if (debug) {
-		pr_info("%s workspace (%x %x) size = %x\n", __func__,
+		pr_info("%s workspace (%lx %lx) size = %lx\n", __func__,
 			   buf_spec->start_adr, buf_spec->end_adr,
 			   buf_spec->end_adr - buf_spec->start_adr);
 	}
 	if (debug) {
-		pr_info("ipp.buf_start             :%x\n",
+		pr_info("ipp.buf_start             :%lx\n",
 			   buf_spec->ipp.buf_start);
-		pr_info("sao_abv.buf_start          :%x\n",
+		pr_info("sao_abv.buf_start          :%lx\n",
 			   buf_spec->sao_abv.buf_start);
-		pr_info("sao_vb.buf_start          :%x\n",
+		pr_info("sao_vb.buf_start          :%lx\n",
 			   buf_spec->sao_vb.buf_start);
-		pr_info("short_term_rps.buf_start  :%x\n",
+		pr_info("short_term_rps.buf_start  :%lx\n",
 			   buf_spec->short_term_rps.buf_start);
-		pr_info("vps.buf_start             :%x\n",
+		pr_info("vps.buf_start             :%lx\n",
 			   buf_spec->vps.buf_start);
-		pr_info("sps.buf_start             :%x\n",
+		pr_info("sps.buf_start             :%lx\n",
 			   buf_spec->sps.buf_start);
-		pr_info("pps.buf_start             :%x\n",
+		pr_info("pps.buf_start             :%lx\n",
 			   buf_spec->pps.buf_start);
-		pr_info("sao_up.buf_start          :%x\n",
+		pr_info("sao_up.buf_start          :%lx\n",
 			   buf_spec->sao_up.buf_start);
-		pr_info("swap_buf.buf_start        :%x\n",
+		pr_info("swap_buf.buf_start        :%lx\n",
 			   buf_spec->swap_buf.buf_start);
-		pr_info("swap_buf2.buf_start       :%x\n",
+		pr_info("swap_buf2.buf_start       :%lx\n",
 			   buf_spec->swap_buf2.buf_start);
-		pr_info("scalelut.buf_start        :%x\n",
+		pr_info("scalelut.buf_start        :%lx\n",
 			   buf_spec->scalelut.buf_start);
-		pr_info("dblk_para.buf_start       :%x\n",
+		pr_info("dblk_para.buf_start       :%lx\n",
 			   buf_spec->dblk_para.buf_start);
-		pr_info("dblk_data.buf_start       :%x\n",
+		pr_info("dblk_data.buf_start       :%lx\n",
 			   buf_spec->dblk_data.buf_start);
-		pr_info("mpred_above.buf_start     :%x\n",
+		pr_info("mpred_above.buf_start     :%lx\n",
 			   buf_spec->mpred_above.buf_start);
-		pr_info("mpred_mv.buf_start        :%x\n",
+		pr_info("mpred_mv.buf_start        :%lx\n",
 			   buf_spec->mpred_mv.buf_start);
 		if ((debug & H265_DEBUG_SEND_PARAM_WITH_REG) == 0) {
-			pr_info("rpm.buf_start             :%x\n",
+			pr_info("rpm.buf_start             :%lx\n",
 				   buf_spec->rpm.buf_start);
 		}
 	}
@@ -1106,9 +1106,9 @@ static void uninit_buf_list(struct hevc_state_s *hevc)
 						alloc_pages,
 						m_BUF[i].
 						cma_page_count);
-				pr_info("release cma buffer[%d] (%d %x)\n", i,
+				pr_info("release cma buffer[%d] (%d %p)\n", i,
 					   m_BUF[i].cma_page_count,
-					   (unsigned)m_BUF[i].alloc_pages);
+					   m_BUF[i].alloc_pages);
 				m_BUF[i].alloc_pages = NULL;
 				m_BUF[i].cma_page_count = 0;
 			}
@@ -1176,9 +1176,9 @@ static void init_buf_list(struct hevc_state_s *hevc)
 						alloc_pages,
 						m_BUF[i].
 						cma_page_count);
-				pr_info("release cma buffer[%d] (%d %x)\n", i,
+				pr_info("release cma buffer[%d] (%d %p)\n", i,
 					   m_BUF[i].cma_page_count,
-					   (unsigned)m_BUF[i].alloc_pages);
+					   m_BUF[i].alloc_pages);
 				m_BUF[i].alloc_pages = NULL;
 				m_BUF[i].cma_page_count = 0;
 			}
@@ -1198,15 +1198,15 @@ static void init_buf_list(struct hevc_state_s *hevc)
 				}
 				m_BUF[i].start_adr =
 					page_to_phys(m_BUF[i].alloc_pages);
-				pr_info("allocate cma buffer[%d] (%d,%x,%x)\n",
+				pr_info("allocate cma buffer[%d] (%d,%p,%p)\n",
 					   i, m_BUF[i].cma_page_count,
-					   (unsigned)m_BUF[i].alloc_pages,
-					   (unsigned)m_BUF[i].start_adr);
+					   m_BUF[i].alloc_pages,
+					   (void *)m_BUF[i].start_adr);
 			} else {
-				pr_info("reuse cma buffer[%d] (%d,%x,%x)\n", i,
+				pr_info("reuse cma buffer[%d] (%d,%p,%p)\n", i,
 					   m_BUF[i].cma_page_count,
-					   (unsigned)m_BUF[i].alloc_pages,
-					   (unsigned)m_BUF[i].start_adr);
+					   m_BUF[i].alloc_pages,
+					   (void *)m_BUF[i].start_adr);
 			}
 		} else {
 			m_BUF[i].cma_page_count = 0;
@@ -2158,19 +2158,20 @@ static void hevc_config_work_space_hw(struct hevc_state_s *hevc)
 	struct BuffInfo_s *buf_spec = hevc->work_space_buf;
 
 	if (debug)
-		pr_info("%s %x %x %x %x %x %x %x %x %x %x %x %x\n", __func__,
-			   buf_spec->ipp.buf_start,
-			   buf_spec->start_adr,
-			   buf_spec->short_term_rps.buf_start,
-			   buf_spec->vps.buf_start,
-			   buf_spec->sps.buf_start,
-			   buf_spec->pps.buf_start,
-			   buf_spec->sao_up.buf_start,
-			   buf_spec->swap_buf.buf_start,
-			   buf_spec->swap_buf2.buf_start,
-			   buf_spec->scalelut.buf_start,
-			   buf_spec->dblk_para.buf_start,
-			   buf_spec->dblk_data.buf_start);
+		pr_info("%s %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx\n",
+			__func__,
+			buf_spec->ipp.buf_start,
+			buf_spec->start_adr,
+			buf_spec->short_term_rps.buf_start,
+			buf_spec->vps.buf_start,
+			buf_spec->sps.buf_start,
+			buf_spec->pps.buf_start,
+			buf_spec->sao_up.buf_start,
+			buf_spec->swap_buf.buf_start,
+			buf_spec->swap_buf2.buf_start,
+			buf_spec->scalelut.buf_start,
+			buf_spec->dblk_para.buf_start,
+			buf_spec->dblk_data.buf_start);
 	WRITE_VREG(HEVCD_IPP_LINEBUFF_BASE, buf_spec->ipp.buf_start);
 	if ((debug & H265_DEBUG_SEND_PARAM_WITH_REG) == 0)
 		WRITE_VREG(HEVC_RPM_BUFFER, buf_spec->rpm.buf_start);
@@ -4799,7 +4800,7 @@ static s32 vh265_init(void)
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-					   (void *)frame_dur);
+					   (void *)((unsigned long)frame_dur));
 
 	stat |= STAT_VF_HOOK;
 

@@ -467,9 +467,9 @@ static int canvas_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	info->res = *res;
-	size = resource_size(res);
-	pr_info("canvas_probe reg=%x,size=%x\n",
-			res->start, resource_size(res));
+	size = (int)resource_size(res);
+	pr_info("canvas_probe reg=%p,size=%x\n",
+			(void *)res->start, size);
 	if (!devm_request_mem_region(&pdev->dev,
 				res->start, size, pdev->name)) {
 		dev_err(&pdev->dev, "Memory region busy\n");
@@ -480,7 +480,7 @@ static int canvas_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "devm_ioremap_nocache canvas failed!\n");
 		goto err1;
 	}
-	pr_info("canvas maped reg_base =%x\n", (int)info->reg_base);
+	pr_info("canvas maped reg_base =%p\n", info->reg_base);
 	amcanvas_manager_init();
 	memset(info->canvasPool, 0, CANVAS_MAX_NUM * sizeof(struct canvas_s));
 	info->max_canvas_num = canvas_pool_canvas_num();

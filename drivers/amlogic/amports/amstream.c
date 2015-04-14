@@ -1047,7 +1047,7 @@ void init_userdata_fifo(void)
 	userdata_poc_wi = 0;
 }
 
-int wakeup_userdata_poll(int wp, int start_phyaddr, int buf_size,
+int wakeup_userdata_poll(int wp, unsigned long start_phyaddr, int buf_size,
 						 int data_length)
 {
 	struct stream_buf_s *userdata_buf = &bufs[BUF_TYPE_USERDATA];
@@ -1917,7 +1917,7 @@ static ssize_t bufs_show(struct class *class, struct class_attribute *attr,
 		pbuf += sprintf(pbuf, ")\n");
 		/*buf stats */
 
-		pbuf += sprintf(pbuf, "\tbuf addr:%#x\n", p->buf_start);
+		pbuf += sprintf(pbuf, "\tbuf addr:%p\n", (void *)p->buf_start);
 
 		if (p->type != BUF_TYPE_SUBTITLE) {
 			pbuf += sprintf(pbuf, "\tbuf size:%#x\n", p->buf_size);
@@ -2163,7 +2163,7 @@ int amstream_request_firmware_from_sys(const char *file_name,
 
 	memcpy(buf, (char *)firmware->data, firmware->size);
 	/*mb(); don't need it*/
-	pr_err("load mcode size=%d\n mcode name %s\n", firmware->size,
+	pr_err("load mcode size=%zd\n mcode name %s\n", firmware->size,
 		   file_name);
 	err = firmware->size;
 release:

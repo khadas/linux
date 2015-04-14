@@ -42,11 +42,12 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 		if (!buf->buf_start)
 			return -ENOMEM;
 
-		pr_info("%s stbuf alloced at 0x%x, size = %d\n",
+		pr_info("%s stbuf alloced at %p, size = %d\n",
 				(buf->type == BUF_TYPE_HEVC) ? "HEVC" :
 				(buf->type == BUF_TYPE_VIDEO) ? "Video" :
 				(buf->type == BUF_TYPE_AUDIO) ? "Audio" :
-				"Subtitle", buf->buf_start, buf->buf_size);
+				"Subtitle", (void *)buf->buf_start,
+				buf->buf_size);
 	}
 
 	buf->flag |= BUF_FLAG_ALLOC;
@@ -59,8 +60,8 @@ int stbuf_change_size(struct stream_buf_s *buf, int size)
 	u32 old_buf, old_size;
 	int ret;
 
-	pr_info("buffersize=%d,%d,start=%x\n", size, buf->buf_size,
-			buf->buf_start);
+	pr_info("buffersize=%d,%d,start=%p\n", size, buf->buf_size,
+			(void *)buf->buf_start);
 
 	if (buf->buf_size == size && buf->buf_start != 0)
 		return 0;
@@ -209,7 +210,8 @@ s32 stbuf_init(struct stream_buf_s *buf)
 {
 	s32 r;
 	u32 dummy;
-	u32 phy_addr;
+	unsigned long phy_addr;
+	u32 addr32;
 
 	if (buf->flag & BUF_FLAG_IOMEM)
 		phy_addr = buf->buf_start;
@@ -219,15 +221,15 @@ s32 stbuf_init(struct stream_buf_s *buf)
 			return r;
 		phy_addr = virt_to_phys((void *)buf->buf_start);
 	}
-
+	addr32 = phy_addr & 0xffffffff;
 	init_waitqueue_head(&buf->wq);
 
 	if (has_hevc_vdec() && buf->type == BUF_TYPE_HEVC) {
 		CLEAR_VREG_MASK(HEVC_STREAM_CONTROL, 1);
-		WRITE_VREG(HEVC_STREAM_START_ADDR, phy_addr);
-		WRITE_VREG(HEVC_STREAM_END_ADDR, phy_addr + buf->buf_size);
-		WRITE_VREG(HEVC_STREAM_RD_PTR, phy_addr);
-		WRITE_VREG(HEVC_STREAM_WR_PTR, phy_addr);
+		WRITE_VREG(HEVC_STREAM_START_ADDR, addr32);
+		WRITE_VREG(HEVC_STREAM_END_ADDR, addr32 + buf->buf_size);
+		WRITE_VREG(HEVC_STREAM_RD_PTR, addr32);
+		WRITE_VREG(HEVC_STREAM_WR_PTR, addr32);
 
 		return 0;
 	}
@@ -253,23 +255,23 @@ s32 stbuf_init(struct stream_buf_s *buf)
 	}
 
 	if (buf->type == BUF_TYPE_SUBTITLE) {
-		WRITE_MPEG_REG(PARSER_SUB_RP, phy_addr);
-		WRITE_MPEG_REG(PARSER_SUB_START_PTR, phy_addr);
+		WRITE_MPEG_REG(PARSER_SUB_RP, addr32);
+		WRITE_MPEG_REG(PARSER_SUB_START_PTR, addr32);
 		WRITE_MPEG_REG(PARSER_SUB_END_PTR,
-					   phy_addr + buf->buf_size - 8);
+					   addr32 + buf->buf_size - 8);
 
 		return 0;
 	}
 
-	_WRITE_ST_REG(START_PTR, phy_addr);
-	_WRITE_ST_REG(CURR_PTR, phy_addr);
-	_WRITE_ST_REG(END_PTR, phy_addr + buf->buf_size - 8);
+	_WRITE_ST_REG(START_PTR, addr32);
+	_WRITE_ST_REG(CURR_PTR, addr32);
+	_WRITE_ST_REG(END_PTR, addr32 + buf->buf_size - 8);
 
 	_SET_ST_REG_MASK(CONTROL, MEM_BUFCTRL_INIT);
 	_CLR_ST_REG_MASK(CONTROL, MEM_BUFCTRL_INIT);
 
 	_WRITE_ST_REG(BUF_CTRL, MEM_BUFCTRL_MANUAL);
-	_WRITE_ST_REG(WP, phy_addr);
+	_WRITE_ST_REG(WP, addr32);
 
 	_SET_ST_REG_MASK(BUF_CTRL, MEM_BUFCTRL_INIT);
 	_CLR_ST_REG_MASK(BUF_CTRL, MEM_BUFCTRL_INIT);

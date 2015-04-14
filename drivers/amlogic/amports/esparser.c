@@ -147,9 +147,10 @@ static ssize_t _esparser_write(const char __user *buf,
 				PARSER_AUTOSEARCH, ES_CTRL_BIT,
 				ES_CTRL_WID);
 
-		if (isphybuf)
-			WRITE_MPEG_REG(PARSER_FETCH_ADDR, (u32) buf);
-		else {
+		if (isphybuf) {
+			u32 buf_32 = (unsigned long)buf & 0xffffffff;
+			WRITE_MPEG_REG(PARSER_FETCH_ADDR, buf_32);
+		} else {
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
 			dma_unmap_single(NULL, dma_addr,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
@@ -588,7 +589,7 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 					return -EAGAIN;
 			}
 		}
-		len = min(len, count);
+		len = min_t(u32, len, count);
 
 		mutex_lock(&esparser_mutex);
 
@@ -651,7 +652,7 @@ ssize_t esparser_write(struct file *file,
 
 	stbuf->last_write_jiffies64 = jiffies_64;
 
-	len = min(len, count);
+	len = min_t(u32, len, count);
 
 	mutex_lock(&esparser_mutex);
 

@@ -88,7 +88,8 @@ static struct vframe_s vfpool[VF_POOL_SIZE];
 static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size, buf_offset;
+static unsigned long buf_start;
+static u32 buf_size, buf_offset;
 static u32 avi_flag;
 static u32 vvc1_ratio;
 static u32 vvc1_format;
@@ -814,7 +815,7 @@ static void vvc1_local_init(void)
 	/* vvc1_ratio = vvc1_amstream_dec_info.ratio; */
 	vvc1_ratio = 0x100;
 
-	avi_flag = (u32) vvc1_amstream_dec_info.param;
+	avi_flag = (unsigned long) vvc1_amstream_dec_info.param;
 
 	total_frame = 0;
 
@@ -950,7 +951,7 @@ static s32 vvc1_init(void)
 #endif
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-			(void *)vvc1_amstream_dec_info.rate);
+			(void *)((unsigned long)vvc1_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 

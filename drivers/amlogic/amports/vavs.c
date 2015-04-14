@@ -98,7 +98,8 @@ static s32 fill_ptr, get_ptr, putting_ptr, put_ptr;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size, buf_offset;
+static unsigned long buf_start;
+static u32 buf_size, buf_offset;
 static u32 avi_flag;
 static u32 vavs_ratio;
 static u32 pic_type;
@@ -534,8 +535,8 @@ static void vavs_canvas_init(void)
 		decbuf_uv_size = 0x20000;
 		decbuf_size = 0x100000;
 		pr_info
-		("avs (SD only): buf_start %x, buf_size %x, buf_offset %x\n",
-		 buf_start, buf_size, buf_offset);
+		("avs (SD only): buf_start %p, buf_size %x, buf_offset %x\n",
+		 (void *)buf_start, buf_size, buf_offset);
 	} else {
 		/* HD & SD */
 		canvas_width = 1920;
@@ -543,8 +544,8 @@ static void vavs_canvas_init(void)
 		decbuf_y_size = 0x200000;
 		decbuf_uv_size = 0x80000;
 		decbuf_size = 0x300000;
-		pr_info("avs: buf_start %x, buf_size %x, buf_offset %x\n",
-			   buf_start, buf_size, buf_offset);
+		pr_info("avs: buf_start %p, buf_size %x, buf_offset %x\n",
+			   (void *)buf_start, buf_size, buf_offset);
 	}
 
 	if (READ_MPEG_REG(VPP_MISC) & VPP_VD1_POSTBLEND) {
@@ -589,8 +590,9 @@ static void vavs_canvas_init(void)
 					CANVAS_BLKMODE_32X32);
 #endif
 			if (debug_flag & 1) {
-				pr_info("canvas config %d, addr %x\n", 4,
-					   buf_start + 4 * decbuf_size);
+				pr_info("canvas config %d, addr %p\n", 4,
+					   (void *)(buf_start +
+					   4 * decbuf_size));
 			}
 
 		} else {
@@ -626,8 +628,9 @@ static void vavs_canvas_init(void)
 					CANVAS_BLKMODE_32X32);
 #endif
 			if (debug_flag & 1) {
-				pr_info("canvas config %d, addr %x\n", i,
-					   buf_start + i * decbuf_size);
+				pr_info("canvas config %d, addr %p\n", i,
+					   (void *)(buf_start +
+					   i * decbuf_size));
 			}
 		}
 	}
@@ -710,7 +713,7 @@ static void vavs_local_init(void)
 
 	vavs_ratio = vavs_amstream_dec_info.ratio;
 
-	avi_flag = (u32) vavs_amstream_dec_info.param;
+	avi_flag = (unsigned long) vavs_amstream_dec_info.param;
 
 	fill_ptr = get_ptr = put_ptr = putting_ptr = 0;
 
@@ -814,7 +817,8 @@ static s32 vavs_init(void)
 #endif
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-					   (void *)vavs_amstream_dec_info.rate);
+					   (void *)((unsigned long)
+					   vavs_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 

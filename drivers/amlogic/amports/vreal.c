@@ -110,7 +110,8 @@ static s32 vfbuf_use[VF_BUF_NUM];
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size, buf_offset;
+static unsigned long buf_start;
+static u32 buf_size, buf_offset;
 static u32 vreal_ratio;
 u32 vreal_format;
 static u32 wait_key_frame;
@@ -667,7 +668,7 @@ static void vreal_local_init(void)
 	wait_buffer_counter = 0;
 }
 
-static void load_block_data(unsigned int dest, unsigned int count)
+static void load_block_data(void *dest, unsigned int count)
 {
 	unsigned short *pdest = (unsigned short *)dest;
 	unsigned short src_tbl[12];
@@ -718,7 +719,7 @@ s32 vreal_init(void)
 	}
 
 	if (vreal_amstream_dec_info.format == VIDEO_DEC_FORMAT_REAL_8) {
-		load_block_data((unsigned int)pic_sz_tbl, 12);
+		load_block_data((void *)pic_sz_tbl, 12);
 
 		/* TODO: need to load the table into lmem */
 		WRITE_VREG(LMEM_DMA_ADR, (unsigned)pic_sz_tbl_map);
@@ -771,7 +772,7 @@ s32 vreal_init(void)
 #endif
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-		(void *)vreal_amstream_dec_info.rate);
+		(void *)((unsigned long)vreal_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 

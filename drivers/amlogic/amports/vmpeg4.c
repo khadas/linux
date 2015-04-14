@@ -120,7 +120,8 @@ static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
 static u32 stat;
-static u32 buf_start, buf_size, buf_offset;
+static unsigned long buf_start;
+static u32 buf_size, buf_offset;
 static u32 vmpeg4_ratio;
 static u64 vmpeg4_ratio64;
 static u32 rate_detect;
@@ -805,7 +806,8 @@ static void vmpeg4_local_init(void)
 	vmpeg4_ratio64 = vmpeg4_amstream_dec_info.ratio64;
 
 	vmpeg4_rotation =
-		(((u32) vmpeg4_amstream_dec_info.param) >> 16) & 0xffff;
+		(((unsigned long) vmpeg4_amstream_dec_info.param)
+			>> 16) & 0xffff;
 
 	frame_width = frame_height = frame_dur = frame_prog = 0;
 
@@ -921,7 +923,7 @@ static s32 vmpeg4_init(void)
 	vf_reg_provider(&vmpeg_vf_prov);
 #endif
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-		(void *)vmpeg4_amstream_dec_info.rate);
+		(void *)((unsigned long)vmpeg4_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 

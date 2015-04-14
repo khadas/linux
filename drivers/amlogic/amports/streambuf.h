@@ -29,7 +29,7 @@
 struct stream_buf_s {
 	s32 flag;
 	u32 type;
-	u32 buf_start;
+	unsigned long buf_start;
 	u32 buf_size;
 	u32 default_buf_size;
 	u32 canusebuf_size;
@@ -82,8 +82,8 @@ struct drm_info {
 	int drm_priv;
 	unsigned int drm_pktsize;
 	unsigned int drm_pktpts;
-	unsigned int drm_phy;
-	unsigned int drm_vir;
+	unsigned long drm_phy;
+	unsigned long drm_vir;
 	unsigned int drm_remap;
 	int data_offset;
 	int extpad[8];

@@ -1247,7 +1247,8 @@ static void vh264_4k2k_local_init(void)
 #endif
 
 	vh264_4k2k_rotation =
-		(((u32) vh264_4k2k_amstream_dec_info.param) >> 16) & 0xffff;
+		(((unsigned long) vh264_4k2k_amstream_dec_info.param) >> 16)
+			& 0xffff;
 	frame_width = vh264_4k2k_amstream_dec_info.width;
 	frame_height = vh264_4k2k_amstream_dec_info.height;
 	frame_dur =
@@ -1255,7 +1256,8 @@ static void vh264_4k2k_local_init(void)
 		 0) ? 3600 : vh264_4k2k_amstream_dec_info.rate;
 	if (frame_width && frame_height)
 		frame_ar = frame_height * 0x100 / frame_width;
-	sync_outside = ((u32) vh264_4k2k_amstream_dec_info.param & 0x02) >> 1;
+	sync_outside = ((unsigned long) vh264_4k2k_amstream_dec_info.param
+			& 0x02) >> 1;
 	error_watchdog_count = 0;
 
 	pr_info("H264_4K2K: decinfo: %dx%d rate=%d\n",
@@ -1426,7 +1428,8 @@ static s32 vh264_4k2k_init(void)
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 
 	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_FR_HINT,
-			(void *)vh264_4k2k_amstream_dec_info.rate);
+			(void *)((unsigned long)
+			vh264_4k2k_amstream_dec_info.rate));
 
 	stat |= STAT_VF_HOOK;
 
@@ -1562,11 +1565,11 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 
 	pr_info("H.264 4k2k decoder mem resource 0x%x -- 0x%x\n",
 		   decoder_buffer_start, decoder_buffer_end);
-	pr_info("                   sysinfo: %dx%d, rate = %d, param = 0x%x\n",
+	pr_info("                   sysinfo: %dx%d, rate = %d, param = 0x%lx\n",
 		   vh264_4k2k_amstream_dec_info.width,
 		   vh264_4k2k_amstream_dec_info.height,
 		   vh264_4k2k_amstream_dec_info.rate,
-		   (u32) vh264_4k2k_amstream_dec_info.param);
+		   (unsigned long) vh264_4k2k_amstream_dec_info.param);
 
 	if (!H264_4K2K_SINGLE_CORE) {
 #if 1 /* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (has_hdec()) */
