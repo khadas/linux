@@ -1506,7 +1506,7 @@ static void aml1218_earlysuspend(struct early_suspend *h)
 static void aml1218_lateresume(struct early_suspend *h)
 {
 	struct  aml1218_supply *supply = (struct aml1218_supply *)h->param;
-	int cur  = aml1218_battery->pmu_resume_chgcur
+	int cur  = aml1218_battery->pmu_resume_chgcur;
 
 	schedule_work(&supply->work.work); /* update for upper layer */
 	if (aml1218_battery) {

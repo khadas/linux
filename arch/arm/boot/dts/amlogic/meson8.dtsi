@@ -125,6 +125,10 @@
 		reg = <0xc110875c 0x4
 			0xc1108764 0x4>;
 	};
+	meson_suspend{
+		compatible = "amlogic, pm";
+	};
+
 	clock: meson_clock {
 		compatible = "amlogic,meson8m2-clock";
 		reg = <0xc110402C 0x1000>,   //0x100B  0x1050:0xc1104140 - 0x10ea  0x268 ?

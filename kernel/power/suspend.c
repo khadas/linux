@@ -32,9 +32,12 @@
 #include "power.h"
 
 struct pm_sleep_state pm_states[PM_SUSPEND_MAX] = {
-	[PM_SUSPEND_FREEZE] = { .label = "freeze", .state = PM_SUSPEND_FREEZE },
-	[PM_SUSPEND_STANDBY] = { .label = "standby", },
-	[PM_SUSPEND_MEM] = { .label = "mem", },
+#ifdef CONFIG_EARLYSUSPEND
+	[PM_SUSPEND_ON]		= { .label = "on", .state = PM_SUSPEND_ON},
+#endif
+	[PM_SUSPEND_STANDBY] = { .label = "standby",
+				.state = PM_SUSPEND_STANDBY},
+	[PM_SUSPEND_MEM] = { .label = "mem", .state = PM_SUSPEND_MEM},
 };
 
 static const struct platform_suspend_ops *suspend_ops;
@@ -64,7 +67,7 @@ void freeze_wake(void)
 }
 EXPORT_SYMBOL_GPL(freeze_wake);
 
-static bool valid_state(suspend_state_t state)
+bool valid_state(suspend_state_t state)
 {
 	/*
 	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states need low level
@@ -275,8 +278,10 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
-		pr_err("PM: Some devices failed to suspend, or early wake event detected\n");
-		log_suspend_abort_reason("Some devices failed to suspend, or early wake event detected");
+		pr_err
+		("PM: Some devices failed to suspend, or early wake event detected\n");
+		log_suspend_abort_reason
+		("Some devices failed to suspend, or early wake event detected");
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");

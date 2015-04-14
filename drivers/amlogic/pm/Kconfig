@@ -1,0 +1,8 @@
+# Amlogic GPIO
+
+
+config MESON_SUSPEND
+    bool "Meson suspend driver"
+    select WAKELOCK
+    help
+      This is the Amlogic suspend  driver
