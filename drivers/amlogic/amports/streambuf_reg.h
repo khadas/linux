@@ -71,11 +71,17 @@
 */
 
 /*TODO*/
-#define _WRITE_ST_REG(r, val)  aml_write_dosbus((buf->reg_base+(r)), (val))
-#define _READ_ST_REG(r) (aml_read_dosbus(buf->reg_base+(r)))
-#define _WRITE_ST_REG_BITS(r, val, s, e) \
-	_WRITE_ST_REG(r, ((((_READ_ST_REG(r) & \
-	(((1L<<(e)-1)<<(s))-1)<<(s)))|((unsigned)((val)&((1L<<(e))-1))<<(s)))))
+#define _WRITE_ST_REG(r, val)  do { \
+	if (buf->reg_base == VLD_MEM_VIFIFO_REG_BASE) \
+		aml_write_dosbus((buf->reg_base+(r)), (val)); \
+	else \
+		aml_write_cbus((buf->reg_base+(r)), (val)); \
+	} while (0)
+#define _READ_ST_REG(r) \
+	((buf->reg_base == VLD_MEM_VIFIFO_REG_BASE) ? \
+	 aml_read_dosbus(buf->reg_base+(r)) : \
+	 aml_read_cbus(buf->reg_base+(r)))
+
 #define _SET_ST_REG_MASK(r, val) _WRITE_ST_REG(r, _READ_ST_REG(r) | (val))
 #define _CLR_ST_REG_MASK(r, val) _WRITE_ST_REG(r, _READ_ST_REG(r)&~(val))
 #define _READ_VDEC2_ST_REG(r) (aml_read_dosbus(\
