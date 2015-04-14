@@ -403,7 +403,7 @@ struct cts_encx_table cts_enci_tbl[] = {
 struct cts_encx_table cts_pixel_tbl[] = {
 	CTS_XXX_TBL(148500000, 148500000, 1, 1),
 	CTS_XXX_TBL(108000000, 216000000, 4, 1),
-	CTS_XXX_TBL(74250000, 148500000, 1, 2),
+	CTS_XXX_TBL(74250000, 148500000, 2, 1),
 	CTS_XXX_TBL(54000000, 432000000, 4, 2),
 	CTS_XXX_TBL(27000000, 216000000, 4, 2),
 };
