@@ -86,16 +86,6 @@ struct platform_resource_s {
 	int mem_start;
 	int mem_end;
 };
-
-struct logo_input_para {
-	int loaded;
-};
-
-struct logo_object_s {
-	char name[10];
-	struct logo_input_para para;
-};
-
 #endif
 static int debugflags;
 static int output_fps;
@@ -6602,8 +6592,6 @@ static void do_vpu_delay_work(struct work_struct *work)
 /*********************************************************/
 static int __init video_early_init(void)
 {
-	struct logo_object_s *init_logo_obj = NULL;
-
 	/* todo: move this to clock tree, enable VPU clock */
 	/* WRITE_CBUS_REG(HHI_VPU_CLK_CNTL,
 	(1<<9) | (1<<8) | (3)); // fclk_div3/4 = ~200M */
@@ -6611,11 +6599,7 @@ static int __init video_early_init(void)
 	(3<<9) | (1<<8) | (0)); // fclk_div7/1 = 364M
 	//moved to vpu.c, default config by dts */
 
-#ifdef CONFIG_AM_LOGO
-	init_logo_obj = get_current_logo_obj();
-#endif
-
-	if (NULL == init_logo_obj || !init_logo_obj->para.loaded) {
+	if (get_logo_vmode() >= VMODE_MAX) {
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 		WRITE_VCBUS_REG_BITS(VPP_OFIFO_SIZE, 0x77f, VPP_OFIFO_SIZE_BIT,
 				     VPP_OFIFO_SIZE_WID);
@@ -6630,7 +6614,7 @@ static int __init video_early_init(void)
 	WRITE_VCBUS_REG(VPP_BLEND_VD2_H_START_END, 4096);
 #endif
 
-	if (NULL == init_logo_obj || !init_logo_obj->para.loaded) {
+	if (get_logo_vmode() >= VMODE_MAX) {
 		CLEAR_VCBUS_REG_MASK(VPP_VSC_PHASE_CTRL,
 				     VPP_PHASECTL_TYPE_INTERLACE);
 #ifndef CONFIG_FB_AML_TCON
@@ -6639,7 +6623,7 @@ static int __init video_early_init(void)
 		WRITE_VCBUS_REG(VPP_HOLD_LINES + cur_dev->vpp_off, 0x08080808);
 	}
 #ifdef CONFIG_SUPPORT_VIDEO_ON_VPP2
-	if (NULL == init_logo_obj || !init_logo_obj->para.loaded) {
+	if (get_logo_vmode() >= VMODE_MAX) {
 		CLEAR_VCBUS_REG_MASK(VPP2_VSC_PHASE_CTRL,
 				     VPP_PHASECTL_TYPE_INTERLACE);
 #ifndef CONFIG_FB_AML_TCON

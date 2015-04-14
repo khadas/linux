@@ -1896,7 +1896,7 @@ static int osd_probe(struct platform_device *pdev)
 		if ((logo_index < 0) || (logo_index != index)) {
 			osd_log_info("---------------clear fb%d memory\n",
 					index);
-			memset((char *)fbdev->fb_mem_vaddr, 0x80,
+			memset((char *)fbdev->fb_mem_vaddr, 0x0,
 					fbdev->fb_len);
 		}
 
