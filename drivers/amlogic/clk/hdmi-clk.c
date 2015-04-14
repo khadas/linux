@@ -51,6 +51,7 @@ struct aml_pll_conf hpll_pll_phy_conf = {
 };
 static  struct amlogic_pll_rate_table hpll_phy_tbl[] = {
 	/*fvco 2970Mhz*/
+	HPLL_FVCO_RATE(2970000000UL, 0x3d, 0x1, 0),
 	HPLL_FVCO_RATE(1485000000, 0x3d, 0x1, 1),
 
 	HPLL_FVCO_RATE(1080000000, 0x2d, 0x1, 1),

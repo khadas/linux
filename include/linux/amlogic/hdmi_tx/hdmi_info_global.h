@@ -256,11 +256,11 @@ struct Vsdb_PhyAddr {
 
 struct Hdmitx_Clk {
 	enum Hdmi_VIC vic;
-	unsigned int clk_sys;
-	unsigned int clk_phy;
-	unsigned int clk_encp;
-	unsigned int clk_enci;
-	unsigned int clk_pixel;
+	uint64_t clk_sys;
+	uint64_t clk_phy;
+	uint64_t clk_encp;
+	uint64_t clk_enci;
+	uint64_t clk_pixel;
 };
 
 struct Hdmitx_Info {
