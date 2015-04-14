@@ -44,6 +44,7 @@
 #include <linux/ioport.h>
 #include <linux/amlogic/usb-meson8.h>
 #include <linux/amlogic/usbtype.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 
 /**
  * @file
@@ -943,6 +944,7 @@ struct dwc_otg_core_if {
 	/* Set VBus Power though GPIO */
 	int vbus_power_pin;
 	int vbus_power_pin_work_mask;
+	struct gpio_desc *usb_gpio_desc;
 
 	int swicth_int_reg;
 
@@ -1507,5 +1509,8 @@ static inline void cil_pcd_resume(dwc_otg_core_if_t *core_if)
 	if (core_if->pcd_cb && core_if->pcd_cb->resume_wakeup)
 		core_if->pcd_cb->resume_wakeup(core_if->pcd_cb_p);
 }
+
+extern void set_usb_vbus_power(struct gpio_desc *usb_gd,
+				int pin, char is_power_on);
 
 #endif

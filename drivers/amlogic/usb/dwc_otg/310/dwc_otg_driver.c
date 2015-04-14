@@ -70,7 +70,6 @@
 
 #define DWC_DRIVER_VERSION	"3.10a 12-MAY-2014"
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
-static struct gpio_desc *usb_gd;
 static const char dwc_driver_name[] = "dwc_otg";
 extern int pcd_init(struct platform_device *pdev);
 extern int hcd_init(struct platform_device *pdev);
@@ -610,7 +609,7 @@ static void dwc_otg_set_force_id(dwc_otg_core_if_t *core_if, int mode)
 }
 
 #define VBUS_POWER_GPIO_OWNER  "DWC_OTG"
-void set_usb_vbus_power(int pin, char is_power_on)
+void set_usb_vbus_power(struct gpio_desc *usb_gd, int pin, char is_power_on)
 {
 	if (is_power_on) {
 		/*notify pmu off vbus first*/
@@ -718,7 +717,7 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 
 	if (otg_dev->core_if) {
 		if (otg_dev->core_if->vbus_power_pin != -2)
-			gpiod_put(usb_gd);
+			gpiod_put(otg_dev->core_if->usb_gpio_desc);
 		dwc_otg_cil_remove(otg_dev->core_if);
 	} else {
 		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->core_if NULL!\n", __func__);
@@ -813,6 +812,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	const char *gpio_name = NULL;
 	const void *prop;
 	dwc_otg_device_t *dwc_otg_device;
+	struct gpio_desc *usb_gd = NULL;
 	struct dwc_otg_driver_module_params *pcore_para;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
@@ -856,6 +856,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 				if (strcmp(gpio_name, "PMU") == 0) {
 					gpio_vbus_power_pin = -2;
 				} else {
+					gpio_vbus_power_pin = 1;
 					usb_gd = gpiod_get_index(&pdev->dev,
 								 NULL, 0);
 					if (IS_ERR(usb_gd))
@@ -1088,6 +1089,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	*/
 	dwc_otg_device->core_if->vbus_power_pin = gpio_vbus_power_pin;
 	dwc_otg_device->core_if->vbus_power_pin_work_mask = gpio_work_mask;
+	dwc_otg_device->core_if->usb_gpio_desc = usb_gd;
 	dwc_otg_device->core_if->charger_detect = charger_detect;
 	dwc_otg_device->core_if->non_normal_usb_charger_detect_delay = non_normal_usb_charger_detect_delay;
 	if (host_only_core && pmu_apply_power)

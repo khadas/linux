@@ -65,7 +65,6 @@
 
 static int dwc_otg_setup_params(dwc_otg_core_if_t *core_if);
 
-extern void set_usb_vbus_power(int pin, char is_power_on);
 extern void dwc_otg_charger_detect_notifier_call(int bc_mode);
 /* ------------------------------------------------------- */
 /*
@@ -75,7 +74,11 @@ extern void dwc_otg_charger_detect_notifier_call(int bc_mode);
 void dwc_otg_set_vbus_power(dwc_otg_core_if_t *_core_if, char is_power_on)
 {
 	if (_core_if->vbus_power_pin != -1)
-		set_usb_vbus_power(_core_if->vbus_power_pin, is_power_on ? _core_if->vbus_power_pin_work_mask : (1 - _core_if->vbus_power_pin_work_mask));
+		set_usb_vbus_power(_core_if->usb_gpio_desc,
+			_core_if->vbus_power_pin,
+			is_power_on ?
+			_core_if->vbus_power_pin_work_mask :
+			(1 - _core_if->vbus_power_pin_work_mask));
 }
 
 /**
