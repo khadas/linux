@@ -26,7 +26,6 @@
 #include <linux/major.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
-#include <linux/wakelock.h>
 #include "input-compat.h"
 
 struct evdev {
@@ -47,9 +46,6 @@ struct evdev_client {
 	unsigned int tail;
 	unsigned int packet_head; /* [future] position of the first element of next packet */
 	spinlock_t buffer_lock; /* protects access to buffer, head and tail */
-	struct wake_lock wake_lock;
-	bool use_wake_lock;
-	char name[28];
 	struct fasync_struct *fasync;
 	struct evdev *evdev;
 	struct list_head node;
@@ -112,9 +108,8 @@ static void evdev_queue_syn_dropped(struct evdev_client *client)
 	struct input_event ev;
 	ktime_t time;
 
-	time = ktime_get();
-	if (client->clkid != CLOCK_MONOTONIC)
-		time = ktime_sub(time, ktime_get_monotonic_offset());
+	time = (client->clkid == CLOCK_MONOTONIC) ?
+		ktime_get() : ktime_get_real();
 
 	ev.time = ktime_to_timeval(time);
 	ev.type = EV_SYN;
@@ -154,14 +149,10 @@ static void __pass_event(struct evdev_client *client,
 		client->buffer[client->tail].value = 0;
 
 		client->packet_head = client->tail;
-		if (client->use_wake_lock)
-			wake_unlock(&client->wake_lock);
 	}
 
 	if (event->type == EV_SYN && event->code == SYN_REPORT) {
 		client->packet_head = client->head;
-		if (client->use_wake_lock)
-			wake_lock(&client->wake_lock);
 		kill_fasync(&client->fasync, SIGIO, POLL_IN);
 	}
 }
@@ -380,14 +371,10 @@ static int evdev_release(struct inode *inode, struct file *file)
 
 	evdev_detach_client(evdev, client);
 
-	if (client->use_wake_lock)
-		wake_lock_destroy(&client->wake_lock);
-
 	if (is_vmalloc_addr(client))
 		vfree(client);
 	else
 		kfree(client);
-	kfree(client);
 
 	evdev_close_device(evdev);
 
@@ -420,8 +407,6 @@ static int evdev_open(struct inode *inode, struct file *file)
 
 	client->bufsize = bufsize;
 	spin_lock_init(&client->buffer_lock);
-	snprintf(client->name, sizeof(client->name), "%s-%d",
-			dev_name(&evdev->dev), task_tgid_vnr(current));
 	client->evdev = evdev;
 	evdev_attach_client(evdev, client);
 
@@ -488,9 +473,6 @@ static int evdev_fetch_next_event(struct evdev_client *client,
 	if (have_event) {
 		*event = client->buffer[client->tail++];
 		client->tail &= client->bufsize - 1;
-		if (client->use_wake_lock &&
-		    client->packet_head == client->tail)
-			wake_unlock(&client->wake_lock);
 	}
 
 	spin_unlock_irq(&client->buffer_lock);
@@ -646,12 +628,10 @@ static int str_to_user(const char *str, unsigned int maxlen, void __user *p)
 	return copy_to_user(p, str, len) ? -EFAULT : len;
 }
 
-#define OLD_KEY_MAX	0x1ff
 static int handle_eviocgbit(struct input_dev *dev,
 			    unsigned int type, unsigned int size,
 			    void __user *p, int compat_mode)
 {
-	static unsigned long keymax_warn_time;
 	unsigned long *bits;
 	int len;
 
@@ -669,24 +649,8 @@ static int handle_eviocgbit(struct input_dev *dev,
 	default: return -EINVAL;
 	}
 
-	/*
-	 * Work around bugs in userspace programs that like to do
-	 * EVIOCGBIT(EV_KEY, KEY_MAX) and not realize that 'len'
-	 * should be in bytes, not in bits.
-	 */
-	if (type == EV_KEY && size == OLD_KEY_MAX) {
-		len = OLD_KEY_MAX;
-		if (printk_timed_ratelimit(&keymax_warn_time, 10 * 1000))
-			pr_warning("(EVIOCGBIT): Suspicious buffer size %u, "
-				   "limiting output to %zu bytes. See "
-				   "http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
-				   OLD_KEY_MAX,
-				   BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
-	}
-
 	return bits_to_user(bits, len, size, p, compat_mode);
 }
-#undef OLD_KEY_MAX
 
 static int evdev_handle_get_keycode(struct input_dev *dev, void __user *p)
 {
@@ -774,20 +738,23 @@ static int evdev_handle_set_keycode_v2(struct input_dev *dev, void __user *p)
  */
 static int evdev_handle_get_val(struct evdev_client *client,
 				struct input_dev *dev, unsigned int type,
-				unsigned long *bits, unsigned int max,
-				unsigned int size, void __user *p, int compat)
+				unsigned long *bits, unsigned int maxbit,
+				unsigned int maxlen, void __user *p,
+				int compat)
 {
 	int ret;
 	unsigned long *mem;
+	size_t len;
 
-	mem = kmalloc(sizeof(unsigned long) * max, GFP_KERNEL);
+	len = BITS_TO_LONGS(maxbit) * sizeof(unsigned long);
+	mem = kmalloc(len, GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
 	spin_lock_irq(&dev->event_lock);
 	spin_lock(&client->buffer_lock);
 
-	memcpy(mem, bits, sizeof(unsigned long) * max);
+	memcpy(mem, bits, len);
 
 	spin_unlock(&dev->event_lock);
 
@@ -795,7 +762,7 @@ static int evdev_handle_get_val(struct evdev_client *client,
 
 	spin_unlock_irq(&client->buffer_lock);
 
-	ret = bits_to_user(mem, max, size, p, compat);
+	ret = bits_to_user(mem, maxbit, maxlen, p, compat);
 	if (ret < 0)
 		evdev_queue_syn_dropped(client);
 
@@ -828,11 +795,6 @@ static int evdev_handle_mt_request(struct input_dev *dev,
 	return 0;
 }
 
-/*
- * HACK: disable conflicting EVIOCREVOKE until Android userspace stops using
- * EVIOCSSUSPENDBLOCK
- */
-/*
 static int evdev_revoke(struct evdev *evdev, struct evdev_client *client,
 			struct file *file)
 {
@@ -840,36 +802,6 @@ static int evdev_revoke(struct evdev *evdev, struct evdev_client *client,
 	evdev_ungrab(evdev, client);
 	input_flush_device(&evdev->handle, file);
 	wake_up_interruptible(&evdev->wait);
-
-	return 0;
-}
-*/
-
-static int evdev_enable_suspend_block(struct evdev *evdev,
-				      struct evdev_client *client)
-{
-	if (client->use_wake_lock)
-		return 0;
-
-	spin_lock_irq(&client->buffer_lock);
-	wake_lock_init(&client->wake_lock, WAKE_LOCK_SUSPEND, client->name);
-	client->use_wake_lock = true;
-	if (client->packet_head != client->tail)
-		wake_lock(&client->wake_lock);
-	spin_unlock_irq(&client->buffer_lock);
-	return 0;
-}
-
-static int evdev_disable_suspend_block(struct evdev *evdev,
-				       struct evdev_client *client)
-{
-	if (!client->use_wake_lock)
-		return 0;
-
-	spin_lock_irq(&client->buffer_lock);
-	client->use_wake_lock = false;
-	wake_lock_destroy(&client->wake_lock);
-	spin_unlock_irq(&client->buffer_lock);
 
 	return 0;
 }
@@ -936,17 +868,12 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		else
 			return evdev_ungrab(evdev, client);
 
-	/*
-	 * HACK: disable conflicting EVIOCREVOKE until Android userspace stops
-	 * using EVIOCSSUSPENDBLOCK
-	 */
-	/*
 	case EVIOCREVOKE:
 		if (p)
 			return -EINVAL;
 		else
 			return evdev_revoke(evdev, client, file);
-	*/
+
 	case EVIOCSCLOCKID:
 		if (copy_from_user(&i, p, sizeof(unsigned int)))
 			return -EFAULT;
@@ -966,15 +893,6 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 	case EVIOCSKEYCODE_V2:
 		return evdev_handle_set_keycode_v2(dev, p);
-
-	case EVIOCGSUSPENDBLOCK:
-		return put_user(client->use_wake_lock, ip);
-
-	case EVIOCSSUSPENDBLOCK:
-		if (p)
-			return evdev_enable_suspend_block(evdev, client);
-		else
-			return evdev_disable_suspend_block(evdev, client);
 	}
 
 	size = _IOC_SIZE(cmd);

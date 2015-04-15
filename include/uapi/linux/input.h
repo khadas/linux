@@ -152,12 +152,8 @@ struct input_keymap_entry {
 #define EVIOCGEFFECTS		_IOR('E', 0x84, int)			/* Report number of effects playable at the same time */
 
 #define EVIOCGRAB		_IOW('E', 0x90, int)			/* Grab/Release device */
-
-/* HACK: disable conflicting EVIOCREVOKE until Android userspace stops using EVIOCSSUSPENDBLOCK */
-/*#define EVIOCREVOKE		_IOW('E', 0x91, int)*/			/* Revoke device access */
-
-#define EVIOCGSUSPENDBLOCK	_IOR('E', 0x91, int)			/* get suspend block enable */
-#define EVIOCSSUSPENDBLOCK	_IOW('E', 0x91, int)			/* set suspend block enable */
+ /* Revoke device access */
+#define EVIOCREVOKE		_IOW('E', 0x91, int)
 
 #define EVIOCSCLOCKID		_IOW('E', 0xa0, int)			/* Set clockid to be used for timestamps */
 
@@ -170,6 +166,7 @@ struct input_keymap_entry {
 #define INPUT_PROP_BUTTONPAD		0x02	/* has button(s) under pad */
 #define INPUT_PROP_SEMI_MT		0x03	/* touch rectangle only */
 #define INPUT_PROP_TOPBUTTONPAD		0x04	/* softbuttons at top of pad */
+#define INPUT_PROP_POINTING_STICK	0x05	/* is a pointing stick */
 
 #define INPUT_PROP_MAX			0x1f
 #define INPUT_PROP_CNT			(INPUT_PROP_MAX + 1)
