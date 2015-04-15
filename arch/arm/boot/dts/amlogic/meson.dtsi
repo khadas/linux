@@ -44,11 +44,6 @@
 
 	uart_AO: serial@c81004c0 {
 		compatible = "amlogic,meson-uart";
-		reg = <0xc81004c0 0x14>;
-		interrupts = <0 90 1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ao_uart_pins>;
-		status = "disabled";
 	};
 	i2c_ao: i2c@c8100500{ /*I2C-AO*/
 		compatible = "amlogic,meson-i2c";

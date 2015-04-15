@@ -499,6 +499,12 @@
 &uart_AO {
 	clocks = <&clock CLK_81>;
 	clock-names = "clk_uart";
+	reg = <0xc81004c0 0x18>;
+	interrupts = <0 90 1>;
+	fifosize = < 64 >;
+	pinctrl-names = "default";
+	pinctrl-0 = <&ao_uart_pins>;
+	clk_gate_name = "NULL";
 };
 &i2c_ao {
 	clocks = <&clock CLK_81>;
