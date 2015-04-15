@@ -383,12 +383,12 @@ static int set_viu_path(unsigned viu_channel_sel, enum viu_type_e viu_type_sel)
 		vout_log_info("VPU_VIU_VENC_MUX_CTRL: 0x%x\n",
 			      vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL));
 		if (viu_channel_sel == 1) {
-			vout_cbus_set_bits(VPU_VIU_VENC_MUX_CTRL,
+			vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL,
 					viu_type_sel, 0, 2);
 			vout_log_info("viu chan = 1\n");
 		} else {
 			/* viu_channel_sel ==2 */
-			vout_cbus_set_bits(VPU_VIU_VENC_MUX_CTRL,
+			vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL,
 					viu_type_sel, 2, 2);
 			vout_log_info("viu chan = 2\n");
 		}
