@@ -133,7 +133,17 @@
 			reg = <0x0 0xc8100000 0x0 0x100000>;
 		};
 	};
-
+	ge2d {
+		compatible = "amlogic, ge2d";
+		dev_name = "ge2d";
+		status = "okay";
+		interrupts = <0 150 1>;
+		interrupt-names = "ge2d";
+		/*
+		resets = <&clock GCLK_IDX_GE2D>;
+		reset-names = "ge2d";
+		*/
+	};
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		memory-region = <&streambuf_reserved>;

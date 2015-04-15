@@ -54,6 +54,10 @@ unsigned int ge2d_log_level;
 static int ge2d_open(struct inode *inode, struct file *file);
 static long ge2d_ioctl(struct file *filp, unsigned int cmd,
 		       unsigned long args);
+#ifdef CONFIG_COMPAT
+static long ge2d_compat_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long args);
+#endif
 static int ge2d_release(struct inode *inode, struct file *file);
 static ssize_t log_level_show(struct class *cla,
 			      struct class_attribute *attr,
@@ -66,6 +70,9 @@ static const struct file_operations ge2d_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ge2d_open,
 	.unlocked_ioctl = ge2d_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = ge2d_compat_ioctl,
+#endif
 	.release	= ge2d_release,
 };
 
@@ -318,6 +325,19 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	}
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long ge2d_compat_ioctl(struct file *filp,
+			      unsigned int cmd, unsigned long args)
+{
+	unsigned long ret;
+
+	args = (unsigned long)compat_ptr(args);
+	ret = ge2d_ioctl(filp, cmd, args);
+
+	return ret;
+}
+#endif
 
 static int ge2d_release(struct inode *inode, struct file *file)
 {
