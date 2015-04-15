@@ -156,7 +156,8 @@ static struct uio_info astream_uio_info = {
 			.name = "CBUS",
 			.memtype = UIO_MEM_PHYS,
 			.addr =
-			(IO_CBUS_PHY_BASE + CBUS_REG_OFFSET(ASSIST_HW_REV)),
+			(IO_CBUS_PHY_BASE + CBUS_REG_OFFSET(ASSIST_HW_REV))
+			&(PAGE_MASK),
 			.size = PAGE_SIZE,
 		},
 		[4] = {
