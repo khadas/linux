@@ -50,7 +50,7 @@
 
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
-/*#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>*/
+#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>
 
 #include "ts/tvenc_conf.h"
@@ -601,7 +601,7 @@ static ssize_t show_cec(struct device *dev,
 static ssize_t store_cec(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-/* cec_usrcmd_set_dispatch(buf, count); */
+	cec_usrcmd_set_dispatch(buf, count);
 	return count;
 }
 
@@ -609,25 +609,30 @@ static ssize_t show_cec_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-/* pos+=snprintf(buf+pos, PAGE_SIZE, "0x%x\n",
- * aml_read_reg32(P_AO_DEBUG_REG0)); */
+/*	pos+=snprintf(buf+pos, PAGE_SIZE, "0x%x\n",
+		aml_read_reg32(P_AO_DEBUG_REG0));
+*/
 	return pos;
 }
 
 static ssize_t store_cec_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-/* cec_usrcmd_set_config(buf, count); */
+	cec_usrcmd_set_config(buf, count);
 	return count;
 }
 
 static ssize_t store_cec_lang_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 16, &val);
 	hdmi_print(INF, CEC "store_cec_lang_config\n");
-/* cec_global_info.cec_node_info[cec_global_info.my_node_index].
- * menu_lang = strtoul(buf, NULL, 16); */
-/* cec_usrcmd_set_lang_config(buf, count); */
+	cec_global_info.cec_node_info[cec_global_info.my_node_index].
+		menu_lang = (int)val;
+	cec_usrcmd_set_lang_config(buf, count);
 	return count;
 }
 
@@ -636,8 +641,8 @@ static ssize_t show_cec_lang_config(struct device *dev,
 {
 	int pos = 0;
 	hdmi_print(INF, CEC "show_cec_lang_config\n");
-/* pos+=snprintf(buf+pos, PAGE_SIZE, "%x\n",cec_global_info.
- * cec_node_info[cec_global_info.my_node_index].menu_lang); */
+	pos += snprintf(buf+pos, PAGE_SIZE, "%x\n", cec_global_info.
+		cec_node_info[cec_global_info.my_node_index].menu_lang);
 	return pos;
 }
 
@@ -1484,7 +1489,7 @@ edid_op:
 		hdmitx_set_audio(hdmitx_device,
 			&(hdmitx_device->cur_audio_param), hdmi_ch);
 		switch_set_state(&sdev, 1);
-/* cec_node_init(hdmitx_device); */
+		cec_node_init(hdmitx_device);
 	}
 	if (hdmitx_device->hpd_event == 2) {
 		hdmitx_device->hpd_event = 0;
@@ -1888,6 +1893,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	pr_info("hdmitx hpd irq = %d\n" , hdmitx_device.irq_hpd);
+	hdmitx_device.irq_cec = platform_get_irq_byname(pdev, "hdmitx_cec");
+	if (hdmitx_device.irq_cec == -ENXIO) {
+		pr_err("%s: ERROR: hdmitx cec irq No not found\n" ,
+			__func__);
+		return -ENXIO;
+	}
+	pr_info("hdmitx cec irq = %d\n" , hdmitx_device.irq_cec);
 	hdmitx_device.clk_sys = clk_get(&pdev->dev, "hdmitx_clk_sys");
 	clk_prepare_enable(hdmitx_device.clk_sys);
 

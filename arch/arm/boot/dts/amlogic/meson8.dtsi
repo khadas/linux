@@ -528,8 +528,9 @@
 };
 
 &amhdmitx {
-	interrupts = <0 57 1>;   /* HPD , 57 + 32 = 89, no CEC*/
-	interrupt-names = "hdmitx_hpd";
+	/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
+	interrupts = <0 57 1>, <0 151 1>;
+	interrupt-names = "hdmitx_hpd", "hdmitx_cec";
 	clocks = <&clock CLK_HDMITX_SYS &clock CLK_HDMITX_ENCP
 		  &clock CLK_HDMITX_ENCI &clock CLK_HDMITX_PIXEL
 		  &clock CLK_HDMITX_PHY>;

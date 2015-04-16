@@ -405,6 +405,72 @@ struct Hdmi_Gate {
 #define CEC_CLOCK_DIV_H            0x1B
 #define CEC_CLOCK_DIV_L            0x1C
 
+/* The following registers are for fine tuning CEC bit timing parameters.
+ * They are only valid in AO CEC, NOT valid in HDMITX CEC.
+ * The AO CEC's timing parameters are already set default to work with
+ * 32768Hz clock, so hopefully SW never need to program these registers.
+ * The timing registers are made programmable just in case.
+ */
+#define AO_CEC_QUIESCENT_25MS_BIT7_0            0x20
+#define AO_CEC_QUIESCENT_25MS_BIT11_8           0x21
+#define AO_CEC_STARTBITMINL2H_3MS5_BIT7_0       0x22
+#define AO_CEC_STARTBITMINL2H_3MS5_BIT8         0x23
+#define AO_CEC_STARTBITMAXL2H_3MS9_BIT7_0       0x24
+#define AO_CEC_STARTBITMAXL2H_3MS9_BIT8         0x25
+#define AO_CEC_STARTBITMINH_0MS6_BIT7_0         0x26
+#define AO_CEC_STARTBITMINH_0MS6_BIT8           0x27
+#define AO_CEC_STARTBITMAXH_1MS0_BIT7_0         0x28
+#define AO_CEC_STARTBITMAXH_1MS0_BIT8           0x29
+#define AO_CEC_STARTBITMINTOTAL_4MS3_BIT7_0     0x2A
+#define AO_CEC_STARTBITMINTOTAL_4MS3_BIT9_8     0x2B
+#define AO_CEC_STARTBITMAXTOTAL_4MS7_BIT7_0     0x2C
+#define AO_CEC_STARTBITMAXTOTAL_4MS7_BIT9_8     0x2D
+#define AO_CEC_LOGIC1MINL2H_0MS4_BIT7_0         0x2E
+#define AO_CEC_LOGIC1MINL2H_0MS4_BIT8           0x2F
+#define AO_CEC_LOGIC1MAXL2H_0MS8_BIT7_0         0x30
+#define AO_CEC_LOGIC1MAXL2H_0MS8_BIT8           0x31
+#define AO_CEC_LOGIC0MINL2H_1MS3_BIT7_0         0x32
+#define AO_CEC_LOGIC0MINL2H_1MS3_BIT8           0x33
+#define AO_CEC_LOGIC0MAXL2H_1MS7_BIT7_0         0x34
+#define AO_CEC_LOGIC0MAXL2H_1MS7_BIT8           0x35
+#define AO_CEC_LOGICMINTOTAL_2MS05_BIT7_0       0x36
+#define AO_CEC_LOGICMINTOTAL_2MS05_BIT9_8       0x37
+#define AO_CEC_LOGICMAXHIGH_2MS8_BIT7_0         0x38
+#define AO_CEC_LOGICMAXHIGH_2MS8_BIT8           0x39
+#define AO_CEC_LOGICERRLOW_3MS4_BIT7_0          0x3A
+#define AO_CEC_LOGICERRLOW_3MS4_BIT8            0x3B
+#define AO_CEC_NOMSMPPOINT_1MS05                0x3C
+#define AO_CEC_DELCNTR_LOGICERR                 0x3E
+#define AO_CEC_TXTIME_17MS_BIT7_0               0x40
+#define AO_CEC_TXTIME_17MS_BIT10_8              0x41
+#define AO_CEC_TXTIME_2BIT_BIT7_0               0x42
+#define AO_CEC_TXTIME_2BIT_BIT10_8              0x43
+#define AO_CEC_TXTIME_4BIT_BIT7_0               0x44
+#define AO_CEC_TXTIME_4BIT_BIT10_8              0x45
+#define AO_CEC_STARTBITNOML2H_3MS7_BIT7_0       0x46
+#define AO_CEC_STARTBITNOML2H_3MS7_BIT8         0x47
+#define AO_CEC_STARTBITNOMH_0MS8_BIT7_0         0x48
+#define AO_CEC_STARTBITNOMH_0MS8_BIT8           0x49
+#define AO_CEC_LOGIC1NOML2H_0MS6_BIT7_0         0x4A
+#define AO_CEC_LOGIC1NOML2H_0MS6_BIT8           0x4B
+#define AO_CEC_LOGIC0NOML2H_1MS5_BIT7_0         0x4C
+#define AO_CEC_LOGIC0NOML2H_1MS5_BIT8           0x4D
+#define AO_CEC_LOGIC1NOMH_1MS8_BIT7_0           0x4E
+#define AO_CEC_LOGIC1NOMH_1MS8_BIT8             0x4F
+#define AO_CEC_LOGIC0NOMH_0MS9_BIT7_0           0x50
+#define AO_CEC_LOGIC0NOMH_0MS9_BIT8             0x51
+#define AO_CEC_LOGICERRLOW_3MS6_BIT7_0          0x52
+#define AO_CEC_LOGICERRLOW_3MS6_BIT8            0x53
+#define AO_CEC_CHKCONTENTION_0MS1               0x54
+#define AO_CEC_PREPARENXTBIT_0MS05_BIT7_0       0x56
+#define AO_CEC_PREPARENXTBIT_0MS05_BIT8         0x57
+#define AO_CEC_NOMSMPACKPOINT_0MS45             0x58
+#define AO_CEC_ACK0NOML2H_1MS5_BIT7_0           0x5A
+#define AO_CEC_ACK0NOML2H_1MS5_BIT8             0x5B
+
+#define AO_CEC_BUGFIX_DISABLE_0                 0x60
+#define AO_CEC_BUGFIX_DISABLE_1                 0x61
+
 /* read/write */
 #define CEC_RX_MSG_0_HEADER        0x80
 #define CEC_RX_MSG_1_OPCODE        0x81

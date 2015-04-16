@@ -657,8 +657,28 @@ void hd_write_reg(unsigned int addr, unsigned int val);
 #define P_VPU_HDMI_DATA_OVR VCBUS_REG_ADDR(VPU_HDMI_DATA_OVR)
 
 /* c_always_on_pointer.h:71 */
+#define AO_RTI_PULL_UP_REG ((0x00 << 10) | (0x0B << 2))
+#define P_AO_RTI_PULL_UP_REG		AOBUS_REG_ADDR(AO_RTI_PULL_UP_REG)
+#define AO_RTI_PIN_MUX_REG ((0x00 << 10) | (0x05 << 2))
+#define P_AO_RTI_PIN_MUX_REG		AOBUS_REG_ADDR(AO_RTI_PIN_MUX_REG)
+#define AO_DEBUG_REG0 ((0x00 << 10) | (0x28 << 2))
+#define P_AO_DEBUG_REG0		AOBUS_REG_ADDR(AO_DEBUG_REG0)
+#define AO_DEBUG_REG1 ((0x00 << 10) | (0x29 << 2))
+#define P_AO_DEBUG_REG1		AOBUS_REG_ADDR(AO_DEBUG_REG1)
+#define AO_DEBUG_REG2 ((0x00 << 10) | (0x2a << 2))
+#define P_AO_DEBUG_REG2		AOBUS_REG_ADDR(AO_DEBUG_REG2)
+#define AO_DEBUG_REG3 ((0x00 << 10) | (0x2b << 2))
+#define P_AO_DEBUG_REG3		AOBUS_REG_ADDR(AO_DEBUG_REG3)
+#define AO_CEC_GEN_CNTL ((0x00 << 10) | (0x40 << 2))
+#define P_AO_CEC_GEN_CNTL		AOBUS_REG_ADDR(AO_CEC_GEN_CNTL)
 #define AO_CEC_RW_REG ((0x00 << 10) | (0x41 << 2))
 #define P_AO_CEC_RW_REG		AOBUS_REG_ADDR(AO_CEC_RW_REG)
+#define AO_CEC_INTR_MASKN ((0x00 << 10) | (0x42 << 2))
+#define P_AO_CEC_INTR_MASKN		AOBUS_REG_ADDR(AO_CEC_INTR_MASKN)
+#define AO_CEC_INTR_CLR ((0x00 << 10) | (0x43 << 2))
+#define P_AO_CEC_INTR_CLR		AOBUS_REG_ADDR(AO_CEC_INTR_CLR)
+#define AO_CEC_INTR_STAT ((0x00 << 10) | (0x44 << 2))
+#define P_AO_CEC_INTR_STAT		AOBUS_REG_ADDR(AO_CEC_INTR_STAT)
 
 #define HDMI_ADDR_PORT 0x42000	/* hdmi.h:4 */
 #define P_HDMI_ADDR_PORT		APB_REG_ADDR(HDMI_ADDR_PORT)

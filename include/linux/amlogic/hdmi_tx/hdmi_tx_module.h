@@ -4,6 +4,7 @@
 #include "hdmi_config.h"
 #include <linux/wait.h>
 #include <linux/clk.h>
+#include <linux/cdev.h>
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
 /* #include <linux/amlogic/aml_gpio_consumer.h> */
