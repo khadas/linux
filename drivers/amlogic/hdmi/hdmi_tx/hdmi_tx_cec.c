@@ -63,7 +63,7 @@ static unsigned char gbl_msg[MAX_MSG];
 struct cec_global_info_t cec_global_info;
 unsigned char rc_long_press_pwr_key = 0;
 EXPORT_SYMBOL(rc_long_press_pwr_key);
-bool cec_msg_dbg_en = 0;
+bool cec_msg_dbg_en = 1;
 
 ssize_t cec_lang_config_state(struct switch_dev *sdev, char *buf)
 {
@@ -129,6 +129,7 @@ static void hdmitx_cec_early_suspend(struct early_suspend *h)
 static void hdmitx_cec_late_resume(struct early_suspend *h)
 {
 	cec_enable_irq();
+	cec_rx_buf_check();
 	hdmitx_device->hpd_state = hdmitx_device->HWOp.CntlMisc(hdmitx_device,
 	    MISC_HPD_GPI_ST, 0);
 	if (!hdmitx_device->hpd_state) { /* if none HDMI out,no CEC features. */
@@ -367,6 +368,7 @@ void cec_node_uninit(struct Hdmitx_Dev *hdmitx_device)
 
 static int cec_task(void *data)
 {
+	unsigned int i;
 	struct Hdmitx_Dev *hdmitx_device = (struct Hdmitx_Dev *) data;
 	cec_global_info.cec_flag.cec_init_flag = 1;
 
@@ -389,6 +391,12 @@ static int cec_task(void *data)
 	}
 	while (1) {
 		/* cec_rx_buf_check(); */
+		i = 30;
+		do {
+			msleep_interruptible(10);
+			if (cec_rx_buf_check())
+				break;
+		} while (i--);
 		if (kthread_should_stop())
 			break;
 		wait_event_interruptible(hdmitx_device->cec_wait_rx,
@@ -735,14 +743,14 @@ irqreturn_t cec_isr_handler(int irq, void *dev_instance)
 	}
 	if ((-1) == cec_ll_rx(rx_msg, &rx_len)) {
 		/* cec_enable_irq(); */
-		cec_rx_buf_check();
+		/* cec_rx_buf_check(); */
 		return IRQ_HANDLED;
 	}
 
 	/* register_cec_rx_msg(rx_msg, rx_len); */
 	/* wake_up(&hdmitx_device->cec_wait_rx); */
 	tasklet_schedule(&cec_tasklet);
-	cec_rx_buf_check();
+	/* cec_rx_buf_check(); */
 
 	/* cec_enable_irq(); */
 

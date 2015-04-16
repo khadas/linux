@@ -55,14 +55,15 @@ void cec_hw_reset(void)
 		aocec_rd_reg(CEC_LOGICAL_ADDR0));
 }
 
-void cec_rx_buf_check(void)
+int cec_rx_buf_check(void)
 {
 	if (0xf == aocec_rd_reg(CEC_RX_NUM_MSG)) {
 		aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x1);
 		aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x0);
+		hdmi_print(INF, CEC "rx buf clean\n");
+		return 1;
 	}
-	aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT);
-	aocec_wr_reg(CEC_RX_MSG_CMD,  RX_NO_OP);
+	return 0;
 }
 
 int cec_ll_rx(unsigned char *msg, unsigned char *len)
@@ -71,24 +72,20 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	int ret = -1;
 	int pos;
 
-	if (1 != aocec_rd_reg(CEC_RX_NUM_MSG)) {
+	if ((RX_DONE != aocec_rd_reg(CEC_RX_MSG_STATUS)) ||
+		(1 != aocec_rd_reg(CEC_RX_NUM_MSG))) {
 		/* cec_rx_buf_check(); */
-		/* aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT); */
-		/* aocec_wr_reg(CEC_RX_MSG_CMD,  RX_NO_OP); */
-		return ret;
-	}
-
-	if (RX_DONE != aocec_rd_reg(CEC_RX_MSG_STATUS)) {
-		/* cec_rx_buf_check(); */
-		/* aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT); */
-		/* aocec_wr_reg(CEC_RX_MSG_CMD,  RX_NO_OP); */
+		hd_write_reg(P_AO_CEC_INTR_CLR,
+			hd_read_reg(P_AO_CEC_INTR_CLR) | (1 << 2));
+		aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT);
+		aocec_wr_reg(CEC_RX_MSG_CMD,  RX_NO_OP);
 		return ret;
 	}
 
 	*len = aocec_rd_reg(CEC_RX_MSG_LENGTH) + 1;
 
 	for (i = 0; i < (*len) && i < MAX_MSG; i++)
-		*msg++ = aocec_rd_reg(CEC_RX_MSG_0_HEADER + i);
+		msg[i] = aocec_rd_reg(CEC_RX_MSG_0_HEADER + i);
 
 	ret = aocec_rd_reg(CEC_RX_MSG_STATUS);
 
@@ -106,8 +103,10 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 		hdmi_print(INF, CEC "%s", msg_log_buf);
 	}
 	/* cec_rx_buf_check(); */
-	/* aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT); */
-	/* aocec_wr_reg(CEC_RX_MSG_CMD, RX_NO_OP); */
+	hd_write_reg(P_AO_CEC_INTR_CLR,
+		hd_read_reg(P_AO_CEC_INTR_CLR) | (1 << 2));
+	aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT);
+	aocec_wr_reg(CEC_RX_MSG_CMD, RX_NO_OP);
 	return ret;
 }
 

@@ -512,7 +512,7 @@ void cec_node_uninit(struct Hdmitx_Dev *hdmitx_device);
 void dumpaocecreg(void);
 void raocec(unsigned int addr);
 void waocec(unsigned int addr, unsigned int value);
-void cec_rx_buf_check(void);
+int cec_rx_buf_check(void);
 void cec_hw_reset(void);
 
 unsigned int dispatch_buffer_parse(const char *buf,
