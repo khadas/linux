@@ -72,4 +72,5 @@ obj-$(CONFIG_AMAUDIO)		+= amaudio/
 
 obj-$(CONFIG_AMAUDIO2)		+= amaudio2/
 
+obj-$(CONFIG_TVIN)		+= tvin/
 

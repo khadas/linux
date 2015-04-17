@@ -1,0 +1,8 @@
+#
+# BT656 Device Driver Configuration
+#
+config  TVIN_BT656
+        tristate "Amlogic bt656 device driver"
+        default n
+        help
+            BT656 device driver.

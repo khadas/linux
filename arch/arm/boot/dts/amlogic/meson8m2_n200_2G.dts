@@ -52,6 +52,16 @@
 			compatible = "amlogic, ppmgr_memory";
 			size = <0x2000000>;
 		};
+        	/*  vdin0 */
+        	vdin0_reserved:linux,vdin0 {
+            	compatible = "amlogic, vdin_memory";
+            	size = <0x01000000>;
+        	};
+        	/*  vdin1 */
+        	vdin1_reserved:linux,vdin1 {
+            	compatible = "amlogic, vdin_memory";
+            	size = <0x01000000>;
+        	};
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -161,6 +171,27 @@
 		dev_name = "ppmgr";
 		status = "okay";
 	};
+    	vdin0{
+        	compatible = "amlogic, vdin";
+        	memory-region = <&vdin0_reserved>;
+        	dev_name = "vdin0";
+        	status = "ok";
+        	reserve-iomap = "true";
+        	//max_size = <1920 1080>;//1920x1080x2x4=17M
+        	interrupts = <0 83 1>;
+        	vdin_id = <0>;
+    	};
+    	vdin1 {
+        	compatible = "amlogic,  vdin";
+        	memory-region = <&vdin1_reserved>;
+        	dev_name = "vdin1";
+        	status = "ok";
+        	reserve-iomap = "true";
+        	//miracast_size = <1920 1080>;//1920x1080x2x4=17M
+        	interrupts = <0 85 1>;
+        	vdin_id = <1>;
+    	};
+
 	ethmac: ethernet@0xc9410000{
 		compatible = "amlogic, meson8m2-rmii-dwmac";
 		reg = <0xc9410000 0x10000
