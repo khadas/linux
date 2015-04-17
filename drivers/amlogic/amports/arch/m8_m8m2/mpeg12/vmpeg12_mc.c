@@ -1,7 +1,7 @@
 #include "../../firmware.h"
 
 #define VERSTR "00000"
-const u32 vmpeg12_mc[] = {
+const u32 vmpeg12_mc[] __initconst = {
 	0x680f801,
 	0x6800000,
 	0xd000001,

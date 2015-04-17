@@ -1,7 +1,7 @@
 #include "../../firmware.h"
 
 #define VERSTR "00000"
-const u32 vreal_mc_8[] = {
+const u32 vreal_mc_8[] __initconst = {
 	0x00000000, 0x06805dc1, 0x06800000, 0x0d000001, 0x07400040, 0x0c00bd80,
 	0x0680001e, 0x0c02c200, 0x00000000, 0x080c0002, 0x06bfda00,
 	0x06030400, 0x00400000, 0x00000000, 0x00000000, 0x0c012f80,

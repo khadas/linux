@@ -2043,7 +2043,6 @@ static ssize_t videobufused_show(struct class *class,
 static ssize_t vcodec_profile_show(struct class *class,
 			struct class_attribute *attr, char *buf)
 {
-	show_all_buildin_firmwares();
 	return vcodec_profile_read(buf);
 }
 

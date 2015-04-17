@@ -224,7 +224,7 @@ static const u32 vmjpeg_mc[] __initconst = {
 };
 
 #define FOR_CPUS {MESON_CPU_MAJOR_ID_M8, MESON_CPU_MAJOR_ID_M8M2, 0}
-#define FOR_VFORMAT VFORMAT_JPEG
+#define FOR_VFORMAT VFORMAT_MJPEG
 
 #define REG_FIRMWARE_ALL()\
 		DEF_FIRMWARE_VER(vmjpeg_mc, VERSTR);\

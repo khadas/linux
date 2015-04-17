@@ -1,4 +1,4 @@
-const u32 MicroCode[] = {
+const u32 MicroCode[] __initconst = {
 	0x78016d1,
 	0x6840009,
 	0x63f0009,

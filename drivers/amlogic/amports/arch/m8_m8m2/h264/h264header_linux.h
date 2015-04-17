@@ -1,4 +1,4 @@
-static const u32 MicroCode[] = {
+static const u32 MicroCode[] __initconst = {
 	0x6804011,
 	0x6905347,
 	0x7400447,

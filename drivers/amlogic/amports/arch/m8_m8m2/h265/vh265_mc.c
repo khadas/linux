@@ -7,7 +7,7 @@
 /* #undef SEND_PARAM_WITH_REG */
 #define VERSTR "201501291"
 
-const u32 __initconst vh265_mc[] = {
+const u32 __initconst vh265_mc[] __initconst = {
 	0x6810001,
 	0x6800000,
 	0xd000001,
