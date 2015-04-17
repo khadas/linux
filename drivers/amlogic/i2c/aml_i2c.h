@@ -310,10 +310,10 @@ struct aml_i2c_platform {
 
 struct aml_i2c_ops {
 	void (*xfer_prepare)(struct aml_i2c *i2c, unsigned int speed);
-	int (*read)(struct aml_i2c *i2c, unsigned char *buf, unsigned int len);
-	int (*write)(struct aml_i2c *i2c, unsigned char *buf,
-		unsigned int len);
-	int (*do_address)(struct aml_i2c *i2c, unsigned int addr);
+	ssize_t (*read)(struct aml_i2c *i2c, unsigned char *buf, size_t len);
+	ssize_t (*write)(struct aml_i2c *i2c, unsigned char *buf,
+		size_t len);
+	long (*do_address)(struct aml_i2c *i2c, unsigned int addr);
 	void (*stop)(struct aml_i2c *i2c);
 };
 

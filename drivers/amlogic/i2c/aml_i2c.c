@@ -53,8 +53,8 @@ static int i2c_speed[] = {AML_I2C_SPEED_50K, AML_I2C_SPEED_100K,
 #define aml_i2c_dump(i2c) \
 	do {                    \
 		if (i2c->i2c_debug)     \
-			pr_info("[i2c@%08x] 0x%08x,0x%08x,0x%08x,0x%08x,", \
-			(unsigned int)i2c->master_regs, \
+			pr_info("[i2c@%08lx] 0x%08x,0x%08x,0x%08x,0x%08x,", \
+			(unsigned long)i2c->master_regs, \
 			i2c->master_regs->i2c_ctrl, \
 			i2c->master_regs->i2c_slave_addr, \
 			i2c->master_regs->i2c_token_list_0, \
@@ -235,7 +235,7 @@ static void aml_i2c_start_token_xfer(struct aml_i2c *i2c)
 
 /*our controller should send write data with slave addr in a token list,
 	so we can't do normal address, just set addr into addr reg*/
-static int aml_i2c_do_address(struct aml_i2c *i2c, unsigned int addr)
+static long aml_i2c_do_address(struct aml_i2c *i2c, unsigned int addr)
 {
 	i2c->cur_slave_addr = addr&0x7f;
 /* #if MESON_CPU_TYPE > MESON_CPU_TYPE_MESON8 */
@@ -274,7 +274,7 @@ static void aml_i2c_stop(struct aml_i2c *i2c)
 	aml_i2c_clear_token_list(i2c);
 }
 
-static int aml_i2c_read(struct aml_i2c *i2c, unsigned char *buf,
+static ssize_t aml_i2c_read(struct aml_i2c *i2c, unsigned char *buf,
 							size_t len)
 {
 	int i;
@@ -328,7 +328,7 @@ static int aml_i2c_read(struct aml_i2c *i2c, unsigned char *buf,
 	return 0;
 }
 
-static int aml_i2c_write(struct aml_i2c *i2c, unsigned char *buf,
+static ssize_t aml_i2c_write(struct aml_i2c *i2c, unsigned char *buf,
 							size_t len)
 {
 	int i;

@@ -73,8 +73,8 @@ struct efuse_hal_api_arg {
 	unsigned int cmd;		/* R/W */
 	unsigned int offset;
 	unsigned int size;
-	unsigned int buffer;
-	unsigned int retcnt;
+	unsigned long buffer;
+	unsigned long retcnt;
 };
 
 extern struct efuseinfo_t efuseinfo[];

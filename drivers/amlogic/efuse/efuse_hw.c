@@ -8,8 +8,9 @@
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
-
+#ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
+#endif
 #include "efuse_regs.h"
 #include "efuse.h"
 
@@ -47,11 +48,62 @@ void __efuse_debug_init(void)
 }
 #endif
 
-static int meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
+#ifdef CONFIG_ARM64
+static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 {
-	int ret;
+	long ret;
 	unsigned cmd, offset, size;
-	unsigned int *retcnt = (unsigned int *)(arg->retcnt);
+	unsigned long *retcnt = (unsigned long *)(arg->retcnt);
+
+	register unsigned x0 asm("x0");
+	register unsigned x1 asm("x1");
+	register unsigned x2 asm("x2");
+
+	if (!sharemem_input_base || !sharemem_output_base)
+		return -1;
+
+	if (arg->cmd == EFUSE_HAL_API_READ)
+			cmd = efuse_read_cmd;
+	else
+			cmd = efuse_write_cmd;
+	offset = arg->offset;
+	size = arg->size;
+
+	if (arg->cmd == EFUSE_HAL_API_WRITE)
+		memcpy((void *)sharemem_input_base,
+			(const void *)arg->buffer, size);
+
+	asm __volatile__("" : : : "memory");
+
+	x0 = cmd;
+	x1 = offset;
+	x2 = size;
+	asm volatile(
+			__asmeq("%0", "x0")
+			__asmeq("%1", "x0")
+			__asmeq("%2", "x1")
+			__asmeq("%3", "x2")
+			"smc	#0\n"
+		: "=r"(x0)
+		: "r"(x0), "r"(x1), "r"(x2));
+	ret = x0;
+	*retcnt = x0;
+
+	if ((arg->cmd == EFUSE_HAL_API_READ) && (ret != 0))
+		memcpy((void *)arg->buffer,
+			(const void *)sharemem_output_base, ret);
+
+	if (!ret)
+		return -1;
+	else
+		return 0;
+}
+#else
+static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
+{
+	long ret;
+	unsigned cmd, offset, size;
+	unsigned long *retcnt = (unsigned long *)(arg->retcnt);
 
 	register unsigned r0 asm("r0");
 	register unsigned r1 asm("r1");
@@ -96,6 +148,7 @@ static int meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	else
 		return 0;
 }
+#endif
 
 int meson_trustzone_efuse(struct efuse_hal_api_arg *arg)
 {
@@ -121,7 +174,7 @@ static ssize_t __efuse_read(char *buf, size_t count, loff_t *ppos)
 	unsigned int dwsize = (count + 3 +  pos%4) >> 2;
 #else
 	struct efuse_hal_api_arg arg;
-	unsigned int retcnt;
+	unsigned long retcnt;
 	int ret;
 #endif
 
@@ -151,8 +204,8 @@ static ssize_t __efuse_read(char *buf, size_t count, loff_t *ppos)
 	arg.cmd = EFUSE_HAL_API_READ;
 	arg.offset = pos;
 	arg.size = count;
-	arg.buffer = (unsigned int)contents;
-	arg.retcnt = (unsigned int)(&retcnt);
+	arg.buffer = (unsigned long)contents;
+	arg.retcnt = (unsigned long)(&retcnt);
 	ret = meson_trustzone_efuse(&arg);
 
 	if (ret == 0) {
@@ -196,8 +249,8 @@ static ssize_t __efuse_write(const char *buf, size_t count, loff_t *ppos)
 	arg.cmd = EFUSE_HAL_API_WRITE;
 	arg.offset = pos;
 	arg.size = count;
-	arg.buffer = (unsigned int)buf;
-	arg.retcnt = (unsigned int)(&retcnt);
+	arg.buffer = (unsigned long)buf;
+	arg.retcnt = (unsigned long)(&retcnt);
 	ret = meson_trustzone_efuse(&arg);
 	if (ret == 0) {
 		*ppos = pos+retcnt;
@@ -519,7 +572,7 @@ int check_if_efused(loff_t pos, size_t count)
 		return -1;
 	}
 	 if (count > info.data_len) {
-		pr_info("data length: %d is out of EFUSE layout!\n", count);
+		pr_info("data length: %zd is out of EFUSE layout!\n", count);
 		return -1;
 	}
 	if (count == 0) {
@@ -533,7 +586,7 @@ int check_if_efused(loff_t pos, size_t count)
 		if (__efuse_read(buf, enc_len, &local_pos) == enc_len) {
 			for (i = 0; i < enc_len; i++) {
 				if (buf[i]) {
-					pr_info("pos %d value is %d",
+					pr_info("pos %zd value is %d",
 						(size_t)(pos + i), buf[i]);
 					return 1;
 				}
@@ -567,7 +620,7 @@ int efuse_read_item(char *buf, size_t count, loff_t *ppos)
 	}
 
 	if (count > info.data_len) {
-		pr_info("data length: %d is out of EFUSE layout!\n", count);
+		pr_info("data length: %zd is out of EFUSE layout!\n", count);
 		return -1;
 	}
 	if (count == 0) {
@@ -625,7 +678,7 @@ int efuse_write_item(char *buf, size_t count, loff_t *ppos)
 #endif
 
 	if (count > info.data_len) {
-		pr_info("data length: %d is out of EFUSE layout!\n", count);
+		pr_info("data length: %zd is out of EFUSE layout!\n", count);
 		return -1;
 	}
 	if (count == 0) {

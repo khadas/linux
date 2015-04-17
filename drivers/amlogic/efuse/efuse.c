@@ -145,7 +145,7 @@ static ssize_t efuse_write(struct file *file,
 	const char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned int  pos = (unsigned int)*ppos;
-	int ret;
+	int ret, size;
 	unsigned char *contents = NULL;
 
 	if (pos >= EFUSE_BYTES)
@@ -169,7 +169,8 @@ static ssize_t efuse_write(struct file *file,
 		pr_info("memory not enough\n");
 		return -ENOMEM;
 	}
-	memset(contents, 0, sizeof(contents));
+	size = sizeof(contents);
+	memset(contents, 0, size);
 	if (copy_from_user(contents, buf, count)) {
 		/*if (contents)*/
 			kfree(contents);
@@ -277,7 +278,7 @@ static ssize_t userdata_show(struct class *cla,
 {
 	char *op;
 	bool ret = true;
-	int i;
+	int i, size;
 	struct efuseinfo_item_t info;
 	char tmp[5];
 
@@ -290,9 +291,11 @@ static ssize_t userdata_show(struct class *cla,
 	if (!op) {
 		pr_err("efuse: failed to allocate memory\n");
 		ret = -ENOMEM;
+		return ret;
 	}
 
-	memset(op, 0, sizeof(op));
+	size = sizeof(op);
+	memset(op, 0, size);
 	if (efuse_read_item(op, info.data_len, (loff_t *)&info.offset) < 0) {
 		/*if (op)*/
 		kfree(op);
@@ -313,7 +316,7 @@ static ssize_t userdata_write(struct class *cla,
 	struct class_attribute *attr, const char *buf, size_t count)
 {
 	struct efuseinfo_item_t info;
-	int i;
+	int i, size;
 	unsigned local_count = count;
 	struct efuse_platform_data *data = NULL;
 	struct device	*dev = NULL;
@@ -343,9 +346,11 @@ static ssize_t userdata_write(struct class *cla,
 	if (!op) {
 		pr_err("efuse: failed to allocate memory\n");
 		ret = -ENOMEM;
+		return ret;
 	}
 
-	memset(op, 0, sizeof(op));
+	size = sizeof(op);
+	memset(op, 0, size);
 	for (i = 0; i < local_count; i++)
 		op[i] = buf[i];
 
@@ -393,7 +398,7 @@ static int efuse_probe(struct platform_device *pdev)
 	struct device *devp;
 	struct efuse_platform_data aml_efuse_plat;
 	struct device_node *np = pdev->dev.of_node;
-	int usid_min, usid_max;
+	int pos, count, usid_min, usid_max;
 
 	pr_info("efuse probe=======================================\n");
 	ret = alloc_chrdev_region(&efuse_devno, 0, 1, EFUSE_DEVICE_NAME);
@@ -435,13 +440,12 @@ static int efuse_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		of_node_get(np);
 
-		ret = of_property_read_u64(np, "plat-pos", &aml_efuse_plat.pos);
+		ret = of_property_read_u32(np, "plat-pos", &pos);
 		if (ret) {
 			pr_info("%s:please config plat-pos item\n", __func__);
 			return -1;
 		}
-		ret = of_property_read_u32(np, "plat-count",
-			&aml_efuse_plat.count);
+		ret = of_property_read_u32(np, "plat-count", &count);
 		if (ret) {
 			pr_info("%s:please config plat-count item\n", __func__);
 			return -1;
