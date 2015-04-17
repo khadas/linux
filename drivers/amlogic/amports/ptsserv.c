@@ -616,10 +616,9 @@ int pts_lookup(u8 type, u32 *val, u32 pts_margin)
 		return -EINVAL;
 }
 EXPORT_SYMBOL(pts_lookup);
-static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
+static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 		u32 pts_margin, u64 *uS64)
 {
-	ulong flags;
 	struct pts_table_s *pTable;
 	int lookup_threshold;
 
@@ -638,21 +637,21 @@ static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 	if (!pTable->first_lookup_ok)
 		lookup_threshold <<= 1;
 
-	spin_lock_irqsave(&lock, flags);
+
 
 	if (likely(pTable->status == PTS_RUNNING)) {
 		struct pts_rec_s *p, *p2 = NULL;
 
 		if ((pTable->lookup_cache_valid) &&
 			(offset == pTable->lookup_cache_offset)) {
-			spin_unlock_irqrestore(&lock, flags);
+
 
 			*val = pTable->lookup_cache_pts;
 			return 0;
 		}
 
 		if (list_empty(&pTable->valid_list)) {
-			spin_unlock_irqrestore(&lock, flags);
+
 
 			return -1;
 		}
@@ -748,7 +747,6 @@ static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 
 			list_move_tail(&p2->list, &pTable->free_list);
 
-			spin_unlock_irqrestore(&lock, flags);
 
 			if (!pTable->first_lookup_ok) {
 				pTable->first_lookup_ok = 1;
@@ -819,7 +817,6 @@ static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 
 				list_move_tail(&p2->list, &pTable->free_list);
 
-				spin_unlock_irqrestore(&lock, flags);
 
 				if (!pTable->first_lookup_ok) {
 					pTable->first_lookup_ok = 1;
@@ -871,7 +868,6 @@ static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 					}
 				}
 
-				spin_unlock_irqrestore(&lock, flags);
 
 				return 0;
 			}
@@ -893,13 +889,11 @@ static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 				}
 			}
 
-			spin_unlock_irqrestore(&lock, flags);
 
 			return -1;
 		}
 	}
 
-	spin_unlock_irqrestore(&lock, flags);
 
 	return -1;
 }
@@ -907,8 +901,11 @@ static int _pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 static int pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 		u32 pts_margin, u64 *uS64)
 {
-	int res =
-		_pts_lookup_offset_inline(type, offset, val, pts_margin, uS64);
+	unsigned long flags;
+	int res;
+	spin_lock_irqsave(&lock, flags);
+	res = pts_lookup_offset_inline_locked(
+				type, offset, val, pts_margin, uS64);
 
 #if 0
 	if (timestamp_firstvpts_get() == 0 && res == 0 && (*val) != 0
@@ -925,6 +922,7 @@ static int pts_lookup_offset_inline(u8 type, u32 offset, u32 *val,
 		if (timestamp_firstapts_get() == 0 && res == 0 && (*val) != 0
 			&& type == PTS_TYPE_AUDIO)
 			timestamp_firstapts_set(*val);
+	spin_unlock_irqrestore(&lock, flags);
 
 	return res;
 }
