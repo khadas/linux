@@ -18,6 +18,8 @@
 #include <linux/of_fdt.h>
 #include <linux/libfdt_env.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/dma-contiguous.h>
+#include <linux/cma.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
@@ -45,6 +47,7 @@ struct am_reg {
 	int offset;
 };
 
+static struct cma *vdec_cma;
 static struct vdec_dev_reg_s vdec_dev_reg;
 
 static const char * const vdec_device_name[] = {
@@ -740,6 +743,7 @@ static const struct of_device_id amlogic_vdec_dt_match[] = {
 };
 #else
 #define amlogic_vdec_dt_match NULL
+#define amlogic_vdec_cma_dt_match NULL
 #endif
 
 static struct platform_driver vdec_driver = {
@@ -754,7 +758,7 @@ static struct platform_driver vdec_driver = {
 static int __init vdec_module_init(void)
 {
 	if (platform_driver_register(&vdec_driver)) {
-		pr_info("failed to register amstream module\n");
+		pr_info("failed to register vdec module\n");
 		return -ENODEV;
 	}
 
@@ -774,7 +778,9 @@ static int vdec_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	end = rmem->base + rmem->size - 1;
 	pr_info("init vdec memsource %lx->%lx\n", start, end);
 
+	dev_set_cma_area(dev, vdec_cma);
 	vdec_set_resource(start, end, dev);
+
 	return 0;
 }
 
@@ -785,18 +791,41 @@ static const struct reserved_mem_ops rmem_vdec_ops = {
 static int __init vdec_mem_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &rmem_vdec_ops;
-	pr_info("share mem setup\n");
+	pr_info("vdec: reserved mem setup\n");
 
 	return 0;
 }
+
+static int __init vdec_cma_setup(struct reserved_mem *rmem)
+{
+	int ret;
+	phys_addr_t base, size, align;
+
+	align = (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+	base = ALIGN(rmem->base, align);
+	size = round_down(rmem->size - (base - rmem->base), align);
+
+	ret = cma_init_reserved_mem(base, size, 0, &vdec_cma);
+	if (ret) {
+		pr_info("vdec: cma init reserve area failed.\n");
+		return ret;
+	}
+
+	dma_contiguous_early_fixup(base, size);
+
+	pr_info("vdec: cma setup\n");
+
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(vdec_cma, "amlogic, vdec-cma-memory", vdec_cma_setup);
+RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
 
 module_param(debug_trace_num, uint, 0664);
 
 module_init(vdec_module_init);
 module_exit(vdec_module_exit);
 
-RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
-
-MODULE_DESCRIPTION("AMLOGIC vdec  driver");
+MODULE_DESCRIPTION("AMLOGIC vdec driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

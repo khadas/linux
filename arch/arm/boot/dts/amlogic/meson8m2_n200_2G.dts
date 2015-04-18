@@ -42,10 +42,10 @@
 			no-map;
 		};
 
-		/*  DISP&MM-A/V stream */
+		/*  VDEC reserved memory */
 		vdec_reserved:linux,vdec {
 			compatible = "amlogic, vdec-memory";
-			size = <0xc000000>;
+			size = <0x4000000>;
 			no-map;
 		};
 		/*  POST PROCESS MANAGER */
@@ -63,6 +63,7 @@
             	compatible = "amlogic, vdin_memory";
             	size = <0x01000000>;
         	};
+
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -70,11 +71,19 @@
 			alignment = <0x2000>;
 			linux,cma-default;
 		};
-        ion_reserved:linux,ion-dev {
-            compatible = "amlogic, idev-mem";
-            size = <0x2000000>;
-        };
 
+		/* VDEC CMA pool */
+		vdec_cma_reserved:linux,vdec_cma {
+			compatible = "amlogic, vdec-cma-memory";
+			reusable;
+			size = <0xd000000>;
+			alignment = <0x2000>;
+		};
+
+		ion_reserved:linux,ion-dev {
+			compatible = "amlogic, idev-mem";
+			size = <0x2000000>;
+		};
 	};
 
     	psci {
@@ -170,6 +179,7 @@
 			"mailbox_1",
 			"mailbox_2";
 	};
+
 	ppmgr {
 		compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
 		memory-region = <&ppmgr_reserved>;
