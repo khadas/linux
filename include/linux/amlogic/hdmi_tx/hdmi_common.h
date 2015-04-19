@@ -2,7 +2,7 @@
 #define __HDMI_COMMON_H__
 
 /* HDMI VIC definitions */
-enum Hdmi_VIC {
+enum hdmi_vic {
 	/* Refer to CEA 861-D */
 	HDMI_Unkown = 0,
 	HDMI_640x480p60_4x3 = 1,
@@ -155,7 +155,7 @@ enum Hdmi_VIC {
 #define HDMI_4k2k_smpte_60      HDMI_4096x2160p60_256x135
 
 /* CEA TIMING STRUCT DEFINITION */
-struct Hdmi_CEA_Timing {
+struct hdmi_cea_timing {
 	unsigned int pixel_freq; /* Unit: 1000 */
 	unsigned int h_freq; /* Unit: Hz */
 	unsigned int v_freq; /* Unit: 0.001 Hz */
@@ -180,15 +180,15 @@ struct Hdmi_CEA_Timing {
 /* t: struct hdmi_cea_timing * */
 #define GET_TIMING(name)      (t->name)
 
-struct Hdmi_Format_Para {
-	enum Hdmi_VIC vic;
+struct hdmi_format_para {
+	enum hdmi_vic vic;
 	unsigned char *name;
 	unsigned int pixel_repetition_factor;
 	unsigned int progress_mode:1;
 	unsigned int scrambler_en:1;
 	unsigned int tmds_clk_div40:1;
 	unsigned int tmds_clk; /* Unit: 1000 */
-	struct Hdmi_CEA_Timing timing;
+	struct hdmi_cea_timing timing;
 };
 
 /* HDMI Packet Type Definitions */
@@ -220,32 +220,32 @@ struct Hdmi_Format_Para {
 #define AVI_INFOFRAMES_VERSION    0x02
 #define AVI_INFOFRAMES_LENGTH     0x0D
 
-enum Hdmi_Color_Depth {
-	HDMI_COLOR_DEPTH_24B = 4,
-	HDMI_COLOR_DEPTH_30B = 5,
-	HDMI_COLOR_DEPTH_36B = 6,
-	HDMI_COLOR_DEPTH_48B = 7,
+enum hdmi_color_depth {
+	hdmi_color_depth_24B = 4,
+	hdmi_color_depth_30B = 5,
+	hdmi_color_depth_36B = 6,
+	hdmi_color_depth_48B = 7,
 };
 
-enum Hdmi_Color_Format {
-	HDMI_COLOR_FORMAT_RGB,
-	HDMI_COLOR_FORMAT_444,
-	HDMI_COLOR_FORMAT_422,
-	HDMI_COLOR_FORMAT_420,
+enum hdmi_color_format {
+	hdmi_color_format_RGB,
+	hdmi_color_format_444,
+	hdmi_color_format_422,
+	hdmi_color_format_420,
 };
 
-enum Hdmi_Color_Range {
-	HDMI_COLOR_RANGE_LIM, HDMI_COLOR_RANGE_FUL,
+enum hdmi_color_range {
+	hdmi_color_range_LIM, hdmi_color_range_FUL,
 };
 
-enum Hdmi_Audio_Packet {
-	HDMI_AUDIO_PACKET_SMP = 0x02,
-	HDMI_AUDIO_PACKET_1BT = 0x07,
-	HDMI_AUDIO_PACKET_DST = 0x08,
-	HDMI_AUDIO_PACKET_HBR = 0x09,
+enum hdmi_audio_packet {
+	hdmi_audio_packet_SMP = 0x02,
+	hdmi_audio_packet_1BT = 0x07,
+	hdmi_audio_packet_DST = 0x08,
+	hdmi_audio_packet_HBR = 0x09,
 };
 
-enum Hdmi_Color_Space_Type {
+enum hdmi_color_space_type {
 	COLOR_SPACE_RGB444 = 0,
 	COLOR_SPACE_YUV422 = 1,
 	COLOR_SPACE_YUV444 = 2,
@@ -253,7 +253,7 @@ enum Hdmi_Color_Space_Type {
 	COLOR_SPACE_RESERVED,
 };
 
-enum Hdmi_Aspect_Ratio {
+enum hdmi_aspect_ratio {
 	ASPECT_RATIO_SAME_AS_SOURCE = 0x8,
 	TV_ASPECT_RATIO_4_3 = 0x9,
 	TV_ASPECT_RATIO_16_9 = 0xA,
@@ -261,11 +261,11 @@ enum Hdmi_Aspect_Ratio {
 	TV_ASPECT_RATIO_MAX
 };
 
-struct Hdmi_Format_Para *hdmi_get_fmt_paras(enum Hdmi_VIC vic);
+struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic);
 void check_detail_fmt(void);
 
 /* HDMI Audio Parmeters */
-enum Hdmi_Audio_Type {
+enum hdmi_audio_type {
 	CT_REFER_TO_STREAM = 0,
 	CT_PCM,
 	CT_AC_3,
@@ -284,7 +284,7 @@ enum Hdmi_Audio_Type {
 	CT_MAX,
 };
 
-enum Hdmi_Audio_ChnNum {
+enum hdmi_audio_chnnum {
 	CC_REFER_TO_STREAM = 0,
 	CC_2CH,
 	CC_3CH,
@@ -296,17 +296,17 @@ enum Hdmi_Audio_ChnNum {
 	CC_MAX_CH
 };
 
-enum Hdmi_Audio_Format {
+enum hdmi_audio_format {
 	AF_SPDIF = 0, AF_I2S, AF_DSD, AF_HBR, AT_MAX
 };
 
-enum Hdmi_Audio_SampSize {
+enum hdmi_audio_sampsize {
 	SS_REFER_TO_STREAM = 0, SS_16BITS, SS_20BITS, SS_24BITS, SS_MAX
 };
 
-struct Size_Map {
+struct size_map {
 	unsigned int sample_bits;
-	enum Hdmi_Audio_SampSize ss;
+	enum hdmi_audio_sampsize ss;
 };
 
 /* FL-- Front Left */
@@ -320,7 +320,7 @@ struct Size_Map {
 /* RLC-- Rear Left Center */
 /* RRC --Rear RiQhtCenter */
 /* LFE-- Low Frequency Effect */
-enum Hdmi_Speak_Location {
+enum hdmi_speak_location {
 	CA_FR_FL = 0,
 	CA_LFE_FR_FL,
 	CA_FC_FR_FL,
@@ -362,7 +362,7 @@ enum Hdmi_Speak_Location {
 	CA_FRC_RLC_RR_RL_FC_LFE_FR_FL,
 };
 
-enum Hdmi_Audio_DownMix {
+enum hdmi_audio_downmix {
 	LSV_0DB = 0,
 	LSV_1DB,
 	LSV_2DB,
@@ -381,7 +381,7 @@ enum Hdmi_Audio_DownMix {
 	LSV_15DB,
 };
 
-enum Hdmi_RX_Audio_State {
+enum hdmi_rx_audio_state {
 	STATE_AUDIO__MUTED = 0,
 	STATE_AUDIO__REQUEST_AUDIO = 1,
 	STATE_AUDIO__AUDIO_READY = 2,
@@ -395,7 +395,7 @@ enum Hdmi_RX_Audio_State {
  * 3 - 48KHz;
  * 4 - 88.2KHz...
  */
-enum Hdmi_Audio_FS {
+enum hdmi_audio_fs {
 	FS_REFER_TO_STREAM = 0,
 	FS_32K = 1,
 	FS_44K1 = 2,
@@ -407,27 +407,27 @@ enum Hdmi_Audio_FS {
 	FS_MAX,
 };
 
-struct Rate_Map_FS {
+struct rate_map_fs {
 	unsigned int rate;
-	enum Hdmi_Audio_FS fs;
+	enum hdmi_audio_fs fs;
 };
 
-struct Hdmi_RX_AudioInfo {
+struct hdmi_rx_audioinfo {
 	/* !< Signal decoding type -- TvAudioType */
-	enum Hdmi_Audio_Type type;
-	enum Hdmi_Audio_Format format;
+	enum hdmi_audio_type type;
+	enum hdmi_audio_format format;
 	/* !< active audio channels bit mask. */
-	enum Hdmi_Audio_ChnNum channels;
-	enum Hdmi_Audio_FS fs; /* !< Signal sample rate in Hz */
-	enum Hdmi_Audio_SampSize ss;
-	enum Hdmi_Speak_Location speak_loc;
-	enum Hdmi_Audio_DownMix lsv;
+	enum hdmi_audio_chnnum channels;
+	enum hdmi_audio_fs fs; /* !< Signal sample rate in Hz */
+	enum hdmi_audio_sampsize ss;
+	enum hdmi_speak_location speak_loc;
+	enum hdmi_audio_downmix lsv;
 	unsigned N_value;
 	unsigned CTS;
 };
 
 #define AUDIO_PARA_MAX_NUM       7
-struct Hdmi_Audio_FS_NCTS {
+struct hdmi_audio_fs_ncts {
 	struct {
 		unsigned int tmds_clk;
 		unsigned int n;

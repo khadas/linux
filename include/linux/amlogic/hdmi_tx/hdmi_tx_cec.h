@@ -22,7 +22,6 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
-#include "../drivers/amlogic/hdmi/hdmi_tx/ts/hdmi_tx_reg.h"
 
 #define CEC0_LOG_ADDR 4 /* MBX logical address */
 #define TV_CEC_INTERVAL     (HZ*3)
@@ -441,7 +440,7 @@ struct cec_global_info_t {
 	struct input_dev *remote_cec_dev; /* cec input device */
 	struct cec_node_info_t cec_node_info[MAX_NUM_OF_DEV];
 	struct cec_rx_msg_buf_t cec_rx_msg_buf;
-	struct Hdmitx_Dev *hdmitx_device;
+	struct hdmitx_dev *hdmitx_device;
 };
 
 struct cec_global_info_to_usr_t {
@@ -507,8 +506,8 @@ int cec_rx_irq_handle(unsigned char *msg, unsigned char *len);
 unsigned int cec_intr_stat(void);
 
 void cec_test_function(unsigned char *arg, unsigned char arg_cnt);
-void cec_node_init(struct Hdmitx_Dev *hdmitx_device);
-void cec_node_uninit(struct Hdmitx_Dev *hdmitx_device);
+void cec_node_init(struct hdmitx_dev *hdmitx_device);
+void cec_node_uninit(struct hdmitx_dev *hdmitx_device);
 void dumpaocecreg(void);
 void raocec(unsigned int addr);
 void waocec(unsigned int addr, unsigned int value);
@@ -600,7 +599,7 @@ unsigned int cec_logicaddr_config(unsigned int value, bool wr_flag);
 unsigned int cec_intr_stat(void);
 void cec_pinmux_set(void);
 irqreturn_t cec_isr_handler(int irq, void *dev_instance);
-void hdmitx_setup_cecirq(struct Hdmitx_Dev *phdev);
+void hdmitx_setup_cecirq(struct hdmitx_dev *phdev);
 void cec_logicaddr_set(int logicaddr);
 void cec_arbit_bit_time_set(unsigned bit_set, unsigned time_set,
 	unsigned flag);

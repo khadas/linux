@@ -306,7 +306,7 @@ void cec_polling_online_dev(int log_addr, int *bool)
 
 }
 
-void hdmitx_setup_cecirq(struct Hdmitx_Dev *phdev)
+void hdmitx_setup_cecirq(struct hdmitx_dev *phdev)
 {
 	int r;
 	r = request_irq(phdev->irq_cec, &cec_isr_handler, IRQF_SHARED,

@@ -18,8 +18,8 @@
 #include "hdmi_info_global.h"
 #include "hdmi_tx_module.h"
 
-void hdmitx_special_handler_video(struct Hdmitx_Dev *hdmitx_device);
-void hdmitx_special_handler_audio(struct Hdmitx_Dev *hdmitx_device);
+void hdmitx_special_handler_video(struct hdmitx_dev *hdmitx_device);
+void hdmitx_special_handler_audio(struct hdmitx_dev *hdmitx_device);
 
 #endif
 

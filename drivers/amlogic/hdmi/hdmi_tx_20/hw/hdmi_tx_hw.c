@@ -57,7 +57,7 @@ static void hdmi_audio_init(unsigned char spdif_flag);
 static void hdmitx_dump_tvenc_reg(int cur_VIC, int printk_flag);
 
 static void hdmi_phy_suspend(void);
-static void hdmi_phy_wakeup(struct Hdmitx_Dev *hdmitx_device);
+static void hdmi_phy_wakeup(struct hdmitx_dev *hdmitx_device);
 const struct vinfo_s *get_current_vinfo(void);
 
 unsigned char hdmi_pll_mode = 0;
@@ -106,7 +106,7 @@ static unsigned char use_tvenc_conf_flag = 1;
 
 static unsigned char cur_vout_index = 1; /* CONFIG_AM_TV_OUTPUT2 */
 
-static void hdmi_tx_mode_ctrl(enum Hdmi_VIC vic)
+static void hdmi_tx_mode_ctrl(enum hdmi_vic vic)
 {
 #if 0  /*TODO*/
 	switch (vic) {
@@ -143,7 +143,7 @@ static void hdmi_tx_gate_pwr_ctrl(enum hd_ctrl cmd, void *data)
 	hdmi_print(IMP, SYS "gate/pwr cmd: %d\n", cmd);
 	switch (cmd) {
 	case VID_EN: {
-		struct Hdmitx_Dev *hdmitx_device = (struct Hdmitx_Dev *) data;
+		struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *) data;
 		hdmi_tx_mode_ctrl(hdmitx_device->cur_VIC);
 		break;
 	}
@@ -208,7 +208,7 @@ static void delay_us(int us)
 static irqreturn_t intr_handler(int irq, void *dev_instance)
 {
 	unsigned int data32;
-	struct Hdmitx_Dev *hdmitx_device = (struct Hdmitx_Dev *) dev_instance;
+	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *) dev_instance;
 	data32 = hdmi_rd_reg(OTHER_BASE_ADDR + HDMI_OTHER_INTR_STAT);
 	hdmi_print(IMP, SYS "irq %x\n", data32);
 	if (hdmitx_device->hpd_lock == 1) {
@@ -306,7 +306,7 @@ static void enc_vpu_bridge_reset(int mode)
 	}
 }
 
-static void hdmi_tvenc1080i_set(struct Hdmitx_VidPara *param)
+static void hdmi_tvenc1080i_set(struct hdmitx_vidpara *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2;
 	unsigned long TOTAL_PIXELS, PIXEL_REPEAT_HDMI, PIXEL_REPEAT_VENC,
@@ -451,7 +451,7 @@ static void hdmi_tvenc1080i_set(struct Hdmitx_VidPara *param)
 	hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 1, 1);
 }
 
-static void hdmi_tvenc4k2k_set(struct Hdmitx_VidPara *param)
+static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2;
 	unsigned long TOTAL_PIXELS = 4400, PIXEL_REPEAT_HDMI, PIXEL_REPEAT_VENC,
@@ -620,7 +620,7 @@ static void hdmi_tvenc4k2k_set(struct Hdmitx_VidPara *param)
 	hd_write_reg(P_ENCP_VIDEO_EN, 1); /* Enable VENC */
 }
 
-static void hdmi_tvenc480i_set(struct Hdmitx_VidPara *param)
+static void hdmi_tvenc480i_set(struct hdmitx_vidpara *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 1;
 	unsigned long TOTAL_PIXELS, PIXEL_REPEAT_HDMI, PIXEL_REPEAT_VENC,
@@ -801,7 +801,7 @@ static void hdmi_tvenc480i_set(struct Hdmitx_VidPara *param)
 	hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 0, 1);
 }
 
-static void hdmi_tvenc_set(struct Hdmitx_VidPara *param)
+static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 {
 	/* Annie 01Sep2011: Change value from 3 to 2, due to video encoder
 	 * path delay change.
@@ -1172,7 +1172,7 @@ static void phy_pll_off(void)
 }
 
 /**/
-void hdmi_hw_set_powermode(struct Hdmitx_Dev *hdmitx_device)
+void hdmi_hw_set_powermode(struct hdmitx_dev *hdmitx_device)
 {
 	int vic = hdmitx_device->cur_VIC;
 
@@ -1199,10 +1199,10 @@ void hdmi_hw_set_powermode(struct Hdmitx_Dev *hdmitx_device)
 	/* hd_write_reg(P_HHI_HDMI_PHY_CNTL1, 2); */
 }
 
-void hdmi_hw_init(struct Hdmitx_Dev *hdmitx_device)
+void hdmi_hw_init(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned int tmp_add_data;
-	enum Hdmi_VIC vic;
+	enum hdmi_vic vic;
 
 	digital_clk_on(7);
 
@@ -1343,7 +1343,7 @@ void hdmi_hw_init(struct Hdmitx_Dev *hdmitx_device)
 
 /* When have below format output, we shall manually configure */
 /* bolow register to get stable Video Timing. */
-static void hdmi_reconfig_packet_setting(enum Hdmi_VIC vic)
+static void hdmi_reconfig_packet_setting(enum hdmi_vic vic)
 {
 	switch (vic) {
 	case HDMI_1080p50:
@@ -1417,8 +1417,8 @@ static void hdmi_reconfig_packet_setting(enum Hdmi_VIC vic)
 hdmi_print(IMP, SYS "reconfig packet setting done\n");
 }
 
-static void hdmi_hw_reset(struct Hdmitx_Dev *hdmitx_device,
-		struct Hdmitx_VidPara *param)
+static void hdmi_hw_reset(struct hdmitx_dev *hdmitx_device,
+		struct hdmitx_vidpara *param)
 {
 	unsigned int tmp_add_data;
 	unsigned long TX_OUTPUT_COLOR_FORMAT;
@@ -1467,7 +1467,7 @@ static void hdmi_hw_reset(struct Hdmitx_Dev *hdmitx_device,
 		} else
 			hdmi_wr_reg(0x018, serial_reg_val);
 		if ((param->VIC == HDMI_1080p60) &&
-			(param->color_depth == HDMI_COLOR_DEPTH_30B) &&
+			(param->color_depth == hdmi_color_depth_30B) &&
 			(hdmi_rd_reg(0x018) == 0x22))
 			hdmi_wr_reg(0x018, 0x12);
 	}
@@ -1724,7 +1724,7 @@ static void hdmi_hw_reset(struct Hdmitx_Dev *hdmitx_device,
 		} else
 			hdmi_wr_reg(0x018, serial_reg_val);
 		if ((param->VIC == HDMI_1080p60) &&
-			(param->color_depth == HDMI_COLOR_DEPTH_30B) &&
+			(param->color_depth == hdmi_color_depth_30B) &&
 			(hdmi_rd_reg(0x018) == 0x22))
 			hdmi_wr_reg(0x018, 0x12);
 	} else {
@@ -1916,7 +1916,7 @@ static void hdmitx_config_tvenc_reg(int vic, unsigned reg, unsigned val)
 #endif
 }
 
-static struct Hdmitx_Clk hdmitx_clk[] = {
+static struct hdmitx_clk hdmitx_clk[] = {
 	/* vic         clk_sys  clk_phy   clk_encp clk_enci clk_pixel */
 	{HDMI_1080p60, 24000000, 1485000000, 148500000, -1, 148500000},
 	{HDMI_1080p50, 24000000, 1485000000, 148500000, -1, 148500000},
@@ -1935,10 +1935,10 @@ static struct Hdmitx_Clk hdmitx_clk[] = {
 	{HDMI_4k2k_smpte_24, 24000000, 2970000000UL, 297000000, -1, 297000000},
 };
 
-static void set_vmode_clk(struct Hdmitx_Dev *hdev, enum Hdmi_VIC vic)
+static void set_vmode_clk(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	int i;
-	struct Hdmitx_Clk *clk = NULL;
+	struct hdmitx_clk *clk = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(hdmitx_clk); i++) {
 		if (vic == hdmitx_clk[i].vic)
@@ -1972,7 +1972,7 @@ static void set_vmode_clk(struct Hdmitx_Dev *hdev, enum Hdmi_VIC vic)
  * 1080p59hz - 1080p60hz
  * so pll should not only be set according hdmi vic.
  */
-static int hdmitx_set_pll_fr_auto(struct Hdmitx_Dev *hdev)
+static int hdmitx_set_pll_fr_auto(struct hdmitx_dev *hdev)
 {
 	int ret = 0;
 #if 0
@@ -2011,7 +2011,8 @@ static int hdmitx_set_pll_fr_auto(struct Hdmitx_Dev *hdev)
 }
 #endif
 
-static void hdmitx_set_pll(struct Hdmitx_Dev *hdev, struct Hdmitx_VidPara *param)
+static void hdmitx_set_pll(struct hdmitx_dev *hdev,
+	struct hdmitx_vidpara *param)
 {
 	hdmi_print(IMP, SYS "set pll\n");
 	hdmi_print(IMP, SYS "param->VIC:%d\n", param->VIC);
@@ -2081,7 +2082,7 @@ static void hdmitx_set_pll(struct Hdmitx_Dev *hdev, struct Hdmitx_VidPara *param
 #endif
 }
 
-static void hdmitx_set_phy(struct Hdmitx_Dev *hdmitx_device)
+static void hdmitx_set_phy(struct hdmitx_dev *hdmitx_device)
 {
 	if (!hdmitx_device)
 		return;
@@ -2119,8 +2120,8 @@ static void hdmitx_set_phy(struct Hdmitx_Dev *hdmitx_device)
 hdmi_print(IMP, SYS "phy setting done\n");
 }
 
-static int hdmitx_set_dispmode(struct Hdmitx_Dev *hdev,
-		struct Hdmitx_VidPara *param)
+static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
+		struct hdmitx_vidpara *param)
 {
 	if (param == NULL) { /* disable HDMI */
 		hdmi_tx_gate_pwr_ctrl(VID_DIS, hdev);
@@ -2131,13 +2132,13 @@ static int hdmitx_set_dispmode(struct Hdmitx_Dev *hdev,
 	}
 
 	if (color_depth_f == 24)
-		param->color_depth = HDMI_COLOR_DEPTH_24B;
+		param->color_depth = hdmi_color_depth_24B;
 	else if (color_depth_f == 30)
-		param->color_depth = HDMI_COLOR_DEPTH_30B;
+		param->color_depth = hdmi_color_depth_30B;
 	else if (color_depth_f == 36)
-		param->color_depth = HDMI_COLOR_DEPTH_36B;
+		param->color_depth = hdmi_color_depth_36B;
 	else if (color_depth_f == 48)
-		param->color_depth = HDMI_COLOR_DEPTH_48B;
+		param->color_depth = hdmi_color_depth_48B;
 	hdmi_print(INF, SYS " %d (cd%d,cs%d,pm%d,vd%d,%x)\n", param->VIC,
 		color_depth_f, color_space_f, power_mode, power_off_vdac_flag,
 		serial_reg_val);
@@ -2376,7 +2377,7 @@ static void set_hdmi_audio_source(unsigned int src)
 	}
 } /* set_hdmi_audio_source */
 
-static void hdmitx_set_aud_pkt_type(enum Hdmi_Audio_Type type)
+static void hdmitx_set_aud_pkt_type(enum hdmi_audio_type type)
 {
 	/* TX_AUDIO_CONTROL [5:4] */
 	/* 0: Audio sample packet (HB0 = 0x02) */
@@ -2399,7 +2400,7 @@ static void hdmitx_set_aud_pkt_type(enum Hdmi_Audio_Type type)
 	}
 }
 
-static struct Cts_ConfTab cts_table_192k[] = {
+static struct cts_conftab cts_table_192k[] = {
 	{ 24576, 27000, 27000 },
 	{ 24576, 54000, 54000 },
 	{ 24576, 108000, 108000 },
@@ -2438,7 +2439,7 @@ static unsigned int get_n(unsigned int clk)
 
 
 
-static struct Vic_AttrMap vic_attr_map_table[] = {
+static struct vic_attrmap vic_attr_map_table[] = {
 	{ HDMI_640x480p60, 27000 },
 	{ HDMI_480p60, 27000 },
 	{ HDMI_480p60_16x9, 27000 },
@@ -2494,7 +2495,7 @@ static int hdmitx_is_framerate_automation(void)
 }
 #endif
 
-static unsigned int vic_map_clk(enum Hdmi_VIC vic)
+static unsigned int vic_map_clk(enum hdmi_vic vic)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(vic_attr_map_table); i++) {
@@ -2513,8 +2514,8 @@ static unsigned int vic_map_clk(enum Hdmi_VIC vic)
 	return 0;
 }
 
-static void hdmitx_set_aud_cts(enum Hdmi_Audio_Type type,
-	enum Hdmitx_AudCTS cts_mode, enum Hdmi_VIC vic)
+static void hdmitx_set_aud_cts(enum hdmi_audio_type type,
+	enum hdmitx_audcts cts_mode, enum hdmi_vic vic)
 {
 	unsigned int cts_val = 0;
 	unsigned int n_val = 0;
@@ -2563,8 +2564,8 @@ static void hdmitx_set_aud_cts(enum Hdmi_Audio_Type type,
 	}
 }
 
-static int hdmitx_set_audmode(struct Hdmitx_Dev *hdmitx_device,
-		struct Hdmitx_AudPara *audio_param)
+static int hdmitx_set_audmode(struct hdmitx_dev *hdmitx_device,
+		struct hdmitx_audpara *audio_param)
 {
 	unsigned int audio_N_para = 6272;
 	unsigned int audio_N_tolerance = 3;
@@ -2736,7 +2737,7 @@ static int hdmitx_set_audmode(struct Hdmitx_Dev *hdmitx_device,
 	return 0;
 }
 
-static void hdmitx_setupirq(struct Hdmitx_Dev *phdev)
+static void hdmitx_setupirq(struct hdmitx_dev *phdev)
 {
 	int r;
 	r = request_irq(phdev->irq_hpd, &intr_handler, IRQF_SHARED,
@@ -2830,7 +2831,7 @@ hdmi_print(INF, SYS "PRBS mode %d On\n", prbs_mode);
 
 #endif
 
-static void hdmitx_uninit(struct Hdmitx_Dev *phdev)
+static void hdmitx_uninit(struct hdmitx_dev *phdev)
 {
 	free_irq(phdev->irq_hpd, (void *) phdev);
 	hdmi_print(1, "power off hdmi, unmux hpd\n");
@@ -2870,7 +2871,7 @@ static const struct Hdcp_Sub hdcp_monitor_array[] = {
 	{ "TmdsMod ", TX_TMDS_MODE, 1 },
 };
 
-static int hdmitx_cntl(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
+static int hdmitx_cntl(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 	unsigned argv)
 {
 	if (cmd == HDMITX_AVMUTE_CNTL) {
@@ -3014,7 +3015,7 @@ static int hdmitx_cntl(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
 	return 0;
 }
 
-static void hdmitx_print_info(struct Hdmitx_Dev *hdmitx_device, int printk_flag)
+static void hdmitx_print_info(struct hdmitx_dev *hdmitx_device, int printk_flag)
 {
 	hdmi_print(INF,
 		"------------------\nHdmitx driver version: %s\nSerial %x\nColor Depth %d\n",
@@ -3052,8 +3053,8 @@ static inline unsigned int get_msr_cts_st(void)
 }
 
 #define AUD_CTS_LOG_NUM     1000
-struct AudCts_Log cts_buf[AUD_CTS_LOG_NUM];
-static void cts_test(struct Hdmitx_Dev *hdmitx_device)
+struct audcts_log cts_buf[AUD_CTS_LOG_NUM];
+static void cts_test(struct hdmitx_dev *hdmitx_device)
 {
 	int i, j;
 	unsigned int min = 0, max = 0, total = 0;
@@ -3099,7 +3100,7 @@ static void cts_test(struct Hdmitx_Dev *hdmitx_device)
 	pr_info("\nCTS Min: %d   Max: %d   Avg: %d/1000\n\n", min, max, total);
 }
 
-static void hdmitx_debug(struct Hdmitx_Dev *hdmitx_device, const char *buf)
+static void hdmitx_debug(struct hdmitx_dev *hdmitx_device, const char *buf)
 {
 	char tmpbuf[128];
 	int i = 0;
@@ -3278,7 +3279,7 @@ static void hdmitx_debug(struct Hdmitx_Dev *hdmitx_device, const char *buf)
 	}
 }
 
-static void hdmitx_getediddata(struct Hdmitx_Dev *hdmitx_device,
+static void hdmitx_getediddata(struct hdmitx_dev *hdmitx_device,
 		unsigned int blk_idx)
 {
 	int ii, jj;
@@ -3326,8 +3327,8 @@ static void hdmitx_getediddata(struct Hdmitx_Dev *hdmitx_device,
 #endif
 }
 
-static int hdmitx_cntl_ddc(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
-		unsigned argv)
+static int hdmitx_cntl_ddc(struct hdmitx_dev *hdmitx_device, unsigned cmd,
+		unsigned long argv)
 {
 	int i = 0;
 	unsigned char *tmp_char = NULL;
@@ -3426,7 +3427,7 @@ static void hdmitx_clr_sub_packet(unsigned int reg_base)
 		hdmi_wr_reg(reg_base + i, 0x00);
 }
 
-static int hdmitx_cntl_config(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
+static int hdmitx_cntl_config(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 		unsigned argv)
 {
 	if (!(cmd & CMD_CONF_OFFSET))
@@ -3486,7 +3487,7 @@ static int hdmitx_cntl_config(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
 	return 1;
 }
 
-static int hdmitx_cntl_misc(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
+static int hdmitx_cntl_misc(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 		unsigned argv)
 {
 	unsigned int vic;
@@ -3551,7 +3552,7 @@ static int hdmitx_cntl_misc(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
 	return 1;
 }
 
-static int hdmitx_get_state(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
+static int hdmitx_get_state(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 		unsigned argv)
 {
 	if (!(cmd & CMD_STAT_OFFSET))
@@ -3564,11 +3565,11 @@ static int hdmitx_get_state(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
 		/*
 		 * get current video vic directly from VIC packet or VSDB packet
 		 */
-		enum Hdmi_VIC vic = HDMI_Unkown;
-		vic = (enum Hdmi_VIC) hdmi_rd_reg(
+		enum hdmi_vic vic = HDMI_Unkown;
+		vic = (enum hdmi_vic) hdmi_rd_reg(
 				TX_PKT_REG_AVI_INFO_BASE_ADDR + 4);
 		if (vic == HDMI_Unkown) {
-			vic = (enum Hdmi_VIC) hdmi_rd_reg(
+			vic = (enum hdmi_vic) hdmi_rd_reg(
 					TX_PKT_REG_VEND_INFO_BASE_ADDR + 5);
 			if (vic == 1)
 				vic = HDMI_4k2k_30;
@@ -3592,7 +3593,7 @@ static int hdmitx_get_state(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
 	return 0;
 }
 
-void HDMITX_Meson_Init(struct Hdmitx_Dev *phdev)
+void HDMITX_Meson_Init(struct hdmitx_dev *phdev)
 {
 	phdev->HWOp.SetPacket = hdmitx_set_packet;
 	phdev->HWOp.SetAudioInfoFrame = hdmitx_setaudioinfoframe;
@@ -3639,7 +3640,7 @@ static void hdmi_phy_suspend(void)
 	/* hdmi_print(INF, SYS "phy suspend\n"); */
 }
 
-static void hdmi_phy_wakeup(struct Hdmitx_Dev *hdmitx_device)
+static void hdmi_phy_wakeup(struct hdmitx_dev *hdmitx_device)
 {
 	hdmitx_set_phy(hdmitx_device);
 	/* hdmi_print(INF, SYS "phy wakeup\n"); */

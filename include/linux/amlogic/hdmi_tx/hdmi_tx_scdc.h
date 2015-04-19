@@ -2,7 +2,7 @@
 #define __HDMI_TX_SCDC_H__
 
 /* Little-Endian format */
-enum Scdc_Addr {
+enum scdc_addr {
 	SINK_VER = 0x01, SOURCE_VER, /* RW */
 	UPDATE_0 = 0x10, /* RW */
 	UPDATE_1, /* RW */

@@ -50,7 +50,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 
-static struct Hdmitx_Dev *hdmitx_device;
+static struct hdmitx_dev *hdmitx_device;
 static void cec_do_tasklet(unsigned long data);
 DECLARE_TASKLET(cec_tasklet, cec_do_tasklet, 0);
 static unsigned char rx_msg[MAX_MSG];
@@ -193,7 +193,7 @@ static int detect_tv_support_cec(unsigned addr)
 	return hdmitx_device->tv_cec_support = ret;
 }
 
-void cec_node_init(struct Hdmitx_Dev *hdmitx_device)
+void cec_node_init(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char a, b, c, d;
 	struct vendor_info_data *vend_data = NULL;
@@ -355,7 +355,7 @@ void cec_node_init(struct Hdmitx_Dev *hdmitx_device)
 		hdmi_print(INF, CEC "cec node init: cec features ok !\n");
 }
 
-void cec_node_uninit(struct Hdmitx_Dev *hdmitx_device)
+void cec_node_uninit(struct hdmitx_dev *hdmitx_device)
 {
 	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
 		return;
@@ -369,7 +369,7 @@ void cec_node_uninit(struct Hdmitx_Dev *hdmitx_device)
 static int cec_task(void *data)
 {
 	unsigned int i;
-	struct Hdmitx_Dev *hdmitx_device = (struct Hdmitx_Dev *) data;
+	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *) data;
 	cec_global_info.cec_flag.cec_init_flag = 1;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

@@ -80,7 +80,7 @@ static struct special_tv special_N_6144x2_tv_tab[] = {
  *      prod_name: the name of "Receiver Product Name"
  *      blk0_chksum: the value of blk0 chksum
  */
-static int recoginze_tv(struct Hdmitx_Dev *hdev, char *brand_name,
+static int recoginze_tv(struct hdmitx_dev *hdev, char *brand_name,
 	char *prod_name, unsigned char blk0_chksum)
 {
 	if ((strncmp(hdev->RXCap.ReceiverBrandName, brand_name,
@@ -96,7 +96,7 @@ static int recoginze_tv(struct Hdmitx_Dev *hdev, char *brand_name,
 /*
  * hdmitx_special_handler_video()
  */
-void hdmitx_special_handler_video(struct Hdmitx_Dev *hdev)
+void hdmitx_special_handler_video(struct hdmitx_dev *hdev)
 {
 	if (recoginze_tv(hdev, "GSM", "LG", 0xE7)) {
 		hdev->HWOp.CntlMisc(hdev, MISC_COMP_HPLL,
@@ -111,7 +111,7 @@ void hdmitx_special_handler_video(struct Hdmitx_Dev *hdev)
 /*
  * hdmitx_special_handler_audio()
  */
-void hdmitx_special_handler_audio(struct Hdmitx_Dev *hdev)
+void hdmitx_special_handler_audio(struct hdmitx_dev *hdev)
 {
 	int i = 0;
 	for (i = 0; i < ARRAY_SIZE(special_N_6144x2_tv_tab); i++) {

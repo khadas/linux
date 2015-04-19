@@ -18,7 +18,7 @@
  *************************************/
 #define VIC_MAX_NUM 128  /* consider 4k2k */
 #define AUD_MAX_NUM 60
-struct Rx_AudioCap {
+struct rx_audiocap {
 	unsigned char audio_format_code;
 	unsigned char channel_num_max;
 	unsigned char freq_cc;
@@ -29,14 +29,14 @@ enum hd_ctrl {
 	VID_EN, VID_DIS, AUD_EN, AUD_DIS, EDID_EN, EDID_DIS, HDCP_EN, HDCP_DIS,
 };
 
-struct Rx_Cap {
+struct rx_cap {
 	unsigned char native_Mode;
 	/*video*/
 	unsigned char VIC[VIC_MAX_NUM];
 	unsigned char VIC_count;
 	unsigned char native_VIC;
 	/*audio*/
-	struct Rx_AudioCap RxAudioCap[AUD_MAX_NUM];
+	struct rx_audiocap RxAudioCap[AUD_MAX_NUM];
 	unsigned char AUD_count;
 	unsigned char RxSpeakerAllocation;
 	/*vendor*/
@@ -51,7 +51,7 @@ struct Rx_Cap {
 	unsigned int Interlaced_Audio_Latency;
 	unsigned int threeD_present;
 	unsigned int threeD_Multi_present;
-	unsigned int HDMI_VIC_LEN;
+	unsigned int hdmi_vic_LEN;
 	unsigned int HDMI_3D_LEN;
 	unsigned int threeD_Structure_ALL_15_0;
 	unsigned int threeD_MASK_15_0;
@@ -64,14 +64,14 @@ struct Rx_Cap {
 	unsigned char blk0_chksum;
 };
 
-struct Cts_ConfTab {
+struct cts_conftab {
 	unsigned int fixed_n;
 	unsigned int tmds_clk;
 	unsigned int fixed_cts;
 };
 
-struct Vic_AttrMap {
-	enum Hdmi_VIC VIC;
+struct vic_attrmap {
+	enum hdmi_vic VIC;
 	unsigned int tmds_clk;
 };
 
@@ -88,14 +88,14 @@ struct hdmi_phy_t {
 	unsigned long val_save;
 };
 
-struct AudCts_Log {
+struct audcts_log {
 	unsigned int val:20;
 	unsigned int stable:1;
 };
 
 #define EDID_MAX_BLOCK              4
 #define HDMI_TMP_BUF_SIZE           1024
-struct Hdmitx_Dev {
+struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
 	struct proc_dir_entry *proc_file;
 	struct task_struct *task;
@@ -112,28 +112,29 @@ struct Hdmitx_Dev {
 			unsigned char *HB);
 		void (*SetAudioInfoFrame)(unsigned char *AUD_DB,
 			unsigned char *CHAN_STAT_BUF);
-		int (*SetDispMode)(struct Hdmitx_Dev *hdmitx_device,
-			struct Hdmitx_VidPara *param);
-		int (*SetAudMode)(struct Hdmitx_Dev *hdmitx_device,
-			struct Hdmitx_AudPara *audio_param);
-		void (*SetupIRQ)(struct Hdmitx_Dev *hdmitx_device);
-		void (*DebugFun)(struct Hdmitx_Dev *hdmitx_device,
+		int (*SetDispMode)(struct hdmitx_dev *hdmitx_device,
+			struct hdmitx_vidpara *param);
+		int (*SetAudMode)(struct hdmitx_dev *hdmitx_device,
+			struct hdmitx_audpara *audio_param);
+		void (*SetupIRQ)(struct hdmitx_dev *hdmitx_device);
+		void (*DebugFun)(struct hdmitx_dev *hdmitx_device,
 			const char *buf);
-		void (*UnInit)(struct Hdmitx_Dev *hdmitx_device);
-		int (*CntlPower)(struct Hdmitx_Dev *hdmitx_device,
+		void (*UnInit)(struct hdmitx_dev *hdmitx_device);
+		int (*CntlPower)(struct hdmitx_dev *hdmitx_device,
 			unsigned cmd, unsigned arg); /* Power control */
-		int (*CntlDDC)(struct Hdmitx_Dev *hdmitx_device,
-			unsigned cmd, unsigned arg); /* edid/hdcp control */
+		/* edid/hdcp control */
+		int (*CntlDDC)(struct hdmitx_dev *hdmitx_device,
+			unsigned cmd, unsigned long arg);
 		/* Audio/Video/System Status */
-		int (*GetState)(struct Hdmitx_Dev *hdmitx_device,
+		int (*GetState)(struct hdmitx_dev *hdmitx_device,
 			unsigned cmd, unsigned arg);
-		int (*CntlPacket)(struct Hdmitx_Dev *hdmitx_device,
+		int (*CntlPacket)(struct hdmitx_dev *hdmitx_device,
 			unsigned cmd, unsigned arg); /* Packet control */
-		int (*CntlConfig)(struct Hdmitx_Dev *hdmitx_device,
+		int (*CntlConfig)(struct hdmitx_dev *hdmitx_device,
 			unsigned cmd, unsigned arg); /* Configure control */
-		int (*CntlMisc)(struct Hdmitx_Dev *hdmitx_device,
+		int (*CntlMisc)(struct hdmitx_dev *hdmitx_device,
 			unsigned cmd, unsigned arg); /* Other control */
-		int (*Cntl)(struct Hdmitx_Dev *hdmitx_device, unsigned cmd,
+		int (*Cntl)(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 			unsigned arg); /* Other control */
 	} HWOp;
 
@@ -148,11 +149,11 @@ struct Hdmitx_Dev {
 	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
 	unsigned char EDID_buf1[EDID_MAX_BLOCK*128]; /* for second read */
 	unsigned char EDID_hash[20];
-	struct Rx_Cap RXCap;
-	struct Hdmitx_VidPara *cur_video_param;
+	struct rx_cap RXCap;
+	struct hdmitx_vidpara *cur_video_param;
 	int vic_count;
 	/*audio*/
-	struct Hdmitx_AudPara cur_audio_param;
+	struct hdmitx_audpara cur_audio_param;
 	int audio_param_update_flag;
 	/*status*/
 #define DISP_SWITCH_FORCE       0
@@ -167,7 +168,7 @@ struct Hdmitx_Dev {
 	unsigned char mux_hpd_if_pin_high_flag;
 	unsigned char cec_func_flag;
 	int auth_process_timer;
-	struct Hdmitx_Info hdmi_info;
+	struct hdmitx_info hdmi_info;
 	unsigned char tmp_buf[HDMI_TMP_BUF_SIZE];
 	unsigned int log;
 	unsigned int internal_mode_change;
@@ -287,34 +288,34 @@ struct Hdmitx_Dev {
 /***********************************************************************
  *    hdmitx protocol level interface
  **********************************************************************/
-extern void hdmitx_init_parameters(struct Hdmitx_Info *info);
+extern void hdmitx_init_parameters(struct hdmitx_info *info);
 
-extern int hdmitx_edid_parse(struct Hdmitx_Dev *hdmitx_device);
+extern int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device);
 
-enum Hdmi_VIC hdmitx_edid_get_VIC(struct Hdmitx_Dev *hdmitx_device,
+enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 	const char *disp_mode, char force_flag);
 
-extern int hdmitx_edid_VIC_support(enum Hdmi_VIC vic);
+extern int hdmitx_edid_VIC_support(enum hdmi_vic vic);
 
-extern int hdmitx_edid_dump(struct Hdmitx_Dev *hdmitx_device, char *buffer,
+extern int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	int buffer_len);
 
-extern void hdmitx_edid_clear(struct Hdmitx_Dev *hdmitx_device);
+extern void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device);
 
-extern void hdmitx_edid_buf_compare_print(struct Hdmitx_Dev *hdmitx_device);
+extern void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 
-extern const char *hdmitx_edid_get_native_VIC(struct Hdmitx_Dev *hdmitx_device);
+extern const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
 
-extern int hdmitx_set_display(struct Hdmitx_Dev *hdmitx_device,
-	enum Hdmi_VIC VideoCode);
+extern int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
+	enum hdmi_vic VideoCode);
 
-extern int hdmi_set_3d(struct Hdmitx_Dev *hdmitx_device, int type,
+extern int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
 	unsigned int param);
 
-extern int hdmitx_set_audio(struct Hdmitx_Dev *hdmitx_device,
-	struct Hdmitx_AudPara *audio_param, int hdmi_ch);
+extern int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
+	struct hdmitx_audpara *audio_param, int hdmi_ch);
 
-extern struct Hdmitx_Dev *get_hdmitx_device(void);
+extern struct hdmitx_dev *get_hdmitx_device(void);
 
 extern int hdmi_print_buf(char *buf, int len);
 
@@ -330,7 +331,7 @@ extern int get_cur_vout_index(void);
 /* #define DOUBLE_CLK_720P_1080I */
 extern unsigned char hdmi_pll_mode; /* 1, use external clk as hdmi pll source */
 
-extern void HDMITX_Meson_Init(struct Hdmitx_Dev *hdmitx_device);
+extern void HDMITX_Meson_Init(struct hdmitx_dev *hdmitx_device);
 
 extern void hdmitx_hpd_plugin_handler(struct work_struct *work);
 extern void hdmitx_hpd_plugout_handler(struct work_struct *work);

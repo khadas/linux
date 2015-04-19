@@ -3,19 +3,35 @@
 menu "HDMI TX Support"
 
 config AML_HDMI_TX
-    boolean "HDMI 1.4 Output Enable"
-    default n
-    select SWITCH
-    select AM_DISPLAY_MODULE
-    help
-        hdmi 1.4 output enable, It should be enalbe if board have hdmi 1.4 out interface
+        boolean "HDMI TX Output Enable"
+        default n
+        select SWITCH
+        select AM_DISPLAY_MODULE
+
+choice
+        prompt "HDMI TX Version Select"
+        depends on AML_HDMI_TX
+        default AML_HDMI_TX_20
+
+config AML_HDMI_TX_20
+        boolean "HDMI 2.0"
+        help
+                hdmitx 2.0 output enable. It should be enalbe if board have hdmi 2.0 out interface
+
+config AML_HDMI_TX_14
+        boolean "HDMI 1.4"
+        help
+                hdmitx 1.4 output enable. It should be enalbe if board have hdmi 1.4 out interface
+
+endchoice
 
 if AML_HDMI_TX
+
 config AML_HDMI_TX_HDCP
-    boolean "HDMI HDCP Enable"
-    default n
-    help
-        hdmitx hdcp enable, it should be enalbe if board burned hdmitx hdcp keys
+        boolean "HDMI HDCP Enable"
+        default n
+        help
+                hdmitx hdcp enable, it should be enalbe if board burned hdmitx hdcp keys
 endif
 
 endmenu

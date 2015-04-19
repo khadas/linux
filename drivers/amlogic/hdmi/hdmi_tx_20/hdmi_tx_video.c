@@ -17,15 +17,15 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_compliance.h>
 
 static unsigned char hdmi_output_rgb;
-static void hdmitx_set_spd_info(struct Hdmitx_Dev *hdmitx_device);
-static void hdmi_set_vend_spec_infofram(struct Hdmitx_Dev *hdmitx_device,
-	enum Hdmi_VIC VideoCode);
+static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
+static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
+	enum hdmi_vic VideoCode);
 
-static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
+static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_640x480p60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_4_3,
@@ -36,7 +36,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_480p60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_4_3,
@@ -47,7 +47,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_480p60_16x9,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -58,7 +58,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_480p60_16x9_rpt,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_4_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -69,7 +69,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_720p60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 #ifdef DOUBLE_CLK_720P_1080I
 		.repeat_time	= HDMI_2_TIMES_REPEAT,
@@ -84,7 +84,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080i60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 #ifdef DOUBLE_CLK_720P_1080I
 		.repeat_time	= HDMI_2_TIMES_REPEAT,
@@ -99,7 +99,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_480i60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_2_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_4_3,
@@ -110,7 +110,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_480i60_16x9,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_2_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -121,7 +121,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_480i60_16x9_rpt,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_4_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -132,7 +132,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1440x480p60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_4_3,
@@ -143,7 +143,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080p60,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -154,7 +154,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_576p50,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_4_3,
@@ -165,7 +165,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_576p50_16x9,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -176,7 +176,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_576p50_16x9_rpt,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_4_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -187,7 +187,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_720p50,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -198,7 +198,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080i50,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -209,7 +209,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_576i50,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_2_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_4_3,
@@ -220,7 +220,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_576i50_16x9,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_2_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -231,7 +231,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_576i50_16x9_rpt,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= HDMI_4_TIMES_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -242,7 +242,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080p50,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -253,7 +253,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080p24,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -264,7 +264,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080p25,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -275,7 +275,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_1080p30,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -286,7 +286,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_4k2k_30,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -297,7 +297,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_4k2k_25,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -308,7 +308,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_4k2k_24,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -319,7 +319,7 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	{
 		.VIC		= HDMI_4k2k_smpte_24,
 		.color_prefer   = COLOR_SPACE_RGB444,
-		.color_depth	= HDMI_COLOR_DEPTH_24B,
+		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
 		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
@@ -329,10 +329,10 @@ static struct Hdmitx_VidPara hdmi_tx_video_params[] = {
 	},
 };
 
-static struct Hdmitx_VidPara *hdmi_get_video_param(
-	enum Hdmi_VIC VideoCode)
+static struct hdmitx_vidpara *hdmi_get_video_param(
+	enum hdmi_vic VideoCode)
 {
-	struct Hdmitx_VidPara *video_param = NULL;
+	struct hdmitx_vidpara *video_param = NULL;
 	int  i;
 	int count = ARRAY_SIZE(hdmi_tx_video_params);
 	for (i = 0; i < count; i++) {
@@ -345,7 +345,7 @@ static struct Hdmitx_VidPara *hdmi_get_video_param(
 }
 
 static void hdmi_tx_construct_avi_packet(
-	struct Hdmitx_VidPara *video_param, char *AVI_DB)
+	struct hdmitx_vidpara *video_param, char *AVI_DB)
 {
 	unsigned char color, bar_info, aspect_ratio, cc, ss, sc, ec = 0;
 	ss = video_param->ss;
@@ -386,9 +386,9 @@ static void hdmi_tx_construct_avi_packet(
 *	hdmitx protocol level interface
 *************************************/
 
-void hdmitx_init_parameters(struct Hdmitx_Info *info)
+void hdmitx_init_parameters(struct hdmitx_info *info)
 {
-	memset(info, 0, sizeof(struct Hdmitx_Info));
+	memset(info, 0, sizeof(struct hdmitx_info));
 
 	info->video_out_changing_flag = 1;
 
@@ -409,7 +409,7 @@ void hdmitx_init_parameters(struct Hdmitx_Info *info)
  * HDMI Identifier = 0x000c03
  * If not, treated as a DVI Device
  */
-static int is_dvi_device(struct Rx_Cap *pRXCap)
+static int is_dvi_device(struct rx_cap *pRXCap)
 {
 	if (pRXCap->IEEEOUI != 0x000c03)
 		return 1;
@@ -422,11 +422,11 @@ void hdmitx_output_rgb(void)
 	hdmi_output_rgb = 1;
 }
 
-int hdmitx_set_display(struct Hdmitx_Dev *hdmitx_device,
-	enum Hdmi_VIC VideoCode)
+int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
+	enum hdmi_vic VideoCode)
 {
-	struct Hdmitx_VidPara *param;
-	enum Hdmi_VIC vic;
+	struct hdmitx_vidpara *param;
+	enum hdmi_vic vic;
 	int i, ret = -1;
 	unsigned char AVI_DB[32];
 	unsigned char AVI_HB[32];
@@ -523,12 +523,14 @@ int hdmitx_set_display(struct Hdmitx_Dev *hdmitx_device,
 			hdmitx_device->HWOp.SetDispMode(hdmitx_device, NULL);
 	}
 	hdmitx_set_spd_info(hdmitx_device);
+#if 0
 	hdmitx_special_handler_video(hdmitx_device);
+#endif
 	return ret;
 }
 
-static void hdmi_set_vend_spec_infofram(struct Hdmitx_Dev *hdmitx_device,
-	enum Hdmi_VIC VideoCode)
+static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
+	enum hdmi_vic VideoCode)
 {
 	int i;
 	unsigned char VEN_DB[6];
@@ -560,7 +562,7 @@ static void hdmi_set_vend_spec_infofram(struct Hdmitx_Dev *hdmitx_device,
 	hdmitx_device->HWOp.SetPacket(HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 }
 
-int hdmi_set_3d(struct Hdmitx_Dev *hdmitx_device, int type, unsigned int param)
+int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type, unsigned int param)
 {
 	int i;
 	unsigned char VEN_DB[6];
@@ -587,7 +589,7 @@ int hdmi_set_3d(struct Hdmitx_Dev *hdmitx_device, int type, unsigned int param)
 
 /* Set Source Product Descriptor InfoFrame
  */
-static void hdmitx_set_spd_info(struct Hdmitx_Dev *hdmitx_device)
+static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char SPD_DB[25] = {0x00};
 	unsigned char SPD_HB[3] = {0x83, 0x1, 0x19};

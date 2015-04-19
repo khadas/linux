@@ -43,7 +43,7 @@
 #define EDID_DETAILED_TIMING_DES_BLOCK2_POS 0x5A
 #define EDID_DETAILED_TIMING_DES_BLOCK3_POS 0x6C
 
-static int Edid_DecodeHeader(struct Hdmitx_Info *info, unsigned char *buff)
+static int Edid_DecodeHeader(struct hdmitx_info *info, unsigned char *buff)
 {
 	int i, ret = 0;
 
@@ -62,7 +62,7 @@ static int Edid_DecodeHeader(struct Hdmitx_Info *info, unsigned char *buff)
 	return ret;
 }
 
-static void Edid_ReceiverBrandNameParse(struct Rx_Cap *pRxCap,
+static void Edid_ReceiverBrandNameParse(struct rx_cap *pRxCap,
 		unsigned char *data)
 {
 	int i;
@@ -94,7 +94,7 @@ static int Edid_find_name_block(unsigned char *data)
 	return ret;
 }
 
-static void Edid_ReceiverProductNameParse(struct Rx_Cap *pRxCap,
+static void Edid_ReceiverProductNameParse(struct rx_cap *pRxCap,
 	unsigned char *data)
 {
 	int i = 0;
@@ -107,7 +107,7 @@ static void Edid_ReceiverProductNameParse(struct Rx_Cap *pRxCap,
 	pRxCap->ReceiverProductName[i] = '\0';
 }
 
-void Edid_DecodeStandardTiming(struct Hdmitx_Info *info,
+void Edid_DecodeStandardTiming(struct hdmitx_info *info,
 	unsigned char *Data, unsigned char length)
 {
 	 unsigned char  i, TmpVal;
@@ -175,7 +175,7 @@ static unsigned char Edid_TimingDescriptors[204] = {
 };
 
 /* ----------------------------------------------------------- */
-void Edid_CompareTimingDescriptors(struct Hdmitx_Info *info,
+void Edid_CompareTimingDescriptors(struct hdmitx_info *info,
 	unsigned char *Data)
 {
 	int index1, index2;
@@ -242,7 +242,7 @@ void Edid_CompareTimingDescriptors(struct Hdmitx_Info *info,
 
 
 /* ----------------------------------------------------------- */
-void Edid_ParseCEADetailedTimingDescriptors(struct Hdmitx_Info *info,
+void Edid_ParseCEADetailedTimingDescriptors(struct hdmitx_info *info,
 	unsigned char blk_mun, unsigned char BaseAddr,
 	unsigned char *buff)
 {
@@ -257,14 +257,14 @@ void Edid_ParseCEADetailedTimingDescriptors(struct Hdmitx_Info *info,
 	}
 }
 
-static struct Vsdb_PhyAddr vsdb_local = {0};
-int get_vsdb_phy_addr(struct Vsdb_PhyAddr *vsdb)
+static struct vsdb_phyaddr vsdb_local = {0};
+int get_vsdb_phy_addr(struct vsdb_phyaddr *vsdb)
 {
 	vsdb = &vsdb_local;
 	return vsdb->valid;
 }
 
-void set_vsdb_phy_addr(struct Vsdb_PhyAddr *vsdb,
+void set_vsdb_phy_addr(struct vsdb_phyaddr *vsdb,
 	unsigned char *edid_offset)
 {
 	vsdb->a = (edid_offset[4] >> 4) & 0xf;
@@ -275,7 +275,7 @@ void set_vsdb_phy_addr(struct Vsdb_PhyAddr *vsdb,
 	vsdb->valid = 1;
 }
 
-int Edid_Parse_check_HDMI_VSDB(struct Hdmitx_Info *info,
+int Edid_Parse_check_HDMI_VSDB(struct hdmitx_info *info,
 	unsigned char *buff)
 {
 	unsigned char  VSpecificBoundary, BlockAddr,  len;
@@ -314,7 +314,7 @@ int Edid_Parse_check_HDMI_VSDB(struct Hdmitx_Info *info,
 }
 
 /* ----------------------------------------------------------- */
-void Edid_MonitorCapable861(struct Hdmitx_Info *info,
+void Edid_MonitorCapable861(struct hdmitx_info *info,
 	unsigned char edid_flag)
 {
 	 if (edid_flag & 0x80)
@@ -329,7 +329,7 @@ void Edid_MonitorCapable861(struct Hdmitx_Info *info,
 
 
 /* ----------------------------------------------------------- */
-static void Edid_ParsingVideoDATABlock(struct Hdmitx_Info *info,
+static void Edid_ParsingVideoDATABlock(struct hdmitx_info *info,
 	unsigned char *buff, unsigned char BaseAddr,
 	unsigned char NBytes)
 {
@@ -387,7 +387,7 @@ static void Edid_ParsingVideoDATABlock(struct Hdmitx_Info *info,
 }
 
 /* ----------------------------------------------------------- */
-static void Edid_ParsingAudioDATABlock(struct Hdmitx_Info *info,
+static void Edid_ParsingAudioDATABlock(struct hdmitx_info *info,
 	unsigned char *Data, unsigned char BaseAddr,
 	unsigned char NBytes)
 {
@@ -700,7 +700,7 @@ static void Edid_ParsingAudioDATABlock(struct Hdmitx_Info *info,
 }
 
 /* ----------------------------------------------------------- */
-static void Edid_ParsingSpeakerDATABlock(struct Hdmitx_Info *info,
+static void Edid_ParsingSpeakerDATABlock(struct hdmitx_info *info,
 	unsigned char *buff, unsigned char BaseAddr)
 {
 	int ii;
@@ -744,7 +744,7 @@ static void Edid_ParsingSpeakerDATABlock(struct Hdmitx_Info *info,
 
 
 /* ----------------------------------------------------------- */
-int Edid_ParsingCEADataBlockCollection(struct Hdmitx_Info *info,
+int Edid_ParsingCEADataBlockCollection(struct hdmitx_info *info,
 	unsigned char *buff)
 {
 	unsigned char AddrTag, D, Addr, Data;
@@ -808,7 +808,7 @@ int Edid_ParsingCEADataBlockCollection(struct Hdmitx_Info *info,
 /* ----------------------------------------------------------- */
 
 /* parse Sink 3D information */
-static int hdmitx_edid_3d_parse(struct Rx_Cap *pRXCap, unsigned char *dat,
+static int hdmitx_edid_3d_parse(struct rx_cap *pRXCap, unsigned char *dat,
 	unsigned size)
 {
 	int j = 0;
@@ -824,9 +824,9 @@ static int hdmitx_edid_3d_parse(struct Rx_Cap *pRXCap, unsigned char *dat,
 		pRXCap->threeD_present = dat[pos] >> 7;
 		pRXCap->threeD_Multi_present = (dat[pos] >> 5) & 0x3;
 		pos += 1;
-		pRXCap->HDMI_VIC_LEN = (dat[pos]) >> 5;
+		pRXCap->hdmi_vic_LEN = (dat[pos]) >> 5;
 		pRXCap->HDMI_3D_LEN = (dat[pos]) & 0x1f;
-		pos += pRXCap->HDMI_VIC_LEN + 1;
+		pos += pRXCap->hdmi_vic_LEN + 1;
 		if ((pRXCap->threeD_Multi_present == 0x01) ||
 			(pRXCap->threeD_Multi_present == 0x2)) {
 			pRXCap->threeD_Structure_ALL_15_0 =
@@ -882,7 +882,7 @@ static int hdmitx_edid_3d_parse(struct Rx_Cap *pRXCap, unsigned char *dat,
 }
 
 /* parse Sink 4k2k information */
-static void hdmitx_edid_4k2k_parse(struct Rx_Cap *pRXCap, unsigned char *dat,
+static void hdmitx_edid_4k2k_parse(struct rx_cap *pRXCap, unsigned char *dat,
 	unsigned size)
 {
 	if ((size > 4) || (size == 0)) {
@@ -907,14 +907,14 @@ static void hdmitx_edid_4k2k_parse(struct Rx_Cap *pRXCap, unsigned char *dat,
 	}
 }
 
-static int hdmitx_edid_block_parse(struct Hdmitx_Dev *hdmitx_device,
+static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	unsigned char *BlockBuf)
 {
 	unsigned char offset, End;
 	unsigned char count;
 	unsigned char tag;
 	int i, tmp, idx;
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 
 	if (BlockBuf[0] != 0x02)
 		return -1; /* not a CEA BLOCK. */
@@ -1038,9 +1038,9 @@ static int hdmitx_edid_block_parse(struct Hdmitx_Dev *hdmitx_device,
 }
 
 /* add default VICs for DVI case */
-static void hdmitx_edid_set_default_vic(struct Hdmitx_Dev *hdmitx_device)
+static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	pRXCap->VIC_count = 0x3;
 	pRXCap->VIC[0] = 2;
 	pRXCap->VIC[1] = 4;
@@ -1172,7 +1172,7 @@ static int check_dvi_hdmi_edid_valid(unsigned char *buf)
 	return 1;
 }
 
-int hdmitx_edid_parse(struct Hdmitx_Dev *hdmitx_device)
+int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char CheckSum;
 	unsigned char zero_numbers;
@@ -1180,7 +1180,7 @@ int hdmitx_edid_parse(struct Hdmitx_Dev *hdmitx_device)
 	unsigned char *EDID_buf;
 	int i, j, ret_val;
 	int idx[4];
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf))
 		EDID_buf = hdmitx_device->EDID_buf;
 	else
@@ -1336,7 +1336,7 @@ int hdmitx_edid_parse(struct Hdmitx_Dev *hdmitx_device)
 
 }
 
-static struct Dispmode_Vic dispmode_VIC_tab[] = {
+static struct dispmode_vic dispmode_vic_tab[] = {
 	{"480i_4_3",  HDMI_480i60},
 	{"480i_rpt",  HDMI_480i60_16x9_rpt},
 	{"480i",	  HDMI_480i60_16x9},
@@ -1384,27 +1384,27 @@ static struct Dispmode_Vic dispmode_VIC_tab[] = {
 	{"4k2ksmpte", HDMI_4k2k_smpte_24},
 };
 
-int hdmitx_edid_VIC_support(enum Hdmi_VIC vic)
+int hdmitx_edid_VIC_support(enum hdmi_vic vic)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dispmode_VIC_tab); i++) {
-		if (vic == dispmode_VIC_tab[i].VIC)
+	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
+		if (vic == dispmode_vic_tab[i].VIC)
 			return 1;
 	}
 
 	return 0;
 }
 
-enum Hdmi_VIC hdmitx_edid_vic_tab_map_vic(const char *disp_mode)
+enum hdmi_vic hdmitx_edid_vic_tab_map_vic(const char *disp_mode)
 {
-	enum Hdmi_VIC vic = HDMI_Unkown;
+	enum hdmi_vic vic = HDMI_Unkown;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dispmode_VIC_tab); i++) {
-		if (strncmp(disp_mode, dispmode_VIC_tab[i].disp_mode,
-			strlen(dispmode_VIC_tab[i].disp_mode)) == 0) {
-			vic = dispmode_VIC_tab[i].VIC;
+	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
+		if (strncmp(disp_mode, dispmode_vic_tab[i].disp_mode,
+			strlen(dispmode_vic_tab[i].disp_mode)) == 0) {
+			vic = dispmode_vic_tab[i].VIC;
 			break;
 		}
 	}
@@ -1415,14 +1415,14 @@ enum Hdmi_VIC hdmitx_edid_vic_tab_map_vic(const char *disp_mode)
 	return vic;
 }
 
-const char *hdmitx_edid_vic_tab_map_string(enum Hdmi_VIC vic)
+const char *hdmitx_edid_vic_tab_map_string(enum hdmi_vic vic)
 {
 	int i;
 	const char *disp_str = NULL;
 
-	for (i = 0; i < ARRAY_SIZE(dispmode_VIC_tab); i++) {
-		if (vic == dispmode_VIC_tab[i].VIC) {
-			disp_str = dispmode_VIC_tab[i].disp_mode;
+	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
+		if (vic == dispmode_vic_tab[i].VIC) {
+			disp_str = dispmode_vic_tab[i].disp_mode;
 			break;
 		}
 	}
@@ -1435,12 +1435,12 @@ const char *hdmitx_edid_vic_tab_map_string(enum Hdmi_VIC vic)
 
 /* force_flag: 0 means check with RX's edid */
 /* 1 means no check wich RX's edid */
-enum Hdmi_VIC hdmitx_edid_get_VIC(struct Hdmitx_Dev *hdmitx_device,
+enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 	const char *disp_mode, char force_flag)
 {
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	int  j;
-	enum Hdmi_VIC vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
+	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
 
 	if (vic != HDMI_Unkown) {
 		if (force_flag == 0) {
@@ -1455,15 +1455,15 @@ enum Hdmi_VIC hdmitx_edid_get_VIC(struct Hdmitx_Dev *hdmitx_device,
 	return vic;
 }
 
-const char *hdmitx_edid_get_native_VIC(struct Hdmitx_Dev *hdmitx_device)
+const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device)
 {
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 
 	return hdmitx_edid_vic_tab_map_string(pRXCap->native_VIC);
 }
 
 /* Clear HDMI Hardware Module EDID RAM and EDID Buffer */
-void hdmitx_edid_ram_buffer_clear(struct Hdmitx_Dev *hdmitx_device)
+void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned int i = 0;
 
@@ -1478,9 +1478,9 @@ void hdmitx_edid_ram_buffer_clear(struct Hdmitx_Dev *hdmitx_device)
 }
 
 /* Clear the Parse result of HDMI Sink's EDID. */
-void hdmitx_edid_clear(struct Hdmitx_Dev *hdmitx_device)
+void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 {
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	hdmitx_device->vic_count = 0;
 	pRXCap->VIC_count = 0;
 	pRXCap->AUD_count = 0;
@@ -1495,14 +1495,14 @@ void hdmitx_edid_clear(struct Hdmitx_Dev *hdmitx_device)
 	hdmitx_device->hdmi_info.vsdb_phy_addr.c = 0;
 	hdmitx_device->hdmi_info.vsdb_phy_addr.d = 0;
 	hdmitx_device->hdmi_info.vsdb_phy_addr.valid = 0;
-	memset(&vsdb_local, 0, sizeof(struct Vsdb_PhyAddr));
+	memset(&vsdb_local, 0, sizeof(struct vsdb_phyaddr));
 	pRXCap->Video_Latency = 0;
 	pRXCap->Audio_Latency = 0;
 	pRXCap->Interlaced_Video_Latency = 0;
 	pRXCap->Interlaced_Audio_Latency = 0;
 	pRXCap->threeD_present = 0;
 	pRXCap->threeD_Multi_present = 0;
-	pRXCap->HDMI_VIC_LEN = 0;
+	pRXCap->hdmi_vic_LEN = 0;
 	pRXCap->HDMI_3D_LEN = 0;
 	pRXCap->threeD_Structure_ALL_15_0 = 0;
 	pRXCap->threeD_MASK_15_0 = 0;
@@ -1559,7 +1559,7 @@ static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf)
  * then compare EDID_buf and EDID_buf1.
  * if same, just print out EDID_buf raw data, else print out 2 buffers
  */
-void hdmitx_edid_buf_compare_print(struct Hdmitx_Dev *hdmitx_device)
+void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned int i = 0;
 	unsigned int err_no = 0;
@@ -1596,11 +1596,11 @@ void hdmitx_edid_buf_compare_print(struct Hdmitx_Dev *hdmitx_device)
 	}
 }
 
-int hdmitx_edid_dump(struct Hdmitx_Dev *hdmitx_device, char *buffer,
+int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	int buffer_len)
 {
 	int i, pos = 0;
-	struct Rx_Cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Receiver Brand Name: %s\n", pRXCap->ReceiverBrandName);

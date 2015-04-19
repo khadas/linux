@@ -71,8 +71,8 @@ static struct timer_list hdcp_monitor_timer;
 static void hdcp_monitor_func(unsigned long arg)
 {
 	/* static int hdcp_auth_flag = 0; */
-	struct Hdmitx_Dev *hdmitx_device =
-		(struct Hdmitx_Dev *)hdcp_monitor_timer.data;
+	struct hdmitx_dev *hdmitx_device =
+		(struct hdmitx_dev *)hdcp_monitor_timer.data;
 	if ((hdmitx_device->HWOp.Cntl) && (hdmitx_device->log &
 		(HDMI_LOG_HDCP))) {
 		hdmitx_device->HWOp.Cntl(hdmitx_device,
@@ -86,7 +86,7 @@ static int hdmitx_hdcp_task(void *data)
 {
 	static int err_cnt;
 	static int time_cnt;
-	struct Hdmitx_Dev *hdmitx_device = (struct Hdmitx_Dev *)data;
+	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *)data;
 
 	init_timer(&hdcp_monitor_timer);
 	hdcp_monitor_timer.data = (ulong) data;
@@ -151,7 +151,7 @@ static int hdmitx_hdcp_task(void *data)
 
 static int __init hdmitx_hdcp_init(void)
 {
-	struct Hdmitx_Dev *hdmitx_device = get_hdmitx_device();
+	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
 
 	switch_dev_register(&hdcp_dev);
 

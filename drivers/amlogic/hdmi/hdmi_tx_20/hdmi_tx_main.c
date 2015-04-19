@@ -53,7 +53,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>
 
-#include "ts/tvenc_conf.h"
+#include "hw/tvenc_conf.h"
 
 #define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
@@ -64,7 +64,9 @@
 static dev_t hdmitx_id;
 static struct class *hdmitx_class;
 static struct device *hdmitx_dev;
+#if 0
 static struct gpio_desc *hdmi_gd;
+#endif
 static struct device *hdmi_dev;
 static int set_disp_mode_auto(void);
 const struct vinfo_s *hdmi_get_current_vinfo(void);
@@ -94,7 +96,7 @@ struct hdmi_config_platform_data *hdmi_pdata;
 static int suspend_flag;
 #endif
 
-static struct Hdmitx_Dev hdmitx_device;
+static struct hdmitx_dev hdmitx_device;
 static struct switch_dev sdev = { /* android ics switch device */
 	.name = "hdmi",
 };
@@ -103,7 +105,7 @@ static struct switch_dev sdev = { /* android ics switch device */
 static void hdmitx_early_suspend(struct early_suspend *h)
 {
 	const struct vinfo_s *info = hdmi_get_current_vinfo();
-	struct Hdmitx_Dev *phdmi = (struct Hdmitx_Dev *)h->param;
+	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
 	if (info && (strncmp(info->name, "panel", 5) == 0
 		|| strncmp(info->name, "null", 4) == 0))
 		return;
@@ -111,7 +113,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	suspend_flag = 1;
 #endif
 	phdmi->hpd_lock = 1;
-	phdmi->HWOp.Cntl((struct Hdmitx_Dev *)h->param,
+	phdmi->HWOp.Cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 	phdmi->cur_VIC = HDMI_Unkown;
 	phdmi->output_blank_flag = 0;
@@ -125,7 +127,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 static void hdmitx_late_resume(struct early_suspend *h)
 {
 	const struct vinfo_s *info = hdmi_get_current_vinfo();
-	struct Hdmitx_Dev *phdmi = (struct Hdmitx_Dev *)h->param;
+	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
 	if (info && (strncmp(info->name, "panel", 5) == 0 ||
 		strncmp(info->name, "null", 4) == 0)) {
 		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
@@ -146,7 +148,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	suspend_flag = 0;
 #endif
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
-	phdmi->HWOp.Cntl((struct Hdmitx_Dev *)h->param,
+	phdmi->HWOp.Cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_LATE_RESUME);
 	hdmi_print(INF, SYS "late resume\n");
 }
@@ -159,7 +161,7 @@ static struct early_suspend hdmitx_early_suspend_handler = {
 };
 #endif
 
-/* static struct Hdmitx_Info hdmi_info; */
+/* static struct hdmitx_info hdmi_info; */
 #define INIT_FLAG_VDACOFF		0x1
 	/* unplug powerdown */
 #define INIT_FLAG_POWERDOWN	  0x2
@@ -274,7 +276,7 @@ const struct vinfo_s *hdmi_get_current_vinfo(void)
 static  int  set_disp_mode(const char *mode)
 {
 	int ret =  -1;
-	enum Hdmi_VIC vic;
+	enum hdmi_vic vic;
 
 	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
 	if (strncmp(mode, "4k2k30hz", strlen("4k2k30hz")) == 0)
@@ -366,7 +368,7 @@ static void hdmitx_pre_display_init(void)
  * "vic_old==HDMI_720P60" means old vic is HDMI_1080p60, but vmode
  * maybe VMODE_1080P or VMODE_1080P_59HZ
  */
-static int is_similar_hdmi_vic(enum Hdmi_VIC vic_old,
+static int is_similar_hdmi_vic(enum hdmi_vic vic_old,
 	enum vmode_e mode_new)
 {
 	pr_info("%s[%d] vic_old=%d,mode_new=%d\n", __func__, __LINE__,
@@ -399,7 +401,7 @@ static int is_similar_hdmi_vic(enum Hdmi_VIC vic_old,
 /*  */
 int hdmitx_is_vmode_supported(char *mode_name)
 {
-	enum Hdmi_VIC vic;
+	enum hdmi_vic vic;
 
 	if (hdmitx_device.tv_no_edid)
 		return 2;
@@ -421,9 +423,9 @@ static int set_disp_mode_auto(void)
 	int ret =  -1;
 	const struct vinfo_s *info = NULL;
 	unsigned char mode[16];
-	enum Hdmi_VIC vic = HDMI_Unkown;
+	enum hdmi_vic vic = HDMI_Unkown;
 	/* vic_ready got from IP */
-	enum Hdmi_VIC vic_ready = hdmitx_device.HWOp.GetState(
+	enum hdmi_vic vic_ready = hdmitx_device.HWOp.GetState(
 		&hdmitx_device, STAT_VIDEO_VIC, 0);
 
 	memset(mode, 0, 10);
@@ -565,7 +567,7 @@ static unsigned int set_cec_code(const char *buf, size_t count)
 #endif
 static unsigned char is_dispmode_valid_for_hdmi(void)
 {
-	enum Hdmi_VIC vic;
+	enum hdmi_vic vic;
 	const struct vinfo_s *info = hdmi_get_current_vinfo();
 
 	vic = hdmitx_edid_get_VIC(&hdmitx_device, info->name, 1);
@@ -601,7 +603,9 @@ static ssize_t show_cec(struct device *dev,
 static ssize_t store_cec(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+#if 0
 	cec_usrcmd_set_dispatch(buf, count);
+#endif
 	return count;
 }
 
@@ -618,13 +622,16 @@ static ssize_t show_cec_config(struct device *dev,
 static ssize_t store_cec_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+#if 0
 	cec_usrcmd_set_config(buf, count);
+#endif
 	return count;
 }
 
 static ssize_t store_cec_lang_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+#if 0
 	int ret;
 	unsigned long val;
 
@@ -633,17 +640,21 @@ static ssize_t store_cec_lang_config(struct device *dev,
 	cec_global_info.cec_node_info[cec_global_info.my_node_index].
 		menu_lang = (int)val;
 	cec_usrcmd_set_lang_config(buf, count);
+#endif
 	return count;
 }
 
 static ssize_t show_cec_lang_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
+#if 0
 	int pos = 0;
 	hdmi_print(INF, CEC "show_cec_lang_config\n");
 	pos += snprintf(buf+pos, PAGE_SIZE, "%x\n", cec_global_info.
 		cec_node_info[cec_global_info.my_node_index].menu_lang);
 	return pos;
+#endif
+	return 0;
 }
 
 /*aud_mode attr*/
@@ -657,7 +668,7 @@ static ssize_t store_aud_mode(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	/* set_disp_mode(buf); */
-	struct Hdmitx_AudPara *audio_param =
+	struct hdmitx_audpara *audio_param =
 		&(hdmitx_device.cur_audio_param);
 	if (strncmp(buf, "32k", 3) == 0)
 		audio_param->sample_rate = FS_32K;
@@ -855,7 +866,7 @@ static ssize_t show_disp_cap(struct device *dev,
 	int i, pos = 0;
 	const char *native_disp_mode =
 		hdmitx_edid_get_native_VIC(&hdmitx_device);
-	enum Hdmi_VIC vic;
+	enum hdmi_vic vic;
 	if (hdmitx_device.tv_no_edid) {
 		pos += snprintf(buf+pos, PAGE_SIZE, "null edid\n");
 	} else {
@@ -885,7 +896,7 @@ static ssize_t show_disp_cap_3d(struct device *dev,
 {
 	int i, pos = 0;
 	int j = 0;
-	enum Hdmi_VIC vic;
+	enum hdmi_vic vic;
 
 	for (i = 0; disp_mode_t[i]; i++) {
 		vic = hdmitx_edid_get_VIC(&hdmitx_device,
@@ -935,7 +946,7 @@ static ssize_t show_aud_cap(struct device *dev,
 	const char *aud_sample_size[] = {"ReferToStreamHeader", "16",
 		"20", "24", NULL};
 
-	struct Rx_Cap *pRXCap = &(hdmitx_device.RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device.RXCap);
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"CodingType MaxChannels SamplingFreq SampleSize\n");
 	for (i = 0; i < pRXCap->AUD_count; i++) {
@@ -995,9 +1006,9 @@ static ssize_t show_hdcp_ksv_info(struct device *dev,
 	char bksv_buf[5];
 
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_GET_AKSV,
-		(unsigned int)aksv_buf);
+		(unsigned long int)aksv_buf);
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_GET_BKSV,
-		(unsigned int)bksv_buf);
+		(unsigned long int)bksv_buf);
 
 	pos += snprintf(buf+pos, PAGE_SIZE, "AKSV: ");
 	for (i = 0; i < 5; i++) {
@@ -1088,7 +1099,7 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 {
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	const struct vinfo_s *info = NULL;
-	enum Hdmi_VIC vic_ready = HDMI_Unkown;
+	enum hdmi_vic vic_ready = HDMI_Unkown;
 #endif
 	if (get_cur_vout_index() != 1)
 		return 0;
@@ -1183,7 +1194,7 @@ static struct notifier_block hdmitx_notifier_nb_v2 = {
 #include <sound/initval.h>
 #include <sound/control.h>
 
-static struct Rate_Map_FS map_fs[] = {
+static struct rate_map_fs map_fs[] = {
 	{0,	  FS_REFER_TO_STREAM},
 	{32000,  FS_32K},
 	{44100,  FS_44K1},
@@ -1194,7 +1205,7 @@ static struct Rate_Map_FS map_fs[] = {
 	{192000, FS_192K},
 };
 
-static enum Hdmi_Audio_FS aud_samp_rate_map(unsigned int rate)
+static enum hdmi_audio_fs aud_samp_rate_map(unsigned int rate)
 {
 	int i = 0;
 
@@ -1228,7 +1239,7 @@ static unsigned char *aud_type_string[] = {
 	"CT_MAX",
 };
 
-static struct Size_Map aud_size_map_ss[] = {
+static struct size_map aud_size_map_ss[] = {
 	{0,	 SS_REFER_TO_STREAM},
 	{16,	SS_16BITS},
 	{20,	SS_20BITS},
@@ -1236,7 +1247,7 @@ static struct Size_Map aud_size_map_ss[] = {
 	{32,	SS_MAX},
 };
 
-static enum Hdmi_Audio_SampSize aud_size_map(unsigned int bits)
+static enum hdmi_audio_sampsize aud_size_map(unsigned int bits)
 {
 	int i;
 
@@ -1263,13 +1274,13 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	unsigned long cmd , void *para)
 {
 	int i, audio_check = 0;
-	struct Rx_Cap *pRXCap = &(hdmitx_device.RXCap);
+	struct rx_cap *pRXCap = &(hdmitx_device.RXCap);
 	struct snd_pcm_substream *substream =
 		(struct snd_pcm_substream *)para;
-	struct Hdmitx_AudPara *audio_param =
+	struct hdmitx_audpara *audio_param =
 		&(hdmitx_device.cur_audio_param);
-	enum Hdmi_Audio_FS n_rate = aud_samp_rate_map(substream->runtime->rate);
-	enum Hdmi_Audio_SampSize n_size =
+	enum hdmi_audio_fs n_rate = aud_samp_rate_map(substream->runtime->rate);
+	enum hdmi_audio_sampsize n_size =
 		aud_size_map(substream->runtime->sample_bits);
 
 	hdmitx_device.audio_param_update_flag = 0;
@@ -1347,7 +1358,7 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 /******************************
 *  hdmitx kernel task
 *******************************/
-int tv_audio_support(int type, struct Rx_Cap *pRXCap)
+int tv_audio_support(int type, struct rx_cap *pRXCap)
 {
 	int i, audio_check = 0;
 	for (i = 0; i < pRXCap->AUD_count; i++) {
@@ -1359,7 +1370,7 @@ int tv_audio_support(int type, struct Rx_Cap *pRXCap)
 
 static int hdmi_task_handle(void *data)
 {
-	struct Hdmitx_Dev *hdmitx_device = (struct Hdmitx_Dev *)data;
+	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *)data;
 
 	sdev.state = !!(hdmitx_device->HWOp.CntlMisc(hdmitx_device,
 		MISC_HPD_GPI_ST, 0));
@@ -1489,7 +1500,9 @@ edid_op:
 		hdmitx_set_audio(hdmitx_device,
 			&(hdmitx_device->cur_audio_param), hdmi_ch);
 		switch_set_state(&sdev, 1);
+#if 0
 		cec_node_init(hdmitx_device);
+#endif
 	}
 	if (hdmitx_device->hpd_event == 2) {
 		hdmitx_device->hpd_event = 0;
@@ -1539,10 +1552,10 @@ edid_op:
 ******************************/
 static int amhdmitx_open(struct inode *node, struct file *file)
 {
-	struct Hdmitx_Dev *hdmitx_in_devp;
+	struct hdmitx_dev *hdmitx_in_devp;
 
 	/* Get the per-device structure that contains this cdev */
-	hdmitx_in_devp = container_of(node->i_cdev, struct Hdmitx_Dev, cdev);
+	hdmitx_in_devp = container_of(node->i_cdev, struct hdmitx_dev, cdev);
 	file->private_data = hdmitx_in_devp;
 
 	return 0;
@@ -1552,7 +1565,7 @@ static int amhdmitx_open(struct inode *node, struct file *file)
 
 static int amhdmitx_release(struct inode *node, struct file *file)
 {
-	/* struct Hdmitx_Dev *hdmitx_in_devp = file->private_data; */
+	/* struct hdmitx_dev *hdmitx_in_devp = file->private_data; */
 
 	/* Reset file pointer */
 
@@ -1582,12 +1595,13 @@ static const struct file_operations amhdmitx_fops = {
 /* .ioctl	= amhdmitx_ioctl, */
 };
 
-struct Hdmitx_Dev *get_hdmitx_device(void)
+struct hdmitx_dev *get_hdmitx_device(void)
 {
 	return &hdmitx_device;
 }
 EXPORT_SYMBOL(get_hdmitx_device);
 
+#ifdef CONFIG_USE_OF
 static int get_dt_vend_init_data(struct device_node *np,
 	struct vendor_info_data *vend)
 {
@@ -1727,6 +1741,7 @@ static void hdmitx_pwr_init(struct hdmi_pwr_ctl *ctl)
 					ctl->pwr_hpll_vdd_on.var.gpo.val);
 	}
 }
+#endif
 
 static int amhdmitx_probe(struct platform_device *pdev)
 {
@@ -1805,7 +1820,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	vout2_register_client(&hdmitx_notifier_nb_v2);
 #endif
 /* aout_register_client(&hdmitx_notifier_nb_a); */
-	r = r ? (int)&hdmitx_notifier_nb_a : (int)&hdmitx_notifier_nb_a;
+	r = r ? (long int)&hdmitx_notifier_nb_a :
+		(long int)&hdmitx_notifier_nb_a;
 
 #ifdef CONFIG_USE_OF
 	if (pdev->dev.of_node) {

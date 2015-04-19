@@ -5,19 +5,19 @@
 
 /* old definitions move to hdmi_common.h */
 
-enum Hdmi_RX_Video_State {
+enum hdmi_rx_video_state {
 	STATE_VIDEO__POWERDOWN = 0,
 	STATE_VIDEO__MUTED = 1,
 	STATE_VIDEO__UNMUTE = 2,
 	STATE_VIDEO__ON = 3,
 };
 
-struct Pixels_Num {
+struct pixel_num {
 	short H; /* Number of horizontal pixels */
 	short V; /* Number of vertical pixels */
 };
 
-enum Hdmi_Pixel_Repeat {
+enum hdmi_pixel_repeat {
 	NO_REPEAT = 0,
 	HDMI_2_TIMES_REPEAT,
 	HDMI_3_TIMES_REPEAT,
@@ -31,7 +31,7 @@ enum Hdmi_Pixel_Repeat {
 	MAX_TIMES_REPEAT,
 };
 
-enum Hdmi_Scan {
+enum hdmi_scan {
 	SS_NO_DATA = 0,
 	/* where some active pixelsand lines at the edges are not displayed. */
 	SS_SCAN_OVER,
@@ -42,18 +42,18 @@ enum Hdmi_Scan {
 	SS_RSV
 };
 
-enum Hdmi_BarInfo {
+enum hdmi_barinfo {
 	B_UNVALID = 0, B_BAR_VERT, /* Vert. Bar Infovalid */
 	B_BAR_HORIZ, /* Horiz. Bar Infovalid */
 	B_BAR_VERT_HORIZ,
 /* Vert.and Horiz. Bar Info valid */
 };
 
-enum Hdmi_Colorimetry {
+enum hdmi_colorimetry {
 	CC_NO_DATA = 0, CC_ITU601, CC_ITU709, CC_XVYCC601, CC_XVYCC709,
 };
 
-enum Hdmi_Slacing {
+enum hdmi_slacing {
 	SC_NO_UINFORM = 0,
 	/* Picture has been scaled horizontally */
 	SC_SCALE_HORIZ,
@@ -62,16 +62,16 @@ enum Hdmi_Slacing {
 /* Picture has been scaled horizontally & SC_SCALE_H_V */
 };
 
-struct Hdmirx_VideoInfo {
-	enum Hdmi_VIC VIC;
-	enum Hdmi_Color_Space_Type color;
-	enum Hdmi_Color_Depth color_depth;
-	enum Hdmi_BarInfo bar_info;
-	enum Hdmi_Pixel_Repeat repeat_time;
-	enum Hdmi_Aspect_Ratio aspect_ratio;
-	enum Hdmi_Colorimetry cc;
-	enum Hdmi_Scan ss;
-	enum Hdmi_Slacing sc;
+struct hdmi_videoinfo {
+	enum hdmi_vic VIC;
+	enum hdmi_color_space_type color;
+	enum hdmi_color_depth color_depth;
+	enum hdmi_barinfo bar_info;
+	enum hdmi_pixel_repeat repeat_time;
+	enum hdmi_aspect_ratio aspect_ratio;
+	enum hdmi_colorimetry cc;
+	enum hdmi_scan ss;
+	enum hdmi_slacing sc;
 };
 /* -------------------HDMI VIDEO END---------------------------- */
 
@@ -97,7 +97,7 @@ struct Hdmirx_VideoInfo {
  */
 #define ENCRYPT_KEY                                 0xbe
 
-enum Hdcp_AuthState {
+enum hdcp_authstate {
 	HDCP_NO_AUTH = 0,
 	HDCP_NO_DEVICE_WITH_SLAVE_ADDR,
 	HDCP_BCAP_ERROR,
@@ -119,7 +119,7 @@ enum Hdcp_AuthState {
 /* -----------------------HDCP END---------------------------------------- */
 
 /* -----------------------HDMI TX---------------------------------- */
-enum Hdmitx_DispType {
+enum hdmitx_disptype {
 	CABLE_UNPLUG = 0,
 	CABLE_PLUGIN_CHECK_EDID_I2C_ERROR,
 	CABLE_PLUGIN_CHECK_EDID_HEAD_ERROR,
@@ -129,7 +129,7 @@ enum Hdmitx_DispType {
 	CABLE_MAX
 };
 
-struct Hdmitx_SupStatus {
+struct hdmitx_supstatus {
 	int hpd_state:1;
 	int support_480i:1;
 	int support_576i:1;
@@ -146,7 +146,7 @@ struct Hdmitx_SupStatus {
 	int support_1080p_30hz:1;
 };
 
-struct Hdmitx_SupLpcmInfo {
+struct hdmitx_suplpcminfo {
 	int support_flag:1;
 	int max_channel_num:3;
 	int _192k:1;
@@ -161,7 +161,7 @@ struct Hdmitx_SupLpcmInfo {
 	int _16bit:1;
 };
 
-struct Hdmitx_SupCompressedInfo {
+struct hdmitx_supcompressedinfo {
 	int support_flag:1;
 	int max_channel_num:3;
 	int _192k:1;
@@ -174,7 +174,7 @@ struct Hdmitx_SupCompressedInfo {
 	int _max_bit:10;
 };
 
-struct Hdmitx_SupSpeakerFormat {
+struct hdmitx_supspeakerformat {
 	int rlc_rrc:1;
 	int flc_frc:1;
 	int rc:1;
@@ -184,69 +184,69 @@ struct Hdmitx_SupSpeakerFormat {
 	int fl_fr:1;
 };
 
-struct Hdmitx_VidPara {
+struct hdmitx_vidpara {
 	unsigned char VIC;
-	enum Hdmi_Color_Space_Type color_prefer;
-	enum Hdmi_Color_Space_Type color;
-	enum Hdmi_Color_Depth color_depth;
-	enum Hdmi_BarInfo bar_info;
-	enum Hdmi_Pixel_Repeat repeat_time;
-	enum Hdmi_Aspect_Ratio aspect_ratio;
-	enum Hdmi_Colorimetry cc;
-	enum Hdmi_Scan ss;
-	enum Hdmi_Slacing sc;
+	enum hdmi_color_space_type color_prefer;
+	enum hdmi_color_space_type color;
+	enum hdmi_color_depth color_depth;
+	enum hdmi_barinfo bar_info;
+	enum hdmi_pixel_repeat repeat_time;
+	enum hdmi_aspect_ratio aspect_ratio;
+	enum hdmi_colorimetry cc;
+	enum hdmi_scan ss;
+	enum hdmi_slacing sc;
 };
 
-struct Hdmitx_AudPara {
-	enum Hdmi_Audio_Type type;
-	enum Hdmi_Audio_ChnNum channel_num;
-	enum Hdmi_Audio_FS sample_rate;
-	enum Hdmi_Audio_SampSize sample_size;
+struct hdmitx_audpara {
+	enum hdmi_audio_type type;
+	enum hdmi_audio_chnnum channel_num;
+	enum hdmi_audio_fs sample_rate;
+	enum hdmi_audio_sampsize sample_size;
 };
 
-struct Hdmitx_SupAudInfo {
-	struct Hdmitx_SupLpcmInfo	_60958_PCM;
-	struct Hdmitx_SupCompressedInfo	_AC3;
-	struct Hdmitx_SupCompressedInfo	_MPEG1;
-	struct Hdmitx_SupCompressedInfo	_MP3;
-	struct Hdmitx_SupCompressedInfo	_MPEG2;
-	struct Hdmitx_SupCompressedInfo	_AAC;
-	struct Hdmitx_SupCompressedInfo	_DTS;
-	struct Hdmitx_SupCompressedInfo	_ATRAC;
-	struct Hdmitx_SupCompressedInfo	_One_Bit_Audio;
-	struct Hdmitx_SupCompressedInfo	_Dolby;
-	struct Hdmitx_SupCompressedInfo	_DTS_HD;
-	struct Hdmitx_SupCompressedInfo	_MAT;
-	struct Hdmitx_SupCompressedInfo	_DST;
-	struct Hdmitx_SupCompressedInfo	_WMA;
-	struct Hdmitx_SupSpeakerFormat		speaker_allocation;
+struct hdmitx_supaudinfo {
+	struct hdmitx_suplpcminfo	_60958_PCM;
+	struct hdmitx_supcompressedinfo	_AC3;
+	struct hdmitx_supcompressedinfo	_MPEG1;
+	struct hdmitx_supcompressedinfo	_MP3;
+	struct hdmitx_supcompressedinfo	_MPEG2;
+	struct hdmitx_supcompressedinfo	_AAC;
+	struct hdmitx_supcompressedinfo	_DTS;
+	struct hdmitx_supcompressedinfo	_ATRAC;
+	struct hdmitx_supcompressedinfo	_One_Bit_Audio;
+	struct hdmitx_supcompressedinfo	_Dolby;
+	struct hdmitx_supcompressedinfo	_DTS_HD;
+	struct hdmitx_supcompressedinfo	_MAT;
+	struct hdmitx_supcompressedinfo	_DST;
+	struct hdmitx_supcompressedinfo	_WMA;
+	struct hdmitx_supspeakerformat		speaker_allocation;
 };
 
 /* ACR packet CTS parameters have 3 types: */
 /* 1. HW auto calculated */
 /* 2. Fixed values defined by Spec */
 /* 3. Calculated by clock meter */
-enum Hdmitx_AudCTS {
+enum hdmitx_audcts {
 	AUD_CTS_AUTO = 0, AUD_CTS_FIXED, AUD_CTS_CALC,
 };
 
-struct Dispmode_Vic {
+struct dispmode_vic {
 	const char *disp_mode;
-	enum Hdmi_VIC VIC;
+	enum hdmi_vic VIC;
 };
 
-struct Hdmitx_AudInfo {
+struct hdmitx_audinfo {
 	/* !< Signal decoding type -- TvAudioType */
-	enum Hdmi_Audio_Type type;
-	enum Hdmi_Audio_Format format;
+	enum hdmi_audio_type type;
+	enum hdmi_audio_format format;
 	/* !< active audio channels bit mask. */
-	enum Hdmi_Audio_ChnNum channels;
-	enum Hdmi_Audio_FS fs; /* !< Signal sample rate in Hz */
-	enum Hdmi_Audio_SampSize ss;
+	enum hdmi_audio_chnnum channels;
+	enum hdmi_audio_fs fs; /* !< Signal sample rate in Hz */
+	enum hdmi_audio_sampsize ss;
 };
 
 /* -----------------Source Physical Address--------------- */
-struct Vsdb_PhyAddr {
+struct vsdb_phyaddr {
 	unsigned char a:4;
 	unsigned char b:4;
 	unsigned char c:4;
@@ -254,8 +254,8 @@ struct Vsdb_PhyAddr {
 	unsigned char valid;
 };
 
-struct Hdmitx_Clk {
-	enum Hdmi_VIC vic;
+struct hdmitx_clk {
+	enum hdmi_vic vic;
 	uint64_t clk_sys;
 	uint64_t clk_phy;
 	uint64_t clk_encp;
@@ -263,14 +263,14 @@ struct Hdmitx_Clk {
 	uint64_t clk_pixel;
 };
 
-struct Hdmitx_Info {
-	struct Hdmi_RX_AudioInfo audio_info;
-	struct Hdmitx_SupAudInfo tv_audio_info;
+struct hdmitx_info {
+	struct hdmi_rx_audioinfo audio_info;
+	struct hdmitx_supaudinfo tv_audio_info;
 	/* Hdmi_tx_video_info_t            video_info; */
-	enum Hdcp_AuthState auth_state;
-	enum Hdmitx_DispType output_state;
+	enum hdcp_authstate auth_state;
+	enum hdmitx_disptype output_state;
 	/* -----------------Source Physical Address--------------- */
-	struct Vsdb_PhyAddr vsdb_phy_addr;
+	struct vsdb_phyaddr vsdb_phy_addr;
 	/* ------------------------------------------------------- */
 	unsigned video_out_changing_flag:1;
 	unsigned support_underscan_flag:1;

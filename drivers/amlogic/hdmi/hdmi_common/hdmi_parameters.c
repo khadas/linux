@@ -653,12 +653,13 @@ static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_3840x1080p120_16x9,
 	&fmt_para_3840x540p200_16x9,
 	&fmt_para_3840x540p240_16x9,
+	NULL,
 };
 
-struct hdmi_format_para *hdmi_get_fmt_paras(HDMI_Video_Codes_t vic)
+struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic)
 {
 	int i;
-	for (i = 0; i < ARRAY_SIZE(all_fmt_paras); i++) {
+	for (i = 0; all_fmt_paras[i] != NULL; i++) {
 		if (vic == all_fmt_paras[i]->vic)
 			return all_fmt_paras[i];
 	}
@@ -672,7 +673,7 @@ void check_detail_fmt(void)
 	struct hdmi_format_para *p;
 	struct hdmi_cea_timing *t;
 	pr_warn("VIC Hactive Vactive I/P Htotal Hblank Vtotal Vblank Hfreq Vfreq Pfreq\n");
-	for (i = 0; i < ARRAY_SIZE(all_fmt_paras); i++) {
+	for (i = 0; all_fmt_paras[i] != NULL; i++) {
 		p = all_fmt_paras[i];
 		t = &p->timing;
 		pr_warn("%s[%d] %d %d %c %d %d %d %d %d %d %d\n",
@@ -684,7 +685,7 @@ void check_detail_fmt(void)
 	}
 
 	pr_warn("\nVIC Hfront Hsync Hback Hpol Vfront Vsync Vback Vpol Ln\n");
-	for (i = 0; i < ARRAY_SIZE(all_fmt_paras); i++) {
+	for (i = 0; all_fmt_paras[i] != NULL; i++) {
 		p = all_fmt_paras[i];
 		t = &p->timing;
 	pr_warn("%s[%d] %d %d %d %c %d %d %d %c %d\n",
@@ -697,7 +698,7 @@ void check_detail_fmt(void)
 	}
 
 	pr_warn("\nCheck Horizon parameter\n");
-	for (i = 0; i < ARRAY_SIZE(all_fmt_paras); i++) {
+	for (i = 0; all_fmt_paras[i] != NULL; i++) {
 		p = all_fmt_paras[i];
 		t = &p->timing;
 	if (t->h_total != (t->h_active + t->h_blank))
@@ -711,7 +712,7 @@ void check_detail_fmt(void)
 	}
 
 	pr_warn("\nCheck Vertical parameter\n");
-	for (i = 0; i < ARRAY_SIZE(all_fmt_paras); i++) {
+	for (i = 0; all_fmt_paras[i] != NULL; i++) {
 		p = all_fmt_paras[i];
 		t = &p->timing;
 		if (t->v_total != (t->v_active + t->v_blank))
@@ -731,7 +732,7 @@ void check_detail_fmt(void)
 	}
 }
 
-struct hdmi_audio_fs_fmt_n_cts aud_32k_para = {
+struct hdmi_audio_fs_ncts aud_32k_para = {
 	.array[0] = {
 	.tmds_clk = 25174,
 	.n = 4576,
@@ -760,14 +761,14 @@ struct hdmi_audio_fs_fmt_n_cts aud_32k_para = {
 	.def_n = 4096,
 };
 
-static struct hdmi_audio_fs_fmt_n_cts *all_aud_paras[] = {
+static struct hdmi_audio_fs_ncts *all_aud_paras[] = {
 	NULL,
 	&aud_32k_para,
 };
 
-unsigned int hdmi_get_aud_n_paras(audio_fs_t fs, unsigned int tmds_clk)
+unsigned int hdmi_get_aud_n_paras(enum hdmi_audio_fs fs, unsigned int tmds_clk)
 {
-	struct hdmi_audio_fs_fmt_n_cts *p = NULL;
+	struct hdmi_audio_fs_ncts *p = NULL;
 	unsigned int i;
 
 	p = all_aud_paras[fs];

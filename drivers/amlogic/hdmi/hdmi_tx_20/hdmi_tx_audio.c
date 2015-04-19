@@ -41,7 +41,7 @@ void hdmi_tx_set_N_CTS(unsigned N_value, unsigned CTS)
 }
 
 static void hdmi_tx_construct_aud_packet(
-	struct Hdmitx_AudPara *audio_param, unsigned char *AUD_DB,
+	struct hdmitx_audpara *audio_param, unsigned char *AUD_DB,
 	unsigned char *CHAN_STAT_BUF, int hdmi_ch)
 {
 #ifndef PCM_USE_INFOFRAME
@@ -198,8 +198,8 @@ static void hdmi_tx_construct_aud_packet(
 #endif
 }
 
-int hdmitx_set_audio(struct Hdmitx_Dev *hdmitx_device,
-	struct Hdmitx_AudPara *audio_param, int hdmi_ch)
+int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
+	struct hdmitx_audpara *audio_param, int hdmi_ch)
 {
 	int i, ret = -1;
 	unsigned char AUD_DB[32];
@@ -216,6 +216,8 @@ int hdmitx_set_audio(struct Hdmitx_Dev *hdmitx_device,
 		hdmitx_device->HWOp.SetAudioInfoFrame(AUD_DB, CHAN_STAT_BUF);
 		ret = 0;
 	}
+#if 0
 	hdmitx_special_handler_audio(hdmitx_device);
+#endif
 	return ret;
 }
