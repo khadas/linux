@@ -421,8 +421,7 @@ static int meson_uart_request_port(struct uart_port *port)
 			return -ENOMEM;
 	}
 
-	pr_info("==uart%d reg addr = %x\n", port->line,
-	       (unsigned int)port->membase);
+	pr_info("==uart%d reg addr = %p\n", port->line, port->membase);
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel(val, port->membase + AML_UART_MISC);
 
