@@ -19,11 +19,17 @@ extern void __iomem *reg_base_cbus;
 #define HHI_GP1_PLL_CNTL3               0x1018
 #define HHI_GP1_PLL_CNTL4               0x1019
 
+#define HHI_MEM_PD_REG0                 0x1040
 #define HHI_VPU_MEM_PD_REG0             0x1041
 #define HHI_VPU_MEM_PD_REG1             0x1042
 
 #define HHI_VPU_CLK_CNTL                0x106f
 
+#define RESET0_REGISTER                 0x1101
+#define RESET1_REGISTER                 0x1102
+#define RESET2_REGISTER                 0x1103
+#define RESET3_REGISTER                 0x1104
+#define RESET4_REGISTER                 0x1105
 #define RESET0_MASK                     0x1110
 #define RESET1_MASK                     0x1111
 #define RESET2_MASK                     0x1112
@@ -45,6 +51,11 @@ extern void __iomem *reg_base_cbus;
 #define P_HHI_VPU_MEM_PD_REG0           CBUS_REG_ADDR(HHI_VPU_MEM_PD_REG0)
 #define P_HHI_VPU_MEM_PD_REG1           CBUS_REG_ADDR(HHI_VPU_MEM_PD_REG1)
 #define P_HHI_VPU_CLK_CNTL              CBUS_REG_ADDR(HHI_VPU_CLK_CNTL)
+#define P_RESET0_REGISTER               CBUS_REG_ADDR(RESET0_REGISTER)
+#define P_RESET1_REGISTER               CBUS_REG_ADDR(RESET1_REGISTER)
+#define P_RESET2_REGISTER               CBUS_REG_ADDR(RESET2_REGISTER)
+#define P_RESET3_REGISTER               CBUS_REG_ADDR(RESET3_REGISTER)
+#define P_RESET4_REGISTER               CBUS_REG_ADDR(RESET4_REGISTER)
 #define P_RESET0_MASK                   CBUS_REG_ADDR(RESET0_MASK)
 #define P_RESET1_MASK                   CBUS_REG_ADDR(RESET1_MASK)
 #define P_RESET2_MASK                   CBUS_REG_ADDR(RESET2_MASK)
