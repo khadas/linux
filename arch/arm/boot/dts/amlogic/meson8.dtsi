@@ -537,3 +537,11 @@
 	clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp",
 		"hdmitx_clk_enci", "hdmitx_clk_pixel", "hdmitx_clk_phy";
 };
+
+	&saradc {
+		interrupts = <0 9 1>;
+		interrupt-names = "saradc_int";
+		clocks = <&clock CLK_XTAL>;
+		clock-names = "saradc_clk";
+		reg = <0xc1108680 0x30>;
+	};

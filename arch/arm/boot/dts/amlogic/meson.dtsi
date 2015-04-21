@@ -124,4 +124,11 @@
 		pinctrl-1=<&hdmitx_ddc>;
 		pinctrl-2=<&hdmitx_cec>;
 	};
+
+	saradc: saradc {
+		compatible = "amlogic, saradc";
+		dev_name = "saradc";
+		status = "disabled";
+};
+
 }; /* end of / */

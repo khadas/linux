@@ -76,3 +76,5 @@ obj-$(CONFIG_TVIN)		+= tvin/
 
 obj-$(CONFIG_AML_NAND)		+= amlnf/
 
+obj-$(CONFIG_AM_INPUT)		+= input/
+

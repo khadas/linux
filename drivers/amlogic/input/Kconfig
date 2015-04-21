@@ -1,0 +1,16 @@
+#
+# Input device configuration
+#
+
+menuconfig AM_INPUT
+	bool "Input Device Support"
+	default n
+	help
+	  "Input devices include keyboard, touchscreen, remote, sensor, etc."
+
+if AM_INPUT
+
+source "drivers/amlogic/input/saradc/Kconfig"
+
+endif
+

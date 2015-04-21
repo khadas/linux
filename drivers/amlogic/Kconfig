@@ -71,4 +71,6 @@ source "drivers/amlogic/tvin/Kconfig"
 
 source "drivers/amlogic/amlnf/Kconfig"
 
+source "drivers/amlogic/input/Kconfig"
+
 endmenu
