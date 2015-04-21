@@ -44,6 +44,8 @@ unsigned int timeout_cnt = 0;
 static unsigned int sdhc_error_flag;
 static unsigned int sdhc_debug_flag;
 static int sdhc_err_bak;
+static struct semaphore sdhc_sema;
+
 static void aml_sdhc_send_stop(struct amlsd_host *host);
 static void aml_sdhc_clk_switch(struct amlsd_platform *pdata,
 int clk_div, int clk_src_sel);
@@ -994,7 +996,8 @@ if (0) {
 		/*Wait command busy*/
 		sdhc_err("aml_sdhc_wait_ready request done\n");
 	}
-	  mmc_request_done(host->mmc, mrq);
+	mmc_request_done(host->mmc, mrq);
+	up(&sdhc_sema);
 }
 
 char *msg_err[] = {
@@ -1148,6 +1151,7 @@ static void aml_sdhc_timeout(struct work_struct *work)
 	if (host->xfer_step == XFER_FINISHED) {
 		spin_unlock_irqrestore(&host->mrq_lock, flags);
 		sdhc_err("timeout after xfer finished\n");
+		up(&sdhc_sema);
 		return;
 	}
 
@@ -1167,6 +1171,8 @@ static void aml_sdhc_timeout(struct work_struct *work)
 		mmc_hostname(host->mmc),
 		host->mrq->cmd->opcode, host->xfer_step,
 		time_start_cnt, timeout_cnt);
+		up(&sdhc_sema);
+
 		return;
 	}
 timeout_handle:
@@ -1313,6 +1319,7 @@ void aml_sdhc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned long flags;
 	unsigned int timeout;
 	u32 tuning_opcode;
+	u32 conflit_count = 0;
 
 	BUG_ON(!mmc);
 	BUG_ON(!mrq);
@@ -1320,8 +1327,20 @@ void aml_sdhc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	pdata = mmc_priv(mmc);
 	host = (void *)pdata->host;
 
-	if (aml_check_unsupport_cmd(mmc, mrq))
+
+	while (down_trylock(&sdhc_sema)) {
+		if (conflit_count++ > 10) {
+			sdhc_err("SDHC CMD conflict!\n");
+			mmc_request_done(mmc, mrq);
+			return;
+		}
+		msleep(100);
+	}
+
+	if (aml_check_unsupport_cmd(mmc, mrq)) {
+		up(&sdhc_sema);
 		return;
+	}
 
 	/* only for SDCARD */
 	if (!pdata->is_in || (!host->init_flag && aml_card_type_sd(pdata))) {
@@ -1330,21 +1349,30 @@ void aml_sdhc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mrq->cmd->retries = 0;
 		spin_unlock_irqrestore(&host->mrq_lock, flags);
 		mmc_request_done(mmc, mrq);
+		up(&sdhc_sema);
 		return;
 	}
 
 	if (pdata->need_retuning && mmc->card) {
+		up(&sdhc_sema);
 		/* eMMC uses cmd21 but sd and sdio use cmd19 */
 		tuning_opcode = (mmc->card->type == MMC_TYPE_MMC) ?
 		MMC_SEND_TUNING_BLOCK_HS200 : MMC_SEND_TUNING_BLOCK;
 		aml_sdhc_execute_tuning(mmc, tuning_opcode);
-	}
+		while (down_trylock(&sdhc_sema)) {
+			if (conflit_count++ > 10) {
+				mmc_request_done(mmc, mrq);
+				sdhc_err(" SDHC CMD conflict in tuning\n");
+				return;
+			}
+			msleep(100);
+		}
 
 	/* aml_sdhc_host_reset(host); */
 	/* vista = readl(host->base+SDHC_ISTA); */
 	/* writel(vista, host->base+SDHC_ISTA); */
 	 aml_sdhc_disable_imask(host, SDHC_ICTL_ALL);
-
+	}
 	 sdhc_dbg(AMLSD_DBG_REQ , "%s: starting CMD%u arg %08x flags %08x\n",
 	 mmc_hostname(mmc), mrq->cmd->opcode,
 	 mrq->cmd->arg, mrq->cmd->flags);
@@ -1405,7 +1433,6 @@ void aml_sdhc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/* about 30S for erase cmd. */
 	if (mrq->cmd->opcode == MMC_ERASE)
 		timeout = 3000;
-
 		schedule_delayed_work(&host->timeout, timeout);
 
 		spin_lock_irqsave(&host->mrq_lock, flags);
@@ -1511,6 +1538,7 @@ static irqreturn_t aml_sdhc_irq(int irq, void *dev_id)
 	mrq = host->mrq;
 	mmc = host->mmc;
 	pdata = mmc_priv(mmc);
+
 	if (!mrq) {
 		sdhc_err("NULL mrq in aml_sdhc_irq step %d\n", host->xfer_step);
 	if (host->xfer_step == XFER_FINISHED ||
@@ -2458,6 +2486,8 @@ static int aml_sdhc_probe(struct platform_device *pdev)
 
 	 aml_sdhc_reg_init(host);
 	 host->pdev = pdev;
+
+	sema_init(&sdhc_sema, 1);
 
 for (i = 0; i < MMC_MAX_DEVICE; i++) {
 	/*malloc extra amlsd_platform*/
