@@ -29,7 +29,7 @@
 #include "aml_audio_hw.h"
 #include "aml_spdif_dai.h"
 #include "aml_i2s.h"
-#include "aml_notify.h"
+#include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 
 /* #define DEBUG_ALSA_SPDIF_DAI */
@@ -53,9 +53,12 @@ static unsigned last_iec_clock = -1;
 unsigned int IEC958_mode_codec;
 EXPORT_SYMBOL(IEC958_mode_codec);
 
+/*
 static int iec958buf[32 + 16];
+*/
 void aml_spdif_play(void)
 {
+#if 0
 	struct _aiu_958_raw_setting_t set;
 	struct _aiu_958_channel_status_t chstat;
 	struct snd_pcm_substream substream;
@@ -92,6 +95,7 @@ void aml_spdif_play(void)
 #endif
 	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
 	audio_hw_958_enable(1);
+#endif
 }
 
 static void aml_spdif_play_stop(void)
@@ -210,6 +214,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		sample_rate = AUDIO_CLK_FREQ_441;
 		break;
 	};
+	audio_hw_958_enable(0);
 	if (last_iec_clock != sample_rate) {
 		ALSA_PRINT("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
 			   last_iec_clock, sample_rate);
@@ -406,7 +411,7 @@ static int aml_dai_spdif_startup(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		s->device_type = AML_AUDIO_SPDIFOUT;
 		/* audio_spdifout_pg_enable(1); */
-		aml_spdif_play_stop();
+		/*aml_spdif_play_stop(); */
 	} else {
 		s->device_type = AML_AUDIO_SPDIFIN;
 	}

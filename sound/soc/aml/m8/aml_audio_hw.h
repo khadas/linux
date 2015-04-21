@@ -137,6 +137,9 @@ unsigned audio_spdifout_pg_enable(unsigned char enable);
 unsigned audio_aiu_pg_enable(unsigned char enable);
 void audio_mute_left_right(unsigned flag);
 
+extern unsigned int IEC958_mode_codec;
+
+
 /*OVERCLOCK == 1,our SOC privide 512fs mclk,OVERCLOCK == 0 ,256fs*/
 #define OVERCLOCK 0
 #define IEC958_OVERCLOCK 1

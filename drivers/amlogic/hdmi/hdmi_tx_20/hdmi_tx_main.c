@@ -47,7 +47,7 @@
 
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
-
+#include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
@@ -1262,9 +1262,6 @@ static enum hdmi_audio_sampsize aud_size_map(unsigned int bits)
 	return SS_MAX;
 }
 
-/*TODO int aout_register_client(struct notifier_block *);
-int aout_unregister_client(struct notifier_block *);
-*/
 static int hdmitx_notify_callback_a(struct notifier_block *block,
 	unsigned long cmd , void *para);
 static struct notifier_block hdmitx_notifier_nb_a = {
@@ -1819,7 +1816,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #ifdef CONFIG_AM_TV_OUTPUT2
 	vout2_register_client(&hdmitx_notifier_nb_v2);
 #endif
-/* aout_register_client(&hdmitx_notifier_nb_a); */
+	aout_register_client(&hdmitx_notifier_nb_a);
 	r = r ? (long int)&hdmitx_notifier_nb_a :
 		(long int)&hdmitx_notifier_nb_a;
 
@@ -1959,7 +1956,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #ifdef CONFIG_AM_TV_OUTPUT2
 	vout2_unregister_client(&hdmitx_notifier_nb_v2);
 #endif
-/* aout_unregister_client(&hdmitx_notifier_nb_a); */
+	aout_unregister_client(&hdmitx_notifier_nb_a);
 
 	/* Remove the cdev */
 	device_remove_file(hdmitx_dev, &dev_attr_disp_mode);

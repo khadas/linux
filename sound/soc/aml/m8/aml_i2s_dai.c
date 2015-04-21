@@ -24,7 +24,8 @@
 #include "aml_pcm.h"
 #include "aml_i2s.h"
 #include "aml_audio_hw.h"
-#include "aml_notify.h"
+#include <linux/amlogic/sound/aout_notify.h>
+#include "aml_spdif_dai.h"
 
 struct aml_dai_info dai_info[3] = { {0} };
 
@@ -201,6 +202,10 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
 		aml_hw_i2s_init(runtime);
+/* i2s/958 share the same audio hw buffer when PCM mode */
+		if (IEC958_mode_codec == 0) {
+			aml_hw_iec958_init(substream);
+		}
 	}
 	if (runtime->channels == 8) {
 		pr_info("[%s,%d]8ch PCM output->notify HDMI\n", __func__,
@@ -224,6 +229,10 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			pr_info("aiu i2s playback enable\n\n");
 			audio_out_i2s_enable(1);
+			if (IEC958_mode_codec == 0) {
+				ALSA_PRINT("audio_hw_958_enable  1\n");
+				audio_hw_958_enable(1);
+			}
 		} else {
 			audio_in_i2s_enable(1);
 			ppp = (int *)(rtd->dma_area + rtd->dma_bytes * 2 - 8);
@@ -237,6 +246,10 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			pr_info("aiu i2s playback disable\n\n");
 			audio_out_i2s_enable(0);
+			if (IEC958_mode_codec == 0) {
+				pr_info("audio_hw_958_enable  0\n");
+				audio_hw_958_enable(0);
+			}
 		} else {
 			audio_in_i2s_enable(0);
 		}

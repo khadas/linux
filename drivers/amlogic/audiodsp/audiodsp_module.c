@@ -15,6 +15,7 @@
 #include <linux/amlogic/major.h>
 #include <linux/slab.h>
 #include <linux/reset.h>
+#include <linux/amlogic/sound/aiu_regs.h>
 
 /* #include <asm/dsp/audiodsp_control.h> */
 #include "audiodsp_control.h"	/* temp here */
@@ -42,6 +43,7 @@ MODULE_AUTHOR("Zhou Zhi <zhi.zhou@amlogic.com>");
 MODULE_VERSION("1.0.0");
 static int IEC958_mode_raw_last;
 static int IEC958_mode_codec_last;
+static unsigned   audio_samesource = 1;
 /* code for DD/DD+ DRC control  */
 /* Dynamic range compression mode */
 enum DDP_DEC_DRC_MODE {
@@ -54,9 +56,8 @@ enum DDP_DEC_DRC_MODE {
 #define DRC_HIGH_CUT_BIT 3
 #define DRC_LOW_BST_BIT 16
 static unsigned ac3_drc_control =
-	(GBL_COMP_LINE << DRC_MODE_BIT) |
-	(100 << DRC_HIGH_CUT_BIT) |
-	(100 << DRC_LOW_BST_BIT);
+(GBL_COMP_LINE << DRC_MODE_BIT) |
+(100 << DRC_HIGH_CUT_BIT) | (100 << DRC_LOW_BST_BIT);
 /* code for DTS dial norm/downmix mode control */
 enum DTS_DMX_MODE {
 	DTS_DMX_LoRo = 0,
@@ -66,9 +67,8 @@ enum DTS_DMX_MODE {
 #define DTS_DIAL_NORM_BIT  1
 #define DTS_DRC_SCALE_BIT  2
 static unsigned int dts_dec_control =
-	(DTS_DMX_LoRo << DTS_DMX_MODE_BIT)|
-	(1 << DTS_DIAL_NORM_BIT) |
-	(0 << DTS_DRC_SCALE_BIT);
+(DTS_DMX_LoRo << DTS_DMX_MODE_BIT) |
+(1 << DTS_DIAL_NORM_BIT) | (0 << DTS_DRC_SCALE_BIT);
 
 static struct audiodsp_priv *audiodsp_p;
 #define  DSP_DRIVER_NAME	"audiodsp"
@@ -165,11 +165,11 @@ int audiodsp_start(void)
 			DSP_PRNT("dsp send audio info\n");
 			for (i = 0; i < 2000; i++) {
 				/*
-				* maybe at audiodsp side,
-				* INT not enabled yet,so wait a while
-				*/
+				 * maybe at audiodsp side,
+				 * INT not enabled yet,so wait a while
+				 */
 				if (DSP_RD(DSP_AUDIOINFO_STATUS) ==
-						DSP_AUDIOINFO_READY)
+				    DSP_AUDIOINFO_READY)
 					break;
 				udelay(1000);
 			}
@@ -298,7 +298,7 @@ static long audiodsp_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case AUDIODSP_START:
 		if (IEC958_mode_codec
-		     || (IEC958_mode_codec_last != IEC958_mode_codec)) {
+		    || (IEC958_mode_codec_last != IEC958_mode_codec)) {
 			IEC958_mode_raw_last = IEC958_mode_raw;
 			IEC958_mode_codec_last = IEC958_mode_codec;
 			aml_alsa_hw_reprepare();
@@ -356,8 +356,8 @@ static long audiodsp_ioctl(struct file *file, unsigned int cmd,
 	case AUDIODSP_REGISTER_FIRMWARE:
 		a_cmd = (struct audiodsp_cmd *)args;
 		/*
-		* DSP_PRNT("register firware,%d,%s\n",a_cmd->fmt,a_cmd->data);
-		*/
+		 * DSP_PRNT("register firware,%d,%s\n",a_cmd->fmt,a_cmd->data);
+		 */
 		len = a_cmd->data_len > 64 ? 64 : a_cmd->data_len;
 		if (copy_from_user(name, a_cmd->data, len))
 			return -EFAULT;
@@ -597,9 +597,9 @@ ssize_t audiodsp_read(struct file *file, char __user *ubuf, size_t size,
 	mutex_unlock(&priv->stream_buffer_mutex);
 	/* u32 timestamp_pcrscr_get(void); */
 	/*
-	*pr_info("current pts=%ld,src=%ld\n",
-	*dsp_codec_get_current_pts(priv),timestamp_pcrscr_get());
-	*/
+	 *pr_info("current pts=%ld,src=%ld\n",
+	 *dsp_codec_get_current_pts(priv),timestamp_pcrscr_get());
+	 */
 	return len;
  error_out:
 	mutex_unlock(&priv->stream_buffer_mutex);
@@ -811,7 +811,7 @@ static ssize_t digital_raw_store(struct class *class,
 #define SUPPORT_TYPE_NUM  9
 static unsigned char *codec_str[SUPPORT_TYPE_NUM] = {
 	"2 CH PCM", "DTS RAW Mode", "Dolby Digital", "DTS",
-	"DD+", "DTSHD",	"8 CH PCM", "TrueHD", "DTSLL"
+	"DD+", "DTSHD", "8 CH PCM", "TrueHD", "DTSLL"
 };
 
 static ssize_t digital_codec_show(struct class *cla,
@@ -835,22 +835,60 @@ static ssize_t digital_codec_store(struct class *class,
 		if (digital_codec < SUPPORT_TYPE_NUM) {
 			IEC958_mode_codec = digital_codec;
 			pr_info("IEC958_mode_codec= %d, IEC958 type %s\n",
-			       digital_codec, codec_str[digital_codec]);
+				digital_codec, codec_str[digital_codec]);
 		} else {
 			pr_info("IEC958 type set exceed supported range\n");
 		}
 	}
 	/*
-	* when raw output switch to pcm output,
-	* need trigger pcm hw prepare to re-init hw configuration
-	*/
+	 * when raw output switch to pcm output,
+	 * need trigger pcm hw prepare to re-init hw configuration
+	 */
 	pr_info("last mode %d,now %d\n", mode_codec, IEC958_mode_codec);
 
 	return count;
 }
 
+/*
+code to force enable none-samesource,
+to trigger alsa reset audio hw,only once available
+*/
+static ssize_t audio_samesource_store(struct class *class,
+				      struct class_attribute *attr,
+				      const char *buf, size_t count)
+{
+	if (kstrtoint(buf, 16, (unsigned int *)&audio_samesource)) {
+		pr_info("audio_samesource_store failed\n");
+		return -EINVAL;
+	}
+	pr_info("same source set to %d\n", audio_samesource);
+	return count;
+
+}
+
+static ssize_t audio_samesource_show(struct class *cla,
+				     struct class_attribute *attr, char *buf)
+{
+	char *pbuf = buf;
+	int samesource = 0;
+	int i2s_enable = !!(aml_read_cbus(AIU_MEM_I2S_CONTROL) & (3 << 1));
+	int iec958_enable =
+	    !!(aml_read_cbus(AIU_MEM_IEC958_CONTROL) & (3 << 1));
+	samesource =
+	    (aml_read_cbus(AIU_MEM_IEC958_START_PTR) ==
+	     aml_read_cbus(AIU_MEM_I2S_START_PTR));
+	/* make sure i2s/958 same source.and both enabled */
+	if ((samesource && i2s_enable && !iec958_enable) || !audio_samesource) {
+		samesource = 0;
+		if (audio_samesource == 0)
+			audio_samesource = 1;
+	}
+	pbuf += sprintf(pbuf, "%d\n", samesource);
+	return pbuf - buf;
+}
+
 static ssize_t print_flag_show(struct class *cla,
-	struct class_attribute *attr, char *buf)
+			       struct class_attribute *attr, char *buf)
 {
 	static char *dec_format[] = {
 		"0 - disable arc dsp print",
@@ -939,9 +977,9 @@ static ssize_t ac3_drc_control_show(struct class *cla,
 #else
 	pr_info("\tdd+ drc mode : %s\n", drcmode[ac3_drc_control & 0x3]);
 	pr_info("\tdd+ drc high cut scale : %d%%\n",
-	       (ac3_drc_control >> DRC_HIGH_CUT_BIT) & 0xff);
+		(ac3_drc_control >> DRC_HIGH_CUT_BIT) & 0xff);
 	pr_info("\tdd+ drc low boost scale : %d%%\n",
-	       (ac3_drc_control >> DRC_LOW_BST_BIT) & 0xff);
+		(ac3_drc_control >> DRC_LOW_BST_BIT) & 0xff);
 	pbuf += sprintf(pbuf, "%d\n", ac3_drc_control);
 #endif
 	return pbuf - buf;
@@ -981,7 +1019,7 @@ static ssize_t ac3_drc_control_store(struct class *class,
 		pr_info("drc low boost scale set to %d%%\n", val);
 		ac3_drc_control =
 		    (ac3_drc_control & (~(0xff << DRC_LOW_BST_BIT))) |
-		    (val <<	DRC_LOW_BST_BIT);
+		    (val << DRC_LOW_BST_BIT);
 	} else
 		pr_info("invalid args\n");
 	return count;
@@ -1120,6 +1158,8 @@ static struct class_attribute audiodsp_attrs[] = {
 	__ATTR(skip_rawbytes, S_IRUGO | S_IWUSR, skip_rawbytes_show,
 	       skip_rawbytes_store),
 	__ATTR_RO(pcm_left_len),
+	__ATTR(audio_samesource, S_IRUGO | S_IWUSR, audio_samesource_show,
+	       audio_samesource_store),
 	__ATTR_NULL
 };
 
@@ -1174,15 +1214,15 @@ int audiodsp_probe(void)
 		return -1;
 	}
 	priv->dsp_is_started = 0;
-/*
-    priv->p = ioremap_nocache(AUDIO_DSP_START_PHY_ADDR, S_1M);
-    if(priv->p)
-	DSP_PRNT("DSP IOREMAP to addr 0x%x\n",(unsigned)priv->p);
-    else{
-	DSP_PRNT("DSP IOREMAP error\n");
-	goto error1;
-    }
-*/
+	/*
+	   priv->p = ioremap_nocache(AUDIO_DSP_START_PHY_ADDR, S_1M);
+	   if(priv->p)
+	   DSP_PRNT("DSP IOREMAP to addr 0x%x\n",(unsigned)priv->p);
+	   else{
+	   DSP_PRNT("DSP IOREMAP error\n");
+	   goto error1;
+	   }
+	 */
 	audiodsp_p = priv;
 	audiodsp_init_mcode(priv);
 	if (priv->dsp_heap_size) {
@@ -1191,8 +1231,7 @@ int audiodsp_probe(void)
 			    (unsigned long)kmalloc(priv->dsp_heap_size,
 						   GFP_KERNEL);
 		if (priv->dsp_heap_start == 0) {
-			DSP_PRNT
-			    ("no memory for audio dsp dsp_set_heap\n");
+			DSP_PRNT("no memory for audio dsp dsp_set_heap\n");
 			kfree(priv);
 			return -ENOMEM;
 		}
@@ -1227,7 +1266,7 @@ int audiodsp_probe(void)
 #ifdef CONFIG_AM_STREAMING
 	set_adec_func(audiodsp_get_status);
 #endif
-	/*memset((void *)DSP_REG_OFFSET, 0, REG_MEM_SIZE);*/
+	/*memset((void *)DSP_REG_OFFSET, 0, REG_MEM_SIZE); */
 #if 0
 	dsp_get_debug_interface(0);
 #endif
