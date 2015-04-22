@@ -36,6 +36,8 @@ obj-$(CONFIG_AML_POWER_SUPPORT)	+= power/
 
 obj-$(CONFIG_AML_DEBUG)		+= aml_debug/
 
+obj-$(CONFIG_AML_REG_ACCESS)	+= reg_access/
+
 obj-$(CONFIG_REGMAP_MMIO)	+= iomap/
 
 obj-$(CONFIG_AMLOGIC_SEC)	+= secmon/

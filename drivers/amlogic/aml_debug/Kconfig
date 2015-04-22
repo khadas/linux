@@ -5,3 +5,4 @@ config AML_DEBUG
     default n
     help
       This is the Amlogic debug sysfs interface driver
+
