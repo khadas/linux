@@ -101,6 +101,10 @@
         memory-region = <&ion_reserved>;
     };
 
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-meson";
+		status = "okay";
+	};
 	meson-vout {
 		compatible = "amlogic, meson-vout";
 		dev_name = "meson-vout";

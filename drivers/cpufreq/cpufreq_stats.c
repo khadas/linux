@@ -67,14 +67,16 @@ static int cpufreq_stats_update(unsigned int cpu)
 		spin_unlock(&cpufreq_stats_lock);
 		return 0;
 	}
-	if (stat->time_in_state) {
-		stat->time_in_state[stat->last_index] +=
-			cur_time - stat->last_time;
-		if (all_stat)
-			all_stat->time_in_state[stat->last_index] +=
-					cur_time - stat->last_time;
+	if (stat->last_index != -1) {
+		if (stat->time_in_state) {
+			stat->time_in_state[stat->last_index] +=
+				cur_time - stat->last_time;
+			if (all_stat)
+				all_stat->time_in_state[stat->last_index] +=
+						cur_time - stat->last_time;
+		}
+		stat->last_time = cur_time;
 	}
-	stat->last_time = cur_time;
 	spin_unlock(&cpufreq_stats_lock);
 	return 0;
 }
@@ -349,6 +351,21 @@ static int __cpufreq_stats_create_table(struct cpufreq_policy *policy,
 	spin_lock(&cpufreq_stats_lock);
 	stat->last_time = get_jiffies_64();
 	stat->last_index = freq_table_get_index(stat, policy->cur);
+
+	/**
+	 *  Force last_index to 0 if the frequency cannot be found in the
+	 *  frequency table to avoid
+	 *
+	 *      * stat->time_in_state[-1]
+	 *      * cpufreq_stat_notifier_trans() not running
+	 *
+	 *  It can happen if the CPU is booted with a frequency not listed
+	 *  in the frequency table.
+	 *
+	 *  Simply set the last_index to 0 in this case to avoid corruption
+	 */
+	if (stat->last_index == -1)
+		stat->last_index = 0;
 	spin_unlock(&cpufreq_stats_lock);
 	cpufreq_cpu_put(current_policy);
 	return 0;

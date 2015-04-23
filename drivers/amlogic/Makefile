@@ -12,6 +12,8 @@ obj-$(CONFIG_MESON_TIMER)	+= clocksource/
 
 obj-$(CONFIG_AM_UART)		+= uart/
 
+obj-$(CONFIG_CPU_FREQ) += cpufreq/
+
 obj-$(CONFIG_AML_CPU_VERSION)	+= cpu_version/
 
 obj-$(CONFIG_PINCTRL_AMLOGIC)	+= pinctrl/

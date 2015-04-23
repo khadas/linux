@@ -250,3 +250,5 @@ config ARM_VEXPRESS_SPC_CPUFREQ
         help
           This add the CPUfreq driver support for Versatile Express
 	  big.LITTLE platforms using SPC for power management.
+source "drivers/amlogic/cpufreq/Kconfig"
+
