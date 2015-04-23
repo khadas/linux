@@ -4715,18 +4715,18 @@ static int amvideo_release(struct inode *inode, struct file *file)
 static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 {
 	long ret = 0;
-	void *argp = (void *)arg;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case AMSTREAM_IOC_SET_OMX_VPTS:{
 			u32 pts;
-			get_user(pts, (unsigned long __user *)arg);
+			get_user(pts, (u32 __user *)argp);
 			omx_pts = pts;
 		}
 		break;
 
 	case AMSTREAM_IOC_GET_OMX_VPTS:
-		put_user(omx_pts, (unsigned long __user *)arg);
+		put_user(omx_pts, (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_TRICKMODE:
@@ -4745,11 +4745,11 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 	case AMSTREAM_IOC_TRICK_STAT:
 		put_user(atomic_read(&trickmode_framedone),
-			 (unsigned long __user *)arg);
+			 (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_GET_TRICK_VPTS:
-		put_user(trickmode_vpts, (unsigned long __user *)arg);
+		put_user(trickmode_vpts, (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_VPAUSE:
@@ -4777,19 +4777,19 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_GET_SYNC_ADISCON:
-		put_user(tsync_get_sync_adiscont(), (int *)arg);
+		put_user(tsync_get_sync_adiscont(), (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_GET_SYNC_VDISCON:
-		put_user(tsync_get_sync_vdiscont(), (int *)arg);
+		put_user(tsync_get_sync_vdiscont(), (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_GET_SYNC_ADISCON_DIFF:
-		put_user(tsync_get_sync_adiscont_diff(), (int *)arg);
+		put_user(tsync_get_sync_adiscont_diff(), (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_GET_SYNC_VDISCON_DIFF:
-		put_user(tsync_get_sync_vdiscont_diff(), (int *)arg);
+		put_user(tsync_get_sync_vdiscont_diff(), (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_SET_SYNC_ADISCON_DIFF:
@@ -4808,13 +4808,13 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			states.buf_avail_num = vfsta.buf_avail_num;
 			states.buf_free_num = vfsta.buf_free_num;
 			states.buf_recycle_num = vfsta.buf_recycle_num;
-			if (copy_to_user((void *)arg, &states, sizeof(states)))
+			if (copy_to_user(argp, &states, sizeof(states)))
 				ret = -EFAULT;
 		}
 		break;
 
 	case AMSTREAM_IOC_GET_VIDEO_DISABLE:
-		put_user(disable_video, (int *)arg);
+		put_user(disable_video, (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_SET_VIDEO_DISABLE:
@@ -4822,7 +4822,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_GET_VIDEO_DISCONTINUE_REPORT:
-		put_user(enable_video_discontinue_report, (int *)arg);
+		put_user(enable_video_discontinue_report, (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_SET_VIDEO_DISCONTINUE_REPORT:
@@ -4949,7 +4949,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_GET_FREERUN_MODE:
-		put_user(freerun_mode, (int *)arg);
+		put_user(freerun_mode, (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_DISABLE_SLOW_SYNC:
@@ -4992,7 +4992,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 	case AMSTREAM_IOC_GET_3D_TYPE:
 #ifdef TV_3D_FUNCTION_OPEN
-		put_user(process_3d_type, (int *)arg);
+		put_user(process_3d_type, (u32 __user *)argp);
 
 #endif
 		break;
@@ -5001,7 +5001,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_GET_VSYNC_SLOW_FACTOR:
-		put_user(vsync_slow_factor, (unsigned long __user *)arg);
+		put_user(vsync_slow_factor, (u32 __user *)argp);
 		break;
 
 	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
@@ -5014,6 +5014,62 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+
+	switch (cmd) {
+	case AMSTREAM_IOC_SET_OMX_VPTS:
+	case AMSTREAM_IOC_GET_OMX_VPTS:
+	case AMSTREAM_IOC_TRICK_STAT:
+	case AMSTREAM_IOC_GET_TRICK_VPTS:
+	case AMSTREAM_IOC_GET_SYNC_ADISCON:
+	case AMSTREAM_IOC_GET_SYNC_VDISCON:
+	case AMSTREAM_IOC_GET_SYNC_ADISCON_DIFF:
+	case AMSTREAM_IOC_GET_SYNC_VDISCON_DIFF:
+	case AMSTREAM_IOC_VF_STATUS:
+	case AMSTREAM_IOC_GET_VIDEO_DISABLE:
+	case AMSTREAM_IOC_GET_VIDEO_DISCONTINUE_REPORT:
+	case AMSTREAM_IOC_GET_VIDEO_AXIS:
+	case AMSTREAM_IOC_SET_VIDEO_AXIS:
+	case AMSTREAM_IOC_GET_VIDEO_CROP:
+	case AMSTREAM_IOC_SET_VIDEO_CROP:
+	case AMSTREAM_IOC_GET_SCREEN_MODE:
+	case AMSTREAM_IOC_SET_SCREEN_MODE:
+	case AMSTREAM_IOC_GET_BLACKOUT_POLICY:
+	case AMSTREAM_IOC_SET_BLACKOUT_POLICY:
+	case AMSTREAM_IOC_GET_FREERUN_MODE:
+	case AMSTREAM_IOC_GET_3D_TYPE:
+	case AMSTREAM_IOC_GET_VSYNC_SLOW_FACTOR:
+		arg = (unsigned long) compat_ptr(arg);
+	case AMSTREAM_IOC_TRICKMODE:
+	case AMSTREAM_IOC_VPAUSE:
+	case AMSTREAM_IOC_AVTHRESH:
+	case AMSTREAM_IOC_SYNCTHRESH:
+	case AMSTREAM_IOC_SYNCENABLE:
+	case AMSTREAM_IOC_SET_SYNC_ADISCON:
+	case AMSTREAM_IOC_SET_SYNC_VDISCON:
+	case AMSTREAM_IOC_SET_SYNC_ADISCON_DIFF:
+	case AMSTREAM_IOC_SET_SYNC_VDISCON_DIFF:
+	case AMSTREAM_IOC_SET_VIDEO_DISABLE:
+	case AMSTREAM_IOC_SET_VIDEO_DISCONTINUE_REPORT:
+	case AMSTREAM_IOC_CLEAR_VBUF:
+	case AMSTREAM_IOC_CLEAR_VIDEO:
+	case AMSTREAM_IOC_SET_FREERUN_MODE:
+	case AMSTREAM_IOC_DISABLE_SLOW_SYNC:
+	case AMSTREAM_IOC_SET_3D_TYPE:
+	case AMSTREAM_IOC_SET_VSYNC_UPINT:
+	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
+		return amvideo_ioctl(file, cmd, arg);
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+#endif
 
 static unsigned int amvideo_poll(struct file *file, poll_table *wait_table)
 {
@@ -5032,6 +5088,9 @@ static const struct file_operations amvideo_fops = {
 	.open = amvideo_open,
 	.release = amvideo_release,
 	.unlocked_ioctl = amvideo_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amvideo_compat_ioctl,
+#endif
 	.poll = amvideo_poll,
 };
 

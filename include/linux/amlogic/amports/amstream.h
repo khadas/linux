@@ -2,6 +2,8 @@
 #define AMSTREAM_H
 
 /* #include <linux/interrupt.h> */
+#include <linux/amlogic/amports/vformat.h>
+#include <linux/amlogic/amports/aformat.h>
 
 #ifdef __KERNEL__
 #define PORT_FLAG_IN_USE    0x0001
@@ -133,7 +135,15 @@
 #define AMSTREAM_IOC_GET_OMX_VPTS _IOW((_A_M), 0xb0, unsigned long)
 
 #define AMSTREAM_IOC_GET_TRICK_VPTS _IOR((_A_M), 0xf0, unsigned long)
-#define AMSTREAM_IOC_DISABLE_SLOW_SYNC _IOR((_A_M), 0xf1, unsigned long)
+#define AMSTREAM_IOC_DISABLE_SLOW_SYNC _IOW((_A_M), 0xf1, unsigned long)
+
+#define AMSTREAM_IOC_GET_VERSION _IOR((_A_M), 0xc0, unsigned long)
+#define AMSTREAM_IOC_GET _IOWR((_A_M), 0xc1, unsigned long)
+#define AMSTREAM_IOC_SET _IOW((_A_M), 0xc2, unsigned long)
+#define AMSTREAM_IOC_GET_EX _IOWR((_A_M), 0xc3, unsigned long)
+#define AMSTREAM_IOC_SET_EX _IOW((_A_M), 0xc4, unsigned long)
+#define AMSTREAM_IOC_GET_PTR _IOWR((_A_M), 0xc5, unsigned long)
+#define AMSTREAM_IOC_SET_PTR _IOW((_A_M), 0xc6, unsigned long)
 
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
@@ -296,6 +306,158 @@ struct userdata_poc_info_t {
 
 	unsigned int poc_number;
 };
+
+/*******************************************************************
+* 0x100~~0x1FF : set cmd
+* 0x200~~0x2FF : set ex cmd
+* 0x300~~0x3FF : set ptr cmd
+* 0x400~~0x7FF : set reserved cmd
+* 0x800~~0x8FF : get cmd
+* 0x900~~0x9FF : get ex cmd
+* 0xA00~~0xAFF : get ptr cmd
+* 0xBFF~~0xFFF : get reserved cmd
+* 0xX00~~0xX5F : amstream cmd(X: cmd type)
+* 0xX60~~0xXAF : video cmd(X: cmd type)
+* 0xXAF~~0xXFF : reserved cmd(X: cmd type)
+*******************************************************************/
+/*  amstream set cmd */
+#define AMSTREAM_SET_VB_START 0x101
+#define AMSTREAM_SET_VB_SIZE 0x102
+#define AMSTREAM_SET_AB_START 0x103
+#define AMSTREAM_SET_AB_SIZE 0x104
+#define AMSTREAM_SET_VFORMAT 0x105
+#define AMSTREAM_SET_AFORMAT 0x106
+#define AMSTREAM_SET_VID 0x107
+#define AMSTREAM_SET_AID 0x108
+#define AMSTREAM_SET_SID 0x109
+#define AMSTREAM_SET_PCRID 0x10A
+#define AMSTREAM_SET_ACHANNEL 0x10B
+#define AMSTREAM_SET_SAMPLERATE 0x10C
+#define AMSTREAM_SET_DATAWIDTH 0x10D
+#define AMSTREAM_SET_TSTAMP 0x10E
+#define AMSTREAM_SET_TSTAMP_US64 0x10F
+#define AMSTREAM_SET_APTS 0x110
+#define AMSTREAM_PORT_INIT 0x111
+#define AMSTREAM_SET_TRICKMODE 0x112 /* amstream,video */
+#define AMSTREAM_AUDIO_RESET 0x013
+#define AMSTREAM_SUB_RESET 0x114
+#define AMSTREAM_DEC_RESET 0x115
+#define AMSTREAM_SET_TS_SKIPBYTE 0x116
+#define AMSTREAM_SET_SUB_TYPE 0x117
+#define AMSTREAM_SET_PCRSCR 0x118
+#define AMSTREAM_SET_DEMUX 0x119
+#define AMSTREAM_SET_VIDEO_DELAY_LIMIT_MS 0x11A
+#define AMSTREAM_SET_AUDIO_DELAY_LIMIT_MS 0x11B
+#define AMSTREAM_SET_DRMMODE 0x11C
+/*  video set   cmd */
+#define AMSTREAM_SET_OMX_VPTS 0x160
+#define AMSTREAM_SET_VPAUSE 0x161
+#define AMSTREAM_SET_AVTHRESH 0x162
+#define AMSTREAM_SET_SYNCTHRESH 0x163
+#define AMSTREAM_SET_SYNCENABLE 0x164
+#define AMSTREAM_SET_SYNC_ADISCON 0x165
+#define AMSTREAM_SET_SYNC_VDISCON 0x166
+#define AMSTREAM_SET_SYNC_ADISCON_DIFF 0x167
+#define AMSTREAM_SET_SYNC_VDISCON_DIFF 0x168
+#define AMSTREAM_SET_VIDEO_DISABLE 0x169
+#define AMSTREAM_SET_VIDEO_DISCONTINUE_REPORT 0x16A
+#define AMSTREAM_SET_SCREEN_MODE 0x16B
+#define AMSTREAM_SET_BLACKOUT_POLICY 0x16C
+#define AMSTREAM_CLEAR_VBUF 0x16D
+#define AMSTREAM_SET_CLEAR_VIDEO 0x16E
+#define AMSTREAM_SET_FREERUN_MODE 0x16F
+#define AMSTREAM_SET_DISABLE_SLOW_SYNC 0x170
+#define AMSTREAM_SET_3D_TYPE 0x171
+#define AMSTREAM_SET_VSYNC_UPINT 0x172
+#define AMSTREAM_SET_VSYNC_SLOW_FACTOR 0x173
+/*  video set ex cmd */
+#define AMSTREAM_SET_EX_VIDEO_AXIS 0x260
+#define AMSTREAM_SET_EX_VIDEO_CROP 0x261
+/*  amstream set ptr cmd */
+#define AMSTREAM_SET_PTR_AUDIO_INFO 0x300
+
+/*  amstream get cmd */
+#define AMSTREAM_GET_SUB_LENGTH 0x800
+#define AMSTREAM_GET_UD_LENGTH 0x801
+#define AMSTREAM_GET_APTS_LOOKUP 0x802
+#define AMSTREAM_GET_FIRST_APTS_FLAG 0x803
+#define AMSTREAM_GET_APTS 0x804
+#define AMSTREAM_GET_VPTS 0x805
+#define AMSTREAM_GET_PCRSCR 0x806
+#define AMSTREAM_GET_LAST_CHECKIN_APTS 0x807
+#define AMSTREAM_GET_LAST_CHECKIN_VPTS 0x808
+#define AMSTREAM_GET_LAST_CHECKOUT_APTS 0x809
+#define AMSTREAM_GET_LAST_CHECKOUT_VPTS 0x80A
+#define AMSTREAM_GET_SUB_NUM 0x80B
+#define AMSTREAM_GET_VIDEO_DELAY_LIMIT_MS 0x80C
+#define AMSTREAM_GET_AUDIO_DELAY_LIMIT_MS 0x80D
+#define AMSTREAM_GET_AUDIO_CUR_DELAY_MS 0x80E
+#define AMSTREAM_GET_VIDEO_CUR_DELAY_MS 0x80F
+#define AMSTREAM_GET_AUDIO_AVG_BITRATE_BPS 0x810
+#define AMSTREAM_GET_VIDEO_AVG_BITRATE_BPS 0x811
+/*  video get cmd */
+#define AMSTREAM_GET_OMX_VPTS 0x860
+#define AMSTREAM_GET_TRICK_STAT 0x861
+#define AMSTREAM_GET_TRICK_VPTS 0x862
+#define AMSTREAM_GET_SYNC_ADISCON 0x863
+#define AMSTREAM_GET_SYNC_VDISCON 0x864
+#define AMSTREAM_GET_SYNC_ADISCON_DIFF 0x865
+#define AMSTREAM_GET_SYNC_VDISCON_DIFF 0x866
+#define AMSTREAM_GET_VIDEO_DISABLE 0x867
+#define AMSTREAM_GET_VIDEO_DISCONTINUE_REPORT 0x868
+#define AMSTREAM_GET_SCREEN_MODE 0x869
+#define AMSTREAM_GET_BLACKOUT_POLICY 0x86A
+#define AMSTREAM_GET_FREERUN_MODE 0x86B
+#define AMSTREAM_GET_3D_TYPE 0x86C
+#define AMSTREAM_GET_VSYNC_SLOW_FACTOR 0x86D
+/*  amstream get ex cmd */
+#define AMSTREAM_GET_EX_VB_STATUS 0x900
+#define AMSTREAM_GET_EX_AB_STATUS 0x901
+#define AMSTREAM_GET_EX_VDECSTAT 0x902
+#define AMSTREAM_GET_EX_ADECSTAT 0x903
+#define AMSTREAM_GET_EX_UD_POC 0x904
+/*  video get ex cmd */
+#define AMSTREAM_GET_EX_VF_STATUS 0x960
+#define AMSTREAM_GET_EX_VIDEO_AXIS 0x961
+#define AMSTREAM_GET_EX_VIDEO_CROP 0x962
+/*  amstream get ptr cmd */
+#define AMSTREAM_GET_PTR_SUB_INFO 0xA00
+
+#define AMSTREAM_IOC_VERSION_FIRST 2
+#define AMSTREAM_IOC_VERSION_SECOND 0
+
+struct am_ioctl_parm {
+	u32 cmd;
+	union {
+		u32 data_32;
+		u64 data_64;
+		enum vformat_e data_vformat;
+		enum aformat_e data_aformat;
+	};
+};
+
+struct am_ioctl_parm_ex {
+	u32 cmd;
+	union {
+		struct buf_status status;
+		struct vdec_status vstatus;
+		struct adec_status astatus;
+
+		struct userdata_poc_info_t data_userdata_info;
+		char data[8];
+
+	};
+};
+
+struct am_ioctl_parm_ptr {
+	u32 cmd;
+	union {
+		struct audio_info *pdata_audio_info;
+		struct subtitle_info *pdata_sub_info;
+		void *pointer;
+	};
+};
+
 
 #define SUPPORT_VDEC_NUM	(8)
 int vcodec_profile_register(const struct codec_profile_t *vdec_profile);

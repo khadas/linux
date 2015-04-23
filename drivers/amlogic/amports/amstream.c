@@ -55,7 +55,9 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/reset.h>
 #include "arch/firmware.h"
-
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
 #define DEVICE_NAME "amstream-dev"
 #define DRIVER_NAME "amstream"
 #define MODULE_NAME "amstream"
@@ -111,6 +113,10 @@ void debug_file_write(const char __user *buf, size_t count)
 static int amstream_open(struct inode *inode, struct file *file);
 static int amstream_release(struct inode *inode, struct file *file);
 static long amstream_ioctl(struct file *file, unsigned int cmd, ulong arg);
+#ifdef CONFIG_COMPAT
+static long amstream_compat_ioctl
+	(struct file *file, unsigned int cmd, ulong arg);
+#endif
 static ssize_t amstream_vbuf_write
 (struct file *file, const char *buf, size_t count, loff_t *ppos);
 static ssize_t amstream_abuf_write
@@ -144,6 +150,9 @@ static const struct file_operations vbuf_fops = {
 	.release = amstream_release,
 	.write = amstream_vbuf_write,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations abuf_fops = {
@@ -152,6 +161,9 @@ static const struct file_operations abuf_fops = {
 	.release = amstream_release,
 	.write = amstream_abuf_write,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations mpts_fops = {
@@ -160,6 +172,9 @@ static const struct file_operations mpts_fops = {
 	.release = amstream_release,
 	.write = amstream_mpts_write,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations mpps_fops = {
@@ -168,6 +183,9 @@ static const struct file_operations mpps_fops = {
 	.release = amstream_release,
 	.write = amstream_mpps_write,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations mprm_fops = {
@@ -176,6 +194,9 @@ static const struct file_operations mprm_fops = {
 	.release = amstream_release,
 	.write = amstream_mprm_write,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations sub_fops = {
@@ -184,6 +205,9 @@ static const struct file_operations sub_fops = {
 	.release = amstream_release,
 	.write = amstream_sub_write,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations sub_read_fops = {
@@ -193,6 +217,9 @@ static const struct file_operations sub_read_fops = {
 	.read = amstream_sub_read,
 	.poll = amstream_sub_poll,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations userdata_fops = {
@@ -202,6 +229,9 @@ static const struct file_operations userdata_fops = {
 	.read = amstream_userdata_read,
 	.poll = amstream_userdata_poll,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 static const struct file_operations amstream_fops = {
@@ -209,6 +239,9 @@ static const struct file_operations amstream_fops = {
 	.open = amstream_open,
 	.release = amstream_release,
 	.unlocked_ioctl = amstream_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = amstream_compat_ioctl,
+#endif
 };
 
 /**************************************************/
@@ -1283,12 +1316,639 @@ static int amstream_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static long amstream_ioctl(struct file *file, unsigned int cmd, ulong arg)
+static long amstream_ioctl_get_version(struct stream_port_s *this,
+	ulong arg)
+{
+	int version = (AMSTREAM_IOC_VERSION_FIRST & 0xffff) << 16
+		| (AMSTREAM_IOC_VERSION_SECOND & 0xffff);
+	put_user(version, (u32 __user *)arg);
+	return 0;
+}
+static long amstream_ioctl_get(struct stream_port_s *this, ulong arg)
+{
+	long r = 0;
+
+	struct am_ioctl_parm parm;
+
+	if (copy_from_user
+		((void *)&parm, (void *)arg,
+		 sizeof(parm)))
+		r = -EFAULT;
+
+	switch (parm.cmd) {
+	case AMSTREAM_GET_SUB_LENGTH:
+		if ((this->type & PORT_TYPE_SUB) ||
+			(this->type & PORT_TYPE_SUB_RD)) {
+			u32 sub_wp, sub_rp;
+			struct stream_buf_s *psbuf = &bufs[BUF_TYPE_SUBTITLE];
+			int val;
+			sub_wp = stbuf_sub_wp_get();
+			sub_rp = stbuf_sub_rp_get();
+
+			if (sub_wp == sub_rp)
+				val = 0;
+			else if (sub_wp > sub_rp)
+				val = sub_wp - sub_rp;
+			else
+				val = psbuf->buf_size - (sub_rp - sub_wp);
+			parm.data_32 = val;
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_GET_UD_LENGTH:
+		if (this->type & PORT_TYPE_USERDATA) {
+			parm.data_32 = userdata_length;
+			userdata_length = 0;
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_GET_APTS_LOOKUP:
+		if (this->type & PORT_TYPE_AUDIO) {
+			u32 pts = 0, offset;
+			offset = parm.data_32;
+			pts_lookup_offset(PTS_TYPE_AUDIO, offset, &pts, 300);
+			parm.data_32 = pts;
+		}
+		break;
+	case AMSTREAM_GET_FIRST_APTS_FLAG:
+		if (this->type & PORT_TYPE_AUDIO) {
+			parm.data_32 = first_pts_checkin_complete(
+				PTS_TYPE_AUDIO);
+		}
+		break;
+	case AMSTREAM_GET_APTS:
+		parm.data_32 = timestamp_apts_get();
+		break;
+	case AMSTREAM_GET_VPTS:
+		parm.data_32 = timestamp_vpts_get();
+		break;
+	case AMSTREAM_GET_PCRSCR:
+		parm.data_32 = timestamp_pcrscr_get();
+		break;
+	case AMSTREAM_GET_LAST_CHECKIN_APTS:
+		parm.data_32 = get_last_checkin_pts(PTS_TYPE_AUDIO);
+		break;
+	case AMSTREAM_GET_LAST_CHECKIN_VPTS:
+		parm.data_32 = get_last_checkin_pts(PTS_TYPE_VIDEO);
+		break;
+	case AMSTREAM_GET_LAST_CHECKOUT_APTS:
+		parm.data_32 = get_last_checkout_pts(PTS_TYPE_AUDIO);
+		break;
+	case AMSTREAM_GET_LAST_CHECKOUT_VPTS:
+		parm.data_32 = get_last_checkout_pts(PTS_TYPE_VIDEO);
+		break;
+	case AMSTREAM_GET_SUB_NUM:
+		parm.data_32 = psparser_get_sub_found_num();
+		break;
+	case AMSTREAM_GET_VIDEO_DELAY_LIMIT_MS:
+		parm.data_32 = bufs[BUF_TYPE_VIDEO].max_buffer_delay_ms;
+		break;
+	case AMSTREAM_GET_AUDIO_DELAY_LIMIT_MS:
+		parm.data_32 = bufs[BUF_TYPE_AUDIO].max_buffer_delay_ms;
+		break;
+	case AMSTREAM_GET_VIDEO_CUR_DELAY_MS: {
+			int delay;
+			delay = calculation_stream_delayed_ms(
+				PTS_TYPE_VIDEO, NULL, NULL);
+			if (delay >= 0)
+				parm.data_32 = delay;
+			else
+				parm.data_32 = 0;
+		}
+		break;
+
+	case AMSTREAM_GET_AUDIO_CUR_DELAY_MS: {
+			int delay;
+			delay = calculation_stream_delayed_ms(
+				PTS_TYPE_AUDIO, NULL, NULL);
+			if (delay >= 0)
+				parm.data_32 = delay;
+			else
+				parm.data_32 = 0;
+		}
+		break;
+	case AMSTREAM_GET_AUDIO_AVG_BITRATE_BPS: {
+			int delay;
+			u32 avgbps;
+			delay = calculation_stream_delayed_ms(
+				PTS_TYPE_AUDIO, NULL, &avgbps);
+			if (delay >= 0)
+				parm.data_32 = avgbps;
+			else
+				parm.data_32 = 0;
+		}
+		break;
+	case AMSTREAM_GET_VIDEO_AVG_BITRATE_BPS: {
+			int delay;
+			u32 avgbps;
+			delay = calculation_stream_delayed_ms(
+				PTS_TYPE_VIDEO, NULL, &avgbps);
+			if (delay >= 0)
+				parm.data_32 = avgbps;
+			else
+				parm.data_32 = 0;
+		}
+		break;
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+	/* pr_info("parm size:%d\n", sizeof(parm)); */
+	if (r == 0) {
+		if (copy_to_user((void *)arg, &parm, sizeof(parm)))
+			r = -EFAULT;
+	}
+
+	return r;
+
+}
+static long amstream_ioctl_set(struct stream_port_s *this, ulong arg)
+{
+	struct am_ioctl_parm parm;
+	long r = 0;
+
+	if (copy_from_user
+		((void *)&parm, (void *)arg,
+		 sizeof(parm))) {
+		pr_err("[%s]%d, arg err\n", __func__, __LINE__);
+		r = -EFAULT;
+	}
+	switch (parm.cmd) {
+	case AMSTREAM_SET_VB_START:
+		if ((this->type & PORT_TYPE_VIDEO) &&
+			((bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_IN_USE) == 0)) {
+			if (has_hevc_vdec())
+				bufs[BUF_TYPE_HEVC].buf_start = parm.data_32;
+			bufs[BUF_TYPE_VIDEO].buf_start = parm.data_32;
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_VB_SIZE:
+		if ((this->type & PORT_TYPE_VIDEO) &&
+			((bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_IN_USE) == 0)) {
+			if (bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_ALLOC) {
+				if (has_hevc_vdec()) {
+					r = stbuf_change_size(
+						&bufs[BUF_TYPE_HEVC],
+						parm.data_32);
+				}
+				r = stbuf_change_size(
+						&bufs[BUF_TYPE_VIDEO],
+						parm.data_32);
+			}
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_AB_START:
+		if ((this->type & PORT_TYPE_AUDIO) &&
+			((bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_IN_USE) == 0))
+			bufs[BUF_TYPE_AUDIO].buf_start = parm.data_32;
+		else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_AB_SIZE:
+		if ((this->type & PORT_TYPE_AUDIO) &&
+			((bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_IN_USE) == 0)) {
+			if (bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_ALLOC) {
+				r = stbuf_change_size(
+					&bufs[BUF_TYPE_AUDIO], parm.data_32);
+			}
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_VFORMAT:
+		if ((this->type & PORT_TYPE_VIDEO) &&
+			(parm.data_vformat < VFORMAT_MAX)) {
+			this->vformat = parm.data_vformat;
+			this->flag |= PORT_FLAG_VFORMAT;
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_AFORMAT:
+		if ((this->type & PORT_TYPE_AUDIO) &&
+			(parm.data_aformat < AFORMAT_MAX)) {
+			memset(&audio_dec_info, 0,
+				   sizeof(struct audio_info));
+			/* for new format,reset the audio info. */
+			this->aformat = parm.data_aformat;
+			this->flag |= PORT_FLAG_AFORMAT;
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_VID:
+		if (this->type & PORT_TYPE_VIDEO) {
+			this->vid = parm.data_32;
+			this->flag |= PORT_FLAG_VID;
+		} else
+			r = -EINVAL;
+
+		break;
+	case AMSTREAM_SET_AID:
+		if (this->type & PORT_TYPE_AUDIO) {
+			this->aid = parm.data_32;
+			this->flag |= PORT_FLAG_AID;
+
+			if (this->flag & PORT_FLAG_INITED) {
+				tsync_audio_break(1);
+				amstream_change_avid(this);
+			}
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_SID:
+		if (this->type & PORT_TYPE_SUB) {
+			this->sid = parm.data_32;
+			this->flag |= PORT_FLAG_SID;
+
+			if (this->flag & PORT_FLAG_INITED)
+				amstream_change_sid(this);
+		} else
+			r = -EINVAL;
+
+		break;
+	case AMSTREAM_IOC_PCRID:
+		this->pcrid = parm.data_32;
+		this->pcr_inited = 1;
+		pr_err("set pcrid = 0x%x\n", this->pcrid);
+		break;
+	case AMSTREAM_SET_ACHANNEL:
+		if (this->type & PORT_TYPE_AUDIO) {
+			this->achanl = parm.data_32;
+			set_ch_num_info(parm.data_32);
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_SAMPLERATE:
+		if (this->type & PORT_TYPE_AUDIO) {
+			this->asamprate = parm.data_32;
+			set_sample_rate_info(parm.data_32);
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_DATAWIDTH:
+		if (this->type & PORT_TYPE_AUDIO)
+			this->adatawidth = parm.data_32;
+		else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_TSTAMP:
+		if ((this->type & (PORT_TYPE_AUDIO | PORT_TYPE_VIDEO)) ==
+			((PORT_TYPE_AUDIO | PORT_TYPE_VIDEO)))
+			r = -EINVAL;
+		else if (has_hevc_vdec() && this->type & PORT_TYPE_HEVC)
+			r = es_vpts_checkin(&bufs[BUF_TYPE_HEVC],
+				parm.data_32);
+		else if (this->type & PORT_TYPE_VIDEO)
+			r = es_vpts_checkin(&bufs[BUF_TYPE_VIDEO],
+				parm.data_32);
+		else if (this->type & PORT_TYPE_AUDIO)
+			r = es_apts_checkin(&bufs[BUF_TYPE_AUDIO],
+				parm.data_32);
+		break;
+	case AMSTREAM_SET_TSTAMP_US64:
+		if ((this->type & (PORT_TYPE_AUDIO | PORT_TYPE_VIDEO)) ==
+			((PORT_TYPE_AUDIO | PORT_TYPE_VIDEO)))
+			r = -EINVAL;
+		else {
+			u64 pts = parm.data_64;
+			if (has_hevc_vdec()) {
+				if (this->type & PORT_TYPE_HEVC) {
+					r = es_vpts_checkin_us64(
+					&bufs[BUF_TYPE_HEVC], pts);
+				} else if (this->type & PORT_TYPE_VIDEO) {
+					r = es_vpts_checkin_us64(
+					&bufs[BUF_TYPE_VIDEO], pts);
+				} else if (this->type & PORT_TYPE_AUDIO) {
+					r = es_vpts_checkin_us64(
+					&bufs[BUF_TYPE_AUDIO], pts);
+				}
+			} else {
+				if (this->type & PORT_TYPE_VIDEO) {
+					r = es_vpts_checkin_us64(
+					&bufs[BUF_TYPE_VIDEO], pts);
+				} else if (this->type & PORT_TYPE_AUDIO) {
+					r = es_vpts_checkin_us64(
+					&bufs[BUF_TYPE_AUDIO], pts);
+				}
+			}
+		}
+		break;
+	case AMSTREAM_PORT_INIT:
+		r = amstream_port_init(this);
+		break;
+	case AMSTREAM_SET_TRICKMODE:
+		if ((this->type & PORT_TYPE_VIDEO) == 0)
+			return -EINVAL;
+		if (amstream_vdec_trickmode == NULL)
+			return -ENODEV;
+		else
+			amstream_vdec_trickmode(parm.data_32);
+		break;
+
+	case AMSTREAM_AUDIO_RESET:
+		if (this->type & PORT_TYPE_AUDIO) {
+			struct stream_buf_s *pabuf = &bufs[BUF_TYPE_AUDIO];
+
+			r = audio_port_reset(this, pabuf);
+		} else
+			r = -EINVAL;
+
+		break;
+	case AMSTREAM_SUB_RESET:
+		if (this->type & PORT_TYPE_SUB) {
+			struct stream_buf_s *psbuf = &bufs[BUF_TYPE_SUBTITLE];
+
+			r = sub_port_reset(this, psbuf);
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_DEC_RESET:
+		tsync_set_dec_reset();
+		break;
+	case AMSTREAM_SET_TS_SKIPBYTE:
+		if (parm.data_32 >= 0)
+			tsdemux_set_skipbyte(parm.data_32);
+		else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_SET_SUB_TYPE:
+		sub_type = parm.data_32;
+		break;
+	case AMSTREAM_SET_PCRSCR:
+		timestamp_pcrscr_set(parm.data_32);
+		break;
+	case AMSTREAM_SET_DEMUX:
+		tsdemux_set_demux(parm.data_32);
+		break;
+	case AMSTREAM_SET_VIDEO_DELAY_LIMIT_MS:
+		if (has_hevc_vdec())
+			bufs[BUF_TYPE_HEVC].max_buffer_delay_ms = parm.data_32;
+		bufs[BUF_TYPE_VIDEO].max_buffer_delay_ms = parm.data_32;
+		break;
+	case AMSTREAM_SET_AUDIO_DELAY_LIMIT_MS:
+		bufs[BUF_TYPE_AUDIO].max_buffer_delay_ms = parm.data_32;
+		break;
+	case AMSTREAM_SET_DRMMODE:
+		if (parm.data_32 == 1) {
+			pr_err("set drmmode\n");
+			this->flag |= PORT_FLAG_DRM;
+		} else {
+			this->flag &= (~PORT_FLAG_DRM);
+			pr_err("no drmmode\n");
+		}
+		break;
+	case AMSTREAM_SET_APTS: {
+		unsigned int pts;
+		pts = parm.data_32;
+		if (tsync_get_mode() == TSYNC_MODE_PCRMASTER)
+			tsync_pcr_set_apts(pts);
+		else
+			tsync_set_apts(pts);
+		break;
+	}
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+	return r;
+}
+static long amstream_ioctl_get_ex(struct stream_port_s *this, ulong arg)
+{
+
+	long r = 0;
+
+	struct am_ioctl_parm_ex parm;
+
+	if (copy_from_user
+		((void *)&parm, (void *)arg,
+		 sizeof(parm)))
+		r = -EFAULT;
+	switch (parm.cmd) {
+	case AMSTREAM_GET_EX_VB_STATUS:
+		if (this->type & PORT_TYPE_VIDEO) {
+			struct am_ioctl_parm_ex *p = &parm;
+			struct stream_buf_s *buf = NULL;
+
+			buf = (this->vformat ==
+				VFORMAT_HEVC) ? &bufs[BUF_TYPE_HEVC] :
+				&bufs[BUF_TYPE_VIDEO];
+
+			if (p == NULL)
+				r = -EINVAL;
+			p->status.size = stbuf_canusesize(buf);
+			p->status.data_len = stbuf_level(buf);
+			p->status.free_len = stbuf_space(buf);
+			p->status.read_pointer = stbuf_rp(buf);
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_GET_EX_AB_STATUS:
+		if (this->type & PORT_TYPE_AUDIO) {
+			struct am_ioctl_parm_ex *p = &parm;
+			struct stream_buf_s *buf = &bufs[BUF_TYPE_AUDIO];
+
+			if (p == NULL)
+				r = -EINVAL;
+
+			p->status.size = stbuf_canusesize(buf);
+			p->status.data_len = stbuf_level(buf);
+			p->status.free_len = stbuf_space(buf);
+			p->status.read_pointer = stbuf_rp(buf);
+
+		} else
+			r = -EINVAL;
+		break;
+	case AMSTREAM_GET_EX_VDECSTAT:
+		if ((this->type & PORT_TYPE_VIDEO) == 0)
+			return -EINVAL;
+		if (amstream_vdec_status == NULL)
+			return -ENODEV;
+		else {
+			struct vdec_status vstatus;
+			struct am_ioctl_parm_ex *p = &parm;
+			if (p == NULL)
+				return -EINVAL;
+			amstream_vdec_status(&vstatus);
+			p->vstatus.width = vstatus.width;
+			p->vstatus.height = vstatus.height;
+			p->vstatus.fps = vstatus.fps;
+			p->vstatus.error_count = vstatus.error_count;
+			p->vstatus.status = vstatus.status;
+		}
+		break;
+	case AMSTREAM_GET_EX_ADECSTAT:
+		if ((this->type & PORT_TYPE_AUDIO) == 0)
+			return -EINVAL;
+		if (amstream_adec_status == NULL)
+			return -ENODEV;
+		else {
+			struct adec_status astatus;
+			struct am_ioctl_parm_ex *p = &parm;
+
+			if (p == NULL)
+				return -EINVAL;
+			amstream_adec_status(&astatus);
+			p->astatus.channels = astatus.channels;
+			p->astatus.sample_rate = astatus.sample_rate;
+			p->astatus.resolution = astatus.resolution;
+			p->astatus.error_count = astatus.error_count;
+			p->astatus.status = astatus.status;
+		}
+		break;
+
+	case AMSTREAM_GET_EX_UD_POC:
+		if (this->type & PORT_TYPE_USERDATA) {
+			struct userdata_poc_info_t userdata_poc =
+					userdata_poc_info[userdata_poc_ri];
+			memcpy(&parm.data_userdata_info,
+					&userdata_poc,
+					sizeof(struct userdata_poc_info_t));
+
+			userdata_poc_ri++;
+			if (USERDATA_FIFO_NUM == userdata_poc_ri)
+				userdata_poc_ri = 0;
+		} else
+			r = -EINVAL;
+		break;
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+	/* pr_info("parm size:%d\n", sizeof(parm)); */
+	if (r == 0) {
+		if (copy_to_user((void *)arg, &parm, sizeof(parm)))
+			r = -EFAULT;
+	}
+
+	return r;
+
+}
+static long amstream_ioctl_set_ex(struct stream_port_s *this, ulong arg)
+{
+	long r = 0;
+	return r;
+}
+static long amstream_ioctl_get_ptr(struct stream_port_s *this, ulong arg)
+{
+
+	long r = 0;
+
+	struct am_ioctl_parm_ptr parm;
+
+	if (copy_from_user
+		((void *)&parm, (void *)arg,
+		 sizeof(parm)))
+		r = -EFAULT;
+
+	switch (parm.cmd) {
+	case AMSTREAM_GET_PTR_SUB_INFO:
+		{
+			struct subtitle_info msub_info[MAX_SUB_NUM];
+			struct subtitle_info *psub_info[MAX_SUB_NUM];
+			int i;
+
+			for (i = 0; i < MAX_SUB_NUM; i++)
+				psub_info[i] = &msub_info[i];
+
+			r = psparser_get_sub_info(psub_info);
+
+			if (r == 0) {
+				memcpy(parm.pdata_sub_info, msub_info,
+					sizeof(struct subtitle_info)
+					* MAX_SUB_NUM);
+			}
+		}
+		break;
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+	/* pr_info("parm size:%d\n", sizeof(parm)); */
+	if (r == 0) {
+		if (copy_to_user((void *)arg, &parm, sizeof(parm)))
+			r = -EFAULT;
+	}
+
+	return r;
+
+}
+static long amstream_ioctl_set_ptr(struct stream_port_s *this, ulong arg)
+{
+	struct am_ioctl_parm_ptr parm;
+	long r = 0;
+
+	if (copy_from_user
+		((void *)&parm, (void *)arg,
+		 sizeof(parm))) {
+		pr_err("[%s]%d, arg err\n", __func__, __LINE__);
+		r = -EFAULT;
+	}
+
+	switch (parm.cmd) {
+	case AMSTREAM_SET_PTR_AUDIO_INFO:
+		if ((this->type & PORT_TYPE_VIDEO)
+			|| (this->type & PORT_TYPE_AUDIO)) {
+			if (parm.pdata_audio_info != NULL)
+				memcpy((void *)&audio_dec_info,
+					(void *)parm.pdata_audio_info,
+					 sizeof(audio_dec_info));
+		} else
+			r = -EINVAL;
+		break;
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+	return r;
+}
+
+static long amstream_do_ioctl_new(struct stream_port_s *this,
+	unsigned int cmd, ulong arg)
+{
+	long r = 0;
+	switch (cmd) {
+	case AMSTREAM_IOC_GET_VERSION:
+		r = amstream_ioctl_get_version(this, arg);
+		break;
+	case AMSTREAM_IOC_GET:
+		r = amstream_ioctl_get(this, arg);
+		break;
+	case AMSTREAM_IOC_SET:
+		r = amstream_ioctl_set(this, arg);
+		break;
+	case AMSTREAM_IOC_GET_EX:
+		r = amstream_ioctl_get_ex(this, arg);
+		break;
+	case AMSTREAM_IOC_SET_EX:
+		r = amstream_ioctl_set_ex(this, arg);
+		break;
+	case AMSTREAM_IOC_GET_PTR:
+		r = amstream_ioctl_get_ptr(this, arg);
+		break;
+	case AMSTREAM_IOC_SET_PTR:
+		r = amstream_ioctl_set_ptr(this, arg);
+		break;
+	case AMSTREAM_IOC_SYSINFO:
+		if (this->type & PORT_TYPE_VIDEO) {
+			if (copy_from_user
+				((void *)&amstream_dec_info, (void *)arg,
+				 sizeof(amstream_dec_info)))
+				r = -EFAULT;
+		} else
+			r = -EINVAL;
+		break;
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+
+	return r;
+}
+
+static long amstream_do_ioctl_old(struct stream_port_s *this,
+	unsigned int cmd, ulong arg)
 {
 	s32 r = 0;
-	struct inode *inode = file->f_dentry->d_inode;
-	struct stream_port_s *this = &ports[iminor(inode)];
-
 	switch (cmd) {
 
 	case AMSTREAM_IOC_VB_START:
@@ -1820,6 +2480,154 @@ static long amstream_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 	return r;
 }
+
+static long amstream_do_ioctl(struct stream_port_s *this,
+	unsigned int cmd, ulong arg)
+{
+	long r = 0;
+
+	switch (cmd) {
+	case AMSTREAM_IOC_GET_VERSION:
+	case AMSTREAM_IOC_GET:
+	case AMSTREAM_IOC_SET:
+	case AMSTREAM_IOC_GET_EX:
+	case AMSTREAM_IOC_SET_EX:
+	case AMSTREAM_IOC_GET_PTR:
+	case AMSTREAM_IOC_SET_PTR:
+	case AMSTREAM_IOC_SYSINFO:
+		r = amstream_do_ioctl_new(this, cmd, arg);
+		break;
+	default:
+		r = amstream_do_ioctl_old(this, cmd, arg);
+		break;
+	}
+
+	return r;
+}
+static long amstream_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct stream_port_s *this = &ports[iminor(inode)];
+
+	if (!this)
+		return -ENODEV;
+
+	return amstream_do_ioctl(this, cmd, arg);
+}
+
+#ifdef CONFIG_COMPAT
+struct dec_sysinfo32 {
+
+	u32 format;
+
+	u32 width;
+
+	u32 height;
+
+	u32 rate;
+
+	u32 extra;
+
+	u32 status;
+
+	u32 ratio;
+
+	compat_uptr_t param;
+
+	u64 ratio64;
+};
+
+struct am_ioctl_parm_ptr32 {
+	enum AMSTREAM_CMD cmd;
+	union {
+		compat_uptr_t pdata_audio_info;
+		compat_uptr_t pdata_sub_info;
+		compat_uptr_t pointer;
+	};
+};
+static long amstream_ioc_setget_ptr(struct stream_port_s *this,
+		unsigned int cmd, struct am_ioctl_parm_ptr32 __user *arg)
+{
+	struct am_ioctl_parm_ptr __user *data;
+	struct am_ioctl_parm_ptr32 __user data32;
+	int ret;
+
+	if (copy_from_user(&data32, arg, sizeof(data32)))
+		return -EFAULT;
+
+	data = compat_alloc_user_space(sizeof(*data));
+	if (!access_ok(VERIFY_WRITE, data, sizeof(*data)))
+		return -EFAULT;
+
+	if (put_user(data32.cmd, &data->cmd) ||
+		put_user(compat_ptr(data32.pointer), &data->pointer))
+		return -EFAULT;
+
+	ret = amstream_do_ioctl(this, cmd, (unsigned long)data);
+	if (ret < 0)
+		return ret;
+	return 0;
+
+}
+
+static long amstream_get_sysinfo(struct stream_port_s *this,
+		struct dec_sysinfo32 __user *arg)
+{
+	struct dec_sysinfo __user *data;
+	struct dec_sysinfo32 __user data32;
+	int ret;
+
+	if (copy_from_user(&data32, arg, sizeof(data32)))
+		return -EFAULT;
+
+	data = compat_alloc_user_space(sizeof(*data));
+	if (!access_ok(VERIFY_WRITE, data, sizeof(*data)))
+		return -EFAULT;
+
+	if (put_user(compat_ptr(data32.param), &data->param))
+		return -EFAULT;
+
+	ret = amstream_do_ioctl(this, AMSTREAM_IOC_SYSINFO,
+			(unsigned long)data);
+	if (ret < 0)
+		return ret;
+
+	if (copy_in_user(&arg->format, &data->format, 7 * sizeof(u32)) ||
+			copy_in_user(&arg->ratio64, &data->ratio64,
+					sizeof(arg->ratio64)))
+		return -EFAULT;
+
+	return 0;
+
+}
+static long amstream_compat_ioctl(struct file *file,
+		unsigned int cmd, ulong arg)
+{
+	s32 r = 0;
+	struct inode *inode = file->f_dentry->d_inode;
+	struct stream_port_s *this = &ports[iminor(inode)];
+
+	switch (cmd) {
+	case AMSTREAM_IOC_GET_VERSION:
+	case AMSTREAM_IOC_GET:
+	case AMSTREAM_IOC_SET:
+	case AMSTREAM_IOC_GET_EX:
+	case AMSTREAM_IOC_SET_EX:
+		arg = (unsigned long) compat_ptr(arg);
+		return amstream_do_ioctl(this, cmd, arg);
+	case AMSTREAM_IOC_GET_PTR:
+	case AMSTREAM_IOC_SET_PTR:
+		return amstream_ioc_setget_ptr(this, cmd, compat_ptr(arg));
+	case AMSTREAM_IOC_SYSINFO:
+		return amstream_get_sysinfo(this, compat_ptr(arg));
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+
+	return r;
+}
+#endif
 
 static ssize_t ports_show(struct class *class, struct class_attribute *attr,
 						  char *buf)
