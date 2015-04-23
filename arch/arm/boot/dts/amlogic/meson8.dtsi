@@ -171,6 +171,10 @@
 			amlogic,setmask=<AO 0x1800>;
 			amlogic,pins="GPIOAO_0", "GPIOAO_1";
 		};
+		a_uart_pins:a_uart{
+			amlogic,setmask=<4 0x3c00>;
+			amlogic,pins="GPIOX_12", "GPIOX_13", "GPIOX_14", "GPIOX_15";
+		};
 		ao_i2c_master:ao_i2c{
 			amlogic,setmask=<AO 0x60>;
 			amlogic,clrmask=<AO 0x1800006>;
@@ -504,7 +508,16 @@
 	fifosize = < 64 >;
 	pinctrl-names = "default";
 	pinctrl-0 = <&ao_uart_pins>;
-	clk_gate_name = "NULL";
+};
+&uart_A {
+	clocks = <&clock CLK_81>;
+	clock-names = "clk_uart";
+	reg = <0xc11084c0 0x18>;
+	interrupts = <0 26 1>;
+	fifosize = < 128 >;
+	pinctrl-names = "default";
+	pinctrl-0 = <&a_uart_pins>;
+	resets = <&clock GCLK_IDX_UART0>;
 };
 &i2c_ao {
 	clocks = <&clock CLK_81>;

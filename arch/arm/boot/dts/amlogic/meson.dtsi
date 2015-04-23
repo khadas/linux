@@ -43,7 +43,10 @@
 	};
 
 	uart_AO: serial@c81004c0 {
-		compatible = "amlogic,meson-uart";
+		compatible = "amlogic, meson-uart";
+	};
+	uart_A: serial@c11084c0 {
+		compatible = "amlogic, meson-uart";
 	};
 	i2c_ao: i2c@c8100500{ /*I2C-AO*/
 		compatible = "amlogic,meson-i2c";

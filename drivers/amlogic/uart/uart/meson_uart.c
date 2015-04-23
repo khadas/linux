@@ -28,7 +28,7 @@
 #include <linux/serial_core.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-
+#include <linux/pinctrl/consumer.h>
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
 
@@ -554,6 +554,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 	struct clk *clk;
 	const void *prop;
 	struct reset_control *uart_rst;
+	struct pinctrl *p;
 	int ret = 0;
 
 	if (pdev->dev.of_node)
@@ -609,11 +610,14 @@ static int meson_uart_probe(struct platform_device *pdev)
 	port->type = PORT_MESON;
 	port->x_char = 0;
 	port->ops = &meson_uart_ops;
-	port->fifosize = 64;
 
 	meson_ports[pdev->id] = port;
 	platform_set_drvdata(pdev, port);
-
+	if (of_get_property(pdev->dev.of_node, "pinctrl-names", NULL)) {
+		p = devm_pinctrl_get_select_default(&pdev->dev);
+		if (!p)
+			return -1;
+	}
 	ret = uart_add_one_port(&meson_uart_driver, port);
 	if (ret)
 		meson_ports[pdev->id] = NULL;
@@ -633,7 +637,7 @@ static int meson_uart_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id meson_uart_dt_match[] = {
-	{.compatible = "amlogic,meson-uart"},
+	{.compatible = "amlogic, meson-uart"},
 	{ /* sentinel */ },
 };
 

@@ -10,6 +10,7 @@
 	#size-cells = <1>;
 	aliases {
 		serial0 = &uart_AO;
+		serial1 = &uart_A;
 	};
 
 	memory{
@@ -542,6 +543,9 @@ sdio{
 	};
 }; /* end of / */
 &uart_AO {
+	status="okay";
+};
+&uart_A {
 	status="okay";
 };
 
