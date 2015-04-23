@@ -501,7 +501,7 @@
 }; /* end of / */
 
 &uart_AO {
-	clocks = <&clock CLK_81>;
+	clocks = <&clock CLK_XTAL>;
 	clock-names = "clk_uart";
 	reg = <0xc81004c0 0x18>;
 	interrupts = <0 90 1>;
@@ -510,7 +510,7 @@
 	pinctrl-0 = <&ao_uart_pins>;
 };
 &uart_A {
-	clocks = <&clock CLK_81>;
+	clocks = <&clock CLK_XTAL>;
 	clock-names = "clk_uart";
 	reg = <0xc11084c0 0x18>;
 	interrupts = <0 26 1>;

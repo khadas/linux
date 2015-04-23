@@ -14,7 +14,6 @@
 #define CLK_XTAL		2
 /* core clocks */
 #define CLK_FIXED_PLL 1
-#define CLK_SYS_PLL 2
 #define CLK_DDR_PLL 3
 #define CLK_G_PLL 4
 #define CLK_VID_PLL 5
@@ -26,6 +25,7 @@
 #define CLK_HDMITX_ENCI 13
 #define CLK_HDMITX_PIXEL 14
 #define CLK_HDMITX_PHY 15
+#define CLK_SYS_PLL 16
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
 
