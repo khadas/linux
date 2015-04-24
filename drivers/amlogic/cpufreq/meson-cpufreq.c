@@ -24,7 +24,7 @@
 
 #include <asm/system.h>
 #include <asm/smp_plat.h>
-#include <linux/cpu.h>
+#include <asm/cpu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/machine.h>

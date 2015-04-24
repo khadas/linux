@@ -33,9 +33,9 @@
 #include <linux/sched/rt.h>
 #include <linux/notifier.h>
 #include "cpufreq_governor.h"
-unsigned int max_cpu_num = num_possible_cpus();
+unsigned int max_cpu_num;
 EXPORT_SYMBOL(max_cpu_num);
-unsigned int last_max_cpu_num = num_possible_cpus();
+unsigned int last_max_cpu_num;
 
 /* greater than 80% avg load across online CPUs increases frequency */
 #define DEFAULT_UP_FREQ_MIN_LOAD			(80)
@@ -992,6 +992,9 @@ static int __init cpufreq_gov_dbs_init(void)
 				__func__);
 		return -EINVAL;
 	}
+
+	max_cpu_num = num_possible_cpus();
+	last_max_cpu_num = num_possible_cpus();
 
 	if (!alloc_cpumask_var(&new_mask, GFP_KERNEL))
 		return -ENOMEM;
