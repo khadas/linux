@@ -195,7 +195,12 @@
         	interrupts = <0 85 1>;
         	vdin_id = <1>;
     	};
-
+        amvdec_656in0 {
+                compatible = "amlogic, amvdec_656in";
+                dev_name = "amvdec_656in0";
+                status = "ok";
+                reg = <0xd010bd00 0x7c>;
+        };
 	ethmac: ethernet@0xc9410000{
 		compatible = "amlogic, meson8m2-rmii-dwmac";
 		reg = <0xc9410000 0x10000

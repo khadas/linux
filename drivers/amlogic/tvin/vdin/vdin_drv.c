@@ -2322,7 +2322,7 @@ static int vdin_drv_resume(struct platform_device *pdev)
 #endif
 #ifdef CONFIG_OF
 static const struct of_device_id vdin_dt_match[] = {
-	{       .compatible = "amlogic,vdin",   },
+	{       .compatible = "amlogic, vdin",   },
 	{},
 };
 #else
