@@ -69,6 +69,8 @@ enum {
 #define VD1_FMT_CHROMA_WIDTH_MASK       0xfff
 #define VD1_FMT_CHROMA_WIDTH_BIT        0
 
+#define VIU_MISC_AFBC_VD1           (1 << 20)
+
 #define VPP_VD2_ALPHA_WID           9
 #define VPP_VD2_ALPHA_MASK          0x1ff
 #define VPP_VD2_ALPHA_BIT           18

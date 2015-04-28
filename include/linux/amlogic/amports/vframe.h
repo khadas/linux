@@ -40,6 +40,7 @@
 #define VIDTYPE_CANVAS_TOGGLE           0x20000
 #define VIDTYPE_PRE_INTERLACE           0x40000
 #define VIDTYPE_HIGHRUN                 0x80000
+#define VIDTYPE_COMPRESS                0x100000
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -138,6 +139,22 @@ enum vframe_secam_phase_e {
 	VFRAME_PHASE_DB = 0,
 	VFRAME_PHASE_DR,
 };
+
+#define BITDEPTH_Y8    (0 << 8)
+#define BITDEPTH_Y9    (1 << 8)
+#define BITDEPTH_Y10   (2 << 8)
+#define BITDEPTH_YMASK (3 << 8)
+
+#define BITDEPTH_U8    (0 << 10)
+#define BITDEPTH_U9    (1 << 10)
+#define BITDEPTH_U10   (2 << 10)
+#define BITDEPTH_UMASK (3 << 10)
+
+#define BITDEPTH_V8    (0 << 12)
+#define BITDEPTH_V9    (1 << 12)
+#define BITDEPTH_V10   (2 << 12)
+#define BITDEPTH_VMASK (3 << 12)
+
 struct vframe_s {
 	u32 index;
 	u32 type;
@@ -156,6 +173,7 @@ struct vframe_s {
 	u32 width;
 	u32 height;
 	u32 ratio_control;
+	u32 bitdepth;
 
 	u32 orientation;
 	u32 video_angle;

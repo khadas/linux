@@ -2555,7 +2555,7 @@ struct dec_sysinfo32 {
 };
 
 struct am_ioctl_parm_ptr32 {
-	enum AMSTREAM_CMD cmd;
+	u32 cmd;
 	union {
 		compat_uptr_t pdata_audio_info;
 		compat_uptr_t pdata_sub_info;

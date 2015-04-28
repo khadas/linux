@@ -558,6 +558,7 @@ static const struct vinfo_s *get_tv_info(enum vmode_e mode)
 	return NULL;
 }
 
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 /* for hdmi (un)plug during fps automation */
 static int want_hdmi_mode(enum vmode_e mode)
 {
@@ -616,6 +617,7 @@ static void fps_auto_adjust_mode(enum vmode_e *pmode)
 		}
 	}
 }
+#endif
 
 static int tv_set_current_vmode(enum vmode_e mode)
 {
@@ -649,7 +651,11 @@ static int tv_set_current_vmode(enum vmode_e mode)
 	}
 #endif
 	tvoutc_setmode(vmode_to_tvmode(mode));
+
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	vout_log_info("new mode =%s set ok\n", get_name_from_vmode(mode));
+#endif
+
 	return 0;
 }
 

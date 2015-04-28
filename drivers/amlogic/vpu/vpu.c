@@ -531,10 +531,10 @@ release_vpu_clk_limit:
 void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 {
 	unsigned vpu_mod;
-	unsigned mem_bit = 0;
 	unsigned long flags = 0;
 	unsigned int _reg0;
 	unsigned int _reg1;
+	unsigned int val;
 
 	if (vpu_conf.chip_type == VPU_CHIP_MAX) {
 		pr_info("invalid VPU in current CPU type\n");
@@ -543,82 +543,137 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 
 	spin_lock_irqsave(&vpu_mem_lock, flags);
 
-	flag = (flag > 0) ? 1 : 0;
+	val = (flag == VPU_MEM_POWER_ON) ? 0 : 3;
 	_reg0 = HHI_VPU_MEM_PD_REG0;
 	_reg1 = HHI_VPU_MEM_PD_REG1;
 	vpu_mod = get_vpu_mod(vmod);
-	if ((vpu_mod >= VPU_VIU_OSD1) && (vpu_mod <= VPU_DI_POST)) {
-		mem_bit = (vpu_mod - VPU_VIU_OSD1) * 2;
-		if (flag)
-			vpu_reg_setb(_reg0, 0x3, mem_bit, 2);
-		else
-			vpu_reg_setb(_reg0, 0, mem_bit, 2);
-	} else if (vpu_mod == VPU_SHARP) {
+	switch (vpu_mod) {
+	case VPU_VIU_OSD1:
+		vpu_reg_setb(_reg0, val, 0, 2);
+		break;
+	case VPU_VIU_OSD2:
+		vpu_reg_setb(_reg0, val, 2, 2);
+		break;
+	case VPU_VIU_VD1:
+		vpu_reg_setb(_reg0, val, 4, 2);
+		break;
+	case VPU_VIU_VD2:
+		vpu_reg_setb(_reg0, val, 6, 2);
+		break;
+	case VPU_VIU_CHROMA:
+		vpu_reg_setb(_reg0, val, 8, 2);
+		break;
+	case VPU_VIU_OFIFO:
+		vpu_reg_setb(_reg0, val, 10, 2);
+		break;
+	case VPU_VIU_SCALE:
+		vpu_reg_setb(_reg0, val, 12, 2);
+		break;
+	case VPU_VIU_OSD_SCALE:
+		vpu_reg_setb(_reg0, val, 14, 2);
+		break;
+	case VPU_VIU_VDIN0:
+		vpu_reg_setb(_reg0, val, 16, 2);
+		break;
+	case VPU_VIU_VDIN1:
+		vpu_reg_setb(_reg0, val, 18, 2);
+		break;
+	case VPU_PIC_ROT1:
+	case VPU_VIU_SRSCL: /* G9TV only */
+		vpu_reg_setb(_reg0, val, 20, 2);
+		break;
+	case VPU_PIC_ROT2:
+	case VPU_VIU_OSDSR: /* G9TV only */
+		vpu_reg_setb(_reg0, val, 22, 2);
+		break;
+	case VPU_PIC_ROT3:
+	case VPU_REV: /* G9TV only */
+		vpu_reg_setb(_reg0, val, 24, 2);
+		break;
+	case VPU_DI_PRE:
+		vpu_reg_setb(_reg0, val, 26, 2);
+		break;
+	case VPU_DI_POST:
+		vpu_reg_setb(_reg0, val, 28, 2);
+		break;
+	case VPU_SHARP: /* G9TV & G9BB only */
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
-			if (flag)
-				vpu_reg_setb(_reg0, 0x3, 30, 2);
-			else
-				vpu_reg_setb(_reg0, 0, 30, 2);
+			vpu_reg_setb(_reg0, val, 30, 2);
 		}
-	} else if ((vpu_mod >= VPU_VIU2_OSD1) &&
-			(vpu_mod <= VPU_VIU2_OSD_SCALE)) {
-		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
-			mem_bit = (vpu_mod - VPU_VIU2_OSD1) * 2;
-			if (flag)
-				vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
-			else
-				vpu_reg_setb(_reg1, 0, mem_bit, 2);
+		break;
+	case VPU_VIU2_OSD1:
+		vpu_reg_setb(_reg1, val, 0, 2);
+		break;
+	case VPU_VIU2_OSD2:
+		vpu_reg_setb(_reg1, val, 2, 2);
+		break;
+	case VPU_D2D3: /* G9TV only */
+		if (vpu_conf.chip_type == VPU_CHIP_G9TV)
+			vpu_reg_setb(_reg1, ((val << 2) | val), 0, 4);
+		break;
+	case VPU_VIU2_VD1:
+		vpu_reg_setb(_reg1, val, 4, 2);
+		break;
+	case VPU_VIU2_CHROMA:
+		vpu_reg_setb(_reg1, val, 6, 2);
+		break;
+	case VPU_VIU2_OFIFO:
+		vpu_reg_setb(_reg1, val, 8, 2);
+		break;
+	case VPU_VIU2_SCALE:
+		vpu_reg_setb(_reg1, val, 10, 2);
+		break;
+	case VPU_VIU2_OSD_SCALE:
+		vpu_reg_setb(_reg1, val, 12, 2);
+		break;
+	case VPU_VDIN_AM_ASYNC: /* G9TV only */
+	case VPU_VPU_ARB: /* GXBB only */
+		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
+			(vpu_conf.chip_type == VPU_CHIP_GXBB)) {
+			vpu_reg_setb(_reg1, val, 14, 2);
 		}
-	} else if ((vpu_mod >= VPU_VDIN_AM_ASYNC) &&
-			(vpu_mod <= VPU_VPUARB2_AM_ASYNC)) {
-		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			mem_bit = (vpu_mod - VPU_VDIN_AM_ASYNC + 7) * 2;
-			if (flag)
-				vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
-			else
-				vpu_reg_setb(_reg1, 0, mem_bit, 2);
+		break;
+	case VPU_VDISP_AM_ASYNC: /* G9TV only */
+	case VPU_AFBC_DEC: /* GXBB only */
+		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
+			(vpu_conf.chip_type == VPU_CHIP_GXBB)) {
+			vpu_reg_setb(_reg1, val, 16, 2);
 		}
-	} else if ((vpu_mod >= VPU_VENCP) && (vpu_mod <= VPU_VENCI)) {
-		mem_bit = (vpu_mod - VPU_VENCP + 10) * 2;
-		if (flag)
-			vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
-		else
-			vpu_reg_setb(_reg1, 0, mem_bit, 2);
-	} else if (vpu_mod == VPU_ISP) {
-		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
-			if (flag)
-				vpu_reg_setb(_reg1, 0x3, 26, 2);
-			else
-				vpu_reg_setb(_reg1, 0, 26, 2);
-		}
-	} else if ((vpu_mod >= VPU_CVD2) && (vpu_mod <= VPU_ATV_DMD)) {
+		break;
+	case VPU_VPUARB2_AM_ASYNC: /* G9TV only */
+		if (vpu_conf.chip_type == VPU_CHIP_G9TV)
+			vpu_reg_setb(_reg1, val, 18, 2);
+		break;
+	case VPU_VENCP:
+		vpu_reg_setb(_reg1, val, 20, 2);
+		break;
+	case VPU_VENCL:
+		vpu_reg_setb(_reg1, val, 22, 2);
+		break;
+	case VPU_VENCI:
+		vpu_reg_setb(_reg1, val, 24, 2);
+		break;
+	case VPU_ISP:
+		vpu_reg_setb(_reg1, val, 26, 2);
+		break;
+	case VPU_CVD2: /* G9TV & G9BB only */
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
-			mem_bit = (vpu_mod - VPU_CVD2 + 7) * 2;
-			if (flag)
-				vpu_reg_setb(_reg1, 0x3, mem_bit, 2);
-			else
-				vpu_reg_setb(_reg1, 0, mem_bit, 2);
+			vpu_reg_setb(_reg1, val, 28, 2);
 		}
-	} else if ((vpu_mod >= VPU_VIU_SRSCL) && (vpu_mod <= VPU_REV)) {
-		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			mem_bit = (vpu_mod - VPU_VIU_SRSCL + 10) * 2;
-			if (flag)
-				vpu_reg_setb(_reg0, 0x3, mem_bit, 2);
-			else
-				vpu_reg_setb(_reg0, 0, mem_bit, 2);
+		break;
+	case VPU_ATV_DMD: /* G9TV & G9BB only */
+		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
+			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
+			vpu_reg_setb(_reg1, val, 30, 2);
 		}
-	} else if (vpu_mod == VPU_D2D3) {
-		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			if (flag)
-				vpu_reg_setb(_reg1, 0xf, 0, 4);
-			else
-				vpu_reg_setb(_reg1, 0, 0, 4);
-		}
-	} else {
+		break;
+	default:
 		pr_info("switch_vpu_mem_pd: unsupport vpu mod\n");
+		break;
 	}
+
 	/* pr_info("switch_vpu_mem_pd: %s %s\n",
 		vpu_mod_table[vpu_mod - VPU_MOD_START],
 		((flag > 0) ? "OFF" : "ON")); */
@@ -626,12 +681,13 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 }
 /* *********************************************** */
 
+#define VPU_MEM_PD_ERR        0xffff
 int get_vpu_mem_pd_vmod(unsigned int vmod)
 {
 	unsigned int vpu_mod;
-	unsigned int mem_bit = 0;
 	unsigned int _reg0;
 	unsigned int _reg1;
+	unsigned int val;
 
 	if (vpu_conf.chip_type == VPU_CHIP_MAX) {
 		pr_info("invalid VPU in current CPU type\n");
@@ -641,67 +697,153 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	_reg0 = HHI_VPU_MEM_PD_REG0;
 	_reg1 = HHI_VPU_MEM_PD_REG1;
 	vpu_mod = get_vpu_mod(vmod);
-	if ((vpu_mod >= VPU_VIU_OSD1) && (vpu_mod <= VPU_DI_POST)) {
-		mem_bit = (vpu_mod - VPU_VIU_OSD1) * 2;
-		return (vpu_reg_getb(_reg0, mem_bit, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-	} else if (vpu_mod == VPU_SHARP) {
+	switch (vpu_mod) {
+	case VPU_VIU_OSD1:
+		val = vpu_reg_getb(_reg0, 0, 2);
+		break;
+	case VPU_VIU_OSD2:
+		val = vpu_reg_getb(_reg0, 2, 2);
+		break;
+	case VPU_VIU_VD1:
+		val = vpu_reg_getb(_reg0, 4, 2);
+		break;
+	case VPU_VIU_VD2:
+		val = vpu_reg_getb(_reg0, 6, 2);
+		break;
+	case VPU_VIU_CHROMA:
+		val = vpu_reg_getb(_reg0, 8, 2);
+		break;
+	case VPU_VIU_OFIFO:
+		val = vpu_reg_getb(_reg0, 10, 2);
+		break;
+	case VPU_VIU_SCALE:
+		val = vpu_reg_getb(_reg0, 12, 2);
+		break;
+	case VPU_VIU_OSD_SCALE:
+		val = vpu_reg_getb(_reg0, 14, 2);
+		break;
+	case VPU_VIU_VDIN0:
+		val = vpu_reg_getb(_reg0, 16, 2);
+		break;
+	case VPU_VIU_VDIN1:
+		val = vpu_reg_getb(_reg0, 18, 2);
+		break;
+	case VPU_PIC_ROT1:
+	case VPU_VIU_SRSCL: /* G9TV only */
+		val = vpu_reg_getb(_reg0, 20, 2);
+		break;
+	case VPU_PIC_ROT2:
+	case VPU_VIU_OSDSR: /* G9TV only */
+		val = vpu_reg_getb(_reg0, 22, 2);
+		break;
+	case VPU_PIC_ROT3:
+	case VPU_REV: /* G9TV only */
+		val = vpu_reg_getb(_reg0, 24, 2);
+		break;
+	case VPU_DI_PRE:
+		val = vpu_reg_getb(_reg0, 26, 2);
+		break;
+	case VPU_DI_POST:
+		val = vpu_reg_getb(_reg0, 28, 2);
+		break;
+	case VPU_SHARP: /* G9TV & G9BB only */
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
-			return (vpu_reg_getb(_reg0, 30, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else if ((vpu_mod >= VPU_VIU2_OSD1) &&
-			(vpu_mod <= VPU_VIU2_OSD_SCALE)) {
-		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
-			mem_bit = (vpu_mod - VPU_VIU2_OSD1) * 2;
-			return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else if ((vpu_mod >= VPU_VDIN_AM_ASYNC) &&
-			(vpu_mod <= VPU_VPUARB2_AM_ASYNC)) {
-		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			mem_bit = (vpu_mod - VPU_VDIN_AM_ASYNC + 7) * 2;
-			return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else if ((vpu_mod >= VPU_VENCP) && (vpu_mod <= VPU_VENCI)) {
-		mem_bit = (vpu_mod - VPU_VENCP + 10) * 2;
-		return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
-			VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-	} else if (vpu_mod == VPU_ISP) {
-		if (vpu_conf.chip_type != VPU_CHIP_G9TV) {
-			return (vpu_reg_getb(_reg1, 26, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else if ((vpu_mod >= VPU_CVD2) && (vpu_mod <= VPU_ATV_DMD)) {
+			val = vpu_reg_getb(_reg0, 30, 2);
+		} else {
+			val = VPU_MEM_PD_ERR;
+		}
+		break;
+	case VPU_VIU2_OSD1:
+		val = vpu_reg_getb(_reg1, 0, 2);
+		break;
+	case VPU_VIU2_OSD2:
+		val = vpu_reg_getb(_reg1, 2, 2);
+		break;
+	case VPU_D2D3: /* G9TV only */
+		if (vpu_conf.chip_type == VPU_CHIP_G9TV)
+			val = vpu_reg_getb(_reg1, 0, 4);
+		else
+			val = VPU_MEM_PD_ERR;
+		break;
+	case VPU_VIU2_VD1:
+		val = vpu_reg_getb(_reg1, 4, 2);
+		break;
+	case VPU_VIU2_CHROMA:
+		val = vpu_reg_getb(_reg1, 6, 2);
+		break;
+	case VPU_VIU2_OFIFO:
+		val = vpu_reg_getb(_reg1, 8, 2);
+		break;
+	case VPU_VIU2_SCALE:
+		val = vpu_reg_getb(_reg1, 10, 2);
+		break;
+	case VPU_VIU2_OSD_SCALE:
+		val = vpu_reg_getb(_reg1, 12, 2);
+		break;
+	case VPU_VDIN_AM_ASYNC: /* G9TV only */
+	case VPU_VPU_ARB: /* GXBB only */
+		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
+			(vpu_conf.chip_type == VPU_CHIP_GXBB)) {
+			val = vpu_reg_getb(_reg1, 14, 2);
+		} else {
+			val = VPU_MEM_PD_ERR;
+		}
+		break;
+	case VPU_VDISP_AM_ASYNC: /* G9TV only */
+	case VPU_AFBC_DEC: /* GXBB only */
+		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
+			(vpu_conf.chip_type == VPU_CHIP_GXBB)) {
+			val = vpu_reg_getb(_reg1, 16, 2);
+		} else {
+			val = VPU_MEM_PD_ERR;
+		}
+		break;
+	case VPU_VPUARB2_AM_ASYNC: /* G9TV only */
+		if (vpu_conf.chip_type == VPU_CHIP_G9TV)
+			val = vpu_reg_getb(_reg0, 18, 2);
+		else
+			val = VPU_MEM_PD_ERR;
+		break;
+	case VPU_VENCP:
+		val = vpu_reg_getb(_reg1, 20, 2);
+		break;
+	case VPU_VENCL:
+		val = vpu_reg_getb(_reg1, 22, 2);
+		break;
+	case VPU_VENCI:
+		val = vpu_reg_getb(_reg1, 24, 2);
+		break;
+	case VPU_ISP:
+		val = vpu_reg_getb(_reg1, 26, 2);
+		break;
+	case VPU_CVD2: /* G9TV & G9BB only */
 		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
 			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
-			mem_bit = (vpu_mod - VPU_CVD2 + 7) * 2;
-			return (vpu_reg_getb(_reg1, mem_bit, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else if ((vpu_mod >= VPU_VIU_SRSCL) && (vpu_mod <= VPU_REV)) {
-		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			mem_bit = (vpu_mod - VPU_VIU_SRSCL + 10) * 2;
-			return (vpu_reg_getb(_reg0, mem_bit, 2) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else if (vpu_mod == VPU_D2D3) {
-		if (vpu_conf.chip_type == VPU_CHIP_G9TV) {
-			return (vpu_reg_getb(_reg1, 0, 4) == 0) ?
-				VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN;
-		} else
-			return -1;
-	} else {
-		return -1;
+			val = vpu_reg_getb(_reg1, 28, 2);
+		} else {
+			val = VPU_MEM_PD_ERR;
+		}
+		break;
+	case VPU_ATV_DMD: /* G9TV & G9BB only */
+		if ((vpu_conf.chip_type == VPU_CHIP_G9TV) ||
+			(vpu_conf.chip_type == VPU_CHIP_G9BB)) {
+			val = vpu_reg_getb(_reg1, 30, 2);
+		} else {
+			val = VPU_MEM_PD_ERR;
+		}
+		break;
+	default:
+		val = VPU_MEM_PD_ERR;
+		break;
 	}
+
+	if (val == 0)
+		return VPU_MEM_POWER_ON;
+	else if ((val == 0x3) || (val == 0xf))
+		return VPU_MEM_POWER_DOWN;
+	else
+		return -1;
 }
 
 /* *********************************************** */

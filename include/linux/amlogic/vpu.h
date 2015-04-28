@@ -44,7 +44,9 @@ enum vpu_mod_t {
 	VPU_VIU2_SCALE,       /* reg1[11:10] */
 	VPU_VIU2_OSD_SCALE,   /* reg1[13:12] */
 	VPU_VDIN_AM_ASYNC,    /* reg1[15:14]  //G9TV only */
+	VPU_VPU_ARB,          /* reg1[15:14]  //GX */
 	VPU_VDISP_AM_ASYNC,   /* reg1[17:16]  //G9TV only */
+	VPU_AFBC_DEC,         /* reg1[17:16]  //GX */
 	VPU_VPUARB2_AM_ASYNC, /* reg1[19:18]  //G9TV only */
 	VPU_VENCP,            /* reg1[21:20] */
 	VPU_VENCL,            /* reg1[23:22] */

@@ -807,6 +807,7 @@ static int __init vdec_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
+#ifdef CONFIG_CMA
 static int __init vdec_cma_setup(struct reserved_mem *rmem)
 {
 	int ret;
@@ -822,7 +823,9 @@ static int __init vdec_cma_setup(struct reserved_mem *rmem)
 		return ret;
 	}
 
+#ifndef CONFIG_ARM64
 	dma_contiguous_early_fixup(base, size);
+#endif
 
 	pr_info("vdec: cma setup\n");
 
@@ -830,6 +833,8 @@ static int __init vdec_cma_setup(struct reserved_mem *rmem)
 }
 
 RESERVEDMEM_OF_DECLARE(vdec_cma, "amlogic, vdec-cma-memory", vdec_cma_setup);
+#endif
+
 RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
 
 module_param(debug_trace_num, uint, 0664);
