@@ -50,7 +50,7 @@
 #include <linux/amlogic/sd.h>
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
-#include <asm/outercache.h>
+/* #include <asm/outercache.h> */
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/cpu_version.h>
@@ -72,6 +72,34 @@
 
 static struct proc_dir_entry *proc_card;
 static struct mtd_partition *card_table[16];
+const u8 tuning_blk_pattern_4bit[64] = {
+	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
+	0xc3, 0x3c, 0xcc, 0xff, 0xfe, 0xff, 0xfe, 0xef,
+	0xff, 0xdf, 0xff, 0xdd, 0xff, 0xfb, 0xff, 0xfb,
+	0xbf, 0xff, 0x7f, 0xff, 0x77, 0xf7, 0xbd, 0xef,
+	0xff, 0xf0, 0xff, 0xf0, 0x0f, 0xfc, 0xcc, 0x3c,
+	0xcc, 0x33, 0xcc, 0xcf, 0xff, 0xef, 0xff, 0xee,
+	0xff, 0xfd, 0xff, 0xfd, 0xdf, 0xff, 0xbf, 0xff,
+	0xbb, 0xff, 0xf7, 0xff, 0xf7, 0x7f, 0x7b, 0xde,
+};
+const u8 tuning_blk_pattern_8bit[128] = {
+	0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00, 0x00,
+	0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc, 0xcc,
+	0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff, 0xff,
+	0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee, 0xff,
+	0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd, 0xdd,
+	0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff, 0xbb,
+	0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff, 0xff,
+	0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee, 0xff,
+	0xff, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff, 0x00,
+	0x00, 0xff, 0xff, 0xcc, 0xcc, 0xcc, 0x33, 0xcc,
+	0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0xcc, 0xff,
+	0xff, 0xff, 0xee, 0xff, 0xff, 0xff, 0xee, 0xee,
+	0xff, 0xff, 0xff, 0xdd, 0xff, 0xff, 0xff, 0xdd,
+	0xdd, 0xff, 0xff, 0xff, 0xbb, 0xff, 0xff, 0xff,
+	0xbb, 0xbb, 0xff, 0xff, 0xff, 0x77, 0xff, 0xff,
+	0xff, 0x77, 0x77, 0xff, 0x77, 0xbb, 0xdd, 0xee,
+};
 
 void aml_mmc_ver_msg_show(void)
 {
@@ -438,6 +466,29 @@ bool is_emmc_exist(struct amlsd_host *host) /* is eMMC/tSD exist */
 	return false;
 }
 
+void aml_sd_emmc_print_reg(struct amlsd_host *host)
+{
+	return;
+}
+static int aml_sd_emmc_regs_show(struct seq_file *s, void *v)
+{
+	struct mmc_host *mmc = (struct mmc_host *)s->private;
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	aml_sd_emmc_print_reg(host);
+	return 0;
+}
+static int aml_sd_emmc_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aml_sd_emmc_regs_show, inode->i_private);
+}
+static const struct file_operations aml_sd_emmc_regs_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aml_sd_emmc_regs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 /*----sdhc----*/
 
 void aml_sdhc_print_reg_(u32 *buf)
@@ -586,6 +637,36 @@ static const struct file_operations amlsd_param_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+void aml_sd_emmc_init_debugfs(struct mmc_host *mmc)
+{
+	struct dentry		*root;
+	struct dentry		*node;
+	if (!mmc->debugfs_root)
+		return;
+	root = debugfs_create_dir(dev_name(&mmc->class_dev), mmc->debugfs_root);
+	if (IS_ERR(root)) {
+		dev_err(&mmc->class_dev, "NEWSD debugfs just isn't enabled\n");
+		return;
+	}
+	if (!root) {
+		dev_err(&mmc->class_dev, "NEWSD it failed to create the directory\n");
+		goto err;
+	}
+	debugfs_create_x32("sd_emmc_dbg", S_IRUGO | S_IWUSR, root,
+		(u32 *)&sd_emmc_debug);
+	sd_emmc_debug = 1;
+	node = debugfs_create_file("sd_emmc_regs", S_IRUGO, root, mmc,
+		&aml_sd_emmc_regs_fops);
+	if (IS_ERR(node))
+		return;
+	node = debugfs_create_file("params", S_IRUGO, root, mmc,
+		&amlsd_param_fops);
+	if (IS_ERR(node))
+		return;
+	return;
+err:
+	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
+}
 
 void aml_sdhc_init_debugfs(struct mmc_host *mmc)
 {
@@ -1379,6 +1460,14 @@ static int __init sdio_debug_setup(char *str)
 }
 __setup("sdio_debug=", sdio_debug_setup);
 
+unsigned int sd_emmc_debug = 0x0;
+static int __init sd_emmc_debug_setup(char *str)
+{
+	int ret;
+	ret = kstrtol(str, 0, (long *)&sd_emmc_debug);
+	return ret;
+}
+__setup("sd_emmc_debug=", sd_emmc_debug_setup);
 void aml_dbg_print_pinmux(void)
 {
 	pr_info(

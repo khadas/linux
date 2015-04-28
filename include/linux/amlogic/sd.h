@@ -29,7 +29,7 @@
 
 #define AML_SDHC_MAGIC			 "amlsdhc"
 #define AML_SDIO_MAGIC			 "amlsdio"
-
+#define AML_SD_EMMC_MAGIC			 "amlsd_emmc"
 
 enum aml_mmc_waitfor {
 	XFER_INIT,			  /* 0 */
@@ -175,6 +175,7 @@ struct amlsd_host {
 	struct mmc_host		*mmc;
 	struct mmc_request	*request;
 	struct resource		*mem;
+	struct sd_emmc_regs *sd_emmc_regs;
 	void __iomem		*base;
 	int			dma;
 	char *bn_buf;
@@ -209,6 +210,14 @@ struct amlsd_host {
 
 	unsigned long		clk_rate;
 
+	char *desc_buf;
+	dma_addr_t		desc_dma_addr;
+	unsigned int dma_sts;
+	unsigned int sg_cnt;
+	char *desc_cur;
+	unsigned int desc_cur_cnt;
+	char *desc_pre;
+	unsigned int desc_pre_cnt;
 	struct  mmc_request	*mrq;
 	struct  mmc_request	*mrq2;
 	spinlock_t	mrq_lock;
@@ -813,6 +822,282 @@ struct sdhc_clk2 {
 #define SDHC_SRST_ALL				   0x3f
 #define SDHC_ICTL_ALL						0x7fff
 
+struct sd_emmc_regs {
+	u32 gclock;	 /* 0x00 */
+	u32 gdelay;	 /* 0x04 */
+	u32 gadjust;	/* 0x08 */
+	u32 reserved_0c;	   /* 0x0c */
+	u32 gcalout;	/* 0x10 */
+	u32 reserved_14[11];   /* 0x14~0x3c */
+	u32 gstart;	 /* 0x40 */
+	u32 gcfg;	   /* 0x44 */
+	u32 gstatus;	/* 0x48 */
+	u32 girq_en;	/* 0x4c */
+	u32 gcmd_cfg;   /* 0x50 */
+	u32 gcmd_arg;   /* 0x54 */
+	u32 gcmd_dat;   /* 0x58 */
+	u32 gcmd_rsp0;   /* 0x5c */
+	u32 gcmd_rsp1;  /* 0x60 */
+	u32 gcmd_rsp2;  /* 0x64 */
+	u32 gcmd_rsp3;  /* 0x68 */
+	u32 reserved_6c;	   /* 0x6c */
+	u32 gcurr_cfg;  /* 0x70 */
+	u32 gcurr_arg;  /* 0x74 */
+	u32 gcurr_dat;  /* 0x78 */
+	u32 gcurr_rsp;  /* 0x7c */
+	u32 gnext_cfg;  /* 0x80 */
+	u32 gnext_arg;  /* 0x84 */
+	u32 gnext_dat;  /* 0x88 */
+	u32 gnext_rsp;  /* 0x8c */
+	u32 grxd;	   /* 0x90 */
+	u32 gtxd;	   /* 0x94 */
+	u32 reserved_98[90];   /* 0x98~0x1fc */
+	u32 gdesc[128]; /* 0x200 */
+	u32 gping[128]; /* 0x400 */
+	u32 gpong[128]; /* 0x800 */
+};
+struct sd_emmc_clock {
+	/*[5:0]	 Clock divider.
+	Frequency = clock source/cfg_div, Maximum divider 63. */
+	u32 div:6;
+	/*[7:6]	 Clock source, 0: Crystal 24MHz, 1: Fix PLL, 850MHz*/
+	u32 src:2;
+	/*[9:8]	 Core clock phase. 0: 0 phase,
+	1: 90 phase, 2: 180 phase, 3: 270 phase.*/
+	u32 core_phase:2;
+	/*[11:10]   TX clock phase. 0: 0 phase,
+	1: 90 phase, 2: 180 phase, 3: 270 phase.*/
+	u32 tx_phase:2;
+	/*[13:12]   RX clock phase. 0: 0 phase,
+	1: 90 phase, 2: 180 phase, 3: 270 phase.*/
+	u32 rx_phase:2;
+	u32 reserved14:2;
+	/*[19:16]   TX clock delay line. 0: no delay,
+	n: delay n*200ps. Maximum delay 3ns.*/
+	u32 tx_delay:4;
+	/*[23:20]   RX clock delay line. 0: no delay,
+	n: delay n*200ps. Maximum delay 3ns.*/
+	u32 rx_delay:4;
+	/*[24]	  1: Keep clock always on.
+	0: Clock on/off controlled by activities. */
+	u32 always_on:1;
+	/*[25]	1: enable IRQ sdio when in sleep mode. */
+	u32 irq_sdio_sleep:1;
+	u32 reserved26:6;
+};
+struct sd_emmc_delay {
+	u32 dat0:4;		 /*[3:0]	   Data 0 delay line. */
+	u32 dat1:4;		 /*[7:4]	   Data 1 delay line. */
+	u32 dat2:4;		 /*[11:8]	  Data 2 delay line. */
+	u32 dat3:4;		 /*[15:12]	 Data 3 delay line. */
+	u32 dat4:4;		 /*[19:16]	 Data 4 delay line. */
+	u32 dat5:4;		 /*[23:20]	 Data 5 delay line. */
+	u32 dat6:4;		 /*[27:24]	 Data 6 delay line. */
+	u32 dat7:4;		 /*[31:28]	 Data 7 delay line. */
+};
+struct sd_emmc_adjust {
+	/*[3:0]	   Command delay line. */
+	u32 cmd_delay:4;
+	/*[7:4]	   DS delay line. */
+	u32 ds_delay:4;
+	/*[11:8]	  Select one signal to be tested.*/
+	u32 cali_sel:4;
+	/*[12]		Enable calibration. */
+	u32 cali_enable:1;
+	/*[13]	   Adjust interface timing
+	by resampling the input signals. */
+	u32 adj_enable:1;
+	/*[14]	   1: test the rising edge.
+	0: test the falling edge. */
+	u32 cali_rise:1;
+	u32 reserved15:1;
+	 /*[21:16]	   Resample the input signals
+	when clock index==adj_delay. */
+	u32 adj_delay:6;
+	u32 reserved22:10;
+};
+struct sd_emmc_calout {
+	/*[5:0]	   Calibration reading.
+	The event happens at this index. */
+	u32 cali_idx:6;
+	u32 reserved6:1;
+	/*[7]		 The reading is valid. */
+	u32 cali_vld:1;
+	 /*[15:8]	  Copied from BASE+0x8
+	 [15:8] include cali_sel, cali_enable, adj_enable, cali_rise. */
+	u32 cali_setup:8;
+	u32 reserved16:16;
+};
+struct sd_emmc_start {
+	/*[0]   1: Read descriptor from internal SRAM,
+	limited to 32 descriptors. */
+	u32 init:1;
+	/*[1]   1: Start command chain execution process. 0: Stop */
+	u32 busy:1;
+	/*[31:2] Descriptor address, the last 2 bits are 0,
+	4 bytes aligned. */
+	u32 addr:30;
+};
+struct sd_emmc_config {
+	/*[1:0]	 0: 1 bit, 1: 4 bits,
+	2: 8 bits, 3: 2 bits (not supported)*/
+	u32 bus_width:2;
+	/*[2]	   1: DDR mode, 0: SDR mode */
+	u32 ddr:1;
+	/*[3]	   1: DDR access urgent, 0: DDR access normal. */
+	u32 dc_ugt:1;
+	/*[7:4]	 Block length 2^cfg_bl_len,
+	because internal buffer size is limited to 512 bytes,
+	the cfg_bl_len <=9. */
+	u32 bl_len:4;
+	/*[11:8]	Wait response till 2^cfg_resp_timeout core clock cycles.
+	Maximum 32768 core cycles. */
+	u32 resp_timeout:4;
+	/*[15:12]   Wait response-command,
+	command-command gap before next command,
+	2^cfg_rc_cc core clock cycles. */
+	u32 rc_cc:4;
+	/*[16]	  DDR mode only. The command and TXD start from rising edge.
+	Set 1 to start from falling edge. */
+	u32 out_fall:1;
+	/*[17]	  1: Enable SDIO data block gap interrupt period.
+	0: Disabled.*/
+	u32 blk_gap_ip:1;
+	/*[18]	  Spare,  ??? need check*/
+	u32 spare:1;
+	/*[19]	  Use this descriptor even if its owner bit is ???0???¡ì?¨¨.*/
+	u32 ignore_owner:1;
+	/*[20]	  Check data strobe in HS400.*/
+	u32 chk_ds:1;
+	/*[21]	  Hold CMD as output Low, eMMC boot mode.*/
+	u32 cmd_low:1;
+	/*[22]	  1: stop clock. 0: normal clock.*/
+	u32 stop_clk:1;
+	/*[23]	  1: when BUS is idle and no descriptor is available,
+	turn off clock, to save power.*/
+	u32 auto_clk:1;
+	/*[24]	TXD add error test*/
+	u32 txd_add_err:1;
+	/*[25]	When TXD CRC error, host sends the block again.*/
+	u32 txd_retry:1;
+	u32 revd:8;			/*[31:26]   reved*/
+};
+struct sd_emmc_status {
+	/*[7:0]	 RX data CRC error per wire, for multiple block read,
+	the CRC errors are ORed together.*/
+	u32 rxd_err:8;
+	/*[8]	   TX data CRC error, for multiple block write,
+	any one of blocks CRC error. */
+	u32 txd_err:1;
+	/*[9]	   SD/eMMC controller doesn???¨º?¨¨t own descriptor.
+	The owner bit is set cfg_ignore_owner to ignore this error.*/
+	u32 desc_err:1;
+	/*[10]	  Response CRC error.*/
+	u32 resp_err:1;
+	/*[11]	  No response received before time limit.
+	The timeout limit is set by cfg_resp_timeout.*/
+	u32 resp_timeout:1;
+	/*[12]	  Descriptor execution time over time limit.
+	The timeout limit is set by descriptor itself.*/
+	u32 desc_timeout:1;
+	/*[13]	  End of Chain IRQ, Normal IRQ. */
+	u32 end_of_chain:1;
+	/*[14]	  This descriptor requests an IRQ, Normal IRQ,
+	the descriptor chain execution keeps going on.*/
+	u32 desc_irq:1;
+	/*[15]	  SDIO device uses DAT[1] to request IRQ. */
+	u32 irq_sdio:1;
+	/*[23:16]   Input data signals. */
+	u32 dat_i:8;
+	/*[24]	  nput response signal. */
+	u32 cmd_i:1;
+	/*[25]	  Input data strobe. */
+	u32 ds:1;
+	 /*[30:28]   BUS fsm */
+	u32 bus_fsm:1;
+	/*[31]	  Descriptor write back process is done
+	and it is ready for CPU to read.*/
+	u32 desc_wr_rdy:1;
+};
+struct sd_emmc_irq_en {
+	/*[7:0]	 RX data CRC error per wire.*/
+	u32 rxd_err:8;
+	/*[8]	   TX data CRC error. */
+	u32 txd_err:1;
+	/*[9]	   SD/eMMC controller doesn???¨º?¨¨t own descriptor. */
+	u32 desc_err:1;
+	/*[10]	  Response CRC error.*/
+	u32 resp_err:1;
+	/*[11]	  No response received before time limit. */
+	u32 resp_timeout:1;
+	/*[12]	  Descriptor execution time over time limit. */
+	u32 desc_timeout:1;
+	/*[13]	  End of Chain IRQ. */
+	u32 end_of_chain:1;
+	/*[14]	  This descriptor requests an IRQ. */
+	u32 desc_irq:1;
+	 /*[15]	  Enable sdio interrupt. */
+	u32 irq_sdio:1;
+	/*[31:16]   reved*/
+	u32 revd:16;
+};
+struct sd_emmc_data_info {
+	/*[9:0]	 Rxd words received from BUS. Txd words received from DDR.*/
+	u32 cnt:10;
+	/*[24:16]   Rxd Blocks received from BUS.
+	Txd blocks received from DDR.*/
+	u32 blk:9;
+	/*[31:17]   Reved. */
+	u32 revd:30;
+};
+struct sd_emmc_card_info {
+	/*[9:0]	 Txd BUS cycle counter. */
+	u32 txd_cnt:10;
+	/*[24:16]   Txd BUS block counter.*/
+	u32 txd_blk:9;
+	/*[31:17]   Reved. */
+	u32 revd:30;
+};
+struct cmd_cfg {
+	u32 length:9;
+	u32 block_mode:1;
+	u32 r1b:1;
+	u32 end_of_chain:1;
+	u32 timeout:4;
+	u32 no_resp:1;
+	u32 no_cmd:1;
+	u32 data_io:1;
+	u32 data_wr:1;
+	u32 resp_nocrc:1;
+	u32 resp_128:1;
+	u32 resp_num:1;
+	u32 data_num:1;
+	u32 cmd_index:6;
+	u32 error:1;
+	u32 owner:1;
+};
+struct sd_emmc_desc_info {
+	u32 cmd_info;
+	u32 cmd_arg;
+	u32 data_addr;
+	u32 resp_addr;
+};
+#define SD_EMMC_MAX_DESC_MUN					512
+#define SD_EMMC_REQ_DESC_MUN					4
+#define SD_EMMC_CLOCK_SRC_OSC				 0 /* 24MHz */
+#define SD_EMMC_CLOCK_SRC_FCLK_DIV2		   1 /* 1GHz */
+#define SD_EMMC_CLOCK_SRC_MPLL				2 /* MPLL */
+#define SD_EMMC_CLOCK_SRC_DIFF_PLL			3
+#define SD_EMMC_IRQ_ALL					0x3fff
+#define SD_EMMC_RESP_SRAM_OFF					0
+#define SD_EMMC_DESC_SET_REG
+#define SD_EMMC_DESC_REG_CONF					0x4
+#define SD_EMMC_DESC_REG_IRQC					0xC
+#define SD_EMMC_DESC_RESP_STAT				0xfff80000
+#define SD_EMMC_IRQ_EN_ALL_INIT
+#define SD_EMMC_REQ_DMA_SGMAP
+/* #define SD_EMMC_DATA_TASKLET */
+#define STAT_POLL_TIMEOUT				0xfffff
 #define STAT_POLL_TIMEOUT				0xfffff
 
 #define MMC_RSP_136_NUM					4
@@ -830,6 +1115,7 @@ struct sdhc_clk2 {
 #define AML_MMC_SLEEP_TIMEOUT		1000
 #define AML_MMC_OFF_TIMEOUT 8000
 
+#define SD_EMMC_BOUNCE_REQ_SIZE		(512*1024)
 #define SDHC_BOUNCE_REQ_SIZE		(512*1024)
 #define SDIO_BOUNCE_REQ_SIZE		(128*1024)
 #define MMC_TIMEOUT_MS		20

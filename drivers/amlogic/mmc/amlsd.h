@@ -28,6 +28,9 @@
 
 extern unsigned sdhc_debug;
 extern unsigned sdio_debug;
+extern unsigned sd_emmc_debug;
+extern const u8 tuning_blk_pattern_4bit[64];
+extern const u8 tuning_blk_pattern_8bit[128];
 #define DEBUG_SD_OF		1
 /* #define DEBUG_SD_OF			0 */
 
@@ -85,6 +88,12 @@ if (ret) \
 #define sdio_err(fmt, args...) \
 	pr_info("[%s]\033[0;40;33m " fmt "\033[0m", __func__, ##args);
 
+#define sd_emmc_dbg(dbg_level, fmt, args...) do {\
+	if (dbg_level & sd_emmc_debug)	\
+		pr_info("[%s]" fmt , __func__, ##args);	\
+} while (0)
+#define sd_emmc_err(fmt, args...) \
+	pr_info("[%s]\033[0;40;32m " fmt "\033[0m", __func__, ##args);
 #define SD_PARSE_U32_PROP(node, prop_name, prop, value) {	\
 	if (!of_property_read_u32(node, prop_name, &prop)) {\
 		value = prop;\
@@ -128,13 +137,16 @@ struct sd_caps {
 extern int storage_flag;
 
 extern int sdio_reset_comm(struct mmc_card *card);
-
+extern void aml_debug_print_buf(char *buf, int size);
+extern int aml_buf_verify(int *buf, int blocks, int lba);
 void aml_mmc_ver_msg_show(void);
 extern void aml_sdhc_init_debugfs(struct mmc_host *mmc);
 void aml_sdhc_print_reg_(u32 *buf);
 extern void aml_sdhc_print_reg(struct amlsd_host *host);
 extern void aml_sdio_init_debugfs(struct mmc_host *mmc);
+extern void aml_sd_emmc_init_debugfs(struct mmc_host *mmc);
 extern void aml_sdio_print_reg(struct amlsd_host *host);
+extern void aml_sd_emmc_print_reg(struct amlsd_host *host);
 
 extern int add_part_table(struct mtd_partition *part, unsigned int nr_part);
 extern int add_emmc_partition(struct gendisk *disk);
@@ -164,6 +176,7 @@ irqreturn_t aml_sd_irq_cd(int irq, void *dev_id);
 irqreturn_t aml_irq_cd_thread(int irq, void *data);
 void aml_sduart_pre(struct amlsd_platform *pdata);
 int aml_sd_voltage_switch(struct amlsd_platform *pdata, char signal_voltage);
+int aml_signal_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios);
 int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq);
 
  /* chip select high */

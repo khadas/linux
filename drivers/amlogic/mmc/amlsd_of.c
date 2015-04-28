@@ -124,7 +124,7 @@ int amlsd_get_reg_base(struct platform_device *pdev,
 		dev_err(&pdev->dev, "of_iomap fail\n");
 		return -EINVAL;
 	}
-	pr_info("host->base %x\n", (u32)host->base);
+	pr_info("host->base %p\n", host->base);
 	return 0;
 }
 #if 0
