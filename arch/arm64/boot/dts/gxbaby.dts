@@ -56,7 +56,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		linux,usable-memory = <0x0 0x1000000 0x0 0x40000000>;
 	};
 
 	reserved-memory {
@@ -69,6 +69,8 @@
 			reg = <0x0 0x10000000 0x0 0x200000>;
 			no-map;
 		};
+
+
 		/*  DISP&MM-A/V stream */
 		streambuf_reserved:linux,mesonstream {
 			compatible = "amlogic, stream-memory";

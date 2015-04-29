@@ -128,12 +128,12 @@ static void gic_write_grpen1(u64 val)
 	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
 	isb();
 }
-
+#ifdef CONFIG_SMP
 static void gic_write_sgi1r(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
 }
-
+#endif
 static void gic_enable_sre(void)
 {
 	u64 val;
@@ -200,6 +200,7 @@ static void gic_poke_irq(struct irq_data *d, u32 offset)
 	rwp_wait();
 }
 
+#ifdef CONFIG_SMP
 static int gic_peek_irq(struct irq_data *d, u32 offset)
 {
 	u32 mask = 1 << (gic_irq(d) % 32);
@@ -212,7 +213,7 @@ static int gic_peek_irq(struct irq_data *d, u32 offset)
 
 	return !!(readl_relaxed(base + offset + (gic_irq(d) / 32) * 4) & mask);
 }
-
+#endif
 static void gic_mask_irq(struct irq_data *d)
 {
 	gic_poke_irq(d, GICD_ICENABLER);
