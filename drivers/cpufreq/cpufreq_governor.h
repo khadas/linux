@@ -298,9 +298,8 @@ static ssize_t show_sampling_rate_min_gov_pol				\
 }
 
 extern struct mutex cpufreq_governor_lock;
-extern int select_cpu_for_hotplug(
-			  struct task_struct *p,
-			  int sd_flags, int wake_flags);
+extern int select_cpu_for_hotplug(struct task_struct *p,
+				  int cpu, int sd_flags, int wake_flags);
 
 void dbs_check_cpu(struct dbs_data *dbs_data, int cpu);
 bool need_load_eval(struct cpu_dbs_common_info *cdbs,

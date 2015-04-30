@@ -622,7 +622,8 @@ static int __ref cpu_hotplug_thread(void *data)
 				raw_spin_lock_irqsave(
 					  &NULL_task->pi_lock, flags);
 				target_cpu = select_cpu_for_hotplug
-					(NULL_task, SD_BALANCE_EXEC, 0);
+						(NULL_task, task_cpu(NULL_task),
+						 SD_BALANCE_EXEC, 0);
 				raw_spin_unlock_irqrestore
 					(&NULL_task->pi_lock, flags);
 				if (target_cpu == 0) {
