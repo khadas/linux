@@ -59,15 +59,17 @@ static long amlogic_pll_round_rate(struct clk_hw *hw,
 	struct amlogic_clk_pll *pll = to_clk_pll(hw);
 	const struct amlogic_pll_rate_table *rate_table = pll->rate_table;
 	int i;
+	if (drate < rate_table[0].rate)
+		return rate_table[0].rate;
 
 	/* Assumming rate_table is in descending order */
-	for (i = 0; i < pll->rate_count; i++) {
-		if (drate >= rate_table[i].rate)
-			return rate_table[i].rate;
+	for (i = 1; i < pll->rate_count; i++) {
+		if (drate <= rate_table[i].rate)
+			return rate_table[i-1].rate;
 	}
 
-	/* return minimum supported value */
-	return rate_table[i - 1].rate;
+	/* return maximum supported value */
+	return rate_table[i-1].rate;
 }
 static long aml_pll_round_rate(struct clk_hw *hw,
 	    unsigned long drate, unsigned long *prate)
@@ -145,9 +147,12 @@ static unsigned long amlogic_pll2500_recalc_rate(struct clk_hw *hw,
 	struct amlogic_clk_pll *pll = to_clk_pll(hw);
 	u32 od, M, N, ext_div_n, pll_con;
 	u32 fvco = parent_rate;
-
+	u32 mux;
+	u32 val;
   /*using measure sys div3 to get sys pll clock. (25)*/
 	pll_con = readl(pll->con_reg);
+	val = readl(pll->con_reg + (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4);
+	mux = (val >> 2) & 0x3;
 	ext_div_n = ((readl(pll->con_reg + ((HHI_SYS_CPU_CLK_CNTL1 -
 		HHI_SYS_PLL_CNTL)*4))) >> 20) & 0x3ff;
 	/*pr_debug("%s: pll_con is 0x%p\n", __func__, (void *)pll_con);
@@ -163,10 +168,19 @@ static unsigned long amlogic_pll2500_recalc_rate(struct clk_hw *hw,
 	/*pr_debug("%s: HHI_SYS_CPU_CLK_CNTL : 0x%x\n",
 	 __func__,readl(pll->con_reg
 	 + ((HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4)));*/
-	if (ext_div_n)
+
+	pr_debug("%s: new M: %u new N: %u new od: %u new ext_div_n: %u,mux:%d\n",
+	  __func__, M, N, od, ext_div_n, mux);
+	if (mux == 0)
+		fvco /= 1;
+	if (mux == 1)
+		fvco /= 2;
+	if (mux == 2)
+		fvco /= 3;
+	if (mux == 3 && ext_div_n)
 		fvco /= (ext_div_n + 1)*2;
 	fvco *= 1000000;
-  /*pr_debug("%s: fvco is %u\n", __func__, fvco);*/
+	pr_debug("%s: fvco is %u\n", __func__, fvco);
 	return (unsigned long)fvco;
 }
 
@@ -184,6 +198,8 @@ static int amlogic_pll2500_set_rate(struct clk_hw *hw, unsigned long drate,
 	old_cntl = readl(pll->con_reg);
 	tmp = old_cntl;
 	old_rate = clk_get_rate(__clk_lookup("sys_pll"));
+	if (drate == old_rate)
+		return 0;
 
 	irq_flags = arch_local_irq_save();
 	preempt_disable();
@@ -202,12 +218,12 @@ static int amlogic_pll2500_set_rate(struct clk_hw *hw, unsigned long drate,
 		udelay_scaled(10, old_rate / 1000000, 24 /*clk_get_rate_xtal*/);
 	}
 
-	/*pr_debug("%s: drate is %lu\n",__func__,drate);*/
-	drate /= 1000000;
+	pr_debug("%s: drate is %lu\n", __func__, drate);
+
 	if (drate < pll->rate_table[0].rate)
-		drate = (pll->rate_table[0].rate) * 1000000;
+		drate = (pll->rate_table[0].rate);
 	if (drate > pll->rate_table[pll->rate_count].rate)
-		drate = (pll->rate_table[pll->rate_count].rate) * 1000000;
+		drate = (pll->rate_table[pll->rate_count].rate);
 
 	/* Get required rate settings from table */
 	rate = amlogic_get_pll_settings(pll, drate);
@@ -216,7 +232,6 @@ static int amlogic_pll2500_set_rate(struct clk_hw *hw, unsigned long drate,
 			drate, __clk_get_name(hw->clk));
 		return -EINVAL;
 	}
-
 	old_od = (old_cntl >> PLL2500_OD_SHIFT) & PLL2500_OD_MASK;
 	old_M = (old_cntl >> PLL2500_M_SHIFT) & PLL2500_M_MASK;
 	old_N = (old_cntl >> PLL2500_N_SHIFT) & PLL2500_N_MASK;
@@ -238,12 +253,13 @@ SETPLL:
 			aml_pll2500_set_reg32_bits((pll->con_reg
 			+ (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4),
 			3, 2, 2);
+
 		} else {
 			aml_pll2500_set_reg32_bits((pll->con_reg
 			+ (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4),
 			0, 2, 2);
-		}
 
+		}
 		tmp = old_cntl;
 	  tmp &= ~(0x33fff); /*M:bit0-8 N:bit9-13 OD:bit16-17*/
 	  tmp |= (rate->m)<<PLL2500_M_SHIFT;
@@ -278,18 +294,17 @@ SETPLL:
 			loop = 0;
 			pr_err("CPU freq: %ld MHz, syspll (%x) can't lock:\n",
 					drate/1000000, new_cntl);
-			pr_err("  [10c0..10c4]%08x, %08x, %08x, %08x,"
-					"%08x: [10a5]%08x, [10c7]%08x\n",
+			pr_err("  [10c0..10c4]%08x, %08x, %08x, %08x, %08x\n",
 					readl(pll->con_reg),
 					readl(pll->con_reg + 1*4),
 					readl(pll->con_reg + 2*4),
 					readl(pll->con_reg + 3*4),
-					readl(pll->con_reg + 4*4),
+					readl(pll->con_reg + 4*4));
+			pr_err("  [10a5]%08x, [10c7]%08x\n",
 					readl(pll->con_reg + (HHI_MPLL_CNTL6
 						- HHI_SYS_PLL_CNTL)*4),
 					readl(pll->con_reg + (HHI_DPLL_TOP_1
-						- HHI_SYS_PLL_CNTL)*4)
-		);
+						- HHI_SYS_PLL_CNTL)*4));
 		if (!((readl(pll->con_reg + (HHI_SYS_CPU_CLK_CNTL
 						- HHI_DPLL_TOP_1)*4)) & 0x2)) {
 			pr_err("SYS_TDC_CAL_DONE triggered,dis TDC_CAL_EN\n");
@@ -298,28 +313,31 @@ SETPLL:
 			pr_err("  HHI_SYS_PLL_CNTL4: %08x\n",
 						readl(pll->con_reg + 3*4));
 		} else{
-		      rate->afc_dsel_bp_in = !rate->afc_dsel_bp_in;
-		      pr_err("  INV afc_dsel_bp_in,new afc_dsel_bp_in=%08x\n",
+			rate->afc_dsel_bp_in = !rate->afc_dsel_bp_in;
+			pr_err("  INV afc_dsel_bp_in,new afc_dsel_bp_in=%08x\n",
 						rate->afc_dsel_bp_in);
-		      for (tmp = 0; tmp < pll->rate_count; tmp++) {
-				    if (drate == pll->rate_table[tmp].rate)
-					    /*write back afc_dsel_bp_in bit.*/
-					    pll->rate_table[tmp].afc_dsel_bp_in
-					      = rate->afc_dsel_bp_in;
-					}
+			for (tmp = 0; tmp < pll->rate_count; tmp++) {
+				if (drate == (pll->rate_table[tmp].rate))
+					/*write back afc_dsel_bp_in bit.*/
+					pll->rate_table[tmp].afc_dsel_bp_in
+						= rate->afc_dsel_bp_in;
 				}
-				pr_err("  Try again!\n");
 			}
+				pr_err("  Try again!\n");
+		}
 			goto SETPLL;
 		};
 	} else{
 		pr_debug("no change for sys pll!\n");
 	}
 
+
   /*cpu switch to sys pll*/
-	readl(pll->con_reg + (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4);
-	writel((tmp&(1<<7)), (pll->con_reg + (HHI_SYS_CPU_CLK_CNTL
+	tmp = readl(pll->con_reg + (HHI_SYS_CPU_CLK_CNTL - HHI_SYS_PLL_CNTL)*4);
+	writel((tmp|(1<<7)), (pll->con_reg + (HHI_SYS_CPU_CLK_CNTL
 		- HHI_SYS_PLL_CNTL)*4));
+
+
 	if (old_rate <= drate) {
 			/*when increasing frequency,
 			lpj has already been adjusted*/
@@ -331,7 +349,7 @@ SETPLL:
 	}
 	preempt_enable();
 	arch_local_irq_restore(irq_flags);
-	pr_debug("cur rate is %lu\n", clk_get_rate(__clk_lookup("sys_pll")));
+
 
 	return 0;
 }
@@ -449,9 +467,12 @@ static unsigned long aml_pll_recalc_rate(struct clk_hw *hw,
 	pll_con = readl(aml_pll->pll_ctrl->con_reg);
 	if (aml_pll->pll_recalc_rate)
 		return aml_pll->pll_recalc_rate(aml_pll, parent_rate);
-	od = (pll_con >> aml_pll->pll_conf->od_shift) & aml_pll->pll_conf->od_mask;
-	M = (pll_con >> aml_pll->pll_conf->m_shift) & aml_pll->pll_conf->m_mask;
-	N = (pll_con >> aml_pll->pll_conf->n_shift) & aml_pll->pll_conf->n_mask;
+	od = (pll_con >> aml_pll->pll_conf->od_shift) &
+			aml_pll->pll_conf->od_mask;
+	M = (pll_con >> aml_pll->pll_conf->m_shift) &
+			aml_pll->pll_conf->m_mask;
+	N = (pll_con >> aml_pll->pll_conf->n_shift) &
+			aml_pll->pll_conf->n_mask;
 	pr_debug("od: %d  M: %d  N  %d\n", od, M, N);
 
 	fvco /= 1000000;
@@ -467,7 +488,7 @@ static int aml_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 {
 	struct amlogic_pll_clock *aml_pll = to_aml_pll(hw);
 	struct amlogic_pll_rate_table *rate;
-	printk("drate=%lu,prate=%ld\n", drate, prate);
+	pr_info("drate=%lu,prate=%ld\n", drate, prate);
 	rate = aml_get_pll_settings(aml_pll, drate);
 	if (!rate) {
 		pr_err("%s: Invalid rate : %lu for pll clk %s\n", __func__,

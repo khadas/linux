@@ -387,7 +387,7 @@ static int __init meson_cpufreq_probe(struct platform_device *pdev)
 #endif
 
 	cpufreq.dev = &pdev->dev;
-	cpufreq.armclk = clk_get_sys("cpu_m_1", "cpu_m_1");
+	cpufreq.armclk = clk_get_sys("sys_pll", "sys_pll");
 	if (IS_ERR(cpufreq.armclk)) {
 		dev_err(cpufreq.dev, "Unable to get ARM clock\n");
 		return PTR_ERR(cpufreq.armclk);

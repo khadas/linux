@@ -190,6 +190,7 @@ static  struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
 	PLL_2500_RATE(2064, 72, 1, 0, 0, 1, 0), /* fvco 2064, / 1, / 1 */
 	PLL_2500_RATE(2088, 72, 1, 0, 0, 1, 0), /* fvco 2088, / 1, / 1 */
 	PLL_2500_RATE(2112, 73, 1, 0, 0, 0, 0), /* fvco 2112, / 1, / 1 */
+	PLL_2500_RATE(0, 0, 0, 0, 0, 0, 0), /* fvco end, / 1, / 1 */
 };
 
 static struct amlogic_pll_clock meson8m2_plls[] __initdata = {

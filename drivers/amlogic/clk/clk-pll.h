@@ -48,7 +48,7 @@ struct amlogic_pll_rate_table {
 #define PLL_2500_RATE(_rate, _m, _n, _od, _ext_div_n, _afc_dsel_bp_en, \
 		_afc_dsel_bp_in)  \
 	{							\
-		.rate	=	(_rate),				\
+		.rate	=	(_rate * 1000000),		\
 		.m    = (_m),           \
 		.n    = (_n),           \
 		.od   = (_od),          \
@@ -202,22 +202,25 @@ struct amlogic_pll_clock {
 	unsigned int rate_table_cnt;
 	const char              *alias;
 	struct aml_pll_conf *pll_conf;
-	int (*waite_pll_lock)(struct amlogic_pll_clock *, struct amlogic_pll_rate_table *);
-	unsigned long (*pll_recalc_rate)(struct amlogic_pll_clock *, unsigned long);
+	int (*waite_pll_lock)(struct amlogic_pll_clock *,
+			      struct amlogic_pll_rate_table *);
+	unsigned long (*pll_recalc_rate)(struct amlogic_pll_clock *,
+					 unsigned long);
 	struct aml_pll_co_ctrl *co_ctrl;
 	unsigned int co_ctrl_num;
 	unsigned int calc_no_od;
 };
 
 #define HDMI_PLL(_typ, _id, _name, _pname, _flags, _pll_ctrl,	\
-		_alias, _waite_pll_lock, _rate_table, _pll_conf, _co_ctrl, _pll_recalc_rate)				\
+		_alias, _waite_pll_lock, _rate_table, _pll_conf, \
+		 _co_ctrl, _pll_recalc_rate)				\
 {								\
 		.id		= _id,					\
 		.type		= _typ,					\
 		.name		= _name,				\
 		.parent_name	= _pname,				\
-		.flags		= _flags|CLK_GET_RATE_NOCACHE,			\
-		.pll_ctrl	= _pll_ctrl,					\
+		.flags		= _flags|CLK_GET_RATE_NOCACHE,		\
+		.pll_ctrl	= _pll_ctrl,				\
 		.waite_pll_lock = _waite_pll_lock,     \
 		.rate_table = _rate_table,      \
 		.rate_table_cnt = ARRAY_SIZE(_rate_table), \
