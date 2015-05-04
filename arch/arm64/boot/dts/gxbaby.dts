@@ -236,7 +236,7 @@
 		reg = <0x0 0xc81004c0 0x0 0x14>;
 		interrupts = <0 193 1>;
 		status = "okay";
-		clocks = <&clock CLK_81>;
+		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
 	};
 
