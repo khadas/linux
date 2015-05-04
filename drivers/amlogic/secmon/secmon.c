@@ -18,7 +18,7 @@ static void __iomem *sharemem_out_base;
 static long phy_in_base;
 static long phy_out_base;
 
- #define IN_SIZE	0x1000
+ #define IN_SIZE	0x8000
  #define OUT_SIZE 0x1000
 
 #ifdef CONFIG_ARM64
