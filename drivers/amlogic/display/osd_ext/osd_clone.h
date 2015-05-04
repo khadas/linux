@@ -1,15 +1,20 @@
 /*
- * Amlogic Frame buffer driver
+ * drivers/amlogic/display/osd_ext/osd_clone.h
  *
- * Copyright (C) 2015 Amlogic, Inc.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * Author: Amlogic Platform-BJ <platform.bj@amlogic.com>
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- */
+*/
+
 
 #ifndef _OSD_CLONE_H_
 #define _OSD_CLONE_H_

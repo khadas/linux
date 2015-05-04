@@ -1,19 +1,20 @@
 /*
- * meson_cs_dcdc_regulator.c
+ * drivers/amlogic/power/aml_dvfs/meson_cs_dcdc_regulator.c
  *
- * Support for Meson current source DCDC voltage regulator
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * Copyright (C) 2012 Elvis Yu <elvis.yu@amlogic.com>
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- */
+*/
+
 
 #include <linux/kernel.h>
 #include <linux/module.h>

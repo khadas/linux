@@ -1,3 +1,20 @@
+/*
+ * drivers/amlogic/amports/arch/m8_m8m2/vc1/vc1_vc1_linux.h
+ *
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
 const unsigned MicroCode[] __initconst = {
 	0x06810001, 0x06800000, 0x0d000001, 0x07400040, 0x0c014600, 0x06800024,
 	0x00000000, 0x00000000, 0x080c0002, 0x080c1e01, 0x06bfde80, 0x07c017c0,

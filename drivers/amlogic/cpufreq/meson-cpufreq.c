@@ -1,13 +1,20 @@
 /*
+ * drivers/amlogic/cpufreq/meson-cpufreq.c
  *
- * arch/arm/plat-meson/cpu_freq.c
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- *  Copyright (C) 2010 AMLOGIC, INC.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * License terms: GNU General Public License (GPL) version 2
- * CPU frequence management.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- */
+*/
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

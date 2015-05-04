@@ -1,16 +1,20 @@
 /*
- * Amlogic Meson HDMI Transmitter Driver
- * hdmitx driver-----------HDMI_TX
- * Copyright (C) 2013 Amlogic, Inc.
- * Author: zongdong.jiao@amlogic.com
+ * include/linux/amlogic/hdmi_tx/hdmi_tx_compliance.h
  *
- * In order to get better HDMI TX compliance,
- * you can add special code here, such as clock configure.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * Function hdmitx_special_operation() is called by
- * hdmitx_m3_set_dispmode() at the end
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- */
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
 
 #ifndef __HDMI_TX_COMPLIANCE_H
 #define __HDMI_TX_COMPLIANCE_H

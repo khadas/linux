@@ -1,26 +1,20 @@
 /*
- * drivers/net/phy/micrel.c
+ * drivers/amlogic/ethernet/phy/am_micrel.c
  *
- * Driver for Micrel PHYs
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * Author: David J. Choi
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * Copyright (c) 2010-2013 Micrel, Inc.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * Support : Micrel Phys:
- *		Giga phys: ksz9021, ksz9031
- *		100/10 Phys : ksz8001, ksz8721, ksz8737, ksz8041
- *			   ksz8021, ksz8031, ksz8051,
- *			   ksz8081, ksz8091,
- *			   ksz8061,
- *		Switch : ksz8873, ksz886x
- * Support : KSZ8091 wol by baoqi.wang@amlogic.com
- */
+*/
+
 
 #include <linux/kernel.h>
 #include <linux/module.h>

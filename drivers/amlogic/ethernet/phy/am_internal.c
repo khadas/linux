@@ -1,19 +1,20 @@
 /*
- * am_internal.c
+ * drivers/amlogic/ethernet/phy/am_internal.c
  *
- * Driver for AMLOGIC PHY
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * Author: Baoqi wang
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * Support added for Amlogic Internal Phy by baoqi.wang@amlogic.com
- *
- */
+*/
+
 
 #include <linux/kernel.h>
 #include <linux/module.h>

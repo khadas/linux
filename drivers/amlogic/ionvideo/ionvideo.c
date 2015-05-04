@@ -1,10 +1,20 @@
 /*
- * Ion Video driver - This code emulates a real video device with v4l2 api,
- * used for surface video display.
+ * drivers/amlogic/ionvideo/ionvideo.c
  *
- *Author: Shuai Cao <shuai.cao@amlogic.com>
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- */
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
 #include "ionvideo.h"
 
 #define IONVIDEO_MODULE_NAME "ionvideo"

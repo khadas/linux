@@ -1,12 +1,20 @@
 /*
- *  linux/drivers/video/apollo/aout_notify.c
+ * sound/soc/aml/m8/aml_notify.c
  *
- *  Copyright (C) 2009 amlogic
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
- */
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
 #include <linux/module.h>
 
 static BLOCKING_NOTIFIER_HEAD(aout_notifier_list);

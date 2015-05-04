@@ -1,7 +1,7 @@
 /*
- * arch/arm/mach-meson6/voltage.c
+ * drivers/amlogic/cpufreq/voltage.c
  *
- * Copyright (C) 2011-2012 Amlogic, Inc.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,7 +12,9 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- */
+ *
+*/
+
 
 #include <linux/module.h>
 #include <linux/kernel.h>

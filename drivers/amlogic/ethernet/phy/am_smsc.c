@@ -1,20 +1,20 @@
 /*
- * drivers/net/phy/smsc.c
+ * drivers/amlogic/ethernet/phy/am_smsc.c
  *
- * Driver for SMSC PHYs
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * Author: Herbert Valerio Riedel
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * Copyright (c) 2006 Herbert Valerio Riedel <hvr@gnu.org>
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * Support added for SMSC LAN8187 and LAN8700 by steve.glendinning@shawell.net
- *
- */
+*/
+
 
 #include <linux/kernel.h>
 #include <linux/module.h>
