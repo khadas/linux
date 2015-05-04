@@ -319,6 +319,8 @@ extern int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 
 extern void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device);
 
+extern void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device);
+
 extern void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 
 extern const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);

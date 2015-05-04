@@ -395,8 +395,48 @@
 		    amlogic,pullup=<1>;
 		    amlogic,pullupen=<1>;
 		};
-
+		hdmitx_hpd: hdmitx_hpd {
+			amlogic,setmask=<1 0x04000000>;
+			amlogic,pins="GPIOH_0";
+		};
+		hdmitx_ddc: hdmitx_ddc {
+			amlogic,setmask=<1 0x03000000>;
+			amlogic,pins="GPIOH_1", "GPIOH_2";
+		};
+		hdmitx_cec: hdmitx_cec {
+			amlogic,setmask=<1 0x00800000>;
+			amlogic,pins="GPIOH_3";
+		};
 	};
+
+	amhdmitx: amhdmitx{
+		compatible = "amlogic, amhdmitx";
+		dev_name = "amhdmitx";
+		status = "okay";
+		pinctrl-names="hdmitx_hpd", "hdmitx_ddc", "hdmitx_cec";
+		pinctrl-0=<&hdmitx_hpd>;
+		pinctrl-1=<&hdmitx_ddc>;
+		pinctrl-2=<&hdmitx_cec>;
+		vend-data = <&vend_data>;
+		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
+		interrupts = <0 57 1>, <0 151 1>;
+		interrupt-names = "hdmitx_hpd", "hdmitx_cec";
+
+		vend_data: vend_data{
+			vendor_name = "Amlogic"; /* Max Chars: 8     */
+			vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
+			product_desc = "GXBB Mbox"; /* Max Chars: 16    */
+			cec_osd_string = "Amlogic MBox"; /* Max Chars: 14    */
+		};
+/*
+		clocks = <&clock CLK_HDMITX_SYS &clock CLK_HDMITX_ENCP
+			&clock CLK_HDMITX_ENCI &clock CLK_HDMITX_PIXEL
+			&clock CLK_HDMITX_PHY>;
+		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp",
+		"hdmitx_clk_enci", "hdmitx_clk_pixel", "hdmitx_clk_phy";
+*/
+	};
+
 	uart_AO: serial@c81004c0 {
 		compatible = "amlogic, meson-uart";
 		reg = <0x0 0xc81004c0 0x0 0x14>;

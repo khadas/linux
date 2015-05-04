@@ -15,7 +15,6 @@
  *
 */
 
-
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -1354,6 +1353,67 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	return 0;
 }
 
+static DEFINE_MUTEX(setclk_mutex);
+void hdmitx_hpd_plugin_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_hpd_plugin);
+
+	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGIN)))
+		return;
+	pr_info("hdmitx: plugin\n");
+	mutex_lock(&setclk_mutex);
+	/* start reading E-EDID */
+	hdev->hpd_state = 1;
+
+	/* TODO	hdmitx_edid_ram_buffer_clear(hdev); */
+	hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
+	hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_MUX);
+	/* start reading edid frist time */
+	hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
+	hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 0);
+	/* start reading edid second time */
+	hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
+	hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 1);
+	hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
+	/* compare EDID_buf & EDID_buf1 */
+	hdmitx_edid_buf_compare_print(hdev);
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_parse(hdev);
+
+	set_disp_mode_auto();
+	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
+	switch_set_state(&sdev, 1);
+	/* TODO cec_node_init(hdev); */
+
+	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
+	mutex_unlock(&setclk_mutex);
+}
+
+void hdmitx_hpd_plugout_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_hpd_plugout);
+
+	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGOUT)))
+		return;
+	mutex_lock(&setclk_mutex);
+	hdev->hpd_state = 0;
+	/* hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0); */
+	pr_info("hdmitx: plugout\n");
+	switch_set_state(&sdev, 0);
+	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+	mutex_unlock(&setclk_mutex);
+}
+
+void hdmitx_internal_intr_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct work_struct *)work,
+		struct hdmitx_dev, work_internal_intr);
+
+	hdev->HWOp.DebugFun(hdev, "dumpintr");
+}
+
 /******************************
 *  hdmitx kernel task
 *******************************/
@@ -1375,172 +1435,34 @@ static int hdmi_task_handle(void *data)
 		MISC_HPD_GPI_ST, 0));
 	hdmitx_device->hpd_state = sdev.state;
 
-	/* When init hdmi, clear the hdmitx module edid ram and
-	 * edid buffer.
-	 */
-/*TODO	hdmitx_edid_ram_buffer_clear(hdmitx_device);*/
+/* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
+	hdmitx_edid_ram_buffer_clear(hdmitx_device);
 
-	/* default audio configure is on */
-	hdmitx_device->tx_aud_cfg = 1;
+	hdmitx_device->hdmi_wq = alloc_workqueue(DEVICE_NAME,
+		WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
+	INIT_DELAYED_WORK(&hdmitx_device->work_hpd_plugin,
+		hdmitx_hpd_plugin_handler);
+	INIT_DELAYED_WORK(&hdmitx_device->work_hpd_plugout,
+		hdmitx_hpd_plugout_handler);
+	INIT_WORK(&hdmitx_device->work_internal_intr,
+		hdmitx_internal_intr_handler);
 
-	hdmitx_device->HWOp.SetupIRQ(hdmitx_device);
-	if (init_flag&INIT_FLAG_POWERDOWN) {
+	hdmitx_device->tx_aud_cfg = 1; /* default audio configure is on */
+	if (init_flag & INIT_FLAG_POWERDOWN) {
 		/* power down */
 		hdmitx_device->HWOp.SetDispMode(hdmitx_device, NULL);
 		hdmitx_device->unplug_powerdown = 1;
-		if (hdmitx_device->HWOp.Cntl) {
-			hdmitx_device->HWOp.Cntl(hdmitx_device,
-				HDMITX_HWCMD_TURNOFF_HDMIHW,
-				(hpdmode != 0)?1:0);
-		}
-	} else {
-		if (hdmitx_device->HWOp.Cntl)
-			hdmitx_device->HWOp.Cntl(hdmitx_device,
+		hdmitx_device->HWOp.Cntl(hdmitx_device,
+			HDMITX_HWCMD_TURNOFF_HDMIHW, (hpdmode != 0)?1:0);
+	} else
+		hdmitx_device->HWOp.Cntl(hdmitx_device,
 			HDMITX_HWCMD_MUX_HPD, 0);
-	}
-	if (hdmitx_device->HWOp.Cntl)
-		hdmitx_device->HWOp.Cntl(hdmitx_device,
-			HDMITX_IP_INTR_MASN_RST, 0);
-	while (hdmitx_device->hpd_event != 0xff) {
-		if (hdmitx_device->mux_hpd_if_pin_high_flag) {
-			if (hdmitx_device->HWOp.Cntl)
-				hdmitx_device->HWOp.Cntl(hdmitx_device,
-				HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH, 0);
-	}
-	if (hdmitx_device->HWOp.Cntl) {
-		static int st;
-		st = hdmitx_device->HWOp.CntlMisc(hdmitx_device,
-			MISC_HPD_GPI_ST, 0);
-wait:
-		if (hdmitx_device->hpd_lock == 1) {
-			msleep_interruptible(2000);
-			goto wait;
-		}
-		if ((st == 0) && (hdmitx_device->hpd_state == 1))
-			hdmitx_device->hpd_event = 2;
-		if ((st == 1) && (hdmitx_device->hpd_state == 0))
-			hdmitx_device->hpd_event = 1;
-/* Check audio status */
-#ifndef CONFIG_AML_HDMI_TX_HDCP
-		if ((hdmitx_device->cur_VIC != HDMI_Unkown)
-			&& (!(hdmitx_device->HWOp.GetState(
-				hdmitx_device, STAT_AUDIO_PACK, 0)))
-			&& (tv_audio_support(
-				hdmitx_device->cur_audio_param.type,
-				&hdmitx_device->RXCap))) {
-			hdmitx_device->HWOp.CntlConfig(hdmitx_device,
-				CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
-		}
-#endif
-	}
 
-	if (hdmitx_device->hpd_event == 1) {
-		hdmitx_device->hpd_event = 0;
-		hdmitx_device->hpd_state = 1;
-/*TODO		hdmitx_edid_ram_buffer_clear(hdmitx_device);*/
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_PIN_MUX_OP, PIN_MUX);
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_RESET_EDID, 0);
-		/* start reading edid frist time */
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_EDID_READ_DATA, 0);
-		msleep(200);	/* wait 200ms to read edid */
+	hdmitx_device->HWOp.Cntl(hdmitx_device, HDMITX_IP_INTR_MASN_RST, 0);
+	hdmitx_device->HWOp.Cntl(hdmitx_device,
+		HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH, 0);
 
-		/* hardware i2c read fail */
-		if (!(hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_IS_EDID_DATA_READY, 0))) {
-			hdmi_print(ERR, EDID "edid failed\n");
-		hdmitx_device->tv_no_edid = 1;
-		/* read edid again */
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_RESET_EDID, 0);
-		/* start reading edid second time */
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_EDID_READ_DATA, 0);
-		if (!(hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_IS_EDID_DATA_READY, 0))) {
-			hdmi_print(ERR, EDID "edid failed\n");
-			hdmitx_device->tv_no_edid = 1;
-		} else
-			goto edid_op;
-		} else {
-edid_op:
-		/* save edid raw data to EDID_buf1[] */
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_EDID_GET_DATA, 1);
-		hdmi_print(IMP, EDID "edid ready\n");
-		/* read edid again */
-				hdmitx_device->cur_edid_block = 0;
-				hdmitx_device->cur_phy_block_ptr = 0;
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_RESET_EDID, 0);
-		/* start reading edid second time */
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_EDID_READ_DATA, 0);
-		msleep(200);
-		if (hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-			DDC_IS_EDID_DATA_READY, 0)) {
-			/* save edid raw data to EDID_buf[] */
-			hdmitx_device->HWOp.CntlDDC(hdmitx_device,
-				DDC_EDID_GET_DATA, 0);
-			hdmi_print(IMP, EDID "edid ready\n");
-		} else {
-			hdmi_print(ERR, EDID "edid failed\n");
-			hdmitx_device->tv_no_edid = 1;
-		}
-		/* compare EDID_buf & EDID_buf1 */
-		hdmitx_edid_buf_compare_print(hdmitx_device);
-		hdmitx_edid_clear(hdmitx_device);
-		hdmitx_edid_parse(hdmitx_device);
-		hdmitx_device->tv_no_edid = 0;
-		}
-		set_disp_mode_auto();
-		hdmitx_set_audio(hdmitx_device,
-			&(hdmitx_device->cur_audio_param), hdmi_ch);
-		switch_set_state(&sdev, 1);
-#if 0
-		cec_node_init(hdmitx_device);
-#endif
-	}
-	if (hdmitx_device->hpd_event == 2) {
-		hdmitx_device->hpd_event = 0;
-		hdmitx_device->hpd_state = 0;
-		hdmitx_device->cur_VIC = HDMI_Unkown;
-		hdmitx_device->HWOp.CntlConfig(hdmitx_device,
-			CONF_CLR_AVI_PACKET, 0);
-		hdmitx_device->HWOp.CntlConfig(hdmitx_device,
-			CONF_CLR_VSDB_PACKET, 0);
-		/* if VIID PLL is using, then disable HPLL */
-		#if 0
-		if (hdmitx_device->HWOp.CntlMisc(hdmitx_device,
-			MISC_VIID_IS_USING, 0)) {
-			hdmitx_device->HWOp.CntlMisc(hdmitx_device,
-				MISC_HPLL_OP, HPLL_DISABLE);
-		}
-		#endif
-		hdmitx_device->HWOp.CntlDDC(hdmitx_device, DDC_HDCP_OP,
-			HDCP_OFF);
-		hdmitx_device->HWOp.CntlMisc(hdmitx_device,
-			MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-		hdmitx_device->HWOp.Cntl(hdmitx_device,
-			HDMITX_IP_SW_RST, TX_SYS_SW_RST);
-		hdmitx_edid_clear(hdmitx_device);
-/* When unplug hdmi, clear the hdmitx module edid ram and edid buffer.*/
-/*TODO		hdmitx_edid_ram_buffer_clear(hdmitx_device);*/
-		if (hdmitx_device->unplug_powerdown) {
-			hdmitx_set_display(hdmitx_device, HDMI_Unkown);
-		if (hdmitx_device->HWOp.Cntl)
-			hdmitx_device->HWOp.Cntl(hdmitx_device,
-				HDMITX_HWCMD_TURNOFF_HDMIHW,
-				(hpdmode != 0)?1:0);
-		}
-		hdmitx_device->tv_cec_support = 0;
-		switch_set_state(&sdev, 0);
-		hdmitx_device->vic_count = 0;
-	}
-	msleep_interruptible(100);
-	}
+	hdmitx_device->HWOp.SetupIRQ(hdmitx_device);
 	return 0;
 }
 
@@ -1814,13 +1736,21 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		r = -EEXIST;
 		return r;
 	}
+#ifdef CONFIG_AM_TV_OUTPUT
 	vout_register_client(&hdmitx_notifier_nb_v);
+#else
+	r = r ? (long int)&hdmitx_notifier_nb_v :
+		(long int)&hdmitx_notifier_nb_v;
+#endif
 #ifdef CONFIG_AM_TV_OUTPUT2
 	vout2_register_client(&hdmitx_notifier_nb_v2);
 #endif
+#ifdef CONFIG_SND_SOC
 	aout_register_client(&hdmitx_notifier_nb_a);
+#else
 	r = r ? (long int)&hdmitx_notifier_nb_a :
 		(long int)&hdmitx_notifier_nb_a;
+#endif
 
 #ifdef CONFIG_USE_OF
 	if (pdev->dev.of_node) {
@@ -1915,21 +1845,32 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	pr_info("hdmitx cec irq = %d\n" , hdmitx_device.irq_cec);
+	hdmitx_device.clk_sys = NULL;
+	hdmitx_device.clk_encp = NULL;
+	hdmitx_device.clk_enci = NULL;
+	hdmitx_device.clk_pixel = NULL;
+	hdmitx_device.clk_phy = NULL;
+#if 0
 	hdmitx_device.clk_sys = clk_get(&pdev->dev, "hdmitx_clk_sys");
-	clk_prepare_enable(hdmitx_device.clk_sys);
+	if (hdmitx_device.clk_sys)
+		clk_prepare_enable(hdmitx_device.clk_sys);
 
 	hdmitx_device.clk_encp = clk_get(&pdev->dev, "hdmitx_clk_encp");
-	clk_prepare_enable(hdmitx_device.clk_encp);
+	if (hdmitx_device.clk_encp)
+		clk_prepare_enable(hdmitx_device.clk_encp);
 
 	hdmitx_device.clk_enci = clk_get(&pdev->dev, "hdmitx_clk_enci");
-	clk_prepare_enable(hdmitx_device.clk_enci);
+	if (hdmitx_device.clk_enci)
+		clk_prepare_enable(hdmitx_device.clk_enci);
 
 	hdmitx_device.clk_pixel = clk_get(&pdev->dev, "hdmitx_clk_pixel");
-	clk_prepare_enable(hdmitx_device.clk_pixel);
+	if (hdmitx_device.clk_pixel)
+		clk_prepare_enable(hdmitx_device.clk_pixel);
 
 	hdmitx_device.clk_phy = clk_get(&pdev->dev, "hdmitx_clk_phy");
-	clk_prepare_enable(hdmitx_device.clk_phy);
-
+	if (hdmitx_device.clk_phy)
+		clk_prepare_enable(hdmitx_device.clk_phy);
+#endif
 	switch_dev_register(&sdev);
 /* switch_dev_register(&lang_dev); */
 
@@ -1953,12 +1894,15 @@ static int amhdmitx_remove(struct platform_device *pdev)
 		hdmitx_device.HWOp.UnInit(&hdmitx_device);
 	hdmitx_device.hpd_event = 0xff;
 	kthread_stop(hdmitx_device.task);
-
-/* vout_unregister_client(&hdmitx_notifier_nb_v); */
+#ifdef CONFIG_AM_TV_OUTPUT
+	vout_unregister_client(&hdmitx_notifier_nb_v);
+#endif
 #ifdef CONFIG_AM_TV_OUTPUT2
 	vout2_unregister_client(&hdmitx_notifier_nb_v2);
 #endif
+#ifdef CONFIG_SND_SOC
 	aout_unregister_client(&hdmitx_notifier_nb_a);
+#endif
 
 	/* Remove the cdev */
 	device_remove_file(hdmitx_dev, &dev_attr_disp_mode);

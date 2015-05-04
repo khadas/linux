@@ -21,93 +21,201 @@
 
 #define OFFSET	24
 #define CBUS_REG_ADDR(reg)  ((IO_CBUS_BASE << OFFSET) + (reg << 2))
-#define VCBUS_REG_ADDR(reg) ((IO_APB_BUS_BASE << OFFSET) + (0x100000+(reg<<2)))
+#define nCBUS_REG_ADDR(reg)  (0xc8834400 + (reg << 2))
+#define VCBUS_REG_ADDR(reg) (0xd0100000 + (reg << 2))
 #define AOBUS_REG_ADDR(reg) ((IO_AOBUS_BASE << OFFSET) + reg)
 #define APB_REG_ADDR(reg)   ((IO_APB_BUS_BASE << OFFSET) + reg)
 
 unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
+void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
+	unsigned int len);
 
-#define hd_set_reg_bits(addr, val, offset, len)	\
-	hd_write_reg(addr,	\
-		(hd_read_reg(addr) & ~(((1L<<(len))-1)<<(offset))) | \
-		((unsigned int)(val) << (offset)))
+#define P_HHI_MEM_PD_REG0 (0xc883c000 + (0x40 << 2))
+#define P_HHI_VPU_MEM_PD_REG0 (0xc883c000 + (0x41 << 2))
+#define P_HHI_VPU_MEM_PD_REG1 (0xc883c000 + (0x42 << 2))
+#define P_HHI_AUD_DAC_CTRL (0xc883c000 + (0x44 << 2))
+#define P_HHI_VIID_CLK_DIV (0xc883c000 + (0x4a << 2))
+/* [19] -enable clk_div0 */
+/* [18:16] - cntl_clk_in_sel */
+#define P_HHI_VIID_CLK_CNTL (0xc883c000 + (0x4b << 2))
+#define P_HHI_VIID_DIVIDER_CNTL (0xc883c000 + (0x4c << 2))
 
-#define HHI_MEM_PD_REG0 0x1040	/* register.h:1626 */
-#define P_HHI_MEM_PD_REG0 CBUS_REG_ADDR(HHI_MEM_PD_REG0)
-#define HHI_VPU_MEM_PD_REG0 0x1041	/* register.h:1643 */
-#define P_HHI_VPU_MEM_PD_REG0 CBUS_REG_ADDR(HHI_VPU_MEM_PD_REG0)
-#define HHI_VPU_MEM_PD_REG1 0x1042	/* register.h:1655 */
-#define P_HHI_VPU_MEM_PD_REG1 CBUS_REG_ADDR(HHI_VPU_MEM_PD_REG1)
-#define HHI_AUD_DAC_CTRL 0x1044	/* register.h:1656 */
-#define P_HHI_AUD_DAC_CTRL CBUS_REG_ADDR(HHI_AUD_DAC_CTRL)
-#define HHI_VIID_CLK_DIV 0x104a	/* register.h:1661 */
-#define P_HHI_VIID_CLK_DIV CBUS_REG_ADDR(HHI_VIID_CLK_DIV)
-#define HHI_VIID_CLK_CNTL 0x104b	/* register.h:1662 */
-#define P_HHI_VIID_CLK_CNTL CBUS_REG_ADDR(HHI_VIID_CLK_CNTL)
-#define HHI_VIID_DIVIDER_CNTL 0x104c	/* register.h:1663 */
-#define P_HHI_VIID_DIVIDER_CNTL CBUS_REG_ADDR(HHI_VIID_DIVIDER_CNTL)
-#define HHI_GCLK_MPEG0 0x1050	/* register.h:1665 */
-#define P_HHI_GCLK_MPEG0 CBUS_REG_ADDR(HHI_GCLK_MPEG0)
-#define HHI_GCLK_MPEG1 0x1051	/* register.h:1666 */
-#define P_HHI_GCLK_MPEG1 CBUS_REG_ADDR(HHI_GCLK_MPEG1)
-#define HHI_GCLK_MPEG2 0x1052	/* register.h:1667 */
-#define P_HHI_GCLK_MPEG2 CBUS_REG_ADDR(HHI_GCLK_MPEG2)
-#define HHI_GCLK_OTHER 0x1054	/* register.h:1668 */
-#define P_HHI_GCLK_OTHER CBUS_REG_ADDR(HHI_GCLK_OTHER)
-#define HHI_GCLK_AO 0x1055	/* register.h:1669 */
-#define P_HHI_GCLK_AO CBUS_REG_ADDR(HHI_GCLK_AO)
-#define HHI_VID_CLK_DIV 0x1059	/* /../ucode/register.h:1672 */
-#define P_HHI_VID_CLK_DIV		CBUS_REG_ADDR(HHI_VID_CLK_DIV)
-#define HHI_VID_CLK_CNTL 0x105f	/* /../ucode/register.h:1675 */
-#define P_HHI_VID_CLK_CNTL		CBUS_REG_ADDR(HHI_VID_CLK_CNTL)
-#define HHI_VID_CLK_CNTL2 0x1065	/* /../ucode/register.h:1681 */
-#define P_HHI_VID_CLK_CNTL2		CBUS_REG_ADDR(HHI_VID_CLK_CNTL2)
-#define HHI_VID_DIVIDER_CNTL 0x1066	/* /../ucode/register.h:1682 */
-#define P_HHI_VID_DIVIDER_CNTL		CBUS_REG_ADDR(HHI_VID_DIVIDER_CNTL)
+/*
+//========================================================================
+//  Global Control Registers			    (12'h000 - 12'h0ff)
+//
+//========================================================================
+// -----------------------------------------------
+// CBUS_BASE:  RESET_CBUS_BASE = 0x11
+// -----------------------------------------------
+*/
+#define P_VERSION_CTRL ((0x00  << 2) + 0xc0804400)
+#define P_RESET0_REGISTER ((0x01  << 2) + 0xc0804400)
+#define P_RESET1_REGISTER ((0x02  << 2) + 0xc0804400)
+#define P_RESET2_REGISTER ((0x03  << 2) + 0xc0804400)
+#define P_RESET3_REGISTER ((0x04  << 2) + 0xc0804400)
+#define P_RESET4_REGISTER ((0x05  << 2) + 0xc0804400)
+#define P_RESET5_REGISTER ((0x06  << 2) + 0xc0804400)
+#define P_RESET6_REGISTER ((0x07  << 2) + 0xc0804400)
+#define P_RESET7_REGISTER ((0x08  << 2) + 0xc0804400)
+#define P_RESET0_MASK ((0x10  << 2) + 0xc0804400)
+#define P_RESET1_MASK ((0x11  << 2) + 0xc0804400)
+#define P_RESET2_MASK ((0x12  << 2) + 0xc0804400)
+#define P_RESET3_MASK ((0x13  << 2) + 0xc0804400)
+#define P_RESET4_MASK ((0x14  << 2) + 0xc0804400)
+#define P_RESET5_MASK ((0x15  << 2) + 0xc0804400)
+#define P_RESET6_MASK ((0x16  << 2) + 0xc0804400)
 
-#define HHI_HDMI_CLK_CNTL 0x1073	/* register.h:1694 */
-#define P_HHI_HDMI_CLK_CNTL CBUS_REG_ADDR(HHI_HDMI_CLK_CNTL)
-#define HHI_HDMI_PLL_CNTL 0x107c	/* register.h:1707 */
-#define P_HHI_HDMI_PLL_CNTL CBUS_REG_ADDR(HHI_HDMI_PLL_CNTL)
-#define HHI_HDMI_PLL_CNTL1 0x107d	/* register.h:1708 */
-#define P_HHI_HDMI_PLL_CNTL1 CBUS_REG_ADDR(HHI_HDMI_PLL_CNTL1)
-#define HHI_HDMI_PLL_CNTL2 0x107e	/* register.h:1709 */
-#define P_HHI_HDMI_PLL_CNTL2 CBUS_REG_ADDR(HHI_HDMI_PLL_CNTL2)
-#define HHI_HDMI_AFC_CNTL 0x107f	/* register.h:1710 */
-#define P_HHI_HDMI_AFC_CNTL CBUS_REG_ADDR(HHI_HDMI_AFC_CNTL)
-
-#define HHI_VID_PLL_CNTL 0x10c8	/* register.h:1765 */
-#define P_HHI_VID_PLL_CNTL CBUS_REG_ADDR(HHI_VID_PLL_CNTL)
-#define HHI_VID_PLL_CNTL2 0x10c9	/* register.h:1766 */
-#define P_HHI_VID_PLL_CNTL2 CBUS_REG_ADDR(HHI_VID_PLL_CNTL2)
-#define HHI_VID_PLL_CNTL3 0x10ca	/* register.h:1767 */
-#define P_HHI_VID_PLL_CNTL3 CBUS_REG_ADDR(HHI_VID_PLL_CNTL3)
-#define HHI_VID_PLL_CNTL4 0x10cb	/* register.h:1768 */
-#define P_HHI_VID_PLL_CNTL4 CBUS_REG_ADDR(HHI_VID_PLL_CNTL4)
-#define HHI_VID_PLL_CNTL5 0x10cc	/* register.h:1769 */
-#define P_HHI_VID_PLL_CNTL5 CBUS_REG_ADDR(HHI_VID_PLL_CNTL5)
-#define HHI_VID_PLL_CNTL6 0x10cd	/* register.h:1770 */
-#define P_HHI_VID_PLL_CNTL6 CBUS_REG_ADDR(HHI_VID_PLL_CNTL6)
-
-#define HHI_VID2_PLL_CNTL 0x10e0	/* register.h:1786 */
-#define P_HHI_VID2_PLL_CNTL CBUS_REG_ADDR(HHI_VID2_PLL_CNTL)
-#define HHI_VID2_PLL_CNTL2 0x10e1	/* register.h:1787 */
-#define P_HHI_VID2_PLL_CNTL2 CBUS_REG_ADDR(HHI_VID2_PLL_CNTL2)
-#define HHI_VID2_PLL_CNTL3 0x10e2	/* register.h:1788 */
-#define P_HHI_VID2_PLL_CNTL3 CBUS_REG_ADDR(HHI_VID2_PLL_CNTL3)
-#define HHI_VID2_PLL_CNTL4 0x10e3	/* register.h:1789 */
-#define P_HHI_VID2_PLL_CNTL4 CBUS_REG_ADDR(HHI_VID2_PLL_CNTL4)
-#define HHI_VID2_PLL_CNTL5 0x10e4	/* register.h:1790 */
-#define P_HHI_VID2_PLL_CNTL5 CBUS_REG_ADDR(HHI_VID2_PLL_CNTL5)
-#define HHI_VID2_PLL_CNTL6 0x10e5	/* register.h:1791 */
-#define P_HHI_VID2_PLL_CNTL6 CBUS_REG_ADDR(HHI_VID2_PLL_CNTL6)
-#define HHI_HDMI_PHY_CNTL0 0x10e8	/* register.h:1792 */
-#define P_HHI_HDMI_PHY_CNTL0 CBUS_REG_ADDR(HHI_HDMI_PHY_CNTL0)
-#define HHI_HDMI_PHY_CNTL1 0x10e9	/* register.h:1793 */
-#define P_HHI_HDMI_PHY_CNTL1 CBUS_REG_ADDR(HHI_HDMI_PHY_CNTL1)
-#define HHI_HDMI_PHY_CNTL2 0x10ea	/* register.h:1794 */
-#define P_HHI_HDMI_PHY_CNTL2 CBUS_REG_ADDR(HHI_HDMI_PHY_CNTL2)
+/* Gated clock enables.
+ * There are 64 enables for the MPEG clocks and 32 enables for other
+ * clock domains.
+ */
+#define P_HHI_GCLK_MPEG0 (0xc883c000 + (0x50 << 2))
+#define P_HHI_GCLK_MPEG1 (0xc883c000 + (0x51 << 2))
+#define P_HHI_GCLK_MPEG2 (0xc883c000 + (0x52 << 2))
+#define P_HHI_GCLK_OTHER (0xc883c000 + (0x54 << 2))
+#define P_HHI_GCLK_AO (0xc883c000 + (0x55 << 2))
+#define P_HHI_SYS_OSCIN_CNTL (0xc883c000 + (0x56 << 2))
+#define P_HHI_SYS_CPU_CLK_CNTL1 (0xc883c000 + (0x57 << 2))
+#define P_HHI_SYS_CPU_RESET_CNTL (0xc883c000 + (0x58 << 2))
+/* [7:0]   - cntl_xd0 */
+#define P_HHI_VID_CLK_DIV (0xc883c000 + (0x59 << 2))
+#define P_HHI_MPEG_CLK_CNTL (0xc883c000 + (0x5d << 2))
+#define P_HHI_AUD_CLK_CNTL (0xc883c000 + (0x5e << 2))
+/* [18:16] - cntl_clk_in_sel */
+#define P_HHI_VID_CLK_CNTL (0xc883c000 + (0x5f << 2))
+#define P_HHI_WIFI_CLK_CNTL (0xc883c000 + (0x60 << 2))
+#define P_HHI_WIFI_PLL_CNTL (0xc883c000 + (0x61 << 2))
+#define P_HHI_WIFI_PLL_CNTL2 (0xc883c000 + (0x62 << 2))
+#define P_HHI_WIFI_PLL_CNTL3 (0xc883c000 + (0x63 << 2))
+#define P_HHI_AUD_CLK_CNTL2 (0xc883c000 + (0x64 << 2))
+#define P_HHI_VID_CLK_CNTL2 (0xc883c000 + (0x65 << 2))
+#define P_HHI_VID_DIVIDER_CNTL (0xc883c000 + (0x66 << 2))
+#define P_HHI_SYS_CPU_CLK_CNTL (0xc883c000 + (0x67 << 2))
+#define P_HHI_VID_PLL_CLK_DIV (0xc883c000 + (0x68 << 2))
+#define P_HHI_AUD_CLK_CNTL3 (0xc883c000 + (0x69 << 2))
+#define P_HHI_MALI_CLK_CNTL (0xc883c000 + (0x6c << 2))
+#define P_HHI_MIPI_PHY_CLK_CNTL (0xc883c000 + (0x6e << 2))
+#define P_HHI_VPU_CLK_CNTL (0xc883c000 + (0x6f << 2))
+#define P_HHI_OTHER_PLL_CNTL (0xc883c000 + (0x70 << 2))
+#define P_HHI_OTHER_PLL_CNTL2 (0xc883c000 + (0x71 << 2))
+#define P_HHI_OTHER_PLL_CNTL3 (0xc883c000 + (0x72 << 2))
+#define P_HHI_HDMI_CLK_CNTL (0xc883c000 + (0x73 << 2))
+#define P_HHI_DEMOD_CLK_CNTL (0xc883c000 + (0x74 << 2))
+#define P_HHI_SATA_CLK_CNTL (0xc883c000 + (0x75 << 2))
+#define P_HHI_ETH_CLK_CNTL (0xc883c000 + (0x76 << 2))
+#define P_HHI_CLK_DOUBLE_CNTL (0xc883c000 + (0x77 << 2))
+#define P_HHI_VDEC_CLK_CNTL (0xc883c000 + (0x78 << 2))
+#define P_HHI_VDEC2_CLK_CNTL (0xc883c000 + (0x79 << 2))
+#define P_HHI_VDEC3_CLK_CNTL (0xc883c000 + (0x7a << 2))
+#define P_HHI_VDEC4_CLK_CNTL (0xc883c000 + (0x7b << 2))
+#define P_HHI_HDCP22_CLK_CNTL (0xc883c000 + (0x7c << 2))
+#define P_HHI_VAPBCLK_CNTL (0xc883c000 + (0x7d << 2))
+#define P_HHI_VP9DEC_CLK_CNTL (0xc883c000 + (0x7e << 2))
+#define P_HHI_HDMI_AFC_CNTL (0xc883c000 + (0x7f << 2))
+#define P_HHI_HDMIRX_CLK_CNTL (0xc883c000 + (0x80 << 2))
+#define P_HHI_HDMIRX_AUD_CLK_CNTL (0xc883c000 + (0x81 << 2))
+#define P_HHI_EDP_APB_CLK_CNTL (0xc883c000 + (0x82 << 2))
+#define P_HHI_VPU_CLKB_CNTL (0xc883c000 + (0x83 << 2))
+#define P_HHI_VID_PLL_MOD_CNTL0 (0xc883c000 + (0x84 << 2))
+#define P_HHI_VID_PLL_MOD_LOW_TCNT (0xc883c000 + (0x85 << 2))
+#define P_HHI_VID_PLL_MOD_HIGH_TCNT (0xc883c000 + (0x86 << 2))
+#define P_HHI_VID_PLL_MOD_NOM_TCNT (0xc883c000 + (0x87 << 2))
+#define P_HHI_USB_CLK_CNTL (0xc883c000 + (0x88 << 2))
+#define P_HHI_32K_CLK_CNTL (0xc883c000 + (0x89 << 2))
+#define P_HHI_GEN_CLK_CNTL (0xc883c000 + (0x8a << 2))
+#define P_HHI_GEN_CLK_CNTL2 (0xc883c000 + (0x8b << 2))
+#define P_HHI_JTAG_CONFIG (0xc883c000 + (0x8e << 2))
+#define P_HHI_VAFE_CLKXTALIN_CNTL (0xc883c000 + (0x8f << 2))
+#define P_HHI_VAFE_CLKOSCIN_CNTL (0xc883c000 + (0x90 << 2))
+#define P_HHI_VAFE_CLKIN_CNTL (0xc883c000 + (0x91 << 2))
+#define P_HHI_TVFE_AUTOMODE_CLK_CNTL (0xc883c000 + (0x92 << 2))
+#define P_HHI_VAFE_CLKPI_CNTL (0xc883c000 + (0x93 << 2))
+#define P_HHI_VDIN_MEAS_CLK_CNTL (0xc883c000 + (0x94 << 2))
+#define P_HHI_PCM_CLK_CNTL (0xc883c000 + (0x96 << 2))
+#define P_HHI_NAND_CLK_CNTL (0xc883c000 + (0x97 << 2))
+#define P_HHI_ISP_LED_CLK_CNTL (0xc883c000 + (0x98 << 2))
+#define P_HHI_SD_EMMC_CLK_CNTL (0xc883c000 + (0x99 << 2))
+#define P_HHI_EDP_TX_PHY_CNTL0 (0xc883c000 + (0x9c << 2))
+#define P_HHI_EDP_TX_PHY_CNTL1 (0xc883c000 + (0x9d << 2))
+#define P_HHI_MPLL_CNTL (0xc883c000 + (0xa0 << 2))
+#define P_HHI_MPLL_CNTL2 (0xc883c000 + (0xa1 << 2))
+#define P_HHI_MPLL_CNTL3 (0xc883c000 + (0xa2 << 2))
+#define P_HHI_MPLL_CNTL4 (0xc883c000 + (0xa3 << 2))
+#define P_HHI_MPLL_CNTL5 (0xc883c000 + (0xa4 << 2))
+#define P_HHI_MPLL_CNTL6 (0xc883c000 + (0xa5 << 2))
+#define P_HHI_MPLL_CNTL7 (0xc883c000 + (0xa6 << 2))
+#define P_HHI_MPLL_CNTL8 (0xc883c000 + (0xa7 << 2))
+#define P_HHI_MPLL_CNTL9 (0xc883c000 + (0xa8 << 2))
+#define P_HHI_MPLL_CNTL10 (0xc883c000 + (0xa9 << 2))
+#define P_HHI_ADC_PLL_CNTL (0xc883c000 + (0xaa << 2))
+#define P_HHI_ADC_PLL_CNTL2 (0xc883c000 + (0xab << 2))
+#define P_HHI_ADC_PLL_CNTL3 (0xc883c000 + (0xac << 2))
+#define P_HHI_ADC_PLL_CNTL4 (0xc883c000 + (0xad << 2))
+#define P_HHI_ADC_PLL_CNTL_I (0xc883c000 + (0xae << 2))
+#define P_HHI_AUDCLK_PLL_CNTL (0xc883c000 + (0xb0 << 2))
+#define P_HHI_AUDCLK_PLL_CNTL2 (0xc883c000 + (0xb1 << 2))
+#define P_HHI_AUDCLK_PLL_CNTL3 (0xc883c000 + (0xb2 << 2))
+#define P_HHI_AUDCLK_PLL_CNTL4 (0xc883c000 + (0xb3 << 2))
+#define P_HHI_AUDCLK_PLL_CNTL5 (0xc883c000 + (0xb4 << 2))
+#define P_HHI_AUDCLK_PLL_CNTL6 (0xc883c000 + (0xb5 << 2))
+#define P_HHI_L2_DDR_CLK_CNTL (0xc883c000 + (0xb6 << 2))
+#define P_HHI_MPLL3_CNTL0 (0xc883c000 + (0xb8 << 2))
+#define P_HHI_MPLL3_CNTL1 (0xc883c000 + (0xb9 << 2))
+#define P_HHI_VDAC_CNTL0 (0xc883c000 + (0xbd << 2))
+#define P_HHI_VDAC_CNTL1 (0xc883c000 + (0xbe << 2))
+#define P_HHI_SYS_PLL_CNTL (0xc883c000 + (0xc0 << 2))
+#define P_HHI_SYS_PLL_CNTL2 (0xc883c000 + (0xc1 << 2))
+#define P_HHI_SYS_PLL_CNTL3 (0xc883c000 + (0xc2 << 2))
+#define P_HHI_SYS_PLL_CNTL4 (0xc883c000 + (0xc3 << 2))
+#define P_HHI_SYS_PLL_CNTL5 (0xc883c000 + (0xc4 << 2))
+#define P_HHI_DPLL_TOP_I (0xc883c000 + (0xc6 << 2))
+#define P_HHI_DPLL_TOP2_I (0xc883c000 + (0xc7 << 2))
+#define P_HHI_HDMI_PLL_CNTL (0xc883c000 + (0xc8 << 2))
+#define P_HHI_HDMI_PLL_CNTL2 (0xc883c000 + (0xc9 << 2))
+#define P_HHI_HDMI_PLL_CNTL3 (0xc883c000 + (0xca << 2))
+#define P_HHI_HDMI_PLL_CNTL4 (0xc883c000 + (0xcb << 2))
+#define P_HHI_HDMI_PLL_CNTL5 (0xc883c000 + (0xcc << 2))
+#define P_HHI_HDMI_PLL_CNTL6 (0xc883c000 + (0xcd << 2))
+#define P_HHI_HDMI_PLL_CNTL_I (0xc883c000 + (0xce << 2))
+#define P_HHI_HDMI_PLL_CNTL7 (0xc883c000 + (0xcf << 2))
+#define P_HHI_DSI_LVDS_EDP_CNTL0 (0xc883c000 + (0xd1 << 2))
+#define P_HHI_DSI_LVDS_EDP_CNTL1 (0xc883c000 + (0xd2 << 2))
+#define P_HHI_CSI_PHY_CNTL0 (0xc883c000 + (0xd3 << 2))
+#define P_HHI_CSI_PHY_CNTL1 (0xc883c000 + (0xd4 << 2))
+#define P_HHI_CSI_PHY_CNTL2 (0xc883c000 + (0xd5 << 2))
+#define P_HHI_CSI_PHY_CNTL3 (0xc883c000 + (0xd6 << 2))
+#define P_HHI_CSI_PHY_CNTL4 (0xc883c000 + (0xd7 << 2))
+#define P_HHI_DIF_CSI_PHY_CNTL0 (0xc883c000 + (0xd8 << 2))
+#define P_HHI_DIF_CSI_PHY_CNTL1 (0xc883c000 + (0xd9 << 2))
+#define P_HHI_DIF_CSI_PHY_CNTL2 (0xc883c000 + (0xda << 2))
+#define P_HHI_DIF_CSI_PHY_CNTL3 (0xc883c000 + (0xdb << 2))
+#define P_HHI_DIF_CSI_PHY_CNTL4 (0xc883c000 + (0xdc << 2))
+#define P_HHI_DIF_CSI_PHY_CNTL5 (0xc883c000 + (0xdd << 2))
+#define P_HHI_LVDS_TX_PHY_CNTL0 (0xc883c000 + (0xde << 2))
+#define P_HHI_LVDS_TX_PHY_CNTL1 (0xc883c000 + (0xdf << 2))
+#define P_HHI_VID2_PLL_CNTL (0xc883c000 + (0xe0 << 2))
+#define P_HHI_VID2_PLL_CNTL2 (0xc883c000 + (0xe1 << 2))
+#define P_HHI_VID2_PLL_CNTL3 (0xc883c000 + (0xe2 << 2))
+#define P_HHI_VID2_PLL_CNTL4 (0xc883c000 + (0xe3 << 2))
+#define P_HHI_VID2_PLL_CNTL5 (0xc883c000 + (0xe4 << 2))
+#define P_HHI_VID2_PLL_CNTL_I (0xc883c000 + (0xe5 << 2))
+#define P_HHI_HDMI_PHY_CNTL0 (0xc883c000 + (0xe8 << 2))
+#define P_HHI_HDMI_PHY_CNTL1 (0xc883c000 + (0xe9 << 2))
+#define P_HHI_HDMI_PHY_CNTL2 (0xc883c000 + (0xea << 2))
+#define P_HHI_HDMI_PHY_CNTL3 (0xc883c000 + (0xeb << 2))
+#define P_HHI_VID_LOCK_CLK_CNTL (0xc883c000 + (0xf2 << 2))
+#define P_HHI_ATV_DMD_SYS_CLK_CNTL (0xc883c000 + (0xf3 << 2))
+#define P_HHI_BT656_CLK_CNTL (0xc883c000 + (0xf5 << 2))
+#define P_HHI_SAR_CLK_CNTL (0xc883c000 + (0xf6 << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL (0xc883c000 + (0xf8 << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL2 (0xc883c000 + (0xf9 << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL3 (0xc883c000 + (0xfa << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL4 (0xc883c000 + (0xfb << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL5 (0xc883c000 + (0xfc << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL6 (0xc883c000 + (0xfd << 2))
+#define P_HHI_HDMIRX_AUD_PLL_CNTL_I (0xc883c000 + (0xfe << 2))
 
 #define AIU_HDMI_CLK_DATA_CTRL 0x152a	/* register.h:2466 */
 #define P_AIU_HDMI_CLK_DATA_CTRL CBUS_REG_ADDR(AIU_HDMI_CLK_DATA_CTRL)
@@ -187,8 +295,9 @@ void hd_write_reg(unsigned int addr, unsigned int val);
 #define P_PAD_PULL_UP_REG6 CBUS_REG_ADDR(PAD_PULL_UP_REG6)
 #define PAD_PULL_UP_REG0 0x203a	/* register.h:436 */
 #define P_PAD_PULL_UP_REG0 CBUS_REG_ADDR(PAD_PULL_UP_REG0)
-#define PAD_PULL_UP_REG1 0x203b	/* register.h:437 */
-#define P_PAD_PULL_UP_REG1 CBUS_REG_ADDR(PAD_PULL_UP_REG1)
+
+#define P_PAD_PULL_UP_REG1 nCBUS_REG_ADDR(0x3b)
+
 #define PAD_PULL_UP_REG2 0x203c	/* register.h:438 */
 #define P_PAD_PULL_UP_REG2 CBUS_REG_ADDR(PAD_PULL_UP_REG2)
 #define PAD_PULL_UP_REG3 0x203d	/* register.h:439 */
@@ -200,8 +309,7 @@ void hd_write_reg(unsigned int addr, unsigned int val);
 
 #define PAD_PULL_UP_EN_REG0 0x2048	/* register.h:463 */
 #define P_PAD_PULL_UP_EN_REG0 CBUS_REG_ADDR(PAD_PULL_UP_EN_REG0)
-#define PAD_PULL_UP_EN_REG1 0x2049	/* register.h:464 */
-#define P_PAD_PULL_UP_EN_REG1 CBUS_REG_ADDR(PAD_PULL_UP_EN_REG1)
+#define P_PAD_PULL_UP_EN_REG1 nCBUS_REG_ADDR(0x49)
 #define PAD_PULL_UP_EN_REG2 0x204a	/* register.h:465 */
 #define P_PAD_PULL_UP_EN_REG2 CBUS_REG_ADDR(PAD_PULL_UP_EN_REG2)
 #define PAD_PULL_UP_EN_REG3 0x204b	/* register.h:466 */
@@ -661,6 +769,8 @@ void hd_write_reg(unsigned int addr, unsigned int val);
 #define ENCP_SYNC_TO_PIXEL 0x1c47	/* register.h:8399 */
 #define P_ENCP_SYNC_TO_PIXEL VCBUS_REG_ADDR(ENCP_SYNC_TO_PIXEL)
 
+/* [3:2] cntl_viu2_sel_venc: 0=ENCL, 1=ENCI, 2=ENCP, 3=ENCT. */
+/* [1:0] cntl_viu1_sel_venc: 0=ENCL, 1=ENCI, 2=ENCP, 3=ENCT. */
 #define VPU_VIU_VENC_MUX_CTRL 0x271a	/* register.h:9214 */
 #define P_VPU_VIU_VENC_MUX_CTRL VCBUS_REG_ADDR(VPU_VIU_VENC_MUX_CTRL)
 #define VPU_HDMI_SETTING 0x271b	/* register.h:9229 */
@@ -672,6 +782,8 @@ void hd_write_reg(unsigned int addr, unsigned int val);
 #define P_VPU_MEM_PD_REG1 VCBUS_REG_ADDR(VPU_MEM_PD_REG1)
 #define VPU_HDMI_DATA_OVR 0x2727	/* register.h:9270 */
 #define P_VPU_HDMI_DATA_OVR VCBUS_REG_ADDR(VPU_HDMI_DATA_OVR)
+#define VPU_HDMI_FMT_CTRL 0x2743
+#define P_VPU_HDMI_FMT_CTRL VCBUS_REG_ADDR(VPU_HDMI_FMT_CTRL)
 
 /* c_always_on_pointer.h:71 */
 #define AO_RTI_PULL_UP_REG ((0x00 << 10) | (0x0B << 2))
@@ -697,11 +809,11 @@ void hd_write_reg(unsigned int addr, unsigned int val);
 #define AO_CEC_INTR_STAT ((0x00 << 10) | (0x44 << 2))
 #define P_AO_CEC_INTR_STAT		AOBUS_REG_ADDR(AO_CEC_INTR_STAT)
 
-#define HDMI_ADDR_PORT 0x42000	/* hdmi.h:4 */
-#define P_HDMI_ADDR_PORT		APB_REG_ADDR(HDMI_ADDR_PORT)
-#define HDMI_DATA_PORT 0x42004	/* hdmi.h:5 */
-#define P_HDMI_DATA_PORT		APB_REG_ADDR(HDMI_DATA_PORT)
-#define HDMI_CTRL_PORT 0x42008	/* hdmi.h:6 */
-#define P_HDMI_CTRL_PORT		APB_REG_ADDR(HDMI_CTRL_PORT)
+#define P_AO_RTI_GEN_PWR_SLEEP0 (0xc8100000 + (0x3a << 2))
+
+/* secure address P_HDMITX_ADDR_PORT 0xda83a000 */
+#define P_HDMITX_ADDR_PORT        0xc883a000
+#define P_HDMITX_DATA_PORT        0xc883a004
+#define P_HDMITX_CTRL_PORT        0xc883a008
 
 #endif
