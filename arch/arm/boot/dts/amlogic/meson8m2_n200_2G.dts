@@ -48,6 +48,12 @@
 			no-map;
 		};
 
+		di_reserved:linux,di {
+			compatible = "amlogic, di-mem";
+			size = <0x01e00000>; //10x1920x1088x3/2=30M
+			no-map;
+		};
+
 		/*  VDEC reserved memory */
 		vdec_reserved:linux,vdec {
 			compatible = "amlogic, vdec-memory";
@@ -127,6 +133,16 @@
     ion_dev {
         compatible = "amlogic, ion_dev";
         memory-region = <&ion_reserved>;
+    };
+	deinterlace {
+		compatible = "amlogic, deinterlace";
+		status = "okay";
+		memory-region = <&di_reserved>;
+		interrupts = <0 46 1
+					0 6 1>;
+		interrupt-names = "de_irq", "timerc";
+		buffer-size = <3133440>;//1920x1088x3/2
+		hw-version = <1>;
     };
 
 	cpufreq-meson {

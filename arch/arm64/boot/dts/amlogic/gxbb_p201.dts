@@ -50,6 +50,11 @@
 			no-map;
 		};
 
+		di_reserved:linux,di {
+			compatible = "amlogic, di-mem";
+			size = <0x0 0x1e00000>; //10x1920x1088x3/2=30M
+			//no-map;
+		};
 		/*  DISP&MM-A/V stream */
 		streambuf_reserved:linux,mesonstream {
 			compatible = "amlogic, stream-memory";
@@ -231,6 +236,17 @@
         dev_name = "ppmgr";
         status = "okay";
     };
+	deinterlace {
+		compatible = "amlogic, deinterlace";
+		status = "okay";
+		memory-region = <&di_reserved>;
+		interrupts = <0 46 1
+				0 6 1>;
+		interrupt-names = "de_irq",
+				"timerc";
+		buffer-size = <3133440>;	//1920x1088x3/2
+		hw-version = <2>;
+	};
 /*	vdin0 {
 		compatible = "amlogic, vdin";
 		memory-region = <&vdin0_reserved>;

@@ -54,6 +54,8 @@ obj-$(CONFIG_AML_CANVAS) 	+= canvas/
 
 obj-$(CONFIG_AM_VIDEO)		+= amports/
 
+obj-$(CONFIG_DEINTERLACE)   += deinterlace/
+
 obj-$(CONFIG_AML_VFM) 		+= vfm/
 
 obj-$(CONFIG_EFUSE)		+= efuse/
