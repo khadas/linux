@@ -41,7 +41,6 @@
 #include "vdec_reg.h"
 #include "amvdec.h"
 #include "amports_config.h"
-#include "amports_reg.h"
 #include "arch/firmware.h"
 
 #define MC_SIZE (4096 * 4)

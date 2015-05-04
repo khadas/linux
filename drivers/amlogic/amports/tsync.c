@@ -30,7 +30,8 @@
 #include "vdec_reg.h"
 #include "amvdec.h"
 #include "tsync_pcr.h"
-#include "amports_reg.h"
+#include "arch/register.h"
+
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* TODO: for stream buffer register bit define only */

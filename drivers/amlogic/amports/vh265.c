@@ -44,8 +44,8 @@
 
 #include "vdec.h"
 #include "amvdec.h"
-#include "vh265_mc.h"
-#include "amports_reg.h"
+
+
 
 /* #define ERROR_HANDLE_DEBUG */
 #define USE_BUF_BLOCK

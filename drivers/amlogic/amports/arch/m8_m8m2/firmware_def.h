@@ -1,0 +1,10 @@
+#ifndef FIRMWARE_DEFFAULT_CONFIG
+#define FIRMWARE_DEFFAULT_CONFIG
+#include "../firmware.h"
+#define FOR_CPUS {\
+		MESON_CPU_MAJOR_ID_M8,\
+		MESON_CPU_MAJOR_ID_M8M2,\
+		MESON_CPU_MAJOR_ID_GXBB,\
+		0}
+
+#endif

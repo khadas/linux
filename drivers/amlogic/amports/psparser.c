@@ -35,7 +35,7 @@
 #include "streambuf.h"
 #include "psparser.h"
 #include "amports_priv.h"
-#include "amports_reg.h"
+
 
 #define TIMESTAMP_IONLY 1
 #define SAVE_SCR 0

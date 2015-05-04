@@ -39,7 +39,7 @@
 #include "streambuf.h"
 #include "esparser.h"
 #include "amports_priv.h"
-#include "amports_reg.h"
+
 
 #define SAVE_SCR 0
 

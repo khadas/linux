@@ -27,7 +27,7 @@
 /* #include <mach/am_regs.h> */
 
 #include "vdec_reg.h"
-#include "amports_reg.h"
+
 
 #define VIDEO_REC_SIZE  (8192*2)
 #define AUDIO_REC_SIZE  (8192*2)

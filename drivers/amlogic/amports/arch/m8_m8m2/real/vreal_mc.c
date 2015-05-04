@@ -15,7 +15,7 @@
  *
 */
 
-#include "../../firmware.h"
+#include "../firmware_def.h"
 
 #define VERSTR "00000"
 const u32 vreal_mc_8[] __initconst = {
@@ -1357,7 +1357,6 @@ const u32 vreal_mc_9[] = {
 	0x02605187, 0x0c4fe300, 0x00000000, 0x0c7fd2c0, 0x00000000
 };
 
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_M8 , MESON_CPU_MAJOR_ID_M8M2, 0}
 #define FOR_VFORMAT VFORMAT_REAL
 
 #define REG_FIRMWARE_ALL()\

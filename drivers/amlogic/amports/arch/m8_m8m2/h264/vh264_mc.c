@@ -15,7 +15,7 @@
  *
 */
 
-#include "../../firmware.h"
+#include "../firmware_def.h"
 
 #define MicroCode vh264_mc
 #include "h264c_linux.h"
@@ -40,7 +40,6 @@
 #define MicroCode vh264_slice_mc
 #include "h264slice_linux.h"
 
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_M8, MESON_CPU_MAJOR_ID_M8M2, 0}
 #define FOR_VFORMAT VFORMAT_H264
 
 #define REG_FIRMWARE_ALL()\

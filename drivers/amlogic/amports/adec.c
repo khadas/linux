@@ -24,8 +24,8 @@
 
 #include <linux/amlogic/amports/aformat.h>
 #include <linux/amlogic/amports/ptsserv.h>
-#include "amports_reg.h"
-/* #include <mach/am_regs.h> */
+
+#include "arch/register.h"
 
 #include "streambuf.h"
 #include <linux/module.h>

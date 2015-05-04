@@ -61,6 +61,8 @@
 #include <linux/pm.h>
 #endif
 
+#include "arch/register.h"
+
 /* #include <plat/fiq_bridge.h> */
 /*
 #include <asm/fiq.h>
@@ -68,7 +70,7 @@
 #include <linux/uaccess.h>
 
 #include "amports_config.h"
-#include "amports_reg.h"
+
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 #include <linux/amlogic/vpu.h>
@@ -6846,7 +6848,7 @@ static int __init video_init(void)
 #ifdef FIQ_VSYNC
 		free_irq(BRIDGE_IRQ, (void *)video_dev_id);
 #else
-		free_irq(INT_VIU_VSYNC, (void *)video_dev_id);
+		vdec_free_irq(VSYNC_IRQ, (void *)video_dev_id);
 #endif
 		goto err1;
 	}

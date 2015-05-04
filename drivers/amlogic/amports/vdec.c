@@ -15,7 +15,6 @@
  *
 */
 
-
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -38,7 +37,7 @@
 
 #include "amports_config.h"
 #include "amvdec.h"
-#include "amports_reg.h"
+
 
 #include "arch/clk.h"
 #include <linux/reset.h>

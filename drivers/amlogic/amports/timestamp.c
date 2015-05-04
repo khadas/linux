@@ -18,8 +18,8 @@
 #include <linux/module.h>
 #include <linux/amlogic/amports/tsync.h>
 #include "vdec_reg.h"
-/* #include <mach/am_regs.h> */
-#include "amports_reg.h"
+#include "arch/register.h"
+
 unsigned int timestamp_enable_resample_flag = 0;
 EXPORT_SYMBOL(timestamp_enable_resample_flag);
 unsigned int timestamp_resample_type_flag = 0;

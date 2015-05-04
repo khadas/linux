@@ -15,7 +15,7 @@
  *
 */
 
-#include "../../firmware.h"
+#include "../firmware_def.h"
 /* project_dos revision 3000 */
 /* commit 0df2b3006c571c80dc11b5b83bcc2d4eb82ec9a8 */
 /* h265, fix one bug for bbb_short.fmpeg.720x480.mp4.
@@ -24,7 +24,7 @@
 /* #undef SEND_PARAM_WITH_REG */
 #define VERSTR "201501291"
 
-const u32 __initconst vh265_mc[] __initconst = {
+const u32  vh265_mc[] __initconst = {
 	0x6810001,
 	0x6800000,
 	0xd000001,
@@ -3318,7 +3318,7 @@ const u32 __initconst vh265_mc[] __initconst = {
 	0x0000000, 0x0000000, 0x0000000, 0x0000000, 0x0000000, 0x0000000,
 };
 
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_M8M2, 0}
+
 #define FOR_VFORMAT VFORMAT_HEVC
 
 #define REG_FIRMWARE_ALL()\

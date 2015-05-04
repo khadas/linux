@@ -34,7 +34,6 @@
 #include "streambuf_reg.h"
 #include "streambuf.h"
 #include "amports_config.h"
-#include "amports_reg.h"
 #include "amports_priv.h"
 
 #define STBUF_SIZE   (64*1024)

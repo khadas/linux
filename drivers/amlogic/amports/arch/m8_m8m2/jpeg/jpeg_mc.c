@@ -15,7 +15,7 @@
  *
 */
 
-#include "../../firmware.h"
+#include "../firmware_def.h"
 #define VERSTR "ver:0"
 static const u32 jpegdec_mc[] __initconst = {
 	0x06801801, 0x06800000, 0x0d000001, 0x07400040, 0x0680c000, 0x060c2900,
@@ -279,7 +279,6 @@ static const u32 jpegdec_mc[] __initconst = {
 	0x0a6fc028, 0x00000000, 0x0cc00000, 0x00000000
 };
 
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_M8, MESON_CPU_MAJOR_ID_M8M2, 0}
 #define FOR_VFORMAT VFORMAT_JPEG
 
 #define REG_FIRMWARE_ALL()\

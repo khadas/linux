@@ -47,7 +47,8 @@
 
 #include "rmparser.h"
 #include "vreal.h"
-#include "amports_reg.h"
+#include "arch/register.h"
+
 
 #define DRIVER_NAME "amvdec_real"
 #define MODULE_NAME "amvdec_real"

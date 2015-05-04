@@ -34,7 +34,8 @@
 #include "vdec_reg.h"
 #include "streambuf_reg.h"
 #include "amvdec.h"
-#include "amports_reg.h"
+#include "arch/register.h"
+
 
 #define DRIVER_NAME "amvdec_avs"
 #define MODULE_NAME "amvdec_avs"

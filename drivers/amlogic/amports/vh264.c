@@ -44,7 +44,7 @@
 #include "amvdec.h"
 #include "vh264.h"
 #include "streambuf.h"
-#include "amports_reg.h"
+
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 #include <linux/amlogic/ge2d/ge2d.h>

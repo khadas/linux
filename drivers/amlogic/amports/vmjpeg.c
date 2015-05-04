@@ -30,7 +30,8 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 
 #include "vdec_reg.h"
-#include "amports_reg.h"
+#include "arch/register.h"
+
 
 #ifdef CONFIG_AM_VDEC_MJPEG_LOG
 #define AMLOG
@@ -44,7 +45,7 @@
 MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 
 #include "amvdec.h"
-#include "vmjpeg_mc.h"
+
 
 #define DRIVER_NAME "amvdec_mjpeg"
 #define MODULE_NAME "amvdec_mjpeg"

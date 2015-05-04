@@ -15,7 +15,7 @@
  *
 */
 
-#include "../../firmware.h"
+#include "../firmware_def.h"
 
 #define VERSTR "00000"
 
@@ -2138,7 +2138,7 @@ const u32 __initconst h263_mc[] = {
 	0x0fc03200, 0x0cc00000, 0x00000000
 };
 
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_M8, MESON_CPU_MAJOR_ID_M8M2, 0}
+
 #define FOR_VFORMAT VFORMAT_MPEG4
 
 #define REG_FIRMWARE_ALL()\

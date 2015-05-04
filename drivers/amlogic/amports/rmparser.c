@@ -35,7 +35,6 @@
 #include "streambuf_reg.h"
 #include "rmparser.h"
 #include "amports_priv.h"
-#include "amports_reg.h"
 #include <linux/delay.h>
 
 #define MANAGE_PTS
@@ -147,7 +146,7 @@ void rmparser_release(void)
 	WRITE_MPEG_REG(PARSER_INT_ENABLE, 0);
 	/*TODO irq */
 
-	free_irq(INT_PARSER, (void *)rmparser_id);
+	vdec_free_irq(PARSER_IRQ, (void *)rmparser_id);
 
 #ifdef MANAGE_PTS
 	pts_stop(PTS_TYPE_VIDEO);

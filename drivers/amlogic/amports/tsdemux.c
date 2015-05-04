@@ -45,7 +45,7 @@
 #include "tsdemux.h"
 #include <linux/reset.h>
 #include "amports_priv.h"
-#include "amports_reg.h"
+
 
 static const char tsdemux_fetch_id[] = "tsdemux-fetch-id";
 static const char tsdemux_irq_id[] = "tsdemux-irq-id";
@@ -729,7 +729,7 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc)
 err4:
 	/*TODO irq */
 
-	free_irq(INT_PARSER, (void *)tsdemux_fetch_id);
+	vdec_free_irq(PARSER_IRQ, (void *)tsdemux_fetch_id);
 
 #endif
 err3:

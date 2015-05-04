@@ -33,8 +33,8 @@
 
 #include "vdec_reg.h"
 #include "amvdec.h"
-#include "vc1_mc.h"
-#include "amports_reg.h"
+#include "arch/register.h"
+
 
 #define DRIVER_NAME "amvdec_vc1"
 #define MODULE_NAME "amvdec_vc1"

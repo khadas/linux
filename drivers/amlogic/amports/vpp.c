@@ -43,7 +43,8 @@
 #endif
 #include "amlog.h"
 #include "vdec_reg.h"
-#include "amports_reg.h"
+#include "arch/register.h"
+
 
 /* vpp filter coefficients */
 #define COEF_BICUBIC         0

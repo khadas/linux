@@ -62,7 +62,7 @@
 #include "amports_priv.h"
 #include "amports_config.h"
 #include "tsync_pcr.h"
-#include "amports_reg.h"
+
 
 #include <linux/firmware.h>
 

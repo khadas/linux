@@ -36,7 +36,6 @@
 #include <linux/uaccess.h>
 
 #include "amvdec.h"
-#include "jpegdec_mc.h"
 #include "streambuf.h"
 #include "vdec_reg.h"
 

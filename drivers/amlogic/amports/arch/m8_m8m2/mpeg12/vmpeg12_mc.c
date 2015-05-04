@@ -15,7 +15,7 @@
  *
 */
 
-#include "../../firmware.h"
+#include "../firmware_def.h"
 
 #define VERSTR "00000"
 const u32 vmpeg12_mc[] __initconst = {
@@ -1814,7 +1814,7 @@ const u32 vmpeg12_mc[] __initconst = {
 	0x7c061c8, 0x7c06208, 0x0000000, 0xc7f4e00, 0xfc071c0, 0x0000000
 };
 
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_M8, MESON_CPU_MAJOR_ID_M8M2, 0}
+
 #define FOR_VFORMAT VFORMAT_MPEG12
 
 #define REG_FIRMWARE_ALL()\

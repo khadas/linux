@@ -44,7 +44,7 @@
 #include "amports_priv.h"
 #include "vdec.h"
 #include "amvdec.h"
-#include "amports_reg.h"
+
 
 
 
