@@ -317,6 +317,14 @@ static const struct file_operations clkmsr_file_ops = {
 
 static void __init clock_msr_init(struct device_node *np)
 {
+	msr_clk_reg0 = of_iomap(np, 0);
+	msr_clk_reg2 = of_iomap(np, 1);
+	pr_info("msr_clk_reg0=%p,msr_clk_reg2=%p\n",
+		msr_clk_reg0, msr_clk_reg2);
+}
+CLK_OF_DECLARE(m8m2_clk_msr, "amlogic,m8m2_measure", clock_msr_init);
+static void __init gxbb_clock_msr_init(struct device_node *np)
+{
 	static struct dentry *debugfs_root;
 	debugfs_root = debugfs_create_dir("aml_clkmsr", NULL);
 	if (IS_ERR(debugfs_root) || !debugfs_root) {
@@ -333,7 +341,5 @@ static void __init clock_msr_init(struct device_node *np)
 	pr_info("msr_clk_reg0=%p,msr_clk_reg2=%p\n",
 		msr_clk_reg0, msr_clk_reg2);
 }
-CLK_OF_DECLARE(m8m2_clk_msr, "amlogic,m8m2_measure", clock_msr_init);
-
-CLK_OF_DECLARE(gxbb_clk_msr, "amlogic, gxbb_measure", clock_msr_init);
+CLK_OF_DECLARE(gxbb_clk_msr, "amlogic, gxbb_measure", gxbb_clock_msr_init);
 
