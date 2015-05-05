@@ -18,6 +18,6 @@ source "drivers/amlogic/tvin/bt656/Kconfig"
 #source "drivers/amlogic/tvin/csi/Kconfig"
 source "drivers/amlogic/tvin/viu/Kconfig"
 #source "drivers/amlogic/tvin/it660x/Kconfig"
-#source "drivers/amlogic/tvin/isp/Kconfig"
+source "drivers/amlogic/tvin/isp/Kconfig"
 #source "drivers/amlogic/tvin/vdin_ctrl/Kconfig"
 endif

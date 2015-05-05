@@ -19,10 +19,8 @@
 #ifndef __TVIN_H
 #define __TVIN_H
 
-/*
-#include <linux/amlogic/cm.h>
-*/
-/* #include <mach/am_regs.h> */
+#include <linux/types.h>
+
 enum {
 	MEMP_VDIN_WITHOUT_3D = 0,
 	MEMP_VDIN_WITH_3D,

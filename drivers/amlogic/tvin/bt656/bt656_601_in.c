@@ -632,7 +632,7 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 		/* power on mipi csi phy */
 		aml_write_cbus(HHI_CSI_PHY_CNTL0, 0xfdc1ff81);
 		aml_write_cbus(HHI_CSI_PHY_CNTL1, 0x3fffff);
-		temp_data = READ_CBUS_REG(HHI_CSI_PHY_CNTL2);
+		temp_data = aml_read_cbus(HHI_CSI_PHY_CNTL2);
 		temp_data &= 0x7ff00000;
 		temp_data |= 0x80000fc0;
 		aml_write_cbus(HHI_CSI_PHY_CNTL2, temp_data);

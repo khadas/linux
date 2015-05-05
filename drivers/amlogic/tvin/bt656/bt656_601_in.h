@@ -68,6 +68,9 @@
 
 /* #define VDIN_WR_V_START_END    0x1222 */
 #define RESET1_REGISTER        0x1102
+#define HHI_CSI_PHY_CNTL0      0x10d3
+#define HHI_CSI_PHY_CNTL1      0x10d4
+#define HHI_CSI_PHY_CNTL2      0x10d5
 
 /* bit defines */
 /*BT656 MACRO */

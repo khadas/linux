@@ -197,7 +197,7 @@
         	vdin_id = <0>;
     	};
     	vdin1 {
-        	compatible = "amlogic,  vdin";
+        	compatible = "amlogic, vdin";
         	memory-region = <&vdin1_reserved>;
         	dev_name = "vdin1";
         	status = "ok";
