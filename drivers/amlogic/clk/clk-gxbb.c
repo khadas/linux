@@ -28,7 +28,7 @@
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 /*obtain the clock speed of external fixed clock sources from device tree*/
-	FRATE(0, "xtal", NULL, CLK_IS_ROOT, 24000000),
+	FRATE(CLK_XTAL, "xtal", NULL, CLK_IS_ROOT, 24000000),
 	FRATE(0, "32Khz", NULL, CLK_IS_ROOT, 32000),
 	FRATE(CLK_81, "clk81", NULL, CLK_IS_ROOT, 166666666),
 };
