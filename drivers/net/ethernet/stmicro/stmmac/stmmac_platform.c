@@ -361,9 +361,9 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	}
 
 	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat, addr);
-	if (IS_ERR(priv)) {
+	if (!priv) {
 		pr_err("%s: main driver probe failed", __func__);
-		return PTR_ERR(priv);
+		return -ENODEV;
 	}
 
 	/* Get MAC address if available (DT) */
