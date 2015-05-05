@@ -48,27 +48,30 @@
 			size = <0x4000000>;
 			no-map;
 		};
+
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
 			size = <0x2000000>;
 		};
+
         	/*  vdin0 */
         	vdin0_reserved:linux,vdin0 {
-            	compatible = "amlogic, vdin_memory";
-            	size = <0x01000000>;
+			compatible = "amlogic, vdin_memory";
+			size = <0x01000000>;
         	};
+
         	/*  vdin1 */
         	vdin1_reserved:linux,vdin1 {
-            	compatible = "amlogic, vdin_memory";
-            	size = <0x01000000>;
+			compatible = "amlogic, vdin_memory";
+			size = <0x01000000>;
         	};
 
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x4000000>;
-			alignment = <0x2000>;
+			alignment = <0x400000>;
 			linux,cma-default;
 		};
 
@@ -212,6 +215,18 @@
                 status = "ok";
                 reg = <0xd010bd00 0x7c>;
         };
+
+	amvenc_avc{
+		compatible = "amlogic, amvenc_avc";
+		//memory-region = <&amvenc_avc_reserved>;
+		dev_name = "amvenc_avc";
+		status = "okay";
+		//linux,contiguous-region = <&cma_0>;
+		interrupts = <0 45 1>;
+		interrupt-names = "mailbox_2";
+		dma-coherent;
+	};
+
 	ethmac: ethernet@0xc9410000{
 		compatible = "amlogic, meson8m2-rmii-dwmac";
 		reg = <0xc9410000 0x10000

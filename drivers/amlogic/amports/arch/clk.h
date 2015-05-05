@@ -79,10 +79,8 @@ static struct chip_vdec_clk_s vdec2_clk_mgr __initdata = {
 	.clock_prepare_switch = NULL,
 	.clock_level = vdec_clock_level,
 };
+#endif
 
-
-#endif	/*
- */
 #ifdef VDEC_HAS_HEVC
 static struct chip_vdec_clk_s vdec_hevc_clk_mgr __initdata = {
 	.clock_enable = hevc_clock_enable,
@@ -93,10 +91,8 @@ static struct chip_vdec_clk_s vdec_hevc_clk_mgr __initdata = {
 	.clock_prepare_switch = hevc_clock_prepare_switch,
 	.clock_level = vdec_clock_level,
 };
+#endif
 
-
-#endif	/*
- */
 #ifdef VDEC_HAS_VDEC_HCODEC
 static struct chip_vdec_clk_s vdec_hcodec_clk_mgr __initdata = {
 	.clock_enable = hcodec_clock_enable,
@@ -106,33 +102,25 @@ static struct chip_vdec_clk_s vdec_hcodec_clk_mgr __initdata = {
 	.clock_prepare_switch = NULL,
 	.clock_level = vdec_clock_level,
 };
+#endif
 
-
-#endif	/*
- */
 static int __init vdec_init_clk(void)
 {
 	int cpus[] = CLK_FOR_CPU;
 	register_vdec_clk_mgr(cpus, VDEC_1, &vdec_clk_mgr);
 #ifdef VDEC_HAS_VDEC2
 	register_vdec_clk_mgr(cpus, VDEC_2, &vdec2_clk_mgr);
-#endif	/*
- */
+#endif
 #ifdef VDEC_HAS_HEVC
 	register_vdec_clk_mgr(cpus, VDEC_HEVC, &vdec_hevc_clk_mgr);
-#endif	/*
- */
+#endif
 #ifdef VDEC_HAS_VDEC_HCODEC
 	register_vdec_clk_mgr(cpus, VDEC_HCODEC, &vdec_hcodec_clk_mgr);
-#endif	/*
- */
+#endif
 	return 0;
 }
 
 #define ARCH_VDEC_CLK_INIT()\
 		module_init(vdec_init_clk);
-
 #endif
-
 #endif
-

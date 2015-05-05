@@ -112,5 +112,4 @@ sample:
 
 INIT_DEF_FIRMWARE();
 */
-#endif				/*
-				 */
+#endif

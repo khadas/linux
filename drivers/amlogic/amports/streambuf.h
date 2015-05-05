@@ -15,7 +15,6 @@
  *
 */
 
-
 #ifndef STREAMBUF_H
 #define STREAMBUF_H
 #include "amports_config.h"

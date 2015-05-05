@@ -390,7 +390,7 @@ s32 amvdec2_loadmc_ex(enum vformat_e type, const char *name, char *def)
 		return 0;
 }
 
-static s32 amhcodec_loadmc(const u32 *p)
+s32 amhcodec_loadmc(const u32 *p)
 {
 #ifdef AMVDEC_USE_STATIC_MEMORY
 	if (mc_addr == NULL) {

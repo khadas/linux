@@ -15,7 +15,6 @@
  *
 */
 
-
 #ifndef VDEC_H
 #define VDEC_H
 #include "amports_config.h"

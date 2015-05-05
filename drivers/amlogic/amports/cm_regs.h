@@ -15,7 +15,6 @@
  *
 */
 
-
 #ifndef __CM_REG_H
 #define __CM_REG_H
 

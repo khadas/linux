@@ -1,3 +1,19 @@
+/*
+ * drivers/amlogic/amports/arch/regs/hcodec_regs.h
+ *
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
 
 #ifndef HCODEC_REG_HEADERS___
 #define HCODEC_REG_HEADERS___
@@ -73,7 +89,6 @@
 #define HCODEC_ASSIST_MBOX2_CLR_REG 0x1079
 #define HCODEC_ASSIST_MBOX2_MASK 0x107a
 #define HCODEC_ASSIST_MBOX2_FIQ_SEL 0x107b
-
 
 #define HCODEC_MC_CTRL_REG 0x1900
 #define HCODEC_MC_MB_INFO 0x1901
@@ -278,9 +293,6 @@
 #define HCODEC_GCLK_EN 0x1983
 #define HCODEC_MDEC_SW_RESET 0x1984
 
-
-
-/**/
 #define HCODEC_VLD_STATUS_CTRL 0x1c00
 #define HCODEC_MPEG1_2_REG 0x1c01
 #define HCODEC_F_CODE_REG 0x1c02
@@ -363,8 +375,6 @@
 #define HCODEC_VLD_MEM_SWAP_ADDR 0x1c55
 #define HCODEC_VLD_MEM_SWAP_CTL 0x1c56
 
-
-
 #define HCODEC_VCOP_CTRL_REG 0x1e00
 #define HCODEC_QP_CTRL_REG 0x1e01
 #define HCODEC_INTRA_QUANT_MATRIX 0x1e02
@@ -391,9 +401,6 @@
 #define HCODEC_IQ_QUANT 0x1e17
 #define HCODEC_VC1_BITPLANE_CTL 0x1e18
 
-
-
-/**/
 #define HCODEC_MSP 0x1300
 #define HCODEC_MPSR 0x1301
 #define HCODEC_MINT_VEC_BASE 0x1302
@@ -474,8 +481,6 @@
 #define HCODEC_ACC1REG2 0x1372
 #define HCODEC_CPU_TRACE 0x1380
 
-
-
 #define HCODEC_HENC_SCRATCH_0 0x1ac0
 #define HCODEC_HENC_SCRATCH_1 0x1ac1
 #define HCODEC_HENC_SCRATCH_2 0x1ac2
@@ -525,6 +530,10 @@
 #define HCODEC_VLC_SPECIAL_CTL 0x1d22
 #define HCODEC_VLC_HCMD_T_L_INFO 0x1d23
 #define HCODEC_VLC_HCMD_CUR_INFO 0x1d24
+/* add from GXBB */
+#define HCODEC_VLC_ADV_CONFIG 0x1d25
+#define HCODEC_VLC_HCMD_MBXY_AUTO 0x1d26
+#define HCODEC_VLC_INT_CONTROL_INTER 0x1d2f
 /**/
 #define HCODEC_VLC_INT_CONTROL 0x1d30
 #define HCODEC_VLC_PIC_SIZE 0x1d31
@@ -613,6 +622,19 @@
 /*add from M8M2*/
 #define HCODEC_QDCT_I_PRED_REF_WR_IDX 0x1f32
 #define HCODEC_QDCT_I_PRED_REF_WR_DATA 0x1f33
+/* add from GXBB */
+#define HCODEC_QDCT_ADV_CONFIG 0x1f34
+#define HCODEC_IE_WEIGHT 0x1f35
+#define HCODEC_Q_QUANT_CONTROL 0x1f36
+#define HCODEC_MBBOT_EVEN_ADDR 0x1f37
+#define HCODEC_MBBOT_ODD_ADDR 0x1f38
+#define HCODEC_QUANT_TABLE_DATA 0x1f39
+#define HCODEC_SAD_CONTROL_0 0x1f3a
+#define HCODEC_SAD_CONTROL_1 0x1f3b
+#define HCODEC_QDCT_VLC_QUANT_CTL_0 0x1f3c
+#define HCODEC_QDCT_VLC_QUANT_CTL_1 0x1f3d
+#define HCODEC_QDCT_INT_STATUS 0x1f3e
+#define HCODEC_QDCT_MIX_I_PRED_STATUS 0x1f3f
 /**/
 #define HCODEC_IE_CONTROL 0x1f40
 #define HCODEC_IE_MB_POSITION 0x1f41
@@ -646,6 +668,19 @@
 #define HCODEC_ME_SUB_FIX_MIN_SAD 0x1f5d
 #define HCODEC_ME_SUB_SNAP_GLITCH 0x1f5e
 #define HCODEC_ME_SUB_ACT_CTL 0x1f5f
+/* add from GXBB */
+#define HCODEC_ME_WEIGHT 0x1f60
+#define HCODEC_ME_SAD_0 0x1f61
+#define HCODEC_ME_SAD_1 0x1f62
+#define HCODEC_ME_SAD_2 0x1f63
+#define HCODEC_ME_SAD_3 0x1f64
+#define HCODEC_IE_SAD_0 0x1f65
+#define HCODEC_IE_SAD_1 0x1f66
+#define HCODEC_IE_SAD_2 0x1f67
+#define HCODEC_IE_SAD_3 0x1f68
+#define HCODEC_ADV_MV_CTL0 0x1f69
+#define HCODEC_ADV_MV_CTL1 0x1f6a
+#define HCODEC_ADV_MV_CTL2 0x1f6b
 
 #endif
 

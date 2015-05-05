@@ -34,5 +34,4 @@ const char *get_video_format_name(enum vformat_e type);
 
 struct chip_vdec_info_s *get_current_vdec_chip(void);
 
-#endif				/*
-				 */
+#endif

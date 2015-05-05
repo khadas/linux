@@ -157,7 +157,6 @@ config AM_ENCODER
 	tristate "Amlogic AVC encoder"
 	default n
 
-	select AM_PTSSERVER
 	---help---
 	  Driver for avc encoder.
 	  need write more details...
@@ -169,7 +168,6 @@ config AM_JPEG_ENCODER
 	tristate "Amlogic jpeg encoder"
 	default n
 
-	select AM_PTSSERVER
 	---help---
 	  Driver for jpeg encoder.
 	  need write more details...

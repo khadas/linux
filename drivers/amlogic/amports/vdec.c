@@ -313,24 +313,24 @@ bool vdec_on(enum vdec_type_e core)
 
 	if (core == VDEC_1) {
 		if (((READ_AOREG(AO_RTI_GEN_PWR_SLEEP0) & 0xc) == 0) &&
-			(READ_MPEG_REG(HHI_VDEC_CLK_CNTL) & 0x100))
+			(READ_HHI_REG(HHI_VDEC_CLK_CNTL) & 0x100))
 			ret = true;
 	} else if (core == VDEC_2) {
 		if (has_vdec2()) {
 			if (((READ_AOREG(AO_RTI_GEN_PWR_SLEEP0) & 0x30) == 0) &&
-				(READ_MPEG_REG(HHI_VDEC2_CLK_CNTL) & 0x100))
+				(READ_HHI_REG(HHI_VDEC2_CLK_CNTL) & 0x100))
 				ret = true;
 		}
 	} else if (core == VDEC_HCODEC) {
 		if (has_hdec()) {
 			if (((READ_AOREG(AO_RTI_GEN_PWR_SLEEP0) & 0x3) == 0) &&
-				(READ_MPEG_REG(HHI_VDEC_CLK_CNTL) & 0x1000000))
+				(READ_HHI_REG(HHI_VDEC_CLK_CNTL) & 0x1000000))
 				ret = true;
 		}
 	} else if (core == VDEC_HEVC) {
 		if (has_hevc_vdec()) {
 			if (((READ_AOREG(AO_RTI_GEN_PWR_SLEEP0) & 0xc0) == 0) &&
-				(READ_MPEG_REG(HHI_VDEC2_CLK_CNTL) & 0x1000000))
+				(READ_HHI_REG(HHI_VDEC2_CLK_CNTL) & 0x1000000))
 				ret = true;
 		}
 	}
@@ -397,13 +397,13 @@ bool vdec_on(enum vdec_type_e core)
 	bool ret = false;
 
 	if (core == VDEC_1) {
-		if (READ_MPEG_REG(HHI_VDEC_CLK_CNTL) & 0x100)
+		if (READ_HHI_REG(HHI_VDEC_CLK_CNTL) & 0x100)
 			ret = true;
 	} else if (core == VDEC_2) {
-		if (READ_MPEG_REG(HHI_VDEC2_CLK_CNTL) & 0x100)
+		if (READ_HHI_REG(HHI_VDEC2_CLK_CNTL) & 0x100)
 			ret = true;
 	} else if (core == VDEC_HCODEC) {
-		if (READ_MPEG_REG(HHI_VDEC_CLK_CNTL) & 0x1000000)
+		if (READ_HHI_REG(HHI_VDEC_CLK_CNTL) & 0x1000000)
 			ret = true;
 	}
 

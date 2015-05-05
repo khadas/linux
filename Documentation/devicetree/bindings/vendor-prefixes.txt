@@ -97,3 +97,4 @@ wm	Wondermedia Technologies, Inc.
 xlnx	Xilinx
 AMLOGIC Amlogic, Inc
 amlogic Amlogic, Inc
+shared-dma-pool	shared dma pool

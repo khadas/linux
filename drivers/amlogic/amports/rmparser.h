@@ -15,7 +15,6 @@
  *
 */
 
-
 #ifndef RMPARSER_H
 #define RMPARSER_H
 

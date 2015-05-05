@@ -15,7 +15,6 @@
  *
 */
 
-
 #ifndef VDEC_REG_H
 #define VDEC_REG_H
 
@@ -70,6 +69,12 @@
 	WRITE_MPEG_REG(r, READ_MPEG_REG(r) & ~(mask))
 #define SET_MPEG_REG_MASK(r, mask)\
 	WRITE_MPEG_REG(r, READ_MPEG_REG(r) | (mask))
+
+#define WRITE_HHI_REG(r, val)      codec_hhibus_write(r, val)
+#define READ_HHI_REG(r) codec_hhibus_read(r)
+#define WRITE_HHI_REG_BITS(r, val, start, len) \
+	WRITE_HHI_REG(r, (READ_HHI_REG(r) & ~(((1L<<(len))-1)<<(start)))|\
+		    ((unsigned)((val)&((1L<<(len))-1)) << (start)))
 
 #define ASSIST_MBOX1_CLR_REG VDEC_ASSIST_MBOX1_CLR_REG
 #define ASSIST_MBOX1_MASK VDEC_ASSIST_MBOX1_MASK

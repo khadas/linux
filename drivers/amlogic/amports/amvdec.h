@@ -56,6 +56,7 @@ s32 amhevc_loadmc_ex(enum vformat_e type, const char *name, char *def);
 
 extern void amhcodec_start(void);
 extern void amhcodec_stop(void);
+s32 amhcodec_loadmc(const u32 *p);
 s32 amhcodec_loadmc_ex(enum vformat_e type, const char *name, char *def);
 
 

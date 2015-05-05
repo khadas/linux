@@ -15,7 +15,6 @@
  *
 */
 
-
 #ifndef STREAMBUF_REG_H
 #define STREAMBUF_REG_H
 

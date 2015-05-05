@@ -1,33 +1,22 @@
+/*
+ * drivers/amlogic/amports/arch/regs/enc_regs.h
+ *
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
 
 #ifndef ENC_REGS_HEADER_
 #define ENC_REGS_HEADER_
-
-#define HENC_SCRATCH_0 0x1ac0
-#define HENC_SCRATCH_1 0x1ac1
-#define HENC_SCRATCH_2 0x1ac2
-#define HENC_SCRATCH_3 0x1ac3
-#define HENC_SCRATCH_4 0x1ac4
-#define HENC_SCRATCH_5 0x1ac5
-#define HENC_SCRATCH_6 0x1ac6
-#define HENC_SCRATCH_7 0x1ac7
-#define HENC_SCRATCH_8 0x1ac8
-#define HENC_SCRATCH_9 0x1ac9
-#define HENC_SCRATCH_A 0x1aca
-#define HENC_SCRATCH_B 0x1acb
-#define HENC_SCRATCH_C 0x1acc
-#define HENC_SCRATCH_D 0x1acd
-#define HENC_SCRATCH_E 0x1ace
-#define HENC_SCRATCH_F 0x1acf
-#define HENC_SCRATCH_G 0x1ad0
-#define HENC_SCRATCH_H 0x1ad1
-#define HENC_SCRATCH_I 0x1ad2
-#define HENC_SCRATCH_J 0x1ad3
-#define HENC_SCRATCH_K 0x1ad4
-#define HENC_SCRATCH_L 0x1ad5
-#define HENC_SCRATCH_M 0x1ad6
-#define HENC_SCRATCH_N 0x1ad7
-#define IE_DATA_FEED_BUFF_INFO 0x1ad8
-
 
 #define ENCP_VFIFO2VD_CTL 0x1b58
 #define ENCP_VFIFO2VD_PIXEL_START 0x1b59

@@ -116,8 +116,14 @@ amvdec_avs-y    := vavs.o
 
 obj-$(CONFIG_AM_JPEGDEC) += jpegdec.o
 
-obj-$(CONFIG_AM_ENCODER) += encoder.o
-obj-$(CONFIG_AM_JPEG_ENCODER) += jpegenc.o
+obj-$(CONFIG_AM_ENCODER) += amvenc_avc.o
+amvenc_avc-objs := encoder.o
+amvenc_avc-y    := encoder.o
+
+obj-$(CONFIG_AM_JPEG_ENCODER) += amvenc_jpeg.o
+amvenc_jpeg-objs := jpegenc.o
+amvenc_jpeg-y    := jpegenc.o
+
 obj-$(CONFIG_AM_PIC_DEC) += picdec.o
 obj-$(CONFIG_AM_VIDEO) += amvideo.o
 
