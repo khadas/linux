@@ -31,6 +31,12 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 	FRATE(CLK_XTAL, "xtal", NULL, CLK_IS_ROOT, 24000000),
 	FRATE(0, "32Khz", NULL, CLK_IS_ROOT, 32000),
 	FRATE(CLK_81, "clk81", NULL, CLK_IS_ROOT, 166666666),
+	FRATE(CLK_FIXED_PLL, "fixed_pll", NULL, CLK_IS_ROOT, 2000000000),
+	FRATE(CLK_FPLL_DIV2, "fclk_div2", NULL, CLK_IS_ROOT, 1000000000),
+	FRATE(CLK_FPLL_DIV3, "fclk_div3", NULL, CLK_IS_ROOT,  666666666),
+	FRATE(CLK_FPLL_DIV4, "fclk_div4", NULL, CLK_IS_ROOT,  500000000),
+	FRATE(CLK_FPLL_DIV5, "fclk_div5", NULL, CLK_IS_ROOT,  400000000),
+	FRATE(CLK_FPLL_DIV7, "fclk_div7", NULL, CLK_IS_ROOT,  285714285),
 };
 
 static struct of_device_id ext_clk_match[] __initdata = {
@@ -62,13 +68,19 @@ static void __init gxbb_clk_init(struct device_node *np)
 				"xtal",
 				"32Khz",
 				"clk81",
+				"fixed_pll",
+				"fclk_div2",
+				"fclk_div3",
+				"fclk_div4",
+				"fclk_div5",
+				"fclk_div7",
 		};
 		int i;
 		int count = ARRAY_SIZE(clks);
 
 		for (i = 0; i < count; i++) {
 			char *clk_name = clks[i];
-			pr_info("clkrate [ %s \t] : %lu\n", clk_name,
+			pr_info("clkrate [ %s \t] : %luHz\n", clk_name,
 				_get_rate(clk_name));
 		}
 
