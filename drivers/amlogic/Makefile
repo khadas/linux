@@ -74,6 +74,10 @@ obj-$(CONFIG_AMAUDIO)		+= amaudio/
 
 obj-$(CONFIG_AMAUDIO2)		+= amaudio2/
 
+obj-$(CONFIG_V4L_AMLOGIC_VIDEO) += video_dev/
+
+obj-$(CONFIG_V4L_AMLOGIC_VIDEO2) += video_dev/
+
 obj-$(CONFIG_TVIN)		+= tvin/
 
 obj-$(CONFIG_AM_VECM)		+= amvecm/

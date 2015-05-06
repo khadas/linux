@@ -67,6 +67,8 @@ source "drivers/amlogic/bluetooth/Kconfig"
 
 source "drivers/amlogic/ionvideo/Kconfig"
 
+source "drivers/amlogic/video_dev/Kconfig"
+
 source "drivers/amlogic/tvin/Kconfig"
 
 source "drivers/amlogic/amvecm/Kconfig"
