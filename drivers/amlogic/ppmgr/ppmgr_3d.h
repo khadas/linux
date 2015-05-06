@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/ppmgr/ppmgr_3d.h
+ * ../drivers/amlogic/ppmgr/ppmgr_3d.h
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *

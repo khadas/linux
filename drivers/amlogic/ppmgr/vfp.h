@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/ppmgr/vfp.h
+ * ../drivers/amlogic/ppmgr/vfp.h
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *

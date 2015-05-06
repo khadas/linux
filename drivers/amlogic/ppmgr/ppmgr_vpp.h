@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/ppmgr/ppmgr_vpp.h
+ * ../drivers/amlogic/ppmgr/ppmgr_vpp.h
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *

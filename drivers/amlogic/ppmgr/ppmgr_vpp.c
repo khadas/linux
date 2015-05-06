@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/ppmgr/ppmgr_vpp.c
+ * ../drivers/amlogic/ppmgr/ppmgr_vpp.c
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -14,7 +14,6 @@
  * more details.
  *
 */
-
 
 #include <linux/kernel.h>
 #include <linux/types.h>

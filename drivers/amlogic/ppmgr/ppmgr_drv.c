@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/ppmgr/ppmgr_drv.c
+ * ../drivers/amlogic/ppmgr/ppmgr_drv.c
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -15,6 +15,7 @@
  *
 */
 
+#include <linux/compat.h>
 #include <linux/amlogic/ppmgr/ppmgr.h>
 #include <linux/amlogic/ppmgr/ppmgr_status.h>
 #include <linux/platform_device.h>
@@ -281,8 +282,10 @@ static ssize_t show_ppmgr_info(struct class *cla, struct class_attribute *attr,
 	char *bstart;
 	unsigned int bsize;
 	get_ppmgr_buf_info(&bstart, &bsize);
-	return snprintf(buf, 80, "buffer:\n start:%x.\tsize:%d\n",
-			(unsigned int)bstart, bsize / (1024 * 1024));
+/* return snprintf(buf, 80, "buffer:\n start:%x.\tsize:%d\n", */
+/* (unsigned int)bstart, bsize / (1024 * 1024)); */
+	return snprintf(buf, 80, "buffer:\n start:%p.\tsize:%d\n",
+		    bstart, bsize / (1024 * 1024));
 }
 
 static ssize_t angle_read(struct class *cla, struct class_attribute *attr,
@@ -1267,6 +1270,19 @@ static long ppmgr_ioctl(struct file *file, unsigned int cmd, ulong args)
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long ppmgr_compat_ioctl(struct file *filp,
+			      unsigned int cmd, unsigned long args)
+{
+	unsigned long ret;
+
+	args = (unsigned long)compat_ptr(args);
+	ret = ppmgr_ioctl(filp, cmd, args);
+
+	return ret;
+}
+#endif
+
 static int ppmgr_release(struct inode *inode, struct file *file)
 {
 #ifdef CONFIG_ARCH_MESON
@@ -1283,14 +1299,25 @@ static int ppmgr_release(struct inode *inode, struct file *file)
 #endif
 }
 
+#ifdef CONFIG_COMPAT
+static long ppmgr_compat_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long args);
+#endif
+
 /***********************************************************************
  *
  * file op initintg section.
  *
  ************************************************************************/
 
-static const struct file_operations ppmgr_fops = {.owner = THIS_MODULE, .open =
-	ppmgr_open, .unlocked_ioctl = ppmgr_ioctl, .release = ppmgr_release, };
+static const struct file_operations ppmgr_fops = {
+	.owner = THIS_MODULE,
+	.open = ppmgr_open,
+	.unlocked_ioctl = ppmgr_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = ppmgr_compat_ioctl,
+#endif
+	.release = ppmgr_release, };
 
 int init_ppmgr_device(void)
 {
@@ -1431,12 +1458,12 @@ static int ppmgr_drv_remove(struct platform_device *plat_dev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
+/* #ifdef CONFIG_USE_OF */
 static const struct of_device_id amlogic_ppmgr_dt_match[] = {{.compatible =
 	"amlogic, ppmgr", }, {}, };
-#else
-#define amlogic_ppmgr_dt_match NULL
-#endif
+/* #else */
+/* #define amlogic_ppmgr_dt_match NULL */
+/* #endif */
 
 /* general interface for a linux driver .*/
 struct platform_driver ppmgr_drv = {.probe = ppmgr_driver_probe, .remove =
