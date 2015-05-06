@@ -23,7 +23,13 @@
 #include <linux/of_address.h>
 
 #include "clk.h"
+void __iomem *reg_base_hiubus;
+#undef	 HHI_GCLK_MPEG0
+#define     HHI_GCLK_MPEG0 (0x50 << 2)
 
+
+#define GXBB_RSTC_N_REGS	6
+#define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
@@ -48,18 +54,20 @@ static struct of_device_id ext_clk_match[] __initdata = {
 static void __init gxbb_clk_init(struct device_node *np)
 {
 
-	reg_base_cbus = of_iomap(np, 0);
+	reg_base_hiubus = of_iomap(np, 0);
 	reg_base_aobus = of_iomap(np, 1);
-	if ((!reg_base_cbus) || (!reg_base_aobus))
+	if ((!reg_base_hiubus) || (!reg_base_aobus))
 		panic("%s: failed to map registers\n", __func__);
 
-	pr_debug("gxbb clk HIU base is 0x%p\n", reg_base_cbus);
+	pr_debug("gxbb clk HIU base is 0x%p\n", reg_base_hiubus);
 	pr_debug("gxbb clk ao base is 0x%p\n", reg_base_aobus);
 
-	amlogic_clk_init(np, reg_base_cbus, reg_base_aobus,
+	amlogic_clk_init(np, reg_base_hiubus, reg_base_aobus,
 			CLK_NR_CLKS, NULL, 0, NULL, 0);
 	amlogic_clk_of_register_fixed_ext(gxbb_fixed_rate_ext_clks,
 		  ARRAY_SIZE(gxbb_fixed_rate_ext_clks), ext_clk_match);
+	meson_register_rstc(np, GXBB_RSTC_N_REGS, reg_base_aobus,
+		reg_base_hiubus + HHI_GCLK_MPEG0, GXBB_AO_OFF, 0);
 
 
 	{

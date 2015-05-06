@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/gxbb.h>
 #include <dt-bindings/gpio/gxbb.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/reset/aml_gxbb.h>
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";
