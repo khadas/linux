@@ -68,6 +68,8 @@ static int register_reg_onebus_ops(struct chip_register_ops *ops)
 	if (ops->bus_type >= BUS_MAX)
 		return -1;
 	pr_info("register amports ops for bus[%d]\n", ops->bus_type);
+	if (amports_ops[ops->bus_type] != NULL)
+		kfree(amports_ops[ops->bus_type]);
 	amports_ops[ops->bus_type] = ops;
 	return 0;
 }

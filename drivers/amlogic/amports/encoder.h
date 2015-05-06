@@ -90,12 +90,12 @@
 #define VDEC2_DEF_BUF_START_ADDR            0x01000000
 #endif
 
-#define LOG_LEVEL_ALL      0
-#define LOG_LEVEL_INFO    1
-#define LOG_LEVEL_DEBUG 2
-#define LOG_LEVEL_ERROR 3
+#define LOG_ALL 0
+#define LOG_INFO 1
+#define LOG_DEBUG 2
+#define LOG_ERROR 3
 
-#define encode_debug_level(level, x...) \
+#define enc_pr(level, x...) \
 	do { \
 		if (level >= encode_print_level) \
 			printk(x); \
@@ -329,6 +329,7 @@ struct encode_manager_s {
 #ifdef CONFIG_CMA
 	bool check_cma;
 	struct platform_device *this_pdev;
+	ulong cma_pool_size;
 #endif
 	struct Buff_s *reserve_buff;
 	struct encode_wq_s *current_wq;

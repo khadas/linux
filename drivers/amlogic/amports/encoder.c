@@ -48,8 +48,15 @@
 #include "amports_priv.h"
 #include <linux/of_reserved_mem.h>
 
+#ifdef CONFIG_CMA
+#include <linux/cma.h>
+static struct cma *avc_cma;
+#endif
+
 #define AMVENC_CANVAS_INDEX 0xE4
 #define AMVENC_CANVAS_MAX_INDEX 0xEC
+
+#define MIN_SIZE 18
 
 static s32 avc_device_major;
 static struct device *amvenc_avc_dev;
@@ -83,7 +90,7 @@ static u32 avc_endian = 6;
 static u32 clock_level = 1;
 static u32 enable_dblk = 1;  /* 0 disable, 1 vdec 2 hdec */
 
-static u32 encode_print_level = LOG_LEVEL_DEBUG;
+static u32 encode_print_level = LOG_DEBUG;
 static u32 no_timeout;
 
 static u32 me_mv_merge_ctl =
@@ -761,7 +768,6 @@ static void avc_init_encoder(struct encode_wq_s *wq, bool idr)
 	WRITE_HREG(QPPICTURE, wq->pic.init_qppicture);
 }
 
-/****************************************/
 static void avc_canvas_init(struct encode_wq_s *wq)
 {
 	u32 canvas_width, canvas_height;
@@ -814,9 +820,8 @@ static void avc_buffspec_init(struct encode_wq_s *wq)
 	wq->mem.dct_buff_end_addr =
 		wq->mem.dct_buff_start_addr +
 		wq->mem.bufspec.dct.buf_size - 1;
-	encode_debug_level(LOG_LEVEL_INFO,
-			   "dct_buff_start_addr is 0x%x, wq:%p.\n",
-			   wq->mem.dct_buff_start_addr, (void *)wq);
+	enc_pr(LOG_INFO, "dct_buff_start_addr is 0x%x, wq:%p.\n",
+		wq->mem.dct_buff_start_addr, (void *)wq);
 
 	wq->mem.bufspec.dec0_uv.buf_start =
 		wq->mem.bufspec.dec0_y.buf_start +
@@ -828,8 +833,7 @@ static void avc_buffspec_init(struct encode_wq_s *wq)
 	wq->mem.bufspec.dec1_uv.buf_size = canvas_width * canvas_height / 2;
 	wq->mem.assit_buffer_offset = start_addr +
 		wq->mem.bufspec.assit.buf_start;
-	encode_debug_level(LOG_LEVEL_INFO,
-		"assit_buffer_offset is 0x%x, wq: %p.\n",
+	enc_pr(LOG_INFO, "assit_buffer_offset is 0x%x, wq: %p.\n",
 		wq->mem.assit_buffer_offset, (void *)wq);
 	/*output stream buffer config*/
 	wq->mem.BitstreamStart = start_addr +
@@ -838,8 +842,8 @@ static void avc_buffspec_init(struct encode_wq_s *wq)
 		wq->mem.BitstreamStart +
 		wq->mem.bufspec.bitstream.buf_size - 1;
 
-	encode_debug_level(LOG_LEVEL_INFO, "BitstreamStart is 0x%x, wq: %p.\n",
-			   wq->mem.BitstreamStart, (void *)wq);
+	enc_pr(LOG_INFO, "BitstreamStart is 0x%x, wq: %p.\n",
+		wq->mem.BitstreamStart, (void *)wq);
 
 	wq->mem.dblk_buf_canvas = ((ENC_CANVAS_OFFSET + 2) << 16) |
 				((ENC_CANVAS_OFFSET + 1) << 8) |
@@ -874,7 +878,7 @@ static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 		else if (ie_pippeline_block == 0)
 			ie_cur_ref_sel = 0xffffffff;
 		else {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"Error : Please calculate IE_CUR_REF_SEL for IE_PIPPELINE_BLOCK. wq:%p\n",
 				 (void *)wq);
 		}
@@ -1916,18 +1920,17 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 	if (mc_addr == NULL) {
 		mc_addr = kmalloc(MC_SIZE, GFP_KERNEL);
 		if (!mc_addr) {
-			encode_debug_level(LOG_LEVEL_ERROR,
-				"amvenc_loadmc iomap mc addr error.\n");
+			enc_pr(LOG_ERROR, "avc loadmc iomap mc addr error.\n");
 			return -ENOMEM;
 		}
 	}
 
 	ret = get_decoder_firmware_data(VFORMAT_H264_ENC, p,
-			(u8 *)mc_addr, MC_SIZE);
+		(u8 *)mc_addr, MC_SIZE);
 	if (ret < 0) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-				"amvenc microcode fail ret=%d, ucode name: %s, wq:%p.\n",
-				 ret, p, (void *)wq);
+		enc_pr(LOG_ERROR,
+			"avc microcode fail ret=%d, name: %s, wq:%p.\n",
+			ret, p, (void *)wq);
 	}
 
 	mc_addr_map = dma_map_single(amvenc_avc_dev,
@@ -1936,14 +1939,10 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 	/* mc_addr_map = wq->mem.assit_buffer_offset; */
 	/* mc_addr = ioremap_wc(mc_addr_map, MC_SIZE); */
 	/* memcpy(mc_addr, p, MC_SIZE); */
-	encode_debug_level(LOG_LEVEL_ALL, "address 0 is 0x%x\n",
-						 *((u32 *)mc_addr));
-	encode_debug_level(LOG_LEVEL_ALL, "address 1 is 0x%x\n",
-						 *((u32 *)mc_addr + 1));
-	encode_debug_level(LOG_LEVEL_ALL, "address 2 is 0x%x\n",
-						 *((u32 *)mc_addr + 2));
-	encode_debug_level(LOG_LEVEL_ALL, "address 3 is 0x%x\n",
-						 *((u32 *)mc_addr + 3));
+	enc_pr(LOG_ALL, "address 0 is 0x%x\n", *((u32 *)mc_addr));
+	enc_pr(LOG_ALL, "address 1 is 0x%x\n", *((u32 *)mc_addr + 1));
+	enc_pr(LOG_ALL, "address 2 is 0x%x\n", *((u32 *)mc_addr + 2));
+	enc_pr(LOG_ALL, "address 3 is 0x%x\n", *((u32 *)mc_addr + 3));
 	WRITE_HREG(HCODEC_MPSR, 0);
 	WRITE_HREG(HCODEC_CPSR, 0);
 
@@ -1961,8 +1960,7 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 		if (time_before(jiffies, timeout))
 			schedule();
 		else {
-			encode_debug_level(LOG_LEVEL_ERROR,
-					"hcodec load mc error\n");
+			enc_pr(LOG_ERROR, "hcodec load mc error\n");
 			ret = -EBUSY;
 			break;
 		}
@@ -2139,7 +2137,7 @@ static s32 reload_mc(struct encode_wq_s *wq)
 	else
 		WRITE_HREG(HCODEC_ASSIST_MMC_CTRL1, 0x2);
 
-	encode_debug_level(LOG_LEVEL_INFO, "reload microcode\n");
+	enc_pr(LOG_INFO, "reload microcode\n");
 
 	if (amvenc_loadmc(p, wq) < 0)
 		return -EBUSY;
@@ -2149,9 +2147,7 @@ static s32 reload_mc(struct encode_wq_s *wq)
 static void encode_isr_tasklet(ulong data)
 {
 	struct encode_manager_s *manager = (struct encode_manager_s *)data;
-	encode_debug_level(LOG_LEVEL_INFO,
-			   "encoder is done %d\n",
-			   manager->encode_hw_status);
+	enc_pr(LOG_INFO, "encoder is done %d\n", manager->encode_hw_status);
 	if (((manager->encode_hw_status == ENCODER_IDR_DONE)
 	     || (manager->encode_hw_status == ENCODER_NON_IDR_DONE)
 	     || (manager->encode_hw_status == ENCODER_SEQUENCE_DONE)
@@ -2177,9 +2173,7 @@ static irqreturn_t enc_isr(s32 irq_number, void *para)
 #ifdef DEBUG_UCODE
 	/* rain */
 	if (READ_HREG(DEBUG_REG) != 0) {
-		encode_debug_level(LOG_LEVEL_DEBUG,
-			"dbg%x: %x\n",
-			READ_HREG(DEBUG_REG),
+		enc_pr(LOG_DEBUG, "dbg%x: %x\n", READ_HREG(DEBUG_REG),
 			READ_HREG(HCODEC_HENC_SCRATCH_1));
 		WRITE_HREG(DEBUG_REG, 0);
 		return IRQ_HANDLED;
@@ -2191,9 +2185,8 @@ static irqreturn_t enc_isr(s32 irq_number, void *para)
 	    || (manager->encode_hw_status == ENCODER_NON_IDR_DONE)
 	    || (manager->encode_hw_status == ENCODER_SEQUENCE_DONE)
 	    || (manager->encode_hw_status == ENCODER_PICTURE_DONE)) {
-		encode_debug_level(LOG_LEVEL_ALL,
-				   "encoder stage is %d\n",
-				   manager->encode_hw_status);
+		enc_pr(LOG_ALL, "encoder stage is %d\n",
+			manager->encode_hw_status);
 	}
 
 	if (((manager->encode_hw_status == ENCODER_IDR_DONE)
@@ -2242,8 +2235,8 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 			wq->request.timeout = cmd_info[5];
 		}
 	} else {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"error cmd = %d, wq: %p.\n", cmd, (void *)wq);
+		enc_pr(LOG_ERROR, "error cmd = %d, wq: %p.\n",
+			cmd, (void *)wq);
 		return -1;
 	}
 	wq->request.parent = wq;
@@ -2263,7 +2256,7 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 				enable_dblk = 2;
 				if ((abort_vdec2_flag) &&
 					(get_vdec2_usage() == USAGE_ENCODE)) {
-					encode_debug_level(LOG_LEVEL_DEBUG,
+					enc_pr(LOG_DEBUG,
 						"switch encode ucode, wq:%p\n",
 						(void *)wq);
 					set_vdec2_usage(USAGE_NONE);
@@ -2283,7 +2276,7 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 	if (request->ucode_mode != encode_manager.ucode_index) {
 		encode_manager.ucode_index = request->ucode_mode;
 		if (reload_mc(wq)) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"reload mc fail, wq:%p\n", (void *)wq);
 			return;
 		}
@@ -2293,7 +2286,7 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 		   && (request->ucode_mode == UCODE_MODE_SW_MIX)) {
 		/* walk around to reset the armrisc */
 		if (reload_mc(wq)) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				 "reload mc fail, wq:%p\n", (void *)wq);
 			return;
 		}
@@ -2325,7 +2318,7 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 		avc_prot_init(wq, request->quant,
 			(request->cmd == ENCODER_IDR) ? true : false);
 		avc_init_assit_buffer(wq);
-		encode_debug_level(LOG_LEVEL_INFO,
+		enc_pr(LOG_INFO,
 			"begin to new frame, request->cmd: %d, ucode mode: %d, wq:%p.\n",
 			request->cmd, request->ucode_mode, (void *)wq);
 	}
@@ -2480,8 +2473,7 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 	    ((request->cmd == ENCODER_IDR) ||
 		(request->cmd == ENCODER_NON_IDR)))
 		wq->control.can_update = true;
-	encode_debug_level(LOG_LEVEL_ALL,
-			"amvenc_avc_start cmd, wq:%p.\n", (void *)wq);
+	enc_pr(LOG_ALL, "amvenc_avc_start cmd, wq:%p.\n", (void *)wq);
 }
 
 static void dma_flush(u32 buf_start , u32 buf_size)
@@ -2648,9 +2640,9 @@ static s32 avc_init(struct encode_wq_s *wq)
 	encode_manager.ucode_index = wq->ucode_index;
 	r = amvenc_avc_start(wq, clock_level);
 
-	encode_debug_level(LOG_LEVEL_DEBUG,
-			   "init avc encode. microcode %d, ret=%d, wq:%p.\n",
-			   encode_manager.ucode_index, r, (void *)wq);
+	enc_pr(LOG_DEBUG,
+		"init avc encode. microcode %d, ret=%d, wq:%p.\n",
+		encode_manager.ucode_index, r, (void *)wq);
 	return 0;
 }
 
@@ -2665,7 +2657,7 @@ static s32 amvenc_avc_light_reset(struct encode_wq_s *wq, u32 value)
 	encode_manager.ucode_index = UCODE_MODE_FULL;
 	r = amvenc_avc_start(wq, clock_level);
 
-	encode_debug_level(LOG_LEVEL_DEBUG,
+	enc_pr(LOG_DEBUG,
 		"amvenc_avc_light_reset finish, wq:%p. ret=%d\n",
 		 (void *)wq, r);
 	return r;
@@ -2674,26 +2666,13 @@ static s32 amvenc_avc_light_reset(struct encode_wq_s *wq, u32 value)
 #ifdef CONFIG_CMA
 static u32 checkCMA(void)
 {
-	u32 i = 0, j = 0;
-	struct page *buff[MAX_ENCODE_INSTANCE];
-
-	for (i = 0; i < MAX_ENCODE_INSTANCE; i++)
-		buff[i] = NULL;
-
-	for (i = 0; i < MAX_ENCODE_INSTANCE; i++) {
-		buff[i] = dma_alloc_from_contiguous(
-					&encode_manager.this_pdev->dev,
-					(18 * SZ_1M) >> PAGE_SHIFT, 0);
-		if (buff[i] == NULL)
-			break;
-	}
-	for (j = 0; j < i; j++) {
-		if (buff[j])
-			dma_release_from_contiguous(
-			&encode_manager.this_pdev->dev, buff[j],
-			(18 * SZ_1M) >> PAGE_SHIFT);
-	}
-	return i;
+	u32 ret;
+	if (encode_manager.cma_pool_size > 0) {
+		ret = encode_manager.cma_pool_size / SZ_1M;
+		ret = ret / MIN_SIZE;
+	} else
+		ret = 0;
+	return ret;
 }
 #endif
 
@@ -2704,10 +2683,10 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 	struct encode_wq_s *wq = NULL;
 	u8 cur_lev;
 	file->private_data = NULL;
-	encode_debug_level(LOG_LEVEL_DEBUG, "avc open\n");
+	enc_pr(LOG_DEBUG, "avc open\n");
 #ifdef CONFIG_AM_JPEG_ENCODER
 	if (jpegenc_on() == true) {
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"hcodec in use for JPEG Encode now.\n");
 		return -EBUSY;
 	}
@@ -2718,11 +2697,11 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 	    (encode_manager.check_cma == false)) {
 		encode_manager.max_instance = checkCMA();
 		if (encode_manager.max_instance > 0) {
-			encode_debug_level(LOG_LEVEL_DEBUG,
+			enc_pr(LOG_DEBUG,
 				"amvenc_avc  check CMA pool sucess, max instance: %d.\n",
 				encode_manager.max_instance);
 		} else {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"amvenc_avc CMA pool too small.\n");
 		}
 		encode_manager.check_cma = true;
@@ -2731,8 +2710,7 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 
 	wq = create_encode_work_queue();
 	if (wq == NULL) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"amvenc_avc create instance fail.\n");
+		enc_pr(LOG_ERROR, "amvenc_avc create instance fail.\n");
 		return -EBUSY;
 	}
 
@@ -2740,16 +2718,16 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 	if (encode_manager.use_reserve == false) {
 		wq->mem.venc_pages = dma_alloc_from_contiguous(
 					&encode_manager.this_pdev->dev,
-					(18 * SZ_1M) >> PAGE_SHIFT, 0);
+					(MIN_SIZE * SZ_1M) >> PAGE_SHIFT, 0);
 		if (wq->mem.venc_pages) {
 			wq->mem.buf_start = page_to_phys(wq->mem.venc_pages);
-			wq->mem.buf_size = 18 * SZ_1M;
-			encode_debug_level(LOG_LEVEL_DEBUG,
-				"%s: allocating phys 0x%x, size %dk, wq:%p.\n",
-				__func__, wq->mem.buf_start,
+			wq->mem.buf_size = MIN_SIZE * SZ_1M;
+			enc_pr(LOG_DEBUG,
+				"allocating phys 0x%x, size %dk, wq:%p.\n",
+				wq->mem.buf_start,
 				wq->mem.buf_size >> 10, (void *)wq);
 		} else {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"CMA failed to allocate dma buffer for %s, wq:%p.\n",
 				encode_manager.this_pdev->name,
 				(void *)wq);
@@ -2762,10 +2740,10 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 	cur_lev = wq->mem.cur_buf_lev;
 	if ((wq->mem.buf_start == 0) ||
 		(wq->mem.buf_size < amvenc_buffspec[cur_lev].min_buffsize)) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-				"alloc mem failed, start: 0x%x, size:0x%x, wq:%p.\n",
-				wq->mem.buf_start,
-				wq->mem.buf_size, (void *)wq);
+		enc_pr(LOG_ERROR,
+			"alloc mem failed, start: 0x%x, size:0x%x, wq:%p.\n",
+			wq->mem.buf_start,
+			wq->mem.buf_size, (void *)wq);
 		destroy_encode_work_queue(wq);
 		return -ENOMEM;
 	}
@@ -2787,7 +2765,7 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 	wq->mem.vdec2_start_addr =
 		wq->mem.buf_start + wq->mem.bufspec.vdec2_info.buf_start;
 #endif
-	encode_debug_level(LOG_LEVEL_DEBUG,
+	enc_pr(LOG_DEBUG,
 		"amvenc_avc  memory config sucess, buff start:0x%x, size is 0x%x, wq:%p.\n",
 		wq->mem.buf_start, wq->mem.buf_size, (void *)wq);
 
@@ -2799,8 +2777,7 @@ static s32 amvenc_avc_release(struct inode *inode, struct file *file)
 {
 	struct encode_wq_s *wq = (struct encode_wq_s *)file->private_data;
 	if (wq) {
-		encode_debug_level(LOG_LEVEL_DEBUG,
-			"avc release, wq:%p\n", (void *)wq);
+		enc_pr(LOG_DEBUG, "avc release, wq:%p\n", (void *)wq);
 		destroy_encode_work_queue(wq);
 	}
 	return 0;
@@ -2827,7 +2804,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	case AMVENC_AVC_IOC_INPUT_UPDATE:
 		if (copy_from_user(addr_info, (void *)arg,
 				   MAX_ADDR_INFO_SIZE * sizeof(u32))) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"avc update input ptr error, wq: %p.\n",
 				(void *)wq);
 			return -1;
@@ -2853,7 +2830,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	case AMVENC_AVC_IOC_NEW_CMD:
 		if (copy_from_user(addr_info, (void *)arg,
 				   MAX_ADDR_INFO_SIZE * sizeof(u32))) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"avc get new cmd error, wq:%p.\n", (void *)wq);
 			return -1;
 		}
@@ -2861,7 +2838,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		if (r == 0)
 			r = encode_wq_add_request(wq);
 		if (r) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"avc add new request error, wq:%p.\n",
 				(void *)wq);
 		}
@@ -2875,7 +2852,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	case AMVENC_AVC_IOC_CONFIG_INIT:
 		if (copy_from_user(addr_info, (void *)arg,
 				   MAX_ADDR_INFO_SIZE * sizeof(u32))) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"avc config init error, wq:%p.\n", (void *)wq);
 			return -1;
 		}
@@ -2889,17 +2866,17 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 
 #ifdef MULTI_SLICE_MC
 		wq->pic.rows_per_slice = addr_info[1];
-		encode_debug_level(LOG_LEVEL_DEBUG,
+		enc_pr(LOG_DEBUG,
 			"avc init -- rows_per_slice: %d, wq: %p.\n",
 			wq->pic.rows_per_slice, (void *)wq);
 #endif
-		encode_debug_level(LOG_LEVEL_DEBUG,
+		enc_pr(LOG_DEBUG,
 			"avc init as mode %d, wq: %p.\n",
 			wq->ucode_index, (void *)wq);
 
 		if ((addr_info[2] > wq->mem.bufspec.max_width) ||
 		    (addr_info[3] > wq->mem.bufspec.max_height)) {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"avc config init- encode size %dx%d is larger than supported (%dx%d).  wq:%p.\n",
 				addr_info[2], addr_info[3],
 				wq->mem.bufspec.max_width,
@@ -2938,8 +2915,8 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	case AMVENC_AVC_IOC_FLUSH_CACHE:
 		if (copy_from_user(addr_info, (void *)arg,
 				   MAX_ADDR_INFO_SIZE * sizeof(u32))) {
-			encode_debug_level(LOG_LEVEL_ERROR,
-				"avc fluch cache error, wq: %p.\n", (void *)wq);
+			enc_pr(LOG_ERROR,
+				"avc flush cache error, wq: %p.\n", (void *)wq);
 			return -1;
 		}
 		buf_start = getbuffer(wq, addr_info[0]);
@@ -2950,9 +2927,8 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	case AMVENC_AVC_IOC_FLUSH_DMA:
 		if (copy_from_user(addr_info, (void *)arg,
 				MAX_ADDR_INFO_SIZE * sizeof(u32))) {
-			encode_debug_level(LOG_LEVEL_ERROR,
-				"avc fluch dma error, wq:%p.\n",
-				(void *)wq);
+			enc_pr(LOG_ERROR,
+				"avc flush dma error, wq:%p.\n", (void *)wq);
 			return -1;
 		}
 		buf_start = getbuffer(wq, addr_info[0]);
@@ -3033,20 +3009,19 @@ static s32 avc_mmap(struct file *filp, struct vm_area_struct *vma)
 	ulong vma_size = vma->vm_end - vma->vm_start;
 
 	if (vma_size == 0) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"vma_size is 0, wq:%p.\n", (void *)wq);
+		enc_pr(LOG_ERROR, "vma_size is 0, wq:%p.\n", (void *)wq);
 		return -EAGAIN;
 	}
 	if (!off)
 		off += wq->mem.buf_start;
-	encode_debug_level(LOG_LEVEL_ALL,
+	enc_pr(LOG_ALL,
 			"vma_size is %ld , off is %ld, wq:%p.\n",
 			vma_size , off, (void *)wq);
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
 	/* vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot); */
 	if (remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			    vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"set_cached: failed remap_pfn_range, wq:%p.\n",
 			(void *)wq);
 		return -EAGAIN;
@@ -3230,16 +3205,14 @@ s32 encode_wq_add_request(struct encode_wq_s *wq)
 	}
 
 	if (find == false) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-				   "current wq (%p) doesn't register.\n",
-				   (void *)wq);
+		enc_pr(LOG_ERROR, "current wq (%p) doesn't register.\n",
+			(void *)wq);
 		goto error;
 	}
 
 	if (list_empty(&encode_manager.free_queue)) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-				   "work queue no space, wq:%p.\n",
-				   (void *)wq);
+		enc_pr(LOG_ERROR, "work queue no space, wq:%p.\n",
+			(void *)wq);
 		goto error;
 	}
 
@@ -3260,7 +3233,7 @@ s32 encode_wq_add_request(struct encode_wq_s *wq)
 	list_move_tail(&pitem->list, &encode_manager.process_queue);
 	spin_unlock(&encode_manager.event.sem_lock);
 
-	encode_debug_level(LOG_LEVEL_INFO,
+	enc_pr(LOG_INFO,
 		"add new work ok, cmd:%d, ucode mode: %d, wq:%p.\n",
 		pitem->request.cmd, pitem->request.ucode_mode,
 		(void *)wq);
@@ -3280,8 +3253,7 @@ struct encode_wq_s *create_encode_work_queue(void)
 
 	encode_work_queue = kzalloc(sizeof(struct encode_wq_s), GFP_KERNEL);
 	if (IS_ERR(encode_work_queue)) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"can't create work queue\n");
+		enc_pr(LOG_ERROR, "can't create work queue\n");
 		return NULL;
 	}
 	max_instance = encode_manager.max_instance;
@@ -3318,7 +3290,7 @@ struct encode_wq_s *create_encode_work_queue(void)
 	if (done == false) {
 		kfree(encode_work_queue);
 		encode_work_queue = NULL;
-		encode_debug_level(LOG_LEVEL_ERROR, "too many work queue!\n");
+		enc_pr(LOG_ERROR, "too many work queue!\n");
 	}
 	return encode_work_queue; /* find it */
 }
@@ -3353,7 +3325,7 @@ static void _destroy_encode_work_queue(struct encode_manager_s *manager,
 			}
 			*find = true;
 			manager->wq_count--;
-			encode_debug_level(LOG_LEVEL_DEBUG,
+			enc_pr(LOG_DEBUG,
 				"remove  encode_work_queue %p sucess, %s line %d.\n",
 				(void *)encode_work_queue,
 				__func__, __LINE__);
@@ -3374,7 +3346,7 @@ s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue)
 		if (encode_manager.current_wq == encode_work_queue) {
 			encode_manager.remove_flag = true;
 			spin_unlock(&encode_manager.event.sem_lock);
-			encode_debug_level(LOG_LEVEL_DEBUG,
+			enc_pr(LOG_DEBUG,
 				"warning--Destory the running queue, should not be here.\n");
 			wait_for_completion(
 				&encode_manager.event.process_complete);
@@ -3387,7 +3359,7 @@ s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue)
 				if (pitem->request.parent ==
 						encode_work_queue) {
 					pitem->request.parent = NULL;
-					encode_debug_level(LOG_LEVEL_DEBUG,
+					enc_pr(LOG_DEBUG,
 						"warning--remove not process request, should not be here.\n");
 					list_move_tail(&pitem->list,
 						&encode_manager.free_queue);
@@ -3403,7 +3375,7 @@ s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue)
 			dma_release_from_contiguous(
 				&encode_manager.this_pdev->dev,
 				wq->mem.venc_pages,
-				(18 * SZ_1M) >> PAGE_SHIFT);
+				(MIN_SIZE * SZ_1M) >> PAGE_SHIFT);
 			encode_work_queue->mem.venc_pages = NULL;
 		}
 #endif
@@ -3420,8 +3392,7 @@ static s32 encode_monitor_thread(void *data)
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
 	s32 ret = 0;
 
-	encode_debug_level(LOG_LEVEL_DEBUG,
-			"encode workqueue monitor start.\n");
+	enc_pr(LOG_DEBUG, "encode workqueue monitor start.\n");
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 	/* setup current_wq here. */
@@ -3466,8 +3437,7 @@ static s32 encode_monitor_thread(void *data)
 			spin_unlock(&manager->event.sem_lock);
 			manager->inited = false;
 			amvenc_avc_stop();
-			encode_debug_level(LOG_LEVEL_DEBUG,
-				"power off encode.\n");
+			enc_pr(LOG_DEBUG, "power off encode.\n");
 			continue;
 		} else if (!list_empty(&manager->process_queue)) {
 			pitem = list_entry(manager->process_queue.next,
@@ -3495,7 +3465,7 @@ static s32 encode_monitor_thread(void *data)
 	while (!kthread_should_stop())
 		msleep(20);
 
-	encode_debug_level(LOG_LEVEL_DEBUG, "exit encode_monitor_thread.\n");
+	enc_pr(LOG_DEBUG, "exit encode_monitor_thread.\n");
 	return 0;
 }
 
@@ -3508,14 +3478,14 @@ static s32 encode_start_monitor(void)
 	else
 		clock_level = 1;
 
-	encode_debug_level(LOG_LEVEL_DEBUG, "encode start monitor.\n");
+	enc_pr(LOG_DEBUG, "encode start monitor.\n");
 	encode_manager.process_queue_state = ENCODE_PROCESS_QUEUE_START;
 	encode_manager.encode_thread = kthread_run(encode_monitor_thread,
 				       &encode_manager, "encode_monitor");
 	if (IS_ERR(encode_manager.encode_thread)) {
 		ret = PTR_ERR(encode_manager.encode_thread);
 		encode_manager.process_queue_state = ENCODE_PROCESS_QUEUE_STOP;
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"encode monitor : failed to start kthread (%d)\n", ret);
 	}
 	return ret;
@@ -3523,13 +3493,13 @@ static s32 encode_start_monitor(void)
 
 static s32  encode_stop_monitor(void)
 {
-	encode_debug_level(LOG_LEVEL_DEBUG, "stop encode monitor thread\n");
+	enc_pr(LOG_DEBUG, "stop encode monitor thread\n");
 	if (encode_manager.encode_thread) {
 		spin_lock(&encode_manager.event.sem_lock);
 		if (!list_empty(&encode_manager.wq)) {
 			u32 count = encode_manager.wq_count;
 			spin_unlock(&encode_manager.event.sem_lock);
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"stop encode monitor thread error, active wq (%d) is not 0.\n",
 				 count);
 			return -1;
@@ -3551,7 +3521,7 @@ static s32 encode_wq_init(void)
 	u32 i = 0;
 	struct encode_queue_item_s *pitem = NULL;
 
-	encode_debug_level(LOG_LEVEL_DEBUG, "encode_wq_init.\n");
+	enc_pr(LOG_DEBUG, "encode_wq_init.\n");
 	encode_manager.irq_requested = false;
 
 	spin_lock_init(&encode_manager.event.sem_lock);
@@ -3571,8 +3541,7 @@ static s32 encode_wq_init(void)
 				sizeof(struct encode_queue_item_s),
 				GFP_KERNEL);
 		if (IS_ERR(pitem)) {
-			encode_debug_level(LOG_LEVEL_ERROR,
-				"can't request queue item memory.\n");
+			enc_pr(LOG_ERROR, "can't request queue item memory.\n");
 			return -1;
 		}
 		pitem->request.parent = NULL;
@@ -3586,8 +3555,7 @@ static s32 encode_wq_init(void)
 	encode_manager.remove_flag = false;
 	InitEncodeWeight();
 	if (encode_start_monitor()) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"encode create thread error.\n");
+		enc_pr(LOG_ERROR, "encode create thread error.\n");
 		return -1;
 	}
 	return 0;
@@ -3599,10 +3567,10 @@ static s32 encode_wq_uninit(void)
 	struct list_head *head;
 	u32 count = 0;
 	s32 r = -1;
-	encode_debug_level(LOG_LEVEL_DEBUG, "uninit encode wq.\n");
+	enc_pr(LOG_DEBUG, "uninit encode wq.\n");
 	if (encode_stop_monitor() == 0) {
 		if ((encode_manager.irq_num >= 0) &&
-				(encode_manager.irq_requested == true)) {
+			(encode_manager.irq_requested == true)) {
 			free_irq(encode_manager.irq_num, &encode_manager);
 			encode_manager.irq_requested = false;
 		}
@@ -3627,8 +3595,7 @@ static s32 encode_wq_uninit(void)
 		if (count == MAX_ENCODE_REQUEST)
 			r = 0;
 		else {
-			encode_debug_level(LOG_LEVEL_ERROR,
-				"lost  some request item %d.\n",
+			enc_pr(LOG_ERROR, "lost some request item %d.\n",
 				MAX_ENCODE_REQUEST - count);
 		}
 	}
@@ -3696,33 +3663,33 @@ static ssize_t encode_status_show(struct class *cla,
 
 	spin_unlock(&encode_manager.event.sem_lock);
 
-	encode_debug_level(LOG_LEVEL_DEBUG,
+	enc_pr(LOG_DEBUG,
 		"encode process queue count: %d, free queue count: %d.\n",
 		process_count, free_count);
-	encode_debug_level(LOG_LEVEL_DEBUG,
+	enc_pr(LOG_DEBUG,
 		"encode curent wq: %p, last wq: %p, wq count: %d, max_instance: %d.\n",
 		current_wq, last_wq, wq_count, max_instance);
 	if (current_wq)
-		encode_debug_level(LOG_LEVEL_DEBUG,
+		enc_pr(LOG_DEBUG,
 			"encode curent wq -- encode width: %d, encode height: %d.\n",
 			current_wq->pic.encoder_width,
 			current_wq->pic.encoder_height);
-	encode_debug_level(LOG_LEVEL_DEBUG,
+	enc_pr(LOG_DEBUG,
 		"encode curent pitem: %p, ucode_index: %d, hw_status: %d, need_reset: %s, process_irq: %s.\n",
 		pitem, ucode_index, hw_status, need_reset ? "true" : "false",
 		process_irq ? "true" : "false");
-	encode_debug_level(LOG_LEVEL_DEBUG,
+	enc_pr(LOG_DEBUG,
 		"encode irq num: %d,  inited: %s, process_queue_state: %d.\n",
 		irq_num, inited ? "true" : "false",  process_queue_state);
 	if (use_reserve) {
-		encode_debug_level(LOG_LEVEL_DEBUG,
-			"encode use reserve memory, buffer start: %d, size: %d.\n",
+		enc_pr(LOG_DEBUG,
+			"encode use reserve memory, buffer start: 0x%x, size: %d MB.\n",
 			 reserve_mem.buf_start,
-			 reserve_mem.buf_size);
+			 reserve_mem.buf_size / SZ_1M);
 	} else {
 #ifdef CONFIG_CMA
-		encode_debug_level(LOG_LEVEL_DEBUG, "encode check cma: %s.\n",
-				   check_cma ? "true" : "false");
+		enc_pr(LOG_DEBUG, "encode check cma: %s.\n",
+			check_cma ? "true" : "false");
 #endif
 	}
 	return snprintf(buf, 40, "encode max instance: %d\n", max_instance);
@@ -3746,16 +3713,14 @@ s32  init_avc_device(void)
 	s32  r = 0;
 	r = register_chrdev(0, DEVICE_NAME, &amvenc_avc_fops);
 	if (r <= 0) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"register amvenc_avc device error.\n");
+		enc_pr(LOG_ERROR, "register amvenc_avc device error.\n");
 		return  r;
 	}
 	avc_device_major = r;
 
 	r = class_register(&amvenc_avc_class);
 	if (r < 0) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"error create amvenc_avc class.\n");
+		enc_pr(LOG_ERROR, "error create amvenc_avc class.\n");
 		return r;
 	}
 
@@ -3764,8 +3729,7 @@ s32  init_avc_device(void)
 				       DEVICE_NAME);
 
 	if (IS_ERR(amvenc_avc_dev)) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"create amvenc_avc device error.\n");
+		enc_pr(LOG_ERROR, "create amvenc_avc device error.\n");
 		class_unregister(&amvenc_avc_class);
 		return -1;
 	}
@@ -3788,7 +3752,7 @@ static s32 avc_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	s32 r;
 	struct resource res;
 	if (!rmem) {
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"Can not obtain I/O memory, and will allocate avc buffer!\n");
 		r = -EFAULT;
 		return r;
@@ -3826,13 +3790,13 @@ static s32 avc_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 			}
 			encode_manager.use_reserve = true;
 			r = 0;
-			encode_debug_level(LOG_LEVEL_DEBUG,
+			enc_pr(LOG_DEBUG,
 				"amvenc_avc  use reserve memory, buff start: 0x%x, size: 0x%x, max instance is %d\n",
 				encode_manager.reserve_mem.buf_start,
 				encode_manager.reserve_mem.buf_size,
 				encode_manager.max_instance);
 		} else {
-			encode_debug_level(LOG_LEVEL_ERROR,
+			enc_pr(LOG_ERROR,
 				"amvenc_avc alloc reserve buffer pointer fail. max instance is %d.\n",
 				encode_manager.max_instance);
 			encode_manager.max_instance = 0;
@@ -3841,7 +3805,7 @@ static s32 avc_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 			r = -ENOMEM;
 		}
 	} else {
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"amvenc_avc memory resource too small, size is 0x%x. Need 0x%x bytes at least.\n",
 			encode_manager.reserve_mem.buf_size,
 			amvenc_buffspec[AMVENC_BUFFER_LEVEL_1080P]
@@ -3853,24 +3817,14 @@ static s32 avc_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	return r;
 }
 
-static const struct reserved_mem_ops rmem_avc_ops = {
-	.device_init = avc_mem_device_init,
-};
-
-static s32 __init avc_mem_setup(struct reserved_mem *rmem)
-{
-	rmem->ops = &rmem_avc_ops;
-	encode_debug_level(LOG_LEVEL_DEBUG, "amvenc_avc share mem setup.\n");
-	return 0;
-}
-
 static s32 amvenc_avc_probe(struct platform_device *pdev)
 {
 	/* struct resource mem; */
 	s32 res_irq;
 	s32 idx;
+	s32 r;
 
-	encode_debug_level(LOG_LEVEL_INFO, "amvenc_avc probe start.\n");
+	enc_pr(LOG_INFO, "amvenc_avc probe start.\n");
 
 #ifdef CONFIG_CMA
 	encode_manager.this_pdev = pdev;
@@ -3884,15 +3838,15 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 
 	idx = of_reserved_mem_device_init(&pdev->dev);
 	if (idx == 0) {
-		encode_debug_level(LOG_LEVEL_DEBUG,
+		enc_pr(LOG_DEBUG,
 			"amvenc_avc_probe -- reserved memory config success.\n");
 	} else {
-		encode_debug_level(LOG_LEVEL_DEBUG,
+		enc_pr(LOG_DEBUG,
 			"amvenc_avc_probe -- reserved memory config fail.\n");
 	}
 #ifndef CONFIG_CMA
 	if (encode_manager.use_reserve == false) {
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"amvenc_avc memory is invaild, probe fail!\n");
 		return -EFAULT;
 	}
@@ -3900,8 +3854,7 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 
 	res_irq = platform_get_irq(pdev, 0);
 	if (res_irq < 0) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-				   "[%s] get irq error!", __func__);
+		enc_pr(LOG_ERROR, "[%s] get irq error!", __func__);
 		return -EINVAL;
 	}
 
@@ -3909,14 +3862,18 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 	if (encode_wq_init()) {
 		kfree(encode_manager.reserve_buff);
 		encode_manager.reserve_buff = NULL;
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"encode work queue init error.\n");
+		enc_pr(LOG_ERROR, "encode work queue init error.\n");
 		return -EFAULT;
 	}
 
-	init_avc_device();
-	encode_debug_level(LOG_LEVEL_INFO, "amvenc_avc probe end.\n");
-	return 0;
+	r = init_avc_device();
+#ifdef CONFIG_CMA
+	if ((encode_manager.use_reserve == false) &&
+		(r == 0))
+		dev_set_cma_area(&pdev->dev, avc_cma);
+#endif
+	enc_pr(LOG_INFO, "amvenc_avc probe end.\n");
+	return r;
 }
 
 static s32 amvenc_avc_remove(struct platform_device *pdev)
@@ -3924,15 +3881,15 @@ static s32 amvenc_avc_remove(struct platform_device *pdev)
 	kfree(encode_manager.reserve_buff);
 	encode_manager.reserve_buff = NULL;
 	if (encode_wq_uninit()) {
-		encode_debug_level(LOG_LEVEL_ERROR,
-			"encode work queue uninit error.\n");
+		enc_pr(LOG_ERROR, "encode work queue uninit error.\n");
 	}
+#ifdef CONFIG_CMA
+	dev_set_cma_area(&pdev->dev, NULL);
+#endif
 	uninit_avc_device();
-	encode_debug_level(LOG_LEVEL_INFO, "amvenc_avc remove.\n");
+	enc_pr(LOG_INFO, "amvenc_avc remove.\n");
 	return 0;
 }
-
-/****************************************/
 
 static const struct of_device_id amlogic_avcenc_dt_match[] = {
 	{
@@ -3957,10 +3914,10 @@ static struct codec_profile_t amvenc_avc_profile = {
 
 static s32 __init amvenc_avc_driver_init_module(void)
 {
-	encode_debug_level(LOG_LEVEL_INFO, "amvenc_avc module init\n");
+	enc_pr(LOG_INFO, "amvenc_avc module init\n");
 
 	if (platform_driver_register(&amvenc_avc_driver)) {
-		encode_debug_level(LOG_LEVEL_ERROR,
+		enc_pr(LOG_ERROR,
 			"failed to register amvenc_avc driver\n");
 		return -ENODEV;
 	}
@@ -3970,12 +3927,49 @@ static s32 __init amvenc_avc_driver_init_module(void)
 
 static void __exit amvenc_avc_driver_remove_module(void)
 {
-	encode_debug_level(LOG_LEVEL_INFO, "amvenc_avc module remove.\n");
+	enc_pr(LOG_INFO, "amvenc_avc module remove.\n");
 
 	platform_driver_unregister(&amvenc_avc_driver);
 }
 
-/****************************************/
+static const struct reserved_mem_ops rmem_avc_ops = {
+	.device_init = avc_mem_device_init,
+};
+
+static s32 __init avc_mem_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_avc_ops;
+	enc_pr(LOG_DEBUG, "amvenc_avc reserved mem setup.\n");
+	return 0;
+}
+
+#ifdef CONFIG_CMA
+static int __init avc_cma_setup(struct reserved_mem *rmem)
+{
+	int ret;
+	phys_addr_t base, size, align;
+
+	align = (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+	base = ALIGN(rmem->base, align);
+	size = round_down(rmem->size - (base - rmem->base), align);
+
+	ret = cma_init_reserved_mem(base, size, 0, &avc_cma);
+	if (ret) {
+		enc_pr(LOG_ERROR, "avc cma init reserve area failed.\n");
+		return ret;
+	}
+#ifndef CONFIG_ARM64
+	dma_contiguous_early_fixup(base, size);
+#endif
+	encode_manager.cma_pool_size = size;
+	enc_pr(LOG_DEBUG,
+		"avc cma setup, buff start: %pa, size %ld MB\n",
+		&base, (unsigned long)size / SZ_1M);
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(avc_cma, "amlogic, avc-cma-memory", avc_cma_setup);
+#endif
 
 module_param(me_mv_merge_ctl, uint, 0664);
 MODULE_PARM_DESC(me_mv_merge_ctl, "\n me_mv_merge_ctl\n");
