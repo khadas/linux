@@ -453,12 +453,13 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 
 	return 0;
 }
-
+static int ao_jtag_on;
 static void aml_m8_pinmux_init(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 	int val;
-
+	if (ao_jtag_on)
+		return;
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 	val = aml_read_sec_reg(0xda004004);
 	pr_info("audio use jtag pinmux as i2s output, read val =%x\n",
@@ -479,7 +480,12 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 	gpiod_direction_output(p_aml_audio->mute_desc, GPIOF_OUT_INIT_LOW);
 
 }
-
+static int __init ao_jtag_func(char *buf)
+{
+	ao_jtag_on = 1;
+	return 0;
+}
+early_param("ao_jtag_on", ao_jtag_func);
 static int aml_card_dai_parse_of(struct device *dev,
 				 struct snd_soc_dai_link *dai_link,
 				 int (*init)(struct snd_soc_pcm_runtime *rtd),
