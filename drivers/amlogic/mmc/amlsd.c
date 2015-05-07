@@ -323,7 +323,6 @@ int add_emmc_partition(struct gendisk *disk)
  */
 static void aml_sg_miter_stop(struct sg_mapping_iter *miter)
 {
-	unsigned long flags;
 
 	WARN_ON(miter->consumed > miter->length);
 
@@ -335,12 +334,12 @@ static void aml_sg_miter_stop(struct sg_mapping_iter *miter)
 		if (miter->__flags & SG_MITER_TO_SG)
 			flush_kernel_dcache_page(miter->page);
 
-		if (PageHighMem(miter->page)) {
-			pr_info(KERN_DEBUG "AML_SDHC miter_stop highmem\n");
-			local_irq_save(flags);
+		if (miter->__flags & SG_MITER_ATOMIC) {
+			WARN_ON_ONCE(preemptible());
 			kunmap_atomic(miter->addr);
-			local_irq_restore(flags);
-		}
+		} else
+			kunmap(miter->page);
+
 
 		miter->page = NULL;
 		miter->addr = NULL;
@@ -382,13 +381,13 @@ static bool aml_sg_miter_next(struct sg_mapping_iter *miter)
 	miter->page = sg_page_iter_page(&miter->piter);
 	miter->consumed = miter->length = miter->__remaining;
 
-	if (PageHighMem(miter->page)) {
+	if (miter->__flags & SG_MITER_ATOMIC) {
 		/*pr_info(KERN_DEBUG "AML_SDHC miter_next highmem\n"); */
 		local_irq_save(flags);
 		miter->addr = kmap_atomic(miter->page) + miter->__offset;
 		local_irq_restore(flags);
 	} else
-		miter->addr = page_address(miter->page) + miter->__offset;
+		miter->addr = kmap(miter->page) + miter->__offset;
 	return true;
 }
 
@@ -403,6 +402,7 @@ size_t aml_sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
 	unsigned int sg_flags = SG_MITER_ATOMIC;
+	unsigned long flags;
 
 	if (to_buffer)
 		sg_flags |= SG_MITER_FROM_SG;
@@ -410,6 +410,7 @@ size_t aml_sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 		sg_flags |= SG_MITER_TO_SG;
 
 	sg_miter_start(&miter, sgl, nents, sg_flags);
+	local_irq_save(flags);
 
 	while (aml_sg_miter_next(&miter) && offset < buflen) {
 		unsigned int len;
@@ -425,8 +426,10 @@ size_t aml_sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
 	}
 
 	aml_sg_miter_stop(&miter);
+	local_irq_restore(flags);
 
 	return offset;
+
 }
 
 
