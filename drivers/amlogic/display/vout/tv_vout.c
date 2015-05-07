@@ -352,6 +352,12 @@ int tvoutc_setmode(enum tvmode_e mode)
 		return 0;
 	}
 	vout_log_info("TV mode %s selected.\n", tvinfo->id);
+	if (is_meson_gxbb_cpu()) {
+		vout_log_info("TODO: 1080p mode\n");
+		mutex_unlock(&setmode_mutex);
+		return 0;
+	}
+
 	if (is_meson_m8b_cpu()) {
 		if ((mode != TVMODE_480CVBS) && (mode != TVMODE_576CVBS)) {
 			/* TODO */

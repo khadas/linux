@@ -248,17 +248,6 @@ static void osd_mem_power_on(void)
 #endif
 }
 
-#if 0
-static void osd_mem_power_off(void)
-{
-#ifdef CONFIG_AML_VPU
-	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_DOWN);
-	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_DOWN);
-	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_DOWN);
-#endif
-}
-#endif
-
 static void osd_super_scale_mem_power_on(void)
 {
 #ifdef CONFIG_AML_VPU
@@ -3043,6 +3032,8 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.updated[OSD1] = 0;
 	osd_hw.updated[OSD2] = 0;
 
+	osd_mem_power_on();
+
 	/* here we will init default value ,these value only set once . */
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M6TV)
 	    || (get_cpu_type() == MESON_CPU_MAJOR_ID_MTVD)) {
@@ -3123,8 +3114,6 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_mode[OSD2] = 0;
 	}
 	memset(osd_hw.rotate, 0, sizeof(struct osd_rotate_s));
-
-	osd_mem_power_on();
 
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 	INIT_LIST_HEAD(&post_fence_list);

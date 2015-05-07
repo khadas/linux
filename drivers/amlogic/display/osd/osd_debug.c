@@ -37,7 +37,7 @@
 #include "osd_io.h"
 #include "osd_hw.h"
 
-#define OSD_TEST_DURATION 1000
+#define OSD_TEST_DURATION 200
 
 #ifdef CONFIG_AM_GE2D
 static struct config_para_s ge2d_config;
@@ -166,6 +166,7 @@ static void osd_test_colorbar(void)
 	osd_log_info("- COLORBAR -\n");
 	osd_reg_write(VENC_VIDEO_TST_MDSEL, 1);
 	msleep(OSD_TEST_DURATION);
+
 	/* TST_MODE THINLINE */
 	osd_log_info("- THINLINE -\n");
 	osd_reg_write(VENC_VIDEO_TST_MDSEL, 2);
