@@ -190,6 +190,7 @@
 		          <0x0 0xc8100000 0x0 0x1000>;   //AOBUS
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		sys_max = <1536000000>;
 	};
 
 	vpu {

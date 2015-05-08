@@ -128,7 +128,8 @@
 	clock: meson_clock {
 		compatible = "amlogic,meson8m2-clock";
 		reg = <0xc110402C 0x1000>,   //0x100B  0x1050:0xc1104140 - 0x10ea  0x268 ?
-		          <0xc8100000 0x1000>;   //AOBUS
+		          <0xc8100000 0x1000>,   //AOBUS
+		          <0xc1104000 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};

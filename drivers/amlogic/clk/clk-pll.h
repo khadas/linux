@@ -78,9 +78,7 @@ struct amlogic_clk_pll {
 #define HHI_VID_CLK_CNTL  0x105f
 #define HHI_AUD_CLK_CNTL2 0x1064
 #define HHI_HDMI_CLK_CNTL 0x1073
-/*cpu registers*/
-#define HHI_SYS_CPU_CLK_CNTL1 0x1057
-#define HHI_SYS_CPU_CLK_CNTL 0x1067
+
 
 /*fixed pll registers*/
 #define HHI_MPLL_CNTL  0x10a0
@@ -88,21 +86,13 @@ struct amlogic_clk_pll {
 #define HHI_MPLL_CNTL3 0x10a2
 #define HHI_MPLL_CNTL4 0x10a3
 #define HHI_MPLL_CNTL5 0x10a4
-#define HHI_MPLL_CNTL6 0x10a5
+
 #define HHI_MPLL_CNTL7 0x10a6
 #define HHI_MPLL_CNTL8 0x10a7
 #define HHI_MPLL_CNTL9 0x10a8
 #define HHI_MPLL_CNTL10 0x10a9
-/*sys pll registers*/
-#define HHI_SYS_PLL_CNTL 0x10c0
-#define HHI_SYS_PLL_CNTL2 0x10c1
-#define HHI_SYS_PLL_CNTL3 0x10c2
-#define HHI_SYS_PLL_CNTL4 0x10c3
-#define HHI_SYS_PLL_CNTL5 0x10c4
-/*ddr pll register */
 
-#define HHI_DPLL_TOP_0 0x10c6
-#define HHI_DPLL_TOP_1 0x10c7
+
 /*vid pll registers*/
 #define HHI_VID_PLL_CNTL 0x10c8
 #define HHI_VID_PLL_CNTL2 0x10c9

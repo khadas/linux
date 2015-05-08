@@ -447,6 +447,8 @@ extern void __init amlogic_clk_register_gate(
 
 extern void __init amlogic_clk_register_pll(struct amlogic_pll_clock *pll_list,
 				unsigned int nr_pll, void __iomem *base);
+extern void __init sys_pll_init(void __iomem *base,
+				struct device_node *np, u32 clk_id);
 void amlogic_clk_register_branches(struct amlogic_clk_branch *clk_list,
 				    unsigned int nr_clk);
 

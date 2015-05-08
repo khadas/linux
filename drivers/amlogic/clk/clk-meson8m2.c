@@ -24,7 +24,7 @@
 
 #include "clk.h"
 #include "clk-pll.h"
-
+#include <linux/delay.h>
 #define CLK_GATE_BASE 0x100B
 #define CLK_GATE_1050 0x1050
 #define CLK_GATE_1051 0x1051
@@ -35,7 +35,7 @@
 
 #define AO_RTI_GEN_CTNL_REG0 0xc8100040
 #define OFFSET_AO(x) (((x) - CLK_GATE_AO_BASE)*4)
-void __iomem *reg_base_cbus, *reg_base_aobus;
+void __iomem *reg_base_cbus, *reg_base_aobus, *reg_base_hiubase;
 #define MESON8_RSTC_N_REGS	6
 #define MESON8_AO_OFF		((MESON8_RSTC_N_REGS - 1) * BITS_PER_LONG + 3)
 /* list of PLLs */
@@ -50,9 +50,6 @@ PNAME(clk81_p2) = {"clk81_m_1", "", "fclk_div7",
 	    "mpll_clk_out1", "mpll_clk_out2",
 	    "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(clk81_p3) = {"clk81_m_1", "clk81_g"};
-PNAME(cpu_p1) = {"ext_osc", "sys_pll"};
-PNAME(cpu_p2) = {"cpu_m_1", "sys_pll2", "sys_pll_div3", "sys_pll_divm"};
-PNAME(cpu_p3) = {"xtal", "cpu_m_2"};
 PNAME(mux_hdmi_sys_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
 
 /* fixed rate clocks generated outside the soc */
@@ -79,18 +76,12 @@ static struct amlogic_mux_clock meson8_mux_clks[] __initdata = {
 		9, 1, "ext_osc", 0),
 	MUX(0, "clk81_m_2", clk81_p2, OFFSET(HHI_MPEG_CLK_CNTL), 12, 3, 0),
 	MUX(CLK_81, "clk81", clk81_p3, OFFSET(HHI_MPEG_CLK_CNTL), 8, 1, 0),
-/*cpu clk*/
-	MUX(0, "cpu_m_1", cpu_p1, OFFSET(HHI_SYS_CPU_CLK_CNTL), 0, 1, 0),
-	MUX(0, "cpu_m_2", cpu_p2, OFFSET(HHI_SYS_CPU_CLK_CNTL), 2, 2, 0),
-	MUX(0, "cpu_m_3", cpu_p3, OFFSET(HHI_SYS_CPU_CLK_CNTL), 7, 1, 0),
 };
 
 /* divider clocks */
 static struct amlogic_div_clock meson8_div_clks[] __initdata = {
 /*clk81*/
 	DIV(0, "clk81_d", "clk81_m_2", OFFSET(HHI_MPEG_CLK_CNTL), 0, 6, 0),
-	DIV(0, "sys_pll_divm", "sys_pll_div2",
-		OFFSET(HHI_SYS_CPU_CLK_CNTL), 20, 10, 0),
 };
 
 /* gate clocks */
@@ -100,104 +91,9 @@ static struct amlogic_gate_clock meson8_gate_clks[] __initdata = {
 };
 
 
-
-static  struct amlogic_pll_rate_table meson8m2_syspll_tbl[] = {
-	PLL_2500_RATE(24, 56, 1, 2, 6, 0, 0), /* fvco 1344, / 4, /14 */
-	PLL_2500_RATE(48, 64, 1, 2, 3, 0, 0), /* fvco 1536, / 4, / 8 */
-	PLL_2500_RATE(72, 72, 1, 2, 2, 1, 1), /* fvco 1728, / 4, / 6 */
-	PLL_2500_RATE(96, 64, 1, 2, 1, 0, 0), /* fvco 1536, / 4, / 4 */
-	PLL_2500_RATE(120, 80, 1, 2, 1, 1, 1), /* fvco 1920, / 4, / 4 */
-	PLL_2500_RATE(144, 96, 1, 2, 1, 0, 0), /* fvco 2304, / 4, / 4 */
-	PLL_2500_RATE(168, 56, 1, 1, 1, 0, 0), /* fvco 1344, / 2, / 4 */
-	PLL_2500_RATE(192, 64, 1, 1, 1, 0, 0), /* fvco 1536, / 2, / 4 */
-	PLL_2500_RATE(216, 72, 1, 1, 1, 1, 1), /* fvco 1728, / 2, / 4 */
-	PLL_2500_RATE(240, 80, 1, 1, 1, 1, 1), /* fvco 1920, / 2, / 4 */
-	PLL_2500_RATE(264, 88, 1, 1, 1, 0, 0), /* fvco 2112, / 2, / 4 */
-	PLL_2500_RATE(288, 96, 1, 1, 1, 0, 0), /* fvco 2304, / 2, / 4 */
-	PLL_2500_RATE(312, 52, 1, 2, 0, 0, 0), /* fvco 1248, / 4, / 1 */
-	PLL_2500_RATE(336, 56, 1, 2, 0, 0, 0), /* fvco 1344, / 4, / 1 */
-	PLL_2500_RATE(360, 60, 1, 2, 0, 0, 0), /* fvco 1440, / 4, / 1 */
-	PLL_2500_RATE(384, 64, 1, 2, 0, 0, 0), /* fvco 1536, / 4, / 1 */
-	PLL_2500_RATE(408, 68, 1, 2, 0, 1, 0), /* fvco 1632, / 4, / 1 */
-	PLL_2500_RATE(432, 72, 1, 2, 0, 1, 1), /* fvco 1728, / 4, / 1 */
-	PLL_2500_RATE(456, 76, 1, 2, 0, 1, 1), /* fvco 1824, / 4, / 1 */
-	PLL_2500_RATE(480, 80, 1, 2, 0, 1, 1), /* fvco 1920, / 4, / 1 */
-	PLL_2500_RATE(504, 84, 1, 2, 0, 1, 1), /* fvco 2016, / 4, / 1 */
-	PLL_2500_RATE(528, 88, 1, 2, 0, 0, 0), /* fvco 2112, / 4, / 1 */
-	PLL_2500_RATE(552, 92, 1, 2, 0, 0, 0), /* fvco 2208, / 4, / 1 */
-	PLL_2500_RATE(576, 96, 1, 2, 0, 0, 0), /* fvco 2304, / 4, / 1 */
-	PLL_2500_RATE(600, 50, 1, 1, 0, 0, 0), /* fvco 1200, / 2, / 1 */
-	PLL_2500_RATE(624, 52, 1, 1, 0, 0, 0), /* fvco 1248, / 2, / 1 */
-	PLL_2500_RATE(648, 54, 1, 1, 0, 0, 0), /* fvco 1296, / 2, / 1 */
-	PLL_2500_RATE(672, 56, 1, 1, 0, 0, 0), /* fvco 1344, / 2, / 1 */
-	PLL_2500_RATE(696, 58, 1, 1, 0, 0, 0), /* fvco 1392, / 2, / 1 */
-	PLL_2500_RATE(720, 60, 1, 1, 0, 0, 0), /* fvco 1440, / 2, / 1 */
-	PLL_2500_RATE(744, 62, 1, 1, 0, 0, 0), /* fvco 1488, / 2, / 1 */
-	PLL_2500_RATE(768, 64, 1, 1, 0, 0, 0), /* fvco 1536, / 2, / 1 */
-	PLL_2500_RATE(792, 66, 1, 1, 0, 0, 0), /* fvco 1584, / 2, / 1 */
-	PLL_2500_RATE(816, 68, 1, 1, 0, 1, 0), /* fvco 1632, / 2, / 1 */
-	PLL_2500_RATE(840, 70, 1, 1, 0, 1, 0), /* fvco 1680, / 2, / 1 */
-	PLL_2500_RATE(864, 72, 1, 1, 0, 1, 1), /* fvco 1728, / 2, / 1 */
-	PLL_2500_RATE(888, 74, 1, 1, 0, 1, 1), /* fvco 1776, / 2, / 1 */
-	PLL_2500_RATE(912, 76, 1, 1, 0, 1, 1), /* fvco 1824, / 2, / 1 */
-	PLL_2500_RATE(936, 78, 1, 1, 0, 1, 1), /* fvco 1872, / 2, / 1 */
-	PLL_2500_RATE(960, 80, 1, 1, 0, 1, 1), /* fvco 1920, / 2, / 1 */
-	PLL_2500_RATE(984, 82, 1, 1, 0, 1, 1), /* fvco 1968, / 2, / 1 */
-	PLL_2500_RATE(1008, 84, 1, 1, 0, 1, 1), /* fvco 2016, / 2, / 1 */
-	PLL_2500_RATE(1032, 86, 1, 1, 0, 1, 1), /* fvco 2064, / 2, / 1 */
-	PLL_2500_RATE(1056, 88, 1, 1, 0, 0, 0), /* fvco 2112, / 2, / 1 */
-	PLL_2500_RATE(1080, 90, 1, 1, 0, 0, 0), /* fvco 2160, / 2, / 1 */
-	PLL_2500_RATE(1104, 92, 1, 1, 0, 0, 0), /* fvco 2208, / 2, / 1 */
-	PLL_2500_RATE(1128, 94, 1, 1, 0, 0, 0), /* fvco 2256, / 2, / 1 */
-	PLL_2500_RATE(1152, 96, 1, 1, 0, 0, 0), /* fvco 2304, / 2, / 1 */
-	PLL_2500_RATE(1176, 98, 1, 1, 0, 0, 0), /* fvco 2352, / 2, / 1 */
-	PLL_2500_RATE(1200, 50, 1, 0, 0, 0, 0), /* fvco 1200, / 1, / 1 */
-	PLL_2500_RATE(1224, 51, 1, 0, 0, 0, 0), /* fvco 1224, / 1, / 1 */
-	PLL_2500_RATE(1248, 52, 1, 0, 0, 0, 0), /* fvco 1248, / 1, / 1 */
-	PLL_2500_RATE(1272, 53, 1, 0, 0, 0, 0), /* fvco 1272, / 1, / 1 */
-	PLL_2500_RATE(1296, 54, 1, 0, 0, 0, 0), /* fvco 1296, / 1, / 1 */
-	PLL_2500_RATE(1320, 55, 1, 0, 0, 0, 0), /* fvco 1320, / 1, / 1 */
-	PLL_2500_RATE(1344, 56, 1, 0, 0, 0, 0), /* fvco 1344, / 1, / 1 */
-	PLL_2500_RATE(1368, 57, 1, 0, 0, 0, 0), /* fvco 1368, / 1, / 1 */
-	PLL_2500_RATE(1392, 58, 1, 0, 0, 0, 0), /* fvco 1392, / 1, / 1 */
-	PLL_2500_RATE(1416, 59, 1, 0, 0, 0, 0), /* fvco 1416, / 1, / 1 */
-	PLL_2500_RATE(1440, 60, 1, 0, 0, 0, 0), /* fvco 1440, / 1, / 1 */
-	PLL_2500_RATE(1464, 61, 1, 0, 0, 0, 0), /* fvco 1464, / 1, / 1 */
-	PLL_2500_RATE(1488, 62, 1, 0, 0, 0, 0), /* fvco 1488, / 1, / 1 */
-	PLL_2500_RATE(1512, 63, 1, 0, 0, 0, 0), /* fvco 1512, / 1, / 1 */
-	PLL_2500_RATE(1536, 64, 1, 0, 0, 0, 0), /* fvco 1536, / 1, / 1 */
-	PLL_2500_RATE(1560, 65, 1, 0, 0, 0, 0), /* fvco 1560, / 1, / 1 */
-	PLL_2500_RATE(1584, 66, 1, 0, 0, 0, 0), /* fvco 1584, / 1, / 1 */
-	PLL_2500_RATE(1608, 67, 1, 0, 0, 1, 0), /* fvco 1608, / 1, / 1 */
-	PLL_2500_RATE(1632, 68, 1, 0, 0, 1, 0), /* fvco 1632, / 1, / 1 */
-	PLL_2500_RATE(1656, 68, 1, 0, 0, 1, 0), /* fvco 1656, / 1, / 1 */
-	PLL_2500_RATE(1680, 68, 1, 0, 0, 1, 0), /* fvco 1680, / 1, / 1 */
-	PLL_2500_RATE(1704, 68, 1, 0, 0, 1, 0), /* fvco 1704, / 1, / 1 */
-	PLL_2500_RATE(1728, 69, 1, 0, 0, 1, 0), /* fvco 1728, / 1, / 1 */
-	PLL_2500_RATE(1752, 69, 1, 0, 0, 1, 0), /* fvco 1752, / 1, / 1 */
-	PLL_2500_RATE(1776, 69, 1, 0, 0, 1, 0), /* fvco 1776, / 1, / 1 */
-	PLL_2500_RATE(1800, 69, 1, 0, 0, 1, 0), /* fvco 1800, / 1, / 1 */
-	PLL_2500_RATE(1824, 70, 1, 0, 0, 1, 0), /* fvco 1824, / 1, / 1 */
-	PLL_2500_RATE(1848, 70, 1, 0, 0, 1, 0), /* fvco 1848, / 1, / 1 */
-	PLL_2500_RATE(1872, 70, 1, 0, 0, 1, 0), /* fvco 1872, / 1, / 1 */
-	PLL_2500_RATE(1896, 70, 1, 0, 0, 1, 0), /* fvco 1896, / 1, / 1 */
-	PLL_2500_RATE(1920, 71, 1, 0, 0, 1, 0), /* fvco 1920, / 1, / 1 */
-	PLL_2500_RATE(1944, 71, 1, 0, 0, 1, 0), /* fvco 1944, / 1, / 1 */
-	PLL_2500_RATE(1968, 71, 1, 0, 0, 1, 0), /* fvco 1968, / 1, / 1 */
-	PLL_2500_RATE(1992, 71, 1, 0, 0, 1, 0), /* fvco 1992, / 1, / 1 */
-	PLL_2500_RATE(2016, 72, 1, 0, 0, 1, 0), /* fvco 2016, / 1, / 1 */
-	PLL_2500_RATE(2040, 72, 1, 0, 0, 1, 0), /* fvco 2040, / 1, / 1 */
-	PLL_2500_RATE(2064, 72, 1, 0, 0, 1, 0), /* fvco 2064, / 1, / 1 */
-	PLL_2500_RATE(2088, 72, 1, 0, 0, 1, 0), /* fvco 2088, / 1, / 1 */
-	PLL_2500_RATE(2112, 73, 1, 0, 0, 0, 0), /* fvco 2112, / 1, / 1 */
-	PLL_2500_RATE(0, 0, 0, 0, 0, 0, 0), /* fvco end, / 1, / 1 */
-};
-
 static struct amlogic_pll_clock meson8m2_plls[] __initdata = {
 	PLL(pll_2550, CLK_FIXED_PLL, "fixed_pll", "xtal",
 		OFFSET(HHI_MPLL_CNTL), NULL),
-	PLL(pll_2500, CLK_SYS_PLL, "sys_pll", "xtal",
-		OFFSET(HHI_SYS_PLL_CNTL), meson8m2_syspll_tbl),
 	PLL(pll_1500, CLK_G_PLL, "g_pll", "xtal",
 		OFFSET(HHI_GP_PLL_CNTL), NULL),
 };
@@ -221,6 +117,7 @@ static void __init meson8_clk_init(struct device_node *np)
 
 	reg_base_cbus = of_iomap(np, 0);
 	reg_base_aobus = of_iomap(np, 1);
+	reg_base_hiubase = of_iomap(np, 2);
 	if ((!reg_base_cbus) || (!reg_base_aobus))
 		panic("%s: failed to map registers\n", __func__);
 
@@ -248,6 +145,7 @@ static void __init meson8_clk_init(struct device_node *np)
 				  ARRAY_SIZE(meson8m2_clk_branches));
 	meson_register_rstc(np, MESON8_RSTC_N_REGS, reg_base_aobus,
 		reg_base_cbus + OFFSET(0x1050), MESON8_AO_OFF, 0);
+	sys_pll_init(reg_base_hiubase, np, CLK_SYS_PLL);
 
 	{
 		/* Dump clocks */
@@ -265,12 +163,6 @@ static void __init meson8_clk_init(struct device_node *np)
 				"clk81_d",
 				"clk81_g",
 				"clk81",
-				"cpu_m_1",
-				"cpu_m_2",
-				"cpu_m_3",
-				"sys_pll_div2",
-				"sys_pll_div3",
-				"sys_pll_divm",
 				"hdmi_pll_lvds",
 				"hdmi_sys_clk"
 		};
@@ -282,7 +174,6 @@ static void __init meson8_clk_init(struct device_node *np)
 			pr_info("clkrate [ %s \t] : %lu\n", clk_name,
 				_get_rate(clk_name));
 		}
-
 	}
 	pr_info("meson8 clock initialization complete\n");
 }

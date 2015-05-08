@@ -45,6 +45,7 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 	FRATE(CLK_FPLL_DIV7, "fclk_div7", NULL, CLK_IS_ROOT,  285714285),
 };
 
+
 static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "amlogic,clock-xtal", .data = (void *)0, },
 	{},
@@ -68,7 +69,7 @@ static void __init gxbb_clk_init(struct device_node *np)
 		  ARRAY_SIZE(gxbb_fixed_rate_ext_clks), ext_clk_match);
 	meson_register_rstc(np, GXBB_RSTC_N_REGS, reg_base_aobus,
 		reg_base_hiubus + HHI_GCLK_MPEG0, GXBB_AO_OFF, 0);
-
+	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
 
 	{
 		/* Dump clocks */
