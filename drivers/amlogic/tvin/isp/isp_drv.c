@@ -28,7 +28,7 @@
 /* Amlogic Headers */
 #include <linux/amlogic/tvin/tvin_v4l2.h>
 /* #include <mach/am_regs.h> */
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 #include <linux/amlogic/vpu.h>
 #endif
 /* Local Headers */
@@ -1192,7 +1192,7 @@ static void isp_fe_close(struct tvin_frontend_s *fe)
 	/*power down isp hw*/
 	isp_hw_enable(false);
 
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	/* switch_vpu_mem_pd_vmod(VPU_ISP,VPU_MEM_POWER_DOWN); */
 	switch_vpu_mem_pd_vmod(VPU_ISP, VPU_MEM_POWER_DOWN);
 #endif

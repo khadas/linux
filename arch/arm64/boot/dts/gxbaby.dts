@@ -86,6 +86,18 @@
 			size = <0xc000000>;
 			no-map;
 		};
+		/*  vdin0 */
+		vdin0_reserved:linux,vdin0 {
+			compatible = "amlogic, vdin_memory";
+			/* 1920x1080x2x4  =17M */
+			size = <0x01000000>;
+		};
+		 /*  vdin1 */
+		vdin1_reserved:linux,vdin1 {
+			compatible = "amlogic, vdin_memory";
+			/* 1920x1080x2x4  =17M */
+			size = <0x01000000>;
+		};
 	};
 
 	gic: interrupt-controller@2c001000 {
@@ -183,6 +195,36 @@
 			"mailbox_0",
 			"mailbox_1",
 			"mailbox_2";
+	};
+	vdin0 {
+		compatible = "amlogic, vdin";
+		memory-region = <&vdin0_reserved>;
+		dev_name = "vdin0";
+		status = "ok";
+		reserve-iomap = "true";
+		interrupts = <0 83 1>;
+		vdin_id = <0>;
+	};
+	vdin {
+		compatible = "amlogic, vdin";
+		memory-region = <&vdin1_reserved>;
+		dev_name = "vdin1";
+		status = "ok";
+		reserve-iomap = "true";
+		interrupts = <0 85 1>;
+		vdin_id = <1>;
+	};
+	amvdec_656in0 {
+		compatible = "amlogic, amvdec_656in";
+		dev_name = "amvdec_656in0";
+		status = "ok";
+		reg = <0x0 0xd0048000 0x0 0x7c>;
+	};
+	amvdec_656in1 {
+		compatible = "amlogic, amvdec_656in";
+		dev_name = "amvdec_656in1";
+		status = "ok";
+		reg = <0x0 0xd0050000 0x0 0x7c>;
 	};
 	clock: meson_clock {
 		compatible = "amlogic, gxbb-clock";

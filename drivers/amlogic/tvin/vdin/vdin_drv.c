@@ -47,7 +47,7 @@
 /* Amlogic Headers */
 /* #include <linux/amlogic/amports/canvas.h> */
 /* #include <mach/am_regs.h> */
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 #include <linux/amlogic/vpu.h>
 #endif
 #include <linux/amlogic/amports/vframe.h>
@@ -635,7 +635,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->curr_field_type = vdin_get_curr_field_type(devp);
 	/* pr_info("start clean_counter is %d\n",clean_counter); */
 	/* configure regs and enable hw */
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPUU
 	switch_vpu_mem_pd_vmod(devp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
 			VPU_MEM_POWER_ON);
 #endif
@@ -699,7 +699,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	disable_irq_nosync(devp->irq);
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
-#if CONFIG_AML_VPU
+#ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(devp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
 			VPU_MEM_POWER_DOWN);
 #endif

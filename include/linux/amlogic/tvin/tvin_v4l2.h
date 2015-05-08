@@ -713,7 +713,7 @@ struct vdin_arg_s {
 	unsigned char matrix_id;
 	enum vdin_format_convert_e color_convert;
 	unsigned int *cm2;
-	unsigned int private;
+	void *private;
 };
 
 enum bt_path_e {
