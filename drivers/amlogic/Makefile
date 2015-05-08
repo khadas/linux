@@ -82,3 +82,4 @@ obj-$(CONFIG_AML_NAND)		+= amlnf/
 
 obj-$(CONFIG_AM_INPUT)		+= input/
 
+obj-$(CONFIG_AM_DVB)		+= dvb_tv/

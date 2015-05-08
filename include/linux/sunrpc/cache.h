@@ -231,7 +231,7 @@ extern int qword_get(char **bpp, char *dest, int bufsize);
 static inline int get_int(char **bpp, int *anint)
 {
 	char buf[50];
-	char *ep;
+	/*char *ep;*/
 	int rv;
 	int len = qword_get(bpp, buf, sizeof(buf));
 
@@ -240,8 +240,13 @@ static inline int get_int(char **bpp, int *anint)
 	if (len == 0)
 		return -ENOENT;
 
-	rv = simple_strtol(buf, &ep, 0);
-	if (*ep)
+	/*rv = simple_strtol(buf, &ep, 0);*/
+
+	long val = 0;
+	if (kstrtol(buf, 0, &val) < 0)
+		rv = (int)val;
+	else
+	/*if (*ep)*/
 		return -EINVAL;
 
 	*anint = rv;

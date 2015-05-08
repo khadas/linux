@@ -1961,11 +1961,11 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 		break;
 	}
 
-	dprintk("%s: Attaching STV0900 demodulator(%d) \n", __func__, demod);
+	dprintk("%s: Attaching STV0900 demodulator(%d)\n", __func__, demod);
 	return &state->frontend;
 
 error:
-	dprintk("%s: Failed to attach STV0900 demodulator(%d) \n",
+	dprintk("%s: Failed to attach STV0900 demodulator(%d)\n",
 		__func__, demod);
 	kfree(state);
 	return NULL;

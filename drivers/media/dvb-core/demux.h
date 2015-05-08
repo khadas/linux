@@ -83,6 +83,46 @@ enum dmx_success {
 #define TS_DEMUX        8   /* in case TS_PACKET is set, send the TS to
 			       the demux device, not to the dvr device */
 
+/* PES type for filters which write to built-in decoder */
+/* these should be kept identical to the types in dmx.h */
+
+enum dmx_ts_pes_e {
+	/* also send packets to decoder (if it exists) */
+	DMX_TS_PES_AUDIO0,
+	DMX_TS_PES_VIDEO0,
+	DMX_TS_PES_TELETEXT0,
+	DMX_TS_PES_SUBTITLE0,
+	DMX_TS_PES_PCR0,
+
+	DMX_TS_PES_AUDIO1,
+	DMX_TS_PES_VIDEO1,
+	DMX_TS_PES_TELETEXT1,
+	DMX_TS_PES_SUBTITLE1,
+	DMX_TS_PES_PCR1,
+
+	DMX_TS_PES_AUDIO2,
+	DMX_TS_PES_VIDEO2,
+	DMX_TS_PES_TELETEXT2,
+	DMX_TS_PES_SUBTITLE2,
+	DMX_TS_PES_PCR2,
+
+	DMX_TS_PES_AUDIO3,
+	DMX_TS_PES_VIDEO3,
+	DMX_TS_PES_TELETEXT3,
+	DMX_TS_PES_SUBTITLE3,
+	DMX_TS_PES_PCR3,
+
+	DMX_TS_PES_OTHER
+};
+
+
+#define DMX_TS_PES_AUDIO    DMX_TS_PES_AUDIO0
+#define DMX_TS_PES_VIDEO    DMX_TS_PES_VIDEO0
+#define DMX_TS_PES_TELETEXT DMX_TS_PES_TELETEXT0
+#define DMX_TS_PES_SUBTITLE DMX_TS_PES_SUBTITLE0
+#define DMX_TS_PES_PCR      DMX_TS_PES_PCR0
+
+
 struct dmx_ts_feed {
 	int is_filtering; /* Set to non-zero when filtering in progress */
 	struct dmx_demux *parent; /* Back-pointer */
@@ -206,35 +246,37 @@ struct dmx_demux {
 	u32 capabilities;            /* Bitfield of capability flags */
 	struct dmx_frontend* frontend;    /* Front-end connected to the demux */
 	void* priv;                  /* Pointer to private data of the API client */
-	int (*open) (struct dmx_demux* demux);
-	int (*close) (struct dmx_demux* demux);
-	int (*write) (struct dmx_demux* demux, const char __user *buf, size_t count);
-	int (*allocate_ts_feed) (struct dmx_demux* demux,
-				 struct dmx_ts_feed** feed,
+	int (*open)(struct dmx_demux *demux);
+	int (*close)(struct dmx_demux *demux);
+	int (*write)(struct dmx_demux *demux,
+					const char __user *buf, size_t count);
+	int (*allocate_ts_feed)(struct dmx_demux *demux,
+				 struct dmx_ts_feed **feed,
 				 dmx_ts_cb callback);
-	int (*release_ts_feed) (struct dmx_demux* demux,
+	int (*release_ts_feed)(struct dmx_demux *demux,
 				struct dmx_ts_feed* feed);
-	int (*allocate_section_feed) (struct dmx_demux* demux,
-				      struct dmx_section_feed** feed,
+	int (*allocate_section_feed)(struct dmx_demux *demux,
+				      struct dmx_section_feed **feed,
 				      dmx_section_cb callback);
-	int (*release_section_feed) (struct dmx_demux* demux,
-				     struct dmx_section_feed* feed);
-	int (*add_frontend) (struct dmx_demux* demux,
-			     struct dmx_frontend* frontend);
-	int (*remove_frontend) (struct dmx_demux* demux,
-				struct dmx_frontend* frontend);
-	struct list_head* (*get_frontends) (struct dmx_demux* demux);
-	int (*connect_frontend) (struct dmx_demux* demux,
-				 struct dmx_frontend* frontend);
-	int (*disconnect_frontend) (struct dmx_demux* demux);
+	int (*release_section_feed)(struct dmx_demux *demux,
+				     struct dmx_section_feed *feed);
+	int (*add_frontend)(struct dmx_demux *demux,
+			     struct dmx_frontend *frontend);
+	int (*remove_frontend)(struct dmx_demux *demux,
+				struct dmx_frontend *frontend);
+	struct list_head* (*get_frontends)(struct dmx_demux *demux);
+	int (*connect_frontend)(struct dmx_demux *demux,
+				 struct dmx_frontend *frontend);
+	int (*disconnect_frontend)(struct dmx_demux *demux);
 
-	int (*get_pes_pids) (struct dmx_demux* demux, u16 *pids);
+	int (*get_pes_pids)(struct dmx_demux *demux, u16 *pids);
 
-	int (*get_caps) (struct dmx_demux* demux, struct dmx_caps *caps);
+	int (*get_caps)(struct dmx_demux *demux, struct dmx_caps *caps);
 
-	int (*set_source) (struct dmx_demux* demux, const dmx_source_t *src);
+	int (*set_source)(struct dmx_demux *demux,
+				const enum dmx_source_t *src);
 
-	int (*get_stc) (struct dmx_demux* demux, unsigned int num,
+	int (*get_stc)(struct dmx_demux *demux, unsigned int num,
 			u64 *stc, unsigned int *base);
 };
 
