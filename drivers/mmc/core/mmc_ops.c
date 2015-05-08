@@ -42,7 +42,9 @@ static inline int __mmc_send_status(struct mmc_card *card, u32 *status,
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
 	if (err)
 		return err;
-
+#ifdef CONFIG_PXP_MMC
+	cmd.resp[0] &= (~(1 << 20));
+#endif
 	/* NOTE: callers are required to understand the difference
 	 * between "native" and SPI format status words!
 	 */
@@ -136,10 +138,12 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	int i, err = 0;
 
 	BUG_ON(!host);
+#ifdef	CONFIG_PXP_MMC
 	if (!ocr) {
 		*rocr = 0x40FF8000;
 		return 0;
 	}
+#endif
 	cmd.opcode = MMC_SEND_OP_COND;
 	cmd.arg = mmc_host_is_spi(host) ? 0 : ocr;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;

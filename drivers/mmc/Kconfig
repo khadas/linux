@@ -20,6 +20,12 @@ config MMC_DEBUG
 	  say N here.  This enables MMC core and driver debugging.
 
 if MMC
+config PXP_MMC
+       boolean "PXP MMC compatible"
+       default y
+       help
+         Say Y here if you hope pxp no response emmc unexpected status,
+         in order to can operate emmc.
 
 source "drivers/mmc/core/Kconfig"
 

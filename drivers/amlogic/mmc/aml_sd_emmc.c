@@ -503,7 +503,7 @@ static int aml_sd_emmc_read_response(
 	} else if (cmd->flags & MMC_RSP_PRESENT) {
 		/*48 bit*/
 		presp[0] = desc_info->resp_addr;
-		pr_info("presp[0] = 0x%x\n", presp[0]);
+		/* pr_info("presp[0] = 0x%x\n", presp[0]); */
 		/* pr_info("##Cmd %d ,Resp 0x%x\n", cmd->opcode, presp[0]); */
 	}
 
