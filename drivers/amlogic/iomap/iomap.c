@@ -276,6 +276,48 @@ void aml_dosbus_update_bits(unsigned int reg,
 		return;
 }
 EXPORT_SYMBOL(aml_dosbus_update_bits);
+
+
+/*
+** HIUBUS REG Read Write and Update some bits
+*/
+int aml_read_hiubus(unsigned int reg)
+{
+	int ret, val;
+	ret = aml_reg_read(IO_HIUBUS_BASE, reg<<2, &val);
+	if (ret) {
+		pr_err("read hiubus reg %x error %d\n", reg, ret);
+		return -1;
+	} else
+		return val;
+}
+EXPORT_SYMBOL(aml_read_hiubus);
+
+void aml_write_hiubus(unsigned int reg, unsigned int val)
+{
+	int ret;
+	ret = aml_reg_write(IO_HIUBUS_BASE, reg<<2, val);
+	if (ret) {
+		pr_err("write hiubus reg %x error %d\n", reg, ret);
+		return;
+	} else
+		return;
+}
+EXPORT_SYMBOL(aml_write_hiubus);
+
+void aml_hiubus_update_bits(unsigned int reg,
+		unsigned int mask, unsigned int val)
+{
+	int ret;
+	ret = aml_regmap_update_bits(IO_HIUBUS_BASE, reg<<2, mask, val);
+	if (ret) {
+		pr_err("write hiubus reg %x error %d\n", reg, ret);
+		return;
+	} else
+		return;
+}
+EXPORT_SYMBOL(aml_hiubus_update_bits);
+
 #ifndef CONFIG_ARM64
 static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 					 u32 arg2)

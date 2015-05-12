@@ -18,11 +18,12 @@
 #ifndef _AML_AIU_REGS_H
 #define _AML_AIU_REGS_H
 
-#define HHI_AUD_CLK_CNTL	0x105e
-#define HHI_AUD_CLK_CNTL2	0x1064
-#define HHI_MPLL_CNTL7		0x10a6
-#define HHI_MPLL_CNTL8		0x10a7
-#define HHI_MPLL_CNTL9		0x10a8
+/* HIU regs */
+#define HHI_AUD_CLK_CNTL	0x5e
+#define HHI_AUD_CLK_CNTL2	0x64
+#define HHI_MPLL_MP0		0xa6
+#define HHI_MPLL_MP1		0xa7
+#define HHI_MPLL_MP2		0xa8
 
 #define AIU_958_BPF			0x1500
 #define AIU_958_BRST		0x1501

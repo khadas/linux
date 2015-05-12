@@ -93,8 +93,8 @@ static void aml_hw_i2s_init(struct snd_pcm_runtime *runtime)
 	audio_set_i2s_mode(i2s_mode);
 	audio_set_aiubuf(runtime->dma_addr, runtime->dma_bytes,
 			 runtime->channels);
-	ALSA_PRINT("i2s dma %x,phy addr %x,mode %d,ch %d\n",
-		   (unsigned)runtime->dma_area, (unsigned)runtime->dma_addr,
+	ALSA_PRINT("i2s dma %p,phy addr %ld,mode %d,ch %d\n",
+		   runtime->dma_area, (long)runtime->dma_addr,
 		   i2s_mode, runtime->channels);
 }
 
@@ -219,9 +219,11 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
 		aml_hw_i2s_init(runtime);
-/* i2s/958 share the same audio hw buffer when PCM mode */
+		/* i2s/958 share the same audio hw buffer when PCM mode */
 		if (IEC958_mode_codec == 0) {
 			aml_hw_iec958_init(substream);
+			/* use the hw same sync for i2s/958 */
+			audio_i2s_958_same_source(1);
 		}
 	}
 	if (runtime->channels == 8) {
@@ -244,10 +246,10 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		/* TODO */
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			pr_info("aiu i2s playback enable\n\n");
+			pr_info("aiu i2s playback enable\n");
 			audio_out_i2s_enable(1);
 			if (IEC958_mode_codec == 0) {
-				ALSA_PRINT("audio_hw_958_enable  1\n");
+				pr_info("audio_hw_958_enable 1\n");
 				audio_hw_958_enable(1);
 			}
 		} else {
@@ -261,10 +263,10 @@ static int aml_dai_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			pr_info("aiu i2s playback disable\n\n");
+			pr_info("aiu i2s playback disable\n");
 			audio_out_i2s_enable(0);
 			if (IEC958_mode_codec == 0) {
-				pr_info("audio_hw_958_enable  0\n");
+				pr_info("audio_hw_958_enable 0\n");
 				audio_hw_958_enable(0);
 			}
 		} else {
@@ -429,7 +431,7 @@ static int aml_i2s_dai_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 static const struct of_device_id amlogic_dai_dt_match[] = {
 	{.compatible = "amlogic, aml-i2s-dai",},
 	{},

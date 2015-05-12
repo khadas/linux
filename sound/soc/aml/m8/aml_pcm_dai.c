@@ -79,13 +79,13 @@ static int aml_dai_pcm_prepare(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		pr_info(
-		       "%s playback stream buffer start: 0x%08x size: 0x%x\n",
-		       __func__, prtd->buffer_start, prtd->buffer_size);
+		       "%s playback stream buffer start: %ld size: 0x%x\n",
+		       __func__, (long)prtd->buffer_start, prtd->buffer_size);
 		pcm_out_set_buf(prtd->buffer_start, prtd->buffer_size);
 	} else {
 		pr_info(
-		       "%s capture stream buffer start: 0x%08x size: 0x%x\n",
-		       __func__, prtd->buffer_start, prtd->buffer_size);
+		       "%s capture stream buffer start: %ld size: 0x%x\n",
+		       __func__, (long)prtd->buffer_start, prtd->buffer_size);
 		pcm_in_set_buf(prtd->buffer_start, prtd->buffer_size);
 	}
 
@@ -232,7 +232,7 @@ static int aml_pcm_dai_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 static const struct of_device_id amlogic_dai_dt_match[] = {
 	{.compatible = "amlogic, aml-pcm-dai",
 	 },

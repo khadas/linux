@@ -125,7 +125,7 @@ static int pcm2bt_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 static const struct of_device_id amlogic_pcm2BT_codec_dt_match[] = {
 	{.compatible = "amlogic, pcm2BT-codec",},
 	{},

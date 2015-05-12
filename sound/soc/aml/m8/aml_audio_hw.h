@@ -153,6 +153,7 @@ void audio_in_spdif_enable(int flag);
 unsigned audio_spdifout_pg_enable(unsigned char enable);
 unsigned audio_aiu_pg_enable(unsigned char enable);
 void audio_mute_left_right(unsigned flag);
+void audio_i2s_958_same_source(unsigned int same);
 
 extern unsigned int IEC958_mode_codec;
 
@@ -168,9 +169,9 @@ extern unsigned int IEC958_mode_codec;
 #endif
 
 #define I2S_PLL_SRC         1   /* MPLL0 */
-#define MPLL_I2S_CNTL		HHI_MPLL_CNTL7
+#define MPLL_I2S_CNTL		HHI_MPLL_MP0
 
 #define I958_PLL_SRC        2   /* MPLL1 */
-#define MPLL_958_CNTL		HHI_MPLL_CNTL8
+#define MPLL_958_CNTL		HHI_MPLL_MP1
 
 #endif

@@ -58,16 +58,16 @@
 #define ALSA_TRACE()
 #endif
 
-unsigned int aml_i2s_playback_start_addr = 0;
+unsigned long aml_i2s_playback_start_addr = 0;
 EXPORT_SYMBOL(aml_i2s_playback_start_addr);
 
-unsigned int aml_i2s_playback_phy_start_addr = 0;
+unsigned long aml_i2s_playback_phy_start_addr = 0;
 EXPORT_SYMBOL(aml_i2s_playback_phy_start_addr);
 
-unsigned int aml_i2s_capture_start_addr = 0;
+unsigned long aml_i2s_capture_start_addr = 0;
 EXPORT_SYMBOL(aml_i2s_capture_start_addr);
 
-unsigned int aml_i2s_capture_phy_start_addr = 0;
+unsigned long aml_i2s_capture_phy_start_addr = 0;
 EXPORT_SYMBOL(aml_i2s_capture_phy_start_addr);
 
 unsigned int aml_i2s_capture_buf_size = 0;
@@ -76,7 +76,7 @@ EXPORT_SYMBOL(aml_i2s_capture_buf_size);
 unsigned int aml_i2s_playback_enable = 1;
 EXPORT_SYMBOL(aml_i2s_playback_enable);
 
-unsigned int aml_i2s_alsa_write_addr = 0;
+unsigned long aml_i2s_alsa_write_addr = 0;
 EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
 
 static DEFINE_MUTEX(gate_mutex);
@@ -491,13 +491,13 @@ static int aml_i2s_open(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		snd_soc_set_runtime_hwparams(substream, &aml_i2s_hardware);
 		if (s->device_type == AML_AUDIO_I2SOUT) {
-			aml_i2s_playback_start_addr = (unsigned int)buf->area;
+			aml_i2s_playback_start_addr = (unsigned long)buf->area;
 			aml_i2s_playback_phy_start_addr = buf->addr;
 		}
 	} else {
 		snd_soc_set_runtime_hwparams(substream, &aml_i2s_capture);
 		if (s->device_type == AML_AUDIO_I2SIN) {
-			aml_i2s_capture_start_addr = (unsigned int)buf->area;
+			aml_i2s_capture_start_addr = (unsigned long)buf->area;
 			aml_i2s_capture_phy_start_addr = buf->addr;
 		}
 	}

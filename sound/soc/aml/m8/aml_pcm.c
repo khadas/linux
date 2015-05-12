@@ -509,14 +509,12 @@ static int aml_pcm2bt_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	buf->area = dma_alloc_coherent(pcm->card->dev, size,
 				       &buf->addr, GFP_KERNEL);
 	if (!buf->area) {
-		pr_info("%s dma_alloc_coherent failed (size: %d)!\n", __func__,
-			size);
+		pr_info("%s dma_alloc_coherent failed!\n", __func__);
 		return -ENOMEM;
 	}
 
 	buf->bytes = size;
-	pr_info("%s allcoate buf->area: %p buf->addr: 0x%x buf->bytes: %d\n",
-		__func__, buf->area, buf->addr, buf->bytes);
+
 	return 0;
 }
 

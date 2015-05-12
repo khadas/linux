@@ -295,6 +295,9 @@
 		io_aobus_base{
 			reg = <0x0 0xc8100000 0x0 0x100000>;
 		};
+		io_hiubus_base{
+			reg = <0x0 0xc883c000 0x0 0x2000>;
+		};
 	};
 	meson-vout {
 		compatible = "amlogic, meson-vout";
@@ -618,6 +621,19 @@
 			amlogic,setmask=<1 0x00800000>;
 			amlogic,pins="GPIOH_3";
 		};
+
+		audio_pins:audio_pin{
+			amlogic,setmask=<AO 0x78000000>;
+			amlogic,clrmask=<AO 0x50000>;
+			amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11","GPIOAO_6";
+		};
+
+		audio_spdif_pins:audio_pin1{
+			amlogic,setmask=<AO 0x10>;		/*spdif_out*/
+			amlogic,clrmask=<AO 0x8
+						AO2 0x80000002>;	/*spdif_out*/
+			amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
+		};
 	};
 
 	amhdmitx: amhdmitx{
@@ -646,6 +662,7 @@
 		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp",
 		"hdmitx_clk_enci", "hdmitx_clk_pixel", "hdmitx_clk_phy";
 */
+
 	};
 
 	uart_AO: serial@c81004c0 {
@@ -729,4 +746,110 @@
 						"usb0_to_ddr";
 	};
 
+	/* AUDIO MESON8 DEVICES */
+	i2s_dai: I2S {
+		#sound-dai-cells = <0>;
+		resets = <
+			&clock GCLK_IDX_AIU_AI_TOP_GLUE
+			&clock GCLK_IDX_AUD_BUF_ABD
+			&clock GCLK_IDX_AIU_I2S_OUT
+			&clock GCLK_IDX_AIU_AMCLK_MEASURE
+			&clock GCLK_IDX_AIU_AIFIFO2
+			&clock GCLK_IDX_AIU_AUD_MIXER
+			&clock GCLK_IDX_AIU_MIXER_REG
+			&clock GCLK_IDX_AIU_ADC
+			&clock GCLK_IDX_AIU_TOP_LEVEL
+			&clock GCLK_IDX_AIU_AOCLK
+			&clock GCLK_IDX_AUD_IN
+		>;
+		reset-names =
+			"top_glue",
+			"aud_buf",
+			"i2s_out",
+			"amclk_measure",
+			"aififo2",
+			"aud_mixer",
+			"mixer_reg",
+			"adc",
+			"top_level",
+			"aoclk",
+			"aud_in";
+		compatible = "amlogic, aml-i2s-dai";
+	};
+	spdif_dai: SPDIF {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-spdif-dai";
+		resets = <
+			&clock GCLK_IDX_AIU_IEC958
+			&clock GCLK_IDX_AIU_ICE958_AMCLK
+		>;
+		reset-names =
+			"iec958",
+			"iec958_amclk";
+	};
+	pcm_dai: PCM {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-pcm-dai";
+	};
+	i2s_plat: i2s_platform {
+		compatible = "amlogic, aml-i2s";
+	};
+	pcm_plat: pcm_platform {
+		compatible = "amlogic, aml-pcm";
+	};
+	spdif_codec: spdif_codec{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-spdif-codec";
+		pinctrl-names = "aml_audio_spdif";
+		pinctrl-0 = <&audio_spdif_pins>;
+	};
+	pcm_codec: pcm_codec{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, pcm2BT-codec";
+	};
+	/* endof AUDIO MESON8 DEVICES */
+
+	/* AUDIO board specific */
+	dummy_codec:dummy{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml_dummy_codec";
+		status = "okay";
+	};
+	aml_m8_snd {
+		compatible = "aml, aml_snd_m8";
+		status = "okay";
+		aml-sound-card,format = "i2s";
+		aml_sound_card,name = "AML-M8AUDIO";
+		aml,audio-routing =
+				"Ext Spk","LOUTL",
+				"Ext Spk","LOUTR";
+
+		mute_gpio-gpios = <&gpio GPIOH_3 0>;
+		hp_disable;
+		hp_paraments = <800 300 0 5 1>;
+		pinctrl-names = "aml_snd_m8";
+		pinctrl-0 = <&audio_pins>;
+		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
+		codec_list = <&codec0 &codec1 &codec2>;
+		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
+		cpudai0: cpudai0 {
+			sound-dai = <&i2s_dai>;
+		};
+		cpudai1: cpudai1 {
+			sound-dai = <&spdif_dai>;
+		};
+		cpudai2: cpudai2 {
+			sound-dai = <&pcm_dai>;
+		};
+		codec0: codec0 {
+			sound-dai = <&dummy_codec>;
+		};
+		codec1: codec1 {
+			sound-dai = <&spdif_codec>;
+		};
+		codec2: codec2 {
+			sound-dai = <&pcm_codec>;
+		};
+	};
+	/* END OF AUDIO board specific */
 };

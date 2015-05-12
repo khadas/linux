@@ -103,7 +103,7 @@ struct snd_soc_codec_driver soc_codec_dev_dummy_codec = {
 	.num_dapm_routes = ARRAY_SIZE(dummy_codec_dapm_routes),
 };
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 static const struct of_device_id amlogic_codec_dt_match[] = {
 	{.compatible = "amlogic, aml_dummy_codec",
 	 },
@@ -133,7 +133,7 @@ static int dummy_codec_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __exit dummy_codec_platform_remove(struct platform_device *pdev)
+static int dummy_codec_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	kfree(platform_get_drvdata(pdev));

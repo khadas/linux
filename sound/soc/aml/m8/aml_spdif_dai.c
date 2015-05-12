@@ -172,8 +172,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	if (buf == NULL && runtime == NULL) {
-		pr_info("buf/0x%x runtime/0x%x\n", (unsigned)buf,
-		       (unsigned)runtime);
+		pr_info("buf/%p runtime/%p\n", buf, runtime);
 		return;
 	}
 
@@ -237,6 +236,8 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	pr_info("----aml_hw_iec958_init,runtime->rate=%d,sample_rate=%d--\n",
 	       runtime->rate, sample_rate);
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+	/*clear the same source function as new raw data output */
+	audio_i2s_958_same_source(0);
 
 	switch (runtime->format) {
 	case SNDRV_PCM_FORMAT_S32_LE:
@@ -338,21 +339,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	}
 	ALSA_DEBUG("aiu 958 pcm buffer size %d\n", size);
 	audio_set_958_mode(iec958_mode, &set);
-	if (IEC958_mode_codec == 4 || IEC958_mode_codec == 5
-	    || IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
-		/* 4x than i2s */
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0);
-		pr_info("IEC958_mode_codec/%d  4x than i2s\n",
-		       IEC958_mode_codec);
-	} else {
-#if OVERCLOCK == 1 || IEC958_OVERCLOCK == 1
-		/* 512fs divide 4 == 128fs */
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x3 << 4);
-#else
-		/* 256fs divide 2 == 128fs */
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x1 << 4);
-#endif
-	}
+
 	if (IEC958_mode_codec == 2) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3, substream);
 	} else if (IEC958_mode_codec == 3) {
@@ -371,8 +358,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	} else {
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
 	}
-	ALSA_PRINT("spdif dma %x,phy addr %x\n", (unsigned)runtime->dma_area,
-		   (unsigned)runtime->dma_addr);
 }
 
 /*
@@ -588,7 +573,7 @@ static int aml_dai_spdif_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 static const struct of_device_id amlogic_spdif_dai_dt_match[] = {
 	{.compatible = "amlogic, aml-spdif-dai",
 	 },

@@ -15,7 +15,6 @@
  *
 */
 
-#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -628,30 +627,37 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, p_aml_audio);
 	card->dev = dev;
 	ret = snd_soc_of_parse_card_name(card, "aml_sound_card,name");
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "no specific snd_soc_card name\n");
 		goto err;
+	}
 
 	/* DAPM routes */
 	if (of_property_read_bool(np, "aml,audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "aml,audio-routing");
 		if (ret < 0) {
-			dev_err(dev, "parse aml sound card routing error %d",
+			dev_err(dev, "parse aml sound card routing error %d\n",
 				ret);
 			return ret;
 		}
 	}
 
 	ret = aml_card_dais_parse_of(card);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "parse aml sound card routing error %d\n",
+			ret);
 		goto err;
+	}
 
 	card->suspend_pre = aml_suspend_pre,
-	    card->suspend_post = aml_suspend_post,
-	    card->resume_pre = aml_resume_pre,
-	    card->resume_post = aml_resume_post,
-	    ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret < 0)
+	card->suspend_post = aml_suspend_post,
+	card->resume_pre = aml_resume_pre,
+	card->resume_post = aml_resume_post,
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	if (ret < 0) {
+		dev_err(dev, "register aml sound card error %d\n", ret);
 		goto err;
+	}
 
 	aml_m8_pinmux_init(card);
 	return 0;

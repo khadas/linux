@@ -23,6 +23,7 @@ enum{
 	IO_CBUS_BASE = 0,
 	IO_APB_BUS_BASE,
 	IO_AOBUS_BASE,
+	IO_HIUBUS_BASE,
 	IO_BUS_MAX,
 };
 extern int aml_reg_read(u32 bus_type, unsigned int reg, unsigned int *val);
@@ -79,5 +80,13 @@ extern  void aml_dosbus_update_bits(unsigned int reg,
 
 extern int  aml_read_sec_reg(unsigned int reg);
 extern void  aml_write_sec_reg(unsigned int reg, unsigned int val);
+
+/*
+** HIUBUS REG Read Write and Update some bits
+*/
+extern  int aml_read_hiubus(unsigned int reg);
+extern   void aml_write_hiubus(unsigned int reg, unsigned int val);
+extern  void aml_hiubus_update_bits(unsigned int reg,
+	unsigned int mask, unsigned int val);
 
 #endif

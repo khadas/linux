@@ -91,7 +91,7 @@ int audio_clock_config_table[][13][2] = {
 #if OVERCLOCK == 0
 	 {0x0005cc08, (60 - 1)},	/* 32 */
 	 {0x0005e965, (40 - 1)},	/* 44.1 */
-	 {0x0004c9a0, (50 - 1)},	/* 48K */
+	 {0x0007c4e6, (23 - 1)},	/* 48K */
 	 {0x0005cc08, (20 - 1)},	/* 96k ,24.576M */
 	 {0x0005cc08, (10 - 1)},	/* 192k, 49.152M */
 	 {0x0007f400, (125 - 1)},	/* 8k */
@@ -505,7 +505,7 @@ void audio_util_set_dac_format(unsigned format)
 			(1 << 7) |	/* invert lrclk */
 #if OVERCLOCK == 1
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	       (3 << 4) |
+	       (1 << 4) |
 	/* i2s divisor: 0=no div; 1=div by 2; 2=div by 4; 3=div by 8. */
 	       (3 << 2) |
 #else
@@ -536,7 +536,7 @@ void audio_util_set_dac_958_format(unsigned format)
 	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 12, 0);
 #if IEC958_OVERCLOCK == 1
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
+	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
 #else
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
 	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
@@ -592,15 +592,15 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 	int (*audio_clock_config)[2];
 	switch (mpll) {
 	case 0:
-		mpll_reg = HHI_MPLL_CNTL7;
+		mpll_reg = HHI_MPLL_MP0;
 		clk_src = CLK_MPLL0;
 		break;
 	case 1:
-		mpll_reg = HHI_MPLL_CNTL8;
+		mpll_reg = HHI_MPLL_MP1;
 		clk_src = CLK_MPLL1;
 		break;
 	case 2:
-		mpll_reg = HHI_MPLL_CNTL9;
+		mpll_reg = HHI_MPLL_MP2;
 		clk_src = CLK_MPLL2;
 		break;
 	default:
@@ -659,24 +659,24 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 	audio_clock_config = audio_clock_config_table[xtal];
 
 	/* gate the clock off */
-	aml_write_cbus(HHI_AUD_CLK_CNTL,
-		       aml_read_cbus(HHI_AUD_CLK_CNTL) & ~(1 << 8));
+	aml_write_hiubus(HHI_AUD_CLK_CNTL,
+		       aml_read_hiubus(HHI_AUD_CLK_CNTL) & ~(1 << 8));
 	aml_write_cbus(AIU_CLK_CTRL_MORE, 0);
 
 	/* Set filter register */
-	/* aml_write_cbus(HHI_MPLL_CNTL3, 0x26e1250); */
+	/* aml_write_hiubus(HHI_MPLL_CNTL3, 0x26e1250); */
 
     /*--- DAC clock  configuration--- */
 	/* Disable mclk */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0);
 
 	/* Select clk source, 0=none; 1=Multi-Phase PLL0;
 	*2=Multi-Phase PLL1; 3=Multi-Phase PLL2.
 	*/
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 0x3 << 9, clk_src << 9);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0x3 << 9, clk_src << 9);
 
 	/* Configure Multi-Phase PLLX */
-	aml_write_cbus(mpll_reg, audio_clock_config[index][0]);
+	aml_write_hiubus(mpll_reg, audio_clock_config[index][0]);
 	/* set codec dac ratio---lrclk--64fs */
 	aml_cbus_update_bits(AIU_CODEC_DAC_LRCLK_CTRL, 0xfff, (64 - 1));
 
@@ -686,26 +686,26 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 		;
 
 	/* gate the clock on */
-	aml_write_cbus(HHI_AUD_CLK_CNTL,
-		       aml_read_cbus(HHI_AUD_CLK_CNTL) | (1 << 8));
+	aml_write_hiubus(HHI_AUD_CLK_CNTL,
+		       aml_read_hiubus(HHI_AUD_CLK_CNTL) | (1 << 8));
 
 	/* Audio DAC Clock enable */
-	aml_write_cbus(HHI_AUD_CLK_CNTL,
-		       aml_read_cbus(HHI_AUD_CLK_CNTL) | (1 << 23));
+	aml_write_hiubus(HHI_AUD_CLK_CNTL,
+		       aml_read_hiubus(HHI_AUD_CLK_CNTL) | (1 << 23));
 
 	/* ---ADC clock  configuration--- */
 	/* Disable mclk */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0);
 	/*
 	*  Set pll over mclk ratio
 	*  we want 256fs ADC MLCK,so for over clock mode,
 	*  divide more 2 than I2S  DAC CLOCK
 	*/
 #if OVERCLOCK == 0
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
 			     audio_clock_config[index][1]);
 #else
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
 			     (audio_clock_config[index][1] + 1) * 2 - 1);
 #endif
 
@@ -718,7 +718,7 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 	/* Enable sclk */
 	aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 1 << 14, 1 << 14);
 	/* Enable mclk */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 1 << 8);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 1 << 8);
 
 	/* delay 2uS */
 	/* udelay(2); */
@@ -788,27 +788,27 @@ void audio_set_958_clk(unsigned freq, unsigned fs_config)
 	audio_clock_config = audio_clock_config_table[xtal];
 
 	/* gate the clock off */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0 << 8);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0 << 8);
 
     /*--- IEC958 clock  configuration, use MPLL1--- */
 	/* Disable mclk */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 24, 0 << 24);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 24, 0 << 24);
 	/* IEC958_USE_CNTL */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 27, 1 << 27);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 27, 1 << 27);
 	/* Select clk source, 0=none; 1=Multi-Phase PLL0;
 	*  2=Multi-Phase PLL1; 3=Multi-Phase PLL2.
 	*/
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL2, 0x3 << 25, CLK_MPLL1 << 25);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 0x3 << 25, CLK_MPLL1 << 25);
 
 	/* Configure Multi-Phase PLL1 */
-	aml_write_cbus(MPLL_958_CNTL, audio_clock_config[index][0]);
+	aml_write_hiubus(MPLL_958_CNTL, audio_clock_config[index][0]);
 	/* Set the XD value */
 #if IEC958_OVERCLOCK == 1
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL2, 0xff << 16,
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 0xff << 16,
 			     ((audio_clock_config[index][1] + 1) / 2 -
 			      1) << 16);
 #else
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL2, 0xff << 16,
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 0xff << 16,
 			     audio_clock_config[index][1] << 16);
 #endif
 
@@ -818,9 +818,9 @@ void audio_set_958_clk(unsigned freq, unsigned fs_config)
 		;
 
 	/* gate the clock on */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 1 << 8);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 1 << 8);
 	/* Enable mclk */
-	aml_cbus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 24, 1 << 24);
+	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 24, 1 << 24);
 }
 #endif
 void audio_enable_ouput(int flag)
@@ -1095,6 +1095,10 @@ void audio_i2s_swap_left_right(unsigned int flag)
 	aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0x3, flag);
 }
 
+void audio_i2s_958_same_source(unsigned int same)
+{
+	aml_cbus_update_bits(AIU_I2S_MISC, 1 << 3, (!!same) << 3);
+}
 #if 0
 unsigned int audio_hdmi_init_ready(void)
 {
