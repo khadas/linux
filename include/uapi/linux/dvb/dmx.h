@@ -29,25 +29,30 @@
 #include <time.h>
 #endif
 
+
 #define DMX_FILTER_SIZE 16
 
-enum dmx_output_t {
-	DMX_OUT_DECODER,	/* Streaming directly to decoder. */
-	DMX_OUT_TAP,		/* Output going to a memory buffer */
-	/* (to be retrieved via the read command). */
-	DMX_OUT_TS_TAP,		/* Output multiplexed into a new TS  */
-	/* (to be retrieved by reading from the */
-	/* logical DVR device).                 */
-	DMX_OUT_TSDEMUX_TAP	/* Like TS_TAP but retrieved */
-	/*from the DMX device */
-};
+typedef enum
+{
+	DMX_OUT_DECODER, /* Streaming directly to decoder. */
+	DMX_OUT_TAP,     /* Output going to a memory buffer */
+			 /* (to be retrieved via the read command).*/
+	DMX_OUT_TS_TAP,  /* Output multiplexed into a new TS  */
+			 /* (to be retrieved by reading from the */
+			 /* logical DVR device).                 */
+	DMX_OUT_TSDEMUX_TAP /* Like TS_TAP but retrieved from the DMX device */
+} dmx_output_t;
 
-enum dmx_input_t {
-	DMX_IN_FRONTEND,	/* Input from a front-end device.  */
-	DMX_IN_DVR		/* Input from the logical DVR device.  */
-};
 
-enum dmx_ts_pes {
+typedef enum
+{
+	DMX_IN_FRONTEND, /* Input from a front-end device.  */
+	DMX_IN_DVR       /* Input from the logical DVR device.  */
+} dmx_input_t;
+
+
+typedef enum dmx_ts_pes
+{
 	DMX_PES_AUDIO0,
 	DMX_PES_VIDEO0,
 	DMX_PES_TELETEXT0,
@@ -73,7 +78,7 @@ enum dmx_ts_pes {
 	DMX_PES_PCR3,
 
 	DMX_PES_OTHER
-};
+} dmx_pes_type_t;
 
 #define DMX_PES_AUDIO    DMX_PES_AUDIO0
 #define DMX_PES_VIDEO    DMX_PES_VIDEO0
@@ -81,31 +86,35 @@ enum dmx_ts_pes {
 #define DMX_PES_SUBTITLE DMX_PES_SUBTITLE0
 #define DMX_PES_PCR      DMX_PES_PCR0
 
-struct dmx_filter {
-	__u8 filter[DMX_FILTER_SIZE];
-	__u8 mask[DMX_FILTER_SIZE];
-	__u8 mode[DMX_FILTER_SIZE];
-};
 
-struct dmx_sct_filter_params {
-	__u16 pid;
-	struct dmx_filter filter;
-	__u32 timeout;
-	__u32 flags;
+typedef struct dmx_filter
+{
+	__u8  filter[DMX_FILTER_SIZE];
+	__u8  mask[DMX_FILTER_SIZE];
+	__u8  mode[DMX_FILTER_SIZE];
+} dmx_filter_t;
+
+
+struct dmx_sct_filter_params
+{
+	__u16          pid;
+	dmx_filter_t   filter;
+	__u32          timeout;
+	__u32          flags;
 #define DMX_CHECK_CRC       1
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
 #define DMX_KERNEL_CLIENT   0x8000
-#define DMX_USE_SWFILTER    0x100
-
 };
 
-struct dmx_pes_filter_params {
-	__u16 pid;
-	enum dmx_input_t input;
-	enum dmx_output_t output;
-	enum dmx_ts_pes pes_type;
-	__u32 flags;
+
+struct dmx_pes_filter_params
+{
+	__u16          pid;
+	dmx_input_t    input;
+	dmx_output_t   output;
+	dmx_pes_type_t pes_type;
+	__u32          flags;
 };
 
 typedef struct dmx_caps {
@@ -113,25 +122,23 @@ typedef struct dmx_caps {
 	int num_decoders;
 } dmx_caps_t;
 
-enum dmx_source_t {
+typedef enum {
 	DMX_SOURCE_FRONT0 = 0,
 	DMX_SOURCE_FRONT1,
 	DMX_SOURCE_FRONT2,
 	DMX_SOURCE_FRONT3,
-	DMX_SOURCE_DVR0 = 16,
+	DMX_SOURCE_DVR0   = 16,
 	DMX_SOURCE_DVR1,
 	DMX_SOURCE_DVR2,
-	DMX_SOURCE_DVR3,
-	DMX_SOURCE_FRONT0_OFFSET = 100,
-	DMX_SOURCE_FRONT1_OFFSET,
-	DMX_SOURCE_FRONT2_OFFSET
-};
+	DMX_SOURCE_DVR3
+} dmx_source_t;
 
 struct dmx_stc {
 	unsigned int num;	/* input : which STC? 0..N */
 	unsigned int base;	/* output: divisor for stc to get 90 kHz clock */
 	__u64 stc;		/* output: stc in 'base'*90 kHz units */
 };
+
 
 #define DMX_START                _IO('o', 41)
 #define DMX_STOP                 _IO('o', 42)
@@ -140,7 +147,7 @@ struct dmx_stc {
 #define DMX_SET_BUFFER_SIZE      _IO('o', 45)
 #define DMX_GET_PES_PIDS         _IOR('o', 47, __u16[5])
 #define DMX_GET_CAPS             _IOR('o', 48, dmx_caps_t)
-#define DMX_SET_SOURCE           _IOW('o', 49, enum dmx_source_t)
+#define DMX_SET_SOURCE           _IOW('o', 49, dmx_source_t)
 #define DMX_GET_STC              _IOWR('o', 50, struct dmx_stc)
 #define DMX_ADD_PID              _IOW('o', 51, __u16)
 #define DMX_REMOVE_PID           _IOW('o', 52, __u16)

@@ -37,45 +37,6 @@
 
 #define WRITE_VREG(r, val) codec_dosbus_write(r, val)
 
-#define BASE_IRQ 32
-#define AM_IRQ(reg)   (reg + BASE_IRQ)
-#define INT_DOS_MAILBOX_0       AM_IRQ(43)
-#define INT_DOS_MAILBOX_1       AM_IRQ(44)
-#define INT_DOS_MAILBOX_2       AM_IRQ(45)
-#define INT_VIU_VSYNC           AM_IRQ(3)
-#define INT_DEMUX               AM_IRQ(23)
-#define INT_DEMUX_1             AM_IRQ(5)
-#define INT_DEMUX_2             AM_IRQ(53)
-#define INT_ASYNC_FIFO_FILL     AM_IRQ(18)
-#define INT_ASYNC_FIFO_FLUSH    AM_IRQ(19)
-#define INT_ASYNC_FIFO2_FILL    AM_IRQ(24)
-#define INT_ASYNC_FIFO2_FLUSH   AM_IRQ(25)
-
-#define INT_PARSER              AM_IRQ(32)
-
-/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
-/* #define READ_AOREG(r) (__raw_readl((volatile void __iomem *)\
-   AOBUS_REG_ADDR(r))) */
-/* #define WRITE_AOREG(r, val) __raw_writel(val,\
-   (volatile void __iomem *)(AOBUS_REG_ADDR(r)))' */
-/* aml_read_vcbus(unsigned int reg) */
-#define INT_VDEC INT_DOS_MAILBOX_1
-#define INT_VDEC2 INT_DOS_MAILBOX_0
-/* #else */
-/* /#define INT_VDEC INT_MAILBOX_1A */
-/* /#endif */
-
-/* static inline u32 READ_VREG(u32 r) */
-/* { */
-/* if (((r) > 0x2000) && ((r) < 0x3000) && !vdec_on(2)) dump_stack(); */
-/* return __raw_readl((volatile void __iomem *)DOS_REG_ADDR(r)); */
-/* } */
-
-/* static inline void WRITE_VREG(u32 r, u32 val) */
-/* { */
-/* if (((r) > 0x2000) && ((r) < 0x3000) && !vdec_on(2)) dump_stack(); */
-/* __raw_writel(val, (volatile void __iomem *)(DOS_REG_ADDR(r))); */
-/* } */
 
 #define WRITE_VREG_BITS(r, val, start, len) \
 	WRITE_VREG(r, (READ_VREG(r) & ~(((1L<<(len))-1)<<(start)))|\

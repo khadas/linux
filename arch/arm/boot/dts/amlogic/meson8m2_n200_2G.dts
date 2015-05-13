@@ -574,35 +574,6 @@ sdio{
 		usid-min = <8>; /*reserved*/
 		usid-max = <31>; /*reserved*/
 	};
-	/* DVB */
-
-	dvb{
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
-		/*"parallel","serial","disable"*/
-		ts0 = "parallel";
-		ts0_control = <0>;
-		ts0_invert = <0>;
-		pinctrl-names = "p_ts0", "s_ts0";
-		pinctrl-0 = <&dvb_p_ts0_pins>;
-		pinctrl-1 = <&dvb_s_ts0_pins>;
-	};
-
-	//$$ DEVICE="dvbfe"
-	dvbfe{
-		compatible = "amlogic, dvbfe";
-		dev_name = "dvbfe";
-		dtv_demod0 = "Mxl241";
-		dtv_demod0_i2c_adap_id = <2>;
-		dtv_demod0_i2c_addr = <0x60>;
-		dtv_demod0_reset_value = <0>;
-		dtv_demod0_reset_gpio = "GPIOY_5";
-		fe0_dtv_demod = <0>;
-		fe0_ts = <0>;
-		fe0_dev = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&dvb_fe_pins>;
-	};
 }; /* end of / */
 &uart_AO {
 	status="okay";
@@ -651,30 +622,6 @@ sdio{
 		amlogic,clrmask=<1 0x10000>;
 		amlogic,pins ="GPIOY_3";
 	};
-	dvb_p_ts0_pins: dvb_p_ts0_pins {
-		amlogic,setmask = <3 0x3F>;
-		amlogic,clrmask = <1 0xCCE41
-                      4 0x2000000
-        							7 0x20000000
-                      9 0x431F>;
-		amlogic,pins = "GPIOY_9","GPIOY_10","GPIOY_11","GPIOY_12","GPIOY_13","GPIOY_14","GPIOY_15","GPIOY_16","GPIOY_0","GPIOY_1","GPIOY_4","GPIOY_8";
-};
-
-dvb_s_ts0_pins: dvb_s_ts0_pins {
-		amlogic,setmask = <3 0x1F>;
-		amlogic,clrmask = <1 0xCCE41
-											 4 0x2000000
-    									 9 0x310>;
-		amlogic,pins = "GPIOY_9","GPIOY_0","GPIOY_1","GPIOY_4","GPIOY_8";
-};
-dvb_fe_pins: dvb_fe_pins {
-		amlogic,clrmask = <1 0x38
-            					 3 0x18000
-                       4 0x1800000
-                    	9 0xC0>;
-		amlogic,pins = "GPIOY_6";
-};
-
 /*
 	ethernet_pinmuxs:eth_pin{
 		amlogic,setmask=<6 0xffff>;
