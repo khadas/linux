@@ -39,7 +39,7 @@ static char *vpu_chip_name[] = {
 };
 
 struct VPU_Conf_t {
-	enum VPU_Chip_e  chip_type;
+	/* enum VPU_Chip_e  chip_type; */
 	unsigned int     clk_level_dft;
 	unsigned int     clk_level_max;
 	unsigned int     clk_level;
@@ -90,9 +90,9 @@ static unsigned int fclk_table[] = { /* unit: MHz */
 #define CLK_LEVEL_MAX_G9BB     3
 #define FCLK_TYPE_G9BB         FCLK_2550M
 /* GXBB */
-/* freq max=200M, default=200M */
-#define CLK_LEVEL_DFT_GXBB     2
-#define CLK_LEVEL_MAX_GXBB     3
+/* freq max=666M, default=666M */
+#define CLK_LEVEL_DFT_GXBB     3
+#define CLK_LEVEL_MAX_GXBB     8
 #define FCLK_TYPE_GXBB         FCLK_2000M
 
 /* vpu clk setting */
