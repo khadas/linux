@@ -78,6 +78,8 @@ obj-$(CONFIG_AMAUDIO2)		+= amaudio2/
 
 obj-$(CONFIG_TVIN)		+= tvin/
 
+obj-$(CONFIG_AM_VECM)		+= amvecm/
+
 obj-$(CONFIG_AML_NAND)		+= amlnf/
 
 obj-$(CONFIG_AM_INPUT)		+= input/

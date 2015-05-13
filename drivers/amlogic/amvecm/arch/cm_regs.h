@@ -1,26 +1,24 @@
 /*
- * drivers/amlogic/amports/cm_regs.h
+ * Color Management
+ * registers' definition only access-able by port
+ * registers VPP_CHROMA_ADDR_PORT & VPP_CHROMA_DATA_PORT
  *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ * Author: Lin Xu <lin.xu@amlogic.com>
+ *         Bobby Yang <bo.yang@amlogic.com>
+ *
+ * Copyright (C) 2010 Amlogic Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
-*/
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
 
 #ifndef __CM_REG_H
 #define __CM_REG_H
 
-/* ***************************************************** */
+/* ********************************************************** */
 /* ******** COLOR MANAGEMENT INDIRECT REGISTERS ******** */
-/* ***************************************************** */
+/* ******************************************************* */
 
 /* #define CHROMA_GAIN_REG00   0x00 */
 /* #define CHROMA_GAIN_REG01   0x06 */
@@ -85,6 +83,18 @@
 /* #define HUE_LUM_RANGE_REG05 0x21 */
 /* #define HUE_LUM_RANGE_REG06 0x27 */
 /* #define HUE_LUM_RANGE_REG07 0x2D */
+/* for belowing each low, high, low_slope, high_slope group: */
+/* a_____________b */
+/* /             \ */
+/* /               \ */
+/* /                 \ */
+/* /                   \ */
+/* ______/_____________________\________ */
+/* low                    high */
+/* a = low  + 2^low_slope */
+/* low_slope <= 7; high_slope <= 7 */
+/* b >= a */
+
 #define SAT_LUM_L_BIT       24
 #define SAT_LUM_L_WID        8
 #define HUE_LUM_H_SLOPE_BIT 20
@@ -139,6 +149,12 @@
 /* #define REG_CHROMA_CONTROL  0x30 */
 #define CHROMA_EN_BIT       31
 #define CHROMA_EN_WID        1
+#if defined(CONFIG_ARCH_MESON)
+/* 1'b0: demo adjust on right, 1'b1: demo adjust on left */
+#elif defined(CONFIG_ARCH_MESON2)
+/* 2'b00: demo adjust on top, 2'b01: demo adjust on bottom */
+/* 2'b10: demo adjust on left,2'b11: demo adjust on right */
+#endif
 #define CM_DEMO_POS_BIT        22
 #define CM_DEMO_POS_WID         2
 #define DEMO_HLIGHT_ADJ_BIT 21
@@ -153,7 +169,23 @@
 #define UV_ADJ_EN_WID        1
 #define RGB_TO_HUE_EN_BIT    2
 #define RGB_TO_HUE_EN_WID    1
+/* 2'b00: 601(16-235)  2'b01: 709(16-235) */
+/* 2'b10: 601(0-255)   2'b11: 709(0-255) */
 #define CSC_SEL_BIT          0
 #define CSC_SEL_WID          2
 
-#endif				/* _CM_REG_H */
+/* #if defined(CONFIG_ARCH_MESON2) */
+/* #define REG_DEMO_CENTER_BAR   0x31   // default 32h'0 */
+#define CM_CBAR_EN_BIT      31  /* center bar enable */
+#define CM_CBAR_EN_WID       1
+#define CM_CBAR_WID_BIT     24  /* center bar width    (*2) */
+#define CM_CBAR_WID_WID      4
+#define CM_CBAR_CR_BIT      16  /* center bar Cr       (*4) */
+#define CM_CBAR_CR_WID       8
+#define CM_CBAR_CB_BIT       8  /* center bar Cb       (*4) */
+#define CM_CBAR_CB_WID       8
+#define CM_CBAR_Y_BIT        0  /* center bar y        (*4) */
+#define CM_CBAR_Y_WID        8
+/* #endif */
+
+#endif  /* _CM_REG_H */

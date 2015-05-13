@@ -1,0 +1,15 @@
+#
+# AMLOGIC amvecm devices configuration
+#
+
+comment "Amlogic VECM Drivers"
+
+menu "Amlogic amvecm Driver"
+
+config AM_VECM
+        boolean "Amlogic amvecm driver"
+        default n
+        help
+                "Amlogic amvecm module init"
+
+endmenu
