@@ -635,7 +635,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->curr_field_type = vdin_get_curr_field_type(devp);
 	/* pr_info("start clean_counter is %d\n",clean_counter); */
 	/* configure regs and enable hw */
-#ifdef CONFIG_AML_VPUU
+#ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(devp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
 			VPU_MEM_POWER_ON);
 #endif
