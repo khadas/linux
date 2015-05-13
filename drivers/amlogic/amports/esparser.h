@@ -44,6 +44,10 @@ extern void esparser_audio_reset(struct stream_buf_s *buf);
 
 extern void esparser_sub_reset(void);
 
+#ifdef CONFIG_AM_DVB
+extern int tsdemux_set_reset_flag(void);
+#endif
+
 /* TODO: move to register headers */
 #define ES_PACK_SIZE_BIT                8
 #define ES_PACK_SIZE_WID                24

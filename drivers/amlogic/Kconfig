@@ -78,4 +78,7 @@ source "drivers/amlogic/input/Kconfig"
 source "drivers/amlogic/cpufreq/Kconfig"
 
 source "drivers/amlogic/pm/Kconfig"
+
+source "drivers/amlogic/dvb_tv/Kconfig"
+
 endmenu

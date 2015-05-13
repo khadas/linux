@@ -206,6 +206,8 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 	/* TODO */
 	dvbdev->users--;
 	if (dvbdev->users == 1 && dmxdev->exit == 1) {
+		fops_put(file->f_op);
+		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);
 		wake_up(&dvbdev->wait_queue);
 	} else
@@ -560,7 +562,7 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 {
 	struct timespec timeout = { 0 };
 	struct dmx_pes_filter_params *para = &filter->params.pes;
-	dmx_output_t otype;
+	enum dmx_output_t otype;
 	int ret;
 	int ts_type;
 	enum dmx_ts_pes ts_pes;
@@ -785,7 +787,7 @@ static int dvb_dmxdev_filter_free(struct dmxdev *dmxdev,
 	return 0;
 }
 
-static inline void invert_mode(dmx_filter_t *filter)
+static inline void invert_mode(struct dmx_filter *filter)
 {
 	int i;
 
@@ -1118,6 +1120,8 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 	mutex_lock(&dmxdev->mutex);
 	dmxdev->dvbdev->users--;
 	if(dmxdev->dvbdev->users==1 && dmxdev->exit==1) {
+		fops_put(file->f_op);
+		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);
 		wake_up(&dmxdev->dvbdev->wait_queue);
 	} else
