@@ -38,6 +38,4 @@
 #include "regs/demux_regs.h"
 #include "regs/ao_regs.h"
 
-#endif	/*
- */
-
+#endif

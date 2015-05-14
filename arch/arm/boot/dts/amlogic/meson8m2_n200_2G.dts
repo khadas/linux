@@ -232,7 +232,6 @@
 		status = "okay";
 		interrupts = <0 45 1>;
 		interrupt-names = "mailbox_2";
-		dma-coherent;
 	};
 
 	ethmac: ethernet@0xc9410000{
