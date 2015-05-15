@@ -109,6 +109,10 @@ struct amlogic_clk_pll {
 #define HHI_GP_PLL_CNTL3 0x1012
 #define HHI_GP_PLL_CNTL4 0x1013
 #define HHI_GP_PLL_CNTL5 0x1014
+
+/* mali clk control*/
+#define HHI_MALI_CLK_CNTL   0x106c
+
 /*hdmi pll registers*/
 #define HHI_HDMI_PLL_CNTL 0x107c
 #define HHI_HDMI_PLL_CNTL1 0x107d

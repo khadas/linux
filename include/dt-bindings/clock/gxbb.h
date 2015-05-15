@@ -30,6 +30,9 @@
 #define CLK_SYS_PLL 16
 #define CLK_FPLL_DIV5 17
 #define CLK_FPLL_DIV7 18
+#define CLK_MALI_0      19
+#define CLK_MALI_1      20
+#define CLK_MALI        21
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
 

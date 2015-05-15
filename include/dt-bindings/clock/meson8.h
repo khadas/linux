@@ -18,7 +18,9 @@
 #define CLK_G_PLL 4
 #define CLK_VID_PLL 5
 #define CLK_HDMITX_PLL 6
-#define CLK_FPLL_DIV_3 7
+#define CLK_FPLL_DIV2 7
+#define CLK_FPLL_DIV3 8
+#define CLK_FPLL_DIV4 9
 #define CLK_81       10
 #define CLK_HDMITX_SYS 11
 #define CLK_HDMITX_ENCP 12
@@ -26,6 +28,11 @@
 #define CLK_HDMITX_PIXEL 14
 #define CLK_HDMITX_PHY 15
 #define CLK_SYS_PLL 16
+#define CLK_FPLL_DIV5   17
+#define CLK_FPLL_DIV7   18
+#define CLK_MALI_0      19
+#define CLK_MALI_1      20
+#define CLK_MALI        21
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
 

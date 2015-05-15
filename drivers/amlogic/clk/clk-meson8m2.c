@@ -51,6 +51,13 @@ PNAME(clk81_p2) = {"clk81_m_1", "", "fclk_div7",
 	    "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(clk81_p3) = {"clk81_m_1", "clk81_g"};
 PNAME(mux_hdmi_sys_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(mux_mali_0_p) = {"xtal", "g_pll", "mpll_clk_out1",
+	"mpll_clk_out2", "fclk_div7",
+	"fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(mux_mali_1_p) = {"xtal", "g_pll", "mpll_clk_out1",
+	"mpll_clk_out2", "fclk_div7",
+	"fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(mux_mali_p) = {"clk_mali_0", "clk_mali_1"};
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock meson8_fixed_rate_ext_clks[] __initdata = {
@@ -61,12 +68,18 @@ static struct amlogic_fixed_rate_clock meson8_fixed_rate_ext_clks[] __initdata =
 
 /* fixed factor clocks */
 static struct amlogic_fixed_factor_clock meson8_fixed_factor_clks[] __initdata = {
-	FFACTOR(0, "fclk_div3", "fixed_pll", 1, 3, CLK_GET_RATE_NOCACHE),
-	FFACTOR(0, "fclk_div4", "fixed_pll", 1, 4, CLK_GET_RATE_NOCACHE),
-	FFACTOR(0, "fclk_div5", "fixed_pll", 1, 5, CLK_GET_RATE_NOCACHE),
-	FFACTOR(0, "fclk_div7", "fixed_pll", 1, 7, CLK_GET_RATE_NOCACHE),
-	FFACTOR(0, "sys_pll_div2", "sys_pll", 1, 2, CLK_GET_RATE_NOCACHE),
-	FFACTOR(0, "sys_pll_div3", "sys_pll", 1, 3, CLK_GET_RATE_NOCACHE),
+	FFACTOR(CLK_FPLL_DIV3,
+			"fclk_div3", "fixed_pll", 1, 3, CLK_GET_RATE_NOCACHE),
+	FFACTOR(CLK_FPLL_DIV4,
+			"fclk_div4", "fixed_pll", 1, 4, CLK_GET_RATE_NOCACHE),
+	FFACTOR(CLK_FPLL_DIV5,
+			"fclk_div5", "fixed_pll", 1, 5, CLK_GET_RATE_NOCACHE),
+	FFACTOR(CLK_FPLL_DIV7,
+			"fclk_div7", "fixed_pll", 1, 7, CLK_GET_RATE_NOCACHE),
+	FFACTOR(0,
+			"sys_pll_div2", "sys_pll", 1, 2, CLK_GET_RATE_NOCACHE),
+	FFACTOR(0,
+			"sys_pll_div3", "sys_pll", 1, 3, CLK_GET_RATE_NOCACHE),
 };
 
 /* mux clocks */
@@ -76,6 +89,10 @@ static struct amlogic_mux_clock meson8_mux_clks[] __initdata = {
 		9, 1, "ext_osc", 0),
 	MUX(0, "clk81_m_2", clk81_p2, OFFSET(HHI_MPEG_CLK_CNTL), 12, 3, 0),
 	MUX(CLK_81, "clk81", clk81_p3, OFFSET(HHI_MPEG_CLK_CNTL), 8, 1, 0),
+
+    /*mali clk*/
+	MUX(CLK_MALI, "clk_mali", mux_mali_p,
+			OFFSET(HHI_MALI_CLK_CNTL), 31, 1, 0),
 };
 
 /* divider clocks */
@@ -105,6 +122,16 @@ static struct amlogic_clk_branch meson8m2_clk_branches[] __initdata = {
 		OFFSET(HHI_HDMI_CLK_CNTL), 9, 2, 0,
 		OFFSET(HHI_HDMI_CLK_CNTL), 0, 6, 0,
 		OFFSET(HHI_HDMI_CLK_CNTL), 8, 0),
+	COMPOSITE(CLK_MALI_0, "clk_mali_0", mux_mali_0_p,
+		CLK_SET_RATE_NO_REPARENT,
+		OFFSET(HHI_MALI_CLK_CNTL), 9, 3, 0,
+		OFFSET(HHI_MALI_CLK_CNTL), 0, 7, 0,
+		OFFSET(HHI_MALI_CLK_CNTL), 8, 0),
+	COMPOSITE(CLK_MALI_1, "clk_mali_1", mux_mali_1_p,
+		CLK_SET_RATE_NO_REPARENT,
+		OFFSET(HHI_MALI_CLK_CNTL), 25, 3, 0,
+		OFFSET(HHI_MALI_CLK_CNTL), 16, 7, 0,
+		OFFSET(HHI_MALI_CLK_CNTL), 24, 0),
 };
 static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "amlogic,clock-xtal", .data = (void *)0, },

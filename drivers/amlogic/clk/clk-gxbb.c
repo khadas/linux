@@ -24,12 +24,20 @@
 
 #include "clk.h"
 void __iomem *reg_base_hiubus;
-#undef	 HHI_GCLK_MPEG0
-#define     HHI_GCLK_MPEG0 (0x50 << 2)
+#define	OFFSET(x)	(x << 2)
+#undef	HHI_GCLK_MPEG0
+#undef	HHI_MALI_CLK_CNTL
+#define	HHI_GCLK_MPEG0			OFFSET(0x50)
+#define	HHI_MALI_CLK_CNTL		OFFSET(0x6c)
 
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
+PNAME(mux_mali_0_p) = {"xtal", "g_pll", "mpll_clk_out1", "mpll_clk_out2",
+		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(mux_mali_1_p) = {"xtal", "g_pll", "mpll_clk_out1", "mpll_clk_out2",
+		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(mux_mali_p)   = {"clk_mali_0", "clk_mali_1"};
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
@@ -44,11 +52,26 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 	FRATE(CLK_FPLL_DIV5, "fclk_div5", NULL, CLK_IS_ROOT,  400000000),
 	FRATE(CLK_FPLL_DIV7, "fclk_div7", NULL, CLK_IS_ROOT,  285714285),
 };
+static struct amlogic_mux_clock mux_clks[] __initdata = {
+	MUX(CLK_MALI, "clk_mali", mux_mali_p, HHI_MALI_CLK_CNTL, 31, 1, 0),
+};
 
 
 static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "amlogic,clock-xtal", .data = (void *)0, },
 	{},
+};
+static struct amlogic_clk_branch clk_branches[] __initdata = {
+	COMPOSITE(CLK_MALI_0, "clk_mali_0", mux_mali_0_p,
+		   CLK_SET_RATE_NO_REPARENT,
+		   HHI_MALI_CLK_CNTL, 9, 3, 0,
+		   HHI_MALI_CLK_CNTL, 0, 7, 0,
+		   HHI_MALI_CLK_CNTL, 8, 0),
+	COMPOSITE(CLK_MALI_1, "clk_mali_1", mux_mali_1_p,
+		   CLK_SET_RATE_NO_REPARENT,
+		   HHI_MALI_CLK_CNTL, 25, 3, 0,
+		   HHI_MALI_CLK_CNTL, 16, 7, 0,
+		   HHI_MALI_CLK_CNTL, 24, 0),
 };
 
 /* register gxbb clocks */
@@ -67,6 +90,10 @@ static void __init gxbb_clk_init(struct device_node *np)
 			CLK_NR_CLKS, NULL, 0, NULL, 0);
 	amlogic_clk_of_register_fixed_ext(gxbb_fixed_rate_ext_clks,
 		  ARRAY_SIZE(gxbb_fixed_rate_ext_clks), ext_clk_match);
+	amlogic_clk_register_mux(mux_clks,
+			ARRAY_SIZE(mux_clks));
+	amlogic_clk_register_branches(clk_branches,
+		  ARRAY_SIZE(clk_branches));
 	meson_register_rstc(np, GXBB_RSTC_N_REGS, reg_base_aobus,
 		reg_base_hiubus + HHI_GCLK_MPEG0, GXBB_AO_OFF, 0);
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
