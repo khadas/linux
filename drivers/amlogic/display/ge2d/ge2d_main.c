@@ -373,8 +373,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	rstc = devm_reset_control_get(&pdev->dev, "ge2d");
 	if (IS_ERR(rstc)) {
 		ge2d_log_err("get ge2d rstc error: %lx\n", PTR_ERR(rstc));
-		ret = -EPROBE_DEFER;
-		goto failed1;
+		rstc = NULL;
 	}
 
 	ge2d_setup(irq, rstc);

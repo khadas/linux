@@ -367,12 +367,14 @@ static int ge2d_monitor_thread(void *data)
 		ret = down_interruptible(&manager->event.cmd_in_sem);
 		/* got new cmd arrived in signal */
 		/* switch_mod_gate_by_name("ge2d", 1); */
-		reset_control_deassert(ge2d_rstc);
+		if (ge2d_rstc != NULL)
+			reset_control_deassert(ge2d_rstc);
 		while ((manager->current_wq =
 				get_next_work_queue(manager)) != NULL)
 			ge2d_process_work_queue(manager->current_wq);
 		/* switch_mod_gate_by_name("ge2d", 0); */
-		reset_control_assert(ge2d_rstc);
+		if (ge2d_rstc != NULL)
+			reset_control_assert(ge2d_rstc);
 	}
 	ge2d_log_info("exit ge2d_monitor_thread\n");
 	return 0;

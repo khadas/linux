@@ -25,6 +25,7 @@
 #define GE2D_LOG_TAG "[GE2D]"
 #define GE2D_LOG_LEVEL_NULL 0
 #define GE2D_LOG_LEVEL_DEBUG 1
+#define GE2D_LOG_LEVEL_DEBUG2 2
 
 extern unsigned int ge2d_log_level;
 #undef pr_fmt
@@ -37,7 +38,14 @@ extern unsigned int ge2d_log_level;
 
 #define ge2d_log_dbg(fmt, ...) \
 	do { \
-		if (ge2d_log_level == GE2D_LOG_LEVEL_DEBUG) { \
+		if (ge2d_log_level >= GE2D_LOG_LEVEL_DEBUG) { \
+			pr_info(fmt, ##__VA_ARGS__); \
+		} \
+	} while (0)
+
+#define ge2d_log_dbg2(fmt, ...) \
+	do { \
+		if (ge2d_log_level >= GE2D_LOG_LEVEL_DEBUG2) { \
 			pr_info(fmt, ##__VA_ARGS__); \
 		} \
 	} while (0)

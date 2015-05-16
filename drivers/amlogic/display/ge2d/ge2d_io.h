@@ -20,39 +20,97 @@
 #define _GE2D_IO_H_
 
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/cpu_version.h>
+
+#include "ge2d_log.h"
+
+#define GE2DBUS_REG_ADDR(reg) (((reg - 0x1800) << 2))
+
+struct reg_map_s {
+	unsigned int phy_addr;
+	unsigned int size;
+	void __iomem *vir_addr;
+	int flag;
+};
+
+static struct reg_map_s reg_map = {
+	.phy_addr = 0xd0160000,
+	.size = 0x10000,
+};
+
+static int check_map_flag(unsigned int addr)
+{
+	if (reg_map.flag)
+		return 1;
+
+	reg_map.vir_addr = ioremap(reg_map.phy_addr, reg_map.size);
+	if (!reg_map.vir_addr) {
+		pr_info("failed map phy: 0x%x\n", addr);
+		return 0;
+	} else {
+		reg_map.flag = 1;
+		pr_info("mapped phy: 0x%x\n", reg_map.phy_addr);
+		return 1;
+	}
+}
+
+static uint32_t ge2d_reg_read(unsigned int reg)
+{
+	unsigned int addr = 0;
+	unsigned int val = 0;
+
+	if (!is_meson_gxbb_cpu())
+		return (uint32_t)aml_read_cbus(reg);
+
+	addr = GE2DBUS_REG_ADDR(reg);
+	if (check_map_flag(addr))
+		val = readl(reg_map.vir_addr + addr);
+
+	ge2d_log_dbg2("read(0x%x)=0x%x\n", reg_map.phy_addr + addr, val);
+
+	return val;
+}
+
+static void ge2d_reg_write(unsigned int reg, unsigned int val)
+{
+	unsigned int ret = 0;
+	unsigned int addr = 0;
+
+	if (!is_meson_gxbb_cpu()) {
+		aml_write_cbus(reg, val);
+		return;
+	}
+
+	addr = GE2DBUS_REG_ADDR(reg);
+	if (check_map_flag(addr)) {
+		writel(val, reg_map.vir_addr + addr);
+		ret = readl(reg_map.vir_addr + addr);
+	}
+	ge2d_log_dbg2("write(0x%x, 0x%x)=0x%x\n",
+			reg_map.phy_addr + addr, val, ret);
+}
 
 static inline uint32_t ge2d_vcbus_read(uint32_t reg)
 {
 	return (uint32_t)aml_read_vcbus(reg);
 };
 
-static inline uint32_t ge2d_cbus_read(uint32_t reg)
-{
-	return (uint32_t)aml_read_cbus(reg);
-};
-
-static inline void ge2d_cbus_write(uint32_t reg,
-				   const uint32_t val)
-{
-	aml_write_cbus(reg, val);
-};
-
-static inline uint32_t ge2d_cbus_get_bits(uint32_t reg,
+static inline uint32_t ge2d_reg_get_bits(uint32_t reg,
 		const uint32_t start,
 		const uint32_t len)
 {
 	uint32_t val;
 
-	val = (ge2d_cbus_read(reg) >> (start)) & ((1L << (len)) - 1);
+	val = (ge2d_reg_read(reg) >> (start)) & ((1L << (len)) - 1);
 	return val;
 }
 
-static inline void ge2d_cbus_set_bits(uint32_t reg,
+static inline void ge2d_reg_set_bits(uint32_t reg,
 				      const uint32_t value,
 				      const uint32_t start,
 				      const uint32_t len)
 {
-	ge2d_cbus_write(reg, ((ge2d_cbus_read(reg) &
+	ge2d_reg_write(reg, ((ge2d_reg_read(reg) &
 			       ~(((1L << (len)) - 1) << (start))) |
 			      (((value) & ((1L << (len)) - 1)) << (start))));
 }
