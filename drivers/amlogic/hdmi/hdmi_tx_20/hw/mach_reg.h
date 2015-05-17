@@ -776,10 +776,6 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 #define VPU_HDMI_SETTING 0x271b	/* register.h:9229 */
 #define P_VPU_HDMI_SETTING VCBUS_REG_ADDR(VPU_HDMI_SETTING)
 
-#define VPU_MEM_PD_REG0 0x2725	/* register.h:9265 */
-#define P_VPU_MEM_PD_REG0 VCBUS_REG_ADDR(VPU_MEM_PD_REG0)
-#define VPU_MEM_PD_REG1 0x2726	/* register.h:9266 */
-#define P_VPU_MEM_PD_REG1 VCBUS_REG_ADDR(VPU_MEM_PD_REG1)
 #define VPU_HDMI_DATA_OVR 0x2727	/* register.h:9270 */
 #define P_VPU_HDMI_DATA_OVR VCBUS_REG_ADDR(VPU_HDMI_DATA_OVR)
 #define VPU_HDMI_FMT_CTRL 0x2743

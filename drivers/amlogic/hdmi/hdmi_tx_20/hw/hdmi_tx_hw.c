@@ -3080,34 +3080,6 @@ static void hdmitx_vpu_init(void)
 	power_switch_to_vpu_hdmi(1);
 }
 
-static unsigned int vpu_clk_setting[][3] = {
-	/* frequency		clk_mux		div */
-	{106250000,		1,			7},	/* 0 */
-	{127500000,		2,			3},	/* 1 */
-	{159375000,		0,			3},	/* 2 */
-	{182150000,		3,			1},	/* 3 */
-	{212500000,		1,			3},	/* 4 */
-	{255000000,		2,			1},	/* 5 */
-	{318750000,		0,			1},	/* 6 */
-	{364300000,		3,			0},	/* 7 */
-	{425000000,		1,			1},	/* 8 */
-	{510000000,		2,			0},	/* 9 */
-	{637500000,		0,			0},	/* 10 */
-	/* {850000000,		1,			0},	//11 */
-};
-
-static int set_vpu_clk(unsigned int vclk)
-{
-	int ret = 0;
-	unsigned clk_level = vclk;
-
-	hd_write_reg(P_HHI_VPU_CLK_CNTL, ((1 << 8) |
-		(vpu_clk_setting[clk_level][1] << 9) |
-		(vpu_clk_setting[clk_level][2] << 0)));
-
-	return ret;
-}
-
 #define CLK_UTIL_VID_PLL_DIV_1    0
 #define CLK_UTIL_VID_PLL_DIV_2      1
 #define CLK_UTIL_VID_PLL_DIV_3      2
@@ -3308,31 +3280,10 @@ void enable_crt_video_hdmi(uint32_t enable, uint32_t inSel)
 
 static void set_enc_clk(void)
 {
-#if 0
-	/* Set vpu_clk */
-/* Disable clock before frequency change */
-	hd_set_reg_bits(P_HHI_VPU_CLK_CNTL, 0, 8, 1);
-	/* Set vpu_clk to 212.5MHz */
-	hd_write_reg(P_HHI_VPU_CLK_CNTL,
-		(1 << 9) | /* vpu clk_sel=1 to select 2000M/3=666.67MHz */
-		(2 << 0)); /* vpu   clk_div=3-1 to use 666.67/3=222.22MHz */
-/* Enable clock after frequency change */
-	hd_set_reg_bits(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
-#endif
 	/* Set pixel_clk and tmds_clk */
 	vclk_set_hdmitx(4, 0);
 	enable_crt_video_encp(1, 0);
 	enable_crt_video_hdmi(1, 0);
-
-#if 0
-	hd_set_reg_bits(P_HHI_VID_CLK_CNTL, 0, 16, 3); /* 0x105f C883C17C */
-	hd_set_reg_bits(P_HHI_VID_CLK_DIV, 1, 0, 8); /* 0x1059 C883C164*/
-	hd_set_reg_bits(P_HHI_VID_CLK_CNTL, 3, 0, 2);
-	hd_set_reg_bits(P_HHI_VID_CLK_DIV, 0, 24, 4);
-	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 2, 1); /* 0x1065 C883C194*/
-	hd_set_reg_bits(P_HHI_HDMI_CLK_CNTL, 0, 16, 4); /* 0x1073 C883C1CC*/
-	hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 5, 1);
-#endif
 }
 
 /* Fixed 1080p */
@@ -4267,16 +4218,6 @@ static void vcbus_test(void)
 /*
  * clocks_set_sys_defaults()
  */
-	/* Switch clk81 to the oscillator input (boot.s might have already */
-	/* programmed clk81 to a PLL) */
-	hd_set_reg_bits(P_HHI_MPEG_CLK_CNTL, 0, 8, 1);
-
-	/* 32khz for HDMI CEC */
-	/* As an example */
-	/* .clk_div ( hi_32k_clk_cntl[13:0] ), */
-	/* .clk_en ( hi_32k_clk_cntl[15]   ), */
-	/* .clk_sel ( hi_32k_clk_cntl[17:16]), */
-	hd_write_reg(P_HHI_32K_CLK_CNTL, (0 << 16) | (1 << 15) | (731 << 0));
 	/* HDMI (90Mhz) */
 	/* .clk0 ( cts_oscin_clk ), */
 	/* .clk1 ( fclk_div4 ), */
@@ -4298,31 +4239,6 @@ static void vcbus_test(void)
 	/* .HDMI_IL_DPLL_RESET ( hi_vid2_pll_cntl2[24]	 ), */
 	hd_write_reg(P_HHI_VID2_PLL_CNTL2, (0 << 24) | (0 << 17) | (4 << 8));
 	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00820aaa);
-#if 0
-	/* ----------------------------------------- */
-	/* VPU clock */
-	/* ----------------------------------------- */
-	/* .clk_div			( hi_vpu_clk_cntl[6:0]  ), */
-	/* .clk_en			 ( hi_vpu_clk_cntl[8]	), */
-	/* .clk_sel			( hi_vpu_clk_cntl[11:9] ), */
-	hd_write_reg(P_HHI_VPU_CLK_CNTL,
-		(1 << 9) | /* vpu clk_sel //666MHz */
-		(0 << 0)); /* vpu clk_div */
-	hd_set_reg_bits(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
-
-	hd_write_reg(P_HHI_VPU_CLKB_CNTL,
-		(1 << 8) | /* vpu_clkb enable */
-		(1 << 0)); /* clk_div, divide 2 */
-
-	/* .clk_div ( hi_vapblck_cntl[6:0]  ), */
-	/* .clk_en  ( hi_vapbclk_cntl[8]	), */
-	/* .clk_sel ( hi_vapbclk_cntl[11:9] ), */
-	hd_write_reg(P_HHI_VAPBCLK_CNTL,
-		(1 << 30) | /* turn on ge2d clock */
-		(0 << 9)  | /* clk_sel //250Mhz */
-		(1 << 0));  /* clk_div */
-	hd_set_reg_bits(P_HHI_VAPBCLK_CNTL, 1, 8, 1);
-#endif
 	/* ----------------------------------------- */
 	/* Power up memories */
 	/* ----------------------------------------- */
@@ -4354,19 +4270,6 @@ static void vcbus_test(void)
 /*
  * C_Entry()
  */
-#if 0
-	/* Set vpu_clk */
-/* Disable clock before frequency change */
-	hd_set_reg_bits(P_HHI_VPU_CLK_CNTL, 0, 8, 1);
-
-	    /* Set vpu_clk to 212.5MHz */
-	hd_write_reg(P_HHI_VPU_CLK_CNTL,
-		(1 << 9) | /* vpu clk_sel=1 to select 2000M/3=666.67MHz */
-		(2 << 0)); /* vpu clk_div=3-1 to use 666.67/3=222.22MHz */
-
-/* Enable clock after frequency change */
-	hd_set_reg_bits(P_HHI_VPU_CLK_CNTL, 1, 8, 1);
-#endif
 /* Enable Hsync and equalization pulse switch in center; bit[14] cfg_de_v = 1 */
 	hd_write_reg(P_ENCP_VIDEO_MODE, 0x0040 | (1<<14));
 	hd_write_reg(P_ENCP_VIDEO_MODE_ADV, 0x0008); /* Sampling rate: 1 */
@@ -4423,53 +4326,8 @@ static void vcbus_test(void)
 }
 static void vpu_driver_init(void)
 {
-	if (0)
-		set_vpu_clk(3);
-
-	hd_set_reg_bits(P_AO_RTI_GEN_PWR_SLEEP0, 0, 8, 1);
-	hd_write_reg(P_HHI_VPU_MEM_PD_REG0, 0x00000000);
-	hd_write_reg(P_HHI_VPU_MEM_PD_REG1, 0x00000000);
-	hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, 8, 8);
-
-	/* Powerup VPU_HDMI */
-	hd_set_reg_bits(P_RESET0_MASK, 0, 5, 1);
-	hd_set_reg_bits(P_RESET0_MASK, 0, 10, 1);
-
-	hd_set_reg_bits(P_RESET4_MASK, 0, 6, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 0, 7, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 0, 11, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 0, 15, 1);
-
-	hd_set_reg_bits(P_RESET2_MASK, 0, 2, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 0, 3, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 0, 11, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 0, 15, 1);
-
-	hd_write_reg(P_RESET2_REGISTER, ((0x1 << 2) | (0x1<<3) | (0x1<<11)
-		| (0x1<<15)));
-	/* reset this will cause VBUS reg to 0 */
-	hd_write_reg(P_RESET4_REGISTER, ((0x1 << 6) | (0x1<<7) | (0x1<<9)
-		| (0x1<<13)));
-	hd_write_reg(P_RESET0_REGISTER, ((0x1 << 5) | (0x1<<10)));
-	hd_write_reg(P_RESET4_REGISTER, ((0x1 << 6) | (0x1<<7) | (0x1<<9)
-		| (0x1<<13)));
-	hd_write_reg(P_RESET2_REGISTER, ((0x1 << 2) | (0x1<<3) | (0x1<<11)
-		| (0x1<<15)));
-	hd_set_reg_bits(P_RESET0_MASK, 1, 5, 1);
-	hd_set_reg_bits(P_RESET0_MASK, 1, 10, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 1, 6, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 1, 7, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 1, 9, 1);
-	hd_set_reg_bits(P_RESET4_MASK, 1, 13, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 1, 2, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 1, 3, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 1, 11, 1);
-	hd_set_reg_bits(P_RESET2_MASK, 1, 15, 1);
-	hd_set_reg_bits(P_AO_RTI_GEN_PWR_SLEEP0, 0, 9, 1); /* [9] VPU_HDMI */
 
 	vcbus_test();
-	hd_write_reg(P_VPU_MEM_PD_REG0, 0x00000000);
-	hd_write_reg(P_VPU_MEM_PD_REG1, 0x00000000);
 }
 
 static void tmp_generate_vid_hpll(void)
