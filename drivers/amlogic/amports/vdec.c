@@ -41,7 +41,6 @@
 
 #include "arch/clk.h"
 #include <linux/reset.h>
-
 static DEFINE_SPINLOCK(lock);
 
 #define MC_SIZE (4096 * 4)
@@ -492,7 +491,41 @@ static struct am_reg am_risc[] = {
 	{"MPC-P", 0x306},
 	{"MPC-D", 0x307},
 	{"MPC_E", 0x308},
-	{"MPC_W", 0x309}
+	{"MPC_W", 0x309},
+	{"CSP", 0x320},
+	{"CPSR", 0x321},
+	{"CCPU_INT_BASE", 0x322},
+	{"CCPU_INTR_GRP", 0x323},
+	{"CCPU_INTR_MSK", 0x324},
+	{"CCPU_INTR_REQ", 0x325},
+	{"CPC-P", 0x326},
+	{"CPC-D", 0x327},
+	{"CPC_E", 0x328},
+	{"CPC_W", 0x329},
+	{"AV_SCRATCH_0", 0x09c0},
+	{"AV_SCRATCH_1", 0x09c1},
+	{"AV_SCRATCH_2", 0x09c2},
+	{"AV_SCRATCH_3", 0x09c3},
+	{"AV_SCRATCH_4", 0x09c4},
+	{"AV_SCRATCH_5", 0x09c5},
+	{"AV_SCRATCH_6", 0x09c6},
+	{"AV_SCRATCH_7", 0x09c7},
+	{"AV_SCRATCH_8", 0x09c8},
+	{"AV_SCRATCH_9", 0x09c9},
+	{"AV_SCRATCH_A", 0x09ca},
+	{"AV_SCRATCH_B", 0x09cb},
+	{"AV_SCRATCH_C", 0x09cc},
+	{"AV_SCRATCH_D", 0x09cd},
+	{"AV_SCRATCH_E", 0x09ce},
+	{"AV_SCRATCH_F", 0x09cf},
+	{"AV_SCRATCH_G", 0x09d0},
+	{"AV_SCRATCH_H", 0x09d1},
+	{"AV_SCRATCH_I", 0x09d2},
+	{"AV_SCRATCH_J", 0x09d3},
+	{"AV_SCRATCH_K", 0x09d4},
+	{"AV_SCRATCH_L", 0x09d5},
+	{"AV_SCRATCH_M", 0x09d6},
+	{"AV_SCRATCH_N", 0x09d7},
 };
 
 static ssize_t amrisc_regs_show(struct class *class,
@@ -699,6 +732,98 @@ void vdec_free_irq(enum vdec_irq_num num, void *dev)
 	}
 	free_irq(vdec_irq[num], dev);
 }
+static int dump_mode;
+static ssize_t dump_risc_mem_store(struct class *class,
+		struct class_attribute *attr,
+		const char *buf, size_t size)/*set*/
+{
+	unsigned val;
+	ssize_t ret;
+	char dump_mode_str[4] = "PRL";
+	ret = sscanf(buf, "%d", &val);
+	if (ret != 1)
+		return -EINVAL;
+	dump_mode = val & 0x3;
+	pr_info("set dump mode to %d,%c_mem\n",
+		dump_mode, dump_mode_str[dump_mode]);
+	return size;
+}
+static u32 read_amrisc_reg(int reg)
+{
+	WRITE_VREG(0x31b, reg);
+	return READ_VREG(0x31c);
+}
+
+static void dump_pmem(void){
+	int i;
+	WRITE_VREG(0x301, 0x8000);
+	WRITE_VREG(0x31d, 0);
+	pr_info("start dump amrisc pmem of risc\n");
+	for (i = 0; i < 0xfff; i++) {
+		/*same as .o format*/
+		pr_info("%08x // 0x%04x:\n", read_amrisc_reg(i), i);
+	}
+	return;
+}
+
+
+static void dump_lmem(void){
+	int i;
+	WRITE_VREG(0x301, 0x8000);
+	WRITE_VREG(0x31d, 2);
+	pr_info("start dump amrisc lmem\n");
+	for (i = 0; i < 0x3ff; i++) {
+		/*same as */
+		pr_info("[%04x] = 0x%08x:\n", i, read_amrisc_reg(i));
+	}
+	return;
+}
+
+static ssize_t dump_risc_mem_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	unsigned long flags = 0;
+	char *pbuf = buf;
+	int ret;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
+		spin_lock_irqsave(&lock, flags);
+		if (!vdec_on(VDEC_1)) {
+			spin_unlock_irqrestore(&lock, flags);
+			pbuf += sprintf(pbuf, "amrisc is power off\n");
+			ret = pbuf - buf;
+			return ret;
+		}
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
+		/*TODO:M6 define */
+		/*
+		   switch_mod_gate_by_type(MOD_VDEC, 1);
+		 */
+		amports_switch_gate("vdec", 1);
+	}
+	/*start do**/
+	switch (dump_mode) {
+	case 0:
+		dump_pmem();
+		break;
+	case 2:
+		dump_lmem();
+		break;
+	default:
+		break;
+	}
+
+	/*done*/
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
+		spin_unlock_irqrestore(&lock, flags);
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
+		/*TODO:M6 define */
+		/*
+		   switch_mod_gate_by_type(MOD_VDEC, 0);
+		 */
+		amports_switch_gate("vdec", 0);
+	}
+	return sprintf(buf, "done\n");
+}
 
 static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(amrisc_regs),
@@ -706,6 +831,8 @@ static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(clock_level),
 	__ATTR(poweron_clock_level, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_poweron_clock_level, store_poweron_clock_level),
+	__ATTR(dump_risc_mem, S_IRUGO | S_IWUSR | S_IWGRP,
+	dump_risc_mem_show, dump_risc_mem_store),
 	__ATTR_NULL
 };
 
@@ -745,17 +872,12 @@ static int vdec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
 static const struct of_device_id amlogic_vdec_dt_match[] = {
 	{
 		.compatible = "amlogic, vdec",
 	},
 	{},
 };
-#else
-#define amlogic_vdec_dt_match NULL
-#define amlogic_vdec_cma_dt_match NULL
-#endif
 
 static struct platform_driver vdec_driver = {
 	.probe = vdec_probe,
@@ -791,7 +913,6 @@ static int vdec_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 
 	dev_set_cma_area(dev, vdec_cma);
 	vdec_set_resource(start, end, dev);
-
 	return 0;
 }
 

@@ -30,20 +30,46 @@
 #include "register_ops.h"
 
 static struct chip_register_ops *amports_ops[BUS_MAX];
+/*#define DEBUG_REG_OPS
+*/
+#define DEBUG_PRINT_CNT 10
+
+#ifdef DEBUG_REG_OPS
+#define CODEC_OPS_START(bus, reg, c) do {\
+	if (c < DEBUG_PRINT_CNT)\
+		pr_err("try %s bus.%d,%x, cnt=%d\n", __func__, bus, reg, c);\
+} while (0)
+
+#define CODEC_OPS_ERROR(bus, reg, c) do {\
+	if (c < DEBUG_PRINT_CNT)\
+		pr_err("failed on %s bus.%d,%x, cnt=%d\n",\
+		__func__, bus, reg, c);\
+} while (0)
+#else
+
+#define CODEC_OPS_START(bus, reg, c)
+#define CODEC_OPS_ERROR(bus, reg, c)
+#endif
 
 int codec_reg_read(u32 bus_type, unsigned int reg)
 {
 	struct chip_register_ops *ops = amports_ops[bus_type];
+	ops->r_cnt++;
+	CODEC_OPS_START(bus_type, reg, ops->r_cnt);
 	if (ops && ops->read)
 		return ops->read(ops->ext_offset + reg);
+	CODEC_OPS_ERROR(bus_type, reg, ops->r_cnt);
 	return 0;
 }
 
 void codec_reg_write(u32 bus_type, unsigned int reg, unsigned int val)
 {
 	struct chip_register_ops *ops = amports_ops[bus_type];
+	ops->w_cnt++;
+	CODEC_OPS_START(bus_type, reg, ops->w_cnt);
 	if (ops && ops->write)
 		return ops->write(ops->ext_offset + reg, val);
+	CODEC_OPS_ERROR(bus_type, reg, ops->w_cnt);
 }
 
 void codec_reg_write_bits(u32 bus_type, unsigned int reg,
@@ -69,7 +95,9 @@ static int register_reg_onebus_ops(struct chip_register_ops *ops)
 		return -1;
 	pr_info("register amports ops for bus[%d]\n", ops->bus_type);
 	if (amports_ops[ops->bus_type] != NULL)
-		kfree(amports_ops[ops->bus_type]);
+		;
+	/*TODO.
+	kfree(amports_ops[ops->bus_type]);*/
 	amports_ops[ops->bus_type] = ops;
 	return 0;
 }

@@ -16,6 +16,7 @@
 */
 
 #include "register_ops.h"
+#include "register_map.h"
 
 #define REGISTER_FOR_CPU {\
 			MESON_CPU_MAJOR_ID_M8,\
@@ -37,13 +38,12 @@ void codec_apb_write(unsigned int reg, unsigned int val)
 }
 
 static struct chip_register_ops m8_ops[] __initdata = {
-	/*0x50000>>2 == 0x14000 */
-	{IO_DOS_BUS, 0x14000, codec_apb_read, codec_apb_write},
-	{IO_VC_BUS, 0, aml_read_vcbus, aml_write_vcbus},
-	{IO_C_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_HHI_BUS, 0, aml_read_cbus, aml_write_cbus},
-	{IO_AO_BUS, 0, aml_read_aobus, aml_write_aobus},
-	{IO_VPP_BUS, 0, aml_read_vcbus, aml_write_vcbus},
+	{IO_DOS_BUS, 0, codecio_read_dosbus, codecio_write_dosbus},
+	{IO_VC_BUS, 0, codecio_read_vcbus, codecio_write_vcbus},
+	{IO_C_BUS, 0, codecio_read_cbus, codecio_write_cbus},
+	{IO_HHI_BUS, 0, codecio_read_cbus, codecio_write_cbus},
+	{IO_AO_BUS, 0, codecio_read_aobus, codecio_write_aobus},
+	{IO_VPP_BUS, 0, codecio_read_vcbus, codecio_write_vcbus},
 };
 
 static struct chip_register_ops ex_gx_ops[] __initdata = {
@@ -54,9 +54,10 @@ static struct chip_register_ops ex_gx_ops[] __initdata = {
 	   on Gxbb.
 	   will changed later..
 	 */
-	{IO_HHI_BUS, -0x1000, aml_read_cbus, aml_write_cbus},
-	{IO_DOS_BUS, 0, codec_apb_read, codec_apb_write},
+	{IO_HHI_BUS, -0x1000, codecio_read_hiubus, codecio_write_hiubus},
 };
+
+
 
 static int __init vdec_reg_ops_init(void)
 {

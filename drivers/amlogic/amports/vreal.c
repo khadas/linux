@@ -36,7 +36,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
-
+#include "amports_priv.h"
 #include "vdec.h"
 #include "vdec_reg.h"
 #include "vreal.h"
@@ -708,7 +708,7 @@ static void load_block_data(void *dest, unsigned int count)
 		pdest[i * 4 + 3] = src_tbl[i * 4];
 	}
 
-	pic_sz_tbl_map = dma_map_single(NULL, &pic_sz_tbl,
+	pic_sz_tbl_map = dma_map_single(amports_get_dma_device(), &pic_sz_tbl,
 				sizeof(pic_sz_tbl), DMA_TO_DEVICE);
 
 	return;

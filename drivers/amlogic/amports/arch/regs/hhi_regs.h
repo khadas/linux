@@ -18,6 +18,13 @@
 #ifndef HHI_REGS_HEADER_
 #define HHI_REGS_HEADER_
 
+#define HHI_GCLK_MPEG0    0x1050
+#define HHI_GCLK_MPEG1    0x1051
+#define HHI_GCLK_MPEG2    0x1052
+#define HHI_GCLK_OTHER    0x1054
+#define HHI_GCLK_AO       0x1055
+
+
 #define HHI_VID_CLK_DIV 0x1059
 #define HHI_MPEG_CLK_CNTL 0x105d
 #define HHI_AUD_CLK_CNTL 0x105e

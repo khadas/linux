@@ -285,7 +285,8 @@ static s32 amvdec_loadmc(const u32 *p)
 
 	memcpy(mc_addr, p, MC_SIZE);
 
-	mc_addr_map = dma_map_single(NULL, mc_addr, MC_SIZE, DMA_TO_DEVICE);
+	mc_addr_map = dma_map_single(amports_get_dma_device(),
+		mc_addr, MC_SIZE, DMA_TO_DEVICE);
 
 	WRITE_VREG(MPSR, 0);
 	WRITE_VREG(CPSR, 0);
@@ -310,7 +311,8 @@ static s32 amvdec_loadmc(const u32 *p)
 		}
 	}
 
-	dma_unmap_single(NULL, mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(amports_get_dma_device(),
+		mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
 
 #ifndef AMVDEC_USE_STATIC_MEMORY
 	kfree(mc_addr);
@@ -344,8 +346,8 @@ static s32 amvdec2_loadmc(const u32 *p)
 
 		memcpy(mc_addr, p, MC_SIZE);
 
-		mc_addr_map =
-			dma_map_single(NULL, mc_addr, MC_SIZE, DMA_TO_DEVICE);
+		mc_addr_map = dma_map_single(amports_get_dma_device(),
+			mc_addr, MC_SIZE, DMA_TO_DEVICE);
 
 		WRITE_VREG(VDEC2_MPSR, 0);
 		WRITE_VREG(VDEC2_CPSR, 0);
@@ -370,7 +372,8 @@ static s32 amvdec2_loadmc(const u32 *p)
 			}
 		}
 
-		dma_unmap_single(NULL, mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
+		dma_unmap_single(amports_get_dma_device(),
+			mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
 
 #ifndef AMVDEC_USE_STATIC_MEMORY
 		kfree(mc_addr);
@@ -405,7 +408,8 @@ s32 amhcodec_loadmc(const u32 *p)
 
 	memcpy(mc_addr, p, MC_SIZE);
 
-	mc_addr_map = dma_map_single(NULL, mc_addr, MC_SIZE, DMA_TO_DEVICE);
+	mc_addr_map = dma_map_single(amports_get_dma_device(),
+			mc_addr, MC_SIZE, DMA_TO_DEVICE);
 
 	WRITE_VREG(HCODEC_IMEM_DMA_ADR, mc_addr_map);
 	WRITE_VREG(HCODEC_IMEM_DMA_COUNT, 0x100);
@@ -414,7 +418,8 @@ s32 amhcodec_loadmc(const u32 *p)
 	while (READ_VREG(HCODEC_IMEM_DMA_CTRL) & 0x8000)
 		udelay(1000);
 
-	dma_unmap_single(NULL, mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(amports_get_dma_device(),
+			mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
 
 #ifndef AMVDEC_USE_STATIC_MEMORY
 	kfree(mc_addr);
@@ -448,7 +453,8 @@ static s32 amhevc_loadmc(const u32 *p)
 		memcpy(mc_addr, p, MC_SIZE);
 
 		mc_addr_map =
-			dma_map_single(NULL, mc_addr, MC_SIZE, DMA_TO_DEVICE);
+			dma_map_single(amports_get_dma_device(),
+			mc_addr, MC_SIZE, DMA_TO_DEVICE);
 
 		WRITE_VREG(HEVC_MPSR, 0);
 		WRITE_VREG(HEVC_CPSR, 0);
@@ -473,7 +479,8 @@ static s32 amhevc_loadmc(const u32 *p)
 			}
 		}
 
-		dma_unmap_single(NULL, mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
+		dma_unmap_single(amports_get_dma_device(),
+				mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
 
 #ifndef AMVDEC_USE_STATIC_MEMORY
 		kfree(mc_addr);

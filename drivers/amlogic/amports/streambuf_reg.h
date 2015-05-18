@@ -85,20 +85,20 @@
 /*TODO*/
 #define _WRITE_ST_REG(r, val)  do { \
 	if (buf->reg_base == VLD_MEM_VIFIFO_REG_BASE) \
-		aml_write_dosbus((buf->reg_base+(r)), (val)); \
+		codec_dosbus_write((buf->reg_base+(r)), (val)); \
 	else \
-		aml_write_cbus((buf->reg_base+(r)), (val)); \
+		codec_cbus_write((buf->reg_base+(r)), (val)); \
 	} while (0)
 #define _READ_ST_REG(r) \
 	((buf->reg_base == VLD_MEM_VIFIFO_REG_BASE) ? \
-	 aml_read_dosbus(buf->reg_base+(r)) : \
-	 aml_read_cbus(buf->reg_base+(r)))
+	 codec_dosbus_read(buf->reg_base+(r)) : \
+	 codec_cbus_read(buf->reg_base+(r)))
 
 #define _SET_ST_REG_MASK(r, val) _WRITE_ST_REG(r, _READ_ST_REG(r) | (val))
 #define _CLR_ST_REG_MASK(r, val) _WRITE_ST_REG(r, _READ_ST_REG(r)&~(val))
-#define _READ_VDEC2_ST_REG(r) (aml_read_dosbus(\
+#define _READ_VDEC2_ST_REG(r) (codec_dosbus_read(\
 			(VDEC2_VLD_MEM_VIFIFO_START_PTR+(r))))
-#define _WRITE_VDEC2_ST_REG(r, val) aml_write_dosbus(\
+#define _WRITE_VDEC2_ST_REG(r, val) codec_dosbus_write(\
 		(VDEC2_VLD_MEM_VIFIFO_START_PTR+r), val)
 #define MEM_BUFCTRL_MANUAL      (1<<1)
 #define MEM_BUFCTRL_INIT        (1<<0)

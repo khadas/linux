@@ -155,7 +155,27 @@
 		resets = <&clock GCLK_IDX_GE2D>;
 		reset-names = "ge2d";
 	};
-
+	codec_io {
+		compatible = "amlogic, codec_io";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		io_cbus_base{
+			reg = <0xC1100000 0x100000>;
+		};
+		io_dos_base{
+			reg = <0xd0050000 0x150000>;
+		};
+		io_hiubus_base{
+			reg = <0 0x0>;
+		};
+		io_aobus_base{
+			reg = <0xc8100000 0x100000>;
+		};
+		io_vcbus_base{
+			reg = <0xd0100000 0x40000>;
+		};
+	};
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		memory-region = <&streambuf_reserved>;

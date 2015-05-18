@@ -212,22 +212,7 @@ struct vframe_prop_s *vdin_get_vframe_prop(u32 index);
 #endif
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
 
-#ifdef CONFIG_VSYNC_RDMA
-int VSYNC_WR_MPEG_REG(unsigned long adr, unsigned long val);
-int VSYNC_WR_MPEG_REG_BITS(unsigned long adr, unsigned long val,
-			   unsigned long start, unsigned long len);
-unsigned long VSYNC_RD_MPEG_REG(unsigned long adr);
-unsigned long RDMA_READ_REG(unsigned long adr);
-int RDMA_SET_READ(unsigned long adr);
 
-#else
-#define VSYNC_WR_MPEG_REG(adr, val) aml_write_vcbus(adr, val)
-#define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
-#define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-	VSYNC_WR_MPEG_REG(adr,\
-	(VSYNC_RD_MPEG_REG(adr) & ~(((1L<<(len))-1)<<(start)))|\
-	((unsigned)((val)&((1L<<(len))-1)) << (start)))
-#endif
 
 u8 is_vpp_postblend(void);
 

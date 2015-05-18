@@ -155,5 +155,23 @@
 #define MEM_CTRL_FILL_EN        (1<<1)
 #define MEM_CTRL_INIT           (1<<0)
 
+
+#ifdef CONFIG_VSYNC_RDMA
+int VSYNC_WR_MPEG_REG(unsigned long adr, unsigned long val);
+int VSYNC_WR_MPEG_REG_BITS(unsigned long adr, unsigned long val,
+			   unsigned long start, unsigned long len);
+unsigned long VSYNC_RD_MPEG_REG(unsigned long adr);
+unsigned long RDMA_READ_REG(unsigned long adr);
+int RDMA_SET_READ(unsigned long adr);
+
+#else
+#define VSYNC_WR_MPEG_REG(adr, val) WRITE_VCBUS_REG(adr, val)
+#define VSYNC_RD_MPEG_REG(adr) READ_VCBUS_REG(adr)
+#define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
+	WRITE_VCBUS_REG_BITS(adr, val, start, len)
+#endif
+
+
+
 #endif				/* VDEC_REG_H */
 

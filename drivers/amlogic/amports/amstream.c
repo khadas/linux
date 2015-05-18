@@ -96,7 +96,11 @@ u32 amstream_buf_num;
 /* #define DATA_DEBUG */
 static int use_bufferlevelx10000 = 10000;
 static int reset_canuse_buferlevel(int level);
-struct platform_device *amstream_pdev;
+static struct platform_device *amstream_pdev;
+struct device *amports_get_dma_device(void)
+{
+	return &amstream_pdev->dev;
+}
 
 #ifdef DATA_DEBUG
 #include <linux/fs.h>
@@ -3145,16 +3149,12 @@ struct stream_buf_s *get_stream_buffer(int id)
 	return &bufs[id];
 }
 
-#ifdef CONFIG_USE_OF
 static const struct of_device_id amlogic_mesonstream_dt_match[] = {
 	{
 		.compatible = "amlogic, codec, streambuf",
 	},
 	{},
 };
-#else
-#define amlogic_mesonstream_dt_match NULL
-#endif
 
 static struct platform_driver amstream_driver = {
 	.probe = amstream_probe,

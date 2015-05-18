@@ -20,8 +20,15 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include "amports_gate.h"
+#include "vdec_reg.h"
+#include "amports_priv.h"
 
 #define DEBUG_REF 0
+
+#ifndef CONFIG_ARM64
+#define GATE_RESET_OK
+#endif
+
 struct gate_swtch_node {
 	struct reset_control *reset_ctl;
 	const char *name;
@@ -29,6 +36,8 @@ struct gate_swtch_node {
 	unsigned long flags;
 	int ref_count;
 };
+#ifdef GATE_RESET_OK
+
 struct gate_swtch_node gates[] = {
 	{
 		.name = "demux",
@@ -117,3 +126,41 @@ int amports_switch_gate(const char *name, int enable)
 	}
 	return 0;
 }
+#else
+int amports_clock_gate_init(struct device *dev)
+{
+	static int gate_inited;
+	if (gate_inited)
+		return 0;
+/*
+#define HHI_GCLK_MPEG0    0x1050
+#define HHI_GCLK_MPEG1    0x1051
+#define HHI_GCLK_MPEG2    0x1052
+#define HHI_GCLK_OTHER    0x1054
+#define HHI_GCLK_AO       0x1055
+*/
+	WRITE_HHI_REG_BITS(HHI_GCLK_MPEG0, 1, 1, 1);/*dos*/
+	WRITE_HHI_REG_BITS(HHI_GCLK_MPEG1, 1, 25, 1);/*U_parser_top()*/
+	WRITE_HHI_REG_BITS(HHI_GCLK_MPEG1, 0xff, 6, 8);/*aiu()*/
+	WRITE_HHI_REG_BITS(HHI_GCLK_MPEG1, 1, 4, 1);/*demux()*/
+	WRITE_HHI_REG_BITS(HHI_GCLK_MPEG1, 1, 2, 1);/*audio in()*/
+	WRITE_HHI_REG_BITS(HHI_GCLK_MPEG2, 1, 25, 1);/*VPU Interrupt*/
+	gate_inited++;
+
+
+
+	return 0;
+}
+
+static int amports_gate_reset(struct gate_swtch_node *gate_node, int enable)
+{
+	return 0;
+}
+
+int amports_switch_gate(const char *name, int enable)
+{
+	amports_gate_reset(0, 0);
+	return 0;
+}
+
+#endif

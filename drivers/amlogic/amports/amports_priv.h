@@ -42,4 +42,5 @@ void set_vsync_pts_inc_mode(int inc);
 void set_real_audio_info(void *arg);
 #define dbg() pr_info("on %s,line %d\n", __func__, __LINE__);
 
+struct device *amports_get_dma_device(void);
 #endif

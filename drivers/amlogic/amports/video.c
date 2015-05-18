@@ -6878,6 +6878,7 @@ static int __init video_init(void)
 	   ulong clk = clk_get_rate(clk_get_sys("clk_misc_pll", NULL));
 	   #endif
 	 */
+	video_early_init();
 #ifdef CONFIG_ARCH_MESON1
 	no to here ulong clk =
 		clk_get_rate(clk_get_sys("clk_other_pll", NULL));
@@ -7219,8 +7220,8 @@ MODULE_PARM_DESC(underflow, "\n Underflow count\n");
 module_param(next_peek_underflow, uint, 0664);
 MODULE_PARM_DESC(skip, "\n Underflow count\n");
 
-arch_initcall(video_early_init);
-
+/*arch_initcall(video_early_init);
+*/
 #ifdef CONFIG_KEEP_FRAME_RESERVED
 module_init(video_drv_init);
 module_exit(video_drv_exit);

@@ -138,9 +138,9 @@ static ssize_t _esparser_write(const char __user *buf,
 			if (copy_from_user(fetchbuf, p, len))
 				return -EFAULT;
 			dma_addr = dma_map_single(
-					NULL, fetchbuf,
+					amports_get_dma_device(), fetchbuf,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
-			if (dma_mapping_error(NULL,
+			if (dma_mapping_error(amports_get_dma_device(),
 						(dma_addr_t) dma_addr))
 				return -EFAULT;
 
@@ -163,7 +163,7 @@ static ssize_t _esparser_write(const char __user *buf,
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, buf_32);
 		} else {
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
-			dma_unmap_single(NULL, dma_addr,
+			dma_unmap_single(amports_get_dma_device(), dma_addr,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
 		}
 		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
@@ -294,7 +294,8 @@ s32 esparser_init(struct stream_buf_s *buf)
 			search_pattern[2] = 0x01;
 			search_pattern[3] = 0xff;
 
-			search_pattern_map = dma_map_single(NULL,
+			search_pattern_map = dma_map_single(
+					amports_get_dma_device(),
 					search_pattern,
 					SEARCH_PATTERN_LEN,
 					DMA_TO_DEVICE);
@@ -506,7 +507,8 @@ void esparser_release(struct stream_buf_s *buf)
 		vdec_free_irq(PARSER_IRQ, (void *)esparser_id);
 
 		if (search_pattern) {
-			dma_unmap_single(NULL, search_pattern_map,
+			dma_unmap_single(amports_get_dma_device(),
+				search_pattern_map,
 				SEARCH_PATTERN_LEN, DMA_TO_DEVICE);
 			kfree(search_pattern);
 			search_pattern = NULL;

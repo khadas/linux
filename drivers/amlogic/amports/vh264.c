@@ -2108,7 +2108,7 @@ static s32 vh264_init(void)
 
 	/* -- ucode loading (amrisc and swap code) */
 	mc_cpu_addr =
-		dma_alloc_coherent(NULL, MC_TOTAL_SIZE,
+		dma_alloc_coherent(amports_get_dma_device(), MC_TOTAL_SIZE,
 				&mc_dma_handle, GFP_KERNEL);
 	if (!mc_cpu_addr) {
 		amvdec_disable();
@@ -2119,7 +2119,55 @@ static s32 vh264_init(void)
 
 	pr_info("264 ucode swap area: phyaddr %p, cpu vaddr %p\n",
 		(void *)mc_dma_handle, mc_cpu_addr);
+	if (debugfirmware) {
+		int r0 , r1 , r2 , r3 , r4 , r5;
+		char firmwarename[32];
+		pr_info("start load debug %d firmware ...\n", debugfirmware);
 
+		snprintf(firmwarename, 32, "%s%d", "vh264_mc", debugfirmware);
+		r0 = amvdec_loadmc_ex(VFORMAT_H264, firmwarename, NULL);
+
+#define DEBUGGET_FW(t, name, buf, size, ret)\
+		do {\
+			snprintf(firmwarename, 32, "%s%d", name,\
+				debugfirmware);\
+			ret = get_decoder_firmware_data(t,\
+				firmwarename, buf, size);\
+		} while (0)
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_HEADER, vh264_header_mc,
+		MC_SWAP_SIZE);*/
+		DEBUGGET_FW(VFORMAT_H264, "vh264_header_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_HEADER,
+			MC_SWAP_SIZE, r1);
+
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_DATA, vh264_data_mc,
+		MC_SWAP_SIZE);
+		*/
+		DEBUGGET_FW(VFORMAT_H264, "vh264_data_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_DATA, MC_SWAP_SIZE, r2);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_MMCO, vh264_mmco_mc,
+		MC_SWAP_SIZE);
+		*/
+		DEBUGGET_FW(VFORMAT_H264, "vh264_mmco_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_MMCO, MC_SWAP_SIZE, r3);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_LIST, vh264_list_mc,
+		MC_SWAP_SIZE);
+		*/
+		DEBUGGET_FW(VFORMAT_H264, "vh264_list_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_LIST, MC_SWAP_SIZE, r4);
+		/*memcpy((u8 *) mc_cpu_addr + MC_OFFSET_SLICE, vh264_slice_mc,
+		MC_SWAP_SIZE);
+		*/
+		DEBUGGET_FW(VFORMAT_H264, "vh264_slice_mc",
+			(u8 *) mc_cpu_addr + MC_OFFSET_SLICE, MC_SWAP_SIZE, r5);
+		if (r0 < 0 || r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0 || r5 < 0) {
+			pr_err("264 load debugfirmware err %d,%d,%d,%d,%d,%d\n",
+			r0 , r1 , r2 , r3 , r4 , r5);
+			amvdec_disable();
+			return -EBUSY;
+		}
+		firmwareloaded = 1;
+	}
 	if (!firmwareloaded) {
 		int r0 , r1 , r2 , r3 , r4 , r5;
 		pr_info("start load orignal firmware ...\n");
@@ -2248,8 +2296,9 @@ static int vh264_stop(int mode)
 
 	if (stat & STAT_MC_LOAD) {
 		if (mc_cpu_addr != NULL) {
-			dma_free_coherent(NULL, MC_TOTAL_SIZE, mc_cpu_addr,
-							  mc_dma_handle);
+			dma_free_coherent(amports_get_dma_device(),
+					MC_TOTAL_SIZE, mc_cpu_addr,
+					mc_dma_handle);
 			mc_cpu_addr = NULL;
 		}
 	}

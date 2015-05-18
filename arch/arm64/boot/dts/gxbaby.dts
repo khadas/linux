@@ -81,14 +81,14 @@
 		/*  DISP&MM-A/V stream */
 		streambuf_reserved:linux,mesonstream {
 			compatible = "amlogic, stream-memory";
-			size = <0x2000000>;
+			size = <0 0x2000000>;
 			no-map;
 		};
 
 		/*  DISP&MM-A/V stream */
 		vdec_reserved:linux,vdec {
 			compatible = "amlogic, vdec-memory";
-			size = <0xc000000>;
+			size = <0 0xc000000>;
 			no-map;
 		};
 		/*  vdin0 */
@@ -182,6 +182,27 @@
 		resets = <&clock GCLK_IDX_GE2D>;
 		reset-names = "ge2d";
 		*/
+	};
+	codec_io {
+		compatible = "amlogic, codec_io";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		io_cbus_base{
+			reg = <0x0 0xC1100000 0x0 0x100000>;
+		};
+		io_dos_base{
+			reg = <0x0 0xc8820000 0x0 0x10000>;
+		};
+		io_hiubus_base{
+			reg = <0x0 0xc883c000 0x0 0x2000>;
+		};
+		io_aobus_base{
+			reg = <0x0 0xc8100000 0x0 0x100000>;
+		};
+		io_vcbus_base{
+			reg = <0x0 0xd0100000 0x0 0x40000>;
+		};
 	};
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";

@@ -661,17 +661,12 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 
 		if ((pTable->lookup_cache_valid) &&
 			(offset == pTable->lookup_cache_offset)) {
-
-
 			*val = pTable->lookup_cache_pts;
 			return 0;
 		}
 
-		if (list_empty(&pTable->valid_list)) {
-
-
+		if (list_empty(&pTable->valid_list))
 			return -1;
-		}
 
 		if (pTable->pts_search == &pTable->valid_list) {
 			p = list_entry(pTable->valid_list.next,
@@ -1040,7 +1035,8 @@ static int alloc_pts_list(struct pts_table_s *pTable)
 			(pTable->rec_num + page_nums +
 			 1) * sizeof(struct pts_rec_s) / PAGE_SIZE;
 	}
-	pTable->pages_list = kzalloc(page_nums * 4 + 4, GFP_KERNEL);
+	pTable->pages_list = kzalloc((page_nums + 1) * sizeof(void *),
+				GFP_KERNEL);
 	if (pTable->pages_list == NULL)
 		return -ENOMEM;
 	for (i = 0; i < page_nums; i++) {
@@ -1053,6 +1049,7 @@ static int alloc_pts_list(struct pts_table_s *pTable)
 			list_add_tail(&recs[j].list, &pTable->free_list);
 		pTable->pages_list[i] = (unsigned long)one_page;
 	}
+	pTable->pages_list[page_nums] = 0;
 	return 0;
 error_alloc_pages:
 	free_pts_list(pTable);

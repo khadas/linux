@@ -48,6 +48,8 @@ struct chip_register_ops {
 	int ext_offset;
 	int (*read)(unsigned int);
 	void (*write)(unsigned int, unsigned int);
+	int r_cnt;
+	int w_cnt;
 };
 
 int codec_reg_read(u32 bus_type, unsigned int reg);

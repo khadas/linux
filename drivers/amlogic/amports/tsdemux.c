@@ -416,9 +416,11 @@ static ssize_t _tsdemux_write(const char __user *buf, size_t count,
 				return -EFAULT;
 
 			dma_addr =
-				dma_map_single(NULL, fetchbuf,
+				dma_map_single(amports_get_dma_device(),
+						fetchbuf,
 						FETCHBUF_SIZE, DMA_TO_DEVICE);
-			if (dma_mapping_error(NULL, dma_addr))
+			if (dma_mapping_error(amports_get_dma_device(),
+						dma_addr))
 				return -EFAULT;
 
 
@@ -433,7 +435,7 @@ static ssize_t _tsdemux_write(const char __user *buf, size_t count,
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, buf_32);
 		} else {
 			WRITE_MPEG_REG(PARSER_FETCH_ADDR, dma_addr);
-			dma_unmap_single(NULL, dma_addr,
+			dma_unmap_single(amports_get_dma_device(), dma_addr,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
 		}
 
