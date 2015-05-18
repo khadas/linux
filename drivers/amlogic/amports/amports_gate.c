@@ -24,10 +24,7 @@
 #include "amports_priv.h"
 
 #define DEBUG_REF 0
-
-#ifndef CONFIG_ARM64
 #define GATE_RESET_OK
-#endif
 
 struct gate_swtch_node {
 	struct reset_control *reset_ctl;
@@ -51,22 +48,17 @@ struct gate_swtch_node gates[] = {
 	{
 		.name = "vdec",
 	},
-	{
-		.name = "audio",
-	}
 };
 
 /*
 resets = <&clock GCLK_IDX_HIU_PARSER_TOP
 	    &clock GCLK_IDX_VPU_INTR
 	    &clock GCLK_IDX_DEMUX
-	    &clock GCLK_IDX_DOS
-	    &clock GCLK_IDX_MEDIA_CPU>;
+	    &clock GCLK_IDX_DOS>;
 resets-names = "parser_top",
 		"vpu_intr",
 		"demux",
-		"vdec",
-		"audio";
+		"vdec";
 */
 
 int amports_clock_gate_init(struct device *dev)

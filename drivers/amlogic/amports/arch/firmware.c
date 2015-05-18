@@ -169,7 +169,12 @@ int get_decoder_firmware_data_from_buildin(enum vformat_e type,
 		memcpy(buf, firmware->ucode, l);
 		if (l < size) {
 			/*set the ext buf to 0 */
-			memset(buf + l, 0, size - l);
+			char *p = buf + l;
+			p[0] = p[1] = p[2] = p[3] = 0;
+			p[4] = p[5] = p[6] = p[7] = 0;
+			p = (char *)(((ulong)p + 7) & (~0x7));
+			/*for buf aligned.*/
+			memset(p, 0, (size - l) & (~7));
 		}
 		return l;
 	}

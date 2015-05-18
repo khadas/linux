@@ -184,13 +184,11 @@
 		resets = <&clock GCLK_IDX_HIU_PARSER_TOP
 			&clock GCLK_IDX_VPU_INTR
 			&clock GCLK_IDX_DEMUX
-			&clock GCLK_IDX_DOS
-			&clock GCLK_IDX_MEDIA_CPU>;
+			&clock GCLK_IDX_DOS>;
 		reset-names = "parser_top",
 			"vpu_intr",
 			"demux",
-			"vdec",
-			"audio";
+			"vdec";
 	};
 
 	vdec {

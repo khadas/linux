@@ -213,8 +213,8 @@ static struct device *cma_dev;
 #define CMD_FRAME_DISPLAY          3
 #define CMD_DEBUG                  10
 
-static unsigned work_space_adr, decoder_buffer_start, decoder_buffer_end;
-static unsigned reserved_buffer;
+static unsigned long work_space_adr, decoder_buffer_start, decoder_buffer_end;
+static unsigned long reserved_buffer;
 
 #define DECODE_BUFFER_NUM_MAX    32
 #define DISPLAY_BUFFER_NUM       6
@@ -1310,7 +1310,7 @@ static s32 vh264_4k2k_init(void)
 	int r1 , r2, r3;
 	void __iomem *p =
 		ioremap_nocache(work_space_adr, DECODER_WORK_SPACE_SIZE);
-
+	pr_info("work_space_adr=%p,maped=%p\n", (void *)work_space_adr, p);
 	if (!p) {
 		pr_info
 		("\nvh264_4k2k_init: Cannot remap ucode swapping memory\n");
@@ -1371,7 +1371,7 @@ static s32 vh264_4k2k_init(void)
 
 		r2 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_mmco_mc_single",
-				(void *)((ulong) p + 0x1000), 0x2000);
+				(void *)((u8 *) p + 0x1000), 0x2000);
 
 		/*memcpy((void *)((ulong) p + 0x3000),
 			   vh264_4k2k_slice_mc_single,
@@ -1379,7 +1379,7 @@ static s32 vh264_4k2k_init(void)
 
 		r3 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_slice_mc_single",
-				(void *)((ulong) p + 0x3000), 0x4000);
+				(void *)((u8 *) p + 0x3000), 0x4000);
 	} else {
 		/*memcpy(p, vh264_4k2k_header_mc,
 					sizeof(vh264_4k2k_header_mc));*/
@@ -1392,12 +1392,12 @@ static s32 vh264_4k2k_init(void)
 			   vh264_4k2k_mmco_mc, sizeof(vh264_4k2k_mmco_mc));*/
 		r2 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_mmco_mc",
-				(void *)((ulong) p + 0x1000), 0x2000);
+				(void *)((u8 *) p + 0x1000), 0x2000);
 		/*memcpy((void *)((ulong) p + 0x3000),
 			   vh264_4k2k_slice_mc, sizeof(vh264_4k2k_slice_mc));*/
 		r3 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_slice_mc",
-				(void *)((ulong) p + 0x3000), 0x4000);
+				(void *)((u8 *) p + 0x3000), 0x4000);
 	}
 
 	iounmap(p);
@@ -1581,7 +1581,7 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 	cma_dev = pdata->cma_dev;
 
 	pr_info("H.264 4k2k decoder mem resource 0x%x -- 0x%x\n",
-		   decoder_buffer_start, decoder_buffer_end);
+		   (u32)decoder_buffer_start, (u32)decoder_buffer_end);
 	pr_info("                   sysinfo: %dx%d, rate = %d, param = 0x%lx\n",
 		   vh264_4k2k_amstream_dec_info.width,
 		   vh264_4k2k_amstream_dec_info.height,
