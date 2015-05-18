@@ -268,11 +268,14 @@
 		clock-names = "ethclk81";
 	};
 	meson-remote {
-		compatible = "amlogic, meson, remote-keypad";
+		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
 		status = "ok";
+		remote_ao_offset = <0x580>; /* 0x400 + (0x20 + idx)<<2 -- old ; 0x400 + (0x60 +idx)<<2 --new   */
 		interrupts = <0 15 1>;
 		interrupt-names = "remoteirq";
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
 	};
 	meson-irblaster {
 		compatible = "amlogic, am_irblaster";
@@ -674,8 +677,14 @@ sdio{
                       4 0x2000000
         							7 0x20000000
                       9 0x431F>;
-		amlogic,pins = "GPIOY_9","GPIOY_10","GPIOY_11","GPIOY_12","GPIOY_13","GPIOY_14","GPIOY_15","GPIOY_16","GPIOY_0","GPIOY_1","GPIOY_4","GPIOY_8";
+		amlogic,pins = "GPIOY_9","GPIOY_10","GPIOY_11","GPIOY_12","GPIOY_13",
+			"GPIOY_14","GPIOY_15","GPIOY_16","GPIOY_0","GPIOY_1","GPIOY_4","GPIOY_8";
 };
+	remote_pins:remote_pin {
+		amlogic,setmask = <AO 0x1>;
+		amlogic,pins = "GPIOAO_7";
+	};
+
 
 dvb_s_ts0_pins: dvb_s_ts0_pins {
 		amlogic,setmask = <3 0x1F>;

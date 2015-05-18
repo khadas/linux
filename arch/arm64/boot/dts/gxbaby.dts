@@ -261,6 +261,15 @@
 			reg = <0x0 0xd0100000 0x0 0x40000>;
 		};
 	};
+	meson-remote {
+		compatible = "amlogic, aml_remote";
+		dev_name = "meson-remote";
+ 		status = "ok";
+		remote_ao_offset = <0x580>; /* 0x400 + (0x20 + idx)<<2 -- old ; 0x400 + (0x60 +idx)<<2 --new   */
+		interrupts = <0 196 1>;
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&remote_pins>;
+ 		};
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		memory-region = <&streambuf_reserved>;
@@ -454,6 +463,10 @@
 			reg-names = "mux", "pull", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
+		};
+		remote_pins:remote_pin{
+			amlogic,setmask = <AO 0x1>;
+			amlogic,pins = "GPIOAO_7";
 		};
 		ao_uart_pins:ao_uart{
 			amlogic,setmask=<AO 0x1800>;

@@ -11,6 +11,7 @@ menuconfig AM_INPUT
 if AM_INPUT
 
 source "drivers/amlogic/input/saradc/Kconfig"
+source "drivers/amlogic/input/remote/Kconfig"
 
 endif
 

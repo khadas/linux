@@ -1,20 +1,21 @@
 /*
- * drivers/amlogic/remote/remote_main.c
  *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ * Remote Driver
+ *
+ * Copyright (C) 2013 Amlogic Corporation
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  *
-*/
-
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -29,9 +30,10 @@
 #include <linux/errno.h>
 #include <asm/irq.h>
 #include <linux/io.h>
+
+/*#include <mach/pinmux.h>*/
 #include <linux/major.h>
 #include <linux/slab.h>
-#include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
@@ -56,11 +58,36 @@ static DEFINE_MUTEX(remote_enable_mutex);
 static DEFINE_MUTEX(remote_file_mutex);
 static void remote_tasklet(unsigned long);
 static int remote_enable;
-static int REMOTE_IRQ_NO = -ENXIO;
+static int NEC_REMOTE_IRQ_NO = -1;
+unsigned long g_remote_ao_offset;
 DECLARE_TASKLET_DISABLED(tasklet, remote_tasklet, 0);
+/*static int repeat_flag;*/
 static struct remote *gp_remote;
 char *remote_log_buf;
+/* use 20 map for this driver*/
 static __u16 key_map[20][512];
+
+#ifdef REMOTE_FIQ
+static  irqreturn_t (*remote_bridge_sw_isr[])(int irq, void *dev_id) = {
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_null_bridge_isr,
+	remote_bridge_isr,
+	remote_bridge_isr,
+};
+#endif
 static  int (*remote_report_key[])(struct remote *remote_data) = {
 	remote_hw_reprot_key,
 	remote_hw_reprot_key,
@@ -105,6 +132,7 @@ int remote_printk(const char *fmt, ...)
 {
 	va_list args;
 	int r;
+
 	if (gp_remote->debug_enable == 0)
 		return 0;
 	va_start(args, fmt);
@@ -120,7 +148,7 @@ static int remote_mouse_event(struct input_dev *dev, unsigned int scancode,
 	__u16 mouse_code = REL_X;
 	__s32 mouse_value = 0;
 	static unsigned int repeat_count;
-	__s32 move_accelerate[] = {0, 4, 4, 8, 8, 12, 16, 20, 24, 28, 32, 36};
+	__s32 move_accelerate[] = {0, 2, 2, 4, 4, 6, 8, 10, 12, 14, 16, 18};
 	unsigned int i;
 
 	if (flag)
@@ -132,15 +160,14 @@ static int remote_mouse_event(struct input_dev *dev, unsigned int scancode,
 	if (i >= ARRAY_SIZE(mouse_map[gp_remote->map_num]))
 		return -1;
 	switch (type) {
-	case 1:
+	case 1:     /*press*/
 		repeat_count = 0;
 		break;
-	case 2:
+	case 2:     /*repeat*/
 		if (repeat_count >= ARRAY_SIZE(move_accelerate) - 1)
 			repeat_count = ARRAY_SIZE(move_accelerate) - 1;
 		else
 			repeat_count++;
-		break;
 	}
 	switch (i) {
 	case 0:
@@ -159,7 +186,7 @@ static int remote_mouse_event(struct input_dev *dev, unsigned int scancode,
 		mouse_code = REL_Y;
 		mouse_value = 1 + move_accelerate[repeat_count];
 		break;
-	case 4:
+	case 4:     /*up*/
 		mouse_code = REL_WHEEL;
 		mouse_value = 0x1;
 		break;
@@ -176,14 +203,16 @@ static int remote_mouse_event(struct input_dev *dev, unsigned int scancode,
 		case REL_X:
 		case REL_Y:
 			input_dbg("mouse be %s moved %d.\n",
-				  mouse_code == REL_X ? "horizontal" :
-				  "vertical", mouse_value);
+				mouse_code == REL_X ? "horizontal" :
+							"vertical",
+							mouse_value);
 			break;
 		case REL_WHEEL:
 			input_dbg("mouse wheel move %s .\n",
-				  mouse_value == 0x1 ? "up" : "down");
+				mouse_value == 0x1 ? "up" : "down");
 			break;
 		}
+
 	}
 	return 0;
 }
@@ -191,8 +220,8 @@ static int remote_mouse_event(struct input_dev *dev, unsigned int scancode,
 void remote_send_key(struct input_dev *dev, unsigned int scancode,
 		     unsigned int type, int event)
 {
-	input_dbg("remote_send_key\n");
 	if (scancode == FN_KEY_SCANCODE && type == 1) {
+		/* switch from key to pointer*/
 		if (key_pointer_switch) {
 			key_pointer_switch = false;
 			gp_remote->repeat_enable = 1;
@@ -200,7 +229,9 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 				gp_remote->repeat_delay[gp_remote->map_num];
 			gp_remote->input->rep[REP_PERIOD] =
 				gp_remote->repeat_peroid[gp_remote->map_num];
-		} else {
+		}
+		/* switch from pointer to key*/
+		else {
 			key_pointer_switch = true;
 			gp_remote->repeat_enable = 0;
 			gp_remote->input->rep[REP_DELAY] = 0xffffffff;
@@ -211,67 +242,78 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 	if (scancode == OK_KEY_SCANCODE && key_pointer_switch == false) {
 		input_event(dev, EV_KEY, BTN_MOUSE, type);
 		input_sync(dev);
+
 		return;
 	}
 
 	if (remote_mouse_event(dev, scancode, type, key_pointer_switch)) {
 		if (scancode > ARRAY_SIZE(key_map[gp_remote->map_num])) {
 			input_dbg("scancode is 0x%04x, out of key mapping.\n",
-				  scancode);
+				scancode);
 			return;
 		}
-		if ((key_map[gp_remote->map_num][scancode] >= KEY_MAX) ||
-		    (key_map[gp_remote->map_num][scancode] == KEY_RESERVED)) {
-			input_dbg("scancode is 0x%04x, invalid key is 0x%04x.\n",
-			scancode, key_map[gp_remote->map_num][scancode]);
+		if ((key_map[gp_remote->map_num][scancode] >= KEY_MAX)
+			|| (key_map[gp_remote->map_num][scancode] ==
+				KEY_RESERVED)){
+			input_dbg("scancode is 0x%04x,invalid key is 0x%04x.\n",
+					scancode,
+					key_map[gp_remote->map_num][scancode]);
 			return;
 		}
-		if ((type == 2) && (scancode == 0x1a) &&
-		    (key_map[gp_remote->map_num][scancode] == 0x0074))
+
+		if (type == 2 && scancode == 0x1a &&
+			key_map[gp_remote->map_num][scancode] == 0x0074)
 			return;
 		else {
 			input_event(dev, EV_KEY,
-				key_map[gp_remote->map_num][scancode], type);
+					key_map[gp_remote->map_num][scancode],
+					type);
 			input_sync(dev);
 		}
-	}
 
-	switch (type) {
-	case 0:
-		input_dbg("release ircode = 0x%02x, scancode = 0x%04x,maptable = %d\n",
-			scancode,
-			key_map[gp_remote->map_num][scancode],
-			gp_remote->map_num);
-		break;
-	case 1:
-		input_dbg("press ircode = 0x%02x, scancode = 0x%04x,maptable = %d\n",
-			scancode,
-			key_map[gp_remote->map_num][scancode],
-			gp_remote->map_num);
-		break;
-	case 2:
-		input_dbg("repeat ircode = 0x%02x, scancode = 0x%04x,maptable = %d\n",
-			scancode,
-			key_map[gp_remote->map_num][scancode],
-			gp_remote->map_num);
-		break;
+		switch (type) {
+		case 0:
+			input_dbg("release ircode = 0x%02x,",
+					scancode);
+			input_dbg("scancode = 0x%04x, maptable = %d\n",
+					key_map[gp_remote->map_num][scancode],
+					gp_remote->map_num);
+			break;
+		case 1:
+			input_dbg("press ircode = 0x%02x,",
+					scancode);
+			input_dbg("scancode = 0x%04x,maptable = %d\n",
+					key_map[gp_remote->map_num][scancode],
+					gp_remote->map_num);
+			break;
+		case 2:
+			input_dbg("repeat ircode = 0x%02x,",
+					scancode);
+			input_dbg("scancode = 0x%04x, maptable = %d\n",
+					key_map[gp_remote->map_num][scancode],
+					gp_remote->map_num);
+			break;
+		}
+		input_dbg("%s sleep:%d\n", __func__, gp_remote->sleep);
+		if (gp_remote->sleep && scancode == 0x1a &&
+		    key_map[gp_remote->map_num][scancode] == 0x0074) {
+			pr_info(" set AO_RTI_STATUS_REG2 0x4853ffff\n");
+			aml_write_aobus(AO_RTI_STATUS_REG2, 0x4853ffff);
+			/* tell uboot don't suspend*/
+		}
 	}
-	input_dbg("%s sleep:%d\n", __func__, gp_remote->sleep);
-	if ((gp_remote->sleep && (scancode == 0x1a)) &&
-	    (key_map[gp_remote->map_num][scancode] == 0x0074))
-		input_dbg(" set AO_RTI_STATUS_REG2 0x4853ffff\n");
 }
 
 static void disable_remote_irq(void)
 {
 	if (gp_remote->work_mode >= DECODEMODE_MAX)
-		disable_irq(REMOTE_IRQ_NO);
+		disable_irq(NEC_REMOTE_IRQ_NO);
 }
 
 static void enable_remote_irq(void)
 {
 	if (gp_remote->work_mode >= DECODEMODE_MAX)
-		enable_irq(REMOTE_IRQ_NO);
+		enable_irq(NEC_REMOTE_IRQ_NO);
 
 }
 
@@ -282,6 +324,7 @@ void remote_reprot_key(struct remote *remote_data)
 static void remote_release_timer_sr(unsigned long data)
 {
 	struct remote *remote_data = (struct remote *)data;
+	/*key report release use timer interrupt*/
 	remote_data->key_release_report =
 		remote_report_release_key[remote_data->work_mode];
 	remote_data->key_release_report(remote_data);
@@ -292,6 +335,12 @@ static irqreturn_t remote_interrupt(int irq, void *dev_id)
 	tasklet_schedule(&tasklet);
 	return IRQ_HANDLED;
 }
+#ifdef REMOTE_FIQ
+static void remote_fiq_interrupt(void)
+{
+	remote_reprot_key(gp_remote);
+}
+#endif
 
 static void remote_tasklet(unsigned long data)
 {
@@ -300,7 +349,8 @@ static void remote_tasklet(unsigned long data)
 }
 
 static ssize_t remote_log_buffer_show(struct device *dev,
-				      struct device_attribute *attr , char *buf)
+				      struct device_attribute *attr,
+					char *buf)
 {
 	int ret = 0;
 	ret = sprintf(buf, "%s\n", remote_log_buf);
@@ -309,21 +359,13 @@ static ssize_t remote_log_buffer_show(struct device *dev,
 }
 
 static ssize_t remote_enable_show(struct device *dev,
-				  struct device_attribute *attr , char *buf)
+				  struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%u\n", remote_enable);
 }
-static ssize_t remote_log_buffer_store(struct device *dev,
-					struct device_attribute *attr ,
-					const char *buf ,
-					size_t count)
-{
-	return count;
-}
-static ssize_t remote_enable_store(struct device *dev ,
-					struct device_attribute *attr,
-					const char *buf ,
-					size_t count)
+static ssize_t remote_enable_store(struct device *dev,
+				   struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	int state;
 
@@ -348,41 +390,67 @@ static ssize_t remote_enable_store(struct device *dev ,
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, remote_enable_show,
 		   remote_enable_store);
-static DEVICE_ATTR(log_buffer, S_IRUGO | S_IWUSR, remote_log_buffer_show,
-		   remote_log_buffer_store);
+static DEVICE_ATTR(log_buffer, S_IRUGO , remote_log_buffer_show, NULL);
 
 static int hardware_init(struct platform_device *pdev)
 {
 	struct pinctrl *p;
 	p = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(p))
+	if (IS_ERR(p)) {
+		pr_err("Remote: hardware init fail, %ld\n", PTR_ERR(p));
 		return -1;
-	set_remote_mode(gp_remote, DECODEMODE_NEC);
-	return request_irq(REMOTE_IRQ_NO , remote_interrupt , IRQF_SHARED ,
-			   "keypad" , (void *)remote_interrupt);
+	}
+	set_remote_mode(DECODEMODE_NEC_RCA_2IN1);
+	gp_remote->work_mode = gp_remote->save_mode = DECODEMODE_NEC_RCA_2IN1;
+	return request_irq(NEC_REMOTE_IRQ_NO, remote_interrupt, IRQF_SHARED,
+				"keypad",
+				(void *)remote_interrupt);
 }
 static int work_mode_config(unsigned int cur_mode)
 {
+
+#ifdef REMOTE_FIQ
+	struct irq_desc *desc = irq_to_desc(NEC_REMOTE_IRQ_NO);
+#endif
 	int ret;
 	pr_info("cur_mode = %d\n", cur_mode);
-	set_remote_mode(gp_remote, cur_mode);
+	if (cur_mode > DECODEMODE_MAX) {
+		/*g_remote_ao_offset = P_AO_IR_DEC_LDR_ACTIVE;//change to old
+		ir decode*/
+		pr_err("Remote: Error!!! you are setting one invalid mode\n");
+		return -1;
+	}
+	set_remote_mode(cur_mode);
 	set_remote_init(gp_remote);
 	if (cur_mode == gp_remote->save_mode)
 		return 0;
-	if ((cur_mode <= DECODEMODE_MAX) &&
-	    (gp_remote->save_mode > DECODEMODE_MAX)) {
-		ret = request_irq(REMOTE_IRQ_NO,
-					remote_interrupt,
-					IRQF_SHARED,
-					"keypad",
-					(void *)remote_interrupt);
+	if ((cur_mode <= DECODEMODE_MAX)  &&
+		(gp_remote->save_mode > DECODEMODE_MAX)) {
+#ifdef REMOTE_FIQ
+		unregister_fiq_bridge_handle(&gp_remote->fiq_handle_item);
+		free_fiq(NEC_REMOTE_IRQ_NO, &remote_fiq_interrupt);
+#endif
+		ret = request_irq(NEC_REMOTE_IRQ_NO, remote_interrupt,
+					IRQF_SHARED, "keypad",
+				  (void *)remote_interrupt);
 		if (ret < 0) {
-			pr_err(KERN_ERR "Remote: request_irq failed,ret=%d.\n",
-			       ret);
+			pr_err("Remote: request_irq failed, ret=%d.\n", ret);
 			return ret;
 		}
+	} else if ((cur_mode > DECODEMODE_MAX)  &&
+		   (gp_remote->save_mode < DECODEMODE_MAX)) {
+		free_irq(NEC_REMOTE_IRQ_NO, remote_interrupt);
+#ifdef REMOTE_FIQ
+		gp_remote->fiq_handle_item.handle =
+		remote_bridge_sw_isr[gp_remote->work_mode];
+		gp_remote->fiq_handle_item.key = (u32) gp_remote;
+		gp_remote->fiq_handle_item.name = "remote_bridge";
+		register_fiq_bridge_handle(&gp_remote->fiq_handle_item);
+		desc->depth++;
+		request_fiq(NEC_REMOTE_IRQ_NO, remote_fiq_interrupt);
+#endif
 	} else
-		pr_err("do nothing\n");
+		pr_info("do nothing\n");
 	gp_remote->save_mode = cur_mode;
 	return 0;
 }
@@ -393,13 +461,14 @@ static int remote_config_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static long remote_config_ioctl(struct file *filp, unsigned int cmd ,
+static long remote_config_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long args)
 {
 	struct remote *remote = (struct remote *)filp->private_data;
 	void __user *argp = (void __user *)args;
 	unsigned int val, i;
 	unsigned int ret;
+
 	if (args)
 		ret = copy_from_user(&val, argp, sizeof(unsigned long));
 	mutex_lock(&remote_file_mutex);
@@ -418,8 +487,8 @@ static long remote_config_ioctl(struct file *filp, unsigned int cmd ,
 			mutex_unlock(&remote_file_mutex);
 			return -1;
 		}
-		remote->key_repeat_map[remote->map_num][val >> 16] = val &
-				0xffff;
+		remote->key_repeat_map[remote->map_num][val >> 16] =
+							val & 0xffff;
 		break;
 	case REMOTE_IOC_SET_KEY_MAPPING:
 		if ((val >> 16) >= ARRAY_SIZE(key_map[remote->map_num])) {
@@ -437,22 +506,25 @@ static long remote_config_ioctl(struct file *filp, unsigned int cmd ,
 		break;
 	case REMOTE_IOC_SET_RELT_DELAY:
 		ret = copy_from_user(&remote->relt_delay[remote->map_num],
-				     argp , sizeof(long));
+					argp, sizeof(long));
 		break;
 	case REMOTE_IOC_SET_REPEAT_DELAY:
 		ret = copy_from_user(&remote->repeat_delay[remote->map_num],
-				     argp , sizeof(long));
+					argp,
+					sizeof(long));
 		break;
 	case REMOTE_IOC_SET_REPEAT_PERIOD:
 		ret = copy_from_user(&remote->repeat_peroid[remote->map_num],
-				     argp , sizeof(long));
+					argp,
+					sizeof(long));
 		break;
 	case REMOTE_IOC_SET_REPEAT_ENABLE:
-		ret = copy_from_user(&remote->repeat_enable,
-				     argp, sizeof(long));
+		ret = copy_from_user(&remote->repeat_enable, argp,
+					sizeof(long));
 		break;
 	case REMOTE_IOC_SET_DEBUG_ENABLE:
-		ret = copy_from_user(&remote->debug_enable, argp, sizeof(long));
+		ret = copy_from_user(&remote->debug_enable, argp,
+							sizeof(long));
 		break;
 	case REMOTE_IOC_SET_MODE:
 		ret = copy_from_user(&remote->work_mode, argp, sizeof(long));
@@ -462,30 +534,32 @@ static long remote_config_ioctl(struct file *filp, unsigned int cmd ,
 		break;
 	case REMOTE_IOC_SET_CUSTOMCODE:
 		ret = copy_from_user(&remote->custom_code[remote->map_num],
-				     argp , sizeof(long));
+							argp, sizeof(long));
 		break;
 	case REMOTE_IOC_SET_REG_BASE_GEN:
-		aml_write_aobus(OPERATION_CTRL_REG0, val);
+		am_remote_write_reg(OPERATION_CTRL_REG0, val);
 		break;
 	case REMOTE_IOC_SET_REG_CONTROL:
-		aml_write_aobus(DURATION_REG1_AND_STATUS, val);
+		am_remote_write_reg(DURATION_REG1_AND_STATUS, val);
 		break;
 	case REMOTE_IOC_SET_REG_LEADER_ACT:
-		aml_write_aobus(LDR_ACTIVE, val);
+		am_remote_write_reg(LDR_ACTIVE, val);
 		break;
 	case REMOTE_IOC_SET_REG_LEADER_IDLE:
-		aml_write_aobus(LDR_IDLE, val);
+		am_remote_write_reg(LDR_IDLE, val);
 		break;
 	case REMOTE_IOC_SET_REG_REPEAT_LEADER:
-		aml_write_aobus(LDR_REPEAT, val);
+		am_remote_write_reg(LDR_REPEAT, val);
 		break;
 	case REMOTE_IOC_SET_REG_BIT0_TIME:
-		aml_write_aobus(DURATION_REG0, val);
+		am_remote_write_reg(DURATION_REG0, val);
 		break;
 	case REMOTE_IOC_SET_RELEASE_DELAY:
-		ret = copy_from_user(&remote->release_delay[remote->map_num] ,
-				     argp, sizeof(long));
+		ret = copy_from_user(&remote->release_delay[remote->map_num],
+					argp,
+				sizeof(long));
 		break;
+	/*SW*/
 	case REMOTE_IOC_SET_TW_LEADER_ACT:
 		remote->time_window[0] = val & 0xffff;
 		remote->time_window[1] = (val >> 16) & 0xffff;
@@ -517,6 +591,7 @@ static long remote_config_ioctl(struct file *filp, unsigned int cmd ,
 		OK_KEY_SCANCODE = val;
 		break;
 	}
+	/*output result*/
 	switch (cmd) {
 	case REMOTE_IOC_SET_REPEAT_ENABLE:
 		if (remote->repeat_enable) {
@@ -570,16 +645,15 @@ static int register_remote_dev(struct remote *remote)
 	strcpy(remote->config_name, "amremote");
 	ret = register_chrdev(0, remote->config_name, &remote_fops);
 	if (ret <= 0) {
-		pr_err("register char dev tv error\r\n");
+		pr_info("register char dev tv error\r\n");
 		return ret;
 	}
 	remote->config_major = ret;
 	pr_info("remote config major:%d\r\n", ret);
 	remote->config_class = class_create(THIS_MODULE, remote->config_name);
-	remote->config_dev = device_create(remote->config_class, NULL ,
-						MKDEV(remote->config_major, 0),
-						NULL,
-						remote->config_name);
+	remote->config_dev = device_create(remote->config_class, NULL,
+					   MKDEV(remote->config_major, 0),
+						NULL, remote->config_name);
 	return ret;
 }
 
@@ -594,7 +668,7 @@ static void remote_early_suspend(struct early_suspend *handler)
 
 static const struct of_device_id remote_dt_match[] = {
 	{
-		.compatible     = "amlogic, meson, remote-keypad",
+		.compatible     = "amlogic, aml_remote",
 	},
 	{},
 };
@@ -604,23 +678,30 @@ static int remote_probe(struct platform_device *pdev)
 {
 	struct remote *remote;
 	struct input_dev *input_dev;
+	int ao_offset;
+	struct resource *res_irq;
 	int i, ret;
-	remote = kzalloc(sizeof(struct remote), GFP_KERNEL);
-	REMOTE_IRQ_NO = platform_get_irq_byname(pdev, "remoteirq");
-	if (REMOTE_IRQ_NO == -ENXIO) {
-		pr_err("%s: ERROR: Remote IRQ configuration information not found\n" ,
-		       __func__);
-		return -ENXIO;
-	}
-	pr_info("remote irq = %d\n" , REMOTE_IRQ_NO);
-	aml_write_aobus(AO_RTI_PIN_MUX_REG ,
-			aml_read_aobus(AO_RTI_PIN_MUX_REG) | 0x1);
+	/*aml_set_reg32_mask(P_AO_RTI_PIN_MUX_REG, (1 << 0));*/
 	if (!pdev->dev.of_node) {
-		pr_err("aml_remote: pdev->dev.of_node == NULL!\n");
+		pr_info("aml_remote: pdev->dev.of_node == NULL!\n");
 		return -1;
 	}
+	ret = of_property_read_u32(pdev->dev.of_node, "remote_ao_offset",
+					&ao_offset);
+	if (ret) { /*new decoder*/
+		pr_info("cant find match item for remote_ao_offset\n");
+		return -1;
+	}
+	/*ao_offset = P_AO_IR_DEC_LDR_ACTIVE;*/
+	/*ao_offset = P_AO_MF_IR_DEC_LDR_ACTIVE;*/
+	g_remote_ao_offset = ao_offset;
+	pr_info("Remote platform_data g_remote_ao_offset=%x\n", ao_offset);
+	/*get irq number.*/
+	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	NEC_REMOTE_IRQ_NO = res_irq->start;
+	pr_info("Remote platform_data irq =%d\n", NEC_REMOTE_IRQ_NO);
 	remote_enable = 1;
-
+	remote = kzalloc(sizeof(struct remote), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!remote || !input_dev) {
 		kfree(remote);
@@ -645,23 +726,24 @@ static int remote_probe(struct platform_device *pdev)
 	remote->last_pulse_width = 0;
 	remote->step = REMOTE_STATUS_WAIT;
 	remote->sleep = 0;
+	/*init logic0 logic1  time window*/
 	for (i = 0; i < 18; i++)
 		remote->time_window[i] = 0x1;
 	/* Disable the interrupt for the MPUIO keyboard
 	init the default key map table ,and mouse map table.
 	note KEY_RESERVED==0*/
-	memset(key_map, 0x0, sizeof(key_map));
+	memset(key_map, 0x00, sizeof(key_map));
 	memset(mouse_map, 0xff, sizeof(mouse_map));
-
-
 	remote->repeat_delay[remote->map_num]  = 250;
 	remote->repeat_peroid[remote->map_num]  = 33;
+	/* get the irq and init timer */
 	input_dbg("set drvdata completed\r\n");
 	tasklet_enable(&tasklet);
 	tasklet.data = (unsigned long)remote;
 	setup_timer(&remote->timer, remote_release_timer_sr, 0);
-	aml_read_aobus(DURATION_REG1_AND_STATUS);
-	aml_read_aobus(FRAME_BODY);
+	/*read status & frame register to abandon last key from uboot*/
+	am_remote_read_reg(DURATION_REG1_AND_STATUS);
+	am_remote_read_reg(FRAME_BODY);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING + 1;
 	early_suspend.suspend = remote_early_suspend;
@@ -679,14 +761,14 @@ static int remote_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	input_dbg("device_create_file completed \r\n");
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL) |
-			      BIT_MASK(EV_ABS);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL)
+						| BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
-			BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
-	input_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y) |
-			       BIT_MASK(REL_WHEEL);
-	input_dev->keybit[BIT_WORD(BTN_MOUSE)] |= BIT_MASK(BTN_SIDE) |
-			BIT_MASK(BTN_EXTRA);
+				BIT_MASK(BTN_RIGHT) | BIT_MASK(BTN_MIDDLE);
+	input_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y) | BIT_MASK
+						(REL_WHEEL);
+	input_dev->keybit[BIT_WORD(BTN_MOUSE)] |= BIT_MASK(BTN_SIDE)
+						| BIT_MASK(BTN_EXTRA);
 	for (i = 0; i < KEY_MAX; i++)
 		set_bit(i, input_dev->keybit);
 	input_dev->name = "aml_keypad";
@@ -710,8 +792,8 @@ static int remote_probe(struct platform_device *pdev)
 	if (hardware_init(pdev))
 		goto err3;
 	register_remote_dev(gp_remote);
-	remote_log_buf = (char *)__get_free_pages(GFP_KERNEL ,
-			 REMOTE_LOG_BUF_ORDER);
+	remote_log_buf = (char *)__get_free_pages(GFP_KERNEL,
+					REMOTE_LOG_BUF_ORDER);
 	remote_log_buf[0] = '\0';
 	pr_info("physical address:0x%x\n",
 		(unsigned int)virt_to_phys(remote_log_buf));
@@ -739,15 +821,20 @@ static int remote_remove(struct platform_device *pdev)
 	free_pages((unsigned long)remote_log_buf, REMOTE_LOG_BUF_ORDER);
 	device_remove_file(&pdev->dev, &dev_attr_enable);
 	device_remove_file(&pdev->dev, &dev_attr_log_buffer);
-	free_irq(REMOTE_IRQ_NO, remote_interrupt);
+	if (gp_remote->work_mode >= DECODEMODE_MAX) {
+#ifdef REMOTE_FIQ
+		free_fiq(NEC_REMOTE_IRQ_NO, remote_fiq_interrupt);
+		free_irq(BRIDGE_IRQ, gp_remote);
+#endif
+	} else
+		free_irq(NEC_REMOTE_IRQ_NO, remote_interrupt);
 	input_free_device(remote->input);
 
 	unregister_chrdev(remote->config_major, remote->config_name);
 	if (remote->config_class) {
-		if (remote->config_dev) {
+		if (remote->config_dev)
 			device_destroy(remote->config_class,
-				       MKDEV(remote->config_major, 0));
-		}
+			 MKDEV(remote->config_major, 0));
 		class_destroy(remote->config_class);
 	}
 
@@ -760,25 +847,28 @@ static int remote_resume(struct platform_device *pdev)
 {
 	pr_info("remote_resume To do remote resume\n");
 	pr_info("remote_resume make sure read frame enable ir interrupt\n");
-	aml_read_aobus(DURATION_REG1_AND_STATUS);
-	aml_read_aobus(FRAME_BODY);
+	am_remote_read_reg(DURATION_REG1_AND_STATUS);
+	am_remote_read_reg(FRAME_BODY);
 	if (aml_read_aobus(AO_RTI_STATUS_REG2) == 0x1234abcd) {
 		input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
 		input_sync(gp_remote->input);
 		input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
 		input_sync(gp_remote->input);
+
+		/*aml_write_reg32(P_AO_RTC_ADDR0,
+		(aml_read_reg32(P_AO_RTC_ADDR0) | (0x0000f000)));*/
 		aml_write_aobus(AO_RTI_STATUS_REG2, 0);
 	}
 	gp_remote->sleep = 0;
 	pr_info("to clear irq ...\n");
-	disable_irq(REMOTE_IRQ_NO);
+	disable_irq(NEC_REMOTE_IRQ_NO);
 	udelay(1000);
-	enable_irq(REMOTE_IRQ_NO);
+	enable_irq(NEC_REMOTE_IRQ_NO);
 
 	return 0;
 }
 
-static int remote_suspend(struct platform_device *pdev , pm_message_t state)
+static int remote_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	pr_info("remote_suspend, set sleep 1\n");
 	gp_remote->sleep = 1;

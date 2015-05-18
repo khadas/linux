@@ -12,7 +12,7 @@ obj-$(CONFIG_MESON_TIMER)	+= clocksource/
 
 obj-$(CONFIG_AM_UART)		+= uart/
 
-obj-$(CONFIG_CPU_FREQ) += cpufreq/
+obj-$(CONFIG_CPU_FREQ)		+= cpufreq/
 
 obj-$(CONFIG_AML_CPU_VERSION)	+= cpu_version/
 
@@ -25,8 +25,6 @@ obj-$(CONFIG_AMLOGIC_CLK)	+= clk/
 obj-$(CONFIG_AML_HDMI_TX) 	+= hdmi/
 
 obj-$(CONFIG_AML_RTC) 		+= rtc/
-
-obj-$(CONFIG_AM_REMOTE)		+= remote/
 
 obj-$(CONFIG_AM_IRBLASTER)	+= irblaster/
 
