@@ -1160,32 +1160,21 @@ static ssize_t store_window_axis(struct device *device,
 static ssize_t show_debug(struct device *device, struct device_attribute *attr,
 			  char *buf)
 {
-	char help[] = "Usage:\n"
-		      "	echo val > debug ; show osd pan/display/scale value\n"
-		      "	echo reg > debug ; Show osd register value\n"
-		      "	echo test > debug ; Start osd auto test\n";
-	return snprintf(buf, sizeof(help), "%s", help);
+	char *help = osd_get_debug_hw();
+
+	return snprintf(buf, strlen(help), "%s", help);
 }
 
 static ssize_t store_debug(struct device *device, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	int debug_flag = 0;
+	int ret = -EINVAL;
 
-	if (!buf)
-		return count;
+	ret = osd_set_debug_hw(buf);
+	if (ret == 0)
+		ret = count;
 
-	if (strncmp(buf, "val", 3) == 0)
-		debug_flag = 1;
-	else if (strncmp(buf, "reg", 3) == 0)
-		debug_flag = 2;
-	else if (strncmp(buf, "test", 4) == 0)
-		debug_flag = 3;
-
-	osd_set_debug_hw(fb_info->node, debug_flag);
-
-	return count;
+	return ret;
 }
 
 static ssize_t show_log_level(struct device *device,

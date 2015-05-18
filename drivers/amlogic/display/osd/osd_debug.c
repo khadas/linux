@@ -17,8 +17,11 @@
 
 
 /* Linux Headers */
+#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 /* Amlogic Headers */
@@ -44,6 +47,14 @@ static struct config_para_s ge2d_config;
 static struct config_para_ex_s ge2d_config_ex;
 static struct ge2d_context_s *ge2d_context;
 #endif
+
+char osd_debug_help[] = "Usage:\n"
+"  echo [i | info] > debug ; Show osd pan/display/scale information\n"
+"  echo [t | test] > debug ; Start osd auto test\n"
+"  echo [r | read] reg > debug ; Read VCBUS register\n"
+"  echo [w | write] reg val > debug ; Write VCBUS register\n"
+"  echo [d | dump] {start end} > debug ; Dump VCBUS register\n\n";
+
 
 static void osd_debug_dump_value(void)
 {
@@ -110,7 +121,7 @@ static void osd_debug_dump_value(void)
 
 }
 
-static void osd_debug_dump_register(void)
+static void osd_debug_dump_register_all(void)
 {
 	u32 reg = 0;
 	u32 offset = 0;
@@ -119,6 +130,10 @@ static void osd_debug_dump_register(void)
 	reg = VPU_VIU_VENC_MUX_CTRL;
 	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	reg = VPP_MISC;
+	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+	reg = VPP_OFIFO_SIZE;
+	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+	reg = VPP_HOLD_LINES;
 	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	reg = VPP_OSD_SC_CTRL0;
 	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
@@ -132,6 +147,8 @@ static void osd_debug_dump_register(void)
 	for (index = 0; index < 2; index++) {
 		if (index == 1)
 			offset = REG_OFFSET;
+		reg = offset + VIU_OSD1_FIFO_CTRL_STAT;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_CTRL_STAT;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_BLK0_CFG_W0;
@@ -146,6 +163,57 @@ static void osd_debug_dump_register(void)
 		if (index == 1)
 			reg = VIU_OSD2_BLK0_CFG_W4;
 		osd_log_info("reg[0x%x]: 0x%08x\n\n", reg, osd_reg_read(reg));
+	}
+}
+
+static void osd_debug_dump_register_region(u32 start, u32 end)
+{
+	u32 reg = 0;
+
+	for (reg = start; reg <= end; reg += 4)
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+}
+
+static void osd_debug_dump_register(int argc, char **argv)
+{
+	int reg_start, reg_end;
+	int ret;
+
+	if ((argc == 3) && argv[1] && argv[2]) {
+		ret = kstrtoint(argv[1], 16, &reg_start);
+		ret = kstrtoint(argv[2], 16, &reg_end);
+		osd_debug_dump_register_region(reg_start, reg_end);
+	} else {
+		osd_debug_dump_register_all();
+	}
+}
+
+static void osd_debug_read_register(int argc, char **argv)
+{
+	int reg;
+	int ret;
+
+	if ((argc == 2) && argv[1]) {
+		ret = kstrtoint(argv[1], 16, &reg);
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+	} else {
+		osd_log_err("read: arg error\n");
+	}
+}
+
+static void osd_debug_write_register(int argc, char **argv)
+{
+	int reg, val;
+	int ret;
+
+	if ((argc == 3) && argv[1] && argv[2]) {
+		ret = kstrtoint(argv[1], 16, &reg);
+		ret = kstrtoint(argv[2], 16, &val);
+		osd_reg_write(reg, val);
+		osd_log_info("reg[0x%x]: 0x%08x =0x%08x\n",
+				reg, val, osd_reg_read(reg));
+	} else {
+		osd_log_err("write: arg error\n");
 	}
 }
 
@@ -329,12 +397,54 @@ static void osd_debug_auto_test(void)
 	osd_test_rect();
 }
 
-void osd_set_debug_hw(u32 index, u32 debug_flag)
+char *osd_get_debug_hw(void)
 {
-	if (debug_flag == 1)
+	return osd_debug_help;
+}
+
+int osd_set_debug_hw(const char *buf)
+{
+	int argc;
+	char *buffer, *p, *para;
+	char *argv[4];
+	char cmd;
+
+	buffer = kstrdup(buf, GFP_KERNEL);
+	p = buffer;
+	for (argc = 0; argc < 4; argc++) {
+		para = strsep(&p, " ");
+		if (para == NULL)
+			break;
+		argv[argc] = para;
+	}
+
+	if (argc < 1 || argc > 4) {
+		kfree(buffer);
+		return -EINVAL;
+	}
+
+	cmd = argv[0][0];
+	switch (cmd) {
+	case 'i':
 		osd_debug_dump_value();
-	else if (debug_flag == 2)
-		osd_debug_dump_register();
-	else if (debug_flag == 3)
+		break;
+	case 'd':
+		osd_debug_dump_register(argc, argv);
+		break;
+	case 'r':
+		osd_debug_read_register(argc, argv);
+		break;
+	case 'w':
+		osd_debug_write_register(argc, argv);
+		break;
+	case 't':
 		osd_debug_auto_test();
+		break;
+	default:
+		osd_log_err("arg error\n");
+		break;
+	}
+
+	kfree(buffer);
+	return 0;
 }

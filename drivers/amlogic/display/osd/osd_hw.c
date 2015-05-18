@@ -239,7 +239,7 @@ static unsigned int *filter_table[] = {
 #define OSD_TYPE_TOP_FIELD 0
 #define OSD_TYPE_BOT_FIELD 1
 
-static void osd_mem_power_on(void)
+static void osd_vpu_power_on(void)
 {
 #ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_ON);
@@ -3032,7 +3032,7 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.updated[OSD1] = 0;
 	osd_hw.updated[OSD2] = 0;
 
-	osd_mem_power_on();
+	osd_vpu_power_on();
 
 	/* here we will init default value ,these value only set once . */
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M6TV)
@@ -3041,15 +3041,38 @@ void osd_init_hw(u32 logo_loaded)
 		osd_reg_set_mask(VPU_OSD1_MMC_CTRL, 1 << 12);
 	}
 	if (!logo_loaded) {
-		data32 = 1;          /* Set DDR request priority to be urgent */
+		/* init vpu fifo control register */
+		data32 = osd_reg_read(VPP_OFIFO_SIZE);
+		data32 |= 0x77f;
+		osd_reg_write(VPP_OFIFO_SIZE, data32);
+		data32 = 0x08080808;
+		osd_reg_write(VPP_HOLD_LINES, data32);
+
+		/* init osd fifo control register */
+		/* set DDR request priority to be urgent */
+		data32 = 1;
 		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M6TV)
 		    || (get_cpu_type() == MESON_CPU_MAJOR_ID_MTVD)) {
-			data32 |= 18  << 5;  /* hold_fifo_lines */
+			data32 |= 18 << 5;  /* hold_fifo_lines */
 		} else {
-			data32 |= 4   << 5;  /* hold_fifo_lines */
+			data32 |= 4 << 5;  /* hold_fifo_lines */
 		}
-		data32 |= 3   << 10; /* burst_len_sel: 3=64 */
-		data32 |= 32  << 12; /* fifo_depth_val: 32*8=256 */
+		/* burst_len_sel: 3=64 */
+		data32 |= 3  << 10;
+		/* fifo_depth_val: 32*8=256 */
+		data32 |= 32 << 12;
+		if (is_meson_gxbb_cpu()) {
+			/*
+			 * bit 23:22, fifo_ctrl
+			 * 00 : for 1 word in 1 burst
+			 * 01 : for 2 words in 1 burst
+			 * 10 : for 4 words in 1 burst
+			 * 11 : reserved
+			 */
+			data32 |= 2 << 22;
+			/* bit 28:24, fifo_lim */
+			data32 |= 2 << 24;
+		}
 		osd_reg_write(VIU_OSD1_FIFO_CTRL_STAT, data32);
 		osd_reg_write(VIU_OSD2_FIFO_CTRL_STAT, data32);
 		osd_reg_set_mask(VPP_MISC, VPP_POSTBLEND_EN);

@@ -73,7 +73,6 @@ extern void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1,
 				   s32 *y1);
 extern void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1);
 extern void osd_set_scale_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1);
-extern void osd_set_debug_hw(u32 index, u32 flag);
 extern void osd_get_block_windows_hw(u32 index, u32 *windows);
 extern void osd_set_block_windows_hw(u32 index, u32 *windows);
 extern void osd_get_block_mode_hw(u32 index, u32 *mode);
@@ -122,6 +121,8 @@ extern void osd_init_scan_mode(void);
 extern void osd_set_logo_index(u32 index);
 extern int osd_get_logo_index(void);
 extern void osd_get_hw_para(struct hw_para_s **para);
+extern int osd_set_debug_hw(const char *buf);
+extern char *osd_get_debug_hw(void);
 
 #ifdef CONFIG_AM_FB_EXT
 extern void osd_ext_clone_pan(u32 index);
