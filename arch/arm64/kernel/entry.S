@@ -192,7 +192,7 @@ ENTRY(vectors)
 	ventry	el0_sync			// Synchronous 64-bit EL0
 	ventry	el0_irq				// IRQ 64-bit EL0
 	ventry	el0_fiq_invalid			// FIQ 64-bit EL0
-	ventry	el0_error_invalid		// Error 64-bit EL0
+	ventry	el0_error_64			// Error 64-bit EL0
 
 #ifdef CONFIG_COMPAT
 	ventry	el0_sync_compat			// Synchronous 32-bit EL0
@@ -217,6 +217,11 @@ END(vectors)
 	mrs	x2, esr_el1
 	b	bad_mode
 	.endm
+
+el0_error_64:
+	kernel_entry 0, 64
+	kernel_exit 0, 0
+ENDPROC(el0_error_64)
 
 el0_sync_invalid:
 	inv_entry 0, BAD_SYNC
