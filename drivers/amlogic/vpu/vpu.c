@@ -26,11 +26,6 @@
 #include <linux/delay.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vpu.h>
-#if 0
-#ifdef CONFIG_SMP
-#include <mach/smp.h>
-#endif
-#endif
 #include <linux/amlogic/vout/vinfo.h>
 #include "vpu_reg.h"
 #include "vpu.h"
@@ -264,9 +259,12 @@ static void switch_vpu_clk_m8_g9(void)
 		get_vpu_clk(), (vpu_cbus_read(HHI_VPU_CLK_CNTL)));
 }
 
+/* unit: MHz */
+#define VPU_CLKB_MAX    350
 static void switch_vpu_clk_gx(void)
 {
 	unsigned int mux, div;
+	unsigned int vpu_clk;
 
 	/* switch to second vpu clk patch */
 	mux = vpu_clk_table[vpu_conf.fclk_type][0][1];
@@ -288,9 +286,21 @@ static void switch_vpu_clk_gx(void)
 	vpu_hiu_setb(HHI_VPU_CLK_CNTL_GX, 0, 31, 1);
 	vpu_hiu_setb(HHI_VPU_CLK_CNTL_GX, 0, 24, 1);
 
+	vpu_clk = vpu_clk_table[vpu_conf.fclk_type][vpu_conf.clk_level][0];
+	if (vpu_clk >= (VPU_CLKB_MAX * 1000000))
+		div = 2;
+	else
+		div = 1;
+	vpu_hiu_setb(HHI_VPU_CLKB_CNTL_GX, (div - 1), 0, 8);
+#if 0
+	vpu_hiu_write(HHI_VAPBCLK_CNTL_GX,
+		(1 << 30)  |  /* turn on ge2d clock */
+		(0 << 9)   |  /* clk_sel    //250Mhz */
+		(1 << 0));    /* clk_div */
+	vpu_hiu_setb(HHI_VAPBCLK_CNTL_GX, 1, 8, 1);
+#endif
 	pr_info("set vpu clk: %uHz, readback: %uHz(0x%x)\n",
-		vpu_clk_table[vpu_conf.fclk_type][vpu_conf.clk_level][0],
-		get_vpu_clk(), (vpu_hiu_read(HHI_VPU_CLK_CNTL_GX)));
+		vpu_clk, get_vpu_clk(), (vpu_hiu_read(HHI_VPU_CLK_CNTL_GX)));
 }
 
 static int adjust_vpu_clk(unsigned int clk_level)
@@ -308,12 +318,7 @@ static int adjust_vpu_clk(unsigned int clk_level)
 	vpu_conf.clk_level = clk_level;
 	switch (vpu_chip_type) {
 	case VPU_CHIP_M8:
-#ifdef CONFIG_SMP
-		/* try_exclu_cpu_exe(change_vpu_clk, &vpu_conf); */
 		change_vpu_clk(&vpu_conf);
-#else
-		change_vpu_clk(&vpu_conf);
-#endif
 		break;
 	case VPU_CHIP_M8M2:
 		if (clk_level == (CLK_LEVEL_MAX_M8M2 - 1)) {
@@ -345,12 +350,6 @@ static int adjust_vpu_clk(unsigned int clk_level)
 		break;
 	case VPU_CHIP_GXBB:
 		switch_vpu_clk_gx();
-		vpu_hiu_write(HHI_VPU_CLKB_CNTL_GX, ((1 << 8) | (1 << 0)));
-		vpu_hiu_write(HHI_VAPBCLK_CNTL_GX,
-			(1 << 30)  |  /* turn on ge2d clock */
-			(0 << 9)   |  /* clk_sel    //250Mhz */
-			(1 << 0));    /* clk_div */
-		vpu_hiu_setb(HHI_VAPBCLK_CNTL_GX, 1, 8, 1);
 		break;
 	default:
 		break;

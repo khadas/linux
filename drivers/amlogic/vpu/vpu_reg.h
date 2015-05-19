@@ -108,11 +108,11 @@ static struct reg_map_s vpu_reg_maps[] = {
 	},
 	{ /* HIU */
 		.base_addr = 0xc883c000,
-		.size = 0x1000,
+		.size = 0x400,
 	},
 	{ /* AO */
 		.base_addr = 0xc8100000,
-		.size = 0x1000,
+		.size = 0x100,
 	},
 };
 
@@ -131,8 +131,9 @@ static inline int vpu_ioremap(void)
 			ret = -1;
 		} else {
 			vpu_reg_maps[i].flag = 1;
-			pr_info("VPU reg mapped: 0x%x -> %p\n",
-				vpu_reg_maps[i].base_addr, vpu_reg_maps[i].p);
+			/* pr_info("VPU reg mapped: 0x%x -> %p\n",
+				vpu_reg_maps[i].base_addr,
+				vpu_reg_maps[i].p); */
 		}
 	}
 	return ret;
