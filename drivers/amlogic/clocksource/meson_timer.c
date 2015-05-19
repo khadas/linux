@@ -27,8 +27,6 @@
 #include <linux/delay.h>
 #include <linux/stat.h>
 #include <asm/memory.h>
-#include <asm/mach/map.h>
-#include <asm/mach/time.h>
 #include <linux/sched_clock.h>
 #include <linux/of.h>
 #include <asm/smp_plat.h>
@@ -259,8 +257,7 @@ void  clockevent_init_and_register(void)
 {
 	phandle phandle =  -1;
 	int cpuidx = smp_processor_id();
-	u32 mpidr = cpu_logical_map(cpuidx);
-	u32 hwid;
+	u32 hwid = 0;
 	struct device_node *cpu, *cpus, *timer;
 	struct meson_clock *mclk = &per_cpu(percpu_mesonclock, cpuidx);
 	struct clock_event_device *clock_evt =
@@ -269,16 +266,11 @@ void  clockevent_init_and_register(void)
 	if (!cpus)
 		return;
 	for_each_child_of_node(cpus, cpu) {
-		if (of_property_read_u32(cpu, "reg", &hwid)) {
-			pr_info(" * %s missing reg property\n",
-				     cpu->full_name);
-			return;
-		}
-		if (hwid == mpidr) {
+		if (hwid == cpuidx)
 			break;
-		}
+		hwid++;
 	}
-	if (hwid != mpidr)
+	if (hwid != cpuidx)
 		cpu = of_get_next_child(cpus, NULL);
 
 	if (of_property_read_u32(cpu, "timer", &phandle)) {
@@ -441,4 +433,4 @@ static int __init clocksource_sysfs_init(void)
 
 core_initcall(clocksource_sysfs_init);
 #endif /* ADD_CLOCKSOURCE_SYSFS */
-CLOCKSOURCE_OF_DECLARE(meson_timer, "arm,meson-timer", meson_timer_init);
+CLOCKSOURCE_OF_DECLARE(meson_timer, "arm, meson-timer", meson_timer_init);

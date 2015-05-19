@@ -40,7 +40,7 @@
     };
 
 	timer{
-		compatible = "arm,meson-timer";
+		compatible = "arm, meson-timer";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
