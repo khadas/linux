@@ -1933,7 +1933,8 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 			ret, p, (void *)wq);
 	}
 
-	mc_addr_map = dma_map_single(amvenc_avc_dev,
+	mc_addr_map = dma_map_single(
+		&encode_manager.this_pdev->dev,
 		mc_addr, MC_SIZE, DMA_TO_DEVICE);
 
 	/* mc_addr_map = wq->mem.assit_buffer_offset; */
@@ -1965,7 +1966,9 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 			break;
 		}
 	}
-	dma_unmap_single(NULL, mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(
+		&encode_manager.this_pdev->dev,
+		mc_addr_map, MC_SIZE, DMA_TO_DEVICE);
 	return ret;
 }
 
@@ -2478,14 +2481,16 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 
 static void dma_flush(u32 buf_start , u32 buf_size)
 {
-	dma_sync_single_for_device(amvenc_avc_dev, buf_start,
-			buf_size, DMA_TO_DEVICE);
+	dma_sync_single_for_device(
+		&encode_manager.this_pdev->dev, buf_start,
+		buf_size, DMA_TO_DEVICE);
 }
 
 static void cache_flush(u32 buf_start , u32 buf_size)
 {
-	dma_sync_single_for_cpu(amvenc_avc_dev, buf_start,
-			buf_size, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(
+		&encode_manager.this_pdev->dev, buf_start,
+		buf_size, DMA_FROM_DEVICE);
 }
 
 static u32 getbuffer(struct encode_wq_s *wq, u32 type)
@@ -3826,8 +3831,8 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 
 	enc_pr(LOG_INFO, "amvenc_avc probe start.\n");
 
-#ifdef CONFIG_CMA
 	encode_manager.this_pdev = pdev;
+#ifdef CONFIG_CMA
 	encode_manager.check_cma = false;
 #endif
 	encode_manager.reserve_mem.buf_start = 0;

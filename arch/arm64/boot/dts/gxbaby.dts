@@ -136,14 +136,14 @@
 		/*  DISP&MM-A/V stream */
 		streambuf_reserved:linux,mesonstream {
 			compatible = "amlogic, stream-memory";
-			size = <0 0x2000000>;
+			size = <0x0 0x2000000>;
 			no-map;
 		};
 
 		/*  DISP&MM-A/V stream */
 		vdec_reserved:linux,vdec {
 			compatible = "amlogic, vdec-memory";
-			size = <0 0xc000000>;
+			size = <0x0 0xc000000>;
 			no-map;
 		};
 		/*  vdin0 */
@@ -157,6 +157,15 @@
 			compatible = "amlogic, vdin_memory";
 			/* 1920x1080x2x4  =17M */
 			size = <0x0 0x01000000>;
+		};
+
+		/* AVC Encode CMA pool */
+		avc_cma_reserved:linux,avc_cma {
+			compatible = "amlogic, avc-cma-memory";
+			reusable;
+			size = <0x0 0x2400000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
 		};
 	};
 
@@ -314,6 +323,16 @@
 		status = "ok";
 		reg = <0x0 0xd0050000 0x0 0x7c>;
 	};
+
+	amvenc_avc{
+		compatible = "amlogic, amvenc_avc";
+		//memory-region = <&amvenc_avc_reserved>;
+		dev_name = "amvenc_avc";
+		status = "okay";
+		interrupts = <0 45 1>;
+		interrupt-names = "mailbox_2";
+	};
+
 	clock: meson_clock {
 		compatible = "amlogic, gxbb-clock";
 		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/

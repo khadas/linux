@@ -328,9 +328,9 @@ struct encode_manager_s {
 
 #ifdef CONFIG_CMA
 	bool check_cma;
-	struct platform_device *this_pdev;
 	ulong cma_pool_size;
 #endif
+	struct platform_device *this_pdev;
 	struct Buff_s *reserve_buff;
 	struct encode_wq_s *current_wq;
 	struct encode_wq_s *last_wq;
