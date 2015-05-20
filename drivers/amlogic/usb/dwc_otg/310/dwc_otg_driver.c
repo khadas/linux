@@ -78,11 +78,13 @@ extern void hcd_remove(struct platform_device *pdev);
 
 extern void dwc_otg_adp_start(dwc_otg_core_if_t *core_if, uint8_t is_host);
 
-dwc_otg_device_t *g_dwc_otg_device;
+dwc_otg_device_t *g_dwc_otg_device[2];
 EXPORT_SYMBOL_GPL(g_dwc_otg_device);
 
 static struct platform_driver dwc_otg_driver;
 extern uint32_t g_dbg_lvl;
+
+struct device *usbdev;
 
 /*-------------------------------------------------------------------------*/
 /* Encapsulate the module parameter settings */
@@ -193,7 +195,7 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 				   },
 	.host_rx_fifo_size = 512, /* will be overrided by platform setting */
 	.host_nperio_tx_fifo_size = 500,
-	.host_perio_tx_fifo_size = 500,
+	.host_perio_tx_fifo_size = -1,
 	.max_transfer_size = -1,
 	.max_packet_count = -1,
 	.host_channels = 16,
@@ -675,7 +677,7 @@ static irqreturn_t dwc_otg_common_irq(int irq, void *dev)
  */
 static int dwc_otg_driver_remove(struct platform_device *pdev)
 {
-	dwc_otg_device_t *otg_dev = g_dwc_otg_device;
+	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
 	int irq = 0;
 
 	DWC_DEBUGPL(DBG_ANY, "%s(%p)\n", __func__, pdev);
@@ -814,8 +816,14 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device_t *dwc_otg_device;
 	struct gpio_desc *usb_gd = NULL;
 	struct dwc_otg_driver_module_params *pcore_para;
+	static int dcount;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
+
+	if (dcount == 0)	{
+		dcount++;
+		usbdev = (struct device *)&pdev->dev;
+	}
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -825,8 +833,10 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			s_clock_name = of_get_property(of_node, "clock-src", NULL);
 			cpu_type = of_get_property(of_node, "cpu-type", NULL);
 			prop = of_get_property(of_node, "port-id", NULL);
-			if (prop)
+			if (prop) {
 				port_index = of_read_ulong(prop, 1);
+				pdev->id = port_index;
+			}
 			prop = of_get_property(of_node, "port-type", NULL);
 			if (prop)
 				port_type = of_read_ulong(prop, 1);
@@ -934,14 +944,14 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		DWC_FREE(dwc_otg_device);
 		return -ENOMEM;
 	}
-	dev_dbg(&pdev->dev, "base=0x%08x\n",
-		(unsigned)dwc_otg_device->os_dep.base);
+	dev_dbg(&pdev->dev, "base=0x%08lx\n",
+		(unsigned long)dwc_otg_device->os_dep.base);
 
 	/*
 	 * Initialize driver data to point to the global DWC_otg
 	 * Device structure.
 	 */
-	g_dwc_otg_device = dwc_otg_device;
+	g_dwc_otg_device[pdev->id] = dwc_otg_device;
 
 	dwc_otg_device->os_dep.pldev = pdev;
 	dwc_otg_device->gen_dev = &pdev->dev;
@@ -957,7 +967,8 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "dwc_otg_device=0x%p\n", dwc_otg_device);
 
-	if (clk_enable_usb(pdev, s_clock_name, (u32)phy_reg_addr, cpu_type)) {
+	if (clk_enable_usb(pdev, s_clock_name,
+		(unsigned long)phy_reg_addr, cpu_type)) {
 		dev_err(&pdev->dev, "Set dwc_otg PHY clock failed!\n");
 		return -ENODEV;
 	}
@@ -988,6 +999,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(&pdev->dev, "DMA config: %s\n", dma_config_name[dma_config]);
+
 	if (dma_config == USB_DMA_DISABLE) {
 		pcore_para->dma_enable = 0;
 		pdev->dev.coherent_dma_mask = 0;

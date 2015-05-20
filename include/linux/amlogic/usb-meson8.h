@@ -20,7 +20,6 @@
 
 #include <linux/platform_device.h>
 
-#define MESON8	"meson8"
 
 typedef struct usb_peri_reg {
 	volatile uint32_t config;

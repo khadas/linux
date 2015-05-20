@@ -1926,7 +1926,7 @@ static int32_t ep0_complete_request(dwc_otg_pcd_ep_t *ep)
 	    dev_if->out_ep_regs[ep->dwc_ep.num];
 #endif
 	deptsiz0_data_t deptsiz;
-	dev_dma_desc_sts_t desc_sts;
+	dev_dma_desc_sts_t desc_sts = {0};
 	dwc_otg_pcd_request_t *req;
 	int is_last = 0;
 	dwc_otg_pcd_t *pcd = ep->pcd;
