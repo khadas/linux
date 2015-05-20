@@ -62,6 +62,23 @@ static inline uint32_t rd_bits(uint32_t offset,
 	return val;
 }
 
+/* for rdma */
+#ifdef CONFIG_VSYNC_RDMA
+int VSYNC_WR_MPEG_REG(unsigned long adr, unsigned long val);
+int VSYNC_WR_MPEG_REG_BITS(unsigned long adr, unsigned long val,
+			   unsigned long start, unsigned long len);
+unsigned long VSYNC_RD_MPEG_REG(unsigned long adr);
+unsigned long RDMA_READ_REG(unsigned long adr);
+int RDMA_SET_READ(unsigned long adr);
+#else
+#define VSYNC_WR_MPEG_REG(adr, val) aml_write_vcbus(adr, val)
+#define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
+#define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
+	aml_write_vcbus(adr, ((aml_read_vcbus(adr) & \
+		~(((1L << (len)) - 1) << (start))) | \
+		(((val) & ((1L << (len)) - 1)) << (start))));
+#endif
+
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
 /* *********************************************************************** */
