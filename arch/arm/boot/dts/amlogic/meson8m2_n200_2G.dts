@@ -19,6 +19,12 @@
         	#size-cells = <1>;
 
 	};
+
+	gpu_dvfs_tbl:gpu_dvfs_tbl {
+		sc_mpp = <3>;/* number of pp used most of time.*/
+		tbl = <&clk182_cfg &clk319_cfg &clk425_cfg &clk510_cfg &clk637_cfg>;
+	};
+
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;

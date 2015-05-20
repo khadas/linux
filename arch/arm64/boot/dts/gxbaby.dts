@@ -59,6 +59,7 @@
 
 
 	};
+
 	timer{
 		compatible = "arm, meson-timer";
 		#address-cells = <2>;
@@ -111,6 +112,85 @@
 		};
 	};
 
+	gpu@d00c0000{
+		compatible = "arm,mali-450";
+		interrupt-parent = <&gic>;
+		reg = <0 0xd00c0000 0 0x40000>;
+		interrupts = <0 160 4>, <0 161 4>, <0 162 4>, <0 163 4>,
+				   <0 164 4>, <0 165 4>, <0 166 4>, <0 167 4>,
+				   <0 168 4>, <0 169 4>;
+		interrupt-names = "IRQGP", "IRQGPMMU", "IRQPP", "IRQPMU",
+			"IRQPP0", "IRQPPMMU0", "IRQPP1", "IRQPPMMU1",
+			"IRQPP2", "IRQPPMMU2";
+		pmu_domain_config = <0x1 0x2 0x4 0x4 0x0 0x0 0x0 0x0 0x0 0x1 0x2 0x0>;
+		pmu_switch_delay = <0xffff> ;
+		num_of_pp = <3> ;
+
+		clocks = <&clock CLK_FPLL_DIV3>,
+			<&clock CLK_FPLL_DIV4>,
+			<&clock CLK_FPLL_DIV5>,
+			<&clock CLK_FPLL_DIV7>,
+			<&clock CLK_MALI>,
+			<&clock CLK_MALI_0>,
+			<&clock CLK_MALI_1>;
+		clock-names =
+			"fclk_div3",
+			"fclk_div4",
+			"fclk_div5",
+			"fclk_div7",
+			"clk_mali",
+			"clk_mali_0",
+			"clk_mali_1";
+
+		  dvfs_tbl = <&gpu_dvfs_tbl>;
+
+		  clk250_cfg:clk250_cfg {
+			clk_freq = <250000000>;
+			clk_parent = "fclk_div4";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <30 80>;
+		  };
+
+		  clk400_cfg:clk400_cfg {
+			clk_freq = <400000000>;
+			clk_parent = "fclk_div5";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <40 205>;
+		  };
+
+		  clk500_cfg:clk500_cfg {
+			clk_freq = <500000000>;
+			clk_parent = "fclk_div4";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <150 215>;
+		  };
+
+		  clk666_cfg:clk666_cfg {
+			clk_freq = <666000000>;
+			clk_parent = "fclk_div3";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <170 253>;
+		  };
+
+		  clk800_cfg:clk800_cfg {
+			clk_freq = <800000000>;
+			clk_parent = "g_pll";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <230 255>;
+		  };
+
+	};
+
+	gpu_dvfs_tbl:gpu_dvfs_tbl {
+		sc_mpp = <3>;/* number of pp used most of time.*/
+		tbl = <&clk250_cfg &clk400_cfg &clk400_cfg &clk666_cfg &clk800_cfg>;
+	};
+
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x1000000 0x0 0x3f000000>;
@@ -138,6 +218,11 @@
 			compatible = "amlogic, stream-memory";
 			size = <0x0 0x2000000>;
 			no-map;
+		};
+
+		ion_reserved:linux,ion-dev {
+			compatible = "amlogic, idev-mem";
+			size = <0x0 0x2000000>;
 		};
 
 		/*  DISP&MM-A/V stream */
@@ -284,6 +369,12 @@
 			"demux",
 			"vdec";
 	};
+
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&ion_reserved>;
+	};
+
 	vdec {
 		compatible = "amlogic, vdec";
 		memory-region = <&vdec_reserved>;

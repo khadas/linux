@@ -39,6 +39,80 @@
         };
     };
 
+	gpu@d00c0000{
+		  compatible = "arm,mali-450";
+		  interrupt-parent = <&gic>;
+		  reg = <0xd00c0000 0x40000>;
+		  interrupts = <0 160 4>, <0 161 4>, <0 162 4>, <0 163 4>,
+					 <0 164 4>, <0 165 4>, <0 166 4>, <0 167 4>,
+					 <0 168 4>, <0 169 4>, <0 172 4>, <0 173 4>,
+					 <0 174 4>, <0 175 4>, <0 176 4>, <0 177 4>;
+		  interrupt-names = "IRQGP", "IRQGPMMU", "IRQPP", "IRQPMU",
+			  "IRQPP0", "IRQPPMMU0", "IRQPP1", "IRQPPMMU1",
+			  "IRQPP2", "IRQPPMMU2", "IRQPP4", "IRQPPMMU4",
+			  "IRQPP5", "IRQPPMMU5", "IRQPP6", "IRQPPMMU6";
+		  pmu_domain_config = <0x1 0x2 0x4 0x4 0x0 0x8 0x8 0x8 0x0 0x1 0x2 0x8>;
+		  pmu_switch_delay = <0xffff> ;
+		  num_of_pp = <6> ;
+
+		  clocks = <&clock CLK_FPLL_DIV3>,
+			  <&clock CLK_FPLL_DIV4>,
+			  <&clock CLK_FPLL_DIV5>,
+			  <&clock CLK_FPLL_DIV7>,
+			  <&clock CLK_MALI>,
+			  <&clock CLK_MALI_0>,
+			  <&clock CLK_MALI_1>;
+		  clock-names =
+			  "fclk_div3",
+			  "fclk_div4",
+			  "fclk_div5",
+			  "fclk_div7",
+			  "clk_mali",
+			  "clk_mali_0",
+			  "clk_mali_1";
+
+		  dvfs_tbl = <&gpu_dvfs_tbl>;
+
+		  clk182_cfg:clk182_cfg {
+			clk_freq = <182000000>;
+			clk_parent = "fclk_div7";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <30 80>;
+		  };
+
+		  clk319_cfg:clk319_cfg {
+			clk_freq = <318750000>;
+			clk_parent = "fclk_div4";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <40 205>;
+		  };
+
+		  clk425_cfg:clk425_cfg {
+			clk_freq = <425000000>;
+			clk_parent = "fclk_div4";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <150 215>;
+		  };
+
+		  clk510_cfg:clk510_cfg {
+			clk_freq = <510000000>;
+			clk_parent = "fclk_div5";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <170 253>;
+		  };
+		  clk637_cfg:clk637_cfg {
+			clk_freq = <637500000>;
+			clk_parent = "fclk_div4";
+			voltage = <1150>;
+			keep_count = <3>;
+			threshold = <230 255>;
+		  };
+	};
+
 	timer{
 		compatible = "arm, meson-timer";
 		#address-cells = <1>;
