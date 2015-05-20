@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <asm/mach/map.h>
 #include <linux/amlogic/iomap.h>
 
 #include <linux/init.h>
@@ -29,10 +28,12 @@
 
 #include <asm/compiler.h>
 #include <linux/errno.h>
-#include <asm/opcodes-sec.h>
-#include <asm/opcodes-virt.h>
 #include <asm/psci.h>
+#include <linux/suspend.h>
 
+#ifdef CONFIG_ARM64
+#include <asm/suspend.h>
+#endif
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -254,7 +255,7 @@ int remote_detect_key(void)
 #define AO_RTC_ADDR1 ((0x01 << 10) | (0xd1 << 2))
 #define AO_RTI_STATUS_REG2 ((0x00 << 10) | (0x02 << 2))
 #define AO_RTC_ADDR3 ((0x01 << 10) | (0xd3 << 2))
-
+#ifndef CONFIG_ARM64
 static noinline int __invoke_pm_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 					 u32 arg2)
 {
@@ -274,7 +275,14 @@ static noinline int __invoke_pm_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 
 	return function_id;
 }
+#else
 
+static noinline int __invoke_pm_fn_smc(u32 function_id, u32 arg0, u32 arg1,
+					 u32 arg2)
+{
+	return 0;
+}
+#endif
 
 static void meson_pm_suspend(void)
 {
@@ -314,6 +322,19 @@ static void meson_pm_suspend(void)
 	aml_cbus_update_bits(0x1067 , (1 << 7), 1<<7);
 	clk_switch(1);
 }
+/*
+ *0x10000 : bit[16]=1:control cpu suspend to power down
+ *
+ */
+static void meson_gx_suspend(void)
+{
+	pr_info(KERN_INFO "enter meson_pm_suspend!\n");
+
+	cpu_suspend(0x0010000);
+
+	pr_info(KERN_INFO "... wake up\n");
+
+}
 
 static int meson_pm_prepare(void)
 {
@@ -334,6 +355,19 @@ static int meson_pm_enter(suspend_state_t state)
 	}
 	return ret;
 }
+static int meson_gx_enter(suspend_state_t state)
+{
+	int ret = 0;
+	switch (state) {
+	case PM_SUSPEND_STANDBY:
+	case PM_SUSPEND_MEM:
+		meson_gx_suspend();
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	return ret;
+}
 
 static void meson_pm_finish(void)
 {
@@ -342,6 +376,12 @@ static void meson_pm_finish(void)
 
 static const struct platform_suspend_ops meson_pm_ops = {
 	.enter = meson_pm_enter,
+	.prepare = meson_pm_prepare,
+	.finish = meson_pm_finish,
+	.valid = suspend_valid_only_mem,
+};
+static const struct platform_suspend_ops meson_gx_ops = {
+	.enter = meson_gx_enter,
 	.prepare = meson_pm_prepare,
 	.finish = meson_pm_finish,
 	.valid = suspend_valid_only_mem,
@@ -371,12 +411,12 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get platform data\n");
 		return -ENOENT;
 	}
-	suspend_set_ops(&meson_pm_ops);
-#if 0
-	pl_310_base = ioremap(0xc4200000, 0x1000);
-	suspend_entry =
-	    __arm_ioremap_exec(0x04f00000, 0x100000, MT_MEMORY_RWX_NONCACHED);
-#endif
+
+	if (of_property_read_bool(pdev->dev.of_node, "gxbaby-suspend"))
+		suspend_set_ops(&meson_gx_ops);
+	else
+		suspend_set_ops(&meson_pm_ops);
+
 	pr_info(KERN_INFO "meson_pm_probe done\n");
 	return 0;
 }

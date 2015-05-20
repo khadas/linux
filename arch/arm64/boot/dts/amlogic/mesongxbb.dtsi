@@ -45,6 +45,10 @@
 			        <GIC_PPI 11 0xff01>,
 			        <GIC_PPI 10 0xff01>;
 	};
+	meson_suspend{
+	           compatible = "amlogic, pm";
+	           gxbaby-suspend;
+	};
 	gpu@d00c0000{
 		compatible = "arm,mali-450";
 		interrupt-parent = <&gic>;

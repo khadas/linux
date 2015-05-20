@@ -24,6 +24,7 @@
 #include <asm/errno.h>
 #include <asm/psci.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
 #define PSCI_POWER_STATE_TYPE_STANDBY		0
 #define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
@@ -190,7 +191,7 @@ int __init psci_init(void)
 	pr_info("probing function IDs from device-tree\n");
 
 	if (of_property_read_string(np, "method", &method)) {
-		pr_warning("missing \"method\" property\n");
+		pr_warn("missing \"method\" property\n");
 		err = -ENXIO;
 		goto out_put_node;
 	}
@@ -200,7 +201,7 @@ int __init psci_init(void)
 	} else if (!strcmp("smc", method)) {
 		invoke_psci_fn = __invoke_psci_fn_smc;
 	} else {
-		pr_warning("invalid \"method\" property: %s\n", method);
+		pr_warn("invalid \"method\" property: %s\n", method);
 		err = -EINVAL;
 		goto out_put_node;
 	}
@@ -281,12 +282,46 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 	pr_crit("psci: unable to power off CPU%u (%d)\n", cpu, ret);
 }
 #endif
+static int psci_suspend_finisher(unsigned long index)
+{
+	/* struct psci_power_state *state =
+	 * __this_cpu_read(psci_power_state); */
+	struct psci_power_state  state = {
+		.id = 0,
+		.type = 1,
+		.affinity_level = 0,
+	};
+
+	return psci_ops.cpu_suspend(state,
+				    virt_to_phys(cpu_resume));
+}
+
+static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
+{
+	int ret;
+	/* struct psci_power_state *state =
+	 * __this_cpu_read(psci_power_state); */
+	/*
+	 * idle state index 0 corresponds to wfi, should never be called
+	 * from the cpu_suspend operations
+	 */
+	if (WARN_ON_ONCE(!index))
+		return -EINVAL;
+
+	/* if (state[index - 1].type == PSCI_POWER_STATE_TYPE_STANDBY) */
+		/* ret = psci_ops.cpu_suspend(state[index - 1], 0); */
+	/* else */
+		ret = __cpu_suspend(index, psci_suspend_finisher);
+
+	return ret;
+}
 
 const struct cpu_operations cpu_psci_ops = {
 	.name		= "psci",
 	.cpu_init	= cpu_psci_cpu_init,
 	.cpu_prepare	= cpu_psci_cpu_prepare,
 	.cpu_boot	= cpu_psci_cpu_boot,
+	.cpu_suspend	= cpu_psci_cpu_suspend,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable	= cpu_psci_cpu_disable,
 	.cpu_die	= cpu_psci_cpu_die,

@@ -10,7 +10,6 @@
 #endif
 
 /*suspend relative ao register*/
-#define  AO_RTI_STATUS_REG2 0x02
 
 /*remote register*/
 #define LDR_ACTIVE 0x0

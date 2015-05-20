@@ -38,7 +38,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
 #include "remote_main.h"
-
+#include <linux/amlogic/cpu_version.h>
 #undef NEW_BOARD_LEARNING_MODE
 #define IR_CONTROL_DECODER_MODE     (3<<7)
 #define IR_CONTROL_SKIP_HEADER      (1<<7)
@@ -298,6 +298,7 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 		if (gp_remote->sleep && scancode == 0x1a &&
 		    key_map[gp_remote->map_num][scancode] == 0x0074) {
 			pr_info(" set AO_RTI_STATUS_REG2 0x4853ffff\n");
+#define  AO_RTI_STATUS_REG2 ((0x00 << 10) | (0x02 << 2))
 			aml_write_aobus(AO_RTI_STATUS_REG2, 0x4853ffff);
 			/* tell uboot don't suspend*/
 		}
@@ -852,15 +853,23 @@ static int remote_resume(struct platform_device *pdev)
 	pr_info("remote_resume make sure read frame enable ir interrupt\n");
 	am_remote_read_reg(DURATION_REG1_AND_STATUS);
 	am_remote_read_reg(FRAME_BODY);
-	if (aml_read_aobus(AO_RTI_STATUS_REG2) == 0x1234abcd) {
+	if (is_meson_m8m2_cpu()) {
+#define  AO_RTI_STATUS_REG2 ((0x00 << 10) | (0x02 << 2))
+		if (aml_read_aobus(AO_RTI_STATUS_REG2) == 0x1234abcd) {
+			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
+			input_sync(gp_remote->input);
+			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
+			input_sync(gp_remote->input);
+
+			/*aml_write_reg32(P_AO_RTC_ADDR0,
+			(aml_read_reg32(P_AO_RTC_ADDR0) | (0x0000f000)));*/
+			aml_write_aobus(AO_RTI_STATUS_REG2, 0);
+		}
+	} else {
 		input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
 		input_sync(gp_remote->input);
 		input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
 		input_sync(gp_remote->input);
-
-		/*aml_write_reg32(P_AO_RTC_ADDR0,
-		(aml_read_reg32(P_AO_RTC_ADDR0) | (0x0000f000)));*/
-		aml_write_aobus(AO_RTI_STATUS_REG2, 0);
 	}
 	gp_remote->sleep = 0;
 	pr_info("to clear irq ...\n");
