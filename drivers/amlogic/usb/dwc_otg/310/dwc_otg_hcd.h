@@ -40,7 +40,6 @@
 #include "dwc_otg_core_if.h"
 #include "dwc_list.h"
 #include "dwc_otg_cil.h"
-#include "dwc_otg_driver.h"
 
 /**
  * @file
@@ -578,8 +577,6 @@ struct dwc_otg_hcd {
 	uint8_t  ssplit_lock;
 	uint8_t  auto_pm_suspend_flag;
 };
-
-extern dwc_otg_device_t *g_dwc_otg_device[2];
 
 /** @name Transaction Execution Functions */
 /** @{ */

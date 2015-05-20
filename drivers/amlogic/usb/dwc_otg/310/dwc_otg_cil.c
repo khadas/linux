@@ -61,7 +61,7 @@
 #include "dwc_otg_regs.h"
 #include "dwc_otg_cil.h"
 
-/*#include <asm/system.h>*/
+#include <asm/system.h>
 
 static int dwc_otg_setup_params(dwc_otg_core_if_t *core_if);
 

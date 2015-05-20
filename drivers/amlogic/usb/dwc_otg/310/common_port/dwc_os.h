@@ -61,7 +61,7 @@ extern "C" {
 # endif
 # include <linux/errno.h>
 # include <stdarg.h>
-/*# include <asm/system.h>*/
+# include <asm/system.h>
 #endif
 
 #if defined(DWC_FREEBSD) || defined(DWC_NETBSD)
@@ -638,8 +638,6 @@ extern void *DWC_DMA_POOL_ALLOC(dwc_pool_t *pool, uint64_t *dma_addr);
 extern void DWC_DMA_POOL_FREE(dwc_pool_t *pool, void *vaddr, void *daddr);
 #endif
 
-extern struct device *usbdev;
-
 /** Allocates a DMA capable buffer and zeroes its contents. */
 extern void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr);
 
@@ -663,16 +661,14 @@ extern void __DWC_FREE(void *mem_ctx, void *addr);
 
 #ifndef DWC_DEBUG_MEMORY
 
-#define DWC_ALLOC(_size_) __DWC_ALLOC(usbdev, _size_)
-#define DWC_ALLOC_ATOMIC(_size_) __DWC_ALLOC_ATOMIC(usbdev, _size_)
-#define DWC_FREE(_addr_) __DWC_FREE(usbdev, _addr_)
+#define DWC_ALLOC(_size_) __DWC_ALLOC(NULL, _size_)
+#define DWC_ALLOC_ATOMIC(_size_) __DWC_ALLOC_ATOMIC(NULL, _size_)
+#define DWC_FREE(_addr_) __DWC_FREE(NULL, _addr_)
 
 # ifdef DWC_LINUX
-#define DWC_DMA_ALLOC(_size_, _dma_) __DWC_DMA_ALLOC(usbdev, _size_, _dma_)
-#define DWC_DMA_ALLOC_ATOMIC(_size_, _dma_) \
-				__DWC_DMA_ALLOC_ATOMIC(usbdev, _size_, _dma_)
-#define DWC_DMA_FREE(_size_, _virt_, _dma_) \
-				__DWC_DMA_FREE(usbdev, _size_, _virt_, _dma_)
+#define DWC_DMA_ALLOC(_size_, _dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
+#define DWC_DMA_ALLOC_ATOMIC(_size_, _dma_) __DWC_DMA_ALLOC_ATOMIC(NULL, _size_, _dma_)
+#define DWC_DMA_FREE(_size_, _virt_, _dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)
 # endif
 
 # if defined(DWC_FREEBSD) || defined(DWC_NETBSD)
@@ -696,10 +692,10 @@ extern int dwc_memory_debug_start(void *mem_ctx);
 extern void dwc_memory_debug_stop(void);
 extern void dwc_memory_debug_report(void);
 
-#define DWC_ALLOC(_size_) dwc_alloc_debug(usbdev, _size_, __func__, __LINE__)
-#define DWC_ALLOC_ATOMIC(_size_) dwc_alloc_atomic_debug(usbdev, _size_, \
+#define DWC_ALLOC(_size_) dwc_alloc_debug(NULL, _size_, __func__, __LINE__)
+#define DWC_ALLOC_ATOMIC(_size_) dwc_alloc_atomic_debug(NULL, _size_, \
 							__func__, __LINE__)
-#define DWC_FREE(_addr_) dwc_free_debug(usbdev, _addr_, __func__, __LINE__)
+#define DWC_FREE(_addr_) dwc_free_debug(NULL, _addr_, __func__, __LINE__)
 
 # ifdef DWC_LINUX
 #define DWC_DMA_ALLOC(_size_, _dma_) dwc_dma_alloc_debug(NULL, _size_, \

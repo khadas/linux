@@ -67,7 +67,6 @@ extern struct device_attribute dev_attr_version;
 extern struct device_attribute dev_attr_lpm_response;
 extern struct device_attribute devi_attr_sleep_status;
 #endif
-extern dwc_otg_device_t *g_dwc_otg_device[2];
 
 extern void dwc_otg_attr_create(struct platform_device *pdev);
 

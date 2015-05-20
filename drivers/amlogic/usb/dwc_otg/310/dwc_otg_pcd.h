@@ -38,9 +38,6 @@
 #include "usb.h"
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd_if.h"
-#include "dwc_otg_driver.h"
-
-extern dwc_otg_device_t *g_dwc_otg_device[2];
 struct cfiobject;
 
 /**

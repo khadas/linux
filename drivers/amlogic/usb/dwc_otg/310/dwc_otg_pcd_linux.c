@@ -76,7 +76,7 @@ static struct gadget_wrapper {
 
 /* Display the contents of the buffer */
 extern void dump_msg(const u8 *buf, unsigned int length);
-
+extern dwc_otg_device_t *g_dwc_otg_device;
 /**
  * Get the dwc_otg_pcd_ep_t* from usb_ep* pointer - NULL in case
  * if the endpoint is not found
@@ -1198,7 +1198,7 @@ static void dwc_otg_pcd_gadget_release(struct device *dev)
 static struct gadget_wrapper *alloc_wrapper(struct platform_device *pdev)
 {
 	static char pcd_name[] = "dwc_otg_pcd";
-	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
+	dwc_otg_device_t *otg_dev = g_dwc_otg_device;
 
 	struct gadget_wrapper *d;
 
@@ -1242,7 +1242,7 @@ static void free_wrapper(struct gadget_wrapper *d)
  */
 int pcd_init(struct platform_device *pdev)
 {
-	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
+	dwc_otg_device_t *otg_dev = g_dwc_otg_device;
 	int retval = 0;
 	int irq = 0;
 
@@ -1300,7 +1300,7 @@ int pcd_init(struct platform_device *pdev)
  */
 void pcd_remove(struct platform_device *pdev)
 {
-	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
+	dwc_otg_device_t *otg_dev = g_dwc_otg_device;
 	dwc_otg_pcd_t *pcd = otg_dev->pcd;
 	int irq = 0;
 
