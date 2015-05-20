@@ -5,3 +5,8 @@ config AMLOGIC_SEC
     bool "Amlogic secure monitor driver support"
     help
       This is the Amlogic secure monitor driver
+
+config AML_SERR
+	bool "workaround EL0 SErr exception handler"
+	help
+		This is the Amlogic EL0 SErr exception handler
