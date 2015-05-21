@@ -19,6 +19,7 @@
 #ifndef _GE2D_IO_H_
 #define _GE2D_IO_H_
 
+#include <linux/io.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/cpu_version.h>
 
