@@ -25,7 +25,7 @@
 #define USB_BC_MODE_DCP		2	/* Charger */
 #define USB_BC_MODE_CDP		3	/* PC + Charger */
 
-#define USB_CORE_RESET_TIME	10
+#define USB_CORE_RESET_TIME	100
 #define USB_ID_CHANGE_TIME	20
 
 enum usb_port_type_e {
@@ -69,7 +69,7 @@ enum lm_device_type_e {
 };
 
 int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
-						u32 usb_peri_reg, const char *cpu_type);
+		unsigned long usb_peri_reg, const char *cpu_type);
 
 extern int dwc_otg_power_register_notifier(struct notifier_block *nb);
 extern int dwc_otg_power_unregister_notifier(struct notifier_block *nb);

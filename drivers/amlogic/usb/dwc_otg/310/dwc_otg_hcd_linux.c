@@ -70,8 +70,6 @@
 
 static const char dwc_otg_hcd_name[] = "dwc_otg_hcd";
 
-extern dwc_otg_device_t *g_dwc_otg_device;
-
 /** @name Linux HC Driver API Functions */
 /** @{ */
 static int urb_enqueue(struct usb_hcd *hcd,
@@ -508,7 +506,7 @@ int hcd_init(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
-	dwc_otg_device_t *otg_dev = g_dwc_otg_device;
+	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
 
 	int retval = 0;
 	int irq = 0;
@@ -581,7 +579,7 @@ error1:
  */
 void hcd_remove(struct platform_device *pdev)
 {
-	dwc_otg_device_t *otg_dev = g_dwc_otg_device;
+	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
 
 	dwc_otg_hcd_t *dwc_otg_hcd;
 	struct usb_hcd *hcd;
