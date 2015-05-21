@@ -49,8 +49,11 @@ struct wifi_plat_info {
 	int power_on_pin2;
 
 	int clock_32k_pin;
+	struct gpio_desc *interrupt_desc;
+	struct gpio_desc *powe_desc;
 
 	int plat_info_valid;
+	struct pinctrl *p;
 };
 
 static struct wifi_plat_info wifi_info;
@@ -133,6 +136,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 		CHECK_PROP(ret, "interrupt_pin", value);
 		desc = of_get_named_gpiod_flags(pdev->dev.of_node,
 			"interrupt_pin", 0, NULL);
+		plat->interrupt_desc = desc;
 		plat->interrupt_pin = desc_to_gpio(desc);
 
 		/* amlogic_gpio_name_map_num(value); */
@@ -170,6 +174,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			wifi_power_gpio = 1;
 			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
 			"power_on_pin", 0, NULL);
+			plat->powe_desc = desc;
 			plat->power_on_pin = desc_to_gpio(desc);
 			/* amlogic_gpio_name_map_num(value); */
 		}
@@ -187,7 +192,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			plat->power_on_pin2 = desc_to_gpio(desc);
 			/* amlogic_gpio_name_map_num(value); */
 		}
-
+#if 0
 		ret = of_property_read_string(pdev->dev.of_node,
 			"clock_32k_pin", &value);
 		/* CHECK_PROP(ret, "clock_32k_pin", value); */
@@ -197,8 +202,24 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
 				"clock_32k_pin", 0, NULL);
 			plat->clock_32k_pin = desc_to_gpio(desc);
-
+#endif
 			/* amlogic_gpio_name_map_num(value); */
+		if (of_get_property(pdev->dev.of_node,
+			"pinctrl-names", NULL)) {
+			unsigned int pwm_misc;
+			plat->p = devm_pinctrl_get_select(&pdev->dev,
+				"wifi_32k_pins");
+
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB ||
+				get_cpu_type() == MESON_CPU_MAJOR_ID_M8B) {
+				WIFI_INFO("set pwm as 32k output");
+				aml_write_cbus(0x21b0, 0x16d016d);
+				pwm_misc = aml_read_cbus(0x21b2);
+				pwm_misc &= ~((0x7f<<16) | (0x3<<4) | (1<<2));
+				pwm_misc |= 0x8001;
+				aml_write_cbus(0x21b2, pwm_misc);
+			}
+		}
 
 		plat->plat_info_valid = 1;
 
@@ -261,9 +282,6 @@ int wifi_setup_dt(void)
 		return -1;
 	}
 
-	/* setup 32k clock */
-	wifi_request_32k_clk(1, OWNER_NAME);
-
 /*
 #if ((!(defined CONFIG_ARCH_MESON8))
 	&& (!(defined CONFIG_ARCH_MESON8B)))
@@ -278,13 +296,13 @@ int wifi_setup_dt(void)
 	ret = gpio_request(wifi_info.interrupt_pin,
 		OWNER_NAME);
 	if (ret)
-		WIFI_INFO("interrupt_pin request failed(%d) n", ret);
+		WIFI_INFO("interrupt_pin request failed(%d)\n", ret);
 	ret = gpio_set_pullup(wifi_info.interrupt_pin, 1);
 	if (ret)
-		WIFI_INFO("interrupt_pin disable pullup failed(%d) n", ret)
+		WIFI_INFO("interrupt_pin disable pullup failed(%d)\n", ret)
 	ret = gpio_direction_input(wifi_info.interrupt_pin);
 	if (ret)
-		WIFI_INFO("set interrupt_pin input failed(%d) n", ret);
+		WIFI_INFO("set interrupt_pin input failed(%d)\n", ret);
 	if (wifi_info.irq_num) {
 		flag = AML_GPIO_IRQ(wifi_info.irq_num,
 			FILTER_NUM4, wifi_info.irq_trigger_type);
@@ -295,20 +313,20 @@ int wifi_setup_dt(void)
 	}
 	ret = gpio_for_irq(wifi_info.interrupt_pin, flag);
 	if (ret)
-		WIFI_INFO("gpio to irq failed(%d) n", ret)
+		WIFI_INFO("gpio to irq failed(%d)\n", ret)
 	SHOW_PIN_OWN("interrupt_pin", wifi_info.interrupt_pin);
 
 	/* setup power */
 	if (wifi_power_gpio) {
 		ret = gpio_request(wifi_info.power_on_pin, OWNER_NAME);
 		if (ret)
-			WIFI_INFO("power_on_pin request failed(%d) n", ret);
+			WIFI_INFO("power_on_pin request failed(%d)\n", ret);
 		if (wifi_info.power_on_pin_level)
 			ret = set_wifi_power(1);
 		else
 			ret = set_wifi_power(0);
 		if (ret)
-			WIFI_INFO("power_on_pin output failed(%d) n", ret);
+			WIFI_INFO("power_on_pin output failed(%d)\n", ret);
 		SHOW_PIN_OWN("power_on_pin", wifi_info.power_on_pin);
 	}
 
@@ -316,10 +334,10 @@ int wifi_setup_dt(void)
 		ret = gpio_request(wifi_info.power_on_pin2,
 			OWNER_NAME);
 		if (ret)
-			WIFI_INFO("power_on_pin2 request failed(%d) n", ret);
+			WIFI_INFO("power_on_pin2 request failed(%d)\n", ret);
 		ret = set_wifi_power2(0);
 		if (ret)
-			WIFI_INFO("power_on_pin2 output failed(%d) n", ret);
+			WIFI_INFO("power_on_pin2 output failed(%d)\n", ret);
 		SHOW_PIN_OWN("power_on_pin2", wifi_info.power_on_pin2);
 	}
 
@@ -344,60 +362,8 @@ void wifi_teardown_dt(void)
 
 	gpio_free(wifi_info.interrupt_pin);
 
-	wifi_request_32k_clk(0, OWNER_NAME);
 }
 EXPORT_SYMBOL(wifi_teardown_dt);
-
-static int clk_32k_on;
-
-void wifi_request_32k_clk(int is_on, const char *requestor)
-{
-	int ret;
-	unsigned int pinmux_value = 0;
-
-	if (!wifi_info.clock_32k_pin) {
-		WIFI_INFO("wifi_request_32k_clk : no 32k pin");
-		return;
-	}
-	WIFI_INFO("wifi_request_32k_clk : %s-->%s for %s\n",
-		clk_32k_on > 0 ? "ON" : "OFF",
-			is_on ? "ON" : "OFF", requestor);
-
-	if (is_on) {
-		if (clk_32k_on == 0) {
-			ret =
-			gpio_request(wifi_info.clock_32k_pin,
-				OWNER_NAME);
-			if (ret)
-				WIFI_INFO("32K_pin request failed(%d) n", ret)
-			gpio_direction_output(wifi_info.clock_32k_pin,
-				0);
-			SHOW_PIN_OWN("clock_32k_pin", wifi_info.clock_32k_pin);
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-				pinmux_value = aml_read_cbus(0x202f);
-				aml_write_cbus(0x202f,
-					pinmux_value | (0x1<<22));
-				/* 202f:PERIPHS_PIN_MUX_3*/
-				/* set mode GPIOX_10-->CLK_OUT3 */
-			}
-			udelay(200);
-		}
-		++clk_32k_on;
-	} else {
-		--clk_32k_on;
-	if (clk_32k_on < 0)
-		clk_32k_on = 0;
-		if (clk_32k_on == 0) {
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-				pinmux_value = aml_read_cbus(0x202f);
-				aml_write_cbus(0x202f,
-					pinmux_value & (~(0x1<<22)));
-			}
-			gpio_free(wifi_info.clock_32k_pin);
-		}
-	}
-}
-EXPORT_SYMBOL(wifi_request_32k_clk);
 
 void extern_wifi_set_enable(int is_on)
 {
@@ -411,7 +377,7 @@ void extern_wifi_set_enable(int is_on)
 				ret = set_wifi_power(1);
 
 			if (ret)
-				WIFI_INFO("wifi power failed(%d) n", ret)
+				WIFI_INFO("wifi power failed(%d)\n", ret);
 		}
 		if (wifi_power_gpio2) {
 			if (wifi_info.power_on_pin_level)
@@ -419,7 +385,7 @@ void extern_wifi_set_enable(int is_on)
 			else
 				ret = set_wifi_power2(1);
 			if (ret)
-				WIFI_INFO("wifi power2 failed(%d) n", ret)
+				WIFI_INFO("wifi power2 failed(%d)\n", ret);
 		}
 		WIFI_INFO("WIFI  Enable! %d\n", wifi_info.power_on_pin);
 	} else {
@@ -430,7 +396,7 @@ void extern_wifi_set_enable(int is_on)
 				ret = set_wifi_power(0);
 
 			if (ret)
-				WIFI_INFO("wifi power down failed(%d) n", ret)
+				WIFI_INFO("wifi power down failed(%d)\n", ret);
 		}
 		if (wifi_power_gpio2) {
 			if (wifi_info.power_on_pin_level)
@@ -438,7 +404,7 @@ void extern_wifi_set_enable(int is_on)
 			else
 				ret = set_wifi_power2(0);
 			if (ret)
-				WIFI_INFO("wifi power2 down  failed(%d) n", ret)
+				WIFI_INFO("wifi power2 down failed(%d)\n", ret);
 		}
 		WIFI_INFO("WIFI  Disable! %d\n", wifi_info.power_on_pin);
 
@@ -463,10 +429,5 @@ void wifi_teardown_dt(void)
 {
 }
 EXPORT_SYMBOL(wifi_teardown_dt);
-
-void wifi_request_32k_clk(int is_on, const char *requestor)
-{
-}
-EXPORT_SYMBOL(wifi_request_32k_clk);
 
 #endif

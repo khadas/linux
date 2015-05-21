@@ -607,15 +607,14 @@ static unsigned aml_sd_emmc_pre_dma(struct amlsd_host *host,
 	data_size = (mrq->data->blksz * mrq->data->blocks);
 	block_mode = ((mrq->data->blocks > 1)
 		|| (mrq->data->blksz >= 512)) ? 1 : 0;
-	data_num = (data_size > 4) ? 0 : 1;
-	bl_len = block_mode ? log2i(mrq->data->blksz) : 0;
 
+	data_num = 0;/*(data_size > 4) ? 0 : 1;*/
+	bl_len = block_mode ? log2i(mrq->data->blksz) : 0;
 	host->dma_sts = 0;
 	if ((data_size & 0x3) && (host->sg_cnt > 1)) {
 		host->dma_sts = (1<<0); /*  */
 		pr_info("data:%d and sg_cnt:%d\n", data_size, host->sg_cnt);
 	}
-
 #if 0
 	pr_info("%s %d sg_cnt:%d, block_mode:%d,\n",
 			__func__, __LINE__, host->sg_cnt, block_mode);
@@ -656,25 +655,26 @@ static unsigned aml_sd_emmc_pre_dma(struct amlsd_host *host,
 		des_cmd_cur->length = data_len;
 
 		sg_blocks += des_cmd_cur->length;
-
 		sg_addr = sg_dma_address(sg);
 
 		if (sg_addr & 0x7) { /* for 64 bit dma mode */
 			WARN_ON(host->sg_cnt > 1);
-			WARN_ON(1);
 
 			host->dma_sts |= (1<<1); /*  */
+			if (0) { /* use SRAM buffer */
+				host->dma_sts |= (1<<2); /*  */
 
-			host->dma_sts |= (1<<3); /*  */
-			desc_cur->data_addr = host->bn_dma_buf;
-			WARN_ON(1);
+				desc_cur->data_addr = host->dma_gdesc;
+				desc_cur->data_addr |= (1<<0);	 /* SRAM */
+			} else{
+				host->dma_sts |= (1<<3); /*  */
+				desc_cur->data_addr = host->bn_dma_buf;
+			}
 
 			if (data->flags & MMC_DATA_WRITE) {
 				buffer = aml_sd_emmc_kmap_atomic(sg, &flags);
-				WARN_ON(((long)buffer & PAGE_MASK)
-					> (PAGE_SIZE - 3));
 				memcpy((host->dma_sts & (1<<2)) ?
-				(void *)(&sd_emmc_regs->gdesc) : host->bn_buf,
+				(void *)(sd_emmc_regs->gdesc) : host->bn_buf,
 					buffer, data_size);
 				aml_sd_emmc_kunmap_atomic(buffer, &flags);
 			}
@@ -726,7 +726,7 @@ static int aml_sd_emmc_post_dma(struct amlsd_host *host,
 		ret = -1;
 		goto err_exit;
 	}
-	pr_info();
+
 	if ((data->flags & MMC_DATA_READ) && (host->dma_sts & (1<<1))) {
 		dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
 			data->sg_len, DMA_FROM_DEVICE);
@@ -739,7 +739,7 @@ static int aml_sd_emmc_post_dma(struct amlsd_host *host,
 				/* WARN_ON(((unsigned long)buffer & PAGE_MASK)
 					> (PAGE_SIZE - 0x7)); */
 				memcpy(buffer, (host->dma_sts & (1<<2)) ?
-				(void *)(&sd_emmc_regs->gdesc) : host->bn_buf,
+				(void *)(sd_emmc_regs->gdesc) : host->bn_buf,
 				(mrq->data->blksz * mrq->data->blocks));
 				aml_sd_emmc_kunmap_atomic(buffer, &flags);
 			}
@@ -914,8 +914,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 
 	/*check package size*/
 	if (mrq->cmd->data) {
-		if ((pconf->bl_len != log2i(mrq->data->blksz))
-				&& (mrq->data->blocks > 1)) {
+		if (pconf->bl_len != log2i(mrq->data->blksz)) {
 			conf_flag |= 1<<1;
 			pconf->bl_len = log2i(mrq->data->blksz);
 		}
@@ -1109,7 +1108,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 			des_cmd_cur->length = mrq->data->blksz;
 		}
 
-		if ((mrq->data->blksz * mrq->data->blocks) > 4) {
+		if ((mrq->data->blksz * mrq->data->blocks) > 0) {
 			des_cmd_cur->data_num = 0;
 			desc_cur->data_addr = host->bn_dma_buf;
 			desc_cur->data_addr &= ~(1<<0);   /* DDR */
@@ -1943,7 +1942,7 @@ static int aml_sd_emmc_card_busy(struct mmc_host *mmc)
 	status = ista->dat_i & 0xf;
 	/* sd_emmc_dbg(AMLSD_DBG_COMMON, "dat[0:3]=%#x\n", stat->dat3_0); */
 
-	return status;
+	return !status;
 }
 
 #if 0/* def CONFIG_PM */
@@ -2092,7 +2091,6 @@ static struct amlsd_host *aml_sd_emmc_init_host(struct amlsd_host *host)
 	}
 
 
-#ifndef SD_EMMC_REQ_DMA_SGMAP
 	/* do not need malloc one dma buffer later */
 	host->bn_buf = dma_alloc_coherent(host->dev, SD_EMMC_BOUNCE_REQ_SIZE,
 				&host->bn_dma_buf, GFP_KERNEL);
@@ -2100,7 +2098,6 @@ static struct amlsd_host *aml_sd_emmc_init_host(struct amlsd_host *host)
 		sd_emmc_err("Dma alloc Fail!\n");
 		return NULL;
 	}
-#endif
 
 
 #ifdef SD_EMMC_ENABLE_TIMEOUT
@@ -2177,6 +2174,9 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	host->base = ioremap(0xc8834400, 0x200);
 	host->sd_emmc_regs = (struct sd_emmc_regs *)
 			devm_ioremap_nocache(&pdev->dev, res_mem->start, size);
+	host->dma_gdesc = res_mem->start+0x200;
+	host->dma_gping = res_mem->start+0x400;
+	host->dma_gpong = res_mem->start+0x600;
 	host->pdev = pdev;
 	host->dev = &pdev->dev;
 	aml_sd_emmc_init_host(host);

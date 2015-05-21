@@ -19,6 +19,7 @@
 
 	aliases {
 		serial0 = &uart_AO;
+		serial1 = &uart_A;
 	};
 
 
@@ -454,6 +455,23 @@
 			3: 250.0M    4: 333.3M    5: 400.0M
 			6: 500.0M    7: 666.7M */
 	};
+	bt-dev{
+		compatible = "amlogic, bt-dev";
+		dev_name = "bt-dev";
+		status = "ok";
+		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
+	};
+	wifi{
+		compatible = "amlogic, aml_broadcm_wifi";
+		dev_name = "aml_broadcm_wifi";
+		status = "okay";
+		interrupt_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
+		interrupts = <	0 68 4>;
+		irq_trigger_type = "GPIO_IRQ_HIGH";
+		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "wifi_32k_pins";
+		pinctrl-0 = <&wifi_32k_pins>;
+	};
     sd{
         compatible = "amlogic, aml_sd_emmc";
         dev_name = "aml_newsd.0";
@@ -509,30 +527,30 @@
             card_type = <1>; /* 1:mmc card(include eMMC), 2:sd card(include tSD), */
 	};
     };
-//    sdio{
-//        compatible = "amlogic, aml_sd_emmc";
-//        dev_name = "aml_newsd.0";
-//        status = "okay";
-//        reg = <0x0 0xd0070000 0x0 0x2000>;
-//        interrupts = <	0 216 1>;
-//        pinctrl-names =  "sdio_clk_cmd_pins", "sdio_all_pins";
-//        pinctrl-0 = <&sdio_clk_cmd_pins>;
-//        pinctrl-1 = <&sdio_all_pins>;
-//        sdio{
-//             status = "okay";
-//             pinname = "sdio";
-//             ocr_avail = <0x00200080>;  3.3:0x200000, 1.8+3.3:0x00200080
-//             caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-//             		"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
-//             		"MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
-//             		"MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
-//             		"MMC_PM_KEEP_POWER";
-//             f_min = <400000>;
-//             f_max = <200000000>;
-//             max_req_size = <0x20000>;          /**128KB*/
-//             card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
-//         };
-//    };
+	sdio{
+		compatible = "amlogic, aml_sd_emmc";
+		dev_name = "aml_newsd.0";
+		status = "okay";
+		reg = <0x0 0xd0070000 0x0 0x2000>;
+		interrupts = <	0 216 1>;
+		pinctrl-names =  "sdio_clk_cmd_pins", "sdio_all_pins";
+		pinctrl-0 = <&sdio_clk_cmd_pins>;
+		pinctrl-1 = <&sdio_all_pins>;
+		sdio{
+			status = "okay";
+			pinname = "sdio";
+			ocr_avail = <0x00200080>;  /*3.3:0x200000, 1.8+3.3:0x00200080 */
+			caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
+				"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
+				"MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
+				"MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
+				"MMC_PM_KEEP_POWER";
+				f_min = <400000>;
+				f_max = <200000000>;
+				max_req_size = <0x20000>;          /**128KB*/
+				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
+		};
+	};
 	pinmux: pinmux{
 		compatible = "amlogic, pinmux-gxbb";
 		dev_name = "pinmux";
@@ -565,6 +583,16 @@
 		ao_uart_pins:ao_uart{
 			amlogic,setmask=<AO 0x1800>;
 			amlogic,pins="GPIOAO_0", "GPIOAO_1";
+		};
+		a_uart_pins:a_uart{
+			amlogic,setmask=<4 0x3c00>;
+			amlogic,pins="GPIOX_12", "GPIOX_13", "GPIOX_14", "GPIOX_15";
+		};
+		wifi_32k_pins:wifi_32k_pins{
+			amlogic,setmask=<2 0x40000000>;
+			amlogic,clrmask=<2 0x400000
+												3 0x8000>;
+			amlogic,pins="GPIOX_19";
 		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
 		    amlogic,setmask=<2 0x00000c00>;
@@ -672,6 +700,20 @@
 		status = "okay";
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
+		fifosize = < 64 >;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ao_uart_pins>;
+	};
+	uart_A: serial@c11084c0 {
+		compatible = "amlogic, meson-uart";
+		reg = <0x0 0xc11084c0 0x0 0x14>;
+		interrupts = <0 26 1>;
+		status = "okay";
+		clocks = <&clock CLK_XTAL>;
+		clock-names = "clk_uart";
+		fifosize = < 128 >;
+		pinctrl-names = "default";
+		pinctrl-0 = <&a_uart_pins>;
 	};
 
 	cpu_version{

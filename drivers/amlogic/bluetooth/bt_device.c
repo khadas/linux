@@ -205,11 +205,6 @@ static int bt_probe(struct platform_device *pdev)
 		pr_err("bt_dev_runtime_data alloc fail\n");
 		goto err_rfkill;
 	}
-#ifdef CONFIG_AM_WIFI_SD_MMC
-	/* setup 32k clock */
-	wifi_request_32k_clk(1, BT_RFKILL);
-	msleep(100);
-#endif
 
 	prdata->bt_rfk = bt_rfk;
 	prdata->pdata = pdata;
@@ -241,9 +236,7 @@ static int bt_remove(struct platform_device *pdev)
 	struct bt_dev_data *pdata = NULL;
 
 	platform_set_drvdata(pdev, NULL);
-#ifdef CONFIG_AM_WIFI_SD_MMC
-	wifi_request_32k_clk(0, BT_RFKILL);
-#endif
+
 	if (prdata) {
 		rfk = prdata->bt_rfk;
 		pdata = prdata->pdata;

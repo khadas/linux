@@ -180,6 +180,10 @@ struct amlsd_host {
 	int			dma;
 	char *bn_buf;
 	dma_addr_t		bn_dma_buf;
+	dma_addr_t		dma_gdesc; /* 0x200 */
+	dma_addr_t		dma_gping; /* 0x400 */
+	dma_addr_t		dma_gpong; /* 0x800 */
+
 	unsigned int irq;
 	unsigned int irq_in;
 	unsigned int irq_out;
@@ -1090,7 +1094,7 @@ struct sd_emmc_desc_info {
 #define SD_EMMC_CLOCK_SRC_DIFF_PLL			3
 #define SD_EMMC_IRQ_ALL					0x3fff
 #define SD_EMMC_RESP_SRAM_OFF					0
-#define SD_EMMC_DESC_SET_REG
+/*#define SD_EMMC_DESC_SET_REG*/
 #define SD_EMMC_DESC_REG_CONF					0x4
 #define SD_EMMC_DESC_REG_IRQC					0xC
 #define SD_EMMC_DESC_RESP_STAT				0xfff80000
