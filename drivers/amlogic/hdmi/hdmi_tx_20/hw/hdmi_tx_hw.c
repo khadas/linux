@@ -134,7 +134,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned argv);
 static void digital_clk_on(unsigned char flag);
 static void digital_clk_off(unsigned char flag);
-static void tmp_generate_vid_hpll(void);
+static void tmp_generate_1080p(void);
 /*
  * HDMITX HPD HW related operations
  */
@@ -479,7 +479,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	/* assign phy_clk_en = control[1]; */
 /* Bring HDMITX MEM output of power down */
 	hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, 8, 8);
-	tmp_generate_vid_hpll();
+	tmp_generate_1080p();
 
 	/* Enable APB3 fail on error */
 	hd_set_reg_bits(P_HDMITX_CTRL_PORT, 1, 15, 1);
@@ -495,17 +495,13 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 /* \\ TODO */
 	if (hdmitx_uboot_already_display())
 		return;
-/*	tmp_generate_vid_hpll(); */
+/*	tmp_generate_1080p(); */
 	set_vmode_clk(hdev, HDMI_1920x1080p60_16x9);
 	C_Entry(HDMI_1920x1080p60_16x9);
 	hdmitx_set_phy(hdev);
 
 	hd_write_reg(P_ENCP_VIDEO_EN, 1);
 	set_hdmi_audio_source(2);
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
-#if 0
-	mdelay(1);
-#endif
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, HDMI_1920x1080p60_16x9);
 	/* TODO */
@@ -1708,6 +1704,7 @@ do { \
 } while (0)
 
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
 	RESET_HDMI_PHY();
 	RESET_HDMI_PHY();
@@ -2426,10 +2423,10 @@ static void hdmitx_dump_all_cvregs(void)
 #define DUMP_HDMITXREG_SECTION(start, end) \
 do { \
 	if (start > end) { \
-		pr_info("Error start = 0x%x > end = 0x%x\n", start, end); \
+		pr_info("Error start = 0x%lx > end = 0x%lx\n", start, end); \
 		break; \
 	} \
-	pr_info("Start = 0x%x   End = 0x%x\n", start, end); \
+	pr_info("Start = 0x%lx   End = 0x%lx\n", start, end); \
 	for (addr = start; addr < end + 1; addr++) { \
 		val = hdmitx_rd_reg(addr); \
 		if (val) \
@@ -2525,8 +2522,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	char tmpbuf[128];
 	int i = 0;
 	int ret;
-	long unsigned adr;
-	long unsigned value = 0;
+	unsigned long adr = 0;
+	unsigned long value = 0;
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
 		i++;
@@ -2611,7 +2608,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			} else
 				reg_val = hdmitx_rd_reg(reg_adr);
 			if (reg_val) {
-				if (tmpbuf[11] == 'h')
+				if (reg_val)
 					/* print all HDCP regisiters */
 					pr_info("DWC[0x%x]: 0x%x\n",
 						reg_adr, reg_val);
@@ -2731,10 +2728,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf+2, 16, &adr);
 		ret = kstrtoul(buf+i+1, 16, &value);
 		if (buf[1] == 'h') {
-			hdmitx_wr_reg(adr, value);
+			hdmitx_wr_reg((unsigned int)adr, (unsigned int)value);
 			read_back = hdmitx_rd_reg(adr);
 		}
-		hdmi_print(INF, "write %x to %s reg[%x]\n", "HDMI", adr);
+		hdmi_print(INF, "write %x to %s reg[%x]\n", value, "HDMI", adr);
 /* Add read back function in order to judge writting is OK or NG. */
 		hdmi_print(INF, "Read Back %s reg[%x]=%x\n", "HDMI",
 			adr, read_back);
@@ -3029,55 +3026,6 @@ static void hdmi_phy_wakeup(struct hdmitx_dev *hdev)
 {
 	hdmitx_set_phy(hdev);
 	/* hdmi_print(INF, SYS "phy wakeup\n"); */
-}
-
-#define d()	pr_info("%s[%d]\n", __func__, __LINE__)
-static void power_switch_to_vpu_hdmi(int pwr_ctrl)
-{
-	unsigned int i;
-	d();
-	if (pwr_ctrl == 1) {
-		/* Powerup VPU_HDMI */
-		d();
-		hd_set_reg_bits(P_AO_RTI_GEN_PWR_SLEEP0, 0, 8, 1);
-		d();
-
-	/* power up memories */
-	for (i = 0; i < 32; i++) {
-		hd_set_reg_bits(P_HHI_VPU_MEM_PD_REG0, 0, i, 1);
-#if 0
-		msleep(20);
-#endif
-	}
-	d();
-	for (i = 0; i < 32; i++) {
-		hd_set_reg_bits(P_HHI_VPU_MEM_PD_REG1, 0, i, 1);
-#if 0
-		msleep(20);
-#endif
-	}
-	d();
-	for (i = 8; i < 16; i++)
-		hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, i, 1); /* MEM-PD */
-	d();
-	/* Remove VPU_HDMI ISO */
-		hd_set_reg_bits(P_AO_RTI_GEN_PWR_SLEEP0, 0, 9, 1);
-	} else {
-	/* Add isolations */
-		hd_set_reg_bits(P_AO_RTI_GEN_PWR_SLEEP0, 1, 9, 1);
-
-	/* Power off VPU_HDMI domain */
-		hd_write_reg(P_HHI_VPU_MEM_PD_REG0, 0xffffffff);
-		hd_write_reg(P_HHI_VPU_MEM_PD_REG1, 0xffffffff);
-		hd_write_reg(P_HHI_MEM_PD_REG0, /* HDMI MEM-PD */
-			hd_read_reg(P_HHI_MEM_PD_REG0) | (0xff << 8));
-		hd_set_reg_bits(P_AO_RTI_GEN_PWR_SLEEP0, 1, 8, 1);  /* PDN */
-	}
-}
-
-static void hdmitx_vpu_init(void)
-{
-	power_switch_to_vpu_hdmi(1);
 }
 
 #define CLK_UTIL_VID_PLL_DIV_1    0
@@ -3940,11 +3888,11 @@ void config_hdmi20_tx(uint32_t	base_offset,
 	data32  = 0;
 	data32 |= (0 << 6);
 	data32 |= (0 << 5);
-	data32 |= (1 << 4);
-	data32 |= (1 << 3);
+	data32 |= (0 << 4);
+	data32 |= (0 << 3);
 	data32 |= (1 << 2);
 	data32 |= (1 << 1);
-	data32 |= (1 << 0);
+	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_PACKET_TX_EN, data32);
 
 	/* For 3D video */
@@ -4191,13 +4139,7 @@ void config_hdmi20_tx(uint32_t	base_offset,
 	data32 |= (0 << 1);
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, data32);
-	mdelay(1);
-	{ /* delay some time */
-		static int cnt;
-		cnt = 100000;
-		while (cnt--)
-			;
-	}
+	mdelay(10);
 
 	data32  = 0;
 	data32 |= (1 << 7);
@@ -4212,8 +4154,42 @@ void config_hdmi20_tx(uint32_t	base_offset,
 	pr_info("[HDMITX.C] Configure HDMI 2.0 TX -- End\n");
 } /* config_hdmi20_tx */
 
+static void set_fixed_1080p_hpll(void)
+{
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x5800023d);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00444e00);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x801da72c);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x71486980);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL6, 0x00000e55);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x5800023d);
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x4800023d);
+	mdelay(10);
+	pr_info("hpll reg: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL));
+}
 
-static void vcbus_test(void)
+static void set_fixed_1080p_phy(void)
+{
+	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33b5426b);
+	hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x01fe115b);
+#define RESET_HDMI_PHY() \
+do { \
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xf, 0, 4); \
+	mdelay(2); \
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xe, 0, 4); \
+	mdelay(2); \
+} while (0)
+
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
+	RESET_HDMI_PHY();
+	RESET_HDMI_PHY();
+	RESET_HDMI_PHY();
+#undef RESET_HDMI_PHY
+}
+
+static void tmp_generate_1080p(void)
 {
 /*
  * clocks_set_sys_defaults()
@@ -4239,17 +4215,7 @@ static void vcbus_test(void)
 	/* .HDMI_IL_DPLL_RESET ( hi_vid2_pll_cntl2[24]	 ), */
 	hd_write_reg(P_HHI_VID2_PLL_CNTL2, (0 << 24) | (0 << 17) | (4 << 8));
 	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00820aaa);
-	/* ----------------------------------------- */
-	/* Power up memories */
-	/* ----------------------------------------- */
-	/* wire	[1:0]   eth_mem_pd		  = hi_mem_pd_reg0[3:2]; */
-	/* wire	[1:0]   audio_dsp_mem_pd	= hi_mem_pd_reg0[1:0]; */
-	hd_write_reg(P_HHI_MEM_PD_REG0, 0x00000000);
-	/* VPU */
-	/* Moved to hiu: hd_write_reg(P_HHI_VPU_MEM_PD_REG0, 0x00000000 ); */
-	/* Moved to hiu: hd_write_reg(P_HHI_VPU_MEM_PD_REG1, 0x00000000 ); */
-	hd_write_reg(P_HHI_VPU_MEM_PD_REG0, 0x00000000);
-	hd_write_reg(P_HHI_VPU_MEM_PD_REG1, 0x00000000);
+
     /* disable video clocks */
 /* wire            gclk_lcd_an_clk_ph2     = hi_vid_clk_cntl2[7]; */
 /* wire            gclk_lcd_an_clk_ph3     = hi_vid_clk_cntl2[6]; */
@@ -4270,6 +4236,15 @@ static void vcbus_test(void)
 /*
  * C_Entry()
  */
+
+	set_fixed_1080p_hpll();
+	set_fixed_1080p_phy();
+	/* reset hpll div */
+	hd_set_reg_bits(P_HHI_VID_PLL_CLK_DIV, 1, 15, 1);
+	mdelay(10);
+	hd_set_reg_bits(P_HHI_VID_PLL_CLK_DIV, 0, 15, 1);
+	hd_write_reg(P_HHI_VID_CLK_DIV, 0x100);
+
 /* Enable Hsync and equalization pulse switch in center; bit[14] cfg_de_v = 1 */
 	hd_write_reg(P_ENCP_VIDEO_MODE, 0x0040 | (1<<14));
 	hd_write_reg(P_ENCP_VIDEO_MODE_ADV, 0x0008); /* Sampling rate: 1 */
@@ -4279,7 +4254,7 @@ static void vcbus_test(void)
 	set_enc_clk();
 	hd_write_reg(P_HHI_VID_CLK_DIV, 0x101);
 	set_tv_enc_1920x1080p(1, 0, 0);
-	hd_write_reg(P_HHI_VID_CLK_DIV, 0x101);
+	hd_write_reg(P_HHI_VID_CLK_DIV, 0x100);
 
 	config_hdmi20_tx(
 /* Int/Ext TX address offset. =0 for internal TX;
@@ -4308,7 +4283,7 @@ static void vcbus_test(void)
 		     88,	/* Number of pixels from DE end to HS start */
 		     44,	/* Number of pixels of HS pulse width */
 /* HS count between last active line and start of VS. */
-		     148,
+		     4,
 		     5,		/* HS count of VS width */
 		   0,		/* 0=No scramble; 1=enable scrambler. */
 /* 0:TMDS_CLK_rate=TMDS_Character_rate;
@@ -4323,17 +4298,6 @@ static void vcbus_test(void)
  */
 		   0);
 
-}
-static void vpu_driver_init(void)
-{
-
-	vcbus_test();
-}
-
-static void tmp_generate_vid_hpll(void)
-{
-	hdmitx_vpu_init();
-	vpu_driver_init();
 }
 
 /* TODO */

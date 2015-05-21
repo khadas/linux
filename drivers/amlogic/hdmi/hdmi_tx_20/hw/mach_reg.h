@@ -30,6 +30,8 @@ unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
 void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 	unsigned int len);
+void sec_reg_write(unsigned *addr, unsigned value);
+unsigned sec_reg_read(unsigned *addr);
 
 #define P_HHI_MEM_PD_REG0 (0xc883c000 + (0x40 << 2))
 #define P_HHI_VPU_MEM_PD_REG0 (0xc883c000 + (0x41 << 2))
@@ -50,22 +52,22 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 // CBUS_BASE:  RESET_CBUS_BASE = 0x11
 // -----------------------------------------------
 */
-#define P_VERSION_CTRL ((0x00  << 2) + 0xc0804400)
-#define P_RESET0_REGISTER ((0x01  << 2) + 0xc0804400)
-#define P_RESET1_REGISTER ((0x02  << 2) + 0xc0804400)
-#define P_RESET2_REGISTER ((0x03  << 2) + 0xc0804400)
-#define P_RESET3_REGISTER ((0x04  << 2) + 0xc0804400)
-#define P_RESET4_REGISTER ((0x05  << 2) + 0xc0804400)
-#define P_RESET5_REGISTER ((0x06  << 2) + 0xc0804400)
-#define P_RESET6_REGISTER ((0x07  << 2) + 0xc0804400)
-#define P_RESET7_REGISTER ((0x08  << 2) + 0xc0804400)
-#define P_RESET0_MASK ((0x10  << 2) + 0xc0804400)
-#define P_RESET1_MASK ((0x11  << 2) + 0xc0804400)
-#define P_RESET2_MASK ((0x12  << 2) + 0xc0804400)
-#define P_RESET3_MASK ((0x13  << 2) + 0xc0804400)
-#define P_RESET4_MASK ((0x14  << 2) + 0xc0804400)
-#define P_RESET5_MASK ((0x15  << 2) + 0xc0804400)
-#define P_RESET6_MASK ((0x16  << 2) + 0xc0804400)
+#define P_VERSION_CTRL ((0x00  << 2) + 0xc1104400)
+#define P_RESET0_REGISTER ((0x01  << 2) + 0xc1104400)
+#define P_RESET1_REGISTER ((0x02  << 2) + 0xc1104400)
+#define P_RESET2_REGISTER ((0x03  << 2) + 0xc1104400)
+#define P_RESET3_REGISTER ((0x04  << 2) + 0xc1104400)
+#define P_RESET4_REGISTER ((0x05  << 2) + 0xc1104400)
+#define P_RESET5_REGISTER ((0x06  << 2) + 0xc1104400)
+#define P_RESET6_REGISTER ((0x07  << 2) + 0xc1104400)
+#define P_RESET7_REGISTER ((0x08  << 2) + 0xc1104400)
+#define P_RESET0_MASK ((0x10  << 2) + 0xc1104400)
+#define P_RESET1_MASK ((0x11  << 2) + 0xc1104400)
+#define P_RESET2_MASK ((0x12  << 2) + 0xc1104400)
+#define P_RESET3_MASK ((0x13  << 2) + 0xc1104400)
+#define P_RESET4_MASK ((0x14  << 2) + 0xc1104400)
+#define P_RESET5_MASK ((0x15  << 2) + 0xc1104400)
+#define P_RESET6_MASK ((0x16  << 2) + 0xc1104400)
 
 /* Gated clock enables.
  * There are 64 enables for the MPEG clocks and 32 enables for other
@@ -807,6 +809,9 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 
 #define P_AO_RTI_GEN_PWR_SLEEP0 (0xc8100000 + (0x3a << 2))
 
+#define P_HDMITX_ADDR_PORT_SEC        0xda83a000
+#define P_HDMITX_DATA_PORT_SEC        0xda83a004
+#define P_HDMITX_CTRL_PORT_SEC        0xda83a008
 /* secure address P_HDMITX_ADDR_PORT 0xda83a000 */
 #define P_HDMITX_ADDR_PORT        0xc883a000
 #define P_HDMITX_DATA_PORT        0xc883a004

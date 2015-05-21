@@ -33,8 +33,13 @@ unsigned long aocec_rd_reg(unsigned long addr);
 void aocec_wr_reg(unsigned long addr, unsigned long data);
 
 /* TOP-level wrapper registers addresses */
-#define TOP_OFFSET_MASK      (0x00 << 24)
-#define DWC_OFFSET_MASK      (0x10 << 24)
+/* bit24: 1 means secure access */
+/* bit28: 1 means DWC, 0 means TOP */
+#define SEC_OFFSET           (0x1UL << 24)
+#define TOP_OFFSET_MASK      (0x0UL << 24)
+#define TOP_SEC_OFFSET_MASK  ((TOP_OFFSET_MASK) | (SEC_OFFSET))
+#define DWC_OFFSET_MASK      (0x10UL << 24)
+#define DWC_SEC_OFFSET_MASK  ((DWC_OFFSET_MASK) | (SEC_OFFSET))
 
 /* Bit 7 RW Reserved. Default 1. */
 /* Bit 6 RW Reserved. Default 1. */
@@ -142,26 +147,26 @@ void aocec_wr_reg(unsigned long addr, unsigned long data);
 
 /* Bit     0 R  filtered HPD status. */
 #define HDMITX_TOP_STAT0                        (TOP_OFFSET_MASK + 0x00E)
-#define HDMITX_TOP_SKP_CNTL_STAT                (TOP_OFFSET_MASK + 0x010)
-#define HDMITX_TOP_NONCE_0                      (TOP_OFFSET_MASK + 0x011)
-#define HDMITX_TOP_NONCE_1                      (TOP_OFFSET_MASK + 0x012)
-#define HDMITX_TOP_NONCE_2                      (TOP_OFFSET_MASK + 0x013)
-#define HDMITX_TOP_NONCE_3                      (TOP_OFFSET_MASK + 0x014)
-#define HDMITX_TOP_PKF_0                        (TOP_OFFSET_MASK + 0x015)
-#define HDMITX_TOP_PKF_1                        (TOP_OFFSET_MASK + 0x016)
-#define HDMITX_TOP_PKF_2                        (TOP_OFFSET_MASK + 0x017)
-#define HDMITX_TOP_PKF_3                        (TOP_OFFSET_MASK + 0x018)
-#define HDMITX_TOP_DUK_0                        (TOP_OFFSET_MASK + 0x019)
-#define HDMITX_TOP_DUK_1                        (TOP_OFFSET_MASK + 0x01A)
-#define HDMITX_TOP_DUK_2                        (TOP_OFFSET_MASK + 0x01B)
-#define HDMITX_TOP_DUK_3                        (TOP_OFFSET_MASK + 0x01C)
+#define HDMITX_TOP_SKP_CNTL_STAT                (TOP_SEC_OFFSET_MASK + 0x010)
+#define HDMITX_TOP_NONCE_0                      (TOP_SEC_OFFSET_MASK + 0x011)
+#define HDMITX_TOP_NONCE_1                      (TOP_SEC_OFFSET_MASK + 0x012)
+#define HDMITX_TOP_NONCE_2                      (TOP_SEC_OFFSET_MASK + 0x013)
+#define HDMITX_TOP_NONCE_3                      (TOP_SEC_OFFSET_MASK + 0x014)
+#define HDMITX_TOP_PKF_0                        (TOP_SEC_OFFSET_MASK + 0x015)
+#define HDMITX_TOP_PKF_1                        (TOP_SEC_OFFSET_MASK + 0x016)
+#define HDMITX_TOP_PKF_2                        (TOP_SEC_OFFSET_MASK + 0x017)
+#define HDMITX_TOP_PKF_3                        (TOP_SEC_OFFSET_MASK + 0x018)
+#define HDMITX_TOP_DUK_0                        (TOP_SEC_OFFSET_MASK + 0x019)
+#define HDMITX_TOP_DUK_1                        (TOP_SEC_OFFSET_MASK + 0x01A)
+#define HDMITX_TOP_DUK_2                        (TOP_SEC_OFFSET_MASK + 0x01B)
+#define HDMITX_TOP_DUK_3                        (TOP_SEC_OFFSET_MASK + 0x01C)
 /* [26:24] infilter_ddc_intern_clk_divide */
 /* [23:16] infilter_ddc_sample_clk_divide */
 /* [10: 8] infilter_cec_intern_clk_divide */
 /* [ 7: 0] infilter_cec_sample_clk_divide */
 #define HDMITX_TOP_INFILTER                     (TOP_OFFSET_MASK + 0x01D)
 #define HDMITX_TOP_NSEC_SCRATCH                 (TOP_OFFSET_MASK + 0x01E)
-#define HDMITX_TOP_SEC_SCRATCH                  (TOP_OFFSET_MASK + 0x01F)
+#define HDMITX_TOP_SEC_SCRATCH                  (TOP_SEC_OFFSET_MASK + 0x01F)
 
 #define HDMITX_TOP_DONT_TOUCH0                  (TOP_OFFSET_MASK + 0x0FE)
 #define HDMITX_TOP_DONT_TOUCH1                  (TOP_OFFSET_MASK + 0x0FF)
@@ -818,13 +823,13 @@ void aocec_wr_reg(unsigned long addr, unsigned long data);
 #define HDMITX_DWC_CSC_LIMIT_DN_LSB             (DWC_OFFSET_MASK + 0x411D)
 
 /* HDCP Encryption Engine Registers */
-#define HDMITX_DWC_A_HDCPCFG0                   (DWC_OFFSET_MASK + 0x5000)
+#define HDMITX_DWC_A_HDCPCFG0                   (DWC_SEC_OFFSET_MASK + 0x5000)
 /* [  4] hdcp_lock */
 /* [  3] dissha1check */
 /* [  2] ph2upshiftenc */
 /* [  1] encryptiondisable */
 /* [  0] swresetn. Write 0 to activate, self-clear to 1. */
-#define HDMITX_DWC_A_HDCPCFG1                   (DWC_OFFSET_MASK + 0x5001)
+#define HDMITX_DWC_A_HDCPCFG1                   (DWC_SEC_OFFSET_MASK + 0x5001)
 #define HDMITX_DWC_A_HDCPOBS0                   (DWC_OFFSET_MASK + 0x5002)
 #define HDMITX_DWC_A_HDCPOBS1                   (DWC_OFFSET_MASK + 0x5003)
 #define HDMITX_DWC_A_HDCPOBS2                   (DWC_OFFSET_MASK + 0x5004)
@@ -890,19 +895,19 @@ void aocec_wr_reg(unsigned long addr, unsigned long data);
 
 /* Encrypted DPK Embedded Storage Registers */
 #define HDMITX_DWC_HDCPREG_RMLSTS               (DWC_OFFSET_MASK + 0x780F)
-#define HDMITX_DWC_HDCPREG_SEED0                (DWC_OFFSET_MASK + 0x7810)
-#define HDMITX_DWC_HDCPREG_SEED1                (DWC_OFFSET_MASK + 0x7811)
-#define HDMITX_DWC_HDCPREG_DPK0                 (DWC_OFFSET_MASK + 0x7812)
-#define HDMITX_DWC_HDCPREG_DPK1                 (DWC_OFFSET_MASK + 0x7813)
-#define HDMITX_DWC_HDCPREG_DPK2                 (DWC_OFFSET_MASK + 0x7814)
-#define HDMITX_DWC_HDCPREG_DPK3                 (DWC_OFFSET_MASK + 0x7815)
-#define HDMITX_DWC_HDCPREG_DPK4                 (DWC_OFFSET_MASK + 0x7816)
-#define HDMITX_DWC_HDCPREG_DPK5                 (DWC_OFFSET_MASK + 0x7817)
-#define HDMITX_DWC_HDCPREG_DPK6                 (DWC_OFFSET_MASK + 0x7818)
+#define HDMITX_DWC_HDCPREG_SEED0                (DWC_SEC_OFFSET_MASK + 0x7810)
+#define HDMITX_DWC_HDCPREG_SEED1                (DWC_SEC_OFFSET_MASK + 0x7811)
+#define HDMITX_DWC_HDCPREG_DPK0                 (DWC_SEC_OFFSET_MASK + 0x7812)
+#define HDMITX_DWC_HDCPREG_DPK1                 (DWC_SEC_OFFSET_MASK + 0x7813)
+#define HDMITX_DWC_HDCPREG_DPK2                 (DWC_SEC_OFFSET_MASK + 0x7814)
+#define HDMITX_DWC_HDCPREG_DPK3                 (DWC_SEC_OFFSET_MASK + 0x7815)
+#define HDMITX_DWC_HDCPREG_DPK4                 (DWC_SEC_OFFSET_MASK + 0x7816)
+#define HDMITX_DWC_HDCPREG_DPK5                 (DWC_SEC_OFFSET_MASK + 0x7817)
+#define HDMITX_DWC_HDCPREG_DPK6                 (DWC_SEC_OFFSET_MASK + 0x7818)
 
 /* HDCP22 Registers */
 #define HDMITX_DWC_HDCP22REG_ID                 (DWC_OFFSET_MASK + 0x7900)
-#define HDMITX_DWC_HDCP22REG_CTRL               (DWC_OFFSET_MASK + 0x7904)
+#define HDMITX_DWC_HDCP22REG_CTRL               (DWC_SEC_OFFSET_MASK + 0x7904)
 #define HDMITX_DWC_HDCP22REG_CTRL1              (DWC_OFFSET_MASK + 0x7905)
 #define HDMITX_DWC_HDCP22REG_STS                (DWC_OFFSET_MASK + 0x7908)
 #define HDMITX_DWC_HDCP22REG_MASK               (DWC_OFFSET_MASK + 0x790C)
