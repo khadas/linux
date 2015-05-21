@@ -45,6 +45,7 @@
 #include <linux/clk.h>
 #include <linux/amlogic/gpio-amlogic.h>
 #include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/canvas/canvas_mgr.h>
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 #include <linux/amlogic/ge2d/ge2d.h>
@@ -414,7 +415,11 @@ static int vpts_chase_pts_diff;
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
 #define DEBUG_FLAG_RDMA_WAIT_1		     0x40000
-static int debug_flag = 0x0;	/* DEBUG_FLAG_BLACKOUT; */
+#define DEBUG_FLAG_VSYNC_DONONE                0x80000
+#define DEBUG_FLAG_GOFIELD_MANUL             0x100000
+static int debug_flag;
+
+/* DEBUG_FLAG_BLACKOUT; */
 
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
@@ -2417,7 +2422,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	r = (3 << VDIF_URGENT_BIT) |
 	    (17 << VDIF_HOLD_LINES_BIT) |
 	    VDIF_FORMAT_SPLIT |
-	    VDIF_CHRO_RPT_LAST | VDIF_ENABLE | VDIF_RESET_ON_GO_FIELD;
+	    VDIF_CHRO_RPT_LAST | VDIF_ENABLE;
+	/*  | VDIF_RESET_ON_GO_FIELD;*/
+	if (debug_flag & DEBUG_FLAG_GOFIELD_MANUL)
+		r |= 1<<7; /*for manul triggle gofiled.*/
 
 	if ((vf->type & VIDTYPE_VIU_SINGLE_PLANE) == 0)
 		r |= VDIF_SEPARATE_EN;
@@ -3173,6 +3181,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #ifdef CONFIG_AM_VIDEO_LOG
 	int toggle_cnt;
 #endif
+	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
+		return IRQ_HANDLED;
 
 #ifdef CONFIG_SUPPORT_VIDEO_ON_VPP2
 	const char *dev_id_s = (const char *)dev_id;
@@ -6019,6 +6029,7 @@ static ssize_t vframe_states_show(struct class *cla,
 	int ret = 0;
 	struct vframe_states states;
 	unsigned long flags;
+	struct vframe_s *vf;
 
 	if (vf_get_states(&states) == 0) {
 		ret += sprintf(buf + ret, "vframe_pool_size=%d\n",
@@ -6031,16 +6042,32 @@ static ssize_t vframe_states_show(struct class *cla,
 			states.buf_avail_num);
 
 		spin_lock_irqsave(&lock, flags);
-		{
-			struct vframe_s *vf;
-			vf = video_vf_peek();
-			if (vf) {
-				ret += sprintf(buf + ret,
-					"vframe ready frame delayed =%dms\n",
-					(int)(jiffies_64 -
-					vf->ready_jiffies64) * 1000 /
-					HZ);
-			}
+
+		vf = video_vf_peek();
+		if (vf) {
+			ret += sprintf(buf + ret,
+				"vframe ready frame delayed =%dms\n",
+				(int)(jiffies_64 -
+				vf->ready_jiffies64) * 1000 /
+				HZ);
+			ret += sprintf(buf + ret,
+				"vf index=%d\n", vf->index);
+			ret += sprintf(buf + ret,
+				"vf canvas0Addr=%x\n", vf->canvas0Addr);
+			ret += sprintf(buf + ret,
+				"vf canvas1Addr=%x\n", vf->canvas1Addr);
+			ret += sprintf(buf + ret,
+				"vf canvas0Addr.y.addr=%x(%d)\n",
+				canvas_get_addr(
+				canvasY(vf->canvas0Addr)),
+				canvas_get_addr(
+				canvasY(vf->canvas0Addr)));
+			ret += sprintf(buf + ret,
+				"vf canvas0Adr.uv.adr=%x(%d)\n",
+				canvas_get_addr(
+				canvasUV(vf->canvas0Addr)),
+				canvas_get_addr(
+				canvasUV(vf->canvas0Addr)));
 		}
 		spin_unlock_irqrestore(&lock, flags);
 
