@@ -49,15 +49,17 @@
 #include "vout_io.h"
 #include "vout_log.h"
 #include "enc_clk_config.h"
+#include "tv_out_reg.h"
 
 #define PIN_MUX_REG_0 0x202c
 #define P_PIN_MUX_REG_0 CBUS_REG_ADDR(PIN_MUX_REG_0)
 static struct disp_module_info_s *info;
 
-static void parse_vdac_setting(char *para);
-SET_TV_CLASS_ATTR(vdac_setting, parse_vdac_setting)
 static void vdac_power_level_store(char *para);
 SET_TV_CLASS_ATTR(vdac_power_level, vdac_power_level_store)
+
+static void bist_test_store(char *para);
+SET_TV_CLASS_ATTR(bist_test, bist_test_store)
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 #define DEFAULT_POLICY_FR_AUTO	1
@@ -72,14 +74,11 @@ static char *get_name_from_vmode(enum vmode_e mode);
 
 static int tv_vdac_power_level;
 
-static u32 curr_vdac_setting = DEFAULT_VDAC_SEQUENCE;
-
 static DEFINE_MUTEX(setmode_mutex);
 
 static enum tvmode_e vmode_to_tvmode(enum vmode_e mode);
 static void cvbs_config_vdac(unsigned int flag, unsigned int cfg);
-static int get_current_vdac_setting(void);
-static void change_vdac_setting(unsigned int vdec_setting, enum vmode_e mode);
+
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBLITY_SUPPORT
 static void cvbs_performance_enhancement(enum tvmode_e mode);
 #endif
@@ -91,105 +90,16 @@ static int get_vdac_power_level(void)
 	return tv_vdac_power_level;
 }
 
-static int get_current_vdac_setting(void)
-{
-	return curr_vdac_setting;
-}
-
-/* 120120 */
-static void change_vdac_setting(unsigned int vdec_setting, enum vmode_e mode)
-{
-	unsigned int signal_set_index = 0;
-	unsigned int idx = 0, bit = 5, i;
-	switch (mode) {
-	case VMODE_480I:
-	case VMODE_576I:
-		signal_set_index = 0;
-		bit = 5;
-		break;
-	case VMODE_480CVBS:
-	case VMODE_576CVBS:
-		signal_set_index = 1;
-		bit = 2;
-		break;
-	case VMODE_SVGA:
-	case VMODE_XGA:
-	case VMODE_VGA:
-		signal_set_index = 3;
-		bit = 5;
-		break;
-	default:
-		signal_set_index = 2;
-		bit = 5;
-		break;
-	}
-	for (i = 0; i < 3; i++) {
-		idx = vdec_setting >> (bit << 2) & 0xf;
-		vout_log_info("dac index:%d ,signal:%s\n", idx,
-			      signal_table[signal_set[signal_set_index][i]]);
-		vout_vcbus_write((VENC_VDAC_DACSEL0 + idx),
-				 signal_set[signal_set_index][i]);
-		bit--;
-	}
-	curr_vdac_setting = vdec_setting;
-}
-
-int tvoutc_setclk(enum tvmode_e mode)
-{
-	const struct reg_s *sd, *hd;
-	struct clk *clk = NULL;
-	int xtal = 0;
-	sd = tvreg_vclk_sd;
-	hd = tvreg_vclk_hd;
-
-	/* TODO */
-	/* clk=clk_get_sys("clk_xtal", NULL); */
-	if (!clk) {
-		vout_log_info(KERN_ERR "can't find clk %s for VIDEO PLL SETTING!\n\n",
-			      "clk_xtal");
-		return -1;
-	}
-	/* TODO */
-	/* xtal=clk_get_rate(clk); */
-	xtal = xtal / 1000000;
-	if (xtal >= 24 && xtal <= 25) /*current only support 24,25*/
-		xtal -= 24;
-	else {
-		vout_log_info("UNsupport xtal setting for vidoe xtal=%d,default to 24M\n",
-			      xtal);
-		xtal = 0;
-	}
-	switch (mode) {
-	case TVMODE_480I:
-	case TVMODE_480I_RPT:
-	case TVMODE_480CVBS:
-	case TVMODE_480P:
-	case TVMODE_480P_RPT:
-	case TVMODE_576I:
-	case TVMODE_576I_RPT:
-	case TVMODE_576CVBS:
-	case TVMODE_576P:
-		vout_cbus_write(sd[xtal].reg, sd[xtal].val);
-		break;
-	case TVMODE_720P:
-	case TVMODE_720P_50HZ:
-	case TVMODE_1080I:
-	case TVMODE_1080I_50HZ:
-	case TVMODE_1080P:
-	case TVMODE_1080P_50HZ:
-		vout_cbus_write(hd[xtal].reg, hd[xtal].val);
-		if (xtal == 1)
-			vout_cbus_write(HHI_VID_CLK_DIV, 4);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 static void set_tvmode_misc(enum tvmode_e mode)
 {
-	set_vmode_clk(mode);
+	/* for hdmi mode, leave the hpll setting to be done by hdmi module. */
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)) {
+		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
+			set_vmode_clk(mode);
+	} else
+		set_vmode_clk(mode);
 }
 
 /*
@@ -245,15 +155,15 @@ static void cvbs_cntl_output(unsigned int open)
 	if (open == 0) { /* close */
 		cntl0 = 0;
 		cntl1 = 8;
-		vout_cbus_write(HHI_VDAC_CNTL0, cntl0);
-		vout_cbus_write(HHI_VDAC_CNTL1, cntl1);
+		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
+		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
 	} else if (open == 1) { /* open */
 		cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
 		vout_log_info("vdac open.%d = 0x%x, 0x%x\n",
 			      vdac_cfg_valid, cntl0, cntl1);
-		vout_cbus_write(HHI_VDAC_CNTL1, cntl1);
-		vout_cbus_write(HHI_VDAC_CNTL0, cntl0);
+		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
+		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
 	}
 	return;
 }
@@ -305,6 +215,7 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 }
 #endif/* end of CVBS_PERFORMANCE_COMPATIBLITY_SUPPORT */
 
+#if 0
 static const struct reg_s *tvregs_get_clk_setting_by_mode(enum tvmode_e mode)
 {
 	int i = 0;
@@ -314,7 +225,7 @@ static const struct reg_s *tvregs_get_clk_setting_by_mode(enum tvmode_e mode)
 	}
 	return NULL;
 }
-
+#endif
 static const struct reg_s *tvregs_get_enc_setting_by_mode(enum tvmode_e mode)
 {
 	int i = 0;
@@ -335,56 +246,8 @@ static const struct tvinfo_s *tvinfo_mode(enum tvmode_e mode)
 	return NULL;
 }
 
-int tvoutc_setmode(enum tvmode_e mode)
+static void tv_out_init_off(enum tvmode_e mode)
 {
-	const struct reg_s *s;
-	const struct tvinfo_s *tvinfo;
-	static int uboot_display_flag = 1;
-	if (mode >= TVMODE_MAX) {
-		vout_log_info(KERN_ERR "Invalid video output modes.\n");
-		return -ENODEV;
-	}
-	mutex_lock(&setmode_mutex);
-	tvinfo = tvinfo_mode(mode);
-	if (!tvinfo) {
-		vout_log_info(KERN_ERR "tvinfo %d not find\n", mode);
-		mutex_unlock(&setmode_mutex);
-		return 0;
-	}
-	vout_log_info("TV mode %s selected.\n", tvinfo->id);
-	if (is_meson_gxbb_cpu()) {
-		vout_log_info("TODO: 1080p mode\n");
-		mutex_unlock(&setmode_mutex);
-		return 0;
-	}
-
-	if (is_meson_m8b_cpu()) {
-		if ((mode != TVMODE_480CVBS) && (mode != TVMODE_576CVBS)) {
-			/* TODO */
-			/* CLK_GATE_OFF(CTS_VDAC); */
-			vout_cbus_set_bits(HHI_VID_CLK_CNTL2, 0x0, 4, 1);
-			/* CLK_GATE_OFF(DAC_CLK); */
-			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x0, 10, 1);
-		}
-		if ((mode != TVMODE_480I) && (mode != TVMODE_480CVBS) &&
-		    (mode != TVMODE_576I) && (mode != TVMODE_576CVBS)) {
-			/* TODO */
-			/* CLK_GATE_OFF(CTS_ENCI); */
-			vout_cbus_set_bits(HHI_VID_CLK_CNTL2, 0x0, 0, 1);
-			/* CLK_GATE_OFF(VCLK2_ENCI); */
-			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x0, 8, 1);
-			/* CLK_GATE_OFF(VCLK2_VENCI1); */
-			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x0, 2, 1);
-		}
-	}
-	if (uboot_display_flag) {
-		uboot_display_flag = 0;
-		if (uboot_display_already(mode)) {
-			vout_log_info("already display in uboot\n");
-			mutex_unlock(&setmode_mutex);
-			return 0;
-		}
-	}
 	/* turn off cvbs clock */
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_MG9TV)
 		cvbs_cntl_output(0);
@@ -403,87 +266,32 @@ int tvoutc_setmode(enum tvmode_e mode)
 		cvbs_cntl_output(0);
 	}
 	/* init encoding */
-	vout_vcbus_write(ENCP_VIDEO_EN, 0);
-	vout_vcbus_write(ENCI_VIDEO_EN, 0);
-	vout_vcbus_write(VENC_VDAC_SETTING, 0xff);
-	/* setup clock regs */
-	s = tvregs_get_clk_setting_by_mode(mode);
-	if (!s) {
-		vout_log_info("display mode %d get clk set NULL\n", mode);
-	} else {
-		while (MREG_END_MARKER != s->reg) {
-			vout_cbus_write(s->reg, s->val);
-			s++;
+	tv_out_reg_write(ENCP_VIDEO_EN, 0);
+	tv_out_reg_write(ENCI_VIDEO_EN, 0);
+	tv_out_reg_write(VENC_VDAC_SETTING, 0xff);
+}
+
+static void tv_out_set_clk_gate(enum tvmode_e mode)
+{
+	/* remove it, use clk_gate API (resets) in dts */
+#if 0
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B) {
+		if ((mode != TVMODE_480CVBS) && (mode != TVMODE_576CVBS)) {
+			/* TODO */
+			/* CLK_GATE_OFF(CTS_VDAC); */
+			vout_cbus_set_bits(HHI_VID_CLK_CNTL2, 0x0, 4, 1);
+			/* CLK_GATE_OFF(DAC_CLK); */
+			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x0, 10, 1);
 		}
-	}
-	/* setup encoding regs */
-	s = tvregs_get_enc_setting_by_mode(mode);
-	if (!s) {
-		vout_log_info("display mode %d get enc set NULL\n", mode);
-		mutex_lock(&setmode_mutex);
-		return 0;
-	} else {
-		while (MREG_END_MARKER != s->reg) {
-			vout_vcbus_write(s->reg, s->val);
-			s++;
-		}
-	}
-	vout_log_info("%s[%d]\n", __func__, __LINE__);
-#ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBLITY_SUPPORT
-	cvbs_performance_enhancement(mode);
-#endif
-	if (mode >= TVMODE_VGA && mode <= TVMODE_FHDVGA) /* set VGA pinmux */
-		vout_cbus_write(PERIPHS_PIN_MUX_0,
-			(vout_cbus_read(PERIPHS_PIN_MUX_0) | (3 << 20)));
-	else
-		vout_cbus_write(PERIPHS_PIN_MUX_0,
-			(vout_cbus_read(PERIPHS_PIN_MUX_0) & (~(3 << 20))));
-	vout_log_info("%s[%d] mode is %d\n", __func__, __LINE__, mode);
-	/* for hdmi mode, leave the hpll setting to be done by hdmi module. */
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8)) {
-		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
-			set_tvmode_misc(mode);
-	} else
-		set_tvmode_misc(mode);
-#ifdef CONFIG_AM_TV_OUTPUT2
-	switch (mode) {
-	case TVMODE_480I:
-	case TVMODE_480I_RPT:
-	case TVMODE_480CVBS:
-	case TVMODE_576I:
-	case TVMODE_576I_RPT:
-	case TVMODE_576CVBS:
-		/* reg0x271a, select ENCI to VIU1 */
-		vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL, 1, 0, 2);
-		/* reg0x271a, Select encI clock to VDIN */
-		vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL, 1, 4, 4);
-		/* reg0x271a, Enable VIU of ENC_I domain to VDIN; */
-		vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL, 1, 8, 4);
-		break;
-	default:
-		/* reg0x271a, select ENCP to VIU1 */
-		vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL, 2, 0, 2);
-		/* reg0x271a, Select encP clock to VDIN */
-		vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL, 2, 4, 4);
-		/* reg0x271a, Enable VIU of ENC_P domain to VDIN; */
-		vout_vcbus_set_bits(VPU_VIU_VENC_MUX_CTRL, 2, 8, 4);
-		break;
-	}
-#endif
-	vout_vcbus_write(VPP_POSTBLEND_H_SIZE, tvinfo->xres);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6) {
-		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS)) {
-			msleep(1000);
-			if (get_vdac_power_level() == 0)
-				vout_vcbus_write(VENC_VDAC_SETTING, 0x5);
-			else
-				vout_vcbus_write(VENC_VDAC_SETTING, 0x7);
-		} else {
-			if (get_vdac_power_level() == 0)
-				vout_vcbus_write(VENC_VDAC_SETTING, 0x0);
-			else
-				vout_vcbus_write(VENC_VDAC_SETTING, 0x7);
+		if ((mode != TVMODE_480I) && (mode != TVMODE_480CVBS) &&
+		    (mode != TVMODE_576I) && (mode != TVMODE_576CVBS)) {
+			/* TODO */
+			/* CLK_GATE_OFF(CTS_ENCI); */
+			vout_cbus_set_bits(HHI_VID_CLK_CNTL2, 0x0, 0, 1);
+			/* CLK_GATE_OFF(VCLK2_ENCI); */
+			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x0, 8, 1);
+			/* CLK_GATE_OFF(VCLK2_VENCI1); */
+			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x0, 2, 1);
 		}
 	}
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
@@ -500,9 +308,161 @@ int tvoutc_setmode(enum tvmode_e mode)
 			vout_cbus_set_bits(HHI_VID_CLK_CNTL2, 0x1, 4, 1);
 			/* CLK_GATE_ON(DAC_CLK); */
 			vout_cbus_set_bits(HHI_GCLK_OTHER, 0x1, 10, 1);
-			cvbs_cntl_output(1);
 		}
 	}
+#endif
+}
+
+static void tv_out_set_clk(enum tvmode_e mode)
+{
+#if 0
+	const struct reg_s *s;
+
+	/* setup clock regs */
+	s = tvregs_get_clk_setting_by_mode(mode);
+	if (!s) {
+		vout_log_info("display mode %d get clk set NULL\n", mode);
+	} else {
+		while (MREG_END_MARKER != s->reg) {
+			tv_out_hiu_write(s->reg, s->val);
+			s++;
+		}
+	}
+#endif
+	set_tvmode_misc(mode);
+}
+
+static int tv_out_set_venc(enum tvmode_e mode)
+{
+	const struct reg_s *s;
+
+	/* setup encoding regs */
+	s = tvregs_get_enc_setting_by_mode(mode);
+	if (!s) {
+		vout_log_info("display mode %d get enc set NULL\n", mode);
+		return -1;
+	} else {
+		while (MREG_END_MARKER != s->reg) {
+			tv_out_reg_write(s->reg, s->val);
+			s++;
+		}
+	}
+	/* vout_log_info("%s[%d]\n", __func__, __LINE__); */
+	return 0;
+}
+
+static void tv_out_set_enc_viu_mux(enum tvmode_e mode)
+{
+#ifdef CONFIG_AM_TV_OUTPUT2
+	switch (mode) {
+	case TVMODE_480I:
+	case TVMODE_480I_RPT:
+	case TVMODE_480CVBS:
+	case TVMODE_576I:
+	case TVMODE_576I_RPT:
+	case TVMODE_576CVBS:
+		/* reg0x271a, select ENCI to VIU1 */
+		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 1, 0, 2);
+		/* reg0x271a, Select encI clock to VDIN */
+		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 1, 4, 4);
+		/* reg0x271a, Enable VIU of ENC_I domain to VDIN; */
+		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 1, 8, 4);
+		break;
+	default:
+		/* reg0x271a, select ENCP to VIU1 */
+		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 2, 0, 2);
+		/* reg0x271a, Select encP clock to VDIN */
+		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 2, 4, 4);
+		/* reg0x271a, Enable VIU of ENC_P domain to VDIN; */
+		tv_out_reg_setb(VPU_VIU_VENC_MUX_CTRL, 2, 8, 4);
+		break;
+	}
+#endif
+}
+
+static void tv_out_set_pinmux(enum tvmode_e mode)
+{
+	/* only m6 support VGA */
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6) {
+		if (mode >= TVMODE_VGA && mode <= TVMODE_FHDVGA)
+			tv_out_cbus_set_mask(PERIPHS_PIN_MUX_0, (3 << 20));
+		else
+			tv_out_cbus_clr_mask(PERIPHS_PIN_MUX_0, (3 << 20));
+	}
+	/* vout_log_info("%s[%d] mode is %d\n", __func__, __LINE__, mode); */
+}
+
+static void tv_out_set_vdac(enum tvmode_e mode)
+{
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6) {
+		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS)) {
+			msleep(1000);
+			if (get_vdac_power_level() == 0)
+				tv_out_reg_write(VENC_VDAC_SETTING, 0x5);
+			else
+				tv_out_reg_write(VENC_VDAC_SETTING, 0x7);
+		} else {
+			if (get_vdac_power_level() == 0)
+				tv_out_reg_write(VENC_VDAC_SETTING, 0x0);
+			else
+				tv_out_reg_write(VENC_VDAC_SETTING, 0x7);
+		}
+	}
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
+		cvbs_cntl_output(1);
+}
+
+static char *tv_out_bist_str[] = {
+	"Fix Value",   /* 0 */
+	"Color Bar",   /* 1 */
+	"Thin Line",   /* 2 */
+	"Dot Grid",    /* 3 */
+};
+
+int tv_out_setmode(enum tvmode_e mode)
+{
+	const struct tvinfo_s *tvinfo;
+	static int uboot_display_flag = 1;
+	int ret;
+
+	if (mode >= TVMODE_MAX) {
+		vout_log_info(KERN_ERR "Invalid video output modes.\n");
+		return -ENODEV;
+	}
+	mutex_lock(&setmode_mutex);
+	tvinfo = tvinfo_mode(mode);
+	if (!tvinfo) {
+		vout_log_info(KERN_ERR "tvinfo %d not find\n", mode);
+		mutex_unlock(&setmode_mutex);
+		return 0;
+	}
+	vout_log_info("TV mode %s selected.\n", tvinfo->id);
+
+	if (uboot_display_flag) {
+		uboot_display_flag = 0;
+		if (uboot_display_already(mode)) {
+			vout_log_info("already display in uboot\n");
+			mutex_unlock(&setmode_mutex);
+			return 0;
+		}
+	}
+
+	tv_out_set_clk_gate(mode);
+	tv_out_init_off(mode);
+	tv_out_set_clk(mode);
+	ret = tv_out_set_venc(mode);
+	if (ret) {
+		mutex_lock(&setmode_mutex);
+		return -1;
+	}
+	tv_out_set_enc_viu_mux(mode);
+	tv_out_set_pinmux(mode);
+#ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBLITY_SUPPORT
+	cvbs_performance_enhancement(mode);
+#endif
+
+	tv_out_set_vdac(mode);
+
 	mutex_unlock(&setmode_mutex);
 	return 0;
 }
@@ -651,12 +611,11 @@ static int tv_set_current_vmode(enum vmode_e mode)
 		return 0;
 
 #ifdef CONFIG_AML_VPU
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
-		request_vpu_clk_vmod(info->vinfo->video_clk, info->vinfo->mode);
-	}
+	switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
+	request_vpu_clk_vmod(info->vinfo->video_clk, info->vinfo->mode);
 #endif
-	tvoutc_setmode(vmode_to_tvmode(mode));
+	tv_out_reg_write(VPP_POSTBLEND_H_SIZE, info->vinfo->width);
+	tv_out_setmode(vmode_to_tvmode(mode));
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	vout_log_info("new mode =%s set ok\n", get_name_from_vmode(mode));
@@ -1070,38 +1029,59 @@ static void _init_vout(void)
 		info->vinfo = &tv_info[TVMODE_720P];
 }
 
-/***************************************************
-**
-**	The first digit control component Y output DAC number
-**	The 2nd digit control component U output DAC number
-**	The 3rd digit control component V output DAC number
-**	The 4th digit control composite CVBS output DAC number
-**	The 5th digit control s-video Luma output DAC number
-**	The 6th digit control s-video chroma output DAC number
-**	examble :
-**		echo  120120 > /sys/class/tv/vdac_setting
-**		the first digit from the left side .
-******************************************************/
-static void parse_vdac_setting(char *para)
+/* **************************************************** */
+static void bist_test_store(char *para)
 {
-	int i;
-	char  *pt = strstrip(para);
-	int len = strlen(pt);
-	u32 vdac_sequence = get_current_vdac_setting();
-	vout_log_dbg("origin vdac setting:0x%x,strlen:%d\n",
-		     vdac_sequence, len);
-	if (len != 6) {
-		vout_log_info("can't parse vdac settings\n");
+	unsigned long num;
+	enum tvmode_e mode;
+	unsigned int start, width;
+	int ret;
+
+	mode = info->vinfo->mode;
+	ret = kstrtoul(para, 10, (unsigned long *)&num);
+	if (num > 3) {
+		switch (mode) {
+		case TVMODE_480I:
+		case TVMODE_480I_RPT:
+		case TVMODE_480CVBS:
+		case TVMODE_576I:
+		case TVMODE_576I_RPT:
+		case TVMODE_576CVBS:
+			tv_out_reg_write(ENCI_TST_EN, 0);
+			break;
+		default:
+			tv_out_reg_setb(ENCP_VIDEO_MODE_ADV, 1, 3, 1);
+			tv_out_reg_write(VENC_VIDEO_TST_EN, 0);
+			break;
+		}
+		pr_info("disable bist pattern\n");
 		return;
+	} else {
+		switch (mode) {
+		case TVMODE_480I:
+		case TVMODE_480I_RPT:
+		case TVMODE_480CVBS:
+		case TVMODE_576I:
+		case TVMODE_576I_RPT:
+		case TVMODE_576CVBS:
+			tv_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
+			tv_out_reg_write(ENCI_TST_CLRBAR_WIDTH, 0xb4);
+			tv_out_reg_write(ENCI_TST_MDSEL, (unsigned int)num);
+			tv_out_reg_write(ENCI_TST_EN, 1);
+			break;
+		default:
+			start = tv_out_reg_read(ENCP_VIDEO_HAVON_BEGIN);
+			width = info->vinfo->width / 9;
+			tv_out_reg_write(VENC_VIDEO_TST_CLRBAR_STRT, start);
+			tv_out_reg_write(VENC_VIDEO_TST_CLRBAR_WIDTH, width);
+			tv_out_reg_write(VENC_VIDEO_TST_MDSEL, 1);
+			tv_out_reg_setb(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			tv_out_reg_write(VENC_VIDEO_TST_EN, 1);
+			break;
+		}
+		pr_info("show bist pattern %ld: %s\n",
+			num, tv_out_bist_str[num]);
 	}
-	vdac_sequence = 0;
-	for (i = 0; i < 6; i++) {
-		vdac_sequence <<= 4;
-		vdac_sequence |= *pt - '0';
-		pt++;
-	}
-	vout_log_dbg("current vdac setting:0x%x\n", vdac_sequence);
-	change_vdac_setting(vdac_sequence, get_current_vmode());
 }
 
 static void vdac_power_level_store(char *para)
@@ -1134,8 +1114,8 @@ static void policy_framerate_automation_store(char *para)
 #endif
 
 static  struct  class_attribute   *tv_attr[] = {
-	&class_TV_attr_vdac_setting,
 	&class_TV_attr_vdac_power_level,
+	&class_TV_attr_bist_test,
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	&class_TV_attr_policy_fr_auto,
 #endif
@@ -1156,16 +1136,18 @@ static int create_tv_attr(struct disp_module_info_s *info)
 			vout_log_err("create disp attribute %s fail\n",
 				     tv_attr[i]->attr.name);
 	}
-	sprintf(vdac_setting, "%x", get_current_vdac_setting());
+
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	sprintf(policy_fr_auto, "%d", DEFAULT_POLICY_FR_AUTO);
 #endif
 	return 0;
 }
+/* **************************************************** */
 
 static int __init tv_init_module(void)
 {
 	int  ret;
+	tv_out_ioremap();
 	info = kmalloc(sizeof(struct disp_module_info_s), GFP_KERNEL);
 	vout_log_info("%s\n", __func__);
 	if (!info) {

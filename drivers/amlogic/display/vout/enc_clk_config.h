@@ -31,20 +31,15 @@ struct enc_clk_val_s {
 	enum vmode_e mode;
 	unsigned hpll_clk_out;
 	unsigned hpll_hdmi_od;
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	unsigned hpll_lvds_od;
-	/* #endif */
-	unsigned viu_path;
 	enum viu_type_e viu_type;
 	unsigned vid_pll_div;
 	unsigned clk_final_div;
 	unsigned hdmi_tx_pixel_div;
 	unsigned encp_div;
 	unsigned enci_div;
-	unsigned enct_div;
-	unsigned encl_div;
 	unsigned vdac0_div;
-	unsigned vdac1_div;
+	unsigned vdac1_div; /* only for m6 */
 	unsigned unused;    /* prevent compile error */
 };
 

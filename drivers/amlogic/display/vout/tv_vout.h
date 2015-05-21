@@ -25,8 +25,6 @@
 #define TV_CLASS_NAME	"tv"
 #define	MAX_NUMBER_PARA  10
 
-#define DEFAULT_VDAC_SEQUENCE	0x120120
-
 #define SHOW_INFO(name) \
 	{return snprintf(buf, 40, "%s\n", name); }
 
@@ -63,47 +61,9 @@ struct disp_module_info_s {
 
 static  DEFINE_MUTEX(TV_mutex);
 
-/*****************************
-*	default settings :
-*	Y    -----  DAC1
-*	PB  -----  DAC2
-*	PR  -----  DAC0
-*
-*	CVBS	---- DAC1
-*	S-LUMA    ---- DAC2
-*	S-CHRO	----  DAC0
-******************************/
-
 struct vmode_tvmode_tab_s {
 	enum tvmode_e tvmode;
 	enum vmode_e  mode;
-};
-
-enum video_signal_set_e {
-	INTERALCE_COMPONENT = 0,
-	CVBS_SVIDEO,
-	PROGRESSIVE,
-	VGA_SVIDEO,
-	SIGNAL_SET_MAX
-};
-
-enum video_signal_type_e {
-	VIDEO_SIGNAL_TYPE_INTERLACE_Y = 0, /**< Interlace Y signal */
-	VIDEO_SIGNAL_TYPE_CVBS,            /**< CVBS signal */
-	VIDEO_SIGNAL_TYPE_SVIDEO_LUMA,     /**< S-Video luma signal */
-	VIDEO_SIGNAL_TYPE_SVIDEO_CHROMA,   /**< S-Video chroma signal */
-	VIDEO_SIGNAL_TYPE_INTERLACE_PB,    /**< Interlace Pb signal */
-	VIDEO_SIGNAL_TYPE_INTERLACE_PR,    /**< Interlace Pr signal */
-	VIDEO_SIGNAL_TYPE_INTERLACE_R,     /**< Interlace R signal */
-	VIDEO_SIGNAL_TYPE_INTERLACE_G,     /**< Interlace G signal */
-	VIDEO_SIGNAL_TYPE_INTERLACE_B,     /**< Interlace B signal */
-	VIDEO_SIGNAL_TYPE_PROGRESSIVE_Y,   /**< Progressive Y signal */
-	VIDEO_SIGNAL_TYPE_PROGRESSIVE_PB,  /**< Progressive Pb signal */
-	VIDEO_SIGNAL_TYPE_PROGRESSIVE_PR,  /**< Progressive Pr signal */
-	VIDEO_SIGNAL_TYPE_PROGEESSIVE_R,   /**< Progressive R signal */
-	VIDEO_SIGNAL_TYPE_PROGEESSIVE_G,   /**< Progressive G signal */
-	VIDEO_SIGNAL_TYPE_PROGEESSIVE_B,   /**< Progressive B signal */
-	VIDEO_SIGNAL_TYPE_MAX
 };
 
 static struct vmode_tvmode_tab_s mode_tab[] = {
@@ -725,47 +685,4 @@ static const struct vinfo_s tv_info[] = {
 	},
 };
 
-
-static const unsigned int  signal_set[SIGNAL_SET_MAX][3] = {
-	{
-		VIDEO_SIGNAL_TYPE_INTERLACE_Y,     /* component interlace */
-		VIDEO_SIGNAL_TYPE_INTERLACE_PB,
-		VIDEO_SIGNAL_TYPE_INTERLACE_PR,
-	},
-	{
-		VIDEO_SIGNAL_TYPE_CVBS,		/* cvbs&svideo */
-		VIDEO_SIGNAL_TYPE_SVIDEO_LUMA,
-		VIDEO_SIGNAL_TYPE_SVIDEO_CHROMA,
-	},
-	{
-		VIDEO_SIGNAL_TYPE_PROGRESSIVE_Y,     /* progressive. */
-		VIDEO_SIGNAL_TYPE_PROGRESSIVE_PB,
-		VIDEO_SIGNAL_TYPE_PROGRESSIVE_PR,
-	},
-	{
-		VIDEO_SIGNAL_TYPE_PROGEESSIVE_B,     /* Analog RGB for VGA. */
-		VIDEO_SIGNAL_TYPE_PROGEESSIVE_G,
-		VIDEO_SIGNAL_TYPE_PROGEESSIVE_R,
-	},
-
-};
-
-static const char * const signal_table[] = {
-	"INTERLACE_Y ", /**< Interlace Y signal */
-	"CVBS",            /**< CVBS signal */
-	"SVIDEO_LUMA",     /**< S-Video luma signal */
-	"SVIDEO_CHROMA",   /**< S-Video chroma signal */
-	"INTERLACE_PB",    /**< Interlace Pb signal */
-	"INTERLACE_PR",    /**< Interlace Pr signal */
-	"INTERLACE_R",     /**< Interlace R signal */
-	"INTERLACE_G",     /**< Interlace G signal */
-	"INTERLACE_B",     /**< Interlace B signal */
-	"PROGRESSIVE_Y",   /**< Progressive Y signal */
-	"PROGRESSIVE_PB",  /**< Progressive Pb signal */
-	"PROGRESSIVE_PR",  /**< Progressive Pr signal */
-	"PROGEESSIVE_R",   /**< Progressive R signal */
-	"PROGEESSIVE_G",   /**< Progressive G signal */
-	"PROGEESSIVE_B",   /**< Progressive B signal */
-
-};
 #endif

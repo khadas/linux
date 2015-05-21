@@ -12,7 +12,7 @@ config AM_VOUT
 config AM_TV_OUTPUT
 	boolean "TV Output Module"
 	default n
-	select AM_VOUT
+	depends on AM_VOUT
 	help
 		TV output module
 

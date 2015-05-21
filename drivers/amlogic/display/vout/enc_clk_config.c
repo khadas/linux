@@ -32,6 +32,7 @@
 #include "vout_log.h"
 #include "enc_clk_config.h"
 #include "enc_clk_val.h"
+#include "tv_out_reg.h"
 
 
 #define check_clk_config(para) \
@@ -98,231 +99,319 @@ static void wait_for_pll_locked(unsigned reg)
 		vout_log_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);
 }
 
+static void set_hpll_clk_out_m6(unsigned int clk)
+{
+	vout_log_info("%s[%d] clk = %d\n", __func__, __LINE__, clk);
+	switch (clk) {
+	case 1488:
+		vout_cbus_write(HHI_VID_PLL_CNTL, 0x43e);
+		break;
+	case 1080:
+		vout_cbus_write(HHI_VID_PLL_CNTL, 0x42d);
+		break;
+	case 1066:
+		vout_cbus_write(HHI_VID_PLL_CNTL, 0x42a);
+		break;
+	case 1058:
+		vout_cbus_write(HHI_VID_PLL_CNTL, 0x422);
+		break;
+	case 1086:
+		vout_cbus_write(HHI_VID_PLL_CNTL, 0x43e);
+		break;
+	case 1296:
+		break;
+	default:
+		vout_log_info("error hpll clk: %d\n", clk);
+		break;
+	}
+}
+
+static void set_hpll_clk_out_m8(unsigned int clk)
+{
+	vout_log_info("%s[%d] clk = %d\n", __func__, __LINE__, clk);
+	vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c88000);
+	vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca563823);
+	vout_cbus_write(HHI_VID_PLL_CNTL4, 0x40238100);
+	vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012286);
+	/* internal LDO share with HPLL & VIID PLL */
+	vout_cbus_write(HHI_VID2_PLL_CNTL2, 0x430a800);
+	switch (clk) {
+	case 2971: /* only for 4k mode */
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	case 2976: /* only for 4k mode with clock*0.999 */
+#endif
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0xce49c022);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x4123b100);
+		vout_cbus_set_bits(HHI_VID2_PLL_CNTL2, 1, 16, 1);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000043d);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000043d);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		h_delay();
+		/* optimise HPLL VCO 2.97GHz performance */
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		if (clk == 2976)
+			/* lower div_frac to get clk*0.999 */
+			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84d04);
+		else
+			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
+#else
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
+#endif
+		break;
+	case 2970: /* for 1080p/i 720p mode */
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	case 2975: /* for 1080P/i 720p mode with clock*0.999 */
+#endif
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x4123b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000043d);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000043d);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		h_delay();
+		/* optimise HPLL VCO 2.97GHz performance */
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		if (clk == 2975)
+			/* lower div_frac to get clk*0.999 */
+			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84d04);
+		else
+			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
+#else
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
+#endif
+		break;
+	case 2160:
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042d);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042d);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	case 2161:/*for N200/M200 480p59hz*/
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84f48);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042c);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042c);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+#endif
+	case 1080:
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000042d);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000042d);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	case 1081:/*for N200/M200 480p59hz*/
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c8cf48);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000042c);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000042c);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+#endif
+	case 1296:
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x59c88000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca49b022);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0023b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x600c0436);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x400c0436);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+	default:
+		vout_log_info("error hpll clk: %d\n", clk);
+		break;
+	}
+	if (clk < 2970)
+		vout_cbus_write(HHI_VID_PLL_CNTL5,
+				(vout_cbus_read(HHI_VID_PLL_CNTL5)
+				& (~(0xf << 12))) | (0x6 << 12));
+}
+
+static void set_hpll_clk_out_m8b(unsigned int clk)
+{
+	vout_log_info("%s[%d] clk = %d\n", __func__, __LINE__, clk);
+	vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c88000);
+	vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca563823);
+	vout_cbus_write(HHI_VID_PLL_CNTL4, 0x40238100);
+	vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012286);
+	/* internal LDO share with HPLL & VIID PLL */
+	vout_cbus_write(HHI_VID2_PLL_CNTL2, 0x430a800);
+	switch (clk) {
+	case 2970:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	case 2975:
+		/* FOR 1080P/i 720p mode with clock*0.999 */
+#endif
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x4123b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000043d);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000043d);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		h_delay();
+		/* optimise HPLL VCO 2.97GHz performance */
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		if (clk == 2975)
+			/* lower div_frac to get clk*0.999 */
+			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84cf8);
+		else
+			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
+#else
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
+#endif
+		break;
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	case 2161:/*for N200/M200 480p59hz*/
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84f48);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042c);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042c);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+#endif
+	case 2160:
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042d);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042d);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+	case 1296:
+		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x59c88000);
+		vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca49b022);
+		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0023b100);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x600c0436);
+		vout_cbus_write(HHI_VID_PLL_CNTL,  0x400c0436);
+		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
+		wait_for_pll_locked(HHI_VID_PLL_CNTL);
+		break;
+	default:
+		vout_log_info("error hpll clk: %d\n", clk);
+		break;
+	}
+	if (clk < 2970)
+		vout_cbus_write(HHI_VID_PLL_CNTL5,
+				(vout_cbus_read(HHI_VID_PLL_CNTL5)
+				 & (~(0xf << 12))) | (0x6 << 12));
+} /* meson8b */
+
+static int hpll_wait_lock_gxbb(unsigned int reg, unsigned int lock_bit)
+{
+	unsigned int pll_lock;
+	int wait_loop = 200;
+	int ret = 0;
+
+	do {
+		udelay(50);
+		pll_lock = tv_out_hiu_getb(reg, lock_bit, 1);
+		wait_loop--;
+	} while ((pll_lock == 0) && (wait_loop > 0));
+	if (wait_loop == 0)
+		ret = -1;
+	return ret;
+}
+
+static void set_hpll_clk_out_gxbb(unsigned int clk)
+{
+	int ret;
+
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x5800023d);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00404e00);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000e55);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4800023d);
+	ret = hpll_wait_lock_gxbb(HHI_HDMI_PLL_CNTL, 31);
+	if (ret)
+		pr_info("[error]: hdmi_pll lock failed\n");
+
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
+	udelay(5);
+
+	/* Disable the div output clock */
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
+
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);
+	/* Enable the final output clock */
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 19, 1);
+
+	/* setup the XD divider value */
+	tv_out_hiu_setb(HHI_VIID_CLK_DIV, (55 - 1), VCLK2_XD, 8);
+	udelay(5);
+	/* Bit[18:16] - v2_cntl_clk_in_sel */
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 4, VCLK2_CLK_IN_SEL, 3);
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
+	udelay(2);
+
+	/* [15:12] encl_clk_sel, select vclk2_div1 */
+	tv_out_hiu_setb(HHI_VID_CLK_DIV, 8, 28, 4);
+	tv_out_hiu_setb(HHI_VIID_CLK_DIV, 8, 28, 4);
+	/* release vclk2_div_reset and enable vclk2_div */
+	tv_out_hiu_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
+	udelay(5);
+
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
+	udelay(10);
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
+	udelay(5);
+
+	tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 1, 0, 1);
+	tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 1, 4, 1);
+}
+
 static void set_hpll_clk_out(unsigned clk)
 {
+	unsigned int cpu_type;
+
 	check_clk_config(clk);
 	vout_log_info("config HPLL\n");
-	/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV */
+
 	if (is_meson_g9tv_cpu()) {
 		vout_log_info("%s[%d]\n", __FILE__, __LINE__);
 		vout_log_info("TODO\n");
 		return;
 	}
-	/* #endif */
-	/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8 */
-	if (is_meson_m8_cpu() || is_meson_m8m2_cpu()) {
-		vout_log_info("%s[%d] clk = %d\n", __func__, __LINE__, clk);
-		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c88000);
-		vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca563823);
-		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x40238100);
-		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012286);
-		/* internal LDO share with HPLL & VIID PLL */
-		vout_cbus_write(HHI_VID2_PLL_CNTL2, 0x430a800);
-		switch (clk) {
-		case 2971: /* only for 4k mode */
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		case 2976: /* only for 4k mode with clock*0.999 */
-#endif
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0xce49c022);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x4123b100);
-			vout_cbus_set_bits(HHI_VID2_PLL_CNTL2, 1, 16, 1);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000043d);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000043d);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			h_delay();
-			/* optimise HPLL VCO 2.97GHz performance */
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-			if (clk == 2976)
-				/* lower div_frac to get clk*0.999 */
-				vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84d04);
-			else
-				vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
-#else
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
-#endif
-			break;
-		case 2970: /* for 1080p/i 720p mode */
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		case 2975: /* for 1080P/i 720p mode with clock*0.999 */
-#endif
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x4123b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000043d);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000043d);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			h_delay();
-			/* optimise HPLL VCO 2.97GHz performance */
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-			if (clk == 2975)
-				/* lower div_frac to get clk*0.999 */
-				vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84d04);
-			else
-				vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
-#else
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
-#endif
-			break;
-		case 2160:
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042d);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042d);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		case 2161:/*for N200/M200 480p59hz*/
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84f48);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042c);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042c);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-#endif
-		case 1080:
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000042d);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000042d);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		case 1081:/*for N200/M200 480p59hz*/
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c8cf48);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000042c);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000042c);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-#endif
-		case 1296:
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x59c88000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca49b022);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0023b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x600c0436);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x400c0436);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-		default:
-			vout_log_info("error hpll clk: %d\n", clk);
-			break;
-		}
-		if (clk < 2970)
-			vout_cbus_write(HHI_VID_PLL_CNTL5,
-					(vout_cbus_read(HHI_VID_PLL_CNTL5)
-					& (~(0xf << 12))) | (0x6 << 12));
+
+	cpu_type = get_cpu_type();
+	switch (cpu_type) {
+	case MESON_CPU_MAJOR_ID_M6:
+		set_hpll_clk_out_m6(clk);
+		break;
+	case MESON_CPU_MAJOR_ID_M8:
+	case MESON_CPU_MAJOR_ID_M8M2:
+		set_hpll_clk_out_m8(clk);
+		break;
+	case MESON_CPU_MAJOR_ID_M8B:
+		set_hpll_clk_out_m8b(clk);
+		break;
+	case MESON_CPU_MAJOR_ID_GXBB:
+		set_hpll_clk_out_gxbb(clk);
+		break;
+	default:
+		break;
 	}
-	/* #endif */
-	/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8B */
-	if (is_meson_m8b_cpu()) {
-		vout_log_info("%s[%d] clk = %d\n", __func__, __LINE__, clk);
-		vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c88000);
-		vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca563823);
-		vout_cbus_write(HHI_VID_PLL_CNTL4, 0x40238100);
-		vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012286);
-		/* internal LDO share with HPLL & VIID PLL */
-		vout_cbus_write(HHI_VID2_PLL_CNTL2, 0x430a800);
-		switch (clk) {
-		case 2970:
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		case 2975:
-			/* FOR 1080P/i 720p mode with clock*0.999 */
-#endif
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x4123b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6000043d);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4000043d);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			h_delay();
-			/* optimise HPLL VCO 2.97GHz performance */
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-			if (clk == 2975)
-				/* lower div_frac to get clk*0.999 */
-				vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84cf8);
-			else
-				vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
-#else
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84e00);
-#endif
-			break;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		case 2161:/*for N200/M200 480p59hz*/
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84f48);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042c);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042c);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-#endif
-		case 2160:
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x69c84000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0x8a46c023);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0123b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x12385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x6001042d);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x4001042d);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-		case 1296:
-			vout_cbus_write(HHI_VID_PLL_CNTL2, 0x59c88000);
-			vout_cbus_write(HHI_VID_PLL_CNTL3, 0xca49b022);
-			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x0023b100);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00012385);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x600c0436);
-			vout_cbus_write(HHI_VID_PLL_CNTL,  0x400c0436);
-			vout_cbus_write(HHI_VID_PLL_CNTL5, 0x00016385);
-			wait_for_pll_locked(HHI_VID_PLL_CNTL);
-			break;
-		default:
-			vout_log_info("error hpll clk: %d\n", clk);
-			break;
-		}
-		if (clk < 2970)
-			vout_cbus_write(HHI_VID_PLL_CNTL5,
-					(vout_cbus_read(HHI_VID_PLL_CNTL5)
-					 & (~(0xf << 12))) | (0x6 << 12));
-	} /* meson8b */
-	/* #endif */
-	/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6 */
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
-		vout_log_info("%s[%d] clk = %d\n", __func__, __LINE__, clk);
-		switch (clk) {
-		case 1488:
-			vout_cbus_write(HHI_VID_PLL_CNTL, 0x43e);
-			break;
-		case 1080:
-			vout_cbus_write(HHI_VID_PLL_CNTL, 0x42d);
-			break;
-		case 1066:
-			vout_cbus_write(HHI_VID_PLL_CNTL, 0x42a);
-			break;
-		case 1058:
-			vout_cbus_write(HHI_VID_PLL_CNTL, 0x422);
-			break;
-		case 1086:
-			vout_cbus_write(HHI_VID_PLL_CNTL, 0x43e);
-			break;
-		case 1296:
-			break;
-		default:
-			vout_log_info("error hpll clk: %d\n", clk);
-			break;
-		}
-	} /* meson6 */
-	/* #endif */
+
 	vout_log_info("config HPLL done\n");
 }
 
@@ -504,20 +593,6 @@ static void set_enci_div(unsigned div)
 	vout_cbus_set_bits(HHI_VID_CLK_DIV, div, 28, 4);
 }
 
-static void set_enct_div(unsigned div)
-{
-	check_clk_config(div);
-	div = check_div(div);
-	vout_cbus_set_bits(HHI_VID_CLK_DIV, div, 20, 4);
-}
-
-static void set_encl_div(unsigned div)
-{
-	check_clk_config(div);
-	div = check_div(div);
-	vout_cbus_set_bits(HHI_VIID_CLK_DIV, div, 12, 4);
-}
-
 static void set_vdac0_div(unsigned div)
 {
 	check_clk_config(div);
@@ -539,7 +614,11 @@ void set_vmode_clk(enum vmode_e mode)
 	int j = 0;
 
 	mutex_lock(&setclk_mutex);
-	if (is_meson_m8m2_cpu()) {
+	if (is_meson_gxbb_cpu()) {
+		p_enc = &setting_enc_clk_val_gxbb[0];
+		i = sizeof(setting_enc_clk_val_gxbb)
+			/ sizeof(struct enc_clk_val_s);
+	} else if (is_meson_m8m2_cpu()) {
 		p_enc = &setting_enc_clk_val_m8m2[0];
 		i = sizeof(setting_enc_clk_val_m8m2)
 			/ sizeof(struct enc_clk_val_s);
@@ -561,23 +640,22 @@ void set_vmode_clk(enum vmode_e mode)
 		if (mode == p_enc[j].mode)
 			break;
 	}
-	set_viu_path(p_enc[j].viu_path, p_enc[j].viu_type);
+	set_viu_path(1, p_enc[j].viu_type); /* default viu1 */
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
+
 	if (is_meson_m8_cpu() || is_meson_m8m2_cpu())
 		set_hpll_lvds_od(p_enc[j].hpll_lvds_od);
-	/* #endif */
-	set_hpll_hdmi_od(p_enc[j].hpll_hdmi_od);
-	set_vid_pll_div(p_enc[j].vid_pll_div);
-	set_clk_final_div(p_enc[j].clk_final_div);
-	set_hdmi_tx_pixel_div(p_enc[j].hdmi_tx_pixel_div);
-	set_encp_div(p_enc[j].encp_div);
-	set_enci_div(p_enc[j].enci_div);
-	set_enct_div(p_enc[j].enct_div);
-	set_encl_div(p_enc[j].encl_div);
-	set_vdac0_div(p_enc[j].vdac0_div);
-	set_vdac1_div(p_enc[j].vdac1_div);
-	/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6 */
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXBB) {
+		set_hpll_hdmi_od(p_enc[j].hpll_hdmi_od);
+		set_vid_pll_div(p_enc[j].vid_pll_div);
+		set_clk_final_div(p_enc[j].clk_final_div);
+		set_hdmi_tx_pixel_div(p_enc[j].hdmi_tx_pixel_div);
+		set_encp_div(p_enc[j].encp_div);
+		set_enci_div(p_enc[j].enci_div);
+		set_vdac0_div(p_enc[j].vdac0_div);
+		set_vdac1_div(p_enc[j].vdac1_div);
+	}
+
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6) {
 		/* If VCO outputs 1488, then we will reset it to exact 1485 */
 		/* please note, don't forget to re-config CNTL3/4 */
@@ -588,7 +666,7 @@ void set_vmode_clk(enum vmode_e mode)
 			vout_cbus_write(HHI_VID_PLL_CNTL4, 0x42000101);
 		}
 	}
-	/* #endif */
+
 	mutex_unlock(&setclk_mutex);
 	/* For debug only */
 #if 0
