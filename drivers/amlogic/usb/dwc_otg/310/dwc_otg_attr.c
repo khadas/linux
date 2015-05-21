@@ -1024,7 +1024,7 @@ static ssize_t regdump_show(struct device *_dev,
 	return sprintf(buf, "Register Dump\n");
 }
 
-DEVICE_ATTR(regdump, S_IRUGO | S_IWUSR, regdump_show, 0);
+DEVICE_ATTR(regdump, S_IRUGO, regdump_show, 0);
 
 /**
  * Dump global registers and either host or device registers (depending on the
@@ -1041,7 +1041,7 @@ static ssize_t spramdump_show(struct device *_dev,
 	return sprintf(buf, "SPRAM Dump\n");
 }
 
-DEVICE_ATTR(spramdump, S_IRUGO | S_IWUSR, spramdump_show, 0);
+DEVICE_ATTR(spramdump, S_IRUGO, spramdump_show, 0);
 
 /**
  * Dump the current hcd state.
@@ -1058,7 +1058,7 @@ static ssize_t hcddump_show(struct device *_dev,
 	return sprintf(buf, "HCD Dump\n");
 }
 
-DEVICE_ATTR(hcddump, S_IRUGO | S_IWUSR, hcddump_show, 0);
+DEVICE_ATTR(hcddump, S_IRUGO, hcddump_show, 0);
 
 /**
  * Dump the average frame remaining at SOF. This can be used to
@@ -1077,7 +1077,7 @@ static ssize_t hcd_frrem_show(struct device *_dev,
 	return sprintf(buf, "HCD Dump Frame Remaining\n");
 }
 
-DEVICE_ATTR(hcd_frrem, S_IRUGO | S_IWUSR, hcd_frrem_show, 0);
+DEVICE_ATTR(hcd_frrem, S_IRUGO, hcd_frrem_show, 0);
 
 /**
  * Displays the time required to read the GNPTXFSIZ register many times (the
@@ -1107,7 +1107,7 @@ static ssize_t rd_reg_test_show(struct device *_dev,
 		       RW_REG_COUNT, time * MSEC_PER_JIFFIE, time);
 }
 
-DEVICE_ATTR(rd_reg_test, S_IRUGO | S_IWUSR, rd_reg_test_show, 0);
+DEVICE_ATTR(rd_reg_test, S_IRUGO, rd_reg_test_show, 0);
 
 /**
  * Displays the time required to write the GNPTXFSIZ register many times (the
@@ -1137,7 +1137,7 @@ static ssize_t wr_reg_test_show(struct device *_dev,
 		       RW_REG_COUNT, time * MSEC_PER_JIFFIE, time);
 }
 
-DEVICE_ATTR(wr_reg_test, S_IRUGO | S_IWUSR, wr_reg_test_show, 0);
+DEVICE_ATTR(wr_reg_test, S_IRUGO, wr_reg_test_show, 0);
 
 #ifdef CONFIG_USB_DWC_OTG_LPM
 
@@ -1364,7 +1364,6 @@ DEVICE_ATTR(debuglevel, S_IRUGO | S_IWUSR, dbg_level_show,
  */
 void dwc_otg_attr_create(struct platform_device *pdev)
 {
-#if 0
 	int error;
 	error = device_create_file(&pdev->dev, &dev_attr_regoffset);
 	error = device_create_file(&pdev->dev, &dev_attr_regvalue);
@@ -1413,7 +1412,6 @@ void dwc_otg_attr_create(struct platform_device *pdev)
 	error = device_create_file(&pdev->dev, &dev_attr_peri_otg_disable);
 	error = device_create_file(&pdev->dev, &dev_attr_peri_power);
 	error = device_create_file(&pdev->dev, &dev_attr_peri_sleepm);
-#endif
 }
 
 /**
@@ -1421,7 +1419,6 @@ void dwc_otg_attr_create(struct platform_device *pdev)
  */
 void dwc_otg_attr_remove(struct platform_device *pdev)
 {
-#if 0
 	device_remove_file(&pdev->dev, &dev_attr_regoffset);
 	device_remove_file(&pdev->dev, &dev_attr_regvalue);
 	device_remove_file(&pdev->dev, &dev_attr_mode);
@@ -1467,5 +1464,4 @@ void dwc_otg_attr_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_peri_otg_disable);
 	device_remove_file(&pdev->dev, &dev_attr_peri_power);
 	device_remove_file(&pdev->dev, &dev_attr_peri_sleepm);
-#endif
 }
