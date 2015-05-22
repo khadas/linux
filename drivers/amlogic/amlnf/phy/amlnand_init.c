@@ -39,7 +39,7 @@ int amlnf_phy_init(unsigned char flag, struct platform_device *pdev)
 
 	aml_chip = aml_nand_malloc(sizeof(struct amlnand_chip));
 	if (aml_chip == NULL) {
-		aml_nand_msg("malloc failed for aml_chip:%x",
+		aml_nand_msg("malloc failed for aml_chip:%lx",
 			sizeof(struct amlnand_chip));
 		ret = -NAND_MALLOC_FAILURE;
 		goto exit_error1;
@@ -49,13 +49,13 @@ int amlnf_phy_init(unsigned char flag, struct platform_device *pdev)
 	aml_chip->init_flag = flag;
 	aml_chip->nand_status = NAND_STATUS_NORMAL;
 	aml_nand_chip = aml_chip;
-	aml_chip->device = pdev->dev;
+	aml_chip->device = &pdev->dev;
 
 	aml_nand_msg("amlnf_phy_init : amlnf init flag %d",
 		aml_chip->init_flag);
 
 #ifdef CONFIG_OF
-	aml_chip->nand_pinctrl = devm_pinctrl_get(&aml_chip->device);
+	aml_chip->nand_pinctrl = devm_pinctrl_get(aml_chip->device);
 	if (IS_ERR(aml_chip->nand_pinctrl)) {
 		aml_nand_msg("get pinctrl error");
 		return PTR_ERR(aml_chip->nand_pinctrl);

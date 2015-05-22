@@ -796,6 +796,7 @@ U_BOOT_CMD(amlnf, CONFIG_SYS_MAXARGS, 1, do_amlnfphy,
 	"init - init amlnand_phy here\n"
 	"chipinfo - show aml chip information\n"
 	"device[dev] - show or set current device\n"
+	"partition* [part] - show or set current partition\n"
 	"plane[dev] - show or set current plane mode\n"
 	"read - addr off|partition size\n"
 	"write - addr off|partition size\n"
@@ -816,7 +817,8 @@ U_BOOT_CMD(amlnf, CONFIG_SYS_MAXARGS, 1, do_amlnfphy,
 	"deverase[whole][off size] - erase 'size' bytes from\n"
 	"    offset 'off' (entire device if not specified) in device[dev]\n"
 	"markbad addr - mark block bad at addr\n"
-	"device name - get nftl device by name\n"
+	"mark_reserved reserved_blk_NO -mark reserved_blk_NO bad\n"
+	"ldevice[dev] - show/get nftl(logic) device by name\n"
 );
 
 

@@ -79,9 +79,9 @@ static int controller_dma_timer_handle(struct hw_controller *controller)
 		HRTIMER_MODE_REL);
 
 	/* max 500mS */
-	timeout = wait_for_completion_timeout(&controller_dma_completion, 50);
+	timeout = wait_for_completion_timeout(&controller_dma_completion, 150);
 	if (timeout == 0) {
-		aml_nand_msg("dma time out");
+		aml_nand_msg("***[nand] dma irq timeout");
 		return -NAND_BUSY_FAILURE;
 	}
 	return 0;
@@ -89,7 +89,8 @@ static int controller_dma_timer_handle(struct hw_controller *controller)
 #endif /* AML_NAND_DMA_POLLING */
 
 #ifdef AML_NAND_RB_IRQ
-static struct completion controller_rb_completion;
+/* static struct completion rb_complete; */
+DECLARE_COMPLETION(rb_complete);
 
 void controller_open_interrupt(struct hw_controller *controller)
 {
@@ -105,13 +106,12 @@ void controller_close_interrupt(struct hw_controller *controller)
 }
 
 static irqreturn_t controller_interrupt_monitor(int irq,
-	void *dev_id,
-	struct pt_regs *regs)
+	void *dev_id)
 {
 	struct hw_controller *controller = (struct hw_controller *)dev_id;
 
 	controller_close_interrupt(controller);
-	complete(&controller_rb_completion);
+	complete(&rb_complete);
 
 	return IRQ_HANDLED;
 }
@@ -124,7 +124,7 @@ static int controller_queue_rb_irq(struct hw_controller *controller,
 	if (chipnr != NAND_CHIP_UNDEFINE)/* skip dma operation */
 		controller->select_chip(controller, chipnr);
 
-	init_completion(&controller_rb_completion);
+	reinit_completion(&rb_complete);
 	controller_open_interrupt(controller);
 	NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
 	controller->cmd_ctrl(controller, NAND_CMD_STATUS, NAND_CTRL_CLE);
@@ -137,9 +137,9 @@ static int controller_queue_rb_irq(struct hw_controller *controller,
 	NFC_SEND_CMD_RB_IRQ(controller, 18);
 	/* NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE); */
 
-	timeout = wait_for_completion_timeout(&controller_rb_completion, 200);
+	timeout = wait_for_completion_timeout(&rb_complete, 800);
 	if (timeout == 0) {
-		aml_nand_msg("***nand irq timeout here");
+		aml_nand_msg("***[nand] rb irq timeout");
 		ret = -NAND_BUSY_FAILURE;
 	}
 
@@ -421,8 +421,10 @@ static int controller_dma_write(struct hw_controller *controller,
 			controller->ran_mode,
 			oob_fill_cnt);
 	else if (bch_mode == NAND_ECC_NONE) {
-		NFC_SEND_CMD_ADL(controller, (int)controller->data_buf);
-		NFC_SEND_CMD_ADH(controller, (int)controller->data_buf);
+		uint64_t data64;
+		data64 = (uint64_t) controller->data_buf;
+		NFC_SEND_CMD_ADL(controller, (int)data64);
+		NFC_SEND_CMD_ADH(controller, (int)data64);
 		NFC_SEND_CMD_M2N_RAW(controller, 0, controller->oobavail);
 	}
 
@@ -465,7 +467,7 @@ static int controller_hw_init(struct hw_controller *controller)
 	/* int clk_delay; */
 	int ret = 0;
 
-	sys_clk_rate = 212;
+	sys_clk_rate = 200;
 	get_sys_clk_rate(controller, &sys_clk_rate);
 
 	sys_time = (10000 / sys_clk_rate);
@@ -526,9 +528,9 @@ static int controller_adjust_timing(struct hw_controller *controller)
 		flash->T_RHOH = 15;
 
 	if (flash->T_REA > 16)
-		sys_clk_rate = 212;
+		sys_clk_rate = 200;
 	else
-		sys_clk_rate = 255;
+		sys_clk_rate = 250;
 
 	get_sys_clk_rate(controller, &sys_clk_rate);
 
@@ -569,7 +571,7 @@ static int controller_adjust_timing(struct hw_controller *controller)
 	NFC_SET_TIMING_ASYC(controller, bus_timing, (bus_cycle - 1));
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)	{
-#if defined(AML_NAND_NEW_OOB) /* !!!we need modify later. */
+#if (AML_CFG_NEWOOB_EN) /* !!!we need modify later. */
 		if (flash->pagesize > 4096) {
 			aml_nand_msg("AML_NAND_NEW_OOB : new oob");
 			NFC_SET_OOB_MODE(controller, 3<<26);
@@ -902,10 +904,10 @@ int amlnand_hwcontroller_init(struct amlnand_chip *aml_chip)
 #ifdef AML_NAND_RB_IRQ
 	aml_nand_msg("######STS IRQ mode for nand driver");
 	if (request_irq(controller->irq,
-		(irq_handler_t)controller_interrupt_monitor,
-		0,
+		controller_interrupt_monitor,
+		IRQF_DISABLED,
 		"aml_nand",
-		controller)) {
+		(void *)controller)) {
 		aml_nand_msg("request nand status irq error!!!");
 		return -1;
 	}
@@ -916,9 +918,7 @@ int amlnand_hwcontroller_init(struct amlnand_chip *aml_chip)
 	hrtimer_init(&controller->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	controller->timer.function = controller_dma_timerfuc;
 #endif
-
 	amlphy_prepare(0);
-
 	ret = controller->init(controller);
 	if (ret)
 		aml_nand_msg("controller hw init failed");

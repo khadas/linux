@@ -15,13 +15,15 @@
  *
 */
 
+#ifndef __AML_NF_CFG_H__
+#define __AML_NF_CFG_H__
 #define	AML_SLC_NAND_SUPPORT
 #define	AML_MLC_NAND_SUPPORT
 /*
 #define	AML_NAND_DBG
 */
-#define	NEW_NAND_SUPPORT
-#define AML_NAND_NEW_OOB
+#define	AML_CFG_NEW_NAND_SUPPORT	(1)
+#define AML_CFG_NEWOOB_EN			(1)
 
 #define NAND_ADJUST_PART_TABLE
 
@@ -38,4 +40,5 @@
 
 extern  int is_phydev_off_adjust(void);
 extern  int get_adjust_block_num(void);
+#endif
 

@@ -249,7 +249,7 @@ static int nand_buf_init(struct amlnand_chip *aml_chip)
 
 	controller->ecc_unit = NAND_ECC_UNIT_SIZE;
 
-	controller->data_buf = dma_alloc_coherent(NULL,
+	controller->data_buf = dma_alloc_coherent(aml_chip->device,
 		(flash->pagesize + flash->oobsize),
 		&controller->data_dma_addr, GFP_KERNEL);
 	if (!controller->data_buf) {
@@ -262,7 +262,7 @@ static int nand_buf_init(struct amlnand_chip *aml_chip)
 	buf_size = (flash->pagesize / controller->ecc_unit)*PER_INFO_BYTE;
 	buf_size += 16;
 
-	controller->user_buf = dma_alloc_coherent(NULL,
+	controller->user_buf = dma_alloc_coherent(aml_chip->device,
 		buf_size,
 		&(controller->info_dma_addr),
 		GFP_KERNEL);/* amlnf_dma_malloc(buf_size, 1); */
@@ -346,20 +346,21 @@ static void nand_buf_free(struct amlnand_chip *aml_chip)
   * if without rb pin, then setting NAND_CTRL_NONE_RB mode
   *
 */
+#if 0
 static void aml_chip_rb_mode_confirm(struct amlnand_chip *aml_chip)
 {
 	struct hw_controller *controller = &aml_chip->controller;
 	unsigned int por_cfg = 0, rb_mode = 0;
-	void __iomem *prot_cfg_reg = NULL;
+	void __iomem *poc_cfg_reg = NULL;
 
-	prot_cfg_reg = aml_nand_dev->platform_data->prot_cfg_reg;
+	poc_cfg_reg = aml_nand_dev->platform_data->poc_cfg_reg;
 
 	if (controller->chip_num > 2) {
 		aml_nand_msg("force NO RB pin and chip_num:%d over 2",
 			controller->chip_num);
 		rb_mode = 1;
 	} else {
-		por_cfg = amlnf_read_reg32(prot_cfg_reg);
+		por_cfg = amlnf_read_reg32(poc_cfg_reg);
 		aml_nand_msg("detect RB pin here and por_cfg:%x", por_cfg);
 		if (por_cfg&POC_NAND_NO_RB) {
 			aml_nand_msg("detect without RB pin here");
@@ -380,6 +381,18 @@ static void aml_chip_rb_mode_confirm(struct amlnand_chip *aml_chip)
 		controller->option |= NAND_CTRL_NONE_RB;
 	}
 }
+#else
+static void aml_chip_rb_mode_confirm(struct amlnand_chip *aml_chip)
+{
+	unsigned int rb_mode = 0;
+	struct hw_controller *controller = &aml_chip->controller;
+
+	if (rb_mode) {
+		controller->rb_enable[0] = 0;
+		controller->option |= NAND_CTRL_NONE_RB;
+	}
+}
+#endif
 
 void amlchip_dumpinfo(struct amlnand_chip *aml_chip)
 {

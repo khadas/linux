@@ -412,7 +412,7 @@ static int write_uboot(struct amlnand_phydev *phydev)
 				((ops_para->page_addr % pages_per_blk) << 1);
 			}
 #if 1
-			if (flash->new_type == HYNIX_1YNM_8GB) {
+			if (flash->new_type == HYNIX_1YNM) {
 				if ((ops_tem % 256) > 1) {
 					tmp_value = ops_tem;
 					tmp_value &= (~(pages_per_blk - 1));

@@ -390,7 +390,7 @@ static int readretry_handle_hynix(struct hw_controller *controller,
 				retry_info->reg_offs_val_lp[0][cur_cnt][i];
 		} else if ((flash->new_type == HYNIX_20NM_8GB)
 			|| (flash->new_type == HYNIX_20NM_4GB)
-			|| (flash->new_type == HYNIX_1YNM_8GB))
+			|| (flash->new_type == HYNIX_1YNM))
 			reg_value[i] =
 				retry_info->reg_offs_val_lp[chipnr][cur_cnt][i];
 	}
@@ -433,7 +433,7 @@ static int readretry_set_def_val_hynix(struct hw_controller *controller,
 	/* for en-slc */
 	udelay(2);
 
-	if (flash->new_type != HYNIX_1YNM_8GB) {
+	if (flash->new_type != HYNIX_1YNM) {
 		ret = set_reg_value_hynix(controller,
 			&slc_info->reg_def_val[i][0],
 			&slc_info->reg_addr[0],
@@ -457,7 +457,7 @@ static int enslc_init_hynix(struct hw_controller *controller)
 	if ((flash->new_type == 0) || (flash->new_type > HYNIX_20NM_8GB))
 		return NAND_SUCCESS;
 
-	if (flash->new_type == HYNIX_1YNM_8GB)
+	if (flash->new_type == HYNIX_1YNM)
 		return NAND_SUCCESS;
 
 	/* aml_nand_dbg("flash->new_type:%d", flash->new_type); */
@@ -488,7 +488,7 @@ static int enslc_enter_hynix(struct hw_controller *controller)
 	if ((flash->new_type == 0) || (flash->new_type > HYNIX_20NM_8GB))
 		return NAND_SUCCESS;
 
-	if (flash->new_type == HYNIX_1YNM_8GB)
+	if (flash->new_type == HYNIX_1YNM)
 		return NAND_SUCCESS;
 	/* aml_nand_dbg("flash->new_type:%d", flash->new_type); */
 
@@ -526,7 +526,7 @@ static int enslc_exit_hynix(struct hw_controller *controller)
 	if ((flash->new_type == 0) || (flash->new_type > HYNIX_20NM_8GB))
 		return NAND_SUCCESS;
 
-	if (flash->new_type == HYNIX_1YNM_8GB)
+	if (flash->new_type == HYNIX_1YNM)
 		return NAND_SUCCESS;
 	/* aml_nand_dbg("flash->new_type:%d", flash->new_type); */
 
@@ -1571,7 +1571,7 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 		slc_info->pagelist = pagelist_hynix256;
 		break;
 
-	case HYNIX_1YNM_8GB: /* hynix 20nm 8GB */
+	case HYNIX_1YNM: /* hynix 20nm*/
 		retry_info->flag = 1;
 		retry_info->reg_cnt_lp = 4;
 		retry_info->retry_cnt_lp = 7;

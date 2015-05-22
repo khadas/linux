@@ -96,14 +96,17 @@
 
 
 /***nand BOOT flags***/
-#define NAND_BOOT_NORMAL	0
-#define NAND_BOOT_UPGRATE	1
-#define NAND_BOOT_ERASE		2
+#define NAND_BOOT_NORMAL					0
+#define NAND_BOOT_UPGRATE					1
+#define NAND_BOOT_ERASE_PROTECT_CACHE       2
+#define NAND_BOOT_ERASE_ALL					3
+#define NAND_BOOT_SCRUB_ALL					4
+#define NAND_SCAN_ID_INIT					5
 
 /****nand debug flag info******/
 #define NAND_WRITE_VERIFY	1
 
-#define DRV_AMLNFDEV_NAME	"amlnfdev"
+#define DRV_AMLNFDEV_NAME	"aml_nand"
 #define DRV_AMLNFDEV_AUTHOR	"AMLOGIC SZ NAND TEAM"
 #define DRV_AMLNFDEV_DESC	"Amlogic Nand Flash driver"
 
@@ -139,6 +142,8 @@ enum amlnf_error_t {
 	NAND_READ_FAILED = 16,
 	NAND_BAD_BLCOK_FAILURE = 17,
 	NAND_SHIPPED_BAD_FAILURE = 18,
+	NAND_CONFIGS_FAILED	= 19,
+	NAND_SHIPPED_BADBLOCK_FAILED = 20,
 };
 
 struct _nftl_cfg {
@@ -408,7 +413,7 @@ extern struct list_head nphy_dev_list;
 extern struct list_head nf_dev_list;
 
 struct amlnf_platform_data {
-	void __iomem *prot_cfg_reg;
+	void __iomem *poc_cfg_reg;
 	void __iomem *nf_reg_base;
 	void __iomem *ext_clk_reg;
 	unsigned int irq;

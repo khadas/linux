@@ -891,7 +891,7 @@ ssize_t nand_page_write(struct class *class,
 				continue;
 			} else if (ret < 0) {
 				aml_nand_msg("get bad blk fail:");
-				aml_nand_msg("ret=%d addr=%llx\n",
+				aml_nand_msg("ret=%zd addr=%llx\n",
 					ret,
 					devops->addr);
 				return -1;
@@ -1188,7 +1188,7 @@ int amlnand_phydev_init(struct amlnand_chip *aml_chip)
 	for (i = 0; i < config->dev_num; i++) {
 		phydev = aml_nand_malloc(sizeof(struct amlnand_phydev));
 		if (phydev == NULL) {
-			aml_nand_msg("malloc failed need %x here",
+			aml_nand_msg("malloc failed need %zx here",
 				(sizeof(struct amlnand_phydev)));
 			ret = -NAND_MALLOC_FAILURE;
 			goto exit_error0;

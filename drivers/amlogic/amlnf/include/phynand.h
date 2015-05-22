@@ -354,13 +354,13 @@ union nand_core_clk_t {
 #define	NAND_STATUS_READY	0x40
 #define	NAND_STATUS_WP		0x80
 
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 #define	RETRY_NAND_MAGIC	"refv"
 #define	RETRY_NAND_BLK_NUM	2
 #define	RETRY_NAND_COPY_NUM	4
 
 #define	READ_RETRY_REG_NUM	8
-#define	READ_RETRY_CNT		30
+#define	READ_RETRY_CNT      40
 
 #define	EN_SLC_REG_NUM		8
 
@@ -390,6 +390,9 @@ union nand_core_clk_t {
 #define	NAND_CMD_SANDISK_DSP_OFF	0x25
 #define	NAND_CMD_SANDISK_DSP_ON		0x26
 #define	NAND_CMD_SANDISK_RETRY_STA	0x5D
+#define	NAND_CMD_SANDISK_TEST_MODE1	0x5c
+#define	NAND_CMD_SANDISK_TEST_MODE2	0xc5
+#define	NAND_CMD_SANDISK_TEST_MODE_ACCESS 0x55
 /* for hynix 20nm OTP */
 #define	HYNIX_OTP_COPY		8
 #define	HYNIX_OTP_LEN		528
@@ -399,7 +402,7 @@ union nand_core_clk_t {
 #define	HYNIX_26NM_8GB		2
 #define	HYNIX_20NM_4GB		3
 #define	HYNIX_20NM_8GB		4
-#define	HYNIX_1YNM_8GB		6
+#define	HYNIX_1YNM			6
 /* for Toshiba */
 #define	TOSHIBA_2XNM		20
 /* TC58NVG6D2GTA00 */
@@ -431,6 +434,7 @@ struct read_retry_info {
 	unsigned char retry_cnt_lp;
 	unsigned char retry_cnt_up;
 	unsigned char retry_cnt_tp;
+	unsigned char retry_stage;
 
 	unsigned char cur_cnt_lp[MAX_CHIP_NUM];
 	unsigned char cur_cnt_up[MAX_CHIP_NUM];
@@ -535,7 +539,7 @@ struct hw_controller {
 	unsigned char *page_buf;
 	unsigned char *oob_buf;
 
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 	struct en_slc_info slc_info;
 	struct read_retry_info retry_info;
 #endif
@@ -714,6 +718,8 @@ struct partitions {
 	uint64_t offset;
 	/* master flags to mask out for this partition */
 	unsigned int mask_flags;
+	/* for memcpy align; fixme, may not use.... ! */
+	void *priv;
 };
 
 struct nand_config {
@@ -804,7 +810,7 @@ struct amlnand_chip {
 	struct pinctrl_state *nand_rbstate;
 	struct pinctrl_state *nand_norbstate;
 	struct pinctrl_state *nand_idlestate;
-	struct device device;
+	struct device *device;
 
 	unsigned char reserved_blk[RESERVED_BLOCK_CNT];
 	unsigned int max_ecc_per_page;
@@ -869,7 +875,7 @@ extern int amlnand_info_init(struct amlnand_chip *aml_chip,
 extern int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 	unsigned char *info,
 	unsigned char *name,
-	unsigned size);
+	unsigned int size);
 extern int amlnand_save_info_by_name(struct amlnand_chip *aml_chip,
 	unsigned char *info,
 	unsigned char *buf,

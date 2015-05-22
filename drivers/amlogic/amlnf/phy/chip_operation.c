@@ -110,18 +110,18 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 
 	if ((flash->new_type == HYNIX_20NM_8GB)
 		|| (flash->new_type == HYNIX_20NM_4GB)
-		|| (flash->new_type == HYNIX_1YNM_8GB))
+		|| (flash->new_type == HYNIX_1YNM))
 		retry_op_cnt = retry_info->retry_cnt_lp *
 			retry_info->retry_cnt_lp;
 
-
+	/* get usr bytes */
 	controller->get_usr_byte(controller, tmp_buf, user_byte_num);
 	ret = controller->hwecc_correct(controller, page_size, tmp_buf);
 	if (ret ==  NAND_ECC_FAILURE) {
 		/* check rand_mode and 0xff page */
 		if (controller->zero_cnt < controller->ecc_max)
 			return RETURN_PAGE_ALL_0XFF;
-
+		/* ecc fail */
 		need_retry = 0;
 		if (retry_info->flag && (slc_mode == 0)) {
 			if ((flash->new_type != SANDISK_19NM)
@@ -144,7 +144,7 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 					aml_nand_msg("read retry");
 					aml_nand_msg("fail at plane0_page");
 				}
-
+				/* next round */
 				return RETURN_PAGE_NEED_READRETRY;
 			}
 		}
@@ -181,8 +181,9 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 	}
 	ret = 0;
 	}
+	/*  exit after all retry effort */
 	if ((*retry_cnt) && retry_info->exit) {
-		ret = retry_info->exit(controller, chipnr);
+		ret |= retry_info->exit(controller, chipnr);
 		if (ret < 0) {
 			aml_nand_msg("retry exit failed");
 			aml_nand_msg("flash->new_type:%d, cnt:%d",

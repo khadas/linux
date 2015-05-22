@@ -356,7 +356,7 @@ int blktrans_ioctl(struct block_device *bdev,
 		/* tr->update_blktrans_sysinfo(dev, cmd, arg); */
 	/* break; */
 	default:
-		aml_nand_msg("blktrans_ioctl  -cmd: %x,%x,%x\n",
+		aml_nand_msg("blktrans_ioctl  -cmd: %x,%lx,%x\n",
 			cmd,
 			FDGETPRM,
 			HZ);

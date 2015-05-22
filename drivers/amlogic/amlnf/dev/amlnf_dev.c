@@ -416,7 +416,7 @@ exit_error0:
 
 #ifdef CONFIG_OF
 static const struct of_device_id amlogic_nand_dt_match[] = {
-	{	.compatible = "amlogic,aml_nand",
+	{	.compatible = "amlogic, aml_nand",
 	},
 	{},
 };
@@ -465,33 +465,43 @@ static int get_nand_platform(struct aml_nand_device *aml_nand_dev,
 int port_cfg_prase(void)
 {
 	int boot_flag;
-	u32 cpu_type, port_value;
+	u32 cpu_type, poc_value;
 
-	port_value =
-		amlnf_read_reg32(aml_nand_dev->platform_data->prot_cfg_reg);
+	poc_value =
+		amlnf_read_reg32(aml_nand_dev->platform_data->poc_cfg_reg);
 
 	cpu_type = get_cpu_type();
-	if (cpu_type >= MESON_CPU_MAJOR_ID_M8)
-		port_value = ((((port_value >> 0x09) & 0x01) << 2) |
-			((port_value >> 6) & 0x03));
+	if (cpu_type == MESON_CPU_MAJOR_ID_GXBB) {
+		poc_value = (poc_value >> 6) & 0x03;
+	} else if (cpu_type >= MESON_CPU_MAJOR_ID_M8)
+		poc_value = ((((poc_value >> 0x09) & 0x01) << 2) |
+			((poc_value >> 6) & 0x03));
 	else
-		port_value = (port_value & 0x07);
+		poc_value = (poc_value & 0x07);
 
-	if (cpu_type > MESON_CPU_MAJOR_ID_M8) {
-		if (port_value == 0x05)
+	if (cpu_type == MESON_CPU_MAJOR_ID_GXBB) {
+		if (poc_value & 0x2)
 			boot_flag = SPI_BOOT_FLAG;
-		if ((port_value == 0x03) || (port_value == 0x01))
+		else {
+			/* fixme, ... */
+			boot_flag = NAND_BOOT_FLAG;
+		}
+
+	} else if (cpu_type > MESON_CPU_MAJOR_ID_M8) {
+		if (poc_value == 0x05)
+			boot_flag = SPI_BOOT_FLAG;
+		if ((poc_value == 0x03) || (poc_value == 0x01))
 			boot_flag = EMMC_BOOT_FLAG;
 	} else {
-		if ((port_value == 0x05) || (port_value == 0x04))
+		if ((poc_value == 0x05) || (poc_value == 0x04))
 			boot_flag = SPI_BOOT_FLAG;
-		if (port_value == 0x03)
+		if (poc_value == 0x03)
 			boot_flag = EMMC_BOOT_FLAG;
 	}
 
-	if ((port_value == 0x07) || (port_value == 0x06))
+	if ((poc_value == 0x07) || (poc_value == 0x06))
 		boot_flag = NAND_BOOT_FLAG;
-	if (port_value == 0x00)
+	if (poc_value == 0x00)
 		boot_flag = EMMC_BOOT_FLAG;
 
 	return boot_flag;
@@ -523,6 +533,8 @@ int check_storage_device(void)
 			boot_device_flag = 1;
 	} else
 		boot_device_flag = -1;
+	/* fixme, debug code.... */
+	boot_device_flag = 1;
 
 	aml_nand_msg("boot_device_flag : %d", boot_device_flag);
 	if ((boot_device_flag == 0) || (boot_device_flag == 1))
@@ -585,14 +597,14 @@ static int amlnf_get_resource(struct platform_device *pdev)
 	}
 
 	/*mapping PORT CONFIG register address*/
-	aml_nand_dev->platform_data->prot_cfg_reg =
-		devm_ioremap_nocache(&pdev->dev, PROT_CONFIG_REG, sizeof(int));
-	if (aml_nand_dev->platform_data->prot_cfg_reg == NULL) {
+	aml_nand_dev->platform_data->poc_cfg_reg =
+		devm_ioremap_nocache(&pdev->dev, POC_CONFIG_REG, sizeof(int));
+	if (aml_nand_dev->platform_data->poc_cfg_reg == NULL) {
 		dev_err(&pdev->dev, "ioremap External Port Config IO fail\n");
 		return -ENOMEM;
 	}
-	aml_nand_msg("prot_cfg_reg = 0x%0x\n",
-		(unsigned int)aml_nand_dev->platform_data->prot_cfg_reg);
+	aml_nand_msg("poc_cfg_reg = %p\n",
+		aml_nand_dev->platform_data->poc_cfg_reg);
 
 	/*getting nand platform device IORESOURCE_MEM*/
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -602,7 +614,7 @@ static int amlnf_get_resource(struct platform_device *pdev)
 	}
 
 	size = resource_size(res_mem);
-	aml_nand_msg("%s : %0x  %0x\n", __func__, res_mem->start , size);
+	aml_nand_msg("%s : %llx  %0x\n", __func__, res_mem->start , size);
 
 	/*mapping Nand Flash Controller register address*/
 	/*request mem erea*/
@@ -669,13 +681,13 @@ static int amlnf_init(struct platform_device *pdev)
 		aml_nand_msg("amlnf_add_nftl failed and ret=0x%x", ret);
 		goto exit_error0;
 	}
-
+	aml_nand_msg("%s() %d", __func__, __LINE__);
 	ret = amlnf_dev_init(flag);
 	if (ret < 0) {
 		aml_nand_msg("amlnf_add_nftl failed and ret=0x%x", ret);
 		goto exit_error0;
 	}
-
+	aml_nand_msg("%s() %d", __func__, __LINE__);
 exit_error0:
 	return 0;/* ret;   //fix crash bug for error case. */
 }

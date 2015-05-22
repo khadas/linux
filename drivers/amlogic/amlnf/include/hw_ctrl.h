@@ -15,8 +15,8 @@
  *
 */
 
-#ifndef NAND_H_INCLUDED
-#define NAND_H_INCLUDED
+#ifndef __HW_CTRL_H__
+#define __HW_CTRL_H__
 
 #include "amlnf_dev.h"
 
@@ -40,9 +40,11 @@
 /*
 #define NAND_CLK_CNTL		0xc110425c
 */
+/*
 #define IO_CBUS_PHY_BASE	0xc1100000
-#define NAND_CLK_CNTL		(IO_CBUS_PHY_BASE + 0x425C)
-#define	PROT_CONFIG_REG		(IO_CBUS_PHY_BASE + 0x7D54)
+*/
+#define NAND_CLK_CNTL		(0xd0074000)
+#define	POC_CONFIG_REG		(0xc1107d54)
 
 /* Amlogic Nand Flash Controller register address */
 /* #define P_NAND_BASE_APB	0xd0048600 */

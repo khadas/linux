@@ -15,6 +15,8 @@
  *
 */
 
+#ifndef __AML_NF_TYPE_H__
+#define __AML_NF_TYPE_H__
 #include "amlnf_cfg.h"
 
 #include <linux/module.h>
@@ -85,5 +87,6 @@
 #endif
 
 
+#endif
 
 

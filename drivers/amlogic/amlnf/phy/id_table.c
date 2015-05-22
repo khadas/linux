@@ -77,7 +77,7 @@ struct nand_flash flash_ids_mlc[] = {
 		0,
 		0,
 		NAND_MULTI_PLANE_MODE},
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 	{"B revision 26nm NAND 4GiB H27UBG8T2B",
 		{NAND_MFR_HYNIX, 0xd7, 0x94, 0xda, 0x74, 0xc3},
 		8192,
@@ -148,10 +148,10 @@ struct nand_flash flash_ids_mlc[] = {
 		16,
 		15,
 		0,
-		HYNIX_1YNM_8GB,
+		HYNIX_1YNM,
 		NAND_MULTI_PLANE_MODE },
 #endif
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 	{"B revision NAND 8GiB MT29F64G08CBABA",
 		{NAND_MFR_MICRON, 0x64, 0x44, 0x4B, 0xA9},
 		8192,
@@ -389,7 +389,7 @@ struct nand_flash flash_ids_mlc[] = {
 		0,
 		0,
 		NAND_MULTI_PLANE_MODE},
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 	{"F serials NAND 4GiB TC58NVG5D2HTA00",
 		{NAND_MFR_TOSHIBA, 0xD7, 0x94, 0x32, 0x76, 0x56},
 		8192,
@@ -475,7 +475,7 @@ struct nand_flash flash_ids_mlc[] = {
 		TOSHIBA_A19NM,
 		NAND_MULTI_PLANE_MODE },
 #endif
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 	{"A serials NAND 8GiB SDTNQGAMA-008G ",
 		{NAND_MFR_SANDISK, 0xDE, 0x94, 0x93, 0x76, 0x57},
 		16384,
@@ -632,7 +632,7 @@ struct nand_flash flash_ids_mlc[] = {
 		0,
 		0,
 		NAND_MULTI_PLANE_MODE},
-#ifdef NEW_NAND_SUPPORT
+#if (AML_CFG_NEW_NAND_SUPPORT)
 	{"2 Generation NAND 4GiB K9GBG08U0B",
 		{NAND_MFR_SAMSUNG, 0xD7, 0x94, 0x7e, 0x64, 0x44},
 		8192,

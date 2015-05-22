@@ -886,7 +886,7 @@ get_free_blk:
 	if (arg_info->arg_type == FULL_BLK) {
 		for (i = 0; i < pages_read;) {
 			if ((pages_read - i) < arg_pages) {
-				if (flash->new_type == HYNIX_1YNM_8GB) {
+				if (flash->new_type == HYNIX_1YNM) {
 					/*
 					for slc mode, if not full block write,
 					need write dummy random data to lock
@@ -1062,7 +1062,7 @@ get_free_blk:
 					goto get_free_blk;
 				}
 				/*for slc mode*/
-				if (flash->new_type == HYNIX_1YNM_8GB) {
+				if (flash->new_type == HYNIX_1YNM) {
 					temp_page_num = offset_tmp + i;
 				if (temp_page_num >= 1) {
 					ops_para->chipnr =
@@ -1134,7 +1134,7 @@ get_free_blk:
 					(arg_info->valid_page_addr + arg_pages);
 
 			/*for slc mode*/
-			if (flash->new_type == HYNIX_1YNM_8GB) {
+			if (flash->new_type == HYNIX_1YNM) {
 				if (arg_info->arg_valid
 					&& (!full_page_flag)
 					&& (!arg_info->update_flag))
@@ -1204,7 +1204,7 @@ get_free_blk:
 			}
 
 			/*for slc mode*/
-			if (flash->new_type == HYNIX_1YNM_8GB) {
+			if (flash->new_type == HYNIX_1YNM) {
 				if (temp_page_num >= 1) {
 					ops_para->chipnr =
 						blk_addr % controller->chip_num;
@@ -1249,7 +1249,7 @@ get_free_blk:
 			offset_tmp += 1;
 			amount_saved += flash->pagesize;
 
-			if (flash->new_type == HYNIX_1YNM_8GB) {
+			if (flash->new_type == HYNIX_1YNM) {
 				if (amount_saved >= size+
 					extra_page*flash->pagesize) {
 					/*
@@ -1375,7 +1375,7 @@ get_free_blk:
 				arg_info->valid_page_addr  = 0;
 			else {
 				arg_info->valid_page_addr += arg_pages;
-				if (flash->new_type == HYNIX_1YNM_8GB)
+				if (flash->new_type == HYNIX_1YNM)
 					arg_info->valid_page_addr += 1;
 			}
 		} else if ((arg_info->arg_type == FULL_BLK)
@@ -1874,7 +1874,7 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 
 				i += (size >> phys_page_shift) + 1;
 				/*for hynix slc mode*/
-				if (flash->new_type == HYNIX_1YNM_8GB)
+				if (flash->new_type == HYNIX_1YNM)
 					i += 1;
 			}
 		}
@@ -2191,7 +2191,7 @@ get_free_blk:
 		ops_para->oob_buf = aml_chip->user_oob_buf;
 		ops_para->ooblen = sizeof(oob_buf);
 
-		if (flash->new_type == HYNIX_1YNM_8GB) {
+		if (flash->new_type == HYNIX_1YNM) {
 			if ((i > 1) && ((i%2) == 0)) {
 				tmp_addr =	ops_para->page_addr;
 				tmp_rand = controller->ran_mode;
@@ -2426,7 +2426,7 @@ int aml_nand_scan_hynix_info(struct amlnand_chip *aml_chip)
 
 	if ((flash->new_type == HYNIX_20NM_8GB)
 		|| (flash->new_type == HYNIX_20NM_4GB)
-		|| (flash->new_type == HYNIX_1YNM_8GB)) {
+		|| (flash->new_type == HYNIX_1YNM)) {
 #ifdef DEBUG_HYINX_DEF
 		for (n = 0; n < controller->chip_num; n++)
 			for (j = 0; j < save_cnt; j++)
@@ -2511,7 +2511,7 @@ static int amlnand_config_buf_malloc(struct amlnand_chip *aml_chip)
 	aml_chip->block_status =
 	(struct block_status *)aml_nand_malloc(sizeof(struct block_status));
 	if (aml_chip->block_status == NULL) {
-		aml_nand_msg("malloc failed for block_status and size:%x",
+		aml_nand_msg("malloc failed for block_status and size:%zx",
 			sizeof(struct block_status));
 		ret = -NAND_MALLOC_FAILURE;
 		goto exit_error0;
