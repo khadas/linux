@@ -206,6 +206,7 @@ struct hdmitx_dev {
 	struct clk *clk_enci;
 	struct clk *clk_pixel;
 	struct clk *clk_phy;
+	unsigned int mode4k60hz420;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

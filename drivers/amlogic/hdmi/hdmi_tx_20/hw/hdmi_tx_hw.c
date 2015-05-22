@@ -67,6 +67,8 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
 unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 
+static unsigned int mode4k420;
+
 /* HSYNC polarity: active high */
 #define HSYNC_POLARITY	 1
 /* VSYNC polarity: active high */
@@ -566,6 +568,9 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	hdev->HWOp.CntlMisc = hdmitx_cntl_misc;
 
 	digital_clk_on(0xff);
+	mode4k420 = hdev->mode4k60hz420;
+	if (mode4k420)
+		pr_info("hdmitx: set 4k2k60hz420\n");
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);
 	hdmitx_set_audmode(NULL, NULL);
@@ -3237,7 +3242,7 @@ static void set_enc_clk(void)
 }
 
 /* Fixed 1080p */
-static void config_tv_enc(void)
+static void config_tv_enc_1080p60hz(void)
 {
 	hd_write_reg(P_ENCP_VIDEO_FILT_CTRL, 0x1052);
 	hd_write_reg(P_VENC_DVI_SETTING, 0x0001);
@@ -3269,7 +3274,66 @@ static void config_tv_enc(void)
 	hd_write_reg(P_ENCI_VIDEO_EN, 0);
 	hd_write_reg(P_ENCP_VIDEO_EN, 1);
 
-} /* config_tv_enc */
+} /* config_tv_enc_1080p60hz */
+
+static void config_tv_enc_4k2k60hz(void)
+{
+	hd_write_reg(P_ENCP_VIDEO_EN, 0);
+
+	hd_write_reg(P_ENCP_VIDEO_MODE, 0x4040);
+	hd_write_reg(P_ENCP_VIDEO_MODE_ADV, 0x0008);
+	hd_write_reg(P_ENCP_VIDEO_YFP1_HTIME, 140);
+	hd_write_reg(P_ENCP_VIDEO_YFP2_HTIME, 140+3840);
+
+	hd_write_reg(P_ENCP_VIDEO_MAX_PXCNT, 3840+560-1);
+	hd_write_reg(P_ENCP_VIDEO_HSPULS_BEGIN, 2156+1920);
+	hd_write_reg(P_ENCP_VIDEO_HSPULS_END, 44);
+	hd_write_reg(P_ENCP_VIDEO_HSPULS_SWITCH, 44);
+	hd_write_reg(P_ENCP_VIDEO_VSPULS_BEGIN, 140);
+	hd_write_reg(P_ENCP_VIDEO_VSPULS_END, 2059+1920);
+	hd_write_reg(P_ENCP_VIDEO_VSPULS_BLINE, 0);
+	hd_write_reg(P_ENCP_VIDEO_VSPULS_ELINE, 4);
+
+	hd_write_reg(P_ENCP_VIDEO_HAVON_BEGIN, 148);
+	hd_write_reg(P_ENCP_VIDEO_HAVON_END, 3987);
+	hd_write_reg(P_ENCP_VIDEO_VAVON_BLINE, 89);
+	hd_write_reg(P_ENCP_VIDEO_VAVON_ELINE, 2248);
+
+	hd_write_reg(P_ENCP_VIDEO_HSO_BEGIN, 44);
+	hd_write_reg(P_ENCP_VIDEO_HSO_END, 2156 + 1920);
+	hd_write_reg(P_ENCP_VIDEO_VSO_BEGIN, 2100+1920);
+	hd_write_reg(P_ENCP_VIDEO_VSO_END, 2164+1920);
+
+	hd_write_reg(P_ENCP_VIDEO_VSO_BLINE, 51);
+	hd_write_reg(P_ENCP_VIDEO_VSO_ELINE, 53);
+	hd_write_reg(P_ENCP_VIDEO_MAX_LNCNT, 2249);
+
+	hd_write_reg(P_ENCP_VIDEO_FILT_CTRL, 0x1000);
+
+	hd_write_reg(P_ENCI_VIDEO_EN, 0);
+	hd_write_reg(P_ENCP_VIDEO_EN, 1);
+
+} /* config_tv_enc_4k2k60hz */
+
+static void hdmi_tvenc_set_4k(void)
+{
+	hd_write_reg(P_ENCP_DVI_HSO_BEGIN, 0x00001046);
+	hd_write_reg(P_ENCP_DVI_HSO_END, 0x0000109e);
+	hd_write_reg(P_ENCP_DVI_VSO_BLINE_EVN, 0x00000006);
+	hd_write_reg(P_ENCP_DVI_VSO_BLINE_ODD, 0x00000028);
+	hd_write_reg(P_ENCP_DVI_VSO_ELINE_EVN, 0x00000010);
+	hd_write_reg(P_ENCP_DVI_VSO_ELINE_ODD, 0x0000002a);
+	hd_write_reg(P_ENCP_DVI_VSO_BEGIN_EVN, 0x00001046);
+	hd_write_reg(P_ENCP_DVI_VSO_BEGIN_ODD, 0x00000010);
+	hd_write_reg(P_ENCP_DVI_VSO_END_EVN, 0x00001046);
+	hd_write_reg(P_ENCP_DVI_VSO_END_ODD, 0x00000020);
+	hd_write_reg(P_ENCP_DE_H_BEGIN, 0x00000096);
+	hd_write_reg(P_ENCP_DE_H_END, 0x00000f96);
+	hd_write_reg(P_ENCP_DE_V_BEGIN_EVEN, 0x00000059);
+	hd_write_reg(P_ENCP_DE_V_END_EVEN, 0x000008c9);
+	hd_write_reg(P_ENCP_DE_V_BEGIN_ODD, 0x0000002a);
+	hd_write_reg(P_ENCP_DE_V_END_ODD, 0x00000207);
+}
 
 static void hdmi_tvenc_set_1080p(void)
 {
@@ -3398,14 +3462,14 @@ static void hdmi_tvenc_set_1080p(void)
 static void set_tv_enc_1920x1080p(uint32_t viu1_sel, uint32_t viu2_sel,
 	uint32_t enable)
 {
-	config_tv_enc();
+	mode4k420 ? config_tv_enc_4k2k60hz() : config_tv_enc_1080p60hz();
 	if (viu1_sel) { /* 1=Connect to ENCP */
 		hd_set_reg_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 0, 2);
 	}
 	if (viu2_sel) { /* 1=Connect to ENCP */
 		hd_set_reg_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 2, 2);
 	}
-	hdmi_tvenc_set_1080p();
+	mode4k420 ? hdmi_tvenc_set_4k() : hdmi_tvenc_set_1080p();
 	hd_write_reg(P_ENCP_VIDEO_EN, 1);
 }
 
@@ -4191,6 +4255,36 @@ do { \
 #undef RESET_HDMI_PHY
 }
 
+static void reconfig_4k_clk(void)
+{
+	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x4e00);
+	hd_write_reg(P_HHI_VID_PLL_CLK_DIV, 0xa339c);
+	hd_write_reg(P_HHI_HDMI_CLK_CNTL, 0x10100);
+	hd_write_reg(P_HHI_VID_CLK_CNTL2, 0xff);
+	hd_write_reg(P_HHI_VID_CLK_CNTL, 0x80007);
+	hd_write_reg(P_VPU_HDMI_FMT_CTRL, 0x1a);
+	hd_write_reg(P_VPU_HDMI_SETTING, 0x10e);
+}
+
+static void reconfig_fc_4k(void)
+{
+	hdmitx_wr_reg(HDMITX_DWC_FC_INHACTV0, 0x80);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INHACTV1, 0x7);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INHBLANK0, 0x18);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INHBLANK1, 0x1);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV0, 0x70);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV1, 0x8);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INVBLANK, 0x5a);
+	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINDELAY0, 0x58);
+	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINDELAY1, 0x0);
+	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH0, 0x8);
+	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH1, 0x2);
+	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINDELAY, 0x8);
+	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH, 0xa);
+	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, 0x43);
+	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0x61);
+}
+
 static void tmp_generate_1080p(void)
 {
 /*
@@ -4257,7 +4351,8 @@ static void tmp_generate_1080p(void)
 	hd_write_reg(P_HHI_VID_CLK_DIV, 0x101);
 	set_tv_enc_1920x1080p(1, 0, 0);
 	hd_write_reg(P_HHI_VID_CLK_DIV, 0x100);
-
+	if (mode4k420)
+		reconfig_4k_clk();
 	config_hdmi20_tx(
 /* Int/Ext TX address offset. =0 for internal TX;
  * =0x20 for external TX (sim model).
@@ -4299,7 +4394,8 @@ static void tmp_generate_1080p(void)
  * 8=DST audio packet; 9=HBR audio packet.
  */
 		   0);
-
+	if (mode4k420)
+		reconfig_fc_4k();
 }
 
 /* TODO */

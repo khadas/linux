@@ -1664,6 +1664,8 @@ static void hdmitx_pwr_init(struct hdmi_pwr_ctl *ctl)
 }
 #endif
 
+static unsigned int mode4k420;
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 /* extern struct switch_dev lang_dev; */
@@ -1875,6 +1877,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 /* switch_dev_register(&lang_dev); */
 
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
+	hdmitx_device.mode4k60hz420 = mode4k420;
 	HDMITX_Meson_Init(&hdmitx_device);
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
@@ -2105,6 +2108,9 @@ static  int __init hdmitx_boot_para_setup(char *s)
 		if ((token_len == 3)
 			&& (strncmp(token, "off", token_len) == 0)) {
 			init_flag |= INIT_FLAG_NOT_LOAD;
+		} else if (strncmp(token, "4k2k60hz420", 11) == 0) {
+			mode4k420 = 1;
+			pr_info("hdmitx: set 4k2k60hz420\n");
 		} else if (strncmp(token, "cec", 3) == 0) {
 			ret = kstrtoul(token+3, 16, &list);
 		if ((list >= 0) && (list <= 0xf))
