@@ -2601,10 +2601,12 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			reg_adr < HDMITX_DWC_I2CM_SCDC_UPDATE1 + 1; reg_adr++) {
 			if ((reg_adr > HDMITX_DWC_HDCP_BSTATUS_0 - 1) &&
 				(reg_adr < HDMITX_DWC_HDCPREG_BKSV0)) {
+#if 0
 				hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1);
 				hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL,
 					(1<<1), 2 * HZ);
 				reg_val = hdmitx_rd_reg(reg_adr);
+#endif
 			} else
 				reg_val = hdmitx_rd_reg(reg_adr);
 			if (reg_val) {
@@ -3889,10 +3891,10 @@ void config_hdmi20_tx(uint32_t	base_offset,
 	data32 |= (0 << 6);
 	data32 |= (0 << 5);
 	data32 |= (0 << 4);
-	data32 |= (0 << 3);
+	data32 |= (1 << 3);
 	data32 |= (1 << 2);
 	data32 |= (1 << 1);
-	data32 |= (0 << 0);
+	data32 |= (1 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_PACKET_TX_EN, data32);
 
 	/* For 3D video */
