@@ -102,8 +102,9 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	ssize_t read, sz;
 	char *ptr;
 
-	if (!valid_phys_addr_range(p, count))
+	/*if (!valid_phys_addr_range(p, count))
 		return -EFAULT;
+	*/
 	read = 0;
 #ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
 	/* we don't have page 0 mapped on sparc and m68k.. */
@@ -122,6 +123,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 
 	while (count > 0) {
 		unsigned long remaining;
+		int my_map = 0;
 
 		sz = size_inside_page(p, count);
 
@@ -134,11 +136,21 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 		 * corruption may occur.
 		 */
 		ptr = xlate_dev_mem_ptr(p);
+		if (!ptr || !valid_phys_addr_range(p, count)) {
+			ptr = ioremap(p, sz);
+			my_map = 1;
+		}
 		if (!ptr)
 			return -EFAULT;
 
 		remaining = copy_to_user(buf, ptr, sz);
-		unxlate_dev_mem_ptr(p, ptr);
+		if (!my_map) {
+			unxlate_dev_mem_ptr(p, ptr);
+		} else {
+			iounmap(ptr);
+			my_map = 0;
+			ptr = NULL;
+		}
 		if (remaining)
 			return -EFAULT;
 

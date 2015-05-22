@@ -1762,7 +1762,7 @@ static void zoom_display_horz(int hscale)
 
 		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
 			  (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff) |
-			  (zoom_end_x_lines - zoom_start_x_lines + 1));
+			  ((zoom_end_x_lines - zoom_start_x_lines + 1) << 16));
 	}
 
 	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_X0,
@@ -1861,7 +1861,7 @@ static void zoom_display_vert(void)
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
-		    zoom_end_y_lines - zoom_start_y_lines);
+		    zoom_end_y_lines - zoom_start_y_lines + 1);
 
 		VSYNC_WR_MPEG_REG(AFBC_MIF_VER_SCOPE,
 		    ((zoom_start_y_lines / 4) << 16) |
@@ -1872,8 +1872,8 @@ static void zoom_display_vert(void)
 		    zoom_end_y_lines);
 
 		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
-		    (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & ~0xffff) |
-		    ((zoom_end_y_lines - zoom_start_y_lines + 1) << 16));
+		    (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff0000) |
+		    (zoom_end_y_lines - zoom_start_y_lines + 1));
 	}
 }
 
@@ -2035,8 +2035,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(vf->type & VIDTYPE_COMPRESS)) {
-		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->canvas0Addr);
-		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->canvas1Addr);
+		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->canvas0Addr>>4);
+		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->canvas1Addr>>4);
 	} else if ((VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) == 0) {
 #ifdef CONFIG_VSYNC_RDMA
 		canvas_copy(vf->canvas0Addr & 0xff,
@@ -2395,20 +2395,21 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		if (vf->type & VIDTYPE_COMPRESS) {
 			r = (3 << 24) |
 			    (17 << 16) |
+			    (1 << 14) | /*burst1 1*/
 			    vf->bitdepth;
 
 			if (frame_par->hscale_skip_count)
 				r |= 0xf;
-
+			r = 0x3044000; /*from mingjie*/
 			VSYNC_WR_MPEG_REG(AFBC_MODE, r);
-			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0x100);
-
+			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0x1700);
+			VSYNC_WR_MPEG_REG(AFBC_CONV_CTRL, 0x100);
 			/* chroma formatter */
 			VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
 				HFORMATTER_YC_RATIO_2_1 |
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
-				(0xa << VFORMATTER_INIPHASE_BIT) |
+				/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
 				(0x8 << VFORMATTER_PHASE_BIT) |
 				VFORMATTER_EN);
 
