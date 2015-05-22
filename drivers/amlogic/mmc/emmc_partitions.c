@@ -187,6 +187,8 @@ int get_reserve_partition_off(struct mmc_card *card) /* byte unit */
 	struct amlsd_host *host = pdata->host;
 
 	storage_flag = host->storage_flag;
+	if (!strcmp(mmc_hostname(mmc_host), "emmc"))
+		storage_flag = EMMC_BOOT_FLAG;
 	if (storage_flag == EMMC_BOOT_FLAG) {
 		off = MMC_BOOT_PARTITION_SIZE + MMC_BOOT_PARTITION_RESERVED;
 	} else if (storage_flag == SPI_EMMC_FLAG) {
@@ -512,7 +514,11 @@ static int is_card_emmc(struct mmc_card *card)
 	struct mmc_host *mmc = card->host;
 
 	/* emmc port, so it must be an eMMC or TSD */
-	return mmc->is_emmc_port;
+	if (!strcmp(mmc_hostname(mmc), "emmc"))
+		return 1;
+	else
+		return 0;
+	/*return mmc->is_emmc_port;*/
 }
 
 static ssize_t emmc_version_get(struct class *class,

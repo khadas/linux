@@ -17,7 +17,7 @@
 
 #ifndef CODEC_REGISTER_HEADERS_
 #define CODEC_REGISTER_HEADERS_
-#include <linux/amlogic/sound/aiu_regs.h>
+#include "regs/aiu_regs.h"
 #include <linux/amlogic/sound/audin_regs.h>
 #include "regs/sys_regs.h"
 #include "regs/hhi_regs.h"

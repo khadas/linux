@@ -341,6 +341,7 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 
 #ifdef SD_EMMC_IRQ_EN_ALL_INIT
 	/*Set Irq Control*/
+	sd_emmc_regs->gstatus = SD_EMMC_IRQ_ALL;
 	sd_emmc_regs->girq_en = SD_EMMC_IRQ_ALL;
 
 #endif
