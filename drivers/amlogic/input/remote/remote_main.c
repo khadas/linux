@@ -635,6 +635,9 @@ static int remote_config_release(struct inode *inode, struct file *file)
 static const struct file_operations remote_fops = {
 	.owner = THIS_MODULE,
 	.open = remote_config_open,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	remote_config_ioctl,
+#endif
 	.unlocked_ioctl = remote_config_ioctl,
 	.release = remote_config_release,
 };
