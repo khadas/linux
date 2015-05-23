@@ -30,6 +30,7 @@
 #include <linux/major.h>
 #include <linux/of.h>
 #include <linux/reset.h>
+#include <linux/clk.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -60,7 +61,8 @@ static int i2s_pos_sync;
 /* extern int kernel_android_50; */
 
 /* extern int set_i2s_iec958_samesource(int enable); */
-
+#define DEFAULT_SAMPLERATE 48000
+#define DEFAULT_MCLK_RATIO_SR 256
 static int i2sbuf[32 + 16];
 static void aml_i2s_play(void)
 {
@@ -138,69 +140,44 @@ static void aml_dai_i2s_shutdown(struct snd_pcm_substream *substream,
 }
 
 #define AOUT_EVENT_IEC_60958_PCM 0x1
+static int aml_i2s_set_amclk(struct aml_i2s *i2s, unsigned long rate)
+{
+	int ret = 0;
+
+	ret = clk_set_rate(i2s->clk_mpl0, rate * 10);
+	if (ret) {
+		pr_err("Can't set I2S mpll clock rate: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_set_parent(i2s->clk_mclk, i2s->clk_mpl0);
+	if (ret) {
+		pr_err("Can't set I2S mclk parent: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_set_rate(i2s->clk_mclk, rate);
+	if (ret) {
+		pr_err("Can't set I2S mclk clock rate: %d\n", ret);
+		return ret;
+	}
+
+	audio_set_i2s_clk_div();
+
+	return 0;
+}
 
 static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd = runtime->private_data;
-	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
-	int audio_clk_config = AUDIO_CLK_FREQ_48;
 	struct audio_stream *s = &prtd->s;
 	ALSA_TRACE();
-	switch (runtime->rate) {
-	case 192000:
-		audio_clk_config = AUDIO_CLK_FREQ_192;
-		break;
-	case 176400:
-		audio_clk_config = AUDIO_CLK_FREQ_1764;
-		break;
-	case 96000:
-		audio_clk_config = AUDIO_CLK_FREQ_96;
-		break;
-	case 88200:
-		audio_clk_config = AUDIO_CLK_FREQ_882;
-		break;
-	case 48000:
-		audio_clk_config = AUDIO_CLK_FREQ_48;
-		break;
-	case 44100:
-		audio_clk_config = AUDIO_CLK_FREQ_441;
-		break;
-	case 32000:
-		audio_clk_config = AUDIO_CLK_FREQ_32;
-		break;
-	case 8000:
-		audio_clk_config = AUDIO_CLK_FREQ_8;
-		break;
-	case 11025:
-		audio_clk_config = AUDIO_CLK_FREQ_11;
-		break;
-	case 16000:
-		audio_clk_config = AUDIO_CLK_FREQ_16;
-		break;
-	case 22050:
-		audio_clk_config = AUDIO_CLK_FREQ_22;
-		break;
-	case 12000:
-		audio_clk_config = AUDIO_CLK_FREQ_12;
-		break;
-	case 24000:
-		audio_clk_config = AUDIO_CLK_FREQ_22;
-		break;
-	default:
-		audio_clk_config = AUDIO_CLK_FREQ_441;
-		break;
-	};
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		audio_out_i2s_enable(0);
-	if (i2s->old_samplerate != runtime->rate) {
-		ALSA_PRINT("enterd %s,old_samplerate:%d,sample_rate=%d\n",
-			   __func__, i2s->old_samplerate, runtime->rate);
-		i2s->old_samplerate = runtime->rate;
-		audio_set_i2s_clk(audio_clk_config,
-			AUDIO_CLK_256FS, i2s->mpll);
-	}
+
 	audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -223,6 +200,7 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 		if (IEC958_mode_codec == 0) {
 			aml_hw_iec958_init(substream);
 			/* use the hw same sync for i2s/958 */
+			aml_set_spdif_clk(runtime->rate, 1);
 			audio_i2s_958_same_source(1);
 		}
 	}
@@ -284,7 +262,16 @@ static int aml_dai_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	ALSA_TRACE();
+	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	int srate, mclk_rate;
+
+	srate = params_rate(params);
+	if (i2s->old_samplerate != srate) {
+		i2s->old_samplerate = srate;
+		mclk_rate = srate * DEFAULT_MCLK_RATIO_SR;
+		aml_i2s_set_amclk(i2s, mclk_rate);
+	}
+
 	return 0;
 }
 
@@ -382,19 +369,7 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 	struct reset_control *audio_reset;
 	int ret = 0, i;
 
-	i2s = kzalloc(sizeof(struct aml_i2s), GFP_KERNEL);
-	if (!i2s) {
-		dev_err(&pdev->dev, "Can't allocate aml_i2s\n");
-		ret = -ENOMEM;
-		goto exit;
-	}
-	dev_set_drvdata(&pdev->dev, i2s);
-	if (of_property_read_u32(pdev->dev.of_node,
-			"clk_src_mpll", &i2s->mpll)) {
-		pr_info("i2s get no clk src setting, use the default mpll 0\n");
-		i2s->mpll = 0;
-	}
-	/* enable i2s power gate first */
+	/* enable AIU module power gate first */
 	for (i = 0; i < ARRAY_SIZE(gate_names); i++) {
 		audio_reset = devm_reset_control_get(&pdev->dev, gate_names[i]);
 		if (IS_ERR(audio_reset)) {
@@ -404,19 +379,54 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 		reset_control_deassert(audio_reset);
 	}
 
-	/* enable the mclk because m8 codec need it to setup */
-	if (i2s->old_samplerate != 48000) {
-		ALSA_PRINT("enterd %s,old_samplerate:%d,sample_rate=%d\n",
-			   __func__, i2s->old_samplerate, 48000);
-		i2s->old_samplerate = 48000;
-		audio_set_i2s_clk(AUDIO_CLK_FREQ_48,
-			AUDIO_CLK_256FS, i2s->mpll);
+	i2s = devm_kzalloc(&pdev->dev, sizeof(struct aml_i2s), GFP_KERNEL);
+	if (!i2s) {
+		dev_err(&pdev->dev, "Can't allocate aml_i2s\n");
+		ret = -ENOMEM;
+		goto err;
 	}
-	aml_i2s_play();
-	return snd_soc_register_component(&pdev->dev, &aml_component,
-					  aml_i2s_dai, ARRAY_SIZE(aml_i2s_dai));
+	dev_set_drvdata(&pdev->dev, i2s);
 
- exit:
+	i2s->clk_mpl0 = devm_clk_get(&pdev->dev, "mpll0");
+	if (IS_ERR(i2s->clk_mpl0)) {
+		dev_err(&pdev->dev, "Can't retrieve mpll0 clock\n");
+		ret = PTR_ERR(i2s->clk_mpl0);
+		goto err;
+	}
+
+	i2s->clk_mclk = devm_clk_get(&pdev->dev, "mclk");
+	if (IS_ERR(i2s->clk_mclk)) {
+		dev_err(&pdev->dev, "Can't retrieve clk_mclk clock\n");
+		ret = PTR_ERR(i2s->clk_mclk);
+		goto err;
+	}
+
+	/* now only 256fs is supported */
+	ret = aml_i2s_set_amclk(i2s,
+			DEFAULT_SAMPLERATE * DEFAULT_MCLK_RATIO_SR);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't set aml_i2s :%d\n", ret);
+		goto err;
+	}
+
+	ret = clk_prepare_enable(i2s->clk_mclk);
+	if (ret) {
+		pr_err("Can't enable I2S mclk clock: %d\n", ret);
+		goto err;
+	}
+
+	aml_i2s_play();
+	ret = snd_soc_register_component(&pdev->dev, &aml_component,
+					  aml_i2s_dai, ARRAY_SIZE(aml_i2s_dai));
+	if (ret) {
+		pr_err("Can't register i2s dai: %d\n", ret);
+		goto err_clk_dis;
+	}
+	return 0;
+
+err_clk_dis:
+	clk_disable_unprepare(i2s->clk_mclk);
+err:
 	return ret;
 }
 
@@ -425,8 +435,7 @@ static int aml_i2s_dai_remove(struct platform_device *pdev)
 	struct aml_i2s *i2s = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	kfree(i2s);
-	i2s = NULL;
+	clk_disable_unprepare(i2s->clk_mclk);
 
 	return 0;
 }

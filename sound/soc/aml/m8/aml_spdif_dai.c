@@ -30,6 +30,7 @@
 #include <linux/major.h>
 #include <linux/of.h>
 #include <linux/reset.h>
+#include <linux/clk.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -55,7 +56,6 @@
 #define ALSA_DEBUG(fmt, args...)
 #define ALSA_TRACE()
 #endif
-static unsigned last_iec_clock = -1;
 /*
  0 --  other formats except(DD,DD+,DTS)
  1 --  DTS
@@ -65,7 +65,14 @@ static unsigned last_iec_clock = -1;
 */
 unsigned int IEC958_mode_codec;
 EXPORT_SYMBOL(IEC958_mode_codec);
-
+struct aml_spdif {
+	struct clk *clk_mpl1;
+	struct clk *clk_i958;
+	struct clk *clk_mclk;
+	struct clk *clk_spdif;
+	int old_samplerate;
+};
+struct aml_spdif *spdif_p;
 /*
 static int iec958buf[32 + 16];
 */
@@ -181,7 +188,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	memset((void *)(&set), 0, sizeof(set));
 	memset((void *)(&chstat), 0, sizeof(chstat));
 	set.chan_stat = &chstat;
-	pr_info("----aml_hw_iec958_init,runtime->rate=%d--\n", runtime->rate);
 	switch (runtime->rate) {
 	case 192000:
 		sample_rate = AUDIO_CLK_FREQ_192;
@@ -227,12 +233,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		break;
 	};
 	audio_hw_958_enable(0);
-	if (last_iec_clock != sample_rate) {
-		ALSA_PRINT("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
-			   last_iec_clock, sample_rate);
-		last_iec_clock = sample_rate;
-		audio_set_958_clk(sample_rate, AUDIO_CLK_256FS);
-	}
 	pr_info("----aml_hw_iec958_init,runtime->rate=%d,sample_rate=%d--\n",
 	       runtime->rate, sample_rate);
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
@@ -469,15 +469,57 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/* if src_i2s, then spdif parent clk is mclk, otherwise i958clk */
+int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
+{
+	int ret = 0;
+	if (src_i2s) {
+		ret = clk_set_parent(spdif_p->clk_spdif, spdif_p->clk_mclk);
+		if (ret) {
+			pr_err("Can't set spdif clk parent: %d\n", ret);
+			return ret;
+		}
+	} else {
+		ret = clk_set_rate(spdif_p->clk_mpl1, rate * 10);
+		if (ret) {
+			pr_err("Can't set spdif mpl1 clock rate: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_set_parent(spdif_p->clk_i958, spdif_p->clk_mpl1);
+		if (ret) {
+			pr_err("Can't set spdif clk parent: %d\n", ret);
+			return ret;
+		}
+		ret = clk_set_rate(spdif_p->clk_i958, rate);
+		if (ret) {
+			pr_err("Can't set spdif mpl1 clock rate: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_set_parent(spdif_p->clk_spdif, spdif_p->clk_i958);
+		if (ret) {
+			pr_err("Can't set spdif clk parent: %d\n", ret);
+			return ret;
+		}
+	}
+
+	/* Todo, div can be changed, for most case, div = 2 */
+	audio_set_spdif_clk_div();
+
+	return 0;
+}
+
 static int aml_dai_spdif_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params,
-				   struct snd_soc_dai *socdai)
+				   struct snd_soc_dai *dai)
 {
+	int srate;
+
+	srate = params_rate(params);
+	aml_set_spdif_clk(srate * 256, 0);
+
 	ALSA_TRACE();
-/* struct snd_soc_pcm_runtime *rtd = substream->private_data; */
-	/* struct snd_pcm_runtime *runtime = substream->runtime; */
-	/* struct aml_runtime_data *prtd = runtime->private_data; */
-	/* audio_stream_t *s = &prtd->s; */
 	return 0;
 }
 
@@ -548,10 +590,11 @@ static const char *const gate_names[] = {
 
 static int aml_dai_spdif_probe(struct platform_device *pdev)
 {
-	int i;
+	int i, ret;
 	struct reset_control *spdif_reset;
+	struct aml_spdif *spdif_priv;
 
-	ALSA_PRINT("aml_spdif_probe\n");
+	pr_info("aml_spdif_probe\n");
 	/* enable spdif power gate first */
 	for (i = 0; i < ARRAY_SIZE(gate_names); i++) {
 		spdif_reset = devm_reset_control_get(&pdev->dev, gate_names[i]);
@@ -561,15 +604,73 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 		}
 		reset_control_deassert(spdif_reset);
 	}
+
+	spdif_priv = devm_kzalloc(&pdev->dev,
+			sizeof(struct aml_spdif), GFP_KERNEL);
+	if (!spdif_priv) {
+		dev_err(&pdev->dev, "Can't allocate spdif_priv\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+	dev_set_drvdata(&pdev->dev, spdif_priv);
+	spdif_p = spdif_priv;
+
+	spdif_priv->clk_mpl1 = devm_clk_get(&pdev->dev, "mpll1");
+	if (IS_ERR(spdif_priv->clk_mpl1)) {
+		dev_err(&pdev->dev, "Can't retrieve mpll1 clock\n");
+		ret = PTR_ERR(spdif_priv->clk_mpl1);
+		goto err;
+	}
+
+	spdif_priv->clk_i958 = devm_clk_get(&pdev->dev, "i958");
+	if (IS_ERR(spdif_priv->clk_i958)) {
+		dev_err(&pdev->dev, "Can't retrieve spdif clk_i958 clock\n");
+		ret = PTR_ERR(spdif_priv->clk_i958);
+		goto err;
+	}
+
+	spdif_priv->clk_mclk = devm_clk_get(&pdev->dev, "mclk");
+	if (IS_ERR(spdif_priv->clk_mclk)) {
+		dev_err(&pdev->dev, "Can't retrieve spdif clk_mclk clock\n");
+		ret = PTR_ERR(spdif_priv->clk_mclk);
+		goto err;
+	}
+
+	spdif_priv->clk_spdif = devm_clk_get(&pdev->dev, "spdif");
+	if (IS_ERR(spdif_priv->clk_spdif)) {
+		dev_err(&pdev->dev, "Can't retrieve spdif clock\n");
+		ret = PTR_ERR(spdif_priv->clk_spdif);
+		goto err;
+	}
+
+	ret = clk_prepare_enable(spdif_priv->clk_spdif);
+	if (ret) {
+		pr_err("Can't enable spdif clock: %d\n", ret);
+		goto err;
+	}
+
 	aml_spdif_play();
-	return snd_soc_register_component(&pdev->dev, &aml_component,
+	ret = snd_soc_register_component(&pdev->dev, &aml_component,
 					  aml_spdif_dai,
 					  ARRAY_SIZE(aml_spdif_dai));
+	if (ret) {
+		pr_err("Can't register spdif dai: %d\n", ret);
+		goto err_clk_dis;
+	}
+	return 0;
+
+err_clk_dis:
+	clk_disable_unprepare(spdif_priv->clk_spdif);
+err:
+	return ret;
 }
 
 static int aml_dai_spdif_remove(struct platform_device *pdev)
 {
+	struct aml_spdif *spdif_priv = dev_get_drvdata(&pdev->dev);
+
 	snd_soc_unregister_component(&pdev->dev);
+	clk_disable_unprepare(spdif_priv->clk_spdif);
 	return 0;
 }
 

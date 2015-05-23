@@ -77,9 +77,9 @@ struct amlogic_clk_pll {
 
 #define HHI_VID_CLK_DIV   0x1059
 #define HHI_MPEG_CLK_CNTL 0x105d
-#define HHI_AUD_CLK_CNTL  0x105e
+
 #define HHI_VID_CLK_CNTL  0x105f
-#define HHI_AUD_CLK_CNTL2 0x1064
+
 #define HHI_HDMI_CLK_CNTL 0x1073
 
 
@@ -90,9 +90,6 @@ struct amlogic_clk_pll {
 #define HHI_MPLL_CNTL4 0x10a3
 #define HHI_MPLL_CNTL5 0x10a4
 
-#define HHI_MPLL_CNTL7 0x10a6
-#define HHI_MPLL_CNTL8 0x10a7
-#define HHI_MPLL_CNTL9 0x10a8
 #define HHI_MPLL_CNTL10 0x10a9
 
 

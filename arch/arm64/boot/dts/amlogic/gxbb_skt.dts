@@ -567,6 +567,9 @@
 			"top_level",
 			"aoclk",
 			"aud_in";
+		clocks = <&clock CLK_MPLL0>,
+			<&clock CLK_AMCLK>;
+		clock-names = "mpll0", "mclk";
 		compatible = "amlogic, aml-i2s-dai";
 	};
 	spdif_dai: SPDIF {
@@ -579,6 +582,11 @@
 		reset-names =
 			"iec958",
 			"iec958_amclk";
+		clocks = <&clock CLK_MPLL1>,
+			<&clock CLK_I958>,
+			<&clock CLK_AMCLK>,
+			<&clock CLK_SPDIF>;
+		clock-names = "mpll1", "i958", "mclk", "spdif";
 	};
 	pcm_dai: PCM {
 		#sound-dai-cells = <0>;
@@ -645,4 +653,19 @@
 		};
 	};
 	/* END OF AUDIO board specific */
+};
+
+&pinmux {
+	audio_pins:audio_pin{
+		amlogic,setmask=<AO 0x78000000>;
+		amlogic,clrmask=<AO 0x50000>;
+		amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11","GPIOAO_6";
+	};
+
+	audio_spdif_pins:audio_pin1{
+		amlogic,setmask=<AO 0x10>;		/*spdif_out*/
+		amlogic,clrmask=<AO 0x8
+					AO2 0x80000002>;	/*spdif_out*/
+		amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
+	};
 };

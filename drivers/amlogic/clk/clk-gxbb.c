@@ -21,6 +21,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include "mpll_clk.h"
 
 #include "clk.h"
 void __iomem *reg_base_hiubus;
@@ -32,6 +33,15 @@ void __iomem *reg_base_hiubus;
 #define	HHI_MALI_CLK_CNTL		OFFSET(0x6c)
 #define	HHI_VAPBCLK_CNTL		OFFSET(0x7d)
 
+#undef HHI_MPLL_CNTL
+#define	HHI_MPLL_CNTL			OFFSET(0xa0)
+#define	HHI_MPLL_CNTL7			OFFSET(0xa6)
+#define	HHI_MPLL_CNTL8			OFFSET(0xa7)
+#define	HHI_MPLL_CNTL9			OFFSET(0xa8)
+#define	HHI_AUD_CLK_CNTL3		OFFSET(0x69)
+#define	HHI_AUD_CLK_CNTL		OFFSET(0x5e)
+#define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
+
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
@@ -40,7 +50,12 @@ PNAME(mux_mali_0_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 PNAME(mux_mali_1_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(mux_mali_p)   = {"clk_mali_0", "clk_mali_1"};
-
+PNAME(mpll) = {"fixed_pll"};
+PNAME(cts_pdm_p) = {"amclk", "mpll_clk_out0", "mpll_clk_out1", "mpll_clk_out2"};
+PNAME(cts_am_p) = {"ddr_pll_clk", "mpll_clk_out0", "mpll_clk_out1",
+							"mpll_clk_out2"};
+PNAME(cts_i958_p) = {"NULL", "mpll_clk_out0", "mpll_clk_out1", "mpll_clk_out2"};
+PNAME(cts_spdif_p) = {"cts_amclk", "cts_i958"};
 PNAME(mux_vapb_0_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 PNAME(mux_vapb_1_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 
@@ -61,6 +76,7 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 };
 static struct amlogic_mux_clock mux_clks[] __initdata = {
 	MUX(CLK_MALI, "clk_mali", mux_mali_p, HHI_MALI_CLK_CNTL, 31, 1, 0),
+	MUX(CLK_SPDIF, "clk_spdif", cts_spdif_p, HHI_AUD_CLK_CNTL2, 27, 1, 0)
 };
 
 
@@ -93,8 +109,36 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 		   CLK_SET_RATE_NO_REPARENT,
 		   HHI_VAPBCLK_CNTL, 31, 1, 0,
 		   HHI_VAPBCLK_CNTL, 30, 0),
-};
 
+	COMPOSITE(CLK_AMCLK, "cts_amclk", cts_am_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_AUD_CLK_CNTL, 9, 2, 0,
+			HHI_AUD_CLK_CNTL, 0, 8,
+			CLK_DIVIDER_ROUND_CLOSEST,
+			HHI_AUD_CLK_CNTL, 8, 0),
+
+	COMPOSITE(CLK_PDM, "cts_pdm", cts_pdm_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_AUD_CLK_CNTL3, 17, 2, 0,
+			HHI_AUD_CLK_CNTL3, 0, 16, 0,
+			HHI_AUD_CLK_CNTL3, 16, 0),
+
+	COMPOSITE(CLK_I958, "cts_i958", cts_i958_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_AUD_CLK_CNTL2, 25, 2, 0,
+			HHI_AUD_CLK_CNTL2, 16, 8,
+			CLK_DIVIDER_ROUND_CLOSEST,
+			HHI_AUD_CLK_CNTL2, 24, 0),
+};
+static struct mpll_clk_tab mpll_tab[] __initdata = {
+	MPLL("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,
+			CLK_MPLL0, CLK_SET_RATE_NO_REPARENT),
+	MPLL("mpll_clk_out1", mpll, HHI_MPLL_CNTL8, 0,
+			CLK_MPLL1, CLK_SET_RATE_NO_REPARENT),
+	MPLL("mpll_clk_out2", mpll, HHI_MPLL_CNTL9, 0,
+			CLK_MPLL2, CLK_SET_RATE_NO_REPARENT),
+
+};
 /* register gxbb clocks */
 static void __init gxbb_clk_init(struct device_node *np)
 {
@@ -111,6 +155,7 @@ static void __init gxbb_clk_init(struct device_node *np)
 			CLK_NR_CLKS, NULL, 0, NULL, 0);
 	amlogic_clk_of_register_fixed_ext(gxbb_fixed_rate_ext_clks,
 		  ARRAY_SIZE(gxbb_fixed_rate_ext_clks), ext_clk_match);
+	mpll_clk_init(reg_base_hiubus, mpll_tab, ARRAY_SIZE(mpll_tab));
 	amlogic_clk_register_mux(mux_clks,
 			ARRAY_SIZE(mux_clks));
 	amlogic_clk_register_branches(clk_branches,
@@ -120,6 +165,8 @@ static void __init gxbb_clk_init(struct device_node *np)
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
 	gp0_clk_init(reg_base_hiubus, GP0_PLL);
 	gxbb_hdmi_clk_init(reg_base_hiubus);
+
+
 
 	{
 		/* Dump clocks */

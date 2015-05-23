@@ -576,255 +576,28 @@ void audio_util_set_dac_i2s_format(unsigned format)
 	aml_write_cbus(AIU_I2S_SOURCE_DESC, 0x0001);
 }
 
-#if 1
-enum clk_enum {
-	CLK_NONE = 0,
-	CLK_MPLL0,
-	CLK_MPLL1,
-	CLK_MPLL2
-};
-
-/* iec958 and i2s clock are separated after M6TV. */
-void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
+/* set sclk and lrclk, mclk = 256fs. */
+void audio_set_i2s_clk_div(void)
 {
-	int i, index = 0, xtal = 0;
-	int mpll_reg, clk_src;
-	int (*audio_clock_config)[2];
-	switch (mpll) {
-	case 0:
-		mpll_reg = HHI_MPLL_MP0;
-		clk_src = CLK_MPLL0;
-		break;
-	case 1:
-		mpll_reg = HHI_MPLL_MP1;
-		clk_src = CLK_MPLL1;
-		break;
-	case 2:
-		mpll_reg = HHI_MPLL_MP2;
-		clk_src = CLK_MPLL2;
-		break;
-	default:
-		BUG();
-	}
-
-	switch (freq) {
-	case AUDIO_CLK_FREQ_192:
-		index = 4;
-		break;
-	case AUDIO_CLK_FREQ_96:
-		index = 3;
-		break;
-	case AUDIO_CLK_FREQ_48:
-		index = 2;
-		break;
-	case AUDIO_CLK_FREQ_441:
-		index = 1;
-		break;
-	case AUDIO_CLK_FREQ_32:
-		index = 0;
-		break;
-	case AUDIO_CLK_FREQ_8:
-		index = 5;
-		break;
-	case AUDIO_CLK_FREQ_11:
-		index = 6;
-		break;
-	case AUDIO_CLK_FREQ_12:
-		index = 7;
-		break;
-	case AUDIO_CLK_FREQ_16:
-		index = 8;
-		break;
-	case AUDIO_CLK_FREQ_22:
-		index = 9;
-		break;
-	case AUDIO_CLK_FREQ_24:
-		index = 10;
-		break;
-	case AUDIO_CLK_FREQ_882:
-		index = 12;
-		break;
-	default:
-		index = 0;
-		break;
-	};
-
-	if (fs_config == AUDIO_CLK_256FS) {
-		/* divide 256 */
-		xtal = 0;
-	} else if (fs_config == AUDIO_CLK_384FS) {
-		/* divide 384 */
-		xtal = 1;
-	}
-	audio_clock_config = audio_clock_config_table[xtal];
-
-	/* gate the clock off */
-	aml_write_hiubus(HHI_AUD_CLK_CNTL,
-		       aml_read_hiubus(HHI_AUD_CLK_CNTL) & ~(1 << 8));
-	aml_write_cbus(AIU_CLK_CTRL_MORE, 0);
-
-	/* Set filter register */
-	/* aml_write_hiubus(HHI_MPLL_CNTL3, 0x26e1250); */
-
-    /*--- DAC clock  configuration--- */
-	/* Disable mclk */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0);
-
-	/* Select clk source, 0=none; 1=Multi-Phase PLL0;
-	*2=Multi-Phase PLL1; 3=Multi-Phase PLL2.
-	*/
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0x3 << 9, clk_src << 9);
-
-	/* Configure Multi-Phase PLLX */
-	aml_write_hiubus(mpll_reg, audio_clock_config[index][0]);
-	/* set codec dac ratio---lrclk--64fs */
-	aml_cbus_update_bits(AIU_CODEC_DAC_LRCLK_CTRL, 0xfff, (64 - 1));
-
-	/* delay 5uS */
-	/* udelay(5); */
-	for (i = 0; i < 500000; i++)
-		;
-
-	/* gate the clock on */
-	aml_write_hiubus(HHI_AUD_CLK_CNTL,
-		       aml_read_hiubus(HHI_AUD_CLK_CNTL) | (1 << 8));
-
-	/* Audio DAC Clock enable */
-	aml_write_hiubus(HHI_AUD_CLK_CNTL,
-		       aml_read_hiubus(HHI_AUD_CLK_CNTL) | (1 << 23));
-
-	/* ---ADC clock  configuration--- */
-	/* Disable mclk */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0);
-	/*
-	*  Set pll over mclk ratio
-	*  we want 256fs ADC MLCK,so for over clock mode,
-	*  divide more 2 than I2S  DAC CLOCK
-	*/
-#if OVERCLOCK == 0
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
-			     audio_clock_config[index][1]);
-#else
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
-			     (audio_clock_config[index][1] + 1) * 2 - 1);
-#endif
-	/* enable the mpll fraction part: SMD_IN*/
-	aml_hiubus_update_bits(HHI_MPLL_CNTL, 1 << 25, 1 << 25);
-
+	/* aiclk source */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 10, 1 << 10);
 	/* Set mclk over sclk ratio */
 	aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 0x3f << 8, (4 - 1) << 8);
-
-	/* set codec adc ratio---lrclk--64fs */
-	aml_cbus_update_bits(AIU_CODEC_ADC_LRCLK_CTRL, 0xfff, 64 - 1);
-
+	/* set dac/adc lrclk ratio over sclk----64fs */
+	aml_cbus_update_bits(AIU_CODEC_DAC_LRCLK_CTRL, 0xfff, (64 - 1));
+	aml_cbus_update_bits(AIU_CODEC_ADC_LRCLK_CTRL, 0xfff, (64 - 1));
 	/* Enable sclk */
 	aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 1 << 14, 1 << 14);
-	/* Enable mclk */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 1 << 8);
-
-	/* delay 2uS */
-	/* udelay(2); */
-	for (i = 0; i < 200000; i++)
-		;
 }
 
-/* iec958 and i2s clock are separated after M6TV. Use PLL1 for iec958 clock */
-void audio_set_958_clk(unsigned freq, unsigned fs_config)
+void audio_set_spdif_clk_div(void)
 {
-	int i;
-	int xtal = 0;
-
-	int (*audio_clock_config)[2];
-
-	int index = 0;
-	pr_info("audio_set_958_clk, freq=%d,\n", freq);
-	switch (freq) {
-	case AUDIO_CLK_FREQ_192:
-		index = 4;
-		break;
-	case AUDIO_CLK_FREQ_96:
-		index = 3;
-		break;
-	case AUDIO_CLK_FREQ_48:
-		index = 2;
-		break;
-	case AUDIO_CLK_FREQ_441:
-		index = 1;
-		break;
-	case AUDIO_CLK_FREQ_32:
-		index = 0;
-		break;
-	case AUDIO_CLK_FREQ_8:
-		index = 5;
-		break;
-	case AUDIO_CLK_FREQ_11:
-		index = 6;
-		break;
-	case AUDIO_CLK_FREQ_12:
-		index = 7;
-		break;
-	case AUDIO_CLK_FREQ_16:
-		index = 8;
-		break;
-	case AUDIO_CLK_FREQ_22:
-		index = 9;
-		break;
-	case AUDIO_CLK_FREQ_24:
-		index = 10;
-		break;
-	case AUDIO_CLK_FREQ_882:
-		index = 12;
-		break;
-	default:
-		index = 0;
-		break;
-	};
-
-	if (fs_config == AUDIO_CLK_256FS)
-		/* divide 256 */
-		xtal = 0;
-	else if (fs_config == AUDIO_CLK_384FS)
-		/* divide 384 */
-		xtal = 1;
-
-	audio_clock_config = audio_clock_config_table[xtal];
-
-	/* gate the clock off */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 0 << 8);
-
-    /*--- IEC958 clock  configuration, use MPLL1--- */
-	/* Disable mclk */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 24, 0 << 24);
-	/* IEC958_USE_CNTL */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 27, 1 << 27);
-	/* Select clk source, 0=none; 1=Multi-Phase PLL0;
-	*  2=Multi-Phase PLL1; 3=Multi-Phase PLL2.
-	*/
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 0x3 << 25, CLK_MPLL1 << 25);
-
-	/* Configure Multi-Phase PLL1 */
-	aml_write_hiubus(MPLL_958_CNTL, audio_clock_config[index][0]);
-	/* Set the XD value */
-#if IEC958_OVERCLOCK == 1
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 0xff << 16,
-			     ((audio_clock_config[index][1] + 1) / 2 -
-			      1) << 16);
-#else
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 0xff << 16,
-			     audio_clock_config[index][1] << 16);
-#endif
-
-	/* delay 5uS */
-	/* udelay(5); */
-	for (i = 0; i < 500000; i++)
-		;
-
-	/* gate the clock on */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 1 << 8, 1 << 8);
-	/* Enable mclk */
-	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL2, 1 << 24, 1 << 24);
+	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+	/* enable 958 divider */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 }
-#endif
+
 void audio_enable_ouput(int flag)
 {
 	if (flag) {

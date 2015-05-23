@@ -37,7 +37,18 @@
 #define CLK_VAPB_0      23
 #define CLK_VAPB_1      24
 #define CLK_GE2D        25
+
+
 #define GP0_PLL		30
+
+#define CLK_MPLL0		31
+#define CLK_MPLL1		32
+#define CLK_MPLL2		33
+#define CLK_AMCLK		34
+#define CLK_PDM		35
+#define CLK_I958		36
+#define CLK_SPDIF		37
+
 
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100

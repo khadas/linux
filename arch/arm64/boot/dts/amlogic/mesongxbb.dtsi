@@ -240,9 +240,6 @@
 		io_aobus_base{
 			reg = <0x0 0xc8100000 0x0 0x100000>;
 		};
-		io_hiubus_base{
-			reg = <0x0 0xc883c000 0x0 0x2000>;
-		};
 	};
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-scpi";
@@ -416,18 +413,6 @@
 			amlogic,pins="GPIOAO_12";
 		};
 
-		audio_pins:audio_pin{
-			amlogic,setmask=<AO 0x78000000>;
-			amlogic,clrmask=<AO 0x50000>;
-			amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11","GPIOAO_6";
-		};
-
-		audio_spdif_pins:audio_pin1{
-			amlogic,setmask=<AO 0x10>;		/*spdif_out*/
-			amlogic,clrmask=<AO 0x8
-						AO2 0x80000002>;	/*spdif_out*/
-			amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
-		};
 		/*p200 i2c-A multiplex with usb PWR*/
 		a_i2c_master:a_i2c{
 			amlogic,setmask=<7 0xc0>;
