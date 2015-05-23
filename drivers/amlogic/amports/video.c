@@ -2390,6 +2390,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	u32 vphase, vini_phase;
 	u32 pat, loop;
 	static const u32 vpat[] = { 0, 0x8, 0x9, 0xa, 0xb, 0xc };
+	u32 u, v;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		if (vf->type & VIDTYPE_COMPRESS) {
@@ -2399,11 +2400,19 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			    vf->bitdepth;
 
 			if (frame_par->hscale_skip_count)
-				r |= 0xf;
-			r = 0x3044000; /*from mingjie*/
+				r |= 0x33;
+			if (frame_par->vscale_skip_count)
+				r |= 0xcc;
+
 			VSYNC_WR_MPEG_REG(AFBC_MODE, r);
 			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0x1700);
 			VSYNC_WR_MPEG_REG(AFBC_CONV_CTRL, 0x100);
+			u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
+			v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
+			VSYNC_WR_MPEG_REG(AFBC_DEC_DEF_COLOR,
+				0x3FF00000 | /*Y,bit20+*/
+				0x80 << (u + 10) |
+				0x80 << v);
 			/* chroma formatter */
 			VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
 				HFORMATTER_YC_RATIO_2_1 |

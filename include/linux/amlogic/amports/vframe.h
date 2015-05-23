@@ -140,20 +140,26 @@ enum vframe_secam_phase_e {
 	VFRAME_PHASE_DR,
 };
 
-#define BITDEPTH_Y8    (0 << 8)
-#define BITDEPTH_Y9    (1 << 8)
-#define BITDEPTH_Y10   (2 << 8)
-#define BITDEPTH_YMASK (3 << 8)
 
-#define BITDEPTH_U8    (0 << 10)
-#define BITDEPTH_U9    (1 << 10)
-#define BITDEPTH_U10   (2 << 10)
-#define BITDEPTH_UMASK (3 << 10)
+#define BITDEPTH_Y_SHIFT 8
+#define BITDEPTH_Y8    (0 << BITDEPTH_Y_SHIFT)
+#define BITDEPTH_Y9    (1 << BITDEPTH_Y_SHIFT)
+#define BITDEPTH_Y10   (2 << BITDEPTH_Y_SHIFT)
+#define BITDEPTH_YMASK (3 << BITDEPTH_Y_SHIFT)
 
-#define BITDEPTH_V8    (0 << 12)
-#define BITDEPTH_V9    (1 << 12)
-#define BITDEPTH_V10   (2 << 12)
-#define BITDEPTH_VMASK (3 << 12)
+
+#define BITDEPTH_U_SHIFT 10
+#define BITDEPTH_U8    (0 << BITDEPTH_U_SHIFT)
+#define BITDEPTH_U9    (1 << BITDEPTH_U_SHIFT)
+#define BITDEPTH_U10   (2 << BITDEPTH_U_SHIFT)
+#define BITDEPTH_UMASK (3 << BITDEPTH_U_SHIFT)
+
+
+#define BITDEPTH_V_SHIFT 12
+#define BITDEPTH_V8    (0 << BITDEPTH_V_SHIFT)
+#define BITDEPTH_V9    (1 << BITDEPTH_V_SHIFT)
+#define BITDEPTH_V10   (2 << BITDEPTH_V_SHIFT)
+#define BITDEPTH_VMASK (3 << BITDEPTH_V_SHIFT)
 
 struct vframe_s {
 	u32 index;
