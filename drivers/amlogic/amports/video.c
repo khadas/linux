@@ -1765,23 +1765,24 @@ static void zoom_display_horz(int hscale)
 			     1) >> hscale) << VD1_FMT_CHROMA_WIDTH_BIT));
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		int l_aligned = round_down(zoom_start_x_lines, 32);
+		int r_aligned = round_up(zoom_end_x_lines, 32);
+
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_W,
-			  (((zoom_end_x_lines - zoom_start_x_lines +
-			     1) >> hscale) << VD1_FMT_LUMA_WIDTH_BIT) |
-			  (((zoom_end_x_lines / 2 - zoom_start_x_lines / 2 +
-			     1) >> hscale) << VD1_FMT_CHROMA_WIDTH_BIT));
+			  ((r_aligned - l_aligned) << 16) |
+			  (r_aligned / 2 - l_aligned / 2));
 
 		VSYNC_WR_MPEG_REG(AFBC_MIF_HOR_SCOPE,
-			  ((zoom_start_x_lines / 32) << 16) |
-			  (zoom_end_x_lines / 32));
+			  ((l_aligned / 32) << 16) |
+			  ((r_aligned / 32) - 1));
 
 		VSYNC_WR_MPEG_REG(AFBC_PIXEL_HOR_SCOPE,
-			  (zoom_start_x_lines << 16) |
-			  zoom_end_x_lines);
+			  ((zoom_start_x_lines - l_aligned) << 16) |
+			  (zoom_end_x_lines - l_aligned));
 
 		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
 			  (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff) |
-			  ((zoom_end_x_lines - zoom_start_x_lines + 1) << 16));
+			  ((r_aligned - l_aligned) << 16));
 	}
 
 	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_X0,
@@ -1879,20 +1880,23 @@ static void zoom_display_vert(void)
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		int t_aligned = round_down(zoom_start_y_lines, 4);
+		int b_aligned = round_up(zoom_end_y_lines, 4);
+
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
-		    zoom_end_y_lines - zoom_start_y_lines + 1);
+		    b_aligned - t_aligned);
 
 		VSYNC_WR_MPEG_REG(AFBC_MIF_VER_SCOPE,
-		    ((zoom_start_y_lines / 4) << 16) |
-		    (zoom_end_y_lines / 4));
+		    ((t_aligned / 4) << 16) |
+		    ((b_aligned / 4) - 1));
 
 		VSYNC_WR_MPEG_REG(AFBC_PIXEL_VER_SCOPE,
-		    (zoom_start_y_lines << 16) |
-		    zoom_end_y_lines);
+		    ((zoom_start_y_lines - t_aligned) << 16) |
+		    (zoom_end_y_lines - t_aligned));
 
 		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
 		    (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff0000) |
-		    (zoom_end_y_lines - zoom_start_y_lines + 1));
+		    (b_aligned - t_aligned));
 	}
 }
 
@@ -2439,6 +2443,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				0x80 << v);
 			/* chroma formatter */
 			VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_CTRL,
+				HFORMATTER_RRT_PIXEL0 |
 				HFORMATTER_YC_RATIO_2_1 |
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
