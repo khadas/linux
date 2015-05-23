@@ -139,15 +139,19 @@ static int register_vdec_clk_mgr_per_cpu(int cputype,
 
 	struct chip_vdec_clk_s *mgr;
 	if (cputype != get_cpu_type() || vdec_type >= VDEC_MAX) {
+		/*
 		pr_info("ignore vdec clk mgr for vdec[%d] cpu=%d\n",
 			vdec_type, cputype);
+		*/
 		return 0;	/* ignore don't needed firmare. */
 	}
 	mgr = kmalloc(sizeof(struct chip_vdec_clk_s), GFP_KERNEL);
 	if (!mgr)
 		return -ENOMEM;
 	*mgr = *t_mgr;
+	/*
 	pr_info("register vdec clk mgr for vdec[%d]\n", vdec_type);
+	*/
 	get_current_vdec_chip()->clk_mgr[vdec_type] = mgr;
 	return 0;
 }

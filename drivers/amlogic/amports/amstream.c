@@ -3191,10 +3191,6 @@ static int amstream_mem_device_init(struct reserved_mem *rmem,
 	struct resource *res;
 	int r;
 	res = &memobj;
-	pr_err("Amlogic A/V streaming port init %s line :%d\n", __func__,
-		   __LINE__);
-	pr_err("Amlogic A/V streaming port init %s line :%d\n", __func__,
-		   __LINE__);
 
 	res->start = (phys_addr_t) rmem->base;
 	res->end = res->start + (phys_addr_t) rmem->size - 1;
@@ -3240,8 +3236,6 @@ static int amstream_mem_device_init(struct reserved_mem *rmem,
 			goto error4;
 		}
 	}
-	pr_err("Amlogic A/V streaming port init %s line :%d\n", __func__,
-		   __LINE__);
 
 	if (has_hevc_vdec()) {
 		bufs[BUF_TYPE_HEVC].buf_start = bufs[BUF_TYPE_VIDEO].buf_start;
@@ -3253,8 +3247,6 @@ static int amstream_mem_device_init(struct reserved_mem *rmem,
 		bufs[BUF_TYPE_HEVC].default_buf_size =
 			bufs[BUF_TYPE_VIDEO].default_buf_size;
 	}
-	pr_err("Amlogic A/V streaming port init %s line :%d\n", __func__,
-		   __LINE__);
 
 	if (stbuf_fetch_init() != 0) {
 		r = (-ENOMEM);

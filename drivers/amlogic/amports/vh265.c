@@ -5450,6 +5450,9 @@ static int __init amvdec_h265_driver_init_module(void)
 	} else if (is_meson_m8m2_cpu()) {
 		/* m8m2 support 4k */
 		amvdec_h265_profile.profile = "4k";
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		amvdec_h265_profile.profile =
+			"4k, 9bit, 10bit, dwrite, compressed";
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
 		amvdec_h265_profile.profile = "4k";
 #endif
