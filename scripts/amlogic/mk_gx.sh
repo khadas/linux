@@ -3,10 +3,15 @@
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j20 \
 	UIMAGE_LOADADDR=0x1008000 || echo "Compile uImage Fail !!"
 
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxbaby.dtb \
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxbb_skt.dtb \
 	|| echo "Compile dtb Fail !!"
 
 
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxbb_p200.dtb \
+	|| echo "Compile dtb Fail !!"
+
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gxbb_p201.dtb \
+	|| echo "Compile dtb Fail !!"
 #rootfs.cpio -- original buildroot rootfs, busybox
 #ROOTFS="rootfs.cpio"
 

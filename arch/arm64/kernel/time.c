@@ -69,8 +69,8 @@ void __init time_init(void)
 
 	arch_timer_rate = arch_timer_get_rate();
 	if (!arch_timer_rate)
-		lpj_fine			= 1000*1000 / HZ;
-	else
+		panic("Unable to initialise architected timer.\n");
+
 	/* Calibrate the delay loop directly */
-		lpj_fine = arch_timer_rate / HZ;
+	lpj_fine = arch_timer_rate / HZ;
 }

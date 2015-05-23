@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/timex.h>
 
-struct delay_timer *delay_timer = NULL;
 void __delay(unsigned long cycles)
 {
 	cycles_t start = get_cycles();
@@ -54,18 +53,3 @@ void __ndelay(unsigned long nsecs)
 	__const_udelay(nsecs * 0x5UL); /* 2**32 / 1000000000 (rounded up) */
 }
 EXPORT_SYMBOL(__ndelay);
-int read_current_timer(unsigned long *timer_val)
-{
-	if (!delay_timer)
-		return -ENXIO;
-
-	*timer_val = delay_timer->read_current_timer();
-	return 0;
-}
-EXPORT_SYMBOL_GPL(read_current_timer);
-void __init register_current_timer_delay(struct delay_timer *timer)
-{
-	pr_info("Switching to timer-based delay loop\n");
-	delay_timer			= timer;
-
-}
