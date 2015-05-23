@@ -21,7 +21,7 @@
 #include <asm/cacheflush.h>
 #include "audiodsp_module.h"
 #include "dsp_microcode.h"
-#include <asm/system.h>
+/*#include <asm/system.h>*/
 #include <linux/dma-mapping.h>
 
 void halt_dsp(struct audiodsp_priv *priv);

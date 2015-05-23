@@ -88,7 +88,7 @@ extern void tsync_pcr_recover(void);
 extern void tsync_pcr_recover(void);
 extern unsigned IEC958_mode_raw;
 extern unsigned IEC958_mode_codec;
-extern int decopt;
+/*extern int decopt; */
 extern struct audio_info *get_audio_info(void);
 extern void aml_alsa_hw_reprepare(void);
 extern void dsp_get_debug_interface(int flag);
