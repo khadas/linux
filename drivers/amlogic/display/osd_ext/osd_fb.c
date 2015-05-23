@@ -1772,7 +1772,7 @@ static const struct reserved_mem_ops rmem_fb_ops = {
 
 static int __init rmem_fb_setup(struct reserved_mem *rmem)
 {
-	phys_addr_t align = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+	phys_addr_t align = PAGE_SIZE;
 	phys_addr_t mask = align - 1;
 
 	if ((rmem->base & mask) || (rmem->size & mask)) {
