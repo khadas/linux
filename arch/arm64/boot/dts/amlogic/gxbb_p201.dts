@@ -67,7 +67,7 @@
 		/*  DISP&MM-A/V stream */
 		vdec_reserved:linux,vdec {
 			compatible = "amlogic, vdec-memory";
-			size = <0x0 0x18000000>;
+			size = <0x0 0xc000000>;
 			no-map;
 		};
 		/*  vdin0 */
