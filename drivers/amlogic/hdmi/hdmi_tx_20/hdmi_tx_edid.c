@@ -1399,6 +1399,8 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"4k2k23hz",  HDMI_4k2k_24},
 #endif
 	{"4k2ksmpte", HDMI_4k2k_smpte_24},
+	{"4k2k60hz", HDMI_4k2k_60},
+	{"4k2k50hz", HDMI_4k2k_50},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)
