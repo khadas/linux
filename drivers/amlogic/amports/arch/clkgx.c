@@ -27,7 +27,7 @@
 
 /*
 HHI_VDEC_CLK_CNTL
-0x1078[11:9] (fclk = 2550MHz)
+0x1078[11:9] (fclk = 2000MHz)
     0: fclk_div4
     1: fclk_div3
     2: fclk_div5
@@ -35,66 +35,74 @@ HHI_VDEC_CLK_CNTL
     4: mpll_clk_out1
     5: mpll_clk_out2
 0x1078[6:0]
-    devider
+    divider
 0x1078[8]
     enable
 */
 
-/* 182.14M <-- (2550/7)/2 */
-#define VDEC1_182M() \
+/* 182.8M <-- (2000/7)/2 */
+#define VDEC1_142M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (3 << 9) | (1), 0, 16)
-#define VDEC2_182M() \
+#define VDEC2_142M() \
 	WRITE_HHI_REG(HHI_VDEC2_CLK_CNTL, (3 << 9) | (1))
 
-/* 212.50M <-- (2550/3)/4 */
-#define VDEC1_212M() \
+/* 166.6M <-- (2000/3)/4 */
+#define VDEC1_166M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (1 << 9) | (3), 0, 16)
-#define VDEC2_212M() \
+#define VDEC2_166M() \
 	WRITE_HHI_REG(HHI_VDEC2_CLK_CNTL, (1 << 9) | (3))
 
-/* 255.00M <-- (2550/5)/2 */
-#define VDEC1_255M() \
+/* 200.00M <-- (2000/5)/2 */
+#define VDEC1_200M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (2 << 9) | (1), 0, 16)
-#define VDEC2_255M() \
+#define VDEC2_200M() \
 	WRITE_HHI_REG(HHI_VDEC2_CLK_CNTL, (2 << 9) | (1))
-#define HCODEC_255M() \
+#define HCODEC_200M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL, (2 << 9) | (1), 16, 16)
-#define HEVC_255M()  \
+#define HEVC_200M()  \
 	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (2 << 9) | (1), 16, 16)
 
-/* 283.33M <-- (2550/3)/3 */
+/* 222M <-- (2000/3)/3 */
 #define VDEC1_283M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (1 << 9) | (2), 0, 16)
 #define VDEC2_283M() \
 	WRITE_HHI_REG(HHI_VDEC2_CLK_CNTL, (1 << 9) | (2));
 
-/* 318.75M <-- (2550/4)/2 */
-#define VDEC1_319M() \
+/* 250M <-- (2000/4)/2 */
+#define VDEC1_250M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (0 << 9) | (1), 0, 16)
-#define VDEC2_319M() \
+#define VDEC2_250M() \
 	WRITE_HHI_REG(HHI_VDEC2_CLK_CNTL, (0 << 9) | (1))
 
-/* 364.29M <-- (2550/7)/1 -- over limit, do not use */
-#define VDEC1_364M() \
+/* 285M <-- (2000/7)/1 -- over limit, do not use */
+#define VDEC1_285M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (3 << 9) | (0), 0, 16)
-#define VDEC2_364M() \
+#define VDEC2_285M() \
 	WRITE_HHI_REG(HHI_VDEC2_CLK_CNTL, (3 << 9) | (0))
 
-/* 425.00M <-- (2550/3)/2 */
-#define VDEC1_425M() \
+/* 333.00M <-- (2000/3)/2 */
+#define VDEC1_333M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (1 << 9) | (2), 0, 16)
 
-/* 510.00M <-- (2550/5)/1 */
-#define VDEC1_510M() \
+/* 400.00M <-- (2000/5)/1 */
+#define VDEC1_400M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (2 << 9) | (0), 0, 16)
-#define HEVC_510M()  \
+#define HEVC_400M()  \
 	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (2 << 9) | (0), 16, 16)
 
-/* 637.50M <-- (2550/4)/1 */
-#define VDEC1_638M() \
+/* 500M <-- (2000/4)/1 */
+#define VDEC1_500M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (0 << 9) | (0), 0, 16)
-#define HEVC_638M()  \
+#define HEVC_500M()  \
 	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (0 << 9) | (0), 16, 16)
+
+
+/* 666M <-- (2000/3)/1 */
+#define VDEC1_666M() \
+	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (1 << 9) | (0), 0, 16)
+#define HEVC_666M()  \
+	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (1 << 9) | (0), 16, 16)
+
 
 #define VDEC1_CLOCK_ON()  \
 	do { if (is_meson_m8_cpu()) { \
@@ -150,7 +158,7 @@ static int clock_level[VDEC_MAX + 1];
 static void vdec_clock_enable(void)
 {
 	VDEC1_CLOCK_OFF();
-	VDEC1_255M();
+	VDEC1_250M();
 	VDEC1_CLOCK_ON();
 	clock_level[VDEC_1] = 0;
 }
@@ -158,10 +166,7 @@ static void vdec_clock_enable(void)
 static void vdec_clock_hi_enable(void)
 {
 	VDEC1_CLOCK_OFF();
-	if (is_meson_m8_cpu())
-		VDEC1_364M();
-	else
-		VDEC1_638M();
+	VDEC1_666M();
 	VDEC1_CLOCK_ON();
 	clock_level[VDEC_1] = 1;
 }
@@ -175,37 +180,10 @@ static void vdec_clock_off(void)
 {
 	VDEC1_CLOCK_OFF();
 }
-
-static void vdec2_clock_enable(void)
-{
-	VDEC2_CLOCK_OFF();
-	VDEC2_255M();
-	VDEC2_CLOCK_ON();
-	clock_level[VDEC_2] = 0;
-}
-
-static void vdec2_clock_hi_enable(void)
-{
-	VDEC2_CLOCK_OFF();
-	VDEC2_364M();
-	VDEC2_CLOCK_ON();
-	clock_level[VDEC_2] = 1;
-}
-
-static void vdec2_clock_on(void)
-{
-	VDEC2_CLOCK_ON();
-}
-
-static void vdec2_clock_off(void)
-{
-	VDEC2_CLOCK_OFF();
-}
-
 static void hcodec_clock_enable(void)
 {
 	HCODEC_CLOCK_OFF();
-	HCODEC_255M();
+	HCODEC_200M();
 	HCODEC_CLOCK_ON();
 }
 
@@ -223,14 +201,14 @@ static void hevc_clock_enable(void)
 {
 	HEVC_CLOCK_OFF();
 	/* HEVC_255M(); */
-	HEVC_638M();
+	HEVC_400M();
 	HEVC_CLOCK_ON();
 }
 
 static void hevc_clock_hi_enable(void)
 {
 	HEVC_CLOCK_OFF();
-	HEVC_638M();
+	HEVC_666M();
 	HEVC_CLOCK_ON();
 	clock_level[VDEC_HEVC] = 1;
 }
@@ -264,12 +242,11 @@ static int vdec_clock_level(enum vdec_type_e core)
 }
 
 #define INCLUDE_FROM_ARCH_CLK_MGR
-#define VDEC_HAS_VDEC2
+/*#define VDEC_HAS_VDEC2*/
 #define VDEC_HAS_HEVC
 #define VDEC_HAS_VDEC_HCODEC
 #define CLK_FOR_CPU {\
-			MESON_CPU_MAJOR_ID_M8,\
-			MESON_CPU_MAJOR_ID_M8M2,\
+			MESON_CPU_MAJOR_ID_GXBB,\
 			0}
 #include "clk.h"
 ARCH_VDEC_CLK_INIT();
