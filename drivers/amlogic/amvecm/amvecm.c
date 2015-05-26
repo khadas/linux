@@ -645,7 +645,7 @@ static void parse_param_amvecm(char *buf_orig, char **parm)
 
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -1222,7 +1222,7 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -1333,7 +1333,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')

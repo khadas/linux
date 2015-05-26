@@ -240,12 +240,14 @@
 		dev_name = "amvdec_656in0";
 		status = "ok";
 		reg = <0x0 0xd0048000 0x0 0x7c>;
+		bt656_id = <0>;
 	};
 	amvdec_656in1 {
 		compatible = "amlogic, amvdec_656in";
 		dev_name = "amvdec_656in1";
 		status = "ok";
 		reg = <0x0 0xd0050000 0x0 0x7c>;
+		bt656_id = <1>;
 	};
 
 	amvenc_avc{

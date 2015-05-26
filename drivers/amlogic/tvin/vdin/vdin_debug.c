@@ -47,7 +47,7 @@ static void parse_param(char *buf_orig, char **parm)
 	unsigned int n = 0;
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -234,6 +234,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 	mm_segment_t old_fs;
 	void *dts = NULL;
 	long val;
+	unsigned long addr;
 
 	/* vtype = simple_strtol(type, NULL, 10); */
 
@@ -272,8 +273,10 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 		real_size = (devp->curr_wr_vfe->vf.width *
 				devp->curr_wr_vfe->vf.height<<1);
 	}
-	dts = ioremap(canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr),
-			real_size);
+	addr = canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr);
+	/* dts = ioremap(canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr), */
+	/* real_size); */
+	dts = phys_to_virt(addr);
 	size = vfs_read(filp, dts, real_size, &pos);
 	if (size < real_size) {
 		pr_info("%s read %u < %u error.\n",
@@ -430,12 +433,17 @@ static ssize_t vdin_attr_store(struct device *dev,
 		}
 		memset(&param, 0, sizeof(struct vdin_parm_s));
 		/*parse the port*/
-		if (!strcmp(parm[1], "bt656"))
+		if (!strcmp(parm[1], "bt656")) {
 			param.port = TVIN_PORT_CAMERA;
-		else if (!strcmp(parm[1], "viuin"))
+			pr_info(" port is TVIN_PORT_CAMERA\n");
+		} else if (!strcmp(parm[1], "viuin")) {
 			param.port = TVIN_PORT_VIU;
-		if (!strcmp(parm[1], "isp"))
+			pr_info(" port is TVIN_PORT_VIU\n");
+		}
+		if (!strcmp(parm[1], "isp")) {
 			param.port = TVIN_PORT_ISP;
+			pr_info(" port is TVIN_PORT_ISP\n");
+		}
 		/*parse the resolution*/
 		/* param.h_active = simple_strtol(parm[2], NULL, 10); */
 		/* param.v_active = simple_strtol(parm[3], NULL, 10); */
@@ -449,7 +457,10 @@ static ssize_t vdin_attr_store(struct device *dev,
 		if (kstrtol(parm[4], 10, &val) < 0)
 			return -EINVAL;
 		param.frame_rate = val;
-
+		pr_info(" hactive:%d,vactive:%d, rate:%d\n",
+				param.h_active,
+				param.v_active,
+				param.frame_rate);
 		if (!parm[5])
 			param.cfmt = TVIN_YUV422;
 		else {
@@ -458,6 +469,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 				return -EINVAL;
 			param.cfmt = val;
 		}
+		pr_info(" cfmt:%d\n", param.cfmt);
 		if (!parm[6])
 			param.dfmt = TVIN_YUV422;
 		else {
@@ -466,6 +478,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 				return -EINVAL;
 			param.dfmt = val;
 		}
+		pr_info(" dfmt:%d\n", param.dfmt);
 		if (!parm[7])
 			param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
 		else {
@@ -475,6 +488,8 @@ static ssize_t vdin_attr_store(struct device *dev,
 				return -EINVAL;
 			param.scan_mode = val;
 		}
+		pr_info(" scan_mode:%d\n", param.scan_mode);
+
 		param.fmt = TVIN_SIG_FMT_MAX;
 		/* param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE; */
 		/*start the vdin hardware*/
@@ -533,8 +548,13 @@ static ssize_t vdin_attr_store(struct device *dev,
 		devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 	} else if (!strcmp(parm[0], "read_pic")) {
 		vdin_write_mem(devp, parm[1], parm[2]);
-}
-
+	} else {
+		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
+		/* parm[0],parm[1],parm[2],parm[3]); */
+		/* pr_info("parm[4]:%s [5]:%s [6]:%s [7]:%s\n", */
+		/* parm[4],parm[5],parm[6],parm[7]); */
+		pr_info("unknow command\n");
+	}
 
 	kfree(buf_orig);
 	return len;
@@ -759,7 +779,7 @@ static ssize_t vdin_cm2_store(struct device *dev,
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')

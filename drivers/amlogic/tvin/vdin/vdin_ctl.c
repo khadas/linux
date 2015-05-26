@@ -1070,6 +1070,9 @@ static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
 		is_meson_m8m2_cpu() || is_meson_gxbb_cpu() ||
 		is_meson_m8b_cpu())
 		wr_bits(offset, VDIN_WR_CTRL, 1, 10, 1);
+	/*  swap the 2 64bits word in 128 words */
+	if (is_meson_gxbb_cpu())
+		wr_bits(offset, VDIN_WR_CTRL, 1, 19, 1);
 }
 
 void set_wr_ctrl(int h_pos, int v_pos, struct vdin_dev_s *devp)
@@ -1643,8 +1646,7 @@ void vdin_set_default_regmap(unsigned int offset)
 	wr(offset, VDIN_MATRIX_PRE_OFFSET2, 0x00000000);
 	/* [11: 0]       write.lfifo_buf_size   = 0x100 */
 	if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
-		is_meson_m8m2_cpu() || is_meson_gxbb_cpu() ||
-		is_meson_m8b_cpu())
+		is_meson_m8m2_cpu() || is_meson_m8b_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
@@ -1743,7 +1745,10 @@ void vdin_set_default_regmap(unsigned int offset)
 
 
 	/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
-	aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100);
+	if (is_meson_gxbb_cpu())
+		;
+	else
+		aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100);
 
 	/* [   18] meas.rst              = 0 */
 	/* [   17] meas.widen_hs_vs_en   = 1 */
@@ -1861,12 +1866,18 @@ void vdin_enable_module(unsigned int offset, bool enable)
 {
 	if (enable)	{
 		/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
-		aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100);
+		if (is_meson_gxbb_cpu())
+			;
+		else
+			aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100);
 		/* vdin_hw_enable(offset); */
 		/* todo: check them */
 	} else {
 		/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
-		aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000000);
+		if (is_meson_gxbb_cpu())
+			;
+		else
+			aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000000);
 		vdin_hw_disable(offset);
 	}
 }
@@ -2242,7 +2253,10 @@ void vdin_set_mpegin(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
-	aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100);
+	if (is_meson_gxbb_cpu())
+		;
+	else
+		aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100);
 
 	wr(offset, VDIN_COM_CTRL0, 0x80000911);
 	wr(offset, VDIN_COM_GCLK_CTRL, 0x0);

@@ -148,6 +148,11 @@ static unsigned int vdin_irq_flag;
 module_param(vdin_irq_flag, uint, 0664);
 MODULE_PARM_DESC(vdin_irq_flag, "vdin_irq_flag");
 
+/* viu isr select */
+static unsigned int viu_hw_irq;
+module_param(viu_hw_irq, uint, 0664);
+MODULE_PARM_DESC(viu_hw_irq, "viu_hw_irq");
+
 /*1:support rdma;0:no support rdma*/
 static unsigned int vdin_rdma_flag;
 module_param(vdin_rdma_flag, uint, 0664);
@@ -656,7 +661,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	udelay(start_provider_delay);
 	vf_reg_provider(&devp->vprov);
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_START, NULL);
-	if (devp->parm.port != TVIN_PORT_VIU) {
+	if ((devp->parm.port != TVIN_PORT_VIU) ||
+		(viu_hw_irq != 0)) {
 		/*enable irq */
 		enable_irq(devp->irq);
 		if (vdin_dbg_en)
@@ -742,7 +748,8 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 		ret = -EBUSY;
 		return ret;
 	}
-	if (para->port != TVIN_PORT_VIU) {
+	if ((para->port != TVIN_PORT_VIU) ||
+		(viu_hw_irq != 0)) {
 		ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
 		/*disable vsync irq until vdin configured completely*/
@@ -752,7 +759,7 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 	vdin_set_default_regmap(devp->addr_offset);
 
 	devp->parm.port = para->port;
-	devp->parm.info.fmt     = para->fmt;
+	devp->parm.info.fmt = para->fmt;
 	/* add for camera random resolution */
 	if (para->fmt >= TVIN_SIG_FMT_MAX) {
 		devp->fmt_info_p = kmalloc(sizeof(struct tvin_format_s),
@@ -831,7 +838,8 @@ int stop_tvin_service(int no)
 /* #endif */
 	devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
-	if (devp->parm.port != TVIN_PORT_VIU) /* free irq */
+	if ((devp->parm.port != TVIN_PORT_VIU) ||
+		(viu_hw_irq != 0))
 		free_irq(devp->irq, (void *)devp);
 	end_time = jiffies_to_msecs(jiffies);
 	if (vdin_dbg_en)
@@ -2116,7 +2124,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		goto fail_kmalloc_vdev;
 	}
 	memset(vdevp, 0, sizeof(struct vdin_dev_s));
-	#ifdef CONFIG_USE_OF
+
 	if (pdev->dev.of_node) {
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"vdin_id", &(vdevp->index));
@@ -2125,9 +2133,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 			goto fail_get_resource_irq;
 		}
 	}
-	#else
-	vdevp->index = pdev->id;
-	#endif
+
 	vdin_devp[vdevp->index] = vdevp;
 	/* create cdev and reigser with sysfs */
 	ret = vdin_add_cdev(&vdevp->cdev, &vdin_fops, vdevp->index);
@@ -2325,14 +2331,12 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	return 0;
 }
 #endif
-#ifdef CONFIG_OF
+
 static const struct of_device_id vdin_dt_match[] = {
 	{       .compatible = "amlogic, vdin",   },
 	{},
 };
-#else
-#define vdin_dt_match NULL
-#endif
+
 static struct platform_driver vdin_driver = {
 	.probe		= vdin_drv_probe,
 	.remove		= vdin_drv_remove,
