@@ -1494,6 +1494,7 @@ static long amstream_ioctl_set(struct stream_port_s *this, ulong arg)
 		pr_err("[%s]%d, arg err\n", __func__, __LINE__);
 		r = -EFAULT;
 	}
+
 	switch (parm.cmd) {
 	case AMSTREAM_SET_VB_START:
 		if ((this->type & PORT_TYPE_VIDEO) &&
@@ -1780,10 +1781,14 @@ static long amstream_ioctl_get_ex(struct stream_port_s *this, ulong arg)
 			r = -EINVAL;
 		break;
 	case AMSTREAM_GET_EX_VDECSTAT:
-		if ((this->type & PORT_TYPE_VIDEO) == 0)
+		if ((this->type & PORT_TYPE_VIDEO) == 0) {
+			pr_err("no video\n");
 			return -EINVAL;
-		if (amstream_vdec_status == NULL)
+		}
+		if (amstream_vdec_status == NULL) {
+			pr_err("no amstream_vdec_status\n");
 			return -ENODEV;
+		}
 		else {
 			struct vdec_status vstatus;
 			struct am_ioctl_parm_ex *p = &parm;
@@ -1904,7 +1909,6 @@ static long amstream_ioctl_set_ptr(struct stream_port_s *this, ulong arg)
 		pr_err("[%s]%d, arg err\n", __func__, __LINE__);
 		r = -EFAULT;
 	}
-
 	switch (parm.cmd) {
 	case AMSTREAM_SET_PTR_AUDIO_INFO:
 		if ((this->type & PORT_TYPE_VIDEO)
@@ -1927,6 +1931,7 @@ static long amstream_do_ioctl_new(struct stream_port_s *this,
 	unsigned int cmd, ulong arg)
 {
 	long r = 0;
+
 	switch (cmd) {
 	case AMSTREAM_IOC_GET_VERSION:
 		r = amstream_ioctl_get_version(this, arg);
@@ -2506,7 +2511,6 @@ static long amstream_do_ioctl(struct stream_port_s *this,
 	unsigned int cmd, ulong arg)
 {
 	long r = 0;
-
 	switch (cmd) {
 	case AMSTREAM_IOC_GET_VERSION:
 	case AMSTREAM_IOC_GET:
@@ -2564,8 +2568,11 @@ struct am_ioctl_parm_ptr32 {
 		compat_uptr_t pdata_audio_info;
 		compat_uptr_t pdata_sub_info;
 		compat_uptr_t pointer;
+		char data[16];
 	};
 };
+
+
 static long amstream_ioc_setget_ptr(struct stream_port_s *this,
 		unsigned int cmd, struct am_ioctl_parm_ptr32 __user *arg)
 {
@@ -2591,21 +2598,21 @@ static long amstream_ioc_setget_ptr(struct stream_port_s *this,
 
 }
 
-static long amstream_get_sysinfo(struct stream_port_s *this,
+static long amstream_set_sysinfo(struct stream_port_s *this,
 		struct dec_sysinfo32 __user *arg)
 {
 	struct dec_sysinfo __user *data;
-	struct dec_sysinfo32 __user data32;
+	struct dec_sysinfo32 __user *data32 = arg;
 	int ret;
-
-	if (copy_from_user(&data32, arg, sizeof(data32)))
-		return -EFAULT;
-
 	data = compat_alloc_user_space(sizeof(*data));
 	if (!access_ok(VERIFY_WRITE, data, sizeof(*data)))
 		return -EFAULT;
-
-	if (put_user(compat_ptr(data32.param), &data->param))
+	if (copy_in_user(data, data32, 7 * sizeof(u32)))
+		return -EFAULT;
+	if (put_user(compat_ptr(data32->param), &data->param))
+		return -EFAULT;
+	if (copy_in_user(&data->ratio64, &data32->ratio64,
+					sizeof(data->ratio64)))
 		return -EFAULT;
 
 	ret = amstream_do_ioctl(this, AMSTREAM_IOC_SYSINFO,
@@ -2619,7 +2626,6 @@ static long amstream_get_sysinfo(struct stream_port_s *this,
 		return -EFAULT;
 
 	return 0;
-
 }
 static long amstream_compat_ioctl(struct file *file,
 		unsigned int cmd, ulong arg)
@@ -2634,16 +2640,14 @@ static long amstream_compat_ioctl(struct file *file,
 	case AMSTREAM_IOC_SET:
 	case AMSTREAM_IOC_GET_EX:
 	case AMSTREAM_IOC_SET_EX:
-		arg = (unsigned long) compat_ptr(arg);
-		return amstream_do_ioctl(this, cmd, arg);
+		return amstream_do_ioctl(this, cmd, (ulong)compat_ptr(arg));
 	case AMSTREAM_IOC_GET_PTR:
 	case AMSTREAM_IOC_SET_PTR:
 		return amstream_ioc_setget_ptr(this, cmd, compat_ptr(arg));
 	case AMSTREAM_IOC_SYSINFO:
-		return amstream_get_sysinfo(this, compat_ptr(arg));
+		return amstream_set_sysinfo(this, compat_ptr(arg));
 	default:
-		r = -ENOIOCTLCMD;
-		break;
+		return amstream_do_ioctl(this, cmd, (ulong)compat_ptr(arg));
 	}
 
 	return r;
