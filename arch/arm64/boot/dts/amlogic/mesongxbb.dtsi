@@ -75,13 +75,15 @@
 			"clk_mali_0",
 			"clk_mali_1";
 
+		  /*control_interval x keep_count == 900 - 1000ms */
+		  control_interval = <200>;
 		  dvfs_tbl = <&gpu_dvfs_tbl>;
 
 		  clk250_cfg:clk250_cfg {
 			clk_freq = <250000000>;
 			clk_parent = "fclk_div4";
 			voltage = <1150>;
-			keep_count = <3>;
+			keep_count = <5>;
 			threshold = <30 80>;
 		  };
 
@@ -89,7 +91,7 @@
 			clk_freq = <400000000>;
 			clk_parent = "fclk_div5";
 			voltage = <1150>;
-			keep_count = <3>;
+			keep_count = <5>;
 			threshold = <40 205>;
 		  };
 
@@ -97,7 +99,7 @@
 			clk_freq = <500000000>;
 			clk_parent = "fclk_div4";
 			voltage = <1150>;
-			keep_count = <3>;
+			keep_count = <5>;
 			threshold = <150 215>;
 		  };
 
@@ -105,7 +107,7 @@
 			clk_freq = <666000000>;
 			clk_parent = "fclk_div3";
 			voltage = <1150>;
-			keep_count = <3>;
+			keep_count = <5>;
 			threshold = <170 253>;
 		  };
 
@@ -113,7 +115,7 @@
 			clk_freq = <800000000>;
 			clk_parent = "g_pll";
 			voltage = <1150>;
-			keep_count = <3>;
+			keep_count = <5>;
 			threshold = <230 255>;
 		  };
 

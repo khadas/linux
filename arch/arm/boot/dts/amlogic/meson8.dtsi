@@ -71,6 +71,8 @@
 			  "clk_mali_0",
 			  "clk_mali_1";
 
+		  /*control_interval x keep_count == 900 - 1000ms */
+		  control_interval = <300>;
 		  dvfs_tbl = <&gpu_dvfs_tbl>;
 
 		  clk182_cfg:clk182_cfg {
