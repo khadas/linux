@@ -157,12 +157,12 @@
 
 
 #ifdef CONFIG_VSYNC_RDMA
-int VSYNC_WR_MPEG_REG(unsigned long adr, unsigned long val);
-int VSYNC_WR_MPEG_REG_BITS(unsigned long adr, unsigned long val,
-			   unsigned long start, unsigned long len);
-unsigned long VSYNC_RD_MPEG_REG(unsigned long adr);
-unsigned long RDMA_READ_REG(unsigned long adr);
-int RDMA_SET_READ(unsigned long adr);
+int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val,
+			   u32 start, u32 len);
+u32 VSYNC_RD_MPEG_REG(u32 adr);
+u32 RDMA_READ_REG(u32 adr);
+int RDMA_SET_READ(u32 adr);
 
 #else
 #define VSYNC_WR_MPEG_REG(adr, val) WRITE_VCBUS_REG(adr, val)

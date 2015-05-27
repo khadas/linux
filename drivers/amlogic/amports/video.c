@@ -88,6 +88,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "vpp.h"
 #include "linux/amlogic/tvin/tvin_v4l2.h"
 #ifdef CONFIG_VSYNC_RDMA
+#define DISPLAY_CANVAS_BASE_INDEX2   0x10
+#define DISPLAY_CANVAS_MAX_INDEX2    0x15
 #include "rdma.h"
 #endif
 #include <linux/amlogic/amports/video_prot.h>
@@ -592,9 +594,9 @@ void start_rdma(void);
 void enable_rdma_log(int flag);
 */
 static int enable_rdma_log_count;
-/*
+
 bool rdma_enable_pre = false;
-*/
+
 static u32 disp_canvas_index[2][6] = {
 	{
 	 DISPLAY_CANVAS_BASE_INDEX,
