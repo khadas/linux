@@ -45,7 +45,7 @@
 #include <linux/poll.h>
 #include <linux/irq_work.h>
 #include <linux/utsname.h>
-
+#include <generated/utsrelease.h>
 #include <asm/uaccess.h>
 
 #define CREATE_TRACE_POINTS
@@ -2884,7 +2884,7 @@ void dump_stack_print_info(const char *log_lvl)
 {
 	printk("%sCPU: %d PID: %d Comm: %.20s %s %s %.*s\n",
 	       log_lvl, raw_smp_processor_id(), current->pid, current->comm,
-	       print_tainted(), init_utsname()->release,
+	       print_tainted(), UTS_RELEASE_FULL /*init_utsname()->release*/,
 	       (int)strcspn(init_utsname()->version, " "),
 	       init_utsname()->version);
 
