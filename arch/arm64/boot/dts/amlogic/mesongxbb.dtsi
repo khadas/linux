@@ -231,9 +231,21 @@
 			amlogic,setmask=<AO 0x1800>;
 			amlogic,pins="GPIOAO_0", "GPIOAO_1";
 		};
+		ao_b_uart_pins:ao_b_uart{
+			amlogic,setmask=<AO 0x1800000>;
+			amlogic,pins="GPIOAO_4", "GPIOAO_5";
+		};
 		a_uart_pins:a_uart{
 			amlogic,setmask=<4 0x3c00>;
 			amlogic,pins="GPIOX_12", "GPIOX_13", "GPIOX_14", "GPIOX_15";
+		};
+		b_uart_pins:b_uart{
+			amlogic,setmask=<2 0x30000000>;
+			amlogic,pins="GPIODV_24", "GPIODV_25";
+		};
+		c_uart_pins:c_uart{
+			amlogic,setmask=<1 0xc0000>;
+			amlogic,pins="GPIOY_13", "GPIOY_14";
 		};
 		wifi_32k_pins:wifi_32k_pins{
 			amlogic,setmask=<2 0x40000000>;

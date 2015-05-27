@@ -88,6 +88,7 @@
 #define AML_UART_PORT_NUM		6
 #define AML_UART_DEV_NAME		"ttyS"
 
+/*#define UART_TEST_DEBUG*/
 static struct uart_driver meson_uart_driver;
 
 static struct uart_port *meson_ports[AML_UART_PORT_NUM];
@@ -298,6 +299,10 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_EMPTY))
 		cpu_relax();
 
+#ifdef UART_TEST_DEBUG
+	if (port->line != 0)
+		baud = 115200;
+#endif
 	val = readl(port->membase + AML_UART_REG5);
 	val &= ~AML_UART_BAUD_MASK;
 	val = (port->uartclk / 3) / baud  - 1;
