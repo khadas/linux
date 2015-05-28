@@ -384,7 +384,7 @@ static ssize_t vfm_map_store(struct class *class,
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " ");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
