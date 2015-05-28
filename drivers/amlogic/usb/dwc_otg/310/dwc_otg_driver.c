@@ -1030,7 +1030,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			break;
 		default:
 			pcore_para->dma_burst_size =
-			    DWC_GAHBCFG_INT_DMA_BURST_INCR4;
+			    DWC_GAHBCFG_INT_DMA_BURST_INCR8;
 			break;
 		}
 	}

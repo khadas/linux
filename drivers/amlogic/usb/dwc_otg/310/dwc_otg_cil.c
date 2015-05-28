@@ -1379,7 +1379,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 		DWC_DEBUGPL(DBG_CIL, "Internal DMA Mode\n");
 		/* Old value was DWC_GAHBCFG_INT_DMA_BURST_INCR - done for
 		  Host mode ISOC in issue fix - vahrama */
-		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR4;
+		ahbcfg.b.hburstlen = core_if->core_params->dma_burst_size;
 		core_if->dma_enable = (core_if->core_params->dma_enable != 0);
 		core_if->dma_desc_enable =
 		    (core_if->core_params->dma_desc_enable != 0);
