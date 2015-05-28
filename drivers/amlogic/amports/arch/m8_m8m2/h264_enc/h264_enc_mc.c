@@ -52,6 +52,14 @@
 #define MicroCode h264_enc_mc_gx
 #include "h264_enc_gx.h"
 
+#undef MicroCode
+#define MicroCode mix_sw_mc_hdec_gx_dblk
+#include "h264_enc_mix_sw_hdec_gx_dblk.h"
+
+#undef MicroCode
+#define MicroCode mix_dump_mc_gx_dblk
+#include "h264_enc_mix_dump_gx_dblk.h"
+
 
 #define CODEC_VERSION "0.0.0.1"
 #define FOR_VFORMAT VFORMAT_H264_ENC
@@ -92,8 +100,8 @@
 		DEF_FIRMEARE_FOR_G9TV(mix_sw_mc_hdec_m2_dblk);\
 		DEF_FIRMEARE_FOR_G9TV(mix_dump_mc_m2_dblk);\
 		DEF_FIRMEARE_FOR_M8M2(mix_sw_mc_hdec_m2_dblk);\
-		DEF_FIRMEARE_FOR_M8M2(mix_dump_mc_m2_dblk);\
-		DEF_FIRMEARE_FOR_GXBB(mix_sw_mc_hdec_m2_dblk);\
+		DEF_FIRMEARE_FOR_M8M2(mix_sw_mc_hdec_gx_dblk);\
+		DEF_FIRMEARE_FOR_GXBB(mix_dump_mc_gx_dblk);\
 		DEF_FIRMEARE_FOR_GXBB(h264_enc_mc_gx);\
 	} while (0)
 

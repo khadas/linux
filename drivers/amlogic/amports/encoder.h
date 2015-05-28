@@ -32,45 +32,51 @@
 #define HCODEC_IRQ_MBOX_CLR HCODEC_ASSIST_MBOX2_CLR_REG
 #define HCODEC_IRQ_MBOX_MASK HCODEC_ASSIST_MBOX2_MASK
 
-#define VDEC_166M()  WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
-				(5 << 9) | (1 << 8) | (5))
-#define VDEC_200M()  WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
-				(5 << 9) | (1 << 8) | (4))
-#define VDEC_250M()  WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
-				(5 << 9) | (1 << 8) | (3))
-#define VDEC_333M()  WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
-				(5 << 9) | (1 << 8) | (2))
-
-#define HDEC_255M()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+/* M8: 2550/10 = 255M GX: 2000/10 = 200M */
+#define HDEC_L0()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (2 << 25) | (1 << 16) | (1 << 24) | \
 			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
-#define HDEC_319M()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+/* M8: 2550/8 = 319M GX: 2000/8 = 250M */
+#define HDEC_L1()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (0 << 25) | (1 << 16) | (1 << 24) | \
 			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
-#define HDEC_364M()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+/* M8: 2550/7 = 364M GX: 2000/7 = 285M */
+#define HDEC_L2()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (3 << 25) | (0 << 16) | (1 << 24) | \
 			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
-#define HDEC_425M()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+/* M8: 2550/6 = 425M GX: 2000/6 = 333M */
+#define HDEC_L3()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (1 << 25) | (1 << 16) | (1 << 24) | \
 			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
-#define HDEC_510M()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+/* M8: 2550/5 = 510M GX: 2000/5 = 400M */
+#define HDEC_L4()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (2 << 25) | (0 << 16) | (1 << 24) | \
 			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
-#define HDEC_638M()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+/* M8: 2550/4 = 638M GX: 2000/4 = 500M */
+#define HDEC_L5()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (0 << 25) | (0 << 16) | (1 << 24) | \
 			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+/* M8: 2550/3 = 850M GX: 2000/3 = 667M */
+#define HDEC_L6()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
+			 (1 << 25) | (0 << 16) | (1 << 24) | \
+			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+
 #define hvdec_clock_enable(level) \
 	do { \
 		if (level == 0)  \
-			HDEC_255M(); \
+			HDEC_L0(); \
 		else if (level == 1)  \
-			HDEC_319M(); \
+			HDEC_L1(); \
 		else if (level == 2)  \
-			HDEC_425M(); \
+			HDEC_L2(); \
 		else if (level == 3)  \
-			HDEC_510M(); \
+			HDEC_L3(); \
 		else if (level == 4)  \
-			HDEC_638M(); \
+			HDEC_L4(); \
+		else if (level == 5)  \
+			HDEC_L5(); \
+		else if (level == 6)  \
+			HDEC_L6(); \
 		WRITE_VREG_BITS(DOS_GCLK_EN0, 0x7fff, 12, 15); \
 	} while (0)
 
@@ -527,10 +533,10 @@ extern s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue);
 #define IE_ME_MB_TYPE               HCODEC_HENC_SCRATCH_D
 
 /* bit 0-4, IE_PIPPELINE_BLOCK
- * bit 5    me half pixel
- * bit 6    me step2 sub pixel
- * bit 7    disable i4x4
- * bit 8    disable i16x16
+ * bit 5    me half pixel in m8
+ *		disable i4x4 in gxbb
+ * bit 6    me step2 sub pixel in m8
+ *		disable i16x16 in gxbb
  */
 #define IE_ME_MODE                  HCODEC_HENC_SCRATCH_E
 #define IE_REF_SEL                  HCODEC_HENC_SCRATCH_F

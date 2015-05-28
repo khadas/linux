@@ -57,6 +57,7 @@ static struct cma *avc_cma;
 #define AMVENC_CANVAS_MAX_INDEX 0xEC
 
 #define MIN_SIZE 18
+/* #define USE_OLD_DUMP_MC */
 
 static s32 avc_device_major;
 static struct device *amvenc_avc_dev;
@@ -92,6 +93,7 @@ static u32 enable_dblk = 1;  /* 0 disable, 1 vdec 2 hdec */
 
 static u32 encode_print_level = LOG_DEBUG;
 static u32 no_timeout;
+static u32 nr_mode = 3;
 
 static u32 me_mv_merge_ctl =
 	(0x1 << 31)  |  /* [31] me_merge_mv_en_16 */
@@ -204,6 +206,7 @@ static DEFINE_SPINLOCK(lock);
 #define ME_SAD_ENOUGH_2_DATA   0x11
 #define ADV_MV_8x8_ENOUGH_DATA 0x81
 
+#ifndef USE_OLD_DUMP_MC
 static u32  quant_tbl_i4[2][8] = {
 	{
 		0x1f1f1e1e,
@@ -272,6 +275,7 @@ static u32  quant_tbl_me[2][8] = {
 		0x26262525
 	}
 };
+#endif
 
 static struct BuffInfo_s amvenc_buffspec[] = {
 	{
@@ -437,10 +441,12 @@ enum ucode_type_e {
 	UCODE_DUMP = 0,
 	UCODE_DUMP_DBLK,
 	UCODE_DUMP_M2_DBLK,
+	UCODE_DUMP_GX_DBLK,
 	UCODE_SW,
 	UCODE_SW_HDEC_DBLK,
 	UCODE_SW_VDEC2_DBLK,
 	UCODE_SW_HDEC_M2_DBLK,
+	UCODE_SW_HDEC_GX_DBLK,
 	UCODE_VDEC2,
 	UCODE_GX,
 	UCODE_MAX
@@ -450,10 +456,12 @@ const char *ucode_name[] = {
 	"mix_dump_mc",
 	"mix_dump_mc_dblk",
 	"mix_dump_mc_m2_dblk",
+	"mix_dump_mc_gx_dblk",
 	"mix_sw_mc",
 	"mix_sw_mc_hdec_dblk",
 	"mix_sw_mc_vdec2_dblk",
 	"mix_sw_mc_hdec_m2_dblk",
+	"mix_sw_mc_hdec_gx_dblk",
 	"vdec2_encoder_mc",
 	"h264_enc_mc_gx",
 };
@@ -472,7 +480,11 @@ static const char *select_ucode(u32 ucode_index)
 	switch (ucode_index) {
 	case UCODE_MODE_FULL:
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+#ifndef USE_OLD_DUMP_MC
 			ucode = UCODE_GX;
+#else
+			ucode = UCODE_SW_HDEC_GX_DBLK;
+#endif
 		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 			ucode = UCODE_DUMP_M2_DBLK;
 		} else {
@@ -483,7 +495,9 @@ static const char *select_ucode(u32 ucode_index)
 		}
 		break;
 	case UCODE_MODE_SW_MIX:
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+			ucode = UCODE_SW_HDEC_GX_DBLK;
+		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 			ucode = UCODE_SW_HDEC_M2_DBLK;
 		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8B) {
 			if (enable_dblk)
@@ -511,6 +525,7 @@ static const char *select_ucode(u32 ucode_index)
 	return (const char *)ucode_name[ucode];
 }
 
+#ifndef USE_OLD_DUMP_MC
 static void hcodec_prog_qtbl(uint32_t index)
 {
 	WRITE_HREG(HCODEC_Q_QUANT_CONTROL,
@@ -577,6 +592,7 @@ static void hcodec_prog_qtbl(uint32_t index)
 		quant_tbl_me[index][7]);
 	return;
 }
+#endif
 
 static void InitEncodeWeight(void)
 {
@@ -720,12 +736,15 @@ static void avc_init_encoder(struct encode_wq_s *wq, bool idr)
 	WRITE_HREG(HCODEC_VLC_TOTAL_BYTES, 0);
 	WRITE_HREG(HCODEC_VLC_CONFIG, 0x07);
 	WRITE_HREG(HCODEC_VLC_INT_CONTROL, 0);
+#ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		WRITE_HREG(HCODEC_ASSIST_AMR1_INT0, 0x15);
 		WRITE_HREG(HCODEC_ASSIST_AMR1_INT1, 0x8);
 		WRITE_HREG(HCODEC_ASSIST_AMR1_INT3, 0x14);
-	} else {
+	} else
+#endif
+	{
 		WRITE_HREG(HCODEC_ASSIST_AMR1_INT0, 0x15);
 #ifdef MULTI_SLICE_MC
 		if (encode_manager.dblk_fix_flag) {
@@ -863,6 +882,7 @@ void AbortEncodeWithVdec2(s32 abort)
 
 static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 {
+#ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		ie_cur_ref_sel = 0;
@@ -870,7 +890,9 @@ static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 		/* currently disable half and sub pixel */
 		ie_me_mode |= (ie_pippeline_block & IE_PIPPELINE_BLOCK_MASK) <<
 			      IE_PIPPELINE_BLOCK_SHIFT;
-	} else {
+	} else
+#endif
+	{
 		ie_pippeline_block = 3;
 		if (ie_pippeline_block == 3)
 			ie_cur_ref_sel = ((1 << 13) | (1 << 12) |
@@ -891,6 +913,7 @@ static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 	WRITE_HREG(IE_REF_SEL, ie_cur_ref_sel);
 	WRITE_HREG(IE_ME_MB_TYPE, ie_me_mb_type);
 
+#ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		if (fixed_slice_cfg)
@@ -902,7 +925,9 @@ static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 			WRITE_HREG(FIXED_SLICE_CFG, mb_per_slice);
 		} else
 			WRITE_HREG(FIXED_SLICE_CFG, 0);
-	} else {
+	} else
+#endif
+	{
 		if (fixed_slice_cfg)
 			WRITE_HREG(FIXED_SLICE_CFG, fixed_slice_cfg);
 		else if (wq->pic.rows_per_slice !=
@@ -943,7 +968,7 @@ static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 
 static void mfdin_basic(u32 input, u8 iformat,
 			u8 oformat, u32 picsize_x, u32 picsize_y,
-			u8 r2y_en, u8 nr_mode)
+			u8 r2y_en, u8 nr)
 {
 	u8 dsample_en; /* Downsample Enable */
 	u8 interp_en;  /* Interpolation Enable */
@@ -1005,9 +1030,9 @@ static void mfdin_basic(u32 input, u8 iformat,
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		reg_offset = -8;
 		/* nr_mode: 0:Disabled 1:SNR Only 2:TNR Only 3:3DNR */
-		nr_enable = (nr_mode) ? 1 : 0;
-		cfg_y_snr_en = ((nr_mode == 1) || (nr_mode == 3)) ? 1 : 0;
-		cfg_y_tnr_en = ((nr_mode == 2) || (nr_mode == 3)) ? 1 : 0;
+		nr_enable = (nr) ? 1 : 0;
+		cfg_y_snr_en = ((nr == 1) || (nr == 3)) ? 1 : 0;
+		cfg_y_tnr_en = ((nr == 2) || (nr == 3)) ? 1 : 0;
 		cfg_c_snr_en = cfg_y_snr_en;
 		cfg_c_tnr_en = cfg_y_tnr_en;
 
@@ -1041,53 +1066,53 @@ static void mfdin_basic(u32 input, u8 iformat,
 			((4 << 0) | (5 << 8) | (4 << 4) |
 			(4 << 16) | (8 << 24)));
 		WRITE_HREG((HCODEC_MFDIN_REG15 + reg_offset),
-			   ((10 << 0) | (20 << 8) | (32 << 16) | (32 << 24)));
+			((10 << 0) | (20 << 8) | (32 << 16) | (32 << 24)));
 		WRITE_HREG((HCODEC_MFDIN_REG16 + reg_offset),
-			   ((24 << 0) | (0 << 8) | (63 << 14)));
+			((24 << 0) | (0 << 8) | (63 << 14)));
 
 		WRITE_HREG((HCODEC_MFDIN_REG1_CTRL + reg_offset),
-			   (iformat << 0) | (oformat << 4) |
-			   (dsample_en << 6) | (y_size << 8) |
-			   (interp_en << 9) | (r2y_en << 12) |
-			   (r2y_mode << 13) | (nr_enable << 19));
+			(iformat << 0) | (oformat << 4) |
+			(dsample_en << 6) | (y_size << 8) |
+			(interp_en << 9) | (r2y_en << 12) |
+			(r2y_mode << 13) | (nr_enable << 19));
 		WRITE_HREG((HCODEC_MFDIN_REG8_DMBL + reg_offset),
-			   (picsize_x << 14) | (picsize_y << 0));
+			(picsize_x << 14) | (picsize_y << 0));
 	} else {
 		reg_offset = 0;
 		WRITE_HREG((HCODEC_MFDIN_REG1_CTRL + reg_offset),
-			   (iformat << 0) | (oformat << 4) |
-			   (dsample_en << 6) | (y_size << 8) |
-			   (interp_en << 9) | (r2y_en << 12) |
-			   (r2y_mode << 13));
+			(iformat << 0) | (oformat << 4) |
+			(dsample_en << 6) | (y_size << 8) |
+			(interp_en << 9) | (r2y_en << 12) |
+			(r2y_mode << 13));
 		WRITE_HREG((HCODEC_MFDIN_REG8_DMBL + reg_offset),
-			   (picsize_x << 12) | (picsize_y << 0));
+			(picsize_x << 12) | (picsize_y << 0));
 	}
 
 	if (linear_enable == false) {
 		WRITE_HREG((HCODEC_MFDIN_REG3_CANV + reg_offset),
-			   (input & 0xffffff) |
-			   (canv_idx1_bppy << 30) |
-			   (canv_idx0_bppy << 28) |
-			   (canv_idx1_bppx << 26) |
-			   (canv_idx0_bppx << 24));
+			(input & 0xffffff) |
+			(canv_idx1_bppy << 30) |
+			(canv_idx0_bppy << 28) |
+			(canv_idx1_bppx << 26) |
+			(canv_idx0_bppx << 24));
 		WRITE_HREG((HCODEC_MFDIN_REG4_LNR0 + reg_offset),
-				 (0 << 16) | (0 << 0));
+			(0 << 16) | (0 << 0));
 		WRITE_HREG((HCODEC_MFDIN_REG5_LNR1 + reg_offset), 0);
 	} else {
 		WRITE_HREG((HCODEC_MFDIN_REG3_CANV + reg_offset),
-			   (canv_idx1_bppy << 30) |
-			   (canv_idx0_bppy << 28) |
-			   (canv_idx1_bppx << 26) |
-			   (canv_idx0_bppx << 24));
+			(canv_idx1_bppy << 30) |
+			(canv_idx0_bppy << 28) |
+			(canv_idx1_bppx << 26) |
+			(canv_idx0_bppx << 24));
 		WRITE_HREG((HCODEC_MFDIN_REG4_LNR0 + reg_offset),
-			   (linear_bytes4p << 16) | (linear_bytesperline << 0));
+			(linear_bytes4p << 16) | (linear_bytesperline << 0));
 		WRITE_HREG((HCODEC_MFDIN_REG5_LNR1 + reg_offset), input);
 	}
 
 	WRITE_HREG((HCODEC_MFDIN_REG9_ENDN + reg_offset),
-		   (7 << 0) | (6 << 3) | (5 << 6) |
-		   (4 << 9) | (3 << 12) | (2 << 15) |
-		   (1 << 18) | (0 << 21));
+		(7 << 0) | (6 << 3) | (5 << 6) |
+		(4 << 9) | (3 << 12) | (2 << 15) |
+		(1 << 18) | (0 << 21));
 }
 
 static s32 set_input_format(struct encode_wq_s *wq,
@@ -1245,6 +1270,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	i_pic_qp   = quant;
 	p_pic_qp   = quant;
 
+#ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		u32 pic_width_in_mb;
@@ -1350,6 +1376,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (26 << 6) | /* vlc_max_delta_q_neg */
 			   (25 << 0)); /* vlc_max_delta_q_pos */
 	}
+#endif
 
 	WRITE_HREG(HCODEC_VLC_PIC_SIZE, pic_width | (pic_height << 16));
 	WRITE_HREG(HCODEC_VLC_PIC_POSITION,
@@ -1746,6 +1773,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (1 << 1) | /* sad_enable */
 			   (0 << 0)); /* sad soft reset */
 
+#ifndef USE_OLD_DUMP_MC
 		if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 			WRITE_HREG(HCODEC_IE_CONTROL,
@@ -1758,7 +1786,16 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 				   (0 << 1) | /* ie_enable */
 				   (0 << 0)); /* ie soft reset */
 
-		} else {
+			WRITE_HREG(HCODEC_ME_SKIP_LINE,
+				   (8 << 24) | /* step_3_skip_line */
+				   (8 << 18) | /* step_2_skip_line */
+				   (2 << 12) | /* step_1_skip_line */
+				   (0 << 6) | /* step_0_skip_line */
+				   (0 << 0));
+
+		} else
+#endif
+		{
 			WRITE_HREG(HCODEC_IE_CONTROL,
 				   (0 << 1) | /* ie_enable */
 				   (1 << 0)); /* ie soft reset */
@@ -1766,23 +1803,23 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			WRITE_HREG(HCODEC_IE_CONTROL,
 				   (0 << 1) | /* ie_enable */
 				   (0 << 0)); /* ie soft reset */
+			if (me_mode == 3) {
+				WRITE_HREG(HCODEC_ME_SKIP_LINE,
+					   (8 << 24) | /* step_3_skip_line */
+					   (8 << 18) | /* step_2_skip_line */
+					   (2 << 12) | /* step_1_skip_line */
+					   (0 << 6) | /* step_0_skip_line */
+					   (0 << 0));
+			} else {
+				WRITE_HREG(HCODEC_ME_SKIP_LINE,
+					   (4 << 24) | /* step_3_skip_line */
+					   (4 << 18) | /* step_2_skip_line */
+					   (2 << 12) | /* step_1_skip_line */
+					   (0 << 6) | /* step_0_skip_line */
+					   (0 << 0));
+			}
 		}
 
-		if (me_mode == 3) {
-			WRITE_HREG(HCODEC_ME_SKIP_LINE,
-				   (8 << 24) | /* step_3_skip_line */
-				   (8 << 18) | /* step_2_skip_line */
-				   (2 << 12) | /* step_1_skip_line */
-				   (0 << 6) | /* step_0_skip_line */
-				   (0 << 0));
-		} else {
-			WRITE_HREG(HCODEC_ME_SKIP_LINE,
-				   (4 << 24) | /* step_3_skip_line */
-				   (4 << 18) | /* step_2_skip_line */
-				   (2 << 12) | /* step_1_skip_line */
-				   (0 << 6) | /* step_0_skip_line */
-				   (0 << 0));
-		}
 		WRITE_HREG(HCODEC_ME_MV_MERGE_CTL, me_mv_merge_ctl);
 		WRITE_HREG(HCODEC_ME_STEP0_CLOSE_MV, me_step0_close_mv);
 
@@ -1827,24 +1864,23 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	data32 = data32 | (1 << 0); /* set pop_coeff_even_all_zero */
 	WRITE_HREG(HCODEC_VLC_CONFIG, data32);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		if ((encode_manager.ucode_index == UCODE_MODE_FULL) &&
-		   (get_cpu_type() < MESON_CPU_MAJOR_ID_GXBB)) {
-			if (IDR) {
-				WRITE_HREG(BITS_INFO_DDR_START,
-					wq->mem.intra_bits_info_ddr_start_addr);
-				WRITE_HREG(MV_INFO_DDR_START,
-					wq->mem.intra_pred_info_ddr_start_addr);
-			} else {
-				WRITE_HREG(BITS_INFO_DDR_START,
-					wq->mem.inter_bits_info_ddr_start_addr);
-				WRITE_HREG(MV_INFO_DDR_START,
-					wq->mem.inter_mv_info_ddr_start_addr);
-			}
-		} else
-			WRITE_HREG(SW_CTL_INFO_DDR_START,
-					wq->mem.sw_ctl_info_start_addr);
+	if (encode_manager.ucode_index == UCODE_MODE_SW_MIX)
+		WRITE_HREG(SW_CTL_INFO_DDR_START,
+			wq->mem.sw_ctl_info_start_addr);
+	else {
+		if (IDR) {
+			WRITE_HREG(BITS_INFO_DDR_START,
+				wq->mem.intra_bits_info_ddr_start_addr);
+			WRITE_HREG(MV_INFO_DDR_START,
+				wq->mem.intra_pred_info_ddr_start_addr);
+		} else {
+			WRITE_HREG(BITS_INFO_DDR_START,
+				wq->mem.inter_bits_info_ddr_start_addr);
+			WRITE_HREG(MV_INFO_DDR_START,
+				wq->mem.inter_mv_info_ddr_start_addr);
+		}
 	}
+
 	/* clear mailbox interrupt */
 	WRITE_HREG(HCODEC_IRQ_MBOX_CLR, 1);
 
@@ -1857,9 +1893,16 @@ void amvenc_reset(void)
 	READ_VREG(DOS_SW_RESET1);
 	READ_VREG(DOS_SW_RESET1);
 	READ_VREG(DOS_SW_RESET1);
-	WRITE_VREG(DOS_SW_RESET1,
-		   (1 << 2) | (1 << 6) | (1 << 7) |
-		   (1 << 8) | (1 << 16) | (1 << 17));
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		WRITE_VREG(DOS_SW_RESET1,
+			   (1 << 2) | (1 << 6) |
+			   (1 << 7) | (1 << 8) |
+			   (1 << 14) | (1 << 16) |
+			   (1 << 17));
+	else
+		WRITE_VREG(DOS_SW_RESET1,
+			   (1 << 2) | (1 << 6) | (1 << 7) |
+			   (1 << 8) | (1 << 16) | (1 << 17));
 	WRITE_VREG(DOS_SW_RESET1, 0);
 	READ_VREG(DOS_SW_RESET1);
 	READ_VREG(DOS_SW_RESET1);
@@ -1895,11 +1938,20 @@ void amvenc_stop(void)
 	READ_VREG(DOS_SW_RESET1);
 	READ_VREG(DOS_SW_RESET1);
 
-	WRITE_VREG(DOS_SW_RESET1,
-		   (1 << 12) | (1 << 11) |
-		   (1 << 2) | (1 << 6) |
-		   (1 << 7) | (1 << 8) |
-		   (1 << 16) | (1 << 17));
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		WRITE_VREG(DOS_SW_RESET1,
+			   (1 << 12) | (1 << 11) |
+			   (1 << 2) | (1 << 6) |
+			   (1 << 7) | (1 << 8) |
+			   (1 << 14) | (1 << 16) |
+			   (1 << 17));
+	else
+		WRITE_VREG(DOS_SW_RESET1,
+			   (1 << 12) | (1 << 11) |
+			   (1 << 2) | (1 << 6) |
+			   (1 << 7) | (1 << 8) |
+			   (1 << 16) | (1 << 17));
+
 
 	WRITE_VREG(DOS_SW_RESET1, 0);
 
@@ -2230,7 +2282,9 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 			wq->request.quant = cmd_info[6];
 			wq->request.flush_flag = cmd_info[7];
 			wq->request.timeout = cmd_info[8];
-			wq->request.nr_mode = 3;
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+				wq->request.nr_mode =
+					(nr_mode > 0) ? nr_mode : cmd_info[9];
 		} else {
 			wq->request.quant = cmd_info[2];
 			wq->request.qp_info_size = cmd_info[3];
@@ -2303,12 +2357,17 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 	if ((request->cmd == ENCODER_SEQUENCE) ||
 		(request->cmd == ENCODER_PICTURE))
 		wq->control.finish = true;
-
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
-	   (encode_manager.ucode_index == UCODE_MODE_FULL)) {
-		ie_me_mode = (3 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
-	} else
+#if 0
+	if (encode_manager.ucode_index == UCODE_MODE_SW_MIX)
 		ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+	else if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
+		(encode_manager.ucode_index == UCODE_MODE_FULL)) {
+		ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+	} else
+		ie_me_mode = (3 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+#else
+	ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+#endif
 	if (encode_manager.need_reset) {
 		encode_manager.need_reset = false;
 		encode_manager.encode_hw_status = ENCODER_IDLE;
@@ -2435,16 +2494,8 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 #endif
 	}
 
-	encode_manager.encode_hw_status = request->cmd;
-	wq->hw_status = request->cmd;
-
-
-	WRITE_HREG(ENCODER_STATUS , request->cmd);
-	if ((request->cmd == ENCODER_IDR) || (request->cmd == ENCODER_NON_IDR)
-	    || (request->cmd == ENCODER_SEQUENCE)
-		|| (request->cmd == ENCODER_PICTURE))
-		encode_manager.process_irq = false;
 #ifdef MULTI_SLICE_MC
+#ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		if (fixed_slice_cfg)
@@ -2456,7 +2507,9 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 			WRITE_HREG(FIXED_SLICE_CFG, mb_per_slice);
 		} else
 			WRITE_HREG(FIXED_SLICE_CFG, 0);
-	} else {
+	} else
+#endif
+	{
 		if (fixed_slice_cfg)
 			WRITE_HREG(FIXED_SLICE_CFG, fixed_slice_cfg);
 		else if (wq->pic.rows_per_slice !=
@@ -2470,6 +2523,15 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 #else
 	WRITE_HREG(FIXED_SLICE_CFG, 0);
 #endif
+
+	encode_manager.encode_hw_status = request->cmd;
+	wq->hw_status = request->cmd;
+	WRITE_HREG(ENCODER_STATUS , request->cmd);
+	if ((request->cmd == ENCODER_IDR) || (request->cmd == ENCODER_NON_IDR)
+	    || (request->cmd == ENCODER_SEQUENCE)
+		|| (request->cmd == ENCODER_PICTURE))
+		encode_manager.process_irq = false;
+
 	if (reload_flag)
 		amvenc_start();
 	if ((encode_manager.ucode_index == UCODE_MODE_SW_MIX) &&
@@ -2550,11 +2612,17 @@ s32 amvenc_avc_start(struct encode_wq_s *wq, u32 clock)
 	avc_init_input_buffer(wq);  /* dct buffer setting */
 	avc_init_output_buffer(wq);  /* output stream buffer */
 
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
-	   (encode_manager.ucode_index == UCODE_MODE_FULL)) {
-		ie_me_mode = (3 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
-	} else
+#if 0
+	if (encode_manager.ucode_index == UCODE_MODE_SW_MIX)
 		ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+	else if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
+		(encode_manager.ucode_index == UCODE_MODE_FULL)) {
+		ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+	} else
+		ie_me_mode = (3 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+#else
+	ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
+#endif
 	avc_prot_init(wq, wq->pic.init_qppicture, true);
 	if (request_irq(encode_manager.irq_num, enc_isr, IRQF_SHARED,
 			"enc-irq", (void *)&encode_manager) == 0)
@@ -2592,6 +2660,7 @@ s32 amvenc_avc_start(struct encode_wq_s *wq, u32 clock)
 	WRITE_HREG(ENCODER_STATUS , ENCODER_IDLE);
 
 #ifdef MULTI_SLICE_MC
+#ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		if (fixed_slice_cfg)
@@ -2603,7 +2672,9 @@ s32 amvenc_avc_start(struct encode_wq_s *wq, u32 clock)
 			WRITE_HREG(FIXED_SLICE_CFG, mb_per_slice);
 		} else
 			WRITE_HREG(FIXED_SLICE_CFG, 0);
-	} else {
+	} else
+#endif
+	{
 		if (fixed_slice_cfg)
 			WRITE_HREG(FIXED_SLICE_CFG, fixed_slice_cfg);
 		else if (wq->pic.rows_per_slice !=
@@ -3478,7 +3549,9 @@ static s32 encode_start_monitor(void)
 {
 	s32 ret = 0;
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8M2)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		clock_level = 5;
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8M2)
 		clock_level = 3;
 	else
 		clock_level = 1;
@@ -4017,6 +4090,9 @@ MODULE_PARM_DESC(encode_print_level, "\n encode_print_level\n");
 
 module_param(no_timeout, uint, 0664);
 MODULE_PARM_DESC(no_timeout, "\n no_timeout flag for process request\n");
+
+module_param(nr_mode, uint, 0664);
+MODULE_PARM_DESC(nr_mode, "\n nr_mode option\n");
 
 module_init(amvenc_avc_driver_init_module);
 module_exit(amvenc_avc_driver_remove_module);
