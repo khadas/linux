@@ -72,6 +72,15 @@ int amlnf_phy_init(unsigned char flag, struct platform_device *pdev)
 		devm_pinctrl_put(aml_chip->nand_pinctrl);
 		return PTR_ERR(aml_chip->nand_norbstate);
 	}
+#if (AML_CFG_PINMUX_ONCE_FOR_ALL)
+	ret = pinctrl_select_state(aml_chip->nand_pinctrl ,
+			aml_chip->nand_norbstate);
+	if (ret < 0)
+		aml_nand_msg("%s:%d %s can't get pinctrl",
+			__func__,
+			__LINE__,
+			dev_name(aml_chip->device));
+#endif
 	aml_chip->nand_idlestate = pinctrl_lookup_state(aml_chip->nand_pinctrl,
 		"nand_cs_pins_only");
 	if (IS_ERR(aml_chip->nand_idlestate)) {

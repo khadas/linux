@@ -208,17 +208,20 @@ void nand_get_chip(void *chip)
 {
 	struct amlnand_chip *aml_chip = (struct amlnand_chip *)chip;
 	struct hw_controller *controller = &(aml_chip->controller);
-	int retry = 0, ret;
+	int retry = 0, ret = 0;
 
 	while (1) {
 		/* mutex_lock(&spi_nand_mutex); */
 		nand_idleflag = 1;
-		if ((controller->option & NAND_CTRL_NONE_RB) == 0)
+		if ((controller->option & NAND_CTRL_NONE_RB) == 0) {
 			ret = pinctrl_select_state(aml_chip->nand_pinctrl ,
 				aml_chip->nand_rbstate);
-		else
+		} else {
+		#if (!AML_CFG_PINMUX_ONCE_FOR_ALL)
 			ret = pinctrl_select_state(aml_chip->nand_pinctrl ,
 				aml_chip->nand_norbstate);
+		#endif
+		}
 		if (ret < 0)
 			aml_nand_msg("%s:%d %s can't get pinctrl",
 				__func__,
@@ -227,9 +230,12 @@ void nand_get_chip(void *chip)
 		else
 			break;
 
-		if (retry++ > 10)
+		if (retry++ > 10) {
 			aml_nand_msg("get pin fail over 10 times retry=%d",
 				retry);
+			/* fixme, yyh*/
+			break;
+		}
 	}
 	return;
 }
@@ -238,13 +244,15 @@ void nand_release_chip(void *chip)
 {
 	struct amlnand_chip *aml_chip = (struct amlnand_chip *)chip;
 	struct hw_controller *controller = &(aml_chip->controller);
-	int ret;
+	int ret = 0;
 
 	if (nand_idleflag) {
 		/* enter standby state. */
 		controller->enter_standby(controller);
+	#if (!AML_CFG_PINMUX_ONCE_FOR_ALL)
 		ret = pinctrl_select_state(aml_chip->nand_pinctrl,
 			aml_chip->nand_idlestate);
+	#endif
 		if (ret < 0)
 			aml_nand_msg("select idle state error");
 		nand_idleflag = 0;
@@ -322,11 +330,28 @@ void amlnand_release_device(struct amlnand_chip *aml_chip)
 	nand_release_chip(aml_chip);
 }
 
+void dump_pinmux_regs(struct hw_controller *controller)
+{
+	aml_nand_msg("-------------------------------------");
+	aml_nand_msg("pinmux-0: 0x%x",
+		amlnf_read_reg32(controller->pinmux_base));
+	aml_nand_msg("pinmux-4: 0x%x",
+		amlnf_read_reg32((controller->pinmux_base + 16)));
+	aml_nand_msg("pinmux-5: 0x%x",
+		amlnf_read_reg32((controller->pinmux_base + 20)));
+	aml_nand_msg("clock: 0x%x",
+		amlnf_read_reg32(controller->nand_clk_reg));
+	aml_nand_msg("-------------------------------------");
+}
+
 void set_nand_core_clk(struct hw_controller *controller, int clk_freq)
 {
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* basic test code for gxb using 24Mhz, fixme. */
-		/* amlnf_write_reg32(controller->nand_clk_reg, 0x81000201); */
+		#if 0 /*fixme, dbg code*/
+		amlnf_write_reg32(controller->nand_clk_reg, 0x81000201);
+		return ; /* fixme, dbg code, using 24Mhz clock... */
+		#endif
 		if (clk_freq == 200) {
 			/* 1000Mhz/5 = 200Mhz */
 			amlnf_write_reg32(controller->nand_clk_reg, 0x81000245);

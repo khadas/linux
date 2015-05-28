@@ -549,6 +549,7 @@ struct hw_controller {
 
 	void __iomem *reg_base;
 	void __iomem *nand_clk_reg;
+	void __iomem *pinmux_base;
 	unsigned int irq;
 
 	struct bch_desc *bch_desc;
@@ -895,5 +896,5 @@ extern int aml_nand_update_ubootenv(struct amlnand_chip *aml_chip,
 
 
 extern void amlchip_dumpinfo(struct amlnand_chip *aml_chip);
-
+extern void dump_pinmux_regs(struct hw_controller *controller);
 #endif /* NAND_H_INCLUDED */

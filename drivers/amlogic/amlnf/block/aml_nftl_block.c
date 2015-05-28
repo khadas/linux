@@ -170,15 +170,15 @@ static int aml_nftl_calculate_sg(struct aml_nftl_blk *nftl_blk,
 
 uint write_sync_flag(struct aml_nftl_blk *aml_nftl_blk)
 {
+#if NFTL_CACHE_FLUSH_SYNC
 	struct aml_nftl_dev *nftl_dev = aml_nftl_blk->nftl_dev;
 
 	if (test_flag)
 		return 0;
-#if NFTL_CACHE_FLUSH_SYNC
 
 #ifdef CONFIG_SUPPORT_USB_BURNING
 	return 0;
-#endif
+#endif /* CONFIG_SUPPORT_USB_BURNING */
 	nftl_dev->sync_flag = 0;
 	if (memcmp(aml_nftl_blk->name, "media", 5) == 0)
 		return 0;
@@ -186,9 +186,9 @@ uint write_sync_flag(struct aml_nftl_blk *aml_nftl_blk)
 		if (aml_nftl_blk->req->cmd_flags & REQ_SYNC)
 			nftl_dev->sync_flag = 1;
 	return 0;
-#else
+#else /*  */
 	return 0;
-#endif
+#endif	/* NFTL_CACHE_FLUSH_SYNC */
 }
 /*****************************************************************************
 *Name         :

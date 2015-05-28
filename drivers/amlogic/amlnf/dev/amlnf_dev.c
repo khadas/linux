@@ -600,7 +600,7 @@ static int amlnf_get_resource(struct platform_device *pdev)
 	aml_nand_dev->platform_data->poc_cfg_reg =
 		devm_ioremap_nocache(&pdev->dev, POC_CONFIG_REG, sizeof(int));
 	if (aml_nand_dev->platform_data->poc_cfg_reg == NULL) {
-		dev_err(&pdev->dev, "ioremap External Port Config IO fail\n");
+		dev_err(&pdev->dev, "ioremap External poc Config IO fail\n");
 		return -ENOMEM;
 	}
 	aml_nand_msg("poc_cfg_reg = %p\n",
@@ -643,6 +643,16 @@ static int amlnf_get_resource(struct platform_device *pdev)
 		sizeof(int));
 	if (aml_nand_dev->platform_data->ext_clk_reg == NULL) {
 		dev_err(&pdev->dev, "ioremap External Nand Clock IO fail\n");
+		return -ENOMEM;
+	}
+
+	/* for debug pinmux */
+	aml_nand_dev->platform_data->pinmux_base =
+		devm_ioremap_nocache(&pdev->dev,
+		PINMUX_BASE,
+		0x100);
+	if (aml_nand_dev->platform_data->pinmux_base == NULL) {
+		dev_err(&pdev->dev, "ioremap pinmux_base fail\n");
 		return -ENOMEM;
 	}
 

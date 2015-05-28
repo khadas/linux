@@ -147,7 +147,6 @@ static int controller_queue_rb_irq(struct hw_controller *controller,
 	return ret;
 }
 #endif /* AML_NAND_RB_IRQ */
-
 static int controller_quene_rb(struct hw_controller *controller,
 	unsigned char chipnr)
 {
@@ -204,9 +203,11 @@ static int controller_quene_rb(struct hw_controller *controller,
 		} while (time_out_cnt++ <= time_out_limit);
 	}
 
-	if (time_out_cnt >=  time_out_limit)
+	if (time_out_cnt >=  time_out_limit) {
+		/*dbg code here!*/
+		dump_pinmux_regs(controller);
 		ret = -NAND_BUSY_FAILURE;
-
+	}
 	return ret;
 }
 
@@ -854,6 +855,8 @@ int amlnand_hwcontroller_init(struct amlnand_chip *aml_chip)
 	/*external register mapping address for nand clock cfg*/
 	controller->nand_clk_reg = aml_nand_dev->platform_data->ext_clk_reg;
 	controller->irq = aml_nand_dev->platform_data->irq;
+	/* pinmux register... */
+	controller->pinmux_base = aml_nand_dev->platform_data->pinmux_base;
 
 	if (!controller->init)
 		controller->init = controller_hw_init;

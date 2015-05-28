@@ -416,6 +416,7 @@ struct amlnf_platform_data {
 	void __iomem *poc_cfg_reg;
 	void __iomem *nf_reg_base;
 	void __iomem *ext_clk_reg;
+	void __iomem *pinmux_base;
 	unsigned int irq;
 };
 

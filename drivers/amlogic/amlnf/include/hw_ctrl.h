@@ -45,6 +45,7 @@
 */
 #define NAND_CLK_CNTL		(0xd0074000)
 #define	POC_CONFIG_REG		(0xc1107d54)
+#define PINMUX_BASE			(0xc8834400 + (0x2c << 2))
 
 /* Amlogic Nand Flash Controller register address */
 /* #define P_NAND_BASE_APB	0xd0048600 */

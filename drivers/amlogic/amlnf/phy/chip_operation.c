@@ -17,6 +17,10 @@
 
 #include "../include/phynand.h"
 
+static int _read_page_single_plane(struct amlnand_chip *aml_chip,
+	u8 chipnr,
+	u32 page_addr);
+
 static int check_cmdfifo_size(struct hw_controller *controller)
 {
 	int time_out_cnt = 0, retry_cnt = 0;
@@ -196,6 +200,7 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 	return ret;
 }
 
+#if (AML_CFG_2PLANE_READ_EN)
 static int read_page_two_plane(struct amlnand_chip *aml_chip,
 	unsigned char chipnr,
 	unsigned int plane0_page_addr,
@@ -265,7 +270,7 @@ static int read_page_two_plane(struct amlnand_chip *aml_chip,
 
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
-		aml_nand_msg("quene rb busy here");
+		aml_nand_msg("quene rb busy @ %s-%d", __func__, __LINE__);
 		goto error_exit0;
 	}
 
@@ -322,7 +327,7 @@ RETRY_PLANE_CMD:
 
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
-		aml_nand_msg("quene rb busy here");
+		aml_nand_msg("quene rb busy @ %s-%d", __func__, __LINE__);
 		goto error_exit0;
 	}
 
@@ -571,8 +576,69 @@ new_oob_mod:
 error_exit0:
 	return ret;
 }
+/* AML_CFG_2PLANE_READ_EN */
+#else
+/* using 2 single plane read simulate 2plane */
+static int read_page_two_plane(struct amlnand_chip *aml_chip,
+	u8 chipnr,
+	u32 p0_addr,
+	u32 p1_addr)
+{
+	int ret = 0;
+	u32 page_size, user_byte_num, new_oob;
+	struct hw_controller *controller = &(aml_chip->controller);
+	struct nand_flash *flash = &(aml_chip->flash);
+	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 
-static int read_page_single_plane(struct amlnand_chip *aml_chip,
+	/* pointer for restore */
+	u8 *oob_buffer = controller->oob_buf;
+	u8 *data_buffer = ops_para->data_buf;
+
+	new_oob = 0;
+
+	/* for ecc mode */
+	if ((ops_para->option & DEV_ECC_SOFT_MODE)
+		|| (controller->bch_mode == NAND_ECC_NONE)) {
+		page_size = flash->pagesize + flash->oobsize;
+		user_byte_num = flash->oobsize;
+	} else {
+		user_byte_num = controller->ecc_steps * controller->user_mode;
+		page_size = controller->ecc_steps * controller->ecc_unit;
+	}
+
+	if ((controller->oob_mod) && (ops_para->oob_buf)
+		&& (!ops_para->data_buf))
+		new_oob = 1;
+
+
+	ret = _read_page_single_plane(aml_chip, chipnr, p0_addr);
+	if (new_oob)
+		goto _out;
+
+	controller->oob_buf += user_byte_num; /* fixme, maybe not right!*/
+	ops_para->data_buf += page_size;
+
+	ret |= _read_page_single_plane(aml_chip, chipnr, p1_addr);
+
+	/* restore buffer location */
+	controller->oob_buf = oob_buffer;
+	ops_para->data_buf = data_buffer;
+_out:
+	/* fill oob buffer */
+	if (ops_para->oob_buf) {
+		memcpy(ops_para->oob_buf,
+			controller->oob_buf,
+			BYTES_OF_USER_PER_PAGE);
+		if (ops_para->ecc_err)
+			memset(ops_para->oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
+	}
+	return ret;
+}
+/* AML_CFG_2PLANE_READ_EN */
+#endif
+
+
+static int _read_page_single_plane(struct amlnand_chip *aml_chip,
 	unsigned char chipnr,
 	unsigned int page_addr)
 {
@@ -637,7 +703,7 @@ static int read_page_single_plane(struct amlnand_chip *aml_chip,
 
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
-		aml_nand_msg("quene rb busy here");
+		aml_nand_msg("quene rb busy @ %s-%d", __func__, __LINE__);
 		goto error_exit0;
 	}
 
@@ -665,7 +731,7 @@ RETRY_CMD:
 
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
-		aml_nand_msg("quene rb busy here");
+		aml_nand_msg("quene rb busy @ %s-%d", __func__, __LINE__);
 		goto error_exit0;
 	}
 
@@ -675,6 +741,8 @@ RETRY_CMD:
 	}
 
 	/* aml_nand_dbg("page_addr:%d", ops_para->page_addr); */
+	/* transfer random seed. */
+	controller->page_addr = page_addr;
 	ret = controller->dma_read(controller, page_size, bch_mode);
 	if (ret) {
 		aml_nand_msg("dma error here");
@@ -720,6 +788,31 @@ RETRY_CMD:
 		aml_nand_msg("check cmdfifo size timeout");
 		BUG();
 	}
+#if 0 /*move this outsides */
+	if (ops_para->oob_buf) {
+		memcpy(ops_para->oob_buf,
+			controller->oob_buf,
+			BYTES_OF_USER_PER_PAGE);
+		if (ops_para->ecc_err)
+			memset(ops_para->oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
+	}
+#endif
+	return NAND_SUCCESS;
+error_exit0:
+	return ret;
+}
+
+
+static int read_page_single_plane(struct amlnand_chip *aml_chip,
+	u8 chipnr,
+	u32 page_addr)
+{
+	int ret;
+	struct hw_controller *controller = &(aml_chip->controller);
+	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+
+	ret = _read_page_single_plane(aml_chip, chipnr, page_addr);
+
 	if (ops_para->oob_buf) {
 		memcpy(ops_para->oob_buf,
 			controller->oob_buf,
@@ -728,10 +821,9 @@ RETRY_CMD:
 			memset(ops_para->oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
 	}
 
-	return NAND_SUCCESS;
-error_exit0:
 	return ret;
 }
+
 
 /************************************************************
  * read_page, all parameters saved in aml_chip->ops_para,
@@ -947,7 +1039,8 @@ static int write_page(struct amlnand_chip *aml_chip)
 		chipnr = (chip_num > 1) ? i : ops_para->chipnr;
 		ret = controller->quene_rb(controller, chipnr);
 		if (ret) {
-			aml_nand_msg("quene rb busy here");
+			aml_nand_msg("quene rb busy @ %s-%d",
+				__func__, __LINE__);
 			goto error_exit0;
 		}
 #if 0
@@ -1013,7 +1106,8 @@ static int write_page(struct amlnand_chip *aml_chip)
 
 			ret = controller->quene_rb(controller, chipnr);
 			if (ret) {
-				aml_nand_msg("quene rb busy here");
+				aml_nand_msg("quene rb busy @ %s-%d",
+					__func__, __LINE__);
 				goto error_exit0;
 			}
 
@@ -1073,7 +1167,8 @@ static int write_page(struct amlnand_chip *aml_chip)
 			*/
 			ret = controller->quene_rb(controller, chipnr);
 			if (ret)
-				aml_nand_msg("quene rb busy here");
+				aml_nand_msg("quene rb busy @ %s-%d",
+					__func__, __LINE__);
 
 			controller->cmd_ctrl(controller, NAND_CMD_SEQIN,
 				NAND_CTRL_CLE);
@@ -1159,7 +1254,8 @@ static int write_page(struct amlnand_chip *aml_chip)
 		ret = controller->quene_rb(controller, chipnr);
 #endif
 		if (ret) {
-			aml_nand_msg("quene rb busy here");
+			aml_nand_msg("quene rb busy @ %s-%d",
+				__func__, __LINE__);
 			goto error_exit0;
 		}
 
@@ -1633,7 +1729,8 @@ static int erase_block(struct amlnand_chip *aml_chip)
 		chipnr = (chip_num > 1) ? i : ops_para->chipnr;
 		ret = controller->quene_rb(controller, chipnr);
 		if (ret) {
-			aml_nand_msg("quene rb busy,chipnr:%d,page_addr:%d",
+			aml_nand_msg("quene rb busy-%d,chipnr:%d,page_addr:%d",
+				__LINE__,
 				chipnr,
 				controller->page_addr);
 			goto error_exit0;
@@ -1713,7 +1810,8 @@ static int erase_block(struct amlnand_chip *aml_chip)
 		ret = controller->quene_rb(controller, chipnr);
 #endif
 		if (ret) {
-			aml_nand_msg("quene rb busy,chipnr:%d,page_addr:%d",
+			aml_nand_msg("quene rb busy-%d,chipnr:%d,page_addr:%d",
+				__LINE__,
 				chipnr,
 				controller->page_addr);
 			goto error_exit0;

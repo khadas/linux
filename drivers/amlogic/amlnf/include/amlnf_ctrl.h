@@ -86,5 +86,4 @@ enum chip_state_t {
 
 extern int nandphy_init(unsigned int flag);
 extern int amlphy_prepare(unsigned int flag);
-
 #endif

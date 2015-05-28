@@ -22,8 +22,10 @@
 /*
 #define	AML_NAND_DBG
 */
+#define AML_CFG_2PLANE_READ_EN		(0)
 #define	AML_CFG_NEW_NAND_SUPPORT	(1)
 #define AML_CFG_NEWOOB_EN			(1)
+#define AML_CFG_PINMUX_ONCE_FOR_ALL	(1)
 
 #define NAND_ADJUST_PART_TABLE
 
