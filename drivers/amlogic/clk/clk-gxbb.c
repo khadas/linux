@@ -33,9 +33,9 @@ void __iomem *reg_base_hiubus;
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
-PNAME(mux_mali_0_p) = {"xtal", "g_pll", "mpll_clk_out1", "mpll_clk_out2",
+PNAME(mux_mali_0_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
-PNAME(mux_mali_1_p) = {"xtal", "g_pll", "mpll_clk_out1", "mpll_clk_out2",
+PNAME(mux_mali_1_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(mux_mali_p)   = {"clk_mali_0", "clk_mali_1"};
 
@@ -97,6 +97,7 @@ static void __init gxbb_clk_init(struct device_node *np)
 	meson_register_rstc(np, GXBB_RSTC_N_REGS, reg_base_aobus,
 		reg_base_hiubus + HHI_GCLK_MPEG0, GXBB_AO_OFF, 0);
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
+	gp0_clk_init(reg_base_hiubus, GP0_PLL);
 
 	{
 		/* Dump clocks */

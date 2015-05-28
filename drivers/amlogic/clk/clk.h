@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 #include "clk-pll.h"
 
+#define PNAME(x) static char const *x[] __initconst
 #ifdef pr_debug
 #undef pr_debug
 #define pr_debug(fmt, ...) \
@@ -264,7 +265,6 @@ struct amlogic_gate_clock {
 #define GATE_DA(_id, dname, cname, pname, o, b, f, gf, a, is_ao)	\
 	__GATE(_id, dname, cname, pname, o, b, f, gf, a, is_ao)
 
-#define PNAME(x) static const char *x[] __initconst
 
 /**
  * struct amlogic_clk_reg_dump: register dump of clock controller registers.
@@ -451,7 +451,7 @@ extern void __init sys_pll_init(void __iomem *base,
 				struct device_node *np, u32 clk_id);
 void amlogic_clk_register_branches(struct amlogic_clk_branch *clk_list,
 				    unsigned int nr_clk);
-
+extern void __init gp0_clk_init(void __iomem *reg_base, unsigned int id);
 extern unsigned long _get_rate(const char *clk_name);
 #ifdef CONFIG_RESET_CONTROLLER
 void meson_register_rstc(struct device_node *np, unsigned int num_regs,
