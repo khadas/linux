@@ -190,6 +190,7 @@ struct amlsd_host {
 	unsigned int f_max;
 	unsigned int f_max_w;
 	unsigned int f_min;
+	int			sdio_irqen;
 	/* struct tasklet_struct cmd_tlet; */
 	/* struct tasklet_struct data_tlet; */
 	/* struct tasklet_struct busy_tlet; */
@@ -887,7 +888,9 @@ struct sd_emmc_clock {
 	u32 always_on:1;
 	/*[25]	1: enable IRQ sdio when in sleep mode. */
 	u32 irq_sdio_sleep:1;
-	u32 reserved26:6;
+	/*[26]	1: select DS as IRQ source during sleep.. */
+	u32 irq_sdio_sleep_ds:1;
+	u32 reserved27:5;
 };
 struct sd_emmc_delay {
 	u32 dat0:4;		 /*[3:0]	   Data 0 delay line. */
@@ -984,7 +987,10 @@ struct sd_emmc_config {
 	u32 txd_add_err:1;
 	/*[25]	When TXD CRC error, host sends the block again.*/
 	u32 txd_retry:1;
-	u32 revd:8;			/*[31:26]   reved*/
+	/*[26]	1: Use DS pin as SDIO IRQ input,
+	0: Use DAT1 pin as SDIO IRQ input..*/
+	u32 irq_ds:1;
+	u32 revd:5;			/*[31:27]   reved*/
 };
 struct sd_emmc_status {
 	/*[7:0]	 RX data CRC error per wire, for multiple block read,

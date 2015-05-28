@@ -341,8 +341,9 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 
 #ifdef SD_EMMC_IRQ_EN_ALL_INIT
 	/*Set Irq Control*/
-	sd_emmc_regs->gstatus = SD_EMMC_IRQ_ALL;
 	sd_emmc_regs->girq_en = SD_EMMC_IRQ_ALL;
+	sd_emmc_regs->gstatus = 0xffff;
+
 
 #endif
 
@@ -874,6 +875,21 @@ void aml_sd_emmc_set_clkc(struct amlsd_platform *pdata)
 
 }
 
+static void aml_sd_emmc_check_sdio_irq(struct amlsd_host *host)
+{
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+	u32 vstat = sd_emmc_regs->gstatus;
+	struct sd_emmc_status *ista = (struct sd_emmc_status *)&vstat;
+	if (host->sdio_irqen) {
+		if ((ista->irq_sdio || !(ista->dat_i & 0x02)) &&
+			(host->mmc->sdio_irq_thread) &&
+			(!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
+			/* pr_info("signalling irq 0x%x\n", vstat); */
+			mmc_signal_sdio_irq(host->mmc);
+		}
+	}
+}
+
 void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 		struct mmc_request *mrq)
 {
@@ -1247,6 +1263,7 @@ void aml_sd_emmc_request_done(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (aml_sd_emmc_wait_ready(host, STAT_POLL_TIMEOUT))
 		sd_emmc_err("aml_sd_emmc_wait_ready request done\n");
 
+	aml_sd_emmc_check_sdio_irq(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -1482,7 +1499,7 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	/* bool exception_flag = false; */
 	u32 vstat = 0;
 	u32 virqc = 0;
-	/* struct sd_emmc_irq_en* irqc = (struct sd_emmc_irq_en*)&virqc; */
+	struct sd_emmc_irq_en *irqc = (struct sd_emmc_irq_en *)&virqc;
 	struct sd_emmc_status *ista = (struct sd_emmc_status *)&vstat;
 	/* unsigned long time_start_cnt = aml_read_cbus(ISA_TIMERE); */
 
@@ -1492,18 +1509,37 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	/* return IRQ_HANDLED; */
 	/* } */
 
+	virqc = sd_emmc_regs->girq_en & 0xffff;
+	vstat = sd_emmc_regs->gstatus & 0xffff;
+	/* pr_info("%s %d occurred, vstat:0x%x,
+		sd_emmc_regs->gstatus:%x\n",
+		__func__, __LINE__, vstat, sd_emmc_regs->gstatus); */
+	if (irqc->irq_sdio && ista->irq_sdio) {
+		if ((host->mmc->sdio_irq_thread)
+			&& (!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
+			mmc_signal_sdio_irq(host->mmc);
+			if (!(vstat & 0x3fff))
+				return IRQ_HANDLED;
+			/*else
+				pr_info("other irq also occurred 0x%x\n",
+			vstat);*/
+		}
+	}
 
 	spin_lock_irqsave(&host->mrq_lock, flags);
-	virqc = sd_emmc_regs->girq_en&SD_EMMC_IRQ_ALL;
-	vstat = sd_emmc_regs->gstatus&SD_EMMC_IRQ_ALL;
-
-	/* pr_info("%s %d occurred, vstat:0x%x, virqc:%x\n",
-		__func__, __LINE__, vstat, virqc); */
-
 	mrq = host->mrq;
 	mmc = host->mmc;
 	pdata = mmc_priv(mmc);
-
+	if (!mmc) {
+		pr_info("@@sd_emmc_regs->girq_en = 0x%x at line %d\n",
+			sd_emmc_regs->girq_en, __LINE__);
+		pr_info("@@sd_emmc_regs->gstatus = 0x%x at line %d\n",
+			sd_emmc_regs->gstatus, __LINE__);
+		pr_info("@@sd_emmc_regs->gcfg = 0x%x at line %d\n",
+			sd_emmc_regs->gcfg, __LINE__);
+		pr_info("@@sd_emmc_regs->gclock = 0x%x at line %d\n",
+			sd_emmc_regs->gclock, __LINE__);
+	}
 	/* time_start_cnt = (time_start_cnt - host->time_req_sta); */
 #if 0
 	pr_info("%s %d time_cost:%dus cmd:%d arg:0x%x ",
@@ -1515,9 +1551,13 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	pr_info("\n");
 #endif
 
-	if (!mrq) {
-		sd_emmc_err("NULL mrq in aml_sd_emmc_irq step %d\n",
-			host->xfer_step);
+	if (!mrq && !irqc->irq_sdio) {
+		if (!ista->irq_sdio) {
+			sd_emmc_err("NULL mrq in aml_sd_emmc_irq step %d",
+				host->xfer_step);
+			sd_emmc_err("status:0x%x,irq_c:0x%0x\n",
+				sd_emmc_regs->gstatus, sd_emmc_regs->girq_en);
+		}
 		if (host->xfer_step == XFER_FINISHED ||
 			host->xfer_step == XFER_TIMER_TIMEOUT){
 			spin_unlock_irqrestore(&host->mrq_lock, flags);
@@ -1529,13 +1569,28 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if ((host->xfer_step != XFER_AFTER_START) && (!host->cmd_is_stop))
+	if ((host->xfer_step != XFER_AFTER_START)
+		&& (!host->cmd_is_stop) && !irqc->irq_sdio) {
 		sd_emmc_err("host->xfer_step=%d\n", host->xfer_step);
+		pr_info("%%sd_emmc_regs->girq_en = 0x%x at line %d\n",
+			sd_emmc_regs->girq_en, __LINE__);
+		pr_info("%%sd_emmc_regs->gstatus = 0x%x at line %d\n",
+			sd_emmc_regs->gstatus, __LINE__);
+		pr_info("%%sd_emmc_regs->gcfg = 0x%x at line %d\n",
+			sd_emmc_regs->gcfg, __LINE__);
+		pr_info("%%sd_emmc_regs->gclock = 0x%x at line %d\n",
+			sd_emmc_regs->gclock, __LINE__);
+	}
 
-	if (host->cmd_is_stop)
-		host->xfer_step = XFER_IRQ_TASKLET_BUSY;
-	else
-		host->xfer_step = XFER_IRQ_OCCUR;
+	if (((ista->end_of_chain) || (ista->desc_irq)) && mrq) {
+		if (host->cmd_is_stop)
+			host->xfer_step = XFER_IRQ_TASKLET_BUSY;
+		else
+			host->xfer_step = XFER_IRQ_OCCUR;
+	}
+
+	sd_emmc_regs->gstatus &= 0xffff;
+	spin_unlock_irqrestore(&host->mrq_lock, flags);
 
 	/* for debug */
 
@@ -1566,11 +1621,10 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		mrq->cmd->error = 0;
 	} else{
 	   host->xfer_step = XFER_IRQ_UNKNOWN_IRQ;
-		sd_emmc_err("%s Unknown Irq Ictl 0x%x, Ista 0x%x, cmd %d\n",
-		pdata->pinname, virqc, vstat, mrq->cmd->opcode);
+		sd_emmc_err("%s Unknown Irq Ictl 0x%x, Ista 0x%x\n",
+		pdata->pinname, virqc, vstat);
 	}
 
-	spin_unlock_irqrestore(&host->mrq_lock, flags);
 
 	if (host->xfer_step != XFER_IRQ_UNKNOWN_IRQ) {
 #ifdef SD_EMMC_DATA_TASKLET
@@ -1909,6 +1963,46 @@ static void aml_sd_emmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
+static void aml_sd_emmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+	unsigned long flags;
+	/* bool exception_flag = false; */
+	/* u32 vstat = 0; */
+	u32 vclock = 0;
+	struct sd_emmc_clock *pclock = (struct sd_emmc_clock *)&vclock;
+	u32 vconf = 0;
+	struct sd_emmc_config *pconf = (struct sd_emmc_config *)&vconf;
+	u32 virqc = 0;
+	struct sd_emmc_irq_en *irqc = (struct sd_emmc_irq_en *)&virqc;
+
+	host->sdio_irqen = enable;
+	spin_lock_irqsave(&host->mrq_lock, flags);
+	vclock = sd_emmc_regs->gclock;
+	vconf = sd_emmc_regs->gcfg;
+	virqc = sd_emmc_regs->girq_en;
+
+	pclock->irq_sdio_sleep = 1;
+	pclock->irq_sdio_sleep_ds = 0;
+	pconf->irq_ds = 0;
+
+	/* vstat = sd_emmc_regs->gstatus&SD_EMMC_IRQ_ALL; */
+	if (enable)
+		irqc->irq_sdio = 1;
+	else
+		irqc->irq_sdio = 0;
+
+	sd_emmc_regs->girq_en = virqc;
+	sd_emmc_regs->gclock = vclock;
+
+	spin_unlock_irqrestore(&host->mrq_lock, flags);
+
+	/* check if irq already occurred */
+	aml_sd_emmc_check_sdio_irq(host);
+}
+
 /*get readonly: 0 for rw, 1 for ro*/
 static int aml_sd_emmc_get_ro(struct mmc_host *mmc)
 {
@@ -2016,6 +2110,7 @@ static int aml_sd_emmc_resume(struct platform_device *pdev)
 static const struct mmc_host_ops aml_sd_emmc_ops = {
 	.request = aml_sd_emmc_request,
 	.set_ios = aml_sd_emmc_set_ios,
+	.enable_sdio_irq = aml_sd_emmc_enable_sdio_irq,
 	.get_cd = aml_sd_emmc_get_cd,
 	.get_ro = aml_sd_emmc_get_ro,
 	.start_signal_voltage_switch = aml_signal_voltage_switch,
