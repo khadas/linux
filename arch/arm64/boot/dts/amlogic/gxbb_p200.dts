@@ -783,12 +783,44 @@
 		key_val = <0 143 271 393 510>; //voltage=0/252/478/692/824mV, val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40 40>;
 	};
-
+/*
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		//"parallel","serial","disable"
+		ts0 = "parallel";
+		ts0_control = <0>;
+		ts0_invert = <0>;
+		pinctrl-names = "p_ts0", "s_ts0";
+		pinctrl-0 = <&dvb_p_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts0_pins>;
+		resets = <&clock GCLK_IDX_DEMUX
+				&clock GCLK_IDX_ASYNC_FIFO>;
+		reset-names = "demux", "asyncfifo";
+	};
+	dvbfe {
+		compatible = "amlogic, dvbfe";
+		dev_name = "dvbfe";
+		dtv_demod0 = "Mxl241";
+		dtv_demod0_i2c_adap_id = <2>;
+		dtv_demod0_i2c_addr = <0x60>;
+		dtv_demod0_reset_value = <0>;
+		dtv_demod0_reset_gpio-gpios = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts = <0>;
+		fe0_dev = <0>;
+	};
+*/
 };
 &i2c_a {
   status = "disabled";
   /*p200: multiplex with usb PWR, disbaled*/
 };
+/*
+&i2c_b {
+  status = "okay";
+};
+*/
 
 &pinmux {
 	audio_pins:audio_pin{

@@ -32,6 +32,11 @@
 /*======================================================*/
 /*  STB TOP Registers                   (8'hf0 - 8'hf7)*/
 /*======================================================*/
+/* bit 30:28 -- ciplus_o_sel*/
+/* bit 27:26 -- ciplus_i_sel*/
+/* bit 25 -- use FAIL fro TS2*/
+/* bit 24 -- use FAIL fro TS1*/
+/* bit 23 -- use FAIL fro TS0*/
 /* bit 22 -- invert fec_error for S2P1*/
 /* bit 21 -- invert fec_data for S2P1*/
 /* bit 20 -- invert fec_sync for S2P1*/
@@ -72,6 +77,16 @@
 #define INVERT_S2P0_FEC_CLK         2
 #define S2P0_FEC_SERIAL_SEL         0
 
+/* 31:28 - s2p1_clk_div*/
+/* 27:24 - s2p0_clk_div*/
+/* 23    - s2p1_disable*/
+/* 22    - s2p0_disable*/
+/* 21    - Reserved*/
+/* 20 -- TS_OUT_error_INVERT*/
+/* 19 -- TS_OUT_data_INVERT*/
+/* 18 -- TS_OUT_sync_INVERT*/
+/* 17 -- TS_OUT_valid_INVERT*/
+/* 16 -- TS_OUT_clk_INVERT*/
 /* 15:8 -- TS_package_length_sub_1 (default : 187)*/
 /*  7:0 -- fec_sync_byte (default : 0x47)*/
 /*#define TS_TOP_CONFIG           (STB_CBUS_BASE + 0xf1) // 0x16f1*/
@@ -79,6 +94,7 @@
 #define TS_PACKAGE_LENGTH_SUB_1     8
 #define FEC_DEFAULT_SYNC_BYTE       0
 
+/* Bit 25:24 -- transport_scrambling_control_odd_2 // should be 3*/
 /* Bit 23:16 -- file_m2ts_skip_bytes*/
 /* Bit 15:8 -- des_out_dly*/
 /* Bit 7:6 -- transport_scrambling_control_odd // should be 3*/
@@ -86,18 +102,21 @@
 /* Bit 4:0 -- fec_clk_div*/
 /*#define TS_FILE_CONFIG          (STB_CBUS_BASE + 0xf2) // 0x16f2*/
 /*----------- bit define -----------*/
+#define TRANSPORT_SCRAMBLING_CONTROL_ODD_2 24
 #define FILE_M2TS_SKIP_BYTES        16
 #define DES_OUT_DLY                 8
 #define TRANSPORT_SCRAMBLING_CONTROL_ODD 6
 #define TS_HIU_ENABLE               5
 #define FEC_FILE_CLK_DIV            0
 
+/* Bit 19:14 -- des_2 ts pl state   -- Read Only*/
 /* Bit 13:8 -- des ts pl state   -- Read Only*/
 /* Bit 3:0 PID index to 8 PID to get key-set*/
 /* auto increse after TS_PL_PID_DATA read/write*/
 /*#define TS_PL_PID_INDEX         (STB_CBUS_BASE + 0xf3) // 0x16f3*/
 /*----------- bit define -----------*/
 #define DES_TS_PL_STATE             8
+#define DES_2_TS_PL_STATE           14
 
 /* Bit 13 -- PID match disble*/
 /* Bit 12:0 -- PID*/
@@ -115,8 +134,17 @@
 /*#define COMM_DESC_KEY_RW
 (STB_CBUS_BASE + 0xf7) // 0x16f7 // bits[3:0]
 point to the address to write the key
-{COMM_DESC_KEY1, COMM_DESC_KEY0}*/
+{COMM_DESC_KEY3,...,COMM_DESC_KEY0}*/
 /* Writing this register writes the key to RAM*/
+
+/* bit 15:8 - des_out_dly_2*/
+/* bit   7 - reserved*/
+/* Bit   6-- enable_des_pl_clk_2*/
+/* bit   5 - enable_des_pl_2*/
+/* bit 4:2 -- use_des_2  bit[2] -- demux0, bit[3] -- demux1, bit[4] -- demux2*/
+/* bit 1:0 -- des_i_sel_2 00 -- select_fec_0, 01 -- select_fec_1,
+ *                        10 -- select_fec_2, 11 - reserved*/
+#define COMM_DESC_2_CTL     (STB_CBUS_BASE + 0xff) /*0x16ff*/
 
 /*=======================================================*/
 /*  Multiple STB Registers                  (8'h00 - 8'h45)*/
@@ -168,7 +196,13 @@ point to the address to write the key
 
 /* bit 31 -- enable_free_clk_fec_data_valid*/
 /* bit 30 -- enable_free_clk_stb_reg*/
-/* bit 29:21 -- reserved*/
+/* bit 29 -- always_use_pes_package_length*/
+/* bit 28 -- disable_pre_incomplete_section_fix*/
+/* bit 27 -- pointer_field_multi_pre_en*/
+/* bit 26 -- ignore_pre_incomplete_section*/
+/* bit 25 -- video2_enable*/
+/* bit 24:22 -- video2_type*/
+/* bit 21 -- do_not_trust_pes_package_length*/
 /* bit 20 (bit 4) -- Bypass use recoder path*/
 /* bit 19 (bit 3) -- clear_PID_continuity_counter_valid*/
 /* bit 18 (bit 2) -- Disable Splicing*/
@@ -590,6 +624,8 @@ advanced setting -- bit 7:0 force compare result
 /*#define STB_DEBUG_DATA_OUT_3
 (STB_CBUS_BASE + DEMUX_3_OFFSET + 0x21)  // 0x16c1*/
 
+/* bit[31] -- no_match_record_en*/
+/* bit[30:16] - reserved*/
 /* default : 0x807f*/
 /* bit 15:9  -- MAX OM DMA COUNT  (default: 0x40)*/
 /* bit 8:0   -- LAST ADDR OF OM ADDR (default: 127)*/
@@ -604,7 +640,10 @@ advanced setting -- bit 7:0 force compare result
 #define LAST_OM_ADDR               0
 
 /* 15:0  WRITE 1 CLEAR to clear interrupt source*/
-/* 9 -- splicing_point*/
+/*12 -- INPUT_TIME_OUT*/
+/*11 -- PCR_ready*/
+/*10 -- audio_splicing_point*/
+/* 9 -- video_splicing_point*/
 /* 8 -- other_PES_int*/
 /* 7 -- sub_PES_int*/
 /* 6 -- discontinuity*/
@@ -621,6 +660,7 @@ advanced setting -- bit 7:0 force compare result
 /*#define STB_INT_STATUS_3
 (STB_CBUS_BASE + DEMUX_3_OFFSET + 0x23)  // 0x16c3*/
 /*----------- bit define -----------*/
+#define INPUT_TIME_OUT             12
 #define PCR_READY                  11
 #define AUDIO_SPLICING_POINT       10
 #define VIDEO_SPLICING_POINT       9
@@ -662,7 +702,11 @@ advanced setting -- bit 7:0 force compare result
 #define BYPASS_ENDIAN              3
 #define SECTION_ENDIAN             0
 
+/* Bit 15:8 -- last_burst_threshold*/
 /* Bit 7 -- use hi_bsf interface*/
+/* Bit 6:2 - fec_clk_div*/
+/* Bit 1 ts_source_sel */
+/* Bit 0 - Hiu TS generate enable */
 /*#define TS_HIU_CTL
 (STB_CBUS_BASE + DEMUX_1_OFFSET + 0x25)  // 0x1625*/
 /*#define TS_HIU_CTL_2
@@ -695,13 +739,14 @@ advanced setting -- bit 7:0 force compare result
 /*#define DEMUX_MEM_REQ_EN_3
 (STB_CBUS_BASE + DEMUX_3_OFFSET + 0x27)  // 0x16c7*/
 /*----------- bit define -----------*/
+#define VIDEO2_DMA_EN_BIT          12
 #define OTHER_PES_AHB_DMA_EN       11
 #define SUB_AHB_DMA_EN             10
 #define BYPASS_AHB_DMA_EN          9
 #define SECTION_AHB_DMA_EN         8
 #define RECORDER_STREAM            7
 #define OTHER_PES_PACKET           6
-#define SCR_ONLY_PACKET            5
+#define SCR_ONLY_PACKET            5  /*will never be used*/
 #define BYPASS_PACKET              4
 #define SECTION_PACKET             3
 #define SUB_PACKET                 2
@@ -999,6 +1044,76 @@ advanced setting -- bit 7:0 force compare result
 (STB_CBUS_BASE + DEMUX_2_OFFSET + 0x45)  // 0x1695*/
 /*#define DEMUX_SECTION_RESET_3
 (STB_CBUS_BASE + DEMUX_3_OFFSET + 0x45)  // 0x16e5*/
+
+
+/* bit[31:0] - channel_reset_timeout_disable*/
+#define DEMUX_INPUT_TIMEOUT_C   \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x46)  /* 0x1646*/
+#define DEMUX_INPUT_TIMEOUT_C_2 \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x46)  /* 0x1696*/
+#define DEMUX_INPUT_TIMEOUT_C_3 \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x46)  /* 0x16e6*/
+/* bit[31] - no_match_reset_timeout_disable*/
+/* bit[30:0] input_time_out_int_cnt (0 -- means disable) Wr-setting, Rd-count*/
+#define DEMUX_INPUT_TIMEOUT     \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x47)  /* 0x1647*/
+#define DEMUX_INPUT_TIMEOUT_2   \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x47)  /* 0x1697*/
+#define DEMUX_INPUT_TIMEOUT_3   \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x47)  /* 0x16e7*/
+
+/* bit[31:0] - channel_packet_count_disable*/
+#define DEMUX_PACKET_COUNT_C    \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x48)  /* 0x1648*/
+#define DEMUX_PACKET_COUNT_C_2  \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x48)  /* 0x1698*/
+#define DEMUX_PACKET_COUNT_C_3  \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x48)  /* 0x16e8*/
+/* bit[31] - no_match_packet_count_disable*/
+/* bit[30:0] input_packet_count*/
+#define DEMUX_PACKET_COUNT      \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x49)  /* 0x1649*/
+#define DEMUX_PACKET_COUNT_2    \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x49)  /* 0x1699*/
+#define DEMUX_PACKET_COUNT_3    \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x49)  /* 0x16e9*/
+
+/* bit[31:0] channel_record_enable*/
+#define DEMUX_CHAN_RECORD_EN    \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4a)  /* 0x164a*/
+#define DEMUX_CHAN_RECORD_EN_2  \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4a)  /* 0x169a*/
+#define DEMUX_CHAN_RECORD_EN_3  \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4a)  /* 0x16ea*/
+
+/* bit[31:0] channel_process_enable*/
+#define DEMUX_CHAN_PROCESS_EN   \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4b)  /* 0x164b*/
+#define DEMUX_CHAN_PROCESS_EN_2 \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4b)  /* 0x169b*/
+#define DEMUX_CHAN_PROCESS_EN_3 \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4b)  /* 0x16eb*/
+
+/* bit[31:24] small_sec_size ((n+1) * 256 Bytes)*/
+/* bit[23:16] small_sec_rd_ptr */
+/* bit[15:8]  small_sec_wr_ptr */
+/* bit[7:2]   reserved*/
+/* bit[1] small_sec_wr_ptr_wr_enable*/
+/* bit[0] small_section_enable*/
+#define DEMUX_SMALL_SEC_CTL     \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4c)  /* 0x164c*/
+#define DEMUX_SMALL_SEC_CTL_2   \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4c)  /* 0x169c*/
+#define DEMUX_SMALL_SEC_CTL_3   \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4c)  /* 0x16ec*/
+/* bit[31:0] small_sec_start_addr*/
+#define DEMUX_SMALL_SEC_ADDR    \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4d)  /* 0x164d*/
+#define DEMUX_SMALL_SEC_ADDR_2  \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4d)  /* 0x169d*/
+#define DEMUX_SMALL_SEC_ADDR_3  \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4d)  /* 0x16ed*/
+
 
 /*======================================================*/
 /*  STB Registers End*/

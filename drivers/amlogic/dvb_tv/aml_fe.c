@@ -19,25 +19,13 @@
 #include <linux/poll.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-/*#include <linux/videodev2.h>*/
 #include <linux/gpio/consumer.h>
-/*#include <linux/amlogic/aml_gpio_consumer.h>*/
-#include "c_stb_define.h"
-#include "c_stb_regs_define.h"
 #include <linux/gpio.h>
-#include <dt-bindings/gpio/meson8.h>
 #include "aml_fe.h"
 
-#define pr_dbg(args...)\
-	do {\
-		if (debug_fe)\
-			printk(args);\
-	} while (0)
-#define pr_error(a...) printk(a)
-
-MODULE_PARM_DESC(debug_fe, "\n\t\t Enable frontend debug information");
-static int debug_fe;
-module_param(debug_fe, int, 0644);
+#define pr_dbg(a...)   pr_debug(a)
+#define pr_error(a...) pr_err(a)
+#define pr_inf(a...)   pr_info(a)
 
 #define AFC_BEST_LOCK      50
 #define ATV_AFC_1_0MHZ   1000000
@@ -79,78 +67,17 @@ void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock)
 }
 EXPORT_SYMBOL(aml_fe_hook_cvd);
 
-int gpio_amlogic_name_to_num(const char *name)
-{
-	int i, tmp = 100, num = 0;
-	int len = 0;
-	char *p = NULL;
-	char *start = NULL;
-	if (!name)
-		return -1;
-	if (!strcmp(name, "GPIO_BSD_EN"))
-		return GPIO_BSD_EN;
-	if (!strcmp(name, "GPIO_TEST_N"))
-		return GPIO_TEST_N;
-	len = strlen(name);
-	p = kzalloc(len + 1, GFP_KERNEL);
-	start = p;
-	if (!p) {
-		pr_dbg("%s:malloc error\n", __func__);
-		return -1;
-	}
-	p = strcpy(p, name);
-	for (i = 0; i < len; p++, i++) {
-		if (*p == '_') {
-			*p = '\0';
-			tmp = i;
-		}
-		if (i > tmp && *p >= '0' && *p <= '9')
-			num = num * 10 + *p - '0';
-	}
-	p = start;
-	if (!strcmp(p, "GPIOAO"))
-		num = num + 0;
-	else if (!strcmp(p, "GPIOZ"))
-		num = num + 14;
-	else if (!strcmp(p, "GPIOH"))
-		num = num + 29;
-	else if (!strcmp(p, "BOOT"))
-		num = num + 39;
-	else if (!strcmp(p, "CARD"))
-		num = num + 58;
-	else if (!strcmp(p, "GPIODV"))
-		num = num + 65;
-	else if (!strcmp(p, "GPIOY"))
-		num = num + 95;
-	else if (!strcmp(p, "GPIOX"))
-		num = num + 112;
-	else
-		num = -1;
-	kzfree(start);
-	return num;
-}
-
-int amlogic_gpio_name_map_num(const char *name)
-{
-	return gpio_amlogic_name_to_num(name);
-}
 
 int amlogic_gpio_direction_output(unsigned int pin, int value,
 				  const char *owner)
 {
-	int ret = -1;
-	ret = gpio_direction_output(pin, value);
-	return ret;
+	gpio_direction_output(pin, value);
+	return 0;
 }
 
 int amlogic_gpio_request(unsigned int pin, const char *label)
 {
-	int ret = -1;
-
-	ret = gpio_request(pin, label);
-	if (ret == -EBUSY)
-		return ret;
-	return ret;
+	return 0;
 }
 
 static struct aml_fe_drv **aml_get_fe_drv_list(enum aml_fe_dev_type_t type)
@@ -864,7 +791,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 #ifdef CONFIG_OF
 	ret = of_property_read_string(pdev->dev.of_node, buf, &str);
 	if (ret) {
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 		return 0;
 	} else {
 		struct aml_fe_drv **list = aml_get_fe_drv_list(type);
@@ -895,7 +822,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 		spin_unlock_irqrestore(&lock, flags);
 
 		if (drv) {
-			pr_dbg("found %s%d driver: %s\n", name, id, str);
+			pr_inf("found %s%d driver: %s\n", name, id, str);
 		} else {
 			pr_err("cannot find %s%d driver: %s\n", name, id, str);
 			return -1;
@@ -942,10 +869,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	if (!ret) {
 		dev->i2c_adap_id = value;
 		dev->i2c_adap = i2c_get_adapter(value);
-		pr_dbg("%s: %d\n", buf, dev->i2c_adap_id);
+		pr_inf("%s: %d[%p]\n", buf, dev->i2c_adap_id, dev->i2c_adap);
 	} else {
 		dev->i2c_adap_id = -1;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #else /*CONFIG_OF */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, buf);
@@ -956,7 +883,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 		dev->i2c_adap = i2c_get_adapter(adap);
 	} else {
 		dev->i2c_adap_id = -1;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #endif /*CONFIG_OF */
 
@@ -965,10 +892,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
 	if (!ret) {
 		dev->i2c_addr = value;
-		pr_dbg("%s: %d\n", buf, dev->i2c_addr);
+		pr_inf("%s: %d\n", buf, dev->i2c_addr);
 	} else {
 		dev->i2c_addr = -1;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #else /*CONFIG_OF */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, buf);
@@ -976,22 +903,21 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 		int addr = res->start;
 
 		dev->i2c_addr = addr;
-		pr_dbg("%s: %d\n", buf, dev->i2c_addr);
+		pr_inf("%s: %d\n", buf, dev->i2c_addr);
 	} else {
 		dev->i2c_addr = -1;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #endif
 
 	snprintf(buf, sizeof(buf), "%s%d_reset_gpio", name, id);
 #ifdef CONFIG_OF
-	ret = of_property_read_string(pdev->dev.of_node, buf, &str);
-	if (!ret) {
-		dev->reset_gpio = amlogic_gpio_name_map_num(str);
-		pr_dbg("%s: %s\n", buf, str);
+	dev->reset_gpio = desc_to_gpio(devm_gpiod_get(&pdev->dev, buf));
+	if (dev->reset_gpio) {
+		pr_inf("%s: %d\n", buf, dev->reset_gpio);
 	} else {
 		dev->reset_gpio = -1;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #else /*CONFIG_OF */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, buf);
@@ -999,10 +925,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 		int gpio = res->start;
 
 		dev->reset_gpio = gpio;
-		pr_dbg("%s: %x\n", buf, gpio);
+		pr_inf("%s: %x\n", buf, gpio);
 	} else {
 		dev->reset_gpio = -1;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #endif /*CONFIG_OF */
 
@@ -1011,7 +937,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
 	if (!ret) {
 		dev->reset_value = value;
-		pr_dbg("%s: %d\n", buf, dev->reset_value);
+		pr_inf("%s: %d\n", buf, dev->reset_value);
 	} else {
 		dev->reset_value = -1;
 	}
@@ -1021,10 +947,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 		int v = res->start;
 
 		dev->reset_value = v;
-		pr_dbg("%s: %d\n", buf, dev->reset_value);
+		pr_inf("%s: %d\n", buf, dev->reset_value);
 	} else {
 		dev->reset_value = 0;
-		pr_dbg("cannot find resource \"%s\"\n", buf);
+		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #endif /*CONFIG_OF */
 
@@ -1032,8 +958,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 #ifdef CONFIG_OF
 	ret = of_property_read_string(pdev->dev.of_node, buf, &str);
 	if (!ret) {
-		dev->tuner_power_gpio = amlogic_gpio_name_map_num(str);
-		pr_dbg("%s: %s\n", buf, str);
+		dev->tuner_power_gpio =
+			desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
+						      name, 0, NULL));
+		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->tuner_power_gpio = -1;
 	}
@@ -1052,8 +980,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 #ifdef CONFIG_OF
 	ret = of_property_read_string(pdev->dev.of_node, buf, &str);
 	if (!ret) {
-		dev->lnb_power_gpio = amlogic_gpio_name_map_num(str);
-		pr_dbg("%s: %s\n", buf, str);
+		dev->lnb_power_gpio =
+			desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
+						      name, 0, NULL));
+		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->lnb_power_gpio = -1;
 	}
@@ -1072,8 +1002,10 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 #ifdef CONFIG_OF
 	ret = of_property_read_string(pdev->dev.of_node, buf, &str);
 	if (!ret) {
-		dev->antoverload_gpio = amlogic_gpio_name_map_num(str);
-		pr_dbg("%s: %s\n", buf, str);
+		dev->antoverload_gpio =
+			desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
+						      name, 0, NULL));
+		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->antoverload_gpio = -1;
 	}
@@ -1611,7 +1543,9 @@ static ssize_t setting_store(struct class *class, struct class_attribute *attr,
 			fm->tuner[id].i2c_addr = val;
 #ifdef CONFIG_OF
 	} else if (sscanf(buf, "tuner %i reset_gpio %s", &id, gpio_name) == 2) {
-		val = amlogic_gpio_name_map_num(gpio_name);
+		val = desc_to_gpio(
+			of_get_named_gpiod_flags(dvb->pdev->dev.of_node,
+							gpio_name, 0, NULL));
 #else
 	} else if (sscanf(buf, "tuner %i reset_gpio %i", &id, &val) == 2) {
 #endif
@@ -1633,7 +1567,9 @@ static ssize_t setting_store(struct class *class, struct class_attribute *attr,
 #ifdef CONFIG_OF
 	} else if (sscanf(buf, "atv_demod %i reset_gpio %s", &id, gpio_name) ==
 		   2) {
-		val = amlogic_gpio_name_map_num(gpio_name);
+		val = desc_to_gpio(
+			of_get_named_gpiod_flags(dvb->pdev->dev.of_node,
+						      gpio_name, 0, NULL));
 #else
 	} else if (sscanf(buf, "atv_demod %i reset_gpio %i", &id, &val) == 2) {
 #endif
@@ -1655,7 +1591,9 @@ static ssize_t setting_store(struct class *class, struct class_attribute *attr,
 #ifdef CONFIG_OF
 	} else if (sscanf(buf, "dtv_demod %i reset_gpio %s", &id, gpio_name) ==
 		   2) {
-		val = amlogic_gpio_name_map_num(gpio_name);
+		val = desc_to_gpio(
+			of_get_named_gpiod_flags(dvb->pdev->dev.of_node,
+						      gpio_name, 0, NULL));
 #else
 	} else if (sscanf(buf, "dtv_demod %i reset_gpio %i", &id, &val) == 2) {
 #endif
@@ -1739,7 +1677,7 @@ static ssize_t aml_fe_store_suspended_flag(struct class *class,
 					   const char *buf, size_t size)
 {
 	/*aml_fe_suspended = simple_strtol(buf, 0, 0); */
-	int ret = kstrtol(buf, 10, &aml_fe_suspended);
+	int ret = kstrtol(buf, 0, &aml_fe_suspended);
 	if (ret)
 		return ret;
 	return size;

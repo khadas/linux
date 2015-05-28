@@ -2936,15 +2936,15 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 
 	case FE_SET_DELAY:
-		fepriv->user_delay = (int)parg;
+		fepriv->user_delay = (long)parg;
 		err = 0;
 		break;
 
 	case FE_SET_MODE:
 		if (fe->ops.set_mode) {
-			err = fe->ops.set_mode(fe, (int)parg);
+			err = fe->ops.set_mode(fe, (long)parg);
 			if (err == 0) {
-				switch ((int)parg) {
+				switch ((long)parg) {
 				case FE_QPSK:
 					/*DVBV3_QPSK;*/
 					c->delivery_system = SYS_DVBS2;
@@ -3232,6 +3232,18 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long dvb_frontend_compat_ioctl(struct file *filp,
+			unsigned int cmd, unsigned long args)
+{
+	unsigned long ret;
+
+	args = (unsigned long)compat_ptr(args);
+	ret = dvb_generic_ioctl(filp, cmd, args);
+	return ret;
+}
+#endif
+
 static const struct file_operations dvb_frontend_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= dvb_generic_ioctl,
@@ -3239,6 +3251,10 @@ static const struct file_operations dvb_frontend_fops = {
 	.open		= dvb_frontend_open,
 	.release	= dvb_frontend_release,
 	.llseek		= noop_llseek,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= dvb_frontend_compat_ioctl,
+#endif
+
 };
 
 int dvb_frontend_suspend(struct dvb_frontend *fe)

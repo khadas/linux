@@ -322,10 +322,15 @@ static irqreturn_t tsdemux_isr(int irq, void *dev_id)
 #ifndef ENABLE_DEMUX_DRIVER
 	u32 int_status = READ_MPEG_REG(STB_INT_STATUS);
 #else
-	int id = (int)dev_id;
-	u32 int_status =
-		id ? READ_MPEG_REG(STB_INT_STATUS_2) :
-		READ_MPEG_REG(STB_INT_STATUS);
+	u32 int_status = 0;
+
+	int id = (long)dev_id;
+	if (id == 0)
+		int_status = READ_MPEG_REG(STB_INT_STATUS);
+	else if (id == 1)
+		int_status = READ_MPEG_REG(STB_INT_STATUS_2);
+	else if (id == 2)
+		int_status = READ_MPEG_REG(STB_INT_STATUS_3);
 #endif
 
 	if (int_status & (1 << NEW_PDTS_READY)) {
@@ -494,12 +499,12 @@ static int reset_pcr_regs(void)
 		pr_info("[%s:%d] clk_81 = %x clk_unit =%x\n", __func__,
 				__LINE__, clk_81, clk_unit);
 
-		if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x40) {
+		if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x80) {
 			WRITE_MPEG_REG(PCR90K_CTL_2, (12 << 1) | clk_unit);
 			WRITE_MPEG_REG(ASSIGN_PID_NUMBER_2, pcr_num);
 			pr_info("[tsdemux_init] To use device 2,pcr_num=%d\n",
 					pcr_num);
-		} else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x40) {
+		} else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x80) {
 			WRITE_MPEG_REG(PCR90K_CTL_3, (12 << 1) | clk_unit);
 			WRITE_MPEG_REG(ASSIGN_PID_NUMBER_3, pcr_num);
 			pr_info("[tsdemux_init] To use device 3,pcr_num=%d\n",
@@ -1144,9 +1149,9 @@ u32 tsdemux_pcrscr_get(void)
 	if (pcrscr_valid == 0)
 		return 0;
 
-	if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x40)
+	if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x80)
 		pcr = READ_MPEG_REG(PCR_DEMUX_2);
-	else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x40)
+	else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x80)
 		pcr = READ_MPEG_REG(PCR_DEMUX_3);
 	else
 		pcr = READ_MPEG_REG(PCR_DEMUX);
@@ -1162,9 +1167,9 @@ u32 tsdemux_first_pcrscr_get(void)
 
 	if (first_pcr == 0) {
 		u32 pcr;
-		if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x40)
+		if (READ_MPEG_REG(TS_HIU_CTL_2) & 0x80)
 			pcr = READ_MPEG_REG(PCR_DEMUX_2);
-		else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x40)
+		else if (READ_MPEG_REG(TS_HIU_CTL_3) & 0x80)
 			pcr = READ_MPEG_REG(PCR_DEMUX_3);
 		else
 			pcr = READ_MPEG_REG(PCR_DEMUX);

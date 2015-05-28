@@ -73,11 +73,6 @@ static int i2c_speed[] = {AML_I2C_SPEED_50K, AML_I2C_SPEED_100K,
 			i2c->master_regs->i2c_slave_addr, \
 			i2c->master_regs->i2c_token_list_0, \
 			i2c->master_regs->i2c_token_list_1); \
-			pr_info("0x%08x,0x%08x,0x%08x,0x%08x\n", \
-			i2c->master_regs->i2c_token_wdata_0, \
-			i2c->master_regs->i2c_token_wdata_1, \
-			i2c->master_regs->i2c_token_rdata_0, \
-			i2c->master_regs->i2c_token_rdata_1); \
 	} while (0)
 
 static void aml_i2c_set_clk(struct aml_i2c *i2c, unsigned int speed)

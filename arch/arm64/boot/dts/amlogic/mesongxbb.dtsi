@@ -457,6 +457,16 @@
 			amlogic,clrmask=<2 0x3000000 3 0x1000>;
 			amlogic,pins="GPIOX_16","GPIOX_17";
 		};
+		dvb_p_ts0_pins: dvb_p_ts0_pins {
+			amlogic,setmask = <3 0x37>;
+			amlogic,clrmask = <2 0xf0000 1 0x30ff>;
+			amlogic,pins = "GPIOY_0","GPIOY_1","GPIOY_2", "GPIOY_3","GPIOY_4","GPIOY_5","GPIOY_6","GPIOY_7","GPIOY_8","GPIOY_9","GPIOY_10";
+		};
+		dvb_s_ts0_pins: dvb_s_ts0_pins {
+			amlogic,setmask = <3 0x17>;
+			amlogic,clrmask = <2 0xf0000 1 0x7>;
+			amlogic,pins = "GPIOY_0","GPIOY_1","GPIOY_2","GPIOY_3";
+		};
 	};
 	cpu_version{
 		reg=<0x0 0xc1107d4c 0x0 0x4
