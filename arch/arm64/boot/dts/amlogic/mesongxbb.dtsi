@@ -528,4 +528,9 @@
 
 	};
 
+	rng {
+		compatible = "amlogic,meson-rng";
+		reg = <0x0 0xc8834000 0x0 0x4>;
+	};
+
 };/* end of / */
