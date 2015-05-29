@@ -51,7 +51,8 @@
 /* static struct mutex aml_nftl_lock; */
 static int nftl_num;
 static int dev_num;
-
+/* moudle param to indicate sync write or not. */
+static int sync = 1;
 
 int get_adjust_block_num(void)
 {
@@ -182,9 +183,10 @@ uint write_sync_flag(struct aml_nftl_blk *aml_nftl_blk)
 	nftl_dev->sync_flag = 0;
 	if (memcmp(aml_nftl_blk->name, "media", 5) == 0)
 		return 0;
-	else
-		if (aml_nftl_blk->req->cmd_flags & REQ_SYNC)
+	else {
+		if ((aml_nftl_blk->req->cmd_flags & REQ_SYNC) && sync)
 			nftl_dev->sync_flag = 1;
+	}
 	return 0;
 #else /*  */
 	return 0;
@@ -784,7 +786,7 @@ static int __init init_aml_nftl(void)
 	/* aml_nftl_lock = aml_nftl_malloc(sizeof(struct mutex)); */
 	/* if (!aml_nftl_lock) */
 	/* return -1; */
-
+	PRINT("sync %d\n", sync);
 	/* mutex_init(&aml_nftl_lock); */
 	if (check_storage_device() < 0)
 		return 0;
@@ -812,7 +814,7 @@ static void __exit cleanup_aml_nftl(void)
 
 module_init(init_aml_nftl);
 module_exit(cleanup_aml_nftl);
-
+module_param(sync, int, S_IRUGO);
 
 MODULE_LICENSE("Proprietary");
 MODULE_AUTHOR("AML nand team");
