@@ -12,52 +12,83 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
+#include <linux/delay.h>
+#include <linux/of_device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/stmmac.h>
-
+#include "stmmac.h"
 #define ETHMAC_SPEED_100	BIT(1)
 
 struct meson_dwmac {
-	struct device	*dev;
-	void __iomem	*reg;
+	struct device *dev;
+	void __iomem *reg;
 };
 
-static void meson6_dwmac_fix_mac_speed(void *priv, unsigned int speed)
+static void meson_dwmac_fix_mac_speed(void *priv, unsigned int speed)
 {
-	struct meson_dwmac *dwmac = priv;
-	unsigned int val;
+}
+static void __iomem *network_interface_setup(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct gpio_desc *gdesc;
+	struct pinctrl *pin_ctl;
+	struct resource *res;
+	u32 mc_val;
+	void __iomem *addr = NULL;
 
-	val = readl(dwmac->reg);
+	/*map reg0 and reg 1 addr.*/
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	addr = devm_ioremap_resource(dev, res);
 
-	switch (speed) {
-	case SPEED_10:
-		val &= ~ETHMAC_SPEED_100;
-		break;
-	case SPEED_100:
-		val |= ETHMAC_SPEED_100;
-		break;
+	PREG_ETH_REG0 = addr;
+	PREG_ETH_REG1 = addr+4;
+	pr_info("REG0:REG1 = %p :%p\n", PREG_ETH_REG0, PREG_ETH_REG1);
+
+	/* Get mec mode & ting value  set it in cbus2050 */
+	pr_info("mem start:0x%llx , %llx , [%p]\n", res->start,
+					res->end - res->start,
+					addr);
+	if (of_property_read_u32(np, "mc_val", &mc_val)) {
+		pr_info("detect cbus[2050]=null, plesae setting val\n");
+		pr_info(" IF RGMII setting 0x7d21 else rmii setting 0x1000");
+	} else {
+		pr_info("Ethernet :got mc_val 0x%x .set it\n", mc_val);
+			writel(mc_val, addr);
 	}
 
-	writel(val, dwmac->reg);
+	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
+	pr_info("Ethernet: pinmux setup ok\n");
+	/* reset pin choose pull high 100ms than pull low */
+	gdesc = gpiod_get(&pdev->dev, "rst_pin");
+	if (!IS_ERR(gdesc)) {
+		gpiod_direction_output(gdesc, 0);
+		mdelay(100);
+		gpiod_direction_output(gdesc, 1);
+		mdelay(100);
+	}
+	pr_info("Ethernet: gpio reset ok\n");
+	return addr;
 }
 
-static void *meson6_dwmac_setup(struct platform_device *pdev)
+static void *meson_dwmac_setup(struct platform_device *pdev)
 {
 	struct meson_dwmac *dwmac;
-	struct resource *res;
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
 		return ERR_PTR(-ENOMEM);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwmac->reg = devm_ioremap_resource(&pdev->dev, res);
+	dwmac->reg = network_interface_setup(pdev);
 	if (IS_ERR(dwmac->reg))
 		return dwmac->reg;
 
 	return dwmac;
 }
 
-const struct stmmac_of_data meson6_dwmac_data = {
-	.setup		= meson6_dwmac_setup,
-	.fix_mac_speed	= meson6_dwmac_fix_mac_speed,
+const struct stmmac_of_data meson_dwmac_data = {
+	.setup = meson_dwmac_setup,
+	.fix_mac_speed = meson_dwmac_fix_mac_speed,
 };

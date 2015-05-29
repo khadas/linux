@@ -4,8 +4,6 @@
  *******************************************************************/
 #ifndef __AM_ETH_REG_H_
 #define __AM_ETH_REG_H_
-#define PREG_ETH_REG0 0x2050
-#define PREG_ETH_REG1 0x2051
 #define ETH_DMA_0_Bus_Mode                  (0x1000)
 #define ETH_DMA_1_Tr_Poll_Demand        (0x1004)
 #define ETH_DMA_2_Re_Poll_Demand        (0x1008)
@@ -193,4 +191,3 @@
 
 
 #endif
-

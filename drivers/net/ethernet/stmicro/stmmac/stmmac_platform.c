@@ -36,33 +36,42 @@
 #endif
 static const struct of_device_id stmmac_dt_ids[] = {
 #ifdef CONFIG_DWMAC_MESON
-	{ .compatible = "amlogic, meson6-dwmac",},
-	{ .compatible = "amlogic, meson8-rmii-dwmac",},
-	{ .compatible = "amlogic, meson8m2-rgmii-dwmac",},
-	{ .compatible = "amlogic, meson8m2-rmii-dwmac",
-		.data = &meson6_dwmac_data },
-	{ .compatible = "amlogic, meson8b-rgmii-dwmac",},
-	{ .compatible = "amlogic, meson8b-rmii-dwmac",
-		.data = &meson6_dwmac_data},
-	{ .compatible = "amlogic, meson6-rmii-dwmac",
-		.data = &meson6_dwmac_data},
+	{.compatible = "amlogic, meson6-dwmac",},
+	{.compatible = "amlogic, meson8-rmii-dwmac",},
+	{.compatible = "amlogic, meson8m2-rgmii-dwmac",},
+	{.compatible = "amlogic, meson8m2-rmii-dwmac",
+	 .data = &meson_dwmac_data},
+	{.compatible = "amlogic, gxbb-rgmii-dwmac",
+	 .data = &meson_dwmac_data},
+	{.compatible = "amlogic, gxbb-rmii-dwmac",
+	 .data = &meson_dwmac_data},
+	{.compatible = "amlogic, meson8b-rgmii-dwmac",},
+	{.compatible = "amlogic, meson8b-rmii-dwmac",
+	 .data = &meson_dwmac_data},
+	{.compatible = "amlogic, meson6-rmii-dwmac",
+	 .data = &meson_dwmac_data},
 #endif
 #ifdef CONFIG_DWMAC_SUNXI
-	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
+	{.compatible = "allwinner,sun7i-a20-gmac",
+	.data = &sun7i_gmac_data},
 #endif
 #ifdef CONFIG_DWMAC_STI
-	{ .compatible = "st,stih415-dwmac", .data = &sti_gmac_data},
-	{ .compatible = "st,stih416-dwmac", .data = &sti_gmac_data},
-	{ .compatible = "st,stid127-dwmac", .data = &sti_gmac_data},
+	{.compatible = "st,stih415-dwmac",
+	.data = &sti_gmac_data},
+	{.compatible = "st,stih416-dwmac",
+	.data = &sti_gmac_data},
+	{.compatible = "st,stid127-dwmac",
+	.data = &sti_gmac_data},
 #endif
 	/* SoC specific glue layers should come before generic bindings */
-	{ .compatible = "st,spear600-gmac"},
-	{ .compatible = "snps,dwmac-3.610"},
-	{ .compatible = "snps,dwmac-3.70a"},
-	{ .compatible = "snps,dwmac-3.710"},
-	{ .compatible = "snps,dwmac"},
+	{.compatible = "st,spear600-gmac"},
+	{.compatible = "snps,dwmac-3.610"},
+	{.compatible = "snps,dwmac-3.70a"},
+	{.compatible = "snps,dwmac-3.710"},
+	{.compatible = "snps,dwmac"},
 	{ /* sentinel */ }
 };
+
 MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
 #ifdef CONFIG_DWMAC_MESON
 static u8 *DEFMAC;
@@ -78,6 +87,7 @@ static unsigned char chartonum(char c)
 	return 0;
 
 }
+
 static int __init mac_addr_set(char *line)
 {
 	unsigned char mac[6];
@@ -88,7 +98,8 @@ static int __init mac_addr_set(char *line)
 	}
 	memcpy(DEFMAC, mac, 6);
 	pr_info("uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
-	DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4], DEFMAC[5]);
+		DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4],
+		DEFMAC[5]);
 	g_mac_addr_setup++;
 
 	return 1;
@@ -149,21 +160,10 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 	}
 	return x;
 }
-static int stmmac_probe_config_dt(struct platform_device *pdev,
-				  struct plat_stmmacenet_data *plat,
-				  const char **mac)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct stmmac_dma_cfg *dma_cfg;
-	const struct of_device_id *device;
-	struct gpio_desc *gdesc;
-	struct pinctrl *pin_ctl;
-	if (!np)
-		return -ENODEV;
-	device = of_match_device(stmmac_dt_ids, &pdev->dev);
-	if (!device)
-		return -ENODEV;
 
+static int platdata_copy_from_machine_data(const struct of_device_id *device,
+					   struct plat_stmmacenet_data *plat)
+{
 	if (device->data) {
 		const struct stmmac_of_data *data = device->data;
 		plat->has_gmac = data->has_gmac;
@@ -181,33 +181,31 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		plat->exit = data->exit;
 		plat->mc_val = 0x7d21;
 	}
+	return 0;
+}
 
+static int setup_mac_addr(struct platform_device *pdev, const char **mac)
+{
+	struct device_node *np = pdev->dev.of_node;
 #ifdef CONFIG_DWMAC_MESON
-	if (g_mac_addr_setup)
+	if (g_mac_addr_setup)	/*so uboot mac= is first priority.*/
 		*mac = DEFMAC;
 	else
 		*mac = of_get_mac_address(np);
-	aml_write_cbus(plat->mc_val, PREG_ETH_REG0);
 #else
 	*mac = of_get_mac_address(np);
 #endif
-	plat->interface = of_get_phy_mode(np);
-	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "etherent_pinmux");
-	/* reset pin choose pull high 100ms than pull low*/
-	gdesc = gpiod_get(&pdev->dev, "rst_pin");
-	if (!IS_ERR(gdesc)) {
-		gpiod_direction_output(gdesc, 0);
-		mdelay(10);
-		gpiod_direction_output(gdesc, 1);
-	}
-	/* Get mec mode & clock setting value  set it in cbus2050*/
-	if (of_property_read_u32(np, "mc_val", &plat->mc_val))
-		aml_write_cbus(plat->mc_val, PREG_ETH_REG0);
-	else {
-		pr_info("detect cbus[2050]=null, plesae setting val\n");
-		pr_info(" IF RGMII setting 0x7d21 else rmii setting 0x1000");
-	}
+	return 0;
+
+}
+
+static int network_property_setup(struct platform_device *pdev,
+				  struct plat_stmmacenet_data *plat)
+{
+	struct device_node *np = pdev->dev.of_node;
 	/* Get max speed of operation from device tree */
+
+	plat->interface = of_get_phy_mode(np);
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
 		plat->max_speed = -1;
 
@@ -217,22 +215,28 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 
 	/* Default to phy auto-detection */
 	plat->phy_addr = -1;
-
-	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
-	 * and warn of its use. Remove this when phy node support is added.
-	 */
-	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
-		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
+	if (of_property_read_u32(np, "amlogic,phy-addr", &plat->phy_addr) == 0)
+		dev_warn(&pdev->dev,
+			 "amlogic,phy-addr property is deprecated\n");
 
 	if (plat->phy_bus_name)
 		plat->mdio_bus_data = NULL;
 	else
 		plat->mdio_bus_data =
-			devm_kzalloc(&pdev->dev,
-				     sizeof(struct stmmac_mdio_bus_data),
-				     GFP_KERNEL);
+		    devm_kzalloc(&pdev->dev,
+				 sizeof(struct stmmac_mdio_bus_data),
+				 GFP_KERNEL);
+	return 0;
+}
 
-	plat->force_sf_dma_mode = of_property_read_bool(np, "snps,force_sf_dma_mode");
+static int misc_property_setup(struct platform_device *pdev,
+			       struct plat_stmmacenet_data *plat)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct stmmac_dma_cfg *dma_cfg;
+
+	plat->force_sf_dma_mode =
+	    of_property_read_bool(np, "amlogic,force_sf_dma_mode");
 
 	/* Set the maxmtu to a default of JUMBO_LEN in case the
 	 * parameter is not present in the device tree.
@@ -248,9 +252,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	 * once needed on other platforms.
 	 */
 	if (of_device_is_compatible(np, "st,spear600-gmac") ||
-		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
-		of_device_is_compatible(np, "amlogic,meson8b-rgmii-dwmac") ||
-		of_device_is_compatible(np, "amlogic,meson8m2-rgmii-dwmac")) {
+	    of_device_is_compatible(np, "snps,dwmac-3.70a") ||
+	    of_device_is_compatible(np, "amlogic, meson8b-rgmii-dwmac") ||
+	    of_device_is_compatible(np, "amlogic, meson8m2-rgmii-dwmac") ||
+	    of_device_is_compatible(np, "amlogic, gxbb-rgmii-dwmac")) {
 		/* Note that the max-frame-size parameter as defined in the
 		 * ePAPR v1.1 spec is defined as max-frame-size, it's
 		 * actually used as the IEEE definition of MAC Client
@@ -263,17 +268,20 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 				     &plat->multicast_filter_bins);
 		of_property_read_u32(np, "snps,perfect-filter-entries",
 				     &plat->unicast_filter_entries);
-		plat->unicast_filter_entries = dwmac1000_validate_ucast_entries(
-					       plat->unicast_filter_entries);
-		plat->multicast_filter_bins = dwmac1000_validate_mcast_bins(
-					      plat->multicast_filter_bins);
+		plat->unicast_filter_entries =
+		    dwmac1000_validate_ucast_entries(plat->
+						     unicast_filter_entries);
+		plat->multicast_filter_bins =
+		    dwmac1000_validate_mcast_bins(plat->multicast_filter_bins);
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}
+	if (of_device_is_compatible(np, "amlogic, gxbb-rmii-dwmac")) {
+		plat->has_gmac = 0;
+	}
 
-	if (of_device_is_compatible(np, "snps,dwmac-3.610") ||
-		of_device_is_compatible(np, "amlogic,meson6-dwmac") ||
-		of_device_is_compatible(np, "snps,dwmac-3.710")) {
+	if (of_device_is_compatible(np, "snps, dwmac-3.610") ||
+	    of_device_is_compatible(np, "snps, dwmac-3.710")) {
 		plat->enh_desc = 1;
 		plat->bugged_jumbo = 1;
 		plat->force_sf_dma_mode = 1;
@@ -287,16 +295,37 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		plat->dma_cfg = dma_cfg;
 		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
 		dma_cfg->fixed_burst =
-			of_property_read_bool(np, "snps,fixed-burst");
+		    of_property_read_bool(np, "snps,fixed-burst");
 		dma_cfg->mixed_burst =
-			of_property_read_bool(np, "snps,mixed-burst");
+		    of_property_read_bool(np, "snps,mixed-burst");
 	}
-	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
+	plat->force_thresh_dma_mode =
+	    of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
 		plat->force_sf_dma_mode = 0;
-		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
+		pr_warn("force_sf_dma_mode is ignored ");
 	}
+	return 0;
 
+}
+
+static int stmmac_probe_config_dt(struct platform_device *pdev,
+				  struct plat_stmmacenet_data *plat,
+				  const char **mac)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *device;
+	if (!np)
+		return -ENODEV;
+	device = of_match_device(stmmac_dt_ids, &pdev->dev);
+	if (!device)
+		return -ENODEV;
+	pr_info("Ethernet: config dt\n");
+	platdata_copy_from_machine_data(device, plat);
+	setup_mac_addr(pdev, mac);
+
+	network_property_setup(pdev, plat);
+	misc_property_setup(pdev, plat);
 	return 0;
 }
 #else
@@ -306,7 +335,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 {
 	return -ENOSYS;
 }
-#endif /* CONFIG_OF */
+#endif				/* CONFIG_OF */
 
 /**
  * stmmac_pltfr_probe
@@ -324,20 +353,23 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	struct stmmac_priv *priv = NULL;
 	struct plat_stmmacenet_data *plat_dat = NULL;
 	const char *mac = NULL;
+
+	pr_info("..........enter ethernet probe\n");
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
-	pr_info("ethernet base addr is %x\n", (unsigned int)addr);
+	pr_info("****************ethernet base addr is %p\n", addr);
 	plat_dat = dev_get_platdata(&pdev->dev);
 	if (pdev->dev.of_node) {
 		if (!plat_dat)
 			plat_dat = devm_kzalloc(&pdev->dev,
-					sizeof(struct plat_stmmacenet_data),
-					GFP_KERNEL);
+						sizeof(struct
+						       plat_stmmacenet_data),
+						GFP_KERNEL);
 		if (!plat_dat) {
 			pr_err("%s: ERROR: no memory", __func__);
-			return  -ENOMEM;
+			return -ENOMEM;
 		}
 
 		ret = stmmac_probe_config_dt(pdev, plat_dat, &mac);
@@ -353,7 +385,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 			return PTR_ERR(plat_dat->bsp_priv);
 	}
 
-	/* Custom initialisation (if needed)*/
+	/* Custom initialisation (if needed) */
 	if (plat_dat->init) {
 		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
 		if (unlikely(ret))
@@ -372,6 +404,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	/* Get the MAC information */
 	priv->dev->irq = platform_get_irq_byname(pdev, "macirq");
+	pr_info("Ethernet: get macirq %d\n", priv->dev->irq);
 	if (priv->dev->irq == -ENXIO) {
 		pr_err("%s: ERROR: MAC IRQ configuration "
 		       "information not found\n", __func__);
@@ -447,10 +480,10 @@ static int stmmac_pltfr_resume(struct device *dev)
 	return stmmac_resume(ndev);
 }
 
-#endif /* CONFIG_PM */
+#endif				/* CONFIG_PM */
 
 static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
-			stmmac_pltfr_suspend, stmmac_pltfr_resume);
+			 stmmac_pltfr_suspend, stmmac_pltfr_resume);
 
 struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,

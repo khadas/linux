@@ -61,6 +61,9 @@
 
 #define STMMAC_ALIGN(x)	L1_CACHE_ALIGN(x)
 
+void __iomem *PREG_ETH_REG0;
+void __iomem *PREG_ETH_REG1;
+
 /* Module parameters */
 #define TX_TIMEO	5000
 static int watchdog = TX_TIMEO;
@@ -779,7 +782,7 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 		    (interface == PHY_INTERFACE_MODE_RGMII_ID) ||
 		    (interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
 		    (interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
-			pr_debug("STMMAC: PCS RGMII support enable\n");
+			pr_info("STMMAC: PCS RGMII support enable\n");
 			priv->pcs = STMMAC_PCS_RGMII;
 		} else if (interface == PHY_INTERFACE_MODE_SGMII) {
 			pr_debug("STMMAC: PCS SGMII support enable\n");
@@ -1122,6 +1125,7 @@ static ssize_t eth_linkspeed_show(struct class *class,
 }
 int auto_cali(void)
 {
+
 	unsigned int value;
 	int I1, I2, I3, I4, I5;
 	int count = 99;
@@ -1131,10 +1135,9 @@ int auto_cali(void)
 	int cali_sel = 0;
 	pr_info("auto test cali\n");
 	for (cali_sel = 0; cali_sel < 4; cali_sel++) {
-		aml_read_cbus(PREG_ETH_REG1);
+		readl(PREG_ETH_REG1);
 		strcpy(problem, "no clock delay");
-		aml_write_cbus((aml_read_cbus
-		(PREG_ETH_REG0)&(~(0x1f << 25))), PREG_ETH_REG0);
+		writel((readl(PREG_ETH_REG0)&(~(0x1f << 25))), PREG_ETH_REG0);
 		I1 = 0;
 		I2 = 0;
 		I3 = 0;
@@ -1142,11 +1145,12 @@ int auto_cali(void)
 		I5 = 0;
 		for (cali_rise = 0; cali_rise <= 1; cali_rise++) {
 			count = 99;
-			aml_write_cbus((aml_read_cbus(PREG_ETH_REG0)
+			writel((readl(PREG_ETH_REG0)
 			|(1 << 25)|(cali_rise << 26)
 			|(cali_sel << 27)), PREG_ETH_REG0);
 			while (count >= 0) {
-				value = aml_read_cbus(PREG_ETH_REG1);
+
+				value = readl(PREG_ETH_REG1);
 				if ((value>>15) & 0x1) {
 					count--;
 					switch (value&0x1f) {
@@ -1189,6 +1193,7 @@ int auto_cali(void)
 }
 static int am_net_cali(int argc, char **argv, int gate)
 {
+
 	int cali_rise = 0;
 	int cali_sel = 0;
 	int cali_start = 0;
@@ -1207,26 +1212,27 @@ static int am_net_cali(int argc, char **argv, int gate)
 		pr_info("Invalid syntax\n");
 		return -1;
 	}
+
 	r = kstrtoint(argv[1], 0, &cali_rise);
 	r = kstrtoint(argv[2], 0, &cali_sel);
 	r = kstrtoint(argv[3], 0, &cali_time);
-	aml_read_cbus(PREG_ETH_REG1);
-	aml_write_cbus(PREG_ETH_REG0,
-		aml_read_cbus(PREG_ETH_REG0)&(~(0x1f << 25)));
-	aml_write_cbus(PREG_ETH_REG0,
-		aml_read_cbus(PREG_ETH_REG0)|
+	readl(PREG_ETH_REG1);
+	writel(readl(PREG_ETH_REG0)&(~(0x1f << 25)), PREG_ETH_REG0);
+	writel(readl(PREG_ETH_REG0)|
 		(cali_start << 25)|(cali_rise << 26)|
-		(cali_sel << 27));
+		(cali_sel << 27), PREG_ETH_REG0);
 	pr_info("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
 		cali_rise, cali_sel, cali_time, cali_start,
-			aml_read_cbus(PREG_ETH_REG0));
+			readl(PREG_ETH_REG0));
 	for (ii = 0; ii < cali_time; ii++) {
-		value = aml_read_cbus(PREG_ETH_REG1);
+		mdelay(100);
+		value = readl(PREG_ETH_REG1);
 		if ((value>>15) & 0x1) {
 			pr_info
 			("value = %x,len = %d,idx = %d,sel=%d,rise = %d\n",
 			value, (value>>5)&0x1f, (value&0x1f),
 			(value>>11)&0x7, (value>>14)&0x1);
+			ii++;
 		}
 	}
 	return 0;
@@ -1251,6 +1257,7 @@ static ssize_t eth_cali_store(struct class *class, struct class_attribute *attr,
 			break;
 		argv[argc] = para;
 	}
+
 	if (argc < 1 || argc > 4)
 		goto end;
 
@@ -1349,7 +1356,8 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 		 priv->plat->phy_addr);
-	pr_debug("stmmac_init_phy:  trying to attach to %s\n", phy_id_fmt);
+	pr_info("stmmac_init_phy:  trying to attach to %s,interface %d\n",
+						phy_id_fmt, interface);
 
 	phydev = phy_connect(dev, phy_id_fmt, &stmmac_adjust_link, interface);
 
@@ -1376,7 +1384,7 @@ static int stmmac_init_phy(struct net_device *dev)
 		phy_disconnect(phydev);
 		return -ENODEV;
 	}
-	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
+	pr_info("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
@@ -1708,6 +1716,8 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 						  sizeof(struct dma_desc),
 						  &priv->dma_rx_phy,
 						  GFP_KERNEL);
+		memset((char *)priv->dma_rx, 0, rxsize *
+						sizeof(struct dma_desc));
 		if (!priv->dma_rx)
 			goto err_dma;
 
@@ -1715,6 +1725,8 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 						  sizeof(struct dma_desc),
 						  &priv->dma_tx_phy,
 						  GFP_KERNEL);
+		memset((char *)priv->dma_tx, 0, txsize *
+						sizeof(struct dma_desc));
 		if (!priv->dma_tx) {
 			dma_free_coherent(priv->device, priv->dma_rx_size *
 					sizeof(struct dma_desc),
@@ -1722,7 +1734,6 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 			goto err_dma;
 		}
 	}
-
 	return 0;
 
 err_dma:
@@ -1815,7 +1826,6 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		/* Check if the descriptor is owned by the DMA. */
 		if (priv->hw->desc->get_tx_owner(p))
 			break;
-
 		/* Verify tx error by looking at the last segment. */
 		last = priv->hw->desc->get_tx_ls(p);
 		if (likely(last)) {
@@ -2247,8 +2257,9 @@ static int stmmac_open(struct net_device *dev)
 			       __func__, ret);
 			goto phy_error;
 		}
+	} else {
+		pr_info("not call stmmac_init_phy\n");
 	}
-
 	/* Extra statistics */
 	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
 	priv->xstats.threshold = tc;
@@ -2257,7 +2268,7 @@ static int stmmac_open(struct net_device *dev)
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
 	priv->dma_buf_sz = STMMAC_ALIGN(buf_sz);
-
+	pr_info("open eth0, alloc desc resource\n");
 	ret = alloc_dma_desc_resources(priv);
 	if (ret < 0) {
 		pr_err("%s: DMA descriptors allocation failed\n", __func__);
@@ -2619,7 +2630,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 
 		if (priv->hw->desc->get_rx_owner(p))
 			break;
-
 		count++;
 
 		next_entry = (++priv->cur_rx) % rxsize;
@@ -2671,7 +2681,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			}
 			skb = priv->rx_skbuff[entry];
 			if (unlikely(!skb)) {
-				pr_err("%s: Inconsistent Rx descriptor chain\n",
+				pr_info("%s: Inconsistent Rx descriptor chain\n",
 				       priv->dev->name);
 				priv->dev->stats.rx_dropped++;
 				break;
