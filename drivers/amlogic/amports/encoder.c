@@ -1034,7 +1034,8 @@ static void mfdin_basic(u32 input, u8 iformat,
 		cfg_y_snr_en = ((nr == 1) || (nr == 3)) ? 1 : 0;
 		cfg_y_tnr_en = ((nr == 2) || (nr == 3)) ? 1 : 0;
 		cfg_c_snr_en = cfg_y_snr_en;
-		cfg_c_tnr_en = cfg_y_tnr_en;
+		/* cfg_c_tnr_en = cfg_y_tnr_en; */
+		cfg_c_tnr_en = 0;
 
 		/* NR For Y */
 		WRITE_HREG((HCODEC_MFDIN_REG0D + reg_offset),
