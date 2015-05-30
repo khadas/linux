@@ -40,7 +40,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
-
+#include <linux/dma-mapping.h>
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vout_notify.h>
 
@@ -75,6 +75,9 @@ static struct reserved_mem fb_rmem;
 static phys_addr_t fb_rmem_paddr[2];
 static void __iomem *fb_rmem_vaddr[2];
 static u32 fb_rmem_size[2];
+void *osd_rdma_table_virt;
+dma_addr_t osd_rdma_table_phy;
+
 
 static void osddev_setup(struct osd_fb_dev_s *fbdev)
 {
@@ -98,7 +101,8 @@ static void osddev_setup(struct osd_fb_dev_s *fbdev)
 	return;
 }
 
-static void osddev_update_disp_axis(struct osd_fb_dev_s *fbdev, int mode_change)
+static void osddev_update_disp_axis(struct osd_fb_dev_s *fbdev,
+					int mode_change)
 {
 	osd_update_disp_axis_hw(fbdev->fb_info->node,
 				fbdev->osd_ctl.disp_start_x,
@@ -1770,6 +1774,8 @@ static int osd_probe(struct platform_device *pdev)
 	u32 memsize[2];
 	int i;
 	int ret = 0;
+	osd_rdma_table_virt = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
+					&osd_rdma_table_phy, GFP_KERNEL);
 
 	/* register vout client */
 	vout_register_client(&osd_notifier_nb);

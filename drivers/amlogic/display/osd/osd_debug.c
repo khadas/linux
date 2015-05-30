@@ -55,7 +55,6 @@ char osd_debug_help[] = "Usage:\n"
 "  echo [w | write] reg val > debug ; Write VCBUS register\n"
 "  echo [d | dump] {start end} > debug ; Dump VCBUS register\n\n";
 
-
 static void osd_debug_dump_value(void)
 {
 	u32 index = 0;
@@ -173,12 +172,12 @@ static void osd_debug_dump_register_region(u32 start, u32 end)
 	for (reg = start; reg <= end; reg += 4)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 }
-
 static void osd_debug_dump_register(int argc, char **argv)
 {
 	int reg_start, reg_end;
 	int ret;
 
+	read_rdma_table();
 	if ((argc == 3) && argv[1] && argv[2]) {
 		ret = kstrtoint(argv[1], 16, &reg_start);
 		ret = kstrtoint(argv[2], 16, &reg_end);

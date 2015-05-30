@@ -68,10 +68,6 @@
 #endif
 
 
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
-#include "osd_rdma.h"
-#endif
-
 static DEFINE_MUTEX(osd_mutex);
 static DEFINE_SPINLOCK(osd_onoff_lock);
 static DECLARE_WAIT_QUEUE_HEAD(osd_vsync_wq);
@@ -449,7 +445,7 @@ static inline void wait_vsync_wakeup(void)
 	wake_up_interruptible(&osd_vsync_wq);
 }
 
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+#if 0
 static void osd_update_interlace_mode(void)
 {
 	unsigned int fb0_cfg_w0, fb1_cfg_w0;
@@ -501,21 +497,27 @@ static void osd_update_interlace_mode(void)
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK2_CFG_W0, fb1_cfg_w0);
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK3_CFG_W0, fb1_cfg_w0);
 }
-
+#endif
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
 static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 {
 #define	VOUT_ENCI	1
 #define	VOUT_ENCP	2
 #define	VOUT_ENCT	3
-	unsigned int output_type = 0;
+	unsigned  int  fb0_cfg_w0, fb1_cfg_w0;
+	unsigned  int  odd_or_even_line;
+	unsigned  int  scan_line_number = 0;
+	unsigned  char output_type = 0;
 
-	osd_rdma_read_table();
-	do {
-		if ((osd_reg_read(RDMA_STATUS) & 0x0fffff0f) == 0)
-			break;
-	} while (1);
+	/*osd_rdma_read_table();*/
+	reset_rdma();
 
-	osd_rdma_reset();
+/*	if (((osd_reg_read(RDMA_STATUS) >>24)>>OSD_RDMA_CHANNEL_INDEX) != 1)*/
+/*		return IRQ_NONE;*/
+
+
+	/*osd_rdma_reset();*/
+/*	read_rdma_table();*/
 
 	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
 	osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
@@ -531,10 +533,60 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	}
 	if (osd_hw.free_scale_enable[OSD1])
 		osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
-	if (osd_hw.scan_mode == SCAN_MODE_INTERLACE)
-		osd_update_interlace_mode();
+
+	if (osd_hw.scan_mode == SCAN_MODE_INTERLACE) {
+		fb0_cfg_w0 = osd_reg_read(VIU_OSD1_BLK0_CFG_W0);
+		fb1_cfg_w0 = osd_reg_read(VIU_OSD2_BLK0_CFG_W0);
+		if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) {
+			/* 1080I */
+			scan_line_number = ((
+			osd_reg_read(ENCP_INFO_READ)) & 0x1fff0000) >> 16;
+			if ((osd_hw.pandata[OSD1].y_start % 2) == 0) {
+				if (scan_line_number >= 562) {
+					/* bottom field, odd lines*/
+					odd_or_even_line = 0;
+				} else {
+					/* top field, even lines*/
+					odd_or_even_line = 1;
+				}
+			} else {
+				if (scan_line_number >= 562) {
+					/* top field, even lines*/
+					odd_or_even_line = 1;
+				} else {
+					/* bottom field, odd lines*/
+					odd_or_even_line = 0;
+				}
+			}
+		} else {
+			if ((osd_hw.pandata[OSD1].y_start % 2) == 1) {
+				odd_or_even_line = (
+				osd_reg_read(ENCI_INFO_READ) & (1 << 29)) ?
+				OSD_TYPE_BOT_FIELD : OSD_TYPE_TOP_FIELD;
+			} else {
+				odd_or_even_line =
+				(osd_reg_read(ENCI_INFO_READ) & (1 << 29)) ?
+					OSD_TYPE_TOP_FIELD : OSD_TYPE_BOT_FIELD;
+			}
+		}
+
+		fb0_cfg_w0 &= ~1;
+		fb1_cfg_w0 &= ~1;
+		fb0_cfg_w0 |= odd_or_even_line;
+		fb1_cfg_w0 |= odd_or_even_line;
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK1_CFG_W0, fb0_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK2_CFG_W0, fb0_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK3_CFG_W0, fb0_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK0_CFG_W0, fb1_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK1_CFG_W0, fb1_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK2_CFG_W0, fb1_cfg_w0);
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK3_CFG_W0, fb1_cfg_w0);
+	}
+
 	osd_update_3d_mode(osd_hw.mode_3d[OSD1].enable,
-			osd_hw.mode_3d[OSD2].enable);
+				osd_hw.mode_3d[OSD2].enable);
+
 	if (!vsync_hit) {
 #ifdef FIQ_VSYNC
 		fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
@@ -542,7 +594,7 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 		wait_vsync_wakeup();
 #endif
 	}
-	osd_reg_write(RDMA_CTRL, 1 << 24);
+	osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
 	return IRQ_HANDLED;
 }
 #endif
@@ -3158,11 +3210,10 @@ void osd_init_hw(u32 logo_loaded)
 
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	osd_rdma_enable(1);
-	if (request_irq(INT_RDMA, &osd_rdma_isr,
+	if (request_irq(int_rdma, &osd_rdma_isr,
 			IRQF_SHARED, "osd_rdma", (void *)"osd_rdma"))
 		osd_log_err("can't request irq for rdma\n");
 #endif
-	osd_log_info("%s() okay\n", __func__);
 
 	return;
 }

@@ -22,10 +22,18 @@
 
 #define REG_OFFSET (0x20)
 #define OSD_RELATIVE_BITS 0x33370
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+#include "osd_rdma.h"
+extern int reset_rdma(void);
+extern int osd_rdma_enable(u32  enable);
+extern int read_rdma_table(void);
+#endif
+
 extern void osd_set_color_key_hw(u32 index, u32 bpp, u32 colorkey);
 extern void osd_srckey_enable_hw(u32  index, u8 enable);
 extern void osd_set_gbl_alpha_hw(u32 index, u32 gbl_alpha);
 extern u32 osd_get_gbl_alpha_hw(u32  index);
+extern int read_rdma_table(void);
 extern void osd_set_color_mode(u32 index,
 			       const struct color_bit_define_s *color);
 extern void osd_update_disp_axis_hw(

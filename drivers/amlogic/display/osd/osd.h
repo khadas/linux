@@ -81,7 +81,7 @@
 
 #define INT_VIU_VSYNC 35
 #define INT_VIU2_VSYNC 45
-#define INT_RDMA 89
+extern int int_rdma;
 
 #define OSD_MAX_BUF_NUM 3  /* fence relative */
 
