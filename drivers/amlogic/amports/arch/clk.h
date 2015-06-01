@@ -23,21 +23,27 @@
 
 struct chip_vdec_clk_s {
 	int (*clock_level)(enum vdec_type_e core);
+	int (*clock_init)(void);
 	void (*clock_enable)(void);
 	void (*clock_hi_enable)(void);
+	void (*clock_superhi_enable)(void);
 	void (*clock_on)(void);
 	void (*clock_off)(void);
 	void (*clock_prepare_switch)(void);
 };
 
 #ifndef INCLUDE_FROM_ARCH_CLK_MGR
+int vdec_clock_init(void);
 void vdec_clock_enable(void);
 void vdec_clock_hi_enable(void);
+void vdec_clock_superhi_enable(void);
 void vdec2_clock_enable(void);
 void vdec2_clock_hi_enable(void);
 void hcodec_clock_enable(void);
+int hevc_clock_init(void);
 void hevc_clock_enable(void);
 void hevc_clock_hi_enable(void);
+void hevc_clock_superhi_enable(void);
 
 void vdec_clock_on(void);
 void vdec_clock_off(void);
@@ -59,10 +65,11 @@ int register_vdec_clk_mgr(int cputype[],
 
 #ifdef INCLUDE_FROM_ARCH_CLK_MGR
 static struct chip_vdec_clk_s vdec_clk_mgr __initdata = {
+	.clock_init = vdec_clock_init,
 	.clock_enable = vdec_clock_enable,
 	.clock_hi_enable = vdec_clock_hi_enable,
-	.clock_on =
-	vdec_clock_on,
+	.clock_superhi_enable = vdec_clock_superhi_enable,
+	.clock_on = vdec_clock_on,
 	.clock_off = vdec_clock_off,
 	.clock_prepare_switch = vdec_clock_prepare_switch,
 	.clock_level = vdec_clock_level,
@@ -73,8 +80,7 @@ static struct chip_vdec_clk_s vdec_clk_mgr __initdata = {
 static struct chip_vdec_clk_s vdec2_clk_mgr __initdata = {
 	.clock_enable = vdec2_clock_enable,
 	.clock_hi_enable = vdec2_clock_hi_enable,
-	.clock_on =
-	vdec2_clock_on,
+	.clock_on = vdec2_clock_on,
 	.clock_off = vdec2_clock_off,
 	.clock_prepare_switch = NULL,
 	.clock_level = vdec_clock_level,
@@ -83,10 +89,11 @@ static struct chip_vdec_clk_s vdec2_clk_mgr __initdata = {
 
 #ifdef VDEC_HAS_HEVC
 static struct chip_vdec_clk_s vdec_hevc_clk_mgr __initdata = {
+	.clock_init = hevc_clock_init,
 	.clock_enable = hevc_clock_enable,
 	.clock_hi_enable = hevc_clock_hi_enable,
-	.clock_on =
-	hevc_clock_on,
+	.clock_superhi_enable = hevc_clock_superhi_enable,
+	.clock_on = hevc_clock_on,
 	.clock_off = hevc_clock_off,
 	.clock_prepare_switch = hevc_clock_prepare_switch,
 	.clock_level = vdec_clock_level,

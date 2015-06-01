@@ -414,24 +414,22 @@ void vdec_power_mode(int level)
 {
 	/* todo: add level routines for clock adjustment per chips */
 	ulong flags;
-	ulong fiq_flag;
 
 	if (vdec_clock_level(VDEC_1) == level)
 		return;
 
 	spin_lock_irqsave(&lock, flags);
-	raw_local_save_flags(fiq_flag);
-	local_fiq_disable();
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
 		vdec_clock_prepare_switch();
 
 	if (level == 0)
 		vdec_clock_enable();
-	else
+	else if (level == 1)
 		vdec_clock_hi_enable();
+	else if (level == 2)
+		vdec_clock_superhi_enable();
 
-	raw_local_irq_restore(fiq_flag);
 	spin_unlock_irqrestore(&lock, flags);
 }
 
@@ -440,14 +438,11 @@ void vdec2_power_mode(int level)
 	if (has_vdec2()) {
 		/* todo: add level routines for clock adjustment per chips */
 		ulong flags;
-		ulong fiq_flag;
 
 		if (vdec_clock_level(VDEC_2) == level)
 			return;
 
 		spin_lock_irqsave(&lock, flags);
-		raw_local_save_flags(fiq_flag);
-		local_fiq_disable();
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
 			vdec_clock_prepare_switch();
@@ -457,9 +452,31 @@ void vdec2_power_mode(int level)
 		else
 			vdec2_clock_hi_enable();
 
-		raw_local_irq_restore(fiq_flag);
 		spin_unlock_irqrestore(&lock, flags);
 	}
+}
+
+void hevc_power_mode(int level)
+{
+	/* todo: add level routines for clock adjustment per chips */
+	ulong flags;
+
+	if (vdec_clock_level(VDEC_HEVC) == level)
+		return;
+
+	spin_lock_irqsave(&lock, flags);
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
+		vdec_clock_prepare_switch();
+
+	if (level == 0)
+		hevc_clock_enable();
+	else if (level == 1)
+		hevc_clock_hi_enable();
+	else if (level == 2)
+		hevc_clock_superhi_enable();
+
+	spin_unlock_irqrestore(&lock, flags);
 }
 
 static enum vdec2_usage_e vdec2_usage = USAGE_NONE;

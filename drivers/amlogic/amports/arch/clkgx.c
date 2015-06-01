@@ -17,6 +17,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/clk.h>
+#include <linux/amlogic/amports/gp_pll.h>
 #include "../vdec_reg.h"
 #include "../amports_config.h"
 #include "../vdec.h"
@@ -96,6 +98,16 @@ HHI_VDEC_CLK_CNTL
 #define HEVC_500M()  \
 	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (0 << 9) | (0), 16, 16)
 
+/* 648M <-- (1296/2) */
+#define VDEC1_648M() \
+	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (6 << 9) | (1), 0, 16)
+#define HEVC_648M() \
+	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (6 << 9) | (1), 16, 16)
+
+#define VDEC1_WITH_GP_PLL() \
+	((READ_HHI_REG(HHI_VDEC_CLK_CNTL) & 0xe00) == 0xc00)
+#define HEVC_WITH_GP_PLL() \
+	((READ_HHI_REG(HHI_VDEC2_CLK_CNTL) & 0xe000000) == 0xc000000)
 
 /* 666M <-- (2000/3)/1 */
 #define VDEC1_666M() \
@@ -154,12 +166,36 @@ HHI_VDEC_CLK_CNTL
 #define HEVC_CLOCK_OFF()   WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, 0, 24, 1)
 
 static int clock_level[VDEC_MAX + 1];
+static struct gp_pll_user_handle_s *gp_pll_user_vdec, *gp_pll_user_hevc;
+
+static int gp_pll_user_cb_vdec(struct gp_pll_user_handle_s *user,
+			int event)
+{
+	if (event == GP_PLL_USER_EVENT_GRANT) {
+		struct clk *clk = clk_get(NULL, "gp0_pll");
+		if (!IS_ERR(clk)) {
+			clk_set_rate(clk, 1296000000UL);
+			VDEC1_648M();
+		}
+	}
+
+	return 0;
+}
+
+static int vdec_clock_init(void)
+{
+	gp_pll_user_vdec = gp_pll_user_register("vdec", 0,
+		gp_pll_user_cb_vdec);
+
+	return (gp_pll_user_vdec) ? 0 : -ENOMEM;
+}
 
 static void vdec_clock_enable(void)
 {
 	VDEC1_CLOCK_OFF();
 	VDEC1_250M();
 	VDEC1_CLOCK_ON();
+	gp_pll_release(gp_pll_user_vdec);
 	clock_level[VDEC_1] = 0;
 }
 
@@ -168,7 +204,18 @@ static void vdec_clock_hi_enable(void)
 	VDEC1_CLOCK_OFF();
 	VDEC1_666M();
 	VDEC1_CLOCK_ON();
+	gp_pll_release(gp_pll_user_vdec);
 	clock_level[VDEC_1] = 1;
+}
+
+static void vdec_clock_superhi_enable(void)
+{
+	VDEC1_CLOCK_OFF();
+	gp_pll_request(gp_pll_user_vdec);
+	while (!VDEC1_WITH_GP_PLL())
+		;
+	VDEC1_CLOCK_ON();
+	clock_level[VDEC_1] = 2;
 }
 
 static void vdec_clock_on(void)
@@ -197,12 +244,36 @@ static void hcodec_clock_off(void)
 	HCODEC_CLOCK_OFF();
 }
 
+static int gp_pll_user_cb_hevc(struct gp_pll_user_handle_s *user,
+			int event)
+{
+	if (event == GP_PLL_USER_EVENT_GRANT) {
+		struct clk *clk = clk_get(NULL, "gp0_pll");
+		if (!IS_ERR(clk)) {
+			clk_set_rate(clk, 1296000000UL);
+			HEVC_648M();
+		}
+	}
+
+	return 0;
+}
+
+static int hevc_clock_init(void)
+{
+	gp_pll_user_hevc = gp_pll_user_register("hevc", 0,
+		gp_pll_user_cb_hevc);
+
+	return (gp_pll_user_hevc) ? 0 : -ENOMEM;
+}
+
 static void hevc_clock_enable(void)
 {
 	HEVC_CLOCK_OFF();
 	/* HEVC_255M(); */
 	HEVC_400M();
 	HEVC_CLOCK_ON();
+	clock_level[VDEC_HEVC] = 0;
+	gp_pll_release(gp_pll_user_hevc);
 }
 
 static void hevc_clock_hi_enable(void)
@@ -210,7 +281,18 @@ static void hevc_clock_hi_enable(void)
 	HEVC_CLOCK_OFF();
 	HEVC_666M();
 	HEVC_CLOCK_ON();
+	gp_pll_release(gp_pll_user_hevc);
 	clock_level[VDEC_HEVC] = 1;
+}
+
+static void hevc_clock_superhi_enable(void)
+{
+	HEVC_CLOCK_OFF();
+	gp_pll_request(gp_pll_user_hevc);
+	while (!HEVC_WITH_GP_PLL())
+		;
+	HEVC_CLOCK_ON();
+	clock_level[VDEC_HEVC] = 2;
 }
 
 static void hevc_clock_on(void)

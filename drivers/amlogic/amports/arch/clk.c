@@ -43,6 +43,19 @@
 			p->fn();\
 	} while (0)
 
+#define IF_HAVE_RUN_RET(p, fn)\
+	do {\
+		if (p && p->fn)\
+			return p->fn();\
+		else\
+			return 0;\
+	} while (0)
+
+int vdec_clock_init(void)
+{
+	IF_HAVE_RUN_RET(p_vdec(), clock_init);
+}
+
 void vdec_clock_enable(void)
 {
 	IF_HAVE_RUN(p_vdec(), clock_enable);
@@ -51,6 +64,11 @@ void vdec_clock_enable(void)
 void vdec_clock_hi_enable(void)
 {
 	IF_HAVE_RUN(p_vdec(), clock_hi_enable);
+}
+
+void vdec_clock_superhi_enable(void)
+{
+	IF_HAVE_RUN(p_vdec(), clock_superhi_enable);
 }
 
 void vdec_clock_on(void)
@@ -98,6 +116,11 @@ void hcodec_clock_off(void)
 	IF_HAVE_RUN(p_vdec_hcodec(), clock_off);
 }
 
+int hevc_clock_init(void)
+{
+	IF_HAVE_RUN_RET(p_vdec_hevc(), clock_init);
+}
+
 void hevc_clock_enable(void)
 {
 	IF_HAVE_RUN(p_vdec_hevc(), clock_enable);
@@ -106,6 +129,11 @@ void hevc_clock_enable(void)
 void hevc_clock_hi_enable(void)
 {
 	IF_HAVE_RUN(p_vdec_hevc(), clock_hi_enable);
+}
+
+void hevc_clock_superhi_enable(void)
+{
+	IF_HAVE_RUN(p_vdec_hevc(), clock_superhi_enable);
 }
 
 void hevc_clock_on(void)
@@ -152,6 +180,12 @@ static int register_vdec_clk_mgr_per_cpu(int cputype,
 	/*
 	pr_info("register vdec clk mgr for vdec[%d]\n", vdec_type);
 	*/
+	if (mgr->clock_init) {
+		if (mgr->clock_init()) {
+			kfree(mgr);
+			return -ENOMEM;
+		}
+	}
 	get_current_vdec_chip()->clk_mgr[vdec_type] = mgr;
 	return 0;
 }

@@ -147,6 +147,11 @@ HHI_VDEC_CLK_CNTL
 
 static int clock_level[VDEC_MAX + 1];
 
+static int vdec_clock_init(void)
+{
+	return 0;
+}
+
 static void vdec_clock_enable(void)
 {
 	VDEC1_CLOCK_OFF();
@@ -164,6 +169,17 @@ static void vdec_clock_hi_enable(void)
 		VDEC1_638M();
 	VDEC1_CLOCK_ON();
 	clock_level[VDEC_1] = 1;
+}
+
+static void vdec_clock_superhi_enable(void)
+{
+	VDEC1_CLOCK_OFF();
+	if (is_meson_m8_cpu())
+		VDEC1_364M();
+	else
+		VDEC1_638M();
+	VDEC1_CLOCK_ON();
+	clock_level[VDEC_1] = 2;
 }
 
 static void vdec_clock_on(void)
@@ -219,6 +235,11 @@ static void hcodec_clock_off(void)
 	HCODEC_CLOCK_OFF();
 }
 
+static int hevc_clock_init(void)
+{
+	return 0;
+}
+
 static void hevc_clock_enable(void)
 {
 	HEVC_CLOCK_OFF();
@@ -233,6 +254,14 @@ static void hevc_clock_hi_enable(void)
 	HEVC_638M();
 	HEVC_CLOCK_ON();
 	clock_level[VDEC_HEVC] = 1;
+}
+
+static void hevc_clock_superhi_enable(void)
+{
+	HEVC_CLOCK_OFF();
+	HEVC_638M();
+	HEVC_CLOCK_ON();
+	clock_level[VDEC_HEVC] = 2;
 }
 
 static void hevc_clock_on(void)

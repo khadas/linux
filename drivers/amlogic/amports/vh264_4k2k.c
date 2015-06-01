@@ -1617,7 +1617,11 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 		vdec_poweron(VDEC_2);
 	}
 
-	vdec_power_mode(1);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		vdec_power_mode(2);
+	else
+		vdec_power_mode(1);
+
 	if (!H264_4K2K_SINGLE_CORE)
 		vdec2_power_mode(1);
 
@@ -1650,6 +1654,9 @@ static int amvdec_h264_4k2k_remove(struct platform_device *pdev)
 	mutex_lock(&vh264_4k2k_mutex);
 
 	vh264_4k2k_stop();
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		vdec_power_mode(1);
 
 	if (!H264_4K2K_SINGLE_CORE) {
 		vdec_poweroff(VDEC_2);
