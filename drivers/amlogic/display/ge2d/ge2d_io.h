@@ -85,7 +85,7 @@ static void ge2d_reg_write(unsigned int reg, unsigned int val)
 	addr = GE2DBUS_REG_ADDR(reg);
 	if (check_map_flag(addr)) {
 		writel(val, reg_map.vir_addr + addr);
-		ret = readl(reg_map.vir_addr + addr);
+		/* ret = readl(reg_map.vir_addr + addr); */
 	}
 	ge2d_log_dbg2("write(0x%x, 0x%x)=0x%x\n",
 			reg_map.phy_addr + addr, val, ret);
