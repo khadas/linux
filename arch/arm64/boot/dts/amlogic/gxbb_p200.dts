@@ -150,7 +150,7 @@
                 pinctrl-names = "eth_pins";
                 pinctrl-0 = <&eth_pins>;
                 rst_pin-gpios = <&gpio GPIOZ_14 0>;
-                mc_val = <0x7641>;
+                mc_val = <0x1621>;
                 resets = <&clock GCLK_IDX_ETHERNET>;
                 reset-names = "ethpower";
                 interrupt-names = "macirq";

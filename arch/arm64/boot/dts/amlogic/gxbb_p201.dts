@@ -142,15 +142,15 @@
 		};
 	};
 	ethmac: ethernet@0xc9410000{
-                compatible = "amlogic, gxbb-rgmii-dwmac";
+                compatible = "amlogic, gxbb-rmii-dwmac";
                 reg = <0x0 0xc9410000 0x0 0x10000
                 0x0 0xc8834540 0x0 0x8>;
                 interrupts = <0 8 1>;
-                phy-mode= "rgmii";
+                phy-mode= "rmii";
                 pinctrl-names = "eth_pins";
                 pinctrl-0 = <&eth_pins>;
                 rst_pin-gpios = <&gpio GPIOZ_14 0>;
-                mc_val = <0x7641>;
+                mc_val = <0x1808>;
                 resets = <&clock GCLK_IDX_ETHERNET>;
                 reset-names = "ethpower";
                 interrupt-names = "macirq";
