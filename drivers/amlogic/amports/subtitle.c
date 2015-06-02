@@ -320,10 +320,11 @@ static ssize_t store_startpts(struct class *class, struct class_attribute *attr,
 static ssize_t show_data(struct class *class, struct class_attribute *attr,
 						 char *buf)
 {
+#if 0
 	if (subtitle_data[subtitle_write_pos].data)
-		return sprintf(buf, "%d\n",
-			(int)(subtitle_data[subtitle_write_pos].data));
-
+		return sprintf(buf, "%lld\n",
+		(unsigned long)(subtitle_data[subtitle_write_pos].data));
+#endif
 	return sprintf(buf, "0: disabled\n");
 }
 
@@ -336,16 +337,18 @@ static ssize_t store_data(struct class *class, struct class_attribute *attr,
 	r = sscanf(buf, "%d", &address);
 	if ((r == 0))
 		return -EINVAL;
+#if 0
 	if (subtitle_data[subtitle_write_pos].subtitle_size > 0) {
 		subtitle_data[subtitle_write_pos].data = vmalloc((
 			subtitle_data[subtitle_write_pos].subtitle_size));
 		if (subtitle_data[subtitle_write_pos].data)
 			memcpy(subtitle_data[subtitle_write_pos].data,
-			(char *)address,
+			(unsigned long *)address,
 			subtitle_data[subtitle_write_pos].subtitle_size);
 	}
 	pr_info("subtitle data address is %x",
 			(unsigned int)(subtitle_data[subtitle_write_pos].data));
+#endif
 	subtitle_write_pos++;
 	if (subtitle_write_pos >= MAX_SUBTITLE_PACKET)
 		subtitle_write_pos = 0;
@@ -506,7 +509,7 @@ static long amsubtitle_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		case SUB_DATA_T_DATA: {
 			if (states->subtitle_info > 0)
 				states->subtitle_info =
-				(int)subtitle_data[subtitle_write_pos].data;
+				(long)subtitle_data[subtitle_write_pos].data;
 		}
 		break;
 		default:
