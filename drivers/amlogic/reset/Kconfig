@@ -1,8 +1,20 @@
-# Amlogic PINCTRL
-
-
+# Amlogic POWER OFF
 config AML_POWER_RESET
-	bool "Amlogic Board level reset or power off"
+	boolean "Amlogic Board level reset or power off"
 	default n
+    	help
+		This is the Amlogic Board reset or poweroff  driver
+
+config M8_POWER_RESET
+	boolean "Amlogic Board level reset or power off for 32bit"
+	default n
+	depends on AML_POWER_RESET
+    	help
+		This is the Amlogic Board reset or poweroff  driver
+
+config GXBB_POWER_RESET
+	boolean "Amlogic Board level reset or power off for 64bit"
+	default n
+	depends on AML_POWER_RESET
     	help
 		This is the Amlogic Board reset or poweroff  driver

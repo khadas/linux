@@ -141,6 +141,10 @@
 		interrupts = <GIC_PPI 9 0xf04>;
 	};
 
+	aml_restart{
+		compatible = "aml, restart";
+		sys_reset = <0x84000009>;
+	};
 
 
 
