@@ -271,16 +271,16 @@ int    gxbb_clk_measure(struct seq_file *s, void *what, char  index)
 		[0] = "am_ring_osc_clk_out_ee[0]" ,
 	};
 	int  i;
-	int len = sizeof(clk_table)/sizeof(char *) - 1;
+	int len = sizeof(clk_table)/sizeof(char *);
 	if (index  == 0xff) {
 		for (i = 0; i < len; i++)
-			seq_printf(s, "[%d][%10d]%s\n",
+			seq_printf(s, "[%2d][%10d]%s\n",
 				   i, gxbb_clk_util_clk_msr(i),
 					clk_table[i]);
 		return 0;
 	}
-	seq_printf(s, "[%10d]%s\n", clk_util_clk_msr(index),
-		   clk_table[len-index]);
+	seq_printf(s, "[%10d]%s\n", gxbb_clk_util_clk_msr(index),
+		   clk_table[index]);
 	clk_msr_index = 0xff;
 	return 0;
 }
