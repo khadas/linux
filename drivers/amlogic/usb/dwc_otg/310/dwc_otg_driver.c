@@ -195,7 +195,7 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 				   },
 	.host_rx_fifo_size = 512, /* will be overrided by platform setting */
 	.host_nperio_tx_fifo_size = 500,
-	.host_perio_tx_fifo_size = -1,
+	.host_perio_tx_fifo_size = 500,
 	.max_transfer_size = -1,
 	.max_packet_count = -1,
 	.host_channels = 16,
