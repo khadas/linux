@@ -356,6 +356,11 @@
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
 		interrupts = <0 57 1>, <0 151 1>;
 		interrupt-names = "hdmitx_hpd", "hdmitx_cec";
+		clocks = <&clock CLK_HDMITX_SYS &clock CLK_HDMITX_ENCP
+			&clock CLK_HDMITX_ENCI &clock CLK_HDMITX_PIXEL
+			&clock CLK_HDMITX_PHY &clock CLK_VID>;
+		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp", "hdmitx_clk_enci",
+			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
 
 		vend_data: vend_data{
 			vendor_name = "Amlogic"; /* Max Chars: 8     */
@@ -363,14 +368,6 @@
 			product_desc = "GXBB Mbox"; /* Max Chars: 16    */
 			cec_osd_string = "Amlogic MBox"; /* Max Chars: 14    */
 		};
-/*
-		clocks = <&clock CLK_HDMITX_SYS &clock CLK_HDMITX_ENCP
-			&clock CLK_HDMITX_ENCI &clock CLK_HDMITX_PIXEL
-			&clock CLK_HDMITX_PHY>;
-		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp",
-		"hdmitx_clk_enci", "hdmitx_clk_pixel", "hdmitx_clk_phy";
-*/
-
 	};
 
 	uart_AO: serial@c81004c0 {

@@ -206,6 +206,7 @@ struct hdmitx_dev {
 	struct clk *clk_enci;
 	struct clk *clk_pixel;
 	struct clk *clk_phy;
+	struct clk *clk_vid;
 	unsigned int mode4k60hz420;
 };
 

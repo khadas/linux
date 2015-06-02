@@ -56,7 +56,7 @@ struct aml_pll_conf hpll_pll_lvds_conf = {
 	.m_mask = 0x1ff,
 	.m_shift = 0,
 };
-struct aml_pll_conf hpll_pll_phy_conf = {
+static struct aml_pll_conf hpll_pll_phy_conf = {
 	.od_mask = 0x3,
 	.od_shift = 18,
 	.n_mask = 0x1f,
@@ -343,7 +343,7 @@ static int	vid_pll_clk_set(struct clk_hw *hw, unsigned long drate,
 
 	return 0;
 }
-int	vid_pll_clk_prepare(struct clk_hw *hw)
+static int	vid_pll_clk_prepare(struct clk_hw *hw)
 {
 	aml_set_reg32_bits(reg_base_cbus + OFFSET(HHI_VID_DIVIDER_CNTL), 0, 15, 1);
 	return 0;
@@ -405,18 +405,18 @@ struct hdmi_clock {
 	.cts_encx_div = _xx_div,  \
 }
 
-struct cts_encx_table cts_encp_tbl[] = {
+static struct cts_encx_table cts_encp_tbl[] = {
 	CTS_XXX_TBL(148500000, 148500000, 1, 1),
 	CTS_XXX_TBL(108000000, 432000000, 4, 1),
 	CTS_XXX_TBL(74250000, 148500000, 1, 2),
 	CTS_XXX_TBL(54000000, 432000000, 4, 2),
 };
 
-struct cts_encx_table cts_enci_tbl[] = {
+static struct cts_encx_table cts_enci_tbl[] = {
 	CTS_XXX_TBL(54000000, 432000000, 4, 2),
 	CTS_XXX_TBL(27000000, 432000000, 4, 1),
 };
-struct cts_encx_table cts_pixel_tbl[] = {
+static struct cts_encx_table cts_pixel_tbl[] = {
 	CTS_XXX_TBL(148500000, 148500000, 1, 1),
 	CTS_XXX_TBL(108000000, 216000000, 4, 1),
 	CTS_XXX_TBL(74250000, 148500000, 1, 2),
@@ -424,7 +424,7 @@ struct cts_encx_table cts_pixel_tbl[] = {
 	CTS_XXX_TBL(27000000, 216000000, 4, 2),
 };
 
-int	encx_clk_prepare(struct clk_hw *hw)
+static int	encx_clk_prepare(struct clk_hw *hw)
 {
 	aml_set_reg32_bits(reg_base_cbus + OFFSET(HHI_VID_CLK_CNTL), 1, 19, 1);
 	aml_set_reg32_bits(reg_base_cbus + OFFSET(HHI_VID_CLK_CNTL), 0, 16, 3);
@@ -491,7 +491,7 @@ static struct clk_ops encx_clk_ops = {
 	.round_rate = encx_clk_round,
 };
 
-struct hdmi_clock hdmi_clock_tbl[] = {
+static struct hdmi_clock hdmi_clock_tbl[] = {
 	HDMI_CLK_TBL("vid_clk", "hdmi_pll_lvds", &vid_clk_ops, CLK_SET_RATE_PARENT),
 	HDMI_ENC_CLK_TBL("cts_encp_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_encp_tbl, 24, HHI_VID_CLK_DIV, CLK_HDMITX_ENCP),
 	HDMI_ENC_CLK_TBL("cts_enci_clk", "vid_clk", &encx_clk_ops, CLK_SET_RATE_PARENT, cts_enci_tbl, 28, HHI_VID_CLK_DIV, CLK_HDMITX_ENCI),

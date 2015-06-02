@@ -197,6 +197,9 @@ void Edid_CompareTimingDescriptors(struct hdmitx_info *info,
 {
 	int index1, index2;
 
+	pr_info("TODO: %s[%d]\n", __func__, __LINE__);
+	return;
+
 	for (index1 = 0; index1 < 17; index1++) {
 		for (index2 = 0; index2 < 12; index2++) {
 			if (Data[index2] !=
@@ -1538,16 +1541,28 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 /*
  * print one block data of edid
  */
+#define TMP_EDID_BUF_SIZE	(256+8)
 static void hdmitx_edid_blk_print(unsigned char *blk, unsigned int blk_idx)
 {
-	unsigned int i;
-	hdmi_print(INF, EDID "blk%d raw data\n", blk_idx);
-	for (i = 0; i < 128; i++) {
-		pr_info("%02x", blk[i]);
-		if (((i+1) & 0x1f) == 0) /* print 32bytes a line */
-			pr_info("\n");
+	unsigned int i, pos;
+	unsigned char *tmp_buf = NULL;
+
+	tmp_buf = kmalloc(TMP_EDID_BUF_SIZE, GFP_KERNEL);
+	if (!tmp_buf) {
+		pr_info("hdmitx: no mem\n");
+		return;
 	}
-	pr_info("\n");
+
+	memset(tmp_buf, 0, sizeof(TMP_EDID_BUF_SIZE));
+	hdmi_print(INF, EDID "blk%d raw data\n", blk_idx);
+	for (i = 0, pos = 0; i < 128; i++) {
+		pos += sprintf(tmp_buf + pos, "%02x", blk[i]);
+		if (((i+1) & 0x1f) == 0)    /* print 32bytes a line */
+			pos += sprintf(tmp_buf + pos, "\n");
+	}
+	pos += sprintf(tmp_buf + pos, "\n");
+	pr_info("%s\n", tmp_buf);
+	kfree(tmp_buf);
 }
 
 /*

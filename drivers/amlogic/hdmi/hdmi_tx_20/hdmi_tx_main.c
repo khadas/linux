@@ -1365,7 +1365,6 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_lock(&setclk_mutex);
 	/* start reading E-EDID */
 	hdev->hpd_state = 1;
-
 	/* TODO	hdmitx_edid_ram_buffer_clear(hdev); */
 	hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
 	hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_MUX);
@@ -1852,10 +1851,17 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.clk_enci = NULL;
 	hdmitx_device.clk_pixel = NULL;
 	hdmitx_device.clk_phy = NULL;
-#if 0
 	hdmitx_device.clk_sys = clk_get(&pdev->dev, "hdmitx_clk_sys");
 	if (hdmitx_device.clk_sys)
 		clk_prepare_enable(hdmitx_device.clk_sys);
+
+	hdmitx_device.clk_phy = clk_get(&pdev->dev, "hdmitx_clk_phy");
+	if (hdmitx_device.clk_phy)
+		clk_prepare_enable(hdmitx_device.clk_phy);
+
+	hdmitx_device.clk_vid = clk_get(&pdev->dev, "hdmitx_clk_vid");
+	if (hdmitx_device.clk_vid)
+		clk_prepare_enable(hdmitx_device.clk_vid);
 
 	hdmitx_device.clk_encp = clk_get(&pdev->dev, "hdmitx_clk_encp");
 	if (hdmitx_device.clk_encp)
@@ -1869,10 +1875,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (hdmitx_device.clk_pixel)
 		clk_prepare_enable(hdmitx_device.clk_pixel);
 
-	hdmitx_device.clk_phy = clk_get(&pdev->dev, "hdmitx_clk_phy");
-	if (hdmitx_device.clk_phy)
-		clk_prepare_enable(hdmitx_device.clk_phy);
-#endif
 	switch_dev_register(&sdev);
 /* switch_dev_register(&lang_dev); */
 

@@ -21,6 +21,8 @@
 extern void __iomem *reg_base_cbus;
 extern void __iomem *reg_base_aobus;
 extern void __init hdmi_clk_init(void __iomem *reg_base_cbus);
+extern void __init gxbb_hdmi_clk_init(void __iomem *reg_base_cbus);
+
 
 enum amlogic_pll_type {
 	pll_1500,
@@ -38,6 +40,7 @@ struct amlogic_pll_rate_table {
 	unsigned int m;         /* aml */
 	unsigned int n;         /* aml */
 	unsigned int od;        /* aml */
+	unsigned int od2;        /* aml */
 	unsigned int ext_div_n; /* aml */
 	unsigned int afc_dsel_bp_en; /* aml */
 	unsigned int afc_dsel_bp_in; /* aml */
@@ -160,6 +163,8 @@ struct amlogic_clk_pll {
 struct aml_pll_conf {
 		unsigned int od_mask;
 		unsigned int od_shift;
+		unsigned int od2_mask;
+		unsigned int od2_shift;
 		unsigned int n_mask;
 		unsigned int n_shift;
 		unsigned int m_mask;
@@ -203,6 +208,7 @@ struct amlogic_pll_clock {
 	struct aml_pll_co_ctrl *co_ctrl;
 	unsigned int co_ctrl_num;
 	unsigned int calc_no_od;
+	struct clk_ops  *ops;
 };
 
 #define HDMI_PLL(_typ, _id, _name, _pname, _flags, _pll_ctrl,	\

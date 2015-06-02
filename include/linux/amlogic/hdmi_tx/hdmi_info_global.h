@@ -275,6 +275,7 @@ struct hdmitx_clk {
 	enum hdmi_vic vic;
 	uint64_t clk_sys;
 	uint64_t clk_phy;
+	uint64_t clk_vid;
 	uint64_t clk_encp;
 	uint64_t clk_enci;
 	uint64_t clk_pixel;
