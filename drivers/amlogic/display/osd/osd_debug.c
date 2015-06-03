@@ -176,8 +176,9 @@ static void osd_debug_dump_register(int argc, char **argv)
 {
 	int reg_start, reg_end;
 	int ret;
-
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	read_rdma_table();
+#endif
 	if ((argc == 3) && argv[1] && argv[2]) {
 		ret = kstrtoint(argv[1], 16, &reg_start);
 		ret = kstrtoint(argv[2], 16, &reg_end);

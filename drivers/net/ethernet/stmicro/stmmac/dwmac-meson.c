@@ -48,8 +48,8 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	pr_info("REG0:REG1 = %p :%p\n", PREG_ETH_REG0, PREG_ETH_REG1);
 
 	/* Get mec mode & ting value  set it in cbus2050 */
-	pr_info("mem start:0x%llx , %llx , [%p]\n", res->start,
-					res->end - res->start,
+	pr_info("mem start:0x%llx , %llx , [%p]\n", (long long)res->start,
+					(long long)(res->end - res->start),
 					addr);
 	if (of_property_read_u32(np, "mc_val", &mc_val)) {
 		pr_info("detect cbus[2050]=null, plesae setting val\n");
