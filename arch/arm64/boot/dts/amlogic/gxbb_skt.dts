@@ -69,23 +69,23 @@
 			no-map;
 		};
 		/*  vdin0 */
-		vdin0_reserved:linux,vdin0 {
-			compatible = "amlogic, vdin_memory";
+//		vdin0_reserved:linux,vdin0 {
+//			compatible = "amlogic, vdin_memory";
 			/* 1920x1080x2x4  =17M */
-			size = <0x0 0x01000000>;
-		};
+//			size = <0x0 0x01000000>;
+//		};
 		 /*  vdin1 */
-		vdin1_reserved:linux,vdin1 {
-			compatible = "amlogic, vdin_memory";
+//		vdin1_reserved:linux,vdin1 {
+//			compatible = "amlogic, vdin_memory";
 			/* 1920x1080x2x4  =17M */
-			size = <0x0 0x01000000>;
-		};
+//			size = <0x0 0x01000000>;
+//		};
 
 		/* AVC Encode CMA pool */
 		avc_cma_reserved:linux,avc_cma {
 			compatible = "amlogic, avc-cma-memory";
 			reusable;
-			size = <0x0 0x2400000>;
+			size = <0x0 0x1200000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -188,7 +188,7 @@
 			"mailbox_1",
 			"mailbox_2";
 	};
-	vdin0 {
+/*	vdin0 {
 		compatible = "amlogic, vdin";
 		memory-region = <&vdin0_reserved>;
 		dev_name = "vdin0";
@@ -205,7 +205,7 @@
 		reserve-iomap = "true";
 		interrupts = <0 85 1>;
 		vdin_id = <1>;
-	};
+	};*/
 	amvdec_656in0 {
 		compatible = "amlogic, amvdec_656in";
 		dev_name = "amvdec_656in0";
