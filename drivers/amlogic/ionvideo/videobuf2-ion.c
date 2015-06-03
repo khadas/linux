@@ -26,7 +26,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-memops.h>
 
-#include <asm/mach/map.h>
+/*#include <asm/mach/map.h>*/
 #include <ion.h>
 #include "ion_priv.h"
 #include "videobuf2-ion.h"
@@ -283,8 +283,13 @@ static void *vb2_ion_cookie(void *buf_priv)
 	struct vb2_ion_buf *buf = buf_priv;
 
 	struct ion_buffer *buffer = buf->dbuf->priv;
-
+#if 0
 	return (void *)buffer->priv_phys;
+#endif
+	struct sg_table *table = buffer->priv_virt;
+	struct page *page = sg_page(table->sgl);
+	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+	return (void *)paddr;
 }
 
 const struct vb2_mem_ops vb2_ion_memops = {

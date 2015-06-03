@@ -151,8 +151,8 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 		ge2d_config->src_para.height = src_vf->height;
 
 	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
-	ppmgr2_printk(2, "vf_width is %d , vf_height is %d type:%p\n",
-			vf->width, vf->height, (void *)vf->type);
+/*	ppmgr2_printk(2, "vf_width is %d , vf_height is %d type:%p\n",
+			vf->width, vf->height, (void *)vf->type);*/
 }
 
 static int ge2d_paint_dst(struct ge2d_context_s *context,
@@ -250,10 +250,10 @@ static int ge2d_paint_dst(struct ge2d_context_s *context,
 					dst_paint_position[2],
 					dst_paint_position[3]);
 	}
-	ppmgr2_printk(2, "dst addr:%p w:%d h:%d canvas_id:%p format:%p\n",
+/*	ppmgr2_printk(2, "dst addr:%p w:%d h:%d canvas_id:%p format:%p\n",
 			(void *)dst_cd.addr, dst_cd.width, dst_cd.height,
 			(void *)dst_canvas_id,
-			(void *)ge2d_config->dst_para.format);
+			(void *)ge2d_config->dst_para.format);*/
 	ppmgr2_printk(2, "dst plane w:%d h:%d paint w:%d h:%d\n",
 			dst_plane_position[2], dst_plane_position[3],
 			dst_paint_position[2], dst_paint_position[3]);
