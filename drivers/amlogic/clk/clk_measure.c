@@ -40,7 +40,7 @@
 
 void __iomem *msr_clk_reg0;
 void __iomem *msr_clk_reg2;
-int clk_msr_index = 0xff;
+unsigned int clk_msr_index = 0xff;
 
 static unsigned int clk_util_clk_msr(unsigned int clk_mux)
 {
@@ -103,7 +103,7 @@ static unsigned int gxbb_clk_util_clk_msr(unsigned int clk_mux)
 
 }
 
-int    m8m2_clk_measure(char  index)
+int    m8m2_clk_measure(unsigned int index)
 {
 	const char *clk_table[] = {
 	" CTS_MIPI_CSI_CFG_CLK(63)",
@@ -183,7 +183,7 @@ int    m8m2_clk_measure(char  index)
 		   clk_table[len-index]);
 	return 0;
 }
-int    gxbb_clk_measure(struct seq_file *s, void *what, char  index)
+int gxbb_clk_measure(struct seq_file *s, void *what, unsigned int index)
 {
 	const char *clk_table[] = {
 		[82] = "Cts_ge2d_clk       ",
