@@ -107,6 +107,17 @@ config COMMON_CLK_KEYSTONE
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
 
+config COMMON_CLK_SCPI
+        bool "Clock driver controlled via SCPI interface"
+        depends on ARM_SCPI_PROTOCOL
+        ---help---
+          This driver provides support for clocks that are controlled
+          by firmware that implements the SCPI interface.
+
+	  This driver uses SCPI Message Protocol to interact with the
+	  firware providing all the clock controls.
+
+
 source "drivers/clk/qcom/Kconfig"
 
 endmenu
