@@ -85,13 +85,21 @@
 #define AML_UART_BAUD_USE		BIT(23)
 #define AML_UART_BAUD_XTAL		BIT(24)
 
-#define AML_UART_PORT_NUM		6
+#define AML_UART_PORT_MAX		16
 #define AML_UART_DEV_NAME		"ttyS"
 
 /*#define UART_TEST_DEBUG*/
 static struct uart_driver meson_uart_driver;
 
-static struct uart_port *meson_ports[AML_UART_PORT_NUM];
+struct meson_uart_port {
+	struct uart_port	port;
+	spinlock_t wr_lock;
+	unsigned long baud;
+	struct pinctrl *p;
+};
+
+#define to_meson_port(uport)  container_of(uport, struct meson_uart_port, port)
+static struct meson_uart_port *meson_ports[AML_UART_PORT_MAX];
 
 static void meson_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
@@ -150,7 +158,10 @@ static void meson_uart_start_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int ch;
+	struct meson_uart_port *mup = to_meson_port(port);
+	unsigned long flags;
 
+	spin_lock_irqsave(&mup->wr_lock, flags);
 	while (!uart_circ_empty(xmit)) {
 		if (!(readl(port->membase + AML_UART_STATUS) &
 			AML_UART_TX_FULL)) {
@@ -161,11 +172,13 @@ static void meson_uart_start_tx(struct uart_port *port)
 		} else
 			break;
 	}
+	spin_unlock_irqrestore(&mup->wr_lock, flags);
 }
 
 static void meson_transmit_chars(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
+	struct meson_uart_port *mup = to_meson_port(port);
 	unsigned int ch;
 	int count = 256;
 
@@ -179,6 +192,7 @@ static void meson_transmit_chars(struct uart_port *port)
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		goto clear_and_return;
 
+	spin_lock(&mup->wr_lock);
 	while (!uart_circ_empty(xmit) && count-- > 0) {
 		if (!(readl(port->membase + AML_UART_STATUS) &
 			AML_UART_TX_FULL)) {
@@ -189,6 +203,7 @@ static void meson_transmit_chars(struct uart_port *port)
 		} else
 			break;
 	}
+	spin_unlock(&mup->wr_lock);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -203,7 +218,7 @@ static void meson_receive_chars(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	char flag;
 	u32 status, ch, mode;
-
+	spin_lock(&port->lock);
 	do {
 		flag = TTY_NORMAL;
 		port->icount.rx++;
@@ -242,10 +257,10 @@ static void meson_receive_chars(struct uart_port *port)
 			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
 	} while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY));
-
 	spin_unlock(&port->lock);
+
 	tty_flip_buffer_push(tport);
-	spin_lock(&port->lock);
+
 }
 
 static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
@@ -254,8 +269,8 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 	u32 val;
 
 	spin_lock(&port->lock);
-
 	val = readl(port->membase + AML_UART_CONTROL);
+	spin_unlock(&port->lock);
 	if (!(readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY))
 		meson_receive_chars(port);
 
@@ -263,7 +278,6 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 	    && (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_FULL)))
 		meson_transmit_chars(port);
 
-	spin_unlock(&port->lock);
 
 	return IRQ_HANDLED;
 }
@@ -296,6 +310,7 @@ static int meson_uart_startup(struct uart_port *port)
 static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 {
 	u32 val;
+	struct meson_uart_port *mup = to_meson_port(port);
 	while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_EMPTY))
 		cpu_relax();
 
@@ -308,6 +323,8 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	val = (port->uartclk / 3) / baud  - 1;
 	val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL);
 	writel(val, port->membase + AML_UART_REG5);
+
+	mup->baud = baud;
 }
 
 static void meson_uart_set_termios(struct uart_port *port,
@@ -362,8 +379,9 @@ static void meson_uart_set_termios(struct uart_port *port,
 		val |= AML_UART_TWO_WIRE_EN;
 
 	writel(val, port->membase + AML_UART_CONTROL);
+	spin_unlock_irqrestore(&port->lock, flags);
 
-	baud = uart_get_baud_rate(port, termios, old, 9600, 115200);
+	baud = uart_get_baud_rate(port, termios, old, 9600, 4000000);
 	meson_uart_change_speed(port, baud);
 
 	port->read_status_mask = AML_UART_TX_FIFO_WERR;
@@ -377,7 +395,6 @@ static void meson_uart_set_termios(struct uart_port *port,
 		    AML_UART_FRAME_ERR;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int meson_uart_verify_port(struct uart_port *port,
@@ -479,28 +496,13 @@ static void meson_serial_console_write(struct console *co, const char *s,
 				       u_int count)
 {
 	struct uart_port *port;
-	unsigned long flags;
-	int locked;
 
-	port = meson_ports[co->index];
+	port = &meson_ports[co->index]->port;
 	if (!port)
 		return;
 
-	local_irq_save(flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else {
-		spin_lock(&port->lock);
-		locked = 1;
-	}
-
 	uart_console_write(port, s, count, meson_console_putchar);
 
-	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
 }
 
 static int meson_serial_console_setup(struct console *co, char *options)
@@ -511,10 +513,10 @@ static int meson_serial_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	if (co->index < 0 || co->index >= AML_UART_PORT_NUM)
+	if (co->index < 0 || co->index >= AML_UART_PORT_MAX)
 		return -EINVAL;
 
-	port = meson_ports[co->index];
+	port = &meson_ports[co->index]->port;
 	if (!port || !port->membase)
 		return -ENODEV;
 
@@ -551,7 +553,7 @@ static struct uart_driver meson_uart_driver = {
 	.owner = THIS_MODULE,
 	.driver_name = "meson_uart",
 	.dev_name = AML_UART_DEV_NAME,
-	.nr = AML_UART_PORT_NUM,
+	.nr = AML_UART_PORT_MAX,
 	.cons = MESON_SERIAL_CONSOLE,
 };
 
@@ -559,16 +561,16 @@ static int meson_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem, *res_irq;
 	struct uart_port *port;
+	struct meson_uart_port *mup;
 	struct clk *clk;
 	const void *prop;
 	struct reset_control *uart_rst;
-	struct pinctrl *p;
 	int ret = 0;
 
 	if (pdev->dev.of_node)
 		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
 
-	if (pdev->id < 0 || pdev->id >= AML_UART_PORT_NUM)
+	if (pdev->id < 0 || pdev->id >= AML_UART_PORT_MAX)
 		return -EINVAL;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -584,9 +586,13 @@ static int meson_uart_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	port = devm_kzalloc(&pdev->dev, sizeof(struct uart_port), GFP_KERNEL);
-	if (!port)
+	mup = devm_kzalloc(&pdev->dev,
+		sizeof(struct meson_uart_port), GFP_KERNEL);
+	if (!mup)
 		return -ENOMEM;
+
+	spin_lock_init(&mup->wr_lock);
+	port = &mup->port;
 
 	clk = clk_get(&pdev->dev, "clk_uart");
 	if (IS_ERR(clk)) {
@@ -619,11 +625,11 @@ static int meson_uart_probe(struct platform_device *pdev)
 	port->x_char = 0;
 	port->ops = &meson_uart_ops;
 
-	meson_ports[pdev->id] = port;
+	meson_ports[pdev->id] = mup;
 	platform_set_drvdata(pdev, port);
 	if (of_get_property(pdev->dev.of_node, "pinctrl-names", NULL)) {
-		p = devm_pinctrl_get_select_default(&pdev->dev);
-		if (!p)
+		mup->p = devm_pinctrl_get_select_default(&pdev->dev);
+		if (!mup->p)
 			return -1;
 	}
 	ret = uart_add_one_port(&meson_uart_driver, port);
