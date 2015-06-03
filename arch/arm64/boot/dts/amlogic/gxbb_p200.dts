@@ -569,3 +569,7 @@
 	};
 	/* END OF AUDIO board specific */
 };
+&i2c_a {
+  status = "okay";
+};
+

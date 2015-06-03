@@ -336,6 +336,26 @@
 						AO2 0x80000002>;	/*spdif_out*/
 			amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
 		};
+		a_i2c_master:a_i2c{
+			amlogic,setmask=<7 0xc0>;
+			amlogic,clrmask=<0 0x18c0 2 0x30000000 5 0x180>;
+			amlogic,pins="GPIODV_24","GPIODV_25";
+		};
+		b_i2c_master:b_i2c{
+			amlogic,setmask=<7 0x3000000>;
+			amlogic,clrmask=<0 0x600 2 0xc000000 5 0x700>;
+			amlogic,pins="GPIODV_26","GPIODV_27";
+		};
+		c_i2c_master:c_i2c{
+			amlogic,setmask=<7 0xc00000>;
+			amlogic,clrmask=<3 0x700000>;
+			amlogic,pins="GPIODV_28","GPIODV_29";
+		};
+		d_i2c_master:d_i2c{
+			amlogic,setmask=<4 0xc>;
+			amlogic,clrmask=<2 0x3000000 3 0x1000>;
+			amlogic,pins="GPIOX_16","GPIOX_17";
+		};
 	};
 	cpu_version{
 		reg=<0x0 0xc1107d4c 0x0 0x4
@@ -347,6 +367,66 @@
 		       0x0 0xc1108764 0x0 0x4>;
 	};
 
+	i2c_a: i2c@c1108500{ /*I2C-A*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-A";
+		status = "disabled";
+		reg = <0x0 0xc1108500 0x0 0x20>;
+		device_id = <1>;
+		pinctrl-names="default";
+		pinctrl-0=<&a_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+	};
+	i2c_b: i2c@c11087c0{ /*I2C-B*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-B";
+		status = "disabled";
+		reg = <0x0 0xc11087c0 0x0 0x20>;
+		device_id = <2>;
+		pinctrl-names="default";
+		pinctrl-0=<&b_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+	};
+	i2c_c: i2c@c11087e0{ /*I2C-C*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-C";
+		status = "disabled";
+		reg = <0x0 0xc11087e0 0x0 0x20>;
+		device_id = <3>;
+		pinctrl-names="default";
+		pinctrl-0=<&c_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+	};
+	i2c_d: i2c@c1108d20{ /*I2C-D*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-D";
+		status = "disabled";
+		reg = <0x0 0xc1108d20 0x0 0x20>;
+		device_id = <4>;
+		pinctrl-names="default";
+		pinctrl-0=<&d_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+	};
 
 
 };/* end of / */

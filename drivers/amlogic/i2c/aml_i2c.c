@@ -1099,7 +1099,7 @@ static int aml_i2c_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id meson6_i2c_dt_match[] = {
-	{	.compatible = "amlogic,meson-i2c",
+	{	.compatible = "amlogic, meson-i2c",
 	},
 	{},
 };
