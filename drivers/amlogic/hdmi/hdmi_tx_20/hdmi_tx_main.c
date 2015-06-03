@@ -466,7 +466,7 @@ static int set_disp_mode_auto(void)
 	return -1;
 	} else
 		memcpy(mode, info->name, strlen(info->name));
-
+	hdmitx_device.mode420 = 0;      /* default NOT mode420 */
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
 	if (strncmp(info->name, "4k2k30hz", strlen("4k2k30hz")) == 0) {
@@ -483,6 +483,8 @@ static int set_disp_mode_auto(void)
 	else {
 	/* nothing */
 	}
+	if (strstr(mode, "hz420") != NULL)
+		hdmitx_device.mode420 = 1;
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
@@ -496,17 +498,17 @@ static int set_disp_mode_auto(void)
 	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
 		hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
-	if (hdmitx_device.RXCap.IEEEOUI == 0) {
-		/* DVI case judgement. In uboot, directly output HDMI
-		 * mode
-		 */
-		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-			CONF_HDMI_DVI_MODE, DVI_MODE);
-		hdmi_print(IMP, SYS "change to DVI mode\n");
-	}
-	hdmitx_device.cur_VIC = vic;
-	hdmitx_device.output_blank_flag = 1;
-	return 1;
+		if (hdmitx_device.RXCap.IEEEOUI == 0) {
+			/* DVI case judgement. In uboot, directly output HDMI
+			 * mode
+			 */
+			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+				CONF_HDMI_DVI_MODE, DVI_MODE);
+			hdmi_print(IMP, SYS "change to DVI mode\n");
+		}
+		hdmitx_device.cur_VIC = vic;
+		hdmitx_device.output_blank_flag = 1;
+		/* return 1; */
 	} else
 		hdmitx_pre_display_init();
 
@@ -530,13 +532,31 @@ static int set_disp_mode_auto(void)
 			hdmitx_edid_clear(&hdmitx_device);
 			hdmitx_device.mux_hpd_if_pin_high_flag = 0;
 		}
-	/* If current display is NOT panel, needn't TURNOFF_HDMIHW */
-	if (strncmp(mode, "panel", 5) == 0) {
-		hdmitx_device.HWOp.Cntl(&hdmitx_device,
-			HDMITX_HWCMD_TURNOFF_HDMIHW,
-			(hpdmode == 2)?1:0);
+		/* If current display is NOT panel, needn't TURNOFF_HDMIHW */
+		if (strncmp(mode, "panel", 5) == 0) {
+			hdmitx_device.HWOp.Cntl(&hdmitx_device,
+				HDMITX_HWCMD_TURNOFF_HDMIHW,
+				(hpdmode == 2)?1:0);
+		}
 	}
+	if (hdmitx_device.mode420) {
+		switch (hdmitx_device.cur_VIC) {
+		/* Currently, only below formats support 420 mode */
+		case HDMI_3840x2160p60_16x9:
+		case HDMI_3840x2160p50_16x9:
+			pr_info("configure mode420, VIC = %d\n",
+				hdmitx_device.cur_VIC);
+			hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+				MISC_CONF_MODE420, hdmitx_device.mode420);
+			break;
+		default:
+			hdmitx_device.mode420 = 0;
+			pr_info("mode420 only at VIC: %d\n",
+				HDMI_3840x2160p60_16x9);
+		}
 	}
+	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_CLK_DIV40,
+		hdmitx_device.cur_VIC);
 	hdmitx_set_audio(&hdmitx_device,
 		&(hdmitx_device.cur_audio_param), hdmi_ch);
 	hdmitx_device.output_blank_flag = 1;
@@ -1663,8 +1683,6 @@ static void hdmitx_pwr_init(struct hdmi_pwr_ctl *ctl)
 }
 #endif
 
-static unsigned int mode4k420;
-
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 /* extern struct switch_dev lang_dev; */
@@ -1879,7 +1897,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 /* switch_dev_register(&lang_dev); */
 
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
-	hdmitx_device.mode4k60hz420 = mode4k420;
 	HDMITX_Meson_Init(&hdmitx_device);
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
@@ -2110,9 +2127,6 @@ static  int __init hdmitx_boot_para_setup(char *s)
 		if ((token_len == 3)
 			&& (strncmp(token, "off", token_len) == 0)) {
 			init_flag |= INIT_FLAG_NOT_LOAD;
-		} else if (strncmp(token, "4k2k60hz420", 11) == 0) {
-			mode4k420 = 1;
-			pr_info("hdmitx: set 4k2k60hz420\n");
 		} else if (strncmp(token, "cec", 3) == 0) {
 			ret = kstrtoul(token+3, 16, &list);
 		if ((list >= 0) && (list <= 0xf))

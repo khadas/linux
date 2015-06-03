@@ -525,7 +525,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 		vic, VideoCode);
 	if ((vic != HDMI_Unkown) && (vic == VideoCode)) {
 		hdmitx_device->cur_VIC = vic;
-		return 1;
+		/* return 1; */
 	}
 
 	param = hdmi_get_video_param(VideoCode);

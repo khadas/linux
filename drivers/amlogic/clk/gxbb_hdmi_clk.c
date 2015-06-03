@@ -24,7 +24,12 @@
 #include <linux/delay.h>
 #include "clk.h"
 #include "clk-pll.h"
-
+#undef DEBUG
+/* #define DEBUG */
+#ifndef DEBUG
+#undef pr_info
+#define pr_info(fmt, ...)
+#endif
 #define to_hdmi_clk(_hw) container_of(_hw, struct hdmi_clock, hw)
 static void __iomem *hiu_base;
 
@@ -102,6 +107,7 @@ struct vid_clk_table {
 	unsigned int div;
 	unsigned int od3;
 };
+
 static struct aml_pll_conf hpll_pll_phy_conf = {
 	.od_mask = 0x3,
 	.od_shift = 16,
@@ -112,15 +118,18 @@ static struct aml_pll_conf hpll_pll_phy_conf = {
 	.m_mask = 0x1ff,
 	.m_shift = 0,
 };
+
 static struct amlogic_pll_rate_table hpll_phy_tbl[] = {
 	/*hdmi_clk_out 1485000 Khz*/
+	HPLL_FVCO_RATE(5940000, 0x7b, 0x1, 0, 0),
 	HPLL_FVCO_RATE(2970000, 0x3d, 0x1, 0, 0),
 	HPLL_FVCO_RATE(1485000, 0x3d, 0x1, 1, 0),
 	HPLL_FVCO_RATE(742500, 0x3d, 0x1, 2, 0),
 };
 static struct vid_clk_table vid_clk_tbl[] = {
-	VID_CLK(297000, 2970000, 0, 1, DIV_5, 1),
+	VID_CLK(594000, 5940000, 0, 1, DIV_5, 1),
 	VID_CLK(594000, 2970000, 0, 1, DIV_5, 0),
+	VID_CLK(297000, 2970000, 0, 1, DIV_5, 1),
 	VID_CLK(148500, 1485000, 0, 1, DIV_5, 1),
 	VID_CLK(148500, 742500, 0, 1, DIV_5, 0),
 };
@@ -222,6 +231,17 @@ static int	hpll_clk_set(struct clk_hw *hw, unsigned long drate,
 
 	pr_info("%s,drate = %ld,found %ld\n", __func__, drate, rate_tbl->rate);
 	switch (drate) {
+	case 5940000:
+		writel(0x5800027b, hiu_base + HHI_HDMI_PLL_CNTL);
+		writel(0x00004c00, hiu_base + HHI_HDMI_PLL_CNTL2);
+		writel(0x135c5091, hiu_base + HHI_HDMI_PLL_CNTL3);
+		writel(0x801da72c, hiu_base + HHI_HDMI_PLL_CNTL4);
+		writel(0x71486980, hiu_base + HHI_HDMI_PLL_CNTL5);
+		writel(0x00000e55, hiu_base + HHI_HDMI_PLL_CNTL6);
+		set_pll(rate_tbl);
+		pr_info("hpll reg: 0x%x\n",
+			readl(hiu_base + HHI_HDMI_PLL_CNTL));
+		break;
 	case 2970000:
 	case 1485000:
 	case  742500:
@@ -306,7 +326,8 @@ static unsigned long vid_pll_clk_recal(struct clk_hw *hw,
 			rate = cal_rate(div, parent_rate);
 	}
 	rate = rate >> od3;
-	pr_info("%s ,rate = %zd\n", __func__, rate);
+	pr_info("%s ,parent_rate =%ld rate = %zd\n", __func__, parent_rate,
+		rate);
 	return rate;
 }
 static long vid_pll_clk_round(struct clk_hw *hw, unsigned long drate,
@@ -316,7 +337,7 @@ static long vid_pll_clk_round(struct clk_hw *hw, unsigned long drate,
 	unsigned long rate;
 	/* Assumming rate_table is in descending order */
 	for (i = 0; i < ARRAY_SIZE(vid_clk_tbl); i++) {
-		if (drate >= vid_clk_tbl[i].rate) {
+		if (drate == vid_clk_tbl[i].rate) {
 			rate = vid_clk_tbl[i].rate;
 			pr_info("%s,i=%d\n", __func__, i);
 			break;
@@ -337,7 +358,7 @@ static int	vid_pll_clk_set(struct clk_hw *hw, unsigned long drate,
 	int i;
 	/* Assumming rate_table is in descending order */
 	for (i = 0; i < ARRAY_SIZE(vid_clk_tbl); i++) {
-		if (drate >= vid_clk_tbl[i].rate &&
+		if (drate == vid_clk_tbl[i].rate &&
 				prate == vid_clk_tbl[i].prate) {
 			div_sel = vid_clk_tbl[i].div;
 			od3 = vid_clk_tbl[i].od3;
@@ -511,6 +532,7 @@ static struct cts_encx_table cts_enci_tbl[] = {
 };
 static struct cts_encx_table cts_pixel_tbl[] = {
 	CTS_XXX_TBL(594000, 594000, 1, 1),
+	CTS_XXX_TBL(297000, 594000, 1, 2),
 	CTS_XXX_TBL(297000, 297000, 1, 1),
 	CTS_XXX_TBL(148500, 148500, 1, 1),
 	CTS_XXX_TBL(108000, 216000, 4, 1),
@@ -534,15 +556,17 @@ static int encx_clk_set(struct clk_hw *hw, unsigned long drate,
 	struct cts_encx_table *enc_tbl = NULL;
 	int i, val = 0;
 	for (i = 0; i < hdmi_clk->encx_tbl_cnt; i++) {
-		if (drate >= hdmi_clk->encx_tbl[i].rate) {
-			pr_info(" %s i = %d\n", __func__, i);
+		if (drate == hdmi_clk->encx_tbl[i].rate &&
+			prate == hdmi_clk->encx_tbl[i].prate) {
 			enc_tbl = &hdmi_clk->encx_tbl[i];
 			break;
 		}
 	}
 	if (i == hdmi_clk->encx_tbl_cnt)
 		enc_tbl = &hdmi_clk->encx_tbl[i-1];
-
+	pr_info("hdmi_clk %s\n", hdmi_clk->name);
+	pr_info(" %s i = %d, prate =%ld,drate =%ld\n", __func__, i, prate,
+		drate);
 	hdmi_update_bits(HHI_VID_CLK_DIV, 0xff << 0, (enc_tbl->final_div-1)<<0);
 
 	val = readl(hdmi_clk->ctrl_reg);
@@ -583,7 +607,7 @@ static long encx_clk_round(struct clk_hw *hw, unsigned long drate,
 	struct cts_encx_table *enc_tbl = NULL;
 	int i;
 	for (i = 0; i < hdmi_clk->encx_tbl_cnt; i++) {
-		if (drate >= hdmi_clk->encx_tbl[i].rate) {
+		if (drate == hdmi_clk->encx_tbl[i].rate) {
 			enc_tbl = &hdmi_clk->encx_tbl[i];
 			break;
 		}

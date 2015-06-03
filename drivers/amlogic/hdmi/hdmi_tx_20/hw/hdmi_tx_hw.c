@@ -67,8 +67,6 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
 unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 
-static unsigned int mode4k420;
-
 /* HSYNC polarity: active high */
 #define HSYNC_POLARITY	 1
 /* VSYNC polarity: active high */
@@ -423,8 +421,8 @@ static struct hdmitx_clk hdmitx_clk[] = {
 	{HDMI_1920x1080p24_16x9, 24000, 742500, 74250, 74250, -1, 74250},
 	{HDMI_1920x1080i60_16x9, 24000, 742500, 148500, 148500, -1, 74250},
 	{HDMI_1920x1080i50_16x9, 24000, 742500, 148500, 148500, -1, 74250},
-	{HDMI_1280x720p60_16x9, 24000, 742500, 148520, 148520, -1, 74251},
-	{HDMI_1280x720p50_16x9, 24000, 742500, 148520, 148520, -1, 74251},
+	{HDMI_1280x720p60_16x9, 24000, 742500, 148500, 148500, -1, 74250},
+	{HDMI_1280x720p50_16x9, 24000, 742500, 148500, 148500, -1, 74250},
 	{HDMI_720x576p50_16x9, 24000, 270000, 54000, 54000, -1, 27000},
 	{HDMI_720x576i50_16x9, 24000, 270000, 54000, -1, 54000, 27000},
 	{HDMI_720x480p60_16x9, 24000, 270000, 54000, 54000, -1, 27000},
@@ -453,16 +451,24 @@ static void set_vmode_clk(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	} else {
 		if (hdev->clk_sys)
 			clk_set_rate(hdev->clk_sys, clk->clk_sys);
-		if (hdev->clk_phy)
-			clk_set_rate(hdev->clk_phy, clk->clk_phy);
+		if (hdev->clk_phy) {
+			if (hdev->mode420 == 1)
+				clk_set_rate(hdev->clk_phy, clk->clk_phy/2);
+			else
+				clk_set_rate(hdev->clk_phy, clk->clk_phy);
+		}
 		if (hdev->clk_vid)
 			clk_set_rate(hdev->clk_vid, clk->clk_vid);
 		if ((clk->clk_encp != -1) && (hdev->clk_encp))
 			clk_set_rate(hdev->clk_encp, clk->clk_encp);
 		if ((clk->clk_enci != -1) && (hdev->clk_enci))
 			clk_set_rate(hdev->clk_enci, clk->clk_enci);
-		if (hdev->clk_pixel)
-			clk_set_rate(hdev->clk_pixel, clk->clk_pixel);
+		if (hdev->clk_pixel) {
+			if (hdev->mode420 == 1)
+				clk_set_rate(hdev->clk_pixel, clk->clk_pixel/2);
+			else
+				clk_set_rate(hdev->clk_pixel, clk->clk_pixel);
+		}
 		pr_info("hdmitx: set clk of VIC = %d done\n", vic);
 	}
 }
@@ -509,9 +515,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	if (hdmitx_uboot_already_display())
 		return;
 	tmp_generate_1080p();
-#if 0
-	hdmitx_set_hw(HDMI_1920x1080p60_16x9);
-#endif
+
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, HDMI_1920x1080p60_16x9);
 
 	hdmitx_set_phy(hdev);
@@ -570,9 +574,6 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	hdev->HWOp.CntlMisc = hdmitx_cntl_misc;
 
 	digital_clk_on(0xff);
-	mode4k420 = hdev->mode4k60hz420;
-	if (mode4k420)
-		pr_info("hdmitx: set 4k2k60hz420\n");
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);
 	hdmitx_set_audmode(NULL, NULL);
@@ -1631,12 +1632,6 @@ static void hdmi_reconfig_packet_setting(enum hdmi_vic vic)
 }
 #endif
 
-static void hdmi_hw_reset(struct hdmitx_dev *hdev, struct hdmitx_vidpara *param)
-{
-	/* reset REG init */
-	/* TODO */
-}
-
 static void hdmi_audio_init(unsigned int spdif_flag)
 {
 	return;
@@ -1700,8 +1695,13 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 		break;
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33352245);
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a115b);
+		if (hdev->mode420 == 1) {
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x013a115b);
+		} else {
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33352245);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a115b);
+		}
 		break;
 	case HDMI_1080p60:
 	default:
@@ -1825,8 +1825,9 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		break;
 	}
 	hdmitx_set_hw(param->VIC);
+	if (hdev->mode420 == 1)
+		hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
 
-	hdmi_hw_reset(hdev, param);
 	/* move hdmitx_set_pll() to the end of this function. */
 	/* hdmitx_set_pll(param); */
 	hdev->cur_VIC = param->VIC;
@@ -3158,6 +3159,7 @@ static void set_enc_clk(void)
 	enable_crt_video_hdmi(1, 0);
 }
 
+#if 0
 static void hdmi_tvenc_set_4k(void)
 {
 	hd_write_reg(P_ENCP_DVI_HSO_BEGIN, 0x00001046);
@@ -3177,6 +3179,7 @@ static void hdmi_tvenc_set_4k(void)
 	hd_write_reg(P_ENCP_DE_V_BEGIN_ODD, 0x0000002a);
 	hd_write_reg(P_ENCP_DE_V_END_ODD, 0x00000207);
 }
+#endif
 
 static void hdmi_tvenc_set_1080p(void)
 {
@@ -3305,15 +3308,14 @@ static void hdmi_tvenc_set_1080p(void)
 static void set_tv_enc_1920x1080p(uint32_t viu1_sel, uint32_t viu2_sel,
 	uint32_t enable)
 {
-	set_vmode_enc_hw(
-		mode4k420 ? HDMI_3840x2160p60_16x9 : HDMI_1920x1080p60_16x9);
+	set_vmode_enc_hw(HDMI_1920x1080p60_16x9);
 	if (viu1_sel) { /* 1=Connect to ENCP */
 		hd_set_reg_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 0, 2);
 	}
 	if (viu2_sel) { /* 1=Connect to ENCP */
 		hd_set_reg_bits(P_VPU_VIU_VENC_MUX_CTRL, 2, 2, 2);
 	}
-	mode4k420 ? hdmi_tvenc_set_4k() : hdmi_tvenc_set_1080p();
+	hdmi_tvenc_set_1080p();
 	hd_write_reg(P_ENCP_VIDEO_EN, 1);
 }
 
@@ -3936,35 +3938,6 @@ void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, data32);
 } /* config_hdmi20_tx */
 
-static void reconfig_4k_clk(void)
-{
-	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x4e00);
-	hd_write_reg(P_HHI_HDMI_CLK_CNTL, 0x10100);
-	hd_write_reg(P_HHI_VID_CLK_CNTL2, 0xff);
-	hd_write_reg(P_HHI_VID_CLK_CNTL, 0x80007);
-	hd_write_reg(P_VPU_HDMI_FMT_CTRL, 0x1a);
-	hd_write_reg(P_VPU_HDMI_SETTING, 0x10e);
-}
-
-static void reconfig_fc_4k(void)
-{
-	hdmitx_wr_reg(HDMITX_DWC_FC_INHACTV0, 0x80);
-	hdmitx_wr_reg(HDMITX_DWC_FC_INHACTV1, 0x7);
-	hdmitx_wr_reg(HDMITX_DWC_FC_INHBLANK0, 0x18);
-	hdmitx_wr_reg(HDMITX_DWC_FC_INHBLANK1, 0x1);
-	hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV0, 0x70);
-	hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV1, 0x8);
-	hdmitx_wr_reg(HDMITX_DWC_FC_INVBLANK, 0x5a);
-	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINDELAY0, 0x58);
-	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINDELAY1, 0x0);
-	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH0, 0x8);
-	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH1, 0x2);
-	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINDELAY, 0x8);
-	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH, 0xa);
-	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, 0x43);
-	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0x61);
-}
-
 static void tmp_generate_1080p(void)
 {
 /*
@@ -4006,11 +3979,6 @@ static void tmp_generate_1080p(void)
 	set_tv_enc_1920x1080p(1, 0, 0);
 	hdmitx_set_hw(HDMI_1080p60);
 	hd_write_reg(P_HHI_VID_CLK_DIV, 0x100);
-	if (mode4k420) {
-		reconfig_4k_clk();
-		hdmitx_set_hw(HDMI_4k2k_60);
-		reconfig_fc_4k();
-	}
 }
 
 /* TODO */
