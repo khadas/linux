@@ -112,6 +112,11 @@ const struct clk_ops clk_mux_ro_ops = {
 	.get_parent = clk_mux_get_parent,
 };
 EXPORT_SYMBOL_GPL(clk_mux_ro_ops);
+const struct clk_ops clk_mux_rw_ops = {
+	.get_parent = clk_mux_get_parent,
+	.set_parent = clk_mux_set_parent,
+};
+EXPORT_SYMBOL_GPL(clk_mux_rw_ops);
 
 struct clk *clk_register_mux_table(struct device *dev, const char *name,
 		const char **parent_names, u8 num_parents, unsigned long flags,

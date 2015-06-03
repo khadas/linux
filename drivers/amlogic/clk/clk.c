@@ -68,7 +68,7 @@ static struct clk *amlogic_clk_register_branch(const char *name,
 		mux->flags = mux_flags;
 		mux->lock = lock;
 		mux_ops = (mux_flags & CLK_MUX_READ_ONLY) ? &clk_mux_ro_ops
-							: &clk_mux_ops;
+							: &clk_mux_rw_ops;
 	}
 
 	if (gate_offset >= 0) {
