@@ -2,7 +2,20 @@
 
 
 config MESON_SUSPEND
-    bool "Meson suspend driver"
+    boolean "Meson suspend driver"
     select WAKELOCK
     help
       This is the Amlogic suspend  driver
+
+config M8M2_SUSPEND
+    boolean "Meson suspend driver for 32bit"
+    depends on MESON_SUSPEND
+    help
+      This is the Amlogic suspend  driver
+
+config GXBB_SUSPEND
+    boolean "Meson suspend driver for 64bit"
+    depends on MESON_SUSPEND
+    help
+      This is the Amlogic suspend  driver
+
