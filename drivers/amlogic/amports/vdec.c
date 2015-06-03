@@ -88,7 +88,7 @@ int vdec_set_resource(unsigned long start, unsigned long end, struct device *p)
 		return -1;
 	}
 
-	vdec_dev_reg.mem_start = start;
+	vdec_dev_reg.mem_start = ALIGN(start, SZ_64K);
 	vdec_dev_reg.mem_end = end;
 	vdec_dev_reg.cma_dev = p;
 
