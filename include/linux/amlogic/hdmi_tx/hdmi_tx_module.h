@@ -123,6 +123,7 @@ struct hdmitx_dev {
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct work_struct work_internal_intr;
+	struct work_struct cec_work;
 	wait_queue_head_t cec_wait_rx;
 	struct {
 		void (*SetPacket)(int type, unsigned char *DB,

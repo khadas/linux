@@ -148,19 +148,13 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 	int idx = in_reg_maps_idx(addr);
 	unsigned int type = (addr >> OFFSET);
 	unsigned int reg = addr & ((1 << OFFSET) - 1);
-	unsigned int valr = 0;
 
 	if ((idx != -1) && check_map_flag(addr)) {
 		writel(val, reg_maps[idx].p + (addr - reg_maps[idx].phy_addr));
-		if (dbg_en)
-			valr = readl(reg_maps[idx].p +
-				(addr - reg_maps[idx].phy_addr));
 		goto end;
 	}
 
 	ret = aml_reg_write(type, reg, val);
-	if (dbg_en)
-		valr = hd_read_reg(addr);
 
 	if (ret < 0) {
 		pr_info("Wr[0x%x] 0x%x Error\n", addr, val);
@@ -168,13 +162,8 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 	}
 
 end:
-	if (val != valr) {
-		if (dbg_en)
-			pr_info("Wr[0x%x] 0x%x Rd 0x%x\n", addr, val, valr);
-	} else {
-		if (dbg_en)
-			pr_info("Wr[0x%x] 0x%x\n", addr, val);
-	}
+	if (dbg_en)
+		pr_info("Wr[0x%x] 0x%x\n", addr, val);
 }
 
 void hd_set_reg_bits(unsigned int addr, unsigned int value,

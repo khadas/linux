@@ -65,9 +65,6 @@
 static dev_t hdmitx_id;
 static struct class *hdmitx_class;
 static struct device *hdmitx_dev;
-#if 0
-static struct gpio_desc *hdmi_gd;
-#endif
 static struct device *hdmi_dev;
 static int set_disp_mode_auto(void);
 const struct vinfo_s *hdmi_get_current_vinfo(void);
@@ -624,9 +621,7 @@ static ssize_t show_cec(struct device *dev,
 static ssize_t store_cec(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-#if 0
 	cec_usrcmd_set_dispatch(buf, count);
-#endif
 	return count;
 }
 
@@ -634,25 +629,21 @@ static ssize_t show_cec_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-/*	pos+=snprintf(buf+pos, PAGE_SIZE, "0x%x\n",
-		aml_read_reg32(P_AO_DEBUG_REG0));
-*/
+	pos += snprintf(buf+pos, PAGE_SIZE, "0x%x\n", cec_config(0, 0));
+
 	return pos;
 }
 
 static ssize_t store_cec_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-#if 0
 	cec_usrcmd_set_config(buf, count);
-#endif
 	return count;
 }
 
 static ssize_t store_cec_lang_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-#if 0
 	int ret;
 	unsigned long val;
 
@@ -661,21 +652,17 @@ static ssize_t store_cec_lang_config(struct device *dev,
 	cec_global_info.cec_node_info[cec_global_info.my_node_index].
 		menu_lang = (int)val;
 	cec_usrcmd_set_lang_config(buf, count);
-#endif
 	return count;
 }
 
 static ssize_t show_cec_lang_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-#if 0
 	int pos = 0;
 	hdmi_print(INF, CEC "show_cec_lang_config\n");
 	pos += snprintf(buf+pos, PAGE_SIZE, "%x\n", cec_global_info.
 		cec_node_info[cec_global_info.my_node_index].menu_lang);
 	return pos;
-#endif
-	return 0;
 }
 
 /*aud_mode attr*/
@@ -1541,50 +1528,23 @@ struct hdmitx_dev *get_hdmitx_device(void)
 }
 EXPORT_SYMBOL(get_hdmitx_device);
 
-#ifdef CONFIG_USE_OF
-static int get_dt_vend_init_data(struct device_node *np,
-	struct vendor_info_data *vend)
+#ifdef CONFIG_OF
+static int allocate_cec_device(struct device_node *np)
 {
 	int ret;
+	struct platform_device *pdev;
+	const char *name;
 
-	ret = of_property_read_string(np, "vendor_name",
-		(const char **)&(vend->vendor_name));
+	ret = of_property_read_string(np, "compatible", &name);
 	if (ret) {
-		hdmi_print(INF, SYS "not find vendor name\n");
+		hdmi_print(INF, SYS "not find cec dev name\n");
 		return 1;
-	}
-
-	ret = of_property_read_u32(np, "vendor_id", &(vend->vendor_id));
-	if (ret) {
-		hdmi_print(INF, SYS "not find vendor id\n");
-		return 1;
-	}
-
-	ret = of_property_read_string(np, "product_desc",
-		(const char **)&(vend->product_desc));
-	if (ret) {
-		hdmi_print(INF, SYS "not find product desc\n");
-		return 1;
+	} else {
+		pdev = platform_device_alloc(name, 0);
+		pdev->dev.of_node = of_node_get(np);
+		ret = platform_device_add(pdev);
 	}
 
-	ret = of_property_read_string(np, "cec_osd_string",
-		(const char **)&(vend->cec_osd_string));
-	if (ret) {
-		hdmi_print(INF, SYS "not find cec osd string\n");
-		return 1;
-	}
-
-	ret = of_property_read_u32(np, "cec_config",
-		&(vend->cec_config));
-	if (ret) {
-		hdmi_print(INF, SYS "not find cec config\n");
-		return 1;
-	}
-	ret = of_property_read_u32(np, "ao_cec", &(vend->ao_cec));
-	if (ret) {
-		hdmi_print(INF, SYS "not find ao cec\n");
-		return 1;
-	}
 	return 0;
 }
 
@@ -1612,16 +1572,6 @@ static int pwr_type_match(struct device_node *np, const char *str,
 	case CPU_GPO:
 	var->type = CPU_GPO;
 	ret = of_property_read_string_index(np, pwr_col, 1, &str);
-	if (!ret) {
-		hdmi_gd = gpiod_get(hdmi_dev, str);
-		if (!IS_ERR(hdmi_gd)) {
-			ret = of_property_read_string_index(np,
-				pwr_col, 2, &str);
-			if (!ret)
-				var->var.gpo.val =
-					(strcmp(str, "H") == 0);
-		}
-	}
 	break;
 	case PMU:
 	var->type = PMU;
@@ -1667,20 +1617,6 @@ static int get_dt_pwr_init_data(struct device_node *np,
 	return 0;
 }
 
-static void hdmitx_pwr_init(struct hdmi_pwr_ctl *ctl)
-{
-	if (ctl) {
-		if (ctl->pwr_5v_on.type == CPU_GPO)
-			gpiod_direction_output(hdmi_gd,
-					       ctl->pwr_5v_on.var.gpo.val);
-		if (ctl->pwr_3v3_on.type == CPU_GPO)
-			gpiod_direction_output(hdmi_gd,
-					       ctl->pwr_3v3_on.var.gpo.val);
-		if (ctl->pwr_hpll_vdd_on.type == CPU_GPO)
-			gpiod_direction_output(hdmi_gd,
-					ctl->pwr_hpll_vdd_on.var.gpo.val);
-	}
-}
 #endif
 
 static int amhdmitx_probe(struct platform_device *pdev)
@@ -1688,7 +1624,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 /* extern struct switch_dev lang_dev; */
 	int r, ret = 0;
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 	int psize, val;
 	phandle phandle;
 	struct device_node *init_data;
@@ -1771,7 +1707,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		(long int)&hdmitx_notifier_nb_a;
 #endif
 
-#ifdef CONFIG_USE_OF
+#ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		memset(&hdmitx_device.config_data, 0,
 			sizeof(struct hdmi_config_platform_data));
@@ -1809,8 +1745,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		if (!hdmitx_device.config_data.vend_data)
 			hdmi_print(INF, SYS
 				"can not get vend_data mem\n");
-		ret = get_dt_vend_init_data(init_data,
-			hdmitx_device.config_data.vend_data);
+		ret = allocate_cec_device(init_data);
 		if (ret)
 			hdmi_print(INF, SYS"not find vend_init_data\n");
 	}
@@ -1837,8 +1772,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 			hdmi_print(INF, SYS "not find pwr_ctl\n");
 	}
 	}
-/* open hdmi power */
-	hdmitx_pwr_init(hdmitx_device.config_data.pwr_ctl);
 
 #else
 	hdmi_pdata = pdev->dev.platform_data;
@@ -1857,13 +1790,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	pr_info("hdmitx hpd irq = %d\n" , hdmitx_device.irq_hpd);
-	hdmitx_device.irq_cec = platform_get_irq_byname(pdev, "hdmitx_cec");
-	if (hdmitx_device.irq_cec == -ENXIO) {
-		pr_err("%s: ERROR: hdmitx cec irq No not found\n" ,
-			__func__);
-		return -ENXIO;
-	}
-	pr_info("hdmitx cec irq = %d\n" , hdmitx_device.irq_cec);
 	hdmitx_device.clk_sys = NULL;
 	hdmitx_device.clk_encp = NULL;
 	hdmitx_device.clk_enci = NULL;

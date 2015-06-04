@@ -19,7 +19,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 
-struct Hdmitx_Dev *hdmitx_device = NULL;
+struct hdmitx_dev *hdmitx_device = NULL;
 
 __u16 cec_key_map[128] = {
 	KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,/* 0x00 */
@@ -39,7 +39,7 @@ __u16 cec_key_map[128] = {
 	0 , 0, 0, 0, 0, 0, 0, 0,
 	KEY_PLAYCD, KEY_PLAYPAUSE, KEY_RECORD, KEY_PAUSECD,
 	KEY_STOPCD, KEY_MUTE, 0, KEY_TUNER,/* 0x60 */
-	0 , KEY_MEDIA, 0, 0, KEY_POWER, 0, 0, 0,
+	0 , KEY_MEDIA, 0, 0, KEY_POWER, KEY_POWER, 0, 0,
 	0 , KEY_BLUE, KEY_RED, KEY_GREEN, KEY_YELLOW, 0, 0, 0,/* 0x70 */
 	0 , 0, 0, 0, 0, 0, 0, 0x2fd,
 };
@@ -87,6 +87,11 @@ void cec_send_event_irq(void)
 	int i;
 	unsigned char   operand_num_irq;
 	unsigned char operands_irq[14];
+	unsigned int mask;
+	static unsigned int last_key = -1;
+	static s64 last_key_report;
+	s64 cur_time;
+	ktime_t now = ktime_get();
 
 	operand_num_irq = cec_global_info.cec_rx_msg_buf.cec_rx_message
 	    [cec_global_info.cec_rx_msg_buf.rx_write_pos].operand_num;
@@ -110,6 +115,33 @@ void cec_send_event_irq(void)
 	default:
 		break;
 	}
+	mask = (1 << CEC_FUNC_MSAK) | (1 << ONE_TOUCH_STANDBY_MASK);
+	if (((hdmitx_device->cec_func_config & mask) != mask) &&
+	    (cec_key_map[operands_irq[0]] == KEY_POWER)) {
+		hdmi_print(INF, CEC "ignore power key when standby disabled\n");
+		return;
+	}
+
+	cur_time = ktime_to_us(now);
+	if (last_key == -1)
+		last_key = operands_irq[0];
+	else {
+		/*
+		 * filter for 2 key power function nearby
+		 */
+		if ((cec_key_map[last_key] == cec_key_map[operands_irq[0]]) &&
+		    (cec_key_map[operands_irq[0]] == KEY_POWER)) {
+			if (cur_time - last_key_report < (s64)(600 * 1000)) {
+				pr_info("%s:%x, cur:%x, diff:%lld\n",
+					"same key function too quick, last",
+					last_key, operands_irq[0],
+					cur_time - last_key_report);
+				pr_info("ignore this key\n");
+				return;
+			}
+		}
+	}
+
 
 	input_event(cec_global_info.remote_cec_dev,
 	    EV_KEY, cec_key_map[operands_irq[0]], 1);
@@ -151,9 +183,20 @@ void cec_user_control_released(struct cec_rx_message_t *pcec_message)
  */
 void cec_standby(struct cec_rx_message_t *pcec_message)
 {
-	unsigned int mask = (1 << CEC_FUNC_MSAK)
-		| (1 << ONE_TOUCH_STANDBY_MASK);
+	unsigned int mask;
+	static s64 last_standby;
+	s64 cur_time;
 
+	ktime_t now = ktime_get();
+	cur_time = ktime_to_us(now);
+	pr_info("cur time:%lld, last standby:%lld, diff:%lld\n",
+		cur_time, last_standby, cur_time - last_standby);
+	if (cur_time - last_standby < (s64)(600 * 1000)) {
+		/* small than 600ms */
+		pr_info("standby recieved too much\n");
+		return;
+	}
+	mask = (1 << CEC_FUNC_MSAK) | (1 << ONE_TOUCH_STANDBY_MASK);
 	if ((hdmitx_device->cec_func_config & mask) == mask) {
 		hdmi_print(INF, CEC  ": System will be in standby mode\n");
 		input_event(cec_global_info.remote_cec_dev,
@@ -162,8 +205,8 @@ void cec_standby(struct cec_rx_message_t *pcec_message)
 		input_event(cec_global_info.remote_cec_dev,
 			EV_KEY, KEY_POWER, 0);
 		input_sync(cec_global_info.remote_cec_dev);
-		cec_disable_irq();
 	}
+	last_standby = cur_time;
 }
 
 void cec_key_init(void)

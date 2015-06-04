@@ -45,6 +45,13 @@
 			        <GIC_PPI 11 0xff01>,
 			        <GIC_PPI 10 0xff01>;
 	};
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <0 169 4>,
+			     <0 170 4>,
+			     <0 185 4>,
+			     <0 186 4>;
+	};
 	meson_suspend{
 	           compatible = "amlogic, pm";
 	           gxbaby-suspend;
@@ -331,9 +338,17 @@
 			amlogic,setmask=<1 0x03000000>;
 			amlogic,pins="GPIOH_1", "GPIOH_2";
 		};
-		hdmitx_cec: hdmitx_cec {
-			amlogic,setmask=<1 0x00800000>;
-			amlogic,pins="GPIOH_3";
+		hdmitx_aocec: hdmitx_aocec {
+			amlogic,setmask=<AO  0x00008000>;
+			amlogic,clrmask=<AO  0x00024000
+					 AO2 0x00000001>;
+			amlogic,pins="GPIOAO_12";
+		};
+		hdmitx_eecec: hdmitx_eecec {
+			amlogic,setmask=<AO  0x00004000>;
+			amlogic,clrmask=<AO  0x00028000
+					 AO2 0x00000001>;
+			amlogic,pins="GPIOAO_12";
 		};
 
 		audio_pins:audio_pin{

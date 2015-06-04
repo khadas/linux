@@ -368,14 +368,13 @@
 		compatible = "amlogic, amhdmitx";
 		dev_name = "amhdmitx";
 		status = "okay";
-		pinctrl-names="hdmitx_hpd", "hdmitx_ddc", "hdmitx_cec";
+		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		pinctrl-2=<&hdmitx_cec>;
 		vend-data = <&vend_data>;
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
-		interrupts = <0 57 1>, <0 151 1>;
-		interrupt-names = "hdmitx_hpd", "hdmitx_cec";
+		interrupts = <0 57 1>;
+		interrupt-names = "hdmitx_hpd";
 		clocks = <&clock CLK_HDMITX_SYS &clock CLK_HDMITX_ENCP
 			&clock CLK_HDMITX_ENCI &clock CLK_HDMITX_PIXEL
 			&clock CLK_HDMITX_PHY &clock CLK_VID>;
@@ -383,10 +382,16 @@
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
 
 		vend_data: vend_data{
+			compatible = "amlogic, amlogic-cec";
+			status = "okay";
 			vendor_name = "Amlogic"; /* Max Chars: 8     */
 			vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
 			product_desc = "GXBB Mbox"; /* Max Chars: 16    */
-			cec_osd_string = "Amlogic MBox"; /* Max Chars: 14    */
+			cec_osd_string = "MBox"; /* Max Chars: 14    */
+			interrupts = <0 199 1>;
+			interrupt-names = "hdmitx_cec";
+			pinctrl-names = "hdmitx_aocec";
+			pinctrl-0=<&hdmitx_aocec>;
 		};
 	};
 

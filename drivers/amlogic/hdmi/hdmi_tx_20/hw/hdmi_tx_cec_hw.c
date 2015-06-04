@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
+#include "hdmi_tx_reg.h"
 #include "mach_reg.h"
 
 static DEFINE_MUTEX(cec_mutex);
@@ -54,6 +55,7 @@ void cec_hw_reset(void)
 	/* Enable gated clock (Normal mode). */
 	hd_set_reg_bits(P_AO_CEC_GEN_CNTL, 1, 1, 1);
 	/* Release SW reset */
+	udelay(100);
 	hd_set_reg_bits(P_AO_CEC_GEN_CNTL, 0, 0, 1);
 
 	/* Enable all AO_CEC interrupt sources */
@@ -72,15 +74,21 @@ void cec_hw_reset(void)
 		aocec_rd_reg(CEC_LOGICAL_ADDR0));
 }
 
+void cec_rx_buf_clear(void)
+{
+	aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x1);
+	aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x0);
+	hdmi_print(INF, CEC "rx buf clean\n");
+}
+
 int cec_rx_buf_check(void)
 {
-	if (0xf == aocec_rd_reg(CEC_RX_NUM_MSG)) {
-		aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x1);
-		aocec_wr_reg(CEC_RX_CLEAR_BUF, 0x0);
-		hdmi_print(INF, CEC "rx buf clean\n");
-		return 1;
-	}
-	return 0;
+	unsigned long rx_num_msg = aocec_rd_reg(CEC_RX_NUM_MSG);
+
+	if (rx_num_msg)
+		hdmi_print(INF, CEC "rx msg num:0x%02x\n", rx_num_msg);
+
+	return rx_num_msg;
 }
 
 int cec_ll_rx(unsigned char *msg, unsigned char *len)
@@ -88,12 +96,12 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	int i;
 	int ret = -1;
 	int pos;
+	int rx_stat;
 
-	if ((RX_DONE != aocec_rd_reg(CEC_RX_MSG_STATUS)) ||
-		(1 != aocec_rd_reg(CEC_RX_NUM_MSG))) {
-		/* cec_rx_buf_check(); */
-		hd_write_reg(P_AO_CEC_INTR_CLR,
-			hd_read_reg(P_AO_CEC_INTR_CLR) | (1 << 2));
+	rx_stat = aocec_rd_reg(CEC_RX_MSG_STATUS);
+	if ((RX_DONE != rx_stat) || (1 != aocec_rd_reg(CEC_RX_NUM_MSG))) {
+		hdmi_print(INF, CEC, "rx status:%x\n", rx_stat);
+		hd_write_reg(P_AO_CEC_INTR_CLR, (1 << 2));
 		aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT);
 		aocec_wr_reg(CEC_RX_MSG_CMD,  RX_NO_OP);
 		return ret;
@@ -104,10 +112,7 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	for (i = 0; i < (*len) && i < MAX_MSG; i++)
 		msg[i] = aocec_rd_reg(CEC_RX_MSG_0_HEADER + i);
 
-	ret = aocec_rd_reg(CEC_RX_MSG_STATUS);
-
-	hd_write_reg(P_AO_CEC_INTR_CLR,
-		hd_read_reg(P_AO_CEC_INTR_CLR) | (1 << 2));
+	ret = rx_stat;
 
 	if (cec_msg_dbg_en  == 1) {
 		pos = 0;
@@ -120,9 +125,8 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 		hdmi_print(INF, CEC "%s", msg_log_buf);
 	}
 	/* cec_rx_buf_check(); */
-	hd_write_reg(P_AO_CEC_INTR_CLR,
-		hd_read_reg(P_AO_CEC_INTR_CLR) | (1 << 2));
-	aocec_wr_reg(CEC_RX_MSG_CMD,  RX_ACK_CURRENT);
+	hd_write_reg(P_AO_CEC_INTR_CLR, (1 << 2));
+	aocec_wr_reg(CEC_RX_MSG_CMD, RX_ACK_NEXT);
 	aocec_wr_reg(CEC_RX_MSG_CMD, RX_NO_OP);
 	return ret;
 }
@@ -137,12 +141,12 @@ static int cec_ll_tx_once(const unsigned char *msg, unsigned char len)
 	int i;
 	unsigned int ret = 0xf;
 	unsigned int n;
-	unsigned int cnt = 30;
+	unsigned int cnt = 20;
 	int pos;
 
 	while (aocec_rd_reg(CEC_TX_MSG_STATUS) ||
 		aocec_rd_reg(CEC_RX_MSG_STATUS)) {
-		mdelay(5);
+		msleep(20);
 		if (TX_ERROR == aocec_rd_reg(CEC_TX_MSG_STATUS)) {
 			if (cec_msg_dbg_en == 1)
 				hdmi_print(INF, CEC "tx once:tx error!\n");
@@ -183,19 +187,24 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 	int i;
 	unsigned int ret = 0xf;
 	unsigned int n;
-	unsigned int j = 30;
+	unsigned int j = 20;
 	int pos;
+	unsigned tx_stat;
+	int flag = 0;
 
-	while ((TX_BUSY == aocec_rd_reg(CEC_TX_MSG_STATUS))
-		|| (RX_BUSY == aocec_rd_reg(CEC_RX_MSG_STATUS))) {
-		if (TX_ERROR == aocec_rd_reg(CEC_TX_MSG_STATUS)) {
-			if (cec_msg_dbg_en  == 1)
-				hdmi_print(INF, CEC "tx polling:tx error!.\n");
-			/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-			/* cec_hw_reset(); */
-			break;
+	/*
+	 * wait until tx is free
+	 */
+	while (1) {
+		tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
+		if (!flag && tx_stat == TX_BUSY) {
+			hdmi_print(INF, CEC "tx_stat is busy, waiting free.\n");
+			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+			flag = 1;
 		}
+		if (tx_stat != TX_BUSY)
+			break;
+
 		if (!(j--)) {
 			if (cec_msg_dbg_en  == 1)
 				hdmi_print(INF, CEC "tx busy time out.\n");
@@ -203,8 +212,17 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 			break;
 		}
-		mdelay(5);
+		msleep(20);
 	}
+
+	hdmi_print(INF, CEC "now tx_stat:%d\n", tx_stat);
+	if (TX_ERROR == tx_stat) {
+		hdmi_print(INF, CEC "tx polling:tx error!.\n");
+		/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
+		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
+		/* cec_hw_reset(); */
+	} else if (TX_BUSY == tx_stat)
+		return TX_BUSY;
 
 	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 0x0, 1, 1);
 	for (i = 0; i < len; i++)
@@ -213,19 +231,22 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 	aocec_wr_reg(CEC_TX_MSG_LENGTH, len-1);
 	aocec_wr_reg(CEC_TX_MSG_CMD, RX_ACK_CURRENT);
 
-	j = 30;
-	while ((TX_DONE != aocec_rd_reg(CEC_TX_MSG_STATUS)) && (j--)) {
-		if (TX_ERROR == aocec_rd_reg(CEC_TX_MSG_STATUS))
+	j = 20;
+	hdmi_print(INF, CEC "start poll\n");
+	while (j--) {
+		ret = aocec_rd_reg(CEC_TX_MSG_STATUS);
+		if (ret != TX_BUSY)
 			break;
-		mdelay(5);
+		msleep(20);
 	}
 
 	ret = aocec_rd_reg(CEC_TX_MSG_STATUS);
+	hdmi_print(INF, CEC "end poll, tx_stat:%x\n", ret);
+	if (ret == TX_BUSY) {
+		hdmi_print(INF, CEC "tx busy timeout\n");
+		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+	}
 
-	if (ret == TX_DONE)
-		ret = 1;
-	else
-		ret = 0;
 	aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 1, 1, 1);
 
@@ -268,8 +289,7 @@ void tx_irq_handle(void)
 	default:
 	break;
 	}
-	hd_write_reg(P_AO_CEC_INTR_CLR,
-		hd_read_reg(P_AO_CEC_INTR_CLR) | (1 << 1));
+	hd_write_reg(P_AO_CEC_INTR_CLR, (1 << 1));
 	/* hd_write_reg(P_AO_CEC_INTR_MASKN, */
 	/* hd_read_reg(P_AO_CEC_INTR_MASKN) | (1 << 2)); */
 }
@@ -293,23 +313,34 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 
 void cec_polling_online_dev(int log_addr, int *bool)
 {
-	unsigned long r;
+	unsigned int r;
 	unsigned char msg[1];
+	int retry = 5;
 
 	cec_global_info.my_node_index = log_addr;
 	msg[0] = (log_addr<<4) | log_addr;
 
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, (0x1 << 4) | 0xf);
-	if (cec_msg_dbg_en == 1) {
+	if (cec_msg_dbg_en == 1)
 		hdmi_print(INF, CEC "CEC_LOGICAL_ADDR0:0x%lx\n",
-			aocec_rd_reg(CEC_LOGICAL_ADDR0));
+			   aocec_rd_reg(CEC_LOGICAL_ADDR0));
+	while (retry) {
+		r = cec_ll_tx_polling(msg, 1);
+		if (r == TX_BUSY) {
+			retry--;
+			hdmi_print(INF, CEC "try log addr %x busy, retry:%d\n",
+				   log_addr, retry);
+			/*
+			 * try to reset CEC if tx busy is found
+			 */
+			cec_hw_reset();
+		} else
+			break;
 	}
-	r = cec_ll_tx_polling(msg, 1);
-	cec_hw_reset();
 
-	if (r == 0) {
+	if (r == TX_ERROR) {
 		*bool = 0;
-	} else {
+	} else if (r == TX_DONE) {
 		memset(&(cec_global_info.cec_node_info[log_addr]),
 			0, sizeof(struct cec_node_info_t));
 		cec_global_info.cec_node_info[log_addr].dev_type =
@@ -336,7 +367,15 @@ void hdmitx_setup_cecirq(struct hdmitx_dev *phdev)
 void ao_cec_init(void)
 {
 	unsigned long data32;
+	unsigned int reg;
 	/* Assert SW reset AO_CEC */
+	reg = hd_read_reg(P_AO_CRT_CLK_CNTL1);
+	/* 24MHz/ (731 + 1) = 32786.885Hz */
+	reg &= ~(0x7ff << 16);
+	reg |= (731 << 16);	/* divider from 24MHz */
+	reg |= (0x1 << 26);
+	reg &= ~(0x800 << 16);	/* select divider */
+	hd_write_reg(P_AO_CRT_CLK_CNTL1, reg);
 	data32  = 0;
 	data32 |= 0 << 1;   /* [2:1]	cntl_clk: */
 				/* 0=Disable clk (Power-off mode); */
@@ -474,9 +513,9 @@ void cec_pinmux_set(void)
 /* bit[12]: enable AO_12 internal pull-up   //0xc810002c */
 /* bit[17]: AO_CEC pinmux					//0xc8100014 */
 
-	hd_set_reg_bits(P_AO_RTI_PIN_MUX_REG, 0, 14, 1);
+	/* hd_set_reg_bits(P_AO_RTI_PIN_MUX_REG, 0, 14, 1); */
 	hd_set_reg_bits(P_AO_RTI_PULL_UP_REG, 1, 12, 1);
-	hd_set_reg_bits(P_AO_RTI_PIN_MUX_REG, 1, 17, 1);
+	/* hd_set_reg_bits(P_AO_RTI_PIN_MUX_REG, 1, 17, 1); */
 }
 
 void cec_int_clean(void)
@@ -509,7 +548,7 @@ unsigned int cec_config(unsigned int value, bool wr_flag)
 unsigned int cec_phyaddr_config(unsigned int value, bool wr_flag)
 {
 	if (wr_flag)
-		hd_set_reg_bits(P_AO_DEBUG_REG1, value, 0, 8);
+		hd_set_reg_bits(P_AO_DEBUG_REG1, value, 0, 16);
 
 	return hd_read_reg(P_AO_DEBUG_REG1);
 }
@@ -530,4 +569,8 @@ unsigned int cec_logicaddr_config(unsigned int value, bool wr_flag)
 void cec_test_(unsigned int cmd)
 {
 	;
+}
+void cec_keep_reset(void)
+{
+	hd_write_reg(P_AO_CEC_GEN_CNTL, 0x1);
 }
