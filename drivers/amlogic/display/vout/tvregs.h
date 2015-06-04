@@ -121,6 +121,34 @@ static const struct reg_s *tvregs_576cvbs_performance_m8b[] = {
 	tvregs_576cvbs_china_telecom_m8b,
 	tvregs_576cvbs_china_mobile_m8b
 };
+
+static const struct reg_s tvregs_576cvbs_china_sarft_gxbb[] = {
+	{VENC_VDAC_DAC0_GAINCTRL,	0x9  },
+	{MREG_END_MARKER,			0    }
+};
+
+static const struct reg_s tvregs_576cvbs_china_telecom_gxbb[] = {
+	{VENC_VDAC_DAC0_GAINCTRL,		0x9		},
+	{ENCI_SYNC_ADJ,					0x8060	},
+	{ENCI_VIDEO_SAT,				0x2		},
+	{VENC_VDAC_DAC0_FILT_CTRL1,		0xf94e	},
+	{MREG_END_MARKER,				0		}
+};
+
+static const struct reg_s tvregs_576cvbs_china_mobile_gxbb[] = {
+	{VENC_VDAC_DAC0_GAINCTRL,		0x9		},
+	{ENCI_SYNC_ADJ,					0x8060	},
+	{ENCI_VIDEO_SAT,				0x2		},
+	{VENC_VDAC_DAC0_FILT_CTRL1,		0xf94e	},
+	{MREG_END_MARKER,				0		}
+};
+
+static const struct reg_s *tvregs_576cvbs_performance_gxbb[] = {
+	tvregs_576cvbs_china_sarft_gxbb,
+	tvregs_576cvbs_china_telecom_gxbb,
+	tvregs_576cvbs_china_mobile_gxbb
+};
+
 #endif
 
 static const struct reg_s tvregs_720p_clk[] = {
