@@ -584,6 +584,7 @@
 	/* END OF AUDIO board specific */
 };
 &i2c_a {
-  status = "okay";
+  status = "disabled";
+  /*p200: multiplex with usb PWR, disbaled*/
 };
 

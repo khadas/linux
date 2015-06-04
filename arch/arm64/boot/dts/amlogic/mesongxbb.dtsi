@@ -348,6 +348,7 @@
 						AO2 0x80000002>;	/*spdif_out*/
 			amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
 		};
+		/*p200 i2c-A multiplex with usb PWR*/
 		a_i2c_master:a_i2c{
 			amlogic,setmask=<7 0xc0>;
 			amlogic,clrmask=<0 0x18c0 2 0x30000000 5 0x180>;
@@ -386,7 +387,7 @@
 		reg = <0x0 0xc1108500 0x0 0x20>;
 		device_id = <1>;
 		pinctrl-names="default";
-		pinctrl-0=<&a_i2c_master>;
+		pinctrl-0=<&a_i2c_master>;/*p200 i2c-A multiplex with usb PWR*/
 		#address-cells = <1>;
 		#size-cells = <0>;
 		use_pio = <0>;
