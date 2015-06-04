@@ -21,6 +21,7 @@
 /* HIU regs */
 #define HHI_AUD_CLK_CNTL	0x5e
 #define HHI_AUD_CLK_CNTL2	0x64
+#define HHI_MPLL_CNTL		0xa0
 #define HHI_MPLL_MP0		0xa6
 #define HHI_MPLL_MP1		0xa7
 #define HHI_MPLL_MP2		0xa8

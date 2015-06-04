@@ -708,6 +708,8 @@ void audio_set_i2s_clk(unsigned freq, unsigned fs_config, unsigned mpll)
 	aml_hiubus_update_bits(HHI_AUD_CLK_CNTL, 0xff,
 			     (audio_clock_config[index][1] + 1) * 2 - 1);
 #endif
+	/* enable the mpll fraction part: SMD_IN*/
+	aml_hiubus_update_bits(HHI_MPLL_CNTL, 1 << 25, 1 << 25);
 
 	/* Set mclk over sclk ratio */
 	aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 0x3f << 8, (4 - 1) << 8);
