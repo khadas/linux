@@ -21,24 +21,25 @@
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/time.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/amports/ptsserv.h>
-#include <linux/amlogic/amports/canvas.h>
+#include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 /* #include <mach/am_regs.h> */
 #include "amlog.h"
-#include <linux/amlogic/ge2d/ge2d_main.h>
+/* #include <linux/amlogic/ge2d/ge2d_main.h> */
 #include <linux/amlogic/ge2d/ge2d.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
 #include <linux/sched/rt.h>
 #include <linux/platform_device.h>
-#include <linux/amlogic/ge2d/ge2d_main.h>
+/* #include <linux/amlogic/ge2d/ge2d_main.h> */
 #include <linux/amlogic/ge2d/ge2d.h>
 /* #include "picdec_log.h" */
 #include "picdec.h"
@@ -59,10 +60,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_fdt.h>
 #include <linux/dma-contiguous.h>
+/*
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
 #include <mach/mod_gate.h>
-#endif				/*
-				 */
+#endif
+*/
 /*class property info.*/
 /* #include "picdeccls.h" */
 static int debug_flag;
@@ -93,10 +95,11 @@ static int debug_flag;
 
 static int task_running;
 
+/*
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
 #define GE2D_NV
-#endif				/*
-				 */
+#endif
+*/
 
 #define MAX_VF_POOL_SIZE 2
 
@@ -472,11 +475,11 @@ static struct vframe_receiver_op_s *picdec_stop(void)
 		picdec_device.mapping = 0;
 
 	}
+/*
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
 	switch_mod_gate_by_name("ge2d", 0);
-
-#endif				/*
-				 */
+#endif
+*/
 	pr_info("stop picdec task\n");
 
 	return (struct vframe_receiver_op_s *)NULL;
@@ -531,11 +534,12 @@ static int picdec_start(void)
 
 	set_freerun_mode(1);
 
+/*
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
 	switch_mod_gate_by_name("ge2d", 1);
 
-#endif				/*
-				 */
+#endif
+*/
 	picdec_local_init();
 
 #ifndef NO_TASK_MODE
@@ -645,9 +649,9 @@ int picdec_pre_process(void)
 
 			q = (char *)picdec_input.input;
 
-			pr_info
+			/*pr_info
 			("RGB user space address is %x################\n",
-			 (unsigned)q);
+			 (unsigned)q);*/
 
 			for (j = 0; j < picdec_input.frame_height; j++) {
 
@@ -667,9 +671,9 @@ int picdec_pre_process(void)
 
 			q = (char *)picdec_input.input;
 
-			pr_info
+			/*pr_info
 			("RGBA user space address is %x################\n",
-			 (unsigned)q);
+			 (unsigned)q);*/
 
 			for (j = 0; j < picdec_input.frame_height; j++) {
 
@@ -697,9 +701,9 @@ int picdec_pre_process(void)
 
 			q = (char *)picdec_input.input;
 
-			pr_info
+			/*pr_info
 			("ARGB user space address is %x################\n",
-			 (unsigned)q);
+			 (unsigned)q);*/
 
 			for (j = 0; j < picdec_input.frame_height; j++) {
 
@@ -729,8 +733,8 @@ int picdec_pre_process(void)
 
 			q = (char *)picdec_input.input;
 
-			pr_info("user space address is %x################\n",
-				   (unsigned)q);
+			/*pr_info("user space address is %x################\n",
+				   (unsigned)q);*/
 
 			for (j = 0; j < picdec_input.frame_height; j++) {
 
@@ -1491,7 +1495,6 @@ static int simulate_task(void *data)
 *************************************************/
 int picdec_buffer_init(void)
 {
-
 	int i;
 
 	u32 canvas_width, canvas_height;
@@ -1713,7 +1716,6 @@ static int picdec_open(struct inode *inode, struct file *file)
 static long picdec_ioctl(struct file *filp, unsigned int cmd,
 						 unsigned long args)
 {
-
 	int ret = 0;
 
 	struct ge2d_context_s *context;
@@ -1773,6 +1775,19 @@ static long picdec_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long picdec_compat_ioctl(struct file *filp,
+			      unsigned int cmd, unsigned long args)
+{
+	unsigned long ret;
+
+	args = (unsigned long)compat_ptr(args);
+	ret = picdec_ioctl(filp, cmd, args);
+
+	return ret;
+}
+#endif
+
 static int picdec_release(struct inode *inode, struct file *file)
 {
 
@@ -1796,6 +1811,11 @@ static int picdec_release(struct inode *inode, struct file *file)
 	return -1;
 }
 
+#ifdef CONFIG_COMPAT
+static long picdec_compat_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long args);
+#endif
+
 /***********************************************************************
 *
 * file op init section.
@@ -1805,6 +1825,9 @@ static const struct file_operations picdec_fops = {
 	.owner = THIS_MODULE,
 	.open = picdec_open,
 	.unlocked_ioctl = picdec_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = picdec_compat_ioctl,
+#endif
 	.release = picdec_release,
 };
 
@@ -1909,7 +1932,7 @@ static ssize_t frame_post_write(struct class *cla,
 {
 
 
-	ret = kstrtoul(buf, 0, &picdec_device.frame_post);
+	unsigned long ret = kstrtoul(buf, 0, 0);
 	if (!ret)
 		return -EINVAL;
 	post_frame();
@@ -1999,7 +2022,6 @@ struct class *init_picdec_cls(void)
 
 int init_picdec_device(void)
 {
-
 	int ret = 0;
 
 	strcpy(picdec_device.name, "picdec");
@@ -2021,6 +2043,7 @@ int init_picdec_device(void)
 	amlog_level(LOG_LEVEL_LOW, "picdec_dev major:%d\n", ret);
 
 	picdec_device.cla = init_picdec_cls();
+
 
 	if (picdec_device.cla == NULL)
 		return -1;
@@ -2050,7 +2073,6 @@ int init_picdec_device(void)
 
 	vf_provider_init(&picdec_vf_prov, PROVIDER_NAME, &picdec_vf_provider,
 					 NULL);
-
 	return 0;
 unregister_dev:
 	class_unregister(picdec_device.cla);
@@ -2090,101 +2112,48 @@ MODULE_AMLOG(AMLOG_DEFAULT_LEVEL, 0xff, LOG_LEVEL_DESC, LOG_MASK_DESC);
 /* for driver. */
 static int picdec_driver_probe(struct platform_device *pdev)
 {
-
-	char *buf_start;
-
-	unsigned int buf_size;
-
-	/* struct resource *mem; */
-	struct device_node *of_node = pdev->dev.of_node;
-
-	const void *name;
-
-	int idx;
-
-	unsigned offset, size;
-
-	idx = find_reserve_block(pdev->dev.of_node->name, 0);
-
-	if (idx < 0) {
-
-		name = of_get_property(of_node, "share-memory-name", NULL);
-
-		if (!name) {
-
-			buf_start = 0;
-
-			buf_size = 0;
-
-			pr_info("picdec memory resource undefined.\n");
-
-		} else {
-
-			idx = find_reserve_block_by_name((char *)name);
-
-			if (idx < 0) {
-
-				pr_info
-				("picdec share memory resource fail case 1.\n");
-
-				return -EFAULT;
-
-			}
-
-			name =
-				of_get_property(of_node, "share-memory-offset",
-								NULL);
-
-			if (name)
-				offset = of_read_ulong(name, 1);
-
-			else {
-
-				pr_info
-				("picdec share memory resource fail case 2.\n");
-
-				return -EFAULT;
-
-			}
-
-			name = of_get_property(of_node, i
-					"share-memory-size", NULL);
-
-			if (name)
-				size = of_read_ulong(name, 1);
-
-			else {
-
-				pr_info
-				("picdec share memory resource fail case 3.\n");
-
-				return -EFAULT;
-
-			}
-
-			buf_start =
-				(char *)((phys_addr_t)
-						get_reserve_block_addr(idx) +
-						 offset);
-
-			buf_size = size;
-
-		}
-	}
-
-	else {
-
-		buf_start = (char *)((phys_addr_t) get_reserve_block_addr(idx));
-
-		buf_size = (unsigned int)get_reserve_block_size(idx);
-
-	}
-
-	set_picdec_buf_info((resource_size_t) buf_start, buf_size);
-	picdec_device.mapping = 0;
+	u32 r;
+	pr_info("picdec_driver_probe called.\n");
+	r = of_reserved_mem_device_init(&pdev->dev);
 	picdec_device.pdev = pdev;
-
 	init_picdec_device();
+	if (r == 0)
+		pr_info("picdec_driver_probe done.\n");
+
+	return r;
+
+	/* char *buf_start; */
+	/* unsigned int buf_size; */
+
+	/* struct device_node *of_node = pdev->dev.of_node; */
+	/* unsigned offset, size; */
+
+	/* set_picdec_buf_info((resource_size_t) buf_start, buf_size); */
+	/* picdec_device.mapping = 0; */
+	/* picdec_device.pdev = pdev; */
+	/* init_picdec_device(); */
+	/* return 0; */
+}
+
+static int picdec_mem_device_init(struct reserved_mem *rmem, struct device *dev)
+{
+	/*start addr=rmem->base, size 为 rmem->size*/
+	unsigned long start, end;
+	start = rmem->base;
+	end = rmem->base + rmem->size - 1;
+	pr_info("init picdec memsource %lx->%lx\n", start, end);
+	set_picdec_buf_info((resource_size_t) rmem->base, rmem->size);
+	return 0;
+}
+
+static const struct reserved_mem_ops rmem_picdec_ops = {
+	.device_init = picdec_mem_device_init,
+};
+
+static int __init picdec_mem_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_picdec_ops;
+	pr_info("picdec share mem setup\n");
 
 	return 0;
 }
@@ -2199,19 +2168,14 @@ static int picdec_drv_remove(struct platform_device *plat_dev)
 	return 0;
 }
 
-#ifdef CONFIG_USE_OF
+
+
 static const struct of_device_id amlogic_picdec_dt_match[] = {
 	{
-		.compatible = "amlogic,picdec",
+		.compatible = "amlogic, picdec",
 	},
 	{},
 };
-
-#else				/*
-				 */
-#define amlogic_picdec_dt_match NULL
-#endif				/*
-				 */
 
 /* general interface for a linux driver .*/
 static struct platform_driver picdec_drv = {
@@ -2226,7 +2190,6 @@ static struct platform_driver picdec_drv = {
 
 static int __init picdec_init_module(void)
 {
-
 	int err;
 
 	amlog_level(LOG_LEVEL_HIGH, "picdec_init\n");
@@ -2255,6 +2218,8 @@ static void __exit picdec_remove_module(void)
 module_init(picdec_init_module);
 
 module_exit(picdec_remove_module);
+
+RESERVEDMEM_OF_DECLARE(picdec, "amlogic, picdec_memory", picdec_mem_setup);
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
 module_param(debug_flag, uint, 0664);
 

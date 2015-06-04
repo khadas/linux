@@ -83,6 +83,12 @@
 			/* 1920x1080x2x4  =17M */
 //			size = <0x0 0x01000000>;
 //		};
+		/*  PICDEC reserved memory */
+		picdec_reserved:linux,picdec {
+			compatible = "amlogic, picdec_memory";
+			size = <0x0 0x1000000>;
+			//no-map;
+		};
         /*  POST PROCESS MANAGER */
         ppmgr_reserved:linux,ppmgr {
             compatible = "amlogic, ppmgr_memory";
@@ -197,6 +203,13 @@
 			"mailbox_0",
 			"mailbox_1",
 			"mailbox_2";
+	};
+
+	picdec {
+		   compatible = "amlogic, picdec";
+		   memory-region = <&picdec_reserved>;
+		   dev_name = "picdec";
+		   status = "okay";
 	};
     ppmgr {
         compatible = "amlogic, ppmgr";//to match of_device_id's compatible member

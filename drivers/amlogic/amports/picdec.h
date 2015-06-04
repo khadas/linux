@@ -20,7 +20,7 @@
 
 #include <linux/interrupt.h>
 /* #include <mach/am_regs.h> */
-#include <linux/amlogic/amports/canvas.h>
+#include <linux/amlogic/canvas/canvas.h>
 #include <linux/fb.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
@@ -54,7 +54,7 @@ struct picdec_device_s {
 	resource_size_t buffer_start;
 	unsigned int buffer_size;
 	resource_size_t assit_buf_start;
-	const vinfo_t *vinfo;
+	const struct vinfo_s *vinfo;
 	int disp_width;
 	int disp_height;
 	int frame_render;
