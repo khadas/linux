@@ -55,6 +55,7 @@ static struct chip_register_ops ex_gx_ops[] __initdata = {
 	   will changed later..
 	 */
 	{IO_HHI_BUS, -0x1000, codecio_read_hiubus, codecio_write_hiubus},
+	{IO_DMC_BUS, 0, codecio_read_dmcbus, codecio_write_dmcbus},
 };
 
 

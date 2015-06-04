@@ -40,6 +40,7 @@ amports_bus_type_e {
 	IO_HCODEC_BUS,
 	IO_HEVC_BUS,
 	IO_VPP_BUS,
+	IO_DMC_BUS,
 	BUS_MAX
 };
 
@@ -104,5 +105,6 @@ DEF_BUS_OPS(IO_AO_BUS, ao);
 DEF_BUS_OPS(IO_C_BUS, c);
 DEF_BUS_OPS(IO_VC_BUS, vc);
 DEF_BUS_OPS(IO_HHI_BUS, hhi);
+DEF_BUS_OPS(IO_DMC_BUS, dmc);
 
 #endif

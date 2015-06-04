@@ -26,15 +26,13 @@
 #include "arch/register.h"
 #include "arch/register_ops.h"
 
-
+#define READ_DMCREG(r) codec_dmcbus_read(r)
+#define WRITE_DMCREG(r, val) codec_dmcbus_write(r, val)
 
 #define READ_AOREG(r) codec_aobus_read(r)
 #define WRITE_AOREG(r, val) codec_aobus_write(r, val)
 
-
 #define READ_VREG(r) codec_dosbus_read(r)
-
-
 #define WRITE_VREG(r, val) codec_dosbus_write(r, val)
 
 #define BASE_IRQ 32

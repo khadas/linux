@@ -10,5 +10,6 @@ int codecio_read_aobus(unsigned int reg);
 void codecio_write_aobus(unsigned int reg, unsigned int val);
 int codecio_read_vcbus(unsigned int reg);
 void codecio_write_vcbus(unsigned int reg, unsigned int val);
-
+int codecio_read_dmcbus(unsigned int reg);
+void codecio_write_dmcbus(unsigned int reg, unsigned int val);
 #endif

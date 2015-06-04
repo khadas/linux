@@ -43,6 +43,7 @@ enum{
 	CODECIO_HIUBUS_BASE,
 	CODECIO_AOBUS_BASE,
 	CODECIO_VCBUS_BASE,
+	CODECIO_DMCBUS_BASE,
 	CODECIO_BUS_MAX,
 };
 
@@ -156,12 +157,13 @@ void codecio_write_aobus(unsigned int reg, unsigned int val)
 	} else
 		return;
 }
+
 int codecio_read_vcbus(unsigned int reg)
 {
 	int ret, val;
 	ret = codecio_reg_read(CODECIO_VCBUS_BASE, reg<<2, &val);
 	if (ret) {
-		pr_err("read cbus reg %x error %d\n", reg, ret);
+		pr_err("read vcbus reg %x error %d\n", reg, ret);
 		return -1;
 	} else
 		return val;
@@ -172,12 +174,33 @@ void codecio_write_vcbus(unsigned int reg, unsigned int val)
 	int ret;
 	ret = codecio_reg_write(CODECIO_VCBUS_BASE, reg<<2, val);
 	if (ret) {
-		pr_err("write cbus reg %x error %d\n", reg, ret);
+		pr_err("write vcbus reg %x error %d\n", reg, ret);
 		return;
 	} else
 		return;
 }
 
+int codecio_read_dmcbus(unsigned int reg)
+{
+	int ret, val;
+	ret = codecio_reg_read(CODECIO_DMCBUS_BASE, reg<<2, &val);
+	if (ret) {
+		pr_err("read cbus reg %x error %d\n", reg, ret);
+		return -1;
+	} else
+		return val;
+}
+
+void codecio_write_dmcbus(unsigned int reg, unsigned int val)
+{
+	int ret;
+	ret = codecio_reg_write(CODECIO_DMCBUS_BASE, reg<<2, val);
+	if (ret) {
+		pr_err("write dmcbus reg %x error %d\n", reg, ret);
+		return;
+	} else
+		return;
+}
 
 static int codec_io_probe(struct platform_device *pdev)
 {

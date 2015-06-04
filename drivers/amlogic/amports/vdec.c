@@ -856,13 +856,18 @@ static int vdec_probe(struct platform_device *pdev)
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
 		pr_info("vdec_probe done\n");
+
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8) {
 		/* default to 250MHz */
 		vdec_clock_hi_enable();
 	}
-	return 0;
 
-	return r;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		/* set vdec dmc request to urgent */
+		WRITE_DMCREG(DMC_AM5_CHAN_CTRL, 0x3f203cf);
+	}
+
+	return 0;
 }
 
 static int vdec_remove(struct platform_device *pdev)

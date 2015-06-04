@@ -37,5 +37,6 @@
 #include "regs/vdec2_regs.h"
 #include "regs/demux_regs.h"
 #include "regs/ao_regs.h"
+#include "regs/dmc_regs.h"
 
 #endif
