@@ -80,7 +80,11 @@
 			/* 1920x1080x2x4  =17M */
 //			size = <0x0 0x01000000>;
 //		};
-
+        /*  POST PROCESS MANAGER */
+        ppmgr_reserved:linux,ppmgr {
+            compatible = "amlogic, ppmgr_memory";
+            size = <0x0 0x2000000>;
+        };
 		/* AVC Encode CMA pool */
 		avc_cma_reserved:linux,avc_cma {
 			compatible = "amlogic, avc-cma-memory";
@@ -207,6 +211,12 @@
 			"mailbox_1",
 			"mailbox_2";
 	};
+    ppmgr {
+        compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
+        memory-region = <&ppmgr_reserved>;
+        dev_name = "ppmgr";
+        status = "okay";
+    };
 /*	vdin0 {
 		compatible = "amlogic, vdin";
 		memory-region = <&vdin0_reserved>;
