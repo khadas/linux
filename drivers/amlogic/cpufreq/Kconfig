@@ -1,4 +1,14 @@
+
+choice
+	prompt "Meson CPU Freq driver"
+	default AMLOGIC_MESON_CPUFREQ
+
 config AMLOGIC_MESON_CPUFREQ
 	bool "Meson CPU Frequency scaling support"
 	help
 	This adds the CPUFreq driver for Meson series CPU
+config AMLOGIC_SCPI_CPUFREQ
+	bool "Meson SCPI CPU Frequency scaling support"
+	help
+	This adds the CPUFreq driver for Meson series CPU
+endchoice

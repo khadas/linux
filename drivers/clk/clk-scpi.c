@@ -23,7 +23,8 @@
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/scpi_protocol.h>
+#include <linux/amlogic/scpi_protocol.h>
+
 
 struct scpi_clk {
 	u32 id;
@@ -263,11 +264,11 @@ static const struct of_device_id clk_match[] = {
 
 static int scpi_clk_probe(struct platform_device *pdev)
 {
+
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node, *child;
 	const struct of_device_id *match;
 	int ret;
-
 	for_each_child_of_node(np, child) {
 		match = of_match_node(clk_match, child);
 		if (!match)

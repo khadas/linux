@@ -244,6 +244,14 @@
 			reg = <0x0 0xc883c000 0x0 0x2000>;
 		};
 	};
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-scpi";
+		status = "okay";
+		clocks = <&scpi_dvfs 0>;
+		clock-names = "cpu_clk";
+        };
+
+
 	clock: meson_clock {
 		compatible = "amlogic, gxbb-clock";
 		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/
@@ -522,6 +530,17 @@
 		#mbox-cells = <1>;
 		mbox-names = "cpu_to_scp_low", "cpu_to_scp_high";
 		mboxes = <&mailbox 0 &mailbox 1>;
+	};
+	scpi_clocks {
+		compatible = "arm,scpi-clks";
+
+		scpi_dvfs: scpi_clocks@0 {
+			compatible = "arm,scpi-clk-indexed";
+			#clock-cells = <1>;
+			clock-indices = <0>;
+			clock-output-names = "vcpu";
+		};
+
 	};
 
 };/* end of / */
