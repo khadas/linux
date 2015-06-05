@@ -24,6 +24,8 @@
 
 #define OSD_LOG_LEVEL_NULL 0
 #define OSD_LOG_LEVEL_DEBUG 1
+#define OSD_LOG_LEVEL_DEBUG2 2
+#define OSD_LOG_LEVEL_DEBUG3 3
 
 extern unsigned int osd_log_level;
 
@@ -38,7 +40,21 @@ extern unsigned int osd_log_level;
 
 #define osd_log_dbg(fmt, ...) \
 	do { \
-		if (osd_log_level == OSD_LOG_LEVEL_DEBUG) { \
+		if (osd_log_level >= OSD_LOG_LEVEL_DEBUG) { \
+			pr_info(fmt, ##__VA_ARGS__); \
+		} \
+	} while (0)
+
+#define osd_log_dbg2(fmt, ...) \
+	do { \
+		if (osd_log_level >= OSD_LOG_LEVEL_DEBUG2) { \
+			pr_info(fmt, ##__VA_ARGS__); \
+		} \
+	} while (0)
+
+#define osd_log_dbg3(fmt, ...) \
+	do { \
+		if (osd_log_level >= OSD_LOG_LEVEL_DEBUG3) { \
 			pr_info(fmt, ##__VA_ARGS__); \
 		} \
 	} while (0)

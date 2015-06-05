@@ -26,8 +26,9 @@
 static inline uint32_t osd_cbus_read(uint32_t reg)
 {
 	uint32_t ret = 0;
+
 	ret = (uint32_t)aml_read_cbus(reg);
-	osd_log_dbg("%s(0x%x)=0x%x\n", __func__, reg, ret);
+	osd_log_dbg3("%s(0x%x)=0x%x\n", __func__, reg, ret);
 
 	return ret;
 };
@@ -36,9 +37,10 @@ static inline void osd_cbus_write(uint32_t reg,
 				   const uint32_t val)
 {
 	uint32_t ret = 0;
+
 	aml_write_cbus(reg, val);
 	ret = aml_read_cbus(reg);
-	osd_log_dbg("%s(0x%x, 0x%x)=0x%x\n", __func__, reg, val, ret);
+	osd_log_dbg3("%s(0x%x, 0x%x)=0x%x\n", __func__, reg, val, ret);
 };
 
 
@@ -47,7 +49,7 @@ static inline uint32_t osd_reg_read(uint32_t reg)
 	uint32_t ret = 0;
 
 	ret = (uint32_t)aml_read_vcbus(reg);
-	osd_log_dbg("%s(0x%x)=0x%x\n", __func__, reg, ret);
+	osd_log_dbg3("%s(0x%x)=0x%x\n", __func__, reg, ret);
 
 	return ret;
 };
@@ -55,11 +57,8 @@ static inline uint32_t osd_reg_read(uint32_t reg)
 static inline void osd_reg_write(uint32_t reg,
 				 const uint32_t val)
 {
-	uint32_t ret = 0;
-
 	aml_write_vcbus(reg, val);
-	ret = aml_read_vcbus(reg);
-	osd_log_dbg("%s(0x%x, 0x%x)=0x%x\n", __func__, reg, val, ret);
+	osd_log_dbg3("%s(0x%x, 0x%x)\n", __func__, reg, val);
 };
 
 static inline void osd_reg_set_mask(uint32_t reg,

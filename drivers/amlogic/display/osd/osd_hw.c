@@ -859,7 +859,7 @@ void osd_set_color_key_hw(u32 index, u32 color_index, u32 colorkey)
 	data32 = r << 24 | g << 16 | b << 8 | a;
 	if (osd_hw.color_key[index] != data32) {
 		osd_hw.color_key[index] = data32;
-		osd_log_dbg("bpp:%d--r:0x%x g:0x%x b:0x%x ,a:0x%x\n",
+		osd_log_dbg2("bpp:%d--r:0x%x g:0x%x b:0x%x ,a:0x%x\n",
 				color_index, r, g, b, a);
 		add_to_update_list(index, OSD_COLOR_KEY);
 		osd_wait_vsync_hw();
@@ -1421,7 +1421,13 @@ void osd_enable_3d_mode_hw(u32 index, u32 enable)
 
 void osd_enable_hw(u32 index, u32 enable)
 {
-	osd_log_dbg("osd[%d] enable: %d\n", index, enable);
+	if (index == 0) {
+		osd_log_info("osd[%d] enable: %d (%s)\n",
+				index, enable, current->comm);
+	} else {
+		osd_log_dbg2("osd[%d] enable: %d (%s)\n",
+				index, enable, current->comm);
+	}
 
 	osd_hw.enable[index] = enable;
 	add_to_update_list(index, OSD_ENABLE);
@@ -1752,7 +1758,7 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 	if (ret)
 		osd_ext_clone_pan(index);
 #endif
-	osd_log_dbg("offset[%d-%d]x[%d-%d]y[%d-%d]\n",
+	osd_log_dbg2("offset[%d-%d]x[%d-%d]y[%d-%d]\n",
 		    xoffset, yoffset,
 		    osd_hw.pandata[index].x_start,
 		    osd_hw.pandata[index].x_end,
@@ -1784,7 +1790,7 @@ void osd_pan_display_hw(u32 index, unsigned int xoffset, unsigned int yoffset)
 #ifdef CONFIG_AM_FB_EXT
 	osd_ext_clone_pan(index);
 #endif
-	osd_log_dbg("offset[%d-%d]x[%d-%d]y[%d-%d]\n",
+	osd_log_dbg2("offset[%d-%d]x[%d-%d]y[%d-%d]\n",
 		    xoffset, yoffset,
 		    osd_hw.pandata[index].x_start,
 		    osd_hw.pandata[index].x_end,
@@ -3227,7 +3233,7 @@ void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w,
 	if (index != 1)
 		return;
 
-	osd_log_dbg("cursor: x=%d, y=%d, x0=%d, y0=%d, w=%d, h=%d\n",
+	osd_log_dbg2("cursor: x=%d, y=%d, x0=%d, y0=%d, w=%d, h=%d\n",
 			x, y, xstart, ystart, osd_w, osd_h);
 
 	if (osd_hw.free_scale_mode[OSD1]) {

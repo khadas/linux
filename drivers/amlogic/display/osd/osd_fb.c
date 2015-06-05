@@ -393,7 +393,8 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		ret = copy_from_user(&osd_dst_axis, argp, 4 * sizeof(s32));
 		break;
 	default:
-		osd_log_err("command not supported\n ");
+		osd_log_err("command 0x%x not supported (%s)\n",
+				cmd, current->comm);
 		return -1;
 	}
 	mutex_lock(&fbdev->lock);
@@ -562,9 +563,28 @@ static int osd_compat_ioctl(struct fb_info *info,
 		unsigned int cmd, unsigned long arg)
 {
 	unsigned long ret;
+	void __user *argp;
+	struct fb_cursor cursor;
 
 	arg = (unsigned long)compat_ptr(arg);
-	ret = osd_ioctl(info, cmd, arg);
+	argp = (void __user *)arg;
+
+	/* handle fbio cursor command for 32-bit app */
+	if ((cmd & 0xFFFF) == (FBIO_CURSOR & 0xFFFF)) {
+		if (copy_from_user(&cursor, argp, sizeof(cursor)))
+			return -EFAULT;
+		if (!lock_fb_info(info))
+			return -ENODEV;
+		if (!info->fbops->fb_cursor)
+			return -EINVAL;
+		console_lock();
+		ret = info->fbops->fb_cursor(info, &cursor);
+		console_unlock();
+		unlock_fb_info(info);
+		if (ret == 0 && copy_to_user(argp, &cursor, sizeof(cursor)))
+			return -EFAULT;
+	} else
+		ret = osd_ioctl(info, cmd, arg);
 
 	return ret;
 }
