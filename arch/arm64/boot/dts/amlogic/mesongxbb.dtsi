@@ -102,12 +102,12 @@
 			        <GIC_PPI 10 0xff01>;
 	};
 */
-	pmu {
+	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <0 169 4>,
-			     <0 170 4>,
-			     <0 185 4>,
-			     <0 186 4>;
+		interrupts = <0 137 4>,
+			     <0 138 4>,
+			     <0 153 4>,
+			     <0 154 4>;
 	};
 	meson_suspend{
 	           compatible = "amlogic, pm";
