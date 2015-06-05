@@ -302,9 +302,10 @@
 	   		pinname = "sd";
 	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
 	   		caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-	   				"MMC_CAP_SD_HIGHSPEED","MMC_CAP_UHS_SDR12",
-	   				"MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50",
-	   				"MMC_CAP_UHS_SDR104";
+	   				"MMC_CAP_SD_HIGHSPEED";
+	   				//"MMC_CAP_UHS_SDR12",
+	   				//"MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50",
+	   				//"MMC_CAP_UHS_SDR104";
 	   		f_min = <400000>;
 	   		f_max = <100000000>;
 	   		max_req_size = <0x20000>;          /**128KB*/
@@ -330,11 +331,12 @@
             pinname = "emmc";
             ocr_avail = <0x200080>;          /**VDD voltage 3.3 ~ 3.4 */
             caps = "MMC_CAP_8_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-            		"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE"/*,
+            		"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_1_8V_DDR"
+            		/*,
            		"MMC_CAP_ERASE", "MMC_CAP_HW_RESET"*/;
-            //caps2 = "MMC_CAP2_HS200_1_8V_SDR";
+            caps2 = "MMC_CAP2_HS200";
 			f_min = <400000>;
-            f_max = <50000000>;
+            f_max = <200000000>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
 		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;

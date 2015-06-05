@@ -1051,6 +1051,8 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 		mdelay(10);
 	}
 	/* sdhc_err("cnt=%d\n", cnt); */
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		return 0;
 	return 1; /* uart in */
 #endif
 }

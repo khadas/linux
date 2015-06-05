@@ -1883,6 +1883,31 @@ static void aml_sd_emmc_set_clk_rate(struct mmc_host *mmc, unsigned int clk_ios)
 	return;
 }
 
+
+static void aml_sd_emmc_set_timing(
+		struct amlsd_platform *pdata, u32 timing)
+{
+	struct amlsd_host *host = (void *)pdata->host;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+	u32 vctrl = sd_emmc_regs->gcfg;
+	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
+
+
+	if ((timing == MMC_TIMING_MMC_HS400) ||
+			 (timing == MMC_TIMING_MMC_DDR52) ||
+				 (timing == MMC_TIMING_UHS_DDR50)) {
+		ctrl->ddr = 1;
+		pr_info("try set sd/emmc to DDR mode");
+	} else
+		ctrl->ddr = 0;
+
+	sd_emmc_regs->gcfg = vctrl;
+	sd_emmc_dbg(AMLSD_DBG_IOS, "sd emmc is %s\n",
+			ctrl->ddr?"DDR mode":"SDR mode");
+
+	return;
+}
+
 /*setup bus width, 1bit, 4bits, 8bits*/
 static void aml_sd_emmc_set_bus_width(
 		struct amlsd_platform *pdata, u32 busw_ios)
@@ -1953,6 +1978,9 @@ static void aml_sd_emmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/*Set Bus Width*/
 	aml_sd_emmc_set_bus_width(pdata, ios->bus_width);
+
+	/* Set Date Mode */
+	aml_sd_emmc_set_timing(pdata, ios->timing);
 
 	if (ios->chip_select == MMC_CS_HIGH) {
 		aml_cs_high(pdata);
