@@ -144,7 +144,7 @@ static int vfm_map_add(char *id, char *name_chain)
 		p->valid = 1;
 		ptr = name_chain;
 		while (1) {
-			token = strsep(&ptr, " ");
+			token = strsep(&ptr, "\n ");
 			if (token == NULL)
 				break;
 			if (*token == '\0')
@@ -384,7 +384,7 @@ static ssize_t vfm_map_store(struct class *class,
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " ");
+		token = strsep(&ps, "\n ");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
