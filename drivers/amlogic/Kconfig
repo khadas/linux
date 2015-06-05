@@ -87,4 +87,6 @@ source "drivers/amlogic/dvb_tv/Kconfig"
 
 source "drivers/amlogic/mailbox/Kconfig"
 
+source "drivers/amlogic/rdma/Kconfig"
+
 endmenu

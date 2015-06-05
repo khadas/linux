@@ -455,6 +455,14 @@
 		reg = <0x0 0xc8838000 0x0 0x400>;
 	};
 
+	rdma{
+		compatible = "amlogic, meson, rdma";
+		dev_name = "amlogic-rdma";
+		status = "ok";
+		interrupts = <0 89 1>;
+		interrupt-names = "rdma";
+	};
+
 	dwc2_b {
 		compatible = "amlogic,dwc2";
 		reg = <0x0 0xc9100000 0x0 0x40000>;

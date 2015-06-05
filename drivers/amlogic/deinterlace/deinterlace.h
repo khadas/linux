@@ -2,6 +2,7 @@
 #define _DI_H
 #include <linux/cdev.h>
 #include <linux/amlogic/amports/vframe.h>
+#include <linux/amlogic/amports/video.h>
 /* di hardware version m8m2*/
 #define NEW_DI_V1 0x00000002 /* from m6tvc */
 #define NEW_DI_V2 0x00000004 /* from m6tvd */

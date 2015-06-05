@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/amlogic/amports/vformat.h>
+#include <linux/amlogic/amports/video.h>
 #include "vdec.h"
 #include <linux/amlogic/iomap.h>
 #include <linux/io.h>
@@ -154,15 +155,7 @@
 #define MEM_CTRL_INIT           (1<<0)
 
 
-#ifdef CONFIG_VSYNC_RDMA
-int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
-int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val,
-			   u32 start, u32 len);
-u32 VSYNC_RD_MPEG_REG(u32 adr);
-u32 RDMA_READ_REG(u32 adr);
-int RDMA_SET_READ(u32 adr);
-
-#else
+#ifndef CONFIG_VSYNC_RDMA
 #define VSYNC_WR_MPEG_REG(adr, val) WRITE_VCBUS_REG(adr, val)
 #define VSYNC_RD_MPEG_REG(adr) READ_VCBUS_REG(adr)
 #define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \

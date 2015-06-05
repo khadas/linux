@@ -13,6 +13,7 @@ config  H264_4K2K_SINGLE_CORE
 config  VSYNC_RDMA
 	boolean "VSYNC CBUS RDMA"
 	default n
+	select AML_RDMA
 	---help---
 	  Select to enable VSYNC CBUS RDMA.
 

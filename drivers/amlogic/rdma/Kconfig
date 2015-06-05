@@ -1,0 +1,13 @@
+#
+# RDMA management driver configuration
+#
+
+menu "RDMA management driver"
+
+config AML_RDMA
+    bool "Amlogic RDMA management driver"
+    default n
+	help
+	  Select to enable RDMA management driver.
+
+endmenu

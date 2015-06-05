@@ -3105,33 +3105,6 @@ EXPORT_SYMBOL(set_vsync_pts_inc_mode);
 #ifdef CONFIG_VSYNC_RDMA
 void vsync_rdma_process(void)
 {
-	unsigned long enc_line_adr = 0;
-	int enc_line;
-	switch (READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
-	case 0:
-		enc_line_adr = ENCL_INFO_READ;
-		break;
-	case 1:
-		enc_line_adr = ENCI_INFO_READ;
-		break;
-	case 2:
-		enc_line_adr = ENCP_INFO_READ;
-		break;
-	case 3:
-		enc_line_adr = ENCT_INFO_READ;
-		break;
-	}
-	enc_line_adr = ENCL_INFO_READ;
-	if ((debug_flag & DEBUG_FLAG_LOG_RDMA_LINE_MAX) &&
-				(enc_line_adr > 0)) {
-		RDMA_SET_READ(enc_line_adr);
-		enc_line = RDMA_READ_REG(enc_line_adr);
-		if (enc_line != 0xffffffff) {
-			enc_line = (enc_line >> 16) & 0x1fff;
-			if (enc_line > vsync_rdma_line_max)
-				vsync_rdma_line_max = enc_line;
-		}
-	}
 	vsync_rdma_config();
 }
 #endif
