@@ -53,6 +53,7 @@
 
 #define EFUSE_HAL_API_READ	0
 #define EFUSE_HAL_API_WRITE 1
+#define EFUSE_HAL_API_USER_MAX 3
 
 #define ASSIST_HW_REV 0x1f53
 
@@ -62,6 +63,7 @@ extern void __iomem *sharemem_input_base;
 extern void __iomem *sharemem_output_base;
 extern unsigned efuse_read_cmd;
 extern unsigned efuse_write_cmd;
+extern unsigned efuse_get_max_cmd;
 
 struct efuseinfo_item_t {
 	char title[40];
@@ -95,8 +97,17 @@ struct efuse_hal_api_arg {
 };
 
 extern struct efuseinfo_t efuseinfo[];
+#ifndef CONFIG_ARM64
 int efuse_getinfo_byID(unsigned id, struct efuseinfo_item_t *info);
 int check_if_efused(loff_t pos, size_t count);
 int efuse_read_item(char *buf, size_t count, loff_t *ppos);
 int efuse_write_item(char *buf, size_t count, loff_t *ppos);
+#else
+#define EFUSE_USER_MASK           (0x0 << 16)
+#define EFUSE_THERMAL_MASK        (0x1 << 16)
+ssize_t efuse_get_max(void);
+ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
+ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
+#endif
+
 #endif

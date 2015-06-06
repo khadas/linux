@@ -641,3 +641,8 @@
 		amlogic,pins ="GPIOAO_6";		/*spdif_out*/
 	};
 };
+
+&efuse {
+	status = "okay";
+};
+

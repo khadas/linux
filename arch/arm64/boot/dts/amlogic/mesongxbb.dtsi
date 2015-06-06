@@ -505,6 +505,13 @@
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
 	};
+	efuse: efuse{
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		status = "disabled";
+	};
 
 	mailbox: mhu@c883c400 {
 		compatible = "amlogic, meson_mhu";
