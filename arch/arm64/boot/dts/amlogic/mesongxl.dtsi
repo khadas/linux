@@ -636,6 +636,27 @@
 		interrupts = <0 81 1>;
 		device_id = <0>;
 	};
+	aml_aes{
+		 compatible = "amlogic,aes_dma";
+		 dev_name = "aml_aes_dma";
+		 interrupts = <0 188 1
+			 0 189 1>;
+		 reg = <0x0 0xc883e000 0x0 0x28>;
+	 };
+	 aml_tdes{
+		 compatible = "amlogic,des_dma,tdes_dma";
+		 dev_name = "aml_tdes_dma";
+		 interrupts = <0 188 1
+			 0 189 1>;
+		 reg = <0x0 0xc883e000 0x0 0x28>;
+	 };
+	 aml_sha{
+		 compatible = "amlogic,sha_dma";
+		 dev_name = "aml_sha_dma";
+		 interrupts = <0 188 1
+			 0 189 1>;
+		 reg = <0x0 0xc883e000 0x0 0x28>;
+	 };
 
 };/* end of / */
 

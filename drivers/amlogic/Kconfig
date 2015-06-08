@@ -122,4 +122,6 @@ source "drivers/amlogic/cpu_info/Kconfig"
 source "drivers/amlogic/defendkey/Kconfig"
 
 source "drivers/amlogic/cec/Kconfig"
+
+source "drivers/amlogic/crypto/Kconfig"
 endmenu
