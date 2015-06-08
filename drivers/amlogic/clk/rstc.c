@@ -30,6 +30,7 @@
  * register mapped in a different memory region accessed by the ao_base.
  *
  */
+#define  BITS_PER_REG	32
 
 struct meson_rstc {
 	struct reset_controller_dev	rcdev;
@@ -48,7 +49,7 @@ static int meson_rstc_assert(struct reset_controller_dev *rcdev,
 	struct meson_rstc *rstc = container_of(rcdev,
 					       struct meson_rstc,
 					       rcdev);
-	int bank = id / BITS_PER_LONG;
+	int bank = id / BITS_PER_REG;
 	int offset;
 	void __iomem *rstc_mem;
 	unsigned long flags;
@@ -61,7 +62,7 @@ static int meson_rstc_assert(struct reset_controller_dev *rcdev,
 		offset = id - rstc->ao_off_id;
 		rstc_mem = rstc->ao_base;
 	} else {
-		offset = id % BITS_PER_LONG;
+		offset = id % BITS_PER_REG;
 		rstc_mem = rstc->ot_base + (bank << 2);
 	}
 
@@ -82,7 +83,7 @@ static int meson_rstc_deassert(struct reset_controller_dev *rcdev,
 	struct meson_rstc *rstc = container_of(rcdev,
 					       struct meson_rstc,
 					       rcdev);
-	int bank = id / BITS_PER_LONG;
+	int bank = id / BITS_PER_REG;
 	int offset;
 	void __iomem *rstc_mem;
 	unsigned long flags;
@@ -92,7 +93,7 @@ static int meson_rstc_deassert(struct reset_controller_dev *rcdev,
 		offset = id - rstc->ao_off_id;
 		rstc_mem = rstc->ao_base;
 	} else {
-		offset = id % BITS_PER_LONG;
+		offset = id % BITS_PER_REG;
 		rstc_mem = rstc->ot_base + (bank << 2);
 	}
 
@@ -132,8 +133,8 @@ static __init void meson_init_id_ref(struct meson_rstc *rstc)
 	u32 reg;
 	spin_lock_irqsave(&rstc->lock, flags);
 	for (i = 0; i < rstc->ao_off_id; i++) {
-		bank = i / BITS_PER_LONG;
-		offset = i % BITS_PER_LONG;
+		bank = i / BITS_PER_REG;
+		offset = i % BITS_PER_REG;
 		rstc_mem = rstc->ot_base + (bank << 2);
 		reg = readl(rstc_mem);
 		rstc->id_ref[i] = (reg & (1 << offset)) ? 1 : 0;
@@ -167,7 +168,7 @@ void __init meson_register_rstc(struct device_node *np, unsigned int num_regs,
 	rstc->flags = flags;
 
 	rstc->rcdev.owner = THIS_MODULE;
-	rstc->rcdev.nr_resets = num_regs * BITS_PER_LONG;
+	rstc->rcdev.nr_resets = num_regs * BITS_PER_REG;
 	rstc->rcdev.of_node = np;
 	rstc->rcdev.ops = &meson_rstc_ops;
 	rstc->ao_off_id = ao_off_id;
