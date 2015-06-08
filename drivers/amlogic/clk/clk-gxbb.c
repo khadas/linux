@@ -27,8 +27,10 @@ void __iomem *reg_base_hiubus;
 #define	OFFSET(x)	(x << 2)
 #undef	HHI_GCLK_MPEG0
 #undef	HHI_MALI_CLK_CNTL
+#undef	HHI_VAPBCLK_CNTL
 #define	HHI_GCLK_MPEG0			OFFSET(0x50)
 #define	HHI_MALI_CLK_CNTL		OFFSET(0x6c)
+#define	HHI_VAPBCLK_CNTL		OFFSET(0x7d)
 
 
 #define GXBB_RSTC_N_REGS	6
@@ -38,6 +40,11 @@ PNAME(mux_mali_0_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 PNAME(mux_mali_1_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(mux_mali_p)   = {"clk_mali_0", "clk_mali_1"};
+
+PNAME(mux_vapb_0_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
+PNAME(mux_vapb_1_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
+
+PNAME(mux_ge2d_p) = {"clk_vapb_0", "clk_vapb_1"};
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
@@ -72,6 +79,20 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 		   HHI_MALI_CLK_CNTL, 25, 3, 0,
 		   HHI_MALI_CLK_CNTL, 16, 7, 0,
 		   HHI_MALI_CLK_CNTL, 24, 0),
+	COMPOSITE(CLK_VAPB_0, "clk_vapb_0", mux_vapb_0_p,
+		   CLK_SET_RATE_NO_REPARENT,
+		   HHI_VAPBCLK_CNTL, 9, 3, 0,
+		   HHI_VAPBCLK_CNTL, 0, 7, 0,
+		   HHI_VAPBCLK_CNTL, 8, 0),
+	COMPOSITE(CLK_VAPB_1, "clk_vapb_1", mux_vapb_1_p,
+		   CLK_SET_RATE_NO_REPARENT,
+		   HHI_VAPBCLK_CNTL, 25, 3, 0,
+		   HHI_VAPBCLK_CNTL, 16, 7, 0,
+		   HHI_VAPBCLK_CNTL, 24, 0),
+	COMPOSITE_NODIV(CLK_GE2D, "clk_ge2d", mux_ge2d_p,
+		   CLK_SET_RATE_NO_REPARENT,
+		   HHI_VAPBCLK_CNTL, 31, 1, 0,
+		   HHI_VAPBCLK_CNTL, 30, 0),
 };
 
 /* register gxbb clocks */
@@ -115,6 +136,8 @@ static void __init gxbb_clk_init(struct device_node *np)
 		};
 		int i;
 		int count = ARRAY_SIZE(clks);
+		struct clk *vapb;
+		struct clk *fixdiv5;
 
 		for (i = 0; i < count; i++) {
 			char *clk_name = clks[i];
@@ -122,6 +145,18 @@ static void __init gxbb_clk_init(struct device_node *np)
 				_get_rate(clk_name));
 		}
 
+		/* Force set vapb clock as 400MHZ and enable it */
+		fixdiv5 = clk_get_sys("fclk_div5", "fclk_div5");
+		vapb = clk_get_sys("clk_vapb_0", "clk_vapb_0");
+		if ((!IS_ERR(vapb)) && (!IS_ERR(fixdiv5))) {
+			clk_set_parent(vapb, fixdiv5);
+			clk_set_rate(vapb, 400000000);
+			clk_prepare_enable(vapb);
+		}
+		if (!IS_ERR(fixdiv5))
+			clk_put(fixdiv5);
+		if (!IS_ERR(vapb))
+			clk_put(vapb);
 	}
 	pr_info("gxbb clock initialization complete\n");
 }

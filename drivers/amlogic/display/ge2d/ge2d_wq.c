@@ -26,12 +26,14 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/reset.h>
+#include <linux/clk.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/vout/color.h>
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
 #include <linux/amlogic/ge2d/ge2d.h>
+#include <linux/platform_device.h>
 
 /* Local Headers */
 #include "ge2dgen.h"
@@ -39,9 +41,6 @@
 #include "ge2d_io.h"
 #include "ge2d_reg.h"
 #include "ge2d_wq.h"
-
-
-#define INT_GE2D 182
 
 #define OSD1_CANVAS_INDEX 0x40
 #define OSD2_CANVAS_INDEX 0x43
@@ -52,6 +51,7 @@
 static struct ge2d_manager_s ge2d_manager;
 static int ge2d_irq = -ENXIO;
 static struct reset_control *ge2d_rstc;
+static struct clk *ge2d_clk;
 
 static const int bpp_type_lut[] = {
 	/* 16bit */
@@ -115,6 +115,22 @@ static const int default_ge2d_color_lut[] = {
 	GE2D_FORMAT_S32_RGBA,/* BPP_TYPE_32_RGBA=31, */
 	GE2D_FORMAT_S32_ARGB,/* BPP_TYPE_32_ARGB=32, */
 };
+
+static int ge2d_clk_config(bool enable)
+{
+	if (ge2d_clk == NULL)
+		return -1;
+	if (enable) {
+		if (ge2d_rstc != NULL)
+			reset_control_deassert(ge2d_rstc);
+		clk_prepare_enable(ge2d_clk);
+	} else {
+		clk_disable_unprepare(ge2d_clk);
+		if (ge2d_rstc != NULL)
+			reset_control_assert(ge2d_rstc);
+	}
+	return 0;
+}
 
 static int get_queue_member_count(struct list_head *head)
 {
@@ -361,20 +377,14 @@ static int ge2d_monitor_thread(void *data)
 	struct ge2d_manager_s *manager = (struct ge2d_manager_s *)data;
 
 	ge2d_log_info("ge2d workqueue monitor start\n");
-
 	/* setup current_wq here. */
 	while (ge2d_manager.process_queue_state != GE2D_PROCESS_QUEUE_STOP) {
 		ret = down_interruptible(&manager->event.cmd_in_sem);
-		/* got new cmd arrived in signal */
-		/* switch_mod_gate_by_name("ge2d", 1); */
-		if (ge2d_rstc != NULL)
-			reset_control_deassert(ge2d_rstc);
+		ge2d_clk_config(true);
 		while ((manager->current_wq =
 				get_next_work_queue(manager)) != NULL)
 			ge2d_process_work_queue(manager->current_wq);
-		/* switch_mod_gate_by_name("ge2d", 0); */
-		if (ge2d_rstc != NULL)
-			reset_control_assert(ge2d_rstc);
+		ge2d_clk_config(false);
 	}
 	ge2d_log_info("exit ge2d_monitor_thread\n");
 	return 0;
@@ -399,8 +409,12 @@ static int ge2d_start_monitor(void)
 static int ge2d_stop_monitor(void)
 {
 	ge2d_log_info("stop ge2d monitor thread\n");
-	ge2d_manager.process_queue_state = GE2D_PROCESS_QUEUE_STOP;
-	up(&ge2d_manager.event.cmd_in_sem);
+	if (ge2d_manager.ge2d_thread) {
+		ge2d_manager.process_queue_state = GE2D_PROCESS_QUEUE_STOP;
+		up(&ge2d_manager.event.cmd_in_sem);
+		kthread_stop(ge2d_manager.ge2d_thread);
+		ge2d_manager.ge2d_thread = NULL;
+	}
 	return  0;
 }
 
@@ -1064,11 +1078,19 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 	return  -1;
 }
 
-int ge2d_wq_init(void)
+int ge2d_wq_init(struct platform_device *pdev,
+	int irq, struct reset_control *rstc, struct clk *clk)
 {
 	struct ge2d_gen_s ge2d_gen_cfg;
 
-	ge2d_log_info("%s\n", __func__);
+	ge2d_manager.pdev = pdev;
+	ge2d_irq = irq;
+	ge2d_rstc = rstc;
+	ge2d_clk = clk;
+
+	ge2d_log_info("ge2d: pdev=%p, irq=%d, rstc=0x%p, clk=%p\n",
+		pdev, irq, rstc, clk);
+
 	ge2d_manager.irq_num = request_irq(ge2d_irq,
 					ge2d_wq_handle,
 					IRQF_SHARED,
@@ -1087,6 +1109,8 @@ int ge2d_wq_init(void)
 	INIT_LIST_HEAD(&ge2d_manager.process_queue);
 	ge2d_manager.last_wq = NULL;
 	ge2d_manager.ge2d_thread = NULL;
+
+	ge2d_clk_config(true);
 	ge2d_soft_rst();
 	ge2d_gen_cfg.interrupt_ctrl = 0x02;
 	ge2d_gen_cfg.dp_on_cnt       = 0;
@@ -1094,6 +1118,7 @@ int ge2d_wq_init(void)
 	ge2d_gen_cfg.dp_onoff_mode   = 0;
 	ge2d_gen_cfg.vfmt_onoff_en   = 0;
 	ge2d_set_gen(&ge2d_gen_cfg);
+	ge2d_clk_config(false);
 
 	if (ge2d_start_monitor()) {
 		ge2d_log_err("ge2d create thread error\n");
@@ -1108,17 +1133,13 @@ int ge2d_wq_deinit(void)
 	ge2d_stop_monitor();
 	ge2d_log_info("deinit ge2d device\n");
 	if (ge2d_manager.irq_num >= 0) {
-		free_irq(INT_GE2D, &ge2d_manager);
+		free_irq(ge2d_manager.irq_num, &ge2d_manager);
 		ge2d_manager.irq_num = -1;
 	}
+	ge2d_irq = -1;
+	ge2d_rstc = NULL;
+	clk_put(ge2d_clk);
+	ge2d_manager.pdev = NULL;
 	return  0;
 }
 
-int ge2d_setup(int irq, struct reset_control *rstc)
-{
-	ge2d_irq = irq;
-	ge2d_rstc = rstc;
-	ge2d_log_info("ge2d: irq=%d, rstc=0x%p\n", irq, rstc);
-
-	return 0;
-}

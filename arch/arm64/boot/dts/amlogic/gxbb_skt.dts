@@ -128,10 +128,12 @@
 		status = "okay";
 		interrupts = <0 150 1>;
 		interrupt-names = "ge2d";
-		/*
+		clocks = <&clock CLK_VAPB_0>,
+			<&clock CLK_GE2D>;
+		clock-names = "clk_vapb_0",
+				"clk_ge2d";
 		resets = <&clock GCLK_IDX_GE2D>;
 		reset-names = "ge2d";
-		*/
 	};
 	codec_io {
 		compatible = "amlogic, codec_io";

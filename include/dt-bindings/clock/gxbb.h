@@ -34,6 +34,9 @@
 #define CLK_MALI_1      20
 #define CLK_MALI        21
 #define CLK_VID		22
+#define CLK_VAPB_0      23
+#define CLK_VAPB_1      24
+#define CLK_GE2D        25
 #define GP0_PLL		30
 
 /* must be greater than maximal clock id */

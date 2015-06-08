@@ -100,7 +100,8 @@
 		DEF_FIRMEARE_FOR_G9TV(mix_sw_mc_hdec_m2_dblk);\
 		DEF_FIRMEARE_FOR_G9TV(mix_dump_mc_m2_dblk);\
 		DEF_FIRMEARE_FOR_M8M2(mix_sw_mc_hdec_m2_dblk);\
-		DEF_FIRMEARE_FOR_M8M2(mix_sw_mc_hdec_gx_dblk);\
+		DEF_FIRMEARE_FOR_M8M2(mix_dump_mc_m2_dblk);\
+		DEF_FIRMEARE_FOR_GXBB(mix_sw_mc_hdec_gx_dblk);\
 		DEF_FIRMEARE_FOR_GXBB(mix_dump_mc_gx_dblk);\
 		DEF_FIRMEARE_FOR_GXBB(h264_enc_mc_gx);\
 	} while (0)

@@ -158,6 +158,8 @@
 		status = "okay";
 		interrupts = <0 150 1>;
 		interrupt-names = "ge2d";
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_ge2d";
 		resets = <&clock GCLK_IDX_GE2D>;
 		reset-names = "ge2d";
 	};

@@ -31,10 +31,12 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/reset.h>
+#include <linux/clk.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/ge2d/ge2d.h>
 #include <linux/amlogic/ge2d/ge2d_cmd.h>
+#include <linux/amlogic/cpu_version.h>
 
 /* Local Headers */
 #include "ge2dgen.h"
@@ -362,11 +364,12 @@ static int ge2d_probe(struct platform_device *pdev)
 	int ret = 0;
 	int irq = 0;
 	struct reset_control *rstc = NULL;
-
+	struct clk *clk;
 	/* get interrupt resource */
 	irq = platform_get_irq_byname(pdev, "ge2d");
 	if (irq == -ENXIO) {
 		ge2d_log_err("get ge2d irq resource error\n");
+		ret = -ENXIO;
 		goto failed1;
 	}
 
@@ -374,14 +377,32 @@ static int ge2d_probe(struct platform_device *pdev)
 	if (IS_ERR(rstc)) {
 		ge2d_log_err("get ge2d rstc error: %lx\n", PTR_ERR(rstc));
 		rstc = NULL;
+		ret = -ENOENT;
+		goto failed1;
 	}
 
-	ge2d_setup(irq, rstc);
-	ret = ge2d_wq_init();
-
-	return ret;
+	reset_control_assert(rstc);
+	clk = clk_get(&pdev->dev, "clk_ge2d");
+	if (IS_ERR(clk)) {
+		ge2d_log_err("cannot get clock\n");
+		clk = NULL;
+		ret = -ENOENT;
+		goto failed1;
+	}
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		struct clk *clk_vapb0;
+		int vapb_rate;
+		clk_vapb0 = clk_get(&pdev->dev, "clk_vapb_0");
+		if (!IS_ERR(clk_vapb0)) {
+			vapb_rate = clk_get_rate(clk_vapb0);
+			clk_put(clk_vapb0);
+			ge2d_log_info("ge2d clock is %d MHZ\n",
+				vapb_rate/1000000);
+		}
+	}
+	ret = ge2d_wq_init(pdev, irq, rstc, clk);
 failed1:
-	return -1;
+	return ret;
 }
 
 static int ge2d_remove(struct platform_device *pdev)

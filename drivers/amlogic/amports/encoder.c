@@ -483,7 +483,7 @@ static const char *select_ucode(u32 ucode_index)
 #ifndef USE_OLD_DUMP_MC
 			ucode = UCODE_GX;
 #else
-			ucode = UCODE_SW_HDEC_GX_DBLK;
+			ucode = UCODE_DUMP_GX_DBLK;
 #endif
 		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 			ucode = UCODE_DUMP_M2_DBLK;
