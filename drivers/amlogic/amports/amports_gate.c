@@ -65,13 +65,16 @@ int amports_clock_gate_init(struct device *dev)
 {
 	int i;
 	for (i = 0; i < sizeof(gates) / sizeof(struct gate_swtch_node); i++) {
-		pr_info("try get gate %s\n", gates[i].name);
 		gates[i].reset_ctl = devm_reset_control_get(
 			dev, gates[i].name);
-		if (IS_ERR_OR_NULL(gates[i].reset_ctl))
+		if (IS_ERR_OR_NULL(gates[i].reset_ctl)) {
 			gates[i].reset_ctl = NULL;
-		else {
-			pr_info("get gate %s control ok %p\n", gates[i].name,
+			pr_info("get gate %s control failed %p\n",
+				gates[i].name,
+				gates[i].reset_ctl);
+		} else {
+			pr_info("get gate %s control ok %p\n",
+				gates[i].name,
 				gates[i].reset_ctl);
 		}
 		gates[i].ref_count = 0;
@@ -110,8 +113,9 @@ int amports_switch_gate(const char *name, int enable)
 	int i;
 	for (i = 0; i < sizeof(gates) / sizeof(struct gate_swtch_node); i++) {
 		if (!strcmp(name, gates[i].name)) {
-			pr_info("openclose:%d gate %s control\n", enable,
+			/*pr_info("openclose:%d gate %s control\n", enable,
 				   gates[i].name);
+			*/
 			if (gates[i].reset_ctl)
 				amports_gate_reset(&gates[i], enable);
 		}
@@ -119,6 +123,10 @@ int amports_switch_gate(const char *name, int enable)
 	return 0;
 }
 #else
+/*
+can used for debug.
+on chip bringup.
+*/
 int amports_clock_gate_init(struct device *dev)
 {
 	static int gate_inited;

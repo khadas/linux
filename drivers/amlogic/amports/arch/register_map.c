@@ -231,7 +231,7 @@ static int codec_io_probe(struct platform_device *pdev)
 			if (res.start != 0) {
 				codecio_reg_map[i] =
 					ioremap(res.start, resource_size(&res));
-				pr_info("map io source start 0x%p,size=%d to 0x%p\n",
+				pr_info("codec map io source 0x%p,size=%d to 0x%p\n",
 					(void *)res.start,
 					(int)resource_size(&res),
 					codecio_reg_map[i]);
@@ -242,7 +242,7 @@ static int codec_io_probe(struct platform_device *pdev)
 			}
 			i++;
 	}
-	pr_info("amlogic codec_io probe done\n");
+	/*pr_info("amlogic codec_io probe done\n");*/
 	return 0;
 }
 
