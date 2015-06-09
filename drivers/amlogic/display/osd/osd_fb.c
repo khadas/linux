@@ -559,30 +559,64 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
+struct fb_cursor_user32 {
+	__u16 set;		/* what to set */
+	__u16 enable;		/* cursor on/off */
+	__u16 rop;		/* bitop operation */
+	compat_caddr_t mask;
+	struct fbcurpos hot;	/* cursor hot spot */
+	struct fb_image image;	/* Cursor image */
+};
+
+static int osd_compat_cursor(struct fb_info *info, unsigned long arg)
+{
+	unsigned long ret;
+	struct fb_cursor_user __user *ucursor;
+	struct fb_cursor_user32 __user *ucursor32;
+	struct fb_cursor cursor;
+	void __user *argp;
+	__u32 data;
+
+	ucursor = compat_alloc_user_space(sizeof(*ucursor));
+	ucursor32 = compat_ptr(arg);
+
+	if (copy_in_user(&ucursor->set, &ucursor32->set, 3 * sizeof(__u16)))
+		return -EFAULT;
+	if (get_user(data, &ucursor32->mask) ||
+	    put_user(compat_ptr(data), &ucursor->mask))
+		return -EFAULT;
+	if (copy_in_user(&ucursor->hot, &ucursor32->hot, 2 * sizeof(__u16)))
+		return -EFAULT;
+
+	argp = (void __user *)ucursor;
+	if (copy_from_user(&cursor, argp, sizeof(cursor)))
+		return -EFAULT;
+
+	if (!lock_fb_info(info))
+		return -ENODEV;
+	if (!info->fbops->fb_cursor)
+		return -EINVAL;
+	console_lock();
+	ret = info->fbops->fb_cursor(info, &cursor);
+	console_unlock();
+	unlock_fb_info(info);
+
+	if (ret == 0 && copy_to_user(argp, &cursor, sizeof(cursor)))
+		return -EFAULT;
+
+	return ret;
+}
+
 static int osd_compat_ioctl(struct fb_info *info,
 		unsigned int cmd, unsigned long arg)
 {
 	unsigned long ret;
-	void __user *argp;
-	struct fb_cursor cursor;
 
 	arg = (unsigned long)compat_ptr(arg);
-	argp = (void __user *)arg;
 
 	/* handle fbio cursor command for 32-bit app */
 	if ((cmd & 0xFFFF) == (FBIO_CURSOR & 0xFFFF)) {
-		if (copy_from_user(&cursor, argp, sizeof(cursor)))
-			return -EFAULT;
-		if (!lock_fb_info(info))
-			return -ENODEV;
-		if (!info->fbops->fb_cursor)
-			return -EINVAL;
-		console_lock();
-		ret = info->fbops->fb_cursor(info, &cursor);
-		console_unlock();
-		unlock_fb_info(info);
-		if (ret == 0 && copy_to_user(argp, &cursor, sizeof(cursor)))
-			return -EFAULT;
+		ret = osd_compat_cursor(info, arg);
 	} else
 		ret = osd_ioctl(info, cmd, arg);
 
