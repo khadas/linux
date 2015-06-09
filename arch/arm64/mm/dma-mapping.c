@@ -20,6 +20,7 @@
 #include <linux/gfp.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <linux/genalloc.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/of.h>
@@ -41,6 +42,55 @@ static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
 	return prot;
 }
 
+static struct gen_pool *atomic_pool;
+
+#define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
+static size_t atomic_pool_size = DEFAULT_DMA_COHERENT_POOL_SIZE;
+
+static int __init early_coherent_pool(char *p)
+{
+	atomic_pool_size = memparse(p, &p);
+	return 0;
+}
+early_param("coherent_pool", early_coherent_pool);
+
+static void *__alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
+{
+	unsigned long val;
+	void *ptr = NULL;
+
+	if (!atomic_pool) {
+		WARN(1, "coherent pool not initialised!\n");
+		return NULL;
+	}
+
+	val = gen_pool_alloc(atomic_pool, size);
+	if (val) {
+		phys_addr_t phys = gen_pool_virt_to_phys(atomic_pool, val);
+
+		*ret_page = phys_to_page(phys);
+		ptr = (void *)val;
+		memset(ptr, 0, size);
+	}
+
+	return ptr;
+}
+
+static bool __in_atomic_pool(void *start, size_t size)
+{
+	return addr_in_gen_pool(atomic_pool, (unsigned long)start, size);
+}
+
+static int __free_from_pool(void *start, size_t size)
+{
+	if (!__in_atomic_pool(start, size))
+		return 0;
+
+	gen_pool_free(atomic_pool, (unsigned long)start, size);
+
+	return 1;
+}
+
 static void *__dma_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
 				  struct dma_attrs *attrs)
@@ -53,7 +103,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
 	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
 		flags |= GFP_DMA;
-	if (IS_ENABLED(CONFIG_DMA_CMA)) {
+	if (IS_ENABLED(CONFIG_DMA_CMA) && (flags & __GFP_WAIT)) {
 		struct page *page;
 
 		size = PAGE_ALIGN(size);
@@ -98,6 +148,15 @@ static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
 	int order, i;
 
 	size = PAGE_ALIGN(size);
+	if (!(flags & __GFP_WAIT)) {
+		struct page *page = NULL;
+		void *addr = __alloc_from_pool(size, &page, flags);
+
+		if (addr)
+			*dma_handle = phys_to_dma(dev, page_to_phys(page));
+
+		return addr;
+	}
 	order = get_order(size);
 
 	ptr = __dma_alloc_coherent(dev, size, dma_handle, flags, attrs);
@@ -135,6 +194,10 @@ static void __dma_free_noncoherent(struct device *dev, size_t size,
 {
 	void *swiotlb_addr = phys_to_virt(dma_to_phys(dev, dma_handle));
 
+	size = PAGE_ALIGN(size);
+
+	if (__free_from_pool(vaddr, size))
+		return;
 	vunmap(vaddr);
 	__dma_free_coherent(dev, size, swiotlb_addr, dma_handle, attrs);
 }
@@ -325,7 +388,72 @@ static int dma_bus_notifier(struct notifier_block *nb,
 static struct notifier_block platform_bus_nb = {
 	.notifier_call = dma_bus_notifier,
 };
+static int __init atomic_pool_init(void)
+{
+	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
+	unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
+	struct page *page, **map;
+	void *addr;
+	unsigned int pool_size_order = get_order(atomic_pool_size);
+	int i;
 
+	if (dev_get_cma_area(NULL))
+		page = dma_alloc_from_contiguous(NULL, nr_pages,
+							pool_size_order);
+	else
+		page = alloc_pages(GFP_DMA, pool_size_order);
+
+	if (page) {
+		int ret;
+		void *page_addr = page_address(page);
+
+		memset(page_addr, 0, atomic_pool_size);
+		__dma_flush_range(page_addr, page_addr + atomic_pool_size);
+
+		atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
+		if (!atomic_pool)
+			goto free_page;
+
+		map = kmalloc(sizeof(struct page *) << pool_size_order,
+					  GFP_KERNEL);
+		if (!map)
+			goto destroy_genpool;
+		for (i = 0; i < (1 << pool_size_order); i++)
+			map[i] = page + i;
+		addr = vmap(map, 1 << pool_size_order, VM_MAP,
+					prot);
+		kfree(map);
+		if (!addr)
+			goto destroy_genpool;
+
+		ret = gen_pool_add_virt(atomic_pool, (unsigned long)addr,
+					page_to_phys(page),
+					atomic_pool_size, -1);
+		if (ret)
+			goto remove_mapping;
+
+		gen_pool_set_algo(atomic_pool,
+				  gen_pool_first_fit_order_align,
+				  (void *)PAGE_SHIFT);
+
+		pr_info("DMA: preallocated %zu KiB pool for atomic allocations\n",
+			atomic_pool_size / 1024);
+		return 0;
+	}
+	goto out;
+remove_mapping:
+	vunmap(addr);
+destroy_genpool:
+	gen_pool_destroy(atomic_pool);
+	atomic_pool = NULL;
+free_page:
+	if (!dma_release_from_contiguous(NULL, page, nr_pages))
+		__free_pages(page, pool_size_order);
+out:
+	pr_err("DMA: failed to allocate %zu KiB pool for atomic coherent allocation\n",
+		atomic_pool_size / 1024);
+	return -ENOMEM;
+}
 static struct notifier_block amba_bus_nb = {
 	.notifier_call = dma_bus_notifier,
 };
@@ -335,6 +463,7 @@ extern int swiotlb_late_init_with_default_size(size_t default_size);
 static int __init swiotlb_late_init(void)
 {
 	size_t swiotlb_size = min(SZ_64M, MAX_ORDER_NR_PAGES << PAGE_SHIFT);
+	int ret = 0;
 
 	/*
 	 * These must be registered before of_platform_populate().
@@ -344,6 +473,12 @@ static int __init swiotlb_late_init(void)
 
 	dma_ops = &noncoherent_swiotlb_dma_ops;
 
+	ret = atomic_pool_init();
+	if (ret) {
+		bus_unregister_notifier(&platform_bus_type, &platform_bus_nb);
+		bus_unregister_notifier(&amba_bustype, &amba_bus_nb);
+		return ret;
+	}
 	return swiotlb_late_init_with_default_size(swiotlb_size);
 }
 arch_initcall(swiotlb_late_init);
