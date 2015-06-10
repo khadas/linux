@@ -48,11 +48,6 @@
 #include "amports_priv.h"
 #include <linux/of_reserved_mem.h>
 
-#ifdef CONFIG_CMA
-#include <linux/cma.h>
-static struct cma *avc_cma;
-#endif
-
 #define AMVENC_CANVAS_INDEX 0xE4
 #define AMVENC_CANVAS_MAX_INDEX 0xEC
 
@@ -3916,20 +3911,24 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 	encode_manager.reserve_buff = NULL;
 
 	idx = of_reserved_mem_device_init(&pdev->dev);
-	if (idx == 0) {
-		enc_pr(LOG_DEBUG,
-			"amvenc_avc_probe -- reserved memory config success.\n");
-	} else {
+	if (idx != 0) {
 		enc_pr(LOG_DEBUG,
 			"amvenc_avc_probe -- reserved memory config fail.\n");
 	}
-#ifndef CONFIG_CMA
+
 	if (encode_manager.use_reserve == false) {
+#ifndef CONFIG_CMA
 		enc_pr(LOG_ERROR,
 			"amvenc_avc memory is invaild, probe fail!\n");
 		return -EFAULT;
-	}
+#else
+		encode_manager.cma_pool_size =
+			dma_get_cma_size_int_byte(&pdev->dev);
+		enc_pr(LOG_DEBUG,
+			"amvenc_avc - cma memory pool size: %d MB\n",
+			(u32)encode_manager.cma_pool_size / SZ_1M);
 #endif
+	}
 
 	res_irq = platform_get_irq(pdev, 0);
 	if (res_irq < 0) {
@@ -3946,11 +3945,6 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 	}
 
 	r = init_avc_device();
-#ifdef CONFIG_CMA
-	if ((encode_manager.use_reserve == false) &&
-		(r == 0))
-		dev_set_cma_area(&pdev->dev, avc_cma);
-#endif
 	enc_pr(LOG_INFO, "amvenc_avc probe end.\n");
 	return r;
 }
@@ -3962,9 +3956,6 @@ static s32 amvenc_avc_remove(struct platform_device *pdev)
 	if (encode_wq_uninit()) {
 		enc_pr(LOG_ERROR, "encode work queue uninit error.\n");
 	}
-#ifdef CONFIG_CMA
-	dev_set_cma_area(&pdev->dev, NULL);
-#endif
 	uninit_avc_device();
 	enc_pr(LOG_INFO, "amvenc_avc remove.\n");
 	return 0;
@@ -4021,34 +4012,6 @@ static s32 __init avc_mem_setup(struct reserved_mem *rmem)
 	enc_pr(LOG_DEBUG, "amvenc_avc reserved mem setup.\n");
 	return 0;
 }
-
-#ifdef CONFIG_CMA
-static int __init avc_cma_setup(struct reserved_mem *rmem)
-{
-	int ret;
-	phys_addr_t base, size, align;
-
-	align = (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
-	base = ALIGN(rmem->base, align);
-	size = round_down(rmem->size - (base - rmem->base), align);
-
-	ret = cma_init_reserved_mem(base, size, 0, &avc_cma);
-	if (ret) {
-		enc_pr(LOG_ERROR, "avc cma init reserve area failed.\n");
-		return ret;
-	}
-#ifndef CONFIG_ARM64
-	dma_contiguous_early_fixup(base, size);
-#endif
-	encode_manager.cma_pool_size = size;
-	enc_pr(LOG_DEBUG,
-		"avc cma setup, buff start: %pa, size %ld MB\n",
-		&base, (unsigned long)size / SZ_1M);
-	return 0;
-}
-
-RESERVEDMEM_OF_DECLARE(avc_cma, "amlogic, avc-cma-memory", avc_cma_setup);
-#endif
 
 module_param(me_mv_merge_ctl, uint, 0664);
 MODULE_PARM_DESC(me_mv_merge_ctl, "\n me_mv_merge_ctl\n");
