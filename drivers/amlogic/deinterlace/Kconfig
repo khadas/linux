@@ -9,9 +9,9 @@ config DEINTERLACE
 	default n
 	help
 		Select to enable AMLOGIC DEINTERLACE driver
-	process interlace source need three continueed fields,
-	wave progressive source with two interlace fields from
-	one progreesive fields
+		process interlace source need three continueed fields,
+		wave progressive source with two interlace fields from
+		one progreesive fields
 
 
 if DEINTERLACE
@@ -20,8 +20,8 @@ config AM_DEINTERLACE_SD_ONLY
         default n
         help
 			The buffer size will be smaller
-		only support sd interlace source process,
-		others will be bypassd
+			only support sd interlace source process,
+			others will be bypassd
 endif
 
 endmenu
