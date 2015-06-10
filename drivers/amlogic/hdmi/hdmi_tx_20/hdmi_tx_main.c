@@ -1390,7 +1390,7 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	switch_set_state(&sdev, 1);
-	/* TODO cec_node_init(hdev); */
+	cec_node_init(hdev);
 
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	mutex_unlock(&setclk_mutex);
@@ -1621,7 +1621,6 @@ static int get_dt_pwr_init_data(struct device_node *np,
 
 static int amhdmitx_probe(struct platform_device *pdev)
 {
-/* extern struct switch_dev lang_dev; */
 	int r, ret = 0;
 
 #ifdef CONFIG_OF
@@ -1820,7 +1819,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		clk_prepare_enable(hdmitx_device.clk_pixel);
 
 	switch_dev_register(&sdev);
-/* switch_dev_register(&lang_dev); */
 
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
 	HDMITX_Meson_Init(&hdmitx_device);
@@ -2055,10 +2053,10 @@ static  int __init hdmitx_boot_para_setup(char *s)
 			init_flag |= INIT_FLAG_NOT_LOAD;
 		} else if (strncmp(token, "cec", 3) == 0) {
 			ret = kstrtoul(token+3, 16, &list);
-		if ((list >= 0) && (list <= 0xf))
-			hdmitx_device.cec_func_config = list;
-		hdmi_print(INF, CEC "HDMI hdmi_cec_func_config:0x%x\n",
-			hdmitx_device.cec_func_config);
+			if ((list >= 0) && (list <= 0x2f))
+				hdmitx_device.cec_func_config = list;
+			hdmi_print(INF, CEC "HDMI hdmi_cec_func_config:0x%x\n",
+				   hdmitx_device.cec_func_config);
 		}
 	}
 		offset = token_offset;

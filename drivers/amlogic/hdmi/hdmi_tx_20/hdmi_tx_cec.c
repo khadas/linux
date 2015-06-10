@@ -89,7 +89,7 @@ ssize_t cec_lang_config_state(struct switch_dev *sdev, char *buf)
 struct switch_dev lang_dev = {	/* android ics switch device */
 	.name = "lang_config",
 	.print_state = cec_lang_config_state,
-	};
+};
 EXPORT_SYMBOL(lang_dev);
 
 static DEFINE_SPINLOCK(p_tx_list_lock);
@@ -248,6 +248,7 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 	} else
 		hdmi_print(INF, CEC "CEC node init\n");
 
+	cec_pre_init();
 	if (hdmitx_device->config_data.vend_data)
 		vend_data = hdmitx_device->config_data.vend_data;
 #if 0
@@ -1739,7 +1740,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 	hdmitx_device = get_hdmitx_device();
 	switch_dev_register(&lang_dev);
 	cec_key_init();
-	hdmi_print(INF, CEC "CEC init\n");
 
 	memset(&cec_global_info, 0, sizeof(struct cec_global_info_t));
 	cec_global_info.cec_rx_msg_buf.rx_buf_size =
@@ -1748,7 +1748,16 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 	cec_global_info.hdmitx_device = hdmitx_device;
 
-	cec_pre_init();
+	hdmi_print(INF, CEC "CEC probe, fun_config:%x\n",
+		   hdmitx_device->cec_func_config);
+	/*
+	 * save default configs parsed from boot args
+	 */
+	cec_config(hdmitx_device->cec_func_config, 1);
+	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK))) {
+		/* keep reset state if not enabled */
+		cec_keep_reset();
+	}
 	cec_workqueue = create_workqueue("cec_work");
 	if (cec_workqueue == NULL) {
 		pr_info("create work queue failed\n");
@@ -2012,19 +2021,25 @@ void cec_usrcmd_set_config(const char *buf, size_t count)
 		while (buf[i] != ' ')
 			i++;
 	}
-	value = cec_config(0, 0) & 0x1;
+	value = cec_config(0, 0);
 	cec_config(param[0], 1);
+	hdmi_print(INF, CEC "old value:%lx, new para:%x\n", value, param[0]);
 	hdmitx_device->cec_func_config = cec_config(0, 0);
+	if ((0 == (value & 0x1)) && (1 == (param[0] & 1))) {
+		hdmitx_device->cec_init_ready = 1;
+		hdmitx_device->hpd_state = 1;
+		cec_global_info.cec_flag.cec_init_flag = 1;
+		cec_node_init(hdmitx_device);
+	} else if ((value & 0x01) && !(param[0] & 0x01)) {
+		/* toggle off cec funtion by user */
+		hdmi_print(INF, CEC "user disable cec\n");
+		/* disable irq to stop rx/tx process */
+		cec_keep_reset();
+	}
 	if (!(hdmitx_device->cec_func_config
 	    & (1 << CEC_FUNC_MSAK)) || !hdmitx_device->hpd_state)
 		return;
 
-	if ((0 == (value & 0x1)) && (1 == (param[0] & 1))) {
-		hdmitx_device->cec_init_ready = 1;
-		hdmitx_device->hpd_state = 1;
-
-		cec_node_init(hdmitx_device);
-	}
 	if ((1 == (param[0] & 1)) && (0x2 == (value & 0x2))
 	    && (0x0 == (param[0] & 0x2)))
 		cec_menu_status_smp(DEVICE_MENU_INACTIVE);
