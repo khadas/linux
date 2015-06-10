@@ -115,6 +115,8 @@ static atomic_t vh264mvc_active = ATOMIC_INIT(0);
 static struct work_struct error_wd_work;
 
 static struct dec_sysinfo vh264mvc_amstream_dec_info;
+static dma_addr_t mc_dma_handle;
+static void *mc_cpu_addr;
 
 static DEFINE_SPINLOCK(lock);
 
@@ -148,7 +150,7 @@ static s32 vh264mvc_init(void);
 #define CURRENT_UCODE           AV_SCRATCH_H
 #define CURRENT_SPS_PPS         AV_SCRATCH_I/* bit[15:9]-SPS, bit[8:0]-PPS */
 #define DECODE_SKIP_PICTURE     AV_SCRATCH_J
-#define SIM_RESERV_K            AV_SCRATCH_K
+#define UCODE_START_ADDR        AV_SCRATCH_K
 #define SIM_RESERV_L            AV_SCRATCH_L
 #define REF_START_VIEW_0        AV_SCRATCH_M
 #define REF_START_VIEW_1        AV_SCRATCH_N
@@ -164,6 +166,9 @@ static s32 vh264mvc_init(void);
 
 #define CANVAS_INDEX_START       0x78
 /* /AMVDEC_H264MVC_CANVAS_INDEX */
+
+#define MC_TOTAL_SIZE        (28*SZ_1K)
+#define MC_SWAP_SIZE         (4*SZ_1K)
 
 unsigned DECODE_BUFFER_START = 0x00200000;
 unsigned DECODE_BUFFER_END = 0x05000000;
@@ -1293,12 +1298,6 @@ static void vh264mvc_local_init(void)
 static s32 vh264mvc_init(void)
 {
 	int r1, r2, r3, r4;
-	void __iomem *p = ioremap_nocache(work_space_adr, work_space_size);
-
-	if (!p) {
-		pr_info("\nvh264mvc_init:Cannot remap ucode swapping memory\n");
-		return -ENOMEM;
-	}
 
 	pr_info("\nvh264mvc_init\n");
 	init_timer(&recycle_timer);
@@ -1309,27 +1308,42 @@ static s32 vh264mvc_init(void)
 
 	amvdec_enable();
 
+	/* -- ucode loading (amrisc and swap code) */
+	mc_cpu_addr = dma_alloc_coherent(amports_get_dma_device(),
+		MC_TOTAL_SIZE, &mc_dma_handle, GFP_KERNEL);
+	if (!mc_cpu_addr) {
+		amvdec_disable();
+		pr_err("vh264_mvc init: Can not allocate mc memory.\n");
+		return -ENOMEM;
+	}
+
+	WRITE_VREG(UCODE_START_ADDR, mc_dma_handle);
 
 	r1 = amvdec_loadmc_ex(VFORMAT_H264MVC, "vh264mvc_mc", NULL);
 
 	/*memcpy(p, vh264mvc_header_mc, sizeof(vh264mvc_header_mc));*/
 	r2 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_header_mc",
-					p, 0x1000);
+					mc_cpu_addr, 0x1000);
 
 	/*memcpy((void *)((ulong) p + 0x1000),
 		   vh264mvc_mmco_mc, sizeof(vh264mvc_mmco_mc));
 	*/
 	r3 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_mmco_mc",
-					(void *)((ulong) p + 0x1000), 0x2000);
+					(void *)((u8 *) mc_cpu_addr + 0x1000),
+					0x2000);
 
 	/*memcpy((void *)((ulong) p + 0x3000),
 		   vh264mvc_slice_mc, sizeof(vh264mvc_slice_mc));
 	*/
 	r4 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_slice_mc",
-					(void *)((ulong) p + 0x3000), 0x4000);
-	iounmap(p);
+					(void *)((u8 *) mc_cpu_addr + 0x3000),
+					0x4000);
 	if (r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0) {
 		amvdec_disable();
+
+		dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+		mc_cpu_addr = NULL;
 		return -EBUSY;
 	}
 
@@ -1400,6 +1414,16 @@ static int vh264mvc_stop(void)
 		spin_unlock_irqrestore(&lock, flags);
 		vf_unreg_provider(&vh264mvc_vf_prov);
 		stat &= ~STAT_VF_HOOK;
+	}
+
+	if (stat & STAT_MC_LOAD) {
+		if (mc_cpu_addr != NULL) {
+			dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+			mc_cpu_addr = NULL;
+		}
+
+		stat &= ~STAT_MC_LOAD;
 	}
 
 	amvdec_disable();

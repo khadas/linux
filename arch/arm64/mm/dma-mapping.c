@@ -23,6 +23,7 @@
 #include <linux/genalloc.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <linux/highmem.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
@@ -459,6 +460,28 @@ static struct notifier_block amba_bus_nb = {
 };
 
 extern int swiotlb_late_init_with_default_size(size_t default_size);
+
+void dma_clear_buffer(struct page *page, size_t size)
+{
+	/*
+	 * Ensure that the allocated pages are zeroed, and that any data
+	 * lurking in the kernel direct-mapped region is invalidated.
+	 */
+	if (PageHighMem(page)) {
+		while (size > 0) {
+			void *ptr = kmap_atomic(page);
+			/* memset(ptr, 0, PAGE_SIZE); */
+			__dma_flush_range(ptr, ptr + PAGE_SIZE);
+			kunmap_atomic(ptr);
+			page++;
+			size -= PAGE_SIZE;
+		}
+	} else {
+		void *ptr = page_address(page);
+		/* memset(ptr, 0, size); */
+		__dma_flush_range(ptr, ptr + size);
+	}
+}
 
 static int __init swiotlb_late_init(void)
 {

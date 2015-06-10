@@ -2095,6 +2095,7 @@ static s32 vh264_init(void)
 
 	query_video_status(0, &trickmode_fffb);
 
+#if 0
 	if (!trickmode_fffb) {
 		void __iomem *p =
 			ioremap_nocache(ucode_map_start, V_BUF_ADDR_OFFSET);
@@ -2103,6 +2104,7 @@ static s32 vh264_init(void)
 			iounmap(p);
 		}
 	}
+#endif
 
 	amvdec_enable();
 
@@ -2160,10 +2162,17 @@ static s32 vh264_init(void)
 		*/
 		DEBUGGET_FW(VFORMAT_H264, "vh264_slice_mc",
 			(u8 *) mc_cpu_addr + MC_OFFSET_SLICE, MC_SWAP_SIZE, r5);
+
 		if (r0 < 0 || r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0 || r5 < 0) {
 			pr_err("264 load debugfirmware err %d,%d,%d,%d,%d,%d\n",
 			r0 , r1 , r2 , r3 , r4 , r5);
 			amvdec_disable();
+			if (mc_cpu_addr) {
+				dma_free_coherent(amports_get_dma_device(),
+					MC_TOTAL_SIZE, mc_cpu_addr,
+					mc_dma_handle);
+				mc_cpu_addr = NULL;
+			}
 			return -EBUSY;
 		}
 		firmwareloaded = 1;
@@ -2201,6 +2210,12 @@ static s32 vh264_init(void)
 			pr_err("264 load orignal firmware error %d,%d,%d,%d,%d,%d\n",
 				r0 , r1 , r2 , r3 , r4 , r5);
 			amvdec_disable();
+			if (mc_cpu_addr) {
+				dma_free_coherent(amports_get_dma_device(),
+					MC_TOTAL_SIZE, mc_cpu_addr,
+					mc_dma_handle);
+				mc_cpu_addr = NULL;
+			}
 			return -EBUSY;
 		}
 	}

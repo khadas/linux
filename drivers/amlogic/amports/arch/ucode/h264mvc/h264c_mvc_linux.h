@@ -128,7 +128,7 @@ const u32 MicroCode[] __initconst = {
 	0xc7fea40,
 	0x0400000,
 	0x6034201,
-	0x649ce01,
+	0x649d401,
 	0x2000040,
 
 	0x6034100,

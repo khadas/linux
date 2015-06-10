@@ -534,6 +534,8 @@ union param_u {
 	} p;
 };
 
+#define RPM_BUF_SIZE (0x80*2)
+
 struct buff_s {
 	u32 buf_start;
 	u32 buf_size;
@@ -637,7 +639,7 @@ static struct BuffInfo_s amvh265_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = 0x40000 * 16,/* 1080p, 0x40000 per buffer */
 		},
 		.rpm = {
-			.buf_size = 0x80 * 2,
+			.buf_size = RPM_BUF_SIZE,
 		},
 		.lmem = {
 			.buf_size = 0x400 * 2,
@@ -714,7 +716,7 @@ static struct BuffInfo_s amvh265_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = 0x120000 * 16,
 		},
 		.rpm = {
-			.buf_size = 0x80 * 2,
+			.buf_size = RPM_BUF_SIZE,
 		},
 		.lmem = {
 			.buf_size = 0x400 * 2,
@@ -933,6 +935,9 @@ struct hevc_state_s {
 	struct BuffInfo_s *work_space_buf;
 	struct buff_s *mc_buf;
 
+	void *rpm_addr;
+	dma_addr_t rpm_phy_addr;
+
 	unsigned int pic_list_init_flag;
 	unsigned int use_cma_flag;
 
@@ -1029,6 +1034,7 @@ static void hevc_init_stru(struct hevc_state_s *hevc,
 	int i;
 	hevc->work_space_buf = buf_spec_i;
 	hevc->mc_buf = mc_buf_i;
+	hevc->rpm_addr = NULL;
 
 	hevc->curr_POC = INVALID_POC;
 
@@ -2439,7 +2445,7 @@ static void hevc_config_work_space_hw(struct hevc_state_s *hevc)
 			buf_spec->dblk_data.buf_start);
 	WRITE_VREG(HEVCD_IPP_LINEBUFF_BASE, buf_spec->ipp.buf_start);
 	if ((debug & H265_DEBUG_SEND_PARAM_WITH_REG) == 0)
-		WRITE_VREG(HEVC_RPM_BUFFER, buf_spec->rpm.buf_start);
+		WRITE_VREG(HEVC_RPM_BUFFER, (u32)hevc->rpm_phy_addr);
 	WRITE_VREG(HEVC_SHORT_TERM_RPS, buf_spec->short_term_rps.buf_start);
 	WRITE_VREG(HEVC_VPS_BUFFER, buf_spec->vps.buf_start);
 	WRITE_VREG(HEVC_SPS_BUFFER, buf_spec->sps.buf_start);
@@ -3932,9 +3938,12 @@ static union param_u rpm_param;
 
 static void hevc_local_uninit(void)
 {
-	if (gHevc.rpm_ptr) {
-		iounmap(gHevc.rpm_ptr);
-		gHevc.rpm_ptr = NULL;
+	gHevc.rpm_ptr = NULL;
+
+	if (gHevc.rpm_addr) {
+		dma_free_coherent(amports_get_dma_device(),
+			RPM_BUF_SIZE, gHevc.rpm_addr, gHevc.rpm_phy_addr);
+		gHevc.rpm_addr = NULL;
 	}
 	if (gHevc.lmem_ptr) {
 		iounmap(gHevc.lmem_ptr);
@@ -3971,21 +3980,14 @@ static int hevc_local_init(void)
 	bit_depth_chroma = 8;
 
 	if ((debug & H265_DEBUG_SEND_PARAM_WITH_REG) == 0) {
-		if (gHevc.rpm_ptr) {
-			iounmap(gHevc.rpm_ptr);
-			gHevc.rpm_ptr = NULL;
+		gHevc.rpm_addr = dma_alloc_coherent(amports_get_dma_device(),
+			RPM_BUF_SIZE, &gHevc.rpm_phy_addr, GFP_KERNEL);
+		if (!gHevc.rpm_addr) {
+			pr_err("%s: failed to alloc rpm buffer\n", __func__);
+			return -1;
 		}
 
-		gHevc.rpm_ptr =
-			(unsigned short *)ioremap_nocache(cur_buf_info->rpm.
-					buf_start,
-					cur_buf_info->rpm.
-					buf_size);
-		if (!gHevc.rpm_ptr) {
-			pr_info("%s: failed to remap rpm.buf_start\n",
-					__func__);
-			return ret;
-		}
+		gHevc.rpm_ptr = gHevc.rpm_addr;
 	}
 
 	if (debug & H265_DEBUG_UCODE) {

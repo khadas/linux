@@ -28,6 +28,8 @@ struct vdec_dev_reg_s {
 	struct dec_sysinfo *sys_info;
 } /*vdec_dev_reg_t */;
 
+extern void dma_clear_buffer(struct page *page, size_t size);
+
 extern void vdec_set_decinfo(struct dec_sysinfo *p);
 extern int vdec_set_resource(unsigned long start, unsigned long end,
 							 struct device *p);

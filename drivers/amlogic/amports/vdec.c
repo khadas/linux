@@ -33,6 +33,8 @@
 #include <linux/cma.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-contiguous.h>
 #include "amports_priv.h"
 
 #include "amports_config.h"
@@ -44,6 +46,7 @@
 static DEFINE_SPINLOCK(lock);
 
 #define MC_SIZE (4096 * 4)
+#define CMA_ALLOC_SIZE SZ_64M
 
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num;
@@ -52,12 +55,14 @@ static unsigned int debug_trace_num = 16 * 20;
 static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
 static struct platform_device *vdec_core_device;
+static struct page *vdec_cma_page;
+static unsigned long reserved_mem_start, reserved_mem_end;
+
 struct am_reg {
 	char *name;
 	int offset;
 };
 
-static struct cma *vdec_cma;
 static struct vdec_dev_reg_s vdec_dev_reg;
 
 static const char * const vdec_device_name[] = {
@@ -92,6 +97,9 @@ int vdec_set_resource(unsigned long start, unsigned long end, struct device *p)
 	vdec_dev_reg.mem_end = end;
 	vdec_dev_reg.cma_dev = p;
 
+	reserved_mem_start = vdec_dev_reg.mem_start;
+	reserved_mem_end = end;
+
 	return 0;
 }
 
@@ -105,6 +113,33 @@ s32 vdec_init(enum vformat_e vf)
 	}
 
 	inited_vcodec_num++;
+
+	pr_info("vdec_dev_reg.mem[0x%lx -- 0x%lx]\n",
+		vdec_dev_reg.mem_start,
+		vdec_dev_reg.mem_end);
+
+	if (vdec_dev_reg.mem_start == vdec_dev_reg.mem_end) {
+		pr_info("vdec cma tool size = %ld MB\n",
+			dma_get_cma_size_int_byte(vdec_dev_reg.cma_dev)
+				/ SZ_1M);
+
+		vdec_cma_page = dma_alloc_from_contiguous(
+			vdec_dev_reg.cma_dev,
+			CMA_ALLOC_SIZE / PAGE_SIZE, 4);
+		if (!vdec_cma_page) {
+			pr_err("vdec base CMA allocation failed.\n");
+			inited_vcodec_num--;
+			return -ENOMEM;
+		}
+
+		dma_clear_buffer(vdec_cma_page, CMA_ALLOC_SIZE);
+
+		pr_info("vdec base cma page allocated %p\n", vdec_cma_page);
+
+		vdec_dev_reg.mem_start = page_to_phys(vdec_cma_page);
+		vdec_dev_reg.mem_end = vdec_dev_reg.mem_start +
+			CMA_ALLOC_SIZE - 1;
+	}
 
 	vdec_device =
 		platform_device_register_data(&vdec_core_device->dev,
@@ -132,6 +167,16 @@ s32 vdec_release(enum vformat_e vf)
 {
 	if (vdec_device)
 		platform_device_unregister(vdec_device);
+
+	if (vdec_cma_page) {
+		dma_release_from_contiguous(vdec_dev_reg.cma_dev,
+			vdec_cma_page,
+			CMA_ALLOC_SIZE / PAGE_SIZE);
+
+		vdec_cma_page = NULL;
+		vdec_dev_reg.mem_start = reserved_mem_start;
+		vdec_dev_reg.mem_end = reserved_mem_end;
+	}
 
 	inited_vcodec_num--;
 
@@ -874,6 +919,8 @@ static int vdec_probe(struct platform_device *pdev)
 	if (r == 0)
 		pr_info("vdec_probe done\n");
 
+	vdec_dev_reg.cma_dev = &pdev->dev;
+
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8) {
 		/* default to 250MHz */
 		vdec_clock_hi_enable();
@@ -933,7 +980,6 @@ static int vdec_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	end = rmem->base + rmem->size - 1;
 	pr_info("init vdec memsource %lx->%lx\n", start, end);
 
-	dev_set_cma_area(dev, vdec_cma);
 	vdec_set_resource(start, end, dev);
 	return 0;
 }
@@ -949,34 +995,6 @@ static int __init vdec_mem_setup(struct reserved_mem *rmem)
 
 	return 0;
 }
-
-#ifdef CONFIG_CMA
-static int __init vdec_cma_setup(struct reserved_mem *rmem)
-{
-	int ret;
-	phys_addr_t base, size, align;
-
-	align = (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
-	base = ALIGN(rmem->base, align);
-	size = round_down(rmem->size - (base - rmem->base), align);
-
-	ret = cma_init_reserved_mem(base, size, 0, &vdec_cma);
-	if (ret) {
-		pr_info("vdec: cma init reserve area failed.\n");
-		return ret;
-	}
-
-#ifndef CONFIG_ARM64
-	dma_contiguous_early_fixup(base, size);
-#endif
-
-	pr_info("vdec: cma setup\n");
-
-	return 0;
-}
-
-RESERVEDMEM_OF_DECLARE(vdec_cma, "amlogic, vdec-cma-memory", vdec_cma_setup);
-#endif
 
 RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
 

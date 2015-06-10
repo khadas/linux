@@ -70,12 +70,12 @@
 			size = <0x0 0x2000000>;
 		};
 
-		/*  DISP&MM-A/V stream */
-		vdec_reserved:linux,vdec {
-			compatible = "amlogic, vdec-memory";
-			size = <0x0 0x0ca00000>;
-			no-map;
-		};
+//		/*  DISP&MM-A/V stream */
+//		vdec_reserved:linux,vdec {
+//			compatible = "amlogic, vdec-memory";
+//			size = <0x0 0x0ca00000>;
+//			no-map;
+//		};
 		/*  vdin0 */
 //		vdin0_reserved:linux,vdin0 {
 //			compatible = "amlogic, vdin_memory";
@@ -107,6 +107,13 @@
 			size = <0x0 0x2400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+		};
+		/* vdec CMA pool */
+		vdec_cma_reserved:linux,vdec_cma {
+			compatible = "shared-dma-pool";
+			linux,phandle = <2>;
+			reusable;
+			size = <0x0 0x10000000>;
 		};
 	};
 
@@ -196,7 +203,7 @@
 
 	vdec {
 		compatible = "amlogic, vdec";
-		memory-region = <&vdec_reserved>;
+		memory-region = <&vdec_cma_reserved>;
 		dev_name = "vdec.0";
 		status = "okay";
 		interrupts = <0 3 1

@@ -106,6 +106,9 @@ static unsigned long pts_missed, pts_hit;
 #endif
 
 static struct dec_sysinfo vh264_4k2k_amstream_dec_info;
+static dma_addr_t mc_dma_handle;
+static void *mc_cpu_addr;
+
 #define AMVDEC_H264_4K2K_CANVAS_INDEX 0x78
 #define AMVDEC_H264_4K2K_CANVAS_MAX 0xbf
 static DEFINE_SPINLOCK(lock);
@@ -212,6 +215,9 @@ static struct device *cma_dev;
 #define CMD_ALLOC_VIEW             1
 #define CMD_FRAME_DISPLAY          3
 #define CMD_DEBUG                  10
+
+#define MC_TOTAL_SIZE           (28*SZ_1K)
+#define MC_SWAP_SIZE            (4*SZ_1K)
 
 static unsigned long work_space_adr, decoder_buffer_start, decoder_buffer_end;
 static unsigned long reserved_buffer;
@@ -437,7 +443,9 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 				 i);
 				mutex_unlock(&vh264_4k2k_mutex);
 				return -1;
-			}
+			} else
+				dma_clear_buffer(buffer_spec[i].alloc_pages,
+					buffer_spec[i].alloc_count * PAGE_SIZE);
 
 			addr = page_to_phys(buffer_spec[i].alloc_pages);
 			dpb_addr = addr;
@@ -594,32 +602,67 @@ static int get_max_dec_frame_buf_size(int level_idc,
 
 static void do_alloc_work(struct work_struct *work)
 {
-	int level_idc, max_reference_frame_num, mb_width, mb_height;
+	int level_idc, max_reference_frame_num, mb_width, mb_height,
+		frame_mbs_only_flag;
 	int dpb_size, ref_size;
 	int dpb_start_addr, ref_start_addr, max_dec_frame_buffering,
 		total_dec_frame_buffering;
+	unsigned int chroma444;
+	unsigned int crop_infor, crop_bottom, crop_right;
 	int ret = READ_VREG(MAILBOX_COMMAND);
 
 	ref_start_addr = decoder_buffer_start;
 	ret = READ_VREG(MAILBOX_DATA_0);
+	/*  MAILBOX_DATA_1 :
+		bit15    : frame_mbs_only_flag
+		bit 0-7 : chroma_format_idc
+	    MAILBOX_DATA_2:
+		bit31-16: (left << 8 | right ) << 1
+		bit15-0 : (top << 8  | bottom ) <<  (2 - frame_mbs_only_flag)
+	*/
+	frame_mbs_only_flag = READ_VREG(MAILBOX_DATA_1);
+	crop_infor = READ_VREG(MAILBOX_DATA_2);
 	level_idc = (ret >> 24) & 0xff;
 	max_reference_frame_num = (ret >> 16) & 0xff;
 	mb_width = (ret >> 8) & 0xff;
 	if (mb_width == 0)
 		mb_width = 256;
 	mb_height = (ret >> 0) & 0xff;
-
 	max_dec_frame_buffering =
 		get_max_dec_frame_buf_size(level_idc, max_reference_frame_num,
 				mb_width, mb_height);
-
 	total_dec_frame_buffering =
 		max_dec_frame_buffering + DISPLAY_BUFFER_NUM;
 
-	if ((frame_width == 0) || (frame_height == 0)) {
+	chroma444 = ((frame_mbs_only_flag&0xffff) == 3) ? 1 : 0;
+	frame_mbs_only_flag = (frame_mbs_only_flag >> 16) & 0x01;
+	crop_bottom = (crop_infor & 0xff) >> (2 - frame_mbs_only_flag);
+	crop_right = ((crop_infor >> 16) & 0xff) >> 1;
+	pr_info("crop_right = 0x%x crop_bottom = 0x%x chroma_format_idc = 0x%x\n",
+		crop_right, crop_bottom, chroma444);
+
+	if ((frame_width == 0) || (frame_height == 0) || crop_infor) {
 		frame_width = mb_width << 4;
 		frame_height = mb_height << 4;
-		frame_ar = frame_height * 0x100 / frame_width;
+
+		if (frame_mbs_only_flag) {
+			frame_height -= (2 >> chroma444) *
+				min(crop_bottom,
+				    (unsigned int)((8 << chroma444) - 1));
+			frame_width -= (2 >> chroma444) *
+				min(crop_right,
+				    (unsigned int)((8 << chroma444) - 1));
+		} else {
+			frame_height -= (4 >> chroma444) *
+				min(crop_bottom,
+				    (unsigned int)((8 << chroma444) - 1));
+			frame_width -= (4 >> chroma444) *
+				min(crop_right,
+				    (unsigned int)((8 << chroma444) - 1));
+		}
+		pr_info("frame_mbs_only_flag %d, crop_bottom %d frame_height %d, mb_height %d crop_right %d, frame_width %d, mb_width %d\n",
+			frame_mbs_only_flag, crop_bottom, frame_height,
+			mb_height, crop_right, frame_width, mb_height);
 	}
 
 	mb_width = (mb_width + 3) & 0xfffffffc;
@@ -1308,14 +1351,6 @@ static void vh264_4k2k_local_init(void)
 static s32 vh264_4k2k_init(void)
 {
 	int r1 , r2, r3;
-	void __iomem *p =
-		ioremap_nocache(work_space_adr, DECODER_WORK_SPACE_SIZE);
-	pr_info("work_space_adr=%p,maped=%p\n", (void *)work_space_adr, p);
-	if (!p) {
-		pr_info
-		("\nvh264_4k2k_init: Cannot remap ucode swapping memory\n");
-		return -ENOMEM;
-	}
 
 	pr_info("\nvh264_4k2k_init\n");
 
@@ -1327,18 +1362,35 @@ static s32 vh264_4k2k_init(void)
 
 	amvdec_enable();
 
+	/* -- ucode loading (amrisc and swap code) */
+	mc_cpu_addr = dma_alloc_coherent(amports_get_dma_device(),
+		MC_TOTAL_SIZE, &mc_dma_handle, GFP_KERNEL);
+	if (!mc_cpu_addr) {
+		amvdec_disable();
+		pr_err("vh264_4k2k init: Can not allocate mc memory.\n");
+		return -ENOMEM;
+	}
+
+	WRITE_VREG(AV_SCRATCH_L, mc_dma_handle);
+	if (!H264_4K2K_SINGLE_CORE)
+		WRITE_VREG(VDEC2_AV_SCRATCH_L, mc_dma_handle);
+
 	if (H264_4K2K_SINGLE_CORE) {
 		if (amvdec_loadmc_ex(VFORMAT_H264_4K2K, "vh264_4k2k_mc_single",
 				NULL) < 0) {
 			amvdec_disable();
-			iounmap(p);
+			dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+			mc_cpu_addr = NULL;
 			return -EBUSY;
 		}
 	} else {
 		if (amvdec_loadmc_ex(VFORMAT_H264_4K2K,
 				"vh264_4k2k_mc", NULL) < 0) {
 			amvdec_disable();
-			iounmap(p);
+			dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+			mc_cpu_addr = NULL;
 			return -EBUSY;
 		}
 	}
@@ -1350,7 +1402,9 @@ static s32 vh264_4k2k_init(void)
 				"vh264_4k2k_mc", NULL) < 0) {
 			amvdec_disable();
 			amvdec2_disable();
-			iounmap(p);
+			dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+			mc_cpu_addr = NULL;
 			return -EBUSY;
 		}
 	}
@@ -1363,7 +1417,7 @@ static s32 vh264_4k2k_init(void)
 
 		r1 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_header_mc_single",
-				p, 0x1000);
+				mc_cpu_addr, 0x1000);
 
 		/*memcpy((void *)((ulong) p + 0x1000),
 			   vh264_4k2k_mmco_mc_single,
@@ -1371,7 +1425,8 @@ static s32 vh264_4k2k_init(void)
 
 		r2 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_mmco_mc_single",
-				(void *)((u8 *) p + 0x1000), 0x2000);
+				(void *)((u8 *) mc_cpu_addr + 0x1000),
+				0x2000);
 
 		/*memcpy((void *)((ulong) p + 0x3000),
 			   vh264_4k2k_slice_mc_single,
@@ -1379,34 +1434,42 @@ static s32 vh264_4k2k_init(void)
 
 		r3 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_slice_mc_single",
-				(void *)((u8 *) p + 0x3000), 0x4000);
+				(void *)((u8 *) mc_cpu_addr + 0x3000),
+				0x4000);
 	} else {
 		/*memcpy(p, vh264_4k2k_header_mc,
 					sizeof(vh264_4k2k_header_mc));*/
 
 		r1 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_header_mc",
-				p, 0x1000);
+				mc_cpu_addr, 0x1000);
 
 		/*memcpy((void *)((ulong) p + 0x1000),
 			   vh264_4k2k_mmco_mc, sizeof(vh264_4k2k_mmco_mc));*/
 		r2 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_mmco_mc",
-				(void *)((u8 *) p + 0x1000), 0x2000);
+				(void *)((u8 *) mc_cpu_addr + 0x1000),
+				0x2000);
 		/*memcpy((void *)((ulong) p + 0x3000),
 			   vh264_4k2k_slice_mc, sizeof(vh264_4k2k_slice_mc));*/
 		r3 = get_decoder_firmware_data(VFORMAT_H264_4K2K,
 				"vh264_4k2k_slice_mc",
-				(void *)((u8 *) p + 0x3000), 0x4000);
+				(void *)((u8 *) mc_cpu_addr + 0x3000),
+				0x4000);
 	}
 
-	iounmap(p);
 	if (r1 < 0 || r2 < 0 || r3 < 0) {
 		amvdec_disable();
 		if (!H264_4K2K_SINGLE_CORE)
 			amvdec2_disable();
 		pr_info("vh264_4k2k load firmware error %d,%d,%d\n",
 						r1, r2, r3);
+		if (mc_cpu_addr) {
+			dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+			mc_cpu_addr = NULL;
+		}
+
 		return -EBUSY;
 	}
 	stat |= STAT_MC_LOAD;
@@ -1515,6 +1578,16 @@ static int vh264_4k2k_stop(void)
 	if (!H264_4K2K_SINGLE_CORE)
 		WRITE_VREG(VDEC2_MDEC_DOUBLEW_CFG0, 0);
 #endif
+
+	if (stat & STAT_MC_LOAD) {
+		if (mc_cpu_addr != NULL) {
+			dma_free_coherent(amports_get_dma_device(),
+				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
+			mc_cpu_addr = NULL;
+		}
+
+		stat &= ~STAT_MC_LOAD;
+	}
 
 	amvdec_disable();
 	if (!H264_4K2K_SINGLE_CORE)
