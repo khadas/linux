@@ -233,7 +233,7 @@ static int	hpll_clk_set(struct clk_hw *hw, unsigned long drate,
 	switch (drate) {
 	case 5940000:
 		writel(0x5800027b, hiu_base + HHI_HDMI_PLL_CNTL);
-		writel(0x00004c00, hiu_base + HHI_HDMI_PLL_CNTL2);
+		writel(0x00000000, hiu_base + HHI_HDMI_PLL_CNTL2);
 		writel(0x135c5091, hiu_base + HHI_HDMI_PLL_CNTL3);
 		writel(0x801da72c, hiu_base + HHI_HDMI_PLL_CNTL4);
 		writel(0x71486980, hiu_base + HHI_HDMI_PLL_CNTL5);
@@ -241,12 +241,13 @@ static int	hpll_clk_set(struct clk_hw *hw, unsigned long drate,
 		set_pll(rate_tbl);
 		pr_info("hpll reg: 0x%x\n",
 			readl(hiu_base + HHI_HDMI_PLL_CNTL));
+		hdmi_update_bits(HHI_HDMI_PLL_CNTL2, 0xffff, 0x4c00);
 		break;
 	case 2970000:
 	case 1485000:
 	case  742500:
 		writel(0x5800023d, hiu_base + HHI_HDMI_PLL_CNTL);
-		writel(0x00004e00, hiu_base + HHI_HDMI_PLL_CNTL2);
+		writel(0x00000000, hiu_base + HHI_HDMI_PLL_CNTL2);
 		writel(0x0d5c5091, hiu_base + HHI_HDMI_PLL_CNTL3);
 		writel(0x801da72c, hiu_base + HHI_HDMI_PLL_CNTL4);
 		writel(0x71486980, hiu_base + HHI_HDMI_PLL_CNTL5);
@@ -254,6 +255,7 @@ static int	hpll_clk_set(struct clk_hw *hw, unsigned long drate,
 		set_pll(rate_tbl);
 		pr_info("hpll reg: 0x%x\n",
 			readl(hiu_base + HHI_HDMI_PLL_CNTL));
+		hdmi_update_bits(HHI_HDMI_PLL_CNTL2, 0xffff, 0x4e00);
 		break;
 	default:
 		pr_info("wrong drate %ld\n", drate);
