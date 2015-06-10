@@ -175,7 +175,28 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 
 	return 0;
 }
+/**
+ * get cma size of one dev
+ */
+unsigned long dma_get_cma_size_int_byte(struct device *dev)
+{
+	unsigned long size = 0;
+	struct cma *cma = NULL;
 
+	if (!dev) {
+		pr_err("CMA: NULL DEV\n");
+		return 0;
+	}
+
+	cma = dev_get_cma_area(dev);
+	if (!cma) {
+		pr_err("CMA:  NO CMA region\n");
+		return 0;
+	}
+	size = cma_get_size(cma);
+
+	return size;
+}
 /**
  * dma_alloc_from_contiguous() - allocate pages from contiguous area
  * @dev:   Pointer to device for which the allocation is performed.
