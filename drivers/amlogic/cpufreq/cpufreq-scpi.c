@@ -205,7 +205,6 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		}
 	meson_freq_table[idx].driver_data = idx;
 	meson_freq_table[idx].frequency = CPUFREQ_TABLE_END;
-
 	cpufreq_frequency_table_get_attr(meson_freq_table,
 							 policy->cpu);
 	freq_table = cpufreq_frequency_get_table(policy->cpu);
@@ -223,7 +222,6 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		policy->min = policy->cpuinfo.min_freq;
 	if (policy->max > policy->cpuinfo.max_freq)
 		policy->max = policy->cpuinfo.max_freq;
-
 	policy->cur =  clk_round_rate(cpufreq.armclk,
 					  clk_get_rate(cpufreq.armclk)) / 1000;
 
@@ -242,37 +240,13 @@ static struct freq_attr *meson_cpufreq_attr[] = {
 	NULL,
 };
 
-static unsigned sleep_freq;
 static int meson_cpufreq_suspend(struct cpufreq_policy *policy)
 {
-	/* Ok, this could be made a bit smarter, but let's be robust for now. We
-	 * always force a speed change to high speed before sleep, to make sure
-	 * we have appropriate voltage and/or bus speed for the wakeup process,
-	 */
-
-	preempt_disable();
-
-	sleep_freq = clk_get_rate(cpufreq.armclk) / 1000;
-	pr_debug("cpufreq suspend sleep_freq=%dMhz max=%dMHz\n",
-			 sleep_freq/1000, policy->max/1000);
-
-
-	clk_set_rate(cpufreq.armclk, policy->max * 1000);
-
-	preempt_enable();
 	return 0;
 }
 
 static int meson_cpufreq_resume(struct cpufreq_policy *policy)
 {
-
-	pr_debug("cpufreq resume sleep_freq=%dMhz\n", sleep_freq/1000);
-
-	preempt_disable();
-
-	clk_set_rate(cpufreq.armclk, sleep_freq * 1000);
-
-	preempt_enable();
 	return 0;
 }
 

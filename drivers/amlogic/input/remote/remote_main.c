@@ -297,10 +297,7 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 		input_dbg("%s sleep:%d\n", __func__, gp_remote->sleep);
 		if (gp_remote->sleep && scancode == 0x1a &&
 		    key_map[gp_remote->map_num][scancode] == 0x0074) {
-			pr_info(" set AO_RTI_STATUS_REG2 0x4853ffff\n");
-#define  AO_RTI_STATUS_REG2 ((0x00 << 10) | (0x02 << 2))
-			aml_write_aobus(AO_RTI_STATUS_REG2, 0x4853ffff);
-			/* tell uboot don't suspend*/
+			pr_info(" set 0x4853ffff\n");
 		}
 	}
 }
