@@ -32,8 +32,6 @@
 #include "mach_reg.h"
 #include "hdmi_tx_reg.h"
 
-#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
-
 static int dbg_en;
 static DEFINE_SPINLOCK(reg_lock2);
 
@@ -177,33 +175,6 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value,
 	hd_write_reg(addr, data32);
 }
 
-void sec_reg_write(unsigned *addr, unsigned value)
-{
-	register long x0 asm("x0") = 0x820000F3;
-	register long x1 asm("x1") = (unsigned long)addr;
-	register long x2 asm("x2") = value;
-	asm volatile(
-		__asmeq("%0", "x0")
-		__asmeq("%1", "x1")
-		__asmeq("%2", "x2")
-		"smc #0\n"
-		: : "r"(x0), "r"(x1), "r"(x2)
-	);
-}
-
-unsigned sec_reg_read(unsigned *addr)
-{
-	register long x0 asm("x0") = 0x820000F2;
-	register long x1 asm("x1") = (unsigned long)addr;
-	asm volatile(
-		__asmeq("%0", "x0")
-		__asmeq("%1", "x1")
-		"smc #0\n"
-		: "+r"(x0) : "r"(x1)
-	);
-	return (unsigned)(x0&0xffffffff);
-}
-
 static DEFINE_SPINLOCK(reg_lock);
 unsigned int hdmitx_rd_reg(unsigned int addr)
 {
@@ -211,13 +182,8 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 	unsigned long offset = (addr & DWC_OFFSET_MASK) >> 24;
 	unsigned long flags, fiq_flag;
 	if (addr & SEC_OFFSET) {
-		addr = addr & 0xffff;
-		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
-		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
-		data = sec_reg_read((unsigned *)(unsigned long)
-			(P_HDMITX_DATA_PORT_SEC + offset));
+		/* TODO */
+		/* LEAVE FOR LATER */
 	} else {
 		addr = addr & 0xffff;
 		spin_lock_irqsave(&reg_lock, flags);
@@ -243,13 +209,8 @@ void hdmitx_wr_reg(unsigned int addr, unsigned int data)
 	unsigned long offset = (addr & DWC_OFFSET_MASK) >> 24;
 
 	if (addr & SEC_OFFSET) {
-		addr = addr & 0xffff;
-		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
-		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
-		sec_reg_write((unsigned *)(unsigned long)
-			(P_HDMITX_DATA_PORT_SEC + offset), data);
+		/* TODO */
+		/* LEAVE FOR LATER */
 	} else {
 		addr = addr & 0xffff;
 		spin_lock_irqsave(&reg_lock, flags);
