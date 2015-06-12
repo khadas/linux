@@ -41,6 +41,8 @@ struct stream_buf_s {
 	s32 flag;
 	u32 type;
 	unsigned long buf_start;
+	struct page *buf_pages;
+	int buf_page_num;
 	u32 buf_size;
 	u32 default_buf_size;
 	u32 canusebuf_size;

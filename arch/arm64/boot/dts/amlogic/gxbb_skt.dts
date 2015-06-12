@@ -58,24 +58,12 @@
 			size = <0x0 0x1e00000>; //10x1920x1088x3/2=30M
 			//no-map;
 		};
-		/*  DISP&MM-A/V stream */
-		streambuf_reserved:linux,mesonstream {
-			compatible = "amlogic, stream-memory";
-			size = <0x0 0x2000000>;
-			no-map;
-		};
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
 			size = <0x0 0x2000000>;
 		};
 
-//		/*  DISP&MM-A/V stream */
-//		vdec_reserved:linux,vdec {
-//			compatible = "amlogic, vdec-memory";
-//			size = <0x0 0x0ca00000>;
-//			no-map;
-//		};
 		/*  vdin0 */
 //		vdin0_reserved:linux,vdin0 {
 //			compatible = "amlogic, vdin_memory";
@@ -113,7 +101,8 @@
 			compatible = "shared-dma-pool";
 			linux,phandle = <2>;
 			reusable;
-			size = <0x0 0x10000000>;
+			size = <0x0 0x12000000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 
@@ -183,7 +172,6 @@
  		};
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
-		memory-region = <&streambuf_reserved>;
 		dev_name = "mesonstream";
 		status = "okay";
 		resets = <&clock GCLK_IDX_HIU_PARSER_TOP

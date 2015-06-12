@@ -65,6 +65,10 @@ struct am_reg {
 
 static struct vdec_dev_reg_s vdec_dev_reg;
 
+struct device *get_codec_cma_device(void)
+{
+	return vdec_dev_reg.cma_dev;
+}
 static const char * const vdec_device_name[] = {
 	"amvdec_mpeg12",
 	"amvdec_mpeg4",

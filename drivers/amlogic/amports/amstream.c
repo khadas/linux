@@ -127,7 +127,9 @@ void debug_file_write(const char __user *buf, size_t count)
 }
 #endif
 
-#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*3)
+#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*12)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*30)
+
 #define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
 #define DEFAULT_SUBTITLE_BUFFER_SIZE     (1024*256)
 
@@ -339,21 +341,24 @@ static struct stream_buf_s bufs[BUF_MAX_NUM] = {
 		.reg_base = VLD_MEM_VIFIFO_REG_BASE,
 		.type = BUF_TYPE_VIDEO,
 		.buf_start = 0,
-		.buf_size = 0,
+		.buf_size = DEFAULT_VIDEO_BUFFER_SIZE,
+		.default_buf_size = DEFAULT_VIDEO_BUFFER_SIZE,
 		.first_tstamp = INVALID_PTS
 	},
 	{
 		.reg_base = AIU_MEM_AIFIFO_REG_BASE,
 		.type = BUF_TYPE_AUDIO,
 		.buf_start = 0,
-		.buf_size = 0,
+		.buf_size = DEFAULT_AUDIO_BUFFER_SIZE,
+		.default_buf_size = DEFAULT_AUDIO_BUFFER_SIZE,
 		.first_tstamp = INVALID_PTS
 	},
 	{
 		.reg_base = 0,
 		.type = BUF_TYPE_SUBTITLE,
 		.buf_start = 0,
-		.buf_size = 0,
+		.buf_size = DEFAULT_SUBTITLE_BUFFER_SIZE,
+		.default_buf_size = DEFAULT_SUBTITLE_BUFFER_SIZE,
 		.first_tstamp = INVALID_PTS
 	},
 	{
@@ -367,7 +372,8 @@ static struct stream_buf_s bufs[BUF_MAX_NUM] = {
 		.reg_base = HEVC_STREAM_REG_BASE,
 		.type = BUF_TYPE_HEVC,
 		.buf_start = 0,
-		.buf_size = 0,
+		.buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K,
+		.default_buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K,
 		.first_tstamp = INVALID_PTS
 	},
 };
@@ -406,17 +412,10 @@ EXPORT_SYMBOL(get_audio_info);
 static void amstream_change_vbufsize(struct stream_port_s *port,
 	struct stream_buf_s *pvbuf)
 {
-	int condition;
-
-	if (has_hevc_vdec()) {
-		condition = (pvbuf->type == BUF_TYPE_VIDEO)
-					|| (pvbuf->type == BUF_TYPE_HEVC);
-	} else
-		condition = pvbuf->type == BUF_TYPE_VIDEO;
-
-	if (pvbuf->type == condition) {
-		if (port->vformat == VFORMAT_H264_4K2K) {
-			pvbuf->buf_size = pvbuf->default_buf_size;
+	if (pvbuf->type == BUF_TYPE_VIDEO) {
+		if (port->vformat == VFORMAT_H264_4K2K ||
+			port->vformat == VFORMAT_HEVC) {
+			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K;
 
 		/* pr_err(" amstream_change_vbufsize 4k2k
 		* bufsize[0x%x] defaultsize[0x%x]\n",
@@ -685,6 +684,7 @@ static int amstream_port_init(struct stream_port_s *port)
 	struct stream_buf_s *psbuf = &bufs[BUF_TYPE_SUBTITLE];
 	struct stream_buf_s *pubuf = &bufs[BUF_TYPE_USERDATA];
 	mutex_lock(&amstream_mutex);
+	stbuf_fetch_init();
 	if (port->flag & PORT_FLAG_INITED) {
 		mutex_unlock(&amstream_mutex);
 		return 0;
@@ -3005,7 +3005,7 @@ error1:
 	return err;
 }
 
-static struct resource memobj;
+/*static struct resource memobj;*/
 static int amstream_probe(struct platform_device *pdev)
 {
 	int i;
@@ -3021,14 +3021,15 @@ static int amstream_probe(struct platform_device *pdev)
 		amstream_port_num = MAX_AMSTREAM_PORT_NUM - 1;
 		amstream_buf_num = BUF_MAX_NUM - 1;
 	}
+/*
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
-		pr_err("probe done");
+		pr_info("of probe done");
 	else {
 		r = -ENOMEM;
 		return r;
 	}
-
+*/
 	r = class_register(&amstream_class);
 	if (r) {
 		pr_err("amstream class create fail.\n");
@@ -3184,7 +3185,7 @@ static void __exit amstream_module_exit(void)
 	platform_driver_unregister(&amstream_driver);
 	return;
 }
-
+#if 0
 static int amstream_mem_device_init(struct reserved_mem *rmem,
 					struct device *dev)
 {
@@ -3279,12 +3280,14 @@ static int __init amstream_mem_setup(struct reserved_mem *rmem)
 
 	return 0;
 }
+RESERVEDMEM_OF_DECLARE(mesonstream,
+		"amlogic, stream-memory", amstream_mem_setup);
 
+#endif
 module_init(amstream_module_init);
 module_exit(amstream_module_exit);
 
-RESERVEDMEM_OF_DECLARE(mesonstream,
-		"amlogic, stream-memory", amstream_mem_setup);
+
 
 MODULE_DESCRIPTION("AMLOGIC streaming port driver");
 MODULE_LICENSE("GPL");

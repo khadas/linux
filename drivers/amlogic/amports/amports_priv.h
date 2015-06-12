@@ -43,4 +43,6 @@ void set_real_audio_info(void *arg);
 #define dbg() pr_info("on %s,line %d\n", __func__, __LINE__);
 
 struct device *amports_get_dma_device(void);
+struct device *get_codec_cma_device(void);
+
 #endif
