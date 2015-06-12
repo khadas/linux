@@ -2429,7 +2429,8 @@ static unsigned char is_bypass(vframe_t *vf_in)
 	/*prot is conflict with di post*/
 	if (vf_in && vf_in->video_angle)
 		return 1;
-
+	if (vf_in && (vf_in->type & VIDTYPE_COMPRESS))
+		return 1;
 	if ((di_vscale_skip_enable & 0x4) && vf_in) {
 		/*backup vtype,set type as progressive*/
 		vtype = vf_in->type;
@@ -3563,11 +3564,11 @@ WIN_SIZE_FACTOR)-1,
 			di_mtn_1_ctrl1 &= (~(1<<31)); /* disable contwr */
 			di_mtn_1_ctrl1 &= (~(1<<29));/* disable txt */
 			cont_rd = 0;
-			VSYNC_WR_MPEG_REG(DI_ARB_CTRL,
-					Rd(DI_ARB_CTRL)&(~0x303));
+			Wr(DI_ARB_CTRL,
+				Rd(DI_ARB_CTRL)&(~0x303));
 		} else {
-			VSYNC_WR_MPEG_REG(DI_ARB_CTRL,
-					Rd(DI_ARB_CTRL)|1<<9|1<<8|1<<1|1<<0);
+			Wr(DI_ARB_CTRL,
+				Rd(DI_ARB_CTRL)|1<<9|1<<8|1<<1|1<<0);
 			di_mtn_1_ctrl1 |= (1<<31); /* enable contwr */
 			#ifdef NEW_DI_V3
 			Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL)|(1<<1));
