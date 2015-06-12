@@ -2399,13 +2399,15 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			r = (3 << 24) |
 			    (17 << 16) |
 			    (1 << 14) | /*burst1 1*/
-			    vf->bitdepth;
+			    (vf->bitdepth & BITDEPTH_MASK);
 
 			if (frame_par->hscale_skip_count)
 				r |= 0x33;
 			if (frame_par->vscale_skip_count)
 				r |= 0xcc;
 
+			if (vf->bitdepth & BITDEPTH_SAVING_MODE)
+				r |= (1<<28); /* mem_saving_mode */
 			VSYNC_WR_MPEG_REG(AFBC_MODE, r);
 			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0x1700);
 			VSYNC_WR_MPEG_REG(AFBC_CONV_CTRL, 0x100);
