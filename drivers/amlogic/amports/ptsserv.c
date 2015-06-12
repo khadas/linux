@@ -273,12 +273,14 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 		if (timestampe_delayed < 10
 			|| (abs(timestampe_delayed - delay_ms) > 3 * 1000
 				&& delay_ms > 1000)) {
+			/*
 			pr_info
 			("%d:recalculated ptsdelay=%dms bitratedelay=%d ",
 			 type, timestampe_delayed, delay_ms);
 			pr_info
 			("diff=%d,pTable->last_avg_bitrate=%d\n",
 			 diff, pTable->last_avg_bitrate);
+			*/
 			timestampe_delayed = delay_ms;
 		}
 	}
