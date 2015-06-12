@@ -16,7 +16,7 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-#define DEBUG
+
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
