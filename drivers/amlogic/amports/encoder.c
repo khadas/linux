@@ -1258,6 +1258,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	u32 pic_mbx, pic_mby;
 	u32 i_pic_qp, p_pic_qp;
 	u32 i_pic_qp_c, p_pic_qp_c;
+	u32 qp_table_id;
 	pic_width  = wq->pic.encoder_width;
 	pic_height = wq->pic.encoder_height;
 	pic_mb_nr  = 0;
@@ -1270,6 +1271,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		u32 pic_width_in_mb;
+		u32 slice_qp;
 		pic_width_in_mb = (pic_width + 15) / 16;
 		WRITE_HREG(HCODEC_HDEC_MC_OMEM_AUTO,
 			   (1 << 31) | /* use_omem_mb_xy */
@@ -1360,7 +1362,18 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (ADV_MV_LARGE_16x16 << 15) |
 			   (ADV_MV_16_8_WEIGHT << 0));  /* adv_mv_16_8_weight */
 
-		hcodec_prog_qtbl(0);
+		qp_table_id = 0;
+		hcodec_prog_qtbl(qp_table_id);
+		if (IDR) {
+			i_pic_qp = quant_tbl_i4[qp_table_id][0] & 0xff;
+			p_pic_qp = i_pic_qp;
+		} else {
+			i_pic_qp = quant_tbl_i4[qp_table_id][0] & 0xff;
+			p_pic_qp = quant_tbl_me[qp_table_id][0] & 0xff;
+			slice_qp = (i_pic_qp + p_pic_qp) / 2;
+			i_pic_qp = slice_qp;
+			p_pic_qp = i_pic_qp;
+		}
 
 		WRITE_HREG(HCODEC_QDCT_VLC_QUANT_CTL_0,
 			   (0 << 19) |      /* vlc_delta_quant_1 */
