@@ -1221,14 +1221,22 @@ static void uninit_buf_list(struct hevc_state_s *hevc)
 	}
 	if (get_blackout_policy() != 1) {
 		struct PIC_s *pic;
-		struct canvas_s cur_canvas;
-		canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
-			 &cur_canvas);
+		u32 disp_addr;
+
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+			disp_addr = READ_VCBUS_REG(AFBC_BODY_BADDR);
+		} else {
+			struct canvas_s cur_canvas;
+			canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
+				 &cur_canvas);
+			disp_addr = cur_canvas.addr;
+		}
+
 		for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 			pic = &m_PIC[i];
 			if (pic->index == -1)
 				continue;
-			if (cur_canvas.addr == pic->mc_y_adr) {
+			if (disp_addr == pic->mc_y_adr) {
 				previous_display_buf_adr = pic->mc_y_adr;
 				previous_display_buf_size = pic->buf_size;
 				pr_info("%s, set  previous_display_buf_adr = %x, previous_display_buf_size = %x\n",
