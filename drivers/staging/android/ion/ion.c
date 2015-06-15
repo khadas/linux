@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
+#include <linux/proc_fs.h>
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -1455,6 +1456,18 @@ static const struct file_operations debug_heap_fops = {
 	.release = single_release,
 };
 
+static int proc_heap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ion_debug_heap_show, PDE_DATA(inode));
+}
+
+static const struct file_operations proc_heap_fops = {
+	.open = proc_heap_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 #ifdef DEBUG_HEAP_SHRINKER
 static int debug_shrink_set(void *data, u64 val)
 {
@@ -1520,6 +1533,13 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 		path = dentry_path(dev->heaps_debug_root, buf, 256);
 		pr_err("Failed to create heap debugfs at %s/%s\n",
 			path, heap->name);
+	}
+	/* to create file in /proc */
+	if (heap->type == ION_HEAP_TYPE_SYSTEM) {
+		struct proc_dir_entry *entry;
+		entry = proc_mkdir("ion", NULL);
+		proc_create_data(heap->name, 0644, entry,
+				&proc_heap_fops, heap);
 	}
 
 #ifdef DEBUG_HEAP_SHRINKER
