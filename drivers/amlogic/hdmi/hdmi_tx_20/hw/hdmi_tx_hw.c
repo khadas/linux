@@ -174,7 +174,7 @@ static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 1, 21, 1);
 		break;
 	case HPD_READ_HPD_GPIO:
-		ret = !!(hd_read_reg(P_PREG_PAD_GPIO1_I) & (1 << 21));
+		ret = !!(hd_read_reg(P_PREG_PAD_GPIO1_I) & (1 << 20));
 		break;
 	default:
 		pr_info("error hpd cmd %d\n", cmd);
@@ -185,7 +185,7 @@ static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 
 int read_hpd_gpio(void)
 {
-	return !!(hd_read_reg(P_PREG_PAD_GPIO1_I) & (1 << 21));
+	return !!(hd_read_reg(P_PREG_PAD_GPIO1_I) & (1 << 20));
 }
 EXPORT_SYMBOL(read_hpd_gpio);
 
