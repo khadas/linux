@@ -734,6 +734,8 @@ static int process_vf_deinterlace_nv21(struct vframe_s *vf,
 	if (vf->type & VIDTYPE_MVC)
 		return 0;
 
+	if (vf->type & VIDTYPE_COMPRESS)
+		return 0;
 	if ((vf->canvas0Addr == vf->canvas1Addr) || (ppmgr_device.angle == 0)) {
 		/*printk("++ppmgr interlace skip.\n");*/
 		return 0;
@@ -893,6 +895,8 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	if (vf->type & VIDTYPE_MVC)
 		return 0;
 
+	if (vf->type & VIDTYPE_COMPRESS)
+		return 0;
 	if ((vf->canvas0Addr == vf->canvas1Addr) || (ppmgr_device.bypass)
 			|| (ppmgr_device.angle == 0)) {
 		/*printk("++ppmgr interlace skip.\n");*/
@@ -1386,6 +1390,9 @@ static void process_vf_rotate(struct vframe_s *vf,
 #endif
 
 	if (vf->type & VIDTYPE_MVC)
+		pp_vf->dec_frame = vf;
+
+	if (vf->type & VIDTYPE_COMPRESS)
 		pp_vf->dec_frame = vf;
 
 	if (pp_vf->dec_frame) {
@@ -2468,6 +2475,8 @@ static int ppmgr_task(void *data)
 			vf = get_cur_dispbuf();
 			if (!is_valid_ppframe(to_ppframe(vf)))
 				continue;
+			if (vf && (vf->type & VIDTYPE_COMPRESS))
+				continue;
 
 			if (vf) {
 				if (process_vf_adjust(vf,
@@ -2495,6 +2504,8 @@ static int ppmgr_task(void *data)
 
 			vf = get_cur_dispbuf();
 			if (!is_valid_ppframe(to_ppframe(vf)))
+				continue;
+			if (vf->type & VIDTYPE_COMPRESS)
 				continue;
 
 			process_vf_change(vf, context, &ge2d_config);
