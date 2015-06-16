@@ -297,6 +297,11 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			hg_dbs_info = dbs_data->cdata->
 						get_cpu_dbs_info_s(policy->cpu);
 			mutex_init(&hg_dbs_info->hotplug_thread_mutex);
+			if (!policy->governor->initialized) {
+				hg_tuners = dbs_data->tuners;
+				hg_tuners->hotplug_min_freq = policy->min;
+				hg_tuners->hotplug_max_freq = policy->min;
+			}
 		}
 		if ((dbs_data->cdata->governor != GOV_HOTPLUG)
 			&& (num_online_cpus() < num_possible_cpus()))

@@ -364,7 +364,7 @@ static ssize_t store_hotplug_min_freq(struct dbs_data *dbs_data,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input >= num_possible_cpus() || input <= 0)
+	if (input <= 0)
 		return -EINVAL;
 
 	mutex_lock(&dbs_mutex);
@@ -385,7 +385,7 @@ static ssize_t store_hotplug_max_freq(struct dbs_data *dbs_data,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input >= num_possible_cpus() || input <= 0)
+	if (input <= 0)
 		return -EINVAL;
 
 	mutex_lock(&dbs_mutex);
@@ -487,8 +487,6 @@ static int hg_init(struct dbs_data *dbs_data)
 	tuners->cpu_num_unplug_once			=	2;
 	tuners->each_cpu_num_unplug_once	=	2;
 	tuners->cpu_num_plug_once			=	1;
-	tuners->hotplug_min_freq			=	96000;
-	tuners->hotplug_max_freq			=	96000;
 
 	dbs_data->tuners = tuners;
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
