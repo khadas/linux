@@ -1258,7 +1258,6 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	u32 pic_mbx, pic_mby;
 	u32 i_pic_qp, p_pic_qp;
 	u32 i_pic_qp_c, p_pic_qp_c;
-	u32 qp_table_id;
 	pic_width  = wq->pic.encoder_width;
 	pic_height = wq->pic.encoder_height;
 	pic_mb_nr  = 0;
@@ -1272,6 +1271,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		u32 pic_width_in_mb;
 		u32 slice_qp;
+		u32 qp_table_id;
 		pic_width_in_mb = (pic_width + 15) / 16;
 		WRITE_HREG(HCODEC_HDEC_MC_OMEM_AUTO,
 			   (1 << 31) | /* use_omem_mb_xy */
