@@ -1487,7 +1487,6 @@ di_ddr_en %d,blend_mtn_en %d,blend_mode %d.\n",
 __func__,ei_only,buf1_en,ei_en,di_vpp_en,di_ddr_en,
 blend_mtn_en,blend_mode); */
 	/* motion for current display field. */
-	if (blend_mtn_en) {
 		VSYNC_WR_MPEG_REG(DI_MTNPRD_X,
 (di_mtnprd_mif->start_x << 16) | (di_mtnprd_mif->end_x));
 		VSYNC_WR_MPEG_REG(DI_MTNPRD_Y,
@@ -1498,6 +1497,7 @@ blend_mtn_en,blend_mode); */
 		VSYNC_WR_MPEG_REG(DI_MTNCRD_Y,
 (di_mtncrd_mif->start_y << 16) | (di_mtncrd_mif->end_y));
 	 #endif
+	if (blend_mtn_en) {
 		VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
 (di_mtnprd_mif->canvas_num << 8) | (urgent << 16)
 #ifndef NEW_DI_V2
