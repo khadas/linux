@@ -40,6 +40,8 @@ extern s32 vdec_release(enum vformat_e vf);
 s32 vdec_dev_register(void);
 s32 vdec_dev_unregister(void);
 void vdec_power_mode(int level);
+void hevc_power_mode(int level);
+
 
 enum vdec_type_e {
 	VDEC_1 = 0,

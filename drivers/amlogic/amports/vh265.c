@@ -4901,6 +4901,13 @@ static int h265_task_handle(void *data)
 			pr_info("set pic_list_init_flag to 2\n");
 
 			WRITE_VREG(HEVC_ASSIST_MBOX1_IRQ_REG, 0x1);
+			if (frame_width * frame_height > 2048 * 1088) {
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+					hevc_power_mode(2);
+				else
+					hevc_power_mode(1);
+			} else
+				hevc_power_mode(0);
 		}
 
 		if (uninit_list) {
@@ -4997,7 +5004,6 @@ static int vh265_local_init(void)
 {
 	int i;
 	int ret;
-
 #ifdef DEBUG_PTS
 	pts_missed = 0;
 	pts_hit = 0;

@@ -512,11 +512,11 @@ void hevc_power_mode(int level)
 
 	if (vdec_clock_level(VDEC_HEVC) == level)
 		return;
-
+	pr_info("hevc_power_mode changed to %d\n", level);
 	spin_lock_irqsave(&lock, flags);
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
-		vdec_clock_prepare_switch();
+		hevc_clock_prepare_switch();
 
 	if (level == 0)
 		hevc_clock_enable();
