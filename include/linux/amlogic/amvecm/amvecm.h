@@ -136,5 +136,7 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 	return val;
 }
 
+extern void amvecm_on_vs(struct vframe_s *vf);
+
 #endif /* AMVECM_H */
 

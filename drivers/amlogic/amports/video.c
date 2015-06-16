@@ -52,7 +52,7 @@
 #include <linux/amlogic/canvas/canvas_mgr.h>
 #endif
 #if defined(CONFIG_AM_VECM)
-#include <linux/amlogic/aml_common.h>
+#include <linux/amlogic/amvecm/amvecm.h>
 #endif
 #include "vdec_reg.h"
 /* #include <linux/amlogic/ppmgr/ppmgr_status.h> */

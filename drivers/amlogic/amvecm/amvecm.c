@@ -198,7 +198,8 @@ static void amvecm_size_patch(void)
 /* #endif */
 /* cm2_frame_size_patch(he-hs+1,ve-vs+1); */
 	if ((is_meson_m8_cpu() || is_meson_m8m2_cpu() ||
-		is_meson_m8b_cpu()) && cm_en)
+		is_meson_m8b_cpu() || is_meson_gxbb_cpu())
+		&& cm_en)
 		cm2_frame_size_patch(he-hs+1, ve-vs+1);
 /* #if (MESON_CPU_TYPE>=MESON_CPU_TYPE_MESON6TVD) */
 	if (is_meson_g9tv_cpu())
@@ -411,14 +412,11 @@ static void amvecm_vlock_setting(struct vframe_s *vf,
 		/* WRITE_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL6,0,20,1); */
 		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 1<<20, 0);
 		/* disable to adjust pll */
-		/* WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL,0,29,1); */
-		aml_cbus_update_bits(VPU_VLOCK_CTRL, 1<<29, 0);
+		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 29, 1);
 		/* CFG_VID_LOCK_ADJ_EN enable */
-		/* WRITE_VPP_REG_BITS(ENCL_MAX_LINE_SWITCH_POINT,1,13,1); */
-		aml_cbus_update_bits(ENCL_MAX_LINE_SWITCH_POINT, 1<<13, 1);
+		WRITE_VPP_REG_BITS(ENCL_MAX_LINE_SWITCH_POINT, 1, 13, 1);
 		/* enable to adjust pll */
-		/* WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL,1,30,1); */
-		aml_cbus_update_bits(VPU_VLOCK_CTRL, 1<<30, 1);
+		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 30, 1);
 	}
 	if (vlock_mode == VLOCK_MODE_PLL) {
 		/* av pal in,1080p60 hdmi out as default */
