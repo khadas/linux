@@ -711,6 +711,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct ppmgr2_device *ppmgr2_dev = &(dev->ppmgr2_dev);
 	int ret = 0;
 
+	p->length = 0;
 	ret = vb2_ioctl_qbuf(file, priv, p);
 	if (ret != 0)
 		return ret;
