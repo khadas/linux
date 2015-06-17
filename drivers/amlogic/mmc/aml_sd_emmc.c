@@ -1176,7 +1176,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 
 
 	/* Set end_of_chain */
-	/* des_cmd_cur = (struct cmd_cfg *)&(desc_cur->cmd_info); */
+	des_cmd_cur = (struct cmd_cfg *)&(desc_cur->cmd_info);
 	des_cmd_cur->end_of_chain = 1;
 	sd_emmc_regs->gstatus = SD_EMMC_IRQ_ALL;
 	/*Set irq status: write 1 clear, no need*/
