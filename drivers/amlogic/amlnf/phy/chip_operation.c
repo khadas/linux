@@ -742,6 +742,7 @@ RETRY_CMD:
 
 	/* aml_nand_dbg("page_addr:%d", ops_para->page_addr); */
 	/* transfer random seed. */
+	/*mapping the buffer!*/
 	controller->page_addr = page_addr;
 	ret = controller->dma_read(controller, page_size, bch_mode);
 	if (ret) {
@@ -769,6 +770,7 @@ RETRY_CMD:
 
 		}
 	}
+
 	if (ops_para->data_buf) {
 		if (all_ff_flag)
 			memset(buf, 0xff, page_size);
@@ -823,7 +825,6 @@ static int read_page_single_plane(struct amlnand_chip *aml_chip,
 
 	return ret;
 }
-
 
 /************************************************************
  * read_page, all parameters saved in aml_chip->ops_para,
@@ -1073,6 +1074,7 @@ static int write_page(struct amlnand_chip *aml_chip)
 					user_byte_num);
 
 			controller->page_addr = plane0_page_addr;
+
 			ret = controller->dma_write(controller,
 				buf,
 				page_size,

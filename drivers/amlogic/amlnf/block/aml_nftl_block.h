@@ -27,8 +27,8 @@
 
 #pragma pack(1)
 
-#define AML_NFTL1_MAGIC		"aml_nftlcode"
-#define AML_NFTL2_MAGIC		"aml_nftldata"
+#define AML_NFTL1_MAGIC		"nftl-code"
+#define AML_NFTL2_MAGIC		"nftl-data"
 
 #define AML_NFTL_MAJOR		250
 #define TIMESTAMP_LENGTH		15
@@ -200,4 +200,11 @@ extern  int get_adjust_block_num(void);
 extern int aml_nftl_erase_part(struct aml_nftl_part_t *part);
 extern int aml_nftl_set_status(struct aml_nftl_part_t *part,
 	unsigned char status);
+extern void print_block_count_list(struct aml_nftl_part_t *part);
+extern void print_block_count_list_sorted(struct aml_nftl_part_t *part);
+extern void dump_l2p(struct aml_nftl_part_t *part);
+extern int nand_read_logic_page(struct aml_nftl_part_t *part,
+	u32 page_no, u8 *buf);
+extern int nand_read_page(struct aml_nftl_part_t *part,
+	struct _physic_op_par *p);
 #endif

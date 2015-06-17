@@ -161,3 +161,12 @@ int nand_mark_bad_blk(struct aml_nftl_part_t *part, struct _physic_op_par *p)
 	else
 		return 1;
 }
+
+/*****************************************************************************
+*Name         :
+*Description  :
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+

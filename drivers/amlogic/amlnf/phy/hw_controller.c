@@ -277,6 +277,11 @@ static int controller_dma_read(struct hw_controller *controller,
 	int count, dma_unit_size, info_times_int_len, time_out_cnt, dma_cnt;
 	unsigned int *info_buf = 0;
 	unsigned int tmp_value;
+#if (!AML_CFG_CONHERENT_BUFFER)
+	struct amlnand_chip *aml_chip = controller->aml_chip;
+	struct nand_flash *flash = &(aml_chip->flash);
+#endif
+	int ret = NAND_SUCCESS;
 	/* volatile int cmp=0; */
 	/* int ret = 0; */
 
@@ -299,7 +304,12 @@ static int controller_dma_read(struct hw_controller *controller,
 	tmp_value = (count-1)*info_times_int_len;
 	info_buf = (unsigned int *)&(controller->user_buf[tmp_value]);
 	memset((unsigned char *)controller->user_buf, 0, count*PER_INFO_BYTE);
-
+#if (!AML_CFG_CONHERENT_BUFFER)
+	controller->data_dma_addr =
+		dma_map_single(aml_chip->device, controller->data_buf,
+		(flash->pagesize + flash->oobsize),
+		DMA_FROM_DEVICE);
+#endif
 	/* */
 	smp_wmb();
 	/* */
@@ -332,7 +342,8 @@ static int controller_dma_read(struct hw_controller *controller,
 	if (ret) {
 		time_out_cnt = AML_DMA_BUSY_TIMEOUT;
 		aml_nand_msg("dma timeout here");
-		return -NAND_DMA_FAILURE;
+		ret = -NAND_DMA_FAILURE;
+		goto _exit;
 	}
 #else
 	NFC_SEND_CMD_IDLE(controller, 0);
@@ -347,7 +358,8 @@ static int controller_dma_read(struct hw_controller *controller,
 
 	if (time_out_cnt >= AML_DMA_BUSY_TIMEOUT) {
 		aml_nand_msg("dma timeout here");
-		return -NAND_DMA_FAILURE;
+		ret = -NAND_DMA_FAILURE;
+		goto _exit;
 	}
 #endif
 
@@ -356,18 +368,23 @@ static int controller_dma_read(struct hw_controller *controller,
 		/* */
 		smp_rmb();
 	} while (NAND_INFO_DONE(*info_buf) == 0);
-
 	/* */
 	smp_wmb();
 	/* */
 	wmb();
+#if (!AML_CFG_CONHERENT_BUFFER)
+	dma_unmap_single(aml_chip->device, controller->data_dma_addr,
+		(flash->pagesize + flash->oobsize),
+		DMA_FROM_DEVICE);
+#endif
 	/*
 	aml_nand_dbg("len:%d, count:%d, bch_mode:%d\n",
 		len,
 		count,
 		bch_mode);
 	*/
-	return NAND_SUCCESS;
+_exit:
+	return ret;
 }
 
 static int controller_dma_write(struct hw_controller *controller,
@@ -377,6 +394,10 @@ static int controller_dma_write(struct hw_controller *controller,
 {
 	int ret = 0, time_out_cnt = 0, oob_fill_cnt = 0;
 	unsigned int dma_unit_size = 0, count = 0;
+#if (!AML_CFG_CONHERENT_BUFFER)
+	struct amlnand_chip *aml_chip = controller->aml_chip;
+	struct nand_flash *flash = &(aml_chip->flash);
+#endif
 
 	if (bch_mode == NAND_ECC_NONE) {
 		if (len > 0x3fff)
@@ -389,7 +410,12 @@ static int controller_dma_write(struct hw_controller *controller,
 		count = controller->ecc_steps;
 
 	memcpy(controller->data_buf, buf, len);
-
+#if (!AML_CFG_CONHERENT_BUFFER)
+	controller->data_dma_addr =
+		dma_map_single(aml_chip->device, controller->data_buf,
+		(flash->pagesize + flash->oobsize),
+		DMA_TO_DEVICE);
+#endif
 	/* */
 	smp_wmb();
 	/* */
@@ -437,7 +463,8 @@ static int controller_dma_write(struct hw_controller *controller,
 	if (ret) {
 		time_out_cnt = AML_DMA_BUSY_TIMEOUT;
 		aml_nand_msg("dma timeout here");
-		return -NAND_DMA_FAILURE;
+		ret = -NAND_DMA_FAILURE;
+		goto _exit;
 	}
 #else
 	NFC_SEND_CMD_IDLE(controller, 0);
@@ -448,12 +475,18 @@ static int controller_dma_write(struct hw_controller *controller,
 		if (NFC_CMDFIFO_SIZE(controller) <= 0)
 			break;
 	} while (time_out_cnt++ <= AML_DMA_BUSY_TIMEOUT);
-
+#if (!AML_CFG_CONHERENT_BUFFER)
+	dma_unmap_single(aml_chip->device, controller->data_dma_addr,
+		(flash->pagesize + flash->oobsize),
+		DMA_TO_DEVICE);
+#endif
 	if (time_out_cnt >= AML_DMA_BUSY_TIMEOUT) {
 		aml_nand_msg("dma timeout here");
-		return -NAND_DMA_FAILURE;
+		ret = -NAND_DMA_FAILURE;
+		goto _exit;
 	}
 #endif
+_exit:
 	return ret;
 }
 

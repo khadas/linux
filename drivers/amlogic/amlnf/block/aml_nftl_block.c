@@ -415,7 +415,6 @@ static int aml_nftl_thread(void *arg)
 	nftl_dev->nftl_thread = NULL;
 	return 0;
 }
-
 /*****************************************************************************
 *Name         :
 *Description  :

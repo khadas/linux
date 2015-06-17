@@ -68,6 +68,7 @@ struct _physic_op_par {
 	ushort page_bitmap;
 	unchar *main_data_addr;
 	unchar *spare_data_addr;
+	int op_ret_sta;
 };
 
 struct _nftl_cfg {

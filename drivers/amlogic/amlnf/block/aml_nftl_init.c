@@ -43,6 +43,30 @@ static ssize_t do_test(struct class *class,
 	const char *buf,
 	size_t count);
 
+static ssize_t do_cache_flush(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count);
+static ssize_t do_shutdown(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count);
+static ssize_t show_l2p_table(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count);
+static ssize_t cspeed_test(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count);
+static ssize_t lspeed_test(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count);
+static ssize_t pspeed_test(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count);
 static struct class_attribute nftl_class_attrs[] = {
 	/*
 	__ATTR(part_struct,
@@ -78,19 +102,39 @@ static struct class_attribute nftl_class_attrs[] = {
 		S_IRUGO | S_IWUSR ,
 		NULL,
 		do_test),
+
+	__ATTR(cache,
+		S_IRUGO | S_IWUSR ,
+		NULL,
+		do_cache_flush),
+	__ATTR(shutdown,
+		S_IRUGO | S_IWUSR ,
+		NULL,
+		do_shutdown),
 	/*
 	__ATTR(cache_struct,
 		S_IRUGO ,
 		show_logic_block_table,
 		NULL),
 	*/
-	/*
 	__ATTR(table,
 		S_IRUGO | S_IWUSR ,
 		NULL,
-		show_logic_page_table),
-	*/
+		show_l2p_table),
+	__ATTR(speed-logic,
+		S_IRUGO | S_IWUSR ,
+		NULL,
+		lspeed_test),
+	__ATTR(speed-cache,
+		S_IRUGO | S_IWUSR ,
+		NULL,
+		cspeed_test),
+	__ATTR(speed-phyic,
+		S_IRUGO | S_IWUSR ,
+		NULL,
+		pspeed_test),
 	__ATTR_NULL
+
 };
 
 
@@ -435,8 +479,9 @@ static ssize_t show_list(struct class *class,
 
 	print_free_list(nftl_dev->aml_nftl_part);
 	print_block_invalid_list(nftl_dev->aml_nftl_part);
-	/* print_block_count_list(nftl_dev -> aml_nftl_part); */
 
+	print_block_count_list(nftl_dev->aml_nftl_part);
+	print_block_count_list_sorted(nftl_dev->aml_nftl_part);
 	return 0;
 }
 
@@ -521,6 +566,342 @@ static ssize_t do_test(struct class *class,
 		return -EINVAL;
 
 	aml_nftl_set_part_test(part, num);
+
+	return count;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static ssize_t do_cache_flush(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct aml_nftl_dev *nftl_dev = NULL;
+
+	PRINT("%s() %d\n", __func__, __LINE__);
+	nftl_dev = container_of(class, struct aml_nftl_dev, debug);
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+	nftl_dev->flush_write_cache(nftl_dev);
+	nftl_dev->flush_discard_cache(nftl_dev);
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+
+	return count;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static ssize_t do_shutdown(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct aml_nftl_dev *nftl_dev = NULL;
+	int ret = 0;
+
+	nftl_dev = container_of(class, struct aml_nftl_dev, debug);
+	PRINT("%s() %d, %s\n", __func__, __LINE__, nftl_dev->ntd->name);
+
+	/* just return since notifier only need once */
+	if (nftl_dev->reboot_flag) {
+		PRINT("nand reboot notify Just ignore for %s\n",
+				nftl_dev->ntd->name);
+		return ret;
+	}
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+	ret = nftl_dev->flush_write_cache(nftl_dev);
+	ret |= nftl_dev->flush_discard_cache(nftl_dev);
+
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+
+	if (nftl_dev->nftl_thread != NULL) {
+		/* add stop thread to ensure nftl quit safely */
+		kthread_stop(nftl_dev->nftl_thread);
+		nftl_dev->nftl_thread = NULL;
+	}
+	mutex_lock(nftl_dev->aml_nftl_lock);
+	nftl_dev->write_pair_page(nftl_dev);
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+	nftl_dev->reboot_flag = 1;
+	return count;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static ssize_t show_l2p_table(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct aml_nftl_dev *nftl_dev = NULL;
+	struct aml_nftl_part_t *part = NULL;
+
+	nftl_dev = container_of(class, struct aml_nftl_dev, debug);
+	part = nftl_dev->aml_nftl_part;
+	PRINT("%s() %d, %s\n",
+		__func__, __LINE__, nftl_dev->ntd->name);
+
+	dump_l2p(part);
+
+	return count;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static unsigned long calc_time_cost_ms(struct timespec *_start,
+	struct timespec *_end)
+{
+	unsigned long sec, nsec, usec, msec;
+
+	sec = (unsigned long)_end->tv_sec - (unsigned long)_start->tv_sec;
+	if (_end->tv_nsec > _start->tv_nsec)
+		nsec = _end->tv_nsec - _start->tv_nsec;
+	else {
+		sec -= 1;
+		nsec = 1000000000 + _end->tv_nsec - _start->tv_nsec;
+	}
+	usec = nsec / 1000;
+	msec = usec / 1000 + sec * 1000;
+	return msec;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+void physic_speed_test_read(struct aml_nftl_dev *nftl_dev,
+	unsigned int pages)
+{
+	struct aml_nftl_part_t *part = NULL;
+	struct ntd_info *ntd = NULL;
+	struct timespec _start, _end;
+	u8 spare_data[BYTES_OF_USER_PER_PAGE];
+	struct _physic_op_par op;
+	unsigned char *buffer;
+	unsigned int page, pages_per_blk;
+
+
+	PRINT("%s() %d\n", __func__, __LINE__);
+
+	part = nftl_dev->aml_nftl_part;
+	ntd = nftl_dev->ntd;
+	pages_per_blk = ntd->blocksize / ntd->pagesize;
+	buffer = aml_nftl_malloc(16*1024);
+	if (buffer == NULL) {
+		PRINT("%s() %d: no enough memory!\n", __func__, __LINE__);
+		return;
+	}
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+
+	amlnf_ktime_get_ts(&_start);
+	for (page = 0; page < pages; page++) {
+
+		op.phy_page.Page_NO = page % pages_per_blk;
+		op.phy_page.blkNO_in_chip = page / pages_per_blk;
+		op.main_data_addr = buffer;
+		op.spare_data_addr = spare_data;
+		nand_read_page(part, &op);
+	}
+	amlnf_ktime_get_ts(&_end);
+
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+	PRINT("read %d MBytes using %ld ms\n",
+		(unsigned int)((pages * ntd->pagesize)>>20),
+		calc_time_cost_ms(&_start, &_end));
+	aml_nftl_free(buffer);
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+void logic_speed_test_read(struct aml_nftl_dev *nftl_dev,
+	unsigned int pages)
+{
+	struct aml_nftl_part_t *part = NULL;
+	struct ntd_info *ntd = NULL;
+	struct timespec _start, _end;
+	unsigned char *buffer;
+	unsigned int page;
+
+	PRINT("%s() %d\n", __func__, __LINE__);
+	part = nftl_dev->aml_nftl_part;
+	ntd = nftl_dev->ntd;
+	buffer = aml_nftl_malloc(ntd->pagesize);
+	if (buffer == NULL) {
+		PRINT("%s() %d: no enough memory!\n", __func__, __LINE__);
+		return;
+	}
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+
+	amlnf_ktime_get_ts(&_start);
+	for (page = 0; page < pages; page++)
+		nand_read_logic_page(part, page, buffer);
+	amlnf_ktime_get_ts(&_end);
+
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+	PRINT("read %d MBytes using %ld ms\n",
+		(unsigned int)((pages * ntd->pagesize)>>20),
+		calc_time_cost_ms(&_start, &_end));
+	aml_nftl_free(buffer);
+}
+
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+/* test logic read speed in MB */
+static void cache_speed_test_read(struct aml_nftl_dev *nftl_dev,
+	unsigned int size)
+{
+	unsigned char *buffer;
+	unsigned int i, round, cnt;
+	unsigned int len;
+	struct timespec _start, _end;
+
+	PRINT("%s() %d\n", __func__, __LINE__);
+	buffer = aml_nftl_malloc(16*1024);
+	if (buffer == NULL) {
+		PRINT("%s() %d: no enough memory!\n",
+			__func__, __LINE__);
+		return;
+	}
+	PRINT("size %d\n", size);
+	if (size == 0)
+		size = 30;
+	/* using this to do the read function */
+	len = size*1024*2;	/* 1MBytes. */
+	cnt = 32;
+	round = len / cnt;
+	mutex_lock(nftl_dev->aml_nftl_lock);
+	PRINT("%s() %d--round %d\n", __func__, __LINE__, round);
+
+	amlnf_ktime_get_ts(&_start);
+	for (i = 0; i < round; i++)
+		nftl_dev->read_data(nftl_dev, i*cnt, cnt, buffer);
+	amlnf_ktime_get_ts(&_end);
+
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+	aml_nftl_free(buffer);
+
+	PRINT("%s() %d\n", __func__, __LINE__);
+	PRINT("read %d MBytes using %ld ms\n",
+		len/2048, calc_time_cost_ms(&_start, &_end));
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static ssize_t cspeed_test(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct aml_nftl_dev *nftl_dev = NULL;
+	struct aml_nftl_part_t *part = NULL;
+	unsigned int size;
+	int ret;
+
+	nftl_dev = container_of(class, struct aml_nftl_dev, debug);
+	part = nftl_dev->aml_nftl_part;
+	PRINT("%s() %d, %s\n", __func__, __LINE__,
+		nftl_dev->ntd->name);
+
+	ret = sscanf(buf, "%d", &size);
+	if (ret != 1)
+		return -EINVAL;
+	/* fixme, test cache layer speed here! */
+	cache_speed_test_read(nftl_dev, size);
+
+	return count;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static ssize_t lspeed_test(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct aml_nftl_dev *nftl_dev = NULL;
+	struct aml_nftl_part_t *part = NULL;
+	unsigned int pages;
+	int ret;
+
+	nftl_dev = container_of(class, struct aml_nftl_dev, debug);
+	part = nftl_dev->aml_nftl_part;
+	PRINT("%s() %d, %s\n", __func__, __LINE__,
+		nftl_dev->ntd->name);
+
+	ret = sscanf(buf, "%d", &pages);
+	if (ret != 1)
+		return -EINVAL;
+	/* fixme, test cache layer speed here! */
+	logic_speed_test_read(nftl_dev, pages);
+
+	return count;
+}
+/*****************************************************************************
+*Name         :
+*Description  : force flush W-caches
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+static ssize_t pspeed_test(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct aml_nftl_dev *nftl_dev = NULL;
+	struct aml_nftl_part_t *part = NULL;
+	unsigned int pages;
+	int ret;
+
+	nftl_dev = container_of(class, struct aml_nftl_dev, debug);
+	part = nftl_dev->aml_nftl_part;
+	PRINT("%s() %d, %s\n", __func__, __LINE__,
+		nftl_dev->ntd->name);
+
+	ret = sscanf(buf, "%d", &pages);
+	if (ret != 1)
+		return -EINVAL;
+
+	physic_speed_test_read(nftl_dev, pages);
 
 	return count;
 }

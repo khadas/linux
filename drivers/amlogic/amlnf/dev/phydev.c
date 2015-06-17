@@ -145,7 +145,7 @@ static int nand_read(struct amlnand_phydev *phydev)
 	int ret = 0;
 
 	if ((devops->addr + devops->len) >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx len:%llx pdev->offset:%llx pdev->size:%llx",
 			devops->addr,
 			devops->len,
@@ -239,7 +239,7 @@ static int nand_write(struct amlnand_phydev *phydev)
 	int ret = 0;
 
 	if ((devops->addr + devops->len) >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx len:%llx pdev->offset:%llx pdev->size:%llx",
 			devops->addr,
 			devops->len,
@@ -322,7 +322,7 @@ int nand_erase(struct amlnand_phydev *phydev)
 	int ret = 0;
 
 	if ((devops->addr + devops->len) >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx len:%llx pdev->offset:%llx pdev->size:%llx",
 			devops->addr,
 			devops->len,
@@ -394,7 +394,7 @@ static int nand_block_isbad(struct amlnand_phydev *phydev)
 	int ret = 0;
 
 	if (devops->addr >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx phydev->offset:%llx phydev->size:%llx",
 				devops->addr, phydev->offset, phydev->size);
 		return -NAND_ARGUMENT_FAILURE;
@@ -444,7 +444,7 @@ static int nand_block_markbad(struct amlnand_phydev *phydev)
 	int ret = 0;
 
 	if (devops->addr >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx phydev->offset:%llx phydev->size:%llx",
 			devops->addr,
 			phydev->offset,
@@ -495,7 +495,7 @@ static int block_modifybbt(struct amlnand_phydev *phydev, int value)
 	int ret = 0;
 
 	if (devops->addr >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx phydev->offset:%llx phydev->size:%llx",
 			devops->addr,
 			phydev->offset,
@@ -543,7 +543,7 @@ static int update_bbt(struct amlnand_phydev *phydev)
 	int ret = 0;
 
 	if (devops->addr >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx phydev->offset:%llx phydev->size:%llx",
 			devops->addr,
 			phydev->offset,
@@ -591,7 +591,7 @@ static int nand_test_block(struct amlnand_phydev *phydev)
 	unsigned tmp_addr = 0;
 
 	if (devops->addr >  phydev->size) {
-		aml_nand_msg("out of space and addr:");
+		aml_nand_msg("out of space and addr:%s", __func__);
 		aml_nand_msg("%llx phydev->offset:%llx phydev->size:%llx",
 			devops->addr,
 			phydev->offset,

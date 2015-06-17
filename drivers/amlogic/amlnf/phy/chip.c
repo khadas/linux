@@ -249,9 +249,14 @@ static int nand_buf_init(struct amlnand_chip *aml_chip)
 
 	controller->ecc_unit = NAND_ECC_UNIT_SIZE;
 
+#if (AML_CFG_CONHERENT_BUFFER)
 	controller->data_buf = dma_alloc_coherent(aml_chip->device,
 		(flash->pagesize + flash->oobsize),
 		&controller->data_dma_addr, GFP_KERNEL);
+#else
+		controller->data_buf =
+			aml_nand_malloc(flash->pagesize + flash->oobsize);
+#endif
 	if (!controller->data_buf) {
 		aml_nand_msg("no memory for data buf, and need %x",
 			(flash->pagesize + flash->oobsize));
@@ -314,9 +319,13 @@ exit_error2:
 		(flash->pagesize / controller->ecc_bytes)*sizeof(int),
 		1);
 exit_error1:
+#if (AML_CFG_CONHERENT_BUFFER)
 	amlnf_dma_free(controller->data_buf,
 		(flash->pagesize + flash->oobsize),
 		0);
+#else
+	aml_nand_free(controller->data_buf);
+#endif
 exit_error0:
 	return err;
 }
@@ -330,10 +339,13 @@ static void nand_buf_free(struct amlnand_chip *aml_chip)
 {
 	struct hw_controller *controller = &aml_chip->controller;
 	struct nand_flash *flash = &aml_chip->flash;
-
+#if (AML_CFG_CONHERENT_BUFFER)
 	amlnf_dma_free(controller->data_buf,
 		(flash->pagesize + flash->oobsize),
 		0);
+#else
+	aml_nand_free(controller->data_buf);
+#endif
 	amlnf_dma_free(controller->user_buf,
 		(flash->pagesize / controller->ecc_bytes)*sizeof(int),
 		1);
