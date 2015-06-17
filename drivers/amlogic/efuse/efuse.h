@@ -103,8 +103,10 @@ int check_if_efused(loff_t pos, size_t count);
 int efuse_read_item(char *buf, size_t count, loff_t *ppos);
 int efuse_write_item(char *buf, size_t count, loff_t *ppos);
 #else
-#define EFUSE_USER_MASK           (0x0 << 16)
-#define EFUSE_THERMAL_MASK        (0x1 << 16)
+#define EFUSE_USER_MASK            (0x1 << 16)
+#define EFUSE_THERMAL_MASK         (0x1 << 17)
+#define EFUSE_THERMAL_VERFLAG_MASK (0x1 << 18)
+
 ssize_t efuse_get_max(void);
 ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
 ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
