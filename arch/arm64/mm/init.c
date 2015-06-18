@@ -38,6 +38,10 @@
 #include <asm/sizes.h>
 #include <asm/tlb.h>
 
+#ifdef CONFIG_HIBERNATION
+#include <linux/suspend.h>
+#endif
+
 #include "mm.h"
 
 phys_addr_t memstart_addr __read_mostly = 0;
@@ -302,6 +306,11 @@ void __init mem_init(void)
 #undef MLK
 #undef MLM
 #undef MLK_ROUNDUP
+
+#ifdef CONFIG_HIBERNATION
+	register_nosave_region((unsigned long)virt_to_pfn(_text),
+		 (unsigned long)virt_to_pfn(_etext));
+#endif
 
 	/*
 	 * Check boundaries twice: Some fundamental inconsistencies can be

@@ -97,4 +97,6 @@ obj-y				+= psci.o
 obj-$(CONFIG_SMP)		+= psci_smp.o
 endif
 
+obj-$(CONFIG_HIBERNATION)		+= hibernate.o
+
 extra-y := $(head-y) vmlinux.lds

@@ -113,3 +113,6 @@ obj-$(CONFIG_VIDEO_AMLOGIC_CAPTURE) += camera/
 obj-$(CONFIG_AML_CODEC_MM)  	+= codec_mm/
 
 obj-$(CONFIG_AML_WDT)  		+= watchdog/
+
+obj-$(CONFIG_INSTABOOT)		+= instaboot/
+

@@ -2358,6 +2358,24 @@ static int aml_sd_emmc_resume(struct platform_device *pdev)
 
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static int aml_sd_emmc_restore(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct amlsd_host *host;
+	struct amlsd_platform *pdata;
+	pdev = to_platform_device(dev);
+	host = platform_get_drvdata(pdev);
+	list_for_each_entry(pdata, &host->sibling, sibling)
+		if (!(pdata->caps & MMC_CAP_NONREMOVABLE))
+			aml_sd_uart_detect(pdata);
+	return 0;
+}
+const struct dev_pm_ops aml_sd_emmc_pm = {
+	.restore	= aml_sd_emmc_restore,
+};
+#endif
+
 static const struct mmc_host_ops aml_sd_emmc_ops = {
 	.request = aml_sd_emmc_request,
 	.set_ios = aml_sd_emmc_set_ios,
@@ -2723,6 +2741,9 @@ static struct platform_driver aml_sd_emmc_driver = {
 	.name = "aml_sd_emmc",
 	.owner = THIS_MODULE,
 		.of_match_table = aml_sd_emmc_dt_match,
+#ifdef CONFIG_HIBERNATION
+		.pm     = &aml_sd_emmc_pm,
+#endif
 	},
 };
 

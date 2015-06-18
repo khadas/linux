@@ -1,0 +1,26 @@
+#
+# Instaboot configuration
+#
+
+config INSTABOOT
+	bool "Instaboot Support"
+	default n
+	select HIBERNATION
+	select HIBERNATE_CALLBACKS
+	---help---
+	  Enable it to open the instaboot basical function.
+	  The instaboot is a methord which use a memory snapshot saved before
+	  to boost the system boot up speed.
+	  Say y if you need the function.
+
+config INSTABOOT_MEM_MG
+	bool "InstaBoot Memory Management"
+	depends on INSTABOOT
+	default n
+	---help---
+	  When doing the memory snapshot, the free memory must great than the
+	  memory snapshopped, that means the free memory must be bigger enough,
+	  but in the reality, the free memory is not enough every time.
+	  The Instaboot Memory Management is implement for resolve that problem,
+	  which will find out memory usable as more as possible.
+	  Say y if you need this feature.

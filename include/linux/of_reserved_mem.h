@@ -20,6 +20,7 @@ struct reserved_mem {
 	phys_addr_t			size;
 	struct rmem_multi_user		*user;
 	void				*priv;
+	unsigned long			flags;
 };
 
 struct reserved_mem_ops {

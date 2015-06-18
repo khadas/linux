@@ -266,15 +266,24 @@ static pm_callback_t pm_op(const struct dev_pm_ops *ops, pm_message_t state)
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_QUIESCE:
-		return ops->freeze;
+		if (ops->freeze)
+			return ops->freeze;
+		else
+			return ops->suspend;
 	case PM_EVENT_HIBERNATE:
 		return ops->poweroff;
 	case PM_EVENT_THAW:
 	case PM_EVENT_RECOVER:
-		return ops->thaw;
+		if (ops->thaw)
+			return ops->thaw;
+		else
+			return ops->resume;
 		break;
 	case PM_EVENT_RESTORE:
-		return ops->restore;
+		if (ops->restore)
+			return ops->restore;
+		else
+			return ops->resume;
 #endif /* CONFIG_HIBERNATE_CALLBACKS */
 	}
 

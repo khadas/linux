@@ -34,6 +34,8 @@
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 
+#include <linux/amlogic/instaboot/instaboot.h>
+
 #include "power.h"
 
 static int swsusp_page_is_free(struct page *);
@@ -92,7 +94,7 @@ static void *buffer;
 
 static unsigned int allocated_unsafe_pages;
 
-static void *get_image_page(gfp_t gfp_mask, int safe_needed)
+void *get_image_page(gfp_t gfp_mask, int safe_needed)
 {
 	void *res;
 
@@ -110,12 +112,24 @@ static void *get_image_page(gfp_t gfp_mask, int safe_needed)
 	}
 	return res;
 }
+EXPORT_SYMBOL(get_image_page);
 
 unsigned long get_safe_page(gfp_t gfp_mask)
 {
 	return (unsigned long)get_image_page(gfp_mask, PG_SAFE);
 }
-
+#ifdef CONFIG_INSTABOOT_MEM_MG
+static inline struct page *alloc_image_page(gfp_t gfp_mask)
+{
+	struct page *page;
+	page = istbt_alloc_image_page(gfp_mask);
+	if (page) {
+		swsusp_set_page_forbidden(page);
+		swsusp_set_page_free(page);
+	}
+	return page;
+}
+#else
 static struct page *alloc_image_page(gfp_t gfp_mask)
 {
 	struct page *page;
@@ -127,12 +141,28 @@ static struct page *alloc_image_page(gfp_t gfp_mask)
 	}
 	return page;
 }
+#endif
 
 /**
  *	free_image_page - free page represented by @addr, allocated with
  *	get_image_page (page flags set by it must be cleared)
  */
+#ifdef CONFIG_INSTABOOT_MEM_MG
+static inline void free_image_page(void *addr, int clear_nosave_free)
+{
+	struct page *page;
 
+	BUG_ON(!virt_addr_valid(addr));
+
+	page = virt_to_page(addr);
+
+	istbt_free_image_page(addr, clear_nosave_free);
+
+	swsusp_unset_page_forbidden(page);
+	if (clear_nosave_free)
+		swsusp_unset_page_free(page);
+}
+#else
 static inline void free_image_page(void *addr, int clear_nosave_free)
 {
 	struct page *page;
@@ -147,6 +177,7 @@ static inline void free_image_page(void *addr, int clear_nosave_free)
 
 	__free_page(page);
 }
+#endif
 
 /* struct linked_page is used to build chains of pages */
 
@@ -748,6 +779,9 @@ int create_basic_memory_bitmaps(void)
 	else
 		BUG_ON(forbidden_pages_map || free_pages_map);
 
+#ifdef CONFIG_INSTABOOT_MEM_MG
+	istbt_init_mem();
+#endif
 	bm1 = kzalloc(sizeof(struct memory_bitmap), GFP_KERNEL);
 	if (!bm1)
 		return -ENOMEM;
@@ -963,6 +997,12 @@ static unsigned int count_data_pages(void)
 /* This is needed, because copy_page and memcpy are not usable for copying
  * task structs.
  */
+#ifdef CONFIG_INSTABOOT_MEM_MG
+static inline void do_copy_page(long *dst, long *src)
+{
+	istbt_copy_page(dst, src);
+}
+#else
 static inline void do_copy_page(long *dst, long *src)
 {
 	int n;
@@ -970,7 +1010,7 @@ static inline void do_copy_page(long *dst, long *src)
 	for (n = PAGE_SIZE / sizeof(long); n; n--)
 		*dst++ = *src++;
 }
-
+#endif
 
 /**
  *	safe_copy_page - check if the page we are going to copy is marked as
@@ -1101,12 +1141,29 @@ void swsusp_free(void)
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
 			if (pfn_valid(pfn)) {
 				struct page *page = pfn_to_page(pfn);
+#ifdef CONFIG_INSTABOOT_MEM_MG
+				if (!istbt_pfn_touchable(pfn)) {
+					if (forbidden_pages_map)
+						memory_bm_clear_bit
+						(forbidden_pages_map, pfn);
 
-				if (swsusp_page_is_forbidden(page) &&
-				    swsusp_page_is_free(page)) {
-					swsusp_unset_page_forbidden(page);
-					swsusp_unset_page_free(page);
-					__free_page(page);
+					if (free_pages_map)
+						memory_bm_clear_bit
+						(free_pages_map, pfn);
+
+					istbt_pfn_destory(pfn);
+
+				} else
+#endif
+				{
+
+					if (swsusp_page_is_forbidden(page) &&
+						swsusp_page_is_free(page)) {
+						swsusp_unset_page_forbidden
+							(page);
+						swsusp_unset_page_free(page);
+						__free_page(page);
+					}
 				}
 			}
 	}
@@ -1235,7 +1292,12 @@ static void free_unnecessary_pages(void)
 
 	while (to_free_normal > 0 || to_free_highmem > 0) {
 		unsigned long pfn = memory_bm_next_pfn(&copy_bm);
-		struct page *page = pfn_to_page(pfn);
+		struct page *page;
+#ifdef CONFIG_INSTABOOT_MEM_MG
+		while (!istbt_pfn_touchable(pfn))
+			pfn = memory_bm_next_pfn(&copy_bm);
+#endif
+		page = pfn_to_page(pfn);
 
 		if (PageHighMem(page)) {
 			if (!to_free_highmem)
@@ -1368,6 +1430,8 @@ int hibernate_preallocate_memory(void)
 	 * the image and we're done.
 	 */
 	if (size >= saveable) {
+		pages = minimum_image_size(saveable);
+		shrink_all_memory((saveable - pages) >> 1);
 		pages = preallocate_image_highmem(save_highmem);
 		pages += preallocate_image_memory(saveable - pages, avail_normal);
 		goto out;

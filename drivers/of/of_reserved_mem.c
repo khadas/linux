@@ -25,6 +25,14 @@
 static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
 static int reserved_mem_count;
 
+void get_reserved_mem_info(struct reserved_mem **rsv_mem, int *rsv_mem_cnt)
+{
+	*rsv_mem = reserved_mem;
+	*rsv_mem_cnt = reserved_mem_count;
+	return;
+}
+EXPORT_SYMBOL(get_reserved_mem_info);
+
 #if defined(CONFIG_HAVE_MEMBLOCK)
 #include <linux/memblock.h>
 int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
@@ -90,7 +98,8 @@ void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
  *			  and 'alloc-ranges' properties
  */
 static int __init __reserved_mem_alloc_size(unsigned long node,
-	const char *uname, phys_addr_t *res_base, phys_addr_t *res_size)
+	const char *uname, phys_addr_t *res_base, phys_addr_t *res_size,
+	unsigned long *flags)
 {
 	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
 	phys_addr_t start = 0, end = 0;
@@ -99,6 +108,9 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	const __be32 *prop;
 	int nomap;
 	int ret;
+	int multi_use;
+
+	pr_info("__reserved_mem_alloc_size: %s\n", uname);
 
 	prop = of_get_flat_dt_prop(node, "size", &len);
 	if (!prop)
@@ -112,6 +124,11 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
+
+	multi_use = of_get_flat_dt_prop(node, "multi-use", NULL) != NULL;
+	if (!nomap && multi_use)
+		*flags |= 1;
+
 
 	prop = of_get_flat_dt_prop(node, "alignment", &len);
 	if (prop) {
@@ -223,7 +240,7 @@ void __init fdt_init_reserved_mem(void)
 
 		if (rmem->size == 0)
 			err = __reserved_mem_alloc_size(node, rmem->name,
-						 &rmem->base, &rmem->size);
+					&rmem->base, &rmem->size, &rmem->flags);
 		if (err == 0)
 			__reserved_mem_init_node(rmem);
 	}
