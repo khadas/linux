@@ -118,7 +118,7 @@
 #define AMSTREAM_IOC_CLEAR_VBUF _IO((_A_M), 0x80)
 
 #define AMSTREAM_IOC_APTS_LOOKUP    _IOR((_A_M), 0x81, int)
-#define GET_FIRST_APTS_FLAG    _IOR((_A_M), 0x82, long)
+#define GET_FIRST_APTS_FLAG    _IOR((_A_M), 0x82, int)
 #define AMSTREAM_IOC_GET_SYNC_ADISCON_DIFF  _IOR((_A_M), 0x83, int)
 #define AMSTREAM_IOC_GET_SYNC_VDISCON_DIFF  _IOR((_A_M), 0x84, int)
 #define AMSTREAM_IOC_SET_SYNC_ADISCON_DIFF  _IOW((_A_M), 0x85, int)
@@ -444,36 +444,40 @@ struct userdata_poc_info_t {
 #define AMSTREAM_IOC_VERSION_SECOND 0
 
 struct am_ioctl_parm {
-	u32 cmd;
 	union {
 		u32 data_32;
 		u64 data_64;
 		enum vformat_e data_vformat;
 		enum aformat_e data_aformat;
+		char data[8];
 	};
+	u32 cmd;
+	char reserved[4];
 };
 
 struct am_ioctl_parm_ex {
-	u32 cmd;
 	union {
 		struct buf_status status;
 		struct vdec_status vstatus;
 		struct adec_status astatus;
 
 		struct userdata_poc_info_t data_userdata_info;
-		char data[8];
+		char data[24];
 
 	};
+	u32 cmd;
+	char reserved[4];
 };
 
 struct am_ioctl_parm_ptr {
-	u32 cmd;
 	union {
 		struct audio_info *pdata_audio_info;
 		struct subtitle_info *pdata_sub_info;
 		void *pointer;
-		char data[16];
+		char data[8];
 	};
+	u32 cmd;
+	char reserved[4];
 };
 
 

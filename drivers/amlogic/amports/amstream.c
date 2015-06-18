@@ -919,7 +919,7 @@ static ssize_t amstream_mpts_write(struct file *file, const char *buf,
 	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
 	struct stream_buf_s *pabuf = &bufs[BUF_TYPE_AUDIO];
 	struct stream_buf_s *pvbuf = NULL;
-	int r;
+	int r = 0;
 
 	if (has_hevc_vdec()) {
 		pvbuf =	(port->vformat ==
@@ -940,7 +940,6 @@ static ssize_t amstream_mpts_write(struct file *file, const char *buf,
 		r = drm_tswrite(file, pvbuf, pabuf, buf, count);
 	else
 		r = tsdemux_write(file, pvbuf, pabuf, buf, count);
-
 	return r;
 }
 
@@ -1343,6 +1342,7 @@ static long amstream_ioctl_get_version(struct stream_port_s *this,
 	int version = (AMSTREAM_IOC_VERSION_FIRST & 0xffff) << 16
 		| (AMSTREAM_IOC_VERSION_SECOND & 0xffff);
 	put_user(version, (u32 __user *)arg);
+
 	return 0;
 }
 static long amstream_ioctl_get(struct stream_port_s *this, ulong arg)
@@ -1490,10 +1490,9 @@ static long amstream_ioctl_set(struct stream_port_s *this, ulong arg)
 
 	if (copy_from_user
 		((void *)&parm, (void *)arg,
-		 sizeof(parm))) {
-		pr_err("[%s]%d, arg err\n", __func__, __LINE__);
+		 sizeof(parm)))
 		r = -EFAULT;
-	}
+
 
 	switch (parm.cmd) {
 	case AMSTREAM_SET_VB_START:
@@ -1738,13 +1737,12 @@ static long amstream_ioctl_get_ex(struct stream_port_s *this, ulong arg)
 {
 
 	long r = 0;
-
 	struct am_ioctl_parm_ex parm;
-
 	if (copy_from_user
 		((void *)&parm, (void *)arg,
 		 sizeof(parm)))
 		r = -EFAULT;
+
 	switch (parm.cmd) {
 	case AMSTREAM_GET_EX_VB_STATUS:
 		if (this->type & PORT_TYPE_VIDEO) {
@@ -1803,10 +1801,17 @@ static long amstream_ioctl_get_ex(struct stream_port_s *this, ulong arg)
 		}
 		break;
 	case AMSTREAM_GET_EX_ADECSTAT:
-		if ((this->type & PORT_TYPE_AUDIO) == 0)
+		if ((this->type & PORT_TYPE_AUDIO) == 0) {
+			pr_err("no audio\n");
 			return -EINVAL;
-		if (amstream_adec_status == NULL)
+		}
+		if (amstream_adec_status == NULL) {
+			/*
+			pr_err("no amstream_adec_status\n");
 			return -ENODEV;
+			*/
+			memset(&parm.astatus, 0, sizeof(parm.astatus));
+		}
 		else {
 			struct adec_status astatus;
 			struct am_ioctl_parm_ex *p = &parm;
@@ -1840,12 +1845,11 @@ static long amstream_ioctl_get_ex(struct stream_port_s *this, ulong arg)
 		r = -ENOIOCTLCMD;
 		break;
 	}
-	/* pr_info("parm size:%d\n", sizeof(parm)); */
+	/* pr_info("parm size:%zx\n", sizeof(parm)); */
 	if (r == 0) {
 		if (copy_to_user((void *)arg, &parm, sizeof(parm)))
 			r = -EFAULT;
 	}
-
 	return r;
 
 }
@@ -1974,7 +1978,7 @@ static long amstream_do_ioctl_new(struct stream_port_s *this,
 static long amstream_do_ioctl_old(struct stream_port_s *this,
 	unsigned int cmd, ulong arg)
 {
-	s32 r = 0;
+	long r = 0;
 	switch (cmd) {
 
 	case AMSTREAM_IOC_VB_START:
@@ -2526,6 +2530,8 @@ static long amstream_do_ioctl(struct stream_port_s *this,
 		r = amstream_do_ioctl_old(this, cmd, arg);
 		break;
 	}
+	if (r != 0)
+		pr_err("amstream_do_ioctl error :%lx, %x\n", r, cmd);
 
 	return r;
 }
@@ -2563,33 +2569,30 @@ struct dec_sysinfo32 {
 };
 
 struct am_ioctl_parm_ptr32 {
-	u32 cmd;
 	union {
 		compat_uptr_t pdata_audio_info;
 		compat_uptr_t pdata_sub_info;
 		compat_uptr_t pointer;
-		char data[16];
+		char data[8];
 	};
+	u32 cmd;
+	char reserved[4];
 };
-
 
 static long amstream_ioc_setget_ptr(struct stream_port_s *this,
 		unsigned int cmd, struct am_ioctl_parm_ptr32 __user *arg)
 {
 	struct am_ioctl_parm_ptr __user *data;
-	struct am_ioctl_parm_ptr32 __user data32;
+	struct am_ioctl_parm_ptr32 __user *data32 = arg;
 	int ret;
-
-	if (copy_from_user(&data32, arg, sizeof(data32)))
-		return -EFAULT;
-
 	data = compat_alloc_user_space(sizeof(*data));
 	if (!access_ok(VERIFY_WRITE, data, sizeof(*data)))
 		return -EFAULT;
 
-	if (put_user(data32.cmd, &data->cmd) ||
-		put_user(compat_ptr(data32.pointer), &data->pointer))
+	if (put_user(data32->cmd, &data->cmd) ||
+		put_user(compat_ptr(data32->pointer), &data->pointer))
 		return -EFAULT;
+
 
 	ret = amstream_do_ioctl(this, cmd, (unsigned long)data);
 	if (ret < 0)
