@@ -222,6 +222,9 @@ int set_current_vmode(enum vmode_e mode)
 		if (true == p_server->op.vmode_is_supported(mode)) {
 			vout_module.curr_vout_server = p_server;
 			r = p_server->op.set_vmode(mode);
+			if (vout_module.curr_vout_server)
+				update_vout_mode_attr
+				(vout_module.curr_vout_server->op.get_vinfo());
 			/* break;  do not exit , should disable other modules */
 		} else
 			p_server->op.disable(mode);

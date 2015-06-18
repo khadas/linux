@@ -34,6 +34,9 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#ifdef CONFIG_INSTABOOT
+#include <linux/syscore_ops.h>
+#endif
 
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
@@ -53,7 +56,8 @@
 
 #define PIN_MUX_REG_0 0x202c
 #define P_PIN_MUX_REG_0 CBUS_REG_ADDR(PIN_MUX_REG_0)
-static struct disp_module_info_s *info;
+static struct disp_module_info_s disp_module_info __nosavedata;
+static struct disp_module_info_s *info __nosavedata;
 
 static void vdac_power_level_store(char *para);
 SET_TV_CLASS_ATTR(vdac_power_level, vdac_power_level_store)
@@ -1535,17 +1539,36 @@ static int create_tv_attr(struct disp_module_info_s *info)
 }
 /* **************************************************** */
 
+#ifdef CONFIG_INSTABOOT
+struct class  *info_base_class;
+static int tvconf_suspend(void)
+{
+	info_base_class = info->base_class;
+	return 0;
+}
+
+static void tvconf_resume(void)
+{
+	info->base_class = info_base_class;
+}
+
+static struct syscore_ops tvconf_ops = {
+	.suspend = tvconf_suspend,
+	.resume = tvconf_resume,
+	.shutdown = NULL,
+};
+#endif
+
 static int __init tv_init_module(void)
 {
 	int  ret;
+#ifdef CONFIG_INSTABOOT
+	INIT_LIST_HEAD(&tvconf_ops.node);
+	register_syscore_ops(&tvconf_ops);
+#endif
 	tv_out_ioremap();
-	info = kmalloc(sizeof(struct disp_module_info_s), GFP_KERNEL);
+	info = &disp_module_info;
 	vout_log_info("%s\n", __func__);
-	if (!info) {
-		vout_log_err("can't alloc display info struct\n");
-		return -ENOMEM;
-	}
-	memset(info, 0, sizeof(struct disp_module_info_s));
 	sprintf(info->name, TV_CLASS_NAME);
 	ret = register_chrdev(0, info->name, &am_tv_fops);
 	if (ret < 0) {
