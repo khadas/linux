@@ -209,32 +209,32 @@ struct cpufreq_driver {
 	u8			flags;
 
 	/* needed by all drivers */
-	int	(*init)		(struct cpufreq_policy *policy);
-	int	(*verify)	(struct cpufreq_policy *policy);
+	int (*init)(struct cpufreq_policy *policy);
+	int (*verify)(struct cpufreq_policy *policy);
 
 	/* define one out of two */
-	int	(*setpolicy)	(struct cpufreq_policy *policy);
-	int	(*target)	(struct cpufreq_policy *policy,	/* Deprecated */
+	int (*setpolicy)(struct cpufreq_policy *policy);
+	int (*target)(struct cpufreq_policy *policy,	/* Deprecated */
 				 unsigned int target_freq,
 				 unsigned int relation);
-	int	(*target_index)	(struct cpufreq_policy *policy,
+	int (*target_index)(struct cpufreq_policy *policy,
 				 unsigned int index);
 
 	/* should be defined, if possible */
-	unsigned int	(*get)	(unsigned int cpu);
+	unsigned int (*get)(unsigned int cpu);
 
 	/* optional */
-	int	(*bios_limit)	(int cpu, unsigned int *limit);
+	int (*bios_limit)(int cpu, unsigned int *limit);
 
-	int	(*exit)		(struct cpufreq_policy *policy);
-	int	(*suspend)	(struct cpufreq_policy *policy);
-	int	(*resume)	(struct cpufreq_policy *policy);
+	int (*exit)(struct cpufreq_policy *policy);
+	int (*suspend)(struct cpufreq_policy *policy);
+	int (*resume)(struct cpufreq_policy *policy);
 	struct freq_attr	**attr;
 
 	/* platform specific boost support code */
 	bool                    boost_supported;
 	bool                    boost_enabled;
-	int     (*set_boost)    (int state);
+	int (*set_boost)(int state);
 };
 
 /* flags */
@@ -390,11 +390,11 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
 	int	initialized;
-	int	(*governor)	(struct cpufreq_policy *policy,
+	int (*governor)(struct cpufreq_policy *policy,
 				 unsigned int event);
-	ssize_t	(*show_setspeed)	(struct cpufreq_policy *policy,
+	ssize_t (*show_setspeed)(struct cpufreq_policy *policy,
 					 char *buf);
-	int	(*store_setspeed)	(struct cpufreq_policy *policy,
+	int (*store_setspeed)(struct cpufreq_policy *policy,
 					 unsigned int freq);
 	unsigned int max_transition_latency; /* HW must be able to switch to
 			next freq faster than this value in nano secs or we
@@ -514,5 +514,11 @@ static inline int cpufreq_generic_exit(struct cpufreq_policy *policy)
 	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
-
+#ifdef CONFIG_CPU_FREQ_GOV_HOTPLUG
+void cpufreq_set_max_cpu_num(unsigned int cpu_num);
+#else
+static inline void cpufreq_set_max_cpu_num(unsigned int cpu_num)
+{
+}
+#endif
 #endif /* _LINUX_CPUFREQ_H */

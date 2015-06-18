@@ -24,7 +24,7 @@
 
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
+#include <linux/thermal_core.h>
 
 /*
  * If the temperature is higher than a trip point,
@@ -50,8 +50,8 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 				enum thermal_trend trend, bool throttle)
 {
 	struct thermal_cooling_device *cdev = instance->cdev;
-	unsigned long cur_state;
-	unsigned long next_target;
+	signed long cur_state;
+	signed long next_target;
 
 	/*
 	 * We keep this instance the way it is by default.
@@ -76,7 +76,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 			next_target = instance->upper;
 		break;
 	case THERMAL_TREND_DROPPING:
-		if (cur_state == instance->lower) {
+		if (cur_state <= instance->lower) {
 			if (!throttle)
 				next_target = THERMAL_NO_TARGET;
 		} else {
@@ -86,7 +86,7 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		}
 		break;
 	case THERMAL_TREND_DROP_FULL:
-		if (cur_state == instance->lower) {
+		if (cur_state <= instance->lower) {
 			if (!throttle)
 				next_target = THERMAL_NO_TARGET;
 		} else

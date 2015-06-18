@@ -89,4 +89,6 @@ source "drivers/amlogic/mailbox/Kconfig"
 
 source "drivers/amlogic/rdma/Kconfig"
 
+source "drivers/amlogic/thermal/Kconfig"
+
 endmenu

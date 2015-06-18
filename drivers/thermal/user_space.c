@@ -24,7 +24,7 @@
 
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
+#include <linux/thermal_core.h>
 
 /**
  * notify_user_space - Notifies user space about thermal events

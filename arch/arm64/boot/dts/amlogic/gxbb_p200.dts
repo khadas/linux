@@ -632,6 +632,22 @@
 		};
 	};
 	/* END OF AUDIO board specific */
+
+	amlogic_thermals:amlogic_thermals{
+		compatible = "amlogic, amlogic-thermal";
+		#thermal-cells = <7>;
+		dev_name = "aml_thermal";
+		trip_point = <70 1536001 1536001  511  511    3    2
+			      80 1296001 1296001  435  435    2    1
+			      90 1032001 1032001  328  328    2    1
+			      260   NEG1    NEG1 NEG1 NEG1 NEG1 NEG1>;
+		cpu_cali_a=<0>;
+		idle_interval=<1000>;
+		keep_mode;
+		keep_mode_threshold = <85>;
+		keep_mode_max_range = <1536000 792 4 3>;
+	};
+
 };
 &i2c_a {
   status = "disabled";

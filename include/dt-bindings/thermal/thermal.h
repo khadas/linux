@@ -11,7 +11,7 @@
 #define _DT_BINDINGS_THERMAL_THERMAL_H
 
 /* On cooling devices upper and lower limits */
-#define THERMAL_NO_LIMIT		(-1UL)
+#define NEG1 (-1UL)
 
 #endif
 

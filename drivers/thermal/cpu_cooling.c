@@ -59,6 +59,8 @@ static unsigned int cpufreq_dev_count;
 /* notify_table passes value to the CPUFREQ_ADJUST callback function. */
 #define NOTIFY_INVALID NULL
 static struct cpufreq_cooling_device *notify_device;
+static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
+				 unsigned long *state);
 
 /**
  * get_idr - function to get a unique id.
@@ -202,10 +204,29 @@ static int get_property(unsigned int cpu, unsigned long input,
 		/* now we have a valid frequency entry */
 		freq = table[i].frequency;
 
-		if (property == GET_LEVEL && (unsigned int)input == freq) {
+		if (property == GET_LEVEL) {
 			/* get level by frequency */
-			*output = descend ? j : (max_level - j);
-			return 0;
+			if (descend && input >= freq) {
+				if ((input > freq) && j)
+					*output = (j - 1);
+				else if ((input > freq) && !j)
+					*output = 0;
+				else
+					*output = j;
+				if (input != freq)
+					pr_debug("%s %ld to level:%d, %s:%d\n",
+						 "descend, fit ", input,
+						 *output, "next freq", freq);
+				return 0;
+			} else if (!descend && input <= freq) {
+				*output = (max_level - j);
+				if (input != freq) {
+					pr_debug("%s %ld to level:%d, %s:%d\n",
+						 "ascend, fit", input,
+						 *output, "next freq", freq);
+				}
+				return 0;
+			}
 		}
 		if (property == GET_FREQ && level == j) {
 			/* get frequency by level */
@@ -252,7 +273,7 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_get_level);
  *
  * Return: 0 on error, the corresponding frequency otherwise.
  */
-static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
+unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 {
 	int ret = 0;
 	unsigned int freq;
@@ -263,6 +284,7 @@ static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 
 	return freq;
 }
+EXPORT_SYMBOL(get_cpu_frequency);
 
 /**
  * cpufreq_apply_cooling - function to apply frequency clipping.
@@ -282,11 +304,25 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 	unsigned int cpuid, clip_freq;
 	struct cpumask *mask = &cpufreq_device->allowed_cpus;
 	unsigned int cpu = cpumask_any(mask);
+	unsigned long cur_state;
 
-
+	cpufreq_get_cur_state(cpufreq_device->cool_dev, &cur_state);
+	pr_debug("cpufreq_device->cpufreq_state=%d,cooling_state=%ld\n",
+		 cpufreq_device->cpufreq_state, cooling_state);
 	/* Check if the old cooling action is same as new cooling action */
-	if (cpufreq_device->cpufreq_state == cooling_state)
+	if ((cpufreq_device->cpufreq_state == cooling_state) &&
+	    (cpufreq_device->cpufreq_state == cur_state)) {
 		return 0;
+	} else {
+		/*
+		 * sometimes cpufreq state will be changed by other routines
+		 * so we need update it again.
+		 */
+		pr_debug("%s %s:%d, cur_state:%ld, cooling_state:%ld\n",
+			 __func__, "state is not same, cpufreq_state",
+			 cpufreq_device->cpufreq_state,
+			 cur_state, cooling_state);
+	}
 
 	clip_freq = get_cpu_frequency(cpu, cooling_state);
 	if (!clip_freq)
@@ -386,10 +422,8 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
 {
-	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
-
-	*state = cpufreq_device->cpufreq_state;
-
+	*state = cpufreq_cooling_get_level(0, cpufreq_quick_get_max(0));
+	pr_debug("*state = %ld\n", *state);
 	return 0;
 }
 

@@ -38,7 +38,7 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
-#include "thermal_core.h"
+#include <linux/thermal_core.h>
 #include "thermal_hwmon.h"
 
 MODULE_AUTHOR("Zhang Rui");
@@ -374,7 +374,7 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 	if (trip_type == THERMAL_TRIP_CRITICAL) {
 		dev_emerg(&tz->device,
 			  "critical temperature reached(%d C),shutting down\n",
-			  tz->temperature / 1000);
+			  tz->temperature);
 		orderly_poweroff(true);
 	}
 }
@@ -1060,8 +1060,8 @@ static void thermal_release(struct device *dev)
 		     sizeof("thermal_zone") - 1)) {
 		tz = to_thermal_zone(dev);
 		kfree(tz);
-	} else if(!strncmp(dev_name(dev), "cooling_device",
-			sizeof("cooling_device") - 1)){
+	} else if (!strncmp(dev_name(dev), "cooling_device",
+			sizeof("cooling_device") - 1)) {
 		cdev = to_cooling_device(dev);
 		kfree(cdev);
 	}

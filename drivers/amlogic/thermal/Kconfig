@@ -1,0 +1,15 @@
+#
+# Amlogic temperature sensor configuration
+#
+
+menu "Amlogic temperature sensor"
+
+config AML_TEMP_SENSOR
+	bool "Amlgoic temperature sensor Support"
+	default n
+	---help---
+		"thermal sensor low level support for thermal"
+		"if you want to use amlogic inside temperature sensor"
+		"please select this config"
+
+endmenu

@@ -24,7 +24,7 @@
 
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
+#include <linux/thermal_core.h>
 
 /**
  * get_trip_level: - obtains the current trip level for a zone

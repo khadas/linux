@@ -95,3 +95,5 @@ obj-$(CONFIG_AM_DVB)		+= dvb_tv/
 obj-$(CONFIG_MESON_MHU_MBOX)	+= mailbox/
 
 obj-$(CONFIG_AML_RDMA)		+= rdma/
+
+obj-$(CONFIG_AML_TEMP_SENSOR) += thermal/

@@ -31,7 +31,7 @@
 #include <linux/export.h>
 #include <linux/string.h>
 
-#include "thermal_core.h"
+#include <linux/thermal_core.h>
 
 /***   Private data structures to represent thermal device tree data ***/
 
