@@ -111,8 +111,8 @@ static int g_vf_height;
 static int g_rotation_width;
 static int g_rotation_height;
 
-static int use_h_filter_mode = -1;
-static int use_v_filter_mode = -1;
+static __nosavedata int use_h_filter_mode = -1;
+static __nosavedata int use_v_filter_mode = -1;
 
 static unsigned int osd_h_filter_mode = 1;
 module_param(osd_h_filter_mode, uint, 0664);
@@ -3190,6 +3190,32 @@ void osd_resume_hw(void)
 	osd_log_info("osd_resumed\n");
 	return;
 }
+
+#ifdef CONFIG_HIBERNATION
+static unsigned int fb0_cfg_w0_save;
+void  osd_freeze_hw(void)
+{
+	osd_rdma_enable(0);
+	fb0_cfg_w0_save = osd_reg_read(VIU_OSD1_BLK0_CFG_W0);
+	pr_debug("osd_freezed\n");
+
+	return;
+}
+void osd_thaw_hw(void)
+{
+	pr_debug("osd_thawed\n");
+	osd_rdma_enable(1);
+	return;
+}
+void osd_restore_hw(void)
+{
+	osd_reg_write(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0_save);
+	osd_rdma_enable(1);
+	pr_debug("osd_restored\n");
+
+	return;
+}
+#endif
 
 int osd_get_logo_index(void)
 {

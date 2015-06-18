@@ -51,9 +51,210 @@
 #include "osd_log.h"
 #include "osd_sync.h"
 
+static __u32 var_screeninfo[5];
+
 struct osd_info_s osd_info = {
 	.index = 0,
 	.osd_reverse = 0,
+};
+
+const struct color_bit_define_s default_color_format_array[] = {
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	{
+		COLOR_INDEX_02_PAL4, 0, 0,
+		0, 2, 0, 0, 2, 0, 0, 2, 0, 0, 0, 0,
+		FB_VISUAL_PSEUDOCOLOR, 2,
+	},
+	INVALID_BPP_ITEM,
+	{
+		COLOR_INDEX_04_PAL16, 0, 1,
+		0, 4, 0, 0, 4, 0, 0, 4, 0, 0, 0, 0,
+		FB_VISUAL_PSEUDOCOLOR, 4,
+	},
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	{
+		COLOR_INDEX_08_PAL256, 0, 2,
+		0, 8, 0, 0, 8, 0, 0, 8, 0, 0, 0, 0,
+		FB_VISUAL_PSEUDOCOLOR, 8,
+	},
+	/*16 bit color*/
+	{
+		COLOR_INDEX_16_655, 0, 4,
+		10, 6, 0, 5, 5, 0, 0, 5, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_844, 1, 4,
+		8, 8, 0, 4, 4, 0, 0, 4, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_6442, 2, 4,
+		10, 6, 0, 6, 4, 0, 2, 4, 0, 0, 2, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_4444_R, 3, 4,
+		12, 4, 0, 8, 4, 0, 4, 4, 0, 0, 4, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_4642_R, 7, 4,
+		12, 4, 0, 6, 6, 0, 2, 4, 0, 0, 2, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_1555_A, 6, 4,
+		10, 5, 0, 5, 5, 0, 0, 5, 0, 15, 1, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_4444_A, 5, 4,
+		8, 4, 0, 4, 4, 0, 0, 4, 0, 12, 4, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	{
+		COLOR_INDEX_16_565, 4, 4,
+		11, 5, 0, 5, 6, 0, 0, 5, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 16
+	},
+	/*24 bit color*/
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	{
+		COLOR_INDEX_24_6666_A, 4, 7,
+		12, 6, 0, 6, 6, 0, 0, 6, 0, 18, 6, 0,
+		FB_VISUAL_TRUECOLOR, 24
+	},
+	{
+		COLOR_INDEX_24_6666_R, 3, 7,
+		18, 6, 0, 12, 6, 0, 6, 6, 0, 0, 6, 0,
+		FB_VISUAL_TRUECOLOR, 24
+	},
+	{
+		COLOR_INDEX_24_8565, 2, 7,
+		11, 5, 0, 5, 6, 0, 0, 5, 0, 16, 8, 0,
+		FB_VISUAL_TRUECOLOR, 24
+	},
+	{
+		COLOR_INDEX_24_5658, 1, 7,
+		19, 5, 0, 13, 6, 0, 8, 5, 0, 0, 8, 0,
+		FB_VISUAL_TRUECOLOR, 24
+	},
+	{
+		COLOR_INDEX_24_888_B, 5, 7,
+		0, 8, 0, 8, 8, 0, 16, 8, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 24
+	},
+	{
+		COLOR_INDEX_24_RGB, 0, 7,
+		16, 8, 0, 8, 8, 0, 0, 8, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 24
+	},
+	/*32 bit color*/
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	INVALID_BPP_ITEM,
+	{
+		COLOR_INDEX_32_BGRA, 3, 5,
+		8, 8, 0, 16, 8, 0, 24, 8, 0, 0, 8, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	{
+		COLOR_INDEX_32_ABGR, 2, 5,
+		0, 8, 0, 8, 8, 0, 16, 8, 0, 24, 8, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	{
+		COLOR_INDEX_32_RGBA, 0, 5,
+		24, 8, 0, 16, 8, 0, 8, 8, 0, 0, 8, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	{
+		COLOR_INDEX_32_ARGB, 1, 5,
+		16, 8, 0, 8, 8, 0, 0, 8, 0, 24, 8, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	/*YUV color*/
+	{COLOR_INDEX_YUV_422, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16},
+};
+
+static struct fb_var_screeninfo fb_def_var[] = {
+	{
+		.xres            = 1920,
+		.yres            = 1080,
+		.xres_virtual    = 1920,
+		.yres_virtual    = 2160,
+		.xoffset         = 0,
+		.yoffset         = 0,
+		.bits_per_pixel = 32,
+		.grayscale       = 0,
+		.red             = {0, 0, 0},
+		.green           = {0, 0, 0},
+		.blue            = {0, 0, 0},
+		.transp          = {0, 0, 0},
+		.nonstd          = 0,
+		.activate        = FB_ACTIVATE_NOW,
+		.height          = -1,
+		.width           = -1,
+		.accel_flags     = 0,
+		.pixclock        = 0,
+		.left_margin     = 0,
+		.right_margin    = 0,
+		.upper_margin    = 0,
+		.lower_margin    = 0,
+		.hsync_len       = 0,
+		.vsync_len       = 0,
+		.sync            = 0,
+		.vmode           = FB_VMODE_NONINTERLACED,
+		.rotate          = 0,
+	}
+#ifdef CONFIG_FB_OSD2_ENABLE
+	,
+	{
+		.xres            = 32,
+		.yres            = 32,
+		.xres_virtual    = 32,
+		.yres_virtual    = 32,
+		.xoffset         = 0,
+		.yoffset         = 0,
+		.bits_per_pixel = 32,
+		.grayscale       = 0,
+		/* leave as it is ,set by system. */
+		.red             = {0, 0, 0},
+		.green           = {0, 0, 0},
+		.blue            = {0, 0, 0},
+		.transp          = {0, 0, 0},
+		.nonstd          = 0,
+		.activate        = FB_ACTIVATE_NOW,
+		.height          = -1,
+		.width           = -1,
+		.accel_flags     = 0,
+		.pixclock        = 0,
+		.left_margin     = 0,
+		.right_margin    = 0,
+		.upper_margin    = 0,
+		.lower_margin    = 0,
+		.hsync_len       = 0,
+		.vsync_len       = 0,
+		.sync            = 0,
+		.vmode           = FB_VMODE_NONINTERLACED,
+		.rotate          = 0,
+	}
+#endif
+};
+
+static struct fb_fix_screeninfo fb_def_fix = {
+	.id         = "OSD FB",
+	.xpanstep   = 1,
+	.ypanstep   = 1,
+	.type       = FB_TYPE_PACKED_PIXELS,
+	.visual     = FB_VISUAL_TRUECOLOR,
+	.accel      = FB_ACCEL_NONE,
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -70,12 +271,18 @@ int int_viu_vsync = -ENXIO;
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 int int_rdma = INT_RDMA;
 #endif
-static struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
+struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
 static struct reserved_mem fb_rmem;
 static phys_addr_t fb_rmem_paddr[2];
 static void __iomem *fb_rmem_vaddr[2];
 static u32 fb_rmem_size[2];
 
+phys_addr_t get_fb_rmem_paddr(int index)
+{
+	if (index < 0 || index > 1)
+		return 0;
+	return fb_rmem_paddr[index];
+}
 
 static void osddev_setup(struct osd_fb_dev_s *fbdev)
 {
@@ -627,7 +834,7 @@ static int osd_open(struct fb_info *info, int arg)
 	return 0;
 }
 
-static int osd_blank(int blank_mode, struct fb_info *info)
+int osd_blank(int blank_mode, struct fb_info *info)
 {
 	osd_enable_hw(info->node, (blank_mode != 0) ? 0 : 1);
 	return 0;
@@ -1810,6 +2017,26 @@ void osd_resume_early(void)
 EXPORT_SYMBOL(osd_resume_early);
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static int osd_freeze(struct device *dev)
+{
+	osd_freeze_hw();
+	return 0;
+}
+
+static int osd_thaw(struct device *dev)
+{
+	osd_thaw_hw();
+	return 0;
+}
+
+static int osd_restore(struct device *dev)
+{
+	osd_restore_hw();
+	return 0;
+}
+#endif
+
 static int osd_probe(struct platform_device *pdev)
 {
 	struct fb_info *fbi = NULL;
@@ -2145,6 +2372,14 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{},
 };
 
+#ifdef CONFIG_HIBERNATION
+const struct dev_pm_ops osd_pm = {
+	.freeze		= osd_freeze,
+	.thaw		= osd_thaw,
+	.restore	= osd_restore,
+};
+#endif
+
 static struct platform_driver osd_driver = {
 	.probe      = osd_probe,
 	.remove     = osd_remove,
@@ -2155,6 +2390,9 @@ static struct platform_driver osd_driver = {
 	.driver     = {
 		.name   = "meson-fb",
 		.of_match_table = meson_fb_dt_match,
+#ifdef CONFIG_HIBERNATION
+		.pm     = &osd_pm,
+#endif
 	}
 };
 

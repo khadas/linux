@@ -27,6 +27,12 @@
 
 #endif
 
+#ifdef CONFIG_HIBERNATION
+extern void osd_freeze_hw(void);
+extern void osd_thaw_hw(void);
+extern void osd_restore_hw(void);
+#endif
+
 extern void osd_set_color_key_hw(u32 index, u32 bpp, u32 colorkey);
 extern void osd_srckey_enable_hw(u32  index, u8 enable);
 extern void osd_set_gbl_alpha_hw(u32 index, u32 gbl_alpha);
