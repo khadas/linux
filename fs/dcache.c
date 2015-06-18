@@ -3091,7 +3091,7 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 			const char *fmt, ...)
 {
 	va_list args;
-	char temp[64];
+	char temp[256];
 	int sz;
 
 	va_start(args, fmt);

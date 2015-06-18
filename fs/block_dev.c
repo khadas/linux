@@ -28,6 +28,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 #include <linux/aio.h>
+#include <linux/syscalls.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -630,6 +631,9 @@ void bd_forget(struct inode *inode)
 static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
 			 void *holder)
 {
+	if (bdev->bd_holder == sys_swapon)
+		return true;
+
 	if (bdev->bd_holder == holder)
 		return true;	 /* already a holder */
 	else if (bdev->bd_holder != NULL)

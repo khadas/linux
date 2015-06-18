@@ -264,7 +264,7 @@ void __init mem_init(void)
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
-	free_unused_memmap();
+	/*free_unused_memmap();*/
 #endif
 	/* this will put all unused low memory onto the freelists */
 	free_all_bootmem();

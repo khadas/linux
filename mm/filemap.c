@@ -45,6 +45,54 @@
 
 #include <asm/mman.h>
 
+#ifdef CONFIG_CMA
+DEFINE_MUTEX(migrate_wait);
+EXPORT_SYMBOL(migrate_wait);
+int migrate_status = 0;
+EXPORT_SYMBOL(migrate_status);
+int mutex_status = 0;
+EXPORT_SYMBOL(mutex_status);
+int migrate_refcount = 0;
+EXPORT_SYMBOL(migrate_refcount);
+wait_queue_head_t migrate_wq;
+EXPORT_SYMBOL(migrate_wq);
+void wakeup_wq(bool has_cma)
+{
+	if (has_cma) {
+		if (migrate_refcount > 0) {
+			mutex_lock(&migrate_wait);
+			mutex_status = 0x0d;
+			migrate_refcount--;
+			if (!migrate_refcount) {
+				if (migrate_status == MIGRATE_CMA_ALLOC) {
+					wake_up_interruptible(&migrate_wq);
+					migrate_status = MIGRATE_CMA_REL;
+				}
+			}
+			mutex_status = 0x0d1;
+			mutex_unlock(&migrate_wait);
+		}
+	}
+}
+EXPORT_SYMBOL(wakeup_wq);
+bool has_cma_page(struct page *page)
+{
+	if (is_migrate_cma(get_pageblock_migratetype(page)) ||
+	   is_migrate_isolate(get_pageblock_migratetype(page))) {
+		migrate_refcount++;
+		if (migrate_status != MIGRATE_CMA_ALLOC)
+			migrate_status = MIGRATE_CMA_HOLD;
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(has_cma_page);
+#else
+void wakeup_wq(bool has_cma) {; }
+EXPORT_SYMBOL(wakeup_wq);
+bool has_cma_page(struct page *page) {return false; }
+EXPORT_SYMBOL(has_cma_page);
+#endif
 /*
  * Shared mappings implemented 30.11.1994. It's not fully working yet,
  * though.
@@ -1341,6 +1389,7 @@ static void do_generic_file_read(struct file *filp, loff_t *ppos,
 	unsigned long offset;      /* offset into pagecache page */
 	unsigned int prev_offset;
 	int error;
+	bool has_cma = false;
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_CACHE_SHIFT;
@@ -1365,6 +1414,8 @@ find_page:
 			if (unlikely(page == NULL))
 				goto no_cached_page;
 		}
+		if (!has_cma)
+			has_cma = has_cma_page(page);
 		if (PageReadahead(page)) {
 			page_cache_async_readahead(mapping,
 					ra, filp, page,
@@ -1535,10 +1586,13 @@ no_cached_page:
 			desc->error = error;
 			goto out;
 		}
+		if (!has_cma)
+			has_cma = has_cma_page(page);
 		goto readpage;
 	}
 
 out:
+	wakeup_wq(has_cma);
 	ra->prev_pos = prev_index;
 	ra->prev_pos <<= PAGE_CACHE_SHIFT;
 	ra->prev_pos |= prev_offset;
@@ -1735,7 +1789,7 @@ EXPORT_SYMBOL(generic_file_aio_read);
 static int page_cache_read(struct file *file, pgoff_t offset)
 {
 	struct address_space *mapping = file->f_mapping;
-	struct page *page; 
+	struct page *page;
 	int ret;
 
 	do {
@@ -1752,7 +1806,7 @@ static int page_cache_read(struct file *file, pgoff_t offset)
 		page_cache_release(page);
 
 	} while (ret == AOP_TRUNCATED_PAGE);
-		
+
 	return ret;
 }
 
@@ -1848,6 +1902,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *page;
 	pgoff_t size;
 	int ret = 0;
+	bool has_cma = false;
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (offset >= size)
@@ -1858,6 +1913,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 */
 	page = find_get_page(mapping, offset);
 	if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
+		has_cma = has_cma_page(page);
 		/*
 		 * We found the page, so try async readahead before
 		 * waiting for the lock.
@@ -1873,10 +1929,12 @@ retry_find:
 		page = find_get_page(mapping, offset);
 		if (!page)
 			goto no_cached_page;
+		has_cma = has_cma_page(page);
 	}
 
 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
 		page_cache_release(page);
+		wakeup_wq(has_cma);
 		return ret | VM_FAULT_RETRY;
 	}
 
@@ -1884,6 +1942,8 @@ retry_find:
 	if (unlikely(page->mapping != mapping)) {
 		unlock_page(page);
 		put_page(page);
+		wakeup_wq(has_cma);
+		has_cma = false;
 		goto retry_find;
 	}
 	VM_BUG_ON_PAGE(page->index != offset, page);
@@ -1903,10 +1963,12 @@ retry_find:
 	if (unlikely(offset >= size)) {
 		unlock_page(page);
 		page_cache_release(page);
+		wakeup_wq(has_cma);
 		return VM_FAULT_SIGBUS;
 	}
 
 	vmf->page = page;
+	wakeup_wq(has_cma);
 	return ret | VM_FAULT_LOCKED;
 
 no_cached_page:
@@ -1948,6 +2010,8 @@ page_not_uptodate:
 			error = -EIO;
 	}
 	page_cache_release(page);
+	wakeup_wq(has_cma);
+	has_cma = false;
 
 	if (!error || error == AOP_TRUNCATED_PAGE)
 		goto retry_find;
@@ -2616,7 +2680,7 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		written += status;
 		*ppos = pos + status;
   	}
-	
+
 	return written ? written : status;
 }
 EXPORT_SYMBOL(generic_file_buffered_write);

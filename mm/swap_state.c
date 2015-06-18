@@ -160,7 +160,7 @@ void __delete_from_swap_cache(struct page *page)
  * @page: page we want to move to swap
  *
  * Allocate swap space for the page and add the page to the
- * swap cache.  Caller needs to hold the page lock. 
+ * swap cache.  Caller needs to hold the page lock.
  */
 int add_to_swap(struct page *page, struct list_head *list)
 {
@@ -229,9 +229,9 @@ void delete_from_swap_cache(struct page *page)
 	page_cache_release(page);
 }
 
-/* 
- * If we are the only user, then try to free up the swap cache. 
- * 
+/*
+ * If we are the only user, then try to free up the swap cache.
+ *
  * Its ok to check for PageSwapCache without the page lock
  * here because we are going to recheck again inside
  * try_to_free_swap() _with_ the lock.
@@ -245,7 +245,7 @@ static inline void free_swap_cache(struct page *page)
 	}
 }
 
-/* 
+/*
  * Perform a free_page(), also freeing any swap cache associated with
  * this page if it is the last user of the page.
  */
@@ -298,7 +298,7 @@ struct page * lookup_swap_cache(swp_entry_t entry)
 	return page;
 }
 
-/* 
+/*
  * Locate a page of swap in physical memory, reserving swap cache space
  * and reading the disk if it is not already cached.
  * A failure return means that either the page allocation failed or that
@@ -309,6 +309,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 {
 	struct page *found_page, *new_page = NULL;
 	int err;
+	bool has_cma = false;
 
 	do {
 		/*
@@ -329,6 +330,8 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			if (!new_page)
 				break;		/* Out of memory */
 		}
+		if (!has_cma)
+			has_cma = has_cma_page(new_page);
 
 		/*
 		 * call radix_tree_preload() while we can wait.
@@ -377,6 +380,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			 */
 			lru_cache_add_anon(new_page);
 			swap_readpage(new_page);
+			wakeup_wq(has_cma);
 			return new_page;
 		}
 		radix_tree_preload_end();
@@ -389,8 +393,10 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		swapcache_free(entry, NULL);
 	} while (err != -ENOMEM);
 
-	if (new_page)
+	if (new_page) {
+		wakeup_wq(has_cma);
 		page_cache_release(new_page);
+	}
 	return found_page;
 }
 

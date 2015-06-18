@@ -71,6 +71,9 @@ config ARM64
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
+config ARM64_HAS_SG_CHAIN
+	bool
+
 config 64BIT
 	def_bool y
 

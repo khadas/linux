@@ -421,6 +421,9 @@ static int evdev_open(struct inode *inode, struct file *file)
 
  err_free_client:
 	evdev_detach_client(evdev, client);
+	if (is_vmalloc_addr(client))
+		vfree(client);
+	else
 	kfree(client);
 	return error;
 }

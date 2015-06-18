@@ -1,6 +1,6 @@
 /*
  *  linux/mm/oom_kill.c
- * 
+ *
  *  Copyright (C)  1998,2000  Rik van Riel
  *	Thanks go out to Claus Fischer for some serious inspiration and
  *	for goading me into coding this file...
@@ -467,6 +467,11 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 */
 	read_lock(&tasklist_lock);
 	for_each_thread(p, t) {
+		if (p->flags & PF_EXITING) {
+			pr_err("%s:  process %d (%s) has been exiting\n",
+				message, task_pid_nr(p), p->comm);
+			break;
+		}
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
 
@@ -486,6 +491,11 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		}
 	}
 	read_unlock(&tasklist_lock);
+	if (p->flags & PF_EXITING) {
+		set_tsk_thread_flag(p, TIF_MEMDIE);
+		put_task_struct(p);
+		return;
+	}
 
 	p = find_lock_task_mm(victim);
 	if (!p) {

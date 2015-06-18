@@ -1204,6 +1204,22 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 int __isolate_lru_page(struct page *page, isolate_mode_t mode)
 {
 	int ret = -EINVAL;
+	unsigned long free_cma, total_free;
+
+	if (!(mode & ISOLATE_UNEVICTABLE)) {
+#if 1
+		free_cma = global_page_state(NR_FREE_CMA_PAGES);
+		free_cma += free_cma << 1;
+		total_free = global_page_state(NR_FREE_PAGES);
+		if (page) {
+			if ((free_cma > total_free) &&
+				is_migrate_cma(
+					   get_pageblock_migratetype(page))) {
+				return -EBUSY;
+			}
+		}
+#endif
+	}
 
 	/* Only take pages on the LRU. */
 	if (!PageLRU(page))
@@ -1488,7 +1504,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	int file = is_file_lru(lru);
 	struct zone *zone = lruvec_zone(lruvec);
 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-
+#ifdef CONFIG_CMA
+	struct page *page = NULL;
+	bool has_cma = false;
+#endif
 	while (unlikely(too_many_isolated(zone, file, sc))) {
 		congestion_wait(BLK_RW_ASYNC, HZ/10);
 
@@ -1524,6 +1543,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	if (nr_taken == 0)
 		return 0;
 
+#ifdef CONFIG_CMA
+	list_for_each_entry(page, &page_list, lru) {
+		if (page) {
+			has_cma = has_cma_page(page);
+			if (has_cma)
+				break;
+		}
+	}
+#endif
 	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
 				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
 				&nr_writeback, &nr_immediate,
@@ -1549,7 +1577,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	spin_unlock_irq(&zone->lru_lock);
 
 	free_hot_cold_page_list(&page_list, 1);
-
+#ifdef CONFIG_CMA
+	wakeup_wq(has_cma);
+#endif
 	/*
 	 * If reclaim is isolating dirty pages under writeback, it implies
 	 * that the long-lived page allocation rate is exceeding the page

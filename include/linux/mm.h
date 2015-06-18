@@ -47,6 +47,22 @@ extern int sysctl_legacy_va_layout;
 #define sysctl_legacy_va_layout 0
 #endif
 
+#ifdef CONFIG_CMA
+#define MIGRATE_CMA_HOLD  1
+#define MIGRATE_CMA_ALLOC 2
+#define MIGRATE_CMA_REL   3
+extern bool has_cma_page(struct page *page);
+extern void wakeup_wq(bool has_cma);
+extern int iso_status;
+extern int iso_recount;
+extern wait_queue_head_t iso_wq;
+extern struct mutex iso_wait;
+extern struct mutex migrate_wait;
+extern int migrate_status;
+extern int mutex_status;
+extern int migrate_refcount;
+extern wait_queue_head_t migrate_wq;
+#endif
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -215,7 +231,7 @@ struct vm_fault {
 /*
  * These are the virtual MM functions - opening of an area, closing and
  * unmapping it (needed to keep files on disk up-to-date etc), pointer
- * to the functions called when a no-page or a wp-page exception occurs. 
+ * to the functions called when a no-page or a wp-page exception occurs.
  */
 struct vm_operations_struct {
 	void (*open)(struct vm_area_struct * area);

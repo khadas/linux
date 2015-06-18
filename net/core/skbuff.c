@@ -341,14 +341,19 @@ static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
 	struct netdev_alloc_cache *nc;
 	void *data = NULL;
-	int order;
+	int order, tmp_order = NETDEV_FRAG_PAGE_MAX_ORDER;
+	unsigned int tmp_count = NETDEV_PAGECNT_MAX_BIAS;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	nc = &__get_cpu_var(netdev_alloc_cache);
+	if (fragsz <= PAGE_SIZE) {
+		tmp_order = 0;
+		tmp_count >>= 3;
+	}
 	if (unlikely(!nc->frag.page)) {
 refill:
-		for (order = NETDEV_FRAG_PAGE_MAX_ORDER; ;) {
+		for (order = tmp_order; ;) {
 			gfp_t gfp = gfp_mask;
 
 			if (order)
@@ -361,8 +366,8 @@ refill:
 		}
 		nc->frag.size = PAGE_SIZE << order;
 recycle:
-		atomic_set(&nc->frag.page->_count, NETDEV_PAGECNT_MAX_BIAS);
-		nc->pagecnt_bias = NETDEV_PAGECNT_MAX_BIAS;
+		atomic_set(&nc->frag.page->_count, tmp_count);
+		nc->pagecnt_bias = tmp_count;
 		nc->frag.offset = 0;
 	}
 

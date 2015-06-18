@@ -387,7 +387,7 @@ unsigned long
 isolate_freepages_range(struct compact_control *cc,
 			unsigned long start_pfn, unsigned long end_pfn)
 {
-	unsigned long isolated, pfn, block_end_pfn;
+	unsigned long isolated = 0, pfn, block_end_pfn;
 	LIST_HEAD(freelist);
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
@@ -703,7 +703,7 @@ next_pageblock:
  * suitable for isolating free pages from and then isolate them.
  */
 static void isolate_freepages(struct zone *zone,
-				struct compact_control *cc)
+			struct compact_control *cc, struct page *migratepage)
 {
 	struct page *page;
 	unsigned long block_start_pfn;	/* start of current pageblock */
@@ -711,7 +711,17 @@ static void isolate_freepages(struct zone *zone,
 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
 	int nr_freepages = cc->nr_freepages;
 	struct list_head *freelist = &cc->freepages;
+#ifdef CONFIG_CMA
+	struct address_space *mapping = NULL;
+	bool use_cma = true;
 
+	mapping = page_mapping(migratepage);
+	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+		mapping = NULL;
+
+	if (mapping && (mapping_gfp_mask(mapping) & __GFP_BDEV))
+		use_cma = false;
+#endif
 	/*
 	 * Initialise the free scanner. The starting point is where we last
 	 * successfully isolated from, zone-cached value, or the end of the
@@ -769,6 +779,12 @@ static void isolate_freepages(struct zone *zone,
 		if (!isolation_suitable(cc, page))
 			continue;
 
+#ifdef CONFIG_CMA
+		if (is_migrate_isolate(get_pageblock_migratetype(page)))
+			continue;
+		if (!use_cma && is_migrate_cma(get_pageblock_migratetype(page)))
+			continue;
+#endif
 		/* Found a block suitable for isolating free pages from */
 		cc->free_pfn = block_start_pfn;
 		isolated = isolate_freepages_block(cc, block_start_pfn,
@@ -822,7 +838,7 @@ static struct page *compaction_alloc(struct page *migratepage,
 	 */
 	if (list_empty(&cc->freepages)) {
 		if (!cc->contended)
-			isolate_freepages(cc->zone, cc);
+			isolate_freepages(cc->zone, cc, migratepage);
 
 		if (list_empty(&cc->freepages))
 			return NULL;
@@ -1115,7 +1131,7 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
 	return ret;
 }
 
-int sysctl_extfrag_threshold = 500;
+int sysctl_extfrag_threshold = 200;
 
 /**
  * try_to_compact_pages - Direct compact to satisfy a high-order allocation
