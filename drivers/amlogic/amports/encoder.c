@@ -3025,8 +3025,16 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		put_user(wq->mem.buf_size, (u32 *)arg);
 		break;
 	case AMVENC_AVC_IOC_GET_DEVINFO:
-		r = copy_to_user((s8 *)arg, AMVENC_DEV_VERSION,
-				strlen(AMVENC_DEV_VERSION));
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
+			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_GXBB,
+				strlen(AMVENC_DEVINFO_GXBB));
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_MG9TV) {
+			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_G9,
+				strlen(AMVENC_DEVINFO_G9));
+		} else {
+			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_M8,
+				strlen(AMVENC_DEVINFO_M8));
+		}
 		break;
 	case AMVENC_AVC_IOC_SUBMIT:
 		get_user(amrisc_cmd, ((u32 *)arg));
