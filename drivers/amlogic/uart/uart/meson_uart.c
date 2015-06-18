@@ -885,6 +885,49 @@ static struct uart_driver meson_uart_driver = {
 	.cons = MESON_SERIAL_CONSOLE,
 };
 
+#ifdef CONFIG_HIBERNATION
+static u32 save_mode;
+
+static int meson_uart_freeze(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct uart_port *port;
+
+	pdev = to_platform_device(dev);
+	port = platform_get_drvdata(pdev);
+
+	save_mode = readl(port->membase + AML_UART_CONTROL);
+
+	pr_debug("uart freeze, mode: %x\n", save_mode);
+
+	return 0;
+}
+
+static int meson_uart_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_uart_restore(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct uart_port *port;
+
+	pdev = to_platform_device(dev);
+	port = platform_get_drvdata(pdev);
+
+	writel(save_mode, port->membase + AML_UART_CONTROL);
+	pr_debug("uart restore, mode: %x\n", save_mode);
+	return 0;
+}
+
+const struct dev_pm_ops meson_uart_pm = {
+	.freeze		= meson_uart_freeze,
+	.thaw		= meson_uart_thaw,
+	.restore	= meson_uart_restore,
+};
+#endif
+
 static int meson_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem, *res_irq;
@@ -1039,6 +1082,9 @@ static struct platform_driver meson_uart_platform_driver = {
 		   .owner = THIS_MODULE,
 		   .name = "meson_uart",
 		   .of_match_table = meson_uart_dt_match,
+#ifdef CONFIG_HIBERNATION
+		   .pm = &meson_uart_pm,
+#endif
 		   },
 };
 
