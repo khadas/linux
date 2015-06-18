@@ -2471,6 +2471,11 @@ static struct usb_function_instance *ffs_alloc_inst(void)
 	struct f_fs_opts *opts;
 	struct ffs_dev *dev;
 
+	if (!_android_dev) {
+		pr_err("ffs_alloc_inst failed......\n");
+		return ERR_PTR(-ENODEV);
+	}
+
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);

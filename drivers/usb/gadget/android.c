@@ -29,7 +29,6 @@
 #include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
-#include "f_fs.c"
 #include "f_audio_source.c"
 #include "f_mtp.c"
 #include "f_accessory.c"
@@ -46,6 +45,9 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
 
 static const char longname[] = "Gadget Android";
+static struct android_dev *_android_dev;
+
+#include "f_fs.c"
 
 /* Default vendor and product IDs, overridden by userspace */
 #define VENDOR_ID		0x18D1
@@ -100,7 +102,6 @@ struct android_dev {
 };
 
 static struct class *android_class;
-static struct android_dev *_android_dev;
 static int android_bind_config(struct usb_configuration *c);
 static void android_unbind_config(struct usb_configuration *c);
 
@@ -1544,6 +1545,7 @@ err_probe:
 	device_destroy(android_class, dev->dev->devt);
 err_create:
 	kfree(dev);
+	_android_dev = NULL;
 err_dev:
 	class_destroy(android_class);
 	return err;
