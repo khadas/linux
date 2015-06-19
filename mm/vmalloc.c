@@ -2702,6 +2702,9 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
 		if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
 			continue;
 
+		if (!(va->flags & VM_VM_AREA))
+			continue;
+
 		vmi->used += (va->va_end - va->va_start);
 
 		free_area_size = addr - prev_end;
