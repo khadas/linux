@@ -110,18 +110,23 @@ int vdec_set_resource(unsigned long start, unsigned long end, struct device *p)
 s32 vdec_init(enum vformat_e vf)
 {
 	s32 r;
+	int retry_num = 0;
 
 	if (inited_vcodec_num >= SUPPORT_VCODEC_NUM) {
 		pr_info("We only support the one video code at each time\n");
 		return -EIO;
 	}
-
+	if (vf == VFORMAT_H264_4K2K ||
+		vf == VFORMAT_HEVC) {
+		try_free_keep_video();
+	}
 	inited_vcodec_num++;
 
 	pr_info("vdec_dev_reg.mem[0x%lx -- 0x%lx]\n",
 		vdec_dev_reg.mem_start,
 		vdec_dev_reg.mem_end);
 
+retry_alloc:
 	if (vdec_dev_reg.mem_start == vdec_dev_reg.mem_end) {
 		pr_info("vdec cma tool size = %ld MB\n",
 			dma_get_cma_size_int_byte(vdec_dev_reg.cma_dev)
@@ -131,6 +136,12 @@ s32 vdec_init(enum vformat_e vf)
 			vdec_dev_reg.cma_dev,
 			CMA_ALLOC_SIZE / PAGE_SIZE, 4);
 		if (!vdec_cma_page) {
+			if (retry_num < 1) {
+				pr_err("vdec base CMA allocation failed,try again\\n");
+				retry_num++;
+				try_free_keep_video();
+				goto retry_alloc;
+			}
 			pr_err("vdec base CMA allocation failed.\n");
 			inited_vcodec_num--;
 			return -ENOMEM;

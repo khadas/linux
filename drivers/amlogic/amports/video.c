@@ -46,6 +46,10 @@
 #include <linux/amlogic/gpio-amlogic.h>
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-contiguous.h>
+
+#include "amports_priv.h"
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 #include <linux/amlogic/ge2d/ge2d.h>
@@ -175,7 +179,7 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 #define BRIDGE_IRQ_SET() WRITE_CBUS_REG(ISA_TIMERC, 1)
 #endif
 
-/*#define RESERVE_CLR_FRAME*/
+#define RESERVE_CLR_FRAME
 
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 
@@ -251,6 +255,7 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 		unsigned long flags; \
 		spin_lock_irqsave(&video_onoff_lock, flags); \
 		video_onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
+		video_enabled = 1;\
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
 	} while (0)
 
@@ -259,6 +264,7 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 		unsigned long flags; \
 		spin_lock_irqsave(&video_onoff_lock, flags); \
 		video_onoff_state = VIDEO_ENABLE_STATE_OFF_REQ; \
+		video_enabled = 0;\
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
 	} while (0)
 
@@ -519,16 +525,13 @@ u32 get_prot_status(void)
 }
 EXPORT_SYMBOL(get_prot_status);
 #endif
-static inline ulong keep_phy_addr(ulong addr)
+static inline ulong keep_phy_addr(struct page *addr)
 {
-	if (addr == 0)
-		return 0;
-#ifdef CONFIG_KEEP_FRAME_RESERVED
-	return addr;
-#else
-	return (ulong) virt_to_phys((u8 *) addr);
-#endif
+	return page_to_phys(addr);
 }
+static int free_alloced_keep_buffer(void);
+static int alloc_keep_buffer(void);
+static int _video_set_disable(u32 val);
 
 int video_property_notify(int flag)
 {
@@ -581,6 +584,7 @@ u32 amvideo_get_scaler_mode(void)
 	return video_scaler_mode;
 }
 #endif
+
 bool to_notify_trick_wait = false;
 /* display canvas */
 #define DISPLAY_CANVAS_BASE_INDEX 0x60
@@ -638,18 +642,16 @@ static u32 disp_canvas[2];
 #endif
 
 static u32 post_canvas;
-static ulong keep_y_addr = 0, *keep_y_addr_remap;
-static ulong keep_u_addr = 0, *keep_u_addr_remap;
-static ulong keep_v_addr = 0, *keep_v_addr_remap;
+
+
+struct page *keep_y_pages, *keep_u_pages, *keep_v_pages;
+static int keep_video_on;
+
 #define Y_BUFFER_SIZE   0x400000	/* for 1920*1088 */
 #define U_BUFFER_SIZE   0x100000	/* compatible with NV21 */
 #define V_BUFFER_SIZE   0x80000
 
-#ifdef CONFIG_KEEP_FRAME_RESERVED
-static uint y_buffer_size;
-static uint u_buffer_size;
-static uint v_buffer_size;
-#endif
+
 
 /* zoom information */
 static u32 zoom_start_x_lines;
@@ -670,7 +672,7 @@ static u32 force_blackout;
 
 /* disable video */
 static u32 disable_video = VIDEO_DISABLE_NONE;
-
+static u32 video_enabled;
 /* show first frame*/
 static bool show_first_frame_nosync;
 /* static bool first_frame=false; */
@@ -777,6 +779,17 @@ static int video_play_clone_rate = 60;
 static int android_clone_rate = 30;
 static int noneseamless_play_clone_rate = 5;
 #endif
+void safe_disble_videolayer(void)
+{
+#ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
+	if (video_scaler_mode)
+		DisableVideoLayer_PREBELEND();
+	else
+		DisableVideoLayer();
+#else
+	DisableVideoLayer();
+#endif
+}
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 static int display_canvas_y_dup;
@@ -836,7 +849,7 @@ static int ge2d_store_frame_YUV444(u32 cur_index)
 	y_index = cur_index & 0xff;
 	canvas_read(y_index, &cs);
 
-	yaddr = keep_phy_addr(keep_y_addr);
+	yaddr = keep_phy_addr(keep_y_pages);
 	canvas_config(ydupindex,
 		      (ulong) yaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -909,8 +922,8 @@ static int ge2d_store_frame_NV21(u32 cur_index)
 	pr_info("ge2d_store_frame_NV21 cur_index:s:0x%x\n", cur_index);
 
 	/* pr_info("ge2d_store_frame cur_index:d:0x%x\n", canvas_tab[0]); */
-	yaddr = keep_phy_addr(keep_y_addr);
-	uaddr = keep_phy_addr(keep_u_addr);
+	yaddr = keep_phy_addr(keep_y_pages);
+	uaddr = keep_phy_addr(keep_u_pages);
 
 	y_index = cur_index & 0xff;
 	u_index = (cur_index >> 8) & 0xff;
@@ -1011,7 +1024,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_planes[2].w = 0;
 	ge2d_config.src_planes[2].h = 0;
 
-	yaddr = keep_phy_addr(keep_y_addr);
+	yaddr = keep_phy_addr(keep_y_pages);
 	canvas_config(ydupindex,
 		      (ulong) yaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -1082,7 +1095,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_planes[2].w = 0;
 	ge2d_config.src_planes[2].h = 0;
 
-	uaddr = keep_phy_addr(keep_u_addr);
+	uaddr = keep_phy_addr(keep_u_pages);
 	canvas_config(udupindex,
 		      (ulong) uaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -1154,7 +1167,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_planes[2].w = 0;
 	ge2d_config.src_planes[2].h = 0;
 
-	vaddr = keep_phy_addr(keep_v_addr);
+	vaddr = keep_phy_addr(keep_v_pages);
 	canvas_config(vdupindex,
 		      (ulong) vaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -1236,29 +1249,29 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 	switch (format) {
 	case GE2D_FORMAT_M24_YUV444:
 		ge2d_store_frame_YUV444(cur_index);
-		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+		canvas_update_addr(y_index, keep_phy_addr(keep_y_pages));
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_pages));
 #endif
 		break;
 	case GE2D_FORMAT_M24_NV21:
 		ge2d_store_frame_NV21(cur_index);
-		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
-		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
+		canvas_update_addr(y_index, keep_phy_addr(keep_y_pages));
+		canvas_update_addr(u_index, keep_phy_addr(keep_u_pages));
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
-		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_pages));
+		canvas_update_addr(u_index2, keep_phy_addr(keep_u_pages));
 #endif
 		break;
 	case GE2D_FORMAT_M24_YUV420:
 		ge2d_store_frame_YUV420(cur_index);
-		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
-		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
-		canvas_update_addr(v_index, keep_phy_addr(keep_v_addr));
+		canvas_update_addr(y_index, keep_phy_addr(keep_y_pages));
+		canvas_update_addr(u_index, keep_phy_addr(keep_u_pages));
+		canvas_update_addr(v_index, keep_phy_addr(keep_v_pages));
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
-		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
-		canvas_update_addr(v_index2, keep_phy_addr(keep_v_addr));
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_pages));
+		canvas_update_addr(u_index2, keep_phy_addr(keep_u_pages));
+		canvas_update_addr(v_index2, keep_phy_addr(keep_v_pages));
 #endif
 		break;
 	default:
@@ -2377,7 +2390,10 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	}
 
 	cur_dispbuf = vf;
-
+	if (keep_video_on && cur_dispbuf != &vf_local) {
+		pr_info("toggle new frame after keep.\n");
+		keep_video_on = 0;
+	}
 	if (first_picture) {
 		frame_par_ready_to_set = 1;
 
@@ -4078,103 +4094,86 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 }
 
 #ifdef RESERVE_CLR_FRAME
+static int free_alloced_keep_buffer(void)
+{
+	pr_info("free_alloced_keep_buffer %p.%p.%p\n",
+		keep_y_pages, keep_u_pages, keep_v_pages);
+	if (keep_y_pages) {
+		dma_release_from_contiguous(get_codec_cma_device(),
+			keep_y_pages, PAGE_ALIGN(Y_BUFFER_SIZE)/PAGE_SIZE);
+		keep_y_pages = NULL;
+	}
+
+	if (keep_u_pages) {
+		dma_release_from_contiguous(get_codec_cma_device(),
+			keep_u_pages, PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE);
+		keep_u_pages = NULL;
+	}
+
+	if (keep_v_pages) {
+		dma_release_from_contiguous(get_codec_cma_device(),
+			keep_v_pages, PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE);
+		keep_v_pages = NULL;
+	}
+	return 0;
+}
+
 static int alloc_keep_buffer(void)
 {
-	amlog_mask(LOG_MASK_KEEPBUF, "alloc_keep_buffer\n");
-	if (!keep_y_addr) {
-		keep_y_addr =
-		    __get_free_pages(GFP_KERNEL, get_order(Y_BUFFER_SIZE));
-		if (!keep_y_addr) {
-			amlog_mask(LOG_MASK_KEEPBUF,
-				   "%s: failed to alloc y addr\n", __func__);
+	if (!keep_y_pages) {
+		keep_y_pages = dma_alloc_from_contiguous(
+				get_codec_cma_device(),
+				PAGE_ALIGN(Y_BUFFER_SIZE)/PAGE_SIZE, 0);
+		if (!keep_y_pages) {
+			pr_err("%s: failed to alloc y addr\n", __func__);
 			goto err1;
 		}
-		pr_info("alloc_keep_buffer keep_y_addr %x\n",
-		       (unsigned int)keep_y_addr);
-#ifndef CONFIG_GE2D_KEEP_FRAME
-		keep_y_addr_remap =
-		    ioremap_nocache(virt_to_phys((u8 *) keep_y_addr),
-				    Y_BUFFER_SIZE);
-		if (!keep_y_addr_remap) {
-			amlog_mask(LOG_MASK_KEEPBUF,
-				   "%s: failed to remap y addr\n", __func__);
-			goto err2;
-		}
-#endif
 	}
 
-	if (!keep_u_addr) {
-		keep_u_addr =
-		    __get_free_pages(GFP_KERNEL, get_order(U_BUFFER_SIZE));
-		if (!keep_u_addr) {
-			amlog_mask(LOG_MASK_KEEPBUF,
-				   "%s: failed to alloc u addr\n", __func__);
-			goto err3;
+	if (!keep_u_pages) {
+		keep_u_pages = dma_alloc_from_contiguous(
+				get_codec_cma_device(),
+				PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE, 0);
+		if (!keep_u_pages) {
+			pr_err("%s: failed to alloc u addr\n", __func__);
+			goto err1;
 		}
-		pr_info("alloc_keep_buffer keep_u_addr %x\n",
-		       (unsigned int)keep_u_addr);
-#ifndef CONFIG_GE2D_KEEP_FRAME
-		keep_u_addr_remap =
-		    ioremap_nocache(virt_to_phys((u8 *) keep_u_addr),
-				    U_BUFFER_SIZE);
-		if (!keep_u_addr_remap) {
-			amlog_mask(LOG_MASK_KEEPBUF,
-				   "%s: failed to remap u addr\n", __func__);
-			goto err4;
-		}
-#endif
 	}
 
-	if (!keep_v_addr) {
-		keep_v_addr =
-		    __get_free_pages(GFP_KERNEL, get_order(V_BUFFER_SIZE));
-		if (!keep_v_addr) {
-			amlog_mask(LOG_MASK_KEEPBUF,
-				   "%s: failed to alloc v addr\n", __func__);
-			goto err5;
+	if (!keep_v_pages) {
+		keep_v_pages = dma_alloc_from_contiguous(
+				get_codec_cma_device(),
+				PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE, 0);
+		if (!keep_v_pages) {
+			pr_err("%s: failed to alloc v addr\n", __func__);
+			goto err1;
 		}
-		pr_info("alloc_keep_buffer keep_v_addr %x\n",
-		       (unsigned int)keep_v_addr);
-#ifndef CONFIG_GE2D_KEEP_FRAME
-		keep_v_addr_remap =
-		    ioremap_nocache(virt_to_phys((u8 *) keep_v_addr),
-				    U_BUFFER_SIZE);
-		if (!keep_v_addr_remap) {
-			amlog_mask(LOG_MASK_KEEPBUF,
-				   "%s: failed to remap v addr\n", __func__);
-			goto err6;
-		}
-#endif
 	}
-	pr_info("yaddr=%lx,u_addr=%lx,v_addr=%lx\n", keep_y_addr, keep_u_addr,
-	       keep_v_addr);
+	pr_info("alloced keep buffer yaddr=%p,u_addr=%p,v_addr=%p\n",
+			keep_y_pages, keep_u_pages, keep_v_pages);
 	return 0;
 
-#ifndef CONFIG_GE2D_KEEP_FRAME
- err6:
-#endif
-	free_pages(keep_v_addr, get_order(U_BUFFER_SIZE));
-	keep_v_addr = 0;
- err5:
-	if (keep_u_addr_remap)
-		iounmap(keep_u_addr_remap);
-	keep_u_addr_remap = NULL;
-#ifndef CONFIG_GE2D_KEEP_FRAME
- err4:
-#endif
-	free_pages(keep_u_addr, get_order(U_BUFFER_SIZE));
-	keep_u_addr = 0;
- err3:
-	if (keep_y_addr_remap)
-		iounmap(keep_y_addr_remap);
-	keep_y_addr_remap = NULL;
-#ifndef CONFIG_GE2D_KEEP_FRAME
- err2:
-#endif
-	free_pages(keep_y_addr, get_order(Y_BUFFER_SIZE));
-	keep_y_addr = 0;
  err1:
+	free_alloced_keep_buffer();
 	return -ENOMEM;
+}
+
+void try_free_keep_video(void)
+{
+	if (keep_video_on) {
+		pr_info("disbled keep video before free keep buffer.\n");
+		keep_video_on = 0;
+		cur_dispbuf = NULL;
+		if (!disable_video) {
+			/*if not disable video,changed to 2 for */
+			pr_info("disbled video for next before free keep buffer!\n");
+			_video_set_disable(VIDEO_DISABLE_FORNEXT);
+		} else if (video_enabled) {
+			safe_disble_videolayer();
+		}
+	}
+	free_alloced_keep_buffer();
+	return;
 }
 #endif
 
@@ -4182,15 +4181,15 @@ void get_video_keep_buffer(ulong *addr, ulong *phys_addr)
 {
 #if 1
 	if (addr) {
-		addr[0] = (ulong) keep_y_addr_remap;
-		addr[1] = (ulong) keep_u_addr_remap;
-		addr[2] = (ulong) keep_v_addr_remap;
+		addr[0] = (ulong) 0;
+		addr[1] = (ulong) 0;
+		addr[2] = (ulong) 0;
 	}
 
 	if (phys_addr) {
-		phys_addr[0] = keep_phy_addr(keep_y_addr);
-		phys_addr[1] = keep_phy_addr(keep_u_addr);
-		phys_addr[2] = keep_phy_addr(keep_v_addr);
+		phys_addr[0] = 0;
+		phys_addr[1] = 0;
+		phys_addr[2] = 0;
 	}
 #endif
 	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
@@ -4308,14 +4307,8 @@ static void video_vf_unreg_provider(void)
 	}
 
 	if (blackout | force_blackout) {
-#ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
-		if (video_scaler_mode)
-			DisableVideoLayer_PREBELEND();
-		else
-			DisableVideoLayer();
-#else
-		DisableVideoLayer();
-#endif
+		safe_disble_videolayer();
+		try_free_keep_video();
 	}
 
 	vsync_pts_100 = 0;
@@ -4379,7 +4372,6 @@ static void video_vf_light_unreg_provider(void)
 		}
 	}
 #endif
-
 	spin_unlock_irqrestore(&lock, flags);
 }
 
@@ -4393,9 +4385,9 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 #ifdef CONFIG_AM_VIDEO2
 		set_clone_frame_rate(android_clone_rate, 200);
 #endif
-	} else if (type == VFRAME_EVENT_PROVIDER_RESET)
+	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		video_vf_light_unreg_provider();
-	else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
+	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
 		video_vf_light_unreg_provider();
 	else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		enable_video_discontinue_report = 1;
@@ -4459,14 +4451,19 @@ unsigned int get_post_canvas(void)
 	return post_canvas;
 }
 
-static int canvas_dup(ulong *dst, ulong src_paddr, ulong size)
+static int canvas_dup(ulong dst, ulong src_paddr, ulong size)
 {
-	void __iomem *p = ioremap_wc(src_paddr, size);
+	void *src_addr = phys_to_virt(src_paddr);
+	void *dst_addr = phys_to_virt(dst);
 
-	if (p) {
-		memcpy(dst, p, size);
-		iounmap(p);
-
+	if (src_paddr && dst && src_addr && dst_addr) {
+		dma_addr_t dma_addr = 0;
+		memcpy(dst_addr, src_addr, size);
+		dma_addr = dma_map_single(
+					amports_get_dma_device(), dst_addr,
+					size, DMA_TO_DEVICE);
+		dma_unmap_single(amports_get_dma_device(), dma_addr,
+					FETCHBUF_SIZE, DMA_TO_DEVICE);
 		return 1;
 	}
 
@@ -4478,57 +4475,69 @@ unsigned int vf_keep_current(void)
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
 
-	if (!cur_dispbuf)
+	if (!cur_dispbuf) {
+		pr_info("keep exit without cur_dispbuf\n");
 		return 0;
+	}
 
-	if (cur_dispbuf->source_type == VFRAME_SOURCE_TYPE_OSD)
+	if (cur_dispbuf->source_type == VFRAME_SOURCE_TYPE_OSD) {
+		pr_info("keep exit is osd\n");
 		return 0;
-	if (READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1)
+	}
+	if (READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1) {
+		pr_info("keep exit is di\n");
 		return 0;
-	if (debug_flag & DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT)
+	}
+	if (debug_flag & DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT) {
+		pr_info("keep exit is skip current\n");
 		return 0;
+	}
 
 #ifdef CONFIG_AM_VIDEOCAPTURE
 	ext_frame_capture_poll(1);	/*pull  if have capture end frame */
 #endif
-	if (blackout | force_blackout)
+	if (blackout | force_blackout) {
+		pr_info("keep exit is skip current\n");
 		return 0;
+	}
 
-	if (0 ==
-	    (READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off) & VPP_VD1_POSTBLEND))
+	if (0 == (READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off) &
+		VPP_VD1_POSTBLEND)) {
+		pr_info("keep exit is skip VPP_VD1_POSTBLEND\n");
 		return 0;
-#ifdef CONFIG_GE2D_KEEP_FRAME
-	/* if (!keep_y_addr ||
-	(cur_dispbuf->type & VIDTYPE_VIU_NV21) != VIDTYPE_VIU_NV21) { */
-	if (!keep_y_addr
-	    || (cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
-		/* no support VIDTYPE_VIU_422... */
-		return -1;
-	}
-#else
-	if (!keep_y_addr_remap) {
-		/* if (alloc_keep_buffer()) */
-		return -1;
-	}
-#endif
-	cur_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
-	y_index = cur_index & 0xff;
-	u_index = (cur_index >> 8) & 0xff;
-	v_index = (cur_index >> 16) & 0xff;
-
-	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
-		pr_info("%s %lx %x\n", __func__, keep_y_addr,
-		       canvas_get_addr(y_index));
 	}
 
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(cur_dispbuf->type & VIDTYPE_COMPRESS)) {
 		/* todo: duplicate compressed video frame */
+		pr_info("keep exit is skip VIDTYPE_COMPRESS\n");
 		return -1;
-	} else if ((cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
+	}
+	cur_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
+	y_index = cur_index & 0xff;
+	u_index = (cur_index >> 8) & 0xff;
+	v_index = (cur_index >> 16) & 0xff;
+	canvas_read(y_index, &cd);
+
+	if ((cd.width * cd.height) <= 2048 * 1088 &&
+			!keep_y_pages) {
+		alloc_keep_buffer();
+	}
+	if (!keep_y_pages
+	    || (cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
+		/* no support VIDTYPE_VIU_422... */
+		return -1;
+	}
+
+
+	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
+		pr_info("%s keep_y_pages=%p %x\n", __func__, keep_y_pages,
+		       canvas_get_addr(y_index));
+	}
+
+	if ((cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
 		return -1;
 		/* no VIDTYPE_VIU_422 type frame need keep,avoid memcpy crash*/
-		canvas_read(y_index, &cd);
 		if ((Y_BUFFER_SIZE < (cd.width * cd.height))) {
 			pr_info("[%s::%d]data > buf size: %x,%x,%x, %x,%x\n",
 				__func__, __LINE__, Y_BUFFER_SIZE,
@@ -4536,22 +4545,23 @@ unsigned int vf_keep_current(void)
 				cd.width, cd.height);
 			return -1;
 		}
-		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
-		    canvas_dup(keep_y_addr_remap, canvas_get_addr(y_index),
-			       (cd.width) * (cd.height))) {
+		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
+				canvas_dup(keep_phy_addr(keep_y_pages),
+				canvas_get_addr(y_index),
+				(cd.width) * (cd.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 #else
-			canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+			canvas_update_addr(y_index,
+				keep_phy_addr(keep_y_pages));
 #endif
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("%s: VIDTYPE_VIU_422\n", __func__);
 		}
 	} else if ((cur_dispbuf->type & VIDTYPE_VIU_444) == VIDTYPE_VIU_444) {
-		canvas_read(y_index, &cd);
 		if ((Y_BUFFER_SIZE < (cd.width * cd.height))) {
 			pr_info
 			    ("[%s::%d] error:data>buf size: %x,%x,%x, %x,%x\n",
@@ -4563,16 +4573,18 @@ unsigned int vf_keep_current(void)
 #ifdef CONFIG_GE2D_KEEP_FRAME
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_YUV444);
 #else
-		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
-		    canvas_dup(keep_y_addr_remap, canvas_get_addr(y_index),
-			       (cd.width) * (cd.height))) {
+		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
+				canvas_dup(keep_phy_addr(keep_y_pages),
+				canvas_get_addr(y_index),
+				(cd.width) * (cd.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 #else
-			canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+			canvas_update_addr(y_index,
+					keep_phy_addr(keep_y_pages));
 #endif
 		}
 #endif
@@ -4583,32 +4595,34 @@ unsigned int vf_keep_current(void)
 		canvas_read(u_index, &cs1);
 		if ((Y_BUFFER_SIZE < (cs0.width * cs0.height))
 		    || (U_BUFFER_SIZE < (cs1.width * cs1.height))) {
-			pr_info("## [%s::%d] error: yuv data size larger than buf size: %x,%x,%x, %x,%x, %x,%x\n",
-				__func__, __LINE__, Y_BUFFER_SIZE,
-				U_BUFFER_SIZE, V_BUFFER_SIZE, cs0.width,
-				cs0.height, cs1.width, cs1.height);
+			pr_info("## [%s::%d] error: yuv data size larger",
+				__func__, __LINE__);
 			return -1;
 		}
 #ifdef CONFIG_GE2D_KEEP_FRAME
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_NV21);
 #else
-		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
-		    canvas_dup(keep_y_addr_remap, canvas_get_addr(y_index),
-			       (cs0.width * cs0.height))
-		    && canvas_dup(keep_u_addr_remap, canvas_get_addr(u_index),
-				  (cs1.width * cs1.height))) {
+		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
+		    canvas_dup(keep_phy_addr(keep_y_pages),
+					canvas_get_addr(y_index),
+					(cs0.width * cs0.height))
+		    && canvas_dup(keep_phy_addr(keep_u_pages),
+					canvas_get_addr(u_index),
+					(cs1.width * cs1.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 			canvas_update_addr(disp_canvas_index[0][1],
-					   keep_phy_addr(keep_u_addr));
+					   keep_phy_addr(keep_u_pages));
 			canvas_update_addr(disp_canvas_index[1][1],
-					   keep_phy_addr(keep_u_addr));
+					   keep_phy_addr(keep_u_pages));
 #else
-			canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
-			canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
+			canvas_update_addr(y_index,
+				keep_phy_addr(keep_y_pages));
+			canvas_update_addr(u_index,
+				keep_phy_addr(keep_u_pages));
 #endif
 		}
 #endif
@@ -4632,34 +4646,37 @@ unsigned int vf_keep_current(void)
 #ifdef CONFIG_GE2D_KEEP_FRAME
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_YUV420);
 #else
-		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
-		    /*must not the same address */
-		    canvas_dup(keep_y_addr_remap, canvas_get_addr(y_index),
-			       (cs0.width * cs0.height))
-		    && canvas_dup(keep_u_addr_remap, canvas_get_addr(u_index),
-				  (cs1.width * cs1.height))
-		    && canvas_dup(keep_v_addr_remap, canvas_get_addr(v_index),
-				  (cs2.width * cs2.height))) {
+		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
+			/*must not the same address */
+		    canvas_dup(keep_phy_addr(keep_y_pages),
+					canvas_get_addr(y_index),
+					(cs0.width * cs0.height))
+		    && canvas_dup(keep_phy_addr(keep_u_pages),
+					canvas_get_addr(u_index),
+					(cs1.width * cs1.height))
+			&& canvas_dup(keep_phy_addr(keep_v_pages),
+					canvas_get_addr(v_index),
+					(cs2.width * cs2.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_addr));
+					   keep_phy_addr(keep_y_pages));
 			canvas_update_addr(disp_canvas_index[0][1],
-					   keep_phy_addr(keep_u_addr));
+					   keep_phy_addr(keep_u_pages));
 			canvas_update_addr(disp_canvas_index[1][1],
-					   keep_phy_addr(keep_u_addr));
+					   keep_phy_addr(keep_u_pages));
 			canvas_update_addr(disp_canvas_index[0][2],
-					   keep_phy_addr(keep_v_addr));
+					   keep_phy_addr(keep_v_pages));
 			canvas_update_addr(disp_canvas_index[1][2],
-					   keep_phy_addr(keep_v_addr));
+					   keep_phy_addr(keep_v_pages));
 #else
 			canvas_update_addr(y_index,
-				keep_phy_addr(keep_y_addr));
+				keep_phy_addr(keep_y_pages));
 			canvas_update_addr(u_index,
-				keep_phy_addr(keep_u_addr));
+				keep_phy_addr(keep_u_pages));
 			canvas_update_addr(v_index,
-				keep_phy_addr(keep_v_addr));
+				keep_phy_addr(keep_v_pages));
 #endif
 		}
 
@@ -4667,6 +4684,8 @@ unsigned int vf_keep_current(void)
 			pr_info("%s: VIDTYPE_VIU_420\n", __func__);
 #endif
 	}
+	keep_video_on = 1;
+	pr_info("%s: keep video on with keep\n", __func__);
 	return 0;
 
 }
@@ -4708,14 +4727,7 @@ int _video_set_disable(u32 val)
 	disable_video = val;
 
 	if (disable_video != VIDEO_DISABLE_NONE) {
-#ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
-		if (video_scaler_mode)
-			DisableVideoLayer_PREBELEND();
-		else
-			DisableVideoLayer();
-#else
-		DisableVideoLayer();
-#endif
+		safe_disble_videolayer();
 
 		if ((disable_video == VIDEO_DISABLE_FORNEXT) && cur_dispbuf
 		    && (cur_dispbuf != &vf_local))
@@ -5032,14 +5044,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 	case AMSTREAM_IOC_CLEAR_VIDEO:
 		if (blackout) {
-#ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
-			if (video_scaler_mode)
-				DisableVideoLayer_PREBELEND();
-			else
-				DisableVideoLayer();
-#else
-			DisableVideoLayer();
-#endif
+			safe_disble_videolayer();
 		}
 		break;
 
@@ -6879,11 +6884,8 @@ static void super_scaler_init(void)
 	WRITE_VCBUS_REG(0x312e, 0x00017f00);
 }
 #endif
-#ifdef CONFIG_KEEP_FRAME_RESERVED
-static int video_init(void)
-#else
+
 static int __init video_init(void)
-#endif
 {
 	int r = 0;
 	/*
@@ -6920,9 +6922,6 @@ static int __init video_init(void)
 	super_scaler_init();
 #endif
 
-#ifdef RESERVE_CLR_FRAME
-	alloc_keep_buffer();
-#endif
 
 	DisableVideoLayer();
 	DisableVideoLayer2();
@@ -7056,16 +7055,12 @@ static int __init video_init(void)
 	return r;
 }
 
-#ifdef CONFIG_KEEP_FRAME_RESERVED
-static void video_exit(void)
-#else
+
 static void __exit video_exit(void)
-#endif
 {
 	vf_unreg_receiver(&video_vf_recv);
 
 	vf_unreg_receiver(&video4osd_vf_recv);
-
 	DisableVideoLayer();
 	DisableVideoLayer2();
 
@@ -7088,123 +7083,7 @@ static void __exit video_exit(void)
 #endif
 }
 
-#ifdef CONFIG_KEEP_FRAME_RESERVED
-static int video_probe(struct platform_device *pdev)
-{
-	int ret = 0;
-	struct resource *res = NULL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		amlog_level(LOG_LEVEL_ERROR, "%s: failed to remap y addr\n",
-			    __func__);
-		ret = -ENOMEM;
-		goto fail_get_res;
-	}
-	pr_info("keep reserved %s y start %p, end %p\n", __func__,
-		(void *)res->start,
-		(void *)res->end);
-	keep_y_addr = res->start;
-	y_buffer_size = res->end - res->start + 1;
-	keep_y_addr_remap = ioremap_nocache(keep_y_addr, y_buffer_size);
-	if (!keep_y_addr_remap) {
-		amlog_level(LOG_LEVEL_ERROR, "%s: failed to remap y addr\n",
-			    __func__);
-		ret = -ENOMEM;
-		goto fail_ioremap;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res) {
-		amlog_level(LOG_LEVEL_ERROR,
-			    "video: can't get memory resource\n");
-		ret = -ENOMEM;
-		goto fail_get_res;
-	}
-	pr_info("%s u start %p, end %p\n", __func__,
-		(void *)res->start, (void *)res->end);
-	keep_u_addr = res->start;
-	u_buffer_size = res->end - res->start + 1;
-	keep_u_addr_remap = ioremap_nocache(keep_u_addr, u_buffer_size);
-	if (!keep_u_addr_remap) {
-		amlog_level(LOG_LEVEL_ERROR, "%s: failed to remap u addr\n",
-			    __func__);
-		ret = -ENOMEM;
-		goto fail_ioremap;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (!res) {
-		amlog_level(LOG_LEVEL_ERROR,
-			    "video: can't get memory resource\n");
-		ret = -ENOMEM;
-		goto fail_get_res;
-	}
-	pr_info("%s v start %p, end %p\n", __func__,
-		(void *)res->start, (void *)res->end);
-	keep_v_addr = res->start;
-	v_buffer_size = res->end - res->start + 1;
-	keep_v_addr_remap = ioremap_nocache(keep_v_addr, v_buffer_size);
-	if (!keep_v_addr_remap) {
-		amlog_level(LOG_LEVEL_ERROR, "%s: failed to remap v addr\n",
-			    __func__);
-		ret = -ENOMEM;
-		goto fail_ioremap;
-	}
-	goto add_video_init;
-
- fail_get_res:
- fail_ioremap:
-	if (keep_v_addr_remap)
-		iounmap(keep_v_addr_remap);
-	keep_v_addr_remap = NULL;
-	keep_v_addr = 0;
-	if (keep_u_addr_remap)
-		iounmap(keep_u_addr_remap);
-	keep_u_addr_remap = NULL;
-	keep_u_addr = 0;
-	if (keep_y_addr_remap)
-		iounmap(keep_y_addr_remap);
-	keep_y_addr_remap = NULL;
-	keep_y_addr = 0;
-
- add_video_init:
-	video_init();
-	return ret;
-
-}
-
-static int video_remove(struct platform_device *pdev)
-{
-	video_exit();
-	return 0;
-}
-
-static struct platform_driver video_plat_driver = {
-	.probe = video_probe,
-	.remove = video_remove,
-	.driver = {
-		   .name = "video",
-		   }
-};
-
-static int __init video_drv_init(void)
-{
-	int ret = 0;
-	ret = platform_driver_register(&video_plat_driver);
-	if (ret != 0) {
-		pr_info(KERN_ERR "failed to register video module, error %d\n",
-		       ret);
-		return -ENODEV;
-	}
-	return ret;
-}
-
-static void __exit video_drv_exit(void)
-{
-	platform_driver_unregister(&video_plat_driver);
-}
-#endif
 
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
 module_param(debug_flag, uint, 0664);
@@ -7237,13 +7116,9 @@ MODULE_PARM_DESC(skip, "\n Underflow count\n");
 
 /*arch_initcall(video_early_init);
 */
-#ifdef CONFIG_KEEP_FRAME_RESERVED
-module_init(video_drv_init);
-module_exit(video_drv_exit);
-#else
+
 module_init(video_init);
 module_exit(video_exit);
-#endif
 
 MODULE_PARM_DESC(smooth_sync_enable, "\n smooth_sync_enable\n");
 module_param(smooth_sync_enable, uint, 0664);

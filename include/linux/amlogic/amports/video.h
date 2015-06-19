@@ -25,6 +25,8 @@ u32 RDMA_READ_REG(u32 adr);
 int RDMA_SET_READ(u32 adr);
 #endif
 
+void try_free_keep_video(void);
+
 #endif
 
 

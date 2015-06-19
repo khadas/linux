@@ -40,13 +40,6 @@ config AM_VIDEO2
 	---help---
 	  Driver for video2 display.
 
-config KEEP_FRAME_RESERVED
-	boolean "Video keep frame used reserved buffer"
-	default n
-	depends on  AM_VIDEO
-	---help---
-	  Select to enable reserved buffer for last frame keeep.
-
 config SUPPORT_VIDEO_ON_VPP2
 	boolean "Support video on vpp2"
 	default n
