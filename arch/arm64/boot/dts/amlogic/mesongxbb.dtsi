@@ -110,9 +110,11 @@
 			     <0 153 4>,
 			     <0 154 4>;
 	};
-	meson_suspend{
+	meson_suspend:pm{
 	           compatible = "amlogic, pm";
 	           gxbaby-suspend;
+	           reg = <0x0 0xc81000a8 0x0 0x4
+	           		0x0 0xc810023c 0x0 0x4>;
 	};
 	gpu@d00c0000{
 		compatible = "arm,mali-450";

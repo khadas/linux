@@ -32,8 +32,9 @@
 #include <linux/suspend.h>
 
 #include <asm/suspend.h>
-
-
+#include <linux/of_address.h>
+#include <linux/input.h>
+#include <linux/amlogic/pm.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static struct early_suspend early_suspend;
@@ -41,6 +42,9 @@ static int early_suspend_flag;
 #endif
 static DEFINE_MUTEX(late_suspend_lock);
 static LIST_HEAD(late_suspend_handlers);
+static void __iomem *debug_reg;
+static void __iomem *exit_reg;
+static struct input_dev *input_dev;
 enum {
 	DEBUG_USER_STATE = 1U << 0,
 	DEBUG_SUSPEND = 1U << 2,
@@ -177,7 +181,50 @@ static const struct platform_suspend_ops meson_gx_ops = {
 	.finish = meson_pm_finish,
 	.valid = suspend_valid_only_mem,
 };
+static int meson_pm_resume(struct platform_device *pdev)
+{
+	if (readl(exit_reg) == AUTO_WAKEUP) {
+		input_event(input_dev, EV_KEY, KEY_POWER, 1);
+		input_sync(input_dev);
+		input_event(input_dev, EV_KEY, KEY_POWER, 0);
+		input_sync(input_dev);
+	}
+	return 0;
+}
 
+
+ssize_t time_out_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	unsigned val = 0, len;
+
+	val = readl(debug_reg);
+
+	len = sprintf(buf, "%d\n", val);
+
+	return len;
+}
+ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
+{
+	unsigned time_out;
+	int ret;
+
+	ret = sscanf(buf, "%d", &time_out);
+
+	switch (ret) {
+	case 1:
+		writel(time_out, debug_reg);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+
+DEVICE_ATTR(time_out, 0666, time_out_show, time_out_store);
 
 static int __init meson_pm_probe(struct platform_device *pdev)
 {
@@ -191,8 +238,15 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(pdev->dev.of_node, "gxbaby-suspend"))
 		suspend_set_ops(&meson_gx_ops);
-
-	pr_info(KERN_INFO "meson_pm_probe done\n");
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
+	debug_reg = of_iomap(pdev->dev.of_node, 0);
+	exit_reg = of_iomap(pdev->dev.of_node, 1);
+	writel(0x0, debug_reg);
+	device_create_file(&pdev->dev, &dev_attr_time_out);
+	device_rename(&pdev->dev, "aml_pm");
+	pr_info("meson_pm_probe done\n");
 	return 0;
 }
 
@@ -220,6 +274,7 @@ static struct platform_driver meson_pm_driver = {
 		   .of_match_table = amlogic_pm_dt_match,
 		   },
 	.remove = __exit_p(meson_pm_remove),
+	.resume = meson_pm_resume,
 };
 
 static int __init meson_pm_init(void)
