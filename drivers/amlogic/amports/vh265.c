@@ -5255,6 +5255,11 @@ static int amvdec_h265_remove(struct platform_device *pdev)
 
 	vh265_stop();
 
+	if (frame_width * frame_height > 2048 * 1088) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+			hevc_power_mode(1);
+	}
+
 #ifdef DEBUG_PTS
 	pr_info("pts missed %ld, pts hit %ld, duration %d\n",
 		   pts_missed, pts_hit, frame_dur);
