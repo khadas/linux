@@ -845,7 +845,7 @@ static const struct tvinfo_s tvinfoTab2[] = {
 		.tvmode = TVMODE_480I,
 		.xres = 720,
 		.yres = 480,
-		.id = "480i"
+		.id = "480i60hz"
 	},
 	{
 		.tvmode = TVMODE_480I_RPT,
@@ -863,7 +863,7 @@ static const struct tvinfo_s tvinfoTab2[] = {
 		.tvmode = TVMODE_480P,
 		.xres = 720,
 		.yres = 480,
-		.id = "480p"
+		.id = "480p60hz"
 	},
 	{
 		.tvmode = TVMODE_480P_RPT,
@@ -875,7 +875,7 @@ static const struct tvinfo_s tvinfoTab2[] = {
 		.tvmode = TVMODE_576I,
 		.xres = 720,
 		.yres = 576,
-		.id = "576i"
+		.id = "576i50hz"
 	},
 	{
 		.tvmode = TVMODE_576I_RPT,
@@ -893,7 +893,7 @@ static const struct tvinfo_s tvinfoTab2[] = {
 		.tvmode = TVMODE_576P,
 		.xres = 720,
 		.yres = 576,
-		.id = "576p"
+		.id = "576p50hz"
 	},
 	{
 		.tvmode = TVMODE_576P_RPT,
@@ -905,19 +905,19 @@ static const struct tvinfo_s tvinfoTab2[] = {
 		.tvmode = TVMODE_720P,
 		.xres = 1280,
 		.yres = 720,
-		.id = "720p"
+		.id = "720p60hz"
 	},
 	{
 		.tvmode = TVMODE_1080I,
 		.xres = 1920,
 		.yres = 1080,
-		.id = "1080i"
+		.id = "1080i60hz"
 	},
 	{
 		.tvmode = TVMODE_1080P,
 		.xres = 1920,
 		.yres = 1080,
-		.id = "1080p"
+		.id = "1080p60hz"
 	},
 	{
 		.tvmode = TVMODE_720P_50HZ,
@@ -947,25 +947,25 @@ static const struct tvinfo_s tvinfoTab2[] = {
 		.tvmode = TVMODE_4K2K_30HZ,
 		.xres = 3840,
 		.yres = 2160,
-		.id = "4k2k30hz"
+		.id = "2160p30hz"
 	},
 	{
 		.tvmode = TVMODE_4K2K_25HZ,
 		.xres = 3840,
 		.yres = 2160,
-		.id = "4k2k25hz"
+		.id = "2160p25hz"
 	},
 	{
 		.tvmode = TVMODE_4K2K_24HZ,
 		.xres = 3840,
 		.yres = 2160,
-		.id = "4k2k24hz"
+		.id = "2160p24hz"
 	},
 	{
 		.tvmode = TVMODE_4K2K_SMPTE,
 		.xres = 4096,
 		.yres = 2160,
-		.id = "4k2ksmpte"
+		.id = "smpte24hz"
 	},
 	{
 		.tvmode = TVMODE_VGA,

@@ -1359,26 +1359,26 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 static struct dispmode_vic dispmode_vic_tab[] = {
 	{"480i_4_3",  HDMI_480i60},
 	{"480i_rpt",  HDMI_480i60_16x9_rpt},
-	{"480i",	  HDMI_480i60_16x9},
+	{"480i60hz",	  HDMI_480i60_16x9},
 	{"480p_4_3",  HDMI_480p60},
 	{"480p_rpt",  HDMI_480p60_16x9_rpt},
-	{"480p",	  HDMI_480p60_16x9},
+	{"480p60hz",	  HDMI_480p60_16x9},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"480p59hz",  HDMI_480p60_16x9},
 #endif
 	{"576i_4_3",  HDMI_576i50},
 	{"576i_rpt",  HDMI_576i50_16x9_rpt},
-	{"576i",	  HDMI_576i50_16x9},
+	{"576i50hz",	  HDMI_576i50_16x9},
 	{"576p_4_3",  HDMI_576p50},
 	{"576p_rpt",  HDMI_576p50_16x9_rpt},
-	{"576p",	  HDMI_576p50_16x9},
+	{"576p50hz",	  HDMI_576p50_16x9},
 	{"720p50hz",  HDMI_720p50},
-	{"720p",	  HDMI_720p60},
+	{"720p60hz",	  HDMI_720p60},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"720p59hz",  HDMI_720p60},
 #endif
 	{"1080i50hz", HDMI_1080i50},
-	{"1080i",	 HDMI_1080i60},
+	{"1080i60hz",	 HDMI_1080i60},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"1080i59hz", HDMI_1080i60},
 #endif
@@ -1388,22 +1388,22 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"1080p23hz", HDMI_1080p24},
 #endif
-	{"1080p",	 HDMI_1080p60},
+	{"1080p60hz",	 HDMI_1080p60},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"1080p59hz", HDMI_1080p60},
 #endif
-	{"4k2k30hz",  HDMI_4k2k_30},
+	{"2160p30hz",  HDMI_4k2k_30},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"4k2k29hz",  HDMI_4k2k_30},
 #endif
-	{"4k2k25hz",  HDMI_4k2k_25},
-	{"4k2k24hz",  HDMI_4k2k_24},
+	{"2160p25hz",  HDMI_4k2k_25},
+	{"2160p24hz",  HDMI_4k2k_24},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"4k2k23hz",  HDMI_4k2k_24},
 #endif
-	{"4k2ksmpte", HDMI_4k2k_smpte_24},
-	{"4k2k60hz", HDMI_4k2k_60},
-	{"4k2k50hz", HDMI_4k2k_50},
+	{"smpte24hz", HDMI_4k2k_smpte_24},
+	{"2160p60hz", HDMI_4k2k_60},
+	{"2160p50hz", HDMI_4k2k_50},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)

@@ -157,7 +157,7 @@ static const enum tvmode_e vmode_tvmode_tab[] = {
 
 static const struct vinfo_s tv_info[] = {
 	{ /* VMODE_480I */
-		.name              = "480i",
+		.name              = "480i60hz",
 		.mode              = VMODE_480I,
 		.width             = 720,
 		.height            = 480,
@@ -207,7 +207,7 @@ static const struct vinfo_s tv_info[] = {
 		.video_clk         = 27000000,
 	},
 	{ /* VMODE_480P */
-		.name              = "480p",
+		.name              = "480p60hz",
 		.mode              = VMODE_480P,
 		.width             = 720,
 		.height            = 480,
@@ -231,7 +231,7 @@ static const struct vinfo_s tv_info[] = {
 		.video_clk         = 27000000,
 	},
 	{ /* VMODE_576I */
-		.name              = "576i",
+		.name              = "576i50hz",
 		.mode              = VMODE_576I,
 		.width             = 720,
 		.height            = 576,
@@ -267,7 +267,7 @@ static const struct vinfo_s tv_info[] = {
 		.video_clk         = 27000000,
 	},
 	{ /* VMODE_576P */
-		.name              = "576p",
+		.name              = "576p50hz",
 		.mode              = VMODE_576P,
 		.width             = 720,
 		.height            = 576,
@@ -291,7 +291,7 @@ static const struct vinfo_s tv_info[] = {
 		.video_clk         = 27000000,
 	},
 	{ /* VMODE_720P */
-		.name              = "720p",
+		.name              = "720p60hz",
 		.mode              = VMODE_720P,
 		.width             = 1280,
 		.height            = 720,
@@ -317,7 +317,7 @@ static const struct vinfo_s tv_info[] = {
 	},
 #endif
 	{ /* VMODE_1080I */
-		.name              = "1080i",
+		.name              = "1080i60hz",
 		.mode              = VMODE_1080I,
 		.width             = 1920,
 		.height            = 1080,
@@ -343,7 +343,7 @@ static const struct vinfo_s tv_info[] = {
 	},
 #endif
 	{ /* VMODE_1080P */
-		.name              = "1080p",
+		.name              = "1080p60hz",
 		.mode              = VMODE_1080P,
 		.width             = 1920,
 		.height            = 1080,
@@ -431,7 +431,7 @@ static const struct vinfo_s tv_info[] = {
 	},
 #endif
 	{ /* VMODE_4K2K_30HZ */
-		.name              = "4k2k30hz",
+		.name              = "2160p30hz",
 		.mode              = TVMODE_4K2K_30HZ,
 		.width             = 3840,
 		.height            = 2160,
@@ -457,7 +457,7 @@ static const struct vinfo_s tv_info[] = {
 	},
 #endif
 	{ /* VMODE_4K2K_25HZ */
-		.name              = "4k2k25hz",
+		.name              = "2160p25hz",
 		.mode              = TVMODE_4K2K_25HZ,
 		.width             = 3840,
 		.height            = 2160,
@@ -469,7 +469,7 @@ static const struct vinfo_s tv_info[] = {
 		.video_clk         = 297000000,
 	},
 	{ /* VMODE_4K2K_24HZ */
-		.name              = "4k2k24hz",
+		.name              = "2160p24hz",
 		.mode              = TVMODE_4K2K_24HZ,
 		.width             = 3840,
 		.height            = 2160,
@@ -495,7 +495,7 @@ static const struct vinfo_s tv_info[] = {
 	},
 #endif
 	{ /* VMODE_4K2K_SMPTE */
-		.name              = "4k2ksmpte",
+		.name              = "smpte24hz",
 		.mode              = TVMODE_4K2K_SMPTE,
 		.width             = 4096,
 		.height            = 2160,

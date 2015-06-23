@@ -52,21 +52,21 @@ static struct para_pair_s logo_args[] = {
 };
 
 static struct para_pair_s mode_infos[] = {
-	{"480i", VMODE_480I},
-	{"480p", VMODE_480P},
-	{"576i", VMODE_576I},
-	{"576p", VMODE_576P},
-	{"720p", VMODE_720P},
-	{"1080i", VMODE_1080I},
-	{"1080p", VMODE_1080P},
+	{"480i60hz", VMODE_480I},
+	{"480p60hz", VMODE_480P},
+	{"576i50hz", VMODE_576I},
+	{"576p50hz", VMODE_576P},
+	{"720p60hz", VMODE_720P},
+	{"1080i60hz", VMODE_1080I},
+	{"1080p60hz", VMODE_1080P},
 	{"720p50hz", VMODE_720P_50HZ},
 	{"1080i50hz", VMODE_1080I_50HZ},
 	{"1080p50hz", VMODE_1080P_50HZ},
 	{"1080p24hz", VMODE_1080P_24HZ},
-	{"4k2k24hz", VMODE_4K2K_24HZ},
-	{"4k2k25hz", VMODE_4K2K_25HZ},
-	{"4k2k30hz", VMODE_4K2K_30HZ},
-	{"4k2ksmpte", VMODE_4K2K_SMPTE},
+	{"2160p24hz", VMODE_4K2K_24HZ},
+	{"2160p25hz", VMODE_4K2K_25HZ},
+	{"2160p30hz", VMODE_4K2K_30HZ},
+	{"smpte24hz", VMODE_4K2K_SMPTE},
 };
 
 struct logo_info_s {

@@ -74,7 +74,7 @@ const struct vinfo_s *hdmi_get_current_vinfo(void);
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
 const struct vinfo_s vinfo_1080p60hz = {
-	.name = "1080p",
+	.name = "1080p60hz",
 	.mode = VMODE_1080P,
 	.width = 1920,
 	.height = 1080,
@@ -279,13 +279,13 @@ static  int  set_disp_mode(const char *mode)
 	enum hdmi_vic vic;
 
 	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
-	if (strncmp(mode, "4k2k30hz", strlen("4k2k30hz")) == 0)
+	if (strncmp(mode, "2160p30hz", strlen("2160p30hz")) == 0)
 		vic = HDMI_4k2k_30;
-	else if (strncmp(mode, "4k2k25hz", strlen("4k2k25hz")) == 0)
+	else if (strncmp(mode, "2160p25hz", strlen("2160p25hz")) == 0)
 		vic = HDMI_4k2k_25;
-	else if (strncmp(mode, "4k2k24hz", strlen("4k2k24hz")) == 0)
+	else if (strncmp(mode, "2160p24hz", strlen("2160p24hz")) == 0)
 		vic = HDMI_4k2k_24;
-	else if (strncmp(mode, "4k2ksmpte", strlen("4k2ksmpte")) == 0)
+	else if (strncmp(mode, "smpte24hz", strlen("smpte24hz")) == 0)
 		vic = HDMI_4k2k_smpte_24;
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	else if (strncmp(mode, "4k2k29hz", strlen("4k2k29hz")) == 0)
@@ -468,16 +468,16 @@ static int set_disp_mode_auto(void)
 
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
-	if (strncmp(info->name, "4k2k30hz", strlen("4k2k30hz")) == 0) {
+	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
-	} else if (strncmp(info->name, "4k2k25hz",
-		strlen("4k2k25hz")) == 0) {
+	} else if (strncmp(info->name, "2160p25hz",
+		strlen("2160p25hz")) == 0) {
 		vic = HDMI_4k2k_25;
-	} else if (strncmp(info->name, "4k2k24hz",
-		strlen("4k2k24hz")) == 0) {
+	} else if (strncmp(info->name, "2160p24hz",
+		strlen("2160p24hz")) == 0) {
 		vic = HDMI_4k2k_24;
-	} else if (strncmp(info->name, "4k2ksmpte",
-		strlen("4k2ksmpte")) == 0)
+	} else if (strncmp(info->name, "smpte24hz",
+		strlen("smpte24hz")) == 0)
 		vic = HDMI_4k2k_smpte_24;
 	else {
 	/* nothing */
@@ -828,25 +828,25 @@ static ssize_t store_debug(struct device *dev,
 
 /* support format lists */
 const char *disp_mode_t[] = {
-	"480i",
+	"480i60hz",
 	"480i_rpt",
-	"480p",
+	"480p60hz",
 	"480p_rpt",
-	"576i",
+	"576i50hz",
 	"576i_rpt",
-	"576p",
+	"576p50hz",
 	"576p_rpt",
-	"720p",
-	"1080i",
-	"1080p",
+	"720p60hz",
+	"1080i60hz",
+	"1080p60hz",
 	"720p50hz",
 	"1080i50hz",
 	"1080p50hz",
 	"1080p24hz",
-	"4k2k30hz",
-	"4k2k25hz",
-	"4k2k24hz",
-	"4k2ksmpte",
+	"2160p30hz",
+	"2160p25hz",
+	"2160p24hz",
+	"2160psmpte",
 	NULL
 };
 
