@@ -183,7 +183,7 @@ struct amlsd_host {
 	dma_addr_t		dma_gdesc; /* 0x200 */
 	dma_addr_t		dma_gping; /* 0x400 */
 	dma_addr_t		dma_gpong; /* 0x800 */
-
+	char is_tunning;
 	unsigned int irq;
 	unsigned int irq_in;
 	unsigned int irq_out;
@@ -1119,7 +1119,8 @@ struct sd_emmc_desc_info {
 	pr_info(KERN_WARNING "[%s] : %s\n", __func__, __FILE__);
 /* #define DBG_LINE_INFO() */
 /* #define dev_err(a,s) pr_info(KERN_INFO s); */
-
+#define BOOT_POLL_UP_DOWN (0x3C << 2)
+#define BOOT_POLL_UP_DOWN_EN (0x4A << 2)
 
 #define AML_MMC_DISABLED_TIMEOUT	100
 #define AML_MMC_SLEEP_TIMEOUT		1000

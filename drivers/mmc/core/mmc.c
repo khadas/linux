@@ -1047,6 +1047,7 @@ static int mmc_select_hs400(struct mmc_card *card)
 			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS400,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
+
 	if (err) {
 		pr_warn("%s: switch to hs400 failed, err:%d\n",
 			 mmc_hostname(host), err);
@@ -1055,6 +1056,12 @@ static int mmc_select_hs400(struct mmc_card *card)
 
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
+	mmc_host_clk_hold(host);
+	err = host->ops->execute_tuning(host, MMC_SEND_TUNING_BLOCK_HS200);
+	mmc_host_clk_release(host);
+
+	if (err)
+		return err;
 
 	return 0;
 }

@@ -360,7 +360,7 @@
 			"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_1_8V_DDR"
 			/*,
            		"MMC_CAP_ERASE", "MMC_CAP_HW_RESET"*/;
-            caps2 = "MMC_CAP2_HS200";
+            caps2 = "MMC_CAP2_HS200","MMC_CAP2_HS400";
 			f_min = <400000>;
             f_max = <200000000>;
             max_req_size = <0x20000>;          /**256KB*/
