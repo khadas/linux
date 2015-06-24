@@ -543,4 +543,10 @@
 		reg = <0x0 0xc8834000 0x0 0x4>;
 	};
 
+	audio_data:audio_data {
+		compatible = "amlogic, audio_data";
+		query_licence_cmd = <0x82000050>;
+		status = "disabled";
+	};
+
 };/* end of / */

@@ -18,13 +18,13 @@ obj-$(CONFIG_AML_CPU_VERSION)	+= cpu_version/
 
 obj-$(CONFIG_PINCTRL_AMLOGIC)	+= pinctrl/
 
-obj-$(CONFIG_AMLOGIC_USB)  	+= usb/
+obj-$(CONFIG_AMLOGIC_USB)	+= usb/
 
 obj-$(CONFIG_AMLOGIC_CLK)	+= clk/
 
-obj-$(CONFIG_AML_HDMI_TX) 	+= hdmi/
+obj-$(CONFIG_AML_HDMI_TX)	+= hdmi/
 
-obj-$(CONFIG_AML_RTC) 		+= rtc/
+obj-$(CONFIG_AML_RTC)		+= rtc/
 
 obj-$(CONFIG_AM_IRBLASTER)	+= irblaster/
 
@@ -42,21 +42,21 @@ obj-$(CONFIG_AMLOGIC_SEC)	+= secmon/
 
 obj-$(CONFIG_AM_PHY)		+= ethernet/
 
-obj-$(CONFIG_MMC_AML) 		+= mmc/
+obj-$(CONFIG_MMC_AML)		+= mmc/
 
-obj-$(CONFIG_AML_VPU) 		+= vpu/
+obj-$(CONFIG_AML_VPU)		+= vpu/
 
-obj-$(CONFIG_AMLOGIC_ION) 	+= ion_dev/
+obj-$(CONFIG_AMLOGIC_ION)	+= ion_dev/
 
-obj-$(CONFIG_AML_DISPLAY) 	+= display/
+obj-$(CONFIG_AML_DISPLAY)	+= display/
 
-obj-$(CONFIG_AML_CANVAS) 	+= canvas/
+obj-$(CONFIG_AML_CANVAS)	+= canvas/
 
 obj-$(CONFIG_AM_VIDEO)		+= amports/
 
 obj-$(CONFIG_DEINTERLACE)   += deinterlace/
 
-obj-$(CONFIG_AML_VFM) 		+= vfm/
+obj-$(CONFIG_AML_VFM)		+= vfm/
 
 obj-$(CONFIG_EFUSE)		+= efuse/
 
@@ -64,11 +64,11 @@ obj-$(CONFIG_POST_PROCESS_MANAGER) += ppmgr/
 
 obj-$(CONFIG_AM_WIFI)		+= wifi/
 
-obj-$(CONFIG_AML_POWER_RESET) 	+= reset/
+obj-$(CONFIG_AML_POWER_RESET)	+= reset/
 
-obj-$(CONFIG_BT_DEVICE) 	+= bluetooth/
+obj-$(CONFIG_BT_DEVICE)		+= bluetooth/
 
-obj-$(CONFIG_AMLOGIC_IONVIDEO) 	+= ionvideo/
+obj-$(CONFIG_AMLOGIC_IONVIDEO)	+= ionvideo/
 
 obj-$(CONFIG_AML_AUDIO_DSP)	+= audiodsp/
 
@@ -88,7 +88,7 @@ obj-$(CONFIG_AML_NAND)		+= amlnf/
 
 obj-$(CONFIG_AM_INPUT)		+= input/
 
-obj-$(CONFIG_MESON_SUSPEND) 	+= pm/
+obj-$(CONFIG_MESON_SUSPEND)	+= pm/
 
 obj-$(CONFIG_AM_DVB)		+= dvb_tv/
 
@@ -97,3 +97,5 @@ obj-$(CONFIG_MESON_MHU_MBOX)	+= mailbox/
 obj-$(CONFIG_AML_RDMA)		+= rdma/
 
 obj-$(CONFIG_AML_TEMP_SENSOR) += thermal/
+
+obj-$(CONFIG_AUDIO_DATA) += audinfo_kernel/

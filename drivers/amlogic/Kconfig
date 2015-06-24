@@ -91,4 +91,6 @@ source "drivers/amlogic/rdma/Kconfig"
 
 source "drivers/amlogic/thermal/Kconfig"
 
+source "drivers/amlogic/audinfo_kernel/Kconfig"
+
 endmenu

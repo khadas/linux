@@ -671,4 +671,6 @@
 &efuse {
 	status = "okay";
 };
-
+&audio_data{
+	status = "okay";
+};
