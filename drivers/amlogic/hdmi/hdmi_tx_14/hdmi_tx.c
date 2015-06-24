@@ -846,7 +846,7 @@ const char *disp_mode_t[] = {
 	"2160p30hz",
 	"2160p25hz",
 	"2160p24hz",
-	"2160psmpte",
+	"smpte24hz",
 	NULL
 };
 
