@@ -443,10 +443,12 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 				 i);
 				mutex_unlock(&vh264_4k2k_mutex);
 				return -1;
-			} else
+			}
+#ifdef CONFIG_ARM64
+			else
 				dma_clear_buffer(buffer_spec[i].alloc_pages,
 					buffer_spec[i].alloc_count * PAGE_SIZE);
-
+#endif
 			addr = page_to_phys(buffer_spec[i].alloc_pages);
 			dpb_addr = addr;
 		} else {

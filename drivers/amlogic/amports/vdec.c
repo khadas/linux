@@ -136,8 +136,9 @@ s32 vdec_init(enum vformat_e vf)
 			return -ENOMEM;
 		}
 
+#ifdef CONFIG_ARM64
 		dma_clear_buffer(vdec_cma_page, CMA_ALLOC_SIZE);
-
+#endif
 		pr_info("vdec base cma page allocated %p\n", vdec_cma_page);
 
 		vdec_dev_reg.mem_start = page_to_phys(vdec_cma_page);
