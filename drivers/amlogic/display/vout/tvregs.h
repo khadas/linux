@@ -398,8 +398,8 @@ static const struct reg_s tvregs_480cvbs_clk[] = {
 };
 
 static const struct reg_s tvregs_480cvbs_enc[] = {
-	{ENCI_CFILT_CTRL,              0x12,},
-	{ENCI_CFILT_CTRL2,              0x12,},
+	{ENCI_CFILT_CTRL,              0x12,  },
+	{ENCI_CFILT_CTRL2,             0x12,  },
 	{VENC_DVI_SETTING,             0,     },
 	{ENCI_VIDEO_MODE,              0,     },
 	{ENCI_VIDEO_MODE_ADV,          0,     },
@@ -424,7 +424,7 @@ static const struct reg_s tvregs_480cvbs_enc[] = {
 	{ENCI_DBG_PX_RST,              0,     },
 	{VENC_INTCTRL,                 0x2,   },
 	{ENCI_VFIFO2VD_CTL,            0x4e01,},
-	{VENC_VDAC_SETTING,          0,     },
+	{VENC_VDAC_SETTING,            0,     },
 	{VENC_UPSAMPLE_CTRL0,          0x0061,},
 	{VENC_UPSAMPLE_CTRL1,          0x4061,},
 	{VENC_UPSAMPLE_CTRL2,          0x5061,},
@@ -440,10 +440,12 @@ static const struct reg_s tvregs_480cvbs_enc[] = {
 	{ENCI_DACSEL_1,                0x11   },
 	{ENCP_VIDEO_EN,                0,     },
 	{ENCI_VIDEO_EN,                1,     },
-	{ENCI_VIDEO_SAT,               0x7        },
-	{VENC_VDAC_DAC0_FILT_CTRL0,    0x1        },
-	{VENC_VDAC_DAC0_FILT_CTRL1,    0xfc48     },
-	{ENCI_MACV_N0,                 0x0        },
+	{ENCI_VIDEO_SAT,               0x12   },
+	{VENC_VDAC_DAC0_FILT_CTRL0,    0x1    },
+	{VENC_VDAC_DAC0_FILT_CTRL1,    0xfc48 },
+	{ENCI_MACV_N0,                 0x0    },
+	{ENCI_SYNC_ADJ,                0x9c00 },
+	{ENCI_VIDEO_CONT,              0x3    },
 	{MREG_END_MARKER,              0      }
 };
 
