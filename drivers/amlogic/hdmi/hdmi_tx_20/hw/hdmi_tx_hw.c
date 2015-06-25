@@ -397,11 +397,13 @@ static void hdmitx_hdcp_test(void)
 
 }
 
+static enum hdmi_vic get_vic_from_pkt(void);
+
 static int hdmitx_uboot_already_display(void)
 {
 	if ((hd_read_reg(P_HHI_HDMI_CLK_CNTL) & (1 << 8))
 		&& (hd_read_reg(P_HHI_HDMI_PLL_CNTL) & (1 << 31))
-		&& (hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID))) {
+		&& (get_vic_from_pkt())) {
 		pr_info("hdmitx: alread display in uboot\n");
 		return 1;
 	} else
@@ -1842,19 +1844,37 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 
 static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 {
-	/* TODO */
-	/* AVI frame */
-	int i;
-	unsigned char ucData;
-	/* unsigned int pkt_reg_base= 0x0;	//TODO */
 	int pkt_data_len = 0;
 
 	switch (type) {
-	case HDMI_PACKET_AVI:
+	case HDMI_PACKET_AVI: /* TODO */
 		pkt_data_len = 13;
 		break;
 	case HDMI_PACKET_VEND:
-		pkt_data_len = 6;
+		if (!DB) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
+			return;
+		}
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, DB[0]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID1, DB[1]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID2, DB[2]);
+		if (DB[3] == 0x20) { /* set HDMI VIC */
+			hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 5);
+		}
+		if (DB[3] == 0x40) { /* 3D VSI */
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 6);
+		}
+		/* Enable VSI packet */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
+		hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO1, 0);
+		hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO2, 0x10);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
 		break;
 	case HDMI_AUDIO_INFO:
 		pkt_data_len = 9;
@@ -1864,14 +1884,6 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	default:
 		break;
 	}
-
-	if (DB) {
-		for (i = 0, ucData = 0; i < pkt_data_len ; i++)
-			ucData -= DB[i];
-		for (i = 0; i < 3; i++)
-			ucData -= HB[i];
-	}
-
 }
 
 
@@ -3005,6 +3017,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		break;
 	case CONF_CLR_VSDB_PACKET:
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
 		break;
 	case CONF_CLR_AUDINFO_PACKET:
 		break;
@@ -3063,6 +3076,28 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	return 1;
 }
 
+static enum hdmi_vic get_vic_from_pkt(void)
+{
+	enum hdmi_vic vic = HDMI_Unkown;
+
+	vic = hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID);
+	if (vic == HDMI_Unkown) {
+		vic = (enum hdmi_vic)hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD1);
+		if (vic == 1)
+			vic = HDMI_3840x2160p30_16x9;
+		else if (vic == 2)
+			vic = HDMI_3840x2160p25_16x9;
+		else if (vic == 3)
+			vic = HDMI_3840x2160p24_16x9;
+		else if (vic == 4)
+			vic = HDMI_4096x2160p24_256x135;
+		else
+			vic = HDMI_Unkown;
+	}
+
+	return vic;
+}
+
 static int hdmitx_get_state(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned argv)
 {
@@ -3073,7 +3108,7 @@ static int hdmitx_get_state(struct hdmitx_dev *hdev, unsigned cmd,
 
 	switch (cmd) {
 	case STAT_VIDEO_VIC:
-		return hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID); /* TODO HDMIVIC */
+		return (int)get_vic_from_pkt();
 		break;
 	case STAT_VIDEO_CLK:
 		break;
