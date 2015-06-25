@@ -105,8 +105,6 @@ static u32 error_skip_nal_watchdog_count;
 static u32 error_system_watchdog_count;
 
 #ifdef SUPPORT_10BIT
-#define HEVCD_MPP_DECOMP_CTL1                      0x34c2
-#define HEVCD_MPP_DECOMP_CTL2                      0x34c3
 #define HEVC_CM_BODY_START_ADDR                    0x3626
 #define HEVC_CM_BODY_LENGTH                        0x3627
 #define HEVC_CM_HEADER_LENGTH                      0x3629
@@ -120,6 +118,7 @@ static u32 double_write_mode;
 /*#define DECOMP_HEADR_SURGENT*/
 
 static u32 enable_mem_saving = 1;
+static u32 workaround_enable;
 #endif
 
 #define H265_DEBUG_BUFMGR                   0x01
@@ -1655,9 +1654,11 @@ static void init_pic_list_hw(struct hevc_state_s *hevc)
 		 hevc->pic_h, hevc->mem_saving_mode);
 
 	if (hevc->mem_saving_mode == 1)
-		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1, 1 << 3);
+		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1,
+			(1 << 3) | ((workaround_enable & 2) ? 1 : 0));
 	else
-		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1, 0x0);
+		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1,
+			((workaround_enable & 2) ? 1 : 0));
 	WRITE_VREG(HEVCD_MPP_DECOMP_CTL2, (losless_comp_body_size >> 5));
 	/*WRITE_VREG(HEVCD_MPP_DECOMP_CTL3,(0xff<<20) | (0xff<<10) | 0xff);
 		//8-bit mode */
@@ -2924,6 +2925,8 @@ static void config_sao_hw(struct hevc_state_s *hevc, union param_u *params)
 		data32 |= (1 << 9);
 	else
 		data32 &= ~(1 << 9);
+	if (workaround_enable & 1)
+		data32 |= (1 << 7);
 	WRITE_VREG(HEVC_SAO_CTRL5, data32);
 
 	data32 = cur_pic->mc_y_adr;
@@ -5240,6 +5243,12 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 		vh265_amstream_dec_info.height = 0;
 		vh265_amstream_dec_info.rate = 30;
 	}
+
+	if (pdata->flag & DEC_FLAG_HEVC_WORKAROUND) {
+		workaround_enable |= 3;
+		pr_info("amvdec_h265 HEVC_WORKAROUND flag set.\n");
+	} else
+		workaround_enable &= ~3;
 
 	cma_dev = pdata->cma_dev;
 

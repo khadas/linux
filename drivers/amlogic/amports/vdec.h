@@ -26,6 +26,7 @@ struct vdec_dev_reg_s {
 	unsigned long mem_end;
 	struct device *cma_dev;
 	struct dec_sysinfo *sys_info;
+	unsigned long flag;
 } /*vdec_dev_reg_t */;
 
 extern void dma_clear_buffer(struct page *page, size_t size);
@@ -42,6 +43,7 @@ s32 vdec_dev_unregister(void);
 void vdec_power_mode(int level);
 void hevc_power_mode(int level);
 
+#define DEC_FLAG_HEVC_WORKAROUND 0x01
 
 enum vdec_type_e {
 	VDEC_1 = 0,

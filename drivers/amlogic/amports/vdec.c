@@ -43,6 +43,8 @@
 
 #include "arch/clk.h"
 #include <linux/reset.h>
+#include <linux/amlogic/cpu_version.h>
+
 static DEFINE_MUTEX(vdec_mutex);
 
 #define MC_SIZE (4096 * 4)
@@ -57,6 +59,13 @@ static struct platform_device *vdec_device;
 static struct platform_device *vdec_core_device;
 static struct page *vdec_cma_page;
 static unsigned long reserved_mem_start, reserved_mem_end;
+static int hevc_max_reset_count;
+static bool hevc_workaround;
+
+#define HEVC_TEST_LIMIT1 50
+#define HEVC_TEST_LIMIT2 100
+
+#define GXBB_REV_A_MINOR 13
 
 struct am_reg {
 	char *name;
@@ -64,6 +73,13 @@ struct am_reg {
 };
 
 static struct vdec_dev_reg_s vdec_dev_reg;
+
+static bool hevc_workaround_needed(void)
+{
+	return (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) &&
+		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR)
+			== GXBB_REV_A_MINOR);
+}
 
 struct device *get_codec_cma_device(void)
 {
@@ -157,6 +173,11 @@ retry_alloc:
 			CMA_ALLOC_SIZE - 1;
 	}
 
+	if ((vf == VFORMAT_HEVC) && hevc_workaround_needed())
+		vdec_dev_reg.flag |= DEC_FLAG_HEVC_WORKAROUND;
+	else
+		vdec_dev_reg.flag = 0;
+
 	vdec_device =
 		platform_device_register_data(&vdec_core_device->dev,
 				vdec_device_name[vf], -1,
@@ -202,9 +223,89 @@ s32 vdec_release(enum vformat_e vf)
 }
 
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
+static bool test_hevc(u32 decomp_addr, u32 us_delay)
+{
+	int i;
+
+	/* SW_RESET IPP */
+	WRITE_VREG(HEVCD_IPP_TOP_CNTL, 1);
+	WRITE_VREG(HEVCD_IPP_TOP_CNTL, 0);
+
+	/* initialize all canvas table */
+	WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CONF_ADDR, 0);
+	for (i = 0; i < 32; i++)
+		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CMD_ADDR,
+			0x1 | (i << 8) | decomp_addr);
+	WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CONF_ADDR, 1);
+	WRITE_VREG(HEVCD_MPP_ANC_CANVAS_ACCCONFIG_ADDR, (0 << 8) | (0<<1) | 1);
+	for (i = 0; i < 32; i++)
+		WRITE_VREG(HEVCD_MPP_ANC_CANVAS_DATA_ADDR, 0);
+
+	/* Intialize mcrcc */
+	WRITE_VREG(HEVCD_MCRCC_CTL1, 0x2);
+	WRITE_VREG(HEVCD_MCRCC_CTL2, 0x0);
+	WRITE_VREG(HEVCD_MCRCC_CTL3, 0x0);
+	WRITE_VREG(HEVCD_MCRCC_CTL1, 0xff0);
+
+	/* Decomp initialize */
+	WRITE_VREG(HEVCD_MPP_DECOMP_CTL1, 0x0);
+	WRITE_VREG(HEVCD_MPP_DECOMP_CTL2, 0x0);
+
+	/* Frame level initialization */
+	WRITE_VREG(HEVCD_IPP_TOP_FRMCONFIG, 0x100 | (0x100 << 16));
+	WRITE_VREG(HEVCD_IPP_TOP_TILECONFIG3, 0x0);
+	WRITE_VREG(HEVCD_IPP_TOP_LCUCONFIG, 0x1 << 5);
+	WRITE_VREG(HEVCD_IPP_BITDEPTH_CONFIG, 0x2 | (0x2 << 2));
+
+	WRITE_VREG(HEVCD_IPP_CONFIG, 0x0);
+	WRITE_VREG(HEVCD_IPP_LINEBUFF_BASE, 0x0);
+
+	/* Enable SWIMP mode */
+	WRITE_VREG(HEVCD_IPP_SWMPREDIF_CONFIG, 0x1);
+
+	/* Enable frame */
+	WRITE_VREG(HEVCD_IPP_TOP_CNTL, 0x2);
+	WRITE_VREG(HEVCD_IPP_TOP_FRMCTL, 0x1);
+
+	/* Send SW-command CTB info */
+	WRITE_VREG(HEVCD_IPP_SWMPREDIF_CTBINFO, 0x1 << 31);
+
+	/* Send PU_command */
+	WRITE_VREG(HEVCD_IPP_SWMPREDIF_PUINFO0, (0x4 << 9) | (0x4 << 16));
+	WRITE_VREG(HEVCD_IPP_SWMPREDIF_PUINFO1, 0x1 << 3);
+	WRITE_VREG(HEVCD_IPP_SWMPREDIF_PUINFO2, 0x0);
+	WRITE_VREG(HEVCD_IPP_SWMPREDIF_PUINFO3, 0x0);
+
+	udelay(us_delay);
+
+	WRITE_VREG(HEVCD_IPP_DBG_SEL, 0x2 << 4);
+
+	return (READ_VREG(HEVCD_IPP_DBG_DATA) & 3) == 1;
+}
+
 void vdec_poweron(enum vdec_type_e core)
 {
+	void *decomp_addr = NULL;
+	dma_addr_t decomp_dma_addr;
+	u32 decomp_addr_aligned = 0;
+	int hevc_loop = 0;
+
 	mutex_lock(&vdec_mutex);
+
+	if (hevc_workaround_needed() &&
+		(core == VDEC_HEVC)) {
+		decomp_addr = dma_alloc_coherent(amports_get_dma_device(),
+			SZ_64K + SZ_4K, &decomp_dma_addr, GFP_KERNEL);
+
+		if (decomp_addr) {
+			decomp_addr_aligned = ALIGN(decomp_dma_addr, SZ_64K);
+			memset((u8 *)decomp_addr +
+				(decomp_addr_aligned - decomp_dma_addr),
+				0xff, SZ_4K);
+		} else
+			pr_err("vdec: alloc HEVC gxbb decomp buffer failed.\n");
+	}
+
 	if (core == VDEC_1) {
 		/* vdec1 power on */
 		WRITE_AOREG(AO_RTI_GEN_PWR_SLEEP0,
@@ -273,28 +374,72 @@ void vdec_poweron(enum vdec_type_e core)
 		}
 	} else if (core == VDEC_HEVC) {
 		if (has_hevc_vdec()) {
-			/* hevc power on */
-			WRITE_AOREG(AO_RTI_GEN_PWR_SLEEP0,
+			bool hevc_fixed = !hevc_workaround_needed();
+
+			hevc_workaround = false;
+
+			while (!hevc_fixed) {
+				/* hevc power on */
+				WRITE_AOREG(AO_RTI_GEN_PWR_SLEEP0,
 					READ_AOREG(AO_RTI_GEN_PWR_SLEEP0) &
 					~0xc0);
-			/* wait 10uS */
-			udelay(10);
-			/* hevc soft reset */
-			WRITE_VREG(DOS_SW_RESET3, 0xffffffff);
-			WRITE_VREG(DOS_SW_RESET3, 0);
-			/* enable hevc clock */
-			hevc_clock_enable();
-			/* power up hevc memories */
-			WRITE_VREG(DOS_MEM_PD_HEVC, 0);
-			/* remove hevc isolation */
-			WRITE_AOREG(AO_RTI_GEN_PWR_ISO0,
+				/* wait 10uS */
+				udelay(10);
+				/* hevc soft reset */
+				WRITE_VREG(DOS_SW_RESET3, 0xffffffff);
+				WRITE_VREG(DOS_SW_RESET3, 0);
+				/* enable hevc clock */
+				hevc_clock_enable();
+				/* power up hevc memories */
+				WRITE_VREG(DOS_MEM_PD_HEVC, 0);
+				/* remove hevc isolation */
+				WRITE_AOREG(AO_RTI_GEN_PWR_ISO0,
 					READ_AOREG(AO_RTI_GEN_PWR_ISO0) &
 					~0xc00);
+
+				if ((get_cpu_type() ==
+					MESON_CPU_MAJOR_ID_GXBB) &&
+					(decomp_addr))
+					hevc_fixed = test_hevc(
+						decomp_addr_aligned, 20);
+				else
+					hevc_fixed = true;
+
+				if (!hevc_fixed) {
+					hevc_loop++;
+
+					mutex_unlock(&vdec_mutex);
+
+					if (hevc_loop >= HEVC_TEST_LIMIT2) {
+						pr_warn("hevc power sequence over high limit\n");
+						hevc_workaround = true;
+						break;
+					} else if (hevc_loop ==
+						HEVC_TEST_LIMIT1)
+						pr_warn("hevc power sequence over low limit\n");
+
+					vdec_poweroff(VDEC_HEVC);
+
+					mdelay(10);
+
+					mutex_lock(&vdec_mutex);
+				}
+			}
+
+			if (hevc_loop > hevc_max_reset_count)
+				hevc_max_reset_count = hevc_loop;
+
+			WRITE_VREG(DOS_SW_RESET3, 0xffffffff);
+			udelay(10);
+			WRITE_VREG(DOS_SW_RESET3, 0);
 		}
 	}
 
-	mutex_unlock(&vdec_mutex);
+	if (decomp_addr)
+		dma_free_coherent(amports_get_dma_device(),
+			SZ_64K + SZ_4K, decomp_addr, decomp_dma_addr);
 
+	mutex_unlock(&vdec_mutex);
 }
 
 void vdec_poweroff(enum vdec_type_e core)
@@ -1005,6 +1150,7 @@ static int __init vdec_mem_setup(struct reserved_mem *rmem)
 RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
 
 module_param(debug_trace_num, uint, 0664);
+module_param(hevc_max_reset_count, int, 0664);
 
 module_init(vdec_module_init);
 module_exit(vdec_module_exit);
