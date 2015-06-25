@@ -812,7 +812,7 @@ static void hdmi_tvenc1080i_set(struct hdmitx_vidpara *param)
 		(VSYNC_POLARITY << 3) |
 		(0 << 4) |
 		(4 << 5) |
-		(0 << 8) |
+		(1 << 8) |
 		(0 << 12)
 	);
 	hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 1, 1);
