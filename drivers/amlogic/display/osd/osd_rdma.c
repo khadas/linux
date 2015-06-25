@@ -15,8 +15,9 @@
  *
 */
 
-
-#include <linux/amlogic/amlog.h>
+/* Linux Headers */
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -24,35 +25,37 @@
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/io.h>
-#include <linux/mm.h>
-#include <linux/err.h>
-#include <linux/mutex.h>
 #include <linux/ctype.h>
-#include <linux/sched.h>
 #include <linux/poll.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
+
+/* Local Headers */
+#include "osd.h"
 #include "osd_io.h"
 #include "osd_reg.h"
 #include "osd_rdma.h"
+
 static DEFINE_SPINLOCK(rdma_lock);
 static struct rdma_table_item_t *rdma_table;
 static struct device *osd_rdma_dev;
 static struct page *table_pages;
-static u32		   table_paddr;
-static void	   *table_vaddr;
-static u32		   rdma_enable;
-static u32		   item_count;
-static u32		   rdma_debug;
+static void *osd_rdma_table_virt;
+static dma_addr_t osd_rdma_table_phy;
+static u32 table_paddr;
+static void *table_vaddr;
+static u32 rdma_enable;
+static u32 item_count;
+static u32 rdma_debug;
 #define OSD_RDMA_UPDATE_RETRY_COUNT 100
 static bool osd_rdma_init_flag;
 static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
 
-static int  osd_rdma_init(void);
+static int osd_rdma_init(void);
 
 static inline void reset_rdma_table(void)
 {
@@ -79,6 +82,7 @@ retry:
 	/*in reject region then we wait for hw rdma operation complete.*/
 	if (OSD_RDMA_STATUS_IS_REJECT && (retry_count > 0)) {
 		retry_count--;
+		osd_log_err("%s retry: %d", __func__, retry_count);
 		goto retry;
 	}
 	if (!OSD_RDMA_STAUS_IS_DIRTY) {
@@ -261,20 +265,19 @@ int reset_rdma(void)
 	return 0;
 }
 EXPORT_SYMBOL(reset_rdma);
-int osd_rdma_enable(size_t enable)
+
+int osd_rdma_enable(u32 enable)
 {
-	if (!osd_rdma_init_flag)
-		osd_rdma_init();
+	int ret = 0;
+
 	if (enable == rdma_enable)
 		return 0;
+
+	ret = osd_rdma_init();
+	if (ret != 0)
+		return -1;
+
 	rdma_enable = enable;
-/*	Todo: need check real status.
-	while (osd_reg_read(RDMA_STATUS) & 0x0fffffff) {
-		printk("rdma still work ? RDMA_STATUS: 0x%x\n",
-				osd_reg_read(RDMA_STATUS));
-		msleep(10);
-	}
-*/
 	if (enable) {
 		reset_rdma_table();
 		osd_reg_write(START_ADDR, table_paddr);
@@ -282,7 +285,8 @@ int osd_rdma_enable(size_t enable)
 		start_osd_rdma(OSD_RDMA_CHANNEL_INDEX);
 	} else
 		stop_rdma(OSD_RDMA_CHANNEL_INDEX);
-	return 1;
+
+	return 0;
 }
 EXPORT_SYMBOL(osd_rdma_enable);
 
@@ -292,11 +296,25 @@ static void osd_rdma_release(struct device *dev)
 	osd_rdma_dev = NULL;
 }
 
+static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
+{
+	reset_rdma();
+
+	osd_update_scan_mode();
+	osd_update_3d_mode();
+	osd_update_vsync_hit();
+
+	osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
+
+	return IRQ_HANDLED;
+}
+
 static int osd_rdma_init(void)
 {
 	int ret = -1;
 	if (osd_rdma_init_flag)
 		return 0;
+
 	osd_rdma_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!osd_rdma_dev) {
 		osd_log_err("osd rdma init error!\n");
@@ -311,12 +329,13 @@ static int osd_rdma_init(void)
 		goto error2;
 	}
 	table_pages = dma_alloc_from_contiguous(osd_rdma_dev, 1, 4);
-	if (!table_pages) {
+	osd_rdma_table_virt = dma_alloc_coherent(osd_rdma_dev, PAGE_SIZE,
+					&osd_rdma_table_phy, GFP_KERNEL);
+
+	if (!osd_rdma_table_virt) {
 		osd_log_err("osd rdma dma alloc failed!\n");
 		goto error2;
 	}
-	/*table_paddr = page_to_phys(table_pages);
-	table_vaddr = phys_to_virt(table_paddr);*/
 	table_vaddr = osd_rdma_table_virt;
 	table_paddr = osd_rdma_table_phy;
 	osd_log_info("%s: rmda_table p=0x%x,op=0x%lx , v=0x%p\n", __func__,
@@ -325,10 +344,18 @@ static int osd_rdma_init(void)
 	rdma_table = (struct rdma_table_item_t *)table_vaddr;
 	if (NULL == rdma_table) {
 		osd_log_err("%s: failed to remap rmda_table_addr\n", __func__);
-		return -1;
+		goto error2;
 	}
+
+	if (request_irq(INT_RDMA, &osd_rdma_isr,
+			IRQF_SHARED, "osd_rdma", (void *)"osd_rdma")) {
+		osd_log_err("can't request irq for rdma\n");
+		goto error2;
+	}
+
 	osd_rdma_init_flag = true;
 	return 0;
+
 error2:
 	kfree(osd_rdma_dev);
 	osd_rdma_dev = NULL;

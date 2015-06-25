@@ -82,9 +82,6 @@ static inline void osd_reg_set_bits(uint32_t reg,
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
-extern void *osd_rdma_table_virt;
-extern dma_addr_t osd_rdma_table_phy;
-
 
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 u32 VSYNCOSD_RD_MPEG_REG(u32 reg);

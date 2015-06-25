@@ -67,6 +67,12 @@
 #define  FIQ_VSYNC
 #endif
 
+#define	VOUT_ENCI	1
+#define	VOUT_ENCP	2
+#define	VOUT_ENCT	3
+#define OSD_TYPE_TOP_FIELD 0
+#define OSD_TYPE_BOT_FIELD 1
+
 
 static DEFINE_MUTEX(osd_mutex);
 static DEFINE_SPINLOCK(osd_onoff_lock);
@@ -231,9 +237,6 @@ static unsigned int *filter_table[] = {
 	vpp_filter_coefs_4point_bspline,
 	osd_filter_coefs_3point_bspline
 };
-
-#define OSD_TYPE_TOP_FIELD 0
-#define OSD_TYPE_BOT_FIELD 1
 
 static void osd_vpu_power_on(void)
 {
@@ -431,11 +434,11 @@ static const struct vframe_operations_s osd_vf_provider = {
 
 #endif
 
-static inline void  osd_update_3d_mode(int enable_osd1, int enable_osd2)
+void osd_update_3d_mode(void)
 {
-	if (enable_osd1)
+	if (osd_hw.mode_3d[OSD1].enable)
 		osd1_update_disp_3d_mode();
-	if (enable_osd2)
+	if (osd_hw.mode_3d[OSD2].enable)
 		osd2_update_disp_3d_mode();
 }
 
@@ -445,7 +448,17 @@ static inline void wait_vsync_wakeup(void)
 	wake_up_interruptible(&osd_vsync_wq);
 }
 
-#if 0
+void osd_update_vsync_hit(void)
+{
+	if (!vsync_hit) {
+#ifdef FIQ_VSYNC
+		fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
+#else
+		wait_vsync_wakeup();
+#endif
+	}
+}
+
 static void osd_update_interlace_mode(void)
 {
 	unsigned int fb0_cfg_w0, fb1_cfg_w0;
@@ -461,63 +474,45 @@ static void osd_update_interlace_mode(void)
 		if ((osd_hw.pandata[OSD1].y_start % 2) == 0) {
 			if (scan_line_number >= 562) {
 				/* bottom field, odd lines*/
-				odd_even = 0;
+				odd_even = OSD_TYPE_BOT_FIELD;
 			} else {
 				/* top field, even lines*/
-				odd_even = 1;
+				odd_even = OSD_TYPE_TOP_FIELD;
 			}
 		} else {
 			if (scan_line_number >= 562) {
 				/* top field, even lines*/
-				odd_even = 1;
+				odd_even = OSD_TYPE_TOP_FIELD;
 			} else {
 				/* bottom field, odd lines*/
-				odd_even = 0;
+				odd_even = OSD_TYPE_BOT_FIELD;
 			}
 		}
 	} else {
 		if ((osd_hw.pandata[OSD1].y_start % 2) == 1) {
 			odd_even = (osd_reg_read(ENCI_INFO_READ) & (1 << 29)) ?
-				OSD_TYPE_BOT_FIELD : OSD_TYPE_TOP_FIELD;
+				OSD_TYPE_TOP_FIELD : OSD_TYPE_BOT_FIELD;
 		} else {
 			odd_even = (osd_reg_read(ENCI_INFO_READ) & (1 << 29)) ?
-				OSD_TYPE_TOP_FIELD : OSD_TYPE_BOT_FIELD;
+				OSD_TYPE_BOT_FIELD : OSD_TYPE_TOP_FIELD;
 		}
 	}
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+	/* when RDMA enabled, top/bottom fields changed in next vsync */
+	odd_even = (odd_even == OSD_TYPE_TOP_FIELD) ?
+		OSD_TYPE_BOT_FIELD : OSD_TYPE_TOP_FIELD;
+#endif
 	fb0_cfg_w0 &= ~1;
 	fb1_cfg_w0 &= ~1;
 	fb0_cfg_w0 |= odd_even;
 	fb1_cfg_w0 |= odd_even;
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK1_CFG_W0, fb0_cfg_w0);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK2_CFG_W0, fb0_cfg_w0);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK3_CFG_W0, fb0_cfg_w0);
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK0_CFG_W0, fb1_cfg_w0);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK1_CFG_W0, fb1_cfg_w0);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK2_CFG_W0, fb1_cfg_w0);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK3_CFG_W0, fb1_cfg_w0);
 }
-#endif
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
-static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
+
+void osd_update_scan_mode(void)
 {
-#define	VOUT_ENCI	1
-#define	VOUT_ENCP	2
-#define	VOUT_ENCT	3
-	unsigned  int  fb0_cfg_w0, fb1_cfg_w0;
-	unsigned  int  odd_or_even_line;
-	unsigned  int  scan_line_number = 0;
-	unsigned  char output_type = 0;
-
-	/*osd_rdma_read_table();*/
-	reset_rdma();
-
-/*	if (((osd_reg_read(RDMA_STATUS) >>24)>>OSD_RDMA_CHANNEL_INDEX) != 1)*/
-/*		return IRQ_NONE;*/
-
-
-	/*osd_rdma_reset();*/
-/*	read_rdma_table();*/
+	unsigned int output_type = 0;
 
 	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
 	osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
@@ -533,73 +528,11 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	}
 	if (osd_hw.free_scale_enable[OSD1])
 		osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
-
-	if (osd_hw.scan_mode == SCAN_MODE_INTERLACE) {
-		fb0_cfg_w0 = osd_reg_read(VIU_OSD1_BLK0_CFG_W0);
-		fb1_cfg_w0 = osd_reg_read(VIU_OSD2_BLK0_CFG_W0);
-		if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) {
-			/* 1080I */
-			scan_line_number = ((
-			osd_reg_read(ENCP_INFO_READ)) & 0x1fff0000) >> 16;
-			if ((osd_hw.pandata[OSD1].y_start % 2) == 0) {
-				if (scan_line_number >= 562) {
-					/* bottom field, odd lines*/
-					odd_or_even_line = 0;
-				} else {
-					/* top field, even lines*/
-					odd_or_even_line = 1;
-				}
-			} else {
-				if (scan_line_number >= 562) {
-					/* top field, even lines*/
-					odd_or_even_line = 1;
-				} else {
-					/* bottom field, odd lines*/
-					odd_or_even_line = 0;
-				}
-			}
-		} else {
-			if ((osd_hw.pandata[OSD1].y_start % 2) == 1) {
-				odd_or_even_line = (
-				osd_reg_read(ENCI_INFO_READ) & (1 << 29)) ?
-				OSD_TYPE_BOT_FIELD : OSD_TYPE_TOP_FIELD;
-			} else {
-				odd_or_even_line =
-				(osd_reg_read(ENCI_INFO_READ) & (1 << 29)) ?
-					OSD_TYPE_TOP_FIELD : OSD_TYPE_BOT_FIELD;
-			}
-		}
-
-		fb0_cfg_w0 &= ~1;
-		fb1_cfg_w0 &= ~1;
-		fb0_cfg_w0 |= odd_or_even_line;
-		fb1_cfg_w0 |= odd_or_even_line;
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK1_CFG_W0, fb0_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK2_CFG_W0, fb0_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK3_CFG_W0, fb0_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK0_CFG_W0, fb1_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK1_CFG_W0, fb1_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK2_CFG_W0, fb1_cfg_w0);
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK3_CFG_W0, fb1_cfg_w0);
-	}
-
-	osd_update_3d_mode(osd_hw.mode_3d[OSD1].enable,
-				osd_hw.mode_3d[OSD2].enable);
-
-	if (!vsync_hit) {
-#ifdef FIQ_VSYNC
-		fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
-#else
-		wait_vsync_wakeup();
-#endif
-	}
-	osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
-	return IRQ_HANDLED;
+	if (osd_hw.scan_mode == SCAN_MODE_INTERLACE)
+		osd_update_interlace_mode();
 }
-#endif
 
-static inline void  walk_through_update_list(void)
+static inline void walk_through_update_list(void)
 {
 	u32  i, j;
 	for (i = 0; i < HW_OSD_COUNT; i++) {
@@ -620,96 +553,22 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	wait_vsync_wakeup();
 	return IRQ_HANDLED;
 }
-#endif
 
-#ifdef FIQ_VSYNC
 static void osd_fiq_isr(void)
 #else
 static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 {
 #ifndef CONFIG_FB_OSD_VSYNC_RDMA
-#define	VOUT_ENCI	1
-#define	VOUT_ENCP	2
-#define	VOUT_ENCT	3
-	unsigned int odd_even;
-	unsigned int scan_line_number = 0;
-	unsigned int output_type = 0;
-	unsigned int fb0_cfg_w0, fb1_cfg_w0;
-
-	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
-	switch (output_type) {
-	case VOUT_ENCP:
-		if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) /* 1080i */
-			osd_hw.scan_mode = SCAN_MODE_INTERLACE;
-		break;
-	case VOUT_ENCI:
-		if (osd_reg_read(ENCI_VIDEO_EN) & 1)
-			osd_hw.scan_mode = SCAN_MODE_INTERLACE;
-		break;
-	}
-	if (osd_hw.free_scale_enable[OSD1])
-		osd_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
-	if (osd_hw.scan_mode == SCAN_MODE_INTERLACE) {
-		fb0_cfg_w0 = osd_reg_read(VIU_OSD1_BLK0_CFG_W0);
-		fb1_cfg_w0 = osd_reg_read(VIU_OSD1_BLK0_CFG_W0 + REG_OFFSET);
-		if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) {
-			/* 1080I */
-			scan_line_number = ((osd_reg_read(ENCP_INFO_READ))
-					& 0x1fff0000) >> 16;
-			if ((osd_hw.pandata[OSD1].y_start % 2) == 0) {
-				if (scan_line_number >= 562) {
-					/* bottom field, odd lines*/
-					odd_even = 1;
-				} else {
-					/* top field, even lines*/
-					odd_even = 0;
-				}
-			} else {
-				if (scan_line_number >= 562) {
-					/* top field, even lines*/
-					odd_even = 0;
-				} else {
-					/* bottom field, odd lines*/
-					odd_even = 1;
-				}
-			}
-		} else {
-			if ((osd_hw.pandata[OSD1].y_start % 2) == 0)
-				odd_even = osd_reg_read(ENCI_INFO_READ) & 1;
-			else
-				odd_even = !(osd_reg_read(ENCI_INFO_READ) & 1);
-		}
-		fb0_cfg_w0 &= ~1;
-		fb1_cfg_w0 &= ~1;
-		fb0_cfg_w0 |= odd_even;
-		fb1_cfg_w0 |= odd_even;
-		osd_reg_write(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK1_CFG_W0, fb0_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK2_CFG_W0, fb0_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK3_CFG_W0, fb0_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK0_CFG_W0 + REG_OFFSET, fb1_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK1_CFG_W0 + REG_OFFSET, fb1_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK2_CFG_W0 + REG_OFFSET, fb1_cfg_w0);
-		osd_reg_write(VIU_OSD1_BLK3_CFG_W0 + REG_OFFSET, fb1_cfg_w0);
-	}
+	osd_update_scan_mode();
 	/* go through update list */
 	walk_through_update_list();
-	osd_update_3d_mode(osd_hw.mode_3d[OSD1].enable,
-			osd_hw.mode_3d[OSD2].enable);
-
-	if (!vsync_hit) {
-#ifdef FIQ_VSYNC
-		fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
-#else
-		wait_vsync_wakeup();
-#endif
-	}
+	osd_update_3d_mode();
+	osd_update_vsync_hit();
 #endif
 
 #ifndef FIQ_VSYNC
-	return  IRQ_HANDLED;
+	return IRQ_HANDLED;
 #endif
 }
 
@@ -3212,13 +3071,6 @@ void osd_init_hw(u32 logo_loaded)
 		osd_log_err("can't request irq for vsync\n");
 #ifdef FIQ_VSYNC
 	request_fiq(INT_VIU_VSYNC, &osd_fiq_isr);
-#endif
-
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
-	osd_rdma_enable(1);
-	if (request_irq(int_rdma, &osd_rdma_isr,
-			IRQF_SHARED, "osd_rdma", (void *)"osd_rdma"))
-		osd_log_err("can't request irq for rdma\n");
 #endif
 
 	return;

@@ -176,6 +176,7 @@ static void osd_debug_dump_register(int argc, char **argv)
 {
 	int reg_start, reg_end;
 	int ret;
+
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	read_rdma_table();
 #endif

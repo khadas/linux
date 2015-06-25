@@ -79,7 +79,13 @@ struct rdma_table_item_t {
 #define  OSD_RDMA_STATUS_CLEAR_ALL \
 	(osd_reg_write(OSD_RDMA_FLAG_REG, (osd_reg_read(OSD_RDMA_FLAG_REG)& \
 		~OSD_RDMA_FLAGS_ALL_ENABLE)))
-extern void osd_rdma_start(void);
+
+extern void osd_update_scan_mode(void);
+extern void osd_update_3d_mode(void);
+extern void osd_update_vsync_hit(void);
 extern int read_rdma_table(void);
+extern int reset_rdma(void);
+extern int osd_rdma_enable(u32 enable);
+
 
 #endif

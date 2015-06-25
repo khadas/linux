@@ -67,16 +67,14 @@ static int early_resume_flag;
 
 unsigned int osd_log_level;
 int int_viu_vsync = -ENXIO;
-/* #ifdef CONFIG_FB_OSD_VSYNC_RDMA */
-int int_rdma = -ENXIO;
-/* #endif */
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+int int_rdma = INT_RDMA;
+#endif
 static struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
 static struct reserved_mem fb_rmem;
 static phys_addr_t fb_rmem_paddr[2];
 static void __iomem *fb_rmem_vaddr[2];
 static u32 fb_rmem_size[2];
-void *osd_rdma_table_virt;
-dma_addr_t osd_rdma_table_phy;
 
 
 static void osddev_setup(struct osd_fb_dev_s *fbdev)
@@ -1828,8 +1826,6 @@ static int osd_probe(struct platform_device *pdev)
 	u32 memsize[2];
 	int i;
 	int ret = 0;
-	osd_rdma_table_virt = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
-					&osd_rdma_table_phy, GFP_KERNEL);
 
 	/* register vout client */
 	vout_register_client(&osd_notifier_nb);
@@ -2045,6 +2041,10 @@ static int osd_probe(struct platform_device *pdev)
 		osd_set_reverse_hw(1, osd_info.osd_reverse);
 	} else
 		osd_set_reverse_hw(osd_info.index, osd_info.osd_reverse);
+
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+	osd_rdma_enable(1);
+#endif
 	osd_log_info("osd probe OK\n");
 	return 0;
 failed2:
