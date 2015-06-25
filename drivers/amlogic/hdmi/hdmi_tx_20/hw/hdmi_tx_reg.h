@@ -429,12 +429,25 @@ void aocec_wr_reg(unsigned long addr, unsigned long data);
 /* [  0] V0l */
 #define HDMITX_DWC_FC_AUDSV                     (DWC_OFFSET_MASK + 0x1065)
 #define HDMITX_DWC_FC_AUDSU                     (DWC_OFFSET_MASK + 0x1066)
+/* bit5:4  CSB 41:40 */
+/* bit0  CSB 2 */
 #define HDMITX_DWC_FC_AUDSCHNLS0                (DWC_OFFSET_MASK + 0x1067)
+/* bit7:0  CSB 15:8 */
 #define HDMITX_DWC_FC_AUDSCHNLS1                (DWC_OFFSET_MASK + 0x1068)
+/* bit6:4  CSB 5:3 */
+/* bit3:0  CSB 17:16 */
 #define HDMITX_DWC_FC_AUDSCHNLS2                (DWC_OFFSET_MASK + 0x1069)
+/* bit7:4 CSB 22:21 2nd right sub */
+/* bit3:0 CSB 22:21 1st right sub */
 #define HDMITX_DWC_FC_AUDSCHNLS3                (DWC_OFFSET_MASK + 0x106A)
+/* bit?? CSB 22:21 4th right sub */
+/* bit?? CSB 22:21 3rd right sub */
 #define HDMITX_DWC_FC_AUDSCHNLS4                (DWC_OFFSET_MASK + 0x106B)
+/* bit7:4 CSB 22:21 2nd left sub */
+/* bit3:0 CSB 22:21 1st left sub */
 #define HDMITX_DWC_FC_AUDSCHNLS5                (DWC_OFFSET_MASK + 0x106C)
+/* bit?? CSB 22:21 4th left sub */
+/* bit?? CSB 22:21 3rd left sub */
 #define HDMITX_DWC_FC_AUDSCHNLS6                (DWC_OFFSET_MASK + 0x106D)
 #define HDMITX_DWC_FC_AUDSCHNLS7                (DWC_OFFSET_MASK + 0x106E)
 #define HDMITX_DWC_FC_AUDSCHNLS8                (DWC_OFFSET_MASK + 0x106F)
@@ -727,7 +740,6 @@ void aocec_wr_reg(unsigned long addr, unsigned long data);
   /* [  7] sw_audio_fifo_rst */
   /* [  5] 0=select SPDIF; 1=select I2S. */
   /* [3:0] i2s_in_en: enable it later in test.c */
-
 #define HDMITX_DWC_AUD_CONF0                    (DWC_OFFSET_MASK + 0x3100)
 /* [4:0] i2s_width */
 /* [7:5] i2s_mode: 0=standard I2S mode */

@@ -1180,22 +1180,6 @@ static struct notifier_block hdmitx_notifier_nb_v2 = {
 };
 #endif
 
-/* Refer to CEA-861-D Page 88 */
-#define AOUT_EVENT_REFER_TO_STREAM_HEADER	   0x0
-#define AOUT_EVENT_IEC_60958_PCM				0x1
-#define AOUT_EVENT_RAWDATA_AC_3				 0x2
-#define AOUT_EVENT_RAWDATA_MPEG1				0x3
-#define AOUT_EVENT_RAWDATA_MP3				  0x4
-#define AOUT_EVENT_RAWDATA_MPEG2				0x5
-#define AOUT_EVENT_RAWDATA_AAC				  0x6
-#define AOUT_EVENT_RAWDATA_DTS				  0x7
-#define AOUT_EVENT_RAWDATA_ATRAC				0x8
-#define AOUT_EVENT_RAWDATA_ONE_BIT_AUDIO		0x9
-#define AOUT_EVENT_RAWDATA_DOBLY_DIGITAL_PLUS   0xA
-#define AOUT_EVENT_RAWDATA_DTS_HD			   0xB
-#define AOUT_EVENT_RAWDATA_MAT_MLP			  0xC
-#define AOUT_EVENT_RAWDATA_DST				  0xD
-#define AOUT_EVENT_RAWDATA_WMA_PRO			  0xE
 #include <linux/soundcard.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -1322,7 +1306,7 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 			audio_check = 1;
 	}
 	/* sink don't support current audio mode */
-	if ((!audio_check) && (cmd != AOUT_EVENT_IEC_60958_PCM)) {
+	if ((!audio_check) && (cmd != CT_PCM)) {
 		pr_info("Sink not support this audio format %lu\n",
 			cmd);
 		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,

@@ -84,17 +84,11 @@ unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 #define TX_OUTPUT_COLOR_RANGE 0
 
 #if 1
-/* spdif */
-/* 0=SPDIF; 1=I2S. */
-/* 0=SPDIF; 1=I2S. Note: Must select I2S if CHIP_HAVE_HDMI_RX is defined. */
-#define TX_I2S_SPDIF		1
 /* 0=I2S 2-channel; 1=I2S 4 x 2-channel. */
 #define TX_I2S_8_CHANNEL	0
-#else
-/* i2s 8 channel */
-#define TX_I2S_SPDIF		1
-#define TX_I2S_8_CHANNEL	1
 #endif
+
+static unsigned int tx_aud_src; /* 0: SPDIF  1: I2S */
 
 /* static struct tasklet_struct EDID_tasklet; */
 static unsigned delay_flag;
@@ -1640,19 +1634,6 @@ static void hdmi_audio_init(unsigned int spdif_flag)
 	/* TODO */
 }
 
-static void enable_audio_spdif(void)
-{
-	hdmi_print(INF, AUD "Enable audio spdif to HDMI\n");
-
-	/* TODO */
-}
-
-static void enable_audio_i2s(void)
-{
-	hdmi_print(INF, AUD "Enable audio i2s to HDMI\n");
-	/* TODO */
-}
-
 /************************************
 *	hdmitx hardware level interface
 *************************************/
@@ -1916,74 +1897,19 @@ static void hdmitx_setaudioinfoframe(unsigned char *AUD_DB,
 static void set_hdmi_audio_source(unsigned int src)
 {
 	unsigned long data32;
-	unsigned int i;
 
 	/* Disable HDMI audio clock input and its I2S input */
-/* [1:0] hdmi_clk_sel: 00=Disable hdmi audio clock input; 01=Select pcm clock;
- *     10=Select AIU aoclk; 11=Not allowed. */
-/* [5:4] hdmi_data_sel: 00=disable hdmi i2s input; 01=Select pcm data;
- *     10=Select AIU I2S data; 11=Not allowed. */
 	data32 = 0;
 	data32 |= (0 << 4);
 	data32 |= (0 << 0);
 	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
 
-	/* Enable HDMI audio clock from the selected source */
-/* [1:0] hdmi_clk_sel: 00=Disable hdmi audio clock input; 01=Select pcm clock;
- *     10=Select AIU aoclk; 11=Not allowed. */
-/* [5:4] hdmi_data_sel: 00=disable hdmi i2s input; 01=Select pcm data;
- *      10=Select AIU I2S data; 11=Not allowed. */
-	data32 = 0;
-	data32 |= (0 << 4);
-	data32 |= (src  << 0);
-	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
-
-	/* Wait until clock change is settled */
-	i = 0;
-#if 0
-	msleep_interruptible(1000);
-#endif
-	data32 = hd_read_reg(P_AIU_HDMI_CLK_DATA_CTRL);
-	if (((data32 >> 8) & 0x3) != src)
-		pr_info("audio clock wait time out\n");
-
 	/* Enable HDMI I2S input from the selected source */
-/* [1:0] hdmi_clk_sel: 00=Disable hdmi audio clock input; 01=Select pcm clock;
- *     10=Select AIU aoclk; 11=Not allowed. */
-/* [5:4] hdmi_data_sel: 00=disable hdmi i2s input; 01=Select pcm data;
- *     10=Select AIU I2S data; 11=Not allowed. */
 	data32 = 0;
 	data32 |= (src  << 4);
 	data32 |= (src  << 0);
 	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
-
-	/* Wait until data change is settled */
-#if 0
-	msleep_interruptible(1000);
-#endif
-	data32 = hd_read_reg(P_AIU_HDMI_CLK_DATA_CTRL);
-	if (((data32 >> 12) & 0x3) != src)
-		pr_info("audio data wait time out\n");
 } /* set_hdmi_audio_source */
-
-static void hdmitx_set_aud_pkt_type(enum hdmi_audio_type type)
-{
-	/* TX_AUDIO_CONTROL [5:4] */
-	/* 0: Audio sample packet (HB0 = 0x02) */
-	/* 1: One bit audio packet (HB0 = 0x07) */
-	/* 2: HBR Audio packet (HB0 = 0x09) */
-	/* 3: DST Audio packet (HB0 = 0x08) */
-	switch (type) {
-	case CT_MAT:
-	break;
-	case CT_ONE_BIT_AUDIO:
-	break;
-	case CT_DST:
-	break;
-	default:
-	break;
-	}
-}
 
 #if 0
 static Cts_conf_tab cts_table_192k[] = {
@@ -2081,32 +2007,188 @@ static void hdmitx_set_aud_cts(enum hdmi_audio_type type,
 }
 #endif
 
-static void hdmitx_set_aud_chnls(void)
+/* 60958-3 bit 27-24 */
+static unsigned char aud_csb_sampfreq[FS_MAX + 1] = {
+	[FS_REFER_TO_STREAM] = 0x1, /* not indicated */
+	[FS_32K] = 0x3, /* FS_32K */
+	[FS_44K1] = 0x0, /* FS_44K1 */
+	[FS_48K] = 0x2, /* FS_48K */
+	[FS_88K2] = 0x8, /* FS_88K2 */
+	[FS_96K] = 0xa, /* FS_96K */
+	[FS_176K4] = 0xc, /* FS_176K4 */
+	[FS_192K] = 0xe, /* FS_192K */
+	[FS_768K] = 0x9, /* FS_768K */
+};
+
+/* 60958-3 bit 39:36 */
+static unsigned char aud_csb_ori_sampfreq[FS_MAX + 1] = {
+	[FS_REFER_TO_STREAM] = 0x0, /* not indicated */
+	[FS_32K] = 0xc, /* FS_32K */
+	[FS_44K1] = 0xf, /* FS_44K1 */
+	[FS_48K] = 0xd, /* FS_48K */
+	[FS_88K2] = 0x7, /* FS_88K2 */
+	[FS_96K] = 0xa, /* FS_96K */
+	[FS_176K4] = 0x3, /* FS_176K4 */
+	[FS_192K] = 0x1, /* FS_192K */
+};
+
+static void set_aud_chnls(struct hdmitx_dev *hdev,
+	struct hdmitx_audpara *audio_param)
 {
 	int i;
-	pr_info("set default 48k 2ch pcm channel status\n");
+	pr_info("hdmitx set channel status\n");
 	for (i = 0; i < 9; i++)
-		/* set all status to 0 */
+		/* First, set all status to 0 */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS0+i, 0x00);
 	/* set default 48k 2ch pcm */
-	hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS2, 0x02);
-	hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS3, 0x01);
-	hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x02);
-	hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS7, 0x02);
-	hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS8, 0xd2);
+	if ((audio_param->type == CT_PCM) &&
+		(audio_param->channel_num == (2 - 1))) {
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0x11);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS7, 0x02);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS8, 0xd2);
+	} else {
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0xff);
+	}
+	switch (audio_param->type) {
+	case CT_AC_3:
+	case CT_DOLBY_D:
+	case CT_DST:
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS3, 0x01); /* CSB 20 */
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x02); /* CSB 21 */
+		break;
+	default:
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS3, 0x00);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x00);
+		break;
+	}
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCHNLS7,
+		aud_csb_sampfreq[audio_param->sample_rate], 0, 4); /*CSB 27:24*/
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCHNLS7, 0x0, 6, 2); /*CSB 31:30*/
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCHNLS7, 0x0, 4, 2); /*CSB 29:28*/
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCHNLS8, 0x2, 0, 4); /*CSB 35:32*/
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCHNLS8,  /* CSB 39:36 */
+		aud_csb_ori_sampfreq[audio_param->sample_rate], 4, 4);
+}
+
+static void set_aud_info_pkt(struct hdmitx_dev *hdev,
+	struct hdmitx_audpara *audio_param)
+{
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 0, 0, 4); /* CT */
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, audio_param->channel_num,
+		4, 3); /* CC */
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 0, 3); /* SF */
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 4, 2); /* SS */
+	switch (audio_param->type) {
+	case CT_MAT:
+		/* CC: 8ch */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 7, 4, 3);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x13);
+		break;
+	case CT_DTS:
+	case CT_DTS_HD:
+	default:
+		/* CC: 2ch */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 1, 4, 3);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x0);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x0);
+		break;
+	}
+	hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF3, 0);
+}
+
+static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
+	struct hdmitx_audpara *audio_param)
+{
+	unsigned int data32;
+	unsigned int aud_n_para;
+
+
+	/* audio packetizer config */
+	hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, tx_aud_src ? 4 : 0);
+
+	if (audio_param->type == CT_MAT)
+		hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, 2);
+
+	switch (audio_param->type) {
+	case CT_PCM:
+	case CT_AC_3:
+	case CT_DTS:
+	case CT_DTS_HD:
+		aud_n_para = 6144;
+		break;
+	default:
+		aud_n_para = 6144 * 4;
+		break;
+	}
+	pr_info("hdmitx aud_n_para = %d\n", aud_n_para);
+
+	/* ACR packet configuration */
+	data32 = 0;
+	data32 |= (1 << 7);  /* [  7] ncts_atomic_write */
+	data32 |= (0 << 0);  /* [3:0] AudN[19:16] */
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N3, data32);
+
+	data32 = 0;
+	data32 |= (0 << 7);  /* [7:5] N_shift */
+	data32 |= (0 << 4);  /* [  4] CTS_manual */
+	data32 |= (0 << 0);  /* [3:0] manual AudCTS[19:16] */
+	hdmitx_wr_reg(HDMITX_DWC_AUD_CTS3, data32);
+
+	hdmitx_wr_reg(HDMITX_DWC_AUD_CTS2, 0); /* manual AudCTS[15:8] */
+	hdmitx_wr_reg(HDMITX_DWC_AUD_CTS1, 0); /* manual AudCTS[7:0] */
+
+	data32 = 0;
+	data32 |= (1 << 7);  /* [  7] ncts_atomic_write */
+	data32 |= (((aud_n_para>>16)&0xf) << 0);  /* [3:0] AudN[19:16] */
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N3, data32);
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N2, (aud_n_para>>8)&0xff); /* AudN[15:8] */
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para&0xff); /* AudN[7:0] */
+}
+
+static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
+	struct hdmitx_audpara *audio_param)
+{
+	switch (audio_param->type) {
+	case CT_MAT: /* HBR */
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 1, 7, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 1, 6, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 24, 0, 5);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 1, 0, 1);
+		break;
+	case CT_PCM: /* AudSamp */
+	case CT_AC_3:
+	case CT_DOLBY_D:
+	case CT_DTS:
+	case CT_DTS_HD:
+	default:
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 0, 7, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 0, 6, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 24, 0, 5);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 0, 0, 1);
+	break;
+	}
 }
 
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	struct hdmitx_audpara *audio_param)
 {
 	unsigned int data32;
-	unsigned int aud_n_para = 6144;
 
+	if (!hdev)
+		return 0;
+	if (!audio_param)
+		return 0;
 	pr_info("test hdmi audio\n");
-	if (TX_I2S_SPDIF)
-		set_hdmi_audio_source(2);
+
+	/* PCM & 8 ch */
+	if ((audio_param->type == CT_PCM) &&
+		(audio_param->channel_num == (8 - 1)))
+		tx_aud_src = 1;
 	else
-		set_hdmi_audio_source(1);
+		tx_aud_src = 0;
+	pr_info("hdmitx tx_aud_src = %d\n", tx_aud_src);
+
+	set_hdmi_audio_source(tx_aud_src ? 1 : 2);
 
 /* config IP */
 /* Configure audio */
@@ -2126,7 +2208,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 /* [  5] 0=select SPDIF; 1=select I2S. */
 	data32 = 0;
 	data32 |= (0 << 7);  /* [  7] sw_audio_fifo_rst */
-	data32 |= (TX_I2S_SPDIF << 5);
+	data32 |= (tx_aud_src << 5);
 	data32 |= (0 << 0);  /* [3:0] i2s_in_en: enable it later in test.c */
 /* if enable it now, fifo_overrun will happen, because packet don't get sent
  * out until initial DE detected. */
@@ -2158,55 +2240,24 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	data32 |= (0 << 7);  /* [  7] sw_audio_fifo_rst */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_SPDIF0, data32);
 
-	data32 = 0;
-	data32 |= (0 << 7);  /* [  7] setnlpcm */
-	data32 |= (0 << 6);  /* [  6] spdif_hbr_mode */
-	data32 |= (24 << 0);  /* [4:0] spdif_width */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_SPDIF1, data32);
+	set_aud_info_pkt(hdev, audio_param);
+	set_aud_acr_pkt(hdev, audio_param);
+	set_aud_samp_pkt(hdev, audio_param);
 
-	/* ACR packet configuration */
+	set_aud_chnls(hdev, audio_param);
 
-	data32 = 0;
-	data32 |= (1 << 7);  /* [  7] ncts_atomic_write */
-	data32 |= (0 << 0);  /* [3:0] AudN[19:16] */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_N3, data32);
-
-	data32 = 0;
-	data32 |= (0 << 7);  /* [7:5] N_shift */
-	data32 |= (0 << 4);  /* [  4] CTS_manual */
-	data32 |= (0 << 0);  /* [3:0] manual AudCTS[19:16] */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_CTS3, data32);
-
-	hdmitx_wr_reg(HDMITX_DWC_AUD_CTS2, 0); /* manual AudCTS[15:8] */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_CTS1, 0); /* manual AudCTS[7:0] */
-
-	data32 = 0;
-	data32 |= (1 << 7);  /* [  7] ncts_atomic_write */
-	data32 |= (((aud_n_para>>16)&0xf) << 0);  /* [3:0] AudN[19:16] */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_N3, data32);
-	hdmitx_wr_reg(HDMITX_DWC_AUD_N2, (aud_n_para>>8)&0xff); /* AudN[15:8] */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para&0xff); /* AudN[7:0] */
-
-	/* audio packetizer config */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, TX_I2S_SPDIF ? 4 : 0);
-
-	hdmitx_set_aud_chnls();
-
-	if (TX_I2S_SPDIF) {
-		hdmitx_wr_reg(HDMITX_DWC_AUD_CONF0,
-			hdmitx_rd_reg(HDMITX_DWC_AUD_CONF0) |
-			((TX_I2S_8_CHANNEL ? 0xf : 0x1) << 0));
+	if (tx_aud_src == 1) {
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 1, 5, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		/* Enable audi2s_fifo_overrun interrupt */
 		hdmitx_wr_reg(HDMITX_DWC_AUD_INT1,
 			hdmitx_rd_reg(HDMITX_DWC_AUD_INT1) & (~(1<<4)));
 		/* Wait for 40 us for TX I2S decoder to settle */
 		msleep(20);
-	}
+	} else
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 5, 1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
 
-	enable_audio_spdif();
-	enable_audio_i2s();
-	hdmitx_set_aud_pkt_type(CT_PCM);
 	return 1;
 }
 

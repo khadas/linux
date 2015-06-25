@@ -282,10 +282,11 @@ struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic);
 void check_detail_fmt(void);
 
 /* HDMI Audio Parmeters */
+/* Refer to CEA-861-D Page 88 */
 enum hdmi_audio_type {
 	CT_REFER_TO_STREAM = 0,
 	CT_PCM,
-	CT_AC_3,
+	CT_AC_3, /* DD */
 	CT_MPEG1,
 	CT_MP3,
 	CT_MPEG2,
@@ -293,9 +294,9 @@ enum hdmi_audio_type {
 	CT_DTS,
 	CT_ATRAC,
 	CT_ONE_BIT_AUDIO,
-	CT_DOLBY_D,
+	CT_DOLBY_D, /* DDP or DD+ */
 	CT_DTS_HD,
-	CT_MAT,
+	CT_MAT, /* TrueHD */
 	CT_DST,
 	CT_WMA,
 	CT_MAX,
@@ -421,6 +422,7 @@ enum hdmi_audio_fs {
 	FS_96K = 5,
 	FS_176K4 = 6,
 	FS_192K = 7,
+	FS_768K = 8,
 	FS_MAX,
 };
 
