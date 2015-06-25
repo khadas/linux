@@ -1786,7 +1786,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 /* [	5] hdmi_dith_md: random noise selector. */
 	hd_write_reg(P_VPU_HDMI_FMT_CTRL, (((TX_INPUT_COLOR_FORMAT ==
 		hdmi_color_format_420) ? 2 : 0)  << 0) | (2 << 2) |
-			(((1) ? 1:0) << 4) |
+			(0 << 4) | /* [4]dith_en: disable dithering */
 			(0  << 5) |
 			(0 << 6)); /* [ 9: 6] hdmi_dith10_cntl. */
 	if (hdev->mode420 == 1) {
@@ -2579,7 +2579,6 @@ static void hdmitx_4k2k5g420_debug(void)
 	hd_write_reg(P_HHI_VID_CLK_DIV, 0x100);
 	hd_set_reg_bits(P_HHI_HDMI_CLK_CNTL, 1, 16, 4);
 	hd_write_reg(P_VPU_HDMI_SETTING, 0x10e);
-	hd_write_reg(P_VPU_HDMI_FMT_CTRL, 0x1a);
 	hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
 	hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_01, 0x001f001f);
 	hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_23, 0x001f001f);
@@ -3051,7 +3050,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	case MISC_VIID_IS_USING:
 		break;
 	case MISC_CONF_MODE420:
-		hd_write_reg(P_VPU_HDMI_FMT_CTRL, 0x1a);
 		hd_write_reg(P_VPU_HDMI_SETTING, 0x10e);
 		break;
 	case MISC_TMDS_CLK_DIV40:
