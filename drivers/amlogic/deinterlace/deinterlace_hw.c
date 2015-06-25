@@ -52,7 +52,7 @@ module_param(frame_dynamic_level, int, 0664);
 
 MODULE_PARM_DESC(cue_enable, "\n cue_enable\n");
 module_param(cue_enable, bool, 0664);
-#ifdef NEW_DI_V3
+#ifdef MCDI_SUPPORT
 static unsigned short mcen_mode = 1;
 MODULE_PARM_DESC(mcen_mode, "\n blend mc enable\n");
 module_param(mcen_mode, ushort, 0664);
@@ -132,7 +132,7 @@ static void ma_di_init(void)
 	#endif
 }
 #endif
-#ifdef NEW_DI_V3
+#ifdef MCDI_SUPPORT
 static void mc_di_param_init(void)
 {
 	Wr(MCDI_CHK_EDGE_GAIN_OFFST, 0x4f6124);
@@ -179,7 +179,7 @@ void di_hw_init(void)
 #if (defined NEW_DI_V2 && !defined NEW_DI_TV)
 	ma_di_init();
 #endif
-#ifdef NEW_DI_V3
+#ifdef MCDI_SUPPORT
 	mc_di_param_init();
 #endif
 }
@@ -225,20 +225,20 @@ void enable_di_pre_aml(
 	if (pd22_check_en || hist_check_only) {
 		set_di_chan2_mif(di_chan2_mif, urgent, hold_line);
 		#ifdef NEW_DI_V1
-		Wr_reg_bits(DI_NR_CTRL0, cue_enable, 26, 1);
+		RDMA_WR_BITS(DI_NR_CTRL0, cue_enable, 26, 1);
 		#endif
 	} else {
-		Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+		RDMA_WR_BITS(DI_NR_CTRL0, 0, 26, 1);
 	}
 
 	/* set nr wr mif interface. */
 	if (nr_en) {
-		Wr(DI_NRWR_X, (di_nrwr_mif->start_x << 16)|
+		RDMA_WR(DI_NRWR_X, (di_nrwr_mif->start_x << 16)|
 			(di_nrwr_mif->end_x));
-		Wr(DI_NRWR_Y, (di_nrwr_mif->start_y << 16)|
+		RDMA_WR(DI_NRWR_Y, (di_nrwr_mif->start_y << 16)|
 						3 << 30|/*nrwr_words_lim*/
 					(di_nrwr_mif->end_y));
-		Wr(DI_NRWR_CTRL, di_nrwr_mif->canvas_num|
+		RDMA_WR(DI_NRWR_CTRL, di_nrwr_mif->canvas_num|
 			(urgent<<16)|
 			2<<26 |/*burst_lim 1->2 2->4*/
 			1<<30); /* urgent bit 16 */
@@ -248,56 +248,56 @@ void enable_di_pre_aml(
 	/* motion wr mif. */
 	if (mtn_en)	{
 #ifdef NEW_DI_V1
-		Wr(DI_CONTWR_X, (di_contwr_mif->start_x << 16)|
+		RDMA_WR(DI_CONTWR_X, (di_contwr_mif->start_x << 16)|
 			(di_contwr_mif->end_x));
-		Wr(DI_CONTWR_Y, (di_contwr_mif->start_y << 16)|
+		RDMA_WR(DI_CONTWR_Y, (di_contwr_mif->start_y << 16)|
 			(di_contwr_mif->end_y));
-		Wr(DI_CONTWR_CTRL, di_contwr_mif->canvas_num|
+		RDMA_WR(DI_CONTWR_CTRL, di_contwr_mif->canvas_num|
 			(urgent << 8));/* urgent. */
-		Wr(DI_CONTPRD_X, (di_contprd_mif->start_x << 16)|
+		RDMA_WR(DI_CONTPRD_X, (di_contprd_mif->start_x << 16)|
 			(di_contprd_mif->end_x));
-		Wr(DI_CONTPRD_Y, (di_contprd_mif->start_y << 16)|
+		RDMA_WR(DI_CONTPRD_Y, (di_contprd_mif->start_y << 16)|
 			(di_contprd_mif->end_y));
-		Wr(DI_CONTP2RD_X, (di_contp2rd_mif->start_x << 16)|
+		RDMA_WR(DI_CONTP2RD_X, (di_contp2rd_mif->start_x << 16)|
 			(di_contp2rd_mif->end_x));
-		Wr(DI_CONTP2RD_Y, (di_contp2rd_mif->start_y << 16)|
+		RDMA_WR(DI_CONTP2RD_Y, (di_contp2rd_mif->start_y << 16)|
 			(di_contp2rd_mif->end_y));
-		Wr(DI_CONTRD_CTRL, (di_contprd_mif->canvas_num << 8)|
+		RDMA_WR(DI_CONTRD_CTRL, (di_contprd_mif->canvas_num << 8)|
 						  (urgent << 16)|/* urgent */
 						   di_contp2rd_mif->canvas_num);
 		/* current field mtn canvas index. */
 #endif
-		Wr(DI_MTNWR_X, (di_mtnwr_mif->start_x << 16)|
+		RDMA_WR(DI_MTNWR_X, (di_mtnwr_mif->start_x << 16)|
 			(di_mtnwr_mif->end_x));
-		Wr(DI_MTNWR_Y, (di_mtnwr_mif->start_y << 16)|
+		RDMA_WR(DI_MTNWR_Y, (di_mtnwr_mif->start_y << 16)|
 			(di_mtnwr_mif->end_y));
-		Wr(DI_MTNWR_CTRL, di_mtnwr_mif->canvas_num|/* canvas index. */
+		RDMA_WR(DI_MTNWR_CTRL, di_mtnwr_mif->canvas_num|
 						(urgent << 8));	/* urgent. */
-		Wr(DI_MTN_CTRL1, (0 << 8) | 2);
+		RDMA_WR(DI_MTN_CTRL1, (0 << 8) | 2);
 	}
 
 #ifdef NEW_DI_V1
 	nr_w = (di_nrwr_mif->end_x - di_nrwr_mif->start_x + 1);
 	nr_h = (di_nrwr_mif->end_y - di_nrwr_mif->start_y + 1);
-	Wr(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
+	RDMA_WR(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
 	/*gate for nr*/
 	#ifdef NEW_DI_TV
-	Wr_reg_bits(NR2_SW_EN, nr2_en, 4, 1);
+	RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
 	#else
 	/*only process sd,avoid affecting sharp*/
 	if ((nr_h<<1) >= 720 || nr_w >= 1280)
-		Wr_reg_bits(NR2_SW_EN, 0, 4, 1);
+		RDMA_WR_BITS(NR2_SW_EN, 0, 4, 1);
 	else
-		Wr_reg_bits(NR2_SW_EN, nr2_en, 4, 1);
+		RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
 	#endif
 	/*enable noise meter*/
-	Wr_reg_bits(NR2_SW_EN, 1, 17, 1);
+	RDMA_WR_BITS(NR2_SW_EN, 1, 17, 1);
 #endif
 	/* reset pre */
-	Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 1 << 31);
+	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 1 << 31);
 	/* frame reset for the pre modules. */
 
-	Wr(DI_PRE_CTRL, nr_en |			/* NR enable */
+	RDMA_WR(DI_PRE_CTRL, nr_en |			/* NR enable */
 					(mtn_en << 1) |	/* MTN_EN */
 			(pd32_check_en << 2)|/* check 3:2 pulldown */
 			(pd22_check_en << 3)|/* check 2:2 pulldown */
@@ -323,7 +323,7 @@ void enable_di_pre_aml(
 
 #ifdef SUPPORT_MPEG_TO_VDIN
 	if (mpeg2vdin_flag)
-		Wr_reg_bits(DI_PRE_CTRL, 1, 13, 1);
+		RDMA_WR_BITS(DI_PRE_CTRL, 1, 13, 1);
 #endif
 #ifdef DET3D
 	if (det3d_en && (!det3d_cfg)) {
@@ -350,86 +350,86 @@ void enable_afbc_input(struct vframe_s *vf)
 					VIDTYPE_INTERLACE_BOTTOM)
 			r |= 0x88;
 
-		Wr(AFBC_MODE, r);
-		Wr(AFBC_ENABLE, 0x1700);
-		Wr(AFBC_CONV_CTRL, 0x100);
+		RDMA_WR(AFBC_MODE, r);
+		RDMA_WR(AFBC_ENABLE, 0x1700);
+		RDMA_WR(AFBC_CONV_CTRL, 0x100);
 		u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
 		v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
-		Wr(AFBC_DEC_DEF_COLOR,
+		RDMA_WR(AFBC_DEC_DEF_COLOR,
 			0x3FF00000 | /*Y,bit20+*/
 			0x80 << (u + 10) |
 			0x80 << v);
 		/* chroma formatter */
-		Wr(AFBC_VD_CFMT_CTRL,
+		RDMA_WR(AFBC_VD_CFMT_CTRL,
 			(1<<21)|/* HFORMATTER_YC_RATIO_2_1 */
 			(1<<20)|/* HFORMATTER_EN */
 			(1<<16)|/* VFORMATTER_RPTLINE0_EN */
 			(0x8 << 1)|/* VFORMATTER_PHASE_BIT */
 			1);/* VFORMATTER_EN */
 
-		Wr(AFBC_VD_CFMT_W,
+		RDMA_WR(AFBC_VD_CFMT_W,
 			(vf->width << 16) | (vf->width/2));
 
-		Wr(AFBC_MIF_HOR_SCOPE,
+		RDMA_WR(AFBC_MIF_HOR_SCOPE,
 			(0 << 16) | ((vf->width - 1)>>5));
 
-		Wr(AFBC_PIXEL_HOR_SCOPE,
+		RDMA_WR(AFBC_PIXEL_HOR_SCOPE,
 			(0 << 16) | (vf->width - 1));
-		Wr(AFBC_VD_CFMT_H, vf->height);
+		RDMA_WR(AFBC_VD_CFMT_H, vf->height);
 
-		Wr(AFBC_MIF_VER_SCOPE,
+		RDMA_WR(AFBC_MIF_VER_SCOPE,
 		    (0 << 16) | ((vf->height-1)>>2));
 
-		Wr(AFBC_PIXEL_VER_SCOPE,
+		RDMA_WR(AFBC_PIXEL_VER_SCOPE,
 			0 << 16 | (vf->height-1));
-		Wr(AFBC_SIZE_IN, vf->height | vf->width << 16);
-		Wr(AFBC_HEAD_BADDR, vf->canvas0Addr>>4);
-		Wr(AFBC_BODY_BADDR, vf->canvas1Addr>>4);
+		RDMA_WR(AFBC_SIZE_IN, vf->height | vf->width << 16);
+		RDMA_WR(AFBC_HEAD_BADDR, vf->canvas0Addr>>4);
+		RDMA_WR(AFBC_BODY_BADDR, vf->canvas1Addr>>4);
 		/* disable inp memory */
-		Wr_reg_bits(DI_INP_GEN_REG, 0, 0, 1);
+		RDMA_WR_BITS(DI_INP_GEN_REG, 0, 0, 1);
 		/* afbc to di enable */
-		Wr_reg_bits(VIU_MISC_CTRL0, 1, 19, 1);
+		RDMA_WR_BITS(VIU_MISC_CTRL0, 1, 19, 1);
 		/* DI inp(current data) switch to AFBC */
-		Wr_reg_bits(VIUB_MISC_CTRL0, 1, 16, 1);
+		RDMA_WR_BITS(VIUB_MISC_CTRL0, 1, 16, 1);
 	} else {
-		Wr(AFBC_ENABLE, 0);
+		RDMA_WR(AFBC_ENABLE, 0);
 		/* afbc to vpp(replace vd1) enable */
-		Wr_reg_bits(VIU_MISC_CTRL0, 0, 19, 1);
+		RDMA_WR_BITS(VIU_MISC_CTRL0, 0, 19, 1);
 		/* DI inp(current data) switch to memory */
-		Wr_reg_bits(VIUB_MISC_CTRL0, 0, 16, 1);
+		RDMA_WR_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
 	}
 }
-#ifdef NEW_DI_V3
+#ifdef MCDI_SUPPORT
 void enable_mc_di_pre(DI_MC_MIF_t *di_mcinford_mif,
 DI_MC_MIF_t *di_mcinfowr_mif, DI_MC_MIF_t *di_mcvecwr_mif, int urgent)
 {
-	Wr(MCDI_MCVECWR_X, di_mcvecwr_mif->size_x);
-	Wr(MCDI_MCVECWR_Y, di_mcvecwr_mif->size_y);
-	Wr(MCDI_MCINFOWR_X, di_mcinfowr_mif->size_x);
-	Wr(MCDI_MCINFOWR_Y, di_mcinfowr_mif->size_y);
+	RDMA_WR(MCDI_MCVECWR_X, di_mcvecwr_mif->size_x);
+	RDMA_WR(MCDI_MCVECWR_Y, di_mcvecwr_mif->size_y);
+	RDMA_WR(MCDI_MCINFOWR_X, di_mcinfowr_mif->size_x);
+	RDMA_WR(MCDI_MCINFOWR_Y, di_mcinfowr_mif->size_y);
 
-	Wr(MCDI_MCINFORD_X, di_mcinford_mif->size_x);
-	Wr(MCDI_MCINFORD_Y, di_mcinford_mif->size_y);
-	Wr(MCDI_MCVECWR_CANVAS_SIZE,
+	RDMA_WR(MCDI_MCINFORD_X, di_mcinford_mif->size_x);
+	RDMA_WR(MCDI_MCINFORD_Y, di_mcinford_mif->size_y);
+	RDMA_WR(MCDI_MCVECWR_CANVAS_SIZE,
 		(di_mcvecwr_mif->size_x<<16)+di_mcvecwr_mif->size_y);
-	Wr(MCDI_MCINFOWR_CANVAS_SIZE,
+	RDMA_WR(MCDI_MCINFOWR_CANVAS_SIZE,
 		(di_mcinfowr_mif->size_x<<16)+di_mcinfowr_mif->size_y);
-	Wr(MCDI_MCINFORD_CANVAS_SIZE,
+	RDMA_WR(MCDI_MCINFORD_CANVAS_SIZE,
 		(di_mcinford_mif->size_x<<16)+di_mcinford_mif->size_y);
 
 	/* Wr(MCDI_MOTINEN,1<<1);	//enable motin refinement */
 
-	Wr(MCDI_MCVECWR_CTRL, di_mcvecwr_mif->canvas_num |
+	RDMA_WR(MCDI_MCVECWR_CTRL, di_mcvecwr_mif->canvas_num |
 			(0<<14) |	 /* sync latch en */
 			(urgent<<8) |   /* urgent */
 			(1<<12) |	 /* enable reset by frame rst */
 			(0x4031<<16));
-	Wr(MCDI_MCINFOWR_CTRL, di_mcinfowr_mif->canvas_num |
+	RDMA_WR(MCDI_MCINFOWR_CTRL, di_mcinfowr_mif->canvas_num |
 			(0<<14) |	 /* sync latch en */
 			(urgent<<8) |	 /* urgent */
 			(1<<12) |	 /* enable reset by frame rst */
 			(0x4042<<16));
-	Wr(MCDI_MCINFORD_CTRL, di_mcinford_mif->canvas_num |
+	RDMA_WR(MCDI_MCINFORD_CTRL, di_mcinford_mif->canvas_num |
 			(0<<10) |	 /* sync latch en */
 			(urgent<<8) |   /* urgent */
 			(1<<9)  |		/* enable reset by frame rst */
@@ -473,7 +473,7 @@ static void set_di_inp_fmt_more(int hfmt_en,
 	int repeat_l0_en = 1, nrpt_phase0_en = 0;
 	int vt_phase_step = (16 >> vt_yc_ratio);
 
-	Wr(DI_INP_FMT_CTRL, (hz_rpt << 28)	|/* hz rpt pixel */
+	RDMA_WR(DI_INP_FMT_CTRL, (hz_rpt << 28)	|/* hz rpt pixel */
 				  (hz_ini_phase << 24)	|/* hz ini phase */
 				  (0 << 23)	|/* repeat p0 enable */
 				  (hz_yc_ratio << 21)	|/* hz yc ratio */
@@ -486,7 +486,7 @@ static void set_di_inp_fmt_more(int hfmt_en,
 				  (vfmt_en << 0)		/* vt enable */
 					);
 
-	Wr(DI_INP_FMT_W, (y_length << 16) |	/* hz format width */
+	RDMA_WR(DI_INP_FMT_W, (y_length << 16) |	/* hz format width */
 					 (c_length << 0)/* vt format width */
 					);
 }
@@ -552,7 +552,7 @@ static void set_di_inp_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	/* General register */
 	/* ---------------------- */
 	reset_on_gofield = (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)?0:1;
-	Wr(DI_INP_GEN_REG, (reset_on_gofield << 29)	|/* reset on go field */
+	RDMA_WR(DI_INP_GEN_REG, (reset_on_gofield << 29) |
 				(urgent << 28)	|/* chroma urgent bit */
 				(urgent << 27)	|/* luma urgent bit. */
 				(1 << 25)		|/* no dummy data. */
@@ -569,12 +569,12 @@ static void set_di_inp_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	  );
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		Wr_reg_bits(DI_INP_GEN_REG2, 1, 0, 1);
+		RDMA_WR_BITS(DI_INP_GEN_REG2, 1, 0, 1);
 	} else {
-		Wr_reg_bits(DI_INP_GEN_REG2, 0, 0, 1);
+		RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 0, 1);
 	}
 
-	Wr(DI_INP_CANVAS0, (mif->canvas0_addr2 << 16) |
+	RDMA_WR(DI_INP_CANVAS0, (mif->canvas0_addr2 << 16) |
 				/* cntl_canvas0_addr2 */
 				(mif->canvas0_addr1 << 8) |
 				/* cntl_canvas0_addr1 */
@@ -585,23 +585,25 @@ static void set_di_inp_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	/* Picture 0 X/Y start,end */
 	/* ---------------------- */
-	Wr(DI_INP_LUMA_X0, (mif->luma_x_end0 << 16) | /* cntl_luma_x_end0 */
+	RDMA_WR(DI_INP_LUMA_X0, (mif->luma_x_end0 << 16) |
+			/* cntl_luma_x_end0 */
 			(mif->luma_x_start0 << 0)/* cntl_luma_x_start0 */
 		);
-	Wr(DI_INP_LUMA_Y0, (mif->luma_y_end0 << 16) | /* cntl_luma_y_end0 */
+	RDMA_WR(DI_INP_LUMA_Y0, (mif->luma_y_end0 << 16) |
+			/* cntl_luma_y_end0 */
 			(mif->luma_y_start0 << 0) /* cntl_luma_y_start0 */
 		);
-	Wr(DI_INP_CHROMA_X0, (mif->chroma_x_end0 << 16) |
+	RDMA_WR(DI_INP_CHROMA_X0, (mif->chroma_x_end0 << 16) |
 			(mif->chroma_x_start0 << 0)
 		);
-	Wr(DI_INP_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
+	RDMA_WR(DI_INP_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
 		   (mif->chroma_y_start0 << 0)
 		);
 
 	/* ---------------------- */
 	/* Repeat or skip */
 	/* ---------------------- */
-	Wr(DI_INP_RPT_LOOP, (0 << 28) |
+	RDMA_WR(DI_INP_RPT_LOOP, (0 << 28) |
 					(0 << 24) |
 					(0 << 20) |
 					(0 << 16) |
@@ -611,11 +613,11 @@ static void set_di_inp_mif(DI_MIF_t *mif, int urgent, int hold_line)
 					(luma0_rpt_loop_end << 0)
 		);
 
-	Wr(DI_INP_LUMA0_RPT_PAT, luma0_rpt_loop_pat);
-	Wr(DI_INP_CHROMA0_RPT_PAT, chroma0_rpt_loop_pat);
+	RDMA_WR(DI_INP_LUMA0_RPT_PAT, luma0_rpt_loop_pat);
+	RDMA_WR(DI_INP_CHROMA0_RPT_PAT, chroma0_rpt_loop_pat);
 
 	/* Dummy pixel value */
-	Wr(DI_INP_DUMMY_PIXEL, 0x00808000);
+	RDMA_WR(DI_INP_DUMMY_PIXEL, 0x00808000);
 	if ((mif->set_separate_en != 0)) {/* 4:2:0 block mode.*/
 		set_di_inp_fmt_more(
 						1,/* hfmt_en */
@@ -656,7 +658,7 @@ static void set_di_mem_fmt_more(int hfmt_en,
 {
 	int vt_phase_step = (16 >> vt_yc_ratio);
 
-	Wr(DI_MEM_FMT_CTRL,
+	RDMA_WR(DI_MEM_FMT_CTRL,
 				(hz_rpt << 28)	| /* hz rpt pixel */
 			(hz_ini_phase << 24) | /* hz ini phase */
 				(0 << 23)	| /* repeat p0 enable */
@@ -670,7 +672,7 @@ static void set_di_mem_fmt_more(int hfmt_en,
 			(vfmt_en << 0)		/* vt enable */
 				);
 
-	Wr(DI_MEM_FMT_W, (y_length << 16) |	/* hz format width */
+	RDMA_WR(DI_MEM_FMT_W, (y_length << 16) |	/* hz format width */
 					(c_length << 0)	/* vt format width */
 				);
 }
@@ -689,7 +691,7 @@ static void set_di_chan2_fmt_more(int hfmt_en,
 {
 	int vt_phase_step = (16 >> vt_yc_ratio);
 
-	Wr(DI_CHAN2_FMT_CTRL, (hz_rpt << 28) | /* hz rpt pixel */
+	RDMA_WR(DI_CHAN2_FMT_CTRL, (hz_rpt << 28) | /* hz rpt pixel */
 				(hz_ini_phase << 24) | /* hz ini phase */
 				(0 << 23) | /* repeat p0 enable */
 				(hz_yc_ratio << 21) | /* hz yc ratio */
@@ -702,7 +704,7 @@ static void set_di_chan2_fmt_more(int hfmt_en,
 				(vfmt_en << 0)		/* vt enable */
 				);
 
-	Wr(DI_CHAN2_FMT_W, (y_length << 16) | /* hz format width */
+	RDMA_WR(DI_CHAN2_FMT_W, (y_length << 16) | /* hz format width */
 					(c_length << 0)	/* vt format width */
 				);
 }
@@ -762,7 +764,8 @@ static void set_di_mem_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	/* General register */
 	/* ---------------------- */
 	reset_on_gofield = (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)?0:1;
-	Wr(DI_MEM_GEN_REG, (reset_on_gofield << 29) | /* reset on go field */
+	RDMA_WR(DI_MEM_GEN_REG, (reset_on_gofield << 29) |
+						/* reset on go field */
 				(urgent << 28)	| /* urgent bit. */
 				(urgent << 27)	| /* urgent bit. */
 				(1 << 25)		| /* no dummy data. */
@@ -781,29 +784,30 @@ static void set_di_mem_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
-	Wr(DI_MEM_CANVAS0, (mif->canvas0_addr2 << 16) |/* cntl_canvas0_addr2 */
+	RDMA_WR(DI_MEM_CANVAS0, (mif->canvas0_addr2 << 16) |
+		/* cntl_canvas0_addr2 */
 (mif->canvas0_addr1 << 8) | (mif->canvas0_addr0 << 0));
 
 	/* ---------------------- */
 	/* Picture 0 X/Y start,end */
 	/* ---------------------- */
-	Wr(DI_MEM_LUMA_X0, (mif->luma_x_end0 << 16)	| /* cntl_luma_x_end0 */
+	RDMA_WR(DI_MEM_LUMA_X0, (mif->luma_x_end0 << 16) |
 (mif->luma_x_start0 << 0) /* cntl_luma_x_start0 */
 		);
-	Wr(DI_MEM_LUMA_Y0, (mif->luma_y_end0 << 16)	| /* cntl_luma_y_end0 */
+	RDMA_WR(DI_MEM_LUMA_Y0, (mif->luma_y_end0 << 16) |
 (mif->luma_y_start0 << 0) /* cntl_luma_y_start0 */
 		);
-	Wr(DI_MEM_CHROMA_X0, (mif->chroma_x_end0 << 16) |
+	RDMA_WR(DI_MEM_CHROMA_X0, (mif->chroma_x_end0 << 16) |
 				(mif->chroma_x_start0 << 0)
 		);
-	Wr(DI_MEM_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
+	RDMA_WR(DI_MEM_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
 				(mif->chroma_y_start0 << 0)
 		);
 
 	/* ---------------------- */
 	/* Repeat or skip */
 	/* ---------------------- */
-	Wr(DI_MEM_RPT_LOOP, (0 << 28) |
+	RDMA_WR(DI_MEM_RPT_LOOP, (0 << 28) |
 					(0	<< 24) |
 					(0	<< 20) |
 					(0	  << 16) |
@@ -813,11 +817,11 @@ static void set_di_mem_mif(DI_MIF_t *mif, int urgent, int hold_line)
 					(luma0_rpt_loop_end << 0)
 		);
 
-	Wr(DI_MEM_LUMA0_RPT_PAT, luma0_rpt_loop_pat);
-	Wr(DI_MEM_CHROMA0_RPT_PAT, chroma0_rpt_loop_pat);
+	RDMA_WR(DI_MEM_LUMA0_RPT_PAT, luma0_rpt_loop_pat);
+	RDMA_WR(DI_MEM_CHROMA0_RPT_PAT, chroma0_rpt_loop_pat);
 
 	/* Dummy pixel value */
-	Wr(DI_MEM_DUMMY_PIXEL, 0x00808000);
+	RDMA_WR(DI_MEM_DUMMY_PIXEL, 0x00808000);
 	if ((mif->set_separate_en != 0)) {/* 4:2:0 block mode.*/
 		set_di_mem_fmt_more(
 						1,	/* hfmt_en */
@@ -1001,7 +1005,7 @@ static void set_di_chan2_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	/* General register */
 	/* ---------------------- */
 	reset_on_gofield = (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)?0:1;
-	Wr(DI_CHAN2_GEN_REG, (reset_on_gofield << 29) |
+	RDMA_WR(DI_CHAN2_GEN_REG, (reset_on_gofield << 29) |
 				(urgent << 28) | /* urgent */
 				(urgent << 27) | /* luma urgent */
 				(1 << 25) |	/* no dummy data. */
@@ -1019,21 +1023,23 @@ static void set_di_chan2_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
-	Wr(DI_CHAN2_CANVAS, (0 << 16)		|	/* cntl_canvas0_addr2 */
+	RDMA_WR(DI_CHAN2_CANVAS, (0 << 16) | /* cntl_canvas0_addr2 */
 (0 << 8)|(mif->canvas0_addr0 << 0));
 
 	/* ---------------------- */
 	/* Picture 0 X/Y start,end */
 	/* ---------------------- */
-	Wr(DI_CHAN2_LUMA_X, (mif->luma_x_end0 << 16) | /* cntl_luma_x_end0 */
+	RDMA_WR(DI_CHAN2_LUMA_X, (mif->luma_x_end0 << 16) |
+	/* cntl_luma_x_end0 */
 (mif->luma_x_start0 << 0));
-	Wr(DI_CHAN2_LUMA_Y, (mif->luma_y_end0 << 16) |	/* cntl_luma_y_end0 */
+	RDMA_WR(DI_CHAN2_LUMA_Y, (mif->luma_y_end0 << 16) |
+	/* cntl_luma_y_end0 */
 (mif->luma_y_start0 << 0));
 
 	/* ---------------------- */
 	/* Repeat or skip */
 	/* ---------------------- */
-	Wr(DI_CHAN2_RPT_LOOP, (0 << 28) |
+	RDMA_WR(DI_CHAN2_RPT_LOOP, (0 << 28) |
 							(0	 << 24) |
 							(0	 << 20) |
 							(0	 << 16) |
@@ -1043,10 +1049,10 @@ static void set_di_chan2_mif(DI_MIF_t *mif, int urgent, int hold_line)
 						(luma0_rpt_loop_end << 0)
 	);
 
-	Wr(DI_CHAN2_LUMA_RPT_PAT, luma0_rpt_loop_pat);
+	RDMA_WR(DI_CHAN2_LUMA_RPT_PAT, luma0_rpt_loop_pat);
 
 	/* Dummy pixel value */
-	Wr(DI_CHAN2_DUMMY_PIXEL, 0x00808000);
+	RDMA_WR(DI_CHAN2_DUMMY_PIXEL, 0x00808000);
 
 #ifdef NEW_DI_V1
 	if ((mif->set_separate_en != 0)) {	/* 4:2:0 block mode. */
@@ -1184,7 +1190,7 @@ void di_post_switch_buffer(
 	DI_MIF_t		   *di_buf1_mif,
 	DI_SIM_MIF_t    *di_diwr_mif,
 	DI_SIM_MIF_t    *di_mtnprd_mif,
-#ifdef NEW_DI_V3
+#ifdef MCDI_SUPPORT
 	DI_MC_MIF_t	   *di_mcvecrd_mif,
 #endif
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
@@ -1221,6 +1227,7 @@ void di_post_switch_buffer(
 
 	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
+#ifdef MCDI_SUPPORT
 	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL,
 (Rd(MCDI_MCVECRD_CTRL) & 0xffffff00) |
 (1<<9) |	  /* canvas enable */
@@ -1230,7 +1237,7 @@ di_mcvecrd_mif->canvas_num |  /* canvas index. */
 			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
 		else
 			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
-
+#endif
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en|blend_en) << 0) |	/* line buffer 0 enable */
 ((blend_mode == 1?1:0) << 1)  |
@@ -1368,16 +1375,16 @@ void enable_film_mode_check(unsigned int width, unsigned int height,
 	pd_win_prop[4].pixels_num =
 (win4_end_x-win4_start_x)*(win4_end_y-win4_start_y);
 
-	Wr(DI_MC_REG0_X, (win0_start_x << 16) | win0_end_x);
-	Wr(DI_MC_REG0_Y, (win0_start_y << 16) | win0_end_y);
-	Wr(DI_MC_REG1_X, (win1_start_x << 16) | win1_end_x);
-	Wr(DI_MC_REG1_Y, (win1_start_y << 16) | win1_end_y);
-	Wr(DI_MC_REG2_X, (win2_start_x << 16) | win2_end_x);
-	Wr(DI_MC_REG2_Y, (win2_start_y << 16) | win2_end_y);
-	Wr(DI_MC_REG3_X, (win3_start_x << 16) | win3_end_x);
-	Wr(DI_MC_REG3_Y, (win3_start_y << 16) | win3_end_y);
-	Wr(DI_MC_REG4_X, (win4_start_x << 16) | win4_end_x);
-	Wr(DI_MC_REG4_Y, (win4_start_y << 16) | win4_end_y);
+	RDMA_WR(DI_MC_REG0_X, (win0_start_x << 16) | win0_end_x);
+	RDMA_WR(DI_MC_REG0_Y, (win0_start_y << 16) | win0_end_y);
+	RDMA_WR(DI_MC_REG1_X, (win1_start_x << 16) | win1_end_x);
+	RDMA_WR(DI_MC_REG1_Y, (win1_start_y << 16) | win1_end_y);
+	RDMA_WR(DI_MC_REG2_X, (win2_start_x << 16) | win2_end_x);
+	RDMA_WR(DI_MC_REG2_Y, (win2_start_y << 16) | win2_end_y);
+	RDMA_WR(DI_MC_REG3_X, (win3_start_x << 16) | win3_end_x);
+	RDMA_WR(DI_MC_REG3_Y, (win3_start_y << 16) | win3_end_y);
+	RDMA_WR(DI_MC_REG4_X, (win4_start_x << 16) | win4_end_x);
+	RDMA_WR(DI_MC_REG4_Y, (win4_start_y << 16) | win4_end_y);
 
 }
 
@@ -1452,7 +1459,7 @@ void di_post_read_reverse(bool reverse)
 		Wr_reg_bits(DI_IF1_GEN_REG2,	3, 2, 2);
 		Wr_reg_bits(VD1_IF0_GEN_REG2, 0xf, 2, 4);
 		Wr_reg_bits(VD2_IF0_GEN_REG2, 0xf, 2, 4);
-		#ifdef NEW_DI_V3
+		#ifdef MCDI_SUPPORT
 		/* motion vector read reverse*/
 		Wr_reg_bits(MCDI_MCVECRD_X, 1, 30, 1);
 		Wr_reg_bits(MCDI_MCVECRD_Y, 1, 30, 1);
@@ -1462,7 +1469,7 @@ void di_post_read_reverse(bool reverse)
 		Wr_reg_bits(DI_IF1_GEN_REG2,  0, 2, 2);
 		Wr_reg_bits(VD1_IF0_GEN_REG2, 0, 2, 4);
 		Wr_reg_bits(VD2_IF0_GEN_REG2, 0, 2, 4);
-		#ifdef NEW_DI_V3
+		#ifdef MCDI_SUPPORT
 		Wr_reg_bits(MCDI_MCVECRD_X, 0, 30, 1);
 		Wr_reg_bits(MCDI_MCVECRD_Y, 0, 30, 1);
 		Wr_reg_bits(MCDI_MC_CRTL, 1, 8, 1);
@@ -1478,7 +1485,7 @@ void di_post_read_reverse_irq(bool reverse)
 		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0xf, 2, 4);
 		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2, 0xf, 2, 4);
 		VSYNC_WR_MPEG_REG_BITS(DI_MTNRD_CTRL, 0xf, 17, 4);
-		#ifdef NEW_DI_V3
+		#ifdef MCDI_SUPPORT
 		/* motion vector read reverse*/
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
@@ -1489,7 +1496,7 @@ void di_post_read_reverse_irq(bool reverse)
 		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0, 2, 4);
 		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2, 0, 2, 4);
 		VSYNC_WR_MPEG_REG_BITS(DI_MTNRD_CTRL, 0, 17, 4);
-		#ifdef NEW_DI_V3
+		#ifdef MCDI_SUPPORT
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 8, 1);

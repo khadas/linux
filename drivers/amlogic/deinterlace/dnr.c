@@ -368,7 +368,7 @@ static void parse_cmd_params(char *buf_orig, char **parm)
 
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')

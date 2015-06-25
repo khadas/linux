@@ -12,6 +12,13 @@
 #define Rd_reg_bits(adr, start, len)  \
 		(aml_read_vcbus(adr)&(((1<<len)-1)<<start))
 
+unsigned int RDMA_WR(unsigned int adr, unsigned int val);
+unsigned int RDMA_RD(unsigned int adr);
+unsigned int RDMA_WR_BITS(unsigned int adr, unsigned int val,
+		unsigned int start, unsigned int len);
+unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
+		unsigned int len);
+
 /* vdin */
 #define VDIN_WR_CTRL					0x1220
 		/* 0xd0104880 */

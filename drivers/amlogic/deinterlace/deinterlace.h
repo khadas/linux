@@ -8,39 +8,13 @@
 #define NEW_DI_V2 0x00000004 /* from m6tvd */
 #define NEW_DI_V3 0x00000008 /* from gx */
 #define NEW_DI_V4 0x00000010 /* dnr added */
+
 /*vframe define*/
 #define vframe_t struct vframe_s
 
 /* canvas defination */
 #define DI_USE_FIXED_CANVAS_IDX
-#ifdef DI_USE_FIXED_CANVAS_IDX
-#define DI_PRE_MEM_NR_CANVAS_IDX		0x45
-#define DI_PRE_CHAN2_NR_CANVAS_IDX		0x46
-#define DI_PRE_WR_NR_CANVAS_IDX			0x47
-#define DI_PRE_WR_MTN_CANVAS_IDX		0x48
-/* NEW DI */
-#define DI_CONTPRD_CANVAS_IDX			0x49
-#define DI_CONTP2RD_CANVAS_IDX			 0x4a
-#define DI_CONTWR_CANVAS_IDX			0x4b
-#define DI_MCINFORD_CANVAS_IDX			0x4c
-#define DI_MCINFOWR_CANVAS_IDX			0x4d
-#define DI_MCVECWR_CANVAS_IDX			0x4e
-/* DI POST, share with DISPLAY */
-#define DI_POST_BUF0_CANVAS_IDX			0x4f
-#define DI_POST_BUF1_CANVAS_IDX			0x50
-#define DI_POST_MTNCRD_CANVAS_IDX		0x51
-#define DI_POST_MTNPRD_CANVAS_IDX		0x52
-/* MCDI POST */
-#define DI_POST_MCVECRD_CANVAS_IDX		0x53
-#define DI_POST_MCVECRD_CANVAS_IDX2		0x54
 
-#ifdef CONFIG_VSYNC_RDMA
-#define DI_POST_BUF0_CANVAS_IDX2		 0x55
-#define DI_POST_BUF1_CANVAS_IDX2		 0x56
-#define DI_POST_MTNCRD_CANVAS_IDX2		 0x57
-#define DI_POST_MTNPRD_CANVAS_IDX2		 0x58
-#endif
-#endif
 #undef USE_LIST
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #define NEW_KEEP_LAST_FRAME
@@ -60,10 +34,6 @@
 /************************************
 *	 di hardware level interface
 *************************************/
-#define WIN_SIZE_FACTOR		100
-
-#define PD32_PAR_NUM		6
-#define PD22_PAR_NUM		6
 #define MAX_WIN_NUM			5
 
 struct pulldown_detect_info_s {
@@ -220,6 +190,10 @@ extern int di_vscale_skip_count;
 /*
 di hardware internal
 */
+#define RDMA_DET3D_IRQ				0x20
+/* vdin0 rdma irq */
+#define RDMA_DEINT_IRQ				0x2
+#define RDMA_TABLE_SIZE                    ((PAGE_SIZE)<<1)
 
 #if defined(CONFIG_AM_DEINTERLACE_SD_ONLY)
 #define MAX_CANVAS_WIDTH				720
@@ -228,8 +202,6 @@ di hardware internal
 #define MAX_CANVAS_WIDTH				1920
 #define MAX_CANVAS_HEIGHT				1088
 #endif
-
-#define DI_BUF_NUM			6
 
 struct DI_MIF_TYPE {
 	unsigned short	luma_x_start0;
@@ -351,7 +323,7 @@ void di_post_switch_buffer(
 	DI_SIM_MIF_t	*di_mtncrd_mif,
 	#endif
 	DI_SIM_MIF_t	*di_mtnprd_mif,
-	#ifdef NEW_DI_V3
+	#ifdef MCDI_SUPPORT
 	DI_MC_MIF_t		*di_mcvecrd_mif,
 	#endif
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
@@ -431,6 +403,7 @@ struct di_dev_s {
 	unsigned int	   buffer_size;
 	unsigned int	   buf_num_avail;
 	unsigned int	   hw_version;
+	int							rdma_handle;
 };
 #define di_dev_t struct di_dev_s
 #endif
