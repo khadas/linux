@@ -38,10 +38,8 @@
 #include <linux/list.h>
 #include <linux/uaccess.h>
 
-#include <linux/amlogic/amports/vframe.h>
-#include <linux/amlogic/amports/vframe_provider.h>
-#include <linux/amlogic/amports/vframe_receiver.h>
-#include "deinterlace.h"
+#include "deinterlace_pd.h"
+#include "register.h"
 
 static uint field_diff_thresh = 0x12;
 static uint frame_diff_thresh = 0x20;
@@ -73,32 +71,16 @@ static int pattern_len[MAX_WIN_NUM+1] = {0, 0, 0, 0, 0, 0};
 static int di_p32_counter[MAX_WIN_NUM+1] = {0, 0, 0, 0, 0, 0};
 static unsigned int last_big_frame_diff[MAX_WIN_NUM+1] = {0, 0, 0, 0, 0, 0};
 static unsigned int last_big_frame_diff_num[MAX_WIN_NUM+1] = {0, 0, 0, 0, 0, 0};
-static unsigned long long di_p32_info[MAX_WIN_NUM+1],
+static unsigned long di_p32_info[MAX_WIN_NUM+1],
 di_p22_info[MAX_WIN_NUM+1], di_p32_info_2[MAX_WIN_NUM+1],
 di_p22_info_2[MAX_WIN_NUM+1];
-
-void reset_pulldown_state(void)
-{
-	int ii;
-	for (ii = 0; ii < (MAX_WIN_NUM+1); ii++) {
-		pattern_len[ii] = 0;
-		di_p32_counter[ii] = 0;
-		last_big_frame_diff[ii] = 0;
-		last_big_frame_diff_num[ii] = 0;
-		di_p32_info[ii] = 0;
-		di_p32_info_2[ii] = 0;
-		di_p22_info[ii] = 0;
-		di_p22_info_2[ii] = 0;
-	}
-	reset_pd_his();
-	reset_pd32_status();
-}
+struct pd_detect_threshold_s field_pd_th;
 
 void cal_pd_parameters(pulldown_detect_info_t *cur_info,
 				pulldown_detect_info_t *pre_info,
-				pulldown_detect_info_t *next_info,
-				pd_detect_threshold_t *pd_th)
+				pulldown_detect_info_t *next_info)
 {
+		pd_detect_threshold_t *pd_th = &field_pd_th;
 	cur_info->frame_diff_skew =
 cur_info->frame_diff > pre_info->frame_diff ?
 cur_info->frame_diff-pre_info->frame_diff :
@@ -544,5 +526,66 @@ pd_his(pd32_pattern_len-1, pd32_pattern_len)->frame_diff_num;
 	}
 
 	return blend_mode;
+}
+
+
+void reset_pulldown_state(void)
+{
+	int ii;
+	for (ii = 0; ii < (MAX_WIN_NUM+1); ii++) {
+		pattern_len[ii] = 0;
+		di_p32_counter[ii] = 0;
+		last_big_frame_diff[ii] = 0;
+		last_big_frame_diff_num[ii] = 0;
+		di_p32_info[ii] = 0;
+		di_p32_info_2[ii] = 0;
+		di_p22_info[ii] = 0;
+		di_p22_info_2[ii] = 0;
+	}
+	reset_pd_his();
+	reset_pd32_status();
+}
+
+void init_pd_para(void)
+{
+	int i;
+	/* threshold for pd */
+	field_pd_th.frame_diff_chg_th = 2;
+	field_pd_th.frame_diff_num_chg_th = 50;
+	field_pd_th.field_diff_chg_th = 2;
+	field_pd_th.field_diff_num_chg_th = 2;
+	field_pd_th.frame_diff_skew_th = 5;  /*10*/
+	field_pd_th.frame_diff_num_skew_th = 5;  /*10*/
+	field_pd_th.field_diff_num_th = 0;
+	/* win, only check diff_num */
+	for (i = 0; i < MAX_WIN_NUM; i++) {
+		win_pd_th[i].frame_diff_chg_th = 0;
+		win_pd_th[i].frame_diff_num_chg_th = 50;
+		win_pd_th[i].field_diff_chg_th = 0;
+		win_pd_th[i].field_diff_num_chg_th = 2;
+		win_pd_th[i].frame_diff_skew_th = 0;
+		win_pd_th[i].frame_diff_num_skew_th = 0;
+		win_pd_th[i].field_diff_num_th = 5;
+		if (i == 4)
+			win_pd_th[i].field_diff_num_th = 10;
+	}
+
+	Wr(DI_MC_32LVL1, 16 |	/* region 3 */
+	(16 << 8));/* region 4 */
+
+	Wr(DI_MC_32LVL0, 16	|	/* field 32 level */
+	(16 << 8)  |	/* region 0 */
+	(16 << 16) |	/* region 1 */
+	(16 << 24));	/* region 2 */
+	Wr(DI_MC_22LVL0,  256  |/* field 22 level */
+	(768 << 16));	/* region 0 */
+
+	Wr(DI_MC_22LVL1, 768	|/* region 1 */
+	(768 << 16));	/* region 2 */
+
+	Wr(DI_MC_22LVL2, 768 |	/* region 3 */
+	(768 << 16));	/* region 4. */
+	Wr(DI_MC_CTRL, 0x1f);	/* enable region level */
+
 }
 

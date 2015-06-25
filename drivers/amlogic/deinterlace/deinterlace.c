@@ -55,6 +55,7 @@
 #include <linux/amlogic/vout/vout_notify.h>
 #include "register.h"
 #include "deinterlace.h"
+#include "deinterlace_pd.h"
 #include "../amports/video.h"
 #ifdef CONFIG_VSYNC_RDMA
 #include "../amports/rdma.h"
@@ -145,8 +146,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* add afbc support for h265 stream */
-static const char version_s[] = "2015-6-2a";
+/* remove process count for p separate by i */
+static const char version_s[] = "2015-6-17a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -320,15 +321,8 @@ static unsigned int det3d_mode;
 
 static int force_duration_0;
 
-#ifdef NEW_DI_V1
-static unsigned int di_new_mode_mask = 0xffff;
-static unsigned int di_new_mode = 0x1;
 static int use_reg_cfg = 1;
-#define get_new_mode_flag() \
-	((di_new_mode&di_new_mode_mask&0xffff)|(di_new_mode_mask>>16))
-#else
-static int use_reg_cfg;
-#endif
+
 static uint init_flag;
 static unsigned char active_flag;
 static unsigned char recovery_flag;
@@ -609,7 +603,9 @@ store_dbg(struct device *dev,
 	} else if (strncmp(buf, "dumpreg", 7) == 0) {
 		unsigned int i = 0;
 		for (i = 0; i < 255; i++)
-			pr_info("[0x%x]=0x%x\n", 0x1700+i, Rd(0x1700+i));
+			pr_info("[0x%x][0x%x]=0x%x\n",
+				0xd0100000 + ((0x1700+i)<<2),
+				0x1700+i, Rd(0x1700+i));
 	} else if (strncmp(buf, "robust_test", 11) == 0) {
 		recovery_flag = 1;
 	}
@@ -805,75 +801,10 @@ struct di_param_s {
 	int (*proc_fun)(void);
 };
 #define di_param_t struct di_param_s
-#ifndef NEW_DI_V1
-unsigned long reg_mtn_info[7];
-#endif
+
 di_param_t di_params[] = {
 
 	{"di_mtn_1_ctrl1", &di_mtn_1_ctrl1, NULL},
-	{"ei_ctrl0",	 &ei_ctrl0, NULL},
-	{"ei_ctrl1",	 &ei_ctrl1, NULL},
-	{"ei_ctrl2",	 &ei_ctrl2, NULL},
-#ifdef NEW_DI_V1
-	{"ei_ctrl3",	 &ei_ctrl3, NULL},
-#endif
-	{"mtn_ctrl_char_diff_cnt", &mtn_ctrl_char_diff_cnt, NULL},
-	{"mtn_ctrl_low_level", &mtn_ctrl_low_level, NULL},
-	{"mtn_ctrl_high_level", &mtn_ctrl_high_level, NULL},
-	{"mtn_ctrl", &mtn_ctrl, NULL},
-	{"mtn_ctrl_diff_level",	&mtn_ctrl_diff_level, NULL},
-	{"mtn_ctrl1_reduce",	&mtn_ctrl1_reduce, NULL},
-	{"mtn_ctrl1_shift",    &mtn_ctrl1_shift, NULL},
-	{"mtn_ctrl1", &mtn_ctrl1, NULL},
-	{"blend_ctrl",	 &blend_ctrl, NULL},
-	{"kdeint0",		  &kdeint0, NULL},
-	{"kdeint1",		  &kdeint1, NULL},
-	{"kdeint2",		  &kdeint2, NULL},
-	{"blend_ctrl1",  &blend_ctrl1, NULL},
-	{"blend_ctrl1_char_level", &blend_ctrl1_char_level, NULL},
-	{"blend_ctrl1_angle_thd", &blend_ctrl1_angle_thd, NULL},
-	{"blend_ctrl1_filt_thd", &blend_ctrl1_filt_thd, NULL},
-	{"blend_ctrl1_diff_thd", &blend_ctrl1_diff_thd, NULL},
-	{"blend_ctrl2",  &blend_ctrl2, NULL},
-	{"blend_ctrl2_black_level", &blend_ctrl2_black_level, NULL},
-	{"blend_ctrl2_mtn_no_mov", &blend_ctrl2_mtn_no_mov, NULL},
-#ifndef NEW_DI_V1
-	{"mtn_thre_1_low", &mtn_thre_1_low, NULL},
-	{"mtn_thre_1_high", &mtn_thre_1_high, NULL},
-	{"mtn_thre_2_low", &mtn_thre_2_low, NULL},
-	{"mtn_thre_2_high", &mtn_thre_2_high, NULL},
-
-	{"mtn_info0", ((uint *)&reg_mtn_info[0]), NULL},
-	{"mtn_info1", ((uint *)&reg_mtn_info[1]), NULL},
-	{"mtn_info2", ((uint *)&reg_mtn_info[2]), NULL},
-	{"mtn_info3", ((uint *)&reg_mtn_info[3]), NULL},
-	{"mtn_info4", ((uint *)&reg_mtn_info[4]), NULL},
-	{"mtn_info5", ((uint *)&reg_mtn_info[5]), NULL},
-	{"mtn_info6", ((uint *)&reg_mtn_info[6]), NULL},
-#endif
-
-	{"post_ctrl__di_blend_en", &post_ctrl__di_blend_en, NULL},
-	{"post_ctrl__di_post_repeat", &post_ctrl__di_post_repeat, NULL},
-	{"di_pre_ctrl__di_pre_repeat", &di_pre_ctrl__di_pre_repeat, NULL},
-
-	{"field_32lvl", &field_32lvl, NULL},
-	{"field_22lvl", &field_22lvl, NULL},
-	{"field_pd_frame_diff_chg_th", &(field_pd_th.frame_diff_chg_th), NULL},
-	{"field_pd_frame_diff_num_chg_th",
-&(field_pd_th.frame_diff_num_chg_th), NULL},
-	{"field_pd_field_diff_chg_th", &(field_pd_th.field_diff_chg_th), NULL},
-	{"field_pd_field_diff_num_chg_th",
-&(field_pd_th.field_diff_num_chg_th), NULL},
-	{"field_pd_frame_diff_skew_th",
-&(field_pd_th.frame_diff_skew_th), NULL},
-	{"field_pd_frame_diff_num_skew_th",
-&(field_pd_th.frame_diff_num_skew_th), NULL},
-	{"win0_start_x_r", &pd_win_prop[0].win_start_x_r, NULL},
-	{"win0_end_x_r", &pd_win_prop[0].win_end_x_r, NULL},
-	{"win0_start_y_r", &pd_win_prop[0].win_start_y_r, NULL},
-	{"win0_end_y_r", &pd_win_prop[0].win_end_y_r, NULL},
-	{"win0_32lvl", &pd_win_prop[0].win_32lvl, NULL},
-	{"win0_22lvl", &pd_win_prop[0].win_22lvl, NULL},
 	{"win0_pd_frame_diff_chg_th", &(win_pd_th[0].frame_diff_chg_th), NULL},
 	{"win0_pd_frame_diff_num_chg_th",
 &(win_pd_th[0].frame_diff_num_chg_th), NULL},
@@ -886,12 +817,6 @@ di_param_t di_params[] = {
 &(win_pd_th[0].frame_diff_num_skew_th), NULL},
 	{"win0_pd_field_diff_num_th",
 &(win_pd_th[0].field_diff_num_th), NULL},
-	{"win1_start_x_r", &pd_win_prop[1].win_start_x_r, NULL},
-	{"win1_end_x_r",   &pd_win_prop[1].win_end_x_r, NULL},
-	{"win1_start_y_r", &pd_win_prop[1].win_start_y_r, NULL},
-	{"win1_end_y_r",   &pd_win_prop[1].win_end_y_r, NULL},
-	{"win1_32lvl", &pd_win_prop[1].win_32lvl, NULL},
-	{"win1_22lvl", &pd_win_prop[1].win_22lvl, NULL},
 	{"win1_pd_frame_diff_chg_th", &(win_pd_th[1].frame_diff_chg_th), NULL},
 	{"win1_pd_frame_diff_num_chg_th",
 &(win_pd_th[1].frame_diff_num_chg_th), NULL},
@@ -904,12 +829,6 @@ di_param_t di_params[] = {
 &(win_pd_th[1].frame_diff_num_skew_th), NULL},
 	{"win1_pd_field_diff_num_th", &(win_pd_th[1].field_diff_num_th), NULL},
 
-	{"win2_start_x_r", &pd_win_prop[2].win_start_x_r, NULL},
-	{"win2_end_x_r",   &pd_win_prop[2].win_end_x_r, NULL},
-	{"win2_start_y_r", &pd_win_prop[2].win_start_y_r, NULL},
-	{"win2_end_y_r",   &pd_win_prop[2].win_end_y_r, NULL},
-	{"win2_32lvl", &pd_win_prop[2].win_32lvl, NULL},
-	{"win2_22lvl", &pd_win_prop[2].win_22lvl, NULL},
 	{"win2_pd_frame_diff_chg_th", &(win_pd_th[2].frame_diff_chg_th), NULL},
 	{"win2_pd_frame_diff_num_chg_th",
 &(win_pd_th[2].frame_diff_num_chg_th), NULL},
@@ -922,12 +841,6 @@ di_param_t di_params[] = {
 &(win_pd_th[2].frame_diff_num_skew_th), NULL},
 	{"win2_pd_field_diff_num_th", &(win_pd_th[2].field_diff_num_th), NULL},
 
-	{"win3_start_x_r", &pd_win_prop[3].win_start_x_r, NULL},
-	{"win3_end_x_r",   &pd_win_prop[3].win_end_x_r, NULL},
-	{"win3_start_y_r", &pd_win_prop[3].win_start_y_r, NULL},
-	{"win3_end_y_r",   &pd_win_prop[3].win_end_y_r, NULL},
-	{"win3_32lvl", &pd_win_prop[3].win_32lvl, NULL},
-	{"win3_22lvl", &pd_win_prop[3].win_22lvl, NULL},
 	{"win3_pd_frame_diff_chg_th", &(win_pd_th[3].frame_diff_chg_th), NULL},
 	{"win3_pd_frame_diff_num_chg_th",
 &(win_pd_th[3].frame_diff_num_chg_th), NULL},
@@ -940,12 +853,7 @@ di_param_t di_params[] = {
 &(win_pd_th[3].frame_diff_num_skew_th), NULL},
 	{"win3_pd_field_diff_num_th",
 &(win_pd_th[3].field_diff_num_th), NULL},
-	{"win4_start_x_r", &pd_win_prop[4].win_start_x_r, NULL},
-	{"win4_end_x_r",   &pd_win_prop[4].win_end_x_r, NULL},
-	{"win4_start_y_r", &pd_win_prop[4].win_start_y_r, NULL},
-	{"win4_end_y_r",   &pd_win_prop[4].win_end_y_r, NULL},
-	{"win4_32lvl", &pd_win_prop[4].win_32lvl, NULL},
-	{"win4_22lvl", &pd_win_prop[4].win_22lvl, NULL},
+
 	{"win4_pd_frame_diff_chg_th", &(win_pd_th[4].frame_diff_chg_th), NULL},
 	{"win4_pd_frame_diff_num_chg_th",
 &(win_pd_th[4].frame_diff_num_chg_th), NULL},
@@ -957,13 +865,6 @@ di_param_t di_params[] = {
 &(win_pd_th[4].frame_diff_skew_th), NULL},
 	{"win4_pd_frame_diff_num_skew_th",
 &(win_pd_th[4].frame_diff_num_skew_th), NULL},
-	{"win4_pd_field_diff_num_th", &(win_pd_th[4].field_diff_num_th), NULL},
-	{"pd32_match_num",	&pd32_match_num, NULL},
-	{"pd32_diff_num_0_th",	&pd32_diff_num_0_th, NULL},
-	{"pd32_debug_th", &pd32_debug_th, NULL},
-	{"pd22_th", &pd22_th, NULL},
-	{"pd22_num_th", &pd22_num_th, NULL},
-
 	{"", NULL},
 };
 
@@ -995,7 +896,7 @@ store_parameters(struct device *dev,
 	tmpbuf[i] = 0;
 	/* pr_info("%s\n", tmpbuf); */
 	if (strcmp("reset", tmpbuf) == 0) {
-		reset_di_para();
+		/* reset_di_para(); */
 		di_print("reset param\n");
 	} else {
 		for (j = 0; di_params[j].param; j++) {
@@ -1674,7 +1575,6 @@ struct di_pre_stru_s {
 	int cur_sig_fmt;
 	unsigned int orientation;
 	int cur_prog_flag; /* 1 for progressive source */
-	int process_count;
 	/* valid only when prog_proc_type is 0, for
 	progressive source: top field 1, bot field 0 */
 	int source_change_flag;
@@ -1741,8 +1641,6 @@ static void dump_di_pre_stru(void)
 					di_pre_stru.cur_source_type);
 	pr_info("cur_prog_flag		   = %d\n",
 					di_pre_stru.cur_prog_flag);
-	pr_info("process_count		   = %d\n",
-					di_pre_stru.process_count);
 	pr_info("source_change_flag	   = %d\n",
 					di_pre_stru.source_change_flag);
 	pr_info("prog_proc_type		   = %d\n",
@@ -1770,9 +1668,6 @@ static void dump_di_pre_stru(void)
 struct di_post_stru_s {
 	DI_MIF_t di_buf0_mif;
 	DI_MIF_t di_buf1_mif;
-	#ifndef NEW_DI_V2
-	DI_SIM_MIF_t di_mtncrd_mif;
-	#endif
 	DI_SIM_MIF_t di_mtnprd_mif;
 	#ifdef NEW_DI_V3
 	DI_MC_MIF_t di_mcvecrd_mif;
@@ -1882,236 +1777,6 @@ recycle_vframe_type_post_print(di_buf_t *di_buf,
 reg_cfg_t *reg_cfg_head = NULL;
 
 #ifdef NEW_DI_V1
-/*********cvbs and tuner stand defintion****************/
-reg_cfg_t di_default_post_tuner = {
-	NULL,
-	((0 << VFRAME_SOURCE_TYPE_OTHERS) |
-	 (1 << VFRAME_SOURCE_TYPE_TUNER)  |
-	 (1 << VFRAME_SOURCE_TYPE_CVBS)   |
-	 (0 << VFRAME_SOURCE_TYPE_COMP)   |
-	 (0 << VFRAME_SOURCE_TYPE_HDMI)
-	 ),
-	1,
-	0,
-	{
-	   ((TVIN_SIG_FMT_CVBS_NTSC_M << 16) |
-		TVIN_SIG_FMT_CVBS_SECAM),
-		0
-	},
-	{
-		{DI_MTN_1_CTRL1, 0xa0202015, 0, 31},
-		{DI_MTN_1_CTRL2, 0x1a1a3a62, 0, 31},
-		{DI_MTN_1_CTRL3, 0x15200a0a, 0, 31},
-		{DI_MTN_1_CTRL4, 0x01040440, 0, 31},
-		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
-/* #define DI_MTN_1_CTRL6 */
-		{0x17a9, 0x0d5a1520, 0, 31},
-/* #define DI_MTN_1_CTRL7 */
-		{0x17aa, 0x0a0a0201, 0, 31},
-/* #define DI_MTN_1_CTRL8 */
-		{0x17ab, 0x1a1a2662, 0, 31},
-/* #define DI_MTN_1_CTRL9 */
-		{0x17ac, 0x0d200302, 0, 31},
-/* #define DI_MTN_1_CTRL10 */
-		{0x17ad, 0x02020606, 0, 31},
-/* #define DI_MTN_1_CTRL11 */
-		{0x17ae, 0x05080304, 0, 31},
-/* #define DI_MTN_1_CTRL12 */
-		{0x17af, 0x40020a04, 0, 31},
-		{0},
-	}
-};
-
-/*****************comp stand defintion******************************/
-
-reg_cfg_t di_default_post_comp = {
-	NULL,
-	((0 << VFRAME_SOURCE_TYPE_OTHERS) |
-	 (0 << VFRAME_SOURCE_TYPE_TUNER)  |
-	 (0 << VFRAME_SOURCE_TYPE_CVBS)   |
-	 (1 << VFRAME_SOURCE_TYPE_COMP)   |
-	 (0 << VFRAME_SOURCE_TYPE_HDMI)
-	 ),
-	1,
-	0,
-	{
-	   ((TVIN_SIG_FMT_COMP_480P_60HZ_D000 << 16) |
-		TVIN_SIG_FMT_COMP_576I_50HZ_D000),
-		0
-	},
-	{
-		{DI_MTN_1_CTRL1, 0xa0202015, 0, 31},
-		{DI_MTN_1_CTRL2, 0x1a1a3a62, 0, 31},
-		{DI_MTN_1_CTRL3, 0x15200a0a, 0, 31},
-		{DI_MTN_1_CTRL4, 0x01040440, 0, 31},
-		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
-/* #define DI_MTN_1_CTRL6 */
-		{0x17a9, 0x0d5a1520, 0, 31},
-/* #define DI_MTN_1_CTRL7 */
-		{0x17aa, 0x0a0a0201, 0, 31},
-/* #define DI_MTN_1_CTRL8 */
-		{0x17ab, 0x1a1a2662, 0, 31},
-/* #define DI_MTN_1_CTRL9 */
-		{0x17ac, 0x0d200302, 0, 31},
-/* #define DI_MTN_1_CTRL10 */
-		{0x17ad, 0x02020606, 0, 31},
-/* #define DI_MTN_1_CTRL11 */
-		{0x17ae, 0x05080304, 0, 31},
-/* #define DI_MTN_1_CTRL12 */
-		{0x17af, 0x40020a04, 0, 31},
-		{0},
-	}
-};
-
-/***************** hdmi stand defintion******************************/
-
-reg_cfg_t di_default_post_hdmi = {
-	NULL,
-	((0 << VFRAME_SOURCE_TYPE_OTHERS) |
-	 (0 << VFRAME_SOURCE_TYPE_TUNER)  |
-	 (0 << VFRAME_SOURCE_TYPE_CVBS)   |
-	 (0 << VFRAME_SOURCE_TYPE_COMP)   |
-	 (1 << VFRAME_SOURCE_TYPE_HDMI)
-	 ),
-	1,
-	0,
-	{
-		((TVIN_SIG_FMT_HDMI_640X480P_60HZ << 16) |
-		TVIN_SIG_FMT_HDMI_720X480P_60HZ),
-		((TVIN_SIG_FMT_HDMI_1440X480I_60HZ << 16) |
-		TVIN_SIG_FMT_HDMI_1440X480P_60HZ),
-		((TVIN_SIG_FMT_HDMI_720X576P_50HZ << 16) |
-		TVIN_SIG_FMT_HDMI_720X576P_50HZ),
-		((TVIN_SIG_FMT_HDMI_1440X576I_50HZ << 16) |
-		TVIN_SIG_FMT_HDMI_1440X576P_50HZ),
-		((TVIN_SIG_FMT_HDMI_2880X480P_60HZ << 16) |
-		TVIN_SIG_FMT_HDMI_2880X576P_60HZ),
-		((TVIN_SIG_FMT_HDMI_720X576P_100HZ << 16) |
-		TVIN_SIG_FMT_HDMI_1440X576I_100HZ),
-		((TVIN_SIG_FMT_HDMI_720X480P_120HZ << 16) |
-		TVIN_SIG_FMT_HDMI_1440X480I_240HZ),
-		((TVIN_SIG_FMT_HDMI_720X480P_60HZ_FRAME_PACKING << 16) |
-		TVIN_SIG_FMT_HDMI_720X576P_50HZ_FRAME_PACKING),
-		0
-	},
-	{
-		{DI_MTN_1_CTRL1, 0xa0202015, 0, 31},
-		{DI_MTN_1_CTRL2, 0x1a1a3a62, 0, 31},
-		{DI_MTN_1_CTRL3, 0x15200a0a, 0, 31},
-		{DI_MTN_1_CTRL4, 0x01040440, 0, 31},
-		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
-/* #define DI_MTN_1_CTRL6 */
-		{0x17a9, 0x0d5a1520, 0, 31},
-/* #define DI_MTN_1_CTRL7 */
-		{0x17aa, 0x0a0a0201, 0, 31},
-/* #define DI_MTN_1_CTRL8 */
-		{0x17ab, 0x1a1a2662, 0, 31},
-/* #define DI_MTN_1_CTRL9 */
-		{0x17ac, 0x0d200302, 0, 31},
-/* #define DI_MTN_1_CTRL10 */
-		{0x17ad, 0x02020606, 0, 31},
-/* #define DI_MTN_1_CTRL11 */
-		{0x17ae, 0x05080304, 0, 31},
-/* #define DI_MTN_1_CTRL12 */
-		{0x17af, 0x40020a04, 0, 31},
-		{0},
-	}
-};
-/*****************high defintion******************************/
-
-reg_cfg_t di_default_post_hd = {
-		NULL,
-		((1 << VFRAME_SOURCE_TYPE_OTHERS) |
-		 (0 << VFRAME_SOURCE_TYPE_TUNER)  |
-		 (0 << VFRAME_SOURCE_TYPE_CVBS)   |
-		 (1 << VFRAME_SOURCE_TYPE_COMP)   |
-		 (1 << VFRAME_SOURCE_TYPE_HDMI)
-		 ),
-		1,
-		0,
-		{
-		((TVIN_SIG_FMT_COMP_720P_59HZ_D940 << 16) |
-TVIN_SIG_FMT_COMP_1080I_60HZ_D000),
-		((TVIN_SIG_FMT_HDMI_1280X720P_60HZ << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080I_60HZ),
-		((TVIN_SIG_FMT_HDMI_1920X1080P_60HZ << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080P_60HZ),
-		((TVIN_SIG_FMT_HDMI_1280X720P_50HZ << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080I_50HZ_A),
-		((TVIN_SIG_FMT_HDMI_1920X1080P_50HZ << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080P_30HZ),
-		((TVIN_SIG_FMT_HDMI_1920X1080I_50HZ_B << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080I_100HZ),
-		((TVIN_SIG_FMT_HDMI_1920X1080I_120HZ << 16) |
-TVIN_SIG_FMT_HDMI_1280X720P_120HZ),
-		((TVIN_SIG_FMT_HDMI_1280X720P_24HZ << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_FRAME_PACKING),
-		(
-(TVIN_SIG_FMT_HDMI_1920X1080I_60HZ_ALTERNATIVE << 16) |
-TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_ALTERNATIVE),
-			0},
-		{
-			{DI_MTN_1_CTRL1, 0xa0202015, 0, 31},
-			{DI_MTN_1_CTRL2, 0x141a2062, 0, 31},
-			{DI_MTN_1_CTRL3, 0x1520050a, 0, 31},
-			{DI_MTN_1_CTRL4, 0x08800840, 0, 31},
-			{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
-/* #define DI_MTN_1_CTRL6 */
-			{0x17a9, 0x0d5a1520, 0, 31},
-/* #define DI_MTN_1_CTRL7 */
-			{0x17aa, 0x0a0a0201, 0, 31},
-/* #define DI_MTN_1_CTRL8 */
-			{0x17ab, 0x1a1a2662, 0, 31},
-/* #define DI_MTN_1_CTRL9 */
-			{0x17ac, 0x0d200302, 0, 31},
-/* #define DI_MTN_1_CTRL10 */
-			{0x17ad, 0x02020606, 0, 31},
-/* #define DI_MTN_1_CTRL11 */
-			{0x17ae, 0x05080304, 0, 31},
-/* #define DI_MTN_1_CTRL12 */
-			{0x17af, 0x40020a04, 0, 31},
-			{0},
-		}
-};
-/*****************dtv stand  defintion******************************/
-
-reg_cfg_t di_dtv_post_stand = {
-
-	NULL,
-	((1 << VFRAME_SOURCE_TYPE_OTHERS) |
-	 (0 << VFRAME_SOURCE_TYPE_TUNER)  |
-	 (0 << VFRAME_SOURCE_TYPE_CVBS)   |
-	 (0 << VFRAME_SOURCE_TYPE_COMP)   |
-	 (0 << VFRAME_SOURCE_TYPE_HDMI)
-	 ),
-	1,
-	1,
-	{
-		 0
-	},
-	{
-		{DI_MTN_1_CTRL1, 0xa0202015, 0, 31},
-		{DI_MTN_1_CTRL2, 0x141a2062, 0, 31},
-		{DI_MTN_1_CTRL3, 0x1520050a, 0, 31},
-		{DI_MTN_1_CTRL4, 0x01040410, 0, 31},
-		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
-/* #define DI_MTN_1_CTRL6 */
-		{0x17a9, 0x0d5a1520, 0, 31},
-/* #define DI_MTN_1_CTRL7 */
-		{0x17aa, 0x0a0a0201, 0, 31},
-/* #define DI_MTN_1_CTRL8 */
-		{0x17ab, 0x1a1a2662, 0, 31},
-/* #define DI_MTN_1_CTRL9 */
-		{0x17ac, 0x0d200302, 0, 31},
-/* #define DI_MTN_1_CTRL10 */
-		{0x17ad, 0x02020606, 0, 31},
-/* #define DI_MTN_1_CTRL11 */
-		{0x17ae, 0x05080304, 0, 31},
-/* #define DI_MTN_1_CTRL12 */
-		{0x17af, 0x40020a04, 0, 31},
-		{0},
-	}
-};
 /* new pre and post di setting */
 reg_cfg_t di_default_pre = {
 	NULL,
@@ -2186,8 +1851,6 @@ reg_cfg_t di_default_post = {
 		{0},
 	}
 };
-
-
 
 void di_add_reg_cfg(reg_cfg_t *reg_cfg)
 {
@@ -2487,7 +2150,6 @@ static unsigned char is_input2pre(void)
 #ifdef DI_USE_FIXED_CANVAS_IDX
 static int di_post_buf0_canvas_idx[2];
 static int di_post_buf1_canvas_idx[2];
-static int di_post_mtncrd_canvas_idx[2];
 static int di_post_mtnprd_canvas_idx[2];
 #ifdef NEW_DI_V3
 static int di_post_mcvecrd_canvas_idx[2];
@@ -3274,41 +2936,6 @@ di_buf->vframe->canvas0Addr & 0xff;
 (di_buf->vframe->canvas0Addr>>8) & 0xff;
 			di_mif->canvas0_addr2 =
 (di_buf->vframe->canvas0Addr>>16) & 0xff;
-		} else {
-			/* progressive (by field), from vdin only */
-			di_mif->video_mode = 0;
-			di_mif->set_separate_en = 0;
-			di_mif->src_field_mode = 1;
-
-			if (di_pre_stru.process_count > 0) {
-				di_mif->output_field_num = 0;/* top */
-				di_mif->luma_x_start0	= 0;
-				di_mif->luma_x_end0	=
-di_buf->vframe->width - 1;
-				di_mif->luma_y_start0	= 0;
-				di_mif->luma_y_end0	=
-di_buf->vframe->height - 2;
-				di_mif->chroma_x_start0		= 0;
-				di_mif->chroma_x_end0 =
-di_buf->vframe->width/2 - 1;
-				di_mif->chroma_y_start0		= 0;
-				di_mif->chroma_y_end0 =
-di_buf->vframe->height/2 - 2;
-			} else {		 /* process bot */
-				di_mif->output_field_num = 1;
-				di_mif->luma_x_start0	= 0;
-				di_mif->luma_x_end0	=
-di_buf->vframe->width - 1;
-				di_mif->luma_y_start0	= 1;
-				di_mif->luma_y_end0	=
-di_buf->vframe->height - 1;
-				di_mif->chroma_x_start0		= 0;
-				di_mif->chroma_x_end0 =
-di_buf->vframe->width/2 - 1;
-				di_mif->chroma_y_start0		= 1;
-				di_mif->chroma_y_end0 =
-di_buf->vframe->height/2 - 1;
-			}
 		}
 	} else {
 		/* from decoder */
@@ -3338,8 +2965,7 @@ di_buf->vframe->height/2 - 1;
 		} else {
 			di_mif->src_field_mode = 1;
 			if (
-((di_buf->vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP)
-|| (di_pre_stru.process_count > 0)) {
+(di_buf->vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 				di_mif->output_field_num = 0; /* top */
 				di_mif->luma_x_start0	= 0;
 				di_mif->luma_x_end0	=
@@ -3461,7 +3087,6 @@ di_pre_stru.di_chan2_buf_dup_p);
 	Wr(MCDI_BLKTOTAL, blkhsize*(di_pre_stru.di_nrwr_mif.end_y+1));
 #endif
 	/* set interrupt mask for pre module. */
-#ifdef NEW_DI_V1
 	Wr(DI_INTR_CTRL,
 ((di_pre_stru.enable_mtnwr?1:0) << 16) | /* mask nrwr interrupt. */
 ((di_pre_stru.enable_mtnwr?0:1) << 17) | /* mtnwr interrupt. */
@@ -3474,55 +3099,7 @@ di_pre_stru.di_chan2_buf_dup_p);
 (1 << 23) | /* mask infwr interrupt. */
 #endif
 0xf); /* clean all pending interrupt bits. */
-#else
-	Wr(DI_INTR_CTRL, (0 << 16) |/* nrwr interrupt. */
-((di_pre_stru.enable_mtnwr?0:1) << 17) | /* mtnwr interrupt. */
-(1 << 18) |/* diwr interrupt.*/
-(1 << 19) |/* hist check interrupt.*/
-0xf);/* clean all pending interrupt bits.*/
-#endif
-	enable_di_mode_check_2(
-(pd_win_prop[0].win_start_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR),
-(pd_win_prop[0].win_end_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR)-1,
-(pd_win_prop[0].win_start_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR),
-(pd_win_prop[0].win_end_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR)-1,
-(pd_win_prop[1].win_start_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR),
-(pd_win_prop[1].win_end_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR)-1,
-(pd_win_prop[1].win_start_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR),
-(pd_win_prop[1].win_end_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR)-1,
-(pd_win_prop[2].win_start_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR),
-(pd_win_prop[2].win_end_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR)-1,
-(pd_win_prop[2].win_start_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR),
-(pd_win_prop[2].win_end_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR)-1,
-(pd_win_prop[3].win_start_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR),
-(pd_win_prop[3].win_end_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR)-1,
-(pd_win_prop[3].win_start_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR),
-(pd_win_prop[3].win_end_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR)-1,
-(pd_win_prop[4].win_start_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR),
-(pd_win_prop[4].win_end_x_r*di_pre_stru.di_inp_buf->vframe->width/
-WIN_SIZE_FACTOR)-1,
-(pd_win_prop[4].win_start_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR),
-(pd_win_prop[4].win_end_y_r*(di_pre_stru.di_inp_buf->vframe->height/
-2)/WIN_SIZE_FACTOR)-1
-			);
+
 	/* Wr(DI_PRE_CTRL, 0x3 << 30);
 	//remove it for M6, can not disalbe it here */
 	enable_di_pre_aml(&di_pre_stru.di_inp_mif,/* di_inp */
@@ -3558,8 +3135,6 @@ WIN_SIZE_FACTOR)-1,
 		enable_mc_di_pre(&di_pre_stru.di_mcinford_mif,
 &di_pre_stru.di_mcinfowr_mif, &di_pre_stru.di_mcvecwr_mif, pre_urgent);
 #endif
-#ifdef NEW_DI_V1
-	if (get_new_mode_flag() == 1) {
 		if (di_pre_stru.cur_prog_flag == 1) {
 			di_mtn_1_ctrl1 &= (~(1<<31)); /* disable contwr */
 			di_mtn_1_ctrl1 &= (~(1<<29));/* disable txt */
@@ -3609,6 +3184,10 @@ WIN_SIZE_FACTOR)-1,
 			/* enable contp2rd and contprd */
 			#endif
 		} else {
+			enable_film_mode_check(
+				di_pre_stru.di_inp_buf->vframe->width,
+				di_pre_stru.di_inp_buf->vframe->height/2,
+				di_pre_stru.di_inp_buf->vframe->source_type);
 			#ifdef NEW_DI_V3
 			/* txtdet_en mode */
 			Wr_reg_bits(MCDI_CTRL_MODE, 0, 1, 1);
@@ -3625,12 +3204,10 @@ WIN_SIZE_FACTOR)-1,
 			#endif
 		}
 		di_pre_stru.field_count_for_cont++;
-	} else if (get_new_mode_flag() == 0)
-		di_mtn_1_ctrl1 &= (~(1<<31)); /* disable contwr */
+
 		Wr(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
 		/* Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL)|(1<<25)); */
 		di_apply_reg_cfg(0);
-#endif
 #ifdef SUPPORT_MPEG_TO_VDIN
 	if (mpeg2vdin_flag) {
 		struct vdin_arg_s vdin_arg;
@@ -3712,23 +3289,9 @@ dynamic_flag?0:(di_pre_stru.static_frame_count+1);
 		} else {
 			di_pre_stru.di_wr_buf->pulldown_mode = PULL_DOWN_NORMAL;
 		}
-		#ifndef NEW_DI_V1
-		read_mtn_info(di_pre_stru.di_wr_buf->mtn_info, reg_mtn_info);
-		#endif
 		if (di_pre_stru.cur_prog_flag) {
 			if (di_pre_stru.prog_proc_type == 0) {
-				if ((di_pre_stru.process_count > 0)
-&& (is_progressive(di_pre_stru.di_mem_buf_dup_p->vframe))) {
-					/* di_mem_buf_dup_p->vframe
-is from in_list, and it is top field */
-					di_pre_stru.di_chan2_buf_dup_p
-= di_pre_stru.di_wr_buf;
-#ifdef DI_DEBUG
-					di_print(
-"%s: set di_chan2_buf_dup_p to di_wr_buf\n", __func__);
-#endif
-				} else {
-						/* di_mem_buf_dup->vfrme
+				/* di_mem_buf_dup->vfrme
 is either local vframe, or bot field of vframe from in_list */
 					di_pre_stru.di_mem_buf_dup_p->pre_ref_count = 0;
 					di_pre_stru.di_mem_buf_dup_p
@@ -3740,7 +3303,6 @@ is either local vframe, or bot field of vframe from in_list */
 							__func__);
 					di_print("set di_chan2 to di_wr_buf\n");
 #endif
-				}
 			} else {
 				di_pre_stru.di_mem_buf_dup_p->pre_ref_count = 0;
 				/*recycle the progress throw buffer*/
@@ -3782,17 +3344,10 @@ vframe_type_name[di_pre_stru.di_wr_buf->type], di_pre_stru.di_wr_buf->index);
 __func__, is_bypass(NULL), trick_mode, bypass_all);
 /* #endif */
 			}
-#ifdef CONFIG_VSYNC_RDMA
-			if ((di_debug_flag&0x10) == 0) {
-				if (interlace_output_flag == 0)
-					enable_rdma(1);
-			}
-#endif
 			queue_in(di_pre_stru.di_wr_buf, QUEUE_PRE_READY);
 #ifdef DI_DEBUG
 			di_print(
-"%s: process_count %d, %s[%d] => pre_ready_list\n", __func__,
-di_pre_stru.process_count,
+"%s: %s[%d] => pre_ready_list\n", __func__,
 vframe_type_name[di_pre_stru.di_wr_buf->type],
 di_pre_stru.di_wr_buf->index);
 #endif
@@ -3852,12 +3407,7 @@ di_pre_stru.left_right;
 __func__, is_bypass(NULL), trick_mode, bypass_all);
 /* #endif */
 			}
-#ifdef CONFIG_VSYNC_RDMA
-			if ((di_debug_flag&0x10) == 0) {
-				if (interlace_output_flag == 0)
-					enable_rdma(1);
-			}
-#endif
+
 			/* top_bot_config(di_pre_stru.di_wr_buf); */
 			queue_in(di_pre_stru.di_wr_buf, QUEUE_PRE_READY);
 
@@ -3870,7 +3420,7 @@ vframe_type_name[di_pre_stru.di_wr_buf->type], di_pre_stru.di_wr_buf->index);
 		}
 	}
 
-	if ((di_pre_stru.process_count == 0) && (di_pre_stru.di_inp_buf)) {
+	if (di_pre_stru.di_inp_buf) {
 #ifdef DI_DEBUG
 		di_print("%s: %s[%d] => recycle_list\n", __func__,
 vframe_type_name[di_pre_stru.di_inp_buf->type],
@@ -3901,58 +3451,13 @@ static void di_set_para_by_tvinfo(vframe_t *vframe)
 		nr_hfilt_en = 0;
 
 	/* if input is pal and ntsc */
-	if (vframe_source_type != VFRAME_SOURCE_TYPE_TUNER)	{
-		ei_ctrl0 = (255 << 16) | /* ei_filter. */
-					(1 << 8) | /* ei_threshold. */
-					(0 << 2) | /* ei bypass cf2. */
-					(0 << 1);	/* ei bypass far1 */
-
-		ei_ctrl1 = (90 << 24) | /* ei diff */
-					(10 << 16) | /* ei ang45 */
-					(15 << 8) | /* ei peak. */
-					45; /* ei cross. */
-
-		ei_ctrl2 = (10 << 24) |	/* close2 */
-					(10 << 16) | /* close1 */
-					(10 << 8) | /* far2 */
-					93;	/* far1 */
- #ifdef NEW_DI_V1
-		ei_ctrl3 = 0x80000013;
-#endif
-		kdeint2 = 25;
-		mtn_ctrl = 0xe228c440;
-		blend_ctrl = 0x1f00019;
-		pr_info("%s: tvinfo change, reset di Reg\n", __func__);
-	} else {/*input is tuner*/
-		ei_ctrl0 =	(255 << 16) | /* ei_filter. */
-					  (1 << 8) | /* ei_threshold. */
-					  (0 << 2) | /* ei bypass cf2. */
-					  (0 << 1);	/* ei bypass far1 */
-
-		ei_ctrl1 =	 (90 << 24) | /* ei diff */
-					  (192 << 16) |	/* ei ang45 */
-					  (15 << 8) | /* ei peak. */
-					   128;	/* ei cross. */
-
-		ei_ctrl2 =	  (10 << 24) | /* close2 */
-					  (255 << 16) |	/* close1 */
-					  (10 << 8) | /* far2 */
-					   255;	/* far1 */
- #ifdef NEW_DI_V1
-		ei_ctrl3 = 0x80000013;
-#endif
-	if (kdeint1 == 0x10) {
-		kdeint2 = 25;
-		mtn_ctrl = 0xe228c440;
-		blend_ctrl = 0x1f00019;
-	}
-	   else{
-		   kdeint2 = 25;
-		mtn_ctrl = 0x0;
-		blend_ctrl = 0x19f00019;
+	if (vframe_source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		/*input is tuner*/
+		Wr(DI_EI_CTRL1, 0x5ac00f80);
+		Wr(DI_EI_CTRL2, 0x0aff0aff);
+		Wr(DI_BLEND_CTRL, 0x19f00019);
 		pr_info(
 "%s: tvinfo change, reset di Reg in tuner source\n", __func__);
-	   }
 	}
 
 	/* Wr(DI_EI_CTRL0, ei_ctrl0); */
@@ -4032,7 +3537,7 @@ static unsigned char pre_de_buf_config(void)
 	int i, di_linked_buf_idx = -1;
 	unsigned char change_type = 0;
 
-	if ((queue_empty(QUEUE_IN_FREE) && (di_pre_stru.process_count == 0)) ||
+	if ((queue_empty(QUEUE_IN_FREE) && (!di_pre_stru.di_inp_buf_next)) ||
 		queue_empty(QUEUE_LOCAL_FREE)) {
 		return 0;
 	}
@@ -4073,9 +3578,6 @@ di_pre_stru.di_inp_buf->index);
 "%s: set di_mem_buf_dup_p to be di_inp_buf\n", __func__);
 #endif
 		}
-	} else if (di_pre_stru.process_count > 0) {
-		/* previous is progressive top */
-		di_pre_stru.process_count = 0;
 	} else {
 		/* check if source change */
 #ifdef CHECK_VDIN_BUF_ERROR
@@ -4291,7 +3793,6 @@ is_from_vdin(di_buf->vframe)) {
 					}
 
 				if (di_pre_stru.di_wr_buf) {
-					di_pre_stru.process_count = 0;
 					di_pre_stru.di_wr_buf->pre_ref_count = 0;
 					di_pre_stru.di_wr_buf->post_ref_count = 0;
 					recycle_vframe_type_pre(
@@ -4308,11 +3809,6 @@ di_pre_stru.di_wr_buf->index);
 
 						di_buf->new_format_flag = 1;
 						bypass_state = 1;
-#ifdef CONFIG_VSYNC_RDMA
-				if ((di_debug_flag&0x10) == 0)
-					enable_rdma(0);
-
-#endif
 /* #ifdef DI_DEBUG */
 				di_print(
 "%s:bypass_state change to 1, is_bypass() %d trick_mode %d bypass_all %d\n",
@@ -4342,7 +3838,6 @@ is_handle_prog_frame_as_interlace(vframe) && (is_progressive(vframe))) {
 (~VIDTYPE_TYPEMASK);
 					di_buf->vframe->type |=
 VIDTYPE_INTERLACE_TOP;
-					di_buf->vframe->duration >>= 1;
 					di_buf->post_proc_flag = 0;
 
 					di_buf_tmp =
@@ -4361,7 +3856,6 @@ di_buf_tmp->vframe, vframe, sizeof(vframe_t));
 &= (~VIDTYPE_TYPEMASK);
 					di_buf_tmp->vframe->type
 |= VIDTYPE_INTERLACE_BOTTOM;
-					di_buf_tmp->vframe->duration >>= 1;
 					di_buf_tmp->post_proc_flag = 0;
 
 					di_pre_stru.di_inp_buf = di_buf;
@@ -4387,7 +3881,7 @@ di_pre_stru.di_mem_buf_dup_p == NULL) {/* use n */
 					if ((prog_proc_config&0x40) ||
 di_pre_stru.force_interlace)
 						di_buf->post_proc_flag = 1;
-
+					#if 0
 					if (di_pre_stru.prog_proc_type == 0) {
 						if (change_type == 2) {
 							if (
@@ -4401,13 +3895,12 @@ di_pre_stru.force_interlace)
 					} else {
 						di_pre_stru.process_count = 0;
 					}
-
+					#endif
 					di_pre_stru.di_inp_buf = di_buf;
 #ifdef DI_DEBUG
 					di_print(
-"%s: %s[%d] => di_inp_buf, process_count %d\n",
-__func__, vframe_type_name[di_buf->type], di_buf->index,
-di_pre_stru.process_count);
+"%s: %s[%d] => di_inp_buf\n",
+__func__, vframe_type_name[di_buf->type], di_buf->index);
 #endif
 					if (
 di_pre_stru.di_mem_buf_dup_p == NULL) {/* use n */
@@ -4421,7 +3914,6 @@ di_pre_stru.di_mem_buf_dup_p == NULL) {/* use n */
 				}
 			} else {
 #ifdef NEW_DI_V1
-				if (get_new_mode_flag() == 1) {
 					if (
 di_pre_stru.di_chan2_buf_dup_p == NULL) {
 						di_pre_stru.field_count_for_cont = 0;
@@ -4429,7 +3921,6 @@ di_pre_stru.di_chan2_buf_dup_p == NULL) {
 						/* ignore contp2rd
 and contprd */
 					}
-				}
 #endif
 				di_buf->post_proc_flag = 1;
 				di_pre_stru.di_inp_buf = di_buf;
@@ -4507,8 +3998,7 @@ VIDTYPE_VIU_422 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;
 	} else {
 		if (
 ((di_pre_stru.di_inp_buf->vframe->type & VIDTYPE_TYPEMASK) ==
-VIDTYPE_INTERLACE_TOP)
-|| (di_pre_stru.process_count > 0)) {
+VIDTYPE_INTERLACE_TOP)) {
 			di_buf->vframe->type = VIDTYPE_INTERLACE_TOP |
 VIDTYPE_VIU_422 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;
 		} else {
@@ -5116,12 +4606,6 @@ di_post_stru.buf_type != di_buf->di_buf_dup_p[0]->type ||
 		di_post_stru.di_buf1_mif.luma_x_start0	= di_start_x;
 		di_post_stru.di_buf1_mif.luma_x_end0	= di_end_x;
 
-		#ifndef NEW_DI_V2
-		di_post_stru.di_mtncrd_mif.start_x	= di_start_x;
-		di_post_stru.di_mtncrd_mif.end_x		= di_end_x;
-		di_post_stru.di_mtncrd_mif.start_y	= di_start_y>>1;
-		di_post_stru.di_mtncrd_mif.end_y		= di_end_y >> 1;
-		#endif
 		di_post_stru.di_mtnprd_mif.start_x	= di_start_x;
 		di_post_stru.di_mtnprd_mif.end_x		= di_end_x;
 		di_post_stru.di_mtnprd_mif.start_y	= di_start_y>>1;
@@ -5156,11 +4640,6 @@ di_buf->di_buf_dup_p[1], di_post_buf0_canvas_idx[di_post_stru.canvas_id], -1);
 di_buf->di_buf_dup_p[2], -1, di_post_mtnprd_canvas_idx[di_post_stru.canvas_id]);
 		config_canvas_idx(
 di_buf->di_buf_dup_p[0], di_post_buf1_canvas_idx[di_post_stru.canvas_id], -1);
-		#ifndef NEW_DI_V2
-		config_canvas_idx(
-di_buf->di_buf_dup_p[1], -1, di_post_mtncrd_canvas_idx[di_post_stru.canvas_id]);
-/* remove from m8 */
-		#endif
 		#ifdef NEW_DI_V3
 		config_mcvec_canvas_idx(
 di_buf->di_buf_dup_p[2], di_post_mcvecrd_canvas_idx[di_post_stru.canvas_id]);
@@ -5173,10 +4652,6 @@ di_buf->di_buf_dup_p[1], di_post_buf0_canvas_idx[di_post_stru.canvas_id], -1);
 di_buf->di_buf_dup_p[2], -1, di_post_mtnprd_canvas_idx[di_post_stru.canvas_id]);
 		config_canvas_idx(
 di_buf->di_buf_dup_p[2], di_post_buf1_canvas_idx[di_post_stru.canvas_id], -1);
-		#ifndef NEW_DI_V2
-		config_canvas_idx(
-di_buf->di_buf_dup_p[1], -1, di_post_mtncrd_canvas_idx[di_post_stru.canvas_id]);
-		#endif
 		#ifdef NEW_DI_V3
 		config_mcvec_canvas_idx(
 di_buf->di_buf_dup_p[2], di_post_mcvecrd_canvas_idx[di_post_stru.canvas_id]);
@@ -5189,10 +4664,6 @@ di_buf->di_buf_dup_p[1], di_post_buf0_canvas_idx[di_post_stru.canvas_id], -1);
 di_buf->di_buf_dup_p[2], -1, di_post_mtnprd_canvas_idx[di_post_stru.canvas_id]);
 		config_canvas_idx(
 di_buf->di_buf_dup_p[0], di_post_buf1_canvas_idx[di_post_stru.canvas_id], -1);
-		#ifndef NEW_DI_V2
-		config_canvas_idx(
-di_buf->di_buf_dup_p[1], -1, di_post_mtncrd_canvas_idx[di_post_stru.canvas_id]);
-		#endif
 		break;
 	case PULL_DOWN_BUF1:/* wave with buf1 */
 		config_canvas_idx(
@@ -5201,10 +4672,6 @@ di_buf->di_buf_dup_p[1], di_post_buf0_canvas_idx[di_post_stru.canvas_id], -1);
 di_buf->di_buf_dup_p[1], -1, di_post_mtnprd_canvas_idx[di_post_stru.canvas_id]);
 		config_canvas_idx(
 di_buf->di_buf_dup_p[0], di_post_buf1_canvas_idx[di_post_stru.canvas_id], -1);
-		#ifndef NEW_DI_V2
-		config_canvas_idx(
-di_buf->di_buf_dup_p[0], -1, di_post_mtncrd_canvas_idx[di_post_stru.canvas_id]);
-		#endif
 		break;
 	case PULL_DOWN_EI:
 		if (di_buf->di_buf_dup_p[1])
@@ -5226,10 +4693,6 @@ di_buf->di_buf_dup_p[1], di_post_buf0_canvas_idx[di_post_stru.canvas_id], -1);
 di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 		di_post_stru.di_buf1_mif.canvas0_addr0 =
 di_buf->di_buf_dup_p[0]->nr_canvas_idx;
-		#ifndef NEW_DI_V2
-		di_post_stru.di_mtncrd_mif.canvas_num =
-di_buf->di_buf_dup_p[1]->mtn_canvas_idx;
-		#endif
 		di_post_stru.di_mtnprd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		#ifdef NEW_DI_V3
@@ -5258,10 +4721,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 di_buf->di_buf_dup_p[2]->nr_canvas_idx;
 		di_post_stru.di_mtnprd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
-		#ifndef NEW_DI_V2
-		di_post_stru.di_mtncrd_mif.canvas_num =
-di_buf->di_buf_dup_p[1]->mtn_canvas_idx;
-		#endif
 		#ifdef NEW_DI_V3
 		di_post_stru.di_mcvecrd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
@@ -5281,10 +4740,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 di_buf->di_buf_dup_p[0]->nr_canvas_idx;
 		di_post_stru.di_mtnprd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
-		#ifndef NEW_DI_V2
-		di_post_stru.di_mtncrd_mif.canvas_num =
-di_buf->di_buf_dup_p[1]->mtn_canvas_idx;
-		#endif
 		post_blend_mode = 0;
 		blend_mtn_en = 1;
 		ei_en = 1;
@@ -5300,10 +4755,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 di_buf->di_buf_dup_p[1]->mtn_canvas_idx;
 		di_post_stru.di_buf1_mif.canvas0_addr0 =
 di_buf->di_buf_dup_p[0]->nr_canvas_idx;
-		#ifndef NEW_DI_V2
-		di_post_stru.di_mtncrd_mif.canvas_num =
-di_buf->di_buf_dup_p[0]->mtn_canvas_idx;
-		#endif
 		post_blend_mode = 1;
 		blend_mtn_en = 0;/* must enable */
 		ei_en = post_ei;/* must enable */
@@ -5332,14 +4783,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 		break;
 	}
 
-#ifdef NEW_DI_V1
-	if (get_new_mode_flag() == 1)
-		blend_ctrl |= (1<<31);
-	else if (get_new_mode_flag() == 0)
-		blend_ctrl &= (~(1<<31));
-
-#endif
-
 #ifdef NEW_DI_V3
 	di_post_stru.di_mcvecrd_mif.blend_mode = post_blend_mode;
 #endif
@@ -5349,9 +4792,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 				&di_post_stru.di_buf0_mif,
 				&di_post_stru.di_buf1_mif,
 				NULL,
-				#ifndef NEW_DI_V2
-				&di_post_stru.di_mtncrd_mif,
-				#endif
 				&di_post_stru.di_mtnprd_mif,
 				ei_en,			/* ei enable */
 				post_blend_en,	/* blend enable */
@@ -5362,9 +4802,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 				post_field_num,	/* 1 bottom generate top */
 				hold_line,
 				post_urgent
-						#ifndef NEW_DI_V1
-				, reg_mtn_info
-						#endif
 			);
 		#ifdef NEW_DI_V3
 		enable_mc_di_post(
@@ -5375,9 +4812,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 				&di_post_stru.di_buf0_mif,
 				&di_post_stru.di_buf1_mif,
 				NULL,
-				#ifndef NEW_DI_V2
-				&di_post_stru.di_mtncrd_mif,
-				#endif
 				&di_post_stru.di_mtnprd_mif,
 				#ifdef NEW_DI_V3
 				&di_post_stru.di_mcvecrd_mif,
@@ -5391,9 +4825,6 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 				post_field_num,/* 1 bottom generate top */
 				hold_line,
 				post_urgent
-				#ifndef NEW_DI_V1
-				, reg_mtn_info
-				#endif
 			);
 
 #ifdef NEW_DI_V1
@@ -5469,42 +4900,11 @@ static int pulldown_process(di_buf_t *di_buf, int buffer_count)
 	int pulldown_mode2;
 	int pulldown_mode_ret;
 	insert_pd_his(&di_buf->di_buf_dup_p[1]->field_pd_info);
-	if (buffer_count == 4) {
-		/* 4 buffers */
-		cal_pd_parameters(
-&di_buf->di_buf_dup_p[2]->field_pd_info,
-&di_buf->di_buf_dup_p[1]->field_pd_info,
-&di_buf->di_buf_dup_p[3]->field_pd_info,
-&field_pd_th);
-		/* cal parameters of di_buf_dup_p[2] */
-		pattern_check_pre_2(0, &di_buf->di_buf_dup_p[3]->field_pd_info,
-				&di_buf->di_buf_dup_p[2]->field_pd_info,
-				&di_buf->di_buf_dup_p[1]->field_pd_info,
-				(int *)&di_buf->di_buf_dup_p[2]->pulldown_mode,
-				(int *)&di_buf->di_buf_dup_p[1]->pulldown_mode,
-				&pulldown_type, &field_pd_th
-			  );
-
-		for (ii = 0; ii < MAX_WIN_NUM; ii++) {
-			cal_pd_parameters(
-&di_buf->di_buf_dup_p[2]->win_pd_info[ii],
-&di_buf->di_buf_dup_p[1]->win_pd_info[ii],
-&di_buf->di_buf_dup_p[3]->win_pd_info[ii],
-&field_pd_th);
-			/* cal parameters of di_buf_dup_p[2] */
-			pattern_check_pre_2(ii+1,
-&di_buf->di_buf_dup_p[3]->win_pd_info[ii],
-&di_buf->di_buf_dup_p[2]->win_pd_info[ii],
-&di_buf->di_buf_dup_p[1]->win_pd_info[ii],
-&(di_buf->di_buf_dup_p[2]->win_pd_mode[ii]),
-&(di_buf->di_buf_dup_p[1]->win_pd_mode[ii]),
-&(win_pd_type[ii]), &win_pd_th[ii]);
-		}
-	} else {
+	if (buffer_count == 3) {
 		/* 3 buffers */
 		cal_pd_parameters(&di_buf->di_buf_dup_p[1]->field_pd_info,
 &di_buf->di_buf_dup_p[0]->field_pd_info,
-&di_buf->di_buf_dup_p[2]->field_pd_info, &field_pd_th);
+&di_buf->di_buf_dup_p[2]->field_pd_info);
 		/* cal parameters of di_buf_dup_p[1] */
 		pattern_check_pre_2(0, &di_buf->di_buf_dup_p[2]->field_pd_info,
 				 &di_buf->di_buf_dup_p[1]->field_pd_info,
@@ -5516,7 +4916,7 @@ static int pulldown_process(di_buf_t *di_buf, int buffer_count)
 			cal_pd_parameters(
 &di_buf->di_buf_dup_p[1]->win_pd_info[ii],
 &di_buf->di_buf_dup_p[0]->win_pd_info[ii],
-&di_buf->di_buf_dup_p[2]->win_pd_info[ii], &field_pd_th);
+&di_buf->di_buf_dup_p[2]->win_pd_info[ii]);
 			/* cal parameters of di_buf_dup_p[1] */
 			pattern_check_pre_2(ii+1,
 &di_buf->di_buf_dup_p[2]->win_pd_info[ii],
@@ -6495,8 +5895,7 @@ static void dynamic_bypass_process(void)
 static void di_process(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
-	/* add for di Reg re-init */
-	/* di_set_para_by_tvinfo(vframe); */
+
 	di_process_cnt++;
 
 	if ((init_flag) && (recovery_flag == 0) && (dump_state_flag == 0)) {
@@ -7334,49 +6733,32 @@ static int di_probe(struct platform_device *pdev)
 #ifdef DI_USE_FIXED_CANVAS_IDX
 	di_post_buf0_canvas_idx[0] = DI_POST_BUF0_CANVAS_IDX;
 	di_post_buf1_canvas_idx[0] = DI_POST_BUF1_CANVAS_IDX;
-	di_post_mtncrd_canvas_idx[0] = DI_POST_MTNCRD_CANVAS_IDX;
 	di_post_mtnprd_canvas_idx[0] = DI_POST_MTNPRD_CANVAS_IDX;
 #ifdef NEW_DI_V3
-		di_post_mcvecrd_canvas_idx[0] = DI_POST_MCVECRD_CANVAS_IDX;
-		di_post_mcvecrd_canvas_idx[1] = DI_POST_MCVECRD_CANVAS_IDX2;
+	di_post_mcvecrd_canvas_idx[0] = DI_POST_MCVECRD_CANVAS_IDX;
+	di_post_mcvecrd_canvas_idx[1] = DI_POST_MCVECRD_CANVAS_IDX2;
 #endif
 #ifdef CONFIG_VSYNC_RDMA
 	di_post_buf0_canvas_idx[1] = DI_POST_BUF0_CANVAS_IDX2;
 	di_post_buf1_canvas_idx[1] = DI_POST_BUF1_CANVAS_IDX2;
-	di_post_mtncrd_canvas_idx[1] = DI_POST_MTNCRD_CANVAS_IDX2;
 	di_post_mtnprd_canvas_idx[1] = DI_POST_MTNPRD_CANVAS_IDX2;
 #else
 	di_post_buf0_canvas_idx[1] = DI_POST_BUF0_CANVAS_IDX;
 	di_post_buf1_canvas_idx[1] = DI_POST_BUF1_CANVAS_IDX;
-	di_post_mtncrd_canvas_idx[1] = DI_POST_MTNCRD_CANVAS_IDX;
 	di_post_mtnprd_canvas_idx[1] = DI_POST_MTNPRD_CANVAS_IDX;
 #endif
 #endif
 
 	/* call di_add_reg_cfg() */
 #ifdef NEW_DI_V1
-	#if 0  /* tcl */
-	{
-		di_add_reg_cfg(&di_default_pre);
-		di_add_reg_cfg(&di_default_post_hd);
-		di_add_reg_cfg(&di_default_post_tuner);
-		di_add_reg_cfg(&di_default_post_comp);
-		di_add_reg_cfg(&di_default_post_hdmi);
-		di_add_reg_cfg(&di_dtv_post_stand);
-		pr_info("add the di_default_pre/post_hd/post_tuner/post_comp/post_hdmi/post_stand cfg\n");
-	}
-	#else/* default */
-	{
 	di_add_reg_cfg(&di_default_pre);
 	di_add_reg_cfg(&di_default_post);
-	}
-	#endif
 #endif
 	/**/
 
 	device_create_file(di_devp->dev, &dev_attr_config);
 	device_create_file(di_devp->dev, &dev_attr_debug);
-	  device_create_file(di_devp->dev, &dev_attr_dump_pic);
+	device_create_file(di_devp->dev, &dev_attr_dump_pic);
 	device_create_file(di_devp->dev, &dev_attr_log);
 	device_create_file(di_devp->dev, &dev_attr_parameters);
 	device_create_file(di_devp->dev, &dev_attr_status);
@@ -7422,7 +6804,7 @@ static int di_probe(struct platform_device *pdev)
 		pr_dbg("%s: register_fiq_bridge_handle fail\n", __func__);
 
 #endif
-	reset_di_para();
+	init_pd_para();
 	di_hw_init();
 
 	/* timer */
@@ -7739,11 +7121,6 @@ MODULE_PARM_DESC(det3d_en, "\n det3d_enable\n");
 module_param(det3d_en, bool, 0664);
 MODULE_PARM_DESC(det3d_mode, "\n det3d_mode\n");
 module_param(det3d_mode, uint, 0664);
-#endif
-
-#ifdef NEW_DI_V1
-MODULE_PARM_DESC(di_new_mode_mask, "\n di_new_mode_mask\n");
-module_param(di_new_mode_mask, uint, 0664);
 #endif
 
 MODULE_PARM_DESC(pre_hold_line, "\n pre_hold_line\n");

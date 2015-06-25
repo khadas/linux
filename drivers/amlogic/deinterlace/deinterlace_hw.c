@@ -30,50 +30,10 @@
 #endif
 
 uint di_mtn_1_ctrl1;
-uint ei_ctrl0;
-uint ei_ctrl1;
-uint ei_ctrl2;
-#ifdef NEW_DI_V1
-uint ei_ctrl3;
-#endif
-uint mtn_ctrl;
-uint mtn_ctrl_char_diff_cnt;
-uint mtn_ctrl_low_level;
-uint mtn_ctrl_high_level;
-uint mtn_ctrl_diff_level;
 uint mtn_ctrl1;
-uint mtn_ctrl1_reduce;
-uint mtn_ctrl1_shift;
-uint blend_ctrl;
-uint kdeint0;
-uint kdeint1;
-uint kdeint2;
-
-#ifndef NEW_DI_V1
-uint mtn_thre_1_high;
-uint mtn_thre_1_low;
-uint mtn_thre_2_high;
-uint mtn_thre_2_low;
-#endif
-
-uint blend_ctrl1;
-uint blend_ctrl1_char_level;
-uint blend_ctrl1_angle_thd;
-uint blend_ctrl1_filt_thd;
-uint blend_ctrl1_diff_thd;
-uint blend_ctrl2;
-uint blend_ctrl2_black_level;
-uint blend_ctrl2_mtn_no_mov;
-
-uint post_ctrl__di_blend_en;
-uint post_ctrl__di_post_repeat;
-uint di_pre_ctrl__di_pre_repeat;
 
 static bool cue_enable;
 
-uint field_32lvl;
-uint field_22lvl;
-pd_detect_threshold_t field_pd_th;
 pd_detect_threshold_t win_pd_th[MAX_WIN_NUM];
 pd_win_prop_t pd_win_prop[MAX_WIN_NUM];
 extern int mpeg2vdin_flag;
@@ -101,129 +61,6 @@ module_param(mcen_mode, ushort, 0664);
 #ifdef DET3D
 static unsigned int det3d_cfg;
 #endif
-static void init_pd_para(void)
-{
-	int i;
-	pd_detect_threshold_t field_pd_th_tmp = {
-		 .frame_diff_chg_th = 2,
-		 .frame_diff_num_chg_th = 50,
-		 .field_diff_chg_th = 2,
-		 .field_diff_num_chg_th = 2,
-		 .frame_diff_skew_th = 5,  /*10*/
-		 .frame_diff_num_skew_th = 5,  /*10*/
-		 .field_diff_num_th = 0
-		};
-	/* win, only check diff_num */
-	pd_detect_threshold_t win_pd_th_tmp = {
-		 .frame_diff_chg_th = 0,
-		 .frame_diff_num_chg_th = 50,
-		 .field_diff_chg_th = 0,
-		 .field_diff_num_chg_th = 2,
-		 .frame_diff_skew_th = 0,
-		 .frame_diff_num_skew_th = 0,
-		 .field_diff_num_th = 5
-		};
-	/**/
-	field_32lvl = 16;
-	field_22lvl = 256;
-
-	field_pd_th = field_pd_th_tmp;
-
-	pd_win_prop[0].win_start_x_r = 0;
-	pd_win_prop[0].win_end_x_r = 100;
-	pd_win_prop[0].win_start_y_r = 0;
-	pd_win_prop[0].win_end_y_r = 15;
-	pd_win_prop[1].win_start_x_r = 0;
-	pd_win_prop[1].win_end_x_r = 100;
-	pd_win_prop[1].win_start_y_r = 15;
-	pd_win_prop[1].win_end_y_r = 40;
-	pd_win_prop[2].win_start_x_r = 0;
-	pd_win_prop[2].win_end_x_r = 100;
-	pd_win_prop[2].win_start_y_r = 40;
-	pd_win_prop[2].win_end_y_r = 60;
-	pd_win_prop[3].win_start_x_r = 0;
-	pd_win_prop[3].win_end_x_r = 100;
-	pd_win_prop[3].win_start_y_r = 60;
-	pd_win_prop[3].win_end_y_r = 85;
-	pd_win_prop[4].win_start_x_r = 0;
-	pd_win_prop[4].win_end_x_r = 100;
-	pd_win_prop[4].win_start_y_r = 85;
-	pd_win_prop[4].win_end_y_r = 100;
-	for (i = 0; i < MAX_WIN_NUM; i++) {
-		pd_win_prop[i].win_32lvl = 0x10 /*16*/;
-		pd_win_prop[i].win_22lvl = 0x300;
-		win_pd_th[i] = win_pd_th_tmp;
-		if (i == 4)	{
-			win_pd_th[i].field_diff_num_th =
-win_pd_th_tmp.field_diff_num_th << 1;
-		}
-	}
-
-}
-
-void reset_di_para(void)
-{
-
-   /* if input is pal and ntsc */
-	ei_ctrl0 =	(255 << 16) |	/* ei_filter. */
-				  (1 << 8)  |	/* ei_threshold. */
-				  (0 << 2)  |	/* ei bypass cf2. */
-				  (0 << 1);		/* ei bypass far1 */
-
-	ei_ctrl1 =	 (90 << 24)  |		/* ei diff */
-				  (10 << 16) |		/* ei ang45 */
-				  (15 << 8)  |		/* ei peak. */
-				   45;				/* ei cross. */
-
-	ei_ctrl2 =	  (10 << 23) |		/* close2 */
-				  (10 << 16) |		/* close1 */
-				  (10 << 8)  |		/* far2 */
-				   93;				/* far1 */
-#ifdef NEW_DI_V1
-		ei_ctrl3 = 0x80000013;
-		di_mtn_1_ctrl1 = 0xa0202015;
-#endif
-		mtn_ctrl_char_diff_cnt = 2;
-		mtn_ctrl_diff_level = 40;
-		mtn_ctrl_high_level = 196;
-		mtn_ctrl_low_level = 64;
-
-		mtn_ctrl = 0xe228c440;
-		mtn_ctrl1_reduce = 2;
-		mtn_ctrl1_shift  = 0;
-
-		mtn_ctrl1 =	 (mtn_ctrl1_reduce << 8) | mtn_ctrl1_shift;
-		/* mtn reduce before shift. */
-
-	   kdeint0 = 25;
-	   kdeint1 = 25;
-	   kdeint2 = 25;
-	  /* blend_ctrl = ( post_mb_en << 28 ) |// post motion blur enable.*/
-	  /* ( 0 << 27 ) |		// mtn3p(l, c, r) max. */
-	  /* ( 0 << 26 ) |		// mtn3p(l, c, r) min. */
-	  /* ( 0 << 25 ) |		// mtn3p(l, c, r) ave. */
-	  /* ( 1 << 24 ) |		// mtntopbot max */
-	  /* ( blend_mtn_filt_en  << 23 ) |	// blend mtn filter enable. */
-	  /* ( blend_data_filt_en << 22 ) |	// blend data filter enable. */
-	  /* (kdeint0);						// kdeint. */
-		blend_ctrl = 0x01f00019;
-		blend_ctrl1_char_level = 196;
-		blend_ctrl1_angle_thd = 64;
-		blend_ctrl1_filt_thd = 40;
-		blend_ctrl1_diff_thd = 64;
-		blend_ctrl1 = (blend_ctrl1_char_level << 24) |
-			(blend_ctrl1_angle_thd << 16) | /* angle thredhold. */
-			(blend_ctrl1_filt_thd << 8)	|
-			(blend_ctrl1_diff_thd);	/* all 4 equal */
-		blend_ctrl2_black_level = 4;
-		blend_ctrl2_mtn_no_mov = 48;
-		blend_ctrl2 = (blend_ctrl2_black_level << 8) |
-				(blend_ctrl2_mtn_no_mov);/* black level. */
-		post_ctrl__di_blend_en = 0xff;
-		post_ctrl__di_post_repeat = 0xff;
-		di_pre_ctrl__di_pre_repeat = 0xff;
-		init_pd_para();
-}
 
 static int vdin_en;
 
@@ -280,6 +117,19 @@ static void ma_di_init(void)
 	/* 420->422 chrome difference is large motion is large,flick */
 	Wr(DI_MTN_1_CTRL4, 0x01800880);
 	Wr(DI_MTN_1_CTRL7, 0x0a800480);
+	/* ei setting */
+	Wr(DI_EI_CTRL0, 0x00ff0100);
+	Wr(DI_EI_CTRL1, 0x5a0a0f2d);
+	Wr(DI_EI_CTRL2, 0x050a0a5d);
+	Wr(DI_EI_CTRL3, 0x80000013);
+	/* mtn setting */
+	Wr(DI_MTN_1_CTRL1, 0xa0202015);
+	#if 0
+	/* no use from g9tv */
+	Wr(DI_MTN_CTRL, 0xe228c440);
+	Wr(DI_BLEND_CTRL1, 0xc4402840);
+	Wr(DI_BLEND_CTRL2, 0x430);
+	#endif
 }
 #endif
 #ifdef NEW_DI_V3
@@ -299,7 +149,6 @@ void di_hw_init(void)
 #endif
 
 #ifdef NEW_DI_V1
-	Wr(DI_MTN_1_CTRL1, Rd(DI_MTN_1_CTRL1)&(~(1<<31)));
 	/* enable old DI mode for m6tv */
 	Wr(DI_CLKG_CTRL, Rd(DI_CLKG_CTRL)|0x1); /* di no clock gate */
 
@@ -424,10 +273,7 @@ void enable_di_pre_aml(
 			(di_mtnwr_mif->end_y));
 		Wr(DI_MTNWR_CTRL, di_mtnwr_mif->canvas_num|/* canvas index. */
 						(urgent << 8));	/* urgent. */
-		#ifndef NEW_DI_V3
-		Wr(DI_MTN_CTRL, mtn_ctrl);
-		#endif
-		Wr(DI_MTN_CTRL1, (mtn_ctrl1_shift << 8) | mtn_ctrl1_reduce);
+		Wr(DI_MTN_CTRL1, (0 << 8) | 2);
 	}
 
 #ifdef NEW_DI_V1
@@ -463,11 +309,10 @@ void enable_di_pre_aml(
 /* hist check use data before noise reduction. */
 	((pd22_check_en || hist_check_only) << 8)|
 	/* chan 2 enable for 2:2 pull down check.*/
-		(pd22_check_en << 9)|/* line buffer 2 enable */
+		(pd22_check_en << 9) |/* line buffer 2 enable */
 					(0 << 10) |	/* pre drop first. */
-((di_pre_ctrl__di_pre_repeat != 0xff) ?
-(di_pre_ctrl__di_pre_repeat&0x1):(0 << 11))|
-					(0 << 12) |   /* pre viu link */
+					(0 << 11) | /* di pre repeat */
+					(0 << 12) | /* pre viu link */
 			(pre_vdin_link << 13) |
 			(pre_vdin_link << 14) |/* pre go line link */
 			(hold_line << 16)|/* pre hold line number */
@@ -1310,15 +1155,9 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 	/* di demo */
 	VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, ((hsize_post-1)>>1));
 	VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL,
+	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 (0x2 << 20) |	/* top mode. EI only */
 25); /* KDEINT */
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL0, ei_ctrl0);
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL1, ei_ctrl1);
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL2, ei_ctrl2);
-#ifdef NEW_DI_V1
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL3, ei_ctrl3);
-#endif
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL, (0 << 0) |
 					  (0 << 1)	|
 					  (0 << 2)	|
@@ -1344,9 +1183,6 @@ void di_post_switch_buffer(
 	DI_MIF_t		   *di_buf0_mif,
 	DI_MIF_t		   *di_buf1_mif,
 	DI_SIM_MIF_t    *di_diwr_mif,
-#ifndef NEW_DI_V2
-	DI_SIM_MIF_t    *di_mtncrd_mif,
-#endif
 	DI_SIM_MIF_t    *di_mtnprd_mif,
 #ifdef NEW_DI_V3
 	DI_MC_MIF_t	   *di_mcvecrd_mif,
@@ -1354,9 +1190,6 @@ void di_post_switch_buffer(
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
 	int post_field_num, int hold_line, int urgent
-#ifndef NEW_DI_V1
-	, unsigned long *reg_mtn_info
-#endif
 )
 {
 	int ei_only, buf1_en;
@@ -1377,9 +1210,6 @@ void di_post_switch_buffer(
 	if (blend_mtn_en) {
 		VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
 (di_mtnprd_mif->canvas_num << 8) | (urgent << 16)
-#ifndef NEW_DI_V2
-| di_mtncrd_mif->canvas_num
-#endif
 	 ); /* current field mtn canvas index. */
 
 	}
@@ -1388,28 +1218,9 @@ void di_post_switch_buffer(
 		VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num |
 			(urgent << 16)); /* urgent. */
 	}
-	if (ei_only == 0) {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, (blend_en<<31) |
-		(blend_ctrl&0x7fcfff00) | (blend_mode<<20) | (0xff&kdeint0));
-	#ifndef NEW_DI_V1
-	if ((reg_mtn_info[0] > mtn_thre_1_high)&
-(reg_mtn_info[4] < mtn_thre_2_low)) {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, ((blend_ctrl&0xffcfff00) |
-(blend_mode<<20) | (0xff&kdeint1)));
-		}
-	if (reg_mtn_info[4] > mtn_thre_2_high) {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, ((blend_ctrl&0xffcfff00) |
-(blend_mode<<20) | (0xff&kdeint2)));
-	}
-	#endif
-	#ifndef NEW_DI_V3
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL1, (blend_ctrl1_char_level << 24) |
-(blend_ctrl1_angle_thd << 16) |
-(blend_ctrl1_filt_thd << 8) |
-(blend_ctrl1_diff_thd));
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL2, (blend_ctrl2_black_level << 8) |
-(blend_ctrl2_mtn_no_mov));
-  #else
+
+	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
+			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
 	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL,
 (Rd(MCDI_MCVECRD_CTRL) & 0xffffff00) |
 (1<<9) |	  /* canvas enable */
@@ -1419,11 +1230,6 @@ di_mcvecrd_mif->canvas_num |  /* canvas index. */
 			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
 		else
 			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
-#endif
-	} else {
-	  VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, (blend_en<<31) |
-		(blend_ctrl&0x7fcfff00) | (blend_mode<<20) | (0xff&kdeint0));
-	}
 
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en|blend_en) << 0) |	/* line buffer 0 enable */
@@ -1431,15 +1237,13 @@ di_mcvecrd_mif->canvas_num |  /* canvas index. */
 (ei_en << 2) |			/* ei  enable */
 (blend_mtn_en << 3) |	/* mtn line buffer enable */
 (blend_mtn_en  << 4) |/* mtnp read mif enable */
-((post_ctrl__di_blend_en != 0xff) ?
-(post_ctrl__di_blend_en&0x1):(blend_en << 5)) |
+(blend_en << 5) |
 (1 << 6) |		/* di mux output enable */
 (di_ddr_en << 7) |/* di write to SDRAM enable.*/
 (di_vpp_en << 8) |/* di to VPP enable. */
 (0 << 9) |		/* mif0 to VPP enable. */
 (0 << 10) |		/* post drop first. */
-((post_ctrl__di_post_repeat != 0xff) ?
-(post_ctrl__di_post_repeat&0x1):(0 << 11)) |
+(0 << 11) |
 (di_vpp_en << 12) | /* post viu link */
 (hold_line << 16) | /* post hold line number */
 (post_field_num << 29) |	/* post field number. */
@@ -1451,28 +1255,15 @@ void enable_di_post_2(
 	DI_MIF_t		   *di_buf0_mif,
 	DI_MIF_t		   *di_buf1_mif,
 	DI_SIM_MIF_t    *di_diwr_mif,
-	#ifndef NEW_DI_V2
-	DI_SIM_MIF_t    *di_mtncrd_mif,
-	#endif
 	DI_SIM_MIF_t    *di_mtnprd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en, int post_field_num,
 	int hold_line, int urgent
-#ifndef NEW_DI_V1
-	, unsigned long *reg_mtn_info
-#endif
 )
 {
 	int ei_only;
 	int buf1_en;
 
-	/* make these 3 register can be run-time changed */
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL0, ei_ctrl0);
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL1, ei_ctrl1);
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL2, ei_ctrl2);
-#ifdef NEW_DI_V1
-	VSYNC_WR_MPEG_REG(DI_EI_CTRL3, ei_ctrl3);
-#endif
 	ei_only = ei_en && !blend_en && (di_vpp_en || di_ddr_en);
 	buf1_en =  (!ei_only && (di_ddr_en || di_vpp_en));
 
@@ -1491,18 +1282,9 @@ blend_mtn_en,blend_mode); */
 (di_mtnprd_mif->start_x << 16) | (di_mtnprd_mif->end_x));
 		VSYNC_WR_MPEG_REG(DI_MTNPRD_Y,
 (di_mtnprd_mif->start_y << 16) | (di_mtnprd_mif->end_y));
-   #ifndef NEW_DI_V2
-		VSYNC_WR_MPEG_REG(DI_MTNCRD_X,
-(di_mtncrd_mif->start_x << 16) | (di_mtncrd_mif->end_x));
-		VSYNC_WR_MPEG_REG(DI_MTNCRD_Y,
-(di_mtncrd_mif->start_y << 16) | (di_mtncrd_mif->end_y));
-	 #endif
 	if (blend_mtn_en) {
 		VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
 (di_mtnprd_mif->canvas_num << 8) | (urgent << 16)
-#ifndef NEW_DI_V2
-|di_mtncrd_mif->canvas_num
-#endif
 	 ); /* current field mtn canvas index */
 	}
 
@@ -1515,58 +1297,27 @@ blend_mtn_en,blend_mode); */
 (urgent << 16));
 	}
 
-	if (ei_only == 0) {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, (blend_en<<31) |
-		(blend_ctrl&0x7fcfff00) | (blend_mode<<20) | (0xff&kdeint0));
-	#ifndef NEW_DI_V1
-	if ((reg_mtn_info[0] > mtn_thre_1_high)&
-(reg_mtn_info[4] < mtn_thre_2_low)) {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, ((blend_ctrl&0xffcfff00) |
-(blend_mode<<20) | (0xff&kdeint1)));
-	}
-	if (reg_mtn_info[4] > mtn_thre_2_high) {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, ((blend_ctrl&0xffcfff00) |
-(blend_mode<<20) | (0xff&kdeint2)));
-	}
-	#endif
-	#ifndef NEW_DI_V3
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL1, (blend_ctrl1_char_level << 24) |
-(blend_ctrl1_angle_thd << 16) |
-(blend_ctrl1_filt_thd << 8) |
-(blend_ctrl1_diff_thd));
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL2,	(blend_ctrl2_black_level << 8) |
-(blend_ctrl2_mtn_no_mov));
-	#endif
-#ifdef NEW_DI_V1
-/* VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)&(~(1<<31))); */
-#endif
-	} else {
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL,
-(blend_en<<31) | (blend_ctrl&0x7fcfff00)|(0xff&kdeint0));
-	}
+		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
+			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
+
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en | blend_en) << 0) |	/* line buffer 0 enable */
 ((blend_mode == 1?1:0) << 1)  |
 (ei_en << 2) | /* ei  enable */
 (blend_mtn_en << 3) |	/* mtn line buffer enable */
 (blend_mtn_en  << 4) |/* mtnp read mif enable */
-((post_ctrl__di_blend_en != 0xff) ?
-(post_ctrl__di_blend_en&0x1):(blend_en << 5)) |
+(blend_en << 5) |
 (1 << 6) |/* di mux output enable */
 (di_ddr_en << 7) |	/* di write to SDRAM enable. */
 (di_vpp_en << 8) |	/* di to VPP enable. */
 (0 << 9) |	/* mif0 to VPP enable. */
 (0 << 10) |	/* post drop first. */
-((post_ctrl__di_post_repeat != 0xff) ?
-(post_ctrl__di_post_repeat&0x1):(0 << 11)) |
+(0 << 11) |
 (di_vpp_en << 12) |	/* post viu link */
 (hold_line << 16) |	/* post hold line number */
 (post_field_num << 29) |	/* post field number. */
 (0x1 << 30)	/* post soft rst  post frame rst. */
 		);
-#ifdef NEW_DI_V1
-		VSYNC_WR_MPEG_REG(DI_EI_CTRL3, ei_ctrl3);
-#endif
 }
 
 void disable_post_deinterlace_2(void)
@@ -1582,14 +1333,30 @@ void disable_post_deinterlace_2(void)
 Rd(DI_IF1_GEN_REG) & 0xfffffffe); */
 }
 
-void enable_di_mode_check_2(int win0_start_x, int win0_end_x,
-	int win0_start_y, int win0_end_y, int win1_start_x,
-	int win1_end_x, int win1_start_y, int win1_end_y,
-	int win2_start_x, int win2_end_x, int win2_start_y, int win2_end_y,
-	int win3_start_x, int win3_end_x, int win3_start_y, int win3_end_y,
-	int win4_start_x, int win4_end_x, int win4_start_y, int win4_end_y
-	)
+void enable_film_mode_check(unsigned int width, unsigned int height,
+		enum vframe_source_type_e source_type)
 {
+	unsigned int win0_start_x, win0_end_x, win0_start_y, win0_end_y;
+	unsigned int win1_start_x, win1_end_x, win1_start_y, win1_end_y;
+	unsigned int win2_start_x, win2_end_x, win2_start_y, win2_end_y;
+	unsigned int win3_start_x, win3_end_x, win3_start_y, win3_end_y;
+	unsigned int win4_start_x, win4_end_x, win4_start_y, win4_end_y;
+
+	win0_start_x = win1_start_x = win2_start_x = 0;
+	win3_start_x = win4_start_x = 0;
+	win0_end_x = win1_end_x = win2_end_x = width-1;
+	win3_end_x = win4_end_x = width-1;
+	win0_start_y = 0;
+	win1_start_y = (height>>3); /* 1/8 */
+	win0_end_y = win1_start_y - 1;
+	win2_start_y = win1_start_y + (height>>2); /* 1/4 */
+	win1_end_y = win2_start_y - 1;
+	win3_start_y = win2_start_y + (height>>2); /* 1/4 */
+	win2_end_y = win3_start_y - 1;
+	win4_start_y = win3_start_y + (height>>2); /* 1/4 */
+	win3_end_y = win4_start_y - 1;
+	win4_end_y = win4_start_y + (height>>3) - 1; /* 1/8 */
+
 	pd_win_prop[0].pixels_num =
 (win0_end_x-win0_start_x)*(win0_end_y-win0_start_y);
 	pd_win_prop[1].pixels_num =
@@ -1611,21 +1378,7 @@ void enable_di_mode_check_2(int win0_start_x, int win0_end_x,
 	Wr(DI_MC_REG3_Y, (win3_start_y << 16) | win3_end_y);
 	Wr(DI_MC_REG4_X, (win4_start_x << 16) | win4_end_x);
 	Wr(DI_MC_REG4_Y, (win4_start_y << 16) | win4_end_y);
-	Wr(DI_MC_32LVL1, pd_win_prop[3].win_32lvl |	/* region 3 */
-(pd_win_prop[4].win_32lvl << 8));/* region 4 */
-	Wr(DI_MC_32LVL0, field_32lvl	|	/* field 32 level */
-(pd_win_prop[0].win_32lvl << 8)  |	/* region 0 */
-(pd_win_prop[1].win_32lvl << 16) |	/* region 1 */
-(pd_win_prop[2].win_32lvl << 24));	/* region 2 */
-	Wr(DI_MC_22LVL0,  field_22lvl  |/* field 22 level */
-(pd_win_prop[0].win_22lvl << 16));	/* region 0 */
 
-	Wr(DI_MC_22LVL1,  pd_win_prop[1].win_22lvl	|/* region 1 */
-(pd_win_prop[2].win_22lvl << 16));	/* region 2 */
-
-	Wr(DI_MC_22LVL2, pd_win_prop[3].win_22lvl  |	/* region 3 */
-(pd_win_prop[4].win_22lvl << 16));	/* region 4. */
-	Wr(DI_MC_CTRL, 0x1f);	/* enable region level */
 }
 
 static int fdn[5] = {0};
@@ -1692,32 +1445,6 @@ bool read_pulldown_info(pulldown_detect_info_t *field_pd_info,
 	return frame_dynamic;
 }
 
-#ifndef NEW_DI_V1
-void read_mtn_info(unsigned long *mtn_info, unsigned long *reg_mtn_info)
-{
-	int i;
-
-	Wr(DI_INFO_ADDR, 64);
-	for (i  = 0; i < 5; i++) {
-		mtn_info[i] = Rd(DI_INFO_DATA);
-			if (di_log_flag&DI_LOG_MTNINFO)
-				di_print(
-"mtn_info[%d]=%lx\n", 64+i, mtn_info[i]);
-
-	}
-	reg_mtn_info[0] = mtn_info[0];
-	reg_mtn_info[1] = mtn_info[1];
-	reg_mtn_info[2] = mtn_info[2];
-	reg_mtn_info[3] = mtn_info[3];
-	reg_mtn_info[4] = mtn_info[4];
-
-	Wr(DI_INFO_ADDR, 0);
-	reg_mtn_info[5] = Rd(DI_INFO_DATA);
-	reg_mtn_info[6] = Rd(DI_INFO_DATA);
-
-	return;
-}
-#endif
 void di_post_read_reverse(bool reverse)
 {
 #ifdef NEW_DI_TV
@@ -1803,7 +1530,6 @@ unsigned char di_get_power_control(unsigned char type)
 
 static void di_nr_init(void)
 {
-#ifdef NEW_DI_V3
 	Wr(DI_NR_CTRL0, 0xc60c0804);
 	Wr(DI_NR_CTRL1, 0x403e3c3a);
 	Wr(DI_NR_CTRL2, 0x08010a01);
@@ -1828,22 +1554,4 @@ static void di_nr_init(void)
 	Wr(NR3_CMOT_PARA, 0x08140f);
 	Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
 	Wr(NR3_SUREMOT_CGAIN, 0x22264014);
-#elif (defined NEW_DI_V1)
-	Wr(DI_NR_CTRL0, 0xc60c0804);
-	Wr(DI_NR_CTRL1, 0x403e3c3a);
-	Wr(DI_NR_CTRL2, 0x08010a01);
-	Wr(DI_NR_CTRL3, 0x001002d0);
-	Wr(NR2_3DEN_MODE, 0x77);
-	Wr(NR2_SNR_SAD_CFG, 0x134f);
-	Wr(NR2_MATNR_SNR_NRM_GAIN, 0x0);
-	Wr(NR2_MATNR_SNR_LPF_CFG, 0xc1b86);
-	Wr(NR2_MATNR_SNR_USF_GAIN, 0x404);
-	Wr(NR2_MATNR_SNR_EDGE2B, 0xff08);
-	Wr(NR2_MATNR_BETA_EGAIN, 0x4040);
-	Wr(NR2_MATNR_YBETA_SCL, 0xff2000);
-	Wr(NR2_MATNR_CBETA_SCL, 0xff2000);
-	Wr(NR2_MATNR_MTN_CRTL2, 0x32020);
-	Wr(NR2_MATNR_MTN_GAIN, 0xffffffff);
-	Wr(NR2_MATNR_DEGHOST, 0x133);
-#endif
 }

@@ -118,13 +118,7 @@ struct pd_detect_threshold_s {
 };
 #define pd_detect_threshold_t struct pd_detect_threshold_s
 struct pd_win_prop_s {
-	uint win_start_x_r;
-	uint win_end_x_r;
-	uint win_start_y_r;
-	uint win_end_y_r;
-	uint win_32lvl;
-	uint win_22lvl;
-	uint pixels_num;
+	unsigned int pixels_num;
 };
 #define pd_win_prop_t struct pd_win_prop_s
 enum process_fun_index_e {
@@ -194,9 +188,6 @@ struct di_buf_s {
 	/*bit [31~16] width; bit [15~0] height*/
 	pulldown_detect_info_t field_pd_info;
 	pulldown_detect_info_t win_pd_info[MAX_WIN_NUM];
-#ifndef NEW_DI_V1
-	unsigned int mtn_info[5];
-#endif
 	pulldown_mode_t pulldown_mode;
 	int win_pd_mode[5];
 	process_fun_index_t process_fun_index;
@@ -210,55 +201,12 @@ struct di_buf_s {
 };
 #define di_buf_t struct di_buf_s
 extern uint di_mtn_1_ctrl1;
-extern uint ei_ctrl0;
-extern uint ei_ctrl1;
-extern uint ei_ctrl2;
-#ifdef NEW_DI_V1
-extern uint ei_ctrl3;
-#endif
 #ifdef DET3D
 extern bool det3d_en;
 #endif
 
-extern uint mtn_ctrl;
-extern uint mtn_ctrl_char_diff_cnt;
-extern uint mtn_ctrl_low_level;
-extern uint mtn_ctrl_high_level;
-extern uint mtn_ctrl_diff_level;
 extern uint mtn_ctrl1;
-extern uint mtn_ctrl1_reduce;
-extern uint mtn_ctrl1_shift;
-extern uint blend_ctrl;
-extern uint kdeint0;
-extern uint kdeint1;
-extern uint kdeint2;
-#ifndef NEW_DI_V1
-extern uint reg_mtn_info0;
-extern uint reg_mtn_info1;
-extern uint reg_mtn_info2;
-extern uint reg_mtn_info3;
-extern uint reg_mtn_info4;
-extern uint mtn_thre_1_low;
-extern uint mtn_thre_1_high;
-extern uint mtn_thre_2_low;
-extern uint mtn_thre_2_high;
-#endif
 
-extern uint blend_ctrl1;
-extern uint blend_ctrl1_char_level;
-extern uint blend_ctrl1_angle_thd;
-extern uint blend_ctrl1_filt_thd;
-extern uint blend_ctrl1_diff_thd;
-extern uint blend_ctrl2;
-extern uint blend_ctrl2_black_level;
-extern uint blend_ctrl2_mtn_no_mov;
-extern uint post_ctrl__di_blend_en;
-extern uint post_ctrl__di_post_repeat;
-extern uint di_pre_ctrl__di_pre_repeat;
-
-extern uint field_32lvl;
-extern uint field_22lvl;
-extern pd_detect_threshold_t field_pd_th;
 extern pd_detect_threshold_t win_pd_th[MAX_WIN_NUM];
 extern pd_win_prop_t pd_win_prop[MAX_WIN_NUM];
 
@@ -334,13 +282,8 @@ int get_di_pre_recycle_buf(void);
 
 void disable_post_deinterlace_2(void);
 
-void enable_di_mode_check_2(
-	int win0_start_x, int win0_end_x, int win0_start_y, int win0_end_y,
-	int win1_start_x, int win1_end_x, int win1_start_y, int win1_end_y,
-	int win2_start_x, int win2_end_x, int win2_start_y, int win2_end_y,
-	int win3_start_x, int win3_end_x, int win3_start_y, int win3_end_y,
-	int win4_start_x, int win4_end_x, int win4_start_y, int win4_end_y
-	);
+void enable_film_mode_check(unsigned int width, unsigned int height,
+		enum vframe_source_type_e);
 
 void enable_di_pre_aml(
 	DI_MIF_t		*di_inp_mif,
@@ -424,33 +367,10 @@ bool read_pulldown_info(pulldown_detect_info_t *field_pd_info,
 #ifndef NEW_DI_V1
 void read_mtn_info(unsigned long *mtn_info, unsigned long*);
 #endif
-void reset_pulldown_state(void);
 
-void cal_pd_parameters(pulldown_detect_info_t *cur_info,
-	pulldown_detect_info_t *pre_info, pulldown_detect_info_t *next_info,
-	pd_detect_threshold_t *pd_th);
-
-void pattern_check_pre_2(int idx, pulldown_detect_info_t *cur_info,
-	pulldown_detect_info_t *pre_info, pulldown_detect_info_t *pre2_info,
-	int *pre_pulldown_mode, int *pre2_pulldown_mode, int *type,
-	pd_detect_threshold_t *pd_th);
-
-void reset_di_para(void);
 /* for video reverse */
 void di_post_read_reverse(bool reverse);
 void di_post_read_reverse_irq(bool reverse);
-
-/* new pd algorithm */
-void reset_pd_his(void);
-void insert_pd_his(pulldown_detect_info_t *pd_info);
-void reset_pd32_status(void);
-int detect_pd32(void);
-
-extern unsigned int pd32_match_num;
-extern unsigned int pd32_debug_th;
-extern unsigned int pd32_diff_num_0_th;
-extern unsigned int pd22_th;
-extern unsigned int pd22_num_th;
 
 #undef DI_DEBUG
 
