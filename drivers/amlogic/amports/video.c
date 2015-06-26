@@ -3947,10 +3947,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			video_onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
 		} else if (video_onoff_state ==
 				VIDEO_ENABLE_STATE_ON_PENDING) {
+#if 0
 			SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
 					VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
 					   | VPP_POSTBLEND_EN);
-
+#else
+			VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+				READ_VCBUS_REG(VPP_MISC +
+						cur_dev->vpp_off) |
+					VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
+					| VPP_POSTBLEND_EN);
+#endif
 			video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
@@ -3959,19 +3966,38 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 			if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
 			    && !is_meson_mtvd_cpu()) {
+#if 0
 				CLEAR_VCBUS_REG_MASK(VPP_MISC +
 						     cur_dev->vpp_off,
 						     VPP_VD1_PREBLEND |
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND |
 						     VPP_VD1_POSTBLEND);
+#else
+				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+					READ_VCBUS_REG(VPP_MISC +
+						cur_dev->vpp_off) &
+						~(VPP_VD1_PREBLEND |
+						  VPP_VD2_PREBLEND |
+						  VPP_VD2_POSTBLEND |
+						  VPP_VD1_POSTBLEND));
+#endif
 			} else {
 				/* #else */
+#if 0
 				CLEAR_VCBUS_REG_MASK(VPP_MISC +
 						     cur_dev->vpp_off,
 						     VPP_VD1_PREBLEND |
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND);
+#else
+				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+					READ_VCBUS_REG(VPP_MISC +
+						cur_dev->vpp_off) &
+						~(VPP_VD1_PREBLEND |
+						  VPP_VD2_PREBLEND |
+						  VPP_VD2_POSTBLEND));
+#endif
 			}
 			/* #endif */
 			video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
@@ -3996,10 +4022,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			video2_onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
 		} else if (video2_onoff_state ==
 				VIDEO_ENABLE_STATE_ON_PENDING) {
+#if 0
 			SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
 					   VPP_PREBLEND_EN | VPP_VD2_PREBLEND |
 					   (0x1ff << VPP_VD2_ALPHA_BIT));
-
+#else
+			VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+				READ_VCBUS_REG(VPP_MISC +
+						cur_dev->vpp_off) |
+					VPP_PREBLEND_EN | VPP_VD2_PREBLEND |
+					(0x1ff << VPP_VD2_ALPHA_BIT));
+#endif
 			video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
@@ -4008,16 +4041,32 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 			if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
 			    && !is_meson_mtvd_cpu()) {
+#if 0
 				CLEAR_VCBUS_REG_MASK(VPP_MISC +
 						     cur_dev->vpp_off,
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND);
+#else
+				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+					READ_VCBUS_REG(VPP_MISC +
+						cur_dev->vpp_off) &
+						~(VPP_VD2_PREBLEND |
+						  VPP_VD2_POSTBLEND));
+#endif
 			} else {
 				/* #else */
+#if 0
 				CLEAR_VCBUS_REG_MASK(VPP_MISC +
 						     cur_dev->vpp_off,
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND);
+#else
+				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+					READ_VCBUS_REG(VPP_MISC +
+						cur_dev->vpp_off) &
+						~(VPP_VD2_PREBLEND |
+						  VPP_VD2_POSTBLEND));
+#endif
 			}
 			/* #endif */
 			video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
