@@ -197,6 +197,12 @@
 			"vdec";
 	};
 
+	amvideocap {
+		compatible = "amlogic, amvideocap";
+		dev_name = "amvideocap.0";
+		status = "okay";
+	};
+
 	ion_dev {
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_reserved>;

@@ -77,8 +77,9 @@
 #include <linux/amlogic/vpu.h>
 /* #endif */
 #include "videolog.h"
-/* /#include "amvideocap_priv.h" */
-
+#ifdef CONFIG_AM_VIDEOCAPTURE
+#include "amvideocap_priv.h"
+#endif
 #ifdef CONFIG_AM_VIDEO_LOG
 #define AMLOG
 #endif
