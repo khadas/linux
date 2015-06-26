@@ -181,7 +181,7 @@ tsync_av_latest_switch_time_ms;	/* the time on latset switch */
 static unsigned int tsync_av_dynamic_duration_ms;/* hold for dynamic mode; */
 static u64 tsync_av_dynamic_timeout_ms;/* hold for dynamic mode; */
 static struct timer_list tsync_state_switch_timer;
-#define jiffies_ms (get_jiffies_64()*1000/HZ)
+#define jiffies_ms div64_u64(get_jiffies_64() * 1000, HZ)
 
 static unsigned int tsync_syncthresh = 1;
 static int tsync_dec_reset_flag;
