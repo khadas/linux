@@ -1696,7 +1696,7 @@ static struct PIC_s *output_pic(struct hevc_state_s *hevc,
 	if (i_only_flag & 0x4) {
 		for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 			pic = &m_PIC[i];
-			if (pic->index == -1)
+			if ((pic->index == -1) || (pic->POC == INVALID_POC))
 				continue;
 			if (pic->output_mark) {
 				if (pic_display) {
@@ -1717,7 +1717,7 @@ static struct PIC_s *output_pic(struct hevc_state_s *hevc,
 	} else {
 		for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 			pic = &m_PIC[i];
-			if (pic->index == -1)
+			if ((pic->index == -1) || (pic->POC == INVALID_POC))
 				continue;
 			if (pic->output_mark)
 				num_pic_not_yet_display++;
@@ -1725,7 +1725,7 @@ static struct PIC_s *output_pic(struct hevc_state_s *hevc,
 
 		for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 			pic = &m_PIC[i];
-			if (pic->index == -1)
+			if ((pic->index == -1) || (pic->POC == INVALID_POC))
 				continue;
 			if (pic->output_mark) {
 				if (pic_display) {
@@ -3223,7 +3223,11 @@ static void flush_output(struct hevc_state_s *hevc, struct PIC_s *pic)
 				hevc->ignore_bufmgr_error |= 0x2;
 			}
 		}
-		/**/ pic->output_mark = 1;
+		/**/
+		if (pic->POC != INVALID_POC) {
+			pic->output_mark = 1;
+			pic->recon_mark = 1;
+		}
 		pic->recon_mark = 1;
 	}
 	do {
@@ -3274,7 +3278,7 @@ static inline void hevc_pre_pic(struct hevc_state_s *hevc,
 	if (hevc->curr_POC != 0) {
 		struct PIC_s *pic_display;
 		pic = get_pic_by_POC(hevc, hevc->iPrevPOC);
-		if (pic) {
+		if (pic && (pic->POC != INVALID_POC)) {
 			/*PB skip control */
 			if (pic->error_mark == 0
 					&& hevc->PB_skip_mode == 1) {
