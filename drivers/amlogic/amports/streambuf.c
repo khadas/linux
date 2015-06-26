@@ -371,7 +371,9 @@ void stbuf_release(struct stream_buf_s *buf)
 			buf->buf_pages, buf->buf_page_num);
 		buf->flag &= ~BUF_FLAG_ALLOC;
 		buf->buf_start = 0;
+		buf->buf_pages = NULL;
 	}
+	buf->flag &= ~BUF_FLAG_IN_USE;
 }
 
 u32 stbuf_sub_rp_get(void)
