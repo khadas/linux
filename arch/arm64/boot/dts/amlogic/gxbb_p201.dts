@@ -257,15 +257,23 @@
 		status = "ok";
 		reserve-iomap = "true";
 		interrupts = <0 83 1>;
+		rdma-irq = <2>;
+		clocks = <&clock CLK_XTAL>,
+			<&clock CLK_VID_LOCK_CLK>;
+		clock-names = "xtal", "cts_vid_lock_clk";
 		vdin_id = <0>;
 	};
-	vdin {
+	vdin1 {
 		compatible = "amlogic, vdin";
 		memory-region = <&vdin1_reserved>;
 		dev_name = "vdin1";
 		status = "ok";
 		reserve-iomap = "true";
 		interrupts = <0 85 1>;
+		rdma-irq = <4>;
+		clocks = <&clock CLK_XTAL>,
+			<&clock CLK_VID_LOCK_CLK>;
+		clock-names = "xtal", "cts_vid_lock_clk";
 		vdin_id = <1>;
 	};*/
 	amvdec_656in0 {
@@ -273,12 +281,20 @@
 		dev_name = "amvdec_656in0";
 		status = "ok";
 		reg = <0x0 0xd0048000 0x0 0x7c>;
+		clocks = <&clock CLK_FPLL_DIV2>,
+			<&clock CLK_BT656_CLK0>;
+		clock-names = "fclk_div2", "cts_bt656_clk0";
+		bt656_id = <0>;
 	};
 	amvdec_656in1 {
 		compatible = "amlogic, amvdec_656in";
 		dev_name = "amvdec_656in1";
 		status = "ok";
 		reg = <0x0 0xd0050000 0x0 0x7c>;
+		clocks = <&clock CLK_FPLL_DIV2>,
+			<&clock CLK_BT656_CLK1>;
+		clock-names = "fclk_div2", "cts_bt656_clk1";
+		bt656_id = <1>;
 	};
 
 	amvenc_avc{

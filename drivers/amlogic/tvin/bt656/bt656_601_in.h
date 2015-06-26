@@ -19,9 +19,10 @@
 
 #ifndef __BT656_601_INPUT_H
 #define __BT656_601_INPUT_H
+
 #include <linux/cdev.h>
+#include <linux/clk.h>
 #include <linux/amlogic/tvin/tvin_v4l2.h>
-/* #include <mach/pinmux.h> */
 #include "../tvin_frontend.h"
 #include "../tvin_global.h"
 #include <linux/amlogic/cpu_version.h>
@@ -231,6 +232,7 @@
 
 /* registers rw */
 #define BT656_MAX_DEVS             2
+
 static void __iomem *bt656_reg_base[BT656_MAX_DEVS];
 
 static int reg_read(u32 index,
@@ -254,20 +256,6 @@ static int reg_write(u32 index,
 	} else
 		return -1;
 }
-
-/* static inline void reg_read(void __iomem *reg_base, */
-/* unsigned int reg, */
-/* unsigned int *val) */
-/* { */
-/* *val = readl(reg_base+reg); */
-/* } */
-/*  */
-/* static void reg_write(void __iomem *reg_base, */
-/* unsigned int reg, */
-/* unsigned int val) */
-/* { */
-/* writel(val, reg_base+reg); */
-/* } */
 
 static inline uint32_t rd(u32 index,
 		uint32_t reg)
@@ -308,7 +296,6 @@ static inline uint32_t rd_bits(u32 index,
 	return val;
 }
 
-
 enum am656_status_e {
 	TVIN_AM656_STOP,
 	TVIN_AM656_RUNING,
@@ -325,6 +312,7 @@ struct am656in_dev_s {
 	enum am656_status_e     dec_status;
 	struct vdin_parm_s      para;
 	struct tvin_frontend_s  frontend;
+	struct clk				*bt656_clk;
 };
 
 #endif

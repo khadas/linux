@@ -2180,7 +2180,9 @@
 /* Bit 15:8 vdi7 asfifo_ctrl */
 /* Bit 7:0 vdi6 asfifo_ctrl */
 /* #define VDIN_ASFIFO_CTRL3                                 0x126f */
-#define VDI8_ASFIFO_CTRL_BIT		16
+#define VDI9_ASFIFO_CTRL_BIT		    24
+#define VDI9_ASFIFO_CTRL_WID            8
+#define VDI8_ASFIFO_CTRL_BIT		    16
 #define VDI8_ASFIFO_CTRL_WID            8
 #define VDI7_ASFIFO_CTRL_BIT            8
 #define VDI7_ASFIFO_CTRL_WID            8

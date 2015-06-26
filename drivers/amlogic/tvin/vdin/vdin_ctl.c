@@ -89,6 +89,7 @@ MODULE_PARM_DESC(cm_enable, "cm_enable");
 #define VDIN_MUX_VIU                    7
 #define VDIN_MUX_MIPI                   8
 #define VDIN_MUX_ISP					9
+#define VDIN_MUX_656_B                  10
 
 #define VDIN_MAP_Y_G                    0
 #define VDIN_MAP_BPB                    1
@@ -102,6 +103,7 @@ MODULE_PARM_DESC(cm_enable, "cm_enable");
 #define MEAS_MUX_DVIN                   5
 #define MEAS_MUX_DTV                    6
 #define MEAS_MUX_ISP                    8
+#define MEAS_MUX_656_B                  9
 
 #define MEAS_MUX_VIU                    6
 
@@ -345,7 +347,7 @@ static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
 
 void vdin_get_format_convert(struct vdin_dev_s *devp)
 {
-	enum vdin_format_convert_e	format_convert = devp->format_convert;
+	enum vdin_format_convert_e	format_convert;
 
 	if (devp->prop.color_format == devp->prop.dest_cfmt) {
 		switch (devp->prop.color_format) {
@@ -401,10 +403,12 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		break;
 		}
 	}
+	devp->format_convert = format_convert;
 }
 
 
-void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_)
+static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
+		enum bt_path_e bt_path)
 {
 	/* unsigned int offset = devp->addr_offset; */
 	unsigned int meas_mux = MEAS_MUX_NULL;
@@ -414,6 +418,9 @@ void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_)
 		meas_mux = MEAS_MUX_NULL;
 		break;
 	case 0x02: /* 656 */
+	    if (is_meson_gxbb_cpu() && (bt_path == BT_PATH_GPIO_B))
+		meas_mux = MEAS_MUX_656_B;
+		else
 		meas_mux = MEAS_MUX_656;
 		break;
 	case 0x04: /* VGA */
@@ -468,7 +475,8 @@ void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_)
 
 static inline void vdin_set_top(unsigned int offset,
 		enum tvin_port_e port,
-		enum tvin_color_fmt_e input_cfmt, unsigned int h)
+		enum tvin_color_fmt_e input_cfmt, unsigned int h,
+		enum bt_path_e bt_path)
 {
 	/* unsigned int offset = devp->addr_offset; */
 	unsigned int vdin_mux = VDIN_MUX_NULL;
@@ -486,9 +494,15 @@ static inline void vdin_set_top(unsigned int offset,
 				VDI1_ASFIFO_CTRL_BIT, VDI1_ASFIFO_CTRL_WID);
 		break;
 	case 0x02: /* bt656 */
+	    if (is_meson_gxbb_cpu() && (bt_path == BT_PATH_GPIO_B)) {
+		vdin_mux = VDIN_MUX_656_B;
+		wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
+				VDI9_ASFIFO_CTRL_BIT, VDI9_ASFIFO_CTRL_WID);
+		} else {
 		vdin_mux = VDIN_MUX_656;
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, 0xe4,
 				VDI1_ASFIFO_CTRL_BIT, VDI1_ASFIFO_CTRL_WID);
+	    }
 		break;
 	case 0x04: /* VGA */
 		vdin_mux = VDIN_MUX_TVFE;
@@ -1155,20 +1169,38 @@ unsigned int vdin_get_total_v(unsigned int offset)
 			GO_LN_CNT_SDW_BIT, GO_LN_CNT_SDW_WID);
 }
 
-void vdin_set_canvas_id(unsigned int offset, unsigned int canvas_id)
+void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
+			unsigned int canvas_id)
 {
-	wr_bits(offset, VDIN_WR_CTRL, canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
+#ifdef CONFIG_AML_RDMA
+	if (rdma_enable)
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN_WR_CTRL+devp->addr_offset,
+			canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
+	else
+#endif
+		wr_bits(devp->addr_offset, VDIN_WR_CTRL, canvas_id,
+			WR_CANVAS_BIT, WR_CANVAS_WID);
 }
 unsigned int vdin_get_canvas_id(unsigned int offset)
 {
 	return rd_bits(offset, VDIN_WR_CTRL, WR_CANVAS_BIT, WR_CANVAS_WID);
 }
 
-void vdin_set_chma_canvas_id(unsigned int offset,
+void vdin_set_chma_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		unsigned int canvas_id)
 {
-	wr_bits(offset, VDIN_WR_CTRL2,  canvas_id, WRITE_CHROMA_CANVAS_ADDR_BIT,
-		WRITE_CHROMA_CANVAS_ADDR_WID);
+#ifdef CONFIG_AML_RDMA
+	if (rdma_enable)
+		rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_WR_CTRL2+devp->addr_offset,
+				canvas_id, WRITE_CHROMA_CANVAS_ADDR_BIT,
+				WRITE_CHROMA_CANVAS_ADDR_WID);
+	else
+#endif
+		wr_bits(devp->addr_offset, VDIN_WR_CTRL2,  canvas_id,
+				WRITE_CHROMA_CANVAS_ADDR_BIT,
+				WRITE_CHROMA_CANVAS_ADDR_WID);
 }
 unsigned int vdin_get_chma_canvas_id(unsigned int offset)
 {
@@ -1509,11 +1541,13 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 
 	/* top sub-module */
 	vdin_set_top(devp->addr_offset, devp->parm.port,
-			devp->prop.color_format, devp->h_active);
+			devp->prop.color_format, devp->h_active,
+			devp->bt_path);
 
 	/*  */
 
-	vdin_set_meas_mux(devp->addr_offset, devp->parm.port);
+	vdin_set_meas_mux(devp->addr_offset, devp->parm.port,
+			devp->bt_path);
 
 }
 

@@ -144,6 +144,10 @@ static unsigned int irq_cnt;
 module_param(irq_cnt, uint, 0664);
 MODULE_PARM_DESC(irq_cnt, "counter of irq");
 
+static unsigned int rdma_irq_cnt;
+module_param(rdma_irq_cnt, uint, 0664);
+MODULE_PARM_DESC(rdma_irq_cnt, "counter of rdma irq");
+
 static unsigned int vdin_irq_flag;
 module_param(vdin_irq_flag, uint, 0664);
 MODULE_PARM_DESC(vdin_irq_flag, "vdin_irq_flag");
@@ -153,10 +157,14 @@ static unsigned int viu_hw_irq;
 module_param(viu_hw_irq, uint, 0664);
 MODULE_PARM_DESC(viu_hw_irq, "viu_hw_irq");
 
-/*1:support rdma;0:no support rdma*/
-static unsigned int vdin_rdma_flag;
-module_param(vdin_rdma_flag, uint, 0664);
-MODULE_PARM_DESC(vdin_rdma_flag, "vdin_rdma_flag");
+/*
+ *2:enable manul rdam
+ *1:enable auto rdma
+ *0:no support rdma
+*/
+static unsigned int rdma_enable;
+module_param(rdma_enable, uint, 0664);
+MODULE_PARM_DESC(rdma_enable, "rdma_enable");
 
 static int irq_max_count;
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
@@ -541,7 +549,18 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 					vf->height, vf->duration);
 	}
 }
+#ifdef CONFIG_AML_RDMA
+static void vdin_rdma_irq(void *arg)
+{
+	rdma_irq_cnt++;
+	return;
+}
 
+static struct rdma_op_s vdin_rdma_op = {
+	vdin_rdma_irq,
+	NULL
+};
+#endif
 /*
  * 1. config canvas for video frame.
  * 2. enable hw work, including:
@@ -595,9 +614,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_set_decimation(devp);
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
-#ifdef CONFIG_VSYNC_RDMA
-	if (vdin_rdma_flag &&
-		(devp->v_active > 1080 || devp->h_active > 1920))
+#ifdef CONFIG_AML_RDMA
+	if (rdma_enable && devp->rdma_handle > 0)
 		devp->flags |= VDIN_FLAG_RDMA_ENABLE;
 #endif
     /*reverse / disable reverse write buffer*/
@@ -669,6 +687,10 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 			pr_info("****[%s]enable_irq ifdef VDIN_V2****\n",
 					__func__);
 	}
+	/* vdin msr clock gate enable */
+	if (is_meson_gxbb_cpu())
+		clk_prepare_enable(devp->msr_clk);
+
 	if (vdin_dbg_en)
 		pr_info("****[%s]ok!****\n", __func__);
 #ifdef CONFIG_AM_TIMESYNC
@@ -680,6 +702,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	}
 #endif
 	irq_cnt = 0;
+	rdma_irq_cnt = 0;
 }
 
 /*
@@ -703,6 +726,11 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_set_default_regmap(devp->addr_offset);
 	vdin_hw_disable(devp->addr_offset);
 	disable_irq_nosync(devp->irq);
+
+	/* bt656 clock gate disable */
+	if (is_meson_gxbb_cpu())
+		clk_disable_unprepare(devp->msr_clk);
+
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
 #ifdef CONFIG_AML_VPU
@@ -710,6 +738,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			VPU_MEM_POWER_DOWN);
 #endif
 	memset(&devp->prop, 0, sizeof(struct tvin_sig_property_s));
+#ifdef CONFIG_AML_RDMA
+	rdma_clear(devp->rdma_handle);
+#endif
 	devp->flags &= (~VDIN_FLAG_RDMA_ENABLE);
 	ignore_frames = 0;
 	devp->cycle = 0;
@@ -788,7 +819,12 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 		pr_err("%s(%d): error, fmt is null!!!\n", __func__, no);
 		return -1;
 	}
-	fe = tvin_get_frontend(para->port, 0);
+
+	if ((is_meson_gxbb_cpu()) && (para->bt_path == BT_PATH_GPIO_B)) {
+		devp->bt_path = para->bt_path;
+		fe = tvin_get_frontend(para->port, 1);
+	} else
+		fe = tvin_get_frontend(para->port, 0);
 	if (fe) {
 		fe->private_data = para;
 		fe->port         = para->port;
@@ -1122,7 +1158,7 @@ irqreturn_t vdin_isr_simple(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	/* set canvas address */
 
-	vdin_set_canvas_id(devp->addr_offset,
+	vdin_set_canvas_id(devp, devp->flags&VDIN_FLAG_RDMA_ENABLE,
 			vdin_canvas_ids[devp->index][irq_max_count]);
 	if (vdin_dbg_en)
 		pr_info("%2d: canvas id %d, field type %s\n",
@@ -1394,34 +1430,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	/* prepare for next input data */
 	next_wr_vfe = provider_vf_get(devp->vfp);
-#ifdef CONFIG_VSYNC_RDMA
-	if (devp->flags&VDIN_FLAG_RDMA_ENABLE) {
-		RDMA2_WR_MPEG_REG_BITS(VDIN_WR_CTRL,
-			(next_wr_vfe->vf.canvas0Addr&0xff),
-			WR_CANVAS_BIT, WR_CANVAS_WID);
-		/* prepare for chroma canvas*/
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21))
-			RDMA2_WR_MPEG_REG_BITS(VDIN_WR_CTRL2,
-				(next_wr_vfe->vf.canvas0Addr>>8)&0xff,
-				WRITE_CHROMA_CANVAS_ADDR_BIT,
-				WRITE_CHROMA_CANVAS_ADDR_WID);
-	} else {
-		vdin_set_canvas_id(offset, (next_wr_vfe->vf.canvas0Addr&0xff));
-		/* prepare for chroma canvas*/
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21))
-			vdin_set_chma_canvas_id(offset,
-					(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
-	}
-#else
-	vdin_set_canvas_id(offset, (next_wr_vfe->vf.canvas0Addr&0xff));
+
+	vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
+			(next_wr_vfe->vf.canvas0Addr&0xff));
 	/* prepare for chroma canvas*/
 	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
 		(devp->prop.dest_cfmt == TVIN_NV21))
-		vdin_set_chma_canvas_id(offset,
+		vdin_set_chma_canvas_id(devp,
+				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
 				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
-#endif
+
 	devp->curr_wr_vfe = next_wr_vfe;
 	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE))
 		vf_notify_receiver(devp->name,
@@ -1456,9 +1474,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 #endif
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
-#ifdef CONFIG_VSYNC_RDMA
-	if (devp->flags&VDIN_FLAG_RDMA_ENABLE)
-		rdma2_config(1);/* trigger by vdin0 vsync */
+#ifdef CONFIG_AML_RDMA
+	if (devp->flags & VDIN_FLAG_RDMA_ENABLE)
+		rdma_config(devp->rdma_handle,
+			(rdma_enable&1)?devp->rdma_irq:RDMA_TRIGGER_MANUAL);
 #endif
 	isr_log(devp->vfp);
 
@@ -1598,30 +1617,25 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	/* prepare for next input data */
 	next_wr_vfe = provider_vf_get(devp->vfp);
-	if (devp->parm.port == TVIN_PORT_VIU) {
-		VSYNC_WR_MPEG_REG_BITS(VDIN_WR_CTRL+offset,
-			(next_wr_vfe->vf.canvas0Addr&0xff),
-			WR_CANVAS_BIT, WR_CANVAS_WID);
-       /* prepare for chroma canvas*/
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+	vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
+				(next_wr_vfe->vf.canvas0Addr&0xff));
+	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
 			(devp->prop.dest_cfmt == TVIN_NV21))
-			VSYNC_WR_MPEG_REG_BITS(VDIN_WR_CTRL2+offset,
-				(next_wr_vfe->vf.canvas0Addr>>8)&0xff,
-				WRITE_CHROMA_CANVAS_ADDR_BIT,
-				WRITE_CHROMA_CANVAS_ADDR_WID);
-	} else {
-		vdin_set_canvas_id(offset, (next_wr_vfe->vf.canvas0Addr&0xff));
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21))
-			vdin_set_chma_canvas_id(offset,
+		vdin_set_chma_canvas_id(devp,
+				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
 				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
-	}
+
 	devp->curr_wr_vfe = next_wr_vfe;
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,
 			NULL);
 
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
+#ifdef CONFIG_AML_RDMA
+	if (devp->flags & VDIN_FLAG_RDMA_ENABLE)
+		rdma_config(devp->rdma_handle,
+			(rdma_enable&1)?devp->rdma_irq:RDMA_TRIGGER_MANUAL);
+#endif
 	isr_log(devp->vfp);
 
 	return IRQ_HANDLED;
@@ -2133,8 +2147,14 @@ static int vdin_drv_probe(struct platform_device *pdev)
 			goto fail_get_resource_irq;
 		}
 	}
-
 	vdin_devp[vdevp->index] = vdevp;
+#ifdef CONFIG_AML_RDMA
+	vdin_rdma_op.arg = vdin_devp;
+	devp->rdma_handle = rdma_register(&vdin_rdma_op,
+				NULL, RDMA_TABLE_SIZE);
+	pr_info("vdin.%d rdma hanld %d.\n", __func__, vdevp->index,
+			vdevp->rdma_handle);
+#endif
 	/* create cdev and reigser with sysfs */
 	ret = vdin_add_cdev(&vdevp->cdev, &vdin_fops, vdevp->index);
 	if (ret) {
@@ -2230,6 +2250,12 @@ static int vdin_drv_probe(struct platform_device *pdev)
 			pr_err("don't find  match irq\n");
 			goto fail_get_resource_irq;
 		}
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"rdma-irq", &(vdevp->rdma_irq));
+		if (ret) {
+			pr_err("don't find  match rdma irq, disable rdma\n");
+			vdevp->rdma_irq = 0;
+		}
 		res->end = res->start;
 		res->flags = IORESOURCE_IRQ;
 	}
@@ -2240,11 +2266,18 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto fail_get_resource_irq;
 	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				"rdma-irq", &(vdevp->rdma_irq));
+	if (ret) {
+		pr_err("don't find  match rdma irq, disable rdma\n");
+		vdevp->rdma_irq = 0;
+	}
 	#endif
 	vdevp->irq = res->start;
 	snprintf(vdevp->irq_name, sizeof(vdevp->irq_name),
 			"vdin%d-irq", vdevp->index);
-	pr_info("vdin%d irq: %d\n", vdevp->index, vdevp->irq);
+	pr_info("vdin%d irq: %d rdma irq: %d\n", vdevp->index,
+			vdevp->irq, vdevp->rdma_irq);
 	/* init vdin parameters */
 	vdevp->flags = VDIN_FLAG_NULL;
 	vdevp->flags &= (~VDIN_FLAG_FS_OPENED);
@@ -2274,6 +2307,25 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	dev_set_drvdata(vdevp->dev, vdevp);
 	platform_set_drvdata(pdev, vdevp);
 
+	/* vdin measure clock */
+	if (is_meson_gxbb_cpu()) {
+		struct clk *clk;
+		int clk_rate;
+
+		clk = clk_get(&pdev->dev, "xtal");
+		vdevp->msr_clk = clk_get(&pdev->dev, "cts_vid_lock_clk");
+		if (IS_ERR(clk) || IS_ERR(vdevp->msr_clk)) {
+			pr_err("%s: vdin cannot get msr clk !!!\n", __func__);
+			clk = NULL;
+			vdevp->msr_clk = NULL;
+		} else {
+			clk_set_parent(vdevp->msr_clk, clk);
+			clk_rate = clk_get_rate(vdevp->msr_clk);
+			clk_put(vdevp->msr_clk);
+			pr_info("%s: vdin msr clock is %d MHZ\n", __func__,
+					clk_rate/1000000);
+		}
+	}
 	pr_info("%s: driver initialized ok\n", __func__);
 	return 0;
 
@@ -2294,6 +2346,9 @@ static int vdin_drv_remove(struct platform_device *pdev)
 	struct vdin_dev_s *vdevp;
 	vdevp = platform_get_drvdata(pdev);
 
+#ifdef CONFIG_AML_RDMA
+	rdma_unregister(vdevp->rdma_handle);
+#endif
 	mutex_destroy(&vdevp->mm_lock);
 	mutex_destroy(&vdevp->fe_lock);
 

@@ -49,6 +49,9 @@
 #define CLK_PDM		35
 #define CLK_I958		36
 #define CLK_SPDIF		37
+#define CLK_BT656_CLK0		38
+#define CLK_BT656_CLK1		39
+#define CLK_VID_LOCK_CLK	40
 
 
 /* must be greater than maximal clock id */

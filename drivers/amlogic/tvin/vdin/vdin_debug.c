@@ -181,9 +181,10 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("trans_fmt	= %s(%d)\n",
 			tvin_trans_fmt_str(devp->prop.trans_fmt),
 			devp->prop.trans_fmt);
-	pr_info("color_format	= %s(%d)\n format_convert = %s(%d)\n ",
+	pr_info("color_format	= %s(%d)\n",
 			tvin_color_fmt_str(devp->prop.color_format),
-			devp->prop.color_format,
+			devp->prop.color_format);
+	pr_info(" format_convert = %s(%d)\n",
 			vdin_fmt_convert_str(devp->format_convert),
 			devp->format_convert);
 	pr_info("aspect_ratio	= %s(%d)\n decimation_ratio/dvi	= %u / %u\n",
@@ -192,10 +193,9 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 			devp->prop.decimation_ratio, devp->prop.dvi_info);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
-		pr_info("current vframe(%u):\n buf(w%u, h%u),",
-				vf->index, vf->width, vf->height);
-		pr_info("type(0x%x, %u), duration(%d),",
-				vf->type, vf->type, vf->duration);
+		pr_info("current vframe(%u):\n", vf->index);
+		pr_info(" buf(w%u, h%u),type(0x%x, %u), duration(%d),",
+		vf->width, vf->height, vf->type, vf->type, vf->duration);
 		pr_info("ratio_control(0x%x).\n", vf->ratio_control);
 		pr_info(" trans fmt %u, left_start_x %u,",
 				vf->trans_fmt, vf->left_eye.start_x);
@@ -204,8 +204,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		pr_info("left_start_y %u, right_start_y %u, height_y %u\n",
 			  vf->left_eye.start_y, vf->right_eye.start_y,
 			  vf->left_eye.height);
-		pr_info("current parameters:\n frontend of");
-		pr_info("vdin index :  %d, 3d flag : 0x%x,",
+		pr_info("current parameters:\n");
+		pr_info(" frontend of vdin index :  %d, 3d flag : 0x%x,",
 				curparm->index,  curparm->flag);
 		pr_info("reserved 0x%x, devp->flags:0x%x,",
 				curparm->reserved, devp->flags);

@@ -62,23 +62,6 @@ static inline uint32_t rd_bits(uint32_t offset,
 	return val;
 }
 
-/* for rdma */
-#ifdef CONFIG_VSYNC_RDMA
-int VSYNC_WR_MPEG_REG(unsigned long adr, unsigned long val);
-int VSYNC_WR_MPEG_REG_BITS(unsigned long adr, unsigned long val,
-			   unsigned long start, unsigned long len);
-unsigned long VSYNC_RD_MPEG_REG(unsigned long adr);
-unsigned long RDMA_READ_REG(unsigned long adr);
-int RDMA_SET_READ(unsigned long adr);
-#else
-#define VSYNC_WR_MPEG_REG(adr, val) aml_write_vcbus(adr, val)
-#define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
-#define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-	aml_write_vcbus(adr, ((aml_read_vcbus(adr) & \
-		~(((1L << (len)) - 1) << (start))) | \
-		(((val) & ((1L << (len)) - 1)) << (start))));
-#endif
-
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
 /* *********************************************************************** */
@@ -182,7 +165,6 @@ extern void vdin_set_default_regmap(unsigned int offset);
 extern void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
 extern void vdin_hw_enable(unsigned int offset);
 extern void vdin_hw_disable(unsigned int offset);
-extern void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_);
 extern unsigned int vdin_get_field_type(unsigned int offset);
 extern void vdin_set_cutwin(struct vdin_dev_s *devp);
 extern void vdin_set_decimation(struct vdin_dev_s *devp);
@@ -192,10 +174,11 @@ extern unsigned int vdin_get_active_h(unsigned int offset);
 extern unsigned int vdin_get_active_v(unsigned int offset);
 extern unsigned int vdin_get_total_v(unsigned int offset);
 extern unsigned int vdin_get_canvas_id(unsigned int offset);
-extern void vdin_set_canvas_id(unsigned int offset, unsigned int canvas_id);
+extern void vdin_set_canvas_id(struct vdin_dev_s *devp,
+			unsigned int rdma_enable, unsigned int canvas_id);
 extern unsigned int vdin_get_chma_canvas_id(unsigned int offset);
-extern void vdin_set_chma_canvas_id(unsigned int offset,
-		unsigned int canvas_id);
+extern void vdin_set_chma_canvas_id(struct vdin_dev_s *devp,
+		unsigned int rdma_enable, unsigned int canvas_id);
 extern void vdin_enable_module(unsigned int offset, bool enable);
 extern void vdin_set_matrix(struct vdin_dev_s *devp);
 void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char no,

@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/device.h>
+#include <linux/clk.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
@@ -37,6 +38,9 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/tvin/tvin_v4l2.h>
+#ifdef CONFIG_AML_RDMA
+#include <linux/amlogic/rdma/rdma_mgr.h>
+#endif
 
 /* Local Headers */
 #include "../tvin_global.h"
@@ -44,7 +48,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2015/01/31a"
+#define VDIN_VER "Ref.2015/06/30a"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -77,7 +81,8 @@
 /*flag for flush vdin buff*/
 #define VDIN_FLAG_BLACK_SCREEN_ON	1
 #define VDIN_FLAG_BLACK_SCREEN_OFF	0
-
+/* size for rdma table */
+#define RDMA_TABLE_SIZE (PAGE_SIZE>>3)
 /* #define VDIN_DEBUG */
 
 static inline const char *vdin_fmt_convert_str(
@@ -167,6 +172,7 @@ struct vdin_dev_s {
 	unsigned int			curr_field_type;
 
 	unsigned int			irq;
+	unsigned int			rdma_irq;
 	char					irq_name[12];
 	/* address offset(vdin0/vdin1/...) */
 	unsigned int			addr_offset;
@@ -181,6 +187,9 @@ struct vdin_dev_s {
 	struct tvin_sig_property_s	pre_prop;
 	struct tvin_sig_property_s	prop;
 	struct vframe_provider_s	vprov;
+	 /* 0:from gpio A,1:from csi2 , 2:gpio B*/
+	enum bt_path_e              bt_path;
+
 
 
 	struct timer_list		timer;
@@ -200,15 +209,12 @@ struct vdin_dev_s {
 	unsigned int			hcnt64_tag;
 	unsigned int			cycle_tag;
 	unsigned int			start_time;/* ms vdin start time */
+		 int			    rdma_handle;
+	struct clk				*msr_clk;
 	struct vdin_debug_s			debug;
 };
 
-#ifdef CONFIG_VSYNC_RDMA
-int RDMA2_WR_MPEG_REG(unsigned long adr, unsigned long val);
-int RDMA2_WR_MPEG_REG_BITS(unsigned long adr, unsigned long val,
-unsigned long start, unsigned long len);
-int rdma2_config(unsigned int trigger_signal);
-#endif
+
 
 #ifdef CONFIG_TVIN_VDIN_CTRL
 int vdin_ctrl_open_fe(int no, int port);

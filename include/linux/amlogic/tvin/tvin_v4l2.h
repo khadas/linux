@@ -719,6 +719,7 @@ struct vdin_arg_s {
 enum bt_path_e {
 	BT_PATH_GPIO = 0,
 	BT_PATH_CSI2,
+	BT_PATH_GPIO_B,
 };
 
 enum clk_channel_e {
@@ -800,7 +801,7 @@ struct vdin_parm_s {
 
 	struct csi_parm_s csi_hw_info;
 	/*for reserved */
-	unsigned int reserved;
+	uintptr_t reserved;
 };
 
 struct fe_arg_s {

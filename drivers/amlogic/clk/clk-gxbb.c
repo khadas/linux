@@ -44,7 +44,8 @@ void __iomem *reg_base_hiubus;
 #define	HHI_AUD_CLK_CNTL3		OFFSET(0x69)
 #define	HHI_AUD_CLK_CNTL		OFFSET(0x5e)
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
-
+#define	HHI_BT656_CLK_CNTL		OFFSET(0xf5)
+#define	HHI_VID_LOCK_CLK_CNTL		OFFSET(0xf2)
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
@@ -63,6 +64,11 @@ PNAME(mux_vapb_0_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 PNAME(mux_vapb_1_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 
 PNAME(mux_ge2d_p) = {"clk_vapb_0", "clk_vapb_1"};
+
+PNAME(cts_bt656_clk0_p) = {"fclk_div2", "fclk_div3", "fclk_div5", "fclk_div7"};
+
+PNAME(cts_vid_lock_clk_p) = {"xtal", "cts_encl_clk", "cts_enci_clk",
+							"cts_encp_clk"};
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
@@ -132,6 +138,26 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_AUD_CLK_CNTL2, 16, 8,
 			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_AUD_CLK_CNTL2, 24, 0),
+
+	COMPOSITE(CLK_BT656_CLK0, "cts_bt656_clk0", cts_bt656_clk0_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_BT656_CLK_CNTL, 9, 2, 0,
+			HHI_BT656_CLK_CNTL, 0, 7,
+			CLK_DIVIDER_ROUND_CLOSEST,
+			HHI_BT656_CLK_CNTL, 7, 0),
+
+	COMPOSITE(CLK_BT656_CLK1, "cts_bt656_clk1", cts_bt656_clk0_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_BT656_CLK_CNTL, 25, 2, 0,
+			HHI_BT656_CLK_CNTL, 16, 7,
+			CLK_DIVIDER_ROUND_CLOSEST,
+			HHI_BT656_CLK_CNTL, 23, 0),
+
+	COMPOSITE(CLK_VID_LOCK_CLK, "cts_vid_lock_clk", cts_vid_lock_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_VID_LOCK_CLK_CNTL, 8, 2, 0,
+			HHI_VID_LOCK_CLK_CNTL, 0, 7, 0,
+			HHI_VID_LOCK_CLK_CNTL, 7, 0),
 };
 static struct mpll_clk_tab mpll_tab[] __initdata = {
 	MPLL("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,
