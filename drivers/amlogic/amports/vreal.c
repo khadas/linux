@@ -860,6 +860,11 @@ static int amvdec_real_probe(struct platform_device *pdev)
 	/* } */
 	/* #endif */
 
+	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
+		(vreal_amstream_dec_info.width * vreal_amstream_dec_info.height
+		> 1280 * 720))
+		vdec_power_mode(2);
+
 	if (vreal_init() < 0) {
 		pr_info("amvdec_real init failed.\n");
 		/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC) */
@@ -904,9 +909,14 @@ static int amvdec_real_remove(struct platform_device *pdev)
 		dma_unmap_single(NULL, pic_sz_tbl_map, sizeof(pic_sz_tbl),
 						 DMA_TO_DEVICE);
 	}
+
 	rmparser_release();
 
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		vdec_power_mode(1);
+
 	amvdec_disable();
+
 	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC) */
 	/* if(IS_MESON_M8_CPU) */
 	if (has_hdec()) {
