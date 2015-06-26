@@ -235,6 +235,9 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	audio_hw_958_enable(0);
 	pr_info("----aml_hw_iec958_init,runtime->rate=%d,sample_rate=%d--\n",
 	       runtime->rate, sample_rate);
+	/* int srate; */
+	/* srate = params_rate(params); */
+	aml_set_spdif_clk(runtime->rate * 512, 0);
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 	/*clear the same source function as new raw data output */
 	audio_i2s_958_same_source(0);
@@ -473,6 +476,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
 {
 	int ret = 0;
+	pr_info("aml_set_spdif_clk rate\n");
 	if (src_i2s) {
 		ret = clk_set_parent(spdif_p->clk_spdif, spdif_p->clk_mclk);
 		if (ret) {
@@ -480,7 +484,7 @@ int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
 			return ret;
 		}
 	} else {
-		ret = clk_set_rate(spdif_p->clk_mpl1, rate * 10);
+		ret = clk_set_rate(spdif_p->clk_mpl1, rate * 4);
 		if (ret) {
 			pr_err("Can't set spdif mpl1 clock rate: %d\n", ret);
 			return ret;
@@ -505,8 +509,21 @@ int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
 	}
 
 	/* Todo, div can be changed, for most case, div = 2 */
-	audio_set_spdif_clk_div();
-
+	/* audio_set_spdif_clk_div(); */
+	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
+	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
+	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+		pr_info("set 4x audio clk for 958\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
+	} else if (src_i2s) {
+		pr_info("share the same clock\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+	} else {
+		pr_info("set normal 512 fs /4 fs\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
+	}
+	/* enable 958 divider */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 	return 0;
 }
 
@@ -514,11 +531,11 @@ static int aml_dai_spdif_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params,
 				   struct snd_soc_dai *dai)
 {
+#if 0
 	int srate;
-
 	srate = params_rate(params);
-	aml_set_spdif_clk(srate * 256, 0);
-
+	aml_set_spdif_clk(srate * 512, 0);
+#endif
 	ALSA_TRACE();
 	return 0;
 }

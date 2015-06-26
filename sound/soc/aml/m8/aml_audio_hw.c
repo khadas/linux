@@ -536,10 +536,10 @@ void audio_util_set_dac_958_format(unsigned format)
 	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 12, 0);
 #if IEC958_OVERCLOCK == 1
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+/*	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);  */
 #else
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+/*	aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);  */
 #endif
 	/* enable 958 divider */
 	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);

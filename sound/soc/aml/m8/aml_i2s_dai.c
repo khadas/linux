@@ -200,7 +200,8 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 		if (IEC958_mode_codec == 0) {
 			aml_hw_iec958_init(substream);
 			/* use the hw same sync for i2s/958 */
-			aml_set_spdif_clk(runtime->rate, 1);
+			pr_info("958 with i2s\n");
+			/* aml_set_spdif_clk(runtime->rate*512, 0); */
 			audio_i2s_958_same_source(1);
 		}
 	}
