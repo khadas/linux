@@ -56,7 +56,7 @@
 #define WAKE_DENOMINATOR 1001
 
 #define MAX_WIDTH 1920
-#define MAX_HEIGHT 1088
+#define MAX_HEIGHT 1920
 
 #define DUR2PTS(x) ((x) - ((x) >> 4))
 

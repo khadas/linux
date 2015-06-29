@@ -338,8 +338,6 @@ int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int dst_width,
 		return -1;
 	}
 	ppd->ge2d_fmt = v4l_to_ge2d_format(dst_fmt);
-	ppd->dst_width = dst_width;
-	ppd->dst_height = dst_height;
 	ppd->phy_addr[index] = phy_addr;
 
 	if (ppd->ge2d_fmt == GE2D_FORMAT_M24_NV21 || ppd->ge2d_fmt

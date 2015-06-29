@@ -279,6 +279,8 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 		usleep_range(40000, 50000);
 		return;
 	}
+	dev->ppmgr2_dev.dst_width = dev->width;
+	dev->ppmgr2_dev.dst_height = dev->height;
 	if ((vf->width >= 1920) && (vf->height >= 1080)
 		&& (vf->type & VIDTYPE_INTERLACE)) {
 		dev->ppmgr2_dev.dst_width = vf->width * scaling_rate / 100;
