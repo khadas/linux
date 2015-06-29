@@ -43,7 +43,7 @@
 
 #include "arch/clk.h"
 #include <linux/reset.h>
-static DEFINE_SPINLOCK(lock);
+static DEFINE_MUTEX(vdec_mutex);
 
 #define MC_SIZE (4096 * 4)
 #define CMA_ALLOC_SIZE SZ_64M
@@ -193,10 +193,7 @@ s32 vdec_release(enum vformat_e vf)
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 void vdec_poweron(enum vdec_type_e core)
 {
-	ulong flags;
-
-	spin_lock_irqsave(&lock, flags);
-
+	mutex_lock(&vdec_mutex);
 	if (core == VDEC_1) {
 		/* vdec1 power on */
 		WRITE_AOREG(AO_RTI_GEN_PWR_SLEEP0,
@@ -285,15 +282,14 @@ void vdec_poweron(enum vdec_type_e core)
 		}
 	}
 
-	spin_unlock_irqrestore(&lock, flags);
+	mutex_unlock(&vdec_mutex);
 
 }
 
 void vdec_poweroff(enum vdec_type_e core)
 {
-	ulong flags;
 
-	spin_lock_irqsave(&lock, flags);
+	mutex_lock(&vdec_mutex);
 
 	if (core == VDEC_1) {
 		/* enable vdec1 isolation */
@@ -352,7 +348,7 @@ void vdec_poweroff(enum vdec_type_e core)
 		}
 	}
 
-	spin_unlock_irqrestore(&lock, flags);
+	mutex_unlock(&vdec_mutex);
 
 }
 
@@ -531,10 +527,9 @@ static enum vdec2_usage_e vdec2_usage = USAGE_NONE;
 void set_vdec2_usage(enum vdec2_usage_e usage)
 {
 	if (has_vdec2()) {
-		ulong flags;
-		spin_lock_irqsave(&lock, flags);
+		mutex_lock(&vdec_mutex);
 		vdec2_usage = usage;
-		spin_unlock_irqrestore(&lock, flags);
+		mutex_unlock(&vdec_mutex);
 	}
 }
 
@@ -601,13 +596,12 @@ static ssize_t amrisc_regs_show(struct class *class,
 	int rsize = sizeof(am_risc) / sizeof(struct am_reg);
 	int i;
 	unsigned val;
-	unsigned long flags = 0;
 	ssize_t ret;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		spin_lock_irqsave(&lock, flags);
+		mutex_lock(&vdec_mutex);
 		if (!vdec_on(VDEC_1)) {
-			spin_unlock_irqrestore(&lock, flags);
+			mutex_unlock(&vdec_mutex);
 			pbuf += sprintf(pbuf, "amrisc is power off\n");
 			ret = pbuf - buf;
 			return ret;
@@ -626,7 +620,7 @@ static ssize_t amrisc_regs_show(struct class *class,
 				regs[i].name, regs[i].offset, val, val);
 	}
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
-		spin_unlock_irqrestore(&lock, flags);
+		mutex_unlock(&vdec_mutex);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
 		/*TODO:M6 define */
 		/*
@@ -643,7 +637,6 @@ static ssize_t dump_trace_show(struct class *class,
 {
 	int i;
 	char *pbuf = buf;
-	unsigned long flags = 0;
 	ssize_t ret;
 	u16 *trace_buf = kmalloc(debug_trace_num * 2, GFP_KERNEL);
 	if (!trace_buf) {
@@ -652,9 +645,9 @@ static ssize_t dump_trace_show(struct class *class,
 		return ret;
 	}
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		spin_lock_irqsave(&lock, flags);
+		mutex_lock(&vdec_mutex);
 		if (!vdec_on(VDEC_1)) {
-			spin_unlock_irqrestore(&lock, flags);
+			mutex_unlock(&vdec_mutex);
 			kfree(trace_buf);
 			pbuf += sprintf(pbuf, "amrisc is power off\n");
 			ret = pbuf - buf;
@@ -690,7 +683,7 @@ static ssize_t dump_trace_show(struct class *class,
 	};
 	pr_info("dump trace steps:%d finished\n", debug_trace_num);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
-		spin_unlock_irqrestore(&lock, flags);
+		mutex_unlock(&vdec_mutex);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
 		/*TODO:M6 define */
 		/*
@@ -847,13 +840,12 @@ static void dump_lmem(void){
 static ssize_t dump_risc_mem_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	unsigned long flags = 0;
 	char *pbuf = buf;
 	int ret;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		spin_lock_irqsave(&lock, flags);
+		mutex_lock(&vdec_mutex);
 		if (!vdec_on(VDEC_1)) {
-			spin_unlock_irqrestore(&lock, flags);
+			mutex_unlock(&vdec_mutex);
 			pbuf += sprintf(pbuf, "amrisc is power off\n");
 			ret = pbuf - buf;
 			return ret;
@@ -879,7 +871,7 @@ static ssize_t dump_risc_mem_show(struct class *class,
 
 	/*done*/
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
-		spin_unlock_irqrestore(&lock, flags);
+		mutex_unlock(&vdec_mutex);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
 		/*TODO:M6 define */
 		/*

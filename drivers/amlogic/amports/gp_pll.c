@@ -27,16 +27,16 @@
 
 #include <linux/amlogic/amports/gp_pll.h>
 
-static DEFINE_SPINLOCK(lock);
+static DEFINE_MUTEX(gp_mutex);
+
 static struct list_head gp_pll_user_list = LIST_HEAD_INIT(gp_pll_user_list);
 static DEFINE_SEMAPHORE(sem);
 
 static void gp_pll_user_consolidate(void)
 {
 	struct gp_pll_user_handle_s *pos, *grant, *request;
-	ulong flags;
 
-	spin_lock_irqsave(&lock, flags);
+	mutex_lock(&gp_mutex);
 
 	grant = NULL;
 	request = NULL;
@@ -68,7 +68,7 @@ static void gp_pll_user_consolidate(void)
 		}
 	}
 
-	spin_unlock_irqrestore(&lock, flags);
+	mutex_unlock(&gp_mutex);
 }
 
 struct gp_pll_user_handle_s *gp_pll_user_register(const char *name,
@@ -76,7 +76,6 @@ struct gp_pll_user_handle_s *gp_pll_user_register(const char *name,
 	int (*callback)(struct gp_pll_user_handle_s *, int))
 {
 	struct gp_pll_user_handle_s *user, *pos;
-	ulong flags;
 
 	user = (struct gp_pll_user_handle_s *)
 		kmalloc(sizeof(struct gp_pll_user_handle_s), GFP_KERNEL);
@@ -89,7 +88,7 @@ struct gp_pll_user_handle_s *gp_pll_user_register(const char *name,
 	user->callback = callback;
 	user->flag = 0;
 
-	spin_lock_irqsave(&lock, flags);
+	mutex_lock(&gp_mutex);
 
 	list_for_each_entry(pos, &gp_pll_user_list, list) {
 		if (pos->priority > priority)
@@ -98,7 +97,7 @@ struct gp_pll_user_handle_s *gp_pll_user_register(const char *name,
 
 	list_add_tail(&user->list, &pos->list);
 
-	spin_unlock_irqrestore(&lock, flags);
+	mutex_unlock(&gp_mutex);
 
 	return user;
 }
@@ -106,13 +105,12 @@ EXPORT_SYMBOL(gp_pll_user_register);
 
 void gp_pll_user_unregister(struct gp_pll_user_handle_s *user)
 {
-	ulong flags;
 
-	spin_lock_irqsave(&lock, flags);
+	mutex_lock(&gp_mutex);
 
 	list_del(&user->list);
 
-	spin_unlock_irqrestore(&lock, flags);
+	mutex_unlock(&gp_mutex);
 
 	if (user->flag & GP_PLL_USER_FLAG_GRANTED)
 		up(&sem);
