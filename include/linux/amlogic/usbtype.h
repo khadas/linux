@@ -25,8 +25,8 @@
 #define USB_BC_MODE_DCP		2	/* Charger */
 #define USB_BC_MODE_CDP		3	/* PC + Charger */
 
-#define USB_CORE_RESET_TIME	100
-#define USB_ID_CHANGE_TIME	20
+#define USB_CORE_RESET_TIME	300
+#define USB_ID_CHANGE_TIME	100
 
 enum usb_port_type_e {
 	USB_PORT_TYPE_OTG = 0,
