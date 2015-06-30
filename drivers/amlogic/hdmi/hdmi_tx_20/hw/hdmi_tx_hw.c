@@ -504,12 +504,13 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 /* Enable APB3 fail on error */
 /* WRITE_APB_REG(HDMI_CNTL_PORT, READ_APB_REG(HDMI_CNTL_PORT)|(1<<15));*/
 /* \\ TODO */
-
+#if 0
 	/* Bring out of reset */
 	hdmitx_wr_reg(HDMITX_TOP_SW_RESET,  0);
 	hdmitx_wr_reg(HDMITX_TOP_CLK_CNTL, 0x0000003f);
 	hdmitx_wr_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff);
 	set_vmode_clk(hdev, HDMI_1920x1080p60_16x9);
+#endif
 	if (hdmitx_uboot_already_display())
 		return;
 	tmp_generate_1080p();

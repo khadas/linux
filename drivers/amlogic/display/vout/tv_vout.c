@@ -269,12 +269,16 @@ static void tv_out_init_off(enum tvmode_e mode)
 		    (mode == TVMODE_4K2K_25HZ) || (mode == TVMODE_4K2K_30HZ) ||
 		    (mode == TVMODE_4K2K_FAKE_5G) ||
 		    (mode == TVMODE_4K2K_SMPTE) || (mode == TVMODE_4K2K_60HZ))
-			vout_cbus_set_bits(HHI_VID_PLL_CNTL, 0x0, 30, 1);
+			/* vout_cbus_set_bits(HHI_VID_PLL_CNTL, 0x0, 30, 1); */
+			/* vout_cbus_set_bits(HHI_VID_PLL_CNTL, 0x0, 30, 1); */
 		cvbs_cntl_output(0);
 	}
 	/* init encoding */
+#if 0
+	/* casue flick */
 	tv_out_reg_write(ENCP_VIDEO_EN, 0);
 	tv_out_reg_write(ENCI_VIDEO_EN, 0);
+#endif
 	tv_out_reg_write(VENC_VDAC_SETTING, 0xff);
 }
 
@@ -852,6 +856,7 @@ static int clock_fine_tune(void)
 {
 	const struct vinfo_s *pvinfo;
 	pvinfo = tv_get_current_info();
+#if 0
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8B) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2)) {
@@ -897,6 +902,7 @@ static int clock_fine_tune(void)
 			break;
 		}
 	}
+#endif
 	return 0;
 }
 

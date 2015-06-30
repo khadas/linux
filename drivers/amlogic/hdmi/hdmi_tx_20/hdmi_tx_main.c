@@ -505,7 +505,7 @@ static int set_disp_mode_auto(void)
 		}
 		hdmitx_device.cur_VIC = vic;
 		hdmitx_device.output_blank_flag = 1;
-		/* return 1; */
+		return 1;
 	} else
 		hdmitx_pre_display_init();
 
