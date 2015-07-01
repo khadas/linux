@@ -413,10 +413,26 @@ void vdec_poweron(enum vdec_type_e core)
 					if (hevc_loop >= HEVC_TEST_LIMIT2) {
 						pr_warn("hevc power sequence over high limit\n");
 						hevc_workaround = true;
+
+						pr_warn("=====================================================\n");
+						pr_warn(" This chip is identified to have HW failure.\n");
+						pr_warn(" Please contact sqa-platform to replace the platform.\n");
+						pr_warn("=====================================================\n");
+
+						panic("Force panic for chip detection !!!\n");
+
 						break;
 					} else if (hevc_loop ==
-						HEVC_TEST_LIMIT1)
+						HEVC_TEST_LIMIT1) {
 						pr_warn("hevc power sequence over low limit\n");
+
+						pr_warn("=====================================================\n");
+						pr_warn(" This chip is identified to have HW failure.\n");
+						pr_warn(" Please contact sqa-platform to replace the platform.\n");
+						pr_warn("=====================================================\n");
+
+						panic("Force panic for chip detection !!!\n");
+					}
 
 					vdec_poweroff(VDEC_HEVC);
 
