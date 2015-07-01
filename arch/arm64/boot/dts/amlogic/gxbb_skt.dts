@@ -104,6 +104,10 @@
 			size = <0x0 0x12000000>;
 			alignment = <0x0 0x400000>;
 		};
+		/*vm_reserved:linux,vm {
+			compatible = "amlogic, vm_memory";
+			size = <0x0 0x2000000>;
+		};*/
 	};
 
 	meson-vout {
@@ -279,6 +283,12 @@
 		interrupt-names = "mailbox_2";
 	};
 
+	/*vm {
+		compatible = "amlogic, vm";
+		memory-region = <&vm_reserved>;
+		dev_name = "vm";
+		status = "okay";
+	};*/
 
 	vpu {
 		compatible = "amlogic, vpu";
@@ -387,6 +397,26 @@
 				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
 		};
 	};
+	/*aml_cams{
+		compatible = "amlogic, cams_prober";
+		status = "okay";
+		clocks = <&clock CLK_CAMERA_24M>;
+		clock-names = "clk_camera_24";
+		pinctrl-names = "gpio";
+		pinctrl-0 = <&aml_cam_gpio_pins> ;
+					cam_0{
+						cam_name = "sp2518";
+						front_back = <0>;
+						i2c_bus = "i2c_bus_a";
+						gpio_pwdn-gpios = <&gpio       GPIOZ_14       GPIO_ACTIVE_HIGH>;
+						gpio_rst-gpios = <&gpio       GPIOZ_12       GPIO_ACTIVE_HIGH>;
+						mirror_flip = <1>;
+						vertical_flip = <1>;
+						spread_spectrum = <0>;	//0:none; 1:0.3%; 2:0.6%; 3:1.25%; 4:2.5%; 5:5%
+						bt_path = "gpio";
+						status = "okay";
+					};
+	};*/
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx";
 		dev_name = "amhdmitx";
