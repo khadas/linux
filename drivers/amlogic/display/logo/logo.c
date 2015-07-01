@@ -74,7 +74,12 @@ struct logo_info_s {
 	u32 vmode;
 	u32 debug;
 	u32 loaded;
-} logo_info;
+} logo_info = {
+	.index = -1,
+	.vmode = VMODE_MAX,
+	.debug = 0,
+	.loaded = 0,
+};
 
 
 static int get_value_by_name(char *name, struct para_pair_s *pair, u32 cnt)
@@ -226,6 +231,10 @@ static int __init logo_init(void)
 	u32 cnt = 0;
 
 	pr_info("%s\n", __func__);
+
+	if (logo_info.loaded == 0)
+		return 0;
+
 	cnt = sizeof(mode_infos) / sizeof(mode_infos[0]);
 	if (logo_info.vmode < VMODE_MAX) {
 		set_logo_vmode(logo_info.vmode);
@@ -233,7 +242,7 @@ static int __init logo_init(void)
 			get_name_by_value(logo_info.vmode, mode_infos, cnt));
 	}
 
-	if ((logo_info.index >= 0) && (logo_info.loaded > 0)) {
+	if ((logo_info.index >= 0)) {
 		osd_set_logo_index(logo_info.index);
 		osd_init_hw(logo_info.loaded);
 	}
