@@ -28,7 +28,7 @@
 
 	gpu_dvfs_tbl:gpu_dvfs_tbl {
 		sc_mpp = <3>;/* number of pp used most of time.*/
-		tbl = <&clk250_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk800_cfg>;
+		tbl = <&clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk800_cfg>;
 	};
 
 	memory@00000000 {

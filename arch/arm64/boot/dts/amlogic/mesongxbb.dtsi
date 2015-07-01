@@ -119,7 +119,9 @@
 	gpu@d00c0000{
 		compatible = "arm,mali-450";
 		interrupt-parent = <&gic>;
-		reg = <0 0xd00c0000 0 0x40000>;
+		reg = <0 0xd00c0000 0 0x40000>,
+		      <0 0xc883c000 0 0x00004>,
+		      <0 0xc8100000 0 0x00004>;
 		interrupts = <0 160 4>, <0 161 4>, <0 162 4>, <0 163 4>,
 				   <0 164 4>, <0 165 4>, <0 166 4>, <0 167 4>,
 				   <0 168 4>, <0 169 4>;
@@ -129,6 +131,7 @@
 		pmu_domain_config = <0x1 0x2 0x4 0x4 0x0 0x0 0x0 0x0 0x0 0x1 0x2 0x0>;
 		pmu_switch_delay = <0xffff> ;
 		num_of_pp = <3> ;
+		def_clock = <3> ;
 
 		clocks = <&clock CLK_FPLL_DIV3>,
 			<&clock CLK_FPLL_DIV4>,
@@ -158,7 +161,16 @@
 			clkp_freq = <500000000>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <30 80>;
+			threshold = <30 180>;
+		  };
+
+		  clk285_cfg:clk285_cfg {
+			clk_freq = <285000000>;
+			clk_parent = "fclk_div7";
+			clkp_freq = <285000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <30 190>;
 		  };
 
 		  clk400_cfg:clk400_cfg {
@@ -166,8 +178,8 @@
 			clk_parent = "fclk_div5";
 			clkp_freq = <400000000>;
 			voltage = <1150>;
-			keep_count = <5>;
-			threshold = <40 205>;
+			keep_count = <2>;
+			threshold = <152 207>;
 		  };
 
 		  clk500_cfg:clk500_cfg {
@@ -175,8 +187,8 @@
 			clk_parent = "fclk_div4";
 			clkp_freq = <500000000>;
 			voltage = <1150>;
-			keep_count = <5>;
-			threshold = <150 215>;
+			keep_count = <2>;
+			threshold = <180 220>;
 		  };
 
 		  clk666_cfg:clk666_cfg {
@@ -185,7 +197,7 @@
 			clkp_freq = <666000000>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <170 253>;
+			threshold = <210 236>;
 		  };
 
 		  clk800_cfg:clk800_cfg {
