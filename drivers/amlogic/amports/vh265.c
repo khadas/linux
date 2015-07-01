@@ -95,6 +95,7 @@ static const struct vframe_operations_s vh265_vf_provider = {
 static struct vframe_provider_s vh265_vf_prov;
 
 static u32 frame_width, frame_height, frame_dur, frame_ar;
+static u32 saved_resolution;
 static bool get_frame_dur;
 static struct timer_list recycle_timer;
 static u32 stat;
@@ -4912,6 +4913,13 @@ static void vh265_put_timer_func(unsigned long arg)
 		rval = 0;
 		radr = 0;
 	}
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		hevc_source_changed(VFORMAT_HEVC,
+			frame_width, frame_height, fps);
+	}
 
 	add_timer(timer);
 }
@@ -4936,13 +4944,7 @@ static int h265_task_handle(void *data)
 			pr_info("set pic_list_init_flag to 2\n");
 
 			WRITE_VREG(HEVC_ASSIST_MBOX1_IRQ_REG, 0x1);
-			if (frame_width * frame_height > 2048 * 1088) {
-				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
-					hevc_power_mode(2);
-				else
-					hevc_power_mode(1);
-			} else
-				hevc_power_mode(0);
+
 		}
 
 		if (uninit_list) {
@@ -5043,6 +5045,7 @@ static int vh265_local_init(void)
 	pts_missed = 0;
 	pts_hit = 0;
 #endif
+	saved_resolution = 0;
 	get_frame_dur = false;
 	frame_width = vh265_amstream_dec_info.width;
 	frame_height = vh265_amstream_dec_info.height;
@@ -5296,10 +5299,9 @@ static int amvdec_h265_remove(struct platform_device *pdev)
 
 	vh265_stop();
 
-	if (frame_width * frame_height > 2048 * 1088) {
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
-			hevc_power_mode(1);
-	}
+
+	hevc_source_changed(VFORMAT_HEVC, 0, 0, 0);
+
 
 #ifdef DEBUG_PTS
 	pr_info("pts missed %ld, pts hit %ld, duration %d\n",

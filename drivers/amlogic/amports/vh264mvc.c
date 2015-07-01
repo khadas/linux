@@ -94,6 +94,7 @@ static const struct vframe_operations_s vh264mvc_vf_provider = {
 static struct vframe_provider_s vh264mvc_vf_prov;
 
 static u32 frame_width, frame_height, frame_dur;
+static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static u32 pts_outside;
@@ -1061,6 +1062,15 @@ static void vh264mvc_put_timer_func(unsigned long arg)
 		}
 	}
 
+
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264MVC,
+			frame_width, frame_height, fps);
+	}
+
 	/* RESTART: */
 	timer->expires = jiffies + PUT_INTERVAL;
 
@@ -1476,7 +1486,6 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 	if (pdata->sys_info)
 		vh264mvc_amstream_dec_info = *pdata->sys_info;
 
-	vdec_power_mode(1);
 	if (vh264mvc_init() < 0) {
 		pr_info("\namvdec_h264mvc init failed.\n");
 
@@ -1497,7 +1506,7 @@ static int amvdec_h264mvc_remove(struct platform_device *pdev)
 	pr_info("amvdec_h264mvc_remove\n");
 	cancel_work_sync(&error_wd_work);
 	vh264mvc_stop();
-
+	vdec_source_changed(VFORMAT_H264MVC, 0, 0, 0);
 	atomic_set(&vh264mvc_active, 0);
 
 #ifdef DEBUG_PTS

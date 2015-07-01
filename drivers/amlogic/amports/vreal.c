@@ -126,6 +126,7 @@ static struct vframe_s vfpool[VF_POOL_SIZE];
 static s32 vfbuf_use[VF_BUF_NUM];
 
 static u32 frame_width, frame_height, frame_dur, frame_prog;
+static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static unsigned long buf_start;
@@ -472,6 +473,15 @@ static void vreal_put_timer_func(unsigned long arg)
 		}
 	}
 
+	if (frame_dur > 0 &&
+		saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_REAL,
+			frame_width, frame_height, fps);
+	}
+
 	timer->expires = jiffies + PUT_INTERVAL;
 
 	add_timer(timer);
@@ -681,7 +691,7 @@ static void vreal_local_init(void)
 	real_err_count = 0;
 
 	pic_sz_tbl_map = 0;
-
+	saved_resolution = 0;
 	fatal_flag = 0;
 	wait_buffer_counter = 0;
 }
@@ -860,10 +870,6 @@ static int amvdec_real_probe(struct platform_device *pdev)
 	/* } */
 	/* #endif */
 
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
-		(vreal_amstream_dec_info.width * vreal_amstream_dec_info.height
-		> 1280 * 720))
-		vdec_power_mode(2);
 
 	if (vreal_init() < 0) {
 		pr_info("amvdec_real init failed.\n");
@@ -912,8 +918,7 @@ static int amvdec_real_remove(struct platform_device *pdev)
 
 	rmparser_release();
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
-		vdec_power_mode(1);
+	vdec_source_changed(VFORMAT_REAL, 0, 0, 0);
 
 	amvdec_disable();
 

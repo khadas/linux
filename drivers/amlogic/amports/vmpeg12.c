@@ -148,6 +148,7 @@ static int cur_pool_idx;
 static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static u32 dec_control;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
+static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static unsigned long buf_start;
@@ -629,6 +630,14 @@ static void vmpeg_put_timer_func(unsigned long arg)
 		}
 	}
 
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264,
+			frame_width, frame_height, fps);
+	}
+
 	timer->expires = jiffies + PUT_INTERVAL;
 
 	add_timer(timer);
@@ -835,7 +844,7 @@ static void vmpeg12_local_init(void)
 	frame_force_skip_flag = 0;
 	wait_buffer_counter = 0;
 	first_i_frame_ready = 0;
-
+	saved_resolution = 0;
 	dec_control &= DEC_CONTROL_INTERNAL_MASK;
 }
 

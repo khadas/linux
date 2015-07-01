@@ -136,6 +136,7 @@ static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
 static struct vframe_s vfpool[VF_POOL_SIZE];
 static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static u32 frame_width, frame_height, frame_dur, frame_prog;
+static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static unsigned long buf_start;
@@ -634,6 +635,13 @@ static void vmpeg_put_timer_func(unsigned long arg)
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 		}
 	}
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264,
+			frame_width, frame_height, fps);
+	}
 
 	timer->expires = jiffies + PUT_INTERVAL;
 
@@ -830,7 +838,7 @@ static void vmpeg4_local_init(void)
 	frame_width = frame_height = frame_dur = frame_prog = 0;
 
 	total_frame = 0;
-
+	saved_resolution = 0;
 	last_anch_pts = 0;
 
 	last_anch_pts_us64 = 0;

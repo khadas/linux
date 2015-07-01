@@ -40,8 +40,13 @@ extern s32 vdec_release(enum vformat_e vf);
 
 s32 vdec_dev_register(void);
 s32 vdec_dev_unregister(void);
-void vdec_power_mode(int level);
-void hevc_power_mode(int level);
+
+
+
+void vdec_source_changed(int format, int width, int height, int fps);
+void vdec2_source_changed(int format, int width, int height, int fps);
+void hevc_source_changed(int format, int width, int height, int fps);
+
 
 #define DEC_FLAG_HEVC_WORKAROUND 0x01
 

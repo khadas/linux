@@ -108,6 +108,7 @@ static struct vframe_s vfpool[VF_POOL_SIZE];
 static u32 vfpool_idx[VF_POOL_SIZE];
 static s32 vfbuf_use[4];
 static s32 fill_ptr, get_ptr, putting_ptr, put_ptr;
+static u32 saved_resolution;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
 static u32 stat;
@@ -735,7 +736,7 @@ static void vavs_local_init(void)
 	throw_pb_flag = 1;
 
 	total_frame = 0;
-
+	saved_resolution = 0;
 	next_pts = 0;
 
 #ifdef DEBUG_PTS
@@ -772,6 +773,13 @@ static void vavs_put_timer_func(unsigned long arg)
 			WRITE_VREG(AVS_BUFFERIN, ~(1 << index));
 
 		INCPTR(put_ptr);
+	}
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264,
+			frame_width, frame_height, fps);
 	}
 
 	timer->expires = jiffies + PUT_INTERVAL;

@@ -111,6 +111,7 @@ static struct vframe_s vfpool[VF_POOL_SIZE];
 static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 
 static u32 frame_width, frame_height, frame_dur;
+static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static unsigned long buf_start;
@@ -370,7 +371,13 @@ static void vmjpeg_put_timer_func(unsigned long arg)
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 		}
 	}
-
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264,
+			frame_width, frame_height, fps);
+	}
 	timer->expires = jiffies + PUT_INTERVAL;
 
 	add_timer(timer);
@@ -682,7 +689,7 @@ static void vmjpeg_local_init(void)
 	frame_width = vmjpeg_amstream_dec_info.width;
 	frame_height = vmjpeg_amstream_dec_info.height;
 	frame_dur = vmjpeg_amstream_dec_info.rate;
-
+	saved_resolution = 0;
 	amlog_level(LOG_LEVEL_INFO, "mjpegdec: w(%d), h(%d), dur(%d)\n",
 				frame_width, frame_height, frame_dur);
 

@@ -167,6 +167,7 @@ static struct vframe_provider_s vh264_vf_prov;
 static u32 frame_buffer_size;
 static u32 frame_width, frame_height, frame_dur, frame_prog, frame_packing_type,
 	   last_duration;
+static u32 saved_resolution;
 static u32 last_mb_width, last_mb_height;
 #else
 static u32 frame_buffer_size;
@@ -370,22 +371,6 @@ static inline int fifo_level(void)
 	return VF_POOL_SIZE - kfifo_len(&newframe_q);
 }
 
-static void vdec_dfs(void)
-{
-	/*
-	   #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8B
-	   if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B) {
-	   vdec_power_mode((fifo_level() > DFS_HIGH_THEASHOLD) ? 0 : 1);
-	   }
-	   #elif MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8
-	   if (IS_MESON_M8M2_CPU) {
-	   vdec_power_mode((fifo_level() > DFS_HIGH_THEASHOLD) ? 0 : 1);
-	   }
-	   #endif
-	 */
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
-		vdec_power_mode((fifo_level() > DFS_HIGH_THEASHOLD) ? 0 : 1);
-}
 
 void spec_set_canvas(struct buffer_spec_s *spec,
 					 unsigned width, unsigned height)
@@ -1876,8 +1861,17 @@ static void vh264_put_timer_func(unsigned long arg)
 			stream_switching_done();
 	}
 
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		if (frame_dur < 10) /*dur is too small ,think it errors fps*/
+			fps = 60;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264,
+			frame_width, frame_height, fps);
+	}
+
 	timer->expires = jiffies + PUT_INTERVAL;
-	vdec_dfs();
 
 	add_timer(timer);
 }
@@ -2093,6 +2087,7 @@ static s32 vh264_init(void)
 	first_offset = 0;
 	first_pts_cached = false;
 	fixed_frame_rate_check_count = 0;
+	saved_resolution = 0;
 	vh264_local_init();
 
 	query_video_status(0, &trickmode_fffb);
@@ -2635,7 +2630,7 @@ static int amvdec_h264_remove(struct platform_device *pdev)
 
 	mutex_lock(&vh264_mutex);
 	vh264_stop(MODE_FULL);
-
+	vdec_source_changed(VFORMAT_H264, 0, 0, 0);
 	atomic_set(&vh264_active, 0);
 
 #ifdef DEBUG_PTS

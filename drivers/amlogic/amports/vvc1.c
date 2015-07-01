@@ -112,7 +112,8 @@ static u32 vvc1_ratio;
 static u32 vvc1_format;
 
 static u32 intra_output;
-
+static u32 frame_width, frame_height, frame_dur;
+static u32 saved_resolution;
 static u32 pts_by_offset = 1;
 static u32 total_frame;
 static u32 next_pts;
@@ -256,11 +257,13 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 			pr_info("frame width changed %d to %d\n",
 				   vvc1_amstream_dec_info.width, v_width);
 			vvc1_amstream_dec_info.width = v_width;
+			frame_width = v_width;
 		}
 		if (v_height && (v_height != vvc1_amstream_dec_info.height)) {
 			pr_info("frame height changed %d to %d\n",
 				   vvc1_amstream_dec_info.height, v_height);
 			vvc1_amstream_dec_info.height = v_height;
+			frame_height = v_height;
 		}
 
 		if (pts_by_offset) {
@@ -582,7 +585,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
 		}
-
+		frame_dur = vvc1_amstream_dec_info.rate;
 		total_frame++;
 
 		/* pr_info("PicType = %d, PTS = 0x%x, repeat
@@ -839,7 +842,8 @@ static void vvc1_local_init(void)
 	next_pts = 0;
 
 	next_pts_us64 = 0;
-
+	saved_resolution = 0;
+	frame_width = frame_height = frame_dur = 0;
 #ifdef DEBUG_PTS
 	pts_hit = pts_missed = pts_i_hit = pts_i_missed = 0;
 #endif
@@ -905,7 +909,13 @@ static void vvc1_put_timer_func(unsigned long arg)
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 		}
 	}
-
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		vdec_source_changed(VFORMAT_H264,
+			frame_width, frame_height, fps);
+	}
 	timer->expires = jiffies + PUT_INTERVAL;
 
 	add_timer(timer);

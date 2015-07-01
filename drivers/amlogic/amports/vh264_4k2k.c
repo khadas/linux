@@ -92,6 +92,7 @@ static const struct vframe_operations_s vh264_4k2k_vf_provider = {
 static struct vframe_provider_s vh264_4k2k_vf_prov;
 
 static u32 frame_width, frame_height, frame_dur, frame_ar;
+static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
 static u32 error_watchdog_count;
@@ -973,7 +974,14 @@ static void vh264_4k2k_put_timer_func(unsigned long arg)
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 		}
 	}
-
+	if (frame_dur > 0 && saved_resolution !=
+		frame_width * frame_height * (96000 / frame_dur)) {
+		int fps = 96000 / frame_dur;
+		saved_resolution = frame_width * frame_height * fps;
+		pr_info("H264 4k2k resolution changed!!\n");
+		vdec_source_changed(VFORMAT_H264_4K2K,
+			frame_width, frame_height, fps);
+	}
 	timer->expires = jiffies + PUT_INTERVAL;
 
 	add_timer(timer);
@@ -1307,7 +1315,7 @@ static void vh264_4k2k_local_init(void)
 	pts_missed = 0;
 	pts_hit = 0;
 #endif
-
+	saved_resolution = 0;
 	vh264_4k2k_rotation =
 		(((unsigned long) vh264_4k2k_amstream_dec_info.param) >> 16)
 			& 0xffff;
@@ -1692,10 +1700,6 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 		vdec_poweron(VDEC_2);
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
-		vdec_power_mode(2);
-	else
-		vdec_power_mode(1);
 
 	if (!H264_4K2K_SINGLE_CORE)
 		vdec2_power_mode(1);
@@ -1730,8 +1734,7 @@ static int amvdec_h264_4k2k_remove(struct platform_device *pdev)
 
 	vh264_4k2k_stop();
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
-		vdec_power_mode(1);
+	vdec_source_changed(VFORMAT_H264_4K2K , 0 , 0 , 0);
 
 	if (!H264_4K2K_SINGLE_CORE) {
 		vdec_poweroff(VDEC_2);

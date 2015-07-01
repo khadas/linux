@@ -630,34 +630,31 @@ bool vdec_on(enum vdec_type_e core)
 }
 #endif
 
-void vdec_power_mode(int level)
+void vdec_source_changed(int format, int width, int height, int fps)
 {
 	/* todo: add level routines for clock adjustment per chips */
 
 
-	if (vdec_clock_level(VDEC_1) == level)
+	if (vdec_source_get(VDEC_1) == width * height * fps)
 		return;
 
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
 		vdec_clock_prepare_switch();
 
-	if (level == 0)
-		vdec_clock_enable();
-	else if (level == 1)
-		vdec_clock_hi_enable();
-	else if (level == 2)
-		vdec_clock_superhi_enable();
+	vdec_source_changed_for_clk_set(format, width, height, fps);
+	pr_info("vdec1 video changed to %d x %d %d fps clk->%dMHZ\n",
+			width, height, fps, vdec_clk_get(VDEC_1));
 
 }
 
-void vdec2_power_mode(int level)
+void vdec2_source_changed(int format, int width, int height, int fps)
 {
 	if (has_vdec2()) {
 		/* todo: add level routines for clock adjustment per chips */
 
 
-		if (vdec_clock_level(VDEC_2) == level)
+		if (vdec_source_get(VDEC_2) == width * height * fps)
 			return;
 
 
@@ -665,36 +662,29 @@ void vdec2_power_mode(int level)
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
 			vdec_clock_prepare_switch();
 
-		if (level == 0)
-			vdec2_clock_enable();
-		else
-			vdec2_clock_hi_enable();
-
-
+		vdec_source_changed_for_clk_set(format, width, height, fps);
+		pr_info("vdec2 video changed to %d x %d %d fps clk->%dMHZ\n",
+			width, height, fps, vdec_clk_get(VDEC_2));
 	}
 }
 
-void hevc_power_mode(int level)
+void hevc_source_changed(int format, int width, int height, int fps)
 {
 	/* todo: add level routines for clock adjustment per chips */
 
 
-	if (vdec_clock_level(VDEC_HEVC) == level)
+	if (vdec_source_get(VDEC_HEVC) == width * height * fps)
 		return;
-	pr_info("hevc_power_mode changed to %d\n", level);
+
 
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
 		hevc_clock_prepare_switch();
 
-	if (level == 0)
-		hevc_clock_enable();
-	else if (level == 1)
-		hevc_clock_hi_enable();
-	else if (level == 2)
-		hevc_clock_superhi_enable();
+	vdec_source_changed_for_clk_set(format, width, height, fps);
 
-
+	pr_info("hevc video changed to %d x %d %d fps clk->%dMHZ\n",
+			width, height, fps, vdec_clk_get(VDEC_HEVC));
 }
 
 static enum vdec2_usage_e vdec2_usage = USAGE_NONE;
@@ -889,13 +879,13 @@ static ssize_t clock_level_show(struct class *class,
 {
 	char *pbuf = buf;
 	size_t ret;
-	pbuf += sprintf(pbuf, "%d\n", vdec_clock_level(VDEC_1));
+	pbuf += sprintf(pbuf, "%dMHZ\n", vdec_clk_get(VDEC_1));
 
 	if (has_vdec2())
-		pbuf += sprintf(pbuf, "%d\n", vdec_clock_level(VDEC_2));
+		pbuf += sprintf(pbuf, "%dMHZ\n", vdec_clk_get(VDEC_2));
 
 	if (has_hevc_vdec())
-		pbuf += sprintf(pbuf, "%d\n", vdec_clock_level(VDEC_HEVC));
+		pbuf += sprintf(pbuf, "%dMHZ\n", vdec_clk_get(VDEC_HEVC));
 
 	ret = pbuf - buf;
 	return ret;

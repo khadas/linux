@@ -21,8 +21,7 @@
 #include "../amports_config.h"
 #include "../vdec.h"
 #include "register.h"
-
-
+#include "clk_priv.h"
 #include "register_ops.h"
 
 /*
@@ -145,6 +144,8 @@ HHI_VDEC_CLK_CNTL
 
 #define HEVC_CLOCK_OFF()   WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, 0, 24, 1)
 
+
+
 static int clock_level[VDEC_MAX + 1];
 
 static int vdec_clock_init(void)
@@ -152,35 +153,15 @@ static int vdec_clock_init(void)
 	return 0;
 }
 
-static void vdec_clock_enable(void)
+static int vdec_clock_set(int clk)
 {
 	VDEC1_CLOCK_OFF();
 	VDEC1_255M();
 	VDEC1_CLOCK_ON();
-	clock_level[VDEC_1] = 0;
+	clock_level[VDEC_1] = 255;
+	return 255;
 }
 
-static void vdec_clock_hi_enable(void)
-{
-	VDEC1_CLOCK_OFF();
-	if (is_meson_m8_cpu())
-		VDEC1_364M();
-	else
-		VDEC1_638M();
-	VDEC1_CLOCK_ON();
-	clock_level[VDEC_1] = 1;
-}
-
-static void vdec_clock_superhi_enable(void)
-{
-	VDEC1_CLOCK_OFF();
-	if (is_meson_m8_cpu())
-		VDEC1_364M();
-	else
-		VDEC1_638M();
-	VDEC1_CLOCK_ON();
-	clock_level[VDEC_1] = 2;
-}
 
 static void vdec_clock_on(void)
 {
@@ -192,21 +173,15 @@ static void vdec_clock_off(void)
 	VDEC1_CLOCK_OFF();
 }
 
-static void vdec2_clock_enable(void)
+static int vdec2_clock_set(int clk)
 {
 	VDEC2_CLOCK_OFF();
 	VDEC2_255M();
 	VDEC2_CLOCK_ON();
-	clock_level[VDEC_2] = 0;
+	clock_level[VDEC_2] = 255;
+	return 255;
 }
 
-static void vdec2_clock_hi_enable(void)
-{
-	VDEC2_CLOCK_OFF();
-	VDEC2_364M();
-	VDEC2_CLOCK_ON();
-	clock_level[VDEC_2] = 1;
-}
 
 static void vdec2_clock_on(void)
 {
@@ -218,11 +193,13 @@ static void vdec2_clock_off(void)
 	VDEC2_CLOCK_OFF();
 }
 
-static void hcodec_clock_enable(void)
+static int hcodec_clock_set(int clk)
 {
 	HCODEC_CLOCK_OFF();
 	HCODEC_255M();
 	HCODEC_CLOCK_ON();
+	clock_level[VDEC_HCODEC] = 255;
+	return 255;
 }
 
 static void hcodec_clock_on(void)
@@ -240,28 +217,14 @@ static int hevc_clock_init(void)
 	return 0;
 }
 
-static void hevc_clock_enable(void)
+static int hevc_clock_set(int clk)
 {
 	HEVC_CLOCK_OFF();
 	/* HEVC_255M(); */
 	HEVC_638M();
 	HEVC_CLOCK_ON();
-}
-
-static void hevc_clock_hi_enable(void)
-{
-	HEVC_CLOCK_OFF();
-	HEVC_638M();
-	HEVC_CLOCK_ON();
-	clock_level[VDEC_HEVC] = 1;
-}
-
-static void hevc_clock_superhi_enable(void)
-{
-	HEVC_CLOCK_OFF();
-	HEVC_638M();
-	HEVC_CLOCK_ON();
-	clock_level[VDEC_HEVC] = 2;
+	clock_level[VDEC_HEVC] = 638;
+	return 638;
 }
 
 static void hevc_clock_on(void)
@@ -284,7 +247,7 @@ static void hevc_clock_prepare_switch(void)
 	HEVC_SAFE_CLOCK();
 }
 
-static int vdec_clock_level(enum vdec_type_e core)
+static int vdec_clock_get(enum vdec_type_e core)
 {
 	if (core >= VDEC_MAX)
 		return 0;
