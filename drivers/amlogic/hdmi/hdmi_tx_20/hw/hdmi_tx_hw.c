@@ -2158,6 +2158,16 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para&0xff); /* AudN[7:0] */
 }
 
+static void set_aud_fifo_rst(void)
+{
+	/* reset audio fifo */
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 1, 7, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 7, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 0, 7, 1);
+	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
+}
+
 static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
 	struct hdmitx_audpara *audio_param)
 {
@@ -2191,7 +2201,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		return 0;
 	if (!audio_param)
 		return 0;
-	pr_info("test hdmi audio\n");
+	pr_info("hdmtix: set audio\n");
 
 	/* PCM & 8 ch */
 	if ((audio_param->type == CT_PCM) &&
@@ -2269,6 +2279,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		msleep(20);
 	} else
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 5, 1);
+	set_aud_fifo_rst();
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
 
 	return 1;
