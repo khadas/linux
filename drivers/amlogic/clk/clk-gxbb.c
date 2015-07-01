@@ -29,12 +29,9 @@ void __iomem *reg_base_hiubus;
 #undef	HHI_GCLK_MPEG0
 #undef	HHI_MALI_CLK_CNTL
 #undef	HHI_VAPBCLK_CNTL
-#undef	HHI_XTAL_DIVN_CNTL
-
 #define	HHI_GCLK_MPEG0			OFFSET(0x50)
 #define	HHI_MALI_CLK_CNTL		OFFSET(0x6c)
 #define	HHI_VAPBCLK_CNTL		OFFSET(0x7d)
-#define	HHI_XTAL_DIVN_CNTL		OFFSET(0x2f)
 
 #undef HHI_MPLL_CNTL
 #define	HHI_MPLL_CNTL			OFFSET(0xa0)
@@ -142,16 +139,6 @@ static struct mpll_clk_tab mpll_tab[] __initdata = {
 			CLK_MPLL2, CLK_SET_RATE_NO_REPARENT),
 
 };
-
-static struct amlogic_gate_clock clk_gates[] __initdata = {
-	GATE(CLK_CAMERA_12M, "clk_camera_12", "xtal",
-	HHI_XTAL_DIVN_CNTL, 11, CLK_SET_RATE_NO_REPARENT,
-	0, 0),
-	GATE(CLK_CAMERA_24M, "clk_camera_24", "xtal",
-	HHI_XTAL_DIVN_CNTL, 10, CLK_SET_RATE_NO_REPARENT,
-	0, 0),
-};
-
 /* register gxbb clocks */
 static void __init gxbb_clk_init(struct device_node *np)
 {
@@ -173,8 +160,6 @@ static void __init gxbb_clk_init(struct device_node *np)
 			ARRAY_SIZE(mux_clks));
 	amlogic_clk_register_branches(clk_branches,
 		  ARRAY_SIZE(clk_branches));
-	amlogic_clk_register_gate(clk_gates,
-	  ARRAY_SIZE(clk_gates));
 	meson_register_rstc(np, GXBB_RSTC_N_REGS, reg_base_aobus,
 		reg_base_hiubus + HHI_GCLK_MPEG0, GXBB_AO_OFF, 0);
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);

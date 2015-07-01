@@ -37,8 +37,7 @@
 #define CLK_VAPB_0      23
 #define CLK_VAPB_1      24
 #define CLK_GE2D        25
-#define CLK_CAMERA_12M  26
-#define CLK_CAMERA_24M  27
+
 
 #define GP0_PLL		30
 

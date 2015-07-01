@@ -368,14 +368,6 @@
 		    amlogic,pullup=<1>;
 		    amlogic,pullupen=<1>;
 		};
-		aml_cam_gpio_pins: aml_cam_gpio_pins{
-				amlogic,setmask=<2 0x3f0000>;
-				amlogic,clrmask=<1 0x7030ff
-						3 0x37>;
-				amlogic,pins = "GPIOY_0","GPIOY_1","GPIOY_2","GPIOY_3","GPIOY_4",
-					"GPIOY_5","GPIOY_6","GPIOY_7","GPIOY_8",
-					"GPIOY_9","GPIOY_10","GPIOY_15","GPIOY_16";
-		};
 		conf_nand_pulldown: conf_nand_pulldown{
 			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
 						"BOOT_5","BOOT_6","BOOT_7","BOOT_15";
@@ -426,8 +418,8 @@
 
 		/*p200 i2c-A multiplex with usb PWR*/
 		a_i2c_master:a_i2c{
-			amlogic,setmask=<7 0xc000000>;
-			amlogic,clrmask=<0 0x18c0 2 0x30000000 5 0x1800>;
+			amlogic,setmask=<7 0xc0>;
+			amlogic,clrmask=<0 0x18c0 2 0x30000000 5 0x180>;
 			amlogic,pins="GPIODV_24","GPIODV_25";
 		};
 		b_i2c_master:b_i2c{

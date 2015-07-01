@@ -93,5 +93,4 @@ source "drivers/amlogic/thermal/Kconfig"
 
 source "drivers/amlogic/audinfo_kernel/Kconfig"
 
-source "drivers/amlogic/camera/Kconfig"
 endmenu

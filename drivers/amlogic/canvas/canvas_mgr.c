@@ -509,7 +509,6 @@ static void canvas_pool_config(void)
 	canvas_pool_register_const_canvas(0xe4, 0xec, "encoder");
 	canvas_pool_register_const_canvas(0x40, 0x44, "osd");
 	canvas_pool_register_const_canvas(0x45, 0x58, "deinterlace");
-	canvas_pool_register_const_canvas(0x4e, 0x5f, "vm");
 	/*please add static canvas later. */
 }
 
