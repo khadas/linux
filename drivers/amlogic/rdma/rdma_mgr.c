@@ -36,7 +36,8 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 
-#include "rdma_mgr.h"
+#include <linux/amlogic/rdma/rdma_mgr.h>
+#include "../amports/vdec_reg.h"
 
 #define DRIVER_NAME "amlogic-rdma"
 #define MODULE_NAME "amlogic-rdma"
@@ -79,6 +80,8 @@ struct rdma_instance_s {
 	u32 *rdma_table_addr;
 	u32 rdma_table_phy_addr;
 	int rdma_item_count;
+	unsigned char keep_buf;
+	unsigned char used;
 };
 
 struct rdma_device_info {
@@ -157,26 +160,29 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 	dma_addr_t dma_handle;
 	for (i = 1; i < RDMA_NUM; i++) {
 		/* 0 is reserved for RDMA MANUAL */
-		if (info->rdma_ins[i].op == NULL) {
+		if (info->rdma_ins[i].op == NULL &&
+				info->rdma_ins[i].used == 0) {
 			info->rdma_ins[i].not_process = 0;
-			info->rdma_ins[i].op = rdma_op;
 			info->rdma_ins[i].op_arg = op_arg;
 
-			info->rdma_ins[i].rdma_table_addr =
-				dma_alloc_coherent(
+			if (info->rdma_ins[i].rdma_table_size == 0) {
+				info->rdma_ins[i].rdma_table_addr =
+					dma_alloc_coherent(
 					&info->rdma_dev->dev, table_size,
 					&dma_handle, GFP_KERNEL);
-			info->rdma_ins[i].rdma_table_phy_addr
-				= (u32)(dma_handle);
+				info->rdma_ins[i].rdma_table_phy_addr
+					= (u32)(dma_handle);
 
-			info->rdma_ins[i].reg_buf =
-				kmalloc(table_size, GFP_KERNEL);
-			pr_info("%s, rdma_table_addr %p rdma_table_addr_phy %x reg_buf %p\n",
-				__func__, info->rdma_ins[i].rdma_table_addr,
-				info->rdma_ins[i].rdma_table_phy_addr,
-				info->rdma_ins[i].reg_buf);
-
-			info->rdma_ins[i].rdma_table_size = table_size;
+				info->rdma_ins[i].reg_buf =
+					kmalloc(table_size, GFP_KERNEL);
+				pr_info("%s, rdma_table_addr %p rdma_table_addr_phy %x reg_buf %p\n",
+					__func__,
+					info->rdma_ins[i].rdma_table_addr,
+					info->rdma_ins[i].rdma_table_phy_addr,
+					info->rdma_ins[i].reg_buf);
+				info->rdma_ins[i].rdma_table_size = table_size;
+			}
+			info->rdma_ins[i].op = rdma_op;
 			break;
 		}
 	}
@@ -185,14 +191,50 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 			info->rdma_ins[i].reg_buf == NULL) {
 			info->rdma_ins[i].op = NULL;
 			i = -1;
-		}
-		pr_info("%s success, handle %d table_size %d\n",
-			__func__, i, table_size);
+			pr_info("%s: memory allocate fail\n",
+				__func__);
+		}	else
+			pr_info("%s success, handle %d table_size %d\n",
+				__func__, i, table_size);
 		return i;
 	}
 	return -1;
 }
 EXPORT_SYMBOL(rdma_register);
+
+
+void rdma_unregister(int i)
+{
+	unsigned long flags;
+	struct rdma_device_info *info = &rdma_info;
+	pr_info("%s(%d)\r\n", __func__, i);
+	if (i > 0 && i < RDMA_NUM && info->rdma_ins[i].op) {
+		int table_size;
+
+		/*rdma_clear(i);*/
+
+		spin_lock_irqsave(&rdma_lock, flags);
+		table_size = info->rdma_ins[i].rdma_table_size;
+		info->rdma_ins[i].op = NULL;
+		if (!info->rdma_ins[i].keep_buf)
+			info->rdma_ins[i].rdma_table_size = 0;
+		spin_unlock_irqrestore(&rdma_lock, flags);
+
+		info->rdma_ins[i].op_arg = NULL;
+		if (!info->rdma_ins[i].keep_buf) {
+			kfree(info->rdma_ins[i].reg_buf);
+			info->rdma_ins[i].reg_buf = NULL;
+			if (info->rdma_ins[i].rdma_table_addr) {
+				dma_free_coherent(&info->rdma_dev->dev,
+				table_size,
+				info->rdma_ins[i].rdma_table_addr,
+				(dma_addr_t)
+				info->rdma_ins[i].rdma_table_phy_addr);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL(rdma_unregister);
 
 irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 {
@@ -243,13 +285,20 @@ int rdma_config(int handle, int trigger_type)
 	unsigned long flags;
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
-	if (handle == 0 || ins->op == NULL) {
-		pr_info("%s error, handle (%d) not register\n",
+
+	if (handle == 0)
+		pr_info("%s error, rdma_config(handle == 0) not allowed\n",
+			__func__);
+
+	spin_lock_irqsave(&rdma_lock, flags);
+	if (ins->op == NULL) {
+		spin_unlock_irqrestore(&rdma_lock, flags);
+
+		pr_info("%s: handle (%d) not register\n",
 			__func__, handle);
 		return -1;
 	}
 
-	spin_lock_irqsave(&rdma_lock, flags);
 	if (ins->rdma_item_count <= 0 || trigger_type == 0) {
 		if (trigger_type == RDMA_TRIGGER_MANUAL)
 			WRITE_VCBUS_REG(RDMA_ACCESS_MAN,
@@ -385,6 +434,7 @@ u32 rdma_read_reg(int handle, u32 adr)
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	u32 read_val = READ_VCBUS_REG(adr);
+
 	for (i = (ins->rdma_item_count - 1) ; i >= 0; i--) {
 		if (ins->reg_buf[i << 1] == adr) {
 			read_val = ins->reg_buf[(i << 1) + 1];
@@ -399,6 +449,9 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 {
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+
+	if (ins->rdma_table_size == 0)
+		return -1;
 
 	if (debug_flag & 1)
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
@@ -430,6 +483,10 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	u32 read_val = READ_VCBUS_REG(adr);
 	u32 write_val;
+
+	if (ins->rdma_table_size == 0)
+		return -1;
+
 	for (i = (ins->rdma_item_count - 1) ; i >= 0; i--) {
 		if (ins->reg_buf[i<<1] == adr) {
 			read_val = ins->reg_buf[(i<<1)+1];
@@ -467,11 +524,16 @@ static int rdma_probe(struct platform_device *pdev)
 
 	pr_info("%s\n", __func__);
 
-	for (i = 0; i < RDMA_NUM; i++)
+	for (i = 0; i < RDMA_NUM; i++) {
+			info->rdma_ins[i].rdma_table_size = 0;
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
+			info->rdma_ins[i].keep_buf = 1;
+			/*do not change it in normal case*/
+			info->rdma_ins[i].used = 0;
+	}
 
-#if 0
-	info->rdma_ins[3].not_process = 1; /* OSD driver uses this channel */
+#if 1
+	info->rdma_ins[3].used = 1; /* OSD driver uses this channel */
 #endif
 	if (int_rdma  == -ENXIO) {
 		dev_err(&pdev->dev, "cannot get rdma irq resource\n");

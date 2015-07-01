@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include "rdma.h"
 #include "vdec_reg.h"
-#include "../rdma/rdma_mgr.h"
+#include <linux/amlogic/rdma/rdma_mgr.h>
 
 
 #define Wr(adr, val) WRITE_VCBUS_REG(adr, val)

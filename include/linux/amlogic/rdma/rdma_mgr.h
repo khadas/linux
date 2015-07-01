@@ -1,7 +1,6 @@
 #ifndef RDMA_MGR_H_
 #define RDMA_MGR_H_
 
-#include "../amports/vdec_reg.h"
 
 struct rdma_op_s {
 	void (*irq_cb)(void *arg);
@@ -12,7 +11,18 @@ struct rdma_op_s {
 #define RDMA_TRIGGER_DEBUG1 0x101
 #define RDMA_TRIGGER_DEBUG2 0x102
 
+/*
+	rdma_read_reg(), rdma_write_reg(), rdma_clear() can only be called
+	after rdma_register() is called and
+	before rdma_unregister() is called
+*/
 int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size);
+
+/*
+	if keep_buf is 0, rdma_unregister can only be called in its irq_cb.
+	in normal case, keep_buf is 1, so rdma_unregister can be called anywhere
+*/
+void rdma_unregister(int i);
 
 int rdma_config(int handle, int trigger_type);
 
