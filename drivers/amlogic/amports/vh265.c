@@ -172,7 +172,7 @@ static u32 dynamic_buf_num_margin;
 #else
 static u32 buf_alloc_width;
 static u32 buf_alloc_height;
-static u32 dynamic_buf_num_margin = 5;
+static u32 dynamic_buf_num_margin = 7;
 #endif
 static u32 buf_alloc_size;
 /*
@@ -1255,6 +1255,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 	else
 		used_buf_num = max_buf_num;
 
+	if (used_buf_num > MAX_BUF_NUM)
+		used_buf_num = MAX_BUF_NUM;
 	if (buf_alloc_size > 0) {
 		buf_size = buf_alloc_size;
 		if (debug)
