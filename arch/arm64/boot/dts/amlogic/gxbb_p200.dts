@@ -43,7 +43,11 @@
 			reg = <0x0 0x10000000 0x0 0x200000>;
 			no-map;
 		};
-
+		pstore:aml_pstore {
+			compatible = "amlogic, pstore";
+			reg = <0x0 0x20000000 0x0 0x100000>;
+			no-map;
+		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
 			size = <0x0 0x2000000>;
