@@ -4710,6 +4710,8 @@ static irqreturn_t vh265_isr(int irq, void *dev_id)
 							   AMRISC_MAIN_REQ);
 
 				} else {
+					hevc->sps_num_reorder_pics_0 =
+					rpm_param.p.sps_num_reorder_pics_0;
 					hevc->pic_list_init_flag = 1;
 					up(&h265_sema);
 					pr_info("set pic_list_init_flag 1\n");
