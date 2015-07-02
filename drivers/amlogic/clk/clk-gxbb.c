@@ -22,7 +22,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include "mpll_clk.h"
-
+#include <linux/amlogic/pm.h>
 #include "clk.h"
 void __iomem *reg_base_hiubus;
 #define	OFFSET(x)	(x << 2)
@@ -44,7 +44,7 @@ void __iomem *reg_base_hiubus;
 #define	HHI_AUD_CLK_CNTL3		OFFSET(0x69)
 #define	HHI_AUD_CLK_CNTL		OFFSET(0x5e)
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
-
+#define	HHI_SYS_CPU_CLK_CNTL	OFFSET(0x67)
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
@@ -153,6 +153,18 @@ static struct amlogic_gate_clock clk_gates[] __initdata = {
 };
 
 /* register gxbb clocks */
+void clk_late_resume(struct late_suspend *h)
+{
+	int val = readl(reg_base_hiubus + HHI_SYS_CPU_CLK_CNTL);
+	val = val | (1 << 11);
+	writel(val, reg_base_hiubus + HHI_SYS_CPU_CLK_CNTL);
+	pr_info("set a53 clk to sys_pll\n");
+}
+
+static struct late_suspend clk_late_suspend = {
+	.resume = clk_late_resume,
+};
+
 static void __init gxbb_clk_init(struct device_node *np)
 {
 
@@ -180,7 +192,7 @@ static void __init gxbb_clk_init(struct device_node *np)
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
 	gp0_clk_init(reg_base_hiubus, GP0_PLL);
 	gxbb_hdmi_clk_init(reg_base_hiubus);
-
+	register_late_suspend(&clk_late_suspend);
 
 
 	{
