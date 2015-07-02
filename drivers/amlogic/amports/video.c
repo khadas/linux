@@ -2906,9 +2906,10 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 				tsync_avevent_locked(VIDEO_TSTAMP_DISCONTINUITY,
 						     pts);
 
-			pr_info("discontinue, systime=0x%x vpts=0x%x\n",
+			pr_info("discontinue, systime=0x%x vpts=0x%x next_vf->pts = 0x%x\n",
 				systime,
-				pts);
+				pts,
+				next_vf->pts);
 
 			/* pts==0 is a keep frame maybe. */
 			if (systime > next_vf->pts || next_vf->pts == 0)
