@@ -952,12 +952,13 @@
 #define DIPD_RO_COMB_18					0x2fe8
 #define DIPD_RO_COMB_19					0x2fe9
 #define DIPD_RO_COMB_20					0x2fea
-#define NR3_MODE						0xfef0
-#define NR3_COOP_PARA					0xfef1
-#define NR3_CNOOP_GAIN					0xfef2
-#define NR3_YMOT_PARA					0xfef3
-#define NR3_CMOT_PARA					0xfef4
-#define NR3_SUREMOT_YGAIN				0xfef5
-#define NR3_SUREMOT_CGAIN				0xfef6
+/* nr3 */
+#define NR3_MODE						0x2ff0
+#define NR3_COOP_PARA					0x2ff1
+#define NR3_CNOOP_GAIN					0x2ff2
+#define NR3_YMOT_PARA					0x2ff3
+#define NR3_CMOT_PARA					0x2ff4
+#define NR3_SUREMOT_YGAIN				0x2ff5
+#define NR3_SUREMOT_CGAIN				0x2ff6
 
 #endif
