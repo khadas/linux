@@ -403,7 +403,18 @@ static void tv_out_set_pinmux(enum tvmode_e mode)
 	/* vout_log_info("%s[%d] mode is %d\n", __func__, __LINE__, mode); */
 }
 
-static void tv_out_set_vdac(enum tvmode_e mode)
+static void tv_out_pre_close_vdac(enum tvmode_e mode)
+{
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_MG9TV) {
+		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
+			cvbs_cntl_output(0);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
+		cvbs_cntl_output(0);
+
+	return;
+}
+
+static void tv_out_late_open_vdac(enum tvmode_e mode)
 {
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6) {
 		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS)) {
@@ -418,9 +429,15 @@ static void tv_out_set_vdac(enum tvmode_e mode)
 			else
 				tv_out_reg_write(VENC_VDAC_SETTING, 0x7);
 		}
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
+		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS)) {
+			msleep(1000);
+			cvbs_cntl_output(1);
+		}
+
 	}
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
-		cvbs_cntl_output(1);
+
+	return;
 }
 
 static char *tv_out_bist_str[] = {
@@ -458,6 +475,8 @@ int tv_out_setmode(enum tvmode_e mode)
 		}
 	}
 
+	tv_out_pre_close_vdac(mode);
+
 	tv_out_set_clk_gate(mode);
 	tv_out_init_off(mode);
 	tv_out_set_clk(mode);
@@ -472,7 +491,7 @@ int tv_out_setmode(enum tvmode_e mode)
 	cvbs_performance_enhancement(mode);
 #endif
 
-	tv_out_set_vdac(mode);
+	tv_out_late_open_vdac(mode);
 
 	mutex_unlock(&setmode_mutex);
 	return 0;
