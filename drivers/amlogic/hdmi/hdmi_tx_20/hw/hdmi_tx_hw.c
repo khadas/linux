@@ -1594,34 +1594,6 @@ static void phy_pll_off(void)
 	hdmi_phy_suspend();
 }
 
-/**/
-void hdmi_hw_set_powermode(struct hdmitx_dev *hdev)
-{
-	int vic = hdev->cur_VIC;
-
-	switch (vic) {
-	case HDMI_480i60:
-	case HDMI_480i60_16x9:
-	case HDMI_576p50:
-	case HDMI_576p50_16x9:
-	case HDMI_576i50:
-	case HDMI_576i50_16x9:
-	case HDMI_480p60:
-	case HDMI_480p60_16x9:
-	case HDMI_720p50:
-	case HDMI_720p60:
-	case HDMI_1080i50:
-	case HDMI_1080i60:
-	case HDMI_1080p24:/* 1080p24 support */
-	case HDMI_1080p50:
-	case HDMI_1080p60:
-	default:
-	/* hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x08c38d0b); */
-	break;
-	}
-	/* hd_write_reg(P_HHI_HDMI_PHY_CNTL1, 2); */
-}
-
 #if 0
 /* When have below format output, we shall manually configure */
 /* bolow register to get stable Video Timing. */
@@ -1691,8 +1663,8 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 		break;
 	case HDMI_1080p60:
 	default:
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634143);
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x013a115b);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632113);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a115b);
 		break;
 	}
 #if 1
@@ -3142,7 +3114,7 @@ struct hdmi_phy {
 
 static void hdmi_phy_suspend(void)
 {
-	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x08418d00);
+	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
 }
 
 static void hdmi_phy_wakeup(struct hdmitx_dev *hdev)
