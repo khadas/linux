@@ -27,6 +27,8 @@
 #define AML_CFG_NEWOOB_EN			(1)
 #define AML_CFG_PINMUX_ONCE_FOR_ALL	(1)
 #define AML_CFG_CONHERENT_BUFFER	(0)
+/* store dtd in rsv area! */
+#define AML_CFG_DTB_RSV_EN			(1)
 
 #define NAND_ADJUST_PART_TABLE
 

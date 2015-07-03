@@ -493,6 +493,9 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 #ifdef CONFIG_SECURE_NAND
 	struct nand_arg_info *nand_secure = &aml_chip->nand_secure;
 #endif
+#if (AML_CFG_DTB_RSV_EN)
+	struct nand_arg_info *amlnf_dtb = &aml_chip->amlnf_dtb;
+#endif
 	struct nand_arg_info *uboot_env =  &aml_chip->uboot_env;
 	unsigned char *buf = NULL;
 	unsigned int buf_size = 0;
@@ -528,7 +531,16 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 		}
 	}
 #endif
-
+#if (AML_CFG_DTB_RSV_EN)
+	if (amlnf_dtb->arg_valid == 0) {
+		ret = amlnf_dtb_init(aml_chip);
+		if (ret < 0) {
+			aml_nand_msg("amlnf dtb init failed");
+			/* fixme, should go on! */
+			/* goto exit_error; */
+		}
+	}
+#endif
 	if ((uboot_env->arg_valid == 0) && (boot_device_flag == 1)) {
 		ret = aml_ubootenv_init(aml_chip);
 		if (ret < 0) {
@@ -563,6 +575,9 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 			goto exit_error;
 		}
 	}
+#endif
+#if (AML_CFG_DTB_RSV_EN)
+	/* fixme, no need to save a empty dtb. */
 #endif
 exit_error:
 	kfree(buf);

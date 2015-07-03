@@ -301,7 +301,7 @@ int aml_ubootenv_init(struct amlnand_chip *aml_chip)
 		ENV_INFO_HEAD_MAGIC,
 		CONFIG_ENV_SIZE);
 	if (ret < 0) {
-		aml_nand_msg("aml_ubootenv_init failed\n");
+		aml_nand_msg("%s failed\n", __func__);
 		ret = -1;
 		goto exit_err;
 	}
@@ -313,7 +313,7 @@ int aml_ubootenv_init(struct amlnand_chip *aml_chip)
 			aml_nand_msg("amlnf_env_save: save env failed");
 		}
 	}*/
-	aml_nand_dbg("aml_ubootenv_init : register env chardev");
+	aml_nand_dbg("%s: register env chardev", __func__);
 	ret = alloc_chrdev_region(&uboot_env_no, 0, 1, ENV_NAME);
 	if (ret < 0) {
 		aml_nand_msg("alloc uboot env dev_t no failed");
@@ -355,7 +355,7 @@ int aml_ubootenv_init(struct amlnand_chip *aml_chip)
 		goto exit_err3;
 	}
 
-	aml_nand_dbg("aml_ubootenv_init : register env chardev OK");
+	aml_nand_dbg("%s: register env chardev OK", __func__);
 
 	kfree(env_buf);
 	env_buf = NULL;

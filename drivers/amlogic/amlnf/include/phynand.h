@@ -136,6 +136,7 @@ union nand_core_clk_t {
 #define	KEY_INFO_HEAD_MAGIC		"nkey"
 #define	SECURE_INFO_HEAD_MAGIC		"nsec"
 #define	ENV_INFO_HEAD_MAGIC		"nenv"
+#define	DTD_INFO_HEAD_MAGIC		"ndtb"
 
 #define	FBBT_COPY_NUM	1
 
@@ -144,6 +145,9 @@ union nand_core_clk_t {
 
 #define CONFIG_SECURE_SIZE	(0x10000*2) /* 128k */
 #define SECURE_SIZE (CONFIG_SECURE_SIZE - 2*(sizeof(uint)))
+/* fixme, max dtd size is 256KBytes. */
+#define CONFIG_DTB_SIZE  (256*1024U)
+#define DTB_SIZE (CONFIG_DTB_SIZE - (sizeof(uint)))
 
 #define FULL_BLK	0
 #define FULL_PAGE	1
@@ -805,7 +809,9 @@ struct amlnand_chip {
 	struct nand_arg_info nand_key;
 	struct nand_arg_info nand_secure;
 	struct nand_arg_info uboot_env;
-
+#if (AML_CFG_DTB_RSV_EN)
+	struct nand_arg_info amlnf_dtb;
+#endif
 	struct pinctrl *nand_pinctrl;
 	struct pinctrl_state *nand_pinstate;
 	struct pinctrl_state *nand_rbstate;
@@ -868,6 +874,9 @@ extern void nand_get_chip(void *aml_chip);
 extern void nand_release_chip(void *aml_chip);
 extern int aml_key_init(struct amlnand_chip *aml_chip);
 extern int aml_secure_init(struct amlnand_chip *aml_chip);
+#if (AML_CFG_DTB_RSV_EN)
+extern int amlnf_dtb_init(struct amlnand_chip *aml_chip);
+#endif
 extern int amlnand_info_init(struct amlnand_chip *aml_chip,
 	unsigned char *info,
 	unsigned char *buf,

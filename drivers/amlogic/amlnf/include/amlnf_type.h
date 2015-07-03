@@ -76,14 +76,14 @@
 
 
 #ifdef AML_NAND_DBG
-#define aml_nand_dbg(fmt, ...) dev_warn(KERN_WARNING "%s: line:%d " fmt "\n", \
+
+#define aml_nand_dbg(fmt, ...) pr_info("%s: line:%d " fmt "\n", \
 		__func__, __LINE__, ##__VA_ARGS__)
 
-#define aml_nand_msg(fmt, ...) dev_warn(KERN_WARNING "%s: line:%d " fmt "\n", \
+#define aml_nand_msg(fmt, ...) pr_info("%s: line:%d " fmt "\n", \
 		__func__, __LINE__, ##__VA_ARGS__)
-#define nprint(fmt, ...) dev_warn(KERN_WARNING fmt , \
+#define nprint(fmt, ...) pr_info(fmt , \
 		##__VA_ARGS__)
-
 #else
 #define aml_nand_dbg(fmt, ...)
 #define aml_nand_msg(fmt, ...) pr_info(fmt "\n",  ##__VA_ARGS__)

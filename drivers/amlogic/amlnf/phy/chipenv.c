@@ -549,6 +549,12 @@ int amlnand_get_free_block(struct amlnand_chip *aml_chip, unsigned int block)
 			start_blk++;
 			continue;
 		}
+		if (ret == NAND_BLOCK_USED_BAD) {
+			aml_nand_msg("blk %d is used bad block ",
+				start_blk);
+			start_blk++;
+			continue;
+		}
 
 		/*
 		ret = amlnand_free_block_test(aml_chip, start_blk);
@@ -1538,11 +1544,14 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 		ops_para->page_addr = tmp_value * pages_per_blk;
 		ops_para->chipnr = start_blk % controller->chip_num;
 		controller->select_chip(controller, ops_para->chipnr);
+		/* yyh0704, avoid bbt mismatch block status! */
+	#if 0
 		ret = operation->block_isbad(aml_chip);
 		if (ret) {
 			aml_nand_msg("nand block at blk %d is bad ", start_blk);
 			continue;
 		}
+	#endif
 		for (i = 0; i < pages_read;) {
 			memset((unsigned char *)ops_para, 0x0,
 				sizeof(struct chip_ops_para));
@@ -2563,7 +2572,9 @@ void amlnand_set_config_attribute(struct amlnand_chip *aml_chip)
 	aml_chip->nand_secure.arg_type = FULL_PAGE;
 	aml_chip->nand_key.arg_type = FULL_PAGE;
 	aml_chip->uboot_env.arg_type = FULL_PAGE;
-
+#if (AML_CFG_DTB_RSV_EN)
+	aml_chip->amlnf_dtb.arg_type = FULL_PAGE;
+#endif
 	return;
 }
 
