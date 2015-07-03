@@ -50,6 +50,13 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 };
 static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND;
+struct late_suspend {
+	struct list_head link;
+	int level;
+	void (*suspend)(struct late_suspend *h);
+	void (*resume)(struct late_suspend *h);
+	void *param;
+};
 
 void register_late_suspend(struct late_suspend *handler)
 {
@@ -138,7 +145,6 @@ static void meson_gx_suspend(void)
 	pr_info(KERN_INFO "enter meson_pm_suspend!\n");
 	late_suspend();
 	cpu_suspend(0x0010000);
-
 	early_resume();
 	pr_info(KERN_INFO "... wake up\n");
 

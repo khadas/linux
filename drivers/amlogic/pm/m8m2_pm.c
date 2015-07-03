@@ -88,6 +88,14 @@ struct clk_desc {
 static DEFINE_MUTEX(late_suspend_lock);
 static LIST_HEAD(late_suspend_handlers);
 
+struct late_suspend {
+	struct list_head link;
+	int level;
+	void (*suspend)(struct late_suspend *h);
+	void (*resume)(struct late_suspend *h);
+	void *param;
+};
+
 void register_late_suspend(struct late_suspend *handler)
 {
 	struct list_head *pos;
