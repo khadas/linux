@@ -31,7 +31,7 @@ struct saradc_regs {
 	unsigned int ch10_sw;
 	unsigned int detect_idle_sw;
 	unsigned int delta_10;
-	/* unsigned int reg11; for temp-sensor */
+	unsigned int reg11;
 };
 
 /* REG0 */

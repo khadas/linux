@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 #include <linux/amlogic/saradc.h>
 #include "saradc_reg.h"
 
@@ -33,6 +34,9 @@
 #define SARADC_STATE_IDLE 0
 #define SARADC_STATE_BUSY 1
 #define SARADC_STATE_SUSPEND 2
+
+#define FLAG_INITIALIZED (1<<28)
+#define FLAG_BUSY (1<<29)
 
 struct saradc {
 	struct device *dev;
@@ -50,32 +54,35 @@ static struct saradc *gp_saradc;
 
 static inline void saradc_power_control(struct saradc *adc, int on)
 {
-	struct saradc_reg0 *reg0 = (struct saradc_reg0 *)&adc->regs->reg0;
 	struct saradc_reg3 *reg3 = (struct saradc_reg3 *)&adc->regs->reg3;
 
 	if (on) {
+		adc->regs->reg11 |= 1<<13; /* enable bandgap */
 		reg3->adc_en = 1;
 		udelay(5);
 		if (adc->clk_reg)
 			*adc->clk_reg |= (1<<8);
 		else
 			reg3->clk_en = 1;
-		reg0->sample_engine_en = 1;
 	}	else {
-		reg0->sample_engine_en = 0;
 		if (adc->clk_reg)
 			*adc->clk_reg &= ~(1<<8);
 		else
 			reg3->clk_en = 0;
 		reg3->adc_en = 0;
+		adc->regs->reg11 &= ~(1<<13); /* disable bandgap */
 	}
 }
 
 static void saradc_reset(struct saradc *adc)
 {
 	int clk_src, clk_div;
-
-	adc->regs->reg0 = 0x84000040;
+	if (adc->regs->reg3 & FLAG_INITIALIZED) {
+		saradc_info("initialized by BL30\n");
+		return;
+	}
+	saradc_info("initialized by gxbb\n");
+	adc->regs->reg0 = 0x84004040;
 	adc->regs->ch_list = 0;
 	/* REG2: all chanel set to 8-samples & median averaging mode */
 	adc->regs->avg_cntl = 0x0;
@@ -85,7 +92,7 @@ static void saradc_reset(struct saradc *adc)
 	clk_src = 0; /* should get from adc->clk in g9tv */
 	clk_div = 20;
 	saradc_info("clk_src=%d, clk_div=%d\n", clk_src, clk_div);
-	adc->regs->reg3 = 0x8388000a | (clk_div << 10);
+	adc->regs->reg3 = 0x9388000a | (clk_div << 10);
 	if (adc->clk_reg)
 		*adc->clk_reg = (clk_src<<9) | (clk_div << 0);
 
@@ -165,12 +172,20 @@ int get_adc_sample(int dev_id, int ch)
 	adc->state = SARADC_STATE_BUSY;
 	reg0 = (struct saradc_reg0 *)&adc->regs->reg0;
 	reg3 = (struct saradc_reg3 *)&adc->regs->reg3;
-
+	while (adc->regs->reg3 & FLAG_BUSY) {
+		udelay(100);
+		if (++count > 100) {
+			saradc_info("bl30 busy error\n");
+			value = -1;
+			goto end1;
+		}
+	}
 #ifdef ENABLE_DYNAMIC_POWER
 	saradc_power_control(adc, 1);
 #endif
 	adc->regs->ch_list = ch;
 	adc->regs->detect_idle_sw = 0xc000c | (ch<<23) | (ch<<7);
+	reg0->sample_engine_en = 1;
 	reg0->start_sample = 1;
 	do {
 		udelay(10);
@@ -191,14 +206,36 @@ int get_adc_sample(int dev_id, int ch)
 	}
 end:
 	reg0->stop_sample = 1;
+	reg0->sample_engine_en = 0;
 #ifdef ENABLE_DYNAMIC_POWER
 	saradc_power_control(0);
 #endif
+end1:
 	adc->state = SARADC_STATE_IDLE;
 	spin_unlock_irqrestore(&adc->lock, flags);
 	return value;
 }
 
+static unsigned int __iomem *
+saradc_get_reg_addr(struct platform_device *pdev, int index)
+{
+	struct resource *res;
+	unsigned int __iomem *reg_addr;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	if (!res) {
+		dev_err(&pdev->dev, "reg: cannot obtain I/O memory region");
+		return 0;
+	}
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+			resource_size(res), dev_name(&pdev->dev))) {
+		dev_err(&pdev->dev, "Memory region busy\n");
+		return 0;
+	}
+	reg_addr = devm_ioremap_nocache(&pdev->dev, res->start,
+			resource_size(res));
+	return reg_addr;
+}
 
 static ssize_t ch0_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -260,10 +297,8 @@ static struct class saradc_class = {
 
 static int saradc_probe(struct platform_device *pdev)
 {
-	int i, err;
+	int err;
 	struct saradc *adc;
-	struct resource *res;
-	resource_size_t *res_start[2];
 
 	adc = kzalloc(sizeof(struct saradc), GFP_KERNEL);
 	if (!adc) {
@@ -276,23 +311,12 @@ static int saradc_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto end_err;
 	}
-
-	for (i = 0; i < 2; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		res_start[i] = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(res) || IS_ERR(res_start[i])) {
-			res_start[i] = 0;
-			continue;
-		}
-	}
-	adc->regs = (struct saradc_regs __iomem *)(res_start[0]);
-	adc->clk_reg = (unsigned int __iomem *)(res_start[1]);
-	saradc_info("adc_regs=%p, clk_reg=%p\n", adc->regs, adc->clk_reg);
-	if (IS_ERR(adc->regs)) {
+	adc->regs = (struct saradc_regs __iomem *)saradc_get_reg_addr(pdev, 0);
+	if (!adc->regs) {
 		err = -ENODEV;
 		goto end_err;
 	}
-
+	adc->clk_reg = saradc_get_reg_addr(pdev, 1);
 	adc->clk = devm_clk_get(&pdev->dev, "saradc_clk");
 	if (IS_ERR(adc->clk)) {
 		err = -ENOENT;
@@ -337,7 +361,7 @@ static int saradc_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit saradc_remove(struct platform_device *pdev)
+static int saradc_remove(struct platform_device *pdev)
 {
 	struct saradc *adc = (struct saradc *)dev_get_drvdata(&pdev->dev);
 	unsigned long flags;
