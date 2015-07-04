@@ -6,3 +6,4 @@
 
 obj-$(CONFIG_AM_INPUT) += saradc/
 obj-$(CONFIG_AM_INPUT) += remote/
+obj-$(CONFIG_AM_INPUT) += keyboard/

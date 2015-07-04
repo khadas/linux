@@ -695,6 +695,16 @@
 		reg = <0x0 0xc1108680 0x0 0x30
 					 0x0 0xc883c3d8 0x0 0x08>;
 	};
+	adc_keypad{
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "menu", "vol-","vol+", "esc", "home";
+		key_num = <5>;
+		key_code = <139 114 115 1 102>;
+		key_chan = <0 0 0 0 0>;
+		key_val = <0 143 271 393 510>; //voltage=0/252/478/692/824mV, val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40>;
+	};
 
 };
 &i2c_a {
