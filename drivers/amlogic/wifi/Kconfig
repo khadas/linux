@@ -12,4 +12,7 @@ config AM_WIFI_SD_MMC
 	depends on AM_WIFI
 	default n
 
+config DHD_USE_STATIC_BUF
+	bool "broadcom wifi static buff support"
+	default n
 endif # AM_WIFI

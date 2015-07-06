@@ -16,6 +16,9 @@
 */
 
 #include <linux/amlogic/wifi_dt.h>
+#ifdef CONFIG_DHD_USE_STATIC_BUF
+#include <linux/amlogic/dhd_buf.h>
+#endif
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -233,6 +236,13 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			plat->p = devm_pinctrl_get_select(&pdev->dev,
 				"wifi_32k_pins");
 		}
+#ifdef CONFIG_DHD_USE_STATIC_BUF
+		if (of_get_property(pdev->dev.of_node,
+			"dhd_static_buf", NULL)) {
+			WIFI_INFO("dhd_static_buf setup\n");
+			bcmdhd_init_wlan_mem();
+		}
+#endif
 
 		plat->plat_info_valid = 1;
 
