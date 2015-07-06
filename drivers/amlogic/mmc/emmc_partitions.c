@@ -124,7 +124,7 @@ static int mmc_transfer(struct mmc_card *card, unsigned dev_addr,
 		pr_info("[%s] %s range exceeds device capacity!\n",
 		__func__, write?"write":"read");
 		ret = -1;
-		goto exit_err;
+		return ret;
 	}
 
 	size = blocks << card->csd.read_blkbits;
@@ -140,11 +140,6 @@ static int mmc_transfer(struct mmc_card *card, unsigned dev_addr,
 	mmc_wait_for_req(card->host, &mrq);
 
 	ret = mmc_check_result(&mrq);
-
-exit_err:
-	pr_info("emmc %s lba=%#x, blocks=%#x %s!\n", write ?
-	"write":"read", dev_addr, blocks, (ret == 0)?"OK":"ERROR");
-
 	return ret;
 }
 
@@ -694,7 +689,7 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 	}
 #endif
 
-
+	amlmmc_dtb_init(card);
 
 	aml_store_class = class_create(THIS_MODULE, "aml_store");
 	if (IS_ERR(aml_store_class)) {

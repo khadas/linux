@@ -10,7 +10,7 @@
 
 /* #include <mach/register.h> */
 /* #include <mach/am_regs.h> */
-
+#define CONFIG_DTB_SIZE  (256*1024U)
 #define	STORE_CODE				1
 #define	STORE_CACHE				(1<<1)
 #define	STORE_DATA				(1<<2)
@@ -70,3 +70,5 @@ int mmc_write_internal(struct mmc_card *card,
 int get_reserve_partition_off_from_tbl(void);
 
 #endif
+
+extern int amlmmc_dtb_init(struct mmc_card *card);
