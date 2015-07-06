@@ -67,6 +67,8 @@ static struct para_pair_s mode_infos[] = {
 	{"2160p25hz", VMODE_4K2K_25HZ},
 	{"2160p30hz", VMODE_4K2K_30HZ},
 	{"smpte24hz", VMODE_4K2K_SMPTE},
+	{"2160p50hz420", VMODE_4K2K_50HZ_Y420},
+	{"2160p60hz420", VMODE_4K2K_60HZ_Y420},
 };
 
 struct logo_info_s {
