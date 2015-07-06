@@ -37,31 +37,31 @@
 /* M8: 2550/10 = 255M GX: 2000/10 = 200M */
 #define HDEC_L0()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (2 << 25) | (1 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 /* M8: 2550/8 = 319M GX: 2000/8 = 250M */
 #define HDEC_L1()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (0 << 25) | (1 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 /* M8: 2550/7 = 364M GX: 2000/7 = 285M */
 #define HDEC_L2()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (3 << 25) | (0 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 /* M8: 2550/6 = 425M GX: 2000/6 = 333M */
 #define HDEC_L3()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (1 << 25) | (1 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 /* M8: 2550/5 = 510M GX: 2000/5 = 400M */
 #define HDEC_L4()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (2 << 25) | (0 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 /* M8: 2550/4 = 638M GX: 2000/4 = 500M */
 #define HDEC_L5()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (0 << 25) | (0 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 /* M8: 2550/3 = 850M GX: 2000/3 = 667M */
 #define HDEC_L6()   WRITE_HHI_REG(HHI_VDEC_CLK_CNTL, \
 			 (1 << 25) | (0 << 16) | (1 << 24) | \
-			 (0xffff&READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
+			 (0xffff & READ_HHI_REG(HHI_VDEC_CLK_CNTL)))
 
 #define hvdec_clock_enable(level) \
 	do { \
@@ -87,8 +87,6 @@
 		WRITE_VREG_BITS(DOS_GCLK_EN0, 0, 12, 15); \
 		WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  0, 24, 1); \
 	} while (0)
-
-
 
 #if 0/* MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8 */
 #define USE_VDEC2
@@ -858,4 +856,5 @@ extern s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue);
 /*  */
 /* ///////////////////////////////////////////////////////////////////////// */
 
+extern bool amvenc_avc_on(void);
 #endif

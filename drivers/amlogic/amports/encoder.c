@@ -47,6 +47,9 @@
 #include "amlog.h"
 #include "amports_priv.h"
 #include <linux/of_reserved_mem.h>
+#ifdef CONFIG_AM_JPEG_ENCODER
+#include "jpegenc.h"
+#endif
 
 #define AMVENC_CANVAS_INDEX 0xE4
 #define AMVENC_CANVAS_MAX_INDEX 0xEC
@@ -460,12 +463,6 @@ const char *ucode_name[] = {
 	"vdec2_encoder_mc",
 	"h264_enc_mc_gx",
 };
-
-/*
-#ifdef CONFIG_AM_JPEG_ENCODER
-extern bool jpegenc_on(void);
-#endif
-*/
 
 static void dma_flush(u32 buf_start, u32 buf_size);
 
@@ -1214,8 +1211,10 @@ static s32 set_input_format(struct encode_wq_s *wq,
 			input = ((ENC_CANVAS_OFFSET + 8) << 16) |
 				((ENC_CANVAS_OFFSET + 7) << 8) |
 				(ENC_CANVAS_OFFSET + 6);
-		} else if (request->fmt == FMT_RGBA8888)
+		} else if (request->fmt == FMT_RGBA8888) {
+			r2y_en = 1;
 			iformat = 12;
+		}
 		ret = 0;
 	} else if (request->type == CANVAS_BUFF) {
 		r2y_en = 0;
@@ -3799,11 +3798,11 @@ static struct class_attribute amvenc_class_attrs[] = {
 };
 
 static struct class amvenc_avc_class = {
-		.name = CLASS_NAME,
-		.class_attrs = amvenc_class_attrs,
-	};
+	.name = CLASS_NAME,
+	.class_attrs = amvenc_class_attrs,
+};
 
-s32  init_avc_device(void)
+s32 init_avc_device(void)
 {
 	s32  r = 0;
 	r = register_chrdev(0, DEVICE_NAME, &amvenc_avc_fops);
