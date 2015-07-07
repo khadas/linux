@@ -173,7 +173,9 @@ retry_alloc:
 			CMA_ALLOC_SIZE - 1;
 	}
 
-	if ((vf == VFORMAT_HEVC) && hevc_workaround_needed())
+	if ((vf == VFORMAT_HEVC) &&
+		hevc_workaround_needed() &&
+		hevc_workaround)
 		vdec_dev_reg.flag |= DEC_FLAG_HEVC_WORKAROUND;
 	else
 		vdec_dev_reg.flag = 0;
