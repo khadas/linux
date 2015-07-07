@@ -223,6 +223,20 @@ static void cec_pre_init(void)
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
 }
 
+static int cec_try_to_wakeup_tv(void)
+{
+	int retry = 0;
+
+	while (retry < 3) {
+		retry++;
+		cec_imageview_on_smp();
+		msleep(5 * 1000);
+		if (hdmitx_device->hdmi_info.vsdb_phy_addr.valid != 0)
+			return 1;
+	}
+	return 0;
+}
+
 /*
  * should only used to allocate logical address
  */
@@ -232,6 +246,7 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 	struct vendor_info_data *vend_data = NULL;
 
 	int i, bool = 0;
+	int phy_addr_ok = 1;
 	const enum _cec_log_dev_addr_e player_dev[3] = {
 		CEC_PLAYBACK_DEVICE_1_ADDR,
 		CEC_PLAYBACK_DEVICE_2_ADDR,
@@ -292,13 +307,17 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 		cec_polling_online_dev(player_dev[i], &bool);
 		hdmi_print(INF, CEC "player_dev[%d]:0x%x\n", i, player_dev[i]);
 		if (bool == 0) {   /* 0 means that no any respond */
-/* If VSDB is not valid, use last or default physical address. */
+	/* If VSDB is not valid, use last or default physical address. */
 			if (hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 0) {
+				phy_addr_ok = 0;
 				hdmi_print(INF, CEC "invalid cec PhyAddr\n");
-				if (cec_phyaddr_config(0, 0))
+				if (cec_try_to_wakeup_tv()) {
+					hdmi_print(INF, CEC
+						"try to wake up tv success\n");
+				} else if (cec_phyaddr_config(0, 0)) {
 					hdmi_print(INF, CEC
 						"use last physical address\n");
-				else {
+				} else {
 					cec_phyaddr_config(0x2000, 1);
 					hdmi_print(INF, CEC
 						"use Def Phy address\n");
@@ -352,8 +371,10 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 				menu_status == DEVICE_MENU_INACTIVE)
 				break;
 			msleep(100);
-			cec_report_physical_address_smp();
-			msleep(150);
+			if (phy_addr_ok) {
+				cec_report_physical_address_smp();
+				msleep(150);
+			}
 			cec_device_vendor_id((struct cec_rx_message_t *)0);
 
 			msleep(150);
