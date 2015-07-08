@@ -3073,6 +3073,10 @@ void osd_init_hw(u32 logo_loaded)
 	request_fiq(INT_VIU_VSYNC, &osd_fiq_isr);
 #endif
 
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
+	osd_rdma_enable(1);
+#endif
+
 	return;
 }
 

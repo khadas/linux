@@ -2042,9 +2042,6 @@ static int osd_probe(struct platform_device *pdev)
 	} else
 		osd_set_reverse_hw(osd_info.index, osd_info.osd_reverse);
 
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
-	osd_rdma_enable(1);
-#endif
 	osd_log_info("osd probe OK\n");
 	return 0;
 failed2:
