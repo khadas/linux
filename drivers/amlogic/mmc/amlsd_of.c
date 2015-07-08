@@ -169,7 +169,7 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 	struct device_node *of_node = pdev->dev.of_node;
 	struct device_node *child;
 	u32 i, prop;
-	const char *str;
+	const char *str = "none";
 
 	if (of_node) {
 		child = of_node->child;
