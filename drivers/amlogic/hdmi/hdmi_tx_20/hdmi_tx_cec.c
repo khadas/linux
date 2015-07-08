@@ -47,6 +47,8 @@
 
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/amlogic/tvin/tvin.h>
+#include <linux/wakelock_android.h>
 
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
@@ -55,6 +57,8 @@
 #include <linux/of_irq.h>
 #include "hw/mach_reg.h"
 #include "hw/hdmi_tx_reg.h"
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 
 static struct hdmitx_dev *hdmitx_device;
 static struct workqueue_struct *cec_workqueue;
@@ -63,6 +67,7 @@ static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
 #ifdef CONFIG_PM
 static int cec_suspend;
+static int cec_enter_standby;
 #endif
 
 DEFINE_SPINLOCK(cec_input_key);
@@ -115,25 +120,30 @@ static unsigned int vendor_id = 0x00;
 static struct early_suspend hdmitx_cec_early_suspend_handler;
 static void hdmitx_cec_early_suspend(struct early_suspend *h)
 {
+	int phy_addr = 0;
 	hdmi_print(INF, CEC "early suspend!\n");
-	if (!hdmitx_device->hpd_state) { /* if none HDMI out,no CEC features. */
+	cec_global_info.cec_node_info[cec_global_info.my_node_index].
+		power_status = POWER_STANDBY;
+	cec_enter_standby = 1;
+	phy_addr = cec_phyaddr_config(0, 0) & 0xffff;
+	/*
+	 * if phy_addr show device is serial connected to tv
+	 * (such as TV <-> hdmi switch <-> mbox), we should try to wake up
+	 * other devices connected between tv and mbox
+	 */
+	if (!hdmitx_device->hpd_state && !(phy_addr & 0xfff)) {
 		hdmi_print(INF, CEC "HPD low!\n");
 		return;
 	}
-	cec_global_info.cec_node_info[cec_global_info.my_node_index].
-		power_status = POWER_STANDBY;
-	pr_info("CEC return, power status:%d\n",
+	hdmi_print(INF, CEC " return, power status:%d\n",
 		cec_global_info.cec_node_info[cec_global_info.my_node_index].
 			power_status);
 	if (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) {
 		cec_report_power_status(NULL);
-		msleep(50);
 		cec_menu_status_smp(DEVICE_MENU_INACTIVE);
-		msleep(50);
 		cec_inactive_source();
 		if (rc_long_press_pwr_key == 1) {
 			cec_set_standby();
-			msleep(100);
 			hdmi_print(INF, CEC "power-off from Romote Control\n");
 			rc_long_press_pwr_key = 0;
 		}
@@ -143,38 +153,65 @@ static void hdmitx_cec_early_suspend(struct early_suspend *h)
 
 static void hdmitx_cec_late_resume(struct early_suspend *h)
 {
+	int phy_addr = 0;
 	cec_enable_irq();
 	if (cec_rx_buf_check())
 		cec_rx_buf_clear();
 
 	hdmitx_device->hpd_state =
 		hdmitx_device->HWOp.CntlMisc(hdmitx_device, MISC_HPD_GPI_ST, 0);
-	if (!hdmitx_device->hpd_state) { /* if none HDMI out,no CEC features. */
+	cec_suspend = 0;
+	cec_enter_standby = 0;
+	cec_global_info.cec_node_info[cec_global_info.my_node_index].
+		power_status = POWER_ON;
+	phy_addr = cec_phyaddr_config(0, 0) & 0xffff;
+	/*
+	 * if phy_addr show device is serial connected to tv
+	 * (such as TV <-> hdmi switch <-> mbox), we should try to wake up
+	 * other devices connected between tv and mbox
+	 */
+	if (!hdmitx_device->hpd_state && !(phy_addr & 0xfff)) {
 		hdmi_print(INF, CEC "HPD low!\n");
 		return;
 	}
 
 	if (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) {
 		cec_hw_reset();/* for M8 CEC standby. */
-		msleep(20);
 		cec_imageview_on_smp();
-		msleep(30);
 		cec_active_source_smp();
-		msleep(100);
 		cec_menu_status_smp(DEVICE_MENU_ACTIVE);
 	}
 	hdmi_print(INF, CEC "late resume\n");
-	cec_global_info.cec_node_info[cec_global_info.my_node_index].
-		power_status = POWER_ON;
 }
 
 #endif
 
+struct wake_lock cec_lock;
+void cec_wake_lock(void)
+{
+	if (!cec_suspend)
+		wake_lock(&cec_lock);
+}
+
+void cec_wake_unlock(void)
+{
+	if (!cec_suspend)
+		wake_unlock(&cec_lock);
+}
+
 void cec_isr_post_process(void)
 {
-	if (!hdmitx_device->hpd_state) { /* if no HDMI out,no CEC features. */
+	int phy_addr = 0;
+
+	phy_addr = cec_phyaddr_config(0, 0) & 0xffff;
+	/*
+	 * if phy_addr show device is serial connected to tv
+	 * (such as TV <-> hdmi switch <-> mbox), we should try to wake up
+	 * other devices connected between tv and mbox
+	 */
+	if (!hdmitx_device->hpd_state && !(phy_addr & 0xfff))
 		return;
-	}
+
 	/* isr post process */
 	while (cec_global_info.cec_rx_msg_buf.rx_read_pos !=
 	       cec_global_info.cec_rx_msg_buf.rx_write_pos) {
@@ -377,18 +414,13 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 			}
 			cec_device_vendor_id((struct cec_rx_message_t *)0);
 
-			msleep(150);
 			cec_imageview_on_smp();
-			msleep(100);
 
 			cec_get_menu_language_smp();
-			msleep(350);
 
 			cec_active_source_smp();
-			msleep(120);
 
 			cec_menu_status_smp(DEVICE_MENU_ACTIVE);
-			msleep(100);
 
 			cec_global_info.cec_node_info[cec_global_info.
 				my_node_index].menu_status =
@@ -516,8 +548,9 @@ void cec_input_handle_message(void)
 		hdmi_print(INF, CEC "Error:hdmitx_device NULL!\n");
 		return;
 	}
-	/* process key event messages from tv */
-	if (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) {
+	/* process key event messages from tv if not suspend */
+	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) &&
+	    (!cec_suspend)) {
 		switch (opcode) {
 		case CEC_OC_USER_CONTROL_PRESSED:
 			/* check valid msg */
@@ -532,6 +565,13 @@ void cec_input_handle_message(void)
 		default:
 			break;
 		}
+	} else if (cec_suspend) {
+		/*
+		 * Panasonic tv will send key power and power on for resume
+		 * devices we should avoid send key again when device is
+		 * resuming from uboot to prevent devicese suspend again
+		 */
+		hdmi_print(INF, CEC "under suspend state, ignore key\n");
 	}
 }
 
@@ -783,9 +823,11 @@ irqreturn_t cec_isr_handler(int irq, void *dev_instance)
 	if ((-1) == cec_ll_rx(rx_msg, &rx_len))
 		return IRQ_HANDLED;
 
-	hdmitx = (struct hdmitx_dev *)dev_instance;
-	register_cec_rx_msg(rx_msg, rx_len);
-	queue_work(cec_workqueue, &hdmitx->cec_work);
+	if (!cec_suspend) {	/* do not process messages if suspend */
+		hdmitx = (struct hdmitx_dev *)dev_instance;
+		register_cec_rx_msg(rx_msg, rx_len);
+		queue_work(cec_workqueue, &hdmitx->cec_work);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -1010,16 +1052,24 @@ void cec_set_stream_path(struct cec_rx_message_t *pcec_message)
 
 	if (phy_addr_active == (cec_phyaddr_config(0, 0) & 0xffff)) {
 		cec_active_source_smp();
-		msleep(100);
 		/*
 		 * some types of TV such as panasonic need to send menu status,
 		 * otherwise it will not send remote key event to control
 		 * device's menu
 		 */
 		cec_menu_status_smp(DEVICE_MENU_ACTIVE);
-
-		cec_global_info.cec_node_info[cec_global_info.my_node_index]
-		    .menu_status = DEVICE_MENU_ACTIVE;
+		cec_global_info.cec_node_info[cec_global_info.my_node_index].
+			menu_status = DEVICE_MENU_ACTIVE;
+		if (cec_global_info.cec_node_info[cec_global_info.
+			my_node_index].power_status == POWER_STANDBY) {
+			hdmi_print(INF, CEC"exit standby by set stream path\n");
+			input_event(cec_global_info.remote_cec_dev,
+				    EV_KEY, KEY_POWER, 1);
+			input_sync(cec_global_info.remote_cec_dev);
+			input_event(cec_global_info.remote_cec_dev,
+				    EV_KEY, KEY_POWER, 0);
+			input_sync(cec_global_info.remote_cec_dev);
+		}
 	} else {
 		cec_global_info.cec_node_info[cec_global_info.my_node_index]
 		    .menu_status = DEVICE_MENU_INACTIVE;
@@ -1127,7 +1177,6 @@ void cec_inactive_source_rx(struct cec_rx_message_t *pcec_message)
 	 */
 	if (!(hdmitx_device->cec_func_config & (1 << ONE_TOUCH_STANDBY_MASK))) {
 		cec_menu_status_smp(DEVICE_MENU_INACTIVE);
-		msleep(100);
 		cec_inactive_source();
 	}
 	cec_global_info.cec_node_info[cec_global_info.my_node_index].menu_status
@@ -1328,10 +1377,10 @@ void cec_handle_message(struct cec_rx_message_t *pcec_message)
 			 * platform already enter standby state,
 			 * ignore this meesage
 			 */
-			if (cec_global_info.cec_node_info[cec_global_info.
-				my_node_index].power_status == POWER_STANDBY)
-				break;
-			cec_standby(pcec_message);
+			if (!cec_enter_standby) {
+				cec_enter_standby = 1;
+				cec_standby(pcec_message);
+			}
 			break;
 		case CEC_OC_SET_STREAM_PATH:
 			cec_set_stream_path(pcec_message);
@@ -1743,6 +1792,18 @@ void cec_routing_information(struct cec_rx_message_t *pcec_message)
 }
 /******************** cec middle level code end ***************************/
 
+static struct notifier_block cec_reboot_nb;
+static int cec_reboot(struct notifier_block *nb, unsigned long state, void *cmd)
+{
+	if (!hdmitx_device->hpd_state)
+		return 0;
+	if (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) {
+		hdmi_print(INF, CEC "%s, notify reboot\n", __func__);
+		cec_menu_status_smp(DEVICE_MENU_INACTIVE);
+		cec_inactive_source();
+	}
+	return 0;
+}
 
 /************************ cec high level code *****************************/
 
@@ -1818,7 +1879,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 	register_early_suspend(&hdmitx_cec_early_suspend_handler);
 #endif
-
+	wake_lock_init(&cec_lock, WAKE_LOCK_SUSPEND, "hdmi_cec");
 #ifdef CONFIG_OF
 	/* pinmux set */
 	if (of_get_property(node, "pinctrl-names", NULL)) {
@@ -1880,7 +1941,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	hdmi_print(INF, CEC "hdmitx_device->cec_init_ready:0x%x",
 	    hdmitx_device->cec_init_ready);
 	queue_work(cec_workqueue, &hdmitx_device->cec_work);	/* for init */
-
+	cec_reboot_nb.notifier_call = cec_reboot;
+	register_reboot_notifier(&cec_reboot_nb);
 	return 0;
 }
 
@@ -1902,6 +1964,7 @@ static int aml_cec_remove(struct platform_device *dev)
 	hdmitx_device->cec_init_ready = 0;
 	input_unregister_device(cec_global_info.remote_cec_dev);
 	cec_global_info.cec_flag.cec_fiq_flag = 0;
+	unregister_reboot_notifier(&cec_reboot_nb);
 	return 0;
 }
 
@@ -1917,15 +1980,24 @@ static int aml_cec_pm_prepare(struct device *dev)
 
 static void aml_cec_pm_complete(struct device *dev)
 {
-	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK))) {
-		cec_suspend = 0;
+	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
 		hdmi_print(INF, CEC "cec complete suspend!\n");
+}
+
+static int aml_cec_resume_noirq(struct device *dev)
+{
+	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK))) {
+		hdmi_print(INF, CEC "cec resume noirq!\n");
+		cec_global_info.cec_node_info[cec_global_info.my_node_index].
+			power_status = TRANS_STANDBY_TO_ON;
 	}
+	return 0;
 }
 
 static const struct dev_pm_ops aml_cec_pm = {
 	.prepare  = aml_cec_pm_prepare,
 	.complete = aml_cec_pm_complete,
+	.resume_noirq = aml_cec_resume_noirq,
 };
 #endif
 

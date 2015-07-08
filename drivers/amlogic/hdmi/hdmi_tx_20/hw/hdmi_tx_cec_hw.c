@@ -31,6 +31,25 @@ static DEFINE_MUTEX(cec_mutex);
 
 unsigned int cec_int_disable_flag = 0;
 static unsigned char msg_log_buf[128] = { 0 };
+static int cec_ll_trigle_tx(void);
+
+struct cec_tx_msg_t {
+	unsigned char buf[16];
+	unsigned int  retry;
+	unsigned int  busy;
+	unsigned int  len;
+};
+
+#define CEX_TX_MSG_BUF_NUM	8
+#define CEC_TX_MSG_BUF_MASK	(CEX_TX_MSG_BUF_NUM - 1)
+
+struct cec_tx_msg {
+	struct cec_tx_msg_t msg[CEX_TX_MSG_BUF_NUM];
+	unsigned int send_idx;
+	unsigned int queue_idx;
+};
+
+struct cec_tx_msg cec_tx_msgs = {};
 
 void cec_disable_irq(void)
 {
@@ -70,6 +89,7 @@ void cec_hw_reset(void)
 	cec_arbit_bit_time_set(5, 0x000, 0);
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
 
+	memset(&cec_tx_msgs, 0, sizeof(struct cec_tx_msg));
 	hdmi_print(INF, CEC "hw reset :logical addr:0x%x\n",
 		aocec_rd_reg(CEC_LOGICAL_ADDR0));
 }
@@ -84,9 +104,24 @@ void cec_rx_buf_clear(void)
 int cec_rx_buf_check(void)
 {
 	unsigned long rx_num_msg = aocec_rd_reg(CEC_RX_NUM_MSG);
-
+	unsigned tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
 	if (rx_num_msg)
 		hdmi_print(INF, CEC "rx msg num:0x%02x\n", rx_num_msg);
+
+	if (tx_status == TX_BUSY) {
+		cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy++;
+		if (cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy >= 7) {
+			hdmi_print(INF, CEC "tx busy too long, reset hw\n");
+			cec_hw_reset();
+			cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy = 0;
+		}
+	}
+	if (tx_status == TX_IDLE) {
+		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
+			/* triggle tx if idle */
+			cec_ll_trigle_tx();
+		}
+	}
 
 	return rx_num_msg;
 }
@@ -131,55 +166,73 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	return ret;
 }
 
+int cec_queue_tx_msg(const unsigned char *msg, unsigned char len)
+{
+	int s_idx, q_idx;
+
+	s_idx = cec_tx_msgs.send_idx;
+	q_idx = cec_tx_msgs.queue_idx;
+	if (s_idx == q_idx) {
+		/*
+		 * cec is slow speed device, we need wait messages send
+		 * finished before suspend
+		 */
+		cec_wake_lock();
+	}
+	if (((q_idx + 1) & CEC_TX_MSG_BUF_MASK) == s_idx) {
+		hdmi_print(INF, CEC "tx buffer full, abort msg\n");
+		cec_hw_reset();
+		return -1;
+	}
+	if (len && msg) {
+		memcpy(cec_tx_msgs.msg[q_idx].buf, msg, len);
+		cec_tx_msgs.msg[q_idx].len = len;
+		cec_tx_msgs.queue_idx = (q_idx + 1) & CEC_TX_MSG_BUF_MASK;
+	}
+	return 0;
+}
 
 /************************ cec arbitration cts code **************************/
 /* using the cec pin as fiq gpi to assist the bus arbitration */
 
 /* return value: 1: successful	  0: error */
-static int cec_ll_tx_once(const unsigned char *msg, unsigned char len)
+static int cec_ll_trigle_tx(void)
 {
 	int i;
-	unsigned int ret = 0xf;
 	unsigned int n;
-	unsigned int cnt = 20;
 	int pos;
+	int reg = aocec_rd_reg(CEC_TX_MSG_STATUS);
+	unsigned int s_idx;
+	int len;
+	char *msg;
 
-	while (aocec_rd_reg(CEC_TX_MSG_STATUS) ||
-		aocec_rd_reg(CEC_RX_MSG_STATUS)) {
-		msleep(20);
-		if (TX_ERROR == aocec_rd_reg(CEC_TX_MSG_STATUS)) {
-			if (cec_msg_dbg_en == 1)
-				hdmi_print(INF, CEC "tx once:tx error!\n");
-			/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-			/* cec_hw_reset(); */
-			break;
+	if (reg == TX_IDLE || reg == TX_DONE) {
+		s_idx = cec_tx_msgs.send_idx;
+		msg = cec_tx_msgs.msg[s_idx].buf;
+		len = cec_tx_msgs.msg[s_idx].len;
+		for (i = 0; i < len; i++)
+			aocec_wr_reg(CEC_TX_MSG_0_HEADER + i, msg[i]);
+
+		aocec_wr_reg(CEC_TX_MSG_LENGTH, len-1);
+		aocec_wr_reg(CEC_TX_MSG_CMD, TX_REQ_CURRENT);
+
+		if (cec_msg_dbg_en  == 1) {
+			pos = 0;
+			pos += sprintf(msg_log_buf + pos,
+				       "CEC: tx msg len: %d   dat: ", len);
+			for (n = 0; n < len; n++) {
+				pos += sprintf(msg_log_buf + pos,
+					       "%02x ", msg[n]);
+			}
+
+			pos += sprintf(msg_log_buf + pos, "\n");
+
+			msg_log_buf[pos] = '\0';
+			pr_info("%s", msg_log_buf);
 		}
-		if (!(cnt--)) {
-			if (cec_msg_dbg_en == 1)
-				hdmi_print(INF, CEC "tx busy time out.\n");
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-			break;
-		}
+		return 0;
 	}
-	for (i = 0; i < len; i++)
-		aocec_wr_reg(CEC_TX_MSG_0_HEADER + i, msg[i]);
-	aocec_wr_reg(CEC_TX_MSG_LENGTH, len-1);
-	aocec_wr_reg(CEC_TX_MSG_CMD, TX_REQ_CURRENT);
-
-	if (cec_msg_dbg_en == 1) {
-		pos = 0;
-		pos += sprintf(msg_log_buf + pos,
-			"CEC: tx msg len: %d   dat: ", len);
-		for (n = 0; n < len; n++)
-			pos += sprintf(msg_log_buf + pos, "%02x ", msg[n]);
-		pos += sprintf(msg_log_buf + pos, "\n");
-
-		msg_log_buf[pos] = '\0';
-		pr_info("%s", msg_log_buf);
-	}
-	return ret;
+	return -1;
 }
 
 int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
@@ -208,7 +261,7 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 		if (!(j--)) {
 			if (cec_msg_dbg_en  == 1)
 				hdmi_print(INF, CEC "tx busy time out.\n");
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+			/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
 			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 			break;
 		}
@@ -267,27 +320,62 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 void tx_irq_handle(void)
 {
 	unsigned tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
+	unsigned int s_idx;
 	switch (tx_status) {
 	case TX_DONE:
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
+		s_idx = cec_tx_msgs.send_idx;
+		cec_tx_msgs.msg[s_idx].busy = 0;
+		/*
+		 * we should not increase send idx if there is nothing to send
+		 * but got tx done irq. This can happen when resume from uboot
+		 */
+		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
+			cec_tx_msgs.send_idx = (cec_tx_msgs.send_idx + 1) &
+						CEC_TX_MSG_BUF_MASK;
+		}
+		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
+			cec_ll_trigle_tx();
+		} else {
+			hdmi_print(INF, CEC "@TX_FINISHED\n");
+			cec_wake_unlock();    /* unlock */
+		}
 		break;
+
 	case TX_BUSY:
-		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
+		s_idx = cec_tx_msgs.send_idx;
+		cec_tx_msgs.msg[s_idx].busy++;
+		hdmi_print(INF, CEC "TX_BUSY\n");
 		break;
+
 	case TX_ERROR:
 		if (cec_msg_dbg_en  == 1)
 			hdmi_print(INF, CEC "TX ERROR!!!\n");
-
-		if (RX_ERROR == aocec_rd_reg(CEC_RX_MSG_STATUS))
+		if (RX_ERROR == aocec_rd_reg(CEC_RX_MSG_STATUS)) {
 			cec_hw_reset();
-		else
+		} else {
 			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
+			s_idx = cec_tx_msgs.send_idx;
+			if (cec_tx_msgs.msg[s_idx].retry < 5) {
+				cec_tx_msgs.msg[s_idx].retry++;
+				cec_ll_trigle_tx();
+			} else {
+				hdmi_print(INF, CEC "TX retry over, abort\n");
+				cec_tx_msgs.send_idx =
+					(cec_tx_msgs.send_idx + 1) &
+					CEC_TX_MSG_BUF_MASK;
+			}
+		}
+		break;
 
-		/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP); */
+	case TX_IDLE:
+		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
+			/* triggle tx if idle */
+			cec_ll_trigle_tx();
+		}
 		break;
 	default:
-	break;
+		break;
 	}
 	hd_write_reg(P_AO_CEC_INTR_CLR, (1 << 1));
 	/* hd_write_reg(P_AO_CEC_INTR_MASKN, */
@@ -304,8 +392,8 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	mutex_lock(&cec_mutex);
 	/* hd_write_reg(P_AO_CEC_INTR_MASKN, */
 	/* hd_read_reg(P_AO_CEC_INTR_MASKN) & ~(1 << 2)); */
-	cec_ll_tx_once(msg, len);
-
+	cec_queue_tx_msg(msg, len);
+	cec_ll_trigle_tx();
 	mutex_unlock(&cec_mutex);
 
 	return ret;
@@ -393,6 +481,8 @@ void ao_cec_init(void)
 
 	/* Device 0 config */
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, (0x1 << 4) | 0x4);
+	memset(&cec_tx_msgs, 0, sizeof(struct cec_tx_msg));
+	cec_wake_unlock();
 }
 
 

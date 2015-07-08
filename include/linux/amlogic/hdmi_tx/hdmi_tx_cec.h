@@ -594,6 +594,9 @@ void cec_set_standby(void);
 void cec_isr_post_process(void);
 void cec_clear_buf(unsigned int flag);
 void cec_keep_reset(void);
+void cec_wake_lock(void);
+void cec_wake_unlock(void);
+
 void cec_tx_irq_handle(void);
 unsigned int cec_config(unsigned int value, bool wr_flag);
 unsigned int cec_phyaddr_config(unsigned int value, bool wr_flag);
