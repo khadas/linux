@@ -439,11 +439,10 @@ static int set_disp_mode_auto(void)
 
 	/* get current vinfo */
 	info = hdmi_get_current_vinfo();
-	if (info == NULL) {
-		hdmi_print(ERR, VID "cann't get valid mode\n");
+	hdmi_print(IMP, VID "get current mode: %s\n",
+		info ? info->name : "null");
+	if (info == NULL)
 		return -1;
-	} else
-		hdmi_print(IMP, VID "get current mode: %s\n", info->name);
 
 	/* If info->name equals to cvbs, then set mode to I mode to hdmi
 	 */
