@@ -3799,8 +3799,9 @@ static void hevc_local_uninit(void)
 	gHevc.rpm_ptr = NULL;
 
 	if (gHevc.rpm_addr) {
-		dma_free_coherent(amports_get_dma_device(),
-			RPM_BUF_SIZE, gHevc.rpm_addr, gHevc.rpm_phy_addr);
+		dma_unmap_single(amports_get_dma_device(),
+			gHevc.rpm_phy_addr, RPM_BUF_SIZE, DMA_FROM_DEVICE);
+		kfree(gHevc.rpm_addr);
 		gHevc.rpm_addr = NULL;
 	}
 	if (gHevc.lmem_ptr) {
@@ -3838,10 +3839,19 @@ static int hevc_local_init(void)
 	bit_depth_chroma = 8;
 
 	if ((debug & H265_DEBUG_SEND_PARAM_WITH_REG) == 0) {
-		gHevc.rpm_addr = dma_alloc_coherent(amports_get_dma_device(),
-			RPM_BUF_SIZE, &gHevc.rpm_phy_addr, GFP_KERNEL);
-		if (!gHevc.rpm_addr) {
+		gHevc.rpm_addr = kmalloc(RPM_BUF_SIZE, GFP_KERNEL);
+		if (gHevc.rpm_addr == NULL) {
 			pr_err("%s: failed to alloc rpm buffer\n", __func__);
+			return -1;
+		}
+
+		gHevc.rpm_phy_addr = dma_map_single(amports_get_dma_device(),
+			gHevc.rpm_addr, RPM_BUF_SIZE, DMA_FROM_DEVICE);
+		if (dma_mapping_error(amports_get_dma_device(),
+			gHevc.rpm_phy_addr)) {
+			pr_err("%s: failed to map rpm buffer\n", __func__);
+			kfree(gHevc.rpm_addr);
+			gHevc.rpm_addr = NULL;
 			return -1;
 		}
 
@@ -4623,6 +4633,12 @@ static irqreturn_t vh265_isr(int irq, void *dev_id)
 			if (debug & H265_DEBUG_SEND_PARAM_WITH_REG)
 				get_rpm_param(&rpm_param);
 			else {
+				dma_sync_single_for_cpu(
+					amports_get_dma_device(),
+					gHevc.rpm_phy_addr,
+					RPM_BUF_SIZE,
+					DMA_FROM_DEVICE);
+
 				for (i = 0; i < (RPM_END - RPM_BEGIN); i += 4) {
 					int ii;
 					for (ii = 0; ii < 4; ii++) {
