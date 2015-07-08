@@ -177,15 +177,15 @@ static int aml_i2s_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 		*/
 		buf->area = dma_alloc_coherent(pcm->card->dev, size + 4096,
 					       &buf->addr, GFP_KERNEL);
-
 		if (!buf->area) {
 			pr_info("alloc playback DMA buffer error\n");
 			kfree(tmp_buf);
 			buf->private_data = NULL;
 			return -ENOMEM;
 		}
+		buf->bytes = size;
 		/* malloc tmp buffer */
-		size = aml_i2s_hardware.period_bytes_max;
+		size = aml_i2s_hardware.buffer_bytes_max;
 		tmp_buf->buffer_start = kzalloc(size, GFP_KERNEL);
 		if (tmp_buf->buffer_start == NULL) {
 			pr_info("alloc playback tmp buffer error\n");
@@ -209,7 +209,7 @@ static int aml_i2s_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 			buf->private_data = NULL;
 			return -ENOMEM;
 		}
-
+		buf->bytes = size;
 		/* malloc tmp buffer */
 		size = aml_i2s_capture.period_bytes_max;
 		tmp_buf->buffer_start = kzalloc(size, GFP_KERNEL);
@@ -222,7 +222,6 @@ static int aml_i2s_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 		tmp_buf->buffer_size = size;
 	}
 
-	buf->bytes = size;
 	return 0;
 
 }
@@ -615,6 +614,11 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	n = frames_to_bytes(runtime, count);
 	if (aml_i2s_playback_enable == 0 && s->device_type == AML_AUDIO_I2SOUT)
 		return res;
+	if (n > tmp_buf->buffer_size) {
+		pr_info("[%s]FATAL_ERR:UserData/%d > buffer_size/%d\n",
+				__func__ , n, tmp_buf->buffer_size);
+		return -EFAULT;
+	}
 	res = copy_from_user(ubuf, buf, n);
 	if (res)
 		return -EFAULT;
