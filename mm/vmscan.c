@@ -50,6 +50,7 @@
 
 #include <linux/swapops.h>
 #include <linux/balloon_compaction.h>
+#include <linux/page-isolation.h>
 
 #include "internal.h"
 
@@ -130,7 +131,7 @@ struct scan_control {
 /*
  * From 0 .. 100.  Higher means more swappy.
  */
-int vm_swappiness = 60;
+int vm_swappiness = 80;
 unsigned long vm_total_pages;	/* The total number of pages which the VM controls */
 
 static LIST_HEAD(shrinker_list);
@@ -1110,7 +1111,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 		if (!mapping || !__remove_mapping(mapping, page))
 			goto keep_locked;
-
 		/*
 		 * At this point, we have no other references and there is
 		 * no way to pick any more up (removed from LRU, removed
@@ -1204,7 +1204,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 int __isolate_lru_page(struct page *page, isolate_mode_t mode)
 {
 	int ret = -EINVAL;
-	unsigned long free_cma, total_free;
+	unsigned long free_cma = 0, total_free = 0;
 
 	if (!(mode & ISOLATE_UNEVICTABLE)) {
 #if 1
@@ -1213,10 +1213,11 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
 		total_free = global_page_state(NR_FREE_PAGES);
 		if (page) {
 			if ((free_cma > total_free) &&
-				is_migrate_cma(
-					   get_pageblock_migratetype(page))) {
-				return -EBUSY;
-			}
+				(is_migrate_cma(
+					   get_pageblock_migratetype(page))
+				 || is_migrate_isolate(
+					   get_pageblock_migratetype(page))))
+				return ret;
 		}
 #endif
 	}
@@ -1307,12 +1308,16 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		isolate_mode_t mode, enum lru_list lru)
 {
 	struct list_head *src = &lruvec->lists[lru];
+	struct list_head *src_head = src;
 	unsigned long nr_taken = 0;
 	unsigned long scan;
 
 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
 		struct page *page;
 		int nr_pages;
+
+		if (src->prev == src_head)
+			goto isolate_finish;
 
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
@@ -1331,12 +1336,15 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			/* else it is being freed elsewhere */
 			list_move(&page->lru, src);
 			continue;
-
+		case -EINVAL:
+			src = src->prev;
+			scan--;
+			break;
 		default:
 			BUG();
 		}
 	}
-
+isolate_finish:
 	*nr_scanned = scan;
 	trace_mm_vmscan_lru_isolate(sc->order, nr_to_scan, scan,
 				    nr_taken, mode, is_file_lru(lru));

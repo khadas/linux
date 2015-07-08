@@ -18,6 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "nl80211.h"
@@ -280,7 +281,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 
-	rdev = kzalloc(alloc_size, GFP_KERNEL);
+	rdev = vzalloc(alloc_size);
 	if (!rdev)
 		return NULL;
 
@@ -291,7 +292,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	if (unlikely(rdev->wiphy_idx < 0)) {
 		/* ugh, wrapped! */
 		atomic_dec(&wiphy_counter);
-		kfree(rdev);
+		vfree(rdev);
 		return NULL;
 	}
 
@@ -330,7 +331,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 				   &rdev->rfkill_ops, rdev);
 
 	if (!rdev->rfkill) {
-		kfree(rdev);
+		vfree(rdev);
 		return NULL;
 	}
 
@@ -696,7 +697,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&rdev->wiphy, &scan->pub);
-	kfree(rdev);
+	vfree(rdev);
 }
 
 void wiphy_free(struct wiphy *wiphy)

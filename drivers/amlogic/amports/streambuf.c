@@ -26,6 +26,7 @@
 #include <linux/amlogic/iomap.h>
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 /* #include <mach/am_regs.h> */
 
 #include "vdec_reg.h"
@@ -140,8 +141,7 @@ int stbuf_fetch_init(void)
 	if (NULL != fetchbuf)
 		return 0;
 
-	fetchbuf =
-		(void *)__get_free_pages(GFP_KERNEL, get_order(FETCHBUF_SIZE));
+	fetchbuf = vmalloc(FETCHBUF_SIZE);
 
 	if (!fetchbuf) {
 		pr_info("%s: Can not allocate fetch working buffer\n",
@@ -154,7 +154,7 @@ int stbuf_fetch_init(void)
 void stbuf_fetch_release(void)
 {
 	if (fetchbuf) {
-		free_pages((unsigned long)fetchbuf, get_order(FETCHBUF_SIZE));
+		vfree(fetchbuf);
 		fetchbuf = 0;
 	}
 

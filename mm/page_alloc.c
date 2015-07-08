@@ -1625,7 +1625,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 			int migratetype)
 {
 	unsigned long flags;
-	struct page *page;
+	struct page *page, *tmp_page = NULL;
 	int cold = !!(gfp_flags & __GFP_COLD);
 
 again:
@@ -1670,7 +1670,20 @@ again:
 					  get_pageblock_migratetype(page));
 				goto alloc_sucess;
 			}
+		} else if (migratetype == MIGRATE_MOVABLE) {
+			if (get_pageblock_migratetype(page) != MIGRATE_CMA) {
+				spin_lock(&zone->lock);
+				tmp_page = __rmqueue(zone, order, MIGRATE_CMA);
+				spin_unlock(&zone->lock);
+				if (!tmp_page)
+					goto use_pcp_page;
+				page = tmp_page;
+				__mod_zone_freepage_state(zone, -(1 << order),
+					  get_pageblock_migratetype(page));
+				goto alloc_sucess;
+			}
 		}
+use_pcp_page:
 #endif
 		list_del(&page->lru);
 		pcp->count--;
@@ -2925,7 +2938,6 @@ out:
 		goto retry_cpuset;
 
 	memcg_kmem_commit_charge(page, memcg, order);
-
 	return page;
 }
 EXPORT_SYMBOL(__alloc_pages_nodemask);
@@ -5769,7 +5781,6 @@ static void __setup_per_zone_wmarks(void)
 		do_div(min, lowmem_pages);
 		low = (u64)pages_low * zone->managed_pages;
 		do_div(low, vm_total_pages);
-
 		if (is_highmem(zone)) {
 			/*
 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
@@ -5794,9 +5805,9 @@ static void __setup_per_zone_wmarks(void)
 		}
 
 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) +
-					low + (min >> 2);
+					(min >> 2);
 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) +
-					low + (min >> 1);
+					(min >> 1);
 
 		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
 			high_wmark_pages(zone) - low_wmark_pages(zone) -

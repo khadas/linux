@@ -225,7 +225,7 @@ comment "Default contiguous memory area size:"
 config CMA_SIZE_MBYTES
 	int "Size in Mega Bytes"
 	depends on !CMA_SIZE_SEL_PERCENTAGE
-	default 16
+	default 8
 	help
 	  Defines the size (in MiB) of the default memory area for Contiguous
 	  Memory Allocator.
