@@ -46,9 +46,9 @@ struct canvas_s {
 
 #define PPMGR_CANVAS_INDEX 0x70
 #define PPMGR_DOUBLE_CANVAS_INDEX 0x74  /*for double canvas use*/
-#define PPMGR_DEINTERLACE_BUF_CANVAS 0x77   /*for progressive mjpeg use*/
+#define PPMGR_DEINTERLACE_BUF_CANVAS 0x7a   /*for progressive mjpeg use*/
 /*for progressive mjpeg (nv21 output)use*/
-#define PPMGR_DEINTERLACE_BUF_NV21_CANVAS 0x7a
+#define PPMGR_DEINTERLACE_BUF_NV21_CANVAS 0x7e
 
 #define PPMGR2_MAX_CANVAS 8
 #define PPMGR2_CANVAS_INDEX 0x70    /* 0x70-0x7f for PPMGR2 (IONVIDEO)/ */

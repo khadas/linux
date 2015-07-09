@@ -109,8 +109,8 @@ static struct dec_sysinfo vh264_4k2k_amstream_dec_info;
 static dma_addr_t mc_dma_handle;
 static void *mc_cpu_addr;
 
-#define AMVDEC_H264_4K2K_CANVAS_INDEX 0x78
-#define AMVDEC_H264_4K2K_CANVAS_MAX 0xbf
+#define AMVDEC_H264_4K2K_CANVAS_INDEX 0x80
+#define AMVDEC_H264_4K2K_CANVAS_MAX 0xc6
 static DEFINE_SPINLOCK(lock);
 static int fatal_error;
 

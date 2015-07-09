@@ -54,7 +54,7 @@
 /*#include <mach/mod_gate.h>*/
 /*#endif*/
 
-#define VF_POOL_SIZE 4
+#define VF_POOL_SIZE 7
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
 #define ASS_POOL_SIZE 2
 #else
@@ -136,11 +136,15 @@ void ppmgr_vf_put_dec(struct vframe_s *vf);*/
  *   Canvas helpers.
  *
  *************************************************/
-static u32 ppmgr_canvas_tab[4] = {
+static u32 ppmgr_canvas_tab[8] = {
 PPMGR_CANVAS_INDEX + 0,
 PPMGR_CANVAS_INDEX + 1,
 PPMGR_CANVAS_INDEX + 2,
-PPMGR_CANVAS_INDEX + 3};
+PPMGR_CANVAS_INDEX + 3,
+PPMGR_CANVAS_INDEX + 4,
+PPMGR_CANVAS_INDEX + 5,
+PPMGR_CANVAS_INDEX + 6,
+PPMGR_CANVAS_INDEX + 7};
 u32 index2canvas(u32 index)
 {
 	return ppmgr_canvas_tab[index];
