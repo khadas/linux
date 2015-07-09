@@ -1421,8 +1421,9 @@ static ssize_t store_event(struct class *class,
 				int ret;
 				if (!param_str)
 					return -EINVAL;
-				ret = kstrtoul(param_str + 1, 16, &value);
-				if (!ret)
+				ret = kstrtoul(param_str+1, 0,
+				(unsigned long *)&value);
+				if (ret < 0)
 					return -EINVAL;
 				tsync_avevent(avevent_token[i].event,
 						value);
