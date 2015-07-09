@@ -226,6 +226,54 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 
 DEVICE_ATTR(time_out, 0666, time_out_show, time_out_store);
 
+static int suspend_reason;
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					 u64 arg2)
+{
+	register long x0 asm("x0") = function_id;
+	register long x1 asm("x1") = arg0;
+	register long x2 asm("x2") = arg1;
+	register long x3 asm("x3") = arg2;
+	asm volatile(
+			__asmeq("%0", "x0")
+			__asmeq("%1", "x1")
+			__asmeq("%2", "x2")
+			__asmeq("%3", "x3")
+			"smc	#0\n"
+		: "+r" (x0)
+		: "r" (x1), "r" (x2), "r" (x3));
+
+	return x0;
+}
+
+ssize_t suspend_reason_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	unsigned  len;
+
+	len = sprintf(buf, "%d\n", suspend_reason);
+
+	return len;
+}
+ssize_t suspend_reason_store(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
+{
+	int ret;
+
+	ret = sscanf(buf, "%d", &suspend_reason);
+
+	switch (ret) {
+	case 1:
+		__invoke_psci_fn_smc(0x82000042, suspend_reason, 0, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return count;
+}
+
+DEVICE_ATTR(suspend_reason, 0666, suspend_reason_show, suspend_reason_store);
+
 static int __init meson_pm_probe(struct platform_device *pdev)
 {
 	pr_info(KERN_INFO "enter meson_pm_probe!\n");
@@ -245,6 +293,7 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 	exit_reg = of_iomap(pdev->dev.of_node, 1);
 	writel(0x0, debug_reg);
 	device_create_file(&pdev->dev, &dev_attr_time_out);
+	device_create_file(&pdev->dev, &dev_attr_suspend_reason);
 	device_rename(&pdev->dev, "aml_pm");
 	pr_info("meson_pm_probe done\n");
 	return 0;
