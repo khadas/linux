@@ -63,9 +63,10 @@
 #define AML_UART_RX_EMPTY		BIT(20)
 #define AML_UART_TX_FULL		BIT(21)
 #define AML_UART_TX_EMPTY		BIT(22)
+#define AML_UART_RX_FIFO_OVERFLOW	BIT(24)
 #define AML_UART_ERR			(AML_UART_PARITY_ERR | \
 					 AML_UART_FRAME_ERR  | \
-					 AML_UART_TX_FIFO_WERR)
+					 AML_UART_RX_FIFO_OVERFLOW)
 
 /* AML_UART_CONTROL bits */
 #define AML_UART_TWO_WIRE_EN		BIT(15)
@@ -225,7 +226,7 @@ static void meson_receive_chars(struct uart_port *port)
 		status = readl(port->membase + AML_UART_STATUS);
 
 		if (status & AML_UART_ERR) {
-			if (status & AML_UART_TX_FIFO_WERR)
+			if (status & AML_UART_RX_FIFO_OVERFLOW)
 				port->icount.overrun++;
 			else if (status & AML_UART_FRAME_ERR)
 				port->icount.frame++;
@@ -241,7 +242,8 @@ static void meson_receive_chars(struct uart_port *port)
 			writel(mode, port->membase + AML_UART_CONTROL);
 
 			status &= port->read_status_mask;
-			if (status & AML_UART_FRAME_ERR)
+			if (status & (AML_UART_FRAME_ERR |
+				AML_UART_RX_FIFO_OVERFLOW))
 				flag = TTY_FRAME;
 			else if (status & AML_UART_PARITY_ERR)
 				flag = TTY_PARITY;
@@ -250,12 +252,15 @@ static void meson_receive_chars(struct uart_port *port)
 		ch = readl(port->membase + AML_UART_RFIFO);
 		ch &= 0xff;
 
+		uart_insert_char(port, status, AML_UART_RX_FIFO_OVERFLOW,
+				 ch, flag);
+		/*
 		if ((status & port->ignore_status_mask) == 0)
 			tty_insert_flip_char(tport, ch, flag);
 
 		if (status & AML_UART_TX_FIFO_WERR)
 			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
-
+		*/
 	} while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY));
 	spin_unlock(&port->lock);
 
@@ -320,8 +325,19 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 #endif
 	val = readl(port->membase + AML_UART_REG5);
 	val &= ~AML_UART_BAUD_MASK;
-	val = (port->uartclk / 3) / baud  - 1;
-	val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL);
+	if (port->uartclk == 24000000) {
+		pr_info("ttyS%d use xtal %d change %ld to %ld\n",
+			port->line, port->uartclk,
+			mup->baud, baud);
+		val = (port->uartclk / 3) / baud  - 1;
+		val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL);
+	} else {
+		pr_info("ttyS%d use clk81 %d change %ld to %ld\n",
+			port->line, port->uartclk,
+			mup->baud, baud);
+		val = ((port->uartclk * 10 / (baud * 4) + 5) / 10) - 1;
+		val |= AML_UART_BAUD_USE;
+	}
 	writel(val, port->membase + AML_UART_REG5);
 
 	mup->baud = baud;
@@ -384,7 +400,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 	baud = uart_get_baud_rate(port, termios, old, 9600, 4000000);
 	meson_uart_change_speed(port, baud);
 
-	port->read_status_mask = AML_UART_TX_FIFO_WERR;
+	port->read_status_mask = AML_UART_RX_FIFO_OVERFLOW;
 	if (iflags & INPCK)
 		port->read_status_mask |= AML_UART_PARITY_ERR |
 		    AML_UART_FRAME_ERR;
@@ -650,6 +666,51 @@ static int meson_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int meson_uart_resume(struct platform_device *pdev)
+{
+	struct uart_port *port;
+	u32 val;
+
+	port = platform_get_drvdata(pdev);
+	if (port) {
+		if (port->line == 0)
+			return 0;
+		uart_resume_port(&meson_uart_driver, port);
+	}
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	if (!(val & AML_UART_TWO_WIRE_EN)) {
+		val &= ~(0x1 << 31);
+		writel(val, port->membase + AML_UART_CONTROL);
+	}
+
+	return 0;
+}
+
+static int meson_uart_suspend(struct platform_device *pdev,
+	pm_message_t state)
+{
+	struct uart_port *port;
+	u32 val;
+
+	port = platform_get_drvdata(pdev);
+	if (port) {
+		if (port->line == 0)
+			return 0;
+		uart_suspend_port(&meson_uart_driver, port);
+	}
+	val = readl(port->membase + AML_UART_CONTROL);
+	/* if rts/cts is open, pull up rts pin
+		when in suspend */
+	if (!(val & AML_UART_TWO_WIRE_EN)) {
+		pr_info("pull up rts");
+		val |= (0x1 << 31);
+		writel(val, port->membase + AML_UART_CONTROL);
+	}
+
+	return 0;
+}
+
 static const struct of_device_id meson_uart_dt_match[] = {
 	{.compatible = "amlogic, meson-uart"},
 	{ /* sentinel */ },
@@ -660,6 +721,8 @@ MODULE_DEVICE_TABLE(of, meson_uart_dt_match);
 static struct platform_driver meson_uart_platform_driver = {
 	.probe = meson_uart_probe,
 	.remove = meson_uart_remove,
+	.suspend	= meson_uart_suspend,
+	.resume		= meson_uart_resume,
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = "meson_uart",
