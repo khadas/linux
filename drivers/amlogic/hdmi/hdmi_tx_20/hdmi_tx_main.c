@@ -1041,8 +1041,10 @@ static ssize_t show_hpd_state(struct device *dev,
 {
 	int pos = 0;
 
-	hdmitx_device.hpd_state = hdmitx_device.HWOp.CntlMisc(
-		&hdmitx_device, MISC_HPD_GPI_ST, 0);
+	if (hdmitx_device.hpd_lock == 0) {
+		hdmitx_device.hpd_state = hdmitx_device.HWOp.CntlMisc(
+			&hdmitx_device, MISC_HPD_GPI_ST, 0);
+	}
 	pos += snprintf(buf+pos, PAGE_SIZE, "%d",
 		hdmitx_device.hpd_state);
 	return pos;
