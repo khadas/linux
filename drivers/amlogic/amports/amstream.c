@@ -128,7 +128,7 @@ void debug_file_write(const char __user *buf, size_t count)
 #endif
 
 #define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*12)
-#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*30)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*40)
 
 #define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
 #define DEFAULT_SUBTITLE_BUFFER_SIZE     (1024*256)

@@ -101,7 +101,7 @@
 			compatible = "shared-dma-pool";
 			linux,phandle = <2>;
 			reusable;
-			size = <0x0 0x12000000>;
+			size = <0x0 0x13000000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*vm_reserved:linux,vm {
