@@ -763,13 +763,7 @@ static ssize_t codec_fatal_err_store(struct class *cla,
 static ssize_t digital_raw_show(struct class *cla, struct class_attribute *attr,
 				char *buf)
 {
-	static char *digital_format[] = {
-		"0 - PCM",
-		"1 - RAW w/o over clock",
-		"2 - RAW w/  over clock",
-	};
 	char *pbuf = buf;
-	pr_info("Digital output mode: %s\n", digital_format[IEC958_mode_raw]);
 	pbuf += sprintf(pbuf, "%d\n", IEC958_mode_raw);
 	return pbuf - buf;
 }
@@ -859,11 +853,14 @@ static ssize_t audio_samesource_show(struct class *cla,
 	samesource =
 	    (aml_read_cbus(AIU_MEM_IEC958_START_PTR) ==
 	     aml_read_cbus(AIU_MEM_I2S_START_PTR));
+
 	/* make sure i2s/958 same source.and both enabled */
-	if ((samesource && i2s_enable && !iec958_enable) || !audio_samesource) {
-		samesource = 0;
-		if (audio_samesource == 0)
-			audio_samesource = 1;
+	if (samesource == 0) {
+		if ((i2s_enable && iec958_enable) || !audio_samesource) {
+			samesource = 2;
+			if (audio_samesource == 0)
+				audio_samesource = 1;
+		}
 	}
 	pbuf += sprintf(pbuf, "%d\n", samesource);
 	return pbuf - buf;
