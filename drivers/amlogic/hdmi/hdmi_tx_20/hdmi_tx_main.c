@@ -369,9 +369,6 @@ static int is_similar_hdmi_vic(enum hdmi_vic vic_old,
 {
 	pr_info("%s[%d] vic_old=%d,mode_new=%d\n", __func__, __LINE__,
 		vic_old, mode_new);
-	if ((vic_old == HDMI_480p60_16x9) && (mode_new ==
-		VMODE_480P_59HZ))
-		return 1;
 	if ((vic_old == HDMI_720p60) && (mode_new == VMODE_720P_59HZ))
 		return 1;
 	if ((vic_old == HDMI_1080i60) && (mode_new == VMODE_1080I_59HZ))
@@ -383,6 +380,10 @@ static int is_similar_hdmi_vic(enum hdmi_vic vic_old,
 	if ((vic_old == HDMI_4k2k_30) && (mode_new == VMODE_4K2K_29HZ))
 		return 1;
 	if ((vic_old == HDMI_4k2k_24) && (mode_new == VMODE_4K2K_23HZ))
+		return 1;
+	if ((vic_old == HDMI_4k2k_60) && (mode_new == VMODE_4K2K_59HZ))
+		return 1;
+	if ((vic_old == HDMI_4k2k_60) && (mode_new == VMODE_4K2K_59HZ_Y420))
 		return 1;
 
 	return 0;

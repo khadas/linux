@@ -65,10 +65,14 @@ SET_TV_CLASS_ATTR(bist_test, bist_test_store)
 #define DEFAULT_POLICY_FR_AUTO	1
 static enum vmode_e mode_by_user = VMODE_INIT_NULL;
 static int fr_auto_policy = DEFAULT_POLICY_FR_AUTO;
+static int fr_auto_policy_hold = DEFAULT_POLICY_FR_AUTO;
 int fps_playing_flag = 0; /* 1:  23.976/29.97/59.94 fps stream is playing */
 enum vmode_e fps_target_mode = VMODE_INIT_NULL;
+static void policy_framerate_automation_switch_store(char *para);
 static void policy_framerate_automation_store(char *para);
 SET_TV_CLASS_ATTR(policy_fr_auto, policy_framerate_automation_store)
+SET_TV_CLASS_ATTR(policy_fr_auto_switch,
+		policy_framerate_automation_switch_store)
 static char *get_name_from_vmode(enum vmode_e mode);
 #endif
 
@@ -562,9 +566,6 @@ static int want_hdmi_mode(enum vmode_e mode)
 	if ((mode == VMODE_480I)
 	    || (mode == VMODE_480I_RPT)
 	    || (mode == VMODE_480P)
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	    || (mode == VMODE_480P_59HZ)
-#endif
 	    || (mode == VMODE_480P_RPT)
 	    || (mode == VMODE_576I)
 	    || (mode == VMODE_576I_RPT)
@@ -581,7 +582,9 @@ static int want_hdmi_mode(enum vmode_e mode)
 	    || (mode == VMODE_1080I_59HZ)
 #endif
 	    || (mode == VMODE_1080P)
+	    || (mode == VMODE_1080P_50HZ)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	    || (mode == VMODE_1080P_59HZ)
 	    || (mode == VMODE_1080P_23HZ)
 #endif
 	    || (mode == VMODE_1080P_24HZ)
@@ -597,7 +600,14 @@ static int want_hdmi_mode(enum vmode_e mode)
 	    || (mode == VMODE_4K2K_SMPTE)
 	    || (mode == VMODE_4K2K_FAKE_5G)
 	    || (mode == VMODE_4K2K_60HZ)
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	    || (mode == VMODE_4K2K_59HZ)
+#endif
 	    || (mode == VMODE_4K2K_5G)
+	    || (mode == VMODE_4K2K_60HZ_Y420)
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	    || (mode == VMODE_4K2K_59HZ_Y420)
+#endif
 	   )
 		ret = 1;
 	return ret;
@@ -626,6 +636,7 @@ static int tv_set_current_vmode(enum vmode_e mode)
 	 * then adjust mode to fps vmode
 	 */
 	fps_auto_adjust_mode(&mode);
+	update_vmode_status(get_name_from_vmode(mode));
 	vout_log_info("%s[%d]fps_target_mode=%d\n",
 		      __func__, __LINE__, mode);
 #endif
@@ -796,9 +807,6 @@ static int get_target_vmode(int framerate_target)
 	if ((framerate_target == 2397) || (framerate_target == 2997) ||
 	    (framerate_target == 5994)) {
 		switch (mode_target) {
-		case VMODE_480P:
-			mode_target = VMODE_480P_59HZ;
-			break;
 		case VMODE_720P:
 			mode_target = VMODE_720P_59HZ;
 			break;
@@ -816,6 +824,12 @@ static int get_target_vmode(int framerate_target)
 			break;
 		case VMODE_4K2K_30HZ:
 			mode_target = VMODE_4K2K_29HZ;
+			break;
+		case VMODE_4K2K_60HZ:
+			mode_target = VMODE_4K2K_59HZ;
+			break;
+		case VMODE_4K2K_60HZ_Y420:
+			mode_target = VMODE_4K2K_59HZ_Y420;
 			break;
 		default:
 			break;
@@ -838,11 +852,11 @@ static int get_exchange_mode(enum vmode_e mode_target)
 	mode_current = pvinfo->mode;
 	if (mode_current == mode_target)
 		return 0;
-	if (((mode_current == VMODE_480P)
-	     && (mode_target == VMODE_480P_59HZ))
-	    || ((mode_current == VMODE_480P_59HZ)
-		&& (mode_target == VMODE_480P))
-	    || ((mode_current == VMODE_720P)
+	/*only mode_current is required*/
+	if (!want_hdmi_mode(mode_current)
+	    || !want_hdmi_mode(mode_target))
+		return 0;
+	if (((mode_current == VMODE_720P)
 		&& (mode_target == VMODE_720P_59HZ))
 	    || ((mode_current == VMODE_720P_59HZ)
 		&& (mode_target == VMODE_720P))
@@ -865,16 +879,55 @@ static int get_exchange_mode(enum vmode_e mode_target)
 	    || ((mode_current == VMODE_4K2K_24HZ)
 		&& (mode_target == VMODE_4K2K_23HZ))
 	    || ((mode_current == VMODE_4K2K_23HZ)
-		&& (mode_target == VMODE_4K2K_24HZ)))
-		return 1;
+	    && (mode_target == VMODE_4K2K_24HZ))
+	    || ((mode_current == VMODE_4K2K_60HZ)
+	    && (mode_target == VMODE_4K2K_59HZ))
+	    || ((mode_current == VMODE_4K2K_59HZ)
+	    && (mode_target == VMODE_4K2K_60HZ))
+	    || ((mode_current == VMODE_4K2K_60HZ_Y420)
+	    && (mode_target == VMODE_4K2K_59HZ_Y420))
+	    || ((mode_current == VMODE_4K2K_59HZ_Y420)
+	    && (mode_target == VMODE_4K2K_60HZ_Y420)))
+	    return 1;
 	return 2;
 }
 
+static unsigned int save_div_frac;
 /* just to fine tune the 0.1% clock */
 static int clock_fine_tune(void)
 {
 	const struct vinfo_s *pvinfo;
 	pvinfo = tv_get_current_info();
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
+		switch (pvinfo->mode) {
+		case VMODE_720P_59HZ:
+		case VMODE_1080I_59HZ:
+		case VMODE_1080P_23HZ:
+		case VMODE_1080P_59HZ:
+		case VMODE_4K2K_29HZ:
+		case VMODE_4K2K_23HZ:
+		case VMODE_4K2K_59HZ_Y420:
+			save_div_frac = tv_out_hiu_read(HHI_HDMI_PLL_CNTL2);
+			tv_out_hiu_setb(HHI_HDMI_PLL_CNTL2, 0xd03, 0, 11);
+			break;
+		case VMODE_720P:
+		case VMODE_1080I:
+		case VMODE_1080P:
+		case VMODE_1080P_24HZ:
+		case VMODE_4K2K_30HZ:
+		case VMODE_4K2K_24HZ:
+		case VMODE_4K2K_60HZ_Y420:
+			tv_out_hiu_setb(HHI_HDMI_PLL_CNTL2,
+			save_div_frac&0xfff , 0, 11);
+			break;
+		case VMODE_4K2K_59HZ:
+		case VMODE_4K2K_60HZ:
+			vout_log_info("TODO: VMODE_4K2K_59/60HZ\n");
+			break;
+		default:
+			break;
+		}
+	}
 #if 0
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8B) ||
@@ -927,10 +980,11 @@ static int clock_fine_tune(void)
 
 static void update_current_vinfo(enum vmode_e mode)
 {
-	if ((mode & VMODE_MODE_BIT_MASK) > VMODE_FHDVGA)
+	if ((mode&VMODE_MODE_BIT_MASK) > VMODE_FHDVGA)
 		return;
-	info->vinfo = &tv_info[mode & VMODE_MODE_BIT_MASK];
-	return;
+	info->vinfo = get_tv_info(mode & VMODE_MODE_BIT_MASK);
+	if (!info->vinfo)
+		vout_log_info("don't get tv_info, mode is %d\n", mode);
 }
 
 static int framerate_automation_set_mode(enum vmode_e mode_target)
@@ -1001,6 +1055,12 @@ static int tv_set_vframe_rate_hint(int duration)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	vout_log_info("vout [%s] duration = %d, policy = %d!\n",
 		      __func__, duration, fr_auto_policy);
+	/*if in CVBS mode, don't do frame rate automation*/
+	if (!want_hdmi_mode(info->vinfo->mode)) {
+		vout_log_info("current is not valid HDMI mode!\n");
+		return 1;
+	}
+
 	framerate_automation_process(duration);
 #endif
 	return 0;
@@ -1138,10 +1198,31 @@ static void policy_framerate_automation_store(char *para)
 	int policy = 0;
 	int ret = 0;
 	ret = kstrtoul(para, 10, (unsigned long *)&policy);
-	if ((policy >= 0) && (policy < 3))
-		fr_auto_policy = policy;
+	if ((policy >= 0) && (policy < 3)) {
+		fr_auto_policy_hold = policy;
+		fr_auto_policy = fr_auto_policy_hold;
+		snprintf(policy_fr_auto_switch, 40, "%d\n", fr_auto_policy);
+	}
+	snprintf(policy_fr_auto, 40, "%d\n", fr_auto_policy_hold);
+
 	return;
 }
+
+static void policy_framerate_automation_switch_store(char *para)
+{
+	int policy = 0;
+	int ret = 0;
+	ret = kstrtoul(para, 10, (unsigned long *)&policy);
+	if ((policy >= 0) && (policy < 3)) {
+		fr_auto_policy = policy;
+	} else if (policy == 3) {
+		fr_auto_policy = fr_auto_policy_hold;
+		tv_set_vframe_rate_end_hint();
+	}
+	snprintf(policy_fr_auto_switch, 40, "%d\n", fr_auto_policy);
+	return;
+}
+
 
 #endif
 
@@ -1150,8 +1231,11 @@ static  struct  class_attribute   *tv_attr[] = {
 	&class_TV_attr_bist_test,
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	&class_TV_attr_policy_fr_auto,
+	&class_TV_attr_policy_fr_auto_switch,
 #endif
 };
+
+
 
 static int create_tv_attr(struct disp_module_info_s *info)
 {
@@ -1171,6 +1255,7 @@ static int create_tv_attr(struct disp_module_info_s *info)
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	sprintf(policy_fr_auto, "%d", DEFAULT_POLICY_FR_AUTO);
+	sprintf(policy_fr_auto_switch, "%d", DEFAULT_POLICY_FR_AUTO);
 #endif
 	return 0;
 }

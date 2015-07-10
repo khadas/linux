@@ -90,6 +90,7 @@ static struct vmode_tvmode_tab_s mode_tab[] = {
 	{TVMODE_4K2K_SMPTE, VMODE_4K2K_SMPTE},
 	{TVMODE_4K2K_60HZ_Y420, VMODE_4K2K_60HZ_Y420},
 	{TVMODE_4K2K_50HZ_Y420, VMODE_4K2K_50HZ_Y420},
+	{TVMODE_4K2K_60HZ, VMODE_4K2K_60HZ},
 	{TVMODE_4K2K_50HZ, VMODE_4K2K_50HZ},
 	{TVMODE_VGA, VMODE_VGA},
 	{TVMODE_SVGA, VMODE_SVGA},
@@ -105,6 +106,8 @@ static struct vmode_tvmode_tab_s mode_tab[] = {
 	{TVMODE_1080P_23HZ, VMODE_1080P_23HZ}, /* for 1080p 23.97hz */
 	{TVMODE_4K2K_29HZ, VMODE_4K2K_29HZ}, /* for 4k2k 29.97hz */
 	{TVMODE_4K2K_23HZ, VMODE_4K2K_23HZ}, /* for 4k2k 23.97hz */
+	{TVMODE_4K2K_59HZ_Y420, VMODE_4K2K_59HZ_Y420},
+	{TVMODE_4K2K_59HZ, VMODE_4K2K_59HZ},
 #endif
 	{TVMODE_4K1K_100HZ, VMODE_4K1K_100HZ},
 	{TVMODE_4K1K_100HZ_Y420, VMODE_4K1K_100HZ_Y420},
@@ -386,8 +389,8 @@ static const struct vinfo_s tv_info[] = {
 		.field_height	   = 1080,
 		.aspect_ratio_num  = 16,
 		.aspect_ratio_den  = 9,
-		.sync_duration_num = 2397,
-		.sync_duration_den = 100,
+		.sync_duration_num = 24000,
+		.sync_duration_den = 1001,
 		.video_clk		   = 74250000,
 	},
 #endif
@@ -412,8 +415,8 @@ static const struct vinfo_s tv_info[] = {
 		.field_height	   = 2160,
 		.aspect_ratio_num  = 16,
 		.aspect_ratio_den  = 9,
-		.sync_duration_num = 2997,
-		.sync_duration_den = 100,
+		.sync_duration_num = 30000,
+		.sync_duration_den = 1001,
 		.video_clk		   = 297000000,
 	},
 #endif
@@ -450,8 +453,8 @@ static const struct vinfo_s tv_info[] = {
 		.field_height	   = 2160,
 		.aspect_ratio_num  = 16,
 		.aspect_ratio_den  = 9,
-		.sync_duration_num = 2397,
-		.sync_duration_den = 100,
+		.sync_duration_num = 24000,
+		.sync_duration_den = 1001,
 		.video_clk		   = 297000000,
 	},
 #endif
@@ -491,6 +494,20 @@ static const struct vinfo_s tv_info[] = {
 		.sync_duration_den = 1,
 		.video_clk         = 594000000,
 	},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	{ /* VMODE_4K2K_59HZ_Y420 */
+		.name              = "2160p59hz420",
+		.mode              = VMODE_4K2K_59HZ_Y420,
+		.width             = 3840,
+		.height            = 2160,
+		.field_height      = 2160,
+		.aspect_ratio_num  = 16,
+		.aspect_ratio_den  = 9,
+		.sync_duration_num = 60000,
+		.sync_duration_den = 1001,
+		.video_clk         = 594000000,
+	},
+#endif
 	{ /* VMODE_4K2K_60HZ */
 		.name              = "2160p60hz",
 		.mode              = VMODE_4K2K_60HZ,
@@ -503,6 +520,20 @@ static const struct vinfo_s tv_info[] = {
 		.sync_duration_den = 1,
 		.video_clk         = 594000000,
 	},
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	{ /* VMODE_4K2K_59HZ */
+		.name              = "2160p59hz",
+		.mode              = VMODE_4K2K_59HZ,
+		.width             = 3840,
+		.height            = 2160,
+		.field_height      = 2160,
+		.aspect_ratio_num  = 16,
+		.aspect_ratio_den  = 9,
+		.sync_duration_num = 60000,
+		.sync_duration_den = 1001,
+		.video_clk         = 594000000,
+	},
+#endif
 	{ /* VMODE_4K1K_100HZ_Y420 */
 		.name              = "4k1k100hz420",
 		.mode              = VMODE_4K1K_100HZ_Y420,

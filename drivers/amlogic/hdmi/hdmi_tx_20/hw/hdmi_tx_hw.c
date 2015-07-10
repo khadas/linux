@@ -1635,6 +1635,28 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev,
 #endif
 */
 	set_vmode_clk(hdev, param->VIC);
+
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	if (hdmi_get_current_vinfo()) {
+		switch (hdmi_get_current_vinfo()->mode) {
+		case VMODE_720P_59HZ:
+		case VMODE_1080I_59HZ:
+		case VMODE_1080P_59HZ:
+		case VMODE_1080P_23HZ:
+		case VMODE_4K2K_29HZ:
+		case VMODE_4K2K_23HZ:
+		case VMODE_4K2K_59HZ_Y420:
+			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+			0xd03 , 0, 11);
+			break;
+		case VMODE_4K2K_59HZ:
+			pr_info("TODO: 4k59hz\n");
+			break;
+		default:
+			break;
+		}
+	}
+#endif
 	pr_info("TODO: 4k60hz/420\n");
 }
 
