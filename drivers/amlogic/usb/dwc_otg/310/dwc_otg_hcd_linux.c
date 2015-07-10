@@ -112,7 +112,7 @@ static struct hc_driver dwc_otg_hc_driver = {
 
 	.irq = dwc_otg_hcd_irq,
 
-	.flags = HCD_MEMORY | HCD_USB2,
+	.flags = HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	.start = hcd_start,
 	.stop = hcd_stop,
