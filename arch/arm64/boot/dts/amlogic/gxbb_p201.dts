@@ -681,9 +681,9 @@
 	};
 
 	audio_spdif_pins:audio_pin1{
-		amlogic,setmask=<AO 0x10000>;		/*spdif_out*/
-		amlogic,clrmask=<AO 0x40000>;	/*spdif_out*/
-		amlogic,pins ="GPIOAO_6";		  /*spdif_out*/
+		amlogic,setmask=<1 0x200>;    /*spdif_out*/
+		amlogic,clrmask=<1 0x10000>;  /*spdif_out*/
+		amlogic,pins ="GPIOY_12";     /*spdif_out*/
 	};
 };
 &efuse {
