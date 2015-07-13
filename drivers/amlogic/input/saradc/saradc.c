@@ -206,23 +206,17 @@ int get_adc_sample(int dev_id, int ch)
 	count = 0;
 	sum = 0;
 	while (reg0->fifo_count && (count < 32)) {
-		if (reg0->fifo_empty) {
-			saradc_err("fifo_count=%d, but fifo empty\n",
-			reg0->fifo_count);
-		}
+		if (reg0->fifo_empty)
+			saradc_err("fifo_count, but fifo empty\n");
 		value = adc->regs->fifo_rd;
 		if (((value>>12) & 0x07) == ch) {
 			sum += value & 0x3ff;
 			count++;
-		}	else {
-			saradc_err("ch=%d, but fifo_ch=%d\n", ch,
-			(value>>12) & 0x07);
-		}
+		}	else
+			saradc_err("chanel error\n");
 	}
-	if (!reg0->fifo_empty) {
-		saradc_err("fifo_count=0, value=%d,
-		but fifo not empty\n", value);
-	}
+	if (!reg0->fifo_empty)
+		saradc_err("fifo_count=0, but fifo not empty\n");
 	if (!count) {
 		value = -1;
 		goto end;
