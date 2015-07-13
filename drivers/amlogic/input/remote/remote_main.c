@@ -39,6 +39,8 @@
 #include <linux/of_platform.h>
 #include "remote_main.h"
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/pm.h>
+#include <linux/of_address.h>
 #undef NEW_BOARD_LEARNING_MODE
 #define IR_CONTROL_DECODER_MODE     (3<<7)
 #define IR_CONTROL_SKIP_HEADER      (1<<7)
@@ -49,7 +51,7 @@
 #include <linux/earlysuspend.h>
 static struct early_suspend early_suspend;
 #endif
-
+static void __iomem *exit_reg;
 static bool key_pointer_switch = true;
 static unsigned int FN_KEY_SCANCODE = 0x3ff;
 static unsigned int OK_KEY_SCANCODE = 0x3ff;
@@ -798,6 +800,7 @@ static int remote_probe(struct platform_device *pdev)
 	remote_log_buf[0] = '\0';
 	pr_info("physical address:0x%x\n",
 		(unsigned int)virt_to_phys(remote_log_buf));
+	exit_reg = of_iomap(pdev->dev.of_node, 0);
 	return 0;
 err3:
 	input_unregister_device(remote->input);
@@ -863,10 +866,12 @@ static int remote_resume(struct platform_device *pdev)
 			aml_write_aobus(AO_RTI_STATUS_REG2, 0);
 		}
 	} else {
-		input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
-		input_sync(gp_remote->input);
-		input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
-		input_sync(gp_remote->input);
+		if (readl(exit_reg) == REMOTE_WAKEUP) {
+			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
+			input_sync(gp_remote->input);
+			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
+			input_sync(gp_remote->input);
+		}
 	}
 	gp_remote->sleep = 0;
 	pr_info("to clear irq ...\n");
