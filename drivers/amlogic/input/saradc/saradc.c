@@ -30,6 +30,7 @@
 
 #define saradc_info(x...) dev_info(adc->dev, x)
 #define saradc_dbg(x...) /* dev_info(adc->dev, x) */
+#define saradc_err(x...) dev_info(adc->dev, x)
 
 #define SARADC_STATE_IDLE 0
 #define SARADC_STATE_BUSY 1
@@ -93,6 +94,7 @@ static void saradc_reset(struct saradc *adc)
 	clk_div = 20;
 	saradc_info("clk_src=%d, clk_div=%d\n", clk_src, clk_div);
 	adc->regs->reg3 = 0x9388000a | (clk_div << 10);
+	/* adc->regs->reg3 |= FLAG_INITIALIZED; */
 	if (adc->clk_reg)
 		*adc->clk_reg = (clk_src<<9) | (clk_div << 0);
 
@@ -157,7 +159,7 @@ int get_adc_sample(int dev_id, int ch)
 	struct saradc *adc;
 	struct saradc_reg0 *reg0;
 	struct saradc_reg3 *reg3;
-	int value = 0, count = 0;
+	int value, count, sum;
 	unsigned long flags;
 
 	adc = gp_saradc;
@@ -172,6 +174,7 @@ int get_adc_sample(int dev_id, int ch)
 	adc->state = SARADC_STATE_BUSY;
 	reg0 = (struct saradc_reg0 *)&adc->regs->reg0;
 	reg3 = (struct saradc_reg3 *)&adc->regs->reg3;
+	count = 0;
 	while (adc->regs->reg3 & FLAG_BUSY) {
 		udelay(100);
 		if (++count > 100) {
@@ -180,6 +183,7 @@ int get_adc_sample(int dev_id, int ch)
 			goto end1;
 		}
 	}
+	adc->regs->reg3 |= FLAG_BUSY;
 #ifdef ENABLE_DYNAMIC_POWER
 	saradc_power_control(adc, 1);
 #endif
@@ -187,6 +191,7 @@ int get_adc_sample(int dev_id, int ch)
 	adc->regs->detect_idle_sw = 0xc000c | (ch<<23) | (ch<<7);
 	reg0->sample_engine_en = 1;
 	reg0->start_sample = 1;
+	count = 0;
 	do {
 		udelay(10);
 		if (!(adc->regs->reg0 & 0x70000000))
@@ -198,7 +203,31 @@ int get_adc_sample(int dev_id, int ch)
 		}
 	} while (1);
 
-	value = adc->regs->fifo_rd & 0x3ff;
+	count = 0;
+	sum = 0;
+	while (reg0->fifo_count && (count < 32)) {
+		if (reg0->fifo_empty) {
+			saradc_err("fifo_count=%d, but fifo empty\n",
+			reg0->fifo_count);
+		}
+		value = adc->regs->fifo_rd;
+		if (((value>>12) & 0x07) == ch) {
+			sum += value & 0x3ff;
+			count++;
+		}	else {
+			saradc_err("ch=%d, but fifo_ch=%d\n", ch,
+			(value>>12) & 0x07);
+		}
+	}
+	if (!reg0->fifo_empty) {
+		saradc_err("fifo_count=0, value=%d,
+		but fifo not empty\n", value);
+	}
+	if (!count) {
+		value = -1;
+		goto end;
+	}
+	value = sum / count;
 	saradc_dbg("before cal: %d, count=%d\n", value, count);
 	if (adc->coef) {
 		value = saradc_get_cal_value(adc, value);
@@ -211,6 +240,7 @@ end:
 	saradc_power_control(0);
 #endif
 end1:
+	adc->regs->reg3 &= ~FLAG_BUSY;
 	adc->state = SARADC_STATE_IDLE;
 	spin_unlock_irqrestore(&adc->lock, flags);
 	return value;
