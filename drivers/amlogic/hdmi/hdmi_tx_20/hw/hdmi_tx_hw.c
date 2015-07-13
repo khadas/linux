@@ -1647,22 +1647,22 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 	case HDMI_4k2k_30:
 	case HDMI_4k2k_smpte_24:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x013a115b);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
 		break;
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
 		if (hdev->mode420 == 1) {
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x013a115b);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
 		} else {
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33352245);
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a115b);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2100115b);
 		}
 		break;
 	case HDMI_1080p60:
 	default:
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632113);
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a115b);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632122);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2000115b);
 		break;
 	}
 #if 1
