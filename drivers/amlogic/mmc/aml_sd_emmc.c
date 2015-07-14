@@ -1698,8 +1698,9 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 				pr_info("other irq also occurred 0x%x\n",
 			vstat);*/
 		}
+	} else if (!(vstat & 0x3fff)) {
+		return IRQ_HANDLED;
 	}
-
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	mrq = host->mrq;
 	mmc = host->mmc;
