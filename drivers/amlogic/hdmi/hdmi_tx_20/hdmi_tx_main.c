@@ -1041,10 +1041,6 @@ static ssize_t show_hpd_state(struct device *dev,
 {
 	int pos = 0;
 
-	if (hdmitx_device.hpd_lock == 0) {
-		hdmitx_device.hpd_state = hdmitx_device.HWOp.CntlMisc(
-			&hdmitx_device, MISC_HPD_GPI_ST, 0);
-	}
 	pos += snprintf(buf+pos, PAGE_SIZE, "%d",
 		hdmitx_device.hpd_state);
 	return pos;
@@ -1390,7 +1386,8 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		return;
 	mutex_lock(&setclk_mutex);
 	hdev->hpd_state = 0;
-	/* hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0); */
+	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
+	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	pr_info("hdmitx: plugout\n");
 	switch_set_state(&sdev, 0);
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
