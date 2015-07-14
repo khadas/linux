@@ -31,6 +31,9 @@
 #endif
 #include "efuse_regs.h"
 #include "efuse.h"
+#ifdef CONFIG_ARM64
+#include <linux/amlogic/efuse-amlogic.h>
+#endif
 
 static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 {
@@ -50,7 +53,6 @@ static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	else
 			cmd = efuse_write_cmd;
 	offset = arg->offset;
-	offset = (offset & 0x0000ffff) | EFUSE_USER_MASK;
 	size = arg->size;
 
 	if (arg->cmd == EFUSE_HAL_API_WRITE)
@@ -200,7 +202,6 @@ ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos)
 
 	pdata = data;
 	pos = *ppos;
-	pos |= EFUSE_USER_MASK;
 	ret = _efuse_read(pdata, count, (loff_t *)&pos);
 
 	memcpy(buf, data, count);
@@ -225,7 +226,6 @@ ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos)
 	memcpy(data, buf, count);
 	pdata = data;
 	pos = *ppos;
-	pos |= EFUSE_USER_MASK;
 
 	ret = _efuse_write(pdata, count, (loff_t *)&pos);
 

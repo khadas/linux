@@ -18,17 +18,7 @@
 #ifndef __EFUSE_H
 #define __EFUSE_H
 
-/* #ifdef __DEBUG */
-/* #define __D(fmt, args...) fprintf(stderr, "debug: " fmt, ## args) */
-/* #else */
-/* #define __D(fmt, args...) */
-/* #endif */
-
-/* #ifdef __ERROR */
-/* #define __E(fmt, args...) fprintf(stderr, "error: " fmt, ## args) */
-/* #else */
-/* #define __E(fmt, args...) */
-/* #endif */
+/*#define EFUSE_READ_ONLY			1*/
 
 /* #define EFUSE_NONE_ID			0 */
 #define EFUSE_VERSION_ID		1
@@ -103,13 +93,11 @@ int check_if_efused(loff_t pos, size_t count);
 int efuse_read_item(char *buf, size_t count, loff_t *ppos);
 int efuse_write_item(char *buf, size_t count, loff_t *ppos);
 #else
-#define EFUSE_USER_MASK            (0x1 << 16)
-#define EFUSE_THERMAL_MASK         (0x1 << 17)
-#define EFUSE_THERMAL_VERFLAG_MASK (0x1 << 18)
 
 ssize_t efuse_get_max(void);
 ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
 ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
+
 #endif
 
 #endif
