@@ -353,6 +353,7 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 		}
 		rx_phase_delay = best_win_start + best_win_size / 2;
 		rx_phase_find = rx_phase_delay / (rx_delay_max + 1);
+		rx_phase_find = rx_phase_find % 4;
 		rx_delay_find = rx_phase_delay % (rx_delay_max + 1);
 
 	} else {
@@ -409,15 +410,15 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 			}
 		}
 		if (rx_tuning_size <= 0) {
-			pr_info("tuning result: fail\n");
+			pr_info("%s: tuning failed\n", mmc_hostname(host->mmc));
 			return -1;
 		} else {
 			rx_delay_find = rx_tuning_start + rx_tuning_size / 2;
 		}
 	}
 
-	pr_info("tuning result success:rx_phase_find =%d, rx_delay_find =%d\n",
-			rx_phase_find, rx_delay_find);
+	pr_info("%s: tuning success: rx_phase_find =%d, rx_delay_find =%d\n",
+		mmc_hostname(host->mmc), rx_phase_find, rx_delay_find);
 	vclk = sd_emmc_regs->gclock;
 	clkc->rx_phase = rx_phase_find;
 	clkc->rx_delay = rx_delay_find;
@@ -1470,7 +1471,8 @@ static void aml_sd_emmc_timeout(struct work_struct *work)
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	if (host->xfer_step == XFER_FINISHED) {
 		spin_unlock_irqrestore(&host->mrq_lock, flags);
-		sd_emmc_err("timeout after xfer finished\n");
+		sd_emmc_err("%s :timeout after xfer finished\n",
+			mmc_hostname(host->mmc));
 		return;
 	}
 
@@ -1703,13 +1705,13 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	mmc = host->mmc;
 	pdata = mmc_priv(mmc);
 	if (!mmc) {
-		pr_info("@@sd_emmc_regs->girq_en = 0x%x at line %d\n",
+		pr_info("sd_emmc_regs->girq_en = 0x%x at line %d\n",
 			sd_emmc_regs->girq_en, __LINE__);
-		pr_info("@@sd_emmc_regs->gstatus = 0x%x at line %d\n",
+		pr_info("sd_emmc_regs->gstatus = 0x%x at line %d\n",
 			sd_emmc_regs->gstatus, __LINE__);
-		pr_info("@@sd_emmc_regs->gcfg = 0x%x at line %d\n",
+		pr_info("sd_emmc_regs->gcfg = 0x%x at line %d\n",
 			sd_emmc_regs->gcfg, __LINE__);
-		pr_info("@@sd_emmc_regs->gclock = 0x%x at line %d\n",
+		pr_info("sd_emmc_regs->gclock = 0x%x at line %d\n",
 			sd_emmc_regs->gclock, __LINE__);
 	}
 	/* time_start_cnt = (time_start_cnt - host->time_req_sta); */
@@ -1743,7 +1745,8 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 
 	if ((host->xfer_step != XFER_AFTER_START)
 		&& (!host->cmd_is_stop) && !irqc->irq_sdio) {
-		sd_emmc_err("host->xfer_step=%d\n", host->xfer_step);
+		sd_emmc_err("%s: host->xfer_step=%d\n",
+			mmc_hostname(mmc), host->xfer_step);
 		pr_info("%%sd_emmc_regs->girq_en = 0x%x at line %d\n",
 			sd_emmc_regs->girq_en, __LINE__);
 		pr_info("%%sd_emmc_regs->gstatus = 0x%x at line %d\n",
@@ -1768,25 +1771,25 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 
 	if ((ista->rxd_err) || (ista->txd_err)) {
 		if (host->is_tunning == 0)
-			sd_emmc_err("data ecc failed, vstat:0x%x, virqc:%x\n",
-				vstat, virqc);
+			sd_emmc_err("%s: data ecc, vstat:0x%x, virqc:%x\n",
+				mmc_hostname(host->mmc), vstat, virqc);
 		host->status = HOST_DAT_CRC_ERR;
 		mrq->cmd->error = -EILSEQ;
 	} else if (ista->resp_err) {
 		if (host->is_tunning == 0)
-			sd_emmc_err("response ecc failed,vstat:0x%x,virqc:%x\n",
-				vstat, virqc);
+			sd_emmc_err("%s: response ecc,vstat:0x%x,virqc:%x\n",
+				mmc_hostname(host->mmc), vstat, virqc);
 		host->status = HOST_RSP_CRC_ERR;
 	} else if (ista->resp_timeout) {
 		if (host->is_tunning == 0)
-			sd_emmc_err("resp_timeout failed,vstat:0x%x,virqc:%x\n",
-				vstat, virqc);
+			sd_emmc_err("%s: resp_timeout,vstat:0x%x,virqc:%x\n",
+				mmc_hostname(host->mmc), vstat, virqc);
 		host->status = HOST_RSP_TIMEOUT_ERR;
 		mrq->cmd->error = -ETIMEDOUT;
 	} else if (ista->desc_timeout) {
 		if (host->is_tunning == 0)
-			sd_emmc_err("desc_timeout failed,vstat:0x%x,virqc:%x\n",
-				vstat, virqc);
+			sd_emmc_err("%s: desc_timeout,vstat:0x%x,virqc:%x\n",
+				mmc_hostname(host->mmc), vstat, virqc);
 		host->status = HOST_DAT_TIMEOUT_ERR;
 		mrq->cmd->error = -ETIMEDOUT;
 	} else if ((ista->end_of_chain) || (ista->desc_irq)) {
@@ -1797,8 +1800,8 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		mrq->cmd->error = 0;
 	} else{
 	   host->xfer_step = XFER_IRQ_UNKNOWN_IRQ;
-		sd_emmc_err("%s Unknown Irq Ictl 0x%x, Ista 0x%x\n",
-		pdata->pinname, virqc, vstat);
+		sd_emmc_err("%s: %s Unknown Irq Ictl 0x%x, Ista 0x%x\n",
+		mmc_hostname(host->mmc), pdata->pinname, virqc, vstat);
 	}
 
 
@@ -1870,8 +1873,8 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 	__func__, __LINE__, time_start_cnt, mrq->cmd->opcode, mrq->cmd->arg);
 #endif
 	if ((xfer_step == XFER_FINISHED) || (xfer_step == XFER_TIMER_TIMEOUT)) {
-		sd_emmc_err("Warning: xfer_step=%d, host->status=%d\n",
-			xfer_step, status);
+		sd_emmc_err("Warning: %s xfer_step=%d, host->status=%d\n",
+			mmc_hostname(host->mmc), xfer_step, status);
 		spin_unlock_irqrestore(&host->mrq_lock, flags);
 #ifdef SD_EMMC_DATA_TASKLET
 		return;
@@ -1884,7 +1887,8 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		 && (host->xfer_step != XFER_IRQ_TASKLET_BUSY));
 
 	if (!mrq) {
-		sd_emmc_err("!mrq xfer_step %d\n", xfer_step);
+		sd_emmc_err("%s: !mrq xfer_step %d\n",
+			mmc_hostname(host->mmc), xfer_step);
 		if (xfer_step == XFER_FINISHED ||
 			xfer_step == XFER_TIMER_TIMEOUT){
 			spin_unlock_irqrestore(&host->mrq_lock, flags);
@@ -1962,8 +1966,8 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 	case HOST_RSP_CRC_ERR:
 	case HOST_DAT_CRC_ERR:
 		if (host->is_tunning == 0)
-			pr_info("%s %d cmd:%d\n",
-				__func__, __LINE__, mrq->cmd->opcode);
+			pr_info("%s %d %s: cmd:%d\n", __func__, __LINE__,
+				mmc_hostname(host->mmc), mrq->cmd->opcode);
 		aml_sd_emmc_read_response(host->mmc, host->mrq->cmd);
 
 		/* do not send stop for sdio wifi case */
@@ -1978,8 +1982,8 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		break;
 
 	default:
-		sd_emmc_err("BUG xfer_step=%d, host->status=%d\n",
-			xfer_step, status);
+		sd_emmc_err("BUG %s: xfer_step=%d, host->status=%d\n",
+			mmc_hostname(host->mmc),  xfer_step, status);
 		aml_sd_emmc_print_err(host);
 		/* BUG(); */
 	}
@@ -2038,7 +2042,8 @@ static void aml_sd_emmc_set_clk_rate(struct mmc_host *mmc, unsigned int clk_ios)
 		clk_rate = 1000000000;
 		break;
 	default:
-		sdhc_err("Clock source error: %d\n", clk_src_sel);
+		sdhc_err("%s: clock source error: %d\n",
+			mmc_hostname(host->mmc), clk_src_sel);
 		return; /* clk_src_div = -1; */
 	}
 
@@ -2084,7 +2089,8 @@ static void aml_sd_emmc_set_timing(
 			clkc->div = clk_div / 2;
 		sd_emmc_regs->gclock = vclkc;
 		pdata->clkc = sd_emmc_regs->gclock;
-		pr_info("try set sd/emmc to DDR mode\n");
+		pr_info("%s: try set sd/emmc to DDR mode\n",
+			mmc_hostname(host->mmc));
 
 	} else
 		ctrl->ddr = 0;
@@ -2092,7 +2098,6 @@ static void aml_sd_emmc_set_timing(
 	sd_emmc_regs->gcfg = vctrl;
 	sd_emmc_dbg(AMLSD_DBG_IOS, "sd emmc is %s\n",
 			ctrl->ddr?"DDR mode":"SDR mode");
-
 	return;
 }
 
@@ -2117,7 +2122,7 @@ static void aml_sd_emmc_set_bus_width(
 		width = 2;
 		break;
 	default:
-		sd_emmc_err("Error Data Bus\n");
+		sd_emmc_err("%s: error Data Bus\n", mmc_hostname(host->mmc));
 		break;
 	}
 
