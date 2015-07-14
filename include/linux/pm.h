@@ -465,6 +465,11 @@ const struct dev_pm_ops name = { \
 
 #define PMSG_IS_AUTO(msg)	(((msg).event & PM_EVENT_AUTO) != 0)
 
+#define PMSG_IS_HIBERNATION(msg) \
+	((((msg).event & PM_EVENT_FREEZE) != 0) | \
+	(((msg).event & PM_EVENT_THAW) != 0) | \
+	(((msg).event & PM_EVENT_RESTORE) != 0))
+
 /**
  * Device run-time power management status.
  *

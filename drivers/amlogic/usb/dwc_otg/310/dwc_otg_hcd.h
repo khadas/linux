@@ -577,6 +577,7 @@ struct dwc_otg_hcd {
 #endif
 	uint8_t  ssplit_lock;
 	uint8_t  auto_pm_suspend_flag;
+	uint8_t  pm_freeze_flag;
 };
 
 extern dwc_otg_device_t *g_dwc_otg_device[2];
