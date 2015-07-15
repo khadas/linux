@@ -63,6 +63,7 @@ static void hdmi_phy_wakeup(struct hdmitx_dev *hdev);
 static void hdmitx_set_phy(struct hdmitx_dev *hdev);
 static void hdmitx_set_hw(enum hdmi_vic vic);
 static void set_hdmi_audio_source(unsigned int src);
+static void config_avmute(unsigned int val);
 static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
 unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
@@ -573,6 +574,7 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	digital_clk_on(0xff);
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);
+	config_avmute(CLR_AVMUTE);
 	hdmitx_set_audmode(NULL, NULL);
 }
 
@@ -1723,11 +1725,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		power_off_vdac_flag, serial_reg_val);
 	if (color_space_f != 0)
 		param->color = color_space_f;
-	/* set_AVMUTE to 1 */
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 1, 1, 1);
-	/* clear_AVMUTE to 0 */
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 0, 0, 1);
-	msleep(50);
 	hdmitx_set_pll(hdev, param);
 	hdmitx_set_phy(hdev);
 	set_vmode_enc_hw(param->VIC);
@@ -1805,10 +1802,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 	mdelay(1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
-	/* set_AVMUTE to 0 */
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 0, 1, 1);
-	/* clear_AVMUTE to 1 */
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 1, 0, 1);
 
 	return 0;
 }
@@ -3000,6 +2993,9 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 		msleep(20);
 		hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_CNTL, 3);
 		break;
+	case MISC_AVMUTE_OP:
+		config_avmute(argv);
+		break;
 	default:
 		hdmi_print(ERR, "misc: " "hdmitx: unknown cmd: 0x%x\n", cmd);
 	}
@@ -3096,13 +3092,33 @@ void set_crt_video_enc(uint32_t vIdx, uint32_t inSel, uint32_t DivN)
 	}
 }
 
+static void config_avmute(unsigned int val)
+{
+	pr_info("avmute set to %d\n", val);
+	switch (val) {
+	case SET_AVMUTE:
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 1, 1, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 0, 0, 1);
+		break;
+	case CLR_AVMUTE:
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 0, 1, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 1, 0, 1);
+		break;
+	case OFF_AVMUTE:
+	default:
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 0, 1, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 0, 0, 1);
+		break;
+	}
+}
+
 /*
  * color_depth: Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
  * input_color_format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
  * input_color_range: 0=limited; 1=full.
  * output_color_format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420
  */
-void config_hdmi20_tx(enum hdmi_vic vic,
+static void config_hdmi20_tx(enum hdmi_vic vic,
 	struct hdmi_format_para *para,
 	unsigned char color_depth,
 	unsigned char input_color_format,

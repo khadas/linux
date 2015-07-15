@@ -24,6 +24,7 @@
 #include <linux/cdev.h>
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
+#include <linux/device.h>
 /* #include <linux/amlogic/aml_gpio_consumer.h> */
 
 /*****************************
@@ -120,6 +121,7 @@ struct hdmitx_dev {
 	struct task_struct *task_hdcp;
 	struct task_struct *task_cec;
 	struct workqueue_struct *hdmi_wq;
+	struct device *hdtx_dev;
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct work_struct work_internal_intr;
@@ -277,6 +279,10 @@ struct hdmitx_dev {
 #define MISC_COMP_AUDIO         (CMD_MISC_OFFSET + 0x09)
 #define COMP_AUDIO_SET_N_6144x2          0x1
 #define COMP_AUDIO_SET_N_6144x3          0x2
+#define MISC_AVMUTE_OP          (CMD_MISC_OFFSET + 0x0a)
+	#define OFF_AVMUTE	0x0
+	#define CLR_AVMUTE	0x1
+	#define SET_AVMUTE	0x2
 
 /***********************************************************************
  *                          Get State //GetState

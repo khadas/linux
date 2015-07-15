@@ -64,8 +64,6 @@
 
 static dev_t hdmitx_id;
 static struct class *hdmitx_class;
-static struct device *hdmitx_dev;
-static struct device *hdmi_dev;
 static int set_disp_mode_auto(void);
 const struct vinfo_s *hdmi_get_current_vinfo(void);
 
@@ -1005,6 +1003,48 @@ static ssize_t store_aud_ch(struct device *dev,
 	return count;
 }
 
+/*
+ *  1: set avmute
+ * -1: clear avmute
+ *  0: off avmute
+ */
+static ssize_t store_avmute(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int cmd = OFF_AVMUTE;
+
+	if (strncmp(buf, "-1", 2) == 0)
+		cmd = CLR_AVMUTE;
+	else if (strncmp(buf, "0", 1) == 0)
+		cmd = OFF_AVMUTE;
+	else if (strncmp(buf, "1", 1) == 0)
+		cmd = SET_AVMUTE;
+	else
+		pr_info("set avmute wrong: %s\n", buf);
+
+	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_AVMUTE_OP, cmd);
+	return count;
+}
+
+/*
+ *  1: enable hdmitx phy
+ *  0: disable hdmitx phy
+ */
+static ssize_t store_phy(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int cmd = TMDS_PHY_ENABLE;
+	if (strncmp(buf, "0", 1) == 0)
+		cmd = TMDS_PHY_DISABLE;
+	else if (strncmp(buf, "1", 1) == 0)
+		cmd = TMDS_PHY_ENABLE;
+	else
+		pr_info("set avmute wrong: %s\n", buf);
+
+	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP, cmd);
+	return count;
+}
+
 static ssize_t show_hdcp_ksv_info(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1082,6 +1122,8 @@ static DEVICE_ATTR(disp_cap, S_IRUGO, show_disp_cap, NULL);
 static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
 static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
+static DEVICE_ATTR(avmute, S_IWUSR, NULL, store_avmute);
+static DEVICE_ATTR(phy, S_IWUSR, NULL, store_phy);
 static DEVICE_ATTR(disp_cap_3d, S_IRUGO, show_disp_cap_3d,
 	NULL);
 static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info,
@@ -1605,12 +1647,14 @@ static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
 
+	struct device *dev;
+
 #ifdef CONFIG_OF
 	int psize, val;
 	phandle phandle;
 	struct device_node *init_data;
 #endif
-	hdmi_dev = &pdev->dev;
+	hdmitx_device.hdtx_dev = &pdev->dev;
 	hdmi_print(IMP, SYS "amhdmitx_probe\n");
 
 	r = alloc_chrdev_region(&hdmitx_id, 0, HDMI_TX_COUNT,
@@ -1647,31 +1691,33 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.cdev.owner = THIS_MODULE;
 	cdev_add(&(hdmitx_device.cdev), hdmitx_id, HDMI_TX_COUNT);
 
-	hdmitx_dev = device_create(hdmitx_class, NULL, hdmitx_id, NULL,
+	dev = device_create(hdmitx_class, NULL, hdmitx_id, NULL,
 		"amhdmitx%d", 0); /* kernel>=2.6.27 */
 
-	ret = device_create_file(hdmitx_dev, &dev_attr_disp_mode);
-	ret = device_create_file(hdmitx_dev, &dev_attr_aud_mode);
-	ret = device_create_file(hdmitx_dev, &dev_attr_edid);
-	ret = device_create_file(hdmitx_dev, &dev_attr_config);
-	ret = device_create_file(hdmitx_dev, &dev_attr_debug);
-	ret = device_create_file(hdmitx_dev, &dev_attr_disp_cap);
-	ret = device_create_file(hdmitx_dev, &dev_attr_disp_cap_3d);
-	ret = device_create_file(hdmitx_dev, &dev_attr_aud_cap);
-	ret = device_create_file(hdmitx_dev, &dev_attr_aud_ch);
-	ret = device_create_file(hdmitx_dev, &dev_attr_hdcp_ksv_info);
-	ret = device_create_file(hdmitx_dev, &dev_attr_hpd_state);
-	ret = device_create_file(hdmitx_dev, &dev_attr_support_3d);
-	ret = device_create_file(hdmitx_dev, &dev_attr_cec);
-	ret = device_create_file(hdmitx_dev, &dev_attr_cec_config);
-	ret = device_create_file(hdmitx_dev, &dev_attr_cec_lang_config);
-
-	if (hdmitx_dev == NULL) {
+	if (dev == NULL) {
 		hdmi_print(ERR, SYS "device_create create error\n");
 		class_destroy(hdmitx_class);
 		r = -EEXIST;
 		return r;
 	}
+	hdmitx_device.hdtx_dev = dev;
+	ret = device_create_file(dev, &dev_attr_disp_mode);
+	ret = device_create_file(dev, &dev_attr_aud_mode);
+	ret = device_create_file(dev, &dev_attr_edid);
+	ret = device_create_file(dev, &dev_attr_config);
+	ret = device_create_file(dev, &dev_attr_debug);
+	ret = device_create_file(dev, &dev_attr_disp_cap);
+	ret = device_create_file(dev, &dev_attr_disp_cap_3d);
+	ret = device_create_file(dev, &dev_attr_aud_cap);
+	ret = device_create_file(dev, &dev_attr_aud_ch);
+	ret = device_create_file(dev, &dev_attr_avmute);
+	ret = device_create_file(dev, &dev_attr_phy);
+	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
+	ret = device_create_file(dev, &dev_attr_hpd_state);
+	ret = device_create_file(dev, &dev_attr_support_3d);
+	ret = device_create_file(dev, &dev_attr_cec);
+	ret = device_create_file(dev, &dev_attr_cec_config);
+	ret = device_create_file(dev, &dev_attr_cec_lang_config);
 #ifdef CONFIG_AM_TV_OUTPUT
 	vout_register_client(&hdmitx_notifier_nb_v);
 #else
@@ -1816,6 +1862,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 static int amhdmitx_remove(struct platform_device *pdev)
 {
+	struct device *dev = hdmitx_device.hdtx_dev;
 	switch_dev_unregister(&sdev);
 
 	if (hdmitx_device.HWOp.UnInit)
@@ -1833,16 +1880,16 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #endif
 
 	/* Remove the cdev */
-	device_remove_file(hdmitx_dev, &dev_attr_disp_mode);
-	device_remove_file(hdmitx_dev, &dev_attr_aud_mode);
-	device_remove_file(hdmitx_dev, &dev_attr_edid);
-	device_remove_file(hdmitx_dev, &dev_attr_config);
-	device_remove_file(hdmitx_dev, &dev_attr_debug);
-	device_remove_file(hdmitx_dev, &dev_attr_disp_cap);
-	device_remove_file(hdmitx_dev, &dev_attr_disp_cap_3d);
-	device_remove_file(hdmitx_dev, &dev_attr_hpd_state);
-	device_remove_file(hdmitx_dev, &dev_attr_support_3d);
-	device_remove_file(hdmitx_dev, &dev_attr_cec);
+	device_remove_file(dev, &dev_attr_disp_mode);
+	device_remove_file(dev, &dev_attr_aud_mode);
+	device_remove_file(dev, &dev_attr_edid);
+	device_remove_file(dev, &dev_attr_config);
+	device_remove_file(dev, &dev_attr_debug);
+	device_remove_file(dev, &dev_attr_disp_cap);
+	device_remove_file(dev, &dev_attr_disp_cap_3d);
+	device_remove_file(dev, &dev_attr_hpd_state);
+	device_remove_file(dev, &dev_attr_support_3d);
+	device_remove_file(dev, &dev_attr_cec);
 
 	cdev_del(&hdmitx_device.cdev);
 
