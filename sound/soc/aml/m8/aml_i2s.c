@@ -39,7 +39,6 @@
 
 /* Amlogic headers */
 #include <linux/amlogic/iomap.h>
-/* #include <linux/amlogic/amports/amaudio.h> */
 #include "aml_i2s.h"
 #include "aml_spdif_dai.h"
 #include "aml_audio_hw.h"
@@ -64,20 +63,11 @@ EXPORT_SYMBOL(aml_i2s_playback_start_addr);
 unsigned long aml_i2s_playback_phy_start_addr = 0;
 EXPORT_SYMBOL(aml_i2s_playback_phy_start_addr);
 
-unsigned long aml_i2s_capture_start_addr = 0;
-EXPORT_SYMBOL(aml_i2s_capture_start_addr);
-
-unsigned long aml_i2s_capture_phy_start_addr = 0;
-EXPORT_SYMBOL(aml_i2s_capture_phy_start_addr);
-
-unsigned int aml_i2s_capture_buf_size = 0;
-EXPORT_SYMBOL(aml_i2s_capture_buf_size);
-
-unsigned int aml_i2s_playback_enable = 1;
-EXPORT_SYMBOL(aml_i2s_playback_enable);
-
 unsigned long aml_i2s_alsa_write_addr = 0;
 EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
+
+unsigned long aml_i2s_capture_phy_start_addr = 0;
+unsigned long aml_i2s_capture_start_addr = 0;
 
 static DEFINE_MUTEX(gate_mutex);
 static unsigned audio_gate_status;
@@ -612,8 +602,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 		aml_i2s_alsa_write_addr = frames_to_bytes(runtime, pos);
 
 	n = frames_to_bytes(runtime, count);
-	if (aml_i2s_playback_enable == 0 && s->device_type == AML_AUDIO_I2SOUT)
-		return res;
 	if (n > tmp_buf->buffer_size) {
 		pr_info("[%s]FATAL_ERR:UserData/%d > buffer_size/%d\n",
 				__func__ , n, tmp_buf->buffer_size);

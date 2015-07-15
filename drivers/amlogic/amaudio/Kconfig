@@ -4,7 +4,7 @@ menu "Audio Interface"
 
 config	AMAUDIO
 	bool "Amlogic Audio Interface"
-    default n
+    default y
     select SOUND
     select SND_SOC
     select SND
