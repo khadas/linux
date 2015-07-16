@@ -213,6 +213,32 @@ static int ip101a_g_ack_interrupt(struct phy_device *phydev)
 	return 0;
 }
 
+static int ip101_suspend(struct phy_device *phydev)
+{
+	int value;
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
+
+	/* ip101 need read to take effect */
+	phy_read(phydev, MII_BMCR);
+
+	return 0;
+}
+
+static int ip101_resume(struct phy_device *phydev)
+{
+	int value;
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
+
+	/* ip101 need read to take effect */
+	phy_read(phydev, MII_BMCR);
+
+	return 0;
+}
+
 static struct phy_driver icplus_driver[] = {
 {
 	.phy_id		= 0x02430d80,
@@ -222,8 +248,8 @@ static struct phy_driver icplus_driver[] = {
 	.config_init	= &ip175c_config_init,
 	.config_aneg	= &ip175c_config_aneg,
 	.read_status	= &ip175c_read_status,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= ip101_suspend,
+	.resume		= ip101_resume,
 	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x02430d90,
@@ -234,8 +260,8 @@ static struct phy_driver icplus_driver[] = {
 	.config_init	= &ip1001_config_init,
 	.config_aneg	= &genphy_config_aneg,
 	.read_status	= &genphy_read_status,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= ip101_suspend,
+	.resume		= ip101_resume,
 	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x02430c54,
@@ -248,8 +274,8 @@ static struct phy_driver icplus_driver[] = {
 	.config_init	= &ip101a_g_config_init,
 	.config_aneg	= &genphy_config_aneg,
 	.read_status	= &genphy_read_status,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
+	.suspend	= ip101_suspend,
+	.resume		= ip101_resume,
 	.driver		= { .owner = THIS_MODULE,},
 } };
 
