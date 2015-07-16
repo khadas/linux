@@ -562,6 +562,9 @@ void cec_input_handle_message(void)
 				break;
 			cec_user_control_pressed_irq();
 			break;
+		case CEC_OC_USER_CONTROL_RELEASED:
+			cec_user_control_released_irq();
+			break;
 		default:
 			break;
 		}
@@ -1848,6 +1851,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	INIT_WORK(&hdmitx_device->cec_work, cec_task);
 	hrtimer_init(&cec_late_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	cec_late_timer.function = cec_late_check_rx_buffer;
+	hrtimer_init(&cec_key_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	cec_key_timer.function = cec_key_up;
 	cec_global_info.remote_cec_dev = input_allocate_device();
 	if (!cec_global_info.remote_cec_dev)
 		hdmi_print(INF, CEC "No enough memory\n");

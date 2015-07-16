@@ -627,5 +627,7 @@ extern __u16 cec_key_map[128];
 extern bool cec_msg_dbg_en;
 extern void cec_rx_buf_clear(void);
 
+extern struct hrtimer cec_key_timer;
+extern enum hrtimer_restart cec_key_up(struct hrtimer *timer);
 #endif
 

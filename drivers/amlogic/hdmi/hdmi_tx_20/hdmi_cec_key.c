@@ -18,9 +18,12 @@
 #include <linux/input.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
+#include <linux/delay.h>
+#include <linux/timer.h>
 
 struct hdmitx_dev *hdmitx_device = NULL;
 
+#define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 __u16 cec_key_map[128] = {
 	KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,/* 0x00 */
 	0 , KEY_HOMEPAGE , KEY_MENU, 0, 0, KEY_BACK, 0, 0,
@@ -43,6 +46,29 @@ __u16 cec_key_map[128] = {
 	0 , KEY_BLUE, KEY_RED, KEY_GREEN, KEY_YELLOW, 0, 0, 0,/* 0x70 */
 	0 , 0, 0, 0, 0, 0, 0, 0x2fd,
 };
+
+struct hrtimer cec_key_timer;
+static unsigned int last_key_irq = -1;
+static atomic_t wait_key_release = {};
+static int need_repeat = -1;
+enum hrtimer_restart cec_key_up(struct hrtimer *timer)
+{
+	if (need_repeat) {
+		hdmi_print(INF, CEC"repeat:%d\n", cec_key_map[last_key_irq]);
+		input_event(cec_global_info.remote_cec_dev,
+		    EV_KEY, cec_key_map[last_key_irq], 2);
+		input_sync(cec_global_info.remote_cec_dev);
+		hrtimer_start(&cec_key_timer, HR_DELAY(100), HRTIMER_MODE_REL);
+	} else {
+		hdmi_print(INF, CEC"last:%d up\n", cec_key_map[last_key_irq]);
+		input_event(cec_global_info.remote_cec_dev,
+		    EV_KEY, cec_key_map[last_key_irq], 0);
+		input_sync(cec_global_info.remote_cec_dev);
+		atomic_set(&wait_key_release, 0);
+	}
+
+	return HRTIMER_NORESTART;
+}
 
 void cec_send_event(struct cec_rx_message_t *pcec_message)
 {
@@ -142,13 +168,36 @@ void cec_send_event_irq(void)
 		}
 	}
 
-
+	if (last_key_irq == -1) {
+		last_key_irq = operands_irq[0];
+	} else if (operands_irq[0] >= 1 &&
+	    operands_irq[0] <= 4 &&
+	    last_key_irq == operands_irq[0]) {
+		need_repeat = 1;
+	} else {
+		need_repeat = 0;
+		hrtimer_cancel(&cec_key_timer);
+		input_event(cec_global_info.remote_cec_dev,
+		    EV_KEY, cec_key_map[last_key_irq], 0);
+		input_sync(cec_global_info.remote_cec_dev);
+	}
 	input_event(cec_global_info.remote_cec_dev,
 	    EV_KEY, cec_key_map[operands_irq[0]], 1);
 	input_sync(cec_global_info.remote_cec_dev);
-	input_event(cec_global_info.remote_cec_dev,
-	    EV_KEY, cec_key_map[operands_irq[0]], 0);
-	input_sync(cec_global_info.remote_cec_dev);
+	last_key_irq = operands_irq[0];
+	if (need_repeat) {
+		hrtimer_start(&cec_key_timer, HR_DELAY(100), HRTIMER_MODE_REL);
+	} else {
+		if (atomic_read(&wait_key_release) == 0) {
+			hrtimer_start(&cec_key_timer, HR_DELAY(200),
+				      HRTIMER_MODE_REL);
+		} else {
+			hrtimer_cancel(&cec_key_timer);
+			hrtimer_start(&cec_key_timer, HR_DELAY(200),
+				      HRTIMER_MODE_REL);
+		}
+	}
+	atomic_set(&wait_key_release, 1);
 	hdmi_print(INF, CEC  ":key map:%d\n", cec_key_map[operands_irq[0]]);
 }
 
@@ -161,6 +210,11 @@ void cec_user_control_pressed_irq(void)
 void cec_user_control_released_irq(void)
 {
 	hdmi_print(INF, CEC  ": Key released\n");
+	need_repeat = 0;
+	hrtimer_cancel(&cec_key_timer);
+	input_event(cec_global_info.remote_cec_dev,
+	    EV_KEY, cec_key_map[last_key_irq], 0);
+	input_sync(cec_global_info.remote_cec_dev);
 }
 
 void cec_user_control_pressed(struct cec_rx_message_t *pcec_message)
