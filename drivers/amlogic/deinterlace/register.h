@@ -961,6 +961,7 @@ unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 #define DIPD_RO_COMB_20					0x2fea
 /* nr3 */
 #define NR3_MODE						0x2ff0
+		/* d010bfc0 */
 #define NR3_COOP_PARA					0x2ff1
 #define NR3_CNOOP_GAIN					0x2ff2
 #define NR3_YMOT_PARA					0x2ff3

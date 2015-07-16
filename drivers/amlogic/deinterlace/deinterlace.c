@@ -3189,13 +3189,6 @@ di_pre_stru.di_chan2_buf_dup_p);
 		}
 		if (di_pre_stru.field_count_for_cont >= 3) {
 			di_mtn_1_ctrl1 |= 1<<29;/* enable txt */
-			#ifndef NEW_DI_V3
-			RDMA_WR(DI_CLKG_CTRL, 0xfeff0000);
-			/* di enable nr clock gate */
-			#else
-			RDMA_WR(DI_CLKG_CTRL, 0xfcf60000);
-			/* nr/blend0/ei0/mtn0 clock gate */
-			#endif
 			RDMA_WR(DI_PRE_CTRL,
 				RDMA_RD(DI_PRE_CTRL)|(cont_rd<<25));
 			#ifdef NEW_DI_V4
@@ -5781,8 +5774,17 @@ unreg:
 #endif
 					di_uninit_buf();
 					di_set_power_control(0, 0);
-					if (get_blackout_policy())
+					#ifndef NEW_DI_V3
+					Wr(DI_CLKG_CTRL, 0xff0000);
+					/* di enable nr clock gate */
+					#else
+					Wr(DI_CLKG_CTRL, 0xf60000);
+					/* nr/blend0/ei0/mtn0 clock gate */
+					#endif
+					if (get_blackout_policy()) {
 						di_set_power_control(1, 0);
+						Wr(DI_CLKG_CTRL, 0x2);
+					}
 					di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
@@ -5889,7 +5891,13 @@ static void di_reg_process(void)
 		if (vframe) {
 			di_set_power_control(0, 1);
 			di_set_power_control(1, 1);
-
+			#ifndef NEW_DI_V3
+			Wr(DI_CLKG_CTRL, 0xfeff0000);
+			/* di enable nr clock gate */
+			#else
+			Wr(DI_CLKG_CTRL, 0xfcf60000);
+			/* nr/blend0/ei0/mtn0 clock gate */
+			#endif
 /* add for di Reg re-init */
 #ifdef NEW_DI_TV
 di_set_para_by_tvinfo(vframe);
