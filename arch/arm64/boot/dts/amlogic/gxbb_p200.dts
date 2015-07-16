@@ -178,16 +178,7 @@
                 clocks = <&clock CLK_81>;
                 clock-names = "ethclk81";
         };
-	meson-remote {
-		compatible = "amlogic, aml_remote";
-		dev_name = "meson-remote";
- 		status = "ok";
-		remote_ao_offset = <0x580>; /* 0x400 + (0x20 + idx)<<2 -- old ; 0x400 + (0x60 +idx)<<2 --new   */
-		reg = <0x0 0xc810023c 0x0 0x4>;
-		interrupts = <0 196 1>;
- 		pinctrl-names = "default";
- 		pinctrl-0 = <&remote_pins>;
- 		};
+
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
