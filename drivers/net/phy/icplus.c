@@ -45,6 +45,31 @@ MODULE_LICENSE("GPL");
 #define	IP101A_G_IRQ_PIN_USED		(1<<15) /* INTR pin used */
 #define	IP101A_G_IRQ_DEFAULT		IP101A_G_IRQ_PIN_USED
 
+#define IP101G_PAGE_SEL			0x14
+#define IP101G_PAGE_16			0x10
+#define IP101G_SPEC_CTRL_STATUS	0x10
+#define IP101G_ANALOG_OFF		0x0001
+#define IP101G_MMD_CTRL			0x0d
+#define IP101G_MMD_DATA			0x0e
+#define IP101G_DIO_PIN_DCR		0x1a
+#define OFF 1
+#define ON  0
+
+static void off_analog(struct phy_device *phydev, int off)
+{
+	int ana;
+
+	phy_write(phydev, IP101G_PAGE_SEL, IP101G_PAGE_16);
+	ana = phy_read(phydev, IP101G_SPEC_CTRL_STATUS);
+	if (off) {
+		phy_write(phydev, IP101G_SPEC_CTRL_STATUS,
+				(ana | IP101G_ANALOG_OFF));
+	} else {
+		phy_write(phydev, IP101G_SPEC_CTRL_STATUS,
+				(ana & ~IP101G_ANALOG_OFF));
+	}
+}
+
 static int ip175c_config_init(struct phy_device *phydev)
 {
 	int err, i;
@@ -217,6 +242,8 @@ static int ip101_suspend(struct phy_device *phydev)
 {
 	int value;
 
+	off_analog(phydev, OFF);
+
 	value = phy_read(phydev, MII_BMCR);
 	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
 
@@ -229,6 +256,8 @@ static int ip101_suspend(struct phy_device *phydev)
 static int ip101_resume(struct phy_device *phydev)
 {
 	int value;
+
+	off_analog(phydev, ON);
 
 	value = phy_read(phydev, MII_BMCR);
 	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
