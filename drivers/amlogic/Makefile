@@ -40,6 +40,8 @@ obj-$(CONFIG_REGMAP_MMIO)	+= iomap/
 
 obj-$(CONFIG_AMLOGIC_SEC)	+= secmon/
 
+obj-$(CONFIG_AMLOGIC_SECURITY_KEY)	+= securitykey/
+
 obj-$(CONFIG_AM_PHY)		+= ethernet/
 
 obj-$(CONFIG_MMC_AML)		+= mmc/

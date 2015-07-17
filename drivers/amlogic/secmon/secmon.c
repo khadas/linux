@@ -34,8 +34,11 @@ static void __iomem *sharemem_in_base;
 static void __iomem *sharemem_out_base;
 static long phy_in_base;
 static long phy_out_base;
-
+#ifdef CONFIG_ARM64
+#define IN_SIZE	0x1000
+#else
  #define IN_SIZE	0x8000
+#endif
  #define OUT_SIZE 0x1000
 
 #ifdef CONFIG_ARM64
@@ -75,7 +78,7 @@ static int secmon_probe(struct platform_device *pdev)
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret == 0)
-		pr_info("probe done");
+		pr_info("probe done\n");
 	return ret;
 }
 

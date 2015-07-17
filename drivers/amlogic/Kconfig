@@ -45,6 +45,8 @@ source "drivers/amlogic/clk/Kconfig"
 
 source "drivers/amlogic/secmon/Kconfig"
 
+source "drivers/amlogic/securitykey/Kconfig"
+
 source "drivers/amlogic/amports/Kconfig"
 
 source "drivers/amlogic/deinterlace/Kconfig"
