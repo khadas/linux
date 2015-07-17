@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -220,7 +221,13 @@ static const struct snd_soc_component_driver aml_component = {
 
 static int aml_pcm_dai_probe(struct platform_device *pdev)
 {
+	struct pinctrl *pin_ctl;
+
 	pr_info("enter %s\n", __func__);
+
+	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "aml_audio_btpcm");
+	if (IS_ERR(pin_ctl))
+		pr_err("aml audio pcm dai pinmux set error!\n");
 
 	return snd_soc_register_component(&pdev->dev, &aml_component,
 					  aml_pcm_dai, ARRAY_SIZE(aml_pcm_dai));

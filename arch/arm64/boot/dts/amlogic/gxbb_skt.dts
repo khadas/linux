@@ -724,6 +724,8 @@
 	pcm_dai: PCM {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-pcm-dai";
+		pinctrl-names = "aml_audio_btpcm";
+		pinctrl-0 = <&audio_btpcm_pins>;
 	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";
@@ -825,6 +827,14 @@
 		amlogic,clrmask=<AO 0x8
 					AO2 0x80000002>;	/*spdif_out*/
 		amlogic,pins ="GPIOAO_13";		  /*spdif_out*/
+	};
+
+	audio_btpcm_pins:audio_btpcm_pins{
+		/* BT PCM PINMUX SETTING*/
+		amlogic,setmask=<3 0x78000000>;
+		amlogic,clrmask=<3 0x00803280
+				4 0xc0>;
+		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
 	};
 };
 &efuse {
