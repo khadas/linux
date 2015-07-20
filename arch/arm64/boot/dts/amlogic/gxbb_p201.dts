@@ -484,6 +484,7 @@
 		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp", "hdmitx_clk_enci",
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
 
+		ranges;
 		vend_data: vend_data{
 			compatible = "amlogic, amlogic-cec";
 			status = "okay";
@@ -495,6 +496,7 @@
 			interrupt-names = "hdmitx_cec";
 			pinctrl-names = "hdmitx_aocec";
 			pinctrl-0=<&hdmitx_aocec>;
+			reg = <0x0 0xc810023c 0x0 0x4>;
 		};
 	};
 

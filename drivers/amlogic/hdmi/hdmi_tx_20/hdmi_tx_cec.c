@@ -59,7 +59,10 @@
 #include "hw/hdmi_tx_reg.h"
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/amlogic/pm.h>
+#include <linux/of_address.h>
 
+static void __iomem *exit_reg;
 static struct hdmitx_dev *hdmitx_device;
 static struct workqueue_struct *cec_workqueue;
 static struct hrtimer cec_late_timer;
@@ -1820,6 +1823,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	unsigned int reg;
 	struct pinctrl *p;
 	struct vendor_info_data *vend;
+	struct resource *res;
+	resource_size_t *base;
 #endif
 
 	hdmitx_device = get_hdmitx_device();
@@ -1913,6 +1918,14 @@ static int aml_cec_probe(struct platform_device *pdev)
 				   irq_idx, irq_name, r);
 		}
 	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		base = devm_ioremap_resource(&pdev->dev, res);
+		exit_reg = (void *)base;
+	} else {
+		hdmi_print(INF, CEC "no memory resource\n");
+		exit_reg = NULL;
+	}
 
 	vend = hdmitx_device->config_data.vend_data;
 	r = of_property_read_string(node, "vendor_name",
@@ -1985,8 +1998,21 @@ static int aml_cec_pm_prepare(struct device *dev)
 
 static void aml_cec_pm_complete(struct device *dev)
 {
-	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
-		hdmi_print(INF, CEC "cec complete suspend!\n");
+	int exit = 0;
+
+	if (exit_reg) {
+		exit = readl(exit_reg);
+		hdmi_print(INF, CEC "wake up flag:%x\n", exit);
+	}
+	if (((exit >> 28) & 0xf) == CEC_WAKEUP) {
+		input_event(cec_global_info.remote_cec_dev,
+			    EV_KEY, KEY_POWER, 1);
+		input_sync(cec_global_info.remote_cec_dev);
+		input_event(cec_global_info.remote_cec_dev,
+			    EV_KEY, KEY_POWER, 0);
+		input_sync(cec_global_info.remote_cec_dev);
+		hdmi_print(INF, CEC "== WAKE UP BY CEC ==\n");
+	}
 }
 
 static int aml_cec_resume_noirq(struct device *dev)

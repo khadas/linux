@@ -45,6 +45,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
@@ -1554,23 +1555,30 @@ struct hdmitx_dev *get_hdmitx_device(void)
 EXPORT_SYMBOL(get_hdmitx_device);
 
 #ifdef CONFIG_OF
-static int allocate_cec_device(struct device_node *np)
+static int allocate_cec_device(struct device_node *np,
+			       struct platform_device *pdev)
 {
 	int ret;
-	struct platform_device *pdev;
 	const char *name;
+	struct of_dev_auxdata cec_auxdata[] = {
+		{}
+	};
 
 	ret = of_property_read_string(np, "compatible", &name);
 	if (ret) {
 		hdmi_print(INF, SYS "not find cec dev name\n");
 		return 1;
 	} else {
-		pdev = platform_device_alloc(name, 0);
-		pdev->dev.of_node = of_node_get(np);
-		ret = platform_device_add(pdev);
+		/*
+		 * for compatible
+		 */
+		cec_auxdata[0].compatible = (char *)name;
+		cec_auxdata[0].name = (char *)name;
+		ret = of_platform_populate(np->parent, NULL,
+					   cec_auxdata, &pdev->dev);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int pwr_type_match(struct device_node *np, const char *str,
@@ -1773,7 +1781,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		if (!hdmitx_device.config_data.vend_data)
 			hdmi_print(INF, SYS
 				"can not get vend_data mem\n");
-		ret = allocate_cec_device(init_data);
+		ret = allocate_cec_device(init_data, pdev);
 		if (ret)
 			hdmi_print(INF, SYS"not find vend_init_data\n");
 	}

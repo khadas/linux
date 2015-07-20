@@ -9,4 +9,5 @@
 #define	WIFI_WAKEUP			5
 #define	POWER_KEY_WAKEUP	6
 #define	AUTO_WAKEUP			7
+#define	CEC_WAKEUP			8
 #endif
