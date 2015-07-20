@@ -10,4 +10,12 @@
 #define	POWER_KEY_WAKEUP	6
 #define	AUTO_WAKEUP			7
 #define	CEC_WAKEUP			8
+#ifdef CONFIG_GXBB_SUSPEND
+unsigned int get_resume_method(void);
+#else
+static inline unsigned int get_resume_method(void)
+{
+	return 0;
+}
+#endif
 #endif

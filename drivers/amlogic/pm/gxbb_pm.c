@@ -174,6 +174,14 @@ static void meson_pm_finish(void)
 {
 	pr_info(KERN_INFO "enter meson_pm_finish!\n");
 }
+unsigned int get_resume_method(void)
+{
+	unsigned int val = 0;
+	if (exit_reg)
+		val = (readl(exit_reg) >> 28) & 0xf;
+	return val;
+}
+EXPORT_SYMBOL(get_resume_method);
 
 static const struct platform_suspend_ops meson_gx_ops = {
 	.enter = meson_gx_enter,
@@ -183,7 +191,7 @@ static const struct platform_suspend_ops meson_gx_ops = {
 };
 static int meson_pm_resume(struct platform_device *pdev)
 {
-	if (readl(exit_reg) == AUTO_WAKEUP) {
+	if (get_resume_method() == AUTO_WAKEUP) {
 		input_event(input_dev, EV_KEY, KEY_POWER, 1);
 		input_sync(input_dev);
 		input_event(input_dev, EV_KEY, KEY_POWER, 0);

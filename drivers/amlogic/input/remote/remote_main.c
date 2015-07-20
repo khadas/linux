@@ -51,7 +51,7 @@
 #include <linux/earlysuspend.h>
 static struct early_suspend early_suspend;
 #endif
-static void __iomem *exit_reg;
+
 static bool key_pointer_switch = true;
 static unsigned int FN_KEY_SCANCODE = 0x3ff;
 static unsigned int OK_KEY_SCANCODE = 0x3ff;
@@ -800,7 +800,6 @@ static int remote_probe(struct platform_device *pdev)
 	remote_log_buf[0] = '\0';
 	pr_info("physical address:0x%x\n",
 		(unsigned int)virt_to_phys(remote_log_buf));
-	exit_reg = of_iomap(pdev->dev.of_node, 0);
 	return 0;
 err3:
 	input_unregister_device(remote->input);
@@ -866,7 +865,8 @@ static int remote_resume(struct platform_device *pdev)
 			aml_write_aobus(AO_RTI_STATUS_REG2, 0);
 		}
 	} else {
-		if (readl(exit_reg) == REMOTE_WAKEUP) {
+		if (get_resume_method() == REMOTE_WAKEUP) {
+			pr_info("remote_wakeup\n");
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
 			input_sync(gp_remote->input);
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
