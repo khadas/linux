@@ -356,6 +356,9 @@ vpp_process_speed_check(s32 width_in,
 
 			if (vf->type & VIDTYPE_VIU_422) {
 				/*TODO vpu */
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
+					bypass_ratio = 125;
+				}
 				if (height_out == 0
 					|| div_u64(
 						VPP_SPEED_FACTOR * width_in *
