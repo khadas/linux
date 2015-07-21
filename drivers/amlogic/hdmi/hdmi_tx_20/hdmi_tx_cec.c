@@ -1387,6 +1387,8 @@ void cec_handle_message(struct cec_rx_message_t *pcec_message)
 				cec_enter_standby = 1;
 				cec_standby(pcec_message);
 			}
+			cec_global_info.cec_node_info[cec_global_info.
+				my_node_index].power_status = POWER_STANDBY;
 			break;
 		case CEC_OC_SET_STREAM_PATH:
 			cec_set_stream_path(pcec_message);

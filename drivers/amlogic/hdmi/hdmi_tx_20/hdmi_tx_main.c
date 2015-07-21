@@ -664,6 +664,29 @@ static ssize_t show_cec_lang_config(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_cec_active_status(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	int pos = 0;
+	int active = DEVICE_MENU_INACTIVE;
+	char *str = "is not";
+
+	if ((hdmitx_device.hpd_state) &&
+	    (hdmitx_device.cec_func_config & (1 << CEC_FUNC_MSAK)) &&
+	   (!cec_global_info.cec_node_info[cec_global_info.
+		my_node_index].power_status)) {
+		active = cec_global_info.cec_node_info[cec_global_info.
+			 my_node_index].menu_status;
+		if (active == DEVICE_MENU_ACTIVE)
+			str = "is";
+	}
+	pr_debug("Mbox %s display on TV.\n", str);
+	pos += snprintf(buf + pos, PAGE_SIZE, "%x\n", active);
+
+	return pos;
+}
+
 /*aud_mode attr*/
 static ssize_t show_aud_mode(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -1136,6 +1159,8 @@ static DEVICE_ATTR(support_3d, S_IRUGO, show_support_3d,
 static DEVICE_ATTR(cec, S_IWUSR | S_IRUGO, show_cec, store_cec);
 static DEVICE_ATTR(cec_config, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_cec_config, store_cec_config);
+static DEVICE_ATTR(cec_active_status, S_IWUSR | S_IRUGO ,
+	show_cec_active_status, NULL);
 static DEVICE_ATTR(cec_lang_config, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_cec_lang_config, store_cec_lang_config);
 
@@ -1727,6 +1752,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_cec);
 	ret = device_create_file(dev, &dev_attr_cec_config);
 	ret = device_create_file(dev, &dev_attr_cec_lang_config);
+	ret = device_create_file(dev, &dev_attr_cec_active_status);
 #ifdef CONFIG_AM_TV_OUTPUT
 	vout_register_client(&hdmitx_notifier_nb_v);
 #else
