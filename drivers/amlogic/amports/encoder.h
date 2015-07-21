@@ -254,6 +254,9 @@ struct encode_meminfo_s {
 	u32 vdec2_start_addr;
 #endif
 
+	u32 dump_info_ddr_start_addr;
+	u32 dump_info_ddr_size;
+
 	s32 dblk_buf_canvas;
 	s32 ref_buf_canvas;
 	struct BuffInfo_s bufspec;
@@ -296,6 +299,9 @@ struct encode_wq_s {
 	u32 sps_size;
 	u32 pps_size;
 
+	u32 me_weight;
+	u32 i4_weight;
+	u32 i16_weight;
 	struct encode_meminfo_s mem;
 	struct encode_picinfo_s pic;
 	struct encode_control_s control;
@@ -587,12 +593,7 @@ extern s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue);
 #define CANVAS_ROW_SIZE             HCODEC_HENC_SCRATCH_C
 
 /* For GX */
-#define IE_SAD_RESULT0	            HCODEC_HENC_SCRATCH_3
-#define IE_SAD_RESULT1              HCODEC_HENC_SCRATCH_4
-
-#define ME_SAD_RESULT0              HCODEC_HENC_SCRATCH_I
-#define ME_SAD_RESULT1              HCODEC_HENC_SCRATCH_M
-
+#define INFO_DUMP_START_ADDR      HCODEC_HENC_SCRATCH_I
 
 #define LOW_LATENCY_EN_REG          DOS_SCRATCH9
 #define PREVIOUS_FNUM_REG           DOS_SCRATCH10

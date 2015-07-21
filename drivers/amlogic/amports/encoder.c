@@ -55,6 +55,7 @@
 #define AMVENC_CANVAS_MAX_INDEX 0xEC
 
 #define MIN_SIZE 18
+#define DUMP_INFO_BYTES_PER_MB 80
 /* #define USE_OLD_DUMP_MC */
 
 static s32 avc_device_major;
@@ -163,14 +164,14 @@ static DEFINE_SPINLOCK(lock);
 #define ADV_MV_8x8_WEIGHT 0x200
 #define ADV_MV_4x4x4_WEIGHT 0x300
 #else
-#define ME_WEIGHT_OFFSET 0x320
-#define I4MB_WEIGHT_OFFSET 0x755
-#define I16MB_WEIGHT_OFFSET 0x340
+#define ME_WEIGHT_OFFSET 0x3320
+#define I4MB_WEIGHT_OFFSET 0x3655
+#define I16MB_WEIGHT_OFFSET 0x3320
 
-#define ADV_MV_16x16_WEIGHT 0x080
-#define ADV_MV_16_8_WEIGHT 0x100
-#define ADV_MV_8x8_WEIGHT 0x200
-#define ADV_MV_4x4x4_WEIGHT 0x300
+#define ADV_MV_16x16_WEIGHT 0x000
+#define ADV_MV_16_8_WEIGHT 0x2000
+#define ADV_MV_8x8_WEIGHT 0x3000
+#define ADV_MV_4x4x4_WEIGHT 0x3000
 #endif
 
 #define IE_SAD_SHIFT_I16 0x003
@@ -199,10 +200,10 @@ static DEFINE_SPINLOCK(lock);
 #define ME_MV_STEP_WEIGHT_2 0x0
 #define ME_MV_STEP_WEIGHT_3 0x0
 
-#define ME_SAD_ENOUGH_0_DATA   0x08
-#define ME_SAD_ENOUGH_1_DATA   0x08
+#define ME_SAD_ENOUGH_0_DATA   0x00
+#define ME_SAD_ENOUGH_1_DATA   0x04
 #define ME_SAD_ENOUGH_2_DATA   0x11
-#define ADV_MV_8x8_ENOUGH_DATA 0x81
+#define ADV_MV_8x8_ENOUGH_DATA 0x20
 
 #ifndef USE_OLD_DUMP_MC
 static u32  quant_tbl_i4[2][8] = {
@@ -853,6 +854,25 @@ static void avc_buffspec_init(struct encode_wq_s *wq)
 		wq->mem.BitstreamStart +
 		wq->mem.bufspec.bitstream.buf_size - 1;
 
+#ifndef USE_OLD_DUMP_MC
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		u32 mb_w = (wq->pic.encoder_width + 15) >> 4;
+		u32 mb_h = (wq->pic.encoder_height + 15) >> 4;
+		u32 mbs = mb_w * mb_h;
+		wq->mem.dump_info_ddr_size =
+			DUMP_INFO_BYTES_PER_MB * mbs;
+		wq->mem.dump_info_ddr_size =
+			(wq->mem.dump_info_ddr_size + PAGE_SIZE - 1)
+			& ~(PAGE_SIZE - 1);
+	} else {
+		wq->mem.dump_info_ddr_start_addr = 0;
+		wq->mem.dump_info_ddr_size = 0;
+	}
+#else
+	wq->mem.dump_info_ddr_start_addr = 0;
+	wq->mem.dump_info_ddr_size = 0;
+#endif
+
 	enc_pr(LOG_INFO, "BitstreamStart is 0x%x, wq: %p.\n",
 		wq->mem.BitstreamStart, (void *)wq);
 
@@ -1265,6 +1285,10 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	i_pic_qp   = quant;
 	p_pic_qp   = quant;
 
+	wq->me_weight = 0;
+	wq->i4_weight = 0;
+	wq->i16_weight = 0;
+
 #ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
@@ -1383,6 +1407,10 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 		WRITE_HREG(HCODEC_QDCT_VLC_QUANT_CTL_1,
 			   (26 << 6) | /* vlc_max_delta_q_neg */
 			   (25 << 0)); /* vlc_max_delta_q_pos */
+
+		wq->me_weight = ME_WEIGHT_OFFSET;
+		wq->i4_weight = I4MB_WEIGHT_OFFSET;
+		wq->i16_weight = I16MB_WEIGHT_OFFSET;
 	}
 #endif
 
@@ -1748,7 +1776,7 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 		u32 me_mode  = (ie_me_mode >> ME_PIXEL_MODE_SHIFT) &
 							ME_PIXEL_MODE_MASK;
 		WRITE_HREG(HCODEC_QDCT_MB_CONTROL,
-			   (0 << 28) | /* ignore_t_p8x8 */
+			   (1 << 28) | /* ignore_t_p8x8 */
 			   (0 << 27) | /* zero_mc_out_null_non_skipped_mb */
 			   (0 << 26) | /* no_mc_out_null_non_skipped_mb */
 			   (0 << 25) | /* mc_out_even_skipped_mb */
@@ -1875,6 +1903,11 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	if (encode_manager.ucode_index == UCODE_MODE_SW_MIX)
 		WRITE_HREG(SW_CTL_INFO_DDR_START,
 			wq->mem.sw_ctl_info_start_addr);
+#ifndef USE_OLD_DUMP_MC
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		WRITE_HREG(INFO_DUMP_START_ADDR,
+			wq->mem.dump_info_ddr_start_addr);
+#endif
 	else {
 		if (IDR) {
 			WRITE_HREG(BITS_INFO_DDR_START,
@@ -2583,10 +2616,24 @@ static u32 getbuffer(struct encode_wq_s *wq, u32 type)
 		ret = wq->mem.BitstreamStart;
 		break;
 	case ENCODER_BUFFER_INTER_INFO:
+#ifndef USE_OLD_DUMP_MC
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+			ret = wq->mem.dump_info_ddr_start_addr;
+		else
+			ret = wq->mem.inter_bits_info_ddr_start_addr;
+#else
 		ret = wq->mem.inter_bits_info_ddr_start_addr;
+#endif
 		break;
 	case ENCODER_BUFFER_INTRA_INFO:
+#ifndef USE_OLD_DUMP_MC
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+			ret = wq->mem.dump_info_ddr_start_addr;
+		else
+			ret = wq->mem.intra_bits_info_ddr_start_addr;
+#else
 		ret = wq->mem.intra_bits_info_ddr_start_addr;
+#endif
 		break;
 	case ENCODER_BUFFER_QP:
 		ret = wq->mem.sw_ctl_info_start_addr;
@@ -2849,6 +2896,19 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 	wq->mem.vdec2_start_addr =
 		wq->mem.buf_start + wq->mem.bufspec.vdec2_info.buf_start;
 #endif
+
+#ifndef USE_OLD_DUMP_MC
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		wq->mem.dump_info_ddr_start_addr =
+			wq->mem.inter_bits_info_ddr_start_addr;
+	} else {
+		wq->mem.dump_info_ddr_start_addr = 0;
+		wq->mem.dump_info_ddr_size = 0;
+	}
+#else
+	wq->mem.dump_info_ddr_start_addr = 0;
+	wq->mem.dump_info_ddr_size = 0;
+#endif
 	enc_pr(LOG_DEBUG,
 		"amvenc_avc  memory config sucess, buff start:0x%x, size is 0x%x, wq:%p.\n",
 		wq->mem.buf_start, wq->mem.buf_size, (void *)wq);
@@ -2931,7 +2991,21 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		put_user(wq->hw_status, (u32 *)arg);
 		break;
 	case AMVENC_AVC_IOC_GET_OUTPUT_SIZE:
-		put_user(wq->output_size, (u32 *)arg);
+		if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+			&& (wq->ucode_index == UCODE_MODE_FULL)) {
+#ifndef USE_OLD_DUMP_MC
+			addr_info[0] = wq->output_size;
+			addr_info[1] = wq->me_weight;
+			addr_info[2] = wq->i4_weight;
+			addr_info[3] = wq->i16_weight;
+			r = copy_to_user((u32 *)arg,
+				addr_info , 4 * sizeof(u32));
+#else
+			put_user(wq->output_size, (u32 *)arg);
+#endif
+		} else {
+			put_user(wq->output_size, (u32 *)arg);
+		}
 		break;
 	case AMVENC_AVC_IOC_CONFIG_INIT:
 		if (copy_from_user(addr_info, (void *)arg,
@@ -2984,8 +3058,23 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		addr_info[10] = wq->mem.bufspec.dec1_uv.buf_size;
 		addr_info[11] = wq->mem.bufspec.bitstream.buf_start;
 		addr_info[12] = wq->mem.bufspec.bitstream.buf_size;
+#ifndef USE_OLD_DUMP_MC
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+			/* new dump info addr same as inter_bits_info address */
+			addr_info[13] =
+				wq->mem.bufspec.inter_bits_info.buf_start;
+			addr_info[14] =
+				wq->mem.dump_info_ddr_size;
+		} else {
+			addr_info[13] =
+				wq->mem.bufspec.inter_bits_info.buf_start;
+			addr_info[14] =
+				wq->mem.bufspec.inter_bits_info.buf_size;
+		}
+#else
 		addr_info[13] = wq->mem.bufspec.inter_bits_info.buf_start;
 		addr_info[14] = wq->mem.bufspec.inter_bits_info.buf_size;
+#endif
 		addr_info[15] = wq->mem.bufspec.inter_mv_info.buf_start;
 		addr_info[16] = wq->mem.bufspec.inter_mv_info.buf_size;
 		addr_info[17] = wq->mem.bufspec.intra_bits_info.buf_start;
@@ -3239,6 +3328,10 @@ Again:
 				size = wq->mem.inter_mv_info_ddr_start_addr -
 				       wq->mem.inter_bits_info_ddr_start_addr +
 				       wq->mem.bufspec.inter_mv_info.buf_size;
+#ifndef USE_OLD_DUMP_MC
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+					size = wq->mem.dump_info_ddr_size;
+#endif
 				if (buf_start)
 					cache_flush(buf_start, size);
 			}
@@ -3249,6 +3342,10 @@ Again:
 				size = wq->mem.intra_pred_info_ddr_start_addr -
 				       wq->mem.intra_bits_info_ddr_start_addr +
 				       wq->mem.bufspec.intra_pred_info.buf_size;
+#ifndef USE_OLD_DUMP_MC
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+					size = wq->mem.dump_info_ddr_size;
+#endif
 				if (buf_start)
 					cache_flush(buf_start, size);
 			}
