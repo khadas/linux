@@ -52,6 +52,8 @@ static struct para_pair_s logo_args[] = {
 };
 
 static struct para_pair_s mode_infos[] = {
+	{"480cvbs", VMODE_480CVBS},
+	{"576cvbs", VMODE_576CVBS},
 	{"480i60hz", VMODE_480I},
 	{"480p60hz", VMODE_480P},
 	{"576i50hz", VMODE_576I},
