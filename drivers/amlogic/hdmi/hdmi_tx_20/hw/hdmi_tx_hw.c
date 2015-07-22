@@ -2265,6 +2265,8 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	} else
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 5, 1);
 	set_aud_fifo_rst();
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
 
 	return 1;
@@ -3751,6 +3753,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (0 << 1);
 	data32 |= (1 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, data32);
+	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH,
+		hdmitx_rd_reg(HDMITX_DWC_FC_VSYNCINWIDTH));
 } /* config_hdmi20_tx */
 
 /* TODO */
