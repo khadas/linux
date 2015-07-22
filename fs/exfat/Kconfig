@@ -1,0 +1,68 @@
+config EXFAT_FS
+	tristate "exFAT fs support"
+	select NLS
+	help
+	  This adds support for the exFAT file system.
+	  Your system would support exFAT format storage,
+	  such as U Disk with exfat file system and so on.
+
+	  If you need exfat just enable it.
+
+config EXFAT_DISCARD
+	bool "enable discard support"
+	depends on EXFAT_FS
+	default y
+	help
+	   blkdiscard is used to discard device sectors.
+	   This is useful for solid state drivers and
+	   thinly provisioned storage.The blkdiscard will
+	   discard all blocks on the device.
+
+config EXFAT_DELAYED_SYNC
+	bool "enable delayed sync"
+	depends on EXFAT_FS
+	default n
+	help
+	  Add exFAT file system delayed sync support
+	  This function depends on exFAT
+	  The default is disabled
+
+	  If you need the function, please enable it.
+
+config EXFAT_KERNEL_DEBUG
+	bool "enable kernel debug features via ioctl"
+	depends on EXFAT_FS
+	default n
+	help
+	  This enable exFAT kernel debug function.
+	  You can debug it via ioctl.
+	  This function depends on exFAT
+	  The default is disabled
+
+	  If you need the function, please enable it.
+
+config EXFAT_DEBUG_MSG
+	bool "print debug messages"
+	depends on EXFAT_FS
+	default n
+	help
+	  This enable exFAT kernel print debug messages.
+	  You can print exFAT debug messages by it.
+	  This function depends on exFAT
+	  The default is disabled
+
+	  If you need the function, please enable it.
+
+config EXFAT_DEFAULT_CODEPAGE
+	int "Default codepage for exFAT"
+	default 437
+	depends on EXFAT_FS
+	help
+	  This option should be set to the codepage of your exFAT filesystems.
+
+config EXFAT_DEFAULT_IOCHARSET
+	string "Default iocharset for exFAT"
+	default "utf8"
+	depends on EXFAT_FS
+	help
+	  Set this to the default input/output character set you'd like exFAT to use.
