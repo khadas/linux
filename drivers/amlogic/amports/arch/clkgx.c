@@ -439,10 +439,10 @@ static int hevc_clock_set(int clk)
 
 	if (clk > 500) {/*500 up default used gp_pull.*/
 		use_gpll = 1;
-		gp_pll_request(gp_pll_user_vdec);
-		while (!VDEC1_WITH_GP_PLL() && gp_pll_wait++ < 1000000)
+		gp_pll_request(gp_pll_user_hevc);
+		while (!HEVC_WITH_GP_PLL() && gp_pll_wait++ < 1000000)
 			udelay(1);
-		if (VDEC1_WITH_GP_PLL()) {
+		if (HEVC_WITH_GP_PLL()) {
 			clk_seted = 1;
 			rclk = 648;
 		} else {
