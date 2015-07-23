@@ -6308,6 +6308,14 @@ static ssize_t fps_info_show(struct class *cla, struct class_attribute *attr,
 		       input_fps, output_fps, input_fps - output_fps);
 }
 
+static ssize_t video_layer1_state_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n",
+				(READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off)
+				& VPP_VD1_PREBLEND) ? 1 : 0);
+}
+
 void set_video_angle(u32 s_value)
 {
 	if ((s_value >= 0 && s_value <= 3) && (video_angle != s_value)) {
@@ -6487,6 +6495,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR_RO(vframe_states),
 	__ATTR_RO(video_state),
 	__ATTR_RO(fps_info),
+	__ATTR_RO(video_layer1_state),
 	__ATTR_NULL
 };
 
