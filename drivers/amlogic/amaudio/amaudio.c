@@ -53,10 +53,13 @@ static int amaudio_utils_open(struct inode *inode, struct file *file);
 static int amaudio_utils_release(struct inode *inode, struct file *file);
 static long amaudio_utils_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg);
+
+#ifdef CONFIG_COMPAT
 static long amaudio_compat_ioctl(struct file *file, unsigned int cmd,
 				 ulong arg);
 static long amaudio_compat_utils_ioctl(struct file *file, unsigned int cmd,
 				       ulong arg);
+#endif
 
 struct amaudio_port_t {
 	const char *name;
