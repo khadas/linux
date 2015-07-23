@@ -338,18 +338,61 @@
 			amlogic,pins="GPIOX_19";
 		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
-		    amlogic,setmask=<2 0x00000c00>;
+		    amlogic,setmask=<2 0x00000c00>,
+												<AO 0x00001800>;
 		    amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
 		    amlogic,enable-output=<1>; /* 0:output, 1:input */
 		    amlogic,pullup=<1>;
 		    amlogic,pullupen=<1>;
 		};
 		sd_all_pins:sd_all_pins{
-		    amlogic,setmask=<2 0x0000fc00>;
+		    amlogic,setmask=<2 0x0000fc00>,
+												<AO 0x00001800>;
 		    amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
 		    amlogic,enable-output=<1>; /* 0:output, 1:input */
 		    amlogic,pullup=<1>;
 		    amlogic,pullupen=<1>;
+		};
+		sd_1bit_pins:sd_1bit_pins{
+			amlogic,setmask=<2 0x00008c00>,
+												<AO 0x00001800>;
+			amlogic,pins = "CARD_1","CARD_2","CARD_3";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		sd_clk_cmd_uart_pins:sd_clk_cmd_uart_pins{
+		    amlogic,setmask=<2 0x00000c00>,
+		    								<8 0x00000600>;
+		    amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
+		    amlogic,enable-output=<1>; /* 0:output, 1:input */
+		    amlogic,pullup=<1>;
+		    amlogic,pullupen=<1>;
+		};
+		sd_1bit_uart_pins:sd_1bit_uart_pins{
+			amlogic,setmask=<2 0x00008c00>,
+											<8 0x00000600>;
+			amlogic,pins = "CARD_1","CARD_2","CARD_3";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		sd_to_ao_uart_pins:sd_to_ao_uart_pins{
+			amlogic,setmask=<AO 0x00001800>;
+			amlogic,clrmask=<8 0x00000600>;
+			amlogic,pins = "GPIOAO_0","GPIOAO_1";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		ao_to_sd_uart_pins:ao_to_sd_uart_pins{
+			amlogic,setmask=<8 0x00000600>;
+			amlogic,clrmask=<AO 0x00001800>,
+											<2 0x00003000>;
+			amlogic,pins = "CARD_4","CARD_5";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
 		};
 		emmc_clk_cmd_pins:emmc_clk_cmd_pins{
 		    amlogic,setmask=<4 0xc00c0000>;
