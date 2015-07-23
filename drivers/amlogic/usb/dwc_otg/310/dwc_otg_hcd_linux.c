@@ -914,9 +914,11 @@ static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
 
-	retval = usb_hcd_check_unlink_urb(hcd, urb, status);
-	if (unlikely(retval))
-		goto EXIT;
+	if (!((hcd->flags >> 29) & 1)) {
+		retval = usb_hcd_check_unlink_urb(hcd, urb, status);
+		if (unlikely(retval))
+			goto EXIT;
+	}
 
 	if (usb_pipeint(urb->pipe) && (dwc_otg_hcd->ssplit_lock == usb_pipedevice(urb->pipe))) {
 		DWC_DEBUGPL(DBG_HCD, "addr=%d(%p)\n", usb_pipedevice(urb->pipe), urb->hcpriv);

@@ -1276,6 +1276,10 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i = 0, n = 0;
 	struct usb_interface	*intf;
+	struct usb_hcd	*hcd = container_of(udev->bus, struct usb_hcd, self);
+
+	if (PMSG_IS_SUSPEND(msg))
+		hcd->flags |= (1 << 29);
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED)
@@ -1359,6 +1363,10 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i;
 	struct usb_interface	*intf;
+	struct usb_hcd	*hcd = container_of(udev->bus, struct usb_hcd, self);
+
+	if (PMSG_IS_SUSPEND(msg))
+		hcd->flags &= (~(1<<29));
 
 	if (udev->state == USB_STATE_NOTATTACHED) {
 		status = -ENODEV;
