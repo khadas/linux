@@ -26,6 +26,8 @@ obj-$(CONFIG_AML_HDMI_TX)	+= hdmi/
 
 obj-$(CONFIG_AML_RTC)		+= rtc/
 
+obj-$(CONFIG_AML_VRTC)		+= vrtc/
+
 obj-$(CONFIG_AM_IRBLASTER)	+= irblaster/
 
 obj-$(CONFIG_I2C_AML)		+= i2c/

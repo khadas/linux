@@ -21,6 +21,8 @@ source "drivers/amlogic/hdmi/Kconfig"
 
 source "drivers/amlogic/rtc/Kconfig"
 
+source "drivers/amlogic/vrtc/Kconfig"
+
 source "drivers/amlogic/irblaster/Kconfig"
 
 source "drivers/amlogic/aml_debug/Kconfig"
