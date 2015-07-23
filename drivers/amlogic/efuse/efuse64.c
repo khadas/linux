@@ -185,6 +185,19 @@ static long efuse_unlocked_ioctl(struct file *file, unsigned int cmd,
 }
 
 
+#ifdef CONFIG_COMPAT
+static long efuse_compat_ioctl(struct file *filp,
+			      unsigned int cmd, unsigned long args)
+{
+	unsigned long ret;
+
+	args = (unsigned long)compat_ptr(args);
+	ret = efuse_unlocked_ioctl(filp, cmd, args);
+
+	return ret;
+}
+#endif
+
 static ssize_t efuse_read(struct file *file, char __user *buf,
 	size_t count, loff_t *ppos)
 {
@@ -263,6 +276,9 @@ static const struct file_operations efuse_fops = {
 	.read       = efuse_read,
 	.write      = efuse_write,
 	.unlocked_ioctl      = efuse_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = efuse_compat_ioctl,
+#endif
 };
 
 
