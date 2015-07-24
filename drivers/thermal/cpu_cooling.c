@@ -58,7 +58,7 @@ static unsigned int cpufreq_dev_count;
 
 /* notify_table passes value to the CPUFREQ_ADJUST callback function. */
 #define NOTIFY_INVALID NULL
-static struct cpufreq_cooling_device *notify_device;
+static struct cpufreq_cooling_device notify_device = {};
 static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state);
 
@@ -330,14 +330,12 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 
 	cpufreq_device->cpufreq_state = cooling_state;
 	cpufreq_device->cpufreq_val = clip_freq;
-	notify_device = cpufreq_device;
+	memcpy(&notify_device, cpufreq_device, sizeof(notify_device));
 
 	for_each_cpu(cpuid, mask) {
 		if (is_cpufreq_valid(cpuid))
 			cpufreq_update_policy(cpuid);
 	}
-
-	notify_device = NOTIFY_INVALID;
 
 	return 0;
 }
@@ -360,11 +358,11 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 	struct cpufreq_policy *policy = data;
 	unsigned long max_freq = 0;
 
-	if (event != CPUFREQ_ADJUST || notify_device == NOTIFY_INVALID)
+	if (event != CPUFREQ_ADJUST || !notify_device.cpufreq_val)
 		return 0;
 
-	if (cpumask_test_cpu(policy->cpu, &notify_device->allowed_cpus))
-		max_freq = notify_device->cpufreq_val;
+	if (cpumask_test_cpu(policy->cpu, &notify_device.allowed_cpus))
+		max_freq = notify_device.cpufreq_val;
 	else
 		return 0;
 
