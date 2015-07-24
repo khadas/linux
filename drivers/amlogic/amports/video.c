@@ -3182,6 +3182,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	struct vdin_v4l2_ops_s *vdin_ops = NULL;
 	struct vdin_arg_s arg;
 	bool show_nosync = false;
+	u32 vpp_misc_save, vpp_misc_set;
 
 #ifdef CONFIG_AM_VIDEO_LOG
 	int toggle_cnt;
@@ -3936,6 +3937,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	}
 
  exit:
+	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off);
+	vpp_misc_set = vpp_misc_save;
+
 	if (likely(video_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
 		/* state change for video layer enable/disable */
 
@@ -3953,11 +3957,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
 					   | VPP_POSTBLEND_EN);
 #else
-			VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
-				READ_VCBUS_REG(VPP_MISC +
-						cur_dev->vpp_off) |
-					VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
-					| VPP_POSTBLEND_EN);
+			vpp_misc_set |= VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND |
+				VPP_POSTBLEND_EN;
 #endif
 			video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 
@@ -3975,13 +3976,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 						     VPP_VD2_POSTBLEND |
 						     VPP_VD1_POSTBLEND);
 #else
-				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
-					READ_VCBUS_REG(VPP_MISC +
-						cur_dev->vpp_off) &
-						~(VPP_VD1_PREBLEND |
+				vpp_misc_set &=	~(VPP_VD1_PREBLEND |
 						  VPP_VD2_PREBLEND |
 						  VPP_VD2_POSTBLEND |
-						  VPP_VD1_POSTBLEND));
+						  VPP_VD1_POSTBLEND);
 #endif
 			} else {
 				/* #else */
@@ -3992,12 +3990,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND);
 #else
-				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
-					READ_VCBUS_REG(VPP_MISC +
-						cur_dev->vpp_off) &
-						~(VPP_VD1_PREBLEND |
+				vpp_misc_set &= ~(VPP_VD1_PREBLEND |
 						  VPP_VD2_PREBLEND |
-						  VPP_VD2_POSTBLEND));
+						  VPP_VD2_POSTBLEND);
 #endif
 			}
 			/* #endif */
@@ -4028,11 +4023,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					   VPP_PREBLEND_EN | VPP_VD2_PREBLEND |
 					   (0x1ff << VPP_VD2_ALPHA_BIT));
 #else
-			VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
-				READ_VCBUS_REG(VPP_MISC +
-						cur_dev->vpp_off) |
-					VPP_PREBLEND_EN | VPP_VD2_PREBLEND |
-					(0x1ff << VPP_VD2_ALPHA_BIT));
+			vpp_misc_set |= VPP_PREBLEND_EN | VPP_VD2_PREBLEND |
+					(0x1ff << VPP_VD2_ALPHA_BIT);
 #endif
 			video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 
@@ -4048,11 +4040,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND);
 #else
-				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
-					READ_VCBUS_REG(VPP_MISC +
-						cur_dev->vpp_off) &
-						~(VPP_VD2_PREBLEND |
-						  VPP_VD2_POSTBLEND));
+				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+						  VPP_VD2_POSTBLEND);
 #endif
 			} else {
 				/* #else */
@@ -4062,11 +4051,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 						     VPP_VD2_PREBLEND |
 						     VPP_VD2_POSTBLEND);
 #else
-				VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
-					READ_VCBUS_REG(VPP_MISC +
-						cur_dev->vpp_off) &
-						~(VPP_VD2_PREBLEND |
-						  VPP_VD2_POSTBLEND));
+				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+						  VPP_VD2_POSTBLEND);
 #endif
 			}
 			/* #endif */
@@ -4078,6 +4064,11 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 		spin_unlock_irqrestore(&video2_onoff_lock, flags);
 	}
+
+	if (vpp_misc_save != vpp_misc_set)
+		VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
+			vpp_misc_set);
+
 #ifdef CONFIG_VSYNC_RDMA
 	cur_rdma_buf = cur_dispbuf;
 	/* vsync_rdma_config(); */
