@@ -755,10 +755,9 @@ void osd_update_disp_axis_hw(
 	struct pandata_s disp_data;
 	struct pandata_s pan_data;
 
-	if (is_meson_m8_cpu()) {
-		if (index == OSD2)
-			return;
-	}
+	if (index == OSD2)
+		return;
+
 	if (NULL == osd_hw.color_info[index])
 		return;
 	disp_data.x_start = display_h_start;
