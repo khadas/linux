@@ -430,6 +430,12 @@ int wifi_irq_num(void)
 	return wifi_info.irq_num;
 }
 EXPORT_SYMBOL(wifi_irq_num);
+
+int wifi_irq_trigger_level(void)
+{
+	return wifi_info.irq_trigger_type;
+}
+EXPORT_SYMBOL(wifi_irq_trigger_level);
 #else
 
 int wifi_setup_dt(void)
