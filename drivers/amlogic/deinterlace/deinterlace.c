@@ -5851,15 +5851,6 @@ static void di_reg_process_2(void)
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
 	init_flag = 1;
 }
-unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
-		unsigned int len)
-{
-	if (de_devp->rdma_handle)
-		return rdma_read_reg(de_devp->rdma_handle, adr) &
-			(((1<<len)-1)<<start);
-	else
-		return Rd_reg_bits(adr, start, len);
-}
 #ifdef CONFIG_AML_RDMA
 /* di pre rdma operation */
 static void di_rdma_irq(void *arg)
@@ -6743,6 +6734,16 @@ static void rmem_di_device_release(struct reserved_mem *rmem,
 
 }
 #ifdef CONFIG_AML_RDMA
+unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
+		unsigned int len)
+{
+	if (de_devp->rdma_handle)
+		return rdma_read_reg(de_devp->rdma_handle, adr) &
+			(((1<<len)-1)<<start);
+	else
+		return Rd_reg_bits(adr, start, len);
+}
+
 unsigned int RDMA_WR(unsigned int adr, unsigned int val)
 {
 	if (de_devp->rdma_handle > 0 && di_pre_rdma_enable) {
@@ -6781,6 +6782,11 @@ unsigned int RDMA_WR_BITS(unsigned int adr, unsigned int val,
 	}
 }
 #else
+unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
+		unsigned int len)
+{
+	return Rd_reg_bits(adr, start, len);
+}
 unsigned int RDMA_WR(unsigned int adr, unsigned int val)
 {
 		Wr(adr, val);
