@@ -49,6 +49,12 @@ struct clk {
 	struct hlist_head	children;
 	struct hlist_node	child_node;
 	unsigned int		notifier_count;
+	struct mutex		clk_lock;
+	struct task_struct *prepare_owner;
+	int prepare_refcnt;
+	spinlock_t		enable_lock;
+	struct task_struct *enable_owner;
+	int enable_refcnt;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*dentry;
 #endif

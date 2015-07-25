@@ -91,6 +91,55 @@ static void clk_enable_unlock(unsigned long flags)
 	enable_owner = NULL;
 	spin_unlock_irqrestore(&enable_lock, flags);
 }
+static unsigned long clk_spin_lock(struct clk *clk)
+{
+	unsigned long flags;
+	if (!spin_trylock_irqsave(&clk->enable_lock, flags)) {
+		if (clk->enable_owner == current) {
+			clk->enable_refcnt++;
+			return flags;
+			}
+		spin_lock_irqsave(&clk->enable_lock, flags);
+		}
+	WARN_ON_ONCE(clk->enable_owner != NULL);
+	WARN_ON_ONCE(clk->enable_refcnt != 0);
+	clk->enable_owner = current;
+	clk->enable_refcnt = 1;
+	return flags;
+}
+static void clk_spin_unlock(struct clk *clk, unsigned long flags)
+{
+	WARN_ON_ONCE(clk->enable_owner != current);
+	WARN_ON_ONCE(clk->enable_refcnt == 0);
+	if (--clk->enable_refcnt)
+		return;
+	clk->enable_owner = NULL;
+	spin_unlock_irqrestore(&clk->enable_lock, flags);
+}
+/**/
+static void clk_mutex_lock(struct clk *clk)
+{
+	if (!mutex_trylock(&clk->clk_lock)) {
+		if (clk->prepare_owner == current) {
+			clk->prepare_refcnt++;
+			return;
+			}
+		mutex_lock(&clk->clk_lock);
+		}
+	WARN_ON_ONCE(clk->prepare_owner != NULL);
+	WARN_ON_ONCE(clk->prepare_refcnt != 0);
+	clk->prepare_owner = current;
+	clk->prepare_refcnt  = 1;
+}
+static void clk_mutex_unlock(struct clk *clk)
+{
+	WARN_ON_ONCE(clk->prepare_owner != current);
+	WARN_ON_ONCE(clk->prepare_refcnt == 0);
+	if (--clk->prepare_refcnt)
+		return;
+	clk->prepare_owner = NULL;
+	mutex_unlock(&clk->clk_lock);
+} /**/
 
 /***        debugfs support        ***/
 
@@ -99,7 +148,7 @@ static void clk_enable_unlock(unsigned long flags)
 
 static struct dentry *rootdir;
 static struct dentry *orphandir;
-static int inited = 0;
+static int inited;
 
 static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 {
@@ -111,7 +160,7 @@ static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 		   30 - level * 3, c->name,
 		   c->enable_count, c->prepare_count, clk_get_rate(c),
 		   clk_get_accuracy(c));
-	seq_printf(s, "\n");
+	seq_puts(s, "\n");
 }
 
 static void clk_summary_show_subtree(struct seq_file *s, struct clk *c,
@@ -132,8 +181,8 @@ static int clk_summary_show(struct seq_file *s, void *data)
 {
 	struct clk *c;
 
-	seq_printf(s, "   clock                        enable_cnt  prepare_cnt  rate        accuracy\n");
-	seq_printf(s, "---------------------------------------------------------------------------------\n");
+	seq_puts(s, "   clock                        enable_cnt  prepare_cnt  rate        accuracy\n");
+	seq_puts(s, "---------------------------------------------------------------------------------\n");
 
 	clk_prepare_lock();
 
@@ -183,11 +232,11 @@ static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
 	clk_dump_one(s, c, level);
 
 	hlist_for_each_entry(child, &c->children, child_node) {
-		seq_printf(s, ",");
+		seq_puts(s, ",");
 		clk_dump_subtree(s, child, level + 1);
 	}
 
-	seq_printf(s, "}");
+	seq_puts(s, "}");
 }
 
 static int clk_dump(struct seq_file *s, void *data)
@@ -195,25 +244,25 @@ static int clk_dump(struct seq_file *s, void *data)
 	struct clk *c;
 	bool first_node = true;
 
-	seq_printf(s, "{");
+	seq_puts(s, "{");
 
 	clk_prepare_lock();
 
 	hlist_for_each_entry(c, &clk_root_list, child_node) {
 		if (!first_node)
-			seq_printf(s, ",");
+			seq_puts(s, ",");
 		first_node = false;
 		clk_dump_subtree(s, c, 0);
 	}
 
 	hlist_for_each_entry(c, &clk_orphan_list, child_node) {
-		seq_printf(s, ",");
+		seq_puts(s, ",");
 		clk_dump_subtree(s, c, 0);
 	}
 
 	clk_prepare_unlock();
 
-	seq_printf(s, "}");
+	seq_puts(s, "}");
 	return 0;
 }
 
@@ -291,7 +340,7 @@ out:
 static int clk_debug_create_subtree(struct clk *clk, struct dentry *pdentry)
 {
 	struct clk *child;
-	int ret = -EINVAL;;
+	int ret = -EINVAL;
 
 	if (!clk || !pdentry)
 		goto out;
@@ -818,9 +867,9 @@ void __clk_unprepare(struct clk *clk)
  */
 void clk_unprepare(struct clk *clk)
 {
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 	__clk_unprepare(clk);
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 }
 EXPORT_SYMBOL_GPL(clk_unprepare);
 
@@ -910,9 +959,9 @@ void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
 
-	flags = clk_enable_lock();
+	flags = clk_spin_lock(clk);
 	__clk_disable(clk);
-	clk_enable_unlock(flags);
+	clk_spin_unlock(clk, flags);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
 
@@ -963,9 +1012,9 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	int ret;
 
-	flags = clk_enable_lock();
+	flags = clk_spin_lock(clk);
 	ret = __clk_enable(clk);
-	clk_enable_unlock(flags);
+	clk_spin_unlock(clk, flags);
 
 	return ret;
 }
@@ -1014,9 +1063,9 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long ret;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 	ret = __clk_round_rate(clk, rate);
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return ret;
 }
@@ -1100,12 +1149,12 @@ long clk_get_accuracy(struct clk *clk)
 {
 	unsigned long accuracy;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 	if (clk && (clk->flags & CLK_GET_ACCURACY_NOCACHE))
 		__clk_recalc_accuracies(clk);
 
 	accuracy = __clk_get_accuracy(clk);
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return accuracy;
 }
@@ -1164,13 +1213,13 @@ unsigned long clk_get_rate(struct clk *clk)
 {
 	unsigned long rate;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 
 	if (clk && (clk->flags & CLK_GET_RATE_NOCACHE))
 		__clk_recalc_rates(clk, 0);
 
 	rate = __clk_get_rate(clk);
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return rate;
 }
@@ -1254,9 +1303,9 @@ static struct clk *__clk_set_parent_before(struct clk *clk, struct clk *parent)
 	}
 
 	/* update the clk tree topology */
-	flags = clk_enable_lock();
+	flags = clk_spin_lock(clk);
 	clk_reparent(clk, parent);
-	clk_enable_unlock(flags);
+	clk_spin_unlock(clk, flags);
 
 	return old_parent;
 }
@@ -1291,9 +1340,9 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 		ret = clk->ops->set_parent(clk->hw, p_index);
 
 	if (ret) {
-		flags = clk_enable_lock();
+		flags = clk_spin_lock(clk);
 		clk_reparent(clk, old_parent);
-		clk_enable_unlock(flags);
+		clk_spin_unlock(clk, flags);
 
 		if (clk->prepare_count) {
 			clk_disable(clk);
@@ -1572,7 +1621,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		return 0;
 
 	/* prevent racing with updates to the clock topology */
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 
 	/* bail early if nothing to do */
 	if (rate == clk_get_rate(clk))
@@ -1604,7 +1653,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	clk_change_rate(top);
 
 out:
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return ret;
 }
@@ -1620,9 +1669,9 @@ struct clk *clk_get_parent(struct clk *clk)
 {
 	struct clk *parent;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 	parent = __clk_get_parent(clk);
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return parent;
 }
@@ -1722,7 +1771,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		return -ENOSYS;
 
 	/* prevent racing with updates to the clock topology */
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 
 	if (clk->parent == parent)
 		goto out;
@@ -1764,7 +1813,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	}
 
 out:
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return ret;
 }
@@ -1801,14 +1850,14 @@ int __clk_init(struct device *dev, struct clk *clk)
 	if (clk->ops->set_rate &&
 	    !((clk->ops->round_rate || clk->ops->determine_rate) &&
 	      clk->ops->recalc_rate)) {
-		pr_warning("%s: %s must implement .round_rate or .determine_rate in addition to .recalc_rate\n",
+		pr_warn("%s: %s must implement .round_rate or .determine_rate in addition to .recalc_rate\n",
 				__func__, clk->name);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (clk->ops->set_parent && !clk->ops->get_parent) {
-		pr_warning("%s: %s must implement .get_parent & .set_parent\n",
+		pr_warn("%s: %s must implement .get_parent & .set_parent\n",
 				__func__, clk->name);
 		ret = -EINVAL;
 		goto out;
@@ -2004,7 +2053,8 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 		ret = -ENOMEM;
 		goto fail_out;
 	}
-
+	mutex_init(&clk->clk_lock);
+	spin_lock_init(&clk->enable_lock);
 	clk->name = kstrdup(hw->init->name, GFP_KERNEL);
 	if (!clk->name) {
 		pr_err("%s: could not allocate clk->name\n", __func__);
@@ -2120,7 +2170,7 @@ void clk_unregister(struct clk *clk)
 	unsigned long flags;
 
        if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
-               return;
+	       return;
 
 	clk_prepare_lock();
 
@@ -2235,9 +2285,9 @@ void __clk_put(struct clk *clk)
 	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
 		return;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 	kref_put(&clk->ref, __clk_release);
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	module_put(clk->owner);
 }
@@ -2282,7 +2332,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 	if (!clk || !nb)
 		return -EINVAL;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 
 	/* search the list of notifiers for this clk */
 	list_for_each_entry(cn, &clk_notifier_list, node)
@@ -2306,7 +2356,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 	clk->notifier_count++;
 
 out:
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return ret;
 }
@@ -2331,7 +2381,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 	if (!clk || !nb)
 		return -EINVAL;
 
-	clk_prepare_lock();
+	clk_mutex_lock(clk);
 
 	list_for_each_entry(cn, &clk_notifier_list, node)
 		if (cn->clk == clk)
@@ -2353,7 +2403,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 		ret = -ENOENT;
 	}
 
-	clk_prepare_unlock();
+	clk_mutex_unlock(clk);
 
 	return ret;
 }
@@ -2372,7 +2422,7 @@ struct of_clk_provider {
 	struct list_head link;
 
 	struct device_node *node;
-	struct clk *(*get)(struct of_phandle_args *clkspec, void *data);
+	struct clk * (*get)(struct of_phandle_args *clkspec, void *data);
 	void *data;
 };
 
@@ -2421,7 +2471,7 @@ EXPORT_SYMBOL_GPL(of_clk_src_onecell_get);
  * @data: context pointer for @clk_src_get callback.
  */
 int of_clk_add_provider(struct device_node *np,
-			struct clk *(*clk_src_get)(struct of_phandle_args *clkspec,
+			struct clk * (*clk_src_get)(struct of_phandle_args *clkspec,
 						   void *data),
 			void *data)
 {
