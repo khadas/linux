@@ -501,19 +501,18 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	/* assign phy_clk_en = control[1]; */
 /* Bring HDMITX MEM output of power down */
 	hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, 8, 8);
-
+	if (hdmitx_uboot_already_display())
+		return;
+	/* reset HDMITX APB & TX & PHY */
+	hd_set_reg_bits(P_RESET0_REGISTER, 1, 19, 1);
+	hd_set_reg_bits(P_RESET2_REGISTER, 1, 15, 1);
+	hd_set_reg_bits(P_RESET2_REGISTER, 1,  2, 1);
 	/* Enable APB3 fail on error */
 	hd_set_reg_bits(P_HDMITX_CTRL_PORT, 1, 15, 1);
 	hd_set_reg_bits((P_HDMITX_CTRL_PORT + 0x10), 1, 15, 1);
-
-	hdmitx_hpd_hw_op(HPD_INIT_DISABLE_PULLUP);
-	hdmitx_hpd_hw_op(HPD_INIT_SET_FILTER);
-	hdmitx_ddc_hw_op(DDC_INIT_DISABLE_PULL_UP_DN);
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-	if (hdmitx_uboot_already_display())
-		return;
 	/* Bring out of reset */
 	hdmitx_wr_reg(HDMITX_TOP_SW_RESET,  0);
+	udelay(200);
 	hdmitx_wr_reg(HDMITX_TOP_CLK_CNTL, 0x0000003f);
 	hdmitx_wr_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff);
 	hdmitx_wr_reg(HDMITX_TOP_INTR_MASKN, 0x1f);
@@ -522,6 +521,12 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 {
 	unsigned int data32 = 0;
+
+	hdmitx_hpd_hw_op(HPD_INIT_DISABLE_PULLUP);
+	hdmitx_hpd_hw_op(HPD_INIT_SET_FILTER);
+	hdmitx_ddc_hw_op(DDC_INIT_DISABLE_PULL_UP_DN);
+	hdmitx_ddc_hw_op(DDC_MUX_DDC);
+
 /* Configure E-DDC interface */
 	data32 = 0;
 	data32 |= (0 << 6);  /* [  6] read_req_mask */
