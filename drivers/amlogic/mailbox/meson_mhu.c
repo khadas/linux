@@ -165,8 +165,8 @@ static int mhu_startup(struct mbox_chan *link)
 	struct mhu_chan *chan = link->con_priv;
 	int err, mbox_irq = chan->rx_irq;
 
-	err = request_threaded_irq(mbox_irq, NULL, mbox_handler, IRQF_ONESHOT,
-				   DRIVER_NAME, link);
+	err = request_threaded_irq(mbox_irq, mbox_handler, NULL, IRQF_ONESHOT,
+			DRIVER_NAME, link);
 	return err;
 }
 

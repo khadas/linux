@@ -1612,6 +1612,93 @@ static struct subsys_interface cpufreq_interface = {
 };
 
 /**
+ * cpufreq_suspend() - Suspend CPUFreq governors
+ *
+ * Called during system wide Suspend/Hibernate cycles for suspending governors
+ * as some platforms can't change frequency after this point in suspend cycle.
+ * Because some of the devices (like: i2c, regulators, etc) they use for
+ * changing frequency are suspended quickly after this point.
+ */
+static atomic_t    cpufreq_suspended = ATOMIC_INIT(0);
+void cpufreq_suspend(void)
+{
+	struct cpufreq_policy *policy;
+	int cpu;
+
+	if (!cpufreq_driver)
+		return;
+
+	if (!has_target())
+		return;
+
+	pr_debug("%s: Suspending Governors\n", __func__);
+
+	for_each_possible_cpu(cpu) {
+		if (!cpu_online(cpu))
+			continue;
+
+		policy = cpufreq_cpu_get(cpu);
+
+		if (__cpufreq_governor(policy, CPUFREQ_GOV_STOP))
+			pr_err("%s: Failed to stop governor for policy: %p\n",
+				__func__, policy);
+		else if (cpufreq_driver->suspend
+		    && cpufreq_driver->suspend(policy))
+			pr_err("%s: Failed to suspend driver: %p\n", __func__,
+				policy);
+	}
+
+	atomic_set(&cpufreq_suspended, 1);
+}
+
+/**
+ * cpufreq_resume() - Resume CPUFreq governors
+ *
+ * Called during system wide Suspend/Hibernate cycle for resuming governors that
+ * are suspended with cpufreq_suspend().
+ */
+void cpufreq_resume(void)
+{
+	struct cpufreq_policy *policy;
+	int cpu;
+
+	if (!cpufreq_driver)
+		return;
+
+	if (!has_target())
+		return;
+
+	pr_debug("%s: Resuming Governors\n", __func__);
+
+	atomic_set(&cpufreq_suspended, 0);
+
+	for_each_possible_cpu(cpu) {
+		if (!cpu_online(cpu))
+			continue;
+
+		policy = cpufreq_cpu_get(cpu);
+
+		if (__cpufreq_governor(policy, CPUFREQ_GOV_START)
+		    || __cpufreq_governor(policy, CPUFREQ_GOV_LIMITS))
+			pr_err("%s: Failed to start governor for policy: %p\n",
+				__func__, policy);
+		else if (cpufreq_driver->resume
+		    && cpufreq_driver->resume(policy))
+			pr_err("%s: Failed to resume driver: %p\n", __func__,
+				policy);
+
+		/*
+		 * schedule call cpufreq_update_policy() for boot CPU, i.e. last
+		 * policy in list. It will verify that the current freq is in
+		 * sync with what we believe it to be.
+		 */
+		if (cpu == 0)
+			schedule_work(&policy->update);
+	}
+}
+
+#if 0
+/**
  * cpufreq_bp_suspend - Prepare the boot CPU for system suspend.
  *
  * This function is only executed for the boot processor.  The other CPUs
@@ -1688,6 +1775,7 @@ static struct syscore_ops cpufreq_syscore_ops = {
 	.suspend	= cpufreq_bp_suspend,
 	.resume		= cpufreq_bp_resume,
 };
+#endif
 
 /**
  *	cpufreq_get_current_driver - return current driver's name
@@ -1903,6 +1991,9 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 #else
 	struct cpufreq_governor *gov = NULL;
 #endif
+
+	if (atomic_read(&cpufreq_suspended))
+		return 0;
 
 	if (policy->governor->max_transition_latency &&
 	    policy->cpuinfo.transition_latency >
@@ -2448,7 +2539,6 @@ static int __init cpufreq_core_init(void)
 
 	cpufreq_global_kobject = kobject_create();
 	BUG_ON(!cpufreq_global_kobject);
-	register_syscore_ops(&cpufreq_syscore_ops);
 
 	return 0;
 }
