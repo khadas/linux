@@ -467,6 +467,64 @@
 			mask = <4>;
 		};
 	};
+        unifykey{
+		unifykey-num = <8>;
+		unifykey-index-0 = <&keysn_0>;
+		unifykey-index-1 = <&keysn_1>;
+		unifykey-index-2 = <&keysn_2>;
+		unifykey-index-3 = <&keysn_3>;
+		unifykey-index-4 = <&keysn_4>;
+		unifykey-index-5 = <&keysn_5>;
+		unifykey-index-6 = <&keysn_6>;
+		unifykey-index-7 = <&keysn_7>;
+
+                keysn_0: key_0{
+			key-name = "usid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_1:key_1{
+			key-name = "mac";
+                        key-device  = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_2:key_2{
+                        key-name = "hdcp";
+			key-device = "secure";
+                        key-type  = "sha1";
+			key-permit = "read","write","del";
+		};
+		keysn_3:key_3{
+			key-name = "secure_boot_set";
+			key-device = "efuse";
+			key-permit = "write";
+		};
+		keysn_4:key_4{
+			key-name = "mac_bt";
+			key-device = "normal";
+			key-permit = "read","write","del";
+                        key-type  = "mac";
+		};
+		keysn_5:key_5{
+			key-name = "mac_wifi";
+			key-device = "normal";
+			key-permit = "read","write","del";
+                        key-type  = "mac";
+		};
+		keysn_6:key_6{
+			key-name = "hdcp2";
+			key-device = "normal";
+			key-type = "hdcp2";
+			key-permit = "read","write","del";
+		};
+		keysn_7:key_7{
+			key-name = "widevinekeybox";
+			key-device = "secure";
+			key-type = "sha1";
+			key-permit = "read","write","del";
+		};
+
+        };//End unifykey
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx";
 		dev_name = "amhdmitx";
