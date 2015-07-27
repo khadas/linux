@@ -821,7 +821,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
 
-	if (dcount == 0)	{
+	if (dcount == 0) {
 		dcount++;
 		usbdev = (struct device *)&pdev->dev;
 	}
@@ -1216,11 +1216,33 @@ static void dwc2_complete(struct device *dev)
 
 static int dwc2_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	const char *s_clock_name = NULL;
+	const char *cpu_type = NULL;
+
+	s_clock_name = of_get_property(pdev->dev.of_node, "clock-src", NULL);
+	cpu_type = of_get_property(pdev->dev.of_node, "cpu-type", NULL);
+
+	clk_suspend_usb(pdev, s_clock_name,
+			(unsigned long)(g_dwc_otg_device[pdev->id]->
+				core_if->usb_peri_reg), cpu_type);
+
 	return 0;
 }
 
 static int dwc2_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	const char *s_clock_name = NULL;
+	const char *cpu_type = NULL;
+
+	s_clock_name = of_get_property(pdev->dev.of_node, "clock-src", NULL);
+	cpu_type = of_get_property(pdev->dev.of_node, "cpu-type", NULL);
+
+	clk_resume_usb(pdev, s_clock_name,
+			(unsigned long)(g_dwc_otg_device[pdev->id]->
+				core_if->usb_peri_reg), cpu_type);
+
 	return 0;
 }
 

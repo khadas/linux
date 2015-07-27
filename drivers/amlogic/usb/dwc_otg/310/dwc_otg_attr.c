@@ -667,35 +667,31 @@ static ssize_t peri_sleepm_store(struct device *_dev,
 	usb_ctrl_data_t ctrl;
 	struct platform_device *pdev = to_platform_device(_dev);
 	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
+	const char *s_clock_name = NULL;
+	const char *cpu_type = NULL;
 
 	uint32_t in = simple_strtoul(buf, NULL, 16);
 
-#if 0
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	if (!in) {
-		if (lm_dev->id == 0)
-			switch_mod_gate_by_name("usb0", 1);
-		else
-			switch_mod_gate_by_name("usb1", 1);
+	s_clock_name = of_get_property(pdev->dev.of_node, "clock-src", NULL);
+	cpu_type = of_get_property(pdev->dev.of_node, "cpu-type", NULL);
 
+	if (!in) {
+		clk_resume_usb(pdev, s_clock_name,
+			(unsigned long)(otg_dev->core_if->usb_peri_reg),
+				cpu_type);
 	}
-#endif
-#endif
+
 	ctrl.d32 = DWC_READ_REG32(&otg_dev->core_if->usb_peri_reg->ctrl);
 	ctrl.b.sleepm = in?0:1;
 
 	DWC_WRITE_REG32(&otg_dev->core_if->usb_peri_reg->ctrl, ctrl.d32);
 
-#if 0
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
 	if (in) {
-		if (lm_dev->id == 0)
-			switch_mod_gate_by_name("usb0", 0);
-		else
-			switch_mod_gate_by_name("usb1", 0);
+		clk_suspend_usb(pdev, s_clock_name,
+			(unsigned long)(otg_dev->core_if->usb_peri_reg),
+				cpu_type);
 	}
-#endif
-#endif
+
 	return count;
 }
 

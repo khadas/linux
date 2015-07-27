@@ -71,6 +71,17 @@ enum lm_device_type_e {
 int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
 		unsigned long usb_peri_reg, const char *cpu_type);
 
+int clk_disable_usb(struct platform_device *pdev, const char *s_clock_name,
+		unsigned long usb_peri_reg, const char *cpu_type);
+
+int clk_resume_usb(struct platform_device *pdev, const char *s_clock_name,
+		unsigned long usb_peri_reg, const char *cpu_type);
+
+int clk_suspend_usb(struct platform_device *pdev, const char *s_clock_name,
+		unsigned long usb_peri_reg, const char *cpu_type);
+
+
+
 extern int dwc_otg_power_register_notifier(struct notifier_block *nb);
 extern int dwc_otg_power_unregister_notifier(struct notifier_block *nb);
 extern int dwc_otg_charger_detect_register_notifier(struct notifier_block *nb);
