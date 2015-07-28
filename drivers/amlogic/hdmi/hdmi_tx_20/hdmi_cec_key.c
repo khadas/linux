@@ -51,20 +51,23 @@ struct hrtimer cec_key_timer;
 static unsigned int last_key_irq = -1;
 static atomic_t wait_key_release = {};
 static int need_repeat = -1;
+static int repeat_cnt = 1;
 enum hrtimer_restart cec_key_up(struct hrtimer *timer)
 {
-	if (need_repeat) {
+	if (need_repeat && repeat_cnt < 4) {
 		hdmi_print(INF, CEC"repeat:%d\n", cec_key_map[last_key_irq]);
 		input_event(cec_global_info.remote_cec_dev,
 		    EV_KEY, cec_key_map[last_key_irq], 2);
 		input_sync(cec_global_info.remote_cec_dev);
 		hrtimer_start(&cec_key_timer, HR_DELAY(100), HRTIMER_MODE_REL);
+		repeat_cnt++;
 	} else {
 		hdmi_print(INF, CEC"last:%d up\n", cec_key_map[last_key_irq]);
 		input_event(cec_global_info.remote_cec_dev,
 		    EV_KEY, cec_key_map[last_key_irq], 0);
 		input_sync(cec_global_info.remote_cec_dev);
 		atomic_set(&wait_key_release, 0);
+		repeat_cnt = 1;
 	}
 
 	return HRTIMER_NORESTART;
@@ -171,11 +174,14 @@ void cec_send_event_irq(void)
 	if (last_key_irq == -1) {
 		last_key_irq = operands_irq[0];
 	} else if (operands_irq[0] >= 1 &&
-	    operands_irq[0] <= 4 &&
-	    last_key_irq == operands_irq[0]) {
+		   operands_irq[0] <= 4 &&
+		   last_key_irq == operands_irq[0] &&
+		   cur_time - last_key_report < (s64)(500 * 1000)) {
 		need_repeat = 1;
+		repeat_cnt = 1;
 	} else {
 		need_repeat = 0;
+		repeat_cnt = 1;
 		hrtimer_cancel(&cec_key_timer);
 		input_event(cec_global_info.remote_cec_dev,
 		    EV_KEY, cec_key_map[last_key_irq], 0);
@@ -199,6 +205,7 @@ void cec_send_event_irq(void)
 	}
 	atomic_set(&wait_key_release, 1);
 	hdmi_print(INF, CEC  ":key map:%d\n", cec_key_map[operands_irq[0]]);
+	last_key_report = cur_time;
 }
 
 void cec_user_control_pressed_irq(void)
@@ -211,6 +218,7 @@ void cec_user_control_released_irq(void)
 {
 	hdmi_print(INF, CEC  ": Key released\n");
 	need_repeat = 0;
+	repeat_cnt = 1;
 	hrtimer_cancel(&cec_key_timer);
 	input_event(cec_global_info.remote_cec_dev,
 	    EV_KEY, cec_key_map[last_key_irq], 0);

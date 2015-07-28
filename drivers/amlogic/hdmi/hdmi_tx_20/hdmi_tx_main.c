@@ -46,6 +46,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
@@ -558,30 +559,6 @@ static int set_disp_mode_auto(void)
 	hdmitx_device.output_blank_flag = 1;
 	return ret;
 }
-#if 0
-static unsigned int set_cec_code(const char *buf, size_t count)
-{
-	char tmpbuf[128];
-	int i = 0;
-	int ret;
-	/* int j; */
-	unsigned int cec_code;
-	/* unsigned int value=0; */
-
-	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
-		tmpbuf[i] = buf[i];
-	i++;
-	}
-	tmpbuf[i] = 0;
-
-	ret = kstrtoul(tmpbuf, NULL, 16, &cec_code);
-
-	input_event(remote_cec_dev, EV_KEY, cec_code, 1);
-	input_event(remote_cec_dev, EV_KEY, cec_code, 0);
-	input_sync(remote_cec_dev);
-	return cec_code;
-}
-#endif
 static unsigned char is_dispmode_valid_for_hdmi(void)
 {
 	enum hdmi_vic vic;
@@ -607,84 +584,6 @@ static ssize_t store_disp_mode(struct device *dev,
 {
 	set_disp_mode(buf);
 	return 16;
-}
-
-/*cec attr*/
-static ssize_t show_cec(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	ssize_t t = 0;  /* cec_usrcmd_get_global_info(buf); */
-	return t;
-}
-
-static ssize_t store_cec(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	cec_usrcmd_set_dispatch(buf, count);
-	return count;
-}
-
-static ssize_t show_cec_config(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-	pos += snprintf(buf+pos, PAGE_SIZE, "0x%x\n", cec_config(0, 0));
-
-	return pos;
-}
-
-static ssize_t store_cec_config(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	cec_usrcmd_set_config(buf, count);
-	return count;
-}
-
-static ssize_t store_cec_lang_config(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = kstrtoul(buf, 16, &val);
-	hdmi_print(INF, CEC "store_cec_lang_config\n");
-	cec_global_info.cec_node_info[cec_global_info.my_node_index].
-		menu_lang = (int)val;
-	cec_usrcmd_set_lang_config(buf, count);
-	return count;
-}
-
-static ssize_t show_cec_lang_config(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-	hdmi_print(INF, CEC "show_cec_lang_config\n");
-	pos += snprintf(buf+pos, PAGE_SIZE, "%x\n", cec_global_info.
-		cec_node_info[cec_global_info.my_node_index].menu_lang);
-	return pos;
-}
-
-static ssize_t show_cec_active_status(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
-{
-	int pos = 0;
-	int active = DEVICE_MENU_INACTIVE;
-	char *str = "is not";
-
-	if ((hdmitx_device.hpd_state) &&
-	    (hdmitx_device.cec_func_config & (1 << CEC_FUNC_MSAK)) &&
-	   (!cec_global_info.cec_node_info[cec_global_info.
-		my_node_index].power_status)) {
-		active = cec_global_info.cec_node_info[cec_global_info.
-			 my_node_index].menu_status;
-		if (active == DEVICE_MENU_ACTIVE)
-			str = "is";
-	}
-	pr_debug("Mbox %s display on TV.\n", str);
-	pos += snprintf(buf + pos, PAGE_SIZE, "%x\n", active);
-
-	return pos;
 }
 
 /*aud_mode attr*/
@@ -1156,14 +1055,6 @@ static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info,
 static DEVICE_ATTR(hpd_state, S_IRUGO, show_hpd_state, NULL);
 static DEVICE_ATTR(support_3d, S_IRUGO, show_support_3d,
 	NULL);
-static DEVICE_ATTR(cec, S_IWUSR | S_IRUGO, show_cec, store_cec);
-static DEVICE_ATTR(cec_config, S_IWUSR | S_IRUGO | S_IWGRP,
-	show_cec_config, store_cec_config);
-static DEVICE_ATTR(cec_active_status, S_IWUSR | S_IRUGO ,
-	show_cec_active_status, NULL);
-static DEVICE_ATTR(cec_lang_config, S_IWUSR | S_IRUGO | S_IWGRP,
-	show_cec_lang_config, store_cec_lang_config);
-
 /*****************************
 *	hdmitx display client interface
 *
@@ -1581,13 +1472,14 @@ EXPORT_SYMBOL(get_hdmitx_device);
 
 #ifdef CONFIG_OF
 static int allocate_cec_device(struct device_node *np,
-			       struct platform_device *pdev)
+			       struct platform_device *pdev, void *pdata)
 {
 	int ret;
 	const char *name;
 	struct of_dev_auxdata cec_auxdata[] = {
 		{}
 	};
+	struct resource r;
 
 	ret = of_property_read_string(np, "compatible", &name);
 	if (ret) {
@@ -1597,8 +1489,11 @@ static int allocate_cec_device(struct device_node *np,
 		/*
 		 * for compatible
 		 */
-		cec_auxdata[0].compatible = (char *)name;
-		cec_auxdata[0].name = (char *)name;
+		cec_auxdata[0].compatible    = (char *)name;
+		cec_auxdata[0].name          = (char *)name;
+		cec_auxdata[0].platform_data = pdata;
+		if (!of_address_to_resource(np, 0, &r))
+			cec_auxdata[0].phys_addr = r.start;
 		ret = of_platform_populate(np->parent, NULL,
 					   cec_auxdata, &pdev->dev);
 	}
@@ -1749,10 +1644,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_support_3d);
-	ret = device_create_file(dev, &dev_attr_cec);
-	ret = device_create_file(dev, &dev_attr_cec_config);
-	ret = device_create_file(dev, &dev_attr_cec_lang_config);
-	ret = device_create_file(dev, &dev_attr_cec_active_status);
 #ifdef CONFIG_AM_TV_OUTPUT
 	vout_register_client(&hdmitx_notifier_nb_v);
 #else
@@ -1807,7 +1698,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		if (!hdmitx_device.config_data.vend_data)
 			hdmi_print(INF, SYS
 				"can not get vend_data mem\n");
-		ret = allocate_cec_device(init_data, pdev);
+		ret = allocate_cec_device(init_data, pdev, dev);
 		if (ret)
 			hdmi_print(INF, SYS"not find vend_init_data\n");
 	}
@@ -1924,7 +1815,6 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_disp_cap_3d);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_support_3d);
-	device_remove_file(dev, &dev_attr_cec);
 
 	cdev_del(&hdmitx_device.cdev);
 

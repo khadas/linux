@@ -1291,15 +1291,15 @@ void cec_set_menu_language(struct cec_rx_message_t *pcec_message)
 	unsigned char src_log_addr = (pcec_message->content.msg.header
 		>> 4) & 0xf;
 
-	lang = cec_global_info.cec_node_info[index].menu_lang;
-	a = (lang >> 16) & 0xff;
-	b = (lang >> 8) & 0xff;
-	c = (lang >> 0) & 0xff;
 	if (0x0 == src_log_addr) {
 		cec_global_info.cec_node_info[index].menu_lang =
 		    (int)((pcec_message->content.msg.operands[0] << 16)
 		    | (pcec_message->content.msg.operands[1] <<  8)
 		    | (pcec_message->content.msg.operands[2]));
+		lang = cec_global_info.cec_node_info[index].menu_lang;
+		a = (lang >> 16) & 0xff;
+		b = (lang >> 8) & 0xff;
+		c = (lang >> 0) & 0xff;
 		switch_set_state(&lang_dev,
 		    cec_global_info.cec_node_info[index].menu_lang);
 		cec_global_info.cec_node_info[index].real_info_mask
@@ -1813,6 +1813,116 @@ static int cec_reboot(struct notifier_block *nb, unsigned long state, void *cmd)
 	return 0;
 }
 
+#if 0
+static unsigned int set_cec_code(const char *buf, size_t count)
+{
+	char tmpbuf[128];
+	int i = 0;
+	int ret;
+	/* int j; */
+	unsigned int cec_code;
+	/* unsigned int value=0; */
+
+	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
+		tmpbuf[i] = buf[i];
+	i++;
+	}
+	tmpbuf[i] = 0;
+
+	ret = kstrtoul(tmpbuf, NULL, 16, &cec_code);
+
+	input_event(remote_cec_dev, EV_KEY, cec_code, 1);
+	input_event(remote_cec_dev, EV_KEY, cec_code, 0);
+	input_sync(remote_cec_dev);
+	return cec_code;
+}
+#endif
+
+static ssize_t show_cec(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	ssize_t t = 0;  /* cec_usrcmd_get_global_info(buf); */
+	return t;
+}
+
+static ssize_t store_cec(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	cec_usrcmd_set_dispatch(buf, count);
+	return count;
+}
+
+static ssize_t show_cec_config(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	pos += snprintf(buf+pos, PAGE_SIZE, "0x%x\n", cec_config(0, 0));
+
+	return pos;
+}
+
+static ssize_t store_cec_config(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	cec_usrcmd_set_config(buf, count);
+	return count;
+}
+
+static ssize_t store_cec_lang_config(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 16, &val);
+	hdmi_print(INF, CEC "store_cec_lang_config\n");
+	cec_global_info.cec_node_info[cec_global_info.my_node_index].
+		menu_lang = (int)val;
+	cec_usrcmd_set_lang_config(buf, count);
+	return count;
+}
+
+static ssize_t show_cec_lang_config(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	hdmi_print(INF, CEC "show_cec_lang_config\n");
+	pos += snprintf(buf+pos, PAGE_SIZE, "%x\n", cec_global_info.
+		cec_node_info[cec_global_info.my_node_index].menu_lang);
+	return pos;
+}
+
+static ssize_t show_cec_active_status(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	int pos = 0;
+	int active = DEVICE_MENU_INACTIVE;
+	char *str = "is not";
+
+	if ((hdmitx_device->hpd_state) &&
+	    (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) &&
+	   (!cec_global_info.cec_node_info[cec_global_info.
+		my_node_index].power_status)) {
+		active = cec_global_info.cec_node_info[cec_global_info.
+			 my_node_index].menu_status;
+		if (active == DEVICE_MENU_ACTIVE)
+			str = "is";
+	}
+	pr_debug("Mbox %s display on TV.\n", str);
+	pos += snprintf(buf + pos, PAGE_SIZE, "%x\n", active);
+
+	return pos;
+}
+
+static DEVICE_ATTR(cec, S_IWUSR | S_IRUGO, show_cec, store_cec);
+static DEVICE_ATTR(cec_config, S_IWUSR | S_IRUGO | S_IWGRP,
+	show_cec_config, store_cec_config);
+static DEVICE_ATTR(cec_active_status, S_IRUGO ,
+	show_cec_active_status, NULL);
+static DEVICE_ATTR(cec_lang_config, S_IWUSR | S_IRUGO | S_IWGRP,
+	show_cec_lang_config, store_cec_lang_config);
+
 /************************ cec high level code *****************************/
 
 static int aml_cec_probe(struct platform_device *pdev)
@@ -1826,6 +1936,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	struct pinctrl *p;
 	struct vendor_info_data *vend;
 	struct resource *res;
+	struct device *dev;
 	resource_size_t *base;
 #endif
 
@@ -1955,6 +2066,14 @@ static int aml_cec_probe(struct platform_device *pdev)
 	r = of_property_read_u32(node, "ao_cec", &(vend->ao_cec));
 	if (r)
 		hdmi_print(INF, SYS "not find ao cec\n");
+
+	dev = dev_get_platdata(&pdev->dev);
+	if (dev) {
+		r = device_create_file(dev, &dev_attr_cec);
+		r = device_create_file(dev, &dev_attr_cec_config);
+		r = device_create_file(dev, &dev_attr_cec_lang_config);
+		r = device_create_file(dev, &dev_attr_cec_active_status);
+	}
 #endif
 	hdmitx_device->cec_init_ready = 1;
 	cec_global_info.cec_flag.cec_init_flag = 0;
@@ -1966,8 +2085,9 @@ static int aml_cec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_cec_remove(struct platform_device *dev)
+static int aml_cec_remove(struct platform_device *pdev)
 {
+	struct device *dev;
 	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
 		return 0;
 
@@ -1980,6 +2100,13 @@ static int aml_cec_remove(struct platform_device *dev)
 	if (cec_workqueue) {
 		cancel_work_sync(&hdmitx_device->cec_work);
 		destroy_workqueue(cec_workqueue);
+	}
+	dev = dev_get_platdata(&pdev->dev);
+	if (dev) {
+		device_remove_file(dev, &dev_attr_cec);
+		device_remove_file(dev, &dev_attr_cec_config);
+		device_remove_file(dev, &dev_attr_cec_lang_config);
+		device_remove_file(dev, &dev_attr_cec_active_status);
 	}
 	hdmitx_device->cec_init_ready = 0;
 	input_unregister_device(cec_global_info.remote_cec_dev);
