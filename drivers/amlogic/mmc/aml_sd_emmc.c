@@ -809,7 +809,7 @@ static unsigned aml_sd_emmc_pre_dma(struct amlsd_host *host,
 		des_cmd_cur->data_io = 1;
 
 		des_cmd_cur->owner = 1;
-		des_cmd_cur->timeout = 0xf;
+		des_cmd_cur->timeout = 0xc;
 
 		des_cmd_cur->data_wr = data_rw;
 		des_cmd_cur->block_mode = block_mode;
@@ -1185,7 +1185,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 		des_cmd_cur->resp_num = 1;
 		des_cmd_cur->data_io = 0;
 		/* 10mS for only cmd timeout */
-		des_cmd_cur->timeout = 0xf;
+		des_cmd_cur->timeout = 0xc;
 		des_cmd_cur->owner = 1;
 		des_cmd_cur->end_of_chain = 0;
 
@@ -1274,7 +1274,14 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 		des_cmd_cur->r1b, des_cmd_cur->resp_128); */
 
 	desc_cur->cmd_arg = mrq->cmd->arg;
-
+	if (!mrq->cmd->data)
+		des_cmd_cur->timeout = 0xa;
+	else
+		des_cmd_cur->timeout = 0xc;
+	if (mrq->cmd->opcode == MMC_SEND_STATUS)
+		des_cmd_cur->timeout = 0xb;
+	if (mrq->cmd->opcode == MMC_ERASE)
+		des_cmd_cur->timeout = 0xf;
 	if (mrq->cmd->data) {
 #ifdef SD_EMMC_REQ_DMA_SGMAP
 		sg_len = aml_sd_emmc_pre_dma(host, mrq, desc_cur);
@@ -1283,7 +1290,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 		desc_cur += (sg_len - 1); /* last desc here */
 #else
 		/* 2^15 = 327.68mS for data timeout, 10uS time based */
-		des_cmd_cur->timeout = 0xf;
+		des_cmd_cur->timeout = 0xc;
 
 		des_cmd_cur->data_io = 1;
 		/* des_cmd_cur->length = mrq->data->blocks; */
@@ -1332,7 +1339,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 			des_cmd_cur->resp_num = 1;
 			des_cmd_cur->data_io = 0;
 			/* 10mS for only cmd timeout */
-			des_cmd_cur->timeout = 0xf;
+			des_cmd_cur->timeout = 0xc;
 			des_cmd_cur->owner = 1;
 			/* SD_EMMC_DESC_RESP_STAT;
 				check status only for stop for test */
@@ -1743,7 +1750,7 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		spin_unlock_irqrestore(&host->mrq_lock, flags);
 		return IRQ_HANDLED;
 	}
-
+#if 0
 	if ((host->xfer_step != XFER_AFTER_START)
 		&& (!host->cmd_is_stop) && !irqc->irq_sdio) {
 		sd_emmc_err("%s: host->xfer_step=%d\n",
@@ -1757,8 +1764,8 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		pr_info("%%sd_emmc_regs->gclock = 0x%x at line %d\n",
 			sd_emmc_regs->gclock, __LINE__);
 	}
-
-	if (((ista->end_of_chain) || (ista->desc_irq)) && mrq) {
+#endif
+	if (mrq) {
 		if (host->cmd_is_stop)
 			host->xfer_step = XFER_IRQ_TASKLET_BUSY;
 		else
