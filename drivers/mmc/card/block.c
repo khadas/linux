@@ -485,6 +485,9 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	cmd.arg = idata->ic.arg;
 	cmd.flags = idata->ic.flags;
 
+	if (is_rpmb)
+		cmd.flags |= (1 << 30);
+
 	if (idata->buf_bytes) {
 		data.sg = &sg;
 		data.sg_len = 1;

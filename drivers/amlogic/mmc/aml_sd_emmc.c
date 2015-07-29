@@ -180,6 +180,9 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 	u32 vclk;
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
+	u32 vctrl;
+	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
+	u32 clk_rate = 1000000000;
 	const u8 *blk_pattern = tuning_data->blk_pattern;
 	unsigned int blksz = tuning_data->blksz;
 	unsigned long flags;
@@ -205,16 +208,16 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 	int wrap_win_start = -1, wrap_win_size = 0;
 	int best_win_start = -1, best_win_size = 0;
 	int curr_win_start = -1, curr_win_size = 0;
-	pr_info("tuning_start\n");
+
+tunning:
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	pdata->need_retuning = false;
 	spin_unlock_irqrestore(&host->mrq_lock, flags);
-
-	if (sd_emmc_regs->gcfg & 0x4)
-		blksz = 512;
 	vclk = sd_emmc_regs->gclock;
-	clk_div = vclk & (0x3f << 0);
-	clock = 1000000000 / clk_div;
+	vctrl = sd_emmc_regs->gcfg;
+	clk_div = clkc->div;
+	clock = clk_rate / clk_div;
+	pdata->mmc->actual_clock = ctrl->ddr ? (clock / 2) : clock;
 	rx_phase_max = 3;
 	if (clock > 84000000) {
 		for (rx_delay = 0; rx_delay <= 15; rx_delay++) {
@@ -227,17 +230,21 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 	} else {
 		rx_delay_max = 15;
 	}
-
+	if (ctrl->ddr == 1)
+		blksz = 512;
 	blk_test = kmalloc(blksz, GFP_KERNEL);
 	if (!blk_test)
 		return -ENOMEM;
 	host->is_tunning = 1;
+	pr_info("%s: clk %d %s tuning start\n",
+		mmc_hostname(mmc), (ctrl->ddr ? (clock / 2) : clock),
+			(ctrl->ddr ? "DDR mode" : "SDR mode"));
 	/* using rx_phase and cfg_rx_delay */
 	for (rx_phase = 0; rx_phase <= rx_phase_max; rx_phase++) {
 		for (rx_delay = 0; rx_delay <= rx_delay_max; rx_delay++) {
 			/* Perform tuning ntries times per clk_div increment */
 			for (n = 0, nmatch = 0; n < ntries; n++) {
-				if (sd_emmc_regs->gcfg & 0x4)
+				if (ctrl->ddr == 1)
 					cmd.opcode = 17;
 				else
 					cmd.opcode = opcode;
@@ -273,7 +280,7 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 				pdata->clk2 = vclk;
 				mmc_wait_for_req(mmc, &mrq);
 				if (!cmd.error && !data.error) {
-					if (sd_emmc_regs->gcfg & 0x4)
+					if (ctrl->ddr == 1)
 						nmatch++;
 					else if (!memcmp(blk_pattern,
 							blk_test, blksz))
@@ -345,8 +352,12 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 			curr_win_size = 0;
 		}
 		if (best_win_size <= 0) {
-			pr_info("tuning result: fail\n");
-			return -1;
+			clkc->div += 1;
+			sd_emmc_regs->gclock = vclk;
+			pdata->clkc = sd_emmc_regs->gclock;
+			pr_info("%s: tuning failed, reduce freq and retuning\n",
+				mmc_hostname(host->mmc));
+			goto tunning;
 		} else {
 			pr_info("best_win_start =%d, best_win_size =%d\n",
 				best_win_start, best_win_size);
@@ -410,8 +421,12 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 			}
 		}
 		if (rx_tuning_size <= 0) {
-			pr_info("%s: tuning failed\n", mmc_hostname(host->mmc));
-			return -1;
+			clkc->div += 1;
+			sd_emmc_regs->gclock = vclk;
+			pdata->clkc = sd_emmc_regs->gclock;
+			pr_info("%s: tuning failed, reduce freq and retuning\n",
+				mmc_hostname(host->mmc));
+			goto tunning;
 		} else {
 			rx_delay_find = rx_tuning_start + rx_tuning_size / 2;
 		}
@@ -1319,7 +1334,8 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 #ifndef SD_EMMC_MANUAL_CMD23
 		if (((mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
 			|| (mrq->cmd->opcode == MMC_READ_MULTIPLE_BLOCK))
-			&& (!host->cmd_is_stop)) {
+			&& (!host->cmd_is_stop)
+			&& !(mrq->cmd->flags & (1 << 30))) {
 
 			/* pr_info("Send stop command here\n"); */
 
@@ -1866,8 +1882,6 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 	u32 status;
 	struct amlsd_platform *pdata = mmc_priv(host->mmc);
 	/* unsigned long time_start_cnt = aml_read_cbus(ISA_TIMERE); */
-
-
 	/* time_start_cnt = (time_start_cnt - host->time_req_sta); */
 	/* pr_info("%s %d cmd:%d time_cost:%dms\n",
 		__func__, __LINE__, mrq->cmd->opcode, time_start_cnt); */
@@ -2057,7 +2071,7 @@ static void aml_sd_emmc_set_clk_rate(struct mmc_host *mmc, unsigned int clk_ios)
 
 	spin_lock_irqsave(&host->mrq_lock, flags);
 
-	clk_div = clk_rate / clk_ios;
+	clk_div = (clk_rate / clk_ios) + (!!(clk_rate % clk_ios));
 
 
 	aml_sd_emmc_clk_switch(pdata, clk_div, clk_src_sel);
@@ -2087,16 +2101,18 @@ static void aml_sd_emmc_set_timing(
 	u32 vclkc = sd_emmc_regs->gclock;
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&vclkc;
 	u8 clk_div;
-
+	u32 clk_rate = 1000000000;
 	if ((timing == MMC_TIMING_MMC_HS400) ||
 			 (timing == MMC_TIMING_MMC_DDR52) ||
 				 (timing == MMC_TIMING_UHS_DDR50)) {
 		ctrl->ddr = 1;
 		clk_div = clkc->div;
-		if (clk_div / 2 >= 3)
+		if (clk_div & 0x01)
+			clk_div++;
 			clkc->div = clk_div / 2;
 		sd_emmc_regs->gclock = vclkc;
 		pdata->clkc = sd_emmc_regs->gclock;
+		pdata->mmc->actual_clock = clk_rate / clk_div;
 		pr_info("%s: try set sd/emmc to DDR mode\n",
 			mmc_hostname(host->mmc));
 
@@ -2627,7 +2643,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 				goto fail_cd_irq_in;
 			}
 		}
-		}
+	}
 
 	print_tmp("%s() success!\n", __func__);
 	platform_set_drvdata(pdev, host);

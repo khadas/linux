@@ -399,7 +399,7 @@
            		"MMC_CAP_ERASE", "MMC_CAP_HW_RESET"*/;
             caps2 = "MMC_CAP2_HS200","MMC_CAP2_HS400";
 			f_min = <400000>;
-            f_max = <200000000>;
+            f_max = <100000000>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
 		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;
