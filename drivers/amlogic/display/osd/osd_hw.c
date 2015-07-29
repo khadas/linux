@@ -766,8 +766,14 @@ void osd_update_disp_axis_hw(
 	disp_data.y_end = display_v_end;
 	pan_data.x_start = xoffset;
 	pan_data.x_end = xoffset + (display_h_end - display_h_start);
+#ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
+	pan_data.y_start = osd_hw.pandata[index].y_start;
+	pan_data.y_end = osd_hw.pandata[index].y_start +
+					(display_v_end - display_v_start);
+#else
 	pan_data.y_start = yoffset;
 	pan_data.y_end = yoffset + (display_v_end - display_v_start);
+#endif
 	/* if output mode change then reset pan ofFfset. */
 	memcpy(&osd_hw.pandata[index], &pan_data, sizeof(struct pandata_s));
 	memcpy(&osd_hw.dispdata[index], &disp_data, sizeof(struct pandata_s));
