@@ -474,7 +474,10 @@
 			mask = <4>;
 		};
 	};
-        unifykey{
+	unifykey{
+		compatible = "amlogic, unifykey";
+		status = "ok";
+
 		unifykey-num = <8>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;

@@ -511,8 +511,10 @@
 			mask = <4>;
 		};
 	};
-        unifykey{
-		/*efuse-version = <20>;*/ /*m6 efuse version 2,m3 efuse version 1, not config efuse version in default*/
+	unifykey{
+		compatible = "amlogic, unifykey";
+		status = "ok";
+
 		unifykey-num = <8>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;

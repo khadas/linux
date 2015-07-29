@@ -31,7 +31,7 @@
 #include <linux/crc32.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/amlogic/securitykey.h>
+#include <linux/amlogic/key_manage.h>
 
 /* #define KEYSIZE (CONFIG_KEYSIZE - (sizeof(uint))) */
 
@@ -90,16 +90,23 @@ exit:
  * This funcion reads the u-boot keyionment variables.
  * The f_pos points directly to the key location.
  */
+/*
 static int32_t nand_key_read(struct aml_keybox_provider_s *provider,
 		uint8_t *buf,
 		int len,
 		int flags)
 {
+
 	struct amlnand_chip *aml_chip = provider->priv;
+*/
+int32_t nand_key_read(uint8_t *buf,
+		uint32_t len)
+{
 	struct nand_menson_key *key_ptr = NULL;
 	int error = 0;
+	struct amlnand_chip *aml_chip = aml_chip_key;
 
-	if (len > KEYSIZE) {
+	if (len > CONFIG_KEYSIZE) {
 		aml_nand_msg("key data len too much,%s", __func__);
 		return -EFAULT;
 	}
@@ -127,16 +134,24 @@ exit:
 	kfree(key_ptr);
 	return 0;
 }
+EXPORT_SYMBOL(nand_key_read);
 
+/*
 static int32_t nand_key_write(struct aml_keybox_provider_s *provider,
 		uint8_t *buf,
 		int len)
 {
 	struct amlnand_chip *aml_chip = provider->priv;
+*/
+
+int32_t nand_key_write(uint8_t *buf,
+		uint32_t len)
+{
 	struct nand_menson_key *key_ptr = NULL;
 	int error = 0;
+	struct amlnand_chip *aml_chip = aml_chip_key;
 
-	if (len > KEYSIZE) {
+	if (len > CONFIG_KEYSIZE) {
 		aml_nand_msg("key data len too much,%s", __func__);
 		return -EFAULT;
 	}
@@ -164,19 +179,23 @@ exit:
 	kfree(key_ptr);
 	return error;
 }
+EXPORT_SYMBOL(nand_key_write);
 
+/*
 static struct aml_keybox_provider_s nand_provider = {
 	.name = "nand_key",
 	.read = nand_key_read,
 	.write = nand_key_write,
 };
+*/
 
 int aml_key_init(struct amlnand_chip *aml_chip)
 {
 	int ret = 0;
 	struct nand_menson_key *key_ptr = NULL;
+/*
 	struct aml_keybox_provider_s *provider;
-
+*/
 	key_ptr = aml_nand_malloc(CONFIG_KEYSIZE);
 	if (key_ptr == NULL) {
 		aml_nand_msg("nand malloc for key_ptr failed");
@@ -195,6 +214,10 @@ int aml_key_init(struct amlnand_chip *aml_chip)
 		aml_nand_msg("invalid nand key\n");
 
 	aml_chip_key = aml_chip;
+
+	storage_ops_read(nand_key_read);
+	storage_ops_write(nand_key_write);
+/*
 	nand_provider.priv = aml_chip_key;
 
 	provider = aml_keybox_provider_get(nand_provider.name);
@@ -204,6 +227,7 @@ int aml_key_init(struct amlnand_chip *aml_chip)
 	ret = aml_keybox_provider_register(&nand_provider);
 	if (ret)
 		BUG();
+*/
 
 exit_error0:
 	if (key_ptr) {
@@ -212,6 +236,8 @@ exit_error0:
 	}
 	return ret;
 }
+
+
 
 
 
