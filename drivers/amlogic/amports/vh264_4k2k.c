@@ -767,20 +767,26 @@ static irqreturn_t vh264_4k2k_isr(int irq, void *dev_id)
 			vfbuf_use[display_buff_id]++;
 
 			vf->pts = 0;
+			vf->pts_us64 = 0;
 
 			if ((!sync_outside)
 				|| (sync_outside &&
 					(slice_type == SLICE_TYPE_I))) {
-				pts_lookup_offset(PTS_TYPE_VIDEO, stream_offset,
-								  &vf->pts, 0);
+				pts_lookup_offset_us64(PTS_TYPE_VIDEO,
+							stream_offset,
+							&vf->pts,
+							0,
+							&vf->pts_us64);
 			}
 #ifdef H264_4K2K_SINGLE_CORE
 			if (READ_VREG(DECODE_MODE) & 1) {
 				/* for I only mode, ignore the PTS information
 				   and only uses 10fps for each
 				   I frame decoded */
-				if (p_last_vf)
+				if (p_last_vf) {
 					vf->pts = 0;
+					vf->pts_us64 = 0;
+				}
 				frame_dur = 96000 / 10;
 			}
 #endif

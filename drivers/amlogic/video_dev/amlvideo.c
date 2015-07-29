@@ -64,7 +64,7 @@ AMLVIDEO_MINOR_VERSION, AMLVIDEO_RELEASE)
 static struct vfq_s q_ready;
 /*extern bool omx_secret_mode;*/
 static u8 first_frame;
-static u32 vpts_last;
+static u64 last_pts_us64;
 
 #define DUR2PTS(x) ((x) - ((x) >> 4))
 #define DUR2PTS_RM(x) ((x) & 0xf)
@@ -607,6 +607,7 @@ static int freerun_cleancache_dqbuf(struct v4l2_buffer *p)
 static int freerun_dqbuf(struct v4l2_buffer *p)
 {
 	int ret = 0;
+	u64 pts_us64 = 0;
 	if (omx_secret_mode == true) {
 		if (vfq_level(&q_ready) > AMLVIDEO_POOL_SIZE - 1) {
 			/* msleep(10); */
@@ -634,20 +635,20 @@ static int freerun_dqbuf(struct v4l2_buffer *p)
 	if (omx_secret_mode == true) {
 		vfq_push(&q_ready, ppmgrvf);
 		p->index = 0;
-		p->timestamp.tv_sec = 0;
 
-		if (ppmgrvf->pts) {
+		if (ppmgrvf->pts_us64) {
 			first_frame = 1;
-			p->timestamp.tv_usec = ppmgrvf->pts;
+			pts_us64 = ppmgrvf->pts_us64;
 		} else if (first_frame == 0) {
 			first_frame = 1;
-			p->timestamp.tv_usec = 0;
+			pts_us64 = 0;
 		} else {
-			p->timestamp.tv_usec = vpts_last
+			pts_us64 = last_pts_us64
 				+ (DUR2PTS(ppmgrvf->duration));
 		}
-		vpts_last = p->timestamp.tv_usec;
-		/* printk("p->timestamp.tv_usec=%d\n",p->timestamp.tv_usec); */
+		p->timestamp.tv_sec = pts_us64 >> 32;
+		p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
+		last_pts_us64 = pts_us64;
 		return ret;
 	}
 	if (ppmgrvf->pts != 0) {

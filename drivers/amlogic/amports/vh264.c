@@ -2522,6 +2522,7 @@ static void stream_switching_do(struct work_struct *work)
 		switching_fense_vf = *p_last_vf;
 		switching_fense_vf.duration = 1;
 		switching_fense_vf.index = -1;
+		switching_fense_vf.flag |= VFRAME_FLAG_SWITCHING_FENSE;
 		if (do_copy) {
 #ifdef NV21
 			switching_fense_vf.canvas0Addr = 0x010100;

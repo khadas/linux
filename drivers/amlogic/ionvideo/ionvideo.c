@@ -166,6 +166,10 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 	vf = vf_get(RECEIVER_NAME);
 	if (!vf)
 		return -EAGAIN;
+	if (vf->flag & VFRAME_FLAG_SWITCHING_FENSE) {
+		vf_put(vf, RECEIVER_NAME);
+		return -EAGAIN;
+	}
 
 	if (vf && dev->once_record == 1) {
 		dev->once_record = 0;

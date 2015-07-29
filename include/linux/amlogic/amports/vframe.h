@@ -55,6 +55,7 @@
 #define DISP_RATIO_ASPECT_RATIO_MAX     0x3ff
 
 #define VFRAME_FLAG_NO_DISCONTINUE      1
+#define VFRAME_FLAG_SWITCHING_FENSE     2
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
