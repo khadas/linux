@@ -597,7 +597,10 @@
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
 		/* hdcp14_en = <0x82000010>; */
 		/* hdcp14_rslt = <0x82000011>; */
+
 		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		vend_data: vend_data{
 			compatible = "amlogic, amlogic-cec";
 			status = "okay";
