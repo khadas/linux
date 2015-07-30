@@ -486,7 +486,7 @@ static int reset_pcr_regs(void)
 		u32 clk_unit = 0;
 		u32 clk_81 = 0;
 		struct clk *clk;
-		clk = clk_get_sys("clk81", NULL);
+		clk = clk_get_sys("clk81", "clk81");
 		if (IS_ERR(clk) || clk == 0) {
 			pr_info("[%s:%d] error clock\n", __func__,
 					__LINE__);

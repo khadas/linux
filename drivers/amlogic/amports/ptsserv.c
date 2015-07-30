@@ -36,6 +36,8 @@
 
 #define INTERPOLATE_AUDIO_PTS
 #define INTERPOLATE_AUDIO_RESOLUTION 9000
+#define PTS_VALID_OFFSET_TO_CHECK      0x08000000
+
 
 #define OFFSET_DIFF(x, y)  ((int)(x - y))
 #define OFFSET_LATER(x, y) (OFFSET_DIFF(x, y) > 0)
@@ -659,12 +661,40 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 
 
 	if (likely(pTable->status == PTS_RUNNING)) {
-		struct pts_rec_s *p, *p2 = NULL;
+		struct pts_rec_s *p = NULL;
+		struct pts_rec_s *p2 = NULL;
 
 		if ((pTable->lookup_cache_valid) &&
 			(offset == pTable->lookup_cache_offset)) {
 			*val = pTable->lookup_cache_pts;
 			return 0;
+		}
+
+		if ((type == PTS_TYPE_VIDEO)
+			&& !list_empty(&pTable->valid_list)) {
+			struct pts_rec_s *rec = NULL;
+			struct pts_rec_s *next = NULL;
+			int look_cnt1 = 0;
+			list_for_each_entry_safe(rec,
+				next, &pTable->valid_list, list) {
+				if (OFFSET_DIFF(offset, rec->offset) >
+					PTS_VALID_OFFSET_TO_CHECK) {
+					if (pTable->pts_search == &rec->list)
+						pTable->pts_search =
+						rec->list.next;
+
+					if (tsync_get_debug_vpts()) {
+						pr_info("remove node  offset: 0x%x cnt:%d\n",
+							rec->offset, look_cnt1);
+					}
+
+					list_move_tail(&rec->list,
+						&pTable->free_list);
+					look_cnt1++;
+				} else {
+					break;
+				}
+			}
 		}
 
 		if (list_empty(&pTable->valid_list))
@@ -798,7 +828,8 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 						&pTable->valid_list))) {
 			p = list_entry(p2->list.next, struct pts_rec_s, list);
 			if (VAL_DIFF(p->val, p2->val) <
-				INTERPOLATE_AUDIO_RESOLUTION) {
+				INTERPOLATE_AUDIO_RESOLUTION
+				&& (VAL_DIFF(p->val, p2->val) >= 0)) {
 				/* do interpolation between [p2, p] */
 				*val =
 					div_u64(((p->val - p2->val) *
@@ -859,6 +890,14 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 				*val = pTable->first_checkin_pts;
 				pTable->first_lookup_ok = 1;
 				pTable->first_lookup_is_fail = 1;
+
+				if (type == PTS_TYPE_VIDEO) {
+					if (timestamp_vpts_get() == 0)
+						timestamp_firstvpts_set(1);
+					else
+						timestamp_firstvpts_set(
+						timestamp_vpts_get());
+				}
 
 				if (tsync_get_debug_pts_checkout()) {
 					if (tsync_get_debug_vpts()
