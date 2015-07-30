@@ -62,12 +62,14 @@
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
 
+#define CEC_FRAME_DELAY		msecs_to_jiffies(400)
+
 static void __iomem *exit_reg;
 static struct hdmitx_dev *hdmitx_device;
 static struct workqueue_struct *cec_workqueue;
-static struct hrtimer cec_late_timer;
 static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
+static struct completion menu_comp;
 #ifdef CONFIG_PM
 static int cec_suspend;
 static int cec_enter_standby;
@@ -85,12 +87,31 @@ bool cec_msg_dbg_en = 1;
 ssize_t cec_lang_config_state(struct switch_dev *sdev, char *buf)
 {
 	int pos = 0;
-	unsigned char index = cec_global_info.my_node_index;
+	int retry = 0;
+	int idx = cec_global_info.my_node_index;
+	int ret = 0, language;
 
-	pos += snprintf(buf+pos, PAGE_SIZE, "%c%c%c\n",
-	(cec_global_info.cec_node_info[index].menu_lang >> 16) & 0xff,
-	(cec_global_info.cec_node_info[index].menu_lang >> 8) & 0xff,
-	(cec_global_info.cec_node_info[index].menu_lang >> 0) & 0xff);
+	/*
+	 * try to get tv menu language if we don't know which language
+	 * current is
+	 */
+	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
+		return 0;
+	if (!cec_global_info.cec_node_info[idx].menu_lang)
+		init_completion(&menu_comp);
+	while (retry < 5 && !cec_global_info.cec_node_info[idx].menu_lang) {
+		cec_get_menu_language_smp();
+		ret = wait_for_completion_timeout(&menu_comp, CEC_FRAME_DELAY);
+		if (ret)
+			break;
+		retry++;
+	}
+
+	language = cec_global_info.cec_node_info[idx].menu_lang;
+	pos += snprintf(buf + pos, PAGE_SIZE, "%c%c%c\n",
+			(language >> 16) & 0xff,
+			(language >>  8) & 0xff,
+			(language >>  0) & 0xff);
 	return pos;
 };
 
@@ -218,6 +239,7 @@ void cec_isr_post_process(void)
 	/* isr post process */
 	while (cec_global_info.cec_rx_msg_buf.rx_read_pos !=
 	       cec_global_info.cec_rx_msg_buf.rx_write_pos) {
+		hdmi_print(INF, CEC "cec handle rx msgs\n");
 		cec_handle_message(&(cec_global_info.cec_rx_msg_buf
 			.cec_rx_message[cec_global_info.cec_rx_msg_buf
 			.rx_read_pos]));
@@ -419,12 +441,9 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 
 			cec_imageview_on_smp();
 
-			cec_get_menu_language_smp();
-
 			cec_active_source_smp();
 
 			cec_menu_status_smp(DEVICE_MENU_ACTIVE);
-
 			cec_global_info.cec_node_info[cec_global_info.
 				my_node_index].menu_status =
 					DEVICE_MENU_ACTIVE;
@@ -448,49 +467,44 @@ void cec_node_uninit(struct hdmitx_dev *hdmitx_device)
 		power_status = POWER_STANDBY;
 }
 
-static enum hrtimer_restart cec_late_check_rx_buffer(struct hrtimer *timer)
+static int cec_late_check_rx_buffer(void)
 {
 	int ret;
+	struct delayed_work *dwork = &hdmitx_device->cec_work;
 
 	ret = cec_rx_buf_check();
-	if (ret) {
-		/*
-		 * start another check if rx buffer is full
-		 */
-		if ((-1) == cec_ll_rx(rx_msg, &rx_len)) {
-			hdmi_print(INF, CEC, "buffer got unrecorgnized msg\n");
-			cec_rx_buf_clear();
-		} else {
-			register_cec_rx_msg(rx_msg, rx_len);
-			queue_work(cec_workqueue, &hdmitx_device->cec_work);
-		}
+	if (!ret)
+		return 0;
+	/*
+	 * start another check if rx buffer is full
+	 */
+	if ((-1) == cec_ll_rx(rx_msg, &rx_len)) {
+		hdmi_print(INF, CEC, "buffer got unrecorgnized msg\n");
+		cec_rx_buf_clear();
+		return 0;
+	} else {
+		register_cec_rx_msg(rx_msg, rx_len);
+		mod_delayed_work(cec_workqueue, dwork, 0);
+		return 1;
 	}
-	if (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) {
-		hrtimer_start(&cec_late_timer,
-			      ktime_set(0, 384*1000*1000), HRTIMER_MODE_REL);
-	}
-
-	return HRTIMER_NORESTART;
 }
 
 static void cec_task(struct work_struct *work)
 {
 	struct hdmitx_dev *hdmitx_device;
+	struct delayed_work *dwork;
 
-	hdmitx_device = container_of(work, struct hdmitx_dev, cec_work);
-	hdmi_print(INF, CEC "CEC task process\n");
+	hdmitx_device = container_of(work, struct hdmitx_dev, cec_work.work);
+	dwork = &hdmitx_device->cec_work;
 	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) &&
 		!cec_global_info.cec_flag.cec_init_flag) {
-		msleep_interruptible(15000);
+		msleep_interruptible(5000);
 		cec_global_info.cec_flag.cec_init_flag = 1;
 		cec_node_init(hdmitx_device);
 	}
 	cec_isr_post_process();
-	if (hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) {
-		/* start timer for late cec rx buffer check */
-		hrtimer_start(&cec_late_timer,
-			      ktime_set(0, 384*1000*1000), HRTIMER_MODE_REL);
-	}
+	if (!cec_late_check_rx_buffer())
+		queue_delayed_work(cec_workqueue, dwork, CEC_FRAME_DELAY);
 }
 
 /* cec low level code end */
@@ -832,7 +846,7 @@ irqreturn_t cec_isr_handler(int irq, void *dev_instance)
 	if (!cec_suspend) {	/* do not process messages if suspend */
 		hdmitx = (struct hdmitx_dev *)dev_instance;
 		register_cec_rx_msg(rx_msg, rx_len);
-		queue_work(cec_workqueue, &hdmitx->cec_work);
+		mod_delayed_work(cec_workqueue, &hdmitx->cec_work, 0);
 	}
 	return IRQ_HANDLED;
 }
@@ -1306,6 +1320,7 @@ void cec_set_menu_language(struct cec_rx_message_t *pcec_message)
 		    |= INFO_MASK_MENU_LANGUAGE;
 		hdmi_print(INF, CEC "cec_set_menu_language:%c.%c.%c\n",
 			a, b, c);
+		complete(&menu_comp);
 	}
 }
 
@@ -1875,7 +1890,6 @@ static ssize_t store_cec_lang_config(struct device *dev,
 	unsigned long val;
 
 	ret = kstrtoul(buf, 16, &val);
-	hdmi_print(INF, CEC "store_cec_lang_config\n");
 	cec_global_info.cec_node_info[cec_global_info.my_node_index].
 		menu_lang = (int)val;
 	cec_usrcmd_set_lang_config(buf, count);
@@ -1886,7 +1900,7 @@ static ssize_t show_cec_lang_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-	hdmi_print(INF, CEC "show_cec_lang_config\n");
+
 	pos += snprintf(buf+pos, PAGE_SIZE, "%x\n", cec_global_info.
 		cec_node_info[cec_global_info.my_node_index].menu_lang);
 	return pos;
@@ -1966,9 +1980,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		pr_info("create work queue failed\n");
 		return -EFAULT;
 	}
-	INIT_WORK(&hdmitx_device->cec_work, cec_task);
-	hrtimer_init(&cec_late_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	cec_late_timer.function = cec_late_check_rx_buffer;
+	INIT_DELAYED_WORK(&hdmitx_device->cec_work, cec_task);
 	hrtimer_init(&cec_key_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	cec_key_timer.function = cec_key_up;
 	cec_global_info.remote_cec_dev = input_allocate_device();
@@ -2079,7 +2091,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_global_info.cec_flag.cec_init_flag = 0;
 	hdmi_print(INF, CEC "hdmitx_device->cec_init_ready:0x%x",
 	    hdmitx_device->cec_init_ready);
-	queue_work(cec_workqueue, &hdmitx_device->cec_work);	/* for init */
+	/* for init */
+	queue_delayed_work(cec_workqueue, &hdmitx_device->cec_work, 0);
 	cec_reboot_nb.notifier_call = cec_reboot;
 	register_reboot_notifier(&cec_reboot_nb);
 	return 0;
@@ -2098,7 +2111,7 @@ static int aml_cec_remove(struct platform_device *pdev)
 	}
 
 	if (cec_workqueue) {
-		cancel_work_sync(&hdmitx_device->cec_work);
+		cancel_delayed_work_sync(&hdmitx_device->cec_work);
 		destroy_workqueue(cec_workqueue);
 	}
 	dev = dev_get_platdata(&pdev->dev);
