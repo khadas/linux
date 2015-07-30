@@ -46,7 +46,7 @@ MODULE_VERSION("1.0");
 
 static const char longname[] = "Gadget Android";
 static struct android_dev *_android_dev;
-
+int android_usb_inited = 0;
 #include "f_fs.c"
 
 /* Default vendor and product IDs, overridden by userspace */
@@ -1499,6 +1499,34 @@ static int android_create_device(struct android_dev *dev)
 	return 0;
 }
 
+int android_usb_init(void)
+{
+	struct android_dev *dev;
+	int err;
+
+	dev = _android_dev;
+
+	err = usb_composite_probe(&android_usb_driver);
+	if (err) {
+		pr_err("%s: failed to probe driver %d", __func__, err);
+		goto err_probe;
+	}
+
+	/* HACK: exchange composite's setup with ours */
+	composite_setup_func = android_usb_driver.gadget_driver.setup;
+	android_usb_driver.gadget_driver.setup = android_setup;
+	android_usb_inited = 1;
+	return 0;
+
+err_probe:
+	device_destroy(android_class, dev->dev->devt);
+
+	kfree(dev);
+	_android_dev = NULL;
+	class_destroy(android_class);
+	return err;
+}
+EXPORT_SYMBOL(android_usb_init);
 
 static int __init init(void)
 {
@@ -1529,20 +1557,8 @@ static int __init init(void)
 
 	_android_dev = dev;
 
-	err = usb_composite_probe(&android_usb_driver);
-	if (err) {
-		pr_err("%s: failed to probe driver %d", __func__, err);
-		goto err_probe;
-	}
-
-	/* HACK: exchange composite's setup with ours */
-	composite_setup_func = android_usb_driver.gadget_driver.setup;
-	android_usb_driver.gadget_driver.setup = android_setup;
-
 	return 0;
 
-err_probe:
-	device_destroy(android_class, dev->dev->devt);
 err_create:
 	kfree(dev);
 	_android_dev = NULL;

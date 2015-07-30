@@ -244,6 +244,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 
 	mutex_unlock(&udc_lock);
 
+	android_usb_init();
 	return 0;
 
 err4:

@@ -245,7 +245,8 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 	char *data;
 
 	ENTER();
-
+	if (!android_usb_inited)
+		return -EIDRM;
 	/* Fast check if setup was canceled */
 	if (FFS_SETUP_STATE(ffs) == FFS_SETUP_CANCELED)
 		return -EIDRM;

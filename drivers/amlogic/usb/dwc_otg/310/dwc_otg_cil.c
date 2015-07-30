@@ -1289,6 +1289,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 
 			/* Reset after a PHY select */
 			dwc_otg_core_reset(core_if);
+			dwc_mdelay(USB_CORE_RESET_TIME);
 		}
 
 		/* Program DCFG.DevSpd or HCFG.FSLSPclkSel to 48Mhz in FS.      Also
@@ -1342,6 +1343,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 			DWC_WRITE_REG32(&global_regs->gusbcfg, usbcfg.d32);
 			/* Reset after setting the PHY parameters */
 			dwc_otg_core_reset(core_if);
+			dwc_mdelay(USB_CORE_RESET_TIME);
 		}
 	}
 
@@ -6230,7 +6232,6 @@ int dwc_otg_set_param_dev_perio_tx_fifo_size(dwc_otg_core_if_t *core_if,
 		DWC_WARN("dev_perio_tx_fifo_size must be 4-768\n");
 		return -DWC_E_INVALID;
 	}
-
 	if (val >
 	    (DWC_READ_REG32(&core_if->core_global_regs->dtxfsiz[fifo_num]) >> 16)) {
 		DWC_WARN("Value is larger then power-on FIFO size\n");
@@ -6243,7 +6244,6 @@ int dwc_otg_set_param_dev_perio_tx_fifo_size(dwc_otg_core_if_t *core_if,
 		val = (DWC_READ_REG32(&core_if->core_global_regs->dtxfsiz[fifo_num]) >> 16);
 		retval = -DWC_E_INVALID;
 	}
-
 	core_if->core_params->dev_perio_tx_fifo_size[fifo_num] = val;
 	return retval;
 }
@@ -6296,7 +6296,6 @@ int dwc_otg_set_param_dev_tx_fifo_size(dwc_otg_core_if_t *core_if, int32_t val,
 		DWC_WARN("dev_tx_fifo_size must be 16-32768\n");
 		return -DWC_E_INVALID;
 	}
-
 	if (val > txfifosize.b.depth) {
 		DWC_WARN("Value is larger then power-on FIFO size\n");
 		if (dwc_otg_param_initialized
@@ -6308,7 +6307,6 @@ int dwc_otg_set_param_dev_tx_fifo_size(dwc_otg_core_if_t *core_if, int32_t val,
 		val = txfifosize.b.depth;
 		retval = -DWC_E_INVALID;
 	}
-
 	core_if->core_params->dev_tx_fifo_size[fifo_num] = val;
 	return retval;
 }

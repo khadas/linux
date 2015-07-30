@@ -55,7 +55,7 @@
 
 #define USB_MS_TO_HS_INTERVAL(x)	(ilog2((x * 1000 / 125)) + 1)
 struct usb_configuration;
-
+extern int android_usb_inited;
 /**
  * struct usb_function - describes one function of a configuration
  * @name: For diagnostics, identifies the function.

@@ -1242,7 +1242,6 @@ static struct gadget_wrapper *alloc_wrapper(struct platform_device *pdev)
 
 static void free_wrapper(struct gadget_wrapper *d)
 {
-	device_unregister(&d->gadget.dev);
 	DWC_FREE(d);
 	d = NULL;
 }
@@ -1317,6 +1316,7 @@ void pcd_remove(struct platform_device *pdev)
 
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, pdev);
 
+	usb_del_gadget_udc(&gadget_wrapper->gadget);
 	/*
 	 * Free the IRQ
 	 */
