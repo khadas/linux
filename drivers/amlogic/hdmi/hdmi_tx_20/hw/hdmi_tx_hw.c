@@ -219,183 +219,29 @@ static int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	return ret;
 }
 
-
-static void configure_hdcp_dpk(unsigned long sw_enc_key)
+#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
+int hdmitx_hdcp_opr(unsigned int val)
 {
-	const unsigned long hw_enc_key	= 0xcac;
-	const unsigned char dpk_aksv[5] = {0x12};
-	unsigned char dpk_key[280] = {
-	/* test */
-	};
-	unsigned long sr_1;
-	unsigned long sr_2;
-	unsigned char mask;
-	unsigned int i, j;
-	unsigned int dpk_index;
-	unsigned long sr2_b24_b1, sr2_b0, sr1_b24_b0;
-	unsigned long sr1_b26_b0, sr1_b27, sr1_b24;
-
-	pr_info("[HDMITX.C] Configure HDCP keys -- Begin\n");
-
-	/* init key encrypt vectors */
-	sr_1 = ((hw_enc_key&0xfff)<<16) | (sw_enc_key&0xffff);
-	sr_2 = 0x1978F5E;
-
-	/* encrypt keys loop */
-	for (j = 0; j < 40; j++) {
-		for (i = 0; i < 7; i++) {
-			mask =   (((sr_2>>0)&0x1) << 7)  |
-				(((sr_2>>2)&0x1) << 6)  |
-				(((sr_2>>4)&0x1) << 5)  |
-				(((sr_2>>6)&0x1) << 4)  |
-				(((sr_2>>1)&0x1) << 3)  |
-				(((sr_2>>3)&0x1) << 2)  |
-				(((sr_2>>5)&0x1) << 1)  |
-				(((sr_2>>7)&0x1) << 0);
-		/* sr_2 shift + bit manipulation */
-		sr2_b24_b1 = (sr_2>>1)&0xffffff;
-		sr2_b0	= sr_2&0x1;
-		sr1_b24_b0 = sr_1&0x1ffffff;
-		sr_2 = (((sr2_b0<<24) | sr2_b24_b1) ^ sr1_b24_b0) & 0x1ffffff;
-/* sr_2 = ((((sr_2&0x1)<<24) | ((sr_2>>1)&0xffffff)) ^
- * (sr_1&0x1ffffff)) & 0x1ffffff; */
-/* sr_1 shift left + bit manipulation */
-		sr1_b26_b0 = sr_1&0x7ffffff;
-		sr1_b27 = (sr_1>>27)&0x1;
-		sr1_b24 = (sr_1>>24)&0x1;
-		sr_1 = (((sr1_b26_b0<<1) | sr1_b27) & 0xffffffe) +
-			(sr1_b27 ^ sr1_b24);
-/* sr_1 = ((((sr_1&0x7ffffff)<<1) | ((sr_1>>27)&0x1)) & 0xffffffe) +
- * (((sr_1>>27)0x1) ^ ((sr_1>>24)&0x1)); */
-		/* Encrypt Key */
-			dpk_key[j*7+(6-i)] = dpk_key[j*7+(6-i)] ^ mask;
-		}
+	pr_info("val = %d\n", val);
+	if (val == 1) {
+		register long x0 asm("x0") = 0x82000010;
+		asm volatile(
+			__asmeq("%0", "x0")
+			"smc #0\n"
+			: : "r"(x0)
+		);
+	}
+	if (val == 2) {
+		register long x0 asm("x0") = 0x82000011;
+		asm volatile(
+			__asmeq("%0", "x0")
+			"smc #0\n"
+			: "+r"(x0)
+		);
+		return (unsigned)(x0&0xffffffff);
 	}
 
-	/* Disable key encryption for writing KSV */
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_RMLCTL, 0);
-	/* wait for memory access ok */
-	hdmitx_poll_reg(HDMITX_DWC_HDCPREG_RMLSTS, (1<<6), HZ);
-	/* write AKSV (unecrypted) */
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK6, 0);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK5, 0);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK4, dpk_aksv[4]);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK3, dpk_aksv[3]);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK2, dpk_aksv[2]);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK1, dpk_aksv[1]);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK0, dpk_aksv[0]);
-
-	/* wait for memory access ok */
-	hdmitx_poll_reg(HDMITX_DWC_HDCPREG_RMLSTS, (1<<6)|1, HZ);
-
-	/* enable encryption */
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_RMLCTL, 1);
-
-	/* configure seed */
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_SEED1, (sw_enc_key>>8)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_SEED0, sw_enc_key&0xff);
-
-	/* store encrypted keys */
-	for (dpk_index = 0; dpk_index < 40; dpk_index++) {
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK6, dpk_key[dpk_index*7+6]);
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK5, dpk_key[dpk_index*7+5]);
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK4, dpk_key[dpk_index*7+4]);
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK3, dpk_key[dpk_index*7+3]);
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK2, dpk_key[dpk_index*7+2]);
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK1, dpk_key[dpk_index*7+1]);
-		hdmitx_wr_reg(HDMITX_DWC_HDCPREG_DPK0, dpk_key[dpk_index*7+0]);
-		hdmitx_poll_reg(HDMITX_DWC_HDCPREG_RMLSTS,
-			(1<<6)|((dpk_index == 39) ? 40:(dpk_index+2)), HZ);
-	}
-
-	pr_info("[HDMITX.C] Configure HDCP keys -- End\n");
-}   /* configure_hdcp_dpk */
-
-#define HDCP_AN_SW_VAL_HI 0x88a663a8
-#define HDCP_AN_SW_VAL_LO 0xb4317416
-
-static void hdmitx_hdcp_test(void)
-{
-	unsigned int data32 = 0;
-
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-
-	hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 0, 6, 1);
-
-	/* Configure HDCP */
-	data32 = 0;
-	data32 |= (0 << 7);  /* [  7] hdcp_engaged_int_mask */
-	data32 |= (0 << 6);  /* [  6] hdcp_failed_int_mask */
-	data32 |= (0 << 4);  /* [  4] i2c_nack_int_mask */
-	data32 |= (0 << 3);  /* [  3] lost_arbitration_int_mask */
-	data32 |= (0 << 2);  /* [  2] keepout_error_int_mask */
-	data32 |= (0 << 1);  /* [  1] ksv_sha1_calc_int_mask */
-	data32 |= (1 << 0);  /* [  0] ksv_access_int_mask */
-	hdmitx_wr_reg(HDMITX_DWC_A_APIINTMSK, data32);
-
-	data32 = 0;
-	data32 |= (0 << 5);  /* [6:5] unencryptconf */
-	data32 |= (1 << 4);  /* [  4] dataenpol */
-	data32 |= (1 << 3);  /* [  3] vsyncpol */
-	data32 |= (1 << 1);  /* [  1] hsyncpol */
-	hdmitx_wr_reg(HDMITX_DWC_A_VIDPOLCFG, data32);
-
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN0, (HDCP_AN_SW_VAL_LO >> 0)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN1, (HDCP_AN_SW_VAL_LO >> 8)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN2, (HDCP_AN_SW_VAL_LO>>16)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN3, (HDCP_AN_SW_VAL_LO>>24)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN4, (HDCP_AN_SW_VAL_HI >> 0)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN5, (HDCP_AN_SW_VAL_HI >> 8)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN6, (HDCP_AN_SW_VAL_HI>>16)&0xff);
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_AN7, (HDCP_AN_SW_VAL_HI>>24)&0xff);
-/* 0=AN is from HW; 1=AN is from SW register. */
-	hdmitx_wr_reg(HDMITX_DWC_HDCPREG_ANCONF, 0);
-
-	hdmitx_wr_reg(HDMITX_DWC_A_OESSWCFG, 0x40);
-
-	data32 = 0;
-	data32 |= (0 << 3);  /* [  3] sha1_fail */
-	data32 |= (0 << 2);  /* [  2] ksv_ctrl_update */
-	data32 |= (0 << 1);  /* [  1] Rsvd for read-only ksv_mem_access */
-	data32 |= (1 << 0);  /* [  0] ksv_mem_request */
-	hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, data32);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
-	hdmitx_wr_reg(HDMITX_DWC_HDCP_REVOC_SIZE_0, 0);
-	hdmitx_wr_reg(HDMITX_DWC_HDCP_REVOC_SIZE_1, 0);
-	data32 = 0;
-	data32 |= (0 << 3);  /* [  3] sha1_fail */
-	data32 |= (0 << 2);  /* [  2] ksv_ctrl_update */
-	data32 |= (0 << 1);  /* [  1] Rsvd for read-only ksv_mem_access */
-	data32 |= (0 << 0);  /* [  0] ksv_mem_request */
-	hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, data32);
-	data32 = 0;
-	data32 |= (0 << 4);  /* [  4] hdcp_lock */
-	data32 |= (0 << 3);  /* [  3] dissha1check */
-	data32 |= (1 << 2);  /* [  2] ph2upshiftenc */
-	data32 |= ((1?0:1) << 1);  /* [  1] encryptiondisable */
-/* [  0] swresetn. Write 0 to activate, self-clear to 1. */
-	data32 |= (1 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, data32);
-
-	configure_hdcp_dpk(0xa938);
-
-	/* initialize HDCP, with rxdetect low */
-	data32 = 0;
-	data32 |= (0 << 7);  /* [  7] ELV_ena */
-	data32 |= (1 << 6);  /* [  6] i2c_fastmode */
-	data32 |= ((1?0:1) << 5);  /* [  5] byp_encryption */
-	data32 |= (1 << 4);  /* [  4] sync_ri_check */
-	data32 |= (0 << 3);  /* [  3] avmute */
-	data32 |= (0 << 2);  /* [  2] rxdetect */
-	data32 |= (1 << 1);  /* [  1] en11_feature */
-	data32 |= (1 << 0);  /* [  0] hdmi_dvi */
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, data32);
-
-	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_CTRL, 1 << 1); /* hdcp22_ovr_en */
-	pr_info("[TEST.C] Start HDCP\n");
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0,
-		hdmitx_rd_reg(HDMITX_DWC_A_HDCPCFG0) | (1<<2));
-
+	return -1;
 }
 
 /* record HDMITX current format, matched with uboot */
@@ -2593,7 +2439,14 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	} else if (strncmp(tmpbuf, "dumpintr", 8) == 0) {
 		hdmitx_dump_intr();
 	} else if (strncmp(tmpbuf, "testhdcp", 8) == 0) {
-		hdmitx_hdcp_test();
+		int i;
+		i = tmpbuf[8] - '0';
+		if ((i == 1) || (i == 2)) {
+			int ret = 0;
+			ret = hdmitx_hdcp_opr(i);
+			pr_info("hdcp ret = %d", ret);
+		}
+		return;
 	} else if (strncmp(tmpbuf, "dumpallregs", 11) == 0) {
 		hdmitx_dump_all_cvregs();
 		return;
@@ -2889,8 +2742,10 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 
 		break;
 	case DDC_HDCP_OP:
-		if (argv == HDCP_ON)
-			;
+		if (argv == HDCP_ON) {
+			hdmitx_ddc_hw_op(DDC_MUX_DDC);
+			hdmitx_hdcp_opr(1);
+		}
 		if (argv == HDCP_OFF)
 			;
 		break;
@@ -2908,6 +2763,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 			;
 		break;
 	case DDC_HDCP_GET_AUTH:
+		return hdmitx_hdcp_opr(2);
 		break;
 	default:
 		hdmi_print(INF, "ddc: " "unknown cmd: 0x%x\n", cmd);

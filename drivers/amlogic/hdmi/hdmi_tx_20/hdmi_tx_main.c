@@ -452,6 +452,9 @@ static int set_disp_mode_auto(void)
 		(strncmp(info->name, "panel", 5) == 0) ||
 		(strncmp(info->name, "null", 4) == 0)) {
 		hdmi_print(ERR, VID "%s not valid hdmi mode\n", info->name);
+		if (hdmitx_device.hdcpop.hdcp14_en)
+			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+				DDC_HDCP_OP, HDCP_ON);
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_CLR_AVI_PACKET, 0);
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
@@ -505,6 +508,9 @@ static int set_disp_mode_auto(void)
 		}
 		hdmitx_device.cur_VIC = vic;
 		hdmitx_device.output_blank_flag = 1;
+		if (hdmitx_device.hdcpop.hdcp14_en)
+			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+				DDC_HDCP_OP, HDCP_ON);
 		return 1;
 	} else
 		hdmitx_pre_display_init();
@@ -557,6 +563,9 @@ static int set_disp_mode_auto(void)
 	hdmitx_set_audio(&hdmitx_device,
 		&(hdmitx_device.cur_audio_param), hdmi_ch);
 	hdmitx_device.output_blank_flag = 1;
+	if (hdmitx_device.hdcpop.hdcp14_en)
+		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+			DDC_HDCP_OP, HDCP_ON);
 	return ret;
 }
 static unsigned char is_dispmode_valid_for_hdmi(void)
@@ -1664,6 +1673,20 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		memset(&hdmitx_device.config_data, 0,
 			sizeof(struct hdmi_config_platform_data));
+/* Get HDCP cmd */
+	hdmitx_device.hdcpop.hdcp14_en = 0;
+	hdmitx_device.hdcpop.hdcp14_rslt = 0;
+	ret = of_property_read_u32(pdev->dev.of_node, "hdcp14_en", &val);
+	if (!ret)
+		hdmitx_device.hdcpop.hdcp14_en = val;
+	ret = of_property_read_u32(pdev->dev.of_node, "hdcp14_rslt", &val);
+	if (!ret)
+		hdmitx_device.hdcpop.hdcp14_rslt = val;
+	if ((hdmitx_device.hdcpop.hdcp14_en)
+		& (hdmitx_device.hdcpop.hdcp14_rslt))
+		pr_info("hdmitx hdcp14 %x %x",
+			hdmitx_device.hdcpop.hdcp14_en & 0xff,
+			hdmitx_device.hdcpop.hdcp14_rslt & 0xff);
 /* Get physical setting data */
 	ret = of_property_read_u32(pdev->dev.of_node, "phy-size", &psize);
 	if (!ret) {

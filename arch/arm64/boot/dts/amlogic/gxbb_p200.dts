@@ -586,7 +586,8 @@
 			&clock CLK_HDMITX_PHY &clock CLK_VID>;
 		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp", "hdmitx_clk_enci",
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
-
+		/* hdcp14_en = <0x82000010>; */
+		/* hdcp14_rslt = <0x82000011>; */
 		ranges;
 		vend_data: vend_data{
 			compatible = "amlogic, amlogic-cec";

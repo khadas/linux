@@ -159,7 +159,10 @@ struct hdmitx_dev {
 		int (*Cntl)(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 			unsigned arg); /* Other control */
 	} HWOp;
-
+	struct {
+		unsigned int hdcp14_en;
+		unsigned int hdcp14_rslt;
+	} hdcpop;
 	struct hdmi_config_platform_data config_data;
 	enum hdmi_event_t hdmitx_event;
 	unsigned int irq_hpd;
