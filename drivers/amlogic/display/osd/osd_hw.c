@@ -304,7 +304,7 @@ static int out_fence_create(int *release_fence_fd, u32 *val, u32 buf_num)
 	struct sync_fence *outer_fence;
 	int out_fence_fd = -1;
 
-	out_fence_fd = get_unused_fd();
+	out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
 	/* no file descriptor could be used. Error. */
 	if (out_fence_fd < 0)
 		return -1;

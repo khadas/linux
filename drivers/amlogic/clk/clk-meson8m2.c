@@ -125,12 +125,14 @@ static struct amlogic_clk_branch meson8m2_clk_branches[] __initdata = {
 	COMPOSITE(CLK_MALI_0, "clk_mali_0", mux_mali_0_p,
 		CLK_SET_RATE_NO_REPARENT,
 		OFFSET(HHI_MALI_CLK_CNTL), 9, 3, 0,
-		OFFSET(HHI_MALI_CLK_CNTL), 0, 7, 0,
+		OFFSET(HHI_MALI_CLK_CNTL), 0, 7,
+		CLK_DIVIDER_ROUND_CLOSEST,
 		OFFSET(HHI_MALI_CLK_CNTL), 8, 0),
 	COMPOSITE(CLK_MALI_1, "clk_mali_1", mux_mali_1_p,
 		CLK_SET_RATE_NO_REPARENT,
 		OFFSET(HHI_MALI_CLK_CNTL), 25, 3, 0,
-		OFFSET(HHI_MALI_CLK_CNTL), 16, 7, 0,
+		OFFSET(HHI_MALI_CLK_CNTL), 16, 7,
+		CLK_DIVIDER_ROUND_CLOSEST,
 		OFFSET(HHI_MALI_CLK_CNTL), 24, 0),
 };
 static struct of_device_id ext_clk_match[] __initdata = {
