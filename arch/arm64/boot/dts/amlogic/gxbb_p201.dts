@@ -795,6 +795,17 @@
 		keep_mode_threshold = <85>;
 		keep_mode_max_range = <1536000 792 4 3>;
 	};
+	gpio_keypad{
+	    compatible = "amlogic, gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+	    key_name = "power";
+		key_code = <116>;
+		key_pin = <&gpio_ao  GPIOAO_3  GPIO_ACTIVE_HIGH>;  /*"GPIOAO_3";*/
+	    irq_keyup = <6>;
+	    irq_keydown = <7>;
+	};
 	saradc: saradc {
 		compatible = "amlogic, saradc";
 		status = "okay";
