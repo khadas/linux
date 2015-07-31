@@ -22,9 +22,9 @@
 #include "osd_io.h"
 #include "osd_reg.h"
 
-struct rdma_table_item_t {
-	u32  addr;
-	u32  val;
+struct rdma_table_item {
+	u32 addr;
+	u32 val;
 };
 
 #define TABLE_SIZE	 PAGE_SIZE
@@ -86,6 +86,5 @@ extern void osd_update_vsync_hit(void);
 extern int read_rdma_table(void);
 extern int reset_rdma(void);
 extern int osd_rdma_enable(u32 enable);
-
 
 #endif

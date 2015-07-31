@@ -40,7 +40,7 @@
 #include "osd_rdma.h"
 
 static DEFINE_SPINLOCK(rdma_lock);
-static struct rdma_table_item_t *rdma_table;
+static struct rdma_table_item *rdma_table;
 static struct device *osd_rdma_dev;
 static struct page *table_pages;
 static void *osd_rdma_table_virt;
@@ -50,41 +50,121 @@ static void *table_vaddr;
 static u32 rdma_enable;
 static u32 item_count;
 static u32 rdma_debug;
-#define OSD_RDMA_UPDATE_RETRY_COUNT 100
+static char *info;
 static bool osd_rdma_init_flag;
 static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
 
+#define OSD_RDMA_UPDATE_RETRY_COUNT 500
+
 static int osd_rdma_init(void);
+
+static inline void osd_rdma_mem_cpy(struct rdma_table_item *dst,
+					struct rdma_table_item *src, u32 len)
+{
+	asm volatile(
+		"	stp x5, x6, [sp, #-16]!\n"
+		"	cmp %2,#8\n"
+		"	bne 1f\n"
+		"	ldr x5, [%0]\n"
+		"	str x5, [%1]\n"
+		"	b 2f\n"
+		"1:     ldp x5, x6, [%0]\n"
+		"	stp x5, x6, [%1]\n"
+		"2:     nop\n"
+		"	ldp x5, x6, [sp], #16\n"
+		:
+		: "r" (src), "r" (dst), "r" (len)
+		: "x5", "x6");
+}
+
+/*once init, will update config in every osd rdma interrupt*/
+int osd_rdma_update_config(char is_init)
+{
+	static u32 config;
+
+	if (is_init) {
+		config  = 0;
+		config |= 1                         << 7;   /* [31: 6] Rsrv.*/
+		config |= 1                         << 6;   /* [31: 6] Rsrv.*/
+		config |= ctrl_ahb_wr_burst_size    <<
+			4;
+		/* [ 5: 4] ctrl_ahb_wr_burst_size. 0=16; 1=24; 2=32; 3=48.*/
+		config |= ctrl_ahb_rd_burst_size    <<
+			2;
+		/* [ 3: 2] ctrl_ahb_rd_burst_size. 0=16; 1=24; 2=32; 3=48.*/
+		config |= 0                         << 1;
+		/* [    1] ctrl_sw_reset.*/
+		config |= 0                         << 0;
+		/* [    0] ctrl_free_clk_enable.*/
+		osd_reg_write(RDMA_CTRL, config);
+	} else {
+		osd_reg_write(RDMA_CTRL, (1<<27)|config);
+	}
+	return 0;
+
+}
+EXPORT_SYMBOL(osd_rdma_update_config);
 
 static inline void reset_rdma_table(void)
 {
 	unsigned long flags;
+	struct rdma_table_item reset_item[2] = {
+		{
+			.addr = OSD_RDMA_FLAG_REG,
+			.val = OSD_RDMA_STATUS_MARK_TBL_RST,
+		},
+		{
+			.addr = OSD_RDMA_FLAG_REG,
+			.val = OSD_RDMA_STATUS_MARK_COMPLETE,
+		}
+	};
 
 	spin_lock_irqsave(&rdma_lock, flags);
-	osd_reg_write(END_ADDR, table_paddr-1);
-	rdma_table[0].addr = OSD_RDMA_FLAG_REG;
-	rdma_table[0].val = OSD_RDMA_STATUS_MARK_TBL_RST;
-	rdma_table[1].addr = OSD_RDMA_FLAG_REG;
-	rdma_table[1].val = OSD_RDMA_STATUS_MARK_COMPLETE;
-	item_count = 1;
+	if (!OSD_RDMA_STAUS_IS_DIRTY) {
+		/*we reset rdma table only if table is clean.
+		if both two process want to reset table.and racing
+		here,double clean table is uncorrect.
+		1 clean table racing--------
+		2 the first one get spin lock ,do clean op
+		3 the first exit spin lock and adding one item
+		4 the second one get spin lock, clean table(!!wrong)*/
+		OSD_RDMA_STAUS_CLEAR_DONE;
+		osd_reg_write(END_ADDR, table_paddr - 1);
+		osd_rdma_mem_cpy(rdma_table, &reset_item[0], 16);
+		/*osd_rdma_mem_cpy(rdma_table, &reset_item[0], 16);*/
+		item_count = 1;
+	}
 	spin_unlock_irqrestore(&rdma_lock, flags);
 }
-
-
 
 static int update_table_item(u32 addr, u32 val)
 {
 	unsigned long flags;
 	int retry_count = OSD_RDMA_UPDATE_RETRY_COUNT;
+	struct rdma_table_item request_item;
 
-retry:
-	/*in reject region then we wait for hw rdma operation complete.*/
-	if (OSD_RDMA_STATUS_IS_REJECT && (retry_count > 0)) {
-		retry_count--;
-		osd_log_err("%s retry: %d", __func__, retry_count);
-		goto retry;
+	if (item_count > 500) {
+		/*rdma table is full*/
+		return -1;
 	}
+	if (info)
+		sprintf(info, "item_count : %d\n"
+				"reg_ctrl : %x\n"
+				"reg_status : %x\n"
+				"reg_auto :0x%x\n"
+				"reg_flag :0x%x\n",
+				item_count, osd_reg_read(RDMA_CTRL),
+				osd_reg_read(RDMA_STATUS),
+				osd_reg_read(RDMA_ACCESS_AUTO),
+				osd_reg_read(OSD_RDMA_FLAG_REG));
+retry:
+	if (0 == (retry_count--)) {
+		pr_info("OSD RDMA stuck .....%d,0x%x\n", retry_count,
+					osd_reg_read(RDMA_STATUS));
+		return -1;
+	}
+
 	if (!OSD_RDMA_STAUS_IS_DIRTY) {
 		/*since last HW op,no new wirte request.
 		rdma HW op will clear DIRTY flag.*/
@@ -96,25 +176,37 @@ retry:
 	OSD_RDMA_STAUS_MARK_DIRTY;
 	spin_lock_irqsave(&rdma_lock, flags);
 	item_count++;
-	rdma_table[item_count].addr = OSD_RDMA_FLAG_REG;
-	rdma_table[item_count].val = OSD_RDMA_STATUS_MARK_COMPLETE;
-	osd_reg_write(END_ADDR, (table_paddr + item_count * 8 + 7));
-	rdma_table[item_count - 1].addr = addr;
-	rdma_table[item_count - 1].val = val;
-	spin_unlock_irqrestore(&rdma_lock, flags);
+	request_item.addr = OSD_RDMA_FLAG_REG;
+	request_item.val = OSD_RDMA_STATUS_MARK_COMPLETE;
+	osd_rdma_mem_cpy(&rdma_table[item_count], &request_item, 8);
+
+	if (OSD_RDMA_STATUS_IS_REJECT) {
+		pr_info("rdma done detect +++++%d,0x%x\n",
+				retry_count, osd_reg_read(RDMA_STATUS));
+		item_count--;
+		spin_unlock_irqrestore(&rdma_lock, flags);
+		goto retry;
+	} else {
+		osd_reg_write(END_ADDR, (table_paddr + item_count * 8 + 7));
+	}
+	request_item.addr = addr;
+	request_item.val = val;
+	osd_rdma_mem_cpy(&rdma_table[item_count-1], &request_item, 8);
 	/*if dirty flag is cleared, then RDMA hw write and cpu
 	sw write is racing.if reject flag is true,then hw RDMA hw write
 	start when cpu write.*/
 	/*atom_lock_end:*/
 	if (!OSD_RDMA_STAUS_IS_DIRTY || OSD_RDMA_STATUS_IS_REJECT) {
-		spin_lock_irqsave(&rdma_lock, flags);
 		item_count--;
 		spin_unlock_irqrestore(&rdma_lock, flags);
+		pr_info("osd_rdma flag ++++++: %x\n",
+			osd_reg_read(OSD_RDMA_FLAG_REG));
 		goto retry;
 	}
-	read_rdma_table();
+	spin_unlock_irqrestore(&rdma_lock, flags);
 	return 0;
 }
+
 u32 VSYNCOSD_RD_MPEG_REG(u32 addr)
 {
 	int  i;
@@ -187,17 +279,10 @@ static int start_osd_rdma(char channel)
 	char rw_bit = 4 + channel;
 	char inc_bit = channel;
 	u32 data32;
-	data32  = 0;
-	data32 |= 0 << 6; /* [31: 6] Rsrv. */
-	/* [ 5: 4] ctrl_ahb_wr_burst_size. 0=16; 1=24; 2=32; 3=48. */
-	/* [ 5: 4] ctrl_ahb_wr_burst_size. 0=16; 1=32; 2=48; 3=64. */
-	data32 |= ctrl_ahb_wr_burst_size << 4;
-	/* [ 3: 2] ctrl_ahb_rd_burst_size. 0=16; 1=24; 2=32; 3=48. */
-	/* [ 3: 2] ctrl_ahb_rd_burst_size. 0=16; 1=32; 2=48; 3=64. */
-	data32 |= ctrl_ahb_rd_burst_size << 2;
-	data32 |= 0 << 1;   /* [    1] ctrl_sw_reset. */
-	data32 |= 0 << 0;   /* [    0] ctrl_free_clk_enable. */
-	osd_reg_write(RDMA_CTRL, data32);
+	char is_init = 1;
+
+	osd_rdma_update_config(is_init);
+
 	data32  = osd_reg_read(RDMA_ACCESS_AUTO);
 	/*
 	 * [23: 16] interrupt inputs enable mask for auto-start
@@ -279,14 +364,17 @@ int osd_rdma_enable(u32 enable)
 
 	rdma_enable = enable;
 	if (enable) {
-		reset_rdma_table();
-		osd_reg_write(START_ADDR, table_paddr);
 		OSD_RDMA_STATUS_CLEAR_ALL;
+		reset_rdma_table();
+		info = kmalloc(GFP_KERNEL, sizeof(char)*200);
+		osd_reg_write(START_ADDR, table_paddr);
 		start_osd_rdma(OSD_RDMA_CHANNEL_INDEX);
-	} else
+	} else {
 		stop_rdma(OSD_RDMA_CHANNEL_INDEX);
+		kfree(info);
+	}
 
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL(osd_rdma_enable);
 
@@ -341,7 +429,7 @@ static int osd_rdma_init(void)
 	osd_log_info("%s: rmda_table p=0x%x,op=0x%lx , v=0x%p\n", __func__,
 			table_paddr, (long unsigned int)osd_rdma_table_phy,
 		     table_vaddr);
-	rdma_table = (struct rdma_table_item_t *)table_vaddr;
+	rdma_table = (struct rdma_table_item *)table_vaddr;
 	if (NULL == rdma_table) {
 		osd_log_err("%s: failed to remap rmda_table_addr\n", __func__);
 		goto error2;
@@ -364,6 +452,9 @@ error2:
 
 MODULE_PARM_DESC(item_count, "\n item_count\n");
 module_param(item_count, uint, 0664);
+
+MODULE_PARM_DESC(info, "\n info\n");
+module_param(info, charp, S_IRUSR);
 
 MODULE_PARM_DESC(table_paddr, "\n table_paddr\n");
 module_param(table_paddr, uint, 0664);
