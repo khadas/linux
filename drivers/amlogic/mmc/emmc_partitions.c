@@ -673,16 +673,14 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 	if (ret == 0) { /* ok */
 	ret = add_emmc_partition(disk, pt_fmt);
 	}
-
 	mmc_release_host(card->host);
 
-#ifdef CONFIG_SECURITYKEY
 	if (ret == 0) { /* ok */
 	ret = emmc_key_init(card);
 	/* emmc_key_write(); */
 	/* emmc_key_read(); */
 	}
-#endif
+
 #ifdef CONFIG_EMMC_SECURE_STORAGE
 	if (ret == 0) { /* ok */
 		ret = mmc_storage_probe(card);
