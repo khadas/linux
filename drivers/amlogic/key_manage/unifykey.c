@@ -849,31 +849,34 @@ static ssize_t name_store(struct class *cla,
 	char *name;
 	int index, key_cnt;
 	struct key_item_t *unifykey = NULL;
+	size_t query_name_len;
 
 	if (count >= KEY_UNIFY_NAME_LEN)
 		count = KEY_UNIFY_NAME_LEN - 1;
 
 	key_cnt = unifykey_count_key();
-	name = kzalloc(count + 1, GFP_KERNEL);
+	name = kzalloc(count, GFP_KERNEL);
 	if (!name) {
 		pr_err("can't kzalloc mem,%s:%d\n",
 			__func__,
 			__LINE__);
 		return -EINVAL;
 	}
-	memcpy(name, buf, count);
-
+	/**/
+	memcpy(name, buf, count-1);
+	query_name_len = strlen(name);
 	pr_err("%s() %d, name %s, %d\n",
 		__func__,
 		__LINE__,
 		name,
-		(int)strlen(name));
+		(int)query_name_len);
 
 	for (index = 0; index < key_cnt; index++) {
 		unifykey = unifykey_find_item_by_id(index);
 		if (unifykey != NULL) {
 			if (!strncmp(name, unifykey->name,
-					strlen(unifykey->name))) {
+				((strlen(unifykey->name) > query_name_len)
+				? strlen(unifykey->name) : query_name_len))) {
 				pr_err("%s() %d\n", __func__, __LINE__);
 				curkey = unifykey;
 				break;
@@ -915,7 +918,7 @@ static ssize_t read_show(struct class *cla,
 				curkey->name);
 			goto _out;
 		}
-
+		pr_err("name: %s, size %d\n", curkey->name, keysize);
 		keydata = kzalloc(keysize, GFP_KERNEL);
 		if (keydata == NULL) {
 			pr_err("%s() %d: no enough memory\n",
