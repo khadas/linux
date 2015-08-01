@@ -427,6 +427,9 @@ static int controller_dma_write(struct hw_controller *controller,
 	NFC_SEND_CMD_AIH(controller, controller->info_dma_addr);
 	NFC_SEND_CMD_SEED(controller, controller->page_addr);
 
+	/* fixme, DEBUG CODE. send a idle to enable ce here!*/
+	NFC_SEND_CMD_IDLE(controller, 0);
+	/* 12 cmds */
 	if (!bch_mode)
 		NFC_SEND_CMD_M2N_RAW(controller, 0, len);
 	else
