@@ -152,8 +152,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* remove process count for p separate by i */
-static const char version_s[] = "2015-6-17a";
+/* enable nr clock when di enabled */
+static const char version_s[] = "2015-8-03a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -1956,6 +1956,7 @@ VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
 		disable_post_deinterlace_2();
+		Wr(DI_CLKG_CTRL, 0x2);
 	}
 
 	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
@@ -5825,9 +5826,17 @@ static void di_unreg_process_irq(void)
 		rdma_clear(de_devp->rdma_handle);
 #endif
 		di_set_power_control(0, 0);
+		#ifndef NEW_DI_V3
+		Wr(DI_CLKG_CTRL, 0xff0000);
+		/* di enable nr clock gate */
+		#else
+		Wr(DI_CLKG_CTRL, 0xf60000);
+		/* nr/blend0/ei0/mtn0 clock gate */
+		#endif
 		if (get_blackout_policy()) {
 			di_set_power_control(1, 0);
 			disable_post_deinterlace_2();
+			Wr(DI_CLKG_CTRL, 0x2);
 		}
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
@@ -5900,7 +5909,7 @@ static void di_reg_process(void)
 			Wr(DI_CLKG_CTRL, 0xfeff0000);
 			/* di enable nr clock gate */
 			#else
-			Wr(DI_CLKG_CTRL, 0xfcf60000);
+			Wr(DI_CLKG_CTRL, 0xfdf60000);
 			/* nr/blend0/ei0/mtn0 clock gate */
 			#endif
 /* add for di Reg re-init */
