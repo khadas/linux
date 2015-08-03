@@ -20,6 +20,17 @@
 
 typedef int32_t (*store_key_ops)(uint8_t *buf, uint32_t len);
 
+#ifdef CONFIG_KEY_MANAGE
 void storage_ops_read(store_key_ops read);
 void storage_ops_write(store_key_ops write);
+#else
+void storage_ops_read(store_key_ops read)
+{
+	return;
+}
+
+void storage_ops_write(store_key_ops read)
+{
+	return;
+}
 #endif
