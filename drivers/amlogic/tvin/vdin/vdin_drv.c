@@ -2150,9 +2150,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdin_devp[vdevp->index] = vdevp;
 #ifdef CONFIG_AML_RDMA
 	vdin_rdma_op.arg = vdin_devp;
-	devp->rdma_handle = rdma_register(&vdin_rdma_op,
+	vdevp->rdma_handle = rdma_register(&vdin_rdma_op,
 				NULL, RDMA_TABLE_SIZE);
-	pr_info("vdin.%d rdma hanld %d.\n", __func__, vdevp->index,
+	pr_info("%s:vdin.%d rdma hanld %d.\n", __func__, vdevp->index,
 			vdevp->rdma_handle);
 #endif
 	/* create cdev and reigser with sysfs */
