@@ -1716,23 +1716,23 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 						  sizeof(struct dma_desc),
 						  &priv->dma_rx_phy,
 						  GFP_KERNEL);
-		memset((char *)priv->dma_rx, 0, rxsize *
-						sizeof(struct dma_desc));
 		if (!priv->dma_rx)
 			goto err_dma;
+		memset((char *)priv->dma_rx, 0, rxsize *
+						sizeof(struct dma_desc));
 
 		priv->dma_tx = dma_alloc_coherent(priv->device, txsize *
 						  sizeof(struct dma_desc),
 						  &priv->dma_tx_phy,
 						  GFP_KERNEL);
-		memset((char *)priv->dma_tx, 0, txsize *
-						sizeof(struct dma_desc));
 		if (!priv->dma_tx) {
 			dma_free_coherent(priv->device, priv->dma_rx_size *
 					sizeof(struct dma_desc),
 					priv->dma_rx, priv->dma_rx_phy);
 			goto err_dma;
 		}
+		memset((char *)priv->dma_tx, 0, txsize *
+						sizeof(struct dma_desc));
 	}
 	return 0;
 
@@ -3473,7 +3473,7 @@ int stmmac_suspend(struct net_device *ndev)
 		stmmac_set_mac(priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
 		/* Disable clock in case of PWM is off */
-		clk_disable_unprepare(priv->stmmac_clk);
+		clk_disable(priv->stmmac_clk);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
@@ -3501,7 +3501,7 @@ int stmmac_resume(struct net_device *ndev)
 	} else {
 		pinctrl_pm_select_default_state(priv->device);
 		/* enable the clk prevously disabled */
-		clk_prepare_enable(priv->stmmac_clk);
+		clk_enable(priv->stmmac_clk);
 		/* reset the phy so that it's ready */
 		if (priv->mii)
 			stmmac_mdio_reset(priv->mii);
