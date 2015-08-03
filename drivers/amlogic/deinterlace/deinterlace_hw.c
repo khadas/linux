@@ -1182,6 +1182,7 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 					  (0 << 29) |
 					  (0x3 << 30)
 		);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		/* enable ma,disable if0 to vpp */
 		VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 }
@@ -1333,10 +1334,12 @@ void disable_post_deinterlace_2(void)
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
 	VSYNC_WR_MPEG_REG(DI_POST_SIZE, (32-1) | ((128-1) << 16));
 	VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, 0x3 << 30);
-	/* disable ma,enable if0 to vpp,enable afbc to vpp */
-	VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
-	/* DI inp(current data) switch to memory */
-	VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		/* disable ma,enable if0 to vpp,enable afbc to vpp */
+		VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
+		/* DI inp(current data) switch to memory */
+		VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
+	}
 	/* VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG,
 Rd(DI_IF1_GEN_REG) & 0xfffffffe); */
 }
@@ -1507,7 +1510,7 @@ void di_post_read_reverse_irq(bool reverse)
 }
 
 static unsigned char pre_power_on;
-/* static unsigned char post_power_on = 0; */
+static unsigned char post_power_on;
 void di_set_power_control(unsigned char type, unsigned char enable)
 {
 	if (di_debug_flag&0x20)
@@ -1519,6 +1522,8 @@ enable?0:3, 26, 2); //di pre */
 enable?VPU_MEM_POWER_ON:VPU_MEM_POWER_DOWN);
 		pre_power_on = enable;
 	}
+	if (type == 1)
+		post_power_on = enable;
 }
 
 unsigned char di_get_power_control(unsigned char type)
@@ -1526,7 +1531,7 @@ unsigned char di_get_power_control(unsigned char type)
 	if (type == 0) {
 		return pre_power_on;
 	} else {
-#if 1
+#if 0
 /* let video.c handle it */
 		return 1;
 #else

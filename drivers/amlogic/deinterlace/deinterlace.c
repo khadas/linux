@@ -1953,8 +1953,10 @@ VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
 	}
 	di_uninit_buf();
 	di_set_power_control(0, 0);
-	if (get_blackout_policy())
+	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
+		disable_post_deinterlace_2();
+	}
 
 	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 	spin_unlock_irqrestore(&plist_lock, flags);
@@ -5783,6 +5785,7 @@ unreg:
 					#endif
 					if (get_blackout_policy()) {
 						di_set_power_control(1, 0);
+						disable_post_deinterlace_2();
 						Wr(DI_CLKG_CTRL, 0x2);
 					}
 					di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
@@ -5822,8 +5825,10 @@ static void di_unreg_process_irq(void)
 		rdma_clear(de_devp->rdma_handle);
 #endif
 		di_set_power_control(0, 0);
-		if (get_blackout_policy())
+		if (get_blackout_policy()) {
 			di_set_power_control(1, 0);
+			disable_post_deinterlace_2();
+		}
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
