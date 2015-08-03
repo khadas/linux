@@ -92,7 +92,7 @@ static  irqreturn_t (*remote_bridge_sw_isr[])(int irq, void *dev_id) = {
 #endif
 static  int (*remote_report_key[])(struct remote *remote_data) = {
 	remote_hw_reprot_key,
-	remote_hw_reprot_key,
+	remote_duokan_reprot_key,
 	remote_hw_reprot_null_key,
 	remote_hw_reprot_null_key,
 	remote_hw_reprot_null_key,
@@ -277,26 +277,28 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 		case 0:
 			input_dbg("release ircode = 0x%02x,",
 					scancode);
-			input_dbg("scancode = 0x%04x, maptable = %d\n",
+			input_dbg("scancode = 0x%04x, maptable = %d,code:0x%08x\n\n",
 					key_map[gp_remote->map_num][scancode],
-					gp_remote->map_num);
+					gp_remote->map_num,
+					gp_remote->cur_lsbkeycode);
 			break;
 		case 1:
 			input_dbg("press ircode = 0x%02x,",
 					scancode);
-			input_dbg("scancode = 0x%04x,maptable = %d\n",
+			input_dbg("scancode = 0x%04x,maptable = %d,code:0x%08x\n\n",
 					key_map[gp_remote->map_num][scancode],
-					gp_remote->map_num);
+					gp_remote->map_num,
+					gp_remote->cur_lsbkeycode);
 			break;
 		case 2:
 			input_dbg("repeat ircode = 0x%02x,",
 					scancode);
-			input_dbg("scancode = 0x%04x, maptable = %d\n",
+			input_dbg("scancode = 0x%04x, maptable = %d,code:0x%08x\n\n",
 					key_map[gp_remote->map_num][scancode],
-					gp_remote->map_num);
+					gp_remote->map_num,
+					gp_remote->cur_lsbkeycode);
 			break;
 		}
-		input_dbg("%s sleep:%d\n", __func__, gp_remote->sleep);
 		if (gp_remote->sleep && scancode == 0x1a &&
 		    key_map[gp_remote->map_num][scancode] == 0x0074) {
 			pr_info(" set 0x4853ffff\n");
