@@ -122,7 +122,7 @@ static ssize_t axis_store(struct class *class, struct class_attribute *attr,
 static int parse_para(const char *para, int para_num, int *result)
 {
 	char *token = NULL;
-	char *params;
+	char *params, *params_base;
 	int *out = result;
 	int len = 0, count = 0;
 	int res = 0;
@@ -132,6 +132,7 @@ static int parse_para(const char *para, int para_num, int *result)
 		return 0;
 
 	params = kstrdup(para, GFP_KERNEL);
+	params_base = params;
 	token = params;
 	len = strlen(token);
 	do {
@@ -151,7 +152,7 @@ static int parse_para(const char *para, int para_num, int *result)
 		count++;
 	} while ((token) && (count < para_num) && (len > 0));
 
-	kfree(params);
+	kfree(params_base);
 	return count;
 }
 
