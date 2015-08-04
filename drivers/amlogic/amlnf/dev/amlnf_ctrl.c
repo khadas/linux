@@ -202,6 +202,8 @@ void phydev_resume(struct amlnand_phydev *phydev)
 	return;
 }
 
+DEFINE_MUTEX(nand_controller_mutex);
+
 int nand_idleflag = 0;
 #define	NAND_CTRL_NONE_RB	(1<<1)
 void nand_get_chip(void *chip)
@@ -211,7 +213,8 @@ void nand_get_chip(void *chip)
 	int retry = 0, ret = 0;
 
 	while (1) {
-		/* mutex_lock(&spi_nand_mutex); */
+		/* lock controller*/
+		mutex_lock(&nand_controller_mutex);
 		nand_idleflag = 1;
 		if ((controller->option & NAND_CTRL_NONE_RB) == 0) {
 			ret = pinctrl_select_state(aml_chip->nand_pinctrl ,
@@ -256,7 +259,8 @@ void nand_release_chip(void *chip)
 		if (ret < 0)
 			aml_nand_msg("select idle state error");
 		nand_idleflag = 0;
-		/* mutex_unlock(&spi_nand_mutex); */
+		/* release controller*/
+		mutex_unlock(&nand_controller_mutex);
 	}
 }
 
