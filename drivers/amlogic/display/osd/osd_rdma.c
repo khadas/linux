@@ -345,6 +345,7 @@ int reset_rdma(void)
 			/*reset all pointer. set table start margin.*/
 			pr_debug("reset from isr\n");
 			reset_rdma_table();
+			return 1;
 		}
 	}
 	return 0;
@@ -386,13 +387,15 @@ static void osd_rdma_release(struct device *dev)
 
 static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 {
-	reset_rdma();
+	int ret = 0;
+	ret = reset_rdma();
 
 	osd_update_scan_mode();
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
 
-	osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
+	if (ret)
+		osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
 
 	return IRQ_HANDLED;
 }
