@@ -33,4 +33,6 @@ void storage_ops_write(store_key_ops read)
 {
 	return;
 }
-#endif
+#endif /*CONFIG_KEY_MANAGE*/
+
+#endif /*__KEYMANAGE1__*/
