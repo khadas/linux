@@ -97,8 +97,6 @@ ssize_t cec_lang_config_state(struct switch_dev *sdev, char *buf)
 	 */
 	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
 		return 0;
-	if (!cec_global_info.cec_node_info[idx].menu_lang)
-		init_completion(&menu_comp);
 	while (retry < 5 && !cec_global_info.cec_node_info[idx].menu_lang) {
 		cec_get_menu_language_smp();
 		ret = wait_for_completion_timeout(&menu_comp, CEC_FRAME_DELAY);
@@ -264,11 +262,10 @@ static int detect_tv_support_cec(unsigned addr)
 {
 	unsigned int ret = 0;
 	unsigned char msg[1];
-	msg[0] = (addr<<4) | 0x0;	/* 0x0, TV's root address */
-	ret = cec_ll_tx_polling(msg, 1);
-	cec_hw_reset();
-	hdmi_print(INF, CEC "tv%s have CEC feature\n", ret ? " " : " don\'t ");
-	hdmitx_device->tv_cec_support = (ret == TX_DONE) ? 1 : 0;
+	msg[0] = (addr << 4) | 0x0;	/* 0x0, TV's root address */
+	cec_polling_online_dev(msg[0], &ret);
+	hdmi_print(INF, CEC "TV %s support CEC\n", ret ? "is" : "not");
+	hdmitx_device->tv_cec_support = ret;
 	return hdmitx_device->tv_cec_support;
 }
 
@@ -302,7 +299,7 @@ static int cec_try_to_wakeup_tv(void)
 /*
  * should only used to allocate logical address
  */
-void cec_node_init(struct hdmitx_dev *hdmitx_device)
+int cec_node_init(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char a, b, c, d;
 	struct vendor_info_data *vend_data = NULL;
@@ -321,7 +318,7 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 	if ((hdmitx_device->cec_init_ready == 0) ||
 		(hdmitx_device->hpd_state == 0)) {
 		hdmi_print(INF, CEC "CEC not ready\n");
-		return;
+		return -1;
 	} else
 		hdmi_print(INF, CEC "CEC node init\n");
 
@@ -352,7 +349,14 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 		vendor_id = (vend_data->vendor_id) & 0xffffff;
 
 	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
-		return;
+		return -1;
+
+	/*
+	 * if TV is not support CEC, we do not need to try allocate CEC
+	 * logical address
+	 */
+	if (!(hdmitx_device->tv_cec_support) && (!detect_tv_support_cec(0xE)))
+		return -1;
 
 	hdmi_print(INF, CEC "cec_func_config: 0x%x; cec_config:0x%x\n",
 		hdmitx_device->cec_func_config, cec_config(0, 0));
@@ -370,6 +374,7 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 		hdmi_print(INF, CEC "player_dev[%d]:0x%x\n", i, player_dev[i]);
 		if (bool == 0) {   /* 0 means that no any respond */
 	/* If VSDB is not valid, use last or default physical address. */
+			cec_logicaddr_set(player_dev[i]);
 			if (hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 0) {
 				phy_addr_ok = 0;
 				hdmi_print(INF, CEC "invalid cec PhyAddr\n");
@@ -444,16 +449,23 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 			cec_active_source_smp();
 
 			cec_menu_status_smp(DEVICE_MENU_ACTIVE);
+
+			msleep(100);
+			cec_get_menu_language_smp();
+
 			cec_global_info.cec_node_info[cec_global_info.
 				my_node_index].menu_status =
 					DEVICE_MENU_ACTIVE;
 			break;
 		}
 	}
-	if (bool == 1)
+	if (bool == 1) {
 		hdmi_print(INF, CEC "Can't get a valid logical address\n");
-	else
+		return -1;
+	} else {
 		hdmi_print(INF, CEC "cec node init: cec features ok !\n");
+		return 0;
+	}
 }
 
 void cec_node_uninit(struct hdmitx_dev *hdmitx_device)
@@ -493,14 +505,28 @@ static void cec_task(struct work_struct *work)
 {
 	struct hdmitx_dev *hdmitx_device;
 	struct delayed_work *dwork;
+	int    ret;
 
 	hdmitx_device = container_of(work, struct hdmitx_dev, cec_work.work);
 	dwork = &hdmitx_device->cec_work;
-	if ((hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)) &&
-		!cec_global_info.cec_flag.cec_init_flag) {
-		msleep_interruptible(5000);
-		cec_global_info.cec_flag.cec_init_flag = 1;
-		cec_node_init(hdmitx_device);
+	/*
+	 * do not process cec task if not enabled
+	 */
+	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
+		return;
+
+	/*
+	 * some tv can't be ping OK if it's CEC funtion is disabled by
+	 * TV settings, but when CEC function is reopened, we should
+	 * init CEC logical address
+	 */
+	if (!cec_global_info.my_node_index) {
+		ret = cec_node_init(hdmitx_device);
+		if (ret < 0) {
+			queue_delayed_work(cec_workqueue, dwork,
+					   msecs_to_jiffies(20 * 1000));
+			return;
+		}
 	}
 	cec_isr_post_process();
 	if (!cec_late_check_rx_buffer())
@@ -1929,11 +1955,19 @@ static ssize_t show_cec_active_status(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_tv_support_cec(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", hdmitx_device->tv_cec_support);
+}
+
 static DEVICE_ATTR(cec, S_IWUSR | S_IRUGO, show_cec, store_cec);
 static DEVICE_ATTR(cec_config, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_cec_config, store_cec_config);
 static DEVICE_ATTR(cec_active_status, S_IRUGO ,
 	show_cec_active_status, NULL);
+static DEVICE_ATTR(tv_support_cec, S_IRUGO ,
+	show_tv_support_cec, NULL);
 static DEVICE_ATTR(cec_lang_config, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_cec_lang_config, store_cec_lang_config);
 
@@ -1965,6 +1999,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 	cec_global_info.hdmitx_device = hdmitx_device;
 
+	init_completion(&menu_comp);
+	wake_lock_init(&cec_lock, WAKE_LOCK_SUSPEND, "hdmi_cec");
 	hdmi_print(INF, CEC "CEC probe, fun_config:%x\n",
 		   hdmitx_device->cec_func_config);
 	/*
@@ -2014,7 +2050,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 	register_early_suspend(&hdmitx_cec_early_suspend_handler);
 #endif
-	wake_lock_init(&cec_lock, WAKE_LOCK_SUSPEND, "hdmi_cec");
 #ifdef CONFIG_OF
 	/* pinmux set */
 	if (of_get_property(node, "pinctrl-names", NULL)) {
@@ -2085,6 +2120,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		r = device_create_file(dev, &dev_attr_cec_config);
 		r = device_create_file(dev, &dev_attr_cec_lang_config);
 		r = device_create_file(dev, &dev_attr_cec_active_status);
+		r = device_create_file(dev, &dev_attr_tv_support_cec);
 	}
 #endif
 	hdmitx_device->cec_init_ready = 1;
@@ -2120,6 +2156,7 @@ static int aml_cec_remove(struct platform_device *pdev)
 		device_remove_file(dev, &dev_attr_cec_config);
 		device_remove_file(dev, &dev_attr_cec_lang_config);
 		device_remove_file(dev, &dev_attr_cec_active_status);
+		device_remove_file(dev, &dev_attr_tv_support_cec);
 	}
 	hdmitx_device->cec_init_ready = 0;
 	input_unregister_device(cec_global_info.remote_cec_dev);

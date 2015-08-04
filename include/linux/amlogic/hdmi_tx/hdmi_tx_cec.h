@@ -507,7 +507,7 @@ int cec_rx_irq_handle(unsigned char *msg, unsigned char *len);
 unsigned int cec_intr_stat(void);
 
 void cec_test_function(unsigned char *arg, unsigned char arg_cnt);
-void cec_node_init(struct hdmitx_dev *hdmitx_device);
+int  cec_node_init(struct hdmitx_dev *hdmitx_device);
 void cec_node_uninit(struct hdmitx_dev *hdmitx_device);
 void dumpaocecreg(void);
 void raocec(unsigned int addr);
