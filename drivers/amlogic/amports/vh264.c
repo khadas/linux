@@ -1179,6 +1179,7 @@ static void vh264_isr(void)
 	struct vframe_s *vf;
 	unsigned int cpu_cmd;
 	unsigned int pts, pts_lookup_save, pts_valid_save, pts_valid = 0;
+	unsigned int pts_us64_valid = 0;
 	u64 pts_us64;
 	bool force_interlaced_frame = false;
 	unsigned int sei_itu35_flags;
@@ -1328,6 +1329,7 @@ static void vh264_isr(void)
 				pts_us64 = first_pts64;
 				first_pts_cached = false;
 				pts_valid = 1;
+				pts_us64_valid = 1;
 #ifdef DEBUG_PTS
 				pts_hit++;
 #endif
@@ -1335,11 +1337,13 @@ static void vh264_isr(void)
 					   (PTS_TYPE_VIDEO, b_offset, &pts, 0,
 						&pts_us64) == 0) {
 				pts_valid = 1;
+				pts_us64_valid = 1;
 #ifdef DEBUG_PTS
 				pts_hit++;
 #endif
 			} else {
 				pts_valid = 0;
+				pts_us64_valid = 0;
 #ifdef DEBUG_PTS
 				pts_missed++;
 #endif
@@ -1528,7 +1532,10 @@ static void vh264_isr(void)
 				vf->duration_pulldown = 0;
 				vf->index = buffer_index;
 				vf->pts = (pts_valid) ? pts : 0;
-				vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
+				if (pts_us64_valid == 1)
+					vf->pts_us64 = pts_us64;
+				else
+				vf->pts_us64 = div64_u64(((u64)vf->pts)*100, 9);
 				vf->canvas0Addr = vf->canvas1Addr =
 					spec2canvas(&buffer_spec[buffer_index]);
 				vfbuf_use[buffer_index]++;
@@ -1569,7 +1576,10 @@ static void vh264_isr(void)
 				vf->duration_pulldown = 0;
 				vf->index = buffer_index;
 				vf->pts = (pts_valid) ? pts : 0;
-				vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
+				if (pts_us64_valid == 1)
+					vf->pts_us64 = pts_us64;
+				else
+				vf->pts_us64 = div64_u64(((u64)vf->pts)*100, 9);
 				vf->canvas0Addr = vf->canvas1Addr =
 					spec2canvas(&buffer_spec[buffer_index]);
 				vfbuf_use[buffer_index]++;

@@ -513,7 +513,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 int pts_checkin_offset(u8 type, u32 offset, u32 val)
 {
 	u64 us;
-	us = div64_u64(val * 100, 9);
+	us = div64_u64((u64)val * 100, 9);
 	return pts_checkin_offset_inline(type, offset, val, us);
 }
 EXPORT_SYMBOL(pts_checkin_offset);
