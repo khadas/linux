@@ -3509,7 +3509,10 @@ int stmmac_resume(struct net_device *ndev)
 
 	netif_device_attach(ndev);
 
-	stmmac_hw_setup(ndev);
+	/* Enable the MAC and DMA */
+	stmmac_set_mac(priv->ioaddr, true);
+	priv->hw->dma->start_tx(priv->ioaddr);
+	priv->hw->dma->start_rx(priv->ioaddr);
 
 	napi_enable(&priv->napi);
 
