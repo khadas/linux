@@ -41,7 +41,9 @@ struct key_item_t *unifykey_find_item_by_name(char *name)
 
 	pre_item = unifykey_item;
 	while (pre_item) {
-		if (!strncmp(pre_item->name, name, strlen(pre_item->name)))
+		if (!strncmp(pre_item->name, name,
+				((strlen(pre_item->name) > strlen(name))
+				? strlen(pre_item->name) : strlen(name))))
 			return pre_item;
 		pre_item = pre_item->next;
 	}
