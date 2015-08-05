@@ -766,8 +766,12 @@ static void vh264mvc_isr(void)
 			pr_info
 			("End H264 display buffer allocation for view 0\n");
 		}
-		if (frame_width == 0)
-			frame_width = mb_width << 4;
+		if (frame_width == 0) {
+			if (vh264mvc_amstream_dec_info.width)
+				frame_width = vh264mvc_amstream_dec_info.width;
+			else
+				frame_width = mb_width << 4;
+		}
 		if (frame_height == 0) {
 			frame_height = mb_height << 4;
 			if (frame_height == 1088)
@@ -860,8 +864,12 @@ static void vh264mvc_isr(void)
 			pr_info
 			("End H264 display buffer allocation for view 1\n");
 		}
-		if (frame_width == 0)
-			frame_width = mb_width << 4;
+		if (frame_width == 0) {
+			if (vh264mvc_amstream_dec_info.width)
+				frame_width = vh264mvc_amstream_dec_info.width;
+			else
+				frame_width = mb_width << 4;
+		}
 		if (frame_height == 0) {
 			frame_height = mb_height << 4;
 			if (frame_height == 1088)
@@ -1068,7 +1076,7 @@ static void vh264mvc_put_timer_func(unsigned long arg)
 		int fps = 96000 / frame_dur;
 		saved_resolution = frame_width * frame_height * fps;
 		vdec_source_changed(VFORMAT_H264MVC,
-			frame_width, frame_height, fps);
+			frame_width, frame_height, fps * 2);
 	}
 
 	/* RESTART: */
@@ -1506,6 +1514,8 @@ static int amvdec_h264mvc_remove(struct platform_device *pdev)
 	pr_info("amvdec_h264mvc_remove\n");
 	cancel_work_sync(&error_wd_work);
 	vh264mvc_stop();
+	frame_width = 0;
+	frame_height = 0;
 	vdec_source_changed(VFORMAT_H264MVC, 0, 0, 0);
 	atomic_set(&vh264mvc_active, 0);
 
