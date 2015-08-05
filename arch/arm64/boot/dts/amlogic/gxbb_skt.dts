@@ -582,12 +582,16 @@
                         key-type  = "mac";
 		};
 		keysn_6:key_6{
-			key-name = "hdcp2";
+			key-name = "hdcp2_tx";
 			key-device = "normal";
-			key-type = "hdcp2";
 			key-permit = "read","write","del";
 		};
 		keysn_7:key_7{
+			key-name = "hdcp2_rx";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_8:key_8{
 			key-name = "widevinekeybox";
 			key-device = "secure";
 			key-type = "sha1";
