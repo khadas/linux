@@ -533,7 +533,7 @@
 		compatible = "amlogic, unifykey";
 		status = "ok";
 
-		unifykey-num = <8>;
+		unifykey-num = <10>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -542,6 +542,8 @@
 		unifykey-index-5 = <&keysn_5>;
 		unifykey-index-6 = <&keysn_6>;
 		unifykey-index-7 = <&keysn_7>;
+		unifykey-index-8 = <&keysn_8>;
+		unifykey-index-9 = <&keysn_9>;
 
                 keysn_0: key_0{
 			key-name = "usid";
@@ -592,7 +594,11 @@
 			key-type = "sha1";
 			key-permit = "read","write","del";
 		};
-
+		keysn_9:key_9{
+			key-name = "deviceid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
         };//End unifykey
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx";
