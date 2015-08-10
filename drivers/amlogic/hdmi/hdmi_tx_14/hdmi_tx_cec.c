@@ -194,7 +194,7 @@ static int detect_tv_support_cec(unsigned addr)
 	return hdmitx_device->tv_cec_support = ret;
 }
 
-void cec_node_init(struct hdmitx_dev *hdmitx_device)
+int cec_node_init(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char a, b, c, d;
 	struct vendor_info_data *vend_data = NULL;
@@ -212,7 +212,7 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 	if ((hdmitx_device->cec_init_ready == 0)
 	    || (hdmitx_device->hpd_state == 0)) {
 		hdmi_print(INF, CEC "CEC not ready\n");
-		return;
+		return -1;
 	} else
 		hdmi_print(INF, CEC "CEC node init\n");
 
@@ -242,7 +242,7 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 		vendor_id = (vend_data->vendor_id) & 0xffffff;
 
 	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
-		return;
+		return -1;
 
 	hdmi_print(INF, CEC "cec_func_config: 0x%x; cec_config:0x%x\n",
 	    hdmitx_device->cec_func_config, cec_config(0, 0));
@@ -350,10 +350,13 @@ void cec_node_init(struct hdmitx_dev *hdmitx_device)
 			break;
 		}
 	}
-	if (bool == 1)
+	if (bool == 1) {
 		hdmi_print(INF, CEC "Can't get a valid logical address\n");
-	else
+		return -1;
+	} else {
 		hdmi_print(INF, CEC "cec node init: cec features ok !\n");
+		return 0;
+	}
 }
 
 void cec_node_uninit(struct hdmitx_dev *hdmitx_device)
