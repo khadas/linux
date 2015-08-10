@@ -298,7 +298,8 @@ int rdma_config(int handle, int trigger_type)
 			__func__, handle);
 		return -1;
 	}
-
+	/*This is a memory barrier*/
+	wmb();
 	if (ins->rdma_item_count <= 0 || trigger_type == 0) {
 		if (trigger_type == RDMA_TRIGGER_MANUAL)
 			WRITE_VCBUS_REG(RDMA_ACCESS_MAN,

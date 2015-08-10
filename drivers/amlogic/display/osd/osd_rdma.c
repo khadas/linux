@@ -393,7 +393,8 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	osd_update_scan_mode();
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
-
+	/*This is a memory barrier*/
+	wmb();
 	if (ret)
 		osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
 

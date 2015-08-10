@@ -221,9 +221,7 @@ EXPORT_SYMBOL(VSYNC_RD_MPEG_REG);
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = ((enable & enable_mask) | (enable_mask >> 8)) & 0xff;
-	u32 read_val = Rd(adr);
 	if ((enable_ != 0) && (vsync_rdma_handle > 0)) {
-		read_val = rdma_read_reg(vsync_rdma_handle, adr);
 		rdma_write_reg(vsync_rdma_handle, adr, val);
 	} else {
 		Wr(adr, val);
@@ -237,9 +235,7 @@ EXPORT_SYMBOL(VSYNC_WR_MPEG_REG);
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
 	int enable_ = ((enable & enable_mask) | (enable_mask >> 8)) & 0xff;
-	u32 read_val = Rd(adr);
 	if ((enable_ != 0) && (vsync_rdma_handle > 0)) {
-		read_val = rdma_read_reg(vsync_rdma_handle, adr);
 		rdma_write_reg_bits(vsync_rdma_handle, adr, val, start, len);
 	}	else {
 		u32 read_val = Rd(adr);
