@@ -43,7 +43,11 @@
 			reg = <0x0 0x10000000 0x0 0x200000>;
 			no-map;
 		};
-
+		pstore:aml_pstore {
+			compatible = "amlogic, pstore";
+			reg = <0x0 0x20000000 0x0 0x100000>;
+			no-map;
+		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
 			size = <0x0 0x2000000>;
@@ -184,15 +188,15 @@
 			status = "okay";
 	};
 	ethmac: ethernet@0xc9410000{
-                compatible = "amlogic, gxbb-rmii-dwmac";
+                compatible = "amlogic, gxbb-rgmii-dwmac";
                 reg = <0x0 0xc9410000 0x0 0x10000
                 0x0 0xc8834540 0x0 0x8>;
                 interrupts = <0 8 1>;
-                phy-mode= "rmii";
+                phy-mode= "rgmii";
                 pinctrl-names = "eth_pins";
                 pinctrl-0 = <&eth_pins>;
                 rst_pin-gpios = <&gpio GPIOZ_14 0>;
-                mc_val = <0x1808>;
+                mc_val = <0x1621>;
                 resets = <&clock GCLK_IDX_ETHERNET>;
                 reset-names = "ethpower";
                 interrupt-names = "macirq";
@@ -346,6 +350,13 @@
 		status = "ok";
 		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
 	};
+
+	rtc{
+		compatible = "amlogic, aml_vrtc";
+		alarm_reg_addr = <0xc81000a8>;
+		status = "okay";
+	};
+
 	wifi{
 		compatible = "amlogic, aml_broadcm_wifi";
 		dev_name = "aml_broadcm_wifi";
@@ -365,11 +376,17 @@
         interrupts = <	0 217 1
         				0 67 1
         				0 69 1>;
-        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins";
+        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins", "sd_1bit_pins","sd_clk_cmd_uart_pins","sd_1bit_uart_pins", "sd_to_ao_uart_pins", "ao_to_sd_uart_pins";
         pinctrl-0 = <&sd_clk_cmd_pins>;
         pinctrl-1 = <&sd_all_pins>;
+        pinctrl-2 = <&sd_1bit_pins>;
+        pinctrl-3 = <&sd_clk_cmd_uart_pins>;
+        pinctrl-4 = <&sd_1bit_uart_pins>;
+        pinctrl-5 = <&sd_to_ao_uart_pins>;
+        pinctrl-6 = <&ao_to_sd_uart_pins>;
 		sd{
 	   		status = "okay";
+				port = <1>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
 	   		pinname = "sd";
 	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
 	   		caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
@@ -407,7 +424,7 @@
            		"MMC_CAP_ERASE", "MMC_CAP_HW_RESET"*/;
             caps2 = "MMC_CAP2_HS200","MMC_CAP2_HS400";
 			f_min = <400000>;
-            f_max = <200000000>;
+            f_max = <100000000>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
 		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;
@@ -607,7 +624,12 @@
 			&clock CLK_HDMITX_PHY &clock CLK_VID>;
 		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp", "hdmitx_clk_enci",
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
+		/* hdcp14_en = <0x82000010>; */
+		/* hdcp14_rslt = <0x82000011>; */
 
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		vend_data: vend_data{
 			compatible = "amlogic, amlogic-cec";
 			status = "okay";
@@ -619,6 +641,7 @@
 			interrupt-names = "hdmitx_cec";
 			pinctrl-names = "hdmitx_aocec";
 			pinctrl-0=<&hdmitx_aocec>;
+			reg = <0x0 0xc810023c 0x0 0x4>;
 		};
 	};
 
@@ -631,7 +654,7 @@
 		clock-names = "clk_uart";
 		fifosize = < 64 >;
 		pinctrl-names = "default";
-		pinctrl-0 = <&ao_uart_pins>;
+		//pinctrl-0 = <&ao_uart_pins>;
 	};
 	uart_A: serial@c11084c0 {
 		compatible = "amlogic, meson-uart";
@@ -768,6 +791,8 @@
 	pcm_dai: PCM {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-pcm-dai";
+		pinctrl-names = "aml_audio_btpcm";
+		pinctrl-0 = <&audio_btpcm_pins>;
 	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";
@@ -845,6 +870,17 @@
 		keep_mode_threshold = <85>;
 		keep_mode_max_range = <1536000 792 4 3>;
 	};
+	gpio_keypad{
+	    compatible = "amlogic, gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+	    key_name = "power";
+		key_code = <116>;
+		key_pin = <&gpio_ao  GPIOAO_3  GPIO_ACTIVE_HIGH>;  /*"GPIOAO_3";*/
+	    irq_keyup = <6>;
+	    irq_keydown = <7>;
+	};
 	saradc: saradc {
 		compatible = "amlogic, saradc";
 		status = "okay";
@@ -874,11 +910,44 @@
 		led_active_low = <1>;
 	};
 
+/*
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		//"parallel","serial","disable"
+		ts0 = "parallel";
+		ts0_control = <0>;
+		ts0_invert = <0>;
+		pinctrl-names = "p_ts0", "s_ts0";
+		pinctrl-0 = <&dvb_p_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts0_pins>;
+		resets = <&clock GCLK_IDX_DEMUX
+				&clock GCLK_IDX_ASYNC_FIFO>;
+		reset-names = "demux", "asyncfifo";
+	};
+	dvbfe {
+		compatible = "amlogic, dvbfe";
+		dev_name = "dvbfe";
+		dtv_demod0 = "Mxl241";
+		dtv_demod0_i2c_adap_id = <2>;
+		dtv_demod0_i2c_addr = <0x60>;
+		dtv_demod0_reset_value = <0>;
+		dtv_demod0_reset_gpio-gpios = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts = <0>;
+		fe0_dev = <0>;
+	};
+*/
 };
 &i2c_a {
   status = "disabled";
   /*p200: multiplex with usb PWR, disbaled*/
 };
+/*
+&i2c_b {
+  status = "okay";
+};
+*/
 
 &pinmux {
 	audio_pins:audio_pin{
@@ -891,6 +960,14 @@
 		amlogic,setmask=<AO 0x10000>;	/*spdif_out*/
 		amlogic,clrmask=<AO 0x40000>;	/*spdif_out*/
 		amlogic,pins ="GPIOAO_6";		/*spdif_out*/
+	};
+
+	audio_btpcm_pins:audio_btpcm_pins{
+		/* BT PCM PINMUX SETTING*/
+		amlogic,setmask=<3 0x78000000>;
+		amlogic,clrmask=<3 0x803280
+				4 0xc0>;
+		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
 	};
 };
 
