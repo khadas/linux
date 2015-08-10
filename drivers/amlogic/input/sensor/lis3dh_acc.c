@@ -63,8 +63,9 @@
 #include	<linux/module.h>
 #include	<linux/moduleparam.h>
 
-#include	<linux/sensor/lis3dh.h>
-#include <linux/sensor/sensor_common.h>
+#include	<linux/amlogic/sensor/lis3dh.h>
+#include <linux/amlogic/sensor/sensor_common.h>
+
 
 #if 1
 #define dprintk(x...) printk(x)

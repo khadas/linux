@@ -32,8 +32,8 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
-#include <linux/sensor/dmard06.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/dmard06.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 /* #include <mach/gpio.h> */
 /* #include <mach/board.h> */
 

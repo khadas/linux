@@ -26,13 +26,13 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sensor/kionix_accel.h>
+#include <linux/amlogic/sensor/kionix_accel.h>
 #include <linux/version.h>
 #include <linux/proc_fs.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif /* CONFIG_HAS_EARLYSUSPEND */
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 /* Debug Message Flags */
 #define KIONIX_KMSG_ERR	1	/* Print kernel debug message for error */

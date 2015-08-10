@@ -27,15 +27,14 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <linux/wakelock.h>
 #include <linux/jiffies.h>
-#include <linux/sensor/elan_interface.h>
+#include <linux/amlogic/sensor/elan_interface.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #define TXBYTES			2
 #define RXBYTES			2
@@ -851,8 +850,8 @@ static int elan_als_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int elan_als_read(struct file *file, char __user *buffer, size_t count,
-				loff_t *ppos)
+static ssize_t elan_als_read(struct file *file, char __user *buffer,
+	size_t count, loff_t *ppos)
 {
 	struct elan_epl_data *epld = epl_data;
 	int buf[3];

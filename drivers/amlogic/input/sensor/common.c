@@ -1,12 +1,15 @@
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
-#include <linux/amlogic/input/common.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
-
+#define AML_I2C_BUS_AO 0
+#define AML_I2C_BUS_A 1
+#define AML_I2C_BUS_B 2
 #define MAX_SENSOR_ONBOARD  6
-static sensor_pdata_t sensor_pdata[MAX_SENSOR_ONBOARD];
+static struct sensor_pdata_t sensor_pdata[MAX_SENSOR_ONBOARD];
 static int curr_idx;
 
 void aml_sensor_report_acc(struct i2c_client *client, struct input_dev *dev,
@@ -174,15 +177,18 @@ int dt_sensor_setup_i2c_dev(struct device_node *node,  struct i2c_board_info
 			i2c_info->irq = 0;
 		} else {
 			const char *gpio_str;
+			struct gpio_desc *desc;
 			r = of_property_read_string(node, "gpio", &gpio_str);
-			if (r < 0) {
-				pr_info("%s:faild to get gpio str for dev %s\n",
-				__func__, i2c_info->type);
+			if (r) {
+				pr_info("%s:faild to get gpio str for dev\n",
+					__func__);
 				*gpio = -1;
 				i2c_info->irq = 0;
 			} else {
 				i2c_info->irq = irq;
-				*gpio = amlogic_gpio_name_map_num(gpio_str);
+				desc = of_get_named_gpiod_flags(node,
+					"gpio", 0, NULL);
+				*gpio = desc_to_gpio(desc);
 			}
 		}
 	}

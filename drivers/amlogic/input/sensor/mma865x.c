@@ -29,7 +29,7 @@
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/input-polldev.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #if 1
 #define dprintk(x...) printk(x)
@@ -166,7 +166,7 @@ static int mma865x_data_convert(struct mma865x_data *pdata,
 	int flag;
 	short temp;
 
-	sensor_pdata_t *p = pdata->client->dev.platform_data;
+	struct sensor_pdata_t *p = pdata->client->dev.platform_data;
 	if (!p)
 		return 0;
 	if (p->acc_swap_xy) {

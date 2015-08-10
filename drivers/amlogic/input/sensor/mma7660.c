@@ -29,7 +29,7 @@
 #include <linux/hwmon.h>
 #include <linux/input-polldev.h>
 
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
 
@@ -811,8 +811,6 @@ static int mma7660_probe(struct i2c_client *client,
 
 	hwmon_dev = hwmon_device_register(&client->dev);
 	assert(!(IS_ERR(hwmon_dev)));
-
-	dev_info(&client->dev, "build time %s %s\n", __DATE__, __TIME__);
 
 	/*input poll device register */
 	mma7660_idev = input_allocate_polled_device();

@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/sensor/isl290xx.h>
+#include <linux/amlogic/sensor/isl290xx.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>

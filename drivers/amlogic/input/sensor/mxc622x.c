@@ -35,8 +35,8 @@
 #include        <linux/earlysuspend.h>
 #endif
 
-#include <linux/sensor/mxc622x.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/mxc622x.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #if 1
 #define dprintk(x...) printk(x)

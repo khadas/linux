@@ -29,12 +29,11 @@
 /* #include <linux/lightsensor.h> */
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <asm/mach-types.h>
-#include <linux/sensor/cm3232.h>
+#include <linux/amlogic/sensor/cm3232.h>
 #include <asm/setup.h>
 #include <linux/jiffies.h>
 
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #define D(x...) pr_info(x)
 

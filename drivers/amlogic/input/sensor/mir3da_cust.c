@@ -32,7 +32,7 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #include "mir3da_core.h"
 #include "mir3da_cust.h"

@@ -31,9 +31,9 @@
 #include <linux/sched.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
-#include "linux/sensor/stk_defines.h"
-#include "linux/sensor/stk_lk_defs.h"
-#include "linux/sensor/stk220x.h"
+#include "linux/amlogic/sensor/stk_defines.h"
+#include "linux/amlogic/sensor/stk_lk_defs.h"
+#include "linux/amlogic/sensor/stk220x.h"
 
 #define STKALS_DRV_NAME	"stk220x"
 #define DEVICE_NAME		"stk220x"

@@ -19,7 +19,7 @@
  *
  *  V1.00	D10 First Release	date 2012/9/21
  */
-#include <linux/sensor/dmt10.h>
+#include <linux/amlogic/sensor/dmt10.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -41,7 +41,7 @@
 #include <linux/string.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #if 1
 #define dprintk(x...) printk(x)
@@ -53,7 +53,7 @@ static unsigned int interval;
 char OffsetFileName[] = "/data/misc/dmt/offset.txt";	/* FILE offset.txt */
 static char const *const ACCELEMETER_CLASS_NAME = "accelemeter";
 static char const *const GSENSOR_DEVICE_NAME = "dmard10";
-static raw_data offset;
+static union raw_data offset;
 static struct dev_data devdata;
 
 static int device_init(void);
@@ -295,76 +295,71 @@ int input_init(void)
 }
 
 /*
-   int gsensor_read_accel_avg(raw_data *avg_p )
-   {
-   long xyz_acc[SENSOR_DATA_SIZE];
-   s16 xyz[SENSOR_DATA_SIZE];
-   int i, j;
-
-//initialize the accumulation buffer
-for(i = 0; i < SENSOR_DATA_SIZE; ++i)
-xyz_acc[i] = 0;
-
-for(i = 0; i < AVG_NUM; i++)
+int gsensor_read_accel_avg(union raw_data *avg_p )
 {
-device_i2c_read_xyz(devdata.client, (s16 *)&xyz);
-for(j = 0; j < SENSOR_DATA_SIZE; ++j)
-xyz_acc[j] += xyz[j];
-}
+	long xyz_acc[SENSOR_DATA_SIZE];
+	s16 xyz[SENSOR_DATA_SIZE];
+	int i, j;
 
-// calculate averages
-for(i = 0; i < SENSOR_DATA_SIZE; ++i)
-avg_p->v[i] = (s16) (xyz_acc[i] / AVG_NUM);
+	for(i = 0; i < SENSOR_DATA_SIZE; ++i)
+		xyz_acc[i] = 0;
 
-if(avg_p->v[2] < 0)
-return CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_NEGATIVE;
-else
-return CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_POSITIVE;
+	for(i = 0; i < AVG_NUM; i++) {
+		device_i2c_read_xyz(devdata.client, (s16 *)&xyz);
+		for(j = 0; j < SENSOR_DATA_SIZE; ++j)
+			xyz_acc[j] += xyz[j];
+	}
+
+	for(i = 0; i < SENSOR_DATA_SIZE; ++i)
+		avg_p->v[i] = (s16) (xyz_acc[i] / AVG_NUM);
+
+	if(avg_p->v[2] < 0)
+		return CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_NEGATIVE;
+	else
+		return CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_POSITIVE;
 }
-// calc delta offset
-int gsensor_calculate_offset(int gAxis,raw_data avg)
+int gsensor_calculate_offset(int gAxis, union raw_data avg)
 {
-switch(gAxis)
-{
-case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_NEGATIVE:
-offset.u.x =  avg.u.x ;
-offset.u.y =  avg.u.y ;
-offset.u.z =  avg.u.z + DEFAULT_SENSITIVITY;
-break;
-case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_X_POSITIVE:
-offset.u.x =  avg.u.x + DEFAULT_SENSITIVITY;
-offset.u.y =  avg.u.y ;
-offset.u.z =  avg.u.z ;
-break;
-case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_POSITIVE:
-offset.u.x =  avg.u.x ;
-offset.u.y =  avg.u.y ;
-offset.u.z =  avg.u.z - DEFAULT_SENSITIVITY;
-break;
-case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_X_NEGATIVE:
-offset.u.x =  avg.u.x - DEFAULT_SENSITIVITY;
-offset.u.y =  avg.u.y ;
-offset.u.z =  avg.u.z ;
-break;
-case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Y_NEGATIVE:
-offset.u.x =  avg.u.x ;
-offset.u.y =  avg.u.y + DEFAULT_SENSITIVITY;
-offset.u.z =  avg.u.z ;
-break;
-case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Y_POSITIVE:
-offset.u.x =  avg.u.x ;
-offset.u.y =  avg.u.y - DEFAULT_SENSITIVITY;
-offset.u.z =  avg.u.z ;
-break;
-default:
-return -ENOTTY;
+	switch(gAxis) {
+	case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_NEGATIVE:
+		offset.u.x =  avg.u.x ;
+		offset.u.y =  avg.u.y ;
+		offset.u.z =  avg.u.z + DEFAULT_SENSITIVITY;
+		break;
+	case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_X_POSITIVE:
+		offset.u.x =  avg.u.x + DEFAULT_SENSITIVITY;
+		offset.u.y =  avg.u.y ;
+		offset.u.z =  avg.u.z ;
+		break;
+	case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Z_POSITIVE:
+		offset.u.x =  avg.u.x ;
+		offset.u.y =  avg.u.y ;
+		offset.u.z =  avg.u.z - DEFAULT_SENSITIVITY;
+		break;
+	case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_X_NEGATIVE:
+		offset.u.x =  avg.u.x - DEFAULT_SENSITIVITY;
+		offset.u.y =  avg.u.y ;
+		offset.u.z =  avg.u.z ;
+		break;
+	case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Y_NEGATIVE:
+		offset.u.x =  avg.u.x ;
+		offset.u.y =  avg.u.y + DEFAULT_SENSITIVITY;
+		offset.u.z =  avg.u.z ;
+		break;
+	case CONFIG_GSEN_CALIBRATION_GRAVITY_ON_Y_POSITIVE:
+		offset.u.x =  avg.u.x ;
+		offset.u.y =  avg.u.y - DEFAULT_SENSITIVITY;
+		offset.u.z =  avg.u.z ;
+		break;
+	default:
+		return -ENOTTY;
+	}
+	return 0;
 }
-return 0;
-}
- */
+*/
 int gsensor_calibrate(void)
 {
-	raw_data avg;
+	union raw_data avg;
 	int i, j;
 	long xyz_acc[SENSOR_DATA_SIZE];
 	s16 xyz[SENSOR_DATA_SIZE];

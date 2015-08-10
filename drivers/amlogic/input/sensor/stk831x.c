@@ -34,7 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/fcntl.h>
 #include <linux/syscalls.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 /*#include <linux/time.h>*/
 
 #if 1
@@ -81,9 +81,9 @@
 
 #ifndef STK_ALLWINNER_PLATFORM
 #ifdef CONFIG_STK8313
-#include <linux/sensor/stk8313.h>
+#include <linux/amlogic/sensor/stk8313.h>
 #elif defined CONFIG_GRAVITY_STK8312
-#include <linux/sensor/stk8312.h>
+#include <linux/amlogic/sensor/stk8312.h>
 #else
 #error "What's your stk accelerometer?"
 #endif
@@ -2264,8 +2264,6 @@ static int32_t stk_get_file_content(char *r_buf, int8_t buf_size)
 		ret = cali_file->f_op->read(cali_file, r_buf,
 			STK_ACC_CALI_FILE_SIZE, &cali_file->f_pos);
 		if (ret < 0) {
-			debugprintk(KERN_ERR "%s: read error, ret=%d\n",
-				__func__, ret);
 			filp_close(cali_file, NULL);
 			return -EIO;
 		}

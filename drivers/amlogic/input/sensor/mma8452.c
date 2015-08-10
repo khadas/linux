@@ -32,8 +32,8 @@
 #include <linux/earlysuspend.h>
 #endif
 #include <../arch/arm/mach-omap2/mux.h>
-#include <linux/sensor/mma8452.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/mma8452.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #if 1
 #define dprintk(x...) printk(x)

@@ -31,7 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/wakelock.h>
-#include <linux/sensor/ltr558_pls.h>
+#include <linux/amlogic/sensor/ltr558_pls.h>
 
 #if 1
 #define dprintk(x...) printk(x)
@@ -66,7 +66,7 @@ static DECLARE_WAIT_QUEUE_HEAD(ps_waitqueue_ltr558);
 static DECLARE_WAIT_QUEUE_HEAD(als_waitqueue_ltr558);
 
 
-static ltr558_pls_struct *the_data_ltr558;
+static struct ltr558_pls_struct *the_data_ltr558;
 static struct i2c_client *this_client;
 static struct i2c_client *this_client_ltr558;
 static int ltr558_als_read(int gainrange);
@@ -478,8 +478,6 @@ static ssize_t ltr558_store_reg(struct device *cd,
 		LTR558_DEBUG("%sinvalid format:\n", __func__);
 		return 0;
 	}
-	dprintk("%s,data[0]= %x,%x,count=%d\n", __func__,
-		data[0], data[1], count);
 	/* hwmsen_write_byte(ltr501_obj->client,data[0],data[1]); */
 	ltr558_i2c_write_reg(data[0], data[1]);
 	dprintk("%s over!!!1\n", __func__);
@@ -1020,7 +1018,8 @@ static void ltr558_pls_work(struct work_struct *work)
 {
 	unsigned char als_ps_status;
 	int interrupt, newdata;
-	ltr558_pls_struct *pls = container_of(work, ltr558_pls_struct, work);
+	struct ltr558_pls_struct *pls =
+		container_of(work, struct ltr558_pls_struct, work);
 
 	ltr558_i2c_read_reg(LTR558_ALS_PS_STATUS, &als_ps_status);
 	interrupt = als_ps_status & 10;
@@ -1075,7 +1074,7 @@ static void ltr558_pls_work(struct work_struct *work)
 
 static irqreturn_t ltr558_irq_handler(int irq, void *dev_id)
 {
-	ltr558_pls_struct *pls = (ltr558_pls_struct *)dev_id;
+	struct ltr558_pls_struct *pls = (struct ltr558_pls_struct *)dev_id;
 
 	LTR558_DEBUG("%s: irq happend\n", __func__);
 
@@ -1244,7 +1243,7 @@ static int ltr558_probe(struct i2c_client *client,
 
 		/* data memory allocation */
 		the_data_ltr558 =
-			kzalloc(sizeof(ltr558_pls_struct), GFP_KERNEL);
+			kzalloc(sizeof(struct ltr558_pls_struct), GFP_KERNEL);
 		if (the_data_ltr558 == NULL) {
 			LTR558_DEBUG("%s: LTR-558ALS kzalloc failed.\n",
 				__func__);
@@ -1316,7 +1315,7 @@ static int ltr558_probe(struct i2c_client *client,
 
 		/*get irq*/
 		/* gpio_to_irq(pdata->irq_gpio_number); */
-		client->irq = INT_GPIO_1;
+		/* client->irq = INT_GPIO_1; */
 		the_data_ltr558->irq = client->irq;
 
 		LTR558_DEBUG("I2C name=%s, addr=0x%x, gpio=%d, irq=%d",
@@ -1406,7 +1405,8 @@ out:
 static int ltr558_remove(struct i2c_client *client)
 {
 	if (LTR558_DEVICE_IC) {
-		ltr558_pls_struct *ltr558_pls = i2c_get_clientdata(client);
+		struct ltr558_pls_struct *ltr558_pls =
+			i2c_get_clientdata(client);
 
 		/*remove queue*/
 		flush_workqueue(ltr558_pls->ltr_work_queue);

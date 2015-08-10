@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 
 #define VENDOR_NAME     "Capella"
 #define SENSOR_NAME	"CM36283"

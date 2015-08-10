@@ -42,8 +42,8 @@
 #include        <linux/earlysuspend.h>
 #endif
 
-#include        "linux/sensor/mxc6255xc.h"
-#include	<linux/sensor/sensor_common.h>
+#include        "linux/amlogic/sensor/mxc6255xc.h"
+#include	<linux/amlogic/sensor/sensor_common.h>
 #ifdef CONFIG_ARCH_SC8810
 #include        <mach/eic.h>
 #endif

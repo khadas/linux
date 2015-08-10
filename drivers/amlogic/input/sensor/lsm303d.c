@@ -57,8 +57,8 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 
-#include <linux/sensor/lsm303d.h>
-#include <linux/sensor/sensor_common.h>
+#include <linux/amlogic/sensor/lsm303d.h>
+#include <linux/amlogic/sensor/sensor_common.h>
 /*#include "lsm303d.h"*/
 
 #if 1
