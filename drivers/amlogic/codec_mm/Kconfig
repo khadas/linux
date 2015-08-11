@@ -1,0 +1,9 @@
+#
+# Codec mermory manager driver configuration
+#
+#
+config AML_CODEC_MM
+	boolean "Amlogic codec memory management driver"
+	default n
+	---help---
+          Select to enable codec related memory management driver.

@@ -37,9 +37,11 @@
 #include "amports_priv.h"
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 
 #define STBUF_SIZE   (64*1024)
 #define STBUF_WAIT_INTERVAL  (HZ/100)
+#define MEM_NAME "streambuf"
 
 void *fetchbuf = 0;
 
@@ -49,12 +51,13 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 		return -ENOBUFS;
 
 	while (buf->buf_start == 0) {
-		buf->buf_page_num = PAGE_ALIGN(buf->buf_size)/PAGE_SIZE;
-		buf->buf_pages = dma_alloc_from_contiguous(
-							get_codec_cma_device(),
-							buf->buf_page_num, 4);
-
-		if (!buf->buf_pages) {
+		int flags = CODEC_MM_FLAGS_DMA;
+		buf->buf_page_num = PAGE_ALIGN(buf->buf_size) / PAGE_SIZE;
+		if (buf->type == BUF_TYPE_SUBTITLE)
+			flags = CODEC_MM_FLAGS_DMA_CPU;
+		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
+			buf->buf_page_num, 4+PAGE_SHIFT, flags);
+		if (!buf->buf_start) {
 			int is_video = (buf->type == BUF_TYPE_HEVC) ||
 					(buf->type == BUF_TYPE_VIDEO);
 			if (is_video && buf->buf_size >= 9 * SZ_1M) {/*min 6M*/
@@ -75,7 +78,6 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 				"Subtitle", buf->buf_size);
 			return -ENOMEM;
 		}
-		buf->buf_start = page_to_phys(buf->buf_pages);
 		pr_info("%s stbuf alloced at %p, size = %d\n",
 				(buf->type == BUF_TYPE_HEVC) ? "HEVC" :
 				(buf->type == BUF_TYPE_VIDEO) ? "Video" :
@@ -94,7 +96,6 @@ int stbuf_change_size(struct stream_buf_s *buf, int size)
 	unsigned long old_buf;
 	int old_size, old_pagenum;
 	int ret;
-	struct page *old_page;
 
 	pr_info("buffersize=%d,%d,start=%p\n", size, buf->buf_size,
 			(void *)buf->buf_start);
@@ -104,7 +105,6 @@ int stbuf_change_size(struct stream_buf_s *buf, int size)
 
 	old_buf = buf->buf_start;
 	old_size = buf->buf_size;
-	old_page = buf->buf_pages;
 	old_pagenum = buf->buf_page_num;
 	buf->buf_start = 0;
 	buf->buf_size = size;
@@ -116,8 +116,7 @@ int stbuf_change_size(struct stream_buf_s *buf, int size)
 		 * alloc ok,changed to new buffer
 		 */
 		if (old_buf != 0) {
-			dma_release_from_contiguous(get_codec_cma_device(),
-				old_page, old_pagenum);
+			codec_mm_free_for_dma(MEM_NAME, old_buf);
 		}
 
 		pr_info("changed the (%d) buffer size from %d to %d\n",
@@ -127,7 +126,6 @@ int stbuf_change_size(struct stream_buf_s *buf, int size)
 		/* alloc failed */
 		buf->buf_start = old_buf;
 		buf->buf_size = old_size;
-		buf->buf_pages = old_page;
 		buf->buf_page_num = old_pagenum;
 		pr_info("changed the (%d) buffer size from %d to %d,failed\n",
 				buf->type, old_size, size);
@@ -366,12 +364,10 @@ void stbuf_release(struct stream_buf_s *buf)
 {
 	buf->first_tstamp = INVALID_PTS;
 	stbuf_init(buf);	/* reinit buffer */
-	if (buf->flag & BUF_FLAG_ALLOC && buf->buf_pages) {
-		dma_release_from_contiguous(get_codec_cma_device(),
-			buf->buf_pages, buf->buf_page_num);
+	if (buf->flag & BUF_FLAG_ALLOC && buf->buf_start) {
+		codec_mm_free_for_dma(MEM_NAME, buf->buf_start);
 		buf->flag &= ~BUF_FLAG_ALLOC;
 		buf->buf_start = 0;
-		buf->buf_pages = NULL;
 	}
 	buf->flag &= ~BUF_FLAG_IN_USE;
 }

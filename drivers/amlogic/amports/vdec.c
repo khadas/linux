@@ -44,12 +44,13 @@
 #include "arch/clk.h"
 #include <linux/reset.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 
 static DEFINE_MUTEX(vdec_mutex);
 
 #define MC_SIZE (4096 * 4)
 #define CMA_ALLOC_SIZE SZ_64M
-
+#define MEM_NAME "vdec64m"
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num;
 static int poweron_clock_level;
@@ -58,6 +59,7 @@ static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
 static struct platform_device *vdec_core_device;
 static struct page *vdec_cma_page;
+int vdec_mem_alloced_from_codec;
 static unsigned long reserved_mem_start, reserved_mem_end;
 static int hevc_max_reset_count;
 static bool hevc_workaround;
@@ -148,10 +150,14 @@ retry_alloc:
 			dma_get_cma_size_int_byte(vdec_dev_reg.cma_dev)
 				/ SZ_1M);
 
-		vdec_cma_page = dma_alloc_from_contiguous(
+		/*vdec_cma_page = dma_alloc_from_contiguous(
 			vdec_dev_reg.cma_dev,
 			CMA_ALLOC_SIZE / PAGE_SIZE, 4);
-		if (!vdec_cma_page) {
+		*/
+		vdec_dev_reg.mem_start = codec_mm_alloc_for_dma(MEM_NAME,
+			CMA_ALLOC_SIZE / PAGE_SIZE, 4 + PAGE_SHIFT,
+			CODEC_MM_FLAGS_CMA_CLEAR);
+		if (!vdec_dev_reg.mem_start) {
 			if (retry_num < 1) {
 				pr_err("vdec base CMA allocation failed,try again\\n");
 				retry_num++;
@@ -162,15 +168,12 @@ retry_alloc:
 			inited_vcodec_num--;
 			return -ENOMEM;
 		}
+		pr_info("vdec base memory alloced %p\n",
+		(void *)vdec_dev_reg.mem_start);
 
-#ifdef CONFIG_ARM64
-		dma_clear_buffer(vdec_cma_page, CMA_ALLOC_SIZE);
-#endif
-		pr_info("vdec base cma page allocated %p\n", vdec_cma_page);
-
-		vdec_dev_reg.mem_start = page_to_phys(vdec_cma_page);
 		vdec_dev_reg.mem_end = vdec_dev_reg.mem_start +
 			CMA_ALLOC_SIZE - 1;
+		vdec_mem_alloced_from_codec = 1;
 	}
 
 	if ((vf == VFORMAT_HEVC) &&
@@ -207,10 +210,8 @@ s32 vdec_release(enum vformat_e vf)
 	if (vdec_device)
 		platform_device_unregister(vdec_device);
 
-	if (vdec_cma_page) {
-		dma_release_from_contiguous(vdec_dev_reg.cma_dev,
-			vdec_cma_page,
-			CMA_ALLOC_SIZE / PAGE_SIZE);
+	if (vdec_mem_alloced_from_codec && vdec_dev_reg.mem_start) {
+		codec_mm_free_for_dma(MEM_NAME, vdec_dev_reg.mem_start);
 
 		vdec_cma_page = NULL;
 		vdec_dev_reg.mem_start = reserved_mem_start;

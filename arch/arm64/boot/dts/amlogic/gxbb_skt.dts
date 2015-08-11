@@ -101,8 +101,23 @@
 			compatible = "shared-dma-pool";
 			linux,phandle = <2>;
 			reusable;
-			size = <0x0 0x13000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+		};
+		codec_mm_cma:linux,codec_mm_cma {
+			compatible = "shared-dma-pool";
+			linux,phandle = <3>;
+			reusable;
+			size = <0x0 0x10000000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+		};
+		/* codec shared reversed */
+		codec_mm_reversed:linux,codec_mm_reserve {
+			compatible = "amlogic, codec-mm-reserve";
+			size = <0x0 0x3000000>;
+ 			no-map;
 		};
 		/*vm_reserved:linux,vm {
 			compatible = "amlogic, vm_memory";
@@ -173,7 +188,12 @@
 			reg = <0x0 0xc8838000 0x0 0x400>;
 		};
 	};
-
+	codec_mm {
+			compatible = "amlogic, codec, mm";
+			memory-region = <&codec_mm_cma>;
+			dev_name = "codec_mm";
+			status = "okay";
+	};
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";

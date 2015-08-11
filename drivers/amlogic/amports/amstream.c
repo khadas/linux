@@ -75,6 +75,9 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
+#include <linux/amlogic/codec_mm/codec_mm.h>
+
+
 #define DEVICE_NAME "amstream-dev"
 #define DRIVER_NAME "amstream"
 #define MODULE_NAME "amstream"
@@ -1004,7 +1007,8 @@ static ssize_t amstream_sub_read(struct file *file, char __user *buf,
 
 		if (data_size <= first_num) {
 			res = copy_to_user((void *)buf,
-				(void *)(phys_to_virt(sub_rp)), data_size);
+				(void *)(codec_mm_phys_to_virt(sub_rp)),
+				data_size);
 			if (res >= 0)
 				stbuf_sub_rp_set(sub_rp + data_size - res);
 
@@ -1012,7 +1016,7 @@ static ssize_t amstream_sub_read(struct file *file, char __user *buf,
 		} else {
 			if (first_num > 0) {
 				res = copy_to_user((void *)buf,
-					(void *)(phys_to_virt(sub_rp)),
+				(void *)(codec_mm_phys_to_virt(sub_rp)),
 					first_num);
 				if (res >= 0) {
 					stbuf_sub_rp_set(sub_rp + first_num -
@@ -1022,10 +1026,9 @@ static ssize_t amstream_sub_read(struct file *file, char __user *buf,
 				return first_num - res;
 			}
 
-			res =
-				copy_to_user((void *)buf,
-					(void *)(phys_to_virt(sub_start)),
-					data_size - first_num);
+			res = copy_to_user((void *)buf,
+				(void *)(codec_mm_phys_to_virt(sub_start)),
+				data_size - first_num);
 
 			if (res >= 0) {
 				stbuf_sub_rp_set(sub_start + data_size -
@@ -1037,7 +1040,7 @@ static ssize_t amstream_sub_read(struct file *file, char __user *buf,
 	} else {
 		res =
 			copy_to_user((void *)buf,
-				(void *)(phys_to_virt(sub_rp)),
+				(void *)(codec_mm_phys_to_virt(sub_rp)),
 				data_size);
 
 		if (res >= 0)
@@ -1050,7 +1053,8 @@ static ssize_t amstream_sub_read(struct file *file, char __user *buf,
 static ssize_t amstream_sub_write(struct file *file, const char *buf,
 			size_t count, loff_t *ppos)
 {
-	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
+	struct stream_port_s *port =
+			(struct stream_port_s *)file->private_data;
 	struct stream_buf_s *pbuf = &bufs[BUF_TYPE_SUBTITLE];
 	int r;
 

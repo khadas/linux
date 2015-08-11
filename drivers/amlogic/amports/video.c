@@ -99,6 +99,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #endif
 #include <linux/amlogic/amports/video_prot.h>
 #include "video.h"
+
+#include <linux/amlogic/codec_mm/codec_mm.h>
+#define MEM_NAME "video-keep"
 #ifdef CONFIG_GE2D_KEEP_FRAME
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* #include <mach/mod_gate.h> */
@@ -525,9 +528,9 @@ u32 get_prot_status(void)
 }
 EXPORT_SYMBOL(get_prot_status);
 #endif
-static inline ulong keep_phy_addr(struct page *addr)
+static inline ulong keep_phy_addr(unsigned long addr)
 {
-	return page_to_phys(addr);
+	return addr;
 }
 static int free_alloced_keep_buffer(void);
 static int alloc_keep_buffer(void);
@@ -644,7 +647,7 @@ static u32 disp_canvas[2];
 static u32 post_canvas;
 
 
-struct page *keep_y_pages, *keep_u_pages, *keep_v_pages;
+unsigned long keep_y_addr, keep_u_addr, keep_v_addr;
 static int keep_video_on;
 
 #define Y_BUFFER_SIZE   0x400000	/* for 1920*1088 */
@@ -849,7 +852,7 @@ static int ge2d_store_frame_YUV444(u32 cur_index)
 	y_index = cur_index & 0xff;
 	canvas_read(y_index, &cs);
 
-	yaddr = keep_phy_addr(keep_y_pages);
+	yaddr = keep_phy_addr(keep_y_addr);
 	canvas_config(ydupindex,
 		      (ulong) yaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -922,8 +925,8 @@ static int ge2d_store_frame_NV21(u32 cur_index)
 	pr_info("ge2d_store_frame_NV21 cur_index:s:0x%x\n", cur_index);
 
 	/* pr_info("ge2d_store_frame cur_index:d:0x%x\n", canvas_tab[0]); */
-	yaddr = keep_phy_addr(keep_y_pages);
-	uaddr = keep_phy_addr(keep_u_pages);
+	yaddr = keep_phy_addr(keep_y_addr);
+	uaddr = keep_phy_addr(keep_u_addr);
 
 	y_index = cur_index & 0xff;
 	u_index = (cur_index >> 8) & 0xff;
@@ -1024,7 +1027,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_planes[2].w = 0;
 	ge2d_config.src_planes[2].h = 0;
 
-	yaddr = keep_phy_addr(keep_y_pages);
+	yaddr = keep_phy_addr(keep_y_addr);
 	canvas_config(ydupindex,
 		      (ulong) yaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -1095,7 +1098,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_planes[2].w = 0;
 	ge2d_config.src_planes[2].h = 0;
 
-	uaddr = keep_phy_addr(keep_u_pages);
+	uaddr = keep_phy_addr(keep_u_addr);
 	canvas_config(udupindex,
 		      (ulong) uaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -1167,7 +1170,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_planes[2].w = 0;
 	ge2d_config.src_planes[2].h = 0;
 
-	vaddr = keep_phy_addr(keep_v_pages);
+	vaddr = keep_phy_addr(keep_v_addr);
 	canvas_config(vdupindex,
 		      (ulong) vaddr,
 		      cs.width, cs.height, CANVAS_ADDR_NOWRAP, cs.blkmode);
@@ -1249,29 +1252,29 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 	switch (format) {
 	case GE2D_FORMAT_M24_YUV444:
 		ge2d_store_frame_YUV444(cur_index);
-		canvas_update_addr(y_index, keep_phy_addr(keep_y_pages));
+		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_update_addr(y_index2, keep_phy_addr(keep_y_pages));
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 #endif
 		break;
 	case GE2D_FORMAT_M24_NV21:
 		ge2d_store_frame_NV21(cur_index);
-		canvas_update_addr(y_index, keep_phy_addr(keep_y_pages));
-		canvas_update_addr(u_index, keep_phy_addr(keep_u_pages));
+		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_update_addr(y_index2, keep_phy_addr(keep_y_pages));
-		canvas_update_addr(u_index2, keep_phy_addr(keep_u_pages));
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
+		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
 #endif
 		break;
 	case GE2D_FORMAT_M24_YUV420:
 		ge2d_store_frame_YUV420(cur_index);
-		canvas_update_addr(y_index, keep_phy_addr(keep_y_pages));
-		canvas_update_addr(u_index, keep_phy_addr(keep_u_pages));
-		canvas_update_addr(v_index, keep_phy_addr(keep_v_pages));
+		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
+		canvas_update_addr(v_index, keep_phy_addr(keep_v_addr));
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_update_addr(y_index2, keep_phy_addr(keep_y_pages));
-		canvas_update_addr(u_index2, keep_phy_addr(keep_u_pages));
-		canvas_update_addr(v_index2, keep_phy_addr(keep_v_pages));
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
+		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
+		canvas_update_addr(v_index2, keep_phy_addr(keep_v_addr));
 #endif
 		break;
 	default:
@@ -4138,60 +4141,67 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 static int free_alloced_keep_buffer(void)
 {
 	pr_info("free_alloced_keep_buffer %p.%p.%p\n",
-		keep_y_pages, keep_u_pages, keep_v_pages);
-	if (keep_y_pages) {
-		dma_release_from_contiguous(get_codec_cma_device(),
-			keep_y_pages, PAGE_ALIGN(Y_BUFFER_SIZE)/PAGE_SIZE);
-		keep_y_pages = NULL;
+		(void *)keep_y_addr, (void *)keep_u_addr, (void *)keep_v_addr);
+	if (keep_y_addr) {
+		codec_mm_free_for_dma(MEM_NAME, keep_y_addr);
+		keep_y_addr = 0;
 	}
 
-	if (keep_u_pages) {
-		dma_release_from_contiguous(get_codec_cma_device(),
-			keep_u_pages, PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE);
-		keep_u_pages = NULL;
+	if (keep_u_addr) {
+		codec_mm_free_for_dma(MEM_NAME, keep_u_addr);
+		keep_u_addr = 0;
 	}
 
-	if (keep_v_pages) {
-		dma_release_from_contiguous(get_codec_cma_device(),
-			keep_v_pages, PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE);
-		keep_v_pages = NULL;
+	if (keep_v_addr) {
+		codec_mm_free_for_dma(MEM_NAME, keep_v_addr);
+		keep_v_addr = 0;
 	}
 	return 0;
 }
 
 static int alloc_keep_buffer(void)
 {
-	if (!keep_y_pages) {
-		keep_y_pages = dma_alloc_from_contiguous(
-				get_codec_cma_device(),
-				PAGE_ALIGN(Y_BUFFER_SIZE)/PAGE_SIZE, 0);
-		if (!keep_y_pages) {
+	int flags = CODEC_MM_FLAGS_DMA;
+#ifndef CONFIG_GE2D_KEEP_FRAME
+	/*
+		if not used ge2d.
+		need CPU access.
+	*/
+	flags = CODEC_MM_FLAGS_DMA_CPU;
+#endif
+	if (!keep_y_addr) {
+		keep_y_addr = codec_mm_alloc_for_dma(
+				MEM_NAME,
+				PAGE_ALIGN(Y_BUFFER_SIZE)/PAGE_SIZE, 0, flags);
+		if (!keep_y_addr) {
 			pr_err("%s: failed to alloc y addr\n", __func__);
 			goto err1;
 		}
 	}
 
-	if (!keep_u_pages) {
-		keep_u_pages = dma_alloc_from_contiguous(
-				get_codec_cma_device(),
-				PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE, 0);
-		if (!keep_u_pages) {
+	if (!keep_u_addr) {
+		keep_u_addr = codec_mm_alloc_for_dma(
+				MEM_NAME,
+				PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE, 0, 0);
+		if (!keep_u_addr) {
 			pr_err("%s: failed to alloc u addr\n", __func__);
 			goto err1;
 		}
 	}
 
-	if (!keep_v_pages) {
-		keep_v_pages = dma_alloc_from_contiguous(
-				get_codec_cma_device(),
-				PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE, 0);
-		if (!keep_v_pages) {
+	if (!keep_v_addr) {
+		keep_v_addr = codec_mm_alloc_for_dma(
+				MEM_NAME,
+				PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE, 0, 0);
+		if (!keep_v_addr) {
 			pr_err("%s: failed to alloc v addr\n", __func__);
 			goto err1;
 		}
 	}
 	pr_info("alloced keep buffer yaddr=%p,u_addr=%p,v_addr=%p\n",
-			keep_y_pages, keep_u_pages, keep_v_pages);
+		(void *)keep_y_addr,
+		(void *)keep_u_addr,
+		(void *)keep_v_addr);
 	return 0;
 
  err1:
@@ -4494,8 +4504,8 @@ unsigned int get_post_canvas(void)
 
 static int canvas_dup(ulong dst, ulong src_paddr, ulong size)
 {
-	void *src_addr = phys_to_virt(src_paddr);
-	void *dst_addr = phys_to_virt(dst);
+	void *src_addr = codec_mm_phys_to_virt(src_paddr);
+	void *dst_addr = codec_mm_phys_to_virt(dst);
 
 	if (src_paddr && dst && src_addr && dst_addr) {
 		dma_addr_t dma_addr = 0;
@@ -4561,10 +4571,10 @@ unsigned int vf_keep_current(void)
 	canvas_read(y_index, &cd);
 
 	if ((cd.width * cd.height) <= 2048 * 1088 &&
-			!keep_y_pages) {
+			!keep_y_addr) {
 		alloc_keep_buffer();
 	}
-	if (!keep_y_pages
+	if (!keep_y_addr
 	    || (cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
 		/* no support VIDTYPE_VIU_422... */
 		return -1;
@@ -4572,7 +4582,7 @@ unsigned int vf_keep_current(void)
 
 
 	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
-		pr_info("%s keep_y_pages=%p %x\n", __func__, keep_y_pages,
+		pr_info("%s keep_y_addr=%p %x\n", __func__, (void *)keep_y_addr,
 		       canvas_get_addr(y_index));
 	}
 
@@ -4586,18 +4596,18 @@ unsigned int vf_keep_current(void)
 				cd.width, cd.height);
 			return -1;
 		}
-		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
-				canvas_dup(keep_phy_addr(keep_y_pages),
+		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
+				canvas_dup(keep_phy_addr(keep_y_addr),
 				canvas_get_addr(y_index),
 				(cd.width) * (cd.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 #else
 			canvas_update_addr(y_index,
-				keep_phy_addr(keep_y_pages));
+				keep_phy_addr(keep_y_addr));
 #endif
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("%s: VIDTYPE_VIU_422\n", __func__);
@@ -4614,18 +4624,18 @@ unsigned int vf_keep_current(void)
 #ifdef CONFIG_GE2D_KEEP_FRAME
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_YUV444);
 #else
-		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
-				canvas_dup(keep_phy_addr(keep_y_pages),
+		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
+				canvas_dup(keep_phy_addr(keep_y_addr),
 				canvas_get_addr(y_index),
 				(cd.width) * (cd.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 #else
 			canvas_update_addr(y_index,
-					keep_phy_addr(keep_y_pages));
+					keep_phy_addr(keep_y_addr));
 #endif
 		}
 #endif
@@ -4643,27 +4653,27 @@ unsigned int vf_keep_current(void)
 #ifdef CONFIG_GE2D_KEEP_FRAME
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_NV21);
 #else
-		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
-		    canvas_dup(keep_phy_addr(keep_y_pages),
+		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
+		    canvas_dup(keep_phy_addr(keep_y_addr),
 					canvas_get_addr(y_index),
 					(cs0.width * cs0.height))
-		    && canvas_dup(keep_phy_addr(keep_u_pages),
+		    && canvas_dup(keep_phy_addr(keep_u_addr),
 					canvas_get_addr(u_index),
 					(cs1.width * cs1.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 			canvas_update_addr(disp_canvas_index[0][1],
-					   keep_phy_addr(keep_u_pages));
+					   keep_phy_addr(keep_u_addr));
 			canvas_update_addr(disp_canvas_index[1][1],
-					   keep_phy_addr(keep_u_pages));
+					   keep_phy_addr(keep_u_addr));
 #else
 			canvas_update_addr(y_index,
-				keep_phy_addr(keep_y_pages));
+				keep_phy_addr(keep_y_addr));
 			canvas_update_addr(u_index,
-				keep_phy_addr(keep_u_pages));
+				keep_phy_addr(keep_u_addr));
 #endif
 		}
 #endif
@@ -4687,37 +4697,37 @@ unsigned int vf_keep_current(void)
 #ifdef CONFIG_GE2D_KEEP_FRAME
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_YUV420);
 #else
-		if (keep_phy_addr(keep_y_pages) != canvas_get_addr(y_index) &&
+		if (keep_phy_addr(keep_y_addr) != canvas_get_addr(y_index) &&
 			/*must not the same address */
-		    canvas_dup(keep_phy_addr(keep_y_pages),
+		    canvas_dup(keep_phy_addr(keep_y_addr),
 					canvas_get_addr(y_index),
 					(cs0.width * cs0.height))
-		    && canvas_dup(keep_phy_addr(keep_u_pages),
+		    && canvas_dup(keep_phy_addr(keep_u_addr),
 					canvas_get_addr(u_index),
 					(cs1.width * cs1.height))
-			&& canvas_dup(keep_phy_addr(keep_v_pages),
+			&& canvas_dup(keep_phy_addr(keep_v_addr),
 					canvas_get_addr(v_index),
 					(cs2.width * cs2.height))) {
 #ifdef CONFIG_VSYNC_RDMA
 			canvas_update_addr(disp_canvas_index[0][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 			canvas_update_addr(disp_canvas_index[1][0],
-					   keep_phy_addr(keep_y_pages));
+					   keep_phy_addr(keep_y_addr));
 			canvas_update_addr(disp_canvas_index[0][1],
-					   keep_phy_addr(keep_u_pages));
+					   keep_phy_addr(keep_u_addr));
 			canvas_update_addr(disp_canvas_index[1][1],
-					   keep_phy_addr(keep_u_pages));
+					   keep_phy_addr(keep_u_addr));
 			canvas_update_addr(disp_canvas_index[0][2],
-					   keep_phy_addr(keep_v_pages));
+					   keep_phy_addr(keep_v_addr));
 			canvas_update_addr(disp_canvas_index[1][2],
-					   keep_phy_addr(keep_v_pages));
+					   keep_phy_addr(keep_v_addr));
 #else
 			canvas_update_addr(y_index,
-				keep_phy_addr(keep_y_pages));
+				keep_phy_addr(keep_y_addr));
 			canvas_update_addr(u_index,
-				keep_phy_addr(keep_u_pages));
+				keep_phy_addr(keep_u_addr));
 			canvas_update_addr(v_index,
-				keep_phy_addr(keep_v_pages));
+				keep_phy_addr(keep_v_addr));
 #endif
 		}
 

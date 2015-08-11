@@ -109,3 +109,5 @@ obj-$(CONFIG_AML_TEMP_SENSOR) += thermal/
 obj-$(CONFIG_AUDIO_DATA) += audinfo_kernel/
 
 obj-$(CONFIG_VIDEO_AMLOGIC_CAPTURE) += camera/
+
+obj-$(CONFIG_AML_CODEC_MM)  	+= codec_mm/

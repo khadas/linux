@@ -35,6 +35,11 @@
 #include <linux/dma-contiguous.h>
 #include <linux/delay.h>
 
+#include <linux/amlogic/codec_mm/codec_mm.h>
+
+
+#define MEM_NAME "codec_264_4k"
+
 /* #include <mach/am_regs.h> */
 #if 1 /* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 
@@ -44,8 +49,6 @@
 #include "amports_priv.h"
 #include "vdec.h"
 #include "amvdec.h"
-
-
 
 
 #if  0 /* MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6TVD */
@@ -245,6 +248,7 @@ struct buffer_spec_s {
 #endif
 
 	struct page *alloc_pages;
+	unsigned long phy_addr;
 	int alloc_count;
 };
 
@@ -410,34 +414,40 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 #else
 			int page_count =
 				PAGE_ALIGN((mb_total << 8) +
-						   (mb_total << 7)) / PAGE_SIZE;
+						(mb_total << 7)) / PAGE_SIZE;
 #endif
 
-			if (buffer_spec[i].alloc_pages) {
+			if (buffer_spec[i].phy_addr) {
 				if (page_count != buffer_spec[i].alloc_count) {
-					pr_info("Delay release CMA buffer %d\n",
+					pr_info("Delay release CMA buffer%d\n",
 						   i);
 
-					dma_release_from_contiguous(cma_dev,
+					/*dma_release_from_contiguous(cma_dev,
 							buffer_spec[i].
 							alloc_pages,
 							buffer_spec[i].
 							alloc_count);
+							*/
+					codec_mm_free_for_dma(MEM_NAME,
+						buffer_spec[i].phy_addr);
+					buffer_spec[i].phy_addr = 0;
 					buffer_spec[i].alloc_pages = NULL;
 					buffer_spec[i].alloc_count = 0;
 				} else
 					pr_info("Re-use CMA buffer %d\n", i);
 			}
 
-			if (!buffer_spec[i].alloc_pages) {
+			if (!buffer_spec[i].phy_addr) {
 				buffer_spec[i].alloc_count = page_count;
-				buffer_spec[i].alloc_pages =
-					dma_alloc_from_contiguous(cma_dev,
-							page_count, 4);
+				buffer_spec[i].phy_addr =
+					codec_mm_alloc_for_dma(
+					MEM_NAME, buffer_spec[i].alloc_count,
+					4 + PAGE_SHIFT,
+					CODEC_MM_FLAGS_CMA_CLEAR);
 			}
 			alloc_count++;
 
-			if (!buffer_spec[i].alloc_pages) {
+			if (!buffer_spec[i].phy_addr) {
 				buffer_spec[i].alloc_count = 0;
 				pr_info
 				("264 4K2K decoder memory alloc failed %d.\n",
@@ -445,20 +455,13 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 				mutex_unlock(&vh264_4k2k_mutex);
 				return -1;
 			}
-#ifdef CONFIG_ARM64
-			else
-				dma_clear_buffer(buffer_spec[i].alloc_pages,
-					buffer_spec[i].alloc_count * PAGE_SIZE);
-#endif
-			addr = page_to_phys(buffer_spec[i].alloc_pages);
+			addr = buffer_spec[i].phy_addr;
 			dpb_addr = addr;
 		} else {
-			if (buffer_spec[i].alloc_pages) {
-				dma_release_from_contiguous(cma_dev,
-						buffer_spec[i].
-						alloc_pages,
-						buffer_spec[i].
-						alloc_count);
+			if (buffer_spec[i].phy_addr) {
+				codec_mm_free_for_dma(MEM_NAME,
+					buffer_spec[i].phy_addr);
+				buffer_spec[i].phy_addr = 0;
 				buffer_spec[i].alloc_pages = NULL;
 				buffer_spec[i].alloc_count = 0;
 			}
@@ -1616,16 +1619,14 @@ static int vh264_4k2k_stop(void)
 	disp_addr = cur_canvas.addr;
 
 	for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
-		if (buffer_spec[i].alloc_pages) {
+		if (buffer_spec[i].phy_addr) {
 			if (disp_addr ==
 				page_to_phys(buffer_spec[i].alloc_pages))
 				pr_info("Skip releasing CMA buffer %d\n", i);
 			else {
-				dma_release_from_contiguous(cma_dev,
-						buffer_spec[i].
-						alloc_pages,
-						buffer_spec[i].
-						alloc_count);
+				codec_mm_free_for_dma(MEM_NAME,
+					buffer_spec[i].phy_addr);
+				buffer_spec[i].phy_addr = 0;
 				buffer_spec[i].alloc_pages = NULL;
 				buffer_spec[i].alloc_count = 0;
 			}

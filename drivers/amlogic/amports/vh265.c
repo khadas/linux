@@ -37,7 +37,10 @@
 #include <linux/dma-contiguous.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
+#include <linux/amlogic/codec_mm/codec_mm.h>
 
+
+#define MEM_NAME "codec_265"
 /* #include <mach/am_regs.h> */
 #include "vdec_reg.h"
 
@@ -887,8 +890,8 @@ struct BUF_s {
 	unsigned int alloc_flag;
 	/*buffer */
 	unsigned int cma_page_count;
-	struct page *alloc_pages;
-	unsigned int start_adr;
+	unsigned long alloc_addr;
+	unsigned long start_adr;
 	unsigned int size;
 
 	unsigned int free_start_adr;
@@ -1205,18 +1208,16 @@ static void uninit_buf_list(struct hevc_state_s *hevc)
 
 	if (release_cma_flag) {
 		for (i = 0; i < used_buf_num; i++) {
-			if (m_BUF[i].alloc_pages != NULL
+			if (m_BUF[i].alloc_addr != 0
 				&& m_BUF[i].cma_page_count > 0) {
-				dma_release_from_contiguous(cma_dev,
-						m_BUF[i].
-						alloc_pages,
-						m_BUF[i].
-						cma_page_count);
-				pr_info("release cma buffer[%d] (%d %p)\n", i,
-					   m_BUF[i].cma_page_count,
-					   m_BUF[i].alloc_pages);
-				m_BUF[i].alloc_pages = NULL;
+				pr_info("release cma buffer[%d] (%d %ld)\n", i,
+					m_BUF[i].cma_page_count,
+					m_BUF[i].alloc_addr);
+				codec_mm_free_for_dma(MEM_NAME,
+					m_BUF[i].alloc_addr);
+				m_BUF[i].alloc_addr = 0;
 				m_BUF[i].cma_page_count = 0;
+
 			}
 		}
 	}
@@ -1341,48 +1342,43 @@ static void init_buf_list(struct hevc_state_s *hevc)
 
 		if (hevc->use_cma_flag) {
 			if ((m_BUF[i].cma_page_count != 0)
-				&& (m_BUF[i].alloc_pages != NULL)
+				&& (m_BUF[i].alloc_addr != 0)
 				&& (m_BUF[i].size != buf_size)) {
-				dma_release_from_contiguous(cma_dev,
-						m_BUF[i].
-						alloc_pages,
-						m_BUF[i].
-						cma_page_count);
-				pr_info("release cma buffer[%d] (%d %p)\n", i,
-					   m_BUF[i].cma_page_count,
-					   m_BUF[i].alloc_pages);
-				m_BUF[i].alloc_pages = NULL;
+				codec_mm_free_for_dma(MEM_NAME,
+					m_BUF[i].alloc_addr);
+				pr_info("release cma buffer[%d] (%d %ld)\n", i,
+					m_BUF[i].cma_page_count,
+					m_BUF[i].alloc_addr);
+				m_BUF[i].alloc_addr = 0;
 				m_BUF[i].cma_page_count = 0;
 			}
-			if (m_BUF[i].alloc_pages == NULL) {
+			if (m_BUF[i].alloc_addr == 0) {
 				m_BUF[i].cma_page_count =
 					PAGE_ALIGN(buf_size) / PAGE_SIZE;
-				m_BUF[i].alloc_pages =
-					dma_alloc_from_contiguous(cma_dev,
-							m_BUF[i].
-							cma_page_count,
-							4);
-				if (m_BUF[i].alloc_pages == NULL) {
+				m_BUF[i].alloc_addr = codec_mm_alloc_for_dma(
+					MEM_NAME, m_BUF[i].cma_page_count,
+					4 + PAGE_SHIFT, 0);
+				if (m_BUF[i].alloc_addr == 0) {
 					pr_info("alloc cma buffer[%d] fail\n",
-						   i);
+					i);
 					m_BUF[i].cma_page_count = 0;
 					break;
 				}
-				m_BUF[i].start_adr =
-					page_to_phys(m_BUF[i].alloc_pages);
-				pr_info("allocate cma buffer[%d] (%d,%p,%x)\n",
-					   i, m_BUF[i].cma_page_count,
-					   m_BUF[i].alloc_pages,
-					   m_BUF[i].start_adr);
+				pr_info("allocate cma buffer[%d] (%d,%ld,%ld)\n",
+						i, m_BUF[i].cma_page_count,
+						m_BUF[i].alloc_addr,
+						m_BUF[i].start_adr);
 			} else {
-				pr_info("reuse cma buffer[%d] (%d,%p,%x)\n", i,
-					   m_BUF[i].cma_page_count,
-					   m_BUF[i].alloc_pages,
-					   m_BUF[i].start_adr);
+				pr_info("reuse cma buffer[%d] (%d,%ld,%ld)\n",
+						i,
+						m_BUF[i].cma_page_count,
+						m_BUF[i].alloc_addr,
+						m_BUF[i].start_adr);
 			}
+			m_BUF[i].start_adr =  m_BUF[i].alloc_addr;
 		} else {
 			m_BUF[i].cma_page_count = 0;
-			m_BUF[i].alloc_pages = NULL;
+			m_BUF[i].alloc_addr = 0;
 			m_BUF[i].start_adr =
 				hevc->mc_buf->buf_start + i * buf_size;
 		}
@@ -1390,7 +1386,7 @@ static void init_buf_list(struct hevc_state_s *hevc)
 		m_BUF[i].free_start_adr = m_BUF[i].start_adr;
 
 		if (((m_BUF[i].start_adr + buf_size) > mc_buffer_end)
-			&& (m_BUF[i].alloc_pages == NULL)) {
+			&& (m_BUF[i].alloc_addr == 0)) {
 			if (debug) {
 				pr_info
 				("Max mc buffer or mpred_mv buffer is used\n");
@@ -1399,8 +1395,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 		}
 
 		if (debug) {
-			pr_info("Buffer %d: start_adr %x size %x\n", i,
-				   m_BUF[i].start_adr, m_BUF[i].size);
+			pr_info("Buffer %d: start_adr %p size %x\n", i,
+				   (void *)m_BUF[i].start_adr, m_BUF[i].size);
 		}
 	}
 
