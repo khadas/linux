@@ -616,7 +616,9 @@ static int read_page_two_plane(struct amlnand_chip *aml_chip,
 		goto _out;
 
 	controller->oob_buf += user_byte_num; /* fixme, maybe not right!*/
-	ops_para->data_buf += page_size;
+
+	if (ops_para->data_buf)
+		ops_para->data_buf += page_size;
 
 	ret |= _read_page_single_plane(aml_chip, chipnr, p1_addr);
 
