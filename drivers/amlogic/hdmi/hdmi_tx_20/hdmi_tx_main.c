@@ -1355,6 +1355,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		return;
 	mutex_lock(&setclk_mutex);
 	hdev->hpd_state = 0;
+	hdev->tv_cec_support = 0;
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	pr_info("hdmitx: plugout\n");

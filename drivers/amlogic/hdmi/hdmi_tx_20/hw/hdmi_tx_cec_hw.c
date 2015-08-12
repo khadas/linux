@@ -63,7 +63,7 @@ void cec_enable_irq(void)
 {
 	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 0x6, 0, 3);
 	cec_int_disable_flag = 0;
-	hdmi_print(INF, CEC "enable:int mask:0x%x\n",
+	hdmi_print(LOW, CEC "enable:int mask:0x%x\n",
 		hd_read_reg(P_AO_CEC_INTR_MASKN));
 }
 
@@ -296,7 +296,7 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 		msleep(20);
 	}
 
-	hdmi_print(INF, CEC "now tx_stat:%d\n", tx_stat);
+	hdmi_print(LOW, CEC "now tx_stat:%d\n", tx_stat);
 	if (TX_ERROR == tx_stat) {
 		hdmi_print(INF, CEC "tx polling:tx error!.\n");
 		/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
@@ -313,7 +313,7 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 	aocec_wr_reg(CEC_TX_MSG_CMD, RX_ACK_CURRENT);
 
 	j = 20;
-	hdmi_print(INF, CEC "start poll\n");
+	hdmi_print(LOW, CEC "start poll\n");
 	while (j--) {
 		ret = aocec_rd_reg(CEC_TX_MSG_STATUS);
 		if (ret != TX_BUSY)
@@ -322,7 +322,7 @@ int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
 	}
 
 	ret = aocec_rd_reg(CEC_TX_MSG_STATUS);
-	hdmi_print(INF, CEC "end poll, tx_stat:%x\n", ret);
+	hdmi_print(LOW, CEC "end poll, tx_stat:%x\n", ret);
 	if (ret == TX_BUSY) {
 		hdmi_print(INF, CEC "tx busy timeout\n");
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
@@ -474,7 +474,7 @@ void cec_polling_online_dev(int log_addr, int *bool)
 			cec_log_addr_to_dev_type(log_addr);
 		*bool = 1;
 	}
-	hdmi_print(INF, CEC "CEC: poll online logic device: 0x%x BOOL: %d\n",
+	hdmi_print(LOW, CEC "CEC: poll online logic device: 0x%x BOOL: %d\n",
 		log_addr, *bool);
 
 }

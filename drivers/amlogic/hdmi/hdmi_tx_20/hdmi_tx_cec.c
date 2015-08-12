@@ -262,9 +262,11 @@ static int detect_tv_support_cec(unsigned addr)
 {
 	unsigned int ret = 0;
 	unsigned char msg[1];
+	cec_msg_dbg_en = 0;
 	msg[0] = (addr << 4) | 0x0;	/* 0x0, TV's root address */
 	cec_polling_online_dev(msg[0], &ret);
-	hdmi_print(INF, CEC "TV %s support CEC\n", ret ? "is" : "not");
+	hdmi_print(LOW, CEC "TV %s support CEC\n", ret ? "is" : "not");
+	cec_msg_dbg_en = 1;
 	hdmitx_device->tv_cec_support = ret;
 	return hdmitx_device->tv_cec_support;
 }
@@ -319,8 +321,7 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 		(hdmitx_device->hpd_state == 0)) {
 		hdmi_print(INF, CEC "CEC not ready\n");
 		return -1;
-	} else
-		hdmi_print(INF, CEC "CEC node init\n");
+	}
 
 	cec_pre_init();
 	if (hdmitx_device->config_data.vend_data)
@@ -348,14 +349,14 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 	if ((vend_data) && (vend_data->vendor_id))
 		vendor_id = (vend_data->vendor_id) & 0xffffff;
 
-	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
-		return -1;
-
 	/*
 	 * if TV is not support CEC, we do not need to try allocate CEC
 	 * logical address
 	 */
 	if (!(hdmitx_device->tv_cec_support) && (!detect_tv_support_cec(0xE)))
+		return -1;
+
+	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
 		return -1;
 
 	hdmi_print(INF, CEC "cec_func_config: 0x%x; cec_config:0x%x\n",
@@ -510,12 +511,6 @@ static void cec_task(struct work_struct *work)
 	hdmitx_device = container_of(work, struct hdmitx_dev, cec_work.work);
 	dwork = &hdmitx_device->cec_work;
 	/*
-	 * do not process cec task if not enabled
-	 */
-	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
-		return;
-
-	/*
 	 * some tv can't be ping OK if it's CEC funtion is disabled by
 	 * TV settings, but when CEC function is reopened, we should
 	 * init CEC logical address
@@ -528,6 +523,13 @@ static void cec_task(struct work_struct *work)
 			return;
 		}
 	}
+
+	/*
+	 * do not process cec task if not enabled
+	 */
+	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
+		return;
+
 	cec_isr_post_process();
 	if (!cec_late_check_rx_buffer())
 		queue_delayed_work(cec_workqueue, dwork, CEC_FRAME_DELAY);
