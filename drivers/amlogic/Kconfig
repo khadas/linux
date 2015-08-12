@@ -41,6 +41,8 @@ source "drivers/amlogic/ion_dev/Kconfig"
 
 source "drivers/amlogic/display/Kconfig"
 
+source "drivers/amlogic/led/Kconfig"
+
 source "drivers/amlogic/canvas/Kconfig"
 
 source "drivers/amlogic/clk/Kconfig"

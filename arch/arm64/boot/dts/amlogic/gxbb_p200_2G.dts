@@ -841,6 +841,14 @@
 		key_tolerance = <40 40 40 40 40>;
 	};
 
+	sysled {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		status = "okay";
+		led_gpio = <&gpio_ao  GPIOAO_13  GPIO_ACTIVE_HIGH>;
+		led_active_low = <1>;
+	};
+
 };
 &i2c_a {
   status = "disabled";

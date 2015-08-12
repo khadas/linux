@@ -54,6 +54,8 @@ obj-$(CONFIG_AMLOGIC_ION)	+= ion_dev/
 
 obj-$(CONFIG_AML_DISPLAY)	+= display/
 
+obj-$(CONFIG_AMLOGIC_LED)	+= led/
+
 obj-$(CONFIG_AML_CANVAS)	+= canvas/
 
 obj-$(CONFIG_AM_VIDEO)		+= amports/

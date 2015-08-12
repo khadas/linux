@@ -872,6 +872,15 @@
 		key_val = <0 143 271 393 510>; //voltage=0/252/478/692/824mV, val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40 40>;
 	};
+
+	sysled {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		status = "okay";
+		led_gpio = <&gpio_ao  GPIOAO_13  GPIO_ACTIVE_HIGH>;
+		led_active_low = <1>;
+	};
+
 /*
 	dvb {
 		compatible = "amlogic, dvb";
