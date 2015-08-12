@@ -3580,7 +3580,6 @@ static s32 encode_monitor_thread(void *data)
 	struct encode_queue_item_s *pitem = NULL;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
 	s32 ret = 0;
-
 	enc_pr(LOG_DEBUG, "encode workqueue monitor start.\n");
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
@@ -3591,6 +3590,9 @@ static s32 encode_monitor_thread(void *data)
 
 		ret = wait_for_completion_interruptible(
 				&manager->event.request_in_com);
+
+		if (ret == -ERESTARTSYS)
+			break;
 
 		if (kthread_should_stop())
 			break;
