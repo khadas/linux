@@ -33,6 +33,10 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/cpu.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt) "meson_timer: " fmt
+
 /***********************************************************************
  * System timer
  **********************************************************************/
@@ -258,7 +262,7 @@ void local_timer_setup_data(int cpuidx)
 		}
 		if (hwid != cpuidx)
 			cpu = of_get_next_child(cpus, NULL);
-	
+
 		if (of_property_read_u32(cpu, "timer", &phandle)) {
 			pr_info(" * missing timer property\n");
 				return;
@@ -271,34 +275,34 @@ void local_timer_setup_data(int cpuidx)
 		}
 		if (of_property_read_string(timer, "timer_name", &clock_evt->name))
 			return;
-	
+
 		if (of_property_read_u32(timer, "clockevent-rating",
 					&clock_evt->rating))
 			return;
-	
+
 		if (of_property_read_u32(timer, "clockevent-shift",
 					&clock_evt->shift))
 			return;
-	
+
 		if (of_property_read_u32(timer, "clockevent-features",
 					&clock_evt->features))
 			return;
-	
+
 		if (of_property_read_u32(timer, "bit_enable", &mclk->bit_enable))
 			return;
-	
+
 		if (of_property_read_u32(timer, "bit_mode", &mclk->bit_mode))
 			return;
-	
+
 		if (of_property_read_u32(timer, "bit_resolution",
 					&mclk->bit_resolution))
 			return;
-	
-	
+
+
 		mclk->mux_reg = timer_ctrl_base;
 		mclk->reg = of_iomap(timer, 0);
-		pr_info("local timer %s mclk->mux_reg =%p,mclk->reg =%p\n",
-						clock_evt->name,mclk->mux_reg,mclk->reg);
+		pr_info("%s mclk->mux_reg =%p,mclk->reg =%p\n",
+				clock_evt->name, mclk->mux_reg, mclk->reg);
 		mclk->irq.irq = irq_of_parse_and_map(timer, 0);
 		setup_irq(mclk->irq.irq, &mclk->irq);
 
@@ -310,15 +314,15 @@ void  clockevent_local_timer(void)
 		struct meson_clock *mclk = &per_cpu(percpu_mesonclock, cpuidx);
 		struct clock_event_device *clock_evt =
 			&per_cpu(percpu_clockevent, cpuidx);
-		
+
 		aml_set_reg32_mask(mclk->mux_reg,
 			((1 << mclk->bit_enable)
 			|(1 << mclk->bit_mode)
 			|(TIMER_RESOLUTION_1us << mclk->bit_resolution)));
 		aml_write_reg32(mclk->reg, 9999);
-	
+
 		meson_timer_init_device(clock_evt);
-	
+
 		clock_evt->set_next_event = meson_set_next_event;
 		clock_evt->set_mode = meson_clkevt_set_mode;
 		clock_evt->cpumask = cpumask_of(cpuidx);
@@ -333,7 +337,7 @@ void  clockevent_local_timer(void)
 
 		if (cpuidx)
 			irq_force_affinity(mclk->irq.irq, cpumask_of(cpuidx));
-		
+
 		enable_percpu_irq(mclk->irq.irq, 0);
 		return;
 	}
@@ -399,7 +403,7 @@ void  clockevent_init_and_register(void)
 
 	mclk->mux_reg = timer_ctrl_base;
 	mclk->reg = of_iomap(timer, 0);
-	pr_info("mclk->mux_reg =%p,mclk->reg =%p\n",mclk->mux_reg,mclk->reg);
+	pr_info("mclk->mux_reg =%p,mclk->reg =%p\n", mclk->mux_reg, mclk->reg);
 	mclk->irq.irq = irq_of_parse_and_map(timer, 0);
 
 	aml_set_reg32_mask(mclk->mux_reg,
@@ -438,9 +442,9 @@ void   meson_local_timer_stop(void *hcpu)
 		BUG();
 	clk = &per_cpu(percpu_mesonclock, cpuidx);
 	clock_evt->set_mode(CLOCK_EVT_MODE_UNUSED, clock_evt);
-	
+
 	aml_clr_reg32_mask(clk->mux_reg, (1 << clk->bit_enable));
-	
+
 	disable_percpu_irq(clk->irq.irq);
 	return;
 }
@@ -476,7 +480,7 @@ void __init meson_timer_init(struct device_node *np)
 	clockevent_init_and_register();
 	{
 		int i;
-		for(i=1;i<4;i++)
+		for (i = 1; i < nr_cpu_ids; i++)
 			local_timer_setup_data(i);
 	}
 	err = register_cpu_notifier(&arch_timer_cpu_nb);

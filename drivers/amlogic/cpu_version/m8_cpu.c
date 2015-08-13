@@ -24,6 +24,10 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <asm/compiler.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt) "cpu_version: " fmt
+
 static int meson_cpu_version[MESON_CPU_VERSION_LVL_MAX+1];
 void __iomem  *assist_hw_rev;
 void __iomem  *bootrom_base;

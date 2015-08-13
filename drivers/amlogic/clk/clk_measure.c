@@ -38,6 +38,9 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
+#undef pr_fmt
+#define pr_fmt(fmt) "clkmsr: " fmt
+
 void __iomem *msr_clk_reg0;
 void __iomem *msr_clk_reg2;
 unsigned int clk_msr_index = 0xff;

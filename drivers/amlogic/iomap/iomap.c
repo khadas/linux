@@ -31,6 +31,9 @@
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
 #endif
+#undef pr_fmt
+#define pr_fmt(fmt) "aml_iomap: " fmt
+
 #if 0
 void meson_regmap_lock(void *p)
 {

@@ -28,14 +28,7 @@
 #include "clk-pll.h"
 
 #define PNAME(x) static char const *x[] __initconst
-#ifdef pr_debug
-#undef pr_debug
-#define pr_debug(fmt, ...) \
-	pr_info(pr_fmt(fmt), ##__VA_ARGS__)
-#else
-#define pr_debug(fmt, ...) \
-	do {} while (0)
-#endif
+
 
 /**
  * struct amlogic_clk_provider: information about clock provider

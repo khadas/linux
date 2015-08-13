@@ -24,6 +24,10 @@
 #include <linux/delay.h>
 #include "clk.h"
 #include "clk-pll.h"
+
+#undef pr_fmt
+#define pr_fmt(fmt) "gxbb_hdmi_clk: " fmt
+
 #undef DEBUG
 /* #define DEBUG */
 #ifndef DEBUG

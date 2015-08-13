@@ -482,6 +482,7 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 {
 	u32 val;
 	struct meson_uart_port *mup = to_meson_port(port);
+	struct platform_device *pdev = to_platform_device(port->dev);
 	while (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_EMPTY))
 		cpu_relax();
 
@@ -492,13 +493,13 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	val = readl(port->membase + AML_UART_REG5);
 	val &= ~AML_UART_BAUD_MASK;
 	if (port->uartclk == 24000000) {
-		pr_info("ttyS%d use xtal %d change %ld to %ld\n",
+		dev_info(&pdev->dev, "ttyS%d use xtal %d change %ld to %ld\n",
 			port->line, port->uartclk,
 			mup->baud, baud);
 		val = (port->uartclk / 3) / baud  - 1;
 		val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL);
 	} else {
-		pr_info("ttyS%d use clk81 %d change %ld to %ld\n",
+		dev_info(&pdev->dev, "ttyS%d use clk81 %d change %ld to %ld\n",
 			port->line, port->uartclk,
 			mup->baud, baud);
 		val = ((port->uartclk * 10 / (baud * 4) + 5) / 10) - 1;
@@ -628,7 +629,8 @@ static int meson_uart_request_port(struct uart_port *port)
 			return -ENOMEM;
 	}
 
-	pr_info("==uart%d reg addr = %p\n", port->line, port->membase);
+	dev_info(&pdev->dev, "==uart%d reg addr = %p\n",
+						port->line, port->membase);
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel(val, port->membase + AML_UART_MISC);
 
@@ -1058,7 +1060,7 @@ static int meson_uart_suspend(struct platform_device *pdev,
 	/* if rts/cts is open, pull up rts pin
 		when in suspend */
 	if (!(val & AML_UART_TWO_WIRE_EN)) {
-		pr_info("pull up rts");
+		dev_info(&pdev->dev, "pull up rts");
 		val |= (0x1 << 31);
 		writel(val, port->membase + AML_UART_CONTROL);
 	}

@@ -1110,7 +1110,7 @@ int  amlogic_pmx_probe(struct platform_device *pdev,
 {
 	struct amlogic_pmx *apmx;
 	int ret, val;
-	pr_info("Init pinux probe!\n");
+	dev_info(&pdev->dev, "Init pinux probe!\n");
 	apmx = devm_kzalloc(&pdev->dev, sizeof(*apmx), GFP_KERNEL);
 	if (!apmx) {
 		dev_err(&pdev->dev, "Can't alloc amlogic_pmx\n");

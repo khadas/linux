@@ -24,6 +24,10 @@
 #include "mpll_clk.h"
 
 #include "clk.h"
+
+#undef pr_fmt
+#define pr_fmt(fmt) "gxbb_clk: " fmt
+
 void __iomem *reg_base_hiubus;
 #define	OFFSET(x)	(x << 2)
 #undef	HHI_GCLK_MPEG0
@@ -189,8 +193,8 @@ static void __init gxbb_clk_init(struct device_node *np)
 	if ((!reg_base_hiubus) || (!reg_base_aobus))
 		panic("%s: failed to map registers\n", __func__);
 
-	pr_debug("gxbb clk HIU base is 0x%p\n", reg_base_hiubus);
-	pr_debug("gxbb clk ao base is 0x%p\n", reg_base_aobus);
+	pr_debug("HIU base is 0x%p\n", reg_base_hiubus);
+	pr_debug("ao base is 0x%p\n", reg_base_aobus);
 
 	amlogic_clk_init(np, reg_base_hiubus, reg_base_aobus,
 			CLK_NR_CLKS, NULL, 0, NULL, 0);
@@ -234,7 +238,7 @@ static void __init gxbb_clk_init(struct device_node *np)
 
 		for (i = 0; i < count; i++) {
 			char *clk_name = clks[i];
-			pr_info("clkrate [ %s \t] : %luHz\n", clk_name,
+			pr_info("[ %s \t] ->clockrate: %luHz\n", clk_name,
 				_get_rate(clk_name));
 		}
 
@@ -267,6 +271,6 @@ static void __init gxbb_clk_init(struct device_node *np)
 			clk_put(fixdiv5);
 
 	}
-	pr_info("gxbb clock initialization complete\n");
+	pr_info("clock initialization complete\n");
 }
 CLK_OF_DECLARE(gxbb, "amlogic, gxbb-clock", gxbb_clk_init);

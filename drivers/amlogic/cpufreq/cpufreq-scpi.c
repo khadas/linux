@@ -264,14 +264,14 @@ static struct cpufreq_driver meson_cpufreq_driver = {
 
 static int __init meson_cpufreq_probe(struct platform_device *pdev)
 {
-	pr_info("enter  cpufreq\n");
+	dev_info(&pdev->dev, "enter  cpufreq\n");
 	cpufreq.dev = &pdev->dev;
 	cpufreq.armclk = clk_get(&pdev->dev, "cpu_clk");
 	if (IS_ERR(cpufreq.armclk)) {
 		dev_err(cpufreq.dev, "Unable to get ARM clock\n");
 		return PTR_ERR(cpufreq.armclk);
 	}
-	pr_info("probe  cpufreq okay\n");
+	dev_info(&pdev->dev, "probe  cpufreq okay\n");
 	return cpufreq_register_driver(&meson_cpufreq_driver);
 }
 

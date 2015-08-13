@@ -40,6 +40,10 @@
 static struct early_suspend early_suspend;
 static int early_suspend_flag;
 #endif
+
+#undef pr_fmt
+#define pr_fmt(fmt) "gxbb_pm: " fmt
+
 static DEFINE_MUTEX(late_suspend_lock);
 static LIST_HEAD(late_suspend_handlers);
 static void __iomem *debug_reg;
@@ -120,7 +124,7 @@ static void early_resume(void)
 static void meson_system_early_suspend(struct early_suspend *h)
 {
 	if (!early_suspend_flag) {
-		pr_info(KERN_INFO "%s\n", __func__);
+		pr_info("%s\n", __func__);
 		early_suspend_flag = 1;
 	}
 }
@@ -131,7 +135,7 @@ static void meson_system_late_resume(struct early_suspend *h)
 		/* early_power_gate_switch(ON); */
 		/* early_clk_switch(ON); */
 		early_suspend_flag = 0;
-		pr_info(KERN_INFO "%s\n", __func__);
+		pr_info("%s\n", __func__);
 	}
 }
 #endif
@@ -142,17 +146,17 @@ static void meson_system_late_resume(struct early_suspend *h)
  */
 static void meson_gx_suspend(void)
 {
-	pr_info(KERN_INFO "enter meson_pm_suspend!\n");
+	pr_info("enter meson_pm_suspend!\n");
 	late_suspend();
 	cpu_suspend(0x0010000);
 	early_resume();
-	pr_info(KERN_INFO "... wake up\n");
+	pr_info("... wake up\n");
 
 }
 
 static int meson_pm_prepare(void)
 {
-	pr_info(KERN_INFO "enter meson_pm_prepare!\n");
+	pr_info("enter meson_pm_prepare!\n");
 	return 0;
 }
 
@@ -172,7 +176,7 @@ static int meson_gx_enter(suspend_state_t state)
 
 static void meson_pm_finish(void)
 {
-	pr_info(KERN_INFO "enter meson_pm_finish!\n");
+	pr_info("enter meson_pm_finish!\n");
 }
 unsigned int get_resume_method(void)
 {
@@ -273,7 +277,7 @@ DEVICE_ATTR(suspend_reason, 0666, suspend_reason_show, suspend_reason_store);
 
 static int __init meson_pm_probe(struct platform_device *pdev)
 {
-	pr_info(KERN_INFO "enter meson_pm_probe!\n");
+	pr_info("enter meson_pm_probe!\n");
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	early_suspend.suspend = meson_system_early_suspend;

@@ -23,6 +23,9 @@
 #include "clk.h"
 #include "clk-pll.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt) "clk_sys: " fmt
+
 /*cpu registers*/
 #define  OFFSET(x) (x << 2)
 #define HHI_SYS_CPU_CLK_CNTL1 OFFSET(0x57)
@@ -448,7 +451,7 @@ static void __init _amlogic_clk_register_pll(struct amlogic_pll_clock *pll_clk,
 		pr_err("%s: failed to register lookup for %s : %d",
 			__func__, pll_clk->name, ret);
 
-	pr_info("register sys pll success done\n");
+	pr_info("register PLL %s success done\n", pll_clk->name);
 }
 
 static struct amlogic_pll_clock sys_plls  = {
