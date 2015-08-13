@@ -1990,6 +1990,12 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		if (host->is_tunning == 0)
 			pr_info("%s %d %s: cmd:%d\n", __func__, __LINE__,
 				mmc_hostname(host->mmc), mrq->cmd->opcode);
+		if (mrq->cmd->data) {
+			dma_unmap_sg(mmc_dev(host->mmc), mrq->cmd->data->sg,
+				mrq->cmd->data->sg_len,
+				(mrq->cmd->data->flags & MMC_DATA_READ) ?
+					DMA_FROM_DEVICE : DMA_TO_DEVICE);
+		}
 		aml_sd_emmc_read_response(host->mmc, host->mrq->cmd);
 
 		/* do not send stop for sdio wifi case */
