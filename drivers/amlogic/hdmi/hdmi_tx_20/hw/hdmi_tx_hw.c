@@ -1497,25 +1497,7 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev,
 	set_vmode_clk(hdev, param->VIC);
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	if (hdmi_get_current_vinfo()) {
-		switch (hdmi_get_current_vinfo()->mode) {
-		case VMODE_720P_59HZ:
-		case VMODE_1080I_59HZ:
-		case VMODE_1080P_59HZ:
-		case VMODE_1080P_23HZ:
-		case VMODE_4K2K_29HZ:
-		case VMODE_4K2K_23HZ:
-		case VMODE_4K2K_59HZ_Y420:
-			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
-			0xd03 , 0, 11);
-			break;
-		case VMODE_4K2K_59HZ:
-			pr_info("TODO: 4k59hz\n");
-			break;
-		default:
-			break;
-		}
-	}
+	hdev->HWOp.CntlMisc(hdev, MISC_FINE_TUNE_HPLL, get_hpll_tune_mode());
 #endif
 	pr_info("TODO: 4k60hz/420\n");
 }
@@ -2454,8 +2436,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 		set_vmode_clk(hdev, value);
 		return;
-	}
-	else if (strncmp(tmpbuf, "testpll", 7) == 0)
+	} else if (strncmp(tmpbuf, "testpll", 7) == 0)
 		return;
 	else if (strncmp(tmpbuf, "testedid", 8) == 0) {
 		dd();
@@ -2908,6 +2889,40 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	case MISC_AVMUTE_OP:
 		config_avmute(argv);
 		break;
+	case MISC_FINE_TUNE_HPLL:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		if (hdmi_get_current_vinfo()) {
+			static unsigned int save_div_frac;
+			switch (hdmi_get_current_vinfo()->mode) {
+			case VMODE_720P:
+			case VMODE_1080I:
+			case VMODE_1080P:
+			case VMODE_1080P_24HZ:
+			case VMODE_4K2K_30HZ:
+			case VMODE_4K2K_24HZ:
+			case VMODE_4K2K_60HZ_Y420:
+				if (argv == DOWN_HPLL) {
+					save_div_frac = hd_read_reg(
+						P_HHI_HDMI_PLL_CNTL2);
+					hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+					0xd03 , 0, 11);
+				} else if (argv == UP_HPLL) {
+					hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+					save_div_frac&0xfff , 0, 11);
+				}
+				break;
+			case VMODE_4K2K_60HZ:
+				if (argv == DOWN_HPLL)
+					pr_info("TODO: 4k60hz\n");
+				 else if (argv == UP_HPLL)
+					pr_info("TODO: 4k60hz\n");
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+#endif
 	default:
 		hdmi_print(ERR, "misc: " "hdmitx: unknown cmd: 0x%x\n", cmd);
 	}

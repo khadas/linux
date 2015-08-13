@@ -46,7 +46,7 @@
 #include <linux/reset.h>
 #include "mach_reg.h"
 #include "hdmi_tx_reg.h"
-
+#include <linux/amlogic/cpu_version.h>
 #if 0   /* todo */
 #include "../hdmi_tx_hdcp.h"
 #include "../hdmi_tx_compliance.h"
@@ -1961,7 +1961,7 @@ static void set_vmode_clk(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 		pr_info("hdmitx: set clk of VIC = %d done\n", vic);
 	}
 }
-
+#if 0
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 /*
  * func: hdmitx_set_pll_fr_auto
@@ -2012,7 +2012,7 @@ static int hdmitx_set_pll_fr_auto(struct hdmitx_dev *hdev)
 	return ret;
 }
 #endif
-
+#endif
 static void hdmitx_set_pll(struct hdmitx_dev *hdev,
 	struct hdmitx_vidpara *param)
 {
@@ -2020,13 +2020,16 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev,
 	hdmi_print(IMP, SYS "param->VIC:%d\n", param->VIC);
 
 	cur_vout_index = get_cur_vout_index();
-
+#if 0
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (hdmitx_set_pll_fr_auto(hdev))
 		return;
 #endif
-
+#endif
 	set_vmode_clk(hdev, param->VIC);
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	hdev->HWOp.CntlMisc(hdev, MISC_FINE_TUNE_HPLL, get_hpll_tune_mode());
+#endif
 #if 0
 	switch (param->VIC) {
 	case HDMI_480p60:
@@ -2473,26 +2476,11 @@ static struct vic_attrmap vic_attr_map_table[] = {
 };
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-
-static char const *fr_auto_mode[] = {
-	"480p59hz",
-	"720p59hz",
-	"1080i59hz",
-	"1080p59hz",
-	"1080p23hz",
-	"4k2k29hz",
-	"4k2k23hz",
-};
-
 static int hdmitx_is_framerate_automation(void)
 {
-	int i;
 	const struct vinfo_s *vinfo = get_current_vinfo();
-	for (i = 0; i < ARRAY_SIZE(fr_auto_mode); i++) {
-		if (strncmp(vinfo->name, fr_auto_mode[i],
-			strlen(fr_auto_mode[i])) == 0)
-			return 1;
-	}
+	if (vinfo->sync_duration_den == 1001)
+		return 1;
 	return 0;
 }
 #endif
@@ -3548,8 +3536,79 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 			pr_info("TODO %s[%d]\n", __func__, __LINE__);
 		}
 		break;
+	case MISC_FINE_TUNE_HPLL:
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+		if (!hdmi_get_current_vinfo())
+			break;
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_M8B) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2)) {
+			switch (hdmi_get_current_vinfo()->mode) {
+			case VMODE_720P:
+			case VMODE_1080I:
+			case VMODE_1080P:
+			case VMODE_1080P_24HZ:
+			case VMODE_4K2K_30HZ:
+			case VMODE_4K2K_24HZ:
+				if (argv == DOWN_HPLL) {
+					if (is_meson_m8b_cpu())
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL2,
+							0x69c84cf8);
+					else
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL2,
+							0x69c84d04);
+				} else if (argv == UP_HPLL) {
+					hd_write_reg(
+						P_HHI_VID_PLL_CNTL2,
+						0x69c84e00);
+				}
+				break;
+			case VMODE_480P:
+				if (argv == DOWN_HPLL) {
+					if ((is_meson_m8b_cpu())
+						|| (is_meson_m8m2_cpu())) {
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL2,
+							0x69c84f48);
+						hd_write_reg(P_HHI_VID_PLL_CNTL,
+							0x400d042c);
+					} else {
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL2,
+							0x69c8cf48);
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL,
+							0x4008042c);
+					}
+				} else if (argv == UP_HPLL) {
+					if ((is_meson_m8b_cpu())
+						|| (is_meson_m8m2_cpu())) {
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL2,
+							0x69c84000);
+						hd_write_reg(P_HHI_VID_PLL_CNTL,
+							0x400d042d);
+					} else {
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL2,
+							0x69c88000);
+						hd_write_reg(
+							P_HHI_VID_PLL_CNTL,
+							0x4008042d);
+					}
+				}
+				break;
+			default:
+				break;
+			}
+		}
+#endif
+		break;
 	default:
 		hdmi_print(ERR, "misc: " "hdmitx: unknown cmd: 0x%x\n", cmd);
+		break;
 	}
 	return 1;
 }

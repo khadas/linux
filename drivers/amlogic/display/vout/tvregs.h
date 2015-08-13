@@ -425,15 +425,6 @@ static struct tvregs_set_t tvregsTab[] = {
 	{TVMODE_VGA, tvregs_vga_640x480_clk, tvregs_vga_640x480_enc},
 	{TVMODE_SVGA, tvregs_svga_800x600_clk, tvregs_svga_800x600_enc},
 	{TVMODE_XGA, tvregs_xga_1024x768_clk, tvregs_xga_1024x768_enc},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{TVMODE_480P_59HZ, tvregs_480p_clk, tvregs_480p_enc},
-	{TVMODE_720P_59HZ , tvregs_720p_clk, tvregs_720p_enc},
-	{TVMODE_1080I_59HZ, tvregs_1080i_clk, tvregs_1080i_enc},
-	{TVMODE_1080P_59HZ, tvregs_1080p_clk, tvregs_1080p_enc},
-	{TVMODE_1080P_23HZ, tvregs_1080p_24hz_clk, tvregs_1080p_24hz_enc},
-	{TVMODE_4K2K_29HZ, NULL, tvregs_4k2k_30hz_enc},
-	{TVMODE_4K2K_23HZ, NULL, tvregs_4k2k_24hz_enc},
-#endif
 };
 
 static const struct tvinfo_s tvinfoTab[] = {
@@ -580,50 +571,6 @@ static const struct tvinfo_s tvinfoTab[] = {
 		.yres = 768,
 		.id = "xga"
 	},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{
-		.tvmode = TVMODE_480P_59HZ,
-		.xres = 720,
-		.yres =	480,
-		.id = "480p59hz"
-	},
-	{
-		.tvmode = TVMODE_720P_59HZ,
-		.xres = 1280,
-		.yres = 720,
-		.id = "720p59hz"
-	},
-	{
-		.tvmode = TVMODE_1080I_59HZ,
-		.xres = 1920,
-		.yres = 1080,
-		.id = "1080i59hz"
-	},
-	{
-		.tvmode = TVMODE_1080P_59HZ,
-		.xres = 1920,
-		.yres = 1080,
-		.id = "1080p59hz"
-	},
-	{
-		.tvmode = TVMODE_1080P_23HZ,
-		.xres = 1920,
-		.yres = 1080,
-		.id = "1080p23hz"
-	},
-	{
-		.tvmode = TVMODE_4K2K_29HZ,
-		.xres = 3840,
-		.yres = 2160,
-		.id = "4k2k29hz"
-	},
-	{
-		.tvmode = TVMODE_4K2K_23HZ,
-		.xres = 3840,
-		.yres = 2160,
-		.id = "4k2k23hz"
-	},
-#endif
 };
 
 #endif /* TVREGS_H */

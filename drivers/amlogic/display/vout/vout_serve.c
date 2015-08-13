@@ -202,29 +202,6 @@ void update_vmode_status(char *name)
 	snprintf(vout_mode, 64, "%s\n", name);
 }
 EXPORT_SYMBOL(update_vmode_status);
-
-void set_vout_mode_fr_auto(char *name)
-{
-	enum vmode_e vmode;
-	vout_log_info("vmode set to %s\n", name);
-	vmode = validate_vmode(name);
-
-	if (VMODE_MAX == vmode) {
-		vout_log_info("no matched vout mode\n");
-		return;
-	}
-
-	if (vmode == get_current_vmode()) {
-		vout_log_info("don't set the same mode as current.\n");
-		return;
-	}
-
-	update_vmode_status(name);
-	set_current_vmode(vmode);
-	vout_log_info("new mode %s set ok.\n", name);
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
-}
-EXPORT_SYMBOL(set_vout_mode_fr_auto);
 #endif
 
 char *get_vout_mode_internal(void)

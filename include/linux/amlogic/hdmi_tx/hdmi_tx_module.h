@@ -289,6 +289,7 @@ struct hdmitx_dev {
 #define COMP_AUDIO_SET_N_6144x2          0x1
 #define COMP_AUDIO_SET_N_6144x3          0x2
 #define MISC_AVMUTE_OP          (CMD_MISC_OFFSET + 0x0a)
+#define MISC_FINE_TUNE_HPLL     (CMD_MISC_OFFSET + 0x0b)
 	#define OFF_AVMUTE	0x0
 	#define CLR_AVMUTE	0x1
 	#define SET_AVMUTE	0x2
@@ -362,6 +363,10 @@ extern void hdmitx_output_rgb(void);
 
 extern int get_cur_vout_index(void);
 extern const struct vinfo_s *hdmi_get_current_vinfo(void);
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+extern enum fine_tune_mode_e get_hpll_tune_mode(void);
+extern void register_hdmi_edid_supported_func(int (*pfunc)(char *mode_name));
+#endif
 
 
 /***********************************************************************

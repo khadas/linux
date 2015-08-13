@@ -363,35 +363,6 @@ static void hdmitx_pre_display_init(void)
 }
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-/* judge whether the mode exchange is between similar vmode,
- * such as between 1080p60 and 1080p59hz
- * "vic_old==HDMI_720P60" means old vic is HDMI_1080p60, but vmode
- * maybe VMODE_1080P or VMODE_1080P_59HZ
- */
-static int is_similar_hdmi_vic(enum hdmi_vic vic_old,
-	enum vmode_e mode_new)
-{
-	pr_info("%s[%d] vic_old=%d,mode_new=%d\n", __func__, __LINE__,
-		vic_old, mode_new);
-	if ((vic_old == HDMI_480p60_16x9) && (mode_new ==
-		VMODE_480P_59HZ))
-		return 1;
-	if ((vic_old == HDMI_720p60) && (mode_new == VMODE_720P_59HZ))
-		return 1;
-	if ((vic_old == HDMI_1080i60) && (mode_new == VMODE_1080I_59HZ))
-		return 1;
-	if ((vic_old == HDMI_1080p60) && (mode_new == VMODE_1080P_59HZ))
-		return 1;
-	if ((vic_old == HDMI_1080p24) && (mode_new == VMODE_1080P_23HZ))
-		return 1;
-	if ((vic_old == HDMI_4k2k_30) && (mode_new == VMODE_4K2K_29HZ))
-		return 1;
-	if ((vic_old == HDMI_4k2k_24) && (mode_new == VMODE_4K2K_23HZ))
-		return 1;
-
-	return 0;
-}
-
 /*  */
 /* input para: name of vmode, such as "1080p50hz" */
 /* return values: */
@@ -486,10 +457,6 @@ static int set_disp_mode_auto(void)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
 		vic_ready = HDMI_Unkown;
-	else if (is_similar_hdmi_vic(vic_ready, info->mode)) {
-		vic_ready = HDMI_Unkown;
-		pr_info("%s[%d] is similiar vic\n", __func__, __LINE__);
-	}
 #endif
 
 	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
@@ -1091,6 +1058,8 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	const struct vinfo_s *info = NULL;
 	enum hdmi_vic vic_ready = HDMI_Unkown;
+	enum hdmi_vic vic_now = HDMI_Unkown;
+	enum fine_tune_mode_e fine_tune_mode = get_hpll_tune_mode();
 #endif
 	if (get_cur_vout_index() != 1)
 		return 0;
@@ -1113,8 +1082,14 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 		hdmi_print(IMP, VID "get current mode: %s\n",
 			info->name);
 
-	if (is_similar_hdmi_vic(vic_ready, info->mode))
-		return 0;
+	vic_now = hdmitx_edid_get_VIC(&hdmitx_device, info->name, 1);
+	if ((HDMI_Unkown != vic_ready) && (vic_ready == vic_now)) {
+		if (KEEP_HPLL != fine_tune_mode) {
+			hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+				MISC_FINE_TUNE_HPLL, fine_tune_mode);
+			return 0;
+		}
+	}
 #endif
 	if (hdmitx_device.vic_count == 0) {
 		if (is_dispmode_valid_for_hdmi()) {
@@ -1799,6 +1774,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		r = -EEXIST;
 		return r;
 	}
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	register_hdmi_edid_supported_func(hdmitx_is_vmode_supported);
+#endif
 	vout_register_client(&hdmitx_notifier_nb_v);
 #ifdef CONFIG_AM_TV_OUTPUT2
 	vout2_register_client(&hdmitx_notifier_nb_v2);
