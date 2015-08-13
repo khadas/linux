@@ -94,6 +94,7 @@ static const struct vframe_operations_s vh264_4k2k_vf_provider = {
 
 static struct vframe_provider_s vh264_4k2k_vf_prov;
 
+static u32 mb_width_old, mb_height_old;
 static u32 frame_width, frame_height, frame_dur, frame_ar;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
@@ -647,10 +648,13 @@ static void do_alloc_work(struct work_struct *work)
 	pr_info("crop_right = 0x%x crop_bottom = 0x%x chroma_format_idc = 0x%x\n",
 		crop_right, crop_bottom, chroma444);
 
-	if ((frame_width == 0) || (frame_height == 0) || crop_infor) {
+	if ((frame_width == 0) || (frame_height == 0) || crop_infor ||
+		mb_width != mb_width_old ||
+		mb_height != mb_height_old) {
 		frame_width = mb_width << 4;
 		frame_height = mb_height << 4;
-
+		mb_width_old = mb_width;
+		mb_height_old = mb_height;
 		if (frame_mbs_only_flag) {
 			frame_height -= (2 >> chroma444) *
 				min(crop_bottom,
@@ -1325,6 +1329,8 @@ static void vh264_4k2k_local_init(void)
 	pts_missed = 0;
 	pts_hit = 0;
 #endif
+	mb_width_old = 0;
+	mb_height_old = 0;
 	saved_resolution = 0;
 	vh264_4k2k_rotation =
 		(((unsigned long) vh264_4k2k_amstream_dec_info.param) >> 16)
