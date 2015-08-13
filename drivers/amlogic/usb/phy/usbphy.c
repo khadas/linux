@@ -57,14 +57,14 @@ int clk_enable_usb_meson8(struct platform_device *pdev,
 	usb_adp_bc_data_t adp_bc;
 	int clk_sel, clk_div, clk_src;
 	int time_dly = 500;
-	int i = 0;
+	/*int i = 0;*/
 	struct reset_control *usb_reset;
 
 	if (!init_count) {
 		init_count++;
 		aml_cbus_update_bits(0x1102, 0x1<<2, 0x1<<2);
-		for (i = 0; i < 1000; i++)
-			udelay(time_dly);
+		/*for (i = 0; i < 1000; i++)
+			udelay(time_dly);*/
 	}
 
 	clk_name = s_clock_name;
@@ -185,14 +185,14 @@ int clk_enable_usb_gxbaby(struct platform_device *pdev,
 	usb_adp_bc_data_t adp_bc;
 	int clk_sel, clk_div, clk_src;
 	int time_dly = 500;
-	int i = 0;
+	/*int i = 0;*/
 	struct reset_control *usb_reset;
 
 	if (!init_count) {
 		init_count++;
 		aml_cbus_update_bits(0x1102, 0x1<<2, 0x1<<2);
-		for (i = 0; i < 1000; i++)
-			udelay(time_dly);
+		/*for (i = 0; i < 1000; i++)
+			udelay(time_dly);*/
 	}
 
 	clk_name = s_clock_name;
