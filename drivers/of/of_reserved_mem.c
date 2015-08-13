@@ -247,23 +247,35 @@ int of_reserved_mem_device_init(struct device *dev)
 {
 	struct reserved_mem *rmem;
 	struct device_node *np;
-	int ret;
+	struct property *prop = NULL;
+	int len;
+	int ret = 0, i;
 
-	np = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!np)
+	prop = of_find_property(dev->of_node, "memory-region", &len);
+	if (prop) {
+		len = len / sizeof(__be32);
+		pr_info("%s has %d memory regions\n", dev->of_node->name, len);
+	} else
 		return -ENODEV;
 
-	rmem = __find_rmem(np);
-	of_node_put(np);
+	for (i = 0; i < len; i++) {
+		np = of_parse_phandle(dev->of_node, "memory-region", i);
+		if (!np)
+			continue;
 
-	if (!rmem || !rmem->ops || !rmem->ops->device_init)
-		return -EINVAL;
+		rmem = __find_rmem(np);
+		of_node_put(np);
 
-	ret = rmem->ops->device_init(rmem, dev);
-	if (ret == 0)
-		dev_info(dev, "assigned reserved memory node %s\n", rmem->name);
+		if (!rmem || !rmem->ops || !rmem->ops->device_init)
+			continue;
 
-	return ret;
+		ret = rmem->ops->device_init(rmem, dev);
+		dev_info(dev, "assigned reserved memory node %s %s\n",
+			rmem->name, ret ? "failed" : "ok");
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 /**
@@ -276,16 +288,28 @@ void of_reserved_mem_device_release(struct device *dev)
 {
 	struct reserved_mem *rmem;
 	struct device_node *np;
+	struct property *prop = NULL;
+	int len;
+	int i;
 
-	np = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!np)
+	prop = of_find_property(dev->of_node, "memory-region", &len);
+	if (prop) {
+		len = len / sizeof(__be32);
+		pr_info("%s has %d memory regions\n", dev->of_node->name, len);
+	} else
 		return;
 
-	rmem = __find_rmem(np);
-	of_node_put(np);
+	for (i = 0; i < len; i++) {
+		np = of_parse_phandle(dev->of_node, "memory-region", i);
+		if (!np)
+			continue;
 
-	if (!rmem || !rmem->ops || !rmem->ops->device_release)
-		return;
+		rmem = __find_rmem(np);
+		of_node_put(np);
 
-	rmem->ops->device_release(rmem, dev);
+		if (!rmem || !rmem->ops || !rmem->ops->device_release)
+			continue;
+
+		rmem->ops->device_release(rmem, dev);
+	}
 }
