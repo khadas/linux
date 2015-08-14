@@ -353,7 +353,7 @@ int dump_mem_infos(void *buf, int size)
 	unsigned long flags;
 
 	char *pbuf = buf;
-	char sbuf[1024];
+	char sbuf[512];
 	int tsize = 0;
 	int s;
 
