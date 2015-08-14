@@ -708,6 +708,18 @@ static ssize_t show_config(struct device *dev,
 	return pos;
 }
 
+void hdmitx_audio_mute_op(unsigned int flag)
+{
+	hdmitx_device.tx_aud_cfg = flag;
+	if (flag == 0)
+		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+			CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
+	else
+		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
+			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
+}
+EXPORT_SYMBOL(hdmitx_audio_mute_op);
+
 static ssize_t store_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -744,14 +756,10 @@ static ssize_t store_config(struct device *dev,
 			MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
 	} else if (strncmp(buf, "audio_", 6) == 0) {
 		if (strncmp(buf+6, "off", 3) == 0) {
-			hdmitx_device.tx_aud_cfg = 0;
-			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-				CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
+			hdmitx_audio_mute_op(0);
 			hdmi_print(IMP, AUD "configure off\n");
 		} else if (strncmp(buf+6, "on", 2) == 0) {
-			hdmitx_device.tx_aud_cfg = 1;
-			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-				CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
+			hdmitx_audio_mute_op(1);
 			hdmi_print(IMP, AUD "configure on\n");
 		} else if (strncmp(buf+6, "auto", 4) == 0) {
 			/* auto mode. if sink doesn't support current
@@ -1296,10 +1304,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 			(hdmitx_device.audio_step == 1)) {
 			hdmitx_device.audio_notify_flag = 0;
 			hdmitx_device.audio_step = 0;
-#ifndef CONFIG_AML_HDMI_TX_HDCP
-		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
-#endif
 		}
 		hdmitx_device.audio_param_update_flag = 0;
 		hdmi_print(INF, AUD "set audio param\n");

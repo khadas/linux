@@ -359,7 +359,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	/* Bring out of reset */
 	hdmitx_wr_reg(HDMITX_TOP_SW_RESET,  0);
 	udelay(200);
-	hdmitx_wr_reg(HDMITX_TOP_CLK_CNTL, 0x0000003f);
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 0, 2);
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 4, 2);
 	hdmitx_wr_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff);
 	hdmitx_wr_reg(HDMITX_TOP_INTR_MASKN, 0x1f);
 }
@@ -2028,6 +2029,19 @@ static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
 	}
 }
 
+static void audio_mute_op(bool flag)
+{
+	if (flag == 0) {
+		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 0, 2, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 3, 1);
+	} else {
+		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 2, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
+	}
+}
+
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	struct hdmitx_audpara *audio_param)
 {
@@ -2038,7 +2052,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	if (!audio_param)
 		return 0;
 	pr_info("hdmtix: set audio\n");
-
+	audio_mute_op(hdev->tx_aud_cfg);
 	/* PCM & 8 ch */
 	if ((audio_param->type == CT_PCM) &&
 		(audio_param->channel_num == (8 - 1)))
@@ -2800,10 +2814,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	case CONF_SYSTEM_ST:
 		break;
 	case CONF_AUDIO_MUTE_OP:
-		if (argv == AUDIO_MUTE)
-			;
-		if ((argv == AUDIO_UNMUTE) && (hdev->tx_aud_cfg != 0))
-			;
+		audio_mute_op(argv == AUDIO_MUTE ? 0 : 1);
 		break;
 	case CONF_VIDEO_BLANK_OP:
 		return 1;   /* TODO */
@@ -3040,7 +3051,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_TOP_SW_RESET,  0);
 
 	/* Enable internal pixclk, tmds_clk, spdif_clk, i2s_clk, cecclk */
-	hdmitx_wr_reg(HDMITX_TOP_CLK_CNTL,  0x0000003f);
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 0, 2);
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 4, 2);
 	hdmitx_wr_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff);
 
 /* But keep spdif_clk and i2s_clk disable
@@ -3413,15 +3425,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB11, 0);
 
 	/* Packet transmission enable */
-	data32  = 0;
-	data32 |= (0 << 6);
-	data32 |= (0 << 5);
-	data32 |= (0 << 4);
-	data32 |= (1 << 3);
-	data32 |= (1 << 2);
-	data32 |= (1 << 1);
-	data32 |= (1 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_FC_PACKET_TX_EN, data32);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 1, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 2, 1, 1);
 
 	/* For 3D video */
 	data32  = 0;

@@ -155,8 +155,8 @@ static int hdmitx_hdcp_task(void *data)
 #else
 		hdmitx_device->HWOp.CntlConfig(hdmitx_device,
 			CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
-		hdmitx_device->HWOp.CntlConfig(hdmitx_device,
-			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
+		/* hdmitx_device->HWOp.CntlConfig(hdmitx_device,
+			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE); */
 		hdmitx_device->audio_step = 1;
 #endif
 	 }

@@ -372,6 +372,12 @@ extern void hdmitx_hpd_plugin_handler(struct work_struct *work);
 extern void hdmitx_hpd_plugout_handler(struct work_struct *work);
 extern void hdmitx_internal_intr_handler(struct work_struct *work);
 extern unsigned char hdmi_audio_off_flag;
+/*
+ * hdmitx_audio_mute_op() is used by external driver call
+ * flag: 0: audio off   1: audio_on
+ *       2: for EDID auto mode
+ */
+extern void hdmitx_audio_mute_op(unsigned int flag);
 
 #define HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH       0x3
 #define HDMITX_HWCMD_TURNOFF_HDMIHW           0x4
