@@ -2323,7 +2323,7 @@ void cec_usrcmd_set_config(const char *buf, size_t count)
 			ret = kstrtoul(&buf[i], 16, (unsigned long *)&param[j]);
 			j++;
 		}
-		while (buf[i] != ' ')
+		while (i < count && buf[i] != ' ')
 			i++;
 	}
 	value = cec_config(0, 0);
