@@ -1742,6 +1742,7 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct giveback_urb_bh *bh;
 	bool running, high_prio_bh;
+	unsigned long		flags;
 
 	/* pass status to tasklet via unlinked */
 	if (likely(!urb->unlinked))
@@ -1760,11 +1761,10 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 		high_prio_bh = false;
 	}
 
-	spin_lock(&bh->lock);
+	spin_lock_irqsave(&bh->lock, flags);
 	list_add_tail(&urb->urb_list, &bh->head);
 	running = bh->running;
-	spin_unlock(&bh->lock);
-
+	spin_unlock_irqrestore(&bh->lock, flags);
 	if (running)
 		;
 	else if (high_prio_bh)
