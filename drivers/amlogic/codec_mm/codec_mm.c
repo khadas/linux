@@ -50,6 +50,8 @@
 #define CODEC_MM_FOR_DMACPU(flags) \
 	((flags & CODEC_MM_FLAGS_FROM_MASK) == CODEC_MM_FLAGS_DMA_CPU)
 
+#define RESERVE_MM_ALIGNED_2N	17
+
 struct codec_mm_mgt_s {
 	struct cma *cma;
 	struct device *dev;
@@ -104,8 +106,8 @@ static int codec_mm_alloc_in(
 
 		if ((CODEC_MM_FOR_DMA_ONLY(mem->flags) |
 			(mem->flags & CODEC_MM_FLAGS_RESERVED))
-			&& mgt->res_pool != NULL && align_2n >= 16) {
-			/* 64k,aligend */
+			&& mgt->res_pool != NULL &&
+			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
 			mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool,
 							mem->buffer_size);
 			mem->from_flags =
@@ -407,14 +409,22 @@ int codec_mm_mgt_init(struct device *dev)
 	mgt->dev = dev;
 	mgt->alloc_from_sys_pages_max = 4;
 	if (mgt->rmem.size > 0) {
-		mgt->res_pool = gen_pool_create(16, -1);/*64k aligned. */
+		unsigned long aligned_addr;
+		int aligned_size;
+		/*mem aligned,*/
+		mgt->res_pool = gen_pool_create(RESERVE_MM_ALIGNED_2N, -1);
 		if (!mgt->res_pool)
 			return -ENOMEM;
+		aligned_addr = ((unsigned long)mgt->rmem.base +
+			((1 << RESERVE_MM_ALIGNED_2N) - 1)) &
+				(~((1 << RESERVE_MM_ALIGNED_2N) - 1));
+		aligned_size = mgt->rmem.size -
+			(int)(aligned_addr - (unsigned long)mgt->rmem.base);
 		gen_pool_add(mgt->res_pool,
-			mgt->rmem.base, mgt->rmem.size, -1);
-		pr_info("add reserve memory %p size=%d\n",
-			(void *)mgt->rmem.base,
-			(int)mgt->rmem.size);
+			aligned_addr, aligned_size, -1);
+		pr_info("add reserve memory %p(aligned %p) size=%x(aligned %x)\n",
+			(void *)mgt->rmem.base, (void *)aligned_addr,
+			(int)mgt->rmem.size, (int)aligned_size);
 	}
 	spin_lock_init(&mgt->lock);
 	return 0;
@@ -422,10 +432,8 @@ int codec_mm_mgt_init(struct device *dev)
 
 static int __init amstream_test_init(void)
 {
-
-	unsigned long buf[4];
-
 #if 0
+	unsigned long buf[4];
 	struct codec_mm_s *mem[20];
 	mem[0] = codec_mm_alloc("test0", 1024 * 1024, 0, 0);
 	mem[1] = codec_mm_alloc("test1", 1024 * 1024, 0, 0);
@@ -457,7 +465,8 @@ static int __init amstream_test_init(void)
 		CODEC_MM_FLAGS_DMA_CPU);
 	dump_mem_infos(NULL, 0);
 
-#endif
+
+
 	buf[0] = codec_mm_alloc_for_dma("streambuf1",
 		8 * 1024 * 1024 / PAGE_SIZE, 0, 0);
 	buf[1] = codec_mm_alloc_for_dma("streambuf2",
@@ -465,13 +474,15 @@ static int __init amstream_test_init(void)
 	buf[2] = codec_mm_alloc_for_dma("streambuf2",
 		118 * 1024 / PAGE_SIZE, 0, 0);
 	buf[3] = codec_mm_alloc_for_dma("streambuf2",
-		118 * 1024 / PAGE_SIZE, 0, 0);
+		(jiffies & 0x7f) * 1024 / PAGE_SIZE, 0, 0);
 	dump_mem_infos(NULL, 0);
 	codec_mm_free_for_dma("streambuf2", buf[3]);
 	codec_mm_free_for_dma("streambuf2", buf[1]);
 	codec_mm_free_for_dma("streambuf2", buf[2]);
 	codec_mm_free_for_dma("streambuf1", buf[0]);
 	dump_mem_infos(NULL, 0);
+#endif
+
 	return 0;
 }
 
@@ -508,7 +519,11 @@ static int codec_mm_probe(struct platform_device *pdev)
 		pr_info("vdec class create fail.\n");
 		return r;
 	}
-	pr_info("TT:codec_mm_probe ok\n");
+	r = of_reserved_mem_device_init(&pdev->dev);
+	if (r == 0)
+		pr_info("codec_mm reserved memory probed done\n");
+
+	pr_info("codec_mm_probe ok\n");
 	amstream_test_init();
 
 	return 0;
@@ -535,10 +550,10 @@ static struct platform_driver codec_mm_driver = {
 static int __init codec_mm_module_init(void)
 {
 
-	pr_err("TT:codec_mm_module_init\n");
+	pr_err("codec_mm_module_init\n");
 
 	if (platform_driver_register(&codec_mm_driver)) {
-		pr_err("TT:failed to register amports mem module\n");
+		pr_err("failed to register amports mem module\n");
 		return -ENODEV;
 
 	}
@@ -576,15 +591,30 @@ static int __init codec_mm_cma_setup(struct reserved_mem *rmem)
 RESERVEDMEM_OF_DECLARE(codec_mm_cma, "amlogic, codec-mm-cma",
 					   codec_mm_cma_setup);
 
-#endif				/*
-				 */
-static int __init codec_mm_setup(struct reserved_mem *rmem)
+#endif
+static int codec_mm_reserved_init(struct reserved_mem *rmem, struct device *dev)
 {
-
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
 	mgt->rmem = *rmem;
+	pr_info("codec_mm_reserved_init %p->%p\n",
+		(void *)mgt->rmem.base,
+		(void *)mgt->rmem.base + mgt->rmem.size);
 	return 0;
 }
 
+static const struct reserved_mem_ops codec_mm_rmem_vdec_ops = {
+	.device_init = codec_mm_reserved_init,
+};
+
+static int __init codec_mm_res_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &codec_mm_rmem_vdec_ops;
+	pr_info("vdec: reserved mem setup\n");
+
+	return 0;
+}
+
+
 RESERVEDMEM_OF_DECLARE(codec_mm_reversed, "amlogic, codec-mm-reserve",
-					   codec_mm_setup);
+					   codec_mm_res_setup);

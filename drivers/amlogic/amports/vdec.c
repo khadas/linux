@@ -59,7 +59,7 @@ static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
 static struct platform_device *vdec_core_device;
 static struct page *vdec_cma_page;
-int vdec_mem_alloced_from_codec;
+int vdec_mem_alloced_from_codec, delay_release;
 static unsigned long reserved_mem_start, reserved_mem_end;
 static int hevc_max_reset_count;
 static bool hevc_workaround;
@@ -212,7 +212,8 @@ s32 vdec_release(enum vformat_e vf)
 	if (vdec_device)
 		platform_device_unregister(vdec_device);
 
-	if (vdec_mem_alloced_from_codec && vdec_dev_reg.mem_start) {
+	if (vdec_mem_alloced_from_codec &&
+			vdec_dev_reg.mem_start && delay_release-- <= 0) {
 		codec_mm_free_for_dma(MEM_NAME, vdec_dev_reg.mem_start);
 
 
@@ -1073,6 +1074,30 @@ static struct class vdec_class = {
 		.class_attrs = vdec_class_attrs,
 	};
 
+
+/*
+pre alloced enough memory for decoder
+fast start.
+*/
+void pre_alloc_vdec_memory(void)
+{
+	if (vdec_dev_reg.mem_start)
+		return;
+
+	vdec_dev_reg.mem_start = codec_mm_alloc_for_dma(MEM_NAME,
+		CMA_ALLOC_SIZE / PAGE_SIZE, 4 + PAGE_SHIFT,
+		CODEC_MM_FLAGS_CMA_CLEAR);
+	if (!vdec_dev_reg.mem_start)
+		return;
+	pr_info("vdec base memory alloced %p\n",
+	(void *)vdec_dev_reg.mem_start);
+
+	vdec_dev_reg.mem_end = vdec_dev_reg.mem_start +
+		CMA_ALLOC_SIZE - 1;
+	vdec_mem_alloced_from_codec = 1;
+	delay_release = 3;
+}
+
 static int vdec_probe(struct platform_device *pdev)
 {
 	s32 r;
@@ -1100,7 +1125,7 @@ static int vdec_probe(struct platform_device *pdev)
 		/* set vdec dmc request to urgent */
 		WRITE_DMCREG(DMC_AM5_CHAN_CTRL, 0x3f203cf);
 	}
-
+	pre_alloc_vdec_memory();
 	return 0;
 }
 
