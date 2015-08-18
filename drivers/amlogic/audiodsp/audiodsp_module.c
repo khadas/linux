@@ -1193,6 +1193,7 @@ int audiodsp_probe(void)
 		DSP_PRNT("Out of memory for audiodsp register\n");
 		return -1;
 	}
+	memset(priv, 0, sizeof(struct audiodsp_priv));
 	priv->dsp_is_started = 0;
 	/*
 	   priv->p = ioremap_nocache(AUDIO_DSP_START_PHY_ADDR, S_1M);
