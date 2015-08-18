@@ -1,0 +1,20 @@
+#
+# watchdog configuration
+#
+
+
+menuconfig AML_WDT
+	boolean "Amlogic Watchdog driver"
+	select WATCHDOG
+	select WATCHDOG_CORE
+	default n
+	help
+	  say y to enable Amlogic watchdog driver.
+
+if	AML_WDT
+config GX_WDT
+	bool "Amlogic GX Watchdog driver"
+	default n
+	help
+	  say y to enable Amlogic watchdog driver.
+endif

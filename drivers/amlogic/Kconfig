@@ -104,4 +104,6 @@ source "drivers/amlogic/audinfo_kernel/Kconfig"
 source "drivers/amlogic/camera/Kconfig"
 
 source "drivers/amlogic/codec_mm/Kconfig"
+
+source "drivers/amlogic/watchdog/Kconfig"
 endmenu

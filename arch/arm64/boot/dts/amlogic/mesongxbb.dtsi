@@ -114,7 +114,7 @@
 	           compatible = "amlogic, pm";
 	           gxbaby-suspend;
 	           reg = <0x0 0xc81000a8 0x0 0x4
-	           		0x0 0xc810023c 0x0 0x4>;
+				0x0 0xc810023c 0x0 0x4>;
 	};
 	gpu:mali@d00c0000{
 		compatible = "arm,mali-450";
@@ -289,7 +289,18 @@
 		clock-names = "cpu_clk";
         };
 
-
+	amlogic-watchdog{
+		compatible = "amlogic, gx-wdt";
+		status = "disable";
+		default_timeout=<10>;
+		reset_watchdog_method=<1>;//0:sysfs,1:kernel
+		reset_watchdog_time=<2>;
+		shutdown_timeout=<10>;
+		firmware_timeout=<6>;
+		suspend_timeout=<6>;
+		reg = <0x0 0xc11098d0 0x0 0x10>;
+		clocks = <&clock CLK_XTAL>;
+	};
 	clock: meson_clock {
 		compatible = "amlogic, gxbb-clock";
 		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/
@@ -389,7 +400,7 @@
 		};
 		sd_clk_cmd_uart_pins:sd_clk_cmd_uart_pins{
 		    amlogic,setmask=<2 0x00000c00>,
-		    								<8 0x00000600>;
+										<8 0x00000600>;
 		    amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
 		    amlogic,enable-output=<1>; /* 0:output, 1:input */
 		    amlogic,pullup=<1>;
@@ -667,12 +678,12 @@
 	meson-remote {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
- 		status = "ok";
+		status = "ok";
 		remote_ao_offset = <0x580>; /* 0x400 + (0x20 + idx)<<2 -- old ; 0x400 + (0x60 +idx)<<2 --new   */
 		interrupts = <0 196 1>;
- 		pinctrl-names = "default";
- 		pinctrl-0 = <&remote_pins>;
- 	};
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+	};
 
 	rng {
 		compatible = "amlogic,meson-rng";
