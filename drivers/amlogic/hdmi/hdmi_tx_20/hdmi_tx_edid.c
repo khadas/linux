@@ -55,6 +55,9 @@
 #define HDMI_EDID_BLOCK_TYPE_RESERVED2	        6
 #define HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG       7
 
+#define EXTENSION_Y420_VDB_TAG	0xe
+#define EXTENSION_Y420_CMDB_TAG	0xf
+
 #define EDID_DETAILED_TIMING_DES_BLOCK0_POS 0x36
 #define EDID_DETAILED_TIMING_DES_BLOCK1_POS 0x48
 #define EDID_DETAILED_TIMING_DES_BLOCK2_POS 0x5A
@@ -762,7 +765,110 @@ static void Edid_ParsingSpeakerDATABlock(struct hdmitx_info *info,
 }
 
 
+/* ----------------------------------------------------------- */
+static int Edid_ParsingY420VDBBlock(struct rx_cap *pRXCap,
+	unsigned char *buf)
+{
+	unsigned char tag = 0, ext_tag = 0, data_end = 0;
+	unsigned int pos = 0;
 
+	tag = (buf[pos] >> 5) & 0x7;
+	data_end = (buf[pos] & 0x1f)+1;
+	pos++;
+	ext_tag = buf[pos];
+
+	if ((tag != 0x7) || (ext_tag != 0xe))
+		goto INVALID_Y420VDB;
+
+	pos++;
+	while (pos < data_end) {
+		if (pRXCap->VIC_count < VIC_MAX_NUM)
+			pRXCap->VIC[pRXCap->VIC_count] =
+				HDMITX_VIC420_OFFSET + buf[pos];
+		pos++;
+		pRXCap->VIC_count++;
+	}
+
+	return 0;
+
+INVALID_Y420VDB:
+	pr_info("[%s] it's not a valid y420vdb!\n", __func__);
+	return -1;
+}
+
+/* ----------------------------------------------------------- */
+static int Edid_ParsingY420CMDBBlock(struct hdmitx_info *info,
+	unsigned char *buf)
+{
+	unsigned char tag = 0, ext_tag = 0, data_end = 0;
+	unsigned int pos = 0, i = 0;
+
+	tag = (buf[pos] >> 5) & 0x7;
+	data_end = (buf[pos] & 0x1f)+1;
+	pos++;
+	ext_tag = buf[pos];
+
+	if ((tag != 0x7) || (ext_tag != 0xf))
+		goto INVALID_Y420CMDB;
+
+	info->bitmap_length = 0;
+	info->bitmap_valid = 0;
+	memset(info->y420cmdb_bitmap, 0x00, Y420CMDB_MAX);
+
+	pos++;
+	if (pos < data_end) {
+		info->bitmap_length = data_end - pos;
+		info->bitmap_valid = 1;
+	}
+	while (pos < data_end) {
+		if (i < VIC_MAX_NUM)
+			info->y420cmdb_bitmap[i] = buf[pos];
+		pos++;
+		i++;
+	}
+
+	return 0;
+
+INVALID_Y420CMDB:
+	pr_info("[%s] it's not a valid y420cmdb!\n", __func__);
+	return -1;
+
+}
+
+static int Edid_Y420CMDB_PostProcess(struct hdmitx_dev *hdmitx_device)
+{
+	unsigned int i = 0, j = 0, valid = 0;
+	struct rx_cap *rxcap = &(hdmitx_device->RXCap);
+	struct hdmitx_info *info = &(hdmitx_device->hdmi_info);
+	unsigned char *p = NULL;
+
+	if (info->bitmap_valid == 0)
+		goto PROCESS_END;
+
+	for (i = 0; i < info->bitmap_length; i++) {
+		p = &(info->y420cmdb_bitmap[i]);
+		for (j = 0; j < 8; j++) {
+			valid = ((*p >> j) & 0x1);
+			if (valid != 0) {
+				rxcap->VIC[rxcap->VIC_count] =
+				HDMITX_VIC420_OFFSET + rxcap->VIC[i*8+j];
+				rxcap->VIC_count++;
+			}
+		}
+	}
+
+PROCESS_END:
+	return 0;
+}
+
+static void Edid_Y420CMDB_Reset(struct hdmitx_info *info)
+{
+	info->bitmap_valid = 0;
+	info->bitmap_length = 0;
+	memset(info->y420cmdb_bitmap, 0x00, Y420CMDB_MAX);
+
+	return;
+}
 /* ----------------------------------------------------------- */
 int Edid_ParsingCEADataBlockCollection(struct hdmitx_info *info,
 	unsigned char *buff)
@@ -817,6 +923,7 @@ int Edid_ParsingCEADataBlockCollection(struct hdmitx_info *info,
 		}
 		Addr += (Data & 0x1F);   /* next Tag Address */
 		AddrTag = ++Addr;
+		Data = buff[Addr];
 		temp_addr =   Addr + (Data & 0x1F);
 		if (temp_addr >= D)	/* force to break; */
 			break;
@@ -943,6 +1050,9 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 
 	pRXCap->VIC_count = 0;
 	pRXCap->native_VIC = 0xff;
+
+	Edid_Y420CMDB_Reset(&(hdmitx_device->hdmi_info));
+
 	for (offset = 4 ; offset < End ; ) {
 		tag = BlockBuf[offset] >> 5;
 		count = BlockBuf[offset] & 0x1f;
@@ -1035,8 +1145,28 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 			break;
 
 		case HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG:
-			offset++;
-			offset += count;
+			{
+				unsigned char ext_tag = 0;
+
+				ext_tag = BlockBuf[offset+1];
+				switch (ext_tag) {
+
+				case EXTENSION_Y420_VDB_TAG:
+					Edid_ParsingY420VDBBlock(pRXCap,
+						&BlockBuf[offset]);
+					break;
+
+				case EXTENSION_Y420_CMDB_TAG:
+					Edid_ParsingY420CMDBBlock(
+						&(hdmitx_device->hdmi_info),
+						&BlockBuf[offset]);
+					break;
+
+				default:
+					break;
+				}
+			}
+			offset += count+1;
 			break;
 
 		case HDMI_EDID_BLOCK_TYPE_RESERVED:
@@ -1053,6 +1183,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 			break;
 		}
 	}
+
+	Edid_Y420CMDB_PostProcess(hdmitx_device);
 	hdmitx_device->vic_count = pRXCap->VIC_count;
 	return 0;
 }
@@ -1404,6 +1536,8 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"smpte24hz", HDMI_4k2k_smpte_24},
 	{"2160p60hz", HDMI_4k2k_60},
 	{"2160p50hz", HDMI_4k2k_50},
+	{"2160p60hz420", HDMI_4k2k_60_y420},
+	{"2160p50hz420", HDMI_4k2k_50_y420},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)
@@ -1424,8 +1558,7 @@ enum hdmi_vic hdmitx_edid_vic_tab_map_vic(const char *disp_mode)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
-		if (strncmp(disp_mode, dispmode_vic_tab[i].disp_mode,
-			strlen(dispmode_vic_tab[i].disp_mode)) == 0) {
+		if (strcmp(disp_mode, dispmode_vic_tab[i].disp_mode) == 0) {
 			vic = dispmode_vic_tab[i].VIC;
 			break;
 		}

@@ -600,6 +600,8 @@ static struct vic_tvregs_set tvregsTab[] = {
 	{HDMI_4096x2160p24_256x135, tvregs_4k2k_smpte},
 	{HDMI_3840x2160p60_16x9, tvregs_4k2k_30hz},
 	{HDMI_3840x2160p50_16x9, tvregs_4k2k_25hz},
+	{HDMI_3840x2160p60_16x9_Y420, tvregs_4k2k_30hz},
+	{HDMI_3840x2160p50_16x9_Y420, tvregs_4k2k_25hz},
 };
 
 static inline void setreg(const struct reg_s *r)
@@ -621,7 +623,6 @@ static const struct reg_s *tvregs_setting_mode(enum hdmi_vic vic)
 void set_vmode_enc_hw(enum hdmi_vic vic)
 {
 	const struct reg_s *s = tvregs_setting_mode(vic);
-
 	/* Turn off VDAC, no need any more for HDMITX */
 	hd_set_reg_bits(P_VENC_VDAC_SETTING, 0x1f, 0, 5);
 

@@ -648,6 +648,70 @@ static struct hdmi_format_para fmt_para_3840x540p200_16x9 = {
 	},
 };
 
+/* the following are for Y420 mode*/
+static struct hdmi_format_para fmt_para_3840x2160p50_16x9_y420 = {
+	.vic = HDMI_3840x2160p50_16x9_Y420,
+	.name = "3840x2160p50hz420",
+	.pixel_repetition_factor = 0,
+	.progress_mode = 1,
+	.scrambler_en = 1,
+	.tmds_clk_div40 = 1,
+	.tmds_clk = 594000,
+	.timing = {
+		.pixel_freq = 594000,
+		.h_freq = 112500,
+		.v_freq = 50000,
+		.vsync_polarity = 1,
+		.hsync_polarity = 1,
+		.h_active = 3840,
+		.h_total = 5280,
+		.h_blank = 1440,
+		.h_front = 1056,
+		.h_sync = 88,
+		.h_back = 296,
+		.v_active = 2160,
+		.v_total = 2250,
+		.v_blank = 90,
+		.v_front = 8,
+		.v_sync = 10,
+		.v_back = 72,
+		.v_sync_ln = 1,
+	},
+};
+
+static struct hdmi_format_para fmt_para_3840x2160p60_16x9_y420 = {
+	.vic = HDMI_3840x2160p60_16x9_Y420,
+	.name = "3840x2160p60hz420",
+	.pixel_repetition_factor = 0,
+	.progress_mode = 1,
+	.scrambler_en = 1,
+	.tmds_clk_div40 = 1,
+	.tmds_clk = 594000,
+	.timing = {
+		.pixel_freq = 594000,
+		.h_freq = 135000,
+		.v_freq = 60000,
+		.vsync_polarity = 1,
+		.hsync_polarity = 1,
+		.h_active = 3840,
+		.h_total = 4400,
+		.h_blank = 560,
+		.h_front = 176,
+		.h_sync = 88,
+		.h_back = 296,
+		.v_active = 2160,
+		.v_total = 2250,
+		.v_blank = 90,
+		.v_front = 8,
+		.v_sync = 10,
+		.v_back = 72,
+		.v_sync_ln = 1,
+	},
+};
+
+
+/* end of Y420 modes*/
+
 static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_3840x2160p60_16x9,
 	&fmt_para_3840x2160p50_16x9,
@@ -670,6 +734,8 @@ static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_3840x1080p120_16x9,
 	&fmt_para_3840x540p200_16x9,
 	&fmt_para_3840x540p240_16x9,
+	&fmt_para_3840x2160p60_16x9_y420,
+	&fmt_para_3840x2160p50_16x9_y420,
 	NULL,
 };
 

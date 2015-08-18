@@ -34,7 +34,11 @@
 /************************************
  *    hdmitx device structure
  *************************************/
-#define VIC_MAX_NUM 128  /* consider 4k2k */
+/*  VIC_MAX_VALID_MODE and VIC_MAX_NUM are associated with
+	HDMITX_VIC420_OFFSET and HDMITX_VIC_MASK in hdmi_common.h */
+#define VIC_MAX_VALID_MODE	256 /* consider 4k2k */
+/* half for valid vic, half for vic with y420*/
+#define VIC_MAX_NUM 512
 #define AUD_MAX_NUM 60
 struct rx_audiocap {
 	unsigned char audio_format_code;
@@ -48,11 +52,11 @@ enum hd_ctrl {
 };
 
 struct rx_cap {
-	unsigned char native_Mode;
+	unsigned int native_Mode;
 	/*video*/
-	unsigned char VIC[VIC_MAX_NUM];
-	unsigned char VIC_count;
-	unsigned char native_VIC;
+	unsigned int VIC[VIC_MAX_NUM];
+	unsigned int VIC_count;
+	unsigned int native_VIC;
 	/*audio*/
 	struct rx_audiocap RxAudioCap[AUD_MAX_NUM];
 	unsigned char AUD_count;
@@ -184,7 +188,7 @@ struct hdmitx_dev {
 #define DISP_SWITCH_FORCE       0
 #define DISP_SWITCH_EDID        1
 	unsigned char disp_switch_config; /* 0, force; 1,edid */
-	unsigned char cur_VIC;
+	unsigned int cur_VIC;
 	unsigned char unplug_powerdown;
 	/**/
 	unsigned char hpd_event; /* 1, plugin; 2, plugout */

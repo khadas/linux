@@ -427,7 +427,7 @@ static int set_disp_mode_auto(void)
 	enum hdmi_vic vic_ready = hdmitx_device.HWOp.GetState(
 		&hdmitx_device, STAT_VIDEO_VIC, 0);
 
-	memset(mode, 0, 10);
+	memset(mode, 0, 16);
 
 	/* if HDMI plug-out, directly return */
 	if (!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
@@ -547,6 +547,8 @@ static int set_disp_mode_auto(void)
 		/* Currently, only below formats support 420 mode */
 		case HDMI_3840x2160p60_16x9:
 		case HDMI_3840x2160p50_16x9:
+		case HDMI_3840x2160p50_16x9_Y420:
+		case HDMI_3840x2160p60_16x9_Y420:
 			pr_info("configure mode420, VIC = %d\n",
 				hdmitx_device.cur_VIC);
 			hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
@@ -554,8 +556,8 @@ static int set_disp_mode_auto(void)
 			break;
 		default:
 			hdmitx_device.mode420 = 0;
-			pr_info("mode420 only at VIC: %d\n",
-				HDMI_3840x2160p60_16x9);
+			pr_info("mode420 is not supported at VIC: %d for now.\n",
+				hdmitx_device.cur_VIC);
 		}
 	}
 	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_CLK_DIV40,
@@ -635,9 +637,123 @@ static ssize_t show_edid(struct device *dev,
 	return hdmitx_edid_dump(&hdmitx_device, buf, PAGE_SIZE);
 }
 
+static int dump_edid_data(unsigned int type, char *path)
+{
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	char line[128] = {0};
+	mm_segment_t old_fs = get_fs();
+	unsigned int i = 0, j = 0, k = 0, size = 0, block_cnt = 0;
+
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
+	if (IS_ERR(filp)) {
+		pr_info("[%s] failed to open/create file: |%s|\n",
+			__func__, path);
+		goto PROCESS_END;
+	}
+
+	block_cnt = hdmitx_device.EDID_buf[0x7e] + 1;
+	if (type == 1) {
+		/* dump as bin file*/
+		size = vfs_write(filp, hdmitx_device.EDID_buf,
+							block_cnt*128, &pos);
+	} else if (type == 2) {
+		/* dump as txt file*/
+
+		for (i = 0; i < block_cnt; i++) {
+			for (j = 0; j < 8; j++) {
+				for (k = 0; k < 16; k++) {
+					snprintf((char *)&line[k*6], 7,
+					"0x%02x, ",
+					hdmitx_device.EDID_buf[i*128+j*16+k]);
+				}
+				line[16*6-1] = '\n';
+				line[16*6] = 0x0;
+				pos = (i*8+j)*16*6;
+				size += vfs_write(filp, line, 16*6, &pos);
+			}
+		}
+	}
+
+	pr_info("[%s] write %d bytes to file %s\n", __func__, size, path);
+
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+
+PROCESS_END:
+	set_fs(old_fs);
+	return 0;
+}
+
+unsigned int use_loaded_edid = 0;
+static int load_edid_data(unsigned int type, char *path)
+{
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	mm_segment_t old_fs = get_fs();
+
+	struct kstat stat;
+	unsigned int length = 0, max_len = EDID_MAX_BLOCK * 128;
+	char *buf = NULL;
+
+	set_fs(KERNEL_DS);
+
+	filp = filp_open(path, O_RDONLY, 0444);
+	if (IS_ERR(filp)) {
+		pr_info("[%s] failed to open file: |%s|\n", __func__, path);
+		goto PROCESS_END;
+	}
+
+	vfs_stat(path, &stat);
+
+	length = (stat.size > max_len)?max_len:stat.size;
+
+	buf = kmalloc(length, GFP_KERNEL);
+	if (buf == NULL) {
+		pr_info("[%s] kmalloc failed!\n", __func__);
+		goto PROCESS_END;
+	}
+
+	vfs_read(filp, buf, length, &pos);
+
+	memcpy(hdmitx_device.EDID_buf, buf, length);
+
+	kfree(buf);
+	filp_close(filp, NULL);
+
+	pr_info("[%s] %d bytes loaded from file %s\n", __func__, length, path);
+
+	hdmitx_edid_clear(&hdmitx_device);
+	hdmitx_edid_parse(&hdmitx_device);
+	pr_info("[%s] new edid loaded!\n", __func__);
+
+PROCESS_END:
+	set_fs(old_fs);
+	return 0;
+}
+
 static ssize_t store_edid(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+	unsigned int argn = 0;
+	char *p = NULL, *para = NULL, *argv[8] = {NULL};
+	unsigned int path_length = 0;
+
+	p = kstrdup(buf, GFP_KERNEL);
+	if (p == NULL)
+		return count;
+
+	do {
+		para = strsep(&p, " ");
+		if (para != NULL) {
+			argv[argn] = para;
+			argn++;
+			if (argn > 7)
+				break;
+		}
+	} while (para != NULL);
+
 	if (buf[0] == 'h') {
 		int i;
 		hdmi_print(INF, EDID "EDID hash value:\n");
@@ -653,12 +769,12 @@ static ssize_t store_edid(struct device *dev,
 		if (block_idx < EDID_MAX_BLOCK) {
 			for (ii = 0; ii < 8; ii++) {
 				for (jj = 0; jj < 16; jj++) {
-					pr_info("%02x ",
+					hdmi_print(INF, "%02x ",
 			hdmitx_device.EDID_buf[block_idx*128+ii*16+jj]);
 				}
-				pr_info("\n");
+				hdmi_print(INF, "\n");
 			}
-		pr_info("\n");
+		hdmi_print(INF, "\n");
 	}
 	}
 	if (buf[0] == 'e') {
@@ -669,14 +785,52 @@ static ssize_t store_edid(struct device *dev,
 		if (block_idx < EDID_MAX_BLOCK) {
 			for (ii = 0; ii < 8; ii++) {
 				for (jj = 0; jj < 16; jj++) {
-					pr_info("%02x ",
+					hdmi_print(INF, "%02x ",
 		hdmitx_device.EDID_buf1[block_idx*128+ii*16+jj]);
 				}
-				pr_info("\n");
+				hdmi_print(INF, "\n");
 			}
-			pr_info("\n");
+			hdmi_print(INF, "\n");
 		}
 	}
+
+	if (!strncmp(argv[0], "save", strlen("save"))) {
+		unsigned int type = 0;
+
+		if (argn != 3) {
+			pr_info("[%s] cmd format: save bin/txt edid_file_path\n",
+						__func__);
+			goto PROCESS_END;
+		}
+		if (!strncmp(argv[1], "bin", strlen("bin")))
+			type = 1;
+		else if (!strncmp(argv[1], "txt", strlen("txt")))
+			type = 2;
+
+		if ((type == 1) || (type == 2)) {
+			/* clean '\n' from file path*/
+			path_length = strlen(argv[2]);
+			if (argv[2][path_length-1] == '\n')
+				argv[2][path_length-1] = 0x0;
+
+			dump_edid_data(type, argv[2]);
+		}
+	} else if (!strncmp(argv[0], "load", strlen("load"))) {
+		if (argn != 2) {
+			pr_info("[%s] cmd format: load edid_file_path\n",
+						__func__);
+			goto PROCESS_END;
+		}
+
+		/* clean '\n' from file path*/
+		path_length = strlen(argv[1]);
+		if (argv[1][path_length-1] == '\n')
+			argv[1][path_length-1] = 0x0;
+		load_edid_data(0, argv[1]);
+	}
+
+PROCESS_END:
+	kfree(p);
 	return 16;
 }
 
@@ -802,6 +956,10 @@ const char *disp_mode_t[] = {
 	"2160p25hz",
 	"2160p24hz",
 	"smpte24hz",
+	"2160p50hz",
+	"2160p60hz",
+	"2160p50hz420",
+	"2160p60hz420",
 	NULL
 };
 

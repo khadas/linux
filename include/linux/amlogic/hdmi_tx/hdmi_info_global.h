@@ -202,7 +202,7 @@ struct hdmitx_supspeakerformat {
 };
 
 struct hdmitx_vidpara {
-	unsigned char VIC;
+	unsigned int VIC;
 	enum hdmi_color_space_type color_prefer;
 	enum hdmi_color_space_type color;
 	enum hdmi_color_depth color_depth;
@@ -281,6 +281,7 @@ struct hdmitx_clk {
 	uint64_t clk_pixel;
 };
 
+#define Y420CMDB_MAX	32
 struct hdmitx_info {
 	struct hdmi_rx_audioinfo audio_info;
 	struct hdmitx_supaudinfo tv_audio_info;
@@ -326,7 +327,12 @@ struct hdmitx_info {
 	unsigned hdmi_sup_1080p_30hz:1;
 
 	/* ------------------------------------------------------- */
-
+	/* for total = 32*8 = 256 VICs */
+	/* for Y420CMDB bitmap */
+	unsigned char bitmap_valid;
+	unsigned char bitmap_length;
+	unsigned char y420cmdb_bitmap[Y420CMDB_MAX];
+	/* ------------------------------------------------------- */
 };
 
 #endif  /* _HDMI_RX_GLOBAL_H */

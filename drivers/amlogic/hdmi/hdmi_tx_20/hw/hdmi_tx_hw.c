@@ -286,6 +286,10 @@ static struct hdmitx_clk hdmitx_clk[] = {
 	{HDMI_4096x2160p24_256x135, 24000, 2970000, 297000, 297000, -1, 297000},
 	{HDMI_3840x2160p60_16x9, 24000, 5940000, 594000, 594000, -1, 594000},
 	{HDMI_3840x2160p50_16x9, 24000, 5940000, 594000, 594000, -1, 594000},
+	{HDMI_3840x2160p60_16x9_Y420,
+		24000, 5940000, 594000, 594000, -1, 594000},
+	{HDMI_3840x2160p50_16x9_Y420,
+		24000, 5940000, 594000, 594000, -1, 594000},
 };
 
 static void set_vmode_clk(struct hdmitx_dev *hdev, enum hdmi_vic vic)
@@ -700,7 +704,8 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 	unsigned long vso_begin_evn = 0, vso_begin_odd = 0;
 
 	if ((param->VIC == HDMI_4k2k_30) ||
-		(param->VIC == HDMI_3840x2160p60_16x9)) {
+		(param->VIC == HDMI_3840x2160p60_16x9) ||
+		(param->VIC == HDMI_3840x2160p60_16x9_Y420)) {
 		INTERLACE_MODE = 0;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -716,7 +721,8 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		SOF_LINES = 72 + 1;
 		TOTAL_FRAMES = 3;
 	} else if ((param->VIC == HDMI_4k2k_25) ||
-		(param->VIC == HDMI_3840x2160p50_16x9)) {
+		(param->VIC == HDMI_3840x2160p50_16x9) ||
+		(param->VIC == HDMI_3840x2160p50_16x9_Y420)) {
 		INTERLACE_MODE = 0;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -1356,6 +1362,8 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 	case HDMI_4k2k_smpte_24:
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
+	case HDMI_3840x2160p50_16x9_Y420:
+	case HDMI_3840x2160p60_16x9_Y420:
 		hd_write_reg(P_VPU_HDMI_SETTING, (0 << 0) |
 			(0 << 1) |
 			(HSYNC_POLARITY << 2) |
@@ -1535,6 +1543,12 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2100115b);
 		}
 		break;
+	case HDMI_3840x2160p50_16x9_Y420:
+	case HDMI_3840x2160p60_16x9_Y420:
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
+		break;
+
 	case HDMI_1080p60:
 	default:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632122);
@@ -1621,6 +1635,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	case HDMI_4k2k_smpte_24:
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
+	case HDMI_3840x2160p50_16x9_Y420:
+	case HDMI_3840x2160p60_16x9_Y420:
 		hdmi_tvenc4k2k_set(param);
 		break;
 	default:
@@ -2901,6 +2917,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 static enum hdmi_vic get_vic_from_pkt(void)
 {
 	enum hdmi_vic vic = HDMI_Unkown;
+	unsigned int rgb_ycc = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0);
 
 	vic = hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID);
 	if (vic == HDMI_Unkown) {
@@ -2915,6 +2932,20 @@ static enum hdmi_vic get_vic_from_pkt(void)
 			vic = HDMI_4096x2160p24_256x135;
 		else
 			vic = HDMI_Unkown;
+	}
+
+	rgb_ycc &= 0x3;
+	switch (vic) {
+	case HDMI_3840x2160p50_16x9:
+		if (rgb_ycc == 0x3)
+			vic = HDMI_3840x2160p50_16x9_Y420;
+		break;
+	case HDMI_3840x2160p60_16x9:
+		if (rgb_ycc == 0x3)
+			vic = HDMI_3840x2160p60_16x9_Y420;
+		break;
+	default:
+		break;
 	}
 
 	return vic;
@@ -3332,7 +3363,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF3,   data32);
 
-	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, para->vic);
+	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, (para->vic & HDMITX_VIC_MASK));
 
 	/* write Audio Infoframe packet configuration */
 
