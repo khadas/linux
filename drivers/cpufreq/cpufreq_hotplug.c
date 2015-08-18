@@ -484,8 +484,8 @@ static int hg_init(struct dbs_data *dbs_data)
 	tuners->hotplug_load_index			=	0;
 	tuners->ignore_nice_load			=	0;
 	tuners->io_is_busy					=	0;
-	tuners->cpu_num_unplug_once			=	2;
-	tuners->each_cpu_num_unplug_once	=	2;
+	tuners->cpu_num_unplug_once			=	1;
+	tuners->each_cpu_num_unplug_once	=	1;
 	tuners->cpu_num_plug_once			=	1;
 
 	dbs_data->tuners = tuners;
@@ -653,6 +653,7 @@ wait_next_hotplug:
 	return 1;
 }
 
+#define UNPLUG_THRESH	15
 static void hg_check_cpu(int cpu, unsigned int max_load)
 {
 	/* largest CPU load in terms of frequency */
@@ -666,12 +667,15 @@ static void hg_check_cpu(int cpu, unsigned int max_load)
 	/* number of sampling periods averaged for hotplug decisions */
 	unsigned int periods;
 	unsigned int i, j, k;
+	static unsigned int unplug_cnt = UNPLUG_THRESH;
 
 	struct hg_cpu_dbs_info_s *dbs_info = &per_cpu(hg_cpu_dbs_info, cpu);
 	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct hg_dbs_tuners *hg_tuners = dbs_data->tuners;
 
+	if (unplug_cnt++ > 0xffffff)
+		unplug_cnt = UNPLUG_THRESH;
 	memset(each_cpu_out_avg_load, 0, sizeof(each_cpu_out_avg_load));
 	avg_load = hg_tuners->
 		hotplug_load_history[hg_tuners->hotplug_load_index];
@@ -728,14 +732,17 @@ static void hg_check_cpu(int cpu, unsigned int max_load)
 			 * wq is not running here so its safe.
 			 */
 			cpu_hotplug_flag = CPU_HOTPLUG_PLUG;
+			unplug_cnt = 0;
 			wake_up_process(cpu_hotplug_task);
 			goto out;
 		}
 	}
-	if (max_load > hg_tuners->up_threshold ||
-		!(avg_load < hg_tuners->down_threshold &&
+	if (max_load > hg_tuners->up_threshold &&
+		(avg_load < hg_tuners->down_threshold &&
 		(num_online_cpus() > 1 &&
 		 hotplug_out_avg_load < hg_tuners->down_threshold))) {
+		if (unplug_cnt < UNPLUG_THRESH)
+			goto out;
 		if (num_online_cpus() > 2) {
 			i = 0;
 			for (k = 0; k < num_possible_cpus(); k++) {
@@ -746,6 +753,7 @@ static void hg_check_cpu(int cpu, unsigned int max_load)
 			if (i > 1) {
 				hg_tuners->each_cpu_num_unplug_once = i - 1;
 				cpu_hotplug_flag = CPU_HOTPLUG_UNPLUG;
+				unplug_cnt = 0;
 				wake_up_process(cpu_hotplug_task);
 			} else
 				hg_tuners->each_cpu_num_unplug_once =
@@ -779,11 +787,14 @@ static void hg_check_cpu(int cpu, unsigned int max_load)
 		/* are we at the minimum frequency already? */
 		if (policy->cur <= hg_tuners->hotplug_min_freq) {
 			/* should we disable auxillary CPUs? */
+			if (unplug_cnt < UNPLUG_THRESH)
+				goto out;
 			if (num_online_cpus() > 1 && hotplug_out_avg_load <
 				hg_tuners->down_threshold) {
 				cpu_hotplug_flag = CPU_HOTPLUG_UNPLUG;
 				hg_tuners->each_cpu_num_unplug_once =
 					hg_tuners->cpu_num_unplug_once;
+				unplug_cnt = 0;
 				wake_up_process(cpu_hotplug_task);
 				goto out;
 			}
