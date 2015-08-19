@@ -55,7 +55,7 @@ static bool osd_rdma_init_flag;
 static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
 
-#define OSD_RDMA_UPDATE_RETRY_COUNT 500
+#define OSD_RDMA_UPDATE_RETRY_COUNT 50
 
 static int osd_rdma_init(void);
 
@@ -161,7 +161,23 @@ static int update_table_item(u32 addr, u32 val)
 retry:
 	if (0 == (retry_count--)) {
 		pr_info("OSD RDMA stuck .....%d,0x%x\n", retry_count,
-					osd_reg_read(RDMA_STATUS));
+			osd_reg_read(RDMA_STATUS));
+		reset_rdma_table();
+		OSD_RDMA_STAUS_MARK_DIRTY;
+		spin_lock_irqsave(&rdma_lock, flags);
+		item_count++;
+		request_item.addr = OSD_RDMA_FLAG_REG;
+		request_item.val = OSD_RDMA_STATUS_MARK_COMPLETE;
+		osd_rdma_mem_cpy(
+			&rdma_table[item_count],
+			&request_item, 8);
+		osd_reg_write(END_ADDR, (table_paddr + item_count * 8 + 7));
+		request_item.addr = addr;
+		request_item.val = val;
+		osd_rdma_mem_cpy(
+			&rdma_table[item_count-1],
+			&request_item, 8);
+		spin_unlock_irqrestore(&rdma_lock, flags);
 		return -1;
 	}
 
@@ -393,10 +409,12 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	osd_update_scan_mode();
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
-	/*This is a memory barrier*/
-	wmb();
-	if (ret)
+
+	if (ret) {
+		/*This is a memory barrier*/
+		wmb();
 		osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
+	}
 
 	return IRQ_HANDLED;
 }
