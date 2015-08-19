@@ -426,7 +426,7 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	hdev->HWOp.CntlPacket = hdmitx_cntl;
 	hdev->HWOp.CntlConfig = hdmitx_cntl_config;
 	hdev->HWOp.CntlMisc = hdmitx_cntl_misc;
-
+	init_reg_map();
 	digital_clk_on(0xff);
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);

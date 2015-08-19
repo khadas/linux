@@ -32,6 +32,7 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 	unsigned int len);
 void sec_reg_write(unsigned *addr, unsigned value);
 unsigned sec_reg_read(unsigned *addr);
+void init_reg_map(void);
 
 #define P_PREG_PAD_GPIO6_EN_N nCBUS_REG_ADDR(0x08)
 #define P_PREG_PAD_GPIO6_O    nCBUS_REG_ADDR(0x09)

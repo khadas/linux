@@ -102,15 +102,24 @@ static int check_map_flag(unsigned int addr)
 	if ((idx != -1) && (reg_maps[idx].flag))
 		return 1;
 	else {
-		reg_maps[idx].p =
-			ioremap(reg_maps[idx].phy_addr, reg_maps[idx].size);
-		if (!reg_maps[idx].p) {
-			pr_info("Failed Mapped PHY: 0x%x\n", addr);
-			return 0;
+		pr_info("hdmitx20: not Mapped PHY 0x%x\n", addr);
+		return 0;
+	}
+}
+
+void init_reg_map(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
+		reg_maps[i].p = ioremap(reg_maps[i].phy_addr, reg_maps[i].size);
+		if (!reg_maps[i].p) {
+			pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
+				reg_maps[i].phy_addr);
 		} else {
-			reg_maps[idx].flag = 1;
-			pr_info("Mapped PHY: 0x%x\n", reg_maps[idx].phy_addr);
-			return 1;
+			reg_maps[i].flag = 1;
+			pr_info("hdmitx20: Mapped PHY: 0x%x\n",
+				reg_maps[i].phy_addr);
 		}
 	}
 }
