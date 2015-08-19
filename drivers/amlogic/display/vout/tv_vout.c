@@ -625,6 +625,26 @@ static void fps_auto_adjust_mode(enum vmode_e *pmode)
 }
 #endif
 
+static int is_enci_required(enum vmode_e mode)
+{
+	if ((mode == VMODE_576I) ||
+		(mode == VMODE_576I_RPT) ||
+		(mode == VMODE_480I) ||
+		(mode == VMODE_480I_RPT) ||
+		(mode == VMODE_576CVBS) ||
+		(mode == VMODE_480CVBS))
+		return 1;
+	return 0;
+}
+
+static void vout_change_mode_preprocess(enum vmode_e vmode_new)
+{
+	if (!is_enci_required(vmode_new))
+		tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 0, ENCI_GATE_VCLK, 1);
+
+	return;
+}
+
 static int tv_set_current_vmode(enum vmode_e mode)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) > VMODE_MAX)
@@ -650,6 +670,8 @@ static int tv_set_current_vmode(enum vmode_e mode)
 		      info->vinfo->sync_duration_num);
 	if (mode & VMODE_LOGO_BIT_MASK)
 		return 0;
+
+	vout_change_mode_preprocess(mode);
 
 #ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
