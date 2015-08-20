@@ -749,6 +749,8 @@ static int remote_probe(struct platform_device *pdev)
 	/*read status & frame register to abandon last key from uboot*/
 	am_remote_read_reg(DURATION_REG1_AND_STATUS);
 	am_remote_read_reg(FRAME_BODY);
+	/*reset IR decode*/
+	am_remote_write_reg(OPERATION_CTRL_REG1, 0x1f01);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING + 1;
 	early_suspend.suspend = remote_early_suspend;

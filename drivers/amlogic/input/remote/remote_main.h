@@ -81,17 +81,17 @@ enum {
 /*remote config val*/
 /****************************************************************/
 static const struct reg_s RDECODEMODE_NEC[] = {
-	{LDR_ACTIVE, ((unsigned)477 << 16) | ((unsigned)400 << 0)},
+	{LDR_ACTIVE, ((unsigned)500 << 16) | ((unsigned)400 << 0)},
 	/* NEC leader 9500us,max 477:
 	(477* timebase = 20) = 9540 ;min 400 = 8000us*/
-	{LDR_IDLE, 248 << 16 | 202 << 0}, /* leader idle*/
-	{LDR_REPEAT, 130 << 16 | 110 << 0}, /* leader repeat*/
-	{DURATION_REG0, 60 << 16 | 48 << 0 }, /* logic '0' or '00'*/
-	{OPERATION_CTRL_REG0, 3 << 28 | (0xFA0 << 12) | 0x13},
+	{LDR_IDLE, 300 << 16 | 200 << 0}, /* leader idle*/
+	{LDR_REPEAT, 150 << 16 | 80 << 0}, /* leader repeat*/
+	{DURATION_REG0, 72 << 16 | 40 << 0 }, /* logic '0' or '00'*/
+	{OPERATION_CTRL_REG0, 7 << 28 | (0x1518 << 12) | 0x13},
 	/* sys clock boby time.base time = 20 body frame 108ms*/
-	{DURATION_REG1_AND_STATUS, (111 << 20) | (100 << 10)},
+	{DURATION_REG1_AND_STATUS, (134 << 20) | (90 << 10)},
 	/* logic '1' or '01'*/
-	{OPERATION_CTRL_REG1, 0x9f40}, /* boby long decode (8-13)*/
+	{OPERATION_CTRL_REG1, 0x9f00}, /* boby long decode (8-13)*/
 	/*{OPERATION_CTRL_REG1,0xbe40},// boby long decode (8-13)*/
 	{OPERATION_CTRL_REG2, 0x0}, /* hard decode mode*/
 	{DURATION_REG2, 0},
