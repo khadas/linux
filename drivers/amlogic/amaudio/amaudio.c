@@ -444,7 +444,22 @@ static ssize_t store_mute_unmute(struct class *class,
 
 	return count;
 }
-
+static ssize_t dts_enable_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	unsigned int val;
+	val = aml_read_aobus(0x228);
+	val = (val>>14)&1;
+	return sprintf(buf, "0x%x\n", val);
+}
+static ssize_t dolby_enable_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	unsigned int val;
+	val = aml_read_aobus(0x228);
+	val = (val>>16)&1;
+	return sprintf(buf, "0x%x\n", val);
+}
 static struct class_attribute amaudio_attrs[] = {
 	__ATTR(audio_channels_mask, S_IRUGO | S_IWUSR | S_IWGRP,
 	       show_audio_channels_mask, store_audio_channels_mask),
@@ -458,6 +473,8 @@ static struct class_attribute amaudio_attrs[] = {
 	       show_mute_left_right, store_mute_left_right),
 	__ATTR(mute_unmute, S_IRUGO | S_IWUSR,
 	       show_mute_unmute, store_mute_unmute),
+	__ATTR_RO(dts_enable),
+	__ATTR_RO(dolby_enable),
 	__ATTR_NULL,
 };
 
