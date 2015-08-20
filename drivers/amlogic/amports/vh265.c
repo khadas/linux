@@ -147,7 +147,7 @@ static u32 workaround_enable;
 #define H265_DEBUG_ERROR_TRIG             0x400000
 #define H265_DEBUG_NO_EOS_SEARCH_DONE     0x800000
 
-const u32 h265_version = 201501291;
+const u32 h265_version = 201508201;
 static u32 debug;
 static u32 radr;
 static u32 rval;
@@ -1226,7 +1226,7 @@ static void uninit_buf_list(struct hevc_state_s *hevc)
 		u32 disp_addr;
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-			disp_addr = READ_VCBUS_REG(AFBC_BODY_BADDR);
+			disp_addr = READ_VCBUS_REG(AFBC_BODY_BADDR) << 4;
 		} else {
 			struct canvas_s cur_canvas;
 			canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
@@ -3521,6 +3521,7 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 				   NAL_UNIT_CODED_SLICE_BLA_N_LP)
 			hevc->m_pocRandomAccess = hevc->curr_POC;
 		else if ((hevc->curr_POC < hevc->m_pocRandomAccess) &&
+				(nal_skip_policy >= 3) &&
 				 (hevc->m_nalUnitType ==
 				  NAL_UNIT_CODED_SLICE_RASL_N ||
 				  hevc->m_nalUnitType ==
@@ -3532,7 +3533,7 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 				pr_info("RandomAccess point POC), skip it\n");
 			}
 			return 1;
-		}
+			}
 
 		WRITE_VREG(HEVC_WAIT_FLAG, READ_VREG(HEVC_WAIT_FLAG) | 0x2);
 		hevc->skip_flag = 0;
