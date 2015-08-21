@@ -955,6 +955,7 @@ static ssize_t write_store(struct class *cla,
 {
 	int ret;
 	unsigned char *keydata = NULL;
+	size_t key_len = 0;
 
 	if (curkey != NULL) {
 		keydata = kzalloc(count, GFP_KERNEL);
@@ -964,8 +965,9 @@ static ssize_t write_store(struct class *cla,
 				__func__, __LINE__);
 			goto _out;
 		}
-		memcpy(keydata, buf, count);
-		ret = key_unify_write(curkey->name, keydata, count);
+		memcpy(keydata, buf, count-1); /*clear tail 0x0a*/
+		key_len = strlen(keydata);
+		ret = key_unify_write(curkey->name, keydata, key_len);
 		if (ret < 0) {
 			pr_err("%s() %d: key write fail\n",
 				__func__, __LINE__);
