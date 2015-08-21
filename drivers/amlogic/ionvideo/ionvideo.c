@@ -147,6 +147,8 @@ static void videoc_omx_compute_pts(struct ionvideo_dev *dev,
 		if (dev->is_omx_video_started == 0) {
 			dev->pts = last_pts_us64
 				+ (DUR2PTS(vf->duration) * 100 / 9);
+			if ((vf->type & 0x1) == VIDTYPE_INTERLACE)
+				dev->pts += (DUR2PTS(vf->duration) * 100 / 9);
 		}
 	}
 	if (dev->is_omx_video_started)
