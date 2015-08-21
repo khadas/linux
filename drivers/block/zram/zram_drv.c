@@ -38,7 +38,9 @@
 /* Globals */
 static int zram_major;
 static struct zram *zram_devices;
-
+void *compress_addr = NULL;
+void *user_addr = NULL;
+void *meta_addr = NULL;
 /* Module params (documentation at end) */
 static unsigned int num_devices = 1;
 
@@ -770,7 +772,49 @@ static void zram_slot_free_notify(struct block_device *bdev,
 	atomic64_inc(&zram->stats.notify_free);
 }
 
+struct prev_use {
+	unsigned long cmpr_len;
+	struct page *page;
+};
+static int zram_ioctl(struct block_device *bdev,
+					  fmode_t f_mode,
+		  unsigned nuse, unsigned long page_addr)
+{
+	int ret = 0;
+	size_t clen;
+	unsigned char *src = NULL, *uncmem = NULL, *user_mem = NULL;
+	void *compress_workmem = NULL;
+	struct prev_use *prev_use;
+
+	switch (f_mode) {
+	case 80:
+		prev_use = (struct prev_use *)page_addr;
+		if (!compress_addr || !user_addr || !meta_addr) {
+			prev_use->cmpr_len = 0;
+			return -ENOMEM;
+		}
+		uncmem = kmap_atomic(prev_use->page);
+		user_mem = user_addr;
+		memcpy(user_mem, uncmem, PAGE_SIZE);
+		src = meta_addr;
+		compress_workmem = compress_addr;
+
+		ret = lzo1x_1_compress(user_mem, PAGE_SIZE, src, &clen,
+					   compress_workmem);
+
+		kunmap_atomic(uncmem);
+
+		prev_use->cmpr_len = (unsigned long)clen;
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
 static const struct block_device_operations zram_devops = {
+	.ioctl = zram_ioctl,
 	.swap_slot_free_notify = zram_slot_free_notify,
 	.owner = THIS_MODULE
 };
@@ -893,6 +937,21 @@ static int __init zram_init(void)
 		ret = -EINVAL;
 		goto out;
 	}
+	compress_addr = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	if (!compress_addr) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	user_addr = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!user_addr) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	meta_addr = kzalloc(PAGE_SIZE << 1, GFP_KERNEL);
+	if (!meta_addr) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	zram_major = register_blkdev(0, "zram");
 	if (zram_major <= 0) {
@@ -947,6 +1006,9 @@ static void __exit zram_exit(void)
 	unregister_blkdev(zram_major, "zram");
 
 	kfree(zram_devices);
+	kfree(meta_addr);
+	kfree(compress_addr);
+	kfree(user_addr);
 	pr_debug("Cleanup done!\n");
 }
 

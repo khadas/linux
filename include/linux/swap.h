@@ -429,6 +429,7 @@ extern int page_swapcount(struct page *);
 extern struct swap_info_struct *page_swap_info(struct page *);
 extern int reuse_swap_page(struct page *);
 extern int try_to_free_swap(struct page *);
+extern struct swap_info_struct *swap_info_get(swp_entry_t entry);
 struct backing_dev_info;
 
 #ifdef CONFIG_MEMCG
