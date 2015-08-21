@@ -68,7 +68,13 @@ int vdec_clock_init(void)
 {
 	IF_HAVE_RUN_RET(p_vdec(), clock_init);
 }
-
+/*
+clk ==0 :
+	to be release.
+	released shared clk,
+clk ==1 :default low clk
+clk ==2 :default high clk
+*/
 int vdec_clock_set(int clk)
 {
 
@@ -76,11 +82,11 @@ int vdec_clock_set(int clk)
 }
 void vdec_clock_enable(void)
 {
-	vdec_clock_set(0);
+	vdec_clock_set(1);
 }
 void vdec_clock_hi_enable(void)
 {
-	vdec_clock_set(1);
+	vdec_clock_set(2);
 }
 
 
@@ -101,11 +107,11 @@ int vdec2_clock_set(int clk)
 }
 void vdec2_clock_enable(void)
 {
-	vdec2_clock_set(0);
+	vdec2_clock_set(1);
 }
 void vdec2_clock_hi_enable(void)
 {
-	vdec2_clock_set(1);
+	vdec2_clock_set(2);
 }
 
 void vdec2_clock_on(void)
@@ -125,11 +131,11 @@ int hcodec_clock_set(int clk)
 }
 void hcodec_clock_enable(void)
 {
-	hcodec_clock_set(0);
+	hcodec_clock_set(1);
 }
 void hcodec_clock_hi_enable(void)
 {
-	hcodec_clock_set(1);
+	hcodec_clock_set(2);
 }
 
 void hcodec_clock_on(void)
@@ -154,11 +160,11 @@ int hevc_clock_set(int clk)
 }
 void hevc_clock_enable(void)
 {
-	hevc_clock_set(0);
+	hevc_clock_set(1);
 }
 void hevc_clock_hi_enable(void)
 {
-	hevc_clock_set(1);
+	hevc_clock_set(2);
 }
 void hevc_clock_on(void)
 {
@@ -171,15 +177,6 @@ void hevc_clock_off(void)
 	clock_source_wxhxfps_saved[VDEC_HEVC] = 0;
 }
 
-void vdec_clock_prepare_switch(void)
-{
-	IF_HAVE_RUN(p_vdec(), clock_prepare_switch);
-}
-
-void hevc_clock_prepare_switch(void)
-{
-	IF_HAVE_RUN(p_vdec_hevc(), clock_prepare_switch);
-}
 
 int vdec_source_get(enum vdec_type_e core)
 {
@@ -222,6 +219,14 @@ int vdec_source_changed_for_clk_set(int format, int width, int height, int fps)
 			width, height, fps);
 		return -1;
 	}
+	if (width * height * fps == 0)
+		clk = 0;
+	/*
+		clk == 0
+		is used for set default clk;
+		if used supper clk.
+		changed to default  min clk.
+	*/
 
 	if (format == VFORMAT_HEVC) {
 		ret_clk = hevc_clock_set(clk);

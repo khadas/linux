@@ -233,9 +233,11 @@ static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	spin_lock_irqsave(&mgt->lock, flags);
 	list_add_tail(&mem->list, &mgt->mem_list);
 	spin_unlock_irqrestore(&mgt->lock, flags);
+	/*
 	pr_err("%s alloc mem size %d at %lx from %d\n",
 			owner, size, mem->phy_addr,
 			mem->from_flags);
+	*/
 	return mem;
 }
 

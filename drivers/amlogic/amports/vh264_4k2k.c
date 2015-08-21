@@ -983,7 +983,8 @@ static void vh264_4k2k_put_timer_func(unsigned long arg)
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 		}
 	}
-	if (frame_dur > 0 && saved_resolution !=
+	if (first_i_recieved &&/*do switch after first i frame ready.*/
+		frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
 		saved_resolution = frame_width * frame_height * fps;

@@ -43,8 +43,6 @@ void hcodec_clock_off(void);
 void hevc_clock_on(void);
 void hevc_clock_off(void);
 
-void vdec_clock_prepare_switch(void);
-void hevc_clock_prepare_switch(void);
 
 int vdec_source_get(enum vdec_type_e core);
 int vdec_clk_get(enum vdec_type_e core);
@@ -77,7 +75,6 @@ static struct chip_vdec_clk_s vdec_clk_mgr __initdata = {
 	.clock_set = vdec_clock_set,
 	.clock_on = vdec_clock_on,
 	.clock_off = vdec_clock_off,
-	.clock_prepare_switch = vdec_clock_prepare_switch,
 	.clock_get = vdec_clock_get,
 };
 
@@ -87,7 +84,6 @@ static struct chip_vdec_clk_s vdec2_clk_mgr __initdata = {
 	.clock_set = vdec2_clock_set,
 	.clock_on = vdec2_clock_on,
 	.clock_off = vdec2_clock_off,
-	.clock_prepare_switch = NULL,
 	.clock_get = vdec_clock_get,
 };
 #endif
@@ -98,7 +94,6 @@ static struct chip_vdec_clk_s vdec_hevc_clk_mgr __initdata = {
 	.clock_set = hevc_clock_set,
 	.clock_on = hevc_clock_on,
 	.clock_off = hevc_clock_off,
-	.clock_prepare_switch = hevc_clock_prepare_switch,
 	.clock_get = vdec_clock_get,
 };
 #endif
@@ -108,7 +103,6 @@ static struct chip_vdec_clk_s vdec_hcodec_clk_mgr __initdata = {
 	.clock_set = hcodec_clock_set,
 	.clock_on = hcodec_clock_on,
 	.clock_off = hcodec_clock_off,
-	.clock_prepare_switch = NULL,
 	.clock_get = vdec_clock_get,
 };
 #endif

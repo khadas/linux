@@ -63,14 +63,15 @@ static const char esparser_id[] = "esparser-id";
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 
-static struct tasklet_struct esparser_tasklet;
+
 static u32 search_done;
 static u32 video_data_parsed;
 static u32 audio_data_parsed;
 static atomic_t esparser_use_count = ATOMIC_INIT(0);
 static DEFINE_MUTEX(esparser_mutex);
 
-static void parser_tasklet(ulong data)
+
+static irqreturn_t esparser_isr(int irq, void *dev_id)
 {
 	u32 int_status = READ_MPEG_REG(PARSER_INT_STATUS);
 
@@ -82,13 +83,6 @@ static void parser_tasklet(ulong data)
 		search_done = 1;
 		wake_up_interruptible(&wq);
 	}
-}
-
-/*TODO irq*/
-
-static irqreturn_t esparser_isr(int irq, void *dev_id)
-{
-	tasklet_schedule(&esparser_tasklet);
 	return IRQ_HANDLED;
 }
 
@@ -337,7 +331,6 @@ s32 esparser_init(struct stream_buf_s *buf)
 
 		WRITE_MPEG_REG(PARSER_CONTROL, PARSER_AUTOSEARCH);
 
-		tasklet_init(&esparser_tasklet, parser_tasklet, 0);
 	}
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	/* hook stream buffer with PARSER */

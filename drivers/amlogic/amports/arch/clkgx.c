@@ -214,13 +214,13 @@ static int gp_pll_user_cb_vdec(struct gp_pll_user_handle_s *user,
 		struct clk *clk = clk_get(NULL, "gp0_pll");
 		if (!IS_ERR(clk)) {
 			clk_set_rate(clk, 1296000000UL);
+			VDEC1_SAFE_CLOCK();
 			VDEC1_CLOCK_OFF();
 			VDEC1_648M();
 			VDEC1_CLOCK_ON();
 			debug_print("gp_pll_user_cb_vdec call set\n");
 		}
 	}
-
 	return 0;
 }
 
@@ -323,15 +323,29 @@ static int vdec_clock_set(int clk)
 	int clk_seted = 0;
 	int gp_pll_wait = 0;
 	if (clk == 1)
-		clk = 500;
-	else if (clk == 0)
 		clk = 200;
+	else if (clk == 2)
+		clk = 500;
+	else if (clk == 0) {
+		/*used for release gp pull.
+		   if used, release it.
+		   if not used gp pll
+		   do nothing.
+		 */
+		if (clock_real_clk[VDEC_1] == 648 ||
+			clock_real_clk[VDEC_1] <= 0)
+			clk = 200;
+		else
+			clk = clock_real_clk[VDEC_1];
+	}
 	vdec_get_clk_source(clk, &source, &div, &rclk);
 
 	if (clock_real_clk[VDEC_1] == rclk)
 		return rclk;
 
-	if (clk > 500) {/*default used gp_pull.*/
+	if (rclk > 500 && clk != 667) {/*default used gp_pull.*/
+		if (clock_real_clk[VDEC_1] == 648)
+			return 648;
 		use_gpll = 1;
 		gp_pll_request(gp_pll_user_vdec);
 		while (!VDEC1_WITH_GP_PLL() && gp_pll_wait++ < 1000000)
@@ -347,6 +361,7 @@ static int vdec_clock_set(int clk)
 		}
 	}
 	if (!clk_seted) {/*if 648 not set,*/
+		VDEC1_SAFE_CLOCK();
 		VDEC1_CLOCK_OFF();
 		vdec_set_clk(VDEC_1, source, div);
 		VDEC1_CLOCK_ON();
@@ -400,6 +415,7 @@ static int gp_pll_user_cb_hevc(struct gp_pll_user_handle_s *user,
 		struct clk *clk = clk_get(NULL, "gp0_pll");
 		if (!IS_ERR(clk)) {
 			clk_set_rate(clk, 1296000000UL);
+			HEVC_SAFE_CLOCK();
 			HEVC_CLOCK_OFF();
 			HEVC_648M();
 			HEVC_CLOCK_ON();
@@ -427,17 +443,31 @@ static int hevc_clock_set(int clk)
 	int gp_pll_wait = 0;
 	int clk_seted = 0;
 
-
 	if (clk == 1)
-		clk = 500;
-	else if (clk == 0)
 		clk = 200;
+	else if (clk == 2)
+		clk = 500;
+	else if (clk == 0) {
+		/*used for release gp pull.
+		   if used, release it.
+		   if not used gp pll
+		   do nothing.
+		 */
+		if ((clock_real_clk[VDEC_HEVC] == 667) ||
+			(clock_real_clk[VDEC_HEVC] <= 0))
+			clk = 200;
+		else
+			clk = clock_real_clk[VDEC_HEVC];
+	}
+
 	vdec_get_clk_source(clk, &source, &div, &rclk);
 
 	if (rclk == clock_real_clk[VDEC_HEVC])
 		return rclk;/*clk not changed,*/
 
-	if (clk > 500) {/*500 up default used gp_pull.*/
+	if (rclk > 500 && clk != 667) {/*500 up default used gp_pull.*/
+		if (clock_real_clk[VDEC_HEVC] == 648)
+			return 648;
 		use_gpll = 1;
 		gp_pll_request(gp_pll_user_hevc);
 		while (!HEVC_WITH_GP_PLL() && gp_pll_wait++ < 1000000)
@@ -452,6 +482,7 @@ static int hevc_clock_set(int clk)
 		}
 	}
 	if (!clk_seted) {/*if 648 not set,*/
+		HEVC_SAFE_CLOCK();
 		HEVC_CLOCK_OFF();
 		vdec_set_clk(VDEC_HEVC, source, div);
 		HEVC_CLOCK_ON();
@@ -473,18 +504,6 @@ static void hevc_clock_off(void)
 {
 	HEVC_CLOCK_OFF();
 	gp_pll_release(gp_pll_user_hevc);
-	clock_real_clk[VDEC_HEVC] = 0;
-}
-
-static void vdec_clock_prepare_switch(void)
-{
-	VDEC1_SAFE_CLOCK();
-	clock_real_clk[VDEC_1] = 0;
-}
-
-static void hevc_clock_prepare_switch(void)
-{
-	HEVC_SAFE_CLOCK();
 	clock_real_clk[VDEC_HEVC] = 0;
 }
 

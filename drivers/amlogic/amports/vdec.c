@@ -208,16 +208,19 @@ error:
 
 s32 vdec_release(enum vformat_e vf)
 {
+
 	if (vdec_device)
 		platform_device_unregister(vdec_device);
 
 	if (vdec_mem_alloced_from_codec && vdec_dev_reg.mem_start) {
 		codec_mm_free_for_dma(MEM_NAME, vdec_dev_reg.mem_start);
 
+
 		vdec_cma_page = NULL;
 		vdec_dev_reg.mem_start = reserved_mem_start;
 		vdec_dev_reg.mem_end = reserved_mem_end;
 	}
+
 
 	inited_vcodec_num--;
 
@@ -323,10 +326,7 @@ void vdec_poweron(enum vdec_type_e core)
 		/*add power on vdec clock level setting,only for m8 chip,
 		   m8baby and m8m2 can dynamic adjust vdec clock,
 		   power on with default clock level */
-		if (poweron_clock_level == 1 && is_meson_m8_cpu())
-			vdec_clock_hi_enable();
-		else
-			vdec_clock_enable();
+		vdec_clock_hi_enable();
 		/* power up vdec memories */
 		WRITE_VREG(DOS_MEM_PD_VDEC, 0);
 		/* remove vdec1 isolation */
@@ -357,7 +357,7 @@ void vdec_poweron(enum vdec_type_e core)
 			WRITE_VREG(DOS_SW_RESET2, 0xffffffff);
 			WRITE_VREG(DOS_SW_RESET2, 0);
 			/* enable vdec1 clock */
-			vdec2_clock_enable();
+			vdec2_clock_hi_enable();
 			/* power up vdec memories */
 			WRITE_VREG(DOS_MEM_PD_VDEC2, 0);
 			/* remove vdec2 isolation */
@@ -404,7 +404,7 @@ void vdec_poweron(enum vdec_type_e core)
 				WRITE_VREG(DOS_SW_RESET3, 0xffffffff);
 				WRITE_VREG(DOS_SW_RESET3, 0);
 				/* enable hevc clock */
-				hevc_clock_enable();
+				hevc_clock_hi_enable();
 				/* power up hevc memories */
 				WRITE_VREG(DOS_MEM_PD_HEVC, 0);
 				/* remove hevc isolation */
@@ -475,9 +475,7 @@ void vdec_poweron(enum vdec_type_e core)
 
 void vdec_poweroff(enum vdec_type_e core)
 {
-
 	mutex_lock(&vdec_mutex);
-
 	if (core == VDEC_1) {
 		if (get_cpu_type() >=
 			MESON_CPU_MAJOR_ID_GXBB) {
@@ -545,9 +543,7 @@ void vdec_poweroff(enum vdec_type_e core)
 					0xc0);
 		}
 	}
-
 	mutex_unlock(&vdec_mutex);
-
 }
 
 bool vdec_on(enum vdec_type_e core)
@@ -663,8 +659,6 @@ void vdec_source_changed(int format, int width, int height, int fps)
 		return;
 
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
-		vdec_clock_prepare_switch();
 
 	vdec_source_changed_for_clk_set(format, width, height, fps);
 	pr_info("vdec1 video changed to %d x %d %d fps clk->%dMHZ\n",
@@ -683,9 +677,6 @@ void vdec2_source_changed(int format, int width, int height, int fps)
 
 
 
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
-			vdec_clock_prepare_switch();
-
 		vdec_source_changed_for_clk_set(format, width, height, fps);
 		pr_info("vdec2 video changed to %d x %d %d fps clk->%dMHZ\n",
 			width, height, fps, vdec_clk_get(VDEC_2));
@@ -700,10 +691,6 @@ void hevc_source_changed(int format, int width, int height, int fps)
 	if (vdec_source_get(VDEC_HEVC) == width * height * fps)
 		return;
 
-
-
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8B)
-		hevc_clock_prepare_switch();
 
 	vdec_source_changed_for_clk_set(format, width, height, fps);
 

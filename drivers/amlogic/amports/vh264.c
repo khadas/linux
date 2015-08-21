@@ -2414,7 +2414,8 @@ static void stream_switching_do(struct work_struct *work)
 	u32 y_index, u_index, src_index, des_index, y_desindex, u_dexindex;
 	struct canvas_s csy, csu, cyd;
 #endif
-
+	if (!atomic_read(&vh264_active))
+		return;
 	if ((!p_last_vf)
 		|| (vh264_stream_switching_state == SWITCHING_STATE_OFF))
 		return;
@@ -2636,9 +2637,9 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 
 static int amvdec_h264_remove(struct platform_device *pdev)
 {
+	atomic_set(&vh264_active, 0);
 	cancel_work_sync(&error_wd_work);
 	cancel_work_sync(&stream_switching_work);
-
 	mutex_lock(&vh264_mutex);
 	vh264_stop(MODE_FULL);
 	vdec_source_changed(VFORMAT_H264, 0, 0, 0);

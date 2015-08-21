@@ -634,7 +634,7 @@ static void vmpeg_put_timer_func(unsigned long arg)
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
 		saved_resolution = frame_width * frame_height * fps;
-		vdec_source_changed(VFORMAT_H264,
+		vdec_source_changed(VFORMAT_MPEG12,
 			frame_width, frame_height, fps);
 	}
 
