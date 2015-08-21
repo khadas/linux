@@ -45,31 +45,33 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 
 	PREG_ETH_REG0 = addr;
 	PREG_ETH_REG1 = addr+4;
-	pr_info("REG0:REG1 = %p :%p\n", PREG_ETH_REG0, PREG_ETH_REG1);
+	pr_debug("REG0:REG1 = %p :%p\n", PREG_ETH_REG0, PREG_ETH_REG1);
 
 	/* Get mec mode & ting value  set it in cbus2050 */
-	pr_info("mem start:0x%llx , %llx , [%p]\n", (long long)res->start,
+	pr_debug("mem start:0x%llx , %llx , [%p]\n", (long long)res->start,
 					(long long)(res->end - res->start),
 					addr);
 	if (of_property_read_u32(np, "mc_val", &mc_val)) {
-		pr_info("detect cbus[2050]=null, plesae setting val\n");
-		pr_info(" IF RGMII setting 0x7d21 else rmii setting 0x1000");
+		pr_debug("detect cbus[2050]=null, plesae setting val\n");
+		pr_debug(" IF RGMII setting 0x7d21 else rmii setting 0x1000");
 	} else {
-		pr_info("Ethernet :got mc_val 0x%x .set it\n", mc_val);
+		pr_debug("Ethernet :got mc_val 0x%x .set it\n", mc_val);
 			writel(mc_val, addr);
 	}
 
 	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
-	pr_info("Ethernet: pinmux setup ok\n");
+	pr_debug("Ethernet: pinmux setup ok\n");
 	/* reset pin choose pull high 100ms than pull low */
 	gdesc = gpiod_get(&pdev->dev, "rst_pin");
+	/*
 	if (!IS_ERR(gdesc)) {
 		gpiod_direction_output(gdesc, 0);
-		mdelay(100);
+		mdelay(10);
 		gpiod_direction_output(gdesc, 1);
-		mdelay(100);
+		mdelay(30);
 	}
-	pr_info("Ethernet: gpio reset ok\n");
+	*/
+	pr_debug("Ethernet: gpio reset ok\n");
 	return addr;
 }
 

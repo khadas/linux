@@ -97,7 +97,7 @@ static int __init mac_addr_set(char *line)
 		line += 3;
 	}
 	memcpy(DEFMAC, mac, 6);
-	pr_info("uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
+	pr_debug("uboot setup mac-addr: %x:%x:%x:%x:%x:%x\n",
 		DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4],
 		DEFMAC[5]);
 	g_mac_addr_setup++;
@@ -128,7 +128,7 @@ static int dwmac1000_validate_mcast_bins(int mcast_bins)
 		break;
 	default:
 		x = 0;
-		pr_info("Hash table entries set to unexpected value %d",
+		pr_debug("Hash table entries set to unexpected value %d",
 			mcast_bins);
 		break;
 	}
@@ -154,7 +154,7 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 		break;
 	default:
 		x = 1;
-		pr_info("Unicast table entries set to unexpected value %d\n",
+		pr_debug("Unicast table entries set to unexpected value %d\n",
 			ucast_entries);
 		break;
 	}
@@ -320,7 +320,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	device = of_match_device(stmmac_dt_ids, &pdev->dev);
 	if (!device)
 		return -ENODEV;
-	pr_info("Ethernet: config dt\n");
+	pr_debug("Ethernet: config dt\n");
 	platdata_copy_from_machine_data(device, plat);
 	setup_mac_addr(pdev, mac);
 
@@ -354,12 +354,12 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	struct plat_stmmacenet_data *plat_dat = NULL;
 	const char *mac = NULL;
 
-	pr_info("..........enter ethernet probe\n");
+	pr_debug("..........enter ethernet probe\n");
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
-	pr_info("****************ethernet base addr is %p\n", addr);
+	pr_debug("****************ethernet base addr is %p\n", addr);
 	plat_dat = dev_get_platdata(&pdev->dev);
 	if (pdev->dev.of_node) {
 		if (!plat_dat)
@@ -404,7 +404,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	/* Get the MAC information */
 	priv->dev->irq = platform_get_irq_byname(pdev, "macirq");
-	pr_info("Ethernet: get macirq %d\n", priv->dev->irq);
+	pr_debug("Ethernet: get macirq %d\n", priv->dev->irq);
 	if (priv->dev->irq == -ENXIO) {
 		pr_err("%s: ERROR: MAC IRQ configuration "
 		       "information not found\n", __func__);

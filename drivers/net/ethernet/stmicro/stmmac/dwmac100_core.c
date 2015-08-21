@@ -66,7 +66,7 @@ static int dwmac100_rx_ipc_enable(void __iomem *ioaddr)
 static void dwmac100_dump_regs(void __iomem *ioaddr)
 {
 	int i;
-	pr_info("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
+	pr_debug("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
 
 	for (i = 0; i < 55; i++) {
 		int offset = i * 4;
@@ -237,11 +237,11 @@ static int dwmac100_irq_status(void __iomem *ioaddr,
 				x->pcs_speed = SPEED_10;
 
 			x->pcs_link = 1;
-			pr_debug("Link is Up - %d/%s\n", (int)x->pcs_speed,
+			pr_info("Link is Up - %d/%s\n", (int)x->pcs_speed,
 				 x->pcs_duplex ? "Full" : "Half");
 		} else {
 			x->pcs_link = 0;
-			pr_debug("Link is Down\n");
+			pr_info("Link is Down\n");
 		}
 	}
 
@@ -359,7 +359,7 @@ struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
 	if (!mac)
 		return NULL;
 
-	pr_info("\tDWMAC100\n");
+	pr_debug("\tDWMAC100\n");
 
 	mac->mac = &dwmac100_ops;
 #ifdef CONFIG_DWMAC_MESON

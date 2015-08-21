@@ -782,7 +782,7 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 		    (interface == PHY_INTERFACE_MODE_RGMII_ID) ||
 		    (interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
 		    (interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
-			pr_info("STMMAC: PCS RGMII support enable\n");
+			pr_debug("STMMAC: PCS RGMII support enable\n");
 			priv->pcs = STMMAC_PCS_RGMII;
 		} else if (interface == PHY_INTERFACE_MODE_SGMII) {
 			pr_debug("STMMAC: PCS SGMII support enable\n");
@@ -804,9 +804,9 @@ static ssize_t set_phy_reg(struct device *dev,
 	int ovl;
 	int r = kstrtoint(buf, 0, &ovl);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	gPhyReg = ovl;
-	pr_info("---ovl=0x%x\n", ovl);
+	pr_debug("---ovl=0x%x\n", ovl);
 	return count;
 }
 
@@ -821,7 +821,7 @@ static ssize_t show_phy_regValue(struct device *dev,
 #else
 	int i = 0;
 	for (i = 0; i < 32; i++)
-		pr_info("%d: 0x%x\n", i, phy_read(phy_dev, i));
+		pr_debug("%d: 0x%x\n", i, phy_read(phy_dev, i));
 	val = phy_read(phy_dev, gPhyReg);
 	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n",
 		gPhyReg, val);
@@ -837,7 +837,7 @@ static ssize_t set_phy_regValue(struct device *dev,
 
 	struct phy_device *phy_dev = dev_get_drvdata(dev);
 	ret = kstrtoint(buf, 0, &ovl);
-	pr_info("---reg 0x%x: ovl=0x%x\n", gPhyReg, ovl);
+	pr_debug("---reg 0x%x: ovl=0x%x\n", gPhyReg, ovl);
 	phy_write(phy_dev, gPhyReg, ovl);
 	return count;
 }
@@ -856,10 +856,10 @@ static void am_net_dump_phyreg(void)
 	if (c_phy_dev == NULL)
 		return;
 
-	pr_info("========== ETH PHY new regs ==========\n");
+	pr_debug("========== ETH PHY new regs ==========\n");
 	for (reg = 0; reg < 32; reg++) {
 		val = phy_read(c_phy_dev, reg);
-		pr_info("[reg_%d] 0x%x\n", reg, val);
+		pr_debug("[reg_%d] 0x%x\n", reg, val);
 	}
 }
 
@@ -873,17 +873,17 @@ static int am_net_read_phyreg(int argc, char **argv)
 		return -1;
 	if (argc < 2 || (argv == NULL) || (argv[0] == NULL)
 		|| (argv[1] == NULL)) {
-		pr_info("Invalid syntax\n");
+		pr_debug("Invalid syntax\n");
 		return -1;
 	}
 	r = kstrtoint(argv[1], 0, &reg);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	if (reg >= 0 && reg <= 31) {
 		val = phy_read(c_phy_dev, reg);
-		pr_info("read phy [reg_%d] 0x%x\n", reg, val);
+		pr_debug("read phy [reg_%d] 0x%x\n", reg, val);
 	} else
-		pr_info("Invalid parameter\n");
+		pr_debug("Invalid parameter\n");
 
 	return 0;
 }
@@ -897,21 +897,21 @@ static int am_net_write_phyreg(int argc, char **argv)
 		return -1;
 	if (argc < 3 || (argv == NULL) || (argv[0] == NULL)
 			|| (argv[1] == NULL) || (argv[2] == NULL)) {
-		pr_info("Invalid syntax\n");
+		pr_debug("Invalid syntax\n");
 		return -1;
 	}
 	r = kstrtoint(argv[1], 0, &reg);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	r = kstrtoint(argv[2], 0, &val);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	if (reg >= 0 && reg <= 31) {
 		phy_write(c_phy_dev, reg, val);
-		pr_info("write phy [reg_%d] 0x%x, 0x%x\n",
+		pr_debug("write phy [reg_%d] 0x%x, 0x%x\n",
 				reg, val, phy_read(c_phy_dev, reg));
 	} else {
-		pr_info("Invalid parameter\n");
+		pr_debug("Invalid parameter\n");
 	}
 
 	return 0;
@@ -920,18 +920,18 @@ static void am_net_dump_macreg(void)
 {
 	int reg = 0;
 	int val = 0;
-	pr_info("========== ETH_MAC regs ==========\n");
+	pr_debug("========== ETH_MAC regs ==========\n");
 	for (reg = ETH_MAC_0_Configuration;
 		reg <= ETH_MMC_rxicmp_err_octets; reg += 0x4) {
 		val = readl(c_ioaddr + reg);
-		pr_info("[0x%04x] 0x%x\n", reg, val);
+		pr_debug("[0x%04x] 0x%x\n", reg, val);
 	}
 
-	pr_info("========== ETH_DMA regs ==========\n");
+	pr_debug("========== ETH_DMA regs ==========\n");
 	for (reg = ETH_DMA_0_Bus_Mode;
 		reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr; reg += 0x4) {
 		val = readl(c_ioaddr + reg);
-		pr_info("[0x%04x] 0x%x\n", reg, val);
+		pr_debug("[0x%04x] 0x%x\n", reg, val);
 	}
 }
 
@@ -943,17 +943,17 @@ static int am_net_read_macreg(int argc, char **argv)
 	int r = 0;
 	if (argc < 2 || (argv == NULL) || (argv[0] == NULL)
 		|| (argv[1] == NULL)) {
-		pr_info("Invalid syntax\n");
+		pr_debug("Invalid syntax\n");
 		return -1;
 	}
 	r  = kstrtoint(argv[1], 0, &reg);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
 		val = readl(c_ioaddr + reg);
-		pr_info("read mac [0x4%x] 0x%x\n", reg, val);
+		pr_debug("read mac [0x4%x] 0x%x\n", reg, val);
 	} else {
-		pr_info("Invalid parameter\n");
+		pr_debug("Invalid parameter\n");
 	}
 
 	return 0;
@@ -967,21 +967,21 @@ static int am_net_write_macreg(int argc, char **argv)
 	int r = 0;
 	if ((argc < 3) || (argv == NULL) || (argv[0] == NULL)
 			|| (argv[1] == NULL) || (argv[2] == NULL)) {
-		pr_info("Invalid syntax\n");
+		pr_debug("Invalid syntax\n");
 		return -1;
 	}
 	r = kstrtoint(argv[1], 0, &reg);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	r = kstrtoint(argv[2], 0, &val);
 	if (r)
-		pr_info("kstrtoint failed\n");
+		pr_debug("kstrtoint failed\n");
 	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
 		writel(val, (c_ioaddr + reg));
-		pr_info("write mac [0x%x] 0x%x, 0x%x\n",
+		pr_debug("write mac [0x%x] 0x%x, 0x%x\n",
 			reg, val, readl(c_ioaddr + reg));
 	} else {
-		pr_info("Invalid parameter\n");
+		pr_debug("Invalid parameter\n");
 	}
 
 	return 0;
@@ -1133,7 +1133,7 @@ int auto_cali(void)
 	char path[20] = {0};
 	int cali_rise = 0;
 	int cali_sel = 0;
-	pr_info("auto test cali\n");
+	pr_debug("auto test cali\n");
 	for (cali_sel = 0; cali_sel < 4; cali_sel++) {
 		readl(PREG_ETH_REG1);
 		strcpy(problem, "no clock delay");
@@ -1172,20 +1172,20 @@ int auto_cali(void)
 					}
 				}
 			}
-		pr_info
+		pr_debug
 			(" I1 = %d; I2 = %d; I3 = %d; I4 = %d; I5 = %d;\n",
 			I1, I2, I3, I4, I5);
 		if ((I1 > 0) && (I2 > 0) && (I3 > 0) &&
 				(I4 > 0) && (I5 > 0))
 			strcpy(problem, "clock delay");
-		pr_info(" RXDATA Line %d have %s problem\n",
+		pr_debug(" RXDATA Line %d have %s problem\n",
 				cali_sel, problem);
 		if ((I2+I1+I3) > (I5+I4+I3))
 			strcpy(path, "positive");
 		else
 			strcpy(path, "opposite");
 		if (strcmp(problem, "clock delay") == 0)
-			pr_info("Need debug to  delay %s direction\n",
+			pr_debug("Need debug to  delay %s direction\n",
 					path);
 		}
 	}
@@ -1209,7 +1209,7 @@ static int am_net_cali(int argc, char **argv, int gate)
 	if ((argc < 4) || (argv == NULL) || (argv[0] == NULL)
 			|| (argv[1] == NULL) || (argv[2] == NULL) ||
 			(argv[3] == NULL)) {
-		pr_info("Invalid syntax\n");
+		pr_debug("Invalid syntax\n");
 		return -1;
 	}
 
@@ -1221,14 +1221,14 @@ static int am_net_cali(int argc, char **argv, int gate)
 	writel(readl(PREG_ETH_REG0)|
 		(cali_start << 25)|(cali_rise << 26)|
 		(cali_sel << 27), PREG_ETH_REG0);
-	pr_info("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
+	pr_debug("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
 		cali_rise, cali_sel, cali_time, cali_start,
 			readl(PREG_ETH_REG0));
 	for (ii = 0; ii < cali_time; ii++) {
 		mdelay(100);
 		value = readl(PREG_ETH_REG1);
 		if ((value>>15) & 0x1) {
-			pr_info
+			pr_debug
 			("value = %x,len = %d,idx = %d,sel=%d,rise = %d\n",
 			value, (value>>5)&0x1f, (value&0x1f),
 			(value>>11)&0x7, (value>>14)&0x1);
@@ -1248,7 +1248,7 @@ static ssize_t eth_cali_store(struct class *class, struct class_attribute *attr,
 	buff = kstrdup(buf, GFP_KERNEL);
 	p = buff;
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8B) {
-		pr_info("Sorry ,this cpu is not support cali!\n");
+		pr_debug("Sorry ,this cpu is not support cali!\n");
 		goto end;
 	}
 	for (argc = 0; argc < 6; argc++) {
@@ -1356,7 +1356,7 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 		 priv->plat->phy_addr);
-	pr_info("stmmac_init_phy:  trying to attach to %s,interface %d\n",
+	pr_debug("stmmac_init_phy:  trying to attach to %s,interface %d\n",
 						phy_id_fmt, interface);
 
 	phydev = phy_connect(dev, phy_id_fmt, &stmmac_adjust_link, interface);
@@ -1384,7 +1384,7 @@ static int stmmac_init_phy(struct net_device *dev)
 		phy_disconnect(phydev);
 		return -ENODEV;
 	}
-	pr_info("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
+	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
@@ -1408,20 +1408,20 @@ static void stmmac_display_ring(void *head, int size, int extend_desc)
 		u64 x;
 		if (extend_desc) {
 			x = *(u64 *) ep;
-			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
+			pr_debug("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
 				i, (unsigned int)virt_to_phys(ep),
 				(unsigned int)x, (unsigned int)(x >> 32),
 				ep->basic.des2, ep->basic.des3);
 			ep++;
 		} else {
 			x = *(u64 *) p;
-			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x",
+			pr_debug("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x",
 				i, (unsigned int)virt_to_phys(p),
 				(unsigned int)x, (unsigned int)(x >> 32),
 				p->des2, p->des3);
 			p++;
 		}
-		pr_info("\n");
+		pr_debug("\n");
 	}
 }
 
@@ -1431,14 +1431,14 @@ static void stmmac_display_rings(struct stmmac_priv *priv)
 	unsigned int rxsize = priv->dma_rx_size;
 
 	if (priv->extend_desc) {
-		pr_info("Extended RX descriptor ring:\n");
+		pr_debug("Extended RX descriptor ring:\n");
 		stmmac_display_ring((void *)priv->dma_erx, rxsize, 1);
-		pr_info("Extended TX descriptor ring:\n");
+		pr_debug("Extended TX descriptor ring:\n");
 		stmmac_display_ring((void *)priv->dma_etx, txsize, 1);
 	} else {
-		pr_info("RX descriptor ring:\n");
+		pr_debug("RX descriptor ring:\n");
 		stmmac_display_ring((void *)priv->dma_rx, rxsize, 0);
-		pr_info("TX descriptor ring:\n");
+		pr_debug("TX descriptor ring:\n");
 		stmmac_display_ring((void *)priv->dma_tx, txsize, 0);
 	}
 }
@@ -1969,7 +1969,7 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 		dwmac_mmc_ctrl(priv->ioaddr, mode);
 		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
 	} else
-		pr_info(" No MAC Management Counters available\n");
+		pr_debug(" No MAC Management Counters available\n");
 }
 
 static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
@@ -1981,7 +1981,7 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 		u32 uid = ((hwid & 0x0000ff00) >> 8);
 		u32 synid = (hwid & 0x000000ff);
 
-		pr_info("stmmac - user ID: 0x%x, Synopsys ID: 0x%x\n",
+		pr_debug("stmmac - user ID: 0x%x, Synopsys ID: 0x%x\n",
 			uid, synid);
 
 		return synid;
@@ -1999,18 +1999,18 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
 {
 	if (priv->plat->enh_desc) {
-		pr_info(" Enhanced/Alternate descriptors\n");
+		pr_debug(" Enhanced/Alternate descriptors\n");
 
 		/* GMAC older than 3.50 has no extended descriptors */
 		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
-			pr_info("\tEnabled extended descriptors\n");
+			pr_debug("\tEnabled extended descriptors\n");
 			priv->extend_desc = 1;
 		} else
 			pr_warn("Extended descriptors not supported\n");
 
 		priv->hw->desc = &enh_desc_ops;
 	} else {
-		pr_info(" Normal descriptors\n");
+		pr_debug(" Normal descriptors\n");
 		priv->hw->desc = &ndesc_ops;
 	}
 }
@@ -2088,7 +2088,7 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 					     priv->dev->dev_addr, 0);
 		if (!is_valid_ether_addr(priv->dev->dev_addr))
 			eth_hw_addr_random(priv->dev);
-		pr_info("%s: device MAC address %pM\n", priv->dev->name,
+		pr_debug("%s: device MAC address %pM\n", priv->dev->name,
 			priv->dev->dev_addr);
 	}
 }
@@ -2258,7 +2258,7 @@ static int stmmac_open(struct net_device *dev)
 			goto phy_error;
 		}
 	} else {
-		pr_info("not call stmmac_init_phy\n");
+		pr_debug("not call stmmac_init_phy\n");
 	}
 	/* Extra statistics */
 	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
@@ -2268,7 +2268,7 @@ static int stmmac_open(struct net_device *dev)
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
 	priv->dma_buf_sz = STMMAC_ALIGN(buf_sz);
-	pr_info("open eth0, alloc desc resource\n");
+	pr_debug("open eth0, alloc desc resource\n");
 	ret = alloc_dma_desc_resources(priv);
 	if (ret < 0) {
 		pr_err("%s: DMA descriptors allocation failed\n", __func__);
@@ -2681,7 +2681,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			}
 			skb = priv->rx_skbuff[entry];
 			if (unlikely(!skb)) {
-				pr_info("%s: Inconsistent Rx descriptor chain\n",
+				pr_debug("%s: Inconsistent Rx descriptor chain\n",
 				       priv->dev->name);
 				priv->dev->stats.rx_dropped++;
 				break;
@@ -3113,7 +3113,7 @@ static int stmmac_init_fs(struct net_device *dev)
 						  &stmmac_rings_status_fops);
 
 	if (!stmmac_rings_status || IS_ERR(stmmac_rings_status)) {
-		pr_info("ERROR creating stmmac ring debugfs file\n");
+		pr_debug("ERROR creating stmmac ring debugfs file\n");
 		debugfs_remove(stmmac_fs_dir);
 
 		return -ENOMEM;
@@ -3124,7 +3124,7 @@ static int stmmac_init_fs(struct net_device *dev)
 					     dev, &stmmac_dma_cap_fops);
 
 	if (!stmmac_dma_cap || IS_ERR(stmmac_dma_cap)) {
-		pr_info("ERROR creating stmmac MMC debugfs file\n");
+		pr_debug("ERROR creating stmmac MMC debugfs file\n");
 		debugfs_remove(stmmac_rings_status);
 		debugfs_remove(stmmac_fs_dir);
 
@@ -3190,18 +3190,18 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* To use the chained or ring mode */
 	if (chain_mode) {
 		priv->hw->mode = &chain_mode_ops;
-		pr_info(" Chain mode enabled\n");
+		pr_debug(" Chain mode enabled\n");
 		priv->mode = STMMAC_CHAIN_MODE;
 	} else {
 		priv->hw->mode = &ring_mode_ops;
-		pr_info(" Ring mode enabled\n");
+		pr_debug(" Ring mode enabled\n");
 		priv->mode = STMMAC_RING_MODE;
 	}
 
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
 	if (priv->hw_cap_support) {
-		pr_info(" DMA HW capability register supported");
+		pr_debug(" DMA HW capability register supported");
 
 		/* We can override some gmac/dma configuration fields: e.g.
 		 * enh_desc, tx_coe (e.g. that are passed through the
@@ -3219,7 +3219,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 			priv->plat->rx_coe = STMMAC_RX_COE_TYPE1;
 
 	} else
-		pr_info(" No HW DMA feature register supported");
+		pr_debug(" No HW DMA feature register supported");
 
 	/* To use alternate (extended) or normal descriptor structures */
 	stmmac_selec_desc_mode(priv);
@@ -3231,13 +3231,13 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	}
 
 	if (priv->plat->rx_coe)
-		pr_info(" RX Checksum Offload Engine supported (type %d)\n",
+		pr_debug(" RX Checksum Offload Engine supported (type %d)\n",
 			priv->plat->rx_coe);
 	if (priv->plat->tx_coe)
-		pr_info(" TX Checksum insertion supported\n");
+		pr_debug(" TX Checksum insertion supported\n");
 
 	if (priv->plat->pmt) {
-		pr_info(" Wake-Up On Lan supported\n");
+		pr_debug(" Wake-Up On Lan supported\n");
 		device_set_wakeup_capable(priv->device, 1);
 	}
 
@@ -3345,7 +3345,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	 */
 	if ((priv->synopsys_id >= DWMAC_CORE_3_50) && (!priv->plat->riwt_off)) {
 		priv->use_riwt = 1;
-		pr_info(" Enable RX Mitigation via HW Watchdog Timer\n");
+		pr_debug(" Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
 	netif_napi_add(ndev, &priv->napi, stmmac_poll, 64);
@@ -3419,7 +3419,7 @@ int stmmac_dvr_remove(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
-	pr_info("%s:\n\tremoving driver", __func__);
+	pr_debug("%s:\n\tremoving driver", __func__);
 
 	priv->hw->dma->stop_rx(priv->ioaddr);
 	priv->hw->dma->stop_tx(priv->ioaddr);
@@ -3549,7 +3549,6 @@ err:
 	pr_err("stmmac: driver registration failed\n");
 	return ret;
 }
-
 static void __exit stmmac_exit(void)
 {
 	stmmac_unregister_platform();
