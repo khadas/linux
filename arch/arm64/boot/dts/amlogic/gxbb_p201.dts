@@ -334,6 +334,14 @@
 		//status = "ok";
 		//gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
 	//};
+
+	rtc{
+		compatible = "amlogic, aml_vrtc";
+		alarm_reg_addr = <0xc81000a8>;
+		timer_e_addr = <0xc1109988>;
+		status = "okay";
+	};
+
 	wifi{
 		compatible = "amlogic, aml_broadcm_wifi";
 		dev_name = "aml_broadcm_wifi";

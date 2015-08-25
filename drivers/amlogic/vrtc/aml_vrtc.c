@@ -26,13 +26,27 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/pm_wakeup.h>
 
-static u32 total_sleep_time;
-static u32 alarm_time;
-static u32 alarm_reg_addr;
+static void __iomem *alarm_reg_vaddr;
+static void __iomem *tel_reg_vaddr, *teh_reg_vaddr;
+
+static u32 read_te(void)
+{
+	u32 time;
+	unsigned long te = 0;
+	time = 0;
+	if (tel_reg_vaddr && teh_reg_vaddr) {
+		te = readl(teh_reg_vaddr);
+		te <<= 32;
+		te += readl(tel_reg_vaddr);
+		time = (u32)(te / 1000000);
+		pr_debug("time_e: %us\n", time);
+	}
+	return time;
+}
 
 static int aml_vrtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	u32 time_t = (u32)(jiffies_to_msecs(jiffies) / 1000) + total_sleep_time;
+	u32 time_t = read_te();
 
 	rtc_time_to_tm(time_t, tm);
 
@@ -41,14 +55,13 @@ static int aml_vrtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int set_wakeup_time(unsigned long time)
 {
-	void __iomem *vaddr;
-	if (alarm_reg_addr)
-		vaddr = ioremap(alarm_reg_addr, 0x4);
-	else
-		return -1;
-	writel(time, vaddr);
-	pr_info("set_wakeup_time: %lu\n", time);
-	return 0;
+	int ret = -1;
+	if (alarm_reg_vaddr) {
+		writel(time, alarm_reg_vaddr);
+		ret = 0;
+		pr_debug("set_wakeup_time: %lu\n", time);
+	}
+	return ret;
 }
 
 static int aml_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
@@ -72,8 +85,7 @@ static int aml_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 			ret = set_wakeup_time(alarm_secs);
 			if (ret < 0)
 				return ret;
-			alarm_time = alarm_secs;
-			pr_info("system will wakeup %lus later\n", alarm_secs);
+			pr_debug("system will wakeup %lus later\n", alarm_secs);
 		}
 	}
 	return 0;
@@ -88,13 +100,22 @@ static int aml_vrtc_probe(struct platform_device *pdev)
 {
 	struct	rtc_device *vrtc;
 	int ret;
+	u32 paddr = 0;
 
 	ret = of_property_read_u32(pdev->dev.of_node,
-			"alarm_reg_addr", &alarm_reg_addr);
-	if (ret)
-		return -1;
-	pr_info("alarm_reg_addr: 0x%x\n", alarm_reg_addr);
+			"alarm_reg_addr", &paddr);
+	if (!ret) {
+		pr_debug("alarm_reg_paddr: 0x%x\n", paddr);
+		alarm_reg_vaddr = ioremap(paddr, 0x4);
+	}
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+			"timer_e_addr", &paddr);
+	if (!ret) {
+		pr_debug("timer_e_paddr: 0x%x\n", paddr);
+		tel_reg_vaddr = ioremap(paddr, 0x4);
+		teh_reg_vaddr = ioremap(paddr + 4, 0x4);
+	}
 	device_init_wakeup(&pdev->dev, 1);
 	vrtc = rtc_device_register("aml_vrtc", &pdev->dev,
 		&aml_vrtc_ops, THIS_MODULE);
@@ -115,7 +136,6 @@ static int aml_vrtc_remove(struct platform_device *dev)
 
 int aml_vrtc_resume(struct platform_device *pdev)
 {
-	total_sleep_time += alarm_time;
 	set_wakeup_time(0);
 	return 0;
 }
