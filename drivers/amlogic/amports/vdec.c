@@ -63,6 +63,7 @@ int vdec_mem_alloced_from_codec;
 static unsigned long reserved_mem_start, reserved_mem_end;
 static int hevc_max_reset_count;
 static bool hevc_workaround;
+static DEFINE_SPINLOCK(vdec_spin_lock);
 
 #define HEVC_TEST_LIMIT1 50
 #define HEVC_TEST_LIMIT2 100
@@ -333,6 +334,17 @@ void vdec_poweron(enum vdec_type_e core)
 				READ_AOREG(AO_RTI_GEN_PWR_ISO0) & ~0xC0);
 		/* reset DOS top registers */
 		WRITE_VREG(DOS_VDEC_MCRCC_STALL_CTRL, 0);
+		if (get_cpu_type() >=
+			MESON_CPU_MAJOR_ID_GXBB) {
+			/*
+			enable VDEC_1 DMC request
+			*/
+			unsigned long flags;
+			spin_lock_irqsave(&vdec_spin_lock, flags);
+			codec_dmcbus_write(DMC_REQ_CTRL,
+				codec_dmcbus_read(DMC_REQ_CTRL) | (1 << 13));
+			spin_unlock_irqrestore(&vdec_spin_lock, flags);
+		}
 	} else if (core == VDEC_2) {
 		if (has_vdec2()) {
 			/* vdec2 power on */
@@ -467,6 +479,17 @@ void vdec_poweroff(enum vdec_type_e core)
 	mutex_lock(&vdec_mutex);
 
 	if (core == VDEC_1) {
+		if (get_cpu_type() >=
+			MESON_CPU_MAJOR_ID_GXBB) {
+			/* disable VDEC_1 DMC REQ
+			*/
+			unsigned long flags;
+			spin_lock_irqsave(&vdec_spin_lock, flags);
+			codec_dmcbus_write(DMC_REQ_CTRL,
+				codec_dmcbus_read(DMC_REQ_CTRL) & (~(1 << 13)));
+			spin_unlock_irqrestore(&vdec_spin_lock, flags);
+			udelay(10);
+		}
 		/* enable vdec1 isolation */
 		WRITE_AOREG(AO_RTI_GEN_PWR_ISO0,
 				READ_AOREG(AO_RTI_GEN_PWR_ISO0) | 0xc0);
