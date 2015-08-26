@@ -180,6 +180,7 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 {
 	extern const struct of_device_id __reservedmem_of_table[];
 	const struct of_device_id *i;
+	int ret = 0;
 
 	for (i = __reservedmem_of_table; i < &__rmem_of_table_sentinel; i++) {
 		reservedmem_of_init_fn initfn = i->data;
@@ -188,13 +189,17 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))
 			continue;
 
+		/*
+		 * scan whole table to set up all initfn, if one memory region
+		 * is used by multi-users.
+		 */
 		if (initfn(rmem) == 0) {
 			pr_info("Reserved memory: initialized node %s, compatible id %s\n",
 				rmem->name, compat);
-			return 0;
-		}
+		} else
+			ret--;
 	}
-	return -ENOENT;
+	return ret;
 }
 
 /**
@@ -237,6 +242,70 @@ static inline struct reserved_mem *__find_rmem(struct device_node *node)
 	return NULL;
 }
 
+static int of_rmem_multi_init(struct device *dev, struct reserved_mem *rmem)
+{
+	struct rmem_multi_user *u;
+	int ret = -1;
+
+	if (!rmem || !dev || !rmem->user)
+		return -EINVAL;
+
+	u = rmem->user;
+	while (u) {
+		if (of_match_node(u->of_match_table, dev->of_node) &&
+		    u->ops->device_init) {
+			ret = u->ops->device_init(rmem, dev);
+			return ret;
+		}
+		u = u->next;
+	}
+	return ret;
+}
+
+static int of_rmem_multi_release(struct device *dev, struct reserved_mem *rmem)
+{
+	struct rmem_multi_user *u;
+	int ret = 0;
+
+	if (!rmem || !dev || !rmem->user)
+		return -EINVAL;
+
+	u = rmem->user;
+	while (u) {
+		if (of_match_node(u->of_match_table, dev->of_node) &&
+		    u->ops->device_release) {
+			u->ops->device_release(rmem, dev);
+			return ret;
+		}
+		u = u->next;
+	}
+	return ret;
+}
+
+
+int of_add_rmem_multi_user(struct reserved_mem *rmem,
+			   struct rmem_multi_user *user)
+{
+	struct rmem_multi_user *u;
+
+	if (!rmem || !user)
+		return -EINVAL;
+	if (!rmem->user) {
+		rmem->user = user;
+		pr_info("%s add multi user:%p\n", rmem->name, user);
+		return 0;
+	}
+
+	u = rmem->user;
+	while (u->next)
+		u = u->next;
+	pr_info("%s add multi user:%p\n", rmem->name, user);
+	u->next = user;
+	user->next = NULL;
+
+	return 0;
+}
+
 /**
  * of_reserved_mem_device_init() - assign reserved memory region to given device
  *
@@ -265,6 +334,9 @@ int of_reserved_mem_device_init(struct device *dev)
 
 		rmem = __find_rmem(np);
 		of_node_put(np);
+
+		if (!of_rmem_multi_init(dev, rmem))
+			continue;
 
 		if (!rmem || !rmem->ops || !rmem->ops->device_init)
 			continue;
@@ -306,6 +378,9 @@ void of_reserved_mem_device_release(struct device *dev)
 
 		rmem = __find_rmem(np);
 		of_node_put(np);
+
+		if (!of_rmem_multi_release(dev, rmem))
+			continue;
 
 		if (!rmem || !rmem->ops || !rmem->ops->device_release)
 			continue;

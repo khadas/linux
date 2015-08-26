@@ -5,6 +5,12 @@ struct device;
 struct of_phandle_args;
 struct reserved_mem_ops;
 
+struct rmem_multi_user {
+	const struct of_device_id     *of_match_table;
+	const struct reserved_mem_ops *ops;
+	struct rmem_multi_user        *next;
+};
+
 struct reserved_mem {
 	const char			*name;
 	unsigned long			fdt_node;
@@ -12,6 +18,7 @@ struct reserved_mem {
 	const struct reserved_mem_ops	*ops;
 	phys_addr_t			base;
 	phys_addr_t			size;
+	struct rmem_multi_user		*user;
 	void				*priv;
 };
 
@@ -32,6 +39,8 @@ void fdt_init_reserved_mem(void);
 void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
 			       phys_addr_t base, phys_addr_t size);
 
+int of_add_rmem_multi_user(struct reserved_mem *, struct rmem_multi_user *);
+
 #define RESERVEDMEM_OF_DECLARE(name, compat, init)			\
 	static const struct of_device_id __reservedmem_of_table_##name	\
 		__used __section(__reservedmem_of_table)		\
@@ -43,6 +52,11 @@ void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
 static inline int of_reserved_mem_device_init(struct device *dev)
 {
 	return -ENOSYS;
+}
+static inline int of_add_rmem_multi_user(struct reserved_mem *rmem,
+	struct rmem_multi_user *user)
+{
+	return -EINVAL;
 }
 static inline void of_reserved_mem_device_release(struct device *pdev) { }
 static inline void fdt_init_reserved_mem(void) { }

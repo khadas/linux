@@ -150,9 +150,14 @@ static const struct reserved_mem_ops rmem_ion_dev_ops = {
 	.device_init = ion_dev_mem_init,
 };
 
+static struct rmem_multi_user rmem_ion_muser = {
+	.of_match_table = amlogic_ion_dev_dt_match,
+	.ops  = &rmem_ion_dev_ops,
+};
+
 static int __init ion_dev_mem_setup(struct reserved_mem *rmem)
 {
-	rmem->ops = &rmem_ion_dev_ops;
+	of_add_rmem_multi_user(rmem, &rmem_ion_muser);
 	pr_info("ion_dev mem setup\n");
 
 	return 0;

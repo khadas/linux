@@ -1436,13 +1436,25 @@ static int ppmgr_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	return 0;
 }
 
+/* #ifdef CONFIG_USE_OF */
+static const struct of_device_id amlogic_ppmgr_dt_match[] = {{.compatible =
+	"amlogic, ppmgr", }, {}, };
+/* #else */
+/* #define amlogic_ppmgr_dt_match NULL */
+/* #endif */
+
 static const struct reserved_mem_ops rmem_ppmgr_ops = {.device_init =
 	ppmgr_mem_device_init, };
+
+static struct rmem_multi_user rmem_ppmgr_muser = {
+	.of_match_table = amlogic_ppmgr_dt_match,
+	.ops  = &rmem_ppmgr_ops,
+};
 
 static int __init ppmgr_mem_setup(struct reserved_mem *rmem)
 {
 	pr_warn("ppmgr share mem setup\n");
-	rmem->ops = &rmem_ppmgr_ops;
+	of_add_rmem_multi_user(rmem, &rmem_ppmgr_muser);
 
 	return 0;
 }
@@ -1455,13 +1467,6 @@ static int ppmgr_drv_remove(struct platform_device *plat_dev)
 	uninit_ppmgr_device();
 	return 0;
 }
-
-/* #ifdef CONFIG_USE_OF */
-static const struct of_device_id amlogic_ppmgr_dt_match[] = {{.compatible =
-	"amlogic, ppmgr", }, {}, };
-/* #else */
-/* #define amlogic_ppmgr_dt_match NULL */
-/* #endif */
 
 /* general interface for a linux driver .*/
 struct platform_driver ppmgr_drv = {.probe = ppmgr_driver_probe, .remove =
@@ -1494,7 +1499,7 @@ module_init(
 	ppmgr_init_module);
 module_exit(ppmgr_remove_module);
 
-RESERVEDMEM_OF_DECLARE(ppmgr, "amlogic, ppmgr_memory", ppmgr_mem_setup);
+RESERVEDMEM_OF_DECLARE(ppmgr, "amlogic, idev-mem", ppmgr_mem_setup);
 MODULE_DESCRIPTION("AMLOGIC  ppmgr driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("aml-sh <kasin.li@amlogic.com>");

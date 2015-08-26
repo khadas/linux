@@ -86,17 +86,17 @@
 			//no-map;
 		};
 		/*  POST PROCESS MANAGER */
-		ppmgr_reserved:linux,ppmgr {
-			compatible = "amlogic, ppmgr_memory";
-			size = <0x0 0x2000000>;
-		};
+		//ppmgr_reserved:linux,ppmgr {
+		//	compatible = "amlogic, ppmgr_memory";
+		//	size = <0x0 0x2000000>;
+		//};
 
 		/* AVC Encode CMA pool */
 		avc_cma_reserved:linux,avc_cma {
 			compatible = "shared-dma-pool";
 			linux,phandle = <1>;
 			reusable;
-			size = <0x0 0x2400000>;
+			size = <0x0 0x1400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -254,7 +254,7 @@
 	};
 	ppmgr {
 		compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
-		memory-region = <&ppmgr_reserved>;
+		memory-region = <&ion_reserved>;
 		dev_name = "ppmgr";
 		status = "okay";
 	};
