@@ -1,5 +1,21 @@
-config AML_CPU_VERSION
-    bool "Amlogic cpu version support"
+menuconfig AML_CPU_VERSION
+    boolean "Amlogic cpu version support"
     default n
     help
       This is the Amlogic CPU version interface driver
+
+if AML_CPU_VERSION
+
+config	AML_MESON64_VERSION
+	boolean "Amlogic Meson64 cpu version"
+	default n
+	help
+	  say y to enable Amlogic gx-X cpu version driver.
+
+config	AML_M8_VERSION
+	boolean "Amlogic M8 cpu version"
+	default n
+	help
+	  say y to enable Amlogic m8 cpu version driver.
+
+endif

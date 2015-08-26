@@ -1,0 +1,61 @@
+/*
+ * drivers/amlogic/cpu_version/cpu.c
+ *
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/printk.h>
+#include <linux/string.h>
+#include <linux/of_address.h>
+#include <linux/io.h>
+static int meson_cpu_version[MESON_CPU_VERSION_LVL_MAX+1];
+void __iomem  *assist_hw_rev;
+
+int get_meson_cpu_version(int level)
+{
+	if (level >= 0 && level <= MESON_CPU_VERSION_LVL_MAX)
+		return meson_cpu_version[level];
+	return 0;
+}
+EXPORT_SYMBOL(get_meson_cpu_version);
+
+int __init meson_cpu_version_init(void)
+{
+	unsigned int ver;
+	struct device_node *cpu_version;
+	cpu_version = of_find_node_by_path("/cpu_version");
+	if (cpu_version)
+		assist_hw_rev = of_iomap(cpu_version, 0);
+	else
+		return 0;
+
+	meson_cpu_version[MESON_CPU_VERSION_LVL_MAJOR] =
+		readl(assist_hw_rev) >> 24;
+
+	ver = (readl(assist_hw_rev) >> 8) & 0xff;
+
+	meson_cpu_version[MESON_CPU_VERSION_LVL_MINOR] = ver;
+	pr_info("Meson chip version = Rev%X (%X:%X - %X:%X)\n", ver,
+		meson_cpu_version[MESON_CPU_VERSION_LVL_MAJOR],
+		meson_cpu_version[MESON_CPU_VERSION_LVL_MINOR],
+		meson_cpu_version[MESON_CPU_VERSION_LVL_PACK],
+		meson_cpu_version[MESON_CPU_VERSION_LVL_MISC]
+		);
+	return 0;
+}
+early_initcall(meson_cpu_version_init);
