@@ -643,7 +643,7 @@ static ssize_t uboot_read(struct file *file,
 	loff_t *ppos)
 {
 	struct amlnand_phydev *phydev = uboot_phydev;
-	struct amlnand_chip *aml_chip = phydev->priv;
+	/*struct amlnand_chip *aml_chip = phydev->priv; */
 	/* struct nand_flash *flash = &(aml_chip->flash); */
 	struct phydev_ops *devops = &(phydev->ops);
 	/* struct hw_controller *controller = &(aml_chip->controller); */
@@ -663,24 +663,19 @@ static ssize_t uboot_read(struct file *file,
 		goto err_exit0;
 	}
 	/* memset(data_buf,0x0,UBOOT_WRITE_SIZE); */
-	/* ret=copy_from_user(data_buf, buf, UBOOT_WRITE_SIZE); */
 	memset(data_buf, 0x0, align_count);
-
-
 	memset(devops, 0x0, sizeof(struct phydev_ops));
 	devops->addr = 0x0;
 	/* devops->len = UBOOT_WRITE_SIZE; */
 	devops->len = align_count;
 	devops->mode = NAND_HW_ECC;
 	devops->datbuf = data_buf;
-	amlnand_get_device(aml_chip, CHIP_WRITING);
 
 	ret = roomboot_nand_read(phydev);
 	if (ret < 0) {
 		aml_nand_dbg("uboot_write failed");
 		count = 0;
 	}
-	amlnand_release_device(aml_chip);
 	ret = copy_to_user(buf, data_buf, count);
 err_exit0:
 
