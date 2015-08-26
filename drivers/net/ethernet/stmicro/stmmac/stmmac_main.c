@@ -3457,7 +3457,9 @@ int stmmac_suspend(struct net_device *ndev)
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
 
+	spin_unlock_irqrestore(&priv->lock, flags);
 	napi_disable(&priv->napi);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Stop TX/RX DMA */
 	priv->hw->dma->stop_tx(priv->ioaddr);

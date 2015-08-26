@@ -1048,6 +1048,9 @@ extern void DWC_SPINLOCK_FREE(dwc_spinlock_t *lock);
 extern void DWC_SPINLOCK_IRQSAVE(dwc_spinlock_t *lock, dwc_irqflags_t *flags);
 #define dwc_spinlock_irqsave DWC_SPINLOCK_IRQSAVE
 
+extern void DWC_SPINLOCK_IRQSAVE_NESTED
+	(dwc_spinlock_t *lock, dwc_irqflags_t *flags);
+
 /** Re-enables the interrupt and releases the lock.
  *
  * @param lock Pointer to the spinlock.

@@ -1041,8 +1041,8 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 				osd_hw.free_scale_data[index].y_end -
 				osd_hw.free_scale_data[index].y_start + 1;
 		}
-		spin_lock_irqsave(&osd_lock, lock_flags);
 		ret = osd_set_scan_mode(index);
+		spin_lock_irqsave(&osd_lock, lock_flags);
 		if (ret)
 			osd_hw.reg[index][OSD_COLOR_MODE].update_func();
 		osd_hw.reg[index][OSD_FREESCALE_COEF].update_func();
@@ -1051,8 +1051,8 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 		osd_hw.reg[index][OSD_ENABLE].update_func();
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 	} else {
-		spin_lock_irqsave(&osd_lock, lock_flags);
 		ret = osd_set_scan_mode(index);
+		spin_lock_irqsave(&osd_lock, lock_flags);
 		if (ret)
 			osd_hw.reg[index][OSD_COLOR_MODE].update_func();
 		osd_hw.reg[index][DISP_GEOMETRY].update_func();

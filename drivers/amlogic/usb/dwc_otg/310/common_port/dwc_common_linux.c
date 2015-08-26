@@ -638,6 +638,18 @@ void DWC_SPINLOCK_IRQSAVE(dwc_spinlock_t *lock, dwc_irqflags_t *flags)
 	*flags = f;
 }
 
+void DWC_SPINLOCK_IRQSAVE_NESTED(dwc_spinlock_t *lock, dwc_irqflags_t *flags)
+{
+	dwc_irqflags_t f;
+
+#if defined(CONFIG_PREEMPT) || defined(CONFIG_SMP)
+	spin_lock_irqsave_nested((spinlock_t *)lock, f, SINGLE_DEPTH_NESTING);
+#else
+	local_irq_save(f);
+#endif
+	*flags = f;
+}
+
 void DWC_SPINUNLOCK_IRQRESTORE(dwc_spinlock_t *lock, dwc_irqflags_t flags)
 {
 #if defined(CONFIG_PREEMPT) || defined(CONFIG_SMP)
@@ -803,7 +815,7 @@ void DWC_TIMER_SCHEDULE(dwc_timer_t *timer, uint32_t time)
 {
 	dwc_irqflags_t flags;
 
-	DWC_SPINLOCK_IRQSAVE(timer->lock, &flags);
+	DWC_SPINLOCK_IRQSAVE_NESTED(timer->lock, &flags);
 
 	if (!timer->scheduled) {
 		timer->scheduled = 1;
@@ -1318,6 +1330,7 @@ EXPORT_SYMBOL(DWC_SPINLOCK);
 EXPORT_SYMBOL(DWC_SPINUNLOCK);
 EXPORT_SYMBOL(DWC_SPINLOCK_IRQSAVE);
 EXPORT_SYMBOL(DWC_SPINUNLOCK_IRQRESTORE);
+EXPORT_SYMBOL(DWC_SPINLOCK_IRQSAVE_NESTED);
 EXPORT_SYMBOL(DWC_MUTEX_ALLOC);
 
 #if (!defined(DWC_LINUX) || !defined(CONFIG_DEBUG_MUTEXES))
