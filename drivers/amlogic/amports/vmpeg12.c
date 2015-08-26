@@ -30,6 +30,8 @@
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/dma-mapping.h>
 
 #include "vdec_reg.h"
 #include "vmpeg12.h"
@@ -153,6 +155,9 @@ static struct timer_list recycle_timer;
 static u32 stat;
 static unsigned long buf_start;
 static u32 buf_size, ccbuf_phyAddress;
+static void *ccbuf_phyAddress_virt;
+static int ccbuf_phyAddress_is_remaped_nocache;
+
 static DEFINE_SPINLOCK(lock);
 
 static u32 frame_rpt_state;
@@ -261,8 +266,18 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 	reg = READ_VREG(MREG_BUFFEROUT);
 
 	if ((reg >> 16) == 0xfe) {
-		wakeup_userdata_poll(reg & 0xffff,
-			ccbuf_phyAddress, CCBUF_SIZE, 0);
+		if (!ccbuf_phyAddress_is_remaped_nocache &&
+			ccbuf_phyAddress &&
+			ccbuf_phyAddress_virt) {
+			codec_mm_dma_flush(
+				ccbuf_phyAddress_virt,
+				CCBUF_SIZE,
+				DMA_FROM_DEVICE);
+		}
+		wakeup_userdata_poll(
+			reg & 0xffff,
+			(unsigned long)ccbuf_phyAddress_virt,
+			CCBUF_SIZE, 0);
 		WRITE_VREG(MREG_BUFFEROUT, 0);
 	} else if (reg) {
 		info = READ_VREG(MREG_PIC_INFO);
@@ -747,8 +762,18 @@ static void vmpeg12_canvas_init(void)
 		}
 	}
 
-	ccbuf_phyAddress = buf_start + 9 * decbuf_size;
-	WRITE_VREG(MREG_CO_MV_START, buf_start + 9 * decbuf_size + CCBUF_SIZE);
+	WRITE_VREG(MREG_CO_MV_START,
+		buf_start + 9 * decbuf_size + CCBUF_SIZE);
+	if (!ccbuf_phyAddress) {
+		ccbuf_phyAddress = (u32)(buf_start + 9 * decbuf_size);
+		ccbuf_phyAddress_virt = codec_mm_phys_to_virt(ccbuf_phyAddress);
+		if (!ccbuf_phyAddress_virt) {
+			ccbuf_phyAddress_virt = ioremap_nocache(
+				ccbuf_phyAddress,
+				CCBUF_SIZE);
+			ccbuf_phyAddress_is_remaped_nocache = 1;
+		}
+	}
 
 }
 
@@ -973,7 +998,12 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
 	}
 
 	amvdec_disable();
+	if (ccbuf_phyAddress_is_remaped_nocache)
+		iounmap(ccbuf_phyAddress_virt);
 
+	ccbuf_phyAddress_virt = NULL;
+	ccbuf_phyAddress = 0;
+	ccbuf_phyAddress_is_remaped_nocache = 0;
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 remove.\n");
 
 	return 0;

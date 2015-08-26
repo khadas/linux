@@ -33,7 +33,6 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/atomic.h>
-#include <linux/amlogic/iomap.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
@@ -257,9 +256,8 @@ static u32 first_offset;
 static u32 first_pts;
 static u64 first_pts64;
 static bool first_pts_cached;
-static unsigned long sei_data_buffer;
-static unsigned long sei_data_buffer_phys;
-static ulong *sei_data_buffer_remap;
+static void *sei_data_buffer;
+static dma_addr_t sei_data_buffer_phys;
 
 #define MC_OFFSET_HEADER    0x0000
 #define MC_OFFSET_DATA      0x1000
@@ -1717,7 +1715,7 @@ static void vh264_isr(void)
 				(unsigned char *)phys_to_virt(
 						sei_data_buffer_phys +
 						ltemp);
-			/* daddr = (unsigned char *)(sei_data_buffer_remap +
+			/* daddr = (unsigned char *)(sei_data_buffer +
 			   ltemp); */
 			pr_info("0x%x\n", *daddr);
 		}
@@ -1730,7 +1728,7 @@ static void vh264_isr(void)
 		set_userdata_poc(user_data_poc);
 		WRITE_VREG(AV_SCRATCH_J, 0);
 		wakeup_userdata_poll(sei_itu35_wp,
-				(unsigned long)sei_data_buffer_phys,
+				(unsigned long)sei_data_buffer,
 				USER_DATA_SIZE, sei_itu35_data_length);
 	}
 #ifdef HANDLE_H264_IRQ
@@ -2324,6 +2322,15 @@ static int vh264_stop(int mode)
 			mc_cpu_addr = NULL;
 		}
 	}
+	if (sei_data_buffer != NULL) {
+		dma_free_coherent(
+			amports_get_dma_device(),
+			USER_DATA_SIZE,
+			sei_data_buffer,
+			sei_data_buffer_phys);
+		sei_data_buffer = NULL;
+		sei_data_buffer_phys = 0;
+	}
 	amvdec_disable();
 
 	return 0;
@@ -2590,26 +2597,14 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 
 	if (pdata->sys_info)
 		vh264_amstream_dec_info = *pdata->sys_info;
-	if (0 && 0 == sei_data_buffer) {	/* TODO... */
+	if (NULL == sei_data_buffer) {
 		sei_data_buffer =
-			__get_free_pages(GFP_KERNEL, get_order(USER_DATA_SIZE));
-
+			dma_alloc_coherent(amports_get_dma_device(),
+				USER_DATA_SIZE,
+				&sei_data_buffer_phys, GFP_KERNEL);
 		if (!sei_data_buffer) {
 			pr_info("%s: Can not allocate sei_data_buffer\n",
 				   __func__);
-			return -ENOMEM;
-		}
-		sei_data_buffer_phys = virt_to_phys((void *)sei_data_buffer);
-
-		sei_data_buffer_remap =
-			ioremap_nocache(sei_data_buffer_phys, USER_DATA_SIZE);
-		if (!sei_data_buffer_remap) {
-			pr_info("%s: Can not remap sei_data_buffer\n",
-				   __func__);
-			free_pages(sei_data_buffer, get_order(USER_DATA_SIZE));
-
-			sei_data_buffer = 0;
-
 			return -ENOMEM;
 		}
 		/* pr_info("buffer 0x%x, phys 0x%x, remap 0x%x\n",

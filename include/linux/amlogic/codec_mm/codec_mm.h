@@ -18,6 +18,7 @@
 
 #ifndef CODEC_MM_API_HEADER
 #define CODEC_MM_API_HEADER
+#include <linux/dma-direction.h>
 
 /*
 memflags
@@ -54,6 +55,12 @@ int codec_mm_free_for_dma(const char *owner, unsigned long phy_addr);
 
 void *codec_mm_phys_to_virt(unsigned long phy_addr);
 unsigned long codec_mm_virt_to_phys(void *vaddr);
+
+void codec_mm_dma_flush(void *vaddr,
+	int size,
+	enum dma_data_direction dir);
+
+
 
 
 

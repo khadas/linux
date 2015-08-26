@@ -274,13 +274,16 @@ static void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	return;
 }
 
-void codec_mm_dma_flush(void *cpu_addr, int size, enum dma_data_direction dir)
+void codec_mm_dma_flush(void *vaddr,
+	int size,
+	enum dma_data_direction dir)
 {
 
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	dma_addr_t dma_addr;
-	dma_addr = dma_map_single(mgt->dev, cpu_addr, size, dir);
-	dma_unmap_single(mgt->dev, dma_addr, size, dir);
+	dma_addr = dma_map_single(mgt->dev, vaddr, size, dir);
+	if (dma_addr)
+		dma_unmap_single(mgt->dev, dma_addr, size, dir);
 	return;
 }
 
