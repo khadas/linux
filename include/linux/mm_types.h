@@ -145,6 +145,7 @@ struct page {
 		pgtable_t pmd_huge_pte; /* protected by page->ptl */
 #endif
 	};
+	struct list_head lru_normal;
 
 	/* Remainder is not double word aligned */
 	union {
