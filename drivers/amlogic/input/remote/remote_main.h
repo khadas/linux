@@ -87,7 +87,7 @@ static const struct reg_s RDECODEMODE_NEC[] = {
 	{LDR_IDLE, 300 << 16 | 200 << 0}, /* leader idle*/
 	{LDR_REPEAT, 150 << 16 | 80 << 0}, /* leader repeat*/
 	{DURATION_REG0, 72 << 16 | 40 << 0 }, /* logic '0' or '00'*/
-	{OPERATION_CTRL_REG0, 7 << 28 | (0x1518 << 12) | 0x13},
+	{OPERATION_CTRL_REG0, 7 << 28 | (0xFA0 << 12) | 0x13},
 	/* sys clock boby time.base time = 20 body frame 108ms*/
 	{DURATION_REG1_AND_STATUS, (134 << 20) | (90 << 10)},
 	/* logic '1' or '01'*/
