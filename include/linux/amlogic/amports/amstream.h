@@ -481,7 +481,7 @@ struct am_ioctl_parm_ptr {
 };
 
 
-#define SUPPORT_VDEC_NUM	(8)
+#define SUPPORT_VDEC_NUM	(10)
 int vcodec_profile_register(const struct codec_profile_t *vdec_profile);
 ssize_t vcodec_profile_read(char *buf);
 

@@ -940,6 +940,11 @@ static struct platform_driver amvdec_avs_driver = {
 	}
 };
 
+static struct codec_profile_t amvdec_avs_profile = {
+	.name = "avs",
+	.profile = ""
+};
+
 static int __init amvdec_avs_driver_init_module(void)
 {
 	pr_info("amvdec_avs module init\n");
@@ -948,6 +953,11 @@ static int __init amvdec_avs_driver_init_module(void)
 		pr_info("failed to register amvdec_avs driver\n");
 		return -ENODEV;
 	}
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+		amvdec_avs_profile.profile = "avs+";
+
+	vcodec_profile_register(&amvdec_avs_profile);
 
 	return 0;
 }
