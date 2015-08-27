@@ -1628,7 +1628,7 @@ static int vh264_4k2k_stop(void)
 	for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
 		if (buffer_spec[i].phy_addr) {
 			if (disp_addr ==
-				page_to_phys(buffer_spec[i].alloc_pages))
+				(u32)buffer_spec[i].phy_addr)
 				pr_info("Skip releasing CMA buffer %d\n", i);
 			else {
 				codec_mm_free_for_dma(MEM_NAME,

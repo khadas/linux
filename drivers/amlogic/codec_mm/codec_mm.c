@@ -130,10 +130,11 @@ static int codec_mm_alloc_in(
 				mem->phy_addr =
 				 page_to_phys((struct page *)mem->mem_handle);
 #ifdef CONFIG_ARM64
-				if (mem->from_flags & CODEC_MM_FLAGS_CMA_CLEAR)
+				if (mem->flags & CODEC_MM_FLAGS_CMA_CLEAR) {
 					dma_clear_buffer(
 						(struct page *)mem->vbuffer,
 						mem->buffer_size);
+				}
 #endif
 				break;
 			}
