@@ -1300,7 +1300,9 @@ static int amstream_release(struct inode *inode, struct file *file)
 		debug_file_pos = 0;
 	}
 #endif
-
+	amstream_vdec_status = NULL;
+	amstream_adec_status = NULL;
+	amstream_vdec_trickmode = NULL;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
 		if (this->type & PORT_TYPE_VIDEO) {
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
