@@ -58,6 +58,7 @@
 #define AO_RTI_STATUS_REG1	((0x00 << 10) | (0x01 << 2))
 #define WATCHDOG_TC		0x2640
 static u32 psci_function_id_restart;
+static u32 psci_function_id_poweroff;
 
 static u32 parse_reason(const char *cmd)
 {
@@ -118,7 +119,9 @@ static void do_aml_restart(enum reboot_mode reboot_mode, const char *cmd)
 static void do_aml_poweroff(void)
 {
 	/* TODO: Add poweroff capability */
-	meson_common_restart('h', "charging_reboot");
+	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
+	__invoke_psci_fn_smc(psci_function_id_poweroff,
+				0, 0, 0);
 }
 
 static int aml_restart_probe(struct platform_device *pdev)
@@ -129,6 +132,9 @@ static int aml_restart_probe(struct platform_device *pdev)
 
 	if (!of_property_read_u32(pdev->dev.of_node, "sys_reset", &id))
 		psci_function_id_restart = id;
+
+	if (!of_property_read_u32(pdev->dev.of_node, "sys_poweroff", &id))
+		psci_function_id_poweroff = id;
 
 	return 0;
 }
