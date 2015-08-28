@@ -3457,7 +3457,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 
 	/* Packet transmission enable */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 1, 1);
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 2, 1, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 2, 1);
 
 	/* For 3D video */
 	data32  = 0;
