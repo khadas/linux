@@ -2103,6 +2103,9 @@ static unsigned char is_bypass(vframe_t *vf_in)
 	/*prot is conflict with di post*/
 	if (vf_in && vf_in->video_angle)
 		return 1;
+	if (vf_in && (vf_in->type &VIDTYPE_PIC))
+		return 1;
+		
 	if (vf_in && (vf_in->type & VIDTYPE_COMPRESS))
 		return 1;
 	if ((di_vscale_skip_enable & 0x4) && vf_in) {

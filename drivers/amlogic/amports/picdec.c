@@ -71,6 +71,14 @@ static int debug_flag;
 
 #define NO_TASK_MODE
 
+
+#define aml_pr_info(level, fmt, arg...)                   \
+do {                                                    \
+	if (debug_flag >= level)                  \
+		pr_info(fmt, ## arg);  \
+} while (0)
+
+
 #define DEBUG
 #ifdef DEBUG
 #define  AMLOG   1
@@ -312,7 +320,8 @@ static int render_frame(struct ge2d_context_s *context,
 	new_vf->height = picdec_device.disp_height;
 
 	new_vf->type =
-		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21;
+		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21
+		|VIDTYPE_PIC;
 
 	new_vf->duration_pulldown = 0;
 
@@ -372,7 +381,7 @@ static int render_frame_block(void)
 
 	}
 
-	/* pr_info("render buffer index is %d$$$$$$$$$$$$$$$\n", index); */
+	aml_pr_info(1, "render buffer index is %d$$$$$$$$$$$$$$$\n", index);
 	new_vf = &vfpool[fill_ptr];
 
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
@@ -382,7 +391,8 @@ static int render_frame_block(void)
 	new_vf->height = picdec_device.disp_height;
 
 	new_vf->type =
-		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21;
+		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21
+	|VIDTYPE_PIC;
 
 	new_vf->duration_pulldown = 0;
 
@@ -396,18 +406,17 @@ static int render_frame_block(void)
 
 	picdec_device.cur_index = index;
 
-	/* pr_info("picdec_fill_buffer start\n"); */
+	aml_pr_info(1 , "picdec_fill_buffer start\n");
 	picdec_fill_buffer(new_vf, context, &ge2d_config);
 
-	/* pr_info("picdec_fill_buffer finish\n"); */
+	aml_pr_info(1, "picdec_fill_buffer finish\n");
 	/* destroy_ge2d_work_queue(context); */
 	do_gettimeofday(&end);
 
 	time_use = (end.tv_sec - start.tv_sec) * 1000 +
 			   (end.tv_usec - start.tv_usec) / 1000;
 
-	if (debug_flag)
-		pr_info("Total render frame time use: %ldms\n", time_use);
+	aml_pr_info(1, "Total render frame time use: %ldms\n", time_use);
 
 	return 0;
 }
@@ -469,11 +478,11 @@ static struct vframe_receiver_op_s *picdec_stop(void)
 	set_freerun_mode(0);
 
 	picdec_local_init();
-
-	if (picdec_device.mapping) {
-		io_mapping_free(picdec_device.mapping);
-		picdec_device.mapping = 0;
-
+	if (picdec_device.use_reserved) {
+		if (picdec_device.mapping) {
+			io_mapping_free(picdec_device.mapping);
+			picdec_device.mapping = 0;
+		}
 	}
 /*
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
@@ -509,20 +518,19 @@ static int picdec_start(void)
 
 	if (map_size > 0x1800000)	/* max size is 3840*2160*3 */
 		map_size = 0x1800000;
-
-	picdec_device.mapping = io_mapping_create_wc(map_start, map_size);
-
-	if (picdec_device.mapping <= 0) {
-
-		pr_info("mapping failed!!!!!!!!!!!!\n");
-
-		return -1;
-
-	} else {
-
-		pr_info("mapping addr is %x : %p , mapping size is %d\n ",
-			   map_start, picdec_device.mapping, map_size);
-
+	if (picdec_device.use_reserved) {
+		picdec_device.mapping = io_mapping_create_wc(map_start,
+		map_size);
+		if (picdec_device.mapping <= 0) {
+			aml_pr_info(1, "mapping failed!!!!!!!!!!!!\n");
+			return -1;
+		} else {
+			aml_pr_info(1, "mapping addr is %x : %p , mapping size is %d\n ",
+				   map_start, picdec_device.mapping, map_size);
+		}
+	} else{
+		picdec_device.mapping = NULL;
+		picdec_device.vir_addr = phys_to_virt(map_start);
 	}
 
 	vf_provider_init(&picdec_vf_prov, PROVIDER_NAME, &picdec_vf_provider,
@@ -574,6 +582,14 @@ MODULE_PARM_DESC(print_ifmt, "print input format\n");
 
 /* fill the RGB user buffer to physical buffer
 */
+
+static void dma_flush(u32 buf_start , u32 buf_size)
+{
+	dma_sync_single_for_device(
+		&picdec_device.pdev->dev, buf_start,
+		buf_size, DMA_TO_DEVICE);
+}
+
 int picdec_pre_process(void)
 {
 	struct io_mapping *mapping_wc;
@@ -606,10 +622,13 @@ int picdec_pre_process(void)
 
 	get_picdec_buf_info(NULL, NULL, &mapping_wc);
 
-	if (!mapping_wc)
-		return -1;
-
-	buffer_start = io_mapping_map_atomic_wc(mapping_wc, 0);
+	if (picdec_device.use_reserved) {
+		if (!mapping_wc)
+			return -1;
+		buffer_start = io_mapping_map_atomic_wc(mapping_wc, 0);
+	} else{
+		buffer_start = phys_to_virt(picdec_device.assit_buf_start);
+	}
 
 	if (buffer_start == NULL) {
 
@@ -619,7 +638,7 @@ int picdec_pre_process(void)
 
 	}
 
-	pr_info("picdec_input width is %d , height is %d\n",
+	aml_pr_info(1, "picdec_input width is %d , height is %d\n",
 		   picdec_input.frame_width, picdec_input.frame_height);
 
 	if (picdec_input.input == NULL) {
@@ -640,6 +659,7 @@ int picdec_pre_process(void)
 
 			}
 		}
+		aml_pr_info(1, "test color copy finish #########################\n");
 	} else {
 
 		switch (picdec_input.format) {
@@ -692,7 +712,7 @@ int picdec_pre_process(void)
 				ref += bp;
 
 			}
-			pr_info("RGBA copy finish #########################\n");
+			aml_pr_info(1, "RGBA copy finish #########################\n");
 
 			break;
 
@@ -723,7 +743,7 @@ int picdec_pre_process(void)
 				ref += bp;
 
 			}
-			pr_info("ARGB copy finish#########################\n");
+			aml_pr_info(1, "ARGB copy finish#########################\n");
 
 			break;
 
@@ -752,16 +772,19 @@ int picdec_pre_process(void)
 		}
 
 	}
-
-	io_mapping_unmap_atomic(buffer_start);
+	if (picdec_device.use_reserved) {
+		io_mapping_unmap_atomic(buffer_start);
+	} else{
+		dma_flush(picdec_device.assit_buf_start,
+		bp * picdec_input.frame_height);
+	}
 
 	do_gettimeofday(&end);
 
 	time_use = (end.tv_sec - start.tv_sec) * 1000 +
 			   (end.tv_usec - start.tv_usec) / 1000;
 
-	if (debug_flag)
-		pr_info("picdec_pre_process time use: %ldms\n", time_use);
+	aml_pr_info(2, "picdec_pre_process time use: %ldms\n", time_use);
 
 	return 0;
 }
@@ -791,9 +814,10 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 	do_gettimeofday(&start);
 
 	get_picdec_buf_info(NULL, NULL, &mapping_wc);
-
-	if (!mapping_wc)
-		return -1;
+	if (picdec_device.use_reserved) {
+		if (!mapping_wc)
+			return -1;
+	}
 #if 0
 	buffer_start = io_mapping_map_atomic_wc(mapping_wc, 0);
 
@@ -951,18 +975,24 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 	canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
 
 	canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
+	if (picdec_device.use_reserved) {
+		p = ioremap_nocache(cs0.addr, cs0.width * cs0.height);
 
-	p = ioremap_nocache(cs0.addr, cs0.width * cs0.height);
+		memset(p, 0, cs0.width * cs0.height);
 
-	memset(p, 0, cs0.width * cs0.height);
+		iounmap(p);
 
-	iounmap(p);
+		p = ioremap_nocache(cs1.addr, cs1.width * cs1.height);
 
-	p = ioremap_nocache(cs1.addr, cs1.width * cs1.height);
+		memset(p, 0x80, cs1.width * cs1.height);
 
-	memset(p, 0x80, cs1.width * cs1.height);
-
-	iounmap(p);
+		iounmap(p);
+	} else{
+		p = phys_to_virt(cs0.addr);
+		memset(p, 0, cs0.width * cs0.height);
+		p = phys_to_virt(cs1.addr);
+		memset(p, 0x80, cs1.width * cs1.height);
+	}
 
 #endif				/*
 				 */
@@ -1208,10 +1238,10 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 				  canvas_width * 3, canvas_height,
 				  CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 
-	/* pr_info("picdec_pre_process start %d\n"); */
+	aml_pr_info(1, "picdec_pre_process start\n");
 	picdec_pre_process();
 
-	/* pr_info("picdec_pre_process finish %d\n"); */
+	aml_pr_info(1, "picdec_pre_process finish\n");
 	ge2d_config->alu_const_color = 0;	/* 0x000000ff; */
 	ge2d_config->bitmask_en = 0;
 
@@ -1242,8 +1272,8 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	ge2d_config->src_planes[2].h = cs2.height;
 
-	/* pr_info("src addr is %lx , plane 0 width is %d , height is %d\n",
-	   cs0.addr, cs0.width ,cs0.height ); */
+	aml_pr_info(1, "src addr is %lx , plane 0 width is %d , height is %d\n",
+	   cs0.addr, cs0.width , cs0.height);
 
 	ge2d_config->src_key.key_enable = 0;
 
@@ -1293,18 +1323,21 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	ge2d_config->dst_planes[0].h = cs0.height;
 
+	aml_pr_info(1, "dst 0 addr  is %x\n", (unsigned)cs0.addr);
 	ge2d_config->dst_planes[1].addr = cs1.addr;
 
 	ge2d_config->dst_planes[1].w = cs1.width;
 
 	ge2d_config->dst_planes[1].h = cs1.height;
 
+	aml_pr_info(1, "dst 1 addr  is %x\n", (unsigned)cs1.addr);
 	ge2d_config->dst_planes[2].addr = cs2.addr;
 
 	ge2d_config->dst_planes[2].w = cs2.width;
 
 	ge2d_config->dst_planes[2].h = cs2.height;
 
+	aml_pr_info(1, "dst 2 addr  is %x\n", (unsigned)cs2.addr);
 	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
 
 	ge2d_config->dst_para.format = GE2D_FORMAT_M24_NV21;
@@ -1507,7 +1540,7 @@ int picdec_buffer_init(void)
 
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
 
-	pr_info("picdec buffer size is %x\n", buf_size);
+	aml_pr_info(1, "picdec buffer size is %x\n", buf_size);
 	sema_init(&pic_vb_start_sema, 1);/*init 1*/
 
 	sema_init(&pic_vb_done_sema, 1);/*init 1*/
@@ -1528,9 +1561,10 @@ int picdec_buffer_init(void)
 	decbuf_size = canvas_width * canvas_height;
 
 	for (i = 0; i < MAX_VF_POOL_SIZE; i++) {
-
+		pr_info("%d addr is %x################\n",
+				   i, (unsigned)(buf_start + offset));
 		canvas_config(PIC_DEC_CANVAS_START + 2 * i,
-				(ulong)(buf_start + offset),
+				(unsigned)(buf_start + offset),
 				canvas_width,
 				canvas_height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
@@ -1538,7 +1572,7 @@ int picdec_buffer_init(void)
 		offset += canvas_width * canvas_height;
 
 		canvas_config(PIC_DEC_CANVAS_START + 2 * i + 1,
-				(ulong)(buf_start + offset),
+				(unsigned)(buf_start + offset),
 				canvas_width,
 				canvas_height / 2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
@@ -1552,6 +1586,7 @@ int picdec_buffer_init(void)
 		vfbuf_use[i] = 0;
 
 	}
+
 
 	picdec_device.assit_buf_start =
 		buf_start + canvas_width * canvas_height * 3;
@@ -1674,14 +1709,14 @@ void set_picdec_buf_info(resource_size_t start, unsigned int size)
 
 void unset_picdec_buf_info(void)
 {
-	if (picdec_device.mapping) {
-		io_mapping_free(picdec_device.mapping);
-		picdec_device.mapping = 0;
-		picdec_device.buffer_start = 0;
-
-		picdec_device.buffer_size = 0;
-
+	if (picdec_device.use_reserved) {
+		if (picdec_device.mapping)  {
+			io_mapping_free(picdec_device.mapping);
+			picdec_device.mapping = 0;
+		}
 	}
+	picdec_device.buffer_start = 0;
+	picdec_device.buffer_size = 0;
 }
 
 void get_picdec_buf_info(resource_size_t *start, unsigned int *size,
@@ -1702,7 +1737,7 @@ static int picdec_open(struct inode *inode, struct file *file)
 
 	int ret = 0;
 
-	amlog_level(LOG_LEVEL_LOW, "open one picdec device\n");
+	aml_pr_info(1, "open one picdec device\n");
 
 	file->private_data = context;
 
@@ -1728,15 +1763,38 @@ static long picdec_ioctl(struct file *filp, unsigned int cmd,
 	argp = (void __user *)args;
 
 	switch (cmd) {
-
+	case PICDEC_IOC_FRAME_RENDER32:
+		aml_pr_info(1, "PICDEC_IOC_FRAME_RENDER32\n");
+		{
+			ulong paddr, r;
+			struct compat_source_input_s __user *uf =
+				(struct compat_source_input_s *)argp;
+			memset(&picdec_input, 0, sizeof(struct source_input_s));
+			r = get_user(paddr, &uf->input);
+			picdec_input.input = (char *)paddr;
+			r |= get_user(picdec_input.frame_width,
+			&uf->frame_width);
+			r |= get_user(picdec_input.frame_height,
+			&uf->frame_height);
+			r |= get_user(picdec_input.format, &uf->format);
+			r |= get_user(picdec_input.rotate, &uf->rotate);
+			if (r)
+				return -EFAULT;
+			render_frame_block();
+	}
+		break;
 	case PICDEC_IOC_FRAME_RENDER:
 
-		pr_info("PICDEC_IOC_FRAME_RENDER\n");
+		aml_pr_info(1, "PICDEC_IOC_FRAME_RENDER\n");
 
 		if (copy_from_user
 			(&picdec_input, (void *)argp,
 			 sizeof(struct source_input_s)))
 			return -EFAULT;
+		aml_pr_info(1, "width is%d , height is %d , format is %d ,
+		rotate is %d\n" , picdec_input.frame_width,
+		picdec_input.frame_height , picdec_input.format,
+		picdec_input.rotate);
 #if 0
 		picdec_input.input = input->input;
 
@@ -1794,7 +1852,7 @@ static int picdec_release(struct inode *inode, struct file *file)
 	struct ge2d_context_s *context =
 		(struct ge2d_context_s *) file->private_data;
 
-	pr_info("picdec stop start");
+	aml_pr_info(1, "picdec stop start");
 
 	picdec_stop();
 
@@ -1806,7 +1864,8 @@ static int picdec_release(struct inode *inode, struct file *file)
 
 	}
 
-	pr_info("release one picdec device\n");
+	aml_pr_info(0, "release one picdec device\n");
+
 
 	return -1;
 }
@@ -1835,7 +1894,7 @@ static const struct file_operations picdec_fops = {
 static int parse_para(const char *para, int para_num, int *result)
 {
 	char *token = NULL;
-	char *params, *params_base;
+	char *params;
 	int *out = result;
 	int len = 0, count = 0;
 	int res = 0;
@@ -1845,7 +1904,6 @@ static int parse_para(const char *para, int para_num, int *result)
 		return 0;
 
 	params = kstrdup(para, GFP_KERNEL);
-	params_base = params;
 	token = params;
 	len = strlen(token);
 	do {
@@ -1865,7 +1923,7 @@ static int parse_para(const char *para, int para_num, int *result)
 		count++;
 	} while ((token) && (count < para_num) && (len > 0));
 
-	kfree(params_base);
+	kfree(params);
 	return count;
 }
 
@@ -1879,6 +1937,7 @@ static ssize_t frame_render_read(struct class *cla,
 			picdec_input.format, picdec_input.rotate);
 }
 
+static int first_running = 1;
 static ssize_t frame_render_write(struct class *cla,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
@@ -1904,8 +1963,13 @@ static ssize_t frame_render_write(struct class *cla,
 		return count;
 
 	picdec_input.input = NULL;
+	if (first_running) {
+		first_running = 0;
+		picdec_start();
+	}
 
 #ifdef NO_TASK_MODE
+
 	render_frame_block();
 
 #else				/*
@@ -1933,12 +1997,23 @@ static ssize_t frame_post_write(struct class *cla,
 {
 
 
-	unsigned long ret = kstrtoul(buf, 0, 0);
-	if (!ret)
+	unsigned long r;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)&r);
+	if (ret < 0)
 		return -EINVAL;
 	post_frame();
 
 	return count;
+}
+
+static ssize_t dec_status_read(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+
+	return snprintf(buf, 80, "PIC decoder status is %d\n",
+					(picdec_device.open_count > 0)?1:0);
 }
 
 static ssize_t test_color_read(struct class *cla,
@@ -1981,18 +2056,19 @@ static struct class_attribute picdec_class_attrs[] = {
 	__ATTR(frame_render,
 	S_IRUGO | S_IWUSR,
 	frame_render_read,
-
 	frame_render_write),
 	__ATTR(frame_post,
 	S_IRUGO | S_IWUSR,
-
 	frame_post_read,
-
 	frame_post_write),
 	__ATTR(test_color,
 	S_IRUGO | S_IWUSR,
 	test_color_read,
 	test_color_write),
+	__ATTR(dec_status,
+	S_IRUGO | S_IWUSR,
+	dec_status_read,
+	NULL),
 	__ATTR_NULL
 };
 
@@ -2114,13 +2190,25 @@ MODULE_AMLOG(AMLOG_DEFAULT_LEVEL, 0xff, LOG_LEVEL_DESC, LOG_MASK_DESC);
 static int picdec_driver_probe(struct platform_device *pdev)
 {
 	u32 r;
-	pr_info("picdec_driver_probe called.\n");
+	picdec_device.use_reserved = 0;
+	aml_pr_info(0, "picdec_driver_probe called.\n");
 	r = of_reserved_mem_device_init(&pdev->dev);
+	if (r == 0)
+		aml_pr_info(0, "picdec_driver_probe done.\n");
+	if (!picdec_device.use_reserved) {
+		aml_pr_info(0, "reserved memory config fail , use CMA	.\n");
+		picdec_device.cma_pages = dma_alloc_from_contiguous(
+					&pdev->dev,
+					(48 * SZ_1M) >> PAGE_SHIFT, 0);
+		picdec_device.buffer_start = page_to_phys(
+		picdec_device.cma_pages);
+		picdec_device.buffer_size = 48 * SZ_1M;
+		aml_pr_info(0, "cma memory is %x , size is  %x\n" ,
+		(unsigned)picdec_device.buffer_start ,
+		(unsigned)picdec_device.buffer_size);
+	}
 	picdec_device.pdev = pdev;
 	init_picdec_device();
-	if (r == 0)
-		pr_info("picdec_driver_probe done.\n");
-
 	return r;
 
 	/* char *buf_start; */
@@ -2142,7 +2230,8 @@ static int picdec_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	unsigned long start, end;
 	start = rmem->base;
 	end = rmem->base + rmem->size - 1;
-	pr_info("init picdec memsource %lx->%lx\n", start, end);
+	aml_pr_info(0, "init picdec memsource %lx->%lx\n", start, end);
+	picdec_device.use_reserved = 1;
 	set_picdec_buf_info((resource_size_t) rmem->base, rmem->size);
 	return 0;
 }
@@ -2154,7 +2243,7 @@ static const struct reserved_mem_ops rmem_picdec_ops = {
 static int __init picdec_mem_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &rmem_picdec_ops;
-	pr_info("picdec share mem setup\n");
+	aml_pr_info(0, "picdec share mem setup\n");
 
 	return 0;
 }
@@ -2163,12 +2252,20 @@ static int picdec_drv_remove(struct platform_device *plat_dev)
 {
 
 	uninit_picdec_device();
-
-	if (picdec_device.mapping)
-		io_mapping_free(picdec_device.mapping);
+	if (picdec_device.use_reserved) {
+		if (picdec_device.mapping)
+			io_mapping_free(picdec_device.mapping);
+	} else{
+		if (picdec_device.cma_pages) {
+			dma_release_from_contiguous(
+				&plat_dev->dev,
+				picdec_device.cma_pages,
+				(48 * SZ_1M) >> PAGE_SHIFT);
+			picdec_device.cma_pages = NULL;
+		}
+	}
 	return 0;
 }
-
 
 
 static const struct of_device_id amlogic_picdec_dt_match[] = {

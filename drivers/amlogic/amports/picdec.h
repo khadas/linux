@@ -28,17 +28,17 @@
 #include  <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/io-mapping.h>
-
+#include <linux/ctype.h>
+#include <linux/of.h>
+#include <linux/sizes.h>
+#include <linux/dma-mapping.h>
+#include <linux/of_fdt.h>
+#include <linux/dma-contiguous.h>
 /**************************************************************
 **                                                                   **
 **  macro define                                                         **
 **                                                                   **
 ***************************************************************/
-
-#define PICDEC_IOC_MAGIC  'P'
-#define PICDEC_IOC_FRAME_RENDER     _IOW(PICDEC_IOC_MAGIC, 0x00, unsigned int)
-#define PICDEC_IOC_FRAME_POST     _IOW(PICDEC_IOC_MAGIC, 0X01, unsigned int)
-#define PICDEC_IOC_CONFIG_FRAME  _IOW(PICDEC_IOC_MAGIC, 0X02, unsigned int)
 
 struct picdec_device_s {
 	char name[20];
@@ -61,7 +61,10 @@ struct picdec_device_s {
 	int frame_post;
 	struct ge2d_context_s *context;
 	int cur_index;
-	struct io_mapping *mapping;
+	int use_reserved;
+	struct page *cma_pages;
+	struct io_mapping *mapping;	
+	void  __iomem *vir_addr;
 };
 
 struct source_input_s {
@@ -71,6 +74,21 @@ struct source_input_s {
 	int format;
 	int rotate;
 };
+
+struct compat_source_input_s {
+	compat_uptr_t input;
+	int frame_width;
+	int frame_height;
+	int format;
+	int rotate;
+};
+
+#define PICDEC_IOC_MAGIC  'P'
+#define PICDEC_IOC_FRAME_RENDER     _IOW(PICDEC_IOC_MAGIC, 0x00, struct source_input_s)
+#define PICDEC_IOC_FRAME_POST     _IOW(PICDEC_IOC_MAGIC, 0X01, unsigned int)
+#define PICDEC_IOC_CONFIG_FRAME  _IOW(PICDEC_IOC_MAGIC, 0X02, unsigned int)
+
+#define PICDEC_IOC_FRAME_RENDER32 _IOW(PICDEC_IOC_MAGIC, 0x00, struct compat_source_input_s)
 
 void stop_picdec_task(void);
 int picdec_buffer_init(void);
