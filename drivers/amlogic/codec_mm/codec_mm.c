@@ -617,5 +617,5 @@ static int __init codec_mm_res_setup(struct reserved_mem *rmem)
 }
 
 
-RESERVEDMEM_OF_DECLARE(codec_mm_reversed, "amlogic, codec-mm-reserve",
+RESERVEDMEM_OF_DECLARE(codec_mm_reserved, "amlogic, codec-mm-reserved",
 					   codec_mm_res_setup);
