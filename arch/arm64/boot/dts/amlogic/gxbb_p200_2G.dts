@@ -220,7 +220,6 @@
 
 	vdec {
 		compatible = "amlogic, vdec";
-		memory-region = <&vdec_cma_reserved>;
 		dev_name = "vdec.0";
 		status = "okay";
 		interrupts = <0 3 1
