@@ -108,6 +108,20 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
+		/*vm0_cma_reserved:linux,vm0_cma {
+			compatible = "shared-dma-pool";
+			linux,phandle = <4>;
+			reusable;
+			size = <0x0 0x2000000>;
+			alignment = <0x0 0x400000>;
+		};
+		vm1_cma_reserved:linux,vm1_cma {
+			compatible = "shared-dma-pool";
+			linux,phandle = <5>;
+			reusable;
+			size = <0x0 0x2000000>;
+			alignment = <0x0 0x400000>;
+		};*/
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
@@ -318,6 +332,21 @@
 		interrupt-names = "mailbox_2";
 	};
 
+	/*vm0 {
+		compatible = "amlogic, vm";
+		memory-region = <&vm0_cma_reserved>;
+		dev_name = "vm0";
+		status = "okay";
+		vm_id = <0>;
+	};
+
+	vm1 {
+		compatible = "amlogic, vm";
+		memory-region = <&vm1_cma_reserved>;
+		dev_name = "vm1";
+		status = "okay";
+		vm_id = <1>;
+	};*/
 
 	vpu {
 		compatible = "amlogic, vpu";
@@ -447,9 +476,11 @@
 		status = "okay";
 		clocks = <&clock CLK_CAMERA_24M>;
 		clock-names = "clk_camera_24";
-		pinctrl-names = "gpio";
-		pinctrl-0 = <&aml_cam_gpio_pins> ;
-					cam_0{
+		pinctrl-names = "cam_gpio_a", "cam_gpio_b","cam_all";
+		pinctrl-0 = <&cam_gpio_a> ;
+		pinctrl-1 = <&cam_gpio_b> ;
+		pinctrl-2 = <&cam_gpio_a &cam_gpio_b> ;
+					 cam_0{
 						cam_name = "sp2518";
 						front_back = <0>;
 						i2c_bus = "i2c_bus_a";
@@ -459,6 +490,22 @@
 						vertical_flip = <1>;
 						spread_spectrum = <0>;	//0:none; 1:0.3%; 2:0.6%; 3:1.25%; 4:2.5%; 5:5%
 						bt_path = "gpio";
+						bt_path_count = <2>;
+						vdin_path = <0>;
+						status = "okay";
+					};
+					 cam_1{
+						cam_name = "sp0838";
+						front_back = <1>;
+						i2c_bus = "i2c_bus_a";
+						gpio_pwdn-gpios = <&gpio       GPIOZ_13       GPIO_ACTIVE_HIGH>;
+						gpio_rst-gpios = <&gpio       GPIOZ_12       GPIO_ACTIVE_HIGH>;
+						mirror_flip = <1>;
+						vertical_flip = <1>;
+						spread_spectrum = <0>;	//0:none; 1:0.3%; 2:0.6%; 3:1.25%; 4:2.5%; 5:5%
+						bt_path = "gpio_b";
+						bt_path_count = <2>;
+						vdin_path = <1>;
 						status = "okay";
 					};
 	};*/

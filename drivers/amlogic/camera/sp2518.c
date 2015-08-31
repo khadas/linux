@@ -1992,9 +1992,11 @@ static void sp2518_fillbuff(struct sp2518_fh *fh, struct sp2518_buffer *buf)
 	para.zoom = sp2518_qctrl[7].default_value;
 	para.angle = sp2518_qctrl[8].default_value;
 	para.vaddr = (uintptr_t)vbuf;
-	para.ext_canvas = buf->canvas_id;
+	/* para.ext_canvas = buf->canvas_id; */
+	para.ext_canvas = 0;
 	para.width = buf->vb.width;
 	para.height = buf->vb.height;
+	dev->vminfo.vdin_id = dev->cam_info.vdin_path;
 	ret = vm_fill_this_buffer(&buf->vb, &para, &dev->vminfo);
 	/*if the vm is not used by sensor ,
 	we let vm_fill_this_buffer() return -2*/
@@ -2405,6 +2407,11 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	strcpy(cap->driver, "sp2518");
 	strcpy(cap->card, "sp2518.canvas");
+	if (dev->cam_info.front_back == 0)
+		strcat(cap->card, "back");
+	else
+		strcat(cap->card, "front");
+
 	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
 	cap->version = SP2518_CAMERA_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
@@ -2631,6 +2638,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct sp2518_fh  *fh = priv;
 	struct vdin_parm_s para;
+	unsigned vdin_path;
 	int ret = 0;
 	pr_info(KERN_INFO " vidioc_streamon+++\n ");
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -2648,6 +2656,10 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	para.vsync_phase = 1;
 	para.hs_bp = 0;
 	para.vs_bp = 24;
+	para.bt_path = fh->dev->cam_info.bt_path;
+	vdin_path = fh->dev->cam_info.vdin_path;
+	pr_info("sp2518 streamon bt_path = %d, vdin_path =%d\n",
+		fh->dev->cam_info.bt_path, vdin_path);
 	para.cfmt = TVIN_YUV422;
 	para.dfmt = TVIN_YUV422;
 	para.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
@@ -2660,9 +2672,10 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	ret =  videobuf_streamon(&fh->vb_vidq);
 	if (ret == 0) {
-		if (fh->dev->vminfo.isused)
-			vops->start_tvin_service(1, &para);
-		fh->stream_on        = 1;
+		if (fh->dev->vminfo.isused) {
+			vops->start_tvin_service(vdin_path, &para);
+			fh->stream_on = 1;
+		}
 	}
 	return ret;
 }
@@ -2670,9 +2683,10 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct sp2518_fh  *fh = priv;
-
+	unsigned vdin_path;
 	int ret = 0;
 	pr_info(KERN_INFO " vidioc_streamoff+++\n ");
+	vdin_path = fh->dev->cam_info.vdin_path;
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (i != fh->type)
@@ -2680,7 +2694,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	ret = videobuf_streamoff(&fh->vb_vidq);
 	if (ret == 0) {
 		if (fh->dev->vminfo.isused)
-			vops->stop_tvin_service(1);
+			vops->stop_tvin_service(vdin_path);
 		fh->stream_on        = 0;
 	}
 	return ret;
@@ -2824,15 +2838,15 @@ static int sp2518_open(struct file *file)
 	struct sp2518_device *dev = video_drvdata(file);
 	struct sp2518_fh *fh = NULL;
 	int retval = 0;
+	dev->vminfo.vdin_id = dev->cam_info.vdin_path;
+	dev->vminfo.bt_path_count = dev->cam_info.bt_path_count;
+
 #if CONFIG_CMA
 	vm_init_resource(16 * SZ_1M, &dev->vminfo);
 #endif
-#if 0
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	switch_mod_gate_by_name("ge2d", 1);
-#endif
-#endif
-	aml_cam_init(&dev->cam_info);
+	if (dev->vminfo.isused)
+		aml_cam_init(&dev->cam_info);
+
 	SP2518_init_regs(dev);
 	msleep(40);
 	mutex_lock(&dev->mutex);
@@ -2939,13 +2953,15 @@ static int sp2518_close(struct file *file)
 	struct sp2518_device *dev       = fh->dev;
 	struct sp2518_dmaqueue *vidq = &dev->vidq;
 	struct video_device  *vdev = video_devdata(file);
+	unsigned vdin_path;
+	vdin_path = fh->dev->cam_info.vdin_path;
 	sp2518_have_open = 0;
 	is_first_time_open = 0;
 	sp2518_stop_thread(vidq);
 	videobuf_stop(&fh->vb_vidq);
 	if (fh->stream_on) {
 		if (dev->vminfo.isused)
-			vops->stop_tvin_service(1);
+			vops->stop_tvin_service(vdin_path);
 	}
 	videobuf_mmap_free(&fh->vb_vidq);
 	kfree(fh);
@@ -2973,11 +2989,6 @@ static int sp2518_close(struct file *file)
 	power_down_sp2518(dev);
 #endif
 	aml_cam_uninit(&dev->cam_info);
-#if 0
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
-	switch_mod_gate_by_name("ge2d", 0);
-#endif
-#endif
 	wake_unlock(&(dev->wake_lock));
 #ifdef CONFIG_CMA
 	vm_deinit_resource(&dev->vminfo);

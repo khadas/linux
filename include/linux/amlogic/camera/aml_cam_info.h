@@ -99,6 +99,8 @@ struct aml_cam_info_s {
 	unsigned torch_ctrl_level;
 	unsigned vcm_mode;
 	unsigned spread_spectrum;
+	unsigned vdin_path;
+	unsigned int bt_path_count;
 	enum bt_path_e bt_path;
 	enum cam_interface_e interface;
 	enum clk_channel_e clk_channel;
@@ -113,6 +115,7 @@ struct aml_cam_info_s {
 	enum resolution_size max_cap_size;
 	enum tvin_color_fmt_e bayer_fmt;
 	const char *config;
+	struct pinctrl *camera_pin_ctrl;
 };
 /* aml_cam_info_t */
 

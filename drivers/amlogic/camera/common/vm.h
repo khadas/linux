@@ -28,8 +28,14 @@
 #include  <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/io-mapping.h>
+#include <linux/wait.h>
+#include <linux/semaphore.h>
+#include <linux/cdev.h>
+#include <linux/amlogic/amports/vframe_receiver.h>
+#include <linux/amlogic/amports/vframe_provider.h>
 
 #include <linux/amlogic/camera/aml_cam_info.h>
+#include <linux/amlogic/camera/vmapi.h>
 
 /*************************************
  **
@@ -43,21 +49,32 @@
 #define VM_IOC_CONFIG_FRAME  _IOW(VM_IOC_MAGIC, 0X02, unsigned int)
 
 struct vm_device_s {
+	unsigned int  index;
 	char name[20];
 	struct platform_device *pdev;
-	int task_running;
 	int dump;
 	char *dump_path;
 	unsigned int open_count;
 	int major;
 	unsigned int dbg_enable;
-	struct class *cla;
+	/* struct class *cla; */
+	struct cdev	cdev;
 	struct device *dev;
 	resource_size_t buffer_start;
 	unsigned int buffer_size;
-	struct io_mapping *mapping;
+#ifdef CONFIG_CMA
+	ulong cma_pool_size;
+#endif
+	struct vframe_receiver_s vm_vf_recv;
+	struct task_struct *task;
+	wait_queue_head_t frame_ready;
+	int task_running;
+	int vm_skip_count;
+	int test_zoom;
+	struct vm_output_para output_para;
+	struct completion vb_start_sema;
+	struct completion vb_done_sema;
 };
-/*vm_device_t*/
 
 struct display_frame_s {
 	int frame_top;
@@ -69,17 +86,17 @@ struct display_frame_s {
 	int content_width;
 	int content_height;
 };
-/*display_frame_t*/
 
-int start_vm_task(void);
+int start_vm_task(struct vm_device_s *vdevp);
 int start_simulate_task(void);
 
 extern int get_vm_status(void);
 extern void set_vm_status(int flag);
 
 /* for vm device op. */
-extern int init_vm_device(void);
-extern int uninit_vm_device(void);
+extern int init_vm_device(struct vm_device_s *vdevp,
+		struct platform_device *pdev);
+extern int uninit_vm_device(struct platform_device *plat_dev);
 
 /* for vm device class op. */
 extern struct class *init_vm_cls(void);
@@ -94,7 +111,7 @@ extern void get_vm_buf_info(resource_size_t *start, unsigned int *size,
 			    struct io_mapping **mapping);
 
 /*  vm buffer op. */
-extern int vm_buffer_init(void);
+extern int vm_buffer_init(struct vm_device_s *vdevp);
 extern void vm_local_init(void);
 static DEFINE_MUTEX(vm_mutex);
 

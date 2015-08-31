@@ -23,11 +23,14 @@ extern void interleave_uv(unsigned char *pU, unsigned char *pV,
 static ssize_t show_vm_info(struct class *cla, struct class_attribute *attr,
 			    char *buf)
 {
+#if 0
 	resource_size_t bstart;
 	unsigned int bsize;
 	get_vm_buf_info(&bstart, &bsize, NULL);
 	return snprintf(buf, 80, "buffer:\n start:%x.\tsize:%d\n",
 		(unsigned int)bstart, bsize / (1024 * 1024));
+#endif
+	return 0;
 }
 
 static char attr_dat0[3] = "-1";

@@ -43,6 +43,7 @@ void __iomem *mclk_p1 = NULL;
 
 static struct platform_device *cam_pdev;
 static struct clk *cam_clk;
+static unsigned int bt_path_count;
 
 static int aml_camera_read_buff(struct i2c_adapter *adapter,
 				unsigned short dev_addr, char *buf,
@@ -1129,17 +1130,38 @@ void aml_cam_init(struct aml_cam_info_s *cam_dev)
 	struct pinctrl *pin_ctrl;
 	int ret;
 
-	/*pinmux_set */
-	if (cam_dev->bt_path == BT_PATH_GPIO)
-		pin_ctrl = pinctrl_get_select((struct device *)(&cam_pdev->dev),
-								"gpio");
-	else if (cam_dev->bt_path == BT_PATH_CSI2)
-		pin_ctrl = pinctrl_get_select((struct device *)(&cam_pdev->dev),
-								"csi");
-	else
-		pin_ctrl = pinctrl_get_select((struct device *)(&cam_pdev->dev),
-								"gpio");
-
+	if (bt_path_count >= 2)
+		pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"cam_all");
+	else if (bt_path_count == 1) {
+		if (cam_dev->bt_path == BT_PATH_GPIO_B)
+			pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"cam_gpio_b");
+		else if (cam_dev->bt_path == BT_PATH_CSI2)
+			pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"csi");
+		else
+			pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"gpio");
+	} else {
+		if (cam_dev->bt_path == BT_PATH_GPIO_B)
+			pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"cam_gpio_b");
+		else if (cam_dev->bt_path == BT_PATH_CSI2)
+			pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"csi");
+		else
+			pin_ctrl = devm_pinctrl_get_select(
+				(struct device *)(&cam_pdev->dev),
+				"gpio");
+	}
+	cam_dev->camera_pin_ctrl = pin_ctrl;
 	/*select XTAL as camera clock*/
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M6)
 		M6_cam_enable_clk(cam_dev->mclk, cam_dev->spread_spectrum);
@@ -1228,8 +1250,10 @@ void aml_cam_uninit(struct aml_cam_info_s *cam_dev)
 		/* return; */
 	/* devm_pinctrl_put(p); */
 
-	/* gpio_free(cam_dev->pwdn_pin); */
-	/* gpio_free(cam_dev->rst_pin); */
+	devm_pinctrl_put(cam_dev->camera_pin_ctrl);
+	gpio_free(cam_dev->pwdn_pin);
+	gpio_free(cam_dev->rst_pin);
+
 }
 
 void aml_cam_flash(struct aml_cam_info_s *cam_dev, int is_on)
@@ -1382,6 +1406,22 @@ static int fill_cam_dev(struct device_node *p_node,
 	of_property_read_u32(p_node, "spread_spectrum",
 		&cam_dev->spread_spectrum);
 
+	ret = of_property_read_string(p_node, "bt_path", &str);
+	if (ret) {
+		pr_info("failed to read bt_path\n");
+		cam_dev->bt_path = BT_PATH_GPIO;
+	} else {
+		pr_info("bt_path :%d\n", cam_dev->bt_path);
+		if (strncmp("csi", str, 3) == 0)
+			cam_dev->bt_path = BT_PATH_CSI2;
+		else if (strncmp("gpio_b", str, 6) == 0)
+			cam_dev->bt_path = BT_PATH_GPIO_B;
+		else
+			cam_dev->bt_path = BT_PATH_GPIO;
+	}
+	of_property_read_u32(p_node, "bt_path_count", &cam_dev->bt_path_count);
+	bt_path_count = cam_dev->bt_path_count;
+
 	cam_dev->pwdn_act = cam_info->pwdn;
 	cam_dev->i2c_addr = cam_info->addr;
 	pr_info("camer addr: 0x%x\n", cam_dev->i2c_addr);
@@ -1407,6 +1447,7 @@ static int fill_cam_dev(struct device_node *p_node,
 	of_property_read_u32(p_node, "front_back", &cam_dev->front_back);
 	of_property_read_u32(p_node, "mirror_flip", &cam_dev->m_flip);
 	of_property_read_u32(p_node, "vertical_flip", &cam_dev->v_flip);
+	of_property_read_u32(p_node, "vdin_path", &cam_dev->vdin_path);
 
 	ret = of_property_read_string(p_node, "max_cap_size", &str);
 	if (ret)
@@ -1417,18 +1458,6 @@ static int fill_cam_dev(struct device_node *p_node,
 	}
 	if (cam_dev->max_cap_size == SIZE_NULL)
 		cam_dev->max_cap_size = cam_info->max_cap_size;
-
-	ret = of_property_read_string(p_node, "bt_path", &str);
-	if (ret) {
-		pr_info("failed to read bt_path\n");
-		cam_dev->bt_path = BT_PATH_GPIO;
-	} else {
-		pr_info("bt_path :%s\n", (char *)cam_dev->bt_path);
-		if (strncmp("csi", str, 3) == 0)
-			cam_dev->bt_path = BT_PATH_CSI2;
-		else
-			cam_dev->bt_path = BT_PATH_GPIO;
-	}
 
 	ret = of_property_read_u32(p_node, "mclk", &mclk);
 	if (ret)
@@ -1901,6 +1930,7 @@ static int __init aml_cams_prober_init(void)
 
 static void __exit aml_cams_prober_exit(void)
 {
+	bt_path_count = 0;
 	platform_driver_unregister(&aml_cams_prober_driver);
 }
 

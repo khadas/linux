@@ -47,10 +47,12 @@
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-res.h>
 
+#include <linux/amlogic/amlog.h>
 #include <linux/amlogic/camera/vmapi.h>
 #include <linux/amlogic/tvin/tvin_v4l2.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
+#include <linux/cdev.h>
 
 #include <linux/sizes.h>
 #include <linux/dma-mapping.h>
@@ -58,11 +60,10 @@
 #include <linux/dma-contiguous.h>
 #include <linux/module.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/list.h>
 
 /*class property info.*/
 #include "vmcls.h"
-
-static int task_running;
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #if 1
@@ -85,16 +86,19 @@ static int VM_CANVAS_ID = 24;
 /*same as tvin pool*/
 #endif
 
-static struct vm_device_s  vm_device;
-static int vm_skip_count; /* deprecated */
-static bool isvmused;
-static int test_zoom;
+
+/*the counter of VM*/
+#define VM_MAX_DEVS		2
+
+static struct vm_device_s  *vm_device[VM_MAX_DEVS];
+
+/* static bool isvmused; */
 
 static void vm_cache_this_flush(unsigned buf_start , unsigned buf_size,
 				struct vm_init_s *info);
-static void vm_cache_flush(unsigned buf_start , unsigned buf_size);
 
-static inline void vm_vf_put_from_provider(struct vframe_s *vf);
+static inline void vm_vf_put_from_provider(struct vframe_s *vf,
+		unsigned vdin_id);
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 #define INCPTR(p) ptr_atomic_wrap_inc(&p)
 #endif
@@ -166,7 +170,14 @@ static struct v4l2_frmsize_discrete canvas_config_wh[] = {
 #define GE2D_LITTLE_ENDIAN          (1 << GE2D_ENDIAN_SHIFT)
 
 #define PROVIDER_NAME "vm"
-#define RECEIVER_NAME "vm"
+
+static dev_t vm_devno;
+static struct class *vm_clsp;
+
+#define VM_DEV_NAME	   "vm"
+#define RECEIVER_NAME  "vm"
+#define VM_CLS_NAME	   "vm"
+
 static DEFINE_SPINLOCK(lock);
 
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
@@ -182,25 +193,21 @@ static inline void ptr_atomic_wrap_inc(u32 *ptr)
 
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 static struct vframe_s vfpool[MAX_VF_POOL_SIZE];
-/*static u32 vfpool_idx[MAX_VF_POOL_SIZE];*/
 static s32 vfbuf_use[MAX_VF_POOL_SIZE];
 static s32 fill_ptr, get_ptr, putting_ptr, put_ptr;
 #endif
-/*struct semaphore  vb_start_sema;
-struct semaphore  vb_done_sema;*/
-struct completion vb_start_sema;
-struct completion vb_done_sema;
-struct mutex  vm_lock;
 
-static wait_queue_head_t frame_ready;
 atomic_t waiting_flag = ATOMIC_INIT(0);
 
-static inline struct vframe_s *vm_vf_get_from_provider(void);
-static inline struct vframe_s *vm_vf_peek_from_provider(void);
-static inline void vm_vf_put_from_provider(struct vframe_s *vf);
-static struct vframe_receiver_op_s *vf_vm_unreg_provider(void);
-static struct vframe_receiver_op_s *vf_vm_reg_provider(void);
-static void stop_vm_task(void);
+static inline struct vframe_s *vm_vf_get_from_provider(unsigned vdin_id);
+static inline struct vframe_s *vm_vf_peek_from_provider(unsigned vdin_id);
+static inline void vm_vf_put_from_provider(struct vframe_s *vf,
+		unsigned vdin_id);
+static struct vframe_receiver_op_s *vf_vm_unreg_provider(
+	struct vm_device_s *vdevp);
+static struct vframe_receiver_op_s *vf_vm_reg_provider(struct vm_device_s
+		*vdevp);
+static void stop_vm_task(struct vm_device_s *vdevp);
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 static int prepare_vframe(struct vframe_s *vf);
 #endif
@@ -215,30 +222,30 @@ static int prepare_vframe(struct vframe_s *vf);
 *
 *************************************************/
 #ifdef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
-static struct vframe_s *local_vf_peek(void)
+static struct vframe_s *local_vf_peek(unsigned vdin_id)
 {
 	struct vframe_s *vf = NULL;
-	vf = vm_vf_peek_from_provider();
+	vf = vm_vf_peek_from_provider(vdin_id);
 	if (vf) {
-		if (vm_skip_count > 0) {
-			vm_skip_count--;
-			vm_vf_get_from_provider();
-			vm_vf_put_from_provider(vf);
+		if (vm_device[vdin_id]->vm_skip_count > 0) {
+			vm_device[vdin_id]->vm_skip_count--;
+			vm_vf_get_from_provider(vdin_id);
+			vm_vf_put_from_provider(vf, vdin_id);
 			vf = NULL;
 		}
 	}
 	return vf;
 }
 
-static struct vframe_s *local_vf_get(void)
+static struct vframe_s *local_vf_get(unsigned vdin_id)
 {
-	return vm_vf_get_from_provider();
+	return vm_vf_get_from_provider(vdin_id);
 }
 
-static void local_vf_put(struct vframe_s *vf)
+static void local_vf_put(struct vframe_s *vf, unsigned vdin_id)
 {
 	if (vf)
-		vm_vf_put_from_provider(vf);
+		vm_vf_put_from_provider(vf, vdin_id);
 	return;
 }
 #else
@@ -258,24 +265,24 @@ static inline u32 index2canvas(u32 index)
 	return canvas_tab[index];
 }
 
-static struct vframe_s *vm_vf_peek(void *op_arg)
+static struct vframe_s *vm_vf_peek(void *op_arg, unsigned vdin_id)
 {
 	struct vframe_s *vf = NULL;
-	vf = vm_vf_peek_from_provider();
+	vf = vm_vf_peek_from_provider(vdin_id);
 	if (vf) {
-		if (vm_skip_count > 0) {
-			vm_skip_count--;
-			vm_vf_get_from_provider();
-			vm_vf_put_from_provider(vf);
+		if (vm_device[vdin_id]->vm_skip_count > 0) {
+			vm_device[vdin_id]->vm_skip_count--;
+			vm_vf_get_from_provider(vdin_id);
+			vm_vf_put_from_provider(vf, vdin_id);
 			vf = NULL;
 		}
 	}
 	return vf;
 }
 
-static struct vframe_s *vm_vf_get(void *op_arg)
+static struct vframe_s *vm_vf_get(void *op_arg, unsigned vdin_id)
 {
-	return vm_vf_get_from_provider();
+	return vm_vf_get_from_provider(vdin_id);
 }
 
 static void vm_vf_put(struct vframe_s *vf, void *op_arg)
@@ -295,7 +302,7 @@ static struct vframe_s *local_vf_peek(void)
 	return &vfpool[get_ptr];
 }
 
-static struct vframe_s *local_vf_get(void)
+static struct vframe_s *local_vf_get(unsigned vdin_id)
 {
 	struct vframe_s *vf;
 
@@ -306,7 +313,7 @@ static struct vframe_s *local_vf_get(void)
 	return vf;
 }
 
-static void local_vf_put(struct vframe_s *vf)
+static void local_vf_put(struct vframe_s *vf, unsigned vdin_id)
 {
 	int i;
 	int  canvas_addr;
@@ -317,7 +324,7 @@ static void local_vf_put(struct vframe_s *vf)
 		canvas_addr = index2canvas(i);
 		if (vf->canvas0Addr == canvas_addr) {
 			vfbuf_use[i] = 0;
-			vm_vf_put_from_provider(vf);
+			vm_vf_put_from_provider(vf, vdin_id);
 		}
 	}
 }
@@ -348,25 +355,26 @@ static void local_vf_put(struct vframe_s *vf)
 
 static int vm_receiver_event_fun(int type, void *data, void *private_data)
 {
+	struct vm_device_s *vdevp = (struct vm_device_s *)private_data;
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_VFRAME_READY:
 		/* if  (atomic_read(&waiting_flag))  { */
-		wake_up_interruptible(&frame_ready);
+		wake_up_interruptible(&vdevp->frame_ready);
 		/* atomic_set(&waiting_flag, 0); */
 		/* } */
 		/* up(&vb_start_sema); */
-		/* printk("vdin frame ready !!!!!\n"); */
+		/* printk("vdin %d frame ready !!!!!\n", vdevp->index); */
 		break;
 	case VFRAME_EVENT_PROVIDER_START:
-		/*printk("vm register!!!!!\n");*/
-		vf_vm_reg_provider();
-		vm_skip_count = 0;
-		test_zoom = 0;
+		/* printk("vm register!!!!!\n"); */
+		vf_vm_reg_provider(vdevp);
+		vdevp->vm_skip_count = 0;
+		vdevp->test_zoom = 0;
 		break;
 	case VFRAME_EVENT_PROVIDER_UNREG:
 		/* printk("vm unregister!!!!!\n"); */
 		vm_local_init();
-		vf_vm_unreg_provider();
+		vf_vm_unreg_provider(vdevp);
 		/* printk("vm unregister succeed!!!!!\n"); */
 		break;
 	default:
@@ -389,7 +397,7 @@ static const struct vframe_operations_s vm_vf_provider = {
 
 static struct vframe_provider_s vm_vf_prov;
 #endif
-static struct vframe_receiver_s vm_vf_recv;
+
 
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 int get_unused_vm_index(void)
@@ -435,13 +443,14 @@ void vm_local_init(void)
 	return;
 }
 
-static struct vframe_receiver_op_s *vf_vm_unreg_provider(void)
+static struct vframe_receiver_op_s *vf_vm_unreg_provider(
+	struct vm_device_s *vdevp)
 {
 	/* ulong flags; */
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 	vf_unreg_provider(&vm_vf_prov);
 #endif
-	stop_vm_task();
+	stop_vm_task(vdevp);
 	/* spin_lock_irqsave(&lock, flags); */
 	/* vfp = NULL; */
 	/* spin_unlock_irqrestore(&lock, flags); */
@@ -449,17 +458,18 @@ static struct vframe_receiver_op_s *vf_vm_unreg_provider(void)
 }
 EXPORT_SYMBOL(vf_vm_unreg_provider);
 
-static struct vframe_receiver_op_s *vf_vm_reg_provider()
+static struct vframe_receiver_op_s *vf_vm_reg_provider(struct vm_device_s
+		*vdevp)
 {
 	ulong flags;
 	/* int ret; */
 	spin_lock_irqsave(&lock, flags);
 	spin_unlock_irqrestore(&lock, flags);
-	vm_buffer_init();
+	vm_buffer_init(vdevp);
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 	vf_reg_provider(&vm_vf_prov);
 #endif
-	start_vm_task();
+	start_vm_task(vdevp);
 #if 0
 	start_simulate_task();
 #endif
@@ -472,32 +482,37 @@ EXPORT_SYMBOL(vf_vm_reg_provider);
     return vfp;
 } */
 
-static inline struct vframe_s *vm_vf_peek_from_provider(void)
+static inline struct vframe_s *vm_vf_peek_from_provider(unsigned vdin_id)
 {
 	struct vframe_provider_s *vfp;
 	struct vframe_s *vf;
-
-	vfp = vf_get_provider(RECEIVER_NAME);
+	char name[20];
+	sprintf(name, "%s%d", RECEIVER_NAME, vdin_id);
+	vfp = vf_get_provider(name);
 	if (!(vfp && vfp->ops && vfp->ops->peek))
 		return NULL;
 	vf  = vfp->ops->peek(vfp->op_arg);
 	return vf;
 }
 
-static inline struct vframe_s *vm_vf_get_from_provider(void)
+static inline struct vframe_s *vm_vf_get_from_provider(unsigned vdin_id)
 {
 	struct vframe_provider_s *vfp;
-
-	vfp = vf_get_provider(RECEIVER_NAME);
+	char name[20];
+	sprintf(name, "%s%d", RECEIVER_NAME, vdin_id);
+	vfp = vf_get_provider(name);
 	if (!(vfp && vfp->ops && vfp->ops->peek))
 		return NULL;
 	return vfp->ops->get(vfp->op_arg);
 }
 
-static inline void vm_vf_put_from_provider(struct vframe_s *vf)
+static inline void vm_vf_put_from_provider(struct vframe_s *vf,
+		unsigned vdin_id)
 {
 	struct vframe_provider_s *vfp;
-	vfp = vf_get_provider(RECEIVER_NAME);
+	char name[20];
+	sprintf(name, "%s%d", RECEIVER_NAME, vdin_id);
+	vfp = vf_get_provider(name);
 	if (!(vfp && vfp->ops && vfp->ops->peek))
 		return;
 	vfp->ops->put(vf, vfp->op_arg);
@@ -518,36 +533,36 @@ static int get_input_format(struct vframe_s *vf)
 	if (vf->type & VIDTYPE_VIU_422) {
 		if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
 			format =  GE2D_FORMAT_S16_YUV422 |
-				(GE2D_FORMAT_S16_YUV422B & (3 << 3));
+				  (GE2D_FORMAT_S16_YUV422B & (3 << 3));
 		else if (vf->type & VIDTYPE_INTERLACE_TOP)
 			format =  GE2D_FORMAT_S16_YUV422 |
-				(GE2D_FORMAT_S16_YUV422T & (3 << 3));
+				  (GE2D_FORMAT_S16_YUV422T & (3 << 3));
 		else
 			format =  GE2D_FORMAT_S16_YUV422;
 	} else if (vf->type & VIDTYPE_VIU_NV21) {
 		if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
 			format =  GE2D_FORMAT_M24_NV21 |
-				(GE2D_FORMAT_M24_NV21B & (3 << 3));
+				  (GE2D_FORMAT_M24_NV21B & (3 << 3));
 		else if (vf->type & VIDTYPE_INTERLACE_TOP)
 			format =  GE2D_FORMAT_M24_NV21 |
-				(GE2D_FORMAT_M24_NV21T & (3 << 3));
+				  (GE2D_FORMAT_M24_NV21T & (3 << 3));
 		else
 			format =  GE2D_FORMAT_M24_NV21;
 	} else {
 		if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
 			format =  GE2D_FORMAT_M24_YUV420 |
-				(GE2D_FMT_M24_YUV420B & (3 << 3));
+				  (GE2D_FMT_M24_YUV420B & (3 << 3));
 		else if (vf->type & VIDTYPE_INTERLACE_TOP)
 			format =  GE2D_FORMAT_M24_YUV420 |
-				(GE2D_FORMAT_M24_YUV420T & (3 << 3));
+				  (GE2D_FORMAT_M24_YUV420T & (3 << 3));
 		else
 			format =  GE2D_FORMAT_M24_YUV420;
 	}
 	if (1 == print_ifmt) {
 		pr_debug("VIDTYPE_VIU_NV21=%x, vf->type=%x\n",
-				VIDTYPE_VIU_NV21, vf->type);
+			 VIDTYPE_VIU_NV21, vf->type);
 		pr_debug("format=%x, w=%d, h=%d\n",
-				format, vf->width, vf->height);
+			 format, vf->width, vf->height);
 		print_ifmt = 0;
 	}
 	return format;
@@ -681,7 +696,6 @@ static int get_output_format(int v4l2_format)
 	return format;
 }
 
-static struct vm_output_para output_para = {0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0};
 
 struct vm_dma_contig_memory {
 	u32 magic;
@@ -691,7 +705,7 @@ struct vm_dma_contig_memory {
 	int is_userptr;
 };
 
-int is_need_ge2d_pre_process(void)
+int is_need_ge2d_pre_process(struct vm_output_para output_para)
 {
 	int ret = 0;
 	switch (output_para.v4l2_format) {
@@ -712,7 +726,7 @@ int is_need_ge2d_pre_process(void)
 	return ret;
 }
 
-int is_need_sw_post_process(void)
+int is_need_sw_post_process(struct vm_output_para output_para)
 {
 	int ret = 0;
 	switch (output_para.v4l2_memory) {
@@ -870,7 +884,7 @@ static void vm_x_mem(char *path, struct vm_output_para *para)
 
 	if (IS_ERR(filp)) {
 		pr_err(KERN_ERR"failed to create %s, error %p.\n",
-			path, filp);
+		       path, filp);
 		return;
 	}
 
@@ -893,22 +907,22 @@ static void vm_x_mem(char *path, struct vm_output_para *para)
 
 int vm_fill_this_buffer(struct videobuf_buffer *vb ,
 			struct vm_output_para *para, struct vm_init_s *info)
+
 {
-	/* struct vm_dma_contig_memory *mem = NULL; */
-	resource_size_t buf_start;
-	int buf_size;
 	int depth = 0;
 	int ret = 0;
 	int canvas_index = -1;
 	int v4l2_format = V4L2_PIX_FMT_YUV444;
 	int magic = 0;
 	struct videobuf_buffer buf = {0};
-	buf_start = info->buffer_start;
-	buf_size = info->vm_buf_size;
-	if (!para)
+	if (!info)
 		return -1;
-	if (info->isused == false)
-		return -2;
+	if (info->vdin_id >= VM_MAX_DEVS) {
+		pr_err("beyond the device array bound .\n");
+		return -1;
+	}
+	/* if (info->isused == false) */
+	/* return -2; */
 #if 0
 	if (!vb)
 		goto exit;
@@ -920,9 +934,11 @@ int vm_fill_this_buffer(struct videobuf_buffer *vb ,
 		v4l2_format =  V4L2_PIX_FMT_YUV444;
 		vb = &buf;
 	}
-	if (!task_running)
+
+	if (!vm_device[info->vdin_id]->task_running)
 		return -1;
 #endif
+
 	v4l2_format = para->v4l2_format;
 	magic = para->v4l2_memory;
 	switch (magic) {
@@ -938,204 +954,57 @@ int vm_fill_this_buffer(struct videobuf_buffer *vb ,
 	case  MAGIC_RE_MEM:
 		if (para->ext_canvas != 0)
 			canvas_index = get_canvas_index_res(
-				para->ext_canvas, v4l2_format,
-				&depth, vb->width,
-				(para->height == 0) ? vb->height : para->height,
-				(unsigned)para->vaddr);
-		else
+			       para->ext_canvas, v4l2_format,
+			       &depth, vb->width,
+			       (para->height == 0) ? vb->height : para->height,
+			       (unsigned)para->vaddr);
+		else if (info->vdin_id == 0) {
 			canvas_index =
-			get_canvas_index_res((VM_RES_CANVAS_INDEX |
-	      (VM_RES_CANVAS_INDEX_U << 8) |
-	      (VM_RES_CANVAS_INDEX_V << 16)),
-	      v4l2_format, &depth, vb->width,
-	      vb->height, (unsigned)para->vaddr);
+				get_canvas_index_res((VM_RES_CANVAS_INDEX |
+				      (VM_RES_CANVAS_INDEX_U << 8) |
+				      (VM_RES_CANVAS_INDEX_V << 16)),
+				     v4l2_format, &depth, vb->width,
+				     vb->height, (unsigned)para->vaddr);
+		} else {
+			canvas_index =
+				get_canvas_index_res((VM_DEPTH_8_CANVAS_Y |
+				      (VM_DEPTH_8_CANVAS_U << 8) |
+				      (VM_DEPTH_8_CANVAS_V << 16)),
+				     v4l2_format, &depth, vb->width,
+				     vb->height, (unsigned)para->vaddr);
+		}
 		break;
 	case  MAGIC_SG_MEM:
 	case  MAGIC_VMAL_MEM:
-		if (buf_start && buf_size)
+		if (vm_device[info->vdin_id]->buffer_start &&
+		    vm_device[info->vdin_id]->buffer_size)
 			canvas_index = get_canvas_index(v4l2_format, &depth);
 		break;
 	default:
 		canvas_index = VM_DEPTH_16_CANVAS;
 		break;
 	}
-	output_para.width = vb->width;
-	output_para.height = vb->height;
-	output_para.bytesperline  = (vb->width * depth) >> 3;
-	output_para.index = canvas_index;
-	output_para.v4l2_format = v4l2_format;
-	output_para.v4l2_memory = magic;
-	output_para.mirror = para->mirror;
-	output_para.zoom = para->zoom;
-	output_para.angle = para->angle;
-	output_para.vaddr = para->vaddr;
-	output_para.ext_canvas = (magic == MAGIC_RE_MEM) ? para->ext_canvas : 0;
-	/*up(&vb_start_sema);*/
-	complete(&vb_start_sema);
-	wait_for_completion(&vb_done_sema);
+	vm_device[info->vdin_id]->output_para.width = vb->width;
+	vm_device[info->vdin_id]->output_para.height = vb->height;
+	vm_device[info->vdin_id]->output_para.bytesperline =
+		(vb->width * depth) >> 3;
+	vm_device[info->vdin_id]->output_para.index = canvas_index;
+	vm_device[info->vdin_id]->output_para.v4l2_format = v4l2_format;
+	vm_device[info->vdin_id]->output_para.v4l2_memory = magic;
+	vm_device[info->vdin_id]->output_para.mirror = para->mirror;
+	vm_device[info->vdin_id]->output_para.zoom = para->zoom;
+	vm_device[info->vdin_id]->output_para.angle = para->angle;
+	vm_device[info->vdin_id]->output_para.vaddr = para->vaddr;
+	vm_device[info->vdin_id]->output_para.ext_canvas =
+		(magic == MAGIC_RE_MEM) ? para->ext_canvas : 0;
+	complete(&vm_device[info->vdin_id]->vb_start_sema);
+	wait_for_completion(&vm_device[info->vdin_id]->vb_done_sema);
 	if (magic == MAGIC_RE_MEM)
 		vm_cache_this_flush((unsigned)para->vaddr,
-			output_para.bytesperline *
-		((para->height == 0) ? output_para.height :
-		para->height), info);
-	return ret;
-}
+				    para->bytesperline *
+				    ((para->height == 0) ? para->height :
+				     para->height), info);
 
-int vm_fill_buffer(struct videobuf_buffer *vb , struct vm_output_para *para)
-{
-	/* struct vm_dma_contig_memory *mem = NULL; */
-	resource_size_t buf_start;
-	int buf_size;
-	int depth = 0;
-	int ret = 0;
-	int canvas_index = -1;
-	int v4l2_format = V4L2_PIX_FMT_YUV444;
-	int magic = 0;
-	struct videobuf_buffer buf = {0};
-	get_vm_buf_info(&buf_start, &buf_size, NULL);
-
-	if (!para)
-		return -1;
-#if 0
-	if (!vb)
-		goto exit;
-#else
-	if (!vb) {
-		buf.width = 640;
-		buf.height = 480;
-		magic = MAGIC_VMAL_MEM;
-		v4l2_format =  V4L2_PIX_FMT_YUV444;
-		vb = &buf;
-	}
-	if (!task_running)
-		return -1;
-#endif
-	v4l2_format = para->v4l2_format;
-	magic = para->v4l2_memory;
-	switch (magic) {
-	case   MAGIC_DC_MEM:
-		/* mem = vb->priv; */
-		canvas_config(VM_DMA_CANVAS_INDEX,
-			      (dma_addr_t)para->vaddr,
-			      vb->bytesperline, vb->height,
-			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		canvas_index =  VM_DMA_CANVAS_INDEX;
-		depth = (vb->bytesperline << 3) / vb->width;
-		break;
-	case  MAGIC_RE_MEM:
-		if (para->ext_canvas != 0)
-			canvas_index =
-				get_canvas_index_res(
-				para->ext_canvas,
-				v4l2_format, &depth, vb->width,
-				(para->height == 0) ? vb->height : para->height,
-				(unsigned)para->vaddr);
-		else
-			canvas_index =
-					get_canvas_index_res(
-						(VM_RES_CANVAS_INDEX |
-						(VM_RES_CANVAS_INDEX_U << 8) |
-						(VM_RES_CANVAS_INDEX_V << 16)),
-						v4l2_format,
-						&depth, vb->width, vb->height,
-						(unsigned)para->vaddr);
-		break;
-	case  MAGIC_SG_MEM:
-	case  MAGIC_VMAL_MEM:
-		if (buf_start && buf_size)
-			canvas_index = get_canvas_index(v4l2_format, &depth);
-		break;
-	default:
-		canvas_index = VM_DEPTH_16_CANVAS;
-		break;
-	}
-	output_para.width = vb->width;
-	output_para.height = vb->height;
-	output_para.bytesperline  = (vb->width * depth) >> 3;
-	output_para.index = canvas_index;
-	output_para.v4l2_format  = v4l2_format;
-	output_para.v4l2_memory   = magic;
-	output_para.mirror = para->mirror;
-	output_para.zoom = para->zoom;
-	output_para.angle = para->angle;
-	output_para.vaddr = para->vaddr;
-	output_para.ext_canvas = (magic == MAGIC_RE_MEM) ? para->ext_canvas : 0;
-	complete(&vb_start_sema);
-	wait_for_completion(&vb_done_sema);
-	if (magic == MAGIC_RE_MEM)
-		vm_cache_flush((unsigned)para->vaddr,
-				output_para.bytesperline *
-				((para->height == 0) ? output_para.height :
-				para->height));
-	return ret;
-}
-
-int vm_fill_buffer2(struct vb2_buffer *vb, struct vm_output_para *para)
-{
-	int depth = 0;
-	int ret = 0;
-	int canvas_index = -1;
-	int v4l2_format = V4L2_PIX_FMT_YUV444;
-	int magic = 0;
-	if (!para)
-		return -1;
-
-	if (!task_running)
-		return -1;
-
-	v4l2_format = para->v4l2_format;
-	magic = para->v4l2_memory;
-	switch (magic) {
-	case   MAGIC_DC_MEM:
-	    pr_info("not support\n");
-	    break;
-	case  MAGIC_RE_MEM:
-	    if (para->ext_canvas != 0)
-					canvas_index =
-					get_canvas_index_res(para->ext_canvas,
-				    v4l2_format,
-				    &depth,
-				    para->width,
-				    para->height,
-				    (unsigned)para->vaddr);
-	    else
-		    canvas_index =  get_canvas_index_res(
-						(VM_RES_CANVAS_INDEX |
-				    (VM_RES_CANVAS_INDEX_U<<8) |
-						(VM_RES_CANVAS_INDEX_V<<16)),
-				    v4l2_format, &depth,
-				    para->width,
-				    para->height,
-				    (unsigned)para->vaddr);
-	    break;
-	case  MAGIC_SG_MEM:
-	    pr_info("not support\n");
-	    break;
-	case  MAGIC_VMAL_MEM:
-	    pr_info("not support\n");
-	    break;
-	default:
-	    canvas_index = VM_DEPTH_16_CANVAS;
-	    break;
-	}
-	output_para.width = para->width;
-	output_para.height = para->height;
-	output_para.bytesperline  = (output_para.width * depth)>>3;
-	output_para.index = canvas_index;
-	output_para.v4l2_format  = para->v4l2_format;
-	output_para.v4l2_memory  = para->v4l2_memory;
-	output_para.mirror = para->mirror;
-	output_para.zoom = para->zoom;
-	output_para.angle = para->angle;
-	output_para.vaddr = para->vaddr;
-	output_para.ext_canvas = (magic == MAGIC_RE_MEM)?para->ext_canvas:0;
-	complete(&vb_start_sema);
-	/*ret = down_interruptible(&vb_done_sema);*/
-	wait_for_completion(&vb_done_sema);
-	if (magic == MAGIC_RE_MEM)
-		vm_cache_flush((unsigned)para->vaddr,
-		output_para.bytesperline *
-		((para->height == 0)?output_para.height:para->height));
 	return ret;
 }
 
@@ -1144,8 +1013,11 @@ int vm_fill_buffer2(struct vb2_buffer *vb, struct vm_output_para *para)
     2. keep the frame ratio
     3. input format should be YUV420 , output format should be YUV444
 */
-int vm_ge2d_pre_process(struct vframe_s *vf, struct ge2d_context_s *context,
-			struct config_para_ex_s *ge2d_config)
+int vm_ge2d_pre_process(struct vframe_s *vf,
+					struct ge2d_context_s *context,
+					struct config_para_ex_s *ge2d_config,
+					struct vm_output_para output_para,
+					unsigned int index)
 {
 	int ret;
 	int src_top , src_left , src_width, src_height;
@@ -1158,14 +1030,14 @@ int vm_ge2d_pre_process(struct vframe_s *vf, struct ge2d_context_s *context,
 	src_left = input_frame.content_left;
 	src_width = input_frame.content_width;
 	src_height = input_frame.content_height;
-	if (test_zoom) {
-		test_zoom = 0;
+	if (vm_device[index]->test_zoom) {
+		vm_device[index]->test_zoom = 0;
 		pr_debug("top is %d , left is %d\n",
-			input_frame.content_top ,
-			input_frame.content_left);
+			 input_frame.content_top ,
+			 input_frame.content_left);
 		pr_debug("width is %d , height is %d\n",
-			input_frame.content_width,
-			input_frame.content_height);
+			 input_frame.content_width,
+			 input_frame.content_height);
 	}
 #ifdef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 	current_mirror = output_para.mirror;
@@ -1267,8 +1139,8 @@ int vm_ge2d_pre_process(struct vframe_s *vf, struct ge2d_context_s *context,
 		return -1;
 	}
 	stretchblt_noalpha(context, src_left , src_top ,
-			src_width, src_height, 0, 0,
-			output_para.width, output_para.height);
+			   src_width, src_height, 0, 0,
+			   output_para.width, output_para.height);
 
 	/* for cr of  yuv420p or yuv420sp. */
 	if ((output_para.v4l2_format == V4L2_PIX_FMT_YUV420)
@@ -1318,9 +1190,9 @@ int vm_ge2d_pre_process(struct vframe_s *vf, struct ge2d_context_s *context,
 			return -1;
 		}
 		stretchblt_noalpha(context, src_left, src_top,
-			src_width, src_height,
-			0, 0, ge2d_config->dst_para.width,
-			ge2d_config->dst_para.height);
+				   src_width, src_height,
+				   0, 0, ge2d_config->dst_para.width,
+				   ge2d_config->dst_para.height);
 	}
 #ifndef GE2D_NV
 	else if (output_para.v4l2_format == V4L2_PIX_FMT_NV12 ||
@@ -1364,9 +1236,9 @@ int vm_ge2d_pre_process(struct vframe_s *vf, struct ge2d_context_s *context,
 			return -1;
 		}
 		stretchblt_noalpha(context, src_left , src_top ,
-				src_width, src_height, 0, 0,
-				ge2d_config->dst_para.width,
-				ge2d_config->dst_para.height);
+				   src_width, src_height, 0, 0,
+				   ge2d_config->dst_para.width,
+				   ge2d_config->dst_para.height);
 	}
 #endif
 
@@ -1422,14 +1294,14 @@ int vm_ge2d_pre_process(struct vframe_s *vf, struct ge2d_context_s *context,
 			return -1;
 		}
 		stretchblt_noalpha(context, src_left,
-				src_top, src_width, src_height,
-				0, 0, ge2d_config->dst_para.width,
-				ge2d_config->dst_para.height);
+				   src_top, src_width, src_height,
+				   0, 0, ge2d_config->dst_para.width,
+				   ge2d_config->dst_para.height);
 	}
 	return output_para.index;
 }
 
-int vm_sw_post_process(int canvas , uintptr_t addr)
+int vm_sw_post_process(int canvas , uintptr_t addr, unsigned int index)
 {
 	int poss = 0, posd = 0;
 	int i = 0;
@@ -1441,9 +1313,11 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 	struct canvas_s canvas_work_y;
 	struct canvas_s canvas_work_u;
 	struct canvas_s canvas_work_v;
+	struct vm_output_para output_para = vm_device[index]->output_para;
 	if (!addr)
 		return -1;
-	get_vm_buf_info(NULL, NULL, &mapping_wc);
+	mapping_wc = io_mapping_create_wc(vm_device[index]->buffer_start,
+					  vm_device[index]->buffer_size);
 	if (!mapping_wc)
 		return -1;
 	canvas_read(canvas & 0xff, &canvas_work_y);
@@ -1458,8 +1332,8 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 	    output_para.v4l2_format == V4L2_PIX_FMT_RGB565X) {
 		for (i = 0; i < output_para.height; i++) {
 			memcpy((void *)(addr + poss),
-			(void *)(buffer_y_start + posd),
-				output_para.bytesperline);
+			       (void *)(buffer_y_start + posd),
+			       output_para.bytesperline);
 			poss += output_para.bytesperline;
 			posd += canvas_work_y.width;
 		}
@@ -1473,8 +1347,8 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 		posd = 0;
 		for (i = output_para.height; i > 0; i--) { /* copy y */
 			memcpy((void *)(addr + poss),
-			(void *)(buffer_y_start + posd),
-			output_para.width);
+			       (void *)(buffer_y_start + posd),
+			       output_para.width);
 			poss += output_para.width;
 			posd += canvas_work_y.width;
 		}
@@ -1486,7 +1360,7 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 		buffer_u_start = io_mapping_map_atomic_wc(mapping_wc, offset);
 		for (i = uv_height; i > 0; i--) { /* copy uv */
 			memcpy((void *)(addr + poss),
-			(void *)(buffer_u_start + posd), uv_width);
+			       (void *)(buffer_u_start + posd), uv_width);
 			poss += uv_width;
 			posd += canvas_work_u.width;
 		}
@@ -1500,13 +1374,13 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 		poss = posd = 0;
 		for (i = 0; i < output_para.height; i += 2) { /* copy y */
 			memcpy((void *)(addr + poss),
-			(void *)(buffer_y_start + posd),
-				output_para.width);
+			       (void *)(buffer_y_start + posd),
+			       output_para.width);
 			poss += output_para.width;
 			posd += canvas_work_y.width;
 			memcpy((void *)(addr + poss),
-			(void *)(buffer_y_start + posd),
-				output_para.width);
+			       (void *)(buffer_y_start + posd),
+			       output_para.width);
 			poss += output_para.width;
 			posd += canvas_work_y.width;
 		}
@@ -1520,13 +1394,13 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 		buffer_v_start = io_mapping_map_atomic_wc(mapping_wc, offset);
 
 		dst_buff = (char *)addr +
-			output_para.width * output_para.height;
+			   output_para.width * output_para.height;
 		src_buff = (char *)buffer_u_start;
 		src2_buff = (char *)buffer_v_start;
 		if (output_para.v4l2_format == V4L2_PIX_FMT_NV12) {
 			for (i = 0 ; i < output_para.height / 2; i++) {
 				interleave_uv(src_buff, src2_buff,
-					dst_buff, output_para.width / 2);
+					      dst_buff, output_para.width / 2);
 				src_buff +=  canvas_work_u.width;
 				src2_buff +=    canvas_work_v.width;
 				dst_buff += output_para.width;
@@ -1534,7 +1408,7 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 		} else {
 			for (i = 0 ; i < output_para.height / 2; i++) {
 				interleave_uv(src2_buff, src_buff,
-					dst_buff, output_para.width / 2);
+					      dst_buff, output_para.width / 2);
 				src_buff +=  canvas_work_u.width;
 				src2_buff +=    canvas_work_v.width;
 				dst_buff += output_para.width;
@@ -1553,8 +1427,8 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 		posd = 0;
 		for (i = output_para.height; i > 0; i--) { /* copy y */
 			memcpy((void *)(addr + poss),
-			(void *)(buffer_y_start + posd),
-				output_para.width);
+			       (void *)(buffer_y_start + posd),
+			       output_para.width);
 			poss += output_para.width;
 			posd += canvas_work_y.width;
 		}
@@ -1576,48 +1450,49 @@ int vm_sw_post_process(int canvas , uintptr_t addr)
 #endif
 			for (i = uv_height; i > 0; i--) { /* copy y */
 				memcpy((void *)(addr + poss),
-				(void *)(buffer_u_start + posd),
-					uv_width);
+				       (void *)(buffer_u_start + posd),
+				       uv_width);
 				poss += uv_width;
 				posd += canvas_work_u.width;
 			}
-			posd = 0;
-			for (i = uv_height; i > 0; i--) { /* copy y */
-				memcpy((void *)(addr + poss),
-				(void *)(buffer_v_start + posd),
-					uv_width);
-				poss += uv_width;
-				posd += canvas_work_v.width;
-			}
-		} else {
-			for (i = uv_height; i > 0; i--) { /* copy v */
-				memcpy((void *)(addr + poss),
-					(void *)(buffer_v_start + posd),
-					uv_width);
-				poss += uv_width;
-				posd += canvas_work_v.width;
-			}
-			posd = 0;
-			for (i = uv_height; i > 0; i--) { /* copy u */
-				memcpy((void *)(addr + poss),
-				(void *)(buffer_u_start + posd),
-					uv_width);
-				poss += uv_width;
-				posd += canvas_work_u.width;
-			}
+		posd = 0;
+		for (i = uv_height; i > 0; i--) { /* copy y */
+			memcpy((void *)(addr + poss),
+			       (void *)(buffer_v_start + posd),
+			       uv_width);
+			poss += uv_width;
+			posd += canvas_work_v.width;
 		}
-		io_mapping_unmap_atomic(buffer_u_start);
-		io_mapping_unmap_atomic(buffer_v_start);
+	} else {
+		for (i = uv_height; i > 0; i--) { /* copy v */
+			memcpy((void *)(addr + poss),
+			       (void *)(buffer_v_start + posd),
+			       uv_width);
+			poss += uv_width;
+			posd += canvas_work_v.width;
+		}
+		posd = 0;
+		for (i = uv_height; i > 0; i--) { /* copy u */
+			memcpy((void *)(addr + poss),
+			       (void *)(buffer_u_start + posd),
+			       uv_width);
+			poss += uv_width;
+			posd += canvas_work_u.width;
+		}
 	}
-	return 0;
+	io_mapping_unmap_atomic(buffer_u_start);
+	io_mapping_unmap_atomic(buffer_v_start);
+}
+return 0;
 }
 
-static struct task_struct *task;
 static struct task_struct *simulate_task_fd;
 
-static bool is_vf_available(void)
+static bool is_vf_available(unsigned vdin_id)
 {
-	return (local_vf_peek() != NULL) || (!task_running);
+	bool ret = ((local_vf_peek(vdin_id) != NULL) ||
+			(!vm_device[vdin_id]->task_running));
+	return ret;
 }
 
 /* static int reset_frame = 1; */
@@ -1626,7 +1501,7 @@ static int vm_task(void *data)
 	int ret = 0;
 	struct vframe_s *vf;
 	int src_canvas;
-	/* struct vm_device_s *devp = (struct vm_device_s*) data; */
+	struct vm_device_s *devp = (struct vm_device_s *) data;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
 	struct ge2d_context_s *context = create_ge2d_work_queue();
 	struct config_para_ex_s ge2d_config;
@@ -1637,25 +1512,24 @@ static int vm_task(void *data)
 	unsigned long time_use = 0;
 #endif
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
-	/* amlog_level(LOG_LEVEL_HIGH,"vm task is running\n "); */
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 	while (1) {
-		/*ret = down_interruptible(&vb_start_sema);*/
-	wait_for_completion(&vb_start_sema);
+		ret = wait_for_completion_interruptible(
+			      &devp->vb_start_sema);
+
 		if (kthread_should_stop()) {
-			complete(&vb_done_sema);
+			complete(&devp->vb_done_sema);
 			break;
 		}
 
 		/* wait for frame from 656 provider until 500ms runs out */
-		/* vf = local_vf_peek(); */
-		wait_event_interruptible_timeout(frame_ready,
-			is_vf_available(), msecs_to_jiffies(5000));
+		wait_event_interruptible_timeout(devp->frame_ready,
+						is_vf_available(devp->index),
+						msecs_to_jiffies(2000));
 
-		if (!task_running) {
-			complete(&vb_done_sema);
-	    ret = -1;
+		if (!devp->task_running) {
+			ret = -1;
 			goto vm_exit;
 			break;
 		}
@@ -1664,22 +1538,24 @@ static int vm_task(void *data)
 #ifdef CONFIG_AMLCAP_LOG_TIME_USEFORFRAMES
 		do_gettimeofday(&start);
 #endif
-		vf = local_vf_get();
+		vf = local_vf_get(devp->index);
+
 		if (vf) {
 			src_canvas = vf->canvas0Addr;
 
 			/* step1 convert 422 format to other format.*/
-			if (is_need_ge2d_pre_process())
+			if (is_need_ge2d_pre_process(devp->output_para))
 				src_canvas = vm_ge2d_pre_process(vf, context,
-					&ge2d_config);
+					 &ge2d_config, devp->output_para,
+					 devp->index);
 #if 0
 			if (devp->dump == 2) {
 				vm_dump_mem(devp->dump_path,
-				(void *)output_para.vaddr, &output_para);
+			    (void *)output_para.vaddr, &output_para);
 				devp->dump = 0;
 			}
 #endif
-			local_vf_put(vf);
+			local_vf_put(vf, devp->index);
 #ifdef CONFIG_AMLCAP_LOG_TIME_USEFORFRAMES
 			do_gettimeofday(&end);
 			time_use = (end.tv_sec - start.tv_sec) * 1000 +
@@ -1689,9 +1565,10 @@ static int vm_task(void *data)
 #endif
 
 			/* step2 copy to user memory. */
-			if (is_need_sw_post_process())
+
+			if (is_need_sw_post_process(devp->output_para))
 				vm_sw_post_process(src_canvas ,
-					output_para.vaddr);
+				   devp->output_para.vaddr, devp->index);
 
 #ifdef CONFIG_AMLCAP_LOG_TIME_USEFORFRAMES
 			do_gettimeofday(&end);
@@ -1701,10 +1578,10 @@ static int vm_task(void *data)
 #endif
 		}
 		if (kthread_should_stop()) {
-			complete(&vb_done_sema);
+			complete(&devp->vb_done_sema);
 			break;
 		}
-		complete(&vb_done_sema);
+		complete(&devp->vb_done_sema);
 	}
 vm_exit:
 	destroy_ge2d_work_queue(context);
@@ -1727,7 +1604,6 @@ static int simulate_task(void *data)
 {
 	while (1) {
 		msleep(50);
-		vm_fill_buffer(NULL, NULL);
 		pr_debug("simulate succeed\n");
 	}
 	return 0;
@@ -1738,7 +1614,7 @@ static int simulate_task(void *data)
 *   init functions.
 *
 *************************************************/
-int vm_buffer_init(void)
+int vm_buffer_init(struct vm_device_s *vdevp)
 {
 	int i;
 	u32 canvas_width, canvas_height;
@@ -1748,12 +1624,11 @@ int vm_buffer_init(void)
 	int buf_num = 0;
 	int local_pool_size = 0;
 
-	get_vm_buf_info(&buf_start, &buf_size, NULL);
-	/*sema_init(&vb_start_sema, 0);
-	sema_init(&vb_done_sema, 0);*/
-	init_completion(&vb_start_sema);
-	init_completion(&vb_done_sema);
-	mutex_init(&vm_lock);
+	init_completion(&vdevp->vb_start_sema);
+	init_completion(&vdevp->vb_done_sema);
+
+	buf_start = vdevp->buffer_start;
+	buf_size = vdevp->buffer_size;
 
 	if (!buf_start || !buf_size)
 		goto exit;
@@ -1764,7 +1639,7 @@ int vm_buffer_init(void)
 	}
 	if (i == ARRAY_SIZE(vmdecbuf_size)) {
 		pr_debug("vmbuf size=%d less than the smallest vmbuf size%d\n",
-		       buf_size, vmdecbuf_size[i - 1]);
+			 buf_size, vmdecbuf_size[i - 1]);
 		return -1;
 	}
 
@@ -1795,44 +1670,44 @@ int vm_buffer_init(void)
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		canvas_config(VM_DEPTH_8_CANVAS_UV + i,
 			      (unsigned long)(buf_start +
-						(i + 1)*decbuf_size / 2),
+					      (i + 1)*decbuf_size / 2),
 			      canvas_width, canvas_height / 2,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 
 		canvas_config((VM_DEPTH_8_CANVAS_U + i),
 			      (unsigned long)(buf_start +
-						(i + 1)*decbuf_size / 2),
+					      (i + 1)*decbuf_size / 2),
 			      canvas_width / 2, canvas_height / 2,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		canvas_config((VM_DEPTH_8_CANVAS_V + i),
 			      (unsigned long)(buf_start +
-						(i + 3)*decbuf_size / 4),
+					      (i + 3)*decbuf_size / 4),
 			      canvas_width / 2, canvas_height / 2,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 		vfbuf_use[i] = 0;
 #endif
 	}
+
 exit:
 	return 0;
 
 }
 
-int start_vm_task(void)
+int start_vm_task(struct vm_device_s *vdevp)
 {
 	/* init the device. */
 	vm_local_init();
-	if (!task) {
-		task = kthread_create(vm_task, &vm_device, "vm");
-		if (IS_ERR(task)) {
+	if (!vdevp->task) {
+		vdevp->task = kthread_create(vm_task, vdevp, vdevp->name);
+		if (IS_ERR(vdevp->task)) {
 			pr_err("thread creating error.\n");
 			return -1;
 		}
-		init_waitqueue_head(&frame_ready);
-		wake_up_process(task);
+		init_waitqueue_head(&vdevp->frame_ready);
+		wake_up_process(vdevp->task);
 	}
-	task_running = 1;
-	vm_device.task_running = task_running;
+	vdevp->task_running = 1;
 	return 0;
 }
 
@@ -1850,16 +1725,15 @@ int start_simulate_task(void)
 }
 
 
-void stop_vm_task(void)
+void stop_vm_task(struct vm_device_s *vdevp)
 {
-	if (task) {
-		task_running = 0;
-		vm_device.task_running = task_running;
-		send_sig(SIGTERM, task, 1);
-		complete(&vb_start_sema);
-		wake_up_interruptible(&frame_ready);
-		kthread_stop(task);
-		task = NULL;
+	if (vdevp->task) {
+		vdevp->task_running = 0;
+		send_sig(SIGTERM, vdevp->task, 1);
+		complete(&vdevp->vb_start_sema);
+		wake_up_interruptible(&vdevp->frame_ready);
+		kthread_stop(vdevp->task);
+		vdevp->task = NULL;
 	}
 	vm_local_init();
 }
@@ -1891,81 +1765,20 @@ void set_vm_status(int flag)
 * file op section.
 *
 ************************************************************************/
-
-void set_vm_buf_info(resource_size_t start, unsigned int size)
-{
-	vm_device.buffer_start = start;
-	vm_device.buffer_size = size;
-	/* vm_device.mapping = io_mapping_create_wc(start, size); */
-	/* vm_device.mapping = 0; */
-	/* amlog_level(LOG_LEVEL_HIGH,"#############%p\n",vm_device.mapping); */
-}
-
-void unset_vm_buf_info(void)
-{
-	if (vm_device.mapping) {
-		io_mapping_free(vm_device.mapping);
-		vm_device.mapping = 0;
-		vm_device.buffer_start = 0;
-		vm_device.buffer_size = 0;
-	}
-}
-
 void unset_vm_buf_res(struct vm_init_s *info)
 {
-#if 0
-	if (info->mapping) {
-		io_mapping_free(info->mapping);
-		info->mapping = 0;
-		info->buffer_start = 0;
-	}
-#endif
 	info->buffer_start = 0;
 }
-
-void get_vm_buf_info(resource_size_t *start, unsigned int *size,
-		     struct io_mapping **mapping)
-{
-	if (start)
-		*start = vm_device.buffer_start;
-	if (size)
-		*size = vm_device.buffer_size;
-	if (mapping)
-		*mapping = vm_device.mapping;
-}
-
-/*
-static void vm_dma_flush(unsigned buf_start , unsigned buf_size )
-{
-    if (vm_device.dev) {
-	if ((buf_start >= vm_device.buffer_start) &&
-		((buf_start+buf_size) <= (vm_device.buffer_start +
-				vm_device.buffer_size)))
-	    dma_sync_single_for_device(vm_device.dev,buf_start ,
-				buf_size, DMA_TO_DEVICE);
-    }
-}
-*/
 
 static void vm_cache_this_flush(unsigned buf_start , unsigned buf_size ,
 				struct vm_init_s *info)
 {
-	if (vm_device.dev) {
+	struct vm_device_s *devp = vm_device[info->vdin_id];
+	if (devp->dev) {
 		if ((buf_start >= info->buffer_start) &&
 		    ((buf_start + buf_size) <= (info->buffer_start +
-					info->vm_buf_size)))
-			dma_sync_single_for_cpu(vm_device.dev ,
-					buf_start, buf_size, DMA_FROM_DEVICE);
-	}
-}
-
-static void vm_cache_flush(unsigned buf_start , unsigned buf_size)
-{
-	if (vm_device.dev) {
-		if ((buf_start >= vm_device.buffer_start) &&
-		    ((buf_start + buf_size) <= (vm_device.buffer_start +
-				vm_device.buffer_size)))
-			dma_sync_single_for_cpu(vm_device.dev ,
+						info->vm_buf_size)))
+			dma_sync_single_for_cpu(devp->dev ,
 				buf_start, buf_size, DMA_FROM_DEVICE);
 	}
 }
@@ -1973,9 +1786,9 @@ static void vm_cache_flush(unsigned buf_start , unsigned buf_size)
 static int vm_open(struct inode *inode, struct file *file)
 {
 	struct ge2d_context_s *context = NULL;
-	/* amlog_level(LOG_LEVEL_LOW,"open one vm device\n"); */
+	pr_info("open one vm device\n");
 	file->private_data = context;
-	vm_device.open_count++;
+	/* vm_device.open_count++; */
 	return 0;
 }
 
@@ -2006,11 +1819,10 @@ static int vm_release(struct inode *inode, struct file *file)
 		(struct ge2d_context_s *)file->private_data;
 
 	if (context && (0 == destroy_ge2d_work_queue(context))) {
-		vm_device.open_count--;
-
+		/* vm_device.open_count--; */
 		return 0;
 	}
-	/* amlog_level(LOG_LEVEL_LOW,"release one vm device\n"); */
+	pr_info("release one vm device\n");
 	return -1;
 }
 
@@ -2069,7 +1881,7 @@ static ssize_t vm_attr_store(struct device *dev, struct device_attribute *attr,
 			pr_err("parm array overflow.\n");
 #if 0
 			pr_err("n=%d,ARRAY_SIZE(parm)=%d\n",
-				n, ARRAY_SIZE(parm));
+			       n, ARRAY_SIZE(parm));
 #endif
 			return len;
 		}
@@ -2097,164 +1909,116 @@ static ssize_t vm_attr_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(dump, 0664, vm_attr_show, vm_attr_store);
 
-int init_vm_device(void)
+static int vm_add_cdev(struct cdev *cdevp,
+		       const struct file_operations *fops,
+		       int minor)
+{
+	int ret;
+	dev_t devno = MKDEV(MAJOR(vm_devno), minor);
+	cdev_init(cdevp, fops);
+	cdevp->owner = THIS_MODULE;
+	ret = cdev_add(cdevp, devno, 1);
+	return ret;
+}
+
+int init_vm_device(struct vm_device_s *vdevp, struct platform_device *pdev)
 {
 	int  ret = 0;
-
-	strcpy(vm_device.name, "vm");
-	ret = register_chrdev(0, vm_device.name, &vm_fops);
-	if (ret <= 0) {
-		/* amlog_level(LOG_LEVEL_HIGH,"register vm device error\n"); */
-		return  ret;
+	ret = vm_add_cdev(&vdevp->cdev, &vm_fops, vdevp->index);
+	if (ret) {
+		pr_err("%s: failed to add cdev. !\n", __func__);
+		goto fail_add_cdev;
 	}
-	vm_device.major = ret;
-	vm_device.dbg_enable = 0;
-	/* amlog_level(LOG_LEVEL_LOW,"vm_dev major:%d\n",ret); */
-
-	vm_device.cla = init_vm_cls();
-	if (vm_device.cla == NULL)
-		return -1;
-	vm_device.dev = device_create(vm_device.cla, NULL,
-					MKDEV(vm_device.major, 0),
-					NULL, vm_device.name);
-	if (IS_ERR(vm_device.dev)) {
-		/* amlog_level(LOG_LEVEL_HIGH,"create vm device error\n"); */
-		goto unregister_dev;
+	vdevp->dev = device_create(vm_clsp, &pdev->dev, MKDEV(MAJOR(vm_devno),
+				   vdevp->index),
+				   NULL, "%s%d", VM_DEV_NAME, vdevp->index);
+	if (IS_ERR(vdevp->dev)) {
+		pr_err("%s: failed to create device. !\n", __func__);
+		ret = PTR_ERR(vdevp->dev);
+		goto fail_create_device;
+	}
+	ret = device_create_file(vdevp->dev, &dev_attr_dump);
+	if (ret < 0) {
+		pr_err("%s: fail to create vdin attribute files.\n", __func__);
+		goto fail_create_dev_file;
 	}
 
-	/* dump func */
-	device_create_file(vm_device.dev, &dev_attr_dump);
-	vm_device.dump = 0;
+	dev_set_drvdata(vdevp->dev, vdevp);
+	platform_set_drvdata(pdev, vdevp);
 
-	dev_set_drvdata(vm_device.dev, &vm_device);
-	platform_set_drvdata(vm_device.pdev, &vm_device);
-
-	if (vm_buffer_init() < 0)
-		goto unregister_dev;
+	/* if (vm_buffer_init(vdevp) < 0) */
+	/* goto unregister_dev; */
 #ifndef CONFIG_AMLOGIC_VM_DISABLE_VIDEOLAYER
 	vf_provider_init(&vm_vf_prov, PROVIDER_NAME , &vm_vf_provider, NULL);
 #endif
 	/* vf_reg_provider(&vm_vf_prov); */
-	vf_receiver_init(&vm_vf_recv, RECEIVER_NAME, &vm_vf_receiver, NULL);
-	vf_reg_receiver(&vm_vf_recv);
+	vdevp->task = NULL;
+	vdevp->task_running = 0;
+	memset(&vdevp->output_para, 0, sizeof(struct vm_output_para));
+	sprintf(vdevp->name, "%s%d", RECEIVER_NAME, vdevp->index);
+	vf_receiver_init(&vdevp->vm_vf_recv, vdevp->name,
+			&vm_vf_receiver, vdevp);
+
+	vf_reg_receiver(&vdevp->vm_vf_recv);
 	return 0;
 
-unregister_dev:
-	class_unregister(vm_device.cla);
-	return -1;
+	/* unregister_dev: */
+fail_create_dev_file:
+	device_destroy(vm_clsp, MKDEV(MAJOR(vm_devno), vdevp->index));
+fail_create_device:
+	cdev_del(&vdevp->cdev);
+fail_add_cdev:
+	kfree(vdevp);
+	return ret;
+
 }
 
-int uninit_vm_device(void)
+int uninit_vm_device(struct platform_device *plat_dev)
 {
-	stop_vm_task();
-	if (vm_device.cla) {
-		if (vm_device.dev)
-			device_destroy(vm_device.cla,
-				MKDEV(vm_device.major, 0));
-		vm_device.dev = NULL;
-		class_unregister(vm_device.cla);
-	}
+	struct vm_device_s *vdevp;
+	vdevp = platform_get_drvdata(plat_dev);
+	/* stop_vm_task(vdevp); */
+	device_remove_file(vdevp->dev, &dev_attr_dump);
+	device_destroy(vm_clsp, MKDEV(MAJOR(vm_devno), vdevp->index));
+	cdev_del(&vdevp->cdev);
+	vm_device[vdevp->index] = NULL;
+	kfree(vdevp);
 
-	unregister_chrdev(vm_device.major, vm_device.name);
-	return  0;
+	/* free drvdata */
+	dev_set_drvdata(vdevp->dev, NULL);
+	platform_set_drvdata(plat_dev, NULL);
+	return 0;
 }
 
-
-#ifdef CONFIG_CMA
-/*void set_vm_buf_info(resource_size_t start, unsigned int size);*/
-/*void unset_vm_buf_info(void);*/
-/*void unset_vm_buf_res(struct vm_init_s *info);*/
-
-static size_t vm_buf_size;
-static struct page *vm_pages;
-
-int vm_init_buf(size_t size)
-{
-	if (size == 0)
-		return -1;
-
-	if (vm_pages && vm_buf_size != 0) {
-#if 0
-		pr_warn("%s cma space already in use, phys %d size %zd k\n",
-			__func__, page_to_phys(vm_pages), size / 1024);
-#endif
-		dma_release_from_contiguous(&vm_device.pdev->dev, vm_pages,
-					    vm_buf_size / PAGE_SIZE);
-	}
-	vm_pages = dma_alloc_from_contiguous(&vm_device.pdev->dev,
-						size / PAGE_SIZE, 0);
-	if (vm_pages) {
-		dma_addr_t phys;
-		phys = page_to_phys(vm_pages);
-#if 0
-		pr_info("%s: allocating phys %lld\n",
-				__func__, phys);
-		pr_info("size %dk\n", size / 1024);
-#endif
-		set_vm_buf_info(phys, size);
-		vm_buf_size = size;
-		return 0;
-	} else {
-		pr_err("CMA failed to allocate dma buffer\n");
-		return -ENOMEM;
-	}
-}
-EXPORT_SYMBOL(vm_init_buf);
-
-void vm_deinit_buf(void)
-{
-	if (0 == vm_buf_size) {
-		pr_warn("vm buf size equals 0\n");
-		return;
-	}
-	unset_vm_buf_info();
-	if (vm_pages) {
-		dma_release_from_contiguous(&vm_device.pdev->dev, vm_pages,
-					    vm_buf_size / PAGE_SIZE);
-		vm_buf_size = 0;
-	}
-}
-EXPORT_SYMBOL(vm_deinit_buf);
-#endif
-
-#ifdef CONFIG_CMA
 int vm_init_resource(size_t size, struct vm_init_s *info)
 {
-	resource_size_t buf_start;
-	int buf_size = 0;
+	struct vm_device_s *devp;
+#ifdef CONFIG_CMA
+	devp = vm_device[info->vdin_id];
 	if (size == 0)
 		return -1;
-#if 0
 	if (info->vm_pages && info->vm_buf_size != 0) {
-#if 0
-		pr_warn("%s cma space already in use, phys %d size %zd k\n",
-			__func__, page_to_phys(info->vm_pages), size / 1024);
-#endif
-		dma_release_from_contiguous(&vm_device.pdev->dev,
-						info->vm_pages,
-						info->vm_buf_size / PAGE_SIZE);
+
+		dma_release_from_contiguous(&devp->pdev->dev,
+					    info->vm_pages,
+					    info->vm_buf_size / PAGE_SIZE);
 	}
-	info->vm_pages = dma_alloc_from_contiguous(&vm_device.pdev->dev,
+	info->vm_pages = dma_alloc_from_contiguous(&devp->pdev->dev,
 			 size / PAGE_SIZE, 0);
 	if (info->vm_pages) {
 		dma_addr_t phys;
 		phys = page_to_phys(info->vm_pages);
-#if 0
-		pr_info("%s: allocating phys %lld, size %d k\n",
-				__func__, phys, size / 1024);
-#endif
 		info->buffer_start = phys;
 		info->vm_buf_size = size;
-		/*info->mapping = io_mapping_create_wc(phys, size);*/
-	/*info->mapping = 0;*/
-		info->mem_alloc_succeed = true;
-		mutex_lock(&vm_lock);
-		if (!isvmused) {
+		if (info->bt_path_count == 1) {
+			if (info->vdin_id == 0)
+				info->isused = true;
+			else
+				info->isused = false;
+		} else {
 			info->isused = true;
-			isvmused = true;
-		} else
-			info->isused = false;
-		mutex_unlock(&vm_lock);
+		}
+		info->mem_alloc_succeed = true;
 		return 0;
 	} else {
 		info->mem_alloc_succeed = false;
@@ -2262,20 +2026,12 @@ int vm_init_resource(size_t size, struct vm_init_s *info)
 		return -ENOMEM;
 	}
 #else
-	get_vm_buf_info(&buf_start, &buf_size, NULL);
-	info->buffer_start = buf_start;
-	info->vm_buf_size = buf_size;
+	if (size == 0)
+		return -1;
+	info->buffer_start = vm_device[info->vdin_id]->buffer_start;
+	info->vm_buf_size = vm_device[info->vdin_id]->buffer_size;
 	info->mem_alloc_succeed = true;
-	mutex_lock(&vm_lock);
-#if 0
-	if (!isvmused) {
-		info->isused = true;
-		isvmused = true;
-	} else
-		info->isused = false;
-#endif
 	info->isused = true;
-	mutex_unlock(&vm_lock);
 	return 0;
 #endif
 }
@@ -2283,10 +2039,9 @@ EXPORT_SYMBOL(vm_init_resource);
 
 void vm_deinit_resource(struct vm_init_s *info)
 {
-#if 0
-	mutex_lock(&vm_lock);
-	isvmused = false;
-	mutex_unlock(&vm_lock);
+#ifdef CONFIG_CMA
+	struct vm_device_s *devp;
+	devp = vm_device[info->vdin_id];
 	if (0 == info->vm_buf_size) {
 		pr_warn("vm buf size equals 0\n");
 		return;
@@ -2294,29 +2049,24 @@ void vm_deinit_resource(struct vm_init_s *info)
 	unset_vm_buf_res(info);
 
 	if (info->vm_pages) {
-		dma_release_from_contiguous(&vm_device.pdev->dev,
-						info->vm_pages,
-						info->vm_buf_size / PAGE_SIZE);
+		dma_release_from_contiguous(&devp->pdev->dev,
+					    info->vm_pages,
+					    info->vm_buf_size / PAGE_SIZE);
 		info->vm_buf_size = 0;
 		info->vm_pages = NULL;
 		info->isused = false;
 		info->mem_alloc_succeed = false;
 	}
-#endif
-	mutex_lock(&vm_lock);
-	isvmused = false;
-	mutex_unlock(&vm_lock);
+#else
 	if (info->vm_buf_size) {
 		info->buffer_start = 0;
 		info->vm_buf_size = 0;
 		info->isused = false;
 		info->mem_alloc_succeed = false;
 	}
+#endif
 }
 EXPORT_SYMBOL(vm_deinit_resource);
-
-#endif
-
 
 
 /*******************************************************************
@@ -2324,14 +2074,18 @@ EXPORT_SYMBOL(vm_deinit_resource);
  * interface for Linux driver
  *
  * ******************************************************************/
+
 static int vm_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	unsigned long start, end;
-	start = rmem->base;
-	end = rmem->base + rmem->size - 1;
-	pr_info("init vm memsource %lx->%lx\n", start, end);
-
-	set_vm_buf_info(start, rmem->size);
+	struct platform_device *pdev = container_of(dev,
+					struct platform_device, dev);
+	struct vm_device_s *vdevp = platform_get_drvdata(pdev);
+	unsigned long mem_start, mem_end;
+	vdevp->buffer_start = rmem->base;
+	vdevp->buffer_size = rmem->size;
+	mem_start = rmem->base;
+	mem_end = rmem->base + rmem->size - 1;
+	pr_info("init vm memsource %lx->%lx\n", mem_start, mem_end);
 	return 0;
 }
 
@@ -2348,56 +2102,45 @@ static int __init vm_mem_setup(struct reserved_mem *rmem)
 
 /* MODULE_AMLOG(AMLOG_DEFAULT_LEVEL, 0xff, LOG_LEVEL_DESC, LOG_MASK_DESC); */
 
+
 /* for driver. */
 static int vm_driver_probe(struct platform_device *pdev)
 {
 	int idx;
-#ifndef CONFIG_CMA
-	/* phys_addr_t buf_start; */
-	/* unsigned int buf_size; */
-	/* struct resource *mem; */
-
-#if 0
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		buf_start = 0;
-		buf_size = 0;
-	} else {
-		buf_start = (char *)mem->start;
-		buf_size = mem->end - mem->start + 1;
-	}
-#endif
-#else
-#if 0
-	idx = find_reserve_block(pdev->dev.of_node->name, 0);
-	if (idx < 0) {
-		buf_start = 0;
-		buf_size = 0;
-		pr_info("vm memory resource undefined.\n");
-	} else {
-		buf_start = (phys_addr_t)get_reserve_block_addr(idx);
-		buf_size = (unsigned int)get_reserve_block_size(idx);
-	}
-#endif
+	int ret;
+	struct vm_device_s *vdevp;
 	pr_info("vm memory init\n");
+	/* malloc vdev */
+	vdevp = kmalloc(sizeof(struct vm_device_s), GFP_KERNEL);
+	if (!vdevp) {
+		pr_err("%s: failed to allocate memory.\n", __func__);
+		return -ENOMEM;
+	}
+	memset(vdevp, 0, sizeof(struct vm_device_s));
+
+	if (pdev->dev.of_node) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "vm_id", &(vdevp->index));
+		if (ret)
+			pr_err("don't find vm id.\n");
+	}
+	vm_device[vdevp->index] = vdevp;
+	vdevp->pdev = pdev;
+	init_vm_device(vdevp, pdev);
 	idx = of_reserved_mem_device_init(&pdev->dev);
 	if (idx == 0)
 		pr_info("vm probe done\n");
 	else
 		pr_info("malloc reserved memory failed !\n");
-#endif
-	/* set_vm_buf_info(buf_start,buf_size); */
 
-
-	vm_device.pdev = pdev;
-	init_vm_device();
+	/* init_vm_device(vdevp, pdev); */
+	vm_buffer_init(vdevp);
 	return 0;
 }
 
 static int vm_drv_remove(struct platform_device *plat_dev)
 {
-	uninit_vm_device();
-	/*io_mapping_free(vm_device.mapping);*/
+	uninit_vm_device(plat_dev);
 	return 0;
 }
 
@@ -2422,24 +2165,43 @@ static struct platform_driver vm_drv = {
 static int __init
 vm_init_module(void)
 {
-	int err;
-	/* amlog_level(LOG_LEVEL_HIGH,"vm_init\n"); */
-	pr_info("vm_init\n");
-	err = platform_driver_register(&vm_drv);
-	if (err) {
-		pr_err(KERN_ERR "Failed to register vm driver (error=%d\n",
-						err);
-		return err;
+	int ret = 0;
+	pr_info("vm_init .\n");
+	ret = alloc_chrdev_region(&vm_devno, 0, VM_MAX_DEVS, VM_DEV_NAME);
+	if (ret < 0) {
+		pr_err("%s: failed to allocate major number\n", __func__);
+		goto fail_alloc_cdev_region;
 	}
+	vm_clsp = class_create(THIS_MODULE, VM_CLS_NAME);
+	if (IS_ERR(vm_clsp)) {
+		ret = PTR_ERR(vm_clsp);
+		pr_err("%s: failed to create class\n", __func__);
+		goto fail_class_create;
+	}
+	ret = platform_driver_register(&vm_drv);
+	if (ret) {
+		pr_err(KERN_ERR "Failed to register vm driver (error=%d\n",
+		       ret);
+		goto fail_pdrv_register;
+	}
+	return 0;
 
-	return err;
+fail_pdrv_register:
+	class_destroy(vm_clsp);
+fail_class_create:
+	unregister_chrdev_region(vm_devno, VM_MAX_DEVS);
+fail_alloc_cdev_region:
+	return ret;
 }
 
 static void __exit
 vm_remove_module(void)
 {
+	/* class_remove_file(vm_clsp, &class_attr_dump); */
+	class_destroy(vm_clsp);
+	unregister_chrdev_region(vm_devno, VM_MAX_DEVS);
 	platform_driver_unregister(&vm_drv);
-	/* amlog_level(LOG_LEVEL_HIGH,"vm module removed.\n"); */
+	amlog_level(LOG_LEVEL_HIGH, "vm module removed.\n");
 }
 
 module_init(vm_init_module);

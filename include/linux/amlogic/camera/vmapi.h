@@ -39,7 +39,8 @@ struct vm_init_s {
 	size_t vm_buf_size;
 	struct page *vm_pages;
 	resource_size_t buffer_start;
-	struct io_mapping *mapping;
+	unsigned vdin_id;
+	unsigned int bt_path_count;
 	bool isused;
 	bool mem_alloc_succeed;
 };
