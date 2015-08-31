@@ -1037,7 +1037,6 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 	if (gpio_request_one(pdata->gpio_dat3,
 		GPIOF_IN, MODULE_NAME))
 		return 0;
-	mdelay(100);
 	for (i = 0; ; i++) {
 		mdelay(1);
 		if (gpio_get_value(pdata->gpio_dat3)) {
@@ -1047,10 +1046,10 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 			low_cnt++;
 			high_cnt = 0;
 		}
-		if ((high_cnt > 100) || (low_cnt > 100))
+		if ((high_cnt > 50) || (low_cnt > 50))
 			break;
 	}
-	if (low_cnt > 100)
+	if (low_cnt > 50)
 		in = 1;
 	gpio_free(pdata->gpio_dat3);
 	return in;
