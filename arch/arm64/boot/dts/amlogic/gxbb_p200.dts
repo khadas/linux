@@ -378,11 +378,17 @@
 		status = "okay";
 		interrupt_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
 		interrupts = <	0 68 4>;
-		irq_trigger_type = "GPIO_IRQ_LOW";
+		irq_trigger_type = "GPIO_IRQ_HIGH";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
 		dhd_static_buf;
 		pinctrl-names = "wifi_32k_pins";
 		pinctrl-0 = <&wifi_32k_pins>;
+	};
+	wifi_power{
+		compatible = "amlogic, wifi_power";
+		dev_name = "wifi_power";
+		status = "okay";
+		power_gpio =  <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
 	};
     sd{
         compatible = "amlogic, aml_sd_emmc";

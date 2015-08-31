@@ -160,7 +160,6 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 int amlsd_get_reg_base(struct platform_device *pdev,
 				struct amlsd_host *host);
 
-
 /* int of_amlsd_detect(struct amlsd_platform* pdata); */
 void of_amlsd_irq_init(struct amlsd_platform *pdata);
 void of_amlsd_pwr_prepare(struct amlsd_platform *pdata);
