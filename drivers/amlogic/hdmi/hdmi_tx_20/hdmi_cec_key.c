@@ -48,7 +48,7 @@ __u16 cec_key_map[128] = {
 };
 
 struct hrtimer cec_key_timer;
-static unsigned int last_key_irq = -1;
+static int last_key_irq = -1;
 enum hrtimer_restart cec_key_up(struct hrtimer *timer)
 {
 	hdmi_print(INF, CEC"last:%d up\n", cec_key_map[last_key_irq]);
@@ -175,10 +175,15 @@ void cec_user_control_pressed_irq(void)
 void cec_user_control_released_irq(void)
 {
 	hdmi_print(INF, CEC  ": Key released\n");
-	hrtimer_cancel(&cec_key_timer);
-	input_event(cec_global_info.remote_cec_dev,
-	    EV_KEY, cec_key_map[last_key_irq], 0);
-	input_sync(cec_global_info.remote_cec_dev);
+	/*
+	 * key must be valid
+	 */
+	if (last_key_irq != -1) {
+		hrtimer_cancel(&cec_key_timer);
+		input_event(cec_global_info.remote_cec_dev,
+		    EV_KEY, cec_key_map[last_key_irq], 0);
+		input_sync(cec_global_info.remote_cec_dev);
+	}
 }
 
 void cec_user_control_pressed(struct cec_rx_message_t *pcec_message)

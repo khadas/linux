@@ -319,7 +319,6 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 	/* If no connect, return directly */
 	if ((hdmitx_device->cec_init_ready == 0) ||
 		(hdmitx_device->hpd_state == 0)) {
-		hdmi_print(INF, CEC "CEC not ready\n");
 		return -1;
 	}
 
