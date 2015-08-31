@@ -19,7 +19,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
-
+#include <linux/vmalloc.h>
 #define DTB_NAME	"dtb"
 #define	SZ_1M	0x00100000
 #define		MMC_DTB_PART_OFFSET		(40*SZ_1M)
@@ -127,7 +127,7 @@ ssize_t mmc_dtb_read(struct file *file,
 		return -EFAULT;
 	}
 
-	dtb_ptr = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
+	dtb_ptr = vmalloc(CONFIG_DTB_SIZE);
 	if (dtb_ptr == NULL) {
 		pr_err("%s: malloc buf failed", __func__);
 		return -ENOMEM;
@@ -150,7 +150,7 @@ ssize_t mmc_dtb_read(struct file *file,
 	*ppos += read_size;
 exit:
 	mmc_release_host(card_dtb->host);
-	kfree(dtb_ptr);
+	vfree(dtb_ptr);
 	return read_size;
 }
 
@@ -169,8 +169,7 @@ ssize_t mmc_dtb_write(struct file *file,
 		pr_err("%s: out of space!", __func__);
 		return -EFAULT;
 	}
-
-	dtb_ptr = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
+	dtb_ptr = vmalloc(CONFIG_DTB_SIZE);
 	if (dtb_ptr == NULL) {
 		pr_err("%s: malloc buf failed", __func__);
 		return -ENOMEM;
@@ -196,7 +195,7 @@ ssize_t mmc_dtb_write(struct file *file,
 exit:
 	mmc_release_host(card_dtb->host);
 	/* kfree(dtb_ptr); */
-	kfree(dtb_ptr);
+	vfree(dtb_ptr);
 	return write_size;
 }
 
