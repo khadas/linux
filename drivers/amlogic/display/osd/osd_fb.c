@@ -2055,8 +2055,6 @@ static int osd_probe(struct platform_device *pdev)
 	int i;
 	int ret = 0;
 
-	/* register vout client */
-	vout_register_client(&osd_notifier_nb);
 	/* get interrupt resource */
 	int_viu_vsync = platform_get_irq_byname(pdev, "viu-vsync");
 	if (int_viu_vsync  == -ENXIO) {
@@ -2269,6 +2267,9 @@ static int osd_probe(struct platform_device *pdev)
 		osd_set_reverse_hw(1, osd_info.osd_reverse);
 	} else
 		osd_set_reverse_hw(osd_info.index, osd_info.osd_reverse);
+
+	/* register vout client */
+	vout_register_client(&osd_notifier_nb);
 
 	osd_log_info("osd probe OK\n");
 	return 0;

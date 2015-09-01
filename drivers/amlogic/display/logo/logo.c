@@ -23,6 +23,7 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 
 /* Local Headers */
 #include <osd/osd_hw.h>
@@ -38,6 +39,10 @@
 
 static enum vmode_e hdmimode = VMODE_1080P;
 static enum vmode_e cvbsmode = VMODE_480CVBS;
+static enum vmode_e last_mode = VMODE_MAX;
+
+struct delayed_work logo_work;
+static DEFINE_MUTEX(logo_lock);
 
 struct para_pair_s {
 	char *name;
@@ -114,6 +119,117 @@ static char *get_name_by_value(u32 value, struct para_pair_s *pair, u32 cnt)
 	}
 
 	return found;
+}
+
+int set_osd_freescaler(int index, enum vmode_e new_mode)
+{
+	int cnt = sizeof(mode_infos) / sizeof(mode_infos[0]);
+	pr_info("outputmode changed to %s, reset osd%d scaler.\n",
+		get_name_by_value(new_mode, mode_infos, cnt), index);
+	osd_set_free_scale_mode_hw(index, 1);
+	osd_set_free_scale_enable_hw(index, 0);
+
+	osd_set_free_scale_axis_hw(index, 0, 0, 1919, 1079);
+	osd_update_disp_axis_hw(index, 0, 1919, 0, 1079, 0, 0, 0);
+	switch (new_mode) {
+	case VMODE_480I:
+	case VMODE_480CVBS:
+	case VMODE_480P:
+		osd_set_window_axis_hw(index, 0, 0, 719, 479);
+		break;
+	case VMODE_576I:
+	case VMODE_576CVBS:
+	case VMODE_576P:
+		osd_set_window_axis_hw(index, 0, 0, 719, 575);
+		break;
+	case VMODE_720P:
+	case VMODE_720P_50HZ:
+		osd_set_window_axis_hw(index, 0, 0, 1279, 719);
+		break;
+	case VMODE_1080I:
+	case VMODE_1080I_50HZ:
+	case VMODE_1080P:
+	case VMODE_1080P_50HZ:
+	case VMODE_1080P_24HZ:
+		osd_set_window_axis_hw(index, 0, 0, 1919, 1079);
+		break;
+	case VMODE_4K2K_24HZ:
+	case VMODE_4K2K_25HZ:
+	case VMODE_4K2K_30HZ:
+	case VMODE_4K2K_50HZ_Y420:
+	case VMODE_4K2K_60HZ_Y420:
+		osd_set_window_axis_hw(index, 0, 0, 3839, 2159);
+		break;
+	case VMODE_4K2K_SMPTE:
+		osd_set_window_axis_hw(index, 0, 0, 4095, 2159);
+		break;
+	default:
+		break;
+	}
+
+	if (osd_get_logo_index() != logo_info.index) {
+		pr_info("logo changed, return");
+		return -1;
+	}
+	osd_set_free_scale_enable_hw(index, 0x10001);
+	osd_enable_hw(index, 1);
+	pr_info("finish");
+	return 0;
+}
+
+static int refresh_mode_and_logo(bool first)
+{
+	enum vmode_e cur_mode = VMODE_MAX;
+	int cnt = sizeof(mode_infos) / sizeof(mode_infos[0]);
+	int hdp_state = get_hpd_state();
+
+	if (!first && osd_get_logo_index() != logo_info.index)
+		return -1;
+
+	if (hdp_state)
+		cur_mode = hdmimode;
+	else
+		cur_mode = cvbsmode;
+
+	if (first) {
+		last_mode = logo_info.vmode;
+		set_logo_vmode(cur_mode);
+		pr_info("set vmode: %s\n",
+			get_name_by_value(cur_mode, mode_infos, cnt));
+
+		if ((logo_info.index >= 0)) {
+			osd_set_logo_index(logo_info.index);
+			osd_init_hw(logo_info.loaded);
+		}
+	}
+
+	if (cur_mode != last_mode) {
+		pr_info("mode chang\n");
+		osd_enable_hw(logo_info.index, 0);
+		if (!first) {
+			set_logo_vmode(cur_mode);
+			pr_info("set vmode: %s\n",
+				get_name_by_value(cur_mode, mode_infos, cnt));
+		}
+		last_mode = cur_mode;
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &cur_mode);
+		set_osd_freescaler(logo_info.index, cur_mode);
+	}
+
+	return 0;
+}
+
+void aml_logo_work(struct work_struct *work)
+{
+	mutex_lock(&logo_lock);
+
+	refresh_mode_and_logo(false);
+
+	mutex_unlock(&logo_lock);
+
+	if (osd_get_logo_index() == logo_info.index)
+		schedule_delayed_work(&logo_work, 1*HZ/2);
+
 }
 
 static int logo_info_init(char *para)
@@ -228,28 +344,19 @@ static int __init get_cvbs_mode(char *str)
 }
 __setup("cvbsmode=", get_cvbs_mode);
 
-
 static int __init logo_init(void)
 {
 	int ret = 0;
-	u32 cnt = 0;
 
 	pr_info("%s\n", __func__);
 
 	if (logo_info.loaded == 0)
 		return 0;
 
-	cnt = sizeof(mode_infos) / sizeof(mode_infos[0]);
-	if (logo_info.vmode < VMODE_MAX) {
-		set_logo_vmode(logo_info.vmode);
-		pr_info("set vmode: %s\n",
-			get_name_by_value(logo_info.vmode, mode_infos, cnt));
-	}
+	refresh_mode_and_logo(true);
 
-	if ((logo_info.index >= 0)) {
-		osd_set_logo_index(logo_info.index);
-		osd_init_hw(logo_info.loaded);
-	}
+	INIT_DELAYED_WORK(&logo_work, aml_logo_work);
+	schedule_delayed_work(&logo_work, 1*HZ/2);
 
 	return ret;
 }

@@ -96,8 +96,6 @@ struct mutex post_fence_list_lock;
 static void osd_pan_display_fence(struct osd_fence_map_s *fence_map);
 #endif
 
-static int osd_logo_index = -1;
-
 #ifdef CONFIG_AM_VIDEO
 static struct vframe_s vf;
 static struct vframe_provider_s osd_vf_prov;
@@ -120,6 +118,10 @@ MODULE_PARM_DESC(osd_h_filter_mode, "osd_h_filter_mode");
 static unsigned int osd_v_filter_mode = 1;
 module_param(osd_v_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_v_filter_mode, "osd_v_filter_mode");
+
+static unsigned int osd_logo_index = 1;
+module_param(osd_logo_index, uint, 0664);
+MODULE_PARM_DESC(osd_logo_index, "osd_logo_index");
 
 static unsigned int osd_filter_coefs_bicubic_sharp[] = {
 	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,

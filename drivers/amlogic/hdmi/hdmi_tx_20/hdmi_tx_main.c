@@ -1572,6 +1572,17 @@ void hdmitx_internal_intr_handler(struct work_struct *work)
 	hdev->HWOp.DebugFun(hdev, "dumpintr");
 }
 
+int get_hpd_state(void)
+{
+	int ret;
+	mutex_lock(&setclk_mutex);
+	ret = hdmitx_device.hpd_state;
+	mutex_unlock(&setclk_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(get_hpd_state);
+
 /******************************
 *  hdmitx kernel task
 *******************************/

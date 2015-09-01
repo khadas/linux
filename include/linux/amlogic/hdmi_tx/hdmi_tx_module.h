@@ -379,6 +379,8 @@ extern void register_hdmi_edid_supported_func(int (*pfunc)(char *mode_name));
 void phy_pll_off(void);
 
 
+extern int get_hpd_state(void);
+
 
 /***********************************************************************
  *    hdmitx hardware level interface
