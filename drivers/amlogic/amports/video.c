@@ -6825,7 +6825,12 @@ static void do_vpu_delay_work(struct work_struct *work)
 				switch_vpu_mem_pd_vmod(VPU_AFBC_DEC,
 						       VPU_MEM_POWER_DOWN);
 				switch_vpu_mem_pd_vmod(VPU_DI_POST,
-						       VPU_MEM_POWER_DOWN);
+					       VPU_MEM_POWER_DOWN);
+				if (get_vpu_mem_pd_vmod(VPU_VIU_VDIN0) &&
+					get_vpu_mem_pd_vmod(VPU_VIU_VDIN0) &&
+					get_vpu_mem_pd_vmod(VPU_DI_PRE))
+					WRITE_HHI_REG_BITS(HHI_VPU_CLKB_CNTL,
+						0, 8, 1);
 			}
 
 			if ((vpu_delay_work_flag &

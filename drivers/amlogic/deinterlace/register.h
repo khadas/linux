@@ -18,6 +18,9 @@ unsigned int RDMA_WR_BITS(unsigned int adr, unsigned int val,
 		unsigned int start, unsigned int len);
 unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 		unsigned int len);
+/* clock_b control */
+#define HHI_VPU_CLKB_CNTL				(0xC883C000 + (0x83<<2))
+#define CLKB_EN_BIT						8
 
 /* vdin */
 #define VDIN_WR_CTRL					0x1220

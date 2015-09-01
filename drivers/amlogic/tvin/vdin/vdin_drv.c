@@ -607,7 +607,9 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 			devp->prop.ve = devp->debug.cutwin.ve;
 		}
 	}
-
+#ifdef CONFIG_AML_VPU
+	vdin_set_clkb(true);
+#endif
 	vdin_get_format_convert(devp);
 	devp->curr_wr_vfe = NULL;
 	/* h_active/v_active will be recalculated by bellow calling */
@@ -736,6 +738,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 #ifdef CONFIG_AML_VPU
 	switch_vpu_mem_pd_vmod(devp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
 			VPU_MEM_POWER_DOWN);
+	vdin_set_clkb(false);
 #endif
 	memset(&devp->prop, 0, sizeof(struct tvin_sig_property_s));
 #ifdef CONFIG_AML_RDMA
@@ -2290,6 +2293,11 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdevp->addr_offset = vdin_addr_offset[vdevp->index];
 	/*disable vdin hardware*/
 	vdin_enable_module(vdevp->addr_offset, false);
+#ifdef CONFIG_AML_VPU
+	switch_vpu_mem_pd_vmod(vdevp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
+			VPU_MEM_POWER_DOWN);
+	vdin_set_clkb(false);
+#endif
 	vdevp->flags = 0;
 
 	/* create vf pool */
