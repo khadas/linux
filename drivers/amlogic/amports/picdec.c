@@ -774,7 +774,7 @@ int picdec_pre_process(void)
 	}
 	if (picdec_device.use_reserved) {
 		io_mapping_unmap_atomic(buffer_start);
-	} else{
+	} else {
 		dma_flush(picdec_device.assit_buf_start,
 		bp * picdec_input.frame_height);
 	}
@@ -1791,9 +1791,10 @@ static long picdec_ioctl(struct file *filp, unsigned int cmd,
 			(&picdec_input, (void *)argp,
 			 sizeof(struct source_input_s)))
 			return -EFAULT;
-		aml_pr_info(1, "width is%d , height is %d , format is %d ,
-		rotate is %d\n" , picdec_input.frame_width,
-		picdec_input.frame_height , picdec_input.format,
+		aml_pr_info(1, "w:%d,h:%d,format:%d,rotate:%d\n",
+		picdec_input.frame_width,
+		picdec_input.frame_height ,
+		picdec_input.format,
 		picdec_input.rotate);
 #if 0
 		picdec_input.input = input->input;
