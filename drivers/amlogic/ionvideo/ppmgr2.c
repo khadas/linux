@@ -243,12 +243,22 @@ static int ge2d_paint_dst(struct ge2d_context_s *context,
 			ppmgr2_printk(1, "Ge2d configing error.\n");
 			return -1;
 		}
-		stretchblt_noalpha(context, src_position[0], src_position[1],
-					src_position[2], src_position[3],
-					dst_paint_position[0],
-					dst_paint_position[1],
-					dst_paint_position[2],
-					dst_paint_position[3]);
+
+		if ((src_position[2] == dst_paint_position[2]) &&
+		    (src_position[3] == dst_paint_position[3]))
+			bitblt_noalpha(context,
+				src_position[0], src_position[1],
+				src_position[2], src_position[3],
+				dst_paint_position[0],
+				dst_paint_position[1]);
+		else
+			stretchblt_noalpha(context,
+				src_position[0], src_position[1],
+				src_position[2], src_position[3],
+				dst_paint_position[0],
+				dst_paint_position[1],
+				dst_paint_position[2],
+				dst_paint_position[3]);
 	}
 /*	ppmgr2_printk(2, "dst addr:%p w:%d h:%d canvas_id:%p format:%p\n",
 			(void *)dst_cd.addr, dst_cd.width, dst_cd.height,

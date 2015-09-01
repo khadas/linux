@@ -655,6 +655,15 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	}
 	/* #endif */
 
+	if ((!cfg->sc_hsc_en) && (!cfg->sc_vsc_en)) {
+		x_extra_bit_start = 0;
+		x_extra_bit_end = 3;
+		x_chr_phase = 0;
+		y_extra_bit_start = 0;
+		y_extra_bit_end = 3;
+		y_chr_phase = 0;
+	}
+
 	ge2d_reg_write(GE2D_SRC1_X_START_END,
 			(x_extra_bit_start << 30) |  /* x start extra */
 			((cfg->src1_x_start & 0x3fff) << 16) |
