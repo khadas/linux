@@ -6098,6 +6098,11 @@ static ssize_t vframe_states_show(struct class *cla,
 			ret += sprintf(buf + ret,
 				"vf index=%d\n", vf->index);
 			ret += sprintf(buf + ret,
+				"vf->pts=%d\n", vf->pts);
+			ret += sprintf(buf + ret,
+				"cur vpts=%d\n",
+				timestamp_vpts_get());
+			ret += sprintf(buf + ret,
 				"vf canvas0Addr=%x\n", vf->canvas0Addr);
 			ret += sprintf(buf + ret,
 				"vf canvas1Addr=%x\n", vf->canvas1Addr);

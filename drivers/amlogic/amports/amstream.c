@@ -130,7 +130,7 @@ void debug_file_write(const char __user *buf, size_t count)
 }
 #endif
 
-#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*12)
+#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*15)
 #define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*40)
 
 #define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
@@ -423,9 +423,8 @@ static void amstream_change_vbufsize(struct stream_port_s *port,
 		/* pr_err(" amstream_change_vbufsize 4k2k
 		* bufsize[0x%x] defaultsize[0x%x]\n",
 		* bufs[BUF_TYPE_VIDEO].buf_size,pvbuf->default_buf_size); */
-		} else if ((pvbuf->default_buf_size > MAX_STREAMBUFFER_SIZE)
-				   && (port->vformat != VFORMAT_H264_4K2K)) {
-			pvbuf->buf_size = MAX_STREAMBUFFER_SIZE;
+		} else if (pvbuf->buf_size > DEFAULT_VIDEO_BUFFER_SIZE) {
+			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
 			/* pr_err(" amstream_change_vbufsize
 			 * MAX_STREAMBUFFER_SIZE-[0x%x]
 			 * defaultsize-[0x%x] vformat-[%d]\n",

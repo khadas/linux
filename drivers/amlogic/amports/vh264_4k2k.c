@@ -1621,9 +1621,11 @@ static int vh264_4k2k_stop(void)
 #ifdef CONFIG_VSYNC_RDMA
 	msleep(100);
 #endif
-
-	canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff), &cur_canvas);
-	disp_addr = cur_canvas.addr;
+	if (!get_blackout_policy()) {
+		canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
+			&cur_canvas);
+		disp_addr = cur_canvas.addr;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
 		if (buffer_spec[i].phy_addr) {

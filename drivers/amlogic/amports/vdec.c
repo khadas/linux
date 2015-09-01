@@ -53,7 +53,7 @@ static DEFINE_MUTEX(vdec_mutex);
 #define MEM_NAME "vdec64m"
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num;
-static int poweron_clock_level;
+static int poweron_clock_level, keep_vdec_mem;
 static unsigned int debug_trace_num = 16 * 20;
 static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
@@ -212,11 +212,11 @@ s32 vdec_release(enum vformat_e vf)
 	if (vdec_device)
 		platform_device_unregister(vdec_device);
 
-	if (vdec_mem_alloced_from_codec &&
-			vdec_dev_reg.mem_start && delay_release-- <= 0) {
+	if (delay_release-- <= 0 &&
+			!keep_vdec_mem &&
+			vdec_mem_alloced_from_codec &&
+			vdec_dev_reg.mem_start) {
 		codec_mm_free_for_dma(MEM_NAME, vdec_dev_reg.mem_start);
-
-
 		vdec_cma_page = NULL;
 		vdec_dev_reg.mem_start = reserved_mem_start;
 		vdec_dev_reg.mem_end = reserved_mem_end;
@@ -923,6 +923,32 @@ static ssize_t show_poweron_clock_level(struct class *class,
 	return sprintf(buf, "%d\n", poweron_clock_level);
 }
 
+/*
+if keep_vdec_mem == 1
+always don't release
+vdec 64 memory for fast play.
+*/
+static ssize_t store_keep_vdec_mem(struct class *class,
+		struct class_attribute *attr,
+		const char *buf, size_t size)
+{
+	unsigned val;
+	ssize_t ret;
+
+	ret = sscanf(buf, "%d", &val);
+	if (ret != 1)
+		return -EINVAL;
+	keep_vdec_mem = val;
+	return size;
+}
+
+static ssize_t show_keep_vdec_mem(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", keep_vdec_mem);
+}
+
+
 /*irq num as same as .dts*/
 /*
 	interrupts = <0 3 1
@@ -1066,6 +1092,8 @@ static struct class_attribute vdec_class_attrs[] = {
 	show_poweron_clock_level, store_poweron_clock_level),
 	__ATTR(dump_risc_mem, S_IRUGO | S_IWUSR | S_IWGRP,
 	dump_risc_mem_show, dump_risc_mem_store),
+	__ATTR(keep_vdec_mem, S_IRUGO | S_IWUSR | S_IWGRP,
+	show_keep_vdec_mem, store_keep_vdec_mem),
 	__ATTR_NULL
 };
 
