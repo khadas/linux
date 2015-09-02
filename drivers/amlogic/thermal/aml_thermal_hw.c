@@ -29,10 +29,10 @@ int get_cpu_temp(void)
 
 	if (chip_trimmed) {		/* only supported trimmed chips */
 		if (scpi_get_sensor_value(0, &val) < 0)
-			return -1;
+			return -1000;
 		return val;
 	} else {
-		return -1;
+		return -1000;
 	}
 }
 EXPORT_SYMBOL(get_cpu_temp);
