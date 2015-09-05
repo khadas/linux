@@ -2993,8 +2993,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 		return hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
 		break;
 	case MISC_HPLL_OP:
-		pr_info("todo\n");
-		break;
 		if (argv == HPLL_ENABLE)
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 30, 1);
 		if (argv == HPLL_DISABLE)

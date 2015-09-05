@@ -124,6 +124,7 @@ struct hdmitx_dev {
 	struct task_struct *task_monitor;
 	struct task_struct *task_hdcp;
 	struct task_struct *task_cec;
+	struct notifier_block nb;
 	struct workqueue_struct *hdmi_wq;
 	struct device *hdtx_dev;
 	struct delayed_work work_hpd_plugin;

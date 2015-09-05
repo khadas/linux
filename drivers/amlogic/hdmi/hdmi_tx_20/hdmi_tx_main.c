@@ -47,6 +47,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/reboot.h>
 
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
@@ -149,6 +150,18 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	phdmi->HWOp.Cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_LATE_RESUME);
 	hdmi_print(INF, SYS "late resume\n");
+}
+
+/* Set avmute_set signal to HDMIRX */
+static int hdmitx_reboot_notifier(struct notifier_block *nb,
+	unsigned long action, void *data)
+{
+	struct hdmitx_dev *hdev = container_of(nb, struct hdmitx_dev, nb);
+	hdev->HWOp.CntlMisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
+	mdelay(25);
+	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+	hdev->HWOp.CntlMisc(hdev, MISC_HPLL_OP, HPLL_DISABLE);
+	return NOTIFY_OK;
 }
 
 static struct early_suspend hdmitx_early_suspend_handler = {
@@ -1755,7 +1768,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
 #endif
-
+	hdmitx_device.nb.notifier_call = hdmitx_reboot_notifier;
+	register_reboot_notifier(&hdmitx_device.nb);
 	if ((init_flag&INIT_FLAG_POWERDOWN) && (hpdmode == 2))
 		hdmitx_device.mux_hpd_if_pin_high_flag = 0;
 	else
