@@ -757,7 +757,11 @@ void amvecm_video_latch(struct vframe_s *vf)
 void amvecm_on_vs(struct vframe_s *vf)
 {
 	amvecm_video_latch(vf);
-	ve_on_vs(vf);
+	if (vf != NULL) {
+		if (is_meson_g9tv_cpu())
+			amvecm_vlock_process(vf);
+		ve_on_vs(vf);
+	}
 }
 EXPORT_SYMBOL(amvecm_on_vs);
 
