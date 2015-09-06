@@ -642,6 +642,7 @@
 		fifosize = < 128 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&a_uart_pins>;
+		resets = <&clock GCLK_IDX_UART0>;
 	};
 
 
