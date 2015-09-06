@@ -823,6 +823,8 @@ static void vmpeg12_prot_init(void)
 static void vmpeg12_local_init(void)
 {
 	int i;
+	unsigned long flags;
+	spin_lock_irqsave(&lock, flags);
 
 	INIT_KFIFO(display_q);
 	INIT_KFIFO(recycle_q);
@@ -839,6 +841,8 @@ static void vmpeg12_local_init(void)
 
 	for (i = 0; i < DECODE_BUFFER_NUM_MAX; i++)
 		vfbuf_use[i] = 0;
+
+	spin_unlock_irqrestore(&lock, flags);
 
 	frame_width = frame_height = frame_dur = frame_prog = 0;
 	frame_force_skip_flag = 0;
