@@ -3356,6 +3356,8 @@ void dwc_otg_hcd_dump_state(dwc_otg_hcd_t *hcd)
 	hptxsts_data_t p_tx_status;
 	dwc_irqflags_t flags;
 
+	if (hcd == NULL)
+		return;
 	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 
 	num_channels = hcd->core_if->core_params->host_channels;
