@@ -40,7 +40,7 @@ struct cec_tx_msg_t {
 	unsigned int  len;
 };
 
-#define CEX_TX_MSG_BUF_NUM	8
+#define CEX_TX_MSG_BUF_NUM	16
 #define CEC_TX_MSG_BUF_MASK	(CEX_TX_MSG_BUF_NUM - 1)
 
 struct cec_tx_msg {
