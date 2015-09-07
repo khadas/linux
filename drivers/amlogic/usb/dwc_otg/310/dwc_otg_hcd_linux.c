@@ -116,6 +116,7 @@ static struct hc_driver dwc_otg_hc_driver = {
 
 	.start = hcd_start,
 	.stop = hcd_stop,
+	.shutdown = hcd_shutdown,
 
 	.bus_suspend = hcd_suspend,
 	.bus_resume =  hcd_resume,
@@ -654,6 +655,23 @@ void hcd_stop(struct usb_hcd *hcd)
 
 	dwc_otg_hcd_stop(dwc_otg_hcd);
 }
+
+/** HCD shutdown */
+void hcd_shutdown(struct usb_hcd *hcd)
+{
+	dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+	dwc_otg_hcd->auto_pm_suspend_flag = (hcd->flags>>31)&1;
+	dwc_otg_hcd->pm_freeze_flag = (hcd->flags >> 30) & 1;
+
+	DWC_DEBUGPL(DBG_HCD, "HCD SUSPEND\n");
+
+	dwc_otg_hcd_suspend(dwc_otg_hcd);
+	hcd->flags &= (~(1<<31));
+	hcd->flags &= (~(1<<30));
+
+	return;
+}
+
 
 /** HCD Suspend */
 int hcd_suspend(struct usb_hcd *hcd)

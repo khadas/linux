@@ -41,6 +41,9 @@
 #include "dwc_list.h"
 #include "dwc_otg_cil.h"
 #include "dwc_otg_driver.h"
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
 
 /**
  * @file
@@ -790,6 +793,9 @@ static inline uint16_t dwc_micro_frame_num(uint16_t frame)
 void dwc_otg_hcd_save_data_toggle(dwc_hc_t *hc,
 				  dwc_otg_hc_regs_t *hc_regs,
 				  dwc_otg_qtd_t *qtd);
+
+
+void hcd_shutdown(struct usb_hcd *hcd);
 
 #ifdef DEBUG
 /**

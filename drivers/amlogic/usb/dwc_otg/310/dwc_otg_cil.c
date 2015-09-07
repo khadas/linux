@@ -315,7 +315,7 @@ void dwc_otg_cil_remove(dwc_otg_core_if_t *core_if)
 
 	dctl.b.sftdiscon = 1;
 	if (core_if->snpsid >= OTG_CORE_REV_3_00a) {
-		DWC_PRINTF("Todo: change it???????Victor\n");
+		/*DWC_PRINTF("Todo: change it???????Victor\n");*/
 		DWC_MODIFY_REG32(&core_if->dev_if->dev_global_regs->dctl, 0,
 				 dctl.d32);
 	}

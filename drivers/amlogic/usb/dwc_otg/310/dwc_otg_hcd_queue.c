@@ -83,7 +83,7 @@ void dwc_otg_hcd_qh_free(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 #define HS_HOST_DELAY		5	/* nanoseconds */
 #define FS_LS_HOST_DELAY	1000	/* nanoseconds */
 #define HUB_LS_SETUP		333	/* nanoseconds */
-#define NS_TO_US(ns)		((ns + 500) / 1000)
+#define DWC_NS_TO_US(ns)		((ns + 500) / 1000)
 /* convert & round nanoseconds to microseconds */
 
 static uint32_t calc_bus_time(int speed, int is_in, int is_isoc, int bytecount)
@@ -140,7 +140,7 @@ static uint32_t calc_bus_time(int speed, int is_in, int is_isoc, int bytecount)
 		retval = -1;
 	}
 
-	return NS_TO_US(retval);
+	return DWC_NS_TO_US(retval);
 }
 
 /**
