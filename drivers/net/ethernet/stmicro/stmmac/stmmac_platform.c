@@ -480,6 +480,22 @@ static int stmmac_pltfr_resume(struct device *dev)
 	return stmmac_resume(ndev);
 }
 
+static void stmmac_pltfr_shutdown(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	stmmac_suspend(ndev);
+
+	/* Stop phy immediately instead call phy_stop() */
+	if (priv->phydev)
+		genphy_suspend(ndev->phydev);
+
+	if (priv->plat->exit)
+		priv->plat->exit(pdev, priv->plat->bsp_priv);
+}
+
 #endif				/* CONFIG_PM */
 
 static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
@@ -491,6 +507,9 @@ struct platform_driver stmmac_pltfr_driver = {
 	.driver = {
 		   .name = STMMAC_RESOURCE_NAME,
 		   .owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		   .shutdown = stmmac_pltfr_shutdown,
+#endif
 		   .pm = &stmmac_pltfr_pm_ops,
 		   .of_match_table = of_match_ptr(stmmac_dt_ids),
 		   },
