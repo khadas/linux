@@ -34,6 +34,9 @@
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
 
+#include <linux/vmalloc.h>
+#include "meson_uart.h"
+
 /* Register offsets */
 #define AML_UART_WFIFO			0x00
 #define AML_UART_RFIFO			0x04
@@ -101,6 +104,166 @@ struct meson_uart_port {
 
 #define to_meson_port(uport)  container_of(uport, struct meson_uart_port, port)
 static struct meson_uart_port *meson_ports[AML_UART_PORT_MAX];
+
+static int meson_serial_console_setup(struct console *co, char *options);
+
+
+/*************** printk noblock *****************/
+
+#define MESON_SERIAL_BUFFER_SIZE (1024 * 128)
+#define DEFAULT_STR_LEN	4
+#define DEFAULT_STR   "..."
+
+#ifdef CONFIG_PRINTK_NOBLOCK_MODE
+	bool new_printk_enabled = 1;	/*0: disable   1: enable*/
+#else
+	bool new_printk_enabled = 0;
+#endif
+
+struct meson_uart_struct {
+	struct console *co;
+	const char *s;
+	unsigned long offset;
+	long count;
+	struct list_head list;
+};
+struct meson_uart_management {
+	int user_count;
+	struct list_head list_head;
+	spinlock_t lock;
+};
+struct meson_uart_list {
+	int user_count;
+	struct meson_uart_struct *co_head;
+	struct meson_uart_struct *co_tail;
+};
+
+static struct meson_uart_management cur_col_management;
+static struct meson_uart_list cur_col_list[AML_UART_PORT_MAX];
+static char *data_cache;
+static int meson_uart_console_index =  -1;
+
+static int __init new_printk_enable(char *str)
+{
+	new_printk_enabled = 1;
+	return 1;
+}
+__setup("printk_no_block", new_printk_enable);
+
+
+module_param_named(new_printk, new_printk_enabled,
+		bool, S_IRUGO | S_IWUSR);
+
+MODULE_PARM_DESC(new_printk, "printk use no block mode");
+
+static ssize_t printk_mode_show(struct device_driver *drv, char *buf)
+{
+	return sprintf(buf, "0x%0x\n",  new_printk_enabled);
+}
+
+static ssize_t printk_mode_store(struct device_driver *drv, const char *buf,
+			       size_t count)
+{
+	unsigned long long res = 0;
+	if (!kstrtoull(buf, 16, &res))
+		new_printk_enabled = res;
+	return count;
+}
+
+static DRIVER_ATTR(printkmode, S_IRUGO | S_IWUSR, printk_mode_show,
+		   printk_mode_store);
+
+
+static void get_next_node(struct meson_uart_list *cur_col,
+				struct meson_uart_struct *co_struct, int index)
+{
+	struct list_head *entry;
+	struct console *co = NULL;
+	struct list_head *list_head = NULL;
+
+	cur_col->user_count--;
+
+	list_del(&co_struct->list);
+
+	co_struct = NULL;
+	list_head = &cur_col_management.list_head;
+	if (!list_empty(list_head)) {
+		cur_col_management.user_count--;
+		list_for_each_prev(entry, list_head) {
+			co_struct = list_entry(entry,
+				struct meson_uart_struct, list);
+			co = co_struct->co;
+			if (co->index == index)
+				break;
+		}
+	}
+	if (co_struct && (co->index == index)) {
+		cur_col->co_head = co_struct;
+	} else {
+		cur_col->co_head = NULL;
+		cur_col->co_tail = NULL;
+		cur_col->user_count = 0;
+	}
+}
+static int print_more(struct meson_uart_port *mup)
+{
+	int index = 0;
+	struct meson_uart_struct *co_struct = NULL;
+	struct meson_uart_port *mup_tmp = NULL;
+	struct meson_uart_list *cur_col = NULL;
+	struct console *co = NULL;
+	const char *s = NULL;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&cur_col_management.lock, flags);
+	if (!data_cache || list_empty(&cur_col_management.list_head))
+		goto no_data_print;
+
+	for (index = 0; index < AML_UART_PORT_MAX; index++) {
+		mup_tmp = meson_ports[index];
+		if (mup == mup_tmp)
+			break;
+	}
+	if (index >= AML_UART_PORT_MAX)
+		goto no_data_print;
+
+	cur_col = &cur_col_list[index];
+	if ((cur_col->user_count == 0) || !cur_col->co_head)
+		goto no_data_print;
+
+	co_struct = cur_col->co_head;
+	co = co_struct->co;
+	index = co->index;
+	if (index < 0)
+		goto no_data_print;
+
+	spin_lock(&mup->wr_lock);
+	if (index != meson_uart_console_index)
+		meson_serial_console_setup(co, NULL);
+
+	while ((readl(mup->port.membase + AML_UART_CONTROL) & AML_UART_TX_EN)
+		&& (!(readl(mup->port.membase + AML_UART_STATUS)
+		& AML_UART_TX_FULL))) {
+		if (co_struct->count <= 0) {
+			get_next_node(cur_col, co_struct, index);
+			if (!cur_col->co_head)
+				break;
+			co_struct = cur_col->co_head;
+		}
+		s = co_struct->s + co_struct->offset;
+		if (*s == '\n')
+			writel('\r', mup->port.membase + AML_UART_WFIFO);
+		writel(*s++, mup->port.membase + AML_UART_WFIFO);
+		co_struct->count--;
+		co_struct->offset++;
+	}
+
+	spin_unlock(&mup->wr_lock);
+
+no_data_print:
+	spin_unlock_irqrestore(&cur_col_management.lock, flags);
+	return 0;
+}
 
 static void meson_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
@@ -272,6 +435,7 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = (struct uart_port *)dev_id;
 	u32 val;
+	struct meson_uart_port *mup = to_meson_port(port);
 
 	spin_lock(&port->lock);
 	val = readl(port->membase + AML_UART_CONTROL);
@@ -283,6 +447,8 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 	    && (!(readl(port->membase + AML_UART_STATUS) & AML_UART_TX_FULL)))
 		meson_transmit_chars(port);
 
+	if (!list_empty(&cur_col_management.list_head))
+		print_more(mup);
 
 	return IRQ_HANDLED;
 }
@@ -513,11 +679,155 @@ static void meson_serial_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port;
 
+	const char *cur_s = NULL;
+	struct meson_uart_struct *head_s = NULL;
+	struct meson_uart_struct *tail_s = NULL;
+	struct list_head *list_head = NULL;
+	struct meson_uart_struct *co_struct = NULL;
+	struct meson_uart_list *cur_col = NULL;
+	am_uart_t *uart = NULL;
+	long tmp_count = 0;
+	long tmp_count_1 = 0;
+	long struct_size = sizeof(struct meson_uart_struct);
+	int need_default = 0;
+	static int last_msg_full;
+	unsigned long flags = 0;
+	int index = co->index;
+
 	port = &meson_ports[co->index]->port;
 	if (!port)
 		return;
+	if (!new_printk_enabled || !data_cache) {
+		uart_console_write(port, s, count, meson_console_putchar);
+		return;
+	}
 
-	uart_console_write(port, s, count, meson_console_putchar);
+	spin_lock_irqsave(&cur_col_management.lock, flags);
+
+	if (count > 0 && count < MESON_SERIAL_BUFFER_SIZE) {
+		list_head = &cur_col_management.list_head;
+		cur_s = NULL;
+		if (list_empty(list_head)) {
+			cur_s = data_cache;
+		} else {
+			head_s = list_entry(list_head->prev,
+				struct meson_uart_struct, list);
+			tail_s = list_entry(list_head->next,
+				struct meson_uart_struct, list);
+			tmp_count_1 = (struct_size << 1)
+				+ (unsigned long)tail_s->s + tail_s->offset
+				+ tail_s->count;
+			if (head_s->s <= tail_s->s) {
+				tmp_count = data_cache
+					+ MESON_SERIAL_BUFFER_SIZE
+					- tail_s->s - tail_s->offset
+					- tail_s->count;
+				if (tmp_count < (long long)count + struct_size
+					+ (struct_size+DEFAULT_STR_LEN)) {
+					if ((head_s->s > (data_cache
+						+ (struct_size << 1)))
+						&& ((head_s->s -
+						(data_cache
+						+ (struct_size << 1)))
+						> count
+						+(struct_size
+						+DEFAULT_STR_LEN))) {
+						cur_s = data_cache;
+					} else {
+						cur_s = data_cache;
+						need_default = 1;
+					}
+				} else {
+					cur_s = tail_s->s + tail_s->offset
+						+ tail_s->count;
+				}
+			} else if (((long)head_s->s > tmp_count_1)
+			&& ((long)head_s->s - tmp_count_1
+			> count + (struct_size+DEFAULT_STR_LEN))) {
+				cur_s = tail_s->s + tail_s->offset
+						+ tail_s->count;
+			} else {
+				cur_s = tail_s->s + tail_s->offset
+						+ tail_s->count;
+				need_default = 1;
+			}
+		}
+
+		if (need_default == 0) {
+			co_struct = (struct meson_uart_struct *)cur_s;
+			co_struct->s = cur_s + struct_size;
+			co_struct->count = count;
+			co_struct->co = co;
+			co_struct->offset = 0;
+			cur_col = &cur_col_list[index];
+			cur_col->co_tail = co_struct;
+			if (!cur_col->co_head)
+				cur_col->co_head = co_struct;
+
+			cur_col->user_count++;
+			cur_col_management.user_count++;
+			memcpy((char *)(co_struct->s), (char *)s, count);
+			list_add(&co_struct->list,
+					&cur_col_management.list_head);
+			last_msg_full = 0;
+		} else {
+			if (last_msg_full == 0) {
+				co_struct = (struct meson_uart_struct *)cur_s;
+				co_struct->s = cur_s + struct_size;
+				co_struct->count = DEFAULT_STR_LEN;
+				co_struct->co = co;
+				co_struct->offset = 0;
+				cur_col = &cur_col_list[index];
+				cur_col->co_tail = co_struct;
+				if (!cur_col->co_head)
+					cur_col->co_head = co_struct;
+
+				cur_col->user_count++;
+				cur_col_management.user_count++;
+				memcpy((char *)(co_struct->s),
+					DEFAULT_STR, DEFAULT_STR_LEN);
+				s = co_struct->s;
+				*((char *)s + DEFAULT_STR_LEN-1) = '\n';
+
+				list_add(&co_struct->list,
+					&cur_col_management.list_head);
+				last_msg_full = 1;
+			}
+		}
+
+
+		cur_col = &cur_col_list[index];
+		if (cur_col->co_head) {
+			co_struct = cur_col->co_head;
+			s = co_struct->s + co_struct->offset;
+			uart = (am_uart_t *)port->membase;
+			if (index != meson_uart_console_index)
+				meson_serial_console_setup(co, NULL);
+
+			while ((readl(port->membase + AML_UART_CONTROL)
+				& AML_UART_TX_EN)
+				&& (!(readl(port->membase + AML_UART_STATUS)
+				& AML_UART_TX_FULL))) {
+				if (co_struct->count <= 0) {
+					get_next_node(cur_col,
+						co_struct, index);
+					if (!cur_col->co_head)
+						break;
+					co_struct = cur_col->co_head;
+					s = co_struct->s + co_struct->offset;
+				}
+				if (*s == '\n')
+					writel('\r', port->membase
+					+ AML_UART_WFIFO);
+				writel(*s++, port->membase + AML_UART_WFIFO);
+				co_struct->count--;
+				co_struct->offset++;
+			}
+
+		}
+
+	}
+	spin_unlock_irqrestore(&cur_col_management.lock, flags);
 
 }
 
@@ -531,6 +841,8 @@ static int meson_serial_console_setup(struct console *co, char *options)
 
 	if (co->index < 0 || co->index >= AML_UART_PORT_MAX)
 		return -EINVAL;
+
+	meson_uart_console_index = (int)co->index;
 
 	port = &meson_ports[co->index]->port;
 	if (!port || !port->membase)
@@ -741,6 +1053,19 @@ static int __init meson_uart_init(void)
 	ret = platform_driver_register(&meson_uart_platform_driver);
 	if (ret)
 		uart_unregister_driver(&meson_uart_driver);
+
+	ret = driver_create_file(&meson_uart_platform_driver.driver,
+		&driver_attr_printkmode);
+
+	INIT_LIST_HEAD(&cur_col_management.list_head);
+	spin_lock_init(&cur_col_management.lock);
+	data_cache = vmalloc(MESON_SERIAL_BUFFER_SIZE);
+	if (!data_cache) {
+		pr_info("buffer alloc failed for uart\n");
+		platform_driver_unregister(&meson_uart_platform_driver);
+		uart_unregister_driver(&meson_uart_driver);
+		return -ENOMEM;
+	}
 
 	return ret;
 }

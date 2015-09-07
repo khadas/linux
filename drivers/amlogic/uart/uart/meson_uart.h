@@ -17,7 +17,8 @@
 
 #ifndef _LINUX_AM_UART_H
 #define _LINUX_AM_UART_H
-#include <mach/am_regs.h>
+/* #include <mach/am_regs.h> */
+
 #define UART_OVERFLOW_ERR (0x01<<18)
 #define UART_FRAME_ERR (0x01<<17)
 #define UART_PARITY_ERR (0x01<<16)
