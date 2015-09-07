@@ -63,6 +63,8 @@ void codec_mm_dma_flush(void *vaddr,
 
 
 
+int codec_mm_get_total_size(void);
+int codec_mm_get_free_size(void);
 
 
 

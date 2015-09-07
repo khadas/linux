@@ -50,7 +50,7 @@ static DEFINE_MUTEX(vdec_mutex);
 
 #define MC_SIZE (4096 * 4)
 #define CMA_ALLOC_SIZE SZ_64M
-#define MEM_NAME "vdec64m"
+#define MEM_NAME "vdec_prealloc"
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num;
 static int poweron_clock_level, keep_vdec_mem;
@@ -103,6 +103,22 @@ static const char * const vdec_device_name[] = {
 	"amvdec_h265"
 };
 
+static int vdec_default_buf_size[] = {
+	32, /*"amvdec_mpeg12",*/
+	32, /*"amvdec_mpeg4",*/
+	48, /*"amvdec_h264",*/
+	32, /*"amvdec_mjpeg",*/
+	32, /*"amvdec_real",*/
+	32, /*"amjpegdec",*/
+	32, /*"amvdec_vc1",*/
+	32, /*"amvdec_avs",*/
+	32, /*"amvdec_yuv",*/
+	64, /*"amvdec_h264mvc",*/
+	64, /*"amvdec_h264_4k2k", else alloc on decoder*/
+	64, /*"amvdec_h265", else alloc on decoder*/
+	0
+};
+
 void vdec_set_decinfo(struct dec_sysinfo *p)
 {
 	vdec_dev_reg.sys_info = p;
@@ -145,8 +161,11 @@ s32 vdec_init(enum vformat_e vf)
 		vdec_dev_reg.mem_start,
 		vdec_dev_reg.mem_end);
 
-retry_alloc:
-	if (vdec_dev_reg.mem_start == vdec_dev_reg.mem_end) {
+/*retry alloc:*/
+	while (vdec_dev_reg.mem_start == vdec_dev_reg.mem_end) {
+		int alloc_size = vdec_default_buf_size[vf] * SZ_1M;
+		if (alloc_size == 0)
+			break;/*alloc end*/
 		pr_info("vdec cma tool size = %ld MB\n",
 			dma_get_cma_size_int_byte(vdec_dev_reg.cma_dev)
 				/ SZ_1M);
@@ -155,15 +174,16 @@ retry_alloc:
 			vdec_dev_reg.cma_dev,
 			CMA_ALLOC_SIZE / PAGE_SIZE, 4);
 		*/
+
 		vdec_dev_reg.mem_start = codec_mm_alloc_for_dma(MEM_NAME,
-			CMA_ALLOC_SIZE / PAGE_SIZE, 4 + PAGE_SHIFT,
+			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR);
 		if (!vdec_dev_reg.mem_start) {
 			if (retry_num < 1) {
 				pr_err("vdec base CMA allocation failed,try again\\n");
 				retry_num++;
 				try_free_keep_video();
-				goto retry_alloc;
+				continue;/*retry alloc*/
 			}
 			pr_err("vdec base CMA allocation failed.\n");
 			inited_vcodec_num--;
@@ -173,10 +193,11 @@ retry_alloc:
 		(void *)vdec_dev_reg.mem_start);
 
 		vdec_dev_reg.mem_end = vdec_dev_reg.mem_start +
-			CMA_ALLOC_SIZE - 1;
+			alloc_size - 1;
 		vdec_mem_alloced_from_codec = 1;
+		break;/*alloc end*/
 	}
-
+/*alloc end:*/
 	if ((vf == VFORMAT_HEVC) &&
 		hevc_workaround_needed() &&
 		hevc_workaround)

@@ -96,7 +96,7 @@
 			compatible = "shared-dma-pool";
 			linux,phandle = <3>;
 			reusable;
-			size = <0x0 0x11000000>;
+			size = <0x0 0x10000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -111,7 +111,7 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
  			no-map;
 		};

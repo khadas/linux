@@ -60,6 +60,15 @@ struct codec_mm_mgt_s {
 	struct gen_pool *tvp_pool;
 	struct reserved_mem rmem;
 	struct reserved_mem tvp_rmem;
+	int total_codec_mem_size;
+	int total_alloced_size;
+	int max_used_mem_size;
+
+	int alloced_res_size;
+	int alloced_cma_size;
+	int alloced_sys_size;
+	int alloced_tvp_size;
+
 	int alloc_from_sys_pages_max;
 	int enable_kmalloc_on_nomem;
 	spinlock_t lock;
@@ -108,14 +117,17 @@ static int codec_mm_alloc_in(
 			(mem->flags & CODEC_MM_FLAGS_RESERVED))
 			&& mgt->res_pool != NULL &&
 			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
+			int aligned_buffer_size = ALIGN(mem->buffer_size,
+					(1 << RESERVE_MM_ALIGNED_2N));
 			mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool,
-							mem->buffer_size);
+							aligned_buffer_size);
 			mem->from_flags =
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED;
 			if (mem->mem_handle) {
 				/*default is no maped */
 				mem->vbuffer = NULL;
 				mem->phy_addr = (unsigned long)mem->mem_handle;
+				mem->buffer_size = aligned_buffer_size;
 				break;
 			}
 		}
@@ -142,16 +154,19 @@ static int codec_mm_alloc_in(
 
 		if ((mem->flags & CODEC_MM_FLAGS_TVP) &&
 			mgt->tvp_pool != NULL &&
-				align_2n < 16) {
+				align_2n <= RESERVE_MM_ALIGNED_2N) {
 			/* 64k,aligend */
+			int aligned_buffer_size = ALIGN(mem->buffer_size,
+					(1 << RESERVE_MM_ALIGNED_2N));
 			mem->mem_handle = (void *)gen_pool_alloc(mgt->tvp_pool,
-					mem->buffer_size);
+					aligned_buffer_size);
 			mem->from_flags =
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED;
 			if (mem->mem_handle) {
 				/*no vaddr for TVP MEMORY */
 				mem->vbuffer = NULL;
 				mem->phy_addr = (unsigned long)mem->mem_handle;
+				mem->buffer_size = aligned_buffer_size;
 				break;
 			}
 		}
@@ -180,20 +195,24 @@ static int codec_mm_alloc_in(
 static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 		struct codec_mm_s *mem)
 {
-
+	mgt->total_alloced_size -= mem->buffer_size;
 	if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA) {
 		dma_release_from_contiguous(mgt->dev,
 			mem->mem_handle, mem->page_count);
+		mgt->alloced_cma_size -= mem->buffer_size;
 	} else if (mem->from_flags ==
 		AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED) {
 		gen_pool_free(mgt->res_pool,
 			(unsigned long)mem->mem_handle, mem->buffer_size);
+		mgt->alloced_res_size -= mem->buffer_size;
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP) {
 		gen_pool_free(mgt->tvp_pool,
 			(unsigned long)mem->mem_handle, mem->buffer_size);
+		mgt->alloced_tvp_size -= mem->buffer_size;
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_PAGES) {
 		__free_pages((struct page *)mem->mem_handle,
 			get_order(mem->buffer_size));
+		mgt->alloced_sys_size -= mem->buffer_size;
 	}
 
 	return;
@@ -218,8 +237,8 @@ static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		memflags |= CODEC_MM_FLAGS_DMA;
 
 	memset(mem, 0, sizeof(struct codec_mm_s));
-	count = PAGE_ALIGN(size) / PAGE_SIZE;
-	mem->buffer_size = size;
+	mem->buffer_size = PAGE_ALIGN(size);
+	count = mem->buffer_size / PAGE_SIZE;
 	mem->page_count = count;
 	mem->align2n = align2n;
 	mem->flags = memflags;
@@ -235,6 +254,25 @@ static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	spin_lock_init(&mem->lock);
 	spin_lock_irqsave(&mgt->lock, flags);
 	list_add_tail(&mem->list, &mgt->mem_list);
+	switch (mem->from_flags) {
+	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_PAGES:
+		mgt->alloced_sys_size += mem->buffer_size;
+		break;
+	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA:
+		mgt->alloced_cma_size += mem->buffer_size;
+		break;
+	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP:
+		mgt->alloced_tvp_size += mem->buffer_size;
+		break;
+	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED:
+		mgt->alloced_res_size += mem->buffer_size;
+		break;
+	default:
+		pr_err("error alloc flags %d\n", mem->from_flags);
+	}
+	mgt->total_alloced_size += mem->buffer_size;
+	if (mgt->total_alloced_size > mgt->max_used_mem_size)
+		mgt->max_used_mem_size = mgt->total_alloced_size;
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	/*
 	pr_err("%s alloc mem size %d at %lx from %d\n",
@@ -367,19 +405,51 @@ int dump_mem_infos(void *buf, int size)
 
 	if (!pbuf)
 		pbuf = sbuf;
-
-	s = sprintf(pbuf, "[%d]RES pool size:%d MB\n",
-			AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED,
-			(int)mgt->rmem.size / SZ_1M);
+	s = sprintf(pbuf, "codec mem info:\n\ttotal codec mem size:%d MB\n",
+		mgt->total_codec_mem_size / SZ_1M);
 	tsize += s;
 	pbuf += s;
 
-	s = sprintf(pbuf, "[%d]CMA pool size:%d MB\n",
+	s = sprintf(pbuf, "\talloced size= %d MB\n\tmax alloced: %d MB\n",
+		mgt->total_alloced_size / SZ_1M,
+		mgt->max_used_mem_size / SZ_1M);
+	tsize += s;
+	pbuf += s;
+
+	s = sprintf(pbuf, "\tCMA:%d,RES:%d,TVP:%d,SYS:%d MB\n",
+		mgt->alloced_cma_size / SZ_1M,
+		mgt->alloced_res_size / SZ_1M,
+		mgt->alloced_tvp_size / SZ_1M,
+		mgt->alloced_sys_size / SZ_1M);
+	tsize += s;
+	pbuf += s;
+
+	if (mgt->res_pool) {
+		s = sprintf(pbuf,
+			"\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
+				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED,
+				(int)(gen_pool_size(mgt->res_pool) / SZ_1M),
+				(int)(mgt->alloced_res_size / SZ_1M),
+				(int)(gen_pool_avail(mgt->res_pool) / SZ_1M));
+		tsize += s;
+		pbuf += s;
+	}
+
+	s = sprintf(pbuf, "\t[%d]CMA size:%d MB:alloced: %d MB,free:%d MB\n",
 			AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA,
-			(int)(dma_get_cma_size_int_byte(mgt->dev) / SZ_1M));
+			(int)(dma_get_cma_size_int_byte(mgt->dev) / SZ_1M),
+			(int)(mgt->alloced_cma_size / SZ_1M),
+			(int)((dma_get_cma_size_int_byte(mgt->dev) -
+			mgt->alloced_cma_size) / SZ_1M));
 	tsize += s;
 	pbuf += s;
 
+	if (!buf && tsize > 0) {
+		pr_info("%s", sbuf);
+		pbuf = sbuf;
+		sbuf[0] = '\0';
+		tsize = 0;
+	}
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (list_empty(&mgt->mem_list)) {
 		spin_unlock_irqrestore(&mgt->lock, flags);
@@ -387,7 +457,7 @@ int dump_mem_infos(void *buf, int size)
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
 		s = sprintf(pbuf,
-		"\towner: %s:%s,addr=%p,s=%d,f=%d,c=%d\n",
+		"\towner: %s:%s,addr=%p,s=%d,from=%d,cnt=%d\n",
 		mem->owner[0] ? mem->owner[0] : "no",
 		mem->owner[1] ? mem->owner[1] : "no",
 		(void *)mem->phy_addr,
@@ -404,6 +474,20 @@ int dump_mem_infos(void *buf, int size)
 
 	return tsize;
 }
+
+int codec_mm_get_total_size(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	return mgt->total_codec_mem_size;
+}
+
+int codec_mm_get_free_size(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	return mgt->total_codec_mem_size -
+	mgt->total_alloced_size;
+}
+
 
 int codec_mm_mgt_init(struct device *dev)
 {
@@ -429,7 +513,9 @@ int codec_mm_mgt_init(struct device *dev)
 		pr_info("add reserve memory %p(aligned %p) size=%x(aligned %x)\n",
 			(void *)mgt->rmem.base, (void *)aligned_addr,
 			(int)mgt->rmem.size, (int)aligned_size);
+		mgt->total_codec_mem_size = aligned_size;
 	}
+	mgt->total_codec_mem_size += dma_get_cma_size_int_byte(mgt->dev);
 	spin_lock_init(&mgt->lock);
 	return 0;
 }

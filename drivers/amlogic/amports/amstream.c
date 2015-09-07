@@ -419,7 +419,10 @@ static void amstream_change_vbufsize(struct stream_port_s *port,
 		if (port->vformat == VFORMAT_H264_4K2K ||
 			port->vformat == VFORMAT_HEVC) {
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K;
-
+			if (codec_mm_get_total_size() < 220 * SZ_1M) {
+				/*if less than 250M, used 20M for 4K & 265*/
+				pvbuf->buf_size = pvbuf->buf_size >> 1;
+			}
 		/* pr_err(" amstream_change_vbufsize 4k2k
 		* bufsize[0x%x] defaultsize[0x%x]\n",
 		* bufs[BUF_TYPE_VIDEO].buf_size,pvbuf->default_buf_size); */
