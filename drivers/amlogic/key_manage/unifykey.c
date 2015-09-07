@@ -862,8 +862,12 @@ static ssize_t name_store(struct class *cla,
 			__LINE__);
 		return -EINVAL;
 	}
-	/**/
-	memcpy(name, buf, count-1);
+	/* check '\n' and del */
+	if (buf[count - 1] == '\n')
+		memcpy(name, buf, count-1);
+	else
+		memcpy(name, buf, count);
+
 	query_name_len = strlen(name);
 	pr_err("%s() %d, name %s, %d\n",
 		__func__,
@@ -965,7 +969,12 @@ static ssize_t write_store(struct class *cla,
 				__func__, __LINE__);
 			goto _out;
 		}
-		memcpy(keydata, buf, count-1); /*clear tail 0x0a*/
+		/* check '\n' and del */
+		if (buf[count - 1] == '\n')
+			memcpy(keydata, buf, count-1);
+		else
+			memcpy(keydata, buf, count);
+
 		key_len = strlen(keydata);
 		ret = key_unify_write(curkey->name, keydata, key_len);
 		if (ret < 0) {
