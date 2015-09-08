@@ -210,7 +210,7 @@ static ssize_t mac_show(struct class *cla,
 	struct efuseinfo_item_t info;
 
 	if (efuse_getinfo_byID(EFUSE_MAC_ID, &info) < 0) {
-		pr_info("ID is not found\n");
+		pr_err("ID is not found\n");
 		return -EFAULT;
 	}
 
@@ -229,7 +229,7 @@ static ssize_t mac_wifi_show(struct class *cla,
 	struct efuseinfo_item_t info;
 
 	if (efuse_getinfo_byID(EFUSE_MAC_WIFI_ID, &info) < 0) {
-		pr_info("ID is not found\n");
+		pr_err("ID is not found\n");
 		return -EFAULT;
 	}
 
@@ -288,7 +288,7 @@ static ssize_t userdata_show(struct class *cla,
 	char tmp[5];
 
 	if (efuse_getinfo_byID(EFUSE_USID_ID, &info) < 0) {
-		pr_info("ID is not found\n");
+		pr_err("ID is not found\n");
 		return -1;
 	}
 
@@ -405,10 +405,9 @@ static int efuse_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int pos, count, usid_min, usid_max;
 
-	pr_info("efuse probe=======================================\n");
 	ret = alloc_chrdev_region(&efuse_devno, 0, 1, EFUSE_DEVICE_NAME);
 	if (ret < 0) {
-		pr_err("efuse: failed to allocate major number\n");
+		dev_err(&pdev->dev, "efuse: failed to allocate major number\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -419,7 +418,7 @@ static int efuse_probe(struct platform_device *pdev)
 
 	efuse_devp = kmalloc(sizeof(struct efuse_dev_t), GFP_KERNEL);
 	if (!efuse_devp) {
-		pr_err("efuse: failed to allocate memory\n");
+		dev_err(&pdev->dev, "efuse: failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto error2;
 	}
@@ -430,51 +429,51 @@ static int efuse_probe(struct platform_device *pdev)
 	/* connect the major/minor number to the cdev */
 	ret = cdev_add(&efuse_devp->cdev, efuse_devno, 1);
 	if (ret) {
-		pr_err("efuse: failed to add device\n");
+		dev_err(&pdev->dev, "efuse: failed to add device\n");
 		goto error3;
 	}
 
 	devp = device_create(&efuse_class, NULL, efuse_devno, NULL, "efuse");
 	if (IS_ERR(devp)) {
-		pr_err("efuse: failed to create device node\n");
+		dev_err(&pdev->dev, "efuse: failed to create device node\n");
 		ret = PTR_ERR(devp);
 		goto error4;
 	}
-	pr_info("efuse: device %s created\n", EFUSE_DEVICE_NAME);
+	dev_dbg(&pdev->dev, "device %s created\n", EFUSE_DEVICE_NAME);
 
 	if (pdev->dev.of_node) {
 		of_node_get(np);
 
 		ret = of_property_read_u32(np, "plat-pos", &pos);
 		if (ret) {
-			pr_info("%s:please config plat-pos item\n", __func__);
+			dev_err(&pdev->dev, "please config plat-pos item\n");
 			return -1;
 		}
 		ret = of_property_read_u32(np, "plat-count", &count);
 		if (ret) {
-			pr_info("%s:please config plat-count item\n", __func__);
+			dev_err(&pdev->dev, "please config plat-count item\n");
 			return -1;
 		}
 		ret = of_property_read_u32(np, "usid-min", &usid_min);
 		if (ret) {
-			pr_info("%s:please config usid-min item\n", __func__);
+			dev_err(&pdev->dev, "please config usid-min item\n");
 			return -1;
 		}
 		ret = of_property_read_u32(np, "usid-max", &usid_max);
 		if (ret) {
-			pr_info("%s:please config usid-max item\n", __func__);
+			dev_err(&pdev->dev, "please config usid-max item\n");
 			return -1;
 		}
 
 		ret = of_property_read_u32(np, "read_cmd", &efuse_read_cmd);
 		if (ret) {
-			pr_info("%s:please config read_cmd item\n", __func__);
+			dev_err(&pdev->dev, "please config read_cmd item\n");
 			return -1;
 		}
 
 		ret = of_property_read_u32(np, "write_cmd", &efuse_write_cmd);
 		if (ret) {
-			pr_info("%s:please config write_cmd item\n", __func__);
+			dev_err(&pdev->dev, "please config write_cmd item\n");
 			return -1;
 		}
 		/* todo reserved for user id <usid-min ~ usid max> */
@@ -483,6 +482,7 @@ static int efuse_probe(struct platform_device *pdev)
 
 	sharemem_input_base = get_secmon_sharemem_input_base();
 	sharemem_output_base = get_secmon_sharemem_output_base();
+	dev_info(&pdev->dev, "probe ok!\n");
 	return 0;
 
 error4:
@@ -534,7 +534,6 @@ static int __init efuse_init(void)
 		pr_err("failed to register efuse driver, error %d\n", ret);
 		return -ENODEV;
 	}
-	pr_info("efuse--------------------------------------------\n");
 
 	return ret;
 }

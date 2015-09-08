@@ -520,7 +520,7 @@ int get_efusekey_info(struct device_node *np)
 	}
 
 	for (index = 0; index < efusekeynum; index++) {
-		propname = kasprintf(GFP_KERNEL, "key%d", index);
+		propname = kasprintf(GFP_KERNEL, "key_%d", index);
 
 		phandle = of_get_property(np_efusekey, propname, NULL);
 		if (!phandle) {
@@ -540,21 +540,23 @@ int get_efusekey_info(struct device_node *np)
 			goto err;
 		}
 		strcpy(efusekey_infos[index].keyname, uname);
-		pr_info("keyname: %s", efusekey_infos[index].keyname);
 		ret = of_property_read_u32(np_key, "offset",
 			&(efusekey_infos[index].offset));
 		if (ret) {
 			pr_err("please config offset item\n");
 			goto err;
 		}
-		pr_info("\toffset: %d", efusekey_infos[index].offset);
 		ret = of_property_read_u32(np_key, "size",
 			&(efusekey_infos[index].size));
 		if (ret) {
 			pr_err("please config size item\n");
 			goto err;
 		}
-		pr_info("\tsize: %d\n", efusekey_infos[index].size);
+
+		pr_info("efusekeyname: %15s\toffset: %5d\tsize: %5d\n",
+			efusekey_infos[index].keyname,
+			efusekey_infos[index].offset,
+			efusekey_infos[index].size);
 		kfree(propname);
 	}
 	return 0;
@@ -583,19 +585,19 @@ static int efuse_probe(struct platform_device *pdev)
 
 		ret = of_property_read_u32(np, "read_cmd", &efuse_read_cmd);
 		if (ret) {
-			pr_info("%s:please config read_cmd item\n", __func__);
+			dev_err(&pdev->dev, "please config read_cmd item\n");
 			return -1;
 		}
 
 		ret = of_property_read_u32(np, "write_cmd", &efuse_write_cmd);
 		if (ret) {
-			pr_info("%s:please config write_cmd item\n", __func__);
+			dev_err(&pdev->dev, "please config write_cmd item\n");
 			return -1;
 		}
 
 	  ret = of_property_read_u32(np, "get_max_cmd", &efuse_get_max_cmd);
 		if (ret) {
-			pr_info("%s:please config get_max_cmd\n", __func__);
+			dev_err(&pdev->dev, "please config get_max_cmd\n");
 			return -1;
 		}
 
@@ -604,7 +606,7 @@ static int efuse_probe(struct platform_device *pdev)
 
 	ret = alloc_chrdev_region(&efuse_devno, 0, 1, EFUSE_DEVICE_NAME);
 	if (ret < 0) {
-		pr_err("efuse: failed to allocate major number\n");
+		dev_err(&pdev->dev, "efuse: failed to allocate major number\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -615,7 +617,7 @@ static int efuse_probe(struct platform_device *pdev)
 
 	efuse_devp = kmalloc(sizeof(struct efuse_dev_t), GFP_KERNEL);
 	if (!efuse_devp) {
-		pr_err("efuse: failed to allocate memory\n");
+		dev_err(&pdev->dev, "efuse: failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto error2;
 	}
@@ -626,21 +628,21 @@ static int efuse_probe(struct platform_device *pdev)
 	/* connect the major/minor number to the cdev */
 	ret = cdev_add(&efuse_devp->cdev, efuse_devno, 1);
 	if (ret) {
-		pr_err("efuse: failed to add device\n");
+		dev_err(&pdev->dev, "failed to add device\n");
 		goto error3;
 	}
 
 	devp = device_create(&efuse_class, NULL, efuse_devno, NULL, "efuse");
 	if (IS_ERR(devp)) {
-		pr_err("efuse: failed to create device node\n");
+		dev_err(&pdev->dev, "failed to create device node\n");
 		ret = PTR_ERR(devp);
 		goto error4;
 	}
-	pr_info("efuse: device %s created\n", EFUSE_DEVICE_NAME);
+	dev_dbg(&pdev->dev, "device %s created\n", EFUSE_DEVICE_NAME);
 
 	sharemem_input_base = get_secmon_sharemem_input_base();
 	sharemem_output_base = get_secmon_sharemem_output_base();
-	pr_debug("%s: efuse_probe OK!\n", __FILE__);
+	dev_info(&pdev->dev, "probe OK!\n");
 	return 0;
 
 error4:
@@ -692,7 +694,6 @@ static int __init efuse_init(void)
 		pr_err("failed to register efuse driver, error %d\n", ret);
 		return -ENODEV;
 	}
-
 
 	return ret;
 }

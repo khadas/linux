@@ -919,19 +919,19 @@ static int aml_i2c_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(pdev->dev.of_node, "device_id", &device_id);
 	if (ret) {
-		pr_info("don't find to match device_id\n");
+		dev_err(&pdev->dev, "don't find to match device_id\n");
 		return -1;
 	}
 
 	pdev->id = device_id;
 
 	if (!aml_i2c_property)
-		pr_info("can't alloc mem for i2c_property\n");
+		dev_err(&pdev->dev, "can't alloc mem for i2c_property\n");
 	else{
 		ret = of_property_read_u32(pdev->dev.of_node, "use_pio",
 			&(aml_i2c_property->use_pio));
 		if (ret) {
-			pr_info("not find match use_pio, use default\n");
+			dev_info(&pdev->dev, "not find match use_pio, use default\n");
 			/* (INT_I2C_MASTER2<<2)|I2C_INTERRUPT_MODE, */
 			aml_i2c_property->use_pio = 0;
 		}
@@ -940,7 +940,7 @@ static int aml_i2c_probe(struct platform_device *pdev)
 			"master_i2c_speed",
 			&(aml_i2c_property->master_i2c_speed));
 		if (ret) {
-			pr_info("not find match master_i2c_speed, use default\n");
+			dev_info(&pdev->dev, "not find match master_i2c_speed, use default\n");
 			if (aml_i2c_device_num == 0)
 				aml_i2c_property->master_i2c_speed = 100000;
 			else
@@ -968,7 +968,7 @@ static int aml_i2c_probe(struct platform_device *pdev)
 
 	ret = of_property_read_string(pdev->dev.of_node, "pinctrl-names",
 		&plat->master_state_name);
-	pr_debug("plat->state_name:%s\n", plat->master_state_name);
+	dev_dbg(&pdev->dev, "plat->state_name:%s\n", plat->master_state_name);
 
 	i2c->ops = &aml_i2c_m1_ops;
 	i2c->dev =  &pdev->dev;
@@ -999,12 +999,12 @@ static int aml_i2c_probe(struct platform_device *pdev)
 	BUG_ON(!i2c->master_regs);
 	BUG_ON(!plat);
 	aml_i2c_set_platform_data(i2c, plat);
-	pr_debug("master_no = %d, master_regs=%p\n",
+	dev_dbg(&pdev->dev, "master_no = %d, master_regs=%p\n",
 		i2c->master_no, i2c->master_regs);
 
 	i2c->p = devm_pinctrl_get_select(i2c->dev, i2c->master_state_name);
 	if (IS_ERR(i2c->p)) {
-		pr_err("set i2c pinmux error\n");
+		dev_err(&pdev->dev, "set i2c pinmux error\n");
 		i2c->p = NULL;
 	}
 
@@ -1053,7 +1053,6 @@ if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
 	dev_info(&pdev->dev, "add adapter %s(%p)\n",
 		i2c->adap.name, &i2c->adap);
 	/* of_i2c_register_devices(&i2c->adap); */
-	dev_info(&pdev->dev, "aml i2c bus driver.\n");
 
 	i2c->state = I2C_STATE_IDLE;
 	init_completion(&i2c->aml_i2c_completion);
@@ -1061,7 +1060,8 @@ if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
 		hrtimer_init(&i2c->aml_i2c_hrtimer,
 			CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		i2c->aml_i2c_hrtimer.function = aml_i2c_hrtimer_notify;
-		pr_info("master %d work in timer polling mode\n", device_id);
+		dev_info(&pdev->dev, "master %d work in timer polling mode\n",
+			device_id);
 	} else if (i2c->mode == I2C_INTERRUPT_MODE) {
 		ret = request_irq(i2c->irq, aml_i2c_complete_isr,
 				IRQF_DISABLED, "aml_i2c", i2c);
@@ -1070,7 +1070,7 @@ if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
 				device_id, i2c->irq);
 			i2c->mode = I2C_DELAY_MODE;
 		} else {
-			pr_info("master %d work in interrupt mode(irq=%d)\n",
+			dev_info(&pdev->dev, "master %d work in interrupt mode(irq=%d)\n",
 				device_id, i2c->irq);
 		}
 	}
@@ -1083,7 +1083,7 @@ if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
 	i2c->cls.class_attrs = i2c_class_attrs;
 	ret = class_register(&i2c->cls);
 	if (ret)
-		pr_info(" class register i2c_class fail!\n");
+		dev_err(&pdev->dev, " class register i2c_class fail!\n");
 
 	return 0;
 }

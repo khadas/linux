@@ -641,10 +641,10 @@
 	};
 	efusekey:efusekey{
 		keynum = <4>;
-		key0 = <&key0>;
-		key1 = <&key1>;
-		key2 = <&key2>;
-		key3 = <&key3>;
+		key_0 = <&key0>;
+		key_1 = <&key1>;
+		key_2 = <&key2>;
+		key_3 = <&key3>;
 		key0:key0{
 			keyname = "mac";
 			offset = <0>;
