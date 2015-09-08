@@ -461,8 +461,8 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				hg_dbs_info->enable = 0;
 			}
 			hg_ops = dbs_data->cdata->gov_ops;
-			idle_notifier_unregister(hg_ops->notifier_block);
 			mutex_unlock(&dbs_data->mutex);
+			idle_notifier_unregister(hg_ops->notifier_block);
 		}
 
 		gov_cancel_work(dbs_data, policy);
