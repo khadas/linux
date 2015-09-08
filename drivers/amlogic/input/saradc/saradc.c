@@ -397,6 +397,16 @@ static int saradc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void saradc_shutdown(struct platform_device *pdev)
+{
+	struct saradc *adc = (struct saradc *)dev_get_drvdata(&pdev->dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&adc->lock, flags);
+	saradc_power_control(adc, 0);
+	spin_unlock_irqrestore(&adc->lock, flags);
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id saradc_dt_match[] = {
 	{ .compatible = "amlogic, saradc"},
@@ -411,6 +421,7 @@ static struct platform_driver saradc_driver = {
 	.remove     = saradc_remove,
 	.suspend    = saradc_suspend,
 	.resume     = saradc_resume,
+	.shutdown = saradc_shutdown,
 	.driver     = {
 		.name   = "saradc",
 		.of_match_table = saradc_dt_match,
