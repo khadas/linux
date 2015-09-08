@@ -17,6 +17,7 @@
 
 
 #include <linux/module.h>
+#include <linux/io.h>
 #include <linux/amlogic/vpu.h>
 /* #include <mach/am_regs.h> */
 /* #include <mach/register.h> */
