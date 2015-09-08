@@ -2792,6 +2792,139 @@ static void hdmitx_clr_sub_packet(unsigned int reg_base)
 }
 #endif
 
+/*
+how to make hdmitx to got rgb signal input ?
+1. invoke vpp_set_ycbcr2rgb()
+2. set VPU_HDMI_SETTING(0x271b) bit[7:5] = 5,
+
+#define VPP_MATRIX_CTRL 0x1d5f
+#define P_VPP_MATRIX_CTRL VCBUS_REG_ADDR(VPP_MATRIX_CTRL)
+
+#define VPP_MATRIX_PRE_OFFSET0_1 0x1d67
+#define P_VPP_MATRIX_PRE_OFFSET0_1 VCBUS_REG_ADDR(VPP_MATRIX_PRE_OFFSET0_1)
+
+#define VPP_MATRIX_PRE_OFFSET2 0x1d68
+#define P_VPP_MATRIX_PRE_OFFSET2 VCBUS_REG_ADDR(VPP_MATRIX_PRE_OFFSET2)
+
+#define VPP_MATRIX_COEF00_01 0x1d60
+#define P_VPP_MATRIX_COEF00_01 VCBUS_REG_ADDR(VPP_MATRIX_COEF00_01)
+
+#define VPP_MATRIX_COEF02_10 0x1d61
+#define P_VPP_MATRIX_COEF02_10 VCBUS_REG_ADDR(VPP_MATRIX_COEF02_10)
+
+#define VPP_MATRIX_COEF11_12 0x1d62
+#define P_VPP_MATRIX_COEF11_12 VCBUS_REG_ADDR(VPP_MATRIX_COEF11_12)
+
+#define VPP_MATRIX_COEF20_21 0x1d63
+#define P_VPP_MATRIX_COEF20_21 VCBUS_REG_ADDR(VPP_MATRIX_COEF20_21)
+
+#define VPP_MATRIX_COEF22 0x1d64
+#define P_VPP_MATRIX_COEF22 VCBUS_REG_ADDR(VPP_MATRIX_COEF22)
+
+#define VPP_MATRIX_OFFSET0_1 0x1d65
+#define P_VPP_MATRIX_OFFSET0_1 VCBUS_REG_ADDR(VPP_MATRIX_OFFSET0_1)
+
+#define VPP_MATRIX_OFFSET2 0x1d66
+#define P_VPP_MATRIX_OFFSET2 VCBUS_REG_ADDR(VPP_MATRIX_OFFSET2)
+
+#define ENCT_VIDEO_RGBIN_CTRL	0x1c87
+#define P_ENCT_VIDEO_RGBIN_CTRL VCBUS_REG_ADDR(ENCT_VIDEO_RGBIN_CTRL)
+
+#define RGB_BASE_ADDR 0x1485
+#define P_RGB_BASE_ADDR VCBUS_REG_ADDR(RGB_BASE_ADDR)
+
+#define RGB_COEFF_ADDR 0x1486
+#define P_RGB_COEFF_ADDR VCBUS_REG_ADDR(RGB_COEFF_ADDR)
+
+void vpp_set_ycbcr2rgb (int yc_full_range, int venc_no)
+{
+	if (!yc_full_range) {
+		//Wr(VPP_MATRIX_CTRL,    1 << 7 |
+		//                       1 << 6 |
+		//                       0 << 5 |
+		//                       0 << 4 |
+		//                       0 << 3 |
+		//                       1 << 2 |
+		//                       1 << 1 |
+		//                       1);
+
+		hd_set_reg_bits (P_VPP_MATRIX_CTRL, 3, 0, 3);
+		hd_set_reg_bits (P_VPP_MATRIX_CTRL, 0, 8, 2);
+
+		hd_write_reg(P_VPP_MATRIX_PRE_OFFSET0_1, 0xfc00e00);
+		hd_write_reg(P_VPP_MATRIX_PRE_OFFSET2, 0x0e00);
+
+		hd_write_reg(P_VPP_MATRIX_COEF00_01, (0x4a8 << 16) | 0);
+		hd_write_reg(P_VPP_MATRIX_COEF02_10, (0x662 << 16) | 0x4a8);
+		hd_write_reg(P_VPP_MATRIX_COEF11_12, (0x1e6f << 16) | 0x1cbf);
+		hd_write_reg(P_VPP_MATRIX_COEF20_21, (0x4a8 << 16) | 0x811);
+		hd_write_reg(P_VPP_MATRIX_COEF22, 0x0);
+		hd_write_reg(P_VPP_MATRIX_OFFSET0_1, 0x0);
+		hd_write_reg(P_VPP_MATRIX_OFFSET2, 0x0);
+
+		if (venc_no == 3)
+			hd_write_reg(P_ENCT_VIDEO_RGBIN_CTRL, 3);
+		else
+			hd_write_reg(P_ENCP_VIDEO_RGBIN_CTRL, 3);
+
+		hd_write_reg(P_RGB_BASE_ADDR, 0);
+		hd_write_reg(P_RGB_COEFF_ADDR, 0x400);
+	} else {
+	}
+
+}
+*/
+
+static int hdmitx_hdmi_dvi_config(unsigned int dvi_mode)
+{
+	if (dvi_mode == 1) {
+		unsigned char *coef = NULL;
+		unsigned int coef_length = 0;
+		unsigned int i = 0;
+
+		/* set csc coef */
+		hdmi_get_csc_coef(hdmi_color_format_444,
+			hdmi_color_format_RGB, hdmi_color_depth_24B, 1,
+			&coef, &coef_length);
+		if ((coef == NULL) ||
+			(coef_length != (HDMITX_DWC_CSC_COEF_C4_LSB -
+			HDMITX_DWC_CSC_COEF_A1_MSB+1))) {
+			hdmi_print(ERR, "[%s] can't get csc coef, 0x%x, %d!\n",
+				__func__, coef, coef_length);
+			return 1;
+		}
+
+		for (i = 0; i < coef_length; i++)
+			hdmitx_wr_reg(HDMITX_DWC_CSC_COEF_A1_MSB+i, *(coef+i));
+
+		/* set csc scale */
+		hdmitx_wr_reg(HDMITX_DWC_CSC_SCALE, 0x41);
+
+		/* set csc cfg */
+		hdmitx_wr_reg(HDMITX_DWC_CSC_CFG, 0x40);
+
+		/* set csc in video path */
+		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x1);
+
+		/* set rgb444 indicator */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0, 0, 2);
+
+		/* set dvi flag */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
+
+	} else {
+		/* disable csc in video path */
+		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x0);
+
+		/* set ycc444 indicator */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
+
+		/* set hdmi flag */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
+	}
+
+	return 0;
+}
 static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned argv)
 {
@@ -2803,10 +2936,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 
 	switch (cmd) {
 	case CONF_HDMI_DVI_MODE:
-		if (argv == HDMI_MODE)
-			;
-		if (argv == DVI_MODE)
-			;
+		hdmitx_hdmi_dvi_config((argv == DVI_MODE)?1:0);
 		break;
 	case CONF_SYSTEM_ST:
 		break;

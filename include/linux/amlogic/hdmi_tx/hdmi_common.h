@@ -286,6 +286,15 @@ enum hdmi_color_range {
 	hdmi_color_range_LIM, hdmi_color_range_FUL,
 };
 
+struct hdmi_csc_coef_table {
+	unsigned char input_format;
+	unsigned char output_format;
+	unsigned char color_depth;
+	unsigned char color_format; /* 0 for ITU601, 1 for ITU709 */
+	unsigned char coef_length;
+	unsigned char *coef;
+};
+
 enum hdmi_audio_packet {
 	hdmi_audio_packet_SMP = 0x02,
 	hdmi_audio_packet_1BT = 0x07,
@@ -311,6 +320,11 @@ enum hdmi_aspect_ratio {
 
 struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic);
 void check_detail_fmt(void);
+unsigned int hdmi_get_csc_coef(
+	unsigned int input_format, unsigned int output_format,
+	unsigned int color_depth, unsigned int color_format,
+	unsigned char **coef_array, unsigned int *coef_length);
+
 
 /* HDMI Audio Parmeters */
 /* Refer to CEA-861-D Page 88 */

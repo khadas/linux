@@ -865,3 +865,52 @@ unsigned int hdmi_get_aud_n_paras(enum hdmi_audio_fs fs, unsigned int tmds_clk)
 	else
 		return p->def_n;
 }
+/*--------------------------------------------------------------*/
+/* for csc coef */
+
+static unsigned char coef_yc444_rgb_24bit_601[] = {
+	0x20, 0x00, 0x69, 0x26, 0x74, 0xfd, 0x01, 0x0e,
+	0x20, 0x00, 0x2c, 0xdd, 0x00, 0x00, 0x7e, 0x9a,
+	0x20, 0x00, 0x00, 0x00, 0x38, 0xb4, 0x7e, 0x3b
+};
+
+static unsigned char coef_yc444_rgb_24bit_709[] = {
+	0x20, 0x00, 0x71, 0x06, 0x7a, 0x02, 0x00, 0xa7,
+	0x20, 0x00, 0x32, 0x64, 0x00, 0x00, 0x7e, 0x6d,
+	0x20, 0x00, 0x00, 0x00, 0x3b, 0x61, 0x7e, 0x25
+};
+
+
+static struct hdmi_csc_coef_table hdmi_csc_coef[] = {
+	{hdmi_color_format_444, hdmi_color_format_RGB, hdmi_color_depth_24B, 0,
+		sizeof(coef_yc444_rgb_24bit_601), coef_yc444_rgb_24bit_601},
+	{hdmi_color_format_444, hdmi_color_format_RGB, hdmi_color_depth_24B, 1,
+		sizeof(coef_yc444_rgb_24bit_709), coef_yc444_rgb_24bit_709},
+};
+
+unsigned int hdmi_get_csc_coef(
+	unsigned int input_format, unsigned int output_format,
+	unsigned int color_depth, unsigned int color_format,
+	unsigned char **coef_array, unsigned int *coef_length)
+{
+	unsigned int i = 0, max = 0;
+
+	max = sizeof(hdmi_csc_coef)/sizeof(struct hdmi_csc_coef_table);
+
+	for (i = 0; i < max; i++) {
+		if ((input_format == hdmi_csc_coef[i].input_format) &&
+			(output_format == hdmi_csc_coef[i].output_format) &&
+			(color_depth == hdmi_csc_coef[i].color_depth) &&
+			(color_format == hdmi_csc_coef[i].color_format)) {
+			*coef_array = hdmi_csc_coef[i].coef;
+			*coef_length = hdmi_csc_coef[i].coef_length;
+			return 0;
+		}
+	}
+
+	coef_array = NULL;
+	*coef_length = 0;
+
+	return 1;
+}
+
