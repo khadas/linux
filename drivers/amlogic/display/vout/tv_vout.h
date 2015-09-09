@@ -25,6 +25,8 @@
 #define TV_CLASS_NAME	"tv"
 #define	MAX_NUMBER_PARA  10
 
+#define print_info(fmt, args...) pr_info(fmt, ##args)
+
 #define SHOW_INFO(name) \
 	{return snprintf(buf, 40, "%s\n", name); }
 

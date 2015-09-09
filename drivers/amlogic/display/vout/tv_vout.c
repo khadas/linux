@@ -59,7 +59,9 @@ static void vdac_power_level_store(char *para);
 SET_TV_CLASS_ATTR(vdac_power_level, vdac_power_level_store)
 
 static void bist_test_store(char *para);
-SET_TV_CLASS_ATTR(bist_test, bist_test_store)
+
+static void cvbs_debug_store(char *para);
+SET_TV_CLASS_ATTR(debug, cvbs_debug_store)
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 #define DEFAULT_POLICY_FR_AUTO	1
@@ -448,6 +450,15 @@ static void tv_out_late_open_vdac(enum tvmode_e mode)
 	return;
 }
 
+static void tv_out_enable_cvbs_gate(void)
+{
+	tv_out_hiu_set_mask(HHI_GCLK_OTHER,
+		(1<<DAC_CLK) | (1<<GCLK_VENCI_INT) |
+		(1<<VCLK2_VENCI1) | (1<<VCLK2_VENCI));
+	tv_out_hiu_set_mask(HHI_VID_CLK_CNTL2,
+		(1<<ENCI_GATE_VCLK) | (1<<VDAC_GATE_VCLK));
+}
+
 static char *tv_out_bist_str[] = {
 	"Fix Value",   /* 0 */
 	"Color Bar",   /* 1 */
@@ -498,7 +509,7 @@ int tv_out_setmode(enum tvmode_e mode)
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBLITY_SUPPORT
 	cvbs_performance_enhancement(mode);
 #endif
-
+	tv_out_enable_cvbs_gate();
 	tv_out_late_open_vdac(mode);
 
 	mutex_unlock(&setmode_mutex);
@@ -1229,13 +1240,273 @@ static void policy_framerate_automation_switch_store(char *para)
 
 #endif
 
+static void dump_clk_registers(void)
+{
+	unsigned int clk_regs[] = {
+		/* hiu 10c8 ~ 10cd */
+		HHI_HDMI_PLL_CNTL,
+		HHI_HDMI_PLL_CNTL2,
+		HHI_HDMI_PLL_CNTL3,
+		HHI_HDMI_PLL_CNTL4,
+		HHI_HDMI_PLL_CNTL5,
+		HHI_HDMI_PLL_CNTL6,
+
+		/* hiu 1068 */
+		HHI_VID_PLL_CLK_DIV,
+
+		/* hiu 104a, 104b*/
+		HHI_VIID_CLK_DIV,
+		HHI_VIID_CLK_CNTL,
+
+		/* hiu 1059, 105f */
+		HHI_VID_CLK_DIV,
+		HHI_VID_CLK_CNTL,
+	};
+	unsigned int i, max;
+
+	max = sizeof(clk_regs)/sizeof(unsigned int);
+	pr_info("\n total %d registers of clock path for hdmi pll:\n", max);
+	for (i = 0; i < max; i++) {
+		pr_info("hiu [0x%x] = 0x%x\n", clk_regs[i],
+			tv_out_hiu_read(clk_regs[i]));
+	}
+
+	return;
+}
+
+enum {
+	CMD_REG_READ,
+	CMD_REG_READ_BITS,
+	CMD_REG_DUMP,
+	CMD_REG_WRITE,
+	CMD_REG_WRITE_BITS,
+
+	CMD_CLK_DUMP,
+	CMD_CLK_MSR,
+
+	CMD_BIST,
+
+	CMD_HELP,
+
+	CMD_MAX
+} debug_cmd_t;
+
+#define func_type_map(a) {\
+	if (!strcmp(a, "c")) {\
+		str_type = "cbus";\
+		func_read = tv_out_cbus_read;\
+		func_write = tv_out_cbus_write;\
+		func_getb = tv_out_cbus_getb;\
+		func_setb = tv_out_cbus_setb;\
+	} \
+	else if (!strcmp(a, "h")) {\
+		str_type = "hiu";\
+		func_read = tv_out_hiu_read;\
+		func_write = tv_out_hiu_write;\
+		func_getb = tv_out_hiu_getb;\
+		func_setb = tv_out_hiu_setb;\
+	} \
+	else if (!strcmp(a, "v")) {\
+		str_type = "vcbus";\
+		func_read = tv_out_reg_read;\
+		func_write = tv_out_reg_write;\
+		func_getb = tv_out_reg_getb;\
+		func_setb = tv_out_reg_setb;\
+	} \
+}
+
+static void cvbs_debug_store(char *buf)
+{
+	unsigned int ret = 0;
+	unsigned long addr, start, end, value, length, old;
+	unsigned int argc;
+	char *p = NULL, *para = NULL,
+		*argv[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+	char *str_type = NULL;
+	unsigned int i, cmd;
+	unsigned int (*func_read)(unsigned int)  = NULL;
+	void (*func_write)(unsigned int, unsigned int) = NULL;
+	unsigned int (*func_getb)(unsigned int,
+		unsigned int, unsigned int) = NULL;
+	void (*func_setb)(unsigned int, unsigned int,
+		unsigned int, unsigned int) = NULL;
+
+	p = kstrdup(buf, GFP_KERNEL);
+	for (argc = 0; argc < 6; argc++) {
+		para = strsep(&p, " ");
+		if (para == NULL)
+			break;
+		argv[argc] = para;
+	}
+
+	if (!strcmp(argv[0], "r"))
+		cmd = CMD_REG_READ;
+	else if (!strcmp(argv[0], "rb"))
+		cmd = CMD_REG_READ_BITS;
+	else if (!strcmp(argv[0], "dump"))
+		cmd = CMD_REG_DUMP;
+	else if (!strcmp(argv[0], "w"))
+		cmd = CMD_REG_WRITE;
+	else if (!strcmp(argv[0], "wb"))
+		cmd = CMD_REG_WRITE_BITS;
+	else if (!strncmp(argv[0], "clkdump", strlen("clkdump")))
+		cmd = CMD_CLK_DUMP;
+	else if (!strncmp(argv[0], "clkmsr", strlen("clkmsr")))
+		cmd = CMD_CLK_MSR;
+	else if (!strncmp(argv[0], "bist", strlen("bist")))
+		cmd = CMD_BIST;
+	else if (!strncmp(argv[0], "help", strlen("help")))
+		cmd = CMD_HELP;
+	else {
+		print_info("[%s] invalid cmd = %s!\n", __func__, argv[0]);
+		goto DEBUG_END;
+	}
+
+	switch (cmd) {
+	case CMD_REG_READ:
+		if (argc != 3) {
+			print_info("[%s] cmd_reg_read format: r c/h/v address_hex\n",
+				__func__);
+			goto DEBUG_END;
+		}
+
+		func_type_map(argv[1]);
+		ret = kstrtoul(argv[2], 16, &addr);
+
+		print_info("read %s[0x%x] = 0x%x\n",
+			str_type, (unsigned int)addr, func_read(addr));
+
+		break;
+
+	case CMD_REG_READ_BITS:
+		if (argc != 5) {
+			print_info("[%s] cmd_reg_read_bits format:\n"
+			"\trb c/h/v address_hex start_dec length_dec\n",
+				__func__);
+			goto DEBUG_END;
+		}
+
+		func_type_map(argv[1]);
+		ret = kstrtoul(argv[2], 16, &addr);
+		ret = kstrtoul(argv[3], 10, &start);
+		ret = kstrtoul(argv[4], 10, &length);
+
+		if (length == 1)
+			print_info("read_bits %s[0x%x] = 0x%x, bit[%d] = 0x%x\n",
+			str_type, (unsigned int)addr,
+			func_read(addr), (unsigned int)start,
+			func_getb(addr, start, length));
+		else
+			print_info("read_bits %s[0x%x] = 0x%x, bit[%d-%d] = 0x%x\n",
+			str_type, (unsigned int)addr,
+			func_read(addr),
+			(unsigned int)start+(unsigned int)length-1,
+			(unsigned int)start,
+			func_getb(addr, start, length));
+		break;
+
+	case CMD_REG_DUMP:
+		if (argc != 4) {
+			print_info("[%s] cmd_reg_dump format: dump c/h/v start_dec end_dec\n",
+				__func__);
+			goto DEBUG_END;
+		}
+
+		func_type_map(argv[1]);
+
+		ret = kstrtoul(argv[2], 16, &start);
+		ret = kstrtoul(argv[3], 16, &end);
+
+		for (i = start; i <= end; i++)
+			print_info("%s[0x%x] = 0x%x\n",
+				str_type, i, func_read(i));
+
+		break;
+
+	case CMD_REG_WRITE:
+		if (argc != 4) {
+			print_info("[%s] cmd_reg_write format: w value_hex c/h/v address_hex\n",
+				__func__);
+			goto DEBUG_END;
+		}
+
+		func_type_map(argv[2]);
+
+		ret = kstrtoul(argv[1], 16, &value);
+		ret = kstrtoul(argv[3], 16, &addr);
+
+		func_write(addr, value);
+		print_info("write %s[0x%x] = 0x%x\n", str_type,
+			(unsigned int)addr, (unsigned int)value);
+		break;
+
+	case CMD_REG_WRITE_BITS:
+		if (argc != 6) {
+			print_info("[%s] cmd_reg_wrute_bits format:\n"
+			"\twb value_hex c/h/v address_hex start_dec length_dec\n",
+				__func__);
+			goto DEBUG_END;
+		}
+
+		func_type_map(argv[2]);
+
+		ret = kstrtoul(argv[1], 16, &value);
+		ret = kstrtoul(argv[3], 16, &addr);
+		ret = kstrtoul(argv[4], 10, &start);
+		ret = kstrtoul(argv[5], 10, &length);
+
+		old = func_read(addr);
+		func_setb(addr, value, start, length);
+		print_info("write_bits %s[0x%x] old = 0x%x, new = 0x%x\n",
+			str_type, (unsigned int)addr,
+			(unsigned int)old, func_read(addr));
+		break;
+
+	case CMD_CLK_DUMP:
+		dump_clk_registers();
+		break;
+
+	case CMD_CLK_MSR:
+		/* todo */
+		print_info("cvbs: debug_store: clk_msr todo!\n");
+		break;
+
+	case CMD_BIST:
+		if (argc != 2) {
+			print_info("[%s] cmd_bist format:\n"
+			"\tbist 0/1/2/3/off\n", __func__);
+			goto DEBUG_END;
+		}
+
+		bist_test_store(argv[1]);
+		break;
+
+	case CMD_HELP:
+		print_info("command format:\n"
+		"\tr c/h/v address_hex\n"
+		"\trb c/h/v address_hex start_dec length_dec\n"
+		"\tdump c/h/v start_dec end_dec\n"
+		"\tw value_hex c/h/v address_hex\n"
+		"\twb value_hex c/h/v address_hex start_dec length_dec\n"
+		"\tbist 0/1/2/3/off\n"
+		"\tclkdump\n");
+		break;
+	default:
+		break;
+	}
+
+DEBUG_END:
+	kfree(p);
+	return;
+}
+
 static  struct  class_attribute   *tv_attr[] = {
 	&class_TV_attr_vdac_power_level,
-	&class_TV_attr_bist_test,
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	&class_TV_attr_policy_fr_auto,
 	&class_TV_attr_policy_fr_auto_switch,
 #endif
+	&class_TV_attr_debug,
 };
 
 
@@ -1307,7 +1578,6 @@ static __exit void tv_exit_module(void)
 	vout_unregister_server(&tv_server);
 	vout_log_info("exit tv module\n");
 }
-
 
 static int __init vdac_config_bootargs_setup(char *line)
 {

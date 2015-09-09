@@ -37,6 +37,10 @@
 #define HHI_GCLK_MPEG1                             0x1051
 #define HHI_GCLK_MPEG2                             0x1052
 #define HHI_GCLK_OTHER                             0x1054
+	#define VCLK2_VENCI		1
+	#define VCLK2_VENCI1	2
+	#define GCLK_VENCI_INT	8
+	#define DAC_CLK			10
 
 #define HHI_VIID_PLL_CNTL4                         0x1046
 #define HHI_VIID_PLL_CNTL                          0x1047
@@ -653,6 +657,8 @@ extern void tv_out_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
 extern unsigned int tv_out_cbus_read(unsigned int _reg);
 extern void tv_out_cbus_write(unsigned int _reg, unsigned int _value);
 extern void tv_out_cbus_setb(unsigned int _reg, unsigned int _value,
+		unsigned int _start, unsigned int _len);
+extern unsigned int tv_out_cbus_getb(unsigned int _reg,
 		unsigned int _start, unsigned int _len);
 extern void tv_out_cbus_set_mask(unsigned int _reg, unsigned int _mask);
 extern void tv_out_cbus_clr_mask(unsigned int _reg, unsigned int _mask);

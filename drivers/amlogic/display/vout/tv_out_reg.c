@@ -197,8 +197,8 @@ void tv_out_hiu_setb(unsigned int _reg, unsigned int _value,
 		unsigned int _start, unsigned int _len)
 {
 	tv_out_hiu_write(_reg, ((tv_out_hiu_read(_reg) &
-			~(((1L << (_len))-1) << (_start))) |
-			(((_value)&((1L<<(_len))-1)) << (_start))));
+		(~(((1L << _len)-1) << _start))) |
+		((_value & ((1L << _len)-1)) << _start)));
 }
 
 unsigned int tv_out_hiu_getb(unsigned int _reg,
@@ -257,6 +257,12 @@ void tv_out_cbus_setb(unsigned int _reg, unsigned int _value,
 			(((_value)&((1L<<(_len))-1)) << (_start))));
 }
 
+unsigned int tv_out_cbus_getb(unsigned int _reg,
+		unsigned int _start, unsigned int _len)
+{
+	return (tv_out_cbus_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
+}
+
 void tv_out_cbus_set_mask(unsigned int _reg, unsigned int _mask)
 {
 	tv_out_cbus_write(_reg, (tv_out_cbus_read(_reg) | (_mask)));
@@ -266,3 +272,4 @@ void tv_out_cbus_clr_mask(unsigned int _reg, unsigned int _mask)
 {
 	tv_out_cbus_write(_reg, (tv_out_cbus_read(_reg) & (~(_mask))));
 }
+
