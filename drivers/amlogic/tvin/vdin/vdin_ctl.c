@@ -17,8 +17,6 @@
 
 
 #include <linux/module.h>
-#include <linux/io.h>
-#include <linux/amlogic/vpu.h>
 /* #include <mach/am_regs.h> */
 /* #include <mach/register.h> */
 /* #include <mach/cpu.h> */
@@ -2313,23 +2311,3 @@ void vdin_force_gofiled(struct vdin_dev_s *devp)
 	wr_bits(offset, VDIN_COM_CTRL0, 0, 28, 1);
 }
 
-void vdin_set_clkb(bool enable)
-{
-	void *clk_b_addr = NULL;
-	unsigned int value = 0;
-	int v0 = 0, v1 = 0, di = 0;
-	clk_b_addr = ioremap(HHI_VPU_CLKB_CNTL, sizeof(unsigned int));
-	value = readl(clk_b_addr);
-	if (enable) {
-		writel((1<<CLKB_EN_BIT|value), clk_b_addr);
-	} else {
-	#ifdef CONFIG_AML_VPU
-		v0 = get_vpu_mem_pd_vmod(VPU_VIU_VDIN0);
-		v1 = get_vpu_mem_pd_vmod(VPU_VIU_VDIN1);
-		di = get_vpu_mem_pd_vmod(VPU_DI_POST);
-		if (v0 && v1 && di)
-	#endif
-			writel((~(1<<CLKB_EN_BIT)&value), clk_b_addr);
-	}
-	iounmap(clk_b_addr);
-}

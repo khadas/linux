@@ -3,7 +3,6 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/io.h>
 
 #include <linux/amlogic/vpu.h>
 #include <linux/amlogic/cpu_version.h>
@@ -143,10 +142,8 @@ static void mc_di_param_init(void)
 	Wr(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
 }
 #endif
-static	void *clk_b_addr;
 void di_hw_init(void)
 {
-	unsigned int value = 0;
 #ifdef NEW_DI_V1
 	unsigned short fifo_size = 0xc0;
 #endif
@@ -186,21 +183,10 @@ void di_hw_init(void)
 	mc_di_param_init();
 #endif
 	Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
-	/* disable clkb defaultly */
-	#ifndef CONFIG_TVIN_VDIN
-	#ifdef CONFIG_AML_VPU
-	switch_vpu_mem_pd_vmod(VPU_VIU_VDIN0, VPU_MEM_POWER_DOWN);
-	switch_vpu_mem_pd_vmod(VPU_VIU_VDIN1, VPU_MEM_POWER_DOWN);
-	#endif
-	#endif
-	clk_b_addr = ioremap(HHI_VPU_CLKB_CNTL, sizeof(unsigned int));
-	value = readl(clk_b_addr);
-	writel((~(1<<CLKB_EN_BIT)&value), clk_b_addr);
 }
 
 void di_hw_uninit(void)
 {
-	iounmap(clk_b_addr);
 }
 
 unsigned int nr2_en = 0x1;
@@ -1523,24 +1509,6 @@ void di_post_read_reverse_irq(bool reverse)
 #endif
 }
 
-static void di_set_clkb(bool enable)
-{
-	unsigned int value = 0;
-	int v0 = 0, v1 = 0;
-
-	value = readl(clk_b_addr);
-	if (enable) {
-		writel((1<<CLKB_EN_BIT|value), clk_b_addr);
-	} else {
-		#ifdef CONFIG_AML_VPU
-		v0 = get_vpu_mem_pd_vmod(VPU_VIU_VDIN0);
-		v1 = get_vpu_mem_pd_vmod(VPU_VIU_VDIN1);
-		if (v0 == VPU_MEM_POWER_DOWN && v1 == VPU_MEM_POWER_DOWN)
-		#endif
-			writel((~(1<<CLKB_EN_BIT)&value), clk_b_addr);
-	}
-}
-
 static unsigned char pre_power_on;
 static unsigned char post_power_on;
 void di_set_power_control(unsigned char type, unsigned char enable)
@@ -1550,8 +1518,6 @@ void di_set_power_control(unsigned char type, unsigned char enable)
 	if (type == 0) {
 		/* WRITE_MPEG_REG_BITS(HHI_VPU_MEM_PD_REG0,
 enable?0:3, 26, 2); //di pre */
-		if (enable)
-			di_set_clkb(true);
 		switch_vpu_mem_pd_vmod(VPU_DI_PRE,
 enable?VPU_MEM_POWER_ON:VPU_MEM_POWER_DOWN);
 		pre_power_on = enable;

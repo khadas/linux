@@ -24,10 +24,6 @@
 #define HHI_VDIN_MEAS_CLK_CNTL			0x1094
 #define P_HHI_VDIN_MEAS_CLK_CNTL        CBUS_REG_ADDR(HHI_VDIN_MEAS_CLK_CNTL)
 
-/* clock_b control */
-#define HHI_VPU_CLKB_CNTL				(0xC883C000 + (0x83<<2))
-#define CLKB_EN_BIT						8
-
 /* mmc */
 #define VPU_VDIN_ASYNC_HOLD_CTRL 0x2743
 #define VPU_VDISP_ASYNC_HOLD_CTRL 0x2744
