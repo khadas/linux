@@ -229,6 +229,9 @@ static void __init gxbb_clk_init(struct device_node *np)
 		struct clk *vapb;
 		struct clk *fixdiv5;
 
+		struct clk *clk_mali_0;
+		struct clk *clk_mali;
+
 		for (i = 0; i < count; i++) {
 			char *clk_name = clks[i];
 			pr_info("clkrate [ %s \t] : %luHz\n", clk_name,
@@ -247,6 +250,22 @@ static void __init gxbb_clk_init(struct device_node *np)
 			clk_put(fixdiv5);
 		if (!IS_ERR(vapb))
 			clk_put(vapb);
+
+		/*Force set mali clock to 400M"*/
+		clk_mali_0 = clk_get_sys("clk_mali_0", "clk_mali_0");
+		clk_mali = clk_get_sys("clk_mali_0", "clk_mali_0");
+		if ((!IS_ERR(clk_mali_0)) && (!IS_ERR(clk_mali))) {
+			clk_set_parent(clk_mali_0, fixdiv5);
+			clk_set_parent(clk_mali, clk_mali_0);
+			clk_prepare_enable(clk_mali);
+		}
+		if (!IS_ERR(clk_mali_0))
+			clk_put(clk_mali_0);
+		if (!IS_ERR(clk_mali))
+			clk_put(clk_mali);
+		if (!IS_ERR(fixdiv5))
+			clk_put(fixdiv5);
+
 	}
 	pr_info("gxbb clock initialization complete\n");
 }
