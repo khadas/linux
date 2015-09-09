@@ -63,6 +63,26 @@
 #define EDID_DETAILED_TIMING_DES_BLOCK2_POS 0x5A
 #define EDID_DETAILED_TIMING_DES_BLOCK3_POS 0x6C
 
+static unsigned char edid_checkvalue[4] = {0};
+
+static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
+{
+	unsigned int i, length, max;
+
+	if (buf == NULL)
+		return;
+
+	length = sizeof(edid_checkvalue);
+	memset(edid_checkvalue, 0x00, length);
+
+	max = (block_cnt > length)?length:block_cnt;
+
+	for (i = 0; i < max; i++)
+		edid_checkvalue[i] = *(buf+(i+1)*128-1);
+
+	return;
+}
+
 static int Edid_DecodeHeader(struct hdmitx_info *info, unsigned char *buff)
 {
 	int i, ret = 0;
@@ -1478,6 +1498,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		pRXCap->IEEEOUI = 0x0c03;
 	}
 
+	edid_save_checkvalue(EDID_buf, BlockCount+1);
+
 #if 1
 	i = hdmitx_edid_dump(hdmitx_device, (char *)(hdmitx_device->tmp_buf),
 		HDMI_TMP_BUF_SIZE);
@@ -1825,6 +1847,12 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 				top_and_bottom,
 			pRXCap->support_3d_format[pRXCap->VIC[i]].side_by_side);
 	}
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"checkvalue: 0x%02x%02x%02x%02x\n",
+			edid_checkvalue[0],
+			edid_checkvalue[1],
+			edid_checkvalue[2],
+			edid_checkvalue[3]);
 	return pos;
 }
 
