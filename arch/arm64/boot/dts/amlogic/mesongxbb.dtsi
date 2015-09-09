@@ -580,6 +580,7 @@
 		master_i2c_speed = <300000>;
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
 	};
 	i2c_b: i2c@c11087c0{ /*I2C-B*/
 		compatible = "amlogic, meson-i2c";
@@ -595,6 +596,7 @@
 		master_i2c_speed = <300000>;
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
 	};
 	i2c_c: i2c@c11087e0{ /*I2C-C*/
 		compatible = "amlogic, meson-i2c";
@@ -610,6 +612,7 @@
 		master_i2c_speed = <300000>;
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
 	};
 	i2c_d: i2c@c1108d20{ /*I2C-D*/
 		compatible = "amlogic, meson-i2c";
@@ -625,6 +628,7 @@
 		master_i2c_speed = <300000>;
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
 	};
 	efuse: efuse{
 		compatible = "amlogic, efuse";
@@ -704,6 +708,18 @@
 		compatible = "amlogic, audio_data";
 		query_licence_cmd = <0x82000050>;
 		status = "disabled";
+	};
+
+	saradc: saradc {
+		compatible = "amlogic, saradc";
+		status = "okay";
+		interrupts = <0 9 1>;
+		interrupt-names = "saradc_int";
+		clocks = <&clock CLK_XTAL>;
+		clock-names = "saradc_clk";
+		resets = <&clock GCLK_IDX_SARADC>;
+		reg = <0x0 0xc1108680 0x0 0x30
+					 0x0 0xc883c3d8 0x0 0x08>;
 	};
 
 };/* end of / */

@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 
 /* static struct mutex *ab_share_lock = 0; */
 
@@ -900,6 +901,7 @@ static int aml_i2c_probe(struct platform_device *pdev)
 	struct aml_i2c_platform *plat;
 	struct resource *res;
 	int device_id =  -1;
+	struct reset_control *rst;
 /* struct aml_i2c_platform *plat = (struct aml_i2c_platform *)
 	(pdev->dev.platform_data); */
 
@@ -972,7 +974,9 @@ static int aml_i2c_probe(struct platform_device *pdev)
 	i2c->dev =  &pdev->dev;
 
   /* find the clock and enable it */
-
+	rst = devm_reset_control_get(&pdev->dev, NULL);
+	if (!IS_ERR(rst))
+		reset_control_deassert(rst);
 	i2c->clk = devm_clk_get(&pdev->dev, "clk_i2c");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
