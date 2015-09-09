@@ -672,6 +672,14 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	ge2d_reg_set_bits(GE2D_SRC1_FMT_CTRL, x_chr_phase, 8, 8);
 	ge2d_reg_set_bits(GE2D_SRC1_FMT_CTRL, y_chr_phase, 0, 8);
 
+	if (((cfg->src1_x_end - cfg->src1_x_start) ==
+	     (cfg->dst_x_end - cfg->dst_x_start)) &&
+	    ((cfg->src1_y_end - cfg->src1_y_start) ==
+	     (cfg->dst_y_end - cfg->dst_y_start))) {
+		/* set chroma formatter repeat mode */
+		ge2d_reg_set_bits(GE2D_SRC1_FMT_CTRL, 1, 19, 1);
+		ge2d_reg_set_bits(GE2D_SRC1_FMT_CTRL, 1, 17, 1);
+	}
 
 	ge2d_reg_write(GE2D_SRC2_X_START_END,
 			(cfg->src2_x_start << 16) |
