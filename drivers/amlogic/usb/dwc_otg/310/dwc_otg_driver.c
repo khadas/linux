@@ -228,6 +228,19 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 	.adp_enable = -1,
 };
 
+bool force_device_mode = 0;
+static int __init force_otg_mode(char *str)
+{
+	force_device_mode = 1;
+	return 1;
+}
+__setup("otg_device", force_otg_mode);
+module_param_named(otg_device, force_device_mode,
+		bool, S_IRUGO | S_IWUSR);
+
+MODULE_PARM_DESC(otg_device, "set otg to force device mode" " ");
+
+
 static u64 dwc2_dmamask = DMA_BIT_MASK(32);
 
 /**
@@ -1167,6 +1180,9 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	} else {
 		dwc_otg_device->common_irq_installed = 1;
 	}
+
+	if (force_device_mode && (port_index == 0))
+		port_type = USB_PORT_TYPE_SLAVE;
 
 	switch (port_type) {
 	case USB_PORT_TYPE_OTG:
