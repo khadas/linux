@@ -3183,7 +3183,7 @@ di_pre_stru.di_chan2_buf_dup_p);
 			di_mtn_1_ctrl1 &= (~(1<<29));/* disable txt */
 			cont_rd = 0;
 			RDMA_WR(DI_ARB_CTRL,
-				RDMA_RD(DI_ARB_CTRL)&(~0x303));
+				RDMA_RD(DI_ARB_CTRL)|1<<9|1<<8|1<<1|1<<0);
 		} else {
 			RDMA_WR(DI_ARB_CTRL,
 				RDMA_RD(DI_ARB_CTRL)|1<<9|1<<8|1<<1|1<<0);

@@ -527,15 +527,15 @@ unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 #define DI_DIWR_CTRL					0x17c8
 		/* 0xd0105f20 */
 #define DI_MTNPRD_X						0x17cb
-		/* 0xd0105f24 */
-#define DI_MTNPRD_Y						0x17cc
-		/* 0xd0105f28 */
-#define DI_MTNRD_CTRL					0x17cd
 		/* 0xd0105f2c */
-#define DI_INP_GEN_REG					0x17ce
+#define DI_MTNPRD_Y						0x17cc
 		/* 0xd0105f30 */
-#define DI_INP_CANVAS0					0x17cf
+#define DI_MTNRD_CTRL					0x17cd
 		/* 0xd0105f34 */
+#define DI_INP_GEN_REG					0x17ce
+		/* 0xd0105f38 */
+#define DI_INP_CANVAS0					0x17cf
+		/* 0xd0105f3c */
 #define DI_INP_LUMA_X0					0x17d0
 		/* 0xd0105f40 */
 #define DI_INP_LUMA_Y0					0x17d1
