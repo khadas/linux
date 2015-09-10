@@ -149,8 +149,9 @@ static u32 force_w_h;
 #define H265_DEBUG_ERROR_TRIG             0x400000
 #define H265_DEBUG_NO_EOS_SEARCH_DONE     0x800000
 #define H265_DEBUG_NOT_USE_LAST_DISPBUF   0x1000000
+#define H265_DEBUG_IGNORE_CONFORMANCE_WINDOW	0x2000000
 
-const u32 h265_version = 201509101;
+const u32 h265_version = 201509102;
 static u32 debug;
 static u32 radr;
 static u32 rval;
@@ -561,9 +562,18 @@ union param_u {
 		unsigned short vui_time_scale_hi;
 		unsigned short vui_time_scale_lo;
 		unsigned short bit_depth;
-		unsigned short reserved[3];
+		unsigned short profile_etc;
+		unsigned short sei_frame_field_info;
+
+		unsigned short reserved[1];
 
 		unsigned short modification_list[0x20];
+		unsigned short conformance_window_flag;
+		unsigned short conf_win_left_offset;
+		unsigned short conf_win_right_offset;
+		unsigned short conf_win_top_offset;
+		unsigned short conf_win_bottom_offset;
+		unsigned short chroma_format_idc;
 	} p;
 };
 
@@ -974,6 +984,7 @@ struct hevc_state_s {
 
 	void *rpm_addr;
 	dma_addr_t rpm_phy_addr;
+	union param_u *params;
 
 	unsigned int pic_list_init_flag;
 	unsigned int use_cma_flag;
@@ -1070,9 +1081,11 @@ static void set_canvas(struct PIC_s *pic);
 
 static void hevc_init_stru(struct hevc_state_s *hevc,
 		struct BuffInfo_s *buf_spec_i,
-		struct buff_s *mc_buf_i)
+		struct buff_s *mc_buf_i,
+		union param_u *params_i)
 {
 	int i;
+	hevc->params = params_i;
 	hevc->work_space_buf = buf_spec_i;
 	hevc->mc_buf = mc_buf_i;
 	hevc->rpm_addr = NULL;
@@ -3899,7 +3912,7 @@ static int hevc_local_init(void)
 	mc_buf_spec.buf_start = (cur_buf_info->end_adr + 0xffff) & (~0xffff);
 	mc_buf_spec.buf_size = (mc_buf_spec.buf_end - mc_buf_spec.buf_start);
 
-	hevc_init_stru(&gHevc, cur_buf_info, &mc_buf_spec);
+	hevc_init_stru(&gHevc, cur_buf_info, &mc_buf_spec, &rpm_param);
 
 	bit_depth_luma = 8;
 	bit_depth_chroma = 8;
@@ -4297,6 +4310,40 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 			vf->width = (force_w_h >> 16) & 0xffff;
 			vf->height = force_w_h & 0xffff;
 		}
+
+		if (hevc->params->p.conformance_window_flag &&
+			(debug & H265_DEBUG_IGNORE_CONFORMANCE_WINDOW) == 0) {
+			unsigned SubWidthC, SubHeightC;
+			switch (hevc->params->p.chroma_format_idc) {
+			case 1:
+				SubWidthC = 2;
+				SubHeightC = 2;
+				break;
+			case 2:
+				SubWidthC = 2;
+				SubHeightC = 1;
+				break;
+			default:
+				SubWidthC = 1;
+				SubHeightC = 1;
+				break;
+			}
+			vf->width -= SubWidthC *
+				(hevc->params->p.conf_win_left_offset +
+				hevc->params->p.conf_win_right_offset);
+			vf->height -= SubHeightC *
+				(hevc->params->p.conf_win_top_offset +
+				hevc->params->p.conf_win_bottom_offset);
+			if (debug & H265_DEBUG_BUFMGR)
+				pr_info("conformance_window %d, %d, %d, %d, %d => cropped width %d, height %d\n",
+					hevc->params->p.chroma_format_idc,
+					hevc->params->p.conf_win_left_offset,
+					hevc->params->p.conf_win_right_offset,
+					hevc->params->p.conf_win_top_offset,
+					hevc->params->p.conf_win_bottom_offset,
+					vf->width, vf->height);
+		}
+
 		kfifo_put(&display_q, (const struct vframe_s *)vf);
 
 		vf_notify_receiver(PROVIDER_NAME,
