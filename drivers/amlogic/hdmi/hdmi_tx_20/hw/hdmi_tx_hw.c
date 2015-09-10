@@ -2875,7 +2875,8 @@ void vpp_set_ycbcr2rgb (int yc_full_range, int venc_no)
 }
 */
 
-static int hdmitx_hdmi_dvi_config(unsigned int dvi_mode)
+static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
+						unsigned int dvi_mode)
 {
 	if (dvi_mode == 1) {
 		unsigned char *coef = NULL;
@@ -2916,8 +2917,11 @@ static int hdmitx_hdmi_dvi_config(unsigned int dvi_mode)
 		/* disable csc in video path */
 		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x0);
 
-		/* set ycc444 indicator */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
+		/* set ycc indicator */
+		if (hdev->mode420 == 1)
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 3, 0, 2);
+		else
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
 
 		/* set hdmi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
@@ -2936,7 +2940,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 
 	switch (cmd) {
 	case CONF_HDMI_DVI_MODE:
-		hdmitx_hdmi_dvi_config((argv == DVI_MODE)?1:0);
+		hdmitx_hdmi_dvi_config(hdev, (argv == DVI_MODE)?1:0);
 		break;
 	case CONF_SYSTEM_ST:
 		break;
