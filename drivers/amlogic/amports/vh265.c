@@ -5286,7 +5286,8 @@ static int vh265_stop(void)
 		vf_unreg_provider(&vh265_vf_prov);
 		stat &= ~STAT_VF_HOOK;
 	}
-	/* hevc_local_uninit(); */
+
+	hevc_local_uninit();
 
 	if (use_cma) {
 		uninit_list = 1;
