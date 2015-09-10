@@ -415,11 +415,25 @@ EXPORT_SYMBOL(get_audio_info);
 static void amstream_change_vbufsize(struct stream_port_s *port,
 	struct stream_buf_s *pvbuf)
 {
-	if (pvbuf->type == BUF_TYPE_VIDEO) {
+
+	if (pvbuf->buf_start != 0) {
+		pr_info("streambuf is alloced before\n");
+		return;
+	}
+	if (pvbuf->type == BUF_TYPE_VIDEO || pvbuf->type == BUF_TYPE_HEVC) {
 		if (port->vformat == VFORMAT_H264_4K2K ||
 			port->vformat == VFORMAT_HEVC) {
+			int framesize = amstream_dec_info.height *
+				amstream_dec_info.width;
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K;
-			if (codec_mm_get_total_size() < 220 * SZ_1M) {
+			if ((framesize > 0) &&
+				(port->vformat == VFORMAT_HEVC) &&
+				(framesize <= 1920 * 1088)) {
+				/*if hevc not 4k used 15M streambuf.*/
+				pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
+			}
+			if ((pvbuf->buf_size > 30 * SZ_1M) &&
+			(codec_mm_get_total_size() < 220 * SZ_1M)) {
 				/*if less than 250M, used 20M for 4K & 265*/
 				pvbuf->buf_size = pvbuf->buf_size >> 1;
 			}

@@ -53,7 +53,8 @@ static DEFINE_MUTEX(vdec_mutex);
 #define MEM_NAME "vdec_prealloc"
 #define SUPPORT_VCODEC_NUM  1
 static int inited_vcodec_num;
-static int poweron_clock_level, keep_vdec_mem;
+static int poweron_clock_level;
+static int keep_vdec_mem;
 static unsigned int debug_trace_num = 16 * 20;
 static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
@@ -114,8 +115,8 @@ static int vdec_default_buf_size[] = {
 	32, /*"amvdec_avs",*/
 	32, /*"amvdec_yuv",*/
 	64, /*"amvdec_h264mvc",*/
-	64, /*"amvdec_h264_4k2k", else alloc on decoder*/
-	64, /*"amvdec_h265", else alloc on decoder*/
+	48, /*"amvdec_h264_4k2k", else alloc on decoder*/
+	48, /*"amvdec_h265", else alloc on decoder*/
 	0
 };
 
@@ -1130,7 +1131,7 @@ fast start.
 */
 void pre_alloc_vdec_memory(void)
 {
-	if (vdec_dev_reg.mem_start)
+	if (!keep_vdec_mem || vdec_dev_reg.mem_start)
 		return;
 
 	vdec_dev_reg.mem_start = codec_mm_alloc_for_dma(MEM_NAME,
