@@ -67,6 +67,8 @@ static struct aml_dvb aml_dvb_device;
 static struct class aml_stb_class;
 static struct reset_control *aml_dvb_demux_reset_ctl;
 static struct reset_control *aml_dvb_afifo_reset_ctl;
+static struct reset_control *aml_dvb_ahbarb0_reset_ctl;
+static struct reset_control *aml_dvb_uparsertop_reset_ctl;
 
 
 static int aml_tsdemux_reset(void);
@@ -1338,6 +1340,16 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	pr_inf("asyncfifo rst ctl = %p\n", aml_dvb_afifo_reset_ctl);
 	reset_control_deassert(aml_dvb_afifo_reset_ctl);
 
+	aml_dvb_ahbarb0_reset_ctl =
+		devm_reset_control_get(&pdev->dev, "ahbarb0");
+	pr_inf("ahbarb0 rst ctl = %p\n", aml_dvb_ahbarb0_reset_ctl);
+	reset_control_deassert(aml_dvb_ahbarb0_reset_ctl);
+
+	aml_dvb_uparsertop_reset_ctl =
+		devm_reset_control_get(&pdev->dev, "uparsertop");
+	pr_inf("uparsertop rst ctl = %p\n", aml_dvb_uparsertop_reset_ctl);
+	reset_control_deassert(aml_dvb_uparsertop_reset_ctl);
+
 	advb = &aml_dvb_device;
 	memset(advb, 0, sizeof(aml_dvb_device));
 
@@ -1518,6 +1530,8 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	}
 
 	/*switch_mod_gate_by_name("demux", 0); */
+	reset_control_assert(aml_dvb_uparsertop_reset_ctl);
+	reset_control_assert(aml_dvb_ahbarb0_reset_ctl);
 	reset_control_assert(aml_dvb_afifo_reset_ctl);
 	reset_control_assert(aml_dvb_demux_reset_ctl);
 

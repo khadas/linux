@@ -963,8 +963,10 @@
 		pinctrl-0 = <&dvb_p_ts0_pins>;
 		pinctrl-1 = <&dvb_s_ts0_pins>;
 		resets = <&clock GCLK_IDX_DEMUX
-				&clock GCLK_IDX_ASYNC_FIFO>;
-		reset-names = "demux", "asyncfifo";
+				&clock GCLK_IDX_ASYNC_FIFO
+				&clock GCLK_IDX_AHB_ARB0
+				&clock GCLK_IDX_HIU_PARSER_TOP>;
+		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
 	dvbfe {
 		compatible = "amlogic, dvbfe";
