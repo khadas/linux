@@ -632,6 +632,8 @@
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
 		key = <&efusekey>;
+		resets = <&clock GCLK_IDX_EFUSE>;
+		reset-names = "efuse_clk";
 		status = "disabled";
 	};
 	efusekey:efusekey{

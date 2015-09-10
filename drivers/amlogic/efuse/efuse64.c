@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/reset.h>
 
 #include <linux/amlogic/secmon.h>
 #include "efuse.h"
@@ -554,6 +555,7 @@ int get_efusekey_info(struct device_node *np)
 			goto err;
 		}
 		pr_info("\tsize: %d\n", efusekey_infos[index].size);
+		kfree(propname);
 	}
 	return 0;
 err:
@@ -567,6 +569,14 @@ static int efuse_probe(struct platform_device *pdev)
 	int ret;
 	struct device *devp;
 	struct device_node *np = pdev->dev.of_node;
+	struct reset_control *efuse_rst;
+
+	/* open clk gate HHI_GCLK_MPEG0 bit62*/
+	efuse_rst = devm_reset_control_get(&pdev->dev, "efuse_clk");
+	if (IS_ERR(efuse_rst))
+		dev_err(&pdev->dev, " open efuse clk gate error!!\n");
+	else
+		reset_control_deassert(efuse_rst);
 
 	if (pdev->dev.of_node) {
 		of_node_get(np);
