@@ -150,7 +150,7 @@ static u32 force_w_h;
 #define H265_DEBUG_NO_EOS_SEARCH_DONE     0x800000
 #define H265_DEBUG_NOT_USE_LAST_DISPBUF   0x1000000
 
-const u32 h265_version = 201509011;
+const u32 h265_version = 201509101;
 static u32 debug;
 static u32 radr;
 static u32 rval;
@@ -216,7 +216,11 @@ bit 1, 1: only decode I picture;
 */
 static u32 i_only_flag;
 
-static u32 use_cma = 1;
+/*
+use_cma: 1, use both reserver memory and cma for buffers
+2, only use cma for buffers
+*/
+static u32 use_cma = 2;
 static unsigned char init_flag;
 static unsigned char uninit_list;
 
@@ -1371,6 +1375,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 		m_BUF[i].alloc_flag = 0;
 		m_BUF[i].index = i;
 
+		if (use_cma == 2)
+			hevc->use_cma_flag = 1;
 		if (hevc->use_cma_flag) {
 			if ((m_BUF[i].cma_page_count != 0)
 				&& (m_BUF[i].alloc_addr != 0)
