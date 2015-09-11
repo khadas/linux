@@ -368,6 +368,8 @@ extern const struct vinfo_s *hdmi_get_current_vinfo(void);
 extern enum fine_tune_mode_e get_hpll_tune_mode(void);
 extern void register_hdmi_edid_supported_func(int (*pfunc)(char *mode_name));
 #endif
+void phy_pll_off(void);
+
 
 
 /***********************************************************************

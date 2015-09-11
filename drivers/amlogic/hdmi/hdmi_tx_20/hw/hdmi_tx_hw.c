@@ -1449,7 +1449,7 @@ static void digital_clk_on(unsigned char flag)
 	}
 }
 
-static void phy_pll_off(void)
+void phy_pll_off(void)
 {
 	hdmi_phy_suspend();
 }
@@ -1506,7 +1506,6 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 {
 	if (!hdev)
 		return;
-
 	switch (hdev->cur_VIC) {
 	case HDMI_4k2k_24:
 	case HDMI_4k2k_25:
@@ -1550,6 +1549,7 @@ do { \
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
+	msleep(100);
 	RESET_HDMI_PHY();
 	RESET_HDMI_PHY();
 	RESET_HDMI_PHY();
@@ -1596,7 +1596,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	if (color_space_f != 0)
 		param->color = color_space_f;
 	hdmitx_set_pll(hdev, param);
-	hdmitx_set_phy(hdev);
+	/*hdmitx_set_phy(hdev);*/
 	set_vmode_enc_hw(param->VIC);
 	switch (param->VIC) {
 	case HDMI_480i60:
@@ -1636,6 +1636,15 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
 	}
+
+	hdmitx_set_hw(param->VIC);
+	if (hdev->mode420 == 1)
+		hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
+
+	/* move hdmitx_set_pll() to the end of this function. */
+	/* hdmitx_set_pll(param); */
+	hdev->cur_VIC = param->VIC;
+	hdmitx_set_phy(hdev);
 	switch (param->VIC) {
 	case HDMI_480i60:
 	case HDMI_480i60_16x9:
@@ -1649,14 +1658,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		enc_vpu_bridge_reset(1);
 		break;
 	}
-	hdmitx_set_hw(param->VIC);
-	if (hdev->mode420 == 1)
-		hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
-
-	/* move hdmitx_set_pll() to the end of this function. */
-	/* hdmitx_set_pll(param); */
-	hdev->cur_VIC = param->VIC;
-	hdmitx_set_phy(hdev);
 
 	if (hdev->mode420 == 1) {
 		/* change AVI packet */
@@ -1674,7 +1675,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 	mdelay(1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
-
 	return 0;
 }
 

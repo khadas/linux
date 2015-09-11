@@ -37,6 +37,7 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 
 /* Local Headers */
 #include "vout_log.h"
@@ -170,7 +171,8 @@ static void set_vout_mode(char *name)
 		vout_log_info("don't set the same mode as current.\n");
 		return;
 	}
-
+	phy_pll_off();
+	vout_log_info("disable HDMI PHY as soon as possible\n");
 	set_current_vmode(mode);
 	vout_log_info("new mode %s set ok\n", name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
