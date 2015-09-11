@@ -174,7 +174,7 @@ static inline int pool_index(struct vframe_s *vf)
 {
 	if ((vf >= &vfpool[0]) && (vf <= &vfpool[VF_POOL_SIZE - 1]))
 		return 0;
-	else if ((vf >= &vfpool[1]) && (vf <= &vfpool2[VF_POOL_SIZE - 1]))
+	else if ((vf >= &vfpool2[0]) && (vf <= &vfpool2[VF_POOL_SIZE - 1]))
 		return 1;
 	else
 		return -1;
@@ -633,9 +633,10 @@ static void vmpeg_put_timer_func(unsigned long arg)
 	while (!kfifo_is_empty(&recycle_q) && (READ_VREG(MREG_BUFFERIN) == 0)) {
 		struct vframe_s *vf;
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index >= 0) && (--vfbuf_use[vf->index] == 0)) {
+			if ((vf->index < DECODE_BUFFER_NUM_MAX) &&
+			 (--vfbuf_use[vf->index] == 0)) {
 				WRITE_VREG(MREG_BUFFERIN, vf->index + 1);
-				vf->index = -1;
+				vf->index = DECODE_BUFFER_NUM_MAX;
 			}
 
 			if (pool_index(vf) == cur_pool_idx) {
@@ -848,8 +849,6 @@ static void vmpeg12_prot_init(void)
 static void vmpeg12_local_init(void)
 {
 	int i;
-	unsigned long flags;
-	spin_lock_irqsave(&lock, flags);
 
 	INIT_KFIFO(display_q);
 	INIT_KFIFO(recycle_q);
@@ -858,16 +857,20 @@ static void vmpeg12_local_init(void)
 	cur_pool_idx ^= 1;
 
 	for (i = 0; i < VF_POOL_SIZE; i++) {
-		const struct vframe_s *vf =
-			(cur_pool_idx == 0) ? &vfpool[i] : &vfpool2[i];
-		vfpool[i].index = -1;
+		const struct vframe_s *vf;
+		if (cur_pool_idx == 0) {
+			vf = &vfpool[i];
+			vfpool[i].index = DECODE_BUFFER_NUM_MAX;
+			} else {
+			vf = &vfpool2[i];
+			vfpool2[i].index = DECODE_BUFFER_NUM_MAX;
+			}
 		kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 	}
 
 	for (i = 0; i < DECODE_BUFFER_NUM_MAX; i++)
 		vfbuf_use[i] = 0;
 
-	spin_unlock_irqrestore(&lock, flags);
 
 	frame_width = frame_height = frame_dur = frame_prog = 0;
 	frame_force_skip_flag = 0;
