@@ -637,7 +637,7 @@ int remote_hw_reprot_key(struct remote *remote_data)
 					  msecs_to_jiffies
 					  (remote_data->release_delay
 					   [remote_data->map_num]));
-			return -1;
+			/*return -1;*/
 		}
 		mod_timer(&remote_data->timer,
 			  jiffies +
