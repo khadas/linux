@@ -92,10 +92,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	int file_cma = 0;
 	struct zone *zone = NULL;
 
-	if (IS_ENABLED(CONFIG_CMA) &&
-	    (allocflags_to_migratetype(sc->gfp_mask) != MIGRATE_MOVABLE))
-		other_free -= global_page_state(NR_FREE_CMA_PAGES);
-
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
