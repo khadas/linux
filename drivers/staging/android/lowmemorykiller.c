@@ -89,11 +89,27 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
+	int file_cma = 0;
+	struct zone *zone = NULL;
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
+	if (IS_ENABLED(CONFIG_CMA)
+		&& (allocflags_to_migratetype(sc->gfp_mask)
+			!= MIGRATE_MOVABLE)) {
+		other_free -= global_page_state(NR_FREE_CMA_PAGES);
+		for_each_zone(zone) {
+			if (zone->managed_pages == 0)
+				continue;
+			spin_lock_irq(&zone->lru_lock);
+			file_cma = zone_page_state(zone, NR_INACTIVE_FILE_CMA)
+				+ zone_page_state(zone, NR_ACTIVE_FILE_CMA);
+			spin_unlock_irq(&zone->lru_lock);
+			other_file = other_file - file_cma;
+		}
+	}
 	for (i = 0; i < array_size; i++) {
 		minfree = lowmem_minfree[i];
 		if (other_free < minfree && other_file < minfree) {

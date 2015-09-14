@@ -726,7 +726,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 			page = list_entry(list->prev, struct page, lru);
 			/* must delete as __free_one_page list manipulates */
 			list_del(&page->lru);
-			mt = get_pageblock_migratetype(page);
+			mt = get_freepage_migratetype(page);
 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
 			__free_one_page(page, zone, 0, mt);
 			trace_mm_page_pcpu_drain(page, 0, mt);
@@ -1658,7 +1658,7 @@ again:
 			page = list_entry(list->next, struct page, lru);
 #ifdef CONFIG_CMA
 		if (gfp_flags & __GFP_BDEV) {
-			if (get_pageblock_migratetype(page) == MIGRATE_CMA) {
+			if (get_freepage_migratetype(page) == MIGRATE_CMA) {
 				spin_lock(&zone->lock);
 				migratetype |= __GFP_BDEV;
 				page = __rmqueue(zone, order, migratetype);
@@ -1667,11 +1667,11 @@ again:
 				if (!page)
 					goto failed;
 				__mod_zone_freepage_state(zone, -(1 << order),
-					  get_pageblock_migratetype(page));
+					  get_freepage_migratetype(page));
 				goto alloc_sucess;
 			}
 		} else if (migratetype == MIGRATE_MOVABLE) {
-			if (get_pageblock_migratetype(page) != MIGRATE_CMA) {
+			if (get_freepage_migratetype(page) != MIGRATE_CMA) {
 				spin_lock(&zone->lock);
 				tmp_page = __rmqueue(zone, order, MIGRATE_CMA);
 				spin_unlock(&zone->lock);
@@ -1679,7 +1679,7 @@ again:
 					goto use_pcp_page;
 				page = tmp_page;
 				__mod_zone_freepage_state(zone, -(1 << order),
-					  get_pageblock_migratetype(page));
+					  get_freepage_migratetype(page));
 				goto alloc_sucess;
 			}
 		}
@@ -1707,7 +1707,7 @@ use_pcp_page:
 		if (!page)
 			goto failed;
 		__mod_zone_freepage_state(zone, -(1 << order),
-					  get_pageblock_migratetype(page));
+					  get_freepage_migratetype(page));
 	}
 #ifdef CONFIG_CMA
 alloc_sucess:
@@ -3290,7 +3290,8 @@ void show_free_areas(unsigned int filter)
 		global_page_state(NR_SHMEM),
 		global_page_state(NR_PAGETABLE),
 		global_page_state(NR_BOUNCE),
-		global_page_state(NR_FREE_CMA_PAGES));
+		global_page_state(NR_FREE_CMA_PAGES)
+		);
 
 	for_each_populated_zone(zone) {
 		int i;
@@ -3381,7 +3382,6 @@ void show_free_areas(unsigned int filter)
 
 			nr[order] = area->nr_free;
 			total += nr[order] << order;
-
 			types[order] = 0;
 			for (type = 0; type < MIGRATE_TYPES; type++) {
 				if (!list_empty(&area->free_list[type]))

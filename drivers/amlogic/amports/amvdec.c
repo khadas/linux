@@ -242,7 +242,7 @@ int amvdec_wake_unlock(void)
 static s32 am_loadmc_ex(enum vformat_e type,
 		const char *name, char *def, s32(*load)(const u32 *))
 {
-	char *mc_addr = kmalloc(4096 * 4, GFP_KERNEL);
+	char *mc_addr = vmalloc(4096 * 4);
 	char *pmc_addr = def;
 	int err;
 
@@ -254,7 +254,7 @@ static s32 am_loadmc_ex(enum vformat_e type,
 			pmc_addr = mc_addr;
 	}
 	if (!pmc_addr) {
-		kfree(mc_addr);
+		vfree(mc_addr);
 		return -1;
 	}
 	err = (*load)((u32 *) pmc_addr);
@@ -262,7 +262,7 @@ static s32 am_loadmc_ex(enum vformat_e type,
 		pr_info("loading firmware %s to vdec ram  failed!\n", name);
 		return err;
 	}
-	kfree(mc_addr);
+	vfree(mc_addr);
 	pr_info("loading firmware %s to vdec ram  ok!\n", name);
 	return err;
 }
