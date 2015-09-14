@@ -422,15 +422,11 @@ static int wifi_power_remove(struct platform_device *pdev)
 
 static int wifi_power_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	if (wifi_power_configed && suspend_set_power)
-		usb_wifi_power(!power_gpio_valid_level);
 	return 0;
 }
 
 static int wifi_power_resume(struct platform_device *pdev)
 {
-	if (wifi_power_configed && suspend_set_power)
-		usb_wifi_power(power_gpio_valid_level);
 	return 0;
 }
 
