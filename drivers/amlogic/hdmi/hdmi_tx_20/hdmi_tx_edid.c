@@ -206,7 +206,7 @@ void Edid_CompareTimingDescriptors(struct hdmitx_info *info,
 	for (index1 = 0; index1 < 17; index1++) {
 		for (index2 = 0; index2 < 12; index2++) {
 			if (Data[index2] !=
-				Edid_TimingDescriptors[index1*14+index2]
+				Edid_TimingDescriptors[index1*12+index2]
 				)
 				break;
 		}
