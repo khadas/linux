@@ -115,7 +115,7 @@ static int vdec_default_buf_size[] = {
 	32, /*"amvdec_avs",*/
 	32, /*"amvdec_yuv",*/
 	64, /*"amvdec_h264mvc",*/
-	48, /*"amvdec_h264_4k2k", else alloc on decoder*/
+	64, /*"amvdec_h264_4k2k", else alloc on decoder*/
 	48, /*"amvdec_h265", else alloc on decoder*/
 	0
 };
@@ -143,7 +143,7 @@ int vdec_set_resource(unsigned long start, unsigned long end, struct device *p)
 	return 0;
 }
 
-s32 vdec_init(enum vformat_e vf)
+s32 vdec_init(enum vformat_e vf, int is_4k)
 {
 	s32 r;
 	int retry_num = 0;
@@ -153,7 +153,7 @@ s32 vdec_init(enum vformat_e vf)
 		return -EIO;
 	}
 	if (vf == VFORMAT_H264_4K2K ||
-		vf == VFORMAT_HEVC) {
+		(vf == VFORMAT_HEVC && is_4k)) {
 		try_free_keep_video();
 	}
 	inited_vcodec_num++;
@@ -167,15 +167,14 @@ s32 vdec_init(enum vformat_e vf)
 		int alloc_size = vdec_default_buf_size[vf] * SZ_1M;
 		if (alloc_size == 0)
 			break;/*alloc end*/
-		pr_info("vdec cma tool size = %ld MB\n",
-			dma_get_cma_size_int_byte(vdec_dev_reg.cma_dev)
-				/ SZ_1M);
-
-		/*vdec_cma_page = dma_alloc_from_contiguous(
-			vdec_dev_reg.cma_dev,
-			CMA_ALLOC_SIZE / PAGE_SIZE, 4);
-		*/
-
+		if (is_4k) {
+			/*used 264 4k's setting for 265.*/
+			int m4k_size =
+				vdec_default_buf_size[VFORMAT_H264_4K2K] *
+				SZ_1M;
+			if ((m4k_size > 0) && (m4k_size < 200 * SZ_1M))
+				alloc_size = m4k_size;
+		}
 		vdec_dev_reg.mem_start = codec_mm_alloc_for_dma(MEM_NAME,
 			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR);
@@ -1174,6 +1173,12 @@ static int vdec_probe(struct platform_device *pdev)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* set vdec dmc request to urgent */
 		WRITE_DMCREG(DMC_AM5_CHAN_CTRL, 0x3f203cf);
+	}
+	if (codec_mm_get_reserved_size() >= 48 * SZ_1M
+		&& codec_mm_get_reserved_size() <=  96 * SZ_1M) {
+		vdec_default_buf_size[VFORMAT_H264_4K2K] =
+			codec_mm_get_reserved_size() / SZ_1M;
+		/*all reserved size for prealloc*/
 	}
 	pre_alloc_vdec_memory();
 	return 0;

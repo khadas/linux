@@ -509,7 +509,10 @@ static int video_port_init(struct stream_port_s *port,
 		return r;
 	}
 
-	r = vdec_init(port->vformat);
+	r = vdec_init(port->vformat,
+		(amstream_dec_info.height *
+		 amstream_dec_info.width) > 1920*1088);
+
 	if (r < 0) {
 		pr_err("video_port_init %d, vdec_init failed\n", __LINE__);
 		video_port_release(port, pbuf, 2);

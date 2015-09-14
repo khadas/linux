@@ -29,7 +29,11 @@ memflags
 
 #define CODEC_MM_FLAGS_RESERVED 0x100
 #define CODEC_MM_FLAGS_CMA		0x200
-
+/*alloc from cma first,
+cma->then ..reserved.
+for less memory fragment;
+*/
+#define CODEC_MM_FLAGS_CMA_FIRST 0x400
 
 /*if cma,
 clear thie buffer cache.
@@ -65,6 +69,7 @@ void codec_mm_dma_flush(void *vaddr,
 
 int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
+int codec_mm_get_reserved_size(void);
 
 
 

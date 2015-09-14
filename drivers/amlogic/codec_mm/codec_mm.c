@@ -95,8 +95,9 @@ static int codec_mm_alloc_in(
 	struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 {
 	int try_alloced_from_sys = 0;
+	int try_alloced_from_reserved = 0;
 	int align_2n = mem->align2n < PAGE_SHIFT ? PAGE_SHIFT : mem->align2n;
-
+	int try_cma_first = mem->flags & CODEC_MM_FLAGS_CMA_FIRST;
 	do {
 		if ((mem->flags & CODEC_MM_FLAGS_DMA_CPU) &&
 			mem->page_count <= mgt->alloc_from_sys_pages_max &&
@@ -112,8 +113,9 @@ static int codec_mm_alloc_in(
 			}
 			try_alloced_from_sys = 1;
 		}
-
-		if ((CODEC_MM_FOR_DMA_ONLY(mem->flags) |
+		/*reserved first..*/
+		if (!try_cma_first && /*if cma first, ignore this alloc.*/
+			(CODEC_MM_FOR_DMA_ONLY(mem->flags) |
 			(mem->flags & CODEC_MM_FLAGS_RESERVED))
 			&& mgt->res_pool != NULL &&
 			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
@@ -130,7 +132,9 @@ static int codec_mm_alloc_in(
 				mem->buffer_size = aligned_buffer_size;
 				break;
 			}
+			try_alloced_from_reserved = 1;
 		}
+		/*cma first..*/
 		if (mem->flags &
 			(CODEC_MM_FLAGS_CMA | CODEC_MM_FLAGS_DMA_CPU)) {
 			mem->mem_handle = dma_alloc_from_contiguous(mgt->dev,
@@ -148,6 +152,26 @@ static int codec_mm_alloc_in(
 						mem->buffer_size);
 				}
 #endif
+				break;
+			}
+		}
+
+		if (!try_alloced_from_reserved &&
+			(CODEC_MM_FOR_DMA_ONLY(mem->flags) |
+			(mem->flags & CODEC_MM_FLAGS_RESERVED))
+			&& mgt->res_pool != NULL &&
+			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
+			int aligned_buffer_size = ALIGN(mem->buffer_size,
+					(1 << RESERVE_MM_ALIGNED_2N));
+			mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool,
+							aligned_buffer_size);
+			mem->from_flags =
+				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED;
+			if (mem->mem_handle) {
+				/*default is no maped */
+				mem->vbuffer = NULL;
+				mem->phy_addr = (unsigned long)mem->mem_handle;
+				mem->buffer_size = aligned_buffer_size;
 				break;
 			}
 		}
@@ -488,6 +512,11 @@ int codec_mm_get_free_size(void)
 	mgt->total_alloced_size;
 }
 
+int codec_mm_get_reserved_size(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	return mgt->rmem.size & (~((1 << RESERVE_MM_ALIGNED_2N) - 1));
+}
 
 int codec_mm_mgt_init(struct device *dev)
 {

@@ -52,9 +52,17 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 
 	while (buf->buf_start == 0) {
 		int flags = CODEC_MM_FLAGS_DMA;
+
 		buf->buf_page_num = PAGE_ALIGN(buf->buf_size) / PAGE_SIZE;
 		if (buf->type == BUF_TYPE_SUBTITLE)
 			flags = CODEC_MM_FLAGS_DMA_CPU;
+
+		/*if 4k,
+		used cma first,for less mem fragments.
+		*/
+		if (buf->buf_size > 20 * 1024 * 1024)
+			flags = CODEC_MM_FLAGS_CMA_FIRST;
+
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
 			buf->buf_page_num, 4+PAGE_SHIFT, flags);
 		if (!buf->buf_start) {
