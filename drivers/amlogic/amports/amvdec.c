@@ -25,6 +25,7 @@
 #include <linux/amlogic/amports/vformat.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 #include "vdec.h"
 
 #ifdef CONFIG_PM
