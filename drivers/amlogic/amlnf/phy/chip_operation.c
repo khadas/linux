@@ -106,7 +106,7 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 	struct read_retry_info *retry_info = &(controller->retry_info);
 	unsigned char need_retry;
 	unsigned char *retry_cnt;
-	int retry_op_cnt, retry_cnt_lp, retry_cnt_up, ret;
+	int retry_op_cnt, retry_cnt_lp, retry_cnt_up, ret, eret;
 
 	retry_op_cnt = retry_cnt_lp = retry_info->retry_cnt_lp;
 	retry_cnt_up = retry_info->retry_cnt_up;
@@ -123,9 +123,17 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 	ret = controller->hwecc_correct(controller, page_size, tmp_buf);
 	if (ret ==  NAND_ECC_FAILURE) {
 		/* check rand_mode and 0xff page */
-		if (controller->zero_cnt < controller->ecc_max)
-			return RETURN_PAGE_ALL_0XFF;
-		/* ecc fail */
+		if (controller->zero_cnt < controller->ecc_max) {
+				if (*retry_cnt != 0) {
+					aml_nand_msg("%s() FF %d exit retry",
+					__func__, controller->page_addr);
+					ret = RETURN_PAGE_ALL_0XFF;
+					goto _out;
+				}
+				aml_nand_dbg("F");
+				return RETURN_PAGE_ALL_0XFF;
+		}
+		/* ecc fail, enable retry flag */
 		need_retry = 0;
 		if (retry_info->flag && (slc_mode == 0)) {
 			if ((flash->new_type != SANDISK_19NM)
@@ -186,9 +194,10 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 	ret = 0;
 	}
 	/*  exit after all retry effort */
+_out:
 	if ((*retry_cnt) && retry_info->exit) {
-		ret |= retry_info->exit(controller, chipnr);
-		if (ret < 0) {
+		eret = retry_info->exit(controller, chipnr);
+		if (eret < 0) {
 			aml_nand_msg("retry exit failed");
 			aml_nand_msg("flash->new_type:%d, cnt:%d",
 				flash->new_type,

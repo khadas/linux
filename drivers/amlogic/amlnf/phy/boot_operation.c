@@ -232,23 +232,23 @@ int roomboot_nand_read(struct amlnand_phydev *phydev)
 	devops->oobbuf = NULL;
 	devops->mode = NAND_HW_ECC;
 
+	amlnand_get_device(aml_chip, CHIP_READING);
 	if (controller->oob_mod) {
 		oob_set = controller->oob_mod;
 		NFC_CLR_OOB_MODE(controller, 3<<26);
 		controller->oob_mod = 0;
 	}
 
-	amlnand_get_device(aml_chip, CHIP_READING);
-
 	ret = read_uboot(phydev);
 	if (ret < 0)
 		aml_nand_dbg("nand read failed at %llx", devops->addr);
 
-	amlnand_release_device(aml_chip);
 	if (oob_set) {
 		controller->oob_mod = oob_set;
 		NFC_SET_OOB_MODE(controller, 3<<26);
 	}
+
+	amlnand_release_device(aml_chip);
 	return ret;
 }
 

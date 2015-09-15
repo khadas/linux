@@ -199,8 +199,9 @@ static int nand_read(struct amlnand_phydev *phydev)
 
 		ret = operation->read_page(aml_chip);
 		if ((ops_para->ecc_err) || (ret < 0)) {
-			aml_nand_msg("phy read failed at devops->addr: %llx",
-				devops->addr);
+			aml_nand_msg("%s(%s) @ off: 0x%llx, glb 0x%x, p 0x%llx",
+				__func__, phydev->name, devops->addr,
+				ops_para->page_addr, addr);
 			break;
 		}
 
