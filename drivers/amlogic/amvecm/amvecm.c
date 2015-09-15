@@ -39,7 +39,7 @@
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
 		if (debug_amvecm)\
-			printk("AMVECM: " fmt, ## args);\
+			pr_info("AMVECM: " fmt, ## args);\
 	} while (0)
 #define pr_amvecm_error(fmt, args...)\
 	printk("AMVECM: " fmt, ## args)
@@ -158,6 +158,26 @@ bool wb_en = 1;  /* wb_en enable/disable */
 module_param(wb_en, bool, 0664);
 MODULE_PARM_DESC(wb_en, "\n wb_en\n");
 
+static int pq_on_off = 2; /* 1 :on    0 :off */
+module_param(pq_on_off, uint, 0664);
+MODULE_PARM_DESC(pq_on_off, "\n pq_on_off\n");
+
+static int cm_on_off = 2; /* 1 :on    0 :off */
+module_param(cm_on_off, uint, 0664);
+MODULE_PARM_DESC(cm_on_off, "\n cm_on_off\n");
+
+static int dnlp_on_off = 2; /* 1 :on    0 :off */
+module_param(dnlp_on_off, uint, 0664);
+MODULE_PARM_DESC(dnlp_on_off, "\n dnlp_on_off\n");
+
+static int sharpness_on_off = 2; /* 1 :on    0 :off */
+module_param(sharpness_on_off, uint, 0664);
+MODULE_PARM_DESC(sharpness_on_off, "\n sharpness_on_off\n");
+
+static int wb_on_off = 2; /* 1 :on    0 :off */
+module_param(wb_on_off, uint, 0664);
+MODULE_PARM_DESC(wb_on_off, "\n wb_on_off\n");
+
 
 /* extern unsigned int cm_size; */
 /* extern unsigned int ve_size; */
@@ -206,6 +226,133 @@ static void amvecm_size_patch(void)
 		ve_frame_size_patch(he-hs+1, ve-vs+1);
 /* #endif */
 
+}
+
+/* video adj1 */
+static ssize_t video_adj1_brightness_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	s32 val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x1ff;
+
+	val = (val << 23) >> 23;
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t video_adj1_brightness_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || (val < -255) || (val > 255))
+		return -EINVAL;
+
+	WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 8, 9);
+	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ1_EN);
+
+	return count;
+}
+
+static ssize_t video_adj1_contrast_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n",
+			(int)(READ_VPP_REG(VPP_VADJ1_Y) & 0xff) - 0x80);
+}
+
+static ssize_t video_adj1_contrast_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || (val < -127) || (val > 127))
+		return -EINVAL;
+
+	val += 0x80;
+
+	WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 0, 8);
+	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ1_EN);
+
+	return count;
+}
+
+/* video adj2 */
+static ssize_t video_adj2_brightness_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	s32 val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x1ff;
+
+	val = (val << 23) >> 23;
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t video_adj2_brightness_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || (val < -255) || (val > 255))
+		return -EINVAL;
+
+	WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val, 8, 9);
+	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ2_EN);
+
+	return count;
+}
+
+static ssize_t video_adj2_contrast_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n",
+			(int)(READ_VPP_REG(VPP_VADJ2_Y) & 0xff) - 0x80);
+}
+
+static ssize_t video_adj2_contrast_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || (val < -127) || (val > 127))
+		return -EINVAL;
+
+	val += 0x80;
+
+	WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val, 0, 8);
+	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ2_EN);
+
+	return count;
+}
+
+static ssize_t amvecm_usage_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	pr_info("Usage:");
+	pr_info("brightness_val range:-255~255\n");
+	pr_info("contrast_val range:-127~127\n");
+	pr_info("saturation_val range:-128~128\n");
+	pr_info("hue_val range:-25~25\n");
+	pr_info("************video brightness & contrast & saturation_hue adj as flow*************\n");
+	pr_info("	echo brightness_val > /sys/class/amvecm/brightness1\n");
+	pr_info("	echo contrast_val > /sys/class/amvecm/contrast1\n");
+	pr_info("	echo saturation_val hue_val > /sys/class/amvecm/saturation_hue_pre\n");
+	pr_info("************after video+osd blender, brightness & contrast & saturation_hue adj as flow*************\n");
+	pr_info("	echo brightness_val > /sys/class/amvecm/brightness2\n");
+	pr_info("	echo contrast_val > /sys/class/amvecm/contrast2\n");
+	pr_info("	echo saturation_val hue_val > /sys/class/amvecm/saturation_hue_post\n");
+	return 0;
 }
 
 static void vd1_brightness_contrast(signed int brightness,
@@ -643,7 +790,7 @@ static void parse_param_amvecm(char *buf_orig, char **parm)
 
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, "\n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -700,6 +847,7 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 		const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
+	long val;
 
 	if (!buf)
 		return count;
@@ -712,22 +860,34 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	parse_param_amvecm(buf_orig, (char **)&parm);
 	if (!strncmp(parm[0], "hstart", 6)) {
-		sync_3d_h_start = (simple_strtol(parm[1], NULL, 10))&0x1fff;
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_h_start = val&0x1fff;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC2, sync_3d_h_start, 0, 13);
 	} else if (!strncmp(parm[0], "hend", 4)) {
-		sync_3d_h_end = (simple_strtol(parm[1], NULL, 10))&0x1fff;
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_h_end = val&0x1fff;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC2, sync_3d_h_end, 16, 13);
 	} else if (!strncmp(parm[0], "vstart", 6)) {
-		sync_3d_v_start = (simple_strtol(parm[1], NULL, 10))&0x1fff;
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_v_start = val&0x1fff;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC1, sync_3d_v_start, 0, 13);
 	} else if (!strncmp(parm[0], "vend", 4)) {
-		sync_3d_v_end = (simple_strtol(parm[1], NULL, 10))&0x1fff;
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_v_end = val&0x1fff;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC1, sync_3d_v_end, 16, 13);
 	} else if (!strncmp(parm[0], "pola", 4)) {
-		sync_3d_polarity = (simple_strtol(parm[1], NULL, 10))&0x1;
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_polarity = val&0x1;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC1, sync_3d_polarity, 29, 1);
 	} else if (!strncmp(parm[0], "inv", 3)) {
-		sync_3d_out_inv = (simple_strtol(parm[1], NULL, 10))&0x1;
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_out_inv = val&0x1;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC1, sync_3d_out_inv, 15, 1);
 	}
 	kfree(buf_orig);
@@ -735,6 +895,103 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 }
 
 /* #endif */
+
+void pq_enable_disable(void)
+{
+
+	if (pq_on_off == 1) {
+		pq_on_off = 2;
+		/* open dnlp clock gate */
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1, 0, 0, 2);
+		dnlp_en = 1;
+		ve_enable_dnlp();
+		/* open cm clock gate */
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 4, 2);
+		cm_en = 1;
+		amcm_enable();
+ /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+		if (is_meson_g9tv_cpu()) {
+			/* open sharpness clock gate */
+			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);
+			/* sharpness on */
+			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1, 1);
+			/* wb on */
+			wb_en = 1;
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
+			/* gamma on */
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
+		}
+/* #endif */
+	} else if (pq_on_off == 0) {
+		pq_on_off = 2;
+
+		dnlp_en = 0;
+		ve_disable_dnlp();
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1, 1, 0, 2);
+		cm_en = 0;
+		amcm_disable();
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 4, 2);
+/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+		if (is_meson_g9tv_cpu()) {
+			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1, 1);
+			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 30, 2);
+			wb_en = 0;
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
+		}
+/* #endif */
+	}
+
+	if (cm_on_off == 1) {
+		cm_on_off = 2;
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 4, 2);
+		cm_en = 1;
+		amcm_enable();
+	} else if (cm_on_off == 0) {
+		cm_on_off = 2;
+		cm_en = 0;
+		amcm_disable();
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 4, 2);
+	}
+
+	if (dnlp_on_off == 1) {
+		dnlp_on_off = 2;
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1, 0, 0, 2);
+		dnlp_en = 1;
+		ve_enable_dnlp();
+	} else if (dnlp_on_off == 0) {
+		dnlp_on_off = 2;
+		dnlp_en = 0;
+		ve_disable_dnlp();
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1, 1, 0, 2);
+	}
+
+/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+	if (is_meson_g9tv_cpu()) {
+		if (sharpness_on_off == 1) {
+			sharpness_on_off = 2;
+			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);
+			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1, 1);
+		} else if (sharpness_on_off == 0) {
+			sharpness_on_off = 2;
+			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1, 1);
+			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 30, 2);
+		}
+
+		if (wb_on_off == 1) {
+			wb_on_off = 2;
+			wb_en = 1;
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
+		} else if (wb_on_off == 0) {
+			wb_on_off = 2;
+			wb_en = 0;
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+		}
+	}
+
+/* #endif */
+
+}
 
 void amvecm_video_latch(struct vframe_s *vf)
 {
@@ -748,7 +1005,6 @@ void amvecm_video_latch(struct vframe_s *vf)
 	lvds_freq_process();
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 	if (is_meson_g9tv_cpu()) {
-		amvecm_vlock_process(vf);
 		amvecm_3d_sync_process();
 		amvecm_3d_black_process();
 	}
@@ -762,6 +1018,7 @@ void amvecm_on_vs(struct vframe_s *vf)
 			amvecm_vlock_process(vf);
 		ve_on_vs(vf);
 	}
+	pq_enable_disable();
 }
 EXPORT_SYMBOL(amvecm_on_vs);
 
@@ -1043,31 +1300,41 @@ static ssize_t amvecm_saturation_hue_store(struct class *cla,
 
 static int parse_para_pq(const char *para, int para_num, int *result)
 {
-	char *endp;
-	const char *startp = para;
+	char *token = NULL;
+	char *params, *params_base;
 	int *out = result;
 	int len = 0, count = 0;
+	int res = 0;
+	int ret = 0;
 
-	if (!startp)
+	if (!para)
 		return 0;
-	len = strlen(startp);
+
+	params = kstrdup(para, GFP_KERNEL);
+	params_base = params;
+	token = params;
+	len = strlen(token);
 	do {
-		/* filter space out */
-		while (startp && (isspace(*startp) ||
-				!isgraph(*startp)) && len) {
-			startp++;
+		token = strsep(&params, " ");
+		while (token && (isspace(*token)
+				|| !isgraph(*token)) && len) {
+			token++;
 			len--;
 		}
 		if (len == 0)
 			break;
-
-		*out++ = simple_strtol(startp, &endp, 0);
-		len -= endp - startp;
-		startp = endp;
+		ret = kstrtoint(token, 0, &res);
+		if (ret < 0)
+			break;
+		len = strlen(token);
+		*out++ = res;
 		count++;
-	} while ((endp) && (count < para_num) && (len > 0));
+	} while ((token) && (count < para_num) && (len > 0));
+
+	kfree(params_base);
 	return count;
 }
+
 
 static ssize_t amvecm_saturation_hue_pre_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -1220,11 +1487,12 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 	int data[5] = {0};
 	unsigned int addr_port = VPP_CHROMA_ADDR_PORT;/* 0x1d70; */
 	unsigned int data_port = VPP_CHROMA_DATA_PORT;/* 0x1d71; */
+	long val;
 
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, "\n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -1239,13 +1507,25 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 			kfree(buf_orig);
 			return count;
 		}
-		addr = simple_strtol(parm[1], NULL, 16);
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		addr = val;
 		addr = addr - addr%8;
-		data[0] = simple_strtol(parm[2], NULL, 16);
-		data[1] = simple_strtol(parm[3], NULL, 16);
-		data[2] = simple_strtol(parm[4], NULL, 16);
-		data[3] = simple_strtol(parm[5], NULL, 16);
-		data[4] = simple_strtol(parm[6], NULL, 16);
+		if (kstrtol(parm[2], 16, &val) < 0)
+			return -EINVAL;
+		data[0] = val;
+		if (kstrtol(parm[3], 16, &val) < 0)
+			return -EINVAL;
+		data[1] = val;
+		if (kstrtol(parm[4], 16, &val) < 0)
+			return -EINVAL;
+		data[2] = val;
+		if (kstrtol(parm[5], 16, &val) < 0)
+			return -EINVAL;
+		data[3] = val;
+		if (kstrtol(parm[6], 16, &val) < 0)
+			return -EINVAL;
+		data[4] = val;
 		WRITE_VPP_REG(addr_port, addr);
 		WRITE_VPP_REG(data_port, data[0]);
 		WRITE_VPP_REG(addr_port, addr + 1);
@@ -1264,7 +1544,9 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 			kfree(buf_orig);
 			return count;
 		}
-		addr = simple_strtol(parm[1], NULL, 16);
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		addr = val;
 		addr = addr - addr%8;
 		WRITE_VPP_REG(addr_port, addr);
 		data[0] = READ_VPP_REG(data_port);
@@ -1297,6 +1579,173 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 	return count;
 }
 
+static ssize_t amvecm_pq_en_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int len = 0;
+/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+	int sharpness_en_val = 0, gamma_en_val = 0;
+	sharpness_en_val = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1);
+	gamma_en_val = READ_VPP_REG_BITS(L_GAMMA_CNTL_PORT, GAMMA_EN, 1);
+/* #endif */
+	len += sprintf(buf+len, "dnlp_en = %d\n", dnlp_en);
+	len += sprintf(buf+len, "cm_en = %d\n", cm_en);
+	len += sprintf(buf+len, "wb_en = %d\n", wb_en);
+/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+	if (is_meson_g9tv_cpu()) {
+		len += sprintf(buf+len,
+				"sharpness_en = %d\n", sharpness_en_val);
+		len += sprintf(buf+len,
+				"gamma_en = %d\n", gamma_en_val);
+	}
+/* #endif */
+	return len;
+}
+
+static ssize_t amvecm_pq_en_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || ((val != 1) && (val != 0)))
+		return -EINVAL;
+
+	if (val == 1)
+		pq_on_off = 1;
+	else
+		pq_on_off = 0;
+	return count;
+}
+
+static ssize_t amvecm_cm_en_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cm_en = %d\n", cm_en);
+}
+
+static ssize_t amvecm_cm_en_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || ((val != 1) && (val != 0)))
+		return -EINVAL;
+
+	if (val == 1)
+		cm_on_off = 1;
+	else
+		cm_on_off = 0;
+	return count;
+
+}
+
+static ssize_t amvecm_dnlp_en_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "dnlp_en = %d\n", dnlp_en);
+}
+
+static ssize_t amvecm_dnlp_en_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || ((val != 1) && (val != 0)))
+		return -EINVAL;
+
+	if (val == 1)
+		dnlp_on_off = 1;
+	else
+		dnlp_on_off = 0;
+	return count;
+
+}
+
+static ssize_t amvecm_sharpness_en_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int val = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1);
+
+	return sprintf(buf, "sharpness_en = %d\n", val);
+}
+
+static ssize_t amvecm_sharpness_en_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || ((val != 1) && (val != 0)))
+		return -EINVAL;
+
+	if (val == 1)
+		sharpness_on_off = 1;
+	else
+		sharpness_on_off = 0;
+	return count;
+
+}
+
+static ssize_t amvecm_gamma_en_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int val = READ_VPP_REG_BITS(L_GAMMA_CNTL_PORT, GAMMA_EN, 1);
+
+	return sprintf(buf, "gamma_en = %d\n", val);
+}
+
+static ssize_t amvecm_gamma_en_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || ((val != 1) && (val != 0)))
+		return -EINVAL;
+
+	if (val == 1)
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;	/* gamma off */
+	else
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;	/* gamma off */
+	return count;
+
+}
+
+static ssize_t amvecm_wb_en_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int val = READ_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 31, 1);
+
+	return sprintf(buf, "sharpness_en = %d\n", val);
+}
+
+static ssize_t amvecm_wb_en_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if ((r != 1) || ((val != 1) && (val != 0)))
+		return -EINVAL;
+
+	if (val == 1)
+		wb_on_off = 1;
+	else
+		wb_on_off = 0;
+	return count;
+
+}
+
 
 static ssize_t amvecm_gamma_show(struct class *cls,
 			struct class_attribute *attr,
@@ -1313,8 +1762,8 @@ static ssize_t amvecm_gamma_show(struct class *cls,
 }
 
 static ssize_t amvecm_gamma_store(struct class *cls,
-			 struct class_attribute *attr,
-			 const char *buffer, size_t count)
+			struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 
 	int n = 0;
@@ -1324,6 +1773,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	unsigned int gamma_count;
 	char gamma[4];
 	int i = 0;
+	long val;
 
 	/* to avoid the bellow warning message while compiling:
 	 * warning: the frame size of 1576 bytes is larger than 1024 bytes
@@ -1335,7 +1785,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, "\n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -1354,7 +1804,10 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 			gamma[1] = parm[1][3 * i + 1];
 			gamma[2] = parm[1][3 * i + 2];
 			gamma[3] = '\0';
-			gammaR[i] = simple_strtol(gamma, NULL, 16);
+			if (kstrtol(gamma, 16, &val) < 0)
+				return -EINVAL;
+			gammaR[i] = val;
+
 		}
 
 		switch (parm[0][2]) {
@@ -1382,6 +1835,64 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	kfree(gammaG);
 	kfree(gammaB);
 	return count;
+}
+
+static ssize_t amvecm_set_post_matrix_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", (int)(READ_VPP_REG(VPP_MATRIX_CTRL)));
+}
+static ssize_t amvecm_set_post_matrix_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "0x%x", &val);
+	if ((r != 1)  || (val & 0xffff0000))
+		return -EINVAL;
+
+	WRITE_VPP_REG(VPP_MATRIX_CTRL, val);
+	return count;
+}
+
+static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n",
+			(int)(READ_VPP_REG(VPP_MATRIX_PROBE_POS)));
+}
+static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "0x%x", &val);
+	if ((r != 1)  || (val & 0xf000f000))
+		return -EINVAL;
+
+	WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, val);
+	return count;
+}
+
+static ssize_t amvecm_post_matrix_data_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int len = 0 , val1 = 0, val2 = 0;
+	val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
+/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+	val2 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR1);
+/* #endif */
+	len += sprintf(buf+len, "VPP_MATRIX_PROBE_COLOR %x\n", val1);
+	len += sprintf(buf+len, "VPP_MATRIX_PROBE_COLOR %x\n", val2);
+	return len;
+}
+static ssize_t amvecm_post_matrix_data_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	return 0;
 }
 
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
@@ -1445,11 +1956,40 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(gamma, S_IRUGO | S_IWUSR,
 		amvecm_gamma_show,
 		amvecm_gamma_store),
+	__ATTR(brightness1, S_IRUGO | S_IWUSR,
+		video_adj1_brightness_show,
+		video_adj1_brightness_store),
+	__ATTR(contrast1, S_IRUGO | S_IWUSR,
+		video_adj1_contrast_show, video_adj1_contrast_store),
+	__ATTR(brightness2, S_IRUGO | S_IWUSR,
+		video_adj2_brightness_show, video_adj2_brightness_store),
+	__ATTR(contrast2, S_IRUGO | S_IWUSR,
+		video_adj2_contrast_show, video_adj2_contrast_store),
+	__ATTR(help, S_IRUGO | S_IWUSR,
+		amvecm_usage_show, NULL),
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 	__ATTR(sync_3d, S_IRUGO | S_IWUSR,
 		amvecm_3d_sync_show,
 		amvecm_3d_sync_store),
+	__ATTR(sharpness_on_off, S_IRUGO | S_IWUSR,
+		amvecm_sharpness_en_show, amvecm_sharpness_en_store),
+	__ATTR(gamma_on_off, S_IRUGO | S_IWUSR,
+		amvecm_gamma_en_show, amvecm_gamma_en_store),
+	__ATTR(wb_on_off, S_IRUGO | S_IWUSR,
+		amvecm_wb_en_show, amvecm_wb_en_store),
 /* #endif */
+	__ATTR(pq_on_off, S_IRUGO | S_IWUSR,
+		amvecm_pq_en_show, amvecm_pq_en_store),
+	__ATTR(cm_on_off, S_IRUGO | S_IWUSR,
+		amvecm_cm_en_show, amvecm_cm_en_store),
+	__ATTR(dnlp_on_off, S_IRUGO | S_IWUSR,
+		amvecm_dnlp_en_show, amvecm_dnlp_en_store),
+	__ATTR(matrix_set, S_IRUGO | S_IWUSR,
+		amvecm_set_post_matrix_show, amvecm_set_post_matrix_store),
+	__ATTR(matrix_pos, S_IRUGO | S_IWUSR,
+		amvecm_post_matrix_pos_show, amvecm_post_matrix_pos_store),
+	__ATTR(matrix_data, S_IRUGO | S_IWUSR,
+		amvecm_post_matrix_data_show, amvecm_post_matrix_data_store),
 	__ATTR_NULL
 };
 

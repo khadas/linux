@@ -60,6 +60,10 @@
 #define FLAG_REG_MAP1           (1 <<  1)
 #define FLAG_REG_MAP0           (1 <<  0)
 
+#define VPP_VADJ2_BLMINUS_EN        (1 << 3)
+#define VPP_VADJ2_EN                (1 << 2)
+#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
+#define VPP_VADJ1_EN                (1 << 0)
 
 #define _VE_CM  'C'
 

@@ -30,7 +30,7 @@
 #define pr_amve_dbg(fmt, args...)\
 	do {\
 		if (dnlp_debug)\
-			printk("AMVECM: " fmt, ## args);\
+			pr_info("AMVE: " fmt, ## args);\
 	} while (0)\
 /* #define pr_amve_error(fmt, args...) */
 /* printk(KERN_##(KERN_INFO) "AMVECM: " fmt, ## args) */
@@ -63,6 +63,12 @@ unsigned int ve_dnlp_black;
 unsigned int ve_dnlp_white;
 unsigned int ve_dnlp_luma_sum;
 static ulong ve_dnlp_lpf[64], ve_dnlp_reg[16];
+static ulong ve_dnlp_reg_def[16] = {
+	0x0b070400,	0x1915120e,	0x2723201c,	0x35312e2a,
+	0x47423d38,	0x5b56514c,	0x6f6a6560,	0x837e7974,
+	0x97928d88,	0xaba6a19c,	0xbfbab5b0,	0xcfccc9c4,
+	0xdad7d5d2,	0xe6e3e0dd,	0xf2efece9,	0xfdfaf7f4
+};
 unsigned int ve_size;
 
 static bool frame_lock_nosm = 1;
@@ -139,10 +145,14 @@ static int dnlp_adj_level = 6;
 module_param(dnlp_adj_level, int, 0664);
 MODULE_PARM_DESC(dnlp_adj_level, "dnlp_adj_level");
 
-static int dnlp_en;/* 0:disabel;1:enable */
+int dnlp_en;/* 0:disabel;1:enable */
 module_param(dnlp_en, int, 0664);
 MODULE_PARM_DESC(dnlp_en, "\n enable or disable dnlp\n");
 static int dnlp_status = 1;/* 0:done;1:todo */
+
+int dnlp_en_2;/* 0:disabel;1:enable */
+module_param(dnlp_en_2, int, 0664);
+MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
 
 static int frame_lock_freq;
 module_param(frame_lock_freq, int, 0664);
@@ -690,10 +700,30 @@ static void ve_dnlp_load_reg(void)
 	}
 }
 
+static void ve_dnlp_load_def_reg(void)
+{
+	WRITE_VPP_REG(VPP_DNLP_CTRL_00, ve_dnlp_reg_def[0]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_01, ve_dnlp_reg_def[1]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_02, ve_dnlp_reg_def[2]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_03, ve_dnlp_reg_def[3]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_04, ve_dnlp_reg_def[4]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_05, ve_dnlp_reg_def[5]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_06, ve_dnlp_reg_def[6]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_07, ve_dnlp_reg_def[7]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_08, ve_dnlp_reg_def[8]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_09, ve_dnlp_reg_def[9]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_10, ve_dnlp_reg_def[10]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_11, ve_dnlp_reg_def[11]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_12, ve_dnlp_reg_def[12]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_13, ve_dnlp_reg_def[13]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_14, ve_dnlp_reg_def[14]);
+	WRITE_VPP_REG(VPP_DNLP_CTRL_15, ve_dnlp_reg_def[15]);
+}
+
 void ve_on_vs(struct vframe_s *vf)
 {
 
-	if (ve_en) {
+	if (dnlp_en_2) {
 		/* calculate dnlp target data */
 		if (ve_dnlp_method == 0)
 			ve_dnlp_calculate_tgt(vf);
@@ -878,7 +908,8 @@ void ve_set_dnlp_2(void)
 	/* calculate dnlp reg data */
 	ve_dnlp_calculate_reg();
 	/* load dnlp reg data */
-	ve_dnlp_load_reg();
+	/*ve_dnlp_load_reg();*/
+	ve_dnlp_load_def_reg();
 }
 
 void ve_set_new_dnlp(struct ve_dnlp_table_s *p)

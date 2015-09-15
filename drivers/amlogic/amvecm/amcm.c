@@ -29,7 +29,7 @@
 #define pr_amcm_dbg(fmt, args...)\
 	do {\
 		if (debug_amcm)\
-			printk("AMCM: " fmt, ## args);\
+			pr_info("AMCM: " fmt, ## args);\
 	} while (0)\
 
 static bool debug_amcm;
@@ -183,10 +183,16 @@ void am_set_regmap(struct am_regs_s *p)
 	return;
 }
 
-void amcm_enable(void)
+void amcm_disable(void)
 {
 	WRITE_VPP_REG_BITS(VPP_MISC, 0, 28, 1);
 }
+
+void amcm_enable(void)
+{
+	WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+}
+
 
 void cm_regmap_latch(struct am_regs_s *am_regs, unsigned int reg_map)
 {
@@ -286,7 +292,7 @@ void cm_latch_process(void)
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");
 	} else if ((cm_en == 0) && (cm_level_last != 0xff)) {
 		cm_level_last = 0xff;
-		amcm_enable();/* CM manage disable */
+		amcm_disable();/* CM manage disable */
 	}
 }
 

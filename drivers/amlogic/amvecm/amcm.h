@@ -37,11 +37,13 @@ extern unsigned int vecm_latch_flag;
 extern unsigned int cm_size;
 extern unsigned int cm2_patch_flag;
 extern int cm_en; /* 0:disabel;1:enable */
+extern int dnlp_en;/*0:disabel;1:enable */
 
 /* *********************************************************************** */
 /* *** IOCTL-oriented functions ****************************************** */
 /* *********************************************************************** */
 void am_set_regmap(struct am_regs_s *p);
+extern void amcm_disable(void);
 extern void amcm_enable(void);
 extern void amcm_level_sel(unsigned int cm_level);
 extern void cm2_frame_size_patch(unsigned int width, unsigned int height);
@@ -68,6 +70,7 @@ extern int cm_load_reg(struct am_regs_s *arg);
 /* #define READ_VPP_REG_BITS(x,start,length) */
 /* READ_CBUS_REG_BITS(x,start,length) */
 /* #endif */
+
 
 #endif
 
