@@ -239,6 +239,18 @@ static int ge2d_paint_dst(struct ge2d_context_s *context,
 			| GE2D_LITTLE_ENDIAN;
 		ge2d_config->dst_para.canvas_index = dst_canvas_id;
 
+		if ((dst_paint_position[2] > dst_cd.width)
+				|| (dst_paint_position[3] > dst_cd.height)) {
+			pr_info("error : id %d,width %d,height %d,dst_width %d,dst_height %d\n",
+					dst_canvas_id,
+					dst_cd.width,
+					dst_cd.height,
+					dst_paint_position[2],
+					dst_paint_position[3]);
+			pr_info("error case : dst addr:%p\n",
+					(void *)dst_cd.addr);
+			return -1;
+		}
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 			ppmgr2_printk(1, "Ge2d configing error.\n");
 			return -1;
@@ -421,7 +433,8 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 	struct ge2d_context_s *context = ppd->context;
 	struct config_para_ex_s *ge2d_config = &(ppd->ge2d_config);
 	int angle = (ppd->angle + src_vf->orientation) % 4;
-
+	if (dst_canvas_id < 0)
+		pr_info("canvas:%d , index:%d\n", dst_canvas_id, index);
 	src_position[0] = 0;
 	src_position[1] = 0;
 	src_position[2] = src_vf->width;

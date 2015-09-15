@@ -25,9 +25,11 @@
 static int is_actived;
 
 static unsigned video_nr = 13;
+static DECLARE_WAIT_QUEUE_HEAD(wq);
 
 static u64 last_pts_us64;
 
+static int ge2d_quit;
 static int scaling_rate = 50;
 module_param(video_nr, uint, 0644);
 MODULE_PARM_DESC(video_nr, "videoX start number, 13 is autodetect");
@@ -157,6 +159,22 @@ static void videoc_omx_compute_pts(struct ionvideo_dev *dev,
 	last_pts_us64 = dev->pts;
 }
 
+static int canvas_is_valid(struct ionvideo_dev *dev , int index)
+{
+	struct ppmgr2_device *ppd;
+	int ret = 0;
+	if (!dev)
+		return 0;
+	ppd = &dev->ppmgr2_dev;
+	if (!ppd)
+		return 0;
+	if (ppd->canvas_id[index] >= 0)
+		ret = 1;
+	if (ppd->canvas_id[index] < 0)
+		pr_info("cancas is %d, it's invalid\n", ppd->canvas_id[index]);
+	return ret;
+}
+
 static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 				struct ionvideo_buffer *buf)
 {
@@ -165,6 +183,8 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 	struct vb2_buffer *vb = &(buf->vb);
 	int ret = 0;
 	/* ------------------------------------------------------- */
+	if (!canvas_is_valid(dev, vb->v4l2_buf.index))
+		return -1;
 	vf = vf_get(RECEIVER_NAME);
 	if (!vf)
 		return -EAGAIN;
@@ -357,12 +377,15 @@ static int ionvideo_thread(void *data)
 
 	set_freezable();
 
+	ge2d_quit = 0;
 	for (;;) {
 		ionvideo_sleep(dev);
 
 		if (kthread_should_stop())
 			break;
 	}
+	ge2d_quit = 1;
+	wake_up_interruptible(&wq);
 	dprintk(dev, 2, "thread: exit\n");
 	return 0;
 }
@@ -404,7 +427,7 @@ static void ionvideo_stop_generating(struct ionvideo_dev *dev)
 		kthread_stop(dma_q->kthread);
 		dma_q->kthread = NULL;
 	}
-
+	wait_event_interruptible_timeout(wq, ge2d_quit != 0, HZ/5);
 	/*
 	 * Typical driver might need to wait here until dma engine stops.
 	 * In this case we can abort imiedetly, so it's just a noop.
@@ -690,6 +713,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->pixelsize = dev->fmt->depth;
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
+	if ((dev->width == 0) || (dev->height == 0))
+		pr_info("ion buffer w/h info is invalid!!!!!!!!!!!\n");
 
 	return 0;
 }
