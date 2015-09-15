@@ -114,9 +114,9 @@ int aml_ntd_nftl_flush(struct ntd_info *ntd)
 *Note         :
 *****************************************************************************/
 static int aml_nftl_calculate_sg(struct aml_nftl_blk *nftl_blk,
-				size_t buflen,
-				unsigned int **buf_addr,
-				unsigned int *offset_addr)
+	size_t buflen,
+	unsigned int **buf_addr,
+	unsigned int *offset_addr)
 {
 	struct scatterlist *sgl;
 	unsigned int offset = 0, segments = 0, buf_start = 0;
@@ -200,7 +200,7 @@ uint write_sync_flag(struct aml_nftl_blk *aml_nftl_blk)
 *Note         :Alloc bounce buf for read/write numbers of pages in one request
 *****************************************************************************/
 int aml_nftl_init_bounce_buf(struct ntd_blktrans_dev *dev,
-		struct request_queue *rq)
+	struct request_queue *rq)
 {
 	int ret = 0;
 	unsigned int bouncesz, tmp_value;
@@ -249,8 +249,8 @@ int aml_nftl_init_bounce_buf(struct ntd_blktrans_dev *dev,
 *Note         :
 *****************************************************************************/
 static int do_nftltrans_request(struct ntd_blktrans_ops *tr,
-			struct ntd_blktrans_dev *dev,
-			struct request *req)
+	struct ntd_blktrans_dev *dev,
+	struct request *req)
 {
 	struct aml_nftl_blk *nftl_blk = (void *)dev;
 	int ret = 0, segments, i;
@@ -332,8 +332,8 @@ static int do_nftltrans_request(struct ntd_blktrans_ops *tr,
 	break;
 
 	case WRITE:
-	write_sync_flag(nftl_blk);
 	bio_flush_dcache_pages(nftl_blk->req->bio);
+	nftl_blk->nftl_dev->sync_flag = 0;
 	for (i = 0; i < (segments+1); i++) {
 		blk_addr = (block + (offset_addr[i] >> tr->blkshift));
 		blk_cnt = ((offset_addr[i+1] - offset_addr[i]) >> tr->blkshift);
@@ -346,6 +346,10 @@ static int do_nftltrans_request(struct ntd_blktrans_ops *tr,
 			break;
 		}
 	}
+	write_sync_flag(nftl_blk);
+	if (nftl_blk->req->cmd_flags & REQ_SYNC)
+		nftl_blk->flush_write_cache(nftl_blk);
+
 	break;
 
 	default:
@@ -366,8 +370,8 @@ static int do_nftltrans_request(struct ntd_blktrans_ops *tr,
 *Note         :
 *****************************************************************************/
 static int aml_nftl_writesect(struct ntd_blktrans_dev *dev,
-				unsigned long block,
-				char *buf)
+	unsigned long block,
+	char *buf)
 {
 	return 0;
 }
