@@ -324,17 +324,23 @@ void dwc_otg_cil_remove(dwc_otg_core_if_t *core_if)
 		DWC_WORKQ_WAIT_WORK_DONE(core_if->wq_otg, 500);
 		DWC_WORKQ_FREE(core_if->wq_otg);
 	}
-	if (core_if->dev_if)
+	if (core_if->dev_if) {
 		DWC_FREE(core_if->dev_if);
+		core_if->dev_if = NULL;
+	}
 
-	if (core_if->host_if)
+	if (core_if->host_if) {
 		DWC_FREE(core_if->host_if);
+		core_if->host_if = NULL;
+	}
 
 
 	/** Remove ADP Stuff  */
 	dwc_otg_adp_remove(core_if);
-	if (core_if->core_params)
+	if (core_if->core_params) {
 		DWC_FREE(core_if->core_params);
+		core_if->core_params = NULL;
+	}
 
 	if (core_if->wkp_timer)
 		DWC_TIMER_FREE(core_if->wkp_timer);
@@ -343,6 +349,7 @@ void dwc_otg_cil_remove(dwc_otg_core_if_t *core_if)
 		DWC_TIMER_FREE(core_if->srp_timer);
 
 	DWC_FREE(core_if);
+	core_if = NULL;
 }
 
 /**

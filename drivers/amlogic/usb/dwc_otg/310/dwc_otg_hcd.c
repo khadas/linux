@@ -947,6 +947,7 @@ static void dwc_otg_hcd_free(dwc_otg_hcd_t *dwc_otg_hcd)
 			DWC_DEBUGPL(DBG_HCDV, "HCD Free channel #%i, hc=%p\n",
 				    i, hc);
 			DWC_FREE(hc);
+			hc = NULL;
 		}
 	}
 
@@ -958,6 +959,7 @@ static void dwc_otg_hcd_free(dwc_otg_hcd_t *dwc_otg_hcd)
 		}
 	} else if (dwc_otg_hcd->status_buf != NULL) {
 		DWC_FREE(dwc_otg_hcd->status_buf);
+		dwc_otg_hcd->status_buf = NULL;
 	}
 	DWC_SPINLOCK_FREE(dwc_otg_hcd->lock);
 	DWC_SPINLOCK_FREE(dwc_otg_hcd->isoc_comp_urbs_lock);
@@ -974,6 +976,7 @@ static void dwc_otg_hcd_free(dwc_otg_hcd_t *dwc_otg_hcd)
 	}
 #endif
 	DWC_FREE(dwc_otg_hcd);
+	dwc_otg_hcd = NULL;
 }
 
 int dwc_otg_hcd_init(dwc_otg_hcd_t *hcd, dwc_otg_core_if_t *core_if)

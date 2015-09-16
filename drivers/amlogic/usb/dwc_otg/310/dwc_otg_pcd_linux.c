@@ -335,6 +335,16 @@ static int ep_queue(struct usb_ep *usb_ep, struct usb_request *usb_req,
 		return -EINVAL;
 	}
 
+	if (!gadget_wrapper) {
+		DWC_WARN("usb device shutdown\n");
+		return -ESHUTDOWN;
+	}
+
+	if (!gadget_wrapper->pcd) {
+		DWC_WARN("usb device shutdown\n");
+		return -ESHUTDOWN;
+	}
+
 	pcd = gadget_wrapper->pcd;
 	if (!gadget_wrapper->driver ||
 	    gadget_wrapper->gadget.speed == USB_SPEED_UNKNOWN) {
@@ -1234,6 +1244,7 @@ static void free_wrapper(struct gadget_wrapper *d)
 {
 	device_unregister(&d->gadget.dev);
 	DWC_FREE(d);
+	d = NULL;
 }
 
 /**

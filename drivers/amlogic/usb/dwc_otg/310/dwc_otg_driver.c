@@ -775,6 +775,11 @@ static void dwc_otg_driver_shutdown(struct platform_device *pdev)
 
 	DWC_DEBUGPL(DBG_ANY, "%s(%p)\n", __func__, pdev);
 
+	/*
+	* Remove the device attributes
+	*/
+	dwc_otg_attr_remove(pdev);
+
 	if (hcd)
 		if (hcd->driver->shutdown)
 			hcd->driver->shutdown(hcd);
@@ -823,11 +828,6 @@ static void dwc_otg_driver_shutdown(struct platform_device *pdev)
 
 	if (otg_dev->id_change_timer)
 		DWC_TIMER_FREE(otg_dev->id_change_timer);
-
-	/*
-	* Remove the device attributes
-	*/
-	dwc_otg_attr_remove(pdev);
 
 	s_clock_name = of_get_property(pdev->dev.of_node, "clock-src", NULL);
 	cpu_type = of_get_property(pdev->dev.of_node, "cpu-type", NULL);

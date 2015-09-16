@@ -1425,6 +1425,8 @@ void dwc_otg_pcd_remove(dwc_otg_pcd_t *pcd)
 	} else {
 		DWC_FREE(pcd->setup_pkt);
 		DWC_FREE(pcd->status_buf);
+		pcd->setup_pkt = NULL;
+		pcd->status_buf = NULL;
 	}
 	DWC_SPINLOCK_FREE(pcd->lock);
 	/* Set core_if's lock pointer to NULL */
@@ -1447,6 +1449,7 @@ void dwc_otg_pcd_remove(dwc_otg_pcd_t *pcd)
 #endif
 
 	DWC_FREE(pcd);
+	pcd = NULL;
 }
 
 /**
