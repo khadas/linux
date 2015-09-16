@@ -492,7 +492,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		PREPARE_DELAYED_WORK(&hdev->work_hpd_plugout,
 			hdmitx_hpd_plugout_handler);
 		queue_delayed_work(hdev->hdmi_wq,
-			&hdev->work_hpd_plugout, HZ / 3);
+			&hdev->work_hpd_plugout, 0);
 	}
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, data32 | 0x6);
 	return IRQ_HANDLED;
