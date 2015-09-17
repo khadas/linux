@@ -1514,6 +1514,12 @@ config SERIAL_ST_ASC_CONSOLE
 	depends on SERIAL_ST_ASC=y
 	select SERIAL_CORE_CONSOLE
 
+config SUPPORT_SYSRQ
+	bool "Support sysrq"
+	default n
+	help
+	  If you want to support sysrq function by uart, say y here.
+
 endmenu
 
 endif # TTY

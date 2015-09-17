@@ -738,6 +738,7 @@
 		fifosize = < 64 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ao_a_uart_pins>;
+		support-sysrq = <0>;	/* 0 not support , 1 support */
 	};
 
 	uart_A: serial@c11084c0 {

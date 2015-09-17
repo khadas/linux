@@ -27,12 +27,16 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/serial.h>
-#include <linux/serial_core.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
+
+#ifdef CONFIG_SUPPORT_SYSRQ
+#define SUPPORT_SYSRQ
+#endif
+#include <linux/serial_core.h>
 
 #include <linux/vmalloc.h>
 #include "meson_uart.h"
@@ -179,6 +183,27 @@ static ssize_t printk_mode_store(struct device_driver *drv, const char *buf,
 
 static DRIVER_ATTR(printkmode, S_IRUGO | S_IWUSR, printk_mode_show,
 		   printk_mode_store);
+
+
+/***********  SYSRQ  **************/
+static int support_sysrq;
+
+static ssize_t support_sysrq_show(struct device_driver *drv, char *buf)
+{
+	return sprintf(buf, "0x%0x\n",  support_sysrq);
+}
+
+static ssize_t support_sysrq_store(struct device_driver *drv, const char *buf,
+			       size_t count)
+{
+	unsigned long long res = 0;
+	if (!kstrtoull(buf, 16, &res))
+		support_sysrq = res;
+	return count;
+}
+
+static DRIVER_ATTR(sysrqsupport, S_IRUGO | S_IWUSR, support_sysrq_show,
+		   support_sysrq_store);
 
 
 static void get_next_node(struct meson_uart_list *cur_col,
@@ -421,6 +446,22 @@ static void meson_receive_chars(struct uart_port *port)
 
 		ch = readl(port->membase + AML_UART_RFIFO);
 		ch &= 0xff;
+
+#ifdef SUPPORT_SYSRQ
+		if (support_sysrq == 1) {
+			if ((status == 0) && (ch == 0)) {
+				port->icount.brk++;
+				if (uart_handle_break(port))
+					continue;
+			}
+
+			if (port->sysrq)
+				flag = TTY_BREAK;
+
+			if (uart_handle_sysrq_char(port, ch))
+				continue;
+		}
+#endif
 
 		uart_insert_char(port, status, AML_UART_RX_FIFO_OVERFLOW,
 				 ch, flag);
@@ -1016,6 +1057,10 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (ret)
 		meson_ports[pdev->id] = NULL;
 
+	prop = of_get_property(pdev->dev.of_node, "support-sysrq", NULL);
+	if (prop)
+		support_sysrq = of_read_ulong(prop, 1);
+
 	return ret;
 }
 
@@ -1111,6 +1156,9 @@ static int __init meson_uart_init(void)
 
 	ret = driver_create_file(&meson_uart_platform_driver.driver,
 		&driver_attr_printkmode);
+
+	ret = driver_create_file(&meson_uart_platform_driver.driver,
+		&driver_attr_sysrqsupport);
 
 	INIT_LIST_HEAD(&cur_col_management.list_head);
 	spin_lock_init(&cur_col_management.lock);
