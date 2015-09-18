@@ -869,8 +869,7 @@ static int remote_resume(struct platform_device *pdev)
 			aml_write_aobus(AO_RTI_STATUS_REG2, 0);
 		}
 	} else {
-		if ((get_resume_method() == REMOTE_WAKEUP) ||
-				((get_resume_method() == AUTO_WAKEUP))) {
+		if (get_resume_method() == REMOTE_WAKEUP) {
 			pr_info("remote_wakeup\n");
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
 			input_sync(gp_remote->input);

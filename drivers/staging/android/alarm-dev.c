@@ -24,6 +24,7 @@
 #include <linux/uaccess.h>
 #include <linux/alarmtimer.h>
 #include "android_alarm.h"
+#include <linux/wakelock_android.h>
 
 #define ANDROID_ALARM_PRINT_INFO (1U << 0)
 #define ANDROID_ALARM_PRINT_IO (1U << 1)
@@ -366,6 +367,10 @@ static void devalarm_triggered(struct devalarm *alarm)
 		alarm_enabled &= ~alarm_type_mask;
 		alarm_pending |= alarm_type_mask;
 		wake_up(&alarm_wait_queue);
+		if (is_wakeup(alarm->type)) {
+			alarm_dbg(INFO, "alarm lock suspend\n");
+			prevent_suspend_timeout(2 * HZ);
+		}
 	}
 	spin_unlock_irqrestore(&alarm_slock, flags);
 }
@@ -429,7 +434,6 @@ static int __init alarm_dev_init(void)
 		if (!is_wakeup(i))
 			alarms[i].u.hrt.function = devalarm_hrthandler;
 	}
-
 	wakeup_source_init(&alarm_wake_lock, "alarm");
 	return 0;
 }
