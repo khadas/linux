@@ -970,12 +970,14 @@ static ssize_t write_store(struct class *cla,
 			goto _out;
 		}
 		/* check '\n' and del */
-		if (buf[count - 1] == '\n')
+		if (buf[count - 1] == '\n') {
 			memcpy(keydata, buf, count-1);
-		else
+			key_len = count - 1;
+		} else {
 			memcpy(keydata, buf, count);
+			key_len = count;
+		}
 
-		key_len = strlen(keydata);
 		ret = key_unify_write(curkey->name, keydata, key_len);
 		if (ret < 0) {
 			pr_err("%s() %d: key write fail\n",
