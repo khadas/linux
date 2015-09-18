@@ -18,9 +18,12 @@
 #ifndef __HDMI_TX_SCDC_H__
 #define __HDMI_TX_SCDC_H__
 
+#define SCDC_SLAVE	0x54
+
 /* Little-Endian format */
 enum scdc_addr {
-	SINK_VER = 0x01, SOURCE_VER, /* RW */
+	SINK_VER = 0x01,
+	SOURCE_VER, /* RW */
 	UPDATE_0 = 0x10, /* RW */
 	UPDATE_1, /* RW */
 	TMDS_CFG = 0x20, /* RW */

@@ -219,10 +219,7 @@ void Edid_CompareTimingDescriptors(struct hdmitx_info *info,
 	unsigned char *Data)
 {
 	int index1, index2;
-
-	pr_info("TODO: %s[%d]\n", __func__, __LINE__);
 	return;
-
 	for (index1 = 0; index1 < 17; index1++) {
 		for (index2 = 0; index2 < 12; index2++) {
 			if (Data[index2] !=
@@ -1108,19 +1105,12 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 
 		case HDMI_EDID_BLOCK_TYPE_VENDER:
 			offset++;
-			pRXCap->IEEEOUI = (unsigned long)BlockBuf[offset+2];
-			pRXCap->IEEEOUI <<= 8;
-			pRXCap->IEEEOUI += (unsigned long)BlockBuf[offset+1];
-			pRXCap->IEEEOUI <<= 8;
-			pRXCap->IEEEOUI += (unsigned long)BlockBuf[offset];
-			/**/
-			hdmi_print(0,
-				"HDMI_EDID_BLOCK_TYPE_VENDER: IEEEOUI %x:",
-				pRXCap->IEEEOUI);
-			for (i = 0; i < count ; i++)
-				hdmi_print(0, "%d: %02x\n", i+1,
-					BlockBuf[offset+i]);
-			/**/
+			if ((BlockBuf[offset] == 0x03) &&
+				(BlockBuf[offset+1] == 0x0c) &&
+				(BlockBuf[offset+2] == 0x00))
+				pRXCap->IEEEOUI = 0x000c03;
+			else
+				goto case_hf;
 			pRXCap->ColorDeepSupport =
 				(unsigned long)BlockBuf[offset+5];
 			pRXCap->Max_TMDS_Clock =
@@ -1150,6 +1140,19 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 					}
 				}
 			}
+			goto case_next;
+case_hf:
+			if ((BlockBuf[offset] == 0xd8) &&
+				(BlockBuf[offset+1] == 0x5d) &&
+				(BlockBuf[offset+2] == 0xc4))
+				pRXCap->HF_IEEEOUI = 0xd85dc4;
+			pRXCap->scdc_present =
+				!!(BlockBuf[offset+5] & (1 << 7));
+			pRXCap->scdc_rr_capable =
+				!!(BlockBuf[offset+5] & (1 << 6));
+			pRXCap->lte_340mcsc_scramble =
+				!!(BlockBuf[offset+5] & (1 << 3));
+case_next:
 			offset += count; /* ignore the remaind. */
 			break;
 
@@ -1604,9 +1607,6 @@ const char *hdmitx_edid_vic_tab_map_string(enum hdmi_vic vic)
 		}
 	}
 
-	if (!disp_str)
-		hdmi_print(INF, EDID "not find mapped display mode\n");
-
 	return disp_str;
 }
 
@@ -1664,6 +1664,11 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 	/* Note: in most cases, we think that rx is tv and the default
 	 * IEEEOUI is HDMI Identifier */
 	pRXCap->IEEEOUI = 0x000c03;
+	pRXCap->HF_IEEEOUI = 0x0;
+	pRXCap->scdc_present = 0x0;
+	pRXCap->scdc_rr_capable = 0x0;
+	pRXCap->lte_340mcsc_scramble = 0x0;
+	pRXCap->lte_340mcsc_scramble = 0x0;
 	pRXCap->native_Mode = 0;
 	pRXCap->native_VIC = 0xff;
 	pRXCap->RxSpeakerAllocation = 0;
@@ -1792,9 +1797,9 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Receiver Brand Name: %s\n", pRXCap->ReceiverBrandName);
+		"Rx Brand Name: %s\n", pRXCap->ReceiverBrandName);
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Receiver Product Name: %s\n", pRXCap->ReceiverProductName);
+		"Rx Product Name: %s\n", pRXCap->ReceiverProductName);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"EDID block number: 0x%x\n", hdmitx_device->EDID_buf[0x7e]);
@@ -1833,9 +1838,17 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	}
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Speaker Allocation: %x\n", pRXCap->RxSpeakerAllocation);
-	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: %x\n",
+	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%x\n",
 		pRXCap->IEEEOUI);
-
+	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",
+		pRXCap->HF_IEEEOUI);
+	pos += snprintf(buffer+pos, buffer_len-pos, "SCDC: %x\n",
+		pRXCap->scdc_present);
+	pos += snprintf(buffer+pos, buffer_len-pos, "RR_Cap: %x\n",
+		pRXCap->scdc_rr_capable);
+	pos += snprintf(buffer+pos, buffer_len-pos, "LTE_340M_Scramble: %x\n",
+		pRXCap->lte_340mcsc_scramble);
+#if 0
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Rx 3D Format Support List:\n"
 		"{VIC FramePacking TopBottom SidebySide}\n");
@@ -1853,6 +1866,7 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 			edid_checkvalue[1],
 			edid_checkvalue[2],
 			edid_checkvalue[3]);
+#endif
 	return pos;
 }
 

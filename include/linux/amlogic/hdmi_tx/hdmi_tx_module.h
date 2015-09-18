@@ -63,6 +63,10 @@ struct rx_cap {
 	unsigned char RxSpeakerAllocation;
 	/*vendor*/
 	unsigned int IEEEOUI;
+	unsigned int HF_IEEEOUI;	/* For HDMI Forum */
+	unsigned int scdc_present:1;
+	unsigned int scdc_rr_capable:1; /* SCDC read request */
+	unsigned int lte_340mcsc_scramble:1;
 	unsigned char ReceiverBrandName[4];
 	unsigned char ReceiverProductName[16];
 	unsigned int ColorDeepSupport;

@@ -41,6 +41,7 @@
 #endif
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_scdc.h>
 /*#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>*/
 #include <linux/reset.h>
 #include "mach_reg.h"
@@ -1499,7 +1500,6 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev,
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	hdev->HWOp.CntlMisc(hdev, MISC_FINE_TUNE_HPLL, get_hpll_tune_mode());
 #endif
-	pr_info("TODO: 4k60hz/420\n");
 }
 
 static void hdmitx_set_phy(struct hdmitx_dev *hdev)
@@ -1573,14 +1573,67 @@ static void set_tmds_clk_div40(unsigned int div40)
 	hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
 }
 
+static void scdc_rd_sink(unsigned char adr, unsigned char *val)
+{
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, SCDC_SLAVE);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, adr);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1);
+	mdelay(2);
+	*val = (unsigned char)hdmitx_rd_reg(HDMITX_DWC_I2CM_DATAI);
+	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0))
+		pr_info("hdmitx: scdc rd error\n");
+	hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x3);
+}
+
+static void scdc_wr_sink(unsigned char adr, unsigned char val)
+{
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, SCDC_SLAVE);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, adr);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_DATAO, val);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 0x10);
+	mdelay(2);
+	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0))
+		pr_info("hdmitx: scdc wr error\n");
+	hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x3);
+}
+
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	struct hdmitx_vidpara *param)
 {
+	unsigned char rx_ver = 0;
 	if (param == NULL) /* disable HDMI */
 		return 0;
 	else
 		if (!hdmitx_edid_VIC_support(param->VIC))
 			return -1;
+
+	if (hdev->RXCap.scdc_present)
+		pr_info("hdmitx: rx has SCDC present indicator\n");
+	else
+		pr_info("hdmitx: rx no SCDC present indicator\n");
+
+	scdc_rd_sink(SINK_VER, &rx_ver);
+	if (rx_ver != 1)
+		scdc_rd_sink(SINK_VER, &rx_ver);	/* Recheck */
+	pr_info("hdmirx version is %s\n",
+		(rx_ver == 1) ? "2.0" : "1.4 or below");
+
+	if ((param->VIC == HDMI_3840x2160p50_16x9) ||
+	    (param->VIC == HDMI_3840x2160p60_16x9)) {
+		if (rx_ver == 1) {
+			scdc_wr_sink(SOURCE_VER, 0x1);
+			scdc_wr_sink(SOURCE_VER, 0x1);
+			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
+			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
+		}
+	} else {
+		if (rx_ver == 1) {
+			scdc_wr_sink(SOURCE_VER, 0x1);
+			scdc_wr_sink(SOURCE_VER, 0x1);
+			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
+			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
+		}
+	}
 
 	if (color_depth_f == 24)
 		param->color_depth = hdmi_color_depth_24B;
@@ -2690,7 +2743,7 @@ static void hdmitx_read_edid(unsigned char *rx_edid)
 			timeout++;
 		}
 		if (timeout == 3)
-			pr_info("ddc timeout\n");
+			pr_info("hdmitx: ddc timeout\n");
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
 	/* Read back 8 bytes */
 		for (i = 0; i < 8; i++) {
