@@ -600,6 +600,7 @@
 		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp", "hdmitx_clk_enci",
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
 
+		gpio_i2c_en = <0x1>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -615,6 +616,17 @@
 			pinctrl-names = "hdmitx_aocec";
 			pinctrl-0=<&hdmitx_aocec>;
 			reg = <0x0 0xc810023c 0x0 0x4>;
+		};
+	};
+
+	i2c_gpio: i2c_gpio {
+		compatible = "i2c-gpio";
+		dev_name = "i2c-gpio";
+		gpios = <&gpio GPIOH_1 0
+		&gpio GPIOH_2 0>;
+		i2c_gpio_edid: i2c_gpio_edid {
+			compatible = "i2c-gpio-edid";
+			reg = <0x50>;
 		};
 	};
 

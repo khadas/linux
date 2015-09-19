@@ -376,7 +376,8 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 	hdmitx_hpd_hw_op(HPD_INIT_DISABLE_PULLUP);
 	hdmitx_hpd_hw_op(HPD_INIT_SET_FILTER);
 	hdmitx_ddc_hw_op(DDC_INIT_DISABLE_PULL_UP_DN);
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
+	if (!hdev->gpio_i2c_enable)
+		hdmitx_ddc_hw_op(DDC_MUX_DDC);
 
 /* Configure E-DDC interface */
 	data32 = 0;
@@ -2700,6 +2701,14 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		if (buf[1] == 'h')
 			value = hdmitx_rd_reg(adr);
 		hdmi_print(INF, "%s reg[%x]=%x\n", "HDMI", adr, value);
+	} else if (strncmp(tmpbuf, "gpio_i2c_on", 11) == 0) {
+		hdev->gpio_i2c_enable = 1;
+		hdmi_print(INF, "gpio i2c enable\n");
+		return;
+	} else if (strncmp(tmpbuf, "gpio_i2c_off", 12) == 0) {
+		hdev->gpio_i2c_enable = 0;
+		hdmi_print(INF, "gpio i2c disable\n");
+		return;
 	}
 }
 

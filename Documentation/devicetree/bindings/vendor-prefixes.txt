@@ -98,3 +98,5 @@ xlnx	Xilinx
 AMLOGIC Amlogic, Inc
 amlogic Amlogic, Inc
 shared-dma-pool	shared dma pool
+i2c-gpio
+i2c-gpio-edid

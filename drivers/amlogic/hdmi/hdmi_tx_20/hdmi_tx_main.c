@@ -56,7 +56,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>
-
+#include <linux/i2c.h>
 #include "hw/tvenc_conf.h"
 
 #define DEVICE_NAME "amhdmitx"
@@ -69,6 +69,9 @@ static dev_t hdmitx_id;
 static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
 const struct vinfo_s *hdmi_get_current_vinfo(void);
+static int edid_rx_data(unsigned char regaddr, unsigned char *rx_data,
+	int length);
+static void gpio_read_edid(unsigned char *rx_edid);
 
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
@@ -118,6 +121,12 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->output_blank_flag = 0;
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, HDCP_OFF);
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, DDC_RESET_HDCP);
+	if (phdmi->gpio_i2c_enable) {
+		if (phdmi->hdcpop.hdcp14_en) {
+			hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
+			phdmi->HWOp.CntlDDC(phdmi, DDC_PIN_MUX_OP, PIN_UNMUX);
+		}
+	}
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 	hdmi_print(IMP, SYS "HDMITX: early suspend\n");
@@ -435,9 +444,9 @@ static int set_disp_mode_auto(void)
 		(strncmp(info->name, "panel", 5) == 0) ||
 		(strncmp(info->name, "null", 4) == 0)) {
 		hdmi_print(ERR, VID "%s not valid hdmi mode\n", info->name);
-		if (hdmitx_device.hdcpop.hdcp14_en)
+		/*if (hdmitx_device.hdcpop.hdcp14_en)
 			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-				DDC_HDCP_OP, HDCP_ON);
+				DDC_HDCP_OP, HDCP_ON);*/
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_CLR_AVI_PACKET, 0);
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
@@ -1207,6 +1216,7 @@ static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info,
 static DEVICE_ATTR(hpd_state, S_IRUGO, show_hpd_state, NULL);
 static DEVICE_ATTR(support_3d, S_IRUGO, show_support_3d,
 	NULL);
+
 /*****************************
 *	hdmitx display client interface
 *
@@ -1468,16 +1478,22 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_lock(&setclk_mutex);
 	/* start reading E-EDID */
 	hdev->hpd_state = 1;
-	/* TODO	hdmitx_edid_ram_buffer_clear(hdev); */
-	hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
-	hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_MUX);
-	/* start reading edid frist time */
-	hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
-	hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 0);
-	/* start reading edid second time */
-	hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
-	hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 1);
-	hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
+	if (hdev->gpio_i2c_enable) {
+		gpio_read_edid(hdev->EDID_buf);
+		msleep(20);
+		gpio_read_edid(hdev->EDID_buf1);
+	} else {
+		/* TODO hdmitx_edid_ram_buffer_clear(hdev); */
+		hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
+		hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_MUX);
+		/* start reading edid frist time */
+		hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
+		hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 0);
+		/* start reading edid second time */
+		hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
+		hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 1);
+		hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
+	}
 	/* compare EDID_buf & EDID_buf1 */
 	hdmitx_edid_buf_compare_print(hdev);
 	hdmitx_edid_clear(hdev);
@@ -1506,6 +1522,14 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP_OFF);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	pr_info("hdmitx: plugout\n");
+	if (hdev->gpio_i2c_enable) {
+		if (hdev->hdcpop.hdcp14_en) {
+			hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
+			hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
+		}
+	}
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_ram_buffer_clear(hdev);
 	switch_set_state(&sdev, 0);
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 	mutex_unlock(&setclk_mutex);
@@ -1729,6 +1753,138 @@ static int get_dt_pwr_init_data(struct device_node *np,
 
 #endif
 
+struct i2c_client *i2c_edid_client;
+static int edid_tx_segaddr(unsigned char segaddr, unsigned char *tx_data,
+	int length)
+{
+	int err;
+	struct i2c_msg msg[] = {
+		{
+			.addr = segaddr,
+			.flags = 0,
+			.len = length,
+			.buf = tx_data,
+		},
+	};
+	err = i2c_transfer(i2c_edid_client->adapter, msg,
+		ARRAY_SIZE(msg));
+	if (err < 0) {
+		hdmi_print(ERR, SYS "[%s] err = %d\n", __func__, err);
+		return -EIO;
+	} else
+		return 0;
+}
+
+#if 0
+static int edid_tx_data(unsigned char *tx_data, int length)
+{
+	int err;
+	struct i2c_msg msg[] = {
+		{
+			.addr = i2c_edid_client->addr,
+			.flags = 0,
+			.len = length,
+			.buf = tx_data,
+		},
+	};
+	err = i2c_transfer(i2c_edid_client->adapter, msg,
+		ARRAY_SIZE(msg));
+	if (err < 0) {
+		hdmi_print(ERR, SYS "[%s] err = %d\n", __func__, err);
+		return -EIO;
+	} else
+		return 0;
+}
+#endif
+
+static int edid_rx_data(unsigned char regaddr, unsigned char *rx_data,
+	int length)
+{
+	int err;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = i2c_edid_client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &regaddr,
+		},
+		{
+			.addr = i2c_edid_client->addr,
+			.flags = I2C_M_RD,
+			.len = length,
+			.buf = rx_data,
+		},
+	};
+	err = i2c_transfer(i2c_edid_client->adapter, msgs,
+		ARRAY_SIZE(msgs));
+	if (err < 0) {
+		hdmi_print(ERR, SYS "[%s] err = %d\n", __func__, err);
+		return -EIO;
+	} else
+		return 0;
+}
+
+static void gpio_read_edid(unsigned char *rx_edid)
+{
+	int i = 0;
+	int byte_num = 0;
+	unsigned char blk_no = 1;
+	unsigned char rx_data[8];
+	unsigned char segptr = 0x0;
+	unsigned char regaddr = 0x0;
+	edid_tx_segaddr(0x30, &segptr, 1);
+	while (byte_num < 128 * blk_no) {
+		if ((byte_num % 256) == 0) {
+			segptr = byte_num >> 8;
+			hdmi_print(IMP, SYS "[%s] setptr = %d\n",
+				__func__, segptr);
+		}
+		edid_rx_data(regaddr, rx_data, 8);
+		regaddr = regaddr + 8;
+		for (i = 0; i < 8; i++) {
+			rx_edid[byte_num] = rx_data[i];
+			if (byte_num == 126) {
+				blk_no = rx_edid[byte_num] + 1;
+				/*only read two blocks because of segptr*/
+				if (blk_no > 2) {
+					pr_info("edid extension block number:");
+					pr_info(" %d, reset to MAX 1\n",
+						blk_no - 1);
+					blk_no = 2; /*Max extended block*/
+				}
+			}
+			byte_num++;
+		}
+	}
+}
+
+static int i2c_gpio_edid_probe(struct i2c_client *client,
+	const struct i2c_device_id *device_id)
+{
+	i2c_edid_client = client;
+	return 0;
+}
+
+static int i2c_gpio_edid_remove(struct i2c_client *client)
+{
+	return 0;
+}
+
+
+static const struct i2c_device_id i2c_gpio_edid_id[] = {
+	{"i2c-gpio-edid", 0},
+	{},
+};
+
+static struct i2c_driver i2c_gpio_edid_driver = {
+	.probe = i2c_gpio_edid_probe,
+	.remove = i2c_gpio_edid_remove,
+	.id_table  = i2c_gpio_edid_id,
+	.driver = {
+		.name = "i2c-gpio-edid",
+	},
+};
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -1803,7 +1959,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_byp);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_support_3d);
-
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	register_hdmi_edid_supported_func(hdmitx_is_vmode_supported);
 #endif
@@ -1842,6 +1997,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		pr_info("hdmitx hdcp14 %x %x",
 			hdmitx_device.hdcpop.hdcp14_en & 0xff,
 			hdmitx_device.hdcpop.hdcp14_rslt & 0xff);
+/*Get HDMI gpio i2c cmd*/
+	ret = of_property_read_u32(pdev->dev.of_node, "gpio_i2c_en", &val);
+	if (!ret)
+		hdmitx_device.gpio_i2c_enable = val;
 /* Get physical setting data */
 	ret = of_property_read_u32(pdev->dev.of_node, "phy-size", &psize);
 	if (!ret) {
@@ -1961,6 +2120,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		hdmi_print(INF, SYS "register switch dev failed\n");
 		return r;
 	}
+	if (hdmitx_device.gpio_i2c_enable) {
+		if (i2c_add_driver(&i2c_gpio_edid_driver) < 0)
+			hdmi_print(ERR, SYS "add i2c_gpio_edid driver fail!\n");
+	}
 	return r;
 }
 
@@ -2005,6 +2168,8 @@ static int amhdmitx_remove(struct platform_device *pdev)
 /* kfree(hdmi_pdata); */
 
 	unregister_chrdev_region(hdmitx_id, HDMI_TX_COUNT);
+	if (hdmitx_device.gpio_i2c_enable)
+		i2c_del_driver(&i2c_gpio_edid_driver);
 	return 0;
 }
 

@@ -626,7 +626,7 @@
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
 		/* hdcp14_en = <0x82000010>; */
 		/* hdcp14_rslt = <0x82000011>; */
-
+		gpio_i2c_en = <0x1>;
 		ranges;
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -644,7 +644,16 @@
 			reg = <0x0 0xc810023c 0x0 0x4>;
 		};
 	};
-
+	i2c_gpio: i2c_gpio {
+		compatible = "i2c-gpio";
+		dev_name = "i2c-gpio";
+		gpios = <&gpio GPIOH_1 0
+		&gpio GPIOH_2 0>;
+		i2c_gpio_edid: i2c_gpio_edid {
+			compatible = "i2c-gpio-edid";
+			reg = <0x50>;
+		};
+	};
 	uart_AO: serial@c81004c0 {
 		compatible = "amlogic, meson-uart";
 		reg = <0x0 0xc81004c0 0x0 0x14>;
