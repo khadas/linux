@@ -1123,25 +1123,22 @@ static ssize_t store_phy(struct device *dev,
 	return count;
 }
 
+static ssize_t store_hdcp_byp(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_OP, HDCP_OFF);
+
+	return count;
+}
+
 static ssize_t show_hdcp_ksv_info(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0, i;
-	char aksv_buf[5];
 	char bksv_buf[5];
 
-	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_GET_AKSV,
-		(unsigned long int)aksv_buf);
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_GET_BKSV,
 		(unsigned long int)bksv_buf);
-
-	pos += snprintf(buf+pos, PAGE_SIZE, "AKSV: ");
-	for (i = 0; i < 5; i++) {
-		pos += snprintf(buf+pos, PAGE_SIZE, "%02x",
-			aksv_buf[i]);
-	}
-	pos += snprintf(buf+pos, PAGE_SIZE, "  %s\n",
-		hdcp_ksv_valid(aksv_buf) ? "Valid" : "Invalid");
 
 	pos += snprintf(buf+pos, PAGE_SIZE, "BKSV: ");
 	for (i = 0; i < 5; i++) {
@@ -1202,6 +1199,7 @@ static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
 static DEVICE_ATTR(avmute, S_IWUSR, NULL, store_avmute);
 static DEVICE_ATTR(phy, S_IWUSR, NULL, store_phy);
+static DEVICE_ATTR(hdcp_byp, S_IWUSR, NULL, store_hdcp_byp);
 static DEVICE_ATTR(disp_cap_3d, S_IRUGO, show_disp_cap_3d,
 	NULL);
 static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info,
@@ -1505,6 +1503,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hpd_state = 0;
 	hdev->tv_cec_support = 0;
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
+	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP_OFF);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	pr_info("hdmitx: plugout\n");
 	switch_set_state(&sdev, 0);
@@ -1801,6 +1800,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_avmute);
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
+	ret = device_create_file(dev, &dev_attr_hdcp_byp);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_support_3d);
 

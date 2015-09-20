@@ -79,8 +79,6 @@ int hdcp_ksv_valid(unsigned char *dat)
 				one_num++;
 		}
 	}
-	if (one_num == 0)
-		hdmi_print(INF, HDCP "no HDCP key available\n");
 	return one_num == 20;
 }
 
@@ -112,6 +110,8 @@ static int hdmitx_hdcp_task(void *data)
 	add_timer(&hdcp_monitor_timer);
 
 	while (hdmitx_device->hpd_event != 0xff) {
+		hdmi_authenticated = hdmitx_device->HWOp.CntlDDC(
+			hdmitx_device, DDC_HDCP_GET_AUTH, 0);
 		if ((hdmitx_device->output_blank_flag == 1) &&
 			(hdmitx_device->hpd_state == 1) &&
 			(hdmitx_device->cur_VIC != HDMI_Unkown)) {

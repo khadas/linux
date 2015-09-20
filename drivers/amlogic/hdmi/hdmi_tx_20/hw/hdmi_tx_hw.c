@@ -223,7 +223,6 @@ static int hdmitx_ddc_hw_op(enum ddc_op cmd)
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 int hdmitx_hdcp_opr(unsigned int val)
 {
-	pr_info("val = %d\n", val);
 	if (val == 1) {
 		register long x0 asm("x0") = 0x82000010;
 		asm volatile(
@@ -2505,11 +2504,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	} else if (strncmp(tmpbuf, "testhdcp", 8) == 0) {
 		int i;
 		i = tmpbuf[8] - '0';
-		if ((i == 1) || (i == 2)) {
-			int ret = 0;
-			ret = hdmitx_hdcp_opr(i);
-			pr_info("hdcp ret = %d", ret);
-		}
+		if (i == 2)
+			pr_info("hdcp rslt = %d", hdmitx_hdcp_opr(2));
+		if (i == 1)
+			hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP_ON);
 		return;
 	} else if (strncmp(tmpbuf, "dumpallregs", 11) == 0) {
 		hdmitx_dump_all_cvregs();
@@ -2546,33 +2544,36 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	else if (strncmp(tmpbuf, "dumphdmireg", 11) == 0) {
 		unsigned char reg_val = 0;
 		unsigned int reg_adr = 0;
-		for (reg_adr = HDMITX_TOP_SW_RESET;
-			reg_adr < HDMITX_TOP_STAT0 + 1; reg_adr++) {
-			reg_val = hdmitx_rd_reg(reg_adr);
-			if (reg_val)
-				pr_info("TOP[0x%x]: 0x%x\n", reg_adr, reg_val);
-		}
-		for (reg_adr = HDMITX_DWC_DESIGN_ID;
-			reg_adr < HDMITX_DWC_I2CM_SCDC_UPDATE1 + 1; reg_adr++) {
-			if ((reg_adr > HDMITX_DWC_HDCP_BSTATUS_0 - 1) &&
-				(reg_adr < HDMITX_DWC_HDCPREG_BKSV0)) {
-#if 0
-				hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1);
-				hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL,
-					(1<<1), 2 * HZ);
-				reg_val = hdmitx_rd_reg(reg_adr);
-#else
-				reg_val = 0;
-#endif
-			} else
-				reg_val = hdmitx_rd_reg(reg_adr);
-			if (reg_val) {
-				if (reg_val)
-					/* print all HDCP regisiters */
-					pr_info("DWC[0x%x]: 0x%x\n",
-						reg_adr, reg_val);
-			}
-		}
+
+#define DUMP_SECTION(a, b) \
+	do { \
+		for (reg_adr = a; reg_adr < b+1; reg_adr++) { \
+			reg_val = hdmitx_rd_reg(reg_adr); \
+			if (reg_val) \
+				pr_info("[0x%x]: 0x%x\n", reg_adr, reg_val); \
+		} \
+	} while (0)
+
+#define DUMP_HDCP_SECTION(a, b) \
+	for (reg_adr = a; reg_adr < b+1; reg_adr++) { \
+		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1); \
+		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ); \
+		reg_val = hdmitx_rd_reg(reg_adr); \
+		if (reg_val) \
+				pr_info("[0x%x]: 0x%x\n", reg_adr, reg_val); \
+	}
+
+		DUMP_SECTION(HDMITX_TOP_SW_RESET, HDMITX_TOP_DONT_TOUCH1);
+		DUMP_SECTION(HDMITX_TOP_SKP_CNTL_STAT, HDMITX_TOP_SEC_SCRATCH);
+		DUMP_SECTION(HDMITX_DWC_DESIGN_ID, HDMITX_DWC_A_KSVMEMCTRL);
+		DUMP_HDCP_SECTION(HDMITX_DWC_HDCP_BSTATUS_0,
+			HDMITX_DWC_HDCPREG_BKSV0 - 1);
+		DUMP_SECTION(HDMITX_DWC_HDCPREG_BKSV0,
+			HDMITX_DWC_HDCP22REG_MUTE);
+		DUMP_SECTION(HDMITX_DWC_A_HDCPCFG0, HDMITX_DWC_A_HDCPCFG1);
+		DUMP_SECTION(HDMITX_DWC_HDCPREG_SEED0, HDMITX_DWC_HDCPREG_DPK6);
+		DUMP_SECTION(HDMITX_DWC_HDCP22REG_CTRL,
+			HDMITX_DWC_HDCP22REG_CTRL);
 		return;
 	} else if (strncmp(tmpbuf, "dumpcecreg", 10) == 0) {
 		unsigned char cec_val = 0;
@@ -2765,6 +2766,42 @@ static void hdmitx_read_edid(unsigned char *rx_edid)
 
 static unsigned char tmp_edid_buf[128*EDID_MAX_BLOCK] = { 0 };
 
+static void hdcp_ksv_event(unsigned long arg)
+{
+	struct hdmitx_dev *hdev = (struct hdmitx_dev *)arg;
+	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 1)) {
+		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
+		hdev->hdcp_try_times = 0;
+		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x4);
+		return;
+	} else {
+		if (hdev->hdcp_try_times)
+			mod_timer(&hdev->hdcp_timer, jiffies + HZ);
+		else
+			return;
+		hdev->hdcp_try_times--;
+	}
+}
+
+static void hdcp_start_timer(struct hdmitx_dev *hdev)
+{
+	static int init_flag;
+
+	if (!init_flag) {
+		init_flag = 1;
+		init_timer(&hdev->hdcp_timer);
+		hdev->hdcp_timer.data = (ulong)hdev;
+		hdev->hdcp_timer.function = hdcp_ksv_event;
+		hdev->hdcp_timer.expires = jiffies + 2 * HZ;
+		add_timer(&hdev->hdcp_timer);
+		hdev->hdcp_try_times = 5;
+		return;
+	}
+	hdev->hdcp_try_times = 5;
+	hdev->hdcp_timer.expires = jiffies + HZ;
+	mod_timer(&hdev->hdcp_timer, jiffies + HZ);
+}
+
 static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned long argv)
 {
@@ -2809,22 +2846,19 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 		if (argv == HDCP_ON) {
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			hdmitx_hdcp_opr(1);
+			hdcp_start_timer(hdev);
 		}
 		if (argv == HDCP_OFF)
-			;
+			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		break;
 	case DDC_IS_HDCP_ON:
 /* argv = !!((hdmitx_rd_reg(TX_HDCP_MODE)) & (1 << 7)); */
 		break;
-	case DDC_HDCP_GET_AKSV:
-		tmp_char = (unsigned char *) argv;
-		for (i = 0; i < 5; i++)
-			;
-		break;
 	case DDC_HDCP_GET_BKSV:
 		tmp_char = (unsigned char *) argv;
 		for (i = 0; i < 5; i++)
-			;
+			tmp_char[i] = (unsigned char)
+				hdmitx_rd_reg(HDMITX_DWC_HDCPREG_BKSV0 + 4 - i);
 		break;
 	case DDC_HDCP_GET_AUTH:
 		return hdmitx_hdcp_opr(2);
