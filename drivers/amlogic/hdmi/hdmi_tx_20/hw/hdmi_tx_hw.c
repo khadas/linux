@@ -2222,6 +2222,24 @@ static void hdmitx_uninit(struct hdmitx_dev *phdev)
 	hdmitx_hpd_hw_op(HPD_UNMUX_HPD);
 }
 
+static void hw_reset_dbg(void)
+{
+	uint32_t val1 = hdmitx_rd_reg(HDMITX_DWC_MC_CLKDIS);
+	uint32_t val2 = hdmitx_rd_reg(HDMITX_DWC_FC_INVIDCONF);
+	uint32_t val3 = hdmitx_rd_reg(HDMITX_DWC_FC_VSYNCINWIDTH);
+	hdmitx_wr_reg(HDMITX_DWC_MC_CLKDIS, 0xff);
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_MC_CLKDIS, val1);
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0);
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INVIDCONF, 0);
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_FC_INVIDCONF, val2);
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH, val3);
+}
+
 static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned cmd, unsigned argv)
 {
 	if (cmd == HDMITX_AVMUTE_CNTL) {
@@ -2231,8 +2249,11 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned cmd, unsigned argv)
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0, 30, 1);
 			hdmi_phy_suspend();
 		}
-		if (argv == HDMITX_LATE_RESUME)
+		if (argv == HDMITX_LATE_RESUME) {
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 30, 1);
+			hw_reset_dbg();
+			pr_info("hdmitx: swrstzreq\n");
+		}
 		return 0;
 	} else if (cmd == HDMITX_HDCP_MONITOR) {
 		/* TODO */
