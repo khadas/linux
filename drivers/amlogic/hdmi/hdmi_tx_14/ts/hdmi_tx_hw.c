@@ -1168,7 +1168,7 @@ static void digital_clk_on(unsigned char flag)
 	}
 }
 
-static void phy_pll_off(void)
+void phy_pll_off(void)
 {
 	hdmi_phy_suspend();
 }
