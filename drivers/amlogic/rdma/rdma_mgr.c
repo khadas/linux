@@ -54,7 +54,11 @@ static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
-
+static int rdma_watchdog = 4;
+static int reset_count;
+static int rdma_watchdog_count;
+static int rdma_monitor_reg;
+static int rdma_force_reset = -1;
 #define RDMA_NUM 8
 struct rdma_regadr_s {
 	u32 rdma_ahb_start_addr;
@@ -82,6 +86,7 @@ struct rdma_instance_s {
 	int rdma_item_count;
 	unsigned char keep_buf;
 	unsigned char used;
+	int prev_trigger_type;
 };
 
 struct rdma_device_info {
@@ -212,7 +217,6 @@ void rdma_unregister(int i)
 		int table_size;
 
 		/*rdma_clear(i);*/
-
 		spin_lock_irqsave(&rdma_lock, flags);
 		table_size = info->rdma_ins[i].rdma_table_size;
 		info->rdma_ins[i].op = NULL;
@@ -235,7 +239,24 @@ void rdma_unregister(int i)
 	}
 }
 EXPORT_SYMBOL(rdma_unregister);
+static void rdma_reset(unsigned char external_reset)
+{
+	if (debug_flag & 4)
+		pr_info("%s(%d)\n",
+			__func__, external_reset);
 
+	if (external_reset)	{
+		WRITE_MPEG_REG(RESET4_REGISTER,
+				   (1 << 5));
+	} else {
+		WRITE_VCBUS_REG(RDMA_CTRL, (0x1 << 1));
+		WRITE_VCBUS_REG(RDMA_CTRL, (0x1 << 1));
+		WRITE_VCBUS_REG(RDMA_CTRL, (ctrl_ahb_wr_burst_size << 4) |
+			(ctrl_ahb_rd_burst_size << 2) |
+			 (0x0 << 1));
+	}
+	reset_count++;
+}
 irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 {
 	struct rdma_device_info *info = &rdma_info;
@@ -246,10 +267,13 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 
 	if (debug_flag & 2)
 		pr_info("%s: %x\r\n", __func__, rdma_status);
-
+		rdma_watchdog_count = 0;
 	for (i = 0; i < RDMA_NUM; i++) {
 		struct rdma_instance_s *ins = &info->rdma_ins[i];
 		if (ins->not_process)
+			continue;
+		/*bypass osd rdma done case*/
+		if (i == 3)
 			continue;
 		if (rdma_status & (1 << ins->rdma_regadr->irq_status_bitpos)) {
 			if (debug_flag & 2)
@@ -304,7 +328,10 @@ int rdma_config(int handle, int trigger_type)
 		if (trigger_type == RDMA_TRIGGER_MANUAL)
 			WRITE_VCBUS_REG(RDMA_ACCESS_MAN,
 				READ_VCBUS_REG(RDMA_ACCESS_MAN) & (~1));
-
+			if (debug_flag & 2) {
+				pr_info("%s: trigger_type %d : %d\r\n",
+				__func__, trigger_type , ins->rdma_item_count);
+			}
 		WRITE_VCBUS_REG_BITS(
 			ins->rdma_regadr->trigger_mask_reg,
 			0, ins->rdma_regadr->trigger_mask_reg_bitpos, 8);
@@ -314,6 +341,7 @@ int rdma_config(int handle, int trigger_type)
 			ins->rdma_item_count * 2 * sizeof(u32));
 
 		if (trigger_type > 0 && trigger_type <= RDMA_TRIGGER_MANUAL) {
+			ins->prev_trigger_type = trigger_type;
 			if (trigger_type == RDMA_TRIGGER_MANUAL) {
 				/*manual RDMA*/
 				struct rdma_instance_s *man_ins =
@@ -343,10 +371,12 @@ int rdma_config(int handle, int trigger_type)
 					READ_VCBUS_REG(RDMA_ACCESS_MAN) | 1);
 
 				if (debug_flag & 2)
-					pr_info("%s: manual config\r\n",
-					__func__);
-
+					pr_info("%s: manual config %d:\r\n",
+					__func__, ins->rdma_item_count);
 			} else { /* interrupt input trigger RDMA */
+				if (debug_flag & 2)
+					pr_info("%s: case 3 : %d:\r\n",
+					__func__ , ins->rdma_item_count);
 				WRITE_VCBUS_REG_BITS(
 				ins->rdma_regadr->trigger_mask_reg,
 				0,
@@ -446,6 +476,22 @@ u32 rdma_read_reg(int handle, u32 adr)
 }
 EXPORT_SYMBOL(rdma_read_reg);
 
+
+int rdma_reset_tigger_flag = 0;
+int rdma_watchdog_setting(int flag)
+{
+	if (flag == 0)
+		rdma_watchdog_count = 0;
+	else
+		rdma_watchdog_count++;
+	if (debug_flag & 8) {
+		rdma_force_reset = 1;
+		debug_flag = 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(rdma_watchdog_setting);
+
 int rdma_write_reg(int handle, u32 adr, u32 val)
 {
 	struct rdma_device_info *info = &rdma_info;
@@ -456,8 +502,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 
 	if (debug_flag & 1)
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
-
+		handle, ins->rdma_item_count, adr, val);
 	if (((ins->rdma_item_count << 1) + 1) <
 		(ins->rdma_table_size / sizeof(u32))) {
 		ins->reg_buf[ins->rdma_item_count << 1] = adr;
@@ -465,13 +510,37 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		ins->rdma_item_count++;
 	}	else {
 		int i;
-		for (i = 0; i < ins->rdma_item_count; i++)
-			WRITE_VCBUS_REG(ins->reg_buf[i << 1],
-				ins->reg_buf[(i << 1) + 1]);
+		if (debug_flag & 4)
+			pr_info("%s(%d, %x, %x) buf overflow\n",
+				__func__, handle, adr, val);
+		rdma_watchdog_count++;
+		if (debug_flag & 4) {
+			rdma_watchdog_count = 4;
+			debug_flag = 0;
+		}
+		if (rdma_watchdog > 0 && rdma_watchdog_count > rdma_watchdog) {
+			rdma_watchdog_count = 0;
+			rdma_reset(1);
+			rdma_config(handle, ins->prev_trigger_type);
+			pr_info("%s rdma reset\n", __func__);
+			rdma_reset_tigger_flag = 1;
+		}	else {
+			for (i = 0; i < ins->rdma_item_count; i++)
+				WRITE_VCBUS_REG(ins->reg_buf[i << 1],
+					ins->reg_buf[(i << 1) + 1]);
+		}
 		ins->rdma_item_count = 0;
 		ins->reg_buf[ins->rdma_item_count << 1] = adr;
 		ins->reg_buf[(ins->rdma_item_count << 1) + 1] = val;
 		ins->rdma_item_count++;
+	}
+	if (rdma_force_reset == 1) {
+		rdma_force_reset = 0;
+		rdma_reset_tigger_flag = 1;
+		rdma_watchdog_count = 0;
+		rdma_reset(1);
+		rdma_config(handle, ins->prev_trigger_type);
+		pr_info("%s rdma force reset\n", __func__);
 	}
 	return 0;
 }
@@ -507,6 +576,15 @@ EXPORT_SYMBOL(rdma_write_reg_bits);
 
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
 module_param(debug_flag, uint, 0664);
+
+MODULE_PARM_DESC(rdma_watchdog, "\n rdma_watchdog\n");
+module_param(rdma_watchdog, uint, 0664);
+
+MODULE_PARM_DESC(reset_count, "\n reset_count\n");
+module_param(reset_count, uint, 0664);
+
+MODULE_PARM_DESC(rdma_monitor_reg, "\n rdma_monitor_reg\n");
+module_param(rdma_monitor_reg, uint, 0664);
 
 MODULE_PARM_DESC(ctrl_ahb_rd_burst_size, "\n ctrl_ahb_rd_burst_size\n");
 module_param(ctrl_ahb_rd_burst_size, uint, 0664);

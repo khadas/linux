@@ -6,7 +6,7 @@ bool is_vsync_rdma_enable(void);
 void start_rdma(void);
 void enable_rdma_log(int flag);
 void enable_rdma(int enable_flag);
-
+extern int rdma_watchdog_setting(int flag);
 int rdma_init2(void);
 
 #endif

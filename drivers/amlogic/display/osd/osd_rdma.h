@@ -86,5 +86,9 @@ extern void osd_update_vsync_hit(void);
 extern int read_rdma_table(void);
 extern int reset_rdma(void);
 extern int osd_rdma_enable(u32 enable);
+extern int rdma_reset_tigger_flag;
+#ifdef CONFIG_VSYNC_RDMA
+extern void osd_rdma_interrupt_done_clear(void);
+#endif
 
 #endif

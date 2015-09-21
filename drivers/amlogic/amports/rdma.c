@@ -88,13 +88,16 @@ static int rdma_task_handle(void *data)
 	int ret = 0;
 	while (1) {
 		ret = down_interruptible(&rdma_sema);
+		if (debug_flag & 2)
+			pr_info("%s: %x\r\n", __func__ , rdma_config_flag);
 		if (rdma_config_flag == 1) {
 			rdma_config_flag = 0;
 			if (rdma_config(vsync_rdma_handle,
-				RDMA_VSYNC_INPUT_TRIG) != 1)
+				RDMA_VSYNC_INPUT_TRIG) != 1){
 				rdma_config_flag = 2;
 				/* fail or rdma table empty,
 				there is no rdma irq */
+			}
 		}
 		if (rdma_start_flag) {
 			rdma_start_flag = 0;
@@ -116,14 +119,20 @@ void vsync_rdma_config(void)
 		return;
 
 	if (pre_enable_ != enable_) {
-		if (((enable_mask >> 17) & 0x1) == 0) {
+		if (((enable_mask >> 17) & 0x1) == 0)
 			rdma_clear(vsync_rdma_handle);
-		}
 		vsync_rdma_config_delay_flag = false;
 	}
-
+	if (enable == 1)
+		rdma_watchdog_setting(1);
+	else
+		rdma_watchdog_setting(0);
 	if (enable_ == 1) {
 #ifdef CONFIG_RDMA_IN_TASK
+		if (debug_flag & 2) {
+			pr_info("%s: %d : %d :\r\n", __func__ ,
+			rdma_config_flag , pre_enable_);
+		}
 		if ((rdma_config_flag == 2) || (pre_enable_ != enable)) {
 			rdma_config_flag = 1;
 			up(&rdma_sema);
@@ -259,10 +268,10 @@ EXPORT_SYMBOL(is_vsync_rdma_enable);
 
 void start_rdma(void)
 {
-		if (vsync_rdma_handle <= 0) {
-			rdma_start_flag = 1;
-			up(&rdma_sema);
-		}
+	if (vsync_rdma_handle <= 0) {
+		rdma_start_flag = 1;
+		up(&rdma_sema);
+	}
 }
 EXPORT_SYMBOL(start_rdma);
 

@@ -66,7 +66,6 @@
 #ifdef CONFIG_AML_VSYNC_FIQ_ENABLE
 #define  FIQ_VSYNC
 #endif
-
 #define	VOUT_ENCI	1
 #define	VOUT_ENCP	2
 #define	VOUT_ENCT	3
@@ -566,11 +565,14 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
 #endif
-
+#ifdef CONFIG_VSYNC_RDMA
+	osd_rdma_interrupt_done_clear();
+#endif
 #ifndef FIQ_VSYNC
 	return IRQ_HANDLED;
 #endif
 }
+
 
 void osd_wait_vsync_hw(void)
 {

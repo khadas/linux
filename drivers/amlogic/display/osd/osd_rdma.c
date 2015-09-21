@@ -54,7 +54,6 @@ static char *info;
 static bool osd_rdma_init_flag;
 static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
-
 #define OSD_RDMA_UPDATE_RETRY_COUNT 50
 
 static int osd_rdma_init(void);
@@ -330,6 +329,16 @@ static int stop_rdma(char channel)
 	return 0;
 }
 
+
+void osd_rdma_interrupt_done_clear(void)
+{
+	if (rdma_reset_tigger_flag) {
+		pr_info("osd rdma restart!\n");
+		rdma_reset_tigger_flag = 0;
+		osd_rdma_enable(0);
+		osd_rdma_enable(1);
+	}
+}
 int read_rdma_table(void)
 {
 	int rdma_count = 0;
@@ -413,8 +422,8 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	if (ret) {
 		/*This is a memory barrier*/
 		wmb();
-		osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
 	}
+	osd_reg_write(RDMA_CTRL, 1 << (24+OSD_RDMA_CHANNEL_INDEX));
 
 	return IRQ_HANDLED;
 }
