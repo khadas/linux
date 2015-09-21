@@ -38,7 +38,9 @@
 #define SARADC_STATE_SUSPEND 2
 
 #define FLAG_INITIALIZED (1<<28)
-#define FLAG_BUSY (1<<29)
+#define FLAG_BUSY_KERNEL (1<<14)
+#define FLAG_BUSY_BL30   (1<<15)
+#define CLEAN_BUFF_BEFORE_SARADC 1
 
 struct saradc {
 	struct device *dev;
@@ -177,8 +179,9 @@ int get_adc_sample(int dev_id, int ch)
 	adc->state = SARADC_STATE_BUSY;
 	reg0 = (struct saradc_reg0 *)&adc->regs->reg0;
 	reg3 = (struct saradc_reg3 *)&adc->regs->reg3;
+
 	count = 0;
-	while (adc->regs->reg3 & FLAG_BUSY) {
+	while (adc->regs->delay & FLAG_BUSY_BL30 & FLAG_BUSY_KERNEL) {
 		udelay(100);
 		if (++count > 100) {
 			saradc_info("bl30 busy error\n");
@@ -186,9 +189,26 @@ int get_adc_sample(int dev_id, int ch)
 			goto end1;
 		}
 	}
-	adc->regs->reg3 |= FLAG_BUSY;
+
+	adc->regs->delay |= FLAG_BUSY_KERNEL;
+
+	count = 0;
+	if (adc->regs->delay & FLAG_BUSY_BL30) {
+		value = -1;
+		goto end1;
+	}
+
 #ifdef ENABLE_DYNAMIC_POWER
 	saradc_power_control(adc, 1);
+#endif
+
+
+#if CLEAN_BUFF_BEFORE_SARADC
+	count = 0;
+	while (reg0->fifo_count && (count < 32)) {
+		value = adc->regs->fifo_rd;
+		count++;
+	}
 #endif
 	adc->regs->ch_list = ch;
 	adc->regs->detect_idle_sw = 0xc000c | (ch<<23) | (ch<<7);
@@ -209,17 +229,16 @@ int get_adc_sample(int dev_id, int ch)
 	count = 0;
 	sum = 0;
 	while (reg0->fifo_count && (count < 32)) {
-		if (reg0->fifo_empty)
-			saradc_err("fifo_count, but fifo empty\n");
+		/*if (reg0->fifo_empty)
+			saradc_err("fifo_count, but fifo empty\n");*/
 		value = adc->regs->fifo_rd;
 		if (((value>>12) & 0x07) == ch) {
 			sum += value & 0x3ff;
 			count++;
-		}	else
-			saradc_err("chanel error\n");
+		}
+		udelay(1);
 	}
-	if (!reg0->fifo_empty)
-		saradc_err("fifo_count=0, but fifo not empty\n");
+
 	if (!count) {
 		value = -1;
 		goto end;
@@ -237,7 +256,7 @@ end:
 	saradc_power_control(0);
 #endif
 end1:
-	adc->regs->reg3 &= ~FLAG_BUSY;
+	adc->regs->delay &= ~FLAG_BUSY_KERNEL;
 	adc->state = SARADC_STATE_IDLE;
 	spin_unlock_irqrestore(&adc->lock, flags);
 	return value;
