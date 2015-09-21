@@ -38,6 +38,7 @@
 
 /* #include <linux/amlogic/osd/osd_dev.h> */
 #include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/amlogic/vout/vout_notify.h>
 
 #include "hdmi_tx_hdcp.h"
 
@@ -2216,6 +2217,38 @@ static int amhdmitx_resume(struct platform_device *pdev)
 }
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static int amhdmitx_restore(struct device *dev)
+{
+	int current_hdmi_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+			MISC_HPD_GPI_ST, 0));
+	char *vout_mode = get_vout_mode_internal();
+	if (strstr(vout_mode, "cvbs") && current_hdmi_state == 1) {
+		mutex_lock(&setclk_mutex);
+		sdev.state = 0;
+		hdmitx_device.hpd_state = sdev.state;
+		mutex_unlock(&setclk_mutex);
+		pr_info("resend hdmi plug in event\n");
+		hdmitx_device.hdmitx_event |= HDMI_TX_HPD_PLUGIN;
+		hdmitx_device.hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+		PREPARE_DELAYED_WORK(&hdmitx_device.work_hpd_plugin,
+			hdmitx_hpd_plugin_handler);
+		queue_delayed_work(hdmitx_device.hdmi_wq,
+			&hdmitx_device.work_hpd_plugin, 2 * HZ);
+	} else {
+		mutex_lock(&setclk_mutex);
+		sdev.state = current_hdmi_state;
+		hdmitx_device.hpd_state = sdev.state;
+		mutex_unlock(&setclk_mutex);
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops amhdmitx_pm = {
+	.restore	= amhdmitx_restore,
+};
+#endif
+
 #ifdef CONFIG_OF
 static const struct of_device_id meson_amhdmitx_dt_match[] = {
 	{
@@ -2234,9 +2267,12 @@ static struct platform_driver amhdmitx_driver = {
 	.resume	 = amhdmitx_resume,
 #endif
 	.driver	 = {
-	.name   = DEVICE_NAME,
+		.name   = DEVICE_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = meson_amhdmitx_dt_match,
+#ifdef CONFIG_HIBERNATION
+		.pm	= &amhdmitx_pm,
+#endif
 	}
 };
 

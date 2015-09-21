@@ -98,4 +98,6 @@ extern int vout2_resume(void);
 
 extern void update_vout_mode_attr(const struct vinfo_s *vinfo);
 
+extern char *get_vout_mode_internal(void);
+
 #endif /* _VOUT_NOTIFY_H_ */
