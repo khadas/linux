@@ -358,6 +358,15 @@
 		status = "ok";
 		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
 	};
+	bluesleep{
+		compatible = "amlogic, bluesleep";
+		dev_name = "bluesleep";
+		status = "ok";
+		interrupts = <  0 70 1>;
+		bt_port_id = < 1 >;
+		//bt_ext_wake = <&gpio       GPIOX_22       GPIO_ACTIVE_HIGH>;
+		bt_host_wake = <&gpio       GPIOX_21       GPIO_ACTIVE_HIGH>;
+	};
 
 	rtc{
 		compatible = "amlogic, aml_vrtc";

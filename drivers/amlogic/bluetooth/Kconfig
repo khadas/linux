@@ -6,4 +6,10 @@ config BT_DEVICE
     default n
     ---help---
       Say Y here if you want to use the BT device.
+config BLUESLEEP
+    boolean "Bluesleep support"
+    depends on BT
+    default n
+    ---help---
+      Say Y here if you want to use Bluesleep.
 endmenu

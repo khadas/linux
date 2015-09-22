@@ -105,6 +105,13 @@ struct meson_uart_port {
 #define to_meson_port(uport)  container_of(uport, struct meson_uart_port, port)
 static struct meson_uart_port *meson_ports[AML_UART_PORT_MAX];
 
+struct uart_port *get_uart_port(int id)
+{
+	struct uart_port *port;
+	port = &meson_ports[id]->port;
+	return port;
+}
+EXPORT_SYMBOL(get_uart_port);
 static int meson_serial_console_setup(struct console *co, char *options);
 
 
