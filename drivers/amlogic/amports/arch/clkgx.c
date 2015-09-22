@@ -28,7 +28,6 @@
 #include "log.h"
 
 
-
 #include "register_ops.h"
 #define debug_print pr_info
 /*
@@ -243,6 +242,14 @@ enum vformat_e {
 	VFORMAT_JPEG_ENC,
 	VFORMAT_MAX
 };
+sample:
+{{1280*720*30, 100}, {1920*1080*30, 166}, {1920*1080*60, 333},
+	{4096*2048*30, 600}, {4096*2048*60, 600}, {INT_MAX, 600},}
+mean:
+width * height * fps
+<720p30fps						clk=100MHZ
+>=720p30fps & < 1080p30fps		clk=166MHZ
+>=1080p 30fps & < 1080p60fps	clk=333MHZ
 */
 static  struct clk_set_setting clks_for_formats[] = {
 	{/*[VFORMAT_MPEG12]*/
@@ -262,7 +269,7 @@ static  struct clk_set_setting clks_for_formats[] = {
 		{4096*2048*30, 600}, {4096*2048*60, 600}, {INT_MAX, 600},}
 	},
 	{/*[VFORMAT_REAL]*/
-		{{1280*720*30, 166}, {1920*1080*30, 200}, {1920*1080*60, 333},
+		{{1280*720*20, 200}, {1920*1080*30, 500}, {1920*1080*60, 500},
 		{4096*2048*30, 600}, {4096*2048*60, 600}, {INT_MAX, 600},}
 	},
 	{/*[VFORMAT_JPEG]*/
