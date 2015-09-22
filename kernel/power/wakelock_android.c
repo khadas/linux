@@ -341,24 +341,9 @@ static void expire_wake_locks(unsigned long data)
 
 static DEFINE_TIMER(expire_timer, expire_wake_locks, 0, 0);
 
-static int prevent_suspend_flag;
-static void prevent_suspend_timer_fun(unsigned long data)
-{
-	prevent_suspend_flag = 0;
-}
-static DEFINE_TIMER(prevent_suspend_timer, prevent_suspend_timer_fun, 0, 0);
-
-int prevent_suspend_timeout(unsigned long timeout)
-{
-	mod_timer(&prevent_suspend_timer, jiffies + timeout);
-	prevent_suspend_flag = 1;
-	return 0;
-}
-
 static int power_suspend_late(struct device *dev)
 {
-	int ret = (has_wake_lock(WAKE_LOCK_SUSPEND) || prevent_suspend_flag)
-			? -EAGAIN : 0;
+	int ret = has_wake_lock(WAKE_LOCK_SUSPEND) ? -EAGAIN : 0;
 #ifdef CONFIG_WAKELOCK_STAT
 	wait_for_wakeup = !ret;
 #endif

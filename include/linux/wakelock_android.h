@@ -52,8 +52,6 @@ struct wake_lock {
 #endif
 };
 
-extern int prevent_suspend_timeout(unsigned long timeout);
-
 #ifdef CONFIG_HAS_WAKELOCK
 
 void wake_lock_init(struct wake_lock *lock, int type, const char *name);

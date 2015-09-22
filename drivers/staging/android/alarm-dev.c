@@ -33,6 +33,8 @@
 static int debug_mask = ANDROID_ALARM_PRINT_INFO;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+static struct wake_lock alarm_prevent_sleep;
+
 #define alarm_dbg(debug_level_mask, fmt, ...)				\
 do {									\
 	if (debug_mask & ANDROID_ALARM_PRINT_##debug_level_mask)	\
@@ -361,16 +363,16 @@ static void devalarm_triggered(struct devalarm *alarm)
 	uint32_t alarm_type_mask = 1U << alarm->type;
 
 	alarm_dbg(INT, "%s: type %d\n", __func__, alarm->type);
+	if (is_wakeup(alarm->type)) {
+		alarm_dbg(INFO, "alarm lock suspend\n");
+		wake_lock_timeout(&alarm_prevent_sleep, 2 * HZ);
+	}
 	spin_lock_irqsave(&alarm_slock, flags);
 	if (alarm_enabled & alarm_type_mask) {
 		__pm_wakeup_event(&alarm_wake_lock, 5000); /* 5secs */
 		alarm_enabled &= ~alarm_type_mask;
 		alarm_pending |= alarm_type_mask;
 		wake_up(&alarm_wait_queue);
-		if (is_wakeup(alarm->type)) {
-			alarm_dbg(INFO, "alarm lock suspend\n");
-			prevent_suspend_timeout(2 * HZ);
-		}
 	}
 	spin_unlock_irqrestore(&alarm_slock, flags);
 }
@@ -435,12 +437,15 @@ static int __init alarm_dev_init(void)
 			alarms[i].u.hrt.function = devalarm_hrthandler;
 	}
 	wakeup_source_init(&alarm_wake_lock, "alarm");
+	wake_lock_init(&alarm_prevent_sleep, WAKE_LOCK_SUSPEND,
+		       "alarm_prevent_sleep");
 	return 0;
 }
 
 static void  __exit alarm_dev_exit(void)
 {
 	misc_deregister(&alarm_device);
+	wake_lock_destroy(&alarm_prevent_sleep);
 	wakeup_source_trash(&alarm_wake_lock);
 }
 
