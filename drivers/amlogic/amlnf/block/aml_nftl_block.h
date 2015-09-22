@@ -24,6 +24,7 @@
 #include "../ntd/aml_ntd.h"
 #include "../include/amlnf_dev.h"
 
+#define CFG_M2M_TRANSFER_TBL		(1)
 
 #pragma pack(1)
 
@@ -54,6 +55,7 @@ struct aml_nftl_blk;
 
 struct aml_nftl_dev {
 	uint64_t size;
+	struct device dev;
 	struct ntd_info *ntd;
 	struct aml_nftl_part_t *aml_nftl_part;
 	struct mutex *aml_nftl_lock;
@@ -65,6 +67,7 @@ struct aml_nftl_dev {
 	int sync_flag;
 	int init_flag;
 	int reboot_flag;
+	int	thread_stop_flag;
 	uint (*read_data)(struct aml_nftl_dev *nftl_dev,
 		unsigned long block,
 		unsigned nblk,
@@ -78,13 +81,17 @@ struct aml_nftl_dev {
 		unsigned nblk);
 	uint (*flush_write_cache)(struct aml_nftl_dev *nftl_dev);
 	uint (*flush_discard_cache)(struct aml_nftl_dev *nftl_dev);
+	uint (*invalid_read_cache)(struct aml_nftl_dev *nftl_dev);
 	uint (*write_pair_page)(struct aml_nftl_dev *nftl_dev);
+	int (*get_current_part_no)(struct aml_nftl_dev *nftl_dev);
 	uint (*check_mapping)(struct aml_nftl_dev *nftl_dev,
 		uint64_t offset,
 		uint64_t size);
 	uint (*discard_partition)(struct aml_nftl_dev *nftl_dev,
 		uint64_t offset,
 		uint64_t size);
+	uint (*rebuild_tbls)(struct aml_nftl_dev *nftl_dev);
+	uint (*compose_tbls)(struct aml_nftl_dev *nftl_dev);
 };
 
 struct aml_nftl_blk {
@@ -116,6 +123,10 @@ struct aml_nftl_blk {
 };
 
 #pragma pack()
+static inline struct aml_nftl_dev *dev_to_nftl_dev(struct device *dev)
+{
+	return dev ? dev_get_drvdata(dev) : NULL;
+}
 
 extern int test_flag;
 
@@ -158,6 +169,7 @@ extern int part_param_init(struct aml_nftl_part_t *part,
 	uint logic_sects,
 	uint backup_cap_in_sects,
 	int init_flag);
+extern int aml_nftl_reinit(struct aml_nftl_dev *nftl_dev);
 extern uint is_no_use_device(struct aml_nftl_part_t *part, uint size);
 extern uint create_part_list_first(struct aml_nftl_part_t *part, uint size);
 extern uint create_part_list(struct aml_nftl_part_t *part);
@@ -185,7 +197,9 @@ extern uint __nand_discard(struct aml_nftl_part_t *part,
 	int sync_flag);
 extern uint __nand_flush_write_cache(struct aml_nftl_part_t *part);
 extern uint __nand_flush_discard_cache(struct aml_nftl_part_t *part);
+extern uint __nand_invalid_read_cache(struct aml_nftl_part_t *part);
 extern uint __nand_write_pair_page(struct aml_nftl_part_t *part);
+extern int __get_current_part_no(struct aml_nftl_part_t *part);
 extern uint __check_mapping(struct aml_nftl_part_t *part,
 	uint64_t offset,
 	uint64_t size);
@@ -207,4 +221,6 @@ extern int nand_read_logic_page(struct aml_nftl_part_t *part,
 	u32 page_no, u8 *buf);
 extern int nand_read_page(struct aml_nftl_part_t *part,
 	struct _physic_op_par *p);
+extern int compose_part_list_info(struct aml_nftl_part_t *part);
+extern int restore_part_list_info(struct aml_nftl_part_t *part);
 #endif

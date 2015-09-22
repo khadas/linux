@@ -120,12 +120,20 @@ static int ntd_blktrans_thread(void *arg)
 	struct ntd_blktrans_ops *tr = dev->tr;
 	struct request_queue *rq = dev->rq;
 	struct request *req = NULL;
+	struct ntd_info *ntd;
 	int res;
 	int background_done = 0;
 
+	ntd = dev->ntd;
 	spin_lock_irq(rq->queue_lock);
 
 	while (!kthread_should_stop()) {
+		if (ntd->thread_stop_flag) {
+			spin_unlock_irq(rq->queue_lock);
+			schedule();
+			spin_lock_irq(rq->queue_lock);
+			continue;
+		}
 		dev->bg_stop = false;
 		if (!blk_queue_plugged(rq))
 			req = blk_fetch_request(rq);
@@ -384,6 +392,33 @@ static const struct block_device_operations _ntd_blktrans_ops = {
 	.getgeo     = blktrans_getgeo,
 };
 
+/*****************************************************************************
+*Name         :
+*Description  :
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+int blk_class_register(struct class *cls)
+{
+	return class_register(cls);
+}
+EXPORT_SYMBOL(blk_class_register);
+/*****************************************************************************
+*Name         :
+*Description  :
+*Parameter    :
+*Return       :
+*Note         :
+*****************************************************************************/
+int blk_device_register(struct device *dev, int num)
+{
+	dev->parent = &platform_bus;
+	dev_set_name(dev, "aml_nftl_dev%d", num);
+
+	return device_register(dev);
+}
+EXPORT_SYMBOL(blk_device_register);
 /*****************************************************************************
 *Name         :
 *Description  :

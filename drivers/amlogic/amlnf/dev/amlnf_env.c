@@ -375,6 +375,37 @@ exit_err:
 	return ret;
 }
 
+int aml_ubootenv_reinit(struct amlnand_chip *aml_chip)
+{
+	int ret = 0;
+	unsigned char *env_buf = NULL;
+	aml_chip_env = aml_chip;
+
+	env_buf = aml_nand_malloc(CONFIG_ENV_SIZE);
+	if (env_buf == NULL) {
+		aml_nand_msg("nand malloc for secure_ptr failed");
+		ret = -1;
+		goto exit_err;
+	}
+	memset(env_buf, 0x0, CONFIG_ENV_SIZE);
+
+	ret = amlnand_info_init(aml_chip,
+			(unsigned char *)&(aml_chip->uboot_env),
+			env_buf,
+			ENV_INFO_HEAD_MAGIC,
+			CONFIG_ENV_SIZE);
+	if (ret < 0) {
+		aml_nand_msg("%s() failed\n", __func__);
+		ret = -1;
+	}
+
+	kfree(env_buf);
+	env_buf = NULL;
+
+exit_err:
+	return ret;
+}
+
 int aml_nand_update_ubootenv(struct amlnand_chip *aml_chip, char *env_ptr)
 {
 	int ret = 0;

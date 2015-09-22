@@ -480,6 +480,7 @@ int add_ntd_partitions(struct amlnand_phydev *master)
 		return PTR_ERR(slave);
 
 	mutex_lock(&ntd_partitions_mutex);
+	slave->thread_stop_flag = 0;
 	list_add(&slave->list, &ntd_partitions);
 	mutex_unlock(&ntd_partitions_mutex);
 

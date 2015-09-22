@@ -1556,7 +1556,6 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 		ops_para->chipnr = start_blk % controller->chip_num;
 		controller->select_chip(controller, ops_para->chipnr);
 		/* yyh0704, avoid bbt mismatch block status! */
-	#if 1
 		ret = operation->block_isbad(aml_chip);
 		if (ret) {
 			if (memcmp(name, DTD_INFO_HEAD_MAGIC, 4)) {
@@ -1565,7 +1564,6 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 				continue;
 			}
 		}
-	#endif
 		for (i = 0; i < pages_read;) {
 			memset((unsigned char *)ops_para, 0x0,
 				sizeof(struct chip_ops_para));

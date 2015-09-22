@@ -219,6 +219,16 @@ uint _nand_discard(struct aml_nftl_dev *nftl_dev,
 *Return       :
 *Note         :
 *****************************************************************************/
+uint _rebuild_tbls(struct aml_nftl_dev *nftl_dev)
+{
+	return aml_nftl_reinit(nftl_dev);
+}
+
+uint _compose_tbls(struct aml_nftl_dev *nftl_dev)
+{
+	return compose_part_list_info(nftl_dev->aml_nftl_part);
+}
+
 uint _nand_flush_write_cache(struct aml_nftl_dev *nftl_dev)
 {
 	return __nand_flush_write_cache(nftl_dev->aml_nftl_part);
@@ -229,11 +239,18 @@ uint _nand_flush_discard_cache(struct aml_nftl_dev *nftl_dev)
 	return __nand_flush_discard_cache(nftl_dev->aml_nftl_part);
 }
 
+uint _nand_invalid_read_cache(struct aml_nftl_dev *nftl_dev)
+{
+	return __nand_invalid_read_cache(nftl_dev->aml_nftl_part);
+}
 uint _nand_write_pair_page(struct aml_nftl_dev *nftl_dev)
 {
 	return __nand_write_pair_page(nftl_dev->aml_nftl_part);
 }
-
+int _get_current_part_no(struct aml_nftl_dev *nftl_dev)
+{
+	return __get_current_part_no(nftl_dev->aml_nftl_part);
+}
 uint _check_mapping(struct aml_nftl_dev *nftl_dev,
 		uint64_t offset, uint64_t size)
 {
@@ -328,10 +345,14 @@ int aml_nftl_initialize(struct aml_nftl_dev *nftl_dev, int no)
 	nftl_dev->discard_data = _nand_discard;
 	nftl_dev->flush_write_cache = _nand_flush_write_cache;
 	nftl_dev->flush_discard_cache = _nand_flush_discard_cache;
+	nftl_dev->invalid_read_cache = _nand_invalid_read_cache;
 	nftl_dev->write_pair_page = _nand_write_pair_page;
+	nftl_dev->get_current_part_no = _get_current_part_no;
 	nftl_dev->check_mapping = _check_mapping;
 	nftl_dev->discard_partition = _discard_partition;
-	if (no < 0)
+	nftl_dev->rebuild_tbls = _rebuild_tbls;
+	nftl_dev->compose_tbls = _compose_tbls;
+	if (nftl_dev->init_flag)
 		return ret; /* for erase init FTL part */
 
 	/* setup class */
@@ -358,6 +379,41 @@ int aml_nftl_initialize(struct aml_nftl_dev *nftl_dev, int no)
 	return 0;
 }
 
+int aml_nftl_reinit(struct aml_nftl_dev *nftl_dev)
+{
+	int ret = 0;
+	struct aml_nftl_part_t *part = NULL;
+
+	part = nftl_dev->aml_nftl_part;
+
+	PRINT("%s() %d, enter\n", __func__, __LINE__);
+	aml_nftl_set_status(part, 0);
+	/*stop thread to ensure nftl quit safely*/
+	if (nftl_dev->nftl_thread != NULL)
+		/*kthread_stop(nftl_dev->nftl_thread);*/
+		nftl_dev->thread_stop_flag = 1;
+
+	/*mutex_lock(nftl_dev->aml_nftl_lock);*/
+	/*invalid cache.*/
+	nftl_dev->invalid_read_cache(nftl_dev);
+
+#if	(CFG_M2M_TRANSFER_TBL)
+	/*reinit, using memory 1st, if failed, rebuild it on nand.*/
+	nftl_dev->init_flag = 2;
+	if (aml_nftl_initialize(nftl_dev,
+		nftl_dev->get_current_part_no(nftl_dev))) {
+#else
+	if (aml_nftl_initialize(nftl_dev, -1)) {
+#endif
+		PRINT("%s() %d: aml_nftl_initialize failed\n",
+			__func__, __LINE__);
+		ret = -1;
+	}
+
+	if (nftl_dev->nftl_thread != NULL)
+		nftl_dev->thread_stop_flag = 0;
+	return ret;
+}
 
 uint _blk_nand_read(struct aml_nftl_blk *nftl_blk,
 	unsigned long start_sector,

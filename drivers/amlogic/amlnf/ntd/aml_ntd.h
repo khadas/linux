@@ -105,6 +105,7 @@ struct ntd_info {
 	struct module *owner;
 	struct device dev;
 	int usecount;
+	int thread_stop_flag;
 	unsigned long badblocks;
 	struct list_head list;
 
@@ -294,6 +295,7 @@ extern int aml_ntd_nftl_flush(struct ntd_info *ntd);
 /* extern int unregister_ntd_user (struct ntd_notifier *old); */
 
 void *ntd_kmalloc_up_to(const struct ntd_info *ntd, size_t *size);
-
+extern int blk_class_register(struct class *cls);
+extern int blk_device_register(struct device *dev, int num);
 #endif /* __NTD_NTD_H__ */
 

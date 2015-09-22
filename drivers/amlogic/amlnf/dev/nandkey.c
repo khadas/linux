@@ -238,6 +238,33 @@ exit_error0:
 }
 
 
+int aml_key_reinit(struct amlnand_chip *aml_chip)
+{
+	int ret = 0;
+	struct nand_menson_key *key_ptr = NULL;
 
+	key_ptr = aml_nand_malloc(CONFIG_KEYSIZE);
+	if (key_ptr == NULL) {
+		aml_nand_msg("nand malloc for key_ptr failed");
+		ret = -1;
+		goto exit_error0;
+	}
+	memset(key_ptr, 0x0, CONFIG_KEYSIZE);
+	aml_nand_dbg("nand key: nand_key_probe. ");
 
+	ret = amlnand_info_init(aml_chip,
+		(unsigned char *)&(aml_chip->nand_key),
+		(unsigned char *)key_ptr,
+		KEY_INFO_HEAD_MAGIC,
+		CONFIG_KEYSIZE);
+	if (ret < 0)
+		aml_nand_msg("invalid nand key\n");
+
+exit_error0:
+	if (key_ptr) {
+		aml_nand_free(key_ptr);
+		key_ptr = NULL;
+	}
+	return ret;
+}
 

@@ -168,6 +168,40 @@ int amlphy_prepare(unsigned int flag)
 	return 0;
 }
 
+/*
+  For fastboot, yyh.
+ */
+int aml_sys_info_reinit(struct amlnand_chip *aml_chip)
+{
+	int ret = 0;
+
+#ifdef CONFIG_AML_NAND_KEY
+	ret = aml_key_reinit(aml_chip);
+	if (ret < 0)
+		aml_nand_msg("nand key init failed");
+#endif
+
+#ifdef CONFIG_SECURE_NAND
+	ret = aml_secure_init(aml_chip);
+	if (ret < 0)
+		aml_nand_msg("nand secure reinit failed");
+#endif
+
+/* fixme, yyh, add dtbs */
+#if (AML_CFG_DTB_RSV_EN)
+	ret = amlnf_dtb_reinit(aml_chip);
+	if (ret < 0)
+		aml_nand_msg("amlnf dtb reinit failed");
+#endif
+	if (boot_device_flag == 1) {
+		ret = aml_ubootenv_reinit(aml_chip);
+		if (ret < 0)
+			aml_nand_msg("nand uboot env reinit failed");
+	}
+	aml_nand_msg("%s() done!\n", __func__);
+	return ret;
+}
+
 int phydev_suspend(struct amlnand_phydev *phydev)
 {
 	struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;
@@ -198,7 +232,15 @@ int phydev_suspend(struct amlnand_phydev *phydev)
 
 void phydev_resume(struct amlnand_phydev *phydev)
 {
+	struct amlnand_chip *aml_chip;
+	aml_chip = (struct amlnand_chip *)phydev->priv;
+
 	amlchip_resume(phydev);
+	/* reinit sysinfo...  only resume once!*/
+	if (!strncmp((char *)phydev->name,
+			NAND_CODE_NAME,
+			strlen((const char *)NAND_CODE_NAME)))
+		aml_sys_info_reinit(aml_chip);
 	return;
 }
 

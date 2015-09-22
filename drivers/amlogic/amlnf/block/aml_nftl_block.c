@@ -393,6 +393,12 @@ static int aml_nftl_thread(void *arg)
 	ts_nftl_w_start = nftl_dev->ts_write_start;
 
 	while (!kthread_should_stop()) {
+		/* for suspend/resume */
+		if (nftl_dev->thread_stop_flag == 1) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(period);
+			continue;
+		}
 		mutex_lock(nftl_dev->aml_nftl_lock);
 		if (aml_nftl_get_part_write_cache_nums(part) > 0) {
 			amlnf_ktime_get_ts(&ts_nftl_current);
@@ -475,7 +481,8 @@ int aml_nftl_reinit_part(struct aml_nftl_blk *nftl_blk)
 	aml_nftl_set_status(part, 0);
 	/* add stop thread to ensure nftl quit safely */
 	if (nftl_dev->nftl_thread != NULL)
-		kthread_stop(nftl_dev->nftl_thread);
+		/*kthread_stop(nftl_dev->nftl_thread);*/
+		nftl_dev->thread_stop_flag = 1;
 
 	mutex_lock(nftl_dev->aml_nftl_lock);
 	/*
@@ -557,13 +564,15 @@ int aml_nftl_reinit_part(struct aml_nftl_blk *nftl_blk)
 		if (ret)
 			PRINT("aml_nftl_erase_part : failed\n");
 
-		if (aml_nftl_initialize(nftl_dev, -1))
+		if (aml_nftl_initialize(nftl_dev,
+			nftl_dev->get_current_part_no(nftl_dev)))
 			PRINT("%s : aml_nftl_initialize failed\n", __func__);
 	}
 
 	mutex_unlock(nftl_dev->aml_nftl_lock);
 	if (nftl_dev->nftl_thread != NULL)
-		wake_up_process(nftl_dev->nftl_thread);
+		/* wake_up_process(nftl_dev->nftl_thread); */
+		nftl_dev->thread_stop_flag = 0;
 
 	return ret;
 }
@@ -587,6 +596,110 @@ static int aml_nftl_wipe_part(struct ntd_blktrans_dev *dev)
 	return error;
 }
 
+
+#ifdef CONFIG_HIBERNATION
+
+/*
+pm(hibernate) ops
+*/
+
+static int aml_nftl_freeze(struct device *dev)
+{
+	struct aml_nftl_dev *nftl_dev = dev_to_nftl_dev(dev);
+	struct ntd_info *ntd;
+
+	if (nftl_dev == NULL) {
+		PRINT("%s : get nftl_dev failed\n", __func__);
+		return 0;
+	}
+	ntd = nftl_dev->ntd;
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+
+	/* 1st stop transfer gc thread! */
+	if (!strncmp(ntd->name, "nfdata", strlen(ntd->name))) {
+		nftl_dev->thread_stop_flag = 1;
+		ntd->thread_stop_flag = 1;
+	}
+	/* second flush nand cache */
+	nftl_dev->flush_write_cache(nftl_dev);
+	nftl_dev->flush_discard_cache(nftl_dev);
+	nftl_dev->invalid_read_cache(nftl_dev);
+
+	/* compose tbl and nand important data */
+	nftl_dev->compose_tbls(nftl_dev);
+
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+
+	PRINT("%s() %s\n", __func__, nftl_dev->ntd->name);
+
+	return 0;
+}
+
+static int aml_nftl_thaw(struct device *dev)
+{
+	struct aml_nftl_dev *nftl_dev = dev_to_nftl_dev(dev);
+	struct ntd_info *ntd;
+
+	if (nftl_dev == NULL) {
+		PRINT("%s : get nftl_dev failed\n", __func__);
+		return 0;
+	}
+	ntd = nftl_dev->ntd;
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+
+	if (!strncmp(ntd->name, "nfdata", strlen(ntd->name))) {
+		nftl_dev->thread_stop_flag = 0;
+		ntd->thread_stop_flag = 0;
+	}
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+
+	PRINT("%s() %s\n", __func__, nftl_dev->ntd->name);
+
+	return 0;
+}
+
+static int aml_nftl_restore(struct device *dev)
+{
+	struct aml_nftl_dev *nftl_dev = dev_to_nftl_dev(dev);
+	struct ntd_info *ntd;
+
+	if (nftl_dev == NULL) {
+		PRINT("%s : get nftl_dev failed\n", __func__);
+		return 0;
+	}
+	ntd = nftl_dev->ntd;
+
+	mutex_lock(nftl_dev->aml_nftl_lock);
+
+	nftl_dev->rebuild_tbls(nftl_dev);
+	if (!strncmp(ntd->name, "nfdata", strlen(ntd->name))) {
+		nftl_dev->thread_stop_flag = 0;
+		ntd->thread_stop_flag = 0;
+	}
+
+	mutex_unlock(nftl_dev->aml_nftl_lock);
+	PRINT("%s() %s\n", __func__, nftl_dev->ntd->name);
+	return 0;
+}
+
+static const struct dev_pm_ops nftl_pm_ops = {
+	/*.suspend = aml_nftl_suspend,*/
+	/*.resume  = aml_nftl_resume,*/
+	.freeze  = aml_nftl_freeze,
+	.thaw    = aml_nftl_thaw,
+	.restore = aml_nftl_restore,
+};
+
+
+static struct class aml_nftl_class = {
+	.name = "nftl_cls",
+	.owner = THIS_MODULE,
+	.pm = &nftl_pm_ops,
+};
+#endif /* CONFIG_HIBERNATION */
+
 /*****************************************************************************
 *Name         :
 *Description  :
@@ -608,7 +721,8 @@ static void aml_nftl_add_ntd(struct ntd_blktrans_ops *tr, struct ntd_info *ntd)
 	nftl_dev = aml_nftl_malloc(sizeof(struct aml_nftl_dev));
 	if (!nftl_dev)
 		return;
-
+	/* init thread run status. */
+	nftl_dev->thread_stop_flag = 0;
 	nftl_dev->aml_nftl_lock = aml_nftl_malloc(sizeof(struct mutex));
 	if (!nftl_dev->aml_nftl_lock)
 		return;
@@ -660,9 +774,9 @@ static void aml_nftl_add_ntd(struct ntd_blktrans_ops *tr, struct ntd_info *ntd)
 			return;
 		}
 
-		/* printk("nftl_blk->name %s\n",nftl_blk->name); */
-		/* printk("nftl_blk->offset 0x%llx\n",nftl_blk->offset); */
-		/* printk("nftl_blk->size 0x%llx\n",nftl_blk->size); */
+		/* PRINT("nftl_blk->name %s\n",nftl_blk->name); */
+		/* PRINT("nftl_blk->offset 0x%llx\n",nftl_blk->offset); */
+		/* PRINT("nftl_blk->size 0x%llx\n",nftl_blk->size); */
 
 		nftl_blk->nbd.size = (unsigned long)nftl_blk->size;
 		nftl_blk->nbd.priv = (void *)nftl_blk;
@@ -680,7 +794,13 @@ static void aml_nftl_add_ntd(struct ntd_blktrans_ops *tr, struct ntd_info *ntd)
 		}
 		cur_offset += part->size;
 	}
-
+#ifdef CONFIG_HIBERNATION
+	if (nftl_num == 0)
+		blk_class_register(&aml_nftl_class);
+	nftl_dev->dev.class = &aml_nftl_class;
+	dev_set_drvdata(&nftl_dev->dev, nftl_dev);
+	blk_device_register(&nftl_dev->dev, nftl_num);
+#endif
 	nftl_num++;
 	aml_nftl_dbg("aml_nftl_add_ntd ok\n");
 
