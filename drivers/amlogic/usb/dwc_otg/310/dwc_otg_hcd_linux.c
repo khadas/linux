@@ -221,73 +221,7 @@ static void free_bus_bandwidth(struct usb_hcd *hcd, uint32_t bw,
 	else
 		hcd_to_bus(hcd)->bandwidth_int_reqs--;
 }
-int _hcd_isoc_complete(dwc_otg_hcd_t *hcd, void *urb_handle,
-		     dwc_otg_hcd_urb_t *dwc_otg_urb, int32_t status)
-{
-	struct urb *urb = (struct urb *)urb_handle;
 
-	if (dwc_otg_urb->qh_state == URB_STATE_DQUEUE)
-		status = -ENOENT;
-
-	urb->actual_length = dwc_otg_urb->actual_length;
-	/* Convert status value. */
-	switch (status) {
-	case -DWC_E_PROTOCOL:
-		status = -EPROTO;
-		break;
-	case -DWC_E_IN_PROGRESS:
-		status = -EINPROGRESS;
-		break;
-	case -DWC_E_PIPE:
-		status = -EPIPE;
-		break;
-	case -DWC_E_IO:
-		status = -EIO;
-		break;
-	case -DWC_E_TIMEOUT:
-		status = -ETIMEDOUT;
-		break;
-	case -DWC_E_OVERFLOW:
-		status = -EOVERFLOW;
-		break;
-	default:
-		if (status)
-			DWC_PRINTF("%s:Uknown urb status %d\n", __func__, status);
-	}
-
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		int i;
-
-		urb->error_count = dwc_otg_hcd_urb_get_error_count(dwc_otg_urb);
-		for (i = 0; i < urb->number_of_packets; ++i) {
-			urb->iso_frame_desc[i].actual_length = dwc_otg_urb->iso_descs[i].actual_length;
-			urb->iso_frame_desc[i].status = dwc_otg_urb->iso_descs[i].status;
-		}
-	}
-
-	urb->status = status;
-
-	if (!status) {
-		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-		    (urb->actual_length < urb->transfer_buffer_length))
-			urb->status = -EREMOTEIO;
-	}
-
-	if ((usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) ||
-	    (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)) {
-		struct usb_host_endpoint *ep = dwc_urb_to_endpoint(urb);
-		if (ep)
-			free_bus_bandwidth(dwc_otg_hcd_to_hcd(hcd),
-					   dwc_otg_hcd_get_ep_bandwidth(hcd,
-									ep->hcpriv),
-					   urb);
-	}
-
-
-	DWC_FREE(dwc_otg_urb);
-
-	return 0;
-}
 /**
  * Sets the final status of an URB and returns it to the device driver. Any
  * required cleanup of the URB is performed.
@@ -354,6 +288,7 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 	}
 
 	urb->status = status;
+	urb->hcpriv = NULL;
 	if (!status) {
 		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
 		    (urb->actual_length < urb->transfer_buffer_length))
@@ -386,114 +321,12 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 	return 0;
 }
 
-/*copy from _complete,not use spinlock*/
-/**
- * Sets the final status of an URB and returns it to the device driver. Any
- * required cleanup of the URB is performed.
- */
-int _complete_in_tasklet(dwc_otg_hcd_t *hcd, void *urb_handle,
-		     dwc_otg_hcd_urb_t *dwc_otg_urb, int32_t status)
-{
-	struct urb *urb = (struct urb *)urb_handle;
-#if 0
-#ifdef DEBUG
-	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
-		DWC_PRINTF("%s: urb %p, device %d, ep %d %s, status=%d\n",
-			   __func__, urb, usb_pipedevice(urb->pipe),
-			   usb_pipeendpoint(urb->pipe),
-			   usb_pipein(urb->pipe) ? "IN" : "OUT", status);
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-			int i;
-			for (i = 0; i < urb->number_of_packets; i++) {
-				DWC_PRINTF("  ISO Desc %d status: %d\n",
-					   i, urb->iso_frame_desc[i].status);
-			}
-		}
-	}
-#endif
-
-	urb->actual_length = dwc_otg_hcd_urb_get_actual_length(dwc_otg_urb);
-	/* Convert status value. */
-	switch (status) {
-	case -DWC_E_PROTOCOL:
-		status = -EPROTO;
-		break;
-	case -DWC_E_IN_PROGRESS:
-		status = -EINPROGRESS;
-		break;
-	case -DWC_E_PIPE:
-		status = -EPIPE;
-		break;
-	case -DWC_E_IO:
-		status = -EIO;
-		break;
-	case -DWC_E_TIMEOUT:
-		status = -ETIMEDOUT;
-		break;
-	case -DWC_E_OVERFLOW:
-		status = -EOVERFLOW;
-		break;
-	default:
-		if (status) {
-			DWC_PRINTF("Uknown urb status %d\n", status);
-
-		}
-	}
-
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		int i;
-
-		urb->error_count = dwc_otg_hcd_urb_get_error_count(dwc_otg_urb);
-		for (i = 0; i < urb->number_of_packets; ++i) {
-			urb->iso_frame_desc[i].actual_length =
-			    dwc_otg_hcd_urb_get_iso_desc_actual_length
-			    (dwc_otg_urb, i);
-			urb->iso_frame_desc[i].status =
-			    dwc_otg_hcd_urb_get_iso_desc_status(dwc_otg_urb, i);
-		}
-	}
-
-	urb->status = status;
-	urb->hcpriv = NULL;
-	if (!status) {
-		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-		    (urb->actual_length < urb->transfer_buffer_length)) {
-			urb->status = -EREMOTEIO;
-		}
-	}
-
-	if ((usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) ||
-	    (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)) {
-		struct usb_host_endpoint *ep = dwc_urb_to_endpoint(urb);
-		if (ep) {
-			free_bus_bandwidth(dwc_otg_hcd_to_hcd(hcd),
-					   dwc_otg_hcd_get_ep_bandwidth(hcd,
-									ep->hcpriv),
-					   urb);
-		}
-	}
-#if 0
-	usb_hcd_unlink_urb_from_ep(dwc_otg_hcd_to_hcd(hcd), urb);
-#endif
-	DWC_FREE(dwc_otg_urb);
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28)
-	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb);
-#else
-	usb_hcd_giveback_urb(dwc_otg_hcd_to_hcd(hcd), urb, urb->status);
-#endif
-
-	return 0;
-}
-
 static struct dwc_otg_hcd_function_ops hcd_fops = {
 	.start = _start,
 	.disconnect = _disconnect,
 	.hub_info = _hub_info,
 	.speed = _speed,
 	.complete = _complete,
-	.complete_in_tasklet = _complete_in_tasklet,
-	.hcd_isoc_complete = _hcd_isoc_complete,
 	.get_b_hnp_enable = _get_b_hnp_enable,
 };
 

@@ -631,11 +631,6 @@ int dwc_otg_hcd_urb_dequeue(dwc_otg_hcd_t *hcd,
 			* written to halt the channel since the core is in
 			* device mode.
 			*/
-			if ((dwc_otg_urb->qh_state == URB_STATE_SETED) &&
-				(qh->ep_type == UE_ISOCHRONOUS)) {
-				dwc_otg_urb->qh_state = URB_STATE_DQUEUE;
-				return -1;
-			}
 			dwc_otg_hc_halt(hcd->core_if, qh->channel,
 					DWC_OTG_HC_XFER_URB_DEQUEUE);
 		}
@@ -658,9 +653,6 @@ int dwc_otg_hcd_urb_dequeue(dwc_otg_hcd_t *hcd,
 	} else {
 		dwc_otg_hcd_qtd_remove_and_free(hcd, urb_qtd, qh);
 	}
-
-	dwc_otg_urb->qh_state = URB_STATE_UNLINK;
-
 	return 0;
 }
 
@@ -753,78 +745,6 @@ static void reset_tasklet_func(void *data)
 	dwc_otg_hcd->flags.b.port_reset_change = 1;
 }
 
-/**
- * Isoc complete tasklet function
- */
-static void isoc_complete_tasklet_func(void *data)
-{
-	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *) data;
-#if 0
-	dwc_otg_hcd_urb_t *urb = NULL;
-	dwc_list_link_t *iso_comp_urb_entry;
-	dwc_otg_hcd_urb_list_t *urb_list;
-	int cnt = 0;
-#endif
-	int i;
-
-	while (1) {
-#if 0
-		DWC_SPINLOCK(dwc_otg_hcd->isoc_comp_urbs_lock);
-		iso_comp_urb_entry = DWC_LIST_FIRST(
-				&dwc_otg_hcd->isoc_comp_urbs_list);
-		if (iso_comp_urb_entry != &dwc_otg_hcd->
-						isoc_comp_urbs_list) {
-			urb_list = DWC_LIST_ENTRY(iso_comp_urb_entry,
-						dwc_otg_hcd_urb_list_t, urb_list_entry);
-			DWC_LIST_REMOVE(iso_comp_urb_entry);
-			DWC_SPINUNLOCK(dwc_otg_hcd->isoc_comp_urbs_lock);
-			urb = urb_list->urb;
-			DWC_FREE(urb_list);
-		} else {
-			DWC_SPINUNLOCK(dwc_otg_hcd->isoc_comp_urbs_lock);
-			break;
-		}
-
-		if (urb) {
-			dwc_otg_hcd->fops->complete_in_tasklet
-				(dwc_otg_hcd, urb->priv, urb, 0);
-			urb = NULL;
-		}
-		cnt++;
-		if (cnt > 16)
-			break;
-#endif
-		for (i = 0; i <  MAX_EPS_CHANNELS; i++) {
-			if (dwc_otg_hcd->isoc_comp_urbs[i])
-				break;
-		}
-		if (i >= MAX_EPS_CHANNELS)
-			break;
-
-		dwc_otg_hcd->fops->complete_in_tasklet(dwc_otg_hcd,
-					dwc_otg_hcd->isoc_comp_urbs[i], 0, 0);
-		dwc_otg_hcd->isoc_comp_urbs[i] = NULL;
-	}
-	return;
-}
-
-static void isoc_complete_urb_list_free(dwc_otg_hcd_t *hcd)
-{
-    dwc_list_link_t *iso_comp_urb_entry;
-	dwc_otg_hcd_urb_list_t *urb_list;
-
-	DWC_SPINLOCK(hcd->isoc_comp_urbs_lock);
-	iso_comp_urb_entry = DWC_LIST_FIRST(&hcd->isoc_comp_urbs_list);
-	while (iso_comp_urb_entry != &hcd->isoc_comp_urbs_list) {
-		urb_list = DWC_LIST_ENTRY(iso_comp_urb_entry,
-				dwc_otg_hcd_urb_list_t, urb_list_entry);
-		DWC_LIST_REMOVE(iso_comp_urb_entry);
-		DWC_FREE(urb_list);
-		iso_comp_urb_entry = DWC_LIST_FIRST(&hcd->isoc_comp_urbs_list);
-	}
-	DWC_SPINUNLOCK(hcd->isoc_comp_urbs_lock);
-	return;
-}
 
 static void qh_list_free(dwc_otg_hcd_t *hcd, dwc_list_link_t *qh_list)
 {
@@ -932,8 +852,6 @@ static void dwc_otg_hcd_free(dwc_otg_hcd_t *dwc_otg_hcd)
 	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_assigned);
 	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_queued);
 
-	isoc_complete_urb_list_free(dwc_otg_hcd);
-
 	/* Free memory for the host channels. */
 	for (i = 0; i < MAX_EPS_CHANNELS; i++) {
 		dwc_hc_t *hc = dwc_otg_hcd->hc_ptr_array[i];
@@ -962,13 +880,11 @@ static void dwc_otg_hcd_free(dwc_otg_hcd_t *dwc_otg_hcd)
 		dwc_otg_hcd->status_buf = NULL;
 	}
 	DWC_SPINLOCK_FREE(dwc_otg_hcd->lock);
-	DWC_SPINLOCK_FREE(dwc_otg_hcd->isoc_comp_urbs_lock);
 	/* Set core_if's lock pointer to NULL */
 	dwc_otg_hcd->core_if->lock = NULL;
 
 	DWC_TIMER_FREE(dwc_otg_hcd->conn_timer);
 	DWC_TASK_FREE(dwc_otg_hcd->reset_tasklet);
-    DWC_TASK_FREE(dwc_otg_hcd->isoc_complete_tasklet);
 #ifdef DWC_DEV_SRPCAP
 	if (dwc_otg_hcd->core_if->power_down == 2 &&
 	    dwc_otg_hcd->core_if->pwron_timer) {
@@ -993,13 +909,6 @@ int dwc_otg_hcd_init(dwc_otg_hcd_t *hcd, dwc_otg_core_if_t *core_if)
 		retval = -DWC_E_NO_MEMORY;
 		goto out;
 	}
-	hcd->isoc_comp_urbs_lock = DWC_SPINLOCK_ALLOC();
-	if (!hcd->isoc_comp_urbs_lock) {
-		DWC_ERROR("Could not allocate isoc_comp_urbs_lock for hcd");
-		DWC_FREE(hcd);
-		retval = -DWC_E_NO_MEMORY;
-		goto out;
-	}
 	hcd->core_if = core_if;
 
 	/* Register the HCD CIL Callbacks */
@@ -1015,7 +924,6 @@ int dwc_otg_hcd_init(dwc_otg_hcd_t *hcd, dwc_otg_core_if_t *core_if)
 	DWC_LIST_INIT(&hcd->periodic_sched_ready);
 	DWC_LIST_INIT(&hcd->periodic_sched_assigned);
 	DWC_LIST_INIT(&hcd->periodic_sched_queued);
-    DWC_LIST_INIT(&hcd->isoc_comp_urbs_list);
 	/*
 	 * Create a host channel descriptor for each host channel implemented
 	 * in the controller. Initialize the channel descriptor array.
@@ -1050,8 +958,6 @@ int dwc_otg_hcd_init(dwc_otg_hcd_t *hcd, dwc_otg_core_if_t *core_if)
 	hcd->reset_tasklet = DWC_TASK_ALLOC("reset_tasklet",
 						reset_tasklet_func, hcd);
        /* Initialize ISOC complete tasklet. */
-	hcd->isoc_complete_tasklet = DWC_TASK_ALLOC("isoc_complete_tasklet",
-						isoc_complete_tasklet_func, hcd);
 #ifdef DWC_DEV_SRPCAP
 	if (hcd->core_if->power_down == 2) {
 		/* Initialize Power on timer for
@@ -1182,10 +1088,7 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 	/* Remove the host channel from the free list. */
 	DWC_CIRCLEQ_REMOVE_INIT(&hcd->free_hc_list, hc, hc_list_entry);
 
-	urb->qh_state = URB_STATE_ACTIVE;
-
 	qh->channel = hc;
-	qh->dwc_otg_urb = urb;
 	qtd->in_process = 1;
 
 	/*
@@ -1467,7 +1370,6 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *hcd)
 
 	return ret_val;
 }
-
 /**
  * Attempts to queue a single transaction request for a host channel
  * associated with either a periodic or non-periodic transfer. This function
@@ -1534,13 +1436,6 @@ static int queue_transaction(dwc_otg_hcd_t *hcd,
 		} else {
 			retval = dwc_otg_hc_continue_transfer(hcd->core_if, hc);
 		}
-	}
-	if (hc->xfer_started) {
-		if (hc->qh->channel == hc)
-			hc->qh->dwc_otg_urb->qh_state = URB_STATE_SETED;
-		else
-			DWC_PRINTF("%s hc=%p,qh->channel=%p\n",
-					__func__, hc, hc->qh->channel);
 	}
 
 	return retval;

@@ -684,9 +684,7 @@ update_isoc_urb_state(dwc_otg_hcd_t *hcd,
 	dwc_otg_hcd_urb_t *urb = qtd->urb;
 	dwc_otg_halt_status_e ret_val = halt_status;
 	struct dwc_otg_hcd_iso_packet_desc *frame_desc;
-#if 0
-	dwc_otg_hcd_urb_list_t *urb_list;
-#endif
+
 	frame_desc = &urb->iso_descs[qtd->isoc_frame_index];
 	switch (halt_status) {
 	case DWC_OTG_HC_XFER_COMPLETE:
@@ -737,33 +735,12 @@ update_isoc_urb_state(dwc_otg_hcd_t *hcd,
 		DWC_ASSERT(1, "Unhandled _halt_status (%d)\n", halt_status);
 		break;
 	}
-	if ((++qtd->isoc_frame_index == urb->packet_count) || (urb->qh_state == URB_STATE_DQUEUE)) {
+	if (++qtd->isoc_frame_index == urb->packet_count) {
 		/*
 		 * urb->status is not used for isoc transfers.
 		 * The individual frame_desc statuses are used instead.
 		 */
-
-#if 0
-		urb_list = DWC_ALLOC(sizeof(dwc_otg_hcd_urb_list_t));
-		if (urb_list == NULL) {
-			DWC_ASSERT(1, "No memory alloc in update_isoc_urb_state\n");
-		}
-		urb_list->urb = urb;
-		DWC_SPINLOCK(hcd->isoc_comp_urbs_lock);
-		DWC_LIST_INSERT_TAIL(&hcd->isoc_comp_urbs_list, &urb_list->urb_list_entry);
-		DWC_SPINUNLOCK(hcd->isoc_comp_urbs_lock);
-#else
-		int i;
-		for (i = 0; i <  MAX_EPS_CHANNELS; i++) {
-			if (hcd->isoc_comp_urbs[i] == NULL) {
-				hcd->isoc_comp_urbs[i] = urb->priv;
-				break;
-			}
-		}
-
-		hcd->fops->hcd_isoc_complete(hcd, urb->priv, urb, 0);
-		DWC_TASK_SCHEDULE(hcd->isoc_complete_tasklet);
-#endif
+		hcd->fops->complete(hcd, urb->priv, urb, 0);
 		ret_val = DWC_OTG_HC_XFER_URB_COMPLETE;
 	} else {
 		ret_val = DWC_OTG_HC_XFER_COMPLETE;
@@ -2081,10 +2058,10 @@ int32_t dwc_otg_hcd_handle_hc_n_intr(dwc_otg_hcd_t *dwc_otg_hcd, uint32_t num)
 		    hcint.d32, hcintmsk.d32, (hcint.d32 & hcintmsk.d32));
 	hcint.d32 = hcint.d32 & hcintmsk.d32;
 
-	if (!dwc_otg_hcd->core_if->dma_enable) {
+	/*if (!dwc_otg_hcd->core_if->dma_enable) {*/
 		if (hcint.b.chhltd && hcint.d32 != 0x2)
 			hcint.b.chhltd = 0;
-	}
+	/*}*/
 
 	if (hcint.b.xfercomp) {
 		retval |=

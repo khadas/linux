@@ -678,7 +678,6 @@ void dwc_otg_hcd_qtd_init(dwc_otg_qtd_t *qtd, dwc_otg_hcd_urb_t *urb)
 
 	/* Store the qtd ptr in the urb to reference what QTD. */
 	urb->qtd = qtd;
-	urb->qh_state = URB_STATE_IDLE;
 	return;
 }
 

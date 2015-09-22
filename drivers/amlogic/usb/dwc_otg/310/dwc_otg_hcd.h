@@ -88,20 +88,10 @@ struct dwc_otg_hcd_urb {
 	uint32_t packet_count;
 	uint32_t flags;
 	uint16_t interval;
-	uint8_t	 qh_state;
-#define URB_STATE_IDLE		1	/* QH is not being used */
-#define URB_STATE_ACTIVE	2	/* QH is on the schedule */
-#define URB_STATE_SETED		3	/* QH had finished setting reg */
-#define URB_STATE_DQUEUE	4	/* QH had been pushed into tasklet, just used for isoc */
-#define URB_STATE_UNLINK	5   /* QH has been removed from the schedule */
 	struct dwc_otg_hcd_pipe_info pipe_info;
 	struct dwc_otg_hcd_iso_packet_desc iso_descs[0];
 };
 
-typedef struct dwc_otg_hcd_urb_list{
-	struct dwc_otg_hcd_urb *urb;
-	dwc_list_link_t urb_list_entry;
-} dwc_otg_hcd_urb_list_t;
 
 static inline uint8_t dwc_otg_hcd_get_ep_num(struct dwc_otg_hcd_pipe_info *pipe)
 {
@@ -374,8 +364,6 @@ typedef struct dwc_otg_qh {
 	uint8_t td_first;
 	/** Last activated isochronous transfer descriptor index. */
 	uint8_t td_last;
-
-	struct dwc_otg_hcd_urb *dwc_otg_urb;
 	/** @} */
 
 } dwc_otg_qh_t;
@@ -540,13 +528,8 @@ struct dwc_otg_hcd {
 
 	/* Tasket to do a reset */
 	dwc_tasklet_t *reset_tasklet;
-	dwc_tasklet_t *isoc_complete_tasklet;
-
-	dwc_list_link_t isoc_comp_urbs_list;
 	/*  */
 	dwc_spinlock_t *lock;
-	dwc_spinlock_t *isoc_comp_urbs_lock;
-	void *isoc_comp_urbs[MAX_EPS_CHANNELS];
 	/**
 	 * Private data that could be used by OS wrapper.
 	 */

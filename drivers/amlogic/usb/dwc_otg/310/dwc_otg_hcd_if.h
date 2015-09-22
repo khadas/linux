@@ -79,8 +79,6 @@ struct dwc_otg_hcd_function_ops {
 	dwc_otg_hcd_hub_info_from_urb_cb_t hub_info;
 	dwc_otg_hcd_speed_from_urb_cb_t speed;
 	dwc_otg_hcd_complete_urb_cb_t complete;
-	dwc_otg_hcd_complete_urb_cb_t complete_in_tasklet;
-	dwc_otg_hcd_complete_urb_cb_t hcd_isoc_complete;
 	dwc_otg_hcd_get_b_hnp_enable get_b_hnp_enable;
 };
 /** @} */
