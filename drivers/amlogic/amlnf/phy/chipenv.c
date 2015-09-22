@@ -266,10 +266,18 @@ int get_last_reserve_block(struct amlnand_chip *aml_chip)
 	struct chip_ops_para  *ops_para = &aml_chip->ops_para;
 	struct nand_flash *flash = &aml_chip->flash;
 
-	u32 offset, start_blk, total_blk, blk_addr, tmp_blk, pages_per_blk;
+	u32 offset, start_blk, blk_addr, tmp_blk, pages_per_blk;
 	unsigned char phys_erase_shift, phys_page_shift;
 	int  ret = 0;
 	unsigned int tmp_value;
+	static u32 total_blk, scan_flag;/*add 150922*/
+
+	if ((total_blk > RESERVED_BLOCK_CNT) &&	(scan_flag == 1)) {
+		aml_nand_msg("total_blk:%d", total_blk);
+		return total_blk;
+	}
+	if (aml_chip->nand_bbtinfo.arg_valid)
+		scan_flag = 1;
 
 	offset = (1024 * flash->pagesize);
 
@@ -1529,8 +1537,11 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 
 	start_blk = (offset >> phys_erase_shift);
 	tmp_blk = start_blk;
+#if 0
 	total_blk = (offset >> phys_erase_shift) + RESERVED_BLOCK_CNT;
-
+#else
+	total_blk = get_last_reserve_block(aml_chip);
+#endif
 #if 1
 	for (; start_blk < total_blk; start_blk++) {
 		read_failed_page = 0;
@@ -1545,11 +1556,14 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 		ops_para->chipnr = start_blk % controller->chip_num;
 		controller->select_chip(controller, ops_para->chipnr);
 		/* yyh0704, avoid bbt mismatch block status! */
-	#if 0
+	#if 1
 		ret = operation->block_isbad(aml_chip);
 		if (ret) {
-			aml_nand_msg("nand block at blk %d is bad ", start_blk);
-			continue;
+			if (memcmp(name, DTD_INFO_HEAD_MAGIC, 4)) {
+				aml_nand_msg("nand block at blk %d is bad ",
+					start_blk);
+				continue;
+			}
 		}
 	#endif
 		for (i = 0; i < pages_read;) {
