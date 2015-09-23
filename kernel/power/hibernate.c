@@ -787,8 +787,7 @@ int software_resume(void)
 		ssleep(resume_delay);
 	}
 
-	while (!emmc_probe_complete())
-		msleep(100);
+	wait_for_emmc_probe();
 
 	/* Check if the device is there */
 	swsusp_resume_device = name_to_dev_t(resume_file);

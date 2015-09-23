@@ -458,13 +458,6 @@ static const struct file_operations card_proc_fops = {
 	.release = seq_release,
 };
 
-static int emmc_probe_complete_flag;
-
-int emmc_probe_complete(void)
-{
-	return emmc_probe_complete_flag;
-}
-
 static int add_emmc_partition(struct gendisk *disk,
 	struct mmc_partitions_fmt *pt_fmt)
 {
@@ -718,8 +711,6 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		pr_info("[%s] can't create aml_store_class file .\n", __func__);
 		goto out_class3;
 	}
-
-	emmc_probe_complete_flag = 1;
 
 	pr_info("Exit %s %s.\n", __func__, (ret == 0)?"OK":"ERROR");
 	return ret;

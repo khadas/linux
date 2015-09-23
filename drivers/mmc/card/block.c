@@ -2424,10 +2424,20 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
+static atomic_t emmc_probe = ATOMIC_INIT(0);
+static DECLARE_WAIT_QUEUE_HEAD(emmc_probe_waitqueue);
+
+void wait_for_emmc_probe(void)
+{
+	wait_event(emmc_probe_waitqueue, atomic_read(&emmc_probe) == 0);
+}
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
+
+	atomic_set(&emmc_probe, 1);
 
 	/*
 	 * Check that the card supports the command class(es) we need.
@@ -2456,6 +2466,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 		goto out;
 
 	aml_emmc_partition_ops(card, md->disk); /* add by gch */
+	atomic_set(&emmc_probe, 0);
+	wake_up(&emmc_probe_waitqueue);
 
 	list_for_each_entry(part_md, &md->part, part) {
 		if (mmc_add_disk(part_md))

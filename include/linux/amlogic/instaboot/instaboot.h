@@ -74,7 +74,7 @@ extern void restore_processor_state(void);
 extern int osd_show_progress_bar(u32 percent);
 extern int osd_init_progress_bar(void);
 
-extern int emmc_probe_complete(void);
+extern void wait_for_emmc_probe(void);
 
 extern unsigned int is_instabooting;
 
