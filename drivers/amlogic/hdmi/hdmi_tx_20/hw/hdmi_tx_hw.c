@@ -240,7 +240,22 @@ int hdmitx_hdcp_opr(unsigned int val)
 		);
 		return (unsigned)(x0&0xffffffff);
 	}
-
+	if (val == 0) {
+		register long x0 asm("x0") = 0x82000012;
+		asm volatile(
+			__asmeq("%0", "x0")
+			"smc #0\n"
+			: : "r"(x0)
+		);
+	}
+	if (val == 3) {
+		register long x0 asm("x0") = 0x82000013;
+		asm volatile(
+			__asmeq("%0", "x0")
+			"smc #0\n"
+			: : "r"(x0)
+		);
+	}
 	return -1;
 }
 
@@ -2778,18 +2793,21 @@ static unsigned char tmp_edid_buf[128*EDID_MAX_BLOCK] = { 0 };
 static void hdcp_ksv_event(unsigned long arg)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)arg;
+	pr_info("hdcp14: instat: 0x%x\n",
+		(uint8_t)hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT));
+	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 7)) {
+		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, 1 << 7);
+		hdmitx_hdcp_opr(3);
+	}
 	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
-		hdev->hdcp_try_times = 0;
 		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x4);
-		return;
-	} else {
-		if (hdev->hdcp_try_times)
-			mod_timer(&hdev->hdcp_timer, jiffies + HZ);
-		else
-			return;
-		hdev->hdcp_try_times--;
 	}
+	if (hdev->hdcp_try_times)
+		mod_timer(&hdev->hdcp_timer, jiffies + HZ);
+	else
+		return;
+	hdev->hdcp_try_times--;
 }
 
 static void hdcp_start_timer(struct hdmitx_dev *hdev)
@@ -3769,29 +3787,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_A_VIDPOLCFG,   data32);
 
 	hdmitx_wr_reg(HDMITX_DWC_A_OESSWCFG,    0x40);
-
-	data32  = 0;
-	data32 |= (0 << 4);
-	data32 |= (0 << 3);
-	data32 |= (1 << 2);
-	data32 |= (1 << 1);
-	data32 |= (1 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1,    data32);
-
-	/* configure_hdcp_dpk(base_offset, 0xa938); */
-
-	/* initialize HDCP, with rxdetect low */
-	data32  = 0;
-	data32 |= (0 << 7);
-	data32 |= (1 << 6);
-	data32 |= (1 << 5);
-	data32 |= (1 << 4);
-	data32 |= (0 << 3);
-	data32 |= (0 << 2);
-	data32 |= (1 << 1);
-	data32 |= (1 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, data32);
-
+	hdmitx_hdcp_opr(0);
 	/* Interrupts */
 	/* Clear interrupts */
 	hdmitx_wr_reg(HDMITX_DWC_IH_FC_STAT0,  0xff);
