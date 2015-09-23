@@ -1848,7 +1848,7 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		pRXCap->scdc_rr_capable);
 	pos += snprintf(buffer+pos, buffer_len-pos, "LTE_340M_Scramble: %x\n",
 		pRXCap->lte_340mcsc_scramble);
-#if 0
+#if 1
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Rx 3D Format Support List:\n"
 		"{VIC FramePacking TopBottom SidebySide}\n");
