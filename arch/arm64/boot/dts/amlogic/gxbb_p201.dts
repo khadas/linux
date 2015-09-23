@@ -624,9 +624,11 @@
 		dev_name = "i2c-gpio";
 		gpios = <&gpio GPIOH_1 0
 		&gpio GPIOH_2 0>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		i2c_gpio_edid: i2c_gpio_edid {
 			compatible = "i2c-gpio-edid";
-			reg = <0x50>;
+			reg = <0x50 0x0 0x0 0x0>;
 		};
 	};
 
