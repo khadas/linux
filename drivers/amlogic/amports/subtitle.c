@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/uaccess.h>
+#include "amports_priv.h"
 
 #include "amlog.h"
 MODULE_AMLOG(AMLOG_DEFAULT_LEVEL, 0, LOG_DEFAULT_LEVEL_DESC,

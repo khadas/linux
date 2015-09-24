@@ -33,6 +33,8 @@
 #include "firmware.h"
 #include "chips.h"
 #include "linux/string.h"
+#include "log.h"
+
 /* /#define ENABLE_LOAD_FIRMWARE_FROM_FS */
 /*
 android firmware path:

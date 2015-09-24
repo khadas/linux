@@ -19,6 +19,8 @@
 #include <linux/amlogic/amports/tsync.h>
 #include "vdec_reg.h"
 #include "arch/register.h"
+#include "amports_priv.h"
+
 
 u32 acc_apts_inc = 0;
 u32 acc_apts_dec = 0;

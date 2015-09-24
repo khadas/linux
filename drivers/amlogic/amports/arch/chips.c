@@ -29,6 +29,7 @@
 #include "../amports_priv.h"
 #include "../vdec.h"
 #include "chips.h"
+#include "log.h"
 
 #define VIDEO_FIRMWARE_FATHER_NAME "video"
 /*

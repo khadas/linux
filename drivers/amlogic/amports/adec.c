@@ -29,6 +29,7 @@
 
 #include "streambuf.h"
 #include <linux/module.h>
+#include "amports_priv.h"
 
 #define INFO_VALID ((astream_dev) && (astream_dev->format))
 

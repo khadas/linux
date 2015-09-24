@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define INFO_PREFIX "video_rdma"
 
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -39,6 +40,7 @@
 #include "rdma.h"
 #include "vdec_reg.h"
 #include <linux/amlogic/rdma/rdma_mgr.h>
+#include "amports_priv.h"
 
 
 #define Wr(adr, val) WRITE_VCBUS_REG(adr, val)

@@ -38,6 +38,7 @@
 #include "amvdec.h"
 #include "streambuf.h"
 #include "vdec_reg.h"
+#include "amports_priv.h"
 
 #define DEVICE_NAME "amjpegdec"
 #define DRIVER_NAME "amjpegdec"

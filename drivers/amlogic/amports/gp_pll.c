@@ -26,6 +26,7 @@
 #include <linux/semaphore.h>
 
 #include <linux/amlogic/amports/gp_pll.h>
+#include "amports_priv.h"
 
 static DEFINE_MUTEX(gp_mutex);
 

@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/amlogic/amports/amstream.h>
+#include "amports_priv.h"
 
 static const struct codec_profile_t *vcodec_profile[SUPPORT_VDEC_NUM] = { 0 };
 

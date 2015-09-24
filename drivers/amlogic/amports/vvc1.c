@@ -34,6 +34,7 @@
 #include "vdec_reg.h"
 #include "amvdec.h"
 #include "arch/register.h"
+#include "amports_priv.h"
 
 
 #define DRIVER_NAME "amvdec_vc1"

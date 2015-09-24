@@ -17,6 +17,7 @@
 
 #include "register_ops.h"
 #include "register_map.h"
+#include "log.h"
 
 #define REGISTER_FOR_CPU {\
 			MESON_CPU_MAJOR_ID_M8,\

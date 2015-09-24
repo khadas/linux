@@ -23,6 +23,7 @@
 #include "register.h"
 #include "clk_priv.h"
 #include "register_ops.h"
+#include "log.h"
 
 /*
 HHI_VDEC_CLK_CNTL

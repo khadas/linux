@@ -31,6 +31,7 @@
 
 #include "vdec_reg.h"
 #include "arch/register.h"
+#include "amports_priv.h"
 
 
 #ifdef CONFIG_AM_VDEC_MJPEG_LOG

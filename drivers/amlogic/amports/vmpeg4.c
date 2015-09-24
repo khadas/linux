@@ -34,6 +34,7 @@
 #include "vdec_reg.h"
 #include "vmpeg4.h"
 #include "arch/register.h"
+#include "amports_priv.h"
 
 
 /* #define CONFIG_AM_VDEC_MPEG4_LOG */

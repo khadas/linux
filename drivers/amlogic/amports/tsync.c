@@ -31,6 +31,7 @@
 #include "amvdec.h"
 #include "tsync_pcr.h"
 #include "arch/register.h"
+#include "amports_priv.h"
 
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */

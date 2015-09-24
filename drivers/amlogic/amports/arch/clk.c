@@ -32,6 +32,7 @@
 #include "../vdec.h"
 #include "chips.h"
 #include "clk_priv.h"
+#include "log.h"
 
 #define p_vdec() (get_current_vdec_chip()->clk_mgr[VDEC_1])
 #define p_vdec2() (get_current_vdec_chip()->clk_mgr[VDEC_2])

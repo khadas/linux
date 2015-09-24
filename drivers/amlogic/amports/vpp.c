@@ -44,6 +44,7 @@
 #include "amlog.h"
 #include "vdec_reg.h"
 #include "arch/register.h"
+#include "amports_priv.h"
 
 
 /* vpp filter coefficients */

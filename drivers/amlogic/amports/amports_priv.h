@@ -22,6 +22,8 @@
 #include <linux/amlogic/amports/vframe.h>
 #include "arch/firmware.h"
 #include "arch/register.h"
+#include "arch/log.h"
+
 
 struct stream_buf_s *get_buf_by_type(u32 type);
 

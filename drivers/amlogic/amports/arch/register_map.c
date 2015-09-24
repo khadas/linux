@@ -27,6 +27,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include "register_map.h"
+#include "log.h"
 
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>

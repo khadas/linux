@@ -36,6 +36,7 @@
 #include "vdec_reg.h"
 #include "vmpeg12.h"
 #include "arch/register.h"
+#include "amports_priv.h"
 
 
 #ifdef CONFIG_AM_VDEC_MPEG12_LOG

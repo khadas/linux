@@ -25,6 +25,7 @@
 #include "../vdec.h"
 #include "register.h"
 #include "clk_priv.h"
+#include "log.h"
 
 
 

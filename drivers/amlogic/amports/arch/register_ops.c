@@ -26,6 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/amlogic/cpu_version.h>
+#include "log.h"
 
 #include "register_ops.h"
 
