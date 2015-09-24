@@ -150,7 +150,9 @@ int32_t amlkey_init(uint8_t *seed, uint32_t len)
 		storagekey_info.buffer,
 		storagekey_info.size);
 	/* full fill key infos from storage. */
-	ret = store_key_read(storagekey_info.buffer,  storagekey_info.size);
+	if (store_key_read)
+		ret = store_key_read(storagekey_info.buffer,
+					storagekey_info.size);
 	if (ret) {
 		/* memset head info for bl31 */
 		memset(storagekey_info.buffer, 0, SECUESTORAGE_HEAD_SIZE);
@@ -283,8 +285,9 @@ ssize_t amlkey_write(const uint8_t *name,
 		retval = (ssize_t)len;
 		/* write down! */
 		if (storagekey_info.buffer != NULL) {
-			ret = store_key_write(storagekey_info.buffer,
-				storagekey_info.size);
+			if (store_key_write)
+				ret = store_key_write(storagekey_info.buffer,
+							storagekey_info.size);
 			if (ret) {
 				pr_err("%s() %d, store_key_write fail\n",
 					__func__, __LINE__);
@@ -321,8 +324,9 @@ int32_t amlkey_del(const uint8_t *name)
 	*/
 	if ((ret == 0) && (storagekey_info.buffer != NULL)) {
 		/* flush back */
-		ret = store_key_write(storagekey_info.buffer,
-			storagekey_info.size);
+		if (store_key_write)
+			ret = store_key_write(storagekey_info.buffer,
+						storagekey_info.size);
 		if (ret) {
 			pr_err("%s() %d, store_key_write fail\n",
 				 __func__,
