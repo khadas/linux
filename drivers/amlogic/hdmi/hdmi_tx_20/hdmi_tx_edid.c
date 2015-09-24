@@ -1860,13 +1860,17 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 				top_and_bottom,
 			pRXCap->support_3d_format[pRXCap->VIC[i]].side_by_side);
 	}
+#endif
+
+	/* for checkvalue which maybe used by application to adjust
+		whether edid is changed */
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"checkvalue: 0x%02x%02x%02x%02x\n",
 			edid_checkvalue[0],
 			edid_checkvalue[1],
 			edid_checkvalue[2],
 			edid_checkvalue[3]);
-#endif
+
 	return pos;
 }
 
