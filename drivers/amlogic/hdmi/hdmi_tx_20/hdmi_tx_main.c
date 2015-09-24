@@ -147,6 +147,12 @@ static void hdmitx_late_resume(struct early_suspend *h)
 			CONF_VIDEO_BLANK_OP, VIDEO_BLANK);
 	}
 	phdmi->hpd_lock = 0;
+
+	/* update status for hpd and switch/state */
+	hdmitx_device.hpd_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+		MISC_HPD_GPI_ST, 0));
+	switch_set_state(&sdev, hdmitx_device.hpd_state);
+
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_OP,
