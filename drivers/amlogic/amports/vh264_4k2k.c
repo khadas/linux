@@ -1745,8 +1745,11 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 
 	if (probe_callback)
 		probe_callback();
-
+	/*set the max clk for smooth playing...*/
+		vdec_source_changed(VFORMAT_H264_4K2K,
+				4096, 2048, 30);
 	mutex_unlock(&vh264_4k2k_mutex);
+
 	return 0;
 }
 

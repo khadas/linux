@@ -5447,8 +5447,11 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 		mutex_unlock(&vh265_mutex);
 		return -ENODEV;
 	}
-
+	/*set the max clk for smooth playing...*/
+	vdec_source_changed(VFORMAT_H264_4K2K,
+			4096, 2048, 30);
 	mutex_unlock(&vh265_mutex);
+
 	return 0;
 }
 
