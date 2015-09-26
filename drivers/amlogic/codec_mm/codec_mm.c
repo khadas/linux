@@ -38,8 +38,9 @@
 
 #include "codec_mm_priv.h"
 
+#define RES_IS_MAPED
 
-
+#define ALLOC_MAX_RETRY 1
 
 #define CODEC_MM_FOR_DMA_ONLY(flags) \
 	((flags & CODEC_MM_FLAGS_FROM_MASK) == CODEC_MM_FLAGS_DMA)
@@ -52,6 +53,9 @@
 
 #define RESERVE_MM_ALIGNED_2N	17
 
+
+#define RES_MEM_FLAGS_HAVE_MAPED 0x4
+
 struct codec_mm_mgt_s {
 	struct cma *cma;
 	struct device *dev;
@@ -62,6 +66,8 @@ struct codec_mm_mgt_s {
 	struct reserved_mem tvp_rmem;
 	int total_codec_mem_size;
 	int total_alloced_size;
+	int total_cma_size;
+	int total_reserved_size;
 	int max_used_mem_size;
 
 	int alloced_res_size;
@@ -71,6 +77,7 @@ struct codec_mm_mgt_s {
 
 	int alloc_from_sys_pages_max;
 	int enable_kmalloc_on_nomem;
+	int res_mem_flags;
 	spinlock_t lock;
 };
 
@@ -98,6 +105,19 @@ static int codec_mm_alloc_in(
 	int try_alloced_from_reserved = 0;
 	int align_2n = mem->align2n < PAGE_SHIFT ? PAGE_SHIFT : mem->align2n;
 	int try_cma_first = mem->flags & CODEC_MM_FLAGS_CMA_FIRST;
+	int max_retry = ALLOC_MAX_RETRY;
+
+	int can_from_res = ((mgt->res_pool != NULL) && /*have res*/
+		!(mem->flags & CODEC_MM_FLAGS_CMA)) || /*must not CMA*/
+		((mem->flags & CODEC_MM_FLAGS_RESERVED) ||/*need RESERVED*/
+		CODEC_MM_FOR_DMA_ONLY(mem->flags) ||     /*NO CPU*/
+		((mem->flags & CODEC_MM_FLAGS_CPU) &&
+		(mgt->res_mem_flags & RES_MEM_FLAGS_HAVE_MAPED))); /*CPU*/
+
+	int can_from_cma = ((mgt->total_cma_size > 0) && /*have cma*/
+		!(mem->flags & CODEC_MM_FLAGS_RESERVED));
+		/*not always reserved.*/
+
 	do {
 		if ((mem->flags & CODEC_MM_FLAGS_DMA_CPU) &&
 			mem->page_count <= mgt->alloc_from_sys_pages_max &&
@@ -115,9 +135,7 @@ static int codec_mm_alloc_in(
 		}
 		/*reserved first..*/
 		if (!try_cma_first && /*if cma first, ignore this alloc.*/
-			(CODEC_MM_FOR_DMA_ONLY(mem->flags) |
-			(mem->flags & CODEC_MM_FLAGS_RESERVED))
-			&& mgt->res_pool != NULL &&
+			can_from_res &&
 			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
 			int aligned_buffer_size = ALIGN(mem->buffer_size,
 					(1 << RESERVE_MM_ALIGNED_2N));
@@ -135,8 +153,7 @@ static int codec_mm_alloc_in(
 			try_alloced_from_reserved = 1;
 		}
 		/*cma first..*/
-		if (mem->flags &
-			(CODEC_MM_FLAGS_CMA | CODEC_MM_FLAGS_DMA_CPU)) {
+		if (can_from_cma) {
 			mem->mem_handle = dma_alloc_from_contiguous(mgt->dev,
 					mem->page_count,
 					align_2n - PAGE_SHIFT);
@@ -155,11 +172,9 @@ static int codec_mm_alloc_in(
 				break;
 			}
 		}
-
+		/*reserved later.*/
 		if (!try_alloced_from_reserved &&
-			(CODEC_MM_FOR_DMA_ONLY(mem->flags) |
-			(mem->flags & CODEC_MM_FLAGS_RESERVED))
-			&& mgt->res_pool != NULL &&
+			can_from_res &&
 			(align_2n <= RESERVE_MM_ALIGNED_2N)) {
 			int aligned_buffer_size = ALIGN(mem->buffer_size,
 					(1 << RESERVE_MM_ALIGNED_2N));
@@ -209,7 +224,7 @@ static int codec_mm_alloc_in(
 				break;
 			}
 		}
-	} while (0);
+	} while (--max_retry > 0);
 	if (mem->mem_handle)
 		return 0;
 	else
@@ -340,7 +355,6 @@ void codec_mm_dma_flush(void *vaddr,
 	int size,
 	enum dma_data_direction dir)
 {
-
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	dma_addr_t dma_addr;
 	dma_addr = dma_map_single(mgt->dev, vaddr, size, dir);
@@ -403,8 +417,11 @@ void *codec_mm_phys_to_virt(unsigned long phy_addr)
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	if (phy_addr >= mgt->rmem.base &&
-			phy_addr < mgt->rmem.base + mgt->rmem.size)
+			phy_addr < mgt->rmem.base + mgt->rmem.size) {
+		if (mgt->res_mem_flags & RES_MEM_FLAGS_HAVE_MAPED)
+			return phys_to_virt(phy_addr);
 		return NULL;	/* no virt for reserved memory; */
+	}
 	if (phy_addr >= mgt->tvp_rmem.base &&
 		phy_addr < mgt->tvp_rmem.base + mgt->tvp_rmem.size)
 		return NULL;	/* no virt for tvp memory; */
@@ -542,9 +559,14 @@ int codec_mm_mgt_init(struct device *dev)
 		pr_info("add reserve memory %p(aligned %p) size=%x(aligned %x)\n",
 			(void *)mgt->rmem.base, (void *)aligned_addr,
 			(int)mgt->rmem.size, (int)aligned_size);
+		mgt->total_reserved_size = aligned_size;
 		mgt->total_codec_mem_size = aligned_size;
+#ifdef RES_IS_MAPED
+		mgt->res_mem_flags |= RES_MEM_FLAGS_HAVE_MAPED;
+#endif
 	}
-	mgt->total_codec_mem_size += dma_get_cma_size_int_byte(mgt->dev);
+	mgt->total_cma_size = dma_get_cma_size_int_byte(mgt->dev);
+	mgt->total_codec_mem_size += mgt->total_cma_size;
 	spin_lock_init(&mgt->lock);
 	return 0;
 }

@@ -31,6 +31,7 @@
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/canvas/canvas_mgr.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 
 #include "vdec_reg.h"
 #include "vdec.h"
@@ -51,6 +52,7 @@
 #include "jpegenc.h"
 #endif
 
+#define ENCODE_NAME "encoder"
 #define AMVENC_CANVAS_INDEX 0xE4
 #define AMVENC_CANVAS_MAX_INDEX 0xEC
 
@@ -2585,15 +2587,15 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 static void dma_flush(u32 buf_start , u32 buf_size)
 {
 	dma_sync_single_for_device(
-		&encode_manager.this_pdev->dev, buf_start,
+			&encode_manager.this_pdev->dev, buf_start,
 		buf_size, DMA_TO_DEVICE);
 }
 
 static void cache_flush(u32 buf_start , u32 buf_size)
 {
 	dma_sync_single_for_cpu(
-		&encode_manager.this_pdev->dev, buf_start,
-		buf_size, DMA_FROM_DEVICE);
+			&encode_manager.this_pdev->dev, buf_start,
+			buf_size, DMA_FROM_DEVICE);
 }
 
 static u32 getbuffer(struct encode_wq_s *wq, u32 type)
@@ -2847,11 +2849,10 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 
 #ifdef CONFIG_CMA
 	if (encode_manager.use_reserve == false) {
-		wq->mem.venc_pages = dma_alloc_from_contiguous(
-					&encode_manager.this_pdev->dev,
-					(MIN_SIZE * SZ_1M) >> PAGE_SHIFT, 0);
-		if (wq->mem.venc_pages) {
-			wq->mem.buf_start = page_to_phys(wq->mem.venc_pages);
+		wq->mem.buf_start = codec_mm_alloc_for_dma(ENCODE_NAME,
+			(MIN_SIZE * SZ_1M) >> PAGE_SHIFT, 0,
+			CODEC_MM_FLAGS_CPU);
+		if (wq->mem.buf_start) {
 			wq->mem.buf_size = MIN_SIZE * SZ_1M;
 			enc_pr(LOG_DEBUG,
 				"allocating phys 0x%x, size %dk, wq:%p.\n",
@@ -3560,12 +3561,12 @@ s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue)
 				encode_work_queue, &find);
 		spin_unlock(&encode_manager.event.sem_lock);
 #ifdef CONFIG_CMA
-		if (encode_work_queue->mem.venc_pages) {
-			dma_release_from_contiguous(
-				&encode_manager.this_pdev->dev,
-				wq->mem.venc_pages,
-				(MIN_SIZE * SZ_1M) >> PAGE_SHIFT);
-			encode_work_queue->mem.venc_pages = NULL;
+		if (encode_work_queue->mem.buf_start) {
+			codec_mm_free_for_dma(
+					ENCODE_NAME,
+					encode_work_queue->mem.buf_start);
+			encode_work_queue->mem.buf_start = 0;
+
 		}
 #endif
 		kfree(encode_work_queue);
@@ -4042,7 +4043,8 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 		return -EFAULT;
 #else
 		encode_manager.cma_pool_size =
-			dma_get_cma_size_int_byte(&pdev->dev);
+			(codec_mm_get_total_size() > (32 * SZ_1M)) ?
+			(32 * SZ_1M) : codec_mm_get_total_size();
 		enc_pr(LOG_DEBUG,
 			"amvenc_avc - cma memory pool size: %d MB\n",
 			(u32)encode_manager.cma_pool_size / SZ_1M);

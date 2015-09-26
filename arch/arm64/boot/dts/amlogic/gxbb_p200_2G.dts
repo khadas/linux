@@ -85,15 +85,7 @@
 		//	size = <0x0 0x2000000>;
 		//};
 
-		/* AVC Encode CMA pool */
-		avc_cma_reserved:linux,avc_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <1>;
-			reusable;
-			size = <0x0 0x1400000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-		};
+
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			linux,phandle = <3>;
@@ -115,7 +107,7 @@
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0 0x4100000>;
 			alignment = <0x0 0x100000>;
- 			no-map;
+ 			//no-map;
 		};
 	};
 
