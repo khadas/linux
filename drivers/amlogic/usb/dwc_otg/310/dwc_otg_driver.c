@@ -767,6 +767,7 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 
 static void dwc_otg_driver_shutdown(struct platform_device *pdev)
 {
+#if 0
 	dwc_otg_device_t *otg_dev = g_dwc_otg_device[pdev->id];
 	int irq = 0;
 	const char *s_clock_name = NULL;
@@ -849,7 +850,7 @@ static void dwc_otg_driver_shutdown(struct platform_device *pdev)
 	* Clear the drvdata pointer.
 	*/
 	platform_set_drvdata(pdev, 0);
-
+#endif
 	return;
 }
 #ifdef CONFIG_HAS_EARLYSUSPEND
