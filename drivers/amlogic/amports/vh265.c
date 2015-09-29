@@ -151,7 +151,7 @@ static u32 force_w_h;
 #define H265_DEBUG_NOT_USE_LAST_DISPBUF   0x1000000
 #define H265_DEBUG_IGNORE_CONFORMANCE_WINDOW	0x2000000
 
-const u32 h265_version = 201509102;
+const u32 h265_version = 201509285;
 static u32 debug;
 static u32 radr;
 static u32 rval;
@@ -182,6 +182,7 @@ static u32 buf_alloc_height;
 static u32 dynamic_buf_num_margin = 7;
 #endif
 static u32 buf_alloc_size;
+static u32 re_config_pic_flag;
 /*
 bit[0]: 0,
     bit[1]: 0, always release cma buffer when stop
@@ -1000,6 +1001,8 @@ struct hevc_state_s {
 	int lcu_total;
 	int lcu_size;
 	int lcu_size_log2;
+	int lcu_x_num_pre;
+	int lcu_y_num_pre;
 
 	int num_tile_col;
 	int num_tile_row;
@@ -1061,7 +1064,9 @@ struct hevc_state_s {
 #ifdef SUPPORT_10BIT
 	int mem_saving_mode;
 #endif
-
+#ifdef LOSLESS_COMPRESS_MODE
+	unsigned int losless_comp_body_size;
+#endif
 	int pts_mode;
 	int last_lookup_pts;
 	int last_pts;
@@ -1144,6 +1149,9 @@ static void hevc_init_stru(struct hevc_state_s *hevc,
 		m_PIC[i].index = -1;
 	hevc->buf_num = 0;
 	hevc->pic_num = 0;
+	hevc->lcu_x_num_pre = 0;
+	hevc->lcu_y_num_pre = 0;
+
 }
 
 static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic);
@@ -1458,8 +1466,10 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
 {
 	int ret = -1;
 	int i;
-	int pic_width = hevc->pic_w;
-	int pic_height = hevc->pic_h;
+	int pic_width = ((re_config_pic_flag == 0) && buf_alloc_width) ?
+		buf_alloc_width : hevc->pic_w;
+	int pic_height = ((re_config_pic_flag == 0) && buf_alloc_height) ?
+		buf_alloc_height : hevc->pic_h;
 	int lcu_size = hevc->lcu_size;
 	int pic_width_lcu = (pic_width % lcu_size) ? pic_width / lcu_size +
 				 1 : pic_width / lcu_size;
@@ -1660,6 +1670,37 @@ static void init_pic_list(struct hevc_state_s *hevc)
 	previous_display_buf_size = 0;
 }
 
+#ifdef LOSLESS_COMPRESS_MODE
+static void init_decode_head_hw(struct hevc_state_s *hevc)
+{
+	int losless_comp_header_size =
+		compute_losless_comp_header_size(hevc->pic_w,
+			 hevc->pic_h);
+	int losless_comp_body_size = compute_losless_comp_body_size(hevc->pic_w,
+		 hevc->pic_h, hevc->mem_saving_mode);
+
+	hevc->losless_comp_body_size = losless_comp_body_size;
+
+	if (hevc->mem_saving_mode == 1)
+		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1,
+			(1 << 3) | ((workaround_enable & 2) ? 1 : 0));
+	else
+		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1,
+			((workaround_enable & 2) ? 1 : 0));
+	WRITE_VREG(HEVCD_MPP_DECOMP_CTL2, (losless_comp_body_size >> 5));
+	/*WRITE_VREG(HEVCD_MPP_DECOMP_CTL3,(0xff<<20) | (0xff<<10) | 0xff);
+		//8-bit mode */
+	WRITE_VREG(HEVC_CM_BODY_LENGTH, losless_comp_body_size);
+	WRITE_VREG(HEVC_CM_HEADER_OFFSET, losless_comp_body_size);
+	WRITE_VREG(HEVC_CM_HEADER_LENGTH, losless_comp_header_size);
+
+	pr_info("%s: (%d, %d) body_size 0x%x header_size 0x%x\n",
+		__func__, hevc->pic_w, hevc->pic_h,
+		losless_comp_body_size, losless_comp_header_size);
+
+}
+#endif
+
 static void init_pic_list_hw(struct hevc_state_s *hevc)
 {
 	int i;
@@ -1699,31 +1740,13 @@ static void init_pic_list_hw(struct hevc_state_s *hevc)
 			   (0 << 8) | (0 << 1) | 1);
 	for (i = 0; i < 32; i++)
 		WRITE_VREG(HEVCD_MPP_ANC_CANVAS_DATA_ADDR, 0);
-#ifdef LOSLESS_COMPRESS_MODE
-/*SUPPORT_10BIT*/
-{
-	int losless_comp_header_size =
-		compute_losless_comp_header_size(hevc->pic_w,
-			 hevc->pic_h);
-	int losless_comp_body_size = compute_losless_comp_body_size(hevc->pic_w,
-		 hevc->pic_h, hevc->mem_saving_mode);
 
-	if (hevc->mem_saving_mode == 1)
-		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1,
-			(1 << 3) | ((workaround_enable & 2) ? 1 : 0));
-	else
-		WRITE_VREG(HEVCD_MPP_DECOMP_CTL1,
-			((workaround_enable & 2) ? 1 : 0));
-	WRITE_VREG(HEVCD_MPP_DECOMP_CTL2, (losless_comp_body_size >> 5));
-	/*WRITE_VREG(HEVCD_MPP_DECOMP_CTL3,(0xff<<20) | (0xff<<10) | 0xff);
-		//8-bit mode */
-	WRITE_VREG(HEVC_CM_BODY_LENGTH, losless_comp_body_size);
-	WRITE_VREG(HEVC_CM_HEADER_OFFSET, losless_comp_body_size);
-	WRITE_VREG(HEVC_CM_HEADER_LENGTH, losless_comp_header_size);
-}
+#ifdef LOSLESS_COMPRESS_MODE
+	init_decode_head_hw(hevc);
 #endif
 
 }
+
 
 static void dump_pic_list(struct hevc_state_s *hevc)
 {
@@ -3217,22 +3240,20 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 	new_pic->referenced = 1;
 	if (new_pic->width != hevc->pic_w || new_pic->height != hevc->pic_h) {
 		/*USE_BUF_BLOCK*/
-		recycle_buf(hevc);
-		/* if(new_pic->BUF_index == -1){ */
-		if (config_pic(hevc, new_pic) < 0) {
-			if (debug & H265_DEBUG_BUFMGR_MORE) {
-				pr_info("Config_pic %d fail\n", new_pic->index);
-				dump_pic_list(hevc);
-			}
-			new_pic->index = -1;
-			new_pic = NULL;
-		} else
-			init_pic_list_hw(hevc);
-		/* } */
-		/* else{ */
-		/* pr_info("++++++++++++++++Error: can not happen!!!\n"); */
-		/* } */
-		/**/
+		if (re_config_pic_flag) {
+			recycle_buf(hevc);
+			/* if(new_pic->BUF_index == -1){ */
+			if (config_pic(hevc, new_pic) < 0) {
+				if (debug & H265_DEBUG_BUFMGR_MORE) {
+					pr_info("Config_pic %d fail\n",
+					new_pic->index);
+					dump_pic_list(hevc);
+				}
+				new_pic->index = -1;
+				new_pic = NULL;
+			} else
+				init_pic_list_hw(hevc);
+		}
 		if (new_pic) {
 			new_pic->width = hevc->pic_w;
 			new_pic->height = hevc->pic_h;
@@ -3420,13 +3441,18 @@ static void check_pic_decoded_lcu_count(struct hevc_state_s *hevc)
 	}
 
 	if ((error_handle_policy & 0x20) == 0 && hevc->cur_pic != NULL
-		&& hevc->lcu_total != 0
+		&& hevc->lcu_x_num_pre != 0
+		&& hevc->lcu_y_num_pre != 0
 		&& current_lcu_idx != 0
-		&& current_lcu_idx < ((hevc->lcu_x_num*hevc->lcu_y_num) - 1)) {
+		&& current_lcu_idx <
+		((hevc->lcu_x_num_pre*hevc->lcu_y_num_pre) - 1)) {
 		pr_info("cur lcu idx = %d, (total %d), set error_mark\n",
-			current_lcu_idx, hevc->lcu_total);
+			current_lcu_idx,
+			hevc->lcu_x_num_pre*hevc->lcu_y_num_pre);
 		hevc->cur_pic->error_mark = 1;
 	}
+	hevc->lcu_x_num_pre = hevc->lcu_x_num;
+	hevc->lcu_y_num_pre = hevc->lcu_y_num;
 }
 
 static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
@@ -3473,10 +3499,15 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 				   hevc->pic_w, hevc->pic_h,
 				   rpm_param->p.pic_width_in_luma_samples,
 				   rpm_param->p.pic_height_in_luma_samples);
+
+			hevc->pic_w = rpm_param->p.pic_width_in_luma_samples;
+			hevc->pic_h = rpm_param->p.pic_height_in_luma_samples;
+#ifdef LOSLESS_COMPRESS_MODE
+			if (re_config_pic_flag == 0)
+				init_decode_head_hw(hevc);
+#endif
 		}
 
-		hevc->pic_w = rpm_param->p.pic_width_in_luma_samples;
-		hevc->pic_h = rpm_param->p.pic_height_in_luma_samples;
 		/* it will cause divide 0 error */
 		if (hevc->pic_w == 0 || hevc->pic_h == 0) {
 			if (debug) {
@@ -4287,7 +4318,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 
 			vf->canvas1Addr = pic->mc_y_adr; /*body adr*/
 			vf->canvas0Addr = pic->mc_y_adr +
-						pic->comp_body_size;
+						hevc->losless_comp_body_size;
 						/*head adr*/
 	}
 #else
@@ -5581,6 +5612,9 @@ MODULE_PARM_DESC(buf_alloc_height, "\n buf_alloc_height\n");
 
 module_param(buf_alloc_size, uint, 0664);
 MODULE_PARM_DESC(buf_alloc_size, "\n buf_alloc_size\n");
+
+module_param(re_config_pic_flag, uint, 0664);
+MODULE_PARM_DESC(re_config_pic_flag, "\n re_config_pic_flag\n");
 
 module_param(buffer_mode, uint, 0664);
 MODULE_PARM_DESC(buffer_mode, "\n buffer_mode\n");
