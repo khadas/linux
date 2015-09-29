@@ -28,6 +28,7 @@ static __always_inline void add_page_to_lru_list(struct page *page,
 {
 	int nr_pages = hpage_nr_pages(page);
 	int num = NR_INACTIVE_ANON_CMA - NR_INACTIVE_ANON;
+	int migrate_type = 0;
 
 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
 	list_add(&page->lru, &lruvec->lists[lru]);
@@ -35,8 +36,9 @@ static __always_inline void add_page_to_lru_list(struct page *page,
 	__mod_zone_page_state(lruvec_zone(lruvec),
 			  NR_INACTIVE_ANON_TEST + lru, nr_pages);
 
-	if (is_migrate_cma(get_pageblock_migratetype(page)) ||
-				is_migrate_isolate_page(page))
+	migrate_type = get_pageblock_migratetype(page);
+	if (is_migrate_cma(migrate_type) ||
+				is_migrate_isolate(migrate_type))
 		__mod_zone_page_state(lruvec_zone(lruvec),
 					  NR_LRU_BASE + lru + num, nr_pages);
 	else {
@@ -60,14 +62,16 @@ static __always_inline void del_page_from_lru_list(struct page *page,
 {
 	int nr_pages = hpage_nr_pages(page);
 	int num = NR_INACTIVE_ANON_CMA - NR_INACTIVE_ANON;
+	int migrate_type = 0;
 
 	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
 	list_del(&page->lru);
 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, -nr_pages);
 	__mod_zone_page_state(lruvec_zone(lruvec),
 				  NR_INACTIVE_ANON_TEST + lru, -nr_pages);
-	if (is_migrate_cma(get_pageblock_migratetype(page)) ||
-				is_migrate_isolate_page(page))
+	migrate_type = get_pageblock_migratetype(page);
+	if (is_migrate_cma(migrate_type) ||
+				is_migrate_isolate(migrate_type))
 		__mod_zone_page_state(lruvec_zone(lruvec),
 					  NR_LRU_BASE + lru + num, -nr_pages);
 	else {

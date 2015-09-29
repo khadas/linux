@@ -77,8 +77,11 @@ void wakeup_wq(bool has_cma)
 EXPORT_SYMBOL(wakeup_wq);
 bool has_cma_page(struct page *page)
 {
-	if (is_migrate_cma(get_pageblock_migratetype(page)) ||
-	   is_migrate_isolate(get_pageblock_migratetype(page))) {
+	int migrate_type = 0;
+
+	migrate_type = get_pageblock_migratetype(page);
+	if (is_migrate_cma(migrate_type) ||
+	   is_migrate_isolate(migrate_type)) {
 		migrate_refcount++;
 		if (migrate_status != MIGRATE_CMA_ALLOC)
 			migrate_status = MIGRATE_CMA_HOLD;

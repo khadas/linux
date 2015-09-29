@@ -1240,15 +1240,15 @@ bool __isolate_cma_ornot(int migrate_type)
 int __isolate_lru_page(struct page *page, isolate_mode_t mode, int migrate_type)
 {
 	int ret = -EINVAL;
+	int page_migrate_type = 0;
 
 	if (!(mode & ISOLATE_UNEVICTABLE)) {
 #if 1
 		if (page) {
+			page_migrate_type = get_pageblock_migratetype(page);
 			if ((!__isolate_cma_ornot(migrate_type)) &&
-				(is_migrate_cma(
-					   get_pageblock_migratetype(page))
-				 || is_migrate_isolate(
-					   get_pageblock_migratetype(page))))
+				(is_migrate_cma(page_migrate_type)
+				 || is_migrate_isolate(page_migrate_type)))
 				return -EBUSY;
 		}
 #endif
@@ -1371,6 +1371,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 	unsigned long scan;
 	bool has_cma = true;
 	int num = NR_INACTIVE_ANON_NORMAL - NR_INACTIVE_ANON;
+	int migrate_type = 0;
 
 	has_cma = __isolate_cma_ornot(allocflags_to_migratetype(sc->gfp_mask));
 	if (!has_cma)
@@ -1394,8 +1395,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			nr_pages = hpage_nr_pages(page);
 			mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
 			list_move(&page->lru, dst);
-			if (!is_migrate_cma(get_pageblock_migratetype(page))
-				&& !is_migrate_isolate_page(page)) {
+			migrate_type = get_pageblock_migratetype(page);
+			if (!is_migrate_cma(migrate_type)
+				&& !is_migrate_isolate(migrate_type)) {
 				list_del(&page->lru_normal);
 			} else if (page->lru_normal.next != LIST_POISON1
 					   && !list_empty(&page->lru_normal)) {
@@ -1407,16 +1409,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			}
 
 			nr_taken += nr_pages;
-			if (is_migrate_cma(get_pageblock_migratetype(page)) ||
-				is_migrate_isolate_page(page))
+			if (is_migrate_cma(migrate_type) ||
+				is_migrate_isolate(migrate_type))
 				nr_cma_taken += nr_pages;
 			break;
 
 		case -EBUSY:
 			/* else it is being freed elsewhere */
 			list_move(&page->lru, src);
-			if (!is_migrate_cma(get_pageblock_migratetype(page))
-				&& !is_migrate_isolate_page(page)) {
+			migrate_type = get_pageblock_migratetype(page);
+			if (!is_migrate_cma(migrate_type)
+				&& !is_migrate_isolate(migrate_type)) {
 				BUG_ON(!PageLRU(page));
 				list_move(&page->lru_normal,
 						  &lruvec->lists[lru - LRU_BASE
@@ -1783,6 +1786,7 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
 	struct page *page;
 	int nr_pages;
 	int num = NR_INACTIVE_ANON_CMA - NR_INACTIVE_ANON;
+	int migrate_type = 0;
 
 	while (!list_empty(list)) {
 		page = lru_to_page(list);
@@ -1794,8 +1798,9 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
 		nr_pages = hpage_nr_pages(page);
 		mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
 		list_move(&page->lru, &lruvec->lists[lru]);
-		if (!is_migrate_cma(get_pageblock_migratetype(page)) &&
-					!is_migrate_isolate_page(page)) {
+		migrate_type = get_pageblock_migratetype(page);
+		if (!is_migrate_cma(migrate_type) &&
+					!is_migrate_isolate(migrate_type)) {
 			if (page->lru_normal.next != LIST_POISON1
 					&& !list_empty(&page->lru_normal))
 				BUG();
@@ -1804,8 +1809,8 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
 					 LRU_BASE_NORMAL]);
 		}
 		pgmoved += nr_pages;
-		if (is_migrate_cma(get_pageblock_migratetype(page)) ||
-				is_migrate_isolate_page(page))
+		if (is_migrate_cma(migrate_type) ||
+				is_migrate_isolate(migrate_type))
 			pgmoved_cma += nr_pages;
 
 		if (put_page_testzero(page)) {

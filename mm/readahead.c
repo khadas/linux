@@ -164,6 +164,8 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 #ifdef CONFIG_CMA
 	bool has_cma = false;
 #endif
+	int migrate_type = 0;
+
 	if (isize == 0)
 		goto out;
 
@@ -188,9 +190,10 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 		if (!page)
 			break;
 #ifdef CONFIG_CMA
+		migrate_type = get_pageblock_migratetype(page);
 		if (!has_cma &&
-			(is_migrate_cma(get_pageblock_migratetype(page)) ||
-		   is_migrate_isolate(get_pageblock_migratetype(page)))) {
+			(is_migrate_cma(migrate_type) ||
+		   is_migrate_isolate(migrate_type))) {
 			if (iso_status != MIGRATE_CMA_ALLOC)
 				iso_status = MIGRATE_CMA_HOLD;
 			iso_recount++;
