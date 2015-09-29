@@ -1201,10 +1201,10 @@ int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	/* CMD3 means the first time initialized flow is running */
 	if (mrq->cmd->opcode == 3)
-		pdata->is_fir_init = false;
+		mmc->first_init_flag = false;
 
 	if (mmc->caps & MMC_CAP_NONREMOVABLE) { /* nonremovable device */
-	if (pdata->is_fir_init) { /* init for the first time */
+	if (mmc->first_init_flag) { /* init for the first time */
 		/* for 8189ETV needs ssdio reset when starts */
 		if (aml_card_type_sdio(pdata)) {
 			/* if (mrq->cmd->opcode == SD_IO_RW_DIRECT */
@@ -1304,45 +1304,38 @@ int aml_sd_voltage_switch(struct amlsd_platform *pdata, char signal_voltage)
 void aml_emmc_hw_reset(struct mmc_host *mmc)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
-
+	u32 ret;
 	if (!aml_card_type_mmc(pdata))
 		return;
 
 	pr_info("%s %d\n", __func__, __LINE__);
 
-#if ((defined CONFIG_ARCH_MESON6) || (defined CONFIG_ARCH_MESON8)\
-	|| (defined CONFIG_ARCH_MESON8B))
 	/* boot_9 used as eMMC hw_rst pin here. */
-
-	/* clr nand ce1 pinmux */
-	aml_clr_reg32_mask(P_PERIPHS_PIN_MUX_2, (1<<24));
-
-	/* set out */
-	aml_clr_reg32_mask(P_PREG_PAD_GPIO3_EN_N, (1<<9));
-
-	/* high */
-	aml_set_reg32_mask(P_PREG_PAD_GPIO3_O, (1<<9));
-	mdelay(1);
-
-	/* low */
-	aml_clr_reg32_mask(P_PREG_PAD_GPIO3_O, (1<<9));
+	gpio_free(pdata->hw_reset);
+	ret = gpio_request_one(pdata->hw_reset,
+			GPIOF_OUT_INIT_HIGH, MODULE_NAME);
+	CHECK_RET(ret);
+	if (ret) {
+		pr_err("%s [%d] request error\n",
+				__func__, __LINE__);
+		return;
+	}
+	ret = gpio_direction_output(pdata->hw_reset, 0);
+	CHECK_RET(ret);
+	if (ret) {
+		pr_err("%s [%d] output high error\n",
+			__func__, __LINE__);
+		return;
+	}
 	mdelay(2);
-
-	/* high */
-	aml_set_reg32_mask(P_PREG_PAD_GPIO3_O, (1<<9));
-	mdelay(1);
-#elif ((defined CONFIG_ARCH_MESONG9TV))
-	aml_clr_reg32_mask(P_PREG_PAD_GPIO2_EN_N, (1<<9));  /* high+ */
-	aml_set_reg32_mask(P_PREG_PAD_GPIO2_O, (1<<9));
-	mdelay(1);
-	 /* low */
-	aml_clr_reg32_mask(P_PREG_PAD_GPIO2_O, (1<<9));
+	ret = gpio_direction_output(pdata->hw_reset, 1);
+	CHECK_RET(ret);
+	if (ret) {
+		pr_err("%s [%d] output high error\n",
+			__func__, __LINE__);
+		return;
+	}
 	mdelay(2);
-	/* high */
-	aml_set_reg32_mask(P_PREG_PAD_GPIO2_O, (1<<9));
-	mdelay(1);
- #endif
-
 	return;
 }
 

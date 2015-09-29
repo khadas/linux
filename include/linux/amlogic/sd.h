@@ -26,7 +26,7 @@
 
 #define	 AML_ERROR_RETRY_COUNTER		 10
 #define	 AML_TIMEOUT_RETRY_COUNTER	   2
-
+#define CALIBRATION
 #define AML_SDHC_MAGIC			 "amlsdhc"
 #define AML_SDIO_MAGIC			 "amlsdio"
 #define AML_SD_EMMC_MAGIC			 "amlsd_emmc"
@@ -105,14 +105,20 @@ struct amlsd_platform {
 	char pinname[32];
 	unsigned int gpio_ro;
 	unsigned int gpio_dat3;
+	unsigned int hw_reset;
 	unsigned int jtag_pin;
-
 	int is_sduart;
 	bool is_in;
 	bool is_tuned;		/* if card has been tuning */
 	bool need_retuning;
 	struct delayed_work	retuning;
-
+#ifdef CALIBRATION
+	unsigned char caling;
+	unsigned char need_cali;
+	unsigned char calout[20][20];
+	unsigned int *read_buf;
+	struct delayed_work	calouting;
+#endif
 	/* we used this flag to filter
 	some unnecessary cmd before initialized flow */
 

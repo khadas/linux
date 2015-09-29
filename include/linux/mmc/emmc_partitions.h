@@ -68,6 +68,7 @@ int mmc_read_internal(struct mmc_card *card,
 int mmc_write_internal(struct mmc_card *card,
 	unsigned dev_addr, unsigned blocks, void *buf);
 int get_reserve_partition_off_from_tbl(void);
+int get_reserve_partition_off(struct mmc_card *card);/* byte unit */
 
 #endif
 

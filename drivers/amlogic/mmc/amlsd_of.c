@@ -226,6 +226,8 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 						prop, pdata->card_type);
 		SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3",
 						str, pdata->gpio_dat3);
+		SD_PARSE_GPIO_NUM_PROP(child, "hw_reset",
+						str, pdata->hw_reset);
 
 		pdata->port_init = of_amlsd_init;
 		pdata->pwr_pre = of_amlsd_pwr_prepare;

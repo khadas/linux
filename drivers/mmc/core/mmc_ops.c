@@ -426,7 +426,10 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	unsigned long timeout;
 	u32 status = 0;
 	bool use_r1b_resp = use_busy_signal;
-
+	if ((timeout_ms > 0) && (timeout_ms < 100))
+		timeout_ms = 100;
+	else if (timeout_ms >= 100)
+		timeout_ms *= 2;
 	/*
 	 * If the cmd timeout and the max_busy_timeout of the host are both
 	 * specified, let's validate them. A failure means we need to prevent
@@ -597,6 +600,7 @@ mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 				break;
 			}
 	}
+
 	kfree(data_buf);
 
 	if (cmd.error)

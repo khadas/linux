@@ -407,15 +407,15 @@
             pinname = "emmc";
             ocr_avail = <0x200080>;          /**VDD voltage 3.3 ~ 3.4 */
             caps = "MMC_CAP_8_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-			"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_1_8V_DDR"
-			/*,
-           		"MMC_CAP_ERASE", "MMC_CAP_HW_RESET"*/;
-            caps2 = "MMC_CAP2_HS200","MMC_CAP2_HS400";
-			f_min = <400000>;
-            f_max = <100000000>;
+			"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_1_8V_DDR",
+			"MMC_CAP_HW_RESET", "MMC_CAP_ERASE";
+            caps2 = "MMC_CAP2_HS200";
+			f_min = <300000>;
+            f_max = <170000000>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
 		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;
+		hw_reset =  <&gpio       BOOT_9      GPIO_ACTIVE_HIGH>;
             card_type = <1>; /* 1:mmc card(include eMMC), 2:sd card(include tSD), */
 	};
     };

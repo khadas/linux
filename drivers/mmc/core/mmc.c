@@ -18,7 +18,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
-
+#include <linux/delay.h>
 #include "core.h"
 #include "bus.h"
 #include "mmc_ops.h"
@@ -179,7 +179,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 /*
  * Read extended CSD.
  */
-static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
+int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 {
 	int err;
 	u8 *ext_csd;
@@ -904,8 +904,11 @@ static int mmc_select_bus_width(struct mmc_card *card)
 				 EXT_CSD_BUS_WIDTH,
 				 ext_csd_bits[idx],
 				 card->ext_csd.generic_cmd6_time);
-		if (err)
+		if (err) {
+			pr_err("bus switch to %d, err = %d\n",
+				(ext_csd_bits[idx] == 2 ? 8 : 4), err);
 			continue;
+		}
 
 		bus_width = bus_widths[idx];
 		mmc_set_bus_width(host, bus_width);
@@ -1032,7 +1035,6 @@ static int mmc_select_hs400(struct mmc_card *card)
 			mmc_hostname(host), err);
 		return err;
 	}
-
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			 EXT_CSD_BUS_WIDTH,
 			 EXT_CSD_DDR_BUS_WIDTH_8,
@@ -1047,7 +1049,6 @@ static int mmc_select_hs400(struct mmc_card *card)
 			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS400,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
-
 	if (err) {
 		pr_warn("%s: switch to hs400 failed, err:%d\n",
 			 mmc_hostname(host), err);
@@ -1093,6 +1094,7 @@ static int mmc_select_hs200(struct mmc_card *card)
 	 * switch to HS200 mode if bus width is set successfully.
 	 */
 	err = mmc_select_bus_width(card);
+
 	if (!IS_ERR_VALUE(err)) {
 		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS200,
@@ -1100,6 +1102,8 @@ static int mmc_select_hs200(struct mmc_card *card)
 				   true, true, true);
 		if (!err)
 			mmc_set_timing(host, MMC_TIMING_MMC_HS200);
+		else
+			pr_err("switch to TIMING_HS200 failed, err =%d\n", err);
 	}
 err:
 	return err;
@@ -1121,9 +1125,10 @@ static int mmc_select_timing(struct mmc_card *card)
 	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
 		err = mmc_select_hs(card);
 
-	if (err && err != -EBADMSG)
+	if (err && err != -EBADMSG) {
+		pr_err("switch to hs200 and bus_width failed, err =%d\n", err);
 		return err;
-
+	}
 	if (err) {
 		pr_warn("%s: switch to %s failed\n",
 			mmc_card_hs(card) ? "high-speed" :
@@ -1261,7 +1266,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
-
+	host->first_init_flag = 0;
 	if (!oldcard) {
 		/*
 		 * Fetch CSD from card.
@@ -1277,7 +1282,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (err)
 			goto free_card;
 	}
-
+	host->card = card;
 	/*
 	 * Select card, as all following commands rely on that.
 	 */
@@ -1293,6 +1298,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 */
 
 		err = mmc_get_ext_csd(card, &ext_csd);
+
 		if (err)
 			goto free_card;
 		err = mmc_read_ext_csd(card, ext_csd);
@@ -1320,9 +1326,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_ERASE_GROUP_DEF, 1,
 				 card->ext_csd.generic_cmd6_time);
-
-		if (err && err != -EBADMSG)
+		if (err && err != -EBADMSG) {
+			pr_err("switch to ERASE_GROUP_DEF failed,err=%d\n",
+					err);
 			goto free_card;
+		}
 
 		if (err) {
 			err = 0;
@@ -1352,8 +1360,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_PART_CONFIG,
 				 card->ext_csd.part_config,
 				 card->ext_csd.part_time);
-		if (err && err != -EBADMSG)
+
+		if (err && err != -EBADMSG) {
+			pr_err("switch to PART_CONFIG failed, err= %d\n", err);
 			goto free_card;
+		}
 	}
 
 	/*
@@ -1364,8 +1375,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				 EXT_CSD_POWER_OFF_NOTIFICATION,
 				 EXT_CSD_POWER_ON,
 				 card->ext_csd.generic_cmd6_time);
-		if (err && err != -EBADMSG)
+		if (err && err != -EBADMSG) {
+			pr_err("switch to NOTIFICATION failed, err= %d\n", err);
 			goto free_card;
+		}
 
 		/*
 		 * The err can be -EBADMSG or 0,
@@ -1379,14 +1392,15 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * Select timing interface
 	 */
 	err = mmc_select_timing(card);
-	if (err)
+	if (err) {
+		pr_err("mmc_select_timing failed, err= %d\n", err);
 		goto free_card;
+	}
 
 	if (mmc_card_hs200(card)) {
 		err = mmc_hs200_tuning(card);
 		if (err)
 			goto err;
-
 		err = mmc_select_hs400(card);
 		if (err)
 			goto err;
@@ -1412,8 +1426,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_HPI_MGMT, 1,
 				card->ext_csd.generic_cmd6_time);
-		if (err && err != -EBADMSG)
+		if (err && err != -EBADMSG) {
+			pr_err("switch to HPI_MGMT failed, err= %d\n", err);
 			goto free_card;
+		}
 		if (err) {
 			pr_warning("%s: Enabling HPI failed\n",
 				   mmc_hostname(card->host));
@@ -1430,9 +1446,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				EXT_CSD_CACHE_CTRL, 1,
 				card->ext_csd.generic_cmd6_time);
-		if (err && err != -EBADMSG)
+		if (err && err != -EBADMSG) {
+			pr_err("switch to CACHE_CTRL failed, err= %d\n", err);
 			goto free_card;
-
+		}
 		/*
 		 * Only if no error, cache is turned on successfully.
 		 */
@@ -1458,8 +1475,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 				EXT_CSD_EXP_EVENTS_CTRL,
 				EXT_CSD_PACKED_EVENT_EN,
 				card->ext_csd.generic_cmd6_time);
-		if (err && err != -EBADMSG)
+		if (err && err != -EBADMSG) {
+			pr_err("switch to PACKED_EVENT_EN failed, err=%d\n",
+					err);
 			goto free_card;
+		}
 		if (err) {
 			pr_warn("%s: Enabling packed event failed\n",
 				mmc_hostname(card->host));

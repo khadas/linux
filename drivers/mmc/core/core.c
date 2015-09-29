@@ -2003,7 +2003,7 @@ out:
  *
  * Caller must claim host before calling this function.
  */
-int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
+int _mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	      unsigned int arg)
 {
 	unsigned int rem, to = from + nr;
@@ -2059,6 +2059,41 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 
 	return mmc_do_erase(card, from, to, arg);
 }
+
+#define		ERASE_512M		0x100000
+int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
+	      unsigned int arg)
+{
+	unsigned int group , start;
+	int ret = 0, count = 1;
+	if (nr > ERASE_512M) {
+		do {
+			start = from;
+			group = ERASE_512M;
+			ret = _mmc_erase(card, start, group, arg);
+			if (ret) {
+				pr_err("%s [%d] count = %x\n",
+					__func__, __LINE__, count);
+				return ret;
+			}
+			from += ERASE_512M;
+			nr -= ERASE_512M;
+			count++;
+		} while (nr > ERASE_512M);
+		ret = _mmc_erase(card, from, nr, arg);
+		if (ret) {
+			pr_err("%s [%d] count = %x\n",
+					__func__, __LINE__, count);
+			return ret;
+		}
+	} else {
+		ret = _mmc_erase(card, from, nr, arg);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 EXPORT_SYMBOL(mmc_erase);
 
 int mmc_can_erase(struct mmc_card *card)
@@ -2311,7 +2346,7 @@ EXPORT_SYMBOL(mmc_hw_reset_check);
 static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
-
+	host->first_init_flag = 1;
 #ifdef CONFIG_MMC_DEBUG
 	pr_info("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);

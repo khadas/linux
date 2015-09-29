@@ -540,7 +540,6 @@ static int sdio_set_bus_speed_mode(struct mmc_card *card)
 static int mmc_sdio_init_uhs_card(struct mmc_card *card)
 {
 	int err;
-
 	if (!card->scr.sda_spec3)
 		return 0;
 
