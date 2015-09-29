@@ -50,13 +50,13 @@ static int parse_init_date(const char *date)
 		return -1;
 	day_s = str;
 	pr_debug("year: %s\nmonth: %s\nday: %s\n", year_s, month_s, day_s);
-	ret = kstrtou32(year_s, 0, &year_d);
+	ret = kstrtou32(year_s, 10, &year_d);
 	if (ret < 0 || year_d > 2100 || year_d < 1900)
 		return -1;
-	ret = kstrtou32(month_s, 0, &month_d);
+	ret = kstrtou32(month_s, 10, &month_d);
 	if (ret < 0 || month_d > 12)
 		return -1;
-	ret = kstrtou32(day_s, 0, &day_d);
+	ret = kstrtou32(day_s, 10, &day_d);
 	if (ret < 0 || day_d > 31)
 		return -1;
 	vrtc_init_date = mktime(year_d, month_d, day_d, 0, 0, 0);
