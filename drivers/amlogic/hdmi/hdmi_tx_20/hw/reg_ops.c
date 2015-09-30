@@ -191,8 +191,13 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 	unsigned long offset = (addr & DWC_OFFSET_MASK) >> 24;
 	unsigned long flags, fiq_flag;
 	if (addr & SEC_OFFSET) {
-		/* TODO */
-		/* LEAVE FOR LATER */
+		addr = addr & 0xffff;
+		sec_reg_write((unsigned *)(unsigned long)
+			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+		sec_reg_write((unsigned *)(unsigned long)
+			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+		data = sec_reg_read((unsigned *)(unsigned long)
+			(P_HDMITX_DATA_PORT_SEC + offset));
 	} else {
 		addr = addr & 0xffff;
 		spin_lock_irqsave(&reg_lock, flags);
@@ -218,8 +223,13 @@ void hdmitx_wr_reg(unsigned int addr, unsigned int data)
 	unsigned long offset = (addr & DWC_OFFSET_MASK) >> 24;
 
 	if (addr & SEC_OFFSET) {
-		/* TODO */
-		/* LEAVE FOR LATER */
+		addr = addr & 0xffff;
+		sec_reg_write((unsigned *)(unsigned long)
+			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+		sec_reg_write((unsigned *)(unsigned long)
+			(P_HDMITX_ADDR_PORT_SEC + offset), addr);
+		sec_reg_write((unsigned *)(unsigned long)
+			(P_HDMITX_DATA_PORT_SEC + offset), data);
 	} else {
 		addr = addr & 0xffff;
 		spin_lock_irqsave(&reg_lock, flags);
@@ -318,6 +328,17 @@ void aocec_wr_reg(unsigned long addr, unsigned long data)
 	spin_unlock_irqrestore(&reg_lock2, flags);
 } /* aocec_wr_only_reg */
 
+void hdcp22_wr_reg(uint32_t addr, uint32_t data)
+{
+	sec_reg_write((unsigned *)(unsigned long)
+		(P_ELP_ESM_HPI_REG_BASE + addr), data);
+}
+
+uint32_t hdcp22_rd_reg(uint32_t addr)
+{
+	return (uint32_t)sec_reg_read((unsigned *)(unsigned long)
+		(P_ELP_ESM_HPI_REG_BASE + addr));
+}
 
 MODULE_PARM_DESC(dbg_en, "\n debug_level\n");
 module_param(dbg_en, int, 0664);

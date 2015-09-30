@@ -137,6 +137,10 @@ struct hdmitx_dev {
 	struct delayed_work cec_work;
 	struct timer_list hdcp_timer;
 	int hdcp_try_times;
+	/* -1, no hdcp; 0, NULL; 1, 1.4; 2, 2.2 */
+	int hdcp_mode;
+	int ready;	/* 1, hdmi stable output, others are 0 */
+	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */
 #ifdef CONFIG_AML_HDMI_TX_14
 	wait_queue_head_t cec_wait_rx;
 #endif
@@ -243,8 +247,12 @@ struct hdmitx_dev {
 #define DDC_RESET_EDID          (CMD_DDC_OFFSET + 0x00)
 #define DDC_RESET_HDCP          (CMD_DDC_OFFSET + 0x01)
 #define DDC_HDCP_OP             (CMD_DDC_OFFSET + 0x02)
-#define HDCP_ON             0x1
-#define HDCP_OFF            0x2
+#define HDCP_ON		0x1
+#define HDCP_OFF	0x2
+	#define HDCP14_ON	HDCP_ON
+	#define HDCP14_OFF	HDCP_OFF
+#define HDCP22_ON	0x3
+#define HDCP22_OFF	0x4
 #define DDC_IS_HDCP_ON          (CMD_DDC_OFFSET + 0x04)
 #define DDC_HDCP_GET_AKSV       (CMD_DDC_OFFSET + 0x05)
 #define DDC_HDCP_GET_BKSV       (CMD_DDC_OFFSET + 0x06)
@@ -256,6 +264,9 @@ struct hdmitx_dev {
 #define DDC_IS_EDID_DATA_READY  (CMD_DDC_OFFSET + 0x0b)
 #define DDC_EDID_GET_DATA       (CMD_DDC_OFFSET + 0x0c)
 #define DDC_EDID_CLEAR_RAM      (CMD_DDC_OFFSET + 0x0d)
+#define DDC_HDCP_MUX_INIT	(CMD_DDC_OFFSET + 0x0e)
+#define DDC_HDCP_14_LSTORE	(CMD_DDC_OFFSET + 0x0f)
+#define DDC_HDCP_22_LSTORE	(CMD_DDC_OFFSET + 0x10)
 
 /***********************************************************************
  *             CONFIG CONTROL //CntlConfig
@@ -302,6 +313,7 @@ struct hdmitx_dev {
 	#define CLR_AVMUTE	0x1
 	#define SET_AVMUTE	0x2
 #define MISC_HPLL_FAKE			(CMD_MISC_OFFSET + 0x0c)
+#define MISC_ESM_RESET		(CMD_MISC_OFFSET + 0x0d)
 
 /***********************************************************************
  *                          Get State //GetState

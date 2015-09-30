@@ -54,3 +54,4 @@ void scdc_config(void *hdev)
 	scdc_tmds_cfg_timer.expires = jiffies + HZ;
 	mod_timer(&scdc_tmds_cfg_timer, jiffies + HZ);
 }
+

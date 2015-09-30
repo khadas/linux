@@ -796,4 +796,5 @@ void init_reg_map(void);
 #define P_HDMITX_DATA_PORT        0xc883a004
 #define P_HDMITX_CTRL_PORT        0xc883a008
 
+#define P_ELP_ESM_HPI_REG_BASE		0xd0044000
 #endif
