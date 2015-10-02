@@ -56,6 +56,7 @@ static int lowmem_minfree[6] = {
 	16 * 1024,	/* 64MB */
 };
 static int lowmem_minfree_size = 4;
+static uint reserve_minfree = 8192;
 
 static unsigned long lowmem_deathpending_timeout;
 
@@ -89,33 +90,44 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	int other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
+	int nomove_free = 0;
+	int nomove_file = 0;
 	int file_cma = 0;
 	struct zone *zone = NULL;
+
+	if (IS_ENABLED(CONFIG_CMA)
+		&& (allocflags_to_migratetype(sc->gfp_mask)
+					!= MIGRATE_MOVABLE)) {
+		nomove_free = global_page_state(NR_FREE_PAGES) -
+					global_page_state(NR_FREE_CMA_PAGES);
+		nomove_file = other_file;
+		for_each_zone(zone) {
+			if (zone->managed_pages == 0)
+				continue;
+			spin_lock_irq(&zone->lru_lock);
+			file_cma = zone_page_state(zone, NR_INACTIVE_FILE_CMA) +
+				zone_page_state(zone, NR_ACTIVE_FILE_CMA);
+			spin_unlock_irq(&zone->lru_lock);
+			nomove_file = nomove_file - file_cma;
+		}
+	}
 
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
-	if (IS_ENABLED(CONFIG_CMA)
-		&& (allocflags_to_migratetype(sc->gfp_mask)
-			!= MIGRATE_MOVABLE)) {
-		other_free -= global_page_state(NR_FREE_CMA_PAGES);
-		for_each_zone(zone) {
-			if (zone->managed_pages == 0)
-				continue;
-			spin_lock_irq(&zone->lru_lock);
-			file_cma = zone_page_state(zone, NR_INACTIVE_FILE_CMA)
-				+ zone_page_state(zone, NR_ACTIVE_FILE_CMA);
-			spin_unlock_irq(&zone->lru_lock);
-			other_file = other_file - file_cma;
-		}
-	}
 	for (i = 0; i < array_size; i++) {
 		minfree = lowmem_minfree[i];
 		if (other_free < minfree && other_file < minfree) {
 			min_score_adj = lowmem_adj[i];
 			break;
 		}
+	}
+
+	if ((nomove_file + nomove_free) > 0
+		&& (nomove_file + nomove_free) < reserve_minfree) {
+		/* set to forground, for we really need to kill */
+		min_score_adj = lowmem_adj[0];
 	}
 
 	lowmem_print(3, "lowmem_scan %lu, %x, ofree %d %d, ma %hd\n",
@@ -174,7 +186,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		lowmem_print(1, "Killing '%s' (%d), adj %hd,\n" \
 				"   to free %ldkB on behalf of '%s' (%d) because\n" \
 				"   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n" \
-				"   Free memory is %ldkB above reserved\n",
+				"   Free memory is %ldkB above reserved. nonmove free (%ldkB),(%ldkB)\n",
 			     selected->comm, selected->pid,
 			     selected_oom_score_adj,
 			     selected_tasksize * (long)(PAGE_SIZE / 1024),
@@ -182,7 +194,9 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			     other_file * (long)(PAGE_SIZE / 1024),
 			     minfree * (long)(PAGE_SIZE / 1024),
 			     min_score_adj,
-			     other_free * (long)(PAGE_SIZE / 1024));
+			     other_free * (long)(PAGE_SIZE / 1024),
+			     nomove_free * (long)(PAGE_SIZE / 1024),
+			     nomove_file * (long)(PAGE_SIZE / 1024));
 		lowmem_deathpending_timeout = jiffies + HZ;
 		send_sig(SIGKILL, selected, 0);
 		set_tsk_thread_flag(selected, TIF_MEMDIE);
@@ -303,6 +317,7 @@ module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size,
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param(reserve_minfree, uint, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);
