@@ -383,6 +383,15 @@ vpp_process_speed_check(s32 width_in,
 					vinfo->sync_duration_den * 256)
 					> get_vpu_clk())
 					return SPEED_CHECK_VSKIP;
+				/* 4K down scaling to non 4K > 30hz,
+				   skip lines for memory bandwidth */
+				else if (((vf->type & VIDTYPE_COMPRESS)
+					   == 0) &&
+					 (height_in > 2048) &&
+					 (height_out < 2048) &&
+					 (vinfo->sync_duration_num >
+					  (30 * vinfo->sync_duration_den)))
+					return SPEED_CHECK_VSKIP;
 				else
 					return SPEED_CHECK_DONE;
 			}
