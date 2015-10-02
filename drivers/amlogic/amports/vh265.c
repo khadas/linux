@@ -151,7 +151,7 @@ static u32 force_w_h;
 #define H265_DEBUG_NOT_USE_LAST_DISPBUF   0x1000000
 #define H265_DEBUG_IGNORE_CONFORMANCE_WINDOW	0x2000000
 
-const u32 h265_version = 201509285;
+const u32 h265_version = 201510011;
 static u32 debug;
 static u32 radr;
 static u32 rval;
@@ -3216,8 +3216,8 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 		}
 	}
 
-	/*USE_BUF_BLOCK*/
-	if (new_pic == NULL) {
+	/*try to allocate more pic for new resolution*/
+	if (re_config_pic_flag && new_pic == NULL) {
 		int ii;
 		for (ii = 0; ii < MAX_REF_PIC_NUM; ii++) {
 			if (m_PIC[ii].index == -1)
@@ -3239,8 +3239,8 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 
 	new_pic->referenced = 1;
 	if (new_pic->width != hevc->pic_w || new_pic->height != hevc->pic_h) {
-		/*USE_BUF_BLOCK*/
 		if (re_config_pic_flag) {
+			/* re config pic for new resolution */
 			recycle_buf(hevc);
 			/* if(new_pic->BUF_index == -1){ */
 			if (config_pic(hevc, new_pic) < 0) {
