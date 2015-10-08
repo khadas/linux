@@ -1473,22 +1473,27 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	return 0;
 }
 
-static DEFINE_MUTEX(setclk_mutex);
-void hdmitx_hpd_plugin_handler(struct work_struct *work)
+struct i2c_client *i2c_edid_client;
+static int edid_read_flag;
+static DEFINE_MUTEX(getedid_mutex);
+static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
-	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
-		struct hdmitx_dev, work_hpd_plugin);
-
-	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGIN)))
-		return;
-	pr_info("hdmitx: plugin\n");
-	mutex_lock(&setclk_mutex);
-	/* start reading E-EDID */
-	hdev->hpd_state = 1;
+	mutex_lock(&getedid_mutex);
 	if (hdev->gpio_i2c_enable) {
-		gpio_read_edid(hdev->EDID_buf);
-		msleep(20);
-		gpio_read_edid(hdev->EDID_buf1);
+		if (!i2c_edid_client) {
+			mutex_unlock(&getedid_mutex);
+			return;
+		} else if (edid_read_flag) {
+			/*edid already read, return*/
+			mutex_unlock(&getedid_mutex);
+			return;
+		} else {
+			hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
+			gpio_read_edid(hdev->EDID_buf);
+			msleep(20);
+			gpio_read_edid(hdev->EDID_buf1);
+			edid_read_flag = 1;
+		}
 	} else {
 		/* TODO hdmitx_edid_ram_buffer_clear(hdev); */
 		hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
@@ -1505,7 +1510,22 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdmitx_edid_buf_compare_print(hdev);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_parse(hdev);
+	mutex_unlock(&getedid_mutex);
+}
 
+static DEFINE_MUTEX(setclk_mutex);
+void hdmitx_hpd_plugin_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_hpd_plugin);
+
+	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGIN)))
+		return;
+	pr_info("hdmitx: plugin\n");
+	mutex_lock(&setclk_mutex);
+	/* start reading E-EDID */
+	hdev->hpd_state = 1;
+	hdmitx_get_edid(hdev);
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	switch_set_state(&sdev, 1);
@@ -1530,6 +1550,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	pr_info("hdmitx: plugout\n");
 	if (hdev->gpio_i2c_enable) {
+		edid_read_flag = 0;
 		if (hdev->hdcpop.hdcp14_en) {
 			hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
 			hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
@@ -1760,7 +1781,6 @@ static int get_dt_pwr_init_data(struct device_node *np,
 
 #endif
 
-struct i2c_client *i2c_edid_client;
 static int edid_tx_segaddr(unsigned char segaddr, unsigned char *tx_data,
 	int length)
 {
@@ -1869,6 +1889,13 @@ static int i2c_gpio_edid_probe(struct i2c_client *client,
 	const struct i2c_device_id *device_id)
 {
 	i2c_edid_client = client;
+	if (hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+		MISC_HPD_GPI_ST, 0)) {
+		hdmitx_get_edid(&hdmitx_device);
+		if (hdmitx_device.hdcpop.hdcp14_en)
+			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+				DDC_HDCP_OP, HDCP_ON);
+	}
 	return 0;
 }
 
@@ -2079,7 +2106,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		hdmi_print(INF, SYS "get hdmi platform data\n");
 	}
 #endif
-
 	hdmitx_device.irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
 	if (hdmitx_device.irq_hpd == -ENXIO) {
 		pr_err("%s: ERROR: hdmitx hpd irq No not found\n" ,

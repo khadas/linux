@@ -2833,6 +2833,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned long argv)
 {
 	int i = 0;
+	static int hdcp_already_on;
 	unsigned char *tmp_char = NULL;
 	if (!(cmd & CMD_DDC_OFFSET))
 		hdmi_print(ERR, "ddc: " "w: invalid cmd 0x%x\n", cmd);
@@ -2871,12 +2872,17 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case DDC_HDCP_OP:
 		if (argv == HDCP_ON) {
-			hdmitx_ddc_hw_op(DDC_MUX_DDC);
-			hdmitx_hdcp_opr(1);
-			hdcp_start_timer(hdev);
+			if (!hdcp_already_on) {
+				hdcp_already_on = 1;
+				hdmitx_ddc_hw_op(DDC_MUX_DDC);
+				hdmitx_hdcp_opr(1);
+				hdcp_start_timer(hdev);
+			}
 		}
-		if (argv == HDCP_OFF)
+		if (argv == HDCP_OFF) {
+			hdcp_already_on = 0;
 			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
+		}
 		break;
 	case DDC_IS_HDCP_ON:
 /* argv = !!((hdmitx_rd_reg(TX_HDCP_MODE)) & (1 << 7)); */
