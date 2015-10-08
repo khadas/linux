@@ -439,6 +439,14 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 			}
 
 			if (!buffer_spec[i].phy_addr) {
+				if (!codec_mm_enough_for_size(
+					page_count * PAGE_SIZE)) {
+					buffer_spec[i].alloc_count = 0;
+					fatal_error =
+						DECODER_FATAL_ERROR_NO_MEM;
+					mutex_unlock(&vh264_4k2k_mutex);
+					return -1;
+				}
 				buffer_spec[i].alloc_count = page_count;
 				buffer_spec[i].phy_addr =
 					codec_mm_alloc_for_dma(

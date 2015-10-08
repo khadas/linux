@@ -56,6 +56,19 @@
 
 #define RES_MEM_FLAGS_HAVE_MAPED 0x4
 
+/*
+debug_mode:
+
+disable reserved:1
+disable cma:2
+disable sys memory:4
+disable half memory:8,
+	only used half memory,for debug.
+	return nomem,if alloced > total/2;
+
+*/
+static u32 debug_mode;
+
 struct codec_mm_mgt_s {
 	struct cma *cma;
 	struct device *dev;
@@ -98,6 +111,43 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 	return &mgt;
 };
 
+
+/*
+have_space:
+1:	can alloced from reserved
+2:	can alloced from cma
+4:  can alloced from sys.
+ */
+static int codec_mm_alloc_pre_check_in(
+	struct codec_mm_mgt_s *mgt, int need_size)
+{
+	int have_space = 0;
+	int aligned_size = PAGE_ALIGN(need_size);
+	if (aligned_size <= mgt->total_reserved_size - mgt->alloced_res_size)
+		have_space |= 1;
+	if (aligned_size <= mgt->total_cma_size - mgt->alloced_cma_size)
+		have_space |= 2;
+	if (aligned_size/PAGE_SIZE <= mgt->alloc_from_sys_pages_max)
+		have_space |= 4;
+
+	if (debug_mode) {
+		pr_info("codec mm is enabled debug_mode:%d\n", debug_mode);
+		have_space = have_space & (~(debug_mode & 1));
+		have_space = have_space & (~(debug_mode & 2));
+		have_space = have_space & (~(debug_mode & 4));
+		if (debug_mode & 8) {
+			if (mgt->total_alloced_size >
+					mgt->total_codec_mem_size/2) {
+				pr_info("codec mm memory is limited by %d, (bit8 enable)\n",
+					debug_mode);
+				have_space = 0;
+			}
+		}
+	}
+
+	return have_space;
+}
+
 static int codec_mm_alloc_in(
 	struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 {
@@ -106,6 +156,7 @@ static int codec_mm_alloc_in(
 	int align_2n = mem->align2n < PAGE_SHIFT ? PAGE_SHIFT : mem->align2n;
 	int try_cma_first = mem->flags & CODEC_MM_FLAGS_CMA_FIRST;
 	int max_retry = ALLOC_MAX_RETRY;
+	int have_space;
 
 	int can_from_res = ((mgt->res_pool != NULL) && /*have res*/
 		!(mem->flags & CODEC_MM_FLAGS_CMA)) || /*must not CMA*/
@@ -117,6 +168,20 @@ static int codec_mm_alloc_in(
 	int can_from_cma = ((mgt->total_cma_size > 0) && /*have cma*/
 		!(mem->flags & CODEC_MM_FLAGS_RESERVED));
 		/*not always reserved.*/
+
+	int can_from_sys = (mem->flags & CODEC_MM_FLAGS_DMA_CPU) &&
+			(mem->page_count <= mgt->alloc_from_sys_pages_max);
+
+	have_space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size);
+	if (!have_space) {
+		return -ENOMEM;
+	} else {
+		can_from_res = can_from_res && (have_space & 1);
+		can_from_cma = can_from_cma && (have_space & 2);
+		can_from_sys = can_from_sys && (have_space & 4);
+		if (!can_from_res && !can_from_cma && can_from_sys)
+			return -ENOMEM;
+	}
 
 	do {
 		if ((mem->flags & CODEC_MM_FLAGS_DMA_CPU) &&
@@ -532,8 +597,20 @@ int codec_mm_get_free_size(void)
 int codec_mm_get_reserved_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	return mgt->rmem.size & (~((1 << RESERVE_MM_ALIGNED_2N) - 1));
+	return mgt->total_reserved_size;
 }
+
+int codec_mm_enough_for_size(int size)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	int have_mem = codec_mm_alloc_pre_check_in(mgt, size);
+	if (!have_mem)
+		return 0;
+	return 1;
+}
+
+
+
 
 int codec_mm_mgt_init(struct device *dev)
 {
@@ -759,3 +836,8 @@ static int __init codec_mm_res_setup(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(codec_mm_reserved, "amlogic, codec-mm-reserved",
 					   codec_mm_res_setup);
+
+
+module_param(debug_mode, uint, 0664);
+MODULE_PARM_DESC(debug_mode, "\n debug module\n");
+

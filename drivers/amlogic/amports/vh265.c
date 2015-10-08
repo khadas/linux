@@ -1411,6 +1411,17 @@ static void init_buf_list(struct hevc_state_s *hevc)
 				m_BUF[i].cma_page_count = 0;
 			}
 			if (m_BUF[i].alloc_addr == 0) {
+				if (!codec_mm_enough_for_size(buf_size)) {
+					/*
+					not enough mem for buffer.
+					*/
+					pr_info("not enought buffer for [%d],%d\n",
+						i, buf_size);
+					m_BUF[i].cma_page_count = 0;
+					fatal_error |=
+						DECODER_FATAL_ERROR_NO_MEM;
+					break;
+				}
 				m_BUF[i].cma_page_count =
 					PAGE_ALIGN(buf_size) / PAGE_SIZE;
 				m_BUF[i].alloc_addr = codec_mm_alloc_for_dma(

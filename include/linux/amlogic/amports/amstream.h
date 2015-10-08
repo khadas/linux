@@ -224,6 +224,9 @@ struct buf_status {
 #define PARSER_ERROR_WRONG_PACKAGE_SIZE (0x80<<16)
 #define DECODER_FATAL_ERROR_SIZE_OVERFLOW     (0x100<<16)
 #define DECODER_FATAL_ERROR_UNKNOW             (0x200<<16)
+#define DECODER_FATAL_ERROR_NO_MEM		(0x400<<16)
+
+
 #define DECODER_ERROR_MASK	(0xffff<<16)
 
 struct vdec_status {

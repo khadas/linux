@@ -70,7 +70,7 @@ void codec_mm_dma_flush(void *vaddr,
 int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
 int codec_mm_get_reserved_size(void);
-
+int codec_mm_enough_for_size(int size);
 
 
 #endif	/*
