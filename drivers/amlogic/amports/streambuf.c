@@ -147,7 +147,8 @@ int stbuf_fetch_init(void)
 	if (NULL != fetchbuf)
 		return 0;
 
-	fetchbuf = vmalloc(FETCHBUF_SIZE);
+	fetchbuf = (void *)__get_free_pages(GFP_KERNEL,
+						get_order(FETCHBUF_SIZE));
 
 	if (!fetchbuf) {
 		pr_info("%s: Can not allocate fetch working buffer\n",
@@ -159,8 +160,9 @@ int stbuf_fetch_init(void)
 
 void stbuf_fetch_release(void)
 {
-	if (fetchbuf) {
-		vfree(fetchbuf);
+	if (0 && fetchbuf) {
+		/* always don't free.for safe alloc/free*/
+		free_pages((unsigned long)fetchbuf, get_order(FETCHBUF_SIZE));
 		fetchbuf = 0;
 	}
 
