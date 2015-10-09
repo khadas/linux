@@ -116,7 +116,6 @@ struct amlsd_platform {
 	unsigned char caling;
 	unsigned char need_cali;
 	unsigned char calout[20][20];
-	unsigned int *read_buf;
 	struct delayed_work	calouting;
 #endif
 	/* we used this flag to filter

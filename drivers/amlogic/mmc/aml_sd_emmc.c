@@ -559,7 +559,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int start_blk = -1;
 	u32 clk_temp = sd_emmc_regs->gclock;
 	u32 clk_rate = 1000000000;
-
+	u32 *read_buf;
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
 			tuning_data.blk_pattern = tuning_blk_pattern_8bit;
@@ -581,11 +581,11 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 #ifdef CALIBRATION
 	if ((aml_card_type_mmc(pdata)) && (pdata->need_cali == 1)) {
-		pdata->read_buf = kmalloc(512, GFP_KERNEL);
-		if (!pdata->read_buf)
+		read_buf = kmalloc(512, GFP_KERNEL);
+		if (!read_buf)
 			pr_err("%s: read buffer malloc failed\n",
 					mmc_hostname(mmc));
-		memset(pdata->read_buf, 0, 512);
+		memset(read_buf, 0, 512);
 		start_blk = get_reserve_partition_off(mmc->card);
 		bit = mmc->card->csd.read_blkbits;
 		if (start_blk < 0) {
@@ -605,16 +605,16 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 		aml_sd_emmc_set_clk_rate(mmc, 50000000);
 		err = mmc_read_internal(mmc->card, start_blk,
-					1, pdata->read_buf);
+					1, read_buf);
 			if (err != 0) {
 				pr_info("%s: read tuning result failed,",
 						mmc_hostname(mmc));
 				pr_info("continue...\n");
 			}
-			if ((pdata->read_buf[0] == sd_emmc_version[0])
-				&& (pdata->read_buf[1] == sd_emmc_version[1])) {
-				if (checksum_cali(pdata->read_buf, 3) ==
-						pdata->read_buf[3]) {
+			if ((read_buf[0] == sd_emmc_version[0])
+				&& (read_buf[1] == sd_emmc_version[1])) {
+				if (checksum_cali(read_buf, 3) ==
+						read_buf[3]) {
 					pdata->need_cali = 0;
 				} else {
 					pdata->need_cali = 1;
@@ -631,7 +631,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			aml_sd_emmc_execute_tuning_index(mmc, 18,
 						&tuning_data, start_blk);
 		else
-			sd_emmc_regs->gdelay = pdata->read_buf[2];
+			sd_emmc_regs->gdelay = read_buf[2];
 		err = 0;
 		sd_emmc_regs->gclock = clk_temp;
 		pdata->clkc = clk_temp;
@@ -639,6 +639,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 					(!!(clk_rate % (clk_temp & 0x3f)));
 		if (sd_emmc_regs->gcfg & (1 << 2))
 			pdata->mmc->actual_clock = pdata->mmc->actual_clock / 2;
+		kfree(read_buf);
 	}
 #endif
 
@@ -647,7 +648,6 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	pr_info("%s: gclock =0x%x, gdelay=0x%x\n",
 		mmc_hostname(mmc), sd_emmc_regs->gclock, sd_emmc_regs->gdelay);
 	pr_info("gadjust=0x%x\n", sd_emmc_regs->gadjust);
-	kfree(pdata->read_buf);
 	return err;
 }
 
