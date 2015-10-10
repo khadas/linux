@@ -911,7 +911,7 @@
 		idle_interval=<1000>;
 		keep_mode;
 		keep_mode_threshold = <85>;
-		keep_mode_max_range = <1536000 666 4 3>;
+		keep_mode_max_range = <2016000 666 4 3>;
 	};
 };
 
