@@ -41,10 +41,6 @@
 #include "aml_pcm.h"
 #include "aml_audio_hw_pcm2bt.h"
 
-#define USE_HRTIMER 0
-#define HRTIMER_PERIOD (1000000000UL/1000)
-#define DEBUG_ALSA_PLATFRORM
-
 /* #define PCM_DEBUG */
 
 #ifdef PCM_DEBUG

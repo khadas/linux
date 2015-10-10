@@ -43,8 +43,6 @@
 #include "aml_spdif_dai.h"
 #include "aml_audio_hw.h"
 #include <linux/amlogic/sound/aiu_regs.h>
-#define USE_HRTIMER 0
-#define HRTIMER_PERIOD (1000000000UL/1000)
 /* #define DEBUG_ALSA_PLATFRORM */
 
 #define ALSA_PRINT(fmt, args...)	pr_info("[aml-platform]" fmt, ##args)
@@ -68,9 +66,6 @@ EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
 
 unsigned long aml_i2s_capture_phy_start_addr = 0;
 unsigned long aml_i2s_capture_start_addr = 0;
-
-static DEFINE_MUTEX(gate_mutex);
-static unsigned audio_gate_status;
 
 static int trigger_underrun;
 void aml_audio_hw_trigger(void)
@@ -277,11 +272,36 @@ static int aml_i2s_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static void start_timer(struct aml_runtime_data *prtd)
+{
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&prtd->timer_lock, flags);
+	if (!prtd->active) {
+		prtd->timer.expires = jiffies + 1;
+		add_timer(&prtd->timer);
+		prtd->active = 1;
+		prtd->xrun_num = 0;
+	}
+	spin_unlock_irqrestore(&prtd->timer_lock, flags);
+}
+
+static void stop_timer(struct aml_runtime_data *prtd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&prtd->timer_lock, flags);
+	if (prtd->active) {
+		del_timer(&prtd->timer);
+		prtd->active = 0;
+	}
+	spin_unlock_irqrestore(&prtd->timer_lock, flags);
+}
+
 static int aml_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *rtd = substream->runtime;
 	struct aml_runtime_data *prtd = rtd->private_data;
-	struct audio_stream *s = &prtd->s;
 	int ret = 0;
 	ALSA_TRACE();
 
@@ -289,29 +309,12 @@ static int aml_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-
-#if USE_HRTIMER == 0
-		del_timer_sync(&prtd->timer);
-#endif
-		spin_lock(&s->lock);
-#if USE_HRTIMER == 0
-		prtd->timer.expires = jiffies + 1;
-		del_timer(&prtd->timer);
-		add_timer(&prtd->timer);
-#endif
-
-		s->xrun_num = 0;
-		s->active = 1;
-		spin_unlock(&s->lock);
+		start_timer(prtd);
 		break;		/* SNDRV_PCM_TRIGGER_START */
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_STOP:
-		/* TODO */
-		spin_lock(&s->lock);
-		s->active = 0;
-		s->xrun_num = 0;
-		spin_unlock(&s->lock);
+		stop_timer(prtd);
 		break;
 	default:
 		ret = -EINVAL;
@@ -347,128 +350,66 @@ static snd_pcm_uframes_t aml_i2s_pointer(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-#if USE_HRTIMER == 1
-static enum hrtimer_restart aml_i2s_hrtimer_callback(struct hrtimer *timer)
-{
-	struct aml_runtime_data *prtd =
-	    container_of(timer, struct aml_runtime_data, hrtimer);
-	struct audio_stream *s = &prtd->s;
-	struct snd_pcm_substream *substream = prtd->substream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	unsigned int last_ptr, size;
-	/* unsigned long flag; */
-	/* printk("------------->hrtimer start\n"); */
-	if (s->active == 0) {
-		hrtimer_forward_now(timer, ns_to_ktime(HRTIMER_PERIOD));
-		return HRTIMER_RESTART;
-	}
-	/* spin_lock_irqsave(&s->lock, flag); */
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		last_ptr = read_i2s_rd_ptr();
-		if (last_ptr < s->last_ptr)
-			size = runtime->dma_bytes + last_ptr - s->last_ptr;
-		else
-			size = last_ptr - s->last_ptr;
-
-		s->last_ptr = last_ptr;
-		s->size += bytes_to_frames(substream->runtime, size);
-		if (s->size >= runtime->period_size) {
-			s->size %= runtime->period_size;
-			snd_pcm_period_elapsed(substream);
-		}
-	} else {
-		last_ptr = (audio_in_i2s_wr_ptr() - s->I2S_addr) / 2;
-		if (last_ptr < s->last_ptr)
-			size = runtime->dma_bytes + last_ptr - s->last_ptr;
-		else
-			size = last_ptr - s->last_ptr;
-
-		s->last_ptr = last_ptr;
-		s->size += bytes_to_frames(runtime, size);
-		if (s->size >= runtime->period_size) {
-			s->size %= runtime->period_size;
-			snd_pcm_period_elapsed(substream);
-		}
-	}
-	/* spin_unlock_irqrestore(&s->lock, flag); */
-	hrtimer_forward_now(timer, ns_to_ktime(HRTIMER_PERIOD));
-	return HRTIMER_RESTART;
-}
-#endif
 static void aml_i2s_timer_callback(unsigned long data)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
-
+	int elapsed = 0;
 	unsigned int last_ptr, size = 0;
+
+	spin_lock(&prtd->timer_lock);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (s->active == 1) {
-			spin_lock(&s->lock);
-			if (s->device_type == AML_AUDIO_I2SOUT)
-				last_ptr = read_i2s_rd_ptr();
-			else
-				last_ptr = read_iec958_rd_ptr();
-			if (last_ptr < s->last_ptr) {
-				size =
-				    runtime->dma_bytes + last_ptr -
-				    (s->last_ptr);
-			} else {
-				size = last_ptr - (s->last_ptr);
-			}
-			s->last_ptr = last_ptr;
-			s->size += bytes_to_frames(substream->runtime, size);
-			if (s->size >= runtime->period_size) {
-				s->size %= runtime->period_size;
-				spin_unlock(&s->lock);
-				snd_pcm_period_elapsed(substream);
-				spin_lock(&s->lock);
-			}
-			mod_timer(&prtd->timer, jiffies + 1);
-			spin_unlock(&s->lock);
+		if (s->device_type == AML_AUDIO_I2SOUT)
+			last_ptr = read_i2s_rd_ptr();
+		else
+			last_ptr = read_iec958_rd_ptr();
+		if (last_ptr < s->last_ptr) {
+			size =
+			    runtime->dma_bytes + last_ptr -
+			    (s->last_ptr);
 		} else {
-			mod_timer(&prtd->timer, jiffies + 1);
+			size = last_ptr - (s->last_ptr);
+		}
+		s->last_ptr = last_ptr;
+		s->size += bytes_to_frames(substream->runtime, size);
+		if (s->size >= runtime->period_size) {
+			s->size %= runtime->period_size;
+			elapsed = 1;
 		}
 	} else {
-		if (s->active == 1) {
-			spin_lock(&s->lock);
-			if (s->device_type == AML_AUDIO_I2SIN)
-				last_ptr = audio_in_i2s_wr_ptr();
-			else
-				last_ptr = audio_in_spdif_wr_ptr();
-			if (last_ptr < s->last_ptr) {
-				size =
-				    runtime->dma_bytes + (last_ptr -
-							  (s->last_ptr)) / 2;
-			} else if (last_ptr == s->last_ptr) {
-				if (s->xrun_num++ > 100) {
-					pr_info("alsa capture long time no data, quit xrun!\n");
-					s->xrun_num = 0;
-					s->size = runtime->period_size;
-				}
-			} else {
-				size = (last_ptr - (s->last_ptr)) / 2;
+		if (s->device_type == AML_AUDIO_I2SIN)
+			last_ptr = audio_in_i2s_wr_ptr();
+		else
+			last_ptr = audio_in_spdif_wr_ptr();
+		if (last_ptr < s->last_ptr) {
+			size =
+			    runtime->dma_bytes + (last_ptr -
+						  (s->last_ptr)) / 2;
+		} else if (last_ptr == s->last_ptr) {
+			if (prtd->xrun_num++ > 100) {
+				pr_info("alsa capture long time no data, quit xrun!\n");
+				prtd->xrun_num = 0;
+				s->size = runtime->period_size;
 			}
-			s->last_ptr = last_ptr;
-			s->size += bytes_to_frames(substream->runtime, size);
-			if (s->size >= runtime->period_size) {
-				s->size %= runtime->period_size;
-				spin_unlock(&s->lock);
-				snd_pcm_period_elapsed(substream);
-				spin_lock(&s->lock);
-			}
-			mod_timer(&prtd->timer, jiffies + 1);
-			spin_unlock(&s->lock);
 		} else {
-			mod_timer(&prtd->timer, jiffies + 1);
+			size = (last_ptr - (s->last_ptr)) / 2;
+		}
+		s->last_ptr = last_ptr;
+		s->size += bytes_to_frames(substream->runtime, size);
+		if (s->size >= runtime->period_size) {
+			s->size %= runtime->period_size;
+			elapsed = 1;
 		}
 	}
+
+	mod_timer(&prtd->timer, jiffies + 1);
+	spin_unlock(&prtd->timer_lock);
+	if (elapsed)
+		snd_pcm_period_elapsed(substream);
 }
 
-static int num_clk_gate;
 static int aml_i2s_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -518,34 +459,12 @@ static int aml_i2s_open(struct snd_pcm_substream *substream)
 		prtd->substream = substream;
 		runtime->private_data = prtd;
 	}
-/* WRITE_MPEG_REG_BITS( HHI_MPLL_CNTL8, 1,14, 1); */
-#if USE_HRTIMER == 0
+
+	spin_lock_init(&prtd->timer_lock);
+	init_timer(&prtd->timer);
 	prtd->timer.function = &aml_i2s_timer_callback;
 	prtd->timer.data = (unsigned long)substream;
-	init_timer(&prtd->timer);
-#else
-	hrtimer_init(&prtd->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	prtd->hrtimer.function = aml_i2s_hrtimer_callback;
-	hrtimer_start(&prtd->hrtimer, ns_to_ktime(HRTIMER_PERIOD),
-		      HRTIMER_MODE_REL);
-	pr_info("hrtimer inited..\n");
-#endif
 
-	spin_lock_init(&prtd->s.lock);
-	s->xrun_num = 0;
-	/* WRITE_MPEG_REG_BITS(MPLL_I2S_CNTL, 1,14, 1); */
-	mutex_lock(&gate_mutex);
-	if (!num_clk_gate) {
-		num_clk_gate = 1;
-		if (audio_gate_status == 0) {
-			/* audio_aiu_pg_enable(1); */
-			ALSA_DEBUG("aml_pcm_open  device type %x\n",
-				   s->device_type);
-
-		}
-	}
-	audio_gate_status |= s->device_type;
-	mutex_unlock(&gate_mutex);
  out:
 	return ret;
 }
@@ -553,22 +472,7 @@ static int aml_i2s_open(struct snd_pcm_substream *substream)
 static int aml_i2s_close(struct snd_pcm_substream *substream)
 {
 	struct aml_runtime_data *prtd = substream->runtime->private_data;
-	struct audio_stream *s = &prtd->s;
 	ALSA_TRACE();
-	mutex_lock(&gate_mutex);
-	audio_gate_status &= ~s->device_type;
-	if (audio_gate_status == 0) {
-		ALSA_DEBUG("aml_pcm_close  device type %x\n", s->device_type);
-		/* audio_aiu_pg_enable(0); */
-	}
-	mutex_unlock(&gate_mutex);
-/* if(s->device_type == AML_AUDIO_SPDIFOUT) */
-/* WRITE_MPEG_REG_BITS( HHI_MPLL_CNTL8, 0,14, 1); */
-#if USE_HRTIMER == 0
-	del_timer_sync(&prtd->timer);
-#else
-	hrtimer_cancel(&prtd->hrtimer);
-#endif
 
 	kfree(prtd);
 	prtd = NULL;
@@ -940,7 +844,6 @@ struct snd_soc_platform_driver aml_soc_platform = {
 	.suspend = aml_i2s_suspend,
 	.resume = aml_i2s_resume,
 };
-EXPORT_SYMBOL_GPL(aml_soc_platform);
 
 static int aml_soc_platform_probe(struct platform_device *pdev)
 {

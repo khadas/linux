@@ -27,7 +27,6 @@
 
 struct audio_stream {
 	int stream_id;
-	int active;
 	unsigned int last_ptr;
 	unsigned int size;
 	unsigned int sample_rate;
@@ -36,7 +35,6 @@ struct audio_stream {
 	struct snd_pcm_substream *stream;
 	unsigned i2s_mode; /* 0:master, 1:slave, */
 	unsigned device_type;
-	unsigned int xrun_num;
 };
 struct aml_audio_buffer {
 	void *buffer_start;
@@ -67,11 +65,10 @@ struct aml_runtime_data {
 	struct snd_pcm_substream *substream;
 	struct audio_stream s;
 	struct timer_list timer;	/* timeer for playback and capture */
-	struct hrtimer hrtimer;
+	spinlock_t timer_lock;
 	void *buf; /* tmp buffer for playback or capture */
+	int active;
+	unsigned int xrun_num;
 };
-
-extern struct snd_soc_platform_driver aml_soc_platform;
-/* extern struct aml_audio_interface aml_i2s_interface; */
 
 #endif
