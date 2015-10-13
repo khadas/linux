@@ -85,7 +85,6 @@
 		//	size = <0x0 0x2000000>;
 		//};
 
-
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			linux,phandle = <3>;
@@ -102,6 +101,20 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
+		/*vm0_cma_reserved:linux,vm0_cma {
+			compatible = "shared-dma-pool";
+			linux,phandle = <4>;
+			reusable;
+			size = <0x0 0x2000000>;
+			alignment = <0x0 0x400000>;
+		};
+		vm1_cma_reserved:linux,vm1_cma {
+			compatible = "shared-dma-pool";
+			linux,phandle = <5>;
+			reusable;
+			size = <0x0 0x2000000>;
+			alignment = <0x0 0x400000>;
+		};*/
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
@@ -124,7 +137,7 @@
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
+		mem_size = <0x01800000 0x00800000>; /* fb0/fb1 memory size */
 		vmode = <3>; /** 0:VMODE_720P 1:VMODE_LCD 2:VMODE_LVDS_1080P 3:VMODE_1080P */
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
@@ -305,13 +318,27 @@
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		//memory-region = <&amvenc_avc_reserved>;
-		memory-region = <&avc_cma_reserved>;
 		dev_name = "amvenc_avc";
 		status = "okay";
 		interrupts = <0 45 1>;
 		interrupt-names = "mailbox_2";
 	};
 
+	/*vm0 {
+		compatible = "amlogic, vm";
+		memory-region = <&vm0_cma_reserved>;
+		dev_name = "vm0";
+		status = "okay";
+		vm_id = <0>;
+	};
+
+	vm1 {
+		compatible = "amlogic, vm";
+		memory-region = <&vm1_cma_reserved>;
+		dev_name = "vm1";
+		status = "okay";
+		vm_id = <1>;
+	};*/
 
 	vpu {
 		compatible = "amlogic, vpu";
@@ -345,8 +372,15 @@
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
+		dhd_static_buf;
 		pinctrl-names = "wifi_32k_pins";
 		pinctrl-0 = <&wifi_32k_pins>;
+	};
+	wifi_power{
+		compatible = "amlogic, wifi_power";
+		dev_name = "wifi_power";
+		status = "okay";
+		power_gpio =  <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
 	};
     sd{
         compatible = "amlogic, aml_sd_emmc";
@@ -441,9 +475,11 @@
 		status = "okay";
 		clocks = <&clock CLK_CAMERA_24M>;
 		clock-names = "clk_camera_24";
-		pinctrl-names = "gpio";
-		pinctrl-0 = <&aml_cam_gpio_pins> ;
-					cam_0{
+		pinctrl-names = "cam_gpio_a", "cam_gpio_b","cam_all";
+		pinctrl-0 = <&cam_gpio_a> ;
+		pinctrl-1 = <&cam_gpio_b> ;
+		pinctrl-2 = <&cam_gpio_a &cam_gpio_b> ;
+					 cam_0{
 						cam_name = "sp2518";
 						front_back = <0>;
 						i2c_bus = "i2c_bus_a";
@@ -453,6 +489,22 @@
 						vertical_flip = <1>;
 						spread_spectrum = <0>;	//0:none; 1:0.3%; 2:0.6%; 3:1.25%; 4:2.5%; 5:5%
 						bt_path = "gpio";
+						bt_path_count = <2>;
+						vdin_path = <0>;
+						status = "okay";
+					};
+					 cam_1{
+						cam_name = "sp0838";
+						front_back = <1>;
+						i2c_bus = "i2c_bus_a";
+						gpio_pwdn-gpios = <&gpio       GPIOZ_13       GPIO_ACTIVE_HIGH>;
+						gpio_rst-gpios = <&gpio       GPIOZ_12       GPIO_ACTIVE_HIGH>;
+						mirror_flip = <1>;
+						vertical_flip = <1>;
+						spread_spectrum = <0>;	//0:none; 1:0.3%; 2:0.6%; 3:1.25%; 4:2.5%; 5:5%
+						bt_path = "gpio_b";
+						bt_path_count = <2>;
+						vdin_path = <1>;
 						status = "okay";
 					};
 	};*/
@@ -887,16 +939,7 @@
 	    irq_keyup = <6>;
 	    irq_keydown = <7>;
 	};
-	saradc: saradc {
-		compatible = "amlogic, saradc";
-		status = "okay";
-		interrupts = <0 9 1>;
-		interrupt-names = "saradc_int";
-		clocks = <&clock CLK_XTAL>;
-		clock-names = "saradc_clk";
-		reg = <0x0 0xc1108680 0x0 0x30
-					 0x0 0xc883c3d8 0x0 0x08>;
-	};
+
 	adc_keypad{
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
@@ -928,8 +971,10 @@
 		pinctrl-0 = <&dvb_p_ts0_pins>;
 		pinctrl-1 = <&dvb_s_ts0_pins>;
 		resets = <&clock GCLK_IDX_DEMUX
-				&clock GCLK_IDX_ASYNC_FIFO>;
-		reset-names = "demux", "asyncfifo";
+				&clock GCLK_IDX_ASYNC_FIFO
+				&clock GCLK_IDX_AHB_ARB0
+				&clock GCLK_IDX_HIU_PARSER_TOP>;
+		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
 	dvbfe {
 		compatible = "amlogic, dvbfe";
