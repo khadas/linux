@@ -3451,13 +3451,13 @@ static struct i2c_driver lsm303d_driver = {
 
 static int __init lsm303d_init(void)
 {
-	dprintk("%s driver: init\n", LSM303D_DEV_NAME);
+	dprintk("Sensor: %s\n", __func__);
 	return i2c_add_driver(&lsm303d_driver);
 }
 
 static void __exit lsm303d_exit(void)
 {
-	dprintk("%s driver exit\n", LSM303D_DEV_NAME);
+	dprintk("Sensor: %s\n", __func__);
 	i2c_del_driver(&lsm303d_driver);
 }
 

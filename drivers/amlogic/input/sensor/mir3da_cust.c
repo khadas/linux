@@ -887,7 +887,7 @@ static int  mir3da_remove(struct i2c_client *client)
 }
 
 static char bPreviousEnable;
-static int mir3da_suspend(struct i2c_client *client, pm_message_t mesg)
+static int mir3da_suspend(struct device *dev)
 {
 	int result = 0;
 	void *handle = mir_handle;
@@ -898,7 +898,7 @@ static int mir3da_suspend(struct i2c_client *client, pm_message_t mesg)
 	return result;
 }
 
-static int mir3da_resume(struct i2c_client *client)
+static int mir3da_resume(struct device *dev)
 {
 	int result = 0;
 	void *handle = mir_handle;
@@ -935,18 +935,21 @@ MODULE_DEVICE_TABLE(i2c, mir3da_id);
 
 static const unsigned short normal_i2c[] = { 0x27,  0x26, I2C_CLIENT_END };
 
+static const struct dev_pm_ops mir3da_pm_ops = {
+	.suspend_noirq = mir3da_suspend,
+	.resume_noirq  = mir3da_resume,
+};
+
 static struct i2c_driver mir3da_driver = {
 	/*.class		= I2C_CLASS_HWMON,*/
 	.driver = {
-		.name    = MIR3DA_DRV_NAME,
-		.owner    = THIS_MODULE,
+		.name = MIR3DA_DRV_NAME,
+		.owner = THIS_MODULE,
+		.pm = &mir3da_pm_ops,
 	},
-	.suspend = mir3da_suspend,
-	.resume    = mir3da_resume,
 	.probe    = mir3da_probe,
 	.remove    = mir3da_remove,
 	.id_table = mir3da_id,
-
 	.detect		= mir3da_detect,
 	.address_list	= normal_i2c,
 };

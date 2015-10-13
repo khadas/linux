@@ -66,8 +66,8 @@ static long device_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 static int device_close(struct inode*, struct file*);
 
-static int device_i2c_suspend(struct i2c_client *client, pm_message_t mesg);
-static int device_i2c_resume(struct i2c_client *client);
+static int device_i2c_suspend(struct device *dev);
+static int device_i2c_resume(struct device *dev);
 static int device_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id);
 static int device_i2c_remove(struct i2c_client *client);
@@ -75,6 +75,7 @@ static int device_i2c_rxdata(struct i2c_client *client, unsigned char *buffer,
 				int length);
 static int device_i2c_txdata(struct i2c_client *client, unsigned char *txData,
 				int length);
+struct i2c_client *dmt10_client;
 /* 1g = 128 becomes 1g = 1024 */
 static inline void device_i2c_correct_accel_sign(s16 *val)
 {
@@ -483,16 +484,16 @@ static int sensor_close_dev(struct i2c_client *client)
 	return device_i2c_txdata(client, buffer, 3);
 }
 
-static int device_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
+static int device_i2c_suspend(struct device *dev)
 {
 	dprintk("Gsensor enter 2 level suspend!!\n");
-	return sensor_close_dev(client);
+	return sensor_close_dev(dmt10_client);
 }
 
-static int device_i2c_resume(struct i2c_client *client)
+static int device_i2c_resume(struct device *dev)
 {
 	dprintk("Gsensor 2 level resume!!\n");
-	return gsensor_reset(client);
+	return gsensor_reset(dmt10_client);
 }
 
 static int device_i2c_remove(struct i2c_client *client)
@@ -507,20 +508,24 @@ static const struct i2c_device_id device_i2c_ids[] = {
 
 MODULE_DEVICE_TABLE(i2c, device_i2c_ids);
 
+#ifndef CONFIG_ANDROID_POWER
+static const struct dev_pm_ops device_i2c_pm_ops = {
+	.suspend_noirq = device_i2c_suspend,
+	.resume_noirq  = device_i2c_resume,
+};
+#endif
 static struct i2c_driver device_i2c_driver = {
 	.driver	= {
 		.owner = THIS_MODULE,
 		.name = DEVICE_I2C_NAME,
+#ifndef CONFIG_ANDROID_POWER
+		.pm = &device_i2c_pm_ops,
+#endif
 	},
 	/* .class = I2C_CLASS_HWMON, */
 	.id_table = device_i2c_ids,
 	.probe = device_i2c_probe,
 	.remove	= device_i2c_remove,
-#ifndef CONFIG_ANDROID_POWER
-	.suspend = device_i2c_suspend,
-	.resume	= device_i2c_resume,
-#endif
-
 };
 
 void gsensor_write_offset_to_file(void)
@@ -800,7 +805,7 @@ static int device_i2c_probe(struct i2c_client *client,
 	int ret = 0;
 	int err =  -1;
 	dprintk("*******d10-i2c_probe E\n");
-
+	dmt10_client = client;
 	for (i = 0; i < SENSOR_DATA_SIZE; ++i)
 		offset.v[i] = 0;
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {

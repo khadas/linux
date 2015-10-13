@@ -269,8 +269,6 @@ static struct i2c_driver cm3217_driver = {
 static int __init cm3217_init(void)
 {
 	i2c_add_driver(&cm3217_driver);
-	pr_info("cm3217 v.%s\n", DRV_VERSION);
-
 	return 0;
 }
 

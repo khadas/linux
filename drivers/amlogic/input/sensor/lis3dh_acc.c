@@ -207,7 +207,7 @@
 
 #define	RESUME_ENTRIES		17
 /* end RESUME STATE INDICES */
-
+struct i2c_client *lis3dh_acc_client;
 
 struct {
 	unsigned int cutoff_ms;
@@ -1546,7 +1546,7 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 	}
 
 	mutex_unlock(&stat->lock);
-
+	lis3dh_acc_client = client;
 	dev_info(&client->dev, "%s: probed\n", LIS3DH_ACC_DEV_NAME);
 
 	return 0;
@@ -1609,18 +1609,18 @@ static int lis3dh_acc_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int lis3dh_acc_resume(struct i2c_client *client)
+static int lis3dh_acc_resume(struct device *dev)
 {
-	struct lis3dh_acc_status *stat = i2c_get_clientdata(client);
+	struct lis3dh_acc_status *stat = i2c_get_clientdata(lis3dh_acc_client);
 
 	if (stat->on_before_suspend)
 		return lis3dh_acc_enable(stat);
 	return 0;
 }
 
-static int lis3dh_acc_suspend(struct i2c_client *client, pm_message_t mesg)
+static int lis3dh_acc_suspend(struct device *dev)
 {
-	struct lis3dh_acc_status *stat = i2c_get_clientdata(client);
+	struct lis3dh_acc_status *stat = i2c_get_clientdata(lis3dh_acc_client);
 
 	stat->on_before_suspend = atomic_read(&stat->enabled);
 	return lis3dh_acc_disable(stat);
@@ -1635,16 +1635,19 @@ static const struct i2c_device_id lis3dh_acc_id[]
 
 MODULE_DEVICE_TABLE(i2c, lis3dh_acc_id);
 
+static const struct dev_pm_ops lis3dh_acc_pm_ops = {
+	.suspend_noirq = lis3dh_acc_suspend,
+	.resume_noirq  = lis3dh_acc_resume,
+};
 
 static struct i2c_driver lis3dh_acc_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = LIS3DH_ACC_DEV_NAME,
+		.pm = &lis3dh_acc_pm_ops,
 	},
 	.probe = lis3dh_acc_probe,
 	.remove = lis3dh_acc_remove,
-	.suspend = lis3dh_acc_suspend,
-	.resume = lis3dh_acc_resume,
 	.id_table = lis3dh_acc_id,
 };
 

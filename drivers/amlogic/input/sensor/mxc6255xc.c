@@ -822,9 +822,9 @@ static int  mxc622x_acc_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int mxc622x_acc_resume(struct i2c_client *client)
+static int mxc622x_acc_resume(struct device *dev)
 {
-	struct mxc622x_acc_data *acc = i2c_get_clientdata(client);
+	struct mxc622x_acc_data *acc = i2c_get_clientdata(mxc622x_i2c_client);
 #ifdef MXC622X_DEBUG
 	dprintk("%s.\n", __func__);
 #endif
@@ -837,9 +837,9 @@ static int mxc622x_acc_resume(struct i2c_client *client)
 	return 0;
 }
 
-static int mxc622x_acc_suspend(struct i2c_client *client, pm_message_t mesg)
+static int mxc622x_acc_suspend(struct device *dev)
 {
-	struct mxc622x_acc_data *acc = i2c_get_clientdata(client);
+	struct mxc622x_acc_data *acc = i2c_get_clientdata(mxc622x_i2c_client);
 #ifdef MXC622X_DEBUG
 	dprintk("%s.\n", __func__);
 #endif
@@ -859,8 +859,7 @@ static void mxc622x_early_suspend(struct early_suspend *es)
 #ifdef MXC622X_DEBUG
 	dprintk("%s.\n", __func__);
 #endif
-	mxc622x_acc_suspend(mxc622x_i2c_client,
-			(pm_message_t){.event = 0});
+	mxc622x_acc_suspend(&mxc622x_i2c_client->dev);
 }
 
 static void mxc622x_early_resume(struct early_suspend *es)
@@ -868,7 +867,7 @@ static void mxc622x_early_resume(struct early_suspend *es)
 #ifdef MXC622X_DEBUG
 	dprintk("%s.\n", __func__);
 #endif
-	mxc622x_acc_resume(mxc622x_i2c_client);
+	mxc622x_acc_resume(&mxc622x_i2c_client->dev);
 }
 
 #endif /* CONFIG_HAS_EARLYSUSPEND */
@@ -878,14 +877,18 @@ static const struct i2c_device_id mxc622x_acc_id[]
 
 MODULE_DEVICE_TABLE(i2c, mxc622x_acc_id);
 
+static const struct dev_pm_ops mxc622x_acc_pm_ops = {
+	.suspend_noirq = mxc622x_acc_suspend,
+	.resume_noirq  = mxc622x_acc_resume,
+};
+
 static struct i2c_driver mxc622x_acc_driver = {
 	.driver = {
 		.name = MXC622X_ACC_I2C_NAME,
+		.pm = &mxc622x_acc_pm_ops,
 	},
 	.probe = mxc622x_acc_probe,
 	.remove = mxc622x_acc_remove,
-	.resume = mxc622x_acc_resume,
-	.suspend = mxc622x_acc_suspend,
 	.id_table = mxc622x_acc_id,
 };
 
@@ -923,12 +926,11 @@ i2c_err:
 
 #endif /*I2C_BUS_NUM_STATIC_ALLOC*/
 
-static int __init mxc622x_acc_init(void)
+static int __init mxc6255xc_acc_init(void)
 {
 	int  ret = 0;
 
-	dprintk(KERN_INFO "%s accelerometer driver: init\n",
-			MXC622X_ACC_I2C_NAME);
+	dprintk(KERN_INFO "Sensor: %s\n", __func__);
 #ifdef I2C_BUS_NUM_STATIC_ALLOC
 	ret = i2c_static_add_device(&mxc622x_i2c_boardinfo);
 	if (ret < 0) {
@@ -936,29 +938,24 @@ static int __init mxc622x_acc_init(void)
 		goto init_err;
 	}
 #endif
-
 	return i2c_add_driver(&mxc622x_acc_driver);
-
 #ifdef I2C_BUS_NUM_STATIC_ALLOC
 init_err:
 #endif
 	return ret;
 }
 
-static void __exit mxc622x_acc_exit(void)
+static void __exit mxc6255xc_acc_exit(void)
 {
-	dprintk(KERN_INFO "%s accelerometer driver exit\n",
-		MXC622X_ACC_DEV_NAME);
-
+	dprintk(KERN_INFO "Sensor: %s\n", __func__);
 #ifdef I2C_BUS_NUM_STATIC_ALLOC
 	i2c_unregister_device(mxc622x_i2c_client);
 #endif
-
 	i2c_del_driver(&mxc622x_acc_driver);
 	return;
 }
-module_init(mxc622x_acc_init);
-module_exit(mxc622x_acc_exit);
+module_init(mxc6255xc_acc_init);
+module_exit(mxc6255xc_acc_exit);
 
 MODULE_DESCRIPTION("mxc622x accelerometer misc driver");
 MODULE_AUTHOR("Memsic");

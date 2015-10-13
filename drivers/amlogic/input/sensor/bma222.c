@@ -718,6 +718,7 @@
 #define BMA222_SET_BITSLICE(regvar, bitname, val)\
 	((regvar & ~bitname##__MSK) | ((val<<bitname##__POS)&bitname##__MSK))
 
+struct i2c_client *bma222_client;
 
 struct bma222acc {
 	s16	x,
@@ -3556,7 +3557,7 @@ static int bma222_probe(struct i2c_client *client,
 /*  */
 /* gpio_direction_input(INT_PORT); */
 /* gpio_enable_edge_int(gpio_to_idx(INT_PORT), 1, client->irq - INT_GPIO_0); */
-
+	bma222_client = client;
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_info("i2c_check_functionality error\n");
 		goto exit;
@@ -3704,9 +3705,9 @@ static int bma222_remove(struct i2c_client *client)
 }
 #ifdef CONFIG_PM
 
-static int bma222_suspend(struct i2c_client *client, pm_message_t mesg)
+static int bma222_suspend(struct device *dev)
 {
-	struct bma222_data *data = i2c_get_clientdata(client);
+	struct bma222_data *data = i2c_get_clientdata(bma222_client);
 
 	mutex_lock(&data->enable_mutex);
 	if (atomic_read(&data->enable) == 1) {
@@ -3718,9 +3719,9 @@ static int bma222_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int bma222_resume(struct i2c_client *client)
+static int bma222_resume(struct device *dev)
 {
-	struct bma222_data *data = i2c_get_clientdata(client);
+	struct bma222_data *data = i2c_get_clientdata(bma222_client);
 
 	mutex_lock(&data->enable_mutex);
 	if (atomic_read(&data->enable) == 1) {
@@ -3747,13 +3748,17 @@ static const struct i2c_device_id bma222_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, bma222_id);
 
+static const struct dev_pm_ops bma222_pm_ops = {
+	.suspend_noirq = bma222_suspend,
+	.resume_noirq  = bma222_resume,
+};
+
 static struct i2c_driver bma222_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= SENSOR_NAME,
+		.pm = &bma222_pm_ops,
 	},
-	.suspend	= bma222_suspend,
-	.resume		= bma222_resume,
 	.id_table	= bma222_id,
 	.probe		= bma222_probe,
 	.remove		= bma222_remove,

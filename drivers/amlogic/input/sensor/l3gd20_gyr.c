@@ -1801,17 +1801,13 @@ static struct i2c_driver l3gd20_gyr_driver = {
 
 static int __init l3gd20_gyr_init(void)
 {
-
-	pr_info("%s: gyroscope sysfs driver init\n", L3GD20_GYR_DEV_NAME);
-
+	pr_info("Sensor: %s\n", __func__);
 	return i2c_add_driver(&l3gd20_gyr_driver);
 }
 
 static void __exit l3gd20_gyr_exit(void)
 {
-
-	pr_info("%s exit\n", L3GD20_GYR_DEV_NAME);
-
+	pr_info("Sensor: %s\n", __func__);
 	i2c_del_driver(&l3gd20_gyr_driver);
 	return;
 }

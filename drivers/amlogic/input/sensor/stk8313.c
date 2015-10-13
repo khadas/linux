@@ -3097,10 +3097,10 @@ static int __init stk8313_init(void)
 {
 	int ret = 0;
 
-	dprintk("%s\n", __func__);
+	dprintk("Sensor: %s\n", __func__);
 	ret = i2c_add_driver(&stk831x_driver);
 	if (ret != 0) {
-		dprintk("======stk831x init fail, ret=0x%x======\n", ret);
+		dprintk("stk831x init fail, ret=0x%x\n", ret);
 		i2c_del_driver(&stk831x_driver);
 		return ret;
 	}
@@ -3112,8 +3112,6 @@ static int __init stk8313_init(void)
 	if (IS_ERR(STKPermissionThread))
 		STKPermissionThread = NULL;
 #endif
-
-	dprintk("======stk831x init ok======\n");
 	return ret;
 }
 

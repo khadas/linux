@@ -686,7 +686,7 @@ static int ltr501_remove(struct i2c_client *client)
 }
 
 
-static int ltr501_suspend(struct i2c_client *client, pm_message_t mesg)
+static int ltr501_suspend(struct device *dev)
 {
 	int ret = 0;
 	dprintk(">>>>>>>>ltr501_suspend\n");
@@ -698,7 +698,7 @@ static int ltr501_suspend(struct i2c_client *client, pm_message_t mesg)
 }
 
 
-static int ltr501_resume(struct i2c_client *client)
+static int ltr501_resume(struct device *dev)
 {
 	int ret = 0;
 	dprintk("<<<<<<<<<ltr501_resume\n");
@@ -716,17 +716,20 @@ static const struct i2c_device_id ltr501_id[] = {
 	{}
 };
 
+static const struct dev_pm_ops ltr501_pm_ops = {
+	.suspend_noirq = ltr501_suspend,
+	.resume_noirq  = ltr501_resume,
+};
 
 static struct i2c_driver ltr501_driver = {
-	.probe		= ltr501_probe,
+	.probe	= ltr501_probe,
 	.remove	= ltr501_remove,
-	.id_table	= ltr501_id,
+	.id_table = ltr501_id,
 	.driver	= {
 		.owner = THIS_MODULE,
 		.name  = LTR501_DEVICE_NAME,
+		.pm = &ltr501_pm_ops,
 	},
-	.suspend	= ltr501_suspend,
-	.resume	= ltr501_resume,
 };
 
 

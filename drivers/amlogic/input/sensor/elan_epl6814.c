@@ -65,7 +65,7 @@
 #define ALS_C					0x4AFB3
 #define ALS_AX					0x1494A
 #define ALS_B					0x20028
-
+struct i2c_client *elan_client;
 
 static void polling_do_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(polling_work, polling_do_work);
@@ -1044,12 +1044,12 @@ static int sensor_setup(struct elan_epl_data *epld)
 
 
 #ifdef CONFIG_SUSPEND
-static int elan_sensor_suspend(struct i2c_client *client, pm_message_t mesg)
+static int elan_sensor_suspend(struct device *dev)
 {
 
 	if (epl_data->enable_lflag) {
 		cancel_delayed_work(&polling_work);
-		elan_sensor_I2C_Write(client, REG_7, W_SINGLE_BYTE, 0x02,
+		elan_sensor_I2C_Write(elan_client, REG_7, W_SINGLE_BYTE, 0x02,
 			EPL_C_P_DOWN);
 	}
 	return 0;
@@ -1069,11 +1069,11 @@ static void elan_sensor_early_suspend(struct early_suspend *h)
 
 }
 #endif
-static int elan_sensor_resume(struct i2c_client *client)
+static int elan_sensor_resume(struct device *dev)
 {
 
 	if (epl_data->enable_lflag) {
-		elan_sensor_I2C_Write(client, REG_7, W_SINGLE_BYTE, 0x02,
+		elan_sensor_I2C_Write(elan_client, REG_7, W_SINGLE_BYTE, 0x02,
 						EPL_C_P_UP);
 		queue_delayed_work(epl_data->epl_wq, &polling_work,
 					msecs_to_jiffies(0));
@@ -1105,6 +1105,7 @@ static int elan_sensor_probe(struct i2c_client *client,
 	int err = 0;
 	struct elan_epl_data *epld;
 
+	elan_client = client;
 	pr_info("elan sensor probe enter.\n");
 	sensor_power_on(client);
 	epld = kzalloc(sizeof(struct elan_epl_data), GFP_KERNEL);
@@ -1250,6 +1251,13 @@ static const struct i2c_device_id elan_sensor_id[] = {
 	{ }
 };
 
+#ifdef CONFIG_SUSPEND
+static const struct dev_pm_ops elan_sensor_pm_ops = {
+	.suspend_noirq = elan_sensor_suspend,
+	.resume_noirq  = elan_sensor_resume,
+};
+
+#endif
 static struct i2c_driver elan_sensor_driver = {
 	.probe	= elan_sensor_probe,
 	.remove	= elan_sensor_remove,
@@ -1257,14 +1265,11 @@ static struct i2c_driver elan_sensor_driver = {
 	.driver	= {
 		.name = ELAN_LS_6814,
 		.owner = THIS_MODULE,
-	},
 #ifdef CONFIG_SUSPEND
-	.suspend = elan_sensor_suspend,
-	.resume = elan_sensor_resume,
+		.pm = &elan_sensor_pm_ops,
 #endif
+	},
 };
-
-
 
 static int __init elan_sensor_init(void)
 {

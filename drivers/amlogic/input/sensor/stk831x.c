@@ -3320,12 +3320,12 @@ static struct i2c_driver stk831x_driver = {
 static int __init stk831x_init(void)
 {
 	int ret;
-	debugprintk("%s\n", __func__);
 
+	debugprintk("Sensor: %s\n", __func__);
 
 	ret = i2c_add_driver(&stk831x_driver);
 	if (ret != 0) {
-		debugprintk("======stk831x init fail, ret=0x%x======\n", ret);
+		debugprintk("stk831x init fail, ret=0x%x\n", ret);
 		i2c_del_driver(&stk831x_driver);
 		return ret;
 	}

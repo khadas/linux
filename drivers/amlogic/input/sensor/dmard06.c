@@ -556,17 +556,17 @@ static int dmard06_resume(android_early_suspend_t *h)
 	return dmard06_start_dev(dmard06->curr_tate);
 }
 #else
-static int dmard06_suspend(struct i2c_client *client, pm_message_t mesg)
+static int dmard06_suspend(struct device *dev)
 {
 	PRINT_INFO("Gsensor mma7760 enter 2 level  suspend\n");
-	return dmard06_close_dev(client);
+	return dmard06_close_dev(this_client);
 }
-static int dmard06_resume(struct i2c_client *client)
+static int dmard06_resume(struct device *dev)
 {
 	struct dmard06_data *dmard06 =
-		(struct dmard06_data *)i2c_get_clientdata(client);
+		(struct dmard06_data *)i2c_get_clientdata(this_client);
 	PRINT_INFO("Gsensor mma7760 2 level resume!!\n");
-	return dmard06_start_dev(client, dmard06->curr_tate);
+	return dmard06_start_dev(this_client, dmard06->curr_tate);
 }
 #endif
 
@@ -575,17 +575,22 @@ static const struct i2c_device_id dmard06_id[] = {
 	{ }
 };
 
+#ifndef CONFIG_ANDROID_POWER
+static const struct dev_pm_ops dmard06_pm_ops = {
+	.suspend_noirq = dmard06_suspend,
+	.resume_noirq  = dmard06_resume,
+};
+#endif
 static struct i2c_driver dmard06_driver = {
 	.driver = {
 		.name = "dmard06",
+#ifndef CONFIG_ANDROID_POWER
+		.pm = &dmard06_pm_ops,
+#endif
 	},
 	.id_table	= dmard06_id,
 	.probe		= dmard06_probe,
 	.remove	= dmard06_remove,
-#ifndef CONFIG_ANDROID_POWER
-	.suspend = &dmard06_suspend,
-	.resume = &dmard06_resume,
-#endif
 };
 
 
