@@ -1418,8 +1418,12 @@ static void init_buf_list(struct hevc_state_s *hevc)
 					pr_info("not enought buffer for [%d],%d\n",
 						i, buf_size);
 					m_BUF[i].cma_page_count = 0;
-					fatal_error |=
+					if (i <= 8) {
+						/*if alloced (i+1)>=9
+						don't send errors.*/
+						fatal_error |=
 						DECODER_FATAL_ERROR_NO_MEM;
+					}
 					break;
 				}
 				m_BUF[i].cma_page_count =
