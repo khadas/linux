@@ -36,6 +36,8 @@ obj-$(CONFIG_AML_PWM)		+= pwm/
 
 obj-$(CONFIG_AML_POWER_SUPPORT)	+= power/
 
+obj-$(CONFIG_AML_PMU4)		+= pmu4/
+
 obj-$(CONFIG_AML_DEBUG)		+= aml_debug/
 
 obj-$(CONFIG_AML_REG_ACCESS)	+= reg_access/

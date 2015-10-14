@@ -33,6 +33,8 @@ source "drivers/amlogic/reg_access/Kconfig"
 
 source "drivers/amlogic/power/Kconfig"
 
+source "drivers/amlogic/pmu4/Kconfig"
+
 source "drivers/amlogic/ethernet/Kconfig"
 
 source "drivers/amlogic/mmc/Kconfig"

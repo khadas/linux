@@ -1,0 +1,7 @@
+config AML_PMU4
+	boolean "Amlogic PMU4 drivers"
+	select  I2C
+	default n
+	---help---
+		say yes if you want add Amlogic PMU4 support
+
