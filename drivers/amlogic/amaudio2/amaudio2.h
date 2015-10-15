@@ -14,19 +14,13 @@
  * more details.
  *
 */
+#ifndef _AMAUDIO2_H_
+#define _AMAUDIO2_H_
 
-#include <linux/cdev.h>
-#include <linux/types.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/uaccess.h>
-
-#define AMAUDIO_MODULE_NAME "amaudio2"
-#define AMAUDIO_DRIVER_NAME "amaudio2"
-#define AMAUDIO_DEVICE_NAME "amaudio2"
-#define AMAUDIO_CLASS_NAME  "amaudio2"
+#define AMAUDIO2_MODULE_NAME "amaudio2"
+#define AMAUDIO2_DRIVER_NAME "amaudio2"
+#define AMAUDIO2_DEVICE_NAME "amaudio2-dev"
+#define AMAUDIO2_CLASS_NAME "amaudio2"
 
 struct amaudio_port_t {
 	const char *name;
@@ -37,7 +31,7 @@ struct amaudio_port_t {
 
 struct BUF {
 	dma_addr_t paddr;
-	char *addr;
+	unsigned char *addr;
 	unsigned size;
 	unsigned wr;
 	unsigned rd;
@@ -51,9 +45,6 @@ struct amaudio_t {
 	struct BUF sw;
 	struct BUF sw_read;
 	int type;
-
-	/********** for debug ****************/
-	int cnt0, cnt1, cnt2, cnt3, cnt4, cnt5, cnt6, cnt7, cnt8;
 };
 
 static int amaudio_open(struct inode *inode, struct file *file);
@@ -71,9 +62,20 @@ static long amaudio_utils_ioctl(struct file *file,
 static ssize_t amaudio_read(struct file *file,
 			    char __user *buf, size_t count, loff_t *pos);
 
-extern unsigned int aml_i2s_playback_start_addr;
-extern unsigned int aml_i2s_playback_phy_start_addr;
-extern unsigned int aml_i2s_alsa_write_addr;
+#ifdef CONFIG_COMPAT
+static long amaudio_compat_ioctl(struct file *file, unsigned int cmd,
+				 ulong arg);
+static long amaudio_compat_utils_ioctl(struct file *file, unsigned int cmd,
+				       ulong arg);
+#endif
+
+static irqreturn_t i2s_out_callback(int irq, void *data);
+static unsigned get_i2s_out_size(void);
+static unsigned get_i2s_out_ptr(void);
+
+extern unsigned long aml_i2s_playback_start_addr;
+extern unsigned long aml_i2s_playback_phy_start_addr;
+extern unsigned long aml_i2s_alsa_write_addr;
 
 #define AMAUDIO_IOC_MAGIC  'A'
 
@@ -90,9 +92,5 @@ extern unsigned int aml_i2s_alsa_write_addr;
 			_IOW(AMAUDIO_IOC_MAGIC, 0x09, int)
 #define AMAUDIO_IOC_OUT_READ_ENABLE \
 			_IOW(AMAUDIO_IOC_MAGIC, 0x0a, int)
-#define AMAUDIO_IOC_SET_ANDROID_VOLUME_ENABLE \
-			_IOW(AMAUDIO_IOC_MAGIC, 0x0b, int)
-#define AMAUDIO_IOC_SET_ANDROID_LEFT_VOLUME \
-			_IOW(AMAUDIO_IOC_MAGIC, 0x0c, int)
-#define AMAUDIO_IOC_SET_ANDROID_RIGHT_VOLUME \
-			_IOW(AMAUDIO_IOC_MAGIC, 0x0d, int)
+
+#endif

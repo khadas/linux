@@ -15,7 +15,6 @@
  *
 */
 
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
@@ -34,6 +33,7 @@ static struct snd_soc_codec_driver soc_codec_spdif_dit;
 
 struct pinctrl *pin_spdif_ctl;
 struct device *spdif_dev;
+EXPORT_SYMBOL(spdif_dev);
 static struct snd_soc_dai_driver dit_stub_dai = {
 	.name = "dit-hifi",
 	.playback = {
@@ -64,6 +64,7 @@ void aml_spdif_pinmux_init(struct device *dev)
 		}
 	}
 }
+EXPORT_SYMBOL(aml_spdif_pinmux_init);
 
 void aml_spdif_pinmux_deinit(struct device *dev)
 {
@@ -74,6 +75,7 @@ void aml_spdif_pinmux_deinit(struct device *dev)
 			devm_pinctrl_put(pin_spdif_ctl);
 	}
 }
+EXPORT_SYMBOL(aml_spdif_pinmux_deinit);
 
 static ssize_t spdif_mute_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)

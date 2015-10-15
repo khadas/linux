@@ -3,17 +3,6 @@ menuconfig SND_AML_M8
 	depends on SND_AML_M8_SOC
 	select SWITCH
 	select SND_SOC_PCM2BT
-#	select SND_SOC_AML_M8_CODEC
-#	select SND_SOC_RT5616
 	select SND_SOC_DUMMY_CODEC
-#	select SND_SOC_RT5631
-#	select SND_SOC_AMLPMU3 if AML1218
-#	select SND_SOC_AMLPMU4 if AML1220
-#	select SND_SOC_ES8323
-
-menuconfig SND_AML_G9TV
-	tristate "AML-SND-G9TV Board"
-	depends on SND_AML_M8_SOC && SWITCH
-	select SND_SOC_DUMMY_CODEC
-	select SND_SOC_AMLPMU4 if AML1220
+	select SND_SOC_AMLPMU4 if AML_PMU4
 	select SND_SOC_TAS5707

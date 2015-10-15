@@ -64,8 +64,6 @@ EXPORT_SYMBOL(aml_i2s_playback_phy_start_addr);
 unsigned long aml_i2s_alsa_write_addr = 0;
 EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
 
-unsigned long aml_i2s_capture_phy_start_addr = 0;
-unsigned long aml_i2s_capture_start_addr = 0;
 
 static int trigger_underrun;
 void aml_audio_hw_trigger(void)
@@ -426,10 +424,6 @@ static int aml_i2s_open(struct snd_pcm_substream *substream)
 		}
 	} else {
 		snd_soc_set_runtime_hwparams(substream, &aml_i2s_capture);
-		if (s->device_type == AML_AUDIO_I2SIN) {
-			aml_i2s_capture_start_addr = (unsigned long)buf->area;
-			aml_i2s_capture_phy_start_addr = buf->addr;
-		}
 	}
 
 	/* ensure that peroid size is a multiple of 32bytes */
@@ -480,11 +474,6 @@ static int aml_i2s_close(struct snd_pcm_substream *substream)
 
 	return 0;
 }
-
-/* extern void audio_out_i2s_enable(unsigned flag); */
-/* extern void aml_hw_iec958_init(struct snd_pcm_substream *substream); */
-/* extern void audio_hw_958_enable(unsigned flag); */
-/* extern int kernel_android_50; */
 
 static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 				 snd_pcm_uframes_t pos,
@@ -620,11 +609,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	return res;
 }
 
-static unsigned int aml_get_in_wr_ptr(void)
-{
-	return audio_in_i2s_wr_ptr() - aml_i2s_capture_phy_start_addr;
-}
-
 static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 				snd_pcm_uframes_t pos,
 				void __user *buf, snd_pcm_uframes_t count,
@@ -632,7 +616,7 @@ static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 {
 	unsigned int *tfrom, *left, *right;
 	unsigned short *to;
-	int res = 0, n = 0, i = 0, j = 0, size = 0;
+	int res = 0, n = 0, i = 0, j = 0;
 	unsigned int t1, t2;
 	unsigned char r_shift = 8;
 	struct aml_runtime_data *prtd = runtime->private_data;
@@ -641,23 +625,12 @@ static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 	struct snd_dma_buffer *buffer = &substream->dma_buffer;
 	struct aml_audio_buffer *tmp_buf = buffer->private_data;
 	void *ubuf = tmp_buf->buffer_start;
-	if (s->device_type == AML_AUDIO_I2SIN) {
-		unsigned int buffersize =
-		    (unsigned int)runtime->buffer_size * 8;
-		unsigned int hw_ptr = aml_get_in_wr_ptr();
-		unsigned int alsa_read_ptr = frames_to_bytes(runtime, pos) * 2;
-		size = (buffersize + hw_ptr - alsa_read_ptr) % buffersize;
-	}
-	if (s->device_type == AML_AUDIO_SPDIFIN) {	/* spdif in */
+	if (s->device_type == AML_AUDIO_SPDIFIN) {/* spdif in */
 		r_shift = 12;
 	}
 	to = (unsigned short *)ubuf;	/* tmp buf; */
 	tfrom = (unsigned int *)hwbuf;	/* 32bit buffer */
 	n = frames_to_bytes(runtime, count);
-	if (size < 2 * n && s->device_type == AML_AUDIO_I2SIN) {
-		pr_info("Alsa ptr is too close to HW ptr, Reset ALSA!\n");
-		return -EPIPE;
-	}
 	if (access_ok(VERIFY_WRITE, buf, frames_to_bytes(runtime, count))) {
 		if (runtime->channels == 2) {
 			left = tfrom;

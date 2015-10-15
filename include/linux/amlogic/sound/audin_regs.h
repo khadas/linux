@@ -129,7 +129,10 @@
 #define AUDOUT1_FIFO_PIO_STS	0x28bc
 #define AUDOUT1_FIFO_PIO_WRL	0x28bd
 #define AUDOUT1_FIFO_PIO_WRH	0x28be
-#define AUDIN_ADDR_END			0x28bf
+#define AUD_RESAMPLE_CTRL0			0x28bf
+#define AUD_RESAMPLE_CTRL1			0x28c0
+#define AUD_RESAMPLE_STATUS			0x28c1
+#define AUDIN_ADDR_END				0x28c2
 
 /* I2S CLK and LRCLK direction. 0 : input 1 : output. */
 #define I2SIN_DIR			0
@@ -178,4 +181,4 @@
 /* urgent request enable. */
 #define AUDIN_FIFO1_UG		15
 
-#endif/* _AML_AUDIN_REGS_H */
+#endif				/* _AML_AUDIN_REGS_H */

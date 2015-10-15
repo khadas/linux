@@ -46,7 +46,7 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
-#define DRV_NAME "aml_snd_card"
+#define DRV_NAME "aml_snd_m8_card"
 /* extern struct device *spdif_dev; */
 
 static void aml_audio_start_timer(struct aml_audio_private_data *p_aml_audio,
@@ -217,7 +217,7 @@ static void aml_asoc_timer_func(unsigned long data)
 	mod_timer(&p_aml_audio->timer, jiffies + delay);
 }
 
-struct aml_audio_private_data *p_audio;
+static struct aml_audio_private_data *p_audio;
 static int aml_m8_spk_enabled;
 
 static int aml_m8_set_spk(struct snd_kcontrol *kcontrol,

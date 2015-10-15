@@ -70,9 +70,12 @@ struct aml_spdif {
 	struct clk *clk_i958;
 	struct clk *clk_mclk;
 	struct clk *clk_spdif;
+	struct clk *clk_81;
 	int old_samplerate;
 };
 struct aml_spdif *spdif_p;
+unsigned int clk81 = 0;
+EXPORT_SYMBOL(clk81);
 /*
 static int iec958buf[32 + 16];
 */
@@ -659,12 +662,19 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 		ret = PTR_ERR(spdif_priv->clk_spdif);
 		goto err;
 	}
-
 	ret = clk_prepare_enable(spdif_priv->clk_spdif);
 	if (ret) {
 		pr_err("Can't enable spdif clock: %d\n", ret);
 		goto err;
 	}
+
+	spdif_priv->clk_81 = devm_clk_get(&pdev->dev, "clk_81");
+	if (IS_ERR(spdif_priv->clk_81)) {
+		dev_err(&pdev->dev, "Can't get clk81\n");
+		ret = PTR_ERR(spdif_priv->clk_81);
+		goto err;
+	}
+	clk81 = clk_get_rate(spdif_priv->clk_81);
 
 	aml_spdif_play();
 	ret = snd_soc_register_component(&pdev->dev, &aml_component,

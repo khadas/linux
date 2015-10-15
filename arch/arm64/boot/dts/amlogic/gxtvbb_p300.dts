@@ -590,7 +590,7 @@
 			sub_type = "aml_pmu4";
 			i2c_bus = "i2c_bus_b";
 			reg = <0x35>;
-			status = "okay";
+			status = "disable";
 		};
 	};
 
@@ -906,12 +906,12 @@
 	dummy_codec:dummy{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_dummy_codec";
-		status = "disable";
+		status = "okay";
 	};
 	pmu4_codec:pmu4{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_pmu4_codec";
-		status = "okay";
+		status = "disable";
 	};
 	aml_g9tv_snd {
 		compatible = "aml, aml_snd_g9tv";
@@ -934,8 +934,8 @@
 			sound-dai = <&pcm_dai>;
 		};
 		codec0: codec0 {
-			sound-dai = <&pmu4_codec>;
-			//sound-dai = <&dummy_codec>;
+			//sound-dai = <&pmu4_codec>;
+			sound-dai = <&dummy_codec>;
 		};
 		codec1: codec1 {
 			sound-dai = <&spdif_codec>;
@@ -951,7 +951,7 @@
  	};
 
 	ethmac: ethernet@0xc9410000{
-		compatible = "amlogic, gxbb-rmii-dwmac";
+		//compatible = "amlogic, gxbb-rmii-dwmac";
 		reg = <0x0 0xc9410000 0x0 0x10000
 			0x0 0xc8834540 0x0 0x8>;
 		interrupts = <0 8 1>;

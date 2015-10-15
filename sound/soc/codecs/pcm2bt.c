@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_pcm2bt);
 static int pcm2bt_platform_probe(struct platform_device *pdev)
 {
 	int ret;
-	pr_info("*****enter pcm2bt_codec_probe\n");
+	pr_info("enter pcm2bt_codec_probe\n");
 	ret = snd_soc_register_codec(&pdev->dev,
 				     &soc_codec_dev_pcm2bt, pcm2bt_dai,
 				     ARRAY_SIZE(pcm2bt_dai));

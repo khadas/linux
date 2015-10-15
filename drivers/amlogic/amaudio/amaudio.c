@@ -502,7 +502,7 @@ static struct class_attribute amaudio_attrs[] = {
 };
 
 static struct class amaudio_class = {
-	.name = "amaudio",
+	.name = AMAUDIO_CLASS_NAME,
 	.class_attrs = amaudio_attrs,
 };
 
@@ -548,7 +548,7 @@ static int __init amaudio_init(void)
 
 	amaudio_dev =
 	    device_create(&amaudio_class, NULL, MKDEV(AMAUDIO_MAJOR, 10), NULL,
-			  "amaudio0");
+			  AMAUDIO_CLASS_NAME);
 	if (IS_ERR(amaudio_dev)) {
 		pr_err("amaudio creat device fail.\n");
 		goto err4;

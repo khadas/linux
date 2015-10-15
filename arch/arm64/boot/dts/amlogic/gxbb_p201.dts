@@ -769,8 +769,9 @@
 		clocks = <&clock CLK_MPLL1>,
 			<&clock CLK_I958>,
 			<&clock CLK_AMCLK>,
-			<&clock CLK_SPDIF>;
-		clock-names = "mpll1", "i958", "mclk", "spdif";
+			<&clock CLK_SPDIF>,
+			<&clock CLK_81>;
+		clock-names = "mpll1", "i958", "mclk", "spdif", "clk_81";
 	};
 	pcm_dai: PCM {
 		#sound-dai-cells = <0>;

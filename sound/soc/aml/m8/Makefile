@@ -26,4 +26,4 @@ obj-$(CONFIG_SND_AML_M8) += snd-soc-aml-m8.o
 
 #AML G9TV Machine support
 snd-soc-aml-g9tv-objs := aml_g9tv.o
-obj-$(CONFIG_SND_AML_G9TV) += snd-soc-aml-g9tv.o
+obj-$(CONFIG_SND_AML_M8) += snd-soc-aml-g9tv.o
