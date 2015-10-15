@@ -158,7 +158,9 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 			atomic_dec(&key->user->nikeys);
 
 		/* now throw away the key memory */
-		if (key->type->destroy)
+		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
+		    !test_bit(KEY_FLAG_NEGATIVE, &key->flags) &&
+		    key->type->destroy)
 			key->type->destroy(key);
 
 		key_user_put(key->user);
