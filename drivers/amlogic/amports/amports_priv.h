@@ -46,5 +46,6 @@ void set_real_audio_info(void *arg);
 
 struct device *amports_get_dma_device(void);
 struct device *get_codec_cma_device(void);
+int amports_get_debug_flags(void);
 
 #endif

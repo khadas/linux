@@ -38,6 +38,7 @@
 #include "streambuf.h"
 #include "esparser.h"
 #include "amports_priv.h"
+#include "thread_rw.h"
 
 
 #define SAVE_SCR 0
@@ -195,15 +196,18 @@ static ssize_t _esparser_write(const char __user *buf,
 	return len;
 }
 
+
 s32 es_vpts_checkin_us64(struct stream_buf_s *buf, u64 us64)
 {
-	return pts_checkin_offset_us64(PTS_TYPE_VIDEO, video_data_parsed, us64);
+	u32 passed = video_data_parsed + threadrw_buffer_level(buf);
+	return pts_checkin_offset_us64(PTS_TYPE_VIDEO, passed, us64);
 
 }
 
 s32 es_apts_checkin_us64(struct stream_buf_s *buf, u64 us64)
 {
-	return pts_checkin_offset_us64(PTS_TYPE_AUDIO, audio_data_parsed, us64);
+	u32 passed = audio_data_parsed + threadrw_buffer_level(buf);
+	return pts_checkin_offset_us64(PTS_TYPE_AUDIO, passed, us64);
 }
 
 s32 es_vpts_checkin(struct stream_buf_s *buf, u32 pts)
@@ -212,11 +216,11 @@ s32 es_vpts_checkin(struct stream_buf_s *buf, u32 pts)
 	if (buf->first_tstamp == INVALID_PTS) {
 		buf->flag |= BUF_FLAG_FIRST_TSTAMP;
 		buf->first_tstamp = pts;
-
 		return 0;
 	}
 #endif
-	return pts_checkin_offset(PTS_TYPE_VIDEO, video_data_parsed, pts);
+	u32 passed = video_data_parsed + threadrw_buffer_level(buf);
+	return pts_checkin_offset(PTS_TYPE_VIDEO, passed, pts);
 
 }
 
@@ -230,8 +234,8 @@ s32 es_apts_checkin(struct stream_buf_s *buf, u32 pts)
 		return 0;
 	}
 #endif
-
-	return pts_checkin_offset(PTS_TYPE_AUDIO, audio_data_parsed, pts);
+	u32 passed = audio_data_parsed + threadrw_buffer_level(buf);
+	return pts_checkin_offset(PTS_TYPE_AUDIO, passed, pts);
 }
 
 s32 esparser_init(struct stream_buf_s *buf)
@@ -249,9 +253,9 @@ s32 esparser_init(struct stream_buf_s *buf)
 		/* #endif */
 		if (buf->type == BUF_TYPE_VIDEO)
 			pts_type = PTS_TYPE_VIDEO;
-		else if (buf->type & BUF_TYPE_AUDIO)
+		else if (buf->type == BUF_TYPE_AUDIO)
 			pts_type = PTS_TYPE_AUDIO;
-		else if (buf->type & BUF_TYPE_SUBTITLE)
+		else if (buf->type == BUF_TYPE_SUBTITLE)
 			pts_type = PTS_TYPE_MAX;
 		else
 			return -EINVAL;
@@ -391,7 +395,7 @@ s32 esparser_init(struct stream_buf_s *buf)
 				MEM_BUFCTRL_INIT);
 
 			audio_data_parsed = 0;
-		} else if (buf->type & BUF_TYPE_SUBTITLE) {
+		} else if (buf->type == BUF_TYPE_SUBTITLE) {
 			WRITE_MPEG_REG(PARSER_SUB_START_PTR,
 				parser_sub_start_ptr);
 			WRITE_MPEG_REG(PARSER_SUB_END_PTR,
@@ -437,6 +441,16 @@ s32 esparser_init(struct stream_buf_s *buf)
 					   PARSER_INT_HOST_EN_BIT);
 	}
 	mutex_unlock(&esparser_mutex);
+	if (!(amports_get_debug_flags() & 1)) {
+		int block_size = (buf->type == BUF_TYPE_AUDIO) ?
+			PAGE_SIZE << 2 : PAGE_SIZE << 4;
+		int buf_num = (buf->type == BUF_TYPE_AUDIO) ?
+			5 : 5;
+		if (!(buf->type == BUF_TYPE_SUBTITLE))
+			buf->write_thread = threadrw_alloc(buf_num,
+				block_size,
+				esparser_write_ex);
+	}
 	return 0;
 
 Err_2:
@@ -492,7 +506,8 @@ void esparser_release(struct stream_buf_s *buf)
 		 __func__, __LINE__);
 		return;
 	}
-
+	if (buf->write_thread)
+		threadrw_release(buf);
 	if (atomic_dec_and_test(&esparser_use_count)) {
 		WRITE_MPEG_REG(PARSER_INT_ENABLE, 0);
 		/*TODO irq */
@@ -621,10 +636,15 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 
 	return re_count;
 }
-
-ssize_t esparser_write(struct file *file,
+/*
+flags:
+1:phy
+2:noblock
+*/
+ssize_t esparser_write_ex(struct file *file,
 			struct stream_buf_s *stbuf,
-			const char __user *buf, size_t count)
+			const char __user *buf, size_t count,
+			int flags)
 {
 
 	s32 r;
@@ -635,7 +655,8 @@ ssize_t esparser_write(struct file *file,
 
 	/*subtitle have no level to check, */
 	if (stbuf->type != BUF_TYPE_SUBTITLE && stbuf_space(stbuf) < count) {
-		if ((file != NULL) && (file->f_flags & O_NONBLOCK)) {
+		if ((flags & 2) || ((file != NULL) &&
+				(file->f_flags & O_NONBLOCK))) {
 			len = stbuf_space(stbuf);
 
 			if (len < 256)	/* <1k.do eagain, */
@@ -657,12 +678,21 @@ ssize_t esparser_write(struct file *file,
 
 	mutex_lock(&esparser_mutex);
 
-	r = _esparser_write(buf, len, stbuf->type, 0);
+	r = _esparser_write(buf, len, stbuf->type, flags & 1);
 
 	mutex_unlock(&esparser_mutex);
 
 	return r;
 }
+ssize_t esparser_write(struct file *file,
+			struct stream_buf_s *stbuf,
+			const char __user *buf, size_t count)
+{
+	if (stbuf->write_thread)
+		return threadrw_write(file, stbuf, buf, count);
+	return esparser_write_ex(file, stbuf, buf, count, 0);
+}
+
 
 void esparser_sub_reset(void)
 {

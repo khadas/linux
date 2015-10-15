@@ -62,6 +62,7 @@
 #include "amports_priv.h"
 #include "amports_config.h"
 #include "tsync_pcr.h"
+#include "thread_rw.h"
 
 
 #include <linux/firmware.h>
@@ -96,6 +97,7 @@ u32 amstream_buf_num;
 #define NO_VDEC2_INIT 1
 
 
+static int debugflags;
 /* #define DATA_DEBUG */
 static int use_bufferlevelx10000 = 10000;
 static int reset_canuse_buferlevel(int level);
@@ -103,6 +105,14 @@ static struct platform_device *amstream_pdev;
 struct device *amports_get_dma_device(void)
 {
 	return &amstream_pdev->dev;
+}
+
+/*
+bit0:no threadrw
+*/
+int amports_get_debug_flags(void)
+{
+	return debugflags;
 }
 
 #ifdef DATA_DEBUG
@@ -131,7 +141,7 @@ void debug_file_write(const char __user *buf, size_t count)
 #endif
 
 #define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*15)
-#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*40)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*15)
 
 #define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
 #define DEFAULT_SUBTITLE_BUFFER_SIZE     (1024*256)
@@ -2878,6 +2888,16 @@ static ssize_t bufs_show(struct class *class, struct class_attribute *attr,
 				p->last_write_jiffies64) * 1000 / HZ);
 			}
 		}
+		if (p->write_thread) {
+			pbuf += sprintf(pbuf,
+					"\twrite thread:%d/%d,fifo %d:%d,passed:%d\n",
+						threadrw_buffer_level(p),
+						threadrw_buffer_size(p),
+						threadrw_datafifo_len(p),
+						threadrw_freefifo_len(p),
+						threadrw_passed_len(p)
+					);
+		}
 	}
 
 	return pbuf - buf;
@@ -3317,6 +3337,8 @@ RESERVEDMEM_OF_DECLARE(mesonstream,
 module_init(amstream_module_init);
 module_exit(amstream_module_exit);
 
+module_param(debugflags, uint, 0664);
+MODULE_PARM_DESC(debugflags, "\n amstream debugflags\n");
 
 
 MODULE_DESCRIPTION("AMLOGIC streaming port driver");
