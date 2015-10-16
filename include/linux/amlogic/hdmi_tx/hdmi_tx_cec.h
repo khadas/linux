@@ -135,6 +135,40 @@ enum _cec_log_dev_addr_e {
 	    | CEC_TUNER_3 | CEC_TUNER_4)
 #define CEC_AUDIO_SYSTEM_DEVICE  (CEC_AUDIO_SYSTEM)
 
+#define CEC_IOC_MAGIC                   'C'
+#define CEC_IOC_GET_PHYSICAL_ADDR       _IOR(CEC_IOC_MAGIC, 0x00, uint16_t)
+#define CEC_IOC_GET_VERSION             _IOR(CEC_IOC_MAGIC, 0x01, int)
+#define CEC_IOC_GET_VENDOR_ID           _IOR(CEC_IOC_MAGIC, 0x02, uint32_t)
+#define CEC_IOC_GET_PORT_INFO           _IOR(CEC_IOC_MAGIC, 0x03, int)
+#define CEC_IOC_GET_PORT_NUM            _IOR(CEC_IOC_MAGIC, 0x04, int)
+#define CEC_IOC_GET_SEND_FAIL_REASON    _IOR(CEC_IOC_MAGIC, 0x05, uint32_t)
+#define CEC_IOC_SET_OPTION_WAKEUP       _IOW(CEC_IOC_MAGIC, 0x06, uint32_t)
+#define CEC_IOC_SET_OPTION_ENALBE_CEC   _IOW(CEC_IOC_MAGIC, 0x07, uint32_t)
+#define CEC_IOC_SET_OPTION_SYS_CTRL     _IOW(CEC_IOC_MAGIC, 0x08, uint32_t)
+#define CEC_IOC_SET_OPTION_SET_LANG     _IOW(CEC_IOC_MAGIC, 0x09, uint32_t)
+#define CEC_IOC_GET_CONNECT_STATUS      _IOR(CEC_IOC_MAGIC, 0x0A, uint32_t)
+#define CEC_IOC_ADD_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0B, uint32_t)
+#define CEC_IOC_CLR_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0C, uint32_t)
+
+#define CEC_FAIL_NONE                   0
+#define CEC_FAIL_NACK                   1
+#define CEC_FAIL_BUSY                   2
+#define CEC_FAIL_OTHER                  3
+
+enum hdmi_port_type {
+	HDMI_INPUT = 0,
+	HDMI_OUTPUT = 1
+};
+
+struct hdmi_port_info {
+	int type;
+	/* Port ID should start from 1 which corresponds to HDMI "port 1". */
+	int port_id;
+	int cec_supported;
+	int arc_supported;
+	uint16_t physical_address;
+};
+
 enum cec_dev_type_addr {
 	CEC_DISPLAY_DEVICE_TYPE = 0x0,
 	CEC_RECORDING_DEVICE_TYPE,
@@ -437,10 +471,14 @@ struct cec_global_info_t {
 	unsigned short dev_mask;
 	unsigned char active_log_dev;
 	unsigned char my_node_index;
+	dev_t dev_no;
+	unsigned int open_count;
+	unsigned int hal_ctl;	/* message controled by hal */
 	struct cec_flag_t cec_flag;
 	struct input_dev *remote_cec_dev; /* cec input device */
 	struct cec_node_info_t cec_node_info[MAX_NUM_OF_DEV];
 	struct cec_rx_msg_buf_t cec_rx_msg_buf;
+
 	struct hdmitx_dev *hdmitx_device;
 };
 
@@ -629,5 +667,6 @@ extern void cec_rx_buf_clear(void);
 
 extern struct hrtimer cec_key_timer;
 extern enum hrtimer_restart cec_key_up(struct hrtimer *timer);
+extern int get_cec_tx_fail(void);
 #endif
 

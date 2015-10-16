@@ -29,9 +29,12 @@
 
 static DEFINE_MUTEX(cec_mutex);
 
+static DECLARE_COMPLETION(tx_complete);
+
 unsigned int cec_int_disable_flag = 0;
 static unsigned char msg_log_buf[128] = { 0 };
 static int cec_ll_trigle_tx(void);
+static int cec_tx_fail_reason;
 
 struct cec_tx_msg_t {
 	unsigned char buf[16];
@@ -88,6 +91,9 @@ void cec_logicaddr_set(int logicaddr)
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, (logicaddr & 0xf));
 	udelay(100);
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, (0x1 << 4) | (logicaddr & 0xf));
+	if (cec_msg_dbg_en)
+		hdmi_print(INF, CEC "set logical addr:0x%x\n",
+			aocec_rd_reg(CEC_LOGICAL_ADDR0));
 }
 
 void cec_hw_reset(void)
@@ -177,7 +183,8 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 			hdev->tv_cec_support = 1;
 	}
 
-	if (cec_msg_dbg_en  == 1) {
+	/* ignore ping message */
+	if (cec_msg_dbg_en  == 1 && *len > 1) {
 		pos = 0;
 		pos += sprintf(msg_log_buf + pos,
 			"CEC: rx msg len: %d   dat: ", *len);
@@ -362,12 +369,13 @@ void tx_irq_handle(void)
 			cec_tx_msgs.send_idx = (cec_tx_msgs.send_idx + 1) &
 						CEC_TX_MSG_BUF_MASK;
 		}
-		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
+		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx)
 			cec_ll_trigle_tx();
-		} else {
-			hdmi_print(INF, CEC "@TX_FINISHED\n");
+		else
 			cec_wake_unlock();    /* unlock */
-		}
+		cec_tx_fail_reason = CEC_FAIL_NONE;
+		complete(&tx_complete);
+		cec_tx_msgs.msg[s_idx].retry = 0;
 		break;
 
 	case TX_BUSY:
@@ -384,17 +392,20 @@ void tx_irq_handle(void)
 		} else {
 			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 			s_idx = cec_tx_msgs.send_idx;
-			if (cec_tx_msgs.msg[s_idx].retry < 5) {
+			if (cec_tx_msgs.msg[s_idx].retry < 1) {
 				cec_tx_msgs.msg[s_idx].retry++;
 				cec_ll_trigle_tx();
 			} else {
-				hdmi_print(INF, CEC "TX retry over, abort\n");
+				hdmi_print(LOW, CEC "TX retry over, abort\n");
+				cec_tx_msgs.msg[s_idx].retry = 0;
 				cec_tx_msgs.send_idx =
 					(cec_tx_msgs.send_idx + 1) &
 					CEC_TX_MSG_BUF_MASK;
 				s_idx = cec_tx_msgs.send_idx;
 				if (s_idx != cec_tx_msgs.queue_idx)
 					cec_ll_trigle_tx();
+				cec_tx_fail_reason = CEC_FAIL_NACK;
+				complete(&tx_complete);
 			}
 		}
 		break;
@@ -413,30 +424,61 @@ void tx_irq_handle(void)
 	/* hd_read_reg(P_AO_CEC_INTR_MASKN) | (1 << 2)); */
 }
 
-/* Return value: 0: fail	1: success */
+/* Return value: < 0: fail, > 0: success */
 int cec_ll_tx(const unsigned char *msg, unsigned char len)
 {
 	int ret = 0;
+	int timeout = msecs_to_jiffies(1000);
 	struct hdmitx_dev *hdev;
 
-	if (cec_int_disable_flag)
-		return 2;
+	mutex_lock(&cec_mutex);
+	if (cec_int_disable_flag) {
+		cec_tx_fail_reason = CEC_FAIL_OTHER;
+		mutex_unlock(&cec_mutex);
+		return -1;
+	}
 
 	/*
 	 * do not send messanges if tv is not support CEC
 	 */
 	hdev = get_hdmitx_device();
-	if (hdev && !hdev->tv_cec_support)
-		return 0;
+	if (hdev && !hdev->tv_cec_support) {
+		cec_tx_fail_reason = CEC_FAIL_OTHER;
+		mutex_unlock(&cec_mutex);
+		return -1;
+	}
 
-	mutex_lock(&cec_mutex);
 	/* hd_write_reg(P_AO_CEC_INTR_MASKN, */
 	/* hd_read_reg(P_AO_CEC_INTR_MASKN) & ~(1 << 2)); */
+	cec_tx_fail_reason = CEC_FAIL_NONE;
 	cec_queue_tx_msg(msg, len);
-	cec_ll_trigle_tx();
+	ret = cec_ll_trigle_tx();
+	if (ret < 0) {
+		cec_tx_fail_reason = CEC_FAIL_BUSY;
+		mutex_unlock(&cec_mutex);
+		return ret;
+	}
+	ret = wait_for_completion_interruptible_timeout(&tx_complete, timeout);
+	if (ret <= 0) {
+		/* timeout or interrupt */
+		cec_tx_fail_reason = CEC_FAIL_OTHER;
+	} else {
+		if (cec_tx_fail_reason != CEC_FAIL_NONE) {
+			/* not timeout but got fail info */
+			ret = -1;
+		} else {
+			/* send success */
+			ret = len;
+		}
+	}
 	mutex_unlock(&cec_mutex);
 
 	return ret;
+}
+
+int get_cec_tx_fail(void)
+{
+	return cec_tx_fail_reason;
 }
 
 void cec_polling_online_dev(int log_addr, int *bool)
