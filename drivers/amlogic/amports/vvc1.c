@@ -103,6 +103,9 @@ static DECLARE_KFIFO(display_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
 
 static struct vframe_s vfpool[VF_POOL_SIZE];
+static struct vframe_s vfpool2[VF_POOL_SIZE];
+static int cur_pool_idx;
+
 static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static struct timer_list recycle_timer;
 static u32 stat;
@@ -149,6 +152,16 @@ enum {
 #define RATE_30_FPS  3003	/* 29.97 */
 #define DUR2PTS(x) ((x)*90/96)
 #define PTS2DUR(x) ((x)*96/90)
+
+static inline int pool_index(struct vframe_s *vf)
+{
+	if ((vf >= &vfpool[0]) && (vf <= &vfpool[VF_POOL_SIZE - 1]))
+		return 0;
+	else if ((vf >= &vfpool2[0]) && (vf <= &vfpool2[VF_POOL_SIZE - 1]))
+		return 1;
+	else
+		return -1;
+}
 
 static inline bool close_to(int a, int b, int m)
 {
@@ -254,13 +267,15 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 		v_width = READ_VREG(AV_SCRATCH_J);
 		v_height = READ_VREG(AV_SCRATCH_K);
 
-		if (v_width && (v_width != vvc1_amstream_dec_info.width)) {
+		if (v_width && v_width <= 4096
+			&& (v_width != vvc1_amstream_dec_info.width)) {
 			pr_info("frame width changed %d to %d\n",
 				   vvc1_amstream_dec_info.width, v_width);
 			vvc1_amstream_dec_info.width = v_width;
 			frame_width = v_width;
 		}
-		if (v_height && (v_height != vvc1_amstream_dec_info.height)) {
+		if (v_height && v_height <= 4096
+			&& (v_height != vvc1_amstream_dec_info.height)) {
 			pr_info("frame height changed %d to %d\n",
 				   vvc1_amstream_dec_info.height, v_height);
 			vvc1_amstream_dec_info.height = v_height;
@@ -621,7 +636,8 @@ static struct vframe_s *vvc1_vf_get(void *op_arg)
 
 static void vvc1_vf_put(struct vframe_s *vf, void *op_arg)
 {
-	kfifo_put(&recycle_q, (const struct vframe_s *)vf);
+	if (pool_index(vf) == cur_pool_idx)
+		kfifo_put(&recycle_q, (const struct vframe_s *)vf);
 }
 
 static int vvc1_vf_states(struct vframe_states *states, void *op_arg)
@@ -857,10 +873,16 @@ static void vvc1_local_init(void)
 	INIT_KFIFO(display_q);
 	INIT_KFIFO(recycle_q);
 	INIT_KFIFO(newframe_q);
-
+	cur_pool_idx ^= 1;
 	for (i = 0; i < VF_POOL_SIZE; i++) {
-		const struct vframe_s *vf = &vfpool[i];
-		vfpool[i].index = -1;
+		const struct vframe_s *vf;
+		if (cur_pool_idx == 0) {
+			vf = &vfpool[i];
+			vfpool[i].index = DECODE_BUFFER_NUM_MAX;
+			} else {
+			vf = &vfpool2[i];
+			vfpool2[i].index = DECODE_BUFFER_NUM_MAX;
+			}
 		kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 	}
 }
@@ -901,12 +923,12 @@ static void vvc1_put_timer_func(unsigned long arg)
 	while (!kfifo_is_empty(&recycle_q) && (READ_VREG(VC1_BUFFERIN) == 0)) {
 		struct vframe_s *vf;
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index >= 0) &&
+			if ((vf->index < DECODE_BUFFER_NUM_MAX) &&
 				(--vfbuf_use[vf->index] == 0)) {
 				WRITE_VREG(VC1_BUFFERIN, ~(1 << vf->index));
-				vf->index = -1;
+				vf->index = DECODE_BUFFER_NUM_MAX;
 			}
-
+		if (pool_index(vf) == cur_pool_idx)
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 		}
 	}
