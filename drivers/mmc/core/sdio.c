@@ -216,7 +216,7 @@ static int sdio_enable_wide(struct mmc_card *card)
 		return ret;
 
 	if ((ctrl & SDIO_BUS_WIDTH_MASK) == SDIO_BUS_WIDTH_RESERVED)
-		pr_warning("%s: SDIO_CCCR_IF is invalid: 0x%02x\n",
+		pr_warn("%s: SDIO_CCCR_IF is invalid: 0x%02x\n",
 			   mmc_hostname(card->host), ctrl);
 
 	/* set as 4-bit bus width */
@@ -604,7 +604,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 
 try_again:
 	if (!retries) {
-		pr_warning("%s: Skipping voltage switch\n",
+		pr_warn("%s: Skipping voltage switch\n",
 				mmc_hostname(host));
 		ocr &= ~R4_18V_PRESENT;
 	}
@@ -837,7 +837,7 @@ static void mmc_sdio_remove(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
-	for (i = 0;i < host->card->sdio_funcs;i++) {
+	for (i = 0; i < host->card->sdio_funcs; i++) {
 		if (host->card->sdio_func[i]) {
 			sdio_remove_func(host->card->sdio_func[i]);
 			host->card->sdio_func[i] = NULL;
@@ -1161,7 +1161,7 @@ int mmc_attach_sdio(struct mmc_host *host)
 	/*
 	 * ...then the SDIO functions.
 	 */
-	for (i = 0;i < funcs;i++) {
+	for (i = 0; i < funcs; i++) {
 		err = sdio_add_func(host->card->sdio_func[i]);
 		if (err)
 			goto remove_added;
@@ -1199,6 +1199,10 @@ int sdio_reset_comm(struct mmc_card *card)
 
 	printk("%s():\n", __func__);
 	mmc_claim_host(host);
+
+	/* for realtek sdio wifi need send IO reset command firstly */
+	if (588 == card->cis.vendor)
+		sdio_reset(host);
 
 	mmc_go_idle(host);
 
