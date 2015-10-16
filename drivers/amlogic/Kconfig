@@ -17,6 +17,8 @@ source "drivers/amlogic/usb/Kconfig"
 
 source "drivers/amlogic/i2c/Kconfig"
 
+source "drivers/amlogic/pwm/Kconfig"
+
 source "drivers/amlogic/hdmi/Kconfig"
 
 source "drivers/amlogic/rtc/Kconfig"

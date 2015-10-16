@@ -32,6 +32,8 @@ obj-$(CONFIG_AM_IRBLASTER)	+= irblaster/
 
 obj-$(CONFIG_I2C_AML)		+= i2c/
 
+obj-$(CONFIG_AML_PWM)		+= pwm/
+
 obj-$(CONFIG_AML_POWER_SUPPORT)	+= power/
 
 obj-$(CONFIG_AML_DEBUG)		+= aml_debug/
