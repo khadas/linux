@@ -1061,6 +1061,11 @@
 
 	&spicc{
 		status = "okay";
+		pinctrl-names = "spicc_pulldown","spicc_pullup";
+		pinctrl-0 = <&spicc_pulldown_h6h7h8 &spicc_pins_h6h7h8>;
+		pinctrl-1 = <&spicc_pullup_h6h7h8 &spicc_pins_h6h7h8>;
 		num_chipselect = <1>;
 		cs-gpios = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};

@@ -112,4 +112,5 @@ source "drivers/amlogic/camera/Kconfig"
 source "drivers/amlogic/codec_mm/Kconfig"
 
 source "drivers/amlogic/watchdog/Kconfig"
+source "drivers/amlogic/spicc/Kconfig"
 endmenu

@@ -482,15 +482,37 @@
 			amlogic,clrmask=<7 0x610028>;
 			amlogic,pins="GPIOH_5","GPIOH_6";
 		};
-		spicc_pins_h6h7h8:spicc1{
+
+		spicc_pins_h6h7h8: spicc_pins_h6h7h8{
 			amlogic,setmask=<7 0x70000>;
 			amlogic,clrmask=<7 0x7f400028>;
 			amlogic,pins="GPIOH_6","GPIOH_7","GPIOH_8";
 		};
-		spicc_pins_y4y5y6:spicc2{
+		spicc_pulldown_h6h7h8: spicc_pulldown_h6h7h8{
+			amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8";
+			amlogic,pullup=<0>;
+			amlogic,pullupen=<1>;
+		};
+		spicc_pullup_h6h7h8: spicc_pullup_h6h7h8{
+			amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8";
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+
+		spicc_pins_y4y5y6: spicc_pins_y4y5y6{
 			amlogic,setmask=<4 0x700000>;
 			amlogic,clrmask=<4 0x708>;
 			amlogic,pins="GPIOY_4","GPIOY_5","GPIOY_6";
+		};
+		spicc_pulldown_y4y5y6: spicc_pulldown_y4y5y6{
+			amlogic,pins="GPIOY_4","GPIOY_5","GPIOY_6";
+			amlogic,pullup=<0>;
+			amlogic,pullupen=<1>;
+		};
+		spicc_pullup_y4y5y6: spicc_pullup_y4y5y6{
+			amlogic,pins="GPIOY_4","GPIOY_5","GPIOY_6";
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
 		};
 	};
 	cpu_version{
