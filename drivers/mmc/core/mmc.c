@@ -1282,7 +1282,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (err)
 			goto free_card;
 	}
-	host->card = card;
+
 	/*
 	 * Select card, as all following commands rely on that.
 	 */

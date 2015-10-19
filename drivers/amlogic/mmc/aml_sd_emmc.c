@@ -33,10 +33,11 @@
 #include <../drivers/mmc/core/mmc_ops.h>
 #include "amlsd.h"
 
-
+#ifdef SD_EMMC_ENABLE_TIMEOUT
 static unsigned int sd_emmc_error_flag;
-/*static unsigned int sd_emmc_debug_flag;*/
-static unsigned int sd_emmc_err_bak;
+#endif
+/* static unsigned int sd_emmc_debug_flag;*/
+/* static unsigned int sd_emmc_err_bak; */
 #ifdef SD_EMMC_DATA_TASKLET
 struct tasklet_struct sd_emmc_finish_tasklet;
 #endif
@@ -169,10 +170,61 @@ u32 checksum_cali(u32 *buffer, u32 length)
 #endif
 
 #ifdef CALIBRATION
-u8 cal_i, cal_j;
+u8 line_x, cal_time;
 u8 dly_tmp;
+
+
+#define CLK_SOURCE	(1000000000)
+#define CLK_TUNING	(200000000)
+#define MAX_INDEX	(CLK_SOURCE/CLK_TUNING - 1)
+#define MAX_CALI_RETRY	(5)
+#define MAX_DELAY_CNT	(16)
+#define CALI_BLK_CNT	(10)
+
+static int is_larger(u8 value, u8 base, u8 wrap)
+{
+	int ret = 0;
+	if ((value > base) || ((value < base) && (base == wrap)))
+		ret = 1;
+	return ret;
+}
+
+static void find_base(struct amlsd_platform *pdata, u8 *is_base_index,
+		u8 fir_base[2][2], u8 *first_base_temp_num, u32 base_index_val,
+			u8 *calout_cmp_num)
+{
+	u8 first_base_temp;
+	if (pdata->calout[dly_tmp][cal_time] != 0xFF) {
+		/* calculate base index! */
+		if (*is_base_index == 1) {
+			first_base_temp = pdata->calout[dly_tmp][cal_time];
+			*first_base_temp_num = *first_base_temp_num + 1;
+			if (*first_base_temp_num == 1) {
+				fir_base[0][0] = first_base_temp;
+				fir_base[0][1] = fir_base[0][1] + 1;
+			} else {
+					if (first_base_temp == fir_base[0][0])
+						fir_base[0][1]++;
+					else {
+						fir_base[1][0] =
+							first_base_temp;
+						fir_base[1][1]++;
+					}
+			}
+			/* get a higher index, add the counter! */
+		} else if (is_larger(pdata->calout[dly_tmp][cal_time],
+				base_index_val, MAX_INDEX))
+					*calout_cmp_num = *calout_cmp_num + 1;
+	} else {
+		/*todo, if we do not capture a valid value,
+			HIGHLIGHT(cal_time = 0) may cause error!!! */
+			pr_err("!!!Do not capture a valid index");
+			pr_err("@ line %d on capture %d\n",
+						line_x, cal_time);
+	}
+}
 static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc, u32 opcode,
-		struct aml_tuning_data *tuning_data, u32 record_blk)
+		struct aml_tuning_data *tuning_data, u32 *adj_win_start)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
@@ -186,39 +238,64 @@ static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc, u32 opcode,
 	struct sd_emmc_delay *line_dly = (struct sd_emmc_delay *)&line_delay;
 	u32 adjust = sd_emmc_regs->gadjust;
 	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
-	u32 temp = 0;
-	u8 temp_num = 0;
+	u32 base_index[10] = {0};
+	u32 base_index_val = 0;
+	u32 base_index_min = MAX_INDEX + 1;
+	u32 base_index_max = 0;
 	u32 blksz = 512;
 	u8 *blk_test;
 	u32 max_cal_result = 0;
+	u32 min_cal_result = 10000;	/*2 circles*/
 	u32 cal_result[8];
 	u8 done;
-	u8 first_flag;
-	u8 cal_per_line_num = 5;
+	u8 is_base_index;
+	u8 cal_per_line_num = 8;
 	u8 calout_cmp_num = 0;
-	u32 write_buf[128] = {0};
-	u8 err = 0;
+	u32 cali_retry = 0;
 	u8 bus_width = 8;
+	u8 fir_base[2][2] = { {0} };
+	/*u8 first_base_temp;*/
+	u8 first_base_temp_num = 0;
+	u8 ln_delay[8] = {0};
+	u8 delay_step[8] = {125, 125, 125, 125, 125, 125, 125, 125};
+#if 0
+	int i;
+#endif
 	sd_emmc_regs->gdelay = 0;
 	line_delay = sd_emmc_regs->gdelay;
-	blk_test = kmalloc(blksz * 20, GFP_KERNEL);
+	blk_test = kmalloc(blksz * CALI_BLK_CNT, GFP_KERNEL);
 	if (!blk_test)
 		return -ENOMEM;
-	host->is_tunning = 1;
+
 	if (mmc->ios.bus_width == 0)
 		bus_width = 1;
 	else if (mmc->ios.bus_width == 2)
 		bus_width = 4;
 	else
 		bus_width = 8;
-	for (cal_i = 0; cal_i < bus_width; cal_i++) {
+
+_cali_retry:
+	max_cal_result = 0;
+	min_cal_result = 10000;
+	base_index_min = MAX_INDEX + 1;
+	base_index_max = 0;
+	pr_err("trying cali emmc %d-th time(s)\n", cali_retry);
+	host->is_tunning = 1;
+	/* for each line */
+	for (line_x = 0; line_x < bus_width; line_x++) {
 		done = 0;
-		temp = 0;
-		first_flag = 1;
-		memset(pdata->calout, 0, 20 * 20);
-		for (dly_tmp = 0; dly_tmp <= 15; dly_tmp++) {
+		base_index_val = 0;
+		is_base_index = 1;
+		memset(pdata->calout, 0xFF, 20 * 20);
+		first_base_temp_num = 0;
+		fir_base[0][0] = 0;
+		fir_base[0][1] = 0;
+		fir_base[1][0] = 0;
+		fir_base[1][1] = 0;
+		/* for each delay index! */
+		for (dly_tmp = 0; dly_tmp < MAX_DELAY_CNT; dly_tmp++) {
 			sd_emmc_regs->gdelay = 0;
-			switch (cal_i) {
+			switch (line_x) {
 			case 0:
 				line_dly->dat0 = dly_tmp;
 				break;
@@ -248,8 +325,10 @@ static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc, u32 opcode,
 			}
 			sd_emmc_regs->gdelay = line_delay;
 			calout_cmp_num = 0;
-			temp_num = 0;
-			for (cal_j = 0; cal_j < cal_per_line_num; cal_j++) {
+			/* cal_time */
+			for (cal_time = 0; cal_time < cal_per_line_num;
+					cal_time++) {
+				/* send read cmd. */
 				pdata->caling = 1;
 				cmd.opcode = opcode;
 				cmd.arg = 0;
@@ -260,85 +339,173 @@ static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc, u32 opcode,
 				stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 
 				data.blksz = blksz;
-				data.blocks = 20;
+				data.blocks = CALI_BLK_CNT;
 				data.flags = MMC_DATA_READ;
 				data.sg = &sg;
 				data.sg_len = 1;
 
-				memset(blk_test, 0, blksz*20);
-				sg_init_one(&sg, blk_test, blksz*20);
+				memset(blk_test, 0, blksz*CALI_BLK_CNT);
+				sg_init_one(&sg, blk_test, blksz*CALI_BLK_CNT);
 
 				mrq.cmd = &cmd;
 				mrq.stop = &stop;
 				mrq.data = &data;
 				host->mrq = &mrq;
+				/*enable cali*/
+				sd_emmc_regs->gadjust = adjust;
 				mmc_wait_for_req(mmc, &mrq);
+				pdata->calout[dly_tmp][cal_time] =
+						sd_emmc_regs->gcalout & 0x3f;
 				pdata->caling = 0;
 				gadjust->cali_enable = 0;
 				gadjust->cali_sel = 0;
 				sd_emmc_regs->gadjust = adjust;
-				if (pdata->calout[dly_tmp][cal_j] != 0) {
-					if (first_flag == 1) {
-						temp +=
-						pdata->calout[dly_tmp][cal_j];
-						temp_num++;
-					} else if (pdata->calout[dly_tmp][cal_j]
-							> temp)
-						calout_cmp_num++;
-				}
-			}
-			if ((temp > 0) && (first_flag == 1)) {
-				first_flag = 0;
-				temp = temp / temp_num;
+				/*get a valid index*/
+				find_base(pdata, &is_base_index,
+				fir_base, &first_base_temp_num,
+				base_index_val, &calout_cmp_num);
+			}	/* endof cal_time loop... */
+			/* get base index value */
+			/* if ((base_index_val > 0) && (is_base_index == 1)) {*/
+			if (is_base_index == 1) {
+				is_base_index = 0;
+				if (fir_base[1][1] > fir_base[0][1])
+					base_index_val = fir_base[1][0];
+				else
+					base_index_val = fir_base[0][0];
+				/*base_index_val = valid_base_index; */
+				if (base_index_val < base_index_min)
+					base_index_min = base_index_val;
+				if (base_index_val > base_index_max)
+					base_index_max = base_index_val;
+				base_index[line_x] = base_index_val;
+			/*pr_err("get base index %d value @ line (%d)\n",
+					base_index_val, line_x);*/
 			} else if (calout_cmp_num == cal_per_line_num) {
 				break;
 			}
+		}  /* endof dly_tmp loop... */
+		/* get a valid index on current line! */
+		if ((dly_tmp == MAX_DELAY_CNT)
+				&& (calout_cmp_num != cal_per_line_num)) {
+			/* Do not get a valid line delay index value! */
+			if (cali_retry < MAX_CALI_RETRY) {
+				pr_err("Do't get valid ln_delay @ line %d, try\n",
+					line_x);
+				cali_retry++;
+				goto _cali_retry;
+			} else {
+				sd_emmc_err("Fail get a valid ln delay line %d!\n",
+					line_x);
+				BUG();
+			}
+		} else {
+			ln_delay[line_x] = dly_tmp;
 		}
-		if ((dly_tmp == 16) && (calout_cmp_num != cal_per_line_num))
-			cal_i = 0;
-		else {
-			cal_result[cal_i] = pdata->calout[dly_tmp][0]*1000
-								- dly_tmp*120;
-			max_cal_result = (max_cal_result < cal_result[cal_i])
-					? cal_result[cal_i] : max_cal_result;
-			pr_info("cal[%d][0]=%d dly_tmp = %d, temp = %d\n",
-					cal_i, pdata->calout[dly_tmp][0],
-					dly_tmp, temp);
-			pr_info("cal_result[%d] = %d\n",
-					cal_i, cal_result[cal_i]);
-		}
-	}
-	pr_info("max_cal_result =%d\n", max_cal_result);
-	line_dly->dat0 = (((max_cal_result - cal_result[0]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[0]) / 120);
-	line_dly->dat1 = (((max_cal_result - cal_result[1]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[1]) / 120);
-	line_dly->dat2 = (((max_cal_result - cal_result[2]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[2]) / 120);
-	line_dly->dat3 = (((max_cal_result - cal_result[3]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[3]) / 120);
-	line_dly->dat4 = (((max_cal_result - cal_result[4]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[4]) / 120);
-	line_dly->dat5 = (((max_cal_result - cal_result[5]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[5]) / 120);
-	line_dly->dat6 = (((max_cal_result - cal_result[6]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[6]) / 120);
-	line_dly->dat7 = (((max_cal_result - cal_result[7]) / 120) > 15)
-				? 15 : ((max_cal_result - cal_result[7]) / 120);
+		/*debug code...*/
+#if 0
 
-	sd_emmc_regs->gdelay = line_delay;
-	host->is_tunning = 0;
-	write_buf[0] = sd_emmc_version[0];
-	write_buf[1] = sd_emmc_version[1];
-	write_buf[2] = line_delay;
-	write_buf[3] = checksum_cali(write_buf, 3);
-	err = mmc_write_internal(mmc->card, record_blk, 1, write_buf);
-	if (err != 0) {
-		pr_info("%s: mmc write tuning result err\n",
-				mmc_hostname(mmc));
-		err = 0;
+		for (i = 0; i < 16; i++) {
+			pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+					pdata->calout[i][0],
+					pdata->calout[i][1],
+					pdata->calout[i][2],
+					pdata->calout[i][3],
+					pdata->calout[i][4],
+					pdata->calout[i][5],
+					pdata->calout[i][6],
+					pdata->calout[i][7]);
+		}
+#endif
 	}
+	host->is_tunning = 0;
+
+	/* if base index wrap, fix */
+	for (line_x = 0; line_x < bus_width; line_x++) {
+		/* 1000 means index is 1ns */
+		/* make sure no neg-value  for ln_delay*/
+		if (ln_delay[line_x]*delay_step[line_x] > 1000)
+			ln_delay[line_x] = 1000 / delay_step[line_x];
+
+		if (base_index[line_x] == MAX_INDEX)
+			cal_result[line_x] = ((base_index[line_x]+1)%5  +
+			(MAX_INDEX+1))*1000 -
+				ln_delay[line_x]*delay_step[line_x];
+		else if ((base_index_max == MAX_INDEX) &&
+			(base_index[line_x] != (MAX_INDEX - 1)) &&
+			(base_index[line_x] != (MAX_INDEX - 2)))
+			cal_result[line_x] = ((base_index[line_x]+1)%5  +
+			(MAX_INDEX+1))*1000 -
+				ln_delay[line_x]*delay_step[line_x];
+		else
+			cal_result[line_x] = (base_index[line_x]+1)%5 *
+				1000 - ln_delay[line_x]*delay_step[line_x];
+
+		max_cal_result = (max_cal_result < cal_result[line_x])
+				? cal_result[line_x] : max_cal_result;
+		min_cal_result = (min_cal_result > cal_result[line_x])
+				? cal_result[line_x] : min_cal_result;
+		pr_err("delay[%d]=%5d padding=%2d, bidx=%d\n",
+				line_x, cal_result[line_x],
+				ln_delay[line_x], base_index[line_x]);
+	}
+	pr_err("calibration result @ %d: max(%d), min(%d)\n",
+		cali_retry, max_cal_result, min_cal_result);
+	/* retry cali here! */
+	if ((max_cal_result - min_cal_result) >= 2000) {
+		if (cali_retry < MAX_CALI_RETRY) {
+			cali_retry++;
+			goto _cali_retry;
+		} else
+			BUG();
+	}
+
+	/* swap base_index_max */
+	if ((base_index_max == MAX_INDEX) && (base_index_min == 0))
+		base_index_max = 0;
+	if (max_cal_result < (base_index_max * 1000))
+		max_cal_result = (base_index_max * 1000);
+	/* calculate each line delay we should use! */
+	line_dly->dat0 = (((max_cal_result - cal_result[0]) / delay_step[0])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[0]) / delay_step[0]);
+	line_dly->dat1 = (((max_cal_result - cal_result[1]) / delay_step[1])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[1]) / delay_step[1]);
+	line_dly->dat2 = (((max_cal_result - cal_result[2]) / delay_step[2])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[2]) / delay_step[2]);
+	line_dly->dat3 = (((max_cal_result - cal_result[3]) / delay_step[3])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[3]) / delay_step[3]);
+	line_dly->dat4 = (((max_cal_result - cal_result[4]) / delay_step[4])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[4]) / delay_step[4]);
+	line_dly->dat5 = (((max_cal_result - cal_result[5]) / delay_step[5])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[5]) / delay_step[5]);
+	line_dly->dat6 = (((max_cal_result - cal_result[6]) / delay_step[6])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[6]) / delay_step[6]);
+	line_dly->dat7 = (((max_cal_result - cal_result[7]) / delay_step[7])
+			> 15) ? 15 :
+			((max_cal_result - cal_result[7]) / delay_step[7]);
+	pr_info("line_delay =0x%x\n", line_delay);
+	/* set default cmd delay*/
+	gadjust->cmd_delay = 7;
+	pr_err("max_cal_result =%d\n", max_cal_result);
+	sd_emmc_regs->gadjust = adjust;
+	/* set delay count into reg*/
+	sd_emmc_regs->gdelay = line_delay;
+
+	pr_err("base_index_max %d, base_index_min %d\n",
+		base_index_max, base_index_min);
+
+	/* get adjust point! */
+	*adj_win_start = base_index_max + 2;
+
 	kfree(blk_test);
+	blk_test = NULL;
 	return 0;
 }
 #endif
@@ -346,7 +513,8 @@ static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc, u32 opcode,
 
 /* TODO....., based on new tuning function */
 static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
-					struct aml_tuning_data *tuning_data)
+					struct aml_tuning_data *tuning_data,
+					u32 adj_win_start)
 {
 #if 1 /* need finish later */
 	struct amlsd_platform *pdata = mmc_priv(mmc);
@@ -371,6 +539,7 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 	int n, nmatch, ntries = 10;
 	int rx_phase = 0;
 	int adj_delay = 0;
+	struct aml_emmc_adjust *emmc_adj = &host->emmc_adj;
 	u8 *blk_test;
 	u32 clock, clk_div;
 	u32 adj_delay_find;
@@ -386,8 +555,9 @@ tunning:
 	vclk = sd_emmc_regs->gclock;
 	vctrl = sd_emmc_regs->gcfg;
 	clk_div = clkc->div;
-	clock = clk_rate / clk_div;
-	pdata->mmc->actual_clock = ctrl->ddr ? (clock / 2) : clock;
+	clock = clk_rate / clk_div;/*200mhz, bus_clk */
+	pdata->mmc->actual_clock = ctrl->ddr ?
+				(clock / 2) : clock;/*100mhz in ddr */
 
 	if (ctrl->ddr == 1)
 		blksz = 512;
@@ -405,6 +575,7 @@ tunning:
 		gadjust->cali_enable = 0;
 		gadjust->cali_rise = 0;
 		sd_emmc_regs->gadjust = adjust;
+		/* try ntries */
 		for (n = 0, nmatch = 0; n < ntries; n++) {
 			if (ctrl->ddr == 1)
 				cmd.opcode = 17;
@@ -460,6 +631,7 @@ tunning:
 		}
 
 		rx_tuning_result[0][adj_delay] = nmatch;
+		/*get a ok adjust point!*/
 		if (nmatch == ntries) {
 			if (adj_delay == 0)
 				wrap_win_start = adj_delay;
@@ -471,8 +643,7 @@ tunning:
 				curr_win_start = adj_delay;
 
 			curr_win_size++;
-			pr_info(
-				"rx_tuning_result[%d][%d] = %d\n",
+			pr_info("rx_tuning_result[%d][%d] = %d\n",
 				0, adj_delay, nmatch);
 		} else {
 			if (curr_win_start >= 0) {
@@ -493,6 +664,7 @@ tunning:
 		}
 
 	}
+	/* last point is ok! */
 	if (curr_win_start >= 0) {
 		if (best_win_start < 0) {
 			best_win_start = curr_win_start;
@@ -529,14 +701,27 @@ tunning:
 		adj_delay_find = best_win_start + (best_win_size - 1) / 2;
 		adj_delay_find = adj_delay_find % clk_div;
 	}
+	/* fixme, for retry debug. */
+	if (aml_card_type_mmc(pdata)) {
+		pr_info("%s: adj_win_start %d\n",
+			mmc_hostname(host->mmc), adj_win_start);
+		adj_delay_find = adj_win_start % 5;
+	}
 	gadjust->adj_delay = adj_delay_find;
 	gadjust->adj_enable = 1;
 	gadjust->cali_enable = 0;
 	gadjust->cali_rise = 0;
 	sd_emmc_regs->gadjust = adjust;
 	host->is_tunning = 0;
-	pr_info("sd_emmc_regs->gclock =0x%x, sd_emmc_regs->gadjust =0x%x\n",
-			sd_emmc_regs->gclock, sd_emmc_regs->gadjust);
+
+	/* fixme, yyh for retry flow. */
+	emmc_adj->adj_win_start = best_win_start;
+	emmc_adj->adj_win_len = best_win_size;
+	emmc_adj->adj_point = adj_delay_find;
+	emmc_adj->clk_div = clk_div;
+	pr_info("%s:sd_emmc_regs->gclock=0x%x,sd_emmc_regs->gadjust=0x%x\n",
+			mmc_hostname(host->mmc), sd_emmc_regs->gclock,
+			sd_emmc_regs->gadjust);
 	kfree(blk_test);
 	/* do not dynamical tuning for no emmc device */
 	if ((pdata->is_in) && !aml_card_type_mmc(pdata))
@@ -548,18 +733,13 @@ tunning:
 
 static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
-	/* struct amlsd_platform *pdata = mmc_priv(mmc); */
-	/* struct amlsd_host *host = pdata->host; */
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
 	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 	struct aml_tuning_data tuning_data;
 	int err = -ENOSYS;
-	int bit = 9;
-	int start_blk = -1;
-	u32 clk_temp = sd_emmc_regs->gclock;
-	u32 clk_rate = 1000000000;
-	u32 *read_buf;
+	u32 adj_win_start;
+	pr_err("============================================\n");
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
 			tuning_data.blk_pattern = tuning_blk_pattern_8bit;
@@ -581,73 +761,18 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 #ifdef CALIBRATION
 	if ((aml_card_type_mmc(pdata)) && (pdata->need_cali == 1)) {
-		read_buf = kmalloc(512, GFP_KERNEL);
-		if (!read_buf)
-			pr_err("%s: read buffer malloc failed\n",
-					mmc_hostname(mmc));
-		memset(read_buf, 0, 512);
-		start_blk = get_reserve_partition_off(mmc->card);
-		bit = mmc->card->csd.read_blkbits;
-		if (start_blk < 0) {
-			pr_info("%s: get reserve partition offset failed,",
-					mmc_hostname(mmc));
-			pr_info("use default value\n");
-			if (bit == 9)
-				start_blk = 0x2400000;
-			else
-				start_blk = 0x12000;
-		}
-		start_blk >>= bit;
-		if (bit == 9)
-			start_blk += (0xC00000 >> bit);
-		else
-			start_blk += 0x6000;
-
-		aml_sd_emmc_set_clk_rate(mmc, 50000000);
-		err = mmc_read_internal(mmc->card, start_blk,
-					1, read_buf);
-			if (err != 0) {
-				pr_info("%s: read tuning result failed,",
-						mmc_hostname(mmc));
-				pr_info("continue...\n");
-			}
-			if ((read_buf[0] == sd_emmc_version[0])
-				&& (read_buf[1] == sd_emmc_version[1])) {
-				if (checksum_cali(read_buf, 3) ==
-						read_buf[3]) {
-					pdata->need_cali = 0;
-				} else {
-					pdata->need_cali = 1;
-					pr_info("%s:chesum err, need re_calibration\n",
-						mmc_hostname(mmc));
-				}
-			} else {
-				pr_info("%s:version wrong, need calibration\n",
-							mmc_hostname(mmc));
-				pdata->need_cali = 1;
-			}
-
-		if (pdata->need_cali == 1)
-			aml_sd_emmc_execute_tuning_index(mmc, 18,
-						&tuning_data, start_blk);
-		else
-			sd_emmc_regs->gdelay = read_buf[2];
-		err = 0;
-		sd_emmc_regs->gclock = clk_temp;
-		pdata->clkc = clk_temp;
-		pdata->mmc->actual_clock = clk_rate / (clk_temp & 0x3f) +
-					(!!(clk_rate % (clk_temp & 0x3f)));
-		if (sd_emmc_regs->gcfg & (1 << 2))
-			pdata->mmc->actual_clock = pdata->mmc->actual_clock / 2;
-		kfree(read_buf);
+		pdata->need_cali = 1;
+		aml_sd_emmc_execute_tuning_index(mmc, 18,
+						&tuning_data, &adj_win_start);
 	}
 #endif
+	/* excute tuning... */
+	err = aml_sd_emmc_execute_tuning_(mmc, opcode,
+				&tuning_data, adj_win_start);
 
-	err = aml_sd_emmc_execute_tuning_(mmc, opcode, &tuning_data);
-
-	pr_info("%s: gclock =0x%x, gdelay=0x%x\n",
-		mmc_hostname(mmc), sd_emmc_regs->gclock, sd_emmc_regs->gdelay);
-	pr_info("gadjust=0x%x\n", sd_emmc_regs->gadjust);
+	pr_info("%s: gclock =0x%x, gdelay=0x%x, gadjust=0x%x\n",
+		mmc_hostname(mmc), sd_emmc_regs->gclock, sd_emmc_regs->gdelay,
+		sd_emmc_regs->gadjust);
 	return err;
 }
 
@@ -694,7 +819,7 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 	pconf->resp_timeout = 8;
 	/* 1024 CLK cycle, Max. 100mS. */
 	pconf->rc_cc = 4;
-
+	pconf->err_abort = 0;
 
 	sd_emmc_regs->gcfg = vconf;
 	/*Clear irq status first*/
@@ -1538,7 +1663,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 			desc_cur->resp_addr = 0;
 		}
 #endif
-	} else{
+	} else {
 		des_cmd_cur->data_io = 0;
 		/* Current 10uS based. 2^10 = 10mS for only cmd timeout */
 		des_cmd_cur->timeout = 0xa;
@@ -1596,37 +1721,17 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 	smp_rmb(); /*  */
 #ifdef CALIBRATION
 	if ((mrq->cmd->opcode == 18) && (pdata->caling == 1)) {
+		gadjust->cali_rise = 0;
+		gadjust->cali_sel = line_x;
 		gadjust->cali_enable = 1;
-		gadjust->cali_rise = 1;
-		gadjust->cali_sel = cal_i;
 		sd_emmc_regs->gadjust = adjust;
-		schedule_delayed_work(&pdata->calouting, 0);
+		/*schedule_delayed_work(&pdata->calouting, 0);*/
 	}
 #endif
 	sd_emmc_regs->gstart = vstart;
+
 }
 
-#ifdef CALIBRATION
-static void read_calout(struct work_struct *work)
-{
-	struct amlsd_platform *pdata = container_of(
-		work, struct amlsd_platform, calouting.work);
-	struct amlsd_host *host = (void *)pdata->host;
-	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
-	u32 temp = 0;
-	while (1) {
-		temp = sd_emmc_regs->gcalout;
-		if (temp & (1 << 7)) {
-			pdata->calout[dly_tmp][cal_j] = temp & 0x3f;
-			pdata->caling = 0;
-		}
-		smp_wmb(); /*  */
-		smp_rmb(); /*  */
-		if (pdata->caling == 0)
-			break;
-	}
-}
-#endif
 
 /*mmc_request_done & do nothing in xfer_post*/
 void aml_sd_emmc_request_done(struct mmc_host *mmc, struct mmc_request *mrq)
@@ -1850,6 +1955,10 @@ void aml_sd_emmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (mrq->cmd->opcode == 0)
 		host->init_flag = 1;
 
+	/*clear error flag if last command retried failed */
+	if (host->error_flag & (1 << 30))
+		host->error_flag = 0;
+
 #ifndef SD_EMMC_REQ_DMA_SGMAP
 	/*setup reg  especially for cmd with transfering data*/
 	if (mrq->data) {
@@ -1907,6 +2016,8 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	u32 virqc = 0;
 	struct sd_emmc_irq_en *irqc = (struct sd_emmc_irq_en *)&virqc;
 	struct sd_emmc_status *ista = (struct sd_emmc_status *)&vstat;
+	u32 vstart = 0;
+	struct sd_emmc_start *desc_start = (struct sd_emmc_start *)&vstart;
 	/* unsigned long time_start_cnt = aml_read_cbus(ISA_TIMERE); */
 
 	/* if(sd_emmc_debug_flag == 9){ */
@@ -1914,12 +2025,13 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	/* sd_emmc_debug_flag = 0; */
 	/* return IRQ_HANDLED; */
 	/* } */
-
 	virqc = sd_emmc_regs->girq_en & 0xffff;
 	vstat = sd_emmc_regs->gstatus & 0xffff;
 	/* pr_info("%s %d occurred, vstat:0x%x,
 		sd_emmc_regs->gstatus:%x\n",
 		__func__, __LINE__, vstat, sd_emmc_regs->gstatus); */
+
+	host->ista = vstat;
 	if (irqc->irq_sdio && ista->irq_sdio) {
 		if ((host->mmc->sdio_irq_thread)
 			&& (!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
@@ -1937,6 +2049,11 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	mrq = host->mrq;
 	mmc = host->mmc;
 	pdata = mmc_priv(mmc);
+	vstart = sd_emmc_regs->gstart;
+	if ((desc_start->busy == 1) && (aml_card_type_mmc(pdata))) {
+		desc_start->busy = 0;
+		sd_emmc_regs->gstart = vstart;
+	}
 	if (!mmc) {
 		pr_info("sd_emmc_regs->girq_en = 0x%x at line %d\n",
 			sd_emmc_regs->girq_en, __LINE__);
@@ -2003,17 +2120,20 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	sd_emmc_regs->gstatus &= 0xffff;
 	spin_unlock_irqrestore(&host->mrq_lock, flags);
 
-	/* for debug */
-
 	if ((ista->rxd_err) || (ista->txd_err)) {
-		if (host->is_tunning == 0)
-			sd_emmc_err("%s: data ecc, vstat:0x%x, virqc:%x\n",
-				mmc_hostname(host->mmc), vstat, virqc);
 		host->status = HOST_DAT_CRC_ERR;
 		mrq->cmd->error = -EILSEQ;
+		/* report error! */
+		if (host->is_tunning == 0) {
+			sd_emmc_err("%s: warning... data crc, vstat:0x%x, virqc:%x",
+				mmc_hostname(host->mmc), vstat, virqc);
+			sd_emmc_err("@ cmd %d with %p; stop %d, status %d\n",
+				mrq->cmd->opcode, mrq->data,
+				host->cmd_is_stop, host->status);
+		}
 	} else if (ista->resp_err) {
 		if (host->is_tunning == 0)
-			sd_emmc_err("%s: response ecc,vstat:0x%x,virqc:%x\n",
+			sd_emmc_err("%s: warning... response crc,vstat:0x%x,virqc:%x\n",
 				mmc_hostname(host->mmc), vstat, virqc);
 		host->status = HOST_RSP_CRC_ERR;
 		mrq->cmd->error = -EILSEQ;
@@ -2070,24 +2190,34 @@ void aml_sd_emmc_send_stop(struct amlsd_host *host)
 	if (delayed_work_pending(&host->timeout))
 		cancel_delayed_work(&host->timeout);
 	spin_lock_irqsave(&host->mrq_lock, flags);
-	sd_emmc_err_bak = host->mrq->cmd->error;
+	/*sd_emmc_err_bak = host->mrq->cmd->error;*/
+	host->error_bak = host->mrq->cmd->error;
 	host->mrq->cmd->error = 0;
 	host->cmd_is_stop = 1;
 	aml_sd_emmc_start_cmd(pdata, &aml_sd_emmc_stop);
 	spin_unlock_irqrestore(&host->mrq_lock, flags);
 }
 
+#if 0	/* debug code, just for npp function list bug.... */
 #ifdef SD_EMMC_DATA_TASKLET
 static void aml_sd_emmc_data_tasklet(unsigned long data)
 #else
 static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 #endif
+#endif /* 0 */
+static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 {
 #ifdef SD_EMMC_DATA_TASKLET
 	struct amlsd_host *host = (struct amlsd_host *)data;
 #else
 	struct amlsd_host *host = data;
 #endif
+	/*---------------------------------------------------------*/
+	struct aml_emmc_adjust *emmc_adj = &host->emmc_adj;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+	u32 adjust = sd_emmc_regs->gadjust;
+	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
+	/*---------------------------------------------------------*/
 	u32 xfer_bytes = 0;
 	struct mmc_request *mrq;
 	enum aml_mmc_waitfor xfer_step;
@@ -2136,9 +2266,11 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		/* BUG(); */
 		aml_sd_emmc_print_err(host);
 	}
+
 	if (host->cmd_is_stop) {
+		/* --new irq enter, */
 		host->cmd_is_stop = 0;
-		mrq->cmd->error = sd_emmc_err_bak;
+		mrq->cmd->error = host->error_bak;
 		spin_unlock_irqrestore(&host->mrq_lock, flags);
 		if (delayed_work_pending(&host->timeout))
 			cancel_delayed_work(&host->timeout);
@@ -2161,7 +2293,7 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		/* WARN_ON(aml_sd_emmc_desc_check(host)); */
 		/* pr_info("%s %d cmd:%d\n", __func__, __LINE__,
 			mrq->cmd->opcode); */
-		sd_emmc_error_flag = 0;
+		host->error_flag = 0;
 		if (mrq->cmd->data &&  mrq->cmd->opcode) {
 			xfer_bytes = mrq->data->blksz*mrq->data->blocks;
 			/* copy buffer from dma to data->sg in read cmd*/
@@ -2176,7 +2308,7 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 #endif
 			mrq->data->bytes_xfered = xfer_bytes;
 			host->xfer_step = XFER_TASKLET_DATA;
-		} else{
+		} else {
 			host->xfer_step = XFER_TASKLET_CMD;
 		}
 		spin_lock_irqsave(&host->mrq_lock, flags);
@@ -2211,6 +2343,44 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		}
 		aml_sd_emmc_read_response(host->mmc, host->mrq->cmd);
 
+		/* set retry @ 1st error happens! */
+		if ((host->error_flag == 0) && aml_card_type_mmc(pdata)
+			&& (mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200)
+			&& (mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK)
+			&& (host->is_tunning == 0)) {
+
+			sd_emmc_err("%s() %d: set 1st retry!\n",
+				__func__, __LINE__);
+			host->error_flag |= (1<<0);
+			spin_lock_irqsave(&host->mrq_lock, flags);
+			mrq->cmd->retries = AML_ERROR_RETRY_COUNTER;
+			spin_unlock_irqrestore(&host->mrq_lock, flags);
+		}
+
+		if (aml_card_type_mmc(pdata) &&
+			(host->error_flag & (1<<0)) && mrq->cmd->retries) {
+			sd_emmc_err("rety cmd %d the %d-th time(s)\n",
+				mrq->cmd->opcode, mrq->cmd->retries);
+			/* chage configs on current host */
+			emmc_adj->adj_point++;
+			emmc_adj->adj_point %= emmc_adj->clk_div;
+			pr_err("emmc, %d retry, adj %d -> %d\n",
+				mrq->cmd->retries, gadjust->adj_delay,
+				emmc_adj->adj_point);
+
+			/*set new adjust!*/
+			gadjust->adj_delay = emmc_adj->adj_point;
+			gadjust->adj_enable = 1;
+			sd_emmc_regs->gadjust = adjust;
+		}
+		/* last retry effort! */
+		if (aml_card_type_mmc(pdata) &&
+			host->error_flag && (mrq->cmd->retries == 0)) {
+			host->error_flag |= (1<<30);
+			sd_emmc_err("Command retried failed line:%d, cmd:%d\n",
+				__LINE__, mrq->cmd->opcode);
+		}
+		/* retry need send a stop 2 emmc... */
 		/* do not send stop for sdio wifi case */
 		if (host->mrq->stop && aml_card_type_mmc(pdata) && pdata->is_in
 		&& (host->mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK)
@@ -2219,7 +2389,6 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 			aml_sd_emmc_send_stop(host);
 		else
 			aml_sd_emmc_request_done(host->mmc, mrq);
-
 		break;
 
 	default:
@@ -2262,7 +2431,6 @@ static void aml_sd_emmc_set_clk_rate(struct mmc_host *mmc, unsigned int clk_ios)
 
 	clk_src_div = -1;
 	clk_src_sel = SD_EMMC_CLOCK_SRC_OSC;
-
 	if (clk_ios < 20000000)
 		clk_src_sel = SD_EMMC_CLOCK_SRC_OSC;
 	else
@@ -2289,11 +2457,10 @@ static void aml_sd_emmc_set_clk_rate(struct mmc_host *mmc, unsigned int clk_ios)
 	}
 
 	spin_lock_irqsave(&host->mrq_lock, flags);
-
 	clk_div = (clk_rate / clk_ios) + (!!(clk_rate % clk_ios));
 
-
 	aml_sd_emmc_clk_switch(pdata, clk_div, clk_src_sel);
+
 	/* pr_info("sd_emmc_regs->gclock = 0x%x\n", sd_emmc_regs->gclock); */
 	pdata->clkc = sd_emmc_regs->gclock;
 
@@ -2404,10 +2571,11 @@ static void aml_sd_emmc_set_power(struct amlsd_platform *pdata, u32 power_mode)
 static void aml_sd_emmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = (void *)pdata->host;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 
 	if (!pdata->is_in)
 		return;
-
 	/*Set Power*/
 	aml_sd_emmc_set_power(pdata, ios->power_mode);
 
@@ -2419,6 +2587,11 @@ static void aml_sd_emmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* Set Date Mode */
 	aml_sd_emmc_set_timing(pdata, ios->timing);
+
+	if (ios->power_mode == MMC_POWER_OFF) {
+		sd_emmc_regs->gdelay = 0;
+		sd_emmc_regs->gadjust = 0;
+	}
 
 	if (ios->chip_select == MMC_CS_HIGH) {
 		aml_cs_high(pdata);
@@ -3000,9 +3173,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		dev_set_name(&mmc->class_dev, "%s", pdata->pinname);
 
 		INIT_DELAYED_WORK(&pdata->retuning, aml_sd_emmc_tuning_timer);
-#ifdef CALIBRATION
-		INIT_DELAYED_WORK(&pdata->calouting, read_calout);
-#endif
+
 		if (pdata->caps & MMC_CAP_NONREMOVABLE)
 			pdata->is_in = true;
 
