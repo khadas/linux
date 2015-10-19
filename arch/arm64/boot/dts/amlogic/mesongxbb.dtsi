@@ -14,7 +14,6 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			timer=<&timer_f>;
 		};
 
 		cpu@1 {
@@ -22,14 +21,12 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			timer=<&timer_g>;
 		};
 		cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			timer=<&timer_h>;
 		};
 
 		cpu@3 {
@@ -37,64 +34,11 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			timer=<&timer_i>;
 		};
 
 
 	};
 
-	timer{
-		compatible = "arm, meson-timer";
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-		reg=   <0x0 0xc1109990 0x0 0x4 0x0 0xc1109988 0x0 0x4>;
-		timer_f:timer-f{
-			timer_name="MESON TIMER-F";
-			clockevent-rating=<300>;
-			clockevent-shift=<20>;
-			clockevent-features=<0x03>;
-			interrupts = <0 60 1>;
-			bit_enable=<16>;
-			bit_mode=<12>;
-			bit_resolution=<0>;
-			reg=   <0x0 0xc1109994 0x0 0x4>;
-		};
-		timer_g:timer-g{
-			timer_name="MESON TIMER-G";
-			clockevent-rating=<300>;
-			clockevent-shift=<20>;
-			clockevent-features=<0x03>;
-			interrupts = <0 61 1>;
-			bit_enable=<17>;
-			bit_mode=<13>;
-			bit_resolution=<2>;
-			reg=<0x0 0xc1109998 0x0 0x4>;
-		};
-		timer_h:timer-h{
-			timer_name="MESON TIMER-H";
-			clockevent-rating=<300>;
-			clockevent-shift=<20>;
-			clockevent-features=<0x03>;
-			interrupts = <0 62 1>;
-			bit_enable=<18>;
-			bit_mode=<14>;
-			bit_resolution=<4>;
-			reg=<0x0 0xc110999c 0x0 0x4>;
-		};
-		timer_i:timer-i{
-			timer_name="MESON TIMER-I";
-			clockevent-rating=<300>;
-			clockevent-shift=<20>;
-			clockevent-features=<0x03>;
-			interrupts = <0 63 1>;
-			bit_enable=<19>;
-			bit_mode=<15>;
-			bit_resolution=<6>;
-			reg=<0x0 0xc11099a0 0x0 0x4>;
-		};
-	};
-/*
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 0xff01>,
@@ -102,7 +46,6 @@
 			        <GIC_PPI 11 0xff01>,
 			        <GIC_PPI 10 0xff01>;
 	};
-*/
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <0 137 4>,
