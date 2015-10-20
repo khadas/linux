@@ -69,7 +69,7 @@ int set_remote_mode(int mode)
 	reg = remoteregsTab[mode];
 	while (CONFIG_END != reg->reg)
 		setremotereg(reg++);
-	pr_info("%s[%d]\n", __func__, __LINE__);
+	input_dbg("%s[%d]\n", __func__, __LINE__);
 	return 0;
 
 }
@@ -77,7 +77,7 @@ int set_remote_mode(int mode)
 void setremotereg(const struct reg_s *r)
 {
 	am_remote_write_reg(r->reg, r->val);
-	pr_info("[0x%lx] = 0x%x\n", (g_remote_ao_offset + ((r->reg) << 2)),
+	input_dbg("[0x%lx] = 0x%x\n", (g_remote_ao_offset + ((r->reg) << 2)),
 		r->val);
 }
 
@@ -135,7 +135,7 @@ void set_remote_init(struct remote *remote_data)
 			else
 				setup_timer(&remote_data->repeat_timer,
 					    remote_repeat_sr, 0);
-			pr_info("enter in sw repeat mode\n");
+			input_dbg("enter in sw repeat mode\n");
 		}
 		return;
 	}

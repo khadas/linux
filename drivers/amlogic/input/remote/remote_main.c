@@ -137,6 +137,7 @@ int remote_printk(const char *fmt, ...)
 
 	if (gp_remote->debug_enable == 0)
 		return 0;
+	pr_info("remote: ");
 	va_start(args, fmt);
 	r = vprintk(fmt, args);
 	va_end(args);
@@ -301,7 +302,7 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 		}
 		if (gp_remote->sleep && scancode == 0x1a &&
 		    key_map[gp_remote->map_num][scancode] == 0x0074) {
-			pr_info(" set 0x4853ffff\n");
+			input_dbg(" set 0x4853ffff\n");
 		}
 	}
 }
@@ -399,7 +400,7 @@ static int hardware_init(struct platform_device *pdev)
 	struct pinctrl *p;
 	p = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(p)) {
-		pr_err("Remote: hardware init fail, %ld\n", PTR_ERR(p));
+		input_dbg("hardware init fail, %ld\n", PTR_ERR(p));
 		return -1;
 	}
 	set_remote_mode(DECODEMODE_NEC_RCA_2IN1);
@@ -415,11 +416,11 @@ static int work_mode_config(unsigned int cur_mode)
 	struct irq_desc *desc = irq_to_desc(NEC_REMOTE_IRQ_NO);
 #endif
 	int ret;
-	pr_info("cur_mode = %d\n", cur_mode);
+	input_dbg("cur_mode = %d\n", cur_mode);
 	if (cur_mode > DECODEMODE_MAX) {
 		/*g_remote_ao_offset = P_AO_IR_DEC_LDR_ACTIVE;//change to old
 		ir decode*/
-		pr_err("Remote: Error!!! you are setting one invalid mode\n");
+		input_dbg("Error!!! you are setting one invalid mode\n");
 		return -1;
 	}
 	set_remote_mode(cur_mode);
@@ -436,7 +437,7 @@ static int work_mode_config(unsigned int cur_mode)
 					IRQF_SHARED, "keypad",
 				  (void *)remote_interrupt);
 		if (ret < 0) {
-			pr_err("Remote: request_irq failed, ret=%d.\n", ret);
+			input_dbg("request_irq failed, ret=%d.\n", ret);
 			return ret;
 		}
 	} else if ((cur_mode > DECODEMODE_MAX)  &&
@@ -452,7 +453,7 @@ static int work_mode_config(unsigned int cur_mode)
 		request_fiq(NEC_REMOTE_IRQ_NO, remote_fiq_interrupt);
 #endif
 	} else
-		pr_info("do nothing\n");
+		input_dbg("do nothing\n");
 	gp_remote->save_mode = cur_mode;
 	return 0;
 }
@@ -650,11 +651,11 @@ static int register_remote_dev(struct remote *remote)
 	strcpy(remote->config_name, "amremote");
 	ret = register_chrdev(0, remote->config_name, &remote_fops);
 	if (ret <= 0) {
-		pr_info("register char dev tv error\r\n");
+		input_dbg("register char dev tv error\r\n");
 		return ret;
 	}
 	remote->config_major = ret;
-	pr_info("remote config major:%d\r\n", ret);
+	input_dbg("remote config major:%d\r\n", ret);
 	remote->config_class = class_create(THIS_MODULE, remote->config_name);
 	remote->config_dev = device_create(remote->config_class, NULL,
 					   MKDEV(remote->config_major, 0),
@@ -665,7 +666,7 @@ static int register_remote_dev(struct remote *remote)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void remote_early_suspend(struct early_suspend *handler)
 {
-	pr_info("remote_early_suspend, set sleep 1\n");
+	input_dbg("remote_early_suspend, set sleep 1\n");
 	gp_remote->sleep = 1;
 	return;
 }
@@ -688,23 +689,23 @@ static int remote_probe(struct platform_device *pdev)
 	int i, ret;
 	/*aml_set_reg32_mask(P_AO_RTI_PIN_MUX_REG, (1 << 0));*/
 	if (!pdev->dev.of_node) {
-		pr_info("aml_remote: pdev->dev.of_node == NULL!\n");
+		pr_err("remote: pdev->dev.of_node == NULL!\n");
 		return -1;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node, "remote_ao_offset",
 					&ao_offset);
 	if (ret) { /*new decoder*/
-		pr_info("cant find match item for remote_ao_offset\n");
+		pr_err("remote: cant find match item for remote_ao_offset\n");
 		return -1;
 	}
 	/*ao_offset = P_AO_IR_DEC_LDR_ACTIVE;*/
 	/*ao_offset = P_AO_MF_IR_DEC_LDR_ACTIVE;*/
 	g_remote_ao_offset = ao_offset;
-	pr_info("Remote platform_data g_remote_ao_offset=%x\n", ao_offset);
+	pr_info("remote: platform_data g_remote_ao_offset=%x\n", ao_offset);
 	/*get irq number.*/
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	NEC_REMOTE_IRQ_NO = res_irq->start;
-	pr_info("Remote platform_data irq =%d\n", NEC_REMOTE_IRQ_NO);
+	pr_info("remote: platform_data irq =%d\n", NEC_REMOTE_IRQ_NO);
 	remote_enable = 1;
 	remote = kzalloc(sizeof(struct remote), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -792,7 +793,7 @@ static int remote_probe(struct platform_device *pdev)
 	input_dev->keycodemax = 0x1ff;
 	ret = input_register_device(remote->input);
 	if (ret < 0) {
-		pr_err("Unable to register keypad input device\n");
+		input_dbg("Unable to register keypad input device\n");
 		goto err2;
 	}
 	input_dbg("input_register_device completed \r\n");
@@ -802,7 +803,7 @@ static int remote_probe(struct platform_device *pdev)
 	remote_log_buf = (char *)__get_free_pages(GFP_KERNEL,
 					REMOTE_LOG_BUF_ORDER);
 	remote_log_buf[0] = '\0';
-	pr_info("physical address:0x%x\n",
+	input_dbg("physical address:0x%x\n",
 		(unsigned int)virt_to_phys(remote_log_buf));
 	return 0;
 err3:
@@ -852,8 +853,8 @@ static int remote_remove(struct platform_device *pdev)
 
 static int remote_resume(struct platform_device *pdev)
 {
-	pr_info("remote_resume To do remote resume\n");
-	pr_info("remote_resume make sure read frame enable ir interrupt\n");
+	input_dbg("remote_resume To do remote resume\n");
+	input_dbg("remote_resume make sure read frame enable ir interrupt\n");
 	am_remote_read_reg(DURATION_REG1_AND_STATUS);
 	am_remote_read_reg(FRAME_BODY);
 	if (is_meson_m8m2_cpu()) {
@@ -870,7 +871,7 @@ static int remote_resume(struct platform_device *pdev)
 		}
 	} else {
 		if (get_resume_method() == REMOTE_WAKEUP) {
-			pr_info("remote_wakeup\n");
+			input_dbg("remote_wakeup\n");
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 1);
 			input_sync(gp_remote->input);
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
@@ -878,7 +879,7 @@ static int remote_resume(struct platform_device *pdev)
 		}
 	}
 	gp_remote->sleep = 0;
-	pr_info("to clear irq ...\n");
+	input_dbg("to clear irq ...\n");
 	disable_irq(NEC_REMOTE_IRQ_NO);
 	udelay(1000);
 	enable_irq(NEC_REMOTE_IRQ_NO);
@@ -888,7 +889,7 @@ static int remote_resume(struct platform_device *pdev)
 
 static int remote_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	pr_info("remote_suspend, set sleep 1\n");
+	input_dbg("remote_suspend, set sleep 1\n");
 	gp_remote->sleep = 1;
 	return 0;
 }
@@ -907,13 +908,13 @@ static struct platform_driver remote_driver = {
 
 static int __init remote_init(void)
 {
-	pr_info("Remote Driver\n");
+	pr_info("remote: Driver init\n");
 	return platform_driver_register(&remote_driver);
 }
 
 static void __exit remote_exit(void)
 {
-	pr_info("Remote exit\n");
+	input_dbg("remote: exit\n");
 	platform_driver_unregister(&remote_driver);
 }
 
