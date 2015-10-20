@@ -267,7 +267,7 @@ s32 stbuf_init(struct stream_buf_s *buf)
 	}
 	addr32 = buf->buf_start & 0xffffffff;
 	init_waitqueue_head(&buf->wq);
-
+	buf->write_thread = 0;
 	if (has_hevc_vdec() && buf->type == BUF_TYPE_HEVC) {
 		CLEAR_VREG_MASK(HEVC_STREAM_CONTROL, 1);
 		WRITE_VREG(HEVC_STREAM_START_ADDR, addr32);
@@ -323,7 +323,6 @@ s32 stbuf_init(struct stream_buf_s *buf)
 	_SET_ST_REG_MASK(CONTROL,
 			(0x11 << 16) | MEM_FILL_ON_LEVEL | MEM_CTRL_FILL_EN |
 			MEM_CTRL_EMPTY_EN);
-
 	return 0;
 }
 

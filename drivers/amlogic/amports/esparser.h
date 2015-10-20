@@ -31,6 +31,10 @@ extern void esparser_release(struct stream_buf_s *buf);
 extern ssize_t esparser_write(struct file *file,
 	struct stream_buf_s *stbuf,
 	const char __user *buf, size_t count);
+extern ssize_t esparser_write_ex(struct file *file,
+			struct stream_buf_s *stbuf,
+			const char __user *buf, size_t count,
+			int is_phy);
 
 extern s32 es_vpts_checkin_us64(struct stream_buf_s *buf, u64 us64);
 
@@ -43,6 +47,7 @@ extern int es_apts_checkin(struct stream_buf_s *buf, u32 pts);
 extern void esparser_audio_reset(struct stream_buf_s *buf);
 
 extern void esparser_sub_reset(void);
+
 
 #ifdef CONFIG_AM_DVB
 extern int tsdemux_set_reset_flag(void);
