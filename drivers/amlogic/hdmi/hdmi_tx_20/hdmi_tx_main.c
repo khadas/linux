@@ -131,6 +131,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 	hdmi_print(IMP, SYS "HDMITX: early suspend\n");
+	phdmi->HWOp.CntlMisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
 }
 
 static void hdmitx_late_resume(struct early_suspend *h)

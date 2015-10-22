@@ -301,6 +301,7 @@ struct hdmitx_dev {
 	#define OFF_AVMUTE	0x0
 	#define CLR_AVMUTE	0x1
 	#define SET_AVMUTE	0x2
+#define MISC_HPLL_FAKE			(CMD_MISC_OFFSET + 0x0c)
 
 /***********************************************************************
  *                          Get State //GetState

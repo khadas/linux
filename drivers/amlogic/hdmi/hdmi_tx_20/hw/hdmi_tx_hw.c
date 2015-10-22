@@ -305,6 +305,8 @@ static struct hdmitx_clk hdmitx_clk[] = {
 		24000, 5940000, 594000, 594000, -1, 594000},
 	{HDMI_3840x2160p50_16x9_Y420,
 		24000, 5940000, 594000, 594000, -1, 594000},
+	{HDMI_VIC_FAKE,
+		24000, 3450000, 345000, 345000, -1, 345000},
 };
 
 static void set_vmode_clk(struct hdmitx_dev *hdev, enum hdmi_vic vic)
@@ -2505,6 +2507,14 @@ static void mode420_half_horizontal_para(void)
 	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH1, ((hsync >> 8) & 0x3));
 }
 
+static void hdmitx_set_fake_vic(struct hdmitx_dev *hdev)
+{
+	hdev->mode420 = 0;
+	set_vmode_clk(hdev, HDMI_VIC_FAKE);
+
+	return;
+}
+
 static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 {
 	char tmpbuf[128];
@@ -2517,6 +2527,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		i++;
 	}
 	tmpbuf[i] = 0;
+
 	if ((strncmp(tmpbuf, "dumpreg", 7) == 0) ||
 		(strncmp(tmpbuf, "dumptvencreg", 12) == 0)) {
 		hdmitx_dump_tvenc_reg(hdev->cur_VIC, 1);
@@ -3142,6 +3153,9 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 30, 1);
 		if (argv == HPLL_DISABLE)
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0, 30, 1);
+		break;
+	case MISC_HPLL_FAKE:
+		hdmitx_set_fake_vic(hdev);
 		break;
 	case MISC_TMDS_PHY_OP:
 		if (argv == TMDS_PHY_ENABLE)

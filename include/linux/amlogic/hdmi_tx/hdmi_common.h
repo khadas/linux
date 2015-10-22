@@ -23,6 +23,8 @@
 /* HDMITX_VIC420_OFFSET and HDMITX_VIC_MASK are associated with
 	VIC_MAX_VALID_MODE and VIC_MAX_NUM in hdmi_tx_module.h */
 #define HDMITX_VIC420_OFFSET	0x100
+#define HDMITX_VIC420_FAKE_OFFSET 0x200
+
 #define HDMITX_VIC_MASK			0xff
 
 enum hdmi_vic {
@@ -162,6 +164,8 @@ enum hdmi_vic {
 	HDMI_3840x2160p60_64x27_Y420	=
 		HDMITX_VIC420_OFFSET + HDMI_3840x2160p60_64x27,
 	HDMI_VIC_Y420_MAX,
+
+	HDMI_VIC_FAKE = HDMITX_VIC420_FAKE_OFFSET,
 };
 
 /* Compliance with old definitions */
