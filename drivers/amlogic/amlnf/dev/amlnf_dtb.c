@@ -381,14 +381,14 @@ int amlnf_dtb_reinit(struct amlnand_chip *aml_chip)
 	unsigned char *dtb_buf = NULL;
 	aml_chip_dtb = aml_chip;
 
-	dtb_buf = aml_nand_malloc(CONFIG_DTB_SIZE);
+	dtb_buf = vmalloc(CONFIG_DTB_SIZE);
 	if (dtb_buf == NULL) {
 		aml_nand_msg("%s: malloc failed", __func__);
 		ret = -1;
 		goto exit_err;
 	}
 	memset(dtb_buf, 0x0, CONFIG_DTB_SIZE);
-
+	amlnand_get_device(aml_chip, CHIP_READING);
 	ret = amlnand_info_init(aml_chip,
 		(unsigned char *)&(aml_chip->amlnf_dtb),
 		dtb_buf,
@@ -396,8 +396,9 @@ int amlnf_dtb_reinit(struct amlnand_chip *aml_chip)
 		CONFIG_DTB_SIZE);
 	if (ret < 0)
 		aml_nand_msg("%s init failed\n", __func__);
+	amlnand_release_device(aml_chip);
 exit_err:
-	kfree(dtb_buf);
+	vfree(dtb_buf);
 	dtb_buf = NULL;
 	return ret;
 }

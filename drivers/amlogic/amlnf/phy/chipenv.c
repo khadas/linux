@@ -1594,12 +1594,12 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 
 			memset(ops_para->data_buf, 0x0, flash->pagesize);
 			memset(ops_para->oob_buf, 0x0, sizeof(oob_buf));
-
-			nand_get_chip(aml_chip);
+			if (aml_chip->state == CHIP_READY)
+				nand_get_chip(aml_chip);
 
 			ret = operation->read_page(aml_chip);
-
-			nand_release_chip(aml_chip);
+			if (aml_chip->state == CHIP_READY)
+				nand_release_chip(aml_chip);
 
 			if ((ops_para->ecc_err) || (ret < 0)) {
 				aml_nand_msg("blk check good but read failed");

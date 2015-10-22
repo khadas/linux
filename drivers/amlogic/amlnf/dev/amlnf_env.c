@@ -381,7 +381,7 @@ int aml_ubootenv_reinit(struct amlnand_chip *aml_chip)
 	unsigned char *env_buf = NULL;
 	aml_chip_env = aml_chip;
 
-	env_buf = aml_nand_malloc(CONFIG_ENV_SIZE);
+	env_buf = vmalloc(CONFIG_ENV_SIZE);
 	if (env_buf == NULL) {
 		aml_nand_msg("nand malloc for secure_ptr failed");
 		ret = -1;
@@ -389,6 +389,7 @@ int aml_ubootenv_reinit(struct amlnand_chip *aml_chip)
 	}
 	memset(env_buf, 0x0, CONFIG_ENV_SIZE);
 
+	amlnand_get_device(aml_chip, CHIP_READING);
 	ret = amlnand_info_init(aml_chip,
 			(unsigned char *)&(aml_chip->uboot_env),
 			env_buf,
@@ -398,8 +399,8 @@ int aml_ubootenv_reinit(struct amlnand_chip *aml_chip)
 		aml_nand_msg("%s() failed\n", __func__);
 		ret = -1;
 	}
-
-	kfree(env_buf);
+	amlnand_release_device(aml_chip);
+	vfree(env_buf);
 	env_buf = NULL;
 
 exit_err:
