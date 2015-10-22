@@ -1,3 +1,5 @@
+#define pr_fmt(fmt)	"Wifi: %s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -106,7 +108,7 @@ int bcmdhd_init_wlan_mem(void)
 		wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_1PAGE_BUFSIZE);
 		if (!wlan_static_skb[i])
 			goto err_skb_alloc;
-		pr_info("1 %s: wlan_static_skb[%d]=%p, size=%lu\n",
+		pr_debug("1 %s: wlan_static_skb[%d]=%p, size=%lu\n",
 			__func__, i, wlan_static_skb[i], DHD_SKB_1PAGE_BUFSIZE);
 	}
 
@@ -114,14 +116,14 @@ int bcmdhd_init_wlan_mem(void)
 		wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_2PAGE_BUFSIZE);
 		if (!wlan_static_skb[i])
 			goto err_skb_alloc;
-		pr_info("2 %s: wlan_static_skb[%d]=%p, size=%lu\n",
+		pr_debug("2 %s: wlan_static_skb[%d]=%p, size=%lu\n",
 			__func__, i, wlan_static_skb[i], DHD_SKB_2PAGE_BUFSIZE);
 	}
 
 	wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_4PAGE_BUFSIZE);
 	if (!wlan_static_skb[i])
 		goto err_skb_alloc;
-	pr_info("3 %s: wlan_static_skb[%d]=%p, size=%lu\n",
+	pr_debug("3 %s: wlan_static_skb[%d]=%p, size=%lu\n",
 		__func__, i, wlan_static_skb[i], DHD_SKB_4PAGE_BUFSIZE);
 
 	for (i = 0; i < PREALLOC_WLAN_SEC_NUM; i++) {
@@ -130,7 +132,7 @@ int bcmdhd_init_wlan_mem(void)
 
 		if (!wlan_mem_array[i].mem_ptr)
 			goto err_mem_alloc;
-		pr_info("4 %s: wlan_mem_array[%d]=%p, size=%lu\n",
+		pr_debug("4 %s: wlan_mem_array[%d]=%p, size=%lu\n",
 			__func__, i, wlan_static_skb[i],
 			wlan_mem_array[i].size);
 	}
@@ -138,13 +140,13 @@ int bcmdhd_init_wlan_mem(void)
 	wlan_static_scan_buf0 = kmalloc(65536, GFP_KERNEL);
 	if (!wlan_static_scan_buf0)
 		goto err_mem_alloc;
-	pr_info("5 %s: wlan_static_scan_buf0=%p, size=%d\n",
+	pr_debug("5 %s: wlan_static_scan_buf0=%p, size=%d\n",
 		__func__, wlan_static_scan_buf0, 65536);
 
 	wlan_static_scan_buf1 = kmalloc(65536, GFP_KERNEL);
 	if (!wlan_static_scan_buf1)
 		goto err_mem_alloc;
-	pr_info("6 %s: wlan_static_scan_buf1=%p, size=%d\n",
+	pr_debug("6 %s: wlan_static_scan_buf1=%p, size=%d\n",
 		__func__, wlan_static_scan_buf1, 65536);
 
 	pr_info("%s: WIFI MEM Allocated\n", __func__);

@@ -36,9 +36,6 @@
 
 #define OWNER_NAME "sdio_wifi"
 
-#define WIFI_INFO(fmt, args...) \
-		pr_info("[%s] " fmt, __func__, ##args);
-
 int wifi_power_gpio = 0;
 int wifi_power_gpio2 = 0;
 
@@ -57,9 +54,13 @@ struct wifi_plat_info {
 
 	int plat_info_valid;
 	struct pinctrl *p;
+	struct device		*dev;
 };
 
 static struct wifi_plat_info wifi_info;
+
+#define WIFI_INFO(fmt, args...) \
+		dev_info(wifi_info.dev, "[%s] " fmt, __func__, ##args);
 
 #ifdef CONFIG_OF
 static const struct of_device_id wifi_match[] = {
@@ -85,9 +86,7 @@ static struct wifi_plat_info *wifi_get_driver_data
 	if (ret) { \
 		WIFI_INFO("wifi_dt : no prop for %s\n", msg);	\
 		return -1;	\
-	} else {	\
-		WIFI_INFO("wifi_dt : %s=%s\n", msg, value);	\
-	}	\
+	} \
 }	\
 
 /*
@@ -127,12 +126,11 @@ static int wifi_dev_probe(struct platform_device *pdev)
 	 (struct wifi_plat_info *)(pdev->dev.platform_data);
 #endif
 
-	WIFI_INFO("wifi_dev_probe\n");
-
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		plat = wifi_get_driver_data(pdev);
 		plat->plat_info_valid = 0;
+		plat->dev = &pdev->dev;
 
 		ret = of_property_read_string(pdev->dev.of_node,
 			"interrupt_pin", &value);
