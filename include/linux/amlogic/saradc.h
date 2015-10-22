@@ -18,6 +18,7 @@
 #ifndef __AML_SARADC_H__
 #define __AML_SARADC_H__
 
+#include <linux/io.h>
 
 #define SARADC_DEV_NUM 1
 
@@ -34,5 +35,15 @@ enum {
 };
 
 extern int get_adc_sample(int dev_id, int ch);
+
+#define bits_desc(reg_offset, bits_offset, bits_len) \
+	(((bits_len)<<24)|((bits_offset)<<16)|(reg_offset))
+#define of_mem_offset(bd) ((bd)&0xffff)
+#define of_bits_offset(bd) (((bd)>>16)&0xff)
+#define of_bits_len(bd) (((bd)>>24)&0xff)
+
+extern void setb(void __iomem *mem_base, unsigned int bits_desc,
+		unsigned int bits_val);
+extern unsigned int getb(void __iomem *mem_base, unsigned int bits_desc);
 
 #endif

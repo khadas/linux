@@ -18,62 +18,42 @@
 #ifndef __SARADC_REG_H__
 #define __SARADC_REG_H__
 
+#define SARADC_REG0 (0<<2)
+#define SARADC_CH_LIST (1<<2)
+#define SARADC_AVG_CNTL (2<<2)
+#define SARADC_REG3 (3<<2)
+#define SARADC_DELAY (4<<2)
+#define SARADC_LAST_RD (5<<2)
+#define SARADC_FIFO_RD (6<<2)
+#define SARADC_AUX_SW (7<<2)
+#define SARADC_CH10_SW (8<<2)
+#define SARADC_DETECT_IDLE_SW (9<<2)
+#define SARADC_DELTA_10 (10<<2)
+#define SARADC_REG11 (11<<2)
 
-struct saradc_regs {
-	unsigned int reg0;
-	unsigned int ch_list;
-	unsigned int avg_cntl;
-	unsigned int reg3;
-	unsigned int delay;
-	unsigned int last_rd;
-	unsigned int fifo_rd;
-	unsigned int aux_sw;
-	unsigned int ch10_sw;
-	unsigned int detect_idle_sw;
-	unsigned int delta_10;
-	unsigned int reg11;
-};
+#define SAMPLE_ENGINE_EN    bits_desc(SARADC_REG0, 0, 1)
+#define START_SAMPLE        bits_desc(SARADC_REG0, 2, 1)
+#define STOP_SAMPLE         bits_desc(SARADC_REG0, 14, 1)
+#define FIFO_COUNT          bits_desc(SARADC_REG0, 21, 5)
+#define SAMPLE_BUSY         bits_desc(SARADC_REG0, 28, 1)
+#define AVG_BUSY            bits_desc(SARADC_REG0, 29, 1)
+#define DELTA_BUSY          bits_desc(SARADC_REG0, 30, 1)
+#define ALL_BUSY            bits_desc(SARADC_REG0, 28, 3)
+#define CLK_DIV             bits_desc(SARADC_REG3, 10, 1)
+#define ADC_EN              bits_desc(SARADC_REG3, 21, 1)
+#define CAL_CNTL            bits_desc(SARADC_REG3, 23, 3)
+#define FLAG_INITIALIZED    bits_desc(SARADC_REG3, 28, 1) /* for bl30 */
+#define CLK_EN              bits_desc(SARADC_REG3, 30, 1)
+#define FLAG_BUSY_KERNEL    bits_desc(SARADC_DELAY, 14, 1) /* for bl30 */
+#define FLAG_BUSY_BL30      bits_desc(SARADC_DELAY, 15, 1) /* for bl30 */
+#define IDLE_MUX            bits_desc(SARADC_DETECT_IDLE_SW, 7, 3)
+#define DETECT_MUX          bits_desc(SARADC_DETECT_IDLE_SW, 23, 3)
+#define BANDGAP_EN          bits_desc(SARADC_REG11, 13, 1)
+/* saradc clock register */
+#define REGC_CLK_DIV        bits_desc(0, 0, 8)
+#define REGC_CLK_EN         bits_desc(0, 8, 1)
+#define REGC_CLK_SRC        bits_desc(0, 9, 3)
 
-/* REG0 */
-struct saradc_reg0 {
-	unsigned int sample_engine_en:1;        /* [0] */
-	unsigned int continuous_sample_en:1;    /* [1] */
-	unsigned int start_sample:1;            /* [2] */
-	unsigned int fifo_irq_en:1;             /* [3] */
-	unsigned int fifo_irq_count:5;          /* [4-8] */
-	unsigned int detect_irq_en:1;           /* [9] */
-	unsigned int detect_irq_pol:1;          /* [10] */
-	unsigned int unused:1;                  /* [11] */
-	unsigned int ch0_delta_en:1;            /* [12] */
-	unsigned int ch1_delta_en:1;            /* [13] */
-	unsigned int stop_sample:1;             /* [14] */
-	unsigned int temp_sens_sel:1;           /* [15] */
-	unsigned int cur_ch_id:3;               /* [16-18] */
-	unsigned int unused2:2;                 /* [19-20] */
-	unsigned int fifo_count:5;              /* [21-25] */
-	unsigned int fifo_empty:1;              /* [26] */
-	unsigned int fifo_full:1;               /* [27] */
-	unsigned int sample_busy:1;             /* [28] */
-	unsigned int avg_busy:1;                /* [29] */
-	unsigned int delta_busy:1;              /* [30] */
-	unsigned int detect_level:1;            /* [31] */
-};
-
-/* REG3 */
-struct saradc_reg3 {
-	unsigned int block_delay_count:8;         /* [0-7] */
-	unsigned int block_delay_tb:2;            /* [8-9] */
-	unsigned int clk_div:6;                   /* [10-15] */
-	unsigned int panel_detect_filter_tb:2;    /* [16-17] */
-	unsigned int panel_detect_filter_count:3; /* [18-20] */
-	unsigned int adc_en:1;                    /* [21] */
-	unsigned int detect_pullup_en:1;          /* [22] */
-	unsigned int cal_cntl:3;                  /* [23-25] */
-	unsigned int sc_phase:1;                  /* [26] */
-	unsigned int continuous_ring_counter_en:1;/* [27] */
-	unsigned int unused:2;                    /* [28-29] */
-	unsigned int clk_en:1;                    /* [30] */
-	unsigned int cntl_use_sc_delay:1;         /* [31] */
-};
+#define FIFO_MAX 32
 
 #endif
