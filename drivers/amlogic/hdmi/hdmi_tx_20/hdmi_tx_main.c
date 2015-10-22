@@ -54,6 +54,7 @@
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_ddc.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>

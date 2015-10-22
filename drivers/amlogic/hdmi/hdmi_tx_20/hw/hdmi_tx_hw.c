@@ -41,7 +41,7 @@
 #endif
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
-#include <linux/amlogic/hdmi_tx/hdmi_tx_scdc.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_ddc.h>
 /*#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>*/
 #include <linux/reset.h>
 #include "mach_reg.h"
@@ -188,16 +188,7 @@ int read_hpd_gpio(void)
 }
 EXPORT_SYMBOL(read_hpd_gpio);
 
-/*
- * HDMITX DDC HW related operations
- */
-enum ddc_op {
-	DDC_INIT_DISABLE_PULL_UP_DN,
-	DDC_MUX_DDC,
-	DDC_UNMUX_DDC,
-};
-
-static int hdmitx_ddc_hw_op(enum ddc_op cmd)
+int hdmitx_ddc_hw_op(enum ddc_op cmd)
 {
 	int ret = 0;
 
@@ -1593,30 +1584,6 @@ static void set_tmds_clk_div40(unsigned int div40)
 	hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
 }
 
-static void scdc_rd_sink(unsigned char adr, unsigned char *val)
-{
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, SCDC_SLAVE);
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, adr);
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1);
-	mdelay(2);
-	*val = (unsigned char)hdmitx_rd_reg(HDMITX_DWC_I2CM_DATAI);
-	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0))
-		pr_info("hdmitx: scdc rd error\n");
-	hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x3);
-}
-
-static void scdc_wr_sink(unsigned char adr, unsigned char val)
-{
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, SCDC_SLAVE);
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, adr);
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_DATAO, val);
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 0x10);
-	mdelay(2);
-	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0))
-		pr_info("hdmitx: scdc wr error\n");
-	hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x3);
-}
-
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	struct hdmitx_vidpara *param)
 {
@@ -1640,12 +1607,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 
 	if ((param->VIC == HDMI_3840x2160p50_16x9) ||
 	    (param->VIC == HDMI_3840x2160p60_16x9)) {
-		if (rx_ver == 1) {
-			scdc_wr_sink(SOURCE_VER, 0x1);
-			scdc_wr_sink(SOURCE_VER, 0x1);
-			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
-			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
-		}
+		if (rx_ver == 1)
+			scdc_config(hdev);
 	} else {
 		if (rx_ver == 1) {
 			scdc_wr_sink(SOURCE_VER, 0x1);
@@ -1768,6 +1731,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 	mdelay(1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
+
 	return 0;
 }
 

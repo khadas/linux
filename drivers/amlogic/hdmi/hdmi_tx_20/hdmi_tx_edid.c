@@ -817,16 +817,22 @@ INVALID_Y420VDB:
 static int Edid_ParsingY420CMDBBlock(struct hdmitx_info *info,
 	unsigned char *buf)
 {
-	unsigned char tag = 0, ext_tag = 0, data_end = 0;
+	unsigned char tag = 0, ext_tag = 0, length = 0, data_end = 0;
 	unsigned int pos = 0, i = 0;
 
 	tag = (buf[pos] >> 5) & 0x7;
-	data_end = (buf[pos] & 0x1f)+1;
+	length = buf[pos] & 0x1f;
+	data_end = length + 1;
 	pos++;
 	ext_tag = buf[pos];
 
 	if ((tag != 0x7) || (ext_tag != 0xf))
 		goto INVALID_Y420CMDB;
+
+	if (length == 1) {
+		info->y420_all_vic = 1;
+		return 0;
+	}
 
 	info->bitmap_length = 0;
 	info->bitmap_valid = 0;
@@ -852,12 +858,41 @@ INVALID_Y420CMDB:
 
 }
 
+static int Edid_Y420CMDB_fill_all_vic(struct hdmitx_dev *hdmitx_device)
+{
+	struct rx_cap *rxcap = &(hdmitx_device->RXCap);
+	struct hdmitx_info *info = &(hdmitx_device->hdmi_info);
+	unsigned int count = rxcap->VIC_count;
+	unsigned int a, b;
+
+	if (info->y420_all_vic != 1)
+		return 1;
+
+	a = count/8;
+	a = (a >= Y420CMDB_MAX)?Y420CMDB_MAX:a;
+	b = count%8;
+
+	if (a > 0)
+		memset(&(info->y420cmdb_bitmap[0]), 0xff, a);
+
+	if ((b != 0) && (a < Y420CMDB_MAX))
+		info->y420cmdb_bitmap[a] = (((1 << b) - 1) << (8-b));
+
+	info->bitmap_length = (b == 0) ? a : (a + 1);
+	info->bitmap_valid = (info->bitmap_length != 0)?1:0;
+
+	return 0;
+}
+
 static int Edid_Y420CMDB_PostProcess(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned int i = 0, j = 0, valid = 0;
 	struct rx_cap *rxcap = &(hdmitx_device->RXCap);
 	struct hdmitx_info *info = &(hdmitx_device->hdmi_info);
 	unsigned char *p = NULL;
+
+	if (info->y420_all_vic == 1)
+		Edid_Y420CMDB_fill_all_vic(hdmitx_device);
 
 	if (info->bitmap_valid == 0)
 		goto PROCESS_END;
@@ -882,6 +917,7 @@ static void Edid_Y420CMDB_Reset(struct hdmitx_info *info)
 {
 	info->bitmap_valid = 0;
 	info->bitmap_length = 0;
+	info->y420_all_vic = 0;
 	memset(info->y420cmdb_bitmap, 0x00, Y420CMDB_MAX);
 
 	return;

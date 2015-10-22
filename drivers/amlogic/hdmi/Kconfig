@@ -25,7 +25,7 @@ config AML_HDMI_TX_14
 
 endchoice
 
-if AML_HDMI_TX
+if AML_HDMI_TX_14
 
 config AML_HDMI_TX_HDCP
         boolean "HDMI HDCP Enable"

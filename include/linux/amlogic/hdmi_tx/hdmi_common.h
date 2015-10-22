@@ -201,9 +201,10 @@ enum hdmi_vic {
 #define HDMI_4k2k_smpte_24      HDMI_4096x2160p24_256x135
 #define HDMI_4k2k_smpte_50      HDMI_4096x2160p50_256x135
 #define HDMI_4k2k_smpte_60      HDMI_4096x2160p60_256x135
+
 /* for Y420 modes*/
-#define HDMI_4k2k_50_y420		HDMI_3840x2160p50_16x9_Y420
-#define HDMI_4k2k_60_y420		HDMI_3840x2160p60_16x9_Y420
+#define HDMI_4k2k_50_y420       HDMI_3840x2160p50_16x9_Y420
+#define HDMI_4k2k_60_y420       HDMI_3840x2160p60_16x9_Y420
 
 
 /* CEA TIMING STRUCT DEFINITION */

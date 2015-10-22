@@ -331,6 +331,7 @@ struct hdmitx_info {
 	/* for Y420CMDB bitmap */
 	unsigned char bitmap_valid;
 	unsigned char bitmap_length;
+	unsigned char y420_all_vic;
 	unsigned char y420cmdb_bitmap[Y420CMDB_MAX];
 	/* ------------------------------------------------------- */
 };
