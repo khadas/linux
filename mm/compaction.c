@@ -277,6 +277,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 	unsigned long flags;
 	bool locked = false;
 	bool checked_pageblock = false;
+	enum migrate_type page_type = cc->page_type;
 
 	cursor = pfn_to_page(blockpfn);
 
@@ -324,7 +325,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 			goto isolate_fail;
 
 		/* Found a free page, break it into order-0 pages */
-		isolated = split_free_page(page);
+		isolated = split_free_page(page, page_type);
 		total_isolated += isolated;
 		for (i = 0; i < isolated; i++) {
 			list_add(&page->lru, freelist);
@@ -714,6 +715,7 @@ static void isolate_freepages(struct zone *zone,
 #ifdef CONFIG_CMA
 	struct address_space *mapping = NULL;
 	bool use_cma = true;
+	int migrate_type = 0;
 
 	mapping = page_mapping(migratepage);
 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
@@ -780,9 +782,10 @@ static void isolate_freepages(struct zone *zone,
 			continue;
 
 #ifdef CONFIG_CMA
-		if (is_migrate_isolate(get_pageblock_migratetype(page)))
+		migrate_type = get_pageblock_migratetype(page);
+		if (is_migrate_isolate(migrate_type))
 			continue;
-		if (!use_cma && is_migrate_cma(get_pageblock_migratetype(page)))
+		if (!use_cma && is_migrate_cma(migrate_type))
 			continue;
 #endif
 		/* Found a block suitable for isolating free pages from */
@@ -1118,6 +1121,7 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
 		.migratetype = allocflags_to_migratetype(gfp_mask),
 		.zone = zone,
 		.mode = mode,
+		.page_type = COMPACT_NORMAL,
 	};
 	INIT_LIST_HEAD(&cc.freepages);
 	INIT_LIST_HEAD(&cc.migratepages);
@@ -1223,6 +1227,7 @@ void compact_pgdat(pg_data_t *pgdat, int order)
 	struct compact_control cc = {
 		.order = order,
 		.mode = MIGRATE_ASYNC,
+		.page_type = COMPACT_NORMAL,
 	};
 
 	if (!order)
@@ -1236,6 +1241,7 @@ static void compact_node(int nid)
 	struct compact_control cc = {
 		.order = -1,
 		.mode = MIGRATE_SYNC,
+		.page_type = COMPACT_NORMAL,
 		.ignore_skip_hint = true,
 	};
 

@@ -1547,7 +1547,8 @@ void split_page(struct page *page, unsigned int order)
 }
 EXPORT_SYMBOL_GPL(split_page);
 
-static int __isolate_free_page(struct page *page, unsigned int order)
+static int __isolate_free_page(struct page *page, unsigned int order
+					   , enum migrate_type page_type)
 {
 	unsigned long watermark;
 	struct zone *zone;
@@ -1557,6 +1558,9 @@ static int __isolate_free_page(struct page *page, unsigned int order)
 
 	zone = page_zone(page);
 	mt = get_pageblock_migratetype(page);
+
+	if (page_type == COMPACT_NORMAL)
+		mt = get_freepage_migratetype(page);
 
 	if (!is_migrate_isolate(mt)) {
 		/* Obey watermarks as if the page was being allocated */
@@ -1597,14 +1601,14 @@ static int __isolate_free_page(struct page *page, unsigned int order)
  * Note: this is probably too low level an operation for use in drivers.
  * Please consult with lkml before using this in your driver.
  */
-int split_free_page(struct page *page)
+int split_free_page(struct page *page, enum migrate_type page_type)
 {
 	unsigned int order;
 	int nr_pages;
 
 	order = page_order(page);
 
-	nr_pages = __isolate_free_page(page, order);
+	nr_pages = __isolate_free_page(page, order, page_type);
 	if (!nr_pages)
 		return 0;
 
@@ -6442,6 +6446,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 		.order = -1,
 		.zone = page_zone(pfn_to_page(start)),
 		.mode = MIGRATE_SYNC,
+		.page_type = COMPACT_CMA,
 		.ignore_skip_hint = true,
 	};
 	INIT_LIST_HEAD(&cc.migratepages);

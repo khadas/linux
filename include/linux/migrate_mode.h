@@ -13,4 +13,8 @@ enum migrate_mode {
 	MIGRATE_SYNC,
 };
 
+enum migrate_type {
+	COMPACT_NORMAL,
+	COMPACT_CMA,
+};
 #endif		/* MIGRATE_MODE_H_INCLUDED */
