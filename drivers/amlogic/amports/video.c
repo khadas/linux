@@ -1479,17 +1479,28 @@ static void vpp_settings_h(struct vpp_frame_par_s *framePtr)
 static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 {
 	struct vppfilter_mode_s *vpp_filter = &framePtr->vpp_filter;
-	u32 r;
+	u32 r, afbc_enble_flag;
 #ifdef TV_3D_FUNCTION_OPEN
 	u32 y_lines;
 #endif
 	r = framePtr->VPP_vsc_endp - framePtr->VPP_vsc_startp;
+	afbc_enble_flag = 0;
+	if (is_meson_gxbb_cpu())
+		afbc_enble_flag = READ_VCBUS_REG(AFBC_ENABLE) & 0x100;
+	if ((vpp_filter->vpp_vsc_start_phase_step > 0x1000000)
+		&& afbc_enble_flag)
+		VSYNC_WR_MPEG_REG(VPP_POSTBLEND_VD1_V_START_END +
+			cur_dev->vpp_off, ((framePtr->VPP_vsc_startp &
+			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT)
+			| (((framePtr->VPP_vsc_endp + 1) & VPP_VD_SIZE_MASK) <<
+			VPP_VD1_END_BIT));
+	else
+		VSYNC_WR_MPEG_REG(VPP_POSTBLEND_VD1_V_START_END +
+			cur_dev->vpp_off, ((framePtr->VPP_vsc_startp &
+			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT)
+			| ((framePtr->VPP_vsc_endp & VPP_VD_SIZE_MASK) <<
+			VPP_VD1_END_BIT));
 
-	VSYNC_WR_MPEG_REG(VPP_POSTBLEND_VD1_V_START_END + cur_dev->vpp_off,
-			  ((framePtr->VPP_vsc_startp & VPP_VD_SIZE_MASK) <<
-			   VPP_VD1_START_BIT) | ((framePtr->VPP_vsc_endp &
-						  VPP_VD_SIZE_MASK) <<
-						 VPP_VD1_END_BIT));
 #ifdef TV_3D_FUNCTION_OPEN
 	y_lines = zoom_end_y_lines / (framePtr->vscale_skip_count + 1);
 	if (process_3d_type & MODE_3D_OUT_TB) {
@@ -5099,9 +5110,8 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_CLEAR_VIDEO:
-		if (blackout) {
+		if (blackout)
 			safe_disble_videolayer();
-		}
 		break;
 
 	case AMSTREAM_IOC_SET_FREERUN_MODE:
