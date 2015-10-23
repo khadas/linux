@@ -1001,8 +1001,12 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 				return -EINVAL;
 
 			dwc_otg_module_params.host_rx_fifo_size = dwc_otg_module_params.data_fifo_size / 2;
-			DWC_PRINTF("%s: type: %d, speed: %d, config: %d, dma: %d, id: %d, phy: %x, ctrl: %x\n",
-				s_clock_name, port_type, port_speed, port_config, dma_config, id_mode, p_phy_reg_addr, p_ctrl_reg_addr);
+			DWC_PRINTF("dwc_otg: %s: type: %d speed: %d, ",
+				s_clock_name, port_type, port_speed);
+			DWC_PRINTF("config: %d, dma: %d, id: %d, ",
+				port_config, dma_config, id_mode);
+			DWC_PRINTF("phy: %x, ctrl: %x\n",
+				p_phy_reg_addr, p_ctrl_reg_addr);
 
 
 		} else {
@@ -1215,7 +1219,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		/*
 		* Initialize the HCD
 		*/
-		DWC_PRINTF("Working on port type = HOST\n");
+		DWC_PRINTF("dwc_otg: Working on port type = HOST\n");
 		if (!dwc_otg_is_host_mode(dwc_otg_device->core_if)) {
 			DWC_PRINTF
 			    ("Chip mode not match! -- Want HOST mode but not.  --\n");
@@ -1231,7 +1235,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		/*
 		* Initialize the PCD
 		*/
-		DWC_PRINTF("Working on port type = SLAVE\n");
+		DWC_PRINTF("dwc_otg: Working on port type = SLAVE\n");
 		if (!dwc_otg_is_device_mode(dwc_otg_device->core_if)) {
 			DWC_ERROR
 			    ("Chip mode not match! -- Want Device mode but not.  --\n");
@@ -1244,8 +1248,8 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			goto fail;
 		}
 	} else if (port_type == USB_PORT_TYPE_OTG) {
-		DWC_PRINTF("Working on port type = OTG\n");
-		DWC_PRINTF("Current port type: %s\n",
+		DWC_PRINTF("dwc_otg: Working on port type = OTG\n");
+		DWC_PRINTF("dwc_otg: Current port type: %s\n",
 		dwc_otg_is_host_mode(dwc_otg_device->core_if)?"HOST":"SLAVE");
 
 		retval = hcd_init(pdev);
@@ -1262,7 +1266,9 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			goto fail;
 		}
 		if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)) {
-			DWC_PRINTF("using timer detect id change, %p\n", dwc_otg_device->core_if);
+			DWC_PRINTF("dwc_otg: using timer detect");
+			DWC_PRINTF("id change, %p\n",
+				dwc_otg_device->core_if);
 			dwc_otg_device->id_change_timer = DWC_TIMER_ALLOC("ID change timer",
 				dwc_otg_id_change_timer_handler, dwc_otg_device);
 			DWC_TIMER_SCHEDULE(dwc_otg_device->id_change_timer, 0);
