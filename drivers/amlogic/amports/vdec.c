@@ -649,52 +649,70 @@ bool vdec_on(enum vdec_type_e core)
 }
 #endif
 
-void vdec_source_changed(int format, int width, int height, int fps)
+int vdec_source_changed(int format, int width, int height, int fps)
 {
 	/* todo: add level routines for clock adjustment per chips */
-
+	int ret = -1;
+	static int on_setting;
+	if (on_setting > 0)
+		return ret;/*on changing clk,ignore this change*/
 
 	if (vdec_source_get(VDEC_1) == width * height * fps)
-		return;
+		return ret;
 
 
-
-	vdec_source_changed_for_clk_set(format, width, height, fps);
+	on_setting = 1;
+	ret = vdec_source_changed_for_clk_set(format, width, height, fps);
 	pr_info("vdec1 video changed to %d x %d %d fps clk->%dMHZ\n",
 			width, height, fps, vdec_clk_get(VDEC_1));
+	on_setting = 0;
+	return ret;
 
 }
 
-void vdec2_source_changed(int format, int width, int height, int fps)
+int vdec2_source_changed(int format, int width, int height, int fps)
 {
+	int ret = -1;
+	static int on_setting;
+
 	if (has_vdec2()) {
 		/* todo: add level routines for clock adjustment per chips */
-
+		if (on_setting != 0)
+			return ret;/*on changing clk,ignore this change*/
 
 		if (vdec_source_get(VDEC_2) == width * height * fps)
-			return;
+			return ret;
 
-
-
-		vdec_source_changed_for_clk_set(format, width, height, fps);
+		on_setting = 1;
+		ret = vdec_source_changed_for_clk_set(format,
+					width, height, fps);
 		pr_info("vdec2 video changed to %d x %d %d fps clk->%dMHZ\n",
 			width, height, fps, vdec_clk_get(VDEC_2));
+		on_setting = 0;
+		return ret;
 	}
+	return 0;
 }
 
-void hevc_source_changed(int format, int width, int height, int fps)
+int hevc_source_changed(int format, int width, int height, int fps)
 {
 	/* todo: add level routines for clock adjustment per chips */
+	int ret = -1;
+	static int on_setting;
 
+	if (on_setting != 0)
+			return ret;/*on changing clk,ignore this change*/
 
 	if (vdec_source_get(VDEC_HEVC) == width * height * fps)
-		return;
+		return ret;
 
-
-	vdec_source_changed_for_clk_set(format, width, height, fps);
-
+	on_setting = 1;
+	ret = vdec_source_changed_for_clk_set(format, width, height, fps);
 	pr_info("hevc video changed to %d x %d %d fps clk->%dMHZ\n",
 			width, height, fps, vdec_clk_get(VDEC_HEVC));
+	on_setting = 0;
+
+	return ret;
 }
 
 static enum vdec2_usage_e vdec2_usage = USAGE_NONE;

@@ -999,10 +999,10 @@ static void vh264_4k2k_put_timer_func(unsigned long arg)
 		frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
-		saved_resolution = frame_width * frame_height * fps;
 		pr_info("H264 4k2k resolution changed!!\n");
-		vdec_source_changed(VFORMAT_H264_4K2K,
-			frame_width, frame_height, fps);
+		if (vdec_source_changed(VFORMAT_H264_4K2K,
+			frame_width, frame_height, fps) > 0)/*changed clk ok*/
+			saved_resolution = frame_width * frame_height * fps;
 	}
 	timer->expires = jiffies + PUT_INTERVAL;
 

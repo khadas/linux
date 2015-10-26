@@ -237,8 +237,10 @@ int vdec_source_changed_for_clk_set(int format, int width, int height, int fps)
 		clock_source_wxhxfps_saved[VDEC_HCODEC] = width * height * fps;
 	} else if (format == VFORMAT_H264_4K2K &&
 			get_cpu_type() == MESON_CPU_MAJOR_ID_M8) {
-		ret_clk = hcodec_clock_set(clk);
-		clock_source_wxhxfps_saved[VDEC_HCODEC] = width * height * fps;
+		ret_clk = vdec2_clock_set(clk);
+		clock_source_wxhxfps_saved[VDEC_2] = width * height * fps;
+		ret_clk = vdec_clock_set(clk);
+		clock_source_wxhxfps_saved[VDEC_1] = width * height * fps;
 	} else{
 		ret_clk = vdec_clock_set(clk);
 		clock_source_wxhxfps_saved[VDEC_1] = width * height * fps;
