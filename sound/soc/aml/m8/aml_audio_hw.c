@@ -620,11 +620,13 @@ int if_audio_out_enable(void)
 {
 	return aml_read_cbus(AIU_MEM_I2S_CONTROL) & (0x3<<1);
 }
+EXPORT_SYMBOL(if_audio_out_enable);
 
 int if_958_audio_out_enable(void)
 {
 	return aml_read_cbus(AIU_MEM_IEC958_CONTROL) & (0x3<<1);
 }
+EXPORT_SYMBOL(if_958_audio_out_enable);
 
 unsigned int read_i2s_rd_ptr(void)
 {

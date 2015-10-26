@@ -30,6 +30,8 @@
 #define AMAUDIO_IOC_MUTE_LEFT_RIGHT_CHANNEL _IOW('A', 0x1f, unsigned long)
 #define AMAUDIO_IOC_MUTE_UNMUTE _IOW('A', 0x20, unsigned long)
 
+extern int if_audio_out_enable(void);
+extern int if_958_audio_out_enable(void);
 extern unsigned int read_i2s_mute_swap_reg(void);
 extern void audio_i2s_swap_left_right(unsigned int flag);
 extern void audio_mute_left_right(unsigned flag);

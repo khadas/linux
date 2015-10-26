@@ -270,6 +270,28 @@ static ssize_t dac_mute_const_store(struct class *class,
 	return count;
 }
 
+static ssize_t output_enable_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+/*
+* why limit this condition of iec958 buffer size bigger than 128,
+* because we begin to use a 128 bytes zero playback mode
+* of 958 output when alsa driver is not called by user space to
+* avoid some noise.This mode should must seperate this case
+* with normal playback case to avoid one risk:
+* when EOF,the last three seconds this is no audio pcm decoder
+* to output.the zero playback mode is triggered,
+* this cause the player has no chance to  trigger the exit condition
+*/
+	unsigned iec958_size =
+	    aml_read_cbus(AIU_MEM_IEC958_END_PTR) -
+	    aml_read_cbus(AIU_MEM_IEC958_START_PTR);
+	iec958_size += 64;
+	return sprintf(buf, "%d\n", (if_audio_out_enable() ||
+			 (if_958_audio_out_enable() && iec958_size > 128)));
+}
+
+
 enum {
 	I2SIN_MASTER_MODE = 0,
 	I2SIN_SLAVE_MODE = 1 << 0,
@@ -473,6 +495,7 @@ static struct class_attribute amaudio_attrs[] = {
 	       show_mute_left_right, store_mute_left_right),
 	__ATTR(mute_unmute, S_IRUGO | S_IWUSR,
 	       show_mute_unmute, store_mute_unmute),
+	__ATTR_RO(output_enable),
 	__ATTR_RO(dts_enable),
 	__ATTR_RO(dolby_enable),
 	__ATTR_NULL,
