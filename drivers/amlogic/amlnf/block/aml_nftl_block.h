@@ -21,6 +21,7 @@
 
 #include "aml_nftl_cfg.h"
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include "../ntd/aml_ntd.h"
 #include "../include/amlnf_dev.h"
 
@@ -68,6 +69,10 @@ struct aml_nftl_dev {
 	int init_flag;
 	int reboot_flag;
 	int	thread_stop_flag;
+	/* for drain request! */
+	struct aml_nftl_blk *nftl_blk;
+	struct list_head list;
+	/* operations */
 	uint (*read_data)(struct aml_nftl_dev *nftl_dev,
 		unsigned long block,
 		unsigned nblk,
@@ -133,6 +138,7 @@ extern int test_flag;
 /* extern struct mutex ntd_table_mutex; */
 /* EXPORT_SYMBOL(ntd_table_mutex); */
 extern int check_storage_device(void);
+extern int check_nand_on_board(void);
 extern int is_phydev_off_adjust(void);
 extern int aml_nftl_initialize(struct aml_nftl_dev *nftl_dev, int no);
 extern void aml_nftl_part_release(struct aml_nftl_part_t *part);
@@ -223,4 +229,5 @@ extern int nand_read_page(struct aml_nftl_part_t *part,
 	struct _physic_op_par *p);
 extern int compose_part_list_info(struct aml_nftl_part_t *part);
 extern int restore_part_list_info(struct aml_nftl_part_t *part);
+extern int aml_platform_driver_register(struct platform_driver *driver);
 #endif

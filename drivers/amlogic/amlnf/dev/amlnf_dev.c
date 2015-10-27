@@ -21,6 +21,8 @@
 
 struct aml_nand_device *aml_nand_dev = NULL;
 int boot_device_flag = -1;
+/* for nftl running. */
+int amlnf_init_flag = 0;
 
 
 static struct class_attribute phydev_class_attrs[] = {
@@ -462,7 +464,7 @@ static int get_nand_platform(struct aml_nand_device *aml_nand_dev,
 *boot_device_flag = 1;  indicate nand  boot
 ***/
 #if 1
-int port_cfg_prase(void)
+int poc_cfg_parse(void)
 {
 	int boot_flag;
 	u32 cpu_type, poc_value;
@@ -510,22 +512,22 @@ int port_cfg_prase(void)
 
 int check_storage_device(void)
 {
-	int value = -1, port_cfg = -1;
+	int value = -1, poc_cfg = -1;
 
-	port_cfg = port_cfg_prase();
+	poc_cfg = poc_cfg_parse();
 	value = boot_device_flag;
 
 	if ((value == 0)
 		|| (value == SPI_NAND_FLAG)
 		|| (value == NAND_BOOT_FLAG)) {
 		if ((value == 0) || (value == -1)) {
-			if (port_cfg == NAND_BOOT_FLAG)
+			if (poc_cfg == NAND_BOOT_FLAG)
 				boot_device_flag = 1;
-			else if (port_cfg == EMMC_BOOT_FLAG)
+			else if (poc_cfg == EMMC_BOOT_FLAG)
 				boot_device_flag = -1;
-			else if (port_cfg == SPI_BOOT_FLAG)
+			else if (poc_cfg == SPI_BOOT_FLAG)
 				boot_device_flag = 0;
-			else if (port_cfg == CARD_BOOT_FLAG)
+			else if (poc_cfg == CARD_BOOT_FLAG)
 				boot_device_flag = 1;
 		} else if (value == SPI_NAND_FLAG)
 			boot_device_flag = 0;
@@ -533,7 +535,7 @@ int check_storage_device(void)
 			boot_device_flag = 1;
 	} else
 		boot_device_flag = -1;
-	/* fixme, debug code.... */
+	/* fixme, debug code... */
 	boot_device_flag = 1;
 
 	aml_nand_msg("boot_device_flag : %d", boot_device_flag);
@@ -545,6 +547,12 @@ int check_storage_device(void)
 	}
 }
 EXPORT_SYMBOL(check_storage_device);
+
+int check_nand_on_board(void)
+{
+	return amlnf_init_flag;
+}
+EXPORT_SYMBOL(check_nand_on_board);
 #endif
 
 static int  __init get_storage_device(char *str)
@@ -697,6 +705,7 @@ static int amlnf_init(struct platform_device *pdev)
 		aml_nand_msg("amlnf_add_nftl failed and ret=0x%x", ret);
 		goto exit_error0;
 	}
+	amlnf_init_flag = 1;
 	aml_nand_msg("%s() %d", __func__, __LINE__);
 exit_error0:
 	return 0;/* ret;   //fix crash bug for error case. */
@@ -773,6 +782,18 @@ static void __exit amlnf_module_exit(void)
 {
 	platform_driver_unregister(&amlnf_driver);
 }
+
+int aml_platform_driver_register(struct platform_driver *driver)
+{
+	return platform_driver_register(driver);
+}
+EXPORT_SYMBOL(aml_platform_driver_register);
+
+void aml_platform_driver_unregister(struct platform_driver *driver)
+{
+	platform_driver_unregister(driver);
+}
+EXPORT_SYMBOL(aml_platform_driver_unregister);
 
 module_init(amlnf_module_init);
 module_exit(amlnf_module_exit);

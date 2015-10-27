@@ -475,6 +475,7 @@ int aml_blktrans_initialize(struct aml_nftl_blk *nftl_blk,
 	size_t = size >> 9;
 
 	nftl_blk->nftl_dev = nftl_dev;
+	nftl_dev->nftl_blk = nftl_blk;
 
 	if (offset_t < nftl_dev->size)
 		nftl_blk->offset = offset_t;

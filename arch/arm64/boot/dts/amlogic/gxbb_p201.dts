@@ -428,6 +428,11 @@
 			busy_pad = "rb0";
 		};
 	};
+	aml_nftl{
+		compatible = "amlogic, nftl";
+		/* config nftl here */
+
+	};
 	partitions: partitions{
         parts = <11>;
 		part-0 = <&logo>;
