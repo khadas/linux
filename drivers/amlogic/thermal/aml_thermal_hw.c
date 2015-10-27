@@ -15,9 +15,7 @@ int thermal_firmware_init(void)
 {
 	int ret;
 
-	pr_info("%s\n", __func__);
 	ret = scpi_get_sensor("aml_thermal");
-	pr_info("%s: chip trimming %s\n", __func__, ret < 0 ? "false" : "true");
 	chip_trimmed = ret < 0 ? 0 : 1;
 	return ret;
 }
