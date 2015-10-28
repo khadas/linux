@@ -89,7 +89,6 @@
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
-			linux,phandle = <3>;
 			reusable;
 			size = <0x0 0xbc00000>;
 			alignment = <0x0 0x400000>;
@@ -97,7 +96,6 @@
 		};
 		picdec_cma_reserved:linux,picdec {
 			compatible = "shared-dma-pool";
-			linux,phandle = <4>;
 			reusable;
 			size = <0x0 0x3000000>;
 			alignment = <0x0 0x400000>;
@@ -117,7 +115,6 @@
 
 		jpegenc_cma_reserved:linux,jpegenc_cma {
 			compatible = "shared-dma-pool";
-			linux,phandle = <4>;
 			reusable;
 			size = <0x0 0x2400000>;
 			alignment = <0x0 0x400000>;
