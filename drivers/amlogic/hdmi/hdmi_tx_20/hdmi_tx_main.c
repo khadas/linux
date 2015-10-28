@@ -888,6 +888,9 @@ static ssize_t store_config(struct device *dev,
 		/* First, disable HDMI TMDS */
 		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+		if (hdmitx_device.hdcpop.hdcp14_en)
+			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+				DDC_HDCP_OP, HDCP_OFF);
 			/* Second, set 3D parameters */
 		if (strncmp(buf+2, "tb", 2) == 0)
 			hdmi_set_3d(&hdmitx_device, 6, 0);
@@ -904,6 +907,9 @@ static ssize_t store_config(struct device *dev,
 		msleep(20);
 		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
+		if (hdmitx_device.hdcpop.hdcp14_en)
+			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+				DDC_HDCP_OP, HDCP_ON);
 	} else if (strncmp(buf, "audio_", 6) == 0) {
 		if (strncmp(buf+6, "off", 3) == 0) {
 			hdmitx_audio_mute_op(0);
