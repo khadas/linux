@@ -1493,8 +1493,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
-	if (edid_check_valid(&EDID_buf[0]) && (pRXCap->AUD_count == 0)
-		&& !hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
+	if (edid_check_valid(&EDID_buf[0]) &&
+		!hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
 		pRXCap->IEEEOUI = 0x0;
 		pr_info("hdmitx: edid: sink is DVI device\n");
 	} else {

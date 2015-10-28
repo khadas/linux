@@ -62,11 +62,14 @@ static void mode420_half_horizontal_para(void);
 static void hdmi_phy_suspend(void);
 static void hdmi_phy_wakeup(struct hdmitx_dev *hdev);
 static void hdmitx_set_phy(struct hdmitx_dev *hdev);
-static void hdmitx_set_hw(enum hdmi_vic vic);
+static void hdmitx_set_hw(struct hdmitx_vidpara *param);
 static void set_hdmi_audio_source(unsigned int src);
 static void config_avmute(unsigned int val);
 static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
+static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
+	unsigned int dvi_mode);
+
 unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 
 /* HSYNC polarity: active high */
@@ -1707,7 +1710,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
 	}
 
-	hdmitx_set_hw(param->VIC);
+	hdmitx_set_hw(param);
 	if (hdev->mode420 == 1)
 		hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
 
@@ -1733,9 +1736,29 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		/* change AVI packet */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, 0x43);
 		mode420_half_horizontal_para();
-	} else
+	} else {
 		/* change AVI packet */
-		hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, 0x42);
+		unsigned int indicator = 0;
+		unsigned int data32 = 0x0;
+
+		switch (param->color) {
+		case COLOR_SPACE_RGB444:
+			indicator = 0x0;
+			break;
+		case COLOR_SPACE_YUV422:
+			indicator = 0x1;
+			break;
+		case COLOR_SPACE_YUV444:
+		default:
+			indicator = 0x2;
+			break;
+		case COLOR_SPACE_YUV420:
+			indicator = 0x3;
+			break;
+		}
+		data32 = (0x40 | ((indicator&0x4)<<5) | (indicator&0x3));
+		hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
+	}
 	if (((hdev->cur_VIC == HDMI_3840x2160p50_16x9) ||
 		(hdev->cur_VIC == HDMI_3840x2160p60_16x9))
 		&& (hdev->mode420 != 1))
@@ -3034,9 +3057,11 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 						unsigned int dvi_mode)
 {
 	if (dvi_mode == 1) {
+#if 0
 		unsigned char *coef = NULL;
 		unsigned int coef_length = 0;
 		unsigned int i = 0;
+
 
 		/* set csc coef */
 		hdmi_get_csc_coef(hdmi_color_format_444,
@@ -3064,11 +3089,16 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 
 		/* set rgb444 indicator */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0, 0, 2);
+#else
+		hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
+			hdmi_color_format_RGB, TX_COLOR_DEPTH);
+#endif
 
 		/* set dvi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 
 	} else {
+#if 0
 		/* disable csc in video path */
 		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x0);
 
@@ -3077,7 +3107,7 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 3, 0, 2);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
-
+#endif
 		/* set hdmi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
 	}
@@ -3469,7 +3499,6 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= ((((input_color_format != hdmi_color_format_422) &&
 		(output_color_format == hdmi_color_format_422)) ? 2 : 0) << 0);
 	hdmitx_wr_reg(HDMITX_DWC_CSC_CFG, data32);
-
 	hdmitx_csc_config(input_color_format, output_color_format, color_depth);
 
 	/* Configure video packetizer */
@@ -3479,6 +3508,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (((output_color_format == hdmi_color_format_422) ?
 		hdmi_color_depth_24B : color_depth) << 4);
 	data32 |= (0 << 0);
+	if ((data32 & 0xf0) == 0x40)
+		data32 &= ~(0xf << 4);
 	hdmitx_wr_reg(HDMITX_DWC_VP_PR_CD,  data32);
 
 	/* Video Packet Stuffing */
@@ -3943,10 +3974,11 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 			unsigned char color_depth)
 {
 	unsigned char conv_en;
+	unsigned char csc_scale;
+	unsigned char rgb_ycc_indicator;
 	unsigned long csc_coeff_a1, csc_coeff_a2, csc_coeff_a3, csc_coeff_a4;
 	unsigned long csc_coeff_b1, csc_coeff_b2, csc_coeff_b3, csc_coeff_b4;
 	unsigned long csc_coeff_c1, csc_coeff_c2, csc_coeff_c3, csc_coeff_c4;
-	unsigned char csc_scale;
 	unsigned long data32;
 
 	conv_en = (((input_color_format  == hdmi_color_format_RGB) ||
@@ -4044,26 +4076,75 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 	data32 |= (color_depth  << 4);  /* [7:4] csc_color_depth */
 	data32 |= (csc_scale << 0);  /* [1:0] cscscale */
 	hdmitx_wr_reg(HDMITX_DWC_CSC_SCALE, data32);
+
+	/* set csc in video path */
+	hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, (conv_en == 1)?0x1:0x0);
+
+	/* set rgb_ycc indicator */
+	switch (output_color_format) {
+	case hdmi_color_format_RGB:
+		rgb_ycc_indicator = 0x0;
+		break;
+	case hdmi_color_format_422:
+		rgb_ycc_indicator = 0x1;
+		break;
+	case hdmi_color_format_444:
+	default:
+		rgb_ycc_indicator = 0x2;
+		break;
+	case hdmi_color_format_420:
+		rgb_ycc_indicator = 0x3;
+		break;
+	}
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0,
+		((rgb_ycc_indicator & 0x4) >> 2), 7, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0,
+		(rgb_ycc_indicator & 0x3), 0, 2);
 }   /* hdmitx_csc_config */
 
-static void hdmitx_set_hw(enum hdmi_vic vic)
+static void hdmitx_set_hw(struct hdmitx_vidpara *param)
 {
-	struct hdmi_format_para *para = hdmi_get_fmt_paras(vic);
+	enum hdmi_vic vic = HDMI_Unkown;
+	struct hdmi_format_para *para = NULL;
 	struct hdmi_cea_timing *t = NULL;
+	unsigned char output_color_format;
 
+	if (param == NULL) {
+		pr_info("error at null vidpara!\n");
+		return;
+	}
+
+	vic = (enum hdmi_vic)param->VIC;
+	para = hdmi_get_fmt_paras(vic);
 	if (para == NULL) {
 		pr_info("error at %s[%d] vic = %d\n", __func__, __LINE__, vic);
 		return;
 	}
+
 	pr_info("%s[%d] set VIC = %d\n", __func__, __LINE__, para->vic);
 	t = &para->timing;
 
 	/* -------------------------------------------------------- */
 	/* Set up HDMI */
 	/* -------------------------------------------------------- */
+	switch (param->color) {
+	case COLOR_SPACE_RGB444:
+		output_color_format = hdmi_color_format_RGB;
+		break;
+	case COLOR_SPACE_YUV422:
+		output_color_format = hdmi_color_format_422;
+		break;
+	case COLOR_SPACE_YUV444:
+	default:
+		output_color_format = hdmi_color_format_444;
+		break;
+	case COLOR_SPACE_YUV420:
+		output_color_format = hdmi_color_format_420;
+		break;
+	}
 	config_hdmi20_tx(vic, para,
 			TX_COLOR_DEPTH,
 			TX_INPUT_COLOR_FORMAT,
-			TX_OUTPUT_COLOR_FORMAT);
+			output_color_format);
 	return;
 }
