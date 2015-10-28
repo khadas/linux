@@ -18,6 +18,11 @@
 #ifndef __VPU_PARA_H__
 #define __VPU_PARA_H__
 
+/* #define VPU_DEBUG_PRINT */
+
+#define VPUPR(fmt, args...)     pr_info("vpu: "fmt"", ## args)
+#define VPUERR(fmt, args...)    pr_info("vpu: error: "fmt"", ## args)
+
 enum VPU_Chip_e {
 	VPU_CHIP_M8 = 0,
 	VPU_CHIP_M8B,
