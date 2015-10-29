@@ -1562,6 +1562,12 @@ struct hdmitx_dev *get_hdmitx_device(void)
 }
 EXPORT_SYMBOL(get_hdmitx_device);
 
+int get_hpd_state(void)
+{
+	return hdmitx_device.hpd_state;
+}
+EXPORT_SYMBOL(get_hpd_state);
+
 static int get_dt_vend_init_data(struct device_node *np,
 	struct vendor_info_data *vend)
 {
