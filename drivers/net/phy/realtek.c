@@ -22,6 +22,8 @@
 #define RTL821x_INER		0x12
 #define RTL821x_INER_INIT	0x6400
 #define RTL821x_INSR		0x13
+#define RTL8211F_MMD_CTRL   0x0D
+#define RTL8211F_MMD_DATA   0x0E
 #define RTL821x_PHYCR2		0x19
 #define RTL821x_CLKOUT_EN	0x1
 #define RTL821x_EPAGSR		0x1f
@@ -35,6 +37,7 @@ MODULE_LICENSE("GPL");
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	int val;
+	int bmcr = 0;
 
 	/* close CLOCK output */
 	val = phy_read(phydev, RTL821x_PHYCR2);
