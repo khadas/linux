@@ -2435,11 +2435,19 @@ static int amhdmitx_resume(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_HIBERNATION
+static int is_support_3d __nosavedata;
+static int amhdmitx_freeze(struct device *dev)
+{
+	is_support_3d = hdmitx_device.RXCap.threeD_present;
+	return 0;
+}
+
 static int amhdmitx_restore(struct device *dev)
 {
 	int current_hdmi_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_HPD_GPI_ST, 0));
 	char *vout_mode = get_vout_mode_internal();
+	hdmitx_device.RXCap.threeD_present = is_support_3d;
 	if (strstr(vout_mode, "cvbs") && current_hdmi_state == 1) {
 		mutex_lock(&setclk_mutex);
 		sdev.state = 0;
@@ -2462,6 +2470,7 @@ static int amhdmitx_restore(struct device *dev)
 }
 
 static const struct dev_pm_ops amhdmitx_pm = {
+	.freeze		= amhdmitx_freeze,
 	.restore	= amhdmitx_restore,
 };
 #endif

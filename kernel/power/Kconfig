@@ -90,7 +90,7 @@ config HIBERNATE_CALLBACKS
 
 config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
-	depends on SWAP && ARCH_HIBERNATION_POSSIBLE
+	depends on ARCH_HIBERNATION_POSSIBLE
 	select HIBERNATE_CALLBACKS
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
