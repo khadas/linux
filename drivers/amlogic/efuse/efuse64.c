@@ -520,7 +520,7 @@ int get_efusekey_info(struct device_node *np)
 	}
 
 	for (index = 0; index < efusekeynum; index++) {
-		propname = kasprintf(GFP_KERNEL, "key_%d", index);
+		propname = kasprintf(GFP_KERNEL, "key%d", index);
 
 		phandle = of_get_property(np_efusekey, propname, NULL);
 		if (!phandle) {
