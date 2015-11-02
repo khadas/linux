@@ -83,7 +83,7 @@ static int secmon_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id secmon_dt_match[] = {
-	{ .compatible = "aml,secmon" },
+	{ .compatible = "amlogic, secmon" },
 	{ /* sentinel */ },
 };
 
@@ -146,4 +146,5 @@ static int __init secmon_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-RESERVEDMEM_OF_DECLARE(secmonmem, "aml_secmon_memory", secmon_mem_setup);
+RESERVEDMEM_OF_DECLARE(secmonmem, "amlogic, aml_secmon_memory",
+					   secmon_mem_setup);

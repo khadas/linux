@@ -25,6 +25,8 @@
 #include "clk.h"
 #include "clk-pll.h"
 
+static void __iomem *reg_base_cbus;
+
 #define to_hdmi_clk(_hw) container_of(_hw, struct hdmi_clock, hw)
 
 #define CLK_GATE_BASE 0x100B
@@ -526,6 +528,7 @@ static struct clk *hdmi_clk_register(struct hdmi_clock *hdmi_clk)
 void __init hdmi_clk_init(void __iomem *reg_base)
 {
 	int i = 0;
+	reg_base_cbus = reg_base;
 	amlogic_clk_register_pll(hdmi_plls,
 	    ARRAY_SIZE(hdmi_plls), reg_base);
 	for (i = 0; i < ARRAY_SIZE(hdmi_clock_tbl); i++)

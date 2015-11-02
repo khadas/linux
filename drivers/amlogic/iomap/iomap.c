@@ -55,7 +55,7 @@ static struct regmap_config meson_regmap_config = {
 #endif
 
 static const struct of_device_id iomap_dt_match[] = {
-	{ .compatible = "amlogic,iomap" },
+	{ .compatible = "amlogic, iomap" },
 	{ /* sentinel */ },
 };
 void __iomem *meson_reg_map[IO_BUS_MAX];

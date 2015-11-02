@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/clk/clk-gxbb.c
+ * drivers/amlogic/clk/clk-gxtvbb.c
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -15,7 +15,7 @@
  *
 */
 
-#include <dt-bindings/clock/gxbb.h>
+#include <dt-bindings/clock/gxtvbb.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
@@ -24,9 +24,6 @@
 #include "mpll_clk.h"
 
 #include "clk.h"
-
-#undef pr_fmt
-#define pr_fmt(fmt) "gxbb_clk: " fmt
 
 static void __iomem *reg_base_hiubus;
 static void __iomem *reg_base_aobus;
@@ -52,7 +49,13 @@ static void __iomem *reg_base_aobus;
 #define	HHI_AUD_CLK_CNTL		OFFSET(0x5e)
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
 #define	HHI_BT656_CLK_CNTL		OFFSET(0xf5)
-#define	HHI_VID_LOCK_CLK_CNTL		OFFSET(0xf2)
+#define	HHI_VID_LOCK_CLK_CNTL	OFFSET(0xf2)
+#define	HHI_VDIN_MEAS_CLK_CNTL	OFFSET(0x94)
+/* hdmirx */
+#define HHI_HDMIRX_CLK_CNTL		OFFSET(0x80)
+#define HHI_HDMIRX_AUD_CLK_CNTL	OFFSET(0x81)
+
+/* hdmirx */
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
@@ -76,6 +79,15 @@ PNAME(cts_bt656_clk0_p) = {"fclk_div2", "fclk_div3", "fclk_div5", "fclk_div7"};
 
 PNAME(cts_vid_lock_clk_p) = {"xtal", "cts_encl_clk", "cts_enci_clk",
 							"cts_encp_clk"};
+PNAME(cts_vdin_meas_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5",
+		"vid_pll_clk", "vid2_pll_clk"};
+/* hdmirx */
+PNAME(clk_hdmirx_pclk_p) = {};
+PNAME(clk_modet_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
+PNAME(clk_cfg_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
+PNAME(clk_acr_ref_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
+PNAME(clk_audmeas_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
+/* hdmirx */
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
@@ -104,14 +116,12 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 	COMPOSITE(CLK_MALI_0, "clk_mali_0", mux_mali_0_p,
 		   CLK_SET_RATE_NO_REPARENT,
 		   HHI_MALI_CLK_CNTL, 9, 3, 0,
-		   HHI_MALI_CLK_CNTL, 0, 7,
-		   CLK_DIVIDER_ROUND_CLOSEST,
+		   HHI_MALI_CLK_CNTL, 0, 7, 0,
 		   HHI_MALI_CLK_CNTL, 8, 0),
 	COMPOSITE(CLK_MALI_1, "clk_mali_1", mux_mali_1_p,
 		   CLK_SET_RATE_NO_REPARENT,
 		   HHI_MALI_CLK_CNTL, 25, 3, 0,
-		   HHI_MALI_CLK_CNTL, 16, 7,
-		   CLK_DIVIDER_ROUND_CLOSEST,
+		   HHI_MALI_CLK_CNTL, 16, 7, 0,
 		   HHI_MALI_CLK_CNTL, 24, 0),
 	COMPOSITE(CLK_VAPB_0, "clk_vapb_0", mux_vapb_0_p,
 		   CLK_SET_RATE_NO_REPARENT,
@@ -167,6 +177,42 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_VID_LOCK_CLK_CNTL, 8, 2, 0,
 			HHI_VID_LOCK_CLK_CNTL, 0, 7, 0,
 			HHI_VID_LOCK_CLK_CNTL, 7, 0),
+	/* hdmirx_pclk, HHI_GCLK_MPEG0 bit21 = 1 */
+	COMPOSITE(CLK_HDMIRX_PCLK, "clk_hdmirx_pclk", clk_hdmirx_pclk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_GCLK_MPEG0, 0, 0, 0,
+			HHI_GCLK_MPEG0, 0, 0, 0,
+			HHI_GCLK_MPEG0, 21, 1),
+	/* hdmirx_modet clk */
+	COMPOSITE(CLK_HDMIRX_MODET_CLK, "clk_hdmirx_modet_clk", clk_modet_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_HDMIRX_CLK_CNTL, 25, 2, 0,
+			HHI_HDMIRX_CLK_CNTL, 16, 7, 0,
+			HHI_HDMIRX_CLK_CNTL, 24, 1),
+	COMPOSITE(CLK_HDMIRX_MODET_CLK, "clk_hdmirx_cfg_clk", clk_cfg_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_HDMIRX_CLK_CNTL, 9, 2, 2,
+			HHI_HDMIRX_CLK_CNTL, 0, 7, 0,
+			HHI_HDMIRX_CLK_CNTL, 8, 1),
+	/* hdmirx_config clk */
+	COMPOSITE(CLK_HDMIRX_ACR_REF_CLK, "clk_hdmirx_acr_ref_clk",
+			clk_acr_ref_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_HDMIRX_AUD_CLK_CNTL, 25, 2, 2,
+			HHI_HDMIRX_AUD_CLK_CNTL, 16, 7, 0,
+			HHI_HDMIRX_AUD_CLK_CNTL, 24, 0),
+	/* hdmirx_config clk */
+	COMPOSITE(CLK_HDMIRX_AUDMEAS_CLK, "clk_hdmirx_audmeas_clk",
+			clk_audmeas_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_HDMIRX_AUD_CLK_CNTL, 9, 2, 2,
+			HHI_HDMIRX_AUD_CLK_CNTL, 0, 7, 2,
+			HHI_HDMIRX_AUD_CLK_CNTL, 8, 1),
+	COMPOSITE(CLK_VDIN_MEAS_CLK, "cts_vdin_meas_clk", cts_vdin_meas_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_VDIN_MEAS_CLK_CNTL, 9, 3, 0,
+			HHI_VDIN_MEAS_CLK_CNTL, 0, 7, 0,
+			HHI_VDIN_MEAS_CLK_CNTL, 8, 0),
 };
 static struct mpll_clk_tab mpll_tab[] __initdata = {
 	MPLL("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,
@@ -188,7 +234,7 @@ static struct amlogic_gate_clock clk_gates[] __initdata = {
 };
 
 /* register gxbb clocks */
-static void __init gxbb_clk_init(struct device_node *np)
+static void __init gxtvbb_clk_init(struct device_node *np)
 {
 
 	reg_base_hiubus = of_iomap(np, 0);
@@ -196,8 +242,8 @@ static void __init gxbb_clk_init(struct device_node *np)
 	if ((!reg_base_hiubus) || (!reg_base_aobus))
 		panic("%s: failed to map registers\n", __func__);
 
-	pr_debug("HIU base is 0x%p\n", reg_base_hiubus);
-	pr_debug("ao base is 0x%p\n", reg_base_aobus);
+	pr_debug("gxbb clk HIU base is 0x%p\n", reg_base_hiubus);
+	pr_debug("gxbb clk ao base is 0x%p\n", reg_base_aobus);
 
 	amlogic_clk_init(np, reg_base_hiubus, reg_base_aobus,
 			CLK_NR_CLKS, NULL, 0, NULL, 0);
@@ -235,13 +281,12 @@ static void __init gxbb_clk_init(struct device_node *np)
 		int count = ARRAY_SIZE(clks);
 		struct clk *vapb;
 		struct clk *fixdiv5;
-
 		struct clk *clk_mali_0;
 		struct clk *clk_mali;
 
 		for (i = 0; i < count; i++) {
 			char *clk_name = clks[i];
-			pr_info("[ %s \t] ->clockrate: %luHz\n", clk_name,
+			pr_info("clkrate [ %s \t] : %luHz\n", clk_name,
 				_get_rate(clk_name));
 		}
 
@@ -253,12 +298,7 @@ static void __init gxbb_clk_init(struct device_node *np)
 			clk_set_rate(vapb, 400000000);
 			clk_prepare_enable(vapb);
 		}
-		if (!IS_ERR(fixdiv5))
-			clk_put(fixdiv5);
-		if (!IS_ERR(vapb))
-			clk_put(vapb);
 
-		/*Force set mali clock to 400M"*/
 		clk_mali_0 = clk_get_sys("clk_mali_0", "clk_mali_0");
 		clk_mali = clk_get_sys("clk_mali_0", "clk_mali_0");
 		if ((!IS_ERR(clk_mali_0)) && (!IS_ERR(clk_mali))) {
@@ -266,14 +306,17 @@ static void __init gxbb_clk_init(struct device_node *np)
 			clk_set_parent(clk_mali, clk_mali_0);
 			clk_prepare_enable(clk_mali);
 		}
+
+		if (!IS_ERR(fixdiv5))
+			clk_put(fixdiv5);
+		if (!IS_ERR(vapb))
+			clk_put(vapb);
 		if (!IS_ERR(clk_mali_0))
 			clk_put(clk_mali_0);
 		if (!IS_ERR(clk_mali))
 			clk_put(clk_mali);
-		if (!IS_ERR(fixdiv5))
-			clk_put(fixdiv5);
 
 	}
-	pr_info("clock initialization complete\n");
+	pr_info("gxbbtv clock initialization complete\n");
 }
-CLK_OF_DECLARE(gxbb, "amlogic, gxbb-clock", gxbb_clk_init);
+CLK_OF_DECLARE(gxtvbb, "amlogic, gxtvbb-clock", gxtvbb_clk_init);
