@@ -692,6 +692,11 @@
 			reg = <0x0 0xc810023c 0x0 0x4>;
 		};
 	};
+	tvout {
+		compatible = "amlogic, tvout";
+		dev_name = "tvout";
+		status = "okay";
+	};
 
 	i2c_gpio: i2c_gpio {
 		compatible = "i2c-gpio";

@@ -1559,7 +1559,7 @@ static struct syscore_ops tvconf_ops = {
 };
 #endif
 
-static int __init tv_init_module(void)
+static int tvout_probe(struct platform_device *pdev)
 {
 	int  ret;
 #ifdef CONFIG_INSTABOOT
@@ -1583,12 +1583,15 @@ static int __init tv_init_module(void)
 	else
 		vout_log_info("register tv module server ok\n");
 	create_tv_attr(info);
+
+	vout_log_info("%s OK\n", __func__);
 	return 0;
 }
 
-static __exit void tv_exit_module(void)
+static int tvout_remove(struct platform_device *pdev)
 {
 	int i;
+
 	if (info->base_class) {
 		for (i = 0; i < ARRAY_SIZE(tv_attr); i++)
 			class_remove_file(info->base_class, tv_attr[i]);
@@ -1599,7 +1602,46 @@ static __exit void tv_exit_module(void)
 		kfree(info);
 	}
 	vout_unregister_server(&tv_server);
-	vout_log_info("exit tv module\n");
+	vout_log_info("%s\n", __func__);
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id tvout_dt_match[] = {
+	{
+		.compatible = "amlogic, tvout",
+	},
+	{},
+};
+#endif
+
+static struct platform_driver tvout_driver = {
+	.probe = tvout_probe,
+	.remove = tvout_remove,
+	.driver = {
+		.name = "tvout",
+		.owner = THIS_MODULE,
+#ifdef CONFIG_OF
+		.of_match_table = tvout_dt_match,
+#endif
+	},
+};
+
+static int __init tv_init_module(void)
+{
+	/* vout_log_info("%s module init\n", __func__); */
+	if (platform_driver_register(&tvout_driver)) {
+		vout_log_err("%s failed to register module\n", __func__);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static __exit void tv_exit_module(void)
+{
+	/* vout_log_info("%s module exit\n", __func__); */
+	platform_driver_unregister(&tvout_driver);
 }
 
 static int __init vdac_config_bootargs_setup(char *line)
