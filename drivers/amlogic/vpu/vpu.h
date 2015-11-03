@@ -23,16 +23,17 @@
 #define VPUPR(fmt, args...)     pr_info("vpu: "fmt"", ## args)
 #define VPUERR(fmt, args...)    pr_info("vpu: error: "fmt"", ## args)
 
-enum VPU_Chip_e {
+enum vpu_chip_e {
 	VPU_CHIP_M8 = 0,
 	VPU_CHIP_M8B,
 	VPU_CHIP_M8M2,
 	VPU_CHIP_G9TV,
 	VPU_CHIP_G9BB,
 	VPU_CHIP_GXBB,
+	VPU_CHIP_GXTVBB,
 	VPU_CHIP_MAX,
 };
-
+/*
 static char *vpu_chip_name[] = {
 	"m8",
 	"m8baby",
@@ -40,11 +41,11 @@ static char *vpu_chip_name[] = {
 	"g9tv",
 	"g9baby",
 	"gxbaby",
+	"gxtvbaby",
 	"invalid",
 };
-
-struct VPU_Conf_t {
-	/* enum VPU_Chip_e  chip_type; */
+*/
+struct vpu_conf_s {
 	unsigned int     clk_level_dft;
 	unsigned int     clk_level_max;
 	unsigned int     clk_level;
@@ -99,9 +100,14 @@ static unsigned int fclk_table[] = { /* unit: MHz */
 #define CLK_LEVEL_DFT_GXBB     3
 #define CLK_LEVEL_MAX_GXBB     8
 #define FCLK_TYPE_GXBB         FCLK_2000M
+/* GXTVBB */
+/* freq max=666M, default=666M */
+#define CLK_LEVEL_DFT_GXTVBB     3
+#define CLK_LEVEL_MAX_GXTVBB     8
+#define FCLK_TYPE_GXTVBB         FCLK_2000M
 
 /* vpu clk setting */
-enum VPU_mux_e {
+enum vpu_mux_e {
 	FCLK_DIV4 = 0,
 	FCLK_DIV3,
 	FCLK_DIV5,

@@ -6,10 +6,10 @@ config AML_VPU
 	boolean "Amlogic VPU driver"
 	default n
 	help
-		"Amlogic VPU module init"
+		"Amlogic VPU module Managment"
 
 config AML_VPU_DYNAMIC_ADJ
-	boolean "Amlogic VPU Dynamic Adjust"
+	boolean "Amlogic VPU Frequency Dynamic Adjust"
 	default n
 	depends on AML_VPU
 	help

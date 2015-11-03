@@ -30,11 +30,16 @@ extern void __iomem *reg_base_cbus;
 #define REG_BASE_AOBUS                  (0xc8100000L)
 #define REG_BASE_CBUS                   (0xc1100000L)
 #define REG_BASE_HIU                    (0xc883c000L)
-#define REG_BASE_RST                    (0xc1104400L)
+#define REG_BASE_VCBUS                  (0xd0100000L)
 #define REG_OFFSET_AOBUS(reg)           ((reg))
 #define REG_OFFSET_CBUS(reg)            ((reg << 2))
 #define REG_OFFSET_HIU(reg)             ((reg << 2))
-#define REG_OFFSET_RST(reg)             ((reg << 2))
+#define REG_OFFSET_VCBUS(reg)           ((reg << 2))
+/* memory mapping */
+#define REG_ADDR_AOBUS(reg)             (REG_BASE_AOBUS + REG_OFFSET_AOBUS(reg))
+#define REG_ADDR_CBUS(reg)              (REG_BASE_CBUS + REG_OFFSET_CBUS(reg))
+#define REG_ADDR_HIU(reg)               (REG_BASE_HIU + REG_OFFSET_HIU(reg))
+#define REG_ADDR_VCBUS(reg)             (REG_BASE_VCBUS + REG_OFFSET_VCBUS(reg))
 
 /* offset address */
 #define AO_RTI_GEN_PWR_SLEEP0           ((0x00 << 10) | (0x3a << 2))
@@ -66,33 +71,30 @@ extern void __iomem *reg_base_cbus;
 #define RESET2_REGISTER                 0x1103
 #define RESET3_REGISTER                 0x1104
 #define RESET4_REGISTER                 0x1105
+#define RESET5_REGISTER                 0x1106
+#define RESET6_REGISTER                 0x1107
+#define RESET7_REGISTER                 0x1108
 #define RESET0_MASK                     0x1110
 #define RESET1_MASK                     0x1111
 #define RESET2_MASK                     0x1112
 #define RESET3_MASK                     0x1113
 #define RESET4_MASK                     0x1114
-/* GX register */
-#define RESET0_REGISTER_GX              0x01
-#define RESET1_REGISTER_GX              0x02
-#define RESET2_REGISTER_GX              0x03
-#define RESET3_REGISTER_GX              0x04
-#define RESET4_REGISTER_GX              0x05
-#define RESET0_MASK_GX                  0x10
-#define RESET1_MASK_GX                  0x11
-#define RESET2_MASK_GX                  0x12
-#define RESET3_MASK_GX                  0x13
-#define RESET4_MASK_GX                  0x14
-
-/* memory mapping */
-#define REG_ADDR_AOBUS(reg)             (REG_BASE_AOBUS + REG_OFFSET_AOBUS(reg))
-#define REG_ADDR_CBUS(reg)              (REG_BASE_CBUS + REG_OFFSET_CBUS(reg))
-#define REG_ADDR_HIU(reg)               (REG_BASE_HIU + REG_OFFSET_HIU(reg))
-#define REG_ADDR_RST(reg)               (REG_BASE_RST + REG_OFFSET_RST(reg))
+#define RESET5_MASK                     0x1115
+#define RESET6_MASK                     0x1116
+#define RESET7_MASK                     0x1118
+#define RESET0_LEVEL                    0x1120
+#define RESET1_LEVEL                    0x1121
+#define RESET2_LEVEL                    0x1122
+#define RESET3_LEVEL                    0x1123
+#define RESET4_LEVEL                    0x1124
+#define RESET5_LEVEL                    0x1125
+#define RESET6_LEVEL                    0x1126
+#define RESET7_LEVEL                    0x1127
 
 /* ********************************
  * register access api
  * ********************************* */
-enum VPU_Chip_e vpu_chip_type;
+enum vpu_chip_e vpu_chip_type;
 
 struct reg_map_s {
 	unsigned int base_addr;
@@ -110,9 +112,9 @@ static struct reg_map_s vpu_reg_maps[] = {
 		.base_addr = 0xc883c000,
 		.size = 0x400,
 	},
-	{ /* AO */
-		.base_addr = 0xc8100000,
-		.size = 0x100,
+	{ /* VCBUS */
+		.base_addr = 0xd0100000,
+		.size = 0x8000,
 	},
 };
 
@@ -126,12 +128,12 @@ static inline int vpu_ioremap(void)
 					vpu_reg_maps[i].size);
 		if (vpu_reg_maps[i].p == NULL) {
 			vpu_reg_maps[i].flag = 0;
-			pr_info("VPU reg map failed: 0x%x\n",
+			VPUERR("VPU reg map failed: 0x%x\n",
 				vpu_reg_maps[i].base_addr);
 			ret = -1;
 		} else {
 			vpu_reg_maps[i].flag = 1;
-			/* pr_info("VPU reg mapped: 0x%x -> %p\n",
+			/* VPUPR("VPU reg mapped: 0x%x -> %p\n",
 				vpu_reg_maps[i].base_addr,
 				vpu_reg_maps[i].p); */
 		}
@@ -143,7 +145,7 @@ static inline unsigned int vpu_hiu_read(unsigned int _reg)
 {
 	void __iomem *p;
 
-	if (vpu_chip_type == VPU_CHIP_GXBB)
+	if (vpu_chip_type >= VPU_CHIP_GXBB)
 		p = vpu_reg_maps[1].p + REG_OFFSET_HIU(_reg);
 	else
 		p = vpu_reg_maps[0].p + REG_OFFSET_CBUS(_reg);
@@ -155,7 +157,7 @@ static inline void vpu_hiu_write(unsigned int _reg, unsigned int _value)
 {
 	void __iomem *p;
 
-	if (vpu_chip_type == VPU_CHIP_GXBB)
+	if (vpu_chip_type >= VPU_CHIP_GXBB)
 		p = vpu_reg_maps[1].p + REG_OFFSET_HIU(_reg);
 	else
 		p = vpu_reg_maps[0].p + REG_OFFSET_CBUS(_reg);
@@ -163,10 +165,8 @@ static inline void vpu_hiu_write(unsigned int _reg, unsigned int _value)
 	writel(_value, p);
 };
 
-static inline void vpu_hiu_setb(unsigned int _reg,
-		unsigned int _value,
-		unsigned int _start,
-		unsigned int _len)
+static inline void vpu_hiu_setb(unsigned int _reg, unsigned int _value,
+		unsigned int _start, unsigned int _len)
 {
 	vpu_hiu_write(_reg, ((vpu_hiu_read(_reg) &
 			~(((1L << (_len))-1) << (_start))) |
@@ -205,10 +205,8 @@ static inline void vpu_cbus_write(unsigned int _reg, unsigned int _value)
 	writel(_value, p);
 };
 
-static inline void vpu_cbus_setb(unsigned int _reg,
-		unsigned int _value,
-		unsigned int _start,
-		unsigned int _len)
+static inline void vpu_cbus_setb(unsigned int _reg, unsigned int _value,
+		unsigned int _start, unsigned int _len)
 {
 	vpu_cbus_write(_reg, ((vpu_cbus_read(_reg) &
 			~(((1L << (_len))-1) << (_start))) |
@@ -231,46 +229,20 @@ static inline void vpu_cbus_clr_mask(unsigned int _reg, unsigned int _mask)
 	vpu_cbus_write(_reg, (vpu_cbus_read(_reg) & (~(_mask))));
 }
 
-static inline unsigned int vpu_aobus_read(unsigned int _reg)
+static inline unsigned int vpu_vcbus_read(unsigned int _reg)
 {
 	void __iomem *p;
 
-	p = vpu_reg_maps[2].p + REG_OFFSET_AOBUS(_reg);
+	p = vpu_reg_maps[2].p + REG_OFFSET_VCBUS(_reg);
 	return readl(p);
 };
 
-static inline void vpu_aobus_write(unsigned int _reg, unsigned int _value)
+static inline void vpu_vcbus_write(unsigned int _reg, unsigned int _value)
 {
 	void __iomem *p;
 
-	p = vpu_reg_maps[2].p + REG_OFFSET_AOBUS(_reg);
+	p = vpu_reg_maps[2].p + REG_OFFSET_VCBUS(_reg);
 	writel(_value, p);
 };
-
-static inline void vpu_aobus_setb(unsigned int _reg,
-		unsigned int _value,
-		unsigned int _start,
-		unsigned int _len)
-{
-	vpu_aobus_write(_reg, ((vpu_aobus_read(_reg) &
-			~(((1L << (_len))-1) << (_start))) |
-			(((_value)&((1L<<(_len))-1)) << (_start))));
-}
-
-static inline unsigned int vpu_aobus_getb(unsigned int _reg,
-		unsigned int _start, unsigned int _len)
-{
-	return (vpu_aobus_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
-}
-
-static inline void vpu_aobus_set_mask(unsigned int _reg, unsigned int _mask)
-{
-	vpu_aobus_write(_reg, (vpu_aobus_read(_reg) | (_mask)));
-}
-
-static inline void vpu_aobus_clr_mask(unsigned int _reg, unsigned int _mask)
-{
-	vpu_aobus_write(_reg, (vpu_aobus_read(_reg) & (~(_mask))));
-}
 
 #endif
