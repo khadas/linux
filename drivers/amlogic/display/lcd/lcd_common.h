@@ -1,0 +1,59 @@
+
+/*
+ * drivers/amlogic/display/lcd/lcd_common.h
+ *
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
+#ifndef __AML_LCD_COMMON_H__
+#define __AML_LCD_COMMON_H__
+#include <linux/platform_device.h>
+#include "lcd_clk_config.h"
+
+#define VPP_OUT_SATURATE            (1 << 0)
+
+extern void lcd_config_init(struct lcd_config_s *pConf);
+extern void lcd_config_probe(struct lcd_config_s *pConf,
+		struct platform_device *pdev);
+extern void lcd_config_remove(struct lcd_config_s *pConf);
+
+extern void lcd_clocks_set_vid_clk_div(int div_sel);
+extern void lcd_set_crt_video_enc(int vIdx, int inSel, int DivN);
+extern void lcd_enable_crt_video_encl(int enable, int inSel);
+extern void lcd_clk_gate_on(void);
+extern void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode);
+
+/* lcd common */
+extern int lcd_type_str_to_type(const char *str);
+extern char *lcd_type_type_to_str(int type);
+
+extern void lcd_cpu_gpio_register(unsigned int index);
+extern void lcd_cpu_gpio_set(unsigned int index, int value);
+extern unsigned int lcd_cpu_gpio_get(unsigned int index);
+
+/* lcd debug */
+extern int lcd_class_creat(void);
+extern int lcd_class_remove(void);
+
+/* lcd driver */
+#ifdef CONFIG_AML_LCD_TV
+extern int lcd_tv_probe(struct platform_device *pdev);
+extern int lcd_tv_remove(struct platform_device *pdev);
+#endif
+#ifdef CONFIG_AML_LCD_TABLET
+extern int lcd_tablet_probe(struct platform_device *pdev);
+extern int lcd_tablet_remove(struct platform_device *pdev);
+#endif
+
+#endif

@@ -21,20 +21,20 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/pinctrl/consumer.h>
 
-enum Bl_Extern_Type_t {
+enum bl_extern_type_e {
 	BL_EXTERN_I2C = 0,
 	BL_EXTERN_SPI,
 	BL_EXTERN_OTHER,
 	BL_EXTERN_MAX,
 };
 
-struct bl_extern_config_t {
+struct bl_extern_config_s {
 	const char *name;
-	enum Bl_Extern_Type_t type;
-	unsigned int gpio_used;
+	enum bl_extern_type_e type;
 	struct gpio_desc *gpio;
 	unsigned char gpio_on;
 	unsigned char gpio_off;
+
 	int i2c_addr;
 	int i2c_bus;
 	struct gpio_desc *spi_cs;
@@ -42,14 +42,14 @@ struct bl_extern_config_t {
 	struct gpio_desc *spi_data;
 	unsigned int dim_min;
 	unsigned int dim_max;
-	unsigned int level_min;
-	unsigned int level_max;
+	/* unsigned int level_min; */
+	/* unsigned int level_max; */
 };
 
 /*******global API******/
 struct aml_bl_extern_driver_t {
 	const char *name;
-	enum Bl_Extern_Type_t type;
+	enum bl_extern_type_e type;
 	int (*power_on)(void);
 	int (*power_off)(void);
 	int (*set_level)(unsigned int level);
@@ -68,9 +68,9 @@ struct aml_bl_extern_driver_t {
 extern struct aml_bl_extern_driver_t *aml_bl_extern_get_driver(void);
 extern int bl_extern_driver_check(void);
 extern int get_bl_extern_dt_data(struct device dev,
-					struct bl_extern_config_t *pdata);
+					struct bl_extern_config_s *pdata);
 
-extern void get_bl_ext_level(struct bl_extern_config_t *bl_ext_cfg);
+extern void get_bl_ext_level(struct bl_extern_config_s *bl_ext_cfg);
 
 #endif
 

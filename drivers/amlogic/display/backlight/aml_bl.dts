@@ -1,22 +1,48 @@
 backlight{
-	compatible = "amlogic, backlight";
-	dev_name = "backlight";
-	status = "okay";
-	pinctrl-names = "default","pwm_combo";
-	pinctrl-0 = <&lcd_backlight_pins>;	/** pwm_default pinmux */
-	pinctrl-1 = <&lcd_backlight_combo_pins>;	/** pwm_combo pinmux */
+		compatible = "amlogic, backlight";
+		dev_name = "backlight";
+		mode = "tv";
+		status = "okay";
+		pinctrl-names = "default","pwm_vs";
+		pinctrl-0 = <&bl_pwm_pins>;
+		pinctrl-1 = <&bl_pwm_vs_pins>;
 
-	bl_level_default_uboot_kernel=<10 102>;	/** default brightness level for uboot & kernel */
-	bl_level_middle_mapping=<128 102>;	/** brightness middle level mapping to a new level*/
-	bl_level_max_min=<255 10>;	/** brightness level max & min, must match the rootfs setting*/
+		bl-gpios = <&gpio GPIOY_6 GPIO_ACTIVE_HIGH
+			&gpio GPIOY_7 GPIO_ACTIVE_HIGH>;
+		bl_gpio_names = "GPIOY_6","GPIOY_7";
 
-	/* backlight power ctrl */
-	bl_power_on_delay=<200>; /** delay time before backlight power on(unit: ms) */
-	bl_ctrl_method=<1>;	/** backlight control method(0=gpio, 1=pwm_negative, 2=pwm_positive. 3=pwm_combo. 4=extern. decided by hardware design) */
-	GPIODV_28-gpios = <&gpio GPIODV_28 0>;
-	bl_gpio_port_on_off="GPIODV_28","1","0";	/** backlight control gpio port, (on/off:1=output high, 0=output low, 2=input) */
-	bl_gpio_dim_max_min=<0x0 0xf>;	/** brightness diming level_max, level_min : (0x0~0xf, negative logic, only for gpio control method) */
-	bl_pwm_port_gpio_used="PWM_C","1";	/** pwm_port_name(for pwm control method), pwm_gpio_used(0=use pwm_port only, 1=use bl_gpio_port to control on/off) */
-	bl_pwm_freq=<1000>;	/** backlight control pwm frequency(unit: Hz, only for pwm control method) */
-	bl_pwm_duty_max_min=<100 25>;	/** brightness diminig duty_max, duty_min : (unit: %, positive logic, only for pwm control method) */
-};
+		backlight_0{
+			index = <0>;
+			bl_name = "backlight_0";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_max_min = <255 10>;
+
+			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=extern */
+			bl_en_gpio_on_off = <0 0 1>; /** index(point to bl-gpios, 0xff=invalid), on/off_value(1=output high, 0=output low) **/
+			bl_power_on_off_delay = <200 200>; /** unit: ms */
+
+			bl_pwm_method = <0>; /** 0=negative, 1=positive */
+			bl_pwm_port = "PWM_B"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
+			bl_pwm_freq = <1000>; /* pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
+			bl_pwm_duty_max_min = <100 25>; /* 100% - 25%*/
+			bl_pwm_gpio_off = <1 1>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
+			bl_pwm_on_off_delay  = <200 200>; /* unit: ms */
+		};
+		backlight_1{
+			index = <1>;
+			bl_name = "backlight_1";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_max_min = <255 10>;
+
+			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=extern */
+			bl_en_gpio_on_off = <0 0 1>; /** index(point to bl-gpios, 0xff=invalid), on/off_value(1=output high, 0=output low) **/
+			bl_power_on_off_delay = <200 200>; /** unit: ms */
+
+			bl_pwm_method = <0>; /** 0=negative, 1=positive */
+			bl_pwm_port = "PWM_VS"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
+			bl_pwm_freq = <2>; /* pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
+			bl_pwm_duty_max_min = <100 25>; /* 100% - 25%*/
+			bl_pwm_gpio_off = <1 1>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
+			bl_pwm_on_off_delay  = <200 200>; /* unit: ms */
+		};
+	};

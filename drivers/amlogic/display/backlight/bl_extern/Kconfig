@@ -1,0 +1,28 @@
+
+config AML_BL_EXTERN
+	boolean "Amlogic backlight extern driver support"
+	default n
+	help
+		Say Y if you want to use Amlogic backlight external controller.
+
+config AML_BL_EXTERN_PMU_AML1218
+	boolean "Amlogic backlight pmu aml1218"
+	depends on AML_BL_EXTERN
+	default n
+	help
+		pmu aml1218 backlight controller support.
+
+
+config AML_BL_EXTERN_I2C_LP8556
+	boolean "Amlogic backlight i2c lp8556"
+	depends on AML_BL_EXTERN
+	default n
+	help
+		i2c lp8556 backlight controller support.
+
+config AML_BL_EXTERN_MIPI_LT070ME05
+	boolean "Amlogic backlight mipi LT070ME05"
+	depends on AML_BL_EXTERN
+	default n
+	help
+		mipi LT070ME05 backlight controller support.

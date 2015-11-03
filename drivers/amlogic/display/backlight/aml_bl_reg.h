@@ -18,38 +18,64 @@
 #ifndef __AML_BL_REG_H__
 #define __AML_BL_REG_H__
 #include <linux/amlogic/iomap.h>
-#include <linux/amlogic/vout/aml_tablet_bl.h>
-#include <linux/amlogic/vout/aml_bl.h>
+
+/* normal pwm reg: cbus */
+#define PWM_PWM_A                       0x2154
+#define PWM_PWM_B                       0x2155
+#define PWM_MISC_REG_AB                 0x2156
+#define PWM_PWM_C                       0x2194
+#define PWM_PWM_D                       0x2195
+#define PWM_MISC_REG_CD                 0x2196
+#define PWM_PWM_E                       0x21b0
+#define PWM_PWM_F                       0x21b1
+#define PWM_MISC_REG_EF                 0x21b2
+
+/* pwm_vs reg: vcbus */
+#define VPU_VPU_PWM_V0                  0x2730
+#define VPU_VPU_PWM_V1                  0x2731
+#define VPU_VPU_PWM_V2                  0x2732
+#define VPU_VPU_PWM_V3                  0x2733
+
+#define ENCL_VIDEO_MAX_LNCNT            0x1cbb
 
 
-
-#define PWM_PWM_A			0x2154
-#define PWM_PWM_B			0x2155
-#define PWM_MISC_REG_AB			0x2156
-#define PWM_PWM_C			0x2194
-#define PWM_PWM_D			0x2195
-#define PWM_MISC_REG_CD			0x2196
-#define PWM_PWM_E			0x21b0
-#define PWM_PWM_F			0x21b1
-#define PWM_MISC_REG_EF			0x21b2
-#define LED_PWM_REG0			0x21da
-
-
-static inline void bl_write_reg(unsigned int reg, unsigned int value)
+static inline unsigned int bl_cbus_read(unsigned int reg)
 {
-		aml_write_cbus(reg, value);
+	return aml_read_cbus(reg);
 };
 
-static inline void bl_reg_setb(unsigned int reg, unsigned int value,
+static inline void bl_cbus_write(unsigned int reg, unsigned int value)
+{
+	aml_write_cbus(reg, value);
+};
+
+static inline void bl_cbus_setb(unsigned int reg, unsigned int value,
 		unsigned int _start, unsigned int _len)
 {
-	aml_write_cbus(reg, ((aml_read_cbus(reg) &
+	bl_cbus_write(reg, ((bl_cbus_read(reg) &
 				(~(((1L << _len)-1) << _start))) |
 				((value & ((1L << _len)-1)) << _start)));
 
 }
 
+static inline unsigned int bl_vcbus_read(unsigned int reg)
+{
+	return aml_read_vcbus(reg);
+};
 
+static inline void bl_vcbus_write(unsigned int reg, unsigned int value)
+{
+	aml_write_vcbus(reg, value);
+};
+
+static inline void bl_vcbus_setb(unsigned int reg, unsigned int value,
+		unsigned int _start, unsigned int _len)
+{
+	bl_vcbus_write(reg, ((bl_vcbus_read(reg) &
+				(~(((1L << _len)-1) << _start))) |
+				((value & ((1L << _len)-1)) << _start)));
+
+}
 
 #endif
 

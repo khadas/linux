@@ -15,7 +15,7 @@ if BACKLIGHT_LCD_SUPPORT
 #
 config LCD_CLASS_DEVICE
         tristate "Lowlevel LCD controls"
-	default m
+	default n
 	help
 	  This framework adds support for low-level control of LCD.
 	  Some framebuffer devices connect to platform-specific LCD modules

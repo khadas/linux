@@ -106,21 +106,30 @@ static int aml_i2c_read(struct i2c_client *i2client,
 	return res;
 }
 #endif
+
 static int bl_extern_set_level(unsigned int level)
 {
 	unsigned char tData[3];
 	int ret = 0;
+	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
+	unsigned int level_max, level_min;
+	unsigned int dim_max, dim_min;
+
 	bl_level = level;
 
 	if (bl_ext_config == NULL) {
 		pr_err("no %s driver\n", BL_EXTERN_NAME);
 		return -1;
 	}
-	get_bl_ext_level(bl_ext_config);
-	level = bl_ext_config->dim_min -
-		((level - bl_ext_config->level_min) *
-			(bl_ext_config->dim_min - bl_ext_config->dim_max)) /
-			(bl_ext_config->level_max - bl_ext_config->level_min);
+
+	if (bl_drv == NULL)
+		return -1;
+	level_max = bl_drv->bconf->level_max;
+	level_min = bl_drv->bconf->level_min;
+	dim_max = bl_ext_config->dim_max;
+	dim_min = bl_ext_config->dim_min;
+	level = dim_min - ((level - level_min) * (dim_min - dim_max)) /
+			(level_max - level_min);
 	level &= 0xff;
 
 	if (bl_status) {
@@ -137,12 +146,12 @@ static int bl_extern_power_on(void)
 	int i = 0, ending_flag = 0;
 	int ret = 0;
 
-	if (bl_ext_config->gpio_used > 0) {
+	if (bl_ext_config->gpio) {
 		if (bl_ext_config->gpio_on == 2) {
-			bl_extern_gpio_direction_input(bl_ext_config->gpio);
+			bl_gpio_input(bl_ext_config->gpio);
 		} else {
-			bl_extern_gpio_direction_output(bl_ext_config->gpio,
-							bl_ext_config->gpio_on);
+			bl_gpio_output(bl_ext_config->gpio,
+					bl_ext_config->gpio_on);
 		}
 	}
 
@@ -161,34 +170,34 @@ static int bl_extern_power_on(void)
 	}
 	bl_status = 1;
 	bl_extern_set_level(bl_level);
-	pr_info("%s\n", __func__);
+	BLPR("%s\n", __func__);
 	return ret;
 }
 
 static int bl_extern_power_off(void)
 {
 	bl_status = 0;
-	if (bl_ext_config->gpio_used > 0) {
+	if (bl_ext_config->gpio) {
 		if (bl_ext_config->gpio_off == 2) {
-			bl_extern_gpio_direction_input(bl_ext_config->gpio);
+			bl_gpio_input(bl_ext_config->gpio);
 		} else {
-			bl_extern_gpio_direction_output(bl_ext_config->gpio,
-						bl_ext_config->gpio_off);
+			bl_gpio_output(bl_ext_config->gpio,
+					bl_ext_config->gpio_off);
 		}
 	}
-	pr_info("%s\n", __func__);
+	BLPR("%s\n", __func__);
 	return 0;
 }
 
 static int get_bl_extern_config(struct device dev,
-					struct bl_extern_config_t *bl_ext_cfg)
+		struct bl_extern_config_t *bl_ext_cfg)
 {
 	int ret = 0;
 	struct aml_bl_extern_driver_t *bl_ext;
 
 	ret = get_bl_extern_dt_data(dev, bl_ext_cfg);
 	if (ret) {
-		pr_err("[error] %s: failed to get dt data\n", BL_EXTERN_NAME);
+		BLPR("error %s: failed to get dt data\n", BL_EXTERN_NAME);
 		return ret;
 	}
 
@@ -205,24 +214,24 @@ static int get_bl_extern_config(struct device dev,
 		bl_ext->power_off = bl_extern_power_off;
 		bl_ext->set_level = bl_extern_set_level;
 	} else {
-		pr_err("[error] %s get bl_extern_driver failed\n",
-							bl_ext_cfg->name);
+		BLPR("error %s get bl_extern_driver failed\n",
+			bl_ext_cfg->name);
 		ret = -1;
 	}
 	return ret;
 }
 
 static int aml_lp8556_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+		const struct i2c_device_id *id)
 {
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		pr_info("[error] %s: functionality check failed\n",
+		BLPR("error %s: functionality check failed\n",
 								__func__);
 		return -ENODEV;
 	} else {
 		aml_lp8556_i2c_client = client;
 	}
-	pr_info("%s OK\n", __func__);
+	BLPR("%s OK\n", __func__);
 	return 0;
 }
 
@@ -258,8 +267,7 @@ static int aml_lp8556_probe(struct platform_device *pdev)
 	if (bl_ext_config == NULL)
 		bl_ext_config = kzalloc(sizeof(*bl_ext_config), GFP_KERNEL);
 	if (bl_ext_config == NULL) {
-		pr_err("[error] %s probe: failed to alloc data\n",
-								BL_EXTERN_NAME);
+		BLPR("error %s probe: failed to alloc data\n", BL_EXTERN_NAME);
 		return -1;
 	}
 
@@ -271,7 +279,7 @@ static int aml_lp8556_probe(struct platform_device *pdev)
 	memset(&i2c_info, 0, sizeof(i2c_info));
 	adapter = i2c_get_adapter(bl_ext_config->i2c_bus);
 	if (!adapter) {
-		pr_err("[error] %s£ºfailed get i2c adapter\n", BL_EXTERN_NAME);
+		BLPR("error %s£ºfailed get i2c adapter\n", BL_EXTERN_NAME);
 		goto bl_extern_probe_failed;
 	}
 
@@ -283,23 +291,24 @@ static int aml_lp8556_probe(struct platform_device *pdev)
 		i2c_info.flags = 0x10;
 	i2c_client = i2c_new_device(adapter, &i2c_info);
 	if (!i2c_client) {
-		pr_err("[error] %s :failed new i2c device\n", BL_EXTERN_NAME);
+		BLPR("error %s :failed new i2c device\n", BL_EXTERN_NAME);
 		goto bl_extern_probe_failed;
 	} else{
-		DBG_PRINT("[error] %s: new i2c device succeed\n",
+		DBG_PRINT("error %s: new i2c device succeed\n",
 		((struct bl_extern_data_t *)(bl_ext_config))->name);
 	}
 
 	if (!aml_lp8556_i2c_client) {
 		ret = i2c_add_driver(&aml_lp8556_i2c_driver);
 		if (ret) {
-			pr_err("[error] %s probe: add i2c_driver failed\n",
+			BLPR("error %s probe: add i2c_driver failed\n",
 								BL_EXTERN_NAME);
 			goto bl_extern_probe_failed;
 		}
 	}
-	pr_info("%s ok\n", __func__);
+	BLPR("%s ok\n", __func__);
 	return ret;
+
 bl_extern_probe_failed:
 	kfree(bl_ext_config);
 	bl_ext_config = NULL;
@@ -339,12 +348,12 @@ static struct platform_driver aml_lp8556_driver = {
 static int __init aml_lp8556_init(void)
 {
 	int ret;
-	DBG_PRINT("%s\n", __func__);
+	BLPR("%s\n", __func__);
 
 	ret = platform_driver_register(&aml_lp8556_driver);
 	if (ret) {
-		pr_err("[error] %s failed to register bl extern driver\n",
-								__func__);
+		BLPR("error %s failed to register bl extern driver\n",
+			__func__);
 		return -ENODEV;
 	}
 	return ret;

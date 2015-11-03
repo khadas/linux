@@ -1692,7 +1692,7 @@ static void set_video_adjust(struct Lcd_Config_s *pConf)
 	lcd_reg_write(VPP_VADJ_CTRL, 0xf); /* enable video adjust */
 }
 
-static void switch_lcd_clk_gate(enum Bool_state_e status)
+static void lcd_switch_clk_gate(enum Bool_state_e status)
 {
 	struct Lcd_Clk_Gate_Ctrl_s *rstc;
 
@@ -1750,6 +1750,22 @@ static void switch_lcd_clk_gate(enum Bool_state_e status)
 	}
 }
 
+#ifdef CONFIG_AML_VPU
+static void lcd_vpu_power_ctrl(int status)
+{
+	if (lcd_chip_type < LCD_CHIP_M8)
+		return;
+
+	if (status) {
+		request_vpu_clk_vmod(lcd_Conf->lcd_timing.lcd_clk, VPU_VENCL);
+		switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_ON);
+	} else {
+		switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_DOWN);
+		release_vpu_clk_vmod(VPU_VENCL);
+	}
+}
+#endif
+
 static void _init_lcd_driver(struct Lcd_Config_s *pConf)
 {
 	enum Lcd_Type_e lcd_type;
@@ -1787,10 +1803,9 @@ static void _init_lcd_driver(struct Lcd_Config_s *pConf)
 		return;
 
 #ifdef CONFIG_AML_VPU
-	request_vpu_clk_vmod(pConf->lcd_timing.lcd_clk, VMODE_LCD);
-	switch_vpu_mem_pd_vmod(VMODE_LCD, VPU_MEM_POWER_ON);
+	lcd_vpu_power_ctrl(1);
 #endif
-	switch_lcd_clk_gate(ON);
+	lcd_switch_clk_gate(ON);
 	set_clk_lcd(pConf);
 	set_venc_lcd(pConf);
 	set_tcon_lcd(pConf);
@@ -1875,10 +1890,9 @@ static void _disable_lcd_driver(struct Lcd_Config_s *pConf)
 		break;
 	}
 
-	switch_lcd_clk_gate(OFF);
+	lcd_switch_clk_gate(OFF);
 #ifdef CONFIG_AML_VPU
-	switch_vpu_mem_pd_vmod(VMODE_LCD, VPU_MEM_POWER_DOWN);
-	release_vpu_clk_vmod(VMODE_LCD);
+	lcd_vpu_power_ctrl(0);
 #endif
 	DPRINT("disable lcd display driver\n");
 }

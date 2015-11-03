@@ -1,6 +1,6 @@
 menuconfig AML_LCD_EXTERN
 	boolean "LCD external driver support"
-	default y
+	default n
 	help
 		"Amlogic LCD external driver support, such as i2c initial..."
 

@@ -1,5 +1,5 @@
 
-obj-$(CONFIG_AML_TABLET_BL_EXTERN)		+= aml_tablet_bl_extern.o
+obj-$(CONFIG_AML_BL_EXTERN)			+= bl_extern.o
 obj-$(CONFIG_AML_BL_EXTERN_I2C_LP8556)		+= i2c_lp8556.o
 obj-$(CONFIG_AML_BL_EXTERN_PMU_AML1218)		+= pmu_aml1218.o
 obj-$(CONFIG_AML_BL_EXTERN_MIPI_LT070ME05)	+= mipi_LT070ME05.o

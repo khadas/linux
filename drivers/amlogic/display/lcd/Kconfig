@@ -1,0 +1,30 @@
+#
+# Video output configuration
+#
+menu "Amlogic LCD Output Module"
+
+config AML_LCD
+	boolean "LCD Output Module"
+	default n
+	help
+		LCD output module
+
+config AML_LCD_TV
+	boolean "LCD TV Output Module"
+	default n
+	depends on AML_LCD
+	help
+		LCD TV output module
+
+config AML_LCD_TABLET
+	boolean "LCD Tablet Output Module"
+	default n
+	depends on AML_LCD
+	help
+		LCD Tablet output module
+
+if AML_LCD
+source "drivers/amlogic/display/lcd/lcd_extern/Kconfig"
+endif
+
+endmenu

@@ -6,4 +6,5 @@ obj-$(CONFIG_AM_VOUT) += vout/
 obj-$(CONFIG_AM_VOUT2) += vout2/
 obj-$(CONFIG_AM_GE2D) += ge2d/
 obj-$(CONFIG_AM_LOGO) += logo/
-obj-$(CONFIG_AMLOGIC_BACKLIGHT) += backlight/
+obj-$(CONFIG_AML_LCD) += lcd/
+obj-$(CONFIG_AML_BACKLIGHT) += backlight/

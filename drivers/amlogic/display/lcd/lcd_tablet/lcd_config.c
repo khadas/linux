@@ -897,10 +897,9 @@ static int _get_lcd_default_config(struct Lcd_Config_s *pConf,
 	}
 	/* ret = of_property_read_u32_array(pdev->dev.of_node,
 		"video_on_pixel_line", &para[0], 2);
-	if(ret){
+	if (ret) {
 		DPRINT("failed to get video_on_pixel_line, %s\n", dft_str);
-	}
-	else {
+	} else {
 		pConf->lcd_timing.video_on_pixel = (unsigned short)(para[0]);
 		pConf->lcd_timing.video_on_line = (unsigned short)(para[1]);
 		lcd_print("video_on_pixel = %u, video_on_line = %u\n",
