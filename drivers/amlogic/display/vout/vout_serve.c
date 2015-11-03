@@ -71,7 +71,7 @@ void update_vout_mode_attr(const struct vinfo_s *vinfo)
 	snprintf(vout_mode, 40, "%s", vinfo->name);
 }
 
-static void set_vout_mode(char *name);
+static int set_vout_mode(char *name);
 static void set_vout_axis(char *axis);
 static ssize_t mode_show(struct class *class, struct class_attribute *attr,
 			 char *buf);
@@ -97,9 +97,12 @@ static ssize_t mode_show(struct class *class, struct class_attribute *attr,
 static ssize_t mode_store(struct class *class, struct class_attribute *attr,
 			  const char *buf, size_t count)
 {
+	char mode[64];
+
 	mutex_lock(&vout_mutex);
-	snprintf(vout_mode, 64, "%s", buf);
-	set_vout_mode(vout_mode);
+	snprintf(mode, 64, "%s", buf);
+	if (set_vout_mode(mode) == 0)
+		strcpy(vout_mode, mode);
 	mutex_unlock(&vout_mutex);
 	return count;
 }
@@ -165,7 +168,7 @@ static int  meson_vout_suspend(struct platform_device *pdev,
 static int  meson_vout_resume(struct platform_device *pdev);
 #endif
 
-static void set_vout_mode(char *name)
+static int set_vout_mode(char *name)
 {
 	enum vmode_e mode;
 	vout_log_info("vmode set to %s\n", name);
@@ -173,18 +176,19 @@ static void set_vout_mode(char *name)
 
 	if (VMODE_MAX == mode) {
 		vout_log_info("no matched vout mode\n");
-		return;
+		return -1;
 	}
 
 	if (mode == get_current_vmode()) {
 		vout_log_info("don't set the same mode as current.\n");
-		return;
+		return -1;
 	}
 	phy_pll_off();
 	vout_log_info("disable HDMI PHY as soon as possible\n");
 	set_current_vmode(mode);
 	vout_log_info("new mode %s set ok\n", name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
+	return 0;
 }
 
 enum vmode_e get_logo_vmode(void)
@@ -241,6 +245,42 @@ static void set_vout_axis(char *para)
 	vout_notifier_call_chain(VOUT_EVENT_OSD_DISP_AXIS, &disp_rect[0]);
 }
 
+static ssize_t vout_attr_vinfo_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	const struct vinfo_s *info = NULL;
+
+	info = get_current_vinfo();
+	if (info == NULL) {
+		pr_info("current vinfo is null\n");
+		return sprintf(buf, "\n");
+	}
+
+	pr_info("current vinfo:\n"
+		"    name:                  %s\n"
+		"    mode:                  %d\n"
+		"    width:                 %d\n"
+		"    height:                %d\n"
+		"    field_height:          %d\n"
+		"    aspect_ratio_num:      %d\n"
+		"    aspect_ratio_den:      %d\n"
+		"    sync_duration_num:     %d\n"
+		"    sync_duration_den:     %d\n"
+		"    screen_real_width:     %d\n"
+		"    screen_real_height:    %d\n"
+		"    video_clk:             %d\n",
+		info->name, info->mode,
+		info->width, info->height, info->field_height,
+		info->aspect_ratio_num, info->aspect_ratio_den,
+		info->sync_duration_num, info->sync_duration_den,
+		info->screen_real_width, info->screen_real_height,
+		info->video_clk);
+	return sprintf(buf, "\n");
+}
+
+static struct  class_attribute  class_attr_vinfo =
+	__ATTR(vinfo, S_IRUGO|S_IWUSR|S_IWGRP, vout_attr_vinfo_show, NULL);
+
 static int create_vout_attr(void)
 {
 	int ret = 0;
@@ -261,6 +301,10 @@ static int create_vout_attr(void)
 
 	ret = class_create_file(vout_class, &class_attr_axis);
 
+	if (ret != 0)
+		vout_log_err("create class attr failed!\n");
+
+	ret = class_create_file(vout_class, &class_attr_vinfo);
 	if (ret != 0)
 		vout_log_err("create class attr failed!\n");
 
@@ -399,6 +443,7 @@ static int meson_vout_remove(struct platform_device *pdev)
 #endif
 	class_remove_file(vout_class, &class_attr_mode);
 	class_remove_file(vout_class, &class_attr_axis);
+	class_remove_file(vout_class, &class_attr_vinfo);
 	class_destroy(vout_class);
 	return 0;
 }

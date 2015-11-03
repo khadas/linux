@@ -2074,6 +2074,7 @@ static int osd_probe(struct platform_device *pdev)
 	int prop_idx = 0;
 	int rotation = 0;
 	u32 memsize[2];
+	const char *str;
 	int i;
 	int ret = 0;
 
@@ -2156,24 +2157,13 @@ static int osd_probe(struct platform_device *pdev)
 	if (prop)
 		prop_idx = of_read_ulong(prop, 1);
 	osd_set_4k2k_fb_mode_hw(prop_idx);
-	/* get vmode from dt */
-	prop = of_get_property(pdev->dev.of_node, "vmode", NULL);
-	if (prop)
-		prop_idx = of_read_ulong(prop, 1);
-	switch (prop_idx) {
-	case 1:
-		current_mode = VMODE_LCD;
-		break;
-	case 2:
-		current_mode = VMODE_LVDS_1080P;
-		break;
-	case 3:
-		current_mode = VMODE_1080P;
-		break;
-	default:
+	/* get default display mode from dt */
+	ret = of_property_read_string(pdev->dev.of_node,
+		"display_mode_default", &str);
+	if (ret)
 		current_mode = VMODE_MASK;
-		break;
-	}
+	else
+		current_mode = vmode_name_to_mode(str);
 	/* if logo vmode not set, set vmode and init osd hw */
 	logo_mode = get_logo_vmode();
 	logo_index = osd_get_logo_index();

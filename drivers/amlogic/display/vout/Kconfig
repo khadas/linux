@@ -30,15 +30,4 @@ config AML_VDAC_HW_SWITCH
 	help
 		vdac hardware switch of cvbs/ypbpr for mx.
 
-config AM_LCD_OUTPUT
-	boolean "LCD Output Module"
-	default n
-	depends on AM_VOUT
-	help
-		LCD output module
-
-if AM_LCD_OUTPUT
-source "drivers/amlogic/display/vout/lcd/Kconfig"
-endif
-
 endmenu

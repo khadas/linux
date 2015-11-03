@@ -18,6 +18,7 @@
 
 #ifndef _VINFO_H_
 #define _VINFO_H_
+#include <linux/amlogic/tvin/tvin.h>
 
 /* the MSB is represent vmode set by logo */
 #define	VMODE_LOGO_BIT_MASK	0x8000
@@ -35,10 +36,12 @@ enum vmode_e {
 	VMODE_576P,
 	VMODE_576P_RPT,
 	VMODE_720P,
-	VMODE_1080I,
-	VMODE_1080P,
 	VMODE_720P_50HZ,
+	VMODE_768P,
+	VMODE_768P_50HZ,
+	VMODE_1080I,
 	VMODE_1080I_50HZ,
+	VMODE_1080P,
 	VMODE_1080P_50HZ,
 	VMODE_1080P_24HZ,
 	VMODE_4K2K_30HZ,
@@ -66,10 +69,6 @@ enum vmode_e {
 	VMODE_WSXGA,
 	VMODE_FHDVGA,
 	VMODE_LCD,
-	VMODE_LVDS_1080P,
-	VMODE_LVDS_1080P_50HZ,
-	VMODE_LVDS_768P,
-	VMODE_VX1_4K2K_60HZ,
 	VMODE_MAX,
 	VMODE_INIT_NULL,
 	VMODE_MASK = 0xFF,
@@ -87,10 +86,12 @@ enum tvmode_e {
 	TVMODE_576P,
 	TVMODE_576P_RPT,
 	TVMODE_720P,
-	TVMODE_1080I,
-	TVMODE_1080P,
 	TVMODE_720P_50HZ,
+	TVMODE_768P,
+	TVMODE_768P_50HZ,
+	TVMODE_1080I,
 	TVMODE_1080I_50HZ,
+	TVMODE_1080P,
 	TVMODE_1080P_50HZ,
 	TVMODE_1080P_24HZ,
 	TVMODE_4K2K_30HZ,
@@ -133,6 +134,7 @@ struct vinfo_s {
 	u32 screen_real_width;
 	u32 screen_real_height;
 	u32 video_clk;
+	enum tvin_color_fmt_e viu_color_fmt;
 };
 
 struct disp_rect_s {
@@ -167,4 +169,7 @@ enum fine_tune_mode_e {
 	DOWN_HPLL,
 };
 #endif
+
+extern enum vmode_e vmode_name_to_mode(const char *);
+
 #endif /* _VINFO_H_ */

@@ -135,7 +135,7 @@
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
 		mem_size = <0x00b00000 0x00100000>; /* fb0/fb1 memory size */
-		vmode = <3>; /** 0:VMODE_720P 1:VMODE_LCD 2:VMODE_LVDS_1080P 3:VMODE_1080P */
+		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1280 720 1280 2160 32>; //1920*1080*4*3 = 0x17BB000,1280*720*4*3 = 11,059,200
 	};
