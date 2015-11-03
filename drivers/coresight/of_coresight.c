@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/coresight.h>
+#include <linux/cpumask.h>
 #include <asm/smp_plat.h>
 
 
@@ -36,7 +37,7 @@ of_coresight_get_endpoint_device(struct device_node *endpoint)
 	struct device *dev = NULL;
 
 	/*
-	 * If we have a non-configuable replicator, it will be found on the
+	 * If we have a non-configurable replicator, it will be found on the
 	 * platform bus.
 	 */
 	dev = bus_find_device(&platform_bus_type, NULL,
@@ -52,15 +53,6 @@ of_coresight_get_endpoint_device(struct device_node *endpoint)
 			       endpoint, of_dev_node_match);
 }
 
-static struct device_node *of_get_coresight_endpoint(
-		const struct device_node *parent, struct device_node *prev)
-{
-	struct device_node *node = of_graph_get_next_endpoint(parent, prev);
-
-	of_node_put(prev);
-	return node;
-}
-
 static void of_coresight_get_ports(struct device_node *node,
 				   int *nr_inport, int *nr_outport)
 {
@@ -68,7 +60,7 @@ static void of_coresight_get_ports(struct device_node *node,
 	int in = 0, out = 0;
 
 	do {
-		ep = of_get_coresight_endpoint(node, ep);
+		ep = of_graph_get_next_endpoint(node, ep);
 		if (!ep)
 			break;
 
@@ -93,7 +85,7 @@ static int of_coresight_alloc_memory(struct device *dev,
 	if (!pdata->outports)
 		return -ENOMEM;
 
-	/* Children connected to this component via @outport */
+	/* Children connected to this component via @outports */
 	 pdata->child_names = devm_kzalloc(dev, pdata->nr_outport *
 					  sizeof(*pdata->child_names),
 					  GFP_KERNEL);
@@ -113,11 +105,11 @@ static int of_coresight_alloc_memory(struct device *dev,
 struct coresight_platform_data *of_get_coresight_platform_data(
 				struct device *dev, struct device_node *node)
 {
-	int i = 0, ret = 0;
+	int i = 0, ret = 0, cpu;
 	struct coresight_platform_data *pdata;
 	struct of_endpoint endpoint, rendpoint;
 	struct device *rdev;
-	struct device_node *cpu;
+	struct device_node *dn;
 	struct device_node *ep = NULL;
 	struct device_node *rparent = NULL;
 	struct device_node *rport = NULL;
@@ -126,7 +118,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	/* Use device name as debugfs handle */
+	/* Use device name as sysfs handle */
 	pdata->name = dev_name(dev);
 
 	/* Get the number of input and output port for this component */
@@ -140,7 +132,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 		/* Iterate through each port to discover topology */
 		do {
 			/* Get a handle on a port */
-			ep = of_get_coresight_endpoint(node, ep);
+			ep = of_graph_get_next_endpoint(node, ep);
 			if (!ep)
 				break;
 
@@ -174,7 +166,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 				continue;
 
 			rdev = of_coresight_get_endpoint_device(rparent);
-			if (!dev)
+			if (!rdev)
 				continue;
 
 			pdata->child_names[i] = dev_name(rdev);
@@ -186,16 +178,11 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 
 	/* Affinity defaults to CPU0 */
 	pdata->cpu = 0;
-	cpu = of_parse_phandle(node, "cpu", 0);
-	if (cpu) {
-		const u32 *mpidr;
-		int len, index;
-
-		mpidr = of_get_property(cpu, "reg", &len);
-		if (mpidr && len == 4) {
-			index = get_logical_index(be32_to_cpup(mpidr));
-			if (index != -EINVAL)
-				pdata->cpu = index;
+	dn = of_parse_phandle(node, "cpu", 0);
+	for (cpu = 0; dn && cpu < nr_cpu_ids; cpu++) {
+		if (dn == of_get_cpu_node(cpu, NULL)) {
+			pdata->cpu = cpu;
+			break;
 		}
 	}
 

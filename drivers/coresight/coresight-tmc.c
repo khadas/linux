@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
@@ -104,7 +104,6 @@ enum tmc_mem_intf_width {
  * @dev:	the device entity associated to this component.
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.tmc" entry.
- * @clk:	the clock this component is associated to.
  * @spinlock:	only one at a time pls.
  * @read_count:	manages preparation of buffer for reading.
  * @buf:	area of memory where trace data get sent.
@@ -120,7 +119,6 @@ struct tmc_drvdata {
 	struct device		*dev;
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
-	struct clk		*clk;
 	spinlock_t		spinlock;
 	int			read_count;
 	bool			reading;
@@ -242,17 +240,14 @@ static void tmc_etf_enable_hw(struct tmc_drvdata *drvdata)
 
 static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 {
-	int ret;
 	unsigned long flags;
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
+	pm_runtime_get_sync(drvdata->dev);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	if (drvdata->reading) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
-		clk_disable_unprepare(drvdata->clk);
+		pm_runtime_put(drvdata->dev);
 		return -EBUSY;
 	}
 
@@ -386,7 +381,7 @@ out:
 	drvdata->enable = false;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 
 	dev_info(drvdata->dev, "TMC disabled\n");
 }
@@ -533,8 +528,8 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 
 	*ppos += len;
 
-	dev_dbg(drvdata->dev, "%s: %d bytes copied, %d bytes left\n",
-		__func__, len, (int) (drvdata->size - *ppos));
+	dev_dbg(drvdata->dev, "%s: %zu bytes copied, %d bytes left\n",
+		__func__, len, (int)(drvdata->size - *ppos));
 	return len;
 }
 
@@ -565,6 +560,54 @@ static const struct file_operations tmc_fops = {
 	.llseek		= no_llseek,
 };
 
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	unsigned long flags;
+	u32 tmc_rsz, tmc_sts, tmc_rrp, tmc_rwp, tmc_trg;
+	u32 tmc_ctl, tmc_ffsr, tmc_ffcr, tmc_mode, tmc_pscr;
+	u32 devid;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	pm_runtime_get_sync(drvdata->dev);
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	CS_UNLOCK(drvdata->base);
+
+	tmc_rsz = readl_relaxed(drvdata->base + TMC_RSZ);
+	tmc_sts = readl_relaxed(drvdata->base + TMC_STS);
+	tmc_rrp = readl_relaxed(drvdata->base + TMC_RRP);
+	tmc_rwp = readl_relaxed(drvdata->base + TMC_RWP);
+	tmc_trg = readl_relaxed(drvdata->base + TMC_TRG);
+	tmc_ctl = readl_relaxed(drvdata->base + TMC_CTL);
+	tmc_ffsr = readl_relaxed(drvdata->base + TMC_FFSR);
+	tmc_ffcr = readl_relaxed(drvdata->base + TMC_FFCR);
+	tmc_mode = readl_relaxed(drvdata->base + TMC_MODE);
+	tmc_pscr = readl_relaxed(drvdata->base + TMC_PSCR);
+	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
+
+	CS_LOCK(drvdata->base);
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+	pm_runtime_put(drvdata->dev);
+
+	return sprintf(buf,
+		       "Depth:\t\t0x%x\n"
+		       "Status:\t\t0x%x\n"
+		       "RAM read ptr:\t0x%x\n"
+		       "RAM wrt ptr:\t0x%x\n"
+		       "Trigger cnt:\t0x%x\n"
+		       "Control:\t0x%x\n"
+		       "Flush status:\t0x%x\n"
+		       "Flush ctrl:\t0x%x\n"
+		       "Mode:\t\t0x%x\n"
+		       "PSRC:\t\t0x%x\n"
+		       "DEVID:\t\t0x%x\n",
+			tmc_rsz, tmc_sts, tmc_rrp, tmc_rwp, tmc_trg,
+			tmc_ctl, tmc_ffsr, tmc_ffcr, tmc_mode, tmc_pscr, devid);
+
+	return -EINVAL;
+}
+static DEVICE_ATTR_RO(status);
+
 static ssize_t trigger_cntr_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -593,18 +636,21 @@ static DEVICE_ATTR_RW(trigger_cntr);
 
 static struct attribute *coresight_etb_attrs[] = {
 	&dev_attr_trigger_cntr.attr,
+	&dev_attr_status.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(coresight_etb);
 
 static struct attribute *coresight_etr_attrs[] = {
 	&dev_attr_trigger_cntr.attr,
+	&dev_attr_status.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(coresight_etr);
 
 static struct attribute *coresight_etf_attrs[] = {
 	&dev_attr_trigger_cntr.attr,
+	&dev_attr_status.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(coresight_etf);
@@ -644,11 +690,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 
 	spin_lock_init(&drvdata->spinlock);
 
-	drvdata->clk = adev->pclk;
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
 
@@ -663,7 +704,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		drvdata->size = readl_relaxed(drvdata->base + TMC_RSZ) * 4;
 	}
 
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(&adev->dev);
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		drvdata->vaddr = dma_alloc_coherent(dev, drvdata->size,
@@ -760,17 +801,7 @@ static struct amba_driver tmc_driver = {
 	.id_table	= tmc_ids,
 };
 
-static int __init tmc_init(void)
-{
-	return amba_driver_register(&tmc_driver);
-}
-module_init(tmc_init);
-
-static void __exit tmc_exit(void)
-{
-	amba_driver_unregister(&tmc_driver);
-}
-module_exit(tmc_exit);
+module_amba_driver(tmc_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CoreSight Trace Memory Controller driver");

@@ -37,11 +37,12 @@ static void __iomem *reg_base_aobus;
 #undef	HHI_MALI_CLK_CNTL
 #undef	HHI_VAPBCLK_CNTL
 #undef	HHI_XTAL_DIVN_CNTL
-
+#undef	HHI_SYS_CPU_CLK_CNTL1
 #define	HHI_GCLK_MPEG0			OFFSET(0x50)
 #define	HHI_MALI_CLK_CNTL		OFFSET(0x6c)
 #define	HHI_VAPBCLK_CNTL		OFFSET(0x7d)
 #define	HHI_XTAL_DIVN_CNTL		OFFSET(0x2f)
+#define	HHI_SYS_CPU_CLK_CNTL1		OFFSET(0x57)
 
 #undef HHI_MPLL_CNTL
 #define	HHI_MPLL_CNTL			OFFSET(0xa0)
@@ -93,6 +94,11 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 static struct amlogic_mux_clock mux_clks[] __initdata = {
 	MUX(CLK_MALI, "clk_mali", mux_mali_p, HHI_MALI_CLK_CNTL, 31, 1, 0),
 	MUX(CLK_SPDIF, "clk_spdif", cts_spdif_p, HHI_AUD_CLK_CNTL2, 27, 1, 0)
+};
+
+/* divider clocks */
+static struct amlogic_div_clock gxbb_div_clks[] __initdata = {
+	DIV(CLK_APB_P, "apb_pclk", "vcpu", HHI_SYS_CPU_CLK_CNTL1, 3, 3, 0),
 };
 
 
@@ -206,6 +212,8 @@ static void __init gxbb_clk_init(struct device_node *np)
 	mpll_clk_init(reg_base_hiubus, mpll_tab, ARRAY_SIZE(mpll_tab));
 	amlogic_clk_register_mux(mux_clks,
 			ARRAY_SIZE(mux_clks));
+	amlogic_clk_register_div(gxbb_div_clks,
+			ARRAY_SIZE(gxbb_div_clks));
 	amlogic_clk_register_branches(clk_branches,
 		  ARRAY_SIZE(clk_branches));
 	amlogic_clk_register_gate(clk_gates,
