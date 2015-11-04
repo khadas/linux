@@ -63,7 +63,7 @@
 #define EDID_DETAILED_TIMING_DES_BLOCK2_POS 0x5A
 #define EDID_DETAILED_TIMING_DES_BLOCK3_POS 0x6C
 
-static unsigned char edid_checkvalue[4] = {0};
+static unsigned char __nosavedata edid_checkvalue[4] = {0};
 
 static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
 {

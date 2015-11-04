@@ -2493,11 +2493,36 @@ static int amhdmitx_resume(struct platform_device *pdev)
 }
 #endif
 
-#ifdef CONFIG_HIBERNATION
-static int is_support_3d __nosavedata;
+#ifdef CONFIG_INSTABOOT
+static unsigned char __nosavedata EDID_buf_save[EDID_MAX_BLOCK * 128];
+static unsigned char __nosavedata EDID_buf1_save[EDID_MAX_BLOCK * 128];
+static unsigned char __nosavedata EDID_hash_save[20];
+static struct rx_cap __nosavedata RXCap_save;
+static struct hdmitx_info __nosavedata hdmi_info_save;
+
+static void save_device_param(void)
+{
+	memcpy(EDID_buf_save, hdmitx_device.EDID_buf, EDID_MAX_BLOCK * 128);
+	memcpy(EDID_buf1_save, hdmitx_device.EDID_buf1, EDID_MAX_BLOCK * 128);
+	memcpy(EDID_hash_save, hdmitx_device.EDID_hash, 20);
+	memcpy(&RXCap_save, &hdmitx_device.RXCap, sizeof(struct rx_cap));
+	memcpy(&hdmi_info_save, &hdmitx_device.hdmi_info,
+		sizeof(struct hdmitx_info));
+}
+
+static void restore_device_param(void)
+{
+	memcpy(hdmitx_device.EDID_buf, EDID_buf_save, EDID_MAX_BLOCK * 128);
+	memcpy(hdmitx_device.EDID_buf1, EDID_buf1_save, EDID_MAX_BLOCK * 128);
+	memcpy(hdmitx_device.EDID_hash, EDID_hash_save, 20);
+	memcpy(&hdmitx_device.RXCap, &RXCap_save, sizeof(struct rx_cap));
+	memcpy(&hdmitx_device.hdmi_info, &hdmi_info_save,
+		sizeof(struct hdmitx_info));
+}
+
 static int amhdmitx_freeze(struct device *dev)
 {
-	is_support_3d = hdmitx_device.RXCap.threeD_present;
+	save_device_param();
 	return 0;
 }
 
@@ -2506,7 +2531,7 @@ static int amhdmitx_restore(struct device *dev)
 	int current_hdmi_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_HPD_GPI_ST, 0));
 	char *vout_mode = get_vout_mode_internal();
-	hdmitx_device.RXCap.threeD_present = is_support_3d;
+	restore_device_param();
 	if (strstr(vout_mode, "cvbs") && current_hdmi_state == 1) {
 		mutex_lock(&setclk_mutex);
 		sdev.state = 0;
