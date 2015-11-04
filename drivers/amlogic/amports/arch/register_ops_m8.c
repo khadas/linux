@@ -22,9 +22,13 @@
 #define REGISTER_FOR_CPU {\
 			MESON_CPU_MAJOR_ID_M8,\
 			MESON_CPU_MAJOR_ID_M8M2,\
-			MESON_CPU_MAJOR_ID_GXBB, \
+	MESON_CPU_MAJOR_ID_GXBB, \
+	MESON_CPU_MAJOR_ID_GXTVBB, \
 			0}
-
+#define REGISTER_FOR_GXCPU {\
+	MESON_CPU_MAJOR_ID_GXBB, \
+	MESON_CPU_MAJOR_ID_GXTVBB, \
+			0}
 int codec_apb_read(unsigned int reg)
 {
 	unsigned int val = 0;
@@ -64,12 +68,12 @@ static struct chip_register_ops ex_gx_ops[] __initdata = {
 static int __init vdec_reg_ops_init(void)
 {
 	int cpus[] = REGISTER_FOR_CPU;
+	int gxcpus[] = REGISTER_FOR_GXCPU;
 	register_reg_ops_mgr(cpus, m8_ops,
 		sizeof(m8_ops) / sizeof(struct chip_register_ops));
 
-	register_reg_ops_per_cpu(MESON_CPU_MAJOR_ID_GXBB,
-		ex_gx_ops, sizeof(ex_gx_ops) /
-		sizeof(struct chip_register_ops));
+	register_reg_ex_ops_mgr(gxcpus, ex_gx_ops,
+		sizeof(ex_gx_ops) / sizeof(struct chip_register_ops));
 
 	return 0;
 }

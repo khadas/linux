@@ -133,4 +133,14 @@ int register_reg_ops_mgr(int cputype[],
 	}
 	return 0;
 }
+int register_reg_ex_ops_mgr(int cputype[],
+	struct chip_register_ops *ex_ops_list, int ops_size)
+{
+	int i = 0;
+	while (cputype[i] > 0) {
+		register_reg_ops_per_cpu(cputype[i], ex_ops_list, ops_size);
+		i++;
+	}
+	return 0;
+}
 

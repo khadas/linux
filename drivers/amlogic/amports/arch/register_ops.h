@@ -63,7 +63,8 @@ int register_reg_ops_per_cpu(int cputype, struct chip_register_ops *sops,
 
 int register_reg_ops_mgr(int cputype[], struct chip_register_ops *sops_list,
 						 int ops_size);
-
+int register_reg_ex_ops_mgr(int cputype[],
+		 struct chip_register_ops *ex_ops_list, int ops_size);
 #define DEF_BUS_OPS(BUS_TYPE, name)\
 static inline void codec_##name##bus_write(unsigned int reg, u32 val)\
 {\
