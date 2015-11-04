@@ -45,6 +45,11 @@
 
 #define AVMLVIDEO_MODULE_NAME "amlvideo"
 
+#define AMLVIDEO_INFO(fmt, args...) pr_info("amlvid:info: "fmt"", ## args)
+#define AMLVIDEO_DBG(fmt, args...) pr_debug("amlvid:dbg: "fmt"", ## args)
+#define AMLVIDEO_WARN(fmt, args...) pr_warn("amlvid:warn: "fmt"", ## args)
+#define AMLVIDEO_ERR(fmt, args...) pr_err("amlvid:err: "fmt"", ## args)
+
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
 #define WAKE_DENOMINATOR 1001
@@ -280,16 +285,16 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		unregFlag = 1;
 		if (index != 8)
 			mutex_lock(&vfpMutex);
-		pr_debug("AML:VFRAME_EVENT_PROVIDER_UNREG\n");
+		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_UNREG\n");
 		if (vf_get_receiver(PROVIDER_NAME)) {
-			pr_debug("unreg:amlvideo\n");
+			AMLVIDEO_DBG("unreg:amlvideo\n");
 			vf_unreg_provider(&amlvideo_vf_prov);
 			omx_secret_mode = false;
 		}
 		first_frame = 0;
 	}
 	if (type == VFRAME_EVENT_PROVIDER_REG) {
-		pr_debug("AML:VFRAME_EVENT_PROVIDER_REG\n");
+		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_REG\n");
 
 		if (unregFlag == 0)
 			vf_notify_provider(RECEIVER_NAME,
@@ -301,11 +306,11 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		return RECEIVER_ACTIVE;
 	} else if (type == VFRAME_EVENT_PROVIDER_START) {
-		pr_debug("AML:VFRAME_EVENT_PROVIDER_START\n");
+		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_START\n");
 		if (vf_get_receiver(PROVIDER_NAME)) {
 			struct vframe_receiver_s *aaa = vf_get_receiver(
 				PROVIDER_NAME);
-			pr_debug("aaa->name=%s", aaa->name);
+			AMLVIDEO_DBG("aaa->name=%s", aaa->name);
 			omx_secret_mode = true;
 			vf_provider_init(&amlvideo_vf_prov, PROVIDER_NAME,
 						&amlvideo_vf_provider, NULL);
@@ -668,7 +673,7 @@ static int freerun_dqbuf(struct v4l2_buffer *p)
 		unregFlag = 0;
 	}
 	if (!ppmgrvf) {
-		pr_debug("%s, %s, %d\n", __FILE__, __func__, __LINE__);
+		AMLVIDEO_DBG("%s, %s, %d\n", __FILE__, __func__, __LINE__);
 		mutex_unlock(&vfpMutex);
 		return -EAGAIN;
 	}
@@ -942,7 +947,7 @@ static int amlvideo_open(struct file *file)
 	videobuf_queue_res_init(&fh->vb_vidq, &vivi_video_qops, NULL,
 				&dev->slock, fh->type, V4L2_FIELD_INTERLACED,
 				sizeof(struct vivi_buffer), (void *)res, NULL);
-	pr_debug("amlvideo open");
+	AMLVIDEO_DBG("amlvideo open");
 	return 0;
 }
 
@@ -990,7 +995,7 @@ static int amlvideo_close(struct file *file)
 	mutex_lock(&dev->mutex);
 	dev->users--;
 	mutex_unlock(&dev->mutex);
-	pr_debug("amlvideo close");
+	AMLVIDEO_DBG("amlvideo close");
 	return 0;
 }
 
@@ -1071,7 +1076,7 @@ static int __init amlvideo_create_instance(int inst)
 	struct vivi_dev *dev;
 	struct video_device *vfd;
 	int ret, i;
-	pr_err("amlvideo_create_instance called\n");
+	AMLVIDEO_ERR("amlvideo_create_instance called\n");
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -1080,7 +1085,7 @@ static int __init amlvideo_create_instance(int inst)
 		sizeof(dev->v4l2_dev.name),
 		"%s-%03d", AVMLVIDEO_MODULE_NAME, inst);
 
-	pr_err("v4l2_dev.name=:%s\n", dev->v4l2_dev.name);
+	AMLVIDEO_ERR("v4l2_dev.name=:%s\n", dev->v4l2_dev.name);
 	ret = v4l2_device_register(NULL, &dev->v4l2_dev);
 
 	if (ret)
@@ -1152,7 +1157,7 @@ static int __init amlvideo_init(void)
 {
 	int ret = 0, i;
 
-	pr_err("amlvideo_init called");
+	AMLVIDEO_ERR("amlvideo_init called");
 	if (n_devs <= 0)
 		n_devs = 1;
 

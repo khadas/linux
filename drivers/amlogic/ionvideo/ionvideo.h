@@ -58,6 +58,10 @@
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1920
 
+#define IONVID_INFO(fmt, args...) pr_info("ionvid: info: "fmt"", ## args)
+#define IONVID_DBG(fmt, args...) pr_debug("ionvid: dbg: "fmt"", ## args)
+#define IONVID_ERR(fmt, args...) pr_err("ionvid: err: "fmt"", ## args)
+
 #define DUR2PTS(x) ((x) - ((x) >> 4))
 
 #define dprintk(dev, level, fmt, arg...)                    \

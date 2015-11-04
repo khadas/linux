@@ -49,6 +49,11 @@
 
 #define VF_POOL_SIZE 4
 
+#define PPMGR3D_INFO(fmt, args...) pr_info("PPMGR3D: info: "fmt"", ## args)
+#define PPMGR3D_DBG(fmt, args...) pr_debug("PPMGR3D: dbg: "fmt"", ## args)
+#define PPMGR3D_WARN(fmt, args...) pr_warn("PPMGR3D: warn: "fmt"", ## args)
+#define PPMGR3D_ERR(fmt, args...) pr_err("PPMGR3D: err: "fmt"", ## args)
+
 static int cur_process_type;
 static int mask_canvas_index = -1;
 static int ppmgr_3d_clear_count;
@@ -936,7 +941,7 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 		ge2d_config->dst_para.height = canvas_height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3D_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -1029,7 +1034,7 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -1153,8 +1158,7 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		printk(
-		KERN_ERR
+		PPMGR3D_ERR(
 		"++ge2d configing error.\n");
 		return;
 	}
@@ -1187,7 +1191,8 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 						t = 0;
 
 				} else {
-					pr_err("++2d->3d error, out of range1.\n");
+					PPMGR3D_ERR(
+					"++2d->3d error,out of range1.\n");
 				}
 			} else {/*move up*/
 				if (t >= x_offset) { /*only pan*/
@@ -1223,8 +1228,7 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 						t = t + x_offset;
 
 				} else {
-					printk(
-					KERN_ERR
+					PPMGR3D_ERR(
 					"++2d->3d error, out of range2.\n");
 				}
 			}
@@ -1252,8 +1256,7 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 						l = 0;
 
 				} else {
-					printk(
-					KERN_ERR
+					PPMGR3D_ERR(
 					"++2d->3d error, out of range1.\n");
 				}
 			} else {/*move left*/
@@ -1290,8 +1293,7 @@ void process_2d_to_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 						l = l + x_offset;
 
 				} else {
-					printk(
-					KERN_ERR
+					PPMGR3D_ERR(
 					"++2d->3d error, out of range2.\n");
 				}
 			}
@@ -1447,7 +1449,7 @@ static void process_2d_to_3d(struct vframe_s *vf,
 		ge2d_config->dst_para.height = canvas_height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3D_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -1557,7 +1559,7 @@ static void process_2d_to_3d(struct vframe_s *vf,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -1718,7 +1720,7 @@ static void process_2d_to_3d(struct vframe_s *vf,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -1751,8 +1753,7 @@ static void process_2d_to_3d(struct vframe_s *vf,
 						t = 0;
 
 				} else {
-					printk(
-					KERN_ERR
+					PPMGR3D_ERR(
 					"++2d->3d error, out of range1.\n");
 				}
 			} else {/*move up*/
@@ -1789,7 +1790,8 @@ static void process_2d_to_3d(struct vframe_s *vf,
 						t = t + x_offset;
 
 				} else {
-					pr_err("++2d->3d error, out of range2.\n");
+					PPMGR3D_ERR(
+					"++2d->3d error,out of range2.\n");
 				}
 			}
 		} else {
@@ -1816,8 +1818,7 @@ static void process_2d_to_3d(struct vframe_s *vf,
 						l = 0;
 
 				} else {
-					printk(
-					KERN_ERR
+					PPMGR3D_ERR(
 					"++2d->3d error, out of range1.\n");
 				}
 			} else {/*move left*/
@@ -1854,8 +1855,7 @@ static void process_2d_to_3d(struct vframe_s *vf,
 						l = l + x_offset;
 
 				} else {
-					printk(
-					KERN_ERR
+					PPMGR3D_ERR(
 					"++2d->3d error, out of range2.\n");
 				}
 			}
@@ -2030,7 +2030,7 @@ void process_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 		ge2d_config->dst_para.height = canvas_height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3D_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -2124,7 +2124,7 @@ void process_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2253,7 +2253,7 @@ void process_3d_ex(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2398,7 +2398,7 @@ void process_3d(struct vframe_s *vf, struct ge2d_context_s *context,
 		ge2d_config->dst_para.height = canvas_height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3D_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -2508,7 +2508,7 @@ void process_3d(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2676,7 +2676,7 @@ void process_3d(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2858,7 +2858,7 @@ void process_3d_to_2d(struct vframe_s *vf, struct ge2d_context_s *context,
 		ge2d_config->dst_para.height = canvas_height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3D_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -2956,7 +2956,7 @@ void process_3d_to_2d(struct vframe_s *vf, struct ge2d_context_s *context,
 	}
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3D_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -3025,7 +3025,8 @@ void ppmgr_vf_3d(struct vframe_s *vf, struct ge2d_context_s *context,
 		|| ((input_frame.frame_top + input_frame.frame_height) > cd
 				.height)) {
 		ppmgr_vf_put_dec(vf);
-		pr_warn("case 1: vdin canvas setting is not compatible with vframe!!!\n");
+		PPMGR3D_WARN("case 1: vdin canvas setting is");
+		PPMGR3D_WARN(" not compatible with vframe!!!\n");
 		return;
 
 	}
@@ -3040,8 +3041,8 @@ void ppmgr_vf_3d(struct vframe_s *vf, struct ge2d_context_s *context,
 		|| ((l_frame.frame_left + l_frame.frame_width) > cd.width)
 		|| ((l_frame.frame_top + l_frame.frame_height) > cd.height)) {
 		ppmgr_vf_put_dec(vf);
-		pr_warn(
-		"case 2: vdin canvas setting is not compatible with vframe!!!\n");
+		PPMGR3D_WARN("case 2: vdin canvas setting is");
+		PPMGR3D_WARN(" not compatible with vframe!!!\n");
 		return;
 	}
 
@@ -3055,7 +3056,8 @@ void ppmgr_vf_3d(struct vframe_s *vf, struct ge2d_context_s *context,
 		|| ((r_frame.frame_left + r_frame.frame_width) > cd.width)
 		|| ((r_frame.frame_top + r_frame.frame_height) > cd.height)) {
 		ppmgr_vf_put_dec(vf);
-		pr_warn("case 3:vdin canvas setting is not compatible with vframe!!!\n");
+		PPMGR3D_WARN("case 3:vdin canvas setting is");
+		PPMGR3D_WARN(" not compatible with vframe!!!\n");
 		return;
 	}
 	cur_angle = get_ppmgr_direction3d();/*_3d_process.direction;*/

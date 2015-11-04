@@ -54,6 +54,12 @@
 /*#include <mach/mod_gate.h>*/
 /*#endif*/
 
+
+#define PPMGRVPP_INFO(fmt, args...) pr_info("PPMGRVPP: info: "fmt"", ## args)
+#define PPMGRVPP_DBG(fmt, args...) pr_debug("PPMGRVPP: dbg: "fmt"", ## args)
+#define PPMGRVPP_WARN(fmt, args...) pr_warn("PPMGRVPP: warn: "fmt"", ## args)
+#define PPMGRVPP_ERR(fmt, args...) pr_err("PPMGRVPP: err: "fmt"", ## args)
+
 #define VF_POOL_SIZE 7
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
 #define ASS_POOL_SIZE 2
@@ -324,7 +330,7 @@ static int ppmgr_event_cb(int type, void *data, void *private_data)
 {
 	if (type & VFRAME_EVENT_RECEIVER_PUT) {
 #ifdef DDD
-		pr_warn("video put, avail=%d, free=%d\n",
+		PPMGRVPP_WARN("video put, avail=%d, free=%d\n",
 			vfq_level(&q_ready), vfq_level(&q_free));
 #endif
 		up(&thread_sem);
@@ -414,7 +420,7 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_VFRAME_READY:
 #ifdef DDD
-		pr_warn("dec put, avail=%d, free=%d\n",
+		PPMGRVPP_WARN("dec put, avail=%d, free=%d\n",
 			vfq_level(&q_ready), vfq_level(&q_free));
 #endif
 		up(&thread_sem);
@@ -435,13 +441,13 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
 		break;
 	case VFRAME_EVENT_PROVIDER_START:
 #ifdef DDD
-		pr_warn("register now\n");
+		PPMGRVPP_WARN("register now\n");
 #endif
 		vf_ppmgr_reg_provider();
 		break;
 	case VFRAME_EVENT_PROVIDER_UNREG:
 #ifdef DDD
-		pr_warn("unregister now\n");
+		PPMGRVPP_WARN("unregister now\n");
 #endif
 		vf_ppmgr_unreg_provider();
 		break;
@@ -808,7 +814,7 @@ static int process_vf_deinterlace_nv21(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
@@ -878,7 +884,7 @@ static int process_vf_deinterlace_nv21(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
@@ -974,7 +980,7 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
@@ -1042,7 +1048,7 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 4;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
@@ -1110,7 +1116,7 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 4;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
@@ -1179,7 +1185,7 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
@@ -1247,7 +1253,7 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 4;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
@@ -1315,7 +1321,7 @@ static int process_vf_deinterlace(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height / 4;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
@@ -1555,7 +1561,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->dst_para.height = new_vf->height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGRVPP_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -1642,7 +1648,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->dst_para.height = new_vf->height;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGRVPP_ERR("++ge2d configing error.\n");
 			ppmgr_vf_put_dec(vf);
 			vfq_push(&q_free, new_vf);
 			return;
@@ -1810,7 +1816,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->dst_xy_swap = 0;
 	}
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		vfq_push(&q_free, new_vf);
 		return;
 	}
@@ -1898,7 +1904,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	vfq_push(&q_ready, new_vf);
 
 #ifdef DDD
-	pr_warn("rotate avail=%d, free=%d\n",
+	PPMGRVPP_WARN("rotate avail=%d, free=%d\n",
 		vfq_level(&q_ready), vfq_level(&q_free));
 #endif
 }
@@ -2037,7 +2043,7 @@ static void process_vf_change(struct vframe_s *vf,
 		ge2d_config->dst_para.y_rev = 1;
 	}
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		/*vfq_push(&q_free, new_vf);*/
 		return;
 	}
@@ -2107,7 +2113,7 @@ static void process_vf_change(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		/*vfq_push(&q_free, new_vf);*/
 		return;
 	}
@@ -2228,7 +2234,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 	ge2d_config->dst_para.height = ppmgr_device.disp_height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -2;
 	}
 	fillrect(context, 0, 0,
@@ -2287,7 +2293,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 	ge2d_config->dst_para.height = ppmgr_device.disp_height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -2;
 	}
 
@@ -2413,7 +2419,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 	ge2d_config->dst_para.height = vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGRVPP_ERR("++ge2d configing error.\n");
 		return -2;
 	}
 	stretchblt_noalpha(context, 0, 0, ppmgr_device.disp_width,
@@ -2694,11 +2700,11 @@ static int ppmgr_task(void *data)
 			vf_reg_provider(&ppmgr_vf_prov);
 			ppmgr_blocking = false;
 			up(&thread_sem);
-			pr_warn("ppmgr rebuild from light-unregister\n");
+			PPMGRVPP_WARN("ppmgr rebuild from light-unregister\n");
 		}
 
 #ifdef DDD
-		pr_warn("process paused, dec %p, free %d, avail %d\n",
+		PPMGRVPP_WARN("process paused, dec %p, free %d, avail %d\n",
 			ppmgr_vf_peek_dec(),
 			vfq_level(&q_free),
 			vfq_level(&q_ready));
@@ -2813,7 +2819,9 @@ int ppmgr_buffer_init(int vout_mode)
 	if (vout_mode == 0) {
 		ppmgr_device.vinfo = get_current_vinfo();
 		if (ppmgr_device.vinfo == NULL) {
-			pr_err("ppmgr failed to get_currnt_vinfo! Try to MAKE one!\n");
+			PPMGRVPP_ERR(
+			"failed to get_currnt_vinfo! Try to MAKE one!");
+
 			ppmgr_device.vinfo = &vinfo;
 		}
 
@@ -2924,7 +2932,7 @@ int ppmgr_buffer_init(int vout_mode)
 		decbuf_size = 0x600000;
 
 		if (decbuf_size * VF_POOL_SIZE > buf_size) {
-			amlog_level(LOG_LEVEL_HIGH,
+			PPMGRVPP_ERR(
 					"size of ppmgr memory resource too small.\n");
 			return -1;
 		}

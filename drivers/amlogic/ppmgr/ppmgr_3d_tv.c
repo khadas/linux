@@ -49,6 +49,12 @@
 #define RECEIVER_NAME "ppmgr"
 #define PROVIDER_NAME   "ppmgr"
 #define VF_POOL_SIZE 4
+
+#define PPMGR3DTV_INFO(fmt, args...) pr_info("PPMGR3DTV: info: "fmt"", ## args)
+#define PPMGR3DTV_DBG(fmt, args...) pr_debug("PPMGR3DTV: dbg: "fmt"", ## args)
+#define PPMGR3DTV_WARN(fmt, args...) pr_warn("PPMGR3DTV: warn: "fmt"", ## args)
+#define PPMGR3DTV_ERR(fmt, args...) pr_err("PPMGR3DTV: err: "fmt"", ## args)
+
 /* extern struct vfq_s q_ready; */
 /* extern struct vfq_s q_free; */
 struct display_frame_t {
@@ -1396,7 +1402,7 @@ static void process_none(struct vframe_s *vf, struct ge2d_context_s *context,
 	 * |  VIDTYPE_PROGRESSIVE ;*/
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
@@ -1453,7 +1459,7 @@ static void process_none(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = new_vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	/*    stretchblt_noalpha(context,input_frame.content_left,
@@ -1726,7 +1732,7 @@ void process_2d_to_3d_switch(
 	VIDTYPE_PROGRESSIVE;
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 
@@ -1817,7 +1823,7 @@ void process_2d_to_3d_switch(
 
 	/*   printk("t:%d l:%d w:%d h%d\n",t,l,w,h);*/
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -1901,7 +1907,7 @@ void process_2d_to_3d_switch(
 	ge2d_config->dst_para.height = h2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -1955,7 +1961,7 @@ void process_lr(struct vframe_s *vf, struct ge2d_context_s *context,
 	new_vf->mode_3d_enable = 1;
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = index2canvas_0(index);
@@ -2042,7 +2048,7 @@ void process_lr(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	/*    printk("t:%d l:%d w:%d h%d w2:%d h2:%d\n",t,l,w,h,w2,h2);*/
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	/*    stretchblt_noalpha(context,0,0,vf->width/2,vf->height,t,l,w,h);*/
@@ -2139,7 +2145,7 @@ void process_lr(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = h2 / 2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	/*    stretchblt_noalpha(context,vf->width/2 ,0,vf->width/2,
@@ -2195,7 +2201,7 @@ void process_bt(struct vframe_s *vf, struct ge2d_context_s *context,
 	new_vf->mode_3d_enable = 1;
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = index2canvas_0(index);
@@ -2285,7 +2291,7 @@ void process_bt(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	/*    printk("t:%d l:%d w:%d h%d\n",t,l,w,h);*/
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2384,7 +2390,7 @@ void process_bt(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = h2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 /*    stretchblt_noalpha(context,0 ,vf->height/2,vf->width,
@@ -2435,7 +2441,7 @@ void process_lr_switch(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
@@ -2492,7 +2498,7 @@ void process_lr_switch(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = new_vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2506,7 +2512,7 @@ void process_lr_switch(struct vframe_s *vf, struct ge2d_context_s *context,
 
 ROUND2:
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -2550,7 +2556,7 @@ ROUND2:
 	new_vf->mode_3d_enable = 1;
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = index2canvas_0(index);
@@ -2635,7 +2641,7 @@ ROUND2:
 
 	/*   printk("t:%d l:%d w:%d h%d\n",t,l,w,h);*/
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 /*    stretchblt_noalpha(context,0,0,vf->width/2,vf->height,t,l,w,h);*/
@@ -2731,7 +2737,7 @@ ROUND2:
 	ge2d_config->dst_para.height = h2;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	/*    stretchblt_noalpha(context,vf->width/2 ,0,vf->width/2,
@@ -2795,7 +2801,7 @@ static void process_field_depth(struct vframe_s *vf,
 	new_vf->mode_3d_enable = 1;
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	x_phase = get_depth();
@@ -2904,7 +2910,7 @@ static void process_field_depth(struct vframe_s *vf,
 	ge2d_config->dst_para.width = w2;
 	ge2d_config->dst_para.height = h2 / 2;
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	x_phase &= 0xfffffff;
@@ -3015,7 +3021,7 @@ static void process_field_depth(struct vframe_s *vf,
 			ge2d_config->hf_init_phase = cur_phase << 16;
 		}
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3DTV_ERR("++ge2d configing error.\n");
 			return;
 		}
 		stretchblt_noalpha(
@@ -3091,7 +3097,7 @@ static void process_field_depth(struct vframe_s *vf,
 			ge2d_config->hf_init_phase = cur_phase << 16;
 		}
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3DTV_ERR("++ge2d configing error.\n");
 			return;
 		}
 
@@ -3193,7 +3199,7 @@ void process_3d_to_2d_l(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
@@ -3255,7 +3261,7 @@ void process_3d_to_2d_l(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = new_vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	axis_h_adjust(vf, &l, &w, &w2, get_ppmgr_scale_width());
@@ -3328,7 +3334,7 @@ void process_3d_to_2d_r(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
@@ -3389,7 +3395,7 @@ void process_3d_to_2d_r(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = new_vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 
@@ -3439,7 +3445,7 @@ void process_camera_input(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	index = pp_vf->index;
 	if (index < 0) {
-		pr_warn("======decoder is full\n");
+		PPMGR3DTV_WARN("======decoder is full\n");
 		/*return -1;*/
 	}
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
@@ -3497,7 +3503,7 @@ void process_camera_input(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.height = new_vf->height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	stretchblt_noalpha(
@@ -3568,7 +3574,7 @@ static void buffer_clear_2D(struct ge2d_context_s *context,
 		ge2d_config->dst_para.width = w;
 		ge2d_config->dst_para.height = h1;
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3DTV_ERR("++ge2d configing error.\n");
 			return;
 		}
 		fillrect(context, l, t, w, h1, 0x00808000);
@@ -3628,7 +3634,7 @@ static void buffer_clear_3D(struct ge2d_context_s *context,
 		ge2d_config->dst_para.width = w;
 		ge2d_config->dst_para.height = h2;
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3DTV_ERR("++ge2d configing error.\n");
 
 			return;
 		}
@@ -3641,7 +3647,7 @@ static void buffer_clear_3D(struct ge2d_context_s *context,
 		PPMGR_DOUBLE_CANVAS_INDEX + 4 + i;
 
 		if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-			pr_err("++ge2d configing error.\n");
+			PPMGR3DTV_ERR("++ge2d configing error.\n");
 			return;
 		}
 		fillrect(context, l, t, w, h2, 0x00808000);
@@ -3689,7 +3695,7 @@ static void window_clear_3D(struct ge2d_context_s *context,
 	ge2d_config->dst_para.width = 1920;
 	ge2d_config->dst_para.height = 544;
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		PPMGR3DTV_ERR("++ge2d configing error.\n");
 		return;
 	}
 	fillrect(context, l, t, w, h, 0x00808000);
@@ -3767,7 +3773,8 @@ void ppmgr_vf_3d_tv(struct vframe_s *vf, struct ge2d_context_s *context,
 		|| ((input_frame.frame_top + input_frame.frame_height)
 		> cd.height)) {
 		ppmgr_vf_put_dec(vf);
-		pr_warn("case 1: vdin canvas setting is not compatible with vframe!!!\n");
+		PPMGR3DTV_WARN("case 1: vdin canvas setting is");
+		PPMGR3DTV_WARN(" not compatible with vframe!!!\n");
 		return;
 	}
 
@@ -3781,7 +3788,8 @@ void ppmgr_vf_3d_tv(struct vframe_s *vf, struct ge2d_context_s *context,
 		|| ((l_frame.frame_left + l_frame.frame_width) > cd.width)
 		|| ((l_frame.frame_top + l_frame.frame_height) > cd.height)) {
 		ppmgr_vf_put_dec(vf);
-		pr_warn("case 2: vdin canvas setting is not compatible with vframe!!!\n");
+		PPMGR3DTV_WARN("case 2: vdin canvas setting is");
+		PPMGR3DTV_WARN(" not compatible with vframe!!!\n");
 		return;
 	}
 
@@ -3795,7 +3803,8 @@ void ppmgr_vf_3d_tv(struct vframe_s *vf, struct ge2d_context_s *context,
 		|| ((r_frame.frame_left + r_frame.frame_width) > cd.width)
 		|| ((r_frame.frame_top + r_frame.frame_height) > cd.height)) {
 		ppmgr_vf_put_dec(vf);
-		pr_warn("case 3:vdin canvas setting is not compatible with vframe!!!\n");
+		PPMGR3DTV_WARN("case 3:vdin canvas setting is");
+		PPMGR3DTV_WARN(" not compatible with vframe!!!\n");
 		return;
 	}
 	switch (process_type) {

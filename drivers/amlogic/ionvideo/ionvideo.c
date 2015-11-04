@@ -172,7 +172,7 @@ static int canvas_is_valid(struct ionvideo_dev *dev , int index)
 	if (ppd->canvas_id[index] >= 0)
 		ret = 1;
 	if (ppd->canvas_id[index] < 0)
-		pr_info("cancas is %d, it's invalid\n", ppd->canvas_id[index]);
+		IONVID_ERR("cancas %d is invalid\n", ppd->canvas_id[index]);
 	return ret;
 }
 
@@ -585,7 +585,7 @@ static int vidioc_open(struct file *file)
 	dev->ppmgr2_dev.bottom_first = 0;
 	skip_frames = 0;
 	dprintk(dev, 2, "vidioc_open\n");
-	pr_info("ionvideo open\n");
+	IONVID_INFO("ionvideo open\n");
 	return v4l2_fh_open(file);
 }
 
@@ -593,10 +593,10 @@ static int vidioc_release(struct file *file)
 {
 	struct ionvideo_dev *dev = video_drvdata(file);
 	ionvideo_stop_generating(dev);
-	pr_info("ionvideo_stop_generating!!!!\n");
+	IONVID_INFO("ionvideo_stop_generating!!!!\n");
 	ppmgr2_release(&(dev->ppmgr2_dev));
 	dprintk(dev, 2, "vidioc_release\n");
-	pr_info("ionvideo release\n");
+	IONVID_INFO("ionvideo release\n");
 	if (dev->fd_num > 0)
 		dev->fd_num--;
 
@@ -715,7 +715,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
 	if ((dev->width == 0) || (dev->height == 0))
-		pr_info("ion buffer w/h info is invalid!!!!!!!!!!!\n");
+		IONVID_ERR("ion buffer w/h info is invalid!!!!!!!!!!!\n");
 
 	return 0;
 }
@@ -795,7 +795,7 @@ static int vidioc_synchronization_dqbuf(struct file *file, void *priv,
 				return ret;
 
 		}
-		pr_info("init to clear the done list buffer.done\n");
+		IONVID_INFO("init to clear the done list buffer.done\n");
 		dev->receiver_register = 0;
 		dev->is_video_started = 0;
 		return -EAGAIN;
@@ -811,7 +811,7 @@ static int vidioc_synchronization_dqbuf(struct file *file, void *priv,
 
 		buf = container_of(vb, struct ionvideo_buffer, vb);
 		if (dev->is_video_started == 0) {
-			pr_info("Execute the VIDEO_START cmd. pts=%llx\n",
+			IONVID_INFO("Execute the VIDEO_START cmd. pts=%llx\n",
 				buf->pts);
 			tsync_avevent_locked(
 				VIDEO_START,
@@ -992,12 +992,12 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->receiver_register = 0;
 		dev->is_omx_video_started = 0;
 		tsync_avevent(VIDEO_STOP, 0);
-		pr_info("unreg:ionvideo\n");
+		IONVID_INFO("unreg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		dev->receiver_register = 1;
 		dev->is_omx_video_started = 1;
 		dev->ppmgr2_dev.interlaced_num = 0;
-		pr_info("reg:ionvideo\n");
+		IONVID_INFO("reg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		return RECEIVER_ACTIVE;
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
@@ -1136,7 +1136,7 @@ static ssize_t scaling_rate_write(struct class *cla,
 	int ret;
 	ret = kstrtoul(buf, 0, &tmp);
 	if (ret != 0) {
-		pr_err("ERROR parsing string:%s to unsigned long\n", buf);
+		IONVID_ERR("ERROR parsing string:%s to unsigned long\n", buf);
 		return ret;
 	}
 	/* scaling_rate = simple_strtoul(buf, &endp, 0); */
@@ -1180,12 +1180,12 @@ static int __init ionvideo_init(void)
 	}
 
 	if (ret < 0) {
-		pr_err("ionvideo: error %d while loading driver\n", ret);
+		IONVID_ERR("ionvideo: error %d while loading driver\n", ret);
 		return ret;
 	}
 
-	pr_debug("Video Technology Magazine Ion Video\n");
-	pr_debug("Capture Board ver %s successfully loaded.\n",
+	IONVID_INFO("Video Technology Magazine Ion Video\n");
+	IONVID_INFO("Capture Board ver %s successfully loaded\n",
 	IONVIDEO_VERSION);
 
 	/* n_devs will reflect the actual number of allocated devices */
