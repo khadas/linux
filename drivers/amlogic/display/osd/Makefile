@@ -6,5 +6,6 @@ obj-$(CONFIG_FB_OSD_VSYNC_RDMA) += osd_rdma.o
 
 obj-$(CONFIG_INSTABOOT) += osd_progressbar.o
 
+ccflags-y += -Idrivers/amlogic/ion_dev/
 ccflags-y += -Idrivers/staging/android/
 ccflags-y += -Idrivers/amlogic/display/

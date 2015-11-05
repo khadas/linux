@@ -5,6 +5,7 @@
 #include <uapi/linux/fb.h>
 
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
+#define FBIOGET_DMABUF		   _IOR('F', 0x21, struct fb_dmabuf_export)
 
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -14,6 +15,11 @@
 #include <linux/backlight.h>
 #include <linux/slab.h>
 #include <asm/io.h>
+
+struct fb_dmabuf_export {
+	__u32 fd;
+	__u32 flags;
+};
 
 struct vm_area_struct;
 struct fb_info;

@@ -41,6 +41,8 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
+#include <ion/ion.h>
+#include <meson_ion.h>
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vout_notify.h>
 
@@ -272,10 +274,14 @@ int int_viu_vsync = -ENXIO;
 int int_rdma = INT_RDMA;
 #endif
 struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
-static struct reserved_mem fb_rmem;
+static struct reserved_mem fb_rmem = {.base = 0, .size = 0};
 static phys_addr_t fb_rmem_paddr[2];
-static void __iomem *fb_rmem_vaddr[2];
-static u32 fb_rmem_size[2];
+static void __iomem *fb_rmem_vaddr[OSD_COUNT];
+static size_t fb_rmem_size[OSD_COUNT];
+
+struct ion_client *fb_ion_client = NULL;
+struct ion_handle *fb_ion_handle[] = {NULL, NULL};
+int  fb_share_fd[] = {0, 0};
 
 phys_addr_t get_fb_rmem_paddr(int index)
 {
@@ -299,7 +305,7 @@ static void osddev_setup(struct osd_fb_dev_s *fbdev)
 		     fbdev->osd_ctl.disp_start_y,
 		     fbdev->osd_ctl.disp_end_x,
 		     fbdev->osd_ctl.disp_end_y,
-		     fbdev->fb_mem_paddr,
+		     fbdev->fb_mem_paddr, /*phys_addr_t -> u32*/
 		     fbdev->color);
 	mutex_unlock(&fbdev->lock);
 
@@ -548,6 +554,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	unsigned long ret;
 	u32 flush_rate;
 	struct fb_sync_request_s sync_request;
+	struct fb_dmabuf_export dmaexp;
 
 	switch (cmd) {
 	case  FBIOPUT_OSD_SRCKEY_ENABLE:
@@ -584,6 +591,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOPUT_OSD_REVERSE:
 	case FBIOPUT_OSD_ROTATE_ON:
 	case FBIOPUT_OSD_ROTATE_ANGLE:
+	case FBIOGET_DMABUF:
 		break;
 	case FBIOPUT_OSD_BLOCK_MODE:
 		ret = copy_from_user(&block_mode, argp, sizeof(u32));
@@ -753,6 +761,20 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			/* fence create fail. */
 			ret = -1;
 		break;
+	case FBIOGET_DMABUF:
+		{
+			if (fb_share_fd[info->node] == 0)
+				fb_share_fd[info->node] = ion_share_dma_buf_fd(
+						fb_ion_client,
+						fb_ion_handle[info->node]);
+
+			dmaexp.fd = fb_share_fd[info->node];
+			dmaexp.flags = O_CLOEXEC;
+
+			ret = copy_to_user(argp, &dmaexp, sizeof(dmaexp))
+				? -EFAULT : 0;
+			break;
+		}
 	case FBIO_WAITFORVSYNC:
 		osd_wait_vsync_event();
 		ret = copy_to_user(argp, &ret, sizeof(u32));
@@ -2075,9 +2097,38 @@ static int osd_probe(struct platform_device *pdev)
 	if (ret) {
 		osd_log_err("not found mem_size from dtd\n");
 		goto failed1;
+	}
+
+	/* init reserved memory */
+	ret = of_reserved_mem_device_init(&pdev->dev);
+	if ((ret != 0) && ((void *)fb_rmem.base == NULL))
+		osd_log_err("failed to init reserved memory\n");
+
+	osd_log_dbg("%d, mem_size: 0x%x, 0x%x\n",
+			__LINE__, memsize[0], memsize[1]);
+
+	if (fb_rmem.base == 0) {
+		fb_ion_client = meson_ion_client_create(-1, "meson-fb");
+		for (i = 0; i < OSD_COUNT; i++) {
+			fb_ion_handle[i] = ion_alloc(fb_ion_client,
+					memsize[i], 0,
+					ION_HEAP_CARVEOUT_MASK, 0);
+			ret = ion_phys(fb_ion_client, fb_ion_handle[i],
+					(ion_phys_addr_t *)&fb_rmem_paddr[i],
+					(size_t *)&fb_rmem_size[i]);
+			fb_rmem_vaddr[i] = ion_map_kernel(
+					fb_ion_client, fb_ion_handle[i]);
+			dev_notice(&pdev->dev, "create ion_client %p, handle=%p, share_fd=%d\n",
+					fb_ion_client,
+					fb_ion_handle[i],
+					fb_share_fd[i]);
+			dev_notice(&pdev->dev, "ion memory(%d): created fb at 0x%p, size %ld MiB\n",
+					i, (void *)fb_rmem_paddr[i],
+					(unsigned long)fb_rmem_size[i] / SZ_1M);
+			fb_share_fd[i] = 0;
+		}
 	} else {
-		osd_log_dbg("mem_size: 0x%x, 0x%x\n",
-				memsize[0], memsize[1]);
+
 		fb_rmem_size[0] = memsize[0];
 		fb_rmem_paddr[0] = fb_rmem.base;
 		if ((OSD_COUNT == 2) &&
@@ -2085,13 +2136,17 @@ static int osd_probe(struct platform_device *pdev)
 			fb_rmem_size[1] = memsize[1];
 			fb_rmem_paddr[1] = fb_rmem.base + memsize[0];
 		}
+
+		for (i = 0; i < OSD_COUNT; i++) {
+			if ((fb_rmem_paddr[i] > 0) && (fb_rmem_size[i] > 0)) {
+				fb_rmem_vaddr[i] = ioremap_wc(fb_rmem_paddr[i],
+						fb_rmem_size[i]);
+				if (!fb_rmem_vaddr[i])
+					osd_log_err("fb[%d] ioremap error", i);
+			}
+		}
 	}
-	/* init reserved memory */
-	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret != 0) {
-		osd_log_err("failed to init reserved memory\n");
-		goto failed1;
-	}
+
 	/* get meson-fb resource from dt */
 	prop = of_get_property(pdev->dev.of_node, "scale_mode", NULL);
 	if (prop)
@@ -2155,8 +2210,8 @@ static int osd_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 		osd_log_info("Frame buffer memory assigned at");
-		osd_log_info("    phy: 0x%08x, vir:0x%p, size=%dK\n",
-			     fbdev->fb_mem_paddr,
+		osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
+			     i, (void *)fbdev->fb_mem_paddr,
 			     fbdev->fb_mem_vaddr,
 			     fbdev->fb_len >> 10);
 		if (vinfo) {
@@ -2187,9 +2242,9 @@ static int osd_probe(struct platform_device *pdev)
 		}
 		/* clear osd buffer if not logo layer */
 		if ((logo_index < 0) || (logo_index != index)) {
-			osd_log_info("---------------clear fb%d memory\n",
-					index);
-			memset((char *)fbdev->fb_mem_vaddr, 0x0,
+			osd_log_info("---------------clear fb%d memory %p\n",
+					index, fbdev->fb_mem_vaddr);
+			memset(fbdev->fb_mem_vaddr, 0x0,
 					fbdev->fb_len);
 		}
 
@@ -2335,15 +2390,6 @@ exit:
 
 static int rmem_fb_device_init(struct reserved_mem *rmem, struct device *dev)
 {
-	int i = 0;
-	for (i = 0; i < OSD_COUNT; i++) {
-		if ((fb_rmem_paddr[i] > 0) && (fb_rmem_size[i] > 0)) {
-			fb_rmem_vaddr[i] =
-				ioremap_wc(fb_rmem_paddr[i], fb_rmem_size[i]);
-			if (!fb_rmem_vaddr[i])
-				osd_log_err("fb[%d] ioremap error", i);
-		}
-	}
 	return 0;
 }
 

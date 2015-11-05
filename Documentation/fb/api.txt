@@ -304,3 +304,39 @@ extensions.
 Upon successful format configuration, drivers update the fb_fix_screeninfo
 type, visual and line_length fields depending on the selected format. The type
 and visual fields are set to FB_TYPE_FOURCC and FB_VISUAL_FOURCC respectively.
+
+
+5. DMA buffer sharing
+---------------------
+
+The dma-buf kernel framework allows DMA buffers to be shared across devices
+and applications. Sharing buffers across display devices and video capture or
+video decoding devices allow zero-copy operation when displaying video content
+produced by a hardware device such as a camera or a hardware codec. This is
+crucial to achieve optimal system performances during video display.
+
+While dma-buf supports both exporting internally allocated memory as a dma-buf
+object (known as the exporter role) and importing a dma-buf object to be used
+as device memory (known as the importer role), the frame buffer API only
+supports the exporter role, as the frame buffer device model doesn't support
+using externally-allocated memory.
+
+The export a frame buffer as a dma-buf file descriptors, applications call the
+FBIOGET_DMABUF ioctl. The ioctl takes a pointer to a fb_dmabuf_export
+structure.
+
+struct fb_dmabuf_export {
+	__u32 fd;
+	__u32 flags;
+};
+
+The flag field specifies the flags to be used when creating the dma-buf file
+descriptor. The only supported flag is O_CLOEXEC. If the call is successful,
+the driver will set the fd field to a file descriptor corresponding to the
+dma-buf object.
+
+Applications can then pass the file descriptors to another application or
+another device driver. The dma-buf object is automatically reference-counted,
+applications can and should close the file descriptor as soon as they don't
+need it anymore. The underlying dma-buf object will not be freed before the
+last device that uses the dma-buf object releases it.

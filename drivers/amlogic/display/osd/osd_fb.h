@@ -22,6 +22,7 @@
 /* Linux Headers */
 #include <linux/list.h>
 #include <linux/fb.h>
+#include <linux/types.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vinfo.h>
@@ -41,7 +42,7 @@ struct osd_fb_dev_s {
 	struct mutex lock;
 	struct fb_info *fb_info;
 	struct platform_device *dev;
-	u32 fb_mem_paddr;
+	phys_addr_t fb_mem_paddr;
 	void __iomem *fb_mem_vaddr;
 	u32 fb_len;
 	const struct color_bit_define_s *color;

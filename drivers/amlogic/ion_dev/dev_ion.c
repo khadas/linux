@@ -17,14 +17,15 @@
 
 
 #include <linux/err.h>
-#include <android/ion/ion.h>
+#include <ion/ion.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <android/ion/ion_priv.h>
+#include <ion/ion_priv.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
+#include "meson_ion.h"
 
 MODULE_DESCRIPTION("AMLOGIC ION driver");
 MODULE_LICENSE("GPL");
@@ -51,6 +52,42 @@ static struct ion_device *idev;
 static int num_heaps;
 static struct ion_heap **heaps;
 static struct ion_platform_heap my_ion_heap[MAX_HEAP];
+
+struct ion_client *meson_ion_client_create(unsigned int heap_mask,
+		const char *name) {
+
+	/*
+	 *	  * The assumption is that if there is a NULL device, the ion
+	 *		   * driver has not yet probed.
+	 *				*/
+	if (idev == NULL) {
+		dprintk(0, "create error");
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	if (IS_ERR(idev)) {
+		dprintk(0, "idev error");
+		return (struct ion_client *)idev;
+	}
+
+	return ion_client_create(idev, name);
+}
+EXPORT_SYMBOL(meson_ion_client_create);
+
+int meson_ion_share_fd_to_phys(struct ion_client *client,
+		int share_fd, ion_phys_addr_t *addr, size_t *len)
+{
+	struct ion_handle *handle = NULL;
+
+	handle = ion_import_dma_buf(client, share_fd);
+	if (IS_ERR_OR_NULL(handle)) {
+		dprintk(0, "EINVAL, client=%p, share_fd=%d\n",
+				client, share_fd);
+	}
+
+	return ion_phys(client, handle, addr, len);
+}
+EXPORT_SYMBOL(meson_ion_share_fd_to_phys);
 
 int dev_ion_probe(struct platform_device *pdev)
 {
@@ -130,7 +167,7 @@ static int ion_dev_mem_init(struct reserved_mem *rmem, struct device *dev)
 		}
 		ion_device_add_heap(idev, heaps[i]);
 		dprintk(2, "add heap type:%d id:%d\n",
-	    my_ion_heap[i].type, my_ion_heap[i].id);
+	 my_ion_heap[i].type, my_ion_heap[i].id);
 	}
 
 	dprintk(1, "%s, create %d heaps\n", __func__, num_heaps);
