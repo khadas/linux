@@ -492,7 +492,7 @@ NEC_DOMAIN,
 	    NULL_DUOKAN_DOMAIN,
 	    NULL_DUOKAN_DOMAIN, NULL_DUOKAN_DOMAIN, KDB_DUOKAN_DOMAIN};
 
-int remote_hw_reprot_null_key(struct remote *remote_data)
+int remote_hw_report_null_key(struct remote *remote_data)
 {
 	input_dbg("%s,it is a null key\n", __func__);
 	get_cur_scancode(remote_data);
@@ -505,7 +505,7 @@ irqreturn_t remote_null_bridge_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int remote_hw_reprot_key(struct remote *remote_data)
+int remote_hw_report_key(struct remote *remote_data)
 {
 	static int last_scan_code;
 	int i;
@@ -652,7 +652,7 @@ int remote_hw_reprot_key(struct remote *remote_data)
 	return 0;
 }
 
-int remote_duokan_reprot_key(struct remote *remote_data)
+int remote_duokan_report_key(struct remote *remote_data)
 {
 	static int last_scan_code;
 	int i;
@@ -862,7 +862,7 @@ int remote_duokan_reprot_key(struct remote *remote_data)
 	return 0;
 }
 
-int remote_hw_nec_rca_2in1_reprot_key(struct remote *remote_data)
+int remote_hw_nec_rca_2in1_report_key(struct remote *remote_data)
 {
 	static int last_scan_code;
 	int i;
@@ -1010,7 +1010,7 @@ int remote_hw_nec_rca_2in1_reprot_key(struct remote *remote_data)
 	return 0;
 }
 
-int remote_hw_nec_toshiba_2in1_reprot_key(struct remote *remote_data)
+int remote_hw_nec_toshiba_2in1_report_key(struct remote *remote_data)
 {
 	static int last_scan_code;
 	int i;
@@ -1118,7 +1118,7 @@ int remote_hw_nec_toshiba_2in1_reprot_key(struct remote *remote_data)
 					  msecs_to_jiffies
 					  (remote_data->release_delay
 					   [remote_data->map_num]));
-			return -1;
+			/*return -1;*/
 		}
 		mod_timer(&remote_data->timer,
 			  jiffies +
@@ -1398,7 +1398,7 @@ static inline void kbd_software_mode_remote_sync(struct remote *remote_data)
 
 }
 
-int remote_sw_reprot_key(struct remote *remote_data)
+int remote_sw_report_key(struct remote *remote_data)
 {
 	int current_jiffies = jiffies;
 
@@ -1469,7 +1469,7 @@ void remote_duokan_report_release_key(struct remote *remote_data)
 	}
 }
 
-void remote_sw_reprot_release_key(struct remote *remote_data)
+void remote_sw_report_release_key(struct remote *remote_data)
 {
 	if (remote_data->enable_repeat_falg) {
 		remote_data->remote_send_key(remote_data->input,
@@ -1501,7 +1501,7 @@ void remote_nec_toshiba_2in1_report_release_key(struct remote *remote_data)
 	}
 }
 
-void remote_null_reprot_release_key(struct remote *remote_data)
+void remote_null_report_release_key(struct remote *remote_data)
 {
 
 }
