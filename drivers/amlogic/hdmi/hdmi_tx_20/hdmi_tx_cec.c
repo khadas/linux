@@ -330,6 +330,9 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 	}
 
 	cec_pre_init();
+	if (cec_global_info.hal_ctl)
+		return 0;
+
 	if (hdmitx_device->config_data.vend_data)
 		vend_data = hdmitx_device->config_data.vend_data;
 
@@ -2037,8 +2040,10 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	switch (cmd) {
 	case CEC_IOC_GET_PHYSICAL_ADDR:
-		if (hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 0)
-			return -EINVAL;
+		while (hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 0) {
+			/* waiting until get valid physical address */
+			msleep(100);
+		}
 		a = hdmitx_device->hdmi_info.vsdb_phy_addr.a;
 		b = hdmitx_device->hdmi_info.vsdb_phy_addr.b;
 		c = hdmitx_device->hdmi_info.vsdb_phy_addr.c;
@@ -2143,10 +2148,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	case CEC_IOC_CLR_LOGICAL_ADDR:
-		tmp = arg & 0xf;
 		/* TODO: clear global info */
-		cec_logicaddr_set(0x0f);
-		cec_global_info.my_node_index = tmp;
 		break;
 
 	default:

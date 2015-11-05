@@ -442,7 +442,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	 * do not send messanges if tv is not support CEC
 	 */
 	hdev = get_hdmitx_device();
-	if (hdev && !hdev->tv_cec_support) {
+	if (hdev && !hdev->tv_cec_support && !cec_global_info.hal_ctl) {
 		cec_tx_fail_reason = CEC_FAIL_OTHER;
 		mutex_unlock(&cec_mutex);
 		return -1;
