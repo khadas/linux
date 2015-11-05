@@ -76,7 +76,7 @@ static int amlsd_get_host_caps(struct device_node *of_node,
 		caps |= MMC_CAP_4_BIT_DATA;
 
 	pdata->caps = caps;
-	pr_info("pdata->caps %x\n", pdata->caps);
+	pr_info("%s:pdata->caps = %x\n", pdata->pinname, pdata->caps);
 	return 0;
 }
 
@@ -113,7 +113,7 @@ static int amlsd_get_host_caps2(struct device_node *of_node,
 		}
 	};
 	pdata->caps2 = caps;
-	pr_info("pdata->caps2 %x\n", pdata->caps2);
+	pr_info("%s:pdata->caps2 = %x\n", pdata->pinname, pdata->caps2);
 	return 0;
 }
 
@@ -180,38 +180,35 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 		if (!child)
 			return -EINVAL;
 
-	amlsd_get_host_caps(child, pdata);
-	amlsd_get_host_caps2(child, pdata);
-
 /*	amlsd_init_pins_input(child, pdata);*/
 
-		SD_PARSE_U32_PROP(child, "port",
+		SD_PARSE_U32_PROP_HEX(child, "port",
 						prop, pdata->port);
-		SD_PARSE_U32_PROP(child, "ocr_avail",
+		SD_PARSE_U32_PROP_HEX(child, "ocr_avail",
 						prop, pdata->ocr_avail);
 		BUG_ON(!pdata->ocr_avail);
-		SD_PARSE_U32_PROP(child, "f_min",
+		SD_PARSE_U32_PROP_DEC(child, "f_min",
 						prop, pdata->f_min);
-		SD_PARSE_U32_PROP(child, "f_max",
+		SD_PARSE_U32_PROP_DEC(child, "f_max",
 						prop, pdata->f_max);
-		SD_PARSE_U32_PROP(child, "f_max_w",
+		SD_PARSE_U32_PROP_DEC(child, "f_max_w",
 						prop, pdata->f_max_w);
-		SD_PARSE_U32_PROP(child, "max_req_size", prop,
+		SD_PARSE_U32_PROP_HEX(child, "max_req_size", prop,
 						pdata->max_req_size);
-		SD_PARSE_U32_PROP(child, "irq_in", prop,
+		SD_PARSE_U32_PROP_DEC(child, "irq_in", prop,
 						pdata->irq_in);
-		SD_PARSE_U32_PROP(child, "irq_in_edge",
+		SD_PARSE_U32_PROP_DEC(child, "irq_in_edge",
 						prop, pdata->irq_in_edge);
-		SD_PARSE_U32_PROP(child, "irq_out",
+		SD_PARSE_U32_PROP_DEC(child, "irq_out",
 						prop, pdata->irq_out);
-		SD_PARSE_U32_PROP(child, "irq_out_edge",
+		SD_PARSE_U32_PROP_DEC(child, "irq_out_edge",
 						prop, pdata->irq_out_edge);
-		SD_PARSE_U32_PROP(child, "power_level",
+		SD_PARSE_U32_PROP_HEX(child, "power_level",
 						prop, pdata->power_level);
 
 		SD_PARSE_GPIO_NUM_PROP(child, "gpio_cd",
 						str, pdata->gpio_cd);
-		SD_PARSE_U32_PROP(child, "gpio_cd_level",
+		SD_PARSE_U32_PROP_DEC(child, "gpio_cd_level",
 						prop, pdata->gpio_cd_level);
 		SD_PARSE_GPIO_NUM_PROP(child, "gpio_ro",
 						str, pdata->gpio_ro);
@@ -222,13 +219,14 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 						str, pdata->pinname);
 		SD_PARSE_GPIO_NUM_PROP(child, "jtag_pin",
 						str, pdata->jtag_pin);
-		SD_PARSE_U32_PROP(child, "card_type",
+		SD_PARSE_U32_PROP_DEC(child, "card_type",
 						prop, pdata->card_type);
 		SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3",
 						str, pdata->gpio_dat3);
 		SD_PARSE_GPIO_NUM_PROP(child, "hw_reset",
 						str, pdata->hw_reset);
-
+		amlsd_get_host_caps(child, pdata);
+		amlsd_get_host_caps2(child, pdata);
 		pdata->port_init = of_amlsd_init;
 		pdata->pwr_pre = of_amlsd_pwr_prepare;
 		pdata->pwr_on = of_amlsd_pwr_on;
