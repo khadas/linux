@@ -63,7 +63,7 @@ PNAME(mux_mali_0_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(mux_mali_1_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
 		"fclk_div7", "fclk_div4", "fclk_div3", "fclk_div5"};
-PNAME(mux_mali_p)   = {"clk_mali_0", "clk_mali_1"};
+PNAME(mux_mali_p)   = {"clk_gpu_0", "clk_gpu_1"};
 PNAME(mpll) = {"fixed_pll"};
 PNAME(cts_pdm_p) = {"amclk", "mpll_clk_out0", "mpll_clk_out1", "mpll_clk_out2"};
 PNAME(cts_am_p) = {"ddr_pll_clk", "mpll_clk_out0", "mpll_clk_out1",
@@ -103,7 +103,7 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 	FRATE(CLK_FPLL_DIV7, "fclk_div7", NULL, CLK_IS_ROOT,  285714285),
 };
 static struct amlogic_mux_clock mux_clks[] __initdata = {
-	MUX(CLK_MALI, "clk_mali", mux_mali_p, HHI_MALI_CLK_CNTL, 31, 1, 0),
+	MUX(CLK_MALI, "clk_gpu", mux_mali_p, HHI_MALI_CLK_CNTL, 31, 1, 0),
 	MUX(CLK_SPDIF, "clk_spdif", cts_spdif_p, HHI_AUD_CLK_CNTL2, 27, 1, 0)
 };
 
@@ -113,15 +113,17 @@ static struct of_device_id ext_clk_match[] __initdata = {
 	{},
 };
 static struct amlogic_clk_branch clk_branches[] __initdata = {
-	COMPOSITE(CLK_MALI_0, "clk_mali_0", mux_mali_0_p,
+	COMPOSITE(CLK_MALI_0, "clk_gpu_0", mux_mali_0_p,
 		   CLK_SET_RATE_NO_REPARENT,
 		   HHI_MALI_CLK_CNTL, 9, 3, 0,
-		   HHI_MALI_CLK_CNTL, 0, 7, 0,
+		   HHI_MALI_CLK_CNTL, 0, 7,
+		   CLK_DIVIDER_ROUND_CLOSEST,
 		   HHI_MALI_CLK_CNTL, 8, 0),
-	COMPOSITE(CLK_MALI_1, "clk_mali_1", mux_mali_1_p,
+	COMPOSITE(CLK_MALI_1, "clk_gpu_1", mux_mali_1_p,
 		   CLK_SET_RATE_NO_REPARENT,
 		   HHI_MALI_CLK_CNTL, 25, 3, 0,
-		   HHI_MALI_CLK_CNTL, 16, 7, 0,
+		   HHI_MALI_CLK_CNTL, 16, 7,
+		   CLK_DIVIDER_ROUND_CLOSEST,
 		   HHI_MALI_CLK_CNTL, 24, 0),
 	COMPOSITE(CLK_VAPB_0, "clk_vapb_0", mux_vapb_0_p,
 		   CLK_SET_RATE_NO_REPARENT,
@@ -281,8 +283,9 @@ static void __init gxtvbb_clk_init(struct device_node *np)
 		int count = ARRAY_SIZE(clks);
 		struct clk *vapb;
 		struct clk *fixdiv5;
-		struct clk *clk_mali_0;
-		struct clk *clk_mali;
+		struct clk *clk_gpu_0;
+		struct clk *clk_gpu;
+		struct clk *fixdiv3;
 
 		for (i = 0; i < count; i++) {
 			char *clk_name = clks[i];
@@ -299,22 +302,25 @@ static void __init gxtvbb_clk_init(struct device_node *np)
 			clk_prepare_enable(vapb);
 		}
 
-		clk_mali_0 = clk_get_sys("clk_mali_0", "clk_mali_0");
-		clk_mali = clk_get_sys("clk_mali_0", "clk_mali_0");
-		if ((!IS_ERR(clk_mali_0)) && (!IS_ERR(clk_mali))) {
-			clk_set_parent(clk_mali_0, fixdiv5);
-			clk_set_parent(clk_mali, clk_mali_0);
-			clk_prepare_enable(clk_mali);
+		fixdiv3 = clk_get_sys("fclk_div3", "fclk_div3");
+		clk_gpu_0 = clk_get_sys("clk_gpu_0", "clk_gpu_0");
+		clk_gpu = clk_get_sys("clk_gpu_0", "clk_gpu_0");
+		if ((!IS_ERR(clk_gpu_0)) && (!IS_ERR(clk_gpu))) {
+			clk_set_parent(clk_gpu_0, fixdiv3);
+			clk_set_parent(clk_gpu, clk_gpu_0);
+			clk_prepare_enable(clk_gpu);
 		}
 
+		if (!IS_ERR(fixdiv3))
+			clk_put(fixdiv3);
 		if (!IS_ERR(fixdiv5))
 			clk_put(fixdiv5);
 		if (!IS_ERR(vapb))
 			clk_put(vapb);
-		if (!IS_ERR(clk_mali_0))
-			clk_put(clk_mali_0);
-		if (!IS_ERR(clk_mali))
-			clk_put(clk_mali);
+		if (!IS_ERR(clk_gpu_0))
+			clk_put(clk_gpu_0);
+		if (!IS_ERR(clk_gpu))
+			clk_put(clk_gpu);
 
 	}
 	pr_info("gxbbtv clock initialization complete\n");

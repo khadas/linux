@@ -4,6 +4,7 @@
 #include <dt-bindings/reset/aml_gxtvbb.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "mesongxtvbb-gpu-t83x.dtsi"
 / {
 	cpus {
 		#address-cells = <2>;
@@ -61,28 +62,6 @@
 	           		0x0 0xc810023c 0x0 0x4>;
 	};
 
-	gpu:t83x@d00c0000{
-        compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
-		reg = <0 0xd00c0000 0 0x100000>,
-		      <0 0xc1104440 0 0x000100>,
-		      <0 0xc8100000 0 0x001000>;
-		interrupt-parent = <&gic>;
-		interrupts = <0 160 4>, <0 161 4>, <0 162 4>;
-		interrupt-names = "GPU", "MMU", "JOB";
-        /*clocks = <&pclk_mali>;
-        clock-names = "clk_mali";
-        mali-supply = <&vdd_mali>;
-        operating-points = <
-            // KHz   uV /
-            533000 1250000,
-            450000 1150000,
-            400000 1125000,
-            350000 1075000,
-            266000 1025000,
-            160000  925000,
-            100000  912500,
-        >;*/
-	};
 	gic: interrupt-controller@2c001000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
