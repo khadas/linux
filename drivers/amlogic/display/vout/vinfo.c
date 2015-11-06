@@ -23,76 +23,54 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
-#include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/vout/vinfo.h>
 #include "vout_log.h"
 
-static char *vmode_name[] = {
-	"480i",
-	"480irpt",
-	"480cvbs",
-	"480p",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"480p59hz",
-#endif
-	"480prtp",
-	"576i",
-	"576irpt",
-	"576cvbs",
-	"576p",
-	"576prpt",
-	"720p60hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"720p59hz",
-#endif
-	"720p50hz",
-	"768p60hz",
-	"768p50hz",
-	"1080i60hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"1080i59hz",
-#endif
-	"1080i50hz",
-	"1080p60hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"1080p59hz",
-#endif
-	"1080p50hz",
-	"1080p24hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"1080p23hz",
-#endif
-	"2160p30hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"2160p29hz",
-#endif
-	"2160p25hz",
-	"2160p24hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"2160p23hz",
-#endif
-	"smpte24hz",
-	"4k2k5g",
-	"2160p60hz",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"2160p59hz",
-#endif
-	"2160p60hz420",
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	"2160p59hz420",
-#endif
-	"2160p50hz",
-	"2160p50hz420",
-	"2160p5g",
-	"4k1k120hz",
-	"4k1k120hz420",
-	"4k1k100hz",
-	"4k1k100hz420",
-	"4k05k240hz",
-	"4k05k240hz420",
-	"4k05k200hz",
-	"4k05k200hz420",
-	"panel",
-	"invalid",
+struct vmode_match_s {
+	char *name;
+	enum vmode_e mode;
+};
+
+static struct vmode_match_s vmode_match_table[] = {
+	{"480i60hz",      VMODE_480I},
+	{"480irpt",       VMODE_480I_RPT},
+	{"480cvbs",       VMODE_480CVBS},
+	{"480p60hz",      VMODE_480P},
+	{"480prtp",       VMODE_480P_RPT},
+	{"576i50hz",      VMODE_576I},
+	{"576irpt",       VMODE_576I_RPT},
+	{"576cvbs",       VMODE_576CVBS},
+	{"576p50hz",      VMODE_576P},
+	{"576prpt",       VMODE_576P_RPT},
+	{"720p60hz",      VMODE_720P},
+	{"720p50hz",      VMODE_720P_50HZ},
+	{"768p60hz",      VMODE_768P},
+	{"768p50hz",      VMODE_768P_50HZ},
+	{"1080i60hz",     VMODE_1080I},
+	{"1080i50hz",     VMODE_1080I_50HZ},
+	{"1080p60hz",     VMODE_1080P},
+	{"1080p50hz",     VMODE_1080P_50HZ},
+	{"1080p24hz",     VMODE_1080P_24HZ},
+	{"2160p30hz",     VMODE_4K2K_30HZ},
+	{"2160p25hz",     VMODE_4K2K_25HZ},
+	{"2160p24hz",     VMODE_4K2K_24HZ},
+	{"smpte24hz",     VMODE_4K2K_SMPTE},
+	{"4k2k5g",        VMODE_4K2K_FAKE_5G},
+	{"2160p60hz",     VMODE_4K2K_60HZ},
+	{"2160p60hz420",  VMODE_4K2K_60HZ_Y420},
+	{"2160p50hz",     VMODE_4K2K_50HZ},
+	{"2160p50hz420",  VMODE_4K2K_50HZ_Y420},
+	{"2160p5g",       VMODE_4K2K_5G},
+	{"4k1k120hz",     VMODE_4K1K_120HZ},
+	{"4k1k120hz420",  VMODE_4K1K_120HZ_Y420},
+	{"4k1k100hz",     VMODE_4K1K_100HZ},
+	{"4k1k100hz420",  VMODE_4K1K_100HZ_Y420},
+	{"4k05k240hz",    VMODE_4K05K_240HZ},
+	{"4k05k240hz420", VMODE_4K05K_240HZ_Y420},
+	{"4k05k200hz",    VMODE_4K05K_200HZ},
+	{"4k05k200hz420", VMODE_4K05K_200HZ_Y420},
+	{"panel",         VMODE_LCD},
+	{"invalid",       VMODE_INIT_NULL},
 };
 
 static const struct vinfo_s vinfo_invalid = {
@@ -114,10 +92,10 @@ enum vmode_e vmode_name_to_mode(const char *str)
 	enum vmode_e vmode;
 
 	for (i = 0; i < VMODE_MAX; i++) {
-		if (strcmp(vmode_name[i], str) == 0)
+		if (strcmp(vmode_match_table[i].name, str) == 0)
 			break;
 	}
-	vmode = VMODE_480I + i;
+	vmode = vmode_match_table[i].mode;
 
 	return vmode;
 }

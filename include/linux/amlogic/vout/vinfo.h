@@ -171,5 +171,6 @@ enum fine_tune_mode_e {
 #endif
 
 extern enum vmode_e vmode_name_to_mode(const char *);
+extern const struct vinfo_s *get_invalid_vinfo(void);
 
 #endif /* _VINFO_H_ */

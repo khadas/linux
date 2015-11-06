@@ -81,6 +81,8 @@ const struct vinfo_s *get_current_vinfo(void)
 		BUG_ON(vout_module.curr_vout_server->op.get_vinfo == NULL);
 		info = vout_module.curr_vout_server->op.get_vinfo();
 	}
+	if (info == NULL) /* avoid crash mistake */
+		info = get_invalid_vinfo();
 
 	mutex_unlock(&vout_mutex);
 
