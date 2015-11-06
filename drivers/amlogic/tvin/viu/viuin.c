@@ -34,6 +34,7 @@
 /* #include <linux/amlogic/amports/canvas.h> */
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
+#include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/tvin/tvin_v4l2.h>
 /* #include <mach/am_regs.h> */
 #if 0 /* def CONFIG_GAMMA_AUTO_TUNE */
@@ -114,18 +115,18 @@ struct viuin_s {
 };
 
 
-static inline uint32_t rd(uint32_t reg)
+static inline uint32_t rd_viu(uint32_t reg)
 {
 	return (uint32_t)aml_read_vcbus(reg);
 }
 
-static inline void wr(uint32_t reg,
+static inline void wr_viu(uint32_t reg,
 				 const uint32_t val)
 {
 	aml_write_vcbus(reg, val);
 }
 
-static inline void wr_bits(uint32_t reg,
+static inline void wr_bits_viu(uint32_t reg,
 				    const uint32_t value,
 				    const uint32_t start,
 				    const uint32_t len)
@@ -135,7 +136,7 @@ static inline void wr_bits(uint32_t reg,
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
 
-static inline uint32_t rd_bits(uint32_t reg,
+static inline uint32_t rd_bits_viu(uint32_t reg,
 				    const uint32_t start,
 				    const uint32_t len)
 {
@@ -590,7 +591,7 @@ void viuin_check_venc_line(struct viuin_s *devp_local)
 	unsigned int vencv_line_cur, cnt;
 	cnt = 0;
 	do {
-		vencv_line_cur = (rd(devp_local->enc_info_addr)>>16)&0x1fff;
+		vencv_line_cur = (rd_viu(devp_local->enc_info_addr)>>16)&0x1fff;
 		udelay(10);
 		cnt++;
 		if (cnt > 100000)
@@ -611,7 +612,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		return -1;
 	}
 	/*open the venc to vdin path*/
-	switch (rd_bits(VPU_VIU_VENC_MUX_CTRL, 0, 2)) {
+	switch (rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 2)) {
 	case 0:
 		viu_mux = 0x8;/* wr_bits(VPU_VIU_VENC_MUX_CTRL,0x88,4,8); */
 		devp->enc_info_addr = ENCL_INFO_READ;
@@ -632,8 +633,8 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		break;
 	}
 	viuin_check_venc_line(devp);
-	wr_bits(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
-	wr_bits(VPU_VIU_VENC_MUX_CTRL, viu_mux, 8, 4);
+	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
+	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 8, 4);
 	devp->flag = 0;
 	open_cnt++;
 	return 0;
@@ -648,8 +649,8 @@ static void viuin_close(struct tvin_frontend_s *fe)
 	if (open_cnt)
 		open_cnt--;
 	if (open_cnt == 0) {
-		wr_bits(VPU_VIU_VENC_MUX_CTRL, 0, 8, 4);
-		wr_bits(VPU_VIU_VENC_MUX_CTRL, 0, 4, 4);
+		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 8, 4);
+		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 4, 4);
 	}
 }
 
@@ -688,9 +689,9 @@ static int viuin_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if (!devp)
 		return -ENODEV;
 
-	curr_port = rd_bits(VPU_VIU_VENC_MUX_CTRL, 0, 2);
+	curr_port = rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 2);
 
-	vsync_enter_line_curr = (rd(devp->enc_info_addr)>>16)&0x1fff;
+	vsync_enter_line_curr = (rd_viu(devp->enc_info_addr)>>16)&0x1fff;
 	if (vsync_enter_line_curr > vsync_enter_line_max)
 		vsync_enter_line_max = vsync_enter_line_curr;
 	if ((vsync_enter_line_max_threshold > vsync_enter_line_min_threshold) &&
@@ -728,9 +729,11 @@ static struct tvin_decoder_ops_s viu_dec_ops = {
 static void viuin_sig_propery(struct tvin_frontend_s *fe,
 		struct tvin_sig_property_s *prop)
 {
+	static const struct vinfo_s *vinfo;
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
-	prop->color_format = TVIN_YUV422;
+	vinfo = get_current_vinfo();
+	prop->color_format = vinfo->viu_color_fmt;
 	prop->dest_cfmt = devp->parm.dfmt;
 
 	prop->scaling4w = devp->parm.dest_hactive;

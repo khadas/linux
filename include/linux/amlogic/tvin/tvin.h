@@ -20,6 +20,7 @@
 #define __TVIN_H
 
 #include <linux/types.h>
+#include <linux/amlogic/amvecm/cm.h>
 
 enum {
 	MEMP_VDIN_WITHOUT_3D = 0,
@@ -269,7 +270,7 @@ enum tvin_sig_fmt_e {
 	TVIN_SIG_FMT_HDMI_1920X1080P_25HZ = 0x415,
 	TVIN_SIG_FMT_HDMI_1920X1080P_30HZ = 0x416,
 	TVIN_SIG_FMT_HDMI_2880X480P_60HZ = 0x417,
-	TVIN_SIG_FMT_HDMI_2880X576P_60HZ = 0x418,
+	TVIN_SIG_FMT_HDMI_2880X576P_50HZ = 0x418,
 	TVIN_SIG_FMT_HDMI_1920X1080I_50HZ_B = 0x419,
 	TVIN_SIG_FMT_HDMI_1920X1080I_100HZ = 0x41a,
 	TVIN_SIG_FMT_HDMI_1280X720P_100HZ = 0x41b,
@@ -429,6 +430,15 @@ enum tvin_color_fmt_e {
 	TVIN_COLOR_FMT_MAX,
 };
 
+enum tvin_color_fmt_range_e {
+	TVIN_FMT_RANGE_NULL = 0,  /* depend on vedio fromat */
+	TVIN_RGB_FULL,  /* 1 */
+	TVIN_RGB_LIMIT, /* 2 */
+	TVIN_YUV_FULL,  /* 3 */
+	TVIN_YUV_LIMIT, /* 4 */
+	TVIN_COLOR_FMT_RANGE_MAX,
+};
+
 const char *tvin_color_fmt_str(enum tvin_color_fmt_e color_fmt);
 enum tvin_scan_mode_e {
 	TVIN_SCAN_MODE_NULL = 0,
@@ -486,7 +496,7 @@ struct tvin_parm_s {
 /* ************************************************************************* */
 /* *** AFE module definition/enum/struct *********************************** */
 /* ************************************************************************* */
-
+#if 0
 enum tvafe_cmd_status_e {
 	/* idle, be ready for TVIN_IOC_S_AFE_VGA_AUTO command */
 	TVAFE_CMD_STATUS_IDLE = 0,
@@ -508,7 +518,7 @@ struct tvafe_comp_wss_s {
 	unsigned int wss1[5];
 	unsigned int wss2[5];
 };
-
+#endif
 struct tvafe_vga_parm_s {
 	signed short clk_step;	/* clock < 0, tune down clock freq */
 	/* clock > 0, tune up clock freq */
@@ -519,7 +529,7 @@ struct tvafe_vga_parm_s {
 	/* vpos_step > 0, shift display to bottom */
 	unsigned int vga_in_clean;	/* flage for vga clean screen */
 };
-
+#if 0
 #define TVAFE_ADC_CAL_VALID 0x00000001
 struct tvafe_adc_cal_s {
 	/* ADC A */
@@ -561,7 +571,7 @@ struct tvafe_adc_cal_clamp_s {
 struct tvafe_adc_comp_cal_s {
 	struct tvafe_adc_cal_s comp_cal_val[3];
 };
-
+#endif
 enum tvafe_cvbs_video_e {
 	TVAFE_CVBS_VIDEO_HV_UNLOCKED = 0,
 	TVAFE_CVBS_VIDEO_H_LOCKED,
@@ -573,14 +583,12 @@ enum tvafe_cvbs_video_e {
 enum tvafe_adc_pin_e {
 	TVAFE_ADC_PIN_NULL = 0,
 	/* TODO Only M8 first */
-	/*
-	   #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV)
-	   TVAFE_CVBS_IN0               = 1,
-	   TVAFE_CVBS_IN1               = 2,
-	   TVAFE_CVBS_IN2               = 3,
-	   TVAFE_CVBS_IN3               = 4,//as atvdemod to tvafe
-	   #else
-	 */
+	/*(MESON_CPU_TYPE > MESON_CPU_TYPE_MESONG9TV)*/
+	TVAFE_CVBS_IN0               = 1,
+	TVAFE_CVBS_IN1               = 2,
+	TVAFE_CVBS_IN2               = 3,
+	TVAFE_CVBS_IN3               = 4,/*as atvdemod to tvafe*/
+	/*for (MESON_CPU_TYPE < MESON_CPU_TYPE_MESONG9TV)*/
 	TVAFE_ADC_PIN_A_PGA_0 = 1,
 	TVAFE_ADC_PIN_A_PGA_1 = 2,
 	TVAFE_ADC_PIN_A_PGA_2 = 3,
@@ -629,20 +637,19 @@ enum tvafe_adc_pin_e {
 	TVAFE_ADC_PIN_SOG_5 = 46,
 	TVAFE_ADC_PIN_SOG_6 = 47,
 	TVAFE_ADC_PIN_SOG_7 = 48,
-	/* #endif */
 	TVAFE_ADC_PIN_MAX,
 };
 
 enum tvafe_src_sig_e {
 	/* TODO Only M8 first */
-	/*
-	   #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV)
-	   CVBS_IN0 = 0,
-	   CVBS_IN1,
-	   CVBS_IN2,
-	   CVBS_IN3,
-	   #else
-	 */
+
+/*#if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV)*/
+	CVBS_IN0 = 0,
+	CVBS_IN1,
+	CVBS_IN2,
+	CVBS_IN3,
+#if 0
+	/*m6tv*/
 	CVBS0_Y = 0,
 	CVBS0_SOG,
 	CVBS1_Y,
@@ -779,7 +786,7 @@ enum tvafe_src_sig_e {
 	SCART7_B,
 	SCART7_R,
 	SCART7_CVBS,
-	/* #endif */
+#endif
 	TVAFE_SRC_SIG_MAX_NUM,
 };
 
@@ -812,23 +819,31 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_UNFREEZE_VF        _IO(_TM_T, 0x46)
 
 /* TVAFE */
+#if 0
 #define TVIN_IOC_S_AFE_ADC_CAL      _IOW(_TM_T, 0x11, struct tvafe_adc_cal_s)
 #define TVIN_IOC_G_AFE_ADC_CAL      _IOR(_TM_T, 0x12, struct tvafe_adc_cal_s)
 #define TVIN_IOC_G_AFE_COMP_WSS     _IOR(_TM_T, 0x13, struct tvafe_comp_wss_s)
 #define TVIN_IOC_S_AFE_VGA_EDID     _IOW(_TM_T, 0x14, struct tvafe_vga_edid_s)
 #define TVIN_IOC_G_AFE_VGA_EDID     _IOR(_TM_T, 0x15, struct tvafe_vga_edid_s)
+#endif
 #define TVIN_IOC_S_AFE_VGA_PARM     _IOW(_TM_T, 0x16, struct tvafe_vga_parm_s)
 #define TVIN_IOC_G_AFE_VGA_PARM     _IOR(_TM_T, 0x17, struct tvafe_vga_parm_s)
 #define TVIN_IOC_S_AFE_VGA_AUTO     _IO(_TM_T, 0x18)
+#if 0
 #define TVIN_IOC_G_AFE_CMD_STATUS   _IOR(_TM_T, 0x19, enum tvafe_cmd_status_e)
+#endif
 #define TVIN_IOC_G_AFE_CVBS_LOCK    _IOR(_TM_T, 0x1a, enum tvafe_cvbs_video_e)
 #define TVIN_IOC_S_AFE_CVBS_STD     _IOW(_TM_T, 0x1b, enum tvin_sig_fmt_e)
 #define TVIN_IOC_CALLMASTER_SET     _IOW(_TM_T, 0x1c, enum tvin_port_e)
 #define TVIN_IOC_CALLMASTER_GET	    _IO(_TM_T, 0x1d)
+#if 0
 #define TVIN_IOC_S_AFE_ADC_COMP_CAL \
 	_IOW(_TM_T, 0x1e, struct tvafe_adc_comp_cal_s)
 #define TVIN_IOC_G_AFE_ADC_COMP_CAL  \
 	_IOR(_TM_T, 0x1f, struct tvafe_adc_comp_cal_s)
+#endif
 #define TVIN_IOC_LOAD_REG          _IOW(_TM_T, 0x20, struct am_regs_s)
+#if 0
 #define TVIN_IOC_S_AFE_ADC_DIFF _IOW(_TM_T, 0x21, struct tvafe_adc_cal_clamp_s)
+#endif
 #endif

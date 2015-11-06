@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-
+#include <linux/module.h>
 /* Amlogic Headers */
 /* #include <mach/am_regs.h> */
 /* #include <mach/mod_gate.h> */
@@ -39,6 +39,42 @@
 #include "vdin_drv.h"
 #include "vdin_ctl.h"
 #include "vdin_regs.h"
+
+static void vdin_get_vdin_yuv_rgb_mat0(unsigned int offset,
+		unsigned int *rgb_yuv0,
+		unsigned int *rgb_yuv1,
+		unsigned int *rgb_yuv2)
+{
+	*rgb_yuv0 = 0;  *rgb_yuv1 = 0;  *rgb_yuv2 = 0;
+
+	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 0, 10)
+			<< 8) >> 10);
+	*rgb_yuv1 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 10, 10)
+			<< 8) >> 10);
+	*rgb_yuv2 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 20, 10)
+			<< 8) >> 10);
+}
+
+static void vdin_set_prob_matrix0_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
+{
+
+	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		y = y/2;
+
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, y, 0, 13);
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, x, 16, 13);
+}
+
+static void vdin_set_before_after_mat0(unsigned int offset,
+		unsigned int x, struct vdin_dev_s *devp)
+{
+	if ((x != 0) && (x != 1))
+		return;
+
+	wr_bits(offset, VDIN_MATRIX_CTRL, x,
+			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
+}
 
 
 static void parse_param(char *buf_orig, char **parm)
@@ -292,6 +328,28 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,
 			NULL);
 }
+
+#ifdef CONFIG_AML_LOCAL_DIMMING
+
+static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
+	unsigned int hnum, unsigned int vnum)
+{
+	uint i, j;
+	unsigned int local_ldim_max[100] = {0};
+	memcpy(&local_ldim_max[0], &vdin_ldim_max_global[0],
+		100*sizeof(unsigned int));
+	pr_info("%s:\n", __func__);
+	for (i = 0; i < hnum; i++) {
+		for (j = 0; j < vnum; j++) {
+			pr_info("(%d,%d,%d)\t", local_ldim_max[j + i*10]&0x3ff,
+			(local_ldim_max[j + i*10]>>10)&0x3ff,
+			(local_ldim_max[j + i*10]>>20)&0x3ff);
+		}
+		pr_info("\n");
+	}
+}
+#endif
+
 /*
 * 1.show the current frame rate
 * echo fps >/sys/class/vdin/vdinx/attr
@@ -312,7 +370,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 		const char *buf, size_t len)
 {
 	unsigned int fps = 0;
-	char ret = 0, *buf_orig, *parm[8] = {NULL};
+	char ret = 0, *buf_orig, *parm[47] = {NULL};
 	struct vdin_dev_s *devp;
 	long val;
 
@@ -325,7 +383,8 @@ static ssize_t vdin_attr_store(struct device *dev,
 
 	if (!strncmp(parm[0], "fps", 3)) {
 		if (devp->cycle)
-			fps = (VDIN_CRYSTAL + (devp->cycle>>3))/devp->cycle;
+			fps = (devp->msr_clk_val +
+					(devp->cycle>>3))/devp->cycle;
 		pr_info("%u f/s\n", fps);
 	} else if (!strcmp(parm[0], "capture")) {
 		if (parm[3] != NULL) {
@@ -391,31 +450,64 @@ static ssize_t vdin_attr_store(struct device *dev,
 			return -EINVAL;
 		fmt = val;
 
-		devp->flags |= VDIN_FLAG_FS_OPENED;
+		/* devp->flags |= VDIN_FLAG_FS_OPENED; */
 		/* request irq */
 		snprintf(devp->irq_name, sizeof(devp->irq_name),
 				"vdin%d-irq", devp->index);
-			pr_info("vdin work in normal mode\n");
-			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
-					devp->irq_name, (void *)devp);
+		pr_info("vdin work in normal mode\n");
+		ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
+				devp->irq_name, (void *)devp);
 
 			/*disable irq untill vdin is configured completely*/
-			disable_irq_nosync(devp->irq);
+		disable_irq_nosync(devp->irq);
 		/* remove the hardware limit to vertical [0-max]*/
 		/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000fff); */
-		pr_info("open device %s ok\n", dev_name(devp->dev));
-			vdin_open_fe(port, 0, devp);
-			devp->parm.port = port;
-			devp->parm.info.fmt = fmt;
-			devp->fmt_info_p  = (struct tvin_format_s *)
-					tvin_get_fmt_info(fmt);
-			devp->flags |= VDIN_FLAG_DEC_STARTED;
-			vdin_start_dec(devp);
+		/* pr_info("open device %s ok\n", dev_name(devp->dev)); */
+		/* vdin_open_fe(port, 0, devp); */
+		devp->parm.port = port;
+		devp->parm.info.fmt = fmt;
+		devp->fmt_info_p  = (struct tvin_format_s *)
+				tvin_get_fmt_info(fmt);
+
+		devp->unstable_flag = false;
+		ret = vdin_open_fe(devp->parm.port, 0, devp);
+		if (ret) {
+			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
+					devp->index, devp->parm.port);
+		}
+		devp->flags |= VDIN_FLAG_DEC_OPENED;
+		pr_info("TVIN_IOC_OPEN() port %s opened ok\n\n",
+			tvin_port_str(devp->parm.port));
+start_chk:
+		if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+			pr_info("TVIN_IOC_START_DEC() port 0x%x, started already\n",
+					devp->parm.port);
+		}
+		if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
+				(devp->parm.info.fmt == TVIN_SIG_FMT_NULL))
+			goto start_chk;
+
+		pr_info("	status: %s, fmt: %s\n",
+			tvin_sig_status_str(devp->parm.info.status),
+			tvin_sig_fmt_str(devp->parm.info.fmt));
+		fmt = devp->parm.info.fmt; /* = parm.info.fmt; */
+		devp->fmt_info_p  =
+				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
+		/* devp->fmt_info_p  =
+		 * tvin_get_fmt_info(devp->parm.info.fmt); */
+		if (!devp->fmt_info_p) {
+			pr_info("TVIN_IOC_START_DEC(%d) error, fmt is null\n",
+					devp->index);
+		}
+		vdin_start_dec(devp);
+		devp->flags |= VDIN_FLAG_DEC_STARTED;
+		pr_info("TVIN_IOC_START_DEC port %s, decode started ok\n\n",
+				tvin_port_str(devp->parm.port));
 	} else if (!strcmp(parm[0], "tvstop")) {
 		vdin_stop_dec(devp);
 		vdin_close_fe(devp);
-		devp->flags &= (~VDIN_FLAG_FS_OPENED);
-				devp->flags &= (~VDIN_FLAG_DEC_STARTED);
+		/* devp->flags &= (~VDIN_FLAG_FS_OPENED); */
+		devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 		/* free irq */
 		free_irq(devp->irq, (void *)devp);
 		/* reset the hardware limit to vertical [0-1079]  */
@@ -439,8 +531,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 		} else if (!strcmp(parm[1], "viuin")) {
 			param.port = TVIN_PORT_VIU;
 			pr_info(" port is TVIN_PORT_VIU\n");
-		}
-		if (!strcmp(parm[1], "isp")) {
+		} else if (!strcmp(parm[1], "isp")) {
 			param.port = TVIN_PORT_ISP;
 			pr_info(" port is TVIN_PORT_ISP\n");
 		}
@@ -544,10 +635,81 @@ static ssize_t vdin_attr_store(struct device *dev,
 		vdin_dump_state(devp);
 	} else if (!strcmp(parm[0], "histgram")) {
 		vdin_dump_histgram(devp);
-	} else if (!strcmp(parm[0], "force_recycle")) {
+	}
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	else if (!strcmp(parm[0], "histgram_ldim")) {
+		unsigned int hnum, vnum;
+		if (parm[1] && parm[2]) {
+			hnum = kstrtoul(parm[1], 10, (unsigned long *)&hnum);
+			vnum = kstrtoul(parm[2], 10, (unsigned long *)&vnum);
+			}
+		else{
+			hnum = 8;
+			vnum = 2;
+			}
+		vdin_dump_histgram_ldim(devp, hnum, vnum);
+		}
+#endif
+	else if (!strcmp(parm[0], "force_recycle")) {
 		devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 	} else if (!strcmp(parm[0], "read_pic")) {
 		vdin_write_mem(devp, parm[1], parm[2]);
+	} else if (!strcmp(parm[0], "dump_reg")) {
+		unsigned int reg;
+		unsigned int offset = devp->addr_offset;
+		pr_info("vdin%d addr offset:0x%x regs start----\n",
+				devp->index, offset);
+		for (reg = VDIN_SCALE_COEF_IDX;	reg <= 0x1273; reg++)
+			pr_info("[0x%x]reg:0x%x-0x%x\n",
+					(0xd0100000 + ((reg+offset)<<2)),
+					(reg+offset), rd(offset, reg));
+		pr_info("vdin%d regs   end----\n", devp->index);
+	} else if (!strcmp(parm[0], "rgb_xy")) {
+		unsigned int x, y;
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		x = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			return -EINVAL;
+		y = val;
+		vdin_set_prob_xy(devp->addr_offset, x, y, devp);
+	} else if (!strcmp(parm[0], "rgb_info")) {
+		unsigned int r, g, b;
+		vdin_get_prob_rgb(devp->addr_offset, &r, &g, &b);
+		pr_info("rgb_info-->r:%d,g:%d,b:%d\n", r, g, b);
+	} else if (!strcmp(parm[0], "mpeg2vdin")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		devp->h_active = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			return -EINVAL;
+		devp->v_active = val;
+		vdin_set_mpegin(devp);
+		pr_info("mpeg2vdin:h_active:%d,v_active:%d\n",
+				devp->h_active, devp->v_active);
+	} else if (!strcmp(parm[0], "yuv_rgb_info")) {
+		unsigned int rgb_yuv0, rgb_yuv1, rgb_yuv2;
+		vdin_get_vdin_yuv_rgb_mat0(devp->addr_offset,
+				&rgb_yuv0, &rgb_yuv1, &rgb_yuv2);
+		pr_info("rgb_yuv0 :%d, rgb_yuv1 :%d , rgb_yuv2 :%d\n",
+				rgb_yuv0, rgb_yuv1, rgb_yuv2);
+	} else if (!strcmp(parm[0], "mat0_xy")) {
+		unsigned int x, y;
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		x = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			return -EINVAL;
+		y = val;
+		pr_info("pos x  :%d, pos y  :%d\n", x, y);
+		vdin_set_prob_matrix0_xy(devp->addr_offset, x, y, devp);
+	} else if (!strcmp(parm[0], "mat0_set")) {
+		unsigned int x;
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		x = val;
+		pr_info("matrix set : %d\n", x);
+		vdin_set_before_after_mat0(devp->addr_offset, x, devp);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

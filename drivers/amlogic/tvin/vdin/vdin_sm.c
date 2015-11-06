@@ -91,6 +91,10 @@ static int hdmi_unstable_out_cnt = 25;
 module_param(hdmi_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_unstable_out_cnt, "hdmi_unstable_out_cnt");
 
+static int hdmi_stable_out_cnt = 1;/* 25; */
+module_param(hdmi_stable_out_cnt, int, 0664);
+MODULE_PARM_DESC(hdmi_stable_out_cnt, "hdmi_stable_out_cnt");
+
 static int atv_stable_out_cnt = 10;
 module_param(atv_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_out_cnt, "atv_stable_out_cnt");
@@ -138,12 +142,14 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	enum tvin_color_fmt_e cur_color_fmt, pre_color_fmt;
+	struct tvin_sig_property_s prop;
 
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return;
 	}
 
+	prop = devp->prop;
 	sm_ops = devp->frontend->sm_ops;
 	port = devp->parm.port;
 
@@ -159,12 +165,12 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 				pr_info("[smr.%d] : config hdmi color fmt(%d->%d)\n",
 						devp->index,
 						pre_color_fmt, cur_color_fmt);
-			devp->pre_prop.color_format = devp->prop.color_format;
-			vdin_get_format_convert(devp);
-			vdin_set_matrix(devp);
+				devp->pre_prop.color_format = prop.color_format;
+				vdin_get_format_convert(devp);
+				vdin_set_matrix(devp);
+			}
 		}
 	}
-}
 }
 
 void tvin_smr_init_counter(int index)
@@ -183,7 +189,7 @@ void tvin_smr_init_counter(int index)
 void tvin_smr(struct vdin_dev_s *devp)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
-	struct tvin_info_s *info;
+	struct tvin_info_s *info, *pre_info;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	unsigned int unstb_in;
 	struct tvin_sm_s *sm_p;
@@ -199,42 +205,23 @@ void tvin_smr(struct vdin_dev_s *devp)
 	fe = devp->frontend;
 	sm_ops = devp->frontend->sm_ops;
 	info = &devp->parm.info;
+	pre_info = &devp->pre_info;
 	port = devp->parm.port;
 	prop = devp->prop;
-
-#ifdef CONFIG_ADC_CAL_SIGNALED
-	if (devp->parm.flag & TVIN_PARM_FLAG_CAL) {
-		if ((((port >= TVIN_PORT_COMP0) && (port <= TVIN_PORT_COMP7)) ||
-			((port >= TVIN_PORT_VGA0) && (port <= TVIN_PORT_VGA7))
-		    ) && (sm_ops->adc_cal)) {
-			if (!sm_ops->adc_cal(devp->frontend))
-				devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-		} else
-			devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-	}
-#endif
 
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:
 		++sm_p->state_cnt;
-#ifndef CONFIG_ADC_CAL_SIGNALED
-		if (devp->parm.flag & TVIN_PARM_FLAG_CAL) {
-			if ((((port >= TVIN_PORT_COMP0) &&
-				  (port <= TVIN_PORT_COMP7)) ||
-				((port >= TVIN_PORT_VGA0) &&
-				 (port <= TVIN_PORT_VGA7))
-			    ) && (sm_ops->adc_cal)) {
-				if (!sm_ops->adc_cal(devp->frontend))
-					devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-			} else
-				devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-		} else
-#endif
 		if (sm_ops->nosig(devp->frontend)) {
 			sm_p->exit_nosig_cnt = 0;
 			if (sm_p->state_cnt >= nosig_in_cnt) {
-				sm_p->state_cnt       = nosig_in_cnt;
-				info->status        = TVIN_SIG_STATUS_NOSIG;
+				sm_p->state_cnt = nosig_in_cnt;
+				info->status = TVIN_SIG_STATUS_NOSIG;
+				if (pre_info->status != info->status) {
+					pre_info->status = info->status;
+					queue_delayed_work(devp->sig_wq,
+						&devp->sig_dwork, 0);
+				}
 				info->fmt           = TVIN_SIG_FMT_NULL;
 				if (sm_debug_enable && !sm_print_nosig) {
 					pr_info("[smr.%d] no signal\n",
@@ -259,10 +246,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 	case TVIN_SM_STATUS_UNSTABLE:
 		++sm_p->state_cnt;
-#ifndef CONFIG_ADC_CAL_SIGNALED
-		if (devp->parm.flag & TVIN_PARM_FLAG_CAL)
-			devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-#endif
 		if (sm_ops->nosig(devp->frontend)) {
 			sm_p->back_stable_cnt = 0;
 			++sm_p->back_nosig_cnt;
@@ -270,7 +253,12 @@ void tvin_smr(struct vdin_dev_s *devp)
 				tvin_smr_init_counter(devp->index);
 				sm_p->state = TVIN_SM_STATUS_NOSIG;
 				info->status = TVIN_SIG_STATUS_NOSIG;
-				info->fmt    = TVIN_SIG_FMT_NULL;
+				if (pre_info->status != info->status) {
+					pre_info->status = info->status;
+					queue_delayed_work(devp->sig_wq,
+						&devp->sig_dwork, 0);
+				}
+				info->fmt = TVIN_SIG_FMT_NULL;
 				if (sm_debug_enable)
 					pr_info("[smr.%d] unstable --> no signal\n",
 							devp->index);
@@ -291,6 +279,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 				if (sm_p->state_cnt >= unstb_in) {
 					sm_p->state_cnt  = unstb_in;
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
+					if (pre_info->status != info->status) {
+						pre_info->status = info->status;
+						queue_delayed_work(devp->sig_wq,
+							&devp->sig_dwork, 0);
+					}
 					info->fmt = TVIN_SIG_FMT_NULL;
 					if (sm_debug_enable &&
 						!sm_print_unstable) {
@@ -326,9 +319,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 							devp->prop.dvi_info;
 					}
 				} else
-					info->fmt   = TVIN_SIG_FMT_NULL;
+					info->fmt = TVIN_SIG_FMT_NULL;
 				if (info->fmt == TVIN_SIG_FMT_NULL) {
 					info->status = TVIN_SIG_STATUS_NOTSUP;
+					if (pre_info->status != info->status) {
+						pre_info->status = info->status;
+						queue_delayed_work(devp->sig_wq,
+							&devp->sig_dwork, 0);
+					}
 					if (sm_debug_enable &&
 						!sm_print_notsup) {
 						pr_info("[smr.%d] unstable --> not support\n",
@@ -341,9 +339,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 					tvin_smr_init_counter(devp->index);
 					sm_p->state = TVIN_SM_STATUS_PRESTABLE;
 					if (sm_debug_enable) {
-						pr_info("[smr.%d]",
-							devp->index);
-						pr_info("unstable-->prestable");
+						pr_info("[smr.%d]unstable-->prestable",
+						devp->index);
 						pr_info("and format is %d(%s)\n",
 						info->fmt,
 						tvin_sig_fmt_str(info->fmt));
@@ -359,10 +356,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 	case TVIN_SM_STATUS_PRESTABLE: {
 		bool nosig = false, fmt_changed = false;
 		devp->unstable_flag = true;
-#ifndef CONFIG_ADC_CAL_SIGNALED
-		if (devp->parm.flag & TVIN_PARM_FLAG_CAL)
-			devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-#endif
 		if (sm_ops->nosig(devp->frontend)) {
 			nosig = true;
 			if (sm_debug_enable)
@@ -391,42 +384,27 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 				break;
 			}
-		} else {
+		} else
 			sm_p->state_cnt = 0;
-		}
 
-		/* wait comp stable */
-		if ((port >= TVIN_PORT_COMP0) &&
-				(port <= TVIN_PORT_COMP7)) {
-			++sm_p->exit_prestable_cnt;
-			if (sm_p->exit_prestable_cnt >= comp_pre2_stable_cnt) {
-				tvin_smr_init_counter(devp->index);
-				sm_p->state       = TVIN_SM_STATUS_STABLE;
-				info->status        = TVIN_SIG_STATUS_STABLE;
-				if (sm_debug_enable)
-					pr_info("[smr.%d] prestable --> stable\n",
-							devp->index);
-				sm_print_nosig  = 0;
-				sm_print_notsup = 0;
-			}
-		} else {
-			sm_p->state       = TVIN_SM_STATUS_STABLE;
-			info->status        = TVIN_SIG_STATUS_STABLE;
-			if (sm_debug_enable)
-				pr_info("[smr.%d] prestable --> stable\n",
-						devp->index);
-			sm_print_nosig  = 0;
-			sm_print_notsup = 0;
+		sm_p->state = TVIN_SM_STATUS_STABLE;
+		info->status = TVIN_SIG_STATUS_STABLE;
+		if (pre_info->status != info->status) {
+			pre_info->status = info->status;
+			queue_delayed_work(devp->sig_wq,
+					&devp->sig_dwork, 0);
 		}
+		if (sm_debug_enable)
+			pr_info("[smr.%d] %ums prestable --> stable\n",
+					devp->index,
+					jiffies_to_msecs(jiffies));
+		sm_print_nosig  = 0;
+		sm_print_notsup = 0;
 		break;
 	}
 	case TVIN_SM_STATUS_STABLE: {
 		bool nosig = false, fmt_changed = false;
 		unsigned int stable_out_cnt = 0;
-#ifndef CONFIG_ADC_CAL_SIGNALED
-		if (devp->parm.flag & TVIN_PARM_FLAG_CAL)
-			devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-#endif
 		devp->unstable_flag = true;
 
 		if (sm_ops->nosig(devp->frontend)) {
@@ -462,6 +440,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 			if ((port == TVIN_PORT_CVBS3) ||
 				(port == TVIN_PORT_CVBS0))
 				stable_out_cnt = sm_p->atv_stable_out_cnt;
+			else if ((port >= TVIN_PORT_HDMI0) &&
+					(port <= TVIN_PORT_HDMI7))
+				stable_out_cnt = hdmi_stable_out_cnt;
 			else
 				stable_out_cnt = other_stable_out_cnt;
 			if (sm_p->state_cnt >= stable_out_cnt) {
@@ -483,10 +464,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 	}
 	case TVIN_SM_STATUS_NULL:
 	default:
-#ifndef CONFIG_ADC_CAL_SIGNALED
-		if (devp->parm.flag & TVIN_PARM_FLAG_CAL)
-			devp->parm.flag &= ~TVIN_PARM_FLAG_CAL;
-#endif
 		sm_p->state = TVIN_SM_STATUS_NOSIG;
 		break;
 	}

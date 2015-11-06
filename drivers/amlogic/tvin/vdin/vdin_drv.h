@@ -30,6 +30,8 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/switch.h>
+#include <linux/workqueue.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/cpu_version.h>
@@ -48,11 +50,12 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2015/06/30a"
+#define VDIN_VER "Ref.2015/11/5"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
-#define VDIN_CRYSTAL                    24000000
+/* #define VDIN_CRYSTAL               24000000 */
+/* #define VDIN_MEAS_CLK              50000000 */
 /* values of vdin_dev_t.flags */
 #define VDIN_FLAG_NULL			0x00000000
 #define VDIN_FLAG_DEC_INIT		0x00000001
@@ -149,9 +152,9 @@ struct vdin_dev_s {
 
 	/* start address of captured frame data [8 bits] in memory */
 	/* for Component input, frame data [8 bits] order is
-	 * Y0Cb0Y1Cr0¡­Y2nCb2nY2n+1Cr2n¡­ */
+	 * Y0Cb0Y1Cr0ï¿½ï¿½Y2nCb2nY2n+1Cr2nï¿½ï¿½ */
 	/* for VGA       input, frame data [8 bits] order is
-	 * R0G0B0¡­RnGnBn¡­ */
+	 * R0G0B0ï¿½ï¿½RnGnBnï¿½ï¿½ */
 	unsigned int			cap_addr;
 	unsigned int			cap_size;
 
@@ -209,9 +212,25 @@ struct vdin_dev_s {
 	unsigned int			hcnt64_tag;
 	unsigned int			cycle_tag;
 	unsigned int			start_time;/* ms vdin start time */
+	bool                    send2di;
 		 int			    rdma_handle;
 	struct clk				*msr_clk;
+	unsigned int             msr_clk_val;
+
+	/* signal event */
+	struct delayed_work     sig_dwork;
+	struct workqueue_struct *sig_wq;
+	struct switch_dev       sig_sdev;
+	struct tvin_info_s      pre_info;
+
 	struct vdin_debug_s			debug;
+	unsigned int			cma_config_en;
+#ifdef CONFIG_CMA
+	struct platform_device	*this_pdev[2];
+	struct page			*venc_pages[2];
+	unsigned int			cma_mem_size[2];/*BYTE*/
+	unsigned int			cma_mem_alloc[2];
+#endif
 };
 
 
@@ -223,6 +242,9 @@ int vdin_ctrl_start_fe(int no, struct vdin_parm_s *para);
 int vdin_ctrl_stop_fe(int no);
 enum tvin_sig_fmt_e vdin_ctrl_get_fmt(int no);
 #endif
+extern unsigned int   vdin_ldim_max_global[100];
+extern struct vframe_provider_s *vf_get_provider_by_name(
+		const char *provider_name);
 
 extern int start_tvin_service(int no, struct vdin_parm_s *para);
 extern int stop_tvin_service(int no);
@@ -241,6 +263,9 @@ extern void vdin_stop_dec(struct vdin_dev_s *devp);
 extern irqreturn_t vdin_isr_simple(int irq, void *dev_id);
 extern irqreturn_t vdin_isr(int irq, void *dev_id);
 extern irqreturn_t vdin_v4l2_isr(int irq, void *dev_id);
-
+extern void LDIM_Initial(int pic_h, int pic_v, int BLK_Vnum,
+	int BLK_Hnum, int BackLit_mode, int ldim_bl_en, int ldim_hvcnt_bypass);
+extern void ldim_get_matrix(int *data, int reg_sel);
+extern void ldim_set_matrix(int *data, int reg_sel);
 #endif /* __TVIN_VDIN_DRV_H */
 

@@ -26,41 +26,6 @@
 #include "vdin_drv.h"
 
 
-static inline uint32_t rd(uint32_t offset,
-							uint32_t reg)
-{
-	return (uint32_t)aml_read_vcbus(reg+offset);
-}
-
-static inline void wr(uint32_t offset,
-						uint32_t reg,
-				 const uint32_t val)
-{
-	aml_write_vcbus(reg+offset, val);
-}
-
-static inline void wr_bits(uint32_t offset,
-							uint32_t reg,
-				    const uint32_t value,
-				    const uint32_t start,
-				    const uint32_t len)
-{
-	aml_write_vcbus(reg+offset, ((aml_read_vcbus(reg+offset) &
-			     ~(((1L << (len)) - 1) << (start))) |
-			    (((value) & ((1L << (len)) - 1)) << (start))));
-}
-
-static inline uint32_t rd_bits(uint32_t offset,
-							uint32_t reg,
-				    const uint32_t start,
-				    const uint32_t len)
-{
-	uint32_t val;
-
-	val = ((aml_read_vcbus(reg+offset) >> (start)) & ((1L << (len)) - 1));
-
-	return val;
-}
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -134,13 +99,13 @@ struct vdin_stat_s {
 	unsigned int   sum_pixel; /* VDIN_HIST_PIX_CNT_REG */
 };
 
-#ifdef AML_LOCAL_DIMMING
+#ifdef CONFIG_AML_LOCAL_DIMMING
 struct ldim_max_s {
     /* general parameters */
 	int ld_pic_rowmax;
 	int ld_pic_colmax;
-	int ld_stamax_hidx[9];  /* U12* 9 */
-	int ld_stamax_vidx[9];  /* u12x 9 */
+	int ld_stamax_hidx[11];  /* U12* 9 */
+	int ld_stamax_vidx[11];  /* u12x 9 */
 };
 #endif
 
@@ -159,7 +124,17 @@ struct vdin_hist_cfg_s {
 /* ************************************************************************ */
 extern void vdin_set_vframe_prop_info(struct vframe_s *vf,
 		struct vdin_dev_s *devp);
+extern void LDIM_Initial_2(int pic_h, int pic_v, int BLK_Vnum,
+	int BLK_Hnum, int BackLit_mode, int ldim_bl_en, int ldim_hvcnt_bypass);
 extern void vdin_get_format_convert(struct vdin_dev_s *devp);
+extern enum vdin_format_convert_e vdin_get_format_convert_matrix0(
+		struct vdin_dev_s *devp);
+extern enum vdin_format_convert_e vdin_get_format_convert_matrix1(
+		struct vdin_dev_s *devp);
+extern void vdin_set_prob_xy(unsigned int offset, unsigned int x,
+		unsigned int y, struct vdin_dev_s *devp);
+extern void vdin_get_prob_rgb(unsigned int offset, unsigned int *r,
+		unsigned int *g, unsigned int *b);
 extern void vdin_set_all_regs(struct vdin_dev_s *devp);
 extern void vdin_set_default_regmap(unsigned int offset);
 extern void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);

@@ -71,7 +71,7 @@ static void parse_param(char *buf_orig, char **parm)
 		pr_info("%s parm:%s", __func__, buf_orig);
 
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
