@@ -34,15 +34,17 @@
 #include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/usb-meson8.h>
+#include <linux/amlogic/usb-gxbbtv.h>
 #include <linux/amlogic/cpu_version.h>
 
 /*
  * M chip USB clock setting
  */
 
-#define MESON8  "meson8"
-#define G9TV    "g9TV"
-#define GXBABY	"gxbaby"
+#define MESON8		"meson8"
+#define G9TV		"g9TV"
+#define GXBABY		"gxbaby"
+#define GXBABYTV	"gxbabytv"
 
 static int init_count;
 
@@ -312,6 +314,28 @@ void clk_disable_usb_gxbaby(struct platform_device *pdev,
 	return;
 }
 
+int clk_enable_usb_gxbabytv(struct platform_device *pdev,
+			const char *s_clock_name,
+			unsigned long usb_peri_reg)
+{
+	/*TO DO*/
+	dev_err(&pdev->dev, "clk_enable_usb_gxbabytv.....................\n");
+
+	return 0;
+}
+
+
+void clk_disable_usb_gxbabytv(struct platform_device *pdev,
+				const char *s_clock_name,
+				unsigned long usb_peri_reg)
+{
+	/*TO DO*/
+	dev_err(&pdev->dev, "clk_disable_usb_gxbabytv.....................\n");
+
+	return;
+}
+
+
 int clk_resume_usb_gxbaby(struct platform_device *pdev,
 			const char *s_clock_name,
 			unsigned long usb_peri_reg)
@@ -357,6 +381,9 @@ int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
 	else if (!strcmp(cpu_type, GXBABY))
 		ret = clk_enable_usb_gxbaby(pdev,
 				s_clock_name, usb_peri_reg);
+	else if (!strcmp(cpu_type, GXBABYTV))
+		ret = clk_enable_usb_gxbabytv(pdev,
+				s_clock_name, usb_peri_reg);
 
 	/*add other cpu type's usb clock enable*/
 
@@ -377,6 +404,10 @@ int clk_disable_usb(struct platform_device *pdev, const char *s_clock_name,
 
 	if (!strcmp(cpu_type, GXBABY))
 			clk_disable_usb_gxbaby(pdev,
+				s_clock_name, usb_peri_reg);
+
+	if (!strcmp(cpu_type, GXBABYTV))
+			clk_disable_usb_gxbabytv(pdev,
 				s_clock_name, usb_peri_reg);
 
 	dmb(4);

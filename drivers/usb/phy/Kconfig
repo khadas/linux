@@ -4,7 +4,7 @@
 menu "USB Physical Layer drivers"
 
 config USB_PHY
-	def_bool n
+	def_bool y
 
 config USB_OTG_FSM
 	tristate "USB 2.0 OTG FSM implementation"
@@ -273,4 +273,42 @@ config USB_ULPI_VIEWPORT
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
 
+config AMLOGIC_USBPHY
+	bool
+	tristate "Amlogic USB PHY Driver"
+	help
+	  Enable this to support Amlogic USB phy helper driver for Amlogic SoCs.
+	  This driver provides common interface to interact, for Amlogic USB 2.0 PHY
+	  driver and later for Amlogic USB 3.0 PHY driver.
+
+	  This driver supports GXBABYTV and G9TV.
+
+          To compile this driver as a module, choose M here: the
+          module will be called phy-aml-usb.
+
+config AMLOGIC_USB2PHY
+	bool
+	tristate "Amlogic USB 2.0 PHY controller Driver"
+	select AMLOGIC_USBPHY
+	help
+	  Enable this to support Amlogic USB 2.0 (High Speed) PHY controller
+	  for Amlogic SoCs.
+
+	  This driver supports GXBABYTV and G9TV.
+
+	  To compile this driver as a module, choose M here: the
+          module will be called phy-aml-usb.
+
+config AMLOGIC_USB3PHY
+	bool
+	tristate "Amlogic USB 3.0 PHY controller Driver"
+	select AMLOGIC_USBPHY
+	help
+	  Enable this to support Amlogic USB 3.0 (Super Speed) phy controller
+	  for Amlogic SoCs.
+
+	  This driver supports GXBABYTV and G9TV.
+
+          To compile this driver as a module, choose M here: the
+          module will be called phy-aml-usb.
 endmenu

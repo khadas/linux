@@ -143,6 +143,8 @@
 #define DWC3_OSTS		0xcc10
 
 /* Bit fields */
+/* Global User Control Register */
+#define DWC3_GUCTL_USBHSTINAUTORETRYEN	(1 << 14)
 
 /* Global Configuration Register */
 #define DWC3_GCTL_PWRDNSCALE(n)	((n) << 19)
