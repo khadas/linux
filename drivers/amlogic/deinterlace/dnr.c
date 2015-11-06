@@ -280,6 +280,8 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #ifdef DNR_HV_SHIFT
 	int ro_hbof_stat_cnt[32], ro_vbof_stat_cnt[32], i = 0;
 #endif
+	Wr(DNR_CTRL, 0x1ff00);
+	Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 9)|(1 << 11));
 	Wr(DNR_HVSIZE, nCol<<16|nRow);
 	Wr(DNR_STAT_X_START_END, nCol-1);
 	Wr(DNR_STAT_Y_START_END, nRow-1);

@@ -3,6 +3,7 @@
 #include <linux/cdev.h>
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/video.h>
+
 /* di hardware version m8m2*/
 #define NEW_DI_V1 0x00000002 /* from m6tvc */
 #define NEW_DI_V2 0x00000004 /* from m6tvd */
@@ -323,9 +324,7 @@ void di_post_switch_buffer(
 	DI_SIM_MIF_t	*di_mtncrd_mif,
 	#endif
 	DI_SIM_MIF_t	*di_mtnprd_mif,
-	#ifdef MCDI_SUPPORT
 	DI_MC_MIF_t		*di_mcvecrd_mif,
-	#endif
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
 	int post_field_num, int hold_line, int urgent
@@ -356,6 +355,7 @@ void di_post_read_reverse_irq(bool reverse);
 
 extern unsigned int di_log_flag;
 extern unsigned int di_debug_flag;
+extern bool mcpre_en;
 
 int di_print(const char *fmt, ...);
 
@@ -387,6 +387,7 @@ int get_current_vscale_skip_count(struct vframe_s *vf);
 void di_set_power_control(unsigned char type, unsigned char enable);
 
 unsigned char di_get_power_control(unsigned char type);
+void set_nr_10bit_mode(bool nr_10bit_en);
 
 #define DI_COUNT   1
 
