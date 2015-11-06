@@ -425,7 +425,7 @@ static int reset_tas5707_GPIO(struct snd_soc_codec *codec)
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 	udelay(1000);
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
-	udelay(15 * 1000);
+	mdelay(15);
 	return 0;
 }
 
