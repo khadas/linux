@@ -88,7 +88,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0xbc00000>;
+			size = <0x0 0xc000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -133,7 +133,7 @@
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01800000 0x00800000>; /* fb0/fb1 memory size */
+		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
 		vmode = <3>; /** 0:VMODE_720P 1:VMODE_LCD 2:VMODE_LVDS_1080P 3:VMODE_1080P */
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
