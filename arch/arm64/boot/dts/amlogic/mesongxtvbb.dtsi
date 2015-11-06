@@ -118,7 +118,7 @@
 	};
 
 	gpu:t83x@d00c0000{
-        compatible = "arm, malit602", "arm, malit60x", "arm, malit6xx", "arm, mali-midgard";
+        compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
 		reg = <0 0xd00c0000 0 0x100000>,
 		      <0 0xc1104440 0 0x000100>,
 		      <0 0xc8100000 0 0x001000>;
