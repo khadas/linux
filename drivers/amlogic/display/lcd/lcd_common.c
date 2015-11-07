@@ -169,6 +169,7 @@ unsigned int lcd_cpu_gpio_get(unsigned int index)
 	return gpiod_get_value(cpu_gpio->gpio);
 }
 
+#if 0
 /* **********************************
  * lcd clk
  * ********************************** */
@@ -313,7 +314,7 @@ void lcd_clk_gate_on(void)
 {
 	lcd_hiu_setb(HHI_GCLK_OTHER, 0xf, 22, 4);
 }
-
+#endif
 void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode)
 {
 	if (vd1_or_vd2_or_post == 0) { /* vd1 */

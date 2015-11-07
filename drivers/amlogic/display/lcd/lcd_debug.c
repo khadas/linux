@@ -166,12 +166,14 @@ static void lcd_info_print(void)
 	sync_duration = pconf->lcd_timing.sync_duration_num * 10;
 	sync_duration = sync_duration / pconf->lcd_timing.sync_duration_den;
 
-	LCDPR("information: %s, %s %ubit, %ux%u@%u.%uHz\n",
+	LCDPR("status: %d\n", lcd_drv->lcd_status);
+	LCDPR("%s, %s %ubit, %ux%u@%u.%uHz\n",
 		pconf->lcd_basic.model_name,
 		lcd_type_type_to_str(pconf->lcd_basic.lcd_type),
 		pconf->lcd_basic.lcd_bits,
 		pconf->lcd_basic.h_active, pconf->lcd_basic.v_active,
 		(sync_duration / 10), (sync_duration % 10));
+
 	pr_info("lcd_clk           %u.%03uMHz\n"
 		"ss_level          %d\n"
 		"clk_auto          %d\n"
@@ -184,15 +186,19 @@ static void lcd_info_print(void)
 		"v_period          %d\n"
 		"hs_width          %d\n"
 		"hs_backporch      %d\n"
+		"hs_pol            %d\n"
 		"vs_width          %d\n"
-		"vs_backporch      %d\n\n",
+		"vs_backporch      %d\n"
+		"vs_pol            %d\n\n",
 		pconf->lcd_basic.h_period, pconf->lcd_basic.v_period,
 		pconf->lcd_timing.hsync_width, pconf->lcd_timing.hsync_bp,
-		pconf->lcd_timing.vsync_width, pconf->lcd_timing.vsync_bp);
+		pconf->lcd_timing.hsync_pol,
+		pconf->lcd_timing.vsync_width, pconf->lcd_timing.vsync_bp,
+		pconf->lcd_timing.vsync_pol);
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
-		pr_info("clk_pol           %u\n"
+		pr_info("pol_ctrl          %u\n"
 			"hvsync_valid      %u\n"
 			"de_valid          %u\n"
 			"rb_swap           %u\n"
@@ -588,6 +594,7 @@ static ssize_t lcd_debug(struct class *class,
 	case 'd':
 		LCDPR("driver version: %s\n", lcd_drv->version);
 		lcd_info_print();
+		pr_info("\n");
 		lcd_reg_print();
 		break;
 	default:

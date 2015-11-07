@@ -134,8 +134,7 @@ static struct lcd_config_s lcd_config_dft = {
 		.lcd_clk = 0,
 		.clk_auto = 1,
 		.ss_level = 0,
-		.pol_ctrl = ((1 << POL_CTRL_DE) | (0 << POL_CTRL_VS) |
-			(0 << POL_CTRL_HS)),
+		.fr_adjust_type = 0,
 
 		/* for video process */
 		.vso_hstart = 10,
@@ -146,7 +145,7 @@ static struct lcd_config_s lcd_config_dft = {
 		.rgb_base_addr = 0xf0,
 		.rgb_coeff_addr = 0x74a,
 		.dith_user = 0,
-		.gamma_ctrl = ((0 << GAMMA_CTRL_REV) | (1 << GAMMA_CTRL_EN)),
+		.gamma_ctrl = ((0 << GAMMA_CTRL_REV) | (0 << GAMMA_CTRL_EN)),
 		.gamma_r_coeff = 100,
 		.gamma_g_coeff = 100,
 		.gamma_b_coeff = 100,
@@ -322,11 +321,15 @@ static int lcd_mode_probe(struct platform_device *pdev)
 	lcd_driver->lcd_mode = i;
 
 	lcd_driver->lcd_config = &lcd_config_dft;
-	lcd_driver->lcd_status = 1;
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_enable = lcd_module_enable;
 	lcd_driver->module_disable = lcd_module_disable;
+	if (lcd_vcbus_read(ENCL_VIDEO_EN))
+		lcd_driver->lcd_status = 1;
+	else
+		lcd_driver->lcd_status = 0;
+	LCDPR("status: %d\n", lcd_driver->lcd_status);
 
 	switch (lcd_driver->lcd_mode) {
 #ifdef CONFIG_AML_LCD_TV
@@ -388,7 +391,8 @@ static struct notifier_block lcd_bl_select_nb = {
 static int lcd_reboot_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
-	LCDPR("%s: %lu\n", __func__, event);
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %lu\n", __func__, event);
 	if (lcd_driver->lcd_status == 0)
 		return NOTIFY_DONE;
 

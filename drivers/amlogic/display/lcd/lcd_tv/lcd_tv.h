@@ -18,12 +18,16 @@
 
 #ifndef __AML_LCD_TV_H__
 #define __AML_LCD_TV_H__
+#include <linux/amlogic/vout/lcd_vout.h>
 
-#define LCD_DRV_VERSION    "20151026"
+#define LCD_DRV_VERSION    "20151105"
 
 extern int lvds_init(struct lcd_config_s *pconf);
+extern int lvds_disable(struct lcd_config_s *pconf);
 extern int vbyone_init(struct lcd_config_s *pconf);
+extern int vbyone_disable(struct lcd_config_s *pconf);
 
+extern void set_vbyone_config(struct lcd_config_s *pconf);
 extern void vbyone_interrupt_up(void);
 extern void vbyone_interrupt_down(void);
 

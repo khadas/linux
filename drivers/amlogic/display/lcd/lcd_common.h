@@ -19,10 +19,12 @@
 #ifndef __AML_LCD_COMMON_H__
 #define __AML_LCD_COMMON_H__
 #include <linux/platform_device.h>
+#include <linux/amlogic/vout/lcd_vout.h>
 #include "lcd_clk_config.h"
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
+#if 0
 extern void lcd_config_init(struct lcd_config_s *pConf);
 extern void lcd_config_probe(struct lcd_config_s *pConf,
 		struct platform_device *pdev);
@@ -31,8 +33,9 @@ extern void lcd_config_remove(struct lcd_config_s *pConf);
 extern void lcd_clocks_set_vid_clk_div(int div_sel);
 extern void lcd_set_crt_video_enc(int vIdx, int inSel, int DivN);
 extern void lcd_enable_crt_video_encl(int enable, int inSel);
+
 extern void lcd_clk_gate_on(void);
-extern void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode);
+#endif
 
 /* lcd common */
 extern int lcd_type_str_to_type(const char *str);
@@ -41,6 +44,8 @@ extern char *lcd_type_type_to_str(int type);
 extern void lcd_cpu_gpio_register(unsigned int index);
 extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
+
+extern void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode);
 
 /* lcd debug */
 extern int lcd_class_creat(void);

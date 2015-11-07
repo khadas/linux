@@ -28,14 +28,16 @@
 #define LCD_PRIORITY_POWER_LCD         1
 #define LCD_PRIORITY_POWER_BL_ON       0
 
-#define LCD_EVENT_BL_ON            (1 << 0)
-#define LCD_EVENT_LCD_ON           (1 << 1)
-#define LCD_EVENT_POWER_ON         (LCD_EVENT_BL_ON | LCD_EVENT_LCD_ON)
-#define LCD_EVENT_BL_OFF           (1 << 2)
-#define LCD_EVENT_LCD_OFF          (1 << 3)
-#define LCD_EVENT_POWER_OFF        (LCD_EVENT_BL_OFF | LCD_EVENT_LCD_OFF)
-#define LCD_EVENT_INIT             (1 << 4)
-#define LCD_EVENT_BACKLIGHT_SEL    (1 << 5)
+#define LCD_EVENT_BL_ON             (1 << 0)
+#define LCD_EVENT_LCD_ON            (1 << 1)
+#define LCD_EVENT_POWER_ON          (LCD_EVENT_BL_ON | LCD_EVENT_LCD_ON)
+#define LCD_EVENT_BL_OFF            (1 << 2)
+#define LCD_EVENT_LCD_OFF           (1 << 3)
+#define LCD_EVENT_POWER_OFF         (LCD_EVENT_BL_OFF | LCD_EVENT_LCD_OFF)
+/* lcd backlight index select */
+#define LCD_EVENT_BACKLIGHT_SEL     (1 << 4)
+/* lcd backlight pwm_vs vfreq change occurred */
+#define LCD_EVENT_BACKLIGHT_UPDATE  (1 << 5)
 
 extern int aml_lcd_notifier_register(struct notifier_block *nb);
 extern int aml_lcd_notifier_unregister(struct notifier_block *nb);

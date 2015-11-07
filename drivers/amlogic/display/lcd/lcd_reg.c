@@ -130,14 +130,10 @@ static inline void __iomem *check_lcd_hiu_reg(unsigned int _reg)
 	void __iomem *p;
 	int reg_bus;
 
-#if 1
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		reg_bus = LCD_MAP_HIUBUS;
 	else
 		reg_bus = LCD_MAP_CBUS;
-#else
-	reg_bus = LCD_MAP_HIUBUS;
-#endif
 	if (check_lcd_ioremap(reg_bus))
 		return NULL;
 
@@ -166,14 +162,10 @@ static inline void __iomem *check_lcd_periphs_reg(unsigned int _reg)
 	void __iomem *p;
 	int reg_bus;
 
-#if 1
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		reg_bus = LCD_MAP_PERIPHS;
 	else
 		reg_bus = LCD_MAP_CBUS;
-#else
-	reg_bus = LCD_MAP_PERIPHS;
-#endif
 	if (check_lcd_ioremap(reg_bus))
 		return NULL;
 

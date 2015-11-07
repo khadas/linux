@@ -32,11 +32,12 @@
 #include <linux/reset.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/lcd_vout.h>
+#include <linux/amlogic/vout/lcd_notify.h>
 #include "lcd_tv.h"
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
 
-static void set_tcon_lvds(void)
+static void set_lvds_tcon(void)
 {
 	vpp_set_matrix_ycbcr2rgb(2, 0);
 
@@ -49,11 +50,20 @@ static void set_tcon_lvds(void)
 		lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
 }
 
-static void init_lvds_phy(void)
+static void set_lvds_phy(int status)
 {
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x6c6cca80);
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x0000006c);
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x0fff0800);
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, status);
+
+	if (status) {
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x6c6cca80);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x0000006c);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x0fff0800);
+	} else {
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x0);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x0);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x0);
+	}
 }
 
 static void set_lvds_clk_util(struct lcd_config_s *pconf)
@@ -85,13 +95,16 @@ static void set_lvds_clk_util(struct lcd_config_s *pconf)
 	lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 }
 
-static void set_control_lvds(struct lcd_config_s *pconf)
+static void set_lvds_control(struct lcd_config_s *pconf)
 {
 	unsigned int bit_num = 1;
 	unsigned int pn_swap = 0;
 	unsigned int dual_port = 1;
 	unsigned int lvds_repack = 1;
 	unsigned int port_swap = 0;
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
 
 	set_lvds_clk_util(pconf);
 
@@ -132,10 +145,13 @@ static void set_control_lvds(struct lcd_config_s *pconf)
 		(2 << 14));	/* b_select  //0:R, 1:G, 2:B, 3:0 */
 }
 
-static void venc_set_lvds(struct lcd_config_s *pconf)
+static void set_lvds_venc(struct lcd_config_s *pconf)
 {
 	unsigned int h_active, v_active;
 	unsigned int video_on_pixel, video_on_line;
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
 
 	h_active = pconf->lcd_basic.h_active;
 	v_active = pconf->lcd_basic.v_active;
@@ -170,6 +186,17 @@ static void venc_set_lvds(struct lcd_config_s *pconf)
 	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
 }
 
+static void change_lvds_venc(struct lcd_config_s *pconf)
+{
+	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT, pconf->lcd_basic.h_period - 1);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, pconf->lcd_basic.v_period - 1);
+	LCDPR("venc changed: %d,%d\n",
+		pconf->lcd_basic.h_period, pconf->lcd_basic.v_period);
+
+	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
+}
+
+#if 0
 static void lcd_set_clk_pll(void)
 {
 	unsigned int pll_lock;
@@ -190,25 +217,58 @@ static void lcd_set_clk_pll(void)
 	if (wait_loop == 0)
 		LCDPR("error: hpll lock failed\n");
 }
-
-static void set_clk_lvds(struct lcd_config_s *pconf)
+#endif
+static void set_lvds_clk(struct lcd_config_s *pconf)
 {
-	lcd_clk_gate_on();
+#if 1
+	lcd_clk_set(pconf);
+#else
 	lcd_set_clk_pll();
 	lcd_clocks_set_vid_clk_div(CLK_DIV_SEL_7);
 	lcd_set_crt_video_enc(0, 0, 1);
 	lcd_enable_crt_video_encl(1, 0);
+#endif
 }
 
 int lvds_init(struct lcd_config_s *pconf)
 {
-	set_clk_lvds(pconf);
-	venc_set_lvds(pconf);
-	set_control_lvds(pconf);
-	set_tcon_lvds();
-	init_lvds_phy();
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	LCDPR("%s\n", __func__);
+
+	if (lcd_drv->lcd_status == 0) { /* lvds enable */
+		set_lvds_clk(pconf);
+		set_lvds_venc(pconf);
+		set_lvds_control(pconf);
+		set_lvds_tcon();
+		set_lvds_phy(1);
+	} else { /* lvds change */
+		switch (pconf->lcd_timing.fr_adjust_type) {
+		case 0: /* clk adjust */
+			set_lvds_clk(pconf);
+			/* set_lvds_control(pconf); */
+			break;
+		case 1: /* htotal adjust */
+		case 2: /* vtotal adjust */
+			change_lvds_venc(pconf);
+			break;
+		default:
+			break;
+		}
+	}
 
 	lcd_vcbus_write(VENC_INTCTRL, 0x200);
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
+
+	return 0;
+}
+
+int lvds_disable(struct lcd_config_s *pconf)
+{
+	set_lvds_phy(0);
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
 
 	return 0;
 }

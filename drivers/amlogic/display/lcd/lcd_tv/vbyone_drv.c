@@ -32,6 +32,7 @@
 #include <linux/reset.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/lcd_vout.h>
+#include <linux/amlogic/vout/lcd_notify.h>
 #include "lcd_tv.h"
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
@@ -43,8 +44,11 @@
 static int vx1_fsm_acq_st;
 
 /* set VX1_LOCKN && VX1_HTPDN */
-static void set_vbyone_pinmux(void)
+static void set_vbyone_pinmux(int status)
 {
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, status);
+
 #if 0
 	struct pinctrl_state *s;
 	unsigned int pinmux_num;
@@ -52,14 +56,14 @@ static void set_vbyone_pinmux(void)
 
 	/* get pinmux control */
 	if (IS_ERR(pconf->pin)) {
-		LCDPR("%s error\n", __func__);
+		LCDERR("%s\n", __func__);
 		return;
 	}
 
 	/* select pinmux */
 	s = pinctrl_lookup_state(pconf->pin, "vbyone");
 	if (IS_ERR(s)) {
-		LCDPR("%s error\n", __func__);
+		LCDERR("%s\n", __func__);
 		/* pinctrl_put(pin); //release pins */
 		devm_pinctrl_put(pconf->pin);
 		return;
@@ -68,7 +72,7 @@ static void set_vbyone_pinmux(void)
 	/* set pinmux and lock pins */
 	ret = pinctrl_select_state(pconf->pin, s);
 	if (ret < 0) {
-		LCDPR("%s error\n", __func__);
+		LCDERR("%s\n", __func__);
 		devm_pinctrl_put(pconf->pin);
 		return;
 	}
@@ -78,7 +82,7 @@ static void set_vbyone_pinmux(void)
 #endif
 }
 
-static void set_tcon_vbyone(void)
+static void set_vbyone_tcon(void)
 {
 	vpp_set_matrix_ycbcr2rgb(2, 0);
 	lcd_vcbus_write(L_RGB_BASE_ADDR, 0);
@@ -88,11 +92,20 @@ static void set_tcon_vbyone(void)
 		lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
 }
 
-static void init_vbyone_phy(void)
+static void set_vbyone_phy(int status)
 {
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x6e0ec918);
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x00000a7c);
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x00ff0800);
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, status);
+
+	if (status) {
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x6e0ec918);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x00000a7c);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x00ff0800);
+	} else {
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, 0x0);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, 0x0);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, 0x0);
+	}
 }
 
 #if 0
@@ -218,10 +231,13 @@ static int set_vbyone_lanes(int lane_num, int byte_mode, int region_num,
 	return 0;
 }
 
-static void set_control_vbyone(struct lcd_config_s *pconf)
+static void set_vbyone_control(struct lcd_config_s *pconf)
 {
 	int lane_count, byte_mode, region_num, hsize, vsize, color_fmt;
 	int vin_color, vin_bpp;
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
 
 	hsize = pconf->lcd_basic.h_active;
 	vsize = pconf->lcd_basic.v_active;
@@ -443,10 +459,13 @@ static irqreturn_t vbyone_interrupt_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void venc_set_vbyone(struct lcd_config_s *pconf)
+static void set_vbyone_venc(struct lcd_config_s *pconf)
 {
 	unsigned int h_active, v_active;
 	unsigned int video_on_pixel, video_on_line;
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
 
 	h_active = pconf->lcd_basic.h_active;
 	v_active = pconf->lcd_basic.v_active;
@@ -483,6 +502,51 @@ static void venc_set_vbyone(struct lcd_config_s *pconf)
 	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
 }
 
+static void change_vbyone_venc(struct lcd_config_s *pconf)
+{
+	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT, pconf->lcd_basic.h_period - 1);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, pconf->lcd_basic.v_period - 1);
+	LCDPR("venc changed: %d,%d\n",
+		pconf->lcd_basic.h_period, pconf->lcd_basic.v_period);
+
+	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
+}
+
+#if 0
+static void lcd_set_clk_pll(void)
+{
+	//set_vclk_lcd(pconf); */
+	unsigned int pll_lock;
+	int wait_loop = 100;
+
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL, 0x5800027b);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00404300);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000e55);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL, 0x4800027b);
+	do {
+		mdelay(10);
+		pll_lock = (lcd_hiu_read(HHI_HDMI_PLL_CNTL) >> 31) & 0x1;
+		wait_loop--;
+	} while ((pll_lock == 0) && (wait_loop > 0));
+	if (wait_loop == 0)
+		LCDPR("error: hpll lock failed\n");
+}
+#endif
+static void set_vbyone_clk(struct lcd_config_s *pconf)
+{
+#if 1
+	lcd_clk_set(pconf);
+#else
+	lcd_set_clk_pll();
+	lcd_clocks_set_vid_clk_div(CLK_DIV_SEL_5);
+	lcd_set_crt_video_enc(0, 0, 1);
+	lcd_enable_crt_video_encl(1, 0);
+#endif
+}
+
 static unsigned int vbyone_lane_num[] = {
 	1,
 	2,
@@ -493,12 +557,15 @@ static unsigned int vbyone_lane_num[] = {
 
 #define VBYONE_BIT_RATE_MAX		2970 /* MHz */
 #define VBYONE_BIT_RATE_MIN		600
-static void set_vbyone_config(struct lcd_config_s *pconf)
+void set_vbyone_config(struct lcd_config_s *pconf)
 {
 	unsigned int band_width, bit_rate, pclk, phy_div;
 	unsigned int byte_mode, lane_count, minlane;
 	unsigned int lcd_bits;
 	unsigned int temp, i;
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
 
 	/* auto calculate bandwidth, clock */
 	lane_count = pconf->lcd_control.vbyone_config->lane_count;
@@ -524,7 +591,7 @@ static void set_vbyone_config(struct lcd_config_s *pconf)
 		LCDPR("change to min lane_num %d\n", minlane);
 	}
 
-	bit_rate = band_width / minlane;/* band_width / lane_count; */
+	bit_rate = band_width / minlane;
 	phy_div = lane_count / minlane;
 	if (phy_div == 8) {
 		phy_div /= 2;
@@ -542,57 +609,60 @@ static void set_vbyone_config(struct lcd_config_s *pconf)
 
 	pconf->lcd_control.vbyone_config->phy_div = phy_div;
 	pconf->lcd_control.vbyone_config->bit_rate = bit_rate;
-	/* LCDPR("lane_count=%u, bit_rate = %uMHz, pclk=%u.%03uMhz\n",
-	//	lane_count, (bit_rate / 1000000),
-		(pclk / 1000), (pclk % 1000));*/
-}
 
-static void lcd_set_clk_pll(void)
-{
-	/* generate_clk_parameter(pconf);
-	//set_vclk_lcd(pconf); */
-	unsigned int pll_lock;
-	int wait_loop = 100;
-
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL, 0x5800027b);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00404300);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000e55);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL, 0x4800027b);
-	do {
-		mdelay(10);
-		pll_lock = (lcd_hiu_read(HHI_HDMI_PLL_CNTL) >> 31) & 0x1;
-		wait_loop--;
-	} while ((pll_lock == 0) && (wait_loop > 0));
-	if (wait_loop == 0)
-		LCDPR("error: hpll lock failed\n");
-}
-
-static void set_clk_vbyone(struct lcd_config_s *pconf)
-{
-	lcd_clk_gate_on();
-	lcd_set_clk_pll();
-	lcd_clocks_set_vid_clk_div(CLK_DIV_SEL_5);
-	lcd_set_crt_video_enc(0, 0, 1);
-	lcd_enable_crt_video_encl(1, 0);
+	if (lcd_debug_print_flag) {
+		LCDPR("lane_count=%u, bit_rate = %uMHz, pclk=%u.%03uMhz\n",
+			lane_count, (bit_rate / 1000000),
+			(pclk / 1000), (pclk % 1000));
+	}
 }
 
 int vbyone_init(struct lcd_config_s *pconf)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	LCDPR("%s\n", __func__);
 	vbyone_interrupt_enable(0);
 
-	set_vbyone_config(pconf);
-	set_clk_vbyone(pconf);
-	venc_set_vbyone(pconf);
-	set_control_vbyone(pconf);
-	init_vbyone_phy();
-	set_tcon_vbyone();
-	set_vbyone_pinmux();
+	if (lcd_drv->lcd_status == 0) { /* vbyone enable */
+		set_vbyone_clk(pconf);
+		set_vbyone_venc(pconf);
+		set_vbyone_tcon();
+		set_vbyone_control(pconf);
+		set_vbyone_phy(1);
+		set_vbyone_pinmux(1);
+	} else { /* vbyone change */
+		switch (pconf->lcd_timing.fr_adjust_type) {
+		case 0: /* clk adjust */
+			set_vbyone_clk(pconf);
+			/* set_vbyone_control(pconf); */
+			break;
+		case 1: /* htotal adjust */
+		case 2: /* vtotal adjust */
+			change_vbyone_venc(pconf);
+			break;
+		default:
+			break;
+		}
+	}
 	vbyone_wait_stable();
 
 	lcd_vcbus_write(VENC_INTCTRL, 0x200);
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
+
+	return 0;
+}
+
+int vbyone_disable(struct lcd_config_s *pconf)
+{
+	vbyone_interrupt_enable(0);
+	set_vbyone_pinmux(0);
+	set_vbyone_phy(0);
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
 
 	return 0;
 }
@@ -603,7 +673,7 @@ void vbyone_interrupt_up(void)
 {
 	if (request_irq(INT_VIU_VSYNC, &vbyone_vsync_isr,
 		IRQF_SHARED, "vbyone_vsync", (void *)"vbyone_vsync")) {
-		LCDPR("can't request vsync_irq for vbyone\n");
+		LCDERR("can't request vsync_irq for vbyone\n");
 	} else {
 		if (lcd_debug_print_flag)
 			LCDPR("request vbyone vsync_irq successful\n");
@@ -611,7 +681,7 @@ void vbyone_interrupt_up(void)
 
 	if (request_irq(INT_VENC_VX1, &vbyone_interrupt_handler,
 		VBYONE_IRQF, "vbyone", (void *)"vbyone")) {
-		LCDPR("can't request irq for vbyone\n");
+		LCDERR("can't request irq for vbyone\n");
 	} else {
 		if (lcd_debug_print_flag)
 			LCDPR("request vbyone irq successful\n");
@@ -622,4 +692,6 @@ void vbyone_interrupt_down(void)
 {
 	free_irq(INT_VENC_VX1, (void *)"vbyone");
 	free_irq(INT_VIU_VSYNC, (void *)"vbyone");
+	if (lcd_debug_print_flag)
+			LCDPR("free vbyone irq\n");
 }

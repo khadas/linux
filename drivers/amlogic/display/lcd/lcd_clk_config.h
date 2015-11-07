@@ -19,6 +19,7 @@
 #define _LCD_CLK_CONFIG_H
 
 #include <linux/types.h>
+#include <linux/amlogic/vout/lcd_vout.h>
 
 /* **********************************
  * clk config
@@ -51,6 +52,7 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int pll_m_min;
 	unsigned int pll_n_max;
 	unsigned int pll_n_min;
+	unsigned int pll_frac_range;
 	unsigned int pll_od_sel_max;
 	unsigned int div_pre_sel_max; /* m6, m8, m8b */
 	unsigned int div_post_sel_max; /* m6, m8, m8b */
@@ -131,6 +133,7 @@ enum div_sel_e {
 #define PLL_M_MAX_M8                511
 #define PLL_N_MIN_M8                1
 #define PLL_N_MAX_M8                1
+#define PLL_FRAC_RANGE_M8           (1 << 12)
 #define PLL_OD_SEL_MAX_M8           3
 #define PLL_FREF_MIN_M8             (5 * 1000)
 #define PLL_FREF_MAX_M8             (25 * 1000)
@@ -162,6 +165,7 @@ enum div_sel_e {
 #define PLL_M_MAX_M8B               511
 #define PLL_N_MIN_M8B               1
 #define PLL_N_MAX_M8B               1
+#define PLL_FRAC_RANGE_M8B          (1 << 12)
 #define PLL_OD_SEL_MAX_M8B          3
 #define PLL_FREF_MIN_M8B            (5 * 1000)
 #define PLL_FREF_MAX_M8B            (25 * 1000)
@@ -196,6 +200,7 @@ enum div_sel_e {
 #define PLL_M_MAX_G9TV              511
 #define PLL_N_MIN_G9TV              1
 #define PLL_N_MAX_G9TV              1
+#define PLL_FRAC_RANGE_G9TV         (1 << 12)
 #define PLL_OD_SEL_MAX_G9TV         3
 #define PLL_FREF_MIN_G9TV           (5 * 1000)
 #define PLL_FREF_MAX_G9TV           (25 * 1000)
@@ -205,7 +210,7 @@ enum div_sel_e {
 /* video */
 #define CLK_DIV_IN_MAX_G9TV         (3000 * 1000)
 #define CRT_VID_CLK_IN_MAX_G9TV     (3000 * 1000)
-#define ENCL_CLK_IN_MAX_G9TV        (637 * 1000)
+#define ENCL_CLK_IN_MAX_G9TV        (600 * 1000)
 
 /* **********************************
  * G9BB
@@ -229,6 +234,7 @@ enum div_sel_e {
 #define PLL_M_MAX_G9BB              511
 #define PLL_N_MIN_G9BB              1
 #define PLL_N_MAX_G9BB              1
+#define PLL_FRAC_RANGE_G9BB         (1 << 12)
 #define PLL_OD_SEL_MAX_G9BB         3
 #define PLL_FREF_MIN_G9BB           (5 * 1000)
 #define PLL_FREF_MAX_G9BB           (25 * 1000)
@@ -262,6 +268,7 @@ enum div_sel_e {
 #define PLL_M_MAX_GXTVBB            511
 #define PLL_N_MIN_GXTVBB            1
 #define PLL_N_MAX_GXTVBB            1
+#define PLL_FRAC_RANGE_GXTVBB       (1 << 10)
 #define PLL_OD_SEL_MAX_GXTVBB       3
 #define PLL_FREF_MIN_GXTVBB         (5 * 1000)
 #define PLL_FREF_MAX_GXTVBB         (25 * 1000)
@@ -271,7 +278,7 @@ enum div_sel_e {
 /* video */
 #define CLK_DIV_IN_MAX_GXTVBB       (3000 * 1000)
 #define CRT_VID_CLK_IN_MAX_GXTVBB   (3000 * 1000)
-#define ENCL_CLK_IN_MAX_GXTVBB      (333 * 1000)
+#define ENCL_CLK_IN_MAX_GXTVBB      (600 * 1000)
 
 
 extern struct lcd_clk_config_s *get_lcd_clk_config(void);

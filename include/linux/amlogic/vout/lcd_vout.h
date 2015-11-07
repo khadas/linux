@@ -122,7 +122,7 @@ struct lcd_timing_s {
 
 	unsigned char fr_adjust_type; /* 0=clock, 1=htotal, 2=vtotal */
 	unsigned char ss_level;
-	unsigned int pol_ctrl;
+	/* unsigned int pol_ctrl; */
 
 	unsigned int sync_duration_num;
 	unsigned int sync_duration_den;
@@ -132,8 +132,10 @@ struct lcd_timing_s {
 
 	unsigned short hsync_width;
 	unsigned short hsync_bp;
+	unsigned short hsync_pol;
 	unsigned short vsync_width;
 	unsigned short vsync_bp;
+	unsigned short vsync_pol;
 	/* unsigned int vsync_h_phase; // [31]sign, [15:0]value */
 	unsigned int h_offset;
 	unsigned int v_offset;

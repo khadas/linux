@@ -236,6 +236,8 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	mutex_lock(&lcd_vout_mutex);
+	LCDPR("driver version: %s\n", lcd_drv->version);
+
 	/* do not change mode value here, for bit mask is useful */
 	lcd_output_mode = lcd_get_vmode(mode & VMODE_MODE_BIT_MASK);
 	if (lcd_debug_print_flag) {
@@ -254,7 +256,6 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 		case VMODE_4K2K_50HZ_Y420:
 		case VMODE_4K2K_60HZ:
 		case VMODE_4K2K_50HZ:
-			LCDPR("driver version: %s\n", lcd_drv->version);
 			lcd_drv->driver_init();
 			break;
 		default:
@@ -340,16 +341,15 @@ static void lcd_vout_server_init(void)
  * ************************************************** */
 static void lcd_config_print(struct lcd_config_s *pconf)
 {
-	LCDPR("panel_type = %s\n", pconf->lcd_basic.model_name);
+	LCDPR("%s, %s, %dbit, %dx%d\n",
+		pconf->lcd_basic.model_name,
+		lcd_type_type_to_str(pconf->lcd_basic.lcd_type),
+		pconf->lcd_basic.lcd_bits,
+		pconf->lcd_basic.h_active, pconf->lcd_basic.v_active);
 
 	if (lcd_debug_print_flag == 0)
 		return;
 
-	LCDPR("lcd_type = %s, lcd_bits = %d\n",
-		lcd_type_type_to_str(pconf->lcd_basic.lcd_type),
-		pconf->lcd_basic.lcd_bits);
-	LCDPR("h_active = %d\n", pconf->lcd_basic.h_active);
-	LCDPR("v_active = %d\n", pconf->lcd_basic.v_active);
 	LCDPR("h_period = %d\n", pconf->lcd_basic.h_period);
 	LCDPR("v_period = %d\n", pconf->lcd_basic.v_period);
 	LCDPR("screen_width = %d\n", pconf->lcd_basic.screen_width);
@@ -357,8 +357,10 @@ static void lcd_config_print(struct lcd_config_s *pconf)
 
 	LCDPR("hsync_width = %d\n", pconf->lcd_timing.hsync_width);
 	LCDPR("hsync_bp = %d\n", pconf->lcd_timing.hsync_bp);
+	LCDPR("hsync_pol = %d\n", pconf->lcd_timing.hsync_pol);
 	LCDPR("vsync_width = %d\n", pconf->lcd_timing.vsync_width);
 	LCDPR("vsync_bp = %d\n", pconf->lcd_timing.vsync_bp);
+	LCDPR("vsync_pol = %d\n", pconf->lcd_timing.vsync_pol);
 
 	LCDPR("fr_adjust_type = %d\n", pconf->lcd_timing.fr_adjust_type);
 	LCDPR("ss_level = %d\n", pconf->lcd_timing.ss_level);
@@ -383,21 +385,6 @@ static void lcd_config_print(struct lcd_config_s *pconf)
 		LCDPR("port_swap = %d\n",
 			pconf->lcd_control.lvds_config->port_swap);
 	}
-#if 0
-	LCDPR("lcd_power gpio: %d\n", pconf->lcd_power->gpio);
-	LCDPR("lcd_power on_value = %d\n", pconf->lcd_power->on_value);
-	LCDPR("lcd_power off_value = %d\n", pconf->lcd_power->off_value);
-	LCDPR("lcd_power on_delay = %d\n", pconf->lcd_power->on_delay);
-	LCDPR("lcd_power off_delay = %d\n", pconf->lcd_power->off_delay);
-#endif
-#ifdef CONFIG_AML_LCD_EXTERN
-	LCDPR("lcd_extern index = %d\n",
-		pconf->lcd_control.ext_config->index);
-	LCDPR("lcd_extern power_on_delay = %d\n",
-		pconf->lcd_control.ext_config->on_delay);
-	LCDPR("lcd_extern power_off_delay = %d\n",
-		pconf->lcd_control.ext_config->off_delay);
-#endif
 }
 
 static int lcd_get_model_timing(struct lcd_config_s *pconf,
@@ -411,20 +398,28 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 	strcpy(pconf->lcd_basic.model_name, lcd_propname);
 	child = of_get_child_by_name(pdev->dev.of_node, lcd_propname);
 	if (child == NULL) {
-		LCDPR("error: failed to get %s\n", lcd_propname);
+		LCDERR("failed to get %s\n", lcd_propname);
 		return -1;
+	}
+
+	ret = of_property_read_string(child, "model_name", &str);
+	if (ret) {
+		LCDERR("failed to get model_name\n");
+		strcpy(pconf->lcd_basic.model_name, lcd_propname);
+	} else {
+		strcpy(pconf->lcd_basic.model_name, str);
 	}
 
 	ret = of_property_read_string(child, "interface", &str);
 	if (ret) {
-		LCDPR("failed to get interface\n");
+		LCDERR("failed to get interface\n");
 		str = "invalid";
 	}
 	pconf->lcd_basic.lcd_type = lcd_type_str_to_type(str);
 
 	ret = of_property_read_u32_array(child, "basic_setting", &para[0], 7);
 	if (ret) {
-		LCDPR("failed to get basic_setting\n");
+		LCDERR("failed to get basic_setting\n");
 	} else {
 		pconf->lcd_basic.h_active = para[0];
 		pconf->lcd_basic.v_active = para[1];
@@ -435,19 +430,21 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 		pconf->lcd_basic.screen_height = para[6];
 	}
 
-	ret = of_property_read_u32_array(child, "lcd_timing", &para[0], 4);
+	ret = of_property_read_u32_array(child, "lcd_timing", &para[0], 6);
 	if (ret) {
-		LCDPR("failed to get lcd_timing\n");
+		LCDERR("failed to get lcd_timing\n");
 	} else {
 		pconf->lcd_timing.hsync_width = (unsigned short)(para[0]);
 		pconf->lcd_timing.hsync_bp = (unsigned short)(para[1]);
-		pconf->lcd_timing.vsync_width = (unsigned short)(para[2]);
-		pconf->lcd_timing.vsync_bp = (unsigned short)(para[3]);
+		pconf->lcd_timing.hsync_pol = (unsigned short)(para[2]);
+		pconf->lcd_timing.vsync_width = (unsigned short)(para[3]);
+		pconf->lcd_timing.vsync_bp = (unsigned short)(para[4]);
+		pconf->lcd_timing.vsync_pol = (unsigned short)(para[5]);
 	}
 
 	ret = of_property_read_u32_array(child, "clk_attr", &para[0], 3);
 	if (ret) {
-		LCDPR("failed to get clk_attr\n");
+		LCDERR("failed to get clk_attr\n");
 	} else {
 		pconf->lcd_timing.fr_adjust_type = (unsigned char)(para[0]);
 		pconf->lcd_timing.ss_level = (unsigned char)(para[1]);
@@ -459,7 +456,7 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 		ret = of_property_read_u32_array(child, "lvds_attr",
 			&para[0], 4);
 		if (ret) {
-			LCDPR("failed to get lvds_attr\n");
+			LCDERR("failed to get lvds_attr\n");
 		} else {
 			pconf->lcd_control.lvds_config->lvds_repack = para[0];
 			pconf->lcd_control.lvds_config->dual_port = para[1];
@@ -471,7 +468,7 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 		ret = of_property_read_u32_array(child, "vbyone_attr",
 			&para[0], 4);
 		if (ret) {
-			LCDPR("failed to get vbyone_attr\n");
+			LCDERR("failed to get vbyone_attr\n");
 		} else {
 			pconf->lcd_control.vbyone_config->lane_count = para[0];
 			pconf->lcd_control.vbyone_config->region_num = para[1];
@@ -481,19 +478,19 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 
 		pconf->pin = devm_pinctrl_get(&pdev->dev);
 		if (IS_ERR(pconf->pin))
-			LCDPR("get vbyone pinmux error\n");
+			LCDERR("get vbyone pinmux error\n");
 		break;
 	default:
-		LCDPR("invalid lcd type\n");
+		LCDERR("invalid lcd type\n");
 		break;
 	}
 
 	pconf->rstc.encl = devm_reset_control_get(&pdev->dev, "encl");
 	if (IS_ERR(pconf->rstc.encl))
-		LCDPR("get reset control encl error\n");
+		LCDERR("get reset control encl error\n");
 	pconf->rstc.vencl = devm_reset_control_get(&pdev->dev, "vencl");
 	if (IS_ERR(pconf->rstc.vencl))
-		LCDPR("get reset control vencl error\n");
+		LCDERR("get reset control vencl error\n");
 
 	return ret;
 }
@@ -711,33 +708,43 @@ static int lcd_vmode_change(struct lcd_config_s *pconf, int index)
 	unsigned int sync_duration_num = lcd_info[index].sync_duration_num;
 	unsigned int sync_duration_den = lcd_info[index].sync_duration_den;
 
+	/* update lcd config sync_duration */
+	pconf->lcd_timing.sync_duration_num = sync_duration_num;
+	pconf->lcd_timing.sync_duration_den = sync_duration_den;
+
 	/* frame rate adjust */
 	switch (type) {
 	case 1: /* htotal adjust */
 		h_period = ((pclk / v_period) * sync_duration_den * 10) /
 				sync_duration_num;
 		h_period = (h_period + 5) / 10; /* round off */
-		LCDPR("%s: adjust h_period %u -> %u\n",
-			__func__, pconf->lcd_basic.h_period, h_period);
-		pconf->lcd_basic.h_period = h_period;
+		if (pconf->lcd_basic.h_period != h_period) {
+			LCDPR("%s: adjust h_period %u -> %u\n",
+				__func__, pconf->lcd_basic.h_period, h_period);
+			pconf->lcd_basic.h_period = h_period;
+		}
 		break;
 	case 2: /* vtotal adjust */
 		v_period = ((pclk / h_period) * sync_duration_den * 10) /
 				sync_duration_num;
 		v_period = (v_period + 5) / 10; /* round off */
-		LCDPR("%s: adjust v_period %u -> %u\n",
-			__func__, pconf->lcd_basic.v_period, v_period);
-		pconf->lcd_basic.v_period = v_period;
+		if (pconf->lcd_basic.v_period != v_period) {
+			LCDPR("%s: adjust v_period %u -> %u\n",
+				__func__, pconf->lcd_basic.v_period, v_period);
+			pconf->lcd_basic.v_period = v_period;
+		}
 		break;
 	case 0: /* pixel clk adjust */
 	default:
 		pclk = (h_period * v_period * sync_duration_num) /
 				sync_duration_den;
-		LCDPR("%s: adjust pclk %u.%03uMHz -> %u.%03uMHz\n",
-			__func__, (pconf->lcd_timing.lcd_clk / 1000000),
-			((pconf->lcd_timing.lcd_clk / 1000) % 1000),
-			(pclk / 1000000), ((pclk / 1000) % 1000));
-		pconf->lcd_timing.lcd_clk = pclk;
+		if (pconf->lcd_timing.lcd_clk != pclk) {
+			LCDPR("%s: adjust pclk %u.%03uMHz -> %u.%03uMHz\n",
+				__func__, (pconf->lcd_timing.lcd_clk / 1000000),
+				((pconf->lcd_timing.lcd_clk / 1000) % 1000),
+				(pclk / 1000000), ((pclk / 1000) % 1000));
+			pconf->lcd_timing.lcd_clk = pclk;
+		}
 		break;
 	}
 
@@ -749,6 +756,8 @@ static void lcd_clk_gate_switch(int status)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
 
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
 	pconf = lcd_drv->lcd_config;
 	if (status) {
 		reset_control_deassert(pconf->rstc.encl);
@@ -765,16 +774,27 @@ static int lcd_driver_init(void)
 	struct lcd_config_s *pconf;
 
 	pconf = lcd_drv->lcd_config;
-	LCDPR("init type: %s\n",
-		lcd_type_type_to_str(pconf->lcd_basic.lcd_type));
 
+	/* update clk & timing config */
 	lcd_vmode_change(pconf, lcd_output_mode);
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
+		break;
+	case LCD_VBYONE:
+		set_vbyone_config(pconf);
+		break;
+	default:
+		LCDPR("invalid lcd type\n");
+		break;
+	}
+	lcd_clk_generate_parameter(pconf);
 #ifdef CONFIG_AML_VPU
 	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
 	switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_ON);
 #endif
 	lcd_clk_gate_switch(1);
 
+	/* init driver */
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
 		lvds_init(pconf);
@@ -786,6 +806,7 @@ static int lcd_driver_init(void)
 		LCDPR("invalid lcd type\n");
 		break;
 	}
+	lcd_drv->lcd_status = 1;
 
 	return 0;
 }
@@ -798,9 +819,12 @@ static void lcd_driver_disable(void)
 	pconf = lcd_drv->lcd_config;
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
+		lvds_disable(pconf);
 		lcd_vcbus_setb(LVDS_GEN_CNTL, 0, 3, 1); /* disable lvds fifo */
 		break;
-	case LCD_TTL:
+	case LCD_VBYONE:
+		vbyone_disable(pconf);
+		break;
 	default:
 		break;
 	}
@@ -814,6 +838,7 @@ static void lcd_driver_disable(void)
 	switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_DOWN);
 	release_vpu_clk_vmod(VPU_VENCL);
 #endif
+	lcd_drv->lcd_status = 0;
 	LCDPR("disable driver\n");
 }
 
