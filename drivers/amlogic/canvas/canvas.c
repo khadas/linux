@@ -165,7 +165,8 @@ static void canvas_config_locked(u32 index, struct canvas_s *p)
 			p->blkmode,
 			p->endian, &datal, &datah);
 
-	if (is_meson_m8m2_cpu() || is_meson_gxbb_cpu())
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB))
 		reg_add = DC_CAV_LUT_DATAL_M8M2 - DC_CAV_LUT_DATAL;
 
 	canvas_io_write(info->reg_base + reg_add + DC_CAV_LUT_DATAL, datal);
@@ -192,7 +193,8 @@ int canvas_read_hw(u32 index, struct canvas_s *canvas)
 	if (!CANVAS_VALID(index))
 		return -1;
 	datal = datah = 0;
-	if (is_meson_m8m2_cpu() || is_meson_gxbb_cpu())
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB))
 		reg_add = DC_CAV_LUT_DATAL_M8M2 - DC_CAV_LUT_DATAL;
 	canvas_io_write(info->reg_base + reg_add + DC_CAV_LUT_ADDR,
 					CANVAS_LUT_RD_EN | (index & 0xff));
