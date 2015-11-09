@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "aml_snd_card: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -47,7 +48,6 @@
 #include <linux/of_gpio.h>
 #include <linux/io.h>
 #define DRV_NAME "aml_snd_m8_card"
-/* extern struct device *spdif_dev; */
 
 static void aml_audio_start_timer(struct aml_audio_private_data *p_aml_audio,
 				  unsigned long delay)
@@ -153,8 +153,7 @@ static void aml_asoc_work_func(struct work_struct *work)
 		if (flag & 0x1) {
 			/* 1 :have mic ;  2 no mic */
 			switch_set_state(&p_aml_audio->sdev, 2);
-			pr_info(KERN_INFO
-			       "aml aduio hp pluged 3 jack_type: %d\n",
+			pr_info("aml aduio hp pluged 3 jack_type: %d\n",
 			       SND_JACK_HEADPHONE);
 			snd_soc_jack_report(&p_aml_audio->jack, status,
 					    SND_JACK_HEADPHONE);
@@ -164,8 +163,7 @@ static void aml_asoc_work_func(struct work_struct *work)
 				if (flag & 0x8) {
 					switch_set_state(&p_aml_audio->mic_sdev,
 							 1);
-					pr_info(KERN_INFO
-					       "aml aduio mic pluged jack_type: %d\n",
+					pr_info("aml aduio mic pluged jack_type: %d\n",
 					       SND_JACK_MICROPHONE);
 					snd_soc_jack_report(&p_aml_audio->jack,
 						status, SND_JACK_HEADPHONE);
@@ -175,13 +173,12 @@ static void aml_asoc_work_func(struct work_struct *work)
 		} else if (flag & 0x2) {
 			/* 1 :have mic ;  2 no mic */
 			switch_set_state(&p_aml_audio->sdev, 1);
-			pr_info(KERN_INFO
-			       "aml aduio hp pluged 4 jack_type: %d\n",
+			pr_info("aml aduio hp pluged 4 jack_type: %d\n",
 			       SND_JACK_HEADSET);
 			snd_soc_jack_report(&p_aml_audio->jack, status,
 					    SND_JACK_HEADPHONE);
 		} else {
-			pr_info(KERN_INFO "aml audio hp unpluged\n");
+			pr_info("aml audio hp unpluged\n");
 			switch_set_state(&p_aml_audio->sdev, 0);
 			snd_soc_jack_report(&p_aml_audio->jack, 0,
 					    SND_JACK_HEADPHONE);
@@ -191,8 +188,7 @@ static void aml_asoc_work_func(struct work_struct *work)
 				if (flag & 0x8) {
 					switch_set_state(&p_aml_audio->mic_sdev,
 							 1);
-					pr_info(KERN_INFO
-					       "aml aduio mic pluged jack_type: %d\n",
+					pr_info("aml aduio mic pluged jack_type: %d\n",
 					       SND_JACK_MICROPHONE);
 					snd_soc_jack_report(&p_aml_audio->jack,
 						status, SND_JACK_HEADPHONE);
@@ -224,7 +220,7 @@ static int aml_m8_set_spk(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	aml_m8_spk_enabled = ucontrol->value.integer.value[0];
-	pr_info(KERN_INFO "aml_m8_set_spk: aml_m8_spk_enabled=%d\n",
+	pr_info("aml_m8_set_spk: aml_m8_spk_enabled=%d\n",
 	       aml_m8_spk_enabled);
 
 	msleep_interruptible(10);
@@ -239,8 +235,6 @@ static int aml_m8_set_spk(struct snd_kcontrol *kcontrol,
 static int aml_m8_get_spk(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	/* pr_info("***aml_m8_get_spk****aml_m8_spk_enabled=%d**\n",
-		aml_m8_spk_enabled); */
 	ucontrol->value.integer.value[0] = aml_m8_spk_enabled;
 	return 0;
 }
@@ -249,7 +243,7 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 
-	pr_info(KERN_INFO "enter %s\n", __func__);
+	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 	if (!p_aml_audio->hp_disable) {
 		/* stop timer */
@@ -265,15 +259,13 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 
 static int aml_suspend_post(struct snd_soc_card *card)
 {
-	pr_info(KERN_INFO "enter %s\n", __func__);
-	/* if(ext_codec) */
-	/* i2s_gpio_set(card); */
+	pr_info("enter %s\n", __func__);
 	return 0;
 }
 
 static int aml_resume_pre(struct snd_soc_card *card)
 {
-	pr_info(KERN_INFO "enter %s\n", __func__);
+	pr_info("enter %s\n", __func__);
 
 	return 0;
 }
@@ -282,7 +274,7 @@ static int aml_resume_post(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 
-	pr_info(KERN_INFO "enter %s\n", __func__);
+	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 	if (!p_aml_audio->hp_disable) {
 		mutex_lock(&p_aml_audio->lock);
@@ -300,16 +292,26 @@ static int aml_resume_post(struct snd_soc_card *card)
 static int speaker_events(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
+	int val = 0;
+
+	if (p_audio->mute_desc == NULL) {
+		pr_info("no mute_gpio setting");
+		return 0;
+	}
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		pr_info("speaker_events--mute =1\n");
+		pr_info("audio speaker on\n");
+		val = p_audio->mute_inv ?
+			GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
 		gpiod_direction_output(p_audio->mute_desc, 1);
 		aml_m8_spk_enabled = 1;
 		msleep(p_audio->sleep_time);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		pr_info("speaker_events--mute =0\n");
-		gpiod_direction_output(p_audio->mute_desc, 0);
+		pr_info("audio speaker off\n");
+		val = p_audio->mute_inv ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+		gpiod_direction_output(p_audio->mute_desc, val);
 		aml_m8_spk_enabled = 0;
 		break;
 	}
@@ -350,7 +352,6 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	int ret = 0;
 	int hp_paraments[5];
 
-	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 	ret = snd_soc_add_card_controls(codec->card, aml_m8_controls,
 					ARRAY_SIZE(aml_m8_controls));
@@ -363,7 +364,7 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	p_aml_audio->hp_disable =
 	    of_property_read_bool(card->dev->of_node, "hp_disable");
 
-	pr_info("p_aml_audio->hp_disable=%d\n", p_aml_audio->hp_disable);
+	pr_info("headphone detection disable=%d\n", p_aml_audio->hp_disable);
 
 	if (!p_aml_audio->hp_disable) {
 		/* for report headphone to android */
@@ -445,10 +446,7 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	    of_property_read_u32(card->dev->of_node, "sleep_time",
 				 &p_aml_audio->sleep_time);
 	if (ret)
-		pr_info("falied to get spk event delay time\n");
-
-	pr_info("spk_event delay_time = %d\n",
-	       p_aml_audio->sleep_time);
+		pr_info("no spk event delay time set\n");
 
 	return 0;
 }
@@ -470,18 +468,20 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 		pr_info("%s,aml_m8_pinmux_init error!\n", __func__);
 		return;
 	}
-	/* p_audio = p_aml_audio; */
 
 	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
-
 	p_aml_audio->mute_inv =
 	    of_property_read_bool(card->dev->of_node, "mute_inv");
-	gpiod_direction_output(p_aml_audio->mute_desc, GPIOF_OUT_INIT_LOW);
-
+	if (p_aml_audio->mute_desc) {
+		val = p_aml_audio->mute_inv ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+		gpiod_direction_output(p_aml_audio->mute_desc, val);
+	}
 }
 static int __init ao_jtag_func(char *buf)
 {
 	ao_jtag_on = 1;
+	pr_info("ao jtag on, so AVout maybe no audio output\n");
 	return 0;
 }
 early_param("ao_jtag_on", ao_jtag_func);

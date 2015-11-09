@@ -15,6 +15,8 @@
  *
 */
 
+#define pr_fmt(fmt) "audio_pcm" fmt
+
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -23,15 +25,6 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/audin_regs.h>
 #include "aml_audio_hw_pcm2bt.h"
-
-/* #define PCM_DEBUG */
-
-#ifdef PCM_DEBUG
-#define pcm_debug           pr_info
-#else
-#define pcm_debug(fmt, ...) \
-	do {} while (0)
-#endif
 
 static unsigned int pcmin_buffer_addr;
 static unsigned int pcmin_buffer_size;
@@ -46,22 +39,22 @@ static uint32_t aml_read_cbus_bits(uint32_t reg, const uint32_t start,
 
 static void pcm_in_register_show(void)
 {
-	pcm_debug("PCMIN registers show:\n");
-	pcm_debug("\tAUDIN_FIFO1_START(0x%04x): 0x%08x\n", AUDIN_FIFO1_START,
+	pr_debug("PCMIN registers show:\n");
+	pr_debug("\tAUDIN_FIFO1_START(0x%04x): 0x%08x\n", AUDIN_FIFO1_START,
 		  aml_read_cbus(AUDIN_FIFO1_START));
-	pcm_debug("\tAUDIN_FIFO1_END(0x%04x):   0x%08x\n", AUDIN_FIFO1_END,
+	pr_debug("\tAUDIN_FIFO1_END(0x%04x):   0x%08x\n", AUDIN_FIFO1_END,
 		  aml_read_cbus(AUDIN_FIFO1_END));
-	pcm_debug("\tAUDIN_FIFO1_PTR(0x%04x):   0x%08x\n", AUDIN_FIFO1_PTR,
+	pr_debug("\tAUDIN_FIFO1_PTR(0x%04x):   0x%08x\n", AUDIN_FIFO1_PTR,
 		  aml_read_cbus(AUDIN_FIFO1_PTR));
-	pcm_debug("\tAUDIN_FIFO1_RDPTR(0x%04x): 0x%08x\n", AUDIN_FIFO1_RDPTR,
+	pr_debug("\tAUDIN_FIFO1_RDPTR(0x%04x): 0x%08x\n", AUDIN_FIFO1_RDPTR,
 		  aml_read_cbus(AUDIN_FIFO1_RDPTR));
-	pcm_debug("\tAUDIN_FIFO1_CTRL(0x%04x):  0x%08x\n", AUDIN_FIFO1_CTRL,
+	pr_debug("\tAUDIN_FIFO1_CTRL(0x%04x):  0x%08x\n", AUDIN_FIFO1_CTRL,
 		  aml_read_cbus(AUDIN_FIFO1_CTRL));
-	pcm_debug("\tAUDIN_FIFO1_CTRL1(0x%04x): 0x%08x\n", AUDIN_FIFO1_CTRL1,
+	pr_debug("\tAUDIN_FIFO1_CTRL1(0x%04x): 0x%08x\n", AUDIN_FIFO1_CTRL1,
 		  aml_read_cbus(AUDIN_FIFO1_CTRL1));
-	pcm_debug("\tPCMIN_CTRL0(0x%04x):       0x%08x\n", PCMIN_CTRL0,
+	pr_debug("\tPCMIN_CTRL0(0x%04x):       0x%08x\n", PCMIN_CTRL0,
 		  aml_read_cbus(PCMIN_CTRL0));
-	pcm_debug("\tPCMIN_CTRL1(0x%04x):       0x%08x\n", PCMIN_CTRL1,
+	pr_debug("\tPCMIN_CTRL1(0x%04x):       0x%08x\n", PCMIN_CTRL1,
 		  aml_read_cbus(PCMIN_CTRL1));
 }
 
@@ -134,7 +127,7 @@ void pcm_in_enable(int flag)
 	       (1 << 0));	/* left justified */
 	}
 
-	pcm_debug("PCMIN %s\n", flag ? "enable" : "disable");
+	pr_debug("PCMIN %s\n", flag ? "enable" : "disable");
 	pcm_in_register_show();
 }
 
@@ -143,7 +136,7 @@ void pcm_in_set_buf(unsigned int addr, unsigned int size)
 	pcmin_buffer_addr = addr;
 	pcmin_buffer_size = size;
 
-	pcm_debug("PCMIN buffer start: 0x%08x size: 0x%08x\n",
+	pr_debug("PCMIN buffer start: 0x%08x size: 0x%08x\n",
 		  pcmin_buffer_addr, pcmin_buffer_size);
 }
 
@@ -157,7 +150,7 @@ int pcm_in_is_enable(void)
 unsigned int pcm_in_rd_ptr(void)
 {
 	unsigned int value = aml_read_cbus(AUDIN_FIFO1_RDPTR);
-	pcm_debug("PCMIN AUDIN_FIFO1_RDPTR: 0x%08x\n", value);
+	pr_debug("PCMIN AUDIN_FIFO1_RDPTR: 0x%08x\n", value);
 
 	return value;
 }
@@ -166,7 +159,7 @@ unsigned int pcm_in_set_rd_ptr(unsigned int value)
 {
 	unsigned int old = aml_read_cbus(AUDIN_FIFO1_RDPTR);
 	aml_write_cbus(AUDIN_FIFO1_RDPTR, value);
-	pcm_debug("PCMIN AUDIN_FIFO1_RDPTR: 0x%08x -> 0x%08x\n", old, value);
+	pr_debug("PCMIN AUDIN_FIFO1_RDPTR: 0x%08x -> 0x%08x\n", old, value);
 
 	return old;
 }
@@ -181,7 +174,7 @@ unsigned int pcm_in_wr_ptr(void)
 
 	aml_write_cbus(AUDIN_FIFO1_PTR, 1);
 	written = aml_read_cbus(AUDIN_FIFO1_PTR);
-	pcm_debug("PCMIN AUDIN_FIFO1_PTR: 0x%08x (0x%08x)\n", written, writing);
+	pr_debug("PCMIN AUDIN_FIFO1_PTR: 0x%08x (0x%08x)\n", written, writing);
 
 	/* value = written; */
 	value = written & (~0x07);
@@ -192,33 +185,33 @@ unsigned int pcm_in_fifo_int(void)
 {
 	unsigned int value = 0;
 	value = aml_read_cbus(AUDIN_FIFO_INT);
-	pcm_debug("PCMIN AUDIN_FIFO_INT: 0x%08x\n", value);
+	pr_debug("PCMIN AUDIN_FIFO_INT: 0x%08x\n", value);
 
 	return value;
 }
 
 static void pcm_out_register_show(void)
 {
-	pcm_debug("PCMOUT registers show:\n");
-	pcm_debug("\tAUDOUT_BUF0_STA(0x%04x):  0x%08x\n", AUDOUT_BUF0_STA,
+	pr_debug("PCMOUT registers show:\n");
+	pr_debug("\tAUDOUT_BUF0_STA(0x%04x):  0x%08x\n", AUDOUT_BUF0_STA,
 		  aml_read_cbus(AUDOUT_BUF0_STA));
-	pcm_debug("\tAUDOUT_BUF0_EDA(0x%04x):  0x%08x\n", AUDOUT_BUF0_EDA,
+	pr_debug("\tAUDOUT_BUF0_EDA(0x%04x):  0x%08x\n", AUDOUT_BUF0_EDA,
 		  aml_read_cbus(AUDOUT_BUF0_EDA));
-	pcm_debug("\tAUDOUT_BUF0_WPTR(0x%04x): 0x%08x\n", AUDOUT_BUF0_WPTR,
+	pr_debug("\tAUDOUT_BUF0_WPTR(0x%04x): 0x%08x\n", AUDOUT_BUF0_WPTR,
 		  aml_read_cbus(AUDOUT_BUF0_WPTR));
-	pcm_debug("\tAUDOUT_FIFO_RPTR(0x%04x): 0x%08x\n", AUDOUT_FIFO_RPTR,
+	pr_debug("\tAUDOUT_FIFO_RPTR(0x%04x): 0x%08x\n", AUDOUT_FIFO_RPTR,
 		  aml_read_cbus(AUDOUT_FIFO_RPTR));
-	pcm_debug("\tAUDOUT_CTRL(0x%04x):      0x%08x\n", AUDOUT_CTRL,
+	pr_debug("\tAUDOUT_CTRL(0x%04x):      0x%08x\n", AUDOUT_CTRL,
 		  aml_read_cbus(AUDOUT_CTRL));
-	pcm_debug("\tAUDOUT_CTRL1(0x%04x):     0x%08x\n", AUDOUT_CTRL1,
+	pr_debug("\tAUDOUT_CTRL1(0x%04x):     0x%08x\n", AUDOUT_CTRL1,
 		  aml_read_cbus(AUDOUT_CTRL1));
-	pcm_debug("\tPCMOUT_CTRL0(0x%04x):     0x%08x\n", PCMOUT_CTRL0,
+	pr_debug("\tPCMOUT_CTRL0(0x%04x):     0x%08x\n", PCMOUT_CTRL0,
 		  aml_read_cbus(PCMOUT_CTRL0));
-	pcm_debug("\tPCMOUT_CTRL1(0x%04x):     0x%08x\n", PCMOUT_CTRL1,
+	pr_debug("\tPCMOUT_CTRL1(0x%04x):     0x%08x\n", PCMOUT_CTRL1,
 		  aml_read_cbus(PCMOUT_CTRL1));
-	pcm_debug("\tPCMOUT_CTRL2(0x%04x):     0x%08x\n", PCMOUT_CTRL2,
+	pr_debug("\tPCMOUT_CTRL2(0x%04x):     0x%08x\n", PCMOUT_CTRL2,
 		  aml_read_cbus(PCMOUT_CTRL2));
-	pcm_debug("\tPCMOUT_CTRL3(0x%04x):     0x%08x\n", PCMOUT_CTRL3,
+	pr_debug("\tPCMOUT_CTRL3(0x%04x):     0x%08x\n", PCMOUT_CTRL3,
 		  aml_read_cbus(PCMOUT_CTRL3));
 }
 
@@ -313,7 +306,7 @@ void pcm_out_enable(int flag)
 			(0 << 0));
 	}
 
-	pcm_debug("PCMOUT %s\n", flag ? "enable" : "disable");
+	pr_debug("PCMOUT %s\n", flag ? "enable" : "disable");
 	pcm_out_register_show();
 }
 
@@ -328,7 +321,7 @@ void pcm_out_set_buf(unsigned int addr, unsigned int size)
 	pcmout_buffer_addr = addr;
 	pcmout_buffer_size = size;
 
-	pcm_debug("PCMOUT buffer addr: 0x%08x end: 0x%08x\n",
+	pr_debug("PCMOUT buffer addr: 0x%08x end: 0x%08x\n",
 		  pcmout_buffer_addr, pcmout_buffer_size);
 }
 
@@ -349,7 +342,7 @@ int pcm_out_is_mute(void)
 unsigned int pcm_out_rd_ptr(void)
 {
 	unsigned int value = aml_read_cbus(AUDOUT_FIFO_RPTR);
-	pcm_debug("PCMOUT read pointer: 0x%08x\n", value);
+	pr_debug("PCMOUT read pointer: 0x%08x\n", value);
 
 	return value;
 }
@@ -358,7 +351,7 @@ unsigned int pcm_out_wr_ptr(void)
 {
 	unsigned int value = 0;
 	value = aml_read_cbus(AUDOUT_BUF0_WPTR);
-	pcm_debug("PCMOUT write pointer: 0x%08x\n", value);
+	pr_debug("PCMOUT write pointer: 0x%08x\n", value);
 	return value;
 }
 
@@ -366,7 +359,7 @@ unsigned int pcm_out_set_wr_ptr(unsigned int value)
 {
 	unsigned int old = aml_read_cbus(AUDOUT_BUF0_WPTR);
 	aml_write_cbus(AUDOUT_BUF0_WPTR, value);
-	pcm_debug("PCMOUT write pointer: 0x%08x -> 0x%08x\n", old, value);
+	pr_debug("PCMOUT write pointer: 0x%08x -> 0x%08x\n", old, value);
 
 	return old;
 }

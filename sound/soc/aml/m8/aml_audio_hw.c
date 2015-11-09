@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "aml_audio_hw: " fmt
 
 #include <linux/kernel.h>
 #include <linux/types.h>

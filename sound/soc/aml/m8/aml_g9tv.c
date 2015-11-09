@@ -14,6 +14,7 @@
  * more details.
  *
  */
+#define pr_fmt(fmt) "aml_g9tv: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -47,49 +48,8 @@
 
 #define DRV_NAME "aml_snd_card_g9tv"
 
-bool aml_audio_i2s_mute_flag = 0;
-bool aml_audio_spdif_mute_flag = 0;
 int aml_audio_Hardware_resample = 0;
 unsigned int clk_rate = 0;
-
-static int aml_audio_set_i2s_mute(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	aml_audio_i2s_mute_flag = ucontrol->value.integer.value[0];
-	pr_info("aml_audio_i2s_mute_flag: flag=%d\n", aml_audio_i2s_mute_flag);
-	if (aml_audio_i2s_mute_flag)
-		aml_audio_i2s_mute();
-	else
-		aml_audio_i2s_unmute();
-	return 0;
-}
-
-static int aml_audio_get_i2s_mute(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = aml_audio_i2s_mute_flag;
-	return 0;
-}
-
-static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	aml_audio_spdif_mute_flag = ucontrol->value.integer.value[0];
-	pr_info("aml_audio_set_spdif_mute: flag=%d\n",
-		aml_audio_spdif_mute_flag);
-	if (aml_audio_spdif_mute_flag)
-		aml_spdif_pinmux_deinit(spdif_dev);
-	else
-		aml_spdif_pinmux_init(spdif_dev);
-	return 0;
-}
-
-static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = aml_audio_spdif_mute_flag;
-	return 0;
-}
 
 static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI" };
 
@@ -318,14 +278,6 @@ static const struct snd_soc_dapm_widget aml_asoc_dapm_widgets[] = {
 };
 
 static const struct snd_kcontrol_new aml_g9tv_controls[] = {
-	SOC_SINGLE_BOOL_EXT("Audio i2s mute",
-			    0,			      aml_audio_get_i2s_mute,
-			    aml_audio_set_i2s_mute),
-
-	SOC_SINGLE_BOOL_EXT("Audio spdif mute",
-			    0,			      aml_audio_get_spdif_mute,
-			    aml_audio_set_spdif_mute),
-
 	SOC_ENUM_EXT("Audio In Source",
 		     audio_in_source_enum,
 		     aml_audio_get_in_source,

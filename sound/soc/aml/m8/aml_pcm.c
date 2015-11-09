@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "aml_pcm: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -40,14 +41,6 @@
 /* #include "aml_i2s.h" */
 #include "aml_pcm.h"
 #include "aml_audio_hw_pcm2bt.h"
-
-/* #define PCM_DEBUG */
-
-#ifdef PCM_DEBUG
-#define pcm_debug(fmt, args...)  printk(fmt, ## args)
-#else
-#define pcm_debug(fmt, args...)
-#endif
 
 /*--------------------------------------------------------------------------*\
  * Hardware definition
@@ -102,7 +95,7 @@ static unsigned int aml_pcm_offset_tx(struct aml_pcm_runtime_data *prtd)
 	else if (diff >= prtd->buffer_size)
 		diff = prtd->buffer_size;
 
-	pcm_debug(KERN_DEBUG "%s value: 0x%08x offset: 0x%08x\n", __func__,
+	pr_debug("%s value: 0x%08x offset: 0x%08x\n", __func__,
 		  value, diff);
 	return (unsigned int)diff;
 }
@@ -119,7 +112,7 @@ static unsigned int aml_pcm_offset_rx(struct aml_pcm_runtime_data *prtd)
 	else if (diff >= prtd->buffer_size)
 		diff = prtd->buffer_size;
 
-	pcm_debug(KERN_DEBUG "%s value: 0x%08x offset: 0x%08x\n", __func__,
+	pr_debug(KERN_DEBUG "%s value: 0x%08x offset: 0x%08x\n", __func__,
 		  value, diff);
 	return (unsigned int)diff;
 }
@@ -174,7 +167,7 @@ static void aml_pcm2bt_timer_rearm(struct aml_pcm_runtime_data *prtd)
 
 static int aml_pcm2bt_timer_start(struct aml_pcm_runtime_data *prtd)
 {
-	pcm_debug("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	spin_lock(&prtd->lock);
 	aml_pcm2bt_timer_rearm(prtd);
 	prtd->running = 1;
@@ -184,7 +177,7 @@ static int aml_pcm2bt_timer_start(struct aml_pcm_runtime_data *prtd)
 
 static int aml_pcm2bt_timer_stop(struct aml_pcm_runtime_data *prtd)
 {
-	pcm_debug("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	spin_lock(&prtd->lock);
 	prtd->running = 0;
 	del_timer(&prtd->timer);
@@ -225,7 +218,7 @@ static int aml_pcm2bt_timer_create(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_pcm_runtime_data *prtd = runtime->private_data;
 
-	pcm_debug("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	init_timer(&prtd->timer);
 	prtd->timer_period = 1;
 	prtd->timer.data = (unsigned long)substream;
@@ -249,8 +242,6 @@ aml_pcm2bt_hw_params(struct snd_pcm_substream *substream,
 	else {
 		prtd->buffer_start = runtime->dma_addr;
 		prtd->buffer_size = runtime->dma_bytes;
-		pcm_debug("%s dma_addr: 0x%08x dma_bytes: 0x%x\n",
-			  __func__, runtime->dma_addr, runtime->dma_bytes);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			aml_pcm2bt_playback_phy_buffer_addr = runtime->dma_addr;
@@ -267,7 +258,7 @@ aml_pcm2bt_hw_params(struct snd_pcm_substream *substream,
 
 static int aml_pcm2bt_hw_free(struct snd_pcm_substream *substream)
 {
-	pcm_debug("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 	snd_pcm_lib_free_pages(substream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -291,7 +282,7 @@ static int aml_pcm2bt_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_pcm_runtime_data *prtd = runtime->private_data;
 	int ret = 0;
-	pcm_debug("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -317,7 +308,7 @@ static snd_pcm_uframes_t aml_pcm2bt_pointer(struct snd_pcm_substream *substream)
 	struct aml_pcm_runtime_data *prtd = runtime->private_data;
 	snd_pcm_uframes_t frames;
 
-	pcm_debug("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 	frames = bytes_to_frames(runtime, (ssize_t) prtd->buffer_offset);
 
 	return frames;
@@ -328,7 +319,7 @@ static int aml_pcm2bt_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_pcm_runtime_data *prtd;
 	int ret;
-	pcm_debug("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 
 	snd_soc_set_runtime_hwparams(substream, &aml_pcm2bt_hardware);
 
@@ -390,7 +381,7 @@ aml_pcm2bt_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	unsigned int wrptr = 0;
 	int ret = 0;
 
-	pcm_debug("enter %s channel: %d pos: %ld count: %ld\n",
+	pr_debug("enter %s channel: %d pos: %ld count: %ld\n",
 		  __func__, channel, pos, count);
 
 	if (copy_from_user(hwbuf, buf, frames_to_bytes(runtime, count))) {
@@ -419,7 +410,7 @@ aml_pcm2bt_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 	unsigned int rdptr = 0;
 	int ret = 0;
 
-	pcm_debug("enter %s channel: %d pos: %ld count: %ld\n",
+	pr_debug("enter %s channel: %d pos: %ld count: %ld\n",
 		  __func__, channel, pos, count);
 
 	if (copy_to_user(buf, hwbuf, frames_to_bytes(runtime, count))) {
@@ -464,7 +455,7 @@ static int aml_pcm2bt_silence(struct snd_pcm_substream *substream,
 	unsigned char *ppos = NULL;
 	ssize_t n;
 
-	pcm_debug("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 	n = frames_to_bytes(runtime, count);
 	ppos = runtime->dma_area + frames_to_bytes(runtime, pos);
 	memset(ppos, 0, n);
@@ -497,15 +488,13 @@ static int aml_pcm2bt_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size = aml_pcm2bt_hardware.buffer_bytes_max;
 
-	pr_info("enter %s stream: %d\n", __func__, stream);
-
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
 	buf->private_data = NULL;
 	buf->area = dma_alloc_coherent(pcm->card->dev, size,
 				       &buf->addr, GFP_KERNEL);
 	if (!buf->area) {
-		pr_info("%s dma_alloc_coherent failed!\n", __func__);
+		dev_err(pcm->dev, "aml_pcm alloc failed!\n");
 		return -ENOMEM;
 	}
 
@@ -516,13 +505,13 @@ static int aml_pcm2bt_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 
 static int aml_pcm2bt_new(struct snd_soc_pcm_runtime *rtd)
 {
-	/* pcm_debug("enter %s\n", __FUNCTION__); */
+	/* pr_debug("enter %s\n", __FUNCTION__); */
 	int ret = 0;
 	struct snd_soc_card *card = rtd->card;
 	struct snd_pcm *pcm = rtd->pcm;
 	struct snd_soc_dai *dai;
 	dai = rtd->cpu_dai;
-	pcm_debug("enter %s dai->name: %s dai->id: %d\n", __func__,
+	pr_debug("enter %s dai->name: %s dai->id: %d\n", __func__,
 		  dai->name, dai->id);
 
 	if (!card->dev->dma_mask)
@@ -554,7 +543,7 @@ static void aml_pcm2bt_free(struct snd_pcm *pcm)
 	struct snd_dma_buffer *buf;
 	int stream;
 
-	pcm_debug("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 	for (stream = 0; stream < 2; stream++) {
 		substream = pcm->streams[stream].substream;
 		if (!substream)
@@ -581,7 +570,6 @@ EXPORT_SYMBOL_GPL(aml_soc_platform_pcm2bt);
 
 static int aml_soc_platform_pcm2bt_probe(struct platform_device *pdev)
 {
-	pr_info("enter %s\n", __func__);
 	return snd_soc_register_platform(&pdev->dev, &aml_soc_platform_pcm2bt);
 }
 
@@ -614,13 +602,11 @@ static struct platform_driver aml_platform_pcm2bt_driver = {
 
 static int __init aml_alsa_bt_init(void)
 {
-	/* aml_pcm_init_debugfs(); */
 	return platform_driver_register(&aml_platform_pcm2bt_driver);
 }
 
 static void __exit aml_alsa_bt_exit(void)
 {
-	/* aml_pcm_cleanup_debugfs(); */
 	platform_driver_unregister(&aml_platform_pcm2bt_driver);
 }
 

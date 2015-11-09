@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "audio_dsp: " fmt
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -158,7 +159,7 @@ static ssize_t audio_spdif_write(struct file *file,
 static ssize_t audio_spdif_read(struct file *filp, char __user *buffer,
 			size_t length, loff_t *offset)
 {
-	pr_info(KERN_ALERT "audio spdif: read operation isn't supported.\n");
+	pr_info("audio spdif: read operation isn't supported.\n");
 	return -EINVAL;
 }
 
@@ -180,7 +181,7 @@ static int audio_spdif_mmap(struct file *file, struct vm_area_struct *vma)
 		off >> PAGE_SHIFT,
 	    vma->vm_end - vma->vm_start,
 	    vma->vm_page_prot)) {
-		pr_info("	audio spdif : failed remap_pfn_range\n");
+		pr_info("audio spdif : failed remap_pfn_range\n");
 		return -EAGAIN;
 	}
 	pr_info("audio spdif: mmap finished\n");
@@ -245,8 +246,7 @@ static int __init audio_spdif_init_module(void)
 	void *ptr_err;
 	major_spdif = register_chrdev(0, DEVICE_NAME, &fops_spdif);
 	if (major_spdif < 0) {
-		pr_info(KERN_ALERT
-			"Registering spdif char device %s failed with %d\n",
+		pr_info("Registering spdif char device %s failed with %d\n",
 			DEVICE_NAME, major_spdif);
 		return major_spdif;
 	}
@@ -264,7 +264,7 @@ static int __init audio_spdif_init_module(void)
 		goto err1;
 
 	mutex_init(&mutex_spdif);
-	pr_info(KERN_INFO "amlogic audio spdif interface device init!\n");
+	pr_info("amlogic audio spdif interface device init!\n");
 	return 0;
 
 #if 0

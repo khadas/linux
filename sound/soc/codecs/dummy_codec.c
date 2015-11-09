@@ -118,7 +118,6 @@ static int dummy_codec_platform_probe(struct platform_device *pdev)
 	struct dummy_codec_private *dummy_codec;
 	int ret;
 
-	pr_info("dummy_codec_platform_probe\n");
 	dummy_codec = kzalloc(sizeof(struct dummy_codec_private), GFP_KERNEL);
 	if (dummy_codec == NULL)
 		return -ENOMEM;

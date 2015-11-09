@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "aml_spdif_dai: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -46,16 +47,6 @@
 #include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 
-/* #define DEBUG_ALSA_SPDIF_DAI */
-#define ALSA_PRINT(fmt, args...)	pr_info("[aml-spdif-dai]" fmt, ##args)
-#ifdef DEBUG_ALSA_SPDIF_DAI
-#define ALSA_DEBUG(fmt, args...)	pr_info("[aml-spdif-dai]" fmt, ##args)
-#define ALSA_TRACE()	pr_info("[aml-spdif-dai] enter func %s,line %d\n",\
-		__func__, __LINE__)
-#else
-#define ALSA_DEBUG(fmt, args...)
-#define ALSA_TRACE()
-#endif
 /*
  0 --  other formats except(DD,DD+,DTS)
  1 --  DTS
@@ -100,7 +91,7 @@ void aml_spdif_play(void)
 	set.chan_stat->chstat1_r = 0X200;
 	audio_hw_958_enable(0);
 	if (last_iec_clock != AUDIO_CLK_FREQ_48) {
-		ALSA_PRINT("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
+		pr_info("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
 			   last_iec_clock, AUDIO_CLK_FREQ_48);
 		last_iec_clock = AUDIO_CLK_FREQ_48;
 		audio_set_958_clk(AUDIO_CLK_FREQ_48, AUDIO_CLK_256FS);
@@ -129,7 +120,6 @@ static void aml_spdif_play_stop(void)
 static int aml_dai_spdif_set_sysclk(struct snd_soc_dai *cpu_dai,
 				    int clk_id, unsigned int freq, int dir)
 {
-	ALSA_TRACE();
 	return 0;
 }
 
@@ -139,18 +129,16 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	struct snd_soc_pcm_runtime *rtd = NULL;
 
-	ALSA_TRACE();
-
 	rtd = (struct snd_soc_pcm_runtime *)substream->private_data;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			ALSA_PRINT("aiu 958 playback enable\n");
+			pr_info("aiu 958 playback enable\n");
 			audio_hw_958_enable(1);
 		} else {
-			ALSA_PRINT("spdif in capture enable\n");
+			pr_info("spdif in capture enable\n");
 			audio_in_spdif_enable(1);
 		}
 		break;
@@ -158,10 +146,10 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			ALSA_PRINT("aiu 958 playback disable\n");
+			pr_info("aiu 958 playback disable\n");
 			audio_hw_958_enable(0);
 		} else {
-			ALSA_PRINT("spdif in capture disable\n");
+			pr_info("spdif in capture disable\n");
 			audio_in_spdif_enable(0);
 		}
 		break;
@@ -236,8 +224,8 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		break;
 	};
 	audio_hw_958_enable(0);
-	pr_info("----aml_hw_iec958_init,runtime->rate=%d,sample_rate=%d--\n",
-	       runtime->rate, sample_rate);
+	pr_info("aml_hw_iec958_init,runtime->rate=%d\n",
+	       runtime->rate);
 	/* int srate; */
 	/* srate = params_rate(params); */
 	aml_set_spdif_clk(runtime->rate * 512, 0);
@@ -293,13 +281,13 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		set.chan_stat->chstat1_l = 0x200;
 		set.chan_stat->chstat1_r = 0x200;
 		if (sample_rate == AUDIO_CLK_FREQ_882) {
-			pr_info("----sample_rate==AUDIO_CLK_FREQ_882---\n");
+			pr_info("sample_rate==AUDIO_CLK_FREQ_882\n");
 			set.chan_stat->chstat1_l = 0x800;
 			set.chan_stat->chstat1_r = 0x800;
 		}
 
 		if (sample_rate == AUDIO_CLK_FREQ_96) {
-			pr_info("----sample_rate==AUDIO_CLK_FREQ_96---\n");
+			pr_info("sample_rate==AUDIO_CLK_FREQ_96\n");
 			set.chan_stat->chstat1_l = 0xa00;
 			set.chan_stat->chstat1_r = 0xa00;
 		}
@@ -343,7 +331,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 				    (iec958_mode == AIU_958_MODE_RAW) ? 1 : 0);
 		memset((void *)buf->area, 0, size);
 	}
-	ALSA_DEBUG("aiu 958 pcm buffer size %d\n", size);
 	audio_set_958_mode(iec958_mode, &set);
 
 	if (IEC958_mode_codec == 2) {
@@ -378,7 +365,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 
 void aml_alsa_hw_reprepare(void)
 {
-	ALSA_TRACE();
 	/* M8 disable it */
 #if 0
 	/* diable 958 module before call initiation */
@@ -398,7 +384,6 @@ static int aml_dai_spdif_startup(struct snd_pcm_substream *substream,
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s;
 
-	ALSA_TRACE();
 	if (!prtd) {
 		prtd =
 		    (struct aml_runtime_data *)
@@ -431,17 +416,14 @@ static void aml_dai_spdif_shutdown(struct snd_pcm_substream *substream,
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	/* struct snd_dma_buffer *buf = &substream->dma_buffer; */
-	ALSA_TRACE();
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		memset((void *)runtime->dma_area, 0,
 		       snd_pcm_lib_buffer_bytes(substream));
-		if (IEC958_mode_codec == 6) {
-			pr_info
-			    ("[%s %d]8chPCM output:disable aml_spdif_play()\n",
-			     __func__, __LINE__);
-		} else {
+		if (IEC958_mode_codec == 6)
+			pr_info("8chPCM output:disable aml_spdif_play\n");
+		else
 			aml_spdif_play();
-		}
+
 		/* audio_spdifout_pg_enable(0); */
 	}
 
@@ -456,7 +438,6 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 	/* struct aml_runtime_data *prtd = runtime->private_data; */
 	/* audio_stream_t *s = &prtd->s; */
 
-	ALSA_TRACE();
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		aml_hw_iec958_init(substream);
 	} else {
@@ -479,7 +460,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
 {
 	int ret = 0;
-	pr_info("aml_set_spdif_clk rate\n");
+
 	if (src_i2s) {
 		ret = clk_set_parent(spdif_p->clk_spdif, spdif_p->clk_mclk);
 		if (ret) {
@@ -539,21 +520,18 @@ static int aml_dai_spdif_hw_params(struct snd_pcm_substream *substream,
 	srate = params_rate(params);
 	aml_set_spdif_clk(srate * 512, 0);
 #endif
-	ALSA_TRACE();
 	return 0;
 }
 
 #ifdef CONFIG_PM
 static int aml_dai_spdif_suspend(struct snd_soc_dai *cpu_dai)
 {
-	ALSA_TRACE();
 	aml_spdif_play_stop();
 	return 0;
 }
 
 static int aml_dai_spdif_resume(struct snd_soc_dai *cpu_dai)
 {
-	ALSA_TRACE();
 	aml_spdif_play();
 	return 0;
 }
@@ -614,7 +592,6 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 	struct reset_control *spdif_reset;
 	struct aml_spdif *spdif_priv;
 
-	pr_info("aml_spdif_probe\n");
 	/* enable spdif power gate first */
 	for (i = 0; i < ARRAY_SIZE(gate_names); i++) {
 		spdif_reset = devm_reset_control_get(&pdev->dev, gate_names[i]);
@@ -723,7 +700,6 @@ static struct platform_driver aml_spdif_dai_driver = {
 
 static int __init aml_dai_spdif_init(void)
 {
-	ALSA_PRINT("enter aml_dai_spdif_init\n");
 	return platform_driver_register(&aml_spdif_dai_driver);
 }
 

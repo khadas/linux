@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "audio_dsp: " fmt
 
 #include <linux/kernel.h>
 #include <linux/slab.h>

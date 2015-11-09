@@ -15,6 +15,7 @@
  *
 */
 
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
@@ -29,11 +30,8 @@
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_codec_driver soc_codec_spdif_dit;
-
 struct pinctrl *pin_spdif_ctl;
 struct device *spdif_dev;
-EXPORT_SYMBOL(spdif_dev);
 static struct snd_soc_dai_driver dit_stub_dai = {
 	.name = "dit-hifi",
 	.playback = {
@@ -60,22 +58,55 @@ void aml_spdif_pinmux_init(struct device *dev)
 		pin_spdif_ctl = devm_pinctrl_get_select(dev, "aml_audio_spdif");
 		if (IS_ERR(pin_spdif_ctl)) {
 			pin_spdif_ctl = NULL;
-			pr_info("aml_spdif_pinmux_init can't get pinctrl\n");
+			dev_err(dev, "aml_spdif_pinmux_init can't get pinctrl\n");
 		}
 	}
 }
-EXPORT_SYMBOL(aml_spdif_pinmux_init);
 
 void aml_spdif_pinmux_deinit(struct device *dev)
 {
-	pr_info(KERN_INFO "aml_spdif_mute\n");
+	dev_dbg(dev, "aml_spdif_mute\n");
 	if (spdif_pinmux) {
 		spdif_pinmux = 0;
 		if (pin_spdif_ctl)
 			devm_pinctrl_put(pin_spdif_ctl);
 	}
 }
-EXPORT_SYMBOL(aml_spdif_pinmux_deinit);
+bool aml_audio_spdif_mute_flag = 0;
+static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	aml_audio_spdif_mute_flag = ucontrol->value.integer.value[0];
+	pr_info("aml_audio_set_spdif_mute: flag=%d\n",
+		aml_audio_spdif_mute_flag);
+	if (aml_audio_spdif_mute_flag)
+		aml_spdif_pinmux_deinit(spdif_dev);
+	else
+		aml_spdif_pinmux_init(spdif_dev);
+	return 0;
+}
+
+static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = aml_audio_spdif_mute_flag;
+	return 0;
+}
+
+static const struct snd_kcontrol_new spdif_controls[] = {
+	SOC_SINGLE_BOOL_EXT("Audio spdif mute",
+			    0, aml_audio_get_spdif_mute,
+			    aml_audio_set_spdif_mute),
+};
+
+static int spdif_probe(struct snd_soc_codec *codec)
+{
+	return snd_soc_add_codec_controls(codec,
+			spdif_controls, ARRAY_SIZE(spdif_controls));
+}
+static struct snd_soc_codec_driver soc_codec_spdif_dit = {
+	.probe =	spdif_probe,
+};
 
 static ssize_t spdif_mute_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -96,7 +127,7 @@ static ssize_t spdif_mute_set(struct device *dev,
 	else if (strncmp(buf, "spdif_unmute", 12))
 		aml_spdif_pinmux_deinit(dev);
 	else
-		pr_info("spdif set the wrong value\n");
+		dev_err(dev, "spdif set the wrong value\n");
 
 	return count;
 }
@@ -106,12 +137,14 @@ static DEVICE_ATTR(spdif_mute, 0660, spdif_mute_show, spdif_mute_set);
 static int spdif_dit_probe(struct platform_device *pdev)
 {
 	int ret = device_create_file(&pdev->dev, &dev_attr_spdif_mute);
-	pr_info("enter spdif_dit_probe\n");
+
 	spdif_dev = &pdev->dev;
 
 	aml_spdif_pinmux_init(&pdev->dev);
 	if (ret < 0)
-		pr_info("spdif: failed to add spdif_mute sysfs: %d\n", ret);
+		dev_err(&pdev->dev,
+			"spdif: failed to add spdif_mute sysfs: %d\n", ret);
+
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_spdif_dit,
 				      &dit_stub_dai, 1);
 }

@@ -14,6 +14,7 @@
  * more details.
  *
  */
+#define pr_fmt(fmt) "amaudio2: " fmt
 
 #include <linux/version.h>
 #include <linux/module.h>

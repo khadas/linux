@@ -14,6 +14,7 @@
  * more details.
  *
 */
+#define pr_fmt(fmt) "aml_pcm_dai: " fmt
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -38,45 +39,26 @@
 
 #define DEV_NAME "aml-pcm-dai"
 
-/* static aml_dai_info_t dai_info[3] = {{0}}; */
-#define AML_DAI_DEBUG
-
-#define ALSA_PRINT(fmt, args...)	pr_info("[aml-pcm-dai]" fmt, ##args)
-#ifdef DEBUG_ALSA_SOC_DAI_SPDIF
-#define ALSA_DEBUG(fmt, args...)	pr_info("[aml-pcm-dai]" fmt, ##args)
-#define ALSA_TRACE()	pr_info("[aml-pcm-dai] enter func %s\n", __func__)
-#else
-#define ALSA_DEBUG(fmt, args...)
-#define ALSA_TRACE()
-#endif
-
 static int aml_dai_pcm_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-#ifdef AML_DAI_DEBUG
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
-#endif
+	pr_debug("***Entered %s\n", __func__);
 	return 0;
 }
 
 static void aml_dai_pcm_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
-#ifdef AML_DAI_DEBUG
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
-#endif
+	pr_debug("***Entered %s\n", __func__);
 }
 
 static int aml_dai_pcm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-/* #if 1 */
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_pcm_runtime_data *prtd = runtime->private_data;
 
-#ifdef AML_DAI_DEBUG
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
-#endif
+	pr_debug("***Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		pr_info(
@@ -101,8 +83,6 @@ static int aml_dai_pcm_prepare(struct snd_pcm_substream *substream,
 static int aml_dai_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
-	ALSA_DEBUG();
-	/* struct snd_pcm_runtime *rtd = substream->runtime; */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -137,17 +117,13 @@ static int aml_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-#ifdef AML_DAI_DEBUG
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
-#endif
+	pr_debug("***Entered %s:%s\n", __FILE__, __func__);
 	return 0;
 }
 
 static int aml_dai_set_pcm_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-#ifdef AML_DAI_DEBUG
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
-#endif
+	pr_debug("***Entered %s\n", __func__);
 	if (fmt & SND_SOC_DAIFMT_CBS_CFS)
 		snd_soc_dai_get_drvdata(dai);
 	return 0;
@@ -156,9 +132,7 @@ static int aml_dai_set_pcm_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int aml_dai_set_pcm_sysclk(struct snd_soc_dai *dai,
 				  int clk_id, unsigned int freq, int dir)
 {
-#ifdef AML_DAI_DEBUG
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
-#endif
+	pr_debug("***Entered %s\n", __func__);
 	return 0;
 }
 
@@ -166,13 +140,13 @@ static int aml_dai_set_pcm_sysclk(struct snd_soc_dai *dai,
 static int aml_dai_pcm_suspend(struct snd_soc_dai *dai)
 {
 
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
+	pr_debug("***Entered %s\n", __func__);
 	return 0;
 }
 
 static int aml_dai_pcm_resume(struct snd_soc_dai *dai)
 {
-	pr_info("***Entered %s:%s\n", __FILE__, __func__);
+	pr_debug("***Entered %s\n", __func__);
 	return 0;
 }
 
@@ -223,7 +197,7 @@ static int aml_pcm_dai_probe(struct platform_device *pdev)
 {
 	struct pinctrl *pin_ctl;
 
-	pr_info("enter %s\n", __func__);
+	pr_debug("enter %s\n", __func__);
 
 	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "aml_audio_btpcm");
 	if (IS_ERR(pin_ctl))
