@@ -120,6 +120,12 @@ static int __init hdmitx_hdcp_init(void)
 {
 	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
 
+	hdmi_print(IMP, SYS "hdmitx_hdcp_init\n");
+	if (hdmitx_device == NULL) {
+		hdmi_print(IMP, SYS "exit for null device of hdmitx!\n");
+		return -ENODEV;
+	}
+
 	switch_dev_register(&hdcp_dev);
 
 	hdmitx_device->task_hdcp = kthread_run(hdmitx_hdcp_task,
