@@ -13,6 +13,7 @@
 #define AML1220_ADDR    0x35
 #define AML1220_ANALOG_ADDR  0x20
 
+static int use_24m_clock;
 struct i2c_client *g_aml_pmu4_client = NULL;
 
 #define CHECK_DRIVER()      \
@@ -296,9 +297,9 @@ static int aml_pmu4_reg_init(unsigned int reg_base, unsigned int *val,
 /* --------------------------------------------------------------------------*/
 void pmu4_phy_conifg(void)
 {
+	int i = 0;
+	uint8_t value = 0;
 #if 0
-	int i;
-	uint8_t value;
 	int data;
 	uint8_t data_lo;
 	uint8_t data_hi;
@@ -335,8 +336,17 @@ void pmu4_phy_conifg(void)
 	aml_pmu4_write(0x81, 0x0b);
 	aml_pmu4_write(0x82, 0xd1);
 	aml_pmu4_write(0x83, 0x00);
-	aml_pmu4_write(0x84, 0x00);
-	aml_pmu4_write(0x85, 0x00);
+	if (use_24m_clock) {
+		aml_pmu4_write(0x84, 0x55);
+		aml_pmu4_write(0x85, 0x0d);
+	} else {
+		aml_pmu4_write(0x84, 0x00);
+		aml_pmu4_write(0x85, 0x00);
+	}
+	do {
+		aml_pmu4_read(0x9c, &value);
+		mdelay(10);
+	} while (((value & 0x01) == 0) && (i++ < 10));
 
 	/*cfg4- --- cfg 45 */
 	aml_pmu4_write(0x88, 0x0);
@@ -403,13 +413,6 @@ void pmu4_phy_conifg(void)
 	 */
 	aml_pmu4_write(0x04, 0x01);
 	aml_pmu4_write(0x05, 0x01);
-#if 0
-	value = 0;
-	pr_info("--------> read 0x9c\n");
-	while ((value & 0x01) == 0)
-		aml_pmu4_read(0x9c, &value);
-	pr_info("----2----> read 0x9c over!\n");
-#endif
 	aml_pmu4_write(0x9b, 0x00);
 	aml_pmu4_write(0x9b, 0x80);
 	aml_pmu4_write(0x9b, 0x00);
@@ -524,6 +527,12 @@ static int aml_pmu4_probe(struct platform_device *pdev)
 		err = of_property_read_u32(child, "reg", &addr);
 		if (err) {
 			pr_info("get 'reg' failed, ret:%d\n", err);
+			continue;
+		}
+		err = of_property_read_u32(child, "use_24m_clock",
+				&use_24m_clock);
+		if (err) {
+			pr_info("get 'use_24m_clock' failed, ret:%d\n", err);
 			continue;
 		}
 		memset(&board_info, 0, sizeof(board_info));

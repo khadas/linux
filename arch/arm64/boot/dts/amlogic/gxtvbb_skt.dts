@@ -592,6 +592,7 @@
 			sub_type = "aml_pmu4";
 			i2c_bus = "i2c_bus_b";
 			reg = <0x35>;
+			use_24m_clock = <0x0>;
 			status = "disable";
 		};
 	};
