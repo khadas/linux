@@ -138,5 +138,7 @@ extern char *osd_get_debug_hw(void);
 #ifdef CONFIG_AM_FB_EXT
 extern void osd_ext_clone_pan(u32 index);
 #endif
-
+extern void osd_set_pxp_mode(u32 mode);
+extern void osd_set_afbcd(u32 enable);
+extern u32 osd_get_afbcd(void);
 #endif

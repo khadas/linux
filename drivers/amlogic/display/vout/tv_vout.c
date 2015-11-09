@@ -219,7 +219,8 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_m8[index];
 		type = 0;
-	} else if (is_meson_gxbb_cpu()) {
+	} else if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
+		>= MESON_CPU_MAJOR_ID_GXBB) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;

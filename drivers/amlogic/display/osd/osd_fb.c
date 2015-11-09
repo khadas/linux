@@ -1463,6 +1463,28 @@ static ssize_t store_debug(struct device *device, struct device_attribute *attr,
 	return ret;
 }
 
+static ssize_t show_afbcd(struct device *device, struct device_attribute *attr,
+			  char *buf)
+{
+	u32 enable = osd_get_afbcd();
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", enable);
+}
+
+static ssize_t store_afbcd(struct device *device, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	u32 res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("afbcd: %d\n", res);
+
+	osd_set_afbcd(res);
+
+	return count;
+}
+
 static ssize_t show_log_level(struct device *device,
 			  struct device_attribute *attr,
 			  char *buf)
@@ -1978,6 +2000,8 @@ static struct device_attribute osd_attrs[] = {
 	__ATTR(ver_clone, S_IRUGO | S_IWUSR,
 			show_ver_clone, store_ver_clone),
 	__ATTR(ver_update_pan, S_IWUGO | S_IWUSR, NULL, store_ver_update_pan),
+	__ATTR(osd_afbcd, S_IRUGO | S_IWUSR,
+			show_afbcd, store_afbcd),
 };
 
 #ifdef CONFIG_PM
@@ -2164,6 +2188,10 @@ static int osd_probe(struct platform_device *pdev)
 		current_mode = VMODE_MASK;
 	else
 		current_mode = vmode_name_to_mode(str);
+	prop = of_get_property(pdev->dev.of_node, "pxp_mode", NULL);
+	if (prop)
+		prop_idx = of_read_ulong(prop, 1);
+	osd_set_pxp_mode(prop_idx);
 	/* if logo vmode not set, set vmode and init osd hw */
 	logo_mode = get_logo_vmode();
 	logo_index = osd_get_logo_index();
