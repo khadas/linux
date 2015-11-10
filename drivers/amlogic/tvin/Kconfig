@@ -13,7 +13,7 @@ menuconfig TVIN
 if TVIN
 source "drivers/amlogic/tvin/vdin/Kconfig"
 source "drivers/amlogic/tvin/tvafe/Kconfig"
-#source "drivers/amlogic/tvin/hdmirx/Kconfig"
+source "drivers/amlogic/tvin/hdmirx/Kconfig"
 source "drivers/amlogic/tvin/bt656/Kconfig"
 #source "drivers/amlogic/tvin/csi/Kconfig"
 source "drivers/amlogic/tvin/viu/Kconfig"

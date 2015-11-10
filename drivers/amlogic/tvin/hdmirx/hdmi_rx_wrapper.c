@@ -326,6 +326,37 @@ static void dump_audio_info(unsigned char enable);
 
 static unsigned int get_index_from_ref(struct hdmi_rx_ctrl_video *video_par);
 
+/* add for hot plug det */
+void hdmirx_plug_det(struct work_struct *work)
+{
+	unsigned int tmp_5v, check_cnt, i, val;
+
+
+	cancel_delayed_work(&hpd_dwork);
+
+	val = 0;
+	check_cnt = pow5v_max_cnt;
+	for (i = 0; i <= 200; i++) {
+		tmp_5v = (hdmirx_rd_top(TOP_HPD_PWR5V) >> 20) & 0xf;
+		mdelay(10);
+		if (val != tmp_5v) {
+			check_cnt = pow5v_max_cnt;
+			val = tmp_5v;
+		} else
+			check_cnt--;
+		if (check_cnt == 0)
+			break;
+		/* rx_print("[HDMIrx queue]cnt:%d 5v status:0x%x\n", */
+		/* check_cnt, tmp_5v); */
+	}
+	if (pwr_sts != tmp_5v) {
+		pwr_sts = tmp_5v;
+		switch_set_state(&hpd_sdev, pwr_sts);
+		rx_print("\n %s: send 5v event:0x%x\n", __func__, pwr_sts);
+	}
+
+	return;
+}
 
 /**
  * Clock event handler
@@ -422,7 +453,7 @@ static int audio_handler(struct hdmi_rx_ctrl *ctx)
 static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 {
 	int error = 0;
-	unsigned i = 0;
+	/* unsigned i = 0; */
 	uint32_t intr_hdmi = 0;
 	uint32_t intr_md = 0;
 #ifdef CEC_FUNC_ENABLE
@@ -500,6 +531,12 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	if (intr_aud_fifo != 0)
 		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, intr_aud_fifo);
 
+	/* check hdmi open status before dwc isr */
+	if (!rx.open_fg) {
+		if (log_flag & 0x1000)
+			rx_print("[HDMIrx isr] ingore dwc isr ---\n");
+		return error;
+	}
 
 	if (intr_hdmi != 0) {
 		if (get(intr_hdmi, CLK_CHANGE) != 0) {
@@ -516,8 +553,9 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 				    hdmirx_control_clk_range(TMDS_CLK_MIN,
 							     TMDS_CLK_MAX);
 			} else {
-				for (i = 0; i < TMDS_STABLE_TIMEOUT; i++)
-					;
+				/*  can not use delay in irq*/
+				/* for (i = 0; i < TMDS_STABLE_TIMEOUT; i++) */
+				/* ; */
 
 				tclk =
 				    ((ref_clk * get(data, CLKRATE)) / evaltime);
@@ -630,6 +668,28 @@ irqreturn_t irq_handler(int irq, void *params)
 
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
+	/* modify interrupt flow for isr loading */
+	/* top interrupt handler */
+	if ((hdmirx_top_intr_stat & (0xf << 2)) ||
+		(hdmirx_top_intr_stat & (0xf << 6))) {
+		/* rx_print("%s: %s\n", __func__, " enable queue"); */
+		queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
+	}
+
+	/* top interrupt handler */
+	/* if (hdmirx_top_intr_stat & (0xf << 2)) { */
+	/* schedule_work(&rx->plug_wq); */
+	/*  rx.tx_5v_status = true; */
+	/* if (log_flag & 0x400) */
+	/* rx_print("[HDMIrx isr] 5v rise\n"); */
+	/* } */
+	/* if (hdmirx_top_intr_stat & (0xf << 2)) */
+	/* if (hdmirx_top_intr_stat & (0xf << 6)) { */
+	/* schedule_work(&rx->plug_wq); */
+	/*  rx.tx_5v_status = false; */
+	/* if (log_flag & 0x400) */
+	/* rx_print("[HDMIrx isr] 5v fall\n"); */
+	/* } */
 
 	/* must clear ip interrupt quickly */
 	if (hdmirx_top_intr_stat & (1 << 31)) {
@@ -641,19 +701,6 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 					error);
 			}
 		}
-	}
-
-	/* top interrupt handler */
-	if (hdmirx_top_intr_stat & (0xf << 2)) {
-		/* rx.tx_5v_status = true; */
-		if (log_flag & 0x400)
-			rx_print("[HDMIrx isr] 5v rise\n");
-	}
-	/* if (hdmirx_top_intr_stat & (0xf << 2)) */
-	if (hdmirx_top_intr_stat & (0xf << 6)) {
-		/* rx.tx_5v_status = false; */
-		if (log_flag & 0x400)
-			rx_print("[HDMIrx isr] 5v fall\n");
 	}
 
 	/* if (hdmirx_top_intr_stat & (0xf << 6)) */

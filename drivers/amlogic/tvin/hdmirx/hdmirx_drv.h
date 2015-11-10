@@ -14,6 +14,9 @@
 #ifndef _TVHDMI_H
 #define _TVHDMI_H
 
+#include <linux/switch.h>
+#include <linux/workqueue.h>
+
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/tvin/tvin.h>
 #include <linux/amlogic/iomap.h>
@@ -395,12 +398,22 @@ struct rx {
 	struct hdmi_rx_ctrl_video cur_video_params;
 	struct hdmi_rx_ctrl_video reltime_video_params;
 	struct vendor_specific_info_s vendor_specific_info;
+	bool open_fg;
+
+	unsigned int pwr_sts;
 };
 
 struct _hdcp_ksv {
 	uint32_t bksv0;
 	uint32_t bksv1;
 };
+
+/* hpd event */
+extern struct delayed_work     hpd_dwork;
+extern struct workqueue_struct *hpd_wq;
+extern struct switch_dev       hpd_sdev;
+extern unsigned int pwr_sts;
+
 
 extern unsigned char *pEdid_buffer;
 
@@ -500,5 +513,7 @@ extern bool hdmirx_tmds_pll_lock(void);
 extern ssize_t hdmirx_cable_status_buf(char *buf);
 extern ssize_t hdmirx_signal_status_buf(char *buf);
 extern void hdmirx_irq_init(void);
+
+extern void hdmirx_plug_det(struct work_struct *work);
 
 #endif  /* _TVHDMI_H */

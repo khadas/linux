@@ -82,6 +82,10 @@ struct analog_parameters {
 	unsigned int lock_range;
 	unsigned int leap_step;
 	u64 std;
+	/*for amlatvdemod*/
+	unsigned int tuner_id;
+	unsigned int if_freq;
+	unsigned int if_inv;
 	unsigned int reserved;
 };
 

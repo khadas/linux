@@ -373,7 +373,11 @@
 			amlogic,pins="GPIOAO_12";
 		};
 
-
+		atvdemod_agc: atvdemod_agc {
+			amlogic,setmask=<5  0x01000000>;
+			amlogic,clrmask=<5  0x0e000000>;
+			amlogic,pins="GPIOW_2";
+		};
 
 		/*gxtvbb i2c multiplex */
 		/*I2C-AO*/

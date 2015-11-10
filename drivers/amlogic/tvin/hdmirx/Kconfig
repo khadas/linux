@@ -1,0 +1,20 @@
+#
+# HDMI Rx Device Driver Configuration
+#
+
+
+config TVIN_HDMI
+    tristate "Amlogic HDMI RX device driver"
+    default n
+    help
+      HDMI RX device driver.
+      HDMI RX device driver.
+      HDMI RX device driver.
+      HDMI RX device driver.
+
+config TVIN_HDMI_CEC
+    tristate "Amlogic HDMI RX CEC device driver"
+    depends on TVIN_HDMI
+    default n
+    help
+      HDMI RX CEC device driver.

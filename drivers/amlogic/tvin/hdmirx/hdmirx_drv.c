@@ -62,8 +62,13 @@
 static unsigned char init_flag;
 static dev_t	hdmirx_devno;
 static struct class	*hdmirx_clsp;
-static int open_flage;
+/* static int open_flage; */
 struct hdmirx_dev_s *devp_hdmirx_suspend;
+
+struct delayed_work     hpd_dwork;
+struct workqueue_struct *hpd_wq;
+struct switch_dev       hpd_sdev;
+unsigned int pwr_sts;
 
 int resume_flag = 0;
 MODULE_PARM_DESC(resume_flag, "\n resume_flag\n");
@@ -226,17 +231,19 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp_hdmirx_suspend = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp->param.port = port;
+
 	hdmirx_hw_enable();
 	hdmirx_hw_init(port);
 	if (multi_port_edid_enable)
 		hdmirx_default_hpd(1);
 
-	if ((open_flage) && (rx.phy.fast_switching)) {
+	rx.open_fg = 1;
+
+	if ((rx.open_fg) && (rx.phy.fast_switching)) {
 		hdmirx_phy_fast_switching(1);
 		return 0;
 	}
 
-	open_flage = 1;
 #ifndef CEC_FUNC_ENABLE
 	/* timer */
 	init_timer(&devp->timer);
@@ -254,7 +261,7 @@ void hdmirx_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
 
-	/* open_flage = 1; */
+	/* rx.open_fg = 1; */
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp_hdmirx_suspend = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
@@ -652,7 +659,7 @@ void hdmirx_powerdown(const char *buf, int size)
 	}
 	tmpbuf[i] = 0;
 	if (strncmp(tmpbuf, "powerdown", 9) == 0) {
-		if (open_flage == 1) {
+		if (rx.open_fg == 1) {
 			del_timer_sync(&devp_hdmirx_suspend->timer);
 			/* wr_reg(IO_APB_BUS_BASE,
 				HHI_HDMIRX_CLK_CNTL, 0x0); */
@@ -1009,7 +1016,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&hdevp->timer);
 #endif
-	rx_print("hdmirx: driver probe ok\n");
 
 	if (is_meson_gxtvbb_cpu()) {
 		struct clk *xtal_clk;
@@ -1080,6 +1086,19 @@ static int hdmirx_probe(struct platform_device *pdev)
 					clk_rate/1000000);
 		}
 	}
+
+	/* create for hot plug function */
+	hpd_wq = create_singlethread_workqueue(hdevp->frontend.name);
+	INIT_DELAYED_WORK(&hpd_dwork, hdmirx_plug_det);
+
+	hpd_sdev.name = hdevp->frontend.name;
+	ret = switch_dev_register(&hpd_sdev);
+	if (ret < 0)
+		pr_err("[hdmirx]: register sdev error.\n");
+	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
+
+	rx_print("hdmirx: driver probe ok\n");
+
 	return 0;
 fail_create_cec_file:
 	device_remove_file(hdevp->dev, &dev_attr_cec);
@@ -1110,6 +1129,11 @@ static int hdmirx_remove(struct platform_device *pdev)
 	struct hdmirx_dev_s *hdevp;
 
 	hdevp = platform_get_drvdata(pdev);
+
+	cancel_delayed_work(&hpd_dwork);
+	destroy_workqueue(hpd_wq);
+	switch_dev_unregister(&hpd_sdev);
+
 	device_remove_file(hdevp->dev, &dev_attr_debug);
 	device_remove_file(hdevp->dev, &dev_attr_edid);
 	device_remove_file(hdevp->dev, &dev_attr_key);
@@ -1130,7 +1154,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	int i = 0;
 
 	rx_print("[hdmirx]: hdmirx_suspend\n");
-	if (open_flage == 1) {
+	if (rx.open_fg == 1) {
 		rx_print("[hdmirx]: suspend--step1111\n");
 		if (resume_flag == 0)
 			del_timer_sync(&devp_hdmirx_suspend->timer);
@@ -1163,9 +1187,9 @@ static int hdmirx_resume(struct platform_device *pdev)
 
 	for (i = 0; i < 5000; i++)
 		;
-	if ((resume_flag == 0) && (open_flage == 1))
+	if ((resume_flag == 0) && (rx.open_fg == 1))
 		add_timer(&devp_hdmirx_suspend->timer);
-	rx_print("hdmirx: resume module---end,open_flage:%d\n", open_flage);
+	rx_print("hdmirx: resume module---end,rx.open_fg:%d\n", rx.open_fg);
 
 	return 0;
 

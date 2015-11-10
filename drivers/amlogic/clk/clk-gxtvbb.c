@@ -189,7 +189,7 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_HDMIRX_CLK_CNTL, 25, 2, 0,
 			HHI_HDMIRX_CLK_CNTL, 16, 7, 0,
 			HHI_HDMIRX_CLK_CNTL, 24, 1),
-	COMPOSITE(CLK_HDMIRX_MODET_CLK, "clk_hdmirx_cfg_clk", clk_cfg_clk_p,
+	COMPOSITE(CLK_HDMIRX_CFG_CLK, "clk_hdmirx_cfg_clk", clk_cfg_clk_p,
 			CLK_SET_RATE_NO_REPARENT,
 			HHI_HDMIRX_CLK_CNTL, 9, 2, 2,
 			HHI_HDMIRX_CLK_CNTL, 0, 7, 0,

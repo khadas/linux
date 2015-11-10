@@ -258,9 +258,9 @@
 		reserve-iomap = "true";
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
-		clocks = <&clock CLK_XTAL>,
+		clocks = <&clock CLK_FPLL_DIV5>,
 			<&clock CLK_VDIN_MEAS_CLK>;
-		clock-names = "xtal", "cts_vdin_meas_clk";
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 	};
 	vdin1 {
@@ -271,9 +271,9 @@
 		reserve-iomap = "true";
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
-		clocks = <&clock CLK_XTAL>,
+		clocks = <&clock CLK_FPLL_DIV5>,
 			<&clock CLK_VDIN_MEAS_CLK>;
-		clock-names = "xtal", "cts_vdin_meas_clk";
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 	};
 	hdmirx {
@@ -370,8 +370,8 @@
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <1>;/*1:enabel ;0:disable*/
-		wb_en = <1>;/*1:enabel ;0:disable*/
+		gamma_en = <0>;/*1:enabel ;0:disable*/
+		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <1>;/*1:enabel ;0:disable*/
 	};
 
