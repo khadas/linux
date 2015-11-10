@@ -60,6 +60,10 @@
 #define MicroCode mix_dump_mc_gx_dblk
 #include "h264_enc_mix_dump_gx_dblk.h"
 
+#undef MicroCode
+#define MicroCode h264_enc_mc_gxtv
+#include "h264_enc_gxtv.h"
+
 
 #define CODEC_VERSION "0.0.0.1"
 #define FOR_VFORMAT VFORMAT_H264_ENC
@@ -84,6 +88,9 @@
 	REGISTER_FIRMARE_PER_CPU_VER(MESON_CPU_MAJOR_ID_GXBB, \
 				FOR_VFORMAT, n, CODEC_VERSION)
 
+#define DEF_FIRMEARE_FOR_GXTVBB(n) \
+	REGISTER_FIRMARE_PER_CPU_VER(MESON_CPU_MAJOR_ID_GXTVBB, \
+				FOR_VFORMAT, n, CODEC_VERSION)
 
 #define REG_FIRMWARE_ALL()\
 	do {\
@@ -104,6 +111,9 @@
 		DEF_FIRMEARE_FOR_GXBB(mix_sw_mc_hdec_gx_dblk);\
 		DEF_FIRMEARE_FOR_GXBB(mix_dump_mc_gx_dblk);\
 		DEF_FIRMEARE_FOR_GXBB(h264_enc_mc_gx);\
+		DEF_FIRMEARE_FOR_GXTVBB(mix_sw_mc_hdec_gx_dblk);\
+		DEF_FIRMEARE_FOR_GXTVBB(mix_dump_mc_gx_dblk);\
+		DEF_FIRMEARE_FOR_GXTVBB(h264_enc_mc_gxtv);\
 	} while (0)
 
 INIT_DEF_FIRMWARE();

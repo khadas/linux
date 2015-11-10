@@ -180,9 +180,9 @@ static DEFINE_SPINLOCK(lock);
 #define IE_SAD_SHIFT_I4 0x003
 #define ME_SAD_SHIFT_INTER 0x002
 
-#define STEP_2_SKIP_SAD    0x20
-#define STEP_1_SKIP_SAD    0x30
-#define STEP_0_SKIP_SAD    0x30
+#define STEP_2_SKIP_SAD 0x20
+#define STEP_1_SKIP_SAD 0x30
+#define STEP_0_SKIP_SAD 0x30
 #define STEP_2_SKIP_WEIGHT 0x04
 #define STEP_1_SKIP_WEIGHT 0x04
 #define STEP_0_SKIP_WEIGHT 0x04
@@ -202,10 +202,43 @@ static DEFINE_SPINLOCK(lock);
 #define ME_MV_STEP_WEIGHT_2 0x0
 #define ME_MV_STEP_WEIGHT_3 0x0
 
-#define ME_SAD_ENOUGH_0_DATA   0x00
-#define ME_SAD_ENOUGH_1_DATA   0x04
-#define ME_SAD_ENOUGH_2_DATA   0x11
+#define ME_SAD_ENOUGH_0_DATA 0x00
+#define ME_SAD_ENOUGH_1_DATA 0x04
+#define ME_SAD_ENOUGH_2_DATA 0x11
 #define ADV_MV_8x8_ENOUGH_DATA 0x20
+
+#define V3_FORCE_SKIP_SAD_0 0x10
+/* 4 Blocks */
+#define V3_FORCE_SKIP_SAD_1 0x60
+/* 16 Blocks + V3_SKIP_WEIGHT_2 */
+#define V3_FORCE_SKIP_SAD_2 0x250
+#define V3_SKIP_WEIGHT_0 0x20
+/* 4 Blocks  8 seperate search sad can be very low */
+#define V3_SKIP_WEIGHT_1 (4 * ME_MV_STEP_WEIGHT_1 + 0x100)
+/* #define V3_SKIP_WEIGHT_2 (ADV_MV_16x16_WEIGHT - 0x40) */
+#define V3_SKIP_WEIGHT_2 0x40
+
+#define V3_LEVEL_1_F_SKIP_MAX_SAD 0x20
+#define V3_LEVEL_1_SKIP_MAX_SAD 0x60
+#define V3_IE_F_ZERO_SAD_I16 (I16MB_WEIGHT_OFFSET + 0x80)
+#define V3_IE_F_ZERO_SAD_I4 (I4MB_WEIGHT_OFFSET + 0x80)
+/* almost disable it -- use t_lac_coeff_2 output to F_ZERO is better */
+#define V3_ME_F_ZERO_SAD (ME_WEIGHT_OFFSET + 0x20)
+
+#define I4_ipred_weight_most   0x18
+#define I4_ipred_weight_else   0x28
+
+#define C_ipred_weight_V       0x04
+#define C_ipred_weight_H       0x08
+#define C_ipred_weight_DC      0x0c
+
+#define I16_ipred_weight_V       0x04
+#define I16_ipred_weight_H       0x08
+#define I16_ipred_weight_DC      0x0c
+
+/* 0x00 same as disable */
+#define v3_left_small_max_ie_sad 0x00
+#define v3_left_small_max_me_sad 0x40
 
 #ifndef USE_OLD_DUMP_MC
 static u32  quant_tbl_i4[2][8] = {
@@ -275,6 +308,77 @@ static u32  quant_tbl_me[2][8] = {
 		0x25252424,
 		0x26262525
 	}
+};
+
+static u32 v3_mv_sad[64] = {
+	/* For step0 */
+	0x00000010,
+	0x00010020,
+	0x00020030,
+	0x00030040,
+	0x00040050,
+	0x00050060,
+	0x00060070,
+	0x00070080,
+	0x00080090,
+	0x000900a0,
+	0x000a00b0,
+	0x000b00c0,
+	0x000c00d0,
+	0x000d00e0,
+	0x000e00f0,
+	0x000f0100,
+	/* For step1 */
+	0x00100008,
+	0x00110010,
+	0x00120018,
+	0x00130020,
+	0x00140028,
+	0x00150030,
+	0x00160038,
+	0x00170040,
+	0x00180048,
+	0x00190050,
+	0x001a0058,
+	0x001b0060,
+	0x001c0068,
+	0x001d0070,
+	0x001e0078,
+	0x001f0080,
+	/* For step2 */
+	0x00200008,
+	0x00210010,
+	0x00220018,
+	0x00230020,
+	0x00240028,
+	0x00250030,
+	0x00260038,
+	0x00270040,
+	0x00280048,
+	0x00290050,
+	0x002a0058,
+	0x002b0060,
+	0x002c0068,
+	0x002d0070,
+	0x002e0078,
+	0x002f0080,
+	/* For step2 4x4-8x8 */
+	0x00300001,
+	0x00310002,
+	0x00320003,
+	0x00330004,
+	0x00340005,
+	0x00350006,
+	0x00360007,
+	0x00370008,
+	0x00380009,
+	0x0039000a,
+	0x003a000b,
+	0x003b000c,
+	0x003c000d,
+	0x003d000e,
+	0x003e000f,
+	0x003f0010
 };
 #endif
 
@@ -450,6 +554,7 @@ enum ucode_type_e {
 	UCODE_SW_HDEC_GX_DBLK,
 	UCODE_VDEC2,
 	UCODE_GX,
+	UCODE_GXTV,
 	UCODE_MAX
 };
 
@@ -465,6 +570,7 @@ const char *ucode_name[] = {
 	"mix_sw_mc_hdec_gx_dblk",
 	"vdec2_encoder_mc",
 	"h264_enc_mc_gx",
+	"h264_enc_mc_gxtv",
 };
 
 static void dma_flush(u32 buf_start, u32 buf_size);
@@ -474,7 +580,13 @@ static const char *select_ucode(u32 ucode_index)
 	enum ucode_type_e ucode = UCODE_DUMP;
 	switch (ucode_index) {
 	case UCODE_MODE_FULL:
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+#ifndef USE_OLD_DUMP_MC
+			ucode = UCODE_GXTV;
+#else
+			ucode = UCODE_DUMP_GX_DBLK;
+#endif
+		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 #ifndef USE_OLD_DUMP_MC
 			ucode = UCODE_GX;
 #else
@@ -646,6 +758,12 @@ static void InitEncodeWeight(void)
 					/* force_skip_weight_0 */
 				   (STEP_0_SKIP_WEIGHT << 0);
 
+#ifndef USE_OLD_DUMP_MC
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+			me_f_skip_sad = 0;
+			me_f_skip_weight = 0;
+		}
+#endif
 		me_sad_enough_01 = (ME_SAD_ENOUGH_1_DATA << 12) |
 					/* me_sad_enough_1 */
 				   (ME_SAD_ENOUGH_0_DATA << 0) |
@@ -1763,12 +1881,38 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 		   (1 << 5)  | /* ignore_cac_coeff_2 (<1) */
 		   (3 << 0));  /* ignore_cac_coeff_1 (<2) */
 
-	WRITE_HREG(HCODEC_IGNORE_CONFIG_2,
-		   (1 << 31) | /* ignore_t_lac_coeff_en */
-		   (1 << 26) | /* ignore_t_lac_coeff_else (<1) */
-		   (1 << 21) | /* ignore_t_lac_coeff_2 (<1) */
-		   (5 << 16) | /* ignore_t_lac_coeff_1 (<5) */
-		   (0 << 0));
+#ifndef USE_OLD_DUMP_MC
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
+		WRITE_HREG(HCODEC_IGNORE_CONFIG_2,
+			(1 << 31) | /* ignore_t_lac_coeff_en */
+			(1 << 26) | /* ignore_t_lac_coeff_else (<1) */
+			(2 << 21) | /* ignore_t_lac_coeff_2 (<2) */
+			(6 << 16) | /* ignore_t_lac_coeff_1 (<6) */
+			(1<<15) | /* ignore_cdc_coeff_en */
+			(0<<14) | /* ignore_t_lac_coeff_else_le_3 */
+			(1<<13) | /* ignore_t_lac_coeff_else_le_4 */
+			(1<<12) | /* ignore_cdc_only_when_empty_cac_inter */
+			(1<<11) | /* ignore_cdc_only_when_one_empty_inter */
+			/* ignore_cdc_range_max_inter 0-0, 1-1, 2-2, 3-3 */
+			(2<<9) |
+			/* ignore_cdc_abs_max_inter 0-1, 1-2, 2-3, 3-4 */
+			(0<<7) |
+			/* ignore_cdc_only_when_empty_cac_intra */
+			(1<<5) |
+			/* ignore_cdc_only_when_one_empty_intra */
+			(1<<4) |
+			/* ignore_cdc_range_max_intra 0-0, 1-1, 2-2, 3-3 */
+			(1<<2) |
+			/* ignore_cdc_abs_max_intra 0-1, 1-2, 2-3, 3-4 */
+			(0<<0));
+	else
+#endif
+		WRITE_HREG(HCODEC_IGNORE_CONFIG_2,
+			(1 << 31) | /* ignore_t_lac_coeff_en */
+			(1 << 26) | /* ignore_t_lac_coeff_else (<1) */
+			(1 << 21) | /* ignore_t_lac_coeff_2 (<1) */
+			(5 << 16) | /* ignore_t_lac_coeff_1 (<5) */
+			(0 << 0));
 
 	WRITE_HREG(HCODEC_QDCT_MB_CONTROL,
 		   (1 << 9) | /* mb_info_soft_reset */
@@ -1875,6 +2019,56 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 		WRITE_HREG(HCODEC_ME_MV_WEIGHT_23, me_mv_weight_23);
 		WRITE_HREG(HCODEC_ME_SAD_RANGE_INC, me_sad_range_inc);
 
+#ifndef USE_OLD_DUMP_MC
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+			int i;
+			/* V3 Force skip */
+			WRITE_HREG(HCODEC_V3_SKIP_CONTROL,
+				(1 << 31) | /* v3_skip_enable */
+				(1 << 30) | /* v3_step_1_weight_enable */
+				(1 << 28) | /* v3_mv_sad_weight_enable */
+				(1 << 27) | /* v3_ipred_type_enable */
+				(V3_FORCE_SKIP_SAD_1 << 12) |
+				(V3_FORCE_SKIP_SAD_0 << 0));
+			WRITE_HREG(HCODEC_V3_SKIP_WEIGHT,
+				(V3_SKIP_WEIGHT_1 << 16) |
+				(V3_SKIP_WEIGHT_0 << 0));
+			WRITE_HREG(HCODEC_V3_L1_SKIP_MAX_SAD,
+				(V3_LEVEL_1_F_SKIP_MAX_SAD << 16) |
+				(V3_LEVEL_1_SKIP_MAX_SAD << 0));
+			WRITE_HREG(HCODEC_V3_L2_SKIP_WEIGHT,
+				(V3_FORCE_SKIP_SAD_2 << 16) |
+				(V3_SKIP_WEIGHT_2 << 0));
+			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
+				(V3_IE_F_ZERO_SAD_I16 << 16) |
+				(V3_IE_F_ZERO_SAD_I4 << 0));
+			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_1,
+				(0 << 25) | /* v3_no_ver_when_top_zero_en */
+				(1 << 24) | /* v3_no_hor_when_left_zero_en */
+				(3 << 16) |  /* type_hor break */
+				(V3_ME_F_ZERO_SAD << 0));
+
+			/* MV SAD Table */
+			for (i = 0; i < 64; i++)
+				WRITE_HREG(HCODEC_V3_MV_SAD_TABLE,
+					v3_mv_sad[i]);
+
+			/* IE PRED SAD Table*/
+			WRITE_HREG(HCODEC_V3_IPRED_TYPE_WEIGHT_0,
+				(C_ipred_weight_H << 24) |
+				(C_ipred_weight_V << 16) |
+				(I4_ipred_weight_else << 8) |
+				(I4_ipred_weight_most << 0));
+			WRITE_HREG(HCODEC_V3_IPRED_TYPE_WEIGHT_1,
+				(I16_ipred_weight_DC << 24) |
+				(I16_ipred_weight_H << 16) |
+				(I16_ipred_weight_V << 8) |
+				(C_ipred_weight_DC << 0));
+			WRITE_HREG(HCODEC_V3_LEFT_SMALL_MAX_SAD,
+				(v3_left_small_max_me_sad << 16) |
+				(v3_left_small_max_ie_sad << 0));
+		}
+#endif
 		WRITE_HREG(HCODEC_IE_DATA_FEED_BUFF_INFO, 0);
 	} else {
 		WRITE_HREG(HCODEC_QDCT_MB_CONTROL,
@@ -2020,6 +2214,7 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 		}
 	}
 
+	enc_pr(LOG_ALL, "avc encode ucode name is %s\n", p);
 	ret = get_decoder_firmware_data(VFORMAT_H264_ENC, p,
 		(u8 *)mc_addr, MC_SIZE);
 	if (ret < 0) {
@@ -3114,7 +3309,10 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		put_user(wq->mem.buf_size, (u32 *)arg);
 		break;
 	case AMVENC_AVC_IOC_GET_DEVINFO:
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_GXTVBB,
+				strlen(AMVENC_DEVINFO_GXTVBB));
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
 			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_GXBB,
 				strlen(AMVENC_DEVINFO_GXBB));
 		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_MG9TV) {
