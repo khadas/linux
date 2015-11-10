@@ -157,7 +157,7 @@ static inline void __iomem *check_tv_out_hiu_reg(unsigned int _reg)
 	void __iomem *p;
 	int reg_bus;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		reg_bus = TV_OUT_MAP_HIUBUS;
 	else
 		reg_bus = TV_OUT_MAP_CBUS;

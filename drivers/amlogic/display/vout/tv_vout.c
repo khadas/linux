@@ -689,8 +689,10 @@ static int tv_set_current_vmode(enum vmode_e mode)
 	vout_change_mode_preprocess(mode);
 
 #ifdef CONFIG_AML_VPU
+#if 0 /* mask it for it's not supported for now */
 	switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
 	request_vpu_clk_vmod(info->vinfo->video_clk, info->vinfo->mode);
+#endif
 #endif
 	tv_out_reg_write(VPP_POSTBLEND_H_SIZE, info->vinfo->width);
 	tv_out_setmode(vmode_to_tvmode(mode));
@@ -725,10 +727,12 @@ static int tv_module_disable(enum vmode_e cur_vmod)
 		return 0;
 
 #ifdef CONFIG_AML_VPU
+#if 0 /* mask it for it's not supported for now */
 	if (info->vinfo) {
 		release_vpu_clk_vmod(info->vinfo->mode);
 		switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_DOWN);
 	}
+#endif
 #endif
 	/* video_dac_disable(); */
 	return 0;
