@@ -129,15 +129,13 @@ struct vpp_frame_par_s {
 #define TV_REVERSE
 #endif
 
-#if 0	/* (MESON_CPU_TYPE==MESON_CPU_TYPE_MESONG9TV) */
-#define SUPER_SCALER_OPEN
 enum select_scaler_path_e {
-	sup0_sp1_pp_scpath,
-	sup0_pp_sp1_scpath
+	sup0_pp_sp1_scpath,
+	sup0_pp_post_blender,
 };
 #define SUPER_CORE0_WIDTH_MAX  1024
 #define SUPER_CORE1_WIDTH_MAX  2048
-#endif
+
 
 #ifdef TV_3D_FUNCTION_OPEN
 

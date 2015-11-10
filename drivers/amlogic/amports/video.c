@@ -1396,10 +1396,11 @@ static void vpp_settings_h(struct vpp_frame_par_s *framePtr)
 	r1 = framePtr->VPP_hsc_linear_startp - framePtr->VPP_hsc_startp;
 	r2 = framePtr->VPP_hsc_linear_endp - framePtr->VPP_hsc_startp;
 	r3 = framePtr->VPP_hsc_endp - framePtr->VPP_hsc_startp;
-#ifdef SUPER_SCALER_OPEN
-	if (framePtr->supscl_path == sup0_pp_sp1_scpath)
+
+	if ((framePtr->supscl_path == sup0_pp_sp1_scpath) &&
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB))
 		r3 >>= framePtr->supsc1_hori_ratio;
-#endif
+
 #ifdef TV_3D_FUNCTION_OPEN
 	x_lines = zoom_end_x_lines / (framePtr->hscale_skip_count + 1);
 	if (process_3d_type & MODE_3D_OUT_TB) {
@@ -1557,10 +1558,11 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 	VSYNC_WR_MPEG_REG(VPP_VSC_REGION34_STARTP + cur_dev->vpp_off,
 			  ((r & VPP_REGION_MASK) << VPP_REGION3_BIT) |
 			  ((r & VPP_REGION_MASK) << VPP_REGION4_BIT));
-#ifdef SUPER_SCALER_OPEN
-	if (framePtr->supscl_path == sup0_pp_sp1_scpath)
+
+	if ((framePtr->supscl_path == sup0_pp_sp1_scpath) &&
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB))
 		r >>= framePtr->supsc1_vert_ratio;
-#endif
+
 	VSYNC_WR_MPEG_REG(VPP_VSC_REGION4_ENDP + cur_dev->vpp_off, r);
 
 	VSYNC_WR_MPEG_REG(VPP_VSC_START_PHASE_STEP + cur_dev->vpp_off,
@@ -6932,40 +6934,6 @@ static int __init video_early_init(void)
 	return 0;
 }
 
-#ifdef SUPER_SCALER_OPEN
-static void super_scaler_init(void)
-{
-	/*load super scaler default cub setting */
-	WRITE_VCBUS_REG(0x3102, 0xf84848f8);
-	WRITE_VCBUS_REG(0x3103, 0xf84848f8);
-	WRITE_VCBUS_REG(0x3104, 0xf84848f8);
-	WRITE_VCBUS_REG(0x3105, 0xf84848f8);
-	WRITE_VCBUS_REG(0x3106, 0x02330344);
-	WRITE_VCBUS_REG(0x310a, 0x0080a0eb);
-	WRITE_VCBUS_REG(0x310c, 0x0080a0eb);
-	WRITE_VCBUS_REG(0x310d, 0x7a7a3a50);
-
-	WRITE_VCBUS_REG(0x3112, 0x00017f00);
-	WRITE_VCBUS_REG(0x3113, 0x00017f00);
-	WRITE_VCBUS_REG(0x3114, 0x00017f00);
-	WRITE_VCBUS_REG(0x3115, 0x00017f00);
-	WRITE_VCBUS_REG(0x311a, 0xf84848f8);
-	WRITE_VCBUS_REG(0x311b, 0xf84848f8);
-	WRITE_VCBUS_REG(0x311c, 0xf84848f8);
-	WRITE_VCBUS_REG(0x311d, 0xf84848f8);
-
-	WRITE_VCBUS_REG(0x311e, 0x02330344);
-	WRITE_VCBUS_REG(0x3122, 0x0080a0eb);
-	WRITE_VCBUS_REG(0x3124, 0x0080a0eb);
-	WRITE_VCBUS_REG(0x3125, 0x7a7a3a50);
-
-	WRITE_VCBUS_REG(0x312b, 0x00017f00);
-	WRITE_VCBUS_REG(0x312c, 0x00017f00);
-	WRITE_VCBUS_REG(0x312d, 0x00017f00);
-	WRITE_VCBUS_REG(0x312e, 0x00017f00);
-}
-#endif
-
 static int __init video_init(void)
 {
 	int r = 0;
@@ -6999,10 +6967,6 @@ static int __init video_init(void)
 		(1 << 0));	/* DDR clk / 2 */
 	}
 #endif
-#ifdef SUPER_SCALER_OPEN
-	super_scaler_init();
-#endif
-
 
 	DisableVideoLayer();
 	DisableVideoLayer2();

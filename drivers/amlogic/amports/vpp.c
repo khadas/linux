@@ -175,6 +175,9 @@ static const u32 *filter_table[] = {
 	vpp_filter_coefs_2point_binilear
 #endif
 };
+static unsigned int sharpness1_sr2_ctrl_32d7 = 0x00181008;
+MODULE_PARM_DESC(sharpness1_sr2_ctrl_32d7, "sharpness1_sr2_ctrl_32d7");
+module_param(sharpness1_sr2_ctrl_32d7, uint, 0664);
 
 static u32 vpp_wide_mode;
 static u32 vpp_zoom_ratio = 100;
@@ -201,13 +204,11 @@ static unsigned int super_debug;
 module_param(super_debug, uint, 0664);
 MODULE_PARM_DESC(super_debug, "super_debug");
 
-#ifdef SUPER_SCALER_OPEN
-
 static unsigned int super_scaler = 1;
 module_param(super_scaler, uint, 0664);
 MODULE_PARM_DESC(super_scaler, "super_scaler");
 
-static unsigned int scaler_path_sel = 1;
+static unsigned int scaler_path_sel;
 module_param(scaler_path_sel, uint, 0664);
 MODULE_PARM_DESC(scaler_path_sel, "scaler_path_sel");
 
@@ -218,7 +219,7 @@ MODULE_PARM_DESC(bypass_spscl0, "bypass_spscl0");
 static unsigned int bypass_spscl1;
 module_param(bypass_spscl1, uint, 0664);
 MODULE_PARM_DESC(bypass_spscl1, "bypass_spscl1");
-#endif
+
 #if 0	/* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 static unsigned int bypass_ratio = 150;
 #else
@@ -467,31 +468,37 @@ vpp_set_filters2(u32 width_in,
 	u32 orig_aspect = 0;
 	u32 screen_aspect = 0;
 
-#ifdef SUPER_SCALER_OPEN
-	if ((likely(w_in > (video_source_crop_left + video_source_crop_right)))
-		&& (super_scaler == 0)) {
-		w_in -= video_source_crop_left + video_source_crop_right;
-		h_crop_enable = true;
-	}
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+		if ((likely(w_in >
+			(video_source_crop_left + video_source_crop_right)))
+			&& (super_scaler == 0)) {
+			w_in -= video_source_crop_left;
+			w_in -= video_source_crop_right;
+			h_crop_enable = true;
+		}
 
-	if ((likely(h_in > (video_source_crop_top + video_source_crop_bottom)))
-		&& (super_scaler == 0)) {
-		h_in -= video_source_crop_top + video_source_crop_bottom;
-		v_crop_enable = true;
-	}
-#else
-	if (likely(w_in >
-		(video_source_crop_left + video_source_crop_right))) {
-		w_in -= video_source_crop_left + video_source_crop_right;
-		h_crop_enable = true;
-	}
+		if ((likely(h_in >
+			(video_source_crop_top + video_source_crop_bottom)))
+			&& (super_scaler == 0)) {
+			h_in -= video_source_crop_top;
+			h_in -= video_source_crop_bottom;
+			v_crop_enable = true;
+		}
+	} else {
+		if (likely(w_in >
+			(video_source_crop_left + video_source_crop_right))) {
+			w_in -= video_source_crop_left;
+			w_in -= video_source_crop_right;
+			h_crop_enable = true;
+		}
 
-	if (likely(h_in >
-		(video_source_crop_top + video_source_crop_bottom))) {
-		h_in -= video_source_crop_top + video_source_crop_bottom;
-		v_crop_enable = true;
+		if (likely(h_in >
+			(video_source_crop_top + video_source_crop_bottom))) {
+			h_in -= video_source_crop_top;
+			h_in -= video_source_crop_bottom;
+			v_crop_enable = true;
+		}
 	}
-#endif
 #ifdef CONFIG_AM_DEINTERLACE
 	int deinterlace_mode = get_deinterlace_mode();
 #endif
@@ -573,8 +580,8 @@ RESTART:
 			video_height = osd_layer_height;
 		}
 	} else {
-#ifdef SUPER_SCALER_OPEN
-		if (next_frame_par->supscl_path) {
+		if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
+			next_frame_par->supscl_path == sup0_pp_sp1_scpath) {
 			video_top = (video_layer_top >> next_frame_par->
 				 supsc1_vert_ratio);
 			video_height = (video_layer_height >> next_frame_par->
@@ -583,9 +590,7 @@ RESTART:
 				 supsc1_hori_ratio);
 			video_width = (video_layer_width >> next_frame_par->
 				 supsc1_hori_ratio);
-		} else
-#endif
-		{
+		} else {
 			video_top = video_layer_top;
 			video_left = video_layer_left;
 			video_width = video_layer_width;
@@ -1077,9 +1082,12 @@ RESTART:
 	}
 #endif
 }
-
-#ifdef SUPER_SCALER_OPEN
-
+/*
+VPP_SRSHARP0_CTRL:0x1d91
+[0]srsharp0 enable for sharpness module reg r/w
+[1]if sharpness is enable or vscaler is enable,must set to 1,
+sharpness1;reg can only to be w
+*/
 static int vpp_set_super_sclaer_regs(int scaler_path_sel,
 		int reg_srscl0_enable,
 		int reg_srscl0_hsize,
@@ -1095,25 +1103,69 @@ static int vpp_set_super_sclaer_regs(int scaler_path_sel,
 
 	int tmp_data = 0;
 
-	tmp_data = (0xf << 4) |	/* enable y/c bic */
-		((reg_srscl0_vert_ratio & 0x1) << 2) |
-		((reg_srscl0_hori_ratio & 0x1) << 1) |
-		(reg_srscl0_enable & 0x1);
-	VSYNC_WR_MPEG_REG(SRSCL0_CTRL_MODE, tmp_data);
+	tmp_data = READ_VCBUS_REG(VPP_SRSHARP0_CTRL);
+	tmp_data |= (reg_srscl0_vert_ratio << 1);
+	tmp_data |= 1;
+	VSYNC_WR_MPEG_REG(VPP_SRSHARP0_CTRL, tmp_data);
 
-	tmp_data = (0xf << 4) |	/* enable y/c bic */
-		((reg_srscl1_vert_ratio & 0x1) << 2) |
-		((reg_srscl1_hori_ratio & 0x1) << 1) |
-		(reg_srscl1_enable & 0x1);
-	VSYNC_WR_MPEG_REG(SRSCL1_CTRL_MODE, tmp_data);
+	tmp_data = READ_VCBUS_REG(VPP_SRSHARP1_CTRL);
+	tmp_data |= (reg_srscl1_vert_ratio << 1);
+	tmp_data |= 1;
+	VSYNC_WR_MPEG_REG(VPP_SRSHARP1_CTRL, tmp_data);
+
+	tmp_data = READ_VCBUS_REG(SRSHARP0_SHARP_SR2_CTRL);
+	if (reg_srscl0_vert_ratio == 1)
+		tmp_data |= (1 << 5);
+	else
+		tmp_data &= (~(1 << 5));
+	if (reg_srscl0_hori_ratio == 1)
+		tmp_data |= (1 << 4);
+	else
+		tmp_data &= (~(1 << 4));
+	if (reg_srscl0_enable == 1)
+		tmp_data |= (1 << 2);
+	else
+		tmp_data &= (~(1 << 2));
+	VSYNC_WR_MPEG_REG(SRSHARP0_SHARP_SR2_CTRL, tmp_data);
+
+	/*READ_VCBUS_REG(SRSHARP1_SHARP_SR2_CTRL);*/
+	tmp_data = sharpness1_sr2_ctrl_32d7;
+	if (reg_srscl1_vert_ratio == 1)
+		tmp_data |= (1 << 5);
+	else
+		tmp_data &= (~(1 << 5));
+	if (reg_srscl1_hori_ratio == 1)
+		tmp_data |= (1 << 4);
+	else
+		tmp_data &= (~(1 << 4));
+	if (reg_srscl1_enable == 1)
+		tmp_data |= (1 << 2);
+	else
+		tmp_data &= (~(1 << 2));
+	VSYNC_WR_MPEG_REG(SRSHARP1_SHARP_SR2_CTRL, tmp_data);
+	sharpness1_sr2_ctrl_32d7 = tmp_data;
 
 	tmp_data = ((reg_srscl0_hsize & 0x1fff) << 16) |
 			   (reg_srscl0_vsize & 0x1fff);
-	VSYNC_WR_MPEG_REG(SRSCL0_HV_SIZEIN, tmp_data);
+	VSYNC_WR_MPEG_REG(SRSHARP0_SHARP_HVSIZE, tmp_data);
+
+	tmp_data = ((reg_srscl0_hsize & 0x1fff) << 16) |
+			   (reg_srscl0_vsize & 0x1fff);
+	VSYNC_WR_MPEG_REG(VPP_IN_H_V_SIZE, tmp_data);
 
 	tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
 			   (reg_srscl1_vsize & 0x1fff);
-	VSYNC_WR_MPEG_REG(SRSCL1_HV_SIZEIN, tmp_data);
+	VSYNC_WR_MPEG_REG(SRSHARP1_SHARP_HVSIZE, tmp_data);
+
+	if (scaler_path_sel == sup0_pp_sp1_scpath) {
+		tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
+				   (reg_srscl1_vsize & 0x1fff);
+		VSYNC_WR_MPEG_REG(VPP_VE_H_V_SIZE, tmp_data);
+	} else if (scaler_path_sel == sup0_pp_post_blender) {
+		tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
+				   (reg_srscl1_vsize & 0x1fff);
+		VSYNC_WR_MPEG_REG(VPP_PSR_H_V_SIZE, tmp_data);
+	}
 
 	VSYNC_WR_MPEG_REG_BITS(VPP_VE_ENABLE_CTRL, scaler_path_sel, 5, 1);
 
@@ -1129,7 +1181,7 @@ static void vpp_set_scaler(u32 src_width,
 {
 
 	unsigned int spsc0_h_in, spsc0_w_in, spsc1_h_in, spsc1_w_in;
-	unsigned int spsc0_h_out, spsc0_w_out, spsc1_h_out, spsc1_w_out;
+	unsigned int spsc1_h_out, spsc1_w_out;
 	unsigned int ppsc_h_in, ppsc_w_in;
 	unsigned int ppsc_h_out, ppsc_w_out;
 	unsigned int hor_sc_multiple_num, ver_sc_multiple_num;
@@ -1139,7 +1191,7 @@ static void vpp_set_scaler(u32 src_width,
 	if ((likely(src_width >
 		(video_source_crop_left + video_source_crop_right)))
 		&& (super_scaler == 1)) {
-		src_widh -= video_source_crop_left + video_source_crop_right;
+		src_width -= video_source_crop_left + video_source_crop_right;
 		h_crop_enable = true;
 	}
 
@@ -1158,8 +1210,10 @@ static void vpp_set_scaler(u32 src_width,
 		next_frame_par->supsc0_enable = 1;
 		next_frame_par->supsc1_enable = 1;
 	} else if ((hor_sc_multiple_num >= 2) || (ver_sc_multiple_num >= 2)) {
-		if (src_width > SUPER_CORE0_WIDTH_MAX
-			&& src_width <= SUPER_CORE1_WIDTH_MAX) {
+		if (((src_width > SUPER_CORE0_WIDTH_MAX)
+			&& (src_width <= SUPER_CORE1_WIDTH_MAX)
+			&& (bypass_spscl1 == 0))
+			|| (bypass_spscl0 == 1)) {
 			next_frame_par->supsc0_enable = 0;
 			next_frame_par->supsc1_enable = 1;
 		} else {
@@ -1214,44 +1268,22 @@ static void vpp_set_scaler(u32 src_width,
 		 next_frame_par->supsc1_hori_ratio,
 		 next_frame_par->supsc0_vert_ratio,
 		 next_frame_par->supsc1_vert_ratio);
-	/* select the scaler path:[super 1   =>>
-	ppscaler  =>>  super 2 ]  or
-	[super 1   =>>   super 2  =>>  ppsaler] */
-	if (next_frame_par->supscl_path == sup0_sp1_pp_scpath) {
-		ppsc_h_out = height_out;
-		ppsc_w_out = width_out;
-		spsc1_h_in = spsc0_h_out =
-			(spsc0_h_in << next_frame_par->supsc0_vert_ratio);
-		spsc1_w_in = spsc0_w_out =
-			(spsc0_w_in << next_frame_par->supsc0_hori_ratio);
-		ppsc_h_in = spsc1_h_out =
-			(spsc1_h_in << next_frame_par->supsc1_vert_ratio);
-		ppsc_w_in = spsc1_w_out =
-			(spsc1_w_in << next_frame_par->supsc1_hori_ratio);
+	/* select the scaler path:[core0 =>>
+	ppscaler =>> core1]  or
+	[core0  =>> ppscaler =>> postblender =>> core1]*/
+	ppsc_h_in = (spsc0_h_in <<
+		next_frame_par->supsc0_vert_ratio);
+	ppsc_w_in = (spsc0_w_in <<
+		next_frame_par->supsc0_hori_ratio);
+	spsc1_h_out = height_out;
+	spsc1_w_out = width_out;
+	ppsc_h_out =
+		(spsc1_h_out >> next_frame_par->supsc1_vert_ratio);
+	ppsc_w_out =
+		(spsc1_w_out >> next_frame_par->supsc1_hori_ratio);
+	spsc1_h_in = ppsc_h_out;
+	spsc1_w_in = ppsc_w_out;
 
-	} else if (next_frame_par->supscl_path == sup0_pp_sp1_scpath) {
-		ppsc_h_in = (spsc0_h_in << next_frame_par->supsc0_vert_ratio);
-		ppsc_w_in = (spsc0_w_in << next_frame_par->supsc0_hori_ratio);
-		spsc1_h_out = height_out;
-		spsc1_w_out = width_out;
-		ppsc_h_out =
-			(spsc1_h_out >> next_frame_par->supsc1_vert_ratio);
-		ppsc_w_out =
-			(spsc1_w_out >> next_frame_par->supsc1_hori_ratio);
-		spsc1_h_in = ppsc_h_out;
-		spsc1_w_in = ppsc_w_out;
-
-	} else {
-		next_frame_par->supsc0_enable = 0;
-		next_frame_par->supsc1_enable = 0;
-		ppsc_h_in = src_height;
-		ppsc_w_in = src_width;
-		ppsc_h_out = height_out;
-		ppsc_w_out = width_out;
-		spsc1_h_in = 0;
-		spsc1_w_in = 0;
-		/* spsc1_h_in  spsc1_w_in are just iinitialized */
-	}
 	vpp_set_filters2(ppsc_w_in, ppsc_h_in, ppsc_w_out, ppsc_h_out, vinfo,
 					 vpp_flags, next_frame_par, vf);
 	if (next_frame_par->supscl_path == sup0_pp_sp1_scpath) {
@@ -1275,16 +1307,18 @@ static void vpp_set_scaler(u32 src_width,
 		spsc1_h_in,
 		next_frame_par->supsc1_hori_ratio,
 		next_frame_par->supsc1_vert_ratio);
-	if (super_debug)
+	if (super_debug) {
 		pr_info
 		("ppsc_w_in=%u, ppsc_h_in=%u, ppsc_w_out=%u, ppsc_h_out=%u.\n",
 		 ppsc_w_in, ppsc_h_in, ppsc_w_out, ppsc_h_out);
-
+		pr_info("spsc0_w_in=%u, spsc0_h_in=%u, spsc1_w_in=%u, spsc1_h_in=%u.\n",
+		 spsc0_w_in, spsc0_h_in, spsc1_w_in, spsc1_h_in);
+	}
 	/* vpp_set_ppsclaer(src_width,src_height,ppsc_w_in,
 	* ppsc_h_in,vinfo,vpp_flags,next_frame_par); */
 	/* cause the next_frame_par amlost were set at ppsclaer,
 	and new supper scaler maybe need to change the param . */
-	if ((next_frame_par->supscl_path == sup0_sp1_pp_scpath)
+	if ((next_frame_par->supscl_path == sup0_pp_post_blender)
 		&& (next_frame_par->supsc1_enable)) {
 		next_frame_par->VPP_hd_start_lines_ >>=
 			next_frame_par->supsc1_hori_ratio;
@@ -1310,8 +1344,8 @@ static void vpp_set_scaler(u32 src_width,
 	}
 	if (next_frame_par->supscl_path == sup0_pp_sp1_scpath) {
 		/* zoom in the under parm because super scaler1 is open */
-		next_frame_par->VPP_hsc_startp <<= next_frame_par->
-			supsc1_hori_ratio;
+		next_frame_par->VPP_hsc_startp <<=
+			next_frame_par->supsc1_hori_ratio;
 		next_frame_par->VPP_hsc_endp = (next_frame_par->VPP_hsc_endp <<
 			next_frame_par->supsc1_hori_ratio) +
 			next_frame_par->supsc1_hori_ratio;
@@ -1325,8 +1359,9 @@ static void vpp_set_scaler(u32 src_width,
 		next_frame_par->VPP_vsc_startp <<=
 			next_frame_par->supsc1_vert_ratio;
 		next_frame_par->VPP_vsc_endp =
-			(next_frame_par->VPP_vsc_endp << next_frame_par->
-			supsc1_vert_ratio) + next_frame_par->supsc1_vert_ratio;
+			(next_frame_par->VPP_vsc_endp <<
+			next_frame_par->supsc1_vert_ratio) +
+			next_frame_par->supsc1_vert_ratio;
 	}
 
 	if (h_crop_enable) {
@@ -1341,7 +1376,6 @@ static void vpp_set_scaler(u32 src_width,
 
 }
 
-#endif
 #ifdef TV_3D_FUNCTION_OPEN
 
 static void
@@ -1570,7 +1604,7 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 	next_frame_par->VPP_post_blend_vd_h_end_ = vinfo->width - 1;
 	next_frame_par->VPP_post_blend_h_size_ = vinfo->width;
 
-#ifdef SUPER_SCALER_OPEN
+if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 	if (super_scaler
 		&& (vpp_wide_mode != VIDEO_WIDEOPTION_NORMAL_NOSCALEUP)) {
 		next_frame_par->supscl_path = scaler_path_sel;
@@ -1602,10 +1636,10 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 		 next_frame_par->VPP_hsc_linear_endp,
 		 next_frame_par->VPP_vsc_startp,
 		 next_frame_par->VPP_vsc_endp);
-#else
+} else {
 	vpp_set_filters2(src_width, src_height, vinfo->width, vinfo->height,
 			vinfo, vpp_flags, next_frame_par, vf);
-#endif
+}
 }
 
 void prot_get_parameter(u32 wide_mode,
