@@ -103,4 +103,13 @@ extern int sysctl_numa_balancing(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *ppos);
 
+#ifdef CONFIG_CHECK_ISR_TIME
+extern int irq_times_stat;
+extern int irq_times_thresh;
+int proc_irq_times_stat_handler(struct ctl_table *table, int write,
+	void __user *buffer, size_t *lenp, loff_t *ppos);
+int proc_irq_times_thresh_handler(struct ctl_table *table, int write,
+	void __user *buffer, size_t *lenp, loff_t *ppos);
+#endif
+
 #endif /* _SCHED_SYSCTL_H */

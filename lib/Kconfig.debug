@@ -1624,6 +1624,14 @@ config TEST_USER_COPY
 
 	  If unsure, say N.
 
+config CHECK_ISR_TIME
+	tristate "Check max time of each isr"
+	default n
+	help
+		Check max time of isrs & print irqs of which duration above threshold.
+		/proc/sys/vm/irq_times_stat:    Check enable/disable
+		/proc/sys/vm/irq_times_thresh:	threshold
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"

@@ -17,6 +17,49 @@
 
 #include "internals.h"
 
+#ifdef CONFIG_CHECK_ISR_TIME
+#include <linux/sched.h>
+#define NR_IRQS_STAT	256
+int irq_times_stat = 1;
+int  irq_times_thresh	= 1000;
+static unsigned long irq_times[NR_IRQS_STAT][1];
+int proc_irq_times_stat_handler(struct ctl_table *table, int write,
+	void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret, i = 0;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret && write)
+		irq_times_stat = 0;
+
+	if (!irq_times_stat && write) {
+		pr_info("---------irq times clear----------\n");
+		for (i = 0; i < NR_IRQS_STAT; i++)
+			irq_times[i][0] = 0;
+	}
+
+	if (irq_times_stat == 1 && !write) {
+		pr_info("---------irq times start----------\n");
+		for (i = 0; i < NR_IRQS_STAT; i++) {
+			if (irq_times[i][0])
+				pr_info("irq:%u, times:%lu us\n", i,
+				irq_times[i][0]);
+		}
+		pr_info("---------irq times end----------\n");
+	}
+
+	return 0;
+}
+
+int proc_irq_times_thresh_handler(struct ctl_table *table, int write,
+	void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+
+	return 0;
+}
+#endif
+
 /*
  * lockdep: we want to handle all irq_desc locks as a single lock-class:
  */
@@ -309,10 +352,27 @@ static int irq_expand_nr_irqs(unsigned int nr)
 int generic_handle_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	__maybe_unused unsigned long time = 0, time1 = 0;
 
 	if (!desc)
 		return -EINVAL;
+
+#ifdef CONFIG_CHECK_ISR_TIME
+	time = sched_clock()/1000;
+#endif
+
 	generic_handle_irq_desc(irq, desc);
+
+#ifdef CONFIG_CHECK_ISR_TIME
+	time1 = (sched_clock()/1000);
+	if (irq < NR_IRQS_STAT) {
+		if ((time1 - time) > irq_times[irq][0])
+			irq_times[irq][0] = time1 - time;
+	}
+	if (((time1 - time) >= irq_times_thresh) && irq_times_stat)
+		pr_info("irq_too_long, irq:%d cur:%lu  max: %lu ms\n",
+			irq, (time1 - time),  irq_times[irq][0]);
+#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);
