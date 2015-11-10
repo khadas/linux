@@ -297,7 +297,7 @@
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		//memory-region = <&amvenc_avc_reserved>;
-		memory-region = <&avc_cma_reserved>;
+		//memory-region = <&avc_cma_reserved>;
 		dev_name = "amvenc_avc";
 		status = "okay";
 		interrupts = <0 45 1>;
