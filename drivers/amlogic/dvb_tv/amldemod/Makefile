@@ -24,4 +24,6 @@ aml_fe-objs	+= aml_demod.o
 
 ccflags-y += -I.
 ccflags-y += -Idrivers/media/dvb-core
+ccflags-y += -Idrivers/amlogic/dvb_tv/amldemod/include
+ccflags-y += -Idrivers/amlogic/dvb_tv/
 

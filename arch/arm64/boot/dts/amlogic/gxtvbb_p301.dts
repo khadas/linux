@@ -348,9 +348,9 @@
 		fe0_dev = <0>;
 		dtv_demod0_mem = <0>;
 		memory-region = <&demod_reserved>;
-		tuner0 = "mxl661_tuner";
+		tuner0 = "r840_tuner";
 		tuner0_i2c_adap_id = <1>;
-		tuner0_i2c_addr = <0x60>;
+		tuner0_i2c_addr = <0x74>;
 		//tuner0_reset_value = <0>;
 		//tuner0_reset_gpio =  "GPIOY_10" ;  /*GPIOX_8   76*/
 		fe0_tuner = <0>;

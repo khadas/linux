@@ -257,98 +257,32 @@ config AMLOGIC_TS2_INVERT_S2P1_FEC_CLK
 endif
 
 
-if ARCH_MESON6TV || ARCH_MESON6TVD
-config ATMB_DEMOD
-	tristate "ATMB demod driver"
-	default n
-	depends on AM_DVB
-	help
-		Select to enable ATMB demod driver.
-		Y: enable
-		N: disable
-		M: build as module
-endif
 
-config AM_SI2157
-	tristate "SI2157 tuner"
-	default n
-	depends on AM_DVB
-	help
-		select the 2157 tuner.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_SI2177
-	tristate "SI2177 tuner"
-	default n
-	depends on AM_DVB
-	help
-		select the 2177 tuner.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_AVL6211
-	tristate "AVL6211 DVB-S2 demod driver"
-	default n
-	depends on AM_DVB
-	help
-		select the AVL6211 DVB-S2 demod.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_SI2168
-	tristate "SI2168 demod driver"
-	default n
-	depends on AM_DVB
-	help
-		Select to enable SI2168 demod driver.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_MXL101
-	tristate "MXL101 demod driver"
-	default n
-	depends on AM_DVB
-	help
-		Select to enable MXL101 demod driver.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_AVL68xx
-	tristate "AVL68xx T2 demod driver"
-	default y
-	depends on AM_DVB
-	help
-		Select to enable AVL68xx demod driver.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_MXL241_FE
-	tristate "MXL241 DVB-C demod driver"
-	default y
-	depends on AM_DVB
-	help
-		Select to enable MXL241 demod driver.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_MXL683_FE
-	tristate "MXL683 ISDB-T demod driver"
-	default y
-	depends on AM_DVB
-	help
-		Select to enable MXL683 demod driver.
-		Y: enable
-		N: disable
-		M: build as module
-config AM_R840
-	tristate "the R840 tuner driver"
-	default n
-	depends on AM_DVB
-	help
-		Select to enable R840 tuner driver.
-		Y: enable
-		N: disable
-		M: build as module
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 endmenu
 

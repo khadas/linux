@@ -12,22 +12,24 @@
 #include "acf_filter_coefficient.h"
 #define M6D
 
-#define pr_dbg(args...)\
-	do {\
-		if (debug_demod)\
-			printk(args);\
+/* static void __iomem * demod_meson_reg_map[4]; */
+
+#define pr_dbg(fmt, args ...) \
+	do { \
+		if (debug_demod) \
+			printk("FE: " fmt, ## args); \
 	} while (0)
-#define pr_error(fmt, args...) pr_dbg("FE: " fmt, ## args)
+#define pr_error(fmt, args ...) printk("FE: " fmt, ## args)
 
 MODULE_PARM_DESC(debug_demod, "\n\t\t Enable frontend debug information");
 static int debug_demod = 1;
 module_param(debug_demod, int, 0644);
 
-/*8vsb*/
-static atsc_cfg_t list_8vsb[22] = {
+/* 8vsb */
+static struct atsc_cfg list_8vsb[22] = {
 	{0x0733, 0x00, 0},
 	{0x0734, 0xff, 0},
-	{0x0716, 0x02, 0},	/*F06[7] invert spectrum  0x02 0x06 */
+	{0x0716, 0x02, 0},	/* F06[7] invert spectrum  0x02 0x06 */
 	{0x05e7, 0x00, 0},
 	{0x05e8, 0x00, 0},
 	{0x0f06, 0x80, 0},
@@ -49,8 +51,8 @@ static atsc_cfg_t list_8vsb[22] = {
 	{0x0000, 0x00, 1}
 };
 
-/*64qam*/
-static atsc_cfg_t list_qam64[111] = {
+/* 64qam */
+static struct atsc_cfg list_qam64[111] = {
 	{0x0900, 0x01, 0},
 	{0x0f04, 0x08, 0},
 	{0x0f06, 0x80, 0},
@@ -58,9 +60,9 @@ static atsc_cfg_t list_qam64[111] = {
 	{0x0f00, 0xe0, 0},
 	{0x0f00, 0xec, 0},
 	{0x0001, 0x05, 0},
-	{0x0002, 0x61, 0},	/*/0x61 invert spectrum */
+	{0x0002, 0x61, 0},	/* /0x61 invert spectrum */
 	{0x0003, 0x3e, 0},
-	{0x0004, 0xed, 0},	/*0x9d */
+	{0x0004, 0xed, 0},	/* 0x9d */
 	{0x0005, 0x10, 0},
 	{0x0006, 0xc0, 0},
 	{0x0007, 0x5c, 0},
@@ -145,8 +147,8 @@ static atsc_cfg_t list_qam64[111] = {
 	{0x05e8, 0x00, 0},
 	{0x0f09, 0x18, 0},
 	{0x070c, 0x20, 0},
-	{0x070d, 0x41, 0},	/*0x49 */
-	{0x070e, 0x04, 0},	/*0x37 */
+	{0x070d, 0x41, 0},	/* 0x49 */
+	{0x070e, 0x04, 0},	/* 0x37 */
 	{0x070f, 0x00, 0},
 	{0x0710, 0x00, 0},
 	{0x0711, 0x00, 0},
@@ -164,15 +166,15 @@ static atsc_cfg_t list_qam64[111] = {
 	{0x0000, 0x00, 1}
 };
 
-/* 256qam*/
-static atsc_cfg_t list_qam256[113] = {
+/* 256qam */
+static struct atsc_cfg list_qam256[113] = {
 	{0x0900, 0x01, 0},
 	{0x0f04, 0x08, 0},
 	{0x0f06, 0x80, 0},
 	{0x0f00, 0xe0, 0},
 	{0x0f00, 0xec, 0},
 	{0x0001, 0x05, 0},
-	{0x0002, 0x01, 0},	/*0x09 */
+	{0x0002, 0x01, 0},	/* 0x09 */
 	{0x0003, 0x2c, 0},
 	{0x0004, 0x91, 0},
 	{0x0005, 0x10, 0},
@@ -187,7 +189,7 @@ static atsc_cfg_t list_qam256[113] = {
 	{0x000e, 0x10, 0},
 	{0x000f, 0x02, 0},
 	{0x0011, 0x80, 0},
-	{0x0012, 0xf5, 0},	/*a5 */
+	{0x0012, 0xf5, 0},	/* a5 */
 	{0x0013, 0x74, 0},
 	{0x0014, 0xb9, 0},
 	{0x0015, 0x1f, 0},
@@ -281,204 +283,17 @@ static atsc_cfg_t list_qam256[113] = {
 	{0x0000, 0x00, 1}
 };
 
-#ifndef G9_TV
-void demod_set_adc_core_clk(int clk_adc, int clk_dem, int dvb_mode)
-{				/*dvbt dvbc 28571, 66666 */
-	int unit, error;
-	demod_dig_clk_t dig_clk_cfg;
-	demod_adc_clk_t adc_clk_cfg;
-	int pll_m, pll_n, pll_od, div_dem, div_adc;
-	int freq_osc, freq_vco, freq_out, freq_dem, freq_adc;
-	int freq_dem_act, freq_adc_act, err_tmp, best_err;
-	unit = 10000;		/* 10000 as 1 MHz, 0.1 kHz resolution. */
-	freq_osc = 24 * unit;
-	adc_clk_cfg.d32 = 0;
-	dig_clk_cfg.d32 = 0;
-	div_dem = freq_dem_act = freq_adc = err_tmp = freq_dem = 0;
-	if (clk_adc > 0) {
-		adc_clk_cfg.b.reset = 0;
-		adc_clk_cfg.b.pll_pd = 0;	/* 1  shutdown */
-		if (clk_adc < 1000)
-			freq_adc = clk_adc * unit;
-		else
-			freq_adc = clk_adc * unit / 1000;
-	} else {
-		adc_clk_cfg.b.pll_pd = 1;
-	}
-
-	if (clk_dem > 0) {
-		dig_clk_cfg.b.demod_clk_en = 1;
-		dig_clk_cfg.b.demod_clk_sel = 3;	/*  1  1G */
-		/*dig_clk_cfg.b.demod_clk_sel = 1; */
-		/*
-		if (dvb_mode == M6_Atsc) {
-		}
-		*/
-		if (clk_dem < 1000)
-			freq_dem = clk_dem * unit;
-		else
-			freq_dem = clk_dem * unit / 1000;
-	} else {
-		dig_clk_cfg.b.demod_clk_en = 0;
-	}
-
-	error = 1;
-	best_err = 100 * unit;
-	for (pll_m = 1; pll_m < 512; pll_m++) {
-		for (pll_n = 1; pll_n <= 5; pll_n++) {
-			freq_vco = freq_osc * pll_m / pll_n;
-			if (freq_vco < 750 * unit || freq_vco > 1500 * unit)
-				continue;
-
-			for (pll_od = 0; pll_od < 3; pll_od++) {
-				freq_out = freq_vco / (1 << pll_od);
-				/*      pr_dbg("pll_od is %d\n",pll_od); */
-				if (freq_out > 800 * unit)
-					continue;
-
-#ifdef M6D
-				div_dem = freq_vco / freq_dem;
-#else
-				div_dem = freq_out / freq_dem;
-#endif
-				if (div_dem == 0 || div_dem > 127)
-					continue;
-
-				freq_dem_act = freq_out / div_dem;
-				err_tmp = freq_dem_act - freq_dem;
-
-				div_adc = freq_out / freq_adc / 2;
-				div_adc *= 2;
-				if (div_adc == 0 || div_adc > 31)
-					continue;
-
-				freq_adc_act = freq_out / div_adc;
-				if (freq_adc_act - freq_adc > unit / 5)
-					continue;
-
-				if (err_tmp >= best_err)
-					continue;
-
-				adc_clk_cfg.b.pll_m = pll_m;
-				adc_clk_cfg.b.pll_n = pll_n;
-				adc_clk_cfg.b.pll_od = pll_od;
-#ifdef M6D
-				adc_clk_cfg.b.pll_xd = div_adc;
-#else
-				adc_clk_cfg.b.pll_xd = div_adc - 1;
-				/*div_adc-1(m6l); */
-#endif
-				dig_clk_cfg.b.demod_clk_div = div_dem - 1;
-				/* 1/75-1 */
-#ifdef extadc
-				if (dvb_mode == M6_Atsc) {
-					dig_clk_cfg.b.demod_clk_div =
-					    1000000 / clk_dem - 1;
-				}
-#endif
-				error = 0;
-				best_err = err_tmp;
-			}
-		}
-	}
-
-	pll_m = adc_clk_cfg.b.pll_m;
-	pll_n = adc_clk_cfg.b.pll_n;
-	pll_od = adc_clk_cfg.b.pll_od;
-#ifdef M6D
-	div_adc = adc_clk_cfg.b.pll_xd;
-#else
-	div_adc = adc_clk_cfg.b.pll_xd + 1;
-#endif
-	div_dem = dig_clk_cfg.b.demod_clk_div + 1;
-
-	if (error) {
-		pr_error(" ERROR DIG %7d kHz  ADC %7d kHz\n",
-			 freq_dem / (unit / 1000), freq_adc / (unit / 1000));
-	} else {
-		/*  printf("dig_clk_cfg %x\n",dig_clk_cfg.d32);
-		   printf("adc_clk_cfg %x\n",adc_clk_cfg.d32);
-		   printf("Whether write configure to IC?");
-		   scanf("%d", &tmp);
-		   if (tmp == 1)
-		   {
-		   reg.addr = 0xf11041d0; reg.val = dig_clk_cfg.d32;
-		   ioctl(fd, AML_DEMOD_SET_REG, &reg);
-		   reg.addr = 0xf11042a8; reg.val = adc_clk_cfg.d32;
-		   ioctl(fd, AML_DEMOD_SET_REG, &reg);
-		   } */
-
-		/*adc_extclk_sel
-		   0: crystal
-		   1: fclk_div2 = 1GHz
-		   2: fclk_div3 = 666M
-		   3: fclk_div5 = 400M
-		   4: fclk_div7 = 285M
-		   5:mp2_clk_out    freq?
-		   6: no----------
-		   7: no------------
-
-		 */
-#ifdef extadc
-		/*shutdown demodclk to save power */
-		/*      dig_clk_cfg.b.demod_clk_sel = 1;  // 1GHZ */
-		/*      adc_clk_cfg.b.pll_pd = 1;                 //
-		   shutdown adc_pll */
-		/*      dig_clk_cfg.b.demod_clk_div =
-		   (1000000/clk_dem)-1;// 1GHZ/70M -1 */
-		/*      pr_dbg("demod_clk_sel is %d,pll_pd is %d,
-		   demod_clk_div is %d\n",
-		   dig_clk_cfg.b.demod_clk_sel,adc_clk_cfg.b.pll_pd,
-		   dig_clk_cfg.b.demod_clk_div); */
-		/*enable extclk */
-		dig_clk_cfg.b.adc_extclk_div = (1000000 / clk_adc) - 1;
-		/*27;     1GHZ/35M-1 */
-		dig_clk_cfg.b.adc_extclk_en = 1;	/*enable */
-		dig_clk_cfg.b.adc_extclk_sel = 1;
-		dig_clk_cfg.b.use_adc_extclk = 1;
-		pr_dbg("adc_extclk_en is %d,
-		    adc_extclk_div is %d,clk_adc is %d\n",
-			dig_clk_cfg.b.adc_extclk_en,
-			dig_clk_cfg.b.adc_extclk_div, clk_adc);
-
-#endif
-		demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6);
-		demod_set_cbus_reg(adc_clk_cfg.d32, ADC_REG1);
-		pr_dbg("dig_clk_cfg.d32 is %x,adc_clk_cfg.d32 is %x\n",
-		       dig_clk_cfg.d32, adc_clk_cfg.d32);
-		freq_vco = freq_osc * pll_m / pll_n;
-		freq_out = freq_vco / (1 << pll_od);
-		freq_dem_act = freq_vco / div_dem;
-		freq_adc_act = freq_out / div_adc;
-
-		pr_dbg(" ADC PLL  M %3d   N %3d\n", pll_m, pll_n);
-		pr_dbg(" ADC PLL OD %3d  XD %3d\n", pll_od, div_adc);
-		pr_dbg(" DIG SRC SEL %2d  DIV %2d\n", 3, div_dem);
-		pr_dbg(" DIG %7d kHz %7d kHz\n", freq_dem / (unit / 1000),
-		       freq_dem_act / (unit / 1000));
-		pr_dbg(" ADC %7d kHz %7d kHz\n", freq_adc / (unit / 1000),
-		       freq_adc_act / (unit / 1000));
-	}
-}
-#else
 void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 {
-
-	/*volatile unsigned long *p_adc_pll_cntl /*= P_HHI_ADC_PLL_CNTL ; */
-	/*volatile unsigned long *p_adc_pll_cntl2 /*= P_HHI_ADC_PLL_CNTL2 ; */
-	/*volatile unsigned long *p_adc_pll_cntl3 /*= P_HHI_ADC_PLL_CNTL3 ; */
-	/*volatile unsigned long *p_adc_pll_cntl4 /*= P_HHI_ADC_PLL_CNTL4 ; */
-	/*volatile unsigned long *p_demod_dig_clk /*= P_HHI_DEMOD_CLK_CNTL ; */
-
 	int unit, found, ena, enb, div2;
 	int pll_m, pll_n, pll_od_a, pll_od_b, pll_xd_a, pll_xd_b;
 	long freq_osc, freq_dco, freq_b, freq_a, freq_sys;
 	long freq_b_act, freq_a_act, freq_sys_act, err_tmp, best_err;
-	adc_pll_cntl_t adc_pll_cntl;
-	adc_pll_cntl2_t adc_pll_cntl2;
-	adc_pll_cntl3_t adc_pll_cntl3;
-	adc_pll_cntl4_t adc_pll_cntl4;
-	demod_dig_clk_t dig_clk_cfg;
+	union adc_pll_cntl adc_pll_cntl;
+	union adc_pll_cntl2 adc_pll_cntl2;
+	union adc_pll_cntl3 adc_pll_cntl3;
+	union adc_pll_cntl4 adc_pll_cntl4;
+	union demod_dig_clk dig_clk_cfg;
 
 	adc_pll_cntl.d32 = 0;
 	adc_pll_cntl2.d32 = 0;
@@ -524,8 +339,8 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 		freq_a_act = freq_dco / (1 << pll_od_a) / pll_xd_a;
 		freq_b_act = freq_dco / (1 << pll_od_b) / pll_xd_b;
 
-		err_tmp =
-		    (freq_a_act - freq_a) * ena + (freq_b_act - freq_b) * enb;
+		err_tmp = (freq_a_act - freq_a) * ena + (freq_b_act - freq_b) *
+		    enb;
 
 		if (err_tmp >= best_err)
 			continue;
@@ -541,7 +356,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 
 		found = 1;
 		best_err = err_tmp;
-		/*   } */
+		/* } */
 	}
 
 	pll_m = adc_pll_cntl.b.pll_m;
@@ -553,13 +368,13 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 
 	div2 = adc_pll_cntl2.b.div2_ctrl;
 	/*
-	 *p_adc_pll_cntl  =  adc_pll_cntl.d32;
-	 *p_adc_pll_cntl2 = adc_pll_cntl2.d32;
-	 *p_adc_pll_cntl3 = adc_pll_cntl3.d32;
-	 *p_adc_pll_cntl4 = adc_pll_cntl4.d32;
+	 * p_adc_pll_cntl  =  adc_pll_cntl.d32;
+	 * p_adc_pll_cntl2 = adc_pll_cntl2.d32;
+	 * p_adc_pll_cntl3 = adc_pll_cntl3.d32;
+	 * p_adc_pll_cntl4 = adc_pll_cntl4.d32;
 	 */
 	adc_pll_cntl3.b.reset = 0;
-/*    *p_adc_pll_cntl3 = adc_pll_cntl3.d32;*/
+/* *p_adc_pll_cntl3 = adc_pll_cntl3.d32; */
 
 	if (!found) {
 		pr_dbg(" ERROR can't setup %7ld kHz %7ld kHz\n",
@@ -588,197 +403,208 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 			else
 				freq_sys = clk_sys * (unit / 1000);
 
-			dig_clk_cfg.b.demod_clk_div =
-			    freq_dco / (1 + div2) / freq_sys - 1;
-			freq_sys_act =
-			    freq_dco / (1 +
-					div2) / (dig_clk_cfg.b.demod_clk_div +
-						 1);
+			dig_clk_cfg.b.demod_clk_div = freq_dco / (1 + div2) /
+			    freq_sys - 1;
+			freq_sys_act = freq_dco / (1 + div2) /
+			    (dig_clk_cfg.b.demod_clk_div + 1);
 			pr_dbg(" SYS %7ld kHz div %d+1  %7ld kHz\n",
 			       freq_sys / (unit / 1000),
 			       dig_clk_cfg.b.demod_clk_div,
 			       freq_sys_act / (unit / 1000));
-
 		} else {
 			dig_clk_cfg.b.demod_clk_en = 0;
 		}
 
-		/*   *p_demod_dig_clk = dig_clk_cfg.d32; */
-		demod_set_cbus_reg(ADC_RESET_VALUE, ADC_REG3);	/*adc reset */
-		demod_set_cbus_reg(adc_pll_cntl.d32, ADC_REG1);
-		/*      demod_set_cbus_reg(adc_pll_cntl2.d32, ADC_REG2); */
-		/*      demod_set_cbus_reg(adc_pll_cntl3.d32, ADC_REG3); */
-		/*      demod_set_cbus_reg(adc_pll_cntl4.d32, ADC_REG4); */
-		/*      demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6); */
-		demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6);
-		demod_set_cbus_reg(ADC_REG3_VALUE, ADC_REG3);
-
+		/* *p_demod_dig_clk = dig_clk_cfg.d32; */
 	}
-
-	/*debug */
-	pr_dbg("[adc][%x]%lx\n", ADC_REG1, demod_read_cbus_reg(ADC_REG1));
-	pr_dbg("[adc][%x]%lx\n", ADC_REG2, demod_read_cbus_reg(ADC_REG2));
-	pr_dbg("[adc][%x]%lx\n", ADC_REG3, demod_read_cbus_reg(ADC_REG3));
-	pr_dbg("[adc][%x]%lx\n", ADC_REG4, demod_read_cbus_reg(ADC_REG4));
-
-	pr_dbg("[adc][%x]%lx\n", ADC_REG6, demod_read_cbus_reg(ADC_REG6));
-/*      pr_dbg("[adc][%x]%lx\n",ADC_REG6,demod_read_cbus_reg(ADC_REG6));*/
-/*      pr_dbg("[adc][%x]%lx\n",ADC_REG7,demod_read_cbus_reg(ADC_REG7));*/
-/*      pr_dbg("[adc][%x]%lx\n",ADC_REG8,demod_read_cbus_reg(ADC_REG8));*/
-
-	pr_dbg("[demod][%x]%lx\n", DEMOD_REG1,
-	       demod_read_demod_reg(DEMOD_REG1));
-	pr_dbg("[demod][%x]%lx\n", DEMOD_REG2,
-	       demod_read_demod_reg(DEMOD_REG2));
-	pr_dbg("[demod][%x]%lx\n", DEMOD_REG3,
-	       demod_read_demod_reg(DEMOD_REG3));
-
+#ifdef GX_TV
+	demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
+	demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
+	/* demod_set_cbus_reg(adc_pll_cntl2.d32, ADC_REG2); */
+	/* demod_set_cbus_reg(adc_pll_cntl3.d32, ADC_REG3); */
+	/* demod_set_cbus_reg(adc_pll_cntl4.d32, ADC_REG4); */
+	/* demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6); */
+	demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
+	demod_set_demod_reg(ADC_REG3_VALUE, ADC_REG3);
+	/* debug */
+	pr_dbg("[adc][%x]%x\n", ADC_REG1, demod_read_demod_reg(ADC_REG1));
+	pr_dbg("[adc][%x]%x\n", ADC_REG2, demod_read_demod_reg(ADC_REG2));
+	pr_dbg("[adc][%x]%x\n", ADC_REG3, demod_read_demod_reg(ADC_REG3));
+	pr_dbg("[adc][%x]%x\n", ADC_REG4, demod_read_demod_reg(ADC_REG4));
+	pr_dbg("[adc][%x]%x\n", ADC_REG6, demod_read_demod_reg(ADC_REG6));
+	pr_dbg("[demod][%x]%x\n", DEMOD_REG1, demod_read_demod_reg(DEMOD_REG1));
+	pr_dbg("[demod][%x]%x\n", DEMOD_REG2, demod_read_demod_reg(DEMOD_REG2));
+	pr_dbg("[demod][%x]%x\n", DEMOD_REG3, demod_read_demod_reg(DEMOD_REG3));
+#else
+	demod_set_cbus_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
+	demod_set_cbus_reg(adc_pll_cntl.d32, ADC_REG1);
+	demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6);
+	demod_set_cbus_reg(ADC_REG3_VALUE, ADC_REG3);
+	/* debug */
+	pr_dbg("[adc][%x]%x\n", ADC_REG1, demod_read_cbus_reg(ADC_REG1));
+	pr_dbg("[adc][%x]%x\n", ADC_REG2, demod_read_cbus_reg(ADC_REG2));
+	pr_dbg("[adc][%x]%x\n", ADC_REG3, demod_read_cbus_reg(ADC_REG3));
+	pr_dbg("[adc][%x]%x\n", ADC_REG4, demod_read_cbus_reg(ADC_REG4));
+	pr_dbg("[adc][%x]%x\n", ADC_REG6, demod_read_cbus_reg(ADC_REG6));
+	pr_dbg("[demod][%x]%x\n", DEMOD_REG1, demod_read_demod_reg(DEMOD_REG1));
+	pr_dbg("[demod][%x]%x\n", DEMOD_REG2, demod_read_demod_reg(DEMOD_REG2));
+	pr_dbg("[demod][%x]%x\n", DEMOD_REG3, demod_read_demod_reg(DEMOD_REG3));
+#endif
 }
 
 void demod_set_adc_core_clk(int adc_clk, int sys_clk, int dvb_mode)
 {
-	/*  demod_cfg_regs_t *demod_cfg_regs;
-	 *demod_cfg_regs = DEMOD_CFG_BASE;
-	 demod_cfg2_t cfg2;
-
-	 cfg2.b.biasgen_en = 1;
-	 cfg2.b.en_adc = 1;
-	 demod_cfg_regs->cfg2 = cfg2.d32;*/
 	adc_dpll_setup(25, adc_clk, sys_clk);
 }
 
-#endif
-
-void demod_set_cbus_reg(int data, int addr)
+void demod_set_cbus_reg(unsigned data, unsigned addr)
 {
-/*      __raw_writel(data,CBUS_REG_ADDR(addr));*/
-	addr = CBUS_REG_ADDR(addr);
-	/* *(volatile unsigned long *)addr = data;*/
-	*(unsigned long *)addr = data;
+	void __iomem *vaddr;
+	pr_dbg("[cbus][write]%x\n", (IO_CBUS_PHY_BASE + (addr << 2)));
+	vaddr = ioremap((IO_CBUS_PHY_BASE + (addr << 2)), 0x4);
+	writel(data, vaddr);
+	iounmap(vaddr);
 }
 
-unsigned long demod_read_cbus_reg(int addr)
+unsigned demod_read_cbus_reg(unsigned addr)
 {
-/*      return __raw_readl(CBUS_REG_ADDR(addr));*/
-	unsigned long tmp;
-	addr = CBUS_REG_ADDR(addr);
-	/*tmp = *(volatile unsigned long *)addr;*/
-	tmp = *(unsigned long *)addr;
+/* return __raw_readl(CBUS_REG_ADDR(addr)); */
+	unsigned tmp;
+	void __iomem *vaddr;
+	vaddr = ioremap((IO_CBUS_PHY_BASE + (addr << 2)), 0x4);
+	tmp = readl(vaddr);
+	iounmap(vaddr);
+/* tmp = aml_read_cbus(addr); */
+	pr_dbg("[cbus][read]%x,data is %x\n",
+	(IO_CBUS_PHY_BASE + (addr << 2)), tmp);
 	return tmp;
-
 }
 
-void demod_set_demod_reg(unsigned long data, unsigned long addr)
+void demod_set_ao_reg(unsigned data, unsigned addr)
 {
-/*      __raw_writel(data,(DEMOD_BASE+addr));*/
-	addr = DEMOD_BASE + addr;
-	/* *(volatile unsigned long *)addr = data;*/
-	*(unsigned long *)addr = data;
+	void __iomem *vaddr;
+
+/* pr_dbg("[ao][write]%x,data is %x\n",(IO_AOBUS_BASE+addr),data); */
+	vaddr = ioremap((IO_AOBUS_BASE + addr), 0x4);
+	writel(data, vaddr);
+	iounmap(vaddr);
 }
 
-unsigned long demod_read_demod_reg(unsigned long addr)
+unsigned demod_read_ao_reg(unsigned addr)
 {
-/*      return __raw_readl(DEMOD_BASE+addr);*/
-	unsigned long tmp;
-	addr = DEMOD_BASE + addr;
-	/*tmp = *(volatile unsigned long *)addr;*/
-	tmp = *(unsigned long *)addr;
+	unsigned tmp;
+	void __iomem *vaddr;
+
+/* pr_dbg("[ao][read]%x\n",(IO_AOBUS_BASE+addr)); */
+	vaddr = ioremap((IO_AOBUS_BASE + addr), 0x4);
+	tmp = readl(vaddr);
+/* pr_dbg("[ao][read]%x,data is %x\n",(IO_AOBUS_BASE+addr),tmp); */
+	iounmap(vaddr);
+	return tmp;
+}
+
+void demod_set_demod_reg(unsigned data, unsigned addr)
+{
+	void __iomem *vaddr;
+
+/* pr_dbg("[demod][write]%x,data is %x\n",(addr),data); */
+	vaddr = ioremap((addr), 0x4);
+	writel(data, vaddr);
+	iounmap(vaddr);
+}
+
+unsigned demod_read_demod_reg(unsigned addr)
+{
+	unsigned tmp;
+	void __iomem *vaddr;
+
+	vaddr = ioremap((addr), 0x4);
+	tmp = readl(vaddr);
+	iounmap(vaddr);
+/* pr_dbg("[demod][read]%x,data is %x\n",(addr),tmp); */
 	return tmp;
 }
 
 void demod_power_switch(int pwr_cntl)
 {
-	int i, j;
-	i = 0;
-	j = 0;
-	pr_dbg("P_AO_RTI_GEN_PWR_SLEEP0 is %x,
-		HHI_DEMOD_MEM_PD_REG is %x,
-	    P_RESET0_LEVEL is %x,P_AO_RTI_GEN_PWR_ISO0 is %x\n",
-		P_AO_RTI_GEN_PWR_SLEEP0, P_HHI_DEMOD_MEM_PD_REG,
-		P_RESET0_LEVEL, P_AO_RTI_GEN_PWR_ISO0);
+	int reg_data;
+#if 1
 	if (pwr_cntl == PWR_ON) {
-		pr_dbg("[PWR]: Power on demod_comp\n");
+		pr_dbg("[PWR]: Power on demod_comp %x,%x\n",
+		       AO_RTI_GEN_PWR_SLEEP0, AO_RTI_GEN_PWR_ISO0);
 		/* Powerup demod_comb */
-		Wr(P_AO_RTI_GEN_PWR_SLEEP0,
-		   Rd(P_AO_RTI_GEN_PWR_SLEEP0) & (~(0x1 << 10)));
+		reg_data = demod_read_ao_reg(AO_RTI_GEN_PWR_SLEEP0);
+		demod_set_ao_reg((reg_data & (~(0x1 << 10))),
+				 AO_RTI_GEN_PWR_SLEEP0);
 		/* [10] power on */
-
+		pr_dbg("[PWR]: Power on demod_comp %x,%x\n",
+		       HHI_DEMOD_MEM_PD_REG, RESET0_LEVEL);
 		/* Power up memory */
-		Wr(P_HHI_DEMOD_MEM_PD_REG,
-		   Rd(P_HHI_DEMOD_MEM_PD_REG) & (~0x2fff));
-		/*for(i=0;i<7;i++){
-		   j=~(0x11<<i);
-		   Wr( P_HHI_DEMOD_MEM_PD_REG,
-		   Rd(P_HHI_DEMOD_MEM_PD_REG) & (j) );
-		   msleep(20);
-		   } */
-
+		demod_set_demod_reg((demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
+				     & (~0x2fff)), HHI_DEMOD_MEM_PD_REG);
 		/* reset */
-		Wr(P_RESET0_LEVEL, Rd(P_RESET0_LEVEL) & (~(0x1 << 8)));
-
-/*      *P_RESET0_LEVEL &= ~(0x1<<8);*/
+		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) &
+				     (~(0x1 << 8))), RESET0_LEVEL);
 		msleep(20);
-
+#ifdef GX_TV
 		/* remove isolation */
-		Wr(P_AO_RTI_GEN_PWR_ISO0,
-		   Rd(P_AO_RTI_GEN_PWR_ISO0) & (~(0x3 << 12)));
-
+		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
+				  (~(0x3 << 14))), AO_RTI_GEN_PWR_ISO0);
+#else
+		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
+				  (~(0x3 << 12))), AO_RTI_GEN_PWR_ISO0);
+#endif
 		/* pull up reset */
-		Wr(P_RESET0_LEVEL, Rd(P_RESET0_LEVEL) | (0x1 << 8));
-/*      *P_RESET0_LEVEL |= (0x1<<8);*/
-
+		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) |
+				     (0x1 << 8)), RESET0_LEVEL);
+/* *P_RESET0_LEVEL |= (0x1<<8); */
 	} else {
 		pr_dbg("[PWR]: Power off demod_comp\n");
-
 		/* add isolation */
-		Wr(P_AO_RTI_GEN_PWR_ISO0,
-		   Rd(P_AO_RTI_GEN_PWR_ISO0) | (0x3 << 12));
-
+#ifdef GX_TV
+		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) |
+				  (0x3 << 14)), AO_RTI_GEN_PWR_ISO0);
+#else
+		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) |
+				  (0x3 << 12)), AO_RTI_GEN_PWR_ISO0);
+#endif
 		/* power down memory */
-		Wr(P_HHI_DEMOD_MEM_PD_REG, Rd(P_HHI_DEMOD_MEM_PD_REG) | 0x2fff);
-
+		demod_set_demod_reg((demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
+			 | 0x2fff), HHI_DEMOD_MEM_PD_REG);
 		/* power down demod_comb */
-		Wr(P_AO_RTI_GEN_PWR_SLEEP0,
-		   Rd(P_AO_RTI_GEN_PWR_SLEEP0) | (0x1 << 10));
+		reg_data = demod_read_ao_reg(AO_RTI_GEN_PWR_SLEEP0);
+		demod_set_ao_reg((reg_data | (0x1 << 10)),
+				 AO_RTI_GEN_PWR_SLEEP0);
+		/* [10] power on */
 	}
-
+#endif
 }
 
 static void clocks_set_sys_defaults(unsigned char dvb_mode)
 {
-	demod_cfg0_t cfg0;
-	demod_cfg2_t cfg2;
+	union demod_cfg0 cfg0;
+	union demod_cfg2 cfg2;
 
-#ifdef G9_TV
 	demod_power_switch(PWR_ON);
+#ifdef GX_TV
+	pr_dbg("GX_TV config\n");
+	demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
+	demod_set_demod_reg(ADC_REG1_VALUE, ADC_REG1);
+	demod_set_demod_reg(ADC_REG2_VALUE, ADC_REG2);
+	demod_set_demod_reg(ADC_REG4_VALUE, ADC_REG4);
+	demod_set_demod_reg(ADC_REG3_VALUE, ADC_REG3);
+	/* dadc */
+	demod_set_demod_reg(ADC_REG7_VALUE, ADC_REG7);
+	demod_set_demod_reg(ADC_REG8_VALUE, ADC_REG8);
+	demod_set_demod_reg(ADC_REG9_VALUE, ADC_REG9);
+	demod_set_demod_reg(ADC_REGA_VALUE, ADC_REGA);
 #endif
-
-#ifndef G9_TV
-	demod_set_cbus_reg(ADC_REG1_VALUE, ADC_REG1);
-	demod_set_cbus_reg(ADC_REG2_VALUE, ADC_REG2);
-	demod_set_cbus_reg(ADC_REG3_VALUE, ADC_REG3);
-	demod_set_cbus_reg(ADC_REG4_VALUE, ADC_REG4);
-	demod_set_cbus_reg(ADC_REG5_VALUE, ADC_REG5);
-	demod_set_cbus_reg(ADC_REG6_VALUE, ADC_REG6);
-#else
-	demod_set_cbus_reg(ADC_RESET_VALUE, ADC_REG3);	/*adc reset */
-	demod_set_cbus_reg(ADC_REG1_VALUE, ADC_REG1);
-	demod_set_cbus_reg(ADC_REG2_VALUE, ADC_REG2);
-	demod_set_cbus_reg(ADC_REG4_VALUE, ADC_REG4);
-	demod_set_cbus_reg(ADC_REG3_VALUE, ADC_REG3);
-	/*dadc */
-	demod_set_cbus_reg(ADC_REG7_VALUE, ADC_REG7);
-	demod_set_cbus_reg(ADC_REG8_VALUE, ADC_REG8);
-	demod_set_cbus_reg(ADC_REG9_VALUE, ADC_REG9);
-	demod_set_cbus_reg(ADC_REGA_VALUE, ADC_REGA);
-#endif
-
 	demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
 	demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
 	demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
 	cfg0.b.mode = 7;
 	cfg0.b.adc_format = 1;
-	if (dvb_mode == M6_Dvbc) {	/*// 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
+	if (dvb_mode == M6_Dvbc) {	/* // 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
 		cfg0.b.ts_sel = 2;
 	} else if ((dvb_mode == M6_Dvbt_Isdbt) || (dvb_mode == M6_Dtmb)) {
 		cfg0.b.ts_sel = 1;
@@ -787,24 +613,22 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 		cfg0.b.ts_sel = 4;
 	}
 	demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
-
 	cfg2.b.biasgen_en = 1;
 	cfg2.b.en_adc = 1;
 	demod_set_demod_reg(cfg2.d32, DEMOD_REG3);
-
-	pr_dbg("0xc8020c00 is %lx,dvb_mode is %d\n",
-	       demod_read_demod_reg(0xc00), dvb_mode);
-
+	pr_dbg("0xc8020c00 is %x,dvb_mode is %d\n",
+	       demod_read_demod_reg(DEMOD_REG1), dvb_mode);
 }
 
 void dtmb_write_reg(int reg_addr, int reg_data)
 {
-	apb_write_reg(DTMB_BASE + (reg_addr << 2), reg_data);
+	demod_set_demod_reg(reg_data, reg_addr);
+/* apb_write_reg(reg_addr,reg_data); */
 }
 
-long dtmb_read_reg(int reg_addr)
+int dtmb_read_reg(int reg_addr)
 {
-	return apb_read_reg(DTMB_BASE + (reg_addr << 2));
+	return demod_read_demod_reg(reg_addr);	/* apb_read_reg(reg_addr); */
 }
 
 void atsc_write_reg(int reg_addr, int reg_data)
@@ -834,22 +658,20 @@ unsigned long atsc_read_iqr_reg(void)
 int atsc_qam_set(fe_modulation_t mode)
 {
 	int i, j;
-	if (mode == VSB_8) {	/*5-8vsb, 2-64qam, 4-256qam */
 
+	if (mode == VSB_8) {	/* 5-8vsb, 2-64qam, 4-256qam */
 		for (i = 0; list_8vsb[i].adr != 0; i++) {
-			if (list_8vsb[i].rw) {
+			if (list_8vsb[i].rw)
 				atsc_read_reg(list_8vsb[i].adr);
-				/*      msleep(20); */
-			} else {
+			/* msleep(20); */
+			else
 				atsc_write_reg(list_8vsb[i].adr,
 					       list_8vsb[i].dat);
-				/*      msleep(20); */
-			}
+			/* msleep(20); */
 		}
 		j = 15589;
 		pr_dbg("8-vsb mode\n");
 	} else if (mode == QAM_64) {
-
 		for (i = 0; list_qam64[i].adr != 0; i++) {
 			if (list_qam64[i].rw) {
 				atsc_read_reg(list_qam64[i].adr);
@@ -860,10 +682,9 @@ int atsc_qam_set(fe_modulation_t mode)
 				msleep(20);
 			}
 		}
-		j = 16588;	/*33177; */
+		j = 16588;	/* 33177; */
 		pr_dbg("64qam mode\n");
 	} else if (mode == QAM_256) {
-
 		for (i = 0; list_qam256[i].adr != 0; i++) {
 			if (list_qam256[i].rw) {
 				atsc_read_reg(list_qam256[i].adr);
@@ -874,7 +695,7 @@ int atsc_qam_set(fe_modulation_t mode)
 				msleep(20);
 			}
 		}
-		j = 15649;	/*31298; */
+		j = 15649;	/* 31298; */
 		pr_dbg("256qam mode\n");
 	} else {
 		for (i = 0; list_qam256[i].adr != 0; i++) {
@@ -887,31 +708,29 @@ int atsc_qam_set(fe_modulation_t mode)
 				msleep(20);
 			}
 		}
-		j = 15649;	/*31298; */
+		j = 15649;	/* 31298; */
 		pr_dbg("256qam mode\n");
-
 	}
 	return j;
-
 }
 
 void atsc_initial(struct aml_demod_sta *demod_sta)
 {
 	int fc, fs, cr, ck, j;
 	fe_modulation_t mode;
+
 	mode = demod_sta->ch_mode;
 
-	j = atsc_qam_set(mode);	/*set mode */
+	j = atsc_qam_set(mode);	/* set mode */
 
-	fs = demod_sta->adc_freq;	/*KHZ 25200 */
-	fc = demod_sta->ch_if;	/*KHZ 6350 */
+	fs = demod_sta->adc_freq;	/* KHZ 25200 */
+	fc = demod_sta->ch_if;	/* KHZ 6350 */
 
 	cr = (fc * (1 << 17) / fs) * (1 << 6);
 	ck = fs * j / 10 - (1 << 25);
-	/*  ck_rate = (f_samp / f_vsb /2 -1)*(1<<25);
-	   double f_vsb = 10.76238;//
-	   double f_64q = 5.056941;//
-	   double f_256q = 5.360537; */
+	/* ck_rate = (f_samp / f_vsb /2 -1)*(1<<25);
+	double f_vsb = 10.76238;// double f_64q = 5.056941;
+	// double f_256q = 5.360537; */
 
 	atsc_write_reg(0x070e, cr & 0xff);
 	atsc_write_reg(0x070d, (cr >> 8) & 0xff);
@@ -935,6 +754,7 @@ int atsc_set_ch(struct aml_demod_sta *demod_sta,
 	u8 demod_mode;
 	u8 bw, sr, ifreq, agc_mode;
 	u32 ch_freq;
+
 	bw = demod_atsc->bw;
 	sr = demod_atsc->sr;
 	ifreq = demod_atsc->ifreq;
@@ -1054,330 +874,121 @@ static dtmb_cfg_t list_dtmb_v1[99] = {
 };
 #endif
 
+void dtmb_all_reset(void)
+{
+/* union DTMB_FRONT_AFIFO_ADC_BITS afifo_adc; */
+/* afifo_adc.d32=dtmb_read_reg(DTMB_FRONT_AFIFO_ADC); */
+/* afifo_adc.b.afifo_data_format = 1;// 1,2 is complement;0 is offset binary */
+/* dtmb_write_reg(DTMB_FRONT_AFIFO_ADC,afifo_adc.d32); */
+	dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10137);
+	/* improve agc wave 47080137 */
+/* dtmb_write_reg(DTMB_FRONT_DEBUG_CFG,0xf00000); */
+/* dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG7,0xb39ab3cd); */
+}
+
 void dtmb_initial(struct aml_demod_sta *demod_sta)
 {
-/*      dtmb_write_reg(0x049, memstart);                //only for init*/
-	dtmb_write_reg(0x010, 0x52);
-	dtmb_write_reg(0x047, 0x33202);	/*20 bits, 1 - fpga. 0 - m6tvd */
-	dtmb_write_reg(0xd, 0x141a0320);
-	/* increase interleaver0 waiting time. */
-	dtmb_write_reg(0xc, 0x41444400);
-	/* shorten che waiting time. */
-	dtmb_write_reg(0x18, 0x000a1316);
-	/* shorten mobile detect time. */
-	dtmb_write_reg(0x15, 0x0199999A);
-	/* shift -5M. */
-	dtmb_write_reg(0x2f, 0x13064263);
-	/* speed up src */
+/* dtmb_write_reg(0x049, memstart);		//only for init */
+	dtmb_register_reset();
+	dtmb_all_reset();
 #if 0
 	int i;
 	for (i = 0; list_dtmb_v1[i].adr != 0; i++) {
-		if (list_dtmb_v1[i].rw) {
+		if (list_dtmb_v1[i].rw)
 			apb_read_reg(DTMB_BASE + ((list_dtmb_v1[i].adr) << 2));
-			/*      msleep(20); */
-		} else {
+		/* msleep(20); */
+		else
 			apb_write_reg(DTMB_BASE + ((list_dtmb_v1[i].adr) << 2),
 				      list_dtmb_v1[i].dat);
-			/*      msleep(20); */
-		}
+		/* msleep(20); */
 	}
 #endif
-
 }
 
 int dtmb_information(void)
 {
-	int tps;
-	tps = dtmb_read_reg(0xe5);
-	pr_dbg("¡¾FSM ¡¿: %lx %lx %lx %lx\n", dtmb_read_reg(0xd7),
-	       dtmb_read_reg(0xd6), dtmb_read_reg(0xd5), dtmb_read_reg(0xd4));
-	pr_dbg("¡¾AGC ¡¿: agc_power %ld, dagc_power %3ld,
-	    dagc_gain %3ld mobi_det_power %ld\n",
-		(-(((dtmb_read_reg(0xd9) >> 22) & 0x1ff) / 16)),
-		((dtmb_read_reg(0xda) >> 0) & 0x3f),
-		((dtmb_read_reg(0xda) >> 8) & 0x3ff),
-		(dtmb_read_reg(0xf1) >> 8) & 0x7ffff);
-	pr_dbg("¡¾TPS ¡¿ SC or MC %2ld,f_r %2d
-	    qam_nr %2d intlv %2d cr %2d constl %2d,\n",
-		(dtmb_read_reg(0xe6) >> 24) & 0x1,
-		(tps >> 22) & 0x1, (tps >> 21) & 0x1,
-		(tps >> 20) & 0x1, (tps >> 18) & 0x3,
-		(tps >> 16) & 0x3);
+	int tps, snr, fec_lock, fec_bch_add, fec_ldpc_unc_acc, fec_ldpc_it_avg,
+	    tmp, che_snr;
+	struct aml_fe_dev *dev;
+
+	dev = NULL;
+	tps = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT);
+	tmp = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
+	che_snr = tmp & 0xfff;
+	if (che_snr >= 8192)
+		che_snr = che_snr - 16384;
+	snr = che_snr / 32;
+/* snr = 10*log10(snr)-6; */
+	fec_lock = (dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR) >> 14) & 0x1;
+	fec_bch_add = dtmb_read_reg(DTMB_TOP_FEC_BCH_ACC);
+	fec_ldpc_unc_acc = dtmb_read_reg(DTMB_TOP_FEC_LDPC_UNC_ACC);
+	fec_ldpc_it_avg = dtmb_read_reg(DTMB_TOP_FEC_LDPC_IT_AVG);
+	pr_dbg("¡¾FSM ¡¿: %x %x %x %x\n",
+	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
+	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
+	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
+	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
+	pr_dbg
+	    ("¡¾AGC ¡¿: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",
+	     (-(((dtmb_read_reg(DTMB_TOP_FRONT_AGC) >> 22) & 0x3ff) / 16)),
+	     ((dtmb_read_reg(DTMB_TOP_FRONT_AGC)) & 0x3ff),
+	     ((dtmb_read_reg(DTMB_TOP_FRONT_AGC) >> 11) & 0x7ff));
+	pr_dbg
+	      ("dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
+	      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
+	     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
+	     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
+	pr_dbg
+	    ("¡¾TPS ¡¿ SC or MC %2d,f_r %2d qam_nr %2d ",
+	     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 24) & 0x1,
+	     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
+	pr_dbg
+		("intlv %2d,cr %2d constl %2d\n",
+		(tps >> 20) & 0x1,
+	     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+
+	pr_dbg
+	    ("[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
+	     snr, fec_lock, fec_bch_add);
+	pr_dbg
+	    ("fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
+	     fec_ldpc_unc_acc,
+	     fec_ldpc_it_avg / 256);
+	pr_dbg
+	    ("------------------------------------------------------------\n");
+
+	tuner_get_ch_power(dev);
 
 	return 0;
-
 }
 
-int dtmb_read_snr(void)
+int dtmb_read_snr(struct dvb_frontend *fe)
 {
-	int tmp, che_snr, snr, snr_avg, fec_lock, reg_46;
-	int fsm_state, fec_ldpc_it_avg, local_state, fbe_in_num, SC_mode,
-	    time_eq;
-	int time_cnt = 0, fec_bch_add;
-	int ddc_phase, icfo_phase, fcfo_phase, ddc_phase_new, reg_6b;
-	int mobi_det_power;
-	int mobile_times, front_cci0_count;
-	int ctrl_che_working_state, pm_change, constell;
-	mobile_times = 0;
-	pm_change = 0;
 
-	tmp = dtmb_read_reg(0x0e3);
-	fec_ldpc_it_avg = dtmb_read_reg(0xdd) & 0xffff;
-	fec_bch_add = dtmb_read_reg(0xdf);
-	fec_lock = (tmp >> 12) & 0x1;
-	che_snr = tmp & 0xfff;
-	if (che_snr >= 2048)
-		che_snr = che_snr - 4096;
-	snr = che_snr / 32;
-	snr_avg = (tmp >> 13) & 0xfff;
-	if (snr_avg >= 2048)
-		snr_avg = snr_avg - 4096;
-	snr_avg = snr_avg / 32;
 	dtmb_information();
-	pr_dbg("[dtmb] snr is %d,snr_avg is %d,fec_lock is %d,
-	    fec_bch_add is %d,fec_ldpc_it_avg is %d\n", snr, snr_avg,
-		fec_lock, fec_bch_add, fec_ldpc_it_avg / 256);
-	ctrl_che_working_state = (dtmb_read_reg(0xf1) >> 28) & 0x3;
-	if (((snr_avg < 1 && ctrl_che_working_state == 0) ||
-	     (snr < 1 && ctrl_che_working_state == 1)) && fec_lock) {
-		/* false lock, reset */
-/*      if((snr_avg<=0)&&(fec_lock==1)){*/
-		pr_dbg("reset dtmb\n");
-		dtmb_reset();
-		return 0;
-	} else {
-		if (fec_lock && fec_ldpc_it_avg < (4 * 256)) {
-			pr_dbg("----  lock!--\n");
-			return 1;
-		} else {
-			fsm_state = dtmb_read_reg(0xd7) & 0xf;
-			local_state = 2;
-			time_cnt = 0;
-			while (fsm_state < 8 && time_cnt < 10) {
-				/* state change to pm */
-				msleep(50);
-				fsm_state = dtmb_read_reg(0xd7) & 0xf;
-				time_cnt++;
-				local_state = 3;
-				pr_dbg
-				    ("*** local_state = %d *****\n",
-				     local_state);
-			}
-
-			if (fsm_state >= 8) {
-				/* check whether SC and two path mode */
-				fbe_in_num =
-				    (dtmb_read_reg(0xe4) >> 16) & 0x3ff;
-				/* two path distance */
-				SC_mode = (dtmb_read_reg(0xe6) >> 24) & 0x1;
-				time_eq = (dtmb_read_reg(0x46) >> 16) & 0x1;
-				fec_ldpc_it_avg = dtmb_read_reg(0xdd) & 0xffff;
-
-				mobi_det_power =
-				    (dtmb_read_reg(0xf1) >> 8) & 0x7ffff;
-
-				if (mobi_det_power > 10) {
-					mobile_times = 15;	/*8; */
-					dtmb_write_reg(0x46,
-						       (dtmb_read_reg(0x46) &
-							0xfffffff9) + (1 << 1));
-					/* set mobile mode */
-#ifdef dtmb_mobile_mode
-					dtmb_write_reg(0x50, 0x1241);
-/*180m mobile mode*/
-#endif
-				} else {
-					mobile_times -= 1;
-					if (mobile_times <= 0) {
-						dtmb_write_reg(0x46,
-							       (dtmb_read_reg
-								(0x46) &
-								0xfffffff9));
-						/* set static mode */
-#ifdef dtmb_mobile_mode
-						dtmb_write_reg(0x50, 0x1120);
-/*180m mobile mode*/
-#endif
-						mobile_times = 0;
-					}
-				}
-
-				if ((fbe_in_num > 360) && (pm_change == 0)) {
-					/* two path mode, test distance. */
-					dtmb_write_reg(0x42, 0x03030202);
-					dtmb_write_reg(0x5c, 0x00000000);
-					pm_change = 1;
-				} else if ((fbe_in_num <= 360)
-					   && (pm_change == 1)) {
-					dtmb_write_reg(0x42, 0x05050202);
-					dtmb_write_reg(0x5c, 0x00000320);
-					pm_change = 0;
-				}
-
-				local_state = 4;
-				pr_dbg
-				    ("***** local_state = %d ****\n",
-				     local_state);
-				if (mobile_times > 0)
-					pr_dbg
-					    ("mobile state,times is %d\n",
-					     mobile_times);
-				if (time_eq) {	/* in time_eq mode */
-					local_state = 5;
-					pr_dbg
-					    ("* local_state = %d\n",
-					     local_state);
-
-					if (SC_mode == 1 || fbe_in_num < 30) {
-						/* MC mode or not two path mode,
-						   restore normal mode */
-						dtmb_write_reg(0x2e,
-							       0x131a747d);
-						/* cancel timing-loop */
-						dtmb_write_reg(0xd, 0x141a0320);
-						/* increase interleaver0
-						waiting time. */
-						reg_46 = dtmb_read_reg(0x46);
-						reg_46 =
-						    reg_46 & ~((1 << 20) +
-							       (1 << 16));
-						/* bypass fe and set time_eq */
-						dtmb_write_reg(0x46, reg_46);
-						pr_dbg(" normal mode\n");
-						local_state = 6;
-						pr_dbg
-						    (" local_state = %d\n",
-						     local_state);
-
-					}
-				} else {
-					local_state = 7;
-					front_cci0_count =
-					    (dtmb_read_reg(0xe9) >> 22) & 0xff;
-					pr_dbg
-					    ("state = %d,cci0_count is %d\n",
-					     local_state, front_cci0_count);
-					constell =
-					    (dtmb_read_reg(0xe5) >> 16) & 0x3;
-					if ((SC_mode == 0)
-					    && (fec_ldpc_it_avg > 640)
-					    && (constell > 1) /*2.5*256 */ &&
-					    ((fbe_in_num > 30)
-					     || (front_cci0_count > 0))) {
-						/* switch to time_eq mode */
-						ddc_phase =
-						    dtmb_read_reg(0x15) &
-						    0x1ffffff;
-						icfo_phase =
-						    dtmb_read_reg(0xe0) &
-						    0xfffff;
-						fcfo_phase =
-						    dtmb_read_reg(0xe1) &
-						    0xfffff;
-
-						(icfo_phase > (1 << 19)) ?
-						(icfo_phase -= (1 << 20)) :
-						(icfo_phase =
-						dtmb_read_reg(0xe0) &
-						0xfffff);
-
-						(fcfo_phase > (1 << 19)) ?
-						(fcfo_phase -= (1 << 20)) :
-						(fcfo_phase =
-						dtmb_read_reg(0xe1) &
-						0xfffff);
-
-						ddc_phase_new =
-						    ddc_phase + icfo_phase * 4 +
-						    fcfo_phase;
-						dtmb_write_reg(0x15,
-							       ddc_phase_new);
-
-						/*printf(
-						"switch to time_eq configure :
-						   0 -- No, 1 -- yes"); */
-						/*scanf("%d", &tmp); */
-						tmp = 1;
-						/*if (tmp == 1) {*/
-						dtmb_write_reg(0x2e,
-							0x31a747d);
-						/* start timing-loop */
-						dtmb_write_reg(0x0d,
-							0x14400640);
-						/*delay fec sync time*/
-						reg_46 =
-						    dtmb_read_reg(0x46);
-						reg_46 =
-						    reg_46 | ((1 << 20)
-							      +
-							      (1 <<
-							       16));
-						/* bypass fe and
-						set time_eq */
-						dtmb_write_reg(0x46,
-							       reg_46);
-
-						reg_6b =
-						    dtmb_read_reg(0x6b);
-						reg_6b =
-						    (reg_6b &
-						     ~(0x3 << 16)) |
-							(1 << 17);
-						/* set tune auto */
-						dtmb_write_reg(0x6b,
-							       reg_6b);
-						/*}*/
-						pr_dbg("time_eq mode\n");
-						local_state = 8;
-						pr_dbg
-						    ("local_state = %d\n",
-						     local_state);
-						dtmb_reset();
-						msleep(300);
-					}
-				}
-			} else if (time_cnt >= 10) {
-				/* don't sync, all reset */
-				local_state = 9;
-				pr_dbg("* local_state = %d\n", local_state);
-
-				dtmb_register_reset();
-				/*dtmb_write_reg(0x49,memstart); //
-				   set memory */
-				dtmb_write_reg(0x10, 0x52);
-				/*set memory */
-				dtmb_write_reg(0xd, 0x141a0320);
-				/* increase interleaver0 waiting time. */
-				dtmb_write_reg(0xc, 0x41444400);
-				/* shorten che waiting time. */
-				dtmb_write_reg(0x47, 0x33202);
-				dtmb_write_reg(0x18, 0x000a1316);
-				/* shorten mobile detect time. */
-				dtmb_write_reg(0x15, 0x0199999A);
-				/* shift -5M. */
-				dtmb_write_reg(0x2f, 0x13064263);
-				/* speed up src */
-				pm_change = 0;
-			}
-
-		}
-
-	}
-
 	return 0;
-
 }
 
 void dtmb_reset(void)
 {
-	dtmb_write_reg(0x01, dtmb_read_reg(0x01) | (0x3 << 0));
-	dtmb_write_reg(0x01, dtmb_read_reg(0x01) & ~(0x3 << 0));
+	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
+
+	sw_rst.b.ctrl_sw_rst = 1;
+	sw_rst.b.ctrl_sw_rst_noreg = 1;
+	dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
+	sw_rst.b.ctrl_sw_rst = 0;
+	sw_rst.b.ctrl_sw_rst_noreg = 0;
+	dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 }
 
 void dtmb_register_reset(void)
 {
-	dtmb_write_reg(0x01, dtmb_read_reg(0x01) | (1 << 0));
-	dtmb_write_reg(0x01, dtmb_read_reg(0x01) & ~(1 << 0));
+	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
+
+	sw_rst.b.ctrl_sw_rst = 1;
+	dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
+	sw_rst.b.ctrl_sw_rst = 0;
+	dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 }
 
 int dtmb_set_ch(struct aml_demod_sta *demod_sta,
@@ -1388,6 +999,7 @@ int dtmb_set_ch(struct aml_demod_sta *demod_sta,
 	u8 demod_mode;
 	u8 bw, sr, ifreq, agc_mode;
 	u32 ch_freq;
+
 	bw = demod_dtmb->bw;
 	sr = demod_dtmb->sr;
 	ifreq = demod_dtmb->ifreq;
@@ -1404,72 +1016,9 @@ int dtmb_set_ch(struct aml_demod_sta *demod_sta,
 	return ret;
 }
 
-/*
-int dvbc_set_ch(struct aml_demod_sta *demod_sta,
+int dvbt_set_ch(struct aml_demod_sta *demod_sta,
 		struct aml_demod_i2c *demod_i2c,
-		struct aml_demod_dvbc *demod_dvbc)
-{
-	int ret = 0;
-	u16 symb_rate;
-	u8 mode;
-	u32 ch_freq;
-
-	mode = demod_dvbc->mode;
-	symb_rate = demod_dvbc->symb_rate;
-	ch_freq = demod_dvbc->ch_freq;
-	demod_i2c->tuner = 7;
-	if (mode > 4) {
-		pr_dbg("Error: Invalid QAM mode option %d\n", mode);
-		mode = 2;
-		ret = -1;
-	}
-
-	if (symb_rate < 1000 || symb_rate > 7000) {
-		pr_dbg("Error: Invalid Symbol Rate option %d\n", symb_rate);
-		symb_rate = 6875;
-		ret = -1;
-	}
-
-	if (ch_freq < 1000 || ch_freq > 900000) {
-		pr_dbg("Error: Invalid Channel Freq option %d\n", ch_freq);
-		ch_freq = 474000;
-		ret = -1;
-	}
-
-	/* if (ret != 0) return ret; */
-
-	/* Set DVB-C */
-	/*  (*DEMOD_REG0) &= ~1; */
-
-demod_sta->dvb_mode = 0;	/* 0:dvb-c, 1:dvb-t */
-demod_sta->ch_mode = mode;	/* 0:16, 1:32, 2:64, 3:128, 4:256 */
-demod_sta->agc_mode = 1;	/* 0:NULL, 1:IF, 2:RF, 3:both */
-demod_sta->ch_freq = ch_freq;
-demod_sta->tuner = demod_i2c->tuner;
-
-if (demod_i2c->tuner == 1)
-	demod_sta->ch_if = 36130;	/* TODO  DCT tuner */
-else if (demod_i2c->tuner == 2)
-	demod_sta->ch_if = 4570;	/* TODO  Maxlinear tuner */
-else if (demod_i2c->tuner == 7)
-	demod_sta->ch_if = 5000;	/* TODO  Si2176 tuner */
-
-demod_sta->ch_bw = 8000;	/* TODO */
-demod_sta->symb_rate = symb_rate;
-
-	/* Set Tuner */
-tuner_set_ch(demod_sta, demod_i2c);
-
-	/*   mdelay((demod_sta->ch_freq % 10) * 1000); */
-qam_initial(mode);
-	/*  dvbc_reg_initial(demod_sta); */
-
-return ret;
-}
-
-*/int dvbt_set_ch(struct aml_demod_sta *demod_sta,
-		  struct aml_demod_i2c *demod_i2c,
-		  struct aml_demod_dvbt *demod_dvbt)
+		struct aml_demod_dvbt *demod_dvbt)
 {
 	int ret = 0;
 	u8_t demod_mode = 1;
@@ -1483,51 +1032,51 @@ return ret;
 	ch_freq = demod_dvbt->ch_freq;
 	demod_mode = demod_dvbt->dat0;
 	if (ch_freq < 1000 || ch_freq > 900000000) {
-		/*pr_dbg("Error: Invalid Cha Freq option %d\n",ch_freq); */
+		/* pr_dbg("Error: Invalid Channel Freq option %d\n",
+		ch_freq); */
 		ch_freq = 474000;
 		ret = -1;
 	}
 
 	if (demod_mode < 0 || demod_mode > 4) {
-		/*pr_dbg("Error: Invalid demod mode
-		   option %d\n", demod_mode); */
-		/*pr_dbg("Note: 0 is QAM, 1 is DVBT ,
-		   2 is ISDBT, 3 is DTMB, 4 is ATSC\n"); */
+		/* pr_dbg("Error: Invalid demod mode option %d\n",
+		demod_mode); */
 		demod_mode = 1;
 		ret = -1;
 	}
-	/*demod_sta->dvb_mode  = 1; */
+
+	/* demod_sta->dvb_mode  = 1; */
 	demod_sta->ch_mode = 0;	/* TODO */
 	demod_sta->agc_mode = agc_mode;
 	demod_sta->ch_freq = ch_freq;
 	demod_sta->dvb_mode = demod_mode;
 	/*   if (demod_i2c->tuner == 1)
-	   demod_sta->ch_if = 36130;
-	   else if (demod_i2c->tuner == 2)
-	   demod_sta->ch_if = 4570;
-	   else if (demod_i2c->tuner == 3)
-	   demod_sta->ch_if = 4000;/* It is nouse.(alan) */
-	else
-if (demod_i2c->tuner == 7)
-	demod_sta->ch_if = 5000;	/*silab 5000kHz IF */
-	*/demod_sta->ch_bw = (8 - bw) * 1000;
+	 *     demod_sta->ch_if = 36130;
+	 * else if (demod_i2c->tuner == 2)
+	 *     demod_sta->ch_if = 4570;
+	 * else if (demod_i2c->tuner == 3)
+	 *     demod_sta->ch_if = 4000;// It is nouse.(alan)
+	 * else if (demod_i2c->tuner == 7)
+	 *     demod_sta->ch_if = 5000;//silab 5000kHz IF*/
+
+	demod_sta->ch_bw = (8 - bw) * 1000;
 	demod_sta->symb_rate = 0;	/* TODO */
 
-/*      bw=0;*/
+/* bw=0; */
 	demod_mode = 1;
-	/*for si2176 IF:5M   sr 28.57 */
+	/* for si2176 IF:5M   sr 28.57 */
 	sr = 4;
 	ifreq = 4;
 	if (bw == BANDWIDTH_AUTO)
 		demod_mode = 2;
 	ofdm_initial(bw,
-		     /* 00:8M 01:7M 10:6M 11:5M */
+			/* 00:8M 01:7M 10:6M 11:5M */
 		     sr,
 		     /* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
 		     ifreq,
-/* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
+		     /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
 		     demod_mode - 1,
-/* 00:DVBT,01:ISDBT */
+		     /* 00:DVBT,01:ISDBT */
 		     1
 		     /* 0: Unsigned, 1:TC */
 	    );
@@ -1540,40 +1089,32 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 		  struct aml_demod_i2c *demod_i2c,
 		  struct aml_demod_sys *demod_sys)
 {
-	int adc_clk;
-/*      demod_sta->tmp=Adc_mode;*/
+/* int adc_clk; */
+/* demod_sta->tmp=Adc_mode; */
 	unsigned char dvb_mode;
 	int clk_adc, clk_dem;
+
 	dvb_mode = demod_sta->dvb_mode;
 	clk_adc = demod_sys->adc_clk;
 	clk_dem = demod_sys->demod_clk;
-	pr_dbg("demod_set_sys,clk_adc is %d,
-	    clk_demod is %d,demod_sta.tmp is %d\n",
-		clk_adc, clk_dem, demod_sta->tmp);
+	pr_dbg
+	    ("demod_set_sys,clk_adc is %d,clk_demod is %d\n",
+	     clk_adc, clk_dem);
 	clocks_set_sys_defaults(dvb_mode);
-#ifndef G9_TV
-	if (demod_sta->tmp == Adc_mode) {
-		demod_set_cbus_reg(ADC_REG4_VALUE, ADC_REG4);
-		pr_dbg("Adc_mode\n");
-	} else {
-		demod_set_cbus_reg(ADC_REG4_CRY_VALUE, ADC_REG4);
-		pr_dbg("Cry_mode\n");
-	}
-#endif
-	demod_set_adc_core_clk(clk_adc, clk_dem, dvb_mode);
-	/*init for dtmb */
-	if (dvb_mode == M6_Dtmb) {
-		dtmb_write_reg(0x049, memstart);
-		pr_dbg("[dtmb]mem_buf is 0x%x\n", memstart);
-	}
-	/**/ demod_sta->adc_freq = clk_adc;
-	demod_sta->clk_freq = clk_dem;
-	adc_clk = clk_measure(17);
-	adc_clk = clk_measure(56);
-	adc_clk = clk_measure(64);
-	adc_clk = clk_measure(65);
-	adc_clk = clk_measure(25);
+	/* open dtv adc pinmux */
+/* demod_set_cbus_reg(0x10000,0x2034); */
+	demod_set_demod_reg(0x2c0f07e, 0xc88344c4);
 
+	pr_dbg("[R840]set adc pinmux\n");
+	/* set adc clk */
+	demod_set_adc_core_clk(clk_adc, clk_dem, dvb_mode);
+	/* init for dtmb */
+	if (dvb_mode == M6_Dtmb) {
+		/* open arbit */
+		demod_set_demod_reg(0x8, DEMOD_REG4);
+	}
+	demod_sta->adc_freq = clk_adc;
+	demod_sta->clk_freq = clk_dem;
 	return 0;
 }
 
@@ -1582,37 +1123,30 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 	if (demod_reg->mode == 0) {
 		demod_reg->addr = demod_reg->addr + QAM_BASE;
 	} else if ((demod_reg->mode == 1) || ((demod_reg->mode == 2))) {
-		demod_reg->addr = demod_reg->addr * 4 + DVBT_BASE;
+		demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
 	} else if (demod_reg->mode == 3) {
-		/*      demod_reg->addr=ATSC_BASE; */
+		/* demod_reg->addr=ATSC_BASE; */
 	} else if (demod_reg->mode == 4) {
 		demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
 	} else if (demod_reg->mode == 5) {
 		demod_reg->addr = demod_reg->addr + DEMOD_BASE;
-		/*      pr_dbg("DEMOD_BASE 0xf1100000+addr*4\n ISDBT_BASE
-		   0xf1100000+addr*4\n QAM_BASE
-		   0xf1100400+addr\n DEMOD_CFG_BASE
-		   0xf1100c00+addr\n"); */
 	} else if (demod_reg->mode == 6) {
-
-		/*      demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
+		/* demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
 	} else if (demod_reg->mode == 11) {
-
 		demod_reg->addr = demod_reg->addr;
-
 	} else if (demod_reg->mode == 10) {
-		demod_reg->addr = (u32_t) phys_to_virt(demod_reg->addr);
-
+		/* demod_reg->addr=(u32_t)phys_to_virt(demod_reg->addr); */
 	}
 
-	if (demod_reg->mode == 3) {
+	if (demod_reg->mode == 3)
 		atsc_write_reg(demod_reg->addr, demod_reg->val);
-		/*      apb_write_reg(demod_reg->addr,
-		   (demod_reg->val&0xffff)<<8 | (demod_reg->val&0xff)); */
-	} else if (demod_reg->mode == 11) {
+	else if (demod_reg->mode == 11)
 		demod_set_cbus_reg(demod_reg->val, demod_reg->addr);
-	} else
+	else if (demod_reg->mode == 10)
 		apb_write_reg(demod_reg->addr, demod_reg->val);
+	/* demod_reg->val_high = apb_read_reg_high(demod_reg->addr); */
+	else
+		demod_set_demod_reg(demod_reg->val, demod_reg->addr);
 }
 
 void demod_get_reg(struct aml_demod_reg *demod_reg)
@@ -1620,236 +1154,71 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 	if (demod_reg->mode == 0) {
 		demod_reg->addr = demod_reg->addr + QAM_BASE;
 	} else if ((demod_reg->mode == 1) || (demod_reg->mode == 2)) {
-		demod_reg->addr = demod_reg->addr * 4 + DVBT_BASE;
+		demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
 	} else if (demod_reg->mode == 3) {
-		/*      demod_reg->addr=demod_reg->addr+ATSC_BASE; */
+		/* demod_reg->addr=demod_reg->addr+ATSC_BASE; */
 	} else if (demod_reg->mode == 4) {
 		demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
 	} else if (demod_reg->mode == 5) {
 		demod_reg->addr = demod_reg->addr + DEMOD_BASE;
-		/* pr_dbg("DEMOD_BASE 0xf1100000+addr*4\n ISDBT_BASE
-		   0xf1100000+addr*4\n QAM_BASE
-		   0xf1100400+addr\n DEMOD_CFG_BASE  0xf1100c00+addr\n"); */
 	} else if (demod_reg->mode == 6) {
-		/*  demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
+		/* demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
 	} else if (demod_reg->mode == 11) {
 		demod_reg->addr = demod_reg->addr;
-
 	} else if (demod_reg->mode == 10) {
-		demod_reg->addr = (u32_t) phys_to_virt(demod_reg->addr);
-
+		/* printk("demod_reg->addr is %x\n",demod_reg->addr); */
+		/* test=(unsigned long)phys_to_virt(test); */
+/* demod_reg->addr=(unsigned long)phys_to_virt(demod_reg->addr); */
+/* printk("demod_reg->addr is %lx %x\n",test,demod_reg->addr); */
 	}
 
 	if (demod_reg->mode == 3) {
 		demod_reg->val = atsc_read_reg(demod_reg->addr);
-		/*apb_write_reg(ATSC_BASE+4, (demod_reg->addr&0xffff)<<8); */
-		/*demod_reg->val = apb_read_reg(ATSC_BASE)&0xff; */
+		/* apb_write_reg(ATSC_BASE+4, (demod_reg->addr&0xffff)<<8); */
+		/* demod_reg->val = apb_read_reg(ATSC_BASE)&0xff; */
 	} else if (demod_reg->mode == 6) {
 		demod_reg->val = atsc_read_iqr_reg();
-		/*apb_write_reg(ATSC_BASE+4, (demod_reg->addr&0xffff)<<8); */
-		/*demod_reg->val = apb_read_reg(ATSC_BASE)&0xff; */
+		/* apb_write_reg(ATSC_BASE+4, (demod_reg->addr&0xffff)<<8); */
+		/* demod_reg->val = apb_read_reg(ATSC_BASE)&0xff; */
 	} else if (demod_reg->mode == 11) {
 		demod_reg->val = demod_read_cbus_reg(demod_reg->addr);
-	} else
+	} else if (demod_reg->mode == 10) {
 		demod_reg->val = apb_read_reg(demod_reg->addr);
-
-}
-
-void demod_reset(void)
-{
-	Wr(RESET0_REGISTER, (1 << 8));
-}
-
-/*
-void demod_set_irq_mask()
-{
-	(*(volatile unsigned long *)(P_SYS_CPU_0_IRQ_IN4_INTR_MASK)) |=
-	    (1 << 8);
-}
-
-void demod_clr_irq_stat()
-{
-	(*(volatile unsigned long *)(P_SYS_CPU_0_IRQ_IN4_INTR_STAT)) |=
-	    (1 << 8);
-}
-*/
-
-void demod_set_adc_core_clk_quick(int clk_adc_cfg, int clk_dem_cfg)
-{
-	/*   volatile unsigned long *demod_dig_clk = P_HHI_DEMOD_CLK_CNTL;
-	   volatile unsigned long *demod_adc_clk = P_HHI_ADC_PLL_CNTL;
-	   int unit;
-	   demod_dig_clk_t dig_clk_cfg;
-	   demod_adc_clk_t adc_clk_cfg;
-	   int pll_m, pll_n, pll_od, div_dem, div_adc;
-	   int freq_osc, freq_vco, freq_out, freq_dem_act, freq_adc_act;
-
-	   unit = 10000; /* 10000 as 1 MHz, 0.1 kHz resolution. */
-	freq_osc = 25 * unit;
-
-	adc_clk_cfg.d32 = clk_adc_cfg;
-	dig_clk_cfg.d32 = clk_dem_cfg;
-
-	pll_m = adc_clk_cfg.b.pll_m;
-	pll_n = adc_clk_cfg.b.pll_n;
-	pll_od = adc_clk_cfg.b.pll_od;
-	div_adc = adc_clk_cfg.b.pll_xd;
-	div_dem = dig_clk_cfg.b.demod_clk_div + 1;
-
-	*demod_dig_clk = dig_clk_cfg.d32;
-	*demod_adc_clk = adc_clk_cfg.d32;
-
-	freq_vco = freq_osc * pll_m / pll_n;
-	freq_out = freq_vco / (1 << pll_od);
-	freq_dem_act = freq_out / div_dem;
-	freq_adc_act = freq_out / div_adc;
-	*/
-	    /*pr_dbg(" ADC PLL  M %3d   N %3d\n", pll_m, pll_n); */
-	    /*pr_dbg(" ADC PLL OD %3d  XD %3d\n", pll_od, div_adc); */
-	    /*pr_dbg(" DIG SRC SEL %2d  DIV %2d\n", 3, div_dem); */
-	    /*pr_dbg(" DIG %7d kHz ADC %7d kHz\n", */
-	    /*       freq_dem_act/(unit/1000), freq_adc_act/(unit/1000)); */
-}
-
-void demod_set_adc_core_clk(int clk_adc, int clk_dem)
-{
-	/*volatile unsigned long *demod_dig_clk = P_HHI_DEMOD_CLK_CNTL;*/
-	/*volatile unsigned long *demod_adc_clk = P_HHI_ADC_PLL_CNTL;*/
-	unsigned long *demod_dig_clk = P_HHI_DEMOD_CLK_CNTL;
-	unsigned long *demod_adc_clk = P_HHI_ADC_PLL_CNTL;
-	int unit, error;
-	demod_dig_clk_t dig_clk_cfg;
-	demod_adc_clk_t adc_clk_cfg;
-	int pll_m, pll_n, pll_od, div_dem, div_adc;
-	int freq_osc, freq_vco, freq_out, freq_dem, freq_adc;
-	int freq_dem_act, freq_adc_act, err_tmp, best_err;
-
-	unit = 10000; /* 10000 as 1 MHz, 0.1 kHz resolution.*/
-	freq_osc = 25 * unit;
-	adc_clk_cfg.d32 = 0;
-	dig_clk_cfg.d32 = 0;
-
-	if (clk_adc > 0) {
-		adc_clk_cfg.b.reset = 0;
-		adc_clk_cfg.b.pll_pd = 0;
-		if (clk_adc < 1000)
-			freq_adc = clk_adc * unit;
-		else
-			freq_adc = clk_adc * unit / 1000;
+	/*	demod_reg->val_high = apb_read_reg_high(demod_reg->addr);*/
 	} else {
-		adc_clk_cfg.b.pll_pd = 1;
-	}
-
-	if (clk_dem > 0) {
-		dig_clk_cfg.b.demod_clk_en = 1;
-		dig_clk_cfg.b.demod_clk_sel = 3;
-		if (clk_dem < 1000)
-			freq_dem = clk_dem * unit;
-		else
-			freq_dem = clk_dem * unit / 1000;
-	} else {
-		dig_clk_cfg.b.demod_clk_en = 0;
-	}
-
-	error = 1;
-	best_err = 100 * unit;
-	for (pll_m = 1; pll_m < 512; pll_m++) {
-		for (pll_n = 1; pll_n <= 5; pll_n++) {
-			freq_vco = freq_osc * pll_m / pll_n;
-			if (freq_vco < 750 * unit || freq_vco > 1500 * unit)
-				continue;
-
-			for (pll_od = 0; pll_od < 3; pll_od++) {
-				freq_out = freq_vco / (1 << pll_od);
-				if (freq_out > 800 * unit)
-					continue;
-
-				div_dem = freq_out / freq_dem;
-				if (div_dem == 0 || div_dem > 127)
-					continue;
-
-				freq_dem_act = freq_out / div_dem;
-				err_tmp = freq_dem_act - freq_dem;
-
-				div_adc = freq_out / freq_adc / 2;
-				div_adc *= 2;
-				if (div_adc == 0 || div_adc > 31)
-					continue;
-
-				freq_adc_act = freq_out / div_adc;
-				if (freq_adc_act - freq_adc > unit / 5)
-					continue;
-
-				if (err_tmp >= best_err)
-					continue;
-
-				adc_clk_cfg.b.pll_m = pll_m;
-				adc_clk_cfg.b.pll_n = pll_n;
-				adc_clk_cfg.b.pll_od = pll_od;
-				adc_clk_cfg.b.pll_xd = div_adc;
-				dig_clk_cfg.b.demod_clk_div = div_dem - 1;
-
-				error = 0;
-				best_err = err_tmp;
-			}
-		}
-	}
-
-	pll_m = adc_clk_cfg.b.pll_m;
-	pll_n = adc_clk_cfg.b.pll_n;
-	pll_od = adc_clk_cfg.b.pll_od;
-	div_adc = adc_clk_cfg.b.pll_xd;
-	div_dem = dig_clk_cfg.b.demod_clk_div + 1;
-
-	if (error) {
-		/*pr_dbg(" ERROR DIG %7d kHz  ADC %7d kHz\n", */
-		/*      freq_dem/(unit/1000), freq_adc/(unit/1000)); */
-	} else {
-		*demod_dig_clk = dig_clk_cfg.d32;
-		*demod_adc_clk = adc_clk_cfg.d32;
-
-		freq_vco = freq_osc * pll_m / pll_n;
-		freq_out = freq_vco / (1 << pll_od);
-		freq_dem_act = freq_out / div_dem;
-		freq_adc_act = freq_out / div_adc;
-
-		/*pr_dbg(" ADC PLL  M %3d   N %3d\n", pll_m, pll_n); */
-		/*pr_dbg(" ADC PLL OD %3d  XD %3d\n", pll_od, div_adc); */
-		/*pr_dbg(" DIG SRC SEL %2d  DIV %2d\n", 3, div_dem); */
-		/*pr_dbg(" DIG %7d kHz %7d kHz\n", */
-		/*freq_dem/(unit/1000), freq_dem_act/(unit/1000));*/
-		/*pr_dbg(" ADC %7d kHz %7d kHz\n", */
-		/*        freq_adc/(unit/1000), freq_adc_act/(unit/1000)); */
+		demod_reg->val = demod_read_demod_reg(demod_reg->addr);
 	}
 }
 
-*/void apb_write_reg(int addr, int data)
+
+void apb_write_reg(unsigned int addr, unsigned int data)
 {
-	/*  *(volatile unsigned long *)addr = data;*/
-	*(unsigned long *)addr = data;
-/*      pr_dbg("[write]addr is %x,data is %x\n",addr,data);*/
+	writel(data, ((void __iomem *)(phys_to_virt(addr))));
+/* *(volatile unsigned int*)addr = data; */
 }
 
-unsigned long apb_read_reg(int addr)
+unsigned long apb_read_reg_high(unsigned long addr)
 {
 	unsigned long tmp;
-
-	/*   tmp = *(volatile unsigned long *)addr;*/
-	tmp = *(unsigned long *)addr;
-	/*      pr_dbg("[read]addr is %x,data is %x\n",addr,tmp);*/
-	return tmp;
+	tmp = 0;
+	return (tmp >> 32) & 0xffffffff;
 }
 
-void apb_write_regb(int addr, int index, int data)
+unsigned long apb_read_reg(unsigned long addr)
 {
 	unsigned long tmp;
+	void __iomem *vaddr;
+	vaddr = ioremap(((unsigned long)phys_to_virt(addr)), 0x4);
+	tmp = readl(vaddr);
+	iounmap(vaddr);
+/*tmp = *(volatile unsigned long *)((unsigned long)phys_to_virt(addr));*/
+/* printk("[all][read]%lx,data is %lx\n",addr,tmp); */
+	return tmp & 0xffffffff;
+}
 
-	/*tmp = *(volatile unsigned *)addr;*/
-	tmp = *(unsigned *)addr;
-	tmp &= ~(1 << index);
-	tmp |= (data << index);
-	/*   *(volatile unsigned *)addr = tmp;*/
-	*(unsigned *)addr = tmp;
+void apb_write_regb(unsigned long addr, int index, unsigned long data)
+{
+	/*to achieve write func*/
 }
 
 void enable_qam_int(int idx)
@@ -1891,30 +1260,17 @@ char *qam_int_name[] = { "      ADC",
 	"RS_Uncorr"
 };
 
-/*#define OFDM_INT_STS         (volatile unsigned long *)(DVBT_BASE+4*0x0d)
-#define OFDM_INT_EN          (volatile unsigned long *)(DVBT_BASE+4*0x0e)*/
-
-#define OFDM_INT_STS         (unsigned long *)(DVBT_BASE+4*0x0d)
-#define OFDM_INT_EN          (unsigned long *)(DVBT_BASE+4*0x0e)
+#define OFDM_INT_STS         0
+#define OFDM_INT_EN          0
 
 void enable_ofdm_int(int ofdm_irq)
 {
-	/* clear ofdm/xxx status */
-	(*OFDM_INT_STS) &= ~(1 << ofdm_irq);
-	/* enable ofdm/xxx irq */
-	(*OFDM_INT_EN) |= (1 << ofdm_irq);
+
 }
 
 void disable_ofdm_int(int ofdm_irq)
 {
-	unsigned long tmp;
 
-	/* disable ofdm/xxx irq */
-	tmp = (*OFDM_INT_EN);
-	tmp &= ~(1 << ofdm_irq);
-	(*OFDM_INT_EN) = tmp;
-	/* clear ofdm/xxx status */
-	(*OFDM_INT_STS) &= ~(1 << ofdm_irq);
 }
 
 char *ofdm_int_name[] = { "PFS_FCFO",
@@ -1932,42 +1288,15 @@ char *ofdm_int_name[] = { "PFS_FCFO",
 
 unsigned long read_ofdm_int(void)
 {
-	unsigned long stat, mask, tmp;
-	int idx;
-	char buf[80];
 
-	/* read ofdm/xxx status */
-	tmp = (*OFDM_INT_STS);
-	mask = (*OFDM_INT_EN);
-	stat = tmp & mask;
-
-	for (idx = 0; idx < 11; idx++) {
-		if (stat >> idx & 1) {
-			strcpy(buf, "OFDM ");
-			strcat(buf, ofdm_int_name[idx]);
-			strcat(buf, " INT %d    STATUS   %x");
-			/*pr_dbg(buf, idx, stat); */
-		}
-	}
-	/* clear ofdm/xxx status */
-	(*OFDM_INT_STS) = 0;
-
-	return stat;
+	return 0;
 }
 
 #define PHS_LOOP_OPEN
 
 void qam_read_all_regs(void)
 {
-	int i, addr;
-	unsigned long tmp;
 
-	for (i = 0; i < 0xf0; i += 4) {
-		addr = QAM_BASE + i;
-		/*tmp = *(volatile unsigned *)addr;*/
-		tmp = *(unsigned *)addr;
-/*      pr_dbg("QAM addr 0x%02x  value 0x%08x\n", i, tmp);*/
-	}
 }
 
 void ini_icfo_pn_index(int mode)
@@ -2056,42 +1385,28 @@ void tfd_filter_coff_ini(void)
 	}
 }
 
-/*int dvbt_check_status(int)
+void ofdm_initial(int bandwidth,
+		/* 00:8M 01:7M 10:6M 11:5M */
+		int samplerate,
+		/* 00:45M 01:20.8333M 10:20.7M 11:28.57 100: 24.00 */
+		int IF,
+		/* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
+		int mode,
+		/* 00:DVBT,01:ISDBT */
+		int tc_mode
+		/* 0: Unsigned, 1:TC */
+		)
 {
-		int i;
-		unsigned int status;
-		int signal=0;
-		char status_num[8];
-		status=apb_read_reg(DVBT_BASE+(0x2a<<2);
-		for(i=0;i<8;i++){
-			status_num[i]=status<<i&0xf;
-			if(status_num[i]>3){
-				signal=1;
-				pr_dbg("dvbt have signal\n");
-			}else{
-				signal=0;
-				pr_dbg("dvbt have no signal\n");
-			}
-		}
-
-}*/
-
-void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
-		  int samplerate,
-		  /* 00:45M 01:20.8333M 10:20.7M 11:28.57 100: 24.00 */
-		  int IF,
-		  /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
-		  int mode,
-		  /* 00:DVBT,01:ISDBT */
-		  int tc_mode
-			/* 0: Unsigned, 1:TC */)
-{
+#if 0
 	int tmp;
 	int ch_if;
 	int adc_freq;
-	pr_dbg("[ofdm_initial]bandwidth is %d,
-	    samplerate is %d,IF is %d, mode is %d,tc_mode is %d\n",
-		bandwidth, samplerate, IF, mode, tc_mode);
+	pr_dbg
+	    ("[ofdm_initial]bandwidth is %d,samplerate is %d",
+	     bandwidth, samplerate);
+	pr_dbg
+	    ("IF is %d, mode is %d,tc_mode is %d\n",
+	    IF, mode, tc_mode);
 	switch (IF) {
 	case 0:
 		ch_if = 36130;
@@ -2137,7 +1452,8 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 	/* SW reset bit[23] ; write anything to zero */
 	apb_write_reg(DVBT_BASE + (0x00 << 2), 0x00000000);
 
-	apb_write_reg(DVBT_BASE + (0xe << 2), 0xffff);	/* enable interrupt */
+	apb_write_reg(DVBT_BASE + (0xe << 2), 0xffff);
+	/* enable interrupt */
 
 	if (mode == 0) {	/* DVBT */
 		switch (samplerate) {
@@ -2160,8 +1476,7 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 			apb_write_reg(DVBT_BASE + (0x08 << 2), 0x00003924);
 			break;	/* 28.571 */
 		}
-	} else {
-		 /*ISDBT*/
+	} else {		/* ISDBT */
 		switch (samplerate) {
 		case 0:
 			apb_write_reg(DVBT_BASE + (0x08 << 2), 0x0000580d);
@@ -2183,9 +1498,11 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 			break;	/* 28.571 */
 		}
 	}
-	/* memstart=0x93900000; */
+/* memstart=0x93900000; */
 	pr_dbg("memstart is %x\n", memstart);
-	apb_write_reg(DVBT_BASE + (0x10 << 2), memstart);	/*0x8f300000 */
+	apb_write_reg(DVBT_BASE + (0x10 << 2), memstart);
+	/* 0x8f300000 */
+
 	apb_write_reg(DVBT_BASE + (0x14 << 2), 0xe81c4ff6);
 	/* AGC_TARGET 0xf0121385 */
 
@@ -2212,7 +1529,7 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 	if (tc_mode == 1)
 		apb_write_regb(DVBT_BASE + (0x15 << 2), 11, 0);
 	/* For TC mode. Notice, For ADC input is Unsigned,
-	   For Capture Data, It is TC. */
+	For Capture Data, It is TC. */
 	apb_write_regb(DVBT_BASE + (0x15 << 2), 26, 1);
 	/* [19:0] = [I , Q], I is high, Q is low. This bit is swap I/Q. */
 
@@ -2239,17 +1556,16 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 	apb_write_reg(DVBT_BASE + (0x23 << 2), 0x00004000);
 	/* DDC TRACK_FCFO_ADJ_CTRL */
 
-	apb_write_reg(DVBT_BASE + (0x27 << 2),
-		      (1 << 23) | (3 << 19) | (3 << 15) | (1000 << 4) | 9);
+	apb_write_reg(DVBT_BASE + (0x27 << 2), (1 << 23)
+	| (3 << 19) | (3 << 15) |  (1000 << 4) | 9);
 	/* {8'd0,1'd1,4'd3,4'd3,11'd50,4'd9});//FSM_1 */
 	apb_write_reg(DVBT_BASE + (0x28 << 2), (100 << 13) | 1000);
-	/*{8'd0,11'd40,13'd50});//FSM_2 */
-	apb_write_reg(DVBT_BASE + (0x29 << 2),
-		      (31 << 20) | (1 << 16) | (24 << 9) | (3 << 6) | 20);
-	/*{5'd0,7'd127,1'd0,3'd0,7'd24,3'd5,6'd20}); */
+	/* {8'd0,11'd40,13'd50});//FSM_2 */
+	apb_write_reg(DVBT_BASE + (0x29 << 2), (31 << 20) | (1 << 16) |
+	(24 << 9) | (3 << 6) | 20);
+	/* {5'd0,7'd127,1'd0,3'd0,7'd24,3'd5,6'd20}); */
 
 	if (mode == 0) {	/* DVBT */
-
 		if (bandwidth == 0) {	/* 8M */
 			switch (samplerate) {
 			case 0:
@@ -2261,27 +1577,27 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 				ini_acf_iireq_src_207m_8m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00247551);
-				break;	/*20.833M */
+				break;	/* 20.833M */
 			case 2:
 				ini_acf_iireq_src_207m_8m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00243999);
-				break;	/*20.7M */
+				break;	/* 20.7M */
 			case 3:
 				ini_acf_iireq_src_2857m_8m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x0031ffcd);
-				break;	/*28.57M */
+				break;	/* 28.57M */
 			case 4:
 				ini_acf_iireq_src_24m_8m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x002A0000);
-				break;	/*24M */
+				break;	/* 24M */
 			default:
 				ini_acf_iireq_src_2857m_8m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x0031ffcd);
-				break;	/*28.57M */
+				break;	/* 28.57M */
 			}
 		} else if (bandwidth == 1) {	/* 7M */
 			switch (samplerate) {
@@ -2294,27 +1610,27 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 				ini_acf_iireq_src_207m_7m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x0029aaa6);
-				break;	/*20.833M */
+				break;	/* 20.833M */
 			case 2:
 				ini_acf_iireq_src_207m_7m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00296665);
-				break;	/*20.7M */
+				break;	/* 20.7M */
 			case 3:
 				ini_acf_iireq_src_2857m_7m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00392491);
-				break;	/*28.57M */
+				break;	/* 28.57M */
 			case 4:
 				ini_acf_iireq_src_24m_7m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00300000);
-				break;	/*24M */
+				break;	/* 24M */
 			default:
 				ini_acf_iireq_src_2857m_7m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00392491);
-				break;	/*28.57M */
+				break;	/* 28.57M */
 			}
 		} else if (bandwidth == 2) {	/* 6M */
 			switch (samplerate) {
@@ -2327,72 +1643,70 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 				ini_acf_iireq_src_207m_6m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00309c3e);
-				break;	/*20.833M */
+				break;	/* 20.833M */
 			case 2:
 				ini_acf_iireq_src_207m_6m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x002eaaaa);
-				break;	/*20.7M */
+				break;	/* 20.7M */
 			case 3:
 				ini_acf_iireq_src_2857m_6m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x0042AA69);
-				break;	/*28.57M */
+				break;	/* 28.57M */
 			case 4:
 				ini_acf_iireq_src_24m_6m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x00380000);
-				break;	/*24M */
+				break;	/* 24M */
 			default:
 				ini_acf_iireq_src_2857m_6m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
 					      0x0042AA69);
-				break;	/*28.57M */
+				break;	/* 28.57M */
 			}
-		} else {
-			/* 5M */
+		} else {	/* 5M */
 			switch (samplerate) {
 			case 0:
 				ini_acf_iireq_src_45m_5m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
-				0x007dfbe0);
-			break;	/* 45M */
+					      0x007dfbe0);
+				break;	/* 45M */
 			case 1:
 				ini_acf_iireq_src_207m_5m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
-				0x003a554f);
-			break;	/*20.833M */
+					      0x003a554f);
+				break;	/* 20.833M */
 			case 2:
 				ini_acf_iireq_src_207m_5m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
-				0x0039f5c0);
-			break;	/*20.7M */
+					      0x0039f5c0);
+				break;	/* 20.7M */
 			case 3:
 				ini_acf_iireq_src_2857m_5m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
-				0x004FFFFE);
-			break;	/*28.57M */
+					      0x004FFFFE);
+				break;	/* 28.57M */
 			case 4:
 				ini_acf_iireq_src_24m_5m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
-				0x00433333);
-			break;	/*24M */
+					      0x00433333);
+				break;	/* 24M */
 			default:
 				ini_acf_iireq_src_2857m_5m();
 				apb_write_reg(DVBT_BASE + (0x44 << 2),
-				0x004FFFFE);
-			break;	/*28.57M */
+					      0x004FFFFE);
+				break;	/* 28.57M */
 			}
 		}
 	} else {		/* ISDBT */
-
 		switch (samplerate) {
 		case 0:
 			ini_acf_iireq_src_45m_6m();
 			apb_write_reg(DVBT_BASE + (0x44 << 2), 0x00589800);
-			break;
-			/* 45M  SampleRate/(symbolRate)*2^20,
-			   symbolRate = 512/63 for isdbt */
+			break;	/* 45M
+			SampleRate/(symbolRate)*2^20,
+			symbolRate = 512/63 for isdbt */
 		case 1:
 			ini_acf_iireq_src_207m_6m();
 			apb_write_reg(DVBT_BASE + (0x44 << 2), 0x002903d4);
@@ -2408,11 +1722,11 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 		case 4:
 			ini_acf_iireq_src_24m_6m();
 			apb_write_reg(DVBT_BASE + (0x44 << 2), 0x002F4000);
-			break;	/*24M */
+			break;	/* 24M */
 		default:
 			ini_acf_iireq_src_2857m_6m();
 			apb_write_reg(DVBT_BASE + (0x44 << 2), 0x00383fc8);
-			break;	/*28.57M */
+			break;	/* 28.57M */
 		}
 	}
 
@@ -2421,7 +1735,7 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 			      (bandwidth << 20) | 0x10002);
 	else			/* ISDBT */
 		apb_write_reg(DVBT_BASE + (0x02 << 2), (1 << 20) | 0x1001a);
-	/*{0x000,2'h1,20'h1_001a});    // For ISDBT , bandwith should be 1, */
+	/* {0x000,2'h1,20'h1_001a});    // For ISDBT , bandwith should be 1, */
 
 	apb_write_reg(DVBT_BASE + (0x45 << 2), 0x00000000);
 	/* SRC SFO_ADJ_CTRL */
@@ -2455,9 +1769,8 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 	/* CCI_NOTCH2_B1 */
 	apb_write_reg(DVBT_BASE + (0x58 << 2), 0x00000885);
 	/* MODE_DETECT_CTRL // 582 */
-	if (mode == 0)
-		/*DVBT*/ apb_write_reg(DVBT_BASE + (0x5c << 2), 0x00001011);
-	 /**/
+	if (mode == 0)		/* DVBT */
+		apb_write_reg(DVBT_BASE + (0x5c << 2), 0x00001011);	/*  */
 	else
 		apb_write_reg(DVBT_BASE + (0x5c << 2), 0x00000753);
 	/* ICFO_EST_CTRL ISDBT ICFO thres = 2 */
@@ -2521,7 +1834,7 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 	/* Run Testbus dump to DDR */
 
 	apb_write_reg(DVBT_BASE + (0xd6 << 2), 0x00000003);
-	/*apb_write_reg(DVBT_BASE+(0xd7<<2), 0x00000008); */
+	/* apb_write_reg(DVBT_BASE+(0xd7<<2), 0x00000008); */
 	apb_write_reg(DVBT_BASE + (0xd8 << 2), 0x00000120);
 	apb_write_reg(DVBT_BASE + (0xd9 << 2), 0x01010101);
 
@@ -2530,15 +1843,14 @@ void ofdm_initial(int bandwidth,	/* 00:8M 01:7M 10:6M 11:5M */
 
 	calculate_cordic_para();
 	msleep(20);
-	/*   delay_us(1); */
+	/* delay_us(1); */
 
 	apb_write_reg(DVBT_BASE + (0x02 << 2),
 		      apb_read_reg(DVBT_BASE + (0x02 << 2)) | (1 << 0));
 	apb_write_reg(DVBT_BASE + (0x02 << 2),
 		      apb_read_reg(DVBT_BASE + (0x02 << 2)) | (1 << 24));
-
-/*      dvbt_check_status();*/
-
+#endif
+/* dvbt_check_status(); */
 }
 
 void calculate_cordic_para(void)
@@ -2564,15 +1876,17 @@ void check_fsm_state(void)
 	unsigned long tmp;
 
 	tmp = apb_read_reg(DVBT_BASE + 0xa8);
+	/* printk(">>>>>>>>>>>>>>>>>>>>>>>>> OFDM FSM From %d
+	to %d\n", tmp>>4&0xf, tmp&0xf); */
 
 	if ((tmp & 0xf) == 3) {
 		apb_write_regb(DVBT_BASE + (0x9b << 2), 8, 1);
-		/*Stop dump testbus; */
+		/* Stop dump testbus; */
 		apb_write_regb(DVBT_BASE + (0x0f << 2), 0, 1);
 		tmp = apb_read_reg(DVBT_BASE + (0x9f << 2));
-
+		/* printk(">>>>>>>>>>>>>>>>>>>>>>>>> STOP DUMP DATA To DDR :
+		End Addr %d,Is it overflow?%d\n", tmp>>1, tmp&0x1); */
 	}
-
 }
 
 void ofdm_read_all_regs(void)
@@ -2580,10 +1894,9 @@ void ofdm_read_all_regs(void)
 	int i;
 	unsigned long tmp;
 
-	for (i = 0; i < 0xff; i++) {
+	for (i = 0; i < 0xff; i++)
 		tmp = apb_read_reg(DVBT_BASE + 0x00 + i * 4);
-		/*pr_dbg("OFDM Reg (0x%x) is 0x%x\n", i, tmp); */
-	}
+	/* printk("OFDM Reg (0x%x) is 0x%x\n", i, tmp); */
 
 }
 
@@ -2596,16 +1909,14 @@ static int dvbt_get_status(struct aml_demod_sta *demod_sta,
 static int dvbt_get_ber(struct aml_demod_sta *demod_sta,
 			struct aml_demod_i2c *demod_i2c)
 {
-	pr_dbg("[RSJ]per is %lu\n", apb_read_reg(DVBT_BASE + (0xbf << 2)));
+/* pr_dbg("[RSJ]per is %u\n",apb_read_reg(DVBT_BASE+(0xbf<<2))); */
 	return apb_read_reg(DVBT_BASE + (0xbf << 2));
-/*      return dvbt_ber();/*unit: 1e-7*/ */
 }
 
 static int dvbt_get_snr(struct aml_demod_sta *demod_sta,
 			struct aml_demod_i2c *demod_i2c)
 {
-	pr_dbg("2snr is %lu\n",
-	       ((apb_read_reg(DVBT_BASE + (0x0a << 2))) >> 20) & 0x3ff);
+/* pr_dbg("2snr is %u\n",((apb_read_reg(DVBT_BASE+(0x0a<<2)))>>20)&0x3ff); */
 	return ((apb_read_reg(DVBT_BASE + (0x0a << 2))) >> 20) & 0x3ff;
 	/*dBm: bit0~bit2=decimal */
 }
@@ -2613,8 +1924,8 @@ static int dvbt_get_snr(struct aml_demod_sta *demod_sta,
 static int dvbt_get_strength(struct aml_demod_sta *demod_sta,
 			     struct aml_demod_i2c *demod_i2c)
 {
-/*      int dbm = dvbt_get_ch_power(demod_sta, demod_i2c);*/
-/*      return dbm;*/
+/* int dbm = dvbt_get_ch_power(demod_sta, demod_i2c); */
+/* return dbm; */
 	return 0;
 }
 
@@ -2622,7 +1933,7 @@ static int dvbt_get_ucblocks(struct aml_demod_sta *demod_sta,
 			     struct aml_demod_i2c *demod_i2c)
 {
 	return 0;
-/*      return dvbt_get_per();*/
+/* return dvbt_get_per(); */
 }
 
 struct demod_status_ops *dvbt_get_status_ops(void)
@@ -2641,7 +1952,6 @@ struct demod_status_ops *dvbt_get_status_ops(void)
 int app_apb_read_reg(int addr)
 {
 	return (int)(apb_read_reg(DVBT_BASE + (addr << 2)));
-
 }
 
 int app_apb_write_reg(int addr, int data)
@@ -2678,11 +1988,12 @@ void monitor_isdbt(void)
 
 	int cnt;
 	int tmpAGCGain;
+
 	tmpAGCGain = 0;
 	cnt = 0;
 
-/*     app_apb_write_reg(0x8, app_apb_read_reg(0x8) & ~(1 << 17));  //
-TPS symbol index update : active high*/
+/* app_apb_write_reg(0x8, app_apb_read_reg(0x8) & ~(1 << 17));
+// TPS symbol index update : active high */
 	time_stamp = app_apb_read_reg(0x07) & 0xffff;
 	SNR = app_apb_read_reg(0x0a);
 	FECFlag = (app_apb_read_reg(0x00) >> 11) & 0x3;
@@ -2702,7 +2013,7 @@ TPS symbol index update : active high*/
 	timeStamp = (time_stamp >> 8) * 68 + (time_stamp & 0x7f);
 	SFO_residual = (SFO > 0x7ff) ? (SFO - 0x1000) : SFO;
 	FCFO_residual = (FCFO > 0x7fffff) ? (FCFO - 0x1000000) : FCFO;
-	/*RF_AGC          = (RF_AGC>0x3ff)? (RF_AGC - 0x800): RF_AGC; */
+	/* RF_AGC          = (RF_AGC>0x3ff)? (RF_AGC - 0x800): RF_AGC; */
 	FCFO_esti = (FCFO_esti > 0x7ff) ? (FCFO_esti - 0x1000) : FCFO_esti;
 	SNR_CP = (SNR) & 0x3ff;
 	SNR_TPS = (SNR >> 10) & 0x3ff;
@@ -2716,20 +2027,24 @@ TPS symbol index update : active high*/
 	EQ_seg_ratio =
 	    (EQ_seg_ratio > 0x1ffff) ? EQ_seg_ratio - 0x40000 : EQ_seg_ratio;
 
-	pr_dbg("T %4x SP %3d TPS %3d CP %3d EQS %8x RSC %4d
-	    SFO %4d FCFO %4d Vit %4x Timing %3d SigP %3x
-	    FEC %x RSErr %8x ReSyn %x tps %03x%08x", app_apb_read_reg(0xbf)
-	       , SNR_SP, SNR_TPS, SNR_CP
-/*         ,EQ_seg_ratio*/
-	       , app_apb_read_reg(0x62)
-	       , RS_CorrectNum, SFO_residual,
-	       FCFO_residual, RF_AGC, timing_adj,
-	       Signal_power, FECFlag, app_apb_read_reg(0x0b)
-	       , (app_apb_read_reg(0xc0) >> 20) & 0xff,
-	       app_apb_read_reg(0x05) & 0xfff, app_apb_read_reg(0x04)
+	pr_dbg
+	    ("T %4x SP %3d TPS %3d CP %3d EQS %8x RSC %4d",
+	     app_apb_read_reg(0xbf)
+	     , SNR_SP, SNR_TPS, SNR_CP
+/* ,EQ_seg_ratio */
+	     , app_apb_read_reg(0x62)
+	     , RS_CorrectNum);
+	pr_dbg
+	    ("SFO %4d FCFO %4d Vit %4x Timing %3d SigP %3x",
+	    SFO_residual, FCFO_residual, RF_AGC, timing_adj,
+	     Signal_power);
+	pr_dbg
+	    ("FEC %x RSErr %8x ReSyn %x tps %03x%08x",
+	    FECFlag, app_apb_read_reg(0x0b)
+	     , (app_apb_read_reg(0xc0) >> 20) & 0xff,
+	     app_apb_read_reg(0x05) & 0xfff, app_apb_read_reg(0x04)
 	    );
 	pr_dbg("\n");
-
 }
 
 int find_2(int data, int *table, int len)
@@ -2738,9 +2053,10 @@ int find_2(int data, int *table, int len)
 	int index;
 	int start;
 	int cnt = 0;
+
 	start = 0;
 	end = len;
-	/*printf("data is %d\n",data); */
+	/* printf("data is %d\n",data); */
 	while ((len > 1) && (cnt < 10)) {
 		cnt++;
 		index = (len / 2);
@@ -2765,7 +2081,7 @@ int read_atsc_all_reg(void)
 	int i, j, k;
 	j = 4;
 	unsigned long data;
-	pr_dbg("system agc is:");	/*system agc */
+	pr_dbg("system agc is:");	/* system agc */
 	for (i = 0xc00; i <= 0xc0c; i++) {
 		data = atsc_read_reg(i);
 		if (j == 4) {
@@ -3026,7 +2342,6 @@ int read_atsc_all_reg(void)
 	pr_dbg("\n\n");
 	return 0;
 #endif
-
 }
 
 int check_atsc_fsm_status(void)
@@ -3034,20 +2349,48 @@ int check_atsc_fsm_status(void)
 	int SNR;
 	int atsc_snr = 0;
 	int SNR_dB;
-	int SNR_table[56] = {
-		0, 7, 9, 11, 14, 17, 22, 27, 34, 43, 54,
-		68, 86, 108, 136, 171, 215, 271, 341, 429, 540,
-		566, 592, 620, 649, 680, 712, 746, 781, 818, 856,
-		896, 939, 983, 1029, 1078, 1182, 1237, 1237, 1296, 1357,
-		1708, 2150, 2707, 3408, 4291, 5402, 6800, 8561, 10778, 13568,
+	int SNR_table[56] = { 0, 7, 9, 11, 14,
+		17,
+		22,
+		27, 34, 43, 54,
+		68, 86, 108, 136, 171,
+		215,
+		271, 341,
+		429, 540,
+		566, 592, 620, 649, 680,
+		712,
+		746, 781,
+		818, 856,
+		896, 939, 983, 1029, 1078,
+		1182,
+		1237,
+		1237, 1296, 1357,
+		1708, 2150, 2707, 3408, 4291,
+		5402,
+		6800,
+		8561, 10778, 13568,
 		16312, 17081, 18081, 19081, 65536
 	};
-	int SNR_dB_table[56] = {
-		360, 350, 340, 330, 320, 310, 300, 290, 280, 270, 260,
-		250, 240, 230, 220, 210, 200, 190, 180, 170, 160,
-		158, 156, 154, 152, 150, 148, 146, 144, 142, 140,
-		138, 136, 134, 132, 130, 128, 126, 124, 122, 120,
-		110, 100, 90, 80, 70, 60, 50, 40, 30, 20,
+	int SNR_dB_table[56] = { 360, 350, 340, 330, 320, 310, 300,
+		290,
+		280,
+		270, 260,
+		250, 240, 230, 220, 210, 200, 190,
+		180,
+		170,
+		160,
+		158, 156, 154, 152, 150, 148, 146,
+		144,
+		142,
+		140,
+		138, 136, 134, 132, 130, 128, 126,
+		124,
+		122,
+		120,
+		110, 100, 90, 80, 70, 60, 50,
+		40,
+		30,
+		20,
 		12, 10, 4, 2, 0
 	};
 
@@ -3060,13 +2403,14 @@ int check_atsc_fsm_status(void)
 	int per;
 
 	int cnt;
+
 	cnt = 0;
 	ber = 0;
 	per = 0;
 
-/*     g_demod_mode    = 2;*/
+/* g_demod_mode    = 2; */
 	tni = atsc_read_reg((0x08) >> 16);
-/*       g_demod_mode    = 4;*/
+/* g_demod_mode    = 4; */
 	tmp[0] = atsc_read_reg(0x0511);
 	tmp[1] = atsc_read_reg(0x0512);
 	SNR = (tmp[0] << 8) + tmp[1];
@@ -3082,29 +2426,37 @@ int check_atsc_fsm_status(void)
 	ck = (tmp[0] << 16) + (tmp[1] << 8) + tmp[2];
 	ck = (ck > 8388608) ? ck - 16777216 : ck;
 	SM = atsc_read_reg(0x0980);
-/*ber per*/
+/* ber per */
 	atsc_write_reg(0x0601, atsc_read_reg(0x0601) & (~(1 << 3)));
 	atsc_write_reg(0x0601, atsc_read_reg(0x0601) | (1 << 3));
 	ber = atsc_read_reg(0x0683) + (atsc_read_reg(0x0682) << 8);
 	per = atsc_read_reg(0x0685) + (atsc_read_reg(0x0684) << 8);
 
-/*      read_atsc_all_reg();*/
+/* read_atsc_all_reg(); */
 
-	pr_dbg("INT %x SNR %x SNRdB %d.%d FSM %x cr %d
-	    ck %d,ber is %d, per is %d\n", tni, SNR, (SNR_dB / 10)
-	       , (SNR_dB - (SNR_dB / 10) * 10)
-	       , SM, cr, ck, ber, per);
+	pr_dbg
+	    ("INT %x SNR %x SNRdB %d.%d FSM %x cr %d ck %d",
+	     tni, SNR, (SNR_dB / 10)
+	     , (SNR_dB - (SNR_dB / 10) * 10)
+	     , SM, cr, ck);
+	pr_dbg
+		("ber is %d, per is %d\n",
+		ber, per);
+
 	atsc_snr = (SNR_dB / 10);
 	return atsc_snr;
 
 	/*   unsigned long sm,snr1,snr2,snr;
-	   static int fec_lock_cnt = 0;
-
-	   delay_us(10000);
-	   sm = atsc_read_reg(0x0980);
-	   snr1 = atsc_read_reg(0x0511)&0xff;
-	   snr2 = atsc_read_reg(0x0512)&0xff;
-	   snr  = (snr1 << 8) + snr2;
-
-	   if (sm == 0x79) stimulus_finish_pass(); */
+	 * static int fec_lock_cnt = 0;
+	 *
+	 * delay_us(10000);
+	 * sm = atsc_read_reg(0x0980);
+	 * snr1 = atsc_read_reg(0x0511)&0xff;
+	 * snr2 = atsc_read_reg(0x0512)&0xff;
+	 * snr  = (snr1 << 8) + snr2;
+	 *
+	 * printk(">>>>>>>>>>>>>>>>>>>>>>>>>
+	 OFDM FSM %x    SNR %x\n", sm&0xff, snr);
+	 *
+	 * if (sm == 0x79) stimulus_finish_pass();*/
 }

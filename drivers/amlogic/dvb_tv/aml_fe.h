@@ -1,6 +1,7 @@
 #ifndef _AML_FE_H_
 #define _AML_FE_H_
 
+
 #include <linux/interrupt.h>
 #include <linux/socket.h>
 #include <linux/netdevice.h>
@@ -36,6 +37,8 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/of_reserved_mem.h>
 
 enum aml_fe_mode_t {
 	AM_FE_UNKNOWN = 0,
@@ -48,8 +51,8 @@ enum aml_fe_mode_t {
 	AM_FE_ISDBT = 64
 };
 
-#define AM_FE_DTV_MASK (AM_FE_QPSK|AM_FE_QAM|AM_FE_OFDM|\
-			AM_FE_ATSC|AM_FE_DTMB|AM_FE_ISDBT)
+#define AM_FE_DTV_MASK (AM_FE_QPSK | AM_FE_QAM | AM_FE_OFDM | \
+			AM_FE_ATSC | AM_FE_DTMB | AM_FE_ISDBT)
 
 enum aml_tuner_type_t {
 	AM_TUNER_SI2176 = 1,
@@ -58,7 +61,10 @@ enum aml_tuner_type_t {
 	AM_TUNER_HTM = 4,
 	AM_TUNER_CTC703 = 5,
 	AM_TUNER_SI2177 = 6,
-	AM_TUNER_R840 = 7
+	AM_TUNER_R840 = 7,
+	AM_TUNER_SI2157 = 8,
+	AM_TUNER_SI2151 = 9,
+	AM_TUNER_MXL661 = 10
 };
 
 enum aml_atv_demod_type_t {
@@ -99,76 +105,84 @@ struct aml_fe;
 struct aml_fe_drv {
 	struct module *owner;
 	struct aml_fe_drv *next;
-	enum aml_tuner_type_t id;
+	enum aml_tuner_type_t	id;
 	char *name;
-	int capability;
+	int			capability;
 	int (*init)(struct aml_fe_dev *dev);
 	int (*release)(struct aml_fe_dev *dev);
 	int (*resume)(struct aml_fe_dev *dev);
 	int (*suspend)(struct aml_fe_dev *dev);
-	int (*get_ops)(struct aml_fe_dev *dev, int mode, void *ops);
+	int (*get_ops)(struct aml_fe_dev *dev, int mode,
+					   void *ops);
 	int (*enter_mode)(struct aml_fe *fe, int mode);
 	int (*leave_mode)(struct aml_fe *fe, int mode);
-	int ref;
+	int			ref;
 };
 
 struct aml_fe_dev {
 	/*point to parent aml_fe */
 	struct aml_fe *fe;
-	int i2c_adap_id;
-	int i2c_addr;
+	int			i2c_adap_id;
+	int			i2c_addr;
 	struct i2c_adapter *i2c_adap;
-	int reset_gpio;
-	int reset_value;
+	int			reset_gpio;
+	int			reset_value;
 	struct aml_fe_drv *drv;
-	wait_queue_head_t lock_wq;
+	wait_queue_head_t	lock_wq;
 	void *priv_data;
 
 	/*for tuner power control */
-	int tuner_power_gpio;
+	int			tuner_power_gpio;
 	/*for dtv dvbsx lnb power control */
-	int lnb_power_gpio;
+	int			lnb_power_gpio;
 	/*for ant overload control, */
 	/*it possible in dtv dvbsx and depond on fe hw */
-	int antoverload_gpio;
+	int			antoverload_gpio;
 
-	/*for mem reserved */
-	int mem_start;
-	int mem_end;
+	/*for mem reserved*/
+	int			mem_start;
+	int			mem_end;
+};
+struct aml_demod_param {
+	/*for tuner video if to amlatvdemod*/
+	unsigned int	if_freq;  /*HZ*/
+	/*for tuner output*/
+	unsigned int	if_inv;
 };
 
 struct aml_fe {
 	struct dvb_frontend *fe;
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend es;
-#endif				/*CONFIG_HAS_EARLYSUSPEND */
-	spinlock_t slock;
-	int init;
-	int mode;
-	int dev_id;
-	int capability;
-	enum aml_ts_source_t ts;
+	struct early_suspend		es;
+#endif                          /*CONFIG_HAS_EARLYSUSPEND */
+	spinlock_t			slock;
+	int				init;
+	int				mode;
+	int				dev_id;
+	int				capability;
+	enum aml_ts_source_t		ts;
+	struct aml_demod_param		demod_param;
 	struct aml_fe_dev *tuner;
 	struct aml_fe_dev *atv_demod;
 	struct aml_fe_dev *dtv_demod;
 	/*struct dvb_frontend_parameters params;*/
-	struct dtv_frontend_properties params;
+	struct dtv_frontend_properties	params;
 };
 
 struct aml_fe_man {
-	struct aml_fe fe[FE_DEV_COUNT];
-	struct aml_fe_dev tuner[FE_DEV_COUNT];
-	struct aml_fe_dev atv_demod[FE_DEV_COUNT];
-	struct aml_fe_dev dtv_demod[FE_DEV_COUNT];
-	struct dvb_frontend dev[FE_DEV_COUNT];
+	struct aml_fe		fe[FE_DEV_COUNT];
+	struct aml_fe_dev	tuner[FE_DEV_COUNT];
+	struct aml_fe_dev	atv_demod[FE_DEV_COUNT];
+	struct aml_fe_dev	dtv_demod[FE_DEV_COUNT];
+	struct dvb_frontend	dev[FE_DEV_COUNT];
 	struct pinctrl *pinctrl;
 	struct platform_device *pdev;
 };
 
-extern int aml_register_fe_drv(enum aml_fe_dev_type_t type,
-					struct aml_fe_drv *drv);
+extern int aml_register_fe_drv(enum aml_fe_dev_type_t	type,
+			       struct aml_fe_drv *drv);
 extern int aml_unregister_fe_drv(enum aml_fe_dev_type_t type,
-					struct aml_fe_drv *drv);
+				 struct aml_fe_drv *drv);
 
 extern struct dvb_frontend *get_si2177_tuner(void);
 extern const char *soundsys_to_str(unsigned short soundsys);

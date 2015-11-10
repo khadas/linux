@@ -10,11 +10,12 @@
 **	    Shijie.Rong@amlogic
 **  version :
 **	    v1.0	 12/3/13
+**          v2.0     15/10/12
 *****************************************************************/
 
 /*
-    Driver for m6_demod demodulator
-*/
+ *  Driver for m6_demod demodulator
+ */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -27,7 +28,7 @@
 #ifdef ARC_700
 #include <asm/arch/am_regs.h>
 #else
-#include <mach/am_regs.h>
+/* #include <mach/am_regs.h> */
 #endif
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -39,27 +40,25 @@
 #include "amlfrontend.h"
 
 MODULE_PARM_DESC(debug_aml, "\n\t\t Enable frontend debug information");
+static int debug_aml = 1;
 module_param(debug_aml, int, 0644);
 
-static int debug_aml;
-#define pr_dbg(a...)\
-	do {\
-		if (debug_aml) {\
-			printk(a);\
+#define pr_dbg(a ...) \
+	do { \
+		if (debug_aml) { \
+			printk(a); \
 		} \
 	} while (0)
-#define pr_error(fmt, args...) pr_dbg("M6_DEMOD: "fmt, ## args)
+#define pr_error(fmt, args ...) pr_dbg("M6_DEMOD: "fmt, ## args)
 
 static int last_lock = -1;
 #define DEMOD_DEVICE_NAME  "m6_demod"
 static int cci_thread;
-
 static int freq_dvbc;
 static struct aml_demod_sta demod_status;
 static fe_modulation_t atsc_mode = VSB_8;
 
 long *mem_buf;
-int memstart = 0x1ef00000;
 
 MODULE_PARM_DESC(frontend_mode, "\n\t\t Frontend mode 0-DVBC, 1-DVBT");
 static int frontend_mode = -1;
@@ -70,7 +69,7 @@ static int frontend_i2c = -1;
 module_param(frontend_i2c, int, S_IRUGO);
 
 MODULE_PARM_DESC(frontend_tuner,
-"\n\t\t Frontend tuner type 0-NULL, 1-DCT7070, 2-Maxliner, 3-FJ2207, 4-TD1316");
+		 "\n\t\t Frontend tuner type 0-NULL, 1-DCT7070, 2-Maxliner, 3-FJ2207, 4-TD1316");
 static int frontend_tuner = -1;
 module_param(frontend_tuner, int, S_IRUGO);
 
@@ -92,14 +91,8 @@ static ssize_t dvbc_auto_sym_store(struct class *cls,
 				   struct class_attribute *attr,
 				   const char *buf, size_t count)
 {
-	/*int mode = simple_strtol(buf, 0, 16);*/
-	long mode;
-	kstrtol(buf, 16, &mode);
-	pr_dbg("autoflags is %d\n", mode);
-	autoFlagsTrig = 1;
-	autoflags = mode;
-	return count;
 
+	return 0;
 }
 
 static ssize_t dvbc_para_show(struct class *cls, struct class_attribute *attr,
@@ -130,11 +123,8 @@ static ssize_t dvbc_para_show(struct class *cls, struct class_attribute *attr,
 static ssize_t dvbc_para_store(struct class *cls, struct class_attribute *attr,
 			       const char *buf, size_t count)
 {
-	/*int mode = simple_strtol(buf, 0, 16);*/
-	long mode;
-	kstrtol(buf, 16, &mode);
-	pr_dbg("autoflags is %ld\n", mode);
-	return count;
+
+	return 0;
 }
 
 static int readregdata;
@@ -144,86 +134,17 @@ static ssize_t dvbc_reg_show(struct class *cls, struct class_attribute *attr,
 {
 /*      int readregaddr=0;*/
 	char *pbuf = buf;
+
 	pbuf += sprintf(pbuf, "%x", readregdata);
 
 	pr_dbg("read dvbc_reg\n");
 	return pbuf - buf;
-
 }
 
 static ssize_t dvbc_reg_store(struct class *cls, struct class_attribute *attr,
 			      const char *buf, size_t count)
 {
-	long setregaddr = 0;
-	long setregdata = 0;
-	long settunerfreq = 0;
-	int n = 0;
-	char *buf_orig, *ps, *token;
-	char *parm[8];
-	struct aml_cap_data cap;
-	buf_orig = kstrdup(buf, GFP_KERNEL);
-	ps = buf_orig;
-	pr_dbg("write dvbc_reg\n");
-	mutex_lock(&aml_lock);
-	while (1) {
-		token = strsep(&ps, "\b");
-		if (token == NULL)
-			break;
-		if (*token == '\0')
-			continue;
-		parm[n++] = token;
-		pr_dbg("parm[%p]\n", parm[n]);
-	}
-	/*write reg*/
-	if (!strncmp(parm[0], "w", strlen("w"))) {
-		/*   if (n != 2)
-		   {
-		   pr_err("read: invalid parameter\n");
-		   kfree(buf_orig);
-		   return count;
-		   } */
-		pr_dbg("write\n");
-		/*setregaddr = simple_strtol(parm[1], NULL, 16);*/
-		/*setregdata = simple_strtol(parm[2], NULL, 16);*/
-		kstrtol(parm[1], 16, &setregaddr);
-		kstrtol(parm[2], 16, &setregdata);
-		pr_dbg("[debug][W]reg[%x]now set to[%x]\n", setregaddr,
-			setregdata);
-		apb_write_reg(QAM_BASE + setregaddr, setregdata);
-		pr_dbg("[debug][W]reg[%x]now set to[%x]\n", setregaddr,
-		       setregdata);
-	} /*read reg*/
-	else if (!strncmp(parm[0], "r", strlen("r"))) {
-		/*setregaddr = simple_strtol(parm[1], NULL, 16);*/
-		kstrtol(parm[1], 16, &setregaddr);
-		readregdata = apb_read_reg(QAM_BASE + setregaddr);
-		pr_dbg("[debug][R]reg[%x]now is[%x]\n", setregaddr, setregdata);
-	} else if (!strncmp(parm[0], "c", strlen("c"))) {
-		/*capture data*/
-		/*  if (n != 2)
-		   {
-		   pr_err("read: invalid parameter\n");
-		   kfree(buf_orig);
-		   return count;
-		   } */
-		/*  setregaddr = simple_strtol(parm[1], NULL, 16);*/
-		cap.cap_addr = 0x94400000;
-		cap.cap_size = 4 * 1024 * 1024;
-		cap.cap_afifo = 0x60;
-		cap_adc_data(&cap);
-		pr_dbg("[capture]now begin to capture data[%x][%x]\n",
-		       cap.cap_addr, cap.cap_size);
-	} else if (!strncmp(parm[0], "t", strlen("t"))) {
-		/*set tuner*/
-		/*settunerfreq = simple_strtol(parm[1], NULL, 16);*/
-		pr_dbg("[debug][R]reg[%x]now is[%x]\n", setregaddr, setregdata);
-	} else
-		pr_dbg("invalid command\n");
-	kfree(buf_orig);
-
-	mutex_unlock(&aml_lock);
-	return count;
-
+	return 0;
 }
 
 static CLASS_ATTR(auto_sym, 0644, dvbc_auto_sym_show, dvbc_auto_sym_store);
@@ -234,23 +155,23 @@ static CLASS_ATTR(dvbc_reg, 0666, dvbc_reg_show, dvbc_reg_store);
 static irqreturn_t amdemod_isr(int irq, void *data)
 {
 /*	struct aml_fe_dev *state = data;
-
-	#define dvb_isr_islock() (((frontend_mode==0)&&dvbc_isr_islock()) \
-		||((frontend_mode==1)&&dvbt_isr_islock()))
-	#define dvb_isr_monitor() do {\
-		if(frontend_mode==1) dvbt_isr_monitor(); }while(0)
-	#define dvb_isr_cancel() do { if(frontend_mode==1) dvbt_isr_cancel(); \
-		else if(frontend_mode==0) dvbc_isr_cancel();}while(0)
-
-	dvb_isr_islock();
-	{
-		if(waitqueue_active(&state->lock_wq))
-			wake_up_interruptible(&state->lock_wq);
-	}
-
-	dvb_isr_monitor();
-
-	dvb_isr_cancel();*/
+ *
+ * #define dvb_isr_islock() (((frontend_mode==0)&&dvbc_isr_islock()) \
+ * ||((frontend_mode==1)&&dvbt_isr_islock()))
+ * #define dvb_isr_monitor() do {\
+ *              if(frontend_mode==1) dvbt_isr_monitor(); }while(0)
+ * #define dvb_isr_cancel() do { if(frontend_mode==1) dvbt_isr_cancel(); \
+ *              else if(frontend_mode==0) dvbc_isr_cancel();}while(0)
+ *
+ *      dvb_isr_islock();
+ *      {
+ *              if(waitqueue_active(&state->lock_wq))
+ *                      wake_up_interruptible(&state->lock_wq);
+ *      }
+ *
+ *      dvb_isr_monitor();
+ *
+ *      dvb_isr_cancel();*/
 
 	return IRQ_HANDLED;
 }
@@ -262,12 +183,12 @@ static int install_isr(struct aml_fe_dev *state)
 
 	/* hook demod isr */
 /*	pr_dbg("amdemod irq register[IRQ(%d)].\n", INT_DEMOD);
-	r = request_irq(INT_DEMOD, &amdemod_isr,
-				IRQF_SHARED, "amldemod",
-				(void *)state);
-	if (r) {
-		pr_error("amdemod irq register error.\n");
-	}*/
+ *      r = request_irq(INT_DEMOD, &amdemod_isr,
+ *                              IRQF_SHARED, "amldemod",
+ *                              (void *)state);
+ *      if (r) {
+ *              pr_error("amdemod irq register error.\n");
+ *      }*/
 	return r;
 }
 
@@ -306,7 +227,6 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 	struct aml_demod_sts demod_sts;
 	int lock_status;
 	int dvbt_status1;
-	dvbt_status1 = ((apb_read_reg(DVBT_BASE + (0x0a << 2)) >> 20) & 0x3ff);
 
 	if (mode == 0) {
 		/*DVBC*/
@@ -315,19 +235,20 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 		return demod_sts.ch_sts & 0x1;
 	} else if (mode == 1) {
 		/*DVBT*/
+		dvbt_status1 =
+			((apb_read_reg(DVBT_BASE + (0x0a << 2)) >> 20) & 0x3ff);
 		lock_status = (apb_read_reg(DVBT_BASE + (0x2a << 2))) & 0xf;
 		if ((((lock_status) == 9) || ((lock_status) == 10))
-		    && ((dvbt_status1) != 0)) {
+		    && ((dvbt_status1) != 0))
 			return 1;
-		} else {
+		else
 			return 0;
-		}
 		/*((apb_read_reg(DVBT_BASE+0x0)>>12)&0x1);//
-		dvbt_get_status_ops()->get_status(&demod_sts, &demod_sta);*/
+		 * dvbt_get_status_ops()->get_status(&demod_sts, &demod_sta);*/
 	} else if (mode == 2) {
 		/*ISDBT*/
 		/*return dvbt_get_status_ops()->get_status
-		(demod_sts, demod_sta);*/
+		 * (demod_sts, demod_sta);*/
 	} else if (mode == 3) {
 		/*ATSC*/
 		if ((atsc_mode == QAM_64) || (atsc_mode == QAM_256))
@@ -338,10 +259,10 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 			return (atsc_read_iqr_reg() >> 16) == 0x1f;
 	} else if (mode == 4) {
 		/*DTMB*/
-		pr_dbg(args...)("DTMB lock status is %lu\n",
-		((apb_read_reg(DTMB_BASE + (0x0e3 << 2)) >> 12) &
-		0x1));
-		return (apb_read_reg(DTMB_BASE + (0x0e3 << 2)) >> 12) & 0x1;
+		pr_dbg("DTMB lock status is %u\n",
+		       ((dtmb_read_reg(DTMB_BASE + (0x0e3 << 2)) >> 14) &
+			0x1));
+		return (dtmb_read_reg(DTMB_BASE + (0x0e3 << 2)) >> 14) & 0x1;
 	}
 	return 0;
 }
@@ -355,7 +276,8 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 static int m6_demod_dvbc_set_qam_mode(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct aml_demod_dvbc param;	/*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
+	struct aml_demod_dvbc param;    /*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
+
 	memset(&param, 0, sizeof(param));
 	param.mode = amdemod_qam(c->modulation);
 	dvbc_set_qam_mode(param.mode);
@@ -371,21 +293,22 @@ static void m6_demod_dvbc_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_dvbc_read_status(struct dvb_frontend *fe,
-				     fe_status_t *status)
+static int m6_demod_dvbc_read_status
+	(struct dvb_frontend *fe, fe_status_t *status)
 {
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
 	struct aml_demod_sts demod_sts;
 /*      struct aml_demod_sta demod_sta;*/
 /*      struct aml_demod_i2c demod_i2c;*/
 	int ilock;
+
 	demod_sts.ch_sts = apb_read_reg(QAM_BASE + 0x18);
 /*      dvbc_status(&demod_sta, &demod_i2c, &demod_sts);*/
 	if (demod_sts.ch_sts & 0x1) {
 		ilock = 1;
 		*status =
-		    FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		    FE_HAS_VITERBI | FE_HAS_SYNC;
+			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			FE_HAS_VITERBI | FE_HAS_SYNC;
 	} else {
 		ilock = 0;
 		*status = FE_TIMEDOUT;
@@ -411,8 +334,8 @@ static int m6_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int m6_demod_dvbc_read_signal_strength(struct dvb_frontend *fe,
-					      u16 *strength)
+static int m6_demod_dvbc_read_signal_strength
+	(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
@@ -427,6 +350,7 @@ static int m6_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
 	struct aml_demod_sts demod_sts;
 	struct aml_demod_i2c demod_i2c;
 	struct aml_demod_sta demod_sta;
+
 	dvbc_status(&demod_sta, &demod_i2c, &demod_sts);
 	*snr = demod_sts.ch_snr / 100;
 	return 0;
@@ -443,12 +367,13 @@ static int m6_demod_dvbc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int m6_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct aml_demod_dvbc param;	/*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
+	struct aml_demod_dvbc param;    /*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
 	struct aml_demod_sts demod_sts;
 	struct aml_demod_i2c demod_i2c;
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
 	int error, times;
+
 	demod_i2c.tuner = dev->drv->id;
 	demod_i2c.addr = dev->i2c_addr;
 	times = 2;
@@ -474,11 +399,11 @@ static int m6_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	autoFlagsTrig = 0;
 	last_lock = -1;
 	pr_dbg("[m6_demod_dvbc_set_frontend]PARA\t"
-		"demod_i2c.tuner is %d||||demod_i2c.addr is %d||||\t"
-		"param.ch_freq is %d||||param.symb_rate is %d,\t"
-		"param.mode is %d\n",
-		demod_i2c.tuner, demod_i2c.addr, param.ch_freq,
-		param.symb_rate, param.mode);
+	       "demod_i2c.tuner is %d||||demod_i2c.addr is %d||||\t"
+	       "param.ch_freq is %d||||param.symb_rate is %d,\t"
+	       "param.mode is %d\n",
+	       demod_i2c.tuner, demod_i2c.addr, param.ch_freq,
+	       param.symb_rate, param.mode);
 retry:
 	aml_dmx_before_retune(afe->ts, fe);
 	aml_fe_analog_set_frontend(fe);
@@ -503,9 +428,9 @@ retry:
 		lock = amdemod_dvbc_stat_islock(dev);
 		if ((error > 200) || !lock) {
 			pr_error
-			    ("amlfe too many error, error count:%d\t"
+				("amlfe too many error, error count:%d\t"
 				"lock statuc:%d, retry\n",
-			     error, lock);
+				error, lock);
 			goto retry;
 		}
 	}
@@ -514,29 +439,28 @@ retry:
 
 	afe->params = *c;
 /*	afe->params.frequency = c->frequency;
-	afe->params.u.qam.symbol_rate = c->symbol_rate;
-	afe->params.u.qam.modulation = c->modulation;*/
+ *      afe->params.u.qam.symbol_rate = c->symbol_rate;
+ *      afe->params.u.qam.modulation = c->modulation;*/
 
 	pr_dbg("AML amldemod => frequency=%d,symbol_rate=%d\r\n", c->frequency,
 	       c->symbol_rate);
 	return 0;
-
 }
 
 static int m6_demod_dvbc_get_frontend(struct dvb_frontend *fe)
-{				/*these content will be writed into eeprom .*/
-
+{                               /*these content will be writed into eeprom .*/
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int qam_mode;
+
 	qam_mode = apb_read_reg(QAM_BASE + 0x008);
 	afe->params.modulation = (qam_mode & 7) + 1;
 	pr_dbg("[mode] is %d\n", afe->params.modulation);
 
 	*c = afe->params;
 /*	c->modulation= afe->params.u.qam.modulation;
-	c->frequency= afe->params.frequency;
-	c->symbol_rate= afe->params.u.qam.symbol_rate;*/
+ *      c->frequency= afe->params.frequency;
+ *      c->symbol_rate= afe->params.u.qam.symbol_rate;*/
 	return 0;
 }
 
@@ -544,6 +468,7 @@ static int M6_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 {
 	struct aml_demod_sys sys;
 	struct aml_demod_i2c i2c;
+
 	pr_dbg("AML Demod DVB-C init\r\n");
 	memset(&sys, 0, sizeof(sys));
 	memset(&i2c, 0, sizeof(i2c));
@@ -578,20 +503,21 @@ static void m6_demod_dvbt_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_dvbt_read_status(struct dvb_frontend *fe,
-				     fe_status_t *status)
+static int m6_demod_dvbt_read_status
+	(struct dvb_frontend *fe, fe_status_t *status)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 	struct aml_demod_i2c demod_i2c;
 	struct aml_demod_sta demod_sta;
 	int ilock;
 	unsigned char s = 0;
+
 	s = dvbt_get_status_ops()->get_status(&demod_sta, &demod_i2c);
 	if (s == 1) {
 		ilock = 1;
 		*status =
-		    FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		    FE_HAS_VITERBI | FE_HAS_SYNC;
+			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			FE_HAS_VITERBI | FE_HAS_SYNC;
 	} else {
 		ilock = 0;
 		*status = FE_TIMEDOUT;
@@ -615,8 +541,8 @@ static int m6_demod_dvbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int m6_demod_dvbt_read_signal_strength(struct dvb_frontend *fe,
-					      u16 *strength)
+static int m6_demod_dvbt_read_signal_strength
+	(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
@@ -673,7 +599,7 @@ static int m6_demod_dvbt_set_frontend(struct dvb_frontend *fe)
 	param.bw = c->bandwidth_hz;
 	param.agc_mode = 1;
 	/*ISDBT or DVBT : 0 is QAM, 1 is DVBT, 2 is ISDBT,
-	3 is DTMB, 4 is ATSC */
+	 * 3 is DTMB, 4 is ATSC */
 	param.dat0 = 1;
 	last_lock = -1;
 
@@ -683,13 +609,13 @@ retry:
 	dvbt_set_ch(&demod_status, &demod_i2c, &param);
 
 	/*      for(count=0;count<10;count++){
-	   if(amdemod_dvbt_stat_islock(dev)){
-	   pr_dbg("first lock success\n");
-	   break;
-	   }
-
-	   msleep(200);
-	   }    */
+	 * if(amdemod_dvbt_stat_islock(dev)){
+	 * pr_dbg("first lock success\n");
+	 * break;
+	 * }
+	 *
+	 * msleep(200);
+	 * }    */
 /*rsj_debug*/
 
 /**/
@@ -716,14 +642,12 @@ retry:
 	afe->params = *c;
 
 	/*pr_dbg("AML amldemod => frequency=%d,symbol_rate=%d\r\n",
-	p->frequency,p->u.qam.symbol_rate);*/
+	 * p->frequency,p->u.qam.symbol_rate);*/
 	return 0;
-
 }
 
 static int m6_demod_dvbt_get_frontend(struct dvb_frontend *fe)
-{				/*these content will be writed into eeprom .*/
-
+{                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
 
@@ -764,8 +688,9 @@ static void m6_demod_atsc_release(struct dvb_frontend *fe)
 static int m6_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct aml_demod_atsc param;	/*mode  3:64,  5:256, 7:vsb*/
+	struct aml_demod_atsc param;    /*mode  3:64,  5:256, 7:vsb*/
 	fe_modulation_t mode;
+
 	memset(&param, 0, sizeof(param));
 	mode = c->modulation;
 	pr_dbg("mode is %d\n", mode);
@@ -773,8 +698,8 @@ static int m6_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int m6_demod_atsc_read_status(struct dvb_frontend *fe,
-				     fe_status_t *status)
+static int m6_demod_atsc_read_status
+	(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
@@ -782,12 +707,13 @@ static int m6_demod_atsc_read_status(struct dvb_frontend *fe,
 /*      struct aml_demod_sta demod_sta;*/
 	int ilock;
 	unsigned char s = 0;
+
 	s = amdemod_atsc_stat_islock(dev);
 	if (s == 1) {
 		ilock = 1;
 		*status =
-		    FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		    FE_HAS_VITERBI | FE_HAS_SYNC;
+			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			FE_HAS_VITERBI | FE_HAS_SYNC;
 	} else {
 		ilock = 0;
 		*status = FE_TIMEDOUT;
@@ -801,7 +727,7 @@ static int m6_demod_atsc_read_status(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int m6_demod_atsc_read_ber(struct dvb_frontend *fe, u32  ber)
+static int m6_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
@@ -813,8 +739,8 @@ static int m6_demod_atsc_read_ber(struct dvb_frontend *fe, u32  ber)
 	return 0;
 }
 
-static int m6_demod_atsc_read_signal_strength(struct dvb_frontend *fe,
-					      u16 *strength)
+static int m6_demod_atsc_read_signal_strength
+	(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
@@ -873,21 +799,21 @@ retry:
 	atsc_set_ch(&demod_status, &demod_i2c, &param);
 
 	/*{
-	   int ret;
-	   ret = wait_event_interruptible_timeout(
-			dev->lock_wq, amdemod_atsc_stat_islock(dev), 4*HZ);
-	   if(!ret)     pr_error("amlfe wait lock timeout.\n");
-	   } */
+	 * int ret;
+	 * ret = wait_event_interruptible_timeout(
+	 *              dev->lock_wq, amdemod_atsc_stat_islock(dev), 4*HZ);
+	 * if(!ret)     pr_error("amlfe wait lock timeout.\n");
+	 * } */
 /*rsj_debug*/
 	/*      int count;
-	   for(count=0;count<10;count++){
-	   if(amdemod_atsc_stat_islock(dev)){
-	   pr_dbg("first lock success\n");
-	   break;
-	   }
-
-	   msleep(200);
-	   }    */
+	 * for(count=0;count<10;count++){
+	 * if(amdemod_atsc_stat_islock(dev)){
+	 * pr_dbg("first lock success\n");
+	 * break;
+	 * }
+	 *
+	 * msleep(200);
+	 * }    */
 
 	times--;
 	if (amdemod_atsc_stat_islock(dev) && times) {
@@ -910,15 +836,15 @@ retry:
 
 	afe->params = *c;
 	/*pr_dbg("AML amldemod => frequency=%d,symbol_rate=%d\r\n",
-	p->frequency,p->u.qam.symbol_rate);*/
+	 * p->frequency,p->u.qam.symbol_rate);*/
 	return 0;
-
 }
 
 static int m6_demod_atsc_get_frontend(struct dvb_frontend *fe)
-{				/*these content will be writed into eeprom .*/
+{                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
+
 	pr_dbg("c->frequency is %d\n", c->frequency);
 	*c = afe->params;
 	return 0;
@@ -936,8 +862,8 @@ int M6_Demod_Atsc_Init(struct aml_fe_dev *dev)
 	memset(&demod_status, 0, sizeof(demod_status));
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
 	demod_status.dvb_mode = M6_Atsc;
-	sys.adc_clk = Adc_Clk_25_2M;	/*Adc_Clk_26M;*/
-	sys.demod_clk = Demod_Clk_75M;	/*Demod_Clk_71M;//Demod_Clk_78M;*/
+	sys.adc_clk = Adc_Clk_25_2M;    /*Adc_Clk_26M;*/
+	sys.demod_clk = Demod_Clk_75M;  /*Demod_Clk_71M;//Demod_Clk_78M;*/
 	demod_status.ch_if = 6350;
 	demod_status.tmp = Adc_mode;
 	demod_set_sys(&demod_status, &i2c, &sys);
@@ -955,8 +881,8 @@ static void m6_demod_dtmb_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_dtmb_read_status(struct dvb_frontend *fe,
-				     fe_status_t *status)
+static int m6_demod_dtmb_read_status
+	(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
@@ -964,16 +890,17 @@ static int m6_demod_dtmb_read_status(struct dvb_frontend *fe,
 /*      struct aml_demod_sta demod_sta;*/
 	int ilock;
 	unsigned char s = 0;
+
 /*      s = amdemod_dtmb_stat_islock(dev);*/
 /*      if(s==1)*/
-	s = dtmb_read_snr();
+	s = dtmb_read_snr(fe);
 	s = amdemod_dtmb_stat_islock(dev);
 /*      s=1;*/
 	if (s == 1) {
 		ilock = 1;
 		*status =
-		    FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		    FE_HAS_VITERBI | FE_HAS_SYNC;
+			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			FE_HAS_VITERBI | FE_HAS_SYNC;
 	} else {
 		ilock = 0;
 		*status = FE_TIMEDOUT;
@@ -996,14 +923,14 @@ static int m6_demod_dtmb_read_ber(struct dvb_frontend *fe, u32 *ber)
 /*      struct aml_demod_sta demod_sta;*/
 
 /* check_atsc_fsm_status();*/
-	int fec_bch_add;
-	fec_bch_add = dtmb_read_reg(0xdf);
-	*ber = fec_bch_add;
+/* int fec_bch_add; */
+/* fec_bch_add = dtmb_read_reg(0xdf); */
+/* *ber = fec_bch_add; */
 	return 0;
 }
 
-static int m6_demod_dtmb_read_signal_strength(struct dvb_frontend *fe,
-					      u16 *strength)
+static int m6_demod_dtmb_read_signal_strength
+		(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
@@ -1016,15 +943,16 @@ static int m6_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
-
+#if 0
 	int tmp, snr_avg;
 	tmp = snr_avg = 0;
 	tmp = dtmb_read_reg(0x0e3);
-	snr_avg = (tmp >> 13) & 0xfff;
+	snr_avg = (tmp >> 16) & 0x3fff;
 	if (snr_avg >= 2048)
 		snr_avg = snr_avg - 4096;
 	snr_avg = snr_avg / 32;
 	*snr = snr_avg;
+#endif
 	return 0;
 }
 
@@ -1036,7 +964,6 @@ static int m6_demod_dtmb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 static int m6_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 {
-
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_dtmb param;
 /*      struct aml_demod_sta demod_sta;*/
@@ -1054,56 +981,22 @@ static int m6_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	param.ch_freq = c->frequency / 1000;
 
 	last_lock = -1;
-
-/*      aml_dmx_before_retune(AM_TS_SRC_TS2, fe);*/
-	dtmb_set_ch(&demod_status, &demod_i2c, &param);
+/* demod_power_switch(PWR_OFF); */
 	aml_fe_analog_set_frontend(fe);
-
-	/*{
-	   int ret;
-	   ret = wait_event_interruptible_timeout(dev->lock_wq,
-		amdemod_atsc_stat_islock(dev), 4*HZ);
-	   if(!ret)     pr_error("amlfe wait lock timeout.\n");
-	   } */
-/*rsj_debug*/
-	/*      int count;
-	   for(count=0;count<10;count++){
-	   if(amdemod_atsc_stat_islock(dev)){
-	   pr_dbg("first lock success\n");
-	   break;
-	   }
-
-	   msleep(200);
-	   }    */
-
-/*	times--;
-	if(amdemod_dtmb_stat_islock(dev) && times){
-		int lock;
-
-		aml_dmx_start_error_check(AM_TS_SRC_TS2, fe);
-		msleep(20);
-		error = aml_dmx_stop_error_check(AM_TS_SRC_TS2, fe);
-		lock  = amdemod_dtmb_stat_islock(dev);
-		if((error > 200) || !lock){
-			pr_error("amlfe too many error, error count:%d lock
-			statuc:%d, retry\n", error, lock);
-			goto retry;
-		}
-	}
-
-	aml_dmx_after_retune(AM_TS_SRC_TS2, fe);*/
-
+	msleep(100);
+/* demod_power_switch(PWR_ON); */
+	dtmb_set_ch(&demod_status, &demod_i2c, &param);
 	afe->params = *c;
 	/*      pr_dbg("AML amldemod => frequency=%d,symbol_rate=%d\r\n",
-	p->frequency,p->u.qam.symbol_rate);*/
+	 * p->frequency,p->u.qam.symbol_rate);*/
 	return 0;
-
 }
 
 static int m6_demod_dtmb_get_frontend(struct dvb_frontend *fe)
-{				/*these content will be writed into eeprom .*/
+{                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
+
 	*c = afe->params;
 /*      pr_dbg("[get frontend]c->frequency is %d\n",c->frequency);*/
 	return 0;
@@ -1113,7 +1006,6 @@ int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 {
 	struct aml_demod_sys sys;
 	struct aml_demod_i2c i2c;
-
 	pr_dbg("AML Demod DTMB init\r\n");
 
 	memset(&sys, 0, sizeof(sys));
@@ -1121,12 +1013,8 @@ int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 	memset(&demod_status, 0, sizeof(demod_status));
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
 	demod_status.dvb_mode = M6_Dtmb;
-	sys.adc_clk = Adc_Clk_25M;	/*Adc_Clk_26M;*/
-#ifdef dtmb_mobile_mode
-	sys.demod_clk = Demod_Clk_180M;
-#else
-	sys.demod_clk = Demod_Clk_100M;
-#endif
+	sys.adc_clk = Adc_Clk_25M;      /*Adc_Clk_26M;*/
+	sys.demod_clk = Demod_Clk_200M;
 	demod_status.ch_if = Si2176_5M_If;
 	demod_status.tmp = Adc_mode;
 	demod_set_sys(&demod_status, &i2c, &sys);
@@ -1136,26 +1024,26 @@ int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 {
 	struct dvb_frontend_ops *fe_ops = (struct dvb_frontend_ops *)ops;
-	if (mode == AM_FE_OFDM) {
 
+	if (mode == AM_FE_OFDM) {
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 858000000;
 		fe_ops->info.frequency_stepsize = 0;
 		fe_ops->info.frequency_tolerance = 0;
 		fe_ops->info.caps =
-		    FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-		    FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-		    FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-		    FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
-		    FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
-		    FE_CAN_RECOVER | FE_CAN_MUTE_TS;
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
+			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
+			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
 		fe_ops->release = m6_demod_dvbt_release;
 		fe_ops->set_frontend = m6_demod_dvbt_set_frontend;
 		fe_ops->get_frontend = m6_demod_dvbt_get_frontend;
 		fe_ops->read_status = m6_demod_dvbt_read_status;
 		fe_ops->read_ber = m6_demod_dvbt_read_ber;
 		fe_ops->read_signal_strength =
-		    m6_demod_dvbt_read_signal_strength;
+			m6_demod_dvbt_read_signal_strength;
 		fe_ops->read_snr = m6_demod_dvbt_read_snr;
 		fe_ops->read_ucblocks = m6_demod_dvbt_read_ucblocks;
 
@@ -1181,28 +1069,25 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_status = m6_demod_dvbc_read_status;
 		fe_ops->read_ber = m6_demod_dvbc_read_ber;
 		fe_ops->read_signal_strength =
-		    m6_demod_dvbc_read_signal_strength;
+			m6_demod_dvbc_read_signal_strength;
 		fe_ops->read_snr = m6_demod_dvbc_read_snr;
 		fe_ops->read_ucblocks = m6_demod_dvbc_read_ucblocks;
 		fe_ops->set_qam_mode = m6_demod_dvbc_set_qam_mode;
-
-/*      init_waitqueue_head(&dev->lock_wq);*/
 		install_isr(dev);
 		pr_dbg("=========================dvbc demod init\r\n");
 		M6_Demod_Dvbc_Init(dev, Adc_mode);
 	} else if (mode == AM_FE_ATSC) {
-
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 858000000;
 		fe_ops->info.frequency_stepsize = 0;
 		fe_ops->info.frequency_tolerance = 0;
 		fe_ops->info.caps =
-		    FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-		    FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-		    FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-		    FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
-		    FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
-		    FE_CAN_RECOVER | FE_CAN_MUTE_TS;
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
+			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
+			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
 
 		fe_ops->release = m6_demod_atsc_release;
 		fe_ops->set_frontend = m6_demod_atsc_set_frontend;
@@ -1210,24 +1095,23 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_status = m6_demod_atsc_read_status;
 		fe_ops->read_ber = m6_demod_atsc_read_ber;
 		fe_ops->read_signal_strength =
-		    m6_demod_atsc_read_signal_strength;
+			m6_demod_atsc_read_signal_strength;
 		fe_ops->read_snr = m6_demod_atsc_read_snr;
 		fe_ops->read_ucblocks = m6_demod_atsc_read_ucblocks;
 		fe_ops->set_qam_mode = m6_demod_atsc_set_qam_mode;
 		M6_Demod_Atsc_Init(dev);
 	} else if (mode == AM_FE_DTMB) {
-
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 900000000;
 		fe_ops->info.frequency_stepsize = 0;
 		fe_ops->info.frequency_tolerance = 0;
 		fe_ops->info.caps =
-		    FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-		    FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
-		    FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-		    FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
-		    FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
-		    FE_CAN_RECOVER | FE_CAN_MUTE_TS;
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
+			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
+			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
 
 		fe_ops->release = m6_demod_dtmb_release;
 		fe_ops->set_frontend = m6_demod_dtmb_set_frontend;
@@ -1235,7 +1119,7 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_status = m6_demod_dtmb_read_status;
 		fe_ops->read_ber = m6_demod_dtmb_read_ber;
 		fe_ops->read_signal_strength =
-		    m6_demod_dtmb_read_signal_strength;
+			m6_demod_dtmb_read_signal_strength;
 		fe_ops->read_snr = m6_demod_dtmb_read_snr;
 		fe_ops->read_ucblocks = m6_demod_dtmb_read_ucblocks;
 		M6_Demod_Dtmb_Init(dev);
@@ -1249,7 +1133,6 @@ static int m6_demod_fe_resume(struct aml_fe_dev *dev)
 	demod_power_switch(PWR_ON);
 	M6_Demod_Dtmb_Init(dev);
 	return 0;
-
 }
 
 static int m6_demod_fe_suspend(struct aml_fe_dev *dev)
@@ -1262,23 +1145,19 @@ static int m6_demod_fe_suspend(struct aml_fe_dev *dev)
 static int m6_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 {
 	struct aml_fe_dev *dev = fe->dtv_demod;
+	int memstart_dtmb;
+
 	autoFlagsTrig = 1;
-	/*pr_dbg("fe->mode is %d",fe->mode);
-	   if(fe->mode==AM_FE_OFDM){
-	   M1_Demod_Dvbt_Init(dev);
-	   }else if(fe->mode==AM_FE_QAM){
-	   M1_Demod_Dvbc_Init(dev);
-	   }else if (fe->mode==AM_FE_ATSC){
-	   M6_Demod_Atsc_Init(dev);
-	   } */
-	/*dvbc_timer_init();*/
-	if (cci_thread) {
+	if (cci_thread)
 		if (dvbc_get_cci_task() == 1)
 			dvbc_create_cci_task();
-	}
+	memstart_dtmb = fe->dtv_demod->mem_start;
+	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
+	/*mem_buf = (long *)phys_to_virt(memstart);*/
 	M6_Demod_Dtmb_Init(dev);
-	memstart = fe->dtv_demod->mem_start;
-	mem_buf = (long *)phys_to_virt(memstart);
+	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
+	pr_dbg("[dtmb]mem_buf is 0x%x\n",
+		dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
 	return 0;
 }
 
@@ -1291,15 +1170,15 @@ static int m6_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 }
 
 static struct aml_fe_drv m6_demod_dtv_demod_drv = {
-	.id = AM_DTV_DEMOD_M1,
-	.name = "AMLDEMOD",
-	.capability =
-	    AM_FE_QPSK | AM_FE_QAM | AM_FE_ATSC | AM_FE_OFDM | AM_FE_DTMB,
-	.get_ops = m6_demod_fe_get_ops,
-	.suspend = m6_demod_fe_suspend,
-	.resume = m6_demod_fe_resume,
-	.enter_mode = m6_demod_fe_enter_mode,
-	.leave_mode = m6_demod_fe_leave_mode
+	.id		= AM_DTV_DEMOD_M1,
+	.name		= "AMLDEMOD",
+	.capability	=
+		AM_FE_QPSK | AM_FE_QAM | AM_FE_ATSC | AM_FE_OFDM | AM_FE_DTMB,
+	.get_ops	= m6_demod_fe_get_ops,
+	.suspend	= m6_demod_fe_suspend,
+	.resume		= m6_demod_fe_resume,
+	.enter_mode	= m6_demod_fe_enter_mode,
+	.leave_mode	= m6_demod_fe_leave_mode
 };
 
 struct class *m6_clsp;
@@ -1308,6 +1187,7 @@ struct class *m6_para_clsp;
 static int __init m6demodfrontend_init(void)
 {
 	int ret;
+
 	pr_dbg("register m6_demod demod driver\n");
 	ret = 0;
 
