@@ -98,7 +98,7 @@ int set_osd_freescaler(int index, enum vmode_e new_mode)
 	vinfo = get_current_vinfo();
 	if (vinfo) {
 		osd_set_window_axis_hw(index, 0, 0,
-			vinfo->width, vinfo->height);
+			(vinfo->width - 1), (vinfo->height - 1));
 	} else {
 		osd_set_window_axis_hw(index, 0, 0, 1919, 1079);
 		pr_info("error: vinfo is NULL\n");
