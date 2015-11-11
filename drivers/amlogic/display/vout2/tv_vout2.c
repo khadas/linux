@@ -308,7 +308,7 @@ static int tv_set_current_vmode(enum vmode_e mod)
 
 	info->vinfo = &tv_info[mod];
 
-	if (mod & VMODE_LOGO_BIT_MASK)
+	if (mod & VMODE_INIT_BIT_MASK)
 		return 0;
 
 #ifdef CONFIG_AML_VPU

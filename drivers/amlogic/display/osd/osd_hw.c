@@ -120,6 +120,7 @@ static unsigned int osd_v_filter_mode = 1;
 module_param(osd_v_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_v_filter_mode, "osd_v_filter_mode");
 
+static int osd_init_hw_flag;
 static unsigned int osd_logo_index = 1;
 module_param(osd_logo_index, uint, 0664);
 MODULE_PARM_DESC(osd_logo_index, "osd_logo_index");
@@ -3246,6 +3247,7 @@ void osd_init_hw(u32 logo_loaded)
 	osd_rdma_enable(1);
 #endif
 
+	osd_init_hw_flag = 1;
 	return;
 }
 
@@ -3403,6 +3405,10 @@ void osd_set_logo_index(u32 index)
 	osd_logo_index = index;
 }
 
+int osd_get_init_hw_flag(void)
+{
+	return osd_init_hw_flag;
+}
 
 void osd_get_hw_para(struct hw_para_s **para)
 {

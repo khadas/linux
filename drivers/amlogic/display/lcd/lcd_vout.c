@@ -230,10 +230,12 @@ static void lcd_module_enable(void)
 {
 	LCDPR("driver version: %s\n", lcd_driver->version);
 	lcd_driver->power_ctrl(1);
+	lcd_driver->lcd_status = 1;
 }
 
 static void lcd_module_disable(void)
 {
+	lcd_driver->lcd_status = 0;
 	lcd_driver->power_ctrl(0);
 }
 

@@ -2092,7 +2092,7 @@ static int osd_probe(struct platform_device *pdev)
 	int  index, bpp;
 	struct osd_fb_dev_s *fbdev = NULL;
 	enum vmode_e current_mode = VMODE_MASK;
-	enum vmode_e logo_mode = VMODE_MASK;
+	enum vmode_e logo_init = 0;
 	int logo_index = -1;
 	const void *prop;
 	int prop_idx = 0;
@@ -2192,10 +2192,10 @@ static int osd_probe(struct platform_device *pdev)
 	if (prop)
 		prop_idx = of_read_ulong(prop, 1);
 	osd_set_pxp_mode(prop_idx);
-	/* if logo vmode not set, set vmode and init osd hw */
-	logo_mode = get_logo_vmode();
+	/* if osd_init_hw is not set by logo, set vmode and init osd hw */
+	logo_init = osd_get_init_hw_flag();
 	logo_index = osd_get_logo_index();
-	if (logo_mode >= VMODE_MAX) {
+	if (logo_init == 0) {
 		if (current_mode < VMODE_MASK)
 			set_current_vmode(current_mode);
 		osd_init_hw(0);

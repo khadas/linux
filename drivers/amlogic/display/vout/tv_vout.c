@@ -683,7 +683,7 @@ static int tv_set_current_vmode(enum vmode_e mode)
 	vout_log_info("mode is %d,sync_duration_den=%d,sync_duration_num=%d\n",
 		      mode, info->vinfo->sync_duration_den,
 		      info->vinfo->sync_duration_num);
-	if (mode & VMODE_LOGO_BIT_MASK)
+	if (mode & VMODE_INIT_BIT_MASK)
 		return 0;
 
 	vout_change_mode_preprocess(mode);

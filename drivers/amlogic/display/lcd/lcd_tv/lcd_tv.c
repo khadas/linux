@@ -246,7 +246,7 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 			lcd_output_mode);
 	}
 
-	if (!(mode & VMODE_LOGO_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		switch (mode & VMODE_MODE_BIT_MASK) {
 		case VMODE_768P:
 		case VMODE_768P_50HZ:
@@ -806,7 +806,6 @@ static int lcd_driver_init(void)
 		LCDPR("invalid lcd type\n");
 		break;
 	}
-	lcd_drv->lcd_status = 1;
 
 	return 0;
 }
@@ -838,7 +837,7 @@ static void lcd_driver_disable(void)
 	switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_DOWN);
 	release_vpu_clk_vmod(VPU_VENCL);
 #endif
-	lcd_drv->lcd_status = 0;
+
 	LCDPR("disable driver\n");
 }
 

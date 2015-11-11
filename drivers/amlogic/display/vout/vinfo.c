@@ -89,15 +89,31 @@ static const struct vinfo_s vinfo_invalid = {
 enum vmode_e vmode_name_to_mode(const char *str)
 {
 	int i;
-	enum vmode_e vmode;
+	enum vmode_e vmode = VMODE_MAX;
 
-	for (i = 0; i < VMODE_MAX; i++) {
-		if (strcmp(vmode_match_table[i].name, str) == 0)
+	for (i = 0; i < ARRAY_SIZE(vmode_match_table); i++) {
+		if (strcmp(vmode_match_table[i].name, str) == 0) {
+			vmode = vmode_match_table[i].mode;
 			break;
+		}
 	}
-	vmode = vmode_match_table[i].mode;
 
 	return vmode;
+}
+
+const char *vmode_mode_to_name(enum vmode_e vmode)
+{
+	int i;
+	char *str = vinfo_invalid.name;
+
+	for (i = 0; i < ARRAY_SIZE(vmode_match_table); i++) {
+		if (vmode == vmode_match_table[i].mode) {
+			str = vmode_match_table[i].name;
+			break;
+		}
+	}
+
+	return str;
 }
 
 const struct vinfo_s *get_invalid_vinfo(void)

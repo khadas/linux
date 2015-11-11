@@ -20,8 +20,8 @@
 #define _VINFO_H_
 #include <linux/amlogic/tvin/tvin.h>
 
-/* the MSB is represent vmode set by logo */
-#define	VMODE_LOGO_BIT_MASK	0x8000
+/* the MSB is represent vmode set by vmode_init */
+#define	VMODE_INIT_BIT_MASK	0x8000
 #define	VMODE_MODE_BIT_MASK	0xff
 
 enum vmode_e {
@@ -172,5 +172,6 @@ enum fine_tune_mode_e {
 
 extern enum vmode_e vmode_name_to_mode(const char *);
 extern const struct vinfo_s *get_invalid_vinfo(void);
+extern const char *vmode_mode_to_name(enum vmode_e vmode);
 
 #endif /* _VINFO_H_ */

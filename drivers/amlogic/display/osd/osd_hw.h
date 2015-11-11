@@ -131,6 +131,7 @@ extern void osd_init_hw(u32 logo_loaded);
 extern void osd_init_scan_mode(void);
 extern void osd_set_logo_index(u32 index);
 extern int osd_get_logo_index(void);
+extern int osd_get_init_hw_flag(void);
 extern void osd_get_hw_para(struct hw_para_s **para);
 extern int osd_set_debug_hw(const char *buf);
 extern char *osd_get_debug_hw(void);
