@@ -242,6 +242,7 @@ struct DI_MC_MIF_TYPE {
 	unsigned short size_y;
 	unsigned short canvas_num;
 	unsigned short blend_mode;
+	unsigned short vecrd_offset;
 };
 #define DI_MC_MIF_t struct DI_MC_MIF_TYPE
 void disable_deinterlace(void);

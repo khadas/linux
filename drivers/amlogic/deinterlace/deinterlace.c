@@ -84,7 +84,7 @@
 #ifdef ENABLE_SPIN_LOCK_ALWAYS
 static DEFINE_SPINLOCK(di_lock2);
 #define di_lock_irqfiq_save(irq_flag, fiq_flag) \
-	do {fiq_flag = 0; \
+	do {fiq_flag = 0; flags = flags;\
 		spin_lock_irqsave(&di_lock2, irq_flag); \
 	} while (0)
 
@@ -118,9 +118,10 @@ static bool check_start_drop_prog;
 module_param(check_start_drop_prog, bool, 0664);
 MODULE_PARM_DESC(check_start_drop_prog,
 			"enable/disable progress start drop function");
-bool mcpre_en;
+bool mcpre_en = true;
 module_param(mcpre_en, bool, 0664);
 MODULE_PARM_DESC(mcpre_en, "enable/disable me in pre");
+
 #ifdef NEW_DI_V4
 static bool dnr_en;
 module_param(dnr_en, bool, 0664);
@@ -156,7 +157,7 @@ static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
 /* enable nr clock when di enabled */
-static const char version_s[] = "2015-11-05a";
+static const char version_s[] = "2015-11-11a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -1850,23 +1851,23 @@ reg_cfg_t di_default_post = {
 		{DI_MTN_1_CTRL1,		 0, 30, 1},
 		{DI_MTN_1_CTRL1, 0x0202015,  0, 27},
 		{DI_MTN_1_CTRL2, 0x141a2062, 0, 31},
-		{DI_MTN_1_CTRL3, 0x1520050a, 0, 31},
-		{DI_MTN_1_CTRL4, 0x08800840, 0, 31},
-		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
+		{DI_MTN_1_CTRL3, 0x15200101, 0, 31},/*0x1520050a*/
+		{DI_MTN_1_CTRL4, 0x01200440, 0, 31},/*0x08800840*/
+		{DI_MTN_1_CTRL5, 0x52000000, 0, 31},/*0x74000d0d*/
 /* #define DI_MTN_1_CTRL6 */
-		{0x17a9, 0x0d5a1520, 0, 31},
+		{DI_MTN_1_CTRL6, 0x0d5a1520, 0, 31},
 /* #define DI_MTN_1_CTRL7 */
-		{0x17aa, 0x0a0a0201, 0, 31},
+		{DI_MTN_1_CTRL7, 0x0a0a0201, 0, 31},
 /* #define DI_MTN_1_CTRL8 */
-		{0x17ab, 0x1a1a2662, 0, 31},
+		{DI_MTN_1_CTRL8, 0x1a1a2662, 0, 31},
 /* #define DI_MTN_1_CTRL9 */
-		{0x17ac, 0x0d200302, 0, 31},
+		{DI_MTN_1_CTRL9, 0x0d200302, 0, 31},
 /* #define DI_MTN_1_CTRL10 */
-		{0x17ad, 0x02020606, 0, 31},
+		{DI_MTN_1_CTRL10, 0x020a060c, 0, 31},/*0x02020606*/
 /* #define DI_MTN_1_CTRL11 */
-		{0x17ae, 0x05080304, 0, 31},
+		{DI_MTN_1_CTRL11, 0x03040508, 0, 31},/*0x05080304*/
 /* #define DI_MTN_1_CTRL12 */
-		{0x17af, 0x40020a04, 0, 31},
+		{DI_MTN_1_CTRL12, 0x60000404, 0, 31},/*0x40020a04*/
 		{0},
 	}
 };
@@ -3256,7 +3257,7 @@ di_pre_stru.di_chan2_buf_dup_p);
 					RDMA_WR(MCDI_MOTINEN, 1<<1|1);
 				}
 				if (di_pre_stru.field_count_for_cont == 5) {
-					RDMA_WR(MCDI_CTRL_MODE, 0x1bfeefff);
+					RDMA_WR(MCDI_CTRL_MODE, 0x1bfff7ff);
 					/* disalbe reflinfo */
 				}
 			} else
@@ -4382,6 +4383,8 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	if (dnr_en)
 		run_dnr_in_irq(
 di_pre_stru.di_nrwr_mif.end_x+1, di_pre_stru.di_nrwr_mif.end_y+1);
+	else
+		Wr(DNR_CTRL, 0);
 #endif
 	di_pre_stru.pre_de_process_done = 1;
 	di_pre_stru.pre_de_busy = 0;
@@ -4708,10 +4711,15 @@ di_post_stru.buf_type != di_buf->di_buf_dup_p[0]->type ||
 		di_post_stru.di_mtnprd_mif.start_y	= di_start_y>>1;
 		di_post_stru.di_mtnprd_mif.end_y	= di_end_y >> 1;
 		if (mcpre_en) {
-			di_post_stru.di_mcvecrd_mif.start_x = (di_start_x+4)/5;
-			di_post_stru.di_mcvecrd_mif.start_y = (di_start_y>>1);
-			di_post_stru.di_mcvecrd_mif.size_x = (di_width+4)/5 - 1;
-			di_post_stru.di_mcvecrd_mif.size_y = (di_height>>1)-1;
+			di_post_stru.di_mcvecrd_mif.start_x = (di_start_x+1)/5;
+			di_post_stru.di_mcvecrd_mif.vecrd_offset =
+			(di_start_x+1)%5;
+			di_post_stru.di_mcvecrd_mif.start_y =
+			(di_start_y>>1);
+			di_post_stru.di_mcvecrd_mif.size_x	=
+			(di_width+4)/5;
+			di_post_stru.di_mcvecrd_mif.size_y	=
+			(di_height>>1)-1;
 		}
 		di_post_stru.update_post_reg_flag = update_post_reg_count;
 	}

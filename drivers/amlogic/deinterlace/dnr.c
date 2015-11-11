@@ -12,6 +12,14 @@ static bool dnr_pr;
 module_param(dnr_pr, bool, 0644);
 MODULE_PARM_DESC(dnr_pr, "/n print dnr debug information /n");
 
+static bool dnr_dm_en;/*gxtvbb can't work normal,must set to 0*/
+module_param(dnr_dm_en, bool, 0644);
+MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
+
+static unsigned int dnr_stat_coef = 3;/*gxtvbb default is 3*/
+module_param(dnr_stat_coef, uint, 0644);
+MODULE_PARM_DESC(dnr_stat_coef, "/n dnr stat coef /n");
+
 static int dnr_prm_init(DNR_PRM_t *pPrm)
 {
 	pPrm->prm_sw_gbs_ctrl = 0;
@@ -280,11 +288,13 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #ifdef DNR_HV_SHIFT
 	int ro_hbof_stat_cnt[32], ro_vbof_stat_cnt[32], i = 0;
 #endif
-	Wr(DNR_CTRL, 0x1ff00);
-	Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 9)|(1 << 11));
+	Wr(DNR_CTRL, 0x1df00);
+	Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(dnr_dm_en << 9)|(1 << 11));
 	Wr(DNR_HVSIZE, nCol<<16|nRow);
-	Wr(DNR_STAT_X_START_END, nCol-1);
-	Wr(DNR_STAT_Y_START_END, nRow-1);
+	Wr(DNR_STAT_X_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
+		|((nCol-(8*dnr_stat_coef+1))&0x3fff));
+	Wr(DNR_STAT_Y_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
+		|((nRow-(8*dnr_stat_coef+1))&0x3fff));
 	ro_gbs_stat_lr = Rd(DNR_RO_GBS_STAT_LR);
 	ro_gbs_stat_ll = Rd(DNR_RO_GBS_STAT_LL);
 	ro_gbs_stat_rr = Rd(DNR_RO_GBS_STAT_RR);

@@ -56,6 +56,10 @@ module_param(cue_enable, bool, 0664);
 static unsigned short mcen_mode = 1;
 MODULE_PARM_DESC(mcen_mode, "\n blend mc enable\n");
 module_param(mcen_mode, ushort, 0664);
+static unsigned short mcuv_en = 1;
+MODULE_PARM_DESC(mcuv_en, "\n blend mcuv enable\n");
+module_param(mcuv_en, ushort, 0664);
+
 
 #ifdef DET3D
 static unsigned int det3d_cfg;
@@ -451,10 +455,13 @@ void enable_mc_di_post(DI_MC_MIF_t *di_mcvecrd_mif, int urgent, bool reverse)
 						(1<<9)|/* canvas enable */
 						(0 << 10) |
 						(0x31<<16));
+	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, di_mcvecrd_mif->vecrd_offset,
+		12, 3);
 	if (di_mcvecrd_mif->blend_mode == 3)
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
 	else
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
+	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 9, 1);
 }
 
 
@@ -1232,10 +1239,13 @@ void di_post_switch_buffer(
 	(1<<9) |	  /* canvas enable */
 	di_mcvecrd_mif->canvas_num |  /* canvas index. */
 	(urgent << 8));
-		if (di_mcvecrd_mif->blend_mode == 3)
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
-		else
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
+			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+				di_mcvecrd_mif->vecrd_offset, 12, 3);
+			if (di_mcvecrd_mif->blend_mode == 3)
+				VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+					mcen_mode, 0, 2);
+			else
+				VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 	}
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en|blend_en) << 0) |	/* line buffer 0 enable */
@@ -1541,8 +1551,8 @@ unsigned char di_get_power_control(unsigned char type)
 static void di_nr_init(void)
 {
 	Wr(DI_NR_CTRL0, 0xc60c0804);
-	Wr(DI_NR_CTRL1, 0x403e3c3a);
-	Wr(DI_NR_CTRL2, 0x08010a01);
+	Wr(DI_NR_CTRL1, 0x90101010);/*0x403e3c3a*/
+	Wr(DI_NR_CTRL2, 0x10101010);/*0x08010a01*/
 	Wr(NR2_MET_NM_CCTRL, 0x45056410);
 	Wr(NR2_MATNR_SNR_NRM_GAIN, 0x4);
 	Wr(NR2_MATNR_SNR_LPF_CFG, 0xc2b64);
