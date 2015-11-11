@@ -1,0 +1,34 @@
+Device Tree Clock bindings for the clocks based on
+System Control and Power Interface (SCPI) Message Protocol
+
+This binding uses the common clock binding[1].
+
+Required properties:
+- compatible : shall be one of the following:
+	"arm,scpi-clks" - for the container node with all the clocks
+		based on the SCPI protocol
+	"arm,scpi-clk-indexed" - all the clocks that are variable and index
+		based. These clocks don't provide the full range between the
+		limits but only discrete points within the range. The firmware
+		provides the mapping for each such operating frequency and the
+		index associated with it.
+	"arm,scpi-clk-range" - all the clocks that are variable and provide
+		full range within the specified range
+
+Required properties for all clocks(all from common clock binding):
+- #clock-cells : ; shall be set to 0 or 1 depending on whether it has single
+	or multiple clock outputs.
+- clock-output-names : shall be the corresponding names of the outputs.
+- clock-indices: The identifyng number for the clocks in the node as expected
+	by the firmware. It can be non linear and hence provide the mapping
+	of identifiers into the clock-output-names array.
+- frequency-range: The allowed range of clock frequency supported specified
+	in the form of minimum and maximum limits(two u32 fields)
+	This is required only if compatible is "arm,scpi-clk-range"
+
+Clock consumers should specify the desired clocks they use with a
+"clocks" phandle cell. Consumers should also provide an additional ID
+in their clock property. This ID refers to the specific clock in the clock
+provider list.
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
