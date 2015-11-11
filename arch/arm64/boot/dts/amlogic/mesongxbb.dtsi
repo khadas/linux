@@ -248,7 +248,7 @@
 		migrate = <0xC4000005>;
 	};
 	secmon {
-		compatible = "aml, secmon";
+		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
