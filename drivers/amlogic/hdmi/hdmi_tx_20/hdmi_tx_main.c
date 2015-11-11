@@ -1154,7 +1154,7 @@ static ssize_t store_phy(struct device *dev,
 	else if (strncmp(buf, "1", 1) == 0)
 		cmd = TMDS_PHY_ENABLE;
 	else
-		pr_info("set avmute wrong: %s\n", buf);
+		pr_info("hdmitx: set phy wrong: %s\n", buf);
 
 	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP, cmd);
 	return count;
@@ -1371,14 +1371,13 @@ static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
 static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
 static DEVICE_ATTR(avmute, S_IWUSR, NULL, store_avmute);
-static DEVICE_ATTR(phy, S_IWUSR | S_IRUGO | S_IWGRP, NULL, store_phy);
+static DEVICE_ATTR(phy, S_IWUSR | S_IWGRP, NULL, store_phy);
 static DEVICE_ATTR(hdcp_byp, S_IWUSR, NULL, store_hdcp_byp);
 static DEVICE_ATTR(hdcp_mode, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_mode,
 	store_hdcp_mode);
 static DEVICE_ATTR(hdcp_lstore, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_lstore,
 	store_hdcp_lstore);
-static DEVICE_ATTR(hdcp_ctrl, S_IWUSR | S_IRUGO | S_IWGRP, NULL,
-	store_hdcp_ctrl);
+static DEVICE_ATTR(hdcp_ctrl, S_IWUSR | S_IWGRP, NULL, store_hdcp_ctrl);
 static DEVICE_ATTR(disp_cap_3d, S_IRUGO, show_disp_cap_3d,
 	NULL);
 static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info,
