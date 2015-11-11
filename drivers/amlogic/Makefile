@@ -123,3 +123,5 @@ obj-$(CONFIG_AMLOGIC_JTAG)     += jtag/
 obj-$(CONFIG_INSTABOOT)		+= instaboot/
 
 obj-$(CONFIG_AMLOGIC_SPICC_MASTER) += spicc/
+
+obj-$(CONFIG_AMLOGIC_CPU_INFO)	+=cpu_info/

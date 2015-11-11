@@ -276,6 +276,10 @@
 		#reset-cells = <1>;
 		sys_max = <1536000000>;
 	};
+	cpu_info{
+		compatible = "amlogic, cpuinfo";
+		cpuinfo_cmd = <0x82000044>;
+	};
 	pinmux: pinmux{
 		compatible = "amlogic, pinmux-gxbb";
 		dev_name = "pinmux";

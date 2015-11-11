@@ -34,6 +34,7 @@
 #ifdef CONFIG_ARM64
 #include <linux/amlogic/efuse-amlogic.h>
 #endif
+#include <linux/amlogic/secmon.h>
 
 static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 {
@@ -54,7 +55,7 @@ static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 			cmd = efuse_write_cmd;
 	offset = arg->offset;
 	size = arg->size;
-
+	sharemem_mutex_lock();
 	if (arg->cmd == EFUSE_HAL_API_WRITE)
 		memcpy((void *)sharemem_input_base,
 			(const void *)arg->buffer, size);
@@ -78,6 +79,7 @@ static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	if ((arg->cmd == EFUSE_HAL_API_READ) && (ret != 0))
 		memcpy((void *)arg->buffer,
 			(const void *)sharemem_output_base, ret);
+	sharemem_mutex_unlock();
 
 	if (!ret)
 		return -1;

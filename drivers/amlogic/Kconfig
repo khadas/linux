@@ -117,4 +117,5 @@ source "drivers/amlogic/spicc/Kconfig"
 
 source "drivers/amlogic/jtag/Kconfig"
 
+source "drivers/amlogic/cpu_info/Kconfig"
 endmenu
