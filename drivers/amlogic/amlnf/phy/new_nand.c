@@ -556,6 +556,8 @@ static int set_reg_value_toshiba(struct hw_controller *controller,
 	unsigned char chipnr,
 	unsigned char cnt)
 {
+	struct amlnand_chip *aml_chip = controller->aml_chip;
+	struct nand_flash *flash = &(aml_chip->flash);
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	int i, ret = 0;
 
@@ -587,7 +589,14 @@ static int set_reg_value_toshiba(struct hw_controller *controller,
 		aml_nand_dbg("REG(0x%x): value:0x%x, for chip[%d]\n",
 			addr[i], buf[i], chipnr);
 	}
-
+	/* a19 last retry need extra B3 cmd. */
+	if ((flash->new_type == TOSHIBA_A19NM) &&
+		(retry_info->cur_cnt_lp[chipnr] ==
+		(retry_info->retry_cnt_lp - 1))) {
+		controller->cmd_ctrl(controller,
+		NAND_CMD_TOSHIBA_BEF_COMMAND0, NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, 2);
+	}
 	controller->cmd_ctrl(controller,
 		NAND_CMD_TOSHIBA_BEF_COMMAND1, NAND_CTRL_CLE);
 	 NFC_SEND_CMD_IDLE(controller, 2);
@@ -639,7 +648,7 @@ static int readretry_exit_toshiba(struct hw_controller *controller,
 	unsigned char chipnr)
 {
 	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);
+	/*struct nand_flash *flash = &(aml_chip->flash);*/
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	struct chip_operation *operation = &(aml_chip->operation);
 	int  ret = 0, i;
@@ -656,20 +665,22 @@ static int readretry_exit_toshiba(struct hw_controller *controller,
 
 	aml_nand_dbg("toshiba reatry exit");
 	memset(&retry_info->cur_cnt_lp[0], 0, MAX_CHIP_NUM);
-	if (flash->new_type != TOSHIBA_A19NM) {
-		for (i = 0; i < retry_info->reg_cnt_lp; i++) {
-			controller->cmd_ctrl(controller,
-				NAND_CMD_TOSHIBA_SET_VALUE, NAND_CTRL_CLE);
-			NFC_SEND_CMD_IDLE(controller, 2);
-			controller->cmd_ctrl(controller,
-				retry_info->reg_addr_lp[i], NAND_CTRL_ALE);
-			NFC_SEND_CMD_IDLE(controller, 2);
-			controller->writebyte(controller, buf[i]);
-			NFC_SEND_CMD_IDLE(controller, 2);
-			aml_nand_dbg("REG(0x%x): value:0x%x, for chip[%d]\n",
-				retry_info->reg_addr_lp[i], buf[i], chipnr);
-		}
+	/* a19 also need restore */
+	/*if (flash->new_type != TOSHIBA_A19NM) { */
+	for (i = 0; i < retry_info->reg_cnt_lp; i++) {
+		controller->cmd_ctrl(controller,
+			NAND_CMD_TOSHIBA_SET_VALUE, NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, 2);
+		controller->cmd_ctrl(controller,
+			retry_info->reg_addr_lp[i], NAND_CTRL_ALE);
+		NFC_SEND_CMD_IDLE(controller, 2);
+		controller->writebyte(controller, buf[i]);
+		NFC_SEND_CMD_IDLE(controller, 2);
+		aml_nand_dbg("REG(0x%x): value:0x%x, for chip[%d]\n",
+			retry_info->reg_addr_lp[i], buf[i], chipnr);
 	}
+	/*} */
+	/* already wait rb inside */
 	ret = operation->reset(aml_chip, chipnr);
 	if (ret < 0) {
 		aml_nand_msg("reset nand failed chipnr:%d", chipnr);
@@ -1631,50 +1642,57 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 		retry_info->handle = readretry_handle_toshiba;
 		retry_info->exit = readretry_exit_toshiba;
 		break;
-	case TOSHIBA_A19NM:	/* toshiba 24nm/19nm TOSHIBA_2XNM */
+	case TOSHIBA_A19NM:	/* toshiba a19/1y */
 		retry_info->flag = 1;
 		retry_info->reg_cnt_lp = 5;
 		retry_info->retry_cnt_lp = 7;
+		/* reg addr */
 		retry_info->reg_addr_lp[0] = 0x04;
 		retry_info->reg_addr_lp[1] = 0x05;
 		retry_info->reg_addr_lp[2] = 0x06;
 		retry_info->reg_addr_lp[3] = 0x07;
-		retry_info->reg_addr_lp[3] = 0x0D;
-		retry_info->reg_offs_val_lp[0][0][0] = 0;
-		retry_info->reg_offs_val_lp[0][0][1] = 0;
-		retry_info->reg_offs_val_lp[0][0][2] = 0;
-		retry_info->reg_offs_val_lp[0][0][3] = 0;
-		retry_info->reg_offs_val_lp[0][0][4] = 0;
-		retry_info->reg_offs_val_lp[0][1][0] = 0x04;
-		retry_info->reg_offs_val_lp[0][1][1] = 0x04;
-		retry_info->reg_offs_val_lp[0][1][2] = 0x04;
-		retry_info->reg_offs_val_lp[0][1][3] = 0x04;
+		retry_info->reg_addr_lp[4] = 0x0D;
+		/* 0 */
+		retry_info->reg_offs_val_lp[0][0][0] = 0x04;
+		retry_info->reg_offs_val_lp[0][0][1] = 0x04;
+		retry_info->reg_offs_val_lp[0][0][2] = 0x7c;
+		retry_info->reg_offs_val_lp[0][0][3] = 0x7e;
+		retry_info->reg_offs_val_lp[0][0][4] = 0x00;
+		/* 1 */
+		retry_info->reg_offs_val_lp[0][1][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][1][1] = 0x7c;
+		retry_info->reg_offs_val_lp[0][1][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][1][3] = 0x78;
 		retry_info->reg_offs_val_lp[0][1][4] = 0x00;
+		/* 2 */
 		retry_info->reg_offs_val_lp[0][2][0] = 0x7c;
-		retry_info->reg_offs_val_lp[0][2][1] = 0x7c;
-		retry_info->reg_offs_val_lp[0][2][2] = 0x7c;
-		retry_info->reg_offs_val_lp[0][2][3] = 0x7c;
+		retry_info->reg_offs_val_lp[0][2][1] = 0x76;
+		retry_info->reg_offs_val_lp[0][2][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][2][3] = 0x72;
 		retry_info->reg_offs_val_lp[0][2][4] = 0x00;
-		retry_info->reg_offs_val_lp[0][3][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][3][1] = 0x78;
-		retry_info->reg_offs_val_lp[0][3][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][3][3] = 0x78;
+		/* 3 */
+		retry_info->reg_offs_val_lp[0][3][0] = 0x08;
+		retry_info->reg_offs_val_lp[0][3][1] = 0x08;
+		retry_info->reg_offs_val_lp[0][3][2] = 0x00;
+		retry_info->reg_offs_val_lp[0][3][3] = 0x00;
 		retry_info->reg_offs_val_lp[0][3][4] = 0x00;
-		retry_info->reg_offs_val_lp[0][4][0] = 0x74;
-		retry_info->reg_offs_val_lp[0][4][1] = 0x74;
-		retry_info->reg_offs_val_lp[0][4][2] = 0x74;
+		/* 4 */
+		retry_info->reg_offs_val_lp[0][4][0] = 0x0b;
+		retry_info->reg_offs_val_lp[0][4][1] = 0x7e;
+		retry_info->reg_offs_val_lp[0][4][2] = 0x76;
 		retry_info->reg_offs_val_lp[0][4][3] = 0x74;
 		retry_info->reg_offs_val_lp[0][4][4] = 0x00;
-		retry_info->reg_offs_val_lp[0][5][0] = 0x08;
-		retry_info->reg_offs_val_lp[0][5][1] = 0x08;
-		retry_info->reg_offs_val_lp[0][5][2] = 0x08;
-		retry_info->reg_offs_val_lp[0][5][3] = 0x08;
+		/* 5 */
+		retry_info->reg_offs_val_lp[0][5][0] = 0x10;
+		retry_info->reg_offs_val_lp[0][5][1] = 0x76;
+		retry_info->reg_offs_val_lp[0][5][2] = 0x72;
+		retry_info->reg_offs_val_lp[0][5][3] = 0x70;
 		retry_info->reg_offs_val_lp[0][5][4] = 0x00;
-
-		retry_info->reg_offs_val_lp[0][6][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][6][1] = 0x78;
-		retry_info->reg_offs_val_lp[0][6][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][6][3] = 0x78;
+		/* 6 */
+		retry_info->reg_offs_val_lp[0][6][0] = 0x02;
+		retry_info->reg_offs_val_lp[0][6][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][6][2] = 0x7e;
+		retry_info->reg_offs_val_lp[0][6][3] = 0x7c;
 		retry_info->reg_offs_val_lp[0][6][4] = 0x00;
 		retry_info->handle = readretry_handle_toshiba;
 		retry_info->exit = readretry_exit_toshiba;
@@ -1689,7 +1707,7 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 		retry_info->reg_addr_lp[1] = 0x05;
 		retry_info->reg_addr_lp[2] = 0x06;
 		retry_info->reg_addr_lp[3] = 0x07;
-		retry_info->reg_addr_lp[3] = 0x0D;
+		retry_info->reg_addr_lp[4] = 0x0D;
 
 		retry_info->reg_offs_val_lp[0][0][0] = 0;
 		retry_info->reg_offs_val_lp[0][0][1] = 0;
