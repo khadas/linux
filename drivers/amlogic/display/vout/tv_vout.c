@@ -116,23 +116,6 @@ static void set_tvmode_misc(enum tvmode_e mode)
 		set_vmode_clk(mode);
 }
 
-/*
- * uboot_display_already() uses to judge whether display has already
- * be set in uboot.
- * Here, first read the value of reg P_ENCP_VIDEO_MAX_PXCNT and
- * P_ENCP_VIDEO_MAX_LNCNT, then compare with value of tvregsTab[mode]
- */
-static int uboot_display_already(enum tvmode_e mode)
-{
-	enum tvmode_e source = TVMODE_MAX;
-
-	source = vmode_to_tvmode(get_logo_vmode());
-	if (source == mode)
-		return 1;
-	else
-		return 0;
-}
-
 static unsigned int vdac_cfg_valid = 0, vdac_cfg_value;
 static unsigned int cvbs_get_trimming_version(unsigned int flag)
 {
@@ -474,7 +457,6 @@ static char *tv_out_bist_str[] = {
 int tv_out_setmode(enum tvmode_e mode)
 {
 	const struct tvinfo_s *tvinfo;
-	static int uboot_display_flag = 1;
 	int ret;
 
 	if (mode >= TVMODE_MAX) {
@@ -489,15 +471,6 @@ int tv_out_setmode(enum tvmode_e mode)
 		return 0;
 	}
 	vout_log_info("TV mode %s selected.\n", tvinfo->id);
-
-	if (uboot_display_flag) {
-		uboot_display_flag = 0;
-		if (uboot_display_already(mode)) {
-			vout_log_info("already display in uboot\n");
-			mutex_unlock(&setmode_mutex);
-			return 0;
-		}
-	}
 
 	tv_out_pre_close_vdac(mode);
 
@@ -634,7 +607,7 @@ static void fps_auto_adjust_mode(enum vmode_e *pmode)
 static enum fine_tune_mode_e fine_tune_mode = KEEP_HPLL;
 #endif
 
-static int is_enci_required(enum vmode_e mode)
+static int tv_out_enci_is_required(enum vmode_e mode)
 {
 	if ((mode == VMODE_576I) ||
 		(mode == VMODE_576I_RPT) ||
@@ -648,57 +621,81 @@ static int is_enci_required(enum vmode_e mode)
 
 static void vout_change_mode_preprocess(enum vmode_e vmode_new)
 {
-	if (!is_enci_required(vmode_new))
+	if (!tv_out_enci_is_required(vmode_new))
 		tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 0, ENCI_GATE_VCLK, 1);
 
 	return;
 }
 
+#ifdef CONFIG_AML_VPU
+static void tv_out_vpu_power_ctrl(int status)
+{
+	int vpu_mod;
+
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8)
+		return;
+
+	if (info->vinfo == NULL)
+		return;
+	vpu_mod = tv_out_enci_is_required(info->vinfo->mode);
+	vpu_mod = (vpu_mod) ? VPU_VENCI : VPU_VENCP;
+	if (status) {
+		request_vpu_clk_vmod(info->vinfo->video_clk, vpu_mod);
+		switch_vpu_mem_pd_vmod(vpu_mod, VPU_MEM_POWER_ON);
+	} else {
+		switch_vpu_mem_pd_vmod(vpu_mod, VPU_MEM_POWER_DOWN);
+		release_vpu_clk_vmod(vpu_mod);
+	}
+}
+#endif
+
 static int tv_set_current_vmode(enum vmode_e mode)
 {
-	if ((mode & VMODE_MODE_BIT_MASK) > VMODE_MAX)
+	enum vmode_e tvmode;
+
+	tvmode = mode & VMODE_MODE_BIT_MASK;
+	if (tvmode > VMODE_MAX)
 		return -EINVAL;
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	/*
 	 * if plug hdmi during fps (stream is playing)
 	 * then adjust mode to fps vmode
 	 */
-	if (!want_hdmi_mode(mode)) {
+	if (!want_hdmi_mode(tvmode)) {
 		if (DOWN_HPLL == fine_tune_mode)
 			update_tv_info_duration(fps_target_mode, UP_HPLL);
 	}
-	fps_auto_adjust_mode(&mode);
-	update_vmode_status(get_name_from_vmode(mode));
+	fps_auto_adjust_mode(&tvmode);
+	update_vmode_status(get_name_from_vmode(tvmode));
 	vout_log_info("%s[%d]fps_target_mode=%d\n",
-		      __func__, __LINE__, mode);
+		      __func__, __LINE__, tvmode);
 
-	info->vinfo = update_tv_info_duration(mode, fine_tune_mode);
+	info->vinfo = update_tv_info_duration(tvmode, fine_tune_mode);
 #else
-	info->vinfo = get_tv_info(mode & VMODE_MODE_BIT_MASK);
+	info->vinfo = get_tv_info(tvmode);
 #endif
 	if (!info->vinfo) {
-		vout_log_info("don't get tv_info, mode is %d\n", mode);
+		vout_log_info("don't get tv_info, mode is %d\n", tvmode);
 		return 1;
 	}
 	vout_log_info("mode is %d,sync_duration_den=%d,sync_duration_num=%d\n",
-		      mode, info->vinfo->sync_duration_den,
+		      tvmode, info->vinfo->sync_duration_den,
 		      info->vinfo->sync_duration_num);
-	if (mode & VMODE_INIT_BIT_MASK)
-		return 0;
 
-	vout_change_mode_preprocess(mode);
+	vout_change_mode_preprocess(tvmode);
 
 #ifdef CONFIG_AML_VPU
-#if 0 /* mask it for it's not supported for now */
-	switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
-	request_vpu_clk_vmod(info->vinfo->video_clk, info->vinfo->mode);
-#endif
+	tv_out_vpu_power_ctrl(1);
 #endif
 	tv_out_reg_write(VPP_POSTBLEND_H_SIZE, info->vinfo->width);
-	tv_out_setmode(vmode_to_tvmode(mode));
+	if (mode & VMODE_INIT_BIT_MASK) {
+		vout_log_info("already display in uboot\n");
+		return 0;
+	}
+	tv_out_setmode(vmode_to_tvmode(tvmode));
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	vout_log_info("new mode =%s set ok\n", get_name_from_vmode(mode));
+	vout_log_info("new mode =%s set ok\n", get_name_from_vmode(tvmode));
 #endif
 
 	return 0;
@@ -727,12 +724,7 @@ static int tv_module_disable(enum vmode_e cur_vmod)
 		return 0;
 
 #ifdef CONFIG_AML_VPU
-#if 0 /* mask it for it's not supported for now */
-	if (info->vinfo) {
-		release_vpu_clk_vmod(info->vinfo->mode);
-		switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_DOWN);
-	}
-#endif
+	tv_out_vpu_power_ctrl(0);
 #endif
 	/* video_dac_disable(); */
 	return 0;

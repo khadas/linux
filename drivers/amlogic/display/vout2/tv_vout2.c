@@ -301,6 +301,40 @@ static const struct vinfo_s *tv_get_current_info(void)
 	return info->vinfo;
 }
 
+#ifdef CONFIG_AML_VPU
+static int tv_out_enci_is_required(enum vmode_e mode)
+{
+	if ((mode == VMODE_576I) ||
+		(mode == VMODE_576I_RPT) ||
+		(mode == VMODE_480I) ||
+		(mode == VMODE_480I_RPT) ||
+		(mode == VMODE_576CVBS) ||
+		(mode == VMODE_480CVBS))
+		return 1;
+	return 0;
+}
+
+static void tv_out_vpu_power_ctrl(int status)
+{
+	int vpu_mod;
+
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8)
+		return;
+
+	if (info->vinfo == NULL)
+		return;
+	vpu_mod = tv_out_enci_is_required(info->vinfo->mode);
+	vpu_mod = (vpu_mod) ? VPU_VENCI : VPU_VENCP;
+	if (status) {
+		request_vpu_clk_vmod(info->vinfo->video_clk, vpu_mod);
+		switch_vpu_mem_pd_vmod(vpu_mod, VPU_MEM_POWER_ON);
+	} else {
+		switch_vpu_mem_pd_vmod(vpu_mod, VPU_MEM_POWER_DOWN);
+		release_vpu_clk_vmod(vpu_mod);
+	}
+}
+#endif
+
 static int tv_set_current_vmode(enum vmode_e mod)
 {
 	if ((mod & VMODE_MODE_BIT_MASK) > VMODE_SXGA)
@@ -312,10 +346,7 @@ static int tv_set_current_vmode(enum vmode_e mod)
 		return 0;
 
 #ifdef CONFIG_AML_VPU
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
-		switch_vpu_mem_pd_vmod(info->vinfo->mode, VPU_MEM_POWER_ON);
-		request_vpu_clk_vmod(info->vinfo->video_clk, info->vinfo->mode);
-	}
+	tv_out_vpu_power_ctrl(1);
 #endif
 
 	tvoutc_setmode2(vmode_tvmode_tab[mod]);
@@ -346,15 +377,9 @@ static int tv_vmode_is_supported(enum vmode_e mode)
 }
 static int tv_module_disable(enum vmode_e cur_vmod)
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
 #ifdef CONFIG_AML_VPU
-		if (info->vinfo) {
-			release_vpu_clk_vmod(info->vinfo->mode);
-			switch_vpu_mem_pd_vmod(info->vinfo->mode,
-					VPU_MEM_POWER_DOWN);
-		}
+	tv_out_vpu_power_ctrl(0);
 #endif
-	}
 
 	/* video_dac_disable(); */
 	return 0;
