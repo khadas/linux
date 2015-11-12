@@ -750,6 +750,7 @@
 		&gpio GPIOH_2 0>;
 		#address-cells = <2>;
 		#size-cells = <2>;
+		i2c-gpio,timeout-ms = <10>;
 		i2c_gpio_edid: i2c_gpio_edid {
 			compatible = "i2c-gpio-edid";
 			reg = <0x50 0x0 0x0 0x0>;
