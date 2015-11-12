@@ -654,7 +654,7 @@
 		mboxes = <&mailbox 0 &mailbox 1>;
 	};
 	scpi_clocks {
-		compatible = "arm, scpi-clks";
+		compatible = "arm,scpi-clks";
 
 		scpi_dvfs: scpi_clocks@0 {
 			compatible = "arm,scpi-clk-indexed";
