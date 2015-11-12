@@ -28,7 +28,6 @@
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 
-
 #define aml_nftl_dbg	aml_nand_dbg
 
 #define aml_nftl_malloc	aml_nand_malloc

@@ -272,10 +272,9 @@ int get_last_reserve_block(struct amlnand_chip *aml_chip)
 	unsigned int tmp_value;
 	static u32 total_blk, scan_flag;/*add 150922*/
 
-	if ((total_blk > RESERVED_BLOCK_CNT) &&	(scan_flag == 1)) {
-		aml_nand_msg("total_blk:%d", total_blk);
+	if ((total_blk > RESERVED_BLOCK_CNT) &&	(scan_flag == 1))
 		return total_blk;
-	}
+
 	if (aml_chip->nand_bbtinfo.arg_valid)
 		scan_flag = 1;
 
@@ -823,14 +822,16 @@ int amlnand_save_info_by_name(struct amlnand_chip *aml_chip,
 	phys_page_shift =  ffs(flash->pagesize) - 1;
 	pages_per_blk = (1 << (phys_erase_shift - phys_page_shift));
 
-	aml_nand_msg("size:%d", size);
 	arg_pages = ((size>>phys_page_shift) + 1);
-	aml_nand_msg("arg_pages:%d", arg_pages);
 	if ((size%flash->pagesize) == 0)
 		extra_page = 1;
 	else
 		extra_page = 0;
-	aml_nand_msg("extra_page:%d", extra_page);
+
+	aml_nand_msg("size = %d arg_pages = %d extra_page = %d",
+		size,
+		arg_pages,
+		extra_page);
 
 	tmp_blk = (offset >> phys_erase_shift);
 
@@ -2601,8 +2602,6 @@ int amlnand_get_dev_configs(struct amlnand_chip *aml_chip)
 {
 	int  ret = 0, i;
 
-	aml_nand_msg("boot_device_flag = %d", boot_device_flag);
-
 	ret = amlnand_config_buf_malloc(aml_chip);
 	if (ret < 0) {
 		aml_nand_msg("nand malloc buf failed");
@@ -2665,8 +2664,6 @@ int amlnand_get_dev_configs(struct amlnand_chip *aml_chip)
 		if (aml_chip->config_msg.arg_valid == 1) {
 			aml_chip->shipped_bbtinfo.valid_blk_addr =
 				aml_chip->config_ptr->fbbt_blk_addr;
-			aml_nand_msg("nand shipped bbt at block %d",
-				aml_chip->shipped_bbtinfo.valid_blk_addr);
 			for (i = 0; i < RESERVED_BLOCK_CNT; i++) {
 				if (aml_chip->reserved_blk[i] == 0xff) {
 					aml_chip->reserved_blk[i] =

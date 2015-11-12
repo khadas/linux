@@ -205,7 +205,9 @@ static int controller_quene_rb(struct hw_controller *controller,
 
 	if (time_out_cnt >=  time_out_limit) {
 		/*dbg code here!*/
+#if 0
 		dump_pinmux_regs(controller);
+#endif
 		ret = -NAND_BUSY_FAILURE;
 	}
 	return ret;
@@ -570,6 +572,9 @@ static int controller_adjust_timing(struct hw_controller *controller)
 		sys_clk_rate = 250;
 
 	get_sys_clk_rate(controller, &sys_clk_rate);
+
+	aml_nand_msg("clk_reg = %x",
+			AMLNF_READ_REG(controller->nand_clk_reg));
 
 	sys_time = (10000 / sys_clk_rate);
 	/* sys_time = (10000 / (sys_clk_rate / 1000000)); */

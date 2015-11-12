@@ -376,6 +376,7 @@ void amlnand_release_device(struct amlnand_chip *aml_chip)
 	nand_release_chip(aml_chip);
 }
 
+#if 0
 void dump_pinmux_regs(struct hw_controller *controller)
 {
 	aml_nand_msg("-------------------------------------");
@@ -389,6 +390,7 @@ void dump_pinmux_regs(struct hw_controller *controller)
 		amlnf_read_reg32(controller->nand_clk_reg));
 	aml_nand_msg("-------------------------------------");
 }
+#endif
 
 void set_nand_core_clk(struct hw_controller *controller, int clk_freq)
 {
@@ -410,12 +412,9 @@ void set_nand_core_clk(struct hw_controller *controller, int clk_freq)
 			aml_nand_msg("%s() %d, use default setting!",
 				__func__, __LINE__);
 		}
-		aml_nand_msg("clk_reg %x",
-			AMLNF_READ_REG(controller->nand_clk_reg));
 		return;
-	} else {
+	} else
 		aml_nand_msg("cpu type can not support!\n");
-	}
 
 	return;
 }

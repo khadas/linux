@@ -445,7 +445,6 @@ static struct ntd_info *allocate_partition(struct amlnand_phydev *master)
 	/* print_ntd(slave); */
 
 	block_num = (uint)(slave->size >> slave->blocksize_shift);
-	aml_nand_msg("block_num %d\n", block_num);
 	do {
 		if (slave->block_isbad(slave, block))
 			slave->badblocks++;
@@ -470,10 +469,10 @@ int add_ntd_partitions(struct amlnand_phydev *master)
 	/* uint64_t cur_offset = 0; */
 	/* int i; */
 
-	aml_nand_msg("Creating %d ntd partitions", master->nr_partitions);
-
-	/* if(master->size > 0xc0000000) */
-	/* master->size = 0xc0000000; */
+	/*
+	if(master->size > 0xc0000000)
+		master->size = 0xc0000000;
+	*/
 
 	slave = allocate_partition(master);
 	if (IS_ERR(slave))

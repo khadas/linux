@@ -74,6 +74,9 @@
 #endif
 #endif
 
+#undef pr_fmt
+#define pr_fmt(fmt) "nandphy: " fmt
+
 
 #ifdef AML_NAND_DBG
 

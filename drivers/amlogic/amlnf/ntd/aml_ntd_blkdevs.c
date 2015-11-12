@@ -617,8 +617,6 @@ int register_ntd_blktrans(struct ntd_blktrans_ops *tr)
 	/* register_ntd_user(&blktrans_notifier); */
 	/* } */
 
-	aml_nand_msg("register_ntd_blktrans start");
-
 	mutex_lock(&ntd_table_mutex);
 
 	ret = register_blkdev(tr->major, tr->name);
@@ -641,7 +639,6 @@ int register_ntd_blktrans(struct ntd_blktrans_ops *tr)
 	list_add(&tr->list, &ntd_blktrans_majors);
 
 	ntd_for_each_device(ntd) {
-		aml_nand_msg("ntd device %d!", tr->major);
 		tr->add_ntd(tr, ntd);
 	}
 

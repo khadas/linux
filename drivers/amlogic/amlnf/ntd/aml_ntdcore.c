@@ -301,8 +301,6 @@ int add_ntd_device(struct ntd_info *ntd)
 			"ntd%dro",
 			i);
 
-	aml_nand_msg("ntd: Giving out device %d to %s", i, ntd->name);
-
 	mutex_unlock(&ntd_table_mutex);
 	/* We _know_ we aren't being removed, because
 	   our caller is still holding us here. So none
@@ -694,8 +692,6 @@ static const struct file_operations ntd_proc_ops = {
 static int init_ntd(void)
 {
 	int ret;
-
-	aml_nand_msg("------init_ntd");
 
 	ret = class_register(&ntd_class);
 	if (ret)

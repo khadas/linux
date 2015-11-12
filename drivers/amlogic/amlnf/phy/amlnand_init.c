@@ -51,9 +51,6 @@ int amlnf_phy_init(unsigned char flag, struct platform_device *pdev)
 	aml_nand_chip = aml_chip;
 	aml_chip->device = &pdev->dev;
 
-	aml_nand_msg("amlnf_phy_init : amlnf init flag %d",
-		aml_chip->init_flag);
-
 #ifdef CONFIG_OF
 	aml_chip->nand_pinctrl = devm_pinctrl_get(aml_chip->device);
 	if (IS_ERR(aml_chip->nand_pinctrl)) {
