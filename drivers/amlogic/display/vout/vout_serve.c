@@ -171,6 +171,7 @@ static int  meson_vout_resume(struct platform_device *pdev);
 
 static int set_vout_mode(char *name)
 {
+	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
 	enum vmode_e mode;
 	vout_log_info("vmode set to %s\n", name);
 	mode = validate_vmode(name);
@@ -184,8 +185,11 @@ static int set_vout_mode(char *name)
 		vout_log_info("don't set the same mode as current\n");
 		return -1;
 	}
-	phy_pll_off();
-	vout_log_info("disable HDMI PHY as soon as possible\n");
+
+	if (hdmitx_device->hdtx_dev) {
+		phy_pll_off();
+		vout_log_info("disable HDMI PHY as soon as possible\n");
+	}
 	set_current_vmode(mode);
 	vout_log_info("new mode %s set ok\n", name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
@@ -200,7 +204,7 @@ static int set_vout_init_mode(void)
 		vout_log_info("no matched vout_init mode\n");
 		return -1;
 	}
-#if 0
+#if 1
 	if (uboot_display)
 		vmode = vout_init_vmode | VMODE_INIT_BIT_MASK;
 	else

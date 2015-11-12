@@ -36,6 +36,7 @@
 #include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/delay.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 
 #include "host_lib_driver_linux_if.h"
 
@@ -1197,7 +1198,13 @@ static void hdcp22_hw_init(void)
 
 static int __init hld_init(void)
 {
+	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
+
 	pr_info("%sInitializing...\n", MY_TAG);
+	if (hdmitx_device->hdtx_dev == NULL) {
+		pr_info("%sExit for null device of hdmitx!\n", MY_TAG);
+		return -ENODEV;
+	}
 
 	memset(esm_devices, 0, sizeof(esm_devices));
 
@@ -1216,7 +1223,14 @@ static int __init hld_init(void)
 
 static void __exit hld_exit(void)
 {
+	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
+
 	pr_info("%sExiting...\n", MY_TAG);
+	if (hdmitx_device->hdtx_dev == NULL) {
+		pr_info("%sExit for null device of hdmitx!\n", MY_TAG);
+		return;
+	}
+
 	end_device();
 	end_device_class();
 	unregister_device_range();

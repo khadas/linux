@@ -2501,7 +2501,15 @@ static struct platform_driver amhdmitx_driver = {
 	}
 };
 
+static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
+{
+	if (hdmi_dev == NULL)
+		return 1;
 
+	hdmi_dev->hdtx_dev = NULL;
+
+	return 0;
+}
 
 static int  __init amhdmitx_init(void)
 {
@@ -2510,6 +2518,8 @@ static int  __init amhdmitx_init(void)
 
 	hdmi_print(IMP, SYS "amhdmitx_init\n");
 	hdmi_print(IMP, SYS "Ver: %s\n", HDMITX_VER);
+
+	amhdmitx_device_init(&hdmitx_device);
 
 	if (platform_driver_register(&amhdmitx_driver)) {
 		hdmi_print(ERR, SYS

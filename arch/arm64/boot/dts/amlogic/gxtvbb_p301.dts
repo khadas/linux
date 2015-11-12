@@ -612,7 +612,7 @@
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx";
 		dev_name = "amhdmitx";
-		status = "okay";
+		status = "disabled";
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
