@@ -71,7 +71,7 @@
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x1000000>;
 		};
 		/* AVC Encode CMA pool */
 		avc_cma_reserved:linux,avc_cma {
