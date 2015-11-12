@@ -211,7 +211,6 @@ static int set_vout_init_mode(void)
 #endif
 	set_current_vmode(vmode);
 	vout_log_info("init mode %s\n", vmode_mode_to_name(vout_init_vmode));
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vout_init_vmode);
 
 	return 0;
 }
