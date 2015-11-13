@@ -120,6 +120,10 @@ struct platform_resource_s {
 static int debugflags;
 static int output_fps;
 static u32 omx_pts;
+static int omx_pts_interval_upper = 11000;
+static int omx_pts_interval_lower = -5500;
+
+
 bool omx_secret_mode = false;
 #define DEBUG_FLAG_FFPLAY	(1<<0)
 #define DEBUG_FLAG_CALC_PTS_INC	(1<<1)
@@ -3338,11 +3342,12 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	}
 	if (omx_secret_mode == true) {
 		u32 system_time = timestamp_pcrscr_get();
-		int diff = omx_pts - system_time;
-		if (diff > 11000 || diff < -11000) {
+		int diff = system_time - omx_pts;
+		if ((diff - omx_pts_interval_upper) > 0
+			|| (diff - omx_pts_interval_lower) < 0) {
 			timestamp_pcrscr_enable(1);
-			/* pr_info("system_time=%d,omx_pts=%d,
-			diff=%d\n",system_time,omx_pts,diff); */
+			/*pr_info("system_time=%d, omx_pts=%d, diff=%d\n",
+			system_time, omx_pts, diff);*/
 			timestamp_pcrscr_set(omx_pts);
 		}
 	} else
@@ -7192,6 +7197,13 @@ module_param(new_frame_count, uint, 0664);
 
 MODULE_PARM_DESC(omx_pts, "\n omx_pts\n");
 module_param(omx_pts, uint, 0664);
+
+MODULE_PARM_DESC(omx_pts_interval_upper, "\n omx_pts_interval\n");
+module_param(omx_pts_interval_upper, int, 0664);
+
+MODULE_PARM_DESC(omx_pts_interval_lower, "\n omx_pts_interval\n");
+module_param(omx_pts_interval_lower, int, 0664);
+
 
 #ifdef TV_REVERSE
 module_param(reverse, bool, 0644);
