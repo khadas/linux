@@ -1,20 +1,3 @@
-/*
- * drivers/amlogic/amports/arch/m8_m8m2/h264/h264mmc_linux.h
- *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
-*/
-
 static const u32 MicroCode[] __initconst = {
 	0x06bfff40, 0x06032400, 0x00400000, 0x0c780000, 0x00000000,
 	0x09027207, 0x0a6140c8, 0x00000000, 0x0c00d900, 0x00000000,
@@ -222,4 +205,3 @@ static const u32 MicroCode[] __initconst = {
 	0x00000000, 0x0c780140, 0x0c077300, 0x00000000, 0x0c071480,
 	0x07c031d0, 0x0cc00000, 0x00000000, 0x00000000
 };
-

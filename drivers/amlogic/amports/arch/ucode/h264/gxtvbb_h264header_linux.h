@@ -1,20 +1,3 @@
-/*
- * drivers/amlogic/amports/arch/m8_m8m2/h264/h264header_linux.h
- *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
-*/
-
 static const u32 MicroCode[] __initconst = {
 	0x06804011, 0x06905347, 0x07400447, 0x04002451, 0x0fc101c0,
 	0x09108247, 0x0a60e509, 0x0c7e5880, 0x00000000, 0x07400447,
@@ -185,9 +168,9 @@ static const u32 MicroCode[] __initconst = {
 	0x0740024a, 0x07c0178a, 0x07807047, 0x07c07187, 0x068003ca,
 	0x06031e0a, 0x0649ce09, 0x0aa10009, 0x00000000, 0x0809ce00,
 	0x08007401, 0x06431e09, 0x0bee8049, 0x00000000, 0x0649ce09,
-	0x0a6dc009, 0x00000000, 0x0c062400, 0x00000000, 0x0649c007,
+	0x0a6dc009, 0x00000000, 0x0c0624c0, 0x00000000, 0x0649c007,
 	0x0bef7fc7, 0x07803a47, 0x0a60c047, 0x0c780000, 0x00800000,
-	0x068000c7, 0x0609c007, 0x08007401, 0x0c062140, 0x0680001b,
+	0x068000c7, 0x0609c007, 0x08007401, 0x0c062200, 0x0680001b,
 	0x0649c007, 0x0bef7fc7, 0x07802c47, 0x07803a48, 0x095101c8,
 	0x07803908, 0x097071c8, 0x07802308, 0x09021208, 0x097e11c8,
 	0x0609c107, 0x07803d07, 0x07802108, 0x095e11c8, 0x07800688,
@@ -222,4 +205,3 @@ static const u32 MicroCode[] __initconst = {
 	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
-
