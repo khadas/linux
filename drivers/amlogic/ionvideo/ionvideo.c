@@ -15,6 +15,7 @@
  *
 */
 
+#include <linux/amlogic/vout/vout_notify.h>
 #include "ionvideo.h"
 
 #define IONVIDEO_MODULE_NAME "ionvideo"
@@ -999,6 +1000,15 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		pr_info("reg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		return RECEIVER_ACTIVE;
+	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
+#ifdef CONFIG_AM_VOUT
+		if (data != NULL)
+			set_vframe_rate_hint((unsigned long)(data));
+#endif
+	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
+#ifdef CONFIG_AM_VOUT
+		set_vframe_rate_end_hint();
+#endif
 	}
 	return 0;
 }
