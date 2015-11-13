@@ -432,7 +432,7 @@ int amlogic_pin_config_group_set(struct pinctrl_dev *pctldev,
 	struct meson_domain *domain;
 	struct meson_bank *bank;
 	if (AML_PCON_PULLUP == pullparam) {
-		for (i = 0; i < num_pins; i++)
+		for (i = 0; i < num_pins; i++) {
 			ret = meson_get_domain_and_bank(apmx, pins[i],
 							&domain, &bank);
 			if (ret)
@@ -441,6 +441,7 @@ int amlogic_pin_config_group_set(struct pinctrl_dev *pctldev,
 						  domain, bank, config);
 			if (ret)
 				return ret;
+		}
 	}
 	if (AML_PCON_ENOUT == oenparam) {
 		for (i = 0; i < num_pins; i++) {
