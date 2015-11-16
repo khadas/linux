@@ -3040,6 +3040,7 @@ int hdmirx_debug(const char *buf, int size)
 
 void to_init_state(void)
 {
+	memset(&rx.pre_video_params, 0, sizeof(struct hdmi_rx_ctrl_video));
 	if (sm_pause)
 		return;
 }

@@ -824,7 +824,7 @@ void ve_on_vs(struct vframe_s *vf)
 	ve_hist_gamma_tgt(vf);
 
 	/* vlock processs */
-	if (is_meson_g9tv_cpu())
+	if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu())
 		amve_vlock_process(vf);
 
 	/* sharpness process */

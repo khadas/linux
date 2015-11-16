@@ -142,14 +142,15 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	enum tvin_color_fmt_e cur_color_fmt, pre_color_fmt;
-	struct tvin_sig_property_s prop;
+	struct tvin_sig_property_s *prop, *pre_prop;
 
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return;
 	}
 
-	prop = devp->prop;
+	prop = &devp->prop;
+	pre_prop = &devp->pre_prop;
 	sm_ops = devp->frontend->sm_ops;
 	port = devp->parm.port;
 
@@ -158,14 +159,14 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 
 	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
 		if (sm_ops->get_sig_propery) {
-			sm_ops->get_sig_propery(devp->frontend, &devp->prop);
-			cur_color_fmt = devp->prop.color_format;
-			pre_color_fmt = devp->pre_prop.color_format;
+			sm_ops->get_sig_propery(devp->frontend, prop);
+			cur_color_fmt = prop->color_format;
+			pre_color_fmt = pre_prop->color_format;
 			if (cur_color_fmt != pre_color_fmt) {
 				pr_info("[smr.%d] : config hdmi color fmt(%d->%d)\n",
 						devp->index,
 						pre_color_fmt, cur_color_fmt);
-				devp->pre_prop.color_format = prop.color_format;
+				pre_prop->color_format = prop->color_format;
 				vdin_get_format_convert(devp);
 				vdin_set_matrix(devp);
 			}
@@ -314,9 +315,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 						sm_ops->get_sig_propery(fe,
 							&prop);
 						devp->parm.info.trans_fmt =
-							devp->prop.trans_fmt;
+							prop.trans_fmt;
 						devp->parm.info.reserved =
-							devp->prop.dvi_info;
+							prop.dvi_info & 0xf;
+						devp->parm.info.fps =
+							prop.dvi_info >> 4;
 					}
 				} else
 					info->fmt = TVIN_SIG_FMT_NULL;

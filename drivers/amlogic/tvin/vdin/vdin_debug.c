@@ -373,6 +373,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 	char ret = 0, *buf_orig, *parm[47] = {NULL};
 	struct vdin_dev_s *devp;
 	long val;
+	unsigned int time_start, time_end, time_delta;
 
 	if (!buf)
 		return len;
@@ -386,6 +387,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 			fps = (devp->msr_clk_val +
 					(devp->cycle>>3))/devp->cycle;
 		pr_info("%u f/s\n", fps);
+		pr_info("hdmirx: %u f/s\n", devp->parm.info.fps);
 	} else if (!strcmp(parm[0], "capture")) {
 		if (parm[3] != NULL) {
 			unsigned int start, offset;
@@ -478,19 +480,25 @@ static ssize_t vdin_attr_store(struct device *dev,
 		devp->flags |= VDIN_FLAG_DEC_OPENED;
 		pr_info("TVIN_IOC_OPEN() port %s opened ok\n\n",
 			tvin_port_str(devp->parm.port));
+
+		time_start = jiffies_to_msecs(jiffies);
 start_chk:
 		if (devp->flags & VDIN_FLAG_DEC_STARTED) {
 			pr_info("TVIN_IOC_START_DEC() port 0x%x, started already\n",
 					devp->parm.port);
 		}
-		if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
-				(devp->parm.info.fmt == TVIN_SIG_FMT_NULL))
+		time_end = jiffies_to_msecs(jiffies);
+		time_delta = time_end - time_start;
+		if (((devp->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
+				(devp->parm.info.fmt == TVIN_SIG_FMT_NULL)) &&
+				(time_delta <= 5000))
 			goto start_chk;
 
 		pr_info("	status: %s, fmt: %s\n",
 			tvin_sig_status_str(devp->parm.info.status),
 			tvin_sig_fmt_str(devp->parm.info.fmt));
-		fmt = devp->parm.info.fmt; /* = parm.info.fmt; */
+		if (devp->parm.info.fmt != TVIN_SIG_FMT_NULL)
+			fmt = devp->parm.info.fmt; /* = parm.info.fmt; */
 		devp->fmt_info_p  =
 				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
 		/* devp->fmt_info_p  =

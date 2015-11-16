@@ -316,6 +316,9 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 
 	vdin_set_default_regmap(devp->addr_offset);
 
+	/* vdin msr clock gate enable */
+	clk_prepare_enable(devp->msr_clk);
+
 	if (devp->frontend->dec_ops && devp->frontend->dec_ops->open)
 		ret = devp->frontend->dec_ops->open(devp->frontend, port);
 	/* check open status */
@@ -351,6 +354,9 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 		return;
 	}
 	devp->dec_enable = 0;  /* disable decoder */
+
+	/* bt656 clock gate disable */
+	clk_disable_unprepare(devp->msr_clk);
 
 	vdin_hw_disable(devp->addr_offset);
 	del_timer_sync(&devp->timer);
@@ -749,9 +755,6 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 			pr_info("****[%s]enable_irq ifdef VDIN_V2****\n",
 					__func__);
 	}
-	/* vdin msr clock gate enable */
-	/* if (is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) */
-	clk_prepare_enable(devp->msr_clk);
 
 	if (vdin_dbg_en)
 		pr_info("****[%s]ok!****\n", __func__);
@@ -792,10 +795,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop)
 		devp->frontend->dec_ops->stop(devp->frontend, devp->parm.port);
 	vdin_set_default_regmap(devp->addr_offset);
-
-	/* bt656 clock gate disable */
-	/* if (is_meson_gxbb_cpu()) */
-	clk_disable_unprepare(devp->msr_clk);
 
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
@@ -2022,25 +2021,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* if (devp->flags & VDIN_FLAG_FORCE_UNSTABLE)
 			info.status = TVIN_SIG_STATUS_UNSTABLE;
 		*/
-		/*meas the frame ratio for dvi save use
-		 * parm.reserved high 8 bit*/
-		if (info.status == TVIN_SIG_STATUS_STABLE) {
-			if (devp->cycle) {
-				info.fps = (devp->msr_clk_val +
-						(devp->cycle>>3))/devp->cycle;
-				if (vdin_dbg_en)
-					pr_info("[vdin]current frame ratio is %u.cycle is %u.\n",
-							info.fps, devp->cycle);
-			} else {
-				if (vdin_dbg_en)
-					pr_info("[vdin]vsync cycle:%u error!!\n",
-							devp->cycle);
-			}
-		} else {
+
+		if (info.status != TVIN_SIG_STATUS_STABLE)
 			info.fps = 0;
-			if (vdin_dbg_en)
-				pr_info("[vdin]signal unstable, invalid fps!!\n");
-		}
 
 		if (copy_to_user(argp, &info, sizeof(struct tvin_info_s)))
 			ret = -EFAULT;

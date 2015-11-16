@@ -298,6 +298,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	hdmirx_hw_disable(0);
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
+	to_init_state();
 	rx_print("%s ok\n", __func__);
 }
 
@@ -406,7 +407,13 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 {
 	unsigned char _3d_structure, _3d_ext_data;
 	enum tvin_sig_fmt_e sig_fmt;
-	prop->dvi_info = hdmirx_hw_get_dvi_info();
+	unsigned int rate = rx.pre_video_params.refresh_rate * 2;
+
+	/* use dvi info bit4~ for frame rate display */
+	rate = rate/100 + (((rate%100)/10 >= 5) ? 1 : 0);
+
+	prop->dvi_info = (rate << 4) | hdmirx_hw_get_dvi_info();
+
 	prop->dest_cfmt = TVIN_YUV422;
 	switch (hdmirx_hw_get_color_fmt()) {
 	case 1:
