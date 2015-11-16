@@ -77,7 +77,7 @@ int set_remote_mode(int mode)
 void setremotereg(const struct reg_s *r)
 {
 	am_remote_write_reg(r->reg, r->val);
-	input_dbg("[0x%lx] = 0x%x\n", (g_remote_ao_offset + ((r->reg) << 2)),
+	pr_debug("[0x%lx] = 0x%x\n", (g_remote_ao_offset + ((r->reg) << 2)),
 		r->val);
 }
 
