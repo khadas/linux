@@ -465,7 +465,30 @@
 				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
 		};
 	};
+	nand{
+		compatible = "amlogic, aml_nand";
+		dev_name = "nand";
+		status = "ok";
+		reg = <0x0 0xd0074800 0x0 0x200>;
+		interrupts = <	0 34 1 >;
+		pinctrl-names = "nand_rb_mod","nand_norb_mod", "nand_cs_pins_only";
+		pinctrl-0 = <&conf_nand_pulldown &conf_nand_pullup &all_nand_pins>;
+		pinctrl-1 = <&conf_nand_pulldown &conf_nand_pullup &all_nand_pins>;
+		pinctrl-2 = <&nand_cs_pins>;
+		device_id = <0>;
+		plat-names = "nandnormal";
+		plat-num = <1>;
+		plat-part-0 = <&normal>;
+		normal: normal{
+			enable_pad ="ce0","ce1","ce2","ce3";
+			busy_pad = "rb0";
+		};
+	};
+	aml_nftl{
+		compatible = "amlogic, nftl";
+		/* config nftl here */
 
+	};
 	/*aml_cams{
 		compatible = "amlogic, cams_prober";
 		status = "okay";

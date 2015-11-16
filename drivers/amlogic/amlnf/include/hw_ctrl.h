@@ -43,6 +43,8 @@
 /*
 #define IO_CBUS_PHY_BASE	0xc1100000
 */
+#define A0_GP_CFG0			(0xc8100240)
+#define A0_GP_CFG2			(0xc8100248)
 #define NAND_CLK_CNTL		(0xd0074000)
 #define	POC_CONFIG_REG		(0xc1107d54)
 #define PINMUX_BASE			(0xc8834400 + (0x2c << 2))

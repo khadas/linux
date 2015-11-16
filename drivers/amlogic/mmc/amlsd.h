@@ -36,6 +36,14 @@ extern const u8 tuning_blk_pattern_8bit[128];
 
 #define MODULE_NAME		"amlsd"
 
+#define A0_GP_CFG0			(0xc8100240)
+#define A0_GP_CFG2			(0xc8100248)
+#define STORAGE_DEV_NOSET	(0)
+#define STORAGE_DEV_EMMC	(1)
+#define STORAGE_DEV_NAND	(2)
+#define STORAGE_DEV_SPI		(3)
+#define STORAGE_DEV_SDCARD	(4)
+#define STORAGE_DEV_USB		(5)
 #define LDO4DAC_REG_ADDR        0x4f
 #define LDO4DAC_REG_1_8_V       0x24
 #define LDO4DAC_REG_2_8_V       0x4c

@@ -92,7 +92,13 @@ union nand_core_clk_t {
 		unsigned not_used:20;
 	} b;
 };
-
+/**********************storage *********************/
+#define STORAGE_DEV_NOSET	(0)
+#define STORAGE_DEV_EMMC	(1)
+#define STORAGE_DEV_NAND	(2)
+#define STORAGE_DEV_SPI		(3)
+#define STORAGE_DEV_SDCARD	(4)
+#define STORAGE_DEV_USB		(5)
 
 /***************ERROR CODING*******************/
 #define NAND_CHIP_ID_ERR            1

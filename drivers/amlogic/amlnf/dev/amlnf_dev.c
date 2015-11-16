@@ -462,7 +462,7 @@ static int get_nand_platform(struct aml_nand_device *aml_nand_dev,
 *boot_device_flag = 0 ; indicate spi+nand boot
 *boot_device_flag = 1;  indicate nand  boot
 ***/
-#if 1
+#if 0
 int poc_cfg_parse(void)
 {
 	int boot_flag;
@@ -545,13 +545,100 @@ int check_storage_device(void)
 	}
 }
 EXPORT_SYMBOL(check_storage_device);
+#endif
+/* return storage device */
+static u32 _get_storage_dev_by_gp(void)
+{
+	u32 storage_dev, boot_dev;
+	u32 ret = 0;
+	void __iomem *gp_cfg0;
+	void __iomem *gp_cfg2;
 
+	gp_cfg0 = ioremap_nocache(A0_GP_CFG0, sizeof(u32));
+	gp_cfg2 = ioremap_nocache(A0_GP_CFG2, sizeof(u32));
+
+	storage_dev = (amlnf_read_reg32(gp_cfg2) >> 28) & 0x7;
+	boot_dev = amlnf_read_reg32(gp_cfg0) & 0xF;
+
+	aml_nand_msg("storage %d, boot %d\n", storage_dev, boot_dev);
+
+	switch (storage_dev) {
+
+	case STORAGE_DEV_NOSET:
+	/* old uboot, storage_dev was not set by bl3, check boot dev */
+		switch (boot_dev) {
+		case STORAGE_DEV_NAND:
+		case STORAGE_DEV_EMMC:
+			ret = boot_dev;
+		break;
+
+		case STORAGE_DEV_SDCARD:
+		/* fixme, any other ways to identify main media? */
+			aml_nand_msg("warning you may need update your uboot!");
+			BUG();
+		break;
+
+		default:
+
+		break;
+		}
+	break;
+	/* new uboot, already set by bl3 */
+	case STORAGE_DEV_NAND:
+	case STORAGE_DEV_EMMC:
+		ret = storage_dev;
+	break;
+	default:
+	/*do nothing.*/
+	break;
+	}
+
+	aml_nand_dbg("%s return %d\n", __func__, ret);
+	return ret;
+}
+
+/* fixme, yyh */
+static u32 get_storage_dev_by_clk(void)
+{
+	u32 ret = 0;
+	BUG();
+	return ret;
+}
+
+/*
+ return  1: emmc
+		 2: nand
+ */
+u32 get_storage_dev(void)
+{
+	u32 ret;
+
+	ret = _get_storage_dev_by_gp();
+	if (ret == 0) {
+		/*get storage media by clock reg */
+		ret = get_storage_dev_by_clk();
+	}
+	aml_nand_msg("%s return %d\n", __func__, ret);
+	return ret;
+}
+
+int check_storage_device(void)
+{
+	int ret = -NAND_FAILED;
+
+	if (get_storage_dev() == STORAGE_DEV_NAND) {
+		boot_device_flag = 1;
+		ret = 1;
+	}
+
+	return ret;
+}
 int check_nand_on_board(void)
 {
 	return amlnf_init_flag;
 }
 EXPORT_SYMBOL(check_nand_on_board);
-#endif
+
 
 static int  __init get_storage_device(char *str)
 {
@@ -560,6 +647,8 @@ static int  __init get_storage_device(char *str)
 	if (kstrtoul(str, 16, (unsigned long *)&value))
 		return -EINVAL;
 	/*value = strtoul(str, NULL, 16);*/
+	aml_nand_msg("get storage device: storage %s", str);
+	aml_nand_msg("value=%d", value);
 	boot_device_flag = value;
 	return 0;
 }

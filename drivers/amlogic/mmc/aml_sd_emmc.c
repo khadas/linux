@@ -3044,6 +3044,84 @@ static int creat_emmc_attr(void)
 	return 0;
 }
 
+/* return storage device */
+static u32 _get_storage_dev_by_gp(void)
+{
+	u32 storage_dev, boot_dev;
+	u32 ret = 0;
+	void __iomem *gp_cfg0;
+	void __iomem *gp_cfg2;
+
+	gp_cfg0 = ioremap_nocache(A0_GP_CFG0, sizeof(u32));
+	gp_cfg2 = ioremap_nocache(A0_GP_CFG2, sizeof(u32));
+
+	storage_dev = (readl(gp_cfg2) >> 28) & 0x7;
+	boot_dev = readl(gp_cfg0) & 0xF;
+
+	pr_info("storage %d, boot %d\n", storage_dev, boot_dev);
+
+	switch (storage_dev) {
+	case STORAGE_DEV_NOSET:
+	/* old uboot, storage_dev was not set by bl3, check boot dev */
+		switch (boot_dev) {
+		case STORAGE_DEV_NAND:
+		case STORAGE_DEV_EMMC:
+			ret = boot_dev;
+		break;
+		case STORAGE_DEV_SDCARD:
+		/* fixme...*/
+			pr_err("warning you may need update your uboot!");
+			BUG();
+		break;
+		default:
+		break;
+		}
+	break;
+	/* new uboot, already set by bl3 */
+	case STORAGE_DEV_NAND:
+	case STORAGE_DEV_EMMC:
+		ret = storage_dev;
+	break;
+	default:
+	/*do nothing.*/
+	break;
+	}
+	/*pr_info("%s return %d\n", __func__, ret);*/
+	return ret;
+}
+
+/* fixme*/
+static u32 get_storage_dev_by_clk(void)
+{
+	u32 ret = 0;
+	BUG();
+	return ret;
+}
+
+/*
+ return  1: emmc
+		 2: nand
+ */
+static u32 get_storage_dev(void)
+{
+	u32 ret;
+
+	ret = _get_storage_dev_by_gp();
+	if (ret == 0) {
+		/*get storage media by clock reg */
+		ret = get_storage_dev_by_clk();
+	}
+	pr_err("%s return %d\n", __func__, ret);
+	return ret;
+}
+
+int is_storage_emmc(void)
+{
+	int ret = 0;
+	if (get_storage_dev() == STORAGE_DEV_EMMC)
+		ret = 1;
+	return ret;
+}
 static int aml_sd_emmc_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = NULL;
@@ -3107,6 +3185,13 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		if (amlsd_get_platform_data(pdev, pdata, mmc, i)) {
 			mmc_free_host(mmc);
 			break;
+		}
+
+		if (aml_card_type_mmc(pdata)) {
+			if (!is_storage_emmc()) {
+				mmc_free_host(mmc);
+				goto fail_init_host;
+			}
 		}
 		dev_set_name(&mmc->class_dev, "%s", pdata->pinname);
 
