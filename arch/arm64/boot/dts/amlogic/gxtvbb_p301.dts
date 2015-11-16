@@ -1205,9 +1205,9 @@
 	};
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<8 0x7C0>;
+		amlogic,setmask=<8 0x7E0>;
 		amlogic,clrmask=<8 0x3800>;
-		amlogic,pins = "GPIOZ_1","GPIOZ_2","GPIOZ_3","GPIOZ_4","GPIOZ_5";
+		amlogic,pins = "GPIOZ_0","GPIOZ_1","GPIOZ_2","GPIOZ_3","GPIOZ_4","GPIOZ_5";
 	};
 
 	audio_spdif_pins:audio_pin1{

@@ -456,7 +456,7 @@ static int aml_pmu4_audio_resume(struct snd_soc_codec *codec)
 #define PMU4_AUDIO_STEREO_RATES SNDRV_PCM_RATE_8000_96000
 #define PMU4_AUDIO_FORMATS (SNDRV_PCM_FMTBIT_S16_LE \
 			| SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE \
-			| SNDRV_PCM_FMTBIT_S8)
+			| SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S32_LE)
 
 struct snd_soc_dai_ops pmu4_audio_aif_dai_ops = {
 	.hw_params = aml_pmu4_hw_params,
@@ -472,8 +472,8 @@ struct snd_soc_dai_driver aml_pmu4_audio_dai[] = {
 	 .id = 0,
 	 .playback = {
 		      .stream_name = "HIFI Playback",
-		      .channels_min = 1,
-		      .channels_max = 2,
+		      .channels_min = 2,
+		      .channels_max = 8,
 		      .rates = PMU4_AUDIO_STEREO_RATES,
 		      .formats = PMU4_AUDIO_FORMATS,
 		      },

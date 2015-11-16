@@ -32,7 +32,8 @@ static void tas5707_late_resume(struct early_suspend *h);
 #define tas5707_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE | \
 	 SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
-	 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE)
+	 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE | \
+	 SNDRV_PCM_FMTBIT_S32_LE)
 
 /* Power-up register defaults */
 static const u8 tas5707_regs[DDX_NUM_BYTE_REG] = {
@@ -208,7 +209,7 @@ static struct snd_soc_dai_driver tas5707_dai = {
 	.playback = {
 		.stream_name = "HIFI Playback",
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 8,
 		.rates = tas5707_RATES,
 		.formats = tas5707_FORMATS,
 	},
