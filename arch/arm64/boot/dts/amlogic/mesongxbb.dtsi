@@ -5,15 +5,30 @@
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 / {
-	cpus {
+	cpus:cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
+		#cooling-cells = <2>; /* min followed by max */
 
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			operating-points = <
+				/*  KHz       uV */
+				 100000   860000
+				 250000   860000
+				 500000   860000
+				 667000   900000
+				1000000   940000
+				1200000   980000
+				1296000  1000000
+				1416000  1020000
+				1536000  1050000
+				1752000  1050000
+				2016000  1050000
+			>;
 		};
 
 		cpu@1 {
@@ -35,7 +50,6 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};
-
 
 	};
 
@@ -60,6 +74,7 @@
 				0x0 0xc810023c 0x0 0x4>;
 	};
 	gpu:mali@d00c0000{
+		#cooling-cells = <2>; /* min followed by max */
 		compatible = "arm,mali-450";
 		interrupt-parent = <&gic>;
 		reg = <0 0xd00c0000 0 0x40000>, /*mali APB bus base address*/

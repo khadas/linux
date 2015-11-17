@@ -703,6 +703,48 @@ err_out:
 }
 EXPORT_SYMBOL(devfreq_remove_governor);
 
+int devfreq_qos_set_max(struct devfreq *df, unsigned long value)
+{
+	unsigned long min;
+	int ret = 0;
+
+	mutex_lock(&df->lock);
+	min = df->min_freq;
+	if (value && min && value < min) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	df->max_freq = value;
+	update_devfreq(df);
+unlock:
+	mutex_unlock(&df->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(devfreq_qos_set_max);
+
+int devfreq_qos_set_min(struct devfreq *df, unsigned long value)
+{
+	unsigned long max;
+	int ret = 0;
+
+	mutex_lock(&df->lock);
+	max = df->max_freq;
+	if (value && max && value > max) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	df->min_freq = value;
+	update_devfreq(df);
+unlock:
+	mutex_unlock(&df->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(devfreq_qos_set_min);
+
 static ssize_t governor_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {

@@ -37,7 +37,7 @@ struct cpucore_cooling_device {
  * cpucore_cooling_register - function to create cpucore cooling device.
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen
  */
-struct thermal_cooling_device *cpucore_cooling_register(void);
+struct thermal_cooling_device *cpucore_cooling_register(struct device_node *);
 
 /**
  * cpucore_cooling_unregister - function to remove cpucore cooling device.
@@ -48,7 +48,7 @@ void cpucore_cooling_unregister(struct thermal_cooling_device *cdev);
 
 #else /* !CONFIG_CPU_THERMAL */
 static inline struct thermal_cooling_device *
-cpucore_cooling_register(void)
+cpucore_cooling_register(struct device_node *np)
 {
 	return NULL;
 }

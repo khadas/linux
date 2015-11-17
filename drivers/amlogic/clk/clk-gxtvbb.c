@@ -97,10 +97,10 @@ static struct amlogic_fixed_rate_clock gxbb_fixed_rate_ext_clks[] __initdata = {
 	FRATE(CLK_81, "clk81", NULL, CLK_IS_ROOT, 166666666),
 	FRATE(CLK_FIXED_PLL, "fixed_pll", NULL, CLK_IS_ROOT, 2000000000),
 	FRATE(CLK_FPLL_DIV2, "fclk_div2", NULL, CLK_IS_ROOT, 1000000000),
-	FRATE(CLK_FPLL_DIV3, "fclk_div3", NULL, CLK_IS_ROOT,  666666666),
+	FRATE(CLK_FPLL_DIV3, "fclk_div3", NULL, CLK_IS_ROOT,  666666000),
 	FRATE(CLK_FPLL_DIV4, "fclk_div4", NULL, CLK_IS_ROOT,  500000000),
 	FRATE(CLK_FPLL_DIV5, "fclk_div5", NULL, CLK_IS_ROOT,  400000000),
-	FRATE(CLK_FPLL_DIV7, "fclk_div7", NULL, CLK_IS_ROOT,  285714285),
+	FRATE(CLK_FPLL_DIV7, "fclk_div7", NULL, CLK_IS_ROOT,  285714000),
 };
 static struct amlogic_mux_clock mux_clks[] __initdata = {
 	MUX(CLK_MALI, "clk_gpu", mux_mali_p, HHI_MALI_CLK_CNTL, 31, 1, 0),

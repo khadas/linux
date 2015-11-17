@@ -54,6 +54,13 @@ struct gpufreq_cooling_device {
 	unsigned int (*get_gpu_max_level)(void);
 	unsigned int (*get_gpu_current_max_level)(void);
 	void (*set_gpu_freq_idx)(unsigned int idx);
+	unsigned int (*get_online_pp)(void);
+	unsigned int (*get_gpu_loading)(void);
+	unsigned int (*get_gpu_freq)(unsigned int idx);
+	unsigned int *gpu_freq_tbl;
+	unsigned int dyn_coeff;
+	int max_pp;
+	struct device_node *np;
 };
 int gpufreq_cooling_register(struct gpufreq_cooling_device *gpufreq_dev);
 struct gpufreq_cooling_device *gpufreq_cooling_alloc(void);
@@ -66,7 +73,14 @@ void gpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
 int register_gpu_freq_info(unsigned (*fun)(void));
 
 unsigned long gpufreq_cooling_get_level(unsigned int gpu, unsigned int freq);
+void save_gpu_cool_para(int, struct device_node *, int);
 #else /* !CONFIG_GPU_THERMAL */
+static inline void save_gpu_cool_para(unsigned int coef,
+	struct device_node *n, int pp)
+{
+
+}
+
 struct gpufreq_cooling_device *gpufreq_cooling_alloc(void)
 {
 	return NULL;

@@ -921,20 +921,6 @@
 	};
 	/* END OF AUDIO board specific */
 
-	amlogic_thermals:amlogic_thermals{
-		compatible = "amlogic, amlogic-thermal";
-		#thermal-cells = <7>;
-		dev_name = "aml_thermal";
-		trip_point = <70 1536001 1536001  511  511    3    2
-			      80 1296001 1296001  435  435    2    1
-			      90 1032001 1032001  328  328    2    1
-			      260   NEG1    NEG1 NEG1 NEG1 NEG1 NEG1>;
-		cpu_cali_a=<0>;
-		idle_interval=<1000>;
-		keep_mode;
-		keep_mode_threshold = <85>;
-		keep_mode_max_range = <2016000 666 4 3>;
-	};
 	gpio_keypad{
 	    compatible = "amlogic, gpio_keypad";
 		status = "okay";
@@ -964,6 +950,75 @@
 		status = "okay";
 		led_gpio = <&gpio_ao  GPIOAO_13  GPIO_ACTIVE_HIGH>;
 		led_active_low = <1>;
+	};
+	aml_sensor0: aml-sensor@0 {
+		compatible = "amlogic, aml-thermal";
+		#thermal-sensor-cells = <1>;
+		cpu_dyn_coeff = <140>;
+		/* cpu_freq gpu_freq cpu_core gpu_core */
+		min_state = <1000000 400 1 2>;
+		gpu_dyn_coeff = <437>;
+	};
+	cpucore:thermal_cpu_cores {
+		#cooling-cells = <2>; /* min followed by max */
+	};
+	gpucore:thermal_gpu_cores {
+		#cooling-cells = <2>; /* min followed by max */
+	};
+	thermal-zones {
+		soc_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			sustainable-power = <2150>;
+
+			thermal-sensors = <&aml_sensor0 3>;
+
+			trips {
+				switch_on: trip-point@0 {
+					temperature = <70000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+				control: trip-point@1 {
+					temperature = <80000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+				hot: trip-point@2 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				critical: trip-point@3 {
+					temperature = <260000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				cpufreq_cooling_map {
+					trip = <&control>;
+					cooling-device = <&cpus 0 4>;
+					contribution = <1024>;
+				};
+				cpucore_cooling_map {
+					trip = <&control>;
+					cooling-device = <&cpucore 0 3>;
+					contribution = <1024>;
+				};
+				gpufreq_cooling_map {
+					trip = <&control>;
+					cooling-device = <&gpu 0 4>;
+					contribution = <1024>;
+				};
+				gpucore_cooling_map {
+					trip = <&control>;
+					cooling-device = <&gpucore 0 2>;
+					contribution = <1024>;
+				};
+			};
+		};
 	};
 
 /*
