@@ -57,6 +57,9 @@ enum {
 	LCD_OUTPUT_MODE_MAX,
 };
 
+/* for frame_rate adjust */
+static struct vinfo_s *lcd_info_variable;
+
 static const struct vinfo_s lcd_info[] = {
 	{
 		.name              = "768p60hz",
@@ -161,13 +164,16 @@ static const struct vinfo_s lcd_info[] = {
 
 static int lcd_get_vmode(enum vmode_e mode)
 {
+	int lcd_vmode = LCD_OUTPUT_MODE_MAX;
 	int i, count = ARRAY_SIZE(lcd_info) - 1;
 
 	for (i = 0; i < count; i++) {
-		if (mode == lcd_info[i].mode)
+		if (mode == lcd_info[i].mode) {
+			lcd_vmode = i;
 			break;
+		}
 	}
-	return i;
+	return lcd_vmode;
 }
 
 static int lcd_vmode_is_mached(int index)
@@ -206,6 +212,68 @@ static const struct vinfo_s *lcd_get_valid_vinfo(char *mode)
 	return vinfo;
 }
 
+static const struct vinfo_s *lcd_get_vinfo(void)
+{
+	const struct vinfo_s *info;
+
+	info = &lcd_info[lcd_output_mode];
+	if (lcd_info_variable == NULL) {
+		LCDERR("no lcd_info_variable exist\n");
+		return info;
+	}
+	return lcd_info_variable;
+}
+
+/* sync_duration is real_value * 100 */
+static void lcd_set_variable_vinfo(unsigned int sync_duration)
+{
+	LCDPR("%s: sync_duration=%d\n", __func__, sync_duration);
+	if (lcd_info_variable == NULL)
+		LCDERR("no lcd_info_variable exist\n");
+
+	lcd_info_variable->sync_duration_num = sync_duration;
+	lcd_info_variable->sync_duration_den = 100;
+}
+
+static void lcd_vmode_vinfo_update(enum vmode_e mode)
+{
+	const struct vinfo_s *info;
+
+	lcd_output_mode = lcd_get_vmode(mode);
+	if (lcd_output_mode >= LCD_OUTPUT_MODE_MAX)
+		lcd_output_mode = LCD_OUTPUT_MODE_MAX;
+	info = &lcd_info[lcd_output_mode];
+	if (lcd_debug_print_flag) {
+		LCDPR("%s vmode = %d, lcd_mode = %d\n",
+			__func__, mode, lcd_output_mode);
+	}
+
+	if (lcd_info_variable == NULL) {
+		LCDERR("no lcd_info_variable exist\n");
+		return;
+	}
+	memcpy(lcd_info_variable, info, sizeof(struct vinfo_s));
+}
+
+static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	unsigned int *sync_duration;
+
+	/* LCDPR("%s: 0x%lx\n", __func__, event); */
+	if ((event & LCD_EVENT_FRAME_RATE_ADJUST) == 0)
+		return NOTIFY_DONE;
+
+	sync_duration = (unsigned int *)data;
+	lcd_set_variable_vinfo(*sync_duration);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block lcd_frame_rate_adjust_nb = {
+	.notifier_call = lcd_frame_rate_adjust_notifier,
+};
+
 /* ************************************************** *
    vout server api
  * ************************************************** */
@@ -225,26 +293,20 @@ static enum vmode_e lcd_validate_vmode(char *mode)
 
 static const struct vinfo_s *lcd_get_current_info(void)
 {
-	if (lcd_output_mode >= LCD_OUTPUT_MODE_MAX)
-		lcd_output_mode = LCD_OUTPUT_MODE_MAX;
-	return &lcd_info[lcd_output_mode];
+	return lcd_get_vinfo();
 }
 
 static int lcd_set_current_vmode(enum vmode_e mode)
 {
 	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	const struct vinfo_s *info;
 
 	mutex_lock(&lcd_vout_mutex);
 	LCDPR("driver version: %s\n", lcd_drv->version);
 
 	/* do not change mode value here, for bit mask is useful */
-	lcd_output_mode = lcd_get_vmode(mode & VMODE_MODE_BIT_MASK);
-	if (lcd_debug_print_flag) {
-		LCDPR("%s vmode = %d, lcd_mode = %d\n",
-			__func__, (mode & VMODE_MODE_BIT_MASK),
-			lcd_output_mode);
-	}
+	lcd_vmode_vinfo_update(mode & VMODE_MODE_BIT_MASK);
 
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		switch (mode & VMODE_MODE_BIT_MASK) {
@@ -263,7 +325,8 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 		}
 	}
 
-	lcd_vcbus_write(VPP_POSTBLEND_H_SIZE, lcd_info[lcd_output_mode].width);
+	info = lcd_get_vinfo();
+	lcd_vcbus_write(VPP_POSTBLEND_H_SIZE, info->width);
 
 	mutex_unlock(&lcd_vout_mutex);
 	return ret;
@@ -304,14 +367,14 @@ static int lcd_suspend(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	lcd_drv->module_enable();
+	lcd_drv->module_disable();
 	return 0;
 }
 static int lcd_resume(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	lcd_drv->module_disable();
+	lcd_drv->module_enable();
 	return 0;
 }
 #endif
@@ -699,15 +762,18 @@ static int lcd_get_config(struct lcd_config_s *pconf,
 }
 
 /* change frame_rate for different vmode */
-static int lcd_vmode_change(struct lcd_config_s *pconf, int index)
+static int lcd_vmode_change(struct lcd_config_s *pconf)
 {
 	unsigned int pclk = pconf->lcd_timing.lcd_clk;
 	unsigned char type = pconf->lcd_timing.fr_adjust_type;
 	unsigned int h_period = pconf->lcd_basic.h_period;
 	unsigned int v_period = pconf->lcd_basic.v_period;
-	unsigned int sync_duration_num = lcd_info[index].sync_duration_num;
-	unsigned int sync_duration_den = lcd_info[index].sync_duration_den;
+	unsigned int sync_duration_num, sync_duration_den;
+	const struct vinfo_s *info;
 
+	info = lcd_get_vinfo();
+	sync_duration_num = info->sync_duration_num;
+	sync_duration_den = info->sync_duration_den;
 	/* update lcd config sync_duration */
 	pconf->lcd_timing.sync_duration_num = sync_duration_num;
 	pconf->lcd_timing.sync_duration_den = sync_duration_den;
@@ -736,8 +802,8 @@ static int lcd_vmode_change(struct lcd_config_s *pconf, int index)
 		break;
 	case 0: /* pixel clk adjust */
 	default:
-		pclk = (h_period * v_period * sync_duration_num) /
-				sync_duration_den;
+		pclk = (h_period * v_period) / sync_duration_den *
+			sync_duration_num;
 		if (pconf->lcd_timing.lcd_clk != pclk) {
 			LCDPR("%s: adjust pclk %u.%03uMHz -> %u.%03uMHz\n",
 				__func__, (pconf->lcd_timing.lcd_clk / 1000000),
@@ -776,7 +842,7 @@ static int lcd_driver_init(void)
 	pconf = lcd_drv->lcd_config;
 
 	/* update clk & timing config */
-	lcd_vmode_change(pconf, lcd_output_mode);
+	lcd_vmode_change(pconf);
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
 		break;
@@ -844,6 +910,11 @@ static void lcd_driver_disable(void)
 int lcd_tv_probe(struct platform_device *pdev)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	int ret;
+
+	lcd_info_variable = kmalloc(sizeof(struct vinfo_s), GFP_KERNEL);
+	if (!lcd_info_variable)
+		LCDERR("tv_probe: Not enough memory\n");
 
 	lcd_drv->version = LCD_DRV_VERSION;
 	lcd_drv->vout_server_init = lcd_vout_server_init;
@@ -860,11 +931,27 @@ int lcd_tv_probe(struct platform_device *pdev)
 		break;
 	}
 
+	ret = aml_lcd_notifier_register(&lcd_frame_rate_adjust_nb);
+	if (ret)
+		LCDERR("register lcd_frame_rate_adjust_nb failed\n");
+
 	return 0;
 }
 
 int lcd_tv_remove(struct platform_device *pdev)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	switch (lcd_drv->lcd_config->lcd_basic.lcd_type) {
+	case LCD_VBYONE:
+		vbyone_interrupt_down();
+		break;
+	default:
+		break;
+	}
+
+	kfree(lcd_info_variable);
+	lcd_info_variable = NULL;
 	return 0;
 }
 

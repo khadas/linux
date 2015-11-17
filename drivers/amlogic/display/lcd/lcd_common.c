@@ -32,29 +32,46 @@
 /* **********************************
  * lcd type
  * ********************************** */
-static char *lcd_type_table[] = {
-	"ttl",
-	"lvds",
-	"vbyone",
-	"mipi",
-	"edp",
-	"invalid",
+struct lcd_type_match_s {
+	char *name;
+	enum lcd_type_e type;
+};
+
+static struct lcd_type_match_s lcd_type_match_table[] = {
+	{"ttl",     LCD_TTL},
+	{"lvds",    LCD_LVDS},
+	{"vbyone",  LCD_VBYONE},
+	{"mipi",    LCD_MIPI},
+	{"edp",     LCD_EDP},
+	{"invalid", LCD_TYPE_MAX},
 };
 
 int lcd_type_str_to_type(const char *str)
 {
-	int type;
+	int i;
+	int type = LCD_TYPE_MAX;
 
-	for (type = 0; type < LCD_TYPE_MAX; type++) {
-		if (!strcmp(str, lcd_type_table[type]))
+	for (i = 0; i < LCD_TYPE_MAX; i++) {
+		if (!strcmp(str, lcd_type_match_table[i].name)) {
+			type = lcd_type_match_table[i].type;
 			break;
+		}
 	}
 	return type;
 }
 
 char *lcd_type_type_to_str(int type)
 {
-	return lcd_type_table[type];
+	int i;
+	char *str = lcd_type_match_table[LCD_TYPE_MAX].name;
+
+	for (i = 0; i < LCD_TYPE_MAX; i++) {
+		if (type == lcd_type_match_table[i].type) {
+			str = lcd_type_match_table[i].name;
+			break;
+		}
+	}
+	return str;
 }
 
 /* **********************************
@@ -169,152 +186,6 @@ unsigned int lcd_cpu_gpio_get(unsigned int index)
 	return gpiod_get_value(cpu_gpio->gpio);
 }
 
-#if 0
-/* **********************************
- * lcd clk
- * ********************************** */
-void lcd_clocks_set_vid_clk_div(int div_sel)
-{
-	int shift_val = 0;
-	int shift_sel = 0;
-
-	/* Disable the output clock */
-	lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
-	lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
-
-	switch (div_sel) {
-	case CLK_DIV_SEL_1:
-		shift_val = 0xFFFF;
-		shift_sel = 0;
-		break;
-	case CLK_DIV_SEL_2:
-		shift_val = 0x0aaa;
-		shift_sel = 0;
-		break;
-	case CLK_DIV_SEL_3:
-		shift_val = 0x0db6;
-		shift_sel = 0;
-		break;
-	case CLK_DIV_SEL_3p5:
-		shift_val = 0x36cc;
-		shift_sel = 1;
-		break;
-	case CLK_DIV_SEL_3p75:
-		shift_val = 0x6666;
-		shift_sel = 2;
-		break;
-	case CLK_DIV_SEL_4:
-		shift_val = 0x0ccc;
-		shift_sel = 0;
-		break;
-	case CLK_DIV_SEL_5:
-		shift_val = 0x739c;
-		shift_sel = 2;
-		break;
-	case CLK_DIV_SEL_6:
-		shift_val = 0x0e38;
-		shift_sel = 0;
-		break;
-	case CLK_DIV_SEL_6p25:
-		shift_val = 0x0000;
-		shift_sel = 3;
-		break;
-	case CLK_DIV_SEL_7:
-		shift_val = 0x3c78;
-		shift_sel = 1;
-		break;
-	case CLK_DIV_SEL_7p5:
-		shift_val = 0x78f0;
-		shift_sel = 2;
-		break;
-	case CLK_DIV_SEL_12:
-		shift_val = 0x0fc0;
-		shift_sel = 0;
-		break;
-	case CLK_DIV_SEL_14:
-		shift_val = 0x3f80;
-		shift_sel = 1;
-		break;
-	case CLK_DIV_SEL_15:
-		shift_val = 0x7f80;
-		shift_sel = 2;
-		break;
-	case CLK_DIV_SEL_2p5:
-		shift_val = 0x5294;
-		shift_sel = 2;
-		break;
-	default:
-		LCDPR("error: clocks_set_vid_clk_div: Invalid parameter\n");
-	break;
-	}
-
-	if (shift_val == 0xffff) { /* if divide by 1 */
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);
-	} else {
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 18, 1);
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 16, 2);
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 0, 14);
-
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, shift_sel, 16, 2);
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 15, 1);
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, shift_val, 0, 14);
-		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
-	}
-	/* Enable the final output clock */
-	lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 19, 1);
-}
-
-void lcd_set_crt_video_enc(int vIdx, int inSel, int DivN)
-{
-	if (vIdx == 0) { /* V1 */
-		/* [19] -disable clk_div0 */
-		lcd_hiu_setb(HHI_VID_CLK_CNTL, 0, 19, 1);
-		udelay(2);
-		/* [18:16] - cntl_clk_in_sel */
-		lcd_hiu_setb(HHI_VID_CLK_CNTL, inSel,   16, 3);
-		/* [7:0]   - cntl_xd0 */
-		lcd_hiu_setb(HHI_VID_CLK_DIV, (DivN-1), 0, 8);
-		udelay(5);
-		/* [19] -enable clk_div0 */
-		lcd_hiu_setb(HHI_VID_CLK_CNTL, 1, 19, 1);
-	} else { /* V2 */
-		/* [19] -disable clk_div0 */
-		lcd_hiu_setb(HHI_VIID_CLK_CNTL, 0, 19, 1);
-		udelay(2);
-		/* [18:16] - cntl_clk_in_sel */
-		lcd_hiu_setb(HHI_VIID_CLK_CNTL, inSel,  16, 3);
-		/* [7:0]   - cntl_xd0 */
-		lcd_hiu_setb(HHI_VIID_CLK_DIV, (DivN - 1), 0, 8);
-		udelay(5);
-		/* [19] -enable clk_div0 */
-		lcd_hiu_setb(HHI_VIID_CLK_CNTL, 1, 19, 1);
-	}
-	udelay(5);
-}
-
-void lcd_enable_crt_video_encl(int enable, int inSel)
-{
-	/* encl_clk_sel:hi_viid_clk_div[15:12] */
-	lcd_hiu_setb(HHI_VIID_CLK_DIV, inSel, 12, 4);
-
-	if (inSel <= 4) /* V1 */
-		lcd_hiu_setb(HHI_VID_CLK_CNTL, 1, inSel, 1);
-	else
-		lcd_hiu_setb(HHI_VIID_CLK_CNTL, 1, (inSel - 5), 1);
-
-	/* gclk_encl_clk:hi_vid_clk_cntl2[3] */
-	lcd_hiu_setb(HHI_VID_CLK_CNTL2, enable, 3, 1);
-
-	/* vencl_clk_en_force: vpu_misc_ctrl[0] */
-	lcd_vcbus_setb(VPU_MISC_CTRL, 1, 0, 1);
-}
-
-void lcd_clk_gate_on(void)
-{
-	lcd_hiu_setb(HHI_GCLK_OTHER, 0xf, 22, 4);
-}
-#endif
 void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode)
 {
 	if (vd1_or_vd2_or_post == 0) { /* vd1 */

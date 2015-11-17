@@ -39,6 +39,9 @@
 /* lcd backlight pwm_vs vfreq change occurred */
 #define LCD_EVENT_BACKLIGHT_UPDATE  (1 << 5)
 
+/* lcd frame rate change occurred */
+#define LCD_EVENT_FRAME_RATE_ADJUST (1 << 8)
+
 extern int aml_lcd_notifier_register(struct notifier_block *nb);
 extern int aml_lcd_notifier_unregister(struct notifier_block *nb);
 extern int aml_lcd_notifier_call_chain(unsigned long event, void *v);

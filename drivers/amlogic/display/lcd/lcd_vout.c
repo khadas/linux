@@ -53,7 +53,7 @@ static char *lcd_mode_table[] = {
  * lcd config define
  * ********************************************************* */
 static struct ttl_config_s lcd_ttl_config = {
-	.pol_ctrl = ((0 << 3) | (1 << 2) | (0 << 1) | (0 << 0)),
+	.pol_ctrl = 0,
 	.sync_valid = ((1 << 1) | (1 << 0)),
 	.swap_ctrl = ((0 << 1) | (0 << 0)),
 };
@@ -176,6 +176,7 @@ static void lcd_power_ctrl(int status)
 	int i, index;
 	int ret = 0;
 
+	LCDPR("%s: %d\n", __func__, status);
 	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
 		if (status)
@@ -223,7 +224,7 @@ static void lcd_power_ctrl(int status)
 	}
 
 	if (lcd_debug_print_flag)
-		LCDPR("%s: %d\n", __func__, status);
+		LCDPR("%s: %d finished\n", __func__, status);
 }
 
 static void lcd_module_enable(void)
@@ -417,7 +418,7 @@ static int lcd_probe(struct platform_device *pdev)
 #endif
 	lcd_driver = kmalloc(sizeof(struct aml_lcd_drv_s), GFP_KERNEL);
 	if (!lcd_driver) {
-		LCDPR("probe: Not enough memory\n");
+		LCDERR("probe: Not enough memory\n");
 		return -ENOMEM;
 	}
 	lcd_driver->dev = &pdev->dev;
@@ -431,13 +432,13 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_class_creat();
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
 	if (ret)
-		LCDPR("register aml_bl_on_notifier failed\n");
+		LCDERR("register aml_bl_on_notifier failed\n");
 	ret = aml_lcd_notifier_register(&lcd_power_nb);
 	if (ret)
 		LCDPR("register lcd_power_notifier failed\n");
 	ret = register_reboot_notifier(&lcd_reboot_nb);
 	if (ret)
-		LCDPR("register lcd_reboot_notifier failed\n");
+		LCDERR("register lcd_reboot_notifier failed\n");
 
 	LCDPR("probe ok\n");
 	return 0;

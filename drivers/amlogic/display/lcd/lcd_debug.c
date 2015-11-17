@@ -25,20 +25,19 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/amlogic/vout/lcd_vout.h>
+#include <linux/amlogic/vout/lcd_notify.h>
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
 static const char *lcd_common_usage_str = {
 "Usage:\n"
 "    echo <0|1> > enable ; 0=disable lcd; 1=enable lcd\n"
-"    cat enable ; read current lcd enable status\n"
 "\n"
-"    echo type <adj_type> > frame_rate ; set lcd frame rate(unit in Hz)\n"
-"    echo set <frame_rate> > frame_rate ; set lcd frame rate(unit in Hz)\n"
+"    echo type <adj_type> > frame_rate ; set lcd frame rate adjust type\n"
+"    echo set <frame_rate> > frame_rate ; set lcd frame rate(unit in 1/100Hz)\n"
 "    cat frame_rate ; read current lcd frame rate\n"
 "\n"
 "    echo <num> > test ; show lcd bist pattern(1~7), 0=disable bist\n"
-"    cat test ; read current lcd bist pattern\n"
 "\n"
 "    echo w<v|h|c|p> <reg> <data> > reg ; write data to vcbus|hiu|cbus|periphs reg\n"
 "    echo r<v|h|c|p> <reg> > reg ; read vcbus|hiu|cbus|periphs reg\n"
@@ -55,25 +54,9 @@ static const char *lcd_debug_usage_str = {
 "Usage:\n"
 "    echo clk <freq> > debug ; set lcd pixel clock, unit in Hz\n"
 "    echo basic <h_active> <v_active> <h_period> <v_period> > debug ; set lcd basic config\n"
-"    echo sync <hs_width> <hs_backporch> <vs_width> <vs_backporch> > debug ; set lcd sync timing\n"
-"    echo ttl <clk_pol> <sync_valid> <swap_ctrl> > debug ; set ttl control config\n"
-"    echo lvds <repack> <dual_port> <pn_swap> <port_swap> > debug ; set lvds control config\n"
-"    echo vbyone <lane_count> <region_num> <byte_mode> > debug ; set vbyone control config\n"
-"    echo mipi <lane_num> <bit_rate_max> <init_disp_mode> <lp_clk_continuous> <factor> > debug ; set mpi control config\n"
-"    echo edp <link_rate> <lane_count> <edid_timing_used> <sync_clock_mode> > debug ; set edp control config\n"
+"    echo sync <hs_width> <hs_bp> <hs_pol> <vs_width> <vs_bp> <vs_pol> > debug ; set lcd sync timing\n"
 "data format:\n"
-"    <xx_swap>      : 0=normal, 1=swap\n"
-"    <vswing_level> : lvds support level 0~4 (Default=1), edp support level 0~3 (default=0)\n"
-"    <lvds_repack>  : 0=JEIDA mode, 1=VESA mode\n"
-"    <pn_swap>      : 0=normal, 1=swap lvds p/n channels\n"
-"    <bit_rate_max> : unit in MHz\n"
-"    <factor>:      : special adjust, 0 for default\n"
-"    <xxxx_mode>    : 0=video mode, 1=command mode\n"
-"    <lp_clk_auto_stop> : 0=disable, 1=enable\n"
-"    <transfer_switch>  : 0=auto, 1=standard, 2=slow\n"
-"    <link_rate>        : 0=1.62G, 1=2.7G\n"
-"    <edid_timing_used> : 0=no use, 1=use, default=0\n"
-"    <sync_clock_mode>  : 0=asyncronous, 1=synchronous, default=1\n"
+"    <xx_pol>       : 0=negative, 1=positive\n"
 "\n"
 "    echo info > debug ; show lcd infomation\n"
 "    echo reg > debug ; show lcd registers\n"
@@ -88,7 +71,7 @@ static ssize_t lcd_debug_common_help(struct class *class,
 	return sprintf(buf, "%s\n", lcd_common_usage_str);
 }
 
-static ssize_t lcd_debug_help(struct class *class,
+static ssize_t lcd_debug_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", lcd_debug_usage_str);
@@ -163,16 +146,16 @@ static void lcd_info_print(void)
 
 	pconf = lcd_drv->lcd_config;
 	lcd_clk = (pconf->lcd_timing.lcd_clk / 1000);
-	sync_duration = pconf->lcd_timing.sync_duration_num * 10;
+	sync_duration = pconf->lcd_timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->lcd_timing.sync_duration_den;
 
 	LCDPR("status: %d\n", lcd_drv->lcd_status);
-	LCDPR("%s, %s %ubit, %ux%u@%u.%uHz\n",
+	LCDPR("%s, %s %ubit, %ux%u@%u.%02uHz\n",
 		pconf->lcd_basic.model_name,
 		lcd_type_type_to_str(pconf->lcd_basic.lcd_type),
 		pconf->lcd_basic.lcd_bits,
 		pconf->lcd_basic.h_active, pconf->lcd_basic.v_active,
-		(sync_duration / 10), (sync_duration % 10));
+		(sync_duration / 100), (sync_duration % 100));
 
 	pr_info("lcd_clk           %u.%03uMHz\n"
 		"ss_level          %d\n"
@@ -458,10 +441,224 @@ static void lcd_test(unsigned int num)
 		lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH, (h_active / 9));
 		lcd_vcbus_write(ENCL_TST_EN, lcd_enc_tst[num][4]);
 		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, lcd_enc_tst[num][5], 3, 1);
-		pr_info("lcd: show test pattern: %s\n", lcd_enc_tst_str[num]);
+		LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
 	} else {
-		pr_info("lcd: disable test pattern\n");
+		LCDPR("disable test pattern\n");
 	}
+}
+
+static void lcd_debug_config_update(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	lcd_drv->module_disable();
+	mdelay(200);
+	lcd_drv->module_enable();
+}
+
+static ssize_t lcd_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int temp, val[6];
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	switch (buf[0]) {
+	case 'c':
+		temp = lcd_drv->lcd_config->lcd_timing.lcd_clk;
+		ret = sscanf(buf, "clk %d", &temp);
+		if (temp > 200) {
+			pr_info("set clk: %dHz\n", temp);
+			temp = temp / lcd_drv->lcd_config->lcd_basic.h_period;
+			temp *= 100;
+			temp = temp / lcd_drv->lcd_config->lcd_basic.v_period;
+		} else {
+			temp *= 100;
+		}
+		pr_info("set frame rate: %d.%02dHz\n",
+			(temp / 100), (temp % 100));
+		aml_lcd_notifier_call_chain(LCD_EVENT_FRAME_RATE_ADJUST, &temp);
+		lcd_debug_config_update();
+		break;
+	case 'b':
+		val[0] = lcd_drv->lcd_config->lcd_basic.h_active;
+		val[1] = lcd_drv->lcd_config->lcd_basic.v_active;
+		val[2] = lcd_drv->lcd_config->lcd_basic.h_period;
+		val[3] = lcd_drv->lcd_config->lcd_basic.v_period;
+		ret = sscanf(buf, "basic %d %d %d %d",
+			&val[0], &val[1], &val[2], &val[3]);
+		lcd_drv->lcd_config->lcd_basic.h_active = val[0];
+		lcd_drv->lcd_config->lcd_basic.v_active = val[1];
+		lcd_drv->lcd_config->lcd_basic.h_period = val[2];
+		lcd_drv->lcd_config->lcd_basic.v_period = val[3];
+		pr_info("set h_active=%d, v_active=%d\n", val[0], val[1]);
+		pr_info("set h_period=%d, v_period=%d\n", val[2], val[3]);
+		lcd_debug_config_update();
+		break;
+	case 's':
+		val[0] = lcd_drv->lcd_config->lcd_timing.hsync_width;
+		val[1] = lcd_drv->lcd_config->lcd_timing.hsync_bp;
+		val[2] = lcd_drv->lcd_config->lcd_timing.hsync_pol;
+		val[3] = lcd_drv->lcd_config->lcd_timing.vsync_width;
+		val[4] = lcd_drv->lcd_config->lcd_timing.vsync_bp;
+		val[5] = lcd_drv->lcd_config->lcd_timing.vsync_pol;
+		ret = sscanf(buf, "sync %d %d %d %d %d %d",
+			&val[0], &val[1], &val[2], &val[3], &val[4], &val[5]);
+		lcd_drv->lcd_config->lcd_timing.hsync_width = val[0];
+		lcd_drv->lcd_config->lcd_timing.hsync_bp =    val[1];
+		lcd_drv->lcd_config->lcd_timing.hsync_pol =   val[2];
+		lcd_drv->lcd_config->lcd_timing.vsync_width = val[3];
+		lcd_drv->lcd_config->lcd_timing.vsync_bp =    val[4];
+		lcd_drv->lcd_config->lcd_timing.vsync_pol =   val[5];
+		pr_info("set hsync width=%d, bp=%d, pol=%d\n",
+			val[0], val[1], val[2]);
+		pr_info("set vsync width=%d, bp=%d, pol=%d\n",
+			val[3], val[4], val[5]);
+		lcd_debug_config_update();
+		break;
+	case 't':
+		temp = 0;
+		ret = sscanf(buf, "test %d", &temp);
+		lcd_test(temp);
+		break;
+	case 'i':
+		LCDPR("driver version: %s\n", lcd_drv->version);
+		lcd_info_print();
+		break;
+	case 'r':
+		if (buf[2] == 'g') {
+			LCDPR("driver version: %s\n", lcd_drv->version);
+			lcd_reg_print();
+		} else if (buf[2] == 's') {
+			lcd_drv->module_disable();
+			mdelay(200);
+			lcd_drv->module_enable();
+		}
+		break;
+	case 'd':
+		LCDPR("driver version: %s\n", lcd_drv->version);
+		lcd_info_print();
+		pr_info("\n");
+		lcd_reg_print();
+		break;
+	case 'p':
+		temp = 0;
+		ret = sscanf(buf, "power %d", &temp);
+		LCDPR("power: %d\n", temp);
+		LCDPR("to do\n");
+		break;
+	default:
+		LCDERR("wrong command\n");
+		break;
+	}
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_debug_enable_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int temp = 1;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	ret = sscanf(buf, "%d", &temp);
+	if (temp)
+		lcd_drv->module_enable();
+	else
+		lcd_drv->module_disable();
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_debug_frame_rate_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	unsigned int sync_duration;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+
+	pconf = lcd_drv->lcd_config;
+	sync_duration = pconf->lcd_timing.sync_duration_num * 100;
+	sync_duration = sync_duration / pconf->lcd_timing.sync_duration_den;
+
+	return sprintf(buf, "get frame_rate: %u.%02uHz, fr_adjust_type: %d\n",
+		(sync_duration / 100), (sync_duration % 100),
+		pconf->lcd_timing.fr_adjust_type);
+}
+
+static ssize_t lcd_debug_frame_rate_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int temp;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	switch (buf[0]) {
+	case 't':
+		temp = 0;
+		ret = sscanf(buf, "type %d", &temp);
+		lcd_drv->lcd_config->lcd_timing.fr_adjust_type = temp;
+		pr_info("set fr_adjust_type: %d\n", temp);
+		break;
+	case 's':
+		temp = 60 * 100;
+		ret = sscanf(buf, "set %d", &temp);
+		pr_info("set frame rate(*100): %d\n", temp);
+		aml_lcd_notifier_call_chain(LCD_EVENT_FRAME_RATE_ADJUST, &temp);
+		lcd_debug_config_update();
+		break;
+	default:
+		pr_info("wrong command\n");
+		break;
+	}
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_debug_ss_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "to do\n");
+}
+
+static ssize_t lcd_debug_ss_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int temp = 0;
+
+	ret = sscanf(buf, "%d", &temp);
+	pr_info("to do\n");
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_debug_test_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int temp = 0;
+
+	ret = sscanf(buf, "%d", &temp);
+	lcd_test(temp);
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
 }
 
 static void lcd_debug_reg_write(unsigned int reg, unsigned int data,
@@ -567,128 +764,7 @@ static void lcd_debug_reg_dump(unsigned int reg, unsigned int num,
 	}
 }
 
-static ssize_t lcd_debug(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int temp;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	switch (buf[0]) {
-	case 't':
-		temp = 0;
-		ret = sscanf(buf, "test %d", &temp);
-		lcd_test(temp);
-		break;
-	case 'e':
-		lcd_drv->module_enable();
-		break;
-	case 'i':
-		LCDPR("driver version: %s\n", lcd_drv->version);
-		lcd_info_print();
-		break;
-	case 'r':
-		LCDPR("driver version: %s\n", lcd_drv->version);
-		lcd_reg_print();
-		break;
-	case 'd':
-		LCDPR("driver version: %s\n", lcd_drv->version);
-		lcd_info_print();
-		pr_info("\n");
-		lcd_reg_print();
-		break;
-	default:
-		LCDPR("wrong command\n");
-		break;
-	}
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
-
-	return count;
-}
-
-static ssize_t lcd_debug_enable(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int temp = 1;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	ret = sscanf(buf, "%d", &temp);
-	if (temp)
-		lcd_drv->module_enable();
-	else
-		lcd_drv->module_disable();
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
-
-	return count;
-}
-
-static ssize_t lcd_debug_frame_rate(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int temp;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	switch (buf[0]) {
-	case 't':
-		temp = 0;
-		ret = sscanf(buf, "set %d", &temp);
-		lcd_drv->lcd_config->lcd_timing.fr_adjust_type = temp;
-		pr_info("set fr_adjust_type: %d\n", temp);
-		break;
-	case 's':
-		temp = 60;
-		ret = sscanf(buf, "set %d", &temp);
-		pr_info("to do\n");
-		pr_info("set frame rate: %d\n", temp);
-		break;
-	default:
-		pr_info("wrong command\n");
-		break;
-	}
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
-
-	return count;
-}
-
-static ssize_t lcd_debug_ss(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int temp = 0;
-
-	ret = sscanf(buf, "%d", &temp);
-	pr_info("to do\n");
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
-
-	return count;
-}
-
-static ssize_t lcd_debug_test(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int temp = 0;
-
-	ret = sscanf(buf, "%d", &temp);
-	lcd_test(temp);
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
-
-	return count;
-}
-
-static ssize_t lcd_debug_reg(struct class *class,
+static ssize_t lcd_debug_reg_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int ret;
@@ -757,7 +833,13 @@ static ssize_t lcd_debug_reg(struct class *class,
 	return count;
 }
 
-static ssize_t lcd_debug_print(struct class *class,
+static ssize_t lcd_debug_print_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "get debug print flag: %d\n", lcd_debug_print_flag);
+}
+
+static ssize_t lcd_debug_print_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int ret;
@@ -774,14 +856,207 @@ static ssize_t lcd_debug_print(struct class *class,
 }
 
 static struct class_attribute lcd_debug_class_attrs[] = {
-	__ATTR(help,  S_IRUGO | S_IWUSR, lcd_debug_common_help, NULL),
-	__ATTR(debug,  S_IRUGO | S_IWUSR, lcd_debug_help, lcd_debug),
-	__ATTR(enable,  S_IRUGO | S_IWUSR, NULL, lcd_debug_enable),
-	__ATTR(frame_rate,  S_IRUGO | S_IWUSR, NULL, lcd_debug_frame_rate),
-	__ATTR(ss,  S_IRUGO | S_IWUSR, NULL, lcd_debug_ss),
-	__ATTR(test,  S_IRUGO | S_IWUSR, NULL, lcd_debug_test),
-	__ATTR(reg,  S_IRUGO | S_IWUSR, NULL, lcd_debug_reg),
-	__ATTR(print,  S_IRUGO | S_IWUSR, NULL, lcd_debug_print),
+	__ATTR(help,       S_IRUGO | S_IWUSR, lcd_debug_common_help, NULL),
+	__ATTR(debug,      S_IRUGO | S_IWUSR, lcd_debug_show, lcd_debug_store),
+	__ATTR(enable,     S_IRUGO | S_IWUSR, NULL, lcd_debug_enable_store),
+	__ATTR(frame_rate, S_IRUGO | S_IWUSR,
+		lcd_debug_frame_rate_show, lcd_debug_frame_rate_store),
+	__ATTR(ss,         S_IRUGO | S_IWUSR,
+		lcd_debug_ss_show, lcd_debug_ss_store),
+	__ATTR(test,       S_IRUGO | S_IWUSR, NULL, lcd_debug_test_store),
+	__ATTR(reg,        S_IRUGO | S_IWUSR, NULL, lcd_debug_reg_store),
+	__ATTR(print,      S_IRUGO | S_IWUSR,
+		lcd_debug_print_show, lcd_debug_print_store),
+};
+
+static const char *lcd_ttl_debug_usage_str = {
+"Usage:\n"
+"    echo <clk_pol> <sync_valid> <swap_ctrl> > ttl ; set ttl config\n"
+"data format:\n"
+"    <clk_pol>    : 0=negative, 1=positive\n"
+"    <sync_valid> : bit[1] for DE, bit[0] for hvsync, 0=invalid, 1=valid\n"
+"    <swap_ctrl>  : bit[1] for R/B port, bit[0] for RGB MSB/LSB, 0=normal, 1=swap\n"
+"\n"
+};
+
+static const char *lcd_lvds_debug_usage_str = {
+"Usage:\n"
+"    echo <repack> <dual_port> <pn_swap> <port_swap> > lvds ; set lvds config\n"
+"data format:\n"
+"    <repack>    : 0=JEIDA mode, 1=VESA mode\n"
+"    <dual_port> : 0=single port, 1=dual port\n"
+"    <pn_swap>   : 0=normal, 1=swap p/n channels\n"
+"    <port_swap> : 0=normal, 1=swap A/B port\n"
+"\n"
+};
+
+static const char *lcd_vbyone_debug_usage_str = {
+"Usage:\n"
+"    echo <lane_count> <region_num> <byte_mode> > vbyone ; set vbyone config\n"
+"data format:\n"
+"    <lane_count> : 4/8/16\n"
+"    <region_num> : 1/2\n"
+"    <byte_mode>  : 3/4/5\n"
+"\n"
+};
+
+static const char *lcd_mipi_debug_usage_str = {
+"Usage:\n"
+"    echo <lane_num> <bit_rate_max> <init_disp_mode> <lp_clk_continuous> <factor> <transfer_switch> > mipi ; set mpi config\n"
+"data format:\n"
+"    <lane_num>          : 1/2/3/4\n"
+"    <bit_rate_max>      : unit in MHz\n"
+"    <init_disp_mode>    : set init_mode & display_mode, 0=video mode, 1=command mode\n"
+"    <lp_clk_continuous> : 0=disable, 1=enable\n"
+"    <factor>:           : special adjust, 0 for default\n"
+"    <transfer_switch>   : 0=auto, 1=standard, 2=slow\n"
+"\n"
+};
+
+static const char *lcd_edp_debug_usage_str = {
+"Usage:\n"
+"    echo <link_rate> <lane_count> <edid_timing_used> <sync_clock_mode> > edp ; set edp config\n"
+"data format:\n"
+"    <link_rate>        : 0=1.62G, 1=2.7G\n"
+"    <lane_count>       : 1/2/4\n"
+"    <edid_timing_used> : 0=no use, 1=use, default=0\n"
+"    <sync_clock_mode>  : 0=asyncronous, 1=synchronous, default=1\n"
+"\n"
+};
+
+static ssize_t lcd_ttl_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", lcd_ttl_debug_usage_str);
+}
+
+static ssize_t lcd_lvds_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", lcd_lvds_debug_usage_str);
+}
+
+static ssize_t lcd_vx1_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", lcd_vbyone_debug_usage_str);
+}
+
+static ssize_t lcd_mipi_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", lcd_mipi_debug_usage_str);
+}
+
+static ssize_t lcd_edp_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", lcd_edp_debug_usage_str);
+}
+
+static ssize_t lcd_ttl_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct ttl_config_s *ttl_conf;
+
+	ttl_conf = lcd_drv->lcd_config->lcd_control.ttl_config;
+	ret = sscanf(buf, "%d %d %d", &ttl_conf->pol_ctrl,
+		&ttl_conf->sync_valid, &ttl_conf->swap_ctrl);
+	pr_info("set ttl config:\n"
+		"pol_ctrl=%d, sync_valid=0x%x, swap_ctrl=0x%x\n",
+		ttl_conf->pol_ctrl, ttl_conf->sync_valid, ttl_conf->swap_ctrl);
+	lcd_debug_config_update();
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_lvds_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lvds_config_s *lvds_conf;
+
+	lvds_conf = lcd_drv->lcd_config->lcd_control.lvds_config;
+	ret = sscanf(buf, "%d %d %d %d",
+		&lvds_conf->lvds_repack, &lvds_conf->dual_port,
+		&lvds_conf->pn_swap, &lvds_conf->port_swap);
+	pr_info("set lvds config:\n"
+		"repack=%d, dual_port=%d, pn_swap=%d, port_swap=%d\n",
+		lvds_conf->lvds_repack, lvds_conf->dual_port,
+		lvds_conf->pn_swap, lvds_conf->port_swap);
+	lcd_debug_config_update();
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_vx1_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vbyone_config_s *vx1_conf;
+
+	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
+	ret = sscanf(buf, "%d %d %d", &vx1_conf->lane_count,
+		&vx1_conf->region_num, &vx1_conf->byte_mode);
+	pr_info("set vbyone config:\n"
+		"lane_count=%d, region_num=%d, byte_mode=%d\n",
+		vx1_conf->lane_count, vx1_conf->region_num,
+		vx1_conf->byte_mode);
+	lcd_debug_config_update();
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_mipi_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+
+	pr_info("to do\n");
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t lcd_edp_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+
+	pr_info("to do\n");
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
+static struct class_attribute lcd_interface_debug_class_attrs[] = {
+	__ATTR(ttl,    S_IRUGO | S_IWUSR,
+		lcd_ttl_debug_show, lcd_ttl_debug_store),
+	__ATTR(lvds,   S_IRUGO | S_IWUSR,
+		lcd_lvds_debug_show, lcd_lvds_debug_store),
+	__ATTR(vbyone, S_IRUGO | S_IWUSR,
+		lcd_vx1_debug_show, lcd_vx1_debug_store),
+	__ATTR(mipi,   S_IRUGO | S_IWUSR,
+		lcd_mipi_debug_show, lcd_mipi_debug_store),
+	__ATTR(edp,    S_IRUGO | S_IWUSR,
+		lcd_edp_debug_show, lcd_edp_debug_store),
 };
 
 static struct class *lcd_debug_class;
@@ -789,18 +1064,32 @@ static struct class *lcd_debug_class;
 int lcd_class_creat(void)
 {
 	int i;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	int type;
 
 	lcd_debug_class = class_create(THIS_MODULE, "lcd");
 	if (IS_ERR(lcd_debug_class)) {
-		pr_info("create lcd debug class fail\n");
+		LCDERR("create lcd debug class fail\n");
 		return -1;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(lcd_debug_class_attrs); i++) {
 		if (class_create_file(lcd_debug_class,
 			&lcd_debug_class_attrs[i])) {
-			pr_info("create lcd debug attribute %s fail\n",
+			LCDERR("create lcd debug attribute %s fail\n",
 				lcd_debug_class_attrs[i].attr.name);
+		}
+	}
+
+	type = lcd_drv->lcd_config->lcd_basic.lcd_type;
+	for (i = 0; i < ARRAY_SIZE(lcd_interface_debug_class_attrs); i++) {
+		if (strcmp(lcd_interface_debug_class_attrs[i].attr.name,
+			lcd_type_type_to_str(type)))
+			continue;
+		if (class_create_file(lcd_debug_class,
+			&lcd_interface_debug_class_attrs[i])) {
+			LCDERR("create lcd_interface debug attribute %s fail\n",
+				lcd_interface_debug_class_attrs[i].attr.name);
 		}
 	}
 
@@ -810,9 +1099,20 @@ int lcd_class_creat(void)
 int lcd_class_remove(void)
 {
 	int i;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	int type;
 
 	for (i = 0; i < ARRAY_SIZE(lcd_debug_class_attrs); i++)
 		class_remove_file(lcd_debug_class, &lcd_debug_class_attrs[i]);
+
+	type = lcd_drv->lcd_config->lcd_basic.lcd_type;
+	for (i = 0; i < ARRAY_SIZE(lcd_interface_debug_class_attrs); i++) {
+		if (strcmp(lcd_interface_debug_class_attrs[i].attr.name,
+			lcd_type_type_to_str(type)))
+			continue;
+		class_remove_file(lcd_debug_class,
+			&lcd_interface_debug_class_attrs[i]);
+	}
 
 	class_destroy(lcd_debug_class);
 	lcd_debug_class = NULL;

@@ -344,7 +344,7 @@ static void vbyone_interrupt_init(void)
 	/* reg_pll_lock = 1 to realease force to FSM_ACQ
 	//lcd_vcbus_setb(VBO_CTRL_H, 1, 13, 1); */
 
-	/* VX1 interrupt setting */
+	/* vx1 interrupt setting */
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 1, 12, 1);    /* intr pulse width */
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9); /* clear interrupt */
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
@@ -394,39 +394,39 @@ static irqreturn_t vbyone_interrupt_handler(int irq, void *dev_id)
 		data32_1 |= (1 << 0);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, data32_1, 0, 9);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
-	LCDPR("VX1 interrupt: status = 0x%04x\n", data32);
+	LCDPR("vx1 interrupt status = 0x%04x\n", data32);
 
 	if (data32 & 0x200) {
-		LCDPR("VX1 htpdn fall edge occurred\n");
+		LCDPR("vx1 htpdn fall edge occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
 #if 0
 	if (data32 & 0x400) {
-		LCDPR("VX1 htpdn raise edge occurred\n");
+		LCDPR("vx1 htpdn raise edge occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
 #endif
 	if (data32 & 0x800) {
-		LCDPR("VX1 lockn fall edge occurred\n");
+		LCDPR("vx1 lockn fall edge occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
 #if 0
 	if (data32 & 0x1000) {
-		LCDPR("VX1 lockn raise edge occurred\n");
+		LCDPR("vx1 lockn raise edge occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
 #endif
 	if (data32 & 0x2000) {
-		LCDPR("VX1 fsm_acqu wait end\n");
+		LCDPR("vx1 fsm_acqu wait end\n");
 		LCDPR("vx1 status 0: 0x%x\n", lcd_vcbus_read(VBO_STATUS_L));
 		if (vx1_fsm_acq_st == 0) {
 			/* clear FSM_continue */
 			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
-			LCDPR("VX1 SW reset\n");
+			LCDPR("vx1 sw reset\n");
 			/* force PHY to 0 */
 			lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
 			lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
