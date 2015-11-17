@@ -35,11 +35,23 @@ for less memory fragment;
 */
 #define CODEC_MM_FLAGS_CMA_FIRST 0x400
 
+/*
+flags can used for DRM:
+*/
+#define CODEC_MM_FLAGS_FOR_VDECODER 0x1000
+#define CODEC_MM_FLAGS_FOR_ADECODER 0x2000
+#define CODEC_MM_FLAGS_FOR_ENCODER  0x4000
+
 /*if cma,
 clear thie buffer cache.
 */
 #define CODEC_MM_FLAGS_CMA_CLEAR 0x10000
 
+
+/*used in codec_mm owner.
+don't not set on others.
+*/
+#define CODEC_MM_FLAGS_FOR_TVP_POOL 0x8000000
 
 #define CODEC_MM_FLAGS_FROM_MASK \
 	(CODEC_MM_FLAGS_DMA |\
@@ -71,6 +83,8 @@ int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
 int codec_mm_get_reserved_size(void);
 int codec_mm_enough_for_size(int size);
+int codec_mm_video_tvp_enabled(void);
+
 
 
 #endif	/*

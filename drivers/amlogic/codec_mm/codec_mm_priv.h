@@ -61,7 +61,7 @@ struct codec_mm_s {
 	char *vbuffer;
 
 	void *mem_handle;	/*used for top level.alloc/free */
-
+	void *from_ext;		/*alloced from pool*/
 	ulong phy_addr;		/*if phy continue or one page only */
 
 	int buffer_size;

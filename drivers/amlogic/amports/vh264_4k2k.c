@@ -452,7 +452,8 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 					codec_mm_alloc_for_dma(
 					MEM_NAME, buffer_spec[i].alloc_count,
 					4 + PAGE_SHIFT,
-					CODEC_MM_FLAGS_CMA_CLEAR);
+					CODEC_MM_FLAGS_CMA_CLEAR |
+					CODEC_MM_FLAGS_FOR_VDECODER);
 			}
 			alloc_count++;
 

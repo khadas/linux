@@ -424,6 +424,21 @@ ssize_t threadrw_write(struct file *file, struct stream_buf_s *stbuf,
 	return threadrw_write_in(task, stbuf, buf, count);
 }
 
+int threadrw_flush_buffers(struct stream_buf_s *stbuf)
+{
+	struct threadrw_write_task *task = stbuf->write_thread;
+	int max_retry = 20;
+	if (!task)
+		return 0;
+	while (!kfifo_is_empty(&task->datafifo) && max_retry-- > 0) {
+		threadrw_schedule_delayed_work(task, 0);
+		msleep(20);
+	}
+	if (!kfifo_is_empty(&task->datafifo))
+		return -1;/*data not flushed*/
+	return 0;
+}
+
 void *threadrw_alloc(int num,
 		int block_size,
 			ssize_t (*write)(struct file *,

@@ -4273,13 +4273,15 @@ static int free_alloced_keep_buffer(void)
 
 static int alloc_keep_buffer(void)
 {
-	int flags = CODEC_MM_FLAGS_DMA;
+	int flags = CODEC_MM_FLAGS_DMA |
+		CODEC_MM_FLAGS_FOR_VDECODER;
 #ifndef CONFIG_GE2D_KEEP_FRAME
 	/*
 		if not used ge2d.
 		need CPU access.
 	*/
-	flags = CODEC_MM_FLAGS_DMA_CPU;
+	flags = CODEC_MM_FLAGS_DMA_CPU |
+	CODEC_MM_FLAGS_FOR_VDECODER;
 #endif
 	if (!keep_y_addr) {
 		keep_y_addr = codec_mm_alloc_for_dma(
@@ -4294,7 +4296,7 @@ static int alloc_keep_buffer(void)
 	if (!keep_u_addr) {
 		keep_u_addr = codec_mm_alloc_for_dma(
 				MEM_NAME,
-				PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE, 0, 0);
+				PAGE_ALIGN(U_BUFFER_SIZE)/PAGE_SIZE, 0, flags);
 		if (!keep_u_addr) {
 			pr_err("%s: failed to alloc u addr\n", __func__);
 			goto err1;
@@ -4304,7 +4306,7 @@ static int alloc_keep_buffer(void)
 	if (!keep_v_addr) {
 		keep_v_addr = codec_mm_alloc_for_dma(
 				MEM_NAME,
-				PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE, 0, 0);
+				PAGE_ALIGN(V_BUFFER_SIZE)/PAGE_SIZE, 0, flags);
 		if (!keep_v_addr) {
 			pr_err("%s: failed to alloc v addr\n", __func__);
 			goto err1;
@@ -4350,9 +4352,11 @@ void get_video_keep_buffer(ulong *addr, ulong *phys_addr)
 	}
 
 	if (phys_addr) {
-		phys_addr[0] = 0;
-		phys_addr[1] = 0;
-		phys_addr[2] = 0;
+		if (!keep_y_addr || !keep_u_addr || !keep_v_addr)
+			alloc_keep_buffer();
+		phys_addr[0] = keep_y_addr;
+		phys_addr[1] = keep_u_addr;
+		phys_addr[2] = keep_v_addr;
 	}
 #endif
 	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
@@ -6501,6 +6505,23 @@ static ssize_t show_first_frame_nosync_store(struct class *cla,
 	return count;
 }
 
+static ssize_t video_free_keep_buffer_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	if (debug_flag & DEBUG_FLAG_BLACKOUT)
+		pr_info("%s(%s)\n", __func__, buf);
+	r = sscanf(buf, "%d", &val);
+	if (r != 1)
+		return -EINVAL;
+	if (val == 1)
+		try_free_keep_video();
+	return count;
+}
+
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       S_IRUGO | S_IWUSR | S_IWGRP,
@@ -6609,6 +6630,9 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       S_IRUGO | S_IWUSR,
 	       slowsync_repeat_enable_show,
 	       slowsync_repeat_enable_store),
+	__ATTR(free_keep_buffer,
+	       S_IRUGO | S_IWUSR | S_IWGRP, NULL,
+	       video_free_keep_buffer_store),
 #ifdef CONFIG_AM_VOUT
 	__ATTR_RO(device_resolution),
 #endif

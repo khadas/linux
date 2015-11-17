@@ -785,7 +785,8 @@ static void vh264_set_params(struct work_struct *work)
 						codec_mm_alloc_for_dma(MEM_NAME,
 						buffer_spec[i].alloc_count,
 						4 +	PAGE_SHIFT,
-						CODEC_MM_FLAGS_CMA_CLEAR);
+						CODEC_MM_FLAGS_CMA_CLEAR |
+						CODEC_MM_FLAGS_FOR_VDECODER);
 					pr_info("CMA malloc ok  %d\n", i);
 				}
 				alloc_count++;

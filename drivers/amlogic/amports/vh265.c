@@ -1503,7 +1503,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 					PAGE_ALIGN(buf_size) / PAGE_SIZE;
 				m_BUF[i].alloc_addr = codec_mm_alloc_for_dma(
 					MEM_NAME, m_BUF[i].cma_page_count,
-					4 + PAGE_SHIFT, 0);
+					4 + PAGE_SHIFT,
+					CODEC_MM_FLAGS_FOR_VDECODER);
 				if (m_BUF[i].alloc_addr == 0) {
 					pr_info("alloc cma buffer[%d] fail\n",
 					i);

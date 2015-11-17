@@ -64,6 +64,15 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 			(buf->type == BUF_TYPE_VIDEO)) &&
 			buf->for_4k)
 			flags |= CODEC_MM_FLAGS_CMA_FIRST;
+		if (buf->buf_size > 20 * 1024 * 1024)
+			flags |= CODEC_MM_FLAGS_CMA_FIRST;
+
+		if ((buf->type == BUF_TYPE_HEVC) ||
+			(buf->type == BUF_TYPE_VIDEO)) {
+			flags |= CODEC_MM_FLAGS_FOR_VDECODER;
+		} else if (buf->type == BUF_TYPE_AUDIO) {
+			flags |= CODEC_MM_FLAGS_FOR_ADECODER;
+		}
 
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
 			buf->buf_page_num, 4+PAGE_SHIFT, flags);

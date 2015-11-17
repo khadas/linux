@@ -40,6 +40,9 @@
 #include "amports_priv.h"
 #include "thread_rw.h"
 
+#include <linux/amlogic/codec_mm/codec_mm.h>
+
+
 
 #define SAVE_SCR 0
 
@@ -441,7 +444,8 @@ s32 esparser_init(struct stream_buf_s *buf)
 					   PARSER_INT_HOST_EN_BIT);
 	}
 	mutex_unlock(&esparser_mutex);
-	if (!(amports_get_debug_flags() & 1)) {
+	if (!(amports_get_debug_flags() & 1) &&
+		!codec_mm_video_tvp_enabled()) {
 		int block_size = (buf->type == BUF_TYPE_AUDIO) ?
 			PAGE_SIZE << 2 : PAGE_SIZE << 4;
 		int buf_num = (buf->type == BUF_TYPE_AUDIO) ?
@@ -556,7 +560,11 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 
 	if (buf == NULL || count == 0)
 		return -EINVAL;
-
+	if (stbuf->write_thread) {
+		r = threadrw_flush_buffers(stbuf);
+		if (r < 0)
+			pr_info("Warning. drm flush threadrw failed[%d]\n", r);
+	}
 	res = copy_from_user(drm, buf, sizeof(struct drm_info));
 	if (res) {
 		pr_info("drm kmalloc failed res[%d]\n", res);
