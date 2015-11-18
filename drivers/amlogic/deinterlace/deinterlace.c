@@ -156,8 +156,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* enable nr clock when di enabled */
-static const char version_s[] = "2015-11-14a";
+/* fix mcdi mif cal */
+static const char version_s[] = "2015-11-18a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -4713,11 +4713,11 @@ di_post_stru.buf_type != di_buf->di_buf_dup_p[0]->type ||
 		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.start_x = di_start_x/5;
 			di_post_stru.di_mcvecrd_mif.vecrd_offset =
-			di_start_x%5;
+			((di_start_x%5) ? (5 - di_start_x%5) : 0);
 			di_post_stru.di_mcvecrd_mif.start_y =
 			(di_start_y>>1);
 			di_post_stru.di_mcvecrd_mif.size_x	=
-			(di_width+4)/5 - 1;
+			(di_end_x + 1 + 4)/5 - 1 - di_start_x/5;
 			di_post_stru.di_mcvecrd_mif.size_y	=
 			(di_height>>1)-1;
 		}
