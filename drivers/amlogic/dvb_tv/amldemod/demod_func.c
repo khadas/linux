@@ -1113,6 +1113,7 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 		/* open arbit */
 		demod_set_demod_reg(0x8, DEMOD_REG4);
 	}
+	debug_demod = 0;
 	demod_sta->adc_freq = clk_adc;
 	demod_sta->clk_freq = clk_dem;
 	return 0;
