@@ -82,14 +82,14 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
-		/* vdec CMA pool */
-		vdec_cma_reserved:linux,vdec_cma {
+		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
-			linux,phandle = <2>;
 			reusable;
-			size = <0x0 0x12000000>;
+			size = <0x0 0xc000000>;
 			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
 		};
+
 
 		jpegenc_cma_reserved:linux,jpegenc_cma {
 			compatible = "shared-dma-pool";
@@ -97,6 +97,12 @@
 			reusable;
 			size = <0x0 0x2400000>;
 			alignment = <0x0 0x400000>;
+		};
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x4100000>;
+			alignment = <0x0 0x100000>;
 		};
 		/*  vdin0 CMA pool */
 		vdin0_cma_reserved:linux,vdin0_cma {
@@ -183,6 +189,12 @@
 			reg = <0x0 0xc8838000 0x0 0x2000>;
 		};
 	};
+	codec_mm {
+			compatible = "amlogic, codec, mm";
+			memory-region = <&codec_mm_cma &codec_mm_reserved>;
+			dev_name = "codec_mm";
+			status = "okay";
+	};
 
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
@@ -211,7 +223,6 @@
 
 	vdec {
 		compatible = "amlogic, vdec";
-		memory-region = <&vdec_cma_reserved>;
 		dev_name = "vdec.0";
 		status = "okay";
 		interrupts = <0 3 1
