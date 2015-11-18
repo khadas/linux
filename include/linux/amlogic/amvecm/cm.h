@@ -152,10 +152,10 @@ struct am_reg_s {
 	unsigned int mask; /* 32-bits; Valid bits */
 	unsigned int  val; /* 32-bits; Register Value */
 };
-
+#define am_reg_size 900
 struct am_regs_s {
 	unsigned int    length; /* Length of total am_reg */
-	struct am_reg_s am_reg[512];
+	struct am_reg_s am_reg[am_reg_size];
 };
 
 #endif  /* _TVOUT_CM_H */

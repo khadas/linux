@@ -402,7 +402,7 @@ static long amvecm_regmap_set(struct am_regs_s *regs,
 		reg_map);
 		return -EFAULT;
 	}
-	if (!regs->length || (regs->length > 512)) {
+	if (!regs->length || (regs->length > am_reg_size)) {
 		pr_amcm_dbg(
 		"[amcm..]0x%x load regs error: buf length error!!!, length=0x%x\n",
 				reg_map, regs->length);

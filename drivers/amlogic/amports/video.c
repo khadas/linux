@@ -3302,6 +3302,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	}
 #endif
 
+#if defined(CONFIG_AM_VECM)
+	amvecm_on_vs(vf);
+#endif
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
 		vdin_ops = NULL;	/* /get_vdin_v4l2_ops(); */
