@@ -61,7 +61,6 @@ extern void osd_setup_hw(u32 index,
 			 u32 disp_end_x,
 			 u32 disp_end_y,
 			 u32 fbmem,
-			 phys_addr_t *afbc_fbmem,
 			 const struct color_bit_define_s *color);
 extern void osd_set_order_hw(u32 index, u32 order);
 extern void osd_get_order_hw(u32 index, u32 *order);
@@ -141,6 +140,6 @@ extern char *osd_get_debug_hw(void);
 extern void osd_ext_clone_pan(u32 index);
 #endif
 extern void osd_set_pxp_mode(u32 mode);
-extern void osd_set_afbc(u32 enable);
-extern u32 osd_get_afbc(void);
+extern void osd_set_afbcd(u32 enable);
+extern u32 osd_get_afbcd(void);
 #endif

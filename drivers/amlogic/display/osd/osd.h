@@ -233,7 +233,6 @@ struct osd_fence_map_s {
 struct afbcd_data_s {
 	u32 enable;
 	u32 phy_addr;
-	u32 addr[OSD_MAX_BUF_NUM];
 	u32 frame_width;
 	u32 frame_height;
 	u32 conv_lbuf_len;
