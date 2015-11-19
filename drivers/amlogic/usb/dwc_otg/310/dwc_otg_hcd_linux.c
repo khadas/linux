@@ -362,6 +362,7 @@ int hcd_init(struct platform_device *pdev)
 		goto error1;
 	}
 	hcd->regs = otg_dev->os_dep.base;
+	set_bit(HCD_FLAG_DWC_OTG, &hcd->flags);
 
 	/* Initialize the DWC OTG HCD. */
 	dwc_otg_hcd = dwc_otg_hcd_alloc_hcd();

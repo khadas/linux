@@ -1239,10 +1239,10 @@ int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 			break;
 	}
 
-#ifndef CONFIG_AMLOGIC_USB
-	if (tmp != &urb->urb_list)
-		return -EIDRM;
-#endif
+	if (!(HCD_DWC_OTG(hcd))) {
+		if (tmp != &urb->urb_list)
+			return -EIDRM;
+	}
 
 	/* Any status except -EINPROGRESS means something already started to
 	 * unlink this URB from the hardware.  So there's no more work to do.

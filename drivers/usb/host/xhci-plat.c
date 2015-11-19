@@ -125,6 +125,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
+	set_bit(HCD_FLAG_DWC3, &hcd->flags);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				driver->description)) {
