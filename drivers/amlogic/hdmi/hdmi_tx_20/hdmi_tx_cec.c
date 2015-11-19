@@ -2040,10 +2040,8 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	switch (cmd) {
 	case CEC_IOC_GET_PHYSICAL_ADDR:
-		while (hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 0) {
-			/* waiting until get valid physical address */
-			msleep(100);
-		}
+		if (hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 0)
+			return -EINVAL;
 		a = hdmitx_device->hdmi_info.vsdb_phy_addr.a;
 		b = hdmitx_device->hdmi_info.vsdb_phy_addr.b;
 		c = hdmitx_device->hdmi_info.vsdb_phy_addr.c;
