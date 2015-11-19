@@ -1812,8 +1812,7 @@ void hdmirx_hw_monitor(void)
 			rx.pre_state = HDMIRX_HWSTATE_HDMI5V_HIGH;
 			rx_print("\n[HDMIRX State] 5v high->HPD_LOW\n");
 		} else {
-			if (!multi_port_edid_enable)
-				hdmirx_set_hpd(rx.port, 1);
+			hdmirx_set_hpd(rx.port, 1);
 
 			rx.state = HDMIRX_HWSTATE_HPD_READY;
 			rx.pre_state = HDMIRX_HWSTATE_HDMI5V_HIGH;
@@ -3176,8 +3175,7 @@ void hdmirx_hw_uninit(void)
 	/* READ_CBUS_REG(PREG_PAD_GPIO5_O) | */
 	/* ((1<<1)|(1<<5)|(1<<9)|(1<<13))); */
 
-	if (!multi_port_edid_enable)
-		hdmirx_set_hpd(rx.port, 0);
+	hdmirx_set_hpd(rx.port, 0);
 
 #ifndef CEC_FUNC_ENABLE
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);

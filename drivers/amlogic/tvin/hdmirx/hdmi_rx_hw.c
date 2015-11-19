@@ -659,7 +659,13 @@ static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 
 void hdmirx_set_hpd(int port, unsigned char val)
 {
-
+	if (!val) {
+		hdmirx_wr_top(TOP_HPD_PWR5V,
+			hdmirx_rd_top(TOP_HPD_PWR5V)&(~(1<<port)));
+	} else {
+		hdmirx_wr_top(TOP_HPD_PWR5V,
+			hdmirx_rd_top(TOP_HPD_PWR5V)|(1<<port));
+	}
 }
 
 static void control_reset(unsigned char seq)
@@ -728,40 +734,6 @@ static void control_reset(unsigned char seq)
 }
 void hdmirx_set_pinmux(void)
 {
-	wr_reg(PERIPHS_PIN_MUX_6 , rd_reg(PERIPHS_PIN_MUX_6)|
-				((1 << 25) | /* pm_gpioW_20_hdmirx_scl_D */
-				(1 << 24) | /* pm_gpioW_19_hdmirx_sda_D */
-				(1 << 23) | /* pm_gpioW_18_hdmirx_5v_D */
-				(1 << 22) | /* pm_gpioW_17_hdmirx_hpd_D */
-				(1 << 20) | /* pm_gpioW_16_hdmirx_scl_C */
-				(1 << 19) | /* pm_gpioW_15_hdmirx_sda_C */
-				(1 << 18) | /* pm_gpioW_14_hdmirx_5v_C */
-				(1 << 17) | /* pm_gpioW_13_hdmirx_hpd_C */
-				(1 << 15) | /* pm_gpioW_12_hdmirx_scl_B */
-				(1 << 14) | /* pm_gpioW_11_hdmirx_sda_B */
-				(1 << 13) | /* pm_gpioW_10_hdmirx_5v_B */
-				(1 << 12) | /* pm_gpioW_9_hdmirx_hpd_B */
-				(1 << 10) | /* pm_gpioW_8_hdmirx_scl_A */
-				(1 << 9)  | /* pm_gpioW_7_hdmirx_sda_A */
-				(1 << 8)  | /* pm_gpioW_6_hdmirx_5v_A */
-				(1 << 7)  | /* pm_gpioW_5_hdmirx_hpd_A */
-				(1 << 6)));	 /* pm_gpioW_4_hdmirx_cec */
-	wr_reg(PERIPHS_PIN_MUX_6, rd_reg(PERIPHS_PIN_MUX_6) &
-				(~((1<<5)
-				  |(1<<7)
-				  |(1<<12)
-				  |(1<<16)
-				  |(1<<17)
-				  |(1<<21)
-				  |(1<<22)
-				  |(1<<26))));
-	wr_reg(PERIPHS_PIN_MUX_10, rd_reg(PERIPHS_PIN_MUX_10) &
-				(~(
-				  (1<<1)
-				  |(1<<2)
-				  |(1<<3)
-				  |(1<<4))));
-
 }
 
 void clk_off(void)

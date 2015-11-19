@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/clk.h>
+#include <linux/of.h>
 
 
 /* Amlogic headers */
@@ -914,6 +915,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct hdmirx_dev_s *hdevp;
 	struct resource *res;
+	struct pinctrl *pin;
+	const char *pin_name;
 
 	log_init(DEF_LOG_BUF_SIZE);
 	pEdid_buffer = (unsigned char *) pdev->dev.platform_data;
@@ -1012,6 +1015,17 @@ static int hdmirx_probe(struct platform_device *pdev)
 	sprintf(hdevp->frontend.name, "%s", TVHDMI_NAME);
 	if (tvin_reg_frontend(&hdevp->frontend) < 0)
 		rx_print("hdmirx: driver probe error!!!\n");
+
+	/* pinmux set */
+	if (pdev->dev.of_node) {
+		ret = of_property_read_string(pdev->dev.of_node,
+					    "pinctrl-names",
+					    &pin_name);
+		if (!ret) {
+			pin = devm_pinctrl_get_select(&pdev->dev, pin_name);
+			rx_print("hdmirx: pinmux:%p, name:%s\n", pin, pin_name);
+		}
+	}
 
 	hdmirx_hw_enable();
 
