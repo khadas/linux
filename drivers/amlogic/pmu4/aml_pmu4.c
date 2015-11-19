@@ -324,7 +324,10 @@ void pmu4_phy_conifg(void)
 	aml_pmu4_write(0x15, 0x3f);
 
 	/* pll */
-	aml_pmu4_write(0x78, 0x06);
+	if (use_24m_clock)
+		aml_pmu4_write(0x78, 0x00);
+	else
+		aml_pmu4_write(0x78, 0x06);
 	aml_pmu4_write(0x79, 0x05);
 	aml_pmu4_write(0x7a, 0xa1);
 	aml_pmu4_write(0x7b, 0xac);
@@ -343,10 +346,15 @@ void pmu4_phy_conifg(void)
 		aml_pmu4_write(0x84, 0x00);
 		aml_pmu4_write(0x85, 0x00);
 	}
+	/* reset PMU4 PLL */
+	aml_pmu4_write(0x8e, 0x1);
+	aml_pmu4_write(0x8e, 0x0);
 	do {
 		aml_pmu4_read(0x9c, &value);
 		mdelay(10);
 	} while (((value & 0x01) == 0) && (i++ < 10));
+	if (!(value&0x01))
+		pr_err("WARING: PMU4 PLL not lock!");
 
 	/*cfg4- --- cfg 45 */
 	aml_pmu4_write(0x88, 0x0);
