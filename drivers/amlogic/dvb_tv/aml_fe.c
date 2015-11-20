@@ -22,12 +22,17 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include "aml_fe.h"
+#include "amlatvdemod/atvdemod_func.h"
 
+
+#ifdef pr_dbg
+#undef pr_dbg
 #define pr_dbg(fmt, args ...) \
 	do { \
 		if (debug_fe) \
 			pr_info("FE: " fmt, ## args); \
 	} while (0)
+#endif
 #define pr_error(fmt, args ...) pr_err("FE: " fmt, ## args)
 #define pr_inf(fmt, args ...) pr_info("FE: " fmt, ## args)
 
@@ -91,6 +96,67 @@ int amlogic_gpio_direction_output(unsigned int pin, int value,
 int amlogic_gpio_request(unsigned int pin, const char *label)
 {
 	return 0;
+}
+
+/*
+static v4l2_std_id trans_tvin_fmt_to_v4l2_std(int fmt)
+{
+	v4l2_std_id std = 0;
+	switch(fmt) {
+	case  TVIN_SIG_FMT_CVBS_NTSC_M :
+	case  TVIN_SIG_FMT_CVBS_NTSC_443 :
+		std = V4L2_COLOR_STD_NTSC;
+		break;
+	case  TVIN_SIG_FMT_CVBS_PAL_I :
+	case  TVIN_SIG_FMT_CVBS_PAL_M :
+	case  TVIN_SIG_FMT_CVBS_PAL_60 :
+	case  TVIN_SIG_FMT_CVBS_PAL_CN :
+		std = V4L2_COLOR_STD_PAL;
+		break;
+
+	case  TVIN_SIG_FMT_CVBS_SECAM :
+		std = V4L2_COLOR_STD_SECAM;
+		break;
+	default:
+		pr_err("%s err fmt: 0x%x\n", __func__, fmt);
+		break;
+	}
+	return std;
+}*/
+
+static v4l2_std_id demod_fmt_2_v4l2_std(int fmt)
+{
+	v4l2_std_id std = 0;
+	switch (fmt) {
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
+		std = V4L2_STD_PAL_DK;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
+		std = V4L2_STD_PAL_I;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
+		std = V4L2_STD_PAL_BG;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
+		std = V4L2_STD_PAL_M;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I:
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG:
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
+		std = V4L2_STD_NTSC_M;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L:
+		std = V4L2_STD_SECAM_L;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK2:
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK3:
+		std = V4L2_STD_SECAM_DK;
+		break;
+	default:
+		pr_err("%s unsupport fmt:0x%0x !!!\n", __func__, fmt);
+	}
+	return std;
 }
 
 static struct aml_fe_drv **aml_get_fe_drv_list(enum aml_fe_dev_type_t type)
@@ -239,9 +305,19 @@ static int aml_fe_analog_get_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
+	int audio = 0;
 
 	p->frequency = afe->params.frequency;
-	pr_dbg("[%s] params.frequency:%d\n", __func__, p->frequency);
+	audio = aml_audiomode_autodet();
+
+	pr_info("%s, p->analog.std:0x%x\n", __func__,
+		(unsigned int)p->analog.std);
+
+	p->analog.audmode = demod_fmt_2_v4l2_std(audio);
+	p->analog.std |= demod_fmt_2_v4l2_std(audio);
+	pr_info("[%s] params.frequency:%d, audio:0x%0x, vfmt:0x%x\n",
+		__func__, p->frequency, (unsigned int)p->analog.audmode,
+		(unsigned int)p->analog.std);
 
 	return 0;
 }
@@ -308,6 +384,8 @@ static enum dvbfe_algo aml_fe_get_analog_algo(struct dvb_frontend *dev)
 	return DVBFE_ALGO_CUSTOM;
 }
 
+
+
 /*this func set two ways to search the channel*/
 /*if the afc_range>1Mhz,set the freq  more than once*/
 /*if the afc_range<=1MHz,set the freq only once ,on the mid freq*/
@@ -324,6 +402,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	int atv_cvd_format, hv_lock_status, snr_vale;
 	v4l2_std_id std_bk = 0;
 	struct aml_fe *fee;
+	int audio = 0;
 
 #ifdef DEBUG_TIME_CUS
 	unsigned int time_start, time_end, time_delta;
@@ -475,16 +554,23 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					hv_lock_status = aml_fe_hook_hv_lock();
 					snr_vale =
 					    fe->ops.analog_ops.get_snr(fe);
-					pr_dbg("[%s] atv_cvd_format:0x%x;hv_lock_status:0x%x;snr_vale:%d\n",
+
+					pr_dbg("[%s] atv_cvd_format:0x%x;"
+						"hv_lock_status:0x%x;"
+						"snr_vale:%d, v fmt:0x%x\n",
 						__func__, atv_cvd_format,
-						hv_lock_status, snr_vale);
+						hv_lock_status, snr_vale,
+						(unsigned int)std_bk);
 					if (((atv_cvd_format & 0x4) == 0)
 					    || ((hv_lock_status == 0x4)
 						&& (snr_vale < 10))) {
-						std_bk = p->analog.std;
-						p->analog.std =
-						    (V4L2_COLOR_STD_NTSC |
-						     V4L2_STD_NTSC_M);
+						std_bk = p->analog.std
+							 & 0xff000000;
+						audio = aml_audiomode_autodet();
+						p->analog.std = std_bk |
+						demod_fmt_2_v4l2_std(audio);
+						p->analog.audmode =
+						demod_fmt_2_v4l2_std(audio);
 						/*avoid std unenable */
 						p->frequency += 1;
 						pr_dbg("[%s] maybe ntsc m\n",
@@ -538,13 +624,15 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			       __func__, __LINE__);
 			if (aml_fe_afc_closer(fe, minafcfreq, maxafcfreq)
 				== 0) {
-				pr_info("[%s] afc end  :p->frequency=[%d] has lock,search success.\n",
-					__func__, p->frequency);
-				pr_info("analog_std:0x%x,std_bk:0x%x\n",
-					(unsigned int)(p->analog.std),
-					(unsigned int)std_bk);
+				/* std_bk = aml_fe_hook_get_fmt(); */
+				std_bk = p->analog.std & 0xff000000;
+				audio = aml_audiomode_autodet();
+
 				if (std_bk != 0) {
-					p->analog.std = std_bk;
+					p->analog.audmode =
+						demod_fmt_2_v4l2_std(audio);
+					p->analog.std = std_bk |
+						demod_fmt_2_v4l2_std(audio);
 					/*avoid std unenable */
 					p->frequency -= 1;
 					std_bk = 0;

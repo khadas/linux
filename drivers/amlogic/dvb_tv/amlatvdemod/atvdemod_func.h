@@ -144,8 +144,9 @@ enum sound_format_e {
 	ATVDEMOD_SOUND_STD_NICAM,
 	ATVDEMOD_SOUND_STD_MAX,
 };
-extern void atv_dmd_wr_reg(unsigned long addr, unsigned long data);
-extern unsigned long atv_dmd_rd_reg(unsigned long addr);
+extern void atv_dmd_wr_reg(unsigned char block, unsigned char reg,
+	unsigned long data);
+extern unsigned long atv_dmd_rd_reg(unsigned char block, unsigned char reg);
 extern unsigned long atv_dmd_rd_byte(unsigned long block_address,
 				     unsigned long reg_addr);
 extern unsigned long atv_dmd_rd_word(unsigned long block_address,
@@ -299,6 +300,5 @@ extern struct amlatvdemod_device_s *amlatvdemod_devp;
 extern void aml_fix_PWM_adjust(void);
 extern void aml_audio_valume_gain(int audio_gain);
 extern void aml_atvdemod_overmodule_det(void);
-extern void aml_audiomode_autodet(void);
-
+extern int aml_audiomode_autodet(void);
 #endif /* __ATVDEMOD_FUN_H */
