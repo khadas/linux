@@ -494,6 +494,7 @@
 #define DWC_PDEC_ACRM_MAX        (0x334UL)
 /** Register address: minimum CTS div N value */
 #define DWC_PDEC_ACRM_MIN        (0x338UL)
+#define DWC_PDEC_ERR_FILTER			(0x33CUL)
 /** Register address: audio sub packet control */
 #define DWC_PDEC_ASP_CTRL        (0x340UL)
 /** Automatic mute all video channels */

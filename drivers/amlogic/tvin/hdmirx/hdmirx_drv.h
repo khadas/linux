@@ -26,7 +26,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/11/19"
+#define HDMIRX_VER "Ref.2015/11/21"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -58,6 +58,8 @@ struct hdmirx_dev_s {
 	struct clk *audmeas_clk;
 };
 
+#define HDMI_IOC_MAGIC 'H'
+#define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
 
 /* add new value at the end,
  * do not insert new value in the middle
@@ -65,7 +67,7 @@ struct hdmirx_dev_s {
  */
 enum HDMI_Video_Type {
 
-	HDMI_Unkown = 0 ,
+	HDMI_UNKNOW = 0 ,
 	HDMI_640x480p60 = 1 ,
 	HDMI_480p60,
 	HDMI_480p60_16x9,
@@ -143,7 +145,7 @@ enum HDMI_Video_Type {
 
 	HDMI_2160p_50hz_420 = 96,
 	HDMI_2160p_60hz_420 = 97,
-	HDMI_MAX_IS_UNSUPPORT,
+	HDMI_UNSUPPORT,
 };
 
 
@@ -232,6 +234,8 @@ struct hdmi_rx_ctrl_video {
 	unsigned ext_colorimetry;
 	/** AVI Q1-0, RGB quantization range */
 	unsigned rgb_quant_range;
+	/** AVI Q1-0, YUV quantization range */
+	unsigned yuv_quant_range;
 	/** AVI SC1-0, non-uniform scaling information */
 	unsigned n_uniform_scale;
 	/** AVI VIC6-0, video mode identification code */
@@ -394,8 +398,8 @@ struct rx {
 	/* info */
 	struct aud_info_s aud_info;
 	struct hdmi_rx_ctrl_video video_params;
-	struct hdmi_rx_ctrl_video pre_video_params;
-	struct hdmi_rx_ctrl_video cur_video_params;
+	struct hdmi_rx_ctrl_video pre_params;
+	struct hdmi_rx_ctrl_video cur_params;
 	struct hdmi_rx_ctrl_video reltime_video_params;
 	struct vendor_specific_info_s vendor_specific_info;
 	bool open_fg;
@@ -428,6 +432,8 @@ extern void clk_off(void);
 extern int hdmirx_print_flag;
 extern bool irq_ctrl_reg_en; /* enable/disable reg rd/wr in irq  */
 
+extern int rgb_quant_range;
+extern int yuv_quant_range;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

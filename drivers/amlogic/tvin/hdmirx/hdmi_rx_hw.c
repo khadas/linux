@@ -77,7 +77,7 @@ static int auto_aclk_mute = 2;
 MODULE_PARM_DESC(auto_aclk_mute, "\n auto_aclk_mute\n");
 module_param(auto_aclk_mute, int, 0664);
 
-int aud_avmute_en = 0;
+static int aud_avmute_en = 1;
 MODULE_PARM_DESC(aud_avmute_en, "\n aud_avmute_en\n");
 module_param(aud_avmute_en, int, 0664);
 
@@ -105,6 +105,18 @@ module_param(mpll_ctl_setting, int, 0664);
 static bool hdcp_enable = 1;
 MODULE_PARM_DESC(hdcp_enable, "\n hdcp_enable\n");
 module_param(hdcp_enable, bool, 0664);
+
+static bool fast_switching = true;
+MODULE_PARM_DESC(fast_switching, "\n fast_switching\n");
+module_param(fast_switching, bool, 0664);
+
+static int hdmi_mode_hyst = 5;
+MODULE_PARM_DESC(hdmi_mode_hyst, "\n hdmi_mode_hyst\n");
+module_param(hdmi_mode_hyst, int, 0664);
+
+static int force_clk_rate;
+MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
+module_param(force_clk_rate, int, 0664);
 
 /**
  * Read data from HDMI RX CTRL
@@ -246,24 +258,6 @@ void hdmirx_phy_fast_switching(int enable)
 			rx.port << 2);
 }
 
-void hdmirx_phy_power_down(void)
-{
-	hdmirx_phy_pddq(1);
-	/* hdmirx_phy_svsretmode(1);	//always 1 */
-	hdmirx_phy_reset(1);
-}
-void hdmirx_phy_configuration(void)
-{
-	hdmirx_phy_pddq(1);
-	/* hdmirx_phy_svsretmode(1);	//always 1 */
-	hdmirx_phy_reset(0);
-}
-void hdmirx_phy_power_up(void)
-{
-	hdmirx_phy_pddq(0);
-	/* hdmirx_phy_svsretmode(1);	//always 1 */
-	hdmirx_phy_reset(0);
-}
 
 /**************************
     hw functions
@@ -272,27 +266,26 @@ void hdmirx_phy_power_up(void)
 void hdmirx_phy_init(int rx_port_sel, int dcm)
 {
 	unsigned int data32;
+	unsigned int clk_rate;
 
-	/* PDDQ = 1'b1; PHY_RESET = 1'b1; */
-	data32	= 0;
-	data32 |= 1			<< 6;
-	data32 |= 1			<< 4;
-	data32 |= rx_port_sel	<< 2;
-	data32 |= 1			<< 1;
-	data32 |= 1			<< 0;
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL,	 data32);
+
+	data32 = 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 1 << 1;
+	data32 |= 1 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 	mdelay(1);
 
-	/* PDDQ = 1'b1; PHY_RESET = 1'b0; */
 	data32	= 0;
-	data32 |= 1			<< 6;
-	data32 |= 1			<< 4;
-	data32 |= rx_port_sel	<< 2;
-	data32 |= 1			<< 1;
-	data32 |= 0			<< 0;
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL,	 data32);
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 1 << 1;
+	data32 |= 0 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 
-	/* Configuring PHY's MPLL */
 	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x2d20);
 	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
 	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24da);
@@ -316,33 +309,24 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 
 	/* Configuring I2C to work in fastmode */
 	hdmirx_wr_dwc(DWC_I2CM_PHYG3_MODE,	 0x1);
+	/* disable overload protect for Philips DVD */
+	/* NOTE!!!!! don't remove below setting */
+	hdmirx_wr_phy(OVL_PROT_CTRL, 0xa);
 
-	data32	= 0;
-	data32 |= 0					<< 15;
-	/* [15]	mpll_short_power_up */
-	data32 |= 0					<< 13;
-	/* [14:13]	mpll_mult */
-	data32 |= 0					<< 12;
-	/* [12]	dis_off_lp */
-	/* data32 |= rx.phy.fast_switching << 11;  */
-	data32 |= 0					<< 11;
-	/* [11]	fast_switching */
-	data32 |= 0					<< 10;
-	/* [10]	bypass_afe */
+	data32 = 0;
+	data32 |= 0	<< 15;
+	data32 |= 0	<< 13;
+	data32 |= 0	<< 12;
+	data32 |= fast_switching << 11;
+	data32 |= 0	<< 10;
 	data32 |= rx.phy.fsm_enhancement << 9;
-	/* [9]		fsm_enhancement */
-	data32 |= 0					<< 8;
-	/* [8]		low_freq_eq */
-	data32 |= 0					<< 7;
-	/* [7]		bypass_aligner */
-	data32 |= dcm					<< 5;
-	/* [6:5]	color_depth:  */
-	data32 |= 0					<< 3;
-	/* [4:3]	sel_tmdsclk: */
-	data32 |= rx.phy.port_select_ovr_en   << 2;
-	/* [2]	  port_select_ovr_en */
-	data32 |= rx_port_sel			<< 0;
-	/* [1:0]	port_select_ovr */
+	data32 |= 0	<< 8;
+	data32 |= 0	<< 7;
+	data32 |= dcm << 5;
+	data32 |= 0	<< 3;
+	data32 |= rx.phy.port_select_ovr_en << 2;
+	data32 |= rx_port_sel << 0;
+
 	hdmirx_wr_phy(PHY_SYSTEM_CONFIG,
 		(rx.phy.phy_system_config_force_val != 0) ?
 		rx.phy.phy_system_config_force_val : data32);
@@ -353,28 +337,30 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 		((rx.phy.lock_thres << 10) | (1 << 9) |
 			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
 
+	if (force_clk_rate & 0x10)
+		clk_rate = force_clk_rate & 1;
+	else
+		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
+
+	if (1 == clk_rate)
+		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
+	else
+		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
 
 	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, 4);
 	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, 4);
 	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, 4);
 	hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
 
-	/* Write PHY register 0x0e, MHL&HDMI select */
-	data32	= 0;
-	data32 |= (0	<< 10);
-	data32 |= (0	<< 9);
-	data32 |= (0	<< 8);
-	data32 |= (8	<< 0);
-	hdmirx_wr_phy(PHY_CDR_CTRL_CNT,	  data32);
-
-	/* PDDQ = 1'b0; PHY_RESET = 1'b0; */
-	data32	= 0;
-	data32 |= 1			<< 6;
-	data32 |= 1			<< 4;
-	data32 |= rx_port_sel	<< 2;
-	data32 |= 0			<< 1;
-	data32 |= 0			<< 0;
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL,	 data32);
+	data32 = 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 0 << 1;
+	data32 |= 0 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 }
 
 
@@ -420,6 +406,7 @@ int hdmirx_interrupts_hpd(bool enable)
 	int error = 0;
 	return 0;
 	if (enable) {
+		/* hdmirx_wr_dwc(HDMIRX_DWC_PDEC_IEN_SET, GCP_RCV); */
 		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET,
 			AFIF_OVERFL|AFIF_UNDERFL);
 	} else {
@@ -495,10 +482,23 @@ int hdmirx_control_clk_range(unsigned long min, unsigned long max)
 static int packet_init(void)
 {
 	int error = 0;
-	hdmirx_wr_dwc(DWC_PDEC_CTRL,
-		PFIFO_STORE_FILTER_EN|PD_FIFO_WE|PDEC_BCH_EN);
+	unsigned int data32;
+
 	hdmirx_wr_dwc(DWC_PDEC_ASP_CTRL,
 		AUTO_VMUTE|AUTO_SPFLAT_MUTE);
+
+	data32 = 0;
+	data32 |= 1 << 9; /* amp_err_filter */
+	data32 |= 1 << 8; /* isrc_err_filter */
+	data32 |= 1 << 7; /* gmd_err_filter */
+	data32 |= 1 << 6; /* aif_err_filter */
+	data32 |= 1 << 5; /* avi_err_filter */
+	data32 |= 1 << 4; /* vsi_err_filter */
+	data32 |= 1 << 3; /* gcp_err_filter */
+	data32 |= 1 << 2; /* acrp_err_filter */
+	data32 |= 1 << 1; /* ph_err_filter */
+	data32 |= 0 << 0; /* checksum_err_filter */
+	hdmirx_wr_dwc(DWC_PDEC_ERR_FILTER, data32);
 	return error;
 }
 
@@ -513,10 +513,27 @@ int hdmirx_packet_fifo_rst(void)
 	return error;
 }
 
-static void control_init_more(void)
+static int DWC_init(unsigned port)
 {
-	#define VSYNC_POLARITY      1
+	int err = 0;
 	unsigned long   data32;
+	unsigned evaltime = 0;
+
+	evaltime = (rx.ctrl.md_clk * 4095) / 158000;
+	hdmirx_wr_dwc(DWC_HDMI_OVR_CTRL, ~0);	/* enable all */
+	hdmirx_wr_bits_dwc(DWC_HDMI_SYNC_CTRL,
+		VS_POL_ADJ_MODE, VS_POL_ADJ_AUTO);
+	hdmirx_wr_bits_dwc(DWC_HDMI_SYNC_CTRL,
+		HS_POL_ADJ_MODE, HS_POL_ADJ_AUTO);
+	hdmirx_wr_bits_dwc(DWC_HDMI_CKM_EVLTM,
+		EVAL_TIME, evaltime);
+	hdmirx_control_clk_range(TMDS_CLK_MIN,
+		TMDS_CLK_MAX);
+
+	hdmirx_wr_bits_dwc(DWC_HDMI_PCB_CTRL,
+	INPUT_SELECT, port);
+	hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
+		((1 << 2) - 1) << 2, port);
 
 	data32 = 0;
 	data32 |= (EDID_IN_FILTER_MODE	<< 14);
@@ -594,30 +611,19 @@ static void control_init_more(void)
 	else
 		data32 |= 0	<< 0;
 	hdmirx_wr_dwc(DWC_HDMI_RESMPL_CTRL, data32);
-}
 
-static int control_init(unsigned port)
-{
-	int err = 0;
-	unsigned evaltime = 0;
+	data32	= 0;
+	data32 |= (hdmirx_rd_dwc(DWC_HDMI_MODE_RECOVER) & 0xf8000000);
+	data32 |= (0	<< 24);
+	data32 |= (0	<< 18);
+	data32 |= (8	<< 13);
+	data32 |= (hdmi_mode_hyst	<< 8);
+	data32 |= (0	<< 6);
+	data32 |= (0	<< 4);
+	data32 |= (0	<< 2);
+	data32 |= (0	<< 0);
+	hdmirx_wr_dwc(DWC_HDMI_MODE_RECOVER, data32);
 
-	evaltime = (rx.ctrl.md_clk * 4095) / 158000;
-	hdmirx_wr_dwc(DWC_HDMI_OVR_CTRL, ~0);	/* enable all */
-	hdmirx_wr_bits_dwc(DWC_HDMI_SYNC_CTRL,
-		VS_POL_ADJ_MODE, VS_POL_ADJ_AUTO);
-	hdmirx_wr_bits_dwc(DWC_HDMI_SYNC_CTRL,
-		HS_POL_ADJ_MODE, HS_POL_ADJ_AUTO);
-	hdmirx_wr_bits_dwc(DWC_HDMI_CKM_EVLTM,
-		EVAL_TIME, evaltime);
-	hdmirx_control_clk_range(TMDS_CLK_MIN,
-		TMDS_CLK_MAX);
-	/* bit field shared between phy and controller */
-	hdmirx_wr_bits_dwc(DWC_HDMI_PCB_CTRL,
-	INPUT_SELECT, port);
-	hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
-		((1 << 2) - 1) << 2, port);
-
-	control_init_more();
 	return err;
 }
 
@@ -668,70 +674,29 @@ void hdmirx_set_hpd(int port, unsigned char val)
 	}
 }
 
-static void control_reset(unsigned char seq)
+void control_reset(void)
 {
 	unsigned long data32;
 
-	if (seq == 0) {
-		/* DWC reset default to be active, */
-		/* until reg TOP_SW_RESET[0] is set to 0. */
-		/* hdmirx_rd_check_reg(DEV_ID_TOP, TOP_SW_RESET, 0x1, 0x0); */
-		/* IP reset */
-		/* hdmirx_wr_top( TOP_SW_RESET, 0x3f); */
-		/* mdelay(50); */
-		/* Release IP reset */
-		hdmirx_wr_top(TOP_SW_RESET, 0x0);
-
-		/* add delay for audio problem */
-		mdelay(2);
-
-		/* Enable functional modules */
-		data32  = 0;
-		#ifdef CEC_FUNC_ENABLE
-		data32 |= 1 << 5;   /* [5]      cec_enable */
-		#else
-		data32 |= 0 << 5;   /* [5]      cec_enable */
-		#endif
-		data32 |= 1 << 4;   /* [4]      aud_enable */
-		data32 |= 1 << 3;   /* [3]      bus_enable */
-		data32 |= 1 << 2;   /* [2]      hdmi_enable */
-		data32 |= 1 << 1;   /* [1]      modet_enable */
-		data32 |= 1 << 0;   /* [0]      cfg_enable */
-		hdmirx_wr_dwc(DWC_DMI_DISABLE_IF, data32);
-
-		mdelay(1);
-		/* Reset functional modules */
-		hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000007F);
-
-		/* RX Reset */
-	} else {
-	    data32  = 0;
-	    data32 |= 0 << 5;   /* [5]      cec_enable */
-	    data32 |= 0 << 4;   /* [4]      aud_enable */
-	    data32 |= 0 << 3;   /* [3]      bus_enable */
-	    data32 |= 0 << 2;   /* [2]      hdmi_enable */
-	    data32 |= 0 << 1;   /* [1]      modet_enable */
-	    data32 |= 1 << 0;   /* [0]      cfg_enable */
-	    hdmirx_wr_dwc(DWC_DMI_DISABLE_IF, data32);
-
-	    mdelay(1);
-
-	    data32  = 0;
+	/* Enable functional modules */
+	data32  = 0;
 	#ifdef CEC_FUNC_ENABLE
-		data32 |= 1 << 5;   /* [5]      cec_enable */
+	data32 |= 1 << 5;   /* [5]	cec_enable */
 	#else
-	    data32 |= 0 << 5;   /* [5]      cec_enable */
+	data32 |= 0 << 5;   /* [5]      cec_enable */
 	#endif
-	    data32 |= 1 << 4;   /* [4]      aud_enable */
-	    data32 |= 1 << 3;   /* [3]      bus_enable */
-	    data32 |= 1 << 2;   /* [2]      hdmi_enable */
-	    data32 |= 1 << 1;   /* [1]      modet_enable */
-	    data32 |= 1 << 0;   /* [0]      cfg_enable */
-	    hdmirx_wr_dwc(DWC_DMI_DISABLE_IF, data32);
+	data32 |= 1 << 4;   /* [4]      aud_enable */
+	data32 |= 1 << 3;   /* [3]      bus_enable */
+	data32 |= 1 << 2;   /* [2]      hdmi_enable */
+	data32 |= 1 << 1;   /* [1]      modet_enable */
+	data32 |= 1 << 0;   /* [0]      cfg_enable */
+	hdmirx_wr_dwc(DWC_DMI_DISABLE_IF, data32);
 
-	    mdelay(1);
-	}
+	mdelay(1);
+	/* Reset functional modules */
+	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000007F);
 }
+
 void hdmirx_set_pinmux(void)
 {
 }
@@ -751,7 +716,6 @@ void clk_init(void)
 
     /* DWC clock enable */
 	/* Turn on clk_hdmirx_pclk, also = sysclk */
-
 	wr_reg(HHI_GCLK_MPEG0,
 		rd_reg(HHI_GCLK_MPEG0) | (1 << 21));
 
@@ -764,7 +728,7 @@ void clk_init(void)
 
     /* turn on clocks: md, cfg... */
 	/* G9 clk tree */
-	/* fclk_div5 510M ----- mux sel = 3 */
+	/* fclk_div5 400M ----- mux sel = 3 */
 	/* fclk_div3 850M ----- mux sel = 2 */
 	/* fclk_div4 637M ----- mux sel = 1 */
 	/* XTAL		24M  ----- mux sel = 0 */
@@ -780,21 +744,15 @@ void clk_init(void)
 	data32 |= 0 << 16;
 	data32 |= 3 << 9;
 	data32 |= 1 << 8;
-	data32 |= 15 << 0;
+	data32 |= 2 << 0;
 	wr_reg(HHI_HDMIRX_CLK_CNTL, data32);
 
 	data32 = 0;
-	/* [26:25] HDMIRX ACR ref clock mux select: fclk_div5 */
 	data32 |= 2	<< 25;
-	/* [24]    HDMIRX ACR ref clock enable */
 	data32 |= rx.ctrl.acr_mode	<< 24;
-	/* [22:16] HDMIRX ACR ref clock divider */
 	data32 |= 0	<< 16;
-	/* [10: 9] HDMIRX audmeas clock mux select: fclk_div5 */
 	data32 |= 2	<< 9;
-	/* [    8] HDMIRX audmeas clock enable */
 	data32 |= 1	<< 8;
-	/* [ 6: 0] HDMIRX audmeas clock divider: 400/3 = 170MHz */
 	data32 |= 2	<< 0;
 	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32);
 
@@ -848,103 +806,41 @@ void hdmirx_20_init(void)
 void hdmirx_hw_config(void)
 {
 	rx_print("%s %d\n", __func__, rx.port);
-	mdelay(10);
-	/* hdmirx_rd_check_TOP(TOP_SW_RESET, 0x01, 0x00); */
-	/* Release memories out of power down. */
-	hdmirx_wr_top(TOP_MEM_PD,    0);
-	clk_init();
-	rx_print("%s %d\n", __func__, __LINE__);
-	/* disable top interrupt gate */
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);
-	control_reset(0);
-	rx_print("%s %d\n", __func__, __LINE__);
-	if (multi_port_edid_enable)
-		hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
-	else
-		hdmirx_wr_top(TOP_PORT_SEL, ((1<<rx.port)));
+	clk_init();
+	control_reset();
 
 	hdmirx_interrupts_cfg(false);
-	rx_print("%s %d\n", __func__, __LINE__);
+	hdmi_rx_ctrl_edid_update();
 	if (hdcp_enable)
 		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
 	else
 		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
-	rx_print("%s %d\n", __func__, __LINE__);
-	/*phy config*/
-	/* hdmirx_phy_restart(); */
-	/* hdmi_rx_phy_fast_switching(1); */
-	hdmirx_phy_init(rx.port, 0); /* port, dcm */
-	/**/
-	rx_print("%s %d\n", __func__, __LINE__);
-	/* control config */
-	control_init(rx.port);
-	rx_print("%s %d\n", __func__, __LINE__);
-	hdmirx_audio_init();/*  */
-	rx_print("%s %d\n", __func__, __LINE__);
+
+	hdmirx_phy_init(rx.port, 0);
+	hdmirx_wr_top(TOP_PORT_SEL, 0x1f);
+	DWC_init(rx.port);
+	hdmirx_audio_init();
 	packet_init();
-
 	hdmirx_20_init();
-
-	rx_print("%s %d\n", __func__, __LINE__);
-
 	hdmirx_audio_fifo_rst();
 	hdmirx_packet_fifo_rst();
-	rx_print("%s %d\n", __func__, __LINE__);
-	/**/
-	control_reset(1);
-
 	/*enable irq */
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
-	rx_print("%s %d\n", __func__, __LINE__);
 	hdmirx_interrupts_hpd(true);
-	/**/
-
-#ifndef USE_GPIO_FOR_HPD
-	/* hdmi_rx_ctrl_hpd(true); */
-	/* hdmirx_wr_top( TOP_HPD_PWR5V, */
-	/* (1<<5)|(1<<4)); //invert HDP output */
-#endif
-#ifdef CEC_FUNC_ENABLE
-	cec_init();
-#endif
-	/* wait at least 4 video frames (at 24Hz) : */
-	/* 167ms for the mode detection */
-	/* recover the video mode */
-	mdelay(200);
-
-	/* Check If HDCP engine is in Idle state, */
-	/* if not wait for authentication time. */
-	/* 200ms is enough if no Ri errors */
-	if (hdmirx_rd_dwc(0xe0) != 0) {
-		rx_print("hdcp engine busy\n");
-		mdelay(200);
-	}
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 
 void hdmirx_hw_probe(void)
 {
-	hdmirx_wr_top(TOP_MEM_PD,	0);/* 1 */
-	hdmirx_wr_top(TOP_SW_RESET,	0);/* release IP from reset */
-
-	/* Turn on clk_hdmirx_pclk, also = sysclk */
-    /* Wr_reg_bits(HHI_GCLK_MPEG0, 1, 21, 1); */
-    /* Enable APB3 fail on error */
-	/* APB3 to HDMIRX-TOP err_en */
-    /* *((volatile unsigned long *) P_CTRL_PORT)	|= (1 << 15); */
-	/* APB3 to HDMIRX-DWC err_en */
-    /* *((volatile unsigned long *) (P_CTRL_PORT+0x10))	|= (1 << 15); */
-
-    /* turn on clocks: md, cfg... */
-	/* turn on cfg_clk */
-	wr_reg(HHI_HDMIRX_CLK_CNTL, 0x100070f);
-
-	hdmirx_wr_dwc(DWC_DMI_DISABLE_IF, 0x29);
-	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
+	hdmirx_wr_top(TOP_MEM_PD, 0);
+	hdmirx_wr_top(TOP_SW_RESET,	0);
+	clk_init();
 	#ifdef CEC_FUNC_ENABLE
 	cec_init();
 	#endif
+	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
 	hdmi_rx_ctrl_edid_update();
 
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
@@ -1054,18 +950,7 @@ int hdmirx_get_video_info(struct hdmi_rx_ctrl *ctx,
 	/* } */
 	/* deep color mode */
 	tmp = hdmirx_rd_bits_dwc(DWC_HDMI_STS, DCM_CURRENT_MODE);
-#if 0
-	if (hdmirx_rd_bits_dwc(DWC_PDEC_ISTS,
-		DVIDET|AVI_CKS_CHG) != 0
-		|| hdmirx_rd_bits_dwc(DWC_MD_ISTS,
-		VIDEO_MODE) != 0
-		|| hdmirx_rd_bits_dwc(DWC_HDMI_ISTS,
-		DCM_CURRENT_MODE_CHG) != 0) {
-		rx_print("%s error\n", __func__);
-		error = -EAGAIN;
-		goto exit;
-	}
-#endif
+
 	switch (tmp) {
 	case DCM_CURRENT_MODE_48b:
 		params->deep_color_mode = 48;
@@ -1093,11 +978,32 @@ exit:
 	return error;
 }
 
-
 void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)
 {
-}
+	int data32 = 0;
 
+	if (video_params->video_format == 0) {
+		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH2, 0);
+		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH_0_1, 0);
+	} else {
+		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH2, 0x8000);
+		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH_0_1, 0x8000);
+	}
+
+	if (video_params->interlaced == 1) {
+		data32	= 0;
+		data32 |= (hdmirx_rd_dwc(DWC_HDMI_MODE_RECOVER) & 0xf8000000);
+		data32 |= (0	<< 24);
+		data32 |= (0	<< 18);
+		data32 |= (8	<< 13);
+		data32 |= (1	<< 8);
+		data32 |= (0	<< 6);
+		data32 |= (0	<< 4);
+		data32 |= (0	<< 2);
+		data32 |= (0	<< 0);
+		hdmirx_wr_dwc(DWC_HDMI_MODE_RECOVER, data32);
+	}
+}
 
 int hdmirx_audio_init(void)
 {

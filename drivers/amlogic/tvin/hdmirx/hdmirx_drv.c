@@ -233,17 +233,7 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp_hdmirx_suspend = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp->param.port = port;
 
-	hdmirx_hw_enable();
 	hdmirx_hw_init(port);
-	if (multi_port_edid_enable)
-		hdmirx_default_hpd(1);
-
-	rx.open_fg = 1;
-
-	if ((rx.open_fg) && (rx.phy.fast_switching)) {
-		hdmirx_phy_fast_switching(1);
-		return 0;
-	}
 
 #ifndef CEC_FUNC_ENABLE
 	/* timer */
@@ -408,7 +398,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 {
 	unsigned char _3d_structure, _3d_ext_data;
 	enum tvin_sig_fmt_e sig_fmt;
-	unsigned int rate = rx.pre_video_params.refresh_rate * 2;
+	unsigned int rate = rx.pre_params.refresh_rate * 2;
 
 	/* use dvi info bit4~ for frame rate display */
 	rate = rate/100 + (((rate%100)/10 >= 5) ? 1 : 0);
@@ -500,14 +490,35 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	else
 		prop->decimation_ratio = (hdmirx_hw_get_pixel_repeat() - 1);
 
-
-	if ((TVIN_SIG_FMT_HDMI_1920X1080P_50HZ != sig_fmt) &&
-		(TVIN_SIG_FMT_HDMI_1920X1080P_60HZ != sig_fmt) &&
-		(TVIN_SIG_FMT_HDMI_3840_2160_00HZ != sig_fmt) &&
-		(TVIN_SIG_FMT_HDMI_4096_2160_00HZ != sig_fmt)) {
+	if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) ||
+		(TVIN_SIG_FMT_HDMI_3840_2160_00HZ == sig_fmt) ||
+		(rx.pre_params.interlaced == 1)) {
 		prop->dest_cfmt = TVIN_YUV422;
 	}
 
+	switch (prop->color_format) {
+	case TVIN_YUV444:
+	case TVIN_YUV422:
+		if (yuv_quant_range == 1)
+			prop->color_fmt_range = TVIN_YUV_LIMIT;
+		else if (yuv_quant_range == 2)
+			prop->color_fmt_range = TVIN_YUV_FULL;
+		else
+			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		break;
+	case TVIN_RGB444:
+		if (rgb_quant_range == 1)
+			prop->color_fmt_range = TVIN_RGB_LIMIT;
+		else if (rgb_quant_range == 2)
+			prop->color_fmt_range = TVIN_RGB_FULL;
+		else
+			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+	break;
+
+	default:
+			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+			break;
+	}
 }
 
 bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
@@ -543,7 +554,6 @@ static int hdmirx_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CEC_FUNC_ENABLE
 static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
@@ -559,49 +569,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	switch (cmd) {
-	case HDMI_IOC_CEC_ON:
-		hdmirx_cec_fun_onoff(1);
-		break;
-	case HDMI_IOC_CEC_OFF:
-		hdmirx_cec_fun_onoff(0);
-		break;
-	case HDMI_IOC_CEC_ARC_ON:
-		hdmirx_cec_arc_onoff(1);
-		break;
-	case HDMI_IOC_CEC_ARC_OFF:
-		hdmirx_cec_arc_onoff(0);
-		break;
-	case HDMI_IOC_CEC_CLEAR_BUFFER:
-		hdmirx_cec_clear_rx_buffer();
-		break;
-	case HDMI_IOC_CEC_GET_MSG_CNT:{
-		int cnt;
-		cnt = hdmirx_get_cec_msg_cnt();
-		if (copy_to_user(argp, &cnt,
-			sizeof(int)))
-			ret = -EFAULT;
-		break;
-	}
-	case HDMI_IOC_CEC_GET_MSG:{
-		struct _cec_msg *msg = NULL;
-		msg = hdmirx_get_rx_msg();
-		if (msg != NULL) {
-			if (copy_to_user(argp, msg,
-				sizeof(struct _cec_msg)))
-				ret = -EFAULT;
-		}
-		break;
-	}
-	case HDMI_IOC_CEC_SENT_MSG:{
-		struct _cec_msg msg;
-		if (copy_from_user(&msg, argp,
-			sizeof(struct _cec_msg))) {
-			ret = -EFAULT;
-			break;
-		}
-		cec_post_msg_to_buf(&msg);
-		break;
-	}
+
 	case HDMI_IOC_HDCP_GET_KSV:{
 		struct _hdcp_ksv ksv;
 		ksv.bksv0 = rx.hdcp.bksv[0];
@@ -619,6 +587,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	return ret;
 }
+
 #ifdef CONFIG_COMPAT
 static long hdmirx_compat_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
@@ -629,22 +598,20 @@ static long hdmirx_compat_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 #endif
-#endif
 
-/*
- * File operations structure
- * Defined in linux/fs.h
- */
+
+
 static const struct file_operations hdmirx_fops = {
 	.owner		= THIS_MODULE,
 	.open		= hdmirx_open,
 	.release	= hdmirx_release,
 #ifdef CEC_FUNC_ENABLE
 	.unlocked_ioctl	= hdmirx_ioctl,
+#endif
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = hdmirx_compat_ioctl,
 #endif
-#endif
+
 };
 
 /* attr */
@@ -918,6 +885,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct pinctrl *pin;
 	const char *pin_name;
 
+	struct clk *xtal_clk;
+	struct clk *fclk_div5_clk;
+	int clk_rate;
+
 	log_init(DEF_LOG_BUF_SIZE);
 	pEdid_buffer = (unsigned char *) pdev->dev.platform_data;
 
@@ -1027,8 +998,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 		}
 	}
 
-	hdmirx_hw_enable();
-
+	/* hdmirx_hw_enable(); */
+	hdmirx_hw_probe();
 	dev_set_drvdata(hdevp->dev, hdevp);
 #ifdef CEC_FUNC_ENABLE
 	init_timer(&hdevp->timer);
@@ -1038,75 +1009,70 @@ static int hdmirx_probe(struct platform_device *pdev)
 	add_timer(&hdevp->timer);
 #endif
 
-	if (is_meson_gxtvbb_cpu()) {
-		struct clk *xtal_clk;
-		struct clk *fclk_div5_clk;
-		int clk_rate;
-
-		xtal_clk = clk_get(&pdev->dev, "xtal");
-		if (IS_ERR(xtal_clk))
-			rx_print("get xtal err\n");
-		else {
-			clk_rate = clk_get_rate(xtal_clk);
-			pr_info("%s: xtal_clk is %d MHZ\n", __func__,
-					clk_rate/1000000);
-		}
-		fclk_div5_clk = clk_get(&pdev->dev, "fclk_div5");
-		if (IS_ERR(fclk_div5_clk))
-			rx_print("get fclk_div5_clk err\n");
-		else {
-			clk_rate = clk_get_rate(fclk_div5_clk);
-			pr_info("%s: fclk_div5_clk is %d MHZ\n", __func__,
-					clk_rate/1000000);
-		}
-		hdevp->modet_clk = clk_get(&pdev->dev, "hdmirx_modet_clk");
-		if (IS_ERR(hdevp->modet_clk))
-			rx_print("get modet_clk err\n");
-		else {
-			clk_set_parent(hdevp->modet_clk, xtal_clk);
-			clk_set_rate(hdevp->modet_clk, 24000000);
-			clk_rate = clk_get_rate(hdevp->modet_clk);
-			clk_put(hdevp->modet_clk);
-			pr_info("%s: modet_clk is %d MHZ\n", __func__,
-					clk_rate/1000000);
-		}
-
-		hdevp->cfg_clk = clk_get(&pdev->dev, "hdmirx_cfg_clk");
-		if (IS_ERR(hdevp->cfg_clk))
-			rx_print("get cfg_clk err\n");
-		else {
-			clk_set_parent(hdevp->cfg_clk, xtal_clk);
-			clk_set_rate(hdevp->cfg_clk, 24000000);
-			clk_rate = clk_get_rate(hdevp->cfg_clk);
-			clk_put(hdevp->cfg_clk);
-			pr_info("%s: cfg_clk is %d MHZ\n", __func__,
-					clk_rate/1000000);
-		}
-
-		hdevp->acr_ref_clk = clk_get(&pdev->dev, "hdmirx_acr_ref_clk");
-		if (IS_ERR(hdevp->acr_ref_clk))
-			rx_print("get acr_ref_clk err\n");
-		else {
-			clk_set_parent(hdevp->acr_ref_clk, xtal_clk);
-			clk_set_rate(hdevp->acr_ref_clk, 24000000);
-			clk_rate = clk_get_rate(hdevp->acr_ref_clk);
-			clk_put(hdevp->acr_ref_clk);
-			pr_info("%s: acr_ref_clk is %d MHZ\n", __func__,
-					clk_rate/1000000);
-		}
-
-		hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
-		if (IS_ERR(hdevp->audmeas_clk))
-			rx_print("get audmeas_clk err\n");
-		else {
-			clk_set_parent(hdevp->audmeas_clk, xtal_clk);
-			clk_set_rate(hdevp->audmeas_clk, 24000000);
-			clk_rate = clk_get_rate(hdevp->audmeas_clk);
-			clk_put(hdevp->audmeas_clk);
-			pr_info("%s: audmeas_clk is %d MHZ\n", __func__,
-					clk_rate/1000000);
-		}
+	xtal_clk = clk_get(&pdev->dev, "xtal");
+	if (IS_ERR(xtal_clk))
+		rx_print("get xtal err\n");
+	else {
+		clk_rate = clk_get_rate(xtal_clk);
+		pr_info("%s: xtal_clk is %d MHZ\n", __func__,
+				clk_rate/1000000);
 	}
+	fclk_div5_clk = clk_get(&pdev->dev, "fclk_div5");
+	if (IS_ERR(fclk_div5_clk))
+		rx_print("get fclk_div5_clk err\n");
+	else {
+		clk_rate = clk_get_rate(fclk_div5_clk);
+		pr_info("%s: fclk_div5_clk is %d MHZ\n", __func__,
+				clk_rate/1000000);
+	}
+	hdevp->modet_clk = clk_get(&pdev->dev, "hdmirx_modet_clk");
+	if (IS_ERR(hdevp->modet_clk))
+		rx_print("get modet_clk err\n");
+	else {
+		clk_set_parent(hdevp->modet_clk, xtal_clk);
+		clk_set_rate(hdevp->modet_clk, 24000000);
+		clk_rate = clk_get_rate(hdevp->modet_clk);
+		clk_put(hdevp->modet_clk);
+		pr_info("%s: modet_clk is %d MHZ\n", __func__,
+				clk_rate/1000000);
+	}
+
+	hdevp->cfg_clk = clk_get(&pdev->dev, "hdmirx_cfg_clk");
+	if (IS_ERR(hdevp->cfg_clk))
+		rx_print("get cfg_clk err\n");
+	else {
+		clk_set_parent(hdevp->cfg_clk, xtal_clk);
+		clk_set_rate(hdevp->cfg_clk, 133333333);
+		clk_rate = clk_get_rate(hdevp->cfg_clk);
+		clk_put(hdevp->cfg_clk);
+		pr_info("%s: cfg_clk is %d MHZ\n", __func__,
+				clk_rate/1000000);
+	}
+
+	hdevp->acr_ref_clk = clk_get(&pdev->dev, "hdmirx_acr_ref_clk");
+	if (IS_ERR(hdevp->acr_ref_clk))
+		rx_print("get acr_ref_clk err\n");
+	else {
+		clk_set_parent(hdevp->acr_ref_clk, xtal_clk);
+		clk_set_rate(hdevp->acr_ref_clk, 24000000);
+		clk_rate = clk_get_rate(hdevp->acr_ref_clk);
+		clk_put(hdevp->acr_ref_clk);
+		pr_info("%s: acr_ref_clk is %d MHZ\n", __func__,
+				clk_rate/1000000);
+	}
+
+	hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
+	if (IS_ERR(hdevp->audmeas_clk))
+		rx_print("get audmeas_clk err\n");
+	else {
+		clk_set_parent(hdevp->audmeas_clk, xtal_clk);
+		clk_set_rate(hdevp->audmeas_clk, 24000000);
+		clk_rate = clk_get_rate(hdevp->audmeas_clk);
+		clk_put(hdevp->audmeas_clk);
+		pr_info("%s: audmeas_clk is %d MHZ\n", __func__,
+				clk_rate/1000000);
+	}
+
 
 	/* create for hot plug function */
 	hpd_wq = create_singlethread_workqueue(hdevp->frontend.name);
