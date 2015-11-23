@@ -42,6 +42,9 @@ struct spicc {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pullup;
 	struct pinctrl_state *pulldown;
+	int bits_per_word;
+	int mode;
+	int speed;
 };
 
 
@@ -55,12 +58,21 @@ static void spicc_chip_select(struct spi_device *spi, bool select)
 		gpio_direction_output(spi->cs_gpio, select);
 }
 
+static inline void spicc_set_bit_width(struct spicc *spicc, u8 bw)
+{
+	setb(spicc->regs, CON_BITS_PER_WORD, bw-1);
+	spicc->bits_per_word = bw;
+}
 
 static void spicc_set_mode(struct spicc *spicc, u8 mode)
 {
 	bool cpol = (mode & SPI_CPOL) ? 1:0;
 	bool cpha = (mode & SPI_CPHA) ? 1:0;
 
+	if (mode == spicc->mode)
+		return;
+
+	spicc->mode = mode;
 	if (cpol)
 		pinctrl_select_state(spicc->pinctrl, spicc->pullup);
 	else
@@ -80,7 +92,10 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 		clk_disable(spicc->clk);
 		return;
 	}
+	if (speed == spicc->speed)
+		return;
 
+	spicc->speed = speed;
 	clk_prepare_enable(spicc->clk);
 	sys_clk_rate = clk_get_rate(spicc->clk);
 
@@ -94,29 +109,66 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 	setb(spicc->regs, CON_DATA_RATE_DIV, div);
 }
 
+static inline void spicc_set_txfifo(struct spicc *spicc, u32 dat)
+{
+	writel(dat, spicc->regs + SPICC_REG_TXDATA);
+}
+
+static inline u32 spicc_get_rxfifo(struct spicc *spicc)
+{
+	return readl(spicc->regs + SPICC_REG_RXDATA);
+}
+
+static inline void spicc_enable(struct spicc *spicc, bool en)
+{
+	setb(spicc->regs, CON_ENABLE, en);
+}
+
+static int spicc_wait_complete(struct spicc *spicc, int max)
+{
+	void __iomem *mem_base = spicc->regs;
+	int i;
+
+	for (i = 0; i < max; i++) {
+		if (getb(mem_base, STA_RX_READY))
+			return 0;
+	}
+	dev_err(spicc->master->dev.parent, "timeout\n");
+	return -1;
+}
 
 static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 {
-	void __iomem *mem_base = spicc->regs;
-	u8 dat;
-	int i, num, retry;
+	int num, i, j, bytes;
+	unsigned int dat;
+
+	bytes = ((spicc->bits_per_word - 1)>>3) + 1;
+	len /= bytes;
 
 	while (len > 0) {
 		num = (len > SPICC_FIFO_SIZE) ? SPICC_FIFO_SIZE : len;
 		for (i = 0; i < num; i++) {
-			dat = txp ? (*txp++) : 0;
-			writel(dat, mem_base+SPICC_REG_TXDATA);
+			dat = 0;
+			if (txp) {
+				for (j = 0; j < bytes; j++) {
+					dat <<= 8;
+					dat += *txp++;
+				}
+			}
+			spicc_set_txfifo(spicc, dat);
+			/* printk("txdata[%d] = 0x%x\n", i, dat); */
 		}
+
 		for (i = 0; i < num; i++) {
-			retry = 100;
-			while (!getb(mem_base, STA_RX_READY) && retry--)
-				udelay(1);
-			dat = readl(mem_base+SPICC_REG_RXDATA);
-			if (rxp)
-				*rxp++ = dat;
-			if (!retry) {
-				dev_err(spicc->master->dev.parent, "hw_xfer timeout\n");
+			if (spicc_wait_complete(spicc, 1000))
 				return -ETIMEDOUT;
+			dat = spicc_get_rxfifo(spicc);
+			/* printk("rxdata[%d] = 0x%x\n", i, dat); */
+			if (rxp) {
+				for (j = 0; j < bytes; j++) {
+					*rxp++ = dat & 0xff;
+					dat >>= 8;
+				}
 			}
 		}
 		len -= num;
@@ -124,38 +176,95 @@ static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 	return 0;
 }
 
-
 static void spicc_hw_init(struct spicc *spicc)
 {
 	void __iomem *mem_base = spicc->regs;
 
-	udelay(10);
+	spicc->bits_per_word = -1;
+	spicc->mode = -1;
+	spicc->speed = -1;
+	spicc_enable(spicc, 0);
 	setb(mem_base, CLK_FREE_EN, 1);
-	setb(mem_base, CON_ENABLE, 0); /* disable SPICC */
 	setb(mem_base, CON_MODE, 1); /* 0-slave, 1-master */
 	setb(mem_base, CON_XCH, 0);
 	setb(mem_base, CON_SMC, 1); /* 0-dma, 1-pio */
-	setb(mem_base, CON_BITS_PER_WORD, 7); /* default bits width 8 */
-	spicc_set_mode(spicc, SPI_MODE_0); /* default mode 0 */
-	spicc_set_clk(spicc, 3000000); /* default speed 3M */
 	setb(mem_base, CON_SS_CTL, 1);
+	spicc_set_bit_width(spicc, 8);
+	spicc_set_mode(spicc, SPI_MODE_0);
+	spicc_set_clk(spicc, 3000000);
 }
+
+
+int dirspi_xfer(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
+{
+	struct spicc *spicc;
+
+	spicc = spi_master_get_devdata(spi->master);
+	return spicc_hw_xfer(spicc, tx_buf, rx_buf, len);
+}
+EXPORT_SYMBOL(dirspi_xfer);
+
+int dirspi_write(struct spi_device *spi, u8 *buf, int len)
+{
+	struct spicc *spicc;
+
+	spicc = spi_master_get_devdata(spi->master);
+	return spicc_hw_xfer(spicc, buf, 0, len);
+}
+EXPORT_SYMBOL(dirspi_write);
+
+int dirspi_read(struct spi_device *spi, u8 *buf, int len)
+{
+	struct spicc *spicc;
+
+	spicc = spi_master_get_devdata(spi->master);
+	return spicc_hw_xfer(spicc, 0, buf, len);
+}
+EXPORT_SYMBOL(dirspi_read);
+
+void dirspi_start(struct spi_device *spi)
+{
+	spicc_chip_select(spi, 1);
+}
+EXPORT_SYMBOL(dirspi_start);
+
+void dirspi_stop(struct spi_device *spi)
+{
+	spicc_chip_select(spi, 0);
+}
+EXPORT_SYMBOL(dirspi_stop);
 
 
 /* setting clock and pinmux here */
 static int spicc_setup(struct spi_device *spi)
 {
+	struct spicc *spicc;
+
+	spicc = spi_master_get_devdata(spi->master);
 	if (!spi->cs_gpio &&
 	(spi->chip_select < spi->master->num_chipselect))
 		spi->cs_gpio = spi->master->cs_gpios[spi->chip_select];
-	dev_info(&spi->dev, "cs_gpio=%d\n", spi->cs_gpio);
+	dev_info(&spi->dev, "cs_gpio=%d,mode=%d, speed=%d\n",
+			spi->cs_gpio, spi->mode, spi->max_speed_hz);
 	if (spi->cs_gpio)
 		gpio_request(spi->cs_gpio, "spicc");
+	spicc_set_bit_width(spicc, spi->bits_per_word);
+	spicc_set_clk(spicc, spi->max_speed_hz);
+	spicc_set_mode(spicc, spi->mode);
+	spicc_enable(spicc, 1);
+	spicc_chip_select(spi, 1);
+
 	return 0;
 }
 
 static void spicc_cleanup(struct spi_device *spi)
 {
+	struct spicc *spicc;
+
+	spicc = spi_master_get_devdata(spi->master);
+	spicc_chip_select(spi, 0);
+	spicc_enable(spicc, 0);
+	spicc_set_clk(spicc, 0);
 	if (spi->cs_gpio)
 		gpio_free(spi->cs_gpio);
 }
@@ -166,14 +275,13 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 	struct spi_transfer *t;
 	int ret = 0;
 
-	/* re-set to prevent others from disable the SPICC clk gate */
+	spicc_set_bit_width(spicc, spi->bits_per_word);
 	spicc_set_clk(spicc, spi->max_speed_hz);
 	spicc_set_mode(spicc, spi->mode);
-	spicc_chip_select(spi, 1); /* select */
-	setb(spicc->regs, CON_ENABLE, 1); /* enable SPICC */
-
+	spicc_enable(spicc, 1);
+	spicc_chip_select(spi, 1);
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if ((spi->max_speed_hz != t->speed_hz) && t->speed_hz)
+		if (t->speed_hz)
 			spicc_set_clk(spicc, t->speed_hz);
 		if (spicc_hw_xfer(spicc, (u8 *)t->tx_buf,
 				(u8 *)t->rx_buf, t->len) < 0)
@@ -184,8 +292,8 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 	}
 
 spicc_handle_end:
-	setb(spicc->regs, CON_ENABLE, 0); /* disable SPICC */
-	spicc_chip_select(spi, 0); /* unselect */
+	spicc_chip_select(spi, 0);
+	spicc_enable(spicc, 0);
 	spicc_set_clk(spicc, 0);
 
 	m->status = ret;
