@@ -31,7 +31,7 @@ static DEFINE_MUTEX(cec_mutex);
 
 static DECLARE_COMPLETION(tx_complete);
 
-unsigned int cec_int_disable_flag = 0;
+static unsigned int cec_int_disable_flag;
 static unsigned char msg_log_buf[128] = { 0 };
 static int cec_ll_trigle_tx(void);
 static int cec_tx_fail_reason;
@@ -52,17 +52,9 @@ struct cec_tx_msg {
 	unsigned int queue_idx;
 };
 
-struct cec_tx_msg cec_tx_msgs = {};
+static struct cec_tx_msg cec_tx_msgs = {};
 
-void cec_disable_irq(void)
-{
-	/* disable all AO_CEC interrupt sources */
-	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 0x0, 0, 3);
-	cec_int_disable_flag = 1;
-	hdmi_print(INF, CEC "disable:int mask:0x%x\n",
-		hd_read_reg(P_AO_CEC_INTR_MASKN));
-}
-void cec_enable_irq(void)
+static void cec_enable_irq(void)
 {
 	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 0x6, 0, 3);
 	cec_int_disable_flag = 0;
@@ -70,7 +62,7 @@ void cec_enable_irq(void)
 		hd_read_reg(P_AO_CEC_INTR_MASKN));
 }
 
-void cec_hw_buf_clear(void)
+static void cec_hw_buf_clear(void)
 {
 	aocec_wr_reg(CEC_RX_MSG_CMD, RX_DISABLE);
 	aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
@@ -96,7 +88,7 @@ void cec_logicaddr_set(int logicaddr)
 			aocec_rd_reg(CEC_LOGICAL_ADDR0));
 }
 
-void cec_hw_reset(void)
+static void cec_hw_reset(void)
 {
 	hd_write_reg(P_AO_CEC_GEN_CNTL, 0x1);
 	/* Enable gated clock (Normal mode). */
@@ -109,7 +101,7 @@ void cec_hw_reset(void)
 	if (!cec_int_disable_flag)
 		hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 0x6, 0, 3);
 
-	cec_logicaddr_set(cec_global_info.my_node_index);
+	cec_logicaddr_set(cec_info.log_addr);
 
 	/* Cec arbitration 3/5/7 bit time set. */
 	cec_arbit_bit_time_set(3, 0x118, 0);
@@ -177,11 +169,6 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 
 	ret = rx_stat;
 	hdev = get_hdmitx_device();
-	if (hdev && !hdev->tv_cec_support) {
-		/* received msg from TV */
-		if (!(msg[0] & 0xf0))
-			hdev->tv_cec_support = 1;
-	}
 
 	/* ignore ping message */
 	if (cec_msg_dbg_en  == 1 && *len > 1) {
@@ -201,18 +188,13 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	return ret;
 }
 
-int cec_queue_tx_msg(const unsigned char *msg, unsigned char len)
+static int cec_queue_tx_msg(const unsigned char *msg, unsigned char len)
 {
 	int s_idx, q_idx;
 
 	s_idx = cec_tx_msgs.send_idx;
 	q_idx = cec_tx_msgs.queue_idx;
 	if (s_idx == q_idx) {
-		/*
-		 * cec is slow speed device, we need wait messages send
-		 * finished before suspend
-		 */
-		cec_wake_lock();
 	}
 	if (((q_idx + 1) & CEC_TX_MSG_BUF_MASK) == s_idx) {
 		hdmi_print(INF, CEC "tx buffer full, abort msg\n");
@@ -270,88 +252,6 @@ static int cec_ll_trigle_tx(void)
 	return -1;
 }
 
-int cec_ll_tx_polling(const unsigned char *msg, unsigned char len)
-{
-	int i;
-	unsigned int ret = 0xf;
-	unsigned int n;
-	unsigned int j = 20;
-	int pos;
-	unsigned tx_stat;
-	int flag = 0;
-
-	/*
-	 * wait until tx is free
-	 */
-	while (1) {
-		tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
-		if (!flag && tx_stat == TX_BUSY) {
-			hdmi_print(INF, CEC "tx_stat is busy, waiting free.\n");
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-			flag = 1;
-		}
-		if (tx_stat != TX_BUSY)
-			break;
-
-		if (!(j--)) {
-			if (cec_msg_dbg_en  == 1)
-				hdmi_print(INF, CEC "tx busy time out.\n");
-			/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-			break;
-		}
-		msleep(20);
-	}
-
-	hdmi_print(LOW, CEC "now tx_stat:%d\n", tx_stat);
-	if (TX_ERROR == tx_stat) {
-		hdmi_print(INF, CEC "tx polling:tx error!.\n");
-		/* aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT); */
-		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-		/* cec_hw_reset(); */
-	} else if (TX_BUSY == tx_stat)
-		return TX_BUSY;
-
-	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 0x0, 1, 1);
-	for (i = 0; i < len; i++)
-		aocec_wr_reg(CEC_TX_MSG_0_HEADER + i, msg[i]);
-
-	aocec_wr_reg(CEC_TX_MSG_LENGTH, len-1);
-	aocec_wr_reg(CEC_TX_MSG_CMD, RX_ACK_CURRENT);
-
-	j = 20;
-	hdmi_print(LOW, CEC "start poll\n");
-	while (j--) {
-		ret = aocec_rd_reg(CEC_TX_MSG_STATUS);
-		if (ret != TX_BUSY)
-			break;
-		msleep(20);
-	}
-
-	ret = aocec_rd_reg(CEC_TX_MSG_STATUS);
-	hdmi_print(LOW, CEC "end poll, tx_stat:%x\n", ret);
-	if (ret == TX_BUSY) {
-		hdmi_print(INF, CEC "tx busy timeout\n");
-		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-	}
-
-	aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-	hd_set_reg_bits(P_AO_CEC_INTR_MASKN, 1, 1, 1);
-
-	if (cec_msg_dbg_en == 1) {
-		pos = 0;
-		pos += sprintf(msg_log_buf + pos,
-			"CEC: tx msg len: %d   dat: ", len);
-		for (n = 0; n < len; n++)
-			pos += sprintf(msg_log_buf + pos, "%02x ", msg[n]);
-
-		pos += sprintf(msg_log_buf + pos, "\nCEC: tx state: %d\n", ret);
-		msg_log_buf[pos] = '\0';
-		pr_info("%s", msg_log_buf);
-	}
-	return ret;
-}
-
 void tx_irq_handle(void)
 {
 	unsigned tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
@@ -371,8 +271,6 @@ void tx_irq_handle(void)
 		}
 		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx)
 			cec_ll_trigle_tx();
-		else
-			cec_wake_unlock();    /* unlock */
 		cec_tx_fail_reason = CEC_FAIL_NONE;
 		complete(&tx_complete);
 		cec_tx_msgs.msg[s_idx].retry = 0;
@@ -442,11 +340,6 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	 * do not send messanges if tv is not support CEC
 	 */
 	hdev = get_hdmitx_device();
-	if (hdev && !hdev->tv_cec_support && !cec_global_info.hal_ctl) {
-		cec_tx_fail_reason = CEC_FAIL_OTHER;
-		mutex_unlock(&cec_mutex);
-		return -1;
-	}
 
 	/* hd_write_reg(P_AO_CEC_INTR_MASKN, */
 	/* hd_read_reg(P_AO_CEC_INTR_MASKN) & ~(1 << 2)); */
@@ -481,53 +374,6 @@ int get_cec_tx_fail(void)
 	return cec_tx_fail_reason;
 }
 
-void cec_polling_online_dev(int log_addr, int *bool)
-{
-	unsigned int r;
-	unsigned char msg[1];
-	int retry = 5;
-
-	msg[0] = (log_addr<<4) | log_addr;
-	/* set broadcast address first */
-	cec_logicaddr_set(0xf);
-	if (cec_msg_dbg_en == 1)
-		hdmi_print(INF, CEC "CEC_LOGICAL_ADDR0:0x%lx\n",
-			   aocec_rd_reg(CEC_LOGICAL_ADDR0));
-	while (retry) {
-		r = cec_ll_tx_polling(msg, 1);
-		if (r == TX_BUSY) {
-			retry--;
-			hdmi_print(INF, CEC "try log addr %x busy, retry:%d\n",
-				   log_addr, retry);
-			/*
-			 * try to reset CEC if tx busy is found
-			 */
-			cec_hw_reset();
-		} else
-			break;
-	}
-
-	if (r == TX_ERROR) {
-		*bool = 0;
-	} else if (r == TX_DONE) {
-		memset(&(cec_global_info.cec_node_info[log_addr]),
-			0, sizeof(struct cec_node_info_t));
-		cec_global_info.cec_node_info[log_addr].dev_type =
-			cec_log_addr_to_dev_type(log_addr);
-		*bool = 1;
-	}
-	hdmi_print(LOW, CEC "CEC: poll online logic device: 0x%x BOOL: %d\n",
-		log_addr, *bool);
-
-}
-
-void hdmitx_setup_cecirq(struct hdmitx_dev *phdev)
-{
-	int r;
-	r = request_irq(phdev->irq_cec, &cec_isr_handler, IRQF_SHARED,
-		"hdmitx_cec", (void *) phdev);
-}
-
 /* -------------------------------------------------------------------------- */
 /* AO CEC0 config */
 /* -------------------------------------------------------------------------- */
@@ -559,24 +405,6 @@ void ao_cec_init(void)
 	cec_enable_irq();
 
 	memset(&cec_tx_msgs, 0, sizeof(struct cec_tx_msg));
-	cec_wake_unlock();
-}
-
-
-void cec_arbit_bit_time_read(void)
-{   /* 11bit:bit[10:0] */
-	/* 3 bit */
-	hdmi_print(INF, CEC "read 3 bit:0x%x%x\n",
-		aocec_rd_reg(AO_CEC_TXTIME_4BIT_BIT10_8),
-		aocec_rd_reg(AO_CEC_TXTIME_4BIT_BIT7_0));
-	/* 5 bit */
-	hdmi_print(INF, CEC "read 5 bit:0x%x%x\n",
-		aocec_rd_reg(AO_CEC_TXTIME_2BIT_BIT10_8),
-		aocec_rd_reg(AO_CEC_TXTIME_2BIT_BIT7_0));
-	/* 7 bit */
-	hdmi_print(INF, CEC "read 7 bit:0x%x%x\n",
-		aocec_rd_reg(AO_CEC_TXTIME_17MS_BIT10_8),
-		aocec_rd_reg(AO_CEC_TXTIME_17MS_BIT7_0));
 }
 
 void cec_arbit_bit_time_set(unsigned bit_set, unsigned time_set, unsigned flag)
@@ -637,32 +465,6 @@ void cec_arbit_bit_time_set(unsigned bit_set, unsigned time_set, unsigned flag)
 	}
 }
 
-void dumpaocecreg(void)
-{
-	int i;
-
-	for (i = 0; i < 0x95; i++)
-		pr_info("aocecreg[0x%x]: 0x%x\n", i,
-			(unsigned int)aocec_rd_reg(i));
-	for (i = 0; i < 0x5; i++) {
-		pr_info("aoreg[0x%x]: 0x%x\n", (0x104 + i*4),
-			hd_read_reg(P_AO_CEC_GEN_CNTL + i*4));
-	}
-}
-
-void raocec(unsigned int addr)
-{
-	pr_info("aocecreg[0x%x]: 0x%x\n", addr,
-		(unsigned int)aocec_rd_reg(addr));
-}
-
-void waocec(unsigned int addr, unsigned int value)
-{
-	aocec_wr_reg(addr, value);
-	pr_info("aocecreg[0x%x]: 0x%x\n", addr,
-		(unsigned int)aocec_rd_reg(addr));
-}
-
 static unsigned int ao_cec_intr_stat(void)
 {
 	return hd_read_reg(P_AO_CEC_INTR_STAT);
@@ -684,13 +486,6 @@ void cec_pinmux_set(void)
 	hd_set_reg_bits(P_AO_RTI_PULL_UP_REG, 1, 12, 1);
 	/* hd_set_reg_bits(P_AO_RTI_PIN_MUX_REG, 1, 17, 1); */
 }
-
-void cec_int_clean(void)
-{
-	/* hdmi_print(INF, CEC "int clean:\n"); */
-	/* todo */
-}
-
 
 /*
  *wr_flag: 1 write; value valid
@@ -728,11 +523,6 @@ unsigned int cec_logicaddr_config(unsigned int value, bool wr_flag)
 	return hd_read_reg(P_AO_DEBUG_REG3);
 }
 
-/* DELETE LATER, TEST ONLY */
-void cec_test_(unsigned int cmd)
-{
-	;
-}
 void cec_keep_reset(void)
 {
 	hd_write_reg(P_AO_CEC_GEN_CNTL, 0x1);

@@ -1694,7 +1694,6 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	switch_set_state(&sdev, 1);
-	cec_node_init(hdev);
 
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	mutex_unlock(&setclk_mutex);
@@ -1713,7 +1712,6 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	mutex_lock(&setclk_mutex);
 	hdev->ready = 0;
 	hdev->hpd_state = 0;
-	hdev->tv_cec_support = 0;
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP_OFF);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
@@ -2126,7 +2124,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.vic_count = 0;
 	hdmitx_device.auth_process_timer = 0;
 	hdmitx_device.force_audio_flag = 0;
-	hdmitx_device.tv_cec_support = 0;
 	hdmitx_device.hdcp_mode = -1; /* no hdcp by default */
 	hdmitx_device.ready = 0;
 
