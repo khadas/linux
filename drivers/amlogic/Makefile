@@ -118,6 +118,8 @@ obj-$(CONFIG_AML_CODEC_MM)  	+= codec_mm/
 
 obj-$(CONFIG_AML_WDT)  		+= watchdog/
 
+obj-$(CONFIG_AMLOGIC_JTAG)     += jtag/
+
 obj-$(CONFIG_INSTABOOT)		+= instaboot/
 
 obj-$(CONFIG_AMLOGIC_SPICC_MASTER) += spicc/
