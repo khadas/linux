@@ -247,6 +247,7 @@ struct dvb_frontend *get_si2177_tuner(void)
 			return dev->fe->fe;
 #else
 #endif
+		return dev->fe->fe;
 	}
 	pr_error("can not find out tuner drv\n");
 	return NULL;
@@ -744,6 +745,7 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 	struct aml_fe *fe;
 	enum aml_fe_mode_t mode;
 	unsigned long flags;
+	int ret = 0;
 
 	fe = dev->demodulator_priv;
 	/*type=FE_ATSC; */
@@ -901,13 +903,17 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 
 	if (fe->dtv_demod && (fe->dtv_demod->drv->capability & mode)
 	    && fe->dtv_demod->drv->enter_mode)
-		fe->dtv_demod->drv->enter_mode(fe, mode);
+		ret = fe->dtv_demod->drv->enter_mode(fe, mode);
 	if (fe->atv_demod && (fe->atv_demod->drv->capability & mode)
 	    && fe->atv_demod->drv->enter_mode)
-		fe->atv_demod->drv->enter_mode(fe, mode);
+		ret = fe->atv_demod->drv->enter_mode(fe, mode);
 	if (fe->tuner && (fe->tuner->drv->capability & mode)
 	    && fe->tuner->drv->enter_mode)
-		fe->tuner->drv->enter_mode(fe, mode);
+		ret = fe->tuner->drv->enter_mode(fe, mode);
+	if (ret != 0) {
+		pr_error("enter mode %d fail, ret %d\n", mode, ret);
+		return ret;
+	}
 
 	pr_dbg("register demux frontend\n");
 	if (mode & AM_FE_DTV_MASK)

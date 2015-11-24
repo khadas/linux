@@ -40,7 +40,7 @@
 #include "amlfrontend.h"
 
 MODULE_PARM_DESC(debug_aml, "\n\t\t Enable frontend debug information");
-static int debug_aml = 1;
+static int debug_aml;
 module_param(debug_aml, int, 0644);
 
 #define pr_dbg(a ...) \
@@ -49,7 +49,7 @@ module_param(debug_aml, int, 0644);
 			printk(a); \
 		} \
 	} while (0)
-#define pr_error(fmt, args ...) pr_dbg("M6_DEMOD: "fmt, ## args)
+#define pr_error(fmt, args ...) pr_err("GXTV_DEMOD: "fmt, ## args)
 
 static int last_lock = -1;
 #define DEMOD_DEVICE_NAME  "m6_demod"
@@ -259,9 +259,6 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 			return (atsc_read_iqr_reg() >> 16) == 0x1f;
 	} else if (mode == 4) {
 		/*DTMB*/
-		pr_dbg("DTMB lock status is %u\n",
-		       ((dtmb_read_reg(DTMB_BASE + (0x0e3 << 2)) >> 14) &
-			0x1));
 		return (dtmb_read_reg(DTMB_BASE + (0x0e3 << 2)) >> 14) & 0x1;
 	}
 	return 0;
@@ -943,15 +940,15 @@ static int m6_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
-#if 0
+#if 1
 	int tmp, snr_avg;
 	tmp = snr_avg = 0;
-	tmp = dtmb_read_reg(0x0e3);
-	snr_avg = (tmp >> 16) & 0x3fff;
+	tmp = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
+/*	snr_avg = (tmp >> 16) & 0x3fff;
 	if (snr_avg >= 2048)
 		snr_avg = snr_avg - 4096;
-	snr_avg = snr_avg / 32;
-	*snr = snr_avg;
+	snr_avg = snr_avg / 32;*/
+	*snr = tmp&0xff;
 #endif
 	return 0;
 }
@@ -1209,7 +1206,6 @@ static int __init m6demodfrontend_init(void)
 	ret = class_create_file(m6_clsp, &class_attr_dvbc_reg);
 	if (ret)
 		pr_error("[m6 demod]%s create  class file error.\n", __func__);
-
 	return aml_register_fe_drv(AM_DEV_DTV_DEMOD, &m6_demod_dtv_demod_drv);
 }
 
