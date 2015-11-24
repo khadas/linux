@@ -150,7 +150,7 @@ static struct ion_heap_ops carveout_heap_ops = {
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_carveout_heap *carveout_heap;
-	int ret;
+	/* int ret; */
 
 	struct page *page;
 	size_t size;
@@ -160,9 +160,10 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 
 	ion_pages_sync_for_device(NULL, page, size, DMA_BIDIRECTIONAL);
 
-	ret = ion_heap_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
+	/*ret = ion_heap_pages_zero(page, size,
+				pgprot_writecombine(PAGE_KERNEL));
 	if (ret)
-		return ERR_PTR(ret);
+		return ERR_PTR(ret);*/
 
 	carveout_heap = kzalloc(sizeof(struct ion_carveout_heap), GFP_KERNEL);
 	if (!carveout_heap)
