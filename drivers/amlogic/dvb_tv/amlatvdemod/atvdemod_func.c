@@ -178,6 +178,7 @@ unsigned long atv_dmd_rd_long(unsigned long block_addr, unsigned long reg_addr)
 
 	return data;
 }
+EXPORT_SYMBOL(atv_dmd_rd_long);
 
 void atv_dmd_wr_long(unsigned long block_addr, unsigned long reg_addr,
 		     unsigned long data)
@@ -193,6 +194,7 @@ void atv_dmd_wr_long(unsigned long block_addr, unsigned long reg_addr,
 		((reg_addr & 0xff) >> 2)) << 2))) = data;*/
 
 }
+EXPORT_SYMBOL(atv_dmd_wr_long);
 
 void atv_dmd_wr_word(unsigned long block_addr, unsigned long reg_addr,
 		     unsigned long data)

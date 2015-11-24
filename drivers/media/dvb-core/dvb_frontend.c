@@ -1035,7 +1035,7 @@ restart:
 						&fepriv->parameters_in);
 					s = FE_HAS_LOCK;
 				} else {
-					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
+			/*fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;*/
 					fepriv->delay = HZ / 2;
 					s = FE_TIMEDOUT;
 				}

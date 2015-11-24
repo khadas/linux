@@ -409,6 +409,11 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	time_start = jiffies_to_msecs(jiffies);
 #endif
 	fee = fe->demodulator_priv;
+	if ((fe == NULL) || (p == NULL) || (fee == NULL))
+		return DVBFE_ALGO_SEARCH_FAILED;
+	atv_cvd_format = 0;
+	hv_lock_status = 0;
+	snr_vale = 0;
 	pr_dbg("[%s] is working,afc_range=%d,flag=0x%x[1->auto,11->mannul],the received freq=[%d]\n",
 	     __func__, p->analog.afc_range, p->analog.flag, p->frequency);
 	pr_dbg("the tuner type is [%d]\n", fee->tuner->drv->id);
@@ -445,6 +450,12 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			fe->ops.tuner_ops.get_pll_status(fe, &tuner_state);
 			fe->ops.analog_ops.get_pll_status(fe, &ade_state);
 		} else {
+			if ((fe->ops.tuner_ops.get_status == NULL) ||
+			    (fe->ops.analog_ops.get_status == NULL)) {
+				pr_info("[%s]error:the func of get_status is NULL.\n",
+					__func__);
+				return DVBFE_ALGO_SEARCH_FAILED;
+			}
 			fe->ops.tuner_ops.get_status(fe, &tuner_state);
 			fe->ops.analog_ops.get_status(fe, &ade_state);
 		}
@@ -548,11 +559,15 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 				do {
 					tuner_status_cnt_local--;
 					/*tvafe_cvd2_get_atv_format(); */
-					atv_cvd_format =
+					if (aml_fe_hook_atv_status != NULL)
+						atv_cvd_format =
 					    aml_fe_hook_atv_status();
 					/*tvafe_cvd2_get_hv_lock(); */
-					hv_lock_status = aml_fe_hook_hv_lock();
-					snr_vale =
+					if (aml_fe_hook_hv_lock != NULL)
+						hv_lock_status =
+						aml_fe_hook_hv_lock();
+					if (fe->ops.analog_ops.get_snr != NULL)
+						snr_vale =
 					    fe->ops.analog_ops.get_snr(fe);
 
 					pr_dbg("[%s] atv_cvd_format:0x%x;"
@@ -595,11 +610,27 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			mdelay(delay_cnt);
 			/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
+				if ((fe->ops.tuner_ops.get_pll_status == NULL)
+				    ||
+				    (fe->ops.analog_ops.get_pll_status ==
+				     NULL)) {
+					pr_info("[%s]error:the func of get_pll_status is NULL.\n",
+						__func__);
+					return DVBFE_ALGO_SEARCH_FAILED;
+				}
 				fe->ops.tuner_ops.get_pll_status(fe,
 								 &tuner_state);
 				fe->ops.analog_ops.get_pll_status(fe,
 								  &ade_state);
 			} else {
+				if ((fe->ops.tuner_ops.get_status == NULL)
+				    ||
+				    (fe->ops.analog_ops.get_status ==
+				     NULL)) {
+					pr_info("[%s]error:the func of get_status is NULL.\n",
+						__func__);
+					return DVBFE_ALGO_SEARCH_FAILED;
+				}
 				fe->ops.tuner_ops.get_status(fe, &tuner_state);
 				fe->ops.analog_ops.get_status(fe, &ade_state);
 			}

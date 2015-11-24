@@ -155,7 +155,9 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 		if (kstrtoul(parm[2], 16, &tmp) == 0)
 				block_reg  = tmp;
 		if (block_addr < APB_BLOCK_ADDR_TOP)
-			atv_dmd_rd_long(block_addr, block_reg);
+			block_val = atv_dmd_rd_long(block_addr, block_reg);
+		pr_info("rs block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
+			block_addr, block_reg, block_val);
 	} else if (!strncmp(parm[0], "ws", strlen("ws"))) {
 		if (kstrtoul(parm[1], 16, &tmp) == 0)
 			block_addr  = tmp;
@@ -165,6 +167,10 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 			block_val  = tmp;
 		if (block_addr < APB_BLOCK_ADDR_TOP)
 			atv_dmd_wr_long(block_addr, block_reg, block_val);
+		pr_info("ws block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
+			block_addr, block_reg, block_val);
+		block_val = atv_dmd_rd_long(block_addr, block_reg);
+		pr_info("readback_val:0x%x\n", block_val);
 	} else if (!strncmp(parm[0], "pin_mux", strlen("pin_mux"))) {
 		amlatvdemod_devp->pin =
 			devm_pinctrl_get_select(amlatvdemod_devp->dev,
