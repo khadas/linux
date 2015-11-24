@@ -6417,9 +6417,10 @@ static ssize_t fps_info_show(struct class *cla, struct class_attribute *attr,
 static ssize_t video_layer1_state_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n",
+	/*return sprintf(buf, "%d\n",
 				(READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off)
-				& VPP_VD1_PREBLEND) ? 1 : 0);
+				& VPP_VD1_PREBLEND) ? 1 : 0);*/
+	return sprintf(buf, "%d\n", video_enabled);
 }
 
 void set_video_angle(u32 s_value)
