@@ -48,6 +48,7 @@
 #include <linux/amlogic/canvas/canvas_mgr.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <linux/switch.h>
 
 #include "amports_priv.h"
 
@@ -395,6 +396,11 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 
 #endif
 /*********************************************************/
+static struct switch_dev video1_state_sdev = {
+/* android video layer switch device */
+	.name = "video_layer1",
+};
+
 
 #define VOUT_TYPE_TOP_FIELD 0
 #define VOUT_TYPE_BOT_FIELD 1
@@ -774,6 +780,8 @@ static wait_queue_head_t amvideo_trick_wait;
 #define VPU_DELAYWORK_MEM_POWER_OFF_VD1  2
 #define VPU_DELAYWORK_MEM_POWER_OFF_VD2  4
 #define VPU_DELAYWORK_MEM_POWER_OFF_PROT 8
+#define VPU_VIDEO_LAYER1_CHANGED		16
+
 #define VPU_MEM_POWEROFF_DELAY           100
 static struct work_struct vpu_delay_work;
 static int vpu_clk_level;
@@ -4040,6 +4048,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncEnableVideoLayer\n");
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER1_CHANGED;
 		} else if (video_onoff_state == VIDEO_ENABLE_STATE_OFF_REQ) {
 			/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 			if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
@@ -4073,7 +4083,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			}
 			/* #endif */
 			video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
-
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER1_CHANGED;
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncDisableVideoLayer\n");
 		}
@@ -4141,9 +4152,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		spin_unlock_irqrestore(&video2_onoff_lock, flags);
 	}
 
-	if (vpp_misc_save != vpp_misc_set)
+	if (vpp_misc_save != vpp_misc_set) {
 		VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
 			vpp_misc_set);
+	}
 
 #ifdef CONFIG_VSYNC_RDMA
 	cur_rdma_buf = cur_dispbuf;
@@ -6860,6 +6872,10 @@ static void do_vpu_delay_work(struct work_struct *work)
 	unsigned long flags;
 	unsigned r;
 
+	if (vpu_delay_work_flag & VPU_VIDEO_LAYER1_CHANGED) {
+		vpu_delay_work_flag &= ~VPU_VIDEO_LAYER1_CHANGED;
+		switch_set_state(&video1_state_sdev, !!video_enabled);
+	}
 	spin_lock_irqsave(&delay_work_lock, flags);
 
 	if (vpu_delay_work_flag & VPU_DELAYWORK_VPU_CLK) {
@@ -7126,7 +7142,8 @@ static int __init video_init(void)
 	vf_receiver_init(&video4osd_vf_recv, RECEIVER4OSD_NAME,
 			 &video4osd_vf_receiver, NULL);
 	vf_reg_receiver(&video4osd_vf_recv);
-
+	switch_dev_register(&video1_state_sdev);
+	switch_set_state(&video1_state_sdev, 0);
 #ifdef CONFIG_GE2D_KEEP_FRAME
 	/* video_frame_getmem(); */
 	ge2d_videotask_init();
