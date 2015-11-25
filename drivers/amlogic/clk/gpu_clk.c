@@ -35,7 +35,7 @@
 #ifndef AML_CLK_LOCK_ERROR
 #define AML_CLK_LOCK_ERROR 1
 #endif
-static unsigned debug = 1;
+static unsigned debug = 0;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
@@ -50,7 +50,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define dprintk(level, fmt, arg...)		\
 	do {                                \
 		if (debug >= level)				\
-			pr_debug("jiyu: " fmt, ## arg);\
+			pr_debug("gpu clk : " fmt, ## arg);\
 	} while (0)
 
 #define GPU_CLK_DBG(fmt, arg...)	\
@@ -82,6 +82,7 @@ struct gpu_clkgen {
 	struct clk *clk_gpu_1;
 	struct clk *clk_gpu;
 	struct dentry *debugfs_dir;
+	uint32_t rate;
 };
 
 static unsigned long gpu_clkgen_recal(struct clk_hw *hw,
@@ -112,14 +113,14 @@ static long	gpu_clkgen_determine(struct clk_hw *hw, unsigned long rate,
 		unsigned long *best_parent_rate,
 		struct clk **best_parent_clk)
 {
-	unsigned int idx = 0;
+	int idx = 0;
 	struct gpu_clkgen *gpu_clkgen = to_gpu_clkgen(hw);
 	struct gpu_dvfs_threshold_table *dvfs_tbl = &gpu_clkgen->dvfs_table[0];
 
-	dprintk(3, "func:%s, %d, parent_rate=%ld, best=%ld\n",
-	    __func__, __LINE__, rate, *best_parent_rate);
+	dprintk(2, "func:%s, %d, parent_rate=%ld, best=%ld\n",
+				__func__, __LINE__, rate, *best_parent_rate);
 	for (idx = 0; idx < gpu_clkgen->dvfs_table_size; idx++) {
-		dprintk(3, "idx=%d, clk_freq=%d\n", idx, dvfs_tbl->clk_freq);
+		dprintk(2, "idx=%d, clk_freq=%d\n", idx, dvfs_tbl->clk_freq);
 		if (rate == dvfs_tbl->clk_freq) {
 			*best_parent_rate = rate;
 			*best_parent_clk = gpu_clkgen->clk_gpu;
@@ -128,8 +129,22 @@ static long	gpu_clkgen_determine(struct clk_hw *hw, unsigned long rate,
 		dvfs_tbl++;
 	}
 
-	return 0;
+	dprintk(2, "no matched clk, rate=%ld\n", rate);
+	dvfs_tbl = &gpu_clkgen->dvfs_table[0];
+	for (idx = 0; idx < gpu_clkgen->dvfs_table_size; idx++) {
+		if (rate <= dvfs_tbl->clk_freq) {
+			*best_parent_rate = dvfs_tbl->clk_freq;
+			*best_parent_clk = gpu_clkgen->clk_gpu;
+			return dvfs_tbl->clk_freq;
+		}
+		dvfs_tbl++;
+	}
 
+	dprintk(2, "no matched roud clk, %ld\n", rate);
+	dvfs_tbl--;
+	*best_parent_rate = dvfs_tbl->clk_freq;
+	*best_parent_clk = gpu_clkgen->clk_gpu;
+	return dvfs_tbl->clk_freq;
 }
 
 static long gpu_clkgen_round(struct clk_hw *hw, unsigned long drate,
@@ -140,7 +155,7 @@ static long gpu_clkgen_round(struct clk_hw *hw, unsigned long drate,
 	struct gpu_dvfs_threshold_table *dvfs_tbl = &gpu_clkgen->dvfs_table[0];
 
 	dprintk(3, "func:%s, %d, parent_rate=%ld\n",
-	    __func__, __LINE__, *prate);
+					__func__, __LINE__, *prate);
 	for (idx = 0; idx < gpu_clkgen->dvfs_table_size; idx++) {
 		dprintk(3, "idx=%d, clk_freq=%d\n", idx, dvfs_tbl->clk_freq);
 		if (drate == dvfs_tbl->clk_freq) {
@@ -172,7 +187,6 @@ static int	gpu_clkgen_set(struct clk_hw *hw, unsigned long drate,
 	unsigned long time_use = 0;
 
 	/* Assumming rate_table is in ascending order */
-	dprintk(2, "drate =%ld,prate=%ld\n", drate, prate);
 	for (idx = 0; idx < gpu_clkgen->dvfs_table_size; idx++) {
 		if (drate == dvfs_tbl->clk_freq) {
 			dprintk(2, "drate =%ld,prate=%ld\n", drate, prate);
@@ -182,6 +196,7 @@ static int	gpu_clkgen_set(struct clk_hw *hw, unsigned long drate,
 		dvfs_tbl++;
 	}
 
+	gpu_clkgen->rate = drate;
 	clk_gpu_x_old  = clk_get_parent(clk_gpu);
 
 	if (!clk_gpu_x_old) {
