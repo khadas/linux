@@ -16,7 +16,7 @@
 */
 
 #include <linux/input.h>
-#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_cec_14.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 
 struct hdmitx_dev *hdmitx_device = NULL;

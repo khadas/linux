@@ -50,7 +50,7 @@
 #include <linux/amlogic/tvin/tvin.h>
 #include <linux/wakelock_android.h>
 
-#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_cec_20.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>

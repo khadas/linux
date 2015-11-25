@@ -56,7 +56,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_ddc.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
-#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_cec_20.h>
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>
 #include <linux/i2c.h>
 #include "hw/tvenc_conf.h"

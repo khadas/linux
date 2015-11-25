@@ -23,7 +23,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/delay.h>
 
-#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_cec_20.h>
 #include "hdmi_tx_reg.h"
 #include "mach_reg.h"
 
