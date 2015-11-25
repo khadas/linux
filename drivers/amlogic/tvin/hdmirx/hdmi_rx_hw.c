@@ -262,13 +262,24 @@ void hdmirx_phy_fast_switching(int enable)
 /**************************
     hw functions
 ***************************/
+void clk_rate_monitor(void)
+{
+	unsigned int clk_rate;
+	if (force_clk_rate & 0x10)
+		clk_rate = force_clk_rate & 1;
+	else
+		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
 
+	if (1 == clk_rate)
+		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
+	else
+		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
+}
 void hdmirx_phy_init(int rx_port_sel, int dcm)
 {
 	unsigned int data32;
-	unsigned int clk_rate;
-
-
 	data32 = 0;
 	data32 |= 1 << 6;
 	data32 |= 1 << 4;
@@ -337,17 +348,7 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 		((rx.phy.lock_thres << 10) | (1 << 9) |
 			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
 
-	if (force_clk_rate & 0x10)
-		clk_rate = force_clk_rate & 1;
-	else
-		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
-
-	if (1 == clk_rate)
-		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
-	else
-		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
+	clk_rate_monitor();
 
 	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, 4);
 	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, 4);
@@ -361,6 +362,8 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	data32 |= 0 << 1;
 	data32 |= 0 << 0;
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+
+	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 
 
