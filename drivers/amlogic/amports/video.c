@@ -3510,7 +3510,12 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					u32 cur_index =
 					    READ_VCBUS_REG(VD1_IF0_CANVAS0 +
 							   cur_dev->viu_off);
-					cur_dispbuf->canvas0Addr = cur_index;
+					if (!((get_cpu_type() >=
+						MESON_CPU_MAJOR_ID_GXBB) &&
+						(cur_dispbuf->type &
+						  VIDTYPE_COMPRESS)))
+						cur_dispbuf->canvas0Addr
+							= cur_index;
 				}
 				vsync_toggle_frame(cur_dispbuf);
 			} else
@@ -3692,11 +3697,15 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 			if (cur_dispbuf->type & VIDTYPE_COMPRESS) {
-				SET_VCBUS_REG_MASK(VIU_MISC_CTRL0,
-				    VIU_MISC_AFBC_VD1);
+				/*SET_VCBUS_REG_MASK(VIU_MISC_CTRL0,
+				    VIU_MISC_AFBC_VD1);*/
+				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
+					cur_dev->viu_off, 1, 20, 1);
 			} else {
-				CLEAR_VCBUS_REG_MASK(VIU_MISC_CTRL0,
-				    VIU_MISC_AFBC_VD1);
+				/*CLEAR_VCBUS_REG_MASK(VIU_MISC_CTRL0,
+				    VIU_MISC_AFBC_VD1);*/
+				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
+					cur_dev->viu_off, 0, 20, 1);
 			}
 		}
 
