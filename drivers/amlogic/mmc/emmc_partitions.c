@@ -319,8 +319,7 @@ static int mmc_read_partition_tbl(struct mmc_card *card,
 				pt_fmt->part_num));
 		}
 
-		pr_info("\033[0;40;32m [%s]: partition verified error! \033[0m\n",
-		__func__);
+		pr_info("[%s]: partition verified error\n", __func__);
 		ret = -1; /* the partition infomation is invalid */
 	}
 

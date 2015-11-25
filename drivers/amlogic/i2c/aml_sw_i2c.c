@@ -315,7 +315,7 @@ static int aml_sw_i2c_probe(struct platform_device *pdev)
 	/*add to i2c bit algos*/
 	ret = i2c_bit_add_numbered_bus(&(drv_data->adapter);
 	if (ret != 0) {
-		pr_info("\033[0;40;36mERROR: Could not add %s to i2c bit algos\033[0m\n",
+		pr_info("ERROR: Could not add %s to i2c bit algos\n",
 			drv_data->adapter.name);
 		return ret;
 	}
