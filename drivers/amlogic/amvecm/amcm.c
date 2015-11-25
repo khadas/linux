@@ -63,12 +63,15 @@ static struct am_regs_s amregs3;
 static struct am_regs_s amregs4;
 static struct am_regs_s amregs5;
 
+static struct sr1_regs_s sr1_regs[101];
+
 /* extern unsigned int vecm_latch_flag; */
 
 void am_set_regmap(struct am_regs_s *p)
 {
 	unsigned short i;
 	unsigned int temp = 0;
+	unsigned short sr1_temp = 0;
 	for (i = 0; i < p->length; i++) {
 		switch (p->am_reg[i].type) {
 		case REG_TYPE_PHY:
@@ -170,6 +173,23 @@ void am_set_regmap(struct am_regs_s *p)
 				/* (READ_VCBUS_REG(p->am_reg[i].addr) & */
 				/* (~(p->am_reg[i].mask))) | */
 				/* (p->am_reg[i].val & p->am_reg[i].mask)); */
+			if ((is_meson_gxtvbb_cpu()) &&
+				(p->am_reg[i].addr >= 0x3280)
+				&& (p->am_reg[i].addr <= 0x32e4)) {
+				if (p->am_reg[i].addr == 0x32d7)
+					break;
+					sr1_temp = p->am_reg[i].addr - 0x3280;
+					sr1_regs[sr1_temp].addr =
+						p->am_reg[i].addr;
+					sr1_regs[sr1_temp].mask =
+						p->am_reg[i].mask;
+					sr1_regs[sr1_temp].val =
+						(sr1_regs[sr1_temp].val &
+						(~(p->am_reg[i].mask))) |
+					(p->am_reg[i].val & p->am_reg[i].mask);
+				aml_write_vcbus(p->am_reg[i].addr,
+					sr1_regs[sr1_temp].val);
+			} else
 				aml_write_vcbus(p->am_reg[i].addr,
 					(aml_read_vcbus(p->am_reg[i].addr) &
 					(~(p->am_reg[i].mask))) |

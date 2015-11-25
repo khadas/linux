@@ -33,6 +33,12 @@ struct cm_regs_s {
 	unsigned int rsv:5;
 };
 
+struct sr1_regs_s {
+	unsigned int addr;
+	unsigned int mask;
+	unsigned int  val;
+};
+
 extern unsigned int vecm_latch_flag;
 extern unsigned int cm_size;
 extern unsigned int cm2_patch_flag;
