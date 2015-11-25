@@ -33,6 +33,9 @@
 
 #include <linux/amlogic/jtag.h>
 
+#ifndef CONFIG_ARM64
+#include <asm/opcodes-sec.h>
+#endif
 
 
 #define INFO(format, arg...) pr_info("jtag: " format, ##arg)
@@ -105,6 +108,7 @@ static int aml_jtag_pinmux_apao(struct platform_device *pdev)
  * @state: must be JTAG_STATE_ON/JTAG_STATE_OFF
  * @select: mest be JTAG_DISABLE/JTAG_A53_AO/JTAG_A53_EE
  */
+#ifdef CONFIG_ARM64
 void aml_set_jtag_state(unsigned state, unsigned select)
 {
 	uint64_t command;
@@ -120,6 +124,30 @@ void aml_set_jtag_state(unsigned state, unsigned select)
 		"smc    #0\n"
 		: : "r" (command), "r"(select));
 }
+#else
+void jtag_set_state(unsigned state, unsigned select)
+{
+	unsigned command;
+	register unsigned r0 asm("r0");
+	register unsigned r1 asm("r1");
+
+	if (state == JTAG_STATE_ON)
+		command = JTAG_ON;
+	else
+		command = JTAG_OFF;
+
+	asm __volatile__("" : : : "memory");
+
+	r0 = select;
+	r1 = command;
+
+	asm volatile(
+		__asmeq("%0", "r1")
+		__asmeq("%1", "r0")
+		__SMC(0)
+		: : "r" (r1), "r"(r0));
+}
+#endif
 
 void aml_jtag_disable(void)
 {

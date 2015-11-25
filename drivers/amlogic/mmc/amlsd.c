@@ -66,6 +66,10 @@
 #include <linux/of_gpio.h>
 #include "amlsd.h"
 
+#ifndef CONFIG_ARM64
+#include <asm/opcodes-sec.h>
+#endif
+
 /*====================================================================*/
 /* Support for /proc/mtd */
 
@@ -1111,6 +1115,7 @@ void aml_sd_uart_detect_clr(struct amlsd_platform *pdata)
  * @state: must be JTAG_STATE_ON/JTAG_STATE_OFF
  * @select: mest be JTAG_DISABLE/JTAG_A53_AO/JTAG_A53_EE
  */
+#ifdef CONFIG_ARM64
 void jtag_set_state(unsigned state, unsigned select)
 {
 	uint64_t command;
@@ -1126,6 +1131,30 @@ void jtag_set_state(unsigned state, unsigned select)
 		"smc    #0\n"
 		: : "r" (command), "r"(select));
 }
+#else
+void jtag_set_state(unsigned state, unsigned select)
+{
+	unsigned command;
+	register unsigned r0 asm("r0");
+	register unsigned r1 asm("r1");
+
+	if (state == JTAG_STATE_ON)
+		command = JTAG_ON;
+	else
+		command = JTAG_OFF;
+
+	asm __volatile__("" : : : "memory");
+
+	r0 = select;
+	r1 = command;
+
+	asm volatile(
+		__asmeq("%0", "r1")
+		__asmeq("%1", "r0")
+		__SMC(0)
+		: : "r" (r1), "r"(r0));
+}
+#endif
 
 void jtag_select_ao(void)
 {
