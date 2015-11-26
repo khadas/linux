@@ -87,7 +87,7 @@ struct tvafe_dev_s {
 
 typedef int (*hook_func_t)(void);
 extern void aml_fe_hook_cvd(hook_func_t atv_mode,
-					hook_func_t cvd_hv_lock);
+		hook_func_t cvd_hv_lock, hook_func_t get_fmt);
 extern int tvafe_reg_read(unsigned int reg, unsigned int *val);
 extern int tvafe_reg_write(unsigned int reg, unsigned int val);
 extern int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val);

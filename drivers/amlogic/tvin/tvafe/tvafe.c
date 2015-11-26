@@ -69,7 +69,7 @@ static int vga_yuv422_enable;
 module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
 
-
+static struct tvafe_info_s *g_tvafe_info;
 /***********the  version of changing log************************/
 static const char last_version_s[] = "2013-11-29||11-28";
 static const char version_s[] = "2015-07-08||17-23";
@@ -255,7 +255,7 @@ static ssize_t dumpmem_store(struct device *dev,
 	devp = dev_get_drvdata(dev);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, "\n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -635,6 +635,11 @@ void tvafe_cma_release(struct tvafe_dev_s *devp)
 }
 #endif
 
+static int tvafe_get_v_fmt(void)
+{
+	int fmt = tvafe_cvd2_get_format(&g_tvafe_info->cvd2);
+	return fmt;
+}
 
 /*
  * tvafe open port and init register
@@ -689,8 +694,10 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	/* set the flag to enabble ioctl access */
 	devp->flags |= TVAFE_FLAG_DEV_OPENED;
 #ifdef CONFIG_AM_DVB
+	g_tvafe_info = tvafe;
 	/* register aml_fe hook for atv search */
-	aml_fe_hook_cvd(tvafe_cvd2_get_atv_format, tvafe_cvd2_get_hv_lock);
+	aml_fe_hook_cvd(tvafe_cvd2_get_atv_format, tvafe_cvd2_get_hv_lock,
+		tvafe_get_v_fmt);
 #endif
 	pr_info("[tvafe..] %s open port:0x%x ok.\n", __func__, port);
 
@@ -837,8 +844,9 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 #endif
 	/*del_timer_sync(&devp->timer);*/
 #ifdef CONFIG_AM_DVB
+	g_tvafe_info = NULL;
 	/* register aml_fe hook for atv search */
-	aml_fe_hook_cvd(NULL, NULL);
+	aml_fe_hook_cvd(NULL, NULL, NULL);
 #endif
 	/**set cvd2 reset to high**/
 	tvafe_cvd2_hold_rst(&tvafe->cvd2);
