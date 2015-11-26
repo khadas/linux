@@ -113,7 +113,7 @@ MODULE_PARM_DESC(sig_unstable_max, "\n sig_unstable_max\n");
 module_param(sig_unstable_max, int, 0664);
 
 static int sig_unready_cnt;
-static int sig_unready_max = 6;/* 10; */
+static int sig_unready_max = 5;/* 10; */
 MODULE_PARM_DESC(sig_unready_max, "\n sig_unready_max\n");
 module_param(sig_unready_max, int, 0664);
 
@@ -271,6 +271,7 @@ module_param(hw_dbg_en, bool, 0664);
 static int last_color_fmt;
 static bool reset_sw = true;
 static int sm_pause;
+static int ddc_state_err_cnt;
 
 /***********************
   TVIN driver interface
@@ -1708,6 +1709,21 @@ void hdmirx_sw_reset(int level)
 	hdmirx_wr_dwc(DWC_DMI_SW_RST, data32);
 }
 
+static bool is_ddc_state_error(struct hdmi_rx_ctrl_video *cur)
+{
+	if ((rx.port == 0) &&
+		(hdmirx_rd_top(TOP_EDID_GEN_STAT) & (1<<16)))
+		return true;
+	if ((rx.port == 1) &&
+		(hdmirx_rd_top(TOP_EDID_GEN_STAT_B) & (1<<16)))
+		return true;
+	if ((rx.port == 2) &&
+		(hdmirx_rd_top(TOP_EDID_GEN_STAT_C) & (1<<16)))
+		return true;
+
+	return false;
+}
+
 void rx_dwc_reset(void)
 {
 	if (log_flag & VIDEO_LOG_ENABLE)
@@ -1747,9 +1763,11 @@ void hdmirx_hw_monitor(void)
 	int tmp;
 	if (sm_pause)
 		return;
+
 	HPD_controller();
 	if (rx.current_port_tx_5v_status == 0) {
 		if (rx.state != FSM_INIT) {
+			rx_print("5v_lost->FSM_INIT\n");
 			rx.no_signal = true;
 			hdmirx_audio_enable(0);
 			hdmirx_audio_fifo_rst();
@@ -1766,11 +1784,13 @@ void hdmirx_hw_monitor(void)
 			/* hdmi_rx_ctrl_edid_update(); */
 		#endif
 		rx.state = FSM_HDMI5V_LOW;
+		rx_print("INIT->5V_LOW\n");
 		break;
 	case FSM_HDMI5V_LOW:
 		audio_status_init();
 		Signal_status_init();
 		rx.state = FSM_HDMI5V_HIGH;
+		rx_print("5V_LOW->5V_HIGH\n");
 		break;
 	case FSM_HDMI5V_HIGH:
 		if (hpd_wait_cnt++ <= hpd_wait_max)
@@ -1778,18 +1798,18 @@ void hdmirx_hw_monitor(void)
 		hpd_wait_cnt = 0;
 		hdmirx_set_hpd(rx.port, 1);
 		rx.state = FSM_HPD_READY;
-		rx_print("5v high->hpd ready\n");
+		rx_print("5V_high->HPD_READY\n");
 		break;
 	case FSM_HPD_READY:
 		rx.state = FSM_TIMINGCHANGE;
-		rx_print("hpd ready->timing change\n");
+		rx_print("HPD_READY->TIMINGCHANGE\n");
 		break;
 	case FSM_TIMINGCHANGE:
 		if (reset_sw)
 			hdmirx_phy_init(rx.port, 0);
 
 		rx.state = FSM_SIG_UNSTABLE;
-		rx_print("TIMINGCHANGE -> unstable\n");
+		rx_print("TIMINGCHANGE->UNSTABLE\n");
 		break;
 	case FSM_SIG_UNSTABLE:
 		if (hdmirx_tmds_pll_lock()) {
@@ -1805,7 +1825,7 @@ void hdmirx_hw_monitor(void)
 				sig_pll_unlock_cnt = 0;
 				sig_pll_lock_cnt = 0;
 				rx.no_signal = false;
-				rx_print("unstable->dwc rst\n");
+				rx_print("UNSTABLE->DWC_RST\n");
 			}
 		} else{
 			if ((sig_pll_lock_cnt) && (log_flag & VIDEO_LOG_ENABLE))
@@ -1821,7 +1841,7 @@ void hdmirx_hw_monitor(void)
 				hdmirx_set_hpd(rx.port, 0);
 				hdmirx_error_count_config();
 				rx.state = FSM_INIT;
-				rx_print("unstable->init\n");
+				rx_print("UNSTABLE->INIT\n");
 				sig_pll_unlock_cnt = 0;
 			}
 		}
@@ -1831,7 +1851,7 @@ void hdmirx_hw_monitor(void)
 			break;
 		dwc_rst_wait_cnt = 0;
 		rx.state = FSM_SIG_STABLE;
-		rx_print("dwc reset->stable\n");
+		rx_print("DWC_RST->STABLE\n");
 		break;
 	case FSM_SIG_STABLE:
 		memcpy(&rx.pre_params,
@@ -1862,13 +1882,13 @@ void hdmirx_hw_monitor(void)
 				rx.change = 0;
 				sig_lost_lock_max = 50;
 				sig_unready_max = 25;
-				rx.state = FSM_SIG_READY;
+				rx.state = FSM_CHECK_DDC_CORRECT;
 				rx.no_signal = false;
 				memset(&rx.aud_info,
 					0,
 					sizeof(struct aud_info_s));
 				hdmirx_config_video(&rx.pre_params);
-				rx_print("stable->ready\n");
+				rx_print("STABLE->READY\n");
 				if (log_flag & VIDEO_LOG_ENABLE)
 					dump_state(0x1);
 			}
@@ -1891,9 +1911,38 @@ void hdmirx_hw_monitor(void)
 						break;
 					}
 				}
-				rx_print("stable->timingchange\n");
+				rx_print("STABLE->TIMINGCHAGE\n");
 			}
 		}
+		break;
+	case FSM_CHECK_DDC_CORRECT:
+		hdmirx_get_video_info(&rx.ctrl, &rx.cur_params);
+		if (is_ddc_state_error(&rx.cur_params)) {
+			if (ddc_state_err_cnt++ > 3) {
+				if (rx.port == 0) {
+					hdmirx_wr_top(TOP_EDID_GEN_STAT,
+						(1<<16));
+				}
+				if (rx.port == 1) {
+					hdmirx_wr_top(TOP_EDID_GEN_STAT_B,
+						(1<<16));
+				}
+				if (rx.port == 2) {
+					hdmirx_wr_top(TOP_EDID_GEN_STAT_C,
+						(1<<16));
+				}
+				hdmirx_set_hpd(rx.port, 0);
+				ddc_state_err_cnt = 0;
+				rx.state = FSM_HDMI5V_LOW;
+				rx_print("DDC ERROR->HPD_LOW\n");
+				break;
+			}
+	    } else {
+			ddc_state_err_cnt = 0;
+			rx.state = FSM_SIG_READY;
+			rx_print("DDC ERROR->READY\n");
+			break;
+	    }
 		break;
 	case FSM_SIG_READY:
 		if (hdmirx_tmds_pll_lock() == false) {
@@ -1907,7 +1956,7 @@ void hdmirx_hw_monitor(void)
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
 				if (log_flag & VIDEO_LOG_ENABLE)
-					rx_print("pll unlock->HPD-ready\n");
+					rx_print("PLL_UNLOCK->HPD_READY\n");
 				break;
 		    }
 		} else
@@ -1920,7 +1969,9 @@ void hdmirx_hw_monitor(void)
 		it_content = rx.cur_params.it_content;
 	    /* video info change */
 	    if ((!is_timing_stable(&rx.pre_params,
-			&rx.cur_params))) {
+			&rx.cur_params)) ||
+			is_frame_rate_change(&rx.pre_params,
+				&rx.cur_params)) {
 			if (sig_unready_cnt++ > sig_unready_max) {
 				sig_lost_lock_cnt = 0;
 				sig_unready_cnt = 0;
@@ -1938,12 +1989,10 @@ void hdmirx_hw_monitor(void)
 				memset(&rx.vendor_specific_info,
 					0,
 					sizeof(struct vendor_specific_info_s));
-				rx_print("ready->Hpd ready:unstable\n");
+				rx_print("READY->HPD_READY\n");
 				break;
 			}
 	    } else if (is_packetinfo_change(&rx.pre_params,
-				&rx.cur_params) ||
-				is_frame_rate_change(&rx.pre_params,
 				&rx.cur_params)) {
 			if (sig_unready_cnt++ > sig_unready_max<<3) {
 				sig_lost_lock_cnt = 0;
@@ -1962,10 +2011,14 @@ void hdmirx_hw_monitor(void)
 				memset(&rx.vendor_specific_info,
 					0,
 					sizeof(struct vendor_specific_info_s));
-				rx_print("hpd-->ready:colorspace\n");
+				rx_print("READY->HPD_READY:colorspace\n");
 				break;
 			}
 	    }  else {
+			if ((sig_unready_cnt != 0) && (log_flag & 2))
+				rx_print("sig_unready_cnt=%d",
+					sig_unready_cnt);
+
 			sig_unready_cnt = 0;
 			if (enable_hpd_reset)
 				sig_unstable_reset_hpd_cnt = 0;
@@ -2007,6 +2060,8 @@ void hdmirx_hw_monitor(void)
 			if (rx.aud_sr_stable_cnt ==
 				aud_sr_stable_th) {
 				dump_state(0x2);
+				sig_unready_max = 5;
+				sig_lost_lock_max = 3;
 				rx_aud_pll_ctl(1);
 				hdmirx_audio_enable(1);
 				hdmirx_audio_fifo_rst();

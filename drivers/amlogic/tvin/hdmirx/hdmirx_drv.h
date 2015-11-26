@@ -26,7 +26,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/11/25a"
+#define HDMIRX_VER "Ref.2015/11/26b"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))

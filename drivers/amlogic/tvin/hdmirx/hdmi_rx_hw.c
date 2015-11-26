@@ -914,8 +914,8 @@ int hdmirx_get_video_info(struct hdmi_rx_ctrl *ctx,
 	/* DVI mode */
 	params->dvi = hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET) != 0;
 	/* hdcp encrypted state */
-	params->hdcp_enc_state = hdmirx_rd_bits_dwc(DWC_HDCP_STS,
-		ENCRYPTED_STATUS) != 0;
+	params->hdcp_enc_state = (hdmirx_rd_bits_dwc(DWC_HDCP_STS,
+		ENCRYPTED_STATUS) != 0);
 	/* AVI parameters */
 	error |= hdmirx_packet_get_avi(params);
 	if (error != 0)
