@@ -32,7 +32,7 @@ extern void osd_freeze_hw(void);
 extern void osd_thaw_hw(void);
 extern void osd_restore_hw(void);
 #endif
-
+extern struct hw_para_s osd_hw;
 extern void osd_set_color_key_hw(u32 index, u32 bpp, u32 colorkey);
 extern void osd_srckey_enable_hw(u32  index, u8 enable);
 extern void osd_set_gbl_alpha_hw(u32 index, u32 gbl_alpha);
@@ -61,6 +61,7 @@ extern void osd_setup_hw(u32 index,
 			 u32 disp_end_x,
 			 u32 disp_end_y,
 			 u32 fbmem,
+			 phys_addr_t *afbc_fbmem,
 			 const struct color_bit_define_s *color);
 extern void osd_set_order_hw(u32 index, u32 order);
 extern void osd_get_order_hw(u32 index, u32 *order);
@@ -140,6 +141,6 @@ extern char *osd_get_debug_hw(void);
 extern void osd_ext_clone_pan(u32 index);
 #endif
 extern void osd_set_pxp_mode(u32 mode);
-extern void osd_set_afbcd(u32 enable);
-extern u32 osd_get_afbcd(void);
+extern void osd_set_afbc(u32 enable);
+extern u32 osd_get_afbc(void);
 #endif

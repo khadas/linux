@@ -74,6 +74,7 @@ static int init_fb1_first(const struct vinfo_s *vinfo)
 		osd_ctl.disp_end_x,
 		osd_ctl.disp_end_y,
 		osd_ctl.addr,
+		NULL,
 		color);
 
 	return 0;

@@ -275,13 +275,22 @@ int int_rdma = INT_RDMA;
 #endif
 struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
 static struct reserved_mem fb_rmem = {.base = 0, .size = 0};
+static u32 fb_memsize[2];
 static phys_addr_t fb_rmem_paddr[2];
 static void __iomem *fb_rmem_vaddr[OSD_COUNT];
 static size_t fb_rmem_size[OSD_COUNT];
+static phys_addr_t fb_rmem_afbc_paddr[OSD_COUNT][OSD_MAX_BUF_NUM];
+static void __iomem *fb_rmem_afbc_vaddr[OSD_COUNT][OSD_MAX_BUF_NUM];
+static size_t fb_rmem_afbc_size[OSD_COUNT][OSD_MAX_BUF_NUM];
 
 struct ion_client *fb_ion_client = NULL;
-struct ion_handle *fb_ion_handle[] = {NULL, NULL};
-int  fb_share_fd[] = {0, 0};
+struct ion_handle *fb_ion_handle[OSD_COUNT][OSD_MAX_BUF_NUM] = {
+	{NULL, NULL, NULL}, {NULL, NULL, NULL}
+};
+int  fb_share_fd[OSD_COUNT][OSD_MAX_BUF_NUM] = {
+	{0, 0, 0}, {0, 0, 0}
+};
+unsigned int buffer_index[OSD_COUNT] = {0, 0};
 
 phys_addr_t get_fb_rmem_paddr(int index)
 {
@@ -306,6 +315,7 @@ static void osddev_setup(struct osd_fb_dev_s *fbdev)
 		     fbdev->osd_ctl.disp_end_x,
 		     fbdev->osd_ctl.disp_end_y,
 		     fbdev->fb_mem_paddr, /*phys_addr_t -> u32*/
+		     fbdev->fb_mem_afbc_paddr, /* afbc phys_addr_t* */
 		     fbdev->color);
 	mutex_unlock(&fbdev->lock);
 
@@ -425,6 +435,34 @@ static void __init _fbdev_set_default(struct osd_fb_dev_s *fbdev, int index)
 	fbdev->color = _find_color_format(&fbdev->fb_info->var);
 }
 
+static int osd_check_fbsize(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)info->par;
+
+	if (fbdev->fb_index == 0 && osd_get_afbc()) {
+		/*fb_afbc_len = fbdev->fb_afbc_len[0] * ((info->node == 0) ?
+				OSD_MAX_BUF_NUM : 1);*/
+		if (var->xres_virtual * var->yres_virtual *
+				var->bits_per_pixel / 8 >
+				fbdev->fb_afbc_len[0] * OSD_MAX_BUF_NUM) {
+			osd_log_err("afbc no enough memory for %d*%d*%d\n",
+					var->xres,
+					var->yres,
+					var->bits_per_pixel);
+			return  -ENOMEM;
+		}
+	} else {
+		if (var->xres_virtual * var->yres_virtual *
+				var->bits_per_pixel / 8 > fbdev->fb_len) {
+			osd_log_err("no enough memory for %d*%d*%d\n",
+					var->xres,
+					var->yres,
+					var->bits_per_pixel);
+			return  -ENOMEM;
+		}
+	}
+	return 0;
+}
 static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct fb_fix_screeninfo *fix;
@@ -463,12 +501,7 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
 	osd_log_dbg("xvirtual=%d, bpp:%d, line_length=%d\n",
 		var->xres_virtual, var->bits_per_pixel, fix->line_length);
-	if (var->xres_virtual * var->yres_virtual * var->bits_per_pixel / 8 >
-			fbdev->fb_len) {
-		osd_log_err("no enough memory for %d*%d*%d\n", var->xres,
-			var->yres, var->bits_per_pixel);
-		return  -ENOMEM;
-	}
+
 	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 	if (var->yres_virtual < var->yres)
@@ -555,6 +588,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	u32 flush_rate;
 	struct fb_sync_request_s sync_request;
 	struct fb_dmabuf_export dmaexp;
+	unsigned int idx = 0;
 
 	switch (cmd) {
 	case  FBIOPUT_OSD_SRCKEY_ENABLE:
@@ -763,13 +797,33 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		break;
 	case FBIOGET_DMABUF:
 		{
-			if (fb_share_fd[info->node] == 0)
-				fb_share_fd[info->node] = ion_share_dma_buf_fd(
+			if (info->node == DEV_OSD0 && osd_get_afbc()) {
+				idx = buffer_index[info->node];
+				if (fb_share_fd[info->node][idx] == 0) {
+					fb_share_fd[info->node][idx] =
+						ion_share_dma_buf_fd(
+							fb_ion_client,
+							fb_ion_handle
+							[info->node][idx]
+							);
+				}
+				dmaexp.fd = fb_share_fd[info->node][idx];
+				dmaexp.flags = O_CLOEXEC;
+				if (info->node == 0 &&
+						buffer_index[info->node] < 2)
+					buffer_index[info->node]++;
+				else
+					buffer_index[info->node] = 0;
+			} else {
+				if (fb_share_fd[info->node][0] == 0)
+					fb_share_fd[info->node][0] =
+						ion_share_dma_buf_fd(
 						fb_ion_client,
-						fb_ion_handle[info->node]);
+						fb_ion_handle[info->node][0]);
 
-			dmaexp.fd = fb_share_fd[info->node];
-			dmaexp.flags = O_CLOEXEC;
+				dmaexp.fd = fb_share_fd[info->node][0];
+				dmaexp.flags = O_CLOEXEC;
+			}
 
 			ret = copy_to_user(argp, &dmaexp, sizeof(dmaexp))
 				? -EFAULT : 0;
@@ -853,6 +907,181 @@ static int osd_compat_ioctl(struct fb_info *info,
 
 static int osd_open(struct fb_info *info, int arg)
 {
+	int j;
+	int ret = 0;
+	u32 fb_index;
+	int logo_index = -1;
+	struct osd_fb_dev_s *fbdev;
+	struct fb_fix_screeninfo *fix = NULL;
+	struct fb_var_screeninfo *var = NULL;
+	struct platform_device *pdev = NULL;
+
+	fbdev = (struct osd_fb_dev_s *)info->par;
+	if (info->screen_base != NULL)
+		return 0;
+	pdev = fbdev->dev;
+	fb_index = fbdev->fb_index;
+	fix = &info->fix;
+	var = &info->var;
+	if (fb_rmem.base == 0) {
+		if (!fb_ion_client)
+			fb_ion_client = meson_ion_client_create(-1, "meson-fb");
+		if (fb_index == DEV_OSD0 && osd_get_afbc()) {
+			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
+				fb_ion_handle[fb_index][j] =
+				ion_alloc(fb_ion_client,
+					PAGE_ALIGN(fb_memsize[fb_index]/
+					OSD_MAX_BUF_NUM),
+					0,
+					ION_HEAP_CARVEOUT_MASK,
+					0);
+				ret = ion_phys(fb_ion_client,
+					fb_ion_handle[fb_index][j],
+					(ion_phys_addr_t *)
+					&fb_rmem_afbc_paddr[fb_index][j],
+					(size_t *)
+					&fb_rmem_afbc_size[fb_index][j]);
+				fb_rmem_afbc_vaddr[fb_index][j] =
+					ion_map_kernel(fb_ion_client,
+					fb_ion_handle[fb_index][j]);
+				dev_alert(&pdev->dev,
+				"create ion_client %p, handle=%p, share_fd=%d\n",
+				fb_ion_client,
+				fb_ion_handle[fb_index][j],
+				fb_share_fd[fb_index][j]);
+				dev_alert(&pdev->dev,
+				"ion memory(%d): created fb at 0x%p, size %ld MiB\n",
+				fb_index,
+				(void *)fb_rmem_afbc_paddr[fb_index][j],
+				(unsigned long)fb_rmem_afbc_size[fb_index][j] /
+				SZ_1M);
+				fb_share_fd[fb_index][j] = 0;
+				fbdev->fb_afbc_len[j] =
+					fb_rmem_afbc_size[fb_index][j];
+				fbdev->fb_mem_afbc_paddr[j] =
+					fb_rmem_afbc_paddr[fb_index][j];
+				fbdev->fb_mem_afbc_vaddr[j] =
+					fb_rmem_afbc_vaddr[fb_index][j];
+				if  (!fbdev->fb_mem_afbc_vaddr[j]) {
+					osd_log_err("failed to ioremap afbc frame buffer\n");
+					return -1;
+				}
+				osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
+					fb_index,
+					(void *)fbdev->fb_mem_afbc_paddr[j],
+					fbdev->fb_mem_afbc_vaddr[j],
+					fbdev->fb_afbc_len[j] >> 10);
+			}
+			fb_rmem_paddr[fb_index] =
+					fb_rmem_afbc_paddr[fb_index][0];
+			fb_rmem_vaddr[fb_index] =
+					fb_rmem_afbc_vaddr[fb_index][0];
+			fb_rmem_size[fb_index] =
+					fb_rmem_afbc_size[fb_index][0];
+		} else {
+			fb_ion_handle[fb_index][0] =
+						ion_alloc(fb_ion_client,
+							fb_memsize[fb_index],
+							0,
+							ION_HEAP_CARVEOUT_MASK,
+							0);
+			ret = ion_phys(fb_ion_client,
+				fb_ion_handle[fb_index][0],
+				(ion_phys_addr_t *)&fb_rmem_paddr[fb_index],
+				(size_t *)&fb_rmem_size[fb_index]);
+			fb_rmem_vaddr[fb_index] =
+				ion_map_kernel(fb_ion_client,
+						fb_ion_handle[fb_index][0]);
+			dev_notice(&pdev->dev,
+				"create ion_client %p, handle=%p, share_fd=%d\n",
+				fb_ion_client,
+				fb_ion_handle[fb_index][0],
+				fb_share_fd[fb_index][0]);
+			dev_notice(&pdev->dev,
+				"ion memory(%d): created fb at 0x%p, size %ld MiB\n",
+				fb_index,
+				(void *)fb_rmem_paddr[fb_index],
+				(unsigned long)fb_rmem_size[fb_index] / SZ_1M);
+			fb_share_fd[fb_index][0] = 0;
+		}
+	} else {
+		fb_rmem_size[fb_index] = fb_memsize[fb_index];
+		if (fb_index == DEV_OSD0)
+			fb_rmem_paddr[fb_index] = fb_rmem.base;
+		else if (fb_index == DEV_OSD1) {
+			if ((OSD_COUNT == 2) &&
+			((fb_memsize[0] + fb_memsize[1]) <= fb_rmem.size)) {
+				fb_rmem_paddr[fb_index] =
+					fb_rmem.base + fb_memsize[0];
+			}
+		}
+		if ((fb_rmem_paddr[fb_index] > 0) &&
+			(fb_rmem_size[fb_index] > 0)) {
+			fb_rmem_vaddr[fb_index] =
+					ioremap_wc(fb_rmem_paddr[fb_index],
+					fb_rmem_size[fb_index]);
+			if (!fb_rmem_vaddr[fb_index])
+				osd_log_err("fb[%d] ioremap error",
+						fb_index);
+		}
+	}
+	fbdev->fb_len = fb_rmem_size[fb_index];
+	fbdev->fb_mem_paddr = fb_rmem_paddr[fb_index];
+	fbdev->fb_mem_vaddr = fb_rmem_vaddr[fb_index];
+	if (!fbdev->fb_mem_vaddr) {
+		osd_log_err("failed to ioremap frame buffer\n");
+		ret = -ENOMEM;
+	}
+	osd_log_info("Frame buffer memory assigned at");
+	osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
+		fb_index, (void *)fbdev->fb_mem_paddr,
+		fbdev->fb_mem_vaddr, fbdev->fb_len >> 10);
+	if (fb_index == DEV_OSD0 && osd_get_afbc()) {
+		for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
+			fbdev->fb_afbc_len[j] =
+				fb_rmem_afbc_size[fb_index][j];
+			fbdev->fb_mem_afbc_paddr[j] =
+				fb_rmem_afbc_paddr[fb_index][j];
+			fbdev->fb_mem_afbc_vaddr[j] =
+				fb_rmem_afbc_vaddr[fb_index][j];
+			if (!fbdev->fb_mem_afbc_vaddr[j]) {
+				osd_log_err("failed to ioremap afbc frame buffer\n");
+				return -ENOMEM;
+			}
+			osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
+					fb_index,
+					(void *)
+					fbdev->fb_mem_afbc_paddr[j],
+					fbdev->fb_mem_afbc_vaddr[j],
+					fbdev->fb_afbc_len[j] >> 10);
+		}
+	}
+	fix->smem_start = fbdev->fb_mem_paddr;
+	fix->smem_len = fbdev->fb_len;
+	info->screen_base = (char __iomem *)fbdev->fb_mem_vaddr;
+	info->screen_size = fix->smem_len;
+	logo_index = osd_get_logo_index();
+	if (osd_check_fbsize(var, info))
+		return -ENOMEM;
+	/* clear osd buffer if not logo layer */
+	if ((logo_index < 0) || (logo_index != fb_index)) {
+		osd_log_info("---------------clear fb%d memory %p\n",
+			fb_index, fbdev->fb_mem_vaddr);
+		memset(fbdev->fb_mem_vaddr, 0x0, fbdev->fb_len);
+		if (fb_index == DEV_OSD0 && osd_get_afbc()) {
+			for (j = 1; j < OSD_MAX_BUF_NUM; j++) {
+				osd_log_info(
+					"---------------clear fb%d memory %p\n",
+					fb_index,
+					fbdev->fb_mem_afbc_vaddr[j]);
+				memset(fbdev->fb_mem_afbc_vaddr[j],
+					0x0,
+					fbdev->fb_afbc_len[j]);
+			}
+		}
+		/* setup osd if not logo layer */
+		osddev_setup(fbdev);
+	}
 	return 0;
 }
 
@@ -953,6 +1182,15 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 	}
 	osd_log_info("current vmode=%s\n", vinfo->name);
 	switch (cmd) {
+	case VOUT_EVENT_MODE_CHANGE_PRE:
+		for (i = 0; i < OSD_COUNT; i++) {
+			fb_dev = gp_fbdev_list[i];
+			if (osd_hw.enable[i]) {
+				fb_dev->dis_osd_mchange = true;
+				osd_enable_hw(i, false);
+			}
+		}
+		break;
 	case  VOUT_EVENT_MODE_CHANGE:
 		for (i = 0; i < OSD_COUNT; i++) {
 			fb_dev = gp_fbdev_list[i];
@@ -967,6 +1205,10 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			       gp_fbdev_list[DEV_OSD1]->fb_info->var.yres);
 #endif
 			console_unlock();
+			if (fb_dev->dis_osd_mchange) {
+				fb_dev->dis_osd_mchange = false;
+				osd_enable_hw(i, true);
+			}
 		}
 		break;
 	case VOUT_EVENT_OSD_BLANK:
@@ -1466,7 +1708,7 @@ static ssize_t store_debug(struct device *device, struct device_attribute *attr,
 static ssize_t show_afbcd(struct device *device, struct device_attribute *attr,
 			  char *buf)
 {
-	u32 enable = osd_get_afbcd();
+	u32 enable = osd_get_afbc();
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", enable);
 }
@@ -1478,9 +1720,9 @@ static ssize_t store_afbcd(struct device *device, struct device_attribute *attr,
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
-	osd_log_info("afbcd: %d\n", res);
+	osd_log_info("afbc: %d\n", res);
 
-	osd_set_afbcd(res);
+	osd_set_afbc(res);
 
 	return count;
 }
@@ -2000,7 +2242,7 @@ static struct device_attribute osd_attrs[] = {
 	__ATTR(ver_clone, S_IRUGO | S_IWUSR,
 			show_ver_clone, store_ver_clone),
 	__ATTR(ver_update_pan, S_IWUGO | S_IWUSR, NULL, store_ver_update_pan),
-	__ATTR(osd_afbcd, S_IRUGO | S_IWUSR,
+	__ATTR(osd_afbcd, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_afbcd, store_afbcd),
 };
 
@@ -2093,11 +2335,9 @@ static int osd_probe(struct platform_device *pdev)
 	struct osd_fb_dev_s *fbdev = NULL;
 	enum vmode_e current_mode = VMODE_MASK;
 	enum vmode_e logo_init = 0;
-	int logo_index = -1;
 	const void *prop;
 	int prop_idx = 0;
 	int rotation = 0;
-	u32 memsize[2];
 	const char *str;
 	int i;
 	int ret = 0;
@@ -2118,7 +2358,7 @@ static int osd_probe(struct platform_device *pdev)
 #endif
 	/* get buffer size from dt */
 	ret = of_property_read_u32_array(pdev->dev.of_node,
-			"mem_size", memsize, 2);
+			"mem_size", fb_memsize, 2);
 	if (ret) {
 		osd_log_err("not found mem_size from dtd\n");
 		goto failed1;
@@ -2130,47 +2370,7 @@ static int osd_probe(struct platform_device *pdev)
 		osd_log_err("failed to init reserved memory\n");
 
 	osd_log_dbg("%d, mem_size: 0x%x, 0x%x\n",
-			__LINE__, memsize[0], memsize[1]);
-
-	if (fb_rmem.base == 0) {
-		fb_ion_client = meson_ion_client_create(-1, "meson-fb");
-		for (i = 0; i < OSD_COUNT; i++) {
-			fb_ion_handle[i] = ion_alloc(fb_ion_client,
-					memsize[i], 0,
-					ION_HEAP_CARVEOUT_MASK, 0);
-			ret = ion_phys(fb_ion_client, fb_ion_handle[i],
-					(ion_phys_addr_t *)&fb_rmem_paddr[i],
-					(size_t *)&fb_rmem_size[i]);
-			fb_rmem_vaddr[i] = ion_map_kernel(
-					fb_ion_client, fb_ion_handle[i]);
-			dev_notice(&pdev->dev, "create ion_client %p, handle=%p, share_fd=%d\n",
-					fb_ion_client,
-					fb_ion_handle[i],
-					fb_share_fd[i]);
-			dev_notice(&pdev->dev, "ion memory(%d): created fb at 0x%p, size %ld MiB\n",
-					i, (void *)fb_rmem_paddr[i],
-					(unsigned long)fb_rmem_size[i] / SZ_1M);
-			fb_share_fd[i] = 0;
-		}
-	} else {
-
-		fb_rmem_size[0] = memsize[0];
-		fb_rmem_paddr[0] = fb_rmem.base;
-		if ((OSD_COUNT == 2) &&
-				((memsize[0] + memsize[1]) <= fb_rmem.size)) {
-			fb_rmem_size[1] = memsize[1];
-			fb_rmem_paddr[1] = fb_rmem.base + memsize[0];
-		}
-
-		for (i = 0; i < OSD_COUNT; i++) {
-			if ((fb_rmem_paddr[i] > 0) && (fb_rmem_size[i] > 0)) {
-				fb_rmem_vaddr[i] = ioremap_wc(fb_rmem_paddr[i],
-						fb_rmem_size[i]);
-				if (!fb_rmem_vaddr[i])
-					osd_log_err("fb[%d] ioremap error", i);
-			}
-		}
-	}
+			__LINE__, fb_memsize[0], fb_memsize[1]);
 
 	/* get meson-fb resource from dt */
 	prop = of_get_property(pdev->dev.of_node, "scale_mode", NULL);
@@ -2194,7 +2394,6 @@ static int osd_probe(struct platform_device *pdev)
 	osd_set_pxp_mode(prop_idx);
 	/* if osd_init_hw is not set by logo, set vmode and init osd hw */
 	logo_init = osd_get_init_hw_flag();
-	logo_index = osd_get_logo_index();
 	if (logo_init == 0) {
 		if (current_mode < VMODE_MASK)
 			set_current_vmode(current_mode);
@@ -2212,26 +2411,16 @@ static int osd_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 		fbdev = (struct osd_fb_dev_s *)fbi->par;
+		fbdev->fb_index = index;
 		fbdev->fb_info = fbi;
 		fbdev->dev = pdev;
 		mutex_init(&fbdev->lock);
 		var = &fbi->var;
 		fix = &fbi->fix;
 		gp_fbdev_list[index] = fbdev;
-		fbdev->fb_len = fb_rmem_size[index];
-		fbdev->fb_mem_paddr = fb_rmem_paddr[index];
-		fbdev->fb_mem_vaddr = fb_rmem_vaddr[index];
-
-		if (!fbdev->fb_mem_vaddr) {
-			osd_log_err("failed to ioremap frame buffer\n");
-			ret = -ENOMEM;
-			goto failed1;
-		}
-		osd_log_info("Frame buffer memory assigned at");
-		osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
-			     i, (void *)fbdev->fb_mem_paddr,
-			     fbdev->fb_mem_vaddr,
-			     fbdev->fb_len >> 10);
+		fbdev->fb_len = 0;
+		fbdev->fb_mem_paddr = 0;
+		fbdev->fb_mem_vaddr = 0;
 		if (vinfo) {
 			fb_def_var[index].width = vinfo->screen_real_width;
 			fb_def_var[index].height = vinfo->screen_real_height;
@@ -2258,14 +2447,6 @@ static int osd_probe(struct platform_device *pdev)
 					fb_def_var[index].bits_per_pixel = 32;
 			}
 		}
-		/* clear osd buffer if not logo layer */
-		if ((logo_index < 0) || (logo_index != index)) {
-			osd_log_info("---------------clear fb%d memory %p\n",
-					index, fbdev->fb_mem_vaddr);
-			memset(fbdev->fb_mem_vaddr, 0x0,
-					fbdev->fb_len);
-		}
-
 		/* get roataion from dtd */
 		if (index == DEV_OSD0) {
 			prop = of_get_property(pdev->dev.of_node,
@@ -2308,11 +2489,6 @@ static int osd_probe(struct platform_device *pdev)
 		osd_check_var(var, fbi);
 		/* register frame buffer */
 		register_framebuffer(fbi);
-
-		/* setup osd if not logo layer */
-		if ((logo_index < 0) || (logo_index != index))
-			osddev_setup(fbdev);
-
 		/* create device attribute files */
 		for (i = 0; i < ARRAY_SIZE(osd_attrs); i++)
 			ret = device_create_file(fbi->dev, &osd_attrs[i]);
@@ -2356,7 +2532,7 @@ failed1:
 static int osd_remove(struct platform_device *pdev)
 {
 	struct fb_info *fbi;
-	int i = 0;
+	int i;
 	osd_log_info("osd_remove.\n");
 	if (!pdev)
 		return -ENODEV;
@@ -2372,6 +2548,10 @@ static int osd_remove(struct platform_device *pdev)
 			for (j = 0; j < ARRAY_SIZE(osd_attrs); j++)
 				device_remove_file(fbi->dev, &osd_attrs[j]);
 			iounmap(fbdev->fb_mem_vaddr);
+			if (i == DEV_OSD0 && osd_get_afbc()) {
+				for (j = 1; j < OSD_MAX_BUF_NUM; j++)
+					iounmap(fbdev->fb_mem_afbc_vaddr[j]);
+			}
 			kfree(fbi->pseudo_palette);
 			fb_dealloc_cmap(&fbi->cmap);
 			unregister_framebuffer(fbi);

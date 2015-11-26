@@ -51,7 +51,6 @@ static void osd2_update_disp_3d_mode(void);
 
 LIST_HEAD(update_list);
 static DEFINE_SPINLOCK(osd_lock);
-static struct hw_para_s osd_hw;
 static unsigned long lock_flags;
 #ifdef FIQ_VSYNC
 static unsigned long fiq_flag;

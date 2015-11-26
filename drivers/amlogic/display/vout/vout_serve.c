@@ -190,6 +190,7 @@ static int set_vout_mode(char *name)
 		phy_pll_off();
 		vout_log_info("disable HDMI PHY as soon as possible\n");
 	}
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
 	set_current_vmode(mode);
 	vout_log_info("new mode %s set ok\n", name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);

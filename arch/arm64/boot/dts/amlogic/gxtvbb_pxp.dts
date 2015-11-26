@@ -126,10 +126,13 @@
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
+		mem_size = <0x01850000 0x00100000>; /* fb0/fb1 memory size */
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
-		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+		// display_size_default: PAGE_ALIGN((1920*(align16(1080))/256*(256*16 + 16)+16)*3) =
+		// 0x1848000 (afbc body + afbc header + 16)*3
+		display_size_default = <1920 1080 1920 3240 32>;
+		/*pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
 		pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
 	};
 	ge2d {

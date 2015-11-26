@@ -77,6 +77,7 @@ extern int get_power_level(void);
 #define VOUT_EVENT_OSD_BLANK           0x00020000
 #define VOUT_EVENT_OSD_DISP_AXIS       0x00030000
 #define VOUT_EVENT_OSD_PREBLEND_ENABLE 0x00040000
+#define VOUT_EVENT_MODE_CHANGE_PRE     0x00050000
 
 /* vout2 */
 extern int vout2_register_client(struct notifier_block *);
