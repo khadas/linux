@@ -2692,6 +2692,9 @@ static int aml_sd_emmc_restore(struct device *dev)
 	struct amlsd_platform *pdata;
 	pdev = to_platform_device(dev);
 	host = platform_get_drvdata(pdev);
+	/* for storage self-adaptive */
+	if (NULL == host)
+		return 0;
 	list_for_each_entry(pdata, &host->sibling, sibling)
 		if (!(pdata->caps & MMC_CAP_NONREMOVABLE))
 			aml_sd_uart_detect(pdata);
