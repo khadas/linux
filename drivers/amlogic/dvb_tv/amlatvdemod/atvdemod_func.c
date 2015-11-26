@@ -110,7 +110,11 @@ MODULE_PARM_DESC(pwm_kp, "\n pwm_kp\n");
 
 static unsigned int reg_dbg_en;
 module_param(reg_dbg_en, uint, 0644);
-MODULE_PARM_DESC(reg_dbg_en, "\npwm_kp\n");
+MODULE_PARM_DESC(reg_dbg_en, "\n reg_dbg_en\n");
+
+static unsigned int audio_gain_val = 512;
+module_param(audio_gain_val, uint, 0644);
+MODULE_PARM_DESC(audio_gain_val, "\n audio_gain_val\n");
 
 static unsigned int mix1_freq;
 static unsigned int timer_init_flag;
@@ -340,6 +344,8 @@ void atv_dmd_misc(void)
 	atv_dmd_wr_long(0x19, 0x00, 0x4a4000);/*zhuangwei*/
 	/*atv_dmd_wr_byte(0x0c,0x01,0x28);//pwd-out gain*/
 	/*atv_dmd_wr_byte(0x0c,0x04,0xc0);//pwd-out offset*/
+	if (is_meson_gxtvbb_cpu())
+		aml_audio_valume_gain_set(audio_gain_val);
 }
 
 /*Broadcast_Standard*/
@@ -1670,13 +1676,26 @@ int aml_audiomode_autodet(void)
 	return broad_std;
 }
 
-void aml_audio_valume_gain(int audio_gain)
+void aml_audio_valume_gain_set(unsigned int audio_gain)
 {
 	unsigned long audio_gain_data , temp_data;
+	if (audio_gain > 0xfff) {
+		pr_err("Error: atv in gain max 7.998, min 0.002! gain = value/512\n");
+		pr_err("value (0~0xfff)\n");
+		return;
+	}
 	audio_gain_data = audio_gain & 0xfff;
-	temp_data = atv_dmd_rd_word(APB_BLOCK_ADDR_MONO_PROC, 0x14);
+	temp_data = atv_dmd_rd_word(APB_BLOCK_ADDR_MONO_PROC, 0x52);
 	temp_data = (temp_data & 0xf000) | audio_gain_data;
-	atv_dmd_wr_word(APB_BLOCK_ADDR_MONO_PROC, 0x14, temp_data);
+	atv_dmd_wr_word(APB_BLOCK_ADDR_MONO_PROC, 0x52, temp_data);
+}
+
+unsigned int aml_audio_valume_gain_get(void)
+{
+	unsigned long audio_gain_data;
+	audio_gain_data = atv_dmd_rd_word(APB_BLOCK_ADDR_MONO_PROC, 0x52);
+	audio_gain_data = audio_gain_data & 0xfff;
+	return audio_gain_data;
 }
 
 void aml_atvdemod_overmodule_det(void)

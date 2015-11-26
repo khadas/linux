@@ -141,12 +141,16 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 		/* unsigned long over_threshold, */
 		/* int det_mode = auto_det_mode; */
 		aml_atvdemod_overmodule_det();
-	} else if (!strncmp(parm[0], "audio_volume_adj",
-			strlen("audio_volume_adj"))) {
-		if (kstrtoul(buf+strlen("audio_volume_adj")+1, 16, &tmp) == 0)
+	} else if (!strncmp(parm[0], "audio_gain_set",
+			strlen("audio_gain_set"))) {
+		if (kstrtoul(buf+strlen("audio_gain_set")+1, 16, &tmp) == 0)
 			val = tmp;
-		aml_audio_valume_gain(val);
-		pr_dbg("setting audio_valume_adj  : %d\n", val);
+		aml_audio_valume_gain_set(val);
+		pr_dbg("audio_gain_set : %d\n", val);
+	} else if (!strncmp(parm[0], "audio_gain_get",
+			strlen("audio_gain_get"))) {
+		val = aml_audio_valume_gain_get();
+		pr_dbg("audio_gain_get : %d\n", val);
 	} else if (!strncmp(parm[0], "fix_pwm_adj", strlen("fix_pwm_adj"))) {
 		aml_fix_PWM_adjust();
 	} else if (!strncmp(parm[0], "rs", strlen("rs"))) {

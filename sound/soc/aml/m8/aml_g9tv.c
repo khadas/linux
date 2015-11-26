@@ -179,7 +179,7 @@ static int hardware_resample_enable(int input_sr)
 		return 0;
 
 	if (input_sr < 8000 || input_sr > 48000) {
-		pr_info("Error input sample rate,input_sr = %d!\n", input_sr);
+		pr_err("Error input sample rate,input_sr = %d!\n", input_sr);
 		return -1;
 	}
 
@@ -302,6 +302,7 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     output_swap_enum,
 		     aml_output_swap_get_enum,
 		     aml_output_swap_set_enum),
+
 };
 
 static int aml_suspend_pre(struct snd_soc_card *card)
