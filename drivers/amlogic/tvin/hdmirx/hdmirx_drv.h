@@ -20,13 +20,14 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/tvin/tvin.h>
 #include <linux/amlogic/iomap.h>
-
+#include <linux/cdev.h>
+#include <linux/irqreturn.h>
 
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/11/26b"
+#define HDMIRX_VER "Ref.2015/11/27"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -60,6 +61,8 @@ struct hdmirx_dev_s {
 
 #define HDMI_IOC_MAGIC 'H'
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
+
+/* #define HDCP22_ENABLE */
 
 /* add new value at the end,
  * do not insert new value in the middle
@@ -448,6 +451,20 @@ int hdmirx_wr_phy(uint8_t reg_address, uint16_t data);
 uint16_t hdmirx_rd_phy(uint8_t reg_address);
 uint32_t hdmirx_rd_bits_dwc(uint16_t addr, uint32_t mask);
 void hdmirx_wr_bits_dwc(uint16_t addr, uint32_t mask, uint32_t value);
+
+#ifdef HDCP22_ENABLE
+void rx_hdcp22_wr_reg(uint32_t addr, uint32_t data);
+uint32_t rx_hdcp22_rd_reg(uint32_t addr);
+void hdcp22_wr_top(uint32_t addr, uint32_t data);
+uint32_t hdcp22_rd_top(uint32_t addr);
+uint32_t rx_hdcp22_rd(uint32_t addr);
+
+void rx_sec_reg_write(unsigned *addr, unsigned value);
+unsigned rx_sec_reg_read(unsigned *addr);
+unsigned sec_top_read(unsigned *addr);
+void sec_top_write(unsigned *addr, unsigned value);
+void hdmirx_hdcp22_esm_rst(void);
+#endif
 
 uint32_t get(uint32_t data, uint32_t mask);
 uint32_t set(uint32_t data, uint32_t mask, uint32_t value);

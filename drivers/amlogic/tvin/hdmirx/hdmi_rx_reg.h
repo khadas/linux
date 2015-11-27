@@ -37,6 +37,8 @@
 #define HHI_AUD_PLL_CNTL5		(0xC883C000 + 0xfc * 4) /* 0x10fc */
 #define HHI_AUD_PLL_CNTL6		(0xC883C000 + 0xfd * 4) /* 0x10fd */
 #define HHI_ADC_PLL_CNTL4		(0xC883C000 + 0xad * 4) /* 0x10ad */
+#define HHI_HDCP22_CLK_CNTL		(0xc883c000 + 0x7c * 4)
+#define HHI_GCLK_MPEG2			(0xc883c000 + 0x52 * 4) /* 0x1052 */
 
 
 #define PREG_PAD_GPIO0_EN_N		(0xc8834400 + 0x0c * 4)
@@ -154,6 +156,23 @@
 #define TOP_EDID_GEN_STAT_B              0x025
 #define TOP_EDID_GEN_STAT_C              0x026
 #define TOP_EDID_GEN_STAT_D              0x027
+#define	TOP_ACR_CNTL2					 0x02a
+#define	TOP_INFILTER					 0x02b
+#define	TOP_SKP_CNTL_STAT				 0x061
+#define	TOP_NONCE_0						 0x062
+#define	TOP_NONCE_1						 0x063
+#define	TOP_NONCE_2						 0x064
+#define	TOP_NONCE_3						 0x065
+#define	TOP_PKF_0						 0x066
+#define	TOP_PKF_1						 0x067
+#define	TOP_PKF_2						 0x068
+#define	TOP_PKF_3						 0x069
+#define	TOP_DUK_0						 0x06a
+#define	TOP_DUK_1						 0x06b
+#define	TOP_DUK_2						 0x06c
+#define	TOP_DUK_3						 0x06d
+#define TOP_NSEC_SCRATCH				 0x06e
+#define	TOP_SEC_SCRATCH					 0x06f
 #define TOP_DONT_TOUCH0                  0x0fe
 #define TOP_DONT_TOUCH1                  0x0ff
 /* hdmi2.0 new end */
@@ -829,4 +848,11 @@
 #define DWC_CEC_LOCK                     0x1FC0
 #define DWC_CEC_WKUPCTRL                 0x1FC4
 
+/*
+ * ESM registers
+ */
+
+/** HPI Register Base Offset */
+
+#define HRX_ELP_ESM_HPI_REG_BASE    0xd0076000
 #endif

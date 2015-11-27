@@ -268,6 +268,26 @@ static bool hw_dbg_en = 1;	/* only for hardware test */
 MODULE_PARM_DESC(hw_dbg_en, "\n hw_dbg_en\n");
 module_param(hw_dbg_en, bool, 0664);
 
+#ifdef HDCP22_ENABLE
+/* to inform ESM whether the cable is connected or not */
+static bool hpd_to_esm;
+MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
+module_param(hpd_to_esm, bool, 0664);
+
+/* to inform ESM whether the cable is connected or not */
+static bool video_stable_to_esm;
+MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
+module_param(video_stable_to_esm, bool, 0664);
+
+static int hdcp_mode_sel;
+MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
+module_param(hdcp_mode_sel, int, 0664);
+
+static bool hdcp_auth_status;
+MODULE_PARM_DESC(hdcp_auth_status, "\n hdcp_auth_status\n");
+module_param(hdcp_auth_status, bool, 0664);
+#endif
+
 static int last_color_fmt;
 static bool reset_sw = true;
 static int sm_pause;
@@ -1774,6 +1794,9 @@ void hdmirx_hw_monitor(void)
 			rx_aud_pll_ctl(0);
 			rx.state = FSM_INIT;
 		}
+		#ifdef HDCP22_ENABLE
+		hpd_to_esm = 0;
+		#endif
 		return;
 	}
 	switch (rx.state) {
@@ -1801,6 +1824,9 @@ void hdmirx_hw_monitor(void)
 		rx_print("5V_high->HPD_READY\n");
 		break;
 	case FSM_HPD_READY:
+		#ifdef HDCP22_ENABLE
+		hpd_to_esm = 1;
+		#endif
 		rx.state = FSM_TIMINGCHANGE;
 		rx_print("HPD_READY->TIMINGCHANGE\n");
 		break;
@@ -1955,6 +1981,9 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
+				#ifdef HDCP22_ENABLE
+				video_stable_to_esm = 0;
+				#endif
 				if (log_flag & VIDEO_LOG_ENABLE)
 					rx_print("PLL_UNLOCK->HPD_READY\n");
 				break;
@@ -1983,6 +2012,9 @@ void hdmirx_hw_monitor(void)
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
 				rx.state = FSM_HPD_READY;
+				#ifdef HDCP22_ENABLE
+				video_stable_to_esm = 0;
+				#endif
 				memcpy(&rx.pre_params,
 					&rx.cur_params,
 					sizeof(struct hdmi_rx_ctrl_video));
@@ -2005,6 +2037,9 @@ void hdmirx_hw_monitor(void)
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
 				rx.state = FSM_HPD_READY;
+				#ifdef HDCP22_ENABLE
+				video_stable_to_esm = 0;
+				#endif
 				memcpy(&rx.pre_params,
 					&rx.cur_params,
 					sizeof(struct hdmi_rx_ctrl_video));
@@ -2022,6 +2057,9 @@ void hdmirx_hw_monitor(void)
 			sig_unready_cnt = 0;
 			if (enable_hpd_reset)
 				sig_unstable_reset_hpd_cnt = 0;
+				#ifdef HDCP22_ENABLE
+				video_stable_to_esm = 1;
+				#endif
 		}
 
 		if ((0 == audio_enable) ||
@@ -2898,6 +2936,10 @@ int hdmirx_debug(const char *buf, int size)
 		} else if (tmpbuf[5] == '3') {
 			rx_print(" hdmirx phy init 12bit\n");
 			hdmirx_phy_init(rx.port, 2);
+		} else if (tmpbuf[5] == '5') {
+			#ifdef HDCP22_ENABLE
+			hdmirx_hdcp22_esm_rst();
+			#endif
 		} else if (strncmp(tmpbuf + 5, "_on", 3) == 0) {
 			reset_sw = 1;
 			rx_print("reset on!\n");
@@ -2919,6 +2961,18 @@ int hdmirx_debug(const char *buf, int size)
 		dump_edid_reg();
 	} else if (strncmp(tmpbuf, "hdcp123", 7) == 0) {
 		dump_hdcp_data();
+	} else if (strncmp(tmpbuf, "esmhpd", 6) == 0) {
+		#ifdef HDCP22_ENABLE
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
+		hdmirx_rd_dwc(DWC_HDCP22_CONTROL) | (1<<12));
+		rx_print("set esm hpd\n");
+		#endif
+	} else if (strncmp(tmpbuf, "esmclk", 6) == 0) {
+		#ifdef HDCP22_ENABLE
+		hdmirx_wr_top(TOP_CLK_CNTL,
+		hdmirx_rd_top(TOP_CLK_CNTL) | (7<<3));
+		rx_print("set esm hpd\n");
+		#endif
 	} else if (strncmp(tmpbuf, "loadkey", 7) == 0) {
 		rx_print("load hdcp key\n");
 		memcpy(&rx.hdcp, &init_hdcp_data,
@@ -2955,6 +3009,18 @@ int hdmirx_debug(const char *buf, int size)
 				hdmirx_wr_phy(adr, value);
 				rx_print("write %x to PHY [%x]\n",
 					value, adr);
+			#ifdef HDCP22_ENABLE
+			} else if (buf[2] == 'h') {
+				hdcp22_wr_top(adr, value);
+				/* hdcp22_wr(adr, value); */
+				rx_print("write %x to hdcp [%x]\n",
+					value, adr);
+			} else if (buf[2] == 'c') {
+				rx_hdcp22_wr_reg(adr, value);
+				/* hdcp22_wr(adr, value); */
+				rx_print("write %x to chdcp [%x]\n",
+					value, adr);
+			#endif
 			}
 		} else if (buf[1] == 'c') {
 			aml_write_cbus(adr, value);
@@ -2983,6 +3049,16 @@ int hdmirx_debug(const char *buf, int size)
 			} else if (tmpbuf[2] == 'p') {
 				value = hdmirx_rd_phy(adr);
 				rx_print("PHY [%x]=%x\n", adr, value);
+			#ifdef HDCP22_ENABLE
+			} else if (tmpbuf[2] == 'h') {
+				value = hdcp22_rd_top(adr);
+				/* value = hdcp22_rd(adr); */
+				rx_print("hdcp [%x]=%x\n", adr, value);
+			} else if (tmpbuf[2] == 'c') {
+				value = rx_hdcp22_rd_reg(adr);
+				/* value = hdcp22_rd(adr); */
+				rx_print("chdcp [%x]=%x\n", adr, value);
+			#endif
 			}
 		} else if (buf[1] == 'c') {
 			/* value = READ_MPEG_REG(adr); */

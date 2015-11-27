@@ -45,6 +45,7 @@
 #ifdef CEC_FUNC_ENABLE
 #include "hdmirx_cec.h"
 #endif
+#include <linux/io.h>
 
 
 #define EDID_AUTO_CEC_ENABLE	0
@@ -105,6 +106,29 @@ module_param(mpll_ctl_setting, int, 0664);
 static bool hdcp_enable = 1;
 MODULE_PARM_DESC(hdcp_enable, "\n hdcp_enable\n");
 module_param(hdcp_enable, bool, 0664);
+#ifdef HDCP22_ENABLE
+static int hdcp_22_on = 1;
+MODULE_PARM_DESC(hdcp_22_on, "\n hdcp_22_on\n");
+module_param(hdcp_22_on, int, 0664);
+static int hdcp_22_nonce_hw_en = 1;
+
+#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
+
+static unsigned int hdcp_22_pkf_0 = 0xccddeeff;/* pkf[31:0] */
+static unsigned int hdcp_22_pkf_1 = 0x8899aabb;/* pkf[63:32] */
+static unsigned int hdcp_22_pkf_2 = 0x44556677;/* pkf[95:64] */
+static unsigned int hdcp_22_pkf_3 = 0x00112233;/* pkf[127:96] */
+
+static unsigned int hdcp_22_duk_0 = 0x33221100;/* duk[31:0] */
+static unsigned int hdcp_22_duk_1 = 0x77665544;/* duk[63:32] */
+static unsigned int hdcp_22_duk_2 = 0xbbaa9988;/* duk[95:64] */
+static unsigned int hdcp_22_duk_3 = 0xffeeddcc;/* duk[127:96] */
+
+static unsigned int hdcp_22_nonce_sw_0 = 0x76543210;
+static unsigned int hdcp_22_nonce_sw_1 = 0xfedcba98;
+static unsigned int hdcp_22_nonce_sw_2 = 0x89abcdef;
+static unsigned int hdcp_22_nonce_sw_3 = 0x01234567;
+#endif
 
 static bool fast_switching = true;
 MODULE_PARM_DESC(fast_switching, "\n fast_switching\n");
@@ -234,6 +258,116 @@ unsigned long hdmirx_rd_top(unsigned long addr)
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 	return data;
 } /* hdmirx_rd_TOP */
+
+#ifdef HDCP22_ENABLE
+void rx_hdcp22_wr_only(uint32_t addr, uint32_t data)
+{
+	ulong flags;
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	wr_reg(HRX_ELP_ESM_HPI_REG_BASE | addr, data);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
+}
+
+uint32_t rx_hdcp22_rd(uint32_t addr)
+{
+	uint32_t data;
+	ulong flags;
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	data = rd_reg(HRX_ELP_ESM_HPI_REG_BASE | addr);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
+	return data;
+}
+
+void rx_hdcp22_rd_check(uint32_t addr, uint32_t exp_data, uint32_t mask)
+{
+	uint32_t rd_data;
+	rd_data = rx_hdcp22_rd(addr);
+	if ((rd_data | mask) != (exp_data | mask))
+		rx_print("addr=0x%02x rd_data=0x%08x\n", addr, rd_data);
+}
+
+void rx_hdcp22_wr(uint32_t addr, uint32_t data)
+{
+	rx_hdcp22_wr_only(addr, data);
+	rx_hdcp22_rd_check(addr, data, 0);
+}
+
+void rx_hdcp22_wr_reg(uint32_t addr, uint32_t data)
+{
+	rx_sec_reg_write((unsigned *)(unsigned long)
+		(HRX_ELP_ESM_HPI_REG_BASE + addr), data);
+}
+
+uint32_t rx_hdcp22_rd_reg(uint32_t addr)
+{
+	return (uint32_t)rx_sec_reg_read((unsigned *)(unsigned long)
+		(HRX_ELP_ESM_HPI_REG_BASE + addr));
+}
+
+void hdcp22_wr_top(uint32_t addr, uint32_t data)
+{
+	sec_top_write((unsigned *)(unsigned long)addr, data);
+}
+
+uint32_t hdcp22_rd_top(uint32_t addr)
+{
+	return (uint32_t)sec_top_read((unsigned *)(unsigned long)addr);
+}
+
+void sec_top_write(unsigned *addr, unsigned value)
+{
+	register long x0 asm("x0") = 0x8200001e;
+	register long x1 asm("x1") = (unsigned long)addr;
+	register long x2 asm("x2") = value;
+	asm volatile(
+		__asmeq("%0", "x0")
+		__asmeq("%1", "x1")
+		__asmeq("%2", "x2")
+		"smc #0\n"
+		: : "r"(x0), "r"(x1), "r"(x2)
+	);
+}
+
+unsigned sec_top_read(unsigned *addr)
+{
+	register long x0 asm("x0") = 0x8200001d;
+	register long x1 asm("x1") = (unsigned long)addr;
+	asm volatile(
+		__asmeq("%0", "x0")
+		__asmeq("%1", "x1")
+		"smc #0\n"
+		: "+r"(x0) : "r"(x1)
+	);
+	return (unsigned)(x0&0xffffffff);
+}
+
+void rx_sec_reg_write(unsigned *addr, unsigned value)
+{
+	register long x0 asm("x0") = 0x8200002f;
+	register long x1 asm("x1") = (unsigned long)addr;
+	register long x2 asm("x2") = value;
+	asm volatile(
+		__asmeq("%0", "x0")
+		__asmeq("%1", "x1")
+		__asmeq("%2", "x2")
+		"smc #0\n"
+		: : "r"(x0), "r"(x1), "r"(x2)
+	);
+}
+
+unsigned rx_sec_reg_read(unsigned *addr)
+{
+	register long x0 asm("x0") = 0x8200001f;
+	register long x1 asm("x1") = (unsigned long)addr;
+	asm volatile(
+		__asmeq("%0", "x0")
+		__asmeq("%1", "x1")
+		"smc #0\n"
+		: "+r"(x0) : "r"(x1)
+	);
+	return (unsigned)(x0&0xffffffff);
+}
+#endif
 
 void hdmirx_phy_reset(bool enable)
 {
@@ -758,11 +892,42 @@ void clk_init(void)
 	data32 |= 1	<< 8;
 	data32 |= 2	<< 0;
 	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32);
+#ifdef HDCP22_ENABLE
+	if (hdcp_22_on) {
+		/* Enable clk81_hdcp22_pclk */
+		wr_reg(HHI_GCLK_MPEG2, (rd_reg(HHI_GCLK_MPEG2)|1<<3));
 
+		/* Enable hdcp22_esmclk */
+		/* .clk0               ( fclk_div7  ), */
+		/* .clk1               ( fclk_div4  ), */
+		/* .clk2               ( fclk_div3  ), */
+		/* .clk3               ( fclk_div5  ), */
+		wr_reg(HHI_HDCP22_CLK_CNTL,
+		(rd_reg(HHI_HDCP22_CLK_CNTL) & 0xffff0000) |
+		 /* [10: 9] clk_sel. select fclk_div7=2000/7=285.71 MHz */
+		((0 << 9)   |
+		 /* [    8] clk_en. Enable gated clock */
+		 (1 << 8)   |
+		 /* [ 6: 0] clk_div. Divide by 1. = 285.71/1 = 285.71 MHz */
+		 (0 << 0)));
+
+		wr_reg(HHI_HDCP22_CLK_CNTL,
+		(rd_reg(HHI_HDCP22_CLK_CNTL) & 0x0000ffff) |
+		/* [26:25] clk_sel. select cts_oscin_clk=24 MHz */
+		((0 << 25)  |
+		 (1 << 24)  |   /* [   24] clk_en. Enable gated clock */
+		 (0 << 16)));
+	}
+#endif
 	data32 = 0;
 	data32 |= 0 << 31;  /* [31]     disable clkgating */
 	data32 |= 1 << 17;  /* [17]     audfifo_rd_en */
 	data32 |= 1 << 16;  /* [16]     pktfifo_rd_en */
+#ifdef HDCP22_ENABLE
+	data32 |= (hdcp_22_on << 5);
+	data32 |= (hdcp_22_on << 4);
+	data32 |= (hdcp_22_on << 3);
+#endif
 	data32 |= 1 << 2;   /* [2]      hdmirx_cecclk_en */
 	data32 |= 0 << 1;   /* [1]      bus_clk_inv */
 	data32 |= 0 << 0;   /* [0]      hdmi_clk_inv */
@@ -803,8 +968,58 @@ void hdmirx_20_init(void)
 	data32 |= 24000	<< 0;  /* [15:0]   milisec_timer_limit */
 	hdmirx_wr_dwc(DWC_CHLOCK_CONFIG, data32);
 	/* hdcp2.2 ctl */
-	hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
+#ifdef HDCP22_ENABLE
+	if (hdcp_22_on) {
+		/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, */
+			/* (0x1002 | (hdcp_22_on<<2)));/* 2 */ */
+		/* hdmirx_wr_dwc(DWC_HDCP_SETTINGS, 0x13374); */
+		/* Configure pkf[127:0] */
+		hdcp22_wr_top(TOP_PKF_0,	hdcp_22_pkf_0);
+		hdcp22_wr_top(TOP_PKF_1,	hdcp_22_pkf_1);
+		hdcp22_wr_top(TOP_PKF_2,	hdcp_22_pkf_2);
+		hdcp22_wr_top(TOP_PKF_3,	hdcp_22_pkf_3);
+
+		/* Configure duk[127:0] */
+		hdcp22_wr_top(TOP_DUK_0,	hdcp_22_duk_0);
+		hdcp22_wr_top(TOP_DUK_1,	hdcp_22_duk_1);
+		hdcp22_wr_top(TOP_DUK_2,	hdcp_22_duk_2);
+		hdcp22_wr_top(TOP_DUK_3,	hdcp_22_duk_3);
+		/* Validate PKF and DUK */
+			data32	= 0;
+			/* duk_vld */
+			data32 |= (1					<< 2);
+			/* pkf_vld */
+			data32 |= (1					<< 1);
+			/* nonce_hw_en */
+			data32 |= (hdcp_22_nonce_hw_en	<< 0);
+			hdcp22_wr_top(TOP_SKP_CNTL_STAT, data32);
+
+			if (!hdcp_22_nonce_hw_en) {
+				/* Configure nonce[127:0],MSB must be written */
+				/* the last to assert nonce_vld signal. */
+				hdcp22_wr_top(TOP_NONCE_0, hdcp_22_nonce_sw_0);
+				hdcp22_wr_top(TOP_NONCE_1, hdcp_22_nonce_sw_1);
+				hdcp22_wr_top(TOP_NONCE_2, hdcp_22_nonce_sw_2);
+				hdcp22_wr_top(TOP_NONCE_3, hdcp_22_nonce_sw_3);
+			}
+
+			/* Wait until nonce is valid */
+			/* hdmirx_poll_reg(0, TOP_SKP_CNTL_STAT, */
+			/*	(1<<31), ~(1<<31)); */
+		} else
+#endif
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
 }
+
+#ifdef HDCP22_ENABLE
+void hdmirx_hdcp22_esm_rst(void)
+{
+	hdmirx_wr_top(TOP_SW_RESET, 0x100);
+	mdelay(1);
+	hdmirx_wr_top(TOP_SW_RESET, 0x0);
+	rx_print("esm rst\n");
+}
+#endif
 
 void hdmirx_hw_config(void)
 {
