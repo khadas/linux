@@ -22,6 +22,7 @@
 #include <linux/pinctrl/consumer.h>
 
 #define BLPR(fmt, args...)      pr_info("bl: "fmt"", ## args)
+#define BLERR(fmt, args...)      pr_info("bl error: "fmt"", ## args)
 #define AML_BL_NAME		"aml-bl"
 
 #define BL_LEVEL_MAX		255
@@ -29,11 +30,14 @@
 #define BL_LEVEL_OFF		1
 
 #define BL_LEVEL_MID		128
-#define BL_LEVEL_MID_MAPPED	102
+#define BL_LEVEL_MID_MAPPED	BL_LEVEL_MID
 #define BL_LEVEL_DEFAULT	BL_LEVEL_MID
 
-#define BL_FIN_FREQ             24000000 /* unit: Hz */
-#define BL_PWM_FREQ_DEFAULT     100 /* unit: Hz */
+#define XTAL_FREQ_HZ		(24*1000*1000) /* unit: Hz */
+#define XTAL_HALF_FREQ_HZ	(24*1000*500)  /* 24M/2 in HZ */
+
+#define BL_FREQ_DEFAULT		1000 /* unit: HZ */
+#define BL_FREQ_VS_DEFAULT	2    /* multiple 2 of vfreq */
 
 enum bl_chip_type_e {
 	BL_CHIP_M6 = 0,
@@ -46,16 +50,11 @@ enum bl_chip_type_e {
 	BL_CHIP_MAX,
 };
 
-enum bl_mode_type_e {
-	BL_MODE_TV = 0,
-	BL_MODE_TABLET,
-	BL_MODE_MAX,
-};
-
 /* for lcd backlight power */
 enum bl_ctrl_method_e {
 	BL_CTRL_GPIO = 0,
 	BL_CTRL_PWM,
+	BL_CTRL_PWM_COMBO,
 	BL_CTRL_LOCAL_DIMING,
 	BL_CTRL_EXTERN,
 	BL_CTRL_MAX,
@@ -78,40 +77,50 @@ enum bl_pwm_port_e {
 	BL_PWM_MAX,
 };
 
+#define BL_GPIO_OUTPUT_LOW      0
+#define BL_GPIO_OUTPUT_HIGH     1
+#define BL_GPIO_INPUT           2
+
+#define BL_GPIO_MAX             0xff
+#define BL_GPIO_NUM_MAX         5
+struct bl_gpio_s {
+	char name[15];
+	struct gpio_desc *gpio;
+	int flag;
+};
+
 struct bl_config_s {
 	char name[20];
-
 	unsigned int level_default;
-	unsigned int level_mid;
-	unsigned int level_mid_mapping;
 	unsigned int level_min;
 	unsigned int level_max;
+	unsigned int level_mid;
+	unsigned int level_mid_mapping;
 
-	unsigned char method;
-
+	enum bl_ctrl_method_e method;
 	unsigned int power_on_delay;
 	unsigned int power_off_delay;
-	unsigned char gpio_used;
+	unsigned int gpio;
 	unsigned int gpio_on;
 	unsigned int gpio_off;
 	unsigned int dim_max;
 	unsigned int dim_min;
 
-	unsigned char pwm_method;
-	unsigned char pwm_port;
-	unsigned int pwm_freq;
-	unsigned int pwm_duty_max;
-	unsigned int pwm_duty_min;
+	enum bl_pwm_method_e pwm_method;
+	enum bl_pwm_port_e pwm_port;
+	unsigned int pwm_freq; /* pwm_vs: 1~4(vfreq), pwm: freq(unit: Hz) */
+	unsigned int pwm_duty_max; /* unit: % */
+	unsigned int pwm_duty_min; /* unit: % */
 	unsigned int pwm_cnt; /* internal used for pwm control */
 	unsigned int pwm_pre_div; /* internal used for pwm control */
 	unsigned int pwm_max; /* internal used for pwm control */
 	unsigned int pwm_min; /* internal used for pwm control */
+	unsigned int pwm_gpio;
 	unsigned int pwm_gpio_off;
 	unsigned int pwm_on_delay;
 	unsigned int pwm_off_delay;
 
-	struct gpio_desc *gpio;
-	struct gpio_desc *pwm_gpio;
+	struct bl_gpio_s bl_gpio[BL_GPIO_NUM_MAX];
 	struct pinctrl *pin;
 };
 
@@ -124,7 +133,6 @@ struct bl_config_s {
 #define BL_STATE_BL_ON      (1 << 0)
 struct aml_bl_drv_s {
 	unsigned int index;
-	enum bl_mode_type_e mode;
 	unsigned int level;
 	unsigned int state;
 	struct device             *dev;

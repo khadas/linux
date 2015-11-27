@@ -41,6 +41,8 @@
 
 /* lcd frame rate change occurred */
 #define LCD_EVENT_FRAME_RATE_ADJUST (1 << 8)
+/* lcd config change occurred */
+#define LCD_EVENT_CONFIG_UPDATE     (1 << 9)
 
 extern int aml_lcd_notifier_register(struct notifier_block *nb);
 extern int aml_lcd_notifier_unregister(struct notifier_block *nb);

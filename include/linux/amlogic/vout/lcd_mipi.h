@@ -22,6 +22,12 @@
 /* **********************************
  * mipi-dsi read/write api
  * ********************************** */
+
+/* mipi command(payload) */
+/* format:  data_type, num, data.... */
+/* special: data_type=0xff,
+	    num<0xff means delay ms, num=0xff means ending. */
+
 /* *************************************************************
  * Function: dsi_write_cmd
  * Supported Data Type: DT_GEN_SHORT_WR_0, DT_GEN_SHORT_WR_1, DT_GEN_SHORT_WR_2,

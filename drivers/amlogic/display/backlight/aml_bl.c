@@ -49,6 +49,25 @@ static struct aml_bl_drv_s *bl_drv;
 static DEFINE_MUTEX(bl_power_mutex);
 static DEFINE_MUTEX(bl_level_mutex);
 
+static struct bl_config_s bl_config = {
+	.level_default = 128,
+	.level_mid = 128,
+	.level_mid_mapping = 128,
+	.level_min = 10,
+	.level_max = 255,
+	.power_on_delay = 100,
+	.power_off_delay = 10,
+	.method = BL_CTRL_MAX,
+
+	.bl_gpio = {
+		{.flag = 0,},
+		{.flag = 0,},
+		{.flag = 0,},
+		{.flag = 0,},
+		{.flag = 0,},
+	},
+};
+
 const char *bl_chip_table[] = {
 	"M6",
 	"M8",
@@ -60,24 +79,48 @@ const char *bl_chip_table[] = {
 	"invalid",
 };
 
-const char *bl_ctrl_method_table[] = {
-	"gpio",
-	"pwm",
-	"local_diming",
-	"extern",
-	"null"
+struct bl_method_match_s {
+	char *name;
+	enum bl_ctrl_method_e type;
 };
-static struct bl_config_s bl_config = {
-	.level_default = 128,
-	.level_mid = 128,
-	.level_mid_mapping = 128,
-	.level_min = 10,
-	.level_max = 255,
-	.power_on_delay = 100,
-	.power_off_delay = 10,
-	.method = BL_CTRL_MAX,
+
+static struct bl_method_match_s bl_method_match_table[] = {
+	{"gpio",         BL_CTRL_GPIO},
+	{"pwm",          BL_CTRL_PWM},
+	{"pwm_combo",    BL_CTRL_PWM_COMBO},
+	{"local_diming", BL_CTRL_LOCAL_DIMING},
+	{"extern",       BL_CTRL_EXTERN},
+	{"invalid",      BL_CTRL_MAX},
 };
 #if 0
+static int bl_method_str_to_type(const char *str)
+{
+	int i;
+	int type = BL_CTRL_MAX;
+
+	for (i = 0; i < BL_CTRL_MAX; i++) {
+		if (!strcmp(str, bl_method_match_table[i].name)) {
+			type = bl_method_match_table[i].type;
+			break;
+		}
+	}
+	return type;
+}
+#endif
+static char *bl_method_type_to_str(int type)
+{
+	int i;
+	char *str = bl_method_match_table[BL_CTRL_MAX].name;
+
+	for (i = 0; i < BL_CTRL_MAX; i++) {
+		if (type == bl_method_match_table[i].type) {
+			str = bl_method_match_table[i].name;
+			break;
+		}
+	}
+	return str;
+}
+
 static unsigned int pwm_misc[6][5] = {
 	/* pwm_reg,         div bit, clk_sel bit, clk_en bit, pwm_en bit*/
 	{PWM_MISC_REG_AB,   8,       4,           15,         0,},
@@ -87,7 +130,7 @@ static unsigned int pwm_misc[6][5] = {
 	{PWM_MISC_REG_EF,   8,       4,           15,         0,},
 	{PWM_MISC_REG_EF,   16,      6,           23,         1,},
 };
-#endif
+
 static unsigned int pwm_reg[6] = {
 	PWM_PWM_A,
 	PWM_PWM_B,
@@ -134,7 +177,7 @@ static enum bl_chip_type_e aml_bl_check_chip(void)
 static int aml_bl_check_driver(void)
 {
 	if (bl_drv == NULL) {
-		BLPR("no bl driver\n");
+		BLERR("no bl driver\n");
 		return -1;
 	}
 
@@ -144,45 +187,201 @@ static int aml_bl_check_driver(void)
 struct aml_bl_drv_s *aml_bl_get_driver(void)
 {
 	if (bl_drv == NULL)
-		BLPR("no bl driver");
+		BLERR("no bl driver");
 
 	return bl_drv;
 }
 
-static void bl_power_ctrl_gpio(struct gpio_desc *gpio, unsigned int value)
+/* **********************************
+ * bl gpio & pinmux
+ * ********************************** */
+static void bl_gpio_release(int index)
 {
+	struct bl_gpio_s *bl_gpio;
+
+	if (index >= BL_GPIO_NUM_MAX) {
+		BLERR("gpio index %d, exit\n", index);
+		return;
+	}
+	bl_gpio = &bl_drv->bconf->bl_gpio[index];
+	if (bl_gpio->flag == 0) {
+		if (bl_debug_print_flag) {
+			BLPR("gpio %s[%d] is already registered\n",
+				bl_gpio->name, index);
+		}
+		return;
+	}
+	if (IS_ERR(bl_gpio->gpio)) {
+		BLERR("gpio %s[%d]: %p, err: %ld\n",
+			bl_gpio->name, index, bl_gpio->gpio,
+			PTR_ERR(bl_gpio->gpio));
+		return;
+	}
+
+	/* release gpio */
+	devm_gpiod_put(bl_drv->dev, bl_gpio->gpio);
+	bl_gpio->flag = 0;
+}
+
+static void bl_gpio_register(int index)
+{
+	struct bl_gpio_s *bl_gpio;
+	const char *str;
+	int ret;
+
+	if (index >= BL_GPIO_NUM_MAX) {
+		BLERR("gpio index %d, exit\n", index);
+		return;
+	}
+	bl_gpio = &bl_drv->bconf->bl_gpio[index];
+	if (bl_gpio->flag) {
+		if (bl_debug_print_flag) {
+			BLPR("gpio %s[%d] is already registered\n",
+				bl_gpio->name, index);
+		}
+		return;
+	}
+
+	/* get gpio name */
+	ret = of_property_read_string_index(bl_drv->dev->of_node,
+		"bl_gpio_names", index, &str);
+	if (ret) {
+		BLERR("failed to get bl_gpio_names: %d\n", index);
+		str = "unknown";
+	}
+	strcpy(bl_gpio->name, str);
+
+	/* request gpio */
+	bl_gpio->gpio = devm_gpiod_get_index(bl_drv->dev, "bl", index);
+	if (IS_ERR(bl_gpio->gpio)) {
+		BLERR("register gpio %s[%d]: %p, err: %ld\n",
+			bl_gpio->name, index, bl_gpio->gpio,
+			IS_ERR(bl_gpio->gpio));
+	} else {
+		bl_gpio->flag = 1;
+		if (bl_debug_print_flag) {
+			BLPR("register gpio %s[%d]: %p\n",
+				bl_gpio->name, index, bl_gpio->gpio);
+		}
+	}
+}
+
+static void bl_gpio_set(int index, int value)
+{
+	struct bl_gpio_s *bl_gpio;
+
+	if (index >= BL_GPIO_NUM_MAX) {
+		BLERR("gpio index %d, exit\n", index);
+		return;
+	}
+	bl_gpio = &bl_drv->bconf->bl_gpio[index];
+	if (bl_gpio->flag == 0) {
+		BLERR("gpio [%d] is not registered\n", index);
+		return;
+	}
+	if (IS_ERR(bl_gpio->gpio)) {
+		BLERR("gpio %s[%d]: %p, err: %ld\n",
+			bl_gpio->name, index, bl_gpio->gpio,
+			PTR_ERR(bl_gpio->gpio));
+		return;
+	}
+
 	switch (value) {
 	case BL_GPIO_OUTPUT_LOW:
 	case BL_GPIO_OUTPUT_HIGH:
-		bl_gpio_output(gpio, value);
+		gpiod_direction_output(bl_gpio->gpio, value);
 		break;
 	case BL_GPIO_INPUT:
-		bl_gpio_input(gpio);
-		break;
 	default:
+		gpiod_direction_input(bl_gpio->gpio);
 		break;
 	}
+	if (bl_debug_print_flag) {
+		BLPR("set gpio %s[%d] value: %d\n",
+			bl_gpio->name, index, value);
+	}
 }
-#if 0
-static void bl_power_on_pwm(unsigned int port, unsigned int pre_div)
+
+static void bl_gpio_multiplex_register(int index)
 {
-	switch (port) {
-	case BL_PWM_A:
-	case BL_PWM_B:
-	case BL_PWM_C:
-	case BL_PWM_D:
-		/* pwm clk_div */
-		bl_cbus_setb(pwm_misc[port][0], pre_div, pwm_misc[port][1], 7);
-		/* pwm clk_sel */
-		bl_cbus_setb(pwm_misc[port][0], 0, pwm_misc[port][2], 2);
-		/* pwm clk_en */
-		bl_cbus_setb(pwm_misc[port][0], 1, pwm_misc[port][3], 1);
-		/* pwm enable */
-		bl_cbus_setb(pwm_misc[port][0], 1, pwm_misc[port][4], 1);
+	struct bl_gpio_s *bl_gpio;
+	const char *str;
+	int ret;
+
+	if (index >= BL_GPIO_NUM_MAX) {
+		BLERR("gpio index %d, exit\n", index);
+		return;
+	}
+	bl_gpio = &bl_drv->bconf->bl_gpio[index];
+
+	/* get gpio name */
+	ret = of_property_read_string_index(bl_drv->dev->of_node,
+		"bl_gpio_names", index, &str);
+	if (ret) {
+		BLERR("failed to get bl_gpio_names: %d\n", index);
+		str = "unknown";
+	}
+	strcpy(bl_gpio->name, str);
+}
+
+static void bl_gpio_multiplex_set(int index, int value)
+{
+	struct bl_gpio_s *bl_gpio;
+
+	if (index >= BL_GPIO_NUM_MAX) {
+		BLERR("gpio index %d, exit\n", index);
+		return;
+	}
+	bl_gpio = &bl_drv->bconf->bl_gpio[index];
+
+	if (bl_gpio->flag == 0) {
+		/* request gpio */
+		bl_gpio->gpio = devm_gpiod_get_index(bl_drv->dev, "bl", index);
+		if (IS_ERR(bl_gpio->gpio)) {
+			BLERR("register gpio %s[%d]: %p, err: %ld\n",
+				bl_gpio->name, index, bl_gpio->gpio,
+				IS_ERR(bl_gpio->gpio));
+			return;
+		} else {
+			bl_gpio->flag = 1;
+			if (bl_debug_print_flag) {
+				BLPR("register gpio %s[%d]: %p\n",
+					bl_gpio->name, index, bl_gpio->gpio);
+			}
+		}
+	}
+
+	switch (value) {
+	case BL_GPIO_OUTPUT_LOW:
+	case BL_GPIO_OUTPUT_HIGH:
+		gpiod_direction_output(bl_gpio->gpio, value);
 		break;
-	case BL_PWM_E:
-	case BL_PWM_F:
-		if (bl_chip_type >= BL_CHIP_M8) {
+	case BL_GPIO_INPUT:
+	default:
+		gpiod_direction_input(bl_gpio->gpio);
+		break;
+	}
+	if (bl_debug_print_flag) {
+		BLPR("set gpio %s[%d] value: %d\n",
+			bl_gpio->name, index, value);
+	}
+}
+/* ****************************************************** */
+
+static void bl_pwm_power_ctrl(int status)
+{
+	struct bl_config_s *bconf = bl_drv->bconf;
+	int port, pre_div;
+
+	port = bconf->pwm_port;
+	pre_div = bconf->pwm_pre_div;
+	if (status) {
+		/* enable pwm */
+		switch (port) {
+		case BL_PWM_A:
+		case BL_PWM_B:
+		case BL_PWM_C:
+		case BL_PWM_D:
 			/* pwm clk_div */
 			bl_cbus_setb(pwm_misc[port][0], pre_div,
 				pwm_misc[port][1], 7);
@@ -195,38 +394,76 @@ static void bl_power_on_pwm(unsigned int port, unsigned int pre_div)
 			/* pwm enable */
 			bl_cbus_setb(pwm_misc[port][0], 1,
 				pwm_misc[port][4], 1);
+			break;
+		case BL_PWM_E:
+		case BL_PWM_F:
+			if (bl_chip_type >= BL_CHIP_M8) {
+				/* pwm clk_div */
+				bl_cbus_setb(pwm_misc[port][0],
+					pre_div,
+					pwm_misc[port][1], 7);
+				/* pwm clk_sel */
+				bl_cbus_setb(pwm_misc[port][0], 0,
+					pwm_misc[port][2], 2);
+				/* pwm clk_en */
+				bl_cbus_setb(pwm_misc[port][0], 1,
+					pwm_misc[port][3], 1);
+				/* pwm enable */
+				bl_cbus_setb(pwm_misc[port][0], 1,
+					pwm_misc[port][4], 1);
+			}
+			break;
+		default:
+			break;
 		}
-		break;
-	default:
-		break;
+		/* release gpio */
+		if (bconf->pwm_gpio < BL_GPIO_NUM_MAX)
+			bl_gpio_release(bconf->pwm_gpio);
+		/* request pwm pinmux */
+		if (bconf->pwm_port == BL_PWM_VS) {
+			bconf->pin = devm_pinctrl_get_select(bl_drv->dev,
+				"pwm_vs");
+		} else {
+			bconf->pin = devm_pinctrl_get_select(bl_drv->dev,
+				"pwm");
+		}
+		if (IS_ERR(bconf->pin))
+			BLERR("set backlight pinmux error\n");
+	} else {
+		/* disable pwm */
+		switch (port) {
+		case BL_PWM_A:
+		case BL_PWM_B:
+		case BL_PWM_C:
+		case BL_PWM_D:
+			bl_cbus_setb(pwm_misc[port][0], 0,
+				pwm_misc[port][4], 1);
+			break;
+		case BL_PWM_E:
+		case BL_PWM_F:
+			if (bl_chip_type >= BL_CHIP_M8) {
+				bl_cbus_setb(pwm_misc[port][0], 0,
+					pwm_misc[port][4], 1);
+			}
+			break;
+		default:
+			break;
+		}
+		/* release pwm pinmux */
+		devm_pinctrl_put(bconf->pin);
+		/* set gpio */
+		if (bconf->pwm_gpio < BL_GPIO_NUM_MAX) {
+			bl_gpio_multiplex_set(bconf->pwm_gpio,
+				bconf->pwm_gpio_off);
+		}
 	}
 }
 
-static void bl_power_off_pwm(unsigned char port)
-{
-	switch (port) {
-	case BL_PWM_A:
-	case BL_PWM_B:
-	case BL_PWM_C:
-	case BL_PWM_D:
-		/* pwm disable */
-		bl_cbus_setb(pwm_misc[port][0], 0, pwm_misc[port][4], 1);
-		break;
-	case BL_PWM_E:
-	case BL_PWM_F:
-		if (bl_chip_type >= BL_CHIP_M8) {
-			bl_cbus_setb(pwm_misc[port][0], 0,
-				pwm_misc[port][4], 1);
-		}
-		break;
-	default:
-		break;
-	}
-}
-#endif
 static void bl_power_on(void)
 {
-	struct bl_config_s *bconf;
+	int gpio, value;
+	int power_delay, pwm_delay, bl_delay;
+	struct bl_config_s *bconf = bl_drv->bconf;
 #ifdef CONFIG_AML_BL_EXTERN
 	struct aml_bl_extern_driver_s *bl_ext;
 	int ret;
@@ -237,69 +474,66 @@ static void bl_power_on(void)
 
 	mutex_lock(&bl_power_mutex);
 
-	bconf = bl_drv->bconf;
 	if ((bl_drv->level == 0) ||
 		(bl_drv->state & BL_STATE_BL_ON)) {
 		goto exit_power_on_bl;
 	}
 
+	gpio = bconf->gpio;
+	value = bconf->gpio_on;
 	switch (bconf->method) {
 	case BL_CTRL_GPIO:
-		if (!IS_ERR(bconf->gpio))
-			bl_power_ctrl_gpio(bconf->gpio, bconf->gpio_on);
+		mdelay(bconf->power_on_delay);
+		if (gpio < BL_GPIO_NUM_MAX)
+			bl_gpio_set(gpio, value);
 		break;
 	case BL_CTRL_PWM:
-#if 0
-		bl_power_on_pwm(bconf->pwm_port, bconf->pwm_pre_div);
-
-		if (bconf->pwm_gpio)
-			devm_gpiod_put(bl_drv->dev, bconf->pwm_gpio);
-		if (bconf->pwm_port == BL_PWM_VS) {
-			bconf->pin = devm_pinctrl_get_select(bl_drv->dev,
-				"pwm_vs");
+		power_delay = bconf->power_on_delay;
+		pwm_delay = bconf->pwm_on_delay;
+		if (power_delay >= pwm_delay) {
+			bl_delay = power_delay - pwm_delay;
+			mdelay(pwm_delay);
+			bl_pwm_power_ctrl(1);
+			if (gpio < BL_GPIO_NUM_MAX) {
+				mdelay(bl_delay);
+				bl_gpio_set(gpio, value);
+			}
 		} else {
-			bconf->pin = devm_pinctrl_get_select(bl_drv->dev,
-				"default");
+			bl_delay = pwm_delay - power_delay;
+			mdelay(power_delay);
+			if (gpio < BL_GPIO_NUM_MAX)
+				bl_gpio_set(gpio, value);
+			mdelay(bl_delay);
+			bl_pwm_power_ctrl(1);
 		}
-		if (IS_ERR(bconf->pin))
-			BLPR("set backlight pinmux error\n");
-		if (bconf->pwm_on_delay > 0)
-			mdelay(bconf->pwm_on_delay);
-		if (bconf->gpio_used) {
-			if (!IS_ERR(bconf->gpio))
-				bl_power_ctrl_gpio(bconf->gpio, bconf->gpio_on);
-		}
-#endif
 		break;
 #ifdef CONFIG_AML_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMING:
 		aml_bl_on_local_diming();
-		if (bconf->gpio_used) {
-			if (!IS_ERR(bconf->gpio))
-				bl_power_ctrl_gpio(bconf->gpio, bconf->gpio_on);
-		}
+		if (gpio < BL_GPIO_NUM_MAX)
+			bl_gpio_set(gpio, value);
 		break;
 #endif
 #ifdef CONFIG_AML_BL_EXTERN
 	case BL_CTRL_EXTERN:
 		bl_ext = aml_bl_extern_get_driver();
 		if (bl_ext == NULL) {
-			BLPR("no bl_extern driver\n");
+			BLERR("no bl_extern driver\n");
 		} else {
 			if (bl_ext->power_on) {
 				ret = bl_ext->power_on();
 				if (ret) {
-					BLPR("bl_extern: power on error\n");
+					BLERR("bl_extern: power on error\n");
 					goto exit_power_on_bl;
 				}
 			} else {
-				BLPR("bl_extern: power on is null\n");
+				BLERR("bl_extern: power on is null\n");
 			}
 		}
 		break;
 #endif
 	default:
-		BLPR("wrong backlight control method\n");
+		BLERR("wrong backlight control method\n");
 		goto exit_power_on_bl;
 		break;
 	}
@@ -312,7 +546,9 @@ exit_power_on_bl:
 
 static void bl_power_off(void)
 {
-	struct bl_config_s *bconf;
+	int gpio, value;
+	int power_delay, pwm_delay, bl_delay;
+	struct bl_config_s *bconf = bl_drv->bconf;
 #ifdef CONFIG_AML_BL_EXTERN
 	struct aml_bl_extern_driver_s *bl_ext;
 	int ret;
@@ -322,49 +558,43 @@ static void bl_power_off(void)
 		return;
 	mutex_lock(&bl_power_mutex);
 
-	bconf = bl_drv->bconf;
 	if ((bl_drv->state & BL_STATE_BL_ON) == 0) {
 		mutex_unlock(&bl_power_mutex);
 		return;
 	}
 
-	if (bconf->power_off_delay > 0)
-		mdelay(bconf->power_off_delay);
+	gpio = bconf->gpio;
+	value = bconf->gpio_off;
 	switch (bconf->method) {
 	case BL_CTRL_GPIO:
-		if (!IS_ERR(bconf->gpio))
-			bl_gpio_output(bconf->gpio, bconf->gpio_off);
+		if (gpio < BL_GPIO_NUM_MAX)
+			bl_gpio_set(gpio, value);
+		mdelay(bconf->power_off_delay);
 		break;
 	case BL_CTRL_PWM:
-#if 0
-		BLPR("test gpio: %p\n", bconf->gpio);
-		if (bconf->gpio_used) {
-			if (!IS_ERR(bconf->gpio)) {
-				bl_power_ctrl_gpio(bconf->gpio,
-					bconf->gpio_off);
+		power_delay = bconf->power_off_delay;
+		pwm_delay = bconf->pwm_off_delay;
+		if (power_delay >= pwm_delay) {
+			bl_delay = power_delay - pwm_delay;
+			if (gpio < BL_GPIO_NUM_MAX) {
+				bl_gpio_set(gpio, value);
+				mdelay(bl_delay);
 			}
+			bl_pwm_power_ctrl(0);
+			mdelay(pwm_delay);
+		} else {
+			bl_delay = pwm_delay - power_delay;
+			bl_pwm_power_ctrl(0);
+			mdelay(bl_delay);
+			if (gpio < BL_GPIO_NUM_MAX)
+				bl_gpio_set(gpio, value);
+			mdelay(power_delay);
 		}
-		if (bconf->pwm_off_delay > 0)
-			mdelay(bconf->pwm_off_delay);
-		bl_power_off_pwm(bconf->pwm_port);
-		if (!IS_ERR(bconf->pin))
-			devm_pinctrl_put(bconf->pin);
-		bconf->pwm_gpio = devm_gpiod_get(bl_drv->dev, "bl_pwm");
-		BLPR("test pwm_gpio: %p\n", bconf->pwm_gpio);
-		if (!IS_ERR(bconf->pwm_gpio)) {
-			bl_power_ctrl_gpio(bconf->pwm_gpio,
-				bconf->pwm_gpio_off);
-		}
-#endif
 		break;
 #ifdef CONFIG_AML_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMING:
-		if (bconf->gpio_used) {
-			if (!IS_ERR(bconf->gpio)) {
-				bl_power_ctrl_gpio(bconf->gpio,
-					bconf->gpio_off);
-			}
-		}
+		if (gpio < BL_GPIO_NUM_MAX)
+			bl_gpio_set(gpio, value);
 		aml_bl_off_local_diming();
 		break;
 #endif
@@ -372,20 +602,20 @@ static void bl_power_off(void)
 	case BL_CTRL_EXTERN:
 		bl_ext = aml_bl_extern_get_driver();
 		if (bl_ext == NULL) {
-			BLPR("no bl_extern driver\n");
+			BLERR("no bl_extern driver\n");
 		} else {
 			if (bl_ext->power_off) {
 				ret = bl_ext->power_off();
 				if (ret)
-					BLPR("bl_extern: power off error\n");
+					BLERR("bl_extern: power off error\n");
 			} else {
-				BLPR("bl_extern: power off is null\n");
+				BLERR("bl_extern: power off is null\n");
 			}
 		}
 		break;
 #endif
 	default:
-		BLPR("wrong backlight control method\n");
+		BLERR("wrong backlight control method\n");
 		break;
 	}
 	bl_drv->state &= ~BL_STATE_BL_ON;
@@ -466,14 +696,14 @@ static void bl_set_level_extern(unsigned int level)
 
 	bl_ext = aml_bl_extern_get_driver();
 	if (bl_ext == NULL) {
-		BLPR("no bl_extern driver\n");
+		BLERR("no bl_extern driver\n");
 	} else {
 		if (bl_ext->set_level) {
 			ret = bl_ext->set_level(level);
 			if (ret)
-				BLPR("bl_extern: set_level error\n");
+				BLERR("bl_extern: set_level error\n");
 		} else {
-			BLPR("bl_extern: set_level is null\n");
+			BLERR("bl_extern: set_level is null\n");
 		}
 	}
 }
@@ -571,22 +801,6 @@ static const struct backlight_ops aml_bl_ops = {
 };
 
 #ifdef CONFIG_OF
-#if 0
-static unsigned char bl_gpio_str_to_value(const char *str)
-{
-	unsigned char value;
-
-	if ((strcmp(str, "output_low") == 0) || (strcmp(str, "0") == 0))
-		value = BL_GPIO_OUTPUT_LOW;
-	else if ((strcmp(str, "output_high") == 0) || (strcmp(str, "1") == 0))
-		value = BL_GPIO_OUTPUT_HIGH;
-	else if ((strcmp(str, "input") == 0) || (strcmp(str, "2") == 0))
-		value = BL_GPIO_INPUT;
-
-	return value;
-}
-#endif
-
 static enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str)
 {
 	enum bl_pwm_port_e pwm_port;
@@ -618,7 +832,7 @@ static enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str)
 	return pwm_port;
 }
 
-static void bl_pwm_parameters_init(struct bl_config_s *bconf)
+static void bl_pwm_config(struct bl_config_s *bconf)
 {
 	unsigned int freq, cnt, pre_div;
 	int i;
@@ -629,22 +843,28 @@ static void bl_pwm_parameters_init(struct bl_config_s *bconf)
 		cnt = bl_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
 		bconf->pwm_cnt = cnt;
 		bconf->pwm_pre_div = 0;
+		if (bl_debug_print_flag)
+			BLPR("pwm_cnt = %u\n", bconf->pwm_cnt);
 		break;
 	default:
-		freq = ((freq >= (BL_FIN_FREQ / 2)) ? (BL_FIN_FREQ / 2) : freq);
 		for (i = 0; i < 0x7f; i++) {
 			pre_div = i;
-			cnt = BL_FIN_FREQ / (freq * (pre_div + 1)) - 2;
+			cnt = XTAL_FREQ_HZ / (freq * (pre_div + 1)) - 2;
 			if (cnt <= 0xffff)
 				break;
 		}
-		bconf->pwm_freq = freq;
 		bconf->pwm_cnt = cnt;
 		bconf->pwm_pre_div = pre_div;
+		if (bl_debug_print_flag)
+			BLPR("pwm_cnt = %u, pwm_pre_div = %u\n", cnt, pre_div);
 		break;
 	}
 	bconf->pwm_max = (bconf->pwm_cnt * bconf->pwm_duty_max / 100);
 	bconf->pwm_min = (bconf->pwm_cnt * bconf->pwm_duty_min / 100);
+	if (bl_debug_print_flag) {
+		BLPR("pwm_max = %u, pwm_min = %u\n",
+			bconf->pwm_max, bconf->pwm_min);
+	}
 }
 
 static void aml_bl_config_print(struct bl_config_s *bconf)
@@ -656,28 +876,31 @@ static void aml_bl_config_print(struct bl_config_s *bconf)
 	BLPR("bl level max=%u, min=%u\n",
 		bconf->level_max, bconf->level_min);
 	BLPR("bl control_method: %s(%u)\n",
-		bl_ctrl_method_table[bconf->method], bconf->method);
+		bl_method_type_to_str(bconf->method), bconf->method);
 	BLPR("bl power on_delay: %ums, off_delay: %ums\n",
 		bconf->power_on_delay, bconf->power_off_delay);
 
-	BLPR("bl pwm_method: %d\n", bconf->pwm_method);
-	BLPR("bl pwm_port: %u\n", bconf->pwm_port);
-	switch (bconf->pwm_port) {
-	case BL_PWM_VS:
-		BLPR("bl pwm_freq: %u x vfreq\n", bconf->pwm_freq);
-		BLPR("pwm_cnt = %u\n", bconf->pwm_cnt);
+	switch (bconf->method) {
+	case BL_CTRL_PWM:
+		BLPR("bl pwm_method: %d\n", bconf->pwm_method);
+		BLPR("bl pwm_port: %u\n", bconf->pwm_port);
+		if (bconf->pwm_port == BL_PWM_VS) {
+			BLPR("bl pwm_freq: %u x vfreq\n", bconf->pwm_freq);
+			BLPR("pwm_cnt = %u\n", bconf->pwm_cnt);
+		} else {
+			BLPR("bl pwm_freq: %uHz\n", bconf->pwm_freq);
+			BLPR("bl pwm_cnt=%u, pre_div=%u\n",
+				bconf->pwm_cnt, bconf->pwm_pre_div);
+		}
+		BLPR("bl pwm_duty max: %u%%, min: %u%%\n",
+			bconf->pwm_duty_max, bconf->pwm_duty_min);
+		BLPR("bl pwm_gpio_off: %u\n", bconf->pwm_gpio_off);
+		BLPR("bl pwm on_delay: %ums, off_delay: %ums\n",
+			bconf->pwm_on_delay, bconf->pwm_off_delay);
 		break;
 	default:
-		BLPR("bl pwm_freq: %uHz\n", bconf->pwm_freq);
-		BLPR("bl pwm_cnt=%u, pre_div=%u\n",
-			bconf->pwm_cnt, bconf->pwm_pre_div);
 		break;
 	}
-	BLPR("bl pwm_duty max: %u%%, min: %u%%\n",
-		bconf->pwm_duty_max, bconf->pwm_duty_min);
-	BLPR("bl pwm_gpio_off: %u\n", bconf->pwm_gpio_off);
-	BLPR("bl pwm on_delay: %ums, off_delay: %ums\n",
-		bconf->pwm_on_delay, bconf->pwm_off_delay);
 }
 
 static int aml_bl_get_config(struct bl_config_s *bconf,
@@ -692,22 +915,9 @@ static int aml_bl_get_config(struct bl_config_s *bconf,
 	struct device_node *child;
 
 	if (pdev->dev.of_node == NULL) {
-		BLPR("no backlight of_node exist\n");
+		BLERR("no backlight of_node exist\n");
 		return -1;
 	}
-
-	ret = of_property_read_string(pdev->dev.of_node, "mode", &str);
-	if (ret) {
-		BLPR("failed to get mode\n");
-		str = "invalid";
-	}
-	if (strcmp(str, "tv") == 0)
-		bl_drv->mode = BL_MODE_TV;
-	else if (strcmp(str, "tablet") == 0)
-		bl_drv->mode = BL_MODE_TABLET;
-	else
-		bl_drv->mode = BL_MODE_MAX;
-	/* BLPR("mode: %d\n", bl_drv->mode); */
 
 	/* select backlight by index */
 	index = BL_INDEX_DEFAULT;
@@ -718,22 +928,22 @@ static int aml_bl_get_config(struct bl_config_s *bconf,
 	sprintf(bl_propname, "backlight_%d", index);
 	child = of_get_child_by_name(pdev->dev.of_node, bl_propname);
 	if (child == NULL) {
-		BLPR("error: failed to get %s\n", bl_propname);
+		BLERR("failed to get %s\n", bl_propname);
 		return -1;
 	}
 
 	ret = of_property_read_string(child, "bl_name", &str);
 	if (ret) {
-		BLPR("failed to get bl_name\n");
+		BLERR("failed to get bl_name\n");
 		str = "backlight";
 	}
 	strcpy(bconf->name, str);
-	BLPR("bl_name: %s\n", bconf->name);
+	BLPR("index: %d, name: %s\n", index, bconf->name);
 
 	ret = of_property_read_u32_array(child, "bl_level_default_uboot_kernel",
 		&bl_para[0], 2);
 	if (ret) {
-		BLPR("failed to get bl_level_default_uboot_kernel\n");
+		BLERR("failed to get bl_level_default_uboot_kernel\n");
 		bconf->level_default = BL_LEVEL_DEFAULT;
 	} else {
 		bconf->level_default = bl_para[1];
@@ -741,116 +951,160 @@ static int aml_bl_get_config(struct bl_config_s *bconf,
 	ret = of_property_read_u32_array(child, "bl_level_max_min",
 		&bl_para[0], 2);
 	if (ret) {
-		BLPR("failed to get bl_level_max_min\n");
+		BLERR("failed to get bl_level_max_min\n");
 		bconf->level_min = BL_LEVEL_MIN;
 		bconf->level_max = BL_LEVEL_MAX;
 	} else {
 		bconf->level_max = bl_para[0];
 		bconf->level_min = bl_para[1];
 	}
+	ret = of_property_read_u32_array(child, "bl_level_middle_mapping",
+		&bl_para[0], 2);
+	if (ret) {
+		BLERR("failed to get bl_level_middle_mapping\n");
+		bconf->level_mid = BL_LEVEL_MID;
+		bconf->level_mid_mapping = BL_LEVEL_MID_MAPPED;
+	} else {
+		bconf->level_mid = bl_para[0];
+		bconf->level_mid_mapping = bl_para[1];
+	}
 
 	ret = of_property_read_u32(child, "bl_ctrl_method", &val);
 	if (ret) {
-		BLPR("failed to get bl_ctrl_method\n");
+		BLERR("failed to get bl_ctrl_method\n");
 		bconf->method = BL_CTRL_MAX;
 	} else {
-		val = (val >= BL_CTRL_MAX) ? BL_CTRL_MAX : val;
-		bconf->method = (unsigned char)val;
-	}
-	ret = of_property_read_u32(child, "bl_en_gpio_used", &val);
-	if (ret) {
-		BLPR("failed to get bl_en_gpio_used\n");
-		bconf->gpio_used = 0;
-	} else {
-		bconf->gpio_used = (unsigned char)val;
+		bconf->method = (val >= BL_CTRL_MAX) ? BL_CTRL_MAX : val;
 	}
 	ret = of_property_read_u32_array(child, "bl_en_gpio_on_off",
-		&bl_para[0], 2);
+		&bl_para[0], 3);
 	if (ret) {
-		BLPR("failed to get bl_en_gpio_on_off\n");
+		BLERR("failed to get bl_en_gpio_on_off\n");
+		bconf->gpio = BL_GPIO_MAX;
 		bconf->gpio_on = BL_GPIO_OUTPUT_HIGH;
-		bconf->gpio_on = BL_GPIO_OUTPUT_LOW;
+		bconf->gpio_off = BL_GPIO_OUTPUT_LOW;
 	} else {
-		bconf->gpio_on = bl_para[0];
+		if (bl_para[0] >= BL_GPIO_NUM_MAX) {
+			bconf->gpio = BL_GPIO_MAX;
+		} else {
+			bconf->gpio = bl_para[0];
+			bl_gpio_register(bconf->gpio);
+		}
 		bconf->gpio_on = bl_para[1];
+		bconf->gpio_off = bl_para[2];
 	}
 	ret = of_property_read_u32_array(child, "bl_power_on_off_delay",
 		&bl_para[0], 2);
 	if (ret) {
-		BLPR("failed to get bl_power_on_off_delay\n");
+		BLERR("failed to get bl_power_on_off_delay\n");
 		bconf->power_on_delay = 100;
-		bconf->power_off_delay = 100;
+		bconf->power_off_delay = 30;
 	} else {
 		bconf->power_on_delay = bl_para[0];
-		bconf->power_on_delay = bl_para[1];
+		bconf->power_off_delay = bl_para[1];
 	}
 
-	ret = of_property_read_u32(child, "bl_pwm_method", &val);
-	if (ret) {
-		BLPR("failed to get bl_pwm_method\n");
-		bconf->pwm_method = BL_PWM_METHOD_MAX;
-	} else {
-		val = (val >= BL_PWM_METHOD_MAX) ? BL_PWM_METHOD_MAX : val;
-		bconf->pwm_method = (unsigned char)val;
-	}
-	ret = of_property_read_string_index(child, "bl_pwm_port", 0, &str);
-	if (ret) {
-		BLPR("failed to get bl_pwm_port\n");
-		bconf->pwm_port = BL_PWM_MAX;
-	} else {
-		bconf->pwm_port = bl_pwm_str_to_pwm(str);
-		BLPR("bl pwm_port: %s(%u)\n", str, bconf->pwm_port);
-	}
-	ret = of_property_read_u32(child, "bl_pwm_freq", &val);
-	if (ret) {
-		bconf->pwm_freq = BL_PWM_FREQ_DEFAULT;
-		BLPR("failed to get bl_pwm_freq, default set to %uHz\n",
-			bconf->pwm_freq);
-	} else {
-		bconf->pwm_freq = val;
-	}
-	ret = of_property_read_u32_array(child, "bl_pwm_duty_max_min",
-		&bl_para[0], 2);
-	if (ret) {
-		BLPR("failed to get bl_pwm_duty_max_min\n");
-		bconf->pwm_duty_max = 100;
-		bconf->pwm_duty_min = 20;
-	} else {
-		bconf->pwm_duty_max = bl_para[0];
-		bconf->pwm_duty_min = bl_para[1];
-	}
-	bl_pwm_parameters_init(bconf);
+	switch (bconf->method) {
+	case BL_CTRL_PWM:
+		ret = of_property_read_u32(child, "bl_pwm_method", &val);
+		if (ret) {
+			BLERR("failed to get bl_pwm_method\n");
+			bconf->pwm_method = BL_PWM_POSITIVE;
+		} else {
+			bconf->pwm_method = (val >= BL_PWM_METHOD_MAX) ?
+				BL_PWM_METHOD_MAX : val;
+		}
+		ret = of_property_read_string_index(child, "bl_pwm_port",
+			0, &str);
+		if (ret) {
+			BLERR("failed to get bl_pwm_port\n");
+			bconf->pwm_port = BL_PWM_MAX;
+		} else {
+			bconf->pwm_port = bl_pwm_str_to_pwm(str);
+			BLPR("bl pwm_port: %s(%u)\n", str, bconf->pwm_port);
+		}
+		ret = of_property_read_u32(child, "bl_pwm_freq", &val);
+		if (ret) {
+			if (bconf->pwm_port == BL_PWM_VS)
+				bconf->pwm_freq = BL_FREQ_VS_DEFAULT;
+			else
+				bconf->pwm_freq = BL_FREQ_DEFAULT;
+			BLERR("failed to get bl_pwm_freq\n");
+		} else {
+			bconf->pwm_freq = val;
+		}
+		if (bconf->pwm_port == BL_PWM_VS) {
+			if (bconf->pwm_freq > 4) {
+				BLERR("bl_pwm_vs wrong freq %d\n",
+					bconf->pwm_freq);
+				bconf->pwm_freq = BL_FREQ_VS_DEFAULT;
+			}
+			if (bl_debug_print_flag) {
+				BLPR("bl_pwm freq=%d x Vfreq\n",
+					bconf->pwm_freq);
+			}
+		} else {
+			if (bconf->pwm_freq > XTAL_HALF_FREQ_HZ)
+				bconf->pwm_freq = XTAL_HALF_FREQ_HZ;
+			if (bl_debug_print_flag)
+				BLPR("bl_pwm freq=%dHz\n", bconf->pwm_freq);
+		}
+		ret = of_property_read_u32_array(child, "bl_pwm_duty_max_min",
+			&bl_para[0], 2);
+		if (ret) {
+			BLERR("failed to get bl_pwm_duty_max_min\n");
+			bconf->pwm_duty_max = 80;
+			bconf->pwm_duty_min = 20;
+		} else {
+			bconf->pwm_duty_max = bl_para[0];
+			bconf->pwm_duty_min = bl_para[1];
+		}
 
-	ret = of_property_read_u32_array(child, "bl_pwm_on_off_delay",
-		&bl_para[0], 2);
-	if (ret) {
-		BLPR("failed to get bl_pwm_on_off_delay\n");
-		bconf->pwm_on_delay = 0;
-		bconf->pwm_off_delay = 0;
-	} else {
-		bconf->pwm_on_delay = bl_para[0];
-		bconf->pwm_off_delay = bl_para[1];
-	}
+		ret = of_property_read_u32_array(child, "bl_pwm_gpio_off",
+			&bl_para[0], 2);
+		if (ret) {
+			BLERR("failed to get bl_pwm_gpio_off\n");
+			bconf->pwm_gpio = BL_GPIO_MAX;
+			bconf->pwm_gpio_off = BL_GPIO_OUTPUT_LOW;
+		} else {
+			if (bl_para[0] >= BL_GPIO_NUM_MAX) {
+				bconf->pwm_gpio = BL_GPIO_MAX;
+			} else {
+				bconf->pwm_gpio = bl_para[0];
+				bl_gpio_multiplex_register(bconf->pwm_gpio);
+			}
+			bconf->pwm_gpio_off = bl_para[1];
+		}
+		ret = of_property_read_u32_array(child, "bl_pwm_on_off_delay",
+			&bl_para[0], 2);
+		if (ret) {
+			BLERR("failed to get bl_pwm_on_off_delay\n");
+			bconf->pwm_on_delay = 0;
+			bconf->pwm_off_delay = 0;
+		} else {
+			bconf->pwm_on_delay = bl_para[0];
+			bconf->pwm_off_delay = bl_para[1];
+		}
 
-	/* get & request pin ctrl */
-	if (bconf->method == BL_CTRL_PWM) {
+		bl_pwm_config(bconf);
+		/* get & request pin ctrl */
 		if (bconf->pwm_port == BL_PWM_VS) {
 			bconf->pin = devm_pinctrl_get_select(bl_drv->dev,
 				"pwm_vs");
 		} else {
 			bconf->pin = devm_pinctrl_get_select(bl_drv->dev,
-				"default");
+				"pwm");
 		}
-	}
-
-	if (bconf->gpio_used)
-		bconf->gpio = devm_gpiod_get(&pdev->dev, "bl_en");
-	ret = of_property_read_u32(child, "bl_pwm_gpio_off", &val);
-	if (ret) {
-		BLPR("failed to get bl_pwm_gpio_off\n");
-		bconf->pwm_gpio_off = BL_GPIO_OUTPUT_LOW;
-	} else {
-		bconf->pwm_gpio_off = val;
+		break;
+	case BL_CTRL_PWM_COMBO:
+		bconf->pin = devm_pinctrl_get_select(bl_drv->dev, "pwm_combo");
+		break;
+	case BL_CTRL_LOCAL_DIMING:
+		break;
+	case BL_CTRL_EXTERN:
+		break;
+	default:
+		break;
 	}
 
 	aml_bl_config_print(bconf);
@@ -879,9 +1133,9 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 {
 	struct bl_config_s *bconf;
 
-	BLPR("%s: 0x%lx\n", __func__, event);
 	if ((event & LCD_EVENT_BL_ON) == 0)
 		return NOTIFY_DONE;
+	BLPR("%s: 0x%lx\n", __func__, event);
 
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
@@ -901,7 +1155,7 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 			aml_bl_update_status(bl_drv->bldev);
 		}
 	} else {
-		BLPR("wrong backlight control method\n");
+		BLERR("wrong backlight control method\n");
 	}
 
 	return NOTIFY_OK;
@@ -910,9 +1164,9 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 static int aml_bl_off_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
-	BLPR("%s: 0x%lx\n", __func__, event);
 	if ((event & LCD_EVENT_BL_OFF) == 0)
 		return NOTIFY_DONE;
+	BLPR("%s: 0x%lx\n", __func__, event);
 
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
@@ -943,33 +1197,77 @@ static ssize_t bl_status_read(struct class *class,
 {
 	struct bl_config_s *bconf = bl_drv->bconf;
 
-	return sprintf(buf, "read backlight status:\n"
-		"index:        %d\n"
-		"mode:         %d\n"
-		"state:        0x%x\n"
-		"level:        %d\n"
-		"level_min:    %d\n"
-		"level_max:    %d\n\n"
-		"method:           %d\n"
-		"power_on_delay:   %d\n"
-		"power_off_delay:  %d\n"
-		"gpio_on:          %d\n"
-		"gpio_off:         %d\n"
-		"pwm_method:       %d\n"
-		"pwm_port:         %d\n"
-		"pwm_freq:         %d\n"
-		"pwm_duty_max:     %d\n"
-		"pwm_duty_min:     %d\n"
-		"pwm_gpio_off:     %d\n"
-		"pwm_on_delay:     %d\n"
-		"pwm_off_delay:    %d\n\n",
-		bl_drv->index, bl_drv->mode, bl_drv->state, bl_drv->level,
-		bconf->level_min, bconf->level_max,
-		bconf->method, bconf->power_on_delay, bconf->power_off_delay,
-		bconf->gpio_on, bconf->gpio_off,
-		bconf->pwm_method, bconf->pwm_port, bconf->pwm_freq,
-		bconf->pwm_duty_max, bconf->pwm_duty_min,
-		bconf->pwm_gpio_off, bconf->pwm_on_delay, bconf->pwm_off_delay);
+	switch (bconf->method) {
+	case BL_CTRL_GPIO:
+		return sprintf(buf, "read backlight status:\n"
+			"index:              %d\n"
+			"state:              0x%x\n"
+			"level:              %d\n"
+			"level_min:          %d\n"
+			"level_max:          %d\n"
+			"level_mid:          %d\n"
+			"level_mid_mapping:  %d\n\n"
+			"method:             %s\n"
+			"power_on_delay:     %d\n"
+			"power_off_delay:    %d\n"
+			"gpio:               %d\n"
+			"gpio_on:            %d\n"
+			"gpio_off:           %d\n\n",
+			bl_drv->index, bl_drv->state,
+			bl_drv->level, bconf->level_min, bconf->level_max,
+			bconf->level_mid, bconf->level_mid_mapping,
+			bl_method_type_to_str(bconf->method),
+			bconf->power_on_delay, bconf->power_off_delay,
+			bconf->gpio, bconf->gpio_on, bconf->gpio_off);
+		break;
+	case BL_CTRL_PWM:
+		return sprintf(buf, "read backlight status:\n"
+			"index:              %d\n"
+			"state:              0x%x\n"
+			"level:              %d\n"
+			"level_min:          %d\n"
+			"level_max:          %d\n"
+			"level_mid:          %d\n"
+			"level_mid_mapping:  %d\n\n"
+			"method:             %s\n"
+			"power_on_delay:     %d\n"
+			"power_off_delay:    %d\n"
+			"gpio:               %d\n"
+			"gpio_on:            %d\n"
+			"gpio_off:           %d\n"
+			"pwm_method:         %d\n"
+			"pwm_port:           %d\n"
+			"pwm_freq:           %d\n"
+			"pwm_duty_max:       %d\n"
+			"pwm_duty_min:       %d\n"
+			"pwm_gpio:           %d\n"
+			"pwm_gpio_off:       %d\n"
+			"pwm_on_delay:       %d\n"
+			"pwm_off_delay:      %d\n\n",
+			bl_drv->index, bl_drv->state,
+			bl_drv->level, bconf->level_min, bconf->level_max,
+			bconf->level_mid, bconf->level_mid_mapping,
+			bl_method_type_to_str(bconf->method),
+			bconf->power_on_delay, bconf->power_off_delay,
+			bconf->gpio, bconf->gpio_on, bconf->gpio_off,
+			bconf->pwm_method, bconf->pwm_port, bconf->pwm_freq,
+			bconf->pwm_duty_max, bconf->pwm_duty_min,
+			bconf->pwm_gpio, bconf->pwm_gpio_off,
+			bconf->pwm_on_delay, bconf->pwm_off_delay);
+		break;
+	case BL_CTRL_PWM_COMBO:
+		return sprintf(buf, "to do\n");
+		break;
+	case BL_CTRL_LOCAL_DIMING:
+		return sprintf(buf, "to do\n");
+		break;
+	case BL_CTRL_EXTERN:
+		return sprintf(buf, "to do\n");
+		break;
+	default:
+		return sprintf(buf, "wrong backlight control method\n");
+		break;
+	}
 }
 
 static ssize_t bl_debug_print_show(struct class *class,
@@ -1005,14 +1303,14 @@ static int aml_bl_creat_class(void)
 
 	bl_debug_class = class_create(THIS_MODULE, "aml_bl");
 	if (IS_ERR(bl_debug_class)) {
-		BLPR("create aml_bl debug class fail\n");
+		BLERR("create aml_bl debug class fail\n");
 		return -1;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bl_debug_class_attrs); i++) {
 		if (class_create_file(bl_debug_class,
 				&bl_debug_class_attrs[i])) {
-			BLPR("create aml_bl debug attribute %s fail\n",
+			BLERR("create aml_bl debug attribute %s fail\n",
 				bl_debug_class_attrs[i].attr.name);
 		}
 	}
@@ -1048,7 +1346,7 @@ static int aml_bl_probe(struct platform_device *pdev)
 	bl_chip_type = aml_bl_check_chip();
 	bl_drv = kzalloc(sizeof(struct aml_bl_drv_s), GFP_KERNEL);
 	if (!bl_drv) {
-		BLPR("driver malloc error\n");
+		BLERR("driver malloc error\n");
 		return -ENOMEM;
 	}
 
@@ -1070,7 +1368,7 @@ static int aml_bl_probe(struct platform_device *pdev)
 	bldev = backlight_device_register(AML_BL_NAME, &pdev->dev,
 					bl_drv, &aml_bl_ops, &props);
 	if (IS_ERR(bldev)) {
-		BLPR("failed to register backlight\n");
+		BLERR("failed to register backlight\n");
 		ret = PTR_ERR(bldev);
 		goto err;
 	}
@@ -1081,15 +1379,15 @@ static int aml_bl_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&bl_drv->bl_delayed_work, aml_bl_delayd_on);
 	bl_drv->workqueue = create_workqueue("bl_power_on_queue");
 	if (bl_drv->workqueue == NULL)
-		BLPR("can't create bl work queue\n");
+		BLERR("can't create bl work queue\n");
 
 #ifdef CONFIG_AML_LCD
 	ret = aml_lcd_notifier_register(&aml_bl_on_nb);
 	if (ret)
-		BLPR("register aml_bl_on_notifier failed\n");
+		BLERR("register aml_bl_on_notifier failed\n");
 	ret = aml_lcd_notifier_register(&aml_bl_off_nb);
 	if (ret)
-		BLPR("register aml_bl_off_notifier failed\n");
+		BLERR("register aml_bl_off_notifier failed\n");
 #endif
 	aml_bl_creat_class();
 

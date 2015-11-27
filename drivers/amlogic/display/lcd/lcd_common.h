@@ -24,28 +24,21 @@
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
-#if 0
-extern void lcd_config_init(struct lcd_config_s *pConf);
-extern void lcd_config_probe(struct lcd_config_s *pConf,
-		struct platform_device *pdev);
-extern void lcd_config_remove(struct lcd_config_s *pConf);
-
-extern void lcd_clocks_set_vid_clk_div(int div_sel);
-extern void lcd_set_crt_video_enc(int vIdx, int inSel, int DivN);
-extern void lcd_enable_crt_video_encl(int enable, int inSel);
-
-extern void lcd_clk_gate_on(void);
-#endif
-
 /* lcd common */
 extern int lcd_type_str_to_type(const char *str);
 extern char *lcd_type_type_to_str(int type);
+extern int lcd_mode_str_to_mode(const char *str);
+extern char *lcd_mode_mode_to_str(int mode);
 
 extern void lcd_cpu_gpio_register(unsigned int index);
 extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
+extern int lcd_pinmux_set(const char *str);
 
 extern void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode);
+
+extern void lcd_tcon_config(struct lcd_config_s *pconf);
+extern void lcd_clk_gate_switch(int status);
 
 /* lcd debug */
 extern int lcd_class_creat(void);

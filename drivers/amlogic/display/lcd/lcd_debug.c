@@ -149,7 +149,10 @@ static void lcd_info_print(void)
 	sync_duration = pconf->lcd_timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->lcd_timing.sync_duration_den;
 
+	LCDPR("panel_type: %s\n", pconf->lcd_propname);
 	LCDPR("status: %d\n", lcd_drv->lcd_status);
+	LCDPR("mode  : %s\n", lcd_mode_mode_to_str(lcd_drv->lcd_mode));
+
 	LCDPR("%s, %s %ubit, %ux%u@%u.%02uHz\n",
 		pconf->lcd_basic.model_name,
 		lcd_type_type_to_str(pconf->lcd_basic.lcd_type),
@@ -514,6 +517,7 @@ static ssize_t lcd_debug_store(struct class *class,
 			val[0], val[1], val[2]);
 		pr_info("set vsync width=%d, bp=%d, pol=%d\n",
 			val[3], val[4], val[5]);
+		lcd_tcon_config(lcd_drv->lcd_config);
 		lcd_debug_config_update();
 		break;
 	case 't':
@@ -871,11 +875,13 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 
 static const char *lcd_ttl_debug_usage_str = {
 "Usage:\n"
-"    echo <clk_pol> <sync_valid> <swap_ctrl> > ttl ; set ttl config\n"
+"    echo <clk_pol> <de_valid> <hvsync_valid> <rb_swpa> <bit_swap> > ttl ; set ttl config\n"
 "data format:\n"
-"    <clk_pol>    : 0=negative, 1=positive\n"
-"    <sync_valid> : bit[1] for DE, bit[0] for hvsync, 0=invalid, 1=valid\n"
-"    <swap_ctrl>  : bit[1] for R/B port, bit[0] for RGB MSB/LSB, 0=normal, 1=swap\n"
+"    <clk_pol>      : 0=negative, 1=positive\n"
+"    <de_valid>     : for DE, 0=invalid, 1=valid\n"
+"    <hvsync_valid> : for hvsync, 0=invalid, 1=valid\n"
+"    <rb_swpa>      : for R/B port, 0=normal, 1=swap\n"
+"    <bit_swap>     : for RGB MSB/LSB, 0=normal, 1=swap\n"
 "\n"
 };
 
@@ -902,11 +908,11 @@ static const char *lcd_vbyone_debug_usage_str = {
 
 static const char *lcd_mipi_debug_usage_str = {
 "Usage:\n"
-"    echo <lane_num> <bit_rate_max> <init_disp_mode> <lp_clk_continuous> <factor> <transfer_switch> > mipi ; set mpi config\n"
+"    echo <lane_num> <bit_rate_max> <operation_mode> <lp_clk_continuous> <factor> <transfer_switch> > mipi ; set mpi config\n"
 "data format:\n"
 "    <lane_num>          : 1/2/3/4\n"
 "    <bit_rate_max>      : unit in MHz\n"
-"    <init_disp_mode>    : set init_mode & display_mode, 0=video mode, 1=command mode\n"
+"    <operation_mode>    : bit[0] for init_mode, bit[1] for display_mode (0=video mode, 1=command mode)\n"
 "    <lp_clk_continuous> : 0=disable, 1=enable\n"
 "    <factor>:           : special adjust, 0 for default\n"
 "    <transfer_switch>   : 0=auto, 1=standard, 2=slow\n"

@@ -43,11 +43,7 @@
 unsigned int lcd_debug_print_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
-static char *lcd_mode_table[] = {
-	"tv",
-	"tablet",
-	"invalid",
-};
+static char lcd_propname[20] = "lvds_0";
 
 /* *********************************************************
  * lcd config define
@@ -127,6 +123,7 @@ static struct lcd_power_ctrl_s lcd_power_config = {
 };
 
 static struct lcd_config_s lcd_config_dft = {
+	.lcd_propname = lcd_propname,
 	.lcd_basic = {
 		.lcd_type = LCD_TYPE_MAX,
 	},
@@ -295,17 +292,17 @@ static void lcd_chip_detect(void)
 
 static void lcd_init_vout(void)
 {
-	lcd_driver->vout_server_init();
+	if (lcd_driver->vout_server_init)
+		lcd_driver->vout_server_init();
 }
 
 static int lcd_mode_probe(struct platform_device *pdev)
 {
 	const char *str;
-	int i;
 	int ret = 0;
 
 	if (pdev->dev.of_node == NULL) {
-		LCDPR("error: dev of_node is null\n");
+		LCDERR("dev of_node is null\n");
 		lcd_driver->lcd_mode = LCD_MODE_MAX;
 		return -1;
 	}
@@ -314,14 +311,11 @@ static int lcd_mode_probe(struct platform_device *pdev)
 	ret = of_property_read_string(pdev->dev.of_node, "mode", &str);
 	if (ret) {
 		str = "none";
-		LCDPR("error: failed to get mode\n");
+		LCDERR("failed to get mode\n");
+		return -1;
 	}
-	for (i = 0; i < LCD_MODE_MAX; i++) {
-		if (!strcmp(str, lcd_mode_table[i]))
-			break;
-	}
+	lcd_driver->lcd_mode = lcd_mode_str_to_mode(str);
 	LCDPR("detect mode: %s\n", str);
-	lcd_driver->lcd_mode = i;
 
 	lcd_driver->lcd_config = &lcd_config_dft;
 	lcd_driver->vpp_sel = 1;
@@ -425,8 +419,14 @@ static int lcd_probe(struct platform_device *pdev)
 
 	lcd_chip_detect();
 	lcd_ioremap();
-	lcd_mode_probe(pdev);
 	lcd_clk_config_probe();
+	ret = lcd_mode_probe(pdev);
+	if (ret) {
+		kfree(lcd_driver);
+		lcd_driver = NULL;
+		LCDERR("probe exit\n");
+		return -1;
+	}
 	lcd_init_vout();
 
 	lcd_class_creat();
@@ -493,6 +493,16 @@ static void __exit lcd_exit(void)
 
 arch_initcall(lcd_init);
 module_exit(lcd_exit);
+
+static int __init lcd_boot_para_setup(char *s)
+{
+	if (NULL != s)
+		sprintf(lcd_propname, "%s", s);
+
+	LCDPR("panel_type: %s\n", lcd_propname);
+	return 0;
+}
+__setup("panel_type=", lcd_boot_para_setup);
 
 MODULE_DESCRIPTION("Meson LCD Panel Driver");
 MODULE_LICENSE("GPL");

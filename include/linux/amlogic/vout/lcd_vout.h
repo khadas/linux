@@ -319,6 +319,7 @@ struct lcd_clk_gate_ctrl_s {
 };
 
 struct lcd_config_s {
+	char *lcd_propname;
 	unsigned int backlight_index;
 	struct lcd_basic_s lcd_basic;
 	struct lcd_timing_s lcd_timing;
@@ -331,13 +332,14 @@ struct lcd_config_s {
 
 struct aml_lcd_drv_s {
 	char *version;
-	unsigned int lcd_mode;
 	enum lcd_chip_e chip_type;
+	unsigned int lcd_mode;
 	unsigned int lcd_status;
 	unsigned int vpp_sel; /*0:vpp, 1:vpp2 */
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
+	struct vinfo_s *lcd_info;
 
 	void (*vout_server_init)(void);
 	int (*driver_init)(void);
