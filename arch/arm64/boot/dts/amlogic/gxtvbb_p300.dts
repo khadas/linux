@@ -62,6 +62,7 @@
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
 			size = <0x0 0x4000000>;
+			multi-use;
 		};
 
 		/*  POST PROCESS MANAGER */
