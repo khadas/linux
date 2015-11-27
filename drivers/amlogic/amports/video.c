@@ -666,6 +666,11 @@ static u32 zoom_end_x_lines;
 static u32 zoom_start_y_lines;
 static u32 zoom_end_y_lines;
 
+static u32 ori_start_x_lines;
+static u32 ori_end_x_lines;
+static u32 ori_start_y_lines;
+static u32 ori_end_y_lines;
+
 /* wide settings */
 static u32 wide_setting;
 
@@ -1782,9 +1787,15 @@ static void zoom_display_horz(int hscale)
 			     1) >> hscale) << VD1_FMT_CHROMA_WIDTH_BIT));
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-		int l_aligned = round_down(zoom_start_x_lines, 32);
-		int r_aligned = round_up(zoom_end_x_lines, 32);
-
+		int l_aligned;
+		int r_aligned;
+		if (zoom_start_x_lines > 0) {
+			l_aligned = round_down(ori_start_x_lines, 32);
+			r_aligned = round_up(ori_end_x_lines, 32);
+		} else {
+			l_aligned = round_down(zoom_start_x_lines, 32);
+			r_aligned = round_up(zoom_end_x_lines, 32);
+		}
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_W,
 			  ((r_aligned - l_aligned) << 16) |
 			  (r_aligned / 2 - l_aligned / 2));
@@ -1792,6 +1803,7 @@ static void zoom_display_horz(int hscale)
 		VSYNC_WR_MPEG_REG(AFBC_MIF_HOR_SCOPE,
 			  ((l_aligned / 32) << 16) |
 			  ((r_aligned / 32) - 1));
+
 
 		VSYNC_WR_MPEG_REG(AFBC_PIXEL_HOR_SCOPE,
 			  ((zoom_start_x_lines - l_aligned) << 16) |
@@ -1897,8 +1909,15 @@ static void zoom_display_vert(void)
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-		int t_aligned = round_down(zoom_start_y_lines, 4);
-		int b_aligned = round_up(zoom_end_y_lines, 4);
+		int t_aligned;
+		int b_aligned;
+		if (zoom_start_y_lines > 0) {
+			t_aligned = round_down(zoom_start_y_lines, 32);
+			b_aligned = round_up(zoom_end_y_lines, 32);
+		} else {
+			t_aligned = round_down(zoom_start_y_lines, 32);
+			b_aligned = round_up(zoom_end_y_lines, 32);
+		}
 
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
 		    b_aligned - t_aligned);
@@ -1968,6 +1987,10 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	u32 first_picture = 0;
 	unsigned long flags;
 	frame_count++;
+	ori_start_x_lines = 0;
+	ori_end_x_lines = vf->width - 1;
+	ori_start_y_lines = 0;
+	ori_end_y_lines = vf->height - 1;
 	if (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME)
 		pr_info("%s()\n", __func__);
 
