@@ -291,5 +291,10 @@ static struct platform_driver aml_thermal_platdrv = {
 	.probe	= aml_thermal_probe,
 	.remove	= aml_thermal_remove,
 };
-module_platform_driver(aml_thermal_platdrv);
 
+
+static int __init aml_thermal_platdrv_init(void)
+{
+	 return platform_driver_register(&(aml_thermal_platdrv));
+}
+late_initcall(aml_thermal_platdrv_init);
