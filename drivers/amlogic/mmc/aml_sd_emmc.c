@@ -105,7 +105,7 @@ u8 dly_tmp;
 u8 max_index;
 
 
-#define MAX_CALI_RETRY	(5)
+#define MAX_CALI_RETRY	(3)
 #define MAX_DELAY_CNT	(16)
 #define CALI_BLK_CNT	(10)
 
@@ -329,15 +329,18 @@ _cali_retry:
 				cali_retry++;
 				goto _cali_retry;
 			} else {
-				sd_emmc_err("Fail get a valid ln delay line %d!\n",
-					line_x);
-				BUG();
+				kfree(blk_test);
+				blk_test = NULL;
+				pr_info("%s: calibration failed, use default\n",
+					mmc_hostname(host->mmc));
+				return -1;
 			}
 		} else {
 			ln_delay[line_x] = dly_tmp;
 		}
 		/*debug code...*/
 #if 0
+
 		for (i = 0; i < 16; i++) {
 			pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
 					pdata->calout[i][0],
@@ -361,8 +364,7 @@ _cali_retry:
 			ln_delay[line_x] = 1000 / delay_step;
 
 		if (base_index[line_x] == max_index) {
-			cal_result[line_x] = ((base_index[line_x]+1)%
-			(max_index+1) + (max_index+1))*1000 -
+			cal_result[line_x] = ((max_index+1))*1000 -
 				ln_delay[line_x]*delay_step;
 		} else if ((base_index_max == max_index) &&
 			(base_index[line_x] != (max_index - 1)) &&
@@ -390,8 +392,13 @@ _cali_retry:
 		if (cali_retry < MAX_CALI_RETRY) {
 			cali_retry++;
 			goto _cali_retry;
-		} else
-			BUG();
+		} else {
+			kfree(blk_test);
+			blk_test = NULL;
+			pr_info("%s: calibration failed, use default\n",
+				mmc_hostname(host->mmc));
+			return -1;
+		}
 	}
 
 	/* swap base_index_max */
@@ -638,7 +645,9 @@ tunning:
 		adj_delay_find = adj_delay_find % clk_div;
 	}
 	/* fixme, for retry debug. */
-	if (aml_card_type_mmc(pdata) && (clk_div <= 5)) {
+	if (aml_card_type_mmc(pdata)
+		&& (clk_div <= 5) && (adj_win_start != 100)
+		&& (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)) {
 		pr_info("%s: adj_win_start %d\n",
 			mmc_hostname(host->mmc), adj_win_start);
 		adj_delay_find = adj_win_start % clk_div;
@@ -676,7 +685,8 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 vclk;
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
 	int err = -ENOSYS;
-	u32 adj_win_start;
+	u32 adj_win_start = 100;
+	int ret;
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
 			tuning_data.blk_pattern = tuning_blk_pattern_8bit;
@@ -697,11 +707,14 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	vclk = sd_emmc_regs->gclock;
 
 #ifdef CALIBRATION
-	if ((aml_card_type_mmc(pdata)) &&
-		(pdata->need_cali == 1) && (clkc->div <= 5)) {
+	if ((aml_card_type_mmc(pdata))
+		&& (pdata->need_cali == 1) && (clkc->div <= 5)) {
 		pdata->need_cali = 1;
-		aml_sd_emmc_execute_tuning_index(mmc, 18,
+		ret = aml_sd_emmc_execute_tuning_index(mmc, 18,
 						&tuning_data, &adj_win_start);
+		/* if calibration failed, gdelay use default value */
+		if (ret)
+			sd_emmc_regs->gdelay = 0x85854055;
 	}
 #endif
 	/* excute tuning... */
