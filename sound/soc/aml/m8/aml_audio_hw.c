@@ -884,6 +884,7 @@ void audio_i2s_swap_left_right(unsigned int flag)
 		aml_cbus_update_bits(AIU_958_CTRL, 0x3 << 1, flag << 1);
 
 	aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0x3, flag);
+	aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0x3 << 2, flag << 2);
 }
 
 void audio_i2s_958_same_source(unsigned int same)
