@@ -57,7 +57,8 @@ static int cpuinfo_probe(struct platform_device *pdev)
 	unsigned int *p = NULL;
 	unsigned int version =
 		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) << 24) |
-		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) << 16);
+		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) << 16) |
+		(get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK) << 8);
 
 	if (!of_property_read_u32(np, "cpuinfo_cmd", &id))
 		cpuinfo_func_id = id;
@@ -67,6 +68,10 @@ static int cpuinfo_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 	sharemem_output = get_secmon_sharemem_output_base();
+	if (!sharemem_output) {
+		pr_info("secmon share mem prepare not okay\n");
+		return  -ENOMEM;
+	}
 	sharemem_mutex_lock();
 	fn_smc(cpuinfo_func_id, 0, 0, 0);
 	memcpy((void *)cpu_info_buf,
