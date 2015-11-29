@@ -2666,7 +2666,7 @@ static int ppmgr_task(void *data)
 			}
 #endif
 			/***recycle buffer to decoder***/
-
+		if (0) {/*mark@1120a*/
 			for (i = 0; i < VF_POOL_SIZE; i++)
 				ppmgr_vf_video_put(&vfp_pool[i]);
 
@@ -2686,9 +2686,11 @@ static int ppmgr_task(void *data)
 					vfp_pool[i].dec_frame = NULL;
 				}
 			}
+		}
 			/***recycle buffer to decoder***/
-			vf_light_unreg_provider(&ppmgr_vf_prov);
 			vf_local_init();
+			vf_light_unreg_provider(&ppmgr_vf_prov);
+			msleep(30);
 			vf_reg_provider(&ppmgr_vf_prov);
 			ppmgr_blocking = false;
 			up(&thread_sem);

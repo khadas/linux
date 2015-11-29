@@ -210,6 +210,8 @@ static int post_ready_empty_count;
 
 static int force_width;
 static int force_height;
+/* add avoid vframe put/get error */
+static int di_blocking;
 #ifdef NEW_DI_TV
 static int di_vscale_skip_enable = 3;
 /*
@@ -219,7 +221,6 @@ bit[1:0]: enable bypass post when skip
 #else
 static int di_vscale_skip_enable = 4;
 #endif
-
 
 #ifdef RUN_DI_PROCESS_IN_IRQ
 /*
@@ -2775,8 +2776,8 @@ static void dump_state(void)
 			version_s, provider_vframe_level);
 	pr_info("init_flag %d, is_bypass %d, receiver_is_amvideo %d\n",
 			init_flag, is_bypass(NULL), receiver_is_amvideo);
-	pr_info("recovery_flag = %d, recovery_log_reason=%d,",
-			recovery_flag, recovery_log_reason);
+	pr_info("recovery_flag = %d, recovery_log_reason=%d, di_blocking=%d",
+			recovery_flag, recovery_log_reason, di_blocking);
 	pr_info("recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
 			recovery_log_queue_idx, recovery_log_di_buf);
 	pr_info("new_keep_last_frame_enable %d,", new_keep_last_frame_enable);
@@ -3639,6 +3640,8 @@ static unsigned char pre_de_buf_config(void)
 	int i, di_linked_buf_idx = -1;
 	unsigned char change_type = 0;
 
+	if (di_blocking)
+		return 0;
 	if ((queue_empty(QUEUE_IN_FREE) && (!di_pre_stru.di_inp_buf_next)) ||
 		queue_empty(QUEUE_LOCAL_FREE)) {
 		return 0;
@@ -3709,6 +3712,8 @@ di_pre_stru.bad_frame_throw_count > 0) {
 			di_pre_stru.bad_frame_throw_count = 10;
 		di_pre_stru.bad_frame_throw_count--;
 		vf_put(vframe, VFM_NAME);
+		vf_notify_provider(
+VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
 		return 0;
 	}
 
@@ -4161,6 +4166,8 @@ static int check_recycle_buf(void)
 	di_buf_t *di_buf = NULL;/* , *ptmp; */
 	int itmp;
 	int ret = 0;
+	if (di_blocking)
+		return ret;
 	queue_for_each_entry(di_buf, ptmp, QUEUE_RECYCLE, list) {
 		if ((di_buf->pre_ref_count == 0) &&
 			(di_buf->post_ref_count == 0)) {
@@ -6309,11 +6316,13 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
+		di_blocking = 1;
 #ifdef DI_DEBUG
 		di_print("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
 #endif
 		goto light_unreg;
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
+		di_blocking = 1;
 #ifdef DI_DEBUG
 		di_print("%s: vf_notify_receiver ligth unreg\n", __func__);
 #endif
@@ -6331,7 +6340,8 @@ light_unreg:
 #endif
 			vframe_in[i] = NULL;
 		}
-	   spin_unlock_irqrestore(&plist_lock, flags);
+		spin_unlock_irqrestore(&plist_lock, flags);
+		di_blocking = 0;
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME) {
 		unsigned char vf_put_flag = 0;
 #ifdef DI_DEBUG
@@ -6446,7 +6456,7 @@ input2pre_throw_count&0xffff;
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 		bypass_state = 0;
-#if (defined RUN_DI_PROCESS_IN_IRQ) && (!(defined FIQ_VSYNC))
+ #if (defined RUN_DI_PROCESS_IN_IRQ) && (!(defined FIQ_VSYNC))
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1<<14, 0<<14);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 3<<4, 0<<4);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1<<18, 1<<18);
@@ -6542,7 +6552,7 @@ static vframe_t *di_vf_peek(void *arg)
 	vframe_t *vframe_ret = NULL;
 	di_buf_t *di_buf = NULL;
 	video_peek_cnt++;
-	if ((init_flag == 0) || recovery_flag ||
+	if ((init_flag == 0) || recovery_flag || di_blocking ||
 		di_pre_stru.unreg_req_flag || dump_state_flag)
 		return NULL;
 	if ((run_flag == DI_RUN_FLAG_PAUSE) ||
@@ -6617,7 +6627,7 @@ static vframe_t *di_vf_get(void *arg)
 	di_buf_t *di_buf = NULL;
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 
-	if ((init_flag == 0) || recovery_flag ||
+	if ((init_flag == 0) || recovery_flag || di_blocking ||
 		di_pre_stru.unreg_req_flag || dump_state_flag)
 		return NULL;
 
@@ -6691,6 +6701,8 @@ static void di_vf_put(vframe_t *vf, void *arg)
 #endif
 		return;
 	}
+	if (di_blocking)
+		return;
 	log_buffer_state("pu_");
 	recycle_keep_buffer();
 	if (di_buf->type == VFRAME_TYPE_POST) {
