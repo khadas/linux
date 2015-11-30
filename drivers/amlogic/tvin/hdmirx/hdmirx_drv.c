@@ -243,6 +243,7 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
 #endif
+	rx.open_fg = 1;
 	rx_print("%s port:%x ok\n", __func__, port);
 	return 0;
 }
@@ -252,7 +253,6 @@ void hdmirx_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
 
-	/* rx.open_fg = 1; */
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp_hdmirx_suspend = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
@@ -290,6 +290,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 	to_init_state();
+	rx.open_fg = 0;
 	rx_print("%s ok\n", __func__);
 }
 

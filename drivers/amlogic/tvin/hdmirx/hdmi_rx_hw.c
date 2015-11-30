@@ -971,7 +971,7 @@ void hdmirx_20_init(void)
 #ifdef HDCP22_ENABLE
 	if (hdcp_22_on) {
 		/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, */
-			/* (0x1002 | (hdcp_22_on<<2)));/* 2 */ */
+		/* (0x1002 | (hdcp_22_on<<2))); */
 		/* hdmirx_wr_dwc(DWC_HDCP_SETTINGS, 0x13374); */
 		/* Configure pkf[127:0] */
 		hdcp22_wr_top(TOP_PKF_0,	hdcp_22_pkf_0);
@@ -1101,7 +1101,7 @@ int hdmirx_packet_get_avi(struct hdmi_rx_ctrl_video *params)
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, NON_UNIF_SCALE);
 	params->video_mode =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VID_IDENT_CODE);
-	params->pixel_repetition =
+	params->repeat =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, PIX_REP_FACTOR);
 	/** @note HW does not support AVI YQ1-0, */
 	/* YCC quantization range */

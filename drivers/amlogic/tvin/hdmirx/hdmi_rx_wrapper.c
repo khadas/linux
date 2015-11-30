@@ -863,7 +863,7 @@ int hdmirx_hw_get_3d_structure(unsigned char *_3d_structure,
 
 int hdmirx_hw_get_pixel_repeat(void)
 {
-	return rx.pre_params.pixel_repetition + 1;
+	return rx.pre_params.repeat + 1;
 }
 
 unsigned char is_frame_packing(void)
@@ -888,13 +888,13 @@ unsigned char is_alternative(void)
 
 struct freq_ref_s {
 	unsigned int vic;
-	unsigned char vesa_format;
+	uint8_t interlace;
 	unsigned int ref_freq;	/* 8 bit tmds clock */
-	uint16_t active_pixels;
+	uint16_t hactive;
 	uint16_t active_lines;
 	uint16_t active_lines_fp;
-	uint16_t active_lines_alternative;
-	uint8_t repetition_times;
+	uint16_t vactive_alternative;
+	uint8_t repeat;
 	uint16_t frame_rate;
 };
 
@@ -903,13 +903,13 @@ struct freq_ref_s freq_ref[] = {
 	{HDMI_640x480p60, 0, 25000, 640, 480, 480, 480, 0, 3000},
 	{HDMI_480p60, 0, 27000, 720, 480, 1005, 480, 0, 3000},
 	{HDMI_480p60_16x9, 0, 27000, 720, 480, 1005, 480, 0, 3000},
-	{HDMI_480i60, 0, 27000, 1440, 240, 240, 240, 1, 3000},
-	{HDMI_480i60_16x9, 0, 27000, 1440, 240, 240, 240, 1, 3000},
+	{HDMI_480i60, 1, 27000, 1440, 240, 240, 240, 1, 3000},
+	{HDMI_480i60_16x9, 1, 27000, 1440, 240, 240, 240, 1, 3000},
 	{HDMI_576p50, 0, 27000, 720, 576, 1201, 576, 0, 2500},
 	{HDMI_576p50_16x9, 0, 27000, 720, 576, 1201, 576, 0, 2500},
-	{HDMI_576i50, 0, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_576i50_16x9, 0, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_576i50_16x9, 0, 27000, 1440, 145, 145, 145, 2, 2500},
+	{HDMI_576i50, 1, 27000, 1440, 288, 288, 288, 1, 2500},
+	{HDMI_576i50_16x9, 1, 27000, 1440, 288, 288, 288, 1, 2500},
+	{HDMI_576i50_16x9, 1, 27000, 1440, 145, 145, 145, 2, 2500},
 	{HDMI_720p60, 0, 74250, 1280, 720, 1470, 720, 0, 3000},
 	{HDMI_720p50, 0, 74250, 1280, 720, 1470, 720, 0, 2500},
 	{HDMI_1080i60, 0, 74250, 1920, 540, 2228, 1103, 0, 3000},
@@ -922,21 +922,21 @@ struct freq_ref_s freq_ref[] = {
 	/* extend format */
 	{HDMI_1440x240p60, 0, 27000, 1440, 240, 240, 240, 1, 3000},
 	{HDMI_1440x240p60_16x9, 0, 27000, 1440, 240, 240, 240, 1, 3000},
-	{HDMI_2880x480i60, 0, 54000, 2880, 240, 240, 240, 9, 3000},
-	{HDMI_2880x480i60_16x9, 0, 54000, 2880, 240, 240, 240, 9, 3000},
+	{HDMI_2880x480i60, 1, 54000, 2880, 240, 240, 240, 9, 3000},
+	{HDMI_2880x480i60_16x9, 1, 54000, 2880, 240, 240, 240, 9, 3000},
 	{HDMI_2880x240p60, 0, 54000, 2880, 240, 240, 240, 9, 3000},
 	{HDMI_2880x240p60_16x9, 0, 54000, 2880, 240, 240, 240, 9, 3000},
-	{HDMI_1440x480p60, 0, 54000, 1440, 480, 480, 480, 1, 3000},
-	{HDMI_1440x480p60_16x9, 0, 54000, 1440, 480, 480, 480, 1, 3000},
+	{HDMI_1440x480p60, 0, 54000, 1440, 480, 480, 480, 9, 3000},
+	{HDMI_1440x480p60_16x9, 0, 54000, 1440, 480, 480, 480, 9, 3000},
 
 	{HDMI_1440x288p50, 0, 27000, 1440, 288, 288, 288, 1, 2500},
 	{HDMI_1440x288p50_16x9, 0, 27000, 1440, 288, 288, 288, 1, 2500},
-	{HDMI_2880x576i50, 0, 54000, 2880, 288, 288, 288, 9, 2500},
-	{HDMI_2880x576i50_16x9, 0, 54000, 2880, 288, 288, 288, 9, 2500},
+	{HDMI_2880x576i50, 1, 54000, 2880, 288, 288, 288, 9, 2500},
+	{HDMI_2880x576i50_16x9, 1, 54000, 2880, 288, 288, 288, 9, 2500},
 	{HDMI_2880x288p50, 0, 54000, 2880, 288, 288, 288, 9, 2500},
 	{HDMI_2880x288p50_16x9, 0, 54000, 2880, 288, 288, 288, 9, 2500},
-	{HDMI_1440x576p50, 0, 54000, 1440, 576, 576, 576, 1, 2500},
-	{HDMI_1440x576p50_16x9, 0, 54000, 1440, 576, 576, 576, 1, 2500},
+	{HDMI_1440x576p50, 0, 54000, 1440, 576, 576, 576, 9, 2500},
+	{HDMI_1440x576p50_16x9, 0, 54000, 1440, 576, 576, 576, 9, 2500},
 
 	{HDMI_2880x480p60, 0, 108000, 2880, 480, 480, 480, 9, 3000},
 	{HDMI_2880x480p60_16x9, 0, 108000, 2880, 480, 480, 480, 9, 3000},
@@ -947,20 +947,20 @@ struct freq_ref_s freq_ref[] = {
 	{HDMI_720p30, 0, 74250, 1280, 720, 1470, 720, 0, 1500},
 
 /* vesa format*/
-	{HDMI_800_600, 1, 0, 800, 600, 600, 600, 0, 0},
-	{HDMI_1024_768, 1, 0, 1024, 768, 768, 768, 0, 0},
-	{HDMI_720_400, 1, 0, 720, 400, 400, 400, 0, 0},
-	{HDMI_1280_768, 1, 0, 1280, 768, 768, 768, 0, 0},
-	{HDMI_1280_800, 1, 0, 1280, 800, 800, 800, 0, 0},
-	{HDMI_1280_960, 1, 0, 1280, 960, 960, 960, 0, 0},
-	{HDMI_1280_1024, 1, 0, 1280, 1024, 1024, 1024, 0, 0},
-	{HDMI_1360_768, 1, 0, 1360, 768, 768, 768, 0, 0},
-	{HDMI_1366_768, 1, 0, 1366, 768, 768, 768, 0, 0},
-	{HDMI_1600_1200, 1, 0, 1600, 1200, 1200, 1200, 0, 0},
-	{HDMI_1920_1200, 1, 0, 1920, 1200, 1200, 1200, 0, 0},
-	{HDMI_1440_900, 1, 0, 1440, 900, 900, 900, 0, 0},
-	{HDMI_1400_1050, 1, 0, 1400, 1050, 1050, 1050, 0, 0},
-	{HDMI_1680_1050, 1, 0, 1680, 1050, 1050, 1050, 0, 0},
+	{HDMI_800_600, 0, 0, 800, 600, 600, 600, 0, 0},
+	{HDMI_1024_768, 0, 0, 1024, 768, 768, 768, 0, 0},
+	{HDMI_720_400, 0, 0, 720, 400, 400, 400, 0, 0},
+	{HDMI_1280_768, 0, 0, 1280, 768, 768, 768, 0, 0},
+	{HDMI_1280_800, 0, 0, 1280, 800, 800, 800, 0, 0},
+	{HDMI_1280_960, 0, 0, 1280, 960, 960, 960, 0, 0},
+	{HDMI_1280_1024, 0, 0, 1280, 1024, 1024, 1024, 0, 0},
+	{HDMI_1360_768, 0, 0, 1360, 768, 768, 768, 0, 0},
+	{HDMI_1366_768, 0, 0, 1366, 768, 768, 768, 0, 0},
+	{HDMI_1600_1200, 0, 0, 1600, 1200, 1200, 1200, 0, 0},
+	{HDMI_1920_1200, 0, 0, 1920, 1200, 1200, 1200, 0, 0},
+	{HDMI_1440_900, 0, 0, 1440, 900, 900, 900, 0, 0},
+	{HDMI_1400_1050, 0, 0, 1400, 1050, 1050, 1050, 0, 0},
+	{HDMI_1680_1050, 0, 0, 1680, 1050, 1050, 1050, 0, 0},
 	/* 4k2k mode */
 	{HDMI_3840_2160p, 0, 0, 3840, 2160, 2160, 2160, 0, 0},
 	{HDMI_4096_2160p, 0, 0, 4096, 2160, 2160, 2160, 0, 0},
@@ -1011,27 +1011,27 @@ unsigned int get_index_from_ref(struct hdmi_rx_ctrl_video *video_par)
 {
 	int i;
 	for (i = 0; freq_ref[i].vic; i++) {
-		if ((abs(video_par->hactive - freq_ref[i].active_pixels) <=
+		if ((abs(video_par->hactive - freq_ref[i].hactive) <=
 		     diff_pixel_th)
 		    &&
 		    ((abs(video_par->vactive - freq_ref[i].active_lines) <=
 		      diff_line_th)
 		     || (abs(video_par->vactive - freq_ref[i].active_lines_fp)
 			 <= diff_line_th)
-		     ||
-		     (abs
-		      (video_par->vactive -
-		       freq_ref[i].active_lines_alternative) <= diff_line_th)
-		    )) {
-			if ((abs
-			     (video_par->refresh_rate -
-			      freq_ref[i].frame_rate) <= diff_frame_th)
-			    || (freq_ref[i].frame_rate == 0)) {
-				if ((HDMI_1360_768 == freq_ref[i].vic)
-				    || (HDMI_1366_768 == freq_ref[i].vic)) {
-					if (abs
-					    (video_par->hactive -
-					     freq_ref[i].active_pixels) <= 2)
+		     || (abs(video_par->vactive -
+			freq_ref[i].vactive_alternative) <= diff_line_th))
+			&& (freq_ref[i].interlace == video_par->interlaced)) {
+			if ((abs(video_par->refresh_rate -
+				freq_ref[i].frame_rate)
+				<= diff_frame_th) ||
+				(freq_ref[i].frame_rate == 0)) {
+				if ((HDMI_1360_768 ==
+					freq_ref[i].vic) ||
+						(HDMI_1366_768 ==
+						freq_ref[i].vic)) {
+					if (abs(video_par->hactive -
+							freq_ref[i].hactive)
+							<= 2)
 						break;
 				} else
 					break;
@@ -1323,7 +1323,7 @@ static bool is_timing_stable(struct hdmi_rx_ctrl_video *pre,
 			diff_pixel_th)
 		|| (abs((signed int)pre->vactive - (signed int)cur->vactive) >
 			diff_line_th)) {
-		/* (pre->pixel_repetition != cur->pixel_repetition)) { */
+		/* (pre->repeat != cur->repeat)) { */
 		ret = false;
 
 		if (log_flag & 0x200) {
@@ -1335,8 +1335,8 @@ static bool is_timing_stable(struct hdmi_rx_ctrl_video *pre,
 				     pre->vactive,
 				     cur->vactive);
 			rx_print("pixel_repeat(%d=>%d),",
-				     pre->pixel_repetition,
-				     cur->pixel_repetition);
+				     pre->repeat,
+				     cur->repeat);
 			rx_print("video_format(%d=>%d)\n",
 			     pre->video_format,
 			     cur->video_format);
@@ -1395,7 +1395,7 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 	/* HDMI format fast detection */
 	for (i = 0; freq_ref[i].vic; i++) {
 		if (freq_ref[i].vic == video_par->video_mode) {
-			if ((abs(video_par->hactive - freq_ref[i].active_pixels)
+			if ((abs(video_par->hactive - freq_ref[i].hactive)
 			     <= diff_pixel_th)
 			    &&
 			    ((abs(video_par->vactive - freq_ref[i].active_lines)
@@ -1407,7 +1407,7 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 			     ||
 			     (abs
 			      (video_par->vactive -
-			       freq_ref[i].active_lines_alternative) <=
+			       freq_ref[i].vactive_alternative) <=
 			      diff_line_th))) {
 				break;
 			}
@@ -1422,27 +1422,27 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 			diff_line_th))
 			video_par->sw_fp = 1;
 		else if ((freq_ref[i].active_lines !=
-			  freq_ref[i].active_lines_alternative)
+			  freq_ref[i].vactive_alternative)
 			 &&
 			 (abs
 			  (video_par->vactive -
-			   freq_ref[i].active_lines_alternative) <=
+			   freq_ref[i].vactive_alternative) <=
 			  diff_line_th))
 			video_par->sw_alternative = 1;
 		/*********** repetition Check patch start ***********/
 		if (repeat_check) {
-			/* if(video_par->pixel_repetition != 0) { */
-			if (video_par->pixel_repetition !=
-			    freq_ref[i].repetition_times) {
-				if (log_flag & PACKET_LOG_ENABLE)
-					rx_print("\n repetition err1 %d",
-						 video_par->pixel_repetition);
-					rx_print(": %d(standard)",
-					     freq_ref[i].repetition_times);
-				video_par->pixel_repetition =
-				    freq_ref[i].repetition_times;
+			if (freq_ref[i].repeat != 9) {
+				if (video_par->repeat !=
+					 freq_ref[i].repeat) {
+					if (log_flag & PACKET_LOG_ENABLE)
+						rx_print("\n repeat err1");
+						rx_print("%d:%d(standard)",
+							video_par->repeat,
+							freq_ref[i].repeat);
+					video_par->repeat =
+						freq_ref[i].repeat;
+				}
 			}
-			/* } */
 		}
 		/************ repetition Check patch end ************/
 		if (log_flag & 0x200)
@@ -1469,27 +1469,27 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 			diff_line_th))
 			video_par->sw_fp = 1;
 		else if ((freq_ref[i].active_lines !=
-			  freq_ref[i].active_lines_alternative)
+			  freq_ref[i].vactive_alternative)
 			 &&
 			 (abs
 			  (video_par->vactive -
-			   freq_ref[i].active_lines_alternative) <=
+			   freq_ref[i].vactive_alternative) <=
 			  diff_line_th))
 			video_par->sw_alternative = 1;
 		/*********** repetition Check patch start ***********/
 		if (repeat_check) {
-			/* if(video_par->pixel_repetition != 0) { */
-			if (video_par->pixel_repetition !=
-			    freq_ref[i].repetition_times) {
-				if (log_flag & PACKET_LOG_ENABLE)
-					rx_print("\n repetition error2");
-					rx_print("%d : %d(standard)",
-					     video_par->pixel_repetition,
-					     freq_ref[i].repetition_times);
-				video_par->pixel_repetition =
-				    freq_ref[i].repetition_times;
+			if (freq_ref[i].repeat != 9) {
+				if (video_par->repeat !=
+					 freq_ref[i].repeat) {
+					if (log_flag & PACKET_LOG_ENABLE)
+						rx_print("\n repeat err2");
+						rx_print("%d:%d(standard)",
+							video_par->repeat,
+							freq_ref[i].repeat);
+					video_par->repeat =
+						freq_ref[i].repeat;
+				}
 			}
-			/* } */
 		}
 		/************ repetition Check patch end ************/
 		if (log_flag & 0x200)
@@ -2655,7 +2655,7 @@ static void dump_state(unsigned char enable)
 		rx_print(" hactive %d", v.hactive);
 		rx_print(" vtotal %d", v.vtotal);
 		rx_print(" vactive %d", v.vactive);
-		rx_print(" pixel_repetition %d\n", v.pixel_repetition);
+		rx_print(" repetition %d\n", v.repeat);
 
 		rx_print(" deep_color %d", v.deep_color_mode);
 		rx_print(" refresh_rate %d\n", v.refresh_rate);

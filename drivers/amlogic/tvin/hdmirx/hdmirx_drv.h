@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/11/27"
+#define HDMIRX_VER "Ref.2015/11/30"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -244,7 +244,7 @@ struct hdmi_rx_ctrl_video {
 	/** AVI VIC6-0, video mode identification code */
 	unsigned video_mode;
 	/** AVI PR3-0, pixel repetition factor */
-	unsigned pixel_repetition;
+	unsigned repeat;
 	/** AVI, line number of end of top bar */
 	unsigned bar_end_top;
 	/** AVI, line number of start of bottom bar */

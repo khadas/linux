@@ -644,6 +644,10 @@
 #define		AIF_CKS_CHG				_BIT(25)
 /** AVI checksum changed */
 #define		AVI_CKS_CHG				_BIT(24)
+/** GCP AVMUTE changed */
+#define		GCP_AV_MUTE_CHG			_BIT(21)
+
+#define		GCP_RCV					_BIT(16)
 /** Vendor Specific Info frame changed */
 #define		VSI_CKS_CHG				_BIT(15)
 /** Packet FIFO new entry */
