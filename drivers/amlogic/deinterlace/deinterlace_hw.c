@@ -292,15 +292,15 @@ void enable_di_pre_aml(
 	nr_h = (di_nrwr_mif->end_y - di_nrwr_mif->start_y + 1);
 	RDMA_WR(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
 	/*gate for nr*/
-	#ifdef NEW_DI_TV
-	RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
-	#else
-	/*only process sd,avoid affecting sharp*/
-	if ((nr_h<<1) >= 720 || nr_w >= 1280)
-		RDMA_WR_BITS(NR2_SW_EN, 0, 4, 1);
-	else
+	if (is_meson_gxtvbb_cpu())
 		RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
-	#endif
+	else {
+		/*only process sd,avoid affecting sharp*/
+		if ((nr_h<<1) >= 720 || nr_w >= 1280)
+			RDMA_WR_BITS(NR2_SW_EN, 0, 4, 1);
+		else
+			RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
+	}
 	/*enable noise meter*/
 	RDMA_WR_BITS(NR2_SW_EN, 1, 17, 1);
 #endif
