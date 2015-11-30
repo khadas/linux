@@ -1502,9 +1502,9 @@ void atv_dmd_set_std(void)
 	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_R840) {
 		if_freq = amlatvdemod_devp->parm.if_freq;
 		if_inv = amlatvdemod_devp->parm.if_inv;
-		amlatvdemod_devp->pin =
+		/* amlatvdemod_devp->pin =
 			devm_pinctrl_get_select(amlatvdemod_devp->dev,
-				amlatvdemod_devp->pin_name);
+				amlatvdemod_devp->pin_name);*/
 		#if 0
 		if (atvdemod_agc_pinmux == 1) {
 			/* Disable ATV_AGC PINMUX */

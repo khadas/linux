@@ -230,6 +230,10 @@ static int aml_atvdemod_fe_init(struct aml_fe_dev *dev)
 static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 {
 	int err_code;
+	if (amlatvdemod_devp->pin_name != NULL)
+		amlatvdemod_devp->pin =
+			devm_pinctrl_get_select(amlatvdemod_devp->dev,
+				amlatvdemod_devp->pin_name);
 	err_code = atvdemod_init();
 	if (err_code) {
 		pr_dbg("[amlatvdemod..]%s init atvdemod error.\n", __func__);
@@ -241,6 +245,10 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 {
 	atvdemod_uninit();
+	if (amlatvdemod_devp->pin != NULL) {
+		devm_pinctrl_put(amlatvdemod_devp->pin);
+		amlatvdemod_devp->pin = NULL;
+	}
 	return 0;
 }
 
@@ -408,9 +416,9 @@ static void aml_atvdemod_dt_parse(struct platform_device *pdev)
 		ret = of_property_read_string(node, "pinctrl-names",
 			&amlatvdemod_devp->pin_name);
 		if (!ret) {
-			amlatvdemod_devp->pin =
-				devm_pinctrl_get_select(&pdev->dev,
-				amlatvdemod_devp->pin_name);
+			/* amlatvdemod_devp->pin = */
+			/* devm_pinctrl_get_select(&pdev->dev, */
+			/* amlatvdemod_devp->pin_name); */
 			pr_dbg("atvdemod agc pinmux name:%s\n",
 				amlatvdemod_devp->pin_name);
 		}
