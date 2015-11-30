@@ -60,6 +60,10 @@ static unsigned short mcuv_en = 1;
 MODULE_PARM_DESC(mcuv_en, "\n blend mcuv enable\n");
 module_param(mcuv_en, ushort, 0664);
 
+static unsigned short debug_blend_mode_ctrl = 0xff;
+MODULE_PARM_DESC(debug_blend_mode_ctrl, "\n debug blend mode ctrl\n");
+module_param(debug_blend_mode_ctrl, ushort, 0664);
+
 
 #ifdef DET3D
 static unsigned int det3d_cfg;
@@ -153,7 +157,10 @@ void di_hw_init(void)
 
 #ifdef NEW_DI_V1
 	/* enable old DI mode for m6tv */
-	Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
+	if (is_meson_gxtvbb_cpu())
+		Wr(DI_CLKG_CTRL, 0xffff0001);
+	else
+		Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 
 	/* fifo size setting from 0x1be60 to 0x1bf20 */
 	Wr(VD1_IF0_LUMA_FIFO_SIZE,	fifo_size);
@@ -1233,6 +1240,9 @@ void di_post_switch_buffer(
 
 	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
+	if (debug_blend_mode_ctrl != 0xff)
+		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+			debug_blend_mode_ctrl&0x3, 20, 2);
 	if (mcpre_en) {
 		VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL,
 	(Rd(MCDI_MCVECRD_CTRL) & 0xffffff00) |
@@ -1315,6 +1325,9 @@ blend_mtn_en,blend_mode); */
 
 		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
+		if (debug_blend_mode_ctrl != 0xff)
+			VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+				debug_blend_mode_ctrl&0x3, 20, 2);
 
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en | blend_en) << 0) |	/* line buffer 0 enable */

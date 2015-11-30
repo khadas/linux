@@ -156,8 +156,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* fix mcdi mif cal */
-static const char version_s[] = "2015-11-18a";
+/* fix DI_CLKG_CTRL for gxtvbb */
+static const char version_s[] = "2015-11-30a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -5833,7 +5833,10 @@ unreg:
 					Wr(DI_CLKG_CTRL, 0xff0000);
 					/* di enable nr clock gate */
 					#else
-					Wr(DI_CLKG_CTRL, 0xf60000);
+					if (is_meson_gxtvbb_cpu())
+						Wr(DI_CLKG_CTRL, 0x80f60000);
+					else
+						Wr(DI_CLKG_CTRL, 0xf60000);
 					/* nr/blend0/ei0/mtn0 clock gate */
 					#endif
 					if (get_blackout_policy()) {
@@ -5882,7 +5885,10 @@ static void di_unreg_process_irq(void)
 		Wr(DI_CLKG_CTRL, 0xff0000);
 		/* di enable nr clock gate */
 		#else
-		Wr(DI_CLKG_CTRL, 0xf60000);
+		if (is_meson_gxtvbb_cpu())
+			Wr(DI_CLKG_CTRL, 0x80f60000);
+		else
+			Wr(DI_CLKG_CTRL, 0xf60000);
 		/* nr/blend0/ei0/mtn0 clock gate */
 		#endif
 		if (get_blackout_policy()) {
