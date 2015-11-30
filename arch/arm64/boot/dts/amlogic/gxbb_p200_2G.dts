@@ -39,7 +39,7 @@
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
 		secmon_reserved:linux,secmon {
-			compatible = "aml_secmon_memory";
+			compatible = "amlogic, aml_secmon_memory";
 			reg = <0x0 0x10000000 0x0 0x200000>;
 			no-map;
 		};
