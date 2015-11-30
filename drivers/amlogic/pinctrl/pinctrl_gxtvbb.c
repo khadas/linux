@@ -89,9 +89,9 @@ struct pinctrl_pin_desc gxtvbb_pads[] = {
 	MESON_PIN(BOOT_5,	"BOOT_5"),
 	MESON_PIN(BOOT_6,	"BOOT_6"),
 	MESON_PIN(BOOT_7,	"BOOT_7"),
-	MESON_PIN(BOOT_8,	"BOOT_8"),
+	MESON_PIN(BOOT_8,	"BOOT_8"),	/* undefined no interrupt */
 	MESON_PIN(BOOT_9,	"BOOT_9"),
-	MESON_PIN(BOOT_10,	"BOOT_10"),
+	MESON_PIN(BOOT_10,	"BOOT_10"),	/* undefined no interrupt */
 	MESON_PIN(BOOT_11,	"BOOT_11"),
 	MESON_PIN(BOOT_12,	"BOOT_12"),
 	MESON_PIN(BOOT_13,	"BOOT_13"),
@@ -260,9 +260,9 @@ static struct meson_bank gxtvbb_ao_banks[] = {
 	BANK("AO",	GPIOAO_0,	GPIOAO_13,
 			0,		0,  /* AO_RTI_PULL_UP_REG [13-0] */
 			0,		16, /* AO_RTI_PULL_UP_REG [29-16] */
-			0,		0,  /* O_GPIO_O_EN_N [29-16] */
-			0,		16, /* O_GPIO_O_EN_N [13-0] */
-			1,		0), /* AO_GPIO_I */
+			0,		0,  /* O_GPIO_O_EN_N [13-0] */
+			0,		16, /* O_GPIO_O_EN_N [29-16] */
+			1,		0), /* AO_GPIO_I [13-0] */
 };
 
 
@@ -272,7 +272,7 @@ static struct meson_domain_data gxtvbb_domain_data[] = {
 		.banks		= gxtvbb_ee_banks,
 		.num_banks	= ARRAY_SIZE(gxtvbb_ee_banks),
 		.pin_base	= 14,
-		.num_pins	= 123,
+		.num_pins	= 125,
 	},
 	{
 		.name		= "ao-bank",
@@ -604,14 +604,14 @@ static int gxtvbb_gpio_name_to_num(const char *name)
 		num = num + 35;
 	else if (!strcmp(p, "BOOT"))	/* [0-18] 19 */
 		num = num + 46;
-	else if (!strcmp(p, "CARD"))	/* [0-6]  7  */
+	else if (!strcmp(p, "CARD"))	/* [0-8]  9  */
 		num = num + 65;
 	else if (!strcmp(p, "GPIOW"))	/* [0-20] 21 */
-		num = num + 72;
+		num = num + 74;
 	else if (!strcmp(p, "GPIOY"))	/* [0-13] 14 */
-		num = num + 93;
+		num = num + 95;
 	else if (!strcmp(p, "GPIOX"))	/* [0-27] 28 */
-		num = num + 107;
+		num = num + 109;
 	else
 		num = -1;
 
