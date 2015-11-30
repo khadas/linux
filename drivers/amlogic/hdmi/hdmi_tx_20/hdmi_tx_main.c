@@ -158,7 +158,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_device.hpd_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 		MISC_HPD_GPI_ST, 0));
 	switch_set_state(&sdev, hdmitx_device.hpd_state);
-	switch_set_state(&hdmi_power, 1);
+	switch_set_state(&hdmi_power, hdmitx_device.hpd_state);
 
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
