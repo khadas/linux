@@ -60,8 +60,10 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 		/*if 4k,
 		used cma first,for less mem fragments.
 		*/
-		if (buf->buf_size > 20 * 1024 * 1024)
-			flags = CODEC_MM_FLAGS_CMA_FIRST;
+		if (((buf->type == BUF_TYPE_HEVC) ||
+			(buf->type == BUF_TYPE_VIDEO)) &&
+			buf->for_4k)
+			flags |= CODEC_MM_FLAGS_CMA_FIRST;
 
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
 			buf->buf_page_num, 4+PAGE_SHIFT, flags);

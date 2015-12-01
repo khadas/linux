@@ -430,42 +430,19 @@ static void amstream_change_vbufsize(struct stream_port_s *port,
 		pr_info("streambuf is alloced before\n");
 		return;
 	}
-	if (pvbuf->type == BUF_TYPE_VIDEO || pvbuf->type == BUF_TYPE_HEVC) {
-		if (port->vformat == VFORMAT_H264_4K2K ||
-			port->vformat == VFORMAT_HEVC) {
-			int framesize = amstream_dec_info.height *
-				amstream_dec_info.width;
-			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K;
-			if ((framesize > 0) &&
-				(port->vformat == VFORMAT_HEVC) &&
-				(framesize <= 1920 * 1088)) {
-				/*if hevc not 4k used 15M streambuf.*/
-				pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
-			}
-			if ((pvbuf->buf_size > 30 * SZ_1M) &&
-			(codec_mm_get_total_size() < 220 * SZ_1M)) {
-				/*if less than 250M, used 20M for 4K & 265*/
-				pvbuf->buf_size = pvbuf->buf_size >> 1;
-			}
-		/* pr_err(" amstream_change_vbufsize 4k2k
-		* bufsize[0x%x] defaultsize[0x%x]\n",
-		* bufs[BUF_TYPE_VIDEO].buf_size,pvbuf->default_buf_size); */
-		} else if (pvbuf->buf_size > DEFAULT_VIDEO_BUFFER_SIZE) {
-			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
-			/* pr_err(" amstream_change_vbufsize
-			 * MAX_STREAMBUFFER_SIZE-[0x%x]
-			 * defaultsize-[0x%x] vformat-[%d]\n",
-			 * bufs[BUF_TYPE_VIDEO].buf_size,
-			 * pvbuf->default_buf_size,port->vformat); */
-		} else {
-			/* pr_err(" amstream_change_vbufsize bufsize[0x%x]
-			 * defaultbufsize [0x%x]\n",
-			 * bufs[BUF_TYPE_VIDEO].buf_size,
-			 * pvbuf->default_buf_size); */
+	if (pvbuf->for_4k) {
+		pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K;
+		if ((pvbuf->buf_size > 30 * SZ_1M) &&
+		(codec_mm_get_total_size() < 220 * SZ_1M)) {
+			/*if less than 250M, used 20M for 4K & 265*/
+			pvbuf->buf_size = pvbuf->buf_size >> 1;
 		}
-
-		reset_canuse_buferlevel(10000);
+	} else if (pvbuf->buf_size > DEFAULT_VIDEO_BUFFER_SIZE) {
+		pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
+	} else {
+		pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
 	}
+	reset_canuse_buferlevel(10000);
 
 	return;
 }
@@ -501,6 +478,13 @@ static int video_port_init(struct stream_port_s *port,
 		pr_err("vformat not set\n");
 		return -EPERM;
 	}
+
+	if (port->vformat == VFORMAT_H264_4K2K ||
+		(amstream_dec_info.height *
+			amstream_dec_info.width) > 1920*1088) {
+		pbuf->for_4k = 1;
+	}
+
 
 	amstream_change_vbufsize(port, pbuf);
 
@@ -736,7 +720,7 @@ static int amstream_port_init(struct stream_port_s *port)
 		pubuf->buf_start = 0;
 		pubuf->buf_wp = 0;
 		pubuf->buf_rp = 0;
-
+		pubuf->for_4k = 0;
 		if (has_hevc_vdec()) {
 			if (port->vformat == VFORMAT_HEVC)
 				pvbuf = &bufs[BUF_TYPE_HEVC];

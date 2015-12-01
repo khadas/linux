@@ -56,6 +56,7 @@ struct stream_buf_s {
 	u32 max_buffer_delay_ms;
 	u64 last_write_jiffies64;
 	void *write_thread;
+	int for_4k;
 } /*stream_buf_t */;
 
 struct stream_port_s {
