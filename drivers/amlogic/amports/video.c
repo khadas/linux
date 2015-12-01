@@ -4023,7 +4023,13 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
  exit:
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off);
 	vpp_misc_set = vpp_misc_save;
-
+	if ((video_enabled == 1) && ((vpp_misc_save & VPP_VD1_POSTBLEND) == 0)
+	&& (video_onoff_state == VIDEO_ENABLE_STATE_IDLE)) {
+		SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
+				VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
+				   | VPP_POSTBLEND_EN);
+		pr_info("should never happen, rdma fail!");
+	}
 	if (likely(video_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
 		/* state change for video layer enable/disable */
 
