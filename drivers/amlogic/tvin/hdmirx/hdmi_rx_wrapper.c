@@ -967,6 +967,8 @@ struct freq_ref_s freq_ref[] = {
 	/* 4k2k 420mode hactive = hactive/2 */
 	{HDMI_2160p_50hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
 	{HDMI_2160p_60hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
+	{HDMI_4096p_50hz_420, 0, 0, 2048, 2160, 2160, 2160, 0, 0},
+	{HDMI_4096p_60hz_420, 0, 0, 2048, 2160, 2160, 2160, 0, 0},
 	{HDMI_1080p60, 0, 74250, 960, 1080, 1080, 1080, 0, 3000},
 
 	/* for AG-506 */
@@ -1259,6 +1261,8 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
 		break;
 	case HDMI_4096_2160p:
+	case HDMI_4096p_50hz_420:
+	case HDMI_4096p_60hz_420:
 		fmt = TVIN_SIG_FMT_HDMI_4096_2160_00HZ;
 		break;
 	default:
@@ -1528,7 +1532,7 @@ static void Signal_status_init(void)
 	sig_unstable_cnt = 0;
 	sig_unready_cnt = 0;
 	sig_unstable_reset_hpd_cnt = 0;
-	rx.no_signal = true;
+	rx.no_signal = false;
 }
 
 /* ---------------------------------------------------------- */

@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/11/30"
+#define HDMIRX_VER "Ref.2015/12/02"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -148,6 +148,8 @@ enum HDMI_Video_Type {
 
 	HDMI_2160p_50hz_420 = 96,
 	HDMI_2160p_60hz_420 = 97,
+	HDMI_4096p_50hz_420 = 101,
+	HDMI_4096p_60hz_420 = 102,
 	HDMI_UNSUPPORT,
 };
 

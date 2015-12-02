@@ -87,7 +87,8 @@ MODULE_PARM_DESC(atv_unstable_in_cnt, "atv_unstable_in_cnt");
 static int atv_unstable_out_cnt = 50;
 module_param(atv_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_out_cnt, "atv_unstable_out_cnt");
-static int hdmi_unstable_out_cnt = 25;
+
+static int hdmi_unstable_out_cnt = 3;
 module_param(hdmi_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_unstable_out_cnt, "hdmi_unstable_out_cnt");
 
@@ -324,7 +325,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 				} else
 					info->fmt = TVIN_SIG_FMT_NULL;
 				if (info->fmt == TVIN_SIG_FMT_NULL) {
-					info->status = TVIN_SIG_STATUS_NOTSUP;
+					/* remove unsupport status */
+					info->status = TVIN_SIG_STATUS_UNSTABLE;
 					if (pre_info->status != info->status) {
 						pre_info->status = info->status;
 						queue_delayed_work(devp->sig_wq,
