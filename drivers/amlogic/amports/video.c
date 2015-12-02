@@ -3362,7 +3362,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
-		vdin_ops = NULL;	/* /get_vdin_v4l2_ops(); */
+		vdin_ops = get_vdin_v4l2_ops();
 		if (vdin_ops) {
 			arg.cmd = VDIN_CMD_ISR;
 			vdin_ops->tvin_vdin_func(1, &arg);

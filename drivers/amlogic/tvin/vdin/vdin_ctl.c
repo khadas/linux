@@ -399,6 +399,7 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 	} else {
 		switch (devp->prop.color_format) {
 		case TVIN_YUV422:
+		case TVIN_YUV444:
 		case TVIN_YUYV422:
 		case TVIN_YVYU422:
 		case TVIN_UYVY422:
@@ -407,12 +408,6 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_NV21;
 			else if (devp->prop.dest_cfmt == TVIN_NV12)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_NV12;
-			else
-				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
-			break;
-		case TVIN_YUV444:
-			if (devp->prop.dest_cfmt == TVIN_YUV444)
-				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 			else
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 			break;
