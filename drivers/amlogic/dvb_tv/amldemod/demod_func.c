@@ -560,7 +560,7 @@ void demod_power_switch(int pwr_cntl)
 		/* reset */
 		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) &
 				     (~(0x1 << 8))), RESET0_LEVEL);
-		msleep(20);
+	/*	msleep(20);*/
 #ifdef GX_TV
 		/* remove isolation */
 		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
@@ -619,12 +619,12 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 	demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
 	cfg0.b.mode = 7;
 	cfg0.b.adc_format = 1;
-	if (dvb_mode == M6_Dvbc) {	/* // 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
+	if (dvb_mode == Gxtv_Dvbc) {	/* // 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
 		cfg0.b.ts_sel = 2;
-	} else if ((dvb_mode == M6_Dvbt_Isdbt) || (dvb_mode == M6_Dtmb)) {
+	} else if ((dvb_mode == Gxtv_Dvbt_Isdbt) || (dvb_mode == Gxtv_Dtmb)) {
 		cfg0.b.ts_sel = 1;
 		cfg0.b.adc_regout = 1;
-	} else if (dvb_mode == M6_Atsc) {
+	} else if (dvb_mode == Gxtv_Atsc) {
 		cfg0.b.ts_sel = 4;
 	}
 	demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
@@ -1198,11 +1198,10 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	/* set adc clk */
 	demod_set_adc_core_clk(clk_adc, clk_dem, dvb_mode);
 	/* init for dtmb */
-	if (dvb_mode == M6_Dtmb) {
+	if (dvb_mode == Gxtv_Dtmb) {
 		/* open arbit */
 		demod_set_demod_reg(0x8, DEMOD_REG4);
 	}
-	debug_demod = 0;
 	demod_sta->adc_freq = clk_adc;
 	demod_sta->clk_freq = clk_dem;
 	return 0;

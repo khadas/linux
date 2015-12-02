@@ -14,7 +14,7 @@
 *****************************************************************/
 
 /*
- *  Driver for m6_demod demodulator
+ *  Driver for gxtv_demod demodulator
  */
 
 #include <linux/init.h>
@@ -52,7 +52,7 @@ module_param(debug_aml, int, 0644);
 #define pr_error(fmt, args ...) pr_err("GXTV_DEMOD: "fmt, ## args)
 
 static int last_lock = -1;
-#define DEMOD_DEVICE_NAME  "m6_demod"
+#define DEMOD_DEVICE_NAME  "gxtv_demod"
 static int cci_thread;
 static int freq_dvbc;
 static struct aml_demod_sta demod_status;
@@ -79,7 +79,7 @@ module_param(frontend_tuner_addr, int, S_IRUGO);
 static int autoflags, autoFlagsTrig;
 static struct mutex aml_lock;
 
-static int M6_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode);
+static int Gxtv_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode);
 
 static ssize_t dvbc_auto_sym_show(struct class *cls,
 				  struct class_attribute *attr, char *buf)
@@ -273,7 +273,7 @@ static int amdemod_stat_islock(struct aml_fe_dev *dev, int mode)
 #define amdemod_atsc_stat_islock(dev)  amdemod_stat_islock((dev), 3)
 #define amdemod_dtmb_stat_islock(dev)  amdemod_stat_islock((dev), 4)
 
-static int m6_demod_dvbc_set_qam_mode(struct dvb_frontend *fe)
+static int gxtv_demod_dvbc_set_qam_mode(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_dvbc param;    /*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
@@ -284,7 +284,7 @@ static int m6_demod_dvbc_set_qam_mode(struct dvb_frontend *fe)
 	return 0;
 }
 
-static void m6_demod_dvbc_release(struct dvb_frontend *fe)
+static void gxtv_demod_dvbc_release(struct dvb_frontend *fe)
 {
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
@@ -293,7 +293,7 @@ static void m6_demod_dvbc_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_dvbc_read_status
+static int gxtv_demod_dvbc_read_status
 	(struct dvb_frontend *fe, fe_status_t *status)
 {
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
@@ -322,7 +322,7 @@ static int m6_demod_dvbc_read_status
 	return 0;
 }
 
-static int m6_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int gxtv_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	/*struct aml_fe_dev *dev = afe->dtv_demod;*/
 	struct aml_demod_sts demod_sts;
@@ -334,7 +334,7 @@ static int m6_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int m6_demod_dvbc_read_signal_strength
+static int gxtv_demod_dvbc_read_signal_strength
 	(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -345,7 +345,7 @@ static int m6_demod_dvbc_read_signal_strength
 	return 0;
 }
 
-static int m6_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int gxtv_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct aml_demod_sts demod_sts;
 	struct aml_demod_i2c demod_i2c;
@@ -356,7 +356,7 @@ static int m6_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int m6_demod_dvbc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int gxtv_demod_dvbc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	*ucblocks = 0;
 	return 0;
@@ -364,7 +364,7 @@ static int m6_demod_dvbc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 /*extern int aml_fe_analog_set_frontend(struct dvb_frontend *fe);*/
 
-static int m6_demod_dvbc_set_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_dvbc param;    /*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
@@ -382,10 +382,10 @@ static int m6_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	param.mode = amdemod_qam(c->modulation);
 	param.symb_rate = c->symbol_rate / 1000;
 	if ((param.mode == 3) && (demod_status.tmp != Adc_mode)) {
-		M6_Demod_Dvbc_Init(dev, Adc_mode);
-		pr_dbg("M6_Demod_Dvbc_Init,Adc_mode\n");
+		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
+		pr_dbg("Gxtv_Demod_Dvbc_Init,Adc_mode\n");
 	} else {
-		/*M6_Demod_Dvbc_Init(dev,Cry_mode);*/
+		/*Gxtv_Demod_Dvbc_Init(dev,Cry_mode);*/
 	}
 	if (autoflags == 0) {
 		/*pr_dbg("QAM_TUNING mode\n");*/
@@ -398,7 +398,7 @@ static int m6_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	}
 	autoFlagsTrig = 0;
 	last_lock = -1;
-	pr_dbg("[m6_demod_dvbc_set_frontend]PARA\t"
+	pr_dbg("[gxtv_demod_dvbc_set_frontend]PARA\t"
 	       "demod_i2c.tuner is %d||||demod_i2c.addr is %d||||\t"
 	       "param.ch_freq is %d||||param.symb_rate is %d,\t"
 	       "param.mode is %d\n",
@@ -447,7 +447,7 @@ retry:
 	return 0;
 }
 
-static int m6_demod_dvbc_get_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_dvbc_get_frontend(struct dvb_frontend *fe)
 {                               /*these content will be writed into eeprom .*/
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -464,7 +464,7 @@ static int m6_demod_dvbc_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int M6_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
+static int Gxtv_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 {
 	struct aml_demod_sys sys;
 	struct aml_demod_i2c i2c;
@@ -475,7 +475,7 @@ static int M6_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 	i2c.tuner = dev->drv->id;
 	i2c.addr = dev->i2c_addr;
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
-	demod_status.dvb_mode = M6_Dvbc;
+	demod_status.dvb_mode = Gxtv_Dvbc;
 
 	if (mode == Adc_mode) {
 		sys.adc_clk = 35000;
@@ -494,7 +494,7 @@ static int M6_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 	return 0;
 }
 
-static void m6_demod_dvbt_release(struct dvb_frontend *fe)
+static void gxtv_demod_dvbt_release(struct dvb_frontend *fe)
 {
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
@@ -503,7 +503,7 @@ static void m6_demod_dvbt_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_dvbt_read_status
+static int gxtv_demod_dvbt_read_status
 	(struct dvb_frontend *fe, fe_status_t *status)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
@@ -531,7 +531,7 @@ static int m6_demod_dvbt_read_status
 	return 0;
 }
 
-static int m6_demod_dvbt_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int gxtv_demod_dvbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 	struct aml_demod_i2c demod_i2c;
@@ -541,7 +541,7 @@ static int m6_demod_dvbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int m6_demod_dvbt_read_signal_strength
+static int gxtv_demod_dvbt_read_signal_strength
 	(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -552,7 +552,7 @@ static int m6_demod_dvbt_read_signal_strength
 	return 0;
 }
 
-static int m6_demod_dvbt_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int gxtv_demod_dvbt_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_demod_sts demod_sts;*/
@@ -565,13 +565,13 @@ static int m6_demod_dvbt_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int m6_demod_dvbt_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int gxtv_demod_dvbt_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	*ucblocks = 0;
 	return 0;
 }
 
-static int m6_demod_dvbt_set_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_dvbt_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	/*struct aml_demod_sts demod_sts;*/
@@ -646,7 +646,7 @@ retry:
 	return 0;
 }
 
-static int m6_demod_dvbt_get_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_dvbt_get_frontend(struct dvb_frontend *fe)
 {                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -655,7 +655,7 @@ static int m6_demod_dvbt_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-int M6_Demod_Dvbt_Init(struct aml_fe_dev *dev)
+int Gxtv_Demod_Dvbt_Init(struct aml_fe_dev *dev)
 {
 	struct aml_demod_sys sys;
 	struct aml_demod_i2c i2c;
@@ -668,7 +668,7 @@ int M6_Demod_Dvbt_Init(struct aml_fe_dev *dev)
 	i2c.tuner = dev->drv->id;
 	i2c.addr = dev->i2c_addr;
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
-	demod_status.dvb_mode = M6_Dvbt_Isdbt;
+	demod_status.dvb_mode = Gxtv_Dvbt_Isdbt;
 	sys.adc_clk = Adc_Clk_24M;
 	sys.demod_clk = Demod_Clk_60M;
 	demod_status.ch_if = Si2176_5M_If * 1000;
@@ -676,7 +676,7 @@ int M6_Demod_Dvbt_Init(struct aml_fe_dev *dev)
 	return 0;
 }
 
-static void m6_demod_atsc_release(struct dvb_frontend *fe)
+static void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
@@ -685,7 +685,7 @@ static void m6_demod_atsc_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
+static int gxtv_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_atsc param;    /*mode  3:64,  5:256, 7:vsb*/
@@ -698,7 +698,7 @@ static int m6_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int m6_demod_atsc_read_status
+static int gxtv_demod_atsc_read_status
 	(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -727,7 +727,7 @@ static int m6_demod_atsc_read_status
 	return 0;
 }
 
-static int m6_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
@@ -739,7 +739,7 @@ static int m6_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int m6_demod_atsc_read_signal_strength
+static int gxtv_demod_atsc_read_signal_strength
 	(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -749,7 +749,7 @@ static int m6_demod_atsc_read_signal_strength
 	return 0;
 }
 
-static int m6_demod_atsc_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int gxtv_demod_atsc_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
@@ -762,13 +762,13 @@ static int m6_demod_atsc_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int m6_demod_atsc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int gxtv_demod_atsc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	*ucblocks = 0;
 	return 0;
 }
 
-static int m6_demod_atsc_set_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 {
 /*      struct amlfe_state *state = fe->demodulator_priv;*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -840,7 +840,7 @@ retry:
 	return 0;
 }
 
-static int m6_demod_atsc_get_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
 {                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -850,7 +850,7 @@ static int m6_demod_atsc_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-int M6_Demod_Atsc_Init(struct aml_fe_dev *dev)
+int Gxtv_Demod_Atsc_Init(struct aml_fe_dev *dev)
 {
 	struct aml_demod_sys sys;
 	struct aml_demod_i2c i2c;
@@ -861,7 +861,7 @@ int M6_Demod_Atsc_Init(struct aml_fe_dev *dev)
 	memset(&i2c, 0, sizeof(i2c));
 	memset(&demod_status, 0, sizeof(demod_status));
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
-	demod_status.dvb_mode = M6_Atsc;
+	demod_status.dvb_mode = Gxtv_Atsc;
 	sys.adc_clk = Adc_Clk_25_2M;    /*Adc_Clk_26M;*/
 	sys.demod_clk = Demod_Clk_75M;  /*Demod_Clk_71M;//Demod_Clk_78M;*/
 	demod_status.ch_if = 6350;
@@ -870,9 +870,7 @@ int M6_Demod_Atsc_Init(struct aml_fe_dev *dev)
 	return 0;
 }
 
-/*dtmb 20140106 for m6d*/
-
-static void m6_demod_dtmb_release(struct dvb_frontend *fe)
+static void gxtv_demod_dtmb_release(struct dvb_frontend *fe)
 {
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
@@ -881,7 +879,7 @@ static void m6_demod_dtmb_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int m6_demod_dtmb_read_status
+static int gxtv_demod_dtmb_read_status
 	(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -914,7 +912,7 @@ static int m6_demod_dtmb_read_status
 	return 0;
 }
 
-static int m6_demod_dtmb_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int gxtv_demod_dtmb_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
@@ -929,7 +927,7 @@ static int m6_demod_dtmb_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int m6_demod_dtmb_read_signal_strength
+static int gxtv_demod_dtmb_read_signal_strength
 		(struct dvb_frontend *fe, u16 *strength)
 {
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -939,7 +937,7 @@ static int m6_demod_dtmb_read_signal_strength
 	return 0;
 }
 
-static int m6_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int gxtv_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 /*      struct aml_fe *afe = fe->demodulator_priv;*/
 /*      struct aml_fe_dev *dev = afe->dtv_demod;*/
@@ -956,13 +954,13 @@ static int m6_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int m6_demod_dtmb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int gxtv_demod_dtmb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	*ucblocks = 0;
 	return 0;
 }
 
-static int m6_demod_dtmb_set_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_dtmb param;
@@ -976,7 +974,7 @@ static int m6_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	demod_i2c.tuner = dev->drv->id;
 	demod_i2c.addr = dev->i2c_addr;
 	times = 2;
-	pr_dbg("m6_demod_dtmb_set_frontend,freq is %d\n", c->frequency);
+	pr_dbg("gxtv_demod_dtmb_set_frontend,freq is %d\n", c->frequency);
 	memset(&param, 0, sizeof(param));
 	param.ch_freq = c->frequency / 1000;
 
@@ -992,7 +990,7 @@ static int m6_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int m6_demod_dtmb_get_frontend(struct dvb_frontend *fe)
+static int gxtv_demod_dtmb_get_frontend(struct dvb_frontend *fe)
 {                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
@@ -1002,7 +1000,7 @@ static int m6_demod_dtmb_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev)
+int Gxtv_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 {
 	struct aml_demod_sys sys;
 	struct aml_demod_i2c i2c;
@@ -1012,7 +1010,7 @@ int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 	memset(&i2c, 0, sizeof(i2c));
 	memset(&demod_status, 0, sizeof(demod_status));
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
-	demod_status.dvb_mode = M6_Dtmb;
+	demod_status.dvb_mode = Gxtv_Dtmb;
 	sys.adc_clk = Adc_Clk_25M;      /*Adc_Clk_26M;*/
 	sys.demod_clk = Demod_Clk_200M;
 	demod_status.ch_if = Si2176_5M_If;
@@ -1021,7 +1019,7 @@ int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 	return 0;
 }
 
-static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
+static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 {
 	struct dvb_frontend_ops *fe_ops = (struct dvb_frontend_ops *)ops;
 
@@ -1037,18 +1035,18 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
-		fe_ops->release = m6_demod_dvbt_release;
-		fe_ops->set_frontend = m6_demod_dvbt_set_frontend;
-		fe_ops->get_frontend = m6_demod_dvbt_get_frontend;
-		fe_ops->read_status = m6_demod_dvbt_read_status;
-		fe_ops->read_ber = m6_demod_dvbt_read_ber;
+		fe_ops->release = gxtv_demod_dvbt_release;
+		fe_ops->set_frontend = gxtv_demod_dvbt_set_frontend;
+		fe_ops->get_frontend = gxtv_demod_dvbt_get_frontend;
+		fe_ops->read_status = gxtv_demod_dvbt_read_status;
+		fe_ops->read_ber = gxtv_demod_dvbt_read_ber;
 		fe_ops->read_signal_strength =
-			m6_demod_dvbt_read_signal_strength;
-		fe_ops->read_snr = m6_demod_dvbt_read_snr;
-		fe_ops->read_ucblocks = m6_demod_dvbt_read_ucblocks;
+			gxtv_demod_dvbt_read_signal_strength;
+		fe_ops->read_snr = gxtv_demod_dvbt_read_snr;
+		fe_ops->read_ucblocks = gxtv_demod_dvbt_read_ucblocks;
 
 		pr_dbg("=========================dvbt demod init\r\n");
-		M6_Demod_Dvbt_Init(dev);
+		Gxtv_Demod_Dvbt_Init(dev);
 	} else if (mode == AM_FE_QAM) {
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 858000000;
@@ -1063,19 +1061,19 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
 
-		fe_ops->release = m6_demod_dvbc_release;
-		fe_ops->set_frontend = m6_demod_dvbc_set_frontend;
-		fe_ops->get_frontend = m6_demod_dvbc_get_frontend;
-		fe_ops->read_status = m6_demod_dvbc_read_status;
-		fe_ops->read_ber = m6_demod_dvbc_read_ber;
+		fe_ops->release = gxtv_demod_dvbc_release;
+		fe_ops->set_frontend = gxtv_demod_dvbc_set_frontend;
+		fe_ops->get_frontend = gxtv_demod_dvbc_get_frontend;
+		fe_ops->read_status = gxtv_demod_dvbc_read_status;
+		fe_ops->read_ber = gxtv_demod_dvbc_read_ber;
 		fe_ops->read_signal_strength =
-			m6_demod_dvbc_read_signal_strength;
-		fe_ops->read_snr = m6_demod_dvbc_read_snr;
-		fe_ops->read_ucblocks = m6_demod_dvbc_read_ucblocks;
-		fe_ops->set_qam_mode = m6_demod_dvbc_set_qam_mode;
+			gxtv_demod_dvbc_read_signal_strength;
+		fe_ops->read_snr = gxtv_demod_dvbc_read_snr;
+		fe_ops->read_ucblocks = gxtv_demod_dvbc_read_ucblocks;
+		fe_ops->set_qam_mode = gxtv_demod_dvbc_set_qam_mode;
 		install_isr(dev);
 		pr_dbg("=========================dvbc demod init\r\n");
-		M6_Demod_Dvbc_Init(dev, Adc_mode);
+		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
 	} else if (mode == AM_FE_ATSC) {
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 858000000;
@@ -1089,17 +1087,17 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
 
-		fe_ops->release = m6_demod_atsc_release;
-		fe_ops->set_frontend = m6_demod_atsc_set_frontend;
-		fe_ops->get_frontend = m6_demod_atsc_get_frontend;
-		fe_ops->read_status = m6_demod_atsc_read_status;
-		fe_ops->read_ber = m6_demod_atsc_read_ber;
+		fe_ops->release = gxtv_demod_atsc_release;
+		fe_ops->set_frontend = gxtv_demod_atsc_set_frontend;
+		fe_ops->get_frontend = gxtv_demod_atsc_get_frontend;
+		fe_ops->read_status = gxtv_demod_atsc_read_status;
+		fe_ops->read_ber = gxtv_demod_atsc_read_ber;
 		fe_ops->read_signal_strength =
-			m6_demod_atsc_read_signal_strength;
-		fe_ops->read_snr = m6_demod_atsc_read_snr;
-		fe_ops->read_ucblocks = m6_demod_atsc_read_ucblocks;
-		fe_ops->set_qam_mode = m6_demod_atsc_set_qam_mode;
-		M6_Demod_Atsc_Init(dev);
+			gxtv_demod_atsc_read_signal_strength;
+		fe_ops->read_snr = gxtv_demod_atsc_read_snr;
+		fe_ops->read_ucblocks = gxtv_demod_atsc_read_ucblocks;
+		fe_ops->set_qam_mode = gxtv_demod_atsc_set_qam_mode;
+		Gxtv_Demod_Atsc_Init(dev);
 	} else if (mode == AM_FE_DTMB) {
 		fe_ops->info.frequency_min = 51000000;
 		fe_ops->info.frequency_max = 900000000;
@@ -1113,36 +1111,36 @@ static int m6_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_RECOVER | FE_CAN_MUTE_TS;
 
-		fe_ops->release = m6_demod_dtmb_release;
-		fe_ops->set_frontend = m6_demod_dtmb_set_frontend;
-		fe_ops->get_frontend = m6_demod_dtmb_get_frontend;
-		fe_ops->read_status = m6_demod_dtmb_read_status;
-		fe_ops->read_ber = m6_demod_dtmb_read_ber;
+		fe_ops->release = gxtv_demod_dtmb_release;
+		fe_ops->set_frontend = gxtv_demod_dtmb_set_frontend;
+		fe_ops->get_frontend = gxtv_demod_dtmb_get_frontend;
+		fe_ops->read_status = gxtv_demod_dtmb_read_status;
+		fe_ops->read_ber = gxtv_demod_dtmb_read_ber;
 		fe_ops->read_signal_strength =
-			m6_demod_dtmb_read_signal_strength;
-		fe_ops->read_snr = m6_demod_dtmb_read_snr;
-		fe_ops->read_ucblocks = m6_demod_dtmb_read_ucblocks;
-		M6_Demod_Dtmb_Init(dev);
+			gxtv_demod_dtmb_read_signal_strength;
+		fe_ops->read_snr = gxtv_demod_dtmb_read_snr;
+		fe_ops->read_ucblocks = gxtv_demod_dtmb_read_ucblocks;
+		Gxtv_Demod_Dtmb_Init(dev);
 	}
 	return 0;
 }
 
-static int m6_demod_fe_resume(struct aml_fe_dev *dev)
+static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 {
-	pr_dbg("m6_demod_fe_resume\n");
+	pr_dbg("gxtv_demod_fe_resume\n");
 	demod_power_switch(PWR_ON);
-	M6_Demod_Dtmb_Init(dev);
+	Gxtv_Demod_Dtmb_Init(dev);
 	return 0;
 }
 
-static int m6_demod_fe_suspend(struct aml_fe_dev *dev)
+static int gxtv_demod_fe_suspend(struct aml_fe_dev *dev)
 {
-	pr_dbg("m6_demod_fe_suspend\n");
-	demod_power_switch(PWR_OFF);
+	pr_dbg("gxtv_demod_fe_suspend\n");
+/*	demod_power_switch(PWR_OFF);*/
 	return 0;
 }
 
-static int m6_demod_fe_enter_mode(struct aml_fe *fe, int mode)
+static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 {
 	struct aml_fe_dev *dev = fe->dtv_demod;
 	int memstart_dtmb;
@@ -1154,14 +1152,14 @@ static int m6_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 	memstart_dtmb = fe->dtv_demod->mem_start;
 	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
 	/*mem_buf = (long *)phys_to_virt(memstart);*/
-	M6_Demod_Dtmb_Init(dev);
+	Gxtv_Demod_Dtmb_Init(dev);
 	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
 	pr_dbg("[dtmb]mem_buf is 0x%x\n",
 		dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
 	return 0;
 }
 
-static int m6_demod_fe_leave_mode(struct aml_fe *fe, int mode)
+static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 {
 	/*dvbc_timer_exit();*/
 	if (cci_thread)
@@ -1169,66 +1167,66 @@ static int m6_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 	return 0;
 }
 
-static struct aml_fe_drv m6_demod_dtv_demod_drv = {
+static struct aml_fe_drv gxtv_demod_dtv_demod_drv = {
 	.id		= AM_DTV_DEMOD_M1,
 	.name		= "AMLDEMOD",
 	.capability	=
 		AM_FE_QPSK | AM_FE_QAM | AM_FE_ATSC | AM_FE_OFDM | AM_FE_DTMB,
-	.get_ops	= m6_demod_fe_get_ops,
-	.suspend	= m6_demod_fe_suspend,
-	.resume		= m6_demod_fe_resume,
-	.enter_mode	= m6_demod_fe_enter_mode,
-	.leave_mode	= m6_demod_fe_leave_mode
+	.get_ops	= gxtv_demod_fe_get_ops,
+	.suspend	= gxtv_demod_fe_suspend,
+	.resume		= gxtv_demod_fe_resume,
+	.enter_mode	= gxtv_demod_fe_enter_mode,
+	.leave_mode	= gxtv_demod_fe_leave_mode
 };
 
-struct class *m6_clsp;
-struct class *m6_para_clsp;
+struct class *gxtv_clsp;
+struct class *gxtv_para_clsp;
 
-static int __init m6demodfrontend_init(void)
+static int __init gxtvdemodfrontend_init(void)
 {
 	int ret;
 
-	pr_dbg("register m6_demod demod driver\n");
+	pr_dbg("register gxtv_demod demod driver\n");
 	ret = 0;
 
 	mutex_init(&aml_lock);
 
-	m6_clsp = class_create(THIS_MODULE, DEMOD_DEVICE_NAME);
-	if (!m6_clsp) {
-		pr_error("[m6 demod]%s:create class error.\n", __func__);
-		return PTR_ERR(m6_clsp);
+	gxtv_clsp = class_create(THIS_MODULE, DEMOD_DEVICE_NAME);
+	if (!gxtv_clsp) {
+		pr_error("[gxtv demod]%s:create class error.\n", __func__);
+		return PTR_ERR(gxtv_clsp);
 	}
-	ret = class_create_file(m6_clsp, &class_attr_auto_sym);
+	ret = class_create_file(gxtv_clsp, &class_attr_auto_sym);
 	if (ret)
-		pr_error("[m6 demod]%s create  class file error.\n", __func__);
+		pr_error("[gxtv demod]%s create class error.\n", __func__);
 
-	ret = class_create_file(m6_clsp, &class_attr_dvbc_para);
+	ret = class_create_file(gxtv_clsp, &class_attr_dvbc_para);
 	if (ret)
-		pr_error("[m6 demod]%s create  class file error.\n", __func__);
+		pr_error("[gxtv demod]%s create class error.\n", __func__);
 
-	ret = class_create_file(m6_clsp, &class_attr_dvbc_reg);
+	ret = class_create_file(gxtv_clsp, &class_attr_dvbc_reg);
 	if (ret)
-		pr_error("[m6 demod]%s create  class file error.\n", __func__);
+		pr_error("[gxtv demod]%s create class error.\n", __func__);
 
-	return aml_register_fe_drv(AM_DEV_DTV_DEMOD, &m6_demod_dtv_demod_drv);
+	return aml_register_fe_drv(AM_DEV_DTV_DEMOD, &gxtv_demod_dtv_demod_drv);
 }
 
-static void __exit m6demodfrontend_exit(void)
+static void __exit gxtvdemodfrontend_exit(void)
 {
-	pr_dbg("unregister m6_demod demod driver\n");
+	pr_dbg("unregister gxtv_demod demod driver\n");
 
 	mutex_destroy(&aml_lock);
 
-	class_remove_file(m6_clsp, &class_attr_auto_sym);
-	class_remove_file(m6_clsp, &class_attr_dvbc_para);
-	class_remove_file(m6_clsp, &class_attr_dvbc_reg);
-	class_destroy(m6_clsp);
-	aml_unregister_fe_drv(AM_DEV_DTV_DEMOD, &m6_demod_dtv_demod_drv);
+	class_remove_file(gxtv_clsp, &class_attr_auto_sym);
+	class_remove_file(gxtv_clsp, &class_attr_dvbc_para);
+	class_remove_file(gxtv_clsp, &class_attr_dvbc_reg);
+	class_destroy(gxtv_clsp);
+	aml_unregister_fe_drv(AM_DEV_DTV_DEMOD, &gxtv_demod_dtv_demod_drv);
 }
 
-fs_initcall(m6demodfrontend_init);
-module_exit(m6demodfrontend_exit);
+fs_initcall(gxtvdemodfrontend_init);
+module_exit(gxtvdemodfrontend_exit);
 
-MODULE_DESCRIPTION("m6_demod DVB-T/DVB-C Demodulator driver");
+MODULE_DESCRIPTION("gxtv_demod DVB-T/DVB-C/DTMB Demodulator driver");
 MODULE_AUTHOR("RSJ");
 MODULE_LICENSE("GPL");

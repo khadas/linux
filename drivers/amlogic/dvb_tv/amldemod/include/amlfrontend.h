@@ -18,16 +18,16 @@ struct amlfe_config {
 	int tuner_type;
 	int tuner_addr;
 };
-enum M6_Demod_Tuner_If {
+enum Gxtv_Demod_Tuner_If {
 	Si2176_5M_If = 5,
 	Si2176_6M_If = 6
 };
 /* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
-enum M6_Demod_Dvb_Mode {
-	M6_Dvbc = 0,
-	M6_Dvbt_Isdbt = 1,
-	M6_Atsc = 2,
-	M6_Dtmb = 3,
+enum Gxtv_Demod_Dvb_Mode {
+	Gxtv_Dvbc = 0,
+	Gxtv_Dvbt_Isdbt = 1,
+	Gxtv_Atsc = 2,
+	Gxtv_Dtmb = 3,
 };
 #define Adc_Clk_35M             35714	/* adc clk    dvbc */
 #define Demod_Clk_71M   71428	/* demod clk */
