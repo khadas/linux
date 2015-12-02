@@ -421,37 +421,38 @@
 		status = "ok";
 		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
 	};
-
+	wifi{
+		compatible = "amlogic, aml_broadcm_wifi";
+		dev_name = "aml_broadcm_wifi";
+		status = "okay";
+		interrupt_pin = <&gpio_ao       GPIOAO_13       GPIO_ACTIVE_HIGH>;
+		interrupts = <0 68 4>;
+		irq_trigger_type = "GPIO_IRQ_HIGH";
+		power_on_pin = <&gpio_ao       GPIOAO_6       GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "wifi_32k_pins";
+		pinctrl-0 = <&wifi_32k_pins>;
+	};
 
     sd{
         compatible = "amlogic, aml_sd_emmc";
         dev_name = "aml_newsd.0";
         status = "okay";
         reg = <0x0 0xd0072000 0x0 0x2000>;
-        interrupts = <	0 217 1
-        				0 67 1
-        				0 69 1>;
+        interrupts = <	0 217 4 >;
         pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins";
         pinctrl-0 = <&sd_clk_cmd_pins>;
         pinctrl-1 = <&sd_all_pins>;
 		sd{
 	   		status = "okay";
 	   		pinname = "sd";
-	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
+	   		ocr_avail = <0x00200080>; /*  3.3:0x200000, 1.8+3.3:0x00200080 */
 	   		caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-					"MMC_CAP_SD_HIGHSPEED";
-	   				//,"MMC_CAP_UHS_SDR12",
-	   				//"MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50",
-	   				//"MMC_CAP_UHS_SDR104","MMC_CAP_NONREMOVABLE";
+					"MMC_CAP_SD_HIGHSPEED","MMC_PM_KEEP_POWER",
+	   				"MMC_CAP_UHS_SDR104","MMC_CAP_NONREMOVABLE","MMC_CAP_SDIO_IRQ";
 	   		f_min = <300000>;
-	   		f_max = <100000000>;
+	   		f_max = <200000000>;
 	   		max_req_size = <0x20000>;          /**128KB*/
-			gpio_dat3 = <&gpio       CARD_4       GPIO_ACTIVE_HIGH>;
-			jtag_pin =  <&gpio       CARD_0       GPIO_ACTIVE_HIGH>;
-			gpio_cd =  <&gpio       CARD_6       GPIO_ACTIVE_HIGH>;
-			irq_in = <3>;
-			irq_out = <5>;
-	   		card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
+	   		card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
 		};
     };
     emmc{
@@ -480,7 +481,7 @@
             card_type = <1>; /* 1:mmc card(include eMMC), 2:sd card(include tSD), */
 	};
     };
-	sdio{
+/* 	sdio{
 		compatible = "amlogic, aml_sd_emmc";
 		dev_name = "aml_newsd.0";
 		status = "okay";
@@ -492,7 +493,7 @@
 		sdio{
 			status = "okay";
 			pinname = "sdio";
-			ocr_avail = <0x00200080>;  /*3.3:0x200000, 1.8+3.3:0x00200080 */
+			ocr_avail = <0x00200080>;  //3.3:0x200000, 1.8+3.3:0x00200080
 			caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
 				"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
 				"MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
@@ -500,10 +501,10 @@
 				"MMC_PM_KEEP_POWER";
 				f_min = <400000>;
 				f_max = <200000000>;
-				max_req_size = <0x20000>;          /**128KB*/
-				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
+				max_req_size = <0x20000>; //         *128KB
+				card_type = <3>; // 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card,
 		};
-	};
+	}; */
 	nand{
 		compatible = "amlogic, aml_nand";
 		dev_name = "nand";
@@ -1091,7 +1092,7 @@
 	status = "okay";
 };
 
-	&spicc{
+/* 	&spicc{
 		status = "okay";
 		pinctrl-names = "spicc_pulldown","spicc_pullup";
 		pinctrl-0 = <&spicc_pulldown_h6h7h8 &spicc_pins_h6h7h8>;
@@ -1100,4 +1101,4 @@
 		cs-gpios = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-	};
+	}; */

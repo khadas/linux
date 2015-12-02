@@ -211,7 +211,11 @@
 			amlogic,setmask=<2 0xf000000>;
 			amlogic,pins="GPIOX_12", "GPIOX_13", "GPIOX_14", "GPIOX_15";
 		};
-
+		wifi_32k_pins:wifi_32k_pins{
+			amlogic,setmask=<7 0x8000000>;
+			amlogic,clrmask=<7 0x12020000>;
+			amlogic,pins="GPIOH_7";
+		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
 			amlogic,setmask=<5 0x00000018>;
 			amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
