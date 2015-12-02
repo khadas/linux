@@ -2424,12 +2424,29 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
-static atomic_t emmc_probe = ATOMIC_INIT(0);
+static atomic_t emmc_probe = ATOMIC_INIT(1);
 static DECLARE_WAIT_QUEUE_HEAD(emmc_probe_waitqueue);
 
+/*
+ * instaboot function must wait for emmc device ready
+ */
 void wait_for_emmc_probe(void)
 {
+	pr_info("wait for emmc probe\n");
 	wait_event(emmc_probe_waitqueue, atomic_read(&emmc_probe) == 0);
+}
+
+/*
+ * clear the emmc waiting flag emmc_probe
+ * and wakeup function wait_for_emmc_probe caller
+ */
+static inline void clear_emmc_wait_flag(struct mmc_card *card)
+{
+	if (card == NULL || card->type == MMC_TYPE_MMC) {
+		pr_info("clear_emmc_wait_flag\n");
+		atomic_set(&emmc_probe, 0);
+		wake_up(&emmc_probe_waitqueue);
+	}
 }
 
 static int mmc_blk_probe(struct mmc_card *card)
@@ -2437,19 +2454,21 @@ static int mmc_blk_probe(struct mmc_card *card)
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
 
-	atomic_set(&emmc_probe, 1);
-
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
-	if (!(card->csd.cmdclass & CCC_BLOCK_READ))
+	if (!(card->csd.cmdclass & CCC_BLOCK_READ)) {
+		clear_emmc_wait_flag(card);
 		return -ENODEV;
+	}
 
 	mmc_fixup_device(card, blk_fixups);
 
 	md = mmc_blk_alloc(card);
-	if (IS_ERR(md))
+	if (IS_ERR(md)) {
+		clear_emmc_wait_flag(card);
 		return PTR_ERR(md);
+	}
 
 	string_get_size((u64)get_capacity(md->disk) << 9, STRING_UNITS_2,
 			cap_str, sizeof(cap_str));
@@ -2466,8 +2485,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 		goto out;
 
 	aml_emmc_partition_ops(card, md->disk); /* add by gch */
-	atomic_set(&emmc_probe, 0);
-	wake_up(&emmc_probe_waitqueue);
 
 	list_for_each_entry(part_md, &md->part, part) {
 		if (mmc_add_disk(part_md))
@@ -2486,11 +2503,13 @@ static int mmc_blk_probe(struct mmc_card *card)
 		pm_runtime_enable(&card->dev);
 	}
 
+	clear_emmc_wait_flag(card);
 	return 0;
 
  out:
 	mmc_blk_remove_parts(card, md);
 	mmc_blk_remove_req(md);
+	clear_emmc_wait_flag(card);
 	return 0;
 }
 

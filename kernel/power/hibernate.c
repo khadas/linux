@@ -787,7 +787,12 @@ int software_resume(void)
 		ssleep(resume_delay);
 	}
 
-	wait_for_emmc_probe();
+	/*
+	 * If the storage device is an emmc,
+	 * it need to wait for the device to be ready.
+	 */
+	if (is_storage_emmc())
+		wait_for_emmc_probe();
 
 	/* Check if the device is there */
 	swsusp_resume_device = name_to_dev_t(resume_file);

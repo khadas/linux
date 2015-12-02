@@ -90,4 +90,6 @@ extern void aml_put_page(struct page *page);
 
 extern unsigned int is_instabooting;
 
+extern int is_storage_emmc(void);
+
 #endif /* _INSTABOOT_H__ */
