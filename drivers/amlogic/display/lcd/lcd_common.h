@@ -33,7 +33,7 @@ extern char *lcd_mode_mode_to_str(int mode);
 extern void lcd_cpu_gpio_register(unsigned int index);
 extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
-extern int lcd_pinmux_set(const char *str);
+extern void lcd_ttl_pinmux_set(int status);
 
 extern void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode);
 

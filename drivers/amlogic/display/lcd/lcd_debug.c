@@ -278,6 +278,10 @@ static unsigned int lcd_reg_dump_clk[] = {
 	HHI_HDMI_PLL_CNTL4,
 	HHI_HDMI_PLL_CNTL5,
 	HHI_HDMI_PLL_CNTL6,
+	HHI_VID_PLL_CLK_DIV,
+	HHI_VIID_CLK_DIV,
+	HHI_VIID_CLK_CNTL,
+	HHI_VID_CLK_CNTL2,
 };
 
 static unsigned int lcd_reg_dump_encl[] = {
@@ -291,8 +295,65 @@ static unsigned int lcd_reg_dump_encl[] = {
 	ENCL_VIDEO_HAVON_END,
 	ENCL_VIDEO_VAVON_BLINE,
 	ENCL_VIDEO_VAVON_ELINE,
+	ENCL_VIDEO_HSO_BEGIN,
+	ENCL_VIDEO_HSO_END,
+	ENCL_VIDEO_VSO_BEGIN,
+	ENCL_VIDEO_VSO_END,
+	ENCL_VIDEO_VSO_BLINE,
+	ENCL_VIDEO_VSO_ELINE,
 	ENCL_VIDEO_RGBIN_CTRL,
+	L_GAMMA_CNTL_PORT,
+	L_RGB_BASE_ADDR,
+	L_RGB_COEFF_ADDR,
+	L_POL_CNTL_ADDR,
+	L_DITH_CNTL_ADDR,
 };
+
+static void lcd_ttl_reg_print(void)
+{
+	unsigned int reg;
+
+	pr_info("\nttl registers:\n");
+	reg = L_DUAL_PORT_CNTL_ADDR;
+	pr_info("PORT_CNTL           [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	reg = L_STH1_HS_ADDR;
+	pr_info("STH1_HS_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	reg = L_STH1_HE_ADDR;
+	pr_info("STH1_HE_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_STH1_VS_ADDR;
+	pr_info("STH1_VS_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_STH1_VE_ADDR;
+	pr_info("STH1_VE_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_STV1_HS_ADDR;
+	pr_info("STV1_HS_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_STV1_HE_ADDR;
+	pr_info("STV1_HE_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_STV1_VS_ADDR;
+	pr_info("STV1_VS_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_STV1_VE_ADDR;
+	pr_info("STV1_VE_ADDR        [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_OEH_HS_ADDR;
+	pr_info("OEH_HS_ADDR         [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_OEH_HE_ADDR;
+	pr_info("OEH_HE_ADDR         [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_OEH_VS_ADDR;
+	pr_info("OEH_VS_ADDR         [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+	reg = L_OEH_VE_ADDR;
+	pr_info("OEH_VE_ADDR         [0x%04x] = 0x%08x\n",
+		reg, lcd_hiu_read(reg));
+}
 
 static void lcd_lvds_reg_print(void)
 {
@@ -383,6 +444,7 @@ static void lcd_reg_print(void)
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
+		lcd_ttl_reg_print();
 		break;
 	case LCD_LVDS:
 		lcd_lvds_reg_print();
@@ -691,7 +753,7 @@ static void lcd_debug_reg_write(unsigned int reg, unsigned int data,
 	case 3: /* periphs */
 		lcd_periphs_write(reg, data);
 		pr_info("write periphs [0x%04x] = 0x%08x, readback 0x%08x\n",
-			reg, data, lcd_cbus_read(reg));
+			reg, data, lcd_periphs_read(reg));
 		break;
 		break;
 	default:

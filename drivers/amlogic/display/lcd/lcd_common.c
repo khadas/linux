@@ -209,36 +209,54 @@ unsigned int lcd_cpu_gpio_get(unsigned int index)
 	return gpiod_get_value(cpu_gpio->gpio);
 }
 
-int lcd_pinmux_set(const char *str)
+const char *lcd_ttl_pinmux_str[] = {
+	"ttl_6bit_hvsync_on",      /* 0 */
+	"ttl_6bit_de_on",          /* 1 */
+	"ttl_6bit_hvsync_de_on",   /* 2 */
+	"ttl_6bit_hvsync_de_off",  /* 3 */
+	"ttl_8bit_hvsync_on",      /* 4 */
+	"ttl_8bit_de_on",          /* 5 */
+	"ttl_8bit_hvsync_de_on",   /* 6 */
+	"ttl_8bit_hvsync_de_off",  /* 7 */
+};
+
+void lcd_ttl_pinmux_set(int status)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-	struct pinctrl *pin;
-	struct pinctrl_state *s;
-	int ret;
+	struct lcd_config_s *pconf;
+	unsigned int index, num;
 
-	/* get pinmux control */
-	pin = lcd_drv->lcd_config->pin;
-	if (IS_ERR(pin)) {
-		LCDERR("set pinmux error 1\n");
-		return -1;
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, status);
+
+	pconf = lcd_drv->lcd_config;
+	if (pconf->lcd_basic.lcd_bits == 6)
+		index = 0;
+	else
+		index = 4;
+
+	if (status) {
+		switch (pconf->lcd_control.ttl_config->sync_valid == 0) {
+		case 1: /* hvsync */
+			num = index + 0;
+			break;
+		case 2: /* DE */
+			num = index + 1;
+			break;
+		default:
+		case 3: /* DE + hvsync */
+			num = index + 2;
+			break;
+		}
+	} else {
+		num = index + 3;
 	}
 
-	/* select pinmux */
-	s = pinctrl_lookup_state(pin, str);
-	if (IS_ERR(s)) {
-		LCDERR("set pinmux error 2\n");
-		devm_pinctrl_put(pin); /* pinctrl_put(pin); //release pins */
-		return -1;
-	}
-
-	/* set pinmux and lock pins */
-	ret = pinctrl_select_state(pin, s);
-	if (ret < 0) {
-		LCDERR("set pinmux error 3\n");
-		devm_pinctrl_put(pin);
-		return -1;
-	}
-	return 0;
+	/* request pinmux */
+	pconf->pin = devm_pinctrl_get_select(lcd_drv->dev,
+		lcd_ttl_pinmux_str[num]);
+	if (IS_ERR(pconf->pin))
+		LCDERR("set ttl pinmux error\n");
 }
 
 void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode)

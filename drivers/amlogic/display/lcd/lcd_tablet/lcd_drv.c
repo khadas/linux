@@ -40,51 +40,6 @@
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
 
-const char *lcd_ttl_pinmux_str[] = {
-	"ttl_6bit_hvsync_on",      /* 0 */
-	"ttl_6bit_de_on",          /* 1 */
-	"ttl_6bit_hvsync_de_on",   /* 2 */
-	"ttl_6bit_hvsync_de_off",  /* 3 */
-	"ttl_8bit_hvsync_on",      /* 4 */
-	"ttl_8bit_de_on",          /* 5 */
-	"ttl_8bit_hvsync_de_on",   /* 6 */
-	"ttl_8bit_hvsync_de_off",  /* 7 */
-};
-
-static void lcd_ttl_pinmux_set(int status)
-{
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-	struct lcd_config_s *pconf;
-	unsigned int index, num;
-
-	if (lcd_debug_print_flag)
-		LCDPR("%s: %d\n", __func__, status);
-
-	pconf = lcd_drv->lcd_config;
-	if (pconf->lcd_basic.lcd_bits == 6)
-		index = 0;
-	else
-		index = 4;
-
-	if (status) {
-		switch (pconf->lcd_control.ttl_config->sync_valid == 0) {
-		case 1: /* hvsync */
-			num = index + 0;
-			break;
-		case 2: /* DE */
-			num = index + 1;
-			break;
-		default:
-		case 3: /* DE + hvsync */
-			num = index + 2;
-			break;
-		}
-	} else {
-		num = index + 3;
-	}
-	lcd_pinmux_set(lcd_ttl_pinmux_str[num]);
-}
-
 static void lcd_lvds_phy_set(int status)
 {
 	if (lcd_debug_print_flag)
@@ -117,8 +72,15 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 	else if (pconf->lcd_basic.lcd_bits == 8)
 		lcd_vcbus_write(L_DITH_CNTL_ADDR,  0x400);
 
-	if (pconf->lcd_basic.lcd_type == LCD_LVDS)
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
 		lcd_vcbus_setb(L_POL_CNTL_ADDR, 1, 0, 1);
+		if (pconf->lcd_timing.vsync_pol)
+			lcd_vcbus_setb(L_POL_CNTL_ADDR, 1, 1, 1);
+		break;
+	default:
+		break;
+	}
 
 	/* DE signal for TTL m8,m8m2 */
 	lcd_vcbus_write(L_OEH_HS_ADDR, tcon_adr->de_hs_addr);

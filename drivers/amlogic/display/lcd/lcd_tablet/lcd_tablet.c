@@ -217,6 +217,7 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 	const char *str;
 	unsigned int para[10];
 	struct device_node *child;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	child = of_get_child_by_name(pdev->dev.of_node, pconf->lcd_propname);
 	if (child == NULL) {
@@ -308,9 +309,10 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 				((para[3] << 1) | (para[4] << 0));
 		}
 
-		pconf->pin = devm_pinctrl_get(&pdev->dev);
-		if (IS_ERR(pconf->pin))
-			LCDERR("get ttl pinmux error\n");
+		if (lcd_drv->lcd_status) /* lock pinmux if lcd in on */
+			lcd_ttl_pinmux_set(1);
+		else
+			lcd_ttl_pinmux_set(0);
 		break;
 	case LCD_LVDS:
 		ret = of_property_read_u32_array(child, "lvds_attr",

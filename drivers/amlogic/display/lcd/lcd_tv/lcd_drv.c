@@ -1,6 +1,6 @@
 
 /*
- * drivers/amlogic/display/lcd/lcd_tv/vbyone_drv.c
+ * drivers/amlogic/display/lcd/lcd_tv/lcd_drv.c
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -49,39 +49,31 @@ static int vx1_fsm_acq_st;
 /* set VX1_LOCKN && VX1_HTPDN */
 static void lcd_vbyone_pinmux_set(int status)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+
 	if (lcd_debug_print_flag)
 		LCDPR("%s: %d\n", __func__, status);
 
-#if 0
-	struct pinctrl_state *s;
-	unsigned int pinmux_num;
-	int ret;
-
-	/* get pinmux control */
-	if (IS_ERR(pconf->pin)) {
-		LCDERR("%s\n", __func__);
-		return;
-	}
-
-	/* select pinmux */
-	s = pinctrl_lookup_state(pconf->pin, "vbyone");
-	if (IS_ERR(s)) {
-		LCDERR("%s\n", __func__);
-		/* pinctrl_put(pin); //release pins */
+#if 1
+	pconf = lcd_drv->lcd_config;
+	if (status) {
+		/* request pinmux */
+		pconf->pin = devm_pinctrl_get_select(lcd_drv->dev, "vbyone");
+		if (IS_ERR(pconf->pin))
+			LCDERR("set vbyone pinmux error\n");
+	} else {
+		/* release pinmux */
 		devm_pinctrl_put(pconf->pin);
-		return;
-	}
-
-	/* set pinmux and lock pins */
-	ret = pinctrl_select_state(pconf->pin, s);
-	if (ret < 0) {
-		LCDERR("%s\n", __func__);
-		devm_pinctrl_put(pconf->pin);
-		return;
 	}
 #else
-	lcd_pinmux_clr_mask(7, ((1 << 1) | (1 << 2) | (1 << 9) | (1 << 10)));
-	lcd_pinmux_set_mask(7, ((1 << 11) | (1 << 12)));
+	if (status) {
+		lcd_pinmux_clr_mask(7,
+			((1 << 1) | (1 << 2) | (1 << 9) | (1 << 10)));
+		lcd_pinmux_set_mask(7, ((1 << 11) | (1 << 12)));
+	} else {
+		lcd_pinmux_clr_mask(7, ((1 << 11) | (1 << 12)));
+	}
 #endif
 }
 
@@ -127,8 +119,21 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 	if (pconf->lcd_basic.lcd_bits == 8)
 		lcd_vcbus_write(L_DITH_CNTL_ADDR,  0x400);
 
-	if (pconf->lcd_basic.lcd_type == LCD_LVDS)
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
 		lcd_vcbus_setb(L_POL_CNTL_ADDR, 1, 0, 1);
+		if (pconf->lcd_timing.vsync_pol)
+			lcd_vcbus_setb(L_POL_CNTL_ADDR, 1, 1, 1);
+		break;
+	case LCD_VBYONE:
+		if (pconf->lcd_timing.hsync_pol)
+			lcd_vcbus_setb(L_POL_CNTL_ADDR, 1, 0, 1);
+		if (pconf->lcd_timing.vsync_pol)
+			lcd_vcbus_setb(L_POL_CNTL_ADDR, 1, 1, 1);
+		break;
+	default:
+		break;
+	}
 
 	lcd_vcbus_write(VPP_MISC,
 		lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
@@ -786,8 +791,8 @@ void lcd_tv_driver_disable(void)
 		break;
 	case LCD_VBYONE:
 		lcd_vbyone_interrupt_enable(0);
-		lcd_vbyone_pinmux_set(0);
 		lcd_vbyone_phy_set(0);
+		lcd_vbyone_pinmux_set(0);
 		break;
 	default:
 		break;

@@ -729,37 +729,38 @@
 		pinctrl-names = "vbyone";
 		pinctrl-0 = <&lcd_vbyone_pins>;
 
-		/* power type:(0=cpu, 1=pmu, 2=signal, 3=extern, 0xff=ending) */
+		/* power type:(0=cpu_gpio, 1=pmu_gpio, 2=signal, 3=extern, 0xff=ending) */
 		/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		lcd_cpu-gpios = <&gpio GPIOX_3 GPIO_ACTIVE_HIGH>;
-		lcd_cpu_gpio_names = "GPIOX_3";
+		lcd_cpu-gpios = <&gpio GPIOX_3 GPIO_ACTIVE_HIGH
+				&gpio GPIOX_2 GPIO_ACTIVE_HIGH>;
+		lcd_cpu_gpio_names = "GPIOX_3","GPIOX_2";
 
 		lvds_0{
 			model_name = "public";
 			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			lcd_timing = <44 148 0 5 36 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <0 0 1>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate */
+			clk_attr = <0 0 1 0>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /** lvds_repack, dual_port, pn_swap, port_swap */
-			power_on_step = <2 0 0 50
+			power_on_step = <2 0 0 50   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
-			power_off_step = <2 0 0 50
+			power_off_step = <2 0 0 20 /* signal disable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			backlight_index = <0>;
 		};
 
 		vbyone_0{
-			model_name = "BOE_HV550QU2";
+			model_name = "public";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			lcd_timing = <33 477 0 6 81 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <0 0 1>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate */
+			clk_attr = <0 0 1 0>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /** lane_count, region_num, byte_mode, color_fmt */
-			power_on_step = <2 0 0 50
+			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
-			power_off_step = <2 0 0 50
+			power_off_step = <2 0 0 50 /* signal disable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			backlight_index = <0>;
 		};
@@ -769,11 +770,11 @@
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			lcd_timing = <33 477 0 6 81 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <2 0 1>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate */
+			clk_attr = <2 0 1 0>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /** lane_count, region_num, byte_mode, color_fmt */
-			power_on_step = <2 0 0 50
+			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
-			power_off_step = <2 0 0 50
+			power_off_step = <2 0 0 50 /* signal disable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			backlight_index = <0>;
 		};
@@ -783,11 +784,25 @@
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			lcd_timing = <33 477 0 6 81 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <2 0 1>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate */
+			clk_attr = <2 0 1 0>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 1 4 4>; /** lane_count, region_num, byte_mode, color_fmt */
-			power_on_step = <2 0 0 50
+			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
-			power_off_step = <2 0 0 50
+			power_off_step = <2 0 0 50 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0>;
+		};
+
+		vbyone_3{
+			model_name = "BOE_HV550QU2";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			lcd_timing = <33 477 1 6 81 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /** lane_count, region_num, byte_mode, color_fmt */
+			power_on_step = <2 0 0 50  /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 30 /* signal disable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			backlight_index = <0>;
 		};
@@ -811,49 +826,51 @@
 	backlight{
 		compatible = "amlogic, backlight";
 		dev_name = "backlight";
-		mode = "tv";
 		status = "disabled";
-		pinctrl-names = "default","pwm_vs";
+		pinctrl-names = "pwm","pwm_vs","pwm_combo";
 		pinctrl-0 = <&bl_pwm_pins>;
 		pinctrl-1 = <&bl_pwm_vs_pins>;
+		pinctrl-2 = <&bl_pwm_combo_pins>;
 
-		bl-gpios = <&gpio GPIOY_6 GPIO_ACTIVE_HIGH
-			&gpio GPIOY_7 GPIO_ACTIVE_HIGH>;
-		bl_gpio_names = "GPIOY_6","GPIOY_7";
+		bl-gpios = <&gpio GPIOAO_4 GPIO_ACTIVE_HIGH
+			&gpio GPIOY_13 GPIO_ACTIVE_HIGH>;
+		bl_gpio_names = "GPIOAO_4","GPIOY_13";
 
 		backlight_0{
 			index = <0>;
 			bl_name = "backlight_0";
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_max_min = <255 10>;
+			bl_level_middle_mapping=<128 102>;
 
-			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=extern */
+			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
 			bl_en_gpio_on_off = <0 0 1>; /** index(point to bl-gpios, 0xff=invalid), on/off_value(1=output high, 0=output low) **/
 			bl_power_on_off_delay = <200 200>; /** unit: ms */
 
-			bl_pwm_method = <0>; /** 0=negative, 1=positive */
+			bl_pwm_method = <1>; /** 0=negative, 1=positive */
 			bl_pwm_port = "PWM_B"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			bl_pwm_freq = <1000>; /* pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
 			bl_pwm_duty_max_min = <100 25>; /* 100% - 25%*/
-			bl_pwm_gpio_off = <1 1>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
-			bl_pwm_on_off_delay  = <200 200>; /* unit: ms */
+			bl_pwm_gpio_off = <1 0>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
+			bl_pwm_on_off_delay = <180 220>; /* unit: ms */
 		};
 		backlight_1{
 			index = <1>;
 			bl_name = "backlight_1";
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_max_min = <255 10>;
+			bl_level_middle_mapping=<128 102>;
 
-			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=extern */
+			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
 			bl_en_gpio_on_off = <0 0 1>; /** index(point to bl-gpios, 0xff=invalid), on/off_value(1=output high, 0=output low) **/
 			bl_power_on_off_delay = <200 200>; /** unit: ms */
 
-			bl_pwm_method = <0>; /** 0=negative, 1=positive */
+			bl_pwm_method = <1>; /** 0=negative, 1=positive */
 			bl_pwm_port = "PWM_VS"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			bl_pwm_freq = <2>; /* pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
 			bl_pwm_duty_max_min = <100 25>; /* 100% - 25%*/
-			bl_pwm_gpio_off = <1 1>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
-			bl_pwm_on_off_delay  = <200 200>; /* unit: ms */
+			bl_pwm_gpio_off = <1 0>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
+			bl_pwm_on_off_delay = <180 220>; /* unit: ms */
 		};
 	};
 
