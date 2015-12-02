@@ -386,7 +386,7 @@ struct reg_cfg_ {
 int get_current_vscale_skip_count(struct vframe_s *vf);
 
 void di_set_power_control(unsigned char type, unsigned char enable);
-
+void diwr_set_power_control(unsigned char enable);
 unsigned char di_get_power_control(unsigned char type);
 void set_nr_10bit_mode(bool nr_10bit_en);
 
@@ -406,6 +406,8 @@ struct di_dev_s {
 	unsigned int	   buf_num_avail;
 	unsigned int	   hw_version;
 	int							rdma_handle;
+	/* is DI surpport post wr to mem for OMX */
+	unsigned int       post_wr_surpport;
 };
 #define di_dev_t struct di_dev_s
 #endif

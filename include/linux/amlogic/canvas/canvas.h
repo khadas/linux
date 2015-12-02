@@ -44,7 +44,7 @@ struct canvas_s {
 #define CANVAS_BLKMODE_32X32    0x01
 #define CANVAS_BLKMODE_64X32    0x02
 
-#define PPMGR_CANVAS_INDEX 0x70
+#define PPMGR_CANVAS_INDEX 0xf0
 #define PPMGR_DOUBLE_CANVAS_INDEX 0x74  /*for double canvas use*/
 #define PPMGR_DEINTERLACE_BUF_CANVAS 0x7a   /*for progressive mjpeg use*/
 /*for progressive mjpeg (nv21 output)use*/
