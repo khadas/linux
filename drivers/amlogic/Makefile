@@ -127,3 +127,5 @@ obj-$(CONFIG_AMLOGIC_SPICC_MASTER) += spicc/
 obj-$(CONFIG_AMLOGIC_CPU_INFO)	+=cpu_info/
 
 obj-$(CONFIG_DEFEND_IMG)	+= defendkey/
+
+obj-$(CONFIG_AML_AO_CEC) += cec/

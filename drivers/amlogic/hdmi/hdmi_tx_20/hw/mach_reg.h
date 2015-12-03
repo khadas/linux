@@ -775,16 +775,6 @@ void init_reg_map(void);
 #define P_AO_DEBUG_REG2		AOBUS_REG_ADDR(AO_DEBUG_REG2)
 #define AO_DEBUG_REG3 ((0x00 << 10) | (0x2b << 2))
 #define P_AO_DEBUG_REG3		AOBUS_REG_ADDR(AO_DEBUG_REG3)
-#define AO_CEC_GEN_CNTL ((0x00 << 10) | (0x40 << 2))
-#define P_AO_CEC_GEN_CNTL		AOBUS_REG_ADDR(AO_CEC_GEN_CNTL)
-#define AO_CEC_RW_REG ((0x00 << 10) | (0x41 << 2))
-#define P_AO_CEC_RW_REG		AOBUS_REG_ADDR(AO_CEC_RW_REG)
-#define AO_CEC_INTR_MASKN ((0x00 << 10) | (0x42 << 2))
-#define P_AO_CEC_INTR_MASKN		AOBUS_REG_ADDR(AO_CEC_INTR_MASKN)
-#define AO_CEC_INTR_CLR ((0x00 << 10) | (0x43 << 2))
-#define P_AO_CEC_INTR_CLR		AOBUS_REG_ADDR(AO_CEC_INTR_CLR)
-#define AO_CEC_INTR_STAT ((0x00 << 10) | (0x44 << 2))
-#define P_AO_CEC_INTR_STAT		AOBUS_REG_ADDR(AO_CEC_INTR_STAT)
 
 #define P_AO_RTI_GEN_PWR_SLEEP0 (0xc8100000 + (0x3a << 2))
 

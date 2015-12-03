@@ -702,7 +702,6 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		vend-data = <&vend_data>;
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
 		interrupts = <0 57 1>;
 		interrupt-names = "hdmitx_hpd";
@@ -717,20 +716,24 @@
 		ranges;
 		#address-cells = <2>;
 		#size-cells = <2>;
-		vend_data: vend_data{
-			compatible = "amlogic, amlogic-cec";
-			status = "okay";
-			vendor_name = "Amlogic"; /* Max Chars: 8     */
-			vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
-			product_desc = "GXBB Mbox"; /* Max Chars: 16    */
-			cec_osd_string = "MBox"; /* Max Chars: 14    */
-			interrupts = <0 199 1>;
-			interrupt-names = "hdmitx_cec";
-			pinctrl-names = "hdmitx_aocec";
-			pinctrl-0=<&hdmitx_aocec>;
-			reg = <0x0 0xc810023c 0x0 0x4>;
-		};
 	};
+	aocec: aocec{
+		compatible = "amlogic, amlogic-aocec";
+		status = "okay";
+		vendor_name = "Amlogic"; /* Max Chars: 8     */
+		vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
+		product_desc = "GXBB Mbox"; /* Max Chars: 16    */
+		cec_osd_string = "MBox"; /* Max Chars: 14    */
+		port_num = <1>;
+		arc_port_mask = <0x0>;
+		interrupts = <0 199 1>;
+		interrupt-names = "hdmi_aocec";
+		pinctrl-names = "hdmitx_aocec";
+		pinctrl-0=<&hdmitx_aocec>;
+		reg = <0x0 0xc810023c 0x0 0x4
+		       0x0 0xc8100000 0x0 0x200>;
+	};
+
 	tvout {
 		compatible = "amlogic, tvout";
 		dev_name = "tvout";

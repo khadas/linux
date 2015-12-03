@@ -1861,36 +1861,6 @@ struct hdmitx_dev *get_hdmitx_device(void)
 EXPORT_SYMBOL(get_hdmitx_device);
 
 #ifdef CONFIG_OF
-static int allocate_cec_device(struct device_node *np,
-			       struct platform_device *pdev, void *pdata)
-{
-	int ret;
-	const char *name;
-	struct of_dev_auxdata cec_auxdata[] = {
-		{}
-	};
-	struct resource r;
-
-	ret = of_property_read_string(np, "compatible", &name);
-	if (ret) {
-		hdmi_print(INF, SYS "not find cec dev name\n");
-		return 1;
-	} else {
-		/*
-		 * for compatible
-		 */
-		cec_auxdata[0].compatible    = (char *)name;
-		cec_auxdata[0].name          = (char *)name;
-		cec_auxdata[0].platform_data = pdata;
-		if (!of_address_to_resource(np, 0, &r))
-			cec_auxdata[0].phys_addr = r.start;
-		ret = of_platform_populate(np->parent, NULL,
-					   cec_auxdata, &pdev->dev);
-	}
-
-	return ret;
-}
-
 static int pwr_type_match(struct device_node *np, const char *str,
 	int idx, struct hdmi_pwr_ctl *pwr, char *pwr_col)
 {
@@ -2284,9 +2254,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		if (!hdmitx_device.config_data.vend_data)
 			hdmi_print(INF, SYS
 				"can not get vend_data mem\n");
-		ret = allocate_cec_device(init_data, pdev, dev);
-		if (ret)
-			hdmi_print(INF, SYS"not find vend_init_data\n");
 	}
 /* Get power control */
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -2643,8 +2610,6 @@ static  int __init hdmitx_boot_para_setup(char *s)
 	char *token;
 	unsigned token_len, token_offset, offset = 0;
 	int size = strlen(s);
-	unsigned long list;
-	int ret = 0;
 
 	do {
 		token = next_token_ex(separator, s, size, offset,
@@ -2653,12 +2618,6 @@ static  int __init hdmitx_boot_para_setup(char *s)
 		if ((token_len == 3)
 			&& (strncmp(token, "off", token_len) == 0)) {
 			init_flag |= INIT_FLAG_NOT_LOAD;
-		} else if (strncmp(token, "cec", 3) == 0) {
-			ret = kstrtoul(token+3, 16, &list);
-			if ((list >= 0) && (list <= 0x2f))
-				hdmitx_device.cec_func_config = list;
-			hdmi_print(INF, CEC "HDMI hdmi_cec_func_config:0x%x\n",
-				   hdmitx_device.cec_func_config);
 		}
 	}
 		offset = token_offset;

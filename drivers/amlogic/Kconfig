@@ -120,4 +120,6 @@ source "drivers/amlogic/jtag/Kconfig"
 source "drivers/amlogic/cpu_info/Kconfig"
 
 source "drivers/amlogic/defendkey/Kconfig"
+
+source "drivers/amlogic/cec/Kconfig"
 endmenu

@@ -346,10 +346,9 @@
 			amlogic,pins="GPIOH_1", "GPIOH_2";
 		};
 		hdmitx_aocec: hdmitx_aocec {
-			amlogic,setmask=<AO  0x00008000>;
-			amlogic,clrmask=<AO  0x00024000
-					 AO2 0x00000001>;
-			amlogic,pins="GPIOAO_12";
+			amlogic,setmask=<AO  0x00010000>;
+			amlogic,clrmask=<AO  0x00060000>;
+			amlogic,pins="GPIOAO_9";
 		};
 		hdmitx_eecec: hdmitx_eecec {
 			amlogic,setmask=<AO  0x00004000>;
