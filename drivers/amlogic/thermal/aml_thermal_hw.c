@@ -121,10 +121,9 @@ static struct thermal_zone_of_device_ops aml_thermal_ops = {
 static int aml_thermal_probe(struct platform_device *pdev)
 {
 	int cpu, i, pp;
-	int dyn_coeff = 0, ret;
+	int dyn_coeff = 0;
 	unsigned long min_state;
 	char node_name[32] = {};
-	struct device *cpu_dev;
 	struct device_node *np;
 	struct thermal_instance *ins;
 
@@ -141,9 +140,6 @@ static int aml_thermal_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	cpu_dev = get_cpu_device(0);
-	ret = of_init_opp_table(cpu_dev);
-	dev_info(&pdev->dev, "of_init_opp_table ret:%d\n", ret);
 	for_each_possible_cpu(cpu) {
 		cpumask_set_cpu(cpu, &soc_sensor.mask);
 	}
