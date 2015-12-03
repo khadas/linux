@@ -919,7 +919,7 @@
 		pinctrl-1 = <&bl_pwm_vs_pins>;
 		pinctrl-2 = <&bl_pwm_combo_pins>;
 
-		bl-gpios = <&gpio GPIOAO_4 GPIO_ACTIVE_HIGH
+		bl-gpios = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH
 			&gpio GPIOY_13 GPIO_ACTIVE_HIGH>;
 		bl_gpio_names = "GPIOAO_4","GPIOY_13";
 
