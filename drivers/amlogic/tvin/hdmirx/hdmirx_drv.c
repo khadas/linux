@@ -679,7 +679,7 @@ int rx_print(const char *fmt, ...)
 	int pos = 0;
 	int len = 0;
 
-	if (log_flag & LOG_ENABLE) {
+	if (log_flag & LOG_EN) {
 		va_start(args, fmt);
 		vprintk(fmt, args);
 		va_end(args);

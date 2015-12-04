@@ -27,18 +27,19 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/12/02"
+#define HDMIRX_VER "Ref.2015/12/04a"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
-#define	LOG_ENABLE			0x01
-#define VIDEO_LOG_ENABLE	0x02
-#define AUDIO_LOG_ENABLE	0x04
-#define PACKET_LOG_ENABLE   0x08
-#define CEC_LOG_ENABLE		0x10
-#define REG_LOG_ENABLE		0x20
-#define ERR_LOG_ENABLE      0x40
+#define	LOG_EN		0x01
+#define VIDEO_LOG	0x02
+#define AUDIO_LOG	0x04
+#define PHY_LOG		0x08
+#define PACKET_LOG	0x10
+#define CEC_LOG		0x20
+#define REG_LOG		0x40
+#define ERR_LOG		0x80
 
 #define USE_GPIO_FOR_HPD
 #define TRUE 1

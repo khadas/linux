@@ -226,7 +226,7 @@ int hdmirx_wr_phy(uint8_t reg_address, uint16_t data)
 		}
 		cnt++;
 		if (cnt > 10000) {
-			if (log_flag & ERR_LOG_ENABLE) {
+			if (log_flag & ERR_LOG) {
 				rx_print("[error]:(%x,%x,%x)timeout\n",
 					__func__, 0x39, reg_address, data);
 			}
@@ -598,6 +598,7 @@ int hdmirx_audio_fifo_rst(void)
 
 	hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
 	hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 0);
+	hdmirx_wr_dwc(DWC_DMI_SW_RST, 0x10);
 	return error;
 }
 
