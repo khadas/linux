@@ -403,8 +403,7 @@ static int hardware_init(struct platform_device *pdev)
 		input_dbg("hardware init fail, %ld\n", PTR_ERR(p));
 		return -1;
 	}
-	set_remote_mode(DECODEMODE_NEC_RCA_2IN1);
-	gp_remote->work_mode = gp_remote->save_mode = DECODEMODE_NEC_RCA_2IN1;
+	set_remote_mode(DECODEMODE_NEC);
 	return request_irq(NEC_REMOTE_IRQ_NO, remote_interrupt, IRQF_SHARED,
 				"keypad",
 				(void *)remote_interrupt);
