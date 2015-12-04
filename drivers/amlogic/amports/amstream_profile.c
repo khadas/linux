@@ -43,7 +43,7 @@ int vcodec_profile_register(const struct codec_profile_t *vdec_profile)
 	if (vcodec_profile_idx < SUPPORT_VDEC_NUM) {
 		vcodec_profile[vcodec_profile_idx] = vdec_profile;
 		vcodec_profile_idx++;
-		pr_info("regist %s codec profile\n", vdec_profile->name);
+		pr_debug("regist %s codec profile\n", vdec_profile->name);
 
 	}
 

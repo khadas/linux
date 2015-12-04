@@ -633,7 +633,7 @@ int codec_mm_mgt_init(struct device *dev)
 			(int)(aligned_addr - (unsigned long)mgt->rmem.base);
 		gen_pool_add(mgt->res_pool,
 			aligned_addr, aligned_size, -1);
-		pr_info("add reserve memory %p(aligned %p) size=%x(aligned %x)\n",
+		pr_debug("add reserve memory %p(aligned %p) size=%x(aligned %x)\n",
 			(void *)mgt->rmem.base, (void *)aligned_addr,
 			(int)mgt->rmem.size, (int)aligned_size);
 		mgt->total_reserved_size = aligned_size;
@@ -729,19 +729,19 @@ static int codec_mm_probe(struct platform_device *pdev)
 	pdev->dev.platform_data = get_mem_mgt();
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
-		pr_info("codec_mm_probe mem init done\n");
+		pr_debug("codec_mm_probe mem init done\n");
 
 	codec_mm_mgt_init(&pdev->dev);
 	r = class_register(&codec_mm_class);
 	if (r) {
-		pr_info("vdec class create fail.\n");
+		pr_err("vdec class create fail.\n");
 		return r;
 	}
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
-		pr_info("codec_mm reserved memory probed done\n");
+		pr_debug("codec_mm reserved memory probed done\n");
 
-	pr_info("codec_mm_probe ok\n");
+	pr_debug("codec_mm_probe ok\n");
 	amstream_test_init();
 
 	return 0;
@@ -815,7 +815,7 @@ static int codec_mm_reserved_init(struct reserved_mem *rmem, struct device *dev)
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	mgt->rmem = *rmem;
-	pr_info("codec_mm_reserved_init %p->%p\n",
+	pr_debug("codec_mm_reserved_init %p->%p\n",
 		(void *)mgt->rmem.base,
 		(void *)mgt->rmem.base + mgt->rmem.size);
 	return 0;
@@ -828,7 +828,7 @@ static const struct reserved_mem_ops codec_mm_rmem_vdec_ops = {
 static int __init codec_mm_res_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &codec_mm_rmem_vdec_ops;
-	pr_info("vdec: reserved mem setup\n");
+	pr_debug("vdec: reserved mem setup\n");
 
 	return 0;
 }

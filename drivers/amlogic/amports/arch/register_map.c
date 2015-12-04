@@ -232,13 +232,13 @@ static int codec_io_probe(struct platform_device *pdev)
 			if (res.start != 0) {
 				codecio_reg_map[i] =
 					ioremap(res.start, resource_size(&res));
-				pr_info("codec map io source 0x%p,size=%d to 0x%p\n",
+				pr_debug("codec map io source 0x%p,size=%d to 0x%p\n",
 					(void *)res.start,
 					(int)resource_size(&res),
 					codecio_reg_map[i]);
 			} else{
 				codecio_reg_map[i] = 0;
-				pr_info("ignore io source start %p,size=%d\n",
+				pr_debug("ignore io source start %p,size=%d\n",
 				(void *)res.start, (int)resource_size(&res));
 			}
 			i++;

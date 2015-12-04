@@ -5556,7 +5556,7 @@ static struct codec_profile_t amvdec_h265_profile = {
 
 static int __init amvdec_h265_driver_init_module(void)
 {
-	pr_info("amvdec_h265 module init\n");
+	pr_debug("amvdec_h265 module init\n");
 	init_flag = 0;
 	uninit_list = 0;
 	error_handle_policy = 0;
@@ -5573,7 +5573,7 @@ static int __init amvdec_h265_driver_init_module(void)
 	buf_alloc_size = 0;
 
 	if (platform_driver_register(&amvdec_h265_driver)) {
-		pr_info("failed to register amvdec_h265 driver\n");
+		pr_err("failed to register amvdec_h265 driver\n");
 		return -ENODEV;
 	}
 
@@ -5599,7 +5599,7 @@ static int __init amvdec_h265_driver_init_module(void)
 
 static void __exit amvdec_h265_driver_remove_module(void)
 {
-	pr_info("amvdec_h265 module remove.\n");
+	pr_debug("amvdec_h265 module remove.\n");
 
 	platform_driver_unregister(&amvdec_h265_driver);
 }

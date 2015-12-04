@@ -49,7 +49,7 @@ static int clock_source_wxhxfps_saved[VDEC_MAX + 1];
 
 #define IF_HAVE_RUN_P1_RET(p, fn, p1)\
 			do {\
-				pr_info("%s-----%d\n", __func__, clk);\
+				pr_debug("%s-----%d\n", __func__, clk);\
 				if (p && p->fn)\
 					return p->fn(p1);\
 				else\

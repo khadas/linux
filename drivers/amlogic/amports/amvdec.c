@@ -260,11 +260,11 @@ static s32 am_loadmc_ex(enum vformat_e type,
 	}
 	err = (*load)((u32 *) pmc_addr);
 	if (err < 0) {
-		pr_info("loading firmware %s to vdec ram  failed!\n", name);
+		pr_err("loading firmware %s to vdec ram  failed!\n", name);
 		return err;
 	}
 	vfree(mc_addr);
-	pr_info("loading firmware %s to vdec ram  ok!\n", name);
+	pr_debug("loading firmware %s to vdec ram  ok!\n", name);
 	return err;
 }
 

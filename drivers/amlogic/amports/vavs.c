@@ -948,7 +948,7 @@ static struct codec_profile_t amvdec_avs_profile = {
 
 static int __init amvdec_avs_driver_init_module(void)
 {
-	pr_info("amvdec_avs module init\n");
+	pr_debug("amvdec_avs module init\n");
 
 	if (platform_driver_register(&amvdec_avs_driver)) {
 		pr_info("failed to register amvdec_avs driver\n");
@@ -965,7 +965,7 @@ static int __init amvdec_avs_driver_init_module(void)
 
 static void __exit amvdec_avs_driver_remove_module(void)
 {
-	pr_info("amvdec_avs module remove.\n");
+	pr_debug("amvdec_avs module remove.\n");
 
 	platform_driver_unregister(&amvdec_avs_driver);
 }

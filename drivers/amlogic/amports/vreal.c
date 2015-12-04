@@ -954,10 +954,10 @@ static struct codec_profile_t amvdec_real_profile = {
 
 static int __init amvdec_real_driver_init_module(void)
 {
-	pr_info("amvdec_real module init\n");
+	pr_debug("amvdec_real module init\n");
 
 	if (platform_driver_register(&amvdec_real_driver)) {
-		pr_info("failed to register amvdec_real driver\n");
+		pr_err("failed to register amvdec_real driver\n");
 		return -ENODEV;
 	}
 	vcodec_profile_register(&amvdec_real_profile);
@@ -966,7 +966,7 @@ static int __init amvdec_real_driver_init_module(void)
 
 static void __exit amvdec_real_driver_remove_module(void)
 {
-	pr_info("amvdec_real module remove.\n");
+	pr_debug("amvdec_real module remove.\n");
 
 	platform_driver_unregister(&amvdec_real_driver);
 }
