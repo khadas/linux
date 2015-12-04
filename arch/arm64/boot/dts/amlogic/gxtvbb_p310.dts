@@ -843,7 +843,7 @@
                 phy-mode= "rgmii";
                 pinctrl-names = "eth_pins";
                 pinctrl-0 = <&eth_pins>;
-                rst_pin-gpios = <&gpio GPIOZ_14 0>;
+                rst_pin-gpios = <&gpio GPIOZ_6 0>;
                 mc_val = <0x1621>;
                 resets = <&clock GCLK_IDX_ETHERNET>;
                 reset-names = "ethpower";
@@ -969,10 +969,10 @@
 	};
 
 	eth_pins: eth_pins{
-		amlogic,setmask =<8 0x1fffc000>;
+		amlogic,setmask =<8 0x1fff8000>;
 		amlogic,clrmask =<8 0x60000000>,
 			<9 0x1fff>;
-		amlogic,pins="GPIOZ_6","GPIOZ_7","GPIOZ_8","GPIOZ_9",
+		amlogic,pins="GPIOZ_7","GPIOZ_8","GPIOZ_9",
 			"GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_13",
 			"GPIOZ_14","GPIOZ_15","GPIOZ_16","GPIOZ_17",
 			"GPIOZ_18","GPIOZ_19","GPIOZ_20";
