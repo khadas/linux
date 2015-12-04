@@ -1136,7 +1136,7 @@ void retrieve_vpll_carrier_lock(int *lock)
 {
 	unsigned int data;
 	data = atv_dmd_rd_byte(APB_BLOCK_ADDR_CARR_RCVY, 0x43);
-	*lock = !(data & 0x1);
+	*lock = (data & 0x1);
 }
 int retrieve_vpll_carrier_afc(void)
 {
@@ -1546,8 +1546,7 @@ int aml_audiomode_autodet(void)
 	unsigned long carrier_power;
 	unsigned long reg_addr = 0x03 , temp_data;
 	int carrier_lock_count = 0;
-	int lockVal = 0;
-	int *lock = &lockVal;
+	int lock = 0;
 
 	int carrier_threshold = 100; /* 4.5MHz */
 	int num = 0;
@@ -1589,17 +1588,17 @@ int aml_audiomode_autodet(void)
 	atvdemod_init();
 
 	while (1) {
-
-			retrieve_vpll_carrier_lock(lock);
-			if (*lock)
+			retrieve_vpll_carrier_lock(&lock);
+			if (lock == 0)
 				break;
 			carrier_lock_count++;
-			if (carrier_lock_count >= 20) {
+			if (carrier_lock_count >= 10) {
 				pr_err("%s, retrieve_vpll_carrier_lock failed\n",
 					 __func__);
-				return broad_std;
+				break;
+				/* return broad_std; */
 			}
-			msleep(50);
+			usleep_range(6000, 9000);
 		}
 	/* ----------------read carrier_power--------------------- */
 	carrier_power = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, reg_addr);
@@ -1654,13 +1653,17 @@ int aml_audiomode_autodet(void)
 		atvdemod_init();
 		carrier_lock_count = 0;
 		while (1) {
-
-			retrieve_vpll_carrier_lock(lock);
-			if (*lock)
+			retrieve_vpll_carrier_lock(&lock);
+			if (lock == 0)
 				break;
 			carrier_lock_count++;
-			if (carrier_lock_count >= 1000)
-				return broad_std;
+			if (carrier_lock_count >= 10) {
+				pr_err("%s step2, retrieve_vpll_carrier_lock failed\n",
+					__func__);
+				break;
+				/* return broad_std; */
+			}
+			usleep_range(6000, 9000);
 		}
 		/* ----------------read carrier_power--------------------- */
 		carrier_power =

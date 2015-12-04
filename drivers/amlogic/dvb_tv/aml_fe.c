@@ -309,16 +309,12 @@ static int aml_fe_analog_get_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
-	int audio = 0;
 
 	p->frequency = afe->params.frequency;
-	audio = aml_audiomode_autodet();
 
 	pr_info("%s, p->analog.std:0x%x\n", __func__,
 		(unsigned int)p->analog.std);
 
-	p->analog.audmode = demod_fmt_2_v4l2_std(audio);
-	p->analog.std |= demod_fmt_2_v4l2_std(audio);
 	pr_info("[%s] params.frequency:%d, audio:0x%0x, vfmt:0x%x\n",
 		__func__, p->frequency, (unsigned int)p->analog.audmode,
 		(unsigned int)p->analog.std);
@@ -445,7 +441,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		mdelay(delay_cnt);
 		/*#if ((MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) ||
 		 * (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9BB))*/
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_MG9TV) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 			if ((fe->ops.tuner_ops.get_pll_status == NULL) ||
 			    (fe->ops.analog_ops.get_pll_status == NULL)) {
 				pr_info("[%s]error:the func of get_pll_status is NULL.\n",
@@ -464,7 +460,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			fe->ops.tuner_ops.get_status(fe, &tuner_state);
 			fe->ops.analog_ops.get_status(fe, &ade_state);
 		}
-		mdelay(delay_cnt);
+		/* mdelay(delay_cnt); */
 		if ((FE_HAS_LOCK == ade_state) ||
 			 (FE_HAS_LOCK == tuner_state)) {
 			if (aml_fe_afc_closer(fe, p->frequency - ATV_AFC_1_0MHZ,
