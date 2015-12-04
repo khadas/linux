@@ -1169,7 +1169,7 @@ int dvbt_set_ch(struct aml_demod_sta *demod_sta,
 
 	return ret;
 }
-int flag = 0;
+
 int demod_set_sys(struct aml_demod_sta *demod_sta,
 		  struct aml_demod_i2c *demod_i2c,
 		  struct aml_demod_sys *demod_sys)
@@ -1185,10 +1185,7 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	pr_dbg
 	    ("demod_set_sys,clk_adc is %d,clk_demod is %d\n",
 	     clk_adc, clk_dem);
-	if (flag == 0) {
-		mutex_init(&mp);
-		flag = 1;
-	}
+	mutex_init(&mp);
 	clocks_set_sys_defaults(dvb_mode);
 	/* open dtv adc pinmux */
 /* demod_set_cbus_reg(0x10000,0x2034); */
@@ -1296,10 +1293,11 @@ unsigned long apb_read_reg_high(unsigned long addr)
 unsigned long apb_read_reg(unsigned long addr)
 {
 	unsigned long tmp;
-	void __iomem *vaddr;
+/*	void __iomem *vaddr;
 	vaddr = ioremap(((unsigned long)phys_to_virt(addr)), 0x4);
 	tmp = readl(vaddr);
-	iounmap(vaddr);
+	iounmap(vaddr);*/
+	tmp = readl((void __iomem *)(phys_to_virt(addr)));
 /*tmp = *(volatile unsigned long *)((unsigned long)phys_to_virt(addr));*/
 /* printk("[all][read]%lx,data is %lx\n",addr,tmp); */
 	return tmp & 0xffffffff;

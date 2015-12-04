@@ -1128,7 +1128,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 {
 	pr_dbg("gxtv_demod_fe_resume\n");
-	demod_power_switch(PWR_ON);
+/*	demod_power_switch(PWR_ON);*/
 	Gxtv_Demod_Dtmb_Init(dev);
 	return 0;
 }
