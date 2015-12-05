@@ -128,6 +128,7 @@ static u32 enable_mem_saving = 1;
 static u32 workaround_enable;
 static u32 force_w_h;
 #endif
+static u32 force_fps;
 
 #define H265_DEBUG_BUFMGR                   0x01
 #define H265_DEBUG_BUFMGR_MORE              0x02
@@ -155,7 +156,7 @@ static u32 force_w_h;
 #define H265_DEBUG_NOWAIT_DECODE_DONE_WHEN_STOP   0x4000000
 
 
-const u32 h265_version = 201512011;
+const u32 h265_version = 201512091;
 static u32 debug;
 static u32 radr;
 static u32 rval;
@@ -233,7 +234,8 @@ use_cma: 1, use both reserver memory and cma for buffers
 static u32 use_cma = 2;
 static unsigned char init_flag;
 static unsigned char uninit_list;
-
+static u32 start_decoding_time;
+static u32 max_decoding_time;
 static int show_frame_num;
 static struct semaphore h265_sema;
 struct task_struct *h265_task = NULL;
@@ -987,6 +989,9 @@ struct PIC_s {
 
 	int y_canvas_index;
 	int uv_canvas_index;
+#ifdef LOSLESS_COMPRESS_MODE
+	unsigned int losless_comp_body_size;
+#endif
 } /*PIC_t */;
 static struct PIC_s m_PIC[MAX_REF_PIC_NUM];
 
@@ -1853,8 +1858,9 @@ static void dump_pic_list(struct hevc_state_s *hevc)
 		pr_info
 		("index %d decode_idx:%d,	POC:%d,	referenced:%d,	",
 		 pic->index, pic->decode_idx, pic->POC, pic->referenced);
-		pr_info("num_reorder_pic:%d, output_mark:%d, ",
-				pic->num_reorder_pic, pic->output_mark);
+		pr_info("num_reorder_pic:%d, output_mark:%d, w/h %d,%d",
+				pic->num_reorder_pic, pic->output_mark,
+				pic->width, pic->height);
 		pr_info("output_ready:%d, mv_wr_start %x\n",
 				pic->output_ready, pic->mpred_mv_wr_start_addr);
 	}
@@ -3403,6 +3409,7 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 		new_pic->error_mark = 0;
 		/* new_pic->output_ready = 0; */
 		new_pic->num_reorder_pic = rpm_param->p.sps_num_reorder_pics_0;
+		new_pic->losless_comp_body_size = hevc->losless_comp_body_size;
 		new_pic->POC = hevc->curr_POC;
 	}
 	return new_pic;
@@ -3637,6 +3644,8 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 
 			hevc->pic_w = rpm_param->p.pic_width_in_luma_samples;
 			hevc->pic_h = rpm_param->p.pic_height_in_luma_samples;
+			frame_width = hevc->pic_w;
+			frame_height = hevc->pic_h;
 #ifdef LOSLESS_COMPRESS_MODE
 			if (re_config_pic_flag == 0 &&
 				(double_write_mode & 0x10) == 0)
@@ -4448,7 +4457,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 
 			vf->canvas1Addr = pic->mc_y_adr; /*body adr*/
 			vf->canvas0Addr = pic->mc_y_adr +
-						hevc->losless_comp_body_size;
+						pic->losless_comp_body_size;
 						/*head adr*/
 	}
 #else
@@ -4471,7 +4480,19 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 			vf->width = (force_w_h >> 16) & 0xffff;
 			vf->height = force_w_h & 0xffff;
 		}
+		if (force_fps & 0x100) {
+			u32 rate = force_fps & 0xff;
+			if (rate)
+				vf->duration = 96000/rate;
+			else
+				vf->duration = 0;
+		}
 
+		/*
+			!!! to do ...
+			need move below code to get_new_pic(),
+			hevc->xxx can only be used by current decoded pic
+		*/
 		if (hevc->params->p.conformance_window_flag &&
 			(debug & H265_DEBUG_IGNORE_CONFORMANCE_WINDOW) == 0) {
 			unsigned SubWidthC, SubHeightC;
@@ -4910,6 +4931,13 @@ static irqreturn_t vh265_isr(int irq, void *dev_id)
 		WRITE_VREG(HEVC_MCPU_INTR_REQ, AMRISC_MAIN_REQ);
 
 	} else if (dec_status == HEVC_SLICE_SEGMENT_DONE) {
+		if (start_decoding_time > 0) {
+			u32 process_time = 1000*
+			    (jiffies - start_decoding_time)/HZ;
+			if (process_time > max_decoding_time)
+				max_decoding_time = process_time;
+		}
+
 		error_watchdog_count = 0;
 		if (hevc->pic_list_init_flag == 2) {
 			hevc->pic_list_init_flag = 3;
@@ -5044,6 +5072,8 @@ static irqreturn_t vh265_isr(int irq, void *dev_id)
 					   HEVC_CODED_SLICE_SEGMENT_DAT);
 			/* Interrupt Amrisc to excute */
 			WRITE_VREG(HEVC_MCPU_INTR_REQ, AMRISC_MAIN_REQ);
+
+			start_decoding_time = jiffies;
 		} else {
 			/* skip, search next start code */
 			WRITE_VREG(HEVC_WAIT_FLAG,
@@ -5819,6 +5849,12 @@ MODULE_PARM_DESC(enable_mem_saving, "\n enable_mem_saving\n");
 module_param(force_w_h, uint, 0664);
 MODULE_PARM_DESC(force_w_h, "\n force_w_h\n");
 #endif
+
+module_param(force_fps, uint, 0664);
+MODULE_PARM_DESC(force_fps, "\n force_fps\n");
+
+module_param(max_decoding_time, uint, 0664);
+MODULE_PARM_DESC(max_decoding_time, "\n max_decoding_time\n");
 
 module_init(amvdec_h265_driver_init_module);
 module_exit(amvdec_h265_driver_remove_module);
