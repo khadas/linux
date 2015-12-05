@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 #include "clk.h"
 #include "clk-pll.h"
-
+#include <linux/amlogic/cpu_version.h>
 #undef pr_fmt
 #define pr_fmt(fmt) "gxbb_hdmi_clk: " fmt
 
@@ -70,7 +70,6 @@ void hdmi_update_bits(unsigned int reg, unsigned int mask,
 #define	HHI_VID_CLK_CNTL2	(0x65 << 2)
 #define	HHI_VID_CLK_DIV		(0x59 << 2)
 #define	HHI_HDMI_CLK_CNTL	(0x73 << 2)
-
 #define DIV_1    0
 #define DIV_2      1
 #define DIV_3      2
@@ -184,6 +183,8 @@ static void set_pll(struct amlogic_pll_rate_table *rate_tbl)
 	od = rate_tbl->od;
 	od2 = rate_tbl->od2;
 	pr_info("m =%zx,n=%zd,od=%zd,od2=%zd\n", m, n, od, od2);
+	if (is_meson_gxtvbb_cpu())
+		writel(0x2e55, hiu_base + HHI_HDMI_PLL_CNTL6);
 	/* set m n*/
 	val = readl(hiu_base + HHI_HDMI_PLL_CNTL);
 	val = val & (~(hpll_pll_phy_conf.m_mask << hpll_pll_phy_conf.m_shift));

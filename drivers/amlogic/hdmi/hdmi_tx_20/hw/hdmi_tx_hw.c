@@ -34,6 +34,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/enc_clk_config.h>
 #ifdef CONFIG_PANEL_IT6681
@@ -52,6 +53,7 @@
 #include "../hdmi_tx_compliance.h"
 #endif
 #include "tvenc_conf.h"
+#include "common.h"
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -134,84 +136,50 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 static void digital_clk_on(unsigned char flag);
 static void digital_clk_off(unsigned char flag);
 
-/*
- * HDMITX HPD HW related operations
- */
-enum hpd_op {
-	HPD_INIT_DISABLE_PULLUP,
-	HPD_INIT_SET_FILTER,
-	HPD_IS_HPD_MUXED,
-	HPD_MUX_HPD,
-	HPD_UNMUX_HPD,
-	HPD_READ_HPD_GPIO,
-};
-
 static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 {
-	int ret = 0;
-	switch (cmd) {
-	case HPD_INIT_DISABLE_PULLUP:
-		hd_set_reg_bits(P_PAD_PULL_UP_REG1, 0, 20, 1);
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_GXBB:
+		return hdmitx_hpd_hw_op_gxbb(cmd);
 		break;
-	case HPD_INIT_SET_FILTER:
-		hdmitx_wr_reg(HDMITX_TOP_HPD_FILTER,
-			((0xa << 12) | (0xa0 << 0)));
-		break;
-	case HPD_IS_HPD_MUXED:
-		ret = !!(hd_read_reg(P_PERIPHS_PIN_MUX_1) & (1 << 26));
-		break;
-	case HPD_MUX_HPD:
-/* GPIOH_5 input */
-		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 1, 21, 1);
-/* clear other pinmux */
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 0, 19, 1);
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 1, 26, 1);
-		break;
-	case HPD_UNMUX_HPD:
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 0, 26, 1);
-/* GPIOH_5 input */
-		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 1, 21, 1);
-		break;
-	case HPD_READ_HPD_GPIO:
-		ret = !!(hd_read_reg(P_PREG_PAD_GPIO1_I) & (1 << 20));
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		return hdmitx_hpd_hw_op_gxtvbb(cmd);
 		break;
 	default:
-		pr_info("error hpd cmd %d\n", cmd);
 		break;
 	}
-	return ret;
+	return 0;
 }
 
 int read_hpd_gpio(void)
 {
-	return !!(hd_read_reg(P_PREG_PAD_GPIO1_I) & (1 << 20));
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_GXBB:
+		return read_hpd_gpio_gxbb();
+		break;
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		return read_hpd_gpio_gxtvbb();
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
 EXPORT_SYMBOL(read_hpd_gpio);
 
 int hdmitx_ddc_hw_op(enum ddc_op cmd)
 {
-	int ret = 0;
-
-	switch (cmd) {
-	case DDC_INIT_DISABLE_PULL_UP_DN:
-/* Disable GPIOH_3/4 pull-up/down */
-		hd_set_reg_bits(P_PAD_PULL_UP_EN_REG1, 0, 21, 2);
-		hd_set_reg_bits(P_PAD_PULL_UP_REG1, 0, 21, 2);
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_GXBB:
+		return hdmitx_ddc_hw_op_gxbb(cmd);
 		break;
-	case DDC_MUX_DDC:
-/* GPIOH_3/4 input */
-		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 3, 21, 2);
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 3, 24, 2);
-		break;
-	case DDC_UNMUX_DDC:
-/* GPIOH_3/4 input */
-		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 3, 21, 2);
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 0, 24, 2);
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		return hdmitx_ddc_hw_op_gxtvbb(cmd);
 		break;
 	default:
-		pr_info("error ddc cmd %d\n", cmd);
+		break;
 	}
-	return ret;
+	return 0;
 }
 
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
