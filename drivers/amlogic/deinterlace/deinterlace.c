@@ -156,8 +156,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* fix DI_CLKG_CTRL for gxtvbb */
-static const char version_s[] = "2015-11-30a";
+/* fix buf recycle */
+static const char version_s[] = "2015-12-07a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -3797,6 +3797,7 @@ __func__, di_pre_stru.cur_inp_type, di_pre_stru.cur_width,
 di_pre_stru.cur_height, di_pre_stru.cur_source_type,
 di_buf->vframe->type, di_buf->vframe->width,
 di_buf->vframe->height,	di_buf->vframe->source_type);
+			recycle_keep_buffer();
 /* #endif */
 			di_pre_stru.cur_width = di_buf->vframe->width;
 			di_pre_stru.cur_height = di_buf->vframe->height;
@@ -4801,7 +4802,6 @@ di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		if (mcpre_en)
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
-
 		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL) {
 			post_blend_mode = 3;
 			blend_mtn_en = 1;
@@ -6272,7 +6272,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	} else if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 #ifdef DI_DEBUG
 		di_print("%s , is_bypass() %d trick_mode %d bypass_all %d\n",
-				__func__, is_bypass(), trick_mode, bypass_all);
+			__func__, is_bypass(NULL), trick_mode, bypass_all);
 #endif
 		if ((Rd(DI_IF1_GEN_REG)&0x1) == 0 &&
 				new_keep_last_frame_enable == 0) {
@@ -6586,7 +6586,7 @@ static vframe_t *di_vf_peek(void *arg)
 	return vframe_ret;
 }
 /*recycle the buffer for keeping buffer*/
-static void recycle_keep_buffer(void)
+void recycle_keep_buffer(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 	int i = 0;
@@ -6698,6 +6698,10 @@ static void di_vf_put(vframe_t *vf, void *arg)
 
 		if (is_in_queue(di_buf, QUEUE_DISPLAY))
 			recycle_vframe_type_post(di_buf);
+#ifdef DI_DEBUG
+		di_print("%s: %s[%d] =>recycle_list\n", __func__,
+			vframe_type_name[di_buf->type], di_buf->index);
+#endif
 
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 #ifdef DI_DEBUG

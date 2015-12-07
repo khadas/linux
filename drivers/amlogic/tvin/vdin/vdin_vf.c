@@ -709,8 +709,8 @@ int vdin_vf_states(struct vframe_states *vf_ste, void *op_arg)
 		return -1;
 	p = (struct vf_pool *)op_arg;
 	vf_ste->vf_pool_size = p->size;
-	vf_ste->buf_free_num = p->wr_list_size - 1;
-	vf_ste->buf_avail_num = p->wr_list_size;
+	vf_ste->buf_free_num = p->wr_list_size;
+	vf_ste->buf_avail_num = p->rd_list_size;
 	vf_ste->buf_recycle_num = p->size - p->wr_list_size - p->rd_list_size;
 	return 0;
 }

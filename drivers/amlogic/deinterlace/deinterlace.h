@@ -31,7 +31,6 @@
 #define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
 #endif
 #endif
-
 /************************************
 *	 di hardware level interface
 *************************************/
@@ -343,6 +342,7 @@ void read_mtn_info(unsigned long *mtn_info, unsigned long*);
 /* for video reverse */
 void di_post_read_reverse(bool reverse);
 void di_post_read_reverse_irq(bool reverse);
+extern void recycle_keep_buffer(void);
 
 #undef DI_DEBUG
 

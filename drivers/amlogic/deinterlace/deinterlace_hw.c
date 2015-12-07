@@ -29,7 +29,7 @@
 #define DI_CHAN2_LUMA_RPT_PAT DI_CHAN2_LUMA0_RPT_PAT
 #endif
 
-uint di_mtn_1_ctrl1;
+uint di_mtn_1_ctrl1 = 0xa0202015;
 uint mtn_ctrl1;
 
 static bool cue_enable;
@@ -1238,8 +1238,11 @@ void di_post_switch_buffer(
 			(urgent << 16)); /* urgent. */
 	}
 
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
-			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
+	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL) | 0x1c00019);
+	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+			blend_en&0x1, 31, 1);
+	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+			blend_mode&0x3, 20, 2);
 	if (debug_blend_mode_ctrl != 0xff)
 		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 			debug_blend_mode_ctrl&0x3, 20, 2);
@@ -1323,8 +1326,11 @@ blend_mtn_en,blend_mode); */
 (urgent << 16));
 	}
 
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
-			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
+		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL) | 0x1c00019);
+		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+			blend_en&0x1, 31, 1);
+		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+				blend_mode&0x3, 20, 2);
 		if (debug_blend_mode_ctrl != 0xff)
 			VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 				debug_blend_mode_ctrl&0x3, 20, 2);
