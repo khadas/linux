@@ -205,11 +205,6 @@ static unsigned int pre_input_freq;
 static unsigned int pre_output_freq;
 static unsigned int vlock_dis_cnt;
 
-/* sharpness */
-static unsigned int pre_input_flag;/* 1: sd flag ;2:hd flag*/
-module_param(pre_input_flag, uint, 0664);
-MODULE_PARM_DESC(pre_input_flag, "\n pre_input_flag\n");
-
 /* 3d sync parts begin */
 unsigned int sync_3d_h_start = 0;
 module_param(sync_3d_h_start, uint, 0664);
@@ -983,13 +978,15 @@ void ve_set_dnlp_2(void)
 {
 	ulong i = 0;
 	/* get command parameters */
-	ve_dnlp_method       = 1;
-	ve_dnlp_cliprate     = 6;
-	ve_dnlp_hghrange     = 14;
-	ve_dnlp_lowrange     = 18;
-	ve_dnlp_hghalpha     = 26;
-	ve_dnlp_midalpha     = 28;
-	ve_dnlp_lowalpha     = 18;
+	if (is_meson_gxbb_cpu()) {
+		ve_dnlp_method       = 1;
+		ve_dnlp_cliprate     = 6;
+		ve_dnlp_hghrange     = 14;
+		ve_dnlp_lowrange     = 18;
+		ve_dnlp_hghalpha     = 26;
+		ve_dnlp_midalpha     = 28;
+		ve_dnlp_lowalpha     = 18;
+	}
 	/* clear historic luma sum */
 	ve_dnlp_luma_sum = 0;
 	/* init tgt & lpf */
@@ -1635,64 +1632,7 @@ void amve_vlock_process(struct vframe_s *vf)
 /* sharpness process begin */
 void sharpness_process(struct vframe_s *vf)
 {
-	unsigned int data32;
-	if ((vf == NULL) || (pre_input_flag == 0xff))
-		return;
-	if (vf->width >= 2048) {
-		if (pre_input_flag == 3)
-			return;
-		pre_input_flag = 3;
-		/* disable sharpness buf_en */
-		data32 = READ_VPP_REG(VPP_SRSHARP0_CTRL);
-		data32 &= ~(1<<1);
-		data32 |= 1;
-		WRITE_VPP_REG(VPP_SRSHARP0_CTRL, data32);
-		data32 = READ_VPP_REG(VPP_SRSHARP1_CTRL);
-		data32 |= 0x3;
-		WRITE_VPP_REG(VPP_SRSHARP1_CTRL, data32);
-		/* enable/disable dnlp peaking nr */
-		WRITE_VPP_REG(SRSHARP0_PK_FINALGAIN_HP_BP, 0x2018);
-		WRITE_VPP_REG(SRSHARP0_SHARP_DNLP_EN, 0);
-		WRITE_VPP_REG(SRSHARP1_SHARP_DNLP_EN, 0);
-		WRITE_VPP_REG(SRSHARP0_SHARP_PK_NR_ENABLE, 0);
-		WRITE_VPP_REG(SRSHARP1_SHARP_PK_NR_ENABLE, 3);
-		return;
-	} else if ((vf->height >= 720) || (vf->width >= 1280)) {
-		if (pre_input_flag == 1)
-			return;
-		pre_input_flag = 1;
-		/* enable sharpness 0/1 reg r/w */
-		data32 = READ_VPP_REG(VPP_SRSHARP0_CTRL);
-		data32 |= 0x3;
-		WRITE_VPP_REG(VPP_SRSHARP0_CTRL, data32);
-		data32 = READ_VPP_REG(VPP_SRSHARP1_CTRL);
-		data32 |= 0x3;
-		WRITE_VPP_REG(VPP_SRSHARP1_CTRL, data32);
-		/* enable/disable dnlp peaking nr */
-		WRITE_VPP_REG(SRSHARP0_PK_FINALGAIN_HP_BP, 0x2018);
-		WRITE_VPP_REG(SRSHARP0_SHARP_DNLP_EN, 0);
-		WRITE_VPP_REG(SRSHARP1_SHARP_DNLP_EN, 0);
-		WRITE_VPP_REG(SRSHARP0_SHARP_PK_NR_ENABLE, 0);
-		WRITE_VPP_REG(SRSHARP1_SHARP_PK_NR_ENABLE, 3);
-		return;
-	} else if ((vf->height < 720) && (vf->width < 1280)) {
-		if (pre_input_flag == 2)
-			return;
-		pre_input_flag = 2;
-		/* enable sharpness 0/1 reg r/w */
-		data32 = READ_VPP_REG(VPP_SRSHARP0_CTRL);
-		data32 |= 0x3;
-		WRITE_VPP_REG(VPP_SRSHARP0_CTRL, data32);
-		data32 = READ_VPP_REG(VPP_SRSHARP1_CTRL);
-		data32 |= 0x3;
-		WRITE_VPP_REG(VPP_SRSHARP1_CTRL, data32);
-		/* enable/disable dnlp peaking nr */
-		WRITE_VPP_REG(SRSHARP0_PK_FINALGAIN_HP_BP, 0x2018);
-		WRITE_VPP_REG(SRSHARP0_SHARP_DNLP_EN, 0);
-		WRITE_VPP_REG(SRSHARP1_SHARP_DNLP_EN, 0);
-		WRITE_VPP_REG(SRSHARP0_SHARP_PK_NR_ENABLE, 3);
-		WRITE_VPP_REG(SRSHARP1_SHARP_PK_NR_ENABLE, 1);
-	}
+	return;
 }
 /* sharpness process end */
 
