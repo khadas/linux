@@ -112,8 +112,6 @@ static int tas5707_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 static int tas5707_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	pr_debug("%s\n", __func__);
-
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		break;
@@ -147,8 +145,6 @@ static int tas5707_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	unsigned int rate;
-
-	pr_debug("%s\n", __func__);
 
 	rate = params_rate(params);
 	pr_debug("rate: %u\n", rate);
@@ -251,6 +247,9 @@ static int tas5707_set_drc1(struct snd_soc_codec *codec)
 
 			regmap_raw_write(codec->control_data, DDX_DRC1_AE + i,
 					 TAS5707_drc1_table[i], 8);
+			/*for (j = 0; j < 8; j++)
+				pr_info("TAS5707_drc1_table[%d][%d]: %x\n",
+					 i, j, TAS5707_drc1_table[i][j]);*/
 		}
 	} else {
 		return -1;
@@ -265,6 +264,9 @@ static int tas5707_set_drc1(struct snd_soc_codec *codec)
 
 			regmap_raw_write(codec->control_data, DDX_DRC1_T + i,
 					 tas5707_drc1_tko_table[i], 4);
+			/*for (j = 0; j < 4; j++)
+				pr_info("tas5707_drc1_tko_table[%d][%d]: %x\n",
+					 i, j, tas5707_drc1_tko_table[i][j]);*/
 		}
 	} else {
 		return -1;
@@ -279,14 +281,15 @@ static int tas5707_set_drc(struct snd_soc_codec *codec)
 	char drc_mask = 0;
 	u8 tas5707_drc_ctl_table[] = { 0x00, 0x00, 0x00, 0x00 };
 
-	if (pdata && pdata->enable_ch1_drc) {
+	if (pdata && pdata->enable_ch1_drc && pdata->drc_enable) {
 		drc_mask |= 0x01;
+		tas5707_drc_ctl_table[3] = drc_mask;
 		tas5707_set_drc1(codec);
-	}
-	tas5707_drc_ctl_table[3] = drc_mask;
-	regmap_raw_write(codec->control_data, DDX_DRC_CTL,
+	    regmap_raw_write(codec->control_data, DDX_DRC_CTL,
 			 tas5707_drc_ctl_table, 4);
-	return 0;
+	    return 0;
+	}
+	return -1;
 }
 
 static int tas5707_set_eq_biquad(struct snd_soc_codec *codec)
@@ -311,12 +314,14 @@ static int tas5707_set_eq_biquad(struct snd_soc_codec *codec)
 	for (i = 0; i < 2; i++) {
 		for (j = 0; j < 7; j++) {
 			addr = (DDX_CH1_BQ_0 + i * 7 + j);
-			for (k = 0; k < 20; k++) {
+			for (k = 0; k < 20; k++)
 				tas5707_bq_table[k] =
 					p[i * 7 * 20 + j * 20 + k];
-				regmap_raw_write(codec->control_data, addr,
-						 tas5707_bq_table, 20);
-			}
+			regmap_raw_write(codec->control_data, addr,
+					tas5707_bq_table, 20);
+			/*for (k = 0; k < 20; k++)
+				pr_info("tas5707_bq_table[%d]: %x\n",
+					k, tas5707_bq_table[k]);*/
 		}
 	}
 	return 0;
@@ -358,7 +363,7 @@ static int tas5707_set_eq(struct snd_soc_codec *codec)
 	u8 tas5707_eq_ctl_table[] = { 0x00, 0x00, 0x00, 0x80 };
 	struct tas57xx_eq_cfg *cfg = pdata->eq_cfgs;
 
-	if (!pdata)
+	if (!pdata || !pdata->eq_enable)
 		return -ENOENT;
 
 	if (pdata->num_eq_cfgs && (tas5707->eq_conf_texts == NULL)) {
@@ -399,22 +404,24 @@ static int tas5707_set_eq(struct snd_soc_codec *codec)
 static int tas5707_customer_init(struct snd_soc_codec *codec)
 {
 	int i = 0;
-	char data[4];
+	u8 data[4] = {0x00, 0x00, 0x00, 0x00};
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 
 	if (pdata && pdata->init_regs) {
 		if (pdata->num_init_regs != 4) {
-			pr_err("Error: num_init_regs = %d\n",
+			dev_err(codec->dev, "num_init_regs = %d\n",
 				pdata->num_init_regs);
 			return -1;
 		}
 		for (i = 0; i < pdata->num_init_regs; i++)
 			data[i] = pdata->init_regs[i];
+		/*pr_info("init_regs[]: [%x][%x][%x][%x]\n",
+			data[0], data[1], data[2], data[3]);*/
 	} else {
 		return -1;
 	}
 
-	regmap_raw_write(codec->control_data, data[0], data, 4);
+	regmap_raw_write(codec->control_data, DDX_INPUT_MUX, data, 4);
 	return 0;
 }
 
@@ -441,7 +448,7 @@ static int tas5707_init(struct snd_soc_codec *codec)
 
 	reset_tas5707_GPIO(codec);
 
-	pr_info("tas5707_init\n");
+	dev_info(codec->dev, "tas5707_init!\n");
 	snd_soc_write(codec, DDX_OSC_TRIM, 0x00);
 	msleep(50);
 	snd_soc_write(codec, DDX_CLOCK_CTL, 0x6c);
@@ -456,13 +463,13 @@ static int tas5707_init(struct snd_soc_codec *codec)
 
 	/*drc */
 	if ((tas5707_set_drc(codec)) < 0)
-		pr_info("fail to set tas5707 drc\n");
+		dev_err(codec->dev, "fail to set tas5707 drc!\n");
 	/*eq */
 	if ((tas5707_set_eq(codec)) < 0)
-		pr_info("fail to set tas5707 eq\n");
+		dev_err(codec->dev, "fail to set tas5707 eq!\n");
 	/*init */
 	if ((tas5707_customer_init(codec)) < 0)
-		pr_info("fail to set tas5707 customer init\n");
+		dev_err(codec->dev, " fail to set tas5707 customer init!\n");
 
 	snd_soc_write(codec, DDX_VOLUME_CONFIG, 0xD1);
 	snd_soc_write(codec, DDX_SYS_CTL_2, 0x84);
@@ -471,7 +478,7 @@ static int tas5707_init(struct snd_soc_codec *codec)
 	snd_soc_write(codec, DDX_MODULATION_LIMIT, 0x02);
 	/*normal operation */
 	if ((tas5707_set_master_vol(codec)) < 0)
-		pr_info("fail to set tas5707 master vol\n");
+		dev_err(codec->dev, "fail to set tas5707 master vol!\n");
 
 	snd_soc_write(codec, DDX_CHANNEL1_VOL, tas5707->Ch1_vol);
 	snd_soc_write(codec, DDX_CHANNEL2_VOL, tas5707->Ch2_vol);
@@ -521,7 +528,7 @@ static int tas5707_suspend(struct snd_soc_codec *codec)
 	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 
-	pr_info("sound::tas5707_suspend\n");
+	dev_info(codec->dev, "tas5707_suspend!\n");
 
 	if (pdata && pdata->suspend_func)
 		pdata->suspend_func();
@@ -538,7 +545,7 @@ static int tas5707_resume(struct snd_soc_codec *codec)
 	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 
-	pr_info("sound::tas5707_resume\n");
+	dev_info(codec->dev, "tas5707_resume!\n");
 
 	if (pdata && pdata->resume_func)
 		pdata->resume_func();
@@ -560,11 +567,10 @@ static void tas5707_early_suspend(struct early_suspend *h)
 	struct snd_soc_codec *codec = NULL;
 	struct tas57xx_platform_data *pdata = NULL;
 
-	pr_info("sound::tas5707_early_suspend\n");
-
 	codec = (struct snd_soc_codec *)(h->param);
 	pdata = dev_get_platdata(codec->dev);
 
+	dev_info(codec->dev, "tas5707_early_suspend!\n");
 	if (pdata && pdata->early_suspend_func)
 		pdata->early_suspend_func();
 
@@ -576,11 +582,10 @@ static void tas5707_late_resume(struct early_suspend *h)
 	struct snd_soc_codec *codec = NULL;
 	struct tas57xx_platform_data *pdata = NULL;
 
-	pr_info("sound::tas5707_late_resume\n");
-
 	codec = (struct snd_soc_codec *)(h->param);
 	pdata = dev_get_platdata(codec->dev);
 
+	dev_info(codec->dev, "tas5707_late_resume!\n");
 	if (pdata && pdata->late_resume_func)
 		pdata->late_resume_func();
 
@@ -590,11 +595,6 @@ static void tas5707_late_resume(struct early_suspend *h)
 
 static const struct snd_soc_dapm_widget tas5707_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "HIFI Playback", SND_SOC_NOPM, 0, 0),
-};
-
-static const struct snd_soc_dapm_route tas5707_dapm_routes[] = {
-	{ "LEFT", NULL, "DAC" },
-	{ "RIGHT", NULL, "DAC" },
 };
 
 static const struct snd_soc_codec_driver tas5707_codec = {
@@ -610,8 +610,6 @@ static const struct snd_soc_codec_driver tas5707_codec = {
 	.num_controls = ARRAY_SIZE(tas5707_snd_controls),
 	.dapm_widgets = tas5707_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(tas5707_dapm_widgets),
-	.dapm_routes = tas5707_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tas5707_dapm_routes),
 };
 
 static int tas5707_i2c_probe(struct i2c_client *i2c,
@@ -702,3 +700,4 @@ module_exit(aml_tas5707_exit);
 MODULE_DESCRIPTION("ASoC Tas5707 driver");
 MODULE_AUTHOR("AML MM team");
 MODULE_LICENSE("GPL");
+

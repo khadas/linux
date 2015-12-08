@@ -571,6 +571,13 @@ static int of_get_eq_pdata(struct tas57xx_platform_data *pdata,
 {
 	int length = 0;
 	char *regs = NULL;
+	int ret = 0;
+
+	ret = of_property_read_u32(p_node, "eq_enable", &pdata->eq_enable);
+	if (pdata->eq_enable == 0 || ret != 0) {
+		pr_err("Fail to get eq_enable node or EQ disable!\n");
+		return -2;
+	}
 
 	prob_priv.num_eq = 2;
 	pdata->num_eq_cfgs = prob_priv.num_eq;
@@ -605,6 +612,13 @@ static int of_get_drc_pdata(struct tas57xx_platform_data *pdata,
 {
 	int length = 0;
 	char *pd = NULL;
+	int ret = 0;
+
+	ret = of_property_read_u32(p_node, "drc_enable", &pdata->drc_enable);
+	if (pdata->drc_enable == 0 || ret != 0) {
+		pr_err("Fail to get drc_enable node or DRC disable!\n");
+		return -2;
+	}
 
 	/* get drc1 table */
 	pd = alloc_and_get_data_array(p_node, drc1_table, &length);
@@ -697,19 +711,19 @@ static int codec_get_of_pdata(struct tas57xx_platform_data *pdata,
 
 	ret = of_get_resetpin_pdata(pdata, p_node);
 	if (ret)
-		pr_info("codec reset pin is not found in dtd\n");
+		pr_info("codec reset pin is not found in dts\n");
 
 	ret = of_get_drc_pdata(pdata, p_node);
 	if (ret == -2)
-		pr_info("no platform codec drc config found\n");
+		pr_info("codec DRC configs are not found in dts\n");
 
 	ret = of_get_eq_pdata(pdata, p_node);
 	if (ret)
-		pr_info("no platform codec EQ config found\n");
+		pr_info("codec EQ configs are not found in dts\n");
 
 	ret = of_get_init_pdata(pdata, p_node);
 	if (ret)
-		pr_info("no platform codec init config found\n");
+		pr_info("codec init configs are not found in dts\n");
 	return ret;
 }
 

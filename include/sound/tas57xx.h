@@ -47,6 +47,8 @@ struct tas57xx_platform_data {
 	int custom_sub_bq_table_len;
 	unsigned int custom_master_vol;
 
+	int eq_enable;
+	int drc_enable;
 	int enable_ch1_drc;
 	int enable_ch2_drc;
 	int enable_hardmute;

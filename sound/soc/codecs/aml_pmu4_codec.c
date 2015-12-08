@@ -409,7 +409,7 @@ static int aml_pmu4_audio_probe(struct snd_soc_codec *codec)
 {
 	struct aml_pmu4_audio_priv *pmu4_audio = NULL;
 
-	pr_info("enter %s\n", __func__);
+	/*pr_info("enter %s\n", __func__);*/
 	pmu4_audio = kzalloc(sizeof(struct aml_pmu4_audio_priv), GFP_KERNEL);
 	if (NULL == pmu4_audio)
 		return -ENOMEM;
@@ -510,7 +510,7 @@ static struct snd_soc_codec_driver soc_codec_dev_aml_pmu4_audio = {
 static int aml_pmu4_audio_codec_probe(struct platform_device *pdev)
 {
 	int ret;
-	pr_info("aml_pmu4_audio_codec_probe\n");
+	dev_info(&pdev->dev, "aml_pmu4_audio_codec_probe\n");
 	ret = snd_soc_register_codec(&pdev->dev,
 				     &soc_codec_dev_aml_pmu4_audio,
 				     &aml_pmu4_audio_dai[0], 1);
