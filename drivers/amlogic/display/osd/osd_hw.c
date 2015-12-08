@@ -3660,6 +3660,9 @@ void osd_resume_hw(void)
 static unsigned int fb0_cfg_w0_save;
 void  osd_freeze_hw(void)
 {
+#ifdef CONFIG_VSYNC_RDMA
+	enable_rdma(0);
+#endif
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	osd_rdma_enable(0);
 #endif
@@ -3674,6 +3677,9 @@ void osd_thaw_hw(void)
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	osd_rdma_enable(1);
 #endif
+#ifdef CONFIG_VSYNC_RDMA
+	enable_rdma(1);
+#endif
 	return;
 }
 void osd_restore_hw(void)
@@ -3681,6 +3687,9 @@ void osd_restore_hw(void)
 	osd_reg_write(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0_save);
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	osd_rdma_enable(1);
+#endif
+#ifdef CONFIG_VSYNC_RDMA
+	enable_rdma(1);
 #endif
 	pr_debug("osd_restored\n");
 

@@ -136,6 +136,9 @@ extern int osd_get_init_hw_flag(void);
 extern void osd_get_hw_para(struct hw_para_s **para);
 extern int osd_set_debug_hw(const char *buf);
 extern char *osd_get_debug_hw(void);
+#ifdef CONFIG_VSYNC_RDMA
+extern void enable_rdma(int enable_flag);
+#endif
 
 #ifdef CONFIG_AM_FB_EXT
 extern void osd_ext_clone_pan(u32 index);

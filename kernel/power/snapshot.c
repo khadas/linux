@@ -2198,7 +2198,8 @@ prepare_image(struct memory_bitmap *new_bm, struct memory_bitmap *bm)
 	safe_pages_list = NULL;
 	nr_pages = nr_copy_pages - nr_highmem - allocated_unsafe_pages;
 	while (nr_pages > 0) {
-		lp = (struct linked_page *)get_zeroed_page(GFP_ATOMIC);
+		lp = (struct linked_page *)
+			get_zeroed_page(GFP_ATOMIC | __GFP_MOVABLE);
 		if (!lp) {
 			error = -ENOMEM;
 			goto Free;

@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/bio.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include "instaboot_kernel.h"
 
 static void *nftl_info_trans_buffer[3]  __nosavedata;
@@ -151,6 +152,54 @@ void aml_put_page(struct page *page)
 	put_page(page);
 }
 EXPORT_SYMBOL(aml_put_page);
+
+void __aml_free_page(struct page *page)
+{
+	__free_page(page);
+}
+EXPORT_SYMBOL(__aml_free_page);
+
+void aml_free_page(unsigned long addr)
+{
+	free_pages(addr, 0);
+}
+EXPORT_SYMBOL(aml_free_page);
+
+unsigned long __aml_get_free_page(gfp_t gfp_mask)
+{
+	return __get_free_pages(gfp_mask, 0);
+}
+EXPORT_SYMBOL(__aml_get_free_page);
+
+unsigned long aml_get_zeroed_page(gfp_t gfp_mask)
+{
+	return get_zeroed_page(gfp_mask);
+}
+EXPORT_SYMBOL(aml_get_zeroed_page);
+
+void *aml_kmalloc(size_t size, gfp_t flags)
+{
+	return kmalloc(size, flags);
+}
+EXPORT_SYMBOL(aml_kmalloc);
+
+void aml_kfree(const void *p)
+{
+	kfree(p);
+}
+EXPORT_SYMBOL(aml_kfree);
+
+void *aml_vmalloc(unsigned long size)
+{
+	return vmalloc(size);
+}
+EXPORT_SYMBOL(aml_vmalloc);
+
+void aml_vfree(const void *addr)
+{
+	vfree(addr);
+}
+EXPORT_SYMBOL(aml_vfree);
 /*
    in kernel booting process, acquire some memory for device probe,
    which will not be crush when recovery the instaboot image.
