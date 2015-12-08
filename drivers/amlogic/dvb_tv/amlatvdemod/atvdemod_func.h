@@ -297,7 +297,7 @@ struct amlatvdemod_device_s {
 };
 
 extern struct amlatvdemod_device_s *amlatvdemod_devp;
-extern void aml_fix_PWM_adjust(void);
+extern void aml_fix_PWM_adjust(int enable);
 extern void aml_audio_valume_gain_set(unsigned int audio_gain);
 extern unsigned int aml_audio_valume_gain_get(void);
 extern void aml_atvdemod_overmodule_det(void);

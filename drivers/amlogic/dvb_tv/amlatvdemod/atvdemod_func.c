@@ -1121,6 +1121,8 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_R840) {
 		/*config pwm for tuner r840*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0, 0xc80);
+		/* guanzhong for Tuner AGC shock */
+		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46180200);
 		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_ADC_SE,1,0xf);//Kd = 0xf */
 	}
 }
@@ -1808,12 +1810,25 @@ void aml_atvdemod_overmodule_det(void)
 	}
 }
 
-void aml_fix_PWM_adjust(void)
+void aml_fix_PWM_adjust(int enable)
 {
 	unsigned long  temp_data;
+	/*
 	temp_data = atv_dmd_rd_byte(APB_BLOCK_ADDR_AGC_PWM, 0x08);
 	temp_data = temp_data | 0x01;
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x08, temp_data);
+	*/
+	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
+	if (enable)
+		temp_data = temp_data & ~((0x3)<<8);
+	else
+		temp_data = temp_data & ~((0x1)<<9);
+
+	atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
+	if (enable) {
+		temp_data = temp_data | ((0x3)<<8);
+		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
+	}
 }
 
 

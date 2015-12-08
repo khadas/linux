@@ -152,7 +152,10 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 		val = aml_audio_valume_gain_get();
 		pr_dbg("audio_gain_get : %d\n", val);
 	} else if (!strncmp(parm[0], "fix_pwm_adj", strlen("fix_pwm_adj"))) {
-		aml_fix_PWM_adjust();
+		if (kstrtoul(parm[1], 10, &tmp) == 0) {
+			val = tmp;
+			aml_fix_PWM_adjust(val);
+		}
 	} else if (!strncmp(parm[0], "rs", strlen("rs"))) {
 		if (kstrtoul(parm[1], 16, &tmp) == 0)
 				block_addr  = tmp;
