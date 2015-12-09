@@ -553,7 +553,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	while (p->frequency <= maxafcfreq) {
 		pr_dbg("[%s] p->frequency=[%d] is processing\n",
 		       __func__, p->frequency);
-		if (fee->tuner->drv->id != AM_TUNER_R840) {
+		if (fee->tuner->drv->id != AM_TUNER_R840 &&
+		fee->tuner->drv->id != AM_TUNER_SI2151) {
 			do {
 				mdelay(delay_cnt);
 				if ((fe->ops.tuner_ops.get_pll_status == NULL)
