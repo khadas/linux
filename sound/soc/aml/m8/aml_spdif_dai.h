@@ -33,7 +33,7 @@
 #define AOUT_EVENT_RAWDATA_MAT_MLP              0xC
 #define AOUT_EVENT_RAWDATA_DST                  0xD
 #define AOUT_EVENT_RAWDATA_WMA_PRO              0xE
-
+#define AOUT_EVENT_RAWDATA_DTS_HD_MA (AOUT_EVENT_RAWDATA_DTS_HD|(1<<8))
 extern unsigned int IEC958_mode_codec;
 
 /*

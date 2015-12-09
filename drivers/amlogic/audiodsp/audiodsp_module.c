@@ -788,7 +788,7 @@ static ssize_t digital_raw_store(struct class *class,
 #define SUPPORT_TYPE_NUM  9
 static unsigned char *codec_str[SUPPORT_TYPE_NUM] = {
 	"2 CH PCM", "DTS RAW Mode", "Dolby Digital", "DTS",
-	"DD+", "DTSHD", "8 CH PCM", "TrueHD", "DTSLL"
+	"DD+", "DTS-HD", "8 CH PCM", "TrueHD", "DTS-HD MA"
 };
 
 static ssize_t digital_codec_show(struct class *cla,

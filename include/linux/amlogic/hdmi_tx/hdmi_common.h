@@ -333,6 +333,8 @@ unsigned int hdmi_get_csc_coef(
 
 /* HDMI Audio Parmeters */
 /* Refer to CEA-861-D Page 88 */
+#define DTS_HD_TYPE_MASK 0xff00
+#define DTS_HD_MA  (0X1 << 8)
 enum hdmi_audio_type {
 	CT_REFER_TO_STREAM = 0,
 	CT_PCM,
@@ -349,6 +351,7 @@ enum hdmi_audio_type {
 	CT_MAT, /* TrueHD */
 	CT_DST,
 	CT_WMA,
+	CT_DTS_HD_MA = CT_DTS_HD + (DTS_HD_MA),
 	CT_MAX,
 };
 

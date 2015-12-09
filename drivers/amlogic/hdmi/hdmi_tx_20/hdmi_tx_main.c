@@ -1581,7 +1581,7 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	if (audio_param->type != cmd) {
 		audio_param->type = cmd;
 	hdmi_print(INF, AUD "aout notify format %s\n",
-		aud_type_string[audio_param->type]);
+		aud_type_string[audio_param->type & 0xff]);
 	hdmitx_device.audio_param_update_flag = 1;
 	}
 

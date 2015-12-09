@@ -347,7 +347,12 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		aml_write_cbus(AIU_958_CHSTAT_L1, 0x900);
 		aml_write_cbus(AIU_958_CHSTAT_R0, 0x1902);
 		aml_write_cbus(AIU_958_CHSTAT_R1, 0x900);
-		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP, substream);
+		if (IEC958_mode_codec == 8)
+			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA,
+			substream);
+		else
+			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP,
+			substream);
 	} else {
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
 	}
