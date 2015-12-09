@@ -853,6 +853,7 @@ ssize_t drm_tswrite(struct file *file,
 	struct drm_info *drm = &tmpmm;
 	u32 res = 0;
 	int isphybuf = 0;
+	unsigned long realbuf;
 
 	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
 	size_t wait_size, write_size;
@@ -869,9 +870,10 @@ ssize_t drm_tswrite(struct file *file,
 	if (drm->drm_flag == TYPE_DRMINFO && drm->drm_level == DRM_LEVEL1) {
 		/* buf only has drminfo not have esdata; */
 		realcount = drm->drm_pktsize;
-		buf = (char *)drm->drm_phy;
+		realbuf = drm->drm_phy;
 		isphybuf = 1;
-	}
+	} else
+	    realbuf = (unsigned long)buf;
 	/* pr_info("drm->drm_flag = 0x%x,realcount = %d , buf = 0x%x ",
 	   drm->drm_flag,realcount, buf); */
 
@@ -928,7 +930,8 @@ ssize_t drm_tswrite(struct file *file,
 		/* pr_info("write_size = %d,count = %d,\n",
 		   write_size, count); */
 		if (write_size > 0)
-			r = _tsdemux_write(buf, write_size, isphybuf);
+			r = _tsdemux_write((const char __user *)realbuf,
+					 write_size, isphybuf);
 		else
 			return -EAGAIN;
 

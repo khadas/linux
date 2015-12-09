@@ -688,6 +688,7 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 	struct drm_info *drm = &tmpmm;
 	u32 res = 0;
 	int isphybuf = 0;
+	unsigned long realbuf;
 
 	if (buf == NULL || count == 0)
 		return -EINVAL;
@@ -704,8 +705,8 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 
 	if (drm->drm_flag == TYPE_DRMINFO && (drm->drm_hasesdata == 0)) {
 		/* buf only has drminfo not have esdata; */
+		realbuf = drm->drm_phy;
 		realcount = drm->drm_pktsize;
-		buf = (char *)drm->drm_phy;
 		isphybuf = 1;
 		/* DRM_PRNT("drm_get_rawdata
 		 *onlydrminfo drm->drm_hasesdata[0x%x]
@@ -713,7 +714,7 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		 drm->drm_hasesdata,stbuf->type,buf); */
 	} else if (drm->drm_hasesdata == 1) {	/* buf is drminfo+es; */
 		realcount = drm->drm_pktsize;
-		buf = buf + sizeof(struct drm_info);
+		realbuf = (unsigned long)buf + sizeof(struct drm_info);
 		isphybuf = 0;
 		/* DRM_PRNT("drm_get_rawdata
 		   drminfo+es drm->drm_hasesdata[0x%x]
@@ -721,6 +722,7 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 	} else {		/* buf is hwhead; */
 		realcount = count;
 		isphybuf = 0;
+		realbuf = (unsigned long)buf;
 		/* DRM_PRNT("drm_get_rawdata
 		   drm->drm_hasesdata[0x%x]
 		   len[%d] count[%d] realcout[%d]\n",
@@ -749,9 +751,11 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		mutex_lock(&esparser_mutex);
 
 		if (stbuf->type != BUF_TYPE_AUDIO)
-			r = _esparser_write(buf, len, stbuf->type, isphybuf);
+			r = _esparser_write((const char __user *)realbuf, len,
+					stbuf->type, isphybuf);
 		else
-			r = _esparser_write_s(buf, len, stbuf->type);
+			r = _esparser_write_s((const char __user *)realbuf, len,
+					stbuf->type);
 		if (r < 0) {
 			pr_info("drm_write _esparser_write failed [%d]\n", r);
 			return r;
@@ -767,7 +771,7 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 			("d writebytes[%d] want[%d] total[%d] real[%d]\n",
 			 havewritebytes, len, totalcount, realcount);
 			len = len - r;	/* write again; */
-			buf = buf + r;
+			realbuf = realbuf + r;
 		} else {
 			pr_info
 			("e writebytes[%d] want[%d] total[%d] real[%d]\n",

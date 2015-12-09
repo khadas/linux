@@ -92,16 +92,16 @@ enum drm_level_e {
 
 struct drm_info {
 	enum drm_level_e drm_level;
-	int drm_flag;
-	int drm_hasesdata;
-	int drm_priv;
-	unsigned int drm_pktsize;
-	unsigned int drm_pktpts;
-	unsigned long drm_phy;
-	unsigned long drm_vir;
-	unsigned int drm_remap;
-	int data_offset;
-	int extpad[8];
+	u32 drm_flag;
+	u32 drm_hasesdata;
+	u32 drm_priv;
+	u32 drm_pktsize;
+	u32 drm_pktpts;
+	u32 drm_phy;
+	u32 drm_vir;
+	u32 drm_remap;
+	u32 data_offset;
+	u32 extpad[8];
 } /*drminfo_t */;
 
 #define TYPE_DRMINFO   0x80
