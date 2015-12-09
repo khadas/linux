@@ -156,8 +156,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* fix buf recycle */
-static const char version_s[] = "2015-12-07a";
+/* modify di blend mode config */
+static const char version_s[] = "2015-12-09a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -3802,7 +3802,6 @@ __func__, di_pre_stru.cur_inp_type, di_pre_stru.cur_width,
 di_pre_stru.cur_height, di_pre_stru.cur_source_type,
 di_buf->vframe->type, di_buf->vframe->width,
 di_buf->vframe->height,	di_buf->vframe->source_type);
-			recycle_keep_buffer();
 /* #endif */
 			di_pre_stru.cur_width = di_buf->vframe->width;
 			di_pre_stru.cur_height = di_buf->vframe->height;
@@ -4619,9 +4618,6 @@ static void get_vscale_skip_count(unsigned par)
 static unsigned int post_blend;
 module_param(post_blend, uint, 0664);
 MODULE_PARM_DESC(post_blend, "/n show blend mode/n");
-static unsigned int post_ei;
-module_param(post_ei, uint, 0664);
-MODULE_PARM_DESC(post_ei, "/n show blend mode/n");
 static int
 de_post_process(void *arg, unsigned zoom_start_x_lines,
 unsigned zoom_end_x_lines, unsigned zoom_start_y_lines,
@@ -4809,17 +4805,13 @@ di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		if (mcpre_en)
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
-		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL) {
+		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL)
 			post_blend_mode = 3;
-			blend_mtn_en = 1;
-			ei_en = 1;
-			post_blend_en = 1;
-		} else {
+		else
 			post_blend_mode = 1;
-			blend_mtn_en = 0;
-			ei_en = 0;
-			post_blend_en = 0;
-		}
+		blend_mtn_en = 1;
+		ei_en = 1;
+		post_blend_en = 1;
 		break;
 	case PULL_DOWN_BLEND_2:
 		post_field_num =
@@ -4835,9 +4827,9 @@ di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
 		post_blend_mode = 1;
-		blend_mtn_en = 0;
-		ei_en = 0;
-		post_blend_en = 0;
+		blend_mtn_en = 1;
+		ei_en = 1;
+		post_blend_en = 1;
 		break;
 	case PULL_DOWN_MTN:
 		post_field_num =
@@ -4865,9 +4857,9 @@ di_buf->di_buf_dup_p[1]->mtn_canvas_idx;
 		di_post_stru.di_buf1_mif.canvas0_addr0 =
 di_buf->di_buf_dup_p[0]->nr_canvas_idx;
 		post_blend_mode = 1;
-		blend_mtn_en = 0;/* must enable */
-		ei_en = post_ei;/* must enable */
-		post_blend_en = 0;
+		blend_mtn_en = 1;/* must enable */
+		ei_en = 1;/* must enable */
+		post_blend_en = 1;
 		break;
 	case PULL_DOWN_EI:
 		if (di_buf->di_buf_dup_p[1]) {
@@ -6683,8 +6675,8 @@ get_vframe:
 				vframe_ret->private_data, vframe_ret);
 
 	}
-	/* if(vframe_ret) */
-	   /* recycle_keep_buffer(); */
+	if (vframe_ret)
+		recycle_keep_buffer();
 
 	return vframe_ret;
 }

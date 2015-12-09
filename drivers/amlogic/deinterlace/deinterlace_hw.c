@@ -54,11 +54,14 @@ MODULE_PARM_DESC(cue_enable, "\n cue_enable\n");
 module_param(cue_enable, bool, 0664);
 
 static unsigned short mcen_mode = 1;
-MODULE_PARM_DESC(mcen_mode, "\n blend mc enable\n");
+MODULE_PARM_DESC(mcen_mode, "\n mcen mode\n");
 module_param(mcen_mode, ushort, 0664);
 static unsigned short mcuv_en = 1;
 MODULE_PARM_DESC(mcuv_en, "\n blend mcuv enable\n");
 module_param(mcuv_en, ushort, 0664);
+static unsigned short mcdebug_mode;
+MODULE_PARM_DESC(mcdebug_mode, "\n mcdi mcdebugmode\n");
+module_param(mcdebug_mode, ushort, 0664);
 
 static unsigned short debug_blend_mode_ctrl = 0xff;
 MODULE_PARM_DESC(debug_blend_mode_ctrl, "\n debug blend mode ctrl\n");
@@ -469,6 +472,7 @@ void enable_mc_di_post(DI_MC_MIF_t *di_mcvecrd_mif, int urgent, bool reverse)
 	else
 		VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 9, 1);
+	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcdebug_mode, 2, 3);
 }
 
 
