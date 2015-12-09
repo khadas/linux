@@ -803,10 +803,12 @@ static ssize_t set_phy_reg(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count) {
 	int ovl;
 	int r = kstrtoint(buf, 0, &ovl);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	gPhyReg = ovl;
-	pr_debug("---ovl=0x%x\n", ovl);
+	pr_info("---ovl=0x%x\n", ovl);
 	return count;
 }
 
@@ -821,7 +823,7 @@ static ssize_t show_phy_regValue(struct device *dev,
 #else
 	int i = 0;
 	for (i = 0; i < 32; i++)
-		pr_debug("%d: 0x%x\n", i, phy_read(phy_dev, i));
+		pr_info("%d: 0x%x\n", i, phy_read(phy_dev, i));
 	val = phy_read(phy_dev, gPhyReg);
 	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n",
 		gPhyReg, val);
@@ -837,7 +839,7 @@ static ssize_t set_phy_regValue(struct device *dev,
 
 	struct phy_device *phy_dev = dev_get_drvdata(dev);
 	ret = kstrtoint(buf, 0, &ovl);
-	pr_debug("---reg 0x%x: ovl=0x%x\n", gPhyReg, ovl);
+	pr_info("---reg 0x%x: ovl=0x%x\n", gPhyReg, ovl);
 	phy_write(phy_dev, gPhyReg, ovl);
 	return count;
 }
@@ -856,10 +858,10 @@ static void am_net_dump_phyreg(void)
 	if (c_phy_dev == NULL)
 		return;
 
-	pr_debug("========== ETH PHY new regs ==========\n");
+	pr_info("========== ETH PHY new regs ==========\n");
 	for (reg = 0; reg < 32; reg++) {
 		val = phy_read(c_phy_dev, reg);
-		pr_debug("[reg_%d] 0x%x\n", reg, val);
+		pr_info("[reg_%d] 0x%x\n", reg, val);
 	}
 }
 
@@ -873,17 +875,19 @@ static int am_net_read_phyreg(int argc, char **argv)
 		return -1;
 	if (argc < 2 || (argv == NULL) || (argv[0] == NULL)
 		|| (argv[1] == NULL)) {
-		pr_debug("Invalid syntax\n");
+		pr_err("Invalid syntax\n");
 		return -1;
 	}
 	r = kstrtoint(argv[1], 0, &reg);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	if (reg >= 0 && reg <= 31) {
 		val = phy_read(c_phy_dev, reg);
-		pr_debug("read phy [reg_%d] 0x%x\n", reg, val);
+		pr_info("read phy [reg_%d] 0x%x\n", reg, val);
 	} else
-		pr_debug("Invalid parameter\n");
+		pr_info("Invalid parameter\n");
 
 	return 0;
 }
@@ -897,21 +901,25 @@ static int am_net_write_phyreg(int argc, char **argv)
 		return -1;
 	if (argc < 3 || (argv == NULL) || (argv[0] == NULL)
 			|| (argv[1] == NULL) || (argv[2] == NULL)) {
-		pr_debug("Invalid syntax\n");
+		pr_err("Invalid syntax\n");
 		return -1;
 	}
 	r = kstrtoint(argv[1], 0, &reg);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	r = kstrtoint(argv[2], 0, &val);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	if (reg >= 0 && reg <= 31) {
 		phy_write(c_phy_dev, reg, val);
-		pr_debug("write phy [reg_%d] 0x%x, 0x%x\n",
+		pr_info("write phy [reg_%d] 0x%x, 0x%x\n",
 				reg, val, phy_read(c_phy_dev, reg));
 	} else {
-		pr_debug("Invalid parameter\n");
+		pr_info("Invalid parameter\n");
 	}
 
 	return 0;
@@ -920,18 +928,18 @@ static void am_net_dump_macreg(void)
 {
 	int reg = 0;
 	int val = 0;
-	pr_debug("========== ETH_MAC regs ==========\n");
+	pr_info("========== ETH_MAC regs ==========\n");
 	for (reg = ETH_MAC_0_Configuration;
 		reg <= ETH_MMC_rxicmp_err_octets; reg += 0x4) {
 		val = readl(c_ioaddr + reg);
-		pr_debug("[0x%04x] 0x%x\n", reg, val);
+		pr_info("[0x%04x] 0x%x\n", reg, val);
 	}
 
-	pr_debug("========== ETH_DMA regs ==========\n");
+	pr_info("========== ETH_DMA regs ==========\n");
 	for (reg = ETH_DMA_0_Bus_Mode;
 		reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr; reg += 0x4) {
 		val = readl(c_ioaddr + reg);
-		pr_debug("[0x%04x] 0x%x\n", reg, val);
+		pr_info("[0x%04x] 0x%x\n", reg, val);
 	}
 }
 
@@ -943,17 +951,19 @@ static int am_net_read_macreg(int argc, char **argv)
 	int r = 0;
 	if (argc < 2 || (argv == NULL) || (argv[0] == NULL)
 		|| (argv[1] == NULL)) {
-		pr_debug("Invalid syntax\n");
+		pr_err("Invalid syntax\n");
 		return -1;
 	}
 	r  = kstrtoint(argv[1], 0, &reg);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
 		val = readl(c_ioaddr + reg);
-		pr_debug("read mac [0x4%x] 0x%x\n", reg, val);
+		pr_info("read mac [0x4%x] 0x%x\n", reg, val);
 	} else {
-		pr_debug("Invalid parameter\n");
+		pr_info("Invalid parameter\n");
 	}
 
 	return 0;
@@ -967,21 +977,25 @@ static int am_net_write_macreg(int argc, char **argv)
 	int r = 0;
 	if ((argc < 3) || (argv == NULL) || (argv[0] == NULL)
 			|| (argv[1] == NULL) || (argv[2] == NULL)) {
-		pr_debug("Invalid syntax\n");
+		pr_err("Invalid syntax\n");
 		return -1;
 	}
 	r = kstrtoint(argv[1], 0, &reg);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	r = kstrtoint(argv[2], 0, &val);
-	if (r)
-		pr_debug("kstrtoint failed\n");
+	if (r) {
+		pr_err("kstrtoint failed\n");
+		return -1;
+	}
 	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
 		writel(val, (c_ioaddr + reg));
-		pr_debug("write mac [0x%x] 0x%x, 0x%x\n",
+		pr_info("write mac [0x%x] 0x%x, 0x%x\n",
 			reg, val, readl(c_ioaddr + reg));
 	} else {
-		pr_debug("Invalid parameter\n");
+		pr_info("Invalid parameter\n");
 	}
 
 	return 0;
@@ -1133,7 +1147,7 @@ int auto_cali(void)
 	char path[20] = {0};
 	int cali_rise = 0;
 	int cali_sel = 0;
-	pr_debug("auto test cali\n");
+	pr_info("auto test cali\n");
 	for (cali_sel = 0; cali_sel < 4; cali_sel++) {
 		readl(PREG_ETH_REG1);
 		strcpy(problem, "no clock delay");
@@ -1172,20 +1186,20 @@ int auto_cali(void)
 					}
 				}
 			}
-		pr_debug
+		pr_info
 			(" I1 = %d; I2 = %d; I3 = %d; I4 = %d; I5 = %d;\n",
 			I1, I2, I3, I4, I5);
 		if ((I1 > 0) && (I2 > 0) && (I3 > 0) &&
 				(I4 > 0) && (I5 > 0))
 			strcpy(problem, "clock delay");
-		pr_debug(" RXDATA Line %d have %s problem\n",
+		pr_info(" RXDATA Line %d have %s problem\n",
 				cali_sel, problem);
 		if ((I2+I1+I3) > (I5+I4+I3))
 			strcpy(path, "positive");
 		else
 			strcpy(path, "opposite");
 		if (strcmp(problem, "clock delay") == 0)
-			pr_debug("Need debug to  delay %s direction\n",
+			pr_info("Need debug to  delay %s direction\n",
 					path);
 		}
 	}
@@ -1209,7 +1223,7 @@ static int am_net_cali(int argc, char **argv, int gate)
 	if ((argc < 4) || (argv == NULL) || (argv[0] == NULL)
 			|| (argv[1] == NULL) || (argv[2] == NULL) ||
 			(argv[3] == NULL)) {
-		pr_debug("Invalid syntax\n");
+		pr_err("Invalid syntax\n");
 		return -1;
 	}
 
@@ -1221,14 +1235,14 @@ static int am_net_cali(int argc, char **argv, int gate)
 	writel(readl(PREG_ETH_REG0)|
 		(cali_start << 25)|(cali_rise << 26)|
 		(cali_sel << 27), PREG_ETH_REG0);
-	pr_debug("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
+	pr_info("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
 		cali_rise, cali_sel, cali_time, cali_start,
 			readl(PREG_ETH_REG0));
 	for (ii = 0; ii < cali_time; ii++) {
 		mdelay(100);
 		value = readl(PREG_ETH_REG1);
 		if ((value>>15) & 0x1) {
-			pr_debug
+			pr_info
 			("value = %x,len = %d,idx = %d,sel=%d,rise = %d\n",
 			value, (value>>5)&0x1f, (value&0x1f),
 			(value>>11)&0x7, (value>>14)&0x1);
@@ -1248,7 +1262,7 @@ static ssize_t eth_cali_store(struct class *class, struct class_attribute *attr,
 	buff = kstrdup(buf, GFP_KERNEL);
 	p = buff;
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8B) {
-		pr_debug("Sorry ,this cpu is not support cali!\n");
+		pr_err("Sorry ,this cpu is not support cali!\n");
 		goto end;
 	}
 	for (argc = 0; argc < 6; argc++) {
