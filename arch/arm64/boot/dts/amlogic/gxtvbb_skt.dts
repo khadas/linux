@@ -1113,12 +1113,6 @@
 			"GPIOZ_18","GPIOZ_19","GPIOZ_20";
 	};
 
-	lcd_vbyone_pins:lcd_vbyone_pin {
-		amlogic,setmask = <7 0x00001800>;
-		amlogic,clrmask = <7 0x00000606>;
-		amlogic,pins = "GPIOH_1","GPIOH_2";
-	};
-
 	bl_pwm_pins:bl_pwm_pin {
 		amlogic,setmask = <10 0x00800000>;
 		amlogic,clrmask = <10 0x0100a000>;

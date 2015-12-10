@@ -192,8 +192,8 @@ static void lcd_config_print(struct lcd_config_s *pconf)
 	LCDPR("clk_auto = %d\n", pconf->lcd_timing.clk_auto);
 
 	if (pconf->lcd_basic.lcd_type == LCD_TTL) {
-		LCDPR("pol_ctrl = %d\n",
-			pconf->lcd_control.ttl_config->pol_ctrl);
+		LCDPR("clk_pol = %d\n",
+			pconf->lcd_control.ttl_config->clk_pol);
 		LCDPR("sync_valid = %d\n",
 			pconf->lcd_control.ttl_config->sync_valid);
 		LCDPR("swap_ctrl = %d\n",
@@ -302,7 +302,7 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 		if (ret) {
 			LCDERR("failed to get ttl_attr\n");
 		} else {
-			pconf->lcd_control.ttl_config->pol_ctrl = para[0];
+			pconf->lcd_control.ttl_config->clk_pol = para[0];
 			pconf->lcd_control.ttl_config->sync_valid =
 				((para[1] << 1) | (para[2] << 0));
 			pconf->lcd_control.ttl_config->swap_ctrl =

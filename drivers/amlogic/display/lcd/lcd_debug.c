@@ -184,12 +184,12 @@ static void lcd_info_print(void)
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
-		pr_info("pol_ctrl          %u\n"
+		pr_info("clk_pol          %u\n"
 			"hvsync_valid      %u\n"
 			"de_valid          %u\n"
 			"rb_swap           %u\n"
 			"bit_swap          %u\n\n",
-			pconf->lcd_control.ttl_config->pol_ctrl,
+			pconf->lcd_control.ttl_config->clk_pol,
 			((pconf->lcd_control.ttl_config->sync_valid >> 0) & 1),
 			((pconf->lcd_control.ttl_config->sync_valid >> 1) & 1),
 			((pconf->lcd_control.ttl_config->swap_ctrl >> 1) & 1),
@@ -1030,11 +1030,11 @@ static ssize_t lcd_ttl_debug_store(struct class *class,
 	struct ttl_config_s *ttl_conf;
 
 	ttl_conf = lcd_drv->lcd_config->lcd_control.ttl_config;
-	ret = sscanf(buf, "%d %d %d", &ttl_conf->pol_ctrl,
+	ret = sscanf(buf, "%d %d %d", &ttl_conf->clk_pol,
 		&ttl_conf->sync_valid, &ttl_conf->swap_ctrl);
 	pr_info("set ttl config:\n"
-		"pol_ctrl=%d, sync_valid=0x%x, swap_ctrl=0x%x\n",
-		ttl_conf->pol_ctrl, ttl_conf->sync_valid, ttl_conf->swap_ctrl);
+		"clk_pol=%d, sync_valid=0x%x, swap_ctrl=0x%x\n",
+		ttl_conf->clk_pol, ttl_conf->sync_valid, ttl_conf->swap_ctrl);
 	lcd_debug_config_update();
 
 	if (ret != 1 || ret != 2)

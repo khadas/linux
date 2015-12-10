@@ -49,7 +49,7 @@ static char lcd_propname[20] = "lvds_0";
  * lcd config define
  * ********************************************************* */
 static struct ttl_config_s lcd_ttl_config = {
-	.pol_ctrl = 0,
+	.clk_pol = 0,
 	.sync_valid = ((1 << 1) | (1 << 0)),
 	.swap_ctrl = ((0 << 1) | (0 << 0)),
 };

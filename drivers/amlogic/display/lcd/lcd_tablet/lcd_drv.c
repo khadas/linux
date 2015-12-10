@@ -145,7 +145,7 @@ static void lcd_ttl_control_set(struct lcd_config_s *pconf)
 {
 	unsigned int clk_pol, rb_swap, bit_swap;
 
-	clk_pol = pconf->lcd_control.ttl_config->pol_ctrl;
+	clk_pol = pconf->lcd_control.ttl_config->clk_pol;
 	rb_swap = (pconf->lcd_control.ttl_config->swap_ctrl >> 1) & 1;
 	bit_swap = (pconf->lcd_control.ttl_config->swap_ctrl >> 0) & 1;
 

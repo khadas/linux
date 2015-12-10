@@ -9,22 +9,14 @@ lcd{
 		"ttl_6bit_de_on","ttl_8bit_hvsync_de_on",
 		"ttl_8bit_hvsync_on","ttl_8bit_de_on",
 		"ttl_6bit_hvsync_de_off","ttl_8bit_hvsync_de_off";
-	pinctrl-0 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_clk_pins_on
-		&lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_on>;
-	pinctrl-1 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_clk_pins_on
-		&lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_off>;
-	pinctrl-2 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_clk_pins_on
-		&lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_on>;
-	pinctrl-3 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_clk_pins_on
-		&lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_on>;
-	pinctrl-4 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_clk_pins_on
-		&lcd_ttl_hvsync_pins_on &lcd_ttl_de_pins_off>;
-	pinctrl-5 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_clk_pins_on
-		&lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_on>;
-	pinctrl-6 = <&lcd_ttl_rgb_6bit_pins_off &lcd_ttl_clk_pins_off
-		&lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_off>;
-	pinctrl-7 = <&lcd_ttl_rgb_8bit_pins_off &lcd_ttl_clk_pins_off
-		&lcd_ttl_hvsync_pins_off &lcd_ttl_de_pins_off>;
+	pinctrl-0 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_de_hvsync_on_pins>;
+	pinctrl-1 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_hvsync_on_pins>;
+	pinctrl-2 = <&lcd_ttl_rgb_6bit_pins_on &lcd_ttl_de_on_pins>;
+	pinctrl-3 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_de_hvsync_on_pins>;
+	pinctrl-4 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_hvsync_on_pins>;
+	pinctrl-5 = <&lcd_ttl_rgb_8bit_pins_on &lcd_ttl_de_on_pins>;
+	pinctrl-6 = <&lcd_ttl_rgb_6bit_pins_off &lcd_ttl_de_hvsync_off_pins>;
+	pinctrl-7 = <&lcd_ttl_rgb_8bit_pins_off &lcd_ttl_de_hvsync_off_pins>;
 
 	/* power type:(0=cpu, 1=pmu, 2=signal, 3=extern, 0xff=ending) */
 	/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
@@ -38,7 +30,7 @@ lcd{
 		interface = "ttl"; /* lcd_interface(ttl, lvds, mipi, edp) */
 		basic_setting = <1280 720 1650 750 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 		lcd_timing = <40 220 1 5 20 1>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-		clk_attr = <0 0 1 42700000>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+		clk_attr = <0 0 1 74250000>; /** fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 		ttl_attr = <0 1 1 0 0>; /** clk_pol, de_valid, hvsync_vaild, rb_swap, bit_swap */
 		power_on_step = <0 0 1 50
 				2 0 0 0
