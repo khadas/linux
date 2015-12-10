@@ -177,6 +177,14 @@ struct aml_emmc_adjust {
 	int clk_div;
 };
 
+struct aml_emmc_rxclk_adjust {
+	int adj_win_start;
+	int adj_win_len;
+	int adj_rx_phase;
+	int adj_rx_delay;
+	int adj_point;
+};
+
 struct amlsd_host {
 	/* back-link to device */
 	struct device *dev;
@@ -284,6 +292,7 @@ struct amlsd_host {
 	int		 version;
 	unsigned long	clksrc_rate;
 	struct aml_emmc_adjust emmc_adj;
+	struct aml_emmc_rxclk_adjust emmc_rxclk_adj;
 	u32 error_flag;
 };
 

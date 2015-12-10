@@ -676,6 +676,230 @@ tunning:
 	return 0;
 }
 
+static int aml_sd_emmc_execute_tuning_rxclk(struct mmc_host *mmc, u32 opcode,
+		struct aml_tuning_data *tuning_data,
+		u32 adj_win_start) {
+	/* need finish later */
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+	u32 vclk = sd_emmc_regs->gclock;
+	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
+	u32 vctrl;
+	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
+	u32 clk_rate = 1000000000;
+	const u8 *blk_pattern = tuning_data->blk_pattern;
+	unsigned int blksz = tuning_data->blksz;
+	unsigned long flags;
+	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {0};
+	struct mmc_command stop = {0};
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+	int n, p, steps, nmatch, ntries = 10;
+	int rx_phase = 0;
+	int rx_delay = 0;
+	struct aml_emmc_rxclk_adjust *emmc_rxclk_adj = &host->emmc_rxclk_adj;
+	u8 *blk_test;
+	u32 clock, clk_div;
+	u32 adj_delay_find;
+	u32 rx_tuning_result[25] = {0};
+	int wrap_win_start = -1, wrap_win_size = 0;
+	int best_win_start = -1, best_win_size = 0;
+	int curr_win_start = -1, curr_win_size = 0;
+
+	spin_lock_irqsave(&host->mrq_lock, flags);
+	pdata->need_retuning = false;
+	spin_unlock_irqrestore(&host->mrq_lock, flags);
+	vclk = sd_emmc_regs->gclock;
+	vctrl = sd_emmc_regs->gcfg;
+	clk_div = clkc->div;
+	clock = clk_rate / clk_div;/*200mhz, bus_clk */
+	pdata->mmc->actual_clock = ctrl->ddr ?
+		(clock / 2) : clock;/*100mhz in ddr */
+
+	if (ctrl->ddr == 1)
+		blksz = 512;
+	blk_test = kmalloc(blksz, GFP_KERNEL);
+	if (!blk_test)
+		return -ENOMEM;
+
+	host->is_tunning = 1;
+	pr_info("%s: clk %d %s tuning start\n",
+			mmc_hostname(mmc), (ctrl->ddr ? (clock / 2) : clock),
+			(ctrl->ddr ? "DDR mode" : "SDR mode"));
+	for (rx_phase = 0; rx_phase < 4; rx_phase += 2) {
+		if (rx_phase == 0)
+			steps = 10;
+		else
+			steps = 15;
+		p = rx_phase / 2;
+		for (rx_delay = 0; rx_delay < steps; rx_delay++) {
+			clkc->rx_delay = rx_delay;
+			clkc->rx_phase = rx_phase;
+			sd_emmc_regs->gclock = vclk;
+			pdata->clkc = vclk;
+			/* try ntries */
+			for (n = 0, nmatch = 0; n < ntries; n++) {
+				if (ctrl->ddr == 1)
+					cmd.opcode = 17;
+				else
+					cmd.opcode = opcode;
+				cmd.arg = 0;
+				cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+				stop.opcode = MMC_STOP_TRANSMISSION;
+				stop.arg = 0;
+				stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+				data.blksz = blksz;
+				data.blocks = 1;
+				data.flags = MMC_DATA_READ;
+				data.sg = &sg;
+				data.sg_len = 1;
+
+				memset(blk_test, 0, blksz);
+				sg_init_one(&sg, blk_test, blksz);
+
+				mrq.cmd = &cmd;
+				mrq.stop = &stop;
+				mrq.data = &data;
+				host->mrq = &mrq;
+				mmc_wait_for_req(mmc, &mrq);
+				if (!cmd.error && !data.error) {
+					if (ctrl->ddr == 1)
+						nmatch++;
+					else if (!memcmp(blk_pattern,
+							blk_test, blksz))
+						nmatch++;
+					else {
+						sd_emmc_dbg(AMLSD_DBG_TUNING,
+							"mismatch: rx_phase=%d ",
+							rx_phase);
+						sd_emmc_dbg(AMLSD_DBG_TUNING,
+							"rx_delay=%d nmatch=%d\n",
+							rx_delay, nmatch);
+						break;
+					}
+				} else {
+					sd_emmc_dbg(AMLSD_DBG_TUNING,
+						"Tuning transfer error:");
+					sd_emmc_dbg(AMLSD_DBG_TUNING,
+						"rx_phase=%d rx_delay=%d\n",
+						rx_phase, rx_delay);
+					sd_emmc_dbg(AMLSD_DBG_TUNING,
+						"nmatch=%d cmd.error=%d data.error=%d\n",
+						nmatch, cmd.error, data.error);
+					break;
+				}
+			}
+			rx_tuning_result[rx_phase * 5 + rx_delay] = nmatch;
+		}
+	}
+
+	for (n = 0; n < 25; n++) {
+		if (rx_tuning_result[n] == ntries) {
+			if (n == 0)
+				wrap_win_start = n;
+			if (wrap_win_start >= 0)
+				wrap_win_size++;
+			if (curr_win_start < 0)
+				curr_win_start = n;
+			curr_win_size++;
+			pr_info("%s: rx_tuning_result[%d] = %d\n",
+					mmc_hostname(host->mmc), n, ntries);
+		} else {
+			if (curr_win_start >= 0) {
+				if (best_win_start < 0) {
+					best_win_start = curr_win_start;
+					best_win_size = curr_win_size;
+				} else {
+					if (best_win_size < curr_win_size) {
+						best_win_start = curr_win_start;
+						best_win_size = curr_win_size;
+					}
+				}
+
+				wrap_win_start = -1;
+				curr_win_start = -1;
+				curr_win_size = 0;
+			}
+
+		}
+	}
+	/* last point is ok! */
+	if (curr_win_start >= 0) {
+		if (best_win_start < 0) {
+			best_win_start = curr_win_start;
+			best_win_size = curr_win_size;
+		} else if (wrap_win_size > 0) {
+			/* Wrap around case */
+			if (curr_win_size + wrap_win_size > best_win_size) {
+				best_win_start = curr_win_start;
+				best_win_size = curr_win_size + wrap_win_size;
+			}
+		} else if (best_win_size < curr_win_size) {
+			best_win_start = curr_win_start;
+			best_win_size = curr_win_size;
+		}
+
+		curr_win_start = -1;
+		curr_win_size = 0;
+	}
+	if (best_win_size <= 0) {
+		pdata->clkc = sd_emmc_regs->gclock;
+		pr_info("%s: tuning failed, reduce freq and retuning\n",
+			mmc_hostname(host->mmc));
+		return -1;
+	} else {
+		pr_info("%s: best_win_start =%d, best_win_size =%d\n",
+			mmc_hostname(host->mmc), best_win_start, best_win_size);
+	}
+
+	adj_delay_find = best_win_start + (best_win_size + 1) / 2;
+	adj_delay_find %= 25;
+	if (adj_delay_find < 10) {
+		rx_phase = 0;
+		rx_delay = adj_delay_find;
+	} else {
+		rx_phase = 2;
+		rx_delay = adj_delay_find - 10;
+	}
+
+	pr_info("%s: rx_phase = %d, rx_delay = %d,",
+			mmc_hostname(host->mmc), rx_phase, rx_delay);
+	pr_info("best_win_start =%d, best_win_size =%d\n",
+			best_win_start, best_win_size);
+
+	host->is_tunning = 0;
+#if 0
+	/* fixme, for retry debug. */
+	if (aml_card_type_mmc(pdata)
+			&& (clk_div <= 5) && (adj_win_start != 100)) {
+		pr_info("%s: adj_win_start %d\n",
+				mmc_hostname(host->mmc), adj_win_start);
+		adj_delay_find = adj_win_start % clk_div;
+	}
+#endif
+	clkc->rx_phase = rx_phase;
+	clkc->rx_delay = rx_delay;
+	sd_emmc_regs->gclock = vclk;
+	pdata->clkc = vclk;
+
+	emmc_rxclk_adj->adj_win_start = best_win_start;
+	emmc_rxclk_adj->adj_win_len = best_win_size;
+	emmc_rxclk_adj->adj_rx_phase = rx_phase;
+	emmc_rxclk_adj->adj_rx_delay = rx_delay;
+	emmc_rxclk_adj->adj_point = adj_delay_find;
+
+	kfree(blk_test);
+	/* do not dynamical tuning for no emmc device */
+	if ((pdata->is_in) && !aml_card_type_mmc(pdata))
+		schedule_delayed_work(&pdata->retuning, 15*HZ);
+
+	return 0;
+}
+
 static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
@@ -713,12 +937,21 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		ret = aml_sd_emmc_execute_tuning_index(mmc, 18,
 						&tuning_data, &adj_win_start);
 		/* if calibration failed, gdelay use default value */
-		if (ret)
-			sd_emmc_regs->gdelay = 0x85854055;
+		if (ret) {
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
+				sd_emmc_regs->gdelay = 0x85854055;
+			else
+				sd_emmc_regs->gdelay = 0x10101331;
+		}
 	}
 #endif
 	/* excute tuning... */
-	err = aml_sd_emmc_execute_tuning_(mmc, opcode,
+	if ((clkc->div > 5)
+		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB))
+		err = aml_sd_emmc_execute_tuning_(mmc, opcode,
+				&tuning_data, adj_win_start);
+	else
+		err = aml_sd_emmc_execute_tuning_rxclk(mmc, opcode,
 				&tuning_data, adj_win_start);
 
 	pr_info("%s: gclock =0x%x, gdelay=0x%x, gadjust=0x%x\n",
@@ -2165,9 +2398,12 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 #endif
 	/*---------------------------------------------------------*/
 	struct aml_emmc_adjust *emmc_adj = &host->emmc_adj;
+	struct aml_emmc_rxclk_adjust *emmc_rxclk_adj = &host->emmc_rxclk_adj;
 	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 	u32 adjust = sd_emmc_regs->gadjust;
 	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
+	u32 vclk = sd_emmc_regs->gclock;
+	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
 	/*---------------------------------------------------------*/
 	u32 xfer_bytes = 0;
 	struct mmc_request *mrq;
@@ -2313,16 +2549,43 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 			sd_emmc_err("retry cmd %d the %d-th time(s)\n",
 				mrq->cmd->opcode, mrq->cmd->retries);
 			/* chage configs on current host */
-			emmc_adj->adj_point++;
-			emmc_adj->adj_point %= emmc_adj->clk_div;
-			pr_err("emmc, %d retry, adj %d -> %d\n",
-				mrq->cmd->retries, gadjust->adj_delay,
-				emmc_adj->adj_point);
+			if ((emmc_adj->clk_div > 5)
+					|| (get_cpu_type()
+						== MESON_CPU_MAJOR_ID_GXBB)) {
+				emmc_adj->adj_point++;
+				emmc_adj->adj_point	%= emmc_adj->clk_div;
+				pr_err("emmc, %d retry, adj %d -> %d\n",
+						mrq->cmd->retries,
+						gadjust->adj_delay,
+						emmc_adj->adj_point);
 
-			/*set new adjust!*/
-			gadjust->adj_delay = emmc_adj->adj_point;
-			gadjust->adj_enable = 1;
-			sd_emmc_regs->gadjust = adjust;
+				/*set new adjust!*/
+				gadjust->adj_delay = emmc_adj->adj_point;
+				gadjust->adj_enable = 1;
+				sd_emmc_regs->gadjust = adjust;
+			} else {
+				emmc_rxclk_adj->adj_point++;
+				emmc_rxclk_adj->adj_point %= 25;
+				if (emmc_rxclk_adj->adj_point < 10) {
+					emmc_rxclk_adj->adj_rx_phase = 0;
+					emmc_rxclk_adj->adj_rx_delay
+						= emmc_rxclk_adj->adj_point;
+				} else {
+					emmc_rxclk_adj->adj_rx_phase = 2;
+					emmc_rxclk_adj->adj_rx_delay
+					= emmc_rxclk_adj->adj_point - 10;
+				}
+				pr_err("emmc, %d retry, rx_phase %d -> %d, rx_delay %d -> %d\n",
+						mrq->cmd->retries,
+						clkc->rx_phase,
+						emmc_rxclk_adj->adj_rx_phase,
+						clkc->rx_delay,
+						emmc_rxclk_adj->adj_rx_delay);
+				clkc->rx_phase = emmc_rxclk_adj->adj_rx_phase;
+				clkc->rx_delay = emmc_rxclk_adj->adj_rx_delay;
+				sd_emmc_regs->gclock = vclk;
+				pdata->clkc = vclk;
+			}
 		}
 		/* last retry effort! */
 		if (aml_card_type_mmc(pdata) &&
