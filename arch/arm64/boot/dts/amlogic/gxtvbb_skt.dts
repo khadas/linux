@@ -807,11 +807,18 @@
 		compatible = "amlogic, backlight";
 		dev_name = "backlight";
 		status = "disabled";
-		pinctrl-names = "pwm","pwm_vs","pwm_combo";
-		pinctrl-0 = <&bl_pwm_pins>;
-		pinctrl-1 = <&bl_pwm_vs_pins>;
-		pinctrl-2 = <&bl_pwm_combo_pins>;
+		pinctrl-names = "pwm_on","pwm_vs_on","pwm_combo_on",
+				"pwm_off","pwm_vs_off","pwm_combo_off";
+		pinctrl-0 = <&bl_pwm_on_pins>;
+		pinctrl-1 = <&bl_pwm_vs_on_pins>;
+		pinctrl-2 = <&bl_pwm_combo_on_pins>;
+		pinctrl-4 = <&bl_pwm_off_pins>;
+		pinctrl-5 = <&bl_pwm_vs_off_pins>;
+		pinctrl-6 = <&bl_pwm_combo_off_pins>;
 
+		/* power index:(point gpios_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
 		bl-gpios = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH
 			&gpio GPIOY_13 GPIO_ACTIVE_HIGH>;
 		bl_gpio_names = "GPIOAO_4","GPIOY_13";
@@ -820,37 +827,41 @@
 			index = <0>;
 			bl_name = "backlight_0";
 			bl_level_default_uboot_kernel = <100 100>;
-			bl_level_max_min = <255 10>;
-			bl_level_middle_mapping=<128 102>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
-			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
-			bl_en_gpio_on_off = <0 0 1>; /** index(point to bl-gpios, 0xff=invalid), on/off_value(1=output high, 0=output low) **/
-			bl_power_on_off_delay = <200 200>; /** unit: ms */
+			bl_ctrl_method = <1>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
 
-			bl_pwm_method = <1>; /** 0=negative, 1=positive */
+			/* pwm_method: 0=negative, 1=positive */
+			/* pwm_freq: pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
+			/* duty_max, duty_min: unit in % */
 			bl_pwm_port = "PWM_B"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
-			bl_pwm_freq = <1000>; /* pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
-			bl_pwm_duty_max_min = <100 25>; /* 100% - 25%*/
-			bl_pwm_gpio_off = <1 0>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
-			bl_pwm_on_off_delay = <180 220>; /* unit: ms */
+			bl_pwm_attr = <1 180 100 25>; /* pwm_method, pwm_freq, duty_max, duty_min */
+			bl_pwm_power = <1 0 10 10>; /* pwm_gpio_index, pwm_gpio_off, pwm_on_delay, pwm_off_delay */
 		};
 		backlight_1{
 			index = <1>;
 			bl_name = "backlight_1";
 			bl_level_default_uboot_kernel = <100 100>;
-			bl_level_max_min = <255 10>;
-			bl_level_middle_mapping=<128 102>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
-			bl_ctrl_method = <1>; /** 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
-			bl_en_gpio_on_off = <0 0 1>; /** index(point to bl-gpios, 0xff=invalid), on/off_value(1=output high, 0=output low) **/
-			bl_power_on_off_delay = <200 200>; /** unit: ms */
+			bl_ctrl_method = <1>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
 
-			bl_pwm_method = <1>; /** 0=negative, 1=positive */
+			/* pwm_method: 0=negative, 1=positive */
+			/* pwm_freq: pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
+			/* duty_max, duty_min: unit in % */
 			bl_pwm_port = "PWM_VS"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
-			bl_pwm_freq = <2>; /* pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
-			bl_pwm_duty_max_min = <100 25>; /* 100% - 25%*/
-			bl_pwm_gpio_off = <1 0>; /** index(point to bl-gpios, 0xff=invalid), off_value(1=output high, 0=output low) **/
-			bl_pwm_on_off_delay = <180 220>; /* unit: ms */
+			bl_pwm_attr = <1 2 100 25>; /* pwm_method, pwm_freq, duty_max, duty_min */
+			bl_pwm_power = <1 0 10 10>; /* pwm_gpio_index, pwm_off_value, pwm_on_delay, pwm_off_delay */
+		};
+		backlight_2{
+			index = <2>;
+			bl_name = "backlight_2";
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
+
+			bl_ctrl_method = <3>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
 		};
 	};
 
@@ -1115,21 +1126,35 @@
 			"GPIOZ_18","GPIOZ_19","GPIOZ_20";
 	};
 
-	bl_pwm_pins:bl_pwm_pin {
+	bl_pwm_on_pins:bl_pwm_on_pin {
 		amlogic,setmask = <10 0x00800000>;
 		amlogic,clrmask = <10 0x0100a000>;
 		amlogic,pins = "GPIOY_13";
 	};
-	bl_pwm_vs_pins:bl_pwm_vs_pin {
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		amlogic,clrmask = <10 0x00800000>;
+		amlogic,pins = "GPIOY_13";
+		amlogic,enable-output=<1>;
+	};
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
 		amlogic,setmask = <10 0x01000000>;
 		amlogic,clrmask = <10 0x0080a000>;
 		amlogic,pins = "GPIOY_13";
 	};
-	bl_pwm_combo_pins:bl_pwm_combo_pin {
+	bl_pwm_vs_off_pins:bl_pwm_vs_off_pin {
+		amlogic,clrmask = <10 0x01000000>;
+		amlogic,pins = "GPIOY_13";
+		amlogic,enable-output=<1>;
+	};
+	bl_pwm_combo_on_pins:bl_pwm_combo_on_pin {
 		amlogic,setmask = <10 0x00840000>;
-		amlogic,clrmask = <4  0x21001008
-				   10 0x0100a000>;
+		amlogic,clrmask = <10 0x0100a000 4  0x21001008>;
 		amlogic,pins = "GPIOY_13","GPIOY_8";
+	};
+	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
+		amlogic,clrmask = <10 0x0184a000 4  0x21001008>;
+		amlogic,pins = "GPIOY_13","GPIOY_8";
+		amlogic,enable-output=<1>;
 	};
 	hdmirx_pins: hdmirx_pins {
                 amlogic,setmask = <6  0x3def780>;

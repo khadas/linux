@@ -89,25 +89,11 @@ struct bl_gpio_s {
 	int flag;
 };
 
-struct bl_config_s {
-	char name[20];
-	unsigned int level_default;
-	unsigned int level_min;
-	unsigned int level_max;
-	unsigned int level_mid;
-	unsigned int level_mid_mapping;
-
-	enum bl_ctrl_method_e method;
-	unsigned int power_on_delay;
-	unsigned int power_off_delay;
-	unsigned int gpio;
-	unsigned int gpio_on;
-	unsigned int gpio_off;
-	unsigned int dim_max;
-	unsigned int dim_min;
-
+struct bl_pwm_config_s {
 	enum bl_pwm_method_e pwm_method;
 	enum bl_pwm_port_e pwm_port;
+	unsigned int level_max;
+	unsigned int level_min;
 	unsigned int pwm_freq; /* pwm_vs: 1~4(vfreq), pwm: freq(unit: Hz) */
 	unsigned int pwm_duty_max; /* unit: % */
 	unsigned int pwm_duty_min; /* unit: % */
@@ -117,6 +103,28 @@ struct bl_config_s {
 	unsigned int pwm_min; /* internal used for pwm control */
 	unsigned int pwm_gpio;
 	unsigned int pwm_gpio_off;
+};
+
+struct bl_config_s {
+	char name[20];
+	unsigned int level_default;
+	unsigned int level_min;
+	unsigned int level_max;
+	unsigned int level_mid;
+	unsigned int level_mid_mapping;
+
+	enum bl_ctrl_method_e method;
+	unsigned int en_gpio;
+	unsigned int en_gpio_on;
+	unsigned int en_gpio_off;
+	unsigned int power_on_delay;
+	unsigned int power_off_delay;
+	unsigned int dim_max;
+	unsigned int dim_min;
+
+	struct bl_pwm_config_s *bl_pwm;
+	struct bl_pwm_config_s *bl_pwm_combo0;
+	struct bl_pwm_config_s *bl_pwm_combo1;
 	unsigned int pwm_on_delay;
 	unsigned int pwm_off_delay;
 
@@ -147,13 +155,6 @@ extern struct aml_bl_drv_s *aml_bl_get_driver(void);
 #define BL_GPIO_OUTPUT_LOW		0
 #define BL_GPIO_OUTPUT_HIGH		1
 #define BL_GPIO_INPUT			2
-
-#define bl_gpio_request(dev, gpio)	gpiod_get(dev, gpio)
-#define bl_gpio_free(gdesc)		gpiod_put(gdesc)
-#define bl_gpio_input(gdesc)		gpiod_direction_input(gdesc)
-#define bl_gpio_output(gdesc, val)	gpiod_direction_output(gdesc, val)
-#define bl_gpio_get_value(gdesc)	gpiod_get_value(gdesc)
-#define bl_gpio_set_value(gdesc, val)	gpiod_set_value(gdesc, val)
 
 #endif
 
