@@ -57,6 +57,24 @@ bool is_jtag_disable(void)
 }
 EXPORT_SYMBOL(is_jtag_disable);
 
+bool is_jtag_apao(void)
+{
+	if (jtag_select == JTAG_A53_AO)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL(is_jtag_apao);
+
+bool is_jtag_apee(void)
+{
+	if (jtag_select == JTAG_A53_EE)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL(is_jtag_apee);
+
 int get_jtag_select(void)
 {
 	return jtag_select;

@@ -30,9 +30,13 @@
 
 #ifdef CONFIG_AML_JTAG_SETUP
 extern bool is_jtag_disable(void);
+extern bool is_jtag_apao(void);
+extern bool is_jtag_apee(void);
 extern int get_jtag_select(void);
 #else
 static inline bool is_jtag_disable(void) { return true; }
+static inline bool is_jtag_apao(void) { return false; }
+static inline bool is_jtag_apee(void) { return false; }
 static inline int get_jtag_select(void) { return JTAG_DISABLE; }
 #endif
 
