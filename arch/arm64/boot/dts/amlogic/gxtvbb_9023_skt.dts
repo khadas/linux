@@ -679,7 +679,7 @@
 
        dwc3: dwc@c9000000 {
                compatible = "synopsys, dwc3";
-               reg = <0x0 0xc9000000 0x0 0x200000>;
+               reg = <0x0 0xc9000000 0x0 0x100000>;
                interrupts = <0 30 4>;
                usb-phy = <&usb2_phy>, <&usb3_phy>;
                cpu-type = "gxbabytv";
@@ -696,6 +696,32 @@
                compatible = "amlogic, amlogic-usb3";
                portnum = <1>;
                reg = <0x0 0xd0078080 0x0 0x20>;
+       };
+
+	dwc2_a {
+                compatible = "amlogic,dwc2";
+                reg = <0x0 0xc9100000 0x0 0x40000>;
+                interrupts = <0 31 4>;
+                status = "okay";
+                pl-periph-id = <0>; /** lm name */
+                clock-src = "usb0"; /** clock src */
+                port-id = <0>;  /** ref to mach/usb.h */
+                port-type = <2>;        /** 0: otg, 1: host, 2: slave */
+                port-speed = <0>; /** 0: default, high, 1: full */
+                port-config = <0>; /** 0: default */
+                port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
+                port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+                usb-fifo = <512>;
+                cpu-type = "gxtvbaby";
+                controller-type = <1>; /** 0: normal, 1: otg+dwc3*/
+                phy-reg = <0xd0078000>;
+                phy-reg-size = <0xa0>;
+                resets = <&clock GCLK_IDX_USB_GENERAL
+			&clock GCLK_IDX_MISC_USB1_TO_DDR
+			&clock GCLK_IDX_USB1>;
+                reset-names = "usb_general",
+						"usb1",
+						"usb1_to_ddr";
        };
 
 	canvas{

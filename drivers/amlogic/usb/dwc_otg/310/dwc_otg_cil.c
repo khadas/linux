@@ -2004,6 +2004,11 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 		usb_peri_reg_t *peri;
 		usb_adp_bc_data_t adp_bc;
 
+		if (core_if->controller_type == 1) {
+			core_if->session_valid = 1;
+			core_if->dev_if->vbus_on = 1;
+			return;
+		}
 		/* Workaround for boot in a live connection*/
 		peri = core_if->usb_peri_reg;
 		adp_bc.d32 = DWC_READ_REG32(&peri->adp_bc);

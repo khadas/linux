@@ -1056,6 +1056,7 @@ struct dwc_otg_core_if {
 	/** Flag to not perform ADP probing if IDSTS event happened */
 	uint8_t stop_adpprb;
 
+	int controller_type;
 };
 
 #ifdef DEBUG

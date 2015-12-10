@@ -246,7 +246,7 @@ static const char *dma_config_name[] = {
 	"BURST_INCR",
 	"BURST_INCR4",
 	"BURST_INCR8",
-	"BURST_INCR16"
+	"BURST_INCR16",
 	"DISABLE",
 };
 
@@ -916,6 +916,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	struct dwc_otg_driver_module_params *pcore_para;
 	static int dcount;
 	char sys_name[8] = "dwc2_a";
+	int controller_type = 0;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
 
@@ -936,6 +937,10 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 				port_index = of_read_ulong(prop, 1);
 				pdev->id = port_index;
 			}
+			prop = of_get_property(of_node,
+				"controller-type", NULL);
+			if (prop)
+				controller_type = of_read_ulong(prop, 1);
 			prop = of_get_property(of_node, "port-type", NULL);
 			if (prop)
 				port_type = of_read_ulong(prop, 1);
@@ -1088,7 +1093,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	}
 
 	dwc_otg_device->core_if->usb_peri_reg = (usb_peri_reg_t *)phy_reg_addr;
-
+	dwc_otg_device->core_if->controller_type = controller_type;
 	/*
 	* Attempt to ensure this device is really a DWC_otg Controller.
 	* Read and verify the SNPSID register contents. The value should be
@@ -1141,6 +1146,18 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (1 == controller_type) {
+		dwc_otg_module_params.data_fifo_size = -1;
+		dwc_otg_module_params.host_rx_fifo_size = -1;
+		dwc_otg_module_params.host_nperio_tx_fifo_size = -1;
+		dwc_otg_module_params.host_perio_tx_fifo_size = -1;
+		dwc_otg_module_params.host_channels = -1;
+		dwc_otg_module_params.dev_rx_fifo_size = 164;
+		dwc_otg_module_params.dev_nperio_tx_fifo_size = 144;
+		dwc_otg_module_params.dev_tx_fifo_size[0] = 144;
+		dwc_otg_module_params.dev_tx_fifo_size[1] = -1;
+		dwc_otg_module_params.dev_tx_fifo_size[2] = -1;
+	}
 	/*
 	* Validate parameter values.
 	*/
