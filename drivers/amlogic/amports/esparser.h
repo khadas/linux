@@ -27,6 +27,7 @@ extern ssize_t drm_write(struct file *file,
 		const char __user *buf, size_t count);
 
 extern s32 esparser_init(struct stream_buf_s *buf);
+extern s32 esparser_init_s(struct stream_buf_s *buf);
 extern void esparser_release(struct stream_buf_s *buf);
 extern ssize_t esparser_write(struct file *file,
 	struct stream_buf_s *stbuf,
@@ -45,6 +46,7 @@ extern int es_vpts_checkin(struct stream_buf_s *buf, u32 pts);
 extern int es_apts_checkin(struct stream_buf_s *buf, u32 pts);
 
 extern void esparser_audio_reset(struct stream_buf_s *buf);
+extern void esparser_audio_reset_s(struct stream_buf_s *buf);
 
 extern void esparser_sub_reset(void);
 

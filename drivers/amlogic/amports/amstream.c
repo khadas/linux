@@ -575,7 +575,7 @@ static int audio_port_reset(struct stream_port_s *port,
 	}
 
 	if (port->type & PORT_TYPE_ES)
-		esparser_audio_reset(pbuf);
+		esparser_audio_reset_s(pbuf);
 
 	if (port->type & PORT_TYPE_MPTS)
 		tsdemux_audio_reset();

@@ -72,6 +72,7 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 			flags |= CODEC_MM_FLAGS_FOR_VDECODER;
 		} else if (buf->type == BUF_TYPE_AUDIO) {
 			flags |= CODEC_MM_FLAGS_FOR_ADECODER;
+			flags |= CODEC_MM_FLAGS_DMA_CPU;
 		}
 
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
