@@ -16,6 +16,10 @@ static bool dnr_dm_en;/*gxtvbb can't work normal,must set to 0*/
 module_param(dnr_dm_en, bool, 0644);
 MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
 
+bool dnr_reg_update = 1;/*gxtvbb can't work normal,must set to 0*/
+module_param(dnr_reg_update, bool, 0644);
+MODULE_PARM_DESC(dnr_reg_update, "/n dnr dm enable debug /n");
+
 static unsigned int dnr_stat_coef = 3;/*gxtvbb default is 3*/
 module_param(dnr_stat_coef, uint, 0644);
 MODULE_PARM_DESC(dnr_stat_coef, "/n dnr stat coef /n");
@@ -288,6 +292,8 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #ifdef DNR_HV_SHIFT
 	int ro_hbof_stat_cnt[32], ro_vbof_stat_cnt[32], i = 0;
 #endif
+	if (dnr_reg_update == 0)
+		return;
 	Wr(DNR_CTRL, 0x1df00);
 	Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(dnr_dm_en << 9)|(1 << 11));
 	Wr(DNR_HVSIZE, nCol<<16|nRow);

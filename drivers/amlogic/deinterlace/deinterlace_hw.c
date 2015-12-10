@@ -1574,8 +1574,8 @@ unsigned char di_get_power_control(unsigned char type)
 static void di_nr_init(void)
 {
 	Wr(DI_NR_CTRL0, 0xc60c0804);
-	Wr(DI_NR_CTRL1, 0x90101010);/*0x403e3c3a*/
-	Wr(DI_NR_CTRL2, 0x10101010);/*0x08010a01*/
+	Wr(DI_NR_CTRL1, 0x403e3c3a);
+	Wr(DI_NR_CTRL2, 0x08010a01);
 	Wr(NR2_MET_NM_CCTRL, 0x45056410);
 	Wr(NR2_MATNR_SNR_NRM_GAIN, 0x4);
 	Wr(NR2_MATNR_SNR_LPF_CFG, 0xc2b64);

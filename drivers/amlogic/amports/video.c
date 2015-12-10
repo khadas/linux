@@ -3259,8 +3259,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	s32 i, vout_type;
 	struct vframe_s *vf;
 	unsigned long flags;
+#ifdef CONFIG_TVIN_VDIN
 	struct vdin_v4l2_ops_s *vdin_ops = NULL;
 	struct vdin_arg_s arg;
+#endif
 	bool show_nosync = false;
 	u32 vpp_misc_save, vpp_misc_set;
 
@@ -3360,7 +3362,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #if defined(CONFIG_AM_VECM)
 	amvecm_on_vs(vf);
 #endif
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
+#ifdef CONFIG_TVIN_VDIN
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
 		vdin_ops = get_vdin_v4l2_ops();
 		if (vdin_ops) {
@@ -3371,7 +3373,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 		}
 	}
-	/* #endif */
+#endif
 	vout_type = detect_vout_type();
 	hold_line = calc_hold_line();
 	if (vsync_pts_inc_upint) {

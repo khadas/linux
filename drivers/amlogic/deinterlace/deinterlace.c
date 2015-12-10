@@ -1852,9 +1852,9 @@ reg_cfg_t di_default_post = {
 		{DI_MTN_1_CTRL1,		 0, 30, 1},
 		{DI_MTN_1_CTRL1, 0x0202015,  0, 27},
 		{DI_MTN_1_CTRL2, 0x141a2062, 0, 31},
-		{DI_MTN_1_CTRL3, 0x15200101, 0, 31},/*0x1520050a*/
-		{DI_MTN_1_CTRL4, 0x01200440, 0, 31},/*0x08800840*/
-		{DI_MTN_1_CTRL5, 0x52000000, 0, 31},/*0x74000d0d*/
+		{DI_MTN_1_CTRL3, 0x1520050a, 0, 31},
+		{DI_MTN_1_CTRL4, 0x08800840, 0, 31},
+		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
 /* #define DI_MTN_1_CTRL6 */
 		{DI_MTN_1_CTRL6, 0x0d5a1520, 0, 31},
 /* #define DI_MTN_1_CTRL7 */
@@ -1864,11 +1864,11 @@ reg_cfg_t di_default_post = {
 /* #define DI_MTN_1_CTRL9 */
 		{DI_MTN_1_CTRL9, 0x0d200302, 0, 31},
 /* #define DI_MTN_1_CTRL10 */
-		{DI_MTN_1_CTRL10, 0x020a060c, 0, 31},/*0x02020606*/
+		{DI_MTN_1_CTRL10, 0x02020606, 0, 31},
 /* #define DI_MTN_1_CTRL11 */
-		{DI_MTN_1_CTRL11, 0x03040508, 0, 31},/*0x05080304*/
+		{DI_MTN_1_CTRL11, 0x05080304, 0, 31},
 /* #define DI_MTN_1_CTRL12 */
-		{DI_MTN_1_CTRL12, 0x60000404, 0, 31},/*0x40020a04*/
+		{DI_MTN_1_CTRL12, 0x40020a04, 0, 31},
 		{0},
 	}
 };
@@ -3243,7 +3243,7 @@ di_pre_stru.di_chan2_buf_dup_p);
 			RDMA_WR(DI_PRE_CTRL,
 				RDMA_RD(DI_PRE_CTRL)|(cont_rd<<25));
 			#ifdef NEW_DI_V4
-			if (!dnr_en)
+			if ((!dnr_en) && (Rd(DNR_CTRL) != 0) && dnr_reg_update)
 				RDMA_WR(DNR_CTRL, 0);
 			#endif
 			if (mcpre_en) {
@@ -4390,8 +4390,10 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	if (dnr_en)
 		run_dnr_in_irq(
 di_pre_stru.di_nrwr_mif.end_x+1, di_pre_stru.di_nrwr_mif.end_y+1);
-	else
-		Wr(DNR_CTRL, 0);
+	else {
+		if ((Rd(DNR_CTRL) != 0) && dnr_reg_update)
+			Wr(DNR_CTRL, 0);
+	}
 #endif
 	di_pre_stru.pre_de_process_done = 1;
 	di_pre_stru.pre_de_busy = 0;

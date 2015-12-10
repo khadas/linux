@@ -357,6 +357,7 @@ extern void recycle_keep_buffer(void);
 extern unsigned int di_log_flag;
 extern unsigned int di_debug_flag;
 extern bool mcpre_en;
+extern bool dnr_reg_update;
 
 int di_print(const char *fmt, ...);
 
