@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/12/04a"
+#define HDMIRX_VER "Ref.2015/12/14"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -421,8 +421,7 @@ struct _hdcp_ksv {
 /* hpd event */
 extern struct delayed_work     hpd_dwork;
 extern struct workqueue_struct *hpd_wq;
-extern struct switch_dev       hpd_sdev;
-extern unsigned int pwr_sts;
+extern unsigned int pwr_sts, hpd_chg;
 
 
 extern unsigned char *pEdid_buffer;
@@ -544,5 +543,6 @@ extern ssize_t hdmirx_signal_status_buf(char *buf);
 extern void hdmirx_irq_init(void);
 
 extern void hdmirx_plug_det(struct work_struct *work);
+extern void hdmirx_wait_query(void);
 
 #endif  /* _TVHDMI_H */

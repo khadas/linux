@@ -28,7 +28,8 @@
 #include <linux/cdev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-
+#include <linux/poll.h>
+#include <linux/io.h>
 
 /* Amlogic headers */
 #include <linux/amlogic/amports/vframe_provider.h>
@@ -68,8 +69,8 @@ struct hdmirx_dev_s *devp_hdmirx_suspend;
 
 struct delayed_work     hpd_dwork;
 struct workqueue_struct *hpd_wq;
-struct switch_dev       hpd_sdev;
-unsigned int pwr_sts;
+DECLARE_WAIT_QUEUE_HEAD(query_wait);
+unsigned int pwr_sts, hpd_chg;
 
 int resume_flag = 0;
 MODULE_PARM_DESC(resume_flag, "\n resume_flag\n");
@@ -600,12 +601,42 @@ static long hdmirx_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
+void hdmirx_wait_query(void)
+{
+	wake_up(&query_wait);
+}
 
+static ssize_t hdmirx_hpd_read(struct file *file,
+	    char __user *buf, size_t count, loff_t *pos)
+{
+	int ret = 0;
+
+	if (copy_to_user(buf, &pwr_sts, sizeof(unsigned int)))
+		return -EFAULT;
+
+	hpd_chg = 0;
+
+	return ret;
+}
+
+static unsigned int hdmirx_hpd_poll(struct file *filp,
+		poll_table *wait)
+{
+	unsigned int mask = 0;
+
+	poll_wait(filp, &query_wait, wait);
+	if (hpd_chg == 1)
+		mask |= POLLIN|POLLRDNORM;
+
+	return mask;
+}
 
 static const struct file_operations hdmirx_fops = {
 	.owner		= THIS_MODULE,
 	.open		= hdmirx_open,
 	.release	= hdmirx_release,
+	.read       = hdmirx_hpd_read,
+	.poll       = hdmirx_hpd_poll,
 #ifdef CEC_FUNC_ENABLE
 	.unlocked_ioctl	= hdmirx_ioctl,
 #endif
@@ -1079,10 +1110,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hpd_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&hpd_dwork, hdmirx_plug_det);
 
-	hpd_sdev.name = hdevp->frontend.name;
-	ret = switch_dev_register(&hpd_sdev);
-	if (ret < 0)
-		pr_err("[hdmirx]: register sdev error.\n");
 	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
 
 	rx_print("hdmirx: driver probe ok\n");
@@ -1120,7 +1147,6 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	cancel_delayed_work(&hpd_dwork);
 	destroy_workqueue(hpd_wq);
-	switch_dev_unregister(&hpd_sdev);
 
 	device_remove_file(hdevp->dev, &dev_attr_debug);
 	device_remove_file(hdevp->dev, &dev_attr_edid);

@@ -393,8 +393,9 @@ void hdmirx_plug_det(struct work_struct *work)
 	}
 	if (pwr_sts != tmp_5v) {
 		pwr_sts = tmp_5v;
-		switch_set_state(&hpd_sdev, pwr_sts);
-		rx_print("\n %s: send 5v event:0x%x\n", __func__, pwr_sts);
+		hpd_chg = 1;
+		hdmirx_wait_query();
+		/* switch_set_state(&hpd_sdev, pwr_sts); */
 	}
 
 	return;
@@ -3284,7 +3285,7 @@ void hdmirx_hw_uninit(void)
 	hdmirx_set_hpd(rx.port, 0);
 
 #ifndef CEC_FUNC_ENABLE
-	hdmirx_wr_top(TOP_INTR_MASKN, 0);
+	/* hdmirx_wr_top(TOP_INTR_MASKN, 0); */
 	hdmirx_interrupts_cfg(false);
 #endif
 	audio_status_init();
