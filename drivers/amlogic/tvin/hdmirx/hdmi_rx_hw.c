@@ -1184,6 +1184,11 @@ exit:
 	return error;
 }
 
+void hdmirx_set_video_mute(bool mute)
+{
+	hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, _BIT(16), mute);
+}
+
 void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)
 {
 	int data32 = 0;

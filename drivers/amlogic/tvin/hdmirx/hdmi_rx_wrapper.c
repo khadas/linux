@@ -273,6 +273,19 @@ static int clk_stable_max = 30;
 MODULE_PARM_DESC(clk_stable_max, "\n clk_stable_max\n");
 module_param(clk_stable_max, int, 0664);
 
+static bool is_phy_reset;
+MODULE_PARM_DESC(is_phy_reset, "\n is_phy_reset\n");
+module_param(is_phy_reset, bool, 0664);
+
+static bool is_no_signal = 1;
+MODULE_PARM_DESC(is_no_signal, "\n is_no_signal\n");
+module_param(is_no_signal, bool, 0664);
+
+static bool is_mute_video = 1;
+MODULE_PARM_DESC(is_mute_video, "\n is_mute_video\n");
+module_param(is_mute_video, bool, 0664);
+
+
 
 #ifdef HDCP22_ENABLE
 /* to inform ESM whether the cable is connected or not */
@@ -1869,15 +1882,10 @@ void hdmirx_hw_monitor(void)
 		#ifdef HDCP22_ENABLE
 		hpd_to_esm = 1;
 		#endif
-		rx.state = FSM_TIMINGCHANGE;
-		rx_print("HPD_READY->TIMINGCHANGE\n");
-		break;
-	case FSM_TIMINGCHANGE:
-		if (reset_sw)
-			hdmirx_phy_init(rx.port, 0);
-
+		if (is_mute_video)
+			hdmirx_set_video_mute(true);
 		rx.state = FSM_WAIT_CLK_STABLE;
-		rx_print("TIMINGCHANGE->UNSTABLE\n");
+		rx_print("HPD_READY->CLK_STABLE\n");
 		break;
 	case FSM_WAIT_CLK_STABLE:
 		if (!is_clk_stable()) {
@@ -1887,8 +1895,15 @@ void hdmirx_hw_monitor(void)
 			wait_clk_stable = 0;
 			rx_print("CLK_Unstable\n");
 		}
+		rx.state = FSM_TIMINGCHANGE;
+		rx_print("CLK_STABLE->TIMINGCHANGE\n");
+		break;
+	case FSM_TIMINGCHANGE:
+		if ((reset_sw) && (is_phy_reset))
+			hdmirx_phy_init(rx.port, 0);
+
 		rx.state = FSM_SIG_UNSTABLE;
-		rx_print("CLK_STABLE->UNSTABLE\n");
+		rx_print("TIMINGCHANGE->UNSTABLE\n");
 		break;
 	case FSM_SIG_UNSTABLE:
 		if (hdmirx_tmds_pll_lock()) {
@@ -1906,29 +1921,33 @@ void hdmirx_hw_monitor(void)
 				rx.no_signal = false;
 				rx_print("UNSTABLE->DWC_RST\n");
 			}
-		} else{
+		} else {
 			if ((sig_pll_lock_cnt) && (log_flag & VIDEO_LOG))
 				rx_print("pll_lock_cnt=%d\n", sig_pll_lock_cnt);
 
 			clk_rate_monitor();
 			sig_pll_lock_cnt = 0;
 			sig_pll_unlock_cnt++;
-			if (sig_pll_unlock_cnt == sig_pll_unlock_max)
-				rx.no_signal = true;
-
+			if ((sig_pll_unlock_cnt == sig_pll_unlock_max) &&
+				(is_no_signal)) {
+				hdmirx_phy_init(rx.port, 0);
+				/*rx.no_signal = true;*/
+				rx_print("++++rx.no_signal = %d\n",
+					 rx.no_signal);
+			}
 			if ((is_clk_stable()) &&
 				(sig_pll_unlock_cnt >= sig_pll_unlock_max*3)) {
 				hdmirx_set_hpd(rx.port, 0);
 				hdmirx_error_count_config();
 				rx.state = FSM_INIT;
-				rx_print("UNSTABLE->INIT\n");
+				rx_print("Clk UNSTABLE->INIT\n");
 				sig_pll_unlock_cnt = 0;
 			} else if (!(is_clk_stable()) &&
 				(sig_pll_unlock_cnt >= sig_pll_unlock_max*5)) {
 				hdmirx_set_hpd(rx.port, 0);
 				hdmirx_error_count_config();
 				rx.state = FSM_INIT;
-				rx_print("UNSTABLE->INIT\n");
+				rx_print("PLL UNSTABLE->INIT\n");
 				sig_pll_unlock_cnt = 0;
 			}
 		}
@@ -2027,6 +2046,8 @@ void hdmirx_hw_monitor(void)
 	    } else {
 			ddc_state_err_cnt = 0;
 			rx.state = FSM_SIG_READY;
+			if (is_mute_video)
+				hdmirx_set_video_mute(false);
 			rx_print("DDC ERROR->READY\n");
 			break;
 	    }

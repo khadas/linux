@@ -497,6 +497,7 @@ int hdmirx_get_video_info(struct hdmi_rx_ctrl *ctx,
 	struct hdmi_rx_ctrl_video *params);
 int hdmirx_packet_get_avi(struct hdmi_rx_ctrl_video *params);
 int hdmirx_audio_init(void);
+void hdmirx_set_video_mute(bool mute);
 void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params);
 unsigned int hdmirx_get_tmds_clock(void);
 unsigned int hdmirx_get_pixel_clock(void);
