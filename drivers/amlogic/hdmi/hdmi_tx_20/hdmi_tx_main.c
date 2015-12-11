@@ -73,6 +73,8 @@ static int set_disp_mode_auto(void);
 const struct vinfo_s *hdmi_get_current_vinfo(void);
 static int edid_rx_data(unsigned char regaddr, unsigned char *rx_data,
 	int length);
+static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
+	unsigned char *rx_data,	int length);
 static void gpio_read_edid(unsigned char *rx_edid);
 
 #ifndef CONFIG_AM_TV_OUTPUT
@@ -1960,13 +1962,13 @@ static int get_dt_pwr_init_data(struct device_node *np,
 
 #endif
 
-static int edid_tx_segaddr(unsigned char segaddr, unsigned char *tx_data,
-	int length)
+#if 0
+static int edid_tx_data(unsigned char *tx_data, int length)
 {
 	int err;
 	struct i2c_msg msg[] = {
 		{
-			.addr = segaddr,
+			.addr = i2c_edid_client->addr,
 			.flags = 0,
 			.len = length,
 			.buf = tx_data,
@@ -1981,14 +1983,14 @@ static int edid_tx_segaddr(unsigned char segaddr, unsigned char *tx_data,
 		return 0;
 }
 
-#if 0
-static int edid_tx_data(unsigned char *tx_data, int length)
+static int edid_tx_segaddr(unsigned char segaddr, unsigned char *tx_data,
+	int length)
 {
 	int err;
 	struct i2c_msg msg[] = {
 		{
-			.addr = i2c_edid_client->addr,
-			.flags = 0,
+			.addr = segaddr,
+			.flags = I2C_M_IGNORE_NAK | I2C_M_STOP,
 			.len = length,
 			.buf = tx_data,
 		},
@@ -2030,33 +2032,68 @@ static int edid_rx_data(unsigned char regaddr, unsigned char *rx_data,
 		return 0;
 }
 
+static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
+	unsigned char *rx_data, int length)
+{
+	int err;
+	struct i2c_msg msgs[] = {
+		{ /* Wr SegAddr & SegPtr */
+			.addr = 0x30,
+			.flags = 0,
+			.len = 1,
+			.buf = ext,
+		},
+		{
+			.addr = i2c_edid_client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &regaddr,
+		},
+		{
+			.addr = i2c_edid_client->addr,
+			.flags = I2C_M_RD,
+			.len = length,
+			.buf = rx_data,
+		},
+	};
+	err = i2c_transfer(i2c_edid_client->adapter, msgs,
+		ARRAY_SIZE(msgs));
+	if (err < 0) {
+		hdmi_print(ERR, SYS "[%s] err = %d\n", __func__, err);
+		return -EIO;
+	} else
+		return 0;
+}
+
 static void gpio_read_edid(unsigned char *rx_edid)
 {
 	int i = 0;
 	int byte_num = 0;
 	unsigned char blk_no = 1;
-	unsigned char rx_data[8];
+	unsigned char rx_data[128];
 	unsigned char segptr = 0x0;
 	unsigned char regaddr = 0x0;
-	edid_tx_segaddr(0x30, &segptr, 1);
+
 	while (byte_num < 128 * blk_no) {
-		if ((byte_num % 256) == 0) {
-			segptr = byte_num >> 8;
-			hdmi_print(IMP, SYS "[%s] setptr = %d\n",
-				__func__, segptr);
+		if ((byte_num == 0) || (byte_num == 128)) {
+			segptr = 0x0;
+			edid_rx_data(regaddr & 0xff, rx_data, 128);
 		}
-		edid_rx_data(regaddr, rx_data, 8);
-		regaddr = regaddr + 8;
-		for (i = 0; i < 8; i++) {
+		if (((byte_num == 256) || (byte_num == 384)) && (blk_no > 2)) {
+			segptr = 0x1;
+			edid_rx_ext_data(&segptr, regaddr & 0xff, rx_data, 128);
+		}
+		regaddr = regaddr + 0x80;
+		for (i = 0; i < 128; i++) {
 			rx_edid[byte_num] = rx_data[i];
-			if (byte_num == 126) {
-				blk_no = rx_edid[byte_num] + 1;
-				/*only read two blocks because of segptr*/
-				if (blk_no > 2) {
+			if (byte_num == 0x7e) {
+				blk_no = rx_edid[0x7e] + 1;
+				/*read two or more blocks */
+				if (blk_no > 4) {
 					pr_info("edid extension block number:");
 					pr_info(" %d, reset to MAX 1\n",
 						blk_no - 1);
-					blk_no = 2; /*Max extended block*/
+					blk_no = 4; /*Max extended block*/
 				}
 			}
 			byte_num++;

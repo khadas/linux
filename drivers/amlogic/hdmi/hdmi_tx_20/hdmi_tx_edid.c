@@ -318,7 +318,7 @@ void set_vsdb_phy_addr(struct vsdb_phyaddr *vsdb,
 int Edid_Parse_check_HDMI_VSDB(struct hdmitx_info *info,
 	unsigned char *buff)
 {
-	unsigned char  VSpecificBoundary, BlockAddr,  len;
+	unsigned char  VSpecificBoundary, BlockAddr, len;
 	int temp_addr = 0;
 	VSpecificBoundary = buff[2];
 
@@ -1303,7 +1303,7 @@ static int hdmitx_edid_search_IEEEOUI(char *buf)
 {
 	int i;
 
-	for (i = 0; i < 125; i++) {
+	for (i = 0; i < 0x180; i++) {
 		if ((buf[i] == 0x03) && (buf[i+1] == 0x0c) &&
 			(buf[i+2] == 0x00))
 			return 1;
@@ -1350,6 +1350,7 @@ static int edid_check_valid(unsigned char *buf)
 	return 1;
 }
 
+/* retrun 1 valid edid */
 static int check_dvi_hdmi_edid_valid(unsigned char *buf)
 {
 	unsigned int chksum = 0;
@@ -1379,6 +1380,22 @@ static int check_dvi_hdmi_edid_valid(unsigned char *buf)
 		chksum += buf[i];
 	if ((chksum & 0xff) != 0)
 		return 0;
+
+	/* check block 2 checksum */
+	if (buf[0x7e] > 1) {
+		for (chksum = 0, i = 0x100; i < 0x180; i++)
+			chksum += buf[i];
+		if ((chksum & 0xff) != 0)
+			return 0;
+	}
+
+	/* check block 3 checksum */
+	if (buf[0x7e] > 2) {
+		for (chksum = 0, i = 0x180; i < 0x200; i++)
+			chksum += buf[i];
+		if ((chksum & 0xff) != 0)
+			return 0;
+	}
 
 	return 1;
 }
@@ -1466,6 +1483,13 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* Note: some DVI monitor have more than 1 block */
 	if ((BlockCount == 1) && (EDID_buf[0x81] == 1)) {
 		hdmitx_device->RXCap.IEEEOUI = 0;
+		hdmitx_device->RXCap.VIC_count = 0x3;
+		hdmitx_device->RXCap.VIC[0] = 3;
+		hdmitx_device->RXCap.VIC[1] = 4;
+		hdmitx_device->RXCap.VIC[2] = 16;
+		hdmitx_device->RXCap.native_VIC = 2;
+		hdmitx_device->vic_count = hdmitx_device->RXCap.VIC_count;
+		hdmi_print(IMP, EDID "HDMI: set default vic\n");
 		return 0;
 	} else if (BlockCount > EDID_MAX_BLOCK) {
 		BlockCount = EDID_MAX_BLOCK;

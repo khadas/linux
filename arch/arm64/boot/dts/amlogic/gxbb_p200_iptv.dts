@@ -734,6 +734,7 @@
 	i2c_gpio: i2c_gpio {
 		compatible = "i2c-gpio";
 		dev_name = "i2c-gpio";
+		i2c-gpio,delay-us = <10>; /* 50 kHz */
 		gpios = <&gpio GPIOH_1 0
 		&gpio GPIOH_2 0>;
 		#address-cells = <2>;

@@ -2860,17 +2860,19 @@ static void hdmitx_read_edid(unsigned char *rx_edid)
 	unsigned int byte_num = 0;
 	unsigned char   blk_no = 1;
 
-	/* Program SLAVE/SEGMENT/ADDR */
+	/* Program SLAVE/ADDR */
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, 0x50);
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR,  0x30);
 	/* Read complete EDID data sequentially */
 	while (byte_num < 128 * blk_no) {
-		if ((byte_num % 256) == 0)
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, byte_num>>8);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS,  byte_num&0xff);
-	/* Do extended sequential read */
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1<<3);
-	/* Wait until I2C done */
+		if (((byte_num == 256) || (byte_num == 384)) && (blk_no > 2)) {
+			/* Program SEGMENT/SEGPTR */
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x1);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1<<3);
+		} else
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1<<2);
+		/* Wait until I2C done */
 		timeout = 0;
 		while ((!(hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 1)))
 			&& (timeout < 3)) {
@@ -2880,12 +2882,12 @@ static void hdmitx_read_edid(unsigned char *rx_edid)
 		if (timeout == 3)
 			pr_info("hdmitx: ddc timeout\n");
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
-	/* Read back 8 bytes */
+		/* Read back 8 bytes */
 		for (i = 0; i < 8; i++) {
 			rx_edid[byte_num] =
 				hdmitx_rd_reg(HDMITX_DWC_I2CM_READ_BUFF0 + i);
 			if (byte_num == 126) {
-				blk_no = rx_edid[byte_num] + 1;
+				blk_no = rx_edid[126] + 1;
 				if (blk_no > 4) {
 					pr_info("edid extension block number:");
 					pr_info(" %d, reset to MAX 3\n",
@@ -2893,7 +2895,7 @@ static void hdmitx_read_edid(unsigned char *rx_edid)
 					blk_no = 4; /* Max extended block */
 				}
 			}
-		byte_num++;
+			byte_num++;
 		}
 	}
 } /* hdmi20_tx_read_edid */
