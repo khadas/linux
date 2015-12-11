@@ -36,7 +36,7 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	struct gpio_desc *gdesc;
 	struct pinctrl *pin_ctl;
 	struct resource *res;
-	u32 mc_val;
+	u32 mc_val, cali_val;
 	void __iomem *addr = NULL;
 
 	/*map reg0 and reg 1 addr.*/
@@ -52,13 +52,18 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 					(long long)(res->end - res->start),
 					addr);
 	if (of_property_read_u32(np, "mc_val", &mc_val)) {
-		pr_debug("detect cbus[2050]=null, plesae setting val\n");
+		pr_debug("detect cbus[2050]=null, plesae setting mc_val\n");
 		pr_debug(" IF RGMII setting 0x7d21 else rmii setting 0x1000");
 	} else {
 		pr_debug("Ethernet :got mc_val 0x%x .set it\n", mc_val);
-			writel(mc_val, addr);
+		writel(mc_val, addr);
 	}
-
+	if (of_property_read_u32(np, "cali_val", &cali_val)) {
+		pr_debug("detect cbus[2051]=null, plesae setting cali_val\n");
+	} else {
+		pr_debug("Ethernet :got cali_val 0x%x .set it\n", cali_val);
+		writel(cali_val, addr+4);
+	}
 	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	pr_debug("Ethernet: pinmux setup ok\n");
 	/* reset pin choose pull high 100ms than pull low */
