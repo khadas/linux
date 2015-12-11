@@ -67,12 +67,13 @@ struct aml_spdif {
 struct aml_spdif *spdif_p;
 unsigned int clk81 = 0;
 EXPORT_SYMBOL(clk81);
-/*
+
 static int iec958buf[32 + 16];
-*/
+static int old_samplerate = -1;
+
 void aml_spdif_play(void)
 {
-#if 0
+#if 1
 	struct _aiu_958_raw_setting_t set;
 	struct _aiu_958_channel_status_t chstat;
 	struct snd_pcm_substream substream;
@@ -90,12 +91,28 @@ void aml_spdif_play(void)
 	set.chan_stat->chstat1_l = 0X200;
 	set.chan_stat->chstat1_r = 0X200;
 	audio_hw_958_enable(0);
-	if (last_iec_clock != AUDIO_CLK_FREQ_48) {
-		pr_info("enterd %s,set_clock:%d,sample_rate=%d\n", __func__,
-			   last_iec_clock, AUDIO_CLK_FREQ_48);
-		last_iec_clock = AUDIO_CLK_FREQ_48;
-		audio_set_958_clk(AUDIO_CLK_FREQ_48, AUDIO_CLK_256FS);
+	if (old_samplerate != AUDIO_CLK_FREQ_48) {
+		pr_info("enterd %s,set_clock:%d,sample_rate=%d\n",
+		__func__, old_samplerate, AUDIO_CLK_FREQ_48);
+		old_samplerate = AUDIO_CLK_FREQ_48;
+		aml_set_spdif_clk(48000 * 512, 0);
 	}
+	/* Todo, div can be changed, for most case, div = 2 */
+	/* audio_set_spdif_clk_div(); */
+	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
+	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
+	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+		pr_info("set 4x audio clk for 958\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
+	} else if (0) {
+		pr_info("share the same clock\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+	} else {
+		pr_info("set normal 512 fs /4 fs\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
+	}
+	/* enable 958 divider */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 	memset(iec958buf, 0, sizeof(iec958buf));
 	audio_set_958outbuf((virt_to_phys(iec958buf) + 63) & (~63), 128, 0);
@@ -228,7 +245,24 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	       runtime->rate);
 	/* int srate; */
 	/* srate = params_rate(params); */
-	aml_set_spdif_clk(runtime->rate * 512, 0);
+	if (old_samplerate != sample_rate)
+		aml_set_spdif_clk(runtime->rate * 512, 0);
+	/* Todo, div can be changed, for most case, div = 2 */
+	/* audio_set_spdif_clk_div(); */
+	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
+	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
+	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+		pr_info("set 4x audio clk for 958\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
+	} else if (0) {
+		pr_info("share the same clock\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+	} else {
+		pr_info("set normal 512 fs /4 fs\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
+	}
+	/* enable 958 divider */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 	/*clear the same source function as new raw data output */
 	audio_i2s_958_same_source(0);
@@ -427,7 +461,7 @@ static void aml_dai_spdif_shutdown(struct snd_pcm_substream *substream,
 		if (IEC958_mode_codec == 6)
 			pr_info("8chPCM output:disable aml_spdif_play\n");
 		else
-			aml_spdif_play();
+			;/*aml_spdif_play();*/
 
 		/* audio_spdifout_pg_enable(0); */
 	}
@@ -497,22 +531,6 @@ int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
 		}
 	}
 
-	/* Todo, div can be changed, for most case, div = 2 */
-	/* audio_set_spdif_clk_div(); */
-	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
-	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
-		pr_info("set 4x audio clk for 958\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-	} else if (src_i2s) {
-		pr_info("share the same clock\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
-	} else {
-		pr_info("set normal 512 fs /4 fs\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
-	}
-	/* enable 958 divider */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 	return 0;
 }
 
@@ -537,7 +555,7 @@ static int aml_dai_spdif_suspend(struct snd_soc_dai *cpu_dai)
 
 static int aml_dai_spdif_resume(struct snd_soc_dai *cpu_dai)
 {
-	aml_spdif_play();
+	/*aml_spdif_play();*/
 	return 0;
 }
 #else

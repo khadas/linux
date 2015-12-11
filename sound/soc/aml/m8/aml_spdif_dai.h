@@ -47,5 +47,5 @@ extern unsigned int IEC958_mode_codec;
 */
 void aml_hw_iec958_init(struct snd_pcm_substream *substream);
 int aml_set_spdif_clk(unsigned long rate, bool src_i2s);
-
+void aml_spdif_play(void);
 #endif  /* _AML_SPDIF_DAI_H */
