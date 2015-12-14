@@ -61,9 +61,6 @@
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 #define VPP_SPEED_FACTOR 0x110ULL
 #endif
-#ifdef TV_REVERSE
-/*extern bool reverse;*/
-#endif
 
 const u32 vpp_filter_coefs_bicubic_sharp[] = {
 	3,

@@ -2565,6 +2565,16 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				}
 			}
 		}
+#else
+#ifdef TV_REVERSE
+		if (reverse) {
+			VSYNC_WR_MPEG_REG_BITS((VD1_IF0_GEN_REG2 +
+				cur_dev->viu_off), 0xf, 2, 4);
+		} else {
+			VSYNC_WR_MPEG_REG_BITS((VD1_IF0_GEN_REG2 +
+				cur_dev->viu_off), 0, 2, 4);
+		}
+#endif
 #endif
 	}
 	/* #endif */
@@ -6746,7 +6756,7 @@ static struct class amvideo_class = {
 static int __init vpp_axis_reverse(char *str)
 {
 	unsigned char *ptr = str;
-	pr_info("%s: bootargs is %s.\n", __func__, str);
+	pr_info("%s: bootargs is %s\n", __func__, str);
 	if (strstr(ptr, "1"))
 		reverse = true;
 	else
@@ -6755,7 +6765,7 @@ static int __init vpp_axis_reverse(char *str)
 	return 0;
 }
 
-__setup("panel_reverse=", vpp_axis_reverse);
+__setup("video_reverse=", vpp_axis_reverse);
 #endif
 
 struct vframe_s *get_cur_dispbuf(void)
