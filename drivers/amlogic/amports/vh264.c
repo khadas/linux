@@ -616,6 +616,10 @@ static void vh264_set_params(struct work_struct *work)
 	max_reference_size = (mb_width >> 24) & 0x7f;
 	mb_mv_byte = (mb_width & 0x80000000) ? 24 : 96;
 	mb_width = mb_width & 0xff;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+		if (!mb_width && mb_total)
+			mb_width = 256;
+	}
 	mb_height = mb_total / mb_width;
 	last_duration = 0;
 
