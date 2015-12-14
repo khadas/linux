@@ -61,16 +61,6 @@ struct nand_cmd_t {
 };
 
 /* read from page0, override default. */
-struct nand_page0_cfg_t {
-	/* 26:pagelist, 24:a2, 23:no_rb, 22:large. 21-0:cmd. */
-	unsigned ext;
-	short id;
-	/* id:0x100 user, max:0 disable. */
-	short max;
-	unsigned char list[NAND_PAGELIST_CNT];
-};
-
-/* read from page0, override default. */
 struct nand_page0_info_t {
 	unsigned nand_read_info;
 	unsigned new_nand_type;
@@ -78,6 +68,18 @@ struct nand_page0_info_t {
 	unsigned secure_block;
 	unsigned ce_mask;
 	unsigned reserved[3];
+};
+
+/* read from page0, override default. */
+struct nand_page0_cfg_t {
+	/* 26:pagelist, 24:a2, 23:no_rb, 22:large. 21-0:cmd. */
+	unsigned ext;
+	short id;
+	/* id:0x100 user, max:0 disable. */
+	short max;
+	unsigned char list[NAND_PAGELIST_CNT];
+	struct nand_cmd_t retry_usr[32];
+	struct nand_page0_info_t nand_page0_info;
 };
 
 union nand_core_clk_t {

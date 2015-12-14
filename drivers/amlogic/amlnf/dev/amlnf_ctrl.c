@@ -447,9 +447,11 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 	slc_info = &(controller->slc_info);
 	i = 0;
 	info_cfg = (struct nand_page0_cfg_t *)page0_buf;
+	/*
 	info = (struct nand_page0_info_t *)((page0_buf + 384) -
 				sizeof(struct nand_page0_info_t));
-
+	*/
+	info = (struct nand_page0_info_t *)&info_cfg->nand_page0_info;
 	pages_per_blk = flash->blocksize / flash->pagesize;
 	new_nand_type = aml_chip->flash.new_type;
 	/* en_slc = (( flash->new_type < 10)&&( flash->new_type))? 1:0; */

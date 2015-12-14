@@ -142,10 +142,10 @@ static int read_uboot(struct amlnand_phydev *phydev)
 
 		/* check info page */
 		if ((!strncmp((char *)phydev->name,
-				NAND_BOOT_NAME,
-				strlen((const char *)NAND_BOOT_NAME)))
-				&& (((((unsigned int)addr / flash->pagesize))%
-				BOOT_PAGES_PER_COPY) == 0)) {
+			NAND_BOOT_NAME,
+			strlen((const char *)NAND_BOOT_NAME)))
+			&& (((unsigned int)addr / flash->pagesize)%
+			BOOT_PAGES_PER_COPY == 0)) {
 			controller->ran_mode = 1;
 			memcpy((unsigned char *)(&configure_data_w),
 				ops_para->data_buf,
@@ -179,7 +179,6 @@ static int read_uboot(struct amlnand_phydev *phydev)
 #endif
 			continue;
 		}
-
 		addr += flash->pagesize;
 		ops_para->data_buf += phydev->writesize;
 		readlen += phydev->writesize;
