@@ -814,11 +814,41 @@
 		lcd_cpu_gpio_names = "GPIOX_3","GPIOX_2";
 
 		lvds_0{
-			model_name = "public";
+			model_name = "1080p-vfreq";
 			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			lcd_timing = <44 148 0 5 36 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			power_on_step = <0 0 1 20 /* panel power on */
+					2 0 0 0   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 20 /* signal disable */
+					0 0 0 100  /* panel power off */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0>;
+		};
+		lvds_1{
+			model_name = "1080p-pclk";
+			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			lcd_timing = <44 148 0 5 36 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <0 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			power_on_step = <0 0 1 20 /* panel power on */
+					2 0 0 0   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 20 /* signal disable */
+					0 0 0 100  /* panel power off */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0>;
+		};
+		lvds_2{
+			model_name = "1080p-hfreq";
+			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			lcd_timing = <44 148 0 5 36 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
