@@ -270,21 +270,25 @@ static int aml_dai_set_i2s_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int aml_dai_i2s_suspend(struct snd_soc_dai *dai)
 {
+	struct aml_i2s *i2s = dev_get_drvdata(dai->dev);
+
+	if (i2s && i2s->clk_mclk)
+		clk_disable_unprepare(i2s->clk_mclk);
+
 	return 0;
 }
 
 static int aml_dai_i2s_resume(struct snd_soc_dai *dai)
 {
+	struct aml_i2s *i2s = dev_get_drvdata(dai->dev);
+
+	if (i2s && i2s->clk_mclk)
+		clk_prepare_enable(i2s->clk_mclk);
+
 	return 0;
 }
-
-#else				/* CONFIG_PM */
-#define aml_dai_i2s_suspend	NULL
-#define aml_dai_i2s_resume	NULL
-#endif				/* CONFIG_PM */
 
 #define AML_DAI_I2S_RATES		(SNDRV_PCM_RATE_8000_192000)
 #define AML_DAI_I2S_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE |\

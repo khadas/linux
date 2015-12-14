@@ -547,22 +547,27 @@ static int aml_dai_spdif_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int aml_dai_spdif_suspend(struct snd_soc_dai *cpu_dai)
 {
+	struct aml_spdif *spdif_priv = dev_get_drvdata(cpu_dai->dev);
+
 	aml_spdif_play_stop();
+	if (spdif_priv && spdif_priv->clk_spdif)
+		clk_disable_unprepare(spdif_priv->clk_spdif);
+
 	return 0;
 }
 
 static int aml_dai_spdif_resume(struct snd_soc_dai *cpu_dai)
 {
+	struct aml_spdif *spdif_priv = dev_get_drvdata(cpu_dai->dev);
+
 	/*aml_spdif_play();*/
+	if (spdif_priv && spdif_priv->clk_spdif)
+		clk_prepare_enable(spdif_priv->clk_spdif);
+
 	return 0;
 }
-#else
-#define aml_spdif_suspend NULL
-#define aml_spdif_resume NULL
-#endif
 
 static struct snd_soc_dai_ops spdif_dai_ops = {
 	.set_sysclk = aml_dai_spdif_set_sysclk,
@@ -663,6 +668,19 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 		ret = PTR_ERR(spdif_priv->clk_spdif);
 		goto err;
 	}
+
+	ret = clk_set_parent(spdif_priv->clk_i958, spdif_priv->clk_mpl1);
+	if (ret) {
+		pr_err("Can't set i958 clk parent: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_set_parent(spdif_priv->clk_spdif, spdif_priv->clk_i958);
+	if (ret) {
+		pr_err("Can't set spdif clk parent: %d\n", ret);
+		return ret;
+	}
+
 	ret = clk_prepare_enable(spdif_priv->clk_spdif);
 	if (ret) {
 		pr_err("Can't enable spdif clock: %d\n", ret);

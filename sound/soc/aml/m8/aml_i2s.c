@@ -642,6 +642,8 @@ static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 				left += 8;
 				right += 8;
 			}
+			/* clean hw buffer */
+			memset(hwbuf, 0, n * 2);
 		}
 	}
 	res = copy_to_user(buf, ubuf, n);

@@ -896,6 +896,7 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 	snd_soc_card_set_drvdata(card, p_aml_audio);
 
 	card->dev = dev;
+	platform_set_drvdata(pdev, card);
 	ret = snd_soc_of_parse_card_name(card, "aml_sound_card,name");
 	if (ret < 0) {
 		dev_err(dev, "no specific snd_soc_card name\n");
@@ -937,6 +938,7 @@ static struct platform_driver aml_g9tv_audio_driver = {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,
 		.of_match_table = amlogic_audio_of_match,
+		.pm = &snd_soc_pm_ops,
 	},
 	.probe			= aml_g9tv_audio_probe,
 };
