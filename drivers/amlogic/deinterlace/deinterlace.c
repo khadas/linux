@@ -650,7 +650,7 @@ static int __init di_read_canvas_reverse(char *str)
 
 	return 0;
 }
-__setup("panel_reverse=", di_read_canvas_reverse);
+__setup("video_reverse=", di_read_canvas_reverse);
 #endif
 unsigned int di_debug_flag = 0x10;/* enable rdma even di bypassed */
 static unsigned char *di_log_buf;
@@ -4940,8 +4940,9 @@ di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 		di_apply_reg_cfg(1);
 
 #endif
-#ifdef NEW_DI_TV
-	di_post_read_reverse_irq(overturn);
+#if 1/*def NEW_DI_TV*/
+	if (is_meson_gxtvbb_cpu())
+		di_post_read_reverse_irq(overturn);
 #endif
 	if (mcpre_en) {
 		if (di_buf->di_buf_dup_p[2])

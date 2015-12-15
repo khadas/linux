@@ -1436,6 +1436,9 @@ gain to CurDif to map to alpha, normalized to 32; */
 #define DI_CANVAS_URGENT1                ((0x170b)) /* << 2) + 0xd0100000) */
 #define DI_CANVAS_URGENT2                ((0x170e)) /* << 2) + 0xd0100000) */
 
+#define VD1_IF0_GEN_REG2		0x1a6d
+#define VD2_IF0_GEN_REG2		0x1a8d
+
 #define VD1_IF0_GEN_REG3                0x1aa7
 		/* 0xd0106a9c */
 #define DI_IF1_GEN_REG3                 0x20a7

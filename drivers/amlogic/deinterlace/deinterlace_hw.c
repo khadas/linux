@@ -1513,7 +1513,7 @@ void di_post_read_reverse(bool reverse)
 }
 void di_post_read_reverse_irq(bool reverse)
 {
-#ifdef NEW_DI_TV
+#if 1/*def NEW_DI_TV*/
 	if (reverse) {
 		VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,    3, 2, 2);
 		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0xf, 2, 4);
