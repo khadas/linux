@@ -341,6 +341,24 @@ calculate_non_linear_ratio(unsigned middle_ratio,
 	return;
 }
 
+/* We find that the minimum line the video can be scaled
+ * down without skip line for different modes as below:
+ * 4k2k mode:
+ * video source		minimus line		ratio(height_in/height_out)
+ * 3840 * 2160		1690			1.278
+ * 1920 * 1080		860			1.256
+ * 1280 * 720		390			1.846
+ * 720 * 480		160			3.000
+ * 1080p mode:
+ * video source		minimus line		ratio(height_in/height_out)
+ * 3840 * 2160		840			2.571
+ * 1920 * 1080		430			2.511
+ * 1280 * 720		200			3.600
+ * 720 * 480		80			6.000
+ * So the safe scal ratio is 1.25 for 4K2K mode and 2.5
+ * (1.25 * 3840 / 1920) for 1080p mode.
+ */
+#define MIN_RATIO_1000	1250
 static int
 vpp_process_speed_check(s32 width_in,
 		s32 height_in,
@@ -349,6 +367,7 @@ vpp_process_speed_check(s32 width_in,
 		struct vpp_frame_par_s *next_frame_par,
 		const struct vinfo_s *vinfo, struct vframe_s *vf)
 {
+	u32 cur_ratio;
 	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
 		if ((width_in <= 0) || (height_in <= 0) || (height_out <= 0)
@@ -356,18 +375,26 @@ vpp_process_speed_check(s32 width_in,
 			return SPEED_CHECK_DONE;
 
 		if (height_in > height_out) {
-
+			if (get_cpu_type() ==
+				MESON_CPU_MAJOR_ID_GXTVBB) {
+				cur_ratio = div_u64((u64)height_in *
+						(u64)vinfo->height *
+						1000,
+						height_out * 2160);
+					if (cur_ratio > MIN_RATIO_1000)
+						return SPEED_CHECK_VSKIP;
+			}
 			if (vf->type & VIDTYPE_VIU_422) {
 				/*TODO vpu */
 				if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
 					bypass_ratio = 125;
 				}
 				if (height_out == 0
-					|| div_u64(
-						VPP_SPEED_FACTOR * width_in *
-						height_in *
-						vinfo->sync_duration_num *
-						height_screen,
+					|| div_u64((u64)VPP_SPEED_FACTOR *
+						(u64)width_in *
+						(u64)height_in *
+						(u64)vinfo->sync_duration_num *
+						(u64)height_screen,
 						height_out *
 						vinfo->sync_duration_den *
 						bypass_ratio) > get_vpu_clk())
@@ -377,10 +404,11 @@ vpp_process_speed_check(s32 width_in,
 			} else {
 				/*TODO vpu */
 				if (height_out == 0
-					|| div_u64(VPP_SPEED_FACTOR * width_in *
-					height_in *
-					vinfo->sync_duration_num *
-					height_screen,
+					|| div_u64((u64)VPP_SPEED_FACTOR *
+					(u64)width_in *
+					(u64)height_in *
+					(u64)vinfo->sync_duration_num *
+					(u64)height_screen,
 					height_out *
 					vinfo->sync_duration_den * 256)
 					> get_vpu_clk())
@@ -397,7 +425,6 @@ vpp_process_speed_check(s32 width_in,
 				else
 					return SPEED_CHECK_DONE;
 			}
-
 		} else if (next_frame_par->hscale_skip_count == 0) {
 			/*TODO vpu */
 			if (div_u64(VPP_SPEED_FACTOR * width_in *
@@ -433,7 +460,6 @@ vpp_process_speed_check(s32 width_in,
 	amlog_mask(LOG_MASK_VPP, "vpp_process_speed_check failed\n");
 
 	return SPEED_CHECK_VSKIP;
-	/* #endif */
 }
 
 static void
