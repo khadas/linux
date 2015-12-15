@@ -313,33 +313,34 @@ void power_on_receiver(void)
 
 void atv_dmd_misc(void)
 {
-	atv_dmd_wr_byte(0x18, 0x08, 0x38);	/*zhuangwei*/
+	atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x38);	/*zhuangwei*/
 	/*cpu.write_byte(8'h1A,8'h0E,8'h06);//zhuangwei*/
 	/*cpu.write_byte(8'h19,8'h01,8'h7f);//zhuangwei*/
 	atv_dmd_wr_byte(0x0f, 0x45, 0x90);	/*zhuangwei*/
 
 	atv_dmd_wr_long(0x0f, 0x44, 0x5c8808c1);/*zhuangwei*/
-#if (defined CONFIG_AM_R840)
-	atv_dmd_wr_long(0x0f, 0x3c, reg_23cf);/*zhuangwei*/
-	/*guanzhong@20150804a*/
-	atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1);
-#else
-	atv_dmd_wr_long(0x0f, 0x3c, 0x88188832);/*zhuangwei*/
-#endif
-	atv_dmd_wr_long(0x18, 0x08, 0x46170200);/*zhuangwei*/
-#if (defined CONFIG_AM_R840)
-	/*dezhi@20150610a 0x1a maybe better?!*/
-	atv_dmd_wr_byte(0x18, 0x09, 0x19);
-#endif
-#if (defined CONFIG_AM_MXL661)
-	atv_dmd_wr_long(0x0c, 0x04, 0xbffa0000) ;/*test in sky*/
-	atv_dmd_wr_long(0x0c, 0x00, 0x5a4000);/*test in sky*/
-	/*guanzhong@20151013 fix nonstd def is:0x0c010301;0x0c020601(test001)*/
-	atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0x0c030901);
-#else
-	atv_dmd_wr_long(0x0c, 0x04, 0xc8fa0000);/*zhuangwei 0xdafa0000*/
-	atv_dmd_wr_long(0x0c, 0x00, 0x554000);/*zhuangwei*/
-#endif
+	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_R840) {
+		atv_dmd_wr_long(0x0f, 0x3c, reg_23cf);/*zhuangwei*/
+		/*guanzhong@20150804a*/
+		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46180200);
+		/*dezhi@20150610a 0x1a maybe better?!*/
+		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x09, 0x19); */
+	} else {
+		atv_dmd_wr_long(0x0f, 0x3c, 0x88188832);/*zhuangwei*/
+		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46170200);
+	}
+
+	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_MXL661) {
+		atv_dmd_wr_long(0x0c, 0x04, 0xbffa0000) ;/*test in sky*/
+		atv_dmd_wr_long(0x0c, 0x00, 0x5a4000);/*test in sky*/
+		/*guanzhong@20151013 fix nonstd def is:0x0c010301;0x0c020601*/
+		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0x0c030901);
+	} else {
+		/*zhuangwei 0xdafa0000*/
+		atv_dmd_wr_long(0x0c, 0x04, 0xc8fa0000);
+		atv_dmd_wr_long(0x0c, 0x00, 0x554000);/*zhuangwei*/
+	}
 	atv_dmd_wr_long(0x19, 0x04, 0xdafa0000);/*zhuangwei*/
 	atv_dmd_wr_long(0x19, 0x00, 0x4a4000);/*zhuangwei*/
 	/*atv_dmd_wr_byte(0x0c,0x01,0x28);//pwd-out gain*/
