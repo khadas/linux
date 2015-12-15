@@ -125,36 +125,20 @@ MODULE_PARM_DESC(probe_ok, "\n probe_ok\n");
 static void amvecm_size_patch(void)
 {
 	unsigned int hs, he, vs, ve;
-	/* #if (MESON_CPU_TYPE==MESON_CPU_TYPE_MESONG9TV) */
-	if (is_meson_g9tv_cpu()) {
+	if (is_meson_gxtvbb_cpu()) {
 		hs = READ_VPP_REG_BITS(VPP_HSC_REGION12_STARTP, 16, 12);
 		he = READ_VPP_REG_BITS(VPP_HSC_REGION4_ENDP, 0, 12);
 
 		vs = READ_VPP_REG_BITS(VPP_VSC_REGION12_STARTP, 16, 12);
 		ve = READ_VPP_REG_BITS(VPP_VSC_REGION4_ENDP, 0, 12);
-	} else {
-		/* #else */
-		hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 12);
-		he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 0, 12);
-
-		vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 12);
-		ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 12);
-	}
-	/* #endif */
-/* #if ((MESON_CPU_TYPE==MESON_CPU_TYPE_MESON8)|| */
-/* (MESON_CPU_TYPE==MESON_CPU_TYPE_MESON8B)) */
-/* if(cm_en) */
-/* #endif */
-/* cm2_frame_size_patch(he-hs+1,ve-vs+1); */
-	if ((is_meson_m8_cpu() || is_meson_m8m2_cpu() ||
-		is_meson_m8b_cpu() || is_meson_gxbb_cpu())
-		&& cm_en)
-		cm2_frame_size_patch(he-hs+1, ve-vs+1);
-/* #if (MESON_CPU_TYPE>=MESON_CPU_TYPE_MESON6TVD) */
-	if (is_meson_g9tv_cpu())
 		ve_frame_size_patch(he-hs+1, ve-vs+1);
-/* #endif */
+	}
+	hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 12);
+	he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 0, 12);
 
+	vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 12);
+	ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 12);
+	cm2_frame_size_patch(he-hs+1, ve-vs+1);
 }
 
 /* video adj1 */

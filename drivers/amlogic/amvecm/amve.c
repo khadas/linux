@@ -72,7 +72,6 @@ static ulong ve_dnlp_reg_def[16] = {
 	0x97928d88,	0xaba6a19c,	0xbfbab5b0,	0xcfccc9c4,
 	0xdad7d5d2,	0xe6e3e0dd,	0xf2efece9,	0xfdfaf7f4
 };
-unsigned int ve_size;
 
 /*static bool frame_lock_nosm = 1;*/
 static int ve_dnlp_waist_h = 128;
@@ -1925,16 +1924,12 @@ void vpp_phase_lock_on_vs(unsigned int cycle,
 
 }
 
-/* #if (MESON_CPU_TYPE>=MESON_CPU_TYPE_MESON6TVD) */
 void ve_frame_size_patch(unsigned int width, unsigned int height)
 {
 	unsigned int vpp_size = height|(width << 16);
-	if (ve_size != vpp_size) {
+	if (READ_VPP_REG(VPP_VE_H_V_SIZE) != vpp_size)
 		WRITE_VPP_REG(VPP_VE_H_V_SIZE, vpp_size);
-		ve_size = vpp_size;
-	}
 }
-/* #endif */
 
 void ve_dnlp_latch_process(void)
 {
