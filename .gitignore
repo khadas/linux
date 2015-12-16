@@ -95,3 +95,7 @@ x509.genkey
 
 # Kconfig presets
 all.config
+
+# customer folder
+customer
+

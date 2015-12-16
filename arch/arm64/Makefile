@@ -70,7 +70,9 @@ zinstall install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 %.dtb: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts/amlogic $(boot)/dts/amlogic/$@
+	$(if $(filter $@,$(mesondtb)),\
+	$(Q)$(MAKE) $(build)=$(boot)/dts/amlogic $(boot)/dts/amlogic/$@,\
+	$(Q)$(MAKE) $(build)=customer/$(boot)/dts customer/$(boot)/dts/$@)
 
 dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs

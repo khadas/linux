@@ -392,6 +392,16 @@ KBUILD_AFLAGS_MODULE  := -DMODULE
 KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 
+# customer directory support
+mesondefconfig := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*defconfig)
+mesondefconfig := $(notdir $(mesondefconfig))
+
+mesondtb := $(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/amlogic/*.dts)
+mesondtb := $(notdir $(mesondtb))
+mesondtb := $(mesondtb:%.dts=%.dtb)
+
+export mesondefconfig mesondtb
+
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
 KERNELRELEASE = $(shell head -1 include/config/kernel.release 2> /dev/null)
 KERNELRELEASE_FULL = $(shell tail -1 include/config/kernel.release 2> /dev/null)
@@ -1141,7 +1151,7 @@ rpm: include/config/kernel.release FORCE
 # Brief documentation of the typical targets used
 # ---------------------------------------------------------------------------
 
-boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/meson*_defconfig)
+boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/meson*_defconfig $(srctree)/customer/arch/$(SRCARCH)/configs/*_defconfig)
 boards := $(notdir $(boards))
 board-dirs := $(dir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*/*_defconfig))
 board-dirs := $(sort $(notdir $(board-dirs:/=)))

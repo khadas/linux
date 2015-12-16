@@ -102,7 +102,7 @@ else
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
+	$(Q)$< --defconfig=$(if $(filter $@,$(mesondefconfig)),,customer/)arch/$(SRCARCH)/configs/$@ $(Kconfig)
 
 # Help text used by make help
 help:
