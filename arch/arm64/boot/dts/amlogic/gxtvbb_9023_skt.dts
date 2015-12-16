@@ -305,6 +305,19 @@
 			4	/*// TVAFE_CVBS_IN3,    //CVBS_IN3,*/
 		>;
 	};
+	aml_avin {
+		compatible = "amlogic, avin_detect";
+		status = "okay";
+		interrupts = <0 65 1
+					  0 66 1>;
+		pinctrl-names = "avin_gpio_disable_pullup";
+		pinctrl-0 = <&avin_gpio_disable_pull>;
+		avin1_pin =  <&gpio       GPIOW_4       GPIO_ACTIVE_HIGH>;
+		avin2_pin =  <&gpio       GPIOW_3       GPIO_ACTIVE_HIGH>;
+		detect_interval_length = <100>;
+		set_detect_times = <5>;
+		set_fault_tolerance = <1>;
+	};
 	amvdec_656in1 {
 		compatible = "amlogic, amvdec_656in";
 		dev_name = "amvdec_656in1";

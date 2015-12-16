@@ -1,0 +1,25 @@
+#
+# avin detect drivers configuration
+#
+
+menuconfig AMLOGIC_AVIN_DETECT
+	tristate "Amlogic AVIN Detect Support"
+	default n
+	help
+	  Say Y here to get to see options for avin detect drivers.
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be
+	  skipped and disabled.
+
+
+if AMLOGIC_AVIN_DETECT
+
+config AML_AVIN_DETECT
+	tristate "tv av-in detect module support"
+	default n
+	help
+		Amlogic TV AV-IN detect management.
+
+
+endif

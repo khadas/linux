@@ -486,6 +486,13 @@
 			amlogic,pins="GPIOH_5","GPIOH_6";
 		};
 
+		avin_gpio_disable_pull:avin_gpio_disable_pull{
+					amlogic,clrmask=<6 0x7f 9 0x40000000>;
+					amlogic,pins = "GPIOW_3","GPIOW_4";
+					amlogic,enable-output=<1>;
+					amlogic,pullupen=<0>;
+				};
+
 		spicc_pins_h6h7h8: spicc_pins_h6h7h8{
 			amlogic,setmask=<7 0x70000>;
 			amlogic,clrmask=<7 0x7f400028>;

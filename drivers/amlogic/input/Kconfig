@@ -15,6 +15,7 @@ source "drivers/amlogic/input/remote/Kconfig"
 source "drivers/amlogic/input/keyboard/Kconfig"
 source "drivers/amlogic/input/gpio_key/Kconfig"
 source "drivers/amlogic/input/sensor/Kconfig"
+source "drivers/amlogic/input/avin_detect/Kconfig"
 
 endif
 
