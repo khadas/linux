@@ -156,8 +156,8 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-/* modify di blend mode config */
-static const char version_s[] = "2015-12-09a";
+/* do_pre_only_fun add null pointer protect */
+static const char version_s[] = "2015-12-16a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -4566,8 +4566,13 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 	if (arg) {
 		di_buf_t *di_buf = (di_buf_t *)arg;
 		vframe_t *vf = di_buf->vframe;
-		int width = (di_buf->di_buf[0]->canvas_config_size>>16)&0xffff;
-		int canvas_height =
+		int width, canvas_height;
+		if ((vf == NULL) || (di_buf->di_buf[0] == NULL)) {
+			di_print("error:%s,NULL point!!\n", __func__);
+			return 0;
+		}
+		width = (di_buf->di_buf[0]->canvas_config_size>>16)&0xffff;
+		canvas_height =
 (di_buf->di_buf[0]->canvas_config_size)&0xffff;
 #ifdef CONFIG_VSYNC_RDMA
 		if ((is_vsync_rdma_enable() &&
@@ -4640,6 +4645,9 @@ blend_mtn_en = 0, ei_en = 0, post_field_num = 0;
 		return 0;
 
 	if ((!di_post_stru.toggle_flag) && ((force_update_post_reg&0x10) == 0))
+		return 0;
+
+	if ((di_buf == NULL) || (di_buf->di_buf_dup_p[0] == NULL))
 		return 0;
 
 	if (di_post_stru.toggle_flag && di_buf->di_buf_dup_p[1])
