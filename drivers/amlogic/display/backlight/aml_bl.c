@@ -1800,10 +1800,12 @@ err:
 
 static int __exit aml_bl_remove(struct platform_device *pdev)
 {
+	int ret;
 	/*struct aml_bl *bl_drv = platform_get_drvdata(pdev);*/
 
 	aml_bl_remove_class();
 
+	ret = cancel_delayed_work(&bl_drv->bl_delayed_work);
 	if (bl_drv->workqueue)
 		destroy_workqueue(bl_drv->workqueue);
 

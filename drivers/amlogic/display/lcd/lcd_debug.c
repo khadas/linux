@@ -514,11 +514,9 @@ static void lcd_test(unsigned int num)
 
 static void lcd_debug_config_update(void)
 {
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->module_disable();
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 	mdelay(200);
-	lcd_drv->module_enable();
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 }
 
 static ssize_t lcd_debug_store(struct class *class,
@@ -596,9 +594,9 @@ static ssize_t lcd_debug_store(struct class *class,
 			LCDPR("driver version: %s\n", lcd_drv->version);
 			lcd_reg_print();
 		} else if (buf[2] == 's') {
-			lcd_drv->module_disable();
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 			mdelay(200);
-			lcd_drv->module_enable();
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 		}
 		break;
 	case 'd':
@@ -629,13 +627,12 @@ static ssize_t lcd_debug_enable_store(struct class *class,
 {
 	unsigned int ret;
 	unsigned int temp = 1;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	ret = sscanf(buf, "%d", &temp);
 	if (temp)
-		lcd_drv->module_enable();
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 	else
-		lcd_drv->module_disable();
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 
 	if (ret != 1 || ret != 2)
 		return -EINVAL;

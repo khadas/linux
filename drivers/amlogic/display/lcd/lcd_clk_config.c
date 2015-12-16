@@ -304,7 +304,7 @@ static void lcd_set_pll_m8(struct lcd_clk_config_s *cConf)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	int ret;
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 	pll_reg = ((1 << LCD_PLL_EN_M8) |
 		(cConf->pll_od1_sel << LCD_PLL_OD_M8) |
@@ -392,7 +392,7 @@ static void lcd_set_pll_m8b(struct lcd_clk_config_s *cConf)
 	unsigned int pll_ctrl2, pll_ctrl3, pll_ctrl4, od_fb;
 	int ret;
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 	pll_reg = ((1 << LCD_PLL_EN_M8B) |
 		(cConf->pll_od1_sel << LCD_PLL_OD_M8B) |
@@ -509,7 +509,7 @@ static void lcd_set_pll_g9tv(struct lcd_clk_config_s *cConf)
 	unsigned int pll_ctrl, pll_ctrl2;
 	int ret;
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 	hpll_load_initial();
 
@@ -542,7 +542,7 @@ static void lcd_set_pll_g9bb(struct lcd_clk_config_s *cConf)
 	unsigned int pll_ctrl, pll_ctrl2;
 	int ret;
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 	pll_ctrl = ((1 << LCD_PLL_EN_G9BB) |
 		(cConf->pll_n << LCD_PLL_N_G9BB) |
@@ -572,7 +572,7 @@ static void lcd_set_pll_gx(struct lcd_clk_config_s *cConf)
 	unsigned int pll_ctrl, pll_ctrl2;
 	int ret;
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 	pll_ctrl = ((1 << LCD_PLL_EN_GXTVBB) |
 		(1 << 27) | /* DPLL_BGP_EN */
@@ -587,7 +587,7 @@ static void lcd_set_pll_gx(struct lcd_clk_config_s *cConf)
 
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL, pll_ctrl | (1 << LCD_PLL_RST_GXTVBB));
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, pll_ctrl2);
-	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
+	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x135c5091);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000a55);
@@ -603,7 +603,7 @@ static void lcd_set_clk_div_m8(int lcd_type, struct lcd_clk_config_s *cConf)
 	unsigned int div_reg;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 
 	/* select pll */
@@ -703,7 +703,7 @@ static void lcd_set_clk_div_g9_gx(struct lcd_clk_config_s *cConf)
 	unsigned int shift_val, shift_sel;
 	int i;
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 
 	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
@@ -745,7 +745,7 @@ static void lcd_set_vclk_crt(int lcd_type, struct lcd_clk_config_s *cConf)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 
 	/* setup the XD divider value */

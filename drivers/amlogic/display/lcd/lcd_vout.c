@@ -142,10 +142,12 @@ static struct lcd_config_s lcd_config_dft = {
 		.rgb_base_addr = 0xf0,
 		.rgb_coeff_addr = 0x74a,
 		.dith_user = 0,
+		/*
 		.gamma_ctrl = ((0 << GAMMA_CTRL_REV) | (0 << GAMMA_CTRL_EN)),
 		.gamma_r_coeff = 100,
 		.gamma_g_coeff = 100,
 		.gamma_b_coeff = 100,
+		*/
 	},
 	.lcd_control = {
 		.ttl_config = &lcd_ttl_config,
@@ -246,9 +248,9 @@ static int lcd_power_notifier(struct notifier_block *nb,
 	LCDPR("%s: 0x%lx\n", __func__, event);
 
 	if (event & LCD_EVENT_LCD_ON)
-		lcd_driver->module_enable();
+		lcd_module_enable();
 	else if (event & LCD_EVENT_LCD_OFF)
-		lcd_driver->module_disable();
+		lcd_module_disable();
 	else
 		return NOTIFY_DONE;
 
@@ -258,6 +260,25 @@ static int lcd_power_notifier(struct notifier_block *nb,
 static struct notifier_block lcd_power_nb = {
 	.notifier_call = lcd_power_notifier,
 	.priority = LCD_PRIORITY_POWER_LCD,
+};
+
+static int lcd_bl_select_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	unsigned int *index;
+
+	/* LCDPR("%s: 0x%lx\n", __func__, event); */
+	if ((event & LCD_EVENT_BACKLIGHT_SEL) == 0)
+		return NOTIFY_DONE;
+
+	index = (unsigned int *)data;
+	*index = lcd_driver->lcd_config->backlight_index;
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block lcd_bl_select_nb = {
+	.notifier_call = lcd_bl_select_notifier,
 };
 /* **************************************** */
 
@@ -320,8 +341,6 @@ static int lcd_mode_probe(struct platform_device *pdev)
 	lcd_driver->lcd_config = &lcd_config_dft;
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
-	lcd_driver->module_enable = lcd_module_enable;
-	lcd_driver->module_disable = lcd_module_disable;
 	if (lcd_vcbus_read(ENCL_VIDEO_EN))
 		lcd_driver->lcd_status = 1;
 	else
@@ -365,25 +384,6 @@ static int lcd_mode_remove(struct platform_device *pdev)
 	}
 	return 0;
 }
-
-static int lcd_bl_select_notifier(struct notifier_block *nb,
-		unsigned long event, void *data)
-{
-	unsigned int *index;
-
-	/* LCDPR("%s: 0x%lx\n", __func__, event); */
-	if ((event & LCD_EVENT_BACKLIGHT_SEL) == 0)
-		return NOTIFY_DONE;
-
-	index = (unsigned int *)data;
-	*index = lcd_driver->lcd_config->backlight_index;
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block lcd_bl_select_nb = {
-	.notifier_call = lcd_bl_select_notifier,
-};
 
 static int lcd_reboot_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)

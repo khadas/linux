@@ -96,25 +96,19 @@ static int lcd_vmode_is_supported(enum vmode_e mode)
 
 static int lcd_vout_disable(enum vmode_e cur_vmod)
 {
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->module_disable();
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 	return 0;
 }
 
 #ifdef CONFIG_PM
 static int lcd_suspend(void)
 {
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->module_disable();
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 	return 0;
 }
 static int lcd_resume(void)
 {
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->module_enable();
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 	return 0;
 }
 #endif

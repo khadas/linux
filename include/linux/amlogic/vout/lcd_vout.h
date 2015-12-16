@@ -165,7 +165,7 @@ struct lcd_effect_s {
 	unsigned int rgb_coeff_addr;
 	unsigned char dith_user;
 	unsigned int dith_ctrl;
-
+/*
 	unsigned char gamma_ctrl;
 	unsigned short gamma_r_coeff;
 	unsigned short gamma_g_coeff;
@@ -173,6 +173,7 @@ struct lcd_effect_s {
 	unsigned short GammaTableR[256];
 	unsigned short GammaTableG[256];
 	unsigned short GammaTableB[256];
+*/
 };
 
 struct ttl_config_s {
@@ -344,11 +345,11 @@ struct aml_lcd_drv_s {
 	void (*vout_server_init)(void);
 	int (*driver_init)(void);
 	void (*driver_disable)(void);
-	void (*module_enable)(void);
+	/*void (*module_enable)(void);
 	void (*module_disable)(void);
-	void (*vso_adjust)(unsigned int val);
 	void (*set_gamma_table)(unsigned int gamma_en);
-	void (*gamma_test)(unsigned int num);
+	void (*gamma_test)(unsigned int num);*/
+	void (*vso_adjust)(unsigned int val);
 	void (*edp_apb_clk_prepare)(void);
 	void (*edp_edid_load)(void);
 
