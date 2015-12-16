@@ -110,23 +110,27 @@ static const struct reg_s *tvregs_576cvbs_performance_m8b[] = {
 
 static const struct reg_s tvregs_576cvbs_china_sarft_gxbb[] = {
 	{VENC_VDAC_DAC0_GAINCTRL,	0x9  },
+	{ENCI_YC_DELAY,				0x343},
+	{ENCI_VIDEO_SAT,			0x9	 },
 	{MREG_END_MARKER,			0    }
 };
 
 static const struct reg_s tvregs_576cvbs_china_telecom_gxbb[] = {
-	{VENC_VDAC_DAC0_GAINCTRL,		0x9		},
-	{ENCI_SYNC_ADJ,					0x8060	},
-	{ENCI_VIDEO_SAT,				0x2		},
-	{VENC_VDAC_DAC0_FILT_CTRL1,		0xf94e	},
-	{MREG_END_MARKER,				0		}
+	{VENC_VDAC_DAC0_GAINCTRL,	0x9		},
+	{ENCI_YC_DELAY,				0x343   },
+	{ENCI_SYNC_ADJ,				0x8080	},
+	{ENCI_VIDEO_SAT,			0xfd	},
+	{VENC_VDAC_DAC0_FILT_CTRL1,	0xf850	},
+	{MREG_END_MARKER,			0		}
 };
 
 static const struct reg_s tvregs_576cvbs_china_mobile_gxbb[] = {
-	{VENC_VDAC_DAC0_GAINCTRL,		0x9		},
-	{ENCI_SYNC_ADJ,					0x8060	},
-	{ENCI_VIDEO_SAT,				0x2		},
-	{VENC_VDAC_DAC0_FILT_CTRL1,		0xf94e	},
-	{MREG_END_MARKER,				0		}
+	{VENC_VDAC_DAC0_GAINCTRL,	0x9		},
+	{ENCI_YC_DELAY,				0x343   },
+	{ENCI_SYNC_ADJ,				0x8080	},
+	{ENCI_VIDEO_SAT,			0xfd	},
+	{VENC_VDAC_DAC0_FILT_CTRL1,	0xf850	},
+	{MREG_END_MARKER,			0		}
 };
 
 static const struct reg_s *tvregs_576cvbs_performance_gxbb[] = {

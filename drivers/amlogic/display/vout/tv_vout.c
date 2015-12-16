@@ -201,14 +201,14 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_m8[index];
-		type = 0;
+		type = 3;
 	} else if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
 		>= MESON_CPU_MAJOR_ID_GXBB) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_gxbb[index];
-		type = 0;
+		type = 4;
 	}
 
 	vout_log_info("cvbs performance type = %d, table = %d\n", type, index);
@@ -1643,7 +1643,7 @@ static __exit void tv_exit_module(void)
 
 static int __init vdac_config_bootargs_setup(char *line)
 {
-	unsigned int cfg = 0x00;
+	unsigned long cfg = 0x0;
 	int ret = 0;
 	vout_log_info("cvbs trimming line = %s\n", line);
 	ret = kstrtoul(line, 16, (unsigned long *)&cfg);
@@ -1655,7 +1655,7 @@ __setup("vdaccfg=", vdac_config_bootargs_setup);
 
 static int __init cvbs_performance_setup(char *line)
 {
-	unsigned int cfg = 0x1;
+	unsigned long cfg = 0x0;
 	int ret = 0;
 	vout_log_info("cvbs performance line = %s\n", line);
 	ret = kstrtoul(line, 10, (unsigned long *)&cfg);
