@@ -255,6 +255,7 @@ int cec_rx_buf_check(void)
 	if (rx_num_msg)
 		CEC_INFO("rx msg num:0x%02x\n", rx_num_msg);
 
+	/*
 	if (tx_status == TX_BUSY) {
 		cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy++;
 		if (cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy >= 7) {
@@ -262,7 +263,7 @@ int cec_rx_buf_check(void)
 			cec_hw_reset();
 			cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy = 0;
 		}
-	}
+	} */
 	if (tx_status == TX_IDLE) {
 		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
 			/* triggle tx if idle */
@@ -343,11 +344,32 @@ static int cec_ll_trigle_tx(void)
 	int i;
 	unsigned int n;
 	int pos;
-	int reg = aocec_rd_reg(CEC_TX_MSG_STATUS);
+	int reg;
 	unsigned int s_idx;
 	int len;
 	char *msg;
+	unsigned int j = 20;
+	unsigned tx_stat;
 
+	/*
+	 * wait until tx is free
+	 */
+	while (1) {
+		tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
+		if (tx_stat == TX_BUSY)
+			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+		if (tx_stat != TX_BUSY)
+			break;
+
+		if (!(j--)) {
+			hdmi_print(INF, CEC "wating busy timeout\n");
+			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
+			break;
+		}
+		msleep(20);
+	}
+
+	reg = aocec_rd_reg(CEC_TX_MSG_STATUS);
 	if (reg == TX_IDLE || reg == TX_DONE) {
 		s_idx = cec_tx_msgs.send_idx;
 		msg = cec_tx_msgs.msg[s_idx].buf;
@@ -887,6 +909,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 			    size_t size, loff_t *p)
 {
 	unsigned char tempbuf[16] = {};
+	int ret;
 
 	if (size > 16)
 		size = 16;
@@ -896,7 +919,10 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	if (copy_from_user(tempbuf, buf, size))
 		return -EINVAL;
 
-	return cec_ll_tx(tempbuf, size);
+	ret = cec_ll_tx(tempbuf, size);
+	/* delay a byte for continue message send */
+	msleep(25);
+	return ret;
 }
 
 static long hdmitx_cec_ioctl(struct file *f,
