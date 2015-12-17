@@ -246,6 +246,7 @@ struct amlsd_host {
 	struct  mmc_request	*mrq;
 	struct  mmc_request	*mrq2;
 	spinlock_t	mrq_lock;
+	spinlock_t	pinmux_lock;
 	int			cmd_is_stop;
 	enum aml_mmc_waitfor	xfer_step;
 	enum aml_mmc_waitfor	xfer_step_prev;
@@ -1125,6 +1126,7 @@ struct sd_emmc_desc_info {
 #define SD_EMMC_IRQ_ALL					0x3fff
 #define SD_EMMC_RESP_SRAM_OFF					0
 /*#define SD_EMMC_DESC_SET_REG*/
+
 #define SD_EMMC_DESC_REG_CONF					0x4
 #define SD_EMMC_DESC_REG_IRQC					0xC
 #define SD_EMMC_DESC_RESP_STAT				0xfff80000

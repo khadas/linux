@@ -1675,7 +1675,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 
 	/*Add external CMD23 for multi-block operation*/
 #ifdef SD_EMMC_MANUAL_CMD23
-	if (((mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
+	if (((mrq->cmd->opcode == MMC_READ_MULTIPLE_BLOCK)
 		|| (mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
 		&& (mrq->cmd->data)) {
 		des_cmd_cur = (struct cmd_cfg *)&(desc_cur->cmd_info);
@@ -3076,6 +3076,7 @@ static struct amlsd_host *aml_sd_emmc_init_host(struct amlsd_host *host)
 #endif
 
 	spin_lock_init(&host->mrq_lock);
+	spin_lock_init(&host->pinmux_lock);
 	host->xfer_step = XFER_INIT;
 
 	INIT_LIST_HEAD(&host->sibling);

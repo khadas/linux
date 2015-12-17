@@ -881,7 +881,7 @@ void of_amlsd_xfer_pre(struct amlsd_platform *pdata)
 	char *p = pinctrl;
 	int i, size = 0;
 	struct pinctrl *ppin;
-
+	unsigned long flags;
 	/* to avoid emmc platform autoreboot issue */
 	if (pdata->port == PORT_SDIO_C)
 		udelay(65);
@@ -926,7 +926,9 @@ void of_amlsd_xfer_pre(struct amlsd_platform *pdata)
 		}
 
 	for (i = 0; i < 100; i++) {
+		spin_lock_irqsave(&pdata->host->pinmux_lock, flags);
 		ppin = aml_devm_pinctrl_get_select(pdata->host, pinctrl);
+		spin_unlock_irqrestore(&pdata->host->pinmux_lock, flags);
 		if (!IS_ERR(ppin)) {
 			/* pdata->host->pinctrl = ppin; */
 			break;
@@ -1013,7 +1015,6 @@ void aml_cs_dont_care(struct amlsd_platform *pdata) /* chip select don't care */
 static int aml_is_card_insert(struct amlsd_platform *pdata)
 {
 	int ret = 0;
-
 	if (pdata->gpio_cd)
 		ret = gpio_get_value(pdata->gpio_cd);
 	sdio_err("card %s\n", ret?"OUT":"IN");
@@ -1060,8 +1061,12 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 	int in = 0, i;
 	int high_cnt = 0, low_cnt = 0;
 	struct pinctrl *pc;
+	unsigned long flags;
 
+	spin_lock_irqsave(&pdata->host->pinmux_lock, flags);
 	pc = aml_devm_pinctrl_get_select(pdata->host, "sd_to_ao_uart_pins");
+	spin_unlock_irqrestore(&pdata->host->pinmux_lock, flags);
+
 	if (gpio_request_one(pdata->gpio_dat3,
 		GPIOF_IN, MODULE_NAME))
 		return 0;
@@ -1092,11 +1097,14 @@ static int aml_uart_switch(struct amlsd_platform *pdata, bool on)
 		"sd_to_ao_uart_pins",
 		"ao_to_sd_uart_pins",
 	};
-
+	unsigned long flags;
 	if (on == pdata->is_sduart)
 		return 0;
+
 	pdata->is_sduart = on;
+	spin_lock_irqsave(&pdata->host->pinmux_lock, flags);
 	pc = aml_devm_pinctrl_get_select(pdata->host, name[on]);
+	spin_unlock_irqrestore(&pdata->host->pinmux_lock, flags);
 	return on;
 }
 /* #endif */
@@ -1175,9 +1183,12 @@ static void aml_jtag_switch_sd(struct amlsd_platform *pdata)
 {
 	struct pinctrl *pc;
 	int i;
+	unsigned long flags;
 	for (i = 0; i < 100; i++) {
+		spin_lock_irqsave(&pdata->host->pinmux_lock, flags);
 		pc = aml_devm_pinctrl_get_select(pdata->host,
 			"ao_to_sd_jtag_pins");
+		spin_unlock_irqrestore(&pdata->host->pinmux_lock, flags);
 		if (!IS_ERR(pc))
 			break;
 		mdelay(1);
@@ -1193,9 +1204,12 @@ static void aml_jtag_switch_ao(struct amlsd_platform *pdata)
 {
 	struct pinctrl *pc;
 	int i;
+	unsigned long flags;
 	for (i = 0; i < 100; i++) {
+		spin_lock_irqsave(&pdata->host->pinmux_lock, flags);
 		pc = aml_devm_pinctrl_get_select(pdata->host,
 			"sd_to_ao_jtag_pins");
+		spin_unlock_irqrestore(&pdata->host->pinmux_lock, flags);
 		if (!IS_ERR(pc))
 			break;
 		mdelay(1);

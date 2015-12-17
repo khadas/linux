@@ -205,6 +205,7 @@
 		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
 			amlogic,setmask=<5 0x00000018>;
+			amlogic,clrmask=<5 0x00000080 10 0x400>;
 			amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -213,6 +214,7 @@
 
 		sd_all_pins:sd_all_pins{
 			amlogic,setmask=<5 0x0000007e>;
+			amlogic,clrmask=<5 0x00000f80 10 0x400>;
 			amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -220,8 +222,8 @@
 		};
 
 		sd_1bit_pins:sd_1bit_pins{
-			amlogic,setmask=<2 0x00008c00>,
-					<AO 0x00001800>;
+			amlogic,setmask=<5 0x0000001c>;
+			amlogic,clrmask=<5 0x00000080 10 0x400>;
 			amlogic,pins = "CARD_1","CARD_2","CARD_3";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -265,6 +267,7 @@
 			amlogic,pullupen=<1>;
 		};
 
+
 		emmc_clk_cmd_pins:emmc_clk_cmd_pins{
 			amlogic,setmask=<5 0x0000f000>;
 			amlogic,pins = "BOOT_8","BOOT_10"; /** BOOT_10:CMD, BOOT_8:CLK */
@@ -283,16 +286,19 @@
 		};
 
 		sdio_clk_cmd_pins:sdio_clk_cmd_pins{
-			amlogic,setmask=<8 0x00000003>;
-			amlogic,pins = "GPIOX_4","GPIOX_5"; /** GPIOX_5:CMD, GPIOX_4:CLK */
+			amlogic,setmask=<0 0x00000300>;
+			amlogic,clrmask=<0 0x8c0300 1 0x804 2 0x40200>;
+			amlogic,pins = "GPIOX_8","GPIOX_9"; /** GPIOX_5:CMD, GPIOX_4:CLK */
 			amlogic,enable-output=<1>; /** 0:output, 1:input */
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
 		};
 
 		sdio_all_pins:sdio_all_pins{
-			amlogic,setmask=<8 0x0000003f>;
-			amlogic,pins = "GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_4","GPIOX_5";
+			amlogic,setmask=<0 0x000003ff>;
+			amlogic,clrmask=<0 0x8ffc00 1 0x3ffc0c07 2 0x403ff>;
+			amlogic,pins = "GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_4","GPIOX_5",
+							"GPIOX_6","GPIOX_7","GPIOX_8","GPIOX_9";
 			amlogic,enable-output=<1>; /** 0:output, 1:input */
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
