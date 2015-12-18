@@ -281,7 +281,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 
 	/* audio_set_i2s_mode(i2s_mode); */
 	/* case 1,raw mode enabled */
-	if (IEC958_mode_codec) {
+	if (IEC958_mode_codec && IEC958_mode_codec != 9) {
 		if (IEC958_mode_codec == 1) {
 			/* dts, use raw sync-word mode */
 			iec958_mode = AIU_958_MODE_RAW;
@@ -309,7 +309,8 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	}
 	if (iec958_mode == AIU_958_MODE_PCM16
 	    || iec958_mode == AIU_958_MODE_PCM24
-	    || iec958_mode == AIU_958_MODE_PCM32) {
+	    || iec958_mode == AIU_958_MODE_PCM32
+	    || IEC958_mode_codec == 9) {
 		set.chan_stat->chstat0_l = 0x0100;
 		set.chan_stat->chstat0_r = 0x0100;
 		set.chan_stat->chstat1_l = 0x200;
