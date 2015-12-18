@@ -43,6 +43,7 @@
 
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
+#include "hdmi_rx_eq.h"
 #ifdef CEC_FUNC_ENABLE
 #include "hdmirx_cec.h"
 #endif
@@ -1041,6 +1042,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 	add_timer(&hdevp->timer);
 #endif
 
+	/*create eq thread*/
+	if (hdmirx_phy_probe() != 0)
+		rx_print("create eq thread error\n");
+
 	xtal_clk = clk_get(&pdev->dev, "xtal");
 	if (IS_ERR(xtal_clk))
 		rx_print("get xtal err\n");
@@ -1154,6 +1159,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 	device_remove_file(hdevp->dev, &dev_attr_log);
 	device_remove_file(hdevp->dev, &dev_attr_reg);
 	device_remove_file(hdevp->dev, &dev_attr_cec);
+	hdmirx_phy_exit();
 	tvin_unreg_frontend(&hdevp->frontend);
 	hdmirx_delete_device(hdevp->index);
 	cdev_del(&hdevp->cdev);

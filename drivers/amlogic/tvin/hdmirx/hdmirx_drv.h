@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/12/14"
+#define HDMIRX_VER "Ref.2015/12/18"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -477,7 +477,6 @@ void hdmirx_audio_enable(bool en);
 int hdmirx_audio_fifo_rst(void);
 int	hdmirx_iaudioclk_domain_reset(void);
 void hdmirx_phy_init(int rx_port_sel, int dcm);
-void clk_rate_monitor(void);
 
 void hdmirx_hw_config(void);
 void hdmirx_hw_reset(void);

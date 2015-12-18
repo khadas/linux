@@ -45,6 +45,7 @@
 /* Local include */
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
+#include "hdmi_rx_eq.h"
 #ifdef CEC_FUNC_ENABLE
 #include "hdmirx_cec.h"
 #endif
@@ -268,12 +269,12 @@ static bool hw_dbg_en = 1;	/* only for hardware test */
 MODULE_PARM_DESC(hw_dbg_en, "\n hw_dbg_en\n");
 module_param(hw_dbg_en, bool, 0664);
 
-static int wait_clk_stable;
+int wait_clk_stable;
 static int clk_stable_max = 30;
 MODULE_PARM_DESC(clk_stable_max, "\n clk_stable_max\n");
 module_param(clk_stable_max, int, 0664);
 
-static bool is_phy_reset;
+static bool is_phy_reset = 1;
 MODULE_PARM_DESC(is_phy_reset, "\n is_phy_reset\n");
 module_param(is_phy_reset, bool, 0664);
 
@@ -285,6 +286,9 @@ static bool is_mute_video = 1;
 MODULE_PARM_DESC(is_mute_video, "\n is_mute_video\n");
 module_param(is_mute_video, bool, 0664);
 
+static int wait_clk_stable_max = 1000; /* only for hardware test */
+MODULE_PARM_DESC(wait_clk_stable_max, "\n wait_clk_stable_max\n");
+module_param(wait_clk_stable_max, int, 0664);
 
 
 #ifdef HDCP22_ENABLE
@@ -319,21 +323,6 @@ static int ddc_state_err_cnt;
 /***********************
   TVIN driver interface
 ************************/
-
-#define FSM_INIT				0
-#define FSM_HDMI5V_LOW			1
-#define FSM_HDMI5V_HIGH			2
-#define FSM_HPD_READY			3
-#define FSM_SIG_UNSTABLE        4
-#define FSM_DWC_RST_WAIT		5
-#define FSM_SIG_STABLE			6
-#define FSM_TIMINGCHANGE		7
-#define FSM_SIG_READY			8
-#define FSM_EQ_CALIBRATION		9
-#define FSM_WAIT_CLK_STABLE		10
-#define FSM_CHECK_DDC_CORRECT	11
-#define FSM_PHY_RESET			13
-#define FSM_DWC_RESET			14
 
 struct rx rx;
 
@@ -1848,6 +1837,8 @@ void hdmirx_hw_monitor(void)
 			hdmirx_audio_enable(0);
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
+			/* when pull signal out,there is shake to start eq */
+			hdmirx_phy_stop_eq();
 			rx.state = FSM_INIT;
 		}
 		#ifdef HDCP22_ENABLE
@@ -1857,6 +1848,8 @@ void hdmirx_hw_monitor(void)
 	}
 	switch (rx.state) {
 	case FSM_INIT:
+		if (is_mute_video)
+			hdmirx_set_video_mute(true);
 		#ifndef CEC_FUNC_ENABLE
 		if (reset_sw)
 			hdmirx_hw_config();
@@ -1885,20 +1878,53 @@ void hdmirx_hw_monitor(void)
 		#endif
 		if (is_mute_video)
 			hdmirx_set_video_mute(true);
-		rx.state = FSM_WAIT_CLK_STABLE;
-		rx_print("HPD_READY->CLK_STABLE\n");
+		hdmirx_phy_clk_rate_monitor();
+		hdmirx_phy_EQ_workaround_init();
+		hdmirx_phy_start_eq();
+		rx.state = FSM_EQ_CALIBRATION;
+		rx_print("HPD_READY->CALIBRATION\n");
+		break;
+	case FSM_EQ_CALIBRATION:
+		wait_clk_stable++;
+		if (hdmirx_phy_get_eq_state() == EQ_SUCCESS_END) {
+			rx.state = FSM_TIMINGCHANGE;
+			wait_clk_stable = 0;
+		} else if (hdmirx_phy_get_eq_state() < EQ_SUCCESS_END) {
+			if (wait_clk_stable > wait_clk_stable_max) {
+				rx.state = FSM_TIMINGCHANGE;
+				wait_clk_stable = 0;
+			}
+		} else {	/* failed */
+			rx.state = FSM_TIMINGCHANGE;
+			wait_clk_stable = 0;
+		}
+		rx_print("*****\n");
 		break;
 	case FSM_WAIT_CLK_STABLE:
+		#if 0
 		if (!is_clk_stable()) {
 			wait_clk_stable++;
 			if (wait_clk_stable < clk_stable_max)
 				break;
 			wait_clk_stable = 0;
-			rx_print("CLK_Unstable\n");
+			rx.state = FSM_EQ_CALIBRATION;
+			rx_print("CLK_CALIBRATION\n");
 		}
 		rx.state = FSM_TIMINGCHANGE;
 		rx_print("CLK_STABLE->TIMINGCHANGE\n");
 		break;
+		#else
+		wait_clk_stable++;
+		if (wait_clk_stable > wait_clk_stable_max) {
+			rx.state = FSM_TIMINGCHANGE;
+			rx.pre_state = FSM_WAIT_CLK_STABLE;
+			wait_clk_stable = 0;
+			break;
+		}
+		rx.state = FSM_EQ_CALIBRATION;
+		rx.pre_state = FSM_WAIT_CLK_STABLE;
+		break;
+		#endif
 	case FSM_TIMINGCHANGE:
 		if ((reset_sw) && (is_phy_reset))
 			hdmirx_phy_init(rx.port, 0);
@@ -1926,13 +1952,13 @@ void hdmirx_hw_monitor(void)
 			if ((sig_pll_lock_cnt) && (log_flag & VIDEO_LOG))
 				rx_print("pll_lock_cnt=%d\n", sig_pll_lock_cnt);
 
-			clk_rate_monitor();
+			/* hdmirx_phy_clk_rate_monitor(); */
 			sig_pll_lock_cnt = 0;
 			sig_pll_unlock_cnt++;
 			if ((sig_pll_unlock_cnt == sig_pll_unlock_max) &&
 				(is_no_signal)) {
-				hdmirx_phy_init(rx.port, 0);
-				/*rx.no_signal = true;*/
+				/* hdmirx_phy_init(rx.port, 0); */
+				rx.no_signal = true;
 				rx_print("++++rx.no_signal = %d\n",
 					 rx.no_signal);
 			}

@@ -99,10 +99,6 @@ MODULE_PARM_DESC(multi_port_edid_enable,
 	"\n multi_port_edid_enable\n");
 module_param(multi_port_edid_enable, bool, 0664);
 
-static int mpll_ctl_setting = 0x200;
-MODULE_PARM_DESC(mpll_ctl_setting, "\n mpll_ctl_setting\n");
-module_param(mpll_ctl_setting, int, 0664);
-
 static bool hdcp_enable = 1;
 MODULE_PARM_DESC(hdcp_enable, "\n hdcp_enable\n");
 module_param(hdcp_enable, bool, 0664);
@@ -130,17 +126,10 @@ static unsigned int hdcp_22_nonce_sw_2 = 0x89abcdef;
 static unsigned int hdcp_22_nonce_sw_3 = 0x01234567;
 #endif
 
-static bool fast_switching = true;
-MODULE_PARM_DESC(fast_switching, "\n fast_switching\n");
-module_param(fast_switching, bool, 0664);
-
 static int hdmi_mode_hyst = 5;
 MODULE_PARM_DESC(hdmi_mode_hyst, "\n hdmi_mode_hyst\n");
 module_param(hdmi_mode_hyst, int, 0664);
 
-static int force_clk_rate;
-MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
-module_param(force_clk_rate, int, 0664);
 
 /**
  * Read data from HDMI RX CTRL
@@ -396,110 +385,6 @@ void hdmirx_phy_fast_switching(int enable)
 /**************************
     hw functions
 ***************************/
-void clk_rate_monitor(void)
-{
-	unsigned int clk_rate;
-	if (force_clk_rate & 0x10)
-		clk_rate = force_clk_rate & 1;
-	else
-		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
-
-	if (1 == clk_rate)
-		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
-	else
-		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
-}
-void hdmirx_phy_init(int rx_port_sel, int dcm)
-{
-	unsigned int data32;
-	data32 = 0;
-	data32 |= 1 << 6;
-	data32 |= 1 << 4;
-	data32 |= rx_port_sel << 2;
-	data32 |= 1 << 1;
-	data32 |= 1 << 0;
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
-	mdelay(1);
-
-	data32	= 0;
-	data32 |= 1 << 6;
-	data32 |= 1 << 4;
-	data32 |= rx_port_sel << 2;
-	data32 |= 1 << 1;
-	data32 |= 0 << 0;
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
-
-	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x2d20);
-	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
-	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24da);
-	hdmirx_wr_phy(MPLL_PARAMETERS5,    0x5492);
-	hdmirx_wr_phy(MPLL_PARAMETERS6,    0x4b0d);
-	hdmirx_wr_phy(MPLL_PARAMETERS7,    0x4760);
-	hdmirx_wr_phy(MPLL_PARAMETERS8,    0x008c);
-	hdmirx_wr_phy(MPLL_PARAMETERS9,    0x0002);
-	hdmirx_wr_phy(MPLL_PARAMETERS10,   0x2d20);
-	hdmirx_wr_phy(MPLL_PARAMETERS11,	0x2e31);
-	hdmirx_wr_phy(MPLL_PARAMETERS12,	0x4b64);
-	hdmirx_wr_phy(MPLL_PARAMETERS13,	0x2493);
-	hdmirx_wr_phy(MPLL_PARAMETERS14,	0x676d);
-	hdmirx_wr_phy(MPLL_PARAMETERS15,	0x23e0);
-	hdmirx_wr_phy(MPLL_PARAMETERS16,	0x001b);
-	hdmirx_wr_phy(MPLL_PARAMETERS17,	0x2218);
-	hdmirx_wr_phy(MPLL_PARAMETERS18,	0x1b25);
-	hdmirx_wr_phy(MPLL_PARAMETERS19,	0x2492);
-	hdmirx_wr_phy(MPLL_PARAMETERS20,	0x48ea);
-	hdmirx_wr_phy(MPLL_PARAMETERS21,	0x0011);
-
-	/* Configuring I2C to work in fastmode */
-	hdmirx_wr_dwc(DWC_I2CM_PHYG3_MODE,	 0x1);
-	/* disable overload protect for Philips DVD */
-	/* NOTE!!!!! don't remove below setting */
-	hdmirx_wr_phy(OVL_PROT_CTRL, 0xa);
-
-	data32 = 0;
-	data32 |= 0	<< 15;
-	data32 |= 0	<< 13;
-	data32 |= 0	<< 12;
-	data32 |= fast_switching << 11;
-	data32 |= 0	<< 10;
-	data32 |= rx.phy.fsm_enhancement << 9;
-	data32 |= 0	<< 8;
-	data32 |= 0	<< 7;
-	data32 |= dcm << 5;
-	data32 |= 0	<< 3;
-	data32 |= rx.phy.port_select_ovr_en << 2;
-	data32 |= rx_port_sel << 0;
-
-	hdmirx_wr_phy(PHY_SYSTEM_CONFIG,
-		(rx.phy.phy_system_config_force_val != 0) ?
-		rx.phy.phy_system_config_force_val : data32);
-
-	hdmirx_wr_phy(PHY_CMU_CONFIG,
-		(rx.phy.phy_cmu_config_force_val != 0) ?
-		rx.phy.phy_cmu_config_force_val :
-		((rx.phy.lock_thres << 10) | (1 << 9) |
-			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
-
-	clk_rate_monitor();
-
-	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, 4);
-	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, 4);
-	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, 4);
-	hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
-
-	data32 = 0;
-	data32 |= 1 << 6;
-	data32 |= 1 << 4;
-	data32 |= rx_port_sel << 2;
-	data32 |= 0 << 1;
-	data32 |= 0 << 0;
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
-
-	rx_print("%s  %d Done!\n", __func__, rx.port);
-}
-
 
 void hdmirx_wr_ctl_port(unsigned int offset, unsigned long data)
 {
@@ -1194,11 +1079,11 @@ void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)
 	int data32 = 0;
 
 	if (video_params->video_format == 0) {
-		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH2, 0);
-		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH_0_1, 0);
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x00);
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH_0_1, MSK(16, 0), 0x00);
 	} else {
-		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH2, 0x8000);
-		hdmirx_wr_dwc(DWC_HDMI_VM_CFG_CH_0_1, 0x8000);
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x8000);
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH_0_1, MSK(16, 0), 0x8000);
 	}
 
 	if (video_params->interlaced == 1) {
