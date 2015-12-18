@@ -940,7 +940,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	case CEC_IOC_GET_PORT_NUM:
-		tmp = 1;
+		tmp = cec_dev->port_num;
 		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd)))
 			return -EINVAL;
 		break;
@@ -1230,7 +1230,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	r = of_property_read_u32(node, "arc_port_mask", &(cec_dev->arc_port));
 	if (r) {
-		CEC_ERR("not find 'port_num'\n");
+		CEC_ERR("not find 'arc_port_mask'\n");
 		cec_dev->arc_port = 0;
 	}
 
