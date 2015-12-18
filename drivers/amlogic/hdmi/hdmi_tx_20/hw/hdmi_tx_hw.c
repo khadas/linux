@@ -54,6 +54,7 @@
 #endif
 #include "tvenc_conf.h"
 #include "common.h"
+#include "hdcpVerify.h"
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -2910,6 +2911,52 @@ static void hdmitx_read_edid(unsigned char *rx_edid)
 
 static unsigned char tmp_edid_buf[128*EDID_MAX_BLOCK] = { 0 };
 
+#define HDCP_NMOOFDEVICES 127
+
+static uint8_t *hdcp_mKsvListBuf;
+static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
+{
+	size_t list = 0;
+	size_t size = 0;
+	size_t i = 0;
+	int valid = HDCP_IDLE;
+
+	/* 0x165e: Page 95 */
+	hdcp_mKsvListBuf = kmalloc(0x1660, GFP_KERNEL);
+	if (hdcp_mKsvListBuf) {
+		/* KSV_LEN; */
+		list = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0) & KSV_MSK;
+		if (list <= HDCP_NMOOFDEVICES) {
+			size = (list * KSV_LEN) + HEADER + SHAMAX;
+			for (i = 0; i < size; i++) {
+				if (i < HEADER) { /* BSTATUS & M0 */
+					hdcp_mKsvListBuf[(list * KSV_LEN) + i]
+						= hdmitx_rd_reg(
+						HDMITX_DWC_HDCP_BSTATUS_0 + i);
+				} else if (i < (HEADER + (list * KSV_LEN))) {
+					/* KSV list */
+					hdcp_mKsvListBuf[i - HEADER] =
+						hdmitx_rd_reg(
+						HDMITX_DWC_HDCP_BSTATUS_0 + i);
+				} else { /* SHA */
+					hdcp_mKsvListBuf[i] = hdmitx_rd_reg(
+						HDMITX_DWC_HDCP_BSTATUS_0 + i);
+				}
+			}
+			valid = hdcpVerify_KSV(hdcp_mKsvListBuf, size)
+				== TRUE	? HDCP_KSV_LIST_READY :
+				HDCP_ERR_KSV_LIST_NOT_VALID;
+		}
+		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL,
+			(valid == HDCP_KSV_LIST_READY) ? 0 : 1, 3, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 2, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 2, 1);
+		kfree(hdcp_mKsvListBuf);
+	} else
+		pr_info("hdcptx14: KSV List memory not valid\n");
+}
+
 static void hdcp_ksv_event(unsigned long arg)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)arg;
@@ -2921,6 +2968,14 @@ static void hdcp_ksv_event(unsigned long arg)
 	}
 	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
+		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1);
+		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
+		if (hdmitx_rd_reg(HDMITX_DWC_A_KSVMEMCTRL) & (1 << 1)) {
+			hdcp_ksv_sha1_calc(hdev);
+		} else {
+			pr_info("hdcptx14: KSV List memory access denied\n");
+			return;
+		}
 		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x4);
 	}
 	if (hdev->hdcp_try_times)

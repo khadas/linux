@@ -203,8 +203,13 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 		raw_local_save_flags(fiq_flag);
 		local_fiq_disable();
 
+/*
+ * If addr is located at 0x5020 ~ 0x667e in DWC,
+ * then should operate twice
+ */
 		hd_write_reg(P_HDMITX_ADDR_PORT + offset, addr);
 		hd_write_reg(P_HDMITX_ADDR_PORT + offset, addr);
+		data = hd_read_reg(P_HDMITX_DATA_PORT + offset);
 		data = hd_read_reg(P_HDMITX_DATA_PORT + offset);
 
 		raw_local_irq_restore(fiq_flag);

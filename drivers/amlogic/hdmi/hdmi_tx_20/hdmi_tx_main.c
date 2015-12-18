@@ -129,10 +129,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, HDCP_OFF);
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, DDC_RESET_HDCP);
 	if (phdmi->gpio_i2c_enable) {
-		if (phdmi->hdcpop.hdcp14_en) {
-			hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
-			phdmi->HWOp.CntlDDC(phdmi, DDC_PIN_MUX_OP, PIN_UNMUX);
-		}
+		hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
+		phdmi->HWOp.CntlDDC(phdmi, DDC_PIN_MUX_OP, PIN_UNMUX);
 	}
 	switch_set_state(&hdmi_power, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
@@ -462,9 +460,6 @@ static int set_disp_mode_auto(void)
 		(strncmp(info->name, "panel", 5) == 0) ||
 		(strncmp(info->name, "null", 4) == 0)) {
 		hdmi_print(ERR, VID "%s not valid hdmi mode\n", info->name);
-		/*if (hdmitx_device.hdcpop.hdcp14_en)
-			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-				DDC_HDCP_OP, HDCP_ON);*/
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_CLR_AVI_PACKET, 0);
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
@@ -906,10 +901,7 @@ static ssize_t store_config(struct device *dev,
 		/* First, disable HDMI TMDS */
 		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-		if (hdmitx_device.hdcpop.hdcp14_en)
-			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-				DDC_HDCP_OP, HDCP_OFF);
-			/* Second, set 3D parameters */
+		/* Second, set 3D parameters */
 		if (strncmp(buf+2, "tb", 2) == 0)
 			hdmi_set_3d(&hdmitx_device, 6, 0);
 		else if (strncmp(buf+2, "lr", 2) == 0) {
@@ -925,9 +917,6 @@ static ssize_t store_config(struct device *dev,
 		msleep(20);
 		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
-		if (hdmitx_device.hdcpop.hdcp14_en)
-			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-				DDC_HDCP_OP, HDCP_ON);
 	} else if (strncmp(buf, "audio_", 6) == 0) {
 		if (strncmp(buf+6, "off", 3) == 0) {
 			hdmitx_audio_mute_op(0);
@@ -1298,7 +1287,8 @@ static ssize_t show_hdcp_ver(struct device *dev,
 	}
 	/* Detect RX support HDCP14 */
 	ver = hdcp_rd_hdcp14_ver();
-	if (ver) {
+	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
+	if (1) {
 		pos += snprintf(buf+pos, PAGE_SIZE, "14\n\r");
 		return pos;
 	}
@@ -1723,10 +1713,8 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlMisc(hdev, MISC_ESM_RESET, 0);
 	if (hdev->gpio_i2c_enable) {
 		edid_read_flag = 0;
-		if (hdev->hdcpop.hdcp14_en) {
-			hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
-			hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
-		}
+		hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
+		hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
 	}
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
@@ -2204,20 +2192,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		memset(&hdmitx_device.config_data, 0,
 			sizeof(struct hdmi_config_platform_data));
-/* Get HDCP cmd */
-	hdmitx_device.hdcpop.hdcp14_en = 0;
-	hdmitx_device.hdcpop.hdcp14_rslt = 0;
-	ret = of_property_read_u32(pdev->dev.of_node, "hdcp14_en", &val);
-	if (!ret)
-		hdmitx_device.hdcpop.hdcp14_en = val;
-	ret = of_property_read_u32(pdev->dev.of_node, "hdcp14_rslt", &val);
-	if (!ret)
-		hdmitx_device.hdcpop.hdcp14_rslt = val;
-	if ((hdmitx_device.hdcpop.hdcp14_en)
-		& (hdmitx_device.hdcpop.hdcp14_rslt))
-		pr_info("hdmitx hdcp14 %x %x",
-			hdmitx_device.hdcpop.hdcp14_en & 0xff,
-			hdmitx_device.hdcpop.hdcp14_rslt & 0xff);
 /*Get HDMI gpio i2c cmd*/
 	ret = of_property_read_u32(pdev->dev.of_node, "gpio_i2c_en", &val);
 	if (!ret)

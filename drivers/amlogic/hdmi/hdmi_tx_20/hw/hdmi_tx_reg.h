@@ -888,6 +888,7 @@ int hdmitx_hdcp_opr(unsigned int val);
 #define HDMITX_DWC_HDCP_REVOC_SIZE_0            (DWC_OFFSET_MASK + 0x52B9)
 #define HDMITX_DWC_HDCP_REVOC_SIZE_1            (DWC_OFFSET_MASK + 0x52BA)
 #define HDMITX_DWC_HDCP_REVOC_LIST              (DWC_OFFSET_MASK + 0x52BB)
+#define HDMITX_DWC_HDCP_REVOC_LIST_END          (DWC_OFFSET_MASK + 0x667E)
 
 /* HDCP BKSV Registers */
 #define HDMITX_DWC_HDCPREG_BKSV0                (DWC_OFFSET_MASK + 0x7800)
