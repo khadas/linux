@@ -120,11 +120,11 @@ static char *bl_method_type_to_str(int type)
 static unsigned int pwm_misc[6][5] = {
 	/* pwm_reg,         div bit, clk_sel bit, clk_en bit, pwm_en bit*/
 	{PWM_MISC_REG_AB,   8,       4,           15,         0,},
-	{PWM_MISC_REG_AB,   16,      6,           23,         1,},
+	{PWM_MISC_REG_AB,   16,      6,           23,         0,},
 	{PWM_MISC_REG_CD,   8,       4,           15,         0,},
-	{PWM_MISC_REG_CD,   16,      6,           23,         1,},
+	{PWM_MISC_REG_CD,   16,      6,           23,         0,},
 	{PWM_MISC_REG_EF,   8,       4,           15,         0,},
-	{PWM_MISC_REG_EF,   16,      6,           23,         1,},
+	{PWM_MISC_REG_EF,   16,      6,           23,         0,},
 };
 
 static unsigned int pwm_reg[6] = {
@@ -143,9 +143,6 @@ static enum bl_chip_type_e aml_bl_check_chip(void)
 
 	cpu_type = get_cpu_type();
 	switch (cpu_type) {
-	case MESON_CPU_MAJOR_ID_M6:
-		bl_chip = BL_CHIP_M6;
-		break;
 	case MESON_CPU_MAJOR_ID_M8:
 		bl_chip = BL_CHIP_M8;
 		break;
@@ -466,7 +463,8 @@ static void bl_pwm_pinmux_ctrl(struct bl_config_s *bconf, int status)
 			BLPR("release %s pinmux: %p\n",
 				bl_pinmux_str[index], bconf->pin);
 		}
-		devm_pinctrl_put(bconf->pin);
+		devm_pinctrl_put(bconf->pin); /* release dummy pinmux */
+		devm_pinctrl_put(bconf->pin); /* release pinmux */
 		/* set gpio */
 		switch (bconf->method) {
 		case BL_CTRL_PWM:
@@ -506,6 +504,8 @@ static void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 		case BL_PWM_B:
 		case BL_PWM_C:
 		case BL_PWM_D:
+		case BL_PWM_E:
+		case BL_PWM_F:
 			/* pwm clk_div */
 			bl_cbus_setb(pwm_misc[port][0], pre_div,
 				pwm_misc[port][1], 7);
@@ -516,26 +516,8 @@ static void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 			bl_cbus_setb(pwm_misc[port][0], 1,
 				pwm_misc[port][3], 1);
 			/* pwm enable */
-			bl_cbus_setb(pwm_misc[port][0], 1,
-				pwm_misc[port][4], 1);
-			break;
-		case BL_PWM_E:
-		case BL_PWM_F:
-			if (bl_chip_type >= BL_CHIP_M8) {
-				/* pwm clk_div */
-				bl_cbus_setb(pwm_misc[port][0],
-					pre_div,
-					pwm_misc[port][1], 7);
-				/* pwm clk_sel */
-				bl_cbus_setb(pwm_misc[port][0], 0,
-					pwm_misc[port][2], 2);
-				/* pwm clk_en */
-				bl_cbus_setb(pwm_misc[port][0], 1,
-					pwm_misc[port][3], 1);
-				/* pwm enable */
-				bl_cbus_setb(pwm_misc[port][0], 1,
-					pwm_misc[port][4], 1);
-			}
+			bl_cbus_setb(pwm_misc[port][0], 0x3,
+				pwm_misc[port][4], 2);
 			break;
 		default:
 			break;
@@ -547,15 +529,11 @@ static void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 		case BL_PWM_B:
 		case BL_PWM_C:
 		case BL_PWM_D:
-			bl_cbus_setb(pwm_misc[port][0], 0,
-				pwm_misc[port][4], 1);
-			break;
 		case BL_PWM_E:
 		case BL_PWM_F:
-			if (bl_chip_type >= BL_CHIP_M8) {
-				bl_cbus_setb(pwm_misc[port][0], 0,
-					pwm_misc[port][4], 1);
-			}
+			/* pwm clk_disable */
+			bl_cbus_setb(pwm_misc[port][0], 0,
+				pwm_misc[port][3], 1);
 			break;
 		default:
 			break;
@@ -778,18 +756,21 @@ static unsigned int bl_level_mapping(unsigned int level)
 	if (mid == mid_map)
 		return level;
 
-	if (level >= mid) {
+	level = level > max ? max : level;
+	if ((level >= mid) && (level <= max)) {
 		level = (((level - mid) * (max - mid_map)) / (max - mid)) +
 			mid_map;
-	} else {
+	} else if ((level >= min) && (level < mid)) {
 		level = (((level - min) * (mid_map - min)) / (mid - min)) + min;
+	} else {
+		level = 0;
 	}
 	return level;
 }
 
 static void bl_set_level_pwm(struct bl_pwm_config_s *bl_pwm, unsigned int level)
 {
-	unsigned int pwm_hi = 0, pwm_lo = 0;
+	unsigned int pwm_hi = 0, pwm_lo = 0, pwm_level;
 	unsigned int min = bl_pwm->level_min;
 	unsigned int max = bl_pwm->level_max;
 	unsigned int pwm_max = bl_pwm->pwm_max;
@@ -800,18 +781,35 @@ static void bl_set_level_pwm(struct bl_pwm_config_s *bl_pwm, unsigned int level)
 	level = bl_level_mapping(level);
 	max = bl_level_mapping(max);
 	min = bl_level_mapping(min);
-	level = (pwm_max - pwm_min) * (level - min) / (max - min) + pwm_min;
+	if ((max <= min) || (level < min)) {
+		pwm_level = pwm_min;
+	} else {
+		pwm_level = (pwm_max - pwm_min) * (level - min) / (max - min) +
+			pwm_min;
+	}
+	if (bl_debug_print_flag) {
+		BLPR("port %d mapping: level=%d, level_max=%d, level_min=%d\n",
+			port, level, max, min);
+		BLPR("port %d: pwm_max=%d, pwm_min=%d, pwm_level=%d\n",
+			port, pwm_max, pwm_min, pwm_level);
+	}
 	switch (bl_pwm->pwm_method) {
 	case BL_PWM_POSITIVE:
-		pwm_hi = level;
-		pwm_lo = bl_pwm->pwm_cnt - level;
+		pwm_hi = pwm_level;
+		pwm_lo = bl_pwm->pwm_cnt - pwm_level;
 		break;
 	case BL_PWM_NEGATIVE:
-		pwm_lo = level;
-		pwm_hi = bl_pwm->pwm_cnt - level;
+		pwm_lo = pwm_level;
+		pwm_hi = bl_pwm->pwm_cnt - pwm_level;
 		break;
 	default:
+		BLERR("port %d: invalid pwm_method %d\n",
+			port, bl_pwm->pwm_method);
 		break;
+	}
+	if (bl_debug_print_flag) {
+		BLPR("port %d: pwm_cnt=%d, pwm_hi=%d, pwm_lo=%d\n",
+			port, bl_pwm->pwm_cnt, pwm_hi, pwm_lo);
 	}
 
 	switch (port) {
@@ -819,12 +817,9 @@ static void bl_set_level_pwm(struct bl_pwm_config_s *bl_pwm, unsigned int level)
 	case BL_PWM_B:
 	case BL_PWM_C:
 	case BL_PWM_D:
-		bl_cbus_write(pwm_reg[port], (pwm_hi << 16) | pwm_lo);
-		break;
 	case BL_PWM_E:
 	case BL_PWM_F:
-		if (bl_chip_type >= BL_CHIP_M8)
-			bl_cbus_write(pwm_reg[port], (pwm_hi << 16) | pwm_lo);
+		bl_cbus_write(pwm_reg[port], (pwm_hi << 16) | pwm_lo);
 		break;
 	case BL_PWM_VS:
 		memset(vs, 0, sizeof(unsigned int) * 4);
@@ -904,7 +899,7 @@ static void aml_bl_set_level(unsigned int level)
 		return;
 
 	if (bl_debug_print_flag) {
-		BLPR("aml_bl_set_level=%u, last level=%u, state=0x%x\n",
+		BLPR("aml_bl_set_level=%u, last_level=%u, state=0x%x\n",
 			level, bl_drv->level, bl_drv->state);
 	}
 
@@ -931,16 +926,24 @@ static void aml_bl_set_level(unsigned int level)
 	case BL_CTRL_PWM_COMBO:
 		pwm0 = bl_drv->bconf->bl_pwm_combo0;
 		pwm1 = bl_drv->bconf->bl_pwm_combo1;
-		if ((level >= pwm0->level_min) ||
+		if ((level >= pwm0->level_min) &&
 			(level <= pwm0->level_max)) {
 			temp = (pwm0->level_min > pwm1->level_min) ?
 				pwm1->level_max : pwm1->level_min;
+			if (bl_debug_print_flag) {
+				BLPR("pwm0 region, level=%u, pwm1_level=%u\n",
+					level, temp);
+			}
 			bl_set_level_pwm(pwm0, level);
 			bl_set_level_pwm(pwm1, temp);
-		} else if ((level >= pwm1->level_min) ||
+		} else if ((level >= pwm1->level_min) &&
 			(level <= pwm1->level_max)) {
 			temp = (pwm1->level_min > pwm0->level_min) ?
 				pwm0->level_max : pwm0->level_min;
+			if (bl_debug_print_flag) {
+				BLPR("pwm1 region, level=%u, pwm0_level=%u\n",
+					level, temp);
+			}
 			bl_set_level_pwm(pwm0, temp);
 			bl_set_level_pwm(pwm1, level);
 		}
@@ -1039,6 +1042,10 @@ static void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 	unsigned int freq, cnt, pre_div;
 	int i;
 
+	if (bl_debug_print_flag) {
+		BLPR("%s pwm_port %d: freq = %u\n",
+			__func__, bl_pwm->pwm_port, bl_pwm->pwm_freq);
+	}
 	freq = bl_pwm->pwm_freq;
 	switch (bl_pwm->pwm_port) {
 	case BL_PWM_VS:
@@ -1063,6 +1070,7 @@ static void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 	}
 	bl_pwm->pwm_max = (bl_pwm->pwm_cnt * bl_pwm->pwm_duty_max / 100);
 	bl_pwm->pwm_min = (bl_pwm->pwm_cnt * bl_pwm->pwm_duty_min / 100);
+
 	if (bl_debug_print_flag) {
 		BLPR("pwm_max = %u, pwm_min = %u\n",
 			bl_pwm->pwm_max, bl_pwm->pwm_min);
@@ -1076,63 +1084,75 @@ static void aml_bl_config_print(struct bl_config_s *bconf)
 	if (bl_debug_print_flag == 0)
 		return;
 
-	BLPR("bl level default kernel=%u\n", bconf->level_default);
-	BLPR("bl level max=%u, min=%u\n",
+	BLPR("level default kernel=%u\n", bconf->level_default);
+	BLPR("level max=%u, min=%u\n",
 		bconf->level_max, bconf->level_min);
-	BLPR("bl power on_delay: %ums, off_delay: %ums\n",
+	BLPR("power on_delay: %ums, off_delay: %ums\n",
 		bconf->power_on_delay, bconf->power_off_delay);
 
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
 		bl_pwm = bconf->bl_pwm;
-		BLPR("bl pwm_method: %d\n", bl_pwm->pwm_method);
-		BLPR("bl pwm_port: %u\n", bl_pwm->pwm_port);
+		BLPR("pwm_method: %d\n", bl_pwm->pwm_method);
+		BLPR("pwm_port: %u\n", bl_pwm->pwm_port);
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
-			BLPR("bl pwm_freq: %u x vfreq\n", bl_pwm->pwm_freq);
-			BLPR("pwm_cnt = %u\n", bl_pwm->pwm_cnt);
+			BLPR("pwm_freq: %u x vfreq, pwm_cnt=%u\n",
+				bl_pwm->pwm_freq, bl_pwm->pwm_cnt);
 		} else {
-			BLPR("bl pwm_freq: %uHz\n", bl_pwm->pwm_freq);
-			BLPR("bl pwm_cnt=%u, pre_div=%u\n",
-				bl_pwm->pwm_cnt, bl_pwm->pwm_pre_div);
+			BLPR("pwm_freq: %uHz, pwm_cnt=%u, pre_div=%u\n",
+				bl_pwm->pwm_freq, bl_pwm->pwm_cnt,
+				bl_pwm->pwm_pre_div);
 		}
-		BLPR("bl pwm_duty max: %u%%, min: %u%%\n",
+		BLPR("pwm_level_max: %u, level_min: %u\n",
+			bl_pwm->level_max, bl_pwm->level_min);
+		BLPR("pwm_duty_max: %u%%, duty_min: %u%%\n",
 			bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
-		BLPR("bl pwm_gpio_off: %u\n", bl_pwm->pwm_gpio_off);
-		BLPR("bl pwm on_delay: %ums, off_delay: %ums\n",
+		BLPR("pwm_max: %u, pwm_min: %u\n",
+			bl_pwm->pwm_max, bl_pwm->pwm_min);
+		BLPR("pwm_gpio_off: %u\n", bl_pwm->pwm_gpio_off);
+		BLPR("pwm on_delay: %ums, off_delay: %ums\n",
 			bconf->pwm_on_delay, bconf->pwm_off_delay);
 		break;
 	case BL_CTRL_PWM_COMBO:
 		/* pwm_combo_0 */
 		bl_pwm = bconf->bl_pwm_combo0;
-		BLPR("bl pwm_0_method: %d\n", bl_pwm->pwm_method);
-		BLPR("bl pwm_0_port: %u\n", bl_pwm->pwm_port);
+		BLPR("pwm_0 port: %u, method: %d\n",
+			bl_pwm->pwm_port, bl_pwm->pwm_method);
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
-			BLPR("bl pwm_0_freq: %u x vfreq\n", bl_pwm->pwm_freq);
-			BLPR("pwm_0_cnt = %u\n", bl_pwm->pwm_cnt);
+			BLPR("pwm_0 freq: %u x vfreq, cnt=%u\n",
+				bl_pwm->pwm_freq, bl_pwm->pwm_cnt);
 		} else {
-			BLPR("bl pwm_0_freq: %uHz\n", bl_pwm->pwm_freq);
-			BLPR("bl pwm_0_cnt=%u, pre_div=%u\n",
-				bl_pwm->pwm_cnt, bl_pwm->pwm_pre_div);
+			BLPR("pwm_0 freq: %uHz, cnt=%u, pre_div=%u\n",
+				bl_pwm->pwm_freq, bl_pwm->pwm_cnt,
+				bl_pwm->pwm_pre_div);
 		}
-		BLPR("bl pwm_0_duty max: %u%%, min: %u%%\n",
+		BLPR("pwm_0 level_max: %u, level_min: %u\n",
+			bl_pwm->level_max, bl_pwm->level_min);
+		BLPR("pwm_0 duty_max: %u%%, duty_min: %u%%\n",
 			bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
-		BLPR("bl pwm_0_gpio_off: %u\n", bl_pwm->pwm_gpio_off);
+		BLPR("pwm_0 max: %u%%, min: %u%%\n",
+			bl_pwm->pwm_max, bl_pwm->pwm_min);
+		BLPR("pwm_0 gpio_off: %u\n", bl_pwm->pwm_gpio_off);
 		/* pwm_combo_1 */
 		bl_pwm = bconf->bl_pwm_combo1;
-		BLPR("bl pwm_1_method: %d\n", bl_pwm->pwm_method);
-		BLPR("bl pwm_1_port: %u\n", bl_pwm->pwm_port);
+		BLPR("pwm_1 port: %u, method: %d\n",
+			bl_pwm->pwm_port, bl_pwm->pwm_method);
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
-			BLPR("bl pwm_1_freq: %u x vfreq\n", bl_pwm->pwm_freq);
-			BLPR("pwm_1_cnt = %u\n", bl_pwm->pwm_cnt);
+			BLPR("pwm_1 freq: %u x vfreq, cnt=%u\n",
+				bl_pwm->pwm_freq, bl_pwm->pwm_cnt);
 		} else {
-			BLPR("bl pwm_1_freq: %uHz\n", bl_pwm->pwm_freq);
-			BLPR("bl pwm_1_cnt=%u, pre_div=%u\n",
-				bl_pwm->pwm_cnt, bl_pwm->pwm_pre_div);
+			BLPR("pwm_1 freq: %uHz, cnt=%u, pre_div=%u\n",
+				bl_pwm->pwm_freq, bl_pwm->pwm_cnt,
+				bl_pwm->pwm_pre_div);
 		}
-		BLPR("bl pwm_1_duty max: %u%%, min: %u%%\n",
+		BLPR("pwm_1 level_max: %u, level_min: %u\n",
+			bl_pwm->level_max, bl_pwm->level_min);
+		BLPR("pwm_1 duty_max: %u%%, duty_min: %u%%\n",
 			bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
-		BLPR("bl pwm_1_gpio_off: %u\n", bl_pwm->pwm_gpio_off);
-		BLPR("bl pwm on_delay: %ums, off_delay: %ums\n",
+		BLPR("pwm_1 max: %u, min: %u\n",
+			bl_pwm->pwm_max, bl_pwm->pwm_min);
+		BLPR("pwm_1 gpio_off: %u\n", bl_pwm->pwm_gpio_off);
+		BLPR("pwm on_delay: %ums, off_delay: %ums\n",
 			bconf->pwm_on_delay, bconf->pwm_off_delay);
 		break;
 	default:
@@ -1266,9 +1286,7 @@ static int aml_bl_get_config(struct bl_config_s *bconf,
 			bl_pwm->pwm_duty_max = 80;
 			bl_pwm->pwm_duty_min = 20;
 		} else {
-			val = (bl_para[0] >= BL_PWM_METHOD_MAX) ?
-				BL_PWM_METHOD_MAX : val;
-			bl_pwm->pwm_method = val;
+			bl_pwm->pwm_method = bl_para[0];
 			bl_pwm->pwm_freq = bl_para[1];
 			bl_pwm->pwm_duty_max = bl_para[2];
 			bl_pwm->pwm_duty_min = bl_para[3];
@@ -1383,15 +1401,11 @@ static int aml_bl_get_config(struct bl_config_s *bconf,
 			pwm_combo1->pwm_duty_max = 80;
 			pwm_combo1->pwm_duty_min = 20;
 		} else {
-			val = (bl_para[0] >= BL_PWM_METHOD_MAX) ?
-				BL_PWM_METHOD_MAX : val;
-			pwm_combo0->pwm_method = val;
+			pwm_combo0->pwm_method = bl_para[0];
 			pwm_combo0->pwm_freq = bl_para[1];
 			pwm_combo0->pwm_duty_max = bl_para[2];
 			pwm_combo0->pwm_duty_min = bl_para[3];
-			val = (bl_para[4] >= BL_PWM_METHOD_MAX) ?
-				BL_PWM_METHOD_MAX : val;
-			pwm_combo1->pwm_method = val;
+			pwm_combo1->pwm_method = bl_para[4];
 			pwm_combo1->pwm_freq = bl_para[5];
 			pwm_combo1->pwm_duty_max = bl_para[6];
 			pwm_combo1->pwm_duty_min = bl_para[7];

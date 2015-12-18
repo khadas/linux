@@ -2,14 +2,14 @@ backlight{
 	compatible = "amlogic, backlight";
 	dev_name = "backlight";
 	status = "okay";
-	pinctrl-names = "pwm_on","pwm_vs_on","pwm_combo_on",
-			"pwm_off","pwm_vs_off","pwm_combo_off";
+	pinctrl-names = "pwm_on","pwm_off","pwm_vs_on","pwm_vs_off",
+			"pwm_combo_on", "pwm_combo_off";
 	pinctrl-0 = <&bl_pwm_on_pins>;
-	pinctrl-1 = <&bl_pwm_vs_on_pins>;
-	pinctrl-2 = <&bl_pwm_combo_on_pins>;
-	pinctrl-4 = <&bl_pwm_off_pins>;
-	pinctrl-5 = <&bl_pwm_vs_off_pins>;
-	pinctrl-6 = <&bl_pwm_combo_off_pins>;
+	pinctrl-1 = <&bl_pwm_off_pins>;
+	pinctrl-2 = <&bl_pwm_vs_on_pins>;
+	pinctrl-3 = <&bl_pwm_vs_off_pins>;
+	pinctrl-4 = <&bl_pwm_combo_on_pins>;
+	pinctrl-5 = <&bl_pwm_combo_off_pins>;
 
 	/* power index:(point gpios_index, 0xff=invalid) */
 	/* power value:(0=output low, 1=output high, 2=input) */
@@ -53,7 +53,7 @@ backlight{
 	};
 	backlight_2{
 		index = <2>;
-		bl_name = "backlight_3";
+		bl_name = "backlight_2";
 		bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
 		bl_ctrl_method = <3>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
@@ -61,7 +61,7 @@ backlight{
 	};
 	backlight_3{
 		index = <3>;
-		bl_name = "backlight_2";
+		bl_name = "backlight_3";
 		bl_level_default_uboot_kernel = <100 100>;
 		bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 

@@ -846,14 +846,11 @@
 		compatible = "amlogic, backlight";
 		dev_name = "backlight";
 		status = "disabled";
-		pinctrl-names = "pwm_on","pwm_vs_on","pwm_combo_on",
-				"pwm_off","pwm_vs_off","pwm_combo_off";
+		pinctrl-names = "pwm_on","pwm_off","pwm_vs_on","pwm_vs_off";
 		pinctrl-0 = <&bl_pwm_on_pins>;
-		pinctrl-1 = <&bl_pwm_vs_on_pins>;
-		pinctrl-2 = <&bl_pwm_combo_on_pins>;
-		pinctrl-4 = <&bl_pwm_off_pins>;
-		pinctrl-5 = <&bl_pwm_vs_off_pins>;
-		pinctrl-6 = <&bl_pwm_combo_off_pins>;
+		pinctrl-1 = <&bl_pwm_off_pins>;
+		pinctrl-2 = <&bl_pwm_vs_on_pins>;
+		pinctrl-3 = <&bl_pwm_vs_off_pins>;
 
 		/* power index:(point gpios_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
@@ -1171,7 +1168,7 @@
 		amlogic,pins = "GPIOY_13";
 	};
 	bl_pwm_off_pins:bl_pwm_off_pin {
-		amlogic,clrmask = <10 0x00800000>;
+		amlogic,clrmask = <10 0x0180a000>;
 		amlogic,pins = "GPIOY_13";
 		amlogic,enable-output=<1>;
 	};
@@ -1181,18 +1178,8 @@
 		amlogic,pins = "GPIOY_13";
 	};
 	bl_pwm_vs_off_pins:bl_pwm_vs_off_pin {
-		amlogic,clrmask = <10 0x01000000>;
+		amlogic,clrmask = <10 0x0180a000>;
 		amlogic,pins = "GPIOY_13";
-		amlogic,enable-output=<1>;
-	};
-	bl_pwm_combo_on_pins:bl_pwm_combo_on_pin {
-		amlogic,setmask = <10 0x00840000>;
-		amlogic,clrmask = <10 0x0100a000 4  0x21001008>;
-		amlogic,pins = "GPIOY_13","GPIOY_8";
-	};
-	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
-		amlogic,clrmask = <10 0x0184a000 4  0x21001008>;
-		amlogic,pins = "GPIOY_13","GPIOY_8";
 		amlogic,enable-output=<1>;
 	};
 	hdmirx_pins: hdmirx_pins {

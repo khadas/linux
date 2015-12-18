@@ -23,9 +23,9 @@
 #define PWM_PWM_A                       0x2154
 #define PWM_PWM_B                       0x2155
 #define PWM_MISC_REG_AB                 0x2156
-#define PWM_PWM_C                       0x2194
-#define PWM_PWM_D                       0x2195
-#define PWM_MISC_REG_CD                 0x2196
+#define PWM_PWM_C                       0x2190
+#define PWM_PWM_D                       0x2191
+#define PWM_MISC_REG_CD                 0x2192
 #define PWM_PWM_E                       0x21b0
 #define PWM_PWM_F                       0x21b1
 #define PWM_MISC_REG_EF                 0x21b2

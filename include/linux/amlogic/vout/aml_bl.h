@@ -40,8 +40,7 @@
 #define BL_FREQ_VS_DEFAULT	2    /* multiple 2 of vfreq */
 
 enum bl_chip_type_e {
-	BL_CHIP_M6 = 0,
-	BL_CHIP_M8,
+	BL_CHIP_M8 = 0,
 	BL_CHIP_M8B,
 	BL_CHIP_M8M2,
 	BL_CHIP_G9TV,
@@ -61,8 +60,8 @@ enum bl_ctrl_method_e {
 };
 
 enum bl_pwm_method_e {
-	BL_PWM_POSITIVE = 0,
-	BL_PWM_NEGATIVE,
+	BL_PWM_NEGATIVE = 0,
+	BL_PWM_POSITIVE,
 	BL_PWM_METHOD_MAX,
 };
 

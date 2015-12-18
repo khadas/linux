@@ -974,25 +974,6 @@
 			"GPIOZ_18","GPIOZ_19","GPIOZ_20";
 	};
 
-	lcd_vbyone_pins:lcd_vbyone_pin {
-		amlogic,setmask = <7 0x00001800>;
-		amlogic,clrmask = <7 0x00000606>;
-		amlogic,pins = "GPIOH_1","GPIOH_2";
-	};
-
-	bl_pwm_pins:bl_pwm_pin {
-		amlogic,setmask = <10 0x00010000>;
-		amlogic,clrmask = <4  0x14800808
-				   10 0x00020000>;
-		amlogic,pins = "GPIOY_7";
-	};
-
-	bl_pwm_vs_pins:bl_pwm_vs_pin {
-		amlogic,setmask = <10 0x00020000>;
-		amlogic,clrmask = <4  0x14800808
-				   10 0x00010000>;
-		amlogic,pins = "GPIOY_7";
-	};
 	/*PWM-A*/
 	/*pwm_a_pins:pwm_a_pins{
 		amlogic,setmask=<10 0x200000>;

@@ -18,7 +18,7 @@ lcd{
 	pinctrl-6 = <&lcd_ttl_rgb_6bit_pins_off &lcd_ttl_de_hvsync_off_pins>;
 	pinctrl-7 = <&lcd_ttl_rgb_8bit_pins_off &lcd_ttl_de_hvsync_off_pins>;
 
-	/* power type:(0=cpu, 1=pmu, 2=signal, 3=extern, 0xff=ending) */
+	/* power type:(0=cpu_gpio, 1=pmu_gpio, 2=signal, 3=extern, 0xff=ending) */
 	/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
 	/* power value:(0=output low, 1=output high, 2=input) */
 	/* power delay:(unit in ms) */
