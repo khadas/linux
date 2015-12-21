@@ -1148,6 +1148,109 @@ static int set_a19_reg_value_sandisk(struct hw_controller *controller,
 	return NAND_SUCCESS;
 }
 
+int aml_nand_sandisk_A19_set_LMFLGFIX_NEXT(struct hw_controller *controller,
+	unsigned char chipnr)
+{
+	int ret = 0;
+
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb failed chipnr:%d", chipnr);
+		return -NAND_FAILED;
+	}
+
+	/*Test Mode Enter*/
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE1,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE2,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE_ACCESS,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller, 0x00, NAND_CTRL_ALE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->writebyte(controller, 0x01);
+	NFC_SEND_CMD_IDLE(controller, 10);
+
+	/*set LMFLGFIX_NEXT=1*/
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE_ACCESS,
+		NAND_CTRL_CLE); /* 0X55 */
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller, 0x23, NAND_CTRL_ALE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->writebyte(controller, 0xC0);
+	NFC_SEND_CMD_IDLE(controller, 10);
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb failed chipnr:%d", chipnr);
+		return -NAND_FAILED;
+	}
+
+	return 0;
+}
+
+int aml_nand_sandisk_A19_reset_LMFLGFIX_NEXT(struct hw_controller *controller,
+	unsigned char chipnr)
+{
+	int ret = 0;
+
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb failed chipnr:%d", chipnr);
+		return -NAND_FAILED;
+	}
+
+	/*Test Mode Enter*/
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE1,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE2,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE_ACCESS,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller, 0x00, NAND_CTRL_ALE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->writebyte(controller, 0x01);
+	NFC_SEND_CMD_IDLE(controller, 10);
+
+	/*set LMFLGFIX_NEXT=0*/
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE_ACCESS,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller, 0x23, NAND_CTRL_ALE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->writebyte(controller, 0x40);
+	NFC_SEND_CMD_IDLE(controller, 10);
+
+	/*Test Mode Exit*/
+	controller->cmd_ctrl(controller,
+		NAND_CMD_SANDISK_TEST_MODE_ACCESS, NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->cmd_ctrl(controller, 0x00, NAND_CTRL_ALE);
+	NFC_SEND_CMD_IDLE(controller, 2);
+	controller->writebyte(controller, 0x00);
+	NFC_SEND_CMD_IDLE(controller, 10);
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb failed chipnr:%d", chipnr);
+		return -NAND_FAILED;
+	}
+
+	return 0;
+}
+
 static int readretry_handle_a19_sandisk(struct hw_controller *controller,
 	unsigned char chipnr)
 {
@@ -1174,22 +1277,72 @@ static int readretry_handle_a19_sandisk(struct hw_controller *controller,
 		retry_info->reg_addr_lp[0],
 		chipnr,
 		retry_info->reg_cnt_lp);
-	controller->cmd_ctrl(controller,
-		NAND_CMD_SANDISK_DSP_OFF, NAND_CTRL_CLE);
-	NFC_SEND_CMD_IDLE(controller, 5);
-	if (flash->new_type != SANDISK_A19NM) {
+
+	switch (retry_info->retry_stage) {
+	case 0:
+		/*DSP OFF, default is DSP OFF, so no need to do*/
+		/*CMD 5D*/
 		controller->cmd_ctrl(controller,
-			NAND_CMD_SANDISK_DSP_ON, NAND_CTRL_CLE);
+			NAND_CMD_SANDISK_RETRY_STA,
+			NAND_CTRL_CLE);
+		break;
+	case 1:
+		/*DSP ON*/
+		/*CMD 5D*/
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_RETRY_STA,
+			NAND_CTRL_CLE);
 		NFC_SEND_CMD_IDLE(controller, 5);
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_DSP_ON,
+			NAND_CTRL_CLE);
+		break;
+	case 2:
+		/*CMD 25 Force Flag Prefix with DSP OFF and LMFLGFIX_NEXT = 0*/
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_DSP_OFF,
+			NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, 5);
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_RETRY_STA,
+			NAND_CTRL_CLE);
+		break;
+	case 3:
+		/*CMD 25 Force Flag Prefix with DSP ON and LMFLGFIX_NEXT = 1*/
+		aml_nand_sandisk_A19_set_LMFLGFIX_NEXT(controller, chipnr);
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_DSP_OFF,
+			NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, 5);
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_RETRY_STA,
+			NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, 5);
+		controller->cmd_ctrl(controller,
+			NAND_CMD_SANDISK_DSP_ON,
+			NAND_CTRL_CLE);
+		break;
+	default:
+		aml_nand_msg("never enter,retry stage:%d\n",
+			retry_info->retry_stage);
+		break;
 	}
-	controller->cmd_ctrl(controller,
-		NAND_CMD_SANDISK_RETRY_STA, NAND_CTRL_CLE);
-	NFC_SEND_CMD_IDLE(controller, 5);
+
 	cur_cnt++;
-	retry_info->cur_cnt_up[chipnr] =
-		(cur_cnt > (retry_info->retry_cnt_up - 1)) ? 0 : cur_cnt;
+
+	if (cur_cnt > (retry_info->retry_cnt_lp - 1)) {
+		retry_info->retry_stage++;
+		retry_info->cur_cnt_up[chipnr] = 0;
+	} else
+		retry_info->cur_cnt_up[chipnr] = cur_cnt;
+
+	aml_nand_dbg("retry_stage:%d, cur_cnt:%d\n",
+		retry_info->retry_stage,
+		cur_cnt);
+
 	return NAND_SUCCESS;
 }
+
 static int  readretry_exit_a19_sandisk(struct hw_controller *controller,
 	unsigned char chipnr)
 {
@@ -1207,12 +1360,16 @@ static int  readretry_exit_a19_sandisk(struct hw_controller *controller,
 		return -NAND_FAILED;
 	}
 	aml_nand_dbg("sandisk reatry exit");
+    /* reset the retry stage */
+	retry_info->retry_stage = 0;
 	memset(&retry_info->cur_cnt_lp[0], 0, MAX_CHIP_NUM);
+	memset(&retry_info->cur_cnt_up[0], 0, MAX_CHIP_NUM);
 	set_a19_reg_value_sandisk(controller,
 		buf,
 		retry_info->reg_addr_lp[0],
 		chipnr,
 		retry_info->reg_cnt_lp);
+	aml_nand_sandisk_A19_reset_LMFLGFIX_NEXT(controller, chipnr);
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
 		aml_nand_msg("quene rb failed chipnr:%d", chipnr);
@@ -1225,6 +1382,7 @@ static int  readretry_exit_a19_sandisk(struct hw_controller *controller,
 	}
 	return NAND_SUCCESS;
 }
+
 static int readretry_handle_sandisk(struct hw_controller *controller,
 	unsigned char chipnr)
 {
@@ -1998,251 +2156,8 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 	case SANDISK_A19NM:
 		retry_info->flag = 1;
 		retry_info->reg_cnt_lp = 4;
-		retry_info->retry_cnt_lp = 29;
-		retry_info->reg_addr_lp[0] = 0x11;
-		retry_info->reg_offs_val_lp[0][0][0] = 0x7c;
-		retry_info->reg_offs_val_lp[0][0][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][0][2] = 0x7c;
-		retry_info->reg_offs_val_lp[0][0][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][1][0] = 0x04;
-		retry_info->reg_offs_val_lp[0][1][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][1][2] = 0x04;
-		retry_info->reg_offs_val_lp[0][1][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][2][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][2][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][2][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][2][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][3][0] = 0x08;
-		retry_info->reg_offs_val_lp[0][3][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][3][2] = 0x08;
-		retry_info->reg_offs_val_lp[0][3][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][4][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][4][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][4][2] = 0x00;
-		retry_info->reg_offs_val_lp[0][4][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][5][0] = 0x7c;
-		retry_info->reg_offs_val_lp[0][5][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][5][2] = 0x7c;
-		retry_info->reg_offs_val_lp[0][5][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][6][0] = 0x04;
-		retry_info->reg_offs_val_lp[0][6][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][6][2] = 0x04;
-		retry_info->reg_offs_val_lp[0][6][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][7][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][7][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][7][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][7][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][8][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][8][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][8][2] = 0x74;
-		retry_info->reg_offs_val_lp[0][8][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][9][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][9][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][9][2] = 0x00;
-		retry_info->reg_offs_val_lp[0][9][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][10][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][10][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][10][2] = 0x7c;
-		retry_info->reg_offs_val_lp[0][10][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][11][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][11][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][11][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][11][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][12][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][12][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][12][2] = 0x74;
-		retry_info->reg_offs_val_lp[0][12][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][13][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][13][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][13][2] = 0x70;
-		retry_info->reg_offs_val_lp[0][13][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][14][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][14][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][14][2] = 0x00;
-		retry_info->reg_offs_val_lp[0][14][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][15][0] = 0x00;
-		retry_info->reg_offs_val_lp[0][15][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][15][2] = 0x7c;
-		retry_info->reg_offs_val_lp[0][15][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][16][0] = 0x10;
-		retry_info->reg_offs_val_lp[0][16][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][16][2] = 0x04;
-		retry_info->reg_offs_val_lp[0][16][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][17][0] = 0x7c;
-		retry_info->reg_offs_val_lp[0][17][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][17][2] = 0x7c;
-		retry_info->reg_offs_val_lp[0][17][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][18][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][18][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][18][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][18][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][19][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][19][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][19][2] = 0x74;
-		retry_info->reg_offs_val_lp[0][19][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][20][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][20][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][20][2] = 0x70;
-		retry_info->reg_offs_val_lp[0][20][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][21][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][21][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][21][2] = 0x6c;
-		retry_info->reg_offs_val_lp[0][21][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][22][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][22][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][22][2] = 0x78;
-		retry_info->reg_offs_val_lp[0][22][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][23][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][23][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][23][2] = 0x74;
-		retry_info->reg_offs_val_lp[0][23][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][24][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][24][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][24][2] = 0x70;
-		retry_info->reg_offs_val_lp[0][24][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][25][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][25][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][25][2] = 0x6c;
-		retry_info->reg_offs_val_lp[0][25][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][26][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][26][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][26][2] = 0x74;
-		retry_info->reg_offs_val_lp[0][26][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][27][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][27][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][27][2] = 0x70;
-		retry_info->reg_offs_val_lp[0][27][3] = 0x00;
-		retry_info->reg_offs_val_lp[0][28][0] = 0x78;
-		retry_info->reg_offs_val_lp[0][28][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][28][2] = 0x6c;
-		retry_info->reg_offs_val_lp[0][28][3] = 0x00;
-		retry_info->reg_offs_val_lp[1][0][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][0][1] = 0x00;
-		retry_info->reg_offs_val_lp[1][0][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][0][3] = 0x7c;
-		retry_info->reg_offs_val_lp[1][1][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][1][1] = 0x00;
-		retry_info->reg_offs_val_lp[1][1][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][1][3] = 0x04;
-		retry_info->reg_offs_val_lp[1][2][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][2][1] = 0x00;
-		retry_info->reg_offs_val_lp[1][2][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][2][3] = 0x78;
-		retry_info->reg_offs_val_lp[1][3][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][3][1] = 0x00;
-		retry_info->reg_offs_val_lp[1][3][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][3][3] = 0x08;
-		retry_info->reg_offs_val_lp[1][4][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][4][1] = 0x7c;
-		retry_info->reg_offs_val_lp[1][4][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][4][3] = 0x00;
-		retry_info->reg_offs_val_lp[1][5][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][5][1] = 0x7c;
-		retry_info->reg_offs_val_lp[1][5][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][5][3] = 0x7c;
-		retry_info->reg_offs_val_lp[1][6][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][6][1] = 0x7c;
-		retry_info->reg_offs_val_lp[1][6][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][6][3] = 0x04;
-		retry_info->reg_offs_val_lp[1][7][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][7][1] = 0x7c;
-		retry_info->reg_offs_val_lp[1][7][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][7][3] = 0x78;
-		retry_info->reg_offs_val_lp[1][8][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][8][1] = 0x7c;
-		retry_info->reg_offs_val_lp[1][8][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][8][3] = 0x74;
-		retry_info->reg_offs_val_lp[1][9][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][9][1] = 0x78;
-		retry_info->reg_offs_val_lp[1][9][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][9][3] = 0x00;
-		retry_info->reg_offs_val_lp[1][10][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][10][1] = 0x78;
-		retry_info->reg_offs_val_lp[1][10][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][10][3] = 0x7c;
-		retry_info->reg_offs_val_lp[1][11][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][11][1] = 0x78;
-		retry_info->reg_offs_val_lp[1][11][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][11][3] = 0x78;
-		retry_info->reg_offs_val_lp[1][12][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][12][1] = 0x78;
-		retry_info->reg_offs_val_lp[1][12][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][12][3] = 0x74;
-		retry_info->reg_offs_val_lp[1][13][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][13][1] = 0x78;
-		retry_info->reg_offs_val_lp[1][13][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][13][3] = 0x70;
-		retry_info->reg_offs_val_lp[1][14][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][14][1] = 0x04;
-		retry_info->reg_offs_val_lp[1][14][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][14][3] = 0x00;
-		retry_info->reg_offs_val_lp[1][15][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][15][1] = 0x04;
-		retry_info->reg_offs_val_lp[1][15][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][15][3] = 0x7c;
-		retry_info->reg_offs_val_lp[1][16][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][16][1] = 0x04;
-		retry_info->reg_offs_val_lp[1][16][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][16][3] = 0x04;
-		retry_info->reg_offs_val_lp[1][17][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][17][1] = 0x74;
-		retry_info->reg_offs_val_lp[1][17][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][17][3] = 0x7c;
-		retry_info->reg_offs_val_lp[1][18][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][18][1] = 0x74;
-		retry_info->reg_offs_val_lp[1][18][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][18][3] = 0x78;
-		retry_info->reg_offs_val_lp[1][19][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][19][1] = 0x74;
-		retry_info->reg_offs_val_lp[1][19][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][19][3] = 0x74;
-		retry_info->reg_offs_val_lp[1][20][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][20][1] = 0x74;
-		retry_info->reg_offs_val_lp[1][20][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][20][3] = 0x70;
-		retry_info->reg_offs_val_lp[1][21][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][21][1] = 0x74;
-		retry_info->reg_offs_val_lp[1][21][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][21][3] = 0x6c;
-		retry_info->reg_offs_val_lp[1][22][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][22][1] = 0x70;
-		retry_info->reg_offs_val_lp[1][22][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][22][3] = 0x78;
-		retry_info->reg_offs_val_lp[1][23][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][23][1] = 0x70;
-		retry_info->reg_offs_val_lp[1][23][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][23][3] = 0x74;
-		retry_info->reg_offs_val_lp[1][24][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][24][1] = 0x70;
-		retry_info->reg_offs_val_lp[1][24][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][24][3] = 0x70;
-		retry_info->reg_offs_val_lp[1][25][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][25][1] = 0x70;
-		retry_info->reg_offs_val_lp[1][25][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][25][3] = 0x6c;
-		retry_info->reg_offs_val_lp[1][26][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][26][1] = 0x6c;
-		retry_info->reg_offs_val_lp[1][26][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][26][3] = 0x74;
-		retry_info->reg_offs_val_lp[1][27][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][27][1] = 0x6c;
-		retry_info->reg_offs_val_lp[1][27][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][27][3] = 0x70;
-		retry_info->reg_offs_val_lp[1][28][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][28][1] = 0x6c;
-		retry_info->reg_offs_val_lp[1][28][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][28][3] = 0x6c;
-		retry_info->handle = readretry_handle_a19_sandisk;
-		retry_info->exit = readretry_exit_a19_sandisk;
-
-		/* slc */
-		/* slc_info->enter= enslc_enter_sandisk; */
-		break;
-	case SANDISK_A19NM_4G:
-		/* read retry low page */
-		retry_info->flag = 1;
-		retry_info->reg_cnt_lp = 4;
-		retry_info->retry_cnt_lp = 30;
+		retry_info->retry_cnt_lp = 36;
+		retry_info->retry_stage = 0;
 
 		retry_info->reg_addr_lp[0] = 0x11;
 
@@ -2338,39 +2253,39 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 		retry_info->reg_offs_val_lp[0][17][2] = 0x04;
 		retry_info->reg_offs_val_lp[0][17][3] = 0x00;
 
-		retry_info->reg_offs_val_lp[0][18][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][18][0] = 0x0C;
 		retry_info->reg_offs_val_lp[0][18][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][18][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][18][2] = 0x04;
 		retry_info->reg_offs_val_lp[0][18][3] = 0x00;
 
-		retry_info->reg_offs_val_lp[0][19][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][19][0] = 0x10;
 		retry_info->reg_offs_val_lp[0][19][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][19][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][19][2] = 0x04;
 		retry_info->reg_offs_val_lp[0][19][3] = 0x00;
 
-		retry_info->reg_offs_val_lp[0][20][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][20][0] = 0x14;
 		retry_info->reg_offs_val_lp[0][20][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][20][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][20][2] = 0x08;
 		retry_info->reg_offs_val_lp[0][20][3] = 0x00;
 
-		retry_info->reg_offs_val_lp[0][21][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][21][0] = 0x18;
 		retry_info->reg_offs_val_lp[0][21][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][21][2] = 0x6c;
+		retry_info->reg_offs_val_lp[0][21][2] = 0x0c;
 		retry_info->reg_offs_val_lp[0][21][3] = 0x00;
 
-		retry_info->reg_offs_val_lp[0][22][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][22][0] = 0x0C;
 		retry_info->reg_offs_val_lp[0][22][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][22][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][22][2] = 0x04;
 		retry_info->reg_offs_val_lp[0][22][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[0][23][0] = 0x78;
 		retry_info->reg_offs_val_lp[0][23][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][23][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][23][2] = 0x78;
 		retry_info->reg_offs_val_lp[0][23][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[0][24][0] = 0x78;
 		retry_info->reg_offs_val_lp[0][24][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][24][2] = 0x6C;
+		retry_info->reg_offs_val_lp[0][24][2] = 0x74;
 		retry_info->reg_offs_val_lp[0][24][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[0][25][0] = 0x78;
@@ -2380,24 +2295,54 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 
 		retry_info->reg_offs_val_lp[0][26][0] = 0x78;
 		retry_info->reg_offs_val_lp[0][26][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][26][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][26][2] = 0x6C;
 		retry_info->reg_offs_val_lp[0][26][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[0][27][0] = 0x78;
 		retry_info->reg_offs_val_lp[0][27][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][27][2] = 0x6c;
+		retry_info->reg_offs_val_lp[0][27][2] = 0x78;
 		retry_info->reg_offs_val_lp[0][27][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[0][28][0] = 0x78;
 		retry_info->reg_offs_val_lp[0][28][1] = 0x00;
-		retry_info->reg_offs_val_lp[0][28][2] = 0x68;
+		retry_info->reg_offs_val_lp[0][28][2] = 0x74;
 		retry_info->reg_offs_val_lp[0][28][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[0][29][0] = 0x74;
 		retry_info->reg_offs_val_lp[0][29][1] = 0x00;
 		retry_info->reg_offs_val_lp[0][29][2] = 0x6c;
 		retry_info->reg_offs_val_lp[0][29][3] = 0x00;
-		/* //////////upper page read ////////////////////////////// */
+
+		retry_info->reg_offs_val_lp[0][30][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][30][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][30][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][30][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][31][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][31][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][31][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][31][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][32][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][32][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][32][2] = 0x6c;
+		retry_info->reg_offs_val_lp[0][32][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][33][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][33][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][33][2] = 0x68;
+		retry_info->reg_offs_val_lp[0][33][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][34][0] = 0x74;
+		retry_info->reg_offs_val_lp[0][34][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][34][2] = 0x6C;
+		retry_info->reg_offs_val_lp[0][34][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][35][0] = 0x74;
+		retry_info->reg_offs_val_lp[0][35][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][35][2] = 0x68;
+		retry_info->reg_offs_val_lp[0][35][3] = 0x00;
+		/* upper page read */
 
 		retry_info->reg_offs_val_lp[1][0][0] = 0x00;
 		retry_info->reg_offs_val_lp[1][0][1] = 0x00;
@@ -2490,65 +2435,470 @@ int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip)
 		retry_info->reg_offs_val_lp[1][17][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[1][18][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][18][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][18][1] = 0x0C;
 		retry_info->reg_offs_val_lp[1][18][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][18][3] = 0x74;
+		retry_info->reg_offs_val_lp[1][18][3] = 0x04;
 
 		retry_info->reg_offs_val_lp[1][19][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][19][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][19][1] = 0x0C;
 		retry_info->reg_offs_val_lp[1][19][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][19][3] = 0x70;
+		retry_info->reg_offs_val_lp[1][19][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[1][20][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][20][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][20][1] = 0x10;
 		retry_info->reg_offs_val_lp[1][20][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][20][3] = 0x6c;
+		retry_info->reg_offs_val_lp[1][20][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[1][21][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][21][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][21][1] = 0x14;
 		retry_info->reg_offs_val_lp[1][21][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][21][3] = 0x68;
+		retry_info->reg_offs_val_lp[1][21][3] = 0x00;
 
 		retry_info->reg_offs_val_lp[1][22][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][22][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][22][1] = 0x0C;
 		retry_info->reg_offs_val_lp[1][22][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][22][3] = 0x74;
+		retry_info->reg_offs_val_lp[1][22][3] = 0x7C;
 
 		retry_info->reg_offs_val_lp[1][23][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][23][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][23][1] = 0x74;
 		retry_info->reg_offs_val_lp[1][23][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][23][3] = 0x70;
+		retry_info->reg_offs_val_lp[1][23][3] = 0x74;
 
 		retry_info->reg_offs_val_lp[1][24][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][24][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][24][1] = 0x74;
 		retry_info->reg_offs_val_lp[1][24][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][24][3] = 0x68;
+		retry_info->reg_offs_val_lp[1][24][3] = 0x70;
 
 		retry_info->reg_offs_val_lp[1][25][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][25][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][25][1] = 0x74;
 		retry_info->reg_offs_val_lp[1][25][2] = 0x00;
 		retry_info->reg_offs_val_lp[1][25][3] = 0x6c;
 
 		retry_info->reg_offs_val_lp[1][26][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][26][1] = 0x6c;
+		retry_info->reg_offs_val_lp[1][26][1] = 0x74;
 		retry_info->reg_offs_val_lp[1][26][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][26][3] = 0x6c;
+		retry_info->reg_offs_val_lp[1][26][3] = 0x68;
 
 		retry_info->reg_offs_val_lp[1][27][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][27][1] = 0x6c;
+		retry_info->reg_offs_val_lp[1][27][1] = 0x70;
 		retry_info->reg_offs_val_lp[1][27][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][27][3] = 0x68;
+		retry_info->reg_offs_val_lp[1][27][3] = 0x74;
 
 		retry_info->reg_offs_val_lp[1][28][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][28][1] = 0x6c;
+		retry_info->reg_offs_val_lp[1][28][1] = 0x70;
 		retry_info->reg_offs_val_lp[1][28][2] = 0x00;
-		retry_info->reg_offs_val_lp[1][28][3] = 0x64;
+		retry_info->reg_offs_val_lp[1][28][3] = 0x70;
 
 		retry_info->reg_offs_val_lp[1][29][0] = 0x00;
-		retry_info->reg_offs_val_lp[1][29][1] = 0x68;
+		retry_info->reg_offs_val_lp[1][29][1] = 0x70;
 		retry_info->reg_offs_val_lp[1][29][2] = 0x00;
 		retry_info->reg_offs_val_lp[1][29][3] = 0x68;
 
+		retry_info->reg_offs_val_lp[1][30][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][30][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][30][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][30][3] = 0x6C;
+
+		retry_info->reg_offs_val_lp[1][31][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][31][1] = 0x6C;
+		retry_info->reg_offs_val_lp[1][31][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][31][3] = 0x6C;
+
+		retry_info->reg_offs_val_lp[1][32][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][32][1] = 0x6C;
+		retry_info->reg_offs_val_lp[1][32][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][32][3] = 0x68;
+
+		retry_info->reg_offs_val_lp[1][33][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][33][1] = 0x6C;
+		retry_info->reg_offs_val_lp[1][33][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][33][3] = 0x64;
+
+		retry_info->reg_offs_val_lp[1][34][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][34][1] = 0x68;
+		retry_info->reg_offs_val_lp[1][34][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][34][3] = 0x68;
+
+		retry_info->reg_offs_val_lp[1][35][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][35][1] = 0x68;
+		retry_info->reg_offs_val_lp[1][35][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][35][3] = 0x64;
+
+		retry_info->handle = readretry_handle_a19_sandisk;
+		retry_info->exit = readretry_exit_a19_sandisk;
+
+		break;
+	case SANDISK_A19NM_4G:
+		/* read retry low page */
+		retry_info->flag = 1;
+		retry_info->reg_cnt_lp = 4;
+		retry_info->retry_cnt_lp = 36;
+		retry_info->retry_stage = 0;
+
+		retry_info->reg_addr_lp[0] = 0x11;
+
+		/* lower page read */
+
+		retry_info->reg_offs_val_lp[0][0][0] = 0x7c;
+		retry_info->reg_offs_val_lp[0][0][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][0][2] = 0x00;
+		retry_info->reg_offs_val_lp[0][0][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][1][0] = 0x04;
+		retry_info->reg_offs_val_lp[0][1][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][1][2] = 0x7C;
+		retry_info->reg_offs_val_lp[0][1][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][2][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][2][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][2][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][2][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][3][0] = 0x08;
+		retry_info->reg_offs_val_lp[0][3][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][3][2] = 0x00;
+		retry_info->reg_offs_val_lp[0][3][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][4][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][4][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][4][2] = 0x7C;
+		retry_info->reg_offs_val_lp[0][4][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][5][0] = 0x7c;
+		retry_info->reg_offs_val_lp[0][5][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][5][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][5][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][6][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][6][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][6][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][6][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][7][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][7][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][7][2] = 0x00;
+		retry_info->reg_offs_val_lp[0][7][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][8][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][8][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][8][2] = 0x7C;
+		retry_info->reg_offs_val_lp[0][8][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][9][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][9][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][9][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][9][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][10][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][10][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][10][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][10][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][11][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][11][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][11][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][11][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][12][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][12][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][12][2] = 0x04;
+		retry_info->reg_offs_val_lp[0][12][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][13][0] = 0x00;
+		retry_info->reg_offs_val_lp[0][13][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][13][2] = 0x00;
+		retry_info->reg_offs_val_lp[0][13][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][14][0] = 0x0C;
+		retry_info->reg_offs_val_lp[0][14][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][14][2] = 0x7C;
+		retry_info->reg_offs_val_lp[0][14][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][15][0] = 0x0C;
+		retry_info->reg_offs_val_lp[0][15][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][15][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][15][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][16][0] = 0x10;
+		retry_info->reg_offs_val_lp[0][16][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][16][2] = 0x00;
+		retry_info->reg_offs_val_lp[0][16][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][17][0] = 0x10;
+		retry_info->reg_offs_val_lp[0][17][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][17][2] = 0x04;
+		retry_info->reg_offs_val_lp[0][17][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][18][0] = 0x0C;
+		retry_info->reg_offs_val_lp[0][18][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][18][2] = 0x04;
+		retry_info->reg_offs_val_lp[0][18][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][19][0] = 0x10;
+		retry_info->reg_offs_val_lp[0][19][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][19][2] = 0x04;
+		retry_info->reg_offs_val_lp[0][19][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][20][0] = 0x14;
+		retry_info->reg_offs_val_lp[0][20][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][20][2] = 0x08;
+		retry_info->reg_offs_val_lp[0][20][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][21][0] = 0x18;
+		retry_info->reg_offs_val_lp[0][21][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][21][2] = 0x0c;
+		retry_info->reg_offs_val_lp[0][21][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][22][0] = 0x0C;
+		retry_info->reg_offs_val_lp[0][22][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][22][2] = 0x04;
+		retry_info->reg_offs_val_lp[0][22][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][23][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][23][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][23][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][23][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][24][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][24][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][24][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][24][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][25][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][25][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][25][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][25][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][26][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][26][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][26][2] = 0x6C;
+		retry_info->reg_offs_val_lp[0][26][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][27][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][27][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][27][2] = 0x78;
+		retry_info->reg_offs_val_lp[0][27][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][28][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][28][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][28][2] = 0x74;
+		retry_info->reg_offs_val_lp[0][28][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][29][0] = 0x74;
+		retry_info->reg_offs_val_lp[0][29][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][29][2] = 0x6c;
+		retry_info->reg_offs_val_lp[0][29][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][30][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][30][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][30][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][30][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][31][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][31][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][31][2] = 0x70;
+		retry_info->reg_offs_val_lp[0][31][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][32][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][32][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][32][2] = 0x6c;
+		retry_info->reg_offs_val_lp[0][32][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][33][0] = 0x78;
+		retry_info->reg_offs_val_lp[0][33][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][33][2] = 0x68;
+		retry_info->reg_offs_val_lp[0][33][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][34][0] = 0x74;
+		retry_info->reg_offs_val_lp[0][34][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][34][2] = 0x6C;
+		retry_info->reg_offs_val_lp[0][34][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[0][35][0] = 0x74;
+		retry_info->reg_offs_val_lp[0][35][1] = 0x00;
+		retry_info->reg_offs_val_lp[0][35][2] = 0x68;
+		retry_info->reg_offs_val_lp[0][35][3] = 0x00;
+
+		/*upper page read*/
+		retry_info->reg_offs_val_lp[1][0][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][0][1] = 0x00;
+		retry_info->reg_offs_val_lp[1][0][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][0][3] = 0x7c;
+
+		retry_info->reg_offs_val_lp[1][1][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][1][1] = 0x00;
+		retry_info->reg_offs_val_lp[1][1][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][1][3] = 0x78;
+
+		retry_info->reg_offs_val_lp[1][2][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][2][1] = 0x00;
+		retry_info->reg_offs_val_lp[1][2][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][2][3] = 0x74;
+
+		retry_info->reg_offs_val_lp[1][3][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][3][1] = 0x7C;
+		retry_info->reg_offs_val_lp[1][3][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][3][3] = 0x7c;
+
+		retry_info->reg_offs_val_lp[1][4][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][4][1] = 0x7c;
+		retry_info->reg_offs_val_lp[1][4][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][4][3] = 0x78;
+
+		retry_info->reg_offs_val_lp[1][5][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][5][1] = 0x7c;
+		retry_info->reg_offs_val_lp[1][5][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][5][3] = 0x74;
+
+		retry_info->reg_offs_val_lp[1][6][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][6][1] = 0x7c;
+		retry_info->reg_offs_val_lp[1][6][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][6][3] = 0x70;
+
+		retry_info->reg_offs_val_lp[1][7][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][7][1] = 0x78;
+		retry_info->reg_offs_val_lp[1][7][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][7][3] = 0x7c;
+
+		retry_info->reg_offs_val_lp[1][8][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][8][1] = 0x78;
+		retry_info->reg_offs_val_lp[1][8][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][8][3] = 0x78;
+
+		retry_info->reg_offs_val_lp[1][9][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][9][1] = 0x78;
+		retry_info->reg_offs_val_lp[1][9][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][9][3] = 0x74;
+
+		retry_info->reg_offs_val_lp[1][10][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][10][1] = 0x78;
+		retry_info->reg_offs_val_lp[1][10][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][10][3] = 0x70;
+
+		retry_info->reg_offs_val_lp[1][11][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][11][1] = 0x78;
+		retry_info->reg_offs_val_lp[1][11][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][11][3] = 0x6c;
+
+		retry_info->reg_offs_val_lp[1][12][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][12][1] = 0x04;
+		retry_info->reg_offs_val_lp[1][12][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][12][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[1][13][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][13][1] = 0x04;
+		retry_info->reg_offs_val_lp[1][13][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][13][3] = 0x7c;
+
+		retry_info->reg_offs_val_lp[1][14][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][14][1] = 0x04;
+		retry_info->reg_offs_val_lp[1][14][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][14][3] = 0x78;
+
+		retry_info->reg_offs_val_lp[1][15][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][15][1] = 0x04;
+		retry_info->reg_offs_val_lp[1][15][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][15][3] = 0x74;
+
+		retry_info->reg_offs_val_lp[1][16][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][16][1] = 0x08;
+		retry_info->reg_offs_val_lp[1][16][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][16][3] = 0x7c;
+
+		retry_info->reg_offs_val_lp[1][17][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][17][1] = 0x08;
+		retry_info->reg_offs_val_lp[1][17][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][17][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[1][18][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][18][1] = 0x0C;
+		retry_info->reg_offs_val_lp[1][18][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][18][3] = 0x04;
+
+		retry_info->reg_offs_val_lp[1][19][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][19][1] = 0x0C;
+		retry_info->reg_offs_val_lp[1][19][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][19][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[1][20][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][20][1] = 0x10;
+		retry_info->reg_offs_val_lp[1][20][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][20][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[1][21][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][21][1] = 0x14;
+		retry_info->reg_offs_val_lp[1][21][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][21][3] = 0x00;
+
+		retry_info->reg_offs_val_lp[1][22][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][22][1] = 0x0C;
+		retry_info->reg_offs_val_lp[1][22][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][22][3] = 0x7C;
+
+		retry_info->reg_offs_val_lp[1][23][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][23][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][23][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][23][3] = 0x74;
+
+		retry_info->reg_offs_val_lp[1][24][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][24][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][24][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][24][3] = 0x70;
+
+		retry_info->reg_offs_val_lp[1][25][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][25][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][25][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][25][3] = 0x6c;
+
+		retry_info->reg_offs_val_lp[1][26][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][26][1] = 0x74;
+		retry_info->reg_offs_val_lp[1][26][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][26][3] = 0x68;
+
+		retry_info->reg_offs_val_lp[1][27][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][27][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][27][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][27][3] = 0x74;
+
+		retry_info->reg_offs_val_lp[1][28][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][28][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][28][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][28][3] = 0x70;
+
+		retry_info->reg_offs_val_lp[1][29][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][29][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][29][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][29][3] = 0x68;
+
+		retry_info->reg_offs_val_lp[1][30][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][30][1] = 0x70;
+		retry_info->reg_offs_val_lp[1][30][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][30][3] = 0x6C;
+
+		retry_info->reg_offs_val_lp[1][31][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][31][1] = 0x6C;
+		retry_info->reg_offs_val_lp[1][31][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][31][3] = 0x6C;
+
+		retry_info->reg_offs_val_lp[1][32][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][32][1] = 0x6C;
+		retry_info->reg_offs_val_lp[1][32][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][32][3] = 0x68;
+
+		retry_info->reg_offs_val_lp[1][33][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][33][1] = 0x6C;
+		retry_info->reg_offs_val_lp[1][33][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][33][3] = 0x64;
+
+		retry_info->reg_offs_val_lp[1][34][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][34][1] = 0x68;
+		retry_info->reg_offs_val_lp[1][34][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][34][3] = 0x68;
+
+		retry_info->reg_offs_val_lp[1][35][0] = 0x00;
+		retry_info->reg_offs_val_lp[1][35][1] = 0x68;
+		retry_info->reg_offs_val_lp[1][35][2] = 0x00;
+		retry_info->reg_offs_val_lp[1][35][3] = 0x64;
 		retry_info->handle = readretry_handle_a19_sandisk;
 		retry_info->exit = readretry_exit_a19_sandisk;
 

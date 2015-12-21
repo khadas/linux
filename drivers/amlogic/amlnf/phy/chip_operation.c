@@ -118,6 +118,10 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 		retry_op_cnt = retry_info->retry_cnt_lp *
 			retry_info->retry_cnt_lp;
 
+	if ((flash->new_type == SANDISK_A19NM)
+		|| (flash->new_type == SANDISK_A19NM_4G))
+		retry_op_cnt = retry_info->retry_cnt_lp * 4;
+
 	/* get usr bytes */
 	controller->get_usr_byte(controller, tmp_buf, user_byte_num);
 	ret = controller->hwecc_correct(controller, page_size, tmp_buf);
@@ -218,6 +222,7 @@ static int read_page_two_plane(struct amlnand_chip *aml_chip,
 	struct hw_controller *controller = &(aml_chip->controller);
 	struct nand_flash *flash = &(aml_chip->flash);
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	struct read_retry_info *retry_info = &(controller->retry_info);
 	unsigned char *buf = ops_para->data_buf;
 	unsigned char *tmp_buf = controller->oob_buf;
 	unsigned int pages_per_blk_shift;
@@ -337,6 +342,12 @@ RETRY_PLANE_CMD:
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
 		aml_nand_msg("quene rb busy @ %s-%d", __func__, __LINE__);
+		if (aml_chip->g_retry_cnt && retry_info->exit) {
+			ret = retry_info->exit(controller, chipnr);
+			if (ret < 0)
+				aml_nand_msg("retry exit failed!retry:%d",
+					aml_chip->g_retry_cnt);
+		}
 		goto error_exit0;
 	}
 
@@ -368,7 +379,14 @@ RETRY_PLANE_CMD:
 					page_size,
 					slc_mode,
 					up_page);
-				if (ret == RETURN_PAGE_ALL_0XFF) {
+			if (ret == RETURN_PAGE_ALL_0XFF) {
+				if ((aml_chip->g_retry_cnt)
+					&& (retry_info->exit)) {
+					ret = retry_info->exit(controller,
+					chipnr);
+					if (ret < 0)
+						aml_nand_msg("retry exit fail");
+					}
 					all_ff_flag = 1;
 				} else if (ret == RETURN_PAGE_NEED_READRETRY) {
 					goto RETRY_PLANE_CMD;
@@ -399,8 +417,15 @@ RETRY_PLANE_CMD:
 			}
 			all_ff_flag = 0;
 		}
-		if (new_oob)
+		if (new_oob) {
+			if (aml_chip->g_retry_cnt && retry_info->exit) {
+				ret = retry_info->exit(controller, chipnr);
+				if (ret < 0)
+					aml_nand_msg("retry exit fail!retry:%d",
+						aml_chip->g_retry_cnt);
+			}
 			goto new_oob_mod;
+		}
 		controller->cmd_ctrl(controller, 0x06, NAND_CTRL_CLE);
 		controller->cmd_ctrl(controller, 0x00, NAND_CTRL_ALE);
 		controller->cmd_ctrl(controller, 0x00, NAND_CTRL_ALE);
@@ -428,6 +453,13 @@ RETRY_PLANE_CMD:
 				slc_mode,
 				up_page);
 			if (ret == RETURN_PAGE_ALL_0XFF) {
+				if ((aml_chip->g_retry_cnt)
+					&& retry_info->exit) {
+					ret = retry_info->exit(controller,
+						chipnr);
+					if (ret < 0)
+						aml_nand_msg("retry exit fail");
+				}
 				all_ff_flag = 1;
 			} else if (ret == RETURN_PAGE_NEED_READRETRY) {
 				goto RETRY_PLANE_CMD;
@@ -477,7 +509,14 @@ RETRY_PLANE_CMD:
 					page_size,
 					slc_mode,
 					up_page);
-				if (ret == RETURN_PAGE_ALL_0XFF) {
+			if (ret == RETURN_PAGE_ALL_0XFF) {
+				if ((aml_chip->g_retry_cnt)
+					&& (retry_info->exit)) {
+					ret = retry_info->exit(controller,
+						chipnr);
+					if (ret < 0)
+						aml_nand_msg("retry exit fail");
+					}
 					all_ff_flag = 1;
 				} else if (ret == RETURN_PAGE_NEED_READRETRY) {
 					goto RETRY_PLANE_CMD;
@@ -538,6 +577,13 @@ RETRY_PLANE_CMD:
 				slc_mode,
 				up_page);
 			if (ret == RETURN_PAGE_ALL_0XFF) {
+				if ((aml_chip->g_retry_cnt)
+					&& retry_info->exit) {
+					ret = retry_info->exit(controller,
+						chipnr);
+					if (ret < 0)
+						aml_nand_msg("retry exit fail");
+				}
 				all_ff_flag = 1;
 			} else if (ret == RETURN_PAGE_NEED_READRETRY) {
 				goto RETRY_PLANE_CMD;
@@ -657,6 +703,7 @@ static int _read_page_single_plane(struct amlnand_chip *aml_chip,
 	struct nand_flash *flash = &(aml_chip->flash);
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	struct en_slc_info *slc_info = &(controller->slc_info);
+	struct read_retry_info *retry_info = &(controller->retry_info);
 	unsigned char *buf = ops_para->data_buf;
 	unsigned char *tmp_buf = controller->oob_buf;
 	unsigned int pages_per_blk_shift;
@@ -743,6 +790,11 @@ RETRY_CMD:
 	ret = controller->quene_rb(controller, chipnr);
 	if (ret) {
 		aml_nand_msg("quene rb busy @ %s-%d", __func__, __LINE__);
+		if (aml_chip->g_retry_cnt && retry_info->exit) {
+			ret = retry_info->exit(controller, chipnr);
+			if (ret < 0)
+				aml_nand_msg("retry exit fail");
+		}
 		goto error_exit0;
 	}
 
@@ -770,6 +822,13 @@ RETRY_CMD:
 			slc_mode,
 			up_page);
 		if (ret == RETURN_PAGE_ALL_0XFF) {
+			if ((aml_chip->g_retry_cnt)
+				&& retry_info->exit) {
+				ret = retry_info->exit(controller,
+					chipnr);
+				if (ret < 0)
+					aml_nand_msg("retry exit fail");
+			}
 			all_ff_flag = 1;
 		} else if (ret == RETURN_PAGE_NEED_READRETRY) {
 			goto RETRY_CMD;

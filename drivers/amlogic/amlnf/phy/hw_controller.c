@@ -210,6 +210,16 @@ static int controller_quene_rb(struct hw_controller *controller,
 #endif
 		ret = -NAND_BUSY_FAILURE;
 	}
+
+	/*
+	fixme: Add standby here, it means release ce;avoid influence between
+	two operations nearby. it have been found that when have finished
+	reading one plane page and rb is checked ready,but before reading next
+	plane, check rb busy.
+	*/
+	/* delay for 5 cycle. */
+	NFC_SEND_CMD_STANDBY(controller, 5);
+
 	return ret;
 }
 
