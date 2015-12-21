@@ -25,7 +25,7 @@ struct ppmgr_device_t {
 	unsigned int open_count;
 	int major;
 	unsigned int dbg_enable;
-	char *buffer_start;
+	unsigned int buffer_start;
 	unsigned int buffer_size;
 
 	unsigned angle;
@@ -63,6 +63,11 @@ struct ppmgr_device_t {
 	int disable_prot;
 	int started;
 	int global_angle;
+	int use_reserved;
+	struct page *cma_pages;
+	struct io_mapping *mapping;
+	void  __iomem *vir_addr;
+	struct platform_device *pdev;
 };
 
 struct ppmgr_dev_reg_s {

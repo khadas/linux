@@ -30,11 +30,12 @@ extern int start_ppmgr_task(void);
 extern void stop_ppmgr_task(void);
 
 /* for ppmgr private member. */
-extern void set_ppmgr_buf_info(char *start, unsigned int size);
-extern void get_ppmgr_buf_info(char **start, unsigned int *size);
+extern void set_ppmgr_buf_info(unsigned int start, unsigned int size);
+extern void get_ppmgr_buf_info(unsigned int *start, unsigned int *size);
 
 /*  ppmgr buffer op. */
 extern int ppmgr_buffer_init(int vout_mode);
+extern int ppmgr_buffer_uninit(void);
 extern void vf_ppmgr_reset(int type);
 extern int ppmgr_register(void);
 

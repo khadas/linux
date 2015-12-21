@@ -50,6 +50,9 @@
 #include "../amports/vdec_reg.h"
 #include "../display/osd/osd_reg.h"
 #include "ppmgr_vpp.h"
+#include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-contiguous.h>
 /*#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6*/
 /*#include <mach/mod_gate.h>*/
 /*#endif*/
@@ -76,6 +79,9 @@
 #define RECEIVER_NAME "ppmgr"
 #define PROVIDER_NAME   "ppmgr"
 
+#define MM_ALLOC_SIZE SZ_16M
+#define MAX_WIDTH  960
+#define MAX_HEIGHT 736
 #define THREAD_INTERRUPT 0
 #define THREAD_RUNNING 1
 #define INTERLACE_DROP_MODE 1
@@ -321,6 +327,14 @@ static int get_input_format(struct vframe_s *vf)
 	return format;
 }
 
+static void dma_flush(u32 buf_start , u32 buf_size)
+{
+	return;
+	dma_sync_single_for_device(
+		&ppmgr_device.pdev->dev, buf_start,
+		buf_size, DMA_TO_DEVICE);
+}
+
 /* extern int get_property_change(void); */
 /* extern void set_property_change(int flag); */
 /* extern int get_buff_change(void); */
@@ -373,7 +387,7 @@ static int ppmgr_event_cb(int type, void *data, void *private_data)
 		ppmgr_device.canvas_width = eventparam[0];
 		ppmgr_device.canvas_height = eventparam[1];
 		ppmgr_device.receiver_format = eventparam[2];
-		ppmgr_buffer_init(0);
+		/* ppmgr_buffer_init(0); */
 	}
 #endif
 	return 0;
@@ -1907,6 +1921,10 @@ static void process_vf_rotate(struct vframe_s *vf,
 	PPMGRVPP_WARN("rotate avail=%d, free=%d\n",
 		vfq_level(&q_ready), vfq_level(&q_free));
 #endif
+	if ((!ppmgr_device.use_reserved) &&
+	    (ppmgr_device.buffer_start)) {
+		dma_flush(ppmgr_device.buffer_start, ppmgr_device.buffer_size);
+	}
 }
 
 static void process_vf_change(struct vframe_s *vf,
@@ -2712,6 +2730,7 @@ static int ppmgr_task(void *data)
 	}
 
 	destroy_ge2d_work_queue(context);
+	ppmgr_buffer_uninit();
 	while (!kthread_should_stop()) {
 		/*	   may not call stop, wait..
 		 it is killed by SIGTERM,eixt on down_interruptible
@@ -2750,17 +2769,51 @@ int ppmgr_register(void)
 	return 0;
 }
 
+int ppmgr_buffer_uninit(void)
+{
+	if ((!ppmgr_device.use_reserved) &&
+	    (ppmgr_device.buffer_start)) {
+		PPMGRVPP_INFO("cma free addr is %x , size is  %x\n",
+		(unsigned)ppmgr_device.buffer_start ,
+		(unsigned)ppmgr_device.buffer_size);
+		codec_mm_free_for_dma(
+		"ppmgr",
+		ppmgr_device.buffer_start);
+		ppmgr_device.buffer_start = 0;
+		ppmgr_device.buffer_size = 0;
+	}
+	return 0;
+}
+
 int ppmgr_buffer_init(int vout_mode)
 {
 	int i, j;
 	u32 canvas_width, canvas_height;
 	u32 decbuf_size;
-	char *buf_start;
+	unsigned int buf_start;
 	int buf_size;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
+	/* int flags = CODEC_MM_FLAGS_DMA; */
+	int flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
 #ifdef INTERLACE_DROP_MODE
 	mycount = 0;
 #endif
+	if ((!ppmgr_device.use_reserved) &&
+	    (ppmgr_device.buffer_start == 0)) {
+		PPMGRVPP_INFO("reserved memory config fail , use CMA	.\n");
+
+		ppmgr_device.buffer_start = codec_mm_alloc_for_dma(
+				"ppmgr",
+				MM_ALLOC_SIZE/PAGE_SIZE, 0, flags);
+		ppmgr_device.buffer_size = MM_ALLOC_SIZE;
+		PPMGRVPP_INFO("cma memory is %x , size is  %x\n" ,
+		(unsigned)ppmgr_device.buffer_start ,
+		(unsigned)ppmgr_device.buffer_size);
+		if (ppmgr_device.buffer_start == 0) {
+			PPMGRVPP_ERR("cma memory config fail\n");
+			return -1;
+		}
+	}
 	get_ppmgr_buf_info(&buf_start, &buf_size);
 #ifdef CONFIG_V4L_AMLOGIC_VIDEO
 	if (ppmgr_device.receiver != 0) {
@@ -2826,19 +2879,19 @@ int ppmgr_buffer_init(int vout_mode)
 		}
 
 		if (ppmgr_device.disp_width == 0) {
-			if (ppmgr_device.vinfo->width <= 1280)
+			if (ppmgr_device.vinfo->width <= MAX_WIDTH)
 				ppmgr_device.disp_width =
 					ppmgr_device.vinfo->width;
 			else
-				ppmgr_device.disp_width = 1280;
+				ppmgr_device.disp_width = MAX_WIDTH;
 		}
 
 		if (ppmgr_device.disp_height == 0) {
-			if (ppmgr_device.vinfo->height <= 736)
+			if (ppmgr_device.vinfo->height <= MAX_HEIGHT)
 				ppmgr_device.disp_height =
 						ppmgr_device.vinfo->height;
 			else
-				ppmgr_device.disp_height = 736;
+				ppmgr_device.disp_height = MAX_HEIGHT;
 		}
 		if (get_platform_type() == PLATFORM_MID_VERTICAL) {
 			int DISP_SIZE =

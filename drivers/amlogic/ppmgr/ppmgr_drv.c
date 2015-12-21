@@ -282,12 +282,12 @@ static int parse_para(const char *para, int para_num, int *result)
 static ssize_t show_ppmgr_info(struct class *cla, struct class_attribute *attr,
 				char *buf)
 {
-	char *bstart;
+	unsigned int bstart;
 	unsigned int bsize;
 	get_ppmgr_buf_info(&bstart, &bsize);
 /* return snprintf(buf, 80, "buffer:\n start:%x.\tsize:%d\n", */
 /* (unsigned int)bstart, bsize / (1024 * 1024)); */
-	return snprintf(buf, 80, "buffer:\n start:%p.\tsize:%d\n",
+	return snprintf(buf, 80, "buffer:\n start:%x.\tsize:%d\n",
 		    bstart, bsize / (1024 * 1024));
 }
 
@@ -1160,9 +1160,9 @@ struct class *init_ppmgr_cls(void)
  *
  ************************************************************************/
 
-void set_ppmgr_buf_info(char *start, unsigned int size)
+void set_ppmgr_buf_info(unsigned int start, unsigned int size)
 {
-	ppmgr_device.buffer_start = (char *)start;
+	ppmgr_device.buffer_start = start;
 	ppmgr_device.buffer_size = size;
 }
 
@@ -1174,7 +1174,7 @@ int ppmgr_set_resource(unsigned long start, unsigned long end, struct device *p)
 		return -1;
 	}
 
-	set_ppmgr_buf_info((void *)start, end - start + 1);
+	set_ppmgr_buf_info(start, end - start + 1);
 	ppmgr_dev_reg.mem_start = start;
 	ppmgr_dev_reg.mem_end = end;
 	ppmgr_dev_reg.cma_dev = p;
@@ -1182,7 +1182,7 @@ int ppmgr_set_resource(unsigned long start, unsigned long end, struct device *p)
 	return 0;
 }
 
-void get_ppmgr_buf_info(char **start, unsigned int *size)
+void get_ppmgr_buf_info(unsigned int *start, unsigned int *size)
 {
 	*start = ppmgr_device.buffer_start;
 	*size = ppmgr_device.buffer_size;
@@ -1377,6 +1377,7 @@ int init_ppmgr_device(void)
 	ppmgr_register();
 	if (ppmgr_buffer_init(0) < 0)
 		goto unregister_dev;
+	ppmgr_buffer_uninit();
 	/*if (start_vpp_task()<0) return -1;*/
 	ppmgr_device.use_prot = 1;
 #if HAS_VPU_PROT
@@ -1423,7 +1424,7 @@ static int ppmgr_driver_probe(struct platform_device *pdev)
 	s32 r;
 	PPMGRDRV_ERR("ppmgr_driver_probe called\n");
 	r = of_reserved_mem_device_init(&pdev->dev);
-
+	ppmgr_device.pdev = pdev;
 	init_ppmgr_device();
 
 	if (r == 0)
@@ -1461,8 +1462,14 @@ static struct rmem_multi_user rmem_ppmgr_muser = {
 static int __init ppmgr_mem_setup(struct reserved_mem *rmem)
 {
 	PPMGRDRV_WARN("ppmgr share mem setup\n");
+	ppmgr_device.use_reserved = 0;
+	ppmgr_device.buffer_size = 0;
 	of_add_rmem_multi_user(rmem, &rmem_ppmgr_muser);
-
+	if (ppmgr_device.buffer_size > 0) {
+		ppmgr_device.use_reserved = 1;
+		pr_warn("ppmgr use reserved memory\n");
+	}
+	/* ppmgr_device.buffer_size = 0; */
 	return 0;
 }
 
