@@ -13,7 +13,9 @@
 		#cooling-cells = <2>; /* min followed by max */
 		reg = <0 0xd00c0000 0 0x100000>,
 		      <0 0xc1104440 0 0x000100>,
-		      <0 0xc8100000 0 0x001000>;
+		      <0 0xc8100000 0 0x001000>,
+		      <0 0xc883c000 0 0x000100>, /*hiubus base address for gpu clk cntl*/
+		      <0 0xc1104440 0 0x000100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 160 4>, <0 161 4>, <0 162 4>;
 		interrupt-names = "GPU", "MMU", "JOB";
