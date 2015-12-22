@@ -104,6 +104,15 @@ static int get_vdac_power_level(void)
 	return tv_vdac_power_level;
 }
 
+static int check_cpu_type(unsigned int cpu_type)
+{
+	int ret = 0;
+
+	ret = (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) == cpu_type);
+
+	return ret;
+}
+
 static void set_tvmode_misc(enum tvmode_e mode)
 {
 	/* for hdmi mode, leave the hpll setting to be done by hdmi module. */
@@ -202,13 +211,18 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_m8[index];
 		type = 3;
-	} else if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
-		>= MESON_CPU_MAJOR_ID_GXBB) {
+	} else if (check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_gxbb[index];
 		type = 4;
+	} else if (check_cpu_type(MESON_CPU_MAJOR_ID_GXTVBB)) {
+		max = sizeof(tvregs_576cvbs_performance_gxtvbb)
+			/ sizeof(struct reg_s *);
+		index = (index >= max) ? 0 : index;
+		s = tvregs_576cvbs_performance_gxtvbb[index];
+		type = 5;
 	}
 
 	vout_log_info("cvbs performance type = %d, table = %d\n", type, index);
