@@ -691,7 +691,8 @@ static ssize_t lcd_debug_frame_rate_store(struct class *class,
 static ssize_t lcd_debug_ss_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "to do\n");
+	return sprintf(buf, "get lcd pll spread spectrum: %s\n",
+			lcd_get_spread_spectrum());
 }
 
 static ssize_t lcd_debug_ss_store(struct class *class,
@@ -699,9 +700,11 @@ static ssize_t lcd_debug_ss_store(struct class *class,
 {
 	unsigned int ret;
 	unsigned int temp = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	ret = sscanf(buf, "%d", &temp);
-	pr_info("to do\n");
+	lcd_drv->lcd_config->lcd_timing.ss_level = temp;
+	lcd_set_spread_spectrum();
 
 	if (ret != 1 || ret != 2)
 		return -EINVAL;

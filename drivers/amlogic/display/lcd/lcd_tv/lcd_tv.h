@@ -20,7 +20,7 @@
 #define __AML_LCD_TV_H__
 #include <linux/amlogic/vout/lcd_vout.h>
 
-#define LCD_DRV_VERSION    "20151120"
+#define LCD_DRV_VERSION    "20151222"
 
 extern int lcd_vmode_change(struct lcd_config_s *pconf);
 
