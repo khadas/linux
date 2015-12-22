@@ -173,7 +173,7 @@ struct fpga_m1_sdio {
 #define AML_DEMOD_TURN_ON        _IOR('D',  3, u32_t)
 #define AML_DEMOD_TURN_OFF       _IOR('D',  4, u32_t)
 #define AML_DEMOD_SET_TUNER      _IOW('D',  5, struct aml_tuner_sys)
-#define AML_DEMOD_GET_RSSI       _IOR('D',  6, u32_t)
+#define AML_DEMOD_GET_RSSI       _IOR('D',  6, struct aml_tuner_sys)
 
 #define AML_DEMOD_DVBC_SET_CH    _IOW('D', 10, struct aml_demod_dvbc)
 #define AML_DEMOD_DVBC_GET_CH    _IOR('D', 11, struct aml_demod_dvbc)

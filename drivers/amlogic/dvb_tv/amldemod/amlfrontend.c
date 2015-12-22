@@ -98,7 +98,7 @@ static ssize_t dvbc_auto_sym_store(struct class *cls,
 static ssize_t dvbc_para_show(struct class *cls, struct class_attribute *attr,
 			      char *buf)
 {
-	struct aml_demod_sts demod_sts;
+/*	struct aml_demod_sts demod_sts;
 	struct aml_demod_i2c demod_i2c;
 	char *pbuf = buf;
 	int strength = 0;
@@ -117,7 +117,8 @@ static ssize_t dvbc_para_show(struct class *cls, struct class_attribute *attr,
 
 	mutex_unlock(&aml_lock);
 
-	return pbuf - buf;
+	return pbuf - buf;*/
+	return 0;
 }
 
 static ssize_t dvbc_para_store(struct class *cls, struct class_attribute *attr,
@@ -960,6 +961,16 @@ static int gxtv_demod_dtmb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static int gxtv_demod_dtmb_read_fsm(struct dvb_frontend *fe, u32 *fsm_status)
+{
+	int tmp;
+	tmp = dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0);
+	*fsm_status =  tmp&0xffffffff;
+	pr_dbg("[rsj] fsm_status is %x\n", *fsm_status);
+	return 0;
+}
+
+
 static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -1120,6 +1131,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			gxtv_demod_dtmb_read_signal_strength;
 		fe_ops->read_snr = gxtv_demod_dtmb_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_dtmb_read_ucblocks;
+		fe_ops->read_dtmb_fsm = gxtv_demod_dtmb_read_fsm;
 		Gxtv_Demod_Dtmb_Init(dev);
 	}
 	return 0;

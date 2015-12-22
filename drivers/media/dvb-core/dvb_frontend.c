@@ -46,7 +46,7 @@
 #include "dvbdev.h"
 #include <linux/dvb/version.h>
 
-static int dvb_frontend_debug;
+static int dvb_frontend_debug = 1;
 static int dvb_shutdown_timeout;
 static int dvb_force_auto_inversion;
 static int dvb_override_tune_delay;
@@ -575,6 +575,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	fe_status_t s;
 	int retval;
 	int time;
+	int dtmb_status, i, has_singal;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
 #if (((defined CONFIG_AM_SI2176) || (defined CONFIG_AM_SI2177)\
@@ -800,7 +801,33 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 
 
 #endif
+#if 1
+	/*signal_detec dtmb   201512-rsj*/
+		if (fe->ops.read_dtmb_fsm) {
+			LOCK_TIMEOUT = 10000;
+			has_singal = 0;
+			msleep(100);
+			fe->ops.read_dtmb_fsm(fe, &dtmb_status);
+			for (i = 0 ; i < 8 ; i++) {
+				if (((dtmb_status >> (i*4)) & 0xf) > 4) {
+					/*has signal*/
+				/*	dprintk("has signal\n");*/
+					has_singal = 1;
+				}
+			}
+			dprintk("[DTV]has_singal is %d\n", has_singal);
+			if (has_singal == 0) {
+				s = FE_TIMEDOUT;
+			dprintk(
+						"event s=%d,fepriv->status is %d\n",
+						s, fepriv->status);
+				dvb_frontend_add_event(fe, s);
+				fepriv->status = s;
+				return;
+			}
+		}
 
+#endif
 	/* if we are tuned already, check we're still locked */
 	if (fepriv->state & FESTATE_TUNED) {
 		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);

@@ -387,6 +387,7 @@ struct dvb_frontend_ops {
 
 	int (*set_mode)(struct dvb_frontend *fe, fe_type_t type);
 	int (*read_ts)(struct dvb_frontend *fe, int *ts);
+	int (*read_dtmb_fsm)(struct dvb_frontend *fe, u32 *fsm_status);
 
 	struct dvb_frontend_asyncinfo asyncinfo;
 };

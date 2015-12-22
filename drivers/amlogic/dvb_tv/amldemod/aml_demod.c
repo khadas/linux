@@ -265,56 +265,30 @@ void mem_read(struct aml_demod_mem *arg)
 static long aml_demod_ioctl(struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-#if ((defined CONFIG_AM_SI2177) || (defined CONFIG_AM_SI2157) || \
-	(defined CONFIG_AM_MXL661))
 	int strength = 0;
 	struct dvb_frontend *dvbfe;
-#endif
+	struct aml_tuner_sys *tuner;
 	switch (cmd) {
 	case AML_DEMOD_GET_RSSI:
 		pr_dbg("Ioctl Demod GET_RSSI.\n");
-#if ((defined CONFIG_AM_SI2177) || (defined CONFIG_AM_SI2157))
 		dvbfe = get_si2177_tuner();
 		if (dvbfe != NULL)
 			strength = dvbfe->ops.tuner_ops.get_strength(dvbfe);
 		pr_dbg("[si2177] strength is %d\n", strength - 256);
-#endif
-#if (defined CONFIG_AM_MXL661)
-		dvbfe = NULL;
-		strength = 0;
-		/*mxl661_get_strength(void)();
-		dvbfe = get_si2177_tuner();
-		if (dvbfe != NULL)
-			strength = dvbfe->ops.tuner_ops.get_strength(dvbfe);
-		pr_dbg("[MXL661] strength is %d\n", strength);*/
-#endif
+		if (strength < 0)
+			strength = 0 - strength;
+		tuner = (struct aml_tuner_sys *)arg;
+		tuner->rssi = strength;
 		break;
 
 	case AML_DEMOD_SET_TUNER:
 		pr_dbg("Ioctl Demod Set Tuner.\n");
-#if ((defined CONFIG_AM_SI2177) || (defined CONFIG_AM_SI2157))
 		dvbfe = get_si2177_tuner();
 		if (dvbfe != NULL)
 			dvbfe->ops.tuner_ops.set_tuner(dvbfe, &demod_sta,
 						       &demod_i2c,
 						       (struct aml_tuner_sys *)
 						       arg);
-#endif
-#if (defined CONFIG_AM_MXL661)
-		pr_dbg("MXL661 Set Tuner.\n");
-		dvbfe = NULL;
-		/*			demod_set_mxl661(
-						(struct aml_tuner_sys *)
-						arg);*/
-#if 0
-		/*	dvbfe = get_si2177_tuner();*/
-		if (dvbfe != NULL)
-			dvbfe->ops.tuner_ops.set_tuner(dvbfe, &demod_sta,
-						       &demod_i2c,
-						       (struct aml_tuner_sys *)
-						       arg);
-#endif
-#endif
 		break;
 
 	case AML_DEMOD_SET_SYS:
