@@ -100,7 +100,7 @@ static void kp_work_channel1(struct avin_det_s *avin_data)
 	int i = 0;
 	int num = 0;
 
-	#if DEBUG_DEF
+	#if 0
 	pr_info("av-in1 low times = ");
 	for (i = 0; i < avin_data->set_detect_times; i++)
 		pr_info("%d ", avin_data->irq1_falling_times[i]);
@@ -163,7 +163,7 @@ static void kp_work_channel2(struct avin_det_s *avin_data)
 	int i = 0;
 	int num = 0;
 
-	#if DEBUG_DEF
+	#if 0
 	pr_info("av-in2 low times = ");
 	for (i = 0; i < avin_data->set_detect_times; i++)
 		pr_info("%d ", avin_data->irq2_falling_times[i]);
@@ -357,10 +357,40 @@ static int register_avin_dev(struct avin_det_s *avin_data)
 	return ret;
 }
 
+static int init_resource(struct avin_det_s *avdev)
+{
+	int irq_ret;
+	/* request irq */
+	irq_ret = request_irq(avdev->irq_num1,
+	avin_detect_handler1, IRQF_DISABLED,
+	AVIN_NAME_CH1, (void *)avdev);
+	if (irq_ret)
+		return -EINVAL;
+
+	disable_irq(avdev->irq_num1);
+
+	irq_ret = request_irq(avdev->irq_num2,
+	avin_detect_handler2, IRQF_DISABLED, AVIN_NAME_CH2,
+	(void *)avdev);
+	if (irq_ret) {
+		free_irq(avdev->irq_num1, (void *)avdev);
+		return -EINVAL;
+	}
+
+	disable_irq(avdev->irq_num2);
+
+	/* set timer */
+	setup_timer(&avdev->timer, avin_timer_sr, (unsigned long)avdev);
+	mod_timer(&avdev->timer, jiffies+msecs_to_jiffies(1000));
+
+	INIT_WORK(&(avdev->work_update1), update_work_func_channel1);
+	INIT_WORK(&(avdev->work_update2), update_work_func_channel2);
+	return 0;
+}
+
 int avin_detect_probe(struct platform_device *pdev)
 {
 	int ret;
-	int irq_ret;
 	int state = 0;
 	struct avin_det_s *avdev = NULL;
 
@@ -399,33 +429,17 @@ int avin_detect_probe(struct platform_device *pdev)
 	gpio_for_irq(desc_to_gpio(avdev->pin1),
 	AML_GPIO_IRQ((avdev->irq_num1 - INT_GPIO_0),
 	 FILTER_NUM7, GPIO_IRQ_FALLING));
-	irq_ret = request_irq(avdev->irq_num1,
-	avin_detect_handler1, IRQF_DISABLED,
-	AVIN_NAME_CH1, (void *)avdev);
-	if (irq_ret) {
-		avin_det_err("avin_detect_handler1 irq failed :%d\n", irq_ret);
-		goto irq_request_fail;
-	}
-	disable_irq(avdev->irq_num1);
 
 	gpio_for_irq(desc_to_gpio(avdev->pin2),
 	 AML_GPIO_IRQ((avdev->irq_num2 - INT_GPIO_0),
 	  FILTER_NUM7, GPIO_IRQ_FALLING));
-	irq_ret = request_irq(avdev->irq_num2,
-	avin_detect_handler2, IRQF_DISABLED, AVIN_NAME_CH2,
-	(void *)avdev);
-	if (irq_ret) {
-		avin_det_err("avin_detect_handler2 irq failed:%d\n", irq_ret);
+
+	ret = init_resource(avdev);
+	if (ret < 0) {
+		avin_det_err("Unable to init iqr resource.\n");
+		state = -EINVAL;
 		goto irq_request_fail;
 	}
-	disable_irq(avdev->irq_num2);
-
-	/* set timer */
-	setup_timer(&avdev->timer, avin_timer_sr, (unsigned long)avdev);
-	mod_timer(&avdev->timer, jiffies+msecs_to_jiffies(5000));
-
-	INIT_WORK(&(avdev->work_update1), update_work_func_channel1);
-	INIT_WORK(&(avdev->work_update2), update_work_func_channel2);
 
 	/* register input device */
 	avdev->input_dev = input_allocate_device();
@@ -469,14 +483,40 @@ get_param_mem_fail:
 	return state;
 }
 
+static int avin_detect_suspend(struct platform_device *pdev ,
+	pm_message_t state)
+{
+	struct avin_det_s *avdev = platform_get_drvdata(pdev);
+	avdev->first_time_into_loop = 0;
+	del_timer_sync(&avdev->timer);
+	cancel_work_sync(&avdev->work_update1);
+	cancel_work_sync(&avdev->work_update2);
+	free_irq(avdev->irq_num1, (void *)avdev);
+	free_irq(avdev->irq_num2, (void *)avdev);
+	avin_det_info("avin_detect_suspend ok.\n");
+	return 0;
+}
+
+static int avin_detect_resume(struct platform_device *pdev)
+{
+	struct avin_det_s *avdev = platform_get_drvdata(pdev);
+	init_resource(avdev);
+	avin_det_info("avin_detect_resume ok.\n");
+	return 0;
+}
+
+
 int avin_detect_remove(struct platform_device *pdev)
 {
 	struct avin_det_s *avdev = platform_get_drvdata(pdev);
 	input_unregister_device(avdev->input_dev);
 	input_free_device(avdev->input_dev);
 	cdev_del(&avdev->avin_cdev);
+	del_timer_sync(&avdev->timer);
 	cancel_work_sync(&avdev->work_update1);
 	cancel_work_sync(&avdev->work_update2);
+	free_irq(avdev->irq_num1, (void *)avdev);
+	free_irq(avdev->irq_num2, (void *)avdev);
 	gpio_free(desc_to_gpio(avdev->pin1));
 	gpio_free(desc_to_gpio(avdev->pin2));
 	kfree(avdev->irq1_falling_times);
@@ -499,6 +539,8 @@ static const struct of_device_id avin_dt_match[] = {
 static struct platform_driver avin_driver = {
 	.probe      = avin_detect_probe,
 	.remove     = avin_detect_remove,
+	.suspend    = avin_detect_suspend,
+	.resume     = avin_detect_resume,
 	.driver     = {
 		.name   = "avin_detect",
 		.of_match_table = avin_dt_match,
