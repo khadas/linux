@@ -287,10 +287,6 @@ struct ion_client *fb_ion_client = NULL;
 struct ion_handle *fb_ion_handle[OSD_COUNT][OSD_MAX_BUF_NUM] = {
 	{NULL, NULL, NULL}, {NULL, NULL, NULL}
 };
-int  fb_share_fd[OSD_COUNT][OSD_MAX_BUF_NUM] = {
-	{0, 0, 0}, {0, 0, 0}
-};
-unsigned int buffer_index[OSD_COUNT] = {0, 0};
 
 phys_addr_t get_fb_rmem_paddr(int index)
 {
@@ -588,7 +584,6 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	u32 flush_rate;
 	struct fb_sync_request_s sync_request;
 	struct fb_dmabuf_export dmaexp;
-	unsigned int idx = 0;
 
 	switch (cmd) {
 	case  FBIOPUT_OSD_SRCKEY_ENABLE:
@@ -625,7 +620,10 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOPUT_OSD_REVERSE:
 	case FBIOPUT_OSD_ROTATE_ON:
 	case FBIOPUT_OSD_ROTATE_ANGLE:
+		break;
 	case FBIOGET_DMABUF:
+		ret = copy_from_user(&dmaexp, argp,
+				sizeof(struct fb_dmabuf_export));
 		break;
 	case FBIOPUT_OSD_BLOCK_MODE:
 		ret = copy_from_user(&block_mode, argp, sizeof(u32));
@@ -798,32 +796,18 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOGET_DMABUF:
 		{
 			if (info->node == DEV_OSD0 && osd_get_afbc()) {
-				idx = buffer_index[info->node];
-				if (fb_share_fd[info->node][idx] == 0) {
-					fb_share_fd[info->node][idx] =
-						ion_share_dma_buf_fd(
-							fb_ion_client,
-							fb_ion_handle
-							[info->node][idx]
-							);
-				}
-				dmaexp.fd = fb_share_fd[info->node][idx];
-				dmaexp.flags = O_CLOEXEC;
-				if (info->node == 0 &&
-						buffer_index[info->node] < 2)
-					buffer_index[info->node]++;
-				else
-					buffer_index[info->node] = 0;
+				dmaexp.fd =
+					ion_share_dma_buf_fd(
+						fb_ion_client,
+						fb_ion_handle[info->node]
+						[dmaexp.buffer_idx]);
 			} else {
-				if (fb_share_fd[info->node][0] == 0)
-					fb_share_fd[info->node][0] =
+				dmaexp.fd =
 						ion_share_dma_buf_fd(
 						fb_ion_client,
 						fb_ion_handle[info->node][0]);
-
-				dmaexp.fd = fb_share_fd[info->node][0];
-				dmaexp.flags = O_CLOEXEC;
 			}
+			dmaexp.flags = O_CLOEXEC;
 
 			ret = copy_to_user(argp, &dmaexp, sizeof(dmaexp))
 				? -EFAULT : 0;
@@ -945,17 +929,16 @@ static int osd_open(struct fb_info *info, int arg)
 					ion_map_kernel(fb_ion_client,
 					fb_ion_handle[fb_index][j]);
 				dev_alert(&pdev->dev,
-				"create ion_client %p, handle=%p, share_fd=%d\n",
-				fb_ion_client,
-				fb_ion_handle[fb_index][j],
-				fb_share_fd[fb_index][j]);
+					"create ion_client %p, handle=%p\n",
+					fb_ion_client,
+					fb_ion_handle[fb_index][j]);
 				dev_alert(&pdev->dev,
-				"ion memory(%d): created fb at 0x%p, size %ld MiB\n",
-				fb_index,
-				(void *)fb_rmem_afbc_paddr[fb_index][j],
-				(unsigned long)fb_rmem_afbc_size[fb_index][j] /
-				SZ_1M);
-				fb_share_fd[fb_index][j] = 0;
+					"ion memory(%d): created fb at 0x%p, size %ld MiB\n",
+					fb_index,
+					(void *)fb_rmem_afbc_paddr
+					[fb_index][j],
+					(unsigned long)fb_rmem_afbc_size
+					[fb_index][j] / SZ_1M);
 				fbdev->fb_afbc_len[j] =
 					fb_rmem_afbc_size[fb_index][j];
 				fbdev->fb_mem_afbc_paddr[j] =
@@ -993,16 +976,14 @@ static int osd_open(struct fb_info *info, int arg)
 				ion_map_kernel(fb_ion_client,
 						fb_ion_handle[fb_index][0]);
 			dev_notice(&pdev->dev,
-				"create ion_client %p, handle=%p, share_fd=%d\n",
+				"create ion_client %p, handle=%p\n",
 				fb_ion_client,
-				fb_ion_handle[fb_index][0],
-				fb_share_fd[fb_index][0]);
+				fb_ion_handle[fb_index][0]);
 			dev_notice(&pdev->dev,
 				"ion memory(%d): created fb at 0x%p, size %ld MiB\n",
 				fb_index,
 				(void *)fb_rmem_paddr[fb_index],
 				(unsigned long)fb_rmem_size[fb_index] / SZ_1M);
-			fb_share_fd[fb_index][0] = 0;
 		}
 	} else {
 		fb_rmem_size[fb_index] = fb_memsize[fb_index];

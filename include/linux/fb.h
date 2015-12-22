@@ -17,6 +17,7 @@
 #include <asm/io.h>
 
 struct fb_dmabuf_export {
+	__u32 buffer_idx;
 	__u32 fd;
 	__u32 flags;
 };
