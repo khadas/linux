@@ -1175,36 +1175,22 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 
 	rx_print("[hdmirx]: hdmirx_suspend\n");
 	if (rx.open_fg == 1) {
-		rx_print("[hdmirx]: suspend--step1111\n");
 		if (resume_flag == 0)
 			del_timer_sync(&devp_hdmirx_suspend->timer);
-		rx_print("[hdmirx]: suspend--step2\n");
-		rx_print("[hdmirx]: suspend--step3\n");
 		for (i = 0; i < 5000; i++)
 			;
-		rx_print("[hdmirx]: suspend--step4\n");
 	}
-	rx_print("[hdmirx]: suspend--step5\n");
-	clk_off();
+	/*hdmirx_phy_pddq(1);*/
+	/*clk_off();*/
 	rx_print("[hdmirx]: suspend success\n");
 	return 0;
 }
 
 static int hdmirx_resume(struct platform_device *pdev)
 {
-	unsigned int data32;
 	int i;
-
-	data32  = 0;
-	data32 |= 1 << 17;  /* [17]     audfifo_rd_en */
-	data32 |= 1 << 16;  /* [16]     pktfifo_rd_en */
-	data32 |= 1 << 2;   /* [2]      hdmirx_cecclk_en */
-	data32 |= 0 << 1;   /* [1]      bus_clk_inv */
-	data32 |= 0 << 0;   /* [0]      hdmi_clk_inv */
-	if (resume_flag == 0)
-		hdmirx_wr_top(0x1, data32);    /* DEFAULT: {32'h0} */
-	rx_print("hdmirx: resume module---2\n");
-
+	/*hdmirx_hw_probe();*/
+	/*hdmirx_phy_pddq(0);*/
 	for (i = 0; i < 5000; i++)
 		;
 	if ((resume_flag == 0) && (rx.open_fg == 1))

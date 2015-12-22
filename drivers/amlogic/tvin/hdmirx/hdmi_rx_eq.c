@@ -101,8 +101,8 @@ int fat_bit_status = 0;
 
 static struct hdmirx_phy_data_t *phy_private_data;
 static struct phy_eq_algorithm_data_t *phy_eq_algo_data;
-int hdmirx_log_flag = 1;
 
+int hdmirx_log_flag = 1;
 MODULE_PARM_DESC(hdmirx_log_flag, "\n hdmirx_log_flag\n");
 module_param(hdmirx_log_flag, int, 0664);
 
@@ -117,10 +117,6 @@ module_param(force_clk_rate, int, 0664);
 static bool fast_switching = true;
 MODULE_PARM_DESC(fast_switching, "\n fast_switching\n");
 module_param(fast_switching, bool, 0664);
-
-static bool new_phy_config;
-MODULE_PARM_DESC(new_phy_config, "\n new_phy_config\n");
-module_param(new_phy_config, bool, 0664);
 
 static int mpll_ctl_setting = 0x200;
 MODULE_PARM_DESC(mpll_ctl_setting, "\n mpll_ctl_setting\n");
@@ -429,7 +425,6 @@ void phy_EQ_workaround(void)
 			acumulator and setting ) where TMDS VALID just
 			gets asserted after long time*/
 			if (tmds_valid_cnt++ > tmds_valid_cnt_max) {
-				block_delay_ms(EQ_TMDS_VALID_WAIT_DELAY);
 				if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
 					rx_print(
 					"valid_cnt=%d 0x09[%x]-0x30[%x]-0x50[%x]-0x70[%x]\n",
@@ -441,7 +436,9 @@ void phy_EQ_workaround(void)
 					tmds_valid_cnt = 0;
 					phy_private_data->phy_eq_state =
 						 EQ_GET_CABLE_TYPE;
-		}
+			} else {
+				block_delay_ms(EQ_TMDS_VALID_WAIT_DELAY);
+			}
 		} else {
 			tmds_valid_cnt = 0;
 			tmds_valid_flag = 1;
@@ -953,6 +950,46 @@ int hdmirx_phy_stop_eq(void)
 	return 0;
 }
 
+
+
+void hdmirx_phy_reset(int rx_port_sel, int dcm)
+{
+	unsigned int data32;
+	data32	= 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 1 << 1;
+	data32 |= 0 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+
+	hdmirx_wr_phy(0x43, fat_bit_status);
+	hdmirx_wr_phy(0x63, fat_bit_status);
+	hdmirx_wr_phy(0x83, fat_bit_status);
+
+	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, port0_eq_setting_ch0);
+	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, port0_eq_setting_ch1);
+	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, port0_eq_setting_ch2);
+	if ((0 == port0_eq_setting_ch0) &&
+		(0 == port0_eq_setting_ch1) &&
+		(0 == port0_eq_setting_ch2))
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
+	else
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
+
+	hdmirx_phy_clk_rate_monitor();
+
+	data32 = 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 0 << 1;
+	data32 |= 0 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+
+	rx_print("%s  %d Done!\n", __func__, rx.port);
+}
+
 void hdmirx_phy_init(int rx_port_sel, int dcm)
 {
 	unsigned int data32;
@@ -1028,11 +1065,6 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 		((rx.phy.lock_thres << 10) | (1 << 9) |
 			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
 
-	if (new_phy_config) {
-		hdmirx_wr_phy(PHY_VOLTAGE_LEVEL, 0x010a);
-		hdmirx_wr_phy(PHY_MPLL_CTRL, mpll_ctl_setting);
-	}
-
 	if (rx_port_sel == 0) {
 		rx_print("port0-0\n");
 		hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, port0_eq_setting_ch0);
@@ -1067,7 +1099,6 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 		else
 			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
 	}
-
 
 	hdmirx_phy_clk_rate_monitor();
 

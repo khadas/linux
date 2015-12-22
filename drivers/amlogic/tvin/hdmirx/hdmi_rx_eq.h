@@ -182,6 +182,7 @@ void hdmirx_phy_exit(void);
 int hdmirx_phy_start_eq(void);
 enum phy_eq_states_e hdmirx_phy_get_eq_state(void);
 int hdmirx_phy_stop_eq(void);
+void hdmirx_phy_reset(int rx_port_sel, int dcm);
 
 /*function declare end*/
 

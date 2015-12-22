@@ -358,11 +358,6 @@ unsigned rx_sec_reg_read(unsigned *addr)
 }
 #endif
 
-void hdmirx_phy_reset(bool enable)
-{
-	hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
-		MSK(1, 0), enable);
-}
 void hdmirx_phy_pddq(int enable)
 {
 	hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
@@ -713,11 +708,8 @@ void hdmirx_set_pinmux(void)
 
 void clk_off(void)
 {
-	/* aml_write_cbus(HHI_AUD_CLK_CNTL, 0x0); */
-	/* aml_write_cbus(HHI_HDMIRX_CLK_CNTL, 0x0); */
-	/* Turn 0ff clk_hdmirx_pclk, also = sysclk */
-	/* aml_write_cbus(HHI_GCLK_MPEG0, */
-	/* aml_read_cbus(HHI_GCLK_MPEG0) & (~(1 << 21))); */
+	wr_reg(HHI_HDMIRX_CLK_CNTL, 0);
+	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, 0);
 }
 
 void clk_init(void)
@@ -928,9 +920,6 @@ void hdmirx_hw_probe(void)
 	hdmirx_wr_top(TOP_MEM_PD, 0);
 	hdmirx_wr_top(TOP_SW_RESET,	0);
 	clk_init();
-	#ifdef CEC_FUNC_ENABLE
-	cec_init();
-	#endif
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
 	hdmi_rx_ctrl_edid_update();
 
