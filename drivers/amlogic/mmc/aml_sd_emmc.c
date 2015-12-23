@@ -1677,7 +1677,7 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 #ifdef SD_EMMC_MANUAL_CMD23
 	if (((mrq->cmd->opcode == MMC_READ_MULTIPLE_BLOCK)
 		|| (mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
-		&& (mrq->cmd->data)) {
+		&& (mrq->cmd->data) && (mrq->sbc)) {
 		des_cmd_cur = (struct cmd_cfg *)&(desc_cur->cmd_info);
 		/*Command Index*/
 		des_cmd_cur->cmd_index = MMC_SET_BLOCK_COUNT;
@@ -1816,10 +1816,10 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 
 #endif
 
-#ifndef SD_EMMC_MANUAL_CMD23
+#ifdef SD_EMMC_MANUAL_CMD23
 		if (((mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
 			|| (mrq->cmd->opcode == MMC_READ_MULTIPLE_BLOCK))
-			&& (!host->cmd_is_stop)
+			&& (!host->cmd_is_stop) && (!mrq->sbc)
 			&& !(mrq->cmd->flags & (1 << 30))) {
 
 			/* pr_info("Send stop command here\n"); */
@@ -3076,7 +3076,7 @@ static struct amlsd_host *aml_sd_emmc_init_host(struct amlsd_host *host)
 #endif
 
 	spin_lock_init(&host->mrq_lock);
-	spin_lock_init(&host->pinmux_lock);
+	mutex_init(&host->pinmux_lock);
 	host->xfer_step = XFER_INIT;
 
 	INIT_LIST_HEAD(&host->sibling);

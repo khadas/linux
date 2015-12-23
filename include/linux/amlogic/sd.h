@@ -30,7 +30,7 @@
 #define AML_SDHC_MAGIC			 "amlsdhc"
 #define AML_SDIO_MAGIC			 "amlsdio"
 #define AML_SD_EMMC_MAGIC			 "amlsd_emmc"
-
+#define SD_EMMC_MANUAL_CMD23
 enum aml_mmc_waitfor {
 	XFER_INIT,			  /* 0 */
 	XFER_START,				/* 1 */
@@ -246,7 +246,7 @@ struct amlsd_host {
 	struct  mmc_request	*mrq;
 	struct  mmc_request	*mrq2;
 	spinlock_t	mrq_lock;
-	spinlock_t	pinmux_lock;
+	struct mutex	pinmux_lock;
 	int			cmd_is_stop;
 	enum aml_mmc_waitfor	xfer_step;
 	enum aml_mmc_waitfor	xfer_step_prev;
