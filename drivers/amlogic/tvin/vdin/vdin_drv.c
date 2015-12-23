@@ -2708,6 +2708,15 @@ static int vdin_drv_resume(struct platform_device *pdev)
 }
 #endif
 
+static void vdin_drv_shutdown(struct platform_device *pdev)
+{
+	struct vdin_dev_s *vdevp;
+	vdevp = platform_get_drvdata(pdev);
+	vdin_enable_module(vdevp->addr_offset, false);
+	pr_info("%s ok.\n", __func__);
+	return;
+}
+
 static const struct of_device_id vdin_dt_match[] = {
 	{       .compatible = "amlogic, vdin",   },
 	{},
@@ -2720,6 +2729,7 @@ static struct platform_driver vdin_driver = {
 	.suspend	= vdin_drv_suspend,
 	.resume		= vdin_drv_resume,
 #endif
+	.shutdown   = vdin_drv_shutdown,
 	.driver	= {
 		.name	        = VDIN_DRV_NAME,
 		.of_match_table = vdin_dt_match,

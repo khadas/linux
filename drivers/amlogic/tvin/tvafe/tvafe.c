@@ -2240,6 +2240,34 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 }
 #endif
 
+static void tvafe_drv_shutdown(struct platform_device *pdev)
+{
+	struct tvafe_dev_s *tdevp;
+	struct tvafe_info_s *tvafe;
+	tdevp = platform_get_drvdata(pdev);
+	tvafe = &tdevp->tvafe;
+
+	/* close afe port first */
+	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {
+
+		pr_info("tvafe: shutdown module, close afe port first\n");
+		/* tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED); */
+		/*del_timer_sync(&tdevp->timer);*/
+
+		/**set cvd2 reset to high**/
+		tvafe_cvd2_hold_rst(&tdevp->tvafe.cvd2);
+		/**disable av out**/
+		tvafe_enable_avout(tvafe->parm.port, false);
+	}
+
+    /*disable and reset tvafe clock*/
+	tvafe_enable_module(false);
+
+	pr_info("tvafe: shutdown module\n");
+
+	return;
+}
+
 static const struct of_device_id tvafe_dt_match[] = {
 	{
 	.compatible     = "amlogic, tvafe",
@@ -2254,6 +2282,7 @@ static struct platform_driver tvafe_driver = {
 	.suspend    = tvafe_drv_suspend,
 	.resume     = tvafe_drv_resume,
 #endif
+	.shutdown   = tvafe_drv_shutdown,
 	.driver     = {
 		.name   = TVAFE_DRIVER_NAME,
 		.of_match_table = tvafe_dt_match,
