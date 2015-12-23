@@ -743,12 +743,14 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 static void free_one_page(struct zone *zone, struct page *page, int order,
 				int migratetype)
 {
+	int cur_migratetype;
 	spin_lock(&zone->lock);
 	zone->pages_scanned = 0;
 
-	__free_one_page(page, zone, order, migratetype);
-	if (unlikely(!is_migrate_isolate(migratetype)))
-		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+	cur_migratetype = get_pageblock_migratetype(page);
+	__free_one_page(page, zone, order, cur_migratetype);
+	if (unlikely(!is_migrate_isolate(cur_migratetype)))
+		__mod_zone_freepage_state(zone, 1 << order, cur_migratetype);
 	spin_unlock(&zone->lock);
 }
 
