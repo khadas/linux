@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/12/22"
+#define HDMIRX_VER "Ref.2015/12/23a"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -427,6 +427,9 @@ extern unsigned int pwr_sts, hpd_chg;
 extern unsigned char *pEdid_buffer;
 
 extern bool multi_port_edid_enable;
+extern int rx_md_ists_en;
+extern int hdmi_ists_en;
+
 extern struct rx rx;
 extern int log_flag;
 extern unsigned char is_alternative(void);
@@ -484,8 +487,10 @@ void hdmirx_hw_probe(void);
 int hdmi_rx_ctrl_edid_update(void);
 void hdmirx_timingchange_reset(void);
 void hdmirx_set_hpd(int port, unsigned char val);
-int hdmirx_interrupts_cfg(bool enable);
-int hdmirx_interrupts_hpd(bool enable);
+
+int hdmirx_irq_close(void);
+int hdmirx_irq_open(void);
+
 void hdmirx_phy_pddq(int enable);
 void cec_dbg_post_cmd(int command, int value);
 void hdmirx_phy_fast_switching(int enable);

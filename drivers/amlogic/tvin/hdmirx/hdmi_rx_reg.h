@@ -687,9 +687,9 @@
 /** Register address: audio FIFO interrupt set status */
 #define DWC_AUD_FIFO_ISET	(0xFBCUL)
 /** Audio FIFO overflow interrupt */
-#define		AFIF_OVERFL				_BIT(4)
+#define	OVERFL		_BIT(4)
 /** Audio FIFO underflow interrupt */
-#define		AFIF_UNDERFL			_BIT(3)
+#define	UNDERFL		_BIT(3)
 /*
  * Mode Detection Interrupt registers
  */
@@ -706,7 +706,7 @@
 /** Register address: mode detection interrupt set status */
 #define DWC_MD_ISET		(0xFD4UL)
 /** Video mode interrupts */
-#define		VIDEO_MODE				(MSK(3, 9)|MSK(2, 6)|_BIT(3))
+#define	VIDEO_MODE		(MSK(3, 9)|MSK(2, 6)|_BIT(3))
 /*
  * HDMI Interrupt registers
  */
@@ -728,6 +728,7 @@
 #define		DCM_CURRENT_MODE_CHG	_BIT(16)
 /** Clock change interrupt */
 #define		CLK_CHANGE				_BIT(6)
+#define		PLL_LCK_CHG				_BIT(5)
 /*
  * DMI registers
  */

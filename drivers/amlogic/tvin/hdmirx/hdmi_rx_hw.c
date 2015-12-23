@@ -42,9 +42,6 @@
 #include <linux/amlogic/tvin/tvin.h>
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
-#ifdef CEC_FUNC_ENABLE
-#include "hdmirx_cec.h"
-#endif
 #include <linux/io.h>
 
 
@@ -93,6 +90,16 @@ module_param(edid_clock_divide, int, 0664);
 static int scramble_sel = 1;
 MODULE_PARM_DESC(scramble_sel, "\n scramble_sel\n");
 module_param(scramble_sel, int, 0664);
+
+int rx_md_ists_en = VIDEO_MODE;
+MODULE_PARM_DESC(rx_md_ists_en, "\n rx_md_ists_en\n");
+module_param(rx_md_ists_en, int, 0664);
+
+/* bit5 pll_lck_chg_en */
+/* bit6 clk_change_en */
+int hdmi_ists_en = PLL_LCK_CHG;
+MODULE_PARM_DESC(hdmi_ists_en, "\n hdmi_ists_en\n");
+module_param(hdmi_ists_en, int, 0664);
 
 bool multi_port_edid_enable = true;
 MODULE_PARM_DESC(multi_port_edid_enable,
@@ -389,63 +396,35 @@ void hdmirx_wr_ctl_port(unsigned int offset, unsigned long data)
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
-int hdmirx_interrupts_cfg(bool enable)
+int hdmirx_irq_close(void)
 {
 	int error = 0;
 
-	if (enable) {
-		/* set enable */
-		hdmirx_wr_dwc(DWC_PDEC_IEN_SET, ~0);
-		hdmirx_wr_dwc(DWC_AUD_CLK_IEN_SET, ~0);
-		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, ~0);
-		hdmirx_wr_dwc(DWC_MD_IEN_SET, ~0);
-		hdmirx_wr_dwc(DWC_HDMI_IEN_SET, ~0);
+	/* clear enable */
+	hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_CLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
+	hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
+	hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
+	/* clear status */
+	hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
+	hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
+	hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
 
-	} else {
-		/* clear enable */
-		hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
-		hdmirx_wr_dwc(DWC_AUD_CLK_IEN_CLR, ~0);
-		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
-		hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
-		hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
-		/* clear status */
-		hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
-		hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, ~0);
-		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
-		hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
-		hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
-	}
 	return error;
 }
 
-int hdmirx_interrupts_hpd(bool enable)
+int hdmirx_irq_open(void)
 {
 	int error = 0;
 
-	if (enable) {
-		/* hdmirx_wr_dwc(HDMIRX_DWC_PDEC_IEN_SET, GCP_RCV); */
-		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET,
-			AFIF_OVERFL|AFIF_UNDERFL);
-	} else {
-		/* clear enable */
-		hdmirx_wr_dwc(DWC_PDEC_IEN_CLR,
-			DVIDET|AVI_CKS_CHG|VSI_CKS_CHG);
-		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR,
-			AFIF_OVERFL|AFIF_UNDERFL);
-		hdmirx_wr_dwc(DWC_MD_IEN_CLR,
-			VIDEO_MODE);
-		hdmirx_wr_dwc(DWC_HDMI_IEN_CLR,
-			DCM_CURRENT_MODE_CHG|CLK_CHANGE);
-		/* clear status */
-		hdmirx_wr_dwc(DWC_PDEC_ICLR,
-			DVIDET|AVI_CKS_CHG|VSI_CKS_CHG);
-		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR,
-			AFIF_OVERFL|AFIF_UNDERFL);
-		hdmirx_wr_dwc(DWC_MD_ICLR,
-			VIDEO_MODE);
-		hdmirx_wr_dwc(DWC_HDMI_ICLR,
-			DCM_CURRENT_MODE_CHG|CLK_CHANGE);
-	}
+	/* hdmirx_wr_dwc(HDMIRX_DWC_PDEC_IEN_SET, GCP_RCV); */
+	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
+	/* hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en); */
+	hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);
+
 	return error;
 }
 
@@ -685,11 +664,7 @@ void control_reset(void)
 
 	/* Enable functional modules */
 	data32  = 0;
-	#ifdef CEC_FUNC_ENABLE
-	data32 |= 1 << 5;   /* [5]	cec_enable */
-	#else
 	data32 |= 0 << 5;   /* [5]      cec_enable */
-	#endif
 	data32 |= 1 << 4;   /* [4]      aud_enable */
 	data32 |= 1 << 3;   /* [3]      bus_enable */
 	data32 |= 1 << 2;   /* [2]      hdmi_enable */
@@ -893,7 +868,7 @@ void hdmirx_hw_config(void)
 	clk_init();
 	control_reset();
 
-	hdmirx_interrupts_cfg(false);
+	hdmirx_irq_close();
 	hdmi_rx_ctrl_edid_update();
 	if (hdcp_enable)
 		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
@@ -911,7 +886,7 @@ void hdmirx_hw_config(void)
 	/*enable irq */
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
-	hdmirx_interrupts_hpd(true);
+	hdmirx_irq_open();
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 
@@ -1074,6 +1049,7 @@ void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x8000);
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH_0_1, MSK(16, 0), 0x8000);
 	}
+	hdmirx_set_video_mute(0);
 
 	if (video_params->interlaced == 1) {
 		data32	= 0;
