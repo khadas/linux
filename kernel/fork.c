@@ -146,18 +146,89 @@ void __weak arch_release_thread_info(struct thread_info *ti)
  * kmemcache based allocator.
  */
 # if THREAD_SIZE >= PAGE_SIZE
+bool stack_mem_create = false;
+bool stack_mem_create_try = false;
+struct list_head stack_mem_list;
+DEFINE_SPINLOCK(stack_lock);
 static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
 						  int node)
 {
-	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
-					     THREAD_SIZE_ORDER);
+	struct page *page = NULL;
+#if 1
+	void *vaddr = NULL;
+	if (!stack_mem_create_try && !stack_mem_create) {
+		struct page *tmp_page1 = NULL;
+		struct page *tmp_page2 = NULL;
+		int i = 0;
+		int total = (1 << (MAX_ORDER - 1)) >> THREAD_SIZE_ORDER;
 
+		spin_lock_irq(&stack_lock);
+		INIT_LIST_HEAD(&stack_mem_list);
+		tmp_page1 = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+						 MAX_ORDER - 1);
+		if (!tmp_page1) {
+			stack_mem_create_try = true;
+			spin_unlock_irq(&stack_lock);
+			page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+						 THREAD_SIZE_ORDER);
+			goto out;
+		}
+		tmp_page2 = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+					 MAX_ORDER - 1);
+		if (!tmp_page2) {
+			stack_mem_create_try = true;
+			__free_pages(tmp_page1, MAX_ORDER - 1);
+			spin_unlock_irq(&stack_lock);
+			page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+						 THREAD_SIZE_ORDER);
+			goto out;
+		}
+		vaddr = page_address(tmp_page1);
+		for (i = 0; i < (total << 1); i++) {
+			list_add((struct list_head *)vaddr, &stack_mem_list);
+			vaddr += THREAD_SIZE;
+			if (i == (total - 1))
+				vaddr = page_address(tmp_page2);
+		}
+		stack_mem_create = true;
+		spin_unlock_irq(&stack_lock);
+	}
+	if (stack_mem_create) {
+		spin_lock_irq(&stack_lock);
+		if (!list_empty(&stack_mem_list)) {
+			vaddr = (void *)stack_mem_list.next;
+			list_del(stack_mem_list.next);
+			page = phys_to_page(__pa(vaddr));
+			spin_unlock_irq(&stack_lock);
+		} else {
+			spin_unlock_irq(&stack_lock);
+			page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+						 THREAD_SIZE_ORDER);
+		}
+	}
+out:
+#else
+	page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+						 THREAD_SIZE_ORDER);
+#endif
 	return page ? page_address(page) : NULL;
 }
 
 static inline void free_thread_info(struct thread_info *ti)
 {
+#if 1
+	struct list_head *list = NULL;
+
+	if (ti) {
+		list = (struct list_head *)(ti);
+		spin_lock_irq(&stack_lock);
+		list_add_tail(list, &stack_mem_list);
+		stack_mem_create = true;
+		spin_unlock_irq(&stack_lock);
+	}
+#else
 	free_memcg_kmem_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+#endif
 }
 # else
 static struct kmem_cache *thread_info_cache;
