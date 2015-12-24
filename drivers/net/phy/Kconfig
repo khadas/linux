@@ -14,6 +14,16 @@ if PHYLIB
 
 comment "MII PHY device drivers"
 
+config AML_PHY
+	tristate "Drivers for Amlogic PMU4 PHYs"
+	select AML_PMU4
+	---help---
+	  This module provide Amlogic P220 PHY driver
+	  This driver improve signal quality
+	  Depends on AML_PMU4 driver to config PLL
+
+	  Currently supports the Amlogic model
+
 config AT803X_PHY
 	tristate "Drivers for Atheros AT803X PHYs"
 	---help---
