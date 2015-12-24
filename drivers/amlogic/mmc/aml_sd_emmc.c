@@ -1017,6 +1017,7 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 	pconf->rc_cc = 4;
 	pconf->err_abort = 0;
 
+	pconf->auto_clk = 1;
 	sd_emmc_regs->gcfg = vconf;
 	/*Clear irq status first*/
 
