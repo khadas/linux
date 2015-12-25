@@ -480,8 +480,7 @@ int32_t dwc_otg_hcd_handle_port_intr(dwc_otg_hcd_t *dwc_otg_hcd)
 				/* Port has been enabled set the reset change flag */
 				dwc_otg_hcd->flags.b.port_reset_change = 1;
 		} else {
-			DWC_TASK_SCHEDULE(dwc_otg_hcd->reset_tasklet);
-			/*dwc_otg_hcd->flags.b.port_enable_change = 1;*/
+			dwc_otg_hcd->flags.b.port_enable_change = 1;
 		}
 		retval |= 1;
 	}
