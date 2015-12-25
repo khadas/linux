@@ -148,7 +148,7 @@ static int update_table_item(u32 addr, u32 val)
 		return -1;
 	}
 	if (info)
-		sprintf(info, "item_count : %d\n"
+		trace_printk(info, "item_count : %d\n"
 				"reg_ctrl : %x\n"
 				"reg_status : %x\n"
 				"reg_auto :0x%x\n"
@@ -159,7 +159,7 @@ static int update_table_item(u32 addr, u32 val)
 				osd_reg_read(OSD_RDMA_FLAG_REG));
 retry:
 	if (0 == (retry_count--)) {
-		pr_info("OSD RDMA stuck .....%d,0x%x\n", retry_count,
+		trace_printk("OSD RDMA stuck .....%d,0x%x\n", retry_count,
 			osd_reg_read(RDMA_STATUS));
 		reset_rdma_table();
 		OSD_RDMA_STAUS_MARK_DIRTY;
@@ -196,7 +196,7 @@ retry:
 	osd_rdma_mem_cpy(&rdma_table[item_count], &request_item, 8);
 
 	if (OSD_RDMA_STATUS_IS_REJECT) {
-		pr_info("rdma done detect +++++%d,0x%x\n",
+		trace_printk("rdma done detect +++++%d,0x%x\n",
 				retry_count, osd_reg_read(RDMA_STATUS));
 		item_count--;
 		spin_unlock_irqrestore(&rdma_lock, flags);
@@ -214,7 +214,7 @@ retry:
 	if (!OSD_RDMA_STAUS_IS_DIRTY || OSD_RDMA_STATUS_IS_REJECT) {
 		item_count--;
 		spin_unlock_irqrestore(&rdma_lock, flags);
-		pr_info("osd_rdma flag ++++++: %x\n",
+		trace_printk("osd_rdma flag ++++++: %x\n",
 			osd_reg_read(OSD_RDMA_FLAG_REG));
 		goto retry;
 	}
@@ -225,11 +225,20 @@ retry:
 u32 VSYNCOSD_RD_MPEG_REG(u32 addr)
 {
 	int  i;
+	u32 val = 0;
+	unsigned long flags;
+
 	if (rdma_enable) {
+		spin_lock_irqsave(&rdma_lock, flags);
 		for (i = (item_count - 1); i >= 0; i--) {
-			if (addr == rdma_table[i].addr)
-				return rdma_table[i].val;
+			if (addr == rdma_table[i].addr) {
+				val = rdma_table[i].val;
+				break;
+			}
 		}
+		spin_unlock_irqrestore(&rdma_lock, flags);
+		if (i >= 0)
+			return val;
 	}
 	return osd_reg_read(addr);
 }
