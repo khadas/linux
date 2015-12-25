@@ -31,17 +31,11 @@
 #include <linux/sysctl.h>
 #include <linux/uaccess.h>
 #include <linux/amlogic/vout/lcd_extern.h>
+#include "lcd_extern.h"
 
 static struct lcd_extern_config_s *ext_config;
 
-/* #define LCD_EXT_DEBUG_INFO */
-#ifdef LCD_EXT_DEBUG_INFO
-#define DBG_PRINT(...)		pr_info(__VA_ARGS__)
-#else
-#define DBG_PRINT(...)
-#endif
-
-#define LCD_EXTERN_NAME			"lcd_spi_LD070WS2"
+#define LCD_EXTERN_NAME		"lcd_spi_LD070WS2"
 
 #define SPI_DELAY		30 /* unit: us */
 
@@ -56,7 +50,7 @@ static unsigned char spi_init_table[][2] = {
 	{0x02, 0x43}, /* adjust charge sharing time */
 	{0x0a, 0x28}, /* trigger bias reduction */
 	{0x10, 0x41}, /* adopt 2 line/1 dot */
-	{0xff, 50}, /* delay 50ms */
+	{0xff, 50},   /* delay 50ms */
 	{0x00, 0xad}, /* display on */
 	{0xff, 0xff}, /* ending flag */
 };
@@ -66,21 +60,21 @@ static unsigned char spi_off_table[][2] = {
 	{0xff, 0xff}, /* ending flag */
 };
 
-static void set_lcd_csb(unsigned v)
+static void set_lcd_csb(unsigned int v)
 {
-	lcd_extern_gpio_output(ext_config->spi_cs, v);
+	lcd_extern_gpio_set(ext_config->spi_cs, v);
 	udelay(SPI_DELAY);
 }
 
-static void set_lcd_scl(unsigned v)
+static void set_lcd_scl(unsigned int v)
 {
-	lcd_extern_gpio_output(ext_config->spi_clk, v);
+	lcd_extern_gpio_set(ext_config->spi_clk, v);
 	udelay(SPI_DELAY);
 }
 
-static void set_lcd_sda(unsigned v)
+static void set_lcd_sda(unsigned int v)
 {
-	lcd_extern_gpio_output(ext_config->spi_data, v);
+	lcd_extern_gpio_set(ext_config->spi_data, v);
 	udelay(SPI_DELAY);
 }
 
@@ -129,7 +123,7 @@ static void spi_write_8(unsigned char addr, unsigned char data)
 	udelay(SPI_DELAY);
 }
 
-static int lcd_extern_spi_init(void)
+static int lcd_extern_power_on(void)
 {
 	int ending_flag = 0;
 	int i = 0;
@@ -147,12 +141,12 @@ static int lcd_extern_spi_init(void)
 		}
 		i++;
 	}
-	pr_info("%s\n", __func__);
+	EXTPR("%s\n", __func__);
 
 	return 0;
 }
 
-static int lcd_extern_spi_off(void)
+static int lcd_extern_power_off(void)
 {
 	int ending_flag = 0;
 	int i = 0;
@@ -170,121 +164,37 @@ static int lcd_extern_spi_off(void)
 		}
 		i++;
 	}
-	pr_info("%s\n", __func__);
+
 	mdelay(10);
 	spi_gpio_off();
+	EXTPR("%s\n", __func__);
 
 	return 0;
 }
 
-static int get_lcd_extern_config(struct platform_device *pdev,
-		struct lcd_extern_config_s *ext_cfg)
+static int lcd_extern_driver_update(struct aml_lcd_extern_driver_s *ext_drv)
 {
 	int ret = 0;
-	struct aml_lcd_extern_driver_s *lcd_ext;
 
-	ret = get_lcd_extern_dt_data(pdev, ext_cfg);
-	if (ret) {
-		pr_info("[error] %s: failed to get dt data\n", LCD_EXTERN_NAME);
-		return ret;
-	}
-
-	/* lcd extern driver update */
-	lcd_ext = aml_lcd_extern_get_driver();
-	if (lcd_ext) {
-		lcd_ext->type     = ext_cfg->type;
-		lcd_ext->name     = ext_cfg->name;
-		lcd_ext->power_on   = lcd_extern_spi_init;
-		lcd_ext->power_off  = lcd_extern_spi_off;
+	if (ext_drv) {
+		ext_drv->power_on  = lcd_extern_power_on;
+		ext_drv->power_off = lcd_extern_power_off;
 	} else {
-		pr_info("[error] %s get lcd_extern_driver failed\n",
-			ext_cfg->name);
+		EXTERR("%s driver is null\n", LCD_EXTERN_NAME);
 		ret = -1;
 	}
 
 	return ret;
 }
 
-static int aml_LD070WS2_probe(struct platform_device *pdev)
+int aml_lcd_extern_spi_LD070WS2_probe(struct aml_lcd_extern_driver_s *ext_drv)
 {
 	int ret = 0;
 
-	if (lcd_extern_driver_check() == FALSE)
-		return -1;
-	if (ext_config == NULL)
-		ext_config = kzalloc(sizeof(*ext_config), GFP_KERNEL);
-	if (ext_config == NULL) {
-		pr_info("[error] %s probe: failed to alloc data\n",
-			LCD_EXTERN_NAME);
-		return -1;
-	}
+	ext_config = &ext_drv->config;
+	ret = lcd_extern_driver_update(ext_drv);
 
-	pdev->dev.platform_data = ext_config;
-	ret = get_lcd_extern_config(pdev, ext_config);
-	if (ret)
-		goto lcd_extern_probe_failed;
-
-	pr_info("%s probe ok\n", LCD_EXTERN_NAME);
-	return ret;
-
-lcd_extern_probe_failed:
-	kfree(ext_config);
-	ext_config = NULL;
-	return -1;
-}
-
-static int aml_LD070WS2_remove(struct platform_device *pdev)
-{
-	kfree(pdev->dev.platform_data);
-	return 0;
-}
-
-#ifdef CONFIG_USE_OF
-static const struct of_device_id aml_LD070WS2_dt_match[] = {
-	{
-		.compatible = "amlogic, lcd_spi_LD070WS2",
-	},
-	{},
-};
-#else
-#define aml_LD070WS2_dt_match NULL
-#endif
-
-static struct platform_driver aml_LD070WS2_driver = {
-	.probe  = aml_LD070WS2_probe,
-	.remove = aml_LD070WS2_remove,
-	.driver = {
-		.name  = LCD_EXTERN_NAME,
-		.owner = THIS_MODULE,
-#ifdef CONFIG_USE_OF
-		.of_match_table = aml_LD070WS2_dt_match,
-#endif
-	},
-};
-
-static int __init aml_LD070WS2_init(void)
-{
-	int ret;
-	DBG_PRINT("%s\n", __func__);
-
-	ret = platform_driver_register(&aml_LD070WS2_driver);
-	if (ret) {
-		pr_info("[error] %s failed ", __func__);
-		pr_info("to register lcd extern driver module\n");
-		return -ENODEV;
-	}
+	if (lcd_debug_print_flag)
+		EXTPR("%s: %d\n", __func__, ret);
 	return ret;
 }
-
-static void __exit aml_LD070WS2_exit(void)
-{
-	platform_driver_unregister(&aml_LD070WS2_driver);
-}
-
-/* late_initcall(aml_LD070WS2_init); */
-module_init(aml_LD070WS2_init);
-module_exit(aml_LD070WS2_exit);
-
-MODULE_AUTHOR("AMLOGIC");
-MODULE_DESCRIPTION("LCD Extern driver for LD070WS2");
-MODULE_LICENSE("GPL");

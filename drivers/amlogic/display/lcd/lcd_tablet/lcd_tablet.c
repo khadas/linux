@@ -620,6 +620,7 @@ int lcd_tablet_remove(struct platform_device *pdev)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	aml_lcd_notifier_unregister(&lcd_frame_rate_adjust_nb);
 	kfree(lcd_drv->lcd_info);
 	lcd_drv->lcd_info = NULL;
 	return 0;

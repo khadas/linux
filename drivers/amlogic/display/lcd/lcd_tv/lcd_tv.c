@@ -818,6 +818,7 @@ int lcd_tv_remove(struct platform_device *pdev)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	aml_lcd_notifier_unregister(&lcd_frame_rate_adjust_nb);
 	switch (lcd_drv->lcd_config->lcd_basic.lcd_type) {
 	case LCD_VBYONE:
 		lcd_vbyone_interrupt_down();

@@ -3,6 +3,11 @@ lcd_extern{
 	dev_name = "lcd_extern";
 	status = "okay";
 
+	extern-gpios = <&gpio GPIODV_1 GPIO_ACTIVE_HIGH
+			&gpio GPIODV_16 GPIO_ACTIVE_HIGH
+			&gpio GPIODV_17 GPIO_ACTIVE_HIGH>;
+	extern_gpio_names = "GPIODV_1","GPIODV_16","GPIODV_17";
+
 	extern_0{
 		index = <0>;
 		extern_name = "i2c_T5800Q";
@@ -37,16 +42,11 @@ lcd_extern{
 	};
 
 	extern_3{
-		index = <2>;
+		index = <3>;
 		extern_name = "spi_LD070WS2";
 		status = "disabled";
 
 		type = <1>; /** lcd_extern_driver type: 0=i2c, 1=spi, 2=mipi */
-
-		extern-gpios = <&gpio GPIODV_1 GPIO_ACTIVE_HIGH
-			&gpio GPIODV_16 GPIO_ACTIVE_HIGH
-			&gpio GPIODV_17 GPIO_ACTIVE_HIGH>;
-		extern_gpio_names = "GPIODV_1","GPIODV_16","GPIODV_17";
 
 		gpio_spi_cs = <0>; /* index in extern-gpios */
 		gpio_spi_clk = <1>; /* index in extern-gpios */
@@ -54,7 +54,7 @@ lcd_extern{
 	};
 
 	extern_4{
-		index = <2>;
+		index = <4>;
 		extern_name = "mipi_N070ICN";
 		status = "disabled";
 
@@ -62,7 +62,7 @@ lcd_extern{
 	};
 
 	extern_5{
-		index = <2>;
+		index = <5>;
 		extern_name = "mipi_KD080D13";
 		status = "disabled";
 

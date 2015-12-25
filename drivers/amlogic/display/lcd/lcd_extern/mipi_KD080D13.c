@@ -17,29 +17,17 @@
 
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/jiffies.h>
-#include <linux/miscdevice.h>
-#include <linux/mutex.h>
-#include <linux/mm.h>
-#include <linux/device.h>
-#include <linux/fs.h>
+#include <linux/i2c.h>
+#include <linux/amlogic/i2c-amlogic.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/sysctl.h>
-#include <linux/uaccess.h>
+#include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/amlogic/vout/lcd_extern.h>
-
-static struct lcd_extern_config_s *ext_config;
-
-/* #define LCD_EXT_DEBUG_INFO */
-#ifdef LCD_EXT_DEBUG_INFO
-#define DBG_PRINT(...)		pr_info(__VA_ARGS__)
-#else
-#define DBG_PRINT(...)
-#endif
+#include "lcd_extern.h"
 
 #define LCD_EXTERN_NAME			"lcd_mipi_KD080D13"
 
@@ -114,115 +102,29 @@ static unsigned char mipi_init_off_table[] = {
 	0xff, 0xff,   /* ending flag */
 };
 
-static int get_lcd_extern_config(struct platform_device *pdev,
-		struct lcd_extern_config_s *ext_cfg)
+static int lcd_extern_driver_update(struct aml_lcd_extern_driver_s *ext_drv)
 {
 	int ret = 0;
-	struct aml_lcd_extern_driver_s *lcd_ext;
 
-	ret = get_lcd_extern_dt_data(pdev, ext_cfg);
-	if (ret) {
-		pr_info("[error] %s: failed to get dt data\n", LCD_EXTERN_NAME);
-		return ret;
-	}
-
-	/* lcd extern driver update */
-	lcd_ext = aml_lcd_extern_get_driver();
-	if (lcd_ext) {
-		lcd_ext->type     = ext_cfg->type;
-		lcd_ext->name     = ext_cfg->name;
-		lcd_ext->init_on_cmd_8  = &mipi_init_on_table[0];
-		lcd_ext->init_off_cmd_8 = &mipi_init_off_table[0];
+	if (ext_drv) {
+		ext_drv->init_on_cmd_8  = &mipi_init_on_table[0];
+		ext_drv->init_off_cmd_8 = &mipi_init_off_table[0];
 	} else {
-		pr_info("[error] %s get lcd_extern_driver failed\n",
-			ext_cfg->name);
+		EXTERR("%s driver is null\n", LCD_EXTERN_NAME);
 		ret = -1;
 	}
 
 	return ret;
 }
 
-static int aml_KD080D13_probe(struct platform_device *pdev)
+int aml_lcd_extern_mipi_KD080D13_probe(struct aml_lcd_extern_driver_s *ext_drv)
 {
 	int ret = 0;
 
-	if (lcd_extern_driver_check() == FALSE)
-		return -1;
-	if (ext_config == NULL)
-		ext_config = kzalloc(sizeof(*ext_config), GFP_KERNEL);
-	if (ext_config == NULL) {
-		pr_info("[error] %s probe: failed to alloc data\n",
-			LCD_EXTERN_NAME);
-		return -1;
-	}
+	ret = lcd_extern_driver_update(ext_drv);
 
-	pdev->dev.platform_data = ext_config;
-	ret = get_lcd_extern_config(pdev, ext_config);
-	if (ret)
-		goto lcd_extern_probe_failed;
-
-	pr_info("%s probe ok\n", LCD_EXTERN_NAME);
-	return ret;
-
-lcd_extern_probe_failed:
-	kfree(ext_config);
-	ext_config = NULL;
-	return -1;
-}
-
-static int aml_KD080D13_remove(struct platform_device *pdev)
-{
-	kfree(pdev->dev.platform_data);
-	return 0;
-}
-
-#ifdef CONFIG_USE_OF
-static const struct of_device_id aml_KD080D13_dt_match[] = {
-	{
-		.compatible = "amlogic, lcd_mipi_KD080D13",
-	},
-	{},
-};
-#else
-#define aml_KD080D13_dt_match NULL
-#endif
-
-static struct platform_driver aml_KD080D13_driver = {
-	.probe  = aml_KD080D13_probe,
-	.remove = aml_KD080D13_remove,
-	.driver = {
-		.name  = LCD_EXTERN_NAME,
-		.owner = THIS_MODULE,
-#ifdef CONFIG_USE_OF
-		.of_match_table = aml_KD080D13_dt_match,
-#endif
-	},
-};
-
-static int __init aml_KD080D13_init(void)
-{
-	int ret;
-	DBG_PRINT("%s\n", __func__);
-
-	ret = platform_driver_register(&aml_KD080D13_driver);
-	if (ret) {
-		pr_info("[error] %s failed ", __func__);
-		pr_info("to register lcd extern driver module\n");
-		return -ENODEV;
-	}
-
+	if (lcd_debug_print_flag)
+		EXTPR("%s: %d\n", __func__, ret);
 	return ret;
 }
 
-static void __exit aml_KD080D13_exit(void)
-{
-	platform_driver_unregister(&aml_KD080D13_driver);
-}
-
-/* late_initcall(aml_KD080D13_init); */
-module_init(aml_KD080D13_init);
-module_exit(aml_KD080D13_exit);
-
-MODULE_AUTHOR("AMLOGIC");
-MODULE_DESCRIPTION("LCD Extern driver for KD080D13");
-MODULE_LICENSE("GPL");

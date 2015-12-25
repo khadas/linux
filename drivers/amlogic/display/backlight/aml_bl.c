@@ -1570,6 +1570,45 @@ static struct notifier_block aml_bl_off_nb = {
 	.notifier_call = aml_bl_off_notifier,
 	.priority = LCD_PRIORITY_POWER_BL_OFF,
 };
+
+static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	struct bl_pwm_config_s *bl_pwm = NULL;
+
+	/* If we aren't interested in this event, skip it immediately */
+	if (event != LCD_EVENT_BACKLIGHT_UPDATE)
+		return NOTIFY_DONE;
+
+	if (aml_bl_check_driver())
+		return NOTIFY_DONE;
+	BLPR("bl_lcd_update_notifier for pwm_vs: event = 0x%lx\n", event);
+	switch (bl_drv->bconf->method) {
+	case BL_CTRL_PWM:
+		if (bl_drv->bconf->bl_pwm->pwm_port == BL_PWM_VS)
+			bl_pwm = bl_drv->bconf->bl_pwm;
+		break;
+	case BL_CTRL_PWM_COMBO:
+		if (bl_drv->bconf->bl_pwm_combo0->pwm_port == BL_PWM_VS)
+			bl_pwm = bl_drv->bconf->bl_pwm_combo0;
+		else if (bl_drv->bconf->bl_pwm_combo1->pwm_port == BL_PWM_VS)
+			bl_pwm = bl_drv->bconf->bl_pwm_combo1;
+		break;
+	default:
+		break;
+	}
+
+	if (bl_pwm) {
+		bl_pwm_config_init(bl_pwm);
+		aml_bl_update_status(bl_drv->bldev);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block aml_bl_lcd_update_nb = {
+	.notifier_call = aml_bl_lcd_update_notifier,
+};
 /* **************************************** */
 
 /* ****************************************
@@ -1797,6 +1836,9 @@ static int aml_bl_probe(struct platform_device *pdev)
 	ret = aml_lcd_notifier_register(&aml_bl_off_nb);
 	if (ret)
 		BLERR("register aml_bl_off_notifier failed\n");
+	ret = aml_lcd_notifier_register(&aml_bl_lcd_update_nb);
+	if (ret)
+		BLERR("register aml_bl_lcd_update_nb failed\n");
 #endif
 	aml_bl_creat_class();
 
@@ -1825,6 +1867,7 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 
 	backlight_device_unregister(bl_drv->bldev);
 #ifdef CONFIG_AML_LCD
+	aml_lcd_notifier_unregister(&aml_bl_lcd_update_nb);
 	aml_lcd_notifier_unregister(&aml_bl_on_nb);
 	aml_lcd_notifier_unregister(&aml_bl_off_nb);
 #endif

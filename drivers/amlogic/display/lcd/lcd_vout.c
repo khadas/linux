@@ -37,6 +37,9 @@
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vout/lcd_vout.h>
 #include <linux/amlogic/vout/lcd_notify.h>
+#ifdef CONFIG_AML_LCD_EXTERN
+#include <linux/amlogic/vout/lcd_extern.h>
+#endif
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
@@ -207,11 +210,14 @@ static void lcd_power_ctrl(int status)
 			break;
 #ifdef CONFIG_AML_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			index = power_step->index;
 			ext_drv = aml_lcd_extern_get_driver(index);
-			if (status)
-				ext_drv->power_on();
-			else
-				ext_drv->power_off();
+			if (ext_drv) {
+				if (status)
+					ext_drv->power_on();
+				else
+					ext_drv->power_off();
+			}
 			break;
 #endif
 		default:
@@ -447,6 +453,8 @@ static int lcd_probe(struct platform_device *pdev)
 static int lcd_remove(struct platform_device *pdev)
 {
 	if (lcd_driver) {
+		aml_lcd_notifier_unregister(&lcd_power_nb);
+		aml_lcd_notifier_unregister(&lcd_bl_select_nb);
 		lcd_class_remove();
 		lcd_mode_remove(pdev);
 		kfree(lcd_driver);
