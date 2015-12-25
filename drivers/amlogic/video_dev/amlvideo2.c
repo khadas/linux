@@ -59,16 +59,16 @@
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* #include <mach/mod_gate.h> */
 /* #endif */
-#ifdef CONFIG_USE_OF
+
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#endif
+
 
 #include <linux/semaphore.h>
 #include <linux/sched/rt.h>
 
 #define AVMLVIDEO2_MODULE_NAME "amlvideo2"
-#define AMLVIDEO2_RES_CANVAS 0xD8
+#define AMLVIDEO2_RES_CANVAS 0xc0
 
 /* #define USE_SEMA_QBUF */
 /* #define USE_VDIN_PTS */
@@ -3150,9 +3150,6 @@ static enum tvin_scan_mode_e vmode2scan_mode(enum vmode_e mode)
 	case VMODE_576CVBS:
 	case VMODE_1080I:
 	case VMODE_1080I_50HZ:
-	#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	case VMODE_1080I_59HZ:
-	#endif
 		scan_mode = TVIN_SCAN_MODE_INTERLACED;
 		break;
 	case VMODE_480P:
@@ -3171,20 +3168,6 @@ static enum tvin_scan_mode_e vmode2scan_mode(enum vmode_e mode)
 	case VMODE_XGA:
 	case VMODE_SXGA:
 	case VMODE_LCD:
-	case VMODE_LVDS_1080P:
-	case VMODE_LVDS_1080P_50HZ:
-	case VMODE_LVDS_768P:
-		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
-	#if 1
-	#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	case VMODE_480P_59HZ:
-	case VMODE_720P_59HZ:
-	case VMODE_1080P_59HZ:
-	case VMODE_1080P_23HZ:
-	case VMODE_4K2K_29HZ:
-	case VMODE_4K2K_23HZ:
-	#endif
-	#endif
 		scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
 		break;
 	default:
@@ -3861,6 +3844,7 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 		}
 		*vfd = amlvideo2_template;
 		vfd->debug = debug;
+		vfd->v4l2_dev = v4l2_dev;
 		ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
 		if (ret < 0) {
 			ret = -ENODEV;
@@ -3929,6 +3913,7 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 
 	pr_err("amlvideo2 probe called\n");
 
+	pdev->num_resources = MAX_SUB_DEV_NODE;
 	ret = of_reserved_mem_device_init(&pdev->dev);
 
 	if (ret == 0)
@@ -4035,16 +4020,14 @@ static int amlvideo2_drv_remove(struct platform_device *pdev)
 	kfree(vid_dev);
 	return 0;
 }
-#ifdef CONFIG_USE_OF
+
 static const struct of_device_id amlvideo2_dt_match[] = {
 {
 .compatible = "amlogic, amlvideo2",
 },
 {},
 };
-#else
-#define amlvideo2_dt_match NULL
-#endif
+
 
 /* general interface for a linux driver .*/
 static struct platform_driver amlvideo2_drv = {
