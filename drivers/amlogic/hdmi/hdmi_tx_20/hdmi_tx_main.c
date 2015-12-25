@@ -846,6 +846,28 @@ PROCESS_END:
 	return 16;
 }
 
+/* rawedid attr */
+static ssize_t show_rawedid(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	int i;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int num;
+
+	if (hdev->EDID_buf[0x7e] < 4)
+		num = (hdev->EDID_buf[0x7e]+1)*0x80;
+	else
+		num = 0x100;
+
+	for (i = 0; i < num; i++)
+		pos += snprintf(buf+pos, PAGE_SIZE, "%02x", hdev->EDID_buf[i]);
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "\n");
+
+	return pos;
+}
+
 /*config attr*/
 static ssize_t show_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -1413,6 +1435,7 @@ static DEVICE_ATTR(disp_mode, S_IWUSR | S_IRUGO | S_IWGRP,
 static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
+static DEVICE_ATTR(rawedid, S_IWUSR | S_IRUGO, show_rawedid, NULL);
 static DEVICE_ATTR(config, S_IWUSR | S_IRUGO | S_IWGRP, show_config,
 	store_config);
 static DEVICE_ATTR(debug, S_IWUSR, NULL, store_debug);
@@ -2208,6 +2231,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_edid);
+	ret = device_create_file(dev, &dev_attr_rawedid);
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_disp_cap);
@@ -2401,6 +2425,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_edid);
+	device_remove_file(dev, &dev_attr_rawedid);
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_disp_cap);

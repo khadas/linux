@@ -1400,6 +1400,55 @@ static int check_dvi_hdmi_edid_valid(unsigned char *buf)
 	return 1;
 }
 
+static void Edid_ManufactureDateParse(struct rx_cap *pRxCap,
+		unsigned char *data)
+{
+	if (data == NULL)
+		return;
+
+	/* week:
+		0: not specified
+		0x1~0x36: valid week
+		0x37~0xfe: reserved
+		0xff: model year is specified
+	*/
+	if ((data[0] == 0) || ((data[0] >= 0x37) && (data[0] <= 0xfe)))
+		pRxCap->manufacture_week = 0;
+	else
+		pRxCap->manufacture_week = data[0];
+
+	/* year:
+		0x0~0xf: reserved
+		0x10~0xff: year of manufacture,
+					or model year(if specified by week=0xff)
+	*/
+	pRxCap->manufacture_year =
+		(data[1] <= 0xf)?0:data[1];
+
+	return;
+}
+
+static void Edid_VersionParse(struct rx_cap *pRxCap,
+		unsigned char *data)
+{
+	if (data == NULL)
+		return;
+
+	/*
+		0x1: edid version 1
+		0x0,0x2~0xff: reserved
+	*/
+	pRxCap->edid_version = (data[0] == 0x1)?1:0;
+
+	/*
+		0x0~0x4: revision number
+		0x5~0xff: reserved
+	*/
+	pRxCap->edid_revision = (data[1] < 0x5)?data[1]:0;
+
+	return;
+}
+
 int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char CheckSum;
@@ -1447,6 +1496,11 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			Edid_ReceiverProductNameParse(&hdmitx_device->RXCap,
 				&EDID_buf[idx[i]+5]);
 	}
+
+	Edid_ManufactureDateParse(&hdmitx_device->RXCap, &EDID_buf[16]);
+
+	Edid_VersionParse(&hdmitx_device->RXCap, &EDID_buf[18]);
+
 	Edid_DecodeStandardTiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
 	Edid_ParseCEADetailedTimingDescriptors(&hdmitx_device->hdmi_info,
 		4, 0x36, &EDID_buf[0]);
@@ -1867,6 +1921,15 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Rx Brand Name: %s\n", pRXCap->ReceiverBrandName);
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Rx Product Name: %s\n", pRXCap->ReceiverProductName);
+
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"Manufacture Week: %d\n", pRXCap->manufacture_week);
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"Manufacture Year: %d\n", pRXCap->manufacture_year+1990);
+
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"EDID Verison: %d.%d\n",
+		pRXCap->edid_version, pRXCap->edid_revision);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"EDID block number: 0x%x\n", hdmitx_device->EDID_buf[0x7e]);

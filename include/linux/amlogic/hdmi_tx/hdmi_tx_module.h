@@ -69,6 +69,10 @@ struct rx_cap {
 	unsigned int lte_340mcsc_scramble:1;
 	unsigned char ReceiverBrandName[4];
 	unsigned char ReceiverProductName[16];
+	unsigned char manufacture_week;
+	unsigned char manufacture_year;
+	unsigned char edid_version;
+	unsigned char edid_revision;
 	unsigned int ColorDeepSupport;
 	unsigned int Max_TMDS_Clock;
 	unsigned int Video_Latency;
