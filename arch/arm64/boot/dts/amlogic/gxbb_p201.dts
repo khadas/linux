@@ -64,7 +64,7 @@
 		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x1900000>;
 			no-map;
 		};
 
