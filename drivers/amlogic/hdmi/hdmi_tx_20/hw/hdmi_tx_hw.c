@@ -3285,6 +3285,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 	case DDC_HDCP_OP:
 		if (argv == HDCP14_ON) {
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
+			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 0, 6, 1);
 			hdmitx_hdcp_opr(6);
 			hdmitx_hdcp_opr(1);
 			hdcp_start_timer(hdev);
@@ -3321,6 +3322,9 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case DDC_HDCP_22_LSTORE:
 		return hdmitx_hdcp_opr(0xb);
+		break;
+	case DDC_HDCP_BYP:
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		break;
 	default:
 		hdmi_print(INF, "ddc: " "unknown cmd: 0x%x\n", cmd);
@@ -3618,6 +3622,9 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 		}
 		break;
 #endif
+	case MISC_HDCP_CLKDIS:
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, argv, 6, 1);
+		break;
 	default:
 		hdmi_print(ERR, "misc: " "hdmitx: unknown cmd: 0x%x\n", cmd);
 	}

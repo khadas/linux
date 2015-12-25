@@ -359,7 +359,7 @@ static long cmd_hpi_write(struct esm_device *esm,
 		udelay(10);
 		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
 		udelay(10);
-		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 0, 6, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MASK, 0);
 		hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MUTE, 0);
 		set_pkf_duk_nonce();
