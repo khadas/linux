@@ -432,6 +432,8 @@ static void lcd_vbyone_control_set(struct lcd_config_s *pconf)
 static void lcd_vbyone_interrupt_enable(int flag)
 {
 	if (flag) {
+		/* set hold in FSM_ACQ */
+		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
 		/* enable interrupt */
 		lcd_vcbus_setb(VBO_INTR_UNMASK, VBYONE_INTR_UNMASK, 0, 15);
 	} else {
@@ -459,7 +461,6 @@ static void lcd_vbyone_interrupt_init(void)
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9); /* clear interrupt */
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
 
-	lcd_vbyone_interrupt_enable(1);
 	vx1_fsm_acq_st = 0;
 
 	if (lcd_debug_print_flag)
@@ -476,7 +477,7 @@ static void lcd_vbyone_wait_stable(void)
 			break;
 	}
 	LCDPR("%s status: 0x%x\n", __func__, lcd_vcbus_read(VBO_STATUS_L));
-	lcd_vbyone_interrupt_init();
+	lcd_vbyone_interrupt_enable(1);
 }
 
 static irqreturn_t lcd_vbyone_vsync_isr(int irq, void *dev_id)
@@ -531,8 +532,9 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 	}
 #endif
 	if (data32 & 0x2000) {
-		LCDPR("vx1 fsm_acqu wait end\n");
-		LCDPR("vx1 status 0: 0x%x\n", lcd_vcbus_read(VBO_STATUS_L));
+		LCDPR("vx1 fsm_acq wait end\n");
+		LCDPR("vx1 status 0: 0x%x, fsm_acq_st: %d\n",
+			lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
 		if (vx1_fsm_acq_st == 0) {
 			/* clear FSM_continue */
 			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
@@ -554,7 +556,8 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 			/* set FSM_continue */
 			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 1, 15, 1);
 		}
-		LCDPR("vx1 status 1: 0x%x\n", lcd_vcbus_read(VBO_STATUS_L));
+		LCDPR("vx1 status 1: 0x%x, fsm_acq_st: %d\n",
+			lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
 	}
 	udelay(20);
 
@@ -814,6 +817,8 @@ void lcd_tv_driver_disable(void)
 
 void lcd_vbyone_interrupt_up(void)
 {
+	lcd_vbyone_interrupt_init();
+
 	if (request_irq(INT_VIU_VSYNC, &lcd_vbyone_vsync_isr,
 		IRQF_SHARED, "vbyone_vsync", (void *)"vbyone_vsync")) {
 		LCDERR("can't request vsync_irq for vbyone\n");
@@ -829,10 +834,12 @@ void lcd_vbyone_interrupt_up(void)
 		if (lcd_debug_print_flag)
 			LCDPR("request vbyone irq successful\n");
 	}
+	lcd_vbyone_interrupt_enable(1);
 }
 
 void lcd_vbyone_interrupt_down(void)
 {
+	lcd_vbyone_interrupt_enable(0);
 	free_irq(INT_VENC_VX1, (void *)"vbyone");
 	free_irq(INT_VIU_VSYNC, (void *)"vbyone");
 	if (lcd_debug_print_flag)
