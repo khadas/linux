@@ -40,15 +40,6 @@
 #include "hdmi_rx_reg.h"
 
 int eq_setting[EQ_CH_NUM];
-int port0_eq_setting_ch0 = 4;
-int port0_eq_setting_ch1 = 4;
-int port0_eq_setting_ch2 = 4;
-int port1_eq_setting_ch0 = 4;
-int port1_eq_setting_ch1 = 4;
-int port1_eq_setting_ch2 = 4;
-int port2_eq_setting_ch0 = 4;
-int port2_eq_setting_ch1 = 4;
-int port2_eq_setting_ch2 = 4;
 
 static bool finish_flag[EQ_CH_NUM];
 
@@ -106,6 +97,10 @@ int hdmirx_log_flag = 1;
 MODULE_PARM_DESC(hdmirx_log_flag, "\n hdmirx_log_flag\n");
 module_param(hdmirx_log_flag, int, 0664);
 
+bool check_pll_rate = 1;
+MODULE_PARM_DESC(check_pll_rate, "\n check_pll_rate\n");
+module_param(check_pll_rate, bool, 0664);
+
 static int tmds_valid_cnt_max = 2;
 MODULE_PARM_DESC(tmds_valid_cnt_max, "\n tmds_valid_cnt_max\n");
 module_param(tmds_valid_cnt_max, int, 0664);
@@ -121,6 +116,10 @@ module_param(fast_switching, bool, 0664);
 static int mpll_ctl_setting = 0x200;
 MODULE_PARM_DESC(mpll_ctl_setting, "\n mpll_ctl_setting\n");
 module_param(mpll_ctl_setting, int, 0664);
+
+static int eq_clk_rate_wait = 15;
+MODULE_PARM_DESC(eq_clk_rate_wait, "\n eq_clk_rate_wait\n");
+module_param(eq_clk_rate_wait, int, 0664);
 
 bool phy_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting)
 {
@@ -147,17 +146,29 @@ void phy_init_param(void)
 	best_long_setting[EQ_CH0] = 6;
 	best_long_setting[EQ_CH1] = 6;
 	best_long_setting[EQ_CH2] = 6;
-	best_short_setting[EQ_CH0] = 4;
-	best_short_setting[EQ_CH1] = 4;
-	best_short_setting[EQ_CH2] = 4;
-	best_setting[EQ_CH0] = 4;
-	best_setting[EQ_CH1] = 4;
-	best_setting[EQ_CH2] = 4;
-	eq_setting[EQ_CH0] = 4;
-	eq_setting[EQ_CH1] = 4;
-	eq_setting[EQ_CH2] = 4;
+	best_short_setting[EQ_CH0] = EQ_DEFAULT_SETTING;
+	best_short_setting[EQ_CH1] = EQ_DEFAULT_SETTING;
+	best_short_setting[EQ_CH2] = EQ_DEFAULT_SETTING;
+	best_setting[EQ_CH0] = EQ_DEFAULT_SETTING;
+	best_setting[EQ_CH1] = EQ_DEFAULT_SETTING;
+	best_setting[EQ_CH2] = EQ_DEFAULT_SETTING;
+	eq_setting[EQ_CH0] = EQ_DEFAULT_SETTING;
+	eq_setting[EQ_CH1] = EQ_DEFAULT_SETTING;
+	eq_setting[EQ_CH2] = EQ_DEFAULT_SETTING;
 	/*remove error*/
 	phy_eq_algo_data = NULL;
+}
+
+void phy_eq_set_state(enum phy_eq_states_e state, bool force)
+{
+	mutex_lock(&phy_private_data->state_lock);
+	if (force)
+		phy_private_data->phy_eq_state = state;
+	else
+		if ((phy_private_data->phy_eq_state != EQ_IDLE) &&
+			(state <= EQ_FAILED))
+			phy_private_data->phy_eq_state = state;
+	mutex_unlock(&phy_private_data->state_lock);
 }
 
 void phy_ConfEqualSetting(int ch0_lockVector,
@@ -277,23 +288,25 @@ void phy_EQ_workaround(void)
 		If stable clock is not asserted MAIN FSM should wait for such
 		 signal	and call again the algorithm.*/
 
-		/*if it is forced to exit delay,set state to EQ_DATA_START
+		/*if it is forced to exit delay,set state to EQ_IDLE
 		otherwise clk stable failed*/
 		if (phy_wait_clk_stable() != 0) {
 			if (phy_private_data->exit_task_delay)
-				phy_private_data->phy_eq_state = EQ_DATA_START;
+				phy_eq_set_state(EQ_IDLE, false);
 			else
-				phy_private_data->phy_eq_state = EQ_FAILED;
+				phy_eq_set_state(EQ_FAILED, false);
 			return;
 		}
 
-		block_delay_ms(EQ_CLK_RATE_WAIT);
+		block_delay_ms(eq_clk_rate_wait);
 		/* GET PHY STATUS (MAINFSM_STATUS1) */
 		eq_MAINFSM_STATUS1 = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 		pll_rate_value = (eq_MAINFSM_STATUS1 >> 9 & 0x3);
-		rx_print("eq_MAINFSM_STATUS1: %#x\n", eq_MAINFSM_STATUS1);
+		rx_print("eq_MAINFSM_STATUS1: %#x,tmds_clk:%d\n",
+			eq_MAINFSM_STATUS1, hdmirx_get_tmds_clock());
 		/* wait_clk_stable = 0; */
-		if (((eq_MAINFSM_STATUS1 >> 10) & 0x1) != 0) {
+		if ((((eq_MAINFSM_STATUS1 >> 10) & 0x1) != 0) &&
+					check_pll_rate) {
 			/* pll_rate smaller than 94.5MHz, algorithm not needed
 			Please make sure that PHY get the default status */
 			rx_print("low pll rate-[%x]\n", eq_MAINFSM_STATUS1);
@@ -304,26 +317,17 @@ void phy_EQ_workaround(void)
 			/* default status for register 0x73 */
 			hdmirx_wr_phy(0x73, 0x0020);
 
-			if (rx.port == 0) {
-				rx_print("port0-000\n");
-				port0_eq_setting_ch0 = 0;
-				port0_eq_setting_ch1 = 0;
-				port0_eq_setting_ch2 = 0;
-			} else if (rx.port == 1) {
-				rx_print("port1-000\n");
-				port1_eq_setting_ch0 = 0;
-				port1_eq_setting_ch1 = 0;
-				port1_eq_setting_ch2 = 0;
-			} else {
-				rx_print("port2-000\n");
-				port2_eq_setting_ch0 = 0;
-				port2_eq_setting_ch1 = 0;
-				port2_eq_setting_ch2 = 0;
-			}
+			eq_setting[EQ_CH0] = 0;
+			eq_setting[EQ_CH1] = 0;
+			eq_setting[EQ_CH2] = 0;
+			phy_configure_eq_setting(rx.port, eq_setting[EQ_CH0],
+			eq_setting[EQ_CH1], eq_setting[EQ_CH2]);
+
 			/* hdmirx_phy_init(rx.port, 0); */
-			phy_private_data->phy_eq_state = EQ_SUCCESS_END;
+			phy_eq_set_state(EQ_SUCCESS_END, false);
 			return;
 		}
+
 		/************* END  NOTICE **************************/
 		if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
 			rx_print("hdmi 2.0 status-[%x]-[%x]\n",
@@ -367,7 +371,7 @@ void phy_EQ_workaround(void)
 		last_early_cnt[EQ_CH1] = 0;
 		last_early_cnt[EQ_CH2] = 0;
 		eq_setting_back = 0;
-		phy_private_data->phy_eq_state = EQ_SET_LOCK_VECTOR;
+		phy_eq_set_state(EQ_SET_LOCK_VECTOR, false);
 		phy_eq_task_continue();
 	break;
 	case EQ_SET_LOCK_VECTOR:
@@ -381,7 +385,7 @@ void phy_EQ_workaround(void)
 		nretry = 0;
 		phy_ConfEqualSetting(eq_setting_back, eq_setting_back,
 							 eq_setting_back);
-		phy_private_data->phy_eq_state = EQ_SET_FORCE_FMS_STATE;
+		phy_eq_set_state(EQ_SET_FORCE_FMS_STATE, false);
 		phy_eq_task_continue();
 	break;
 	case EQ_SET_FORCE_FMS_STATE:
@@ -390,7 +394,7 @@ void phy_EQ_workaround(void)
 		hdmirx_wr_phy(PHY_MAINFSM_CTL, 0x1809);
 		/*please make sure that there's at least 10 mS between
 		that state and  TMDSVALID detection/test*/
-		phy_private_data->phy_eq_state = EQ_CHECK_TMDS_VALID;
+		phy_eq_set_state(EQ_CHECK_TMDS_VALID, false);
 		if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
 			rx_print("set for FMS state->check TMDS valid\n");
 		phy_eq_task_continue();
@@ -405,9 +409,9 @@ void phy_EQ_workaround(void)
 		otherwise clk stable failed*/
 		if (phy_wait_clk_stable() != 0) {
 			if (phy_private_data->exit_task_delay)
-				phy_private_data->phy_eq_state = EQ_DATA_START;
+				phy_eq_set_state(EQ_DATA_START, false);
 			else
-				phy_private_data->phy_eq_state = EQ_FAILED;
+				phy_eq_set_state(EQ_FAILED, false);
 			return;
 		}
 
@@ -434,8 +438,8 @@ void phy_EQ_workaround(void)
 					hdmirx_rd_phy(0x70));
 					tmds_valid_flag = 0;
 					tmds_valid_cnt = 0;
-					phy_private_data->phy_eq_state =
-						 EQ_GET_CABLE_TYPE;
+					phy_eq_set_state(EQ_GET_CABLE_TYPE,
+								 false);
 			} else {
 				block_delay_ms(EQ_TMDS_VALID_WAIT_DELAY);
 			}
@@ -461,8 +465,7 @@ void phy_EQ_workaround(void)
 				accumulator[EQ_CH2] + EQ_BOUNDARYSPREAD;
 			lowerBound_acqCH2 =
 				accumulator[EQ_CH1] - EQ_BOUNDARYSPREAD;
-			phy_private_data->phy_eq_state =
-					 EQ_AQUIRE_EARLY_COUNTER;
+			phy_eq_set_state(EQ_AQUIRE_EARLY_COUNTER, false);
 			rx_print("tmds valid->aquire early counter\n");
 		}
 		phy_eq_task_continue();
@@ -482,7 +485,7 @@ void phy_EQ_workaround(void)
 			hdmirx_wr_phy(PHY_MAINFSM_CTL, 0x1809);
 			/* wait EQ_WAITTIME to have a stable
 						read from Early edge counter */
-			udelay(EQ_WAITTIME);
+			mdelay(EQ_WAITTIME);
 
 			/* Update boundaries to detect a stable acquisitions */
 			if (accumulator[EQ_CH0] > upperBound_acqCH0 ||
@@ -521,8 +524,8 @@ void phy_EQ_workaround(void)
 						"3early_cnt_ch2=[%d]\n",
 						 early_cnt[EQ_CH2]);
 					nretry = 0;
-					phy_private_data->phy_eq_state =
-							EQ_GET_CABLE_TYPE;
+					phy_eq_set_state(EQ_GET_CABLE_TYPE,
+								false);
 					phy_eq_task_continue();
 					return;
 				}
@@ -543,8 +546,7 @@ void phy_EQ_workaround(void)
 					rx_print("5early_cnt_ch2=[%d]\n",
 							 early_cnt[EQ_CH2]);
 				nretry = 0;
-				phy_private_data->phy_eq_state =
-							EQ_GET_CABLE_TYPE;
+				phy_eq_set_state(EQ_GET_CABLE_TYPE, false);
 				phy_eq_task_continue();
 				return;
 			}
@@ -783,7 +785,7 @@ void phy_EQ_workaround(void)
 		/* Algorithm already take the decision for all Channels */
 		if (finish_flag[EQ_CH0] && finish_flag[EQ_CH1] &&
 						 finish_flag[EQ_CH2]) {
-			phy_private_data->phy_eq_state = EQ_CONF_BEST_SETTING;
+			phy_eq_set_state(EQ_CONF_BEST_SETTING, false);
 		} else {
 			/* Updating latest acquisition memory and jump
 			to the next setting */
@@ -792,7 +794,7 @@ void phy_EQ_workaround(void)
 			last_early_cnt[EQ_CH0] = early_cnt[EQ_CH0];
 			last_early_cnt[EQ_CH1] = early_cnt[EQ_CH1];
 			last_early_cnt[EQ_CH2] = early_cnt[EQ_CH2];
-			phy_private_data->phy_eq_state = EQ_SET_LOCK_VECTOR;
+			phy_eq_set_state(EQ_SET_LOCK_VECTOR, false);
 		}
 		phy_eq_task_continue();
 	break;
@@ -814,42 +816,26 @@ void phy_EQ_workaround(void)
 			minmax_check_cnt++;
 		}
 		if ((minmax_err_flag == 0) || (minmax_check_cnt >= 2)) {
-			/* Algorithm finish */
-			phy_private_data->phy_eq_state = EQ_SUCCESS_END;
 			tmds_valid_cnt = 0; /* What this means?	Are you
 			waiting for tmdsvalid? */
 			minmax_check_cnt = 0;
 			rx_print("eq cal->timing chage\n");
 		} else{ /* error detected and will retry */
-			phy_private_data->phy_eq_state = EQ_DATA_START;
+			phy_eq_set_state(EQ_DATA_START, false);
 			phy_eq_task_continue();
 			return;
 		}
 		/* please check readme for this particular function */
 		phy_configure_eq_setting(rx.port, best_setting[EQ_CH0],
 		best_setting[EQ_CH1], best_setting[EQ_CH2]);
-		rx_print("best EQ ch0=%d, ch1=%d,ch2=%d",
+		rx_print("best EQ ch0=%d, ch1=%d,ch2=%d\n",
 		best_setting[EQ_CH0], best_setting[EQ_CH1],
 					best_setting[EQ_CH2]);
 		eq_setting[EQ_CH0] = best_setting[EQ_CH0];
 		eq_setting[EQ_CH1] = best_setting[EQ_CH1];
 		eq_setting[EQ_CH2] = best_setting[EQ_CH2];
-		if (rx.port == 0) {
-			rx_print("port0\n");
-			port0_eq_setting_ch0 = eq_setting[EQ_CH0];
-			port0_eq_setting_ch1 = eq_setting[EQ_CH1];
-			port0_eq_setting_ch2 = eq_setting[EQ_CH2];
-		} else if (rx.port == 1) {
-			rx_print("port1\n");
-			port1_eq_setting_ch0 = eq_setting[EQ_CH0];
-			port1_eq_setting_ch1 = eq_setting[EQ_CH1];
-			port1_eq_setting_ch2 = eq_setting[EQ_CH2];
-		} else {
-			rx_print("port2\n");
-			port2_eq_setting_ch0 = eq_setting[EQ_CH0];
-			port2_eq_setting_ch1 = eq_setting[EQ_CH1];
-			port2_eq_setting_ch2 = eq_setting[EQ_CH2];
-		}
+		/* Algorithm finish */
+		phy_eq_set_state(EQ_SUCCESS_END, false);
 		rx_print("quit!!!\n");
 	break;
 	default:
@@ -878,6 +864,9 @@ void hdmirx_phy_clk_rate_monitor(void)
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
 
+	if (log_flag & VIDEO_LOG)
+		rx_print("clk_rate:%d\n", clk_rate);
+
 	if (1 == clk_rate)
 		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
 			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
@@ -897,6 +886,7 @@ int hdmirx_phy_probe(void)
 							GFP_KERNEL);
 	if (phy_eq_algo_data == NULL)
 		return -1;*/
+	mutex_init(&phy_private_data->state_lock);
 	init_completion(&phy_private_data->phy_task_lock);
 	phy_private_data->task_running = true;
 	phy_private_data->exit_task_delay = true;
@@ -929,7 +919,7 @@ int hdmirx_phy_start_eq(void)
 {
 	if (phy_private_data != NULL) {
 		phy_private_data->exit_task_delay = true;
-		phy_private_data->phy_eq_state = EQ_DATA_START;
+		phy_eq_set_state(EQ_DATA_START, true);
 		complete(&phy_private_data->phy_task_lock);
 	} else {
 		return -1;
@@ -942,15 +932,27 @@ int hdmirx_phy_stop_eq(void)
 {
 	if (phy_private_data != NULL) {
 		phy_private_data->exit_task_delay = true;
-		phy_private_data->phy_eq_state = EQ_IDLE;
+		phy_eq_set_state(EQ_IDLE, true);
 	} else {
 		return -1;
 	}
 
+	rx_print("%s\n", __func__);
+
 	return 0;
 }
 
+int hdmirx_phy_suspend_eq(void)
+{
+	hdmirx_phy_stop_eq();
 
+	while ((phy_private_data->phy_eq_state > EQ_IDLE)
+		&& (phy_private_data->phy_eq_state <
+		EQ_SUCCESS_END))
+		;
+
+	return 0;
+}
 
 void hdmirx_phy_reset(int rx_port_sel, int dcm)
 {
@@ -967,12 +969,12 @@ void hdmirx_phy_reset(int rx_port_sel, int dcm)
 	hdmirx_wr_phy(0x63, fat_bit_status);
 	hdmirx_wr_phy(0x83, fat_bit_status);
 
-	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, port0_eq_setting_ch0);
-	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, port0_eq_setting_ch1);
-	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, port0_eq_setting_ch2);
-	if ((0 == port0_eq_setting_ch0) &&
-		(0 == port0_eq_setting_ch1) &&
-		(0 == port0_eq_setting_ch2))
+	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, eq_setting[EQ_CH0]);
+	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, eq_setting[EQ_CH1]);
+	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, eq_setting[EQ_CH2]);
+	if ((0 == eq_setting[EQ_CH0]) &&
+		(0 == eq_setting[EQ_CH1]) &&
+		(0 == eq_setting[EQ_CH2]))
 		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
 	else
 		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
@@ -1065,40 +1067,15 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 		((rx.phy.lock_thres << 10) | (1 << 9) |
 			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
 
-	if (rx_port_sel == 0) {
-		rx_print("port0-0\n");
-		hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, port0_eq_setting_ch0);
-		hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, port0_eq_setting_ch1);
-		hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, port0_eq_setting_ch2);
-		if ((0 == port0_eq_setting_ch0) &&
-			(0 == port0_eq_setting_ch1) &&
-			(0 == port0_eq_setting_ch2))
-			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
-		else
-			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
-	} else if (rx_port_sel == 1) {
-		rx_print("port1-1\n");
-		hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, port1_eq_setting_ch0);
-		hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, port1_eq_setting_ch1);
-		hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, port1_eq_setting_ch2);
-		if ((0 == port1_eq_setting_ch0) &&
-			(0 == port1_eq_setting_ch1) &&
-			(0 == port1_eq_setting_ch2))
-			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
-		else
-			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
-	} else {
-		rx_print("port2-2\n");
-		hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, port2_eq_setting_ch0);
-		hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, port2_eq_setting_ch1);
-		hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, port2_eq_setting_ch2);
-		if ((0 == port2_eq_setting_ch0) &&
-			(0 == port2_eq_setting_ch1) &&
-			(0 == port2_eq_setting_ch2))
-			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
-		else
-			hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
-	}
+	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, eq_setting[EQ_CH0]);
+	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, eq_setting[EQ_CH1]);
+	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, eq_setting[EQ_CH2]);
+	if ((0 == eq_setting[EQ_CH0]) &&
+		(0 == eq_setting[EQ_CH1]) &&
+		(0 == eq_setting[EQ_CH2]))
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
+	else
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
 
 	hdmirx_phy_clk_rate_monitor();
 

@@ -19,7 +19,6 @@
 #define ACC_MIN_LIMIT	0
 #define ACC_LIMIT		370
 /* #define EQ_MAX_SETTING 12//for very long cable */
-#define EQ_SHORT_CABLE_BEST_SETTING	4
 #define MINDIFF		4/* max min diff between data chs on hdmi1.4 */
 #define MINDIFF_HDMI20	2/* max min diff between data chs on hdmi2.0 */
 #define EQ_CLK_WAIT_MAX_COUNT 1200
@@ -28,6 +27,8 @@
 #define EQ_CLK_RATE_WAIT 10
 #define block_delay_ms(x) msleep_interruptible((x))
 
+/* Default best setting */
+#define EQ_DEFAULT_SETTING 4
 /* wait time between early/late counter acquisitions */
 #define EQ_WAITTIME						1
 /* Slope acumulator, minimum limit  to
@@ -169,6 +170,7 @@ struct hdmirx_phy_data_t {
 	int phy_clk_wait_count;
 	bool task_running;
 	bool exit_task_delay;/* exit clk stable delay */
+	struct mutex state_lock;
 };
 
 /*struct define end*/
@@ -183,6 +185,7 @@ int hdmirx_phy_start_eq(void);
 enum phy_eq_states_e hdmirx_phy_get_eq_state(void);
 int hdmirx_phy_stop_eq(void);
 void hdmirx_phy_reset(int rx_port_sel, int dcm);
+int hdmirx_phy_suspend_eq(void);
 
 /*function declare end*/
 
