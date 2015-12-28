@@ -965,13 +965,13 @@
 			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
 			bl_ctrl_method = <1>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
-			bl_power_attr = <0 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
+			bl_power_attr = <0 0 1 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
 
 			/* pwm_method: 0=negative, 1=positive */
 			/* pwm_freq: pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
 			/* duty_max, duty_min: unit in % */
 			bl_pwm_port = "PWM_B"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
-			bl_pwm_attr = <1 180 100 25>; /* pwm_method, pwm_freq, duty_max, duty_min */
+			bl_pwm_attr = <0 180 100 25>; /* pwm_method, pwm_freq, duty_max, duty_min */
 			bl_pwm_power = <1 0 10 10>; /* pwm_gpio_index, pwm_gpio_off, pwm_on_delay, pwm_off_delay */
 		};
 		backlight_1{
