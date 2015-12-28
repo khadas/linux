@@ -160,7 +160,7 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 	/* Hold I2S */
 	aml_write_cbus(AIU_I2S_MISC, 0x0004);
 	/* No mute, no swap */
-	aml_write_cbus(AIU_I2S_MUTE_SWAP, 0x0000);
+	/*aml_write_cbus(AIU_I2S_MUTE_SWAP, 0x0000);*/
 	/* Release hold and force audio data to left or right */
 	aml_write_cbus(AIU_I2S_MISC, 0x0010);
 
