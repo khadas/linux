@@ -967,7 +967,18 @@ void aml_sd_emmc_host_reset(struct amlsd_host *host)
 	return;
 
 }
+static void aml_sd_emmc_reg_set(struct amlsd_host *host)
+{
+	u32 vclkc = 0;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+	struct sd_emmc_clock *pclkc = (struct sd_emmc_clock *)&vclkc;
 
+	vclkc = sd_emmc_regs->gclock;
+	pclkc->tx_phase = 1;
+
+	sd_emmc_regs->gclock = vclkc;
+	return;
+}
 /*setup reg initial value*/
 static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 {
@@ -3468,6 +3479,9 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		}
 
 		if (aml_card_type_mmc(pdata)) {
+			/**set specified regs here**/
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+				aml_sd_emmc_reg_set(host);
 			if (!is_storage_emmc()) {
 				mmc_free_host(mmc);
 				goto fail_init_host;
