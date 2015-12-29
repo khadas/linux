@@ -910,7 +910,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
 	int err = -ENOSYS;
 	u32 adj_win_start = 100;
-	int ret;
+	int ret = -1;
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
 			tuning_data.blk_pattern = tuning_blk_pattern_8bit;
@@ -931,11 +931,12 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	vclk = sd_emmc_regs->gclock;
 
 #ifdef CALIBRATION
-	if ((aml_card_type_mmc(pdata))
-		&& (pdata->need_cali == 1) && (clkc->div <= 5)) {
+	if ((aml_card_type_mmc(pdata)) && (pdata->need_cali == 1)) {
 		pdata->need_cali = 1;
-		ret = aml_sd_emmc_execute_tuning_index(mmc, 18,
+		if (clkc->div <= 7) {
+			ret = aml_sd_emmc_execute_tuning_index(mmc, 18,
 						&tuning_data, &adj_win_start);
+		}
 		/* if calibration failed, gdelay use default value */
 		if (ret) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
@@ -1021,9 +1022,8 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 
 #ifdef SD_EMMC_IRQ_EN_ALL_INIT
 	/*Set Irq Control*/
-	sd_emmc_regs->girq_en = SD_EMMC_IRQ_ALL;
 	sd_emmc_regs->gstatus = 0xffff;
-
+	sd_emmc_regs->girq_en = SD_EMMC_IRQ_ALL;
 
 #endif
 
@@ -2231,13 +2231,16 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		if ((host->mmc->sdio_irq_thread)
 			&& (!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
 			mmc_signal_sdio_irq(host->mmc);
-			if (!(vstat & 0x3fff))
+			if (!(vstat & 0x3fff)) {
+				pr_err("Warning: sdio interrupt but no status bits change\n");
 				return IRQ_HANDLED;
+			}
 			/*else
 				pr_info("other irq also occurred 0x%x\n",
 			vstat);*/
 		}
 	} else if (!(vstat & 0x3fff)) {
+		pr_err("Warning: sd/emmc interrupt but no status bits change\n");
 		return IRQ_HANDLED;
 	}
 	spin_lock_irqsave(&host->mrq_lock, flags);
