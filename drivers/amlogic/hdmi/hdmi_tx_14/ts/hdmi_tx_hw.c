@@ -3361,7 +3361,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 		hdmi_set_reg_bits(TX_SYS5_TX_SOFT_RESET_2, 0, 2, 1);
 		break;
 	case DDC_HDCP_OP:
-		if (argv == HDCP_ON) {
+		if (argv == HDCP14_ON) {
 			hdmi_tx_gate_pwr_ctrl(HDCP_EN, NULL);
 #ifdef CONFIG_AML_HDMI_TX_HDCP
 			/* check if bit7 is enable, if not, enable first */
@@ -3375,7 +3375,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdmitx_device, unsigned cmd,
 #endif
 			hdmi_set_reg_bits(TX_HDCP_MODE, 1, 7, 1);
 		}
-		if (argv == HDCP_OFF) {
+		if (argv == HDCP14_OFF) {
 			hdmi_tx_gate_pwr_ctrl(HDCP_DIS, NULL);
 			hdmi_set_reg_bits(TX_HDCP_MODE, 0, 7, 1);
 		}

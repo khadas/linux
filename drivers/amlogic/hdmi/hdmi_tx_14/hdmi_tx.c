@@ -117,7 +117,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 	phdmi->cur_VIC = HDMI_Unkown;
 	phdmi->output_blank_flag = 0;
-	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, HDCP_OFF);
+	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, HDCP14_OFF);
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, DDC_RESET_HDCP);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
@@ -141,7 +141,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_OP,
-		HDCP_OFF);
+		HDCP14_OFF);
 	hdmitx_device.internal_mode_change = 0;
 	set_disp_mode_auto();
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
@@ -351,7 +351,7 @@ static void hdmitx_pre_display_init(void)
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_OP,
-		HDCP_OFF);
+		HDCP14_OFF);
 	/* msleep(10); */
 	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP,
 		TMDS_PHY_DISABLE);
@@ -1482,7 +1482,7 @@ edid_op:
 		}
 		#endif
 		hdmitx_device->HWOp.CntlDDC(hdmitx_device, DDC_HDCP_OP,
-			HDCP_OFF);
+			HDCP14_OFF);
 		hdmitx_device->HWOp.CntlMisc(hdmitx_device,
 			MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		hdmitx_device->HWOp.Cntl(hdmitx_device,
