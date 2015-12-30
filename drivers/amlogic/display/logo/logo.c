@@ -141,11 +141,9 @@ static int refresh_mode_and_logo(bool first)
 	if (cur_mode != last_mode) {
 		pr_info("mode chang\n");
 		osd_enable_hw(logo_info.index, 0);
-		if (!first) {
-			set_logo_vmode(cur_mode);
-			pr_info("set vmode: %s\n",
-				vmode_mode_to_name(cur_mode));
-		}
+		set_logo_vmode(cur_mode);
+		pr_info("set vmode: %s\n",
+			vmode_mode_to_name(cur_mode));
 		last_mode = cur_mode;
 		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &cur_mode);
 		set_osd_freescaler(logo_info.index, cur_mode);
