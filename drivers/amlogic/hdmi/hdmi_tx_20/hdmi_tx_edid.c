@@ -1623,34 +1623,6 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"2160p50hz", HDMI_4k2k_50},
 	{"2160p60hz420", HDMI_4k2k_60_y420},
 	{"2160p50hz420", HDMI_4k2k_50_y420},
-	{"640x480p60hz", HDMIV_640x480p60hz},
-	{"800x480p60hz", HDMIV_800x480p60hz},
-	{"800x600p60hz", HDMIV_800x600p60hz},
-	{"1024x600p60hz", HDMIV_1024x600p60hz},
-	{"1024x768p60hz", HDMIV_1024x768p60hz},
-	{"1280x800p60hz", HDMIV_1280x800p60hz},
-	{"1280x1024p60hz", HDMIV_1280x1024p60hz},
-/*
-/sys/class/display # echo 1280x1024p60hz > mode
-vout_serve: vmode set to 1280x1024p60hz
-
-vout_serve: disable HDMI PHY as soon as possible
-tv_vout: tv_set_current_vmode[671]fps_target_mode=43
-tv_vout: mode is 43,sync_duration_den=1,sync_duration_num=60
-tv_vout: TV mode 1280x1024p60hz selected.
-tv_vout: new mode =1280x1024 set ok
-vout_serve: vinfo mode is: 1280x1024
-vout_serve: new mode 1280x1024p60hz
- set ok
-hdmitx: video: get current mode: 1280x1024
- */
-	{"1280x1024", HDMIV_1280x1024p60hz}, /* alias of "1280x1024p60hz" */
-	{"1360x768p60hz", HDMIV_1360x768p60hz},
-	{"1366x768p60hz", HDMIV_1366x768p60hz},
-	{"1440x900p60hz", HDMIV_1440x900p60hz},
-	{"1600x900p60hz", HDMIV_1600x900p60hz},
-	{"1680x1050p60hz", HDMIV_1680x1050p60hz},
-	{"1920x1200p60hz", HDMIV_1920x1200p60hz},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)
