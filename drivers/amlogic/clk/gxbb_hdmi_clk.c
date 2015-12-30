@@ -561,7 +561,8 @@ static struct cts_encx_table cts_encp_tbl[] = {
 
 static struct cts_encx_table cts_enci_tbl[] = {
 	CTS_XXX_TBL(54000, 432000, 4, 2),
-	CTS_XXX_TBL(27000, 432000, 4, 1),
+	CTS_XXX_TBL(27000, 54000, 1, 2),
+	CTS_XXX_TBL(27000, 216000, 4, 2),
 };
 static struct cts_encx_table cts_pixel_tbl[] = {
 	CTS_XXX_TBL(594000, 594000, 1, 1),

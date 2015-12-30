@@ -309,19 +309,29 @@ static struct hdmitx_clk hdmitx_clk[] = {
 	/* vic clk_sys clk_phy clk_vid clk_encp clk_enci clk_pixel */
 	{HDMI_1920x1080p60_16x9, 24000, 1485000, 148500, 148500, -1, 148500},
 	{HDMI_1920x1080p50_16x9, 24000, 1485000, 148500, 148500, -1, 148500},
+	{HDMI_1920x1080p30_16x9, 24000, 742500, 74250, 74250, -1, 74250},
+	{HDMI_1920x1080p25_16x9, 24000, 742500, 74250, 74250, -1, 74250},
 	{HDMI_1920x1080p24_16x9, 24000, 742500, 74250, 74250, -1, 74250},
 	{HDMI_1920x1080i60_16x9, 24000, 742500, 148500, 148500, -1, 74250},
 	{HDMI_1920x1080i50_16x9, 24000, 742500, 148500, 148500, -1, 74250},
 	{HDMI_1280x720p60_16x9, 24000, 742500, 148500, 148500, -1, 74250},
 	{HDMI_1280x720p50_16x9, 24000, 742500, 148500, 148500, -1, 74250},
 	{HDMI_720x576p50_16x9, 24000, 270000, 54000, 54000, -1, 27000},
-	{HDMI_720x576i50_16x9, 24000, 270000, 54000, -1, 54000, 27000},
+	{HDMI_720x576i50_16x9, 24000, 270000, 54000, -1, 27000, 27000},
 	{HDMI_720x480p60_16x9, 24000, 270000, 54000, 54000, -1, 27000},
-	{HDMI_720x480i60_16x9, 24000, 270000, 54000, -1, 54000, 27000},
+	{HDMI_720x480i60_16x9, 24000, 270000, 54000, -1, 27000, 27000},
 	{HDMI_3840x2160p24_16x9, 24000, 2970000, 297000, 297000, -1, 297000},
 	{HDMI_3840x2160p25_16x9, 24000, 2970000, 297000, 297000, -1, 297000},
 	{HDMI_3840x2160p30_16x9, 24000, 2970000, 297000, 297000, -1, 297000},
 	{HDMI_4096x2160p24_256x135, 24000, 2970000, 297000, 297000, -1, 297000},
+	{HDMI_4096x2160p25_256x135, 24000, 2970000, 297000, 297000, -1, 297000},
+	{HDMI_4096x2160p30_256x135, 24000, 2970000, 297000, 297000, -1, 297000},
+	{HDMI_4096x2160p50_256x135, 24000, 5940000, 594000, 594000, -1, 594000},
+	{HDMI_4096x2160p60_256x135, 24000, 5940000, 594000, 594000, -1, 594000},
+	{HDMI_4096x2160p60_256x135_Y420,
+		24000, 5940000, 594000, 594000, -1, 594000},
+	{HDMI_4096x2160p50_256x135_Y420,
+		24000, 5940000, 594000, 594000, -1, 594000},
 	{HDMI_3840x2160p60_16x9, 24000, 5940000, 594000, 594000, -1, 594000},
 	{HDMI_3840x2160p50_16x9, 24000, 5940000, 594000, 594000, -1, 594000},
 	{HDMI_3840x2160p60_16x9_Y420,
@@ -769,9 +779,10 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		vs_eline_odd = 0;
 	unsigned long vso_begin_evn = 0, vso_begin_odd = 0;
 
-	if ((param->VIC == HDMI_4k2k_30) ||
-		(param->VIC == HDMI_3840x2160p60_16x9) ||
-		(param->VIC == HDMI_3840x2160p60_16x9_Y420)) {
+	switch (param->VIC) {
+	case HDMI_4k2k_30:
+	case HDMI_3840x2160p60_16x9:
+	case HDMI_3840x2160p60_16x9_Y420:
 		INTERLACE_MODE = 0;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -786,9 +797,10 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		VSYNC_LINES = 10;
 		SOF_LINES = 72 + 1;
 		TOTAL_FRAMES = 3;
-	} else if ((param->VIC == HDMI_4k2k_25) ||
-		(param->VIC == HDMI_3840x2160p50_16x9) ||
-		(param->VIC == HDMI_3840x2160p50_16x9_Y420)) {
+		break;
+	case HDMI_4k2k_25:
+	case HDMI_3840x2160p50_16x9:
+	case HDMI_3840x2160p50_16x9_Y420:
 		INTERLACE_MODE = 0;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -803,7 +815,8 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		VSYNC_LINES = 10;
 		SOF_LINES = 72 + 1;
 		TOTAL_FRAMES = 3;
-	} else if (param->VIC == HDMI_4k2k_24) {
+		break;
+	case HDMI_4k2k_24:
 		INTERLACE_MODE = 0;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -818,7 +831,8 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		VSYNC_LINES = 10;
 		SOF_LINES = 72 + 1;
 		TOTAL_FRAMES = 3;
-	} else if (param->VIC == HDMI_4k2k_smpte_24) {
+		break;
+	case HDMI_4k2k_smpte_24:
 		INTERLACE_MODE = 0;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -833,6 +847,46 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		VSYNC_LINES = 10;
 		SOF_LINES = 72 + 1;
 		TOTAL_FRAMES = 3;
+		break;
+	case HDMI_4096x2160p25_256x135:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p50_256x135_Y420:
+		INTERLACE_MODE = 0;
+		PIXEL_REPEAT_VENC = 0;
+		PIXEL_REPEAT_HDMI = 0;
+		ACTIVE_PIXELS = (4096*(1+PIXEL_REPEAT_HDMI));
+		ACTIVE_LINES = (2160/(1+INTERLACE_MODE));
+		LINES_F0 = 2250;
+		LINES_F1 = 2250;
+		FRONT_PORCH = 968;
+		HSYNC_PIXELS = 88;
+		BACK_PORCH = 128;
+		EOF_LINES = 8;
+		VSYNC_LINES = 10;
+		SOF_LINES = 72;
+		TOTAL_FRAMES = 3;
+		break;
+	case HDMI_4096x2160p30_256x135:
+	case HDMI_4096x2160p60_256x135:
+	case HDMI_4096x2160p60_256x135_Y420:
+		INTERLACE_MODE = 0;
+		PIXEL_REPEAT_VENC = 0;
+		PIXEL_REPEAT_HDMI = 0;
+		ACTIVE_PIXELS = (4096*(1+PIXEL_REPEAT_HDMI));
+		ACTIVE_LINES = (2160/(1+INTERLACE_MODE));
+		LINES_F0 = 2250;
+		LINES_F1 = 2250;
+		FRONT_PORCH = 88;
+		HSYNC_PIXELS = 88;
+		BACK_PORCH = 128;
+		EOF_LINES = 8;
+		VSYNC_LINES = 10;
+		SOF_LINES = 72;
+		TOTAL_FRAMES = 3;
+		break;
+	default:
+		pr_info("hdmitx20: no setting for VIC = %d\n", param->VIC);
+		break;
 	}
 
 	TOTAL_PIXELS = (FRONT_PORCH+HSYNC_PIXELS+BACK_PORCH+ACTIVE_PIXELS);
@@ -1257,6 +1311,7 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		TOTAL_FRAMES = 4;
 		break;
 	case HDMI_1080p50:
+	case HDMI_1080p25:
 		INTERLACE_MODE	= 0;
 		PIXEL_REPEAT_VENC  = 0;
 		PIXEL_REPEAT_HDMI  = 0;
@@ -1426,6 +1481,12 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 	case HDMI_4k2k_25:
 	case HDMI_4k2k_24:
 	case HDMI_4k2k_smpte_24:
+	case HDMI_4096x2160p25_256x135:
+	case HDMI_4096x2160p30_256x135:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
+	case HDMI_4096x2160p50_256x135_Y420:
+	case HDMI_4096x2160p60_256x135_Y420:
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
 	case HDMI_3840x2160p50_16x9_Y420:
@@ -1576,11 +1637,15 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 	case HDMI_4k2k_25:
 	case HDMI_4k2k_30:
 	case HDMI_4k2k_smpte_24:
+	case HDMI_4096x2160p25_256x135:
+	case HDMI_4096x2160p30_256x135:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
 		break;
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
 		if (hdev->mode420 == 1) {
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
@@ -1591,6 +1656,8 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 		break;
 	case HDMI_3840x2160p50_16x9_Y420:
 	case HDMI_3840x2160p60_16x9_Y420:
+	case HDMI_4096x2160p50_256x135_Y420:
+	case HDMI_4096x2160p60_256x135_Y420:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
 		break;
@@ -1660,7 +1727,9 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		(rx_ver == 1) ? "2.0" : "1.4 or below");
 
 	if ((param->VIC == HDMI_3840x2160p50_16x9) ||
-	    (param->VIC == HDMI_3840x2160p60_16x9)) {
+	    (param->VIC == HDMI_3840x2160p60_16x9) ||
+	    (param->VIC == HDMI_4096x2160p50_256x135) ||
+	    (param->VIC == HDMI_4096x2160p60_256x135)) {
 		if (rx_ver == 1)
 			scdc_config(hdev);
 	} else {
@@ -1705,10 +1774,16 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	case HDMI_4k2k_25:
 	case HDMI_4k2k_24:
 	case HDMI_4k2k_smpte_24:
+	case HDMI_4096x2160p25_256x135:
+	case HDMI_4096x2160p30_256x135:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
 	case HDMI_3840x2160p50_16x9_Y420:
 	case HDMI_3840x2160p60_16x9_Y420:
+	case HDMI_4096x2160p50_256x135_Y420:
+	case HDMI_4096x2160p60_256x135_Y420:
 		hdmi_tvenc4k2k_set(param);
 		break;
 	default:
@@ -1777,7 +1852,9 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
 	}
 	if (((hdev->cur_VIC == HDMI_3840x2160p50_16x9) ||
-		(hdev->cur_VIC == HDMI_3840x2160p60_16x9))
+		(hdev->cur_VIC == HDMI_3840x2160p60_16x9) ||
+		(hdev->cur_VIC == HDMI_4096x2160p50_256x135) ||
+		(hdev->cur_VIC == HDMI_4096x2160p60_256x135))
 		&& (hdev->mode420 != 1))
 		set_tmds_clk_div40(1);
 	else
@@ -1912,8 +1989,8 @@ static Vic_attr_map vic_attr_map_table[] = {
 	{HDMI_576i50_16x9, 27000 },
 	{HDMI_576i50_16x9_rpt,  54000 },
 	{HDMI_1080p50, 148500},
-	{HDMI_1080p24, 74250 },
 	{HDMI_1080p25, 74250 },
+	{HDMI_1080p24, 74250 },
 	{HDMI_1080p30, 74250 },
 	{HDMI_480p60_16x9_rpt,  108000},
 	{HDMI_576p50_16x9_rpt,  108000},
@@ -1921,6 +1998,10 @@ static Vic_attr_map vic_attr_map_table[] = {
 	{HDMI_4k2k_25, 247500},
 	{HDMI_4k2k_30, 247500},
 	{HDMI_4k2k_smpte_24, 247500},
+	{HDMI_4k2k_smpte_25, 247500},
+	{HDMI_4k2k_smpte_30, 247500},
+	{HDMI_4k2k_smpte_50, 247500},
+	{HDMI_4k2k_smpte_60, 247500},
 };
 
 static unsigned int vic_map_clk(enum hdmi_vic vic)
@@ -2088,8 +2169,12 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 			(hdev->cur_VIC == HDMI_4k2k_25) ||
 			(hdev->cur_VIC == HDMI_4k2k_30) ||
 			(hdev->cur_VIC == HDMI_4k2k_smpte_24) ||
+			(hdev->cur_VIC == HDMI_4096x2160p25_256x135) ||
+			(hdev->cur_VIC == HDMI_4096x2160p30_256x135) ||
 			(hdev->cur_VIC == HDMI_4k2k_50_y420) ||
-			(hdev->cur_VIC == HDMI_4k2k_60_y420))
+			(hdev->cur_VIC == HDMI_4k2k_60_y420) ||
+			(hdev->cur_VIC == HDMI_4k2k_smpte_50_y420) ||
+			(hdev->cur_VIC == HDMI_4k2k_smpte_60_y420))
 			aud_n_para = 5120;
 		break;
 	default:
@@ -3291,6 +3376,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	case CONF_CLR_AVI_PACKET:
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
+		hd_write_reg(P_ISA_DEBUG_REG0, 0);
 		break;
 	case CONF_CLR_VSDB_PACKET:
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
@@ -3369,6 +3455,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 			case VMODE_4K2K_30HZ:
 			case VMODE_4K2K_24HZ:
 			case VMODE_4K2K_60HZ_Y420:
+			case VMODE_4K2K_SMPTE_60HZ_Y420:
 				if (argv == DOWN_HPLL) {
 					save_div_frac = hd_read_reg(
 						P_HHI_HDMI_PLL_CNTL2);
@@ -3417,7 +3504,7 @@ static enum hdmi_vic get_vic_from_pkt(void)
 		else if (vic == 4)
 			vic = HDMI_4096x2160p24_256x135;
 		else
-			vic = HDMI_Unkown;
+			vic = hd_read_reg(P_ISA_DEBUG_REG0);
 	}
 
 	rgb_ycc &= 0x3;
@@ -3426,9 +3513,18 @@ static enum hdmi_vic get_vic_from_pkt(void)
 		if (rgb_ycc == 0x3)
 			vic = HDMI_3840x2160p50_16x9_Y420;
 		break;
+	case HDMI_4096x2160p50_256x135:
+		if (rgb_ycc == 0x3)
+			vic = HDMI_4096x2160p50_256x135_Y420;
+		break;
 	case HDMI_3840x2160p60_16x9:
 		if (rgb_ycc == 0x3)
 			vic = HDMI_3840x2160p60_16x9_Y420;
+		break;
+	case HDMI_4096x2160p60_256x135:
+		if (rgb_ycc == 0x3)
+			vic = HDMI_4096x2160p60_256x135_Y420;
+		break;
 		break;
 	default:
 		break;
@@ -3590,6 +3686,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	switch (vic) {
 	case HDMI_3840x2160p50_16x9:
 	case HDMI_3840x2160p60_16x9:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
 		para->tmds_clk_div40 = 1;
 		break;
 	default:

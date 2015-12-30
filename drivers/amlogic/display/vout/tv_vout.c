@@ -266,7 +266,12 @@ static void tv_out_init_off(enum tvmode_e mode)
 		    (mode == TVMODE_1080P_24HZ) || (mode == TVMODE_4K2K_24HZ) ||
 		    (mode == TVMODE_4K2K_25HZ) || (mode == TVMODE_4K2K_30HZ) ||
 		    (mode == TVMODE_4K2K_FAKE_5G) ||
-		    (mode == TVMODE_4K2K_SMPTE) || (mode == TVMODE_4K2K_60HZ))
+		    (mode == TVMODE_4K2K_SMPTE) ||
+		    (mode == TVMODE_4K2K_SMPTE_25HZ) ||
+		    (mode == TVMODE_4K2K_SMPTE_30HZ) ||
+		    (mode == TVMODE_4K2K_SMPTE_50HZ) ||
+		    (mode == TVMODE_4K2K_SMPTE_60HZ) ||
+		    (mode == TVMODE_4K2K_60HZ))
 			/* vout_cbus_set_bits(HHI_VID_PLL_CNTL, 0x0, 30, 1); */
 			/* vout_cbus_set_bits(HHI_VID_PLL_CNTL, 0x0, 30, 1); */
 		cvbs_cntl_output(0);
@@ -570,11 +575,18 @@ static int want_hdmi_mode(enum vmode_e mode)
 	    || (mode == VMODE_1080I_50HZ)
 	    || (mode == VMODE_1080P)
 	    || (mode == VMODE_1080P_50HZ)
+	    || (mode == VMODE_1080P_30HZ)
 	    || (mode == VMODE_1080P_24HZ)
 	    || (mode == VMODE_4K2K_24HZ)
 	    || (mode == VMODE_4K2K_25HZ)
 	    || (mode == VMODE_4K2K_30HZ)
 	    || (mode == VMODE_4K2K_SMPTE)
+	    || (mode == VMODE_4K2K_SMPTE_25HZ)
+	    || (mode == VMODE_4K2K_SMPTE_30HZ)
+	    || (mode == VMODE_4K2K_SMPTE_50HZ)
+	    || (mode == VMODE_4K2K_SMPTE_60HZ)
+	    || (mode == VMODE_4K2K_SMPTE_50HZ_Y420)
+	    || (mode == VMODE_4K2K_SMPTE_60HZ_Y420)
 	    || (mode == VMODE_4K2K_FAKE_5G)
 	    || (mode == VMODE_4K2K_5G)
 	    || (mode == VMODE_4K2K_50HZ)
@@ -805,12 +817,14 @@ static enum fine_tune_mode_e get_fine_tune_mode(
 	switch (mode) {
 	case VMODE_720P:
 	case VMODE_1080P:
+	case VMODE_1080P_30HZ:
 	case VMODE_1080P_24HZ:
 	case VMODE_1080I:
 	case VMODE_4K2K_30HZ:
 	case VMODE_4K2K_24HZ:
 	case VMODE_4K2K_60HZ:
 	case VMODE_4K2K_60HZ_Y420:
+	case VMODE_4K2K_SMPTE_60HZ_Y420:
 		if ((fr_vsource == 2397) || (fr_vsource == 2997)
 			|| (fr_vsource == 5994))
 			tune_mode = DOWN_HPLL;
@@ -929,7 +943,9 @@ static struct vinfo_s *update_tv_info_duration(
 			|| (target_vmode == VMODE_1080I)
 			|| (target_vmode == VMODE_1080P)
 			|| (target_vmode == VMODE_4K2K_60HZ)
-			|| (target_vmode == VMODE_4K2K_60HZ_Y420)) {
+			|| (target_vmode == VMODE_4K2K_SMPTE_60HZ)
+			|| (target_vmode == VMODE_4K2K_60HZ_Y420)
+			|| (target_vmode == VMODE_4K2K_SMPTE_60HZ_Y420)) {
 			vinfo->sync_duration_den = 1001;
 			vinfo->sync_duration_num = 60000;
 		} else if ((target_vmode == VMODE_1080P_24HZ)
@@ -952,7 +968,9 @@ static struct vinfo_s *update_tv_info_duration(
 			|| (target_vmode == VMODE_1080I)
 			|| (target_vmode == VMODE_1080P)
 			|| (target_vmode == VMODE_4K2K_60HZ)
-			|| (target_vmode == VMODE_4K2K_60HZ_Y420)) {
+			|| (target_vmode == VMODE_4K2K_SMPTE_60HZ)
+			|| (target_vmode == VMODE_4K2K_60HZ_Y420)
+			|| (target_vmode == VMODE_4K2K_SMPTE_60HZ_Y420)) {
 			vinfo->sync_duration_den = 1;
 			vinfo->sync_duration_num = 60;
 		} else if ((target_vmode == VMODE_1080P_24HZ)

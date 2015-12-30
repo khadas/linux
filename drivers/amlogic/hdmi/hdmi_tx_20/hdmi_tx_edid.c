@@ -1601,6 +1601,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 #endif
 	{"1080p50hz", HDMI_1080p50},
 	{"1080p30hz", HDMI_1080p30},
+	{"1080p25hz", HDMI_1080p25},
 	{"1080p24hz", HDMI_1080p24},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"1080p23hz", HDMI_1080p24},
@@ -1619,6 +1620,12 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"4k2k23hz",  HDMI_4k2k_24},
 #endif
 	{"smpte24hz", HDMI_4k2k_smpte_24},
+	{"smpte25hz", HDMI_4096x2160p25_256x135},
+	{"smpte30hz", HDMI_4096x2160p30_256x135},
+	{"smpte50hz", HDMI_4096x2160p50_256x135},
+	{"smpte50hz420", HDMI_4096x2160p50_256x135_Y420},
+	{"smpte60hz", HDMI_4096x2160p60_256x135},
+	{"smpte60hz420", HDMI_4096x2160p60_256x135_Y420},
 	{"2160p60hz", HDMI_4k2k_60},
 	{"2160p50hz", HDMI_4k2k_50},
 	{"2160p60hz420", HDMI_4k2k_60_y420},

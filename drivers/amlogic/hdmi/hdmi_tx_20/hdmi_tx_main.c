@@ -547,6 +547,10 @@ static int set_disp_mode_auto(void)
 		case HDMI_3840x2160p50_16x9:
 		case HDMI_3840x2160p50_16x9_Y420:
 		case HDMI_3840x2160p60_16x9_Y420:
+		case HDMI_4096x2160p60_256x135:
+		case HDMI_4096x2160p50_256x135:
+		case HDMI_4096x2160p50_256x135_Y420:
+		case HDMI_4096x2160p60_256x135_Y420:
 			pr_info("configure mode420, VIC = %d\n",
 				hdmitx_device.cur_VIC);
 			hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
@@ -958,12 +962,20 @@ const char *disp_mode_t[] = {
 	"1080p60hz",
 	"720p50hz",
 	"1080i50hz",
+	"1080p30hz",
 	"1080p50hz",
+	"1080p25hz",
 	"1080p24hz",
 	"2160p30hz",
 	"2160p25hz",
 	"2160p24hz",
 	"smpte24hz",
+	"smpte25hz",
+	"smpte30hz",
+	"smpte50hz",
+	"smpte60hz",
+	"smpte50hz420",
+	"smpte60hz420",
 	"2160p50hz",
 	"2160p60hz",
 	"2160p50hz420",
