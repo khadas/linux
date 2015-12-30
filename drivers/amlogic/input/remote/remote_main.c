@@ -267,6 +267,9 @@ void remote_send_key(struct input_dev *dev, unsigned int scancode,
 		if (type == 2 && scancode == 0x1a &&
 			key_map[gp_remote->map_num][scancode] == 0x0074)
 			return;
+		else if (type == 2 && scancode == 0x10 &&
+			key_map[gp_remote->map_num][scancode] == 0x0074)
+			return;
 		else {
 			input_event(dev, EV_KEY,
 					key_map[gp_remote->map_num][scancode],
