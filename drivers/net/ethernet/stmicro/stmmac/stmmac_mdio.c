@@ -34,6 +34,10 @@
 
 #include "stmmac.h"
 
+#if defined(CONFIG_AML_PMU4)
+#include <linux/amlogic/aml_pmu4.h>
+#endif
+
 #define MII_BUSY 0x00000001
 #define MII_WRITE 0x00000002
 
@@ -184,6 +188,22 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
+#if defined(CONFIG_AML_PMU4)
+static int stmmac_i2c_read(struct mii_bus *bus, int phyaddr, int phyreg)
+{
+	int data;
+	uint8_t data_lo;
+	uint8_t data_hi;
+
+	aml_pmu4_write(0xa6, phyreg);
+	aml_pmu4_read(0xa7, &data_lo);
+	aml_pmu4_read(0xa8, &data_hi);
+	data = (data_hi<<8)|data_lo;
+
+	return data;
+}
+#endif
+
 /**
  * stmmac_mdio_register
  * @ndev: net device structure
@@ -197,6 +217,16 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	int addr, found;
+	int phy_start_addr = 0, phy_max_addr = PHY_MAX_ADDR;
+#if defined(CONFIG_AML_PMU4)
+	uint8_t pmu4_ver = 0;
+
+	err = aml_pmu4_version(&pmu4_ver);
+	if (err == 0 && pmu4_ver == PMU4_VA_ID) {
+		phy_start_addr  = 8;
+		phy_max_addr = 9;
+	}
+#endif
 
 	if (!mdio_bus_data)
 		return 0;
@@ -219,6 +249,10 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->read = &stmmac_mdio_read;
 	new_bus->write = &stmmac_mdio_write;
 	new_bus->reset = &stmmac_mdio_reset;
+#if defined(CONFIG_AML_PMU4)
+	if (pmu4_ver == PMU4_VA_ID)
+		new_bus->read = &stmmac_i2c_read;
+#endif
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
@@ -232,7 +266,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	}
 
 	found = 0;
-	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+	for (addr = phy_start_addr; addr < phy_max_addr; addr++) {
 		struct phy_device *phydev = new_bus->phy_map[addr];
 		if (phydev) {
 			int act = 0;

@@ -21,6 +21,7 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
+#include <linux/amlogic/aml_pmu4.h>
 
 #define  SMI_ADDR_TSTCNTL     20
 #define  SMI_ADDR_TSTREAD1    21
@@ -488,7 +489,28 @@ static int internal_read_status(struct phy_device *phydev)
 }
 static int pmu4_read_status(struct phy_device *phydev)
 {
-	int err = genphy_read_status(phydev);
+	int err;
+	int value;
+	int timeout = 50000;
+	uint8_t pmu4_ver = 0;
+
+	/* strange state in PMU4v1, reset to return normal */
+	err = aml_pmu4_version(&pmu4_ver);
+	if (err == 0 && pmu4_ver == PMU4_VA_ID) {
+		value = phy_read(phydev, MII_BMSR);
+		if ((value & BMSR_ANEGCOMPLETE) && (!(value & BMSR_LSTATUS))) {
+			phy_write(phydev, MII_BMCR, BMCR_RESET);
+			/* wait end of reset (max 500 ms) */
+			do {
+				udelay(10);
+				if (timeout-- == 0)
+					return -1;
+				value = phy_read(phydev, MII_BMCR);
+			} while (value & BMCR_RESET);
+		}
+	}
+
+	err = genphy_read_status(phydev);
 	if (phydev->speed == SPEED_10)
 		init_pmu4_phy_10B(phydev);
 	if (phydev->speed == SPEED_100)

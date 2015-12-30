@@ -10,6 +10,9 @@
 #include <linux/uaccess.h>
 #include <linux/of_irq.h>
 
+#undef pr_fmt
+#define pr_fmt(fmt) "PMU4: " fmt
+
 #define AML1220_ADDR    0x35
 #define AML1220_ANALOG_ADDR  0x20
 
@@ -161,6 +164,15 @@ int aml_pmu4_read16(int add, uint16_t *val)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(aml_pmu4_read16);
+
+int aml_pmu4_version(uint8_t *version)
+{
+	if (!g_aml_pmu4_client)
+		return -ENODEV;
+
+	return aml_pmu4_read(0x0, version);
+}
+EXPORT_SYMBOL_GPL(aml_pmu4_version);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -444,6 +456,7 @@ void pmu4_phy_conifg(void)
 static int aml_pmu4_power_init(void)
 {
 	int ret;
+	uint8_t ver = 0;
 
 	/* pmu4 analog register init */
 	ret = aml_pmu4_reg_init(AML1220_ANALOG_ADDR, &pmu4_analog_reg[0],
@@ -452,6 +465,10 @@ static int aml_pmu4_power_init(void)
 		return ret;
 
 	pmu4_phy_conifg();
+
+	ret = aml_pmu4_version(&ver);
+	if (!ret)
+		pr_info("pmu4 version: 0x%x", ver);
 
 	return 0;
 
@@ -512,7 +529,6 @@ static int aml_pmu4_probe(struct platform_device *pdev)
 			pr_info("get 'i2c_bus' failed, ret:%d\n", err);
 			continue;
 		}
-		pr_info("%s, i2c_bus:%s\n", __func__, str);
 		if (!strncmp(str, "i2c_bus_ao", 10))
 			bus_type = AML_I2C_BUS_AO;
 		else if (!strncmp(str, "i2c_bus_b", 9))
@@ -618,7 +634,7 @@ static struct i2c_driver aml_pmu4_i2c_driver = {
 static int __init aml_pmu4_modinit(void)
 {
 	int ret;
-	pr_info("%s, %d\n", __func__, __LINE__);
+
 	ret = platform_driver_register(&aml_pmu_prober);
 	return i2c_add_driver(&aml_pmu4_i2c_driver);
 }

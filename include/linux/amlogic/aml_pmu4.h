@@ -18,11 +18,14 @@
 #ifndef __AML_PMU4_H__
 #define __AML_PMU4_H__
 
+#define PMU4_VA_ID		0xBF
+#define PMU4_VB_ID		0x42
 
 extern int  aml_pmu4_write(int32_t add, uint8_t val);
 extern int  aml_pmu4_write16(int32_t add, uint16_t val);
 extern int  aml_pmu4_read(int add, uint8_t *val);
 extern int  aml_pmu4_read16(int add, uint16_t *val);
+extern int  aml_pmu4_version(uint8_t *val);
 
 #endif /* __AML_PMU4_H__ */
 
