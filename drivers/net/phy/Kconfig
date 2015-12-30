@@ -14,9 +14,10 @@ if PHYLIB
 
 comment "MII PHY device drivers"
 
-config AML_PHY
+config AMLOGIC_PHY
 	tristate "Drivers for Amlogic PMU4 PHYs"
 	select AML_PMU4
+
 	---help---
 	  This module provide Amlogic P220 PHY driver
 	  This driver improve signal quality

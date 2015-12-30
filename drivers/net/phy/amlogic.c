@@ -132,7 +132,7 @@ static void init_internal_phy(struct phy_device *phydev)
 }
 
 
-void init_internal_phy_10B(struct phy_device *phydev)
+static void init_internal_phy_10B(struct phy_device *phydev)
 {
 
 	initTSTMODE(phydev);
@@ -178,7 +178,7 @@ void init_internal_phy_10B(struct phy_device *phydev)
 	closeTSTMODE(phydev);
 }
 
-void init_internal_phy_100B(struct phy_device *phydev)
+static void init_internal_phy_100B(struct phy_device *phydev)
 {
 
 	initTSTMODE(phydev);
@@ -268,7 +268,7 @@ static void init_pmu4_phy(struct phy_device *phydev)
 }
 
 
-void init_pmu4_phy_10B(struct phy_device *phydev)
+static void init_pmu4_phy_10B(struct phy_device *phydev)
 {
 	initTSTMODE(phydev);
 	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x0000);
@@ -314,7 +314,7 @@ void init_pmu4_phy_10B(struct phy_device *phydev)
  *	0x1b	00a0		40a0	40a4	40a6
  *	0x1d	0a00		0200	0200	0200
 */
-void init_pmu4_phy_100B(struct phy_device *phydev)
+static void init_pmu4_phy_100B(struct phy_device *phydev)
 {
 	initTSTMODE(phydev);
 	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x9354);
@@ -523,7 +523,7 @@ static int pmu4_read_status(struct phy_device *phydev)
 }
 
 
-int amlogic_phy_config_aneg(struct phy_device *phydev)
+static int amlogic_phy_config_aneg(struct phy_device *phydev)
 {
 
 	return genphy_config_aneg(phydev);
