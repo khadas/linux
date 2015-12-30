@@ -302,4 +302,5 @@ extern void aml_audio_valume_gain_set(unsigned int audio_gain);
 extern unsigned int aml_audio_valume_gain_get(void);
 extern void aml_atvdemod_overmodule_det(void);
 extern int aml_audiomode_autodet(void);
+extern void retrieve_frequency_offset(int *freq_offset);
 #endif /* __ATVDEMOD_FUN_H */

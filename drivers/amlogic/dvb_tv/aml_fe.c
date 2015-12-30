@@ -70,6 +70,16 @@ static struct aml_fe_man fe_man;
 static long aml_fe_suspended;
 static int memstart = 0x1ef00000;
 
+static int afc_offset;
+module_param(afc_offset, uint, 0644);
+MODULE_PARM_DESC(afc_offset, "\n afc_offset\n");
+static int no_sig_cnt;
+struct timer_list aml_timer;
+#define AML_INTERVAL		(HZ/100)   /* 10ms, #define HZ 100 */
+static unsigned int timer_init_state;
+static unsigned int aml_timer_en = 1;
+module_param(aml_timer_en, uint, 0644);
+MODULE_PARM_DESC(aml_timer_en, "\n aml_timer_en\n");
 
 static DEFINE_SPINLOCK(lock);
 static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
@@ -255,8 +265,50 @@ struct dvb_frontend *get_si2177_tuner(void)
 	pr_error("can not find out tuner drv\n");
 	return NULL;
 }
-
 EXPORT_SYMBOL(get_si2177_tuner);
+
+
+static void aml_fe_do_work(struct work_struct *work)
+{
+	struct aml_dvb *dvb = aml_get_dvb_device();
+	struct dvb_frontend *fe = dvb->fe;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int afc = 100;
+	struct aml_fe *fee;
+	fee = fe->demodulator_priv;
+	retrieve_frequency_offset(&afc);
+	afc = afc*488/1000;
+	if (abs(afc) < 50)
+		return;
+	if (abs(afc_offset) >= 2000) {
+		no_sig_cnt++;
+		if (no_sig_cnt == 20) {
+			c->frequency -= afc_offset*1000;
+			if (fe->ops.tuner_ops.set_params)
+				fe->ops.tuner_ops.set_params(fe);
+			afc_offset = 0;
+		}
+		return;
+	}
+	no_sig_cnt = 0;
+	c->frequency += afc*1000;
+	afc_offset += afc;
+	if (fe->ops.tuner_ops.set_params)
+		fe->ops.tuner_ops.set_params(fe);
+}
+
+void aml_timer_hander(unsigned long arg)
+{
+	struct dvb_frontend *fe = (struct dvb_frontend *)arg;
+	struct aml_dvb *dvb = aml_get_dvb_device();
+	aml_timer.expires = jiffies + AML_INTERVAL*10;/* 100ms timer */
+	add_timer(&aml_timer);
+	if ((aml_timer_en == 0) || (FE_ANALOG != fe->ops.info.type))
+		return;
+
+	dvb->fe = (struct dvb_frontend *)arg;
+	schedule_work(&dvb->aml_fe_wq);
+}
 
 int aml_fe_analog_set_frontend(struct dvb_frontend *fe)
 {
@@ -298,6 +350,27 @@ int aml_fe_analog_set_frontend(struct dvb_frontend *fe)
 		afe->params.frequency = c->frequency;
 		afe->params.inversion = c->inversion;
 		afe->params.analog = c->analog;
+	}
+	/* afc tune */
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
+		if (aml_timer_en == 1) {
+			if (timer_init_state == 1) {
+				del_timer_sync(&aml_timer);
+				timer_init_state = 0;
+			}
+		}
+
+		if (aml_timer_en == 1) {
+			init_timer(&aml_timer);
+			aml_timer.function = aml_timer_hander;
+			aml_timer.data = (ulong) fe;
+			/* after 5s enable demod auto detect */
+			aml_timer.expires = jiffies + AML_INTERVAL*500;
+			afc_offset = 0;
+			no_sig_cnt = 0;
+			add_timer(&aml_timer);
+			timer_init_state = 1;
+		}
 	}
 
 	return ret;
@@ -795,6 +868,28 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 			if (fe->ops.tuner_ops.set_params)
 				fe->ops.tuner_ops.set_params(fe);
 
+			/* afc tune */
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
+				if (aml_timer_en == 1) {
+					if (timer_init_state == 1) {
+						del_timer_sync(&aml_timer);
+						timer_init_state = 0;
+					}
+				}
+
+				if (aml_timer_en == 1) {
+					init_timer(&aml_timer);
+					aml_timer.function = aml_timer_hander;
+					aml_timer.data = (ulong) fe;
+					/* after 5s enable demod auto detect*/
+					aml_timer.expires =
+						jiffies + AML_INTERVAL*500;
+					afc_offset = 0;
+					no_sig_cnt = 0;
+					add_timer(&aml_timer);
+					timer_init_state = 1;
+				}
+			}
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
 				mdelay(delay_afc);
 			pr_dbg("[aml_fe..]%s get afc %d khz, freq %u.\n",
@@ -2007,6 +2102,11 @@ static int aml_fe_probe(struct platform_device *pdev)
 
  probe_end:
 
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
+		INIT_WORK(&dvb->aml_fe_wq,
+			(void (*)(struct work_struct *))aml_fe_do_work);
+
+
 #ifdef CONFIG_OF
 	fe_man.pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 #endif
@@ -2045,6 +2145,9 @@ static int aml_fe_remove(struct platform_device *pdev)
 		if (fe_man->pinctrl)
 			devm_pinctrl_put(fe_man->pinctrl);
 	}
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
+		cancel_work_sync(&dvb->aml_fe_wq);
 
 	class_unregister(&aml_fe_class);
 

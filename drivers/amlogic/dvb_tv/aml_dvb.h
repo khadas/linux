@@ -233,6 +233,10 @@ struct aml_swfilter {
 
 struct aml_dvb {
 	struct dvb_device    dvb_dev;
+
+	struct dvb_frontend *fe;
+	struct work_struct aml_fe_wq;
+
 	struct aml_ts_input  ts[TS_IN_COUNT];
 	struct aml_s2p       s2p[S2P_COUNT];
 	struct aml_dmx       dmx[DMX_DEV_COUNT];
