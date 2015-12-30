@@ -1348,6 +1348,17 @@
 		};
 	};
 
+	adc_keypad{
+			compatible = "amlogic, adc_keypad";
+			status = "okay";
+			key_name = "left", "right","up", "down", "enter";
+			key_num = <5>;
+			key_code = <106 105 103 108 28>;
+			key_chan = <2 2 3 3 3>;
+			key_val = <516 253 516 750 0>; //voltage=0/252/478/692/824mV, val=voltage/1800mV*1023
+			key_tolerance = <40 40 40 40 40>;
+		};
+
 	/* END OF AUDIO board specific */
 };
 
