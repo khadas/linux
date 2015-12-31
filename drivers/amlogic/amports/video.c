@@ -693,7 +693,7 @@ static u32 force_blackout;
 
 /* disable video */
 static u32 disable_video = VIDEO_DISABLE_NONE;
-static u32 video_enabled;
+static u32 video_enabled __nosavedata;
 /* show first frame*/
 static bool show_first_frame_nosync;
 /* static bool first_frame=false; */
