@@ -276,6 +276,11 @@ module_param(dnlp_printk, bool, 0664);
 MODULE_PARM_DESC(dnlp_printk, "dnlp_printk");
 /*new dnlp end */
 
+static bool hist_sel = 1; /*1->vpp , 0->vdin*/
+module_param(hist_sel, bool, 0664);
+MODULE_PARM_DESC(hist_sel, "hist_sel");
+
+
 static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
 static unsigned int assist_cnt2;/* ASSIST_SPARE8_REG2; */
 
@@ -1141,7 +1146,10 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	/* old historic luma sum*/
 	sum_b = sum_c;
 	/* new historic luma sum*/
-	ve_dnlp_luma_sum = p->hist.luma_sum;
+	if (hist_sel)
+		ve_dnlp_luma_sum = p->hist.vpp_luma_sum;
+	else
+		ve_dnlp_luma_sum = p->hist.luma_sum;
 	sum_c = ve_dnlp_luma_sum;
 
 	if (dnlp_respond) {
@@ -1153,7 +1161,10 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	for (i = 0; i < 64; i++) {
 		pre_2_gamma[i] = pre_1_gamma[i];
 		pre_1_gamma[i] = iHst[i];
-		iHst[i]        = (unsigned int)p->hist.gamma[i];
+		if (hist_sel)
+			iHst[i]        = (unsigned int)p->hist.vpp_gamma[i];
+		else
+			iHst[i]        = (unsigned int)p->hist.gamma[i];
 
 		pst_2_gamma[i] = pst_1_gamma[i];
 		pst_1_gamma[i] = pst_0_gamma[i];

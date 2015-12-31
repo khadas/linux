@@ -304,6 +304,49 @@
 #define VPP2_OSD_SCALE_COEF 0x19cd
 #define VPP2_INT_LINE_NUM 0x19ce
 
+#define VI_HIST_CTRL  0x2e00
+#define VI_HIST_H_START_END  0x2e01
+#define VI_HIST_V_START_END  0x2e02
+#define VI_HIST_MAX_MIN  0x2e03
+#define VI_HIST_SPL_VAL  0x2e04
+#define VI_HIST_SPL_PIX_CNT  0x2e05
+#define VI_HIST_CHROMA_SUM  0x2e06
+#define VI_DNLP_HIST00  0x2e07
+#define VI_DNLP_HIST01  0x2e08
+#define VI_DNLP_HIST02  0x2e09
+#define VI_DNLP_HIST03  0x2e0a
+#define VI_DNLP_HIST04  0x2e0b
+#define VI_DNLP_HIST05  0x2e0c
+#define VI_DNLP_HIST06  0x2e0d
+#define VI_DNLP_HIST07  0x2e0e
+#define VI_DNLP_HIST08  0x2e0f
+#define VI_DNLP_HIST09  0x2e10
+#define VI_DNLP_HIST10  0x2e11
+#define VI_DNLP_HIST11  0x2e12
+#define VI_DNLP_HIST12  0x2e13
+#define VI_DNLP_HIST13  0x2e14
+#define VI_DNLP_HIST14  0x2e15
+#define VI_DNLP_HIST15  0x2e16
+#define VI_DNLP_HIST16  0x2e17
+#define VI_DNLP_HIST17  0x2e18
+#define VI_DNLP_HIST18  0x2e19
+#define VI_DNLP_HIST19  0x2e1a
+#define VI_DNLP_HIST20  0x2e1b
+#define VI_DNLP_HIST21  0x2e1c
+#define VI_DNLP_HIST22  0x2e1d
+#define VI_DNLP_HIST23  0x2e1e
+#define VI_DNLP_HIST24  0x2e1f
+#define VI_DNLP_HIST25  0x2e20
+#define VI_DNLP_HIST26  0x2e21
+#define VI_DNLP_HIST27  0x2e22
+#define VI_DNLP_HIST28  0x2e23
+#define VI_DNLP_HIST29  0x2e24
+#define VI_DNLP_HIST30  0x2e25
+#define VI_DNLP_HIST31  0x2e26
+#define VI_HIST_PIC_SIZE  0x2e28
+#define VI_HIST_BLACK_WHITE_VALUE  0x2e29
+#define VI_HIST_GCLK_CTRL  0x2e2a
+
 
 
 /* 3D process */
@@ -364,6 +407,244 @@
 
 #define ENCL_VIDEO_MAX_LNCNT            0x1cbb
 #define VDIN_MEAS_VS_COUNT_LO 0x125c
+
+
+
+/* #define VI_HIST_CTRL                             0x2e00 */
+/* the total pixels = VDIN_HISTXX*(2^(VDIN_HIST_POW+3)) */
+#define VI_HIST_POW_BIT                    5
+#define VI_HIST_POW_WID                    3
+/* Histgram range: 0: full picture, 1: histgram window
+ * defined by VDIN_HIST_H_START_END & VDIN_HIST_V_START_END */
+#define VI_HIST_WIN_EN_BIT                 1
+#define VI_HIST_WIN_EN_WID                 1
+/* Histgram readback: 0: disable, 1: enable */
+#define VI_HIST_RD_EN_BIT                  0
+#define VI_HIST_RD_EN_WID                  1
+
+/* #define VDIN_HIST_H_START_END                   0x1231 */
+#define VI_HIST_HSTART_BIT                 16
+#define VI_HIST_HSTART_WID                 13
+#define VI_HIST_HEND_BIT                   0
+#define VI_HIST_HEND_WID                   13
+
+/* #define VDIN_HIST_V_START_END                   0x1232 */
+#define VI_HIST_VSTART_BIT                 16
+#define VI_HIST_VSTART_WID                 13
+#define VI_HIST_VEND_BIT                   0
+#define VI_HIST_VEND_WID                   13
+
+/* #define VDIN_HIST_MAX_MIN                       0x1233 */
+#define VI_HIST_MAX_BIT                    8
+#define VI_HIST_MAX_WID                    8
+#define VI_HIST_MIN_BIT                    0
+#define VI_HIST_MIN_WID                    8
+
+/* #define VDIN_HIST_SPL_VAL                       0x1234 */
+#define VI_HIST_LUMA_SUM_BIT               0
+#define VI_HIST_LUMA_SUM_WID               32
+
+ /* the total calculated pixels */
+/* #define VDIN_HIST_SPL_PIX_CNT                   0x1235 */
+#define VI_HIST_PIX_CNT_BIT                0
+#define VI_HIST_PIX_CNT_WID                22
+
+/* the total chroma value */
+/* #define VDIN_HIST_CHROMA_SUM                    0x1236 */
+#define VI_HIST_CHROMA_SUM_BIT             0
+#define VI_HIST_CHROMA_SUM_WID             32
+
+/* #define VDIN_DNLP_HIST00                        0x1237 */
+#define VI_HIST_ON_BIN_01_BIT              16
+#define VI_HIST_ON_BIN_01_WID              16
+#define VI_HIST_ON_BIN_00_BIT              0
+#define VI_HIST_ON_BIN_00_WID              16
+
+/* #define VDIN_DNLP_HIST01                        0x1238 */
+#define VI_HIST_ON_BIN_03_BIT              16
+#define VI_HIST_ON_BIN_03_WID              16
+#define VI_HIST_ON_BIN_02_BIT              0
+#define VI_HIST_ON_BIN_02_WID              16
+
+/* #define VDIN_DNLP_HIST02                        0x1239 */
+#define VI_HIST_ON_BIN_05_BIT              16
+#define VI_HIST_ON_BIN_05_WID              16
+#define VI_HIST_ON_BIN_04_BIT              0
+#define VI_HIST_ON_BIN_04_WID              16
+
+/* #define VDIN_DNLP_HIST03                        0x123a */
+#define VI_HIST_ON_BIN_07_BIT              16
+#define VI_HIST_ON_BIN_07_WID              16
+#define VI_HIST_ON_BIN_06_BIT              0
+#define VI_HIST_ON_BIN_06_WID              16
+
+/* #define VDIN_DNLP_HIST04                        0x123b */
+#define VI_HIST_ON_BIN_09_BIT              16
+#define VI_HIST_ON_BIN_09_WID              16
+#define VI_HIST_ON_BIN_08_BIT              0
+#define VI_HIST_ON_BIN_08_WID              16
+
+/* #define VDIN_DNLP_HIST05                        0x123c */
+#define VI_HIST_ON_BIN_11_BIT              16
+#define VI_HIST_ON_BIN_11_WID              16
+#define VI_HIST_ON_BIN_10_BIT              0
+#define VI_HIST_ON_BIN_10_WID              16
+
+/* #define VDIN_DNLP_HIST06                        0x123d */
+#define VI_HIST_ON_BIN_13_BIT              16
+#define VI_HIST_ON_BIN_13_WID              16
+#define VI_HIST_ON_BIN_12_BIT              0
+#define VI_HIST_ON_BIN_12_WID              16
+
+/* #define VDIN_DNLP_HIST07                        0x123e */
+#define VI_HIST_ON_BIN_15_BIT              16
+#define VI_HIST_ON_BIN_15_WID              16
+#define VI_HIST_ON_BIN_14_BIT              0
+#define VI_HIST_ON_BIN_14_WID              16
+
+/* #define VDIN_DNLP_HIST08                        0x123f */
+#define VI_HIST_ON_BIN_17_BIT              16
+#define VI_HIST_ON_BIN_17_WID              16
+#define VI_HIST_ON_BIN_16_BIT              0
+#define VI_HIST_ON_BIN_16_WID              16
+
+/* #define VDIN_DNLP_HIST09                        0x1240 */
+#define VI_HIST_ON_BIN_19_BIT              16
+#define VI_HIST_ON_BIN_19_WID              16
+#define VI_HIST_ON_BIN_18_BIT              0
+#define VI_HIST_ON_BIN_18_WID              16
+
+/* #define VDIN_DNLP_HIST10                        0x1241 */
+#define VI_HIST_ON_BIN_21_BIT              16
+#define VI_HIST_ON_BIN_21_WID              16
+#define VI_HIST_ON_BIN_20_BIT              0
+#define VI_HIST_ON_BIN_20_WID              16
+
+/* #define VDIN_DNLP_HIST11                        0x1242 */
+#define VI_HIST_ON_BIN_23_BIT              16
+#define VI_HIST_ON_BIN_23_WID              16
+#define VI_HIST_ON_BIN_22_BIT              0
+#define VI_HIST_ON_BIN_22_WID              16
+
+/* #define VDIN_DNLP_HIST12                        0x1243 */
+#define VI_HIST_ON_BIN_25_BIT              16
+#define VI_HIST_ON_BIN_25_WID              16
+#define VI_HIST_ON_BIN_24_BIT              0
+#define VI_HIST_ON_BIN_24_WID              16
+
+/* #define VDIN_DNLP_HIST13                        0x1244 */
+#define VI_HIST_ON_BIN_27_BIT              16
+#define VI_HIST_ON_BIN_27_WID              16
+#define VI_HIST_ON_BIN_26_BIT              0
+#define VI_HIST_ON_BIN_26_WID              16
+
+/* #define VDIN_DNLP_HIST14                        0x1245 */
+#define VI_HIST_ON_BIN_29_BIT              16
+#define VI_HIST_ON_BIN_29_WID              16
+#define VI_HIST_ON_BIN_28_BIT              0
+#define VI_HIST_ON_BIN_28_WID              16
+
+/* #define VDIN_DNLP_HIST15                        0x1246 */
+#define VI_HIST_ON_BIN_31_BIT              16
+#define VI_HIST_ON_BIN_31_WID              16
+#define VI_HIST_ON_BIN_30_BIT              0
+#define VI_HIST_ON_BIN_30_WID              16
+
+/* #define VDIN_DNLP_HIST16                        0x1247 */
+#define VI_HIST_ON_BIN_33_BIT              16
+#define VI_HIST_ON_BIN_33_WID              16
+#define VI_HIST_ON_BIN_32_BIT              0
+#define VI_HIST_ON_BIN_32_WID              16
+
+/* #define VDIN_DNLP_HIST17                        0x1248 */
+#define VI_HIST_ON_BIN_35_BIT              16
+#define VI_HIST_ON_BIN_35_WID              16
+#define VI_HIST_ON_BIN_34_BIT              0
+#define VI_HIST_ON_BIN_34_WID              16
+
+/* #define VDIN_DNLP_HIST18                        0x1249 */
+#define VI_HIST_ON_BIN_37_BIT              16
+#define VI_HIST_ON_BIN_37_WID              16
+#define VI_HIST_ON_BIN_36_BIT              0
+#define VI_HIST_ON_BIN_36_WID              16
+
+/* #define VDIN_DNLP_HIST19                        0x124a */
+#define VI_HIST_ON_BIN_39_BIT              16
+#define VI_HIST_ON_BIN_39_WID              16
+#define VI_HIST_ON_BIN_38_BIT              0
+#define VI_HIST_ON_BIN_38_WID              16
+
+/* #define VDIN_DNLP_HIST20                        0x124b */
+#define VI_HIST_ON_BIN_41_BIT              16
+#define VI_HIST_ON_BIN_41_WID              16
+#define VI_HIST_ON_BIN_40_BIT              0
+#define VI_HIST_ON_BIN_40_WID              16
+
+/* #define VDIN_DNLP_HIST21                        0x124c */
+#define VI_HIST_ON_BIN_43_BIT              16
+#define VI_HIST_ON_BIN_43_WID              16
+#define VI_HIST_ON_BIN_42_BIT              0
+#define VI_HIST_ON_BIN_42_WID              16
+
+/* #define VDIN_DNLP_HIST22                        0x124d */
+#define VI_HIST_ON_BIN_45_BIT              16
+#define VI_HIST_ON_BIN_45_WID              16
+#define VI_HIST_ON_BIN_44_BIT              0
+#define VI_HIST_ON_BIN_44_WID              16
+
+/* #define VDIN_DNLP_HIST23                        0x124e */
+#define VI_HIST_ON_BIN_47_BIT              16
+#define VI_HIST_ON_BIN_47_WID              16
+#define VI_HIST_ON_BIN_46_BIT              0
+#define VI_HIST_ON_BIN_46_WID              16
+
+/* #define VDIN_DNLP_HIST24                        0x124f */
+#define VI_HIST_ON_BIN_49_BIT              16
+#define VI_HIST_ON_BIN_49_WID              16
+#define VI_HIST_ON_BIN_48_BIT              0
+#define VI_HIST_ON_BIN_48_WID              16
+
+/* #define VDIN_DNLP_HIST25                        0x1250 */
+#define VI_HIST_ON_BIN_51_BIT              16
+#define VI_HIST_ON_BIN_51_WID              16
+#define VI_HIST_ON_BIN_50_BIT              0
+#define VI_HIST_ON_BIN_50_WID              16
+
+/* #define VDIN_DNLP_HIST26                        0x1251 */
+#define VI_HIST_ON_BIN_53_BIT              16
+#define VI_HIST_ON_BIN_53_WID              16
+#define VI_HIST_ON_BIN_52_BIT              0
+#define VI_HIST_ON_BIN_52_WID              16
+
+/* #define VDIN_DNLP_HIST27                        0x1252 */
+#define VI_HIST_ON_BIN_55_BIT              16
+#define VI_HIST_ON_BIN_55_WID              16
+#define VI_HIST_ON_BIN_54_BIT              0
+#define VI_HIST_ON_BIN_54_WID              16
+
+/* #define VDIN_DNLP_HIST28                        0x1253 */
+#define VI_HIST_ON_BIN_57_BIT              16
+#define VI_HIST_ON_BIN_57_WID              16
+#define VI_HIST_ON_BIN_56_BIT              0
+#define VI_HIST_ON_BIN_56_WID              16
+
+/* #define VDIN_DNLP_HIST29                        0x1254 */
+#define VI_HIST_ON_BIN_59_BIT              16
+#define VI_HIST_ON_BIN_59_WID              16
+#define VI_HIST_ON_BIN_58_BIT              0
+#define VI_HIST_ON_BIN_58_WID              16
+
+/* #define VDIN_DNLP_HIST30                        0x1255 */
+#define VI_HIST_ON_BIN_61_BIT              16
+#define VI_HIST_ON_BIN_61_WID              16
+#define VI_HIST_ON_BIN_60_BIT              0
+#define VI_HIST_ON_BIN_60_WID              16
+
+/* #define VDIN_DNLP_HIST31                        0x1256 */
+#define VI_HIST_ON_BIN_63_BIT              16
+#define VI_HIST_ON_BIN_63_WID              16
+#define VI_HIST_ON_BIN_62_BIT              0
+#define VI_HIST_ON_BIN_62_WID              16
 
 
 #endif
