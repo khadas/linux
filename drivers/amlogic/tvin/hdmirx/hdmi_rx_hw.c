@@ -656,6 +656,10 @@ void hdmirx_set_hpd(int port, unsigned char val)
 		hdmirx_wr_top(TOP_HPD_PWR5V,
 			hdmirx_rd_top(TOP_HPD_PWR5V)|(1<<port));
 	}
+
+	if (log_flag & VIDEO_LOG)
+		rx_print("%s, port:%d, val:%d\n", __func__,
+						port, val);
 }
 
 void control_reset(void)
@@ -875,6 +879,7 @@ void hdmirx_hw_config(void)
 	else
 		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
 
+	hdmirx_set_hpd(rx.port, 1);
 	hdmirx_phy_init(rx.port, 0);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x1f);
 	DWC_init(rx.port);

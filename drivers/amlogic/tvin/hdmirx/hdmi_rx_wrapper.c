@@ -75,7 +75,7 @@ MODULE_PARM_DESC(aud_sr_stable_th, "\n aud_sr_stable_th\n");
 module_param(aud_sr_stable_th, int, 0664);
 
 static int sig_pll_unlock_cnt;
-static int sig_pll_unlock_max = 150;
+static int sig_pll_unlock_max = 400;
 MODULE_PARM_DESC(sig_pll_unlock_max, "\n sig_pll_unlock_max\n");
 module_param(sig_pll_unlock_max, int, 0664);
 
@@ -92,6 +92,10 @@ module_param(dwc_rst_wait_cnt_max, int, 0664);
 static bool force_hdmi_5v_high;
 MODULE_PARM_DESC(force_hdmi_5v_high, "\n force_hdmi_5v_high\n");
 module_param(force_hdmi_5v_high, bool, 0664);
+
+static int sig_clk_chg_max = 3;
+MODULE_PARM_DESC(sig_clk_chg_max, "\n sig_clk_chg_max\n");
+module_param(sig_clk_chg_max, int, 0664);
 
 static int sig_lost_lock_cnt;
 static int sig_lost_lock_max = 3;
@@ -362,9 +366,9 @@ void hdmirx_plug_det(struct work_struct *work)
 {
 	unsigned int tmp_5v, check_cnt, i, val;
 
-
 	cancel_delayed_work(&hpd_dwork);
-
+	if (log_flag & VIDEO_LOG)
+		rx_print("plug detect1:%d\n", pwr_sts);
 	val = 0;
 	check_cnt = pow5v_max_cnt;
 	for (i = 0; i <= 200; i++) {
@@ -382,8 +386,9 @@ void hdmirx_plug_det(struct work_struct *work)
 	}
 	if (pwr_sts != tmp_5v) {
 		pwr_sts = tmp_5v;
-		hpd_chg = 1;
 		hdmirx_wait_query();
+		if (log_flag & VIDEO_LOG)
+			rx_print("plug detect2:%d\n", pwr_sts);
 		/* switch_set_state(&hpd_sdev, pwr_sts); */
 	}
 
@@ -472,9 +477,12 @@ static int clock_handler(struct hdmi_rx_ctrl *ctx)
 		return -EINVAL;
 
 	++sig_lost_lock_cnt;
+	if (sig_lost_lock_cnt < sig_clk_chg_max)
+		return 0;
 	if (irq_video_mute_flag == false) {
 		irq_video_mute_flag = true;
 		hdmirx_set_video_mute(1);
+
 		if (log_flag&0x100)
 			rx_print("\nmute1\n");
 	}
@@ -561,8 +569,11 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	if (intr_hdmi != 0) {
 		/*if (get(intr_hdmi, CLK_CHANGE) != 0) */
 			/* clk_handle_flag = true; */
-		if (get(intr_hdmi, hdmi_ists_en) != 0)
+		if (get(intr_hdmi, hdmi_ists_en) != 0) {
+			if (log_flag & 0x100)
+				rx_print("++++++ clock change\n");
 			clk_handle_flag = true;
+		}
 		if (get(intr_hdmi, DCM_CURRENT_MODE_CHG) != 0) {
 			if (log_flag & 0x400)
 				rx_print
@@ -1621,10 +1632,13 @@ void hdmirx_error_count_config(void)
 
 bool hdmirx_tmds_pll_lock(void)
 {
-	if ((hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01) == 0)
-		return false;
-	else
+	if ((((hdmirx_rd_phy(0x30) & 0x80) == 0x80)) &&
+	(((hdmirx_rd_phy(0x50) & 0x80) == 0x80)) &&
+	(((hdmirx_rd_phy(0x70) & 0x80) == 0x80)))
 		return true;
+	else
+		return false;
+
 }
 
 bool hdmirx_audio_pll_lock(void)
@@ -1888,21 +1902,21 @@ void hdmirx_hw_monitor(void)
 			sig_pll_unlock_cnt++;
 
 			if ((is_clk_stable()) &&
-				(sig_pll_unlock_cnt >= sig_pll_unlock_max*3)) {
-				hdmirx_set_hpd(rx.port, 0);
+				(sig_pll_unlock_cnt >= sig_pll_unlock_max)) {
+				/*hdmirx_set_hpd(rx.port, 0);*/
 				hdmirx_error_count_config();
-				rx.state = FSM_HDMI5V_HIGH;
+				rx.state = FSM_HPD_READY;
 				rx.no_signal = true;
-				rx_print("Clk UNSTABLE->HDMI5V_HIGH:%d\n",
+				rx_print("Clk UNSTABLE->HPD_READY:%d\n",
 								rx.no_signal);
 				sig_pll_unlock_cnt = 0;
 			} else if (!(is_clk_stable()) &&
 				(sig_pll_unlock_cnt >= sig_pll_unlock_max)) {
-				hdmirx_set_hpd(rx.port, 0);
+				/*hdmirx_set_hpd(rx.port, 0);*/
 				hdmirx_error_count_config();
-				rx.state = FSM_HDMI5V_HIGH;
+				rx.state = FSM_HPD_READY;
 				rx.no_signal = true;
-				rx_print("PLL UNSTABLE->HDMI5V_HIGH: %d\n",
+				rx_print("PLL UNSTABLE->HPD_READY: %d\n",
 								rx.no_signal);
 				sig_pll_unlock_cnt = 0;
 			}
@@ -2139,7 +2153,7 @@ void hdmirx_hw_monitor(void)
 				aud_sr_stable_th) {
 				dump_state(0x2);
 				sig_unready_max = 5;
-				sig_lost_lock_max = 3;
+				sig_lost_lock_max = 5;
 				rx_aud_pll_ctl(1);
 				hdmirx_audio_enable(1);
 				hdmirx_audio_fifo_rst();

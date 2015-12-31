@@ -219,16 +219,6 @@ int phy_wait_clk_stable(void)
 	return 0;
 }
 
-bool phy_check_ch_status(void)
-{
-	if ((((hdmirx_rd_phy(0x30) & 0x80) == 0x80) | finish_flag[EQ_CH0]) &&
-	(((hdmirx_rd_phy(0x50) & 0x80) == 0x80) | finish_flag[EQ_CH1]) &&
-	(((hdmirx_rd_phy(0x70) & 0x80) == 0x80) | finish_flag[EQ_CH2]))
-		return true;
-	else
-		return false;
-}
-
 void phy_eq_task_continue(void)
 {
 	if (phy_private_data != NULL)
@@ -417,7 +407,7 @@ void phy_EQ_workaround(void)
 
 		/*Is this the tmds valid detection? ALG shouldn't wait for
 		 a long time (much more than 10mS) for TMDSVALID assertion*/
-		if (!phy_check_ch_status()) {
+		if (!hdmirx_phy_check_tmds_valid()) {
 			/*how long are you waiting for TMDSVALID? should
 			 be ~~10mS did you see any case where TMDSVALID
 			 doesn't get asserted after	10mS but get asserted
@@ -1088,6 +1078,16 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 
 	rx_print("%s  %d Done!\n", __func__, rx.port);
+}
+
+bool hdmirx_phy_check_tmds_valid(void)
+{
+	if ((((hdmirx_rd_phy(0x30) & 0x80) == 0x80) | finish_flag[EQ_CH0]) &&
+	(((hdmirx_rd_phy(0x50) & 0x80) == 0x80) | finish_flag[EQ_CH1]) &&
+	(((hdmirx_rd_phy(0x70) & 0x80) == 0x80) | finish_flag[EQ_CH2]))
+		return true;
+	else
+		return false;
 }
 
 enum phy_eq_states_e hdmirx_phy_get_eq_state(void)

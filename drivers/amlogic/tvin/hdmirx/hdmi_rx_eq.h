@@ -43,7 +43,7 @@ consider setting suitable for long cable */
 /* threshold for equalized system */
 #define EQ_COUNTERTHRESHOLD_HDMI20			512
 /* Maximum allowable setting */
-#define EQ_MAX_SETTING						13
+#define EQ_MAX_SETTING						7/* 13 */
 /* Default best setting for short cables (electrical short length) */
 #define EQ_SHORT_CABLE_BEST_SETTING		4
 /* Default setting when not good equalization is achieved,
@@ -171,6 +171,7 @@ struct hdmirx_phy_data_t {
 	bool task_running;
 	bool exit_task_delay;/* exit clk stable delay */
 	struct mutex state_lock;
+	bool last_clk_rate;
 };
 
 /*struct define end*/
@@ -186,6 +187,7 @@ enum phy_eq_states_e hdmirx_phy_get_eq_state(void);
 int hdmirx_phy_stop_eq(void);
 void hdmirx_phy_reset(int rx_port_sel, int dcm);
 int hdmirx_phy_suspend_eq(void);
+bool hdmirx_phy_check_tmds_valid(void);
 
 /*function declare end*/
 

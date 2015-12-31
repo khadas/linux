@@ -71,7 +71,7 @@ struct hdmirx_dev_s *devp_hdmirx_suspend;
 struct delayed_work     hpd_dwork;
 struct workqueue_struct *hpd_wq;
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
-unsigned int pwr_sts, hpd_chg;
+unsigned int pwr_sts;
 
 int resume_flag = 0;
 MODULE_PARM_DESC(resume_flag, "\n resume_flag\n");
@@ -615,8 +615,6 @@ static ssize_t hdmirx_hpd_read(struct file *file,
 	if (copy_to_user(buf, &pwr_sts, sizeof(unsigned int)))
 		return -EFAULT;
 
-	hpd_chg = 0;
-
 	return ret;
 }
 
@@ -626,8 +624,7 @@ static unsigned int hdmirx_hpd_poll(struct file *filp,
 	unsigned int mask = 0;
 
 	poll_wait(filp, &query_wait, wait);
-	if (hpd_chg == 1)
-		mask |= POLLIN|POLLRDNORM;
+	mask |= POLLIN|POLLRDNORM;
 
 	return mask;
 }
