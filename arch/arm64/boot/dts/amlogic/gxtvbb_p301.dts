@@ -737,7 +737,7 @@
 		product_desc = "GXBB Mbox"; /* Max Chars: 16    */
 		cec_osd_string = "MBox"; /* Max Chars: 14    */
 		port_num = <3>;
-		arc_port_mask = <0x0>;
+		arc_port_mask = <0x2>;
 		interrupts = <0 199 1>;
 		interrupt-names = "hdmi_aocec";
 		pinctrl-names = "hdmitx_aocec";

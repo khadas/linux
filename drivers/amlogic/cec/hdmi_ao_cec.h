@@ -168,7 +168,9 @@
 
 #ifdef CONFIG_TVIN_HDMI
 extern unsigned long hdmirx_rd_top(unsigned long addr);
+extern void hdmirx_wr_top(unsigned long addr, unsigned long data);
 #define TOP_HPD_PWR5V           0x002
+#define TOP_ARCTX_CNTL          0x010
 #endif
 
 unsigned int aocec_rd_reg(unsigned long addr);

@@ -123,12 +123,11 @@ bool cec_msg_dbg_en = 0;
 	}
 
 static unsigned char msg_log_buf[128] = { 0 };
-static int cec_ll_trigle_tx(void);
+static int cec_ll_trigle_tx(int wait);
 static int cec_tx_fail_reason;
 
 struct cec_tx_msg_t {
 	unsigned char buf[16];
-	unsigned int  retry;
 	unsigned int  busy;
 	unsigned int  len;
 };
@@ -265,11 +264,8 @@ void cec_rx_buf_clear(void)
 int cec_rx_buf_check(void)
 {
 	unsigned int rx_num_msg = aocec_rd_reg(CEC_RX_NUM_MSG);
+#if 0
 	unsigned tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
-	if (rx_num_msg)
-		CEC_INFO("rx msg num:0x%02x\n", rx_num_msg);
-
-	/*
 	if (tx_status == TX_BUSY) {
 		cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy++;
 		if (cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy >= 7) {
@@ -277,13 +273,16 @@ int cec_rx_buf_check(void)
 			cec_hw_reset();
 			cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy = 0;
 		}
-	} */
+	}
 	if (tx_status == TX_IDLE) {
 		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
 			/* triggle tx if idle */
 			cec_ll_trigle_tx();
 		}
 	}
+#endif
+	if (rx_num_msg)
+		CEC_INFO("rx msg num:0x%02x\n", rx_num_msg);
 
 	return rx_num_msg;
 }
@@ -294,7 +293,6 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	int ret = -1;
 	int pos;
 	int rx_stat;
-	struct hdmitx_dev *hdev;
 
 	rx_stat = aocec_rd_reg(CEC_RX_MSG_STATUS);
 	if ((RX_DONE != rx_stat) || (1 != aocec_rd_reg(CEC_RX_NUM_MSG))) {
@@ -311,7 +309,6 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 		msg[i] = aocec_rd_reg(CEC_RX_MSG_0_HEADER + i);
 
 	ret = rx_stat;
-	hdev = get_hdmitx_device();
 
 	/* ignore ping message */
 	if (cec_msg_dbg_en  == 1 && *len > 1) {
@@ -337,7 +334,7 @@ static int cec_queue_tx_msg(const unsigned char *msg, unsigned char len)
 	s_idx = cec_tx_msgs.send_idx;
 	q_idx = cec_tx_msgs.queue_idx;
 	if (((q_idx + 1) & CEC_TX_MSG_BUF_MASK) == s_idx) {
-		CEC_ERR("tx buffer full, abort msg\n");
+		CEC_ERR("tx buffer full, abort, s:%d, q:%d\n", s_idx, q_idx);
 		cec_hw_reset();
 		return -1;
 	}
@@ -353,7 +350,7 @@ static int cec_queue_tx_msg(const unsigned char *msg, unsigned char len)
 /* using the cec pin as fiq gpi to assist the bus arbitration */
 
 /* return value: 1: successful	  0: error */
-static int cec_ll_trigle_tx(void)
+static int cec_ll_trigle_tx(int wait)
 {
 	int i;
 	unsigned int n;
@@ -364,23 +361,24 @@ static int cec_ll_trigle_tx(void)
 	char *msg;
 	unsigned int j = 20;
 	unsigned tx_stat;
+	static int cec_timeout_cnt = 1;
 
-	/*
-	 * wait until tx is free
-	 */
-	while (1) {
-		tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
-		if (tx_stat == TX_BUSY)
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-		if (tx_stat != TX_BUSY)
-			break;
+	if (wait) {
+		while (1) {
+			tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
+			if (tx_stat != TX_BUSY)
+				break;
 
-		if (!(j--)) {
-			hdmi_print(INF, CEC "wating busy timeout\n");
-			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-			break;
+			if (!(j--)) {
+				CEC_INFO("wating busy timeout\n");
+				aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+				cec_timeout_cnt++;
+				if (cec_timeout_cnt > 0x08)
+					cec_hw_reset();
+				break;
+			}
+			msleep(20);
 		}
-		msleep(20);
 	}
 
 	reg = aocec_rd_reg(CEC_TX_MSG_STATUS);
@@ -408,6 +406,7 @@ static int cec_ll_trigle_tx(void)
 			msg_log_buf[pos] = '\0';
 			pr_info("%s", msg_log_buf);
 		}
+		cec_timeout_cnt = 0;
 		return 0;
 	}
 	return -1;
@@ -431,10 +430,9 @@ void tx_irq_handle(void)
 						CEC_TX_MSG_BUF_MASK;
 		}
 		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx)
-			cec_ll_trigle_tx();
+			cec_ll_trigle_tx(0);
 		cec_tx_fail_reason = CEC_FAIL_NONE;
 		complete(&cec_dev->tx_ok);
-		cec_tx_msgs.msg[s_idx].retry = 0;
 		break;
 
 	case TX_BUSY:
@@ -451,28 +449,21 @@ void tx_irq_handle(void)
 		} else {
 			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 			s_idx = cec_tx_msgs.send_idx;
-			if (cec_tx_msgs.msg[s_idx].retry < 1) {
-				cec_tx_msgs.msg[s_idx].retry++;
-				cec_ll_trigle_tx();
-			} else {
-				CEC_INFO("TX retry over, abort\n");
-				cec_tx_msgs.msg[s_idx].retry = 0;
-				cec_tx_msgs.send_idx =
-					(cec_tx_msgs.send_idx + 1) &
-					CEC_TX_MSG_BUF_MASK;
-				s_idx = cec_tx_msgs.send_idx;
-				if (s_idx != cec_tx_msgs.queue_idx)
-					cec_ll_trigle_tx();
-				cec_tx_fail_reason = CEC_FAIL_NACK;
-				complete(&cec_dev->tx_ok);
-			}
+			cec_tx_msgs.send_idx =
+				(cec_tx_msgs.send_idx + 1) &
+				CEC_TX_MSG_BUF_MASK;
+			s_idx = cec_tx_msgs.send_idx;
+			if (s_idx != cec_tx_msgs.queue_idx)
+				cec_ll_trigle_tx(0);
+			cec_tx_fail_reason = CEC_FAIL_NACK;
+			complete(&cec_dev->tx_ok);
 		}
 		break;
 
 	case TX_IDLE:
 		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
 			/* triggle tx if idle */
-			cec_ll_trigle_tx();
+			cec_ll_trigle_tx(0);
 		}
 		break;
 	default:
@@ -486,19 +477,20 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 {
 	int ret = 0;
 	int timeout = msecs_to_jiffies(1000);
-	struct hdmitx_dev *hdev;
 
 	mutex_lock(&cec_dev->cec_mutex);
 	/*
 	 * do not send messanges if tv is not support CEC
 	 */
-	hdev = get_hdmitx_device();
-
 	cec_tx_fail_reason = CEC_FAIL_NONE;
 	cec_queue_tx_msg(msg, len);
-	ret = cec_ll_trigle_tx();
+	ret = cec_ll_trigle_tx(1);
 	if (ret < 0) {
 		cec_tx_fail_reason = CEC_FAIL_BUSY;
+		/* we should increase send idx if busy */
+		cec_tx_msgs.send_idx = (cec_tx_msgs.send_idx + 1) &
+					CEC_TX_MSG_BUF_MASK;
+		CEC_INFO("tx busy\n");
 		mutex_unlock(&cec_dev->cec_mutex);
 		return ret;
 	}
@@ -506,6 +498,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	if (ret <= 0) {
 		/* timeout or interrupt */
 		cec_tx_fail_reason = CEC_FAIL_OTHER;
+		CEC_INFO("tx timeout\n");
 	} else {
 		if (cec_tx_fail_reason != CEC_FAIL_NONE) {
 			/* not timeout but got fail info */
@@ -1235,7 +1228,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			port->type = HDMI_OUTPUT;
 			port->port_id = 1;
 			port->cec_supported = 1;
-			/* not support arc */
+			/* not support arc for tx */
 			port->arc_supported = 0;
 			port->physical_address = tmp & 0xffff;
 			if (copy_to_user(argp, port, sizeof(*port))) {
@@ -1248,8 +1241,11 @@ static long hdmitx_cec_ioctl(struct file *f,
 				port[a].type = HDMI_INPUT;
 				port[a].port_id = a + 1;
 				port[a].cec_supported = 1;
-				/* no support arc */
-				port[a].arc_supported = 0;
+				/* set ARC feature according mask */
+				if (cec_dev->arc_port & (1 << a))
+					port[a].arc_supported = 1;
+				else
+					port[a].arc_supported = 0;
 				port[a].physical_address = (a + 1) * 0x1000;
 			}
 			if (copy_to_user(argp, port, sizeof(*port) * b)) {
@@ -1339,6 +1335,18 @@ static long hdmitx_cec_ioctl(struct file *f,
 		cec_dev->dev_type = arg;
 		break;
 
+	case CEC_IOC_SET_ARC_ENABLE:
+	#ifdef CONFIG_TVIN_HDMI
+		/* select arc according arg */
+		if (arg)
+			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x03);
+		else
+			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x00);
+		CEC_INFO("set arc en:%ld, reg:%lx\n",
+			 arg, hdmirx_rd_top(TOP_ARCTX_CNTL));
+	#endif
+		break;
+
 	default:
 		break;
 	}
@@ -1416,7 +1424,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 		CEC_ERR("alloc memory failed\n");
 		return -ENOMEM;
 	}
-	device_rename(&pdev->dev, "aocec");
+	dev_set_name(&pdev->dev, "%s", "aocec");
+	pdev->name = dev_name(&pdev->dev);
 	cec_dev->dev_type = DEV_TYPE_TX;
 	cec_dev->dbg_dev  = &pdev->dev;
 	cec_dev->tx_dev   = get_hdmitx_device();
