@@ -64,6 +64,9 @@ static int hue_post;  /*-25~25*/
 static int saturation_post;  /*-128~127*/
 static signed int vd1_brightness = 0, vd1_contrast;
 static struct amvecm_dev_s amvecm_dev;
+unsigned int sr1_reg_val[101];
+unsigned int sr1_ret_val[101];
+
 
 static bool debug_amvecm;
 module_param(debug_amvecm, bool, 0664);
@@ -108,6 +111,11 @@ MODULE_PARM_DESC(wb_on_off, "\n wb_on_off\n");
 unsigned int probe_ok;/* probe ok or not */
 module_param(probe_ok, uint, 0664);
 MODULE_PARM_DESC(probe_ok, "\n probe_ok\n");
+
+static unsigned int sr1_index;/* for sr1 read */
+module_param(sr1_index, uint, 0664);
+MODULE_PARM_DESC(sr1_index, "\n sr1_index\n");
+
 
 /* extern unsigned int cm_size; */
 /* extern unsigned int ve_size; */
@@ -396,11 +404,16 @@ void pq_enable_disable(void)
 		cm_en = 1;
 		amcm_enable();
  /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
-		if (is_meson_g9tv_cpu()) {
+		if (is_meson_gxtvbb_cpu()) {
 			/* open sharpness clock gate */
-			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);
+			/*WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);*/
 			/* sharpness on */
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SHARP_PK_NR_ENABLE,
+				1, 1, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SHARP_PK_NR_ENABLE,
+				1, 1, 1);
 			/* wb on */
 			wb_en = 1;
 			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
@@ -418,9 +431,14 @@ void pq_enable_disable(void)
 		amcm_disable();
 		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 4, 2);
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
-		if (is_meson_g9tv_cpu()) {
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1, 1);
-			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 30, 2);
+		if (is_meson_gxtvbb_cpu()) {
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SHARP_PK_NR_ENABLE,
+				0, 1, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SHARP_PK_NR_ENABLE,
+				0, 1, 1);
+			/*WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 30, 2);*/
 			wb_en = 0;
 			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
@@ -453,7 +471,7 @@ void pq_enable_disable(void)
 	}
 
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
-	if (is_meson_g9tv_cpu()) {
+	if (is_meson_gxtvbb_cpu()) {
 		if (sharpness_on_off == 1) {
 			sharpness_on_off = 2;
 			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);
@@ -1259,7 +1277,7 @@ static ssize_t amvecm_pq_en_show(struct class *cla,
 	len += sprintf(buf+len, "cm_en = %d\n", cm_en);
 	len += sprintf(buf+len, "wb_en = %d\n", wb_en);
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
-	if (is_meson_g9tv_cpu()) {
+	if (is_meson_gxtvbb_cpu()) {
 		len += sprintf(buf+len,
 				"sharpness_en = %d\n", sharpness_en_val);
 		len += sprintf(buf+len,
@@ -1279,10 +1297,23 @@ static ssize_t amvecm_pq_en_store(struct class *cla,
 	if ((r != 1) || ((val != 1) && (val != 0)))
 		return -EINVAL;
 
-	if (val == 1)
+	if (val == 1) {
 		pq_on_off = 1;
-	else
+		pr_amvecm_dbg("dnlp_en = 1 [0x1da1][bit2] = 1\n");
+		pr_amvecm_dbg("cm_en = 1  [0x1d26][bit28] = 1\n");
+		pr_amvecm_dbg("sharpness0_en = 1 [0x3227][bit1] = 1\n");
+		pr_amvecm_dbg("sharpness1_en = 1 [0x32a7][bit1] = 1\n");
+		pr_amvecm_dbg("wb_en = 1 [0x1d6a][bit31] = 1\n");
+		pr_amvecm_dbg("gamma_en = 1 [0x1400][bit0] = 1\n");
+	} else {
 		pq_on_off = 0;
+		pr_amvecm_dbg("dnlp_en = 0 [0x1da1][bit2] = 0\n");
+		pr_amvecm_dbg("cm_en = 0  [0x1d26][bit28] = 0\n");
+		pr_amvecm_dbg("sharpness0_en = 0 [0x3227][bit1] = 0\n");
+		pr_amvecm_dbg("sharpness1_en = 0 [0x32a7][bit1] = 0\n");
+		pr_amvecm_dbg("wb_en = 0 [0x1d6a][bit31] = 0\n");
+		pr_amvecm_dbg("gamma_en = 0 [0x1400][bit0] = 0\n");
+	}
 	return count;
 }
 
@@ -1563,6 +1594,34 @@ static ssize_t amvecm_post_matrix_data_store(struct class *cla,
 	return 0;
 }
 
+static ssize_t amvecm_sr1_reg_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	unsigned int addr;
+	addr = ((sr1_index+0x3280) << 2) | 0xd0100000;
+	return sprintf(buf, "0x%x = 0x%x\n",
+			addr, sr1_ret_val[sr1_index]);
+}
+
+static ssize_t amvecm_sr1_reg_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	unsigned int addr, off_addr = 0;
+	r = sscanf(buf, "0x%x", &addr);
+	addr = (addr&0xffff) >> 2;
+	if ((r != 1)  || (addr > 0x32e4) || (addr < 0x3280))
+		return -EINVAL;
+	off_addr = addr - 0x3280;
+	sr1_index = off_addr;
+	sr1_ret_val[off_addr] = sr1_reg_val[off_addr];
+
+	return count;
+
+}
+
+
 static ssize_t amvecm_dump_reg_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
@@ -1742,6 +1801,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_post_matrix_data_show, amvecm_post_matrix_data_store),
 	__ATTR(dump_reg, S_IRUGO | S_IWUSR,
 		amvecm_dump_reg_show, amvecm_dump_reg_store),
+	__ATTR(sr1_reg, S_IRUGO | S_IWUSR,
+		amvecm_sr1_reg_show, amvecm_sr1_reg_store),
 	__ATTR_NULL
 };
 

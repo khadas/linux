@@ -187,6 +187,8 @@ void am_set_regmap(struct am_regs_s *p)
 						(sr1_regs[sr1_temp].val &
 						(~(p->am_reg[i].mask))) |
 					(p->am_reg[i].val & p->am_reg[i].mask);
+					sr1_reg_val[sr1_temp] =
+						sr1_regs[sr1_temp].val;
 				aml_write_vcbus(p->am_reg[i].addr,
 					sr1_regs[sr1_temp].val);
 			} else
