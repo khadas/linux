@@ -45,6 +45,8 @@
 #include <linux/of_fdt.h>
 #include <linux/dma-mapping.h>
 
+#include <linux/amlogic/codec_mm/codec_mm.h>
+
 #include "amports_priv.h"
 #include "amvideocap_priv.h"
 /*
@@ -91,6 +93,12 @@ static inline struct amvideocap_global_data *getgctrl(void)
 	return &amvideocap_gdata;
 }
 
+static int use_cma;
+#ifdef CONFIG_CMA
+static struct platform_device *amvideocap_pdev;
+static int cma_max_size;
+#define CMA_NAME "amvideocap"
+#endif
 #define gLOCK() mutex_lock(&(getgctrl()->lock))
 #define gUNLOCK() mutex_unlock(&(getgctrl()->lock))
 #define gLOCKINIT() mutex_init(&(getgctrl()->lock))
@@ -101,26 +109,36 @@ static inline struct amvideocap_global_data *getgctrl(void)
 static int amvideocap_open(struct inode *inode, struct file *file)
 {
 	struct amvideocap_private *priv;
-	dma_addr_t dma_handle;
 	gLOCK();
-	getgctrl()->size = BUF_SIZE_MAX;
-	getgctrl()->vaddr =
-		(unsigned long)dma_alloc_coherent(amports_get_dma_device(),
-						  getgctrl()->size, &dma_handle,
-						  GFP_KERNEL);
-	if (!getgctrl()->vaddr) {
-		gUNLOCK();
-		pr_err("%s: failed to remap y addr\n", __func__);
-		return -ENOMEM;
+#ifdef CONFIG_CMA
+	if (use_cma && amvideocap_pdev) {
+		unsigned long phybufaddr;
+		phybufaddr = codec_mm_alloc_for_dma(CMA_NAME,
+				cma_max_size * SZ_1M / PAGE_SIZE,
+				4 + PAGE_SHIFT, CODEC_MM_FLAGS_CPU);
+		/* pr_err("%s: codec_mm_alloc_for_dma:%p\n",
+				__func__, (void *)phybufaddr);
+		*/
+		amvideocap_register_memory((unsigned char *)phybufaddr,
+					cma_max_size * SZ_1M);
 	}
-	getgctrl()->phyaddr = (unsigned long)(dma_handle);
-
+#endif
 	if (!getgctrl()->phyaddr) {
 		gUNLOCK();
 		pr_err("Error,no memory have register for amvideocap\n");
 		return -ENOMEM;
 	}
-
+#ifdef CONFIG_CMA
+	if (!getgctrl()->vaddr) {
+		getgctrl()->vaddr = (unsigned long)codec_mm_phys_to_virt(
+						getgctrl()->phyaddr);
+		if (!getgctrl()->vaddr) {
+			pr_err("%s: failed to remap y addr\n", __func__);
+			gUNLOCK();
+			return -ENOMEM;
+		}
+	}
+#endif
 	if (getgctrl()->opened_cnt > AMCAP_MAX_OPEND) {
 		gUNLOCK();
 		pr_err("Too Many opend video cap files\n");
@@ -150,12 +168,15 @@ static int amvideocap_release(struct inode *inode, struct file *file)
 {
 	struct amvideocap_private *priv = file->private_data;
 	kfree(priv);
-	if (getgctrl()->vaddr != 0) {
-		dma_free_coherent(amports_get_dma_device(),
-				  getgctrl()->size, (void *)getgctrl()->vaddr,
-				  (dma_addr_t) getgctrl()->phyaddr);
-		getgctrl()->vaddr = 0;
+#ifdef CONFIG_CMA
+	if (use_cma && amvideocap_pdev) {
+		codec_mm_free_for_dma(CMA_NAME, getgctrl()->phyaddr);
+		/*
+		   pr_err("%s: codec_mm_free_for_dma:%p\n", __func__,
+		   (void *)getgctrl()->phyaddr);
+		 */
 	}
+#endif
 	gLOCK();
 	getgctrl()->opened_cnt--;
 
@@ -695,6 +716,11 @@ static ssize_t amvideocap_read(struct file *file, char __user *buf,
 			pr_info
 			(" priv->outfmt_byteppix=%d, size=%d\n",
 			 priv->out.byte_per_pix, size);
+#ifdef CONFIG_CMA
+			codec_mm_dma_flush(priv->vaddr,
+					cma_max_size * SZ_1M, DMA_FROM_DEVICE);
+#endif
+
 			copied = copy_to_user(buf, priv->vaddr, size);
 			if (copied) {
 				pr_err
@@ -823,7 +849,7 @@ s32 amvideocap_register_memory(unsigned char *phybufaddr,
 	return 0;
 }
 
-s32 amvideocap_dev_register(void)
+s32 amvideocap_dev_register(unsigned char *phybufaddr, int phybufsize)
 {
 	s32 r = 0;
 	pr_info("amvideocap_dev_register\n");
@@ -849,7 +875,10 @@ s32 amvideocap_dev_register(void)
 		r = -EEXIST;
 		goto err2;
 	}
-
+	if (phybufaddr != NULL) {
+		getgctrl()->phyaddr = (unsigned long)phybufaddr;
+		getgctrl()->size = (unsigned long)phybufsize;
+	}
 	getgctrl()->wait_max_ms = 0;
 	getgctrl()->want.fmt = GE2D_FORMAT_S24_RGB;
 	getgctrl()->want.width = 0;
@@ -880,10 +909,39 @@ s32 amvideocap_dev_unregister(void)
  *
  * ******************************************************************/
 
+static struct resource memobj;
 /* for driver. */
 static int amvideocap_probe(struct platform_device *pdev)
 {
-	amvideocap_dev_register();
+	unsigned int buf_size;
+	struct resource *mem;
+
+#ifdef CONFIG_CMA
+	char buf[32];
+	u32 value;
+	int ret;
+#endif
+
+	pr_err("amvideocap_probe,%s\n", pdev->dev.of_node->name);
+
+#ifdef CONFIG_CMA
+	snprintf(buf, sizeof(buf), "max_size");
+	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
+	if (ret < 0) {
+		pr_err("cma size undefined.\n");
+		use_cma = 0;
+	} else {
+		pr_err("use cma buf.\n");
+		mem = &memobj;
+		mem->start = 0;
+		buf_size = 0;
+		cma_max_size = value;
+		amvideocap_pdev = pdev;
+		use_cma = 1;
+	}
+#endif
+
+	amvideocap_dev_register((unsigned char *)mem->start, buf_size);
 	return 0;
 }
 

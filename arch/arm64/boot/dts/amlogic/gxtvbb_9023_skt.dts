@@ -206,6 +206,7 @@
 		compatible = "amlogic, amvideocap";
 		dev_name = "amvideocap.0";
 		status = "okay";
+		max_size = <8>;//8M
 	};
 
 	ion_dev {
