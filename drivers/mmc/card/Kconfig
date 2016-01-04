@@ -18,7 +18,7 @@ config MMC_BLOCK_MINORS
 	int "Number of minors per block device"
 	depends on MMC_BLOCK
 	range 4 256
-	default 16
+	default 32
 	help
 	  Number of minors per block device. One is needed for every
 	  partition on the disk (plus one for the whole disk).
