@@ -7159,11 +7159,25 @@ light_unreg:
 		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
-		int in_buf_num = 0;
+		/*int in_buf_num = 0;*/
+		struct vframe_states states;
 		if (recovery_flag)
 			return RECEIVER_INACTIVE;
-
-		for (i = 0; i < MAX_IN_BUF_NUM; i++)
+#if 1/*fix for ucode reset method be break by di.20151230*/
+		di_vf_states(&states, NULL);
+		if (states.buf_avail_num > 0) {
+			return RECEIVER_ACTIVE;
+		} else {
+			if (vf_notify_receiver(
+				VFM_NAME,
+				VFRAME_EVENT_PROVIDER_QUREY_STATE,
+				NULL)
+			== RECEIVER_ACTIVE)
+				return RECEIVER_ACTIVE;
+			return RECEIVER_INACTIVE;
+		}
+#else
+		for (i = 0; i < MAX_IN_BUF_NUM; i++) {
 			if (vframe_in[i] != NULL)
 				in_buf_num++;
 		if (bypass_state == 1) {
@@ -7177,6 +7191,7 @@ light_unreg:
 			else
 				return RECEIVER_INACTIVE;
 		}
+#endif
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 		bypass_state = 0;
