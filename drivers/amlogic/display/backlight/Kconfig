@@ -11,7 +11,7 @@ config AML_BACKLIGHT
 
 if AML_BACKLIGHT
 source "drivers/amlogic/display/backlight/bl_extern/Kconfig"
-
+source "drivers/amlogic/display/backlight/aml_ldim/Kconfig"
 endif
 
 endmenu

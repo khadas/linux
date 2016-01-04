@@ -1,0 +1,22 @@
+#
+# LDIM Device Driver Configuration
+#
+config AML_LOCAL_DIMMING
+	boolean "Amlogic Local dimming"
+	default n
+	help
+	  Say Y if you want to use Amlogic Local dimming.
+
+config IW7019_BACKLIGHT
+	boolean "iW7019 Backlight"
+	default n
+	depends on AML_LOCAL_DIMMING
+	help
+	  iW7019 LED Driver for LCD Panel Backlight.
+
+config IW7019_USE_EEPROM
+	boolean "iW7019 use eeprom to backup data"
+	default n
+	depends on AML_LOCAL_DIMMING
+	help
+	  Say Y if you use eeprom to backup data of iw7019.

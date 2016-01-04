@@ -1527,7 +1527,7 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 	unsigned int offset = devp->addr_offset;
 	struct vframe_bbar_s bbar = {0};
 #ifdef CONFIG_AML_LOCAL_DIMMING
-	int i;
+	/*int i;*/
 #endif
 	/* fetch hist info */
 	/* vf->prop.hist.luma_sum   = READ_CBUS_REG_BITS(VDIN_HIST_SPL_VAL,
@@ -1717,7 +1717,8 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 	/* fetch meas info - For M2 or further chips only, not for M1 chip */
 	vf->prop.meas.vs_stamp = devp->stamp;
 	vf->prop.meas.vs_cycle = devp->cycle;
-#ifdef CONFIG_AML_LOCAL_DIMMING
+#if 0
+/*#ifdef CONFIG_AML_LOCAL_DIMMING*/
 	/* get ldim max */
 	if (vdin_ldim_max_en && is_meson_gxtvbb_cpu()) {
 		wr_bits(offset, VDIN_LDIM_STTS_HIST_REGION_IDX, 0,

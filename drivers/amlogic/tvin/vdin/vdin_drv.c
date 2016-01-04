@@ -1300,7 +1300,8 @@ irqreturn_t vdin_isr_simple(int irq, void *dev_id)
 	irq_max_count++;
 	return IRQ_HANDLED;
 }
-#ifdef CONFIG_AML_LOCAL_DIMMING
+#if 0
+/*#ifdef CONFIG_AML_LOCAL_DIMMING*/
 unsigned int   vdin_ldim_max_global[100] = {0};
 static void vdin_backup_histgram_ldim(struct vframe_s *vf,
 		struct vdin_dev_s *devp)
@@ -1523,7 +1524,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 	vdin_backup_histgram(curr_wr_vf, devp);
 	#ifdef CONFIG_AML_LOCAL_DIMMING
-	vdin_backup_histgram_ldim(curr_wr_vf, devp);
+	/*vdin_backup_histgram_ldim(curr_wr_vf, devp);*/
 	#endif
 	if ((devp->parm.port >= TVIN_PORT_HDMI0) &&
 		(devp->parm.port <= TVIN_PORT_HDMI7)) {

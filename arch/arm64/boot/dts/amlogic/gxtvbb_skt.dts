@@ -375,11 +375,6 @@
 		reg = <0x0 0xc8840000 0x0 0x2000>;
 		reg_23cf = <0x88188832>;/*default:0x88188832;r840 on haier:0x48188832*/
 	};
-	aml_local_dimming {
-		compatible = "amlogic, aml_local_dimming";
-		dev_name = "aml_local_dimming";
-		status = "disable";
-	};
 	amlvecm {
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
@@ -872,6 +867,14 @@
 		};
 	};
 
+	aml_local_dimming {
+ 			compatible = "amlogic, aml_local_dimming";
+ 			dev_name = "aml_local_dimming";
+			status = "disabled";
+			interrupts = <0 3 1
+				0 143 1>;
+	};
+
 	backlight{
 		compatible = "amlogic, backlight";
 		dev_name = "backlight";
@@ -1245,4 +1248,15 @@
 		cs-gpios = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		iw7019 {
+			compatible = "amlogic, iw7019";
+			status = "disabled";
+			interrupts = <0 3 1>;
+			interrupt-names = "viu-vsync";
+			en-gpio = <&gpio GPIOX_9 GPIO_ACTIVE_HIGH>;
+			reg = <0>;
+			spi-max-frequency = <3000000>;
+			spi-cpha = <0>;
+			spi-cpol = <0>;
+		};
 	};

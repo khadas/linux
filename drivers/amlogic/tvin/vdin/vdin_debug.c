@@ -342,8 +342,8 @@ static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
 {
 	uint i, j;
 	unsigned int local_ldim_max[100] = {0};
-	memcpy(&local_ldim_max[0], &vdin_ldim_max_global[0],
-		100*sizeof(unsigned int));
+	/*memcpy(&local_ldim_max[0], &vdin_ldim_max_global[0],
+		100*sizeof(unsigned int));*/
 	pr_info("%s:\n", __func__);
 	for (i = 0; i < hnum; i++) {
 		for (j = 0; j < vnum; j++) {
