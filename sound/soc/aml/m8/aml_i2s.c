@@ -336,10 +336,15 @@ static void aml_i2s_timer_callback(unsigned long data)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct aml_runtime_data *prtd = runtime->private_data;
-	struct audio_stream *s = &prtd->s;
+	struct aml_runtime_data *prtd = NULL;
+	struct audio_stream *s = NULL;
 	int elapsed = 0;
 	unsigned int last_ptr, size = 0;
+
+	if (runtime == NULL)
+		return;
+	prtd = runtime->private_data;
+	s = &prtd->s;
 
 	spin_lock(&prtd->timer_lock);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
