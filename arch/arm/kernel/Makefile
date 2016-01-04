@@ -99,4 +99,6 @@ endif
 
 obj-$(CONFIG_HIBERNATION)		+= hibernate.o
 
+obj-$(CONFIG_HAVE_ARM_SMCCC)	+= smccc-call.o
+
 extra-y := $(head-y) vmlinux.lds
