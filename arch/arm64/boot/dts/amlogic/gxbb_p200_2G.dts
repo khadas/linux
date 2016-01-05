@@ -374,8 +374,8 @@
 	};
 
 	wifi{
-		compatible = "amlogic, aml_broadcm_wifi";
-		dev_name = "aml_broadcm_wifi";
+		compatible = "amlogic, aml_wifi";
+		dev_name = "aml_wifi";
 		status = "okay";
 		interrupt_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
 		interrupts = <	0 68 4>;
@@ -384,12 +384,6 @@
 		dhd_static_buf;
 		pinctrl-names = "wifi_32k_pins";
 		pinctrl-0 = <&wifi_32k_pins>;
-	};
-	wifi_power{
-		compatible = "amlogic, wifi_power";
-		dev_name = "wifi_power";
-		status = "okay";
-		power_gpio =  <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
 	};
     sd{
         compatible = "amlogic, aml_sd_emmc";

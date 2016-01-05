@@ -423,8 +423,8 @@
 		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
 	};
 	wifi{
-		compatible = "amlogic, aml_broadcm_wifi";
-		dev_name = "aml_broadcm_wifi";
+		compatible = "amlogic, aml_wifi";
+		dev_name = "aml_wifi";
 		status = "okay";
 		interrupt_pin = <&gpio_ao       GPIOAO_13       GPIO_ACTIVE_HIGH>;
 		interrupts = <0 68 4>;
