@@ -8,6 +8,7 @@
 #define AML_I2C_BUS_AO 0
 #define AML_I2C_BUS_A 1
 #define AML_I2C_BUS_B 2
+#define AML_I2C_BUS_C 3
 #define MAX_SENSOR_ONBOARD  6
 static struct sensor_pdata_t sensor_pdata[MAX_SENSOR_ONBOARD];
 static int curr_idx;
@@ -141,7 +142,9 @@ int dt_sensor_setup_i2c_dev(struct device_node *node,  struct i2c_board_info
 				*i2c_bus_nr = AML_I2C_BUS_A;
 			else if (!strncmp(str, "i2c_bus_b", 9))
 				*i2c_bus_nr = AML_I2C_BUS_B;
-			else if (!strncmp(str, "i2c_bus_ao", 9))
+			else if (!strncmp(str, "i2c_bus_c", 9))
+				*i2c_bus_nr = AML_I2C_BUS_C;
+			else if (!strncmp(str, "i2c_bus_ao", 10))
 				*i2c_bus_nr = AML_I2C_BUS_AO;
 			else
 				*i2c_bus_nr = AML_I2C_BUS_B;
