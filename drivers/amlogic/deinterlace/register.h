@@ -19,6 +19,56 @@ unsigned int RDMA_WR_BITS(unsigned int adr, unsigned int val,
 unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 		unsigned int len);
 
+#define SRSHARP0_SHARP_DEJ2_PRC     ((0x3261)) /* << 2) + 0xd0100000) */
+/* Bit 31:24,  reg_dejaggy2_hcon_thrd             : .
+unsigned, default =5,hcon threshold, only pixels with hcon equal or
+larger than this value can be detected as jaggy2 */
+/* Bit 23:16,  reg_dejaggy2_svdif_thrd            : . unsigned,
+default =30,abs(sum(vdif[4])) threshold to decide jaggy2, only
+pixels ws abs(sum(vdif[4]))>= thrd can be jaggy2 */
+/* Bit 15: 8,  reg_dejaggy2_svdif_rate            : .
+unsigned, default =32,sum(abs(vdif[4])) <= (rate*abs(sum(vdif[4]))/16)
+rate to decide jaggy2,(normalized 2) */
+/* Bit  7: 6,  reserved */
+/* Bit  5: 0,  reg_dejaggy2_vdif_thrd             : .
+signed, default =-3,vdif threshold for same trend decidion, these value
+is the margin for not same trend; if >0, means need to be same trend, <0,
+can be a little bit glitch
+*/
+#define SRSHARP0_SHARP_DEJ1_PRC    ((0x3262)) /* << 2) + 0xd0100000) */
+/* Bit 31:24,  reg_dejaggy1_hcon_thrd             : . unsigned,
+default =1,hcon threshold, only pixels with hcon equal or larger
+than this value can be detected as jaggy1 */
+/* Bit 23:16,  reg_dejaggy1_svdif_thrd            : . unsigned,
+default =50,abs(sum(vdif[4])) threshold to decide jaggy1, only
+pixels ws abs(sum(vdif[4]))<= thrd can be jaggy1 */
+/* Bit 15: 8, reg_dejaggy1_svdif_rate            : . unsigned,
+default =64,sum(abs(vdif[4])) <= (rate*abs(sum(vdif[4]))/16) rate
+to decide jaggy2,(normalized 2) */
+/* Bit  7: 6,  reserved */
+/* Bit  5: 0,  reg_dejaggy1_dif12_rate            : . unsigned,
+default =16,sum(abs(vdif2[3]))< (sum(abs(vdif[4]))*rate/32) rate
+to decide jaggy2, (normalized 0.5) */
+#define SRSHARP0_SHARP_DEJ1_MISC   ((0x3264)) /* << 2) + 0xd0100000) */
+/* Bit 31:12,  reserved */
+/* Bit 11: 8,  reg_dejaggy1_svdif_ofst            : .
+unsigned, default =2,sum(abs(vdif[4])) >= (rate*abs(sum(vdif[4]))/32 + ofst)
+offset to decide jaggy2,(normalized 2) */
+/* Bit  7,     reg_dejaggy1_proc_chrm             : .
+unsigned, default =1, enable to filter 2 pixels step on chroma */
+/* Bit  6,     reg_dejaggy1_proc_luma             : .
+unsigned, default =1, enable to filter 2 pixels step on luma */
+/* Bit  5: 4,  reg_dejaggy1_extend_mode           : .
+unsigned, default =3, extend mode for dejaggy1 horizontally,
+0, no extnd, 1: exend 1 pixel, 2: extend 2 pixels, 3, extend 3 pixels */
+/* Bit  3,     reserved */
+/* Bit  2,     reg_dejaggy1_alpha_force           : .
+unsigned, default =0, force enable of the alpha for dejaggy1 */
+/* Bit  1: 0,  reg_dejaggy1_alpha_value           : .
+unsigned, default =0, force value of the alpha for dejaggy1 */
+
+
+
 /* vdin */
 #define VDIN_WR_CTRL					0x1220
 /* 0xd0104880 */
@@ -3495,11 +3545,39 @@ column cofidence value 5. initial = 0 */
 
 
 #define DIPD_COMB_CTRL0					0x2fd0
+/* Bit 31: 24, cmb_v_dif_min */
+/* Bit 23: 16, cmb_v_dif_max */
+/* Bit 15:  8, cmb_crg_mi */
+/* Bit  7:  0, cmb_crg_max */
 #define DIPD_COMB_CTRL1					0x2fd1
+/* Bit 31: 31, pd_check_en */
+/* Bit 29: 24, cmb_wv_min3 */
+/* Bit 21: 16, cmb_wv_min2 */
+/* Bit 13:  8, cmb_wv_min1 */
+/* Bit  5:  0, cmb_wv_min0 */
 #define DIPD_COMB_CTRL2					0x2fd2
+/* Bit 31: 28, cmb_wnd_cnt1 */
+/* Bit 25: 20, ccnt_cmmin1 */
+/* Bit 19: 16, ccnt_mtmin */
+/* Bit 13:  8, ccnt_cmmin */
+/* Bit  5:  0, cmb_wv_min4 */
 #define DIPD_COMB_CTRL3					0x2fd3
+/* Bit 31: 31, cmb32spcl */
+/* Bit 17: 12, cmb_wnd_mthd */
+/* Bit 11:  4, cmb_abs_nocmb */
+/* Bit  3:  0, cnt_minlen */
 #define DIPD_COMB_CTRL4					0x2fd4
+/* Bit 30: 30, flm_stamtn_en */
+/* Bit 29: 28, in_horflt */
+/* Bit 27: 20, alpha */
+/* Bit 19: 16, thtran_ctmtd */
+/* Bit 15:  8, htran_mnth1 */
+/* Bit  7:  0, htran_mnth0 */
 #define DIPD_COMB_CTRL5					0x2fd5
+/* Bit 31: 24, fld_mindif */
+/* Bit 23: 16, frm_mindif */
+/* Bit 13:  8, flm_smp_mtn_cnt */
+/* Bit  7:  0, flm_smp_mtn_thd */
 #define DIPD_RO_COMB_0					0x2fd6
 #define DIPD_RO_COMB_1					0x2fd7
 #define DIPD_RO_COMB_2					0x2fd8

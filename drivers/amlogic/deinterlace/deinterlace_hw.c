@@ -16,6 +16,8 @@
 #include "detect3d.h"
 #endif
 
+#include "film_vof_soft.h"
+
 #ifndef DI_CHAN2_CANVAS
 #define DI_CHAN2_CANVAS DI_CHAN2_CANVAS0
 #endif
@@ -36,7 +38,6 @@ static bool cue_enable;
 
 pd_detect_threshold_t win_pd_th[MAX_WIN_NUM];
 pd_win_prop_t pd_win_prop[MAX_WIN_NUM];
-extern int mpeg2vdin_flag;
 
 static bool frame_dynamic;
 MODULE_PARM_DESC(frame_dynamic, "\n frame_dynamic\n");
@@ -152,6 +153,18 @@ static void mc_di_param_init(void)
 	Wr(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
 }
 
+static void init_field_mode(void)
+{
+	if (is_meson_gxtvbb_cpu()) {
+		Wr(DIPD_COMB_CTRL0, 0x02400210);
+		Wr(DIPD_COMB_CTRL1, 0x88080808);
+		Wr(DIPD_COMB_CTRL2, 0x41041008);
+		Wr(DIPD_COMB_CTRL3, 0x00008053);
+		Wr(DIPD_COMB_CTRL4, 0x20070002);
+		Wr(DIPD_COMB_CTRL5, 0x04040804);
+	}
+}
+
 void di_hw_init(void)
 {
 #ifdef NEW_DI_V1
@@ -192,6 +205,10 @@ void di_hw_init(void)
 #if (defined NEW_DI_V2 && !defined NEW_DI_TV)
 	ma_di_init();
 #endif
+
+	if (is_meson_gxtvbb_cpu() && pulldown_enable)
+		init_field_mode();
+
 	if (mcpre_en)
 		mc_di_param_init();
 
@@ -897,7 +914,6 @@ static void set_di_if1_fmt_more(int hfmt_en,
 							 (c_length << 0));
 }
 
-extern int di_vscale_skip_count_real;
 static const u32 vpat[] = {0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
 
 static void set_di_if1_mif(DI_MIF_t *mif, int urgent, int hold_line)
@@ -1176,12 +1192,31 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 {
 	VSYNC_WR_MPEG_REG(DI_POST_SIZE,
 (hsize_post - 1) | ((vsize_post - 1) << 16));
+
+#if 0
 	/* di demo */
 	VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, ((hsize_post-1)>>1));
 	VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
 	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 (0x2 << 20) |	/* top mode. EI only */
 25); /* KDEINT */
+#endif
+
+	if (is_meson_gxtvbb_cpu() && pulldown_enable) {
+		/* VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post>>2)-1 ); */
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG1_Y,
+			((vsize_post>>2)<<16) | (2*(vsize_post>>2)-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG2_Y,
+			((2*(vsize_post>>2))<<16) | (3*(vsize_post>>2)-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG3_Y,
+			((3*(vsize_post>>2))<<16) | (vsize_post-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, (hsize_post-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG1_X, (hsize_post-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG2_X, (hsize_post-1));
+		VSYNC_WR_MPEG_REG(DI_BLEND_REG3_X, (hsize_post-1));
+	}
+
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL, (0 << 0) |
 					  (0 << 1)	|
 					  (0 << 2)	|
@@ -1203,6 +1238,10 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 		/* enable ma,disable if0 to vpp */
 		VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 }
+
+static unsigned int pldn_ctrl_rflsh = 1;
+module_param(pldn_ctrl_rflsh, uint, 0644);
+MODULE_PARM_DESC(pldn_ctrl_rflsh, "/n post blend reflesh./n");
 
 void di_post_switch_buffer(
 	DI_MIF_t		   *di_buf0_mif,
@@ -1241,15 +1280,18 @@ void di_post_switch_buffer(
 		VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num |
 			(urgent << 16)); /* urgent. */
 	}
+	if (is_meson_gxtvbb_cpu() && (pldn_ctrl_rflsh == 1)
+		&& pulldown_enable) {
+		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_en, 31, 1);
+		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
+		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_mode, 20, 2);
+		if (debug_blend_mode_ctrl != 0xff)
+			VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+				debug_blend_mode_ctrl&0x3, 20, 2);
+	} else
+		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
+			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
 
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL) | 0x1c00019);
-	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-			blend_en&0x1, 31, 1);
-	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-			blend_mode&0x3, 20, 2);
-	if (debug_blend_mode_ctrl != 0xff)
-		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-			debug_blend_mode_ctrl&0x3, 20, 2);
 	if (mcpre_en) {
 		VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL,
 	(Rd(MCDI_MCVECRD_CTRL) & 0xffffff00) |
@@ -1264,23 +1306,26 @@ void di_post_switch_buffer(
 			else
 				VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 	}
-	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
-((ei_en|blend_en) << 0) |	/* line buffer 0 enable */
-((blend_mode == 1?1:0) << 1)  |
-(ei_en << 2) |			/* ei  enable */
-(blend_mtn_en << 3) |	/* mtn line buffer enable */
-(blend_mtn_en  << 4) |/* mtnp read mif enable */
-(blend_en << 5) |
-(1 << 6) |		/* di mux output enable */
-(di_ddr_en << 7) |/* di write to SDRAM enable.*/
-(di_vpp_en << 8) |/* di to VPP enable. */
-(0 << 9) |		/* mif0 to VPP enable. */
-(0 << 10) |		/* post drop first. */
-(0 << 11) |
-(di_vpp_en << 12) | /* post viu link */
-(hold_line << 16) | /* post hold line number */
-(post_field_num << 29) |	/* post field number. */
-(0x1 << 30)	/* post soft rst  post frame rst. */
+	if (is_meson_gxtvbb_cpu() && pulldown_enable)
+		VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL, post_field_num, 29, 1);
+	else
+		VSYNC_WR_MPEG_REG(DI_POST_CTRL,
+			((ei_en|blend_en) << 0) | /* line buf 0 enable */
+			((blend_mode == 1?1:0) << 1)  |
+			(ei_en << 2) |			/* ei  enable */
+			(blend_mtn_en << 3) |	/* mtn line buffer enable */
+			(blend_mtn_en  << 4) |/* mtnp read mif enable */
+			(blend_en << 5) |
+			(1 << 6) |		/* di mux output enable */
+			(di_ddr_en << 7) |/* di write to SDRAM enable.*/
+			(di_vpp_en << 8) |/* di to VPP enable. */
+			(0 << 9) |		/* mif0 to VPP enable. */
+			(0 << 10) |		/* post drop first. */
+			(0 << 11) |
+			(di_vpp_en << 12) | /* post viu link */
+			(hold_line << 16) | /* post hold line number */
+			(post_field_num << 29) |	/* post field number. */
+			(0x1 << 30)	/* post soft rst  post frame rst. */
 		);
 }
 
@@ -1330,14 +1375,14 @@ blend_mtn_en,blend_mode); */
 (urgent << 16));
 	}
 
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL) | 0x1c00019);
+	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
+	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+		blend_en&0x1, 31, 1);
+	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+		blend_mode&0x3, 20, 2);
+	if (debug_blend_mode_ctrl != 0xff)
 		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-			blend_en&0x1, 31, 1);
-		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-				blend_mode&0x3, 20, 2);
-		if (debug_blend_mode_ctrl != 0xff)
-			VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-				debug_blend_mode_ctrl&0x3, 20, 2);
+			debug_blend_mode_ctrl&0x3, 20, 2);
 
 	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en | blend_en) << 0) |	/* line buffer 0 enable */
@@ -1486,11 +1531,26 @@ bool read_pulldown_info(pulldown_detect_info_t *field_pd_info,
 	return frame_dynamic;
 }
 
+void read_new_pulldown_info(struct FlmModReg_t *pFMReg)
+{
+	int i = 0;
+	for (i = 0; i < 6; i++) {
+		pFMReg->rROFrmDif02[i] = Rd(DIPD_RO_COMB_0+i);
+		pFMReg->rROFldDif01[i] = Rd(DIPD_RO_COMB_6+i);
+	}
+
+	/* pFMReg->rROFrmDif02[0] = Rd(DIPD_RO_COMB_0); */
+	/* pFMReg->rROFldDif01[0] = Rd(DIPD_RO_COMB_6); */
+
+	for (i = 0; i < 9; i++)
+		pFMReg->rROCmbInf[i] = Rd(DIPD_RO_COMB_12+i);
+}
+
 void di_post_read_reverse(bool reverse)
 {
 #ifdef NEW_DI_TV
 	if (reverse) {
-		Wr_reg_bits(DI_IF1_GEN_REG2,	3, 2, 2);
+		Wr_reg_bits(DI_IF1_GEN_REG2, 3, 2, 2);
 		Wr_reg_bits(VD1_IF0_GEN_REG2, 0xf, 2, 4);
 		Wr_reg_bits(VD2_IF0_GEN_REG2, 0xf, 2, 4);
 		if (mcpre_en) {
@@ -1513,7 +1573,6 @@ void di_post_read_reverse(bool reverse)
 }
 void di_post_read_reverse_irq(bool reverse)
 {
-#if 1/*def NEW_DI_TV*/
 	if (reverse) {
 		VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,    3, 2, 2);
 		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0xf, 2, 4);
@@ -1536,7 +1595,6 @@ void di_post_read_reverse_irq(bool reverse)
 			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 8, 1);
 		}
 	}
-#endif
 }
 
 static unsigned char pre_power_on;

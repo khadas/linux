@@ -31,6 +31,9 @@
 #define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
 #endif
 #endif
+
+#include "film_vof_soft.h"
+
 /************************************
 *	 di hardware level interface
 *************************************/
@@ -109,11 +112,6 @@ enum pulldown_mode_e {
 };
 #define pulldown_mode_t enum pulldown_mode_e
 struct di_buf_s {
-#ifdef D2D3_SUPPORT
-	unsigned long dp_buf_adr;
-	unsigned int dp_buf_size;
-	unsigned int reverse_flag;
-#endif
 #ifdef USE_LIST
 	struct list_head list;
 #endif
@@ -151,6 +149,20 @@ struct di_buf_s {
 	unsigned int regs[26];/* reg 0x2fb0~0x2fc9 */
 	} curr_field_mcinfo;
 #endif
+
+	unsigned short reg0_s;
+	unsigned short reg0_e;
+	unsigned short reg0_bmode;
+	unsigned short reg1_s;
+	unsigned short reg1_e;
+	unsigned short reg1_bmode;
+	unsigned short reg2_s;
+	unsigned short reg2_e;
+	unsigned short reg2_bmode;
+	unsigned short reg3_s;
+	unsigned short reg3_e;
+	unsigned short reg3_bmode;
+
 	unsigned int canvas_config_flag;
 	/* 0,configed; 1,config type 1 (prog);
 	2, config type 2 (interlace) */
@@ -280,6 +292,8 @@ void enable_mc_di_pre(DI_MC_MIF_t *di_mcinford_mif,
 void enable_mc_di_post(DI_MC_MIF_t *di_mcvecrd_mif, int urgent, bool reverse);
 #endif
 
+void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
+
 void enable_region_blend(
 	int reg0_en, int reg0_start_x, int reg0_end_x, int reg0_start_y,
 	int reg0_end_y, int reg0_mode, int reg1_en, int reg1_start_x,
@@ -358,6 +372,9 @@ extern unsigned int di_log_flag;
 extern unsigned int di_debug_flag;
 extern bool mcpre_en;
 extern bool dnr_reg_update;
+extern int mpeg2vdin_flag;
+extern int di_vscale_skip_count_real;
+extern unsigned int pulldown_enable;
 
 int di_print(const char *fmt, ...);
 
