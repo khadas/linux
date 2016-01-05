@@ -706,6 +706,9 @@ static int init_ntd(void)
 #ifdef CONFIG_PROC_FS
 	proc_ntd = proc_create("ntd", 0, NULL, &ntd_proc_ops);
 #endif /* CONFIG_PROC_FS */
+
+	register_chrdev_region(MKDEV(NTD_CHAR_MAJOR, 0), 20, "ntd");
+
 	return 0;
 
 	/* err_bdi1: */
