@@ -43,6 +43,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
 #include <linux/cma.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
 #include <linux/amlogic/iomap.h>
 /* Amlogic Headers */
@@ -87,6 +88,8 @@
 #define VDIN_PUT_INTERVAL		(HZ/100)   /* 10ms, #define HZ 100 */
 
 #define INVALID_VDIN_INPUT		0xffffffff
+
+#define VDIN0_ALLOC_SIZE		SZ_64M
 
 static dev_t vdin_devno;
 static struct class *vdin_clsp;
@@ -239,32 +242,69 @@ static const struct vframe_operations_s vdin_vf_ops = {
 #ifdef CONFIG_CMA
 void vdin_cma_alloc(struct vdin_dev_s *devp)
 {
+	char vdin_name[5];
 	unsigned int mem_size = devp->cma_mem_size[devp->index];
+	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
+		CODEC_MM_FLAGS_CPU;
 	if (devp->cma_config_en == 0)
 		return;
 	if (devp->cma_mem_alloc[devp->index] == 1)
 		return;
 	devp->cma_mem_alloc[devp->index] = 1;
-	devp->venc_pages[devp->index] =
-		dma_alloc_from_contiguous(&(devp->this_pdev[devp->index]->dev),
+	if (devp->cma_config_flag == 1) {
+		if (devp->index == 0)
+			strcpy(vdin_name, "vdin0");
+		else if (devp->index == 1)
+			strcpy(vdin_name, "vdin1");
+		devp->mem_start = codec_mm_alloc_for_dma(vdin_name,
+			mem_size/PAGE_SIZE, 0, flags);
+		devp->mem_size = mem_size;
+		if (devp->mem_start == 0)
+			pr_err(KERN_ERR "\nvdin%d codec alloc fail!!!\n",
+				devp->index);
+		else {
+			pr_info("vdin%d mem_start = 0x%x, mem_size = 0x%x\n",
+				devp->index, devp->mem_start, devp->mem_size);
+			pr_info("vdin%d codec cma alloc ok!\n", devp->index);
+		}
+	} else if (devp->cma_config_flag == 0) {
+		devp->venc_pages[devp->index] = dma_alloc_from_contiguous(
+			&(devp->this_pdev[devp->index]->dev),
 			mem_size >> PAGE_SHIFT, 0);
-	if (devp->venc_pages) {
-		devp->mem_start = page_to_phys(devp->venc_pages[devp->index]);
-		devp->mem_size  = mem_size;
-		pr_info("vdin%d mem_start = 0x%x, mem_size = 0x%x\n",
-			devp->index, devp->mem_start, devp->mem_size);
-		pr_info("vdin%d cma alloc ok!\n", devp->index);
-	} else {
-		pr_err(KERN_ERR "\nvdin%d cma mem undefined2.\n", devp->index);
+		if (devp->venc_pages) {
+			devp->mem_start =
+				page_to_phys(devp->venc_pages[devp->index]);
+			devp->mem_size  = mem_size;
+			pr_info("vdin%d mem_start = 0x%x, mem_size = 0x%x\n",
+				devp->index, devp->mem_start, devp->mem_size);
+			pr_info("vdin%d cma alloc ok!\n", devp->index);
+		} else {
+			pr_err(KERN_ERR "\nvdin%d cma mem undefined2.\n",
+				devp->index);
+		}
 	}
 }
 
 void vdin_cma_release(struct vdin_dev_s *devp)
 {
+	char vdin_name[5];
 	if (devp->cma_config_en == 0)
 		return;
-	if (devp->venc_pages[devp->index] && devp->cma_mem_size[devp->index]
+	if ((devp->cma_config_flag == 1) && devp->mem_start
 		&& (devp->cma_mem_alloc[devp->index] == 1)) {
+		if (devp->index == 0)
+			strcpy(vdin_name, "vdin0");
+		else if (devp->index == 1)
+			strcpy(vdin_name, "vdin1");
+		codec_mm_free_for_dma(vdin_name, devp->mem_start);
+		devp->mem_start = 0;
+		devp->mem_size = 0;
+		devp->cma_mem_alloc[devp->index] = 0;
+		pr_info("vdin%d codec cma release ok!\n", devp->index);
+	} else if (devp->venc_pages[devp->index]
+		&& devp->cma_mem_size[devp->index]
+		&& (devp->cma_mem_alloc[devp->index] == 1)
+		&& (devp->cma_config_flag == 0)) {
 		devp->cma_mem_alloc[devp->index] = 0;
 		dma_release_from_contiguous(
 			&(devp->this_pdev[devp->index]->dev),
@@ -2328,8 +2368,23 @@ static int vdin_drv_probe(struct platform_device *pdev)
 /*  */
 #ifdef CONFIG_CMA
 	if (!use_reserved_mem) {
-		vdevp->cma_mem_size[vdevp->index] =
-			dma_get_cma_size_int_byte(&pdev->dev);
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"flag_cma", &(vdevp->cma_config_flag));
+		if (ret) {
+			pr_err("don't find  match flag_cma\n");
+			vdevp->cma_config_flag = 0;
+		}
+		if (vdevp->cma_config_flag == 1) {
+			ret = of_property_read_u32(pdev->dev.of_node,
+				"cma_size",
+				&(vdevp->cma_mem_size[vdevp->index]));
+			if (ret)
+				pr_err("don't find  match cma_size\n");
+			else
+				vdevp->cma_mem_size[vdevp->index] *= SZ_1M;
+		} else if (vdevp->cma_config_flag == 0)
+			vdevp->cma_mem_size[vdevp->index] =
+				dma_get_cma_size_int_byte(&pdev->dev);
 		vdevp->this_pdev[vdevp->index] = pdev;
 		vdevp->cma_mem_alloc[vdevp->index] = 0;
 		vdevp->cma_config_en = 1;

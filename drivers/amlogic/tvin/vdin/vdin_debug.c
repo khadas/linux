@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 /* Amlogic Headers */
 /* #include <mach/am_regs.h> */
 /* #include <mach/mod_gate.h> */
@@ -173,7 +174,12 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		pos = canvas_real_size * i;
-		buf = phys_to_virt(devp->mem_start + devp->canvas_max_size*i);
+		if (devp->cma_config_flag == 1)
+			buf = codec_mm_phys_to_virt(devp->mem_start +
+				devp->canvas_max_size*i);
+		else
+			buf = phys_to_virt(devp->mem_start +
+				devp->canvas_max_size*i);
 		vfs_write(filp, buf, canvas_real_size, &pos);
 		pr_info("write buffer %2d of %2u  to %s.\n",
 				i, devp->canvas_max_num, path);

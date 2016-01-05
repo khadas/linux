@@ -99,14 +99,14 @@
  			//no-map;
 		};
 		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <4>;
-			reusable;
+		//vdin0_cma_reserved:linux,vdin0_cma {
+		//	compatible = "shared-dma-pool";
+		//	linux,phandle = <4>;
+		//	reusable;
 			/* 3840x2160x2x4  =64+4 M */
-			size = <0x0 0x04400000>;
-			alignment = <0x0 0x400000>;
-		};
+		//	size = <0x0 0x04400000>;
+		//	alignment = <0x0 0x400000>;
+		//};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
@@ -259,10 +259,12 @@
 	};
 	vdin0 {
 		compatible = "amlogic, vdin";
-		memory-region = <&vdin0_cma_reserved>;
+		/*memory-region = <&vdin0_cma_reserved>;*/
 		dev_name = "vdin0";
 		status = "ok";
 		reserve-iomap = "true";
+		flag_cma = <1>;/*1:share with codec_mm;2:cma alone*/
+		cma_size = <64>;/*MByte*/
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
 		clocks = <&clock CLK_FPLL_DIV5>,
@@ -276,6 +278,7 @@
 		dev_name = "vdin1";
 		status = "ok";
 		reserve-iomap = "true";
+		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
 		clocks = <&clock CLK_FPLL_DIV5>,
