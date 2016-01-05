@@ -245,8 +245,10 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	       runtime->rate);
 	/* int srate; */
 	/* srate = params_rate(params); */
-	if (old_samplerate != sample_rate)
+	if (old_samplerate != sample_rate) {
+		old_samplerate = sample_rate;
 		aml_set_spdif_clk(runtime->rate * 512, 0);
+	}
 	/* Todo, div can be changed, for most case, div = 2 */
 	/* audio_set_spdif_clk_div(); */
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
