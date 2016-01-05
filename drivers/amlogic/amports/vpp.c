@@ -229,6 +229,10 @@ static unsigned int bypass_ratio = 196;
 module_param(bypass_ratio, uint, 0664);
 MODULE_PARM_DESC(bypass_ratio, "bypass_ratio");
 
+static unsigned int sr0_sr1_refresh = 1;
+module_param(sr0_sr1_refresh, uint, 0664);
+MODULE_PARM_DESC(sr0_sr1_refresh, "sr0_sr1_refresh");
+
 #if 0
 #define DECL_PARM(name)\
 static int name;\
@@ -1133,44 +1137,51 @@ static int vpp_set_super_sclaer_regs(int scaler_path_sel,
 
 	/* top config */
 	tmp_data = READ_VCBUS_REG(VPP_SRSHARP0_CTRL);
-	if (((tmp_data >> 1)&0x1) != (reg_srscl0_vert_ratio&0x1))
-		VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
-		reg_srscl0_vert_ratio&0x1, 1, 1);
-	if ((tmp_data&0x1) != 1)
-		VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
-
+	if (sr0_sr1_refresh) {
+		if (((tmp_data >> 1)&0x1) != (reg_srscl0_vert_ratio&0x1))
+			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
+			reg_srscl0_vert_ratio&0x1, 1, 1);
+		if ((tmp_data&0x1) != 1)
+			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
+	}
 	tmp_data = READ_VCBUS_REG(VPP_SRSHARP1_CTRL);
-	if (((tmp_data >> 1)&0x1) != (reg_srscl1_vert_ratio&0x1))
-		VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL,
-			reg_srscl1_vert_ratio&0x1, 1, 1);
-	if ((tmp_data&0x1) != 1)
-		VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL, 1, 0, 1);
-
+	if (sr0_sr1_refresh) {
+		if (((tmp_data >> 1)&0x1) != 1)
+			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL, 1, 1, 1);
+		if ((tmp_data&0x1) != 1)
+			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL, 1, 0, 1);
+	}
 	/* core0 config */
 	tmp_data = READ_VCBUS_REG(SRSHARP0_SHARP_SR2_CTRL);
-	if (((tmp_data >> 5)&0x1) != (reg_srscl0_vert_ratio&0x1))
-		VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
-			reg_srscl0_vert_ratio&0x1, 5, 1);
-	if (((tmp_data >> 4)&0x1) != (reg_srscl0_hori_ratio&0x1))
-		VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
-			reg_srscl0_hori_ratio&0x1, 4, 1);
-	if (((tmp_data >> 2)&0x1) != (reg_srscl0_enable&0x1))
-		VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
-			reg_srscl0_enable&0x1, 2, 1);
-
+	if (sr0_sr1_refresh) {
+		if (((tmp_data >> 5)&0x1) != (reg_srscl0_vert_ratio&0x1))
+			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+				reg_srscl0_vert_ratio&0x1, 5, 1);
+		if (((tmp_data >> 4)&0x1) != (reg_srscl0_hori_ratio&0x1))
+			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+				reg_srscl0_hori_ratio&0x1, 4, 1);
+		if (((tmp_data >> 2)&0x1) != (reg_srscl0_enable&0x1))
+			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+				reg_srscl0_enable&0x1, 2, 1);
+	}
 	/* core1 config */
 	tmp_data = sharpness1_sr2_ctrl_32d7;
 	if ((((tmp_data >> 5)&0x1) != (reg_srscl1_vert_ratio&0x1)) ||
 		(((tmp_data >> 4)&0x1) != (reg_srscl1_hori_ratio&0x1)) ||
-		(((tmp_data >> 2)&0x1) != (reg_srscl1_enable&0x1))) {
+		((tmp_data & 0x1) == (reg_srscl1_hori_ratio&0x1)) ||
+		(((tmp_data >> 2)&0x1) != 1)) {
 		tmp_data = tmp_data & (~(1 << 5));
 		tmp_data = tmp_data & (~(1 << 4));
 		tmp_data = tmp_data & (~(1 << 2));
+		tmp_data = tmp_data & (~(1 << 0));
 		tmp_data |= ((reg_srscl1_vert_ratio&0x1) << 5);
 		tmp_data |= ((reg_srscl1_hori_ratio&0x1) << 4);
-		tmp_data |= ((reg_srscl1_enable&0x1) << 2);
-		VSYNC_WR_MPEG_REG(SRSHARP1_SHARP_SR2_CTRL, tmp_data);
-		sharpness1_sr2_ctrl_32d7 = tmp_data;
+		tmp_data |= (1 << 2);
+		tmp_data |= (((~(reg_srscl1_hori_ratio&0x1))&0x1) << 0);
+		if (sr0_sr1_refresh) {
+			VSYNC_WR_MPEG_REG(SRSHARP1_SHARP_SR2_CTRL, tmp_data);
+			sharpness1_sr2_ctrl_32d7 = tmp_data;
+		}
 	}
 
 	/* size config */
