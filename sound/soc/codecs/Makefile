@@ -132,6 +132,7 @@ snd-soc-amlpmu4-objs := aml_pmu4_codec.o
 snd-soc-max9877-objs := max9877.o
 snd-soc-tpa6130a2-objs := tpa6130a2.o
 snd-soc-tas5707-objs := tas5707.o
+snd-soc-tas5717-objs := tas5717.o
 
 obj-$(CONFIG_SND_SOC_88PM860X)	+= snd-soc-88pm860x.o
 obj-$(CONFIG_SND_SOC_AB8500_CODEC)	+= snd-soc-ab8500-codec.o
@@ -266,3 +267,4 @@ obj-$(CONFIG_SND_SOC_AMLPMU4)	+= snd-soc-amlpmu4.o
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
 obj-$(CONFIG_SND_SOC_TAS5707)   += snd-soc-tas5707.o
+obj-$(CONFIG_SND_SOC_TAS5717)   += snd-soc-tas5717.o

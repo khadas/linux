@@ -54,6 +54,8 @@ struct tas57xx_platform_data {
 	int enable_hardmute;
 	int i2c_addr;
 	int reset_pin;
+	int phone_pin;
+	int scan_pin;
 };
 
 #endif

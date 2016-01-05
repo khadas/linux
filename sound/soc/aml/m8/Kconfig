@@ -6,3 +6,4 @@ menuconfig SND_AML_M8
 	select SND_SOC_DUMMY_CODEC
 	select SND_SOC_AMLPMU4 if AML_PMU4
 	select SND_SOC_TAS5707
+	select SND_SOC_TAS5717

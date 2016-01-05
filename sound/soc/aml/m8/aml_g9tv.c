@@ -465,9 +465,6 @@ static int get_audio_codec_i2c_info(struct device_node *p_node,
 		goto err_out;
 	}
 
-	if (strcmp(audio_codec_dev->name, "tas5707"))
-		return -1;
-
 	pr_debug("use audio aux codec %s\n", audio_codec_dev->name);
 
 	ret = of_property_read_string(p_node, "i2c_bus", &str);
@@ -704,6 +701,41 @@ static int of_get_resetpin_pdata(struct tas57xx_platform_data *pdata,
 	return 0;
 }
 
+static int of_get_phonepin_pdata(struct tas57xx_platform_data *pdata,
+				 struct device_node *p_node)
+{
+	struct gpio_desc *phone_desc;
+	phone_desc = of_get_named_gpiod_flags(p_node, "phone_pin", 0, NULL);
+	if (IS_ERR(phone_desc)) {
+		pr_err("%s fail to get phone pin from dts!\n", __func__);
+	} else {
+		int phone_pin = desc_to_gpio(phone_desc);
+		gpio_request(phone_pin, NULL);
+		gpio_direction_output(phone_pin, GPIOF_OUT_INIT_LOW);
+		pdata->phone_pin = phone_pin;
+		pr_info("%s pdata->phone_pin = %d!\n", __func__,
+			pdata->phone_pin);
+	}
+	return 0;
+}
+static int of_get_scanpin_pdata(struct tas57xx_platform_data *pdata,
+				 struct device_node *p_node)
+{
+	struct gpio_desc *scan_desc;
+	scan_desc = of_get_named_gpiod_flags(p_node, "scan_pin", 0, NULL);
+	if (IS_ERR(scan_desc)) {
+		pr_err("%s fail to get scan pin from dts!\n", __func__);
+	} else {
+		int scan_pin = desc_to_gpio(scan_desc);
+		gpio_request(scan_pin, NULL);
+		gpio_direction_input(scan_pin);
+		pdata->scan_pin = scan_pin;
+		pr_info("%s pdata->scan_pin = %d!\n", __func__,
+			pdata->scan_pin);
+	}
+	return 0;
+}
+
 static int codec_get_of_pdata(struct tas57xx_platform_data *pdata,
 			      struct device_node *p_node)
 {
@@ -712,6 +744,13 @@ static int codec_get_of_pdata(struct tas57xx_platform_data *pdata,
 	ret = of_get_resetpin_pdata(pdata, p_node);
 	if (ret)
 		pr_info("codec reset pin is not found in dts\n");
+	ret = of_get_phonepin_pdata(pdata, p_node);
+	if (ret)
+		pr_info("codec phone pin is not found in dtd\n");
+
+	ret = of_get_scanpin_pdata(pdata, p_node);
+	if (ret)
+		pr_info("codec scanp pin is not found in dtd\n");
 
 	ret = of_get_drc_pdata(pdata, p_node);
 	if (ret == -2)
@@ -737,10 +776,15 @@ static int aml_aux_dev_parse_of(struct snd_soc_card *card)
 	struct aml_audio_codec_info temp_audio_codec;
 	struct tas57xx_platform_data *pdata;
 	char tmp[I2C_NAME_SIZE];
-
-	child = of_get_child_by_name(audio_codec_node, "tas5707");
+	const char *aux_dev;
+	if (of_property_read_string(audio_codec_node, "aux_dev", &aux_dev)) {
+		pr_info("no aux dev!\n");
+		return -ENODEV;
+	}
+	pr_info("aux name = %s\n", aux_dev);
+	child = of_get_child_by_name(audio_codec_node, aux_dev);
 	if (child == NULL) {
-		pr_info("error: failed to find child node %s\n", "tas5707");
+		pr_info("error: failed to find aux dev node %s\n", aux_dev);
 		return -1;
 	}
 

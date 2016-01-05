@@ -135,6 +135,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DUMMY_CODEC
 	select SND_SOC_PCM2BT
 	select SND_SOC_TAS5707 if I2C
+	select SND_SOC_TAS5717 if I2C
 	select SND_SOC_AMLPMU4 if I2C
         help
           Normally ASoC codec drivers are only built if a machine driver which
@@ -565,6 +566,9 @@ config SND_SOC_DUMMY_CODEC
 	tristate
 
 config SND_SOC_TAS5707
+	tristate
+
+config SND_SOC_TAS5717
 	tristate
 
 config SND_SOC_AMLPMU4

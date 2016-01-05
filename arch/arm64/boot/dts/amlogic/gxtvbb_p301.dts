@@ -1157,6 +1157,7 @@
 		pinctrl-names = "aml_snd_g9tv";
 		pinctrl-0 = <&audio_pins>;
 		mute_gpio-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
+		aux_dev = "tas5707";
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
