@@ -1603,10 +1603,21 @@ static bool is_in_queue(struct di_buf_s *di_buf, int queue_idx)
 	bool ret = 0;
 	struct di_buf_s *p = NULL;
 	int itmp;
-
+	unsigned int overflow_cnt;
+	overflow_cnt = 0;
+	if ((di_buf == NULL) || (queue_idx < 0) || (queue_idx >= QUEUE_NUM)) {
+		ret = 0;
+		di_print("%s: not in queue:%d!!!\n", __func__, queue_idx);
+		return ret;
+	}
 	queue_for_each_entry(p, ptmp, queue_idx, list) {
 		if (p == di_buf) {
 			ret = 1;
+			break;
+		}
+		if (overflow_cnt++ > MAX_QUEUE_POOL_SIZE) {
+			ret = 0;
+			di_print("%s: overflow_cnt!!!\n", __func__);
 			break;
 		}
 	}
@@ -2602,33 +2613,33 @@ static void di_uninit_buf(void)
 	queue_for_each_entry(p, ptmp, QUEUE_DISPLAY, list)
 	if (p->di_buf[0]->type != VFRAME_TYPE_IN &&
 	(p->process_fun_index != PROCESS_FUN_NULL) &&
-	(ii < USED_LOCAL_BUF_MAX)) {
-		if (p->index == di_post_stru.cur_disp_index) {
-			used_post_buf_index = p->index;
-			for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
-				if (p->di_buf_dup_p[i] != NULL) {
-					used_local_buf_index[ii] =
+	(ii < USED_LOCAL_BUF_MAX) &&
+	(p->index == di_post_stru.cur_disp_index)) {
+		used_post_buf_index = p->index;
+		for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
+			if (p->di_buf_dup_p[i] != NULL) {
+				used_local_buf_index[ii] =
 					p->di_buf_dup_p[i]->index;
-					/* prepare for recycle
-					 * the keep buffer*/
-					p->di_buf_dup_p[i]->
-						pre_ref_count = 0;
-					p->di_buf_dup_p[i]->
-						post_ref_count = 0;
+				/* prepare for recycle
+				 * the keep buffer*/
+				p->di_buf_dup_p[i]->pre_ref_count = 0;
+				p->di_buf_dup_p[i]->post_ref_count = 0;
+				if ((p->di_buf_dup_p[i]->queue_index >= 0) &&
+				(p->di_buf_dup_p[i]->queue_index < QUEUE_NUM)) {
 					if (is_in_queue(p->di_buf_dup_p[i],
 					p->di_buf_dup_p[i]->queue_index))
 						queue_out(p->di_buf_dup_p[i]);
-					ii++;
-					if (p->di_buf_dup_p[i]->
-					di_wr_linked_buf)
-						used_local_buf_index[ii] =
-							p->di_buf_dup_p[i]->
-							di_wr_linked_buf->index;
 				}
+				ii++;
+				if (p->di_buf_dup_p[i]->
+				di_wr_linked_buf)
+					used_local_buf_index[ii] =
+						p->di_buf_dup_p[i]->
+						di_wr_linked_buf->index;
 			}
-			queue_out(p);
-			break;
 		}
+		queue_out(p);
+		break;
 	}
 	if (used_post_buf_index != -1) {
 		pr_info("%s keep cur di_buf %d (%d %d %d)\n",
