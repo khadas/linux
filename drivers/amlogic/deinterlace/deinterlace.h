@@ -181,7 +181,6 @@ struct di_buf_s {
 	/* 0~4: n-2, n-1, n, n+1, n+2;	n is the field to display*/
 	struct di_buf_s *di_wr_linked_buf;
 };
-#define di_buf_t struct di_buf_s
 extern uint di_mtn_1_ctrl1;
 #ifdef DET3D
 extern bool det3d_en;
@@ -215,7 +214,7 @@ di hardware internal
 #define MAX_CANVAS_HEIGHT				1088
 #endif
 
-struct DI_MIF_TYPE {
+struct DI_MIF_s {
 	unsigned short	luma_x_start0;
 	unsigned short	luma_x_end0;
 	unsigned short	luma_y_start0;
@@ -237,16 +236,14 @@ struct DI_MIF_TYPE {
 	unsigned		canvas0_addr1:8;
 	unsigned		canvas0_addr2:8;
 };
-#define DI_MIF_t struct DI_MIF_TYPE
-struct DI_SIM_MIF_TYPE {
+struct DI_SIM_MIF_s {
 	unsigned short	start_x;
 	unsigned short	end_x;
 	unsigned short	start_y;
 	unsigned short	end_y;
 	unsigned short	canvas_num;
 };
-#define DI_SIM_MIF_t struct DI_SIM_MIF_TYPE
-struct DI_MC_MIF_TYPE {
+struct DI_MC_MIF_s {
 	unsigned short start_x;
 	unsigned short start_y;
 	unsigned short size_x;
@@ -255,7 +252,6 @@ struct DI_MC_MIF_TYPE {
 	unsigned short blend_mode;
 	unsigned short vecrd_offset;
 };
-#define DI_MC_MIF_t struct DI_MC_MIF_TYPE
 void disable_deinterlace(void);
 
 void disable_pre_deinterlace(void);
@@ -271,15 +267,15 @@ void enable_film_mode_check(unsigned int width, unsigned int height,
 		enum vframe_source_type_e);
 
 void enable_di_pre_aml(
-	DI_MIF_t		*di_inp_mif,
-	DI_MIF_t		*di_mem_mif,
-	DI_MIF_t		*di_chan2_mif,
-	DI_SIM_MIF_t	*di_nrwr_mif,
-	DI_SIM_MIF_t	*di_mtnwr_mif,
+	struct DI_MIF_s		*di_inp_mif,
+	struct DI_MIF_s		*di_mem_mif,
+	struct DI_MIF_s		*di_chan2_mif,
+	struct DI_SIM_MIF_s	*di_nrwr_mif,
+	struct DI_SIM_MIF_s	*di_mtnwr_mif,
 #ifdef NEW_DI_V1
-	DI_SIM_MIF_t    *di_contp2rd_mif,
-	DI_SIM_MIF_t    *di_contprd_mif,
-	DI_SIM_MIF_t    *di_contwr_mif,
+	struct DI_SIM_MIF_s    *di_contp2rd_mif,
+	struct DI_SIM_MIF_s    *di_contprd_mif,
+	struct DI_SIM_MIF_s    *di_contwr_mif,
 #endif
 	int nr_en, int mtn_en, int pd32_check_en, int pd22_check_en,
 	int hist_check_en, int pre_field_num, int pre_vdin_link,
@@ -287,9 +283,11 @@ void enable_di_pre_aml(
 	);
 void enable_afbc_input(struct vframe_s *vf);
 #ifdef NEW_DI_V3
-void enable_mc_di_pre(DI_MC_MIF_t *di_mcinford_mif,
-	DI_MC_MIF_t *di_mcinfowr_mif, DI_MC_MIF_t *di_mcvecwr_mif, int urgent);
-void enable_mc_di_post(DI_MC_MIF_t *di_mcvecrd_mif, int urgent, bool reverse);
+void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
+	struct DI_MC_MIF_s *di_mcinfowr_mif,
+	struct DI_MC_MIF_s *di_mcvecwr_mif, int urgent);
+void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
+	int urgent, bool reverse);
 #endif
 
 void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
@@ -315,13 +313,13 @@ void initial_di_pre_aml(int hsize_pre, int vsize_pre, int hold_line);
 void initial_di_post_2(int hsize_post, int vsize_post, int hold_line);
 
 void enable_di_post_2(
-	DI_MIF_t		*di_buf0_mif,
-	DI_MIF_t		*di_buf1_mif,
-	DI_SIM_MIF_t	*di_diwr_mif,
+	struct DI_MIF_s		*di_buf0_mif,
+	struct DI_MIF_s		*di_buf1_mif,
+	struct DI_SIM_MIF_s	*di_diwr_mif,
 	#ifndef NEW_DI_V2
-	DI_SIM_MIF_t	*di_mtncrd_mif,
+	struct DI_SIM_MIF_s	*di_mtncrd_mif,
 	#endif
-	DI_SIM_MIF_t	*di_mtnprd_mif,
+	struct DI_SIM_MIF_s	*di_mtnprd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
 	int post_field_num, int hold_line , int urgent
@@ -331,14 +329,14 @@ void enable_di_post_2(
 );
 
 void di_post_switch_buffer(
-	DI_MIF_t		*di_buf0_mif,
-	DI_MIF_t		*di_buf1_mif,
-	DI_SIM_MIF_t	*di_diwr_mif,
+	struct DI_MIF_s		*di_buf0_mif,
+	struct DI_MIF_s		*di_buf1_mif,
+	struct DI_SIM_MIF_s	*di_diwr_mif,
 	#ifndef NEW_DI_V2
-	DI_SIM_MIF_t	*di_mtncrd_mif,
+	struct DI_SIM_MIF_s	*di_mtncrd_mif,
 	#endif
-	DI_SIM_MIF_t	*di_mtnprd_mif,
-	DI_MC_MIF_t		*di_mcvecrd_mif,
+	struct DI_SIM_MIF_s	*di_mtnprd_mif,
+	struct DI_MC_MIF_s		*di_mcvecrd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
 	int post_field_num, int hold_line, int urgent

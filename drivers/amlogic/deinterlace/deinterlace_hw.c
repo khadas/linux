@@ -87,7 +87,7 @@ static void set_di_inp_fmt_more(
 		int hz_rpt		/* 1bit */
 	);
 
-static void set_di_inp_mif(DI_MIF_t  *mif, int urgent, int hold_line);
+static void set_di_inp_mif(struct DI_MIF_s  *mif, int urgent, int hold_line);
 
 static void set_di_mem_fmt_more(
 		int hfmt_en,
@@ -101,7 +101,7 @@ static void set_di_mem_fmt_more(
 		int hz_rpt	/* 1bit */
 	);
 
-static void set_di_mem_mif(DI_MIF_t *mif, int urgent, int hold_line);
+static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
 static void set_di_if1_fmt_more(
 		int hfmt_en,
@@ -115,11 +115,11 @@ static void set_di_if1_fmt_more(
 		int hz_rpt		/* 1bit */
 	);
 
-static void set_di_if1_mif(DI_MIF_t *mif, int urgent, int hold_line);
+static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
-static void set_di_chan2_mif(DI_MIF_t *mif, int urgent, int hold_line);
+static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
-static void set_di_if0_mif(DI_MIF_t *mif, int urgent, int hold_line);
+static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
 static void di_nr_init(void);
 #if (defined NEW_DI_V2 && !defined NEW_DI_TV)
@@ -224,15 +224,15 @@ module_param(nr2_en, uint, 0644);
 MODULE_PARM_DESC(nr2_en, "\n nr2_en\n");
 
 void enable_di_pre_aml(
-	DI_MIF_t		   *di_inp_mif,
-	DI_MIF_t		   *di_mem_mif,
-	DI_MIF_t		   *di_chan2_mif,
-	DI_SIM_MIF_t    *di_nrwr_mif,
-	DI_SIM_MIF_t    *di_mtnwr_mif,
+	struct DI_MIF_s		   *di_inp_mif,
+	struct DI_MIF_s		   *di_mem_mif,
+	struct DI_MIF_s		   *di_chan2_mif,
+	struct DI_SIM_MIF_s    *di_nrwr_mif,
+	struct DI_SIM_MIF_s    *di_mtnwr_mif,
 #ifdef NEW_DI_V1
-	DI_SIM_MIF_t    *di_contp2rd_mif,
-	DI_SIM_MIF_t    *di_contprd_mif,
-	DI_SIM_MIF_t    *di_contwr_mif,
+	struct DI_SIM_MIF_s    *di_contp2rd_mif,
+	struct DI_SIM_MIF_s    *di_contprd_mif,
+	struct DI_SIM_MIF_s    *di_contwr_mif,
 #endif
 	int nr_en, int mtn_en, int pd32_check_en, int pd22_check_en,
 	int hist_check_en, int pre_field_num, int pre_vdin_link,
@@ -431,8 +431,9 @@ void enable_afbc_input(struct vframe_s *vf)
 	}
 }
 
-void enable_mc_di_pre(DI_MC_MIF_t *di_mcinford_mif,
-DI_MC_MIF_t *di_mcinfowr_mif, DI_MC_MIF_t *di_mcvecwr_mif, int urgent)
+void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
+	struct DI_MC_MIF_s *di_mcinfowr_mif,
+	struct DI_MC_MIF_s *di_mcvecwr_mif, int urgent)
 {
 	RDMA_WR(MCDI_MCVECWR_X, di_mcvecwr_mif->size_x);
 	RDMA_WR(MCDI_MCVECWR_Y, di_mcvecwr_mif->size_y);
@@ -467,7 +468,8 @@ DI_MC_MIF_t *di_mcinfowr_mif, DI_MC_MIF_t *di_mcvecwr_mif, int urgent)
 			(0x42<<16));
 }
 
-void enable_mc_di_post(DI_MC_MIF_t *di_mcvecrd_mif, int urgent, bool reverse)
+void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
+	int urgent, bool reverse)
 {
 	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_X, (reverse?1:0)<<30 |
 			di_mcvecrd_mif->start_x<<16 |
@@ -526,7 +528,7 @@ static void set_di_inp_fmt_more(int hfmt_en,
 					);
 }
 
-static void set_di_inp_mif(DI_MIF_t *mif, int urgent, int hold_line)
+static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int bytes_per_pixel;
 	unsigned int demux_mode;
@@ -745,7 +747,7 @@ static void set_di_chan2_fmt_more(int hfmt_en,
 }
 #endif
 
-static void set_di_mem_mif(DI_MIF_t *mif, int urgent, int hold_line)
+static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int bytes_per_pixel;
 	unsigned int demux_mode;
@@ -916,7 +918,7 @@ static void set_di_if1_fmt_more(int hfmt_en,
 
 static const u32 vpat[] = {0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
 
-static void set_di_if1_mif(DI_MIF_t *mif, int urgent, int hold_line)
+static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int bytes_per_pixel, demux_mode;
 	unsigned int pat, loop = 0, chro_rpt_lastl_ctrl = 0;
@@ -1013,7 +1015,7 @@ static void set_di_if1_mif(DI_MIF_t *mif, int urgent, int hold_line)
 	}
 }
 
-static void set_di_chan2_mif(DI_MIF_t *mif, int urgent, int hold_line)
+static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int bytes_per_pixel;
 	unsigned int demux_mode;
@@ -1116,7 +1118,7 @@ static void set_di_chan2_mif(DI_MIF_t *mif, int urgent, int hold_line)
 
 }
 
-static void set_di_if0_mif(DI_MIF_t *mif, int urgent, int hold_line)
+static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int pat, loop = 0;
 
@@ -1244,11 +1246,11 @@ module_param(pldn_ctrl_rflsh, uint, 0644);
 MODULE_PARM_DESC(pldn_ctrl_rflsh, "/n post blend reflesh./n");
 
 void di_post_switch_buffer(
-	DI_MIF_t		   *di_buf0_mif,
-	DI_MIF_t		   *di_buf1_mif,
-	DI_SIM_MIF_t    *di_diwr_mif,
-	DI_SIM_MIF_t    *di_mtnprd_mif,
-	DI_MC_MIF_t	   *di_mcvecrd_mif,
+	struct DI_MIF_s		   *di_buf0_mif,
+	struct DI_MIF_s		   *di_buf1_mif,
+	struct DI_SIM_MIF_s    *di_diwr_mif,
+	struct DI_SIM_MIF_s    *di_mtnprd_mif,
+	struct DI_MC_MIF_s	   *di_mcvecrd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en,
 	int post_field_num, int hold_line, int urgent
@@ -1330,10 +1332,10 @@ void di_post_switch_buffer(
 }
 
 void enable_di_post_2(
-	DI_MIF_t		   *di_buf0_mif,
-	DI_MIF_t		   *di_buf1_mif,
-	DI_SIM_MIF_t    *di_diwr_mif,
-	DI_SIM_MIF_t    *di_mtnprd_mif,
+	struct DI_MIF_s		   *di_buf0_mif,
+	struct DI_MIF_s		   *di_buf1_mif,
+	struct DI_SIM_MIF_s    *di_diwr_mif,
+	struct DI_SIM_MIF_s    *di_mtnprd_mif,
 	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
 	int di_vpp_en, int di_ddr_en, int post_field_num,
 	int hold_line, int urgent
