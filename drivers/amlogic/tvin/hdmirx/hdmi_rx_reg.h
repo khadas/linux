@@ -481,6 +481,7 @@
 #define		PFIFO_STORE_FILTER_EN	_BIT(31)
 /** Packet FIFO store packet */
 #define		PFIFO_STORE_PACKET		_BIT(16)
+#define		GCP_GLOBAVMUTE			_BIT(15)
 /** Packet FIFO clear min/max information */
 #define		PD_FIFO_FILL_INFO_CLR	_BIT(8)
 /** Packet FIFO skip one packet */

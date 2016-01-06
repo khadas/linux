@@ -97,10 +97,6 @@ int hdmirx_log_flag = 1;
 MODULE_PARM_DESC(hdmirx_log_flag, "\n hdmirx_log_flag\n");
 module_param(hdmirx_log_flag, int, 0664);
 
-bool check_pll_rate = 1;
-MODULE_PARM_DESC(check_pll_rate, "\n check_pll_rate\n");
-module_param(check_pll_rate, bool, 0664);
-
 static int tmds_valid_cnt_max = 2;
 MODULE_PARM_DESC(tmds_valid_cnt_max, "\n tmds_valid_cnt_max\n");
 module_param(tmds_valid_cnt_max, int, 0664);
@@ -117,7 +113,7 @@ static int mpll_ctl_setting = 0x200;
 MODULE_PARM_DESC(mpll_ctl_setting, "\n mpll_ctl_setting\n");
 module_param(mpll_ctl_setting, int, 0664);
 
-static int eq_clk_rate_wait = 15;
+static int eq_clk_rate_wait = 10;
 MODULE_PARM_DESC(eq_clk_rate_wait, "\n eq_clk_rate_wait\n");
 module_param(eq_clk_rate_wait, int, 0664);
 
@@ -171,7 +167,7 @@ void phy_eq_set_state(enum phy_eq_states_e state, bool force)
 	mutex_unlock(&phy_private_data->state_lock);
 }
 
-void phy_ConfEqualSetting(int ch0_lockVector,
+void phy_conf_eq_setting(int ch0_lockVector,
 				int ch1_lockVector, int ch2_lockVector)
 {
 	/* ConfEqualSetting */
@@ -191,11 +187,12 @@ void phy_ConfEqualSetting(int ch0_lockVector,
 int phy_wait_clk_stable(void)
 {
 	int i;
-	int eq_MAINFSM_STATUS1;
+	int eq_mainfsm_status;
+	int stable_start = 0;
 
 	phy_private_data->exit_task_delay = false;
 	for (i = 0; i < EQ_CLK_WAIT_MAX_COUNT; i++) {
-		eq_MAINFSM_STATUS1 = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
+		eq_mainfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 		/*Make sure that SW is not overriding the equalization not
 		mandatory code (this is the default status)*/
 		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
@@ -203,12 +200,16 @@ int phy_wait_clk_stable(void)
 		/*clock_stable = false => Main FSM should wait for clock stable
 		Is mandatory to have a stable clock before starting to do
 		equalization*/
-		if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
-			rx_print("phy state---[%x]\n", eq_MAINFSM_STATUS1);
-		if ((eq_MAINFSM_STATUS1 >> 8 & 0x1) == 0)
+		if (hdmirx_log_flag & VIDEO_LOG_ENABLE)
+			rx_print("phy state---[%x]\n", eq_mainfsm_status);
+		if ((eq_mainfsm_status >> 8 & 0x1) == 0) {
 			block_delay_ms(EQ_CLK_WAIT_DELAY);
-		else
-			return 0;
+			stable_start = 0;
+		} else {
+			stable_start++;
+			if (stable_start >= eq_clk_rate_wait)
+				break;
+		}
 
 		if (((EQ_CLK_WAIT_MAX_COUNT - 1) == i) ||
 			phy_private_data->exit_task_delay) {
@@ -229,7 +230,8 @@ void phy_configure_eq_setting(int rx_port_sel, int ch0Setting,
 				int ch1Setting, int ch2Setting)
 {
 	unsigned int data32;
-	rx_print("phy_configure_eq_setting\n");
+	if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
+		rx_print("phy_configure_eq_setting\n");
 	/* PDDQ = 1'b1; PHY_RESET = 1'b0; */
 	data32  = 0;
 	data32 |= 1             << 6;   /* [6]      physvsretmodez */
@@ -238,9 +240,7 @@ void phy_configure_eq_setting(int rx_port_sel, int ch0Setting,
 	data32 |= 1             << 1;   /* [1]      phypddq */
 	data32 |= 0             << 0;   /* [0]      phyreset */
 	/*DEFAULT: {27'd0, 3'd0, 2'd1} */
-	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL,    data32);
-
-
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, ch0Setting);
 	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, ch1Setting);
 	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, ch2Setting);
@@ -260,7 +260,7 @@ void phy_configure_eq_setting(int rx_port_sel, int ch0Setting,
 void phy_EQ_workaround(void)
 {
 	int stepSlope[EQ_CH_NUM];
-	int eq_MAINFSM_STATUS1 = 0;
+	int eq_mainfsm_status = 0;
 	int nacq = 5;
 	int eq_counter_th = EQ_COUNTERTHRESHOLD;
 
@@ -288,47 +288,54 @@ void phy_EQ_workaround(void)
 			return;
 		}
 
-		block_delay_ms(eq_clk_rate_wait);
+		/*check mhl 3.4gb*/
+		if (1 == phy_private_data->last_clk_rate) {
+			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
+		} else {
+			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
+		}
+		/*block_delay_ms(eq_clk_rate_wait);*/
 		/* GET PHY STATUS (MAINFSM_STATUS1) */
-		eq_MAINFSM_STATUS1 = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
-		pll_rate_value = (eq_MAINFSM_STATUS1 >> 9 & 0x3);
-		rx_print("eq_MAINFSM_STATUS1: %#x,tmds_clk:%d\n",
-			eq_MAINFSM_STATUS1, hdmirx_get_tmds_clock());
-		/* wait_clk_stable = 0; */
-		if ((((eq_MAINFSM_STATUS1 >> 10) & 0x1) != 0) &&
-					check_pll_rate) {
-			/* pll_rate smaller than 94.5MHz, algorithm not needed
-			Please make sure that PHY get the default status */
-			rx_print("low pll rate-[%x]\n", eq_MAINFSM_STATUS1);
-			/* default status for register 0x33 */
-			hdmirx_wr_phy(0x33, 0x0020);
-			/* default status for register 0x53 */
-			hdmirx_wr_phy(0x53, 0x0020);
-			/* default status for register 0x73 */
-			hdmirx_wr_phy(0x73, 0x0020);
+		eq_mainfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
+		pll_rate_value = (eq_mainfsm_status >> 9 & 0x3);
+		rx_print("eq_mainfsm_status: %#x,tmds_clk:%d\n",
+			eq_mainfsm_status, hdmirx_get_tmds_clock());
+		if (phy_private_data->last_clk_rate == 0) {
+			if (((eq_mainfsm_status >> 10) & 0x1) != 0) {
+				/* pll_rate smaller than 94.5MHz, algorithm
+				not needed Please make sure that PHY get the
+				 default status */
+				rx_print("low pll rate-[%x]\n",
+						eq_mainfsm_status);
+				/* default status for register 0x33 */
+				hdmirx_wr_phy(PHY_EQCTRL2_CH0, 0x0020);
+				/* default status for register 0x53 */
+				hdmirx_wr_phy(PHY_EQCTRL2_CH1, 0x0020);
+				/* default status for register 0x73 */
+				hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x0020);
 
-			eq_setting[EQ_CH0] = 0;
-			eq_setting[EQ_CH1] = 0;
-			eq_setting[EQ_CH2] = 0;
-			phy_configure_eq_setting(rx.port, eq_setting[EQ_CH0],
-			eq_setting[EQ_CH1], eq_setting[EQ_CH2]);
+				eq_setting[EQ_CH0] = 0;
+				eq_setting[EQ_CH1] = 0;
+				eq_setting[EQ_CH2] = 0;
+				phy_configure_eq_setting(rx.port,
+							 eq_setting[EQ_CH0],
+				eq_setting[EQ_CH1], eq_setting[EQ_CH2]);
 
-			/* hdmirx_phy_init(rx.port, 0); */
-			phy_eq_set_state(EQ_SUCCESS_END, false);
-			return;
+				/* hdmirx_phy_init(rx.port, 0); */
+				phy_eq_set_state(EQ_SUCCESS_END, false);
+				return;
+			}
 		}
 
 		/************* END  NOTICE **************************/
-		if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
-			rx_print("hdmi 2.0 status-[%x]-[%x]\n",
-			(hdmirx_rd_phy(0x0e)&0x300), hdmirx_rd_phy(0x0e));
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINDIFF;
 		eq_counter_th = EQ_COUNTERTHRESHOLD;
-		if ((((eq_MAINFSM_STATUS1 >> 9) & 0x3) == 0))
+		if ((((eq_mainfsm_status >> 9) & 0x3) == 0))
 			fat_bit_status = EQ_FATBIT_MASK_4k;
-		if (((hdmirx_rd_phy(0x0e)&(uint16_t)0x300) ==
-					 (uint16_t)0x100)) {
+		if (phy_private_data->last_clk_rate) {
 			fat_bit_status = EQ_FATBIT_MASK_HDMI20;
 			eq_counter_th = EQ_COUNTERTHRESHOLD_HDMI20;
 			min_max_diff = MINDIFF_HDMI20;
@@ -373,8 +380,8 @@ void phy_EQ_workaround(void)
 		outBound_acqCH1 = 0;
 		outBound_acqCH2 = 0;
 		nretry = 0;
-		phy_ConfEqualSetting(eq_setting_back, eq_setting_back,
-							 eq_setting_back);
+		phy_conf_eq_setting(eq_setting_back,
+			eq_setting_back, eq_setting_back);
 		phy_eq_set_state(EQ_SET_FORCE_FMS_STATE, false);
 		phy_eq_task_continue();
 	break;
@@ -397,13 +404,13 @@ void phy_EQ_workaround(void)
 		/* you have at lest 10ms */
 		/*if it is forced to exit delay,set state to EQ_DATA_START
 		otherwise clk stable failed*/
-		if (phy_wait_clk_stable() != 0) {
+		/*if (phy_wait_clk_stable() != 0) {
 			if (phy_private_data->exit_task_delay)
 				phy_eq_set_state(EQ_DATA_START, false);
 			else
 				phy_eq_set_state(EQ_FAILED, false);
 			return;
-		}
+		}*/
 
 		/*Is this the tmds valid detection? ALG shouldn't wait for
 		 a long time (much more than 10mS) for TMDSVALID assertion*/
@@ -456,7 +463,8 @@ void phy_EQ_workaround(void)
 			lowerBound_acqCH2 =
 				accumulator[EQ_CH1] - EQ_BOUNDARYSPREAD;
 			phy_eq_set_state(EQ_AQUIRE_EARLY_COUNTER, false);
-			rx_print("tmds valid->aquire early counter\n");
+			if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
+				rx_print("tmds valid->aquire early counter\n");
 		}
 		phy_eq_task_continue();
 	break;
@@ -780,7 +788,8 @@ void phy_EQ_workaround(void)
 			/* Updating latest acquisition memory and jump
 			to the next setting */
 			eq_setting_back++;
-			rx_print("eq=[%d]\n", eq_setting_back);
+			if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
+				rx_print("eq=[%d]\n", eq_setting_back);
 			last_early_cnt[EQ_CH0] = early_cnt[EQ_CH0];
 			last_early_cnt[EQ_CH1] = early_cnt[EQ_CH1];
 			last_early_cnt[EQ_CH2] = early_cnt[EQ_CH2];
@@ -809,7 +818,8 @@ void phy_EQ_workaround(void)
 			tmds_valid_cnt = 0; /* What this means?	Are you
 			waiting for tmdsvalid? */
 			minmax_check_cnt = 0;
-			rx_print("eq cal->timing chage\n");
+			if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
+				rx_print("eq cal->timing chage\n");
 		} else{ /* error detected and will retry */
 			phy_eq_set_state(EQ_DATA_START, false);
 			phy_eq_task_continue();
@@ -826,7 +836,6 @@ void phy_EQ_workaround(void)
 		eq_setting[EQ_CH2] = best_setting[EQ_CH2];
 		/* Algorithm finish */
 		phy_eq_set_state(EQ_SUCCESS_END, false);
-		rx_print("quit!!!\n");
 	break;
 	default:
 	break;
@@ -846,23 +855,41 @@ int phy_eq_task(void *data)
 	return 0;
 }
 
-void hdmirx_phy_clk_rate_monitor(void)
+bool hdmirx_phy_clk_rate_monitor(void)
 {
 	unsigned int clk_rate;
+	bool changed = false;
+	int i;
+
+	mutex_lock(&phy_private_data->state_lock);
 	if (force_clk_rate & 0x10)
 		clk_rate = force_clk_rate & 1;
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
 
-	if (log_flag & VIDEO_LOG)
-		rx_print("clk_rate:%d\n", clk_rate);
+	if (clk_rate != phy_private_data->last_clk_rate) {
+		changed = true;
+		phy_private_data->last_clk_rate = clk_rate;
+		for (i = 0; i < 3; i++) {
+			if (1 == clk_rate) {
+				hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+					hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
+			} else {
+				hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+					hdmirx_rd_phy(
+						PHY_CDR_CTRL_CNT)&(~(1<<8)));
+			}
 
-	if (1 == clk_rate)
-		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
-	else
-		hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-			hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
+			if ((hdmirx_rd_phy(PHY_CDR_CTRL_CNT) & 0x100) ==
+				(clk_rate << 8))
+				break;
+		}
+		if (log_flag & VIDEO_LOG)
+			rx_print("clk_rate:%d, save: %d\n",
+			clk_rate, phy_private_data->last_clk_rate);
+	}
+	mutex_unlock(&phy_private_data->state_lock);
+	return changed;
 }
 
 int hdmirx_phy_probe(void)

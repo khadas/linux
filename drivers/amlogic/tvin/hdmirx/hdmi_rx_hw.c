@@ -97,7 +97,7 @@ module_param(rx_md_ists_en, int, 0664);
 
 /* bit5 pll_lck_chg_en */
 /* bit6 clk_change_en */
-int hdmi_ists_en = PLL_LCK_CHG;
+int hdmi_ists_en = PLL_LCK_CHG | CLK_CHANGE;
 MODULE_PARM_DESC(hdmi_ists_en, "\n hdmi_ists_en\n");
 module_param(hdmi_ists_en, int, 0664);
 
@@ -222,6 +222,7 @@ int hdmirx_wr_phy(uint8_t reg_address, uint16_t data)
 		}
 		cnt++;
 		if (cnt > 10000) {
+			error = -1;
 			if (log_flag & ERR_LOG) {
 				rx_print("[error]:(%x,%x,%x)timeout\n",
 					__func__, 0x39, reg_address, data);
@@ -422,8 +423,8 @@ int hdmirx_irq_open(void)
 
 	/* hdmirx_wr_dwc(HDMIRX_DWC_PDEC_IEN_SET, GCP_RCV); */
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
-	/* hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en); */
-	hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);
+	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
+	/*hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);*/
 
 	return error;
 }
@@ -441,16 +442,6 @@ void hdmirx_audio_enable(bool en)
 	}
 }
 
-int hdmirx_iaudioclk_domain_reset(void)
-{
-	int error = 0;
-
-	/* hdmirx_wr_bits_dwc(DWC_DMI_SW_RST,
-		IAUDIOCLK_DOMAIN_RESET, 1); */
-	/* hdmirx_wr_bits_dwc(DWC_DMI_SW_RST,
-		IAUDIOCLK_DOMAIN_RESET, 0); */
-	return error;
-}
 int hdmirx_audio_fifo_rst(void)
 {
 	int error = 0;
@@ -480,7 +471,7 @@ static int packet_init(void)
 {
 	int error = 0;
 	hdmirx_wr_dwc(DWC_PDEC_CTRL,
-		PFIFO_STORE_FILTER_EN|PD_FIFO_WE|PDEC_BCH_EN);
+		PFIFO_STORE_FILTER_EN|PD_FIFO_WE|PDEC_BCH_EN|GCP_GLOBAVMUTE);
 	hdmirx_wr_dwc(DWC_PDEC_ASP_CTRL,
 		AUTO_VMUTE|AUTO_SPFLAT_MUTE);
 	return error;

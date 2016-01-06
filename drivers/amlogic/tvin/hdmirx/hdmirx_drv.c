@@ -44,9 +44,6 @@
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
-#ifdef CEC_FUNC_ENABLE
-#include "hdmirx_cec.h"
-#endif
 
 
 #define TVHDMI_NAME				"hdmirx"
@@ -209,11 +206,6 @@ void hdmirx_timer_handler(unsigned long arg)
 	struct hdmirx_dev_s *devp = (struct hdmirx_dev_s *)arg;
 
 	hdmirx_hw_monitor();
-#ifdef CEC_FUNC_ENABLE
-	cec_update_cec_map();
-	/* hdmirx_cec_rx_monitor(); */
-	hdmirx_cec_tx_monitor();
-#endif
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
 }
@@ -236,15 +228,12 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp->param.port = port;
 
 	hdmirx_hw_init(port);
-
-#ifndef CEC_FUNC_ENABLE
 	/* timer */
 	init_timer(&devp->timer);
 	devp->timer.data = (ulong)devp;
 	devp->timer.function = hdmirx_timer_handler;
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
-#endif
 	rx.open_fg = 1;
 	rx_print("%s port:%x ok\n", __func__, port);
 	return 0;
@@ -284,9 +273,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	/* open_flage = 0; */
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
-#ifndef CEC_FUNC_ENABLE
 	del_timer_sync(&devp->timer);
-#endif
 	hdmirx_hw_uninit();
 	hdmirx_hw_disable(0);
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
@@ -635,9 +622,7 @@ static const struct file_operations hdmirx_fops = {
 	.release	= hdmirx_release,
 	.read       = hdmirx_hpd_read,
 	.poll       = hdmirx_hpd_poll,
-#ifdef CEC_FUNC_ENABLE
 	.unlocked_ioctl	= hdmirx_ioctl,
-#endif
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = hdmirx_compat_ioctl,
 #endif
@@ -1031,13 +1016,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	/* hdmirx_hw_enable(); */
 	hdmirx_hw_probe();
 	dev_set_drvdata(hdevp->dev, hdevp);
-#ifdef CEC_FUNC_ENABLE
-	init_timer(&hdevp->timer);
-	hdevp->timer.data = (ulong)hdevp;
-	hdevp->timer.function = hdmirx_timer_handler;
-	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
-	add_timer(&hdevp->timer);
-#endif
 
 	/*create eq thread*/
 	if (hdmirx_phy_probe() != 0)
@@ -1171,6 +1149,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	int i = 0;
 
 	rx_print("[hdmirx]: hdmirx_suspend\n");
+	hdmirx_phy_suspend_eq();
 	if (rx.open_fg == 1) {
 		if (resume_flag == 0)
 			del_timer_sync(&devp_hdmirx_suspend->timer);

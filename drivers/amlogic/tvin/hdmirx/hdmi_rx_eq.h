@@ -21,10 +21,11 @@
 /* #define EQ_MAX_SETTING 12//for very long cable */
 #define MINDIFF		4/* max min diff between data chs on hdmi1.4 */
 #define MINDIFF_HDMI20	2/* max min diff between data chs on hdmi2.0 */
-#define EQ_CLK_WAIT_MAX_COUNT 1200
-#define EQ_CLK_WAIT_DELAY 5
+#define EQ_CLK_WAIT_MAX_COUNT 1000
+#define EQ_CLK_WAIT_STABLE_COUNT (EQ_CLK_WAIT_MAX_COUNT - 900)
+#define EQ_CLK_WAIT_DELAY 1
 #define EQ_TMDS_VALID_WAIT_DELAY 2
-#define EQ_CLK_RATE_WAIT 10
+/*#define EQ_CLK_RATE_WAIT 15*/
 #define block_delay_ms(x) msleep_interruptible((x))
 
 /* Default best setting */
@@ -77,21 +78,6 @@ suitable for long cable */
 #define PACKET_LOG_ENABLE   0x08
 #define CEC_LOG_ENABLE		0x10
 #define REG_LOG_ENABLE		0x20
-
-#define FSM_INIT				0
-#define FSM_HDMI5V_LOW			1
-#define FSM_HDMI5V_HIGH			2
-#define FSM_HPD_READY			3
-#define FSM_SIG_UNSTABLE        4
-#define FSM_DWC_RST_WAIT		5
-#define FSM_SIG_STABLE			6
-#define FSM_TIMINGCHANGE		7
-#define FSM_SIG_READY			8
-#define FSM_EQ_CALIBRATION		9
-#define FSM_WAIT_CLK_STABLE		10
-#define FSM_CHECK_DDC_CORRECT	11
-#define FSM_PHY_RESET			13
-#define FSM_DWC_RESET			14
 
 /*macro define end*/
 
@@ -177,7 +163,7 @@ struct hdmirx_phy_data_t {
 /*struct define end*/
 
 /*--------------------------function declare------------------*/
-void hdmirx_phy_clk_rate_monitor(void);
+bool hdmirx_phy_clk_rate_monitor(void);
 void hdmirx_phy_init(int rx_port_sel, int dcm);
 void hdmirx_phy_EQ_workaround_init(void);
 int hdmirx_phy_probe(void);

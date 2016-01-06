@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2015/12/30"
+#define HDMIRX_VER "Ref.2016/01/06"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -41,9 +41,9 @@
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
 
-#define USE_GPIO_FOR_HPD
 #define TRUE 1
 #define FALSE 0
+
 struct hdmirx_dev_s {
 	int                         index;
 	dev_t                       devt;
@@ -151,9 +151,27 @@ enum HDMI_Video_Type {
 	HDMI_2160p_60hz_420 = 97,
 	HDMI_4096p_50hz_420 = 101,
 	HDMI_4096p_60hz_420 = 102,
+
+	HDMI_2560_1440,
 	HDMI_UNSUPPORT,
 };
 
+enum fsm_states_e {
+	FSM_INIT,
+	FSM_HDMI5V_LOW,
+	FSM_HDMI5V_HIGH,
+	FSM_HPD_READY,
+	FSM_EQ_CALIBRATION,
+	FSM_TIMINGCHANGE,
+	FSM_WAIT_CLK_STABLE,
+	FSM_SIG_UNSTABLE,
+	FSM_DWC_RST_WAIT,
+	FSM_SIG_STABLE,
+	FSM_CHECK_DDC_CORRECT,
+	FSM_SIG_READY,
+	FSM_PHY_RESET,
+	FSM_DWC_RESET,
+};
 
 /** Configuration clock minimum [kHz] */
 #define CFG_CLK_MIN				(10000UL)
@@ -162,12 +180,7 @@ enum HDMI_Video_Type {
 
 /** TMDS clock minimum [kHz] */
 #define TMDS_CLK_MIN			(24000UL)/* (25000UL) */
-/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
-/** TMDS clock maximum [kHz] */
 #define TMDS_CLK_MAX			(600000UL)/* (340000UL) */
-/* #else */
-/* #define TMDS_CLK_MAX			(340000UL) */
-/* #endif */
 
 struct hdmi_rx_phy {
 	/** (@b user) Context status: closed (0), */
@@ -369,7 +382,7 @@ struct vendor_specific_info_s {
 	unsigned char _3d_ext_data;
 };
 
-struct rx {
+struct rx_s {
 	/** HDMI RX received signal changed */
 	uint change;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
@@ -427,7 +440,7 @@ extern bool multi_port_edid_enable;
 extern int rx_md_ists_en;
 extern int hdmi_ists_en;
 
-extern struct rx rx;
+extern struct rx_s rx;
 extern int log_flag;
 extern unsigned char is_alternative(void);
 extern unsigned char is_frame_packing(void);
@@ -475,21 +488,18 @@ int hdmirx_control_clk_range(unsigned long min, unsigned long max);
 int hdmirx_packet_fifo_rst(void);
 void hdmirx_audio_enable(bool en);
 int hdmirx_audio_fifo_rst(void);
-int	hdmirx_iaudioclk_domain_reset(void);
 void hdmirx_phy_init(int rx_port_sel, int dcm);
 
 void hdmirx_hw_config(void);
 void hdmirx_hw_reset(void);
 void hdmirx_hw_probe(void);
 int hdmi_rx_ctrl_edid_update(void);
-void hdmirx_timingchange_reset(void);
 void hdmirx_set_hpd(int port, unsigned char val);
 
 int hdmirx_irq_close(void);
 int hdmirx_irq_open(void);
 
 void hdmirx_phy_pddq(int enable);
-void cec_dbg_post_cmd(int command, int value);
 void hdmirx_phy_fast_switching(int enable);
 
 int hdmirx_get_video_info(struct hdmi_rx_ctrl *ctx,
@@ -515,11 +525,9 @@ extern enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
 extern void hdmirx_hw_monitor(void);
 extern bool hdmirx_hw_is_nosig(void);
 extern bool hdmirx_hw_pll_lock(void);
-extern void hdmirx_reset(void);
 extern void hdmirx_hw_init(enum tvin_port_e port);
 extern void to_init_state(void);
 extern void hdmirx_hw_uninit(void);
-extern unsigned int hdmirx_get_cur_vic(void);
 extern void hdmirx_hw_enable(void);
 extern void hdmirx_default_hpd(bool high);
 extern void hdmirx_hw_disable(unsigned char flag);
