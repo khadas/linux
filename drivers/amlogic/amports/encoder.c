@@ -207,11 +207,22 @@ static DEFINE_SPINLOCK(lock);
 #define ME_SAD_ENOUGH_2_DATA 0x11
 #define ADV_MV_8x8_ENOUGH_DATA 0x20
 
+#ifdef V4_COLOR_BLOCK_FIX
 #define V3_FORCE_SKIP_SAD_0 0x10
 /* 4 Blocks */
 #define V3_FORCE_SKIP_SAD_1 0x60
 /* 16 Blocks + V3_SKIP_WEIGHT_2 */
 #define V3_FORCE_SKIP_SAD_2 0x250
+/* almost disable it -- use t_lac_coeff_2 output to F_ZERO is better */
+#define V3_ME_F_ZERO_SAD (ME_WEIGHT_OFFSET + 0x20)
+#else /* avoid color block */
+#define V3_FORCE_SKIP_SAD_0 0
+#define V3_FORCE_SKIP_SAD_1 0
+#define V3_FORCE_SKIP_SAD_2 0
+ /* skip will still go through DCT/Q to avoid color block */
+#define V3_ME_F_ZERO_SAD 0
+#endif
+
 #define V3_SKIP_WEIGHT_0 0x20
 /* 4 Blocks  8 seperate search sad can be very low */
 #define V3_SKIP_WEIGHT_1 (4 * ME_MV_STEP_WEIGHT_1 + 0x100)
@@ -222,8 +233,6 @@ static DEFINE_SPINLOCK(lock);
 #define V3_LEVEL_1_SKIP_MAX_SAD 0x60
 #define V3_IE_F_ZERO_SAD_I16 (I16MB_WEIGHT_OFFSET + 0x80)
 #define V3_IE_F_ZERO_SAD_I4 (I4MB_WEIGHT_OFFSET + 0x80)
-/* almost disable it -- use t_lac_coeff_2 output to F_ZERO is better */
-#define V3_ME_F_ZERO_SAD (ME_WEIGHT_OFFSET + 0x20)
 
 #define I4_ipred_weight_most   0x18
 #define I4_ipred_weight_else   0x28
