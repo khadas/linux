@@ -31,6 +31,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
 /* Amlogic headers */
 #include <linux/amlogic/canvas/canvas.h>
@@ -263,29 +264,31 @@ static ssize_t dumpmem_store(struct device *dev,
 		parm[n++] = token;
 		}
 	if (!strncmp(parm[0], "dumpmem", strlen("dumpmem"))) {
-			if (parm[1] != NULL) {
-				struct file *filp = NULL;
-				loff_t pos = 0;
-				void *buf = NULL;
-   /* unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w; */
-				mm_segment_t old_fs = get_fs();
-				set_fs(KERNEL_DS);
-				filp = filp_open(parm[1], O_RDWR|O_CREAT, 0666);
-				if (IS_ERR(filp)) {
-					pr_err(KERN_ERR"create %s error.\n",
-						parm[1]);
-					return len;
-				}
-
+		if (parm[1] != NULL) {
+			struct file *filp = NULL;
+			loff_t pos = 0;
+			void *buf = NULL;
+/* unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w; */
+			mm_segment_t old_fs = get_fs();
+			set_fs(KERNEL_DS);
+			filp = filp_open(parm[1], O_RDWR|O_CREAT, 0666);
+			if (IS_ERR(filp)) {
+				pr_err(KERN_ERR"create %s error.\n",
+					parm[1]);
+				return len;
+			}
+			if (devp->cma_config_flag == 1)
+				buf = codec_mm_phys_to_virt(devp->mem.start);
+			else
 				buf = phys_to_virt(devp->mem.start);
-				vfs_write(filp, buf, devp->mem.size, &pos);
-				pr_info("write buffer %2d of %s.\n",
-					devp->mem.size, parm[1]);
-				pr_info("devp->mem.start   %x .\n",
-					devp->mem.start);
-				vfs_fsync(filp, 0);
-				filp_close(filp, NULL);
-				set_fs(old_fs);
+			vfs_write(filp, buf, devp->mem.size, &pos);
+			pr_info("write buffer %2d of %s.\n",
+				devp->mem.size, parm[1]);
+			pr_info("devp->mem.start   %x .\n",
+				devp->mem.start);
+			vfs_fsync(filp, 0);
+			filp_close(filp, NULL);
+			set_fs(old_fs);
 		}
 	}
 	return len;
@@ -603,21 +606,37 @@ int tvafe_dec_support(struct tvin_frontend_s *fe, enum tvin_port_e port)
 void tvafe_cma_alloc(struct tvafe_dev_s *devp)
 {
 	unsigned int mem_size = devp->cma_mem_size;
+	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
+		CODEC_MM_FLAGS_CPU;
 	if (devp->cma_config_en == 0)
 		return;
 	if (devp->cma_mem_alloc == 1)
 		return;
 	devp->cma_mem_alloc = 1;
-	devp->venc_pages = dma_alloc_from_contiguous(&(devp->this_pdev->dev),
-		mem_size >> PAGE_SHIFT, 0);
-	if (devp->venc_pages) {
-		devp->mem.start = page_to_phys(devp->venc_pages);
-		devp->mem.size  = mem_size;
-		pr_info("tvafe mem_start = 0x%x, mem_size = 0x%x\n",
-			devp->mem.start, devp->mem.size);
-		pr_info("tvafe cma alloc ok!\n");
-	} else {
-		pr_err("\ntvafe cma mem undefined2.\n");
+	if (devp->cma_config_flag == 1) {
+		devp->mem.start = codec_mm_alloc_for_dma("tvafe",
+			mem_size/PAGE_SIZE, 0, flags);
+		devp->mem.size = mem_size;
+		if (devp->mem.start == 0)
+			pr_err(KERN_ERR "\ntvafe codec alloc fail!!!\n");
+		else {
+			pr_info("tvafe mem_start = 0x%x, mem_size = 0x%x\n",
+				devp->mem.start, devp->mem.size);
+			pr_info("tvafe codec cma alloc ok!\n");
+		}
+	} else if (devp->cma_config_flag == 0) {
+		devp->venc_pages =
+			dma_alloc_from_contiguous(&(devp->this_pdev->dev),
+			mem_size >> PAGE_SHIFT, 0);
+		if (devp->venc_pages) {
+			devp->mem.start = page_to_phys(devp->venc_pages);
+			devp->mem.size  = mem_size;
+			pr_info("tvafe mem_start = 0x%x, mem_size = 0x%x\n",
+				devp->mem.start, devp->mem.size);
+			pr_info("tvafe cma alloc ok!\n");
+		} else {
+			pr_err("\ntvafe cma mem undefined2.\n");
+		}
 	}
 }
 
@@ -625,7 +644,17 @@ void tvafe_cma_release(struct tvafe_dev_s *devp)
 {
 	if (devp->cma_config_en == 0)
 		return;
-	if (devp->venc_pages && devp->cma_mem_size) {
+	if ((devp->cma_config_flag == 1) && devp->mem.start
+		&& (devp->cma_mem_alloc == 1)) {
+		codec_mm_free_for_dma("tvafe", devp->mem.start);
+		devp->mem.start = 0;
+		devp->mem.size = 0;
+		devp->cma_mem_alloc = 0;
+		pr_info("tvafe codec cma release ok!\n");
+	} else if (devp->venc_pages
+		&& devp->cma_mem_size
+		&& (devp->cma_mem_alloc == 1)
+		&& (devp->cma_config_flag == 0)) {
 		devp->cma_mem_alloc = 0;
 		dma_release_from_contiguous(&(devp->this_pdev->dev),
 			devp->venc_pages,
@@ -2042,19 +2071,29 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	/* res = platform_get_resource(pdev, IORESOURCE_MEM, 0); */
 	res = &tvafe_memobj;
 	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret == 0) {
+	if (ret == 0)
 		pr_info(".\n tvafe memory resource done.\n");
-
-	} else {
+	else
 		pr_err("tvafe: can't get memory resource\n");
-		ret = -EFAULT;
-		goto fail_get_resource_mem;
-	}
 #endif
 #ifdef CONFIG_CMA
 	if (!tvafe_use_reserved_mem) {
-		tdevp->cma_mem_size =
-			dma_get_cma_size_int_byte(&pdev->dev);
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"flag_cma", &(tdevp->cma_config_flag));
+		if (ret) {
+			pr_err("don't find  match flag_cma\n");
+			tdevp->cma_config_flag = 0;
+		}
+		if (tdevp->cma_config_flag == 1) {
+			ret = of_property_read_u32(pdev->dev.of_node,
+				"cma_size", &(tdevp->cma_mem_size));
+			if (ret)
+				pr_err("don't find  match cma_size\n");
+			else
+				tdevp->cma_mem_size *= SZ_1M;
+		} else if (tdevp->cma_config_flag == 0)
+			tdevp->cma_mem_size =
+				dma_get_cma_size_int_byte(&pdev->dev);
 		tdevp->this_pdev = pdev;
 		tdevp->cma_mem_alloc = 0;
 		tdevp->cma_config_en = 1;
@@ -2125,7 +2164,6 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	return 0;
 
 fail_create_dbg_file:
-fail_get_resource_mem:
 	tvafe_delete_device(tdevp->index);
 fail_create_device:
 	cdev_del(&tdevp->cdev);

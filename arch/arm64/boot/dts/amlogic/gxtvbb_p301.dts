@@ -118,14 +118,14 @@
 			alignment = <0x0 0x400000>;
 		};
 		/*  tvafe CMA pool */
-		tvafe_cma_reserved:linux,tvafe_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <6>;
-			reusable;
+		//tvafe_cma_reserved:linux,tvafe_cma {
+		//	compatible = "shared-dma-pool";
+		//	linux,phandle = <6>;
+		//	reusable;
 			/* 5 M */
-			size = <0x0 0x00800000>;
-			alignment = <0x0 0x400000>;
-		};
+		//	size = <0x0 0x00800000>;
+		//	alignment = <0x0 0x400000>;
+		//};
 	};
 
 	meson-vout {
@@ -310,9 +310,11 @@
  	};
 	tvafe {
 		compatible = "amlogic, tvafe";
-		memory-region = <&tvafe_cma_reserved>;
+		/*memory-region = <&tvafe_cma_reserved>;*/
 		dev_name = "tvafe";
 		status = "ok";
+		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
+		cma_size = <8>;/*MByte*/
 		reg = <0x0 0xc8842000 0x0 0x2000>;
 		reserve-iomap = "true";
 		tvafe_id = <0>;

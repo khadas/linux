@@ -76,6 +76,8 @@ struct tvafe_dev_s {
 
 	struct tvafe_info_s         tvafe;
 	unsigned int			cma_config_en;
+	/*cma_config_flag:1:share with codec_mm;0:cma alone*/
+	unsigned int			cma_config_flag;
 #ifdef CONFIG_CMA
 	struct platform_device	*this_pdev;
 	struct page			*venc_pages;
