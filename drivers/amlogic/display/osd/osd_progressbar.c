@@ -51,7 +51,7 @@ static int init_fb1_first(const struct vinfo_s *vinfo)
 	osd_ctl.yres_virtual = osd_ctl.yres;
 	osd_ctl.disp_start_x = 0;
 	osd_ctl.disp_end_x = osd_ctl.xres - 1;
-	osd_ctl.disp_start_y = 0;
+	osd_ctl.disp_start_y = (vinfo->height * 9) / 10;
 	osd_ctl.disp_end_y = osd_ctl.yres - 1;
 
 	reg = osd_ctl.index == 0 ? VIU_OSD1_BLK0_CFG_W0 : VIU_OSD2_BLK0_CFG_W0;
@@ -188,28 +188,6 @@ int osd_init_progress_bar(void)
 		}
 		progress_bar.ge2d_context = context;
 		pr_debug("progress bar setup ge2d device OK\n");
-		/* clear dst rect */
-		op_info->color = 0x000000bf;
-		op_info->dst_rect.x = 0;
-		op_info->dst_rect.y = 0;
-		op_info->dst_rect.w = vinfo->width;
-		op_info->dst_rect.h =
-			vinfo->field_height ?
-			vinfo->field_height :
-			vinfo->height;
-
-		fillrect(context, op_info->dst_rect.x,
-			op_info->dst_rect.y,
-			op_info->dst_rect.w,
-			op_info->dst_rect.h,
-			op_info->color);
-
-		pr_debug("clear dstrect is - (%d, %d)-(%d, %d) -\n",
-			op_info->dst_rect.x,
-			op_info->dst_rect.y,
-			op_info->dst_rect.w,
-			op_info->dst_rect.h);
-
 		/* show fb1 */
 		console_lock();
 		osd_blank(0, fb_dev->fb_info);
@@ -217,10 +195,7 @@ int osd_init_progress_bar(void)
 		op_info->color = 0x555555ff;
 		op_info->dst_rect.x =
 			(vinfo->width / 2) - progress_bar.bar_width;
-		op_info->dst_rect.y =
-			((vinfo->field_height ?
-			vinfo->field_height :
-			vinfo->height) * 9) / 10;
+		op_info->dst_rect.y = 0;
 		op_info->dst_rect.w = progress_bar.bar_width * 2;
 		op_info->dst_rect.h = progress_bar.bar_height;
 
