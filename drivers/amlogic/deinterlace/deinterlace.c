@@ -2214,6 +2214,10 @@ static unsigned char is_bypass(vframe_t *vf_in)
 		if (di_vscale_skip_count > 0)
 			return 1;
 	}
+	if ((di_pre_stru.same_field_source_flag > 1)
+		&& skip_wrong_field)
+		return 1;
+
 	return 0;
 }
 
@@ -4538,13 +4542,11 @@ static unsigned char pre_de_buf_config(void)
 				else
 					same_field_bot_count++;
 #endif
-				if (di_pre_stru.
-				same_field_source_flag <
+				if (di_pre_stru.same_field_source_flag <
 				same_field_source_flag_th) {
 					/* some source's filed
 					 * is top or bot always */
-					di_pre_stru.
-					same_field_source_flag++;
+					di_pre_stru.same_field_source_flag++;
 
 					if (skip_wrong_field &&
 					is_from_vdin(di_buf->vframe)) {
