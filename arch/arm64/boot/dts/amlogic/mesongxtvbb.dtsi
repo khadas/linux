@@ -490,14 +490,53 @@
 			amlogic,clrmask=<7 0x610028>;
 			amlogic,pins="GPIOH_5","GPIOH_6";
 		};
-
 		avin_gpio_disable_pull:avin_gpio_disable_pull{
 					amlogic,clrmask=<6 0x7f 9 0x40000000>;
 					amlogic,pins = "GPIOW_3","GPIOW_4";
 					amlogic,enable-output=<1>;
 					amlogic,pullupen=<0>;
-				};
-
+		};
+		u_ch1_in:u_ch1_in {
+			amlogic,clrmask = <AO 0x33>,
+							  <6  0x600>;
+			amlogic,setmask = <6  0x800>,
+							  <10 0x2>;
+			amlogic,pins = "GPIOW_7","GPIOW_8";
+		};
+		u_ch2_in:u_ch2_in {
+			amlogic,clrmask = <AO 0x33>,
+							  <6  0xC000>;
+			amlogic,setmask = <6  0x10000>,
+							  <10 0x4>;
+			amlogic,pins = "GPIOW_11","GPIOW_12";
+		};
+		u_ch3_in:u_ch3_in {
+			amlogic,clrmask = <AO 0x33>,
+							  <6  0x180000>;
+			amlogic,setmask = <6  0x200000>,
+							  <10 0x8>;
+			amlogic,pins = "GPIOW_15","GPIOW_16";
+		};
+		hu_hpd1_pinmux:hu_hpd1_pinmux {
+			amlogic,setmask=<6 0x80>;
+			amlogic,pins = "GPIOW_5";
+		};
+		hu_hpd2_pinmux:hu_hpd2_pinmux {
+			amlogic,setmask=<6 0x1000>;
+			amlogic,pins = "GPIOW_9";
+		};
+		hu_hpd3_pinmux:hu_hpd3_pinmux {
+			amlogic,setmask=<6 0x20000>;
+			amlogic,pins = "GPIOW_13";
+		};
+		hu_hpds_gpio:hu_hpds_gpio {
+			amlogic,setmask=<AO 0x3>;
+			amlogic,clrmask=<6 0x21080>;
+			amlogic,pins = "GPIOW_5","GPIOW_9","GPIOW_13";
+			amlogic,enable-output=<1>;/** 0:output, 1:input **/
+			amlogic,pullupen=<1>;
+			amlogic,pullup=<0>;
+		};
 		spicc_pins_h6h7h8: spicc_pins_h6h7h8{
 			amlogic,setmask=<7 0x70000>;
 			amlogic,clrmask=<7 0x7f400028>;

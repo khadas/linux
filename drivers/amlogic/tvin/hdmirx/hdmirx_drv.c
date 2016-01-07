@@ -44,7 +44,7 @@
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
-
+#include "uart_hdmi.h"
 
 #define TVHDMI_NAME				"hdmirx"
 #define TVHDMI_DRIVER_NAME		"hdmirx"
@@ -1004,9 +1004,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	/* pinmux set */
 	if (pdev->dev.of_node) {
-		ret = of_property_read_string(pdev->dev.of_node,
+		ret = of_property_read_string_index(pdev->dev.of_node,
 					    "pinctrl-names",
-					    &pin_name);
+					    0, &pin_name);
 		if (!ret) {
 			pin = devm_pinctrl_get_select(&pdev->dev, pin_name);
 			rx_print("hdmirx: pinmux:%p, name:%s\n", pin, pin_name);
@@ -1091,6 +1091,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&hpd_dwork, hdmirx_plug_det);
 
 	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
+
+	uart_hdmi_probe(pdev);
 
 	rx_print("hdmirx: driver probe ok\n");
 
