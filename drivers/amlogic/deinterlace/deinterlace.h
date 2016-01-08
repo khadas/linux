@@ -10,6 +10,20 @@
 #define NEW_DI_V3 0x00000008 /* from gx */
 #define NEW_DI_V4 0x00000010 /* dnr added */
 
+/*trigger_pre_di_process param*/
+#define TRIGGER_PRE_BY_PUT		'p'
+#define TRIGGER_PRE_BY_DE_IRQ		'i'
+#define TRIGGER_PRE_BY_UNREG		'u'
+/*di_timer_handle*/
+#define TRIGGER_PRE_BY_TIMER		't'
+#define TRIGGER_PRE_BY_FORCE_UNREG	'f'
+#define TRIGGER_PRE_BY_VFRAME_READY	'r'
+#define TRIGGER_PRE_BY_PROVERDER_UNREG	'n'
+#define TRIGGER_PRE_BY_DEBUG_DISABLE	'd'
+#define TRIGGER_PRE_BY_TIMERC		'T'
+#define TRIGGER_PRE_BY_PROVERDER_REG	'R'
+
+
 /*vframe define*/
 #define vframe_t struct vframe_s
 

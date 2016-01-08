@@ -319,7 +319,10 @@ static int force_duration_0;
 
 static int use_reg_cfg = 1;
 
-static uint init_flag;
+static uint init_flag;/*flag for di buferr*/
+static unsigned int reg_flag;/*flag for vframe reg/unreg*/
+static unsigned int unreg_cnt;/*cnt for vframe unreg*/
+static unsigned int reg_cnt;/*cnt for vframe reg*/
 static unsigned char active_flag;
 static unsigned char recovery_flag;
 static unsigned int force_recovery = 1;
@@ -380,6 +383,7 @@ static void di_vf_put(vframe_t *vf, void *arg);
 static int di_event_cb(int type, void *data, void *private_data);
 static int di_vf_states(struct vframe_states *states, void *arg);
 static void di_process(void);
+static void di_reg_process(void);
 static void di_reg_process_irq(void);
 static void di_unreg_process(void);
 static void di_unreg_process_irq(void);
@@ -1664,8 +1668,9 @@ struct di_pre_stru_s {
 	int	pre_de_clear_flag;
 	/* flag is set when VFRAME_EVENT_PROVIDER_UNREG*/
 	int	unreg_req_flag;
-	int	unreg_req_flag2;
-	int	reg_flag;
+	int	unreg_req_flag_irq;
+	int	reg_req_flag;
+	int	reg_req_flag_irq;
 	int	force_unreg_req_flag;
 	int	disable_req_flag;
 	/* current source info */
@@ -2078,7 +2083,7 @@ store_config(struct device *dev,
 			bypass_dynamic_flag = 0;
 			post_ready_empty_count = 0;
 
-			trigger_pre_di_process('d');
+			trigger_pre_di_process(TRIGGER_PRE_BY_DEBUG_DISABLE);
 			while (di_pre_stru.disable_req_flag)
 				usleep_range(1000, 1001);
 		}
@@ -5107,7 +5112,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 
 	if (init_flag)
 		/* pr_info("%s:up di sema\n", __func__); */
-		trigger_pre_di_process('i');
+		trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
 
 #ifdef DI_DEBUG
 	di_print("%s: end\n", __func__);
@@ -6629,25 +6634,21 @@ static int process_post_vframe(void)
  */
 static void di_unreg_process(void)
 {
-	if ((di_pre_stru.unreg_req_flag ||
-	     di_pre_stru.force_unreg_req_flag ||
-	     di_pre_stru.disable_req_flag) &&
-	    (di_pre_stru.pre_de_busy == 0)) {
-		/* pr_info("===unreg_req_flag\n"); */
-
-		if (init_flag) {
-			init_flag = 0;
-			field_count = 0;
-			vf_unreg_provider(&di_vf_prov);
-			di_pre_stru.unreg_req_flag2 = 1;
-
-			trigger_pre_di_process('u');
-		} else {
-			di_pre_stru.force_unreg_req_flag = 0;
-			di_pre_stru.disable_req_flag = 0;
-			recovery_flag = 0;
-			di_pre_stru.unreg_req_flag = 0;
-		}
+	if (reg_flag) {
+		field_count = 0;
+		vf_unreg_provider(&di_vf_prov);
+		reg_flag = 0;
+		unreg_cnt++;
+		if (unreg_cnt > 0x3fffffff)
+			unreg_cnt = 0;
+		di_print("########%s\n", __func__);
+		di_pre_stru.unreg_req_flag_irq = 1;
+		trigger_pre_di_process(TRIGGER_PRE_BY_UNREG);
+	} else {
+		di_pre_stru.force_unreg_req_flag = 0;
+		di_pre_stru.disable_req_flag = 0;
+		recovery_flag = 0;
+		di_pre_stru.unreg_req_flag = 0;
 	}
 }
 
@@ -6655,60 +6656,66 @@ static void di_unreg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 
-	if (di_pre_stru.unreg_req_flag2) {
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
-		spin_lock_irqsave(&plist_lock, flags);
+	spin_lock_irqsave(&plist_lock, flags);
 #endif
-		di_lock_irqfiq_save(irq_flag2, fiq_flag);
+	di_lock_irqfiq_save(irq_flag2, fiq_flag);
 #ifdef DI_DEBUG
-		di_print("%s: di_uninit_buf\n", __func__);
+	di_print("%s: di_uninit_buf\n", __func__);
 #endif
-		di_uninit_buf();
+	di_uninit_buf();
+	init_flag = 0;
 #ifdef CONFIG_AML_RDMA
 /* stop rdma */
-		rdma_clear(de_devp->rdma_handle);
+	rdma_clear(de_devp->rdma_handle);
 #endif
-		di_set_power_control(0, 0);
+	di_set_power_control(0, 0);
 #ifndef NEW_DI_V3
-		Wr(DI_CLKG_CTRL, 0xff0000);
+	Wr(DI_CLKG_CTRL, 0xff0000);
 /* di enable nr clock gate */
 #else
-		if (is_meson_gxtvbb_cpu())
-			Wr(DI_CLKG_CTRL, 0x80f60000);
-		else
-			Wr(DI_CLKG_CTRL, 0xf60000);
+	if (is_meson_gxtvbb_cpu())
+		Wr(DI_CLKG_CTRL, 0x80f60000);
+	else
+		Wr(DI_CLKG_CTRL, 0xf60000);
 /* nr/blend0/ei0/mtn0 clock gate */
 #endif
-		if (get_blackout_policy()) {
-			di_set_power_control(1, 0);
-			disable_post_deinterlace_2();
-			Wr(DI_CLKG_CTRL, 0x2);
-		}
-		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	if (get_blackout_policy()) {
+		di_set_power_control(1, 0);
+		disable_post_deinterlace_2();
+		Wr(DI_CLKG_CTRL, 0x2);
+	}
+	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
-		spin_unlock_irqrestore(&plist_lock, flags);
+	spin_unlock_irqrestore(&plist_lock, flags);
 #endif
 
-		di_pre_stru.force_unreg_req_flag = 0;
-		di_pre_stru.disable_req_flag = 0;
-		recovery_flag = 0;
+	di_pre_stru.force_unreg_req_flag = 0;
+	di_pre_stru.disable_req_flag = 0;
+	recovery_flag = 0;
 #ifdef NEW_DI_V3
-		di_pre_stru.cur_prog_flag = 0;
+	di_pre_stru.cur_prog_flag = 0;
 #endif
-		di_pre_stru.unreg_req_flag = 0;
-		di_pre_stru.unreg_req_flag2 = 0;
-	}
+	di_pre_stru.unreg_req_flag = 0;
+	di_pre_stru.unreg_req_flag_irq = 0;
 }
 
-static void di_reg_process_2(void)
+static void di_reg_process(void)
 {
 /*get vout information first time*/
+	if (reg_flag == 1)
+		return;
 	set_output_mode_info();
 	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
 	vf_reg_provider(&di_vf_prov);
 	vf_notify_receiver(VFM_NAME, VFRAME_EVENT_PROVIDER_START, NULL);
-	init_flag = 1;
+	reg_flag = 1;
+	reg_cnt++;
+	if (reg_cnt > 0x3fffffff)
+		reg_cnt = 0;
+	di_pre_stru.reg_req_flag_irq = 1;
+	di_print("########%s\n", __func__);
 }
 #ifdef CONFIG_AML_RDMA
 /* di pre rdma operation */
@@ -6737,75 +6744,75 @@ static void di_reg_process_irq(void)
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 	vframe_t *vframe;
 
-	if (init_flag == 0 && di_pre_stru.reg_flag == 0) {
-		if ((pre_run_flag != DI_RUN_FLAG_RUN) &&
-		    (pre_run_flag != DI_RUN_FLAG_STEP))
-			return;
-		if (pre_run_flag == DI_RUN_FLAG_STEP)
-			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
+	if ((pre_run_flag != DI_RUN_FLAG_RUN) &&
+	    (pre_run_flag != DI_RUN_FLAG_STEP))
+		return;
+	if (pre_run_flag == DI_RUN_FLAG_STEP)
+		pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 
-		vframe = vf_peek(VFM_NAME);
+	/*di_pre_stru.reg_req_flag = 1;*/
+	/*trigger_pre_di_process(TRIGGER_PRE_BY_TIMERC);*/
 
-		if (vframe) {
-			/* patch for vdin progressive input */
-			if ((vframe->type & VIDTYPE_VIU_422) &&
-			    ((vframe->type & VIDTYPE_PROGRESSIVE) == 0))
-				use_2_interlace_buff = 1;
-			else
-				use_2_interlace_buff = 0;
+	vframe = vf_peek(VFM_NAME);
 
-			di_set_power_control(0, 1);
-			di_set_power_control(1, 1);
+	if (vframe) {
+		/* patch for vdin progressive input */
+		if ((vframe->type & VIDTYPE_VIU_422) &&
+		    ((vframe->type & VIDTYPE_PROGRESSIVE) == 0))
+			use_2_interlace_buff = 1;
+		else
+			use_2_interlace_buff = 0;
+
+		di_set_power_control(0, 1);
+		di_set_power_control(1, 1);
 #ifndef NEW_DI_V3
-			Wr(DI_CLKG_CTRL, 0xfeff0000);
-			/* di enable nr clock gate */
+		Wr(DI_CLKG_CTRL, 0xfeff0000);
+		/* di enable nr clock gate */
 #else
-			/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
-			Wr(DI_CLKG_CTRL, 0xfef60000);
-			/* nr/blend0/ei0/mtn0 clock gate */
+		/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
+		Wr(DI_CLKG_CTRL, 0xfef60000);
+		/* nr/blend0/ei0/mtn0 clock gate */
 #endif
-			/* add for di Reg re-init */
+		/* add for di Reg re-init */
 #ifdef NEW_DI_TV
-			di_set_para_by_tvinfo(vframe);
+		di_set_para_by_tvinfo(vframe);
 #endif
-			if (di_printk_flag & 2)
-				di_printk_flag = 1;
+		if (di_printk_flag & 2)
+			di_printk_flag = 1;
 
 #ifdef DI_DEBUG
-			di_print("%s: vframe come => di_init_buf\n", __func__);
+		di_print("%s: vframe come => di_init_buf\n", __func__);
 #endif
-			if (is_progressive(vframe) && (prog_proc_config & 0x10)
-			    ) {
+		if (is_progressive(vframe) && (prog_proc_config & 0x10)
+		    ) {
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
-				spin_lock_irqsave(&plist_lock, flags);
+			spin_lock_irqsave(&plist_lock, flags);
 #endif
-				di_lock_irqfiq_save(irq_flag2, fiq_flag);
-				/* di_init_buf(vframe->width,
-				 * vframe->height, 1); */
-				di_init_buf(default_width, default_height, 1);
-				di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			/* di_init_buf(vframe->width,
+			 * vframe->height, 1); */
+			di_init_buf(default_width, default_height, 1);
+			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
-				spin_unlock_irqrestore(&plist_lock, flags);
+			spin_unlock_irqrestore(&plist_lock, flags);
 #endif
-			} else {
+		} else {
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
-				spin_lock_irqsave(&plist_lock, flags);
+			spin_lock_irqsave(&plist_lock, flags);
 #endif
-				di_lock_irqfiq_save(irq_flag2, fiq_flag);
-				di_init_buf(default_width, default_height, 0);
-				di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			di_init_buf(default_width, default_height, 0);
+			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
-				spin_unlock_irqrestore(&plist_lock, flags);
+			spin_unlock_irqrestore(&plist_lock, flags);
 #endif
-			}
-
-			reset_pulldown_state();
-
-			di_pre_stru.reg_flag = 1;
-			trigger_pre_di_process('u');
 		}
+
+		reset_pulldown_state();
+		init_flag = 1;
+		di_pre_stru.reg_req_flag_irq = 0;
 	}
 }
 
@@ -6942,7 +6949,7 @@ void di_timer_handle(struct work_struct *work)
 
 	/* if(force_trig){ */
 	force_trig_cnt++;
-	trigger_pre_di_process('t');
+	trigger_pre_di_process(TRIGGER_PRE_BY_TIMER);
 	/* } */
 
 	if (force_recovery) {
@@ -6965,10 +6972,14 @@ static int di_task_handle(void *data)
 	while (1) {
 		ret = down_interruptible(&di_sema);
 		if (active_flag) {
-			di_unreg_process();
-			if (di_pre_stru.reg_flag) {
-				di_reg_process_2();
-				di_pre_stru.reg_flag = 0;
+			if ((di_pre_stru.unreg_req_flag ||
+				di_pre_stru.force_unreg_req_flag ||
+				di_pre_stru.disable_req_flag) &&
+				(di_pre_stru.pre_de_busy == 0))
+				di_unreg_process();
+			if (di_pre_stru.reg_req_flag) {
+				di_reg_process();
+				di_pre_stru.reg_req_flag = 0;
 			}
 		}
 	}
@@ -6982,8 +6993,10 @@ static irqreturn_t timer_irq(int irq, void *dev_instance)
 	int i;
 
 	if (active_flag) {
-		di_unreg_process_irq();
-		di_reg_process_irq();
+		if (di_pre_stru.unreg_req_flag_irq)
+			di_unreg_process_irq();
+		if (init_flag == 0 && di_pre_stru.reg_req_flag_irq == 1)
+			di_reg_process_irq();
 	}
 
 	for (i = 0; i < 2; i++)
@@ -7023,7 +7036,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		bypass_dynamic_flag = 0;
 		post_ready_empty_count = 0;
 		vdin_source_flag = 0;
-		trigger_pre_di_process('n');
+		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
 		while (di_pre_stru.unreg_req_flag)
 			usleep_range(10000, 10001);
 #ifdef SUPPORT_MPEG_TO_VDIN
@@ -7104,7 +7117,7 @@ light_unreg:
 		di_print("%s: vframe ready\n", __func__);
 #endif
 		provider_vframe_level++;
-		trigger_pre_di_process('r');
+		trigger_pre_di_process(TRIGGER_PRE_BY_VFRAME_READY);
 
 #ifdef RUN_DI_PROCESS_IN_IRQ
 #define INPUT2PRE_2_BYPASS_SKIP_COUNT   4
@@ -7201,6 +7214,10 @@ light_unreg:
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 		bypass_state = 0;
+		di_pre_stru.reg_req_flag = 1;
+		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
+		while (di_pre_stru.reg_req_flag)
+			usleep_range(10000, 10001);
 
 		aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 14, 0 << 14);
 		aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 4, 0 << 4);
@@ -7468,7 +7485,7 @@ static void di_vf_put(vframe_t *vf, void *arg)
 #endif
 	}
 
-	trigger_pre_di_process('p');
+	trigger_pre_di_process(TRIGGER_PRE_BY_PUT);
 }
 
 static int di_event_cb(int type, void *data, void *private_data)
@@ -7482,7 +7499,7 @@ static int di_event_cb(int type, void *data, void *private_data)
 		bypass_dynamic_flag = 0;
 		post_ready_empty_count = 0;
 
-		trigger_pre_di_process('f');
+		trigger_pre_di_process(TRIGGER_PRE_BY_FORCE_UNREG);
 		while (di_pre_stru.force_unreg_req_flag)
 			usleep_range(1000, 1001);
 	}
@@ -7783,6 +7800,7 @@ static int di_probe(struct platform_device *pdev)
 
 	used_post_buf_index = -1;
 	init_flag = 0;
+	reg_flag = 0;
 	field_count = 0;
 
 /* set start_frame_hold_count base on buffer size */
@@ -8191,6 +8209,12 @@ MODULE_PARM_DESC(use_2_interlace_buff,
 
 module_param(pulldown_mode, int, 0664);
 MODULE_PARM_DESC(pulldown_mode, "\n option for pulldown\n");
+
+module_param(reg_cnt, uint, 0664);
+MODULE_PARM_DESC(reg_cnt, "\n cnt for reg\n");
+
+module_param(unreg_cnt, uint, 0664);
+MODULE_PARM_DESC(unreg_cnt, "\n cnt for unreg\n");
 
 module_param(debug_blend_mode, int, 0664);
 MODULE_PARM_DESC(debug_blend_mode, "\n force post blend mode\n");
