@@ -262,7 +262,7 @@ static void __init gxtvbb_clk_init(struct device_node *np)
 		reg_base_hiubus + HHI_GCLK_MPEG0, GXBB_AO_OFF, 0);
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
 	gp0_clk_init(reg_base_hiubus, GP0_PLL);
-	gxbb_hdmi_clk_init(reg_base_hiubus);
+	gxtvbb_hdmi_clk_init(reg_base_hiubus);
 
 
 

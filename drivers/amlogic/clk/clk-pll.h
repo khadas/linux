@@ -21,7 +21,7 @@
 
 extern void __init hdmi_clk_init(void __iomem *reg_base_cbus);
 extern void __init gxbb_hdmi_clk_init(void __iomem *reg_base_cbus);
-
+extern void __init gxtvbb_hdmi_clk_init(void __iomem *reg_base_cbus);
 
 enum amlogic_pll_type {
 	pll_1500,
