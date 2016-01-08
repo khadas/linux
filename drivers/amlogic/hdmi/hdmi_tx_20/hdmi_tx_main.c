@@ -139,6 +139,16 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmi_print(IMP, SYS "HDMITX: early suspend\n");
 }
 
+static int hdmitx_is_hdmi_vmode(char *mode_name)
+{
+	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(mode_name);
+
+	if (vic == HDMI_Unkown)
+		return 0;
+
+	return 1;
+}
+
 static void hdmitx_late_resume(struct early_suspend *h)
 {
 	const struct vinfo_s *info = hdmi_get_current_vinfo();
@@ -153,7 +163,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 			CONF_VIDEO_BLANK_OP, VIDEO_BLANK);
 	}
 
-	phdmi->HWOp.CntlMisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
+	if (1 == hdmitx_is_hdmi_vmode(info->name))
+		phdmi->HWOp.CntlMisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
 
 	phdmi->hpd_lock = 0;
 
