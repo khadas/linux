@@ -130,6 +130,9 @@ bool omx_secret_mode = false;
 #define DEBUG_FLAG_CALC_PTS_INC	(1<<1)
 
 #define RECEIVER_NAME "amvideo"
+
+static s32 amvideo_poll_major;
+
 static int video_receiver_event_fun(int type, void *data, void *);
 
 static const struct vframe_receiver_op_s video_vf_receiver = {
@@ -742,6 +745,7 @@ u32 trickmode_i = 0;
 /* trickmode ff/fb */
 u32 trickmode_fffb = 0;
 atomic_t trickmode_framedone = ATOMIC_INIT(0);
+atomic_t video_sizechange = ATOMIC_INIT(0);
 atomic_t video_unreg_flag = ATOMIC_INIT(0);
 atomic_t video_pause_flag = ATOMIC_INIT(0);
 int trickmode_duration = 0;
@@ -774,6 +778,9 @@ static const u8 skip_tab[6] = { 0x24, 0x04, 0x68, 0x48, 0x28, 0x08 };
 
 /* wait queue for poll */
 static wait_queue_head_t amvideo_trick_wait;
+
+/* wait queue for poll */
+static wait_queue_head_t amvideo_sizechange_wait;
 
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 #define VPU_DELAYWORK_VPU_CLK            1
@@ -2280,6 +2287,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	    || video_prot.angle_changed
 #endif
 	    ) {
+		atomic_inc(&video_sizechange);
+		wake_up_interruptible(&amvideo_sizechange_wait);
 		amlog_mask(LOG_MASK_FRAMEINFO,
 			   "%s %dx%d  ar=0x%x\n",
 			   ((vf->type & VIDTYPE_TYPEMASK) ==
@@ -4984,7 +4993,21 @@ static int amvideo_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int amvideo_poll_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
 static int amvideo_release(struct inode *inode, struct file *file)
+{
+	if (blackout | force_blackout) {
+		/*	DisableVideoLayer();
+		don't need it ,it have problem on  pure music playing */
+	}
+	return 0;
+}
+
+static int amvideo_poll_release(struct inode *inode, struct file *file)
 {
 	if (blackout | force_blackout) {
 		/*	DisableVideoLayer();
@@ -5356,6 +5379,18 @@ static unsigned int amvideo_poll(struct file *file, poll_table *wait_table)
 	return 0;
 }
 
+static unsigned int amvideo_poll_poll(struct file *file, poll_table *wait_table)
+{
+	poll_wait(file, &amvideo_sizechange_wait, wait_table);
+
+	if (atomic_read(&video_sizechange)) {
+		atomic_set(&video_sizechange, 0);
+		return POLLIN | POLLWRNORM;
+	}
+
+	return 0;
+}
+
 static const struct file_operations amvideo_fops = {
 	.owner = THIS_MODULE,
 	.open = amvideo_open,
@@ -5367,11 +5402,19 @@ static const struct file_operations amvideo_fops = {
 	.poll = amvideo_poll,
 };
 
+static const struct file_operations amvideo_poll_fops = {
+	.owner = THIS_MODULE,
+	.open = amvideo_poll_open,
+	.release = amvideo_poll_release,
+	.poll = amvideo_poll_poll,
+};
+
 /*********************************************************
  * SYSFS property functions
  *********************************************************/
 #define MAX_NUMBER_PARA 10
 #define AMVIDEO_CLASS_NAME "video"
+#define AMVIDEO_POLL_CLASS_NAME "video_poll"
 
 static int parse_para(const char *para, int para_num, int *result)
 {
@@ -6651,6 +6694,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR_NULL
 };
 
+static struct class_attribute amvideo_poll_class_attrs[] = {
+	__ATTR_RO(frame_width),
+	__ATTR_RO(frame_height),
+	__ATTR_RO(vframe_states),
+	__ATTR_RO(video_state),
+	__ATTR_NULL
+};
+
 #ifdef CONFIG_PM
 static int amvideo_class_suspend(struct device *dev, pm_message_t state)
 {
@@ -6776,6 +6827,11 @@ static struct class amvideo_class = {
 #endif
 };
 
+static struct class amvideo_poll_class = {
+	.name = AMVIDEO_POLL_CLASS_NAME,
+	.class_attrs = amvideo_poll_class_attrs,
+};
+
 #ifdef TV_REVERSE
 static int __init vpp_axis_reverse(char *str)
 {
@@ -6798,6 +6854,8 @@ struct vframe_s *get_cur_dispbuf(void)
 }
 
 static struct device *amvideo_dev;
+static struct device *amvideo_poll_dev;
+
 
 #ifdef CONFIG_AM_VOUT
 int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
@@ -7118,7 +7176,18 @@ static int __init video_init(void)
 	}
 #endif
 
-	/* sysfs node creation */
+    /* sysfs node creation */
+	r = class_register(&amvideo_poll_class);
+	if (r) {
+		amlog_level(LOG_LEVEL_ERROR, "create video_poll class fail.\n");
+#ifdef FIQ_VSYNC
+		free_irq(BRIDGE_IRQ, (void *)video_dev_id);
+#else
+		vdec_free_irq(VSYNC_IRQ, (void *)video_dev_id);
+#endif
+		goto err1;
+	}
+
 	r = class_register(&amvideo_class);
 	if (r) {
 		amlog_level(LOG_LEVEL_ERROR, "create video class fail.\n");
@@ -7138,15 +7207,34 @@ static int __init video_init(void)
 		goto err2;
 	}
 
+	r = register_chrdev(0, "amvideo_poll", &amvideo_poll_fops);
+	if (r < 0) {
+		amlog_level(LOG_LEVEL_ERROR,
+			"Can't register major for amvideo_poll device\n");
+		goto err3;
+	}
+
+	amvideo_poll_major = r;
+
 	amvideo_dev = device_create(&amvideo_class, NULL,
 		MKDEV(AMVIDEO_MAJOR, 0), NULL, DEVICE_NAME);
 
 	if (IS_ERR(amvideo_dev)) {
 		amlog_level(LOG_LEVEL_ERROR, "Can't create amvideo device\n");
-		goto err3;
+		goto err4;
+	}
+
+	amvideo_poll_dev = device_create(&amvideo_poll_class, NULL,
+		MKDEV(amvideo_poll_major, 0), NULL, "amvideo_poll");
+
+	if (IS_ERR(amvideo_poll_dev)) {
+		amlog_level(LOG_LEVEL_ERROR,
+			"Can't create amvideo_poll device\n");
+		goto err5;
 	}
 
 	init_waitqueue_head(&amvideo_trick_wait);
+	init_waitqueue_head(&amvideo_sizechange_wait);
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 #endif
@@ -7208,7 +7296,10 @@ static int __init video_init(void)
 #endif
 
 	return 0;
-
+ err5:
+	device_destroy(&amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));
+ err4:
+	unregister_chrdev(amvideo_poll_major, "amvideo_poll");
  err3:
 	unregister_chrdev(AMVIDEO_MAJOR, DEVICE_NAME);
 
@@ -7216,10 +7307,9 @@ static int __init video_init(void)
 #ifdef FIQ_VSYNC
 	unregister_fiq_bridge_handle(&vsync_fiq_bridge);
 #endif
-
- err1:
 	class_unregister(&amvideo_class);
-
+ err1:
+	class_unregister(&amvideo_poll_class);
 #ifdef FIQ_VSYNC
  err0:
 #endif
@@ -7240,14 +7330,17 @@ static void __exit video_exit(void)
 	vsync2_fiq_down();
 #endif
 	device_destroy(&amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));
+	device_destroy(&amvideo_poll_class, MKDEV(amvideo_poll_major, 0));
 
 	unregister_chrdev(AMVIDEO_MAJOR, DEVICE_NAME);
+	unregister_chrdev(amvideo_poll_major, "amvideo_poll");
 
 #ifdef FIQ_VSYNC
 	unregister_fiq_bridge_handle(&vsync_fiq_bridge);
 #endif
 
 	class_unregister(&amvideo_class);
+	class_unregister(&amvideo_poll_class);
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 	ge2d_videotask_release();
