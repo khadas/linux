@@ -1712,7 +1712,7 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 }
 
 struct i2c_client *i2c_edid_client;
-static int edid_read_flag;
+static int edid_read_flag __nosavedata;
 static DEFINE_MUTEX(getedid_mutex);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
