@@ -221,6 +221,14 @@ static unsigned int bypass_spscl1;
 module_param(bypass_spscl1, uint, 0664);
 MODULE_PARM_DESC(bypass_spscl1, "bypass_spscl1");
 
+static unsigned int vert_scaler_filter;
+module_param(vert_scaler_filter, uint, 0664);
+MODULE_PARM_DESC(vert_scaler_filter, "vert_scaler_filter");
+
+static unsigned int horz_scaler_filter;
+module_param(horz_scaler_filter, uint, 0664);
+MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
+
 #if 0	/* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 static unsigned int bypass_ratio = 150;
 #else
@@ -861,7 +869,7 @@ RESTART:
 	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
 		filter->vpp_vert_coeff = filter_table[COEF_BILINEAR];
 	else
-		filter->vpp_vert_coeff = filter_table[COEF_BICUBIC];
+		filter->vpp_vert_coeff = filter_table[vert_scaler_filter];
 #ifdef	TV_3D_FUNCTION_OPEN
 	if ((next_frame_par->vpp_3d_scale) && force_filter_mode)
 		filter->vpp_vert_coeff = vpp_3d_filter_coefs_bilinear;
@@ -885,7 +893,7 @@ RESTART:
 	next_frame_par->VPP_hsc_linear_startp = next_frame_par->VPP_hsc_startp;
 	next_frame_par->VPP_hsc_linear_endp = next_frame_par->VPP_hsc_endp;
 
-	filter->vpp_horz_coeff = filter_table[COEF_BICUBIC];
+	filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
 
 	filter->vpp_hsc_start_phase_step = ratio_x << 6;
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
@@ -893,7 +901,7 @@ RESTART:
 	if ((ratio_x == (1 << 18)) && (next_frame_par->VPP_hf_ini_phase_ == 0))
 		filter->vpp_horz_coeff = vpp_filter_coefs_bicubic_sharp;
 	else
-		filter->vpp_horz_coeff = filter_table[COEF_BICUBIC];
+		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
 
 	/* screen position for source */
 #ifdef TV_REVERSE
@@ -1138,9 +1146,15 @@ static int vpp_set_super_sclaer_regs(int scaler_path_sel,
 	/* top config */
 	tmp_data = READ_VCBUS_REG(VPP_SRSHARP0_CTRL);
 	if (sr0_sr1_refresh) {
-		if (((tmp_data >> 1)&0x1) != (reg_srscl0_vert_ratio&0x1))
-			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
-			reg_srscl0_vert_ratio&0x1, 1, 1);
+		if (reg_srscl0_hsize > SUPER_CORE0_WIDTH_MAX*2) {
+			if (((tmp_data >> 1)&0x1) != 0)
+				VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
+					0, 1, 1);
+		} else {
+			if (((tmp_data >> 1)&0x1) != 1)
+				VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
+					1, 1, 1);
+		}
 		if ((tmp_data&0x1) != 1)
 			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
 	}
@@ -1160,9 +1174,20 @@ static int vpp_set_super_sclaer_regs(int scaler_path_sel,
 		if (((tmp_data >> 4)&0x1) != (reg_srscl0_hori_ratio&0x1))
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
 				reg_srscl0_hori_ratio&0x1, 4, 1);
-		if (((tmp_data >> 2)&0x1) != (reg_srscl0_enable&0x1))
+
+		if (reg_srscl0_hsize > SUPER_CORE0_WIDTH_MAX*2) {
+			if (((tmp_data >> 2)&0x1) != 0)
+				VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+					0, 2, 1);
+		} else {
+			if (((tmp_data >> 2)&0x1) != 1)
+				VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+					1, 2, 1);
+		}
+
+		if ((tmp_data & 0x1) == (reg_srscl0_hori_ratio&0x1))
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
-				reg_srscl0_enable&0x1, 2, 1);
+				((~(reg_srscl0_hori_ratio&0x1))&0x1), 0, 1);
 	}
 	/* core1 config */
 	tmp_data = sharpness1_sr2_ctrl_32d7;
@@ -1271,6 +1296,11 @@ static void vpp_set_scaler(u32 src_width,
 			|| (bypass_spscl0 == 1)) {
 			next_frame_par->supsc0_enable = 0;
 			next_frame_par->supsc1_enable = 1;
+		} else if ((src_width > SUPER_CORE0_WIDTH_MAX)
+			&& (src_width <= SUPER_CORE1_WIDTH_MAX)
+			&& (bypass_spscl1 == 1)) {
+			next_frame_par->supsc0_enable = 0;
+			next_frame_par->supsc1_enable = 0;
 		} else {
 			next_frame_par->supsc0_enable = 1;
 			next_frame_par->supsc1_enable = 0;
