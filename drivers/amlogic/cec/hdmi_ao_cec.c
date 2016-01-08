@@ -58,6 +58,10 @@
 #include <linux/reboot.h>
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+static struct early_suspend aocec_suspend_handler;
+#endif
 
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
@@ -73,6 +77,8 @@ struct ao_cec_dev {
 	unsigned long dev_type;
 	unsigned int port_num;
 	unsigned int arc_port;
+	unsigned int hal_flag;
+	unsigned int phy_addr;
 	unsigned long irq_cec;
 	void __iomem *exit_reg;
 	void __iomem *cec_reg;
@@ -90,6 +96,14 @@ struct ao_cec_dev {
 #endif
 	struct vendor_info_data v_data;
 	struct cec_global_info_t cec_info;
+};
+
+/* from android cec hal */
+enum {
+	HDMI_OPTION_WAKEUP = 1,
+	HDMI_OPTION_ENABLE_CEC = 2,
+	HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
+	HDMI_OPTION_SET_LANG = 5,
 };
 
 static struct ao_cec_dev *cec_dev;
@@ -685,11 +699,256 @@ static int cec_late_check_rx_buffer(void)
 	}
 }
 
+void cec_key_report(int suspend)
+{
+	input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY, KEY_POWER, 1);
+	input_sync(cec_dev->cec_info.remote_cec_dev);
+	input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY, KEY_POWER, 0);
+	input_sync(cec_dev->cec_info.remote_cec_dev);
+	if (!suspend)
+		CEC_INFO("== WAKE UP BY CEC ==\n")
+	else
+		CEC_INFO("== SLEEP by CEC==\n")
+}
+
+void cec_give_version(unsigned int dest)
+{
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char msg[3];
+
+	if (0xf != dest) {
+		msg[0] = ((index & 0xf) << 4) | dest;
+		msg[1] = CEC_OC_CEC_VERSION;
+		msg[2] = CEC_VERSION_14A;
+		cec_ll_tx(msg, 3);
+	}
+}
+
+void cec_report_physical_address_smp(void)
+{
+	unsigned char msg[5];
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char phy_addr_ab, phy_addr_cd;
+
+	phy_addr_ab = (cec_dev->phy_addr >> 8) & 0xff;
+	phy_addr_cd = (cec_dev->phy_addr >> 0) & 0xff;
+	msg[0] = ((index & 0xf) << 4) | CEC_BROADCAST_ADDR;
+	msg[1] = CEC_OC_REPORT_PHYSICAL_ADDRESS;
+	msg[2] = phy_addr_ab;
+	msg[3] = phy_addr_cd;
+	msg[4] = cec_dev->dev_type;
+
+	cec_ll_tx(msg, 5);
+}
+
+void cec_device_vendor_id(void)
+{
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char msg[5];
+	unsigned int vendor_id;
+
+	vendor_id = cec_dev->v_data.vendor_id;
+	msg[0] = ((index & 0xf) << 4) | CEC_BROADCAST_ADDR;
+	msg[1] = CEC_OC_DEVICE_VENDOR_ID;
+	msg[2] = (vendor_id >> 16) & 0xff;
+	msg[3] = (vendor_id >> 8) & 0xff;
+	msg[4] = (vendor_id >> 0) & 0xff;
+
+	cec_ll_tx(msg, 5);
+}
+
+void cec_give_deck_status(unsigned int dest)
+{
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char msg[3];
+
+	msg[0] = ((index & 0xf) << 4) | dest;
+	msg[1] = CEC_OC_DECK_STATUS;
+	msg[2] = 0x1a;
+	cec_ll_tx(msg, 3);
+}
+
+void cec_menu_status_smp(int dest, int status)
+{
+	unsigned char msg[3];
+	unsigned char index = cec_dev->cec_info.log_addr;
+
+	msg[0] = ((index & 0xf) << 4) | dest;
+	msg[1] = CEC_OC_MENU_STATUS;
+	if (status == DEVICE_MENU_ACTIVE)
+		msg[2] = DEVICE_MENU_ACTIVE;
+	else
+		msg[2] = DEVICE_MENU_INACTIVE;
+	cec_ll_tx(msg, 3);
+}
+
+void cec_inactive_source(int dest)
+{
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char msg[4];
+	unsigned char phy_addr_ab, phy_addr_cd;
+
+	phy_addr_ab = (cec_dev->phy_addr >> 8) & 0xff;
+	phy_addr_cd = (cec_dev->phy_addr >> 0) & 0xff;
+	msg[0] = ((index & 0xf) << 4) | dest;
+	msg[1] = CEC_OC_INACTIVE_SOURCE;
+	msg[2] = phy_addr_ab;
+	msg[3] = phy_addr_cd;
+
+	cec_ll_tx(msg, 4);
+}
+
+void cec_set_osd_name(int dest)
+{
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char osd_len = strlen(cec_dev->cec_info.osd_name);
+	unsigned char msg[16];
+
+	if (0xf != dest) {
+		msg[0] = ((index & 0xf) << 4) | dest;
+		msg[1] = CEC_OC_SET_OSD_NAME;
+		memcpy(&msg[2], cec_dev->cec_info.osd_name, osd_len);
+
+		cec_ll_tx(msg, 2 + osd_len);
+	}
+}
+
+void cec_active_source_smp(void)
+{
+	unsigned char msg[4];
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char phy_addr_ab;
+	unsigned char phy_addr_cd;
+
+	phy_addr_ab = (cec_dev->phy_addr >> 8) & 0xff;
+	phy_addr_cd = (cec_dev->phy_addr >> 0) & 0xff;
+	msg[0] = ((index & 0xf) << 4) | CEC_BROADCAST_ADDR;
+	msg[1] = CEC_OC_ACTIVE_SOURCE;
+	msg[2] = phy_addr_ab;
+	msg[3] = phy_addr_cd;
+	cec_ll_tx(msg, 4);
+}
+
+void cec_set_stream_path(unsigned char *msg)
+{
+	unsigned int phy_addr_active;
+
+	phy_addr_active = (unsigned int)(msg[2] << 8 | msg[3]);
+	if (phy_addr_active == cec_dev->phy_addr) {
+		cec_active_source_smp();
+		/*
+		 * some types of TV such as panasonic need to send menu status,
+		 * otherwise it will not send remote key event to control
+		 * device's menu
+		 */
+		cec_menu_status_smp(msg[0] >> 4, DEVICE_MENU_ACTIVE);
+	}
+}
+
+void cec_report_power_status(int dest, int status)
+{
+	unsigned char index = cec_dev->cec_info.log_addr;
+	unsigned char msg[3];
+
+	msg[0] = ((index & 0xf) << 4) | dest;
+	msg[1] = CEC_OC_REPORT_POWER_STATUS;
+	msg[2] = status;
+	cec_ll_tx(msg, 3);
+}
+
+static void cec_rx_process(void)
+{
+	int len = rx_len;
+	int initiator, follower;
+	int opcode;
+	unsigned char msg[MAX_MSG] = {};
+
+	if (len < 2)			/* ignore ping message */
+		return;
+
+	memcpy(msg, rx_msg, len);
+	initiator = ((msg[0] >> 4) & 0xf);
+	follower  = msg[0] & 0xf;
+	if (follower != 0xf && follower != cec_dev->cec_info.log_addr) {
+		CEC_ERR("wrong rx message of bad follower:%x", follower);
+		return;
+	}
+	opcode = msg[1];
+	switch (opcode) {
+	case CEC_OC_GET_CEC_VERSION:
+		cec_give_version(initiator);
+		break;
+
+	case CEC_OC_GIVE_DECK_STATUS:
+		cec_give_deck_status(initiator);
+		break;
+
+	case CEC_OC_GIVE_PHYSICAL_ADDRESS:
+		cec_report_physical_address_smp();
+		break;
+
+	case CEC_OC_GIVE_DEVICE_VENDOR_ID:
+		cec_device_vendor_id();
+		break;
+
+	case CEC_OC_GIVE_OSD_NAME:
+		cec_set_osd_name(initiator);
+		break;
+
+	case CEC_OC_STANDBY:
+		cec_inactive_source(initiator);
+		cec_menu_status_smp(initiator, DEVICE_MENU_INACTIVE);
+		if (!cec_dev->cec_suspend)
+			cec_key_report(1);
+		break;
+
+	case CEC_OC_SET_STREAM_PATH:
+		cec_set_stream_path(msg);
+		if (cec_dev->cec_suspend) /* wake up if in early suspend */
+			cec_key_report(0);
+		break;
+
+	case CEC_OC_REQUEST_ACTIVE_SOURCE:
+		if (!cec_dev->cec_suspend)
+			cec_active_source_smp();
+		break;
+
+	case CEC_OC_GIVE_DEVICE_POWER_STATUS:
+		if (cec_dev->cec_suspend)
+			cec_report_power_status(initiator, POWER_STANDBY);
+		else
+			cec_report_power_status(initiator, POWER_ON);
+		break;
+
+	case CEC_OC_USER_CONTROL_PRESSED:
+		if (cec_dev->cec_suspend) { /* wake up by key function */
+			if (msg[2] == 0x40 || msg[2] == 0x6d)
+				cec_key_report(0);
+		}
+		break;
+
+	case CEC_OC_MENU_REQUEST:
+		if (cec_dev->cec_suspend)
+			cec_menu_status_smp(initiator, DEVICE_MENU_INACTIVE);
+		else
+			cec_menu_status_smp(initiator, DEVICE_MENU_ACTIVE);
+		break;
+
+	default:
+		CEC_ERR("unsupported command:%x\n", opcode);
+		break;
+	}
+}
+
 static void cec_task(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 
 	dwork = &cec_dev->cec_work;
+	if (cec_dev &&
+	   !(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))) {
+		cec_rx_process();
+	}
 	if (!cec_late_check_rx_buffer())
 		queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
 }
@@ -710,7 +969,7 @@ static irqreturn_t cec_isr_handler(int irq, void *dev_instance)
 
 	complete(&cec_dev->rx_ok);
 	/* check rx buffer is full */
-	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
+	mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	return IRQ_HANDLED;
 }
 
@@ -813,22 +1072,7 @@ static ssize_t port_status_show(struct class *cla,
 static ssize_t physical_addr_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
-	int a, b, c, d;
-	unsigned int tmp;
-
-	if (cec_dev->dev_type ==  DEV_TYPE_TX) {
-		/* physical address for mbox */
-		if (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0)
-			return -EINVAL;
-		a = cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.a;
-		b = cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.b;
-		c = cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.c;
-		d = cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.d;
-		tmp = ((a << 12) | (b << 8) | (c << 4) | (d << 0));
-	} else {
-		/* physical address for TV */
-		tmp = 0;
-	}
+	unsigned int tmp = cec_dev->phy_addr;
 
 	return sprintf(buf, "%04x\n", tmp);
 }
@@ -893,7 +1137,8 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 {
 	int ret;
 
-	rx_len = 0;
+	if ((cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))
+		rx_len = 0;
 	ret = wait_for_completion_timeout(&cec_dev->rx_ok, CEC_FRAME_DELAY);
 	if (ret <= 0)
 		return ret;
@@ -948,6 +1193,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			/* physical address for TV */
 			tmp = 0;
 		}
+		cec_dev->phy_addr = tmp;
 		cec_phyaddr_config(tmp, 1);
 		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd)))
 			return -EINVAL;
@@ -1025,11 +1271,23 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	case CEC_IOC_SET_OPTION_ENALBE_CEC:
-		/* TODO: */
+		tmp = (1 << HDMI_OPTION_ENABLE_CEC);
+		if (arg) {
+			cec_dev->hal_flag |= tmp;
+			cec_pre_init();
+		} else {
+			cec_dev->hal_flag &= ~(tmp);
+			CEC_INFO("disable CEC\n");
+			cec_keep_reset();
+		}
 		break;
 
 	case CEC_IOC_SET_OPTION_SYS_CTRL:
-		/* TODO: */
+		tmp = (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL);
+		if (arg)
+			cec_dev->hal_flag |= tmp;
+		else
+			cec_dev->hal_flag &= ~(tmp);
 		break;
 
 	case CEC_IOC_SET_OPTION_SET_LANG:
@@ -1125,6 +1383,20 @@ static const struct file_operations hdmitx_cec_fops = {
 };
 
 /************************ cec high level code *****************************/
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void aocec_early_suspend(struct early_suspend *h)
+{
+	cec_dev->cec_suspend = 1;
+	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
+}
+
+static void aocec_late_resume(struct early_suspend *h)
+{
+	cec_dev->cec_suspend = 0;
+	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
+
+}
+#endif
 
 static int aml_cec_probe(struct platform_device *pdev)
 {
@@ -1282,6 +1554,13 @@ static int aml_cec_probe(struct platform_device *pdev)
 		strcpy(vend->cec_osd_string, "AML TV/BOX");
 	}
 #endif
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	aocec_suspend_handler.level   = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 20;
+	aocec_suspend_handler.suspend = aocec_early_suspend;
+	aocec_suspend_handler.resume  = aocec_late_resume;
+	aocec_suspend_handler.param   = cec_dev;
+	register_early_suspend(&aocec_suspend_handler);
+#endif
 	/* for init */
 	cec_pre_init();
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
@@ -1307,8 +1586,6 @@ static int aml_cec_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int aml_cec_pm_prepare(struct device *dev)
 {
-	cec_dev->cec_suspend = 1;
-	CEC_INFO("cec prepare suspend!\n");
 	return 0;
 }
 
@@ -1321,15 +1598,8 @@ static void aml_cec_pm_complete(struct device *dev)
 		CEC_INFO("wake up flag:%x\n", exit);
 	}
 	if (((exit >> 28) & 0xf) == CEC_WAKEUP) {
-		input_event(cec_dev->cec_info.remote_cec_dev,
-			    EV_KEY, KEY_POWER, 1);
-		input_sync(cec_dev->cec_info.remote_cec_dev);
-		input_event(cec_dev->cec_info.remote_cec_dev,
-			    EV_KEY, KEY_POWER, 0);
-		input_sync(cec_dev->cec_info.remote_cec_dev);
-		CEC_INFO("== WAKE UP BY CEC ==\n");
+		cec_key_report(0);
 	}
-	cec_dev->cec_suspend = 0;
 }
 
 static int aml_cec_resume_noirq(struct device *dev)
