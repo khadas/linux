@@ -70,13 +70,8 @@
 			size = <0x0 0x1000000>;
 			multi-use;
 		};
-		jpegenc_cma_reserved:linux,jpegenc_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <3>;
-			reusable;
-			size = <0x0 0x2400000>;
-			alignment = <0x0 0x400000>;
-		};
+
+
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -409,15 +404,6 @@
 		interrupt-names = "mailbox_2";
 	};
 
-	jpegenc{
-		compatible = "amlogic, jpegenc";
-		//memory-region = <&jpegenc_reserved>;
-		memory-region = <&jpegenc_cma_reserved>;
-		dev_name = "jpegenc";
-		status = "okay";
-		interrupts = <0 45 1>;
-		interrupt-names = "mailbox_2";
-	};
 
 
 	vpu {
