@@ -621,7 +621,7 @@ int remote_hw_report_key(struct remote *remote_data)
 		if (remote_data->repeat_enable) {
 			repeat_count++;
 			if (time_after(jiffies, remote_data->repeat_tick)) {
-				if (repeat_count > 1)
+				if (repeat_count > 3)
 					remote_data->remote_send_key
 					    (remote_data->input,
 					     remote_data->repeat_release_code,
@@ -1102,7 +1102,7 @@ int remote_hw_nec_toshiba_2in1_report_key(struct remote *remote_data)
 		if (remote_data->repeat_enable) {
 			repeat_count++;
 			if (time_after(jiffies, remote_data->repeat_tick)) {
-				if (repeat_count > 1)
+				if (repeat_count > 3)
 					remote_data->remote_send_key
 					    (remote_data->input,
 					     remote_data->repeat_release_code,
