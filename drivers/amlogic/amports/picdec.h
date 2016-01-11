@@ -63,8 +63,9 @@ struct picdec_device_s {
 	int cur_index;
 	int use_reserved;
 	struct page *cma_pages;
-	struct io_mapping *mapping;	
+	struct io_mapping *mapping;
 	void  __iomem *vir_addr;
+	int cma_mode;
 };
 
 struct source_input_s {
@@ -84,11 +85,13 @@ struct compat_source_input_s {
 };
 
 #define PICDEC_IOC_MAGIC  'P'
-#define PICDEC_IOC_FRAME_RENDER     _IOW(PICDEC_IOC_MAGIC, 0x00, struct source_input_s)
+#define PICDEC_IOC_FRAME_RENDER     _IOW(PICDEC_IOC_MAGIC, 0x00, \
+struct source_input_s)
 #define PICDEC_IOC_FRAME_POST     _IOW(PICDEC_IOC_MAGIC, 0X01, unsigned int)
 #define PICDEC_IOC_CONFIG_FRAME  _IOW(PICDEC_IOC_MAGIC, 0X02, unsigned int)
 
-#define PICDEC_IOC_FRAME_RENDER32 _IOW(PICDEC_IOC_MAGIC, 0x00, struct compat_source_input_s)
+#define PICDEC_IOC_FRAME_RENDER32 _IOW(PICDEC_IOC_MAGIC, 0x00, \
+struct compat_source_input_s)
 
 void stop_picdec_task(void);
 int picdec_buffer_init(void);
@@ -97,7 +100,8 @@ void get_picdec_buf_info(resource_size_t *start, unsigned int *size,
 int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 	struct config_para_ex_s *ge2d_config);
 extern void set_freerun_mode(int mode);
-
+int picdec_cma_buf_init(void);
+int picdec_cma_buf_uninit(void);
 extern int start_picdec_task(void);
 extern int start_picdec_simulate_task(void);
 #endif				/* _PICDEC_INCLUDE__ */

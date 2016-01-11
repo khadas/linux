@@ -64,13 +64,6 @@
 			size = <0x0 0x4000000>;
 		};
 
-		/*  PICDEC reserved memory */
-		picdec_reserved:linux,picdec {
-			compatible = "amlogic, picdec_memory";
-			size = <0x0 0x1000000>;
-			//no-map;
-			multi-use;
-		};
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
@@ -93,8 +86,13 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
-
-
+		picdec_cma_reserved:linux,picdec {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x0>;
+			linux,contiguous-region;
+		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
@@ -235,7 +233,12 @@
 			"mailbox_1",
 			"mailbox_2";
 	};
-
+	picdec {
+		   compatible = "amlogic, picdec";
+		   memory-region = <&picdec_cma_reserved>;
+		   dev_name = "picdec";
+		   status = "okay";
+	};
 	ppmgr {
 		compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
 		memory-region = <&ppmgr_reserved>;

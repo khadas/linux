@@ -57,6 +57,7 @@
 #include <linux/ctype.h>
 #include <linux/of.h>
 #include <linux/sizes.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_fdt.h>
 #include <linux/dma-contiguous.h>
@@ -70,7 +71,7 @@
 /*class property info.*/
 /* #include "picdeccls.h" */
 static int debug_flag;
-
+/* #define MM_ALLOC_SIZE 48*SZ_1M */
 #define NO_TASK_MODE
 
 
@@ -129,7 +130,7 @@ static int VF_POOL_SIZE = 2;
 
 static struct picdec_device_s picdec_device;
 static struct source_input_s picdec_input;
-
+static int picdec_buffer_status;
 #define INCPTR(p) ptr_atomic_wrap_inc(&p)
 
 #define GE2D_ENDIAN_SHIFT        24
@@ -477,6 +478,7 @@ static struct vframe_receiver_op_s *picdec_stop(void)
 
 #endif				/*
 				 */
+	picdec_cma_buf_uninit();
 	set_freerun_mode(0);
 
 	picdec_local_init();
@@ -1487,6 +1489,7 @@ static int picdec_task(void *data)
 	}
 picdec_exit:
 	destroy_ge2d_work_queue(context);
+	picdec_cma_buf_uninit();
 	while (!kthread_should_stop()) {
 
 		/*         may not call stop, wait..
@@ -1528,6 +1531,80 @@ static int simulate_task(void *data)
 *   init functions.
 *
 *************************************************/
+int picdec_cma_buf_init(void)
+{
+	int flags;
+	if (!picdec_device.use_reserved) {
+		switch (picdec_buffer_status) {
+		case 0:/* not config */
+			break;
+		case 1:/* config before , return ok */
+			return 0;
+		case 2:/* config fail, won't retry , return failure */
+			return -1;
+		default:
+			return -1;
+		}
+		aml_pr_info(0, "reserved memory config fail , use CMA	.\n");
+		if (picdec_device.cma_mode == 0) {
+			picdec_device.cma_pages = dma_alloc_from_contiguous(
+					&(picdec_device.pdev->dev),
+					(48*SZ_1M) >> PAGE_SHIFT, 0);
+			picdec_device.buffer_start = page_to_phys(
+			picdec_device.cma_pages);
+			picdec_device.buffer_size = (48*SZ_1M);
+		} else{
+			flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
+			picdec_device.buffer_start = codec_mm_alloc_for_dma(
+					"picdec",
+					(48*SZ_1M)/PAGE_SIZE, 0, flags);
+			picdec_device.buffer_size = (48*SZ_1M);
+		}
+		aml_pr_info(0, "cma memory is %x , size is  %x\n" ,
+		(unsigned)picdec_device.buffer_start ,
+		(unsigned)picdec_device.buffer_size);
+
+
+		if (picdec_device.buffer_start == 0) {
+			picdec_buffer_status = 2;
+			aml_pr_info(0, "cma memory allocate fail\n");
+			return -1;
+		} else {
+			picdec_buffer_status = 1;
+			aml_pr_info(0, "cma memory allocate succeed\n");
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+int picdec_cma_buf_uninit(void)
+{
+	if (!picdec_device.use_reserved) {
+		if (picdec_device.cma_mode == 0) {
+			if (picdec_device.cma_pages) {
+				dma_release_from_contiguous(
+					&picdec_device.pdev->dev,
+					picdec_device.cma_pages,
+					(48*SZ_1M) >> PAGE_SHIFT);
+				picdec_device.cma_pages = NULL;
+			}
+		} else {
+			if (picdec_device.buffer_start != 0) {
+				codec_mm_free_for_dma(
+				"picdec",
+				picdec_device.buffer_start);
+				picdec_device.buffer_start = 0;
+				picdec_device.buffer_size = 0;
+				aml_pr_info(0, "cma memory release succeed\n");
+			}
+		}
+	}
+	picdec_buffer_status = 0;
+	return 0;
+}
+
 int picdec_buffer_init(void)
 {
 	int i;
@@ -1539,7 +1616,8 @@ int picdec_buffer_init(void)
 	resource_size_t buf_start;
 	unsigned int buf_size;
 	unsigned offset = 0;
-
+	picdec_buffer_status = 0;
+	picdec_cma_buf_init();
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
 
 	aml_pr_info(1, "picdec buffer size is %x\n", buf_size);
@@ -2147,10 +2225,10 @@ int init_picdec_device(void)
 	dev_set_drvdata(picdec_device.dev, &picdec_device);
 
 	platform_set_drvdata(picdec_device.pdev, &picdec_device);
-
+#if 0
 	if (picdec_buffer_init() < 0)
 		goto unregister_dev;
-
+#endif
 	vf_provider_init(&picdec_vf_prov, PROVIDER_NAME, &picdec_vf_provider,
 					 NULL);
 	return 0;
@@ -2198,18 +2276,7 @@ static int picdec_driver_probe(struct platform_device *pdev)
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
 		aml_pr_info(0, "picdec_driver_probe done.\n");
-	if (!picdec_device.use_reserved) {
-		aml_pr_info(0, "reserved memory config fail , use CMA	.\n");
-		picdec_device.cma_pages = dma_alloc_from_contiguous(
-					&pdev->dev,
-					(48 * SZ_1M) >> PAGE_SHIFT, 0);
-		picdec_device.buffer_start = page_to_phys(
-		picdec_device.cma_pages);
-		picdec_device.buffer_size = 48 * SZ_1M;
-		aml_pr_info(0, "cma memory is %x , size is  %x\n" ,
-		(unsigned)picdec_device.buffer_start ,
-		(unsigned)picdec_device.buffer_size);
-	}
+	picdec_device.cma_mode = 1;
 	picdec_device.pdev = pdev;
 	init_picdec_device();
 	return r;
@@ -2259,13 +2326,7 @@ static int picdec_drv_remove(struct platform_device *plat_dev)
 		if (picdec_device.mapping)
 			io_mapping_free(picdec_device.mapping);
 	} else{
-		if (picdec_device.cma_pages) {
-			dma_release_from_contiguous(
-				&plat_dev->dev,
-				picdec_device.cma_pages,
-				(48 * SZ_1M) >> PAGE_SHIFT);
-			picdec_device.cma_pages = NULL;
-		}
+
 	}
 	return 0;
 }
