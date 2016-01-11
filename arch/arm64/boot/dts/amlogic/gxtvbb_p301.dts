@@ -308,7 +308,7 @@
 		pinctrl-8 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux &hu_hpd2_pinmux>;
 		pinctrl-9 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux &hu_hpd3_pinmux>;
 		pinctrl-10 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd2_pinmux &hu_hpd3_pinmux>;
-		pinctrl-11 = <&hdmirx_pins>;
+		pinctrl-11 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux &hu_hpd2_pinmux &hu_hpd3_pinmux>;
 		pinctrl-12 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in &hu_hpd2_pinmux>;
 		pinctrl-13 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in &hu_hpd3_pinmux>;
 		pinctrl-14 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in &hu_hpd2_pinmux &hu_hpd3_pinmux>;
