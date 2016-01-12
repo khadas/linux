@@ -40,6 +40,24 @@
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
 
+static int lcd_type_supported(struct lcd_config_s *pconf)
+{
+	int lcd_type = pconf->lcd_basic.lcd_type;
+	int ret = -1;
+
+	switch (lcd_type) {
+	case LCD_TTL:
+	case LCD_LVDS:
+		ret = 0;
+		break;
+	default:
+		LCDPR("invalid lcd type: %s(%d)\n",
+			lcd_type_type_to_str(lcd_type), lcd_type);
+		break;
+	}
+	return ret;
+}
+
 static void lcd_lvds_phy_set(int status)
 {
 	if (lcd_debug_print_flag)
@@ -283,9 +301,13 @@ int lcd_tablet_driver_init(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+	int ret;
 
 	LCDPR("tablet driver init\n");
 	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return -1;
 
 #ifdef CONFIG_AML_VPU
 	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
@@ -307,7 +329,6 @@ int lcd_tablet_driver_init(void)
 		lcd_lvds_phy_set(1);
 		break;
 	default:
-		LCDPR("invalid lcd type\n");
 		break;
 	}
 
@@ -323,8 +344,14 @@ void lcd_tablet_driver_disable(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+	int ret;
 
+	LCDPR("disable driver\n");
 	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
 		lcd_ttl_pinmux_set(0);
@@ -346,6 +373,7 @@ void lcd_tablet_driver_disable(void)
 	release_vpu_clk_vmod(VPU_VENCL);
 #endif
 
-	LCDPR("disable driver\n");
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
 }
 

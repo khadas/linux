@@ -46,6 +46,24 @@
 
 static int vx1_fsm_acq_st;
 
+static int lcd_type_supported(struct lcd_config_s *pconf)
+{
+	int lcd_type = pconf->lcd_basic.lcd_type;
+	int ret = -1;
+
+	switch (lcd_type) {
+	case LCD_LVDS:
+	case LCD_VBYONE:
+		ret = 0;
+		break;
+	default:
+		LCDPR("invalid lcd type: %s(%d)\n",
+			lcd_type_type_to_str(lcd_type), lcd_type);
+		break;
+	}
+	return ret;
+}
+
 /* set VX1_LOCKN && VX1_HTPDN */
 static void lcd_vbyone_pinmux_set(int status)
 {
@@ -700,13 +718,10 @@ static void lcd_config_update(struct lcd_config_s *pconf)
 	/* update clk & timing config */
 	lcd_vmode_change(pconf);
 	switch (pconf->lcd_basic.lcd_type) {
-	case LCD_LVDS:
-		break;
 	case LCD_VBYONE:
 		lcd_vbyone_config_set(pconf);
 		break;
 	default:
-		LCDPR("invalid lcd type\n");
 		break;
 	}
 	lcd_clk_generate_parameter(pconf);
@@ -716,9 +731,13 @@ int lcd_tv_driver_init(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+	int ret;
 
 	LCDPR("tv driver init\n");
 	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return -1;
 
 	lcd_config_update(pconf);
 #ifdef CONFIG_AML_VPU
@@ -750,7 +769,6 @@ int lcd_tv_driver_init(void)
 			lcd_vbyone_pinmux_set(1);
 			break;
 		default:
-			LCDPR("invalid lcd type\n");
 			break;
 		}
 	} else { /* change */
@@ -785,8 +803,14 @@ void lcd_tv_driver_disable(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+	int ret;
 
+	LCDPR("disable driver\n");
 	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
 		lcd_lvds_phy_set(0);
@@ -810,7 +834,8 @@ void lcd_tv_driver_disable(void)
 	release_vpu_clk_vmod(VPU_VENCL);
 #endif
 
-	LCDPR("disable driver\n");
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
 }
 
 #define VBYONE_IRQF   IRQF_SHARED /* IRQF_DISABLED */ /* IRQF_SHARED */
