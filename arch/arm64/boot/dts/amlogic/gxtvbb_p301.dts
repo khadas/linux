@@ -450,7 +450,13 @@
 		status = "ok";
 		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
 	};
-
+	rtc {
+		compatible = "amlogic, aml_vrtc";
+		alarm_reg_addr = <0xc81000a8>;
+		timer_e_addr = <0xc1109988>;
+		init_date = "2015/01/01";
+		status = "okay";
+	};
 
     sd{
         compatible = "amlogic, aml_sd_emmc";
