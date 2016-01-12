@@ -387,6 +387,8 @@ int hibernation_snapshot(int platform_mode)
 	if (error || !in_suspend)
 		swsusp_free();
 
+	if (!in_suspend)
+		instaboot_realdata_restore();
 	msg = in_suspend ? (error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE;
 	dpm_resume(msg);
 
@@ -437,6 +439,8 @@ static int resume_target_kernel(bool platform_mode)
 		goto Enable_cpus;
 
 	local_irq_disable();
+
+	instaboot_realdata_save();
 
 	error = syscore_suspend();
 	if (error)

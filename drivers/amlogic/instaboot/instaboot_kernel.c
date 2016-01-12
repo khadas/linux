@@ -314,6 +314,39 @@ static int __init aml_boot_mem_init(void)
 }
 core_initcall(aml_boot_mem_init);
 
+static LIST_HEAD(instaboot_realdata_ops_list);
+static DEFINE_MUTEX(instaboot_realdata_ops_lock);
+
+void register_instaboot_realdata_ops(struct instaboot_realdata_ops *ops)
+{
+	mutex_lock(&instaboot_realdata_ops_lock);
+	list_add_tail(&ops->node, &instaboot_realdata_ops_list);
+	mutex_unlock(&instaboot_realdata_ops_lock);
+}
+
+void unregister_instaboot_realdata_ops(struct instaboot_realdata_ops *ops)
+{
+	mutex_lock(&instaboot_realdata_ops_lock);
+	list_del(&ops->node);
+	mutex_unlock(&instaboot_realdata_ops_lock);
+}
+
+void instaboot_realdata_save(void)
+{
+	struct instaboot_realdata_ops *ops;
+	list_for_each_entry_reverse(ops, &instaboot_realdata_ops_list, node)
+		if (ops->save)
+			ops->save();
+}
+
+void instaboot_realdata_restore(void)
+{
+	struct instaboot_realdata_ops *ops;
+	list_for_each_entry_reverse(ops, &instaboot_realdata_ops_list, node)
+		if (ops->restore)
+			ops->restore();
+}
+
 #else
 void *aml_boot_alloc_mem(size_t size)
 {

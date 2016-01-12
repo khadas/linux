@@ -3,6 +3,7 @@
 #include <linux/bio.h>
 #include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/list.h>
 struct snapshot_handle;
 typedef int (*aml_istbt_int_void_fun_t)(void);
 typedef void (*aml_istbt_void_fmode_fun_t)(fmode_t mode);
@@ -32,6 +33,16 @@ enum {
 	AML_ISTBT_COPY_PAGE,
 	AML_ISTBT_FUN_MAX,
 };
+
+struct instaboot_realdata_ops {
+	struct list_head node;
+	int (*save)(void);
+	void (*restore)(void);
+};
+void instaboot_realdata_save(void);
+void instaboot_realdata_restore(void);
+void register_instaboot_realdata_ops(struct instaboot_realdata_ops *ops);
+void unregister_instaboot_realdata_ops(struct instaboot_realdata_ops *ops);
 
 /* realized in module */
 extern int aml_istbt_dev_ready(void);

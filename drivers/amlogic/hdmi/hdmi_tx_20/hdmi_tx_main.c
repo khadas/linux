@@ -60,6 +60,9 @@
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>
 #include <linux/i2c.h>
 #include "hw/tvenc_conf.h"
+#ifdef CONFIG_INSTABOOT
+#include <linux/amlogic/instaboot/instaboot.h>
+#endif
 
 #define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
@@ -2531,18 +2534,27 @@ static void restore_device_param(void)
 		sizeof(struct hdmitx_info));
 }
 
-static int amhdmitx_freeze(struct device *dev)
+static int amhdmitx_realdata_save(void)
 {
 	save_device_param();
 	return 0;
 }
+
+static void amhdmitx_realdata_restore(void)
+{
+	restore_device_param();
+}
+
+static struct instaboot_realdata_ops amhdmitx_realdata_ops = {
+	.save		= amhdmitx_realdata_save,
+	.restore	= amhdmitx_realdata_restore,
+};
 
 static int amhdmitx_restore(struct device *dev)
 {
 	int current_hdmi_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 			MISC_HPD_GPI_ST, 0));
 	char *vout_mode = get_vout_mode_internal();
-	restore_device_param();
 	if (strstr(vout_mode, "cvbs") && current_hdmi_state == 1) {
 		mutex_lock(&setclk_mutex);
 		sdev.state = 0;
@@ -2565,7 +2577,6 @@ static int amhdmitx_restore(struct device *dev)
 }
 
 static const struct dev_pm_ops amhdmitx_pm = {
-	.freeze		= amhdmitx_freeze,
 	.restore	= amhdmitx_restore,
 };
 #endif
@@ -2626,6 +2637,10 @@ static int  __init amhdmitx_init(void)
 #endif
 	return -ENODEV;
 	}
+#ifdef CONFIG_INSTABOOT
+	INIT_LIST_HEAD(&amhdmitx_realdata_ops.node);
+	register_instaboot_realdata_ops(&amhdmitx_realdata_ops);
+#endif
 	return 0;
 }
 
@@ -2638,6 +2653,9 @@ static void __exit amhdmitx_exit(void)
 	platform_driver_unregister(&amhdmitx_driver);
 /* \\	platform_device_unregister(amhdmi_tx_device); */
 /* \\	amhdmi_tx_device = NULL; */
+#ifdef CONFIG_INSTABOOT
+	unregister_instaboot_realdata_ops(&amhdmitx_realdata_ops);
+#endif
 	return;
 }
 
