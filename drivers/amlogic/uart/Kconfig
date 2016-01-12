@@ -15,3 +15,13 @@ config SERIAL_MESON_CONSOLE
 	default n
 	help
 		Support for running a console on the Amlogic serial
+
+config PRINTK_NOBLOCK_MODE
+    bool "printk with no block"
+    select SERIAL_MESON_CONSOLE
+    default n
+    help
+        printk with no block
+        push tx data to internal buffer first
+        default size of internal buffer is 128K
+        when enabled, new_printk_enabled=1
