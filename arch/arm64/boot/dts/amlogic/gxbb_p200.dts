@@ -358,6 +358,7 @@
 		dev_name = "bt-dev";
 		status = "ok";
 		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
+		//power_low_level;
 	};
 	bluesleep{
 		compatible = "amlogic, bluesleep";

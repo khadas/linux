@@ -72,23 +72,29 @@ static void bt_device_deinit(struct bt_dev_data *pdata)
 static void bt_device_on(struct bt_dev_data *pdata)
 {
 	if (pdata->gpio_reset > 0)
-		gpio_direction_output(pdata->gpio_reset, 0);
+		gpio_direction_output(pdata->gpio_reset,
+			pdata->power_low_level);
 	if (pdata->gpio_en > 0)
-		gpio_direction_output(pdata->gpio_en, 0);
+		gpio_direction_output(pdata->gpio_en,
+			pdata->power_low_level);
 	msleep(20);
 	if (pdata->gpio_reset > 0)
-		gpio_direction_output(pdata->gpio_reset, 1);
+		gpio_direction_output(pdata->gpio_reset,
+			!pdata->power_low_level);
 	if (pdata->gpio_en > 0)
-		gpio_direction_output(pdata->gpio_en, 1);
+		gpio_direction_output(pdata->gpio_en,
+			!pdata->power_low_level);
 	msleep(20);
 }
 
 static void bt_device_off(struct bt_dev_data *pdata)
 {
 	if (pdata->gpio_reset > 0)
-		gpio_direction_output(pdata->gpio_reset, 0);
+		gpio_direction_output(pdata->gpio_reset,
+			pdata->power_low_level);
 	if (pdata->gpio_en > 0)
-		gpio_direction_output(pdata->gpio_en, 0);
+		gpio_direction_output(pdata->gpio_en,
+			pdata->power_low_level);
 	msleep(20);
 }
 
@@ -140,6 +146,7 @@ static int bt_resume(struct platform_device *pdev)
 static int bt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	const void *prop;
 	struct rfkill *bt_rfk;
 	struct bt_dev_data *pdata = NULL;
 	struct bt_dev_runtime_data *prdata;
@@ -171,6 +178,16 @@ static int bt_probe(struct platform_device *pdev)
 			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
 				"gpio_en", 0, NULL);
 			pdata->gpio_en = desc_to_gpio(desc);
+		}
+
+		prop = of_get_property(pdev->dev.of_node,
+		"power_low_level", NULL);
+		if (prop) {
+			pr_info("power on valid level is low");
+			pdata->power_low_level = 1;
+		} else {
+			pr_info("power on valid level is high");
+			pdata->power_low_level = 0;
 		}
 	}
 #else
