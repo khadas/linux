@@ -187,12 +187,14 @@ static int hardware_resample_enable(int input_sr)
 	pr_info("clk_rate = %u, input_sr = %d, Avg_cnt_init = %u\n",
 		clk_rate, input_sr, Avg_cnt_init);
 
+	aml_write_cbus(AUD_RESAMPLE_CTRL0, (1 << 31));
 	aml_write_cbus(AUD_RESAMPLE_CTRL0, 0);
-	aml_write_cbus(AUD_RESAMPLE_CTRL0, (0 << 29)
-		       | (1 << 28)
-		       | (0 << 26)
-		       | (RESAMPLE_CNT_CONTROL << 16)
-		       | Avg_cnt_init);
+	aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				(1 << 29)
+				| (1 << 28)
+				| (0 << 26)
+				| (RESAMPLE_CNT_CONTROL << 16)
+				| Avg_cnt_init);
 
 	return 0;
 }

@@ -610,16 +610,11 @@ static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 	int res = 0, n = 0, i = 0, j = 0;
 	unsigned int t1, t2;
 	unsigned char r_shift = 8;
-	struct aml_runtime_data *prtd = runtime->private_data;
-	struct audio_stream *s = &prtd->s;
 	char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos) * 2;
 	struct snd_dma_buffer *buffer = &substream->dma_buffer;
 	struct aml_audio_buffer *tmp_buf = buffer->private_data;
 	void *ubuf = tmp_buf->buffer_start;
 	struct device *dev = substream->pcm->card->dev;
-	if (s->device_type == AML_AUDIO_SPDIFIN) {/* spdif in */
-		r_shift = 12;
-	}
 	to = (unsigned short *)ubuf;	/* tmp buf; */
 	tfrom = (unsigned int *)hwbuf;	/* 32bit buffer */
 	n = frames_to_bytes(runtime, count);

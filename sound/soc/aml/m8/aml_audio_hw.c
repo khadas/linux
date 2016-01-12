@@ -354,8 +354,8 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size)
 	 *  the last 14 bit and reg Spdif_fs_clk_rltn(0x2801)
 	 */
 	spdifin_reg_set();
-
-	aml_write_cbus(AUDIN_FIFO1_CTRL1, 0xc);
+	/*3 byte mode, (27:4)*/
+	aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
 }
 
 void audio_in_i2s_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
@@ -410,8 +410,7 @@ void audio_in_spdif_enable(int flag)
 		rd = aml_read_cbus(AUDIN_FIFO1_PTR);
 		start = aml_read_cbus(AUDIN_FIFO1_START);
 		if (rd != start) {
-			pr_err("error %08x, %08x !!!!!!!!!!!!!!!!!!!!!!!!\n",
-			       rd, start);
+			pr_err("error %08x, %08x !\n", rd, start);
 			goto reset_again;
 		}
 		aml_write_cbus(AUDIN_SPDIF_MODE,
