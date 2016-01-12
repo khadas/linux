@@ -128,7 +128,6 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	struct thermal_instance *ins;
 
 	memset(&soc_sensor, 0, sizeof(struct aml_thermal_sensor));
-	device_rename(&pdev->dev, "");
 	if (!cpufreq_frequency_get_table(0)) {
 		dev_info(&pdev->dev,
 			"Frequency table not initialized. Deferring probe...\n");
