@@ -50,10 +50,12 @@
 			compatible = "amlogic, di-mem";
 			size = <0x0 0x02200000>; //10x1920x1088x3/2=30M
 			//no-map;
+			multi-use;
 		};
 		demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
 			size = <0x0 0x600000>; //20m
+			multi-use;
 			//no-map;
 		};
 
@@ -72,31 +74,21 @@
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
 			size = <0x0 0x1000000>;
+			multi-use;
 		};
-		/* AVC Encode CMA pool */
-		avc_cma_reserved:linux,avc_cma {
+		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
-			linux,phandle = <1>;
 			reusable;
-			size = <0x0 0x2400000>;
+			size = <0x0 0xd000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
-		/* vdec CMA pool */
-		vdec_cma_reserved:linux,vdec_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <2>;
-			reusable;
-			size = <0x0 0x12000000>;
-			alignment = <0x0 0x400000>;
-		};
-
-		jpegenc_cma_reserved:linux,jpegenc_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <3>;
-			reusable;
-			size = <0x0 0x2400000>;
-			alignment = <0x0 0x400000>;
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x4100000>;
+			alignment = <0x0 0x100000>;
+ 			//no-map;
 		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -185,6 +177,12 @@
 			reg = <0x0 0xc8838000 0x0 0x2000>;
 		};
 	};
+	codec_mm {
+			compatible = "amlogic, codec, mm";
+			memory-region = <&codec_mm_cma &codec_mm_reserved>;
+			dev_name = "codec_mm";
+			status = "okay";
+	};
 
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
@@ -213,7 +211,6 @@
 
 	vdec {
 		compatible = "amlogic, vdec";
-		memory-region = <&vdec_cma_reserved>;
 		dev_name = "vdec.0";
 		status = "okay";
 		interrupts = <0 3 1
@@ -389,22 +386,13 @@
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		//memory-region = <&amvenc_avc_reserved>;
-		memory-region = <&avc_cma_reserved>;
+		//memory-region = <&avc_cma_reserved>;
 		dev_name = "amvenc_avc";
 		status = "okay";
 		interrupts = <0 45 1>;
 		interrupt-names = "mailbox_2";
 	};
 
-	jpegenc{
-		compatible = "amlogic, jpegenc";
-		//memory-region = <&jpegenc_reserved>;
-		memory-region = <&jpegenc_cma_reserved>;
-		dev_name = "jpegenc";
-		status = "okay";
-		interrupts = <0 45 1>;
-		interrupt-names = "mailbox_2";
-	};
 
 
 	vpu {
