@@ -1424,8 +1424,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 		CEC_ERR("alloc memory failed\n");
 		return -ENOMEM;
 	}
-	dev_set_name(&pdev->dev, "%s", "aocec");
-	pdev->name = dev_name(&pdev->dev);
 	cec_dev->dev_type = DEV_TYPE_TX;
 	cec_dev->dbg_dev  = &pdev->dev;
 	cec_dev->tx_dev   = get_hdmitx_device();

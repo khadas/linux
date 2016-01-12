@@ -80,7 +80,7 @@ void of_device_make_bus_id(struct device *dev)
 	u64 addr;
 	const __be32 *addrp;
 	int magic;
-
+	const char *name;
 #ifdef CONFIG_PPC_DCR
 	/*
 	 * If it's a DCR based device, use 'd' for native DCRs
@@ -101,6 +101,11 @@ void of_device_make_bus_id(struct device *dev)
 	}
 #endif /* CONFIG_PPC_DCR */
 
+	name = of_get_property(node, "device_name", NULL);
+	if (name) {
+		dev_set_name(dev, "%s", name);
+		return;
+	}
 	/*
 	 * For MMIO, get the physical address
 	 */

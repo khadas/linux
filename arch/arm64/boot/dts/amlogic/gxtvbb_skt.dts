@@ -698,7 +698,7 @@
 		pinctrl-0 = <&a_uart_pins>;
 	};
 
-	dwc3: dwc@c9000000 {
+	dwc3: dwc3@c9000000 {
 		compatible = "synopsys, dwc3";
 		reg = <0x0 0xc9000000 0x0 0x100000>;
 		interrupts = <0 30 4>;
@@ -721,6 +721,7 @@
 
 	dwc2_a {
 		compatible = "amlogic,dwc2";
+		device_name = "dwc2_a";
 		reg = <0x0 0xc9100000 0x0 0x40000>;
 		interrupts = <0 31 4>;
 		status = "okay";
@@ -1106,6 +1107,7 @@
 	};
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
+		device_name = "thermal";
 		#thermal-sensor-cells = <1>;
 		cpu_dyn_coeff = <140>;
 		/* cpu_freq gpu_freq cpu_core gpu_core */

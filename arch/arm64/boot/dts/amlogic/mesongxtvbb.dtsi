@@ -58,6 +58,7 @@
 	};
 	meson_suspend:pm{
 	           compatible = "amlogic, pm";
+	           device_name = "aml_pm";
 	           gxbaby-suspend;
 	           reg = <0x0 0xc81000a8 0x0 0x4
 	           		0x0 0xc810023c 0x0 0x4>;

@@ -710,6 +710,7 @@
 	};
 	aocec: aocec{
 		compatible = "amlogic, amlogic-aocec";
+		device_name = "aocec";
 		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
@@ -788,6 +789,7 @@
 
 	dwc2_b {
 		compatible = "amlogic,dwc2";
+		device_name = "dwc2_b";
 		reg = <0x0 0xc9100000 0x0 0x40000>;
 		interrupts = <0 31 4>;
 		status = "okay";
@@ -815,6 +817,7 @@
 
 	dwc2_a {
 		compatible = "amlogic,dwc2";
+		device_name = "dwc2_a";
 		reg = <0x0 0xc9000000 0x0 0x40000>;
 		interrupts = <0 30 4>;
 		status = "okay";
@@ -991,6 +994,7 @@
 	};
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
+		device_name = "thermal";
 		#thermal-sensor-cells = <1>;
 		cpu_dyn_coeff = <140>;
 		/* cpu_freq gpu_freq cpu_core gpu_core */

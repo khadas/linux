@@ -545,7 +545,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	int			ret = -ENOMEM;
 	void __iomem		*regs;
 	void			*mem;
-	char sys_name[5] = "dwc3";
 
 	mem = devm_kzalloc(dev, sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
 	if (!mem) {
@@ -665,8 +664,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
-
-	device_rename(&pdev->dev, sys_name);
 
 	dwc3_cache_hwparams(dwc);
 

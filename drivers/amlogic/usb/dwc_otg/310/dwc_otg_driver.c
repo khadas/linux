@@ -915,7 +915,6 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	struct gpio_desc *usb_gd = NULL;
 	struct dwc_otg_driver_module_params *pcore_para;
 	static int dcount;
-	char sys_name[8] = "dwc2_a";
 	int controller_type = 0;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
@@ -1170,8 +1169,6 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	* Create Device Attributes in sysfs
 	*/
 	dwc_otg_attr_create(pdev);
-	sys_name[5] += pdev->id;
-	device_rename(&pdev->dev, sys_name);
 
 	/*
 	* Disable the global interrupt until all the interrupt
