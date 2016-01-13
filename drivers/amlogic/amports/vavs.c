@@ -72,6 +72,7 @@
 #define AVS_TIME_STAMP      AV_SCRATCH_B
 #define AVS_OFFSET_REG      AV_SCRATCH_C
 #define MEM_OFFSET_REG      AV_SCRATCH_F
+#define AVS_ERROR_RECOVERY_MODE   AV_SCRATCH_G
 
 #define VF_POOL_SIZE        12
 #define PUT_INTERVAL        (HZ/100)
@@ -487,6 +488,9 @@ static void vavs_isr(void)
 
 static int run_flag = 1;
 static int step_flag;
+static int error_recovery_mode;   /*0: blocky  1: mosaic*/
+
+
 static struct vframe_s *vavs_vf_peek(void *op_arg)
 {
 	if (run_flag == 0)
@@ -702,7 +706,10 @@ static void vavs_prot_init(void)
 	WRITE_VREG(AVS_SOS_COUNT, 0);
 	WRITE_VREG(AVS_BUFFERIN, 0);
 	WRITE_VREG(AVS_BUFFEROUT, 0);
-
+	if (error_recovery_mode)
+		WRITE_VREG(AVS_ERROR_RECOVERY_MODE, 0);
+	else
+		WRITE_VREG(AVS_ERROR_RECOVERY_MODE, 1);
 	/* clear mailbox interrupt */
 	WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
@@ -748,6 +755,18 @@ static void vavs_local_init(void)
 		vfbuf_use[i] = 0;
 }
 
+#ifdef CONFIG_POST_PROCESS_MANAGER
+static void vavs_ppmgr_reset(void)
+{
+	vf_notify_receiver(PROVIDER_NAME, VFRAME_EVENT_PROVIDER_RESET, NULL);
+
+	vavs_local_init();
+
+	pr_info("vavs: vf_ppmgr_reset\n");
+}
+#endif
+
+
 static void vavs_put_timer_func(unsigned long arg)
 {
 	struct timer_list *timer = (struct timer_list *)arg;
@@ -756,13 +775,18 @@ static void vavs_put_timer_func(unsigned long arg)
 	vavs_isr();
 #endif
 
-#if 0
-	if (READ_VREG(AVS_SOS_COUNT) > 10) {
+#if 1
+	if (!error_recovery_mode && READ_VREG(AVS_SOS_COUNT)) {
+		pr_info("vavs fatal error reset !\n");
 		amvdec_stop();
+#ifdef CONFIG_POST_PROCESS_MANAGER
+		vavs_ppmgr_reset();
+#else
 		vf_light_unreg_provider(&vavs_vf_prov);
 		vavs_local_init();
-		vavs_prot_init();
 		vf_reg_provider(&vavs_vf_prov);
+#endif
+		vavs_prot_init();
 		amvdec_start();
 	}
 #endif
@@ -983,6 +1007,10 @@ MODULE_PARM_DESC(step_flag, "\n step_flag\n");
 
 module_param(debug_flag, uint, 0664);
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
+
+module_param(error_recovery_mode, uint, 0664);
+MODULE_PARM_DESC(error_recovery_mode, "\n error_recovery_mode\n");
+
 
 module_param(pic_type, uint, 0444);
 MODULE_PARM_DESC(pic_type, "\n amdec_vas picture type\n");
