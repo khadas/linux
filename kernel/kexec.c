@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
+#include <asm/cacheflush.h>
 
 /* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t __percpu *crash_notes;
@@ -1088,13 +1089,14 @@ void crash_kexec(struct pt_regs *regs)
 	 * sufficient.  But since I reuse the memory...
 	 */
 	if (mutex_trylock(&kexec_mutex)) {
-		if (kexec_crash_image) {
+		if (1 || kexec_crash_image) {
 			struct pt_regs fixed_regs;
 
 			crash_setup_regs(&fixed_regs, regs);
 			crash_save_vmcoreinfo();
 			machine_crash_shutdown(&fixed_regs);
-			machine_kexec(kexec_crash_image);
+			flush_cache_all();
+			/*machine_kexec(kexec_crash_image);*/
 		}
 		mutex_unlock(&kexec_mutex);
 	}

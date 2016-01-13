@@ -32,6 +32,8 @@
 #include <linux/of_fdt.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
 
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -63,6 +65,80 @@ static int __init early_initrd(char *p)
 }
 early_param("initrd", early_initrd);
 #endif
+#ifdef CONFIG_KEXEC
+/*
+ * reserve_crashkernel() - reserves memory for crash kernel
+ *
+ * This function reserves memory area given in "crashkernel=" kernel command
+ * line parameter. The memory reserved is used by dump capture kernel when
+ * primary kernel is crashing.
+ */
+static void __init reserve_crashkernel(void)
+{
+	unsigned long long crash_size = 0, crash_base = 0;
+	int ret;
+
+	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
+				&crash_size, &crash_base);
+	if (ret)
+		return;
+
+	if (crash_base == 0) {
+		crash_base = memblock_alloc(crash_size, 1 << 21);
+		if (crash_base == 0) {
+			pr_warn("Unable to allocate crashkernel (size:%llx)\n",
+				crash_size);
+			return;
+		}
+	} else {
+		/* User specifies base address explicitly. */
+		if (!memblock_is_region_memory(crash_base, crash_size) ||
+			memblock_is_region_reserved(crash_base, crash_size)) {
+			pr_warn("crashkernel has wrong address or size\n");
+			return;
+		}
+
+		if (crash_base & ((1 << 21) - 1)) {
+			pr_warn("crashkernel base address is not 2MB aligned\n");
+			return;
+		}
+
+		memblock_reserve(crash_base, crash_size);
+	}
+
+	pr_info("Reserving %lldMB of memory at %lldMB for crashkernel\n",
+		crash_size >> 20, crash_base >> 20);
+
+	crashk_res.start = crash_base;
+	crashk_res.end = crash_base + crash_size - 1;
+}
+#endif /* CONFIG_KEXEC */
+
+#ifdef CONFIG_CRASH_DUMP
+/*
+ * reserve_elfcorehdr() - reserves memory for elf core header
+ *
+ * This function reserves elf core header given in "elfcorehdr=" kernel
+ * command line parameter. This region contains all the information about
+ * primary kernel's core image and is used by a dump capture kernel to
+ * access the system memory on primary kernel.
+ */
+static void __init reserve_elfcorehdr(void)
+{
+	if (!elfcorehdr_size)
+		return;
+
+	if (memblock_is_region_reserved(elfcorehdr_addr, elfcorehdr_size)) {
+		pr_warn("elfcorehdr is overlapped\n");
+		return;
+	}
+
+	memblock_reserve(elfcorehdr_addr, elfcorehdr_size);
+
+	pr_info("Reserving %lldKB of memory at %lldMB for elfcorehdr\n",
+		elfcorehdr_size >> 10, elfcorehdr_addr >> 20);
+}
+#endif /* CONFIG_CRASH_DUMP */
 
 static void __init zone_sizes_init(unsigned long min, unsigned long max)
 {
@@ -164,6 +240,13 @@ void __init arm64_memblock_init(void)
 			break;
 		memblock_reserve(base, size);
 	}
+
+#ifdef CONFIG_KEXEC
+	reserve_crashkernel();
+#endif
+#ifdef CONFIG_CRASH_DUMP
+	reserve_elfcorehdr();
+#endif
 
 	early_init_fdt_scan_reserved_mem();
 	dma_contiguous_reserve(0);

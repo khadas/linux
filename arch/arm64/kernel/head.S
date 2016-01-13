@@ -31,7 +31,6 @@
 #include <asm/cputype.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
-#include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/virt.h>

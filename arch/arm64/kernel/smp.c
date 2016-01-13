@@ -36,6 +36,7 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/irq_work.h>
+#include <linux/kexec.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -49,6 +50,8 @@
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
+
+#include "cpu-reset.h"
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -504,8 +507,13 @@ static DEFINE_RAW_SPINLOCK(stop_lock);
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-static void ipi_cpu_stop(unsigned int cpu)
+static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 {
+#ifdef CONFIG_KEXEC
+	if (in_crash_kexec)
+		crash_save_cpu(regs, cpu);
+#endif /* CONFIG_KEXEC */
+
 	if (system_state == SYSTEM_BOOTING ||
 	    system_state == SYSTEM_RUNNING) {
 		raw_spin_lock(&stop_lock);
@@ -517,6 +525,11 @@ static void ipi_cpu_stop(unsigned int cpu)
 	set_cpu_online(cpu, false);
 
 	local_irq_disable();
+#ifdef CONFIG_KEXEC
+	if (in_crash_kexec)
+		crash_save_cpu(regs, cpu);
+#endif /* CONFIG_KEXEC */
+
 
 	while (1)
 		cpu_relax();
@@ -552,7 +565,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		ipi_cpu_stop(cpu, regs);
 		irq_exit();
 		break;
 

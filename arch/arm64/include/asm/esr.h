@@ -33,6 +33,8 @@
 #define ESR_EL1_EC_ILL_ISS	(0x0E)
 #define ESR_EL1_EC_SVC32	(0x11)
 #define ESR_EL1_EC_SVC64	(0x15)
+#define ESR_ELx_EC_HVC64	(0x16)
+#define ESR_ELx_EC_SMC64	(0x17)
 #define ESR_EL1_EC_SYS64	(0x18)
 #define ESR_EL1_EC_IABT_EL0	(0x20)
 #define ESR_EL1_EC_IABT_EL1	(0x21)
@@ -51,5 +53,10 @@
 #define ESR_EL1_EC_WATCHPT_EL1	(0x35)
 #define ESR_EL1_EC_BKPT32	(0x38)
 #define ESR_EL1_EC_BRK64	(0x3C)
+#define ESR_ELx_EC_MAX		(0x3F)
 
+#define ESR_ELx_EC_SHIFT	(26)
+#define ESR_ELx_EC_MASK		(UL(0x3F) << ESR_ELx_EC_SHIFT)
+#define ESR_ELx_IL		(1 << 25)
+#define ESR_ELx_ISS_MASK	(ESR_ELx_IL - 1)
 #endif /* __ASM_ESR_H */
