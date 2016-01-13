@@ -4046,12 +4046,17 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 
 void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 {
+	int chip_ver = 0;
+
 	if (is_meson_gxtvbb_cpu()) {
+		chip_ver = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
 		if (enable) {
 			if (port == TVIN_PORT_CVBS3) {
 				W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
-				/* disable AFE output buffer */
-				W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
+				if (chip_ver == 0xA)
+					W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
+				else
+					W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
 				/* open CVBS DAC */
 				W_HIU_BIT(HHI_VDAC_CNTL0, 1, 0, 3);
 				/* clock delay control */
@@ -4067,14 +4072,21 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 			} else{
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
 				/* close atv demod to cvd */
-				W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
+
+				if (chip_ver == 0xA)
+					W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
+				else
+					W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
 				/* close CVBS DAC(CDAC_PWD=1) */
 				W_HIU_BIT(HHI_VDAC_CNTL0, 1, 10, 1);
 				/* Enable AFE output buffer */
 			}
-
 		} else{
-			W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);/* close CVBS DAC */
+			if (chip_ver == 0xA)
+				W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
+			else
+				W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
+
 			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
 			/* Disable AFE output buffer */
 		}
@@ -4164,9 +4176,6 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 		tvafe_set_cvbs_default(cvd2, mem, port, pinmux);
 		/*turn on/off av out*/
 		tvafe_enable_avout(port, enableavout);
-		if (is_meson_gxtvbb_cpu())
-			/*Enable AFE Bandgap*/
-			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 9, 1);
 		/* CDAC_CTRL_RESV2<1>=0 */
 	}
 
@@ -4220,6 +4229,16 @@ void tvafe_enable_module(bool enable)
 	if (get_cpu_type() < MESON_CPU_TYPE_MESONG9TV)
 		W_APB_BIT(ADC_REG_21, 1, FULLPDZ_BIT, FULLPDZ_WID);
 #endif
+	/*Enable AFE Bandgap*/
+	if (is_meson_gxtvbb_cpu()) {
+		if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR)
+				== 0xA)
+			/* chip A */
+			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 9, 1);
+		else
+			/* chip B*/
+			W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);
+	}
 	/*reset module*/
 	tvafe_reset_module();
 
@@ -4230,9 +4249,10 @@ void tvafe_enable_module(bool enable)
 		if (get_cpu_type() < MESON_CPU_TYPE_MESONG9TV)
 			W_APB_BIT(ADC_REG_21, 0, FULLPDZ_BIT, FULLPDZ_WID);
 #endif
+
 		/* tvfe power down */
 		W_APB_BIT(TVFE_TOP_CTRL, 0, COMP_CLK_ENABLE_BIT,
-		COMP_CLK_ENABLE_WID);
+				COMP_CLK_ENABLE_WID);
 		W_APB_BIT(TVFE_TOP_CTRL, 0, EDID_CLK_EN_BIT, EDID_CLK_EN_WID);
 		W_APB_BIT(TVFE_TOP_CTRL, 0, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
 		W_APB_BIT(TVFE_TOP_CTRL, 0, VAFE_MCLK_EN_BIT, VAFE_MCLK_EN_WID);
