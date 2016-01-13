@@ -1378,6 +1378,12 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 	/* hdmi mode */
 	if (freq_ref[i].vic != 0) {
 		/*found standard hdmi mode */
+		if ((video_par->video_mode == HDMI_1080p60)
+			&& (abs(video_par->hactive - 960)
+			<= diff_pixel_th)) {
+			if (video_par->video_format != 3)
+				return ret;
+		}
 		video_par->sw_vic = freq_ref[i].vic;
 		if ((freq_ref[i].active_lines != freq_ref[i].active_lines_fp)
 		    && (abs(video_par->vactive - freq_ref[i].active_lines_fp) <=
