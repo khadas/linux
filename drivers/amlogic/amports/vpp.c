@@ -844,7 +844,7 @@ RESTART:
 	[video_top, video_top+video_height-1]
 	*/
 	start = max(start, max(0, video_top));
-	end = min(end, min((s32) height_out - 1,
+	end = min(end, min((s32)(start + height_out - 1),
 		(s32)(video_top + video_height - 1)));
 
 	if (start >= end) {
@@ -983,7 +983,8 @@ RESTART:
 	 */
 	start = max(start, max(0, video_left));
 	end = min(end,
-		min((s32) width_out - 1, (s32)(video_left + video_width - 1)));
+		min((s32)(start + width_out - 1),
+		(s32)(video_left + video_width - 1)));
 
 	if (start >= end) {
 		/* nothing to display */
@@ -1268,6 +1269,12 @@ static void vpp_set_scaler(u32 src_width,
 	bool h_crop_enable = false, v_crop_enable = false;
 	u32 width_out = vinfo->width;
 	u32 height_out = vinfo->height;
+
+	if (video_layer_width > 0 && video_layer_width <= vinfo->width)
+		width_out = video_layer_width;
+	if (video_layer_height > 0 && video_layer_height <= vinfo->height)
+		height_out = video_layer_height;
+
 	if ((likely(src_width >
 		(video_source_crop_left + video_source_crop_right)))
 		&& (super_scaler == 1)) {
