@@ -50,6 +50,10 @@ static int slow_mode;
 module_param(slow_mode, int, 0644);
 MODULE_DESCRIPTION("search the channel by slow_mode,by add +1MHz\n");
 
+static int audio_mode_manul;
+module_param(audio_mode_manul, int, 0644);
+MODULE_DESCRIPTION("search the audio manully by get_froutend api\n");
+
 static int tuner_status_cnt = 16;	/*4-->16 test on sky mxl661 */
 module_param(tuner_status_cnt, int, 0644);
 MODULE_DESCRIPTION("after write a freq, max cnt value of read tuner status\n");
@@ -382,9 +386,14 @@ static int aml_fe_analog_get_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct aml_fe *afe = fe->demodulator_priv;
+	int audio = 0;
 
 	p->frequency = afe->params.frequency;
 
+	if (audio_mode_manul) {
+		audio = aml_audiomode_autodet();
+		p->analog.audmode = demod_fmt_2_v4l2_std(audio);
+	}
 	pr_info("%s, p->analog.std:0x%x\n", __func__,
 		(unsigned int)p->analog.std);
 
