@@ -151,6 +151,13 @@
 		reg = <0x0 0xc11098d0 0x0 0x10>;
 		clocks = <&clock CLK_XTAL>;
 	};
+	amlogic-jtag {
+		compatible = "amlogic, jtag";
+		status = "okay";
+		pinctrl-names = "jtag_apao_pins", "jtag_apee_pins";
+		pinctrl-0 = <&jtag_apao_pins>;
+		pinctrl-1 = <&jtag_apee_pins>;
+	};
 	clock: meson_clock {
 		compatible = "amlogic, gxtvbb-clock";
 		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/
@@ -186,6 +193,14 @@
 			reg-names = "mux", "pull", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
+		};
+		jtag_apao_pins:jtag_apao_pin{
+			amlogic,clrmask = <AO 0x1fe000>;
+			amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
+		};
+		jtag_apee_pins:jtag_apee_pin{
+			amlogic,clrmask = <5 0x9e 10 0x3c0>;
+			amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3";
 		};
 		remote_pins:remote_pin{
 			amlogic,setmask = <AO 0x1000>;
