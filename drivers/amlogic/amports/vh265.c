@@ -4315,7 +4315,8 @@ static struct vframe_s *vh265_vf_get(void *op_arg)
 static void vh265_vf_put(struct vframe_s *vf, void *op_arg)
 {
 	clear_used_by_display_flag();
-	m_PIC[vf->index].output_ready = 0;
+	if ((vf->index >= 0) && (vf->index < MAX_REF_PIC_NUM))
+		m_PIC[vf->index].output_ready = 0;
 	kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 	if (gHevc.wait_buf != 0)
 		WRITE_VREG(HEVC_ASSIST_MBOX1_IRQ_REG, 0x1);
