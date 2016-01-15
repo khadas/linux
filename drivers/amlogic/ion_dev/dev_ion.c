@@ -98,6 +98,13 @@ int dev_ion_probe(struct platform_device *pdev)
 	my_ion_heap[num_heaps].name = "vmalloc_ion";
 	num_heaps++;
 
+	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_CUSTOM;
+	my_ion_heap[num_heaps].id = ION_HEAP_TYPE_CUSTOM;
+	my_ion_heap[num_heaps].name = "codec_mm_ion";
+	my_ion_heap[num_heaps].base = (ion_phys_addr_t) NULL;
+	my_ion_heap[num_heaps].size = 16 * 1024 * 1024;
+	num_heaps++;
+
 	/* init reserved memory */
 	err = of_reserved_mem_device_init(&pdev->dev);
 	if (err != 0)
@@ -141,12 +148,12 @@ static int ion_dev_mem_init(struct reserved_mem *rmem, struct device *dev)
 	int i = 0;
 	int err;
 	struct platform_device *pdev = to_platform_device(dev);
+
 	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_CARVEOUT;
 	my_ion_heap[num_heaps].id = ION_HEAP_TYPE_CARVEOUT;
 	my_ion_heap[num_heaps].name = "carveout_ion";
 	my_ion_heap[num_heaps].base = (ion_phys_addr_t) rmem->base;
 	my_ion_heap[num_heaps].size = rmem->size;
-
 	num_heaps++;
 	heaps = kzalloc(sizeof(struct ion_heap *) * num_heaps, GFP_KERNEL);
 	idev = ion_device_create(NULL);

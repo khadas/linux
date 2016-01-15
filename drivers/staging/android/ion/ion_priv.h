@@ -279,6 +279,7 @@ void ion_chunk_heap_destroy(struct ion_heap *);
 struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);
 void ion_cma_heap_destroy(struct ion_heap *);
 
+
 /**
  * kernel api to allocate/free from carveout -- used when carveout is
  * used to back an architecture specific custom heap
@@ -292,6 +293,16 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  * physical address, this is used to indicate allocation failed
  */
 #define ION_CARVEOUT_ALLOCATE_FAIL -1
+
+
+/*
+Amlogic:
+Alloc from codec_mm support
+*/
+struct ion_heap *ion_codec_mm_heap_create(struct ion_platform_heap *);
+void ion_codec_mm_heap_destroy(struct ion_heap *);
+
+
 
 /**
  * functions for creating and destroying a heap pool -- allows you
