@@ -110,8 +110,8 @@
 		picdec_cma_reserved:linux,picdec {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x3000000>;
-			alignment = <0x0 0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x0>;
 			linux,contiguous-region;
 		};
 		/* codec shared reserved */
@@ -126,12 +126,6 @@
 			size = <0x0 0x2000000>;
 		};*/
 
-		jpegenc_cma_reserved:linux,jpegenc_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x2400000>;
-			alignment = <0x0 0x400000>;
-		};
 	};
 
 	meson-vout {
@@ -317,15 +311,6 @@
 		interrupt-names = "mailbox_2";
 	};
 
-	jpegenc{
-		compatible = "amlogic, jpegenc";
-		//memory-region = <&jpegenc_reserved>;
-		memory-region = <&jpegenc_cma_reserved>;
-		dev_name = "jpegenc";
-		status = "okay";
-		interrupts = <0 45 1>;
-		interrupt-names = "mailbox_2";
-	};
 
 	/*vm {
 		compatible = "amlogic, vm";

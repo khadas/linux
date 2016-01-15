@@ -109,8 +109,8 @@
 		picdec_cma_reserved:linux,picdec {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x3000000>;
-			alignment = <0x0 0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x0>;
 			linux,contiguous-region;
 		};
 		/*vm0_cma_reserved:linux,vm0_cma {

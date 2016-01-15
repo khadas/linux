@@ -120,8 +120,8 @@
 		picdec_cma_reserved:linux,picdec {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x3000000>;
-			alignment = <0x0 0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x0>;
 			linux,contiguous-region;
 		};
 		/* codec shared reserved */
