@@ -3103,6 +3103,9 @@ static int amstream_probe(struct platform_device *pdev)
 	reset_canuse_buferlevel(10000);
 	amstream_pdev = pdev;
 	amports_clock_gate_init(&amstream_pdev->dev);
+
+	/*prealloc fetch buf to avoid no continue buffer later...*/
+	stbuf_fetch_init();
 	return 0;
 
 	/*
