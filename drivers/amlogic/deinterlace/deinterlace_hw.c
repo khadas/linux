@@ -419,13 +419,15 @@ void enable_afbc_input(struct vframe_s *vf)
 		/* disable inp memory */
 		RDMA_WR_BITS(DI_INP_GEN_REG, 0, 0, 1);
 		/* afbc to di enable */
-		RDMA_WR_BITS(VIU_MISC_CTRL0, 1, 19, 1);
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 19, 1) != 1)
+			RDMA_WR_BITS(VIU_MISC_CTRL0, 1, 19, 1);
 		/* DI inp(current data) switch to AFBC */
 		RDMA_WR_BITS(VIUB_MISC_CTRL0, 1, 16, 1);
 	} else {
 		RDMA_WR(AFBC_ENABLE, 0);
 		/* afbc to vpp(replace vd1) enable */
-		RDMA_WR_BITS(VIU_MISC_CTRL0, 0, 19, 1);
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 19, 1) != 0)
+			RDMA_WR_BITS(VIU_MISC_CTRL0, 0, 19, 1);
 		/* DI inp(current data) switch to memory */
 		RDMA_WR_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
 	}
@@ -1236,9 +1238,11 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 					  (0 << 29) |
 					  (0x3 << 30)
 		);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* enable ma,disable if0 to vpp */
-		VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5)
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
+	}
 }
 
 static unsigned int pldn_ctrl_rflsh = 1;
@@ -1413,7 +1417,8 @@ void disable_post_deinterlace_2(void)
 	VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, 0x3 << 30);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* disable ma,enable if0 to vpp,enable afbc to vpp */
-		VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 4) != 0)
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
 		/* DI inp(current data) switch to memory */
 		VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
 	}
