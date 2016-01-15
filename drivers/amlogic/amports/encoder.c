@@ -60,6 +60,8 @@
 #define DUMP_INFO_BYTES_PER_MB 80
 /* #define USE_OLD_DUMP_MC */
 
+#define ADJUSTED_QP_FLAG 64
+
 static s32 avc_device_major;
 static struct device *amvenc_avc_dev;
 #define DRIVER_NAME "amvenc_avc"
@@ -176,9 +178,9 @@ static DEFINE_SPINLOCK(lock);
 #define ADV_MV_4x4x4_WEIGHT 0x3000
 #endif
 
-#define IE_SAD_SHIFT_I16 0x003
-#define IE_SAD_SHIFT_I4 0x003
-#define ME_SAD_SHIFT_INTER 0x002
+#define IE_SAD_SHIFT_I16 0x001
+#define IE_SAD_SHIFT_I4 0x001
+#define ME_SAD_SHIFT_INTER 0x001
 
 #define STEP_2_SKIP_SAD 0x20
 #define STEP_1_SKIP_SAD 0x30
@@ -250,16 +252,18 @@ static DEFINE_SPINLOCK(lock);
 #define v3_left_small_max_me_sad 0x40
 
 #ifndef USE_OLD_DUMP_MC
+static u32 qp_table_id;
+static u32 qp_table_pr;
 static u32  quant_tbl_i4[2][8] = {
 	{
-		0x1b1a1918,
-		0x1f1e1d1c,
-		0x21212020,
-		0x22222222,
-		0x23232323,
-		0x24242424,
-		0x25252525,
-		0x26262525
+		0x15151515,
+		0x16161616,
+		0x17171717,
+		0x18181818,
+		0x19191919,
+		0x1a1a1a1a,
+		0x1b1b1b1b,
+		0x1c1c1c1c,
 	},
 	{
 		0x1f1f1e1e,
@@ -275,14 +279,14 @@ static u32  quant_tbl_i4[2][8] = {
 
 static u32  quant_tbl_i16[2][8] = {
 	{
-		0x1b1a1918,
-		0x1f1e1d1c,
-		0x21212020,
-		0x22222222,
-		0x23232323,
-		0x24242424,
-		0x25252525,
-		0x26262525
+		0x15151515,
+		0x16161616,
+		0x17171717,
+		0x18181818,
+		0x19191919,
+		0x1a1a1a1a,
+		0x1b1b1b1b,
+		0x1c1c1c1c,
 	},
 	{
 		0x1f1f1e1e,
@@ -298,14 +302,14 @@ static u32  quant_tbl_i16[2][8] = {
 
 static u32  quant_tbl_me[2][8] = {
 	{
-		0x1b1a1918,
-		0x1f1e1d1c,
-		0x21212020,
-		0x22222222,
-		0x23232323,
-		0x24242424,
-		0x25252525,
-		0x26262525
+		0x15151515,
+		0x16161616,
+		0x17171717,
+		0x18181818,
+		0x19191919,
+		0x1a1a1a1a,
+		0x1b1b1b1b,
+		0x1c1c1c1c,
 	},
 	{
 		0x1f1f1e1e,
@@ -644,6 +648,7 @@ static const char *select_ucode(u32 ucode_index)
 #ifndef USE_OLD_DUMP_MC
 static void hcodec_prog_qtbl(uint32_t index)
 {
+
 	WRITE_HREG(HCODEC_Q_QUANT_CONTROL,
 		(0 << 23) |  /* quant_table_addr */
 		(1 << 22));  /* quant_table_addr_update */
@@ -1423,7 +1428,6 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	    (encode_manager.ucode_index == UCODE_MODE_FULL)) {
 		u32 pic_width_in_mb;
 		u32 slice_qp;
-		u32 qp_table_id;
 		pic_width_in_mb = (pic_width + 15) / 16;
 		WRITE_HREG(HCODEC_HDEC_MC_OMEM_AUTO,
 			   (1 << 31) | /* use_omem_mb_xy */
@@ -1514,7 +1518,6 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (ADV_MV_LARGE_16x16 << 15) |
 			   (ADV_MV_16_8_WEIGHT << 0));  /* adv_mv_16_8_weight */
 
-		qp_table_id = 0;
 		hcodec_prog_qtbl(qp_table_id);
 		if (IDR) {
 			i_pic_qp = quant_tbl_i4[qp_table_id][0] & 0xff;
@@ -2504,8 +2507,37 @@ static irqreturn_t enc_isr(s32 irq_number, void *para)
 	return IRQ_HANDLED;
 }
 
+static struct class *avc_enc_class;
+
+static ssize_t dg_manual_store(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t len)
+{
+	int ret = 0;
+	ret = sscanf(buf, "%x", (unsigned int *)&qp_table_pr);
+	if (ret < 0)
+		enc_pr(LOG_INFO, "set encoder table failed\n");
+	else
+		enc_pr(LOG_INFO, "set encoder table print = %d\n", qp_table_pr);
+
+	return len;
+}
+
+static ssize_t dg_manual_show(struct class *cls, struct class_attribute *attr,
+				char *buf)
+{
+	size_t len = 0;
+	enc_pr(LOG_INFO, "encoder table print = %d\n", qp_table_pr);
+	return len;
+}
+
+static CLASS_ATTR(encode_tbl_debug, 0664, dg_manual_show, dg_manual_store);
+
+
 static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 {
+	int i = 0;
+	u8 *qp_tb;
+	u8 *ptr;
 	u32 cmd = cmd_info[0];
 	if (!wq)
 		return -1;
@@ -2532,6 +2564,72 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 				wq->request.nr_mode =
 					(nr_mode > 0) ? nr_mode : cmd_info[9];
+			if (wq->request.quant == ADJUSTED_QP_FLAG) {
+				ptr = (u8 *) &cmd_info[10];
+				for (i = 0; i < 8; i++) {
+					u8 *qp = (u8 *)&quant_tbl_i4[1][i];
+					*(qp++) = *(ptr + 3);
+					*(qp++) = *(ptr + 2);
+					*(qp++) = *(ptr + 1);
+					*(qp++) = *ptr;
+					ptr += 4;
+
+				}
+
+				for (i = 0; i < 8; i++) {
+					u8 *qp = (u8 *)&quant_tbl_i16[1][i];
+					*(qp++) = *(ptr + 3);
+					*(qp++) = *(ptr + 2);
+					*(qp++) = *(ptr + 1);
+					*(qp++) = *ptr;
+					ptr += 4;
+
+				}
+
+				for (i = 0; i < 8; i++) {
+					u8 *qp = (u8 *)&quant_tbl_me[1][i];
+					*(qp++) = *(ptr + 3);
+					*(qp++) = *(ptr + 2);
+					*(qp++) = *(ptr + 1);
+					*(qp++) = *ptr;
+					ptr += 4;
+
+				}
+				/* switch to 1 qp table */
+				qp_table_id = 1;
+
+				if (qp_table_pr != 0) {
+					qp_tb = (u8 *) (&quant_tbl_i4[1][0]);
+					for (i = 0; i < 32; i++) {
+						enc_pr(LOG_INFO, "%d ", *qp_tb);
+						qp_tb++;
+					}
+					enc_pr(LOG_INFO, "\n");
+
+					qp_tb = (u8 *) (&quant_tbl_i16[1][0]);
+					for (i = 0; i < 32; i++) {
+						enc_pr(LOG_INFO, "%d ", *qp_tb);
+						qp_tb++;
+					}
+					enc_pr(LOG_INFO, "\n");
+
+					qp_tb = (u8 *) (&quant_tbl_me[1][0]);
+					for (i = 0; i < 32; i++) {
+						enc_pr(LOG_INFO, "%d ", *qp_tb);
+						qp_tb++;
+					}
+					enc_pr(LOG_INFO, "\n");
+				}
+
+			} else {
+				qp_table_id = 0;
+				memset(quant_tbl_me[0], wq->request.quant,
+						sizeof(quant_tbl_me[0]));
+				memset(quant_tbl_i4[0], wq->request.quant,
+						sizeof(quant_tbl_i4[0]));
+				memset(quant_tbl_i16[0], wq->request.quant,
+						sizeof(quant_tbl_i16[0]));
+			}
 		} else {
 			wq->request.quant = cmd_info[2];
 			wq->request.qp_info_size = cmd_info[3];
@@ -3137,7 +3235,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	long r = 0;
 	u32 amrisc_cmd = 0;
 	struct encode_wq_s *wq = (struct encode_wq_s *)file->private_data;
-#define MAX_ADDR_INFO_SIZE 30
+#define MAX_ADDR_INFO_SIZE 40
 	u32 addr_info[MAX_ADDR_INFO_SIZE + 4];
 	ulong argV;
 	u32 buf_start;
@@ -4250,8 +4348,8 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 		return -EFAULT;
 #else
 		encode_manager.cma_pool_size =
-			(codec_mm_get_total_size() > (32 * SZ_1M)) ?
-			(32 * SZ_1M) : codec_mm_get_total_size();
+			(codec_mm_get_total_size() > (40 * SZ_1M)) ?
+			(40 * SZ_1M) : codec_mm_get_total_size();
 		enc_pr(LOG_DEBUG,
 			"amvenc_avc - cma memory pool size: %d MB\n",
 			(u32)encode_manager.cma_pool_size / SZ_1M);
@@ -4274,6 +4372,12 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 
 	r = init_avc_device();
 	enc_pr(LOG_INFO, "amvenc_avc probe end.\n");
+
+	avc_enc_class = class_create(THIS_MODULE, "avc_enc_debug");
+	if (IS_ERR(avc_enc_class))
+		return PTR_ERR(avc_enc_class);
+	r = class_create_file(avc_enc_class, &class_attr_encode_tbl_debug);
+
 	return r;
 }
 
@@ -4286,6 +4390,10 @@ static s32 amvenc_avc_remove(struct platform_device *pdev)
 	}
 	uninit_avc_device();
 	enc_pr(LOG_INFO, "amvenc_avc remove.\n");
+
+	class_remove_file(avc_enc_class, &class_attr_encode_tbl_debug);
+	class_destroy(avc_enc_class);
+
 	return 0;
 }
 
