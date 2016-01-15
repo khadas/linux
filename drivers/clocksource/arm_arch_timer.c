@@ -133,7 +133,6 @@ u32 arch_timer_reg_read(int access, enum arch_timer_reg reg,
 
 	return val;
 }
-
 static __always_inline irqreturn_t timer_handler(const int access,
 					struct clock_event_device *evt)
 {
@@ -263,7 +262,7 @@ static void __arch_timer_setup(unsigned type,
 	clk->features = CLOCK_EVT_FEAT_ONESHOT;
 
 	if (type == ARCH_CP15_TIMER) {
-		/*clk->features |= CLOCK_EVT_FEAT_C3STOP;*/
+		clk->features |= CLOCK_EVT_FEAT_C3STOP;
 		clk->name = "arch_sys_timer";
 		clk->rating = 450;
 		clk->cpumask = cpumask_of(smp_processor_id());

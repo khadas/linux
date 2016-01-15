@@ -47,6 +47,18 @@
 			        <GIC_PPI 11 0xff01>,
 			        <GIC_PPI 10 0xff01>;
 	};
+	timer_bc {
+		compatible = "arm, meson-bc-timer";
+		reg=   <0x0 0xc1109990 0x0 0x4 0x0 0xc1109994 0x0 0x4>;
+		timer_name = "Meson TimerF";
+		clockevent-rating=<300>;
+		clockevent-shift=<20>;
+		clockevent-features=<0x03>;
+		interrupts = <0 60 1>;
+		bit_enable=<16>;
+		bit_mode=<12>;
+		bit_resolution=<0>;
+	};
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <0 137 4>,

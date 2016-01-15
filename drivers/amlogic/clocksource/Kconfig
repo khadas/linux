@@ -1,6 +1,22 @@
-config MESON_TIMER
-	bool "meson timer support"
+menuconfig MESON_TIMER
+    boolean "Amlogic Meson timer driver"
+    default n
+    help
+      This is the Amlogic Meson driver interface driver
+if MESON_TIMER
+config MESON_LOCAL_TIMER
+	boolean "meson local timer support"
 	def_bool n
+	depends on MESON_TIMER
 	select CLKSRC_OF if OF
 	help
 	  This is a new clocksource driver for amlogic timer
+
+config MESON_BC_TIMER
+	boolean "meson broadcast timer support"
+	def_bool n
+	depends on MESON_TIMER
+	select CLKSRC_OF if OF
+	help
+	  This is a new clocksource driver for amlogic timer
+endif
