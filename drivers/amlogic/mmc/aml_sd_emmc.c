@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 #include <linux/mmc/sdio.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
@@ -1608,6 +1609,12 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 	memset(desc_cur, 0, sizeof(struct sd_emmc_desc_info));
 	desc_cnt++;
 
+	/*sd/sdio switch volatile cmd11  need clock 6ms base on sd spec. */
+	if (mrq->cmd->opcode == SD_SWITCH_VOLTAGE) {
+		pconf->auto_clk = 0;
+		sd_emmc_regs->gcfg = vconf;
+		host->sd_sdio_switch_volat_done = 0;
+	}
 	/*check bus width*/
 	if (pconf->bus_width != pdata->width) {
 		conf_flag |= 1<<0;
@@ -2233,7 +2240,6 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 			&& (!atomic_read(&host->mmc->sdio_irq_thread_abort))) {
 			mmc_signal_sdio_irq(host->mmc);
 			if (!(vstat & 0x3fff)) {
-				pr_err("Warning: sdio interrupt but no status bits change\n");
 				return IRQ_HANDLED;
 			}
 			/*else
@@ -2896,14 +2902,23 @@ static int aml_sd_emmc_card_busy(struct mmc_host *mmc)
 	struct amlsd_host *host = pdata->host;
 	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 	unsigned status = 0;
-
 	/* only check data3_0 gpio level?? */
 	u32 vstat = sd_emmc_regs->gstatus;
 	struct sd_emmc_status *ista = (struct sd_emmc_status *)&vstat;
-
+	u32 vconf = sd_emmc_regs->gcfg;
+	struct sd_emmc_config *pconf = (struct sd_emmc_config *)&vconf;
 	status = ista->dat_i & 0xf;
 	/* sd_emmc_dbg(AMLSD_DBG_COMMON, "dat[0:3]=%#x\n", stat->dat3_0); */
-
+	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
+		BUG_ON(1);
+	/*must open auto_clk after sd/sdio switch volatile base on sd spec.*/
+	if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB))
+			&& (!aml_card_type_mmc(pdata))
+			&& (host->sd_sdio_switch_volat_done)) {
+		pconf->auto_clk = 1;
+		sd_emmc_regs->gcfg = vconf;
+	}
 	return !status;
 }
 

@@ -255,6 +255,7 @@ struct amlsd_host {
 	int	 port;
 	int	 locked;
 	bool	is_gated;
+	unsigned char sd_sdio_switch_volat_done;
 	/* unsigned int		ccnt, dcnt; */
 
 	int	 status; /* host status: xx_error/ok */
