@@ -255,6 +255,7 @@ config AMLOGIC_TS2_INVERT_S2P1_FEC_CLK
 		N: disable
 		M: build as module
 endif
+source "drivers/amlogic/dvb_tv/smartcard/Kconfig"
 
 
 
