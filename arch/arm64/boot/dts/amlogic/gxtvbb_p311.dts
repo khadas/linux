@@ -962,7 +962,7 @@
 	&i2c_b {
 		status = "okay";
 		pinctrl-names="default";
-		pinctrl-0=<&b_i2c_master_pin1>;
+		pinctrl-0=<&b_i2c_master>;
 	};
 	&i2c_c {
 		status = "disabled";
