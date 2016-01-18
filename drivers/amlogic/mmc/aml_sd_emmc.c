@@ -857,7 +857,8 @@ static int aml_sd_emmc_execute_tuning_rxclk(struct mmc_host *mmc, u32 opcode,
 			mmc_hostname(host->mmc), best_win_start, best_win_size);
 	}
 
-	adj_delay_find = best_win_start + (best_win_size + 1) / 2;
+	adj_delay_find = best_win_start
+		+ (best_win_size - 1) / 2 + (best_win_size - 1) % 2;
 	adj_delay_find %= 25;
 	if (adj_delay_find < 10) {
 		rx_phase = 0;
@@ -2255,7 +2256,9 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	mmc = host->mmc;
 	pdata = mmc_priv(mmc);
 	vstart = sd_emmc_regs->gstart;
-	if ((desc_start->busy == 1) && (aml_card_type_mmc(pdata))) {
+	if ((desc_start->busy == 1)
+			&& ((aml_card_type_mmc(pdata))
+				|| (aml_card_type_non_sdio(pdata)))) {
 		desc_start->busy = 0;
 		sd_emmc_regs->gstart = vstart;
 	}
@@ -2425,6 +2428,7 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
 	u32 vclk = sd_emmc_regs->gclock;
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
+	u32 rx_phase;
 	/*---------------------------------------------------------*/
 	u32 xfer_bytes = 0;
 	struct mmc_request *mrq;
@@ -2552,17 +2556,34 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 		aml_sd_emmc_read_response(host->mmc, host->mrq->cmd);
 
 		/* set retry @ 1st error happens! */
-		if ((host->error_flag == 0) && aml_card_type_mmc(pdata)
+		if ((host->error_flag == 0)
+			&& (aml_card_type_mmc(pdata)
+			|| aml_card_type_non_sdio(pdata))
 			&& (mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200)
 			&& (mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK)
 			&& (host->is_tunning == 0)) {
-
 			sd_emmc_err("%s() %d: set 1st retry!\n",
 				__func__, __LINE__);
 			host->error_flag |= (1<<0);
 			spin_lock_irqsave(&host->mrq_lock, flags);
 			mrq->cmd->retries = AML_ERROR_RETRY_COUNTER;
 			spin_unlock_irqrestore(&host->mrq_lock, flags);
+		}
+
+		if (aml_card_type_non_sdio(pdata)
+			&& (host->error_flag & (1<<0))
+			&& mrq->cmd->retries) {
+			sd_emmc_err("retry cmd %d the %d-th time(s)\n",
+					mrq->cmd->opcode, mrq->cmd->retries);
+			rx_phase = clkc->rx_phase;
+			rx_phase++;
+			rx_phase %= 4;
+			pr_err("sd, retry, rx_phase %d -> %d\n",
+					clkc->rx_phase,
+					rx_phase);
+			clkc->rx_phase = rx_phase;
+			sd_emmc_regs->gclock = vclk;
+			pdata->clkc = vclk;
 		}
 
 		if (aml_card_type_mmc(pdata) &&
@@ -2609,16 +2630,20 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 			}
 		}
 		/* last retry effort! */
-		if (aml_card_type_mmc(pdata) &&
-			host->error_flag && (mrq->cmd->retries == 0)) {
+		if ((aml_card_type_mmc(pdata)
+			|| aml_card_type_non_sdio(pdata))
+			&& host->error_flag
+			&& (mrq->cmd->retries == 0)) {
 			host->error_flag |= (1<<30);
 			sd_emmc_err("Command retried failed line:%d, cmd:%d\n",
 				__LINE__, mrq->cmd->opcode);
 		}
 		/* retry need send a stop 2 emmc... */
 		/* do not send stop for sdio wifi case */
-		if (host->mrq->stop && aml_card_type_mmc(pdata) && pdata->is_in
-		&& (host->mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK)
+		if (host->mrq->stop && pdata->is_in
+			&& (aml_card_type_mmc(pdata)
+				|| aml_card_type_non_sdio(pdata))
+			&& (host->mrq->cmd->opcode != MMC_SEND_TUNING_BLOCK)
 			&& (host->mrq->cmd->opcode
 				!= MMC_SEND_TUNING_BLOCK_HS200))
 			aml_sd_emmc_send_stop(host);
