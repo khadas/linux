@@ -553,6 +553,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 				fe->ops.set_frontend(fe);
 
 				for (i = 0; i < 500; i++) {
+					if (aml_fe_hook_get_fmt == NULL)
+						break;
 					std_bk = aml_fe_hook_get_fmt();
 					if (std_bk)
 						varify_cnt++;
@@ -761,6 +763,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			if (aml_fe_afc_closer(fe, minafcfreq, maxafcfreq)
 				== 0) {
 				for (i = 0; i < 500; i++) {
+					if (aml_fe_hook_get_fmt == NULL)
+						break;
 					std_bk = aml_fe_hook_get_fmt();
 					if (std_bk)
 						varify_cnt++;
