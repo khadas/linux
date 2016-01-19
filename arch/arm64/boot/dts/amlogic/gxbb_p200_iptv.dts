@@ -56,6 +56,7 @@
 		};
 		sec_chk:linux,secchk {
 			compatible = "shared-dma-pool";
+			status = "disabled";
 			reusable;
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
@@ -1137,5 +1138,5 @@
 };
 &defendkey {
 	memory-region = <&sec_chk>;
-	status = "okay";
+	status = "disabled";
 };
