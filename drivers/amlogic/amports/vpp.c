@@ -1217,12 +1217,6 @@ static int vpp_set_super_sclaer_regs(int scaler_path_sel,
 	if (tmp_data != tmp_data2)
 		VSYNC_WR_MPEG_REG(SRSHARP0_SHARP_HVSIZE, tmp_data);
 
-	tmp_data = ((reg_srscl0_hsize & 0x1fff) << 16) |
-			   (reg_srscl0_vsize & 0x1fff);
-	tmp_data2 = READ_VCBUS_REG(VPP_IN_H_V_SIZE);
-	if (tmp_data != tmp_data2)
-		VSYNC_WR_MPEG_REG(VPP_IN_H_V_SIZE, tmp_data);
-
 	tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
 			   (reg_srscl1_vsize & 0x1fff);
 	if (sharpness1_sr2_ctrl_3280 != tmp_data) {
@@ -1710,7 +1704,8 @@ if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		next_frame_par->supsc1_enable = 0;
 		next_frame_par->supsc1_hori_ratio = 0;
 		next_frame_par->supsc1_vert_ratio = 0;
-		vpp_set_super_sclaer_regs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		vpp_set_super_sclaer_regs(0, 0, src_width, src_height, 0, 0,
+			vinfo->width, vinfo->height, 0, 0,
 				0);	/* disable super scaler */
 		vpp_set_filters2(src_width, src_height, vinfo->width,
 				vinfo->height, vinfo, vpp_flags,

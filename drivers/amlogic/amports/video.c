@@ -3985,7 +3985,27 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			VSYNC_WR_MPEG_REG(VPP_SCALE_COEF + cur_dev->vpp_off,
 					  vpp_filter->vpp_vert_coeff[i + 2]);
 		}
-
+#if (!HAS_VPU_PROT)
+		if (is_meson_gxbb_cpu()) {
+			cur_frame_par->VPP_pic_in_height_ = zoom_end_y_lines -
+				zoom_start_y_lines + 1;
+			cur_frame_par->VPP_line_in_length_ = zoom_end_x_lines -
+				zoom_start_x_lines + 1;
+		}
+		if (is_meson_gxtvbb_cpu()) {
+			cur_frame_par->VPP_pic_in_height_ = (zoom_end_y_lines -
+				zoom_start_y_lines + 1) <<
+				cur_frame_par->supsc0_vert_ratio;
+			cur_frame_par->VPP_line_in_length_ = (zoom_end_x_lines -
+				zoom_start_x_lines + 1) <<
+				cur_frame_par->supsc0_hori_ratio;
+			VSYNC_WR_MPEG_REG(VPP_IN_H_V_SIZE,
+				(((cur_frame_par->VPP_line_in_length_ >>
+				cur_frame_par->supsc0_hori_ratio) & 0x1fff) <<
+				16) | ((cur_frame_par->VPP_pic_in_height_ >>
+				cur_frame_par->supsc0_vert_ratio) & 0x1fff));
+		}
+#endif
 		VSYNC_WR_MPEG_REG(VPP_PIC_IN_HEIGHT + cur_dev->vpp_off,
 				  cur_frame_par->VPP_pic_in_height_);
 

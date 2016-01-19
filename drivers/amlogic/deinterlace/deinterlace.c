@@ -5415,6 +5415,9 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 	di_end_y = zoom_end_y_lines;
 	di_height = di_end_y - di_start_y + 1;
 	di_height = di_height / (di_vscale_skip_count_real + 1);
+	/* make sure the height is even number */
+	if (di_height%2)
+		di_height++;
 /* pr_info("height = (%d %d %d %d %d)\n",
 *  di_buf->vframe->height, zoom_start_x_lines, zoom_end_x_lines,
 *  zoom_start_y_lines, zoom_end_y_lines); */
