@@ -49,15 +49,44 @@
 #define AM_IRQ(reg)                     (reg + BASE_IRQ)
 #define INT_I2S_DDR                     AM_IRQ(48)
 #define INT_AUDIO_IN                    AM_IRQ(7)
-
 #define IRQ_OUT                         INT_I2S_DDR
+#define AMAUDIO2_DEVICE_COUNT           ARRAY_SIZE(amaudio_ports)
 
-#define AMAUDIO2_DEVICE_COUNT    ARRAY_SIZE(amaudio_ports)
-#define BUFFER_THRESHOLD_DEFAULT 10240
-#define LATENCY_DEFAULT 2048
+#define SOFT_BUFFER_SIZE                (PAGE_SIZE * 4 * 8)
+#define MAX_LATENCY                     (64 * 32 * 3)
+#define MIN_LATENCY                     (64 * 32)
+/*max size is SOFT_BUFFER_SIZE*/
+#define BUFFER_THRESHOLD_DEFAULT        (4096 * 3)
+/*irq size: min 2, max 32*/
+#define INT_NUM                         (16)
+#define I2S_BLOCK                       (64)
+#define INT_BLOCK                       ((INT_NUM)*(I2S_BLOCK))
 
+static unsigned char *amaudio_start_addr;
+static dma_addr_t amaudio_phy_start_addr;
+static struct device *amaudio_dev;
 static struct class *amaudio_classp;
 static struct device *amaudio_dev;
+
+int direct_left_gain = 256;
+int direct_right_gain = 256;
+int music_gain = 0;
+int audio_out_mode = 0;
+int amaudio2_enable = 0;
+
+static int int_num = INT_NUM;
+static int i2s_num = I2S_BLOCK;
+static int int_block = INT_BLOCK;
+static int soft_buffer_threshold = BUFFER_THRESHOLD_DEFAULT;
+static unsigned latency = MIN_LATENCY * 2;
+static u64 amaudio_pcm_dmamask = DMA_BIT_MASK(32);
+
+void (*aml_cover_memcpy)(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count) = cover_memcpy;
+void (*aml_direct_mix_memcpy)(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count) = direct_mix_memcpy;
+void (*aml_inter_mix_memcpy)(struct BUF *des, int a, struct BUF *src, int b,
+			  unsigned count) = inter_mix_memcpy;
 
 static const struct file_operations amaudio_fops = {
 	.owner		= THIS_MODULE,
@@ -74,7 +103,6 @@ static const struct file_operations amaudio_out_fops = {
 	.open		= amaudio_open,
 	.release	= amaudio_release,
 	.mmap		= amaudio_mmap,
-	.read		= amaudio_read,
 	.unlocked_ioctl = amaudio_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= amaudio_compat_ioctl,
@@ -86,7 +114,6 @@ static const struct file_operations amaudio_in_fops = {
 	.open		= amaudio_open,
 	.release	= amaudio_release,
 	.mmap		= amaudio_mmap,
-	.read		= amaudio_read,
 	.unlocked_ioctl = amaudio_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= amaudio_compat_ioctl,
@@ -132,68 +159,60 @@ static struct amaudio_port_t amaudio_ports[] = {
 	},
 };
 
-int direct_left_gain = 256;
-int direct_right_gain = 256;
-int music_gain = 0;
-int audio_out_mode = 0;
-int audio_out_read_enable = 0;
-int amaudio2_enable = 0;
-int android_left_gain = 256;
-int android_right_gain = 256;
-int soft_buffer_threshold = BUFFER_THRESHOLD_DEFAULT;
-
-#define SOFT_BUFFER_SIZE (PAGE_SIZE * 8)
-#define MAX_LATENCY (64 * 32 * 3)
-#define MIN_LATENCY (64 * 32)
-static unsigned latency = MIN_LATENCY * 2;      /* 20ms */
-
-static u64 amaudio_pcm_dmamask = DMA_BIT_MASK(32);
-#define HRTIMER_PERIOD (1000000000UL / 1000)
-
-#define INT_NUM         (16)    /* min 2, max 32 */
-/* block_size = 32byte*channel_num, normal is 2 channel */
-#define I2S_BLOCK       (64)
-#define INT_BLOCK ((INT_NUM)*(I2S_BLOCK))
-
-static int malloc_soft_readback_buffer(struct amaudio_t *amaudio, int size)
+static inline short clip16(int x)
 {
-	amaudio->sw_read.addr = kzalloc(size, GFP_KERNEL);
-	if (!amaudio->sw_read.addr) {
-		pr_info(KERN_ERR
-			"amaudio2 out read soft buffer alloc failed\n");
-		return -ENOMEM;
-	}
-	amaudio->sw_read.size = size;
-	return 0;
+	if (x < -32768)
+		return -32768;
+	else if (x > 32767)
+		return 32767;
+
+	return (short)x;
+}
+
+static inline int clip24(int x)
+{
+	if (x < -8388608)
+		return -8388608;
+	else if (x > 8388607)
+		return 8388607;
+
+	return x;
 }
 
 static int amaudio_open(struct inode *inode, struct file *file)
 {
-	struct amaudio_port_t
-	*this = &amaudio_ports[iminor(inode)];
+	struct amaudio_port_t *this = &amaudio_ports[iminor(inode)];
 	struct amaudio_t *amaudio =
-		kzalloc(sizeof(struct amaudio_t), GFP_KERNEL);
+			kzalloc(sizeof(struct amaudio_t), GFP_KERNEL);
 	int res = 0;
 
 	if (iminor(inode) == 0) {
-		pr_info(KERN_DEBUG "amaudio2_out opened\n");
+		pr_info("amaudio2_out open!\n");
 		if (!this->dev->dma_mask)
 			this->dev->dma_mask = &amaudio_pcm_dmamask;
 		if (!this->dev->coherent_dma_mask)
 			this->dev->coherent_dma_mask = 0xffffffff;
 
-		amaudio->sw.addr = (char *)dma_alloc_coherent(this->dev,
-							      SOFT_BUFFER_SIZE,
-							      &amaudio->sw.
-							      paddr,
-							      GFP_KERNEL);
-		amaudio->sw.size = SOFT_BUFFER_SIZE;
-		if (!amaudio->sw.addr) {
-			res = -ENOMEM;
-			pr_info(KERN_ERR
-				"amaudio2 out soft DMA buffer alloc failed\n");
-			goto error;
+		int_num = INT_NUM;
+		i2s_num = I2S_BLOCK;
+		int_block = INT_BLOCK;
+		soft_buffer_threshold = BUFFER_THRESHOLD_DEFAULT;
+		latency = MIN_LATENCY * 2;
+
+		if (aml_i2s_playback_channel == 8) {
+			int_num *= 2;
+			i2s_num *= 4;
+			int_block = int_num * i2s_num;
+			soft_buffer_threshold *= 8;
+			latency *= 8;
+			aml_cover_memcpy = cover_memcpy_8_channel;
+			aml_direct_mix_memcpy = direct_mix_memcpy_8_channel;
+			aml_inter_mix_memcpy = inter_mix_memcpy_8_channel;
 		}
+
+		amaudio->sw.addr = amaudio_start_addr;
+		amaudio->sw.paddr = amaudio_phy_start_addr;
+		amaudio->sw.size = SOFT_BUFFER_SIZE;
 
 		amaudio->hw.addr = (unsigned char *)aml_i2s_playback_start_addr;
 		amaudio->hw.paddr = aml_i2s_playback_phy_start_addr;
@@ -202,16 +221,18 @@ static int amaudio_open(struct inode *inode, struct file *file)
 
 		spin_lock_init(&amaudio->sw.lock);
 		spin_lock_init(&amaudio->hw.lock);
-		spin_lock_init(&amaudio->sw_read.lock);
 
-		if (request_irq
-			    (IRQ_OUT, i2s_out_callback, IRQF_SHARED, "i2s_out",
-			    amaudio)) {
+		if (request_irq(IRQ_OUT, i2s_out_callback, IRQF_SHARED,
+				"i2s_out", amaudio)) {
 			res = -EINVAL;
 			goto error;
 		}
+
 		aml_cbus_update_bits(AIU_MEM_I2S_MASKS, 0xffff << 16,
-				     INT_NUM << 16);
+				int_num << 16);
+
+		pr_info("channel: %d, int_num = %d, int_block = %d,amaudio->hw.size = %d\n",
+		aml_i2s_playback_channel, int_num, int_block, amaudio->hw.size);
 
 	} else if (iminor(inode) == 1) {
 		pr_info("amaudio2_in opened\n");
@@ -245,15 +266,7 @@ static int amaudio_release(struct inode *inode, struct file *file)
 
 	if (iminor(inode) == 0) {
 		free_irq(IRQ_OUT, amaudio);
-		if (amaudio->sw.addr) {
-			dma_free_coherent(amaudio->dev, amaudio->sw.size,
-					  (void *)amaudio->sw.addr,
-					  amaudio->sw.paddr);
-			amaudio->sw.addr = 0;
-		}
-		kfree(amaudio->sw_read.addr);
-		amaudio->sw_read.addr = 0;
-
+		amaudio->sw.addr = 0;
 	}
 
 	kfree(amaudio);
@@ -279,31 +292,10 @@ static int amaudio_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static ssize_t amaudio_read(struct file *file,
-			    char __user *buf, size_t count, loff_t *pos)
-{
-	int ret = 0;
-	struct amaudio_t *amaudio = (struct amaudio_t *)file->private_data;
-	struct BUF *sw_read = &amaudio->sw_read;
-
-	if (amaudio->type == 0) {
-		ret = copy_to_user((void *)buf,
-				   (void *)(sw_read->addr + sw_read->rd),
-				   count);
-		return count - ret;
-	} else if (amaudio->type == 1) {
-		pr_info("audio in read!\n");
-	} else {
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static unsigned get_i2s_out_size(void)
 {
 	return aml_read_cbus(AIU_MEM_I2S_END_PTR)
-	       - aml_read_cbus(AIU_MEM_I2S_START_PTR) + 64;
+	       - aml_read_cbus(AIU_MEM_I2S_START_PTR) + i2s_num;
 }
 
 static unsigned get_i2s_out_ptr(void)
@@ -313,7 +305,7 @@ static unsigned get_i2s_out_ptr(void)
 }
 
 void cover_memcpy(struct BUF *des, int a, struct BUF *src, int b,
-		  unsigned count)
+				unsigned count)
 {
 	int i, j;
 	int samp;
@@ -335,7 +327,7 @@ void cover_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 }
 
 void direct_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
-		       unsigned count)
+				unsigned count)
 {
 	int i, j;
 	int samp;
@@ -346,24 +338,13 @@ void direct_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 
 	for (i = 0; i < count; i += 64) {
 		for (j = 0; j < 16; j++) {
-			samp =
-				((*des_left) * music_gain +
-				 (*src_buf++) * direct_left_gain)
-				>> 8;
-			if (samp > 32767)
-				samp = 32767;
-			if (samp < -32768)
-				samp = -32768;
-			*des_left++ = (short)(samp & 0xffff);
+			samp = ((*des_left) * music_gain +
+				(*src_buf++) * direct_left_gain) >> 8;
+			*des_left++ = clip16(samp);
 
-			samp =
-				((*des_right) * music_gain
-				 + (*src_buf++) * direct_right_gain) >> 8;
-			if (samp > 32767)
-				samp = 32767;
-			if (samp < -32768)
-				samp = -32768;
-			*des_right++ = (short)(samp & 0xffff);
+			samp = ((*des_right) * music_gain +
+			    (*src_buf++) * direct_right_gain) >> 8;
+			*des_right++ = clip16(samp);
 		}
 		des_left += 16;
 		des_right += 16;
@@ -371,7 +352,7 @@ void direct_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 }
 
 void inter_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
-		      unsigned count)
+				unsigned count)
 {
 	int i, j;
 	short sampL, sampR;
@@ -388,44 +369,163 @@ void inter_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 			/* Here has risk to distortion.
 			 * Linein signals are always weak,
 			 * so add them direct. */
-			sampLR =
-				(sampL * direct_left_gain +
-				 sampR * direct_right_gain)
-				>> 1;
+			sampLR = (sampL * direct_left_gain +
+				 sampR * direct_right_gain) >> 1;
 			samp = ((*des_left) * music_gain + sampLR) >> 8;
-			if (samp > 32767)
-				samp = 32767;
-			if (samp < -32768)
-				samp = -32768;
-			*des_left++ = (short)(samp & 0xffff);
+			*des_left++ = clip16(samp);
 
 			samp = ((*des_right) * music_gain + sampLR) >> 8;
-			if (samp > 32767)
-				samp = 32767;
-			if (samp < -32768)
-				samp = -32768;
-			*des_right++ = (short)(samp & 0xffff);
+			*des_right++ = clip16(samp);
 		}
 		des_left += 16;
 		des_right += 16;
 	}
 }
 
-void interleave_memcpy(struct BUF *des, int a, struct BUF *src, int b,
-		       unsigned count)
+void cover_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count)
 {
 	int i, j;
-	short *out = (short *)(des->addr + a);
-	short *in_left = (short *)(src->addr + b);
-	short *in_right = in_left + 16;
-
-	for (i = 0; i < count; i += 64) {
-		for (j = 0; j < 16; j++) {
-			*out++ = *in_left++;
-			*out++ = *in_right++;
+	int32_t *lf = (int32_t *)(des->addr + a);
+	int32_t *cf = lf + 8;
+	int32_t *rf = cf + 8;
+	int32_t *ls = rf + 8;
+	int32_t *rs = ls + 8;
+	int32_t *lef = rs + 8;
+	int32_t *sbl = lef + 8;
+	int32_t *sbr = sbl + 8;
+	int32_t *tfrom = (int32_t *)(src->addr + b);
+	for (j = 0; j < count; j += 256) {
+		for (i = 0; i < 8; i++) {
+			*lf++ = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			*cf++ = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			*rf++ = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			*ls++ = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			*rs++ = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			*lef++ = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			*sbl++ = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			*sbr++ = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
 		}
-		in_left += 16;
-		in_right += 16;
+		lf += 56;
+		cf += 56;
+		rf += 56;
+		ls += 56;
+		rs += 56;
+		lef += 56;
+		sbl += 56;
+		sbr += 56;
+	}
+}
+
+void direct_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count)
+{
+	int i, j;
+	int32_t *lf = (int32_t *)(des->addr + a);
+	int32_t *cf = lf + 8;
+	int32_t *rf = cf + 8;
+	int32_t *ls = rf + 8;
+	int32_t *rs = ls + 8;
+	int32_t *lef = rs + 8;
+	int32_t *sbl = lef + 8;
+	int32_t *sbr = sbl + 8;
+	int32_t *tfrom = (int32_t *)(src->addr + b);
+	int32_t samp;
+	for (j = 0; j < count; j += 256) {
+		for (i = 0; i < 8; i++) {
+			samp = *lf;
+			*lf++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_left_gain) >> 8);
+			samp = *cf;
+			*cf++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_right_gain) >> 8);
+			samp = *rf;
+			*rf++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_left_gain) >> 8);
+			samp = *ls;
+			*ls++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_right_gain) >> 8);
+			samp = *rs;
+			*rs++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_left_gain) >> 8);
+			samp = *lef;
+			*lef++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_right_gain) >> 8);
+			samp = *sbl;
+			*sbl++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_left_gain) >> 8);
+			samp = *sbr;
+			*sbr++ = clip24((((samp) >> 8) * music_gain +
+				((*tfrom++) >> 8) * direct_right_gain) >> 8);
+		}
+		lf += 56;
+		cf += 56;
+		rf += 56;
+		ls += 56;
+		rs += 56;
+		lef += 56;
+		sbl += 56;
+		sbr += 56;
+	}
+}
+
+void inter_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count)
+{
+	int i, j;
+	int32_t *lf = (int32_t *)(des->addr + a);
+	int32_t *cf = lf + 8;
+	int32_t *rf = cf + 8;
+	int32_t *ls = rf + 8;
+	int32_t *rs = ls + 8;
+	int32_t *lef = rs + 8;
+	int32_t *sbl = lef + 8;
+	int32_t *sbr = sbl + 8;
+	int32_t *tfrom = (int32_t *)(src->addr + b);
+	int32_t samp, sampLR, sampL, sampR;
+	for (j = 0; j < count; j += 256) {
+		for (i = 0; i < 8; i++) {
+			sampL = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			sampR = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			sampLR = (sampL + sampR) >> 1;
+
+			samp = *lf;
+			*lf++ = clip24(((samp) >> 8) * music_gain + sampLR);
+			samp = *cf;
+			*cf++ = clip24(((samp) >> 8) * music_gain + sampLR);
+
+			sampL = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			sampR = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			sampLR = (sampL + sampR) >> 1;
+			samp = *rf;
+			*rf++ = clip24(((samp) >> 8) * music_gain + sampLR);
+			samp = *ls;
+			*ls++ = clip24(((samp) >> 8) * music_gain + sampLR);
+
+			sampL = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			sampR = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			sampLR = (sampL + sampR) >> 1;
+			samp = *rs;
+			*rs++ = clip24(((samp) >> 8) * music_gain + sampLR);
+			samp = *lef;
+			*lef++ = clip24(((samp) >> 8) * music_gain + sampLR);
+
+			sampL = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
+			sampR = (((*tfrom++) >> 8) * direct_right_gain) >> 8;
+			sampLR = (sampL + sampR) >> 1;
+			samp = *sbl;
+			*sbl++ = clip24(((samp) >> 8) * music_gain + sampLR);
+			samp = *sbr;
+			*sbr++ = clip24(((samp) >> 8) * music_gain + sampLR);
+		}
+		lf += 56;
+		cf += 56;
+		rf += 56;
+		ls += 56;
+		rs += 56;
+		lef += 56;
+		sbl += 56;
+		sbr += 56;
 	}
 }
 
@@ -433,75 +533,57 @@ static void i2s_copy(struct amaudio_t *amaudio)
 {
 	struct BUF *hw = &amaudio->hw;
 	struct BUF *sw = &amaudio->sw;
-	struct BUF *sw_read = &amaudio->sw_read;
-	unsigned long swirqflags, hwirqflags, sw_readirqflags;
+	unsigned long swirqflags, hwirqflags;
 	unsigned i2s_out_ptr = get_i2s_out_ptr();
-	unsigned alsa_delay = (aml_i2s_alsa_write_addr + hw->size - i2s_out_ptr)
-			      % hw->size;
+	unsigned alsa_delay =
+		(aml_i2s_alsa_write_addr + hw->size - i2s_out_ptr) % hw->size;
 	unsigned amaudio_delay = (hw->wr + hw->size - i2s_out_ptr) % hw->size;
 
 	spin_lock_irqsave(&hw->lock, hwirqflags);
 
 	hw->rd = i2s_out_ptr;
 	hw->level = amaudio_delay;
-	if (hw->level <= INT_BLOCK ||
-	    (alsa_delay - amaudio_delay) < INT_BLOCK) {
+	if (hw->level <= int_block ||
+			(alsa_delay - amaudio_delay) < int_block) {
 		hw->wr = (hw->rd + latency) % hw->size;
-		hw->wr /= INT_BLOCK;
-		hw->wr *= INT_BLOCK;
+		hw->wr /= int_block;
+		hw->wr *= int_block;
 		hw->level = latency;
 
 		goto EXIT;
 	}
 
-	if (sw->level > BUFFER_THRESHOLD_DEFAULT) {
+	if (sw->level > soft_buffer_threshold) {
 		/*pr_info(KERN_DEBUG
-		*	"Reset sw: hw->wr = %x,hw->rd = %x,
-		*	hw->level = %x,"
-		*	"alsa_delay:%x,sw->wr = %x,
-		*	sw->rd = %x,sw->level = %x\n",
-		*	hw->wr, hw->rd, hw->level,
-		*	alsa_delay, sw->wr, sw->rd,
-		*	sw->level);
+		"Reset sw: hw->wr = %x,hw->rd = %x, hw->level = %x,"
+		"alsa_delay:%x,sw->wr = %x, sw->rd = %x,sw->level = %x\n",
+		hw->wr, hw->rd, hw->level, alsa_delay,
+		sw->wr, sw->rd, sw->level);
 		*/
 		sw->rd = (sw->wr + 1024) % sw->size;
 		sw->level = sw->size - 1024;
 		goto EXIT;
 	}
 
-	if (sw->level < INT_BLOCK)
+	if (sw->level < int_block)
 		goto EXIT;
 
-	BUG_ON((hw->wr + INT_BLOCK > hw->size)
-	       || (sw->rd + INT_BLOCK > sw->size));
+	BUG_ON((hw->wr + int_block > hw->size) ||
+				(sw->rd + int_block > sw->size));
 	BUG_ON((hw->wr < 0) || (sw->rd < 0));
 
 	if (audio_out_mode == 0)
-		cover_memcpy(hw, hw->wr, sw, sw->rd, INT_BLOCK);
+		(*aml_cover_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
 	else if (audio_out_mode == 1)
-		inter_mix_memcpy(hw, hw->wr, sw, sw->rd, INT_BLOCK);
+		(*aml_direct_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
 	else if (audio_out_mode == 2)
-		direct_mix_memcpy(hw, hw->wr, sw, sw->rd, INT_BLOCK);
+		(*aml_inter_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
 
-	if (audio_out_read_enable == 1) {
-		spin_lock_irqsave(&sw_read->lock, sw_readirqflags);
-		if (sw_read->level > INT_BLOCK) {
-			interleave_memcpy(sw_read, sw_read->wr, hw, hw->wr,
-					  INT_BLOCK);
-			sw_read->wr = (sw_read->wr + INT_BLOCK) % sw_read->size;
-			sw_read->level = sw_read->size
-					 - (sw_read->size + sw_read->wr -
-					    sw_read->rd)
-					 % sw_read->size;
-			spin_unlock_irqrestore(&sw_read->lock, sw_readirqflags);
-		}
-	}
-
-	hw->wr = (hw->wr + INT_BLOCK) % hw->size;
+	hw->wr = (hw->wr + int_block) % hw->size;
 	hw->level = (hw->wr + hw->size - i2s_out_ptr) % hw->size;
 
 	spin_lock_irqsave(&sw->lock, swirqflags);
-	sw->rd = (sw->rd + INT_BLOCK) % sw->size;
+	sw->rd = (sw->rd + int_block) % sw->size;
 	sw->level = (sw->size + sw->wr - sw->rd) % sw->size;
 	spin_unlock_irqrestore(&sw->lock, swirqflags);
 
@@ -526,18 +608,18 @@ static long amaudio_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 }
 
 static long amaudio_compat_utils_ioctl(struct file *file,
-				       unsigned int cmd, ulong arg)
+				unsigned int cmd, ulong arg)
 {
 	return amaudio_utils_ioctl(file, cmd, (ulong)compat_ptr(arg));
 }
 #endif
 
 static long amaudio_ioctl(struct file *file, unsigned int cmd,
-			  unsigned long arg)
+				unsigned long arg)
 {
 	struct amaudio_t *amaudio = (struct amaudio_t *)file->private_data;
 	s32 r = 0;
-	unsigned long swirqflags, hwirqflags, sw_readirqflags;
+	unsigned long swirqflags, hwirqflags;
 
 	switch (cmd) {
 	case AMAUDIO_IOC_GET_SIZE:
@@ -555,18 +637,14 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		 * the user space write pointer
 		 * of the internal buffer
 		 */
-	{
 		spin_lock_irqsave(&amaudio->sw.lock, swirqflags);
 		amaudio->sw.wr = arg;
 		amaudio->sw.level = (amaudio->sw.size + amaudio->sw.wr
-				     -
-				     amaudio->sw.rd) % amaudio->sw.size;
+					 - amaudio->sw.rd) % amaudio->sw.size;
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
 		if (amaudio->sw.wr % 64)
-			pr_info("wr:%x, not 64 Bytes align\n",
-				amaudio->sw.wr);
-	}
-	break;
+			pr_info("wr:%x, not 64 Bytes align\n", amaudio->sw.wr);
+		break;
 	case AMAUDIO_IOC_RESET:
 		/*
 		 * reset the internal write buffer
@@ -574,11 +652,10 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		 * this api should be called before fill datas
 		 */
 		spin_lock_irqsave(&amaudio->hw.lock, hwirqflags);
-
 		amaudio->hw.rd = get_i2s_out_ptr();
 		amaudio->hw.wr = (amaudio->hw.rd + latency) % amaudio->hw.size;
-		amaudio->hw.wr /= INT_BLOCK;
-		amaudio->hw.wr *= INT_BLOCK;
+		amaudio->hw.wr /= int_block;
+		amaudio->hw.wr *= int_block;
 		amaudio->hw.level = latency;
 		spin_unlock_irqrestore(&amaudio->hw.lock, hwirqflags);
 		/* empty the buffer */
@@ -587,13 +664,6 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		amaudio->sw.rd = 0;
 		amaudio->sw.level = 0;
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
-		/* empty the out read buffer */
-		spin_lock_irqsave(&amaudio->sw_read.lock, sw_readirqflags);
-		amaudio->sw_read.wr = 0;
-		amaudio->sw_read.rd = 0;
-		amaudio->sw_read.level = amaudio->sw_read.size;
-		spin_unlock_irqrestore(&amaudio->sw_read.lock, sw_readirqflags);
-
 		pr_info("Reset amaudio2: latency=%d bytes\n", latency);
 		break;
 	case AMAUDIO_IOC_AUDIO_OUT_MODE:
@@ -628,55 +698,9 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 
 		music_gain = arg;
 		break;
-	case AMAUDIO_IOC_GET_PTR_READ:
-		/* the write pointer of internal read buffer */
-		if (amaudio->sw_read.addr == NULL)
-			break;
-
-		spin_lock_irqsave(&amaudio->sw_read.lock, sw_readirqflags);
-		r = amaudio->sw_read.wr;
-		spin_unlock_irqrestore(&amaudio->sw_read.lock, sw_readirqflags);
-		break;
-	case AMAUDIO_IOC_UPDATE_APP_PTR_READ:
-		/* the user space read pointer of the read buffer */
-	{
-		if (amaudio->sw_read.addr == NULL)
-			break;
-
-		spin_lock_irqsave(&amaudio->sw_read.lock,
-				  sw_readirqflags);
-		amaudio->sw_read.rd = arg;
-		amaudio->sw_read.level = amaudio->sw_read.size
-					 - (amaudio->sw_read.size +
-					    amaudio->sw_read.wr
-					    - amaudio->sw_read.rd) %
-					 amaudio->sw_read.size;
-		spin_unlock_irqrestore(&amaudio->sw_read.lock,
-				       sw_readirqflags);
-		if (amaudio->sw_read.rd % 64)
-			pr_info("rd:%x, not 64 Bytes align\n",
-				amaudio->sw_read.rd);
-	}
-	break;
-	case AMAUDIO_IOC_OUT_READ_ENABLE:
-		/* enable amaudio output read from hw buffer */
-		spin_lock_irqsave(&amaudio->sw_read.lock, sw_readirqflags);
-		if (arg == 1) {
-			if (!malloc_soft_readback_buffer
-				    (amaudio, SOFT_BUFFER_SIZE))
-				audio_out_read_enable = 1;
-		} else if (arg == 0) {
-			kfree(amaudio->sw_read.addr);
-			amaudio->sw_read.addr = NULL;
-			audio_out_read_enable = 0;
-		}
-		spin_unlock_irqrestore(&amaudio->sw_read.lock, sw_readirqflags);
-		break;
 	default:
 		break;
-	}
-	;
-
+	};
 	return r;
 }
 
@@ -688,43 +712,37 @@ static long amaudio_utils_ioctl(struct file *file, unsigned int cmd,
 
 /* -----------------class interface---------------- */
 static ssize_t show_audio_out_mode(struct class *class,
-				   struct class_attribute *attr, char *buf)
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", audio_out_mode);
 }
 
 static ssize_t store_audio_out_mode(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	if (buf[0] == '0') {
-		pr_info
-		(
-			"Audio_in data covered the android local data as output!\n");
+		pr_info("Audio_in data covered the android local data as output!\n");
 		audio_out_mode = 0;
 	} else if (buf[0] == '1') {
-		pr_info
-		(
-			"Audio_in left/right channels and the android local data inter mixed as output!\n");
+		pr_info("Audio_in left and right channel mix first, then mix with android!\n");
 		audio_out_mode = 1;
 	} else if (buf[0] == '2') {
-		pr_info
-		(
-			"Audio_in data direct mixed with the android local data as output!\n");
+		pr_info("Audio_in data direct mixed with the android local data as output!\n");
 		audio_out_mode = 2;
 	}
 	return count;
 }
 
 static ssize_t show_direct_left_gain(struct class *class,
-				     struct class_attribute *attr, char *buf)
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", direct_left_gain);
 }
 
 static ssize_t store_direct_left_gain(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int val = 0;
 
@@ -742,14 +760,14 @@ static ssize_t store_direct_left_gain(struct class *class,
 }
 
 static ssize_t show_direct_right_gain(struct class *class,
-				      struct class_attribute *attr, char *buf)
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", direct_right_gain);
 }
 
 static ssize_t store_direct_right_gain(struct class *class,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int val = 0;
 
@@ -767,7 +785,7 @@ static ssize_t store_direct_right_gain(struct class *class,
 }
 
 static ssize_t show_music_gain(struct class *class,
-			       struct class_attribute *attr, char *buf)
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", music_gain);
 }
@@ -791,106 +809,22 @@ static ssize_t store_music_gain(struct class *class,
 	return count;
 }
 
-static ssize_t show_android_left_gain(struct class *class,
-				      struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", android_left_gain);
-}
-
-static ssize_t store_android_left_gain(struct class *class,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
-{
-	int val = 0;
-
-	if (buf[0] && kstrtoint(buf, 10, &val))
-		return -EINVAL;
-
-	if (val < 0)
-		val = 0;
-	if (val > 256)
-		val = 256;
-
-	android_left_gain = val;
-	pr_info("android_left_gain set to %d\n", android_left_gain);
-	return count;
-}
-
-static ssize_t show_android_right_gain(struct class *class,
-				       struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", android_right_gain);
-}
-
-static ssize_t store_android_right_gain(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
-{
-	int val = 0;
-
-	if (buf[0] && kstrtoint(buf, 10, &val))
-		return -EINVAL;
-
-	if (val < 0)
-		val = 0;
-	if (val > 256)
-		val = 256;
-
-	android_right_gain = val;
-	pr_info("android_right_gain set to %d\n", android_right_gain);
-	return count;
-}
-
-static ssize_t show_audio_read_enable(struct class *class,
-				      struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", audio_out_read_enable);
-}
-
-static ssize_t store_audio_read_enable(struct class *class,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
-{
-	if (buf[0] == '0') {
-		pr_info("Read audio data is disable!\n");
-		audio_out_read_enable = 0;
-	} else if (buf[0] == '1') {
-		pr_info("Read audio data is enable!\n");
-		audio_out_read_enable = 1;
-	} else {
-		pr_info("Invalid argument!\n");
-	}
-	return count;
-}
-
-int set_i2s_iec958_samesource(int enable)
-{
-	if (enable == 0)
-		aml_cbus_update_bits(AIU_I2S_MISC, 1 << 3, 0);
-	else if (enable == 1)
-		aml_cbus_update_bits(AIU_I2S_MISC, 1 << 3, 1 << 3);
-
-	return 0;
-}
-
 static ssize_t show_aml_amaudio2_enable(struct class *class,
-					struct class_attribute *attr, char *buf)
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", amaudio2_enable);
 }
 
 static ssize_t store_aml_amaudio2_enable(struct class *class,
-					 struct class_attribute *attr,
-					 const char *buf, size_t count)
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	if (buf[0] == '0') {
 		pr_info("amaudio2 is disable!\n");
 		amaudio2_enable = 0;
-		set_i2s_iec958_samesource(0);
 	} else if (buf[0] == '1') {
 		pr_info("amaudio2 is enable!\n");
 		amaudio2_enable = 1;
-		set_i2s_iec958_samesource(1);
 	} else {
 		pr_info("Invalid argument!\n");
 	}
@@ -912,20 +846,9 @@ static struct class_attribute amaudio_attrs[] = {
 	       show_direct_right_gain,
 	       store_direct_right_gain),
 	__ATTR(aml_music_gain,
-	       S_IRUGO | S_IWUSR,	   show_music_gain,
+	       S_IRUGO | S_IWUSR,
+	       show_music_gain,
 	       store_music_gain),
-	__ATTR(aml_android_left_gain,
-	       S_IRUGO | S_IWUSR,
-	       show_android_left_gain,
-	       store_android_left_gain),
-	__ATTR(aml_android_right_gain,
-	       S_IRUGO | S_IWUSR,
-	       show_android_right_gain,
-	       store_android_right_gain),
-	__ATTR(aml_audio_read_enable,
-	       S_IRUGO | S_IWUSR,
-	       show_audio_read_enable,
-	       store_audio_read_enable),
 	__ATTR(aml_amaudio2_enable,
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       show_aml_amaudio2_enable,
@@ -946,8 +869,7 @@ static int amaudio2_init(struct platform_device *pdev)
 
 	/*pr_info("amaudio2: driver %s init!\n", AMAUDIO2_DRIVER_NAME);*/
 
-	ret =
-		register_chrdev(AMAUDIO2_MAJOR, AMAUDIO2_DRIVER_NAME,
+	ret = register_chrdev(AMAUDIO2_MAJOR, AMAUDIO2_DRIVER_NAME,
 				&amaudio_fops);
 	if (ret < 0) {
 		pr_err("Can't register %s divece ", AMAUDIO2_DRIVER_NAME);
@@ -967,9 +889,7 @@ static int amaudio2_init(struct platform_device *pdev)
 					MKDEV(AMAUDIO2_MAJOR, i), NULL,
 					amaudio_ports[i].name);
 		if (IS_ERR(ap->dev)) {
-			pr_err
-			(
-				"amaudio2: failed to create amaudio device node\n");
+			pr_err("amaudio2: failed to create amaudio device node\n");
 			goto err2;
 		}
 	}
@@ -981,14 +901,28 @@ static int amaudio2_init(struct platform_device *pdev)
 	}
 
 	amaudio_dev =
-		device_create(&amaudio_class, NULL, MKDEV(AMAUDIO2_MAJOR,
-							  15), NULL,
-			      AMAUDIO2_CLASS_NAME);
+		device_create(&amaudio_class, NULL, MKDEV(AMAUDIO2_MAJOR, 15),
+					NULL, AMAUDIO2_CLASS_NAME);
 	if (IS_ERR(amaudio_dev)) {
 		pr_err("amaudio2 creat device fail.\n");
 		goto err4;
 	}
 
+	if (!amaudio_dev->dma_mask)
+			amaudio_dev->dma_mask = &amaudio_pcm_dmamask;
+	if (!amaudio_dev->coherent_dma_mask)
+			amaudio_dev->coherent_dma_mask = 0xffffffff;
+
+	amaudio_start_addr =
+				(unsigned char *)dma_alloc_coherent(amaudio_dev,
+				SOFT_BUFFER_SIZE,
+				&amaudio_phy_start_addr,
+				GFP_KERNEL);
+
+	if (!amaudio_start_addr) {
+			pr_info("amaudio2 out soft DMA buffer alloc failed\n");
+			goto err4;
+	}
 	pr_info("amaudio2: driver %s succuess!\n", AMAUDIO2_DRIVER_NAME);
 	return 0;
 
@@ -1011,6 +945,13 @@ static int amaudio2_exit(struct platform_device *pdev)
 {
 	int i = 0;
 	struct amaudio_port_t *ap;
+
+	if (amaudio_start_addr) {
+		dma_free_coherent(amaudio_dev, SOFT_BUFFER_SIZE,
+			(void *)amaudio_start_addr,
+			amaudio_phy_start_addr);
+		amaudio_start_addr = 0;
+	}
 
 	device_destroy(&amaudio_class, MKDEV(AMAUDIO2_MAJOR, 10));
 	class_unregister(&amaudio_class);

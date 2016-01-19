@@ -53,6 +53,8 @@ EXPORT_SYMBOL(aml_i2s_playback_phy_start_addr);
 unsigned long aml_i2s_alsa_write_addr = 0;
 EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
 
+unsigned int aml_i2s_playback_channel = 2;
+EXPORT_SYMBOL(aml_i2s_playback_channel);
 
 static int trigger_underrun;
 void aml_audio_hw_trigger(void)
@@ -252,6 +254,8 @@ static int aml_i2s_prepare(struct snd_pcm_substream *substream)
 		dev_info(substream->pcm->card->dev, "clear i2s out trigger underrun\n");
 		trigger_underrun = 0;
 	}
+	if (s && s->device_type == AML_AUDIO_I2SOUT)
+		aml_i2s_playback_channel = runtime->channels;
 	return 0;
 }
 

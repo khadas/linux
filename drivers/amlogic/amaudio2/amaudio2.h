@@ -43,7 +43,6 @@ struct amaudio_t {
 	struct device *dev;
 	struct BUF hw;
 	struct BUF sw;
-	struct BUF sw_read;
 	int type;
 };
 
@@ -54,28 +53,38 @@ static int amaudio_release(struct inode *inode, struct file *file);
 static int amaudio_mmap(struct file *file, struct vm_area_struct *vms);
 
 static long amaudio_ioctl(struct file *file,
-			  unsigned int cmd, unsigned long arg);
+				unsigned int cmd, unsigned long arg);
 
 static long amaudio_utils_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg);
 
-static ssize_t amaudio_read(struct file *file,
-			    char __user *buf, size_t count, loff_t *pos);
-
 #ifdef CONFIG_COMPAT
 static long amaudio_compat_ioctl(struct file *file, unsigned int cmd,
-				 ulong arg);
+				ulong arg);
 static long amaudio_compat_utils_ioctl(struct file *file, unsigned int cmd,
-				       ulong arg);
+				ulong arg);
 #endif
 
 static irqreturn_t i2s_out_callback(int irq, void *data);
 static unsigned get_i2s_out_size(void);
 static unsigned get_i2s_out_ptr(void);
+void cover_memcpy(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count);
+void direct_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count);
+void inter_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count);
+void cover_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count);
+void direct_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count);
+void inter_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
+				unsigned count);
 
 extern unsigned long aml_i2s_playback_start_addr;
 extern unsigned long aml_i2s_playback_phy_start_addr;
 extern unsigned long aml_i2s_alsa_write_addr;
+extern unsigned int aml_i2s_playback_channel;
 
 #define AMAUDIO_IOC_MAGIC  'A'
 
@@ -87,10 +96,5 @@ extern unsigned long aml_i2s_alsa_write_addr;
 #define AMAUDIO_IOC_MIC_LEFT_GAIN	_IOW(AMAUDIO_IOC_MAGIC, 0x05, int)
 #define AMAUDIO_IOC_MIC_RIGHT_GAIN	_IOW(AMAUDIO_IOC_MAGIC, 0x06, int)
 #define AMAUDIO_IOC_MUSIC_GAIN		_IOW(AMAUDIO_IOC_MAGIC, 0x07, int)
-#define AMAUDIO_IOC_GET_PTR_READ	_IOW(AMAUDIO_IOC_MAGIC, 0x08, int)
-#define AMAUDIO_IOC_UPDATE_APP_PTR_READ \
-			_IOW(AMAUDIO_IOC_MAGIC, 0x09, int)
-#define AMAUDIO_IOC_OUT_READ_ENABLE \
-			_IOW(AMAUDIO_IOC_MAGIC, 0x0a, int)
 
 #endif
