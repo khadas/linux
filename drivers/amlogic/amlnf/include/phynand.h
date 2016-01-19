@@ -67,7 +67,9 @@ struct nand_page0_info_t {
 	unsigned pages_in_block;
 	unsigned secure_block;
 	unsigned ce_mask;
-	unsigned reserved[3];
+	unsigned boot_num;
+	unsigned each_boot_pages;
+	unsigned reserved[2];
 };
 
 /* read from page0, override default. */
