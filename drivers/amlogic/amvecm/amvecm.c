@@ -32,6 +32,7 @@
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
 #include "../tvin/tvin_global.h"
+#include "arch/vpp_hdr_regs.h"
 
 #include "amve.h"
 #include "amcm.h"
@@ -1621,6 +1622,156 @@ static ssize_t amvecm_sr1_reg_store(struct class *cla,
 
 }
 
+static ssize_t amvecm_hdr_set_sel_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+/* 0:open hdr; 2: sdr->sdr; 3:hdr->hdr; 4:hdr->sdr level1 300*/
+/* 5:hdr->sdr level2 500  1: close hdr*/
+static ssize_t amvecm_hdr_set_sel_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	unsigned int hdr_sel_flag, i = 0, j = 0;
+	r = sscanf(buf, "%d", &hdr_sel_flag);
+	if (r != 1)
+		return -EINVAL;
+	switch (hdr_sel_flag) {
+	case 0:
+			WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
+		break;
+	case 1:
+			WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
+		break;
+	case 2:
+		for (j = 0; j < 3; j++) {
+			for (i = 0; i < 578; i++)
+				r_lut_sdr_sdr.am_reg[i].addr += 2*j;
+
+			am_set_regmap(&r_lut_sdr_sdr);
+
+			for (i = 0; i < 578; i++)
+				r_lut_sdr_sdr.am_reg[i].addr -= 2*j;
+		}
+		break;
+	case 3:
+		for (j = 0; j < 3; j++) {
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_hdr.am_reg[i].addr += 2*j;
+
+			am_set_regmap(&r_lut_hdr_hdr);
+
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_hdr.am_reg[i].addr -= 2*j;
+		}
+		break;
+	case 4:
+		for (j = 0; j < 3; j++) {
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_sdr_level1.am_reg[i].addr += 2*j;
+
+			am_set_regmap(&r_lut_hdr_sdr_level1);
+
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_sdr_level1.am_reg[i].addr -= 2*j;
+		}
+		break;
+	case 5:
+		for (j = 0; j < 3; j++) {
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_sdr_level2.am_reg[i].addr += 2*j;
+
+			am_set_regmap(&r_lut_hdr_sdr_level2);
+
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_sdr_level2.am_reg[i].addr -= 2*j;
+		}
+		break;
+	case 6:
+		for (j = 0; j < 3; j++) {
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_sdr_level3.am_reg[i].addr += 2*j;
+
+			am_set_regmap(&r_lut_hdr_sdr_level3);
+
+			for (i = 0; i < 578; i++)
+				r_lut_hdr_sdr_level3.am_reg[i].addr -= 2*j;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return count;
+
+}
+
+static ssize_t amvecm_hdr_matrix_sel_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+/*0:hdr bt2020 YUV -> BT2020 RGB; 1:709 YUV->7090rgb*/
+/*2:matrix after lut rgb-> yuv*/
+static ssize_t amvecm_hdr_matrix_sel_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	unsigned int hdr_matrix_sel_flag;
+	r = sscanf(buf, "%d", &hdr_matrix_sel_flag);
+	if ((r != 1) || (hdr_matrix_sel_flag > 2))
+		return -EINVAL;
+	switch (hdr_matrix_sel_flag) {
+	case 0:
+		WRITE_VPP_REG(VPP_MATRIX_CTRL, 0x7021);
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x12b0000);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x1af012b);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1fd01f59);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x12b0226);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xfc00e00);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
+		WRITE_VPP_REG(VPP_MATRIX_CLIP, 0xc0);
+		break;
+	case 1:
+		WRITE_VPP_REG(VPP_MATRIX_CTRL, 0x7021);
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x4a80000);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x66204a8);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1e701cbf);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x4a80812);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0000);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xfc00e00);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
+		WRITE_VPP_REG(VPP_MATRIX_CLIP, 0x0);
+		break;
+	case 2:
+		WRITE_VPP_REG(VPP_MATRIX_CTRL, 0x7361);
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0xbb0275);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x3f1f99);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1ea601c2);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x1c21e67);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x1fd7);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x400200);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x200);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_CLIP, 0x0);
+		break;
+	default:
+		break;
+	}
+
+	return count;
+}
 
 static ssize_t amvecm_dump_reg_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
@@ -1803,6 +1954,10 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_dump_reg_show, amvecm_dump_reg_store),
 	__ATTR(sr1_reg, S_IRUGO | S_IWUSR,
 		amvecm_sr1_reg_show, amvecm_sr1_reg_store),
+	__ATTR(hdr_sel, S_IRUGO | S_IWUSR,
+		amvecm_hdr_set_sel_show, amvecm_hdr_set_sel_store),
+	__ATTR(hdr_matrix_sel, S_IRUGO | S_IWUSR,
+		amvecm_hdr_matrix_sel_show, amvecm_hdr_matrix_sel_store),
 	__ATTR_NULL
 };
 
