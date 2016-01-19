@@ -70,6 +70,11 @@ extern unsigned int lcd_debug_print_flag;
 #define GAMMA_CTRL_EN               0
 
 /* **********************************
+ * VENC to TCON sync delay
+ * ********************************** */
+#define TTL_DELAY                   13
+
+/* **********************************
  * global control define
  * ********************************** */
 enum lcd_mode_e {
