@@ -116,6 +116,7 @@ struct lcd_basic_s {
 struct lcd_timing_s {
 	unsigned char clk_auto; /* clk parameters auto generation */
 	unsigned int lcd_clk;   /* pixel clock(unit: Hz) */
+	unsigned int lcd_clk_dft; /* internal used */
 	unsigned int pll_ctrl;  /* pll settings */
 	unsigned int div_ctrl;  /* divider settings */
 	unsigned int clk_ctrl;  /* clock settings */

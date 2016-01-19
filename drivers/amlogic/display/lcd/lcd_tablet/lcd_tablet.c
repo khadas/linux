@@ -335,189 +335,7 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 	return ret;
 }
 
-static int lcd_get_power_config(struct lcd_config_s *pconf,
-		struct platform_device *pdev)
-{
-	int ret = 0;
-	unsigned int para[5];
-	unsigned int val;
-	struct device_node *child;
-	struct lcd_power_ctrl_s *lcd_power = pconf->lcd_power;
-	int i, j;
-	unsigned int index;
-
-	child = of_get_child_by_name(pdev->dev.of_node, pconf->lcd_propname);
-	if (child == NULL) {
-		LCDPR("error: failed to get %s\n", pconf->lcd_propname);
-		return -1;
-	}
-
-	ret = of_property_read_u32_array(child, "power_on_step", &para[0], 4);
-	if (ret) {
-		LCDPR("failed to get power_on_step\n");
-		lcd_power->power_on_step[0].type = LCD_POWER_TYPE_MAX;
-	} else {
-		i = 0;
-		while (i < LCD_PWR_STEP_MAX) {
-			j = 4 * i;
-			ret = of_property_read_u32_index(child, "power_on_step",
-				j, &val);
-			lcd_power->power_on_step[i].type = (unsigned char)val;
-			if (val == 0xff) /* ending */
-				break;
-			j = 4 * i + 1;
-			ret = of_property_read_u32_index(child,
-				"power_on_step", j, &val);
-			lcd_power->power_on_step[i].index = val;
-			j = 4 * i + 2;
-			ret = of_property_read_u32_index(child,
-				"power_on_step", j, &val);
-			lcd_power->power_on_step[i].value = val;
-			j = 4 * i + 3;
-			ret = of_property_read_u32_index(child,
-				"power_on_step", j, &val);
-			lcd_power->power_on_step[i].delay = val;
-
-			/* gpio request */
-			switch (lcd_power->power_on_step[i].type) {
-			case LCD_POWER_TYPE_CPU:
-				index = lcd_power->power_on_step[i].index;
-				if (index < LCD_CPU_GPIO_NUM_MAX)
-					lcd_cpu_gpio_register(index);
-				break;
-			default:
-				break;
-			}
-			if (lcd_debug_print_flag) {
-				LCDPR("power_on %d type: %d\n", i,
-					lcd_power->power_on_step[i].type);
-				LCDPR("power_on %d index: %d\n", i,
-					lcd_power->power_on_step[i].index);
-				LCDPR("power_on %d value: %d\n", i,
-					lcd_power->power_on_step[i].value);
-				LCDPR("power_on %d delay: %d\n", i,
-					lcd_power->power_on_step[i].delay);
-			}
-			i++;
-		}
-	}
-
-	ret = of_property_read_u32_array(child, "power_off_step", &para[0], 4);
-	if (ret) {
-		LCDPR("failed to get power_off_step\n");
-		lcd_power->power_off_step[0].type = LCD_POWER_TYPE_MAX;
-	} else {
-		i = 0;
-		while (i < LCD_PWR_STEP_MAX) {
-			j = 4 * i;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
-			lcd_power->power_off_step[i].type = (unsigned char)val;
-			if (val == 0xff) /* ending */
-				break;
-			j = 4 * i + 1;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
-			lcd_power->power_off_step[i].index = val;
-			j = 4 * i + 2;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
-			lcd_power->power_off_step[i].value = val;
-			j = 4 * i + 3;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
-			lcd_power->power_off_step[i].delay = val;
-
-			/* gpio request */
-			switch (lcd_power->power_off_step[i].type) {
-			case LCD_POWER_TYPE_CPU:
-				index = lcd_power->power_off_step[i].index;
-				if (index < LCD_CPU_GPIO_NUM_MAX)
-					lcd_cpu_gpio_register(index);
-				break;
-			default:
-				break;
-			}
-			if (lcd_debug_print_flag) {
-				LCDPR("power_on %d type: %d\n", i,
-					lcd_power->power_off_step[i].type);
-				LCDPR("power_on %d index: %d\n", i,
-					lcd_power->power_off_step[i].index);
-				LCDPR("power_on %d value: %d\n", i,
-					lcd_power->power_off_step[i].value);
-				LCDPR("power_on %d delay: %d\n", i,
-					lcd_power->power_off_step[i].delay);
-			}
-			i++;
-		}
-	}
-
-	ret = of_property_read_u32(child, "backlight_index", &para[0]);
-	if (ret) {
-		LCDPR("failed to get backlight_index\n");
-		pconf->backlight_index = 0;
-	} else {
-		pconf->backlight_index = para[0];
-	}
-
-	return ret;
-}
-
-/* change frame_rate for different vmode */
-static int lcd_vmode_change(struct lcd_config_s *pconf)
-{
-	unsigned int pclk = pconf->lcd_timing.lcd_clk;
-	unsigned char type = pconf->lcd_timing.fr_adjust_type;
-	unsigned int h_period = pconf->lcd_basic.h_period;
-	unsigned int v_period = pconf->lcd_basic.v_period;
-	unsigned int sync_duration_num = pconf->lcd_timing.sync_duration_num;
-	unsigned int sync_duration_den = pconf->lcd_timing.sync_duration_den;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->lcd_info->sync_duration_num = sync_duration_num;
-	lcd_drv->lcd_info->sync_duration_den = sync_duration_den;
-
-	/* frame rate adjust */
-	switch (type) {
-	case 1: /* htotal adjust */
-		h_period = ((pclk / v_period) * sync_duration_den * 10) /
-				sync_duration_num;
-		h_period = (h_period + 5) / 10; /* round off */
-		if (pconf->lcd_basic.h_period != h_period) {
-			LCDPR("%s: adjust h_period %u -> %u\n",
-				__func__, pconf->lcd_basic.h_period, h_period);
-			pconf->lcd_basic.h_period = h_period;
-		}
-		break;
-	case 2: /* vtotal adjust */
-		v_period = ((pclk / h_period) * sync_duration_den * 10) /
-				sync_duration_num;
-		v_period = (v_period + 5) / 10; /* round off */
-		if (pconf->lcd_basic.v_period != v_period) {
-			LCDPR("%s: adjust v_period %u -> %u\n",
-				__func__, pconf->lcd_basic.v_period, v_period);
-			pconf->lcd_basic.v_period = v_period;
-		}
-		break;
-	case 0: /* pixel clk adjust */
-	default:
-		pclk = (h_period * v_period) / sync_duration_den *
-			sync_duration_num;
-		if (pconf->lcd_timing.lcd_clk != pclk) {
-			LCDPR("%s: adjust pclk %u.%03uMHz -> %u.%03uMHz\n",
-				__func__, (pconf->lcd_timing.lcd_clk / 1000000),
-				((pconf->lcd_timing.lcd_clk / 1000) % 1000),
-				(pclk / 1000000), ((pclk / 1000) % 1000));
-			pconf->lcd_timing.lcd_clk = pclk;
-			lcd_clk_generate_parameter(pconf);
-		}
-		break;
-	}
-
-	return 0;
-}
-
-static void lcd_clk_config(struct lcd_config_s *pconf)
+static void lcd_config_init(struct lcd_config_s *pconf)
 {
 	unsigned int clk;
 	unsigned int sync_duration, h_period, v_period;
@@ -533,22 +351,24 @@ static void lcd_clk_config(struct lcd_config_s *pconf)
 	}
 	pconf->lcd_timing.sync_duration_num = sync_duration;
 	pconf->lcd_timing.sync_duration_den = 100;
+
+	pconf->lcd_timing.lcd_clk_dft = pconf->lcd_timing.lcd_clk;
+	lcd_tcon_config(pconf);
+	lcd_clk_generate_parameter(pconf);
 }
 
 static int lcd_get_config(struct lcd_config_s *pconf,
 		struct platform_device *pdev)
 {
 	if (pdev->dev.of_node == NULL) {
-		LCDPR("error: dev of_node is null\n");
+		LCDERR("dev of_node is null\n");
 		return -1;
 	}
 	lcd_get_model_timing(pconf, pdev);
 	lcd_get_power_config(pconf, pdev);
 	lcd_config_print(pconf);
 
-	lcd_clk_config(pconf);
-	lcd_clk_generate_parameter(pconf);
-	lcd_tcon_config(pconf);
+	lcd_config_init(pconf);
 
 	return 0;
 }
@@ -563,11 +383,18 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 
 	LCDPR("%s: sync_duration=%d\n", __func__, sync_duration);
 
+	/* update vinfo */
+	lcd_drv->lcd_info->sync_duration_num = sync_duration;
+	lcd_drv->lcd_info->sync_duration_den = 100;
+	/* update lcd config sync_duration */
 	lcd_drv->lcd_config->lcd_timing.sync_duration_num = sync_duration;
 	lcd_drv->lcd_config->lcd_timing.sync_duration_den = 100;
 
-	/* update timing config */
+	/* update clk & timing config */
 	lcd_vmode_change(lcd_drv->lcd_config);
+	/* update interface timing if needed, current no need */
+	/* update clk parameter */
+	lcd_clk_generate_parameter(lcd_drv->lcd_config);
 }
 
 static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,

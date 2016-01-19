@@ -251,7 +251,8 @@ static void lcd_module_disable(void)
 static int lcd_power_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
-	LCDPR("%s: 0x%lx\n", __func__, event);
+	if (lcd_debug_print_flag)
+		LCDPR("%s: 0x%lx\n", __func__, event);
 
 	if (event & LCD_EVENT_LCD_ON)
 		lcd_module_enable();

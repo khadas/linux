@@ -19,7 +19,7 @@
 #ifndef __AML_LCD_TABLET_H__
 #define __AML_LCD_TABLET_H__
 
-#define LCD_DRV_VERSION    "20151222"
+#define LCD_DRV_VERSION    "20160115"
 
 extern int lcd_tablet_driver_init(void);
 extern void lcd_tablet_driver_disable(void);

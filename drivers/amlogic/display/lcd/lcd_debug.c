@@ -556,6 +556,7 @@ static ssize_t lcd_debug_store(struct class *class,
 		lcd_drv->lcd_config->lcd_basic.v_period = val[3];
 		pr_info("set h_active=%d, v_active=%d\n", val[0], val[1]);
 		pr_info("set h_period=%d, v_period=%d\n", val[2], val[3]);
+		lcd_tcon_config(lcd_drv->lcd_config);
 		lcd_debug_config_update();
 		break;
 	case 's':
@@ -710,6 +711,13 @@ static ssize_t lcd_debug_ss_store(struct class *class,
 		return -EINVAL;
 
 	return count;
+}
+
+static ssize_t lcd_debug_clk_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	lcd_clk_config_print();
+	return sprintf(buf, "\n");
 }
 
 static ssize_t lcd_debug_test_store(struct class *class,
@@ -929,6 +937,7 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 		lcd_debug_frame_rate_show, lcd_debug_frame_rate_store),
 	__ATTR(ss,         S_IRUGO | S_IWUSR,
 		lcd_debug_ss_show, lcd_debug_ss_store),
+	__ATTR(clk,        S_IRUGO | S_IWUSR, lcd_debug_clk_show, NULL),
 	__ATTR(test,       S_IRUGO | S_IWUSR, NULL, lcd_debug_test_store),
 	__ATTR(reg,        S_IRUGO | S_IWUSR, NULL, lcd_debug_reg_store),
 	__ATTR(print,      S_IRUGO | S_IWUSR,

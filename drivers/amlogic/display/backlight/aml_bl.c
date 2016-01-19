@@ -1519,7 +1519,8 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 
 	if ((event & LCD_EVENT_BL_ON) == 0)
 		return NOTIFY_DONE;
-	BLPR("%s: 0x%lx\n", __func__, event);
+	if (bl_debug_print_flag)
+		BLPR("%s: 0x%lx\n", __func__, event);
 
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
@@ -1550,7 +1551,8 @@ static int aml_bl_off_notifier(struct notifier_block *nb,
 {
 	if ((event & LCD_EVENT_BL_OFF) == 0)
 		return NOTIFY_DONE;
-	BLPR("%s: 0x%lx\n", __func__, event);
+	if (bl_debug_print_flag)
+		BLPR("%s: 0x%lx\n", __func__, event);
 
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
@@ -1582,7 +1584,7 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
-	BLPR("bl_lcd_update_notifier for pwm_vs: event = 0x%lx\n", event);
+	BLPR("bl_lcd_update_notifier for pwm_vs");
 	switch (bl_drv->bconf->method) {
 	case BL_CTRL_PWM:
 		if (bl_drv->bconf->bl_pwm->pwm_port == BL_PWM_VS)

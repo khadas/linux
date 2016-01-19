@@ -259,52 +259,132 @@ void lcd_ttl_pinmux_set(int status)
 		LCDERR("set ttl pinmux error\n");
 }
 
-void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode)
+int lcd_get_power_config(struct lcd_config_s *pconf,
+		struct platform_device *pdev)
 {
-	if (vd1_or_vd2_or_post == 0) { /* vd1 */
-		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 5, 1);
-		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 8, 2);
-	} else if (vd1_or_vd2_or_post == 1) { /* vd2 */
-		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 4, 1);
-		lcd_vcbus_setb(VPP_MATRIX_CTRL, 2, 8, 2);
-	} else {
-		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 0, 1);
-		lcd_vcbus_setb(VPP_MATRIX_CTRL, 0, 8, 2);
-		if (mode == 0)
-			lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 1, 2);
-		else if (mode == 1)
-			lcd_vcbus_setb(VPP_MATRIX_CTRL, 0, 1, 2);
+	int ret = 0;
+	unsigned int para[5];
+	unsigned int val;
+	struct device_node *child;
+	struct lcd_power_ctrl_s *lcd_power = pconf->lcd_power;
+	int i, j;
+	unsigned int index;
+
+	child = of_get_child_by_name(pdev->dev.of_node, pconf->lcd_propname);
+	if (child == NULL) {
+		LCDPR("error: failed to get %s\n", pconf->lcd_propname);
+		return -1;
 	}
 
-	if (mode == 0) { /* ycbcr not full range, 601 conversion */
-		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET0_1, 0x0064C8FF);
-		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET2, 0x006400C8);
-		/* 1.164     0       1.596
-		// 1.164   -0.392    -0.813
-		// 1.164   2.017     0 */
-		lcd_vcbus_write(VPP_MATRIX_COEF00_01, 0x04A80000);
-		lcd_vcbus_write(VPP_MATRIX_COEF02_10, 0x066204A8);
-		lcd_vcbus_write(VPP_MATRIX_COEF11_12, 0x1e701cbf);
-		lcd_vcbus_write(VPP_MATRIX_COEF20_21, 0x04A80812);
-		lcd_vcbus_write(VPP_MATRIX_COEF22, 0x00000000);
-		lcd_vcbus_write(VPP_MATRIX_OFFSET0_1, 0x00000000);
-		lcd_vcbus_write(VPP_MATRIX_OFFSET2, 0x00000000);
-		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET0_1, 0x0FC00E00);
-		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET2, 0x00000E00);
-	} else if (mode == 1) {/* ycbcr full range, 601 conversion */
-		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET0_1, 0x0000E00);
-		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET2, 0x0E00);
-		/* 1    0           1.402
-		// 1    -0.34414    -0.71414
-		// 1    1.772       0 */
-		lcd_vcbus_write(VPP_MATRIX_COEF00_01, (0x400 << 16) | 0);
-		lcd_vcbus_write(VPP_MATRIX_COEF02_10, (0x59c << 16) | 0x400);
-		lcd_vcbus_write(VPP_MATRIX_COEF11_12, (0x1ea0 << 16) | 0x1d24);
-		lcd_vcbus_write(VPP_MATRIX_COEF20_21, (0x400 << 16) | 0x718);
-		lcd_vcbus_write(VPP_MATRIX_COEF22, 0x0);
-		lcd_vcbus_write(VPP_MATRIX_OFFSET0_1, 0x0);
-		lcd_vcbus_write(VPP_MATRIX_OFFSET2, 0x0);
+	ret = of_property_read_u32_array(child, "power_on_step", &para[0], 4);
+	if (ret) {
+		LCDPR("failed to get power_on_step\n");
+		lcd_power->power_on_step[0].type = LCD_POWER_TYPE_MAX;
+	} else {
+		i = 0;
+		while (i < LCD_PWR_STEP_MAX) {
+			j = 4 * i;
+			ret = of_property_read_u32_index(child, "power_on_step",
+				j, &val);
+			lcd_power->power_on_step[i].type = (unsigned char)val;
+			if (val == 0xff) /* ending */
+				break;
+			j = 4 * i + 1;
+			ret = of_property_read_u32_index(child,
+				"power_on_step", j, &val);
+			lcd_power->power_on_step[i].index = val;
+			j = 4 * i + 2;
+			ret = of_property_read_u32_index(child,
+				"power_on_step", j, &val);
+			lcd_power->power_on_step[i].value = val;
+			j = 4 * i + 3;
+			ret = of_property_read_u32_index(child,
+				"power_on_step", j, &val);
+			lcd_power->power_on_step[i].delay = val;
+
+			/* gpio request */
+			switch (lcd_power->power_on_step[i].type) {
+			case LCD_POWER_TYPE_CPU:
+				index = lcd_power->power_on_step[i].index;
+				if (index < LCD_CPU_GPIO_NUM_MAX)
+					lcd_cpu_gpio_register(index);
+				break;
+			default:
+				break;
+			}
+			if (lcd_debug_print_flag) {
+				LCDPR("power_on %d type: %d\n", i,
+					lcd_power->power_on_step[i].type);
+				LCDPR("power_on %d index: %d\n", i,
+					lcd_power->power_on_step[i].index);
+				LCDPR("power_on %d value: %d\n", i,
+					lcd_power->power_on_step[i].value);
+				LCDPR("power_on %d delay: %d\n", i,
+					lcd_power->power_on_step[i].delay);
+			}
+			i++;
+		}
 	}
+
+	ret = of_property_read_u32_array(child, "power_off_step", &para[0], 4);
+	if (ret) {
+		LCDPR("failed to get power_off_step\n");
+		lcd_power->power_off_step[0].type = LCD_POWER_TYPE_MAX;
+	} else {
+		i = 0;
+		while (i < LCD_PWR_STEP_MAX) {
+			j = 4 * i;
+			ret = of_property_read_u32_index(child,
+				"power_off_step", j, &val);
+			lcd_power->power_off_step[i].type = (unsigned char)val;
+			if (val == 0xff) /* ending */
+				break;
+			j = 4 * i + 1;
+			ret = of_property_read_u32_index(child,
+				"power_off_step", j, &val);
+			lcd_power->power_off_step[i].index = val;
+			j = 4 * i + 2;
+			ret = of_property_read_u32_index(child,
+				"power_off_step", j, &val);
+			lcd_power->power_off_step[i].value = val;
+			j = 4 * i + 3;
+			ret = of_property_read_u32_index(child,
+				"power_off_step", j, &val);
+			lcd_power->power_off_step[i].delay = val;
+
+			/* gpio request */
+			switch (lcd_power->power_off_step[i].type) {
+			case LCD_POWER_TYPE_CPU:
+				index = lcd_power->power_off_step[i].index;
+				if (index < LCD_CPU_GPIO_NUM_MAX)
+					lcd_cpu_gpio_register(index);
+				break;
+			default:
+				break;
+			}
+			if (lcd_debug_print_flag) {
+				LCDPR("power_on %d type: %d\n", i,
+					lcd_power->power_off_step[i].type);
+				LCDPR("power_on %d index: %d\n", i,
+					lcd_power->power_off_step[i].index);
+				LCDPR("power_on %d value: %d\n", i,
+					lcd_power->power_off_step[i].value);
+				LCDPR("power_on %d delay: %d\n", i,
+					lcd_power->power_off_step[i].delay);
+			}
+			i++;
+		}
+	}
+
+	ret = of_property_read_u32(child, "backlight_index", &para[0]);
+	if (ret) {
+		LCDPR("failed to get backlight_index\n");
+		pconf->backlight_index = 0;
+	} else {
+		pconf->backlight_index = para[0];
+	}
+
+	return ret;
 }
 
 void lcd_tcon_config(struct lcd_config_s *pconf)
@@ -360,6 +440,65 @@ void lcd_tcon_config(struct lcd_config_s *pconf)
 	}
 }
 
+/* change frame_rate for different vmode */
+int lcd_vmode_change(struct lcd_config_s *pconf)
+{
+	unsigned int pclk = pconf->lcd_timing.lcd_clk_dft; /* avoid offset */
+	unsigned char type = pconf->lcd_timing.fr_adjust_type;
+	unsigned int h_period = pconf->lcd_basic.h_period;
+	unsigned int v_period = pconf->lcd_basic.v_period;
+	unsigned int sync_duration_num = pconf->lcd_timing.sync_duration_num;
+	unsigned int sync_duration_den = pconf->lcd_timing.sync_duration_den;
+
+	/* frame rate adjust */
+	switch (type) {
+	case 1: /* htotal adjust */
+		h_period = ((pclk / v_period) * sync_duration_den * 10) /
+				sync_duration_num;
+		h_period = (h_period + 5) / 10; /* round off */
+		if (pconf->lcd_basic.h_period != h_period) {
+			LCDPR("%s: adjust h_period %u -> %u\n",
+				__func__, pconf->lcd_basic.h_period, h_period);
+			pconf->lcd_basic.h_period = h_period;
+			/* check clk frac update */
+			pclk = (h_period * v_period) / sync_duration_den *
+				sync_duration_num;
+			if (pconf->lcd_timing.lcd_clk != pclk)
+				pconf->lcd_timing.lcd_clk = pclk;
+		}
+		break;
+	case 2: /* vtotal adjust */
+		v_period = ((pclk / h_period) * sync_duration_den * 10) /
+				sync_duration_num;
+		v_period = (v_period + 5) / 10; /* round off */
+		if (pconf->lcd_basic.v_period != v_period) {
+			LCDPR("%s: adjust v_period %u -> %u\n",
+				__func__, pconf->lcd_basic.v_period, v_period);
+			pconf->lcd_basic.v_period = v_period;
+			/* check clk frac update */
+			pclk = (h_period * v_period) / sync_duration_den *
+				sync_duration_num;
+			if (pconf->lcd_timing.lcd_clk != pclk)
+				pconf->lcd_timing.lcd_clk = pclk;
+		}
+		break;
+	case 0: /* pixel clk adjust */
+	default:
+		pclk = (h_period * v_period) / sync_duration_den *
+			sync_duration_num;
+		if (pconf->lcd_timing.lcd_clk != pclk) {
+			LCDPR("%s: adjust pclk %u.%03uMHz -> %u.%03uMHz\n",
+				__func__, (pconf->lcd_timing.lcd_clk / 1000000),
+				((pconf->lcd_timing.lcd_clk / 1000) % 1000),
+				(pclk / 1000000), ((pclk / 1000) % 1000));
+			pconf->lcd_timing.lcd_clk = pclk;
+		}
+		break;
+	}
+
+	return 0;
+}
+
 void lcd_clk_gate_switch(int status)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
@@ -369,13 +508,63 @@ void lcd_clk_gate_switch(int status)
 		LCDPR("%s\n", __func__);
 	pconf = lcd_drv->lcd_config;
 	if (status) {
-		reset_control_deassert(pconf->rstc.encl);
-		reset_control_deassert(pconf->rstc.vencl);
+		if (pconf->rstc.encl)
+			reset_control_deassert(pconf->rstc.encl);
+		if (pconf->rstc.vencl)
+			reset_control_deassert(pconf->rstc.vencl);
 	} else {
-		reset_control_assert(pconf->rstc.encl);
-		reset_control_assert(pconf->rstc.vencl);
+		if (pconf->rstc.encl)
+			reset_control_assert(pconf->rstc.encl);
+		if (pconf->rstc.vencl)
+			reset_control_assert(pconf->rstc.vencl);
 	}
 }
 
+void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode)
+{
+	if (vd1_or_vd2_or_post == 0) { /* vd1 */
+		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 5, 1);
+		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 8, 2);
+	} else if (vd1_or_vd2_or_post == 1) { /* vd2 */
+		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 4, 1);
+		lcd_vcbus_setb(VPP_MATRIX_CTRL, 2, 8, 2);
+	} else {
+		lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 0, 1);
+		lcd_vcbus_setb(VPP_MATRIX_CTRL, 0, 8, 2);
+		if (mode == 0)
+			lcd_vcbus_setb(VPP_MATRIX_CTRL, 1, 1, 2);
+		else if (mode == 1)
+			lcd_vcbus_setb(VPP_MATRIX_CTRL, 0, 1, 2);
+	}
 
+	if (mode == 0) { /* ycbcr not full range, 601 conversion */
+		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET0_1, 0x0064C8FF);
+		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET2, 0x006400C8);
+		/* 1.164     0       1.596
+		// 1.164   -0.392    -0.813
+		// 1.164   2.017     0 */
+		lcd_vcbus_write(VPP_MATRIX_COEF00_01, 0x04A80000);
+		lcd_vcbus_write(VPP_MATRIX_COEF02_10, 0x066204A8);
+		lcd_vcbus_write(VPP_MATRIX_COEF11_12, 0x1e701cbf);
+		lcd_vcbus_write(VPP_MATRIX_COEF20_21, 0x04A80812);
+		lcd_vcbus_write(VPP_MATRIX_COEF22, 0x00000000);
+		lcd_vcbus_write(VPP_MATRIX_OFFSET0_1, 0x00000000);
+		lcd_vcbus_write(VPP_MATRIX_OFFSET2, 0x00000000);
+		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET0_1, 0x0FC00E00);
+		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET2, 0x00000E00);
+	} else if (mode == 1) {/* ycbcr full range, 601 conversion */
+		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET0_1, 0x0000E00);
+		lcd_vcbus_write(VPP_MATRIX_PRE_OFFSET2, 0x0E00);
+		/* 1    0           1.402
+		// 1    -0.34414    -0.71414
+		// 1    1.772       0 */
+		lcd_vcbus_write(VPP_MATRIX_COEF00_01, (0x400 << 16) | 0);
+		lcd_vcbus_write(VPP_MATRIX_COEF02_10, (0x59c << 16) | 0x400);
+		lcd_vcbus_write(VPP_MATRIX_COEF11_12, (0x1ea0 << 16) | 0x1d24);
+		lcd_vcbus_write(VPP_MATRIX_COEF20_21, (0x400 << 16) | 0x718);
+		lcd_vcbus_write(VPP_MATRIX_COEF22, 0x0);
+		lcd_vcbus_write(VPP_MATRIX_OFFSET0_1, 0x0);
+		lcd_vcbus_write(VPP_MATRIX_OFFSET2, 0x0);
+	}
+}
 
