@@ -654,6 +654,8 @@ static int freerun_dqbuf(struct v4l2_buffer *p)
 		p->timestamp.tv_sec = pts_us64 >> 32;
 		p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
 		last_pts_us64 = pts_us64;
+		p->timecode.type = ppmgrvf->width;
+		p->timecode.flags = ppmgrvf->height;
 		return ret;
 	}
 	if (ppmgrvf->pts != 0) {
