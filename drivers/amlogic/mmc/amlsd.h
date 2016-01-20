@@ -67,8 +67,6 @@ extern const u8 tuning_blk_pattern_8bit[128];
 #define     DETECT_CARD_OUT         2
 #define     DETECT_CARD_JTAG_IN     3
 #define     DETECT_CARD_JTAG_OUT    4
-void aml_sd_uart_detect(struct amlsd_platform *pdata);
-void aml_sd_uart_detect_clr(struct amlsd_platform *pdata);
 
 #define EMMC_DAT3_PINMUX_CLR    0
 #define EMMC_DAT3_PINMUX_SET    1
@@ -190,7 +188,8 @@ void of_amlsd_xfer_pre(struct amlsd_platform *pdata);
 void of_amlsd_xfer_post(struct amlsd_platform *pdata);
 int of_amlsd_ro(struct amlsd_platform *pdata);
 
-void aml_sd_uart_detect(struct amlsd_platform *pdata);
+int aml_sd_uart_detect(struct amlsd_platform *pdata);
+void aml_sd_uart_detect_clr(struct amlsd_platform *pdata);
 irqreturn_t aml_sd_irq_cd(int irq, void *dev_id);
 irqreturn_t aml_irq_cd_thread(int irq, void *data);
 void aml_sduart_pre(struct amlsd_platform *pdata);

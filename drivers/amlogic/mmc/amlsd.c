@@ -1063,7 +1063,6 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 
 	mutex_lock(&pdata->host->pinmux_lock);
 	pc = aml_devm_pinctrl_get_select(pdata->host, "sd_to_ao_uart_pins");
-	mutex_unlock(&pdata->host->pinmux_lock);
 
 	if (gpio_request_one(pdata->gpio_dat3,
 		GPIOF_IN, MODULE_NAME))
@@ -1083,6 +1082,7 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 	if (low_cnt > 100)
 		in = 1;
 	gpio_free(pdata->gpio_dat3);
+	mutex_unlock(&pdata->host->pinmux_lock);
 	return in;
 #endif
 }
@@ -1213,12 +1213,14 @@ static void aml_jtag_switch_ao(struct amlsd_platform *pdata)
 }
 
 
-void aml_sd_uart_detect(struct amlsd_platform *pdata)
+int aml_sd_uart_detect(struct amlsd_platform *pdata)
 {
 	static bool is_jtag;
 	if (aml_is_card_insert(pdata)) {
 		if (pdata->is_in)
-			return;
+			return 1;
+		else
+			pdata->is_in = true;
 		if (aml_is_sduart(pdata)
 		&& (!mmc_host_uhs(pdata->mmc))) {
 			if (!pdata->is_sduart) { /* status change */
@@ -1231,15 +1233,12 @@ void aml_sd_uart_detect(struct amlsd_platform *pdata)
 					aml_jtag_switch_sd(pdata);
 					pdata->is_in = false;
 					pr_info("JTAG in\n");
-					return;
+					return 0;
 				}
 				pr_info("aml_is_sdjtag\n");
-				pdata->is_in = true;
 			}
 		} else {
-			if (!pdata->is_in)
-				pr_info("normal card in\n");
-			pdata->is_in = true;
+			pr_info("normal card in\n");
 			aml_uart_switch(pdata, 0);
 			/* aml_jtag_gpioao(); */
 			aml_jtag_switch_ao(pdata);
@@ -1247,14 +1246,16 @@ void aml_sd_uart_detect(struct amlsd_platform *pdata)
 				pdata->mmc->caps |= MMC_CAP_4_BIT_DATA;
 		}
 	} else {
-		if (pdata->is_in) {
-			pr_info("card out\n");
+		if (!pdata->is_in)
+			return 1;
+		else
 			pdata->is_in = false;
-		} else if (is_jtag) {
+		if (is_jtag) {
 			is_jtag = false;
 			pr_info("JTAG OUT\n");
-		}
-		pdata->is_in = false;
+		} else
+			pr_info("card out\n");
+
 		pdata->is_tuned = false;
 		aml_uart_switch(pdata, 0);
 		/* aml_jtag_gpioao(); */
@@ -1266,16 +1267,18 @@ void aml_sd_uart_detect(struct amlsd_platform *pdata)
 		if (pdata->caps & MMC_CAP_4_BIT_DATA)
 			pdata->mmc->caps |= MMC_CAP_4_BIT_DATA;
 	}
-	return;
+	return 0;
 }
 
 irqreturn_t aml_irq_cd_thread(int irq, void *data)
 {
 	struct amlsd_platform *pdata = (struct amlsd_platform *)data;
+	int card_dealing = 0;
 
 	mdelay(20);
-	aml_sd_uart_detect(pdata);
-
+	card_dealing = aml_sd_uart_detect(pdata);
+	if (card_dealing == 1)
+		return IRQ_HANDLED;
 	if ((pdata->is_in == 0) && aml_card_type_non_sdio(pdata))
 		pdata->host->init_flag = 0;
 
