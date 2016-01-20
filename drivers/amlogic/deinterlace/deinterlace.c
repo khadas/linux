@@ -4570,7 +4570,8 @@ static unsigned char pre_de_buf_config(void)
 					}
 				}
 
-			}
+			} else
+				di_pre_stru.same_field_source_flag = 0;
 			di_pre_stru.cur_inp_type = di_buf->vframe->type;
 		} else {
 			di_pre_stru.same_field_source_flag = 0;
