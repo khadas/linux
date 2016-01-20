@@ -1056,6 +1056,20 @@ static ssize_t pd_param_show(struct device *dev,
 
 	return len;
 }
+
+static ssize_t show_tvp_region(struct device *dev,
+			     struct device_attribute *attr, char *buff)
+{
+	ssize_t len = 0;
+
+	len = sprintf(buff, "segment DI:%lx - %lx (size:0x%x)\n",
+			de_devp->mem_start,
+			de_devp->mem_start + de_devp->mem_size - 1,
+			de_devp->mem_size);
+	return len;
+}
+
+
 static DEVICE_ATTR(pd_param, 0664, pd_param_show, pd_param_store);
 
 static ssize_t store_dump_mem(struct device *dev, struct device_attribute *attr,
@@ -1067,6 +1081,7 @@ static DEVICE_ATTR(dump_pic, 0222, NULL, store_dump_mem);
 static DEVICE_ATTR(log, 0664, show_log, store_log);
 static DEVICE_ATTR(status, 0444, show_status, NULL);
 static DEVICE_ATTR(provider_vframe_status, 0444, show_vframe_status, NULL);
+static DEVICE_ATTR(tvp_region, 0444, show_tvp_region, NULL);
 /***************************
 * di buffer management
 ***************************/
@@ -7792,6 +7807,7 @@ static int di_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_provider_vframe_status);
 	device_create_file(di_devp->dev, &dev_attr_frame_format);
 	device_create_file(di_devp->dev, &dev_attr_pd_param);
+	device_create_file(di_devp->dev, &dev_attr_tvp_region);
 
 #ifdef NEW_DI_V4
 	dnr_init(di_devp->dev);
