@@ -68,6 +68,8 @@ struct vppfilter_mode_s {
 	u32 vpp_sc_misc_;
 	u32 vpp_vsc_start_phase_step;
 	u32 vpp_hsc_start_phase_step;
+	bool vpp_pre_vsc_en;
+	bool vpp_pre_hsc_en;
 };
 
 struct vpp_filters_s {

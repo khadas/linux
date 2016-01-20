@@ -37,7 +37,7 @@ enum {
 	VIDEO_WIDEOPTION_MAX = 14
 };
 
-
+extern bool pre_scaler_en;
 #define VIDEO_NOTIFY_TRICK_WAIT   0x01
 #define VIDEO_NOTIFY_PROVIDER_GET 0x02
 #define VIDEO_NOTIFY_PROVIDER_PUT 0x04
@@ -166,6 +166,10 @@ enum {
 #define VPP_PHASECTL_INIRPTNUMT_BIT 5
 #define VPP_PHASECTL_INIRCVNUMT_BIT 0
 
+#define VPP_LINE_BUFFER_EN_BIT          21
+#define VPP_SC_PREHORZ_EN_BIT           20
+#define VPP_SC_PREVERT_EN_BIT           19
+#define VPP_LINE_BUFFER_EN          (1 << 21)
 #define VPP_SC_PREHORZ_EN           (1 << 20)
 #define VPP_SC_PREVERT_EN           (1 << 19)
 #define VPP_SC_VERT_EN              (1 << 18)

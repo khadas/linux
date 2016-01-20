@@ -3931,6 +3931,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				  VPP_SC_TOP_EN | VPP_SC_VERT_EN |
 				  VPP_SC_HORZ_EN);
 
+		/* pps pre hsc&vsc en */
+		VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
+				       vpp_filter->vpp_pre_hsc_en,
+				       VPP_SC_PREHORZ_EN_BIT, 1);
+		VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
+				       vpp_filter->vpp_pre_vsc_en,
+				       VPP_SC_PREVERT_EN_BIT, 1);
+		VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
+				       vpp_filter->vpp_pre_vsc_en,
+				       VPP_LINE_BUFFER_EN_BIT, 1);
+
 #ifdef TV_3D_FUNCTION_OPEN
 		if (last_mode_3d) {
 			/*turn off vertical scaler when 3d display */
@@ -5587,6 +5598,12 @@ static ssize_t video_state_show(struct class *cla,
 	len +=
 	    sprintf(buf + len, "vscale phase step 0x%x.\n",
 		    vpp_filter->vpp_vsc_start_phase_step);
+	len +=
+	    sprintf(buf + len, "pps pre hsc enable %d.\n",
+		    vpp_filter->vpp_pre_hsc_en);
+	len +=
+	    sprintf(buf + len, "pps pre vsc enable %d.\n",
+		    vpp_filter->vpp_pre_vsc_en);
 	return len;
 }
 

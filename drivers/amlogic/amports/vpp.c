@@ -241,6 +241,10 @@ static unsigned int sr0_sr1_refresh = 1;
 module_param(sr0_sr1_refresh, uint, 0664);
 MODULE_PARM_DESC(sr0_sr1_refresh, "sr0_sr1_refresh");
 
+bool pre_scaler_en;
+module_param(pre_scaler_en, bool, 0664);
+MODULE_PARM_DESC(pre_scaler_en, "pre_scaler_en");
+
 #if 0
 #define DECL_PARM(name)\
 static int name;\
@@ -1058,8 +1062,24 @@ RESTART:
 
 	if (next_frame_par->hscale_skip_count) {
 		filter->vpp_hf_start_phase_step >>= 1;
+		filter->vpp_hsc_start_phase_step >>= 1;
 		next_frame_par->VPP_line_in_length_ >>= 1;
 	}
+	/*pre hsc&vsc in pps for scaler down*/
+	if ((filter->vpp_hf_start_phase_step >= 0x2000000) &&
+		(filter->vpp_vsc_start_phase_step >= 0x2000000) &&
+		pre_scaler_en) {
+		filter->vpp_pre_vsc_en = 1;
+		filter->vpp_vsc_start_phase_step >>= 1;
+	} else
+		filter->vpp_pre_vsc_en = 0;
+	if ((filter->vpp_hf_start_phase_step >= 0x2000000) &&
+		pre_scaler_en) {
+		filter->vpp_pre_hsc_en = 1;
+		filter->vpp_hf_start_phase_step >>= 1;
+		filter->vpp_hsc_start_phase_step >>= 1;
+	} else
+		filter->vpp_pre_hsc_en = 0;
 
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
 #if HAS_VPU_PROT
