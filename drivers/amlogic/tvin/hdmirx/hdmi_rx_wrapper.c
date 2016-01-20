@@ -271,9 +271,9 @@ static bool is_phy_reset;
 MODULE_PARM_DESC(is_phy_reset, "\n is_phy_reset\n");
 module_param(is_phy_reset, bool, 0664);
 
-static bool is_mute_video = 1;
-MODULE_PARM_DESC(is_mute_video, "\n is_mute_video\n");
-module_param(is_mute_video, bool, 0664);
+static int eq_calc_mode;
+MODULE_PARM_DESC(eq_calc_mode, "\n eq_calc_mode\n");
+module_param(eq_calc_mode, int, 0664);
 
 static int wait_clk_stable_max = 1000;
 MODULE_PARM_DESC(wait_clk_stable_max, "\n wait_clk_stable_max\n");
@@ -1483,6 +1483,7 @@ static void Signal_status_init(void)
 	sig_unstable_cnt = 0;
 	sig_unready_cnt = 0;
 	sig_unstable_reset_hpd_cnt = 0;
+	wait_no_signal_cnt = 0;
 	rx.no_signal = false;
 }
 
@@ -1767,7 +1768,8 @@ void hdmirx_hw_monitor(void)
 				wait_no_signal_cnt++;
 			if (hdmirx_phy_clk_rate_monitor()) {
 				rx.state = FSM_HDMI5V_LOW;
-				hdmirx_phy_suspend_eq();
+				hdmirx_phy_stop_eq();
+				return;
 			}
 		}
 	}
@@ -1799,13 +1801,22 @@ void hdmirx_hw_monitor(void)
 		hpd_to_esm = 1;
 		#endif
 		/*hdmirx_phy_clk_rate_monitor();*/
-		hdmirx_phy_EQ_workaround_init();
-		hdmirx_phy_start_eq();
+		if (eq_calc_mode == 0) {
+			hdmirx_phy_EQ_workaround_init();
+			hdmirx_phy_start_eq();
+		}
 		rx.state = FSM_EQ_CALIBRATION;
 		rx_print("HPD_READY->CALIBRATION\n");
 		break;
 	case FSM_EQ_CALIBRATION:
-		wait_clk_stable++;
+		if (eq_calc_mode != 0) {
+			hdmirx_phy_conf_eq_setting(rx.port, eq_calc_mode ,
+				eq_calc_mode , eq_calc_mode);
+			rx.state = FSM_WAIT_CLK_STABLE;
+			rx_print("CALIBRATION->CLK_STABLE\n");
+			return;
+		}
+
 		if (hdmirx_phy_get_eq_state() == EQ_SUCCESS_END) {
 			rx.state = FSM_TIMINGCHANGE;
 			wait_clk_stable = 0;
@@ -1818,6 +1829,7 @@ void hdmirx_hw_monitor(void)
 				rx_print(
 				"CALIBRATION->TIMINGCHANGE timeout\n");
 			}
+			wait_clk_stable++;
 		} else {	/* failed */
 			rx_print("CALIBRATION->TIMINGCHANGE fail\n");
 			rx.state = FSM_TIMINGCHANGE;
@@ -1833,8 +1845,6 @@ void hdmirx_hw_monitor(void)
 			wait_clk_stable = 0;
 			break;
 		}
-		rx.state = FSM_EQ_CALIBRATION;
-		rx.pre_state = FSM_WAIT_CLK_STABLE;
 		break;
 	case FSM_TIMINGCHANGE:
 		if ((reset_sw) && (is_phy_reset))

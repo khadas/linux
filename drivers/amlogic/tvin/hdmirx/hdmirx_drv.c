@@ -121,6 +121,23 @@ static struct reg_map reg_maps[] = {
 	},
 };
 
+void hdmirx_reg_map(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
+		reg_maps[i].p = ioremap(reg_maps[i].phy_addr, reg_maps[i].size);
+		if (!reg_maps[i].p) {
+			pr_info("hdmirx: failed Mapped addr: 0x%x\n",
+				reg_maps[i].phy_addr);
+		} else {
+			reg_maps[i].flag = 1;
+			pr_info("hdmirx: Mapped addr: 0x%x\n",
+				reg_maps[i].phy_addr);
+		}
+	}
+}
+
 static int in_reg_maps_idx(unsigned int addr)
 {
 	int i;
@@ -915,6 +932,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto fail_kmalloc_hdev;
 	}
 	memset(hdevp, 0, sizeof(struct hdmirx_dev_s));
+	hdmirx_reg_map();
 
 	/*@to get from bsp*/
 	#if 0

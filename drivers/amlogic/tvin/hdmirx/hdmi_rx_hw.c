@@ -65,9 +65,9 @@
 
 #define AUDIO_OUTPUT_SELECT I2S_32BIT_256FS_OUTPUT
 
-#define HDMIRX_ADDR_PORT	0xda83e000
-#define HDMIRX_DATA_PORT	0xda83e004
-#define HDMIRX_CTRL_PORT	0xda83e008
+#define HDMIRX_ADDR_PORT	0xC883e000 /* 0xda83e000 */
+#define HDMIRX_DATA_PORT	0xC883e004 /* 0xda83e004 */
+#define HDMIRX_CTRL_PORT	0xC883e008 /* 0xda83e008 */
 
 static DEFINE_SPINLOCK(reg_rw_lock);
 
@@ -470,6 +470,20 @@ int hdmirx_control_clk_range(unsigned long min, unsigned long max)
 static int packet_init(void)
 {
 	int error = 0;
+	int data32 = 0;
+	data32 = 0;
+	data32 |= 1 << 9; /* amp_err_filter */
+	data32 |= 1 << 8; /* isrc_err_filter */
+	data32 |= 1 << 7; /* gmd_err_filter */
+	data32 |= 1 << 6; /* aif_err_filter */
+	data32 |= 1 << 5; /* avi_err_filter */
+	data32 |= 1 << 4; /* vsi_err_filter */
+	data32 |= 1 << 3; /* gcp_err_filter */
+	data32 |= 1 << 2; /* acrp_err_filter */
+	data32 |= 1 << 1; /* ph_err_filter */
+	data32 |= 0 << 0; /* checksum_err_filter */
+	hdmirx_wr_dwc(DWC_PDEC_ERR_FILTER, data32);
+
 	hdmirx_wr_dwc(DWC_PDEC_CTRL,
 		PFIFO_STORE_FILTER_EN|PD_FIFO_WE|PDEC_BCH_EN|GCP_GLOBAVMUTE);
 	hdmirx_wr_dwc(DWC_PDEC_ASP_CTRL,
@@ -870,7 +884,6 @@ void hdmirx_hw_config(void)
 	else
 		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
 
-	hdmirx_set_hpd(rx.port, 1);
 	hdmirx_phy_init(rx.port, 0);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x1f);
 	DWC_init(rx.port);
@@ -883,6 +896,7 @@ void hdmirx_hw_config(void)
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
 	hdmirx_irq_open();
+	hdmirx_set_hpd(rx.port, 1);
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 

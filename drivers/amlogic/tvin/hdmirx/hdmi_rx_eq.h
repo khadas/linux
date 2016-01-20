@@ -23,8 +23,8 @@
 #define MINDIFF_HDMI20	2/* max min diff between data chs on hdmi2.0 */
 #define EQ_CLK_WAIT_MAX_COUNT 1000
 #define EQ_CLK_WAIT_STABLE_COUNT (EQ_CLK_WAIT_MAX_COUNT - 900)
-#define EQ_CLK_WAIT_DELAY 1
-#define EQ_TMDS_VALID_WAIT_DELAY 2
+#define EQ_CLK_WAIT_DELAY 5
+#define EQ_TMDS_VALID_WAIT_DELAY 3
 /*#define EQ_CLK_RATE_WAIT 15*/
 #define block_delay_ms(x) msleep_interruptible((x))
 
@@ -156,6 +156,7 @@ struct hdmirx_phy_data_t {
 	int phy_clk_wait_count;
 	bool task_running;
 	bool exit_task_delay;/* exit clk stable delay */
+	bool start_eq;
 	struct mutex state_lock;
 	bool last_clk_rate;
 };
@@ -174,6 +175,8 @@ int hdmirx_phy_stop_eq(void);
 void hdmirx_phy_reset(int rx_port_sel, int dcm);
 int hdmirx_phy_suspend_eq(void);
 bool hdmirx_phy_check_tmds_valid(void);
+void hdmirx_phy_conf_eq_setting(int rx_port_sel,
+	int ch0Setting,	int ch1Setting, int ch2Setting);
 
 /*function declare end*/
 
