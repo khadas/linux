@@ -1076,7 +1076,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 					172, 177, 181, 186, 190,
 					195, 200, 204, 209, 213,
 					218, 223, 227, 232, 237,
-					242, 246, 251, 256};
+					242, 246, 251, 255};
 
 	unsigned int rGm1p8[] = {0, 0, 1, 1, 2, 3, 4, 5,
 					6, 7, 9, 11, 13, 15, 17,
@@ -1088,7 +1088,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 					136, 141, 147, 153, 158,
 					164, 170, 176, 182, 189,
 					195, 201, 208, 214, 221,
-					228, 235, 242, 249, 256};
+					228, 235, 242, 249, 255};
 
 	if (dnlp_respond) {
 		if ((old_dnlp_mvreflsh != ve_dnlp_mvreflsh) ||
