@@ -2224,9 +2224,6 @@ static unsigned char is_bypass(vframe_t *vf_in)
 		if (di_vscale_skip_count > 0)
 			return 1;
 	}
-	if ((di_pre_stru.same_field_source_flag > 1)
-		&& skip_wrong_field)
-		return 1;
 
 	return 0;
 }
