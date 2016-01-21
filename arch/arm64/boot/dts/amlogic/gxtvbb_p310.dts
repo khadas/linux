@@ -87,6 +87,10 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
+		amlvideo2_reserved:linux,amlvideo2 {
+			compatible = "amlogic, amlvideo2_memory";
+			size = <0x0 0x01800000>;
+		};
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -264,6 +268,12 @@
 				"timerc";
 		buffer-size = <3133440>;	//1920x1088x3/2
 		hw-version = <2>;
+	};
+	amlvideo2 {
+		compatible = "amlogic, amlvideo2";
+		memory-region = <&amlvideo2_reserved>;
+		dev_name = "amlvideo2";
+		status = "okay";
 	};
 	vdin0 {
 		compatible = "amlogic, vdin";
