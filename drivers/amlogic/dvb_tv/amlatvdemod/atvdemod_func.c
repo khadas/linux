@@ -1555,19 +1555,19 @@ void atv_dmd_set_std(void)
 
 int aml_audiomode_autodet(void)
 {
-	unsigned long carrier_power;
+	unsigned long carrier_power = 0;
+	unsigned long carrier_power_max = 0;
 	unsigned long reg_addr = 0x03 , temp_data;
 	int carrier_lock_count = 0;
 	int lock = 0;
-
-	int carrier_threshold = 100; /* 4.5MHz */
+	int broad_std_final = 0;
+	int carrier_threshold = 500; /* 4.5MHz */
 	int num = 0;
 
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data | 0x80;/* 0x40 */
 
 	atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
-
 	switch (broad_std) {
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
@@ -1613,10 +1613,21 @@ int aml_audiomode_autodet(void)
 			usleep_range(6000, 9000);
 		}
 	/* ----------------read carrier_power--------------------- */
-	carrier_power = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, reg_addr);
 	/* SIF_STG_2[0x09],address 0x03 */
-
 	while (carrier_power < carrier_threshold) {
+		if (carrier_power_max < carrier_power) {
+			carrier_power_max = carrier_power;
+			broad_std_final = broad_std;
+		}
+		if (num++ > 5) {
+			temp_data =
+				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
+			temp_data = temp_data & (~0x80);/* ;0xbf */
+			atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,
+				temp_data);
+			broad_std = broad_std_final;
+			return broad_std_final;
+		}
 		switch (broad_std) {
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
@@ -1628,16 +1639,8 @@ int aml_audiomode_autodet(void)
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
-			pr_err("PAL don't find any audio mode");
-			temp_data =
-				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-			temp_data = temp_data & ~0x80;/* 0xbf */
-
-			atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,
-					temp_data);
-
-			return broad_std;
-
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I;
 			break;
@@ -1648,16 +1651,8 @@ int aml_audiomode_autodet(void)
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
-			pr_err("NTSC don't find any audio mode");
-			temp_data =
-				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-			temp_data = temp_data & (~0x80);/* 0xbf */
-
-			atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,
-					temp_data);
-
-			return broad_std;
-
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK;
+			break;
 		default:
 			pr_err("unsupport broadcast_standard!!!\n");
 			break;
@@ -1681,8 +1676,8 @@ int aml_audiomode_autodet(void)
 		carrier_power =
 			atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, reg_addr);
 			/* SIF_STG_2[0x09],address 0x03 */
-		pr_info("[amlatvdemod.. %d ]%s: atvdemo audio carrier power report:%lu.\n",
-				++num, __func__, carrier_power);
+		pr_err("[amlatvdemod.. %d ]%s: atvdemo audio carrier power report:%lu.\n",
+				num, __func__, carrier_power);
 	}
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data & (~0x80);/* ;0xbf */
