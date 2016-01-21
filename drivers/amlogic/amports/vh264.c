@@ -1275,10 +1275,18 @@ static void vh264_isr(void)
 			/* a cmd 1 sent during decoding w/o getting a cmd 3. */
 			/* should not happen but the original code has such
 			   case, do the same process */
+			if ((READ_VREG(AV_SCRATCH_1) & 0xff)
+				== 1) {/*invalid mb_width*/
+				vh264_running = 0;
+				fatal_error_flag = DECODER_FATAL_ERROR_UNKNOW;
+			/* this is fatal error, need restart */
+				pr_info("cmd 1 fatal error happend\n");
+				schedule_work(&error_wd_work);
+			} else {
 			vh264_stream_switching_state = SWITCHING_STATE_ON_CMD1;
-
 			pr_info("Enter switching mode cmd1.\n");
 			schedule_work(&stream_switching_work);
+			}
 			return IRQ_HANDLED;
 		}
 		pr_info("Enter set parameter cmd1.\n");
