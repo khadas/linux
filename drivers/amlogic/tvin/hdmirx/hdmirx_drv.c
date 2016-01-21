@@ -1198,6 +1198,18 @@ static int hdmirx_resume(struct platform_device *pdev)
 }
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static int hdmirx_restore(struct device *dev)
+{
+	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
+	return 0;
+}
+
+const struct dev_pm_ops hdmirx_pm = {
+	.restore	= hdmirx_restore,
+};
+#endif
+
 static const struct of_device_id hdmirx_dt_match[] = {
 	{
 		.compatible     = "amlogic, hdmirx",
@@ -1216,6 +1228,9 @@ static struct platform_driver hdmirx_driver = {
 		.name   = TVHDMI_DRIVER_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = hdmirx_dt_match,
+#ifdef CONFIG_HIBERNATION
+		.pm     = &hdmirx_pm,
+#endif
 	}
 };
 
