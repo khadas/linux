@@ -76,6 +76,13 @@ enum bl_pwm_port_e {
 	BL_PWM_MAX,
 };
 
+enum bl_off_policy_e {
+	BL_OFF_POLICY_NONE = 0,
+	BL_OFF_POLICY_ALWAYS,
+	BL_OFF_POLICY_ONCE,
+	BL_OFF_POLICY_MAX,
+};
+
 #define BL_GPIO_OUTPUT_LOW      0
 #define BL_GPIO_OUTPUT_HIGH     1
 #define BL_GPIO_INPUT           2
@@ -94,12 +101,14 @@ struct bl_pwm_config_s {
 	unsigned int level_max;
 	unsigned int level_min;
 	unsigned int pwm_freq; /* pwm_vs: 1~4(vfreq), pwm: freq(unit: Hz) */
+	unsigned int pwm_duty; /* unit: % */
 	unsigned int pwm_duty_max; /* unit: % */
 	unsigned int pwm_duty_min; /* unit: % */
 	unsigned int pwm_cnt; /* internal used for pwm control */
 	unsigned int pwm_pre_div; /* internal used for pwm control */
 	unsigned int pwm_max; /* internal used for pwm control */
 	unsigned int pwm_min; /* internal used for pwm control */
+	unsigned int pwm_level; /* internal used for pwm control */
 	unsigned int pwm_gpio;
 	unsigned int pwm_gpio_off;
 };
