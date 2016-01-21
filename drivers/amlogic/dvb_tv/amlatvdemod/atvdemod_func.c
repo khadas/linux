@@ -43,6 +43,9 @@ static int audio_det_mode = AUDIO_AUTO_DETECT;
 module_param(audio_det_mode, int, 0644);
 MODULE_PARM_DESC(audio_det_mode, "\n audio_det_mode\n");
 
+static int aud_dmd_jilinTV;
+module_param(aud_dmd_jilinTV, int, 0644);
+MODULE_PARM_DESC(aud_dmd_jilinTV, "\naud dmodulation setting for jilin TV\n");
 
 static unsigned int if_freq = 4250000;	/*PAL-DK:3250000;NTSC-M:4250000*/
 module_param(if_freq, uint, 0644);
@@ -345,8 +348,14 @@ void atv_dmd_misc(void)
 	atv_dmd_wr_long(0x19, 0x00, 0x4a4000);/*zhuangwei*/
 	/*atv_dmd_wr_byte(0x0c,0x01,0x28);//pwd-out gain*/
 	/*atv_dmd_wr_byte(0x0c,0x04,0xc0);//pwd-out offset*/
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu()) {
 		aml_audio_valume_gain_set(audio_gain_val);
+		/* 20160121 fix audio demodulation over */
+		atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+		atv_dmd_wr_long(0x09, 0x04, 0x1900000);
+		if (aud_dmd_jilinTV)
+			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+	}
 }
 
 /*Broadcast_Standard*/
