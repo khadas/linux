@@ -70,6 +70,8 @@ static struct early_suspend aocec_suspend_handler;
 #define DEV_TYPE_TX		4
 #define DEV_TYPE_RX		0
 
+#define CEC_EARLY_SUSPEND	(1 << 0)
+#define CEC_DEEP_SUSPEND	(1 << 1)
 
 
 /* global struct for tx and rx */
@@ -98,6 +100,8 @@ struct ao_cec_dev {
 	struct cec_global_info_t cec_info;
 };
 
+static int phy_addr_test;
+
 /* from android cec hal */
 enum {
 	HDMI_OPTION_WAKEUP = 1,
@@ -107,9 +111,11 @@ enum {
 };
 
 static struct ao_cec_dev *cec_dev;
+static int cec_tx_result;
 
 static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
+static unsigned int  new_msg;
 bool cec_msg_dbg_en = 0;
 
 #define CEC_ERR(format, args...)				\
@@ -123,25 +129,6 @@ bool cec_msg_dbg_en = 0;
 	}
 
 static unsigned char msg_log_buf[128] = { 0 };
-static int cec_ll_trigle_tx(int wait);
-static int cec_tx_fail_reason;
-
-struct cec_tx_msg_t {
-	unsigned char buf[16];
-	unsigned int  busy;
-	unsigned int  len;
-};
-
-#define CEX_TX_MSG_BUF_NUM	16
-#define CEC_TX_MSG_BUF_MASK	(CEX_TX_MSG_BUF_NUM - 1)
-
-struct cec_tx_msg {
-	struct cec_tx_msg_t msg[CEX_TX_MSG_BUF_NUM];
-	unsigned int send_idx;
-	unsigned int queue_idx;
-};
-
-static struct cec_tx_msg cec_tx_msgs = {};
 
 #define waiting_aocec_free() \
 	do {\
@@ -249,7 +236,6 @@ static void cec_hw_reset(void)
 	cec_arbit_bit_time_set(5, 0x000, 0);
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
 
-	memset(&cec_tx_msgs, 0, sizeof(struct cec_tx_msg));
 	CEC_INFO("hw reset :logical addr:0x%x\n",
 		aocec_rd_reg(CEC_LOGICAL_ADDR0));
 }
@@ -264,23 +250,6 @@ void cec_rx_buf_clear(void)
 int cec_rx_buf_check(void)
 {
 	unsigned int rx_num_msg = aocec_rd_reg(CEC_RX_NUM_MSG);
-#if 0
-	unsigned tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
-	if (tx_status == TX_BUSY) {
-		cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy++;
-		if (cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy >= 7) {
-			CEC_ERR("tx busy too long, reset hw\n");
-			cec_hw_reset();
-			cec_tx_msgs.msg[cec_tx_msgs.send_idx].busy = 0;
-		}
-	}
-	if (tx_status == TX_IDLE) {
-		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
-			/* triggle tx if idle */
-			cec_ll_trigle_tx();
-		}
-	}
-#endif
 	if (rx_num_msg)
 		CEC_INFO("rx msg num:0x%02x\n", rx_num_msg);
 
@@ -327,65 +296,38 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	return ret;
 }
 
-static int cec_queue_tx_msg(const unsigned char *msg, unsigned char len)
-{
-	int s_idx, q_idx;
-
-	s_idx = cec_tx_msgs.send_idx;
-	q_idx = cec_tx_msgs.queue_idx;
-	if (((q_idx + 1) & CEC_TX_MSG_BUF_MASK) == s_idx) {
-		CEC_ERR("tx buffer full, abort, s:%d, q:%d\n", s_idx, q_idx);
-		cec_hw_reset();
-		return -1;
-	}
-	if (len && msg) {
-		memcpy(cec_tx_msgs.msg[q_idx].buf, msg, len);
-		cec_tx_msgs.msg[q_idx].len = len;
-		cec_tx_msgs.queue_idx = (q_idx + 1) & CEC_TX_MSG_BUF_MASK;
-	}
-	return 0;
-}
-
 /************************ cec arbitration cts code **************************/
 /* using the cec pin as fiq gpi to assist the bus arbitration */
 
 /* return value: 1: successful	  0: error */
-static int cec_ll_trigle_tx(int wait)
+static int cec_ll_trigle_tx(const unsigned char *msg, int len)
 {
 	int i;
 	unsigned int n;
 	int pos;
 	int reg;
-	unsigned int s_idx;
-	int len;
-	char *msg;
 	unsigned int j = 20;
 	unsigned tx_stat;
 	static int cec_timeout_cnt = 1;
 
-	if (wait) {
-		while (1) {
-			tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
-			if (tx_stat != TX_BUSY)
-				break;
+	while (1) {
+		tx_stat = aocec_rd_reg(CEC_TX_MSG_STATUS);
+		if (tx_stat != TX_BUSY)
+			break;
 
-			if (!(j--)) {
-				CEC_INFO("wating busy timeout\n");
-				aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-				cec_timeout_cnt++;
-				if (cec_timeout_cnt > 0x08)
-					cec_hw_reset();
-				break;
-			}
-			msleep(20);
+		if (!(j--)) {
+			CEC_INFO("wating busy timeout\n");
+			aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
+			cec_timeout_cnt++;
+			if (cec_timeout_cnt > 0x08)
+				cec_hw_reset();
+			break;
 		}
+		msleep(20);
 	}
 
 	reg = aocec_rd_reg(CEC_TX_MSG_STATUS);
 	if (reg == TX_IDLE || reg == TX_DONE) {
-		s_idx = cec_tx_msgs.send_idx;
-		msg = cec_tx_msgs.msg[s_idx].buf;
-		len = cec_tx_msgs.msg[s_idx].len;
 		for (i = 0; i < len; i++)
 			aocec_wr_reg(CEC_TX_MSG_0_HEADER + i, msg[i]);
 
@@ -415,30 +357,15 @@ static int cec_ll_trigle_tx(int wait)
 void tx_irq_handle(void)
 {
 	unsigned tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
-	unsigned int s_idx;
 	switch (tx_status) {
 	case TX_DONE:
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-		s_idx = cec_tx_msgs.send_idx;
-		cec_tx_msgs.msg[s_idx].busy = 0;
-		/*
-		 * we should not increase send idx if there is nothing to send
-		 * but got tx done irq. This can happen when resume from uboot
-		 */
-		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
-			cec_tx_msgs.send_idx = (cec_tx_msgs.send_idx + 1) &
-						CEC_TX_MSG_BUF_MASK;
-		}
-		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx)
-			cec_ll_trigle_tx(0);
-		cec_tx_fail_reason = CEC_FAIL_NONE;
+		cec_tx_result = 0;
 		complete(&cec_dev->tx_ok);
 		break;
 
 	case TX_BUSY:
-		s_idx = cec_tx_msgs.send_idx;
-		cec_tx_msgs.msg[s_idx].busy++;
-		CEC_INFO("TX_BUSY\n");
+		CEC_ERR("TX_BUSY\n");
 		break;
 
 	case TX_ERROR:
@@ -448,23 +375,12 @@ void tx_irq_handle(void)
 			cec_hw_reset();
 		} else {
 			aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
-			s_idx = cec_tx_msgs.send_idx;
-			cec_tx_msgs.send_idx =
-				(cec_tx_msgs.send_idx + 1) &
-				CEC_TX_MSG_BUF_MASK;
-			s_idx = cec_tx_msgs.send_idx;
-			if (s_idx != cec_tx_msgs.queue_idx)
-				cec_ll_trigle_tx(0);
-			cec_tx_fail_reason = CEC_FAIL_NACK;
-			complete(&cec_dev->tx_ok);
 		}
+		cec_tx_result = 1;
+		complete(&cec_dev->tx_ok);
 		break;
 
 	case TX_IDLE:
-		if (cec_tx_msgs.send_idx != cec_tx_msgs.queue_idx) {
-			/* triggle tx if idle */
-			cec_ll_trigle_tx(0);
-		}
 		break;
 	default:
 		break;
@@ -478,44 +394,35 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	int ret = 0;
 	int timeout = msecs_to_jiffies(1000);
 
+	if (len == 0)
+		return CEC_FAIL_NONE;
+
 	mutex_lock(&cec_dev->cec_mutex);
 	/*
 	 * do not send messanges if tv is not support CEC
 	 */
-	cec_tx_fail_reason = CEC_FAIL_NONE;
-	cec_queue_tx_msg(msg, len);
-	ret = cec_ll_trigle_tx(1);
+	ret = cec_ll_trigle_tx(msg, len);
 	if (ret < 0) {
-		cec_tx_fail_reason = CEC_FAIL_BUSY;
 		/* we should increase send idx if busy */
-		cec_tx_msgs.send_idx = (cec_tx_msgs.send_idx + 1) &
-					CEC_TX_MSG_BUF_MASK;
 		CEC_INFO("tx busy\n");
 		mutex_unlock(&cec_dev->cec_mutex);
-		return ret;
+		return CEC_FAIL_BUSY;
 	}
+	cec_tx_result = 0;
 	ret = wait_for_completion_timeout(&cec_dev->tx_ok, timeout);
 	if (ret <= 0) {
 		/* timeout or interrupt */
-		cec_tx_fail_reason = CEC_FAIL_OTHER;
+		ret = CEC_FAIL_OTHER;
 		CEC_INFO("tx timeout\n");
 	} else {
-		if (cec_tx_fail_reason != CEC_FAIL_NONE) {
-			/* not timeout but got fail info */
-			ret = -1;
-		} else {
-			/* send success */
-			ret = len;
-		}
+		if (cec_tx_result)
+			ret = CEC_FAIL_NACK;
+		else
+			ret = CEC_FAIL_NONE;
 	}
 	mutex_unlock(&cec_dev->cec_mutex);
 
 	return ret;
-}
-
-int get_cec_tx_fail(void)
-{
-	return cec_tx_fail_reason;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -547,8 +454,6 @@ void ao_cec_init(void)
 
 	/* Enable all AO_CEC interrupt sources */
 	cec_enable_irq();
-
-	memset(&cec_tx_msgs, 0, sizeof(struct cec_tx_msg));
 }
 
 void cec_arbit_bit_time_set(unsigned bit_set, unsigned time_set, unsigned flag)
@@ -856,7 +761,7 @@ static void cec_rx_process(void)
 	int opcode;
 	unsigned char msg[MAX_MSG] = {};
 
-	if (len < 2)			/* ignore ping message */
+	if (len < 2 || !new_msg)		/* ignore ping message */
 		return;
 
 	memcpy(msg, rx_msg, len);
@@ -897,7 +802,8 @@ static void cec_rx_process(void)
 
 	case CEC_OC_SET_STREAM_PATH:
 		cec_set_stream_path(msg);
-		if (cec_dev->cec_suspend) /* wake up if in early suspend */
+		/* wake up if in early suspend */
+		if (cec_dev->cec_suspend == CEC_EARLY_SUSPEND)
 			cec_key_report(0);
 		break;
 
@@ -914,7 +820,8 @@ static void cec_rx_process(void)
 		break;
 
 	case CEC_OC_USER_CONTROL_PRESSED:
-		if (cec_dev->cec_suspend) { /* wake up by key function */
+		/* wake up by key function */
+		if (cec_dev->cec_suspend == CEC_EARLY_SUSPEND) {
 			if (msg[2] == 0x40 || msg[2] == 0x6d)
 				cec_key_report(0);
 		}
@@ -931,6 +838,7 @@ static void cec_rx_process(void)
 		CEC_ERR("unsupported command:%x\n", opcode);
 		break;
 	}
+	new_msg = 0;
 }
 
 static void cec_task(struct work_struct *work)
@@ -962,6 +870,7 @@ static irqreturn_t cec_isr_handler(int irq, void *dev_instance)
 
 	complete(&cec_dev->rx_ok);
 	/* check rx buffer is full */
+	new_msg = 1;
 	mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	return IRQ_HANDLED;
 }
@@ -1055,6 +964,7 @@ static ssize_t port_status_show(struct class *cla,
 #ifdef CONFIG_TVIN_HDMI
 	} else {
 		tmp = hdmirx_rd_top(TOP_HPD_PWR5V);
+		CEC_INFO("TOP_HPD_PWR5V:%x\n", tmp);
 		tmp >>= 20;
 		tmp &= 0xf;
 		return sprintf(buf, "%x\n", tmp);
@@ -1070,6 +980,24 @@ static ssize_t physical_addr_show(struct class *cla,
 	return sprintf(buf, "%04x\n", tmp);
 }
 
+static ssize_t physical_addr_store(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int addr;
+
+	if (sscanf(buf, "%x", &addr) != 1)
+		return -EINVAL;
+
+	if (addr > 0xffff || addr < 0) {
+		CEC_ERR("invalid input:%s\n", buf);
+		phy_addr_test = 0;
+		return -EINVAL;
+	}
+	cec_dev->phy_addr = addr;
+	phy_addr_test = 1;
+	return count;
+}
 
 static ssize_t dbg_en_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
@@ -1094,7 +1022,7 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR_RO(osd_name),
 	__ATTR_RO(port_status),
 	__ATTR_RO(arc_port),
-	__ATTR_RO(physical_addr),
+	__ATTR(physical_addr, 0664, physical_addr_show, physical_addr_store),
 	__ATTR(vendor_id, 0664, vendor_id_show, vendor_id_store),
 	__ATTR(menu_language, 0664, menu_language_show, menu_language_store),
 	__ATTR(device_type, 0664, device_type_show, device_type_store),
@@ -1173,7 +1101,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	switch (cmd) {
 	case CEC_IOC_GET_PHYSICAL_ADDR:
-		if (cec_dev->dev_type ==  DEV_TYPE_TX) {
+		if (cec_dev->dev_type ==  DEV_TYPE_TX && !phy_addr_test) {
 			/* physical address for mbox */
 			if (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0)
 				return -EINVAL;
@@ -1186,8 +1114,12 @@ static long hdmitx_cec_ioctl(struct file *f,
 			/* physical address for TV */
 			tmp = 0;
 		}
-		cec_dev->phy_addr = tmp;
-		cec_phyaddr_config(tmp, 1);
+		if (!phy_addr_test) {
+			cec_dev->phy_addr = tmp;
+			cec_phyaddr_config(tmp, 1);
+		} else
+			tmp = cec_dev->phy_addr;
+
 		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd)))
 			return -EINVAL;
 		break;
@@ -1254,12 +1186,6 @@ static long hdmitx_cec_ioctl(struct file *f,
 			}
 		}
 		kfree(port);
-		break;
-
-	case CEC_IOC_GET_SEND_FAIL_REASON:
-		tmp = get_cec_tx_fail();
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd)))
-			return -EINVAL;
 		break;
 
 	case CEC_IOC_SET_OPTION_WAKEUP:
@@ -1394,7 +1320,7 @@ static const struct file_operations hdmitx_cec_fops = {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void aocec_early_suspend(struct early_suspend *h)
 {
-	cec_dev->cec_suspend = 1;
+	cec_dev->cec_suspend = CEC_EARLY_SUSPEND;
 	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
 }
 
@@ -1427,6 +1353,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_dev->dev_type = DEV_TYPE_TX;
 	cec_dev->dbg_dev  = &pdev->dev;
 	cec_dev->tx_dev   = get_hdmitx_device();
+	phy_addr_test = 0;
 
 	/* cdev registe */
 	r = class_register(&aocec_class);
@@ -1593,6 +1520,8 @@ static int aml_cec_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int aml_cec_pm_prepare(struct device *dev)
 {
+	cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
+	CEC_INFO("%s, cec_suspend:%d\n", __func__, cec_dev->cec_suspend);
 	return 0;
 }
 
