@@ -892,8 +892,9 @@
 		mute_gpio-gpios = <&gpio GPIOH_3 0>;
 		hp_disable;
 		hp_paraments = <800 300 0 5 1>;
-		pinctrl-names = "aml_snd_m8";
+		pinctrl-names = "aml_snd_m8","aml_snd_suspend";
 		pinctrl-0 = <&audio_pins>;
+		pinctrl-1 = <&audio_suspend_pins>;
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
@@ -1013,6 +1014,12 @@
 		amlogic,setmask=<AO 0x78000000>;
 		amlogic,clrmask=<AO 0x40000>;
 		amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
+	};
+	audio_suspend_pins:audio_suspend_pin{
+		amlogic,clrmask=<AO 0x78000000>;
+		amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
+		amlogic,pullupen = <1>;
+		amlogic,pullup = <0>;
 	};
 
 	audio_spdif_pins:audio_pin1{

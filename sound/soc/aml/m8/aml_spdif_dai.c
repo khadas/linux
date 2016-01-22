@@ -724,6 +724,16 @@ static int aml_dai_spdif_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void aml_spdif_dai_shutdown(struct platform_device *pdev)
+{
+	struct aml_spdif *spdif_priv = dev_get_drvdata(&pdev->dev);
+
+	if (spdif_priv && spdif_priv->clk_spdif)
+		clk_disable_unprepare(spdif_priv->clk_spdif);
+
+	return;
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id amlogic_spdif_dai_dt_match[] = {
 	{.compatible = "amlogic, aml-spdif-dai",
@@ -737,6 +747,7 @@ static const struct of_device_id amlogic_spdif_dai_dt_match[] = {
 static struct platform_driver aml_spdif_dai_driver = {
 	.probe = aml_dai_spdif_probe,
 	.remove = aml_dai_spdif_remove,
+	.shutdown = aml_spdif_dai_shutdown,
 	.driver = {
 		   .name = "aml-spdif-dai",
 		   .owner = THIS_MODULE,

@@ -274,7 +274,7 @@ static int aml_dai_i2s_suspend(struct snd_soc_dai *dai)
 {
 	struct aml_i2s *i2s = dev_get_drvdata(dai->dev);
 
-	if (i2s && i2s->clk_mclk)
+	if (i2s && i2s->clk_mclk && !i2s->disable_clk_suspend)
 		clk_disable_unprepare(i2s->clk_mclk);
 
 	return 0;
@@ -284,7 +284,7 @@ static int aml_dai_i2s_resume(struct snd_soc_dai *dai)
 {
 	struct aml_i2s *i2s = dev_get_drvdata(dai->dev);
 
-	if (i2s && i2s->clk_mclk)
+	if (i2s && i2s->clk_mclk && !i2s->disable_clk_suspend)
 		clk_prepare_enable(i2s->clk_mclk);
 
 	return 0;
@@ -338,6 +338,7 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 {
 	struct aml_i2s *i2s = NULL;
 	struct reset_control *audio_reset;
+	struct device_node *pnode = pdev->dev.of_node;
 	int ret = 0, i;
 
 	/* enable AIU module power gate first */
@@ -357,6 +358,9 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
+
+	i2s->disable_clk_suspend =
+		of_property_read_bool(pnode, "disable_clk_suspend");
 
 	i2s->clk_mpl0 = devm_clk_get(&pdev->dev, "mpll0");
 	if (IS_ERR(i2s->clk_mpl0)) {
@@ -410,6 +414,16 @@ static int aml_i2s_dai_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void aml_i2s_dai_shutdown(struct platform_device *pdev)
+{
+	struct aml_i2s *i2s = dev_get_drvdata(&pdev->dev);
+
+	if (i2s && i2s->clk_mclk)
+		clk_disable_unprepare(i2s->clk_mclk);
+
+	return;
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id amlogic_dai_dt_match[] = {
 	{.compatible = "amlogic, aml-i2s-dai",},
@@ -428,6 +442,7 @@ static struct platform_driver aml_i2s_dai_driver = {
 
 	.probe = aml_i2s_dai_probe,
 	.remove = aml_i2s_dai_remove,
+	.shutdown = aml_i2s_dai_shutdown,
 };
 
 static int __init aml_i2s_dai_modinit(void)

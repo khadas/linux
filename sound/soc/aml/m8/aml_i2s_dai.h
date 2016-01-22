@@ -23,6 +23,7 @@ struct aml_i2s {
 	struct clk *clk_mpl0;
 	struct clk *clk_mclk;
 	int old_samplerate;
+	bool disable_clk_suspend;
 };
 
 #endif

@@ -256,6 +256,7 @@ static int aml_m8_get_spk(struct snd_kcontrol *kcontrol,
 static int aml_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
+	struct pinctrl_state *state;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
@@ -268,6 +269,13 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 
 		mutex_unlock(&p_aml_audio->lock);
 	}
+
+	state = pinctrl_lookup_state(p_aml_audio->pin_ctl, "aml_snd_suspend");
+	if (!IS_ERR(state)) {
+		pr_info("enter %s set pin_ctl suspend state\n", __func__);
+		pinctrl_select_state(p_aml_audio->pin_ctl, state);
+	}
+
 	return 0;
 }
 
@@ -287,6 +295,7 @@ static int aml_resume_pre(struct snd_soc_card *card)
 static int aml_resume_post(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
+	struct pinctrl_state *state;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
@@ -298,6 +307,12 @@ static int aml_resume_post(struct snd_soc_card *card)
 					      msecs_to_jiffies(100));
 		}
 		mutex_unlock(&p_aml_audio->lock);
+	}
+
+	state = pinctrl_lookup_state(p_aml_audio->pin_ctl, "aml_snd_m8");
+	if (!IS_ERR(state)) {
+		pr_info("enter %s set pin_ctl working state\n", __func__);
+		pinctrl_select_state(p_aml_audio->pin_ctl, state);
 	}
 
 	return 0;
@@ -676,6 +691,17 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static void aml_audio_shutdown(struct platform_device *pdev)
+{
+	struct pinctrl_state *state;
+
+	state = pinctrl_lookup_state(p_audio->pin_ctl, "aml_snd_suspend");
+	if (!IS_ERR(state))
+		pinctrl_select_state(p_audio->pin_ctl, state);
+
+	return;
+}
+
 static const struct of_device_id amlogic_audio_of_match[] = {
 	{.compatible = "aml, aml_snd_m8",},
 	{},
@@ -691,6 +717,7 @@ static struct platform_driver aml_m8_audio_driver = {
 		   .pm = &snd_soc_pm_ops,
 		   },
 	.probe = aml_m8_audio_probe,
+	.shutdown = aml_audio_shutdown,
 };
 
 module_platform_driver(aml_m8_audio_driver);
