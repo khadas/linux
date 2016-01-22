@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/amlogic/amvecm/cm.h>
-#include <arch/vpp_hdr_regs.h>
+#include "arch/vpp_hdr_regs.h"
 
 struct am_regs_s r_lut_hdr_hdr = {
 	578,
