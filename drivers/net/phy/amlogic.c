@@ -251,7 +251,7 @@ static void init_pmu4_phy(struct phy_device *phydev)
 	/*write val*/
 	phy_write(phydev, SMI_ADDR_TSTCNTL, TSTCNTL_WR|WR_ADDR_A4CFG);
 	/*write addr 0x15*/
-	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x2636);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, 0xa636);
 	/*write val*/
 	phy_write(phydev, SMI_ADDR_TSTCNTL, TSTCNTL_WR|WR_ADDR_A5CFG);
 	/*write addr 0x16*/
@@ -288,7 +288,7 @@ static void init_pmu4_phy_10B(struct phy_device *phydev)
 	/*write val*/
 	phy_write(phydev, SMI_ADDR_TSTCNTL, TSTCNTL_WR|WR_ADDR_A4CFG);
 	/*write addr 0x15*/
-	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x246);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x8246);
 	/*write val*/
 	phy_write(phydev, SMI_ADDR_TSTCNTL, TSTCNTL_WR|WR_ADDR_A5CFG);
 	/*write addr 0x16*/
