@@ -113,7 +113,7 @@ static int vdec_default_buf_size[] = {
 	32, /*"amvdec_yuv",*/
 	64, /*"amvdec_h264mvc",*/
 	64, /*"amvdec_h264_4k2k", else alloc on decoder*/
-	48, /*"amvdec_h265", else alloc on decoder*/
+	16, /*"amvdec_h265", else alloc on decoder*/
 	0
 };
 
@@ -169,6 +169,8 @@ s32 vdec_init(enum vformat_e vf, int is_4k)
 			int m4k_size =
 				vdec_default_buf_size[VFORMAT_H264_4K2K] *
 				SZ_1M;
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
+				m4k_size = 32 * SZ_1M;
 			if ((m4k_size > 0) && (m4k_size < 200 * SZ_1M))
 				alloc_size = m4k_size;
 		}

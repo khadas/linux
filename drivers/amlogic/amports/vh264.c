@@ -214,6 +214,7 @@ static u32 h264_ar;
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 static u32 last_interlaced;
 #endif
+static bool is_4k;
 static unsigned char h264_first_pts_ready;
 static bool h264_first_valid_pts_ready;
 static u32 h264pts1, h264pts2;
@@ -597,12 +598,14 @@ static void vh264_set_params(struct work_struct *work)
 {
 	int aspect_ratio_info_present_flag, aspect_ratio_idc;
 	int max_dpb_size, actual_dpb_size, max_reference_size;
-	int i, mb_mv_byte;
+	int i, mb_mv_byte, start_addr;
 	unsigned long addr;
 	unsigned int post_canvas;
 	unsigned int frame_mbs_only_flag;
 	unsigned int chroma_format_idc, chroma444;
 	unsigned int crop_infor, crop_bottom, crop_right, level_idc;
+	u32 disp_addr = 0xffffffff;
+	struct canvas_s cur_canvas;
 	mutex_lock(&vh264_mutex);
 	post_canvas = get_post_canvas();
 	timing_info_present_flag = 0;
@@ -689,7 +692,8 @@ static void vh264_set_params(struct work_struct *work)
 	mb_total = mb_width * mb_height;
 
 	 /*max_reference_size <= max_dpb_size <= actual_dpb_size*/
-	if (mb_total > 8160) {
+	 is_4k = (mb_total > 8160) ? true:false;
+	if (is_4k) {
 			/*4k2k*/
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 					max_dpb_size = get_max_dpb_size(
@@ -727,9 +731,13 @@ static void vh264_set_params(struct work_struct *work)
 	max_dpb_size = max(max_reference_size, max_dpb_size);
 	max_reference_size++;
 
-	addr = buf_start;
+	start_addr = addr = buf_start;
+	if (is_4k)
+		addr += ((mb_total << 8) + (mb_total << 7));/*keep last frame */
 	WRITE_VREG(AV_SCRATCH_1, addr);
 	WRITE_VREG(AV_SCRATCH_3, post_canvas);	/* should be modified later */
+	canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff), &cur_canvas);
+	disp_addr = (cur_canvas.addr + 7) >> 3;
 	if ((addr + mb_total * mb_mv_byte * max_reference_size)
 		>= buf_end) {
 				fatal_error_flag =
@@ -742,7 +750,7 @@ static void vh264_set_params(struct work_struct *work)
 	addr += mb_total * mb_mv_byte * max_reference_size;
 	WRITE_VREG(AV_SCRATCH_4, addr);
 	if (!(READ_VREG(AV_SCRATCH_F) & 0x1)) {
-		bool use_alloc = false;
+		bool use_alloc = is_4k ? true:false;
 		int alloc_count = 0;
 		for (i = 0; i < actual_dpb_size; i++) {
 			if (((addr + (mb_total << 8) + (mb_total << 7))
@@ -813,6 +821,9 @@ static void vh264_set_params(struct work_struct *work)
 						buffer_spec[i].alloc_count = 0;
 					}
 			}
+			/*4k keep last frame */
+			if (is_4k && ((addr + 7) >> 3) == disp_addr)
+				addr = start_addr;
 			if (i <= 21) {
 				buffer_spec[i].y_addr = addr;
 				addr += mb_total << 8;
@@ -2121,6 +2132,7 @@ static void vh264_local_init(void)
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 	last_interlaced = 1;
 #endif
+	is_4k = false;
 	h264_first_pts_ready = 0;
 	h264_first_valid_pts_ready = false;
 	h264pts1 = 0;
@@ -2427,8 +2439,9 @@ static int vh264_stop(int mode)
 		sei_data_buffer_phys = 0;
 	}
 	amvdec_disable();
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (is_4k && (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)) {
 			if (!get_blackout_policy()) {
+				msleep(50); /* wait for last frame  displayed */
 				canvas_read(
 					(READ_VCBUS_REG(VD1_IF0_CANVAS0)
 						& 0xff), &cur_canvas);
