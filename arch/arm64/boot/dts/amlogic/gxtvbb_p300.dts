@@ -816,6 +816,13 @@
 		interrupt-names = "rdma";
 	};
 
+	sysled {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		status = "okay";
+		led_gpio = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_LOW>;
+	};
+
 	lcd{
 		compatible = "amlogic, lcd";
 		dev_name = "lcd";

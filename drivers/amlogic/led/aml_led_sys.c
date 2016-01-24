@@ -86,8 +86,7 @@ static int aml_sysled_dt_parse(struct platform_device *pdev)
 	struct device_node *node;
 	struct aml_sysled_dev *ldev;
 	struct gpio_desc *desc;
-	unsigned int val;
-	int ret;
+	enum of_gpio_flags flags;
 
 	ldev = platform_get_drvdata(pdev);
 	node = pdev->dev.of_node;
@@ -96,18 +95,14 @@ static int aml_sysled_dt_parse(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	desc = of_get_named_gpiod_flags(node, "led_gpio", 0, NULL);
+	desc = of_get_named_gpiod_flags(node, "led_gpio", 0, &flags);
 	ldev->d.pin = desc_to_gpio(desc);
+	ldev->d.active_low = flags & OF_GPIO_ACTIVE_LOW;
+	INFO("led_gpio = %u\n", ldev->d.pin);
+	INFO("active_low = %u\n", ldev->d.active_low);
 	gpio_request(ldev->d.pin, AML_DEV_NAME);
+	gpio_direction_output(ldev->d.pin, 1);
 
-	ret = of_property_read_u32(node, "led_active_low", &val);
-	if (ret) {
-		ERR("faild to get active_low\n");
-		/* set default active_low */
-		val = 1;
-	}
-	INFO("active_low = %u\n", val);
-	ldev->d.active_low = !!val;
 	return 0;
 }
 
