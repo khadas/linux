@@ -337,49 +337,57 @@ static int pwm_aml_config(struct pwm_chip *chip,
 	switch (id) {
 	case PWM_A:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
-			(0x7 << 8), (our_chan->pwm_pre_div << 8));
+			(0x7 << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
 		pwm_write_reg(our_chip->base + REG_PWM_A,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_B:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
-			(0x7 << 16), (our_chan->pwm_pre_div << 16));
+			(0x7 << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->base + REG_PWM_B,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_C:
-		pwm_set_reg_bits(our_chip->base + REG_MISC_CD, (0x7 << 8),
-			(our_chan->pwm_pre_div << 8));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x7 << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
 		pwm_write_reg(our_chip->base + REG_PWM_C,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_D:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
-			(0x7 << 16), (our_chan->pwm_pre_div << 16));
+			(0x7 << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->base + REG_PWM_D,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_E:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
-			(0x7 << 8), (our_chan->pwm_pre_div << 8));
+			(0x7 << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
 		pwm_write_reg(our_chip->base + REG_PWM_E,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_F:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
-			(0x7 << 16), (our_chan->pwm_pre_div << 16));
+			(0x7 << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->base + REG_PWM_E,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_AO_A:
 		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
-			(0x7 << 8), (our_chan->pwm_pre_div << 8));
+			(0x7 << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
 		pwm_write_reg(our_chip->ao_base + REG_PWM_AO_A,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_AO_B:
 		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
-			(0x7 << 16), (our_chan->pwm_pre_div << 16));
+			(0x7 << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->ao_base + REG_PWM_AO_B,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
@@ -393,10 +401,8 @@ static int pwm_aml_config(struct pwm_chip *chip,
 	return 0;
 }
 
-static void pwm_aml_set_invert(struct pwm_chip *chip,
-							struct pwm_device *pwm,
-							unsigned int channel,
-							bool invert)
+static void pwm_aml_set_invert(struct pwm_chip *chip, struct pwm_device *pwm,
+				unsigned int channel, bool invert)
 {
 	struct aml_pwm_chip *our_chip = to_aml_pwm_chip(chip);
 	unsigned long flags;

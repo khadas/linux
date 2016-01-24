@@ -1276,8 +1276,6 @@
 		compatible = "amlogic, gx-pwm";
 		status = "okay";
 		pwm-outputs = <0>,<1>,<2>,<3>,<4>,<5>,<6>,<7>;
-		pinctrl-names = "pwm_a_pins";
-		//pinctrl-0 = <&pwm_a_pins>;
 		reg = <0x0 0xc1108550 0x0 0x30>,
 				<0x0 0xc8100550 0x0 0x10>;
 		clocks = <&clock CLK_XTAL>;
@@ -1427,12 +1425,6 @@
                         "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
         };
 
-	/*PWM-A*/
-	/*pwm_a_pins:pwm_a_pins{
-		amlogic,setmask=<10 0x200000>;
-		amlogic,clrmask=<10 0x405000>;
-		amlogic,pins="GPIOY_12";
-	};*/
 };
 &efuse {
 	status = "okay";
