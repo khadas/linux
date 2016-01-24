@@ -837,6 +837,21 @@
 		led_gpio = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_LOW>;
 	};
 
+	pwmled {
+		compatible = "amlogic, pwmled";
+		dev_name = "pwmled";
+		status = "disable";
+		pwm = <6>; /* pwm_ao_a */
+		polarity = <1>; /* 0-normal 1-inversed */
+		max_brightness = <255>;
+		pinctrl-names = "pwm_ao_a_pins";
+		pinctrl-0 = <&pwm_ao_a_pins>;
+		/* led timer data */
+		expires = <400>; /* ms */
+		expires_count = <8>;
+		led_mode = <0x113>;
+	};
+
 	lcd{
 		compatible = "amlogic, lcd";
 		dev_name = "lcd";
@@ -1427,7 +1442,15 @@
                         "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
         };
 
+	/* pwm_ao_a */
+	pwm_ao_a_pins:pwm_ao_a_pins {
+		amlogic,setmask=<AO 0x80000>;
+		amlogic,clrmask=<AO 0x100000>;
+		amlogic,pins="GPIOAO_11";
+	};
 };
+
+
 &efuse {
 	status = "okay";
 };

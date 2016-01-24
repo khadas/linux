@@ -827,6 +827,28 @@
 		interrupt-names = "rdma";
 	};
 
+	sysled {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		status = "disable";
+		led_gpio = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_LOW>;
+	};
+
+	pwmled {
+		compatible = "amlogic, pwmled";
+		dev_name = "pwmled";
+		status = "okay";
+		pwm = <6>; /* pwm_ao_a */
+		polarity = <1>; /* 0-normal 1-inversed */
+		max_brightness = <255>;
+		pinctrl-names = "pwm_ao_a_pins";
+		pinctrl-0 = <&pwm_ao_a_pins>;
+		/* led timer data */
+		expires = <400>; /* ms */
+		expires_count = <8>;
+		led_mode = <0x113>;
+	};
+
 	lcd{
 		compatible = "amlogic, lcd";
 		dev_name = "lcd";
@@ -1301,8 +1323,6 @@
 		compatible = "amlogic, gx-pwm";
 		status = "okay";
 		pwm-outputs = <0>,<1>,<2>,<3>,<4>,<5>,<6>,<7>;
-		pinctrl-names = "pwm_a_pins";
-		//pinctrl-0 = <&pwm_a_pins>;
 		reg = <0x0 0xc1108550 0x0 0x30>,
 				<0x0 0xc8100550 0x0 0x10>;
 		clocks = <&clock CLK_XTAL>;
@@ -1474,13 +1494,15 @@
                         "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
         };
 
-	/*PWM-A*/
-	/*pwm_a_pins:pwm_a_pins{
-		amlogic,setmask=<10 0x200000>;
-		amlogic,clrmask=<10 0x405000>;
-		amlogic,pins="GPIOY_12";
-	};*/
+	/* pwm_ao_a */
+	pwm_ao_a_pins:pwm_ao_a_pins {
+		amlogic,setmask=<AO 0x80000>;
+		amlogic,clrmask=<AO 0x100000>;
+		amlogic,pins="GPIOAO_11";
+	};
 };
+
+
 &efuse {
 	status = "okay";
 };

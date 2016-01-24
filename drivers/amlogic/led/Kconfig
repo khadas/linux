@@ -25,4 +25,25 @@ config AML_LED_SYS
 	  Enable this option to allow the userspace to control
 	  the system led.
 
+config AML_LED_PWM
+	tristate "pwm led module support"
+	depends on LEDS_CLASS
+	default n
+	help
+	  This option enables support for pwm led drivers.
+
+	  Enable this option to allow the userspace to control
+	  the pwm led.
+
+config AML_LED_TRIGGER_BREATHE
+	tristate "led breathe trigger support"
+	depends on LEDS_TRIGGERS
+	default n
+	help
+	  This option enables support for led breathe trigger drivers.
+
+	  Enable this option to allow the userspace to control
+	  the led breathe trigger.
+
+
 endif
