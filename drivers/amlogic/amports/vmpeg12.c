@@ -302,6 +302,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 	} else if (reg) {
 		info = READ_VREG(MREG_PIC_INFO);
 		offset = READ_VREG(MREG_FRAME_OFFSET);
+		seqinfo = READ_VREG(MREG_SEQ_INFO);
 
 		if ((first_i_frame_ready == 0) &&
 			((info & PICINFO_TYPE_MASK) == PICINFO_TYPE_I) &&
@@ -318,6 +319,9 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 		/*if (frame_prog == 0) */
 		{
 			frame_prog = info & PICINFO_PROG;
+			if ((seqinfo & SEQINFO_EXT_AVAILABLE)
+				&& (!(seqinfo & SEQINFO_PROG)))
+				frame_prog = 0;
 		}
 
 		if ((dec_control &
@@ -435,7 +439,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 			/* to make DI easy. */
 			dec_control |= DEC_CONTROL_FLAG_FORCE_SEQ_INTERLACE;
 #endif
-
+#if 0
 			if (info & PICINFO_FRAME) {
 				frame_rpt_state =
 					(info & PICINFO_TOP_FIRST) ?
@@ -451,14 +455,18 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 				}
 				frame_rpt_state = FRAME_REPEAT_NONE;
 			}
-
+#else
+			frame_rpt_state = FRAME_REPEAT_NONE;
+#endif
 			if (kfifo_get(&newframe_q, &vf) == 0) {
 				pr_info
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
-			vfbuf_use[index] = 2;
+			if (info & PICINFO_RPT_FIRST)
+				vfbuf_use[index] = 3;
+			else
+				vfbuf_use[index] = 2;
 
 			set_frame_info(vf);
 			vf->signal_type = 0;
@@ -548,8 +556,48 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
 			}
-		}
 
+			if (info & PICINFO_RPT_FIRST) {
+				if (kfifo_get(&newframe_q, &vf) == 0) {
+					pr_info("error, no available buffer slot.");
+					return IRQ_HANDLED;
+				}
+
+				set_frame_info(vf);
+
+				vf->index = index;
+				vf->type = (first_field_type ==
+						VIDTYPE_INTERLACE_TOP) ?
+						VIDTYPE_INTERLACE_TOP :
+						VIDTYPE_INTERLACE_BOTTOM;
+#ifdef NV21
+				vf->type |= VIDTYPE_VIU_NV21;
+#endif
+				vf->duration >>= 1;
+				vf->duration_pulldown =
+					(info & PICINFO_RPT_FIRST) ?
+						vf->duration >> 1 : 0;
+				vf->duration += vf->duration_pulldown;
+				vf->orientation = 0;
+				vf->canvas0Addr = vf->canvas1Addr =
+							index2canvas(index);
+				vf->pts = 0;
+				vf->pts_us64 = 0;
+				if ((error_skip(info, vf)) ||
+					((first_i_frame_ready == 0)
+						&& ((PICINFO_TYPE_MASK & info)
+							!= PICINFO_TYPE_I))) {
+					kfifo_put(&recycle_q,
+					(const struct vframe_s *)vf);
+				} else {
+					kfifo_put(&display_q,
+						(const struct vframe_s *)vf);
+					vf_notify_receiver(PROVIDER_NAME,
+					VFRAME_EVENT_PROVIDER_VFRAME_READY,
+						NULL);
+				}
+			}
+		}
 		WRITE_VREG(MREG_BUFFEROUT, 0);
 	}
 
