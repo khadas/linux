@@ -39,11 +39,15 @@ static int init_fb1_first(const struct vinfo_s *vinfo)
 	struct osd_ctl_s  osd_ctl;
 	const struct color_bit_define_s  *color;
 	u32 reg = 0, data32 = 0;
+	size_t osd_size;
+	void __iomem *osd_vaddr;
 
 	osd_ctl.index = 1;
 	color = &default_color_format_array[31];
 
 	osd_ctl.addr = get_fb_rmem_paddr(osd_ctl.index);
+	osd_vaddr = get_fb_rmem_vaddr(osd_ctl.index);
+	osd_size = get_fb_rmem_size(osd_ctl.index);
 
 	osd_ctl.xres = vinfo->width;
 	osd_ctl.yres = vinfo->height;
@@ -59,6 +63,7 @@ static int init_fb1_first(const struct vinfo_s *vinfo)
 	data32 |=  color->hw_blkmode << 8; /* osd_blk_mode */
 	VSYNCOSD_WR_MPEG_REG(reg, data32);
 
+	memset(osd_vaddr, 0, osd_size);
 	pr_debug("addr is 0x%08x, xres is %d, yres is %d\n",
 			osd_ctl.addr, osd_ctl.xres, osd_ctl.yres);
 	osd_setup_hw(osd_ctl.index,

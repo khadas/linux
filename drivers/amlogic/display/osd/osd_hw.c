@@ -3691,6 +3691,11 @@ void osd_restore_hw(void)
 #ifdef CONFIG_VSYNC_RDMA
 	enable_rdma(1);
 #endif
+	canvas_config(osd_hw.fb_gem[0].canvas_idx,
+			osd_hw.fb_gem[0].addr,
+			osd_hw.fb_gem[0].width,
+			osd_hw.fb_gem[0].height,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 	pr_debug("osd_restored\n");
 
 	return;

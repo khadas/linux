@@ -67,6 +67,8 @@ struct osd_fb_dev_s {
 #define OSD_END                 5
 
 extern phys_addr_t get_fb_rmem_paddr(int index);
+extern void __iomem *get_fb_rmem_vaddr(int index);
+extern size_t get_fb_rmem_size(int index);
 extern int osd_blank(int blank_mode, struct fb_info *info);
 extern struct osd_fb_dev_s *gp_fbdev_list[];
 extern const struct color_bit_define_s default_color_format_array[];

@@ -295,6 +295,21 @@ phys_addr_t get_fb_rmem_paddr(int index)
 	return fb_rmem_paddr[index];
 }
 
+void __iomem *get_fb_rmem_vaddr(int index)
+{
+	if (index < 0 || index > 1)
+		return 0;
+	return fb_rmem_vaddr[index];
+}
+
+size_t get_fb_rmem_size(int index)
+{
+	if (index < 0 || index > 1)
+		return 0;
+	return fb_rmem_size[index];
+}
+
+
 static void osddev_setup(struct osd_fb_dev_s *fbdev)
 {
 	mutex_lock(&fbdev->lock);
