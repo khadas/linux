@@ -882,11 +882,11 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 			 * need to rate-limit; it's CAP_SYS_ADMIN only.
 			 */
 			if (uport->flags & UPF_SPD_MASK) {
-				char buf[64];
+				/* char buf[64]; */
 				printk(KERN_NOTICE
 				       "%s sets custom speed on %s. This "
 				       "is deprecated.\n", current->comm,
-				       tty_name(port->tty, buf));
+				       tty_name(port->tty));
 			}
 			uart_change_speed(tty, state, NULL);
 		}
