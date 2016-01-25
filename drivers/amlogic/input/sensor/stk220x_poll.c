@@ -124,7 +124,7 @@ inline int32_t get_reading(void)
 		stk_readb(STK_ALS_DT2_REG));
 }
 
-inline int32_t alscode2lux(int32_t alscode)
+int32_t alscode2lux(int32_t alscode)
 {
 	/*R-set Def --> 500KOhm ==> x 5
 	IT --> x1

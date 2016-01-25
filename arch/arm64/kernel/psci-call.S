@@ -8,15 +8,21 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Copyright (C) 2013 ARM Limited
+ * Copyright (C) 2015 ARM Limited
+ *
+ * Author: Will Deacon <will.deacon@arm.com>
  */
 
-#ifndef __ASM_PSCI_H
-#define __ASM_PSCI_H
+#include <linux/linkage.h>
 
-int psci_init(void);
+/* int __invoke_psci_fn_hvc(u64 function_id, u64 arg0, u64 arg1, u64 arg2) */
+ENTRY(__invoke_psci_fn_hvc)
+	hvc	#0
+	ret
+ENDPROC(__invoke_psci_fn_hvc)
 
-int __invoke_psci_fn_hvc(u64 function_id, u64 arg0, u64 arg1, u64 arg2);
-int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg2);
-
-#endif /* __ASM_PSCI_H */
+/* int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg2) */
+ENTRY(__invoke_psci_fn_smc)
+	smc	#0
+	ret
+ENDPROC(__invoke_psci_fn_smc)

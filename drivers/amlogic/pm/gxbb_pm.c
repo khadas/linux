@@ -228,25 +228,6 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 DEVICE_ATTR(time_out, 0666, time_out_show, time_out_store);
 
 static int suspend_reason;
-static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
-					 u64 arg2)
-{
-	register long x0 asm("x0") = function_id;
-	register long x1 asm("x1") = arg0;
-	register long x2 asm("x2") = arg1;
-	register long x3 asm("x3") = arg2;
-	asm volatile(
-			__asmeq("%0", "x0")
-			__asmeq("%1", "x1")
-			__asmeq("%2", "x2")
-			__asmeq("%3", "x3")
-			"smc	#0\n"
-		: "+r" (x0)
-		: "r" (x1), "r" (x2), "r" (x3));
-
-	return x0;
-}
-
 ssize_t suspend_reason_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {

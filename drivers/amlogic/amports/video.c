@@ -519,7 +519,7 @@ static DEFINE_MUTEX(video_module_mutex);
 static DEFINE_SPINLOCK(lock);
 static u32 frame_par_ready_to_set, frame_par_force_to_set;
 static u32 vpts_remainder;
-static bool video_property_changed;
+static int video_property_changed;
 static u32 video_notify_flag;
 static int enable_video_discontinue_report = 1;
 

@@ -236,7 +236,7 @@ void lcd_ttl_pinmux_set(int status)
 		index = 4;
 
 	if (status) {
-		switch (pconf->lcd_control.ttl_config->sync_valid == 0) {
+		switch (pconf->lcd_control.ttl_config->sync_valid) {
 		case 1: /* hvsync */
 			num = index + 0;
 			break;

@@ -30,6 +30,8 @@
 #include <asm/compiler.h>
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
+#else
+#include <asm/psci.h>
 #endif
 #undef pr_fmt
 #define pr_fmt(fmt) "aml_iomap: " fmt
@@ -299,16 +301,7 @@ static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 					 u32 arg2)
 {
-	asm volatile(
-			__asmeq("%0", "x0")
-			__asmeq("%1", "x1")
-			__asmeq("%2", "x2")
-			__asmeq("%3", "x3")
-			"smc	#0\n"
-		: "+r" (function_id)
-		: "r" (arg0), "r" (arg1), "r" (arg2));
-
-	return function_id;
+	return __invoke_psci_fn_smc(function_id, arg0, arg1, arg2);
 }
 #endif
 

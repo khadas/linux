@@ -35,6 +35,8 @@
 
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
+#else
+#include <asm/psci.h>
 #endif
 
 
@@ -136,11 +138,7 @@ void aml_set_jtag_state(unsigned state, unsigned select)
 		command = JTAG_OFF;
 	asm __volatile__("" : : : "memory");
 
-	asm volatile(
-		__asmeq("%0", "x0")
-		__asmeq("%1", "x1")
-		"smc    #0\n"
-		: : "r" (command), "r"(select));
+	__invoke_psci_fn_smc(command, select, 0, 0);
 }
 #else
 void jtag_set_state(unsigned state, unsigned select)

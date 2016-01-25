@@ -613,7 +613,7 @@ void aml_sdhc_clear_fifo(struct amlsd_host *host)
 }
 
 /*enable irq bit in reg SDHC_ICTL*/
-inline void aml_sdhc_enable_imask(struct amlsd_host *host, u32 irq)
+void aml_sdhc_enable_imask(struct amlsd_host *host, u32 irq)
 {
 	u32 ictl = readl(host->base+SDHC_ICTL);
 	ictl |= irq;
@@ -621,7 +621,7 @@ inline void aml_sdhc_enable_imask(struct amlsd_host *host, u32 irq)
 }
 
 /*disable irq bit in reg SDHC_ICTL*/
-inline void aml_sdhc_disable_imask(struct amlsd_host *host, u32 irq)
+void aml_sdhc_disable_imask(struct amlsd_host *host, u32 irq)
 {
 	u32 ictl = readl(host->base+SDHC_ICTL);
 	ictl &= ~irq;

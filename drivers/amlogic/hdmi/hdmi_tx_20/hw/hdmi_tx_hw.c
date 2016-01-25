@@ -46,6 +46,7 @@
 #include <linux/amlogic/cpu_version.h>
 /*#include <linux/amlogic/hdmi_tx/hdmi_tx_cec.h>*/
 #include <linux/reset.h>
+#include <linux/compiler.h>
 #include "mach_reg.h"
 #include "hdmi_tx_reg.h"
 
@@ -181,7 +182,6 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	return 0;
 }
 
-#define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 int hdmitx_hdcp_opr(unsigned int val)
 {
 	if (val == 1) {

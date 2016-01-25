@@ -1186,7 +1186,7 @@ int aml_alloc_phydev(struct amlnand_phydev **phydev_pp,
 	phydev_p->priv = aml_chip;
 
 	*dev_para = &aml_chip->config_ptr->dev_para[dev_idx];
-	memcpy(&phydev_p->name,
+	memcpy((void *)&phydev_p->name,
 		&(*dev_para)->name, MAX_DEVICE_NAME_LEN*sizeof(char));
 
 	/*set default parameter*/

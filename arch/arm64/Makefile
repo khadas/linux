@@ -35,6 +35,15 @@ comma = ,
 
 CHECKFLAGS	+= -D__aarch64__
 
+ifeq ($(CONFIG_ARM64_ERRATUM_843419), y)
+KBUILD_CFLAGS_MODULE	+= $(call cc-option,-mfix-cortex-a53-843419)
+endif
+
+ifeq ($(CONFIG_ARM64_ERRATUM_835769), y)
+KBUILD_CFLAGS_MODULE	+= $(call cc-option,-mfix-cortex-a53-835769)
+endif
+$(info KBUILD_CFLAGS_MODULE:$(KBUILD_CFLAGS_MODULE))
+
 # Default value
 head-y		:= arch/arm64/kernel/head.o
 

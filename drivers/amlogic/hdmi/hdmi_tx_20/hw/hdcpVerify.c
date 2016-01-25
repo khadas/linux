@@ -309,7 +309,7 @@ int hdcpVerify_ArrayDIV(uint8_t *r, const uint8_t *D, const uint8_t *d,
 	size_t n)
 {
 	int i = 0;
-	if (r == D || r == d || !hdcpVerify_ArrayTST(d, 0, n) == TRUE) {
+	if (r == D || r == d || (!hdcpVerify_ArrayTST(d, 0, n)) == TRUE) {
 		pr_info("invalid input data");
 		return FALSE;
 	}
