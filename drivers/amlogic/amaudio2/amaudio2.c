@@ -73,6 +73,8 @@ int direct_right_gain = 256;
 int music_gain = 0;
 int audio_out_mode = 0;
 int amaudio2_enable = 0;
+int output_device = 0;
+int input_device = 1;
 
 static int int_num = INT_NUM;
 static int i2s_num = I2S_BLOCK;
@@ -198,6 +200,9 @@ static int amaudio_open(struct inode *inode, struct file *file)
 		int_block = INT_BLOCK;
 		soft_buffer_threshold = BUFFER_THRESHOLD_DEFAULT;
 		latency = MIN_LATENCY * 2;
+		aml_cover_memcpy = cover_memcpy;
+		aml_direct_mix_memcpy = direct_mix_memcpy;
+		aml_inter_mix_memcpy = inter_mix_memcpy;
 
 		if (aml_i2s_playback_channel == 8) {
 			int_num *= 2;
@@ -231,8 +236,10 @@ static int amaudio_open(struct inode *inode, struct file *file)
 		aml_cbus_update_bits(AIU_MEM_I2S_MASKS, 0xffff << 16,
 				int_num << 16);
 
-		pr_info("channel: %d, int_num = %d, int_block = %d,amaudio->hw.size = %d\n",
-		aml_i2s_playback_channel, int_num, int_block, amaudio->hw.size);
+		/*pr_info("channel: %d, int_num = %d,"
+		"int_block = %d, amaudio->hw.size = %d\n",
+		aml_i2s_playback_channel, int_num,
+		int_block, amaudio->hw.size);*/
 
 	} else if (iminor(inode) == 1) {
 		pr_info("amaudio2_in opened\n");
@@ -554,14 +561,14 @@ static void i2s_copy(struct amaudio_t *amaudio)
 	}
 
 	if (sw->level > soft_buffer_threshold) {
-		/*pr_info(KERN_DEBUG
+		/*pr_info(
 		"Reset sw: hw->wr = %x,hw->rd = %x, hw->level = %x,"
 		"alsa_delay:%x,sw->wr = %x, sw->rd = %x,sw->level = %x\n",
 		hw->wr, hw->rd, hw->level, alsa_delay,
 		sw->wr, sw->rd, sw->level);
 		*/
-		sw->rd = (sw->wr + 1024) % sw->size;
-		sw->level = sw->size - 1024;
+		sw->rd = (sw->wr + int_block) % sw->size;
+		sw->level = sw->size - int_block;
 		goto EXIT;
 	}
 
@@ -642,8 +649,9 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		amaudio->sw.level = (amaudio->sw.size + amaudio->sw.wr
 					 - amaudio->sw.rd) % amaudio->sw.size;
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
-		if (amaudio->sw.wr % 64)
-			pr_info("wr:%x, not 64 Bytes align\n", amaudio->sw.wr);
+		if (amaudio->sw.wr % i2s_num)
+			pr_info("wr:%x, not %d Bytes align\n",
+						amaudio->sw.wr, i2s_num);
 		break;
 	case AMAUDIO_IOC_RESET:
 		/*
@@ -664,7 +672,7 @@ static long amaudio_ioctl(struct file *file, unsigned int cmd,
 		amaudio->sw.rd = 0;
 		amaudio->sw.level = 0;
 		spin_unlock_irqrestore(&amaudio->sw.lock, swirqflags);
-		pr_info("Reset amaudio2: latency=%d bytes\n", latency);
+		/*pr_info("Reset amaudio2: latency=%d bytes\n", latency);*/
 		break;
 	case AMAUDIO_IOC_AUDIO_OUT_MODE:
 		/*
@@ -832,6 +840,57 @@ static ssize_t store_aml_amaudio2_enable(struct class *class,
 	return count;
 }
 
+static ssize_t show_aml_input_device(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", input_device);
+}
+
+static ssize_t store_aml_input_device(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (buf[0] == '0') {
+		pr_info("i2s in as input device!\n");
+		input_device = 0;
+		set_hw_resample_source(0);
+	} else if (buf[0] == '1') {
+		pr_info("spdif in as input device!\n");
+		input_device = 1;
+		set_hw_resample_source(1);
+	} else {
+		pr_info("Invalid argument!\n");
+	}
+
+	return count;
+}
+
+static ssize_t show_aml_output_driver(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", output_device);
+}
+
+static ssize_t store_aml_output_driver(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (buf[0] == '0') {
+		pr_info("amaudio2 as output driver!\n");
+		output_device = 0;
+	} else if (buf[0] == '1') {
+		pr_info("alsa out as output driver\n");
+		output_device = 1;
+	} else if (buf[0] == '2') {
+		pr_info("audiotrack as output driver\n");
+		output_device = 2;
+	} else {
+		pr_info("Invalid argument!\n");
+	}
+
+	return count;
+}
+
 static struct class_attribute amaudio_attrs[] = {
 	__ATTR(aml_audio_out_mode,
 	       S_IRUGO | S_IWUSR,
@@ -853,6 +912,14 @@ static struct class_attribute amaudio_attrs[] = {
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       show_aml_amaudio2_enable,
 	       store_aml_amaudio2_enable),
+	__ATTR(aml_input_device,
+	       S_IRUGO | S_IWUSR | S_IWGRP,
+	       show_aml_input_device,
+	       store_aml_input_device),
+	__ATTR(aml_output_driver,
+	       S_IRUGO | S_IWUSR | S_IWGRP,
+	       show_aml_output_driver,
+	       store_aml_output_driver),
 	__ATTR_NULL
 };
 

@@ -80,6 +80,7 @@ void direct_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count);
 void inter_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count);
+extern void set_hw_resample_source(int source);
 
 extern unsigned long aml_i2s_playback_start_addr;
 extern unsigned long aml_i2s_playback_phy_start_addr;

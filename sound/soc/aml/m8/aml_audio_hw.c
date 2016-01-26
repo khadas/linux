@@ -891,6 +891,11 @@ void audio_i2s_958_same_source(unsigned int same)
 	aml_cbus_update_bits(AIU_I2S_MISC, 1 << 3, (!!same) << 3);
 }
 
+void set_hw_resample_source(int source)
+{
+	aml_cbus_update_bits(AUD_RESAMPLE_CTRL0, 1 << 29, source << 29);
+}
+EXPORT_SYMBOL(set_hw_resample_source);
 #if 0
 unsigned int audio_hdmi_init_ready(void)
 {

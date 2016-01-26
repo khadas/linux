@@ -345,8 +345,9 @@ static void aml_i2s_timer_callback(unsigned long data)
 	int elapsed = 0;
 	unsigned int last_ptr, size = 0;
 
-	if (runtime == NULL)
+	if (runtime == NULL || runtime->private_data == NULL)
 		return;
+
 	prtd = runtime->private_data;
 	s = &prtd->s;
 
