@@ -504,6 +504,14 @@ static int aml_pmu4_i2c_remove(struct i2c_client *client)
 
 	return 0;
 }
+static int aml_pmu4_i2c_resume(struct i2c_client *client)
+{
+	pr_info("aml_pmu4_i2c_resume");
+	/*reinit pmu4 in the resume to make phy work*/
+	aml_pmu4_power_init();
+	return 0;
+}
+
 
 #define AML_I2C_BUS_AO		0
 #define AML_I2C_BUS_A		1
@@ -628,6 +636,7 @@ static struct i2c_driver aml_pmu4_i2c_driver = {
 		   },
 	.probe = aml_pmu4_i2c_probe,
 	.remove = aml_pmu4_i2c_remove,
+	.resume = aml_pmu4_i2c_resume,
 	.id_table = aml_pmu4_id_table,
 };
 
