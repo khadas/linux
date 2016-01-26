@@ -1178,6 +1178,7 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 	}
 	osd_log_info("current vmode=%s\n", vinfo->name);
 	switch (cmd) {
+#if 0
 	case VOUT_EVENT_MODE_CHANGE_PRE:
 		for (i = 0; i < OSD_COUNT; i++) {
 			fb_dev = gp_fbdev_list[i];
@@ -1187,6 +1188,7 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			}
 		}
 		break;
+#endif
 	case  VOUT_EVENT_MODE_CHANGE:
 		for (i = 0; i < OSD_COUNT; i++) {
 			fb_dev = gp_fbdev_list[i];
@@ -1201,10 +1203,12 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			       gp_fbdev_list[DEV_OSD1]->fb_info->var.yres);
 #endif
 			console_unlock();
+#if 0
 			if (fb_dev->dis_osd_mchange) {
 				fb_dev->dis_osd_mchange = false;
 				osd_enable_hw(i, true);
 			}
+#endif
 		}
 		break;
 	case VOUT_EVENT_OSD_BLANK:
