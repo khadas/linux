@@ -2630,31 +2630,30 @@ static void di_uninit_buf(void)
 
 	queue_for_each_entry(p, ptmp, QUEUE_DISPLAY, list)
 	if (p->di_buf[0]->type != VFRAME_TYPE_IN &&
-	(p->process_fun_index != PROCESS_FUN_NULL) &&
-	(ii < USED_LOCAL_BUF_MAX) &&
-	(p->index == di_post_stru.cur_disp_index)) {
+		(p->process_fun_index != PROCESS_FUN_NULL) &&
+		(ii < USED_LOCAL_BUF_MAX) &&
+		(!get_blackout_policy()) &&
+		(p->index == di_post_stru.cur_disp_index)) {
 		used_post_buf_index = p->index;
 		for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
-			if (p->di_buf_dup_p[i] != NULL) {
-				used_local_buf_index[ii] =
-					p->di_buf_dup_p[i]->index;
-				/* prepare for recycle
-				 * the keep buffer*/
-				p->di_buf_dup_p[i]->pre_ref_count = 0;
-				p->di_buf_dup_p[i]->post_ref_count = 0;
-				if ((p->di_buf_dup_p[i]->queue_index >= 0) &&
-				(p->di_buf_dup_p[i]->queue_index < QUEUE_NUM)) {
-					if (is_in_queue(p->di_buf_dup_p[i],
-					p->di_buf_dup_p[i]->queue_index))
-						queue_out(p->di_buf_dup_p[i]);
-				}
-				ii++;
-				if (p->di_buf_dup_p[i]->
-				di_wr_linked_buf)
-					used_local_buf_index[ii] =
-						p->di_buf_dup_p[i]->
-						di_wr_linked_buf->index;
+			if (p->di_buf_dup_p[i] == NULL)
+				continue;
+			used_local_buf_index[ii] =
+				p->di_buf_dup_p[i]->index;
+			/* prepare for recycle
+			 * the keep buffer*/
+			p->di_buf_dup_p[i]->pre_ref_count = 0;
+			p->di_buf_dup_p[i]->post_ref_count = 0;
+			if ((p->di_buf_dup_p[i]->queue_index >= 0) &&
+			(p->di_buf_dup_p[i]->queue_index < QUEUE_NUM)) {
+				if (is_in_queue(p->di_buf_dup_p[i],
+				p->di_buf_dup_p[i]->queue_index))
+					queue_out(p->di_buf_dup_p[i]);
 			}
+			ii++;
+			if (p->di_buf_dup_p[i]->di_wr_linked_buf)
+				used_local_buf_index[ii] =
+				p->di_buf_dup_p[i]->di_wr_linked_buf->index;
 		}
 		queue_out(p);
 		break;
