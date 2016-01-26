@@ -5241,7 +5241,7 @@ static void vh265_put_timer_func(unsigned long arg)
 		}
 		dbg_cmd = 0;
 	}
-	if (show_frame_num > 60 && /*don't changed at start.*/
+	if (get_frame_dur && show_frame_num > 60 && /*don't changed at start.*/
 		frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
