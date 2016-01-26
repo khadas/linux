@@ -83,7 +83,8 @@ enum pcr_init_priority_e {
 #define PAUSE_CHECK_TIME   2700
 #define PAUSE_RESUME_TIME   18000
 
-static u32 tsync_pcr_recovery_span = 10;
+/* modify it by dolby av sync 20160126 */
+static u32 tsync_pcr_recovery_span = 3; /* 10 */
 
 
 
@@ -124,14 +125,17 @@ static u32 tsync_pcr_ref_latency = (TIME_UNIT90K * 0.3);
 /* use for pcr valid mode */
 static u32 tsync_pcr_max_cache_time = TIME_UNIT90K * 1.5;
 static u32 tsync_pcr_up_cache_time = TIME_UNIT90K * 1.2;
-static u32 tsync_pcr_down_cache_time = TIME_UNIT90K * 0.6;
-static u32 tsync_pcr_min_cache_time = TIME_UNIT90K * 0.2;
+/* modify it by dolby av sync */
+static u32 tsync_pcr_down_cache_time = TIME_UNIT90K * 0.8;   /* 0.6 */
+static u32 tsync_pcr_min_cache_time = TIME_UNIT90K * 0.4;    /* 0.2 */
 
 /* use for pcr invalid mode */
 static u32 tsync_pcr_max_delay_time = TIME_UNIT90K * 3;
 static u32 tsync_pcr_up_delay_time = TIME_UNIT90K * 2;
 static u32 tsync_pcr_down_delay_time = TIME_UNIT90K * 1.5;
 static u32 tsync_pcr_min_delay_time = TIME_UNIT90K * 0.8;
+
+static u32 tsync_apts_adj_value = 150000;  /* add it by dolby av sync */
 
 static u32 tsync_pcr_first_video_frame_pts;
 static u32 tsync_pcr_first_audio_frame_pts;
@@ -393,6 +397,11 @@ void tsync_pcr_pcrscr_set(void)
 		&& (first_apts < min_checkinpts)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_APTS;
 		ref_pcr = first_apts;
+
+		/* add it for dolby av sync */
+		if (cur_pcr > 0)
+			ref_pcr = cur_pcr - tsync_apts_adj_value;
+
 		timestamp_pcrscr_set(ref_pcr);
 		if (cur_pcr > 0)
 			tsync_pcr_usepcr = 1;
@@ -803,6 +812,11 @@ static unsigned long tsync_pcr_check(void)
 			int64_t new_pcr =
 				last_checkin_minpts - tsync_pcr_ref_latency * 2;
 			int64_t old_pcr = timestamp_pcrscr_get();
+
+			/* add for dolby ddp stream av sync */
+			if (new_pcr < cur_apts && cur_apts - new_pcr > 3000)
+				new_pcr = cur_apts - 3000;
+
 			timestamp_pcrscr_set(new_pcr);
 			pr_info
 			("[%s]video stream underrun,force slow play.\n",
@@ -1205,6 +1219,27 @@ static ssize_t tsync_pcr_recovery_span_store(struct class *cla,
 	return count;
 }
 
+/* add it for dolby av sync 20160126 */
+static ssize_t tsync_apts_adj_value_show(struct class *cla,
+	    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_apts_adj_value);
+}
+
+static ssize_t tsync_apts_adj_value_store(struct class *cla,
+	    struct class_attribute *attr, const char *buf, size_t count)
+{
+	size_t r;
+
+	r = sscanf(buf, "%d", &tsync_apts_adj_value);
+
+	pr_info("%s(%d)\n", __func__, tsync_apts_adj_value);
+
+	if (r != 1)
+		return -EINVAL;
+
+	return count;
+}
 /* ----------------------------------------------------------------------- */
 /* define of tsync pcr module */
 
@@ -1222,6 +1257,8 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 	show_apause_flag, NULL),
 	__ATTR(tsync_pcr_recovery_span, S_IRUGO | S_IWUSR,
 	tsync_pcr_recovery_span_show, tsync_pcr_recovery_span_store),
+	__ATTR(tsync_apts_adj_value, S_IRUGO | S_IWUSR,
+	tsync_apts_adj_value_show, tsync_apts_adj_value_store),
 	__ATTR_NULL
 };
 
