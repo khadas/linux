@@ -79,6 +79,7 @@ static int edid_rx_data(unsigned char regaddr, unsigned char *rx_data,
 static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
 	unsigned char *rx_data,	int length);
 static void gpio_read_edid(unsigned char *rx_edid);
+static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
@@ -112,6 +113,8 @@ static struct switch_dev sdev = { /* android ics switch device */
 static struct switch_dev hdmi_power = { /* android ics switch device */
 	.name = "hdmi_power",
 };
+static int edid_read_flag __nosavedata;
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static void hdmitx_early_suspend(struct early_suspend *h)
@@ -170,12 +173,15 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		phdmi->HWOp.CntlMisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
 
 	phdmi->hpd_lock = 0;
+	if (phdmi->gpio_i2c_enable)
+		edid_read_flag = 0;
 
 	/* update status for hpd and switch/state */
 	hdmitx_device.hpd_state = !!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
 		MISC_HPD_GPI_ST, 0));
-	switch_set_state(&sdev, hdmitx_device.hpd_state);
-	switch_set_state(&hdmi_power, hdmitx_device.hpd_state);
+	/*force to get EDID after resume for Amplifer Power case*/
+	if (hdmitx_device.hpd_state)
+		hdmitx_get_edid(phdmi);
 
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
@@ -184,6 +190,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	suspend_flag = 0;
 #endif
+	switch_set_state(&sdev, hdmitx_device.hpd_state);
+	switch_set_state(&hdmi_power, hdmitx_device.hpd_state);
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	phdmi->HWOp.Cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_LATE_RESUME);
@@ -1883,7 +1891,7 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 }
 
 struct i2c_client *i2c_edid_client;
-static int edid_read_flag __nosavedata;
+
 static DEFINE_MUTEX(getedid_mutex);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
@@ -1898,9 +1906,9 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 			return;
 		} else {
 			hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
-			gpio_read_edid(hdev->EDID_buf);
-			msleep(20);
 			gpio_read_edid(hdev->EDID_buf1);
+			msleep(20);
+			gpio_read_edid(hdev->EDID_buf);
 			edid_read_flag = 1;
 		}
 	} else {
