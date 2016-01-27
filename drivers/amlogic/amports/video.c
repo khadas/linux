@@ -3989,6 +3989,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		if (is_meson_gxbb_cpu()) {
 			cur_frame_par->VPP_pic_in_height_ = zoom_end_y_lines -
 				zoom_start_y_lines + 1;
+			if (cur_dispbuf->type & VIDTYPE_MVC)
+				cur_frame_par->VPP_pic_in_height_ *= 2;
 			cur_frame_par->VPP_line_in_length_ = zoom_end_x_lines -
 				zoom_start_x_lines + 1;
 		}
@@ -3996,6 +3998,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			cur_frame_par->VPP_pic_in_height_ = (zoom_end_y_lines -
 				zoom_start_y_lines + 1) <<
 				cur_frame_par->supsc0_vert_ratio;
+			if (cur_dispbuf->type & VIDTYPE_MVC)
+				cur_frame_par->VPP_pic_in_height_ *= 2;
 			cur_frame_par->VPP_line_in_length_ = (zoom_end_x_lines -
 				zoom_start_x_lines + 1) <<
 				cur_frame_par->supsc0_hori_ratio;
