@@ -411,7 +411,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	rate = rate/100 + (((rate%100)/10 >= 5) ? 1 : 0);
 
 	prop->dvi_info = (rate << 4) | hdmirx_hw_get_dvi_info();
-
+	prop->colordepth = rx_get_colordepth();
 	prop->dest_cfmt = TVIN_YUV422;
 	switch (hdmirx_hw_get_color_fmt()) {
 	case 1:

@@ -30,6 +30,7 @@
 #include <linux/major.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/spinlock_types.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
@@ -182,13 +183,19 @@ void phy_conf_eq_setting(int ch0_lockVector,
 	hdmirx_wr_phy(PHY_EQCTRL2_CH2, 0x0026);
 }
 
+void set_cmd_state(bool enable)
+{
+	spin_lock(&phy_private_data->slock);
+	phy_private_data->new_cmd = false;
+	spin_unlock(&phy_private_data->slock);
+}
+
 int phy_wait_clk_stable(void)
 {
 	int i;
 	int eq_mainfsm_status;
 	int stable_start = 0;
 
-	phy_private_data->exit_task_delay = false;
 	for (i = 0; i < EQ_CLK_WAIT_MAX_COUNT; i++) {
 		eq_mainfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 		/*Make sure that SW is not overriding the equalization not
@@ -209,7 +216,7 @@ int phy_wait_clk_stable(void)
 		}
 
 		if (((EQ_CLK_WAIT_MAX_COUNT - 1) == i) ||
-			phy_private_data->exit_task_delay) {
+			phy_private_data->new_cmd) {
 			return -1;
 		}
 		block_delay_ms(EQ_CLK_WAIT_DELAY);
@@ -230,22 +237,28 @@ void phy_EQ_workaround(void)
 	int eq_mainfsm_status = 0;
 	int nacq = 5;
 	int eq_counter_th = EQ_COUNTERTHRESHOLD;
+	enum phy_eq_cmd_e new_cmd;
 
 	memset(stepSlope, 0, sizeof(stepSlope));
-	if (phy_private_data->exit_task_delay) {
-		rx_print("exit eq calc\n");
-		phy_private_data->exit_task_delay = false;
-		phy_eq_set_state(EQ_IDLE, true);
-	}
-
-	if (phy_private_data->start_eq) {
-		rx_print("start eq calc\n");
-		phy_private_data->start_eq = false;
-		phy_eq_set_state(EQ_DATA_START, true);
+	/*check new command*/
+	if (phy_private_data->new_cmd) {
+		spin_lock(&phy_private_data->slock);
+		phy_private_data->new_cmd = false;
+		new_cmd = phy_private_data->cmd;
+		spin_unlock(&phy_private_data->slock);
+		if (new_cmd == EQ_START) {
+			rx_print("start eq calc\n");
+			phy_eq_set_state(EQ_DATA_START, true);
+		} else if (new_cmd == EQ_STOP) {
+			rx_print("exit eq calc\n");
+			phy_eq_set_state(EQ_IDLE, true);
+		}
 	}
 
 	switch (phy_private_data->phy_eq_state) {
 	case EQ_DATA_START:
+		hdmirx_phy_EQ_workaround_init();
+		block_delay_ms(1);
 		/********************   IMPORTANT   *************************/
 		/********************* PLEASE README ************************/
 		/*The following piece of code was added here to make sure that
@@ -259,9 +272,9 @@ void phy_EQ_workaround(void)
 		/*if it is forced to exit delay,set state to EQ_IDLE
 		otherwise clk stable failed*/
 		if (phy_wait_clk_stable() != 0) {
-			if (phy_private_data->exit_task_delay) {
+			if (phy_private_data->new_cmd) {
+				set_cmd_state(false);
 				phy_eq_set_state(EQ_IDLE, false);
-				phy_private_data->exit_task_delay = false;
 			} else
 				phy_eq_set_state(EQ_FAILED, false);
 			return;
@@ -821,6 +834,14 @@ void phy_EQ_workaround(void)
 	}
 }
 
+void phy_set_cmd(enum phy_eq_cmd_e cmd)
+{
+	spin_lock(&phy_private_data->slock);
+	phy_private_data->cmd = cmd;
+	phy_private_data->new_cmd = true;
+	spin_unlock(&phy_private_data->slock);
+}
+
 int phy_eq_task(void *data)
 {
 	while (phy_private_data->task_running) {
@@ -910,11 +931,12 @@ int hdmirx_phy_probe(void)
 							GFP_KERNEL);
 	if (phy_eq_algo_data == NULL)
 		return -1;*/
+	spin_lock_init(&phy_private_data->slock);
 	mutex_init(&phy_private_data->state_lock);
 	init_completion(&phy_private_data->phy_task_lock);
 	phy_private_data->task_running = true;
-	phy_private_data->exit_task_delay = false;
-	phy_private_data->start_eq = false;
+	phy_private_data->cmd = 0;
+	phy_private_data->new_cmd = false;
 	phy_private_data->task = kthread_create(phy_eq_task,
 				phy_private_data, "eq");
 	if (IS_ERR(phy_private_data->task)) {
@@ -928,7 +950,7 @@ int hdmirx_phy_probe(void)
 void hdmirx_phy_exit(void)
 {
 	if (phy_private_data->task) {
-		phy_private_data->exit_task_delay = true;
+		phy_private_data->cmd = EQ_STOP;
 		phy_private_data->task_running = false;
 		send_sig(SIGTERM, phy_private_data->task, 1);
 		complete(&phy_private_data->phy_task_lock);
@@ -943,10 +965,9 @@ void hdmirx_phy_exit(void)
 int hdmirx_phy_start_eq(void)
 {
 	if (phy_private_data != NULL) {
-		phy_private_data->exit_task_delay = false;
-		phy_private_data->start_eq = true;
-		/*phy_eq_set_state(EQ_DATA_START, true);*/
+		phy_set_cmd(EQ_START);
 		complete(&phy_private_data->phy_task_lock);
+		rx_print("%s\n", __func__);
 	} else {
 		return -1;
 	}
@@ -959,13 +980,12 @@ int hdmirx_phy_stop_eq(void)
 	if (phy_private_data != NULL) {
 		if ((hdmirx_phy_get_eq_state() != EQ_IDLE) &&
 			(hdmirx_phy_get_eq_state() < EQ_SUCCESS_END))
-			phy_private_data->exit_task_delay = true;
-		/*phy_eq_set_state(EQ_IDLE, true);*/
+			phy_set_cmd(EQ_STOP);
+		rx_print("%s\n", __func__);
 	} else {
 		return -1;
 	}
 
-	rx_print("%s\n", __func__);
 
 	return 0;
 }
@@ -1041,14 +1061,14 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	data32 |= 0 << 0;
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 
-	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x2d20);
+	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x1c94);
 	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
 	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24da);
 	hdmirx_wr_phy(MPLL_PARAMETERS5,    0x5492);
 	hdmirx_wr_phy(MPLL_PARAMETERS6,    0x4b0d);
 	hdmirx_wr_phy(MPLL_PARAMETERS7,    0x4760);
 	hdmirx_wr_phy(MPLL_PARAMETERS8,    0x008c);
-	hdmirx_wr_phy(MPLL_PARAMETERS9,    0x0002);
+	hdmirx_wr_phy(MPLL_PARAMETERS9,    0x0010);
 	hdmirx_wr_phy(MPLL_PARAMETERS10,   0x2d20);
 	hdmirx_wr_phy(MPLL_PARAMETERS11, 0x2e31);
 	hdmirx_wr_phy(MPLL_PARAMETERS12, 0x4b64);
@@ -1061,6 +1081,8 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	hdmirx_wr_phy(MPLL_PARAMETERS19, 0x2492);
 	hdmirx_wr_phy(MPLL_PARAMETERS20, 0x48ea);
 	hdmirx_wr_phy(MPLL_PARAMETERS21, 0x0011);
+	hdmirx_wr_phy(MPLL_PARAMETERS22, 0x04d2);
+	hdmirx_wr_phy(MPLL_PARAMETERS23, 0x0414);
 
 	hdmirx_wr_phy(0x43, fat_bit_status);
 	hdmirx_wr_phy(0x63, fat_bit_status);

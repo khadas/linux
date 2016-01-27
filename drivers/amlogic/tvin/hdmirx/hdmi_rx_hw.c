@@ -872,7 +872,7 @@ void hdmirx_hdcp22_esm_rst(void)
 
 void hdmirx_hw_config(void)
 {
-	rx_print("%s %d\n", __func__, rx.port);
+	rx_print("%s port:%d\n", __func__, rx.port);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);
 	clk_init();
 	control_reset();
@@ -1046,6 +1046,8 @@ exit:
 void hdmirx_set_video_mute(bool mute)
 {
 	hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, _BIT(16), mute);
+	if (log_flag & VIDEO_LOG)
+		rx_print("%s,mute: %d\n", __func__, mute);
 }
 
 void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)

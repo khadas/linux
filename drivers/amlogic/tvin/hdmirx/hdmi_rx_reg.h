@@ -109,6 +109,9 @@
 #define MPLL_PARAMETERS19                (0xC9UL)
 #define MPLL_PARAMETERS20                (0xCAUL)
 #define MPLL_PARAMETERS21                (0xCBUL)
+#define MPLL_PARAMETERS22                (0xCCUL)
+#define MPLL_PARAMETERS23                (0xCDUL)
+
 
 /* ------------------------------------- */
 /* TOP-level wrapper registers addresses */

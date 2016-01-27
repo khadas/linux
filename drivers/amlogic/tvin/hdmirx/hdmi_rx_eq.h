@@ -102,6 +102,11 @@ enum phy_eq_channel_e {
 	EQ_CH_NUM,
 };
 
+enum phy_eq_cmd_e {
+	EQ_START = 0x1,
+	EQ_STOP,
+};
+
 /*enum define end*/
 
 /*--------------------------struct define---------------------*/
@@ -155,8 +160,9 @@ struct hdmirx_phy_data_t {
 	struct task_struct *task;
 	int phy_clk_wait_count;
 	bool task_running;
-	bool exit_task_delay;/* exit clk stable delay */
-	bool start_eq;
+	enum phy_eq_cmd_e cmd;
+	bool new_cmd;
+	spinlock_t slock;
 	struct mutex state_lock;
 	bool last_clk_rate;
 };

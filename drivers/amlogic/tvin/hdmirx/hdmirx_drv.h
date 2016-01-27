@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/01/06"
+#define HDMIRX_VER "Ref.2016/01/27"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -539,6 +539,7 @@ extern int hdmirx_debug(const char *buf, int size);
 extern int hdmirx_hw_get_color_fmt(void);
 extern int hdmirx_hw_get_3d_structure(unsigned char*, unsigned char*);
 extern int hdmirx_hw_get_dvi_info(void);
+extern int rx_get_colordepth(void);
 extern int hdmirx_hw_get_pixel_repeat(void);
 extern bool hdmirx_hw_check_frame_skip(void);
 extern int rx_print(const char *fmt, ...);
