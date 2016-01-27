@@ -140,8 +140,8 @@ enum select_scaler_path_e {
 	sup0_pp_sp1_scpath,
 	sup0_pp_post_blender,
 };
-#define SUPER_CORE0_WIDTH_MAX  1024
-#define SUPER_CORE1_WIDTH_MAX  2048
+#define SUPER_CORE0_WIDTH_MAX  2048
+#define SUPER_CORE1_WIDTH_MAX  4096
 
 
 #ifdef TV_3D_FUNCTION_OPEN
