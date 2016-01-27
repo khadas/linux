@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/pstore_ram.h>
+#include <linux/of_reserved_mem.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -54,6 +55,10 @@ MODULE_PARM_DESC(ftrace_size, "size of ftrace log");
 static ulong ramoops_pmsg_size = MIN_MEM_SIZE;
 module_param_named(pmsg_size, ramoops_pmsg_size, ulong, 0400);
 MODULE_PARM_DESC(pmsg_size, "size of user space message log");
+
+static uint pstore_en;
+module_param(pstore_en, uint, 0400);
+MODULE_PARM_DESC(pstore_en, "pstore enable ");
 
 static ulong mem_address;
 module_param(mem_address, ulong, 0400);
@@ -589,6 +594,9 @@ static struct platform_driver ramoops_driver = {
 
 static void ramoops_register_dummy(void)
 {
+	if (!pstore_en)
+		return;
+
 	if (!mem_size)
 		return;
 
@@ -637,6 +645,14 @@ static void __exit ramoops_exit(void)
 }
 module_exit(ramoops_exit);
 
+static int __init rmem_pstore_setup(struct reserved_mem *rmem)
+{
+	mem_address = (ulong)rmem->base;
+	mem_size = (ulong)rmem->size;
+	pr_info("%s: %lx, size %ld\n", __func__, mem_address, mem_size);
+	return 0;
+}
+RESERVEDMEM_OF_DECLARE(aml_pstore, "amlogic, pstore", rmem_pstore_setup);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marco Stornelli <marco.stornelli@gmail.com>");
 MODULE_DESCRIPTION("RAM Oops/Panic logger/driver");
