@@ -133,8 +133,30 @@ static int aml_i2s_audio_type_set_enum(
 }
 
 /* spdif in audio format detect: LPCM or NONE-LPCM */
+struct sppdif_audio_info {
+	unsigned char aud_type;
+	/*IEC61937 package presamble Pc value*/
+	short pc;
+	char *aud_type_str;
+};
 static const char *const spdif_audio_type_texts[] = {
-	"LPCM", "NONE-LPCM", "UN-KNOWN"
+	"LPCM",
+	"AC3",
+	"EAC3",
+	"DTS",
+	"DTS-HD",
+	"TRUEHD",
+};
+static const struct sppdif_audio_info type_texts[] = {
+	{0, 0, "LPCM"},
+	{1, 0x1, "AC3"},
+	{2, 0x15, "EAC3"},
+	{3, 0xb, "DTS-I"},
+	{3, 0x10c, "DTS-II"},
+	{3, 0x20d, "DTS-III"},
+	{3, 0x411, "DTS-IV"},
+	{4, 0, "DTS-HD"},
+	{5, 0x16, "TRUEHD"},
 };
 static const struct soc_enum spdif_audio_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdif_audio_type_texts),
@@ -144,17 +166,18 @@ static int aml_spdif_audio_type_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	int ch_status = 0;
-
-	if ((aml_read_cbus(AUDIN_SPDIF_MISC) >> 0x7) & 0x1) {
-		ch_status = aml_read_cbus(AUDIN_SPDIF_CHNL_STS_A) & 0x3;
-		if (ch_status & 2) /*NONE-LPCM */
-			ucontrol->value.enumerated.item[0] = 1;
-		else
-			ucontrol->value.enumerated.item[0] = 0; /*LPCM*/
-	} else {
-		ucontrol->value.enumerated.item[0] = 2;
+	int audio_type = 0;
+	int i;
+	int total_num = sizeof(type_texts)/sizeof(struct sppdif_audio_info);
+	int pc = aml_read_cbus(AUDIN_SPDIF_NPCM_PCPD)>>16;
+	pc = pc&0xff;
+	for (i = 0; i < total_num; i++) {
+		if (pc == type_texts[i].pc) {
+			audio_type = type_texts[i].aud_type;
+			break;
+		}
 	}
+	ucontrol->value.enumerated.item[0] = audio_type;
 	return 0;
 }
 
