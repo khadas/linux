@@ -518,6 +518,7 @@ int hdmitx_hdcp_opr(unsigned int val);
 #define HDMITX_DWC_FC_DATAUTO1                  (DWC_OFFSET_MASK + 0x10B4)
 #define HDMITX_DWC_FC_DATAUTO2                  (DWC_OFFSET_MASK + 0x10B5)
 #define HDMITX_DWC_FC_DATMAN                    (DWC_OFFSET_MASK + 0x10B6)
+/* [  6] drm_auto: instert on Vsync */
 /* [  5] nvbi_auto: insert on Vsync */
 /* [  4] amp_auto: insert on Vsync */
 /* [  3] avi_auto: insert on Vsync */
@@ -554,6 +555,7 @@ int hdmitx_hdcp_opr(unsigned int val);
 /* [  1] AVI_int_mask */
 /* [  0] GCP_int_mask */
 #define HDMITX_DWC_FC_MASK1                     (DWC_OFFSET_MASK + 0x10D6)
+/* [  2] Mask bit for FC_INT2.DRM interrupt bit */
 /* [  1] LowPriority_fifo_full */
 /* [  0] HighPriority_fifo_full */
 #define HDMITX_DWC_FC_MASK2                     (DWC_OFFSET_MASK + 0x10DA)
@@ -564,6 +566,7 @@ int hdmitx_hdcp_opr(unsigned int val);
 /* [  0] scrambler_en. Only update this bit once we've sent SCDC message*/
 #define HDMITX_DWC_FC_SCRAMBLER_CTRL            (DWC_OFFSET_MASK + 0x10E1)
 #define HDMITX_DWC_FC_MULTISTREAM_CTRL          (DWC_OFFSET_MASK + 0x10E2)
+/* [  7] drm_tx_en */
 /* [  6] nvbi_tx_en */
 /* [  5] amp_tx_en */
 /* [  4] aut_tx_en */
@@ -676,6 +679,35 @@ int hdmitx_hdcp_opr(unsigned int val);
 #define HDMITX_DWC_FC_NVBI_PB25                 (DWC_OFFSET_MASK + 0x1162)
 #define HDMITX_DWC_FC_NVBI_PB26                 (DWC_OFFSET_MASK + 0x1163)
 #define HDMITX_DWC_FC_NVBI_PB27                 (DWC_OFFSET_MASK + 0x1164)
+#define HDMITX_DWC_FC_DRM_HB01                  (DWC_OFFSET_MASK + 0x1168)
+#define HDMITX_DWC_FC_DRM_HB02                  (DWC_OFFSET_MASK + 0x1169)
+#define HDMITX_DWC_FC_DRM_PB00                  (DWC_OFFSET_MASK + 0x116A)
+#define HDMITX_DWC_FC_DRM_PB01                  (DWC_OFFSET_MASK + 0x116B)
+#define HDMITX_DWC_FC_DRM_PB02                  (DWC_OFFSET_MASK + 0x116C)
+#define HDMITX_DWC_FC_DRM_PB03                  (DWC_OFFSET_MASK + 0x116D)
+#define HDMITX_DWC_FC_DRM_PB04                  (DWC_OFFSET_MASK + 0x116E)
+#define HDMITX_DWC_FC_DRM_PB05                  (DWC_OFFSET_MASK + 0x116F)
+#define HDMITX_DWC_FC_DRM_PB06                  (DWC_OFFSET_MASK + 0x1170)
+#define HDMITX_DWC_FC_DRM_PB07                  (DWC_OFFSET_MASK + 0x1171)
+#define HDMITX_DWC_FC_DRM_PB08                  (DWC_OFFSET_MASK + 0x1172)
+#define HDMITX_DWC_FC_DRM_PB09                  (DWC_OFFSET_MASK + 0x1173)
+#define HDMITX_DWC_FC_DRM_PB10                  (DWC_OFFSET_MASK + 0x1174)
+#define HDMITX_DWC_FC_DRM_PB11                  (DWC_OFFSET_MASK + 0x1175)
+#define HDMITX_DWC_FC_DRM_PB12                  (DWC_OFFSET_MASK + 0x1176)
+#define HDMITX_DWC_FC_DRM_PB13                  (DWC_OFFSET_MASK + 0x1177)
+#define HDMITX_DWC_FC_DRM_PB14                  (DWC_OFFSET_MASK + 0x1178)
+#define HDMITX_DWC_FC_DRM_PB15                  (DWC_OFFSET_MASK + 0x1179)
+#define HDMITX_DWC_FC_DRM_PB16                  (DWC_OFFSET_MASK + 0x117A)
+#define HDMITX_DWC_FC_DRM_PB17                  (DWC_OFFSET_MASK + 0x117B)
+#define HDMITX_DWC_FC_DRM_PB18                  (DWC_OFFSET_MASK + 0x117C)
+#define HDMITX_DWC_FC_DRM_PB19                  (DWC_OFFSET_MASK + 0x117D)
+#define HDMITX_DWC_FC_DRM_PB20                  (DWC_OFFSET_MASK + 0x117E)
+#define HDMITX_DWC_FC_DRM_PB21                  (DWC_OFFSET_MASK + 0x117F)
+#define HDMITX_DWC_FC_DRM_PB22                  (DWC_OFFSET_MASK + 0x1180)
+#define HDMITX_DWC_FC_DRM_PB23                  (DWC_OFFSET_MASK + 0x1181)
+#define HDMITX_DWC_FC_DRM_PB24                  (DWC_OFFSET_MASK + 0x1182)
+#define HDMITX_DWC_FC_DRM_PB25                  (DWC_OFFSET_MASK + 0x1183)
+#define HDMITX_DWC_FC_DRM_PB26                  (DWC_OFFSET_MASK + 0x1184)
 
 #define HDMITX_DWC_FC_DBGFORCE                  (DWC_OFFSET_MASK + 0x1200)
 #define HDMITX_DWC_FC_DBGAUD0CH0                (DWC_OFFSET_MASK + 0x1201)

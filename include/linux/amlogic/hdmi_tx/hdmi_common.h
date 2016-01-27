@@ -166,6 +166,7 @@ enum hdmi_vic {
 	HDMI_VIC_Y420_MAX,
 
 	HDMI_VIC_FAKE = HDMITX_VIC420_FAKE_OFFSET,
+	HDMI_VIC_END,
 };
 
 /* Compliance with old definitions */

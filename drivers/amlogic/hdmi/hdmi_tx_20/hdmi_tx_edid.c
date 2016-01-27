@@ -55,6 +55,8 @@
 #define HDMI_EDID_BLOCK_TYPE_RESERVED2	        6
 #define HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG       7
 
+/* DRM stands for "Dynamic Range and Mastering " */
+#define EXTENSION_DRM_TAG	0x6
 #define EXTENSION_Y420_VDB_TAG	0xe
 #define EXTENSION_Y420_CMDB_TAG	0xf
 
@@ -813,6 +815,50 @@ INVALID_Y420VDB:
 	return -1;
 }
 
+static int Edid_ParsingDRMBlock(struct rx_cap *pRXCap,
+	unsigned char *buf)
+{
+	unsigned char tag = 0, ext_tag = 0, data_end = 0;
+	unsigned int pos = 0;
+
+	tag = (buf[pos] >> 5) & 0x7;
+	data_end = (buf[pos] & 0x1f);
+	pos++;
+	ext_tag = buf[pos];
+	if ((tag != HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG)
+		|| (ext_tag != EXTENSION_DRM_TAG))
+		goto INVALID_DRM;
+	pos++;
+	pRXCap->hdr_sup_eotf_sdr = !!(buf[pos] & (0x1 << 0));
+	pRXCap->hdr_sup_eotf_hdr = !!(buf[pos] & (0x1 << 1));
+	pRXCap->hdr_sup_eotf_smpte_st_2084 = !!(buf[pos] & (0x1 << 2));
+	pRXCap->hdr_sup_eotf_future = !!(buf[pos] & (0x1 << 3));
+	pos++;
+	pRXCap->hdr_sup_SMD_type1 = !!(buf[pos] & (0x1 << 0));
+	pos++;
+	if (data_end == 3)
+		return 0;
+	if (data_end == 4) {
+		pRXCap->hdr_lum_max = buf[pos];
+		return 0;
+	}
+	if (data_end == 5) {
+		pRXCap->hdr_lum_max = buf[pos];
+		pRXCap->hdr_lum_avg = buf[pos + 1];
+		return 0;
+	}
+	if (data_end == 6) {
+		pRXCap->hdr_lum_max = buf[pos];
+		pRXCap->hdr_lum_avg = buf[pos + 1];
+		pRXCap->hdr_lum_min = buf[pos + 2];
+		return 0;
+	}
+	return 0;
+INVALID_DRM:
+	pr_info("[%s] it's not a valid DRM\n", __func__);
+	return -1;
+}
+
 /* ----------------------------------------------------------- */
 static int Edid_ParsingY420CMDBBlock(struct hdmitx_info *info,
 	unsigned char *buf)
@@ -1209,18 +1255,19 @@ case_next:
 
 				ext_tag = BlockBuf[offset+1];
 				switch (ext_tag) {
-
+				case EXTENSION_DRM_TAG:
+					Edid_ParsingDRMBlock(pRXCap,
+						&BlockBuf[offset]);
+					break;
 				case EXTENSION_Y420_VDB_TAG:
 					Edid_ParsingY420VDBBlock(pRXCap,
 						&BlockBuf[offset]);
 					break;
-
 				case EXTENSION_Y420_CMDB_TAG:
 					Edid_ParsingY420CMDBBlock(
 						&(hdmitx_device->hdmi_info),
 						&BlockBuf[offset]);
 					break;
-
 				default:
 					break;
 				}
@@ -1790,6 +1837,14 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 	pRXCap->scdc_rr_capable = 0x0;
 	pRXCap->lte_340mcsc_scramble = 0x0;
 	pRXCap->lte_340mcsc_scramble = 0x0;
+	pRXCap->hdr_sup_eotf_sdr = 0;
+	pRXCap->hdr_sup_eotf_hdr = 0;
+	pRXCap->hdr_sup_eotf_smpte_st_2084 = 0;
+	pRXCap->hdr_sup_eotf_future = 0;
+	pRXCap->hdr_sup_SMD_type1 = 0;
+	pRXCap->hdr_lum_max = 0;
+	pRXCap->hdr_lum_avg = 0;
+	pRXCap->hdr_lum_min = 0;
 	pRXCap->native_Mode = 0;
 	pRXCap->native_VIC = 0xff;
 	pRXCap->RxSpeakerAllocation = 0;

@@ -67,6 +67,14 @@ struct rx_cap {
 	unsigned int scdc_present:1;
 	unsigned int scdc_rr_capable:1; /* SCDC read request */
 	unsigned int lte_340mcsc_scramble:1;
+	unsigned int hdr_sup_eotf_sdr:1;
+	unsigned int hdr_sup_eotf_hdr:1;
+	unsigned int hdr_sup_eotf_smpte_st_2084:1;
+	unsigned int hdr_sup_eotf_future:1;
+	unsigned int hdr_sup_SMD_type1:1;
+	unsigned char hdr_lum_max;
+	unsigned char hdr_lum_avg;
+	unsigned char hdr_lum_min;
 	unsigned char ReceiverBrandName[4];
 	unsigned char ReceiverProductName[16];
 	unsigned char manufacture_week;
@@ -225,7 +233,10 @@ struct hdmitx_dev {
 	/* For some un-well-known TVs, no edid at all */
 	unsigned int tv_no_edid;
 	unsigned int hpd_lock;
-	unsigned int mode420;
+	/* 0: RGB444  1: Y444  2: Y422  3: Y420 */
+	enum hdmi_color_space_type colorspace;
+	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
+	enum hdmi_color_depth colordepth;
 	/* if equals to 1, means current video & audio output are blank */
 	unsigned int output_blank_flag;
 	unsigned int audio_notify_flag;
@@ -272,6 +283,7 @@ struct hdmitx_dev {
 #define DDC_HDCP_MUX_INIT	(CMD_DDC_OFFSET + 0x0e)
 #define DDC_HDCP_14_LSTORE	(CMD_DDC_OFFSET + 0x0f)
 #define DDC_HDCP_22_LSTORE	(CMD_DDC_OFFSET + 0x10)
+#define DDC_SCDC_DIV40_SCRAMB	(CMD_DDC_OFFSET + 0x20)
 
 /***********************************************************************
  *             CONFIG CONTROL //CntlConfig
@@ -287,6 +299,7 @@ struct hdmitx_dev {
 /* Audio part */
 #define CONF_CLR_AVI_PACKET     (CMD_CONF_OFFSET + 0x04)
 #define CONF_CLR_VSDB_PACKET    (CMD_CONF_OFFSET + 0x05)
+#define CONF_VIDEO_MAPPING	(CMD_CONF_OFFSET + 0x06)
 #define CONF_AUDIO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x00)
 #define AUDIO_MUTE          0x1
 #define AUDIO_UNMUTE        0x2
@@ -298,8 +311,9 @@ struct hdmitx_dev {
 #define MISC_HPD_MUX_OP         (CMD_MISC_OFFSET + 0x00)
 #define MISC_HPD_GPI_ST         (CMD_MISC_OFFSET + 0x02)
 #define MISC_HPLL_OP            (CMD_MISC_OFFSET + 0x03)
-#define HPLL_ENABLE         0x1
-#define HPLL_DISABLE        0x2
+#define		HPLL_ENABLE         0x1
+#define		HPLL_DISABLE        0x2
+#define		HPLL_SET	    0x3
 #define MISC_TMDS_PHY_OP        (CMD_MISC_OFFSET + 0x04)
 #define TMDS_PHY_ENABLE     0x1
 #define TMDS_PHY_DISABLE    0x2
@@ -341,6 +355,7 @@ struct hdmitx_dev {
 #define HDMI_AUDIO_INFO         4
 #define HDMI_AUDIO_CONTENT_PROTECTION   5
 #define HDMI_PACKET_HBR         6
+#define HDMI_PACKET_DRM		0x86
 
 #define HDMI_PROCESS_DELAY  msleep(10)
 /* reduce a little time, previous setting is 4000/10 */

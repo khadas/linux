@@ -644,7 +644,10 @@
 			&clock CLK_HDMITX_PHY &clock CLK_VID>;
 		clock-names = "hdmitx_clk_sys", "hdmitx_clk_encp", "hdmitx_clk_enci",
 			"hdmitx_clk_pixel", "hdmitx_clk_phy", "hdmitx_clk_vid";
-
+		gpio_i2c_en = <0x1>;
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <2>;
 	};
 
 	aocec: aocec{
@@ -669,6 +672,21 @@
 		compatible = "amlogic, tvout";
 		dev_name = "tvout";
 		status = "okay";
+	};
+
+	i2c_gpio: i2c_gpio {
+		compatible = "i2c-gpio";
+		dev_name = "i2c-gpio";
+		i2c-gpio,delay-us = <10>; /* 50 kHz */
+		gpios = <&gpio GPIOH_3 0
+		&gpio GPIOH_4 0>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		i2c-gpio,timeout-ms = <10>;
+		i2c_gpio_edid: i2c_gpio_edid {
+			compatible = "i2c-gpio-edid";
+			reg = <0x50 0x0 0x0 0x0>;
+		};
 	};
 
 	uart_AO: serial@c81004c0 {
