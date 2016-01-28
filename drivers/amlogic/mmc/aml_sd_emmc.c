@@ -2248,7 +2248,6 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 			vstat);*/
 		}
 	} else if (!(vstat & 0x3fff)) {
-		pr_err("Warning: sd/emmc interrupt but no status bits change\n");
 		return IRQ_HANDLED;
 	}
 	spin_lock_irqsave(&host->mrq_lock, flags);
