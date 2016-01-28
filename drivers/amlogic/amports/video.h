@@ -177,6 +177,8 @@ extern bool pre_scaler_en;
 #define VPP_SC_TOP_EN               (1 << 16)
 #define VPP_SC_V1OUT_EN             (1 << 15)
 #define VPP_SC_RGN14_HNOLINEAR      (1 << 12)
+#define VPP_SC_TOP_EN_WID	    1
+#define VPP_SC_TOP_EN_BIT	    16
 #define VPP_SC_BANK_LENGTH_WID      3
 #define VPP_SC_BANK_LENGTH_MASK     0x7
 #define VPP_SC_HBANK_LENGTH_BIT     8

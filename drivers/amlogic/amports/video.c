@@ -123,7 +123,7 @@ static int output_fps;
 static u32 omx_pts;
 static int omx_pts_interval_upper = 11000;
 static int omx_pts_interval_lower = -5500;
-
+static bool bypass_pps;
 
 bool omx_secret_mode = false;
 #define DEBUG_FLAG_FFPLAY	(1<<0)
@@ -3933,14 +3933,20 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 		/* pps pre hsc&vsc en */
 		VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
-				       vpp_filter->vpp_pre_hsc_en,
-				       VPP_SC_PREHORZ_EN_BIT, 1);
+			vpp_filter->vpp_pre_hsc_en,
+			VPP_SC_PREHORZ_EN_BIT, 1);
 		VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
-				       vpp_filter->vpp_pre_vsc_en,
-				       VPP_SC_PREVERT_EN_BIT, 1);
+			vpp_filter->vpp_pre_vsc_en,
+			VPP_SC_PREVERT_EN_BIT, 1);
 		VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
-				       vpp_filter->vpp_pre_vsc_en,
-				       VPP_LINE_BUFFER_EN_BIT, 1);
+			vpp_filter->vpp_pre_vsc_en,
+			VPP_LINE_BUFFER_EN_BIT, 1);
+		/* for bypass pps debug */
+		if ((vpp_filter->vpp_hsc_start_phase_step == 0x1000000) &&
+			(vpp_filter->vpp_vsc_start_phase_step == 0x1000000) &&
+			bypass_pps)
+			VSYNC_WR_MPEG_REG_BITS(VPP_SC_MISC + cur_dev->vpp_off,
+				0, VPP_SC_TOP_EN_BIT, VPP_SC_TOP_EN_WID);
 
 #ifdef TV_3D_FUNCTION_OPEN
 		if (last_mode_3d) {
@@ -5604,6 +5610,11 @@ static ssize_t video_state_show(struct class *cla,
 	len +=
 	    sprintf(buf + len, "pps pre vsc enable %d.\n",
 		    vpp_filter->vpp_pre_vsc_en);
+	    sprintf(buf + len, "hscale filter coef %d.\n",
+		    vpp_filter->vpp_horz_filter);
+	len +=
+	    sprintf(buf + len, "vscale filter coef %d.\n",
+		    vpp_filter->vpp_vert_filter);
 	return len;
 }
 
@@ -7459,6 +7470,8 @@ module_param(omx_pts_interval_upper, int, 0664);
 MODULE_PARM_DESC(omx_pts_interval_lower, "\n omx_pts_interval\n");
 module_param(omx_pts_interval_lower, int, 0664);
 
+MODULE_PARM_DESC(bypass_pps, "\n pps_bypass\n");
+module_param(bypass_pps, bool, 0664);
 
 #ifdef TV_REVERSE
 module_param(reverse, bool, 0644);

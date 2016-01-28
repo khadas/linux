@@ -55,6 +55,11 @@
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 #define COEF_2POINT_BILINEAR 4
 #endif
+#define COEF_BICUBIC_SHARP   5
+#define COEF_3POINT_TRIANGLE_SHARP   6
+#define COEF_3POINT_BSPLINE  7
+#define COEF_4POINT_BSPLINE  8
+#define COEF_3D_FILTER       9
 
 #define MAX_NONLINEAR_FACTOR    0x40
 
@@ -146,6 +151,50 @@ const u32 vpp_filter_coefs_4point_triangle[] = {
 	0x12322e0e, 0x12322e0e, 0x11312f0f, 0x11312f0f,
 	0x10303010
 };
+/*4th order (cubic) b-spline
+filt_cubic point_num =4, filt_len =4, group_num = 64*/
+const u32 vpp_filter_coefs_4point_bspline[] = {
+	4,
+	33,
+	0x15561500, 0x14561600, 0x13561700, 0x12561800,
+	0x11551a00, 0x11541b00, 0x10541c00, 0x0f541d00,
+	0x0f531e00, 0x0e531f00, 0x0d522100, 0x0c522200,
+	0x0b522300, 0x0b512400, 0x0a502600, 0x0a4f2700,
+	0x094e2900, 0x084e2a00, 0x084d2b00, 0x074c2c01,
+	0x074b2d01, 0x064a2f01, 0x06493001, 0x05483201,
+	0x05473301, 0x05463401, 0x04453601, 0x04433702,
+	0x04423802, 0x03413a02, 0x03403b02, 0x033f3c02,
+	0x033d3d03
+};
+/*3rd order (quadratic) b-spline
+filt_quadratic, point_num =3, filt_len =3, group_num = 64*/
+const u32 vpp_filter_coefs_3point_bspline[] = {
+	3,
+	33,
+	0x40400000, 0x3e420000, 0x3c440000, 0x3a460000,
+	0x38480000, 0x364a0000, 0x344b0100, 0x334c0100,
+	0x314e0100, 0x304f0100, 0x2e500200, 0x2c520200,
+	0x2a540200, 0x29540300, 0x27560300, 0x26570300,
+	0x24580400, 0x23590400, 0x215a0500, 0x205b0500,
+	0x1e5c0600, 0x1d5c0700, 0x1c5d0700, 0x1a5e0800,
+	0x195e0900, 0x185e0a00, 0x175f0a00, 0x15600b00,
+	0x14600c00, 0x13600d00, 0x12600e00, 0x11600f00,
+	0x10601000
+};
+/*filt_triangle, point_num =3, filt_len =2.6, group_num = 64*/
+const u32 vpp_filter_coefs_3point_triangle_sharp[] = {
+	3,
+	33,
+	0x40400000, 0x3e420000, 0x3d430000, 0x3b450000,
+	0x3a460000, 0x38480000, 0x37490000, 0x354b0000,
+	0x344c0000, 0x324e0000, 0x314f0000, 0x2f510000,
+	0x2e520000, 0x2c540000, 0x2b550000, 0x29570000,
+	0x28580000, 0x265a0000, 0x245c0000, 0x235d0000,
+	0x215f0000, 0x20600000, 0x1e620000, 0x1d620100,
+	0x1b620300, 0x19630400, 0x17630600, 0x15640700,
+	0x14640800, 0x12640a00, 0x11640b00, 0x0f650c00,
+	0x0d660d00
+};
 
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 const u32 vpp_filter_coefs_2point_binilear[] = {
@@ -169,8 +218,13 @@ static const u32 *filter_table[] = {
 	vpp_filter_coefs_4point_triangle,
 	vpp_filter_coefs_bilinear,
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
-	vpp_filter_coefs_2point_binilear
+	vpp_filter_coefs_2point_binilear,
 #endif
+	vpp_filter_coefs_bicubic_sharp,
+	vpp_filter_coefs_3point_triangle_sharp,
+	vpp_filter_coefs_3point_bspline,
+	vpp_filter_coefs_4point_bspline,
+	vpp_3d_filter_coefs_bilinear
 };
 static unsigned int sharpness1_sr2_ctrl_32d7 = 0x00181008;
 MODULE_PARM_DESC(sharpness1_sr2_ctrl_32d7, "sharpness1_sr2_ctrl_32d7");
@@ -221,11 +275,11 @@ static unsigned int bypass_spscl1;
 module_param(bypass_spscl1, uint, 0664);
 MODULE_PARM_DESC(bypass_spscl1, "bypass_spscl1");
 
-static unsigned int vert_scaler_filter;
+static unsigned int vert_scaler_filter = 0xff;
 module_param(vert_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(vert_scaler_filter, "vert_scaler_filter");
 
-static unsigned int horz_scaler_filter;
+static unsigned int horz_scaler_filter = 0xff;
 module_param(horz_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
 
@@ -875,25 +929,32 @@ RESTART:
 	ratio_y <<= height_shift;
 	ratio_y = ratio_y / (next_frame_par->vscale_skip_count + 1);
 
-	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
+	if (vpp_flags & VPP_FLAG_INTERLACE_OUT) {
 		filter->vpp_vert_coeff = filter_table[COEF_BILINEAR];
-	else {
+		filter->vpp_vert_filter = COEF_BILINEAR;
+	} else {
 		if ((width_out < w_in) && (height_out < h_in)
-			&& (force_pps_coefs))
+			&& (force_pps_coefs)) {
 			filter->vpp_vert_coeff =
-					filter_table[COEF_4POINT_TRIANGLE];
-		else
-			filter->vpp_vert_coeff =
-					filter_table[vert_scaler_filter];
+				filter_table[COEF_4POINT_TRIANGLE];
+			filter->vpp_vert_filter = COEF_4POINT_TRIANGLE;
+		} else {
+			filter->vpp_vert_coeff = filter_table[COEF_BICUBIC];
+			filter->vpp_vert_filter = COEF_BICUBIC;
+		}
 	}
 #ifdef	TV_3D_FUNCTION_OPEN
-	if ((next_frame_par->vpp_3d_scale) && force_filter_mode)
-		filter->vpp_vert_coeff = vpp_3d_filter_coefs_bilinear;
+	if ((next_frame_par->vpp_3d_scale) && force_filter_mode) {
+		filter->vpp_vert_coeff = filter_table[COEF_3D_FILTER];
+		filter->vpp_vert_filter = COEF_3D_FILTER;
+	}
 #endif
 
 #ifdef CONFIG_AM_DEINTERLACE
-	if (deinterlace_mode)
+	if (deinterlace_mode) {
 		filter->vpp_vert_coeff = filter_table[COEF_3POINT_TRIANGLE];
+		filter->vpp_vert_filter = COEF_3POINT_TRIANGLE;
+	}
 #endif
 	filter->vpp_vsc_start_phase_step = ratio_y << 6;
 
@@ -910,26 +971,38 @@ RESTART:
 	next_frame_par->VPP_hsc_linear_endp = next_frame_par->VPP_hsc_endp;
 
 	if ((width_out < w_in) && (height_out < h_in)
-		&& (force_pps_coefs))
+		&& (force_pps_coefs)) {
 		filter->vpp_horz_coeff = filter_table[COEF_4POINT_TRIANGLE];
-	else
-		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
+		filter->vpp_horz_filter = COEF_4POINT_TRIANGLE;
+	} else {
+		filter->vpp_horz_coeff = filter_table[COEF_BICUBIC];
+		filter->vpp_horz_filter = COEF_BICUBIC;
+	}
 
 	filter->vpp_hsc_start_phase_step = ratio_x << 6;
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
 
-	if ((ratio_x == (1 << 18)) && (next_frame_par->VPP_hf_ini_phase_ == 0))
-		filter->vpp_horz_coeff = vpp_filter_coefs_bicubic_sharp;
-	else {
+	if ((ratio_x == (1 << 18)) &&
+		(next_frame_par->VPP_hf_ini_phase_ == 0)) {
+		filter->vpp_horz_coeff = filter_table[COEF_BICUBIC_SHARP];
+		filter->vpp_horz_filter = COEF_BICUBIC_SHARP;
+	} else {
 		if ((width_out < w_in) && (height_out < h_in)
-			&& (force_pps_coefs))
+			&& (force_pps_coefs)) {
 			filter->vpp_horz_coeff =
-					filter_table[COEF_4POINT_TRIANGLE];
-		else
-			filter->vpp_horz_coeff =
-					filter_table[horz_scaler_filter];
+				filter_table[COEF_4POINT_TRIANGLE];
+			filter->vpp_horz_filter = COEF_4POINT_TRIANGLE;
+		} else {
+			filter->vpp_horz_coeff = filter_table[COEF_BICUBIC];
+			filter->vpp_horz_filter = COEF_BICUBIC;
+		}
 	}
 
+	if ((horz_scaler_filter >= COEF_BICUBIC) &&
+		(horz_scaler_filter <= COEF_3D_FILTER)) {
+		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
+		filter->vpp_horz_filter = horz_scaler_filter;
+	}
 	/* screen position for source */
 #ifdef TV_REVERSE
 	start =
@@ -1030,9 +1103,19 @@ RESTART:
 		if (next_frame_par->VPP_line_in_length_ >= 2048) {
 			filter->vpp_vert_coeff =
 				filter_table[COEF_2POINT_BILINEAR];
+			filter->vpp_vert_filter = COEF_2POINT_BILINEAR;
+		} else if (next_frame_par->VPP_line_in_length_ > 1280) {
+			filter->vpp_vert_coeff =
+				filter_table[COEF_3POINT_TRIANGLE];
+			filter->vpp_vert_filter = COEF_3POINT_TRIANGLE;
 		}
 	}
 	/* #endif */
+	if ((vert_scaler_filter >= COEF_BICUBIC) &&
+		(vert_scaler_filter <= COEF_3D_FILTER)) {
+		filter->vpp_vert_coeff = filter_table[vert_scaler_filter];
+		filter->vpp_vert_filter = vert_scaler_filter;
+	}
 
 	if ((wide_mode == VIDEO_WIDEOPTION_NONLINEAR) && (end > start)) {
 		calculate_non_linear_ratio(ratio_x, end - start,
