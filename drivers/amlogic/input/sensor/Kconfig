@@ -156,6 +156,12 @@ config LIGHT_LTR501
  		  Choose this option.
  		  If you say yes here you get support for Lite-On's light
  		  sensor LTR501.
+config LIGHT_TSL2571
+	tristate "TSL2571 light sensor support"
+	help
+	Choose this option.
+	   If you say yes here you get support for Lite-On's light
+	   sensor TSL2571.
 
 config LIGHT_EPL6814
 	tristate "EPL6814 light sensor driver"

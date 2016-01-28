@@ -41,4 +41,5 @@ obj-$(CONFIG_LIGHT_LTR501)	+= ltr501_als.o
 obj-$(CONFIG_LIGHT_STK220X) 	+= stk220x_poll.o
 obj-$(CONFIG_LIGHT_LTR558) 	+= ltr558_pls.o
 obj-$(CONFIG_LIGHT_ISL29023) 	+= isl29023.o
+obj-$(CONFIG_LIGHT_TSL2571) 	+= tsl2571.o
 
