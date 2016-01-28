@@ -48,6 +48,7 @@
 #include "tvafe_cvd.h"
 #include "tvafe_general.h"
 #include "tvafe.h"
+#include "../vdin/vdin_sm.h"
 
 
 #define TVAFE_NAME               "tvafe"
@@ -666,7 +667,12 @@ void tvafe_cma_release(struct tvafe_dev_s *devp)
 
 static int tvafe_get_v_fmt(void)
 {
-	int fmt = tvafe_cvd2_get_format(&g_tvafe_info->cvd2);
+	int fmt = 0;
+	if (TVIN_SM_STATUS_STABLE != tvin_get_sm_status(0)) {
+		pr_err("%s tvafe is not STABLE\n", __func__);
+		return 0;
+	}
+	fmt = tvafe_cvd2_get_format(&g_tvafe_info->cvd2);
 	return fmt;
 }
 

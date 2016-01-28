@@ -208,7 +208,6 @@ int aml_register_fe_drv(enum aml_fe_dev_type_t type, struct aml_fe_drv *drv)
 
 	return 0;
 }
-
 EXPORT_SYMBOL(aml_register_fe_drv);
 
 int aml_unregister_fe_drv(enum aml_fe_dev_type_t type, struct aml_fe_drv *drv)
@@ -243,7 +242,6 @@ int aml_unregister_fe_drv(enum aml_fe_dev_type_t type, struct aml_fe_drv *drv)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(aml_unregister_fe_drv);
 
 struct dvb_frontend *get_si2177_tuner(void)
@@ -379,7 +377,6 @@ int aml_fe_analog_set_frontend(struct dvb_frontend *fe)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(aml_fe_analog_set_frontend);
 
 static int aml_fe_analog_get_frontend(struct dvb_frontend *fe)
@@ -502,11 +499,16 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	pr_dbg("the tuner type is [%d]\n", fee->tuner->drv->id);
 	/* backup the freq by api */
 	set_freq = p->frequency;
-	if (p->analog.std == 0)
+	if (p->analog.std == 0) {
 		p->analog.std = (V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M);
+		pr_dbg("%s, user analog.std is 0, so set it to NTSC | M\n",
+			__func__);
+	}
 	if (p->analog.flag == ANALOG_FLAG_MANUL_SCAN) {
 		/*manul search force to ntsc_m */
 		std_bk = p->analog.std;
+		pr_dbg("%s Manully user analog.std:0x%08x\n",
+			__func__, (uint32_t)std_bk);
 		/*#if ((MESON_CPU_TYPE != MESON_CPU_TYPE_MESONG9TV) &&
 		 * (MESON_CPU_TYPE != MESON_CPU_TYPE_MESONG9BB))*/
 		if (get_cpu_type() < MESON_CPU_MAJOR_ID_MG9TV)
@@ -549,10 +551,16 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			if (aml_fe_afc_closer(fe, p->frequency - ATV_AFC_1_0MHZ,
 					      p->frequency + ATV_AFC_1_0MHZ) ==
 			    0) {
-				pr_info("[%s] manul scan mode:p->frequency=[%d] has lock,search success.\n",
+				pr_dbg("[%s] manul scan mode:p->frequency=[%d] has lock,search success.\n",
 					__func__, p->frequency);
 				fe->ops.set_frontend(fe);
 
+				audio = aml_audiomode_autodet();
+				audio = demod_fmt_2_v4l2_std(audio);
+				if (audio == V4L2_STD_PAL_I
+						|| audio == V4L2_STD_PAL_BG) {
+					std_bk = V4L2_COLOR_STD_PAL;
+				} else {
 				for (i = 0; i < 500; i++) {
 					if (aml_fe_hook_get_fmt == NULL)
 						break;
@@ -563,19 +571,15 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						break;
 					msleep(20);
 				}
-				if (std_bk == 0)
-					pr_err("[dgt]%s, failed to get v fmt\n",
-						__func__);
-				/* std_bk = p->analog.std & 0xff000000; */
-
-				audio = aml_audiomode_autodet();
+					if (std_bk == 0)
+						pr_err("[dgt]%s, failed to get v fmt\n",
+							__func__);
 				std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
-				pr_dbg("%s, std_bk:0x%x ,audmode:0x%x\n",
+				}
+				pr_dbg("%s,Manully search: std_bk:0x%x ,audmode:0x%x\n",
 					__func__, (unsigned int)std_bk, audio);
-				p->analog.std =
-					(std_bk) | demod_fmt_2_v4l2_std(audio);
-				p->analog.audmode =
-					demod_fmt_2_v4l2_std(audio);
+				p->analog.std = std_bk | audio;
+				p->analog.audmode = audio;
 				std_bk = 0;
 				return DVBFE_ALGO_SEARCH_SUCCESS;
 			} else {
@@ -622,6 +626,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		p->frequency = minafcfreq;
 		afc_step = ATV_AFC_1_0MHZ;
 	}
+	pr_dbg("%s Autosearch user analog.std:0x%08x\n",
+		__func__, (uint32_t)p->analog.std);
 	if (fe->ops.set_frontend(fe)) {
 		pr_error("[%s]the func of set_param err.\n", __func__);
 		return DVBFE_ALGO_SEARCH_FAILED;
@@ -770,6 +776,12 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			       __func__, __LINE__);
 			if (aml_fe_afc_closer(fe, minafcfreq, maxafcfreq)
 				== 0) {
+				audio = aml_audiomode_autodet();
+				audio = demod_fmt_2_v4l2_std(audio);
+				if (audio == V4L2_STD_PAL_I
+						|| audio == V4L2_STD_PAL_BG) {
+					std_bk = V4L2_COLOR_STD_PAL;
+				} else {
 				for (i = 0; i < 500; i++) {
 					if (aml_fe_hook_get_fmt == NULL)
 						break;
@@ -780,20 +792,16 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						break;
 					msleep(20);
 				}
-				if (std_bk == 0)
-					pr_err("%s, failed to get v fmt\n",
-						__func__);
-				/* std_bk = p->analog.std & 0xff000000; */
-
-				audio = aml_audiomode_autodet();
+					if (std_bk == 0)
+						pr_err("[dgt]%s, failed to get v fmt\n",
+							__func__);
 				std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
-				pr_dbg("%s, std_bk:0x%x ,audmode:0x%x\n",
+				}
+				pr_dbg("%s,Auto search: std_bk:0x%x ,audmode:0x%x\n",
 					__func__, (unsigned int)std_bk, audio);
 				if (std_bk != 0) {
-					p->analog.audmode =
-						demod_fmt_2_v4l2_std(audio);
-					p->analog.std = std_bk |
-						demod_fmt_2_v4l2_std(audio);
+					p->analog.audmode = audio;
+					p->analog.std = std_bk | audio;
 					/*avoid std unenable */
 					p->frequency -= 1;
 					std_bk = 0;
@@ -815,7 +823,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			fe->ops.set_frontend(fe);
 			std_bk = 0;
 		}
-		pr_dbg("[%s] freq is[%d] unlock\n", __func__, p->frequency);
+		pr_dbg("[%s] freq[analog.std:0x%08x] is[%d] unlock\n",
+			__func__, (uint32_t)p->analog.std, p->frequency);
 		p->frequency += afc_step;
 		if (p->frequency > maxafcfreq) {
 			pr_dbg("[%s] p->frequency=[%d] over maxafcfreq=[%d].search failed.\n",
@@ -2275,7 +2284,6 @@ const char *audmode_to_str(unsigned short audmode)
 	 * } */
 	return 0;
 }
-
 EXPORT_SYMBOL(audmode_to_str);
 
 const char *soundsys_to_str(unsigned short sys)
@@ -2326,7 +2334,6 @@ const char *soundsys_to_str(unsigned short sys)
 	 * } */
 	return 0;
 }
-
 EXPORT_SYMBOL(soundsys_to_str);
 
 const char *v4l2_std_to_str(v4l2_std_id std)
@@ -2466,7 +2473,6 @@ const char *v4l2_std_to_str(v4l2_std_id std)
 		break;
 	}
 }
-
 EXPORT_SYMBOL(v4l2_std_to_str);
 
 const char *fe_type_to_str(fe_type_t type)
@@ -2498,7 +2504,6 @@ const char *fe_type_to_str(fe_type_t type)
 		break;
 	}
 }
-
 EXPORT_SYMBOL(fe_type_to_str);
 
 static int __init aml_fe_init(void)

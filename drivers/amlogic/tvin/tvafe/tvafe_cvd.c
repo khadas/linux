@@ -2003,7 +2003,15 @@ static void tvafe_cvd2_reinit(struct tvafe_cvd2_s *cvd2)
 inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem)
 {
-	bool ret = false;
+	static bool ret;
+	static bool time_flag = true;
+
+	time_flag = !time_flag;
+	/*TVAFE register status need more time to be stable.
+	for double time delay.*/
+	if (time_flag)
+		return ret;
+
 	/* get signal status from HW */
 	tvafe_cvd2_get_signal_status(cvd2);
 
@@ -2022,7 +2030,7 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 		tvafe_cvd2_reinit(cvd2);
 
 	} else{
-
+		ret = false;
 		cvd2->cvd2_init_en = false;
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 	if ((!scene_colorful) && auto_de_en)
