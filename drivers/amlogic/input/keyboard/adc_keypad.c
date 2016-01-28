@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <asm/irq.h>
 #include <linux/io.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 /*#include <mach/am_regs.h>
 #include <mach/pinmux.h>*/
@@ -73,7 +74,7 @@ struct kp {
 #endif
 
 static struct kp *gp_kp;
-
+static int keypad_enable_flag = 1;
 /* static int timer_count = 0; */
 
 static int kp_search_key(struct kp *kp)
@@ -114,7 +115,7 @@ static void kp_work(struct kp *kp)
 	} else if (kp->count < KEY_JITTER_COUNT) {
 		kp->count++;
 		} else {
-			if (kp->report_code != code) {
+			if ((kp->report_code != code) && keypad_enable_flag) {
 				if (!code) { /* key up */
 				dev_info(&kp->input->dev,
 					"key %d up\n", kp->report_code);
@@ -199,6 +200,52 @@ static void kp_late_resume(struct early_suspend *h)
 }
 #endif
 
+/*
+typedef enum
+{
+	POWER_WAKEUP_POWER,      /// only power key resume
+	POWER_WAKEUP_ANY,        /// any key resume
+	POWER_WAKEUP_NONE        /// no key can resume
+}EN_FPP_POWER_KEYPAD_WAKEUP_METHOD;
+
+typedef enum
+{
+	KEYPAD_UNLOCK,///unlock, normal mode
+	KEYPAD_LOCK /// lock, press key will be not usefull
+}EN_FPP_SYSTEM_KEYPAD_MODE;
+
+*/
+static char adc_key_mode_name[20] = "abcdef";
+static char kernelkey_en_name[20] = "abcdef";
+
+static void send_data_to_bl301(void)
+{
+	u32 val;
+	if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_POWER")) {
+		val = 0;
+		scpi_send_usr_data(SCPI_CL_POWER, &val, sizeof(val));
+	} else if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_ANY")) {
+		val = 1;
+		scpi_send_usr_data(SCPI_CL_POWER, &val, sizeof(val));
+	} else if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_NONE")) {
+		val = 2;
+		scpi_send_usr_data(SCPI_CL_POWER, &val, sizeof(val));
+	}
+
+}
+
+void kernel_keypad_enable_mode_enable(void)
+{
+
+	if (!strcmp(kernelkey_en_name, "KEYPAD_UNLOCK")) {
+		keypad_enable_flag = 1;
+	} else if (!strcmp(kernelkey_en_name, "KEYPAD_LOCK")) {
+		keypad_enable_flag = 0;
+	} else {
+		keypad_enable_flag = 1;
+	}
+}
+
 static int kp_probe(struct platform_device *pdev)
 {
 	struct kp *kp;
@@ -209,6 +256,9 @@ static int kp_probe(struct platform_device *pdev)
 	struct adc_kp_platform_data *pdata = NULL;
 	int *key_param = NULL;
 	int state = 0;
+
+	send_data_to_bl301();
+	kernel_keypad_enable_mode_enable();
 
 #ifdef CONFIG_OF
 	if (!pdev->dev.of_node) {
@@ -438,6 +488,24 @@ static void __exit kp_exit(void)
 
 module_init(kp_init);
 module_exit(kp_exit);
+
+static int __init adc_key_mode_para_setup(char *s)
+{
+	if (NULL != s)
+		sprintf(adc_key_mode_name, "%s", s);
+
+	return 0;
+}
+__setup("adckeyswitch=", adc_key_mode_para_setup);
+
+static int __init kernel_keypad_enable_setup(char *s)
+{
+	if (NULL != s)
+		sprintf(kernelkey_en_name, "%s", s);
+
+	return 0;
+}
+__setup("kernelkey_enable=", kernel_keypad_enable_setup);
 
 MODULE_AUTHOR("Robin Zhu");
 MODULE_DESCRIPTION("ADC Keypad Driver");
