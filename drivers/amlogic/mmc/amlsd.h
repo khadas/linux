@@ -73,7 +73,7 @@ extern const u8 tuning_blk_pattern_8bit[128];
 
 #define CHECK_RET(ret) { \
 if (ret) \
-	pr_info("\033[0;47;33m [%s] gpio op failed(%d) at line %d \033[0m\n",\
+	pr_info("[%s] gpio op failed(%d) at line %d\n",\
 	__func__, ret, __LINE__); \
 }
 
@@ -83,7 +83,7 @@ if (ret) \
 } while (0)
 
 #define sdhc_err(fmt, args...) \
-	pr_info("[%s]\033[0;40;32m " fmt "\033[0m", __func__, ##args);
+	pr_info("[%s] " fmt , __func__, ##args);
 
 
 #define sdio_dbg(dbg_level, fmt, args...) do {\
@@ -92,14 +92,14 @@ if (ret) \
 } while (0)
 
 #define sdio_err(fmt, args...) \
-	pr_info("[%s]\033[0;40;33m " fmt "\033[0m", __func__, ##args);
+	pr_info("[%s] " fmt , __func__, ##args);
 
 #define sd_emmc_dbg(dbg_level, fmt, args...) do {\
 	if (dbg_level & sd_emmc_debug)	\
 		pr_info("[%s]" fmt , __func__, ##args);	\
 } while (0)
 #define sd_emmc_err(fmt, args...) \
-	pr_info("[%s]\033[0;40;32m " fmt "\033[0m", __func__, ##args);
+	pr_warn("[%s] " fmt , __func__, ##args);
 
 #define SD_PARSE_U32_PROP_HEX(node, prop_name, prop, value) do {	\
 	if (!of_property_read_u32(node, prop_name, &prop)) {\

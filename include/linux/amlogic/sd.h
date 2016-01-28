@@ -26,11 +26,12 @@
 
 #define	 AML_ERROR_RETRY_COUNTER		 10
 #define	 AML_TIMEOUT_RETRY_COUNTER	   2
-#define CALIBRATION
+#define AML_CALIBRATION
 #define AML_SDHC_MAGIC			 "amlsdhc"
 #define AML_SDIO_MAGIC			 "amlsdio"
 #define AML_SD_EMMC_MAGIC			 "amlsd_emmc"
 #define SD_EMMC_MANUAL_CMD23
+/* #define AML_RESP_WR_EXT */
 enum aml_mmc_waitfor {
 	XFER_INIT,			  /* 0 */
 	XFER_START,				/* 1 */
@@ -112,7 +113,7 @@ struct amlsd_platform {
 	bool is_tuned;		/* if card has been tuning */
 	bool need_retuning;
 	struct delayed_work	retuning;
-#ifdef CALIBRATION
+#ifdef AML_CALIBRATION
 	unsigned char caling;
 	unsigned char need_cali;
 	unsigned char calout[20][20];
@@ -177,12 +178,12 @@ struct aml_emmc_adjust {
 	int clk_div;
 };
 
-struct aml_emmc_rxclk_adjust {
-	int adj_win_start;
-	int adj_win_len;
-	int adj_rx_phase;
-	int adj_rx_delay;
-	int adj_point;
+struct aml_emmc_rxclk {
+	int rxclk_win_start;
+	int rxclk_win_len;
+	int rxclk_rx_phase;
+	int rxclk_rx_delay;
+	int rxclk_point;
 };
 
 struct amlsd_host {
@@ -199,6 +200,10 @@ struct amlsd_host {
 	int			dma;
 	char *bn_buf;
 	dma_addr_t		bn_dma_buf;
+#ifdef AML_RESP_WR_EXT
+	u32 *resp_buf;
+	dma_addr_t resp_dma_buf;
+#endif
 	dma_addr_t		dma_gdesc; /* 0x200 */
 	dma_addr_t		dma_gping; /* 0x400 */
 	dma_addr_t		dma_gpong; /* 0x800 */
@@ -294,7 +299,7 @@ struct amlsd_host {
 	int		 version;
 	unsigned long	clksrc_rate;
 	struct aml_emmc_adjust emmc_adj;
-	struct aml_emmc_rxclk_adjust emmc_rxclk_adj;
+	struct aml_emmc_rxclk emmc_rxclk;
 	u32 error_flag;
 };
 
@@ -1201,7 +1206,7 @@ extern struct mmc_host *sdio_host;
 		pr_info("[%s] " fmt, __func__, ##args);
 
 #define print_dbg(fmt, args...) \
-	pr_info("[%s]\033[0;40;35m " fmt "\033[0m", __func__, ##args);
+	pr_info("[%s] " fmt , __func__, ##args);
 
 /* for external codec status, if using external codec,
 	jtag should not be set. */
