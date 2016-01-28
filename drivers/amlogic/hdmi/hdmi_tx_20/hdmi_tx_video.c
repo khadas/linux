@@ -456,7 +456,7 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 	},
 	{
 		.VIC		= HDMI_4k2k_60_y420,
-		.color_prefer	= COLOR_SPACE_RGB444,
+		.color_prefer	= COLOR_SPACE_YUV420,
 		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
@@ -467,7 +467,7 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 	},
 	{
 		.VIC		= HDMI_4k2k_50_y420,
-		.color_prefer	= COLOR_SPACE_RGB444,
+		.color_prefer	= COLOR_SPACE_YUV420,
 		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
@@ -478,7 +478,7 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 	},
 	{
 		.VIC		= HDMI_4k2k_smpte_60_y420,
-		.color_prefer	= COLOR_SPACE_RGB444,
+		.color_prefer	= COLOR_SPACE_YUV420,
 		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
@@ -489,7 +489,7 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 	},
 	{
 		.VIC		= HDMI_4k2k_smpte_50_y420,
-		.color_prefer	= COLOR_SPACE_RGB444,
+		.color_prefer	= COLOR_SPACE_YUV420,
 		.color_depth	= hdmi_color_depth_24B,
 		.bar_info	= B_BAR_VERT_HORIZ,
 		.repeat_time	= NO_REPEAT,
@@ -596,7 +596,7 @@ void hdmitx_output_rgb(void)
 int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 	enum hdmi_vic VideoCode)
 {
-	struct hdmitx_vidpara *param;
+	struct hdmitx_vidpara *param = NULL;
 	enum hdmi_vic vic;
 	int i, ret = -1;
 	unsigned char AVI_DB[32];
@@ -636,6 +636,17 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 				break;
 			default:
 				param->color = COLOR_SPACE_RGB444;
+			}
+			/* For Y420 modes */
+			switch (VideoCode) {
+			case HDMI_3840x2160p50_16x9_Y420:
+			case HDMI_3840x2160p60_16x9_Y420:
+			case HDMI_4096x2160p50_256x135_Y420:
+			case HDMI_4096x2160p60_256x135_Y420:
+				param->color = COLOR_SPACE_YUV420;
+				break;
+			default:
+				break;
 			}
 		}
 		if (hdmitx_device->HWOp.SetDispMode(hdmitx_device,
