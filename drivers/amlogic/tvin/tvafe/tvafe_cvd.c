@@ -43,7 +43,7 @@
 
 #define TVAFE_CVD2_STATE_CNT                15
 /* cnt*10ms,delay between fmt check funtion */
-#define TVAFE_CVD2_SHIFT_CNT                5
+#define TVAFE_CVD2_SHIFT_CNT                6
 /* cnt*10ms,delay for fmt shift counter */
 
 #define TVAFE_CVD2_NONSTD_DGAIN_MAX         0x500
@@ -194,6 +194,11 @@ MODULE_PARM_DESC(fmt_try_maxcnt, "fmt_try_maxcnt");
 static int fmt_wait_cnt = 15;
 module_param(fmt_wait_cnt, int, 0664);
 MODULE_PARM_DESC(fmt_wait_cnt, "fmt_wait_cnt");
+
+static int cvd2_shift_cnt = TVAFE_CVD2_SHIFT_CNT;
+module_param(cvd2_shift_cnt, int, 0664);
+MODULE_PARM_DESC(cvd2_shift_cnt, "cvd2_shift_cnt");
+
 /*force the fmt for chrome off,for example ntsc pal_i 12*/
 static unsigned int config_force_fmt;
 module_param(config_force_fmt, uint, 0664);
@@ -1784,9 +1789,9 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		/* manual mode => go directly to the manual format */
 		try_format_cnt = 0;
 		if (tvafe_cvd2_condition_shift(cvd2)) {
-			shift_cnt = TVAFE_CVD2_SHIFT_CNT;
+			shift_cnt = cvd2_shift_cnt;
 			if (cvd2->info.non_std_enable)
-				shift_cnt = TVAFE_CVD2_SHIFT_CNT*10;
+				shift_cnt = cvd2_shift_cnt*10;
 			/* if no color burst,
 			pal flag can not be trusted */
 			if (cvd2->info.fmt_shift_cnt++ > shift_cnt) {
