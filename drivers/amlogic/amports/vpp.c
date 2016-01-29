@@ -245,6 +245,11 @@ bool pre_scaler_en;
 module_param(pre_scaler_en, bool, 0664);
 MODULE_PARM_DESC(pre_scaler_en, "pre_scaler_en");
 
+/* vf width/height > panel width/heiht force scaler filter*/
+static unsigned int force_pps_coefs;
+module_param(force_pps_coefs, uint, 0664);
+MODULE_PARM_DESC(force_pps_coefs, "force_pps_coefs");
+
 #if 0
 #define DECL_PARM(name)\
 static int name;\
@@ -872,8 +877,15 @@ RESTART:
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
 		filter->vpp_vert_coeff = filter_table[COEF_BILINEAR];
-	else
-		filter->vpp_vert_coeff = filter_table[vert_scaler_filter];
+	else {
+		if ((width_out < w_in) && (height_out < h_in)
+			&& (force_pps_coefs))
+			filter->vpp_vert_coeff =
+					filter_table[COEF_4POINT_TRIANGLE];
+		else
+			filter->vpp_vert_coeff =
+					filter_table[vert_scaler_filter];
+	}
 #ifdef	TV_3D_FUNCTION_OPEN
 	if ((next_frame_par->vpp_3d_scale) && force_filter_mode)
 		filter->vpp_vert_coeff = vpp_3d_filter_coefs_bilinear;
@@ -897,15 +909,26 @@ RESTART:
 	next_frame_par->VPP_hsc_linear_startp = next_frame_par->VPP_hsc_startp;
 	next_frame_par->VPP_hsc_linear_endp = next_frame_par->VPP_hsc_endp;
 
-	filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
+	if ((width_out < w_in) && (height_out < h_in)
+		&& (force_pps_coefs))
+		filter->vpp_horz_coeff = filter_table[COEF_4POINT_TRIANGLE];
+	else
+		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
 
 	filter->vpp_hsc_start_phase_step = ratio_x << 6;
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
 
 	if ((ratio_x == (1 << 18)) && (next_frame_par->VPP_hf_ini_phase_ == 0))
 		filter->vpp_horz_coeff = vpp_filter_coefs_bicubic_sharp;
-	else
-		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
+	else {
+		if ((width_out < w_in) && (height_out < h_in)
+			&& (force_pps_coefs))
+			filter->vpp_horz_coeff =
+					filter_table[COEF_4POINT_TRIANGLE];
+		else
+			filter->vpp_horz_coeff =
+					filter_table[horz_scaler_filter];
+	}
 
 	/* screen position for source */
 #ifdef TV_REVERSE
