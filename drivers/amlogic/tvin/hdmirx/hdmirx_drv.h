@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/01/29"
+#define HDMIRX_VER "Ref.2016/01/29a"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -181,6 +181,7 @@ enum fsm_states_e {
 /** TMDS clock minimum [kHz] */
 #define TMDS_CLK_MIN			(24000UL)/* (25000UL) */
 #define TMDS_CLK_MAX			(600000UL)/* (340000UL) */
+#define CLK_RATE_THRESHOLD		(74000000)/*check clock rate*/
 
 struct hdmi_rx_phy {
 	/** (@b user) Context status: closed (0), */
@@ -422,7 +423,7 @@ struct rx_s {
 	struct hdmi_rx_ctrl_video reltime_video_params;
 	struct vendor_specific_info_s vendor_specific_info;
 	bool open_fg;
-
+	bool scdc_tmds_cfg;
 	unsigned int pwr_sts;
 };
 

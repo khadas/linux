@@ -279,22 +279,13 @@ void phy_EQ_workaround(void)
 				phy_eq_set_state(EQ_FAILED, false);
 			return;
 		}
-
-		/*check mhl 3.4gb*/
-		if (1 == phy_private_data->last_clk_rate) {
-			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
-		} else {
-			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
-				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
-		}
 		/*block_delay_ms(eq_clk_rate_wait);*/
 		/* GET PHY STATUS (MAINFSM_STATUS1) */
 		eq_mainfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 		pll_rate_value = (eq_mainfsm_status >> 9 & 0x3);
 		rx_print("eq_mainfsm_status: %#x,tmds_clk:%d\n",
 			eq_mainfsm_status, hdmirx_get_tmds_clock());
-		if (phy_private_data->last_clk_rate == 0) {
+		if (rx.scdc_tmds_cfg == 0) {
 			if (((eq_mainfsm_status >> 10) & 0x1) != 0) {
 				/* pll_rate smaller than 94.5MHz, algorithm
 				not needed Please make sure that PHY get the
@@ -327,7 +318,7 @@ void phy_EQ_workaround(void)
 		eq_counter_th = EQ_COUNTERTHRESHOLD;
 		if ((((eq_mainfsm_status >> 9) & 0x3) == 0))
 			fat_bit_status = EQ_FATBIT_MASK_4k;
-		if (phy_private_data->last_clk_rate) {
+		if (rx.scdc_tmds_cfg) {
 			fat_bit_status = EQ_FATBIT_MASK_HDMI20;
 			eq_counter_th = EQ_COUNTERTHRESHOLD_HDMI20;
 			min_max_diff = MINDIFF_HDMI20;
@@ -897,9 +888,8 @@ bool hdmirx_phy_clk_rate_monitor(void)
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
 
-	if (clk_rate != phy_private_data->last_clk_rate) {
+	if (clk_rate != rx.scdc_tmds_cfg) {
 		changed = true;
-		phy_private_data->last_clk_rate = clk_rate;
 		for (i = 0; i < 3; i++) {
 			if (1 == clk_rate) {
 				hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
@@ -1028,7 +1018,7 @@ void hdmirx_phy_reset(int rx_port_sel, int dcm)
 	else
 		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
 
-	hdmirx_phy_clk_rate_monitor();
+	/*hdmirx_phy_clk_rate_monitor();*/
 
 	data32 = 0;
 	data32 |= 1 << 6;
@@ -1128,7 +1118,7 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	else
 		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
 
-	hdmirx_phy_clk_rate_monitor();
+	/*hdmirx_phy_clk_rate_monitor();*/
 
 	data32 = 0;
 	data32 |= 1 << 6;

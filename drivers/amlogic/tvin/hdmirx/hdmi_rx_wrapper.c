@@ -1754,6 +1754,8 @@ void hdmirx_hw_monitor(void)
 {
 	int pre_sample_rate;
 	int tmp;
+	unsigned int tmds_clk;
+
 	if (sm_pause)
 		return;
 
@@ -1780,11 +1782,6 @@ void hdmirx_hw_monitor(void)
 				rx.no_signal = true;
 			else
 				wait_no_signal_cnt++;
-			if (hdmirx_phy_clk_rate_monitor()) {
-				rx.state = FSM_HDMI5V_LOW;
-				hdmirx_phy_stop_eq();
-				return;
-			}
 		}
 	}
 	switch (rx.state) {
@@ -1806,6 +1803,7 @@ void hdmirx_hw_monitor(void)
 		if (hpd_wait_cnt++ <= hpd_wait_max)
 			break;
 		hpd_wait_cnt = 0;
+		rx.scdc_tmds_cfg = 0;
 		hdmirx_set_hpd(rx.port, 1);
 		rx.state = FSM_HPD_READY;
 		rx_print("5V_high->HPD_READY\n");
@@ -1814,6 +1812,15 @@ void hdmirx_hw_monitor(void)
 		#ifdef HDCP22_ENABLE
 		hpd_to_esm = 1;
 		#endif
+		/*check mhl 3.4gb*/
+		if ((true == rx.scdc_tmds_cfg) ||
+			((hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1)) {
+			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
+		} else {
+			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+				hdmirx_rd_phy(PHY_CDR_CTRL_CNT)&(~(1<<8)));
+		}
 		/*hdmirx_phy_clk_rate_monitor();*/
 		if (eq_calc_mode == 0) {
 			wait_clk_stable = 0;
@@ -1894,20 +1901,20 @@ void hdmirx_hw_monitor(void)
 			sig_pll_unlock_cnt++;
 
 			if ((is_clk_stable()) &&
-				(sig_pll_unlock_cnt >= sig_pll_unlock_max*3)) {
-				/*hdmirx_set_hpd(rx.port, 0);*/
+				(sig_pll_unlock_cnt >= sig_pll_unlock_max)) {
+				tmds_clk = hdmirx_get_tmds_clock();
 				hdmirx_error_count_config();
+				if (tmds_clk > CLK_RATE_THRESHOLD)
+					rx.scdc_tmds_cfg =
+						 (rx.scdc_tmds_cfg?0:1);
 				rx.state = FSM_HPD_READY;
-				/*rx.no_signal = true;*/
 				rx_print("Clk UNSTABLE->HPD_READY:%d\n",
 								rx.no_signal);
 				sig_pll_unlock_cnt = 0;
 			} else if (!(is_clk_stable()) &&
 				(sig_pll_unlock_cnt >= sig_pll_unlock_max)) {
-				/*hdmirx_set_hpd(rx.port, 0);*/
 				hdmirx_error_count_config();
 				rx.state = FSM_HPD_READY;
-				/*rx.no_signal = true;*/
 				rx_print("PLL UNSTABLE->HPD_READY: %d\n",
 								rx.no_signal);
 				sig_pll_unlock_cnt = 0;
@@ -2019,7 +2026,7 @@ void hdmirx_hw_monitor(void)
 	case FSM_SIG_READY:
 		if (hdmirx_tmds_pll_lock() == false) {
 			if (sig_lost_lock_cnt++ >= sig_lost_lock_max) {
-				rx.state = FSM_HPD_READY;
+				rx.state = FSM_HDMI5V_HIGH;
 				audio_sample_rate = 0;
 				hdmirx_set_video_mute(1);
 				rx_aud_pll_ctl(0);
@@ -2062,7 +2069,7 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
-				rx.state = FSM_HPD_READY;
+				rx.state = FSM_HDMI5V_HIGH;
 				wait_no_signal_cnt = 0;
 				#ifdef HDCP22_ENABLE
 				video_stable_to_esm = 0;
@@ -2086,7 +2093,7 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
-				rx.state = FSM_HPD_READY;
+				rx.state = FSM_HDMI5V_HIGH;
 				wait_no_signal_cnt = 0;
 				#ifdef HDCP22_ENABLE
 				video_stable_to_esm = 0;
@@ -3097,6 +3104,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	if (sm_pause)
 		return;
 
+
 	memset(&rx, 0, sizeof(struct rx_s));
 	/* memset(rx.pow5v_state, */
 	/*	0, */
@@ -3149,7 +3157,7 @@ void hdmirx_hw_uninit(void)
 	/* READ_CBUS_REG(PREG_PAD_GPIO5_O) | */
 	/* ((1<<1)|(1<<5)|(1<<9)|(1<<13))); */
 
-	hdmirx_set_hpd(rx.port, 0);
+	/*hdmirx_set_hpd(rx.port, 0);*/
 
 	/* hdmirx_wr_top(TOP_INTR_MASKN, 0); */
 	hdmirx_irq_close();
