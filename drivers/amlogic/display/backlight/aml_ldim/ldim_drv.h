@@ -25,8 +25,7 @@
 extern void ldim_update_setting(void);
 extern void set_bri_for_channels(unsigned short bri[16]);
 extern void ldim_on_vs_arithmetic(void);
-/*extern void ldim_on_vs_spi(unsigned long data);*/
-extern void ldim_on_vs_spi(void);
+extern void ldim_on_vs_spi(unsigned long data);
 
 /* each base has 16 address space */
 #define REG_LD_CFG_BASE          0x00
@@ -119,6 +118,46 @@ struct LDReg {
 
 	int reg_LD_STAhist_Hidx[LD_STA_LEN_H];  /* U12* STA_LEN_H*/
 	int reg_LD_STAhist_Vidx[LD_STA_LEN_V];  /* u12x STA_LEN_V*/
+
+	/***** FBC3 fw_hw_alg_frm *****/
+	int reg_ldfw_BLmax;/* maximum BL value*/
+	int reg_ldfw_blk_norm;/*u8: normalization gain for blk number,
+		1/blk_num= norm>>(rs+8), norm = (1<<(rs+8))/blk_num */
+
+	int reg_ldfw_blk_norm_rs;/*u3: 0~7,  1/blk_num= norm>>(rs+8) */
+	int reg_ldfw_sta_hdg_weight[8];/*  u8x8, weighting to each
+		block's max to decide that block's ld. */
+
+	int reg_ldfw_sta_max_mode;/* u2: maximum selection for
+		components: 0: r_max, 1: g_max, 2: b_max; 3: max(r,g,b) */
+
+	int reg_ldfw_sta_max_hist_mode;/* u2: mode of reference
+		max/hist mode:0: MIN(max, hist), 1: MAX(max, hist)
+		2: (max+hist)/2, 3: (max(a,b)*3 + min(a,b))/4  */
+
+	int reg_ldfw_hist_valid_rate;
+		/* u8, norm to 512 as "1", if hist_matrix[i]>(rate*histavg)>>9*/
+
+	int reg_ldfw_hist_valid_ofst;/*u8, hist valid bin upward offset*/
+	int reg_ldfw_sedglit_RL;/*u1: single edge lit right/bottom mode*/
+	int reg_ldfw_sf_thrd;/*u12: threshold of difference to enable the sf;*/
+	int reg_ldfw_boost_gain;/* u8: boost gain for the region that
+		is larger than the average, norm to 16 as "1"  */
+
+	int reg_ldfw_tf_alpha_rate;/*u8: rate to SFB_BL_matrix from
+		last frame difference;*/
+	int reg_ldfw_tf_alpha_ofst;/*u8: ofset to alpha SFB_BL_matrix
+		from last frame difference;*/
+	int reg_ldfw_tf_disable_th;/*u8: 4x is the threshod to disable
+		tf to the alpha (SFB_BL_matrix from last frame difference;*/
+	int reg_ldfw_blest_acmode;/*u3: 0: est on BLmatrix;
+		1: est on(BL-DC); 2: est on (BL-MIN);
+		3: est on (BL-MAX) 4: 2048; 5:1024 */
+	int reg_ldfw_sf_enable;/*u1: enable signal for spatial filter
+		on the tbl_matrix*/
+	int reg_ldfw_boost_enable; /*u1: enable signal for Boost
+		filter on the tbl_matrix*/
+	int ro_ldfw_bl_matrix_avg;/*u12: read-only register for bl_matrix*/
 
 	/* Backlit Modeling registers*/
 	int BL_matrix[LD_BLKREGNUM];
@@ -220,6 +259,12 @@ struct LDReg {
 	int fw_LD_BLEst_ACmode;
 	/*u2: 0: est on BLmatrix; 1: est on (BL-DC);
 		2: est on (BL-MIN); 3: est on (BL-MAX)*/
+
+
+	unsigned long *val_1;
+	unsigned long *bin_1;
+	unsigned long *val_2;
+	unsigned long *bin_2;
 };
 
 struct FW_DAT {

@@ -55,14 +55,22 @@ struct FW_DAT FDat;
 unsigned int hist_matrix[LD_BLKREGNUM*16] = {0};
 unsigned int max_rgb[LD_BLKREGNUM] = {0};
 unsigned int global_ldim_max[LD_BLKREGNUM] = {0};
-
 unsigned int invalid_val_cnt = 0;
+
+static unsigned long val_1[16] = {512, 512, 512, 512, 546, 546,
+	585, 630, 745, 819, 910, 1170, 512, 512, 512, 512};
+static unsigned long bin_1[16] = {4, 4, 4, 4, 4, 4,
+	4, 4, 4, 4, 4, 4, 4, 4, 4, 4};/* 0~32 */
+static unsigned long val_2[16] = {3712, 3712, 3712, 3712, 3823, 3823,
+	3647, 3455, 3135, 3007, 2879, 2623, 3750, 3800, 4000, 4055};/*0~4095*/
+static unsigned long bin_2[16] = {29, 29, 29, 29, 29, 29,
+	25, 22, 17, 15, 13, 28, 28, 27, 26, 25};
+
 module_param(invalid_val_cnt, uint, 0664);
 MODULE_PARM_DESC(invalid_val_cnt, "invalid_val_cnt");
 
-
 unsigned int ldim_irq;
-/*unsigned int rdma_ldim_irq;*/
+unsigned int rdma_ldim_irq;
 spinlock_t  ldim_isr_lock;
 spinlock_t  rdma_ldim_isr_lock;
 
@@ -70,14 +78,13 @@ struct rdma_ldim {
 	int irq;
 };
 
-/*struct tasklet_struct   ldim_tasklet;*/
-
+struct tasklet_struct   ldim_tasklet;
 struct workqueue_struct *ldim_read_queue = NULL;
 struct work_struct   ldim_read_work;
 
 #if 1
 unsigned long fw_LD_ThSF_l = 1600;
-unsigned long fw_LD_ThTF_l = 32;
+unsigned long fw_LD_ThTF_l = 256;
 #endif
 
 unsigned long ldim_frm_time = 0;
@@ -95,6 +102,7 @@ long ld_fw_alg_frm_time = 0;
 
 unsigned long litgain = 4096;
 unsigned long boost_gain = 256;
+unsigned long avg_gain = 4096;
 /*unsigned long Backlit_coeff_l = 4096;*/
 
 #ifndef MAX
@@ -116,21 +124,25 @@ static unsigned int rdma_ldim_irq_cnt;
 module_param(rdma_ldim_irq_cnt, uint, 0664);
 MODULE_PARM_DESC(rdma_ldim_irq_cnt, "rdma_ldim_irq_cnt");
 
-static unsigned int delay_read = 1;
-module_param(delay_read, uint, 0664);
-MODULE_PARM_DESC(delay_read, "delay_read");
-
 static unsigned int ldim_hist_en = 1;
 module_param(ldim_hist_en, uint, 0664);
 MODULE_PARM_DESC(ldim_hist_en, "ldim_hist_en");
 
-static unsigned int ldim_hist_row = 1;
+static unsigned int ldim_hist_row = 16;
 module_param(ldim_hist_row, uint, 0664);
 MODULE_PARM_DESC(ldim_hist_row, "ldim_hist_row");
 
-static unsigned int ldim_hist_col = 8;
+static unsigned int ldim_hist_col = 24;
 module_param(ldim_hist_col, uint, 0664);
 MODULE_PARM_DESC(ldim_hist_col, "ldim_hist_col");
+
+static unsigned int ldim_blk_row = 16;
+module_param(ldim_blk_row, uint, 0664);
+MODULE_PARM_DESC(ldim_blk_row, "ldim_blk_row");
+
+static unsigned int ldim_blk_col = 24;
+module_param(ldim_blk_col, uint, 0664);
+MODULE_PARM_DESC(ldim_blk_col, "ldim_blk_col");
 
 static unsigned int ldim_avg_update_en = 1;
 module_param(ldim_avg_update_en, uint, 0664);
@@ -148,13 +160,7 @@ static unsigned int ldim_top_en = 1;
 module_param(ldim_top_en, uint, 0664);
 MODULE_PARM_DESC(ldim_top_en, "ldim_top_en");
 
-static unsigned int ldim_stts_isr_en = 1;
-module_param(ldim_stts_isr_en, uint, 0664);
-MODULE_PARM_DESC(ldim_stts_isr_en, "ldim_stts_isr_en");
-
-
 static unsigned long  vs_time_record;
-
 static struct ld_config_s *ld_config;
 
 void ldim_stts_read_region(struct work_struct *work)
@@ -297,8 +303,8 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 	unsigned int *tBL_matrix;
 	unsigned int BLmax = 4096;   /* maximum BL value */
 	unsigned int a = 0;
-	int stride = (nPRM->reg_LD_STA_Hnum);
-
+	/*int stride = (nPRM->reg_LD_STA_Hnum);*/
+	int stride = ldim_hist_col;
 	int RGBmax, Histmx, maxNB, curNB = 0;
 	unsigned int fw_blk_num  = Vnum*Hnum;
 	unsigned int fw_LD_Thist = ((fw_blk_num*5)>>2);
@@ -369,9 +375,9 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 						tBL_matrix[blkRow*Hnum +
 						blkCol];
 					else if (((blkRow+m) >= 0) &&
-						((blkRow+m) <= Vnum) &&
+						((blkRow+m) < Vnum) &&
 						((blkCol+n) >= 0) &&
-						((blkCol+n) <= Hnum))
+						((blkCol+n) < Hnum))
 						maxNB = MAX(maxNB,
 						tBL_matrix[(blkRow+m)*Hnum +
 						blkCol+n]);
@@ -463,18 +469,23 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 				+ alpha*(FDat->SF_BL_matrix[blkRow*Hnum +
 				blkCol]) + 128)>>8);
 
-			/* for debug to confirm the logic */
-			/* if (blkRow==0) bl_value = 4095;
-			else  bl_value = 4095; */
-
-			/* Set the TF_BL_matrix to the BL_matrix */
+#if 1
 			if (nPRM->reg_LD_BackLit_mode == 1)
 				nPRM->BL_matrix[blkCol*Vnum +
 					blkRow] = bl_value;
 			else
 				nPRM->BL_matrix[blkRow*Hnum +
 					blkCol] = bl_value;
-
+#endif
+#if 0
+			if ((nPRM->reg_LD_BackLit_mode == 1) ||
+				(nPRM->reg_LD_BackLit_mode == 2))
+				nPRM->BL_matrix[blkCol*Vnum +
+					blkRow] = bl_value;
+			else
+				nPRM->BL_matrix[blkRow*Hnum +
+					blkCol] = bl_value;
+#endif
 			/* Get the TF_BL_matrix */
 			FDat->TF_BL_matrix[blkRow*Hnum + blkCol] = bl_value;
 
@@ -495,7 +506,9 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 	if (fw_LD_BLEst_ACmode == 0)
 		nPRM->reg_BL_matrix_AVG = 0;
 	else if (fw_LD_BLEst_ACmode == 1)
-		nPRM->reg_BL_matrix_AVG = (sum/fw_blk_num);
+		/*nPRM->reg_BL_matrix_AVG = (sum/fw_blk_num);*/
+		nPRM->reg_BL_matrix_AVG = ((sum/fw_blk_num) *
+			avg_gain + 2048)>>12;
 	else if (fw_LD_BLEst_ACmode == 2)
 		nPRM->reg_BL_matrix_AVG = Bmin;
 	else if (fw_LD_BLEst_ACmode == 3)
@@ -504,6 +517,7 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 		nPRM->reg_BL_matrix_AVG = 2048;
 	else
 		nPRM->reg_BL_matrix_AVG = 1024;
+
 	nPRM->reg_BL_matrix_Compensate = nPRM->reg_BL_matrix_AVG;
 /*    printk("BL_AVG=%d;   BL_COMP=%d\n",nPRM->reg_BL_matrix_AVG,
 		nPRM->reg_BL_matrix_Compensate);
@@ -530,15 +544,23 @@ void ldim_stts_initial(unsigned int pic_h, unsigned int pic_v,
 	unsigned int row_start, col_start;
 	resolution = (((pic_h - 1) & 0xffff) << 16) | ((pic_v - 1) & 0xffff);
 	/*Wr(VDIN0_HIST_CTRL, 0x10d);*/
-
 	Wr(LDIM_STTS_CTRL0, 3<<3);/*4 mux to vpp_dout*/
 	ldim_set_matrix_ycbcr2rgb();
+
+/*	ldim_set_matrix_rgb2ycbcr(0); */
 	ldim_stts_en(resolution, 0, 0, 3, 1, 1, 0);
 	resolution_region = 0;
+#if 0
 	blk_height = pic_v/BLK_Vnum;
 	blk_width = pic_h/BLK_Hnum;
 	row_start = 0;
 	col_start = 0;
+#endif
+/**/
+	blk_height = (pic_v-8)/BLK_Vnum;
+	blk_width = (pic_h-8)/BLK_Hnum;
+	row_start = (pic_v-(blk_height*BLK_Vnum))>>1;
+	col_start = (pic_h-(blk_width*BLK_Hnum))>>1;
 	ldim_set_region(0, blk_height, blk_width,
 		row_start, col_start, BLK_Hnum);
 }
@@ -558,11 +580,11 @@ void LDIM_Initial(unsigned int pic_h, unsigned int pic_v,
 	/* configuration of the panel parameters */
 	nPRM.reg_LD_pic_RowMax = pic_v;
 	nPRM.reg_LD_pic_ColMax = pic_h;
-		/* Maximum to BLKVMAX  , Maximum to BLKHMAX */
+	/* Maximum to BLKVMAX  , Maximum to BLKHMAX */
 	nPRM.reg_LD_BLK_Vnum     = BLK_Vnum;
 	nPRM.reg_LD_BLK_Hnum     = BLK_Hnum;
 	nPRM.reg_LD_BackLit_mode = BackLit_mode;
-			/*config params end */
+	/*config params end */
 	ld_fw_cfg_once(&nPRM);
    /*stimulus_print("[LDIM] Config LDIM beginning.....\n");*/
    /*enable the CBUS configure the RAM*/
@@ -641,7 +663,8 @@ void LDIM_Initial(unsigned int pic_h, unsigned int pic_v,
 	LDIM_WR_BASE_LUT(REG_LD_RGB_NRMW_BASE, nPRM.X_nrm[0], 4, 16);
    /*stimulus_display("reg_X_nrm[0]=%x\n",nPRM.X_nrm[0][0]); */
    /*  X_idx: 12*16  */
-	LDIM_WR_BASE_LUT(REG_LD_RGB_IDX_BASE, nPRM.X_idx[0], 12, 16);
+/*LDIM_WR_BASE_LUT(REG_LD_RGB_IDX_BASE, nPRM.X_idx[0], 12, 16);*/
+	LDIM_WR_BASE_LUT(REG_LD_RGB_IDX_BASE, nPRM.X_idx[0], 16, 16);
    /* stimulus_display("reg_X_idx[0]=%x\n",nPRM.X_idx[0][0]); */
    /*  gMatrix_LUT: u12*LD_BLKREGNUM  */
 	LDIM_WR_BASE_LUT_DRT(REG_LD_MATRIX_BASE, nPRM.BL_matrix, LD_BLKREGNUM);
@@ -763,21 +786,20 @@ static void ldim_dump_histgram(void)
 {
 	unsigned int i, j, k;
 	unsigned int *p = NULL;
-	p = kmalloc(1024*sizeof(unsigned int), GFP_KERNEL);
+	p = kmalloc(2048*sizeof(unsigned int), GFP_KERNEL);
 	if (p == NULL) {
 		pr_err("malloc momery err!!!\n");
 		return;
 		}
-	memcpy(p, &hist_matrix[0],
-		ldim_hist_row*ldim_hist_col*16*sizeof(unsigned int));
+	memcpy(p, &hist_matrix[0], ldim_hist_row*
+			ldim_hist_col*16*sizeof(unsigned int));
 	for (i = 0; i < ldim_hist_row; i++) {
 		for (j = 0; j < ldim_hist_col; j++) {
-			for (k = 0; k < 16; k++) {
-				/*printk("0x%x\t",
-					*(p+i*16*ldim_hist_col+j*16+k));*/
-					pr_info("0x%x\t",
-					*(p+i*16*ldim_hist_col+j*16+k));
-			}
+			for (k = 0; k < 16; k++)
+				/*printk("0x%x\t", *(p+i*16*ldim_hist_col
+						+j*16+k));*/
+				pr_info("0x%x\t", *(p+i*16*ldim_hist_col
+						+j*16+k));
 			pr_info("\n");
 			udelay(10000);
 		}
@@ -815,8 +837,7 @@ static irqreturn_t ldim_vsync_isr(unsigned int irq, void *dev_id)
 
 	if (ldim_avg_update_en)
 			ldim_update_setting();
-/*	tasklet_schedule(&ldim_tasklet);*/
-	ldim_on_vs_spi();
+	tasklet_schedule(&ldim_tasklet);
 
 	ldim_irq_cnt++;
 	if (ldim_irq_cnt > 0xfffffff)
@@ -903,7 +924,7 @@ void ldim_update_setting(void)
 	LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);
 		/* gMatrix_LUT: s12*100 ==> max to 8*8 enum ##r/w ram method*/
 		LDIM_WR_BASE_LUT_DRT(REG_LD_MATRIX_BASE,
-			&(nPRM.BL_matrix[0]), ldim_hist_row*ldim_hist_col);
+			&(nPRM.BL_matrix[0]), ldim_blk_row*ldim_blk_col);
 
 			data = LDIM_RD_32Bits(REG_LD_MISC_CTRL0);
 	data = data | (3<<4);
@@ -978,34 +999,19 @@ void ldim_update_matrix(unsigned int mode)
 	LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);
 }
 
-/* unsigned int global_ldim_max[100]={0}; */
-static unsigned short local_ldim_matrix[16] = {0};
-static unsigned short local_ldim_matrix_2_spi[16] = {0};
+static unsigned short local_ldim_matrix[384] = {0};
+static unsigned short local_ldim_matrix_2_spi[384] = {0};
 
-void ldim_on_vs_spi(void)
+void ldim_on_vs_spi(unsigned long data)
 {
 		unsigned int i;
 
-		for (i = 0; i < ldim_hist_col*ldim_hist_row; i++) {
+		for (i = 0; i < ldim_blk_col*ldim_blk_row; i++) {
 			local_ldim_matrix[i] = nPRM.BL_matrix[i];
-		/*printk("0x%x\t",local_ldim_matrix[i]);*/
-			/*local_ldim_matrix_2_spi[i] = (unsigned short)
-				(((local_ldim_matrix[i] * Backlit_coeff) +
-				2048) >> 12);*/
-		#if 1
-		local_ldim_matrix_2_spi[i] = (unsigned short)
-			(((local_ldim_matrix[i] * litgain)+2048)>>12);
-		#endif
-		#if 0
-		local_ldim_matrix_2_spi[i] = (unsigned short)
-			(local_ldim_matrix[i]);
-		#endif
-		/*printk("0x%x\t",local_ldim_matrix_2_spi[i]);*/
+			local_ldim_matrix_2_spi[i] = (unsigned short)
+				(((nPRM.BL_matrix[i] * litgain)+2048)>>12);
 		}
 		set_bri_for_channels(local_ldim_matrix_2_spi);
-		/*local_ldim_matrix[i] = nPRM.BL_matrix[i];
-				set_bri_for_channels(local_ldim_matrix);
-		set_bri_for_channels(local_ldim_matrix); */
 		/*LDIMPR("hello amlogic!, data[%d]\n", (int)data);*/
 }
 
@@ -1065,7 +1071,6 @@ void ldim_on_vs_arithmetic(void)
 		ld_fw_alg_frm_end_time = jiffies_to_usecs(jiffies);
 		ld_fw_alg_frm_time = ld_fw_alg_frm_end_time -
 				ld_fw_alg_frm_start_time;
-		/*printk("ld_fw_alg_frm_end\n");*/
 
 	kfree(local_ldim_hist);
 	kfree(local_ldim_max);
@@ -1074,7 +1079,7 @@ void ldim_on_vs_arithmetic(void)
 }
 EXPORT_SYMBOL(ldim_on_vs_arithmetic);
 
-#if 1
+#if 0
 void ldim_on_vs(void)
 {
 	unsigned int *local_ldim_hist = NULL;
@@ -1132,33 +1137,22 @@ void ldim_on_vs(void)
 		ld_fw_alg_frm_time = ld_fw_alg_frm_end_time -
 				ld_fw_alg_frm_start_time;
 		/*printk("ld_fw_alg_frm_end\n");*/
-	#if 1/* for iw7019 */
+		/*for iw7019*/
+	#if 1
 	    /*memcpy(&local_ldim_matrix[0], &FDat.TF_BL_matrix[0],
 	    ldim_hist_col*ldim_hist_row*sizeof(unsigned int));*/
-	    /* memcpy(&local_ldim_matrix[0], &nPRM.BL_matrix[0],
-	    ldim_hist_col*ldim_hist_row*sizeof(unsigned int)); */
-		for (i = 0; i < ldim_hist_col*ldim_hist_row; i++) {
+	     /*memcpy(&local_ldim_matrix[0], &nPRM.BL_matrix[0],
+	    ldim_blk_col*ldim_blk_row*sizeof(unsigned int));*/
+
+		for (i = 0; i < ldim_blk_col*ldim_blk_row; i++) {
 			local_ldim_matrix[i] = nPRM.BL_matrix[i];
-		/*printk("0x%x\t",local_ldim_matrix[i]);
 			local_ldim_matrix_2_spi[i] = (unsigned short)
-				(((local_ldim_matrix[i] * Backlit_coeff) +
-				2048) >> 12);*/
-		#if 1
-		local_ldim_matrix_2_spi[i] = (unsigned short)
-			(((local_ldim_matrix[i] * litgain)+2048)>>12);
-		#endif
-		#if 0
-		local_ldim_matrix_2_spi[i] = (unsigned short)
-			(local_ldim_matrix[i]);
-		#endif
-		/*printk("0x%x\t",local_ldim_matrix_2_spi[i]);*/
+				(((nPRM.BL_matrix[i] * litgain)+2048)>>12);
 		}
 		set_bri_for_channels(local_ldim_matrix_2_spi);
-		/*local_ldim_matrix[i] = nPRM.BL_matrix[i];
-				set_bri_for_channels(local_ldim_matrix);
-		set_bri_for_channels(local_ldim_matrix); */
+
 	#endif
-		/* ldim_update_setting();*/
+
 	}
 	/*spin_unlock_irqrestore(&ldim_isr_lock, flags);*/
 	kfree(local_ldim_hist);
@@ -1173,17 +1167,15 @@ void ldim_get_matrix_info_1(void)
 	unsigned int i, j;
 	unsigned int local_ldim_matrix_t[LD_BLKREGNUM] = {0};
 	memcpy(&local_ldim_matrix_t[0], &FDat.TF_BL_matrix_2[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
-	/*printk("%s:\n", __func__);*/
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	LDIMPR("%s:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++)
 			/*printk("0x%x\t",
 				local_ldim_matrix_t[ldim_hist_col*i+j]);*/
-				LDIMPR("0x%x\t",
-				local_ldim_matrix_t[ldim_hist_col*i+j]);
-		}
-		/*printk("\n");*/
+		LDIMPR("0x%x\t",
+				local_ldim_matrix_t[ldim_blk_col*i+j]);
+
 		LDIMPR("\n");
 		udelay(10000);
 	}
@@ -1193,17 +1185,15 @@ void ldim_get_matrix_info_2(void)
 	unsigned int i, j;
 	unsigned int local_ldim_matrix_t[LD_BLKREGNUM] = {0};
 	memcpy(&local_ldim_matrix_t[0], &FDat.TF_BL_matrix[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
-	/*printk("%s:\n", __func__);*/
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	LDIMPR("%s:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++)
 			/*printk("0x%x\t",
 				local_ldim_matrix_t[ldim_hist_col*i+j]);*/
-				LDIMPR("0x%x\t",
-				local_ldim_matrix_t[ldim_hist_col*i+j]);
-		}
-		/*printk("\n");*/
+			LDIMPR("0x%x\t",
+				local_ldim_matrix_t[ldim_blk_col*i+j]);
+
 		LDIMPR("\n");
 		udelay(10000);
 	}
@@ -1213,17 +1203,16 @@ void ldim_get_matrix_info_3(void)
 	unsigned int i, j;
 	unsigned int local_ldim_matrix_t[LD_BLKREGNUM] = {0};
 	memcpy(&local_ldim_matrix_t[0], &FDat.SF_BL_matrix[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	/*printk("%s:\n", __func__);*/
 	LDIMPR("%s:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++)
 			/*printk("0x%x\t",
 				local_ldim_matrix_t[ldim_hist_col*i+j]);*/
-				LDIMPR("0x%x\t",
-				local_ldim_matrix_t[ldim_hist_col*i+j]);
-		}
-		/*printk("\n");*/
+			LDIMPR("0x%x\t",
+				local_ldim_matrix_t[ldim_blk_col*i+j]);
+
 		LDIMPR("\n");
 		udelay(10000);
 	}
@@ -1235,16 +1224,16 @@ void ldim_get_matrix_info_4(void)
 	local_ldim_matrix_t = kmalloc(ldim_hist_row*
 		ldim_hist_col*16*sizeof(unsigned int), GFP_KERNEL);
 	memcpy(local_ldim_matrix_t, &FDat.last_STA1_MaxRGB[0],
-		ldim_hist_col*ldim_hist_row*3*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*3*sizeof(unsigned int));
 	/*printk("%s:\n", __func__);*/
 	LDIMPR("%s:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++) {
 			for (k = 0; k < 3; k++)
 				/*printk("0x%x\t",
 				local_ldim_matrix_t[3*ldim_hist_col*i+j*3+k]);*/
 				LDIMPR("0x%x\t",
-				local_ldim_matrix_t[3*ldim_hist_col*i+j*3+k]);
+				local_ldim_matrix_t[3*ldim_blk_col*i+j*3+k]);
 		}
 		/*printk("\n");*/
 		LDIMPR("\n");
@@ -1257,15 +1246,15 @@ void ldim_get_matrix_info_5(void)
 	unsigned int i, j;
 	unsigned int local_ldim_matrix_t[LD_BLKREGNUM] = {0};
 	memcpy(&local_ldim_matrix_t[0], &FDat.TF_BL_alpha[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	/*printk("%s:\n", __func__);*/
 	LDIMPR("%s:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++) {
 			/*printk("0x%x\t",
 				local_ldim_matrix_t[ldim_hist_col*i+j]);*/
 				LDIMPR("0x%x\t",
-				local_ldim_matrix_t[ldim_hist_col*i+j]);
+				local_ldim_matrix_t[ldim_blk_col*i+j]);
 		}
 		/*printk("\n");*/
 		LDIMPR("\n");
@@ -1277,17 +1266,17 @@ void ldim_get_matrix_info_6(void)
 	unsigned int i, j;
 	unsigned int local_ldim_max[LD_BLKREGNUM] = {0};
 	memcpy(&local_ldim_max[0], &global_ldim_max[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	/*printk("%s:\n", __func__);*/
 	LDIMPR("%s:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++) {
 			/*printk("(%d,%d,%d)\t", local_ldim_max[j +
 				i*ldim_hist_col]&0x3ff,
 				(local_ldim_max[j + i*10]>>10)&0x3ff,
 				(local_ldim_max[j + i*10]>>20)&0x3ff);*/
 				LDIMPR("(%d,%d,%d)\t", local_ldim_max[j +
-				i*ldim_hist_col]&0x3ff,
+				i*ldim_blk_col]&0x3ff,
 				(local_ldim_max[j + i*10]>>10)&0x3ff,
 				(local_ldim_max[j + i*10]>>20)&0x3ff);
 			if ((j+1)%8 == 0) {
@@ -1331,35 +1320,24 @@ void ldim_get_matrix_info(void)
 	unsigned short local_ldim_matrix_spi_t[LD_BLKREGNUM] = {0};
 
 	memcpy(&local_ldim_matrix_t[0], &local_ldim_matrix[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	memcpy(&local_ldim_matrix_spi_t[0],
 		&local_ldim_matrix_2_spi[0],
-		ldim_hist_col*ldim_hist_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	/*printk("%s and spi info:\n", __func__);*/
 	LDIMPR("%s and spi info:\n", __func__);
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
-			/*printk("0x%x\t", local_ldim_matrix_t
-				[ldim_hist_col*i+j]);*/
-				pr_info("0x%x\t", local_ldim_matrix_t
-				[ldim_hist_col*i+j]);
-		}
-		pr_info("\n");
-		udelay(10000);
-	}
-	pr_info("\n");
-	pr_info("\n");
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++)
+			/* printk("0x%x\t", local_ldim_matrix_t
+				[ldim_blk_col*i+j]);*/
+			pr_info("0x%x\t", local_ldim_matrix_t
+				[ldim_blk_col*i+j]);
 
-	for (i = 0; i < ldim_hist_row; i++) {
-		for (j = 0; j < ldim_hist_col; j++) {
-			/*printk("0x%x\t", local_ldim_matrix_spi_t
-				[ldim_hist_col*i+j]);*/
-				pr_info("0x%x\t", local_ldim_matrix_spi_t
-				[ldim_hist_col*i+j]);
-		}
 		pr_info("\n");
 		udelay(10000);
 	}
+	pr_info("\n");
+	pr_info("\n");
 
 	/*printk("ldim_stts_start_time = %d, ldim_stts_end_time = %d, :\n",);*/
 	/*pr_info("ldim_stts_start_time = %ld,ldim_stts_end_time = %ld,
@@ -1414,6 +1392,7 @@ static int ldim_disable(void)
 	data = LDIM_RD_32Bits(REG_LD_MISC_CTRL0);
 	data = data & (~(1<<2));
 	LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);
+
 	return ret;
 }
 
@@ -1477,6 +1456,44 @@ static ssize_t ldim_attr_show(struct class *cla,
 	"echo litgain 4096 > /sys/class/aml_ldim/attr\n");
 	len += sprintf(buf+len,
 	"echo boost_gain 128 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo avg_gain 2048 > /sys/class/aml_ldim/attr\n");
+
+	len += sprintf(buf+len,
+	"echo curve_0 512 4 3712 29 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_1 512 4 3712 29 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_2 512 4 3712 29 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_3 512 4 3712 29 > /sys/class/aml_ldim/attr\n");
+
+	len += sprintf(buf+len,
+	"echo curve_4 546 4 3823 29 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_5 546 4 3823 29 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_6 585 4 3647 25 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_7 630 4 3455 22 > /sys/class/aml_ldim/attr\n");
+
+	len += sprintf(buf+len,
+	"echo curve_8 745 4 3135 17 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_9 819 4 3007 15 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_10 910 4 2879 13 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_11 1170 4 2623 28 > /sys/class/aml_ldim/attr\n");
+
+	len += sprintf(buf+len,
+	"echo curve_12 512 4 3750 28 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_13 512 4 3800 27 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_14 512 4 4000 26 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo curve_15 512 4 4055 25 > /sys/class/aml_ldim/attr\n");
 
 	return len;
 }
@@ -1489,9 +1506,9 @@ static ssize_t ldim_attr_store(struct class *cla,
 	char *parm[47] = {NULL};
 	char str[3] = {' ', '\n', '\0'};
 
-	unsigned long pic_h, pic_v, blk_vnum, blk_hnum;
+	unsigned long pic_h, pic_v, blk_vnum, blk_hnum, hist_row, hist_col;
 	unsigned long	backlit_mod, ldim_bl_en, ldim_hvcnt_bypass;
-
+	unsigned long	val1, bin1, val2, bin2;
 	if (!buf)
 		return len;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
@@ -1531,6 +1548,8 @@ static ssize_t ldim_attr_store(struct class *cla,
 		pr_info("****ldim init param:%lu,%lu,%lu,%lu,%lu,%lu,%lu*********\n",
 			pic_h, pic_v, blk_vnum, blk_hnum,
 			backlit_mod, ldim_bl_en, ldim_hvcnt_bypass);
+			ldim_blk_row = blk_vnum;
+			ldim_blk_col = blk_hnum;
 		LDIM_Initial(pic_h, pic_v, blk_vnum, blk_hnum,
 			backlit_mod, ldim_bl_en, ldim_hvcnt_bypass);
 		pr_info("**************ldim init ok*************\n");
@@ -1541,15 +1560,15 @@ static ssize_t ldim_attr_store(struct class *cla,
 				return -EINVAL;
 			if (kstrtoul(parm[2], 10, &pic_v) < 0)
 				return -EINVAL;
-			if (kstrtoul(parm[3], 10, &blk_vnum) < 0)
+			if (kstrtoul(parm[3], 10, &hist_row) < 0)
 				return -EINVAL;
-			if (kstrtoul(parm[4], 10, &blk_hnum) < 0)
+			if (kstrtoul(parm[4], 10, &hist_col) < 0)
 				return -EINVAL;
 		}
 		pr_info("****ldim init param:%lu,%lu,%lu,%lu*********\n",
-			pic_h, pic_v, blk_vnum, blk_hnum);
-		ldim_hist_row = blk_vnum;
-		ldim_hist_col = blk_hnum;
+			pic_h, pic_v, hist_row, hist_col);
+		ldim_hist_row = hist_row;
+		ldim_hist_col = hist_col;
 		ldim_stts_initial(pic_h, pic_v, ldim_hist_row, ldim_hist_col);
 		pr_info("**************ldim stts init ok*************\n");
 	} else if (!strcmp(parm[0], "ldim_matrix_get")) {
@@ -1665,16 +1684,405 @@ static ssize_t ldim_attr_store(struct class *cla,
 				return -EINVAL;
 		}
 		pr_info("set boost_gain=%ld\n", boost_gain);
+	} else if (!strcmp(parm[0], "avg_gain")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &avg_gain) < 0)
+				return -EINVAL;
+		}
+		pr_info("set avg_gain=%ld\n", avg_gain);
 	}
 	 else if (!strcmp(parm[0], "vs_time_record")) {
 		if (parm[1] != NULL) {
 			if (kstrtoul(parm[1], 16, &vs_time_record) < 0)
 				return -EINVAL;
 		}
-	} else {
+	} else if (!strcmp(parm[0], "curve_0")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_0 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[0] = val1;
+		nPRM.bin_1[0] = bin1;
+		nPRM.val_2[0] = val2;
+		nPRM.bin_2[0] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[0] = val1;
+		nPRM.bin_1[0] = bin1;
+		nPRM.val_2[0] = val2;
+		nPRM.bin_2[0] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_0 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_1")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_1 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[1] = val1;
+		nPRM.bin_1[1] = bin1;
+		nPRM.val_2[1] = val2;
+		nPRM.bin_2[1] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[1] = val1;
+		nPRM.bin_1[1] = bin1;
+		nPRM.val_2[1] = val2;
+		nPRM.bin_2[1] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_1 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_2")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_2 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[2] = val1;
+		nPRM.bin_1[2] = bin1;
+		nPRM.val_2[2] = val2;
+		nPRM.bin_2[2] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[2] = val1;
+		nPRM.bin_1[2] = bin1;
+		nPRM.val_2[2] = val2;
+		nPRM.bin_2[2] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_2 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_3")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_3 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[3] = val1;
+		nPRM.bin_1[3] = bin1;
+		nPRM.val_2[3] = val2;
+		nPRM.bin_2[3] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[3] = val1;
+		nPRM.bin_1[3] = bin1;
+		nPRM.val_2[3] = val2;
+		nPRM.bin_2[3] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_3 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_4")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_4 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[4] = val1;
+		nPRM.bin_1[4] = bin1;
+		nPRM.val_2[4] = val2;
+		nPRM.bin_2[4] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[4] = val1;
+		nPRM.bin_1[4] = bin1;
+		nPRM.val_2[4] = val2;
+		nPRM.bin_2[4] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_4 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_5")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_5 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[5] = val1;
+		nPRM.bin_1[5] = bin1;
+		nPRM.val_2[5] = val2;
+		nPRM.bin_2[5] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[5] = val1;
+		nPRM.bin_1[5] = bin1;
+		nPRM.val_2[5] = val2;
+		nPRM.bin_2[5] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_5 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_6")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_6 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[6] = val1;
+		nPRM.bin_1[6] = bin1;
+		nPRM.val_2[6] = val2;
+		nPRM.bin_2[6] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[6] = val1;
+		nPRM.bin_1[6] = bin1;
+		nPRM.val_2[6] = val2;
+		nPRM.bin_2[6] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_6 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_7")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_7 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[7] = val1;
+		nPRM.bin_1[7] = bin1;
+		nPRM.val_2[7] = val2;
+		nPRM.bin_2[7] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[7] = val1;
+		nPRM.bin_1[7] = bin1;
+		nPRM.val_2[7] = val2;
+		nPRM.bin_2[7] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_7 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_8")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_8 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[8] = val1;
+		nPRM.bin_1[8] = bin1;
+		nPRM.val_2[8] = val2;
+		nPRM.bin_2[8] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[8] = val1;
+		nPRM.bin_1[8] = bin1;
+		nPRM.val_2[8] = val2;
+		nPRM.bin_2[8] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_8 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_9")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_9 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[9] = val1;
+		nPRM.bin_1[9] = bin1;
+		nPRM.val_2[9] = val2;
+		nPRM.bin_2[9] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[9] = val1;
+		nPRM.bin_1[9] = bin1;
+		nPRM.val_2[9] = val2;
+		nPRM.bin_2[9] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_9 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_10")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_10 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[10] = val1;
+		nPRM.bin_1[10] = bin1;
+		nPRM.val_2[10] = val2;
+		nPRM.bin_2[10] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[10] = val1;
+		nPRM.bin_1[10] = bin1;
+		nPRM.val_2[10] = val2;
+		nPRM.bin_2[10] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_10 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_11")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_11 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[11] = val1;
+		nPRM.bin_1[11] = bin1;
+		nPRM.val_2[11] = val2;
+		nPRM.bin_2[11] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[11] = val1;
+		nPRM.bin_1[11] = bin1;
+		nPRM.val_2[11] = val2;
+		nPRM.bin_2[11] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_11 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_12")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_12 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[12] = val1;
+		nPRM.bin_1[12] = bin1;
+		nPRM.val_2[12] = val2;
+		nPRM.bin_2[12] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[12] = val1;
+		nPRM.bin_1[12] = bin1;
+		nPRM.val_2[12] = val2;
+		nPRM.bin_2[12] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_12 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_13")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_13 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[13] = val1;
+		nPRM.bin_1[13] = bin1;
+		nPRM.val_2[13] = val2;
+		nPRM.bin_2[13] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[13] = val1;
+		nPRM.bin_1[13] = bin1;
+		nPRM.val_2[13] = val2;
+		nPRM.bin_2[13] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_13 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_14")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_14 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[14] = val1;
+		nPRM.bin_1[14] = bin1;
+		nPRM.val_2[14] = val2;
+		nPRM.bin_2[14] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[14] = val1;
+		nPRM.bin_1[14] = bin1;
+		nPRM.val_2[14] = val2;
+		nPRM.bin_2[14] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_14 ok*************\n");
+	} else if (!strcmp(parm[0], "curve_15")) {
+		if (parm[4] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[2], 10, &bin1) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[3], 10, &val2) < 0)
+				return -EINVAL;
+			if (kstrtoul(parm[4], 10, &bin2) < 0)
+				return -EINVAL;
+		}
+		pr_info("****ldim curve_15 param:%lu,%lu,%lu,%lu*********\n",
+						val1, bin1, val2, bin2);
+		nPRM.val_1[15] = val1;
+		nPRM.bin_1[15] = bin1;
+		nPRM.val_2[15] = val2;
+		nPRM.bin_2[15] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		nPRM.val_1[15] = val1;
+		nPRM.bin_1[15] = bin1;
+		nPRM.val_2[15] = val2;
+		nPRM.bin_2[15] = bin2;
+		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		pr_info("**************ldim curve_15 ok*************\n");
+	} else
+		pr_info("no support cmd!!!\n");
 
-	pr_info("no support cmd!!!\n");
-}
 	kfree(buf_orig);
 	return len;
 }
@@ -1690,6 +2098,11 @@ static int aml_ldim_probe(struct platform_device *pdev)
 	unsigned int i;
 	struct resource *res;
 	struct rdma_ldim *res1;
+	nPRM.val_1 = &val_1[0];
+	nPRM.bin_1 = &bin_1[0];
+	nPRM.val_2 = &val_2[0];
+	nPRM.bin_2 = &bin_2[0];
+
 	ret = alloc_chrdev_region(&aml_ldim_devno, 0, 1, AML_LDIM_DEVICE_NAME);
 	if (ret < 0) {
 		pr_err(KERN_ERR"amaudio: faild to alloc major number\n");
@@ -1742,7 +2155,7 @@ static int aml_ldim_probe(struct platform_device *pdev)
 		(LD_BLKREGNUM*sizeof(unsigned int), GFP_KERNEL);
 	memset(FDat.TF_BL_alpha, 0, LD_BLKREGNUM*sizeof(unsigned int));
 
-/*tasklet_init(&ldim_tasklet, ldim_on_vs_spi, (unsigned long)123);*/
+	tasklet_init(&ldim_tasklet, ldim_on_vs_spi, (unsigned long)123);
 	ldim_read_queue = create_singlethread_workqueue("ldim read");
 	if (!ldim_read_queue) {
 			pr_info("ret_ret_ret1=%d\n", ret);
@@ -1750,8 +2163,8 @@ static int aml_ldim_probe(struct platform_device *pdev)
 		}
 	INIT_WORK(&ldim_read_work, ldim_stts_read_region);
 
-	ldim_stts_initial(3840, 2160, 1, 8);
-	LDIM_Initial(3840, 2160, 1, 8, 1, 0, 0);
+	ldim_stts_initial(3840, 2160, 16, 24);
+	LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
 	spin_lock_init(&ldim_isr_lock);
 	spin_lock_init(&rdma_ldim_isr_lock);
 
@@ -1800,7 +2213,7 @@ static  int aml_ldim_remove(struct platform_device *pdev)
 	kfree(FDat.last_STA1_MaxRGB);
 	kfree(FDat.TF_BL_alpha);
 
-	/*tasklet_kill(&ldim_tasklet);*/
+	tasklet_kill(&ldim_tasklet);
 	free_irq(INT_VIU_VSYNC, (void *)ldim_dev_id);
 	cdev_del(aml_ldim_cdevp);
 

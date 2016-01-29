@@ -41,6 +41,10 @@
 #include "ldim_reg.h"
 #include "ldim_extern.h"
 
+#ifndef MIN
+#define MIN(a, b)   ((a < b) ? a:b)
+#endif
+
 static int LD_STA1max_Hidx[25] = {
 	/*  U12* 25	*/
 	0, 480, 960, 1440, 1920, 2400, 2880,
@@ -490,19 +494,16 @@ void ldim_read_region(unsigned int nrow, unsigned int ncol)
 		& 0xffffc000);
 	data32 = Rd(LDIM_STTS_HIST_START_RD_REGION);
 
-	for (i = 0; i < 16; i++) {
-		for (j = 0; j < 24; j++) {
+	for (i = 0; i < nrow; i++) {
+		for (j = 0; j < ncol; j++) {
 			data32 = Rd(LDIM_STTS_HIST_START_RD_REGION);
 			for (k = 0; k < 17; k++) {
 				if (k == 16) {
 					data32 = Rd(LDIM_STTS_HIST_READ_REGION);
-					if ((i < nrow) && (j < ncol))
-						max_rgb[i*ncol+j] = data32;
+					max_rgb[i*ncol+j] = data32;
 				} else {
 					data32 = Rd(LDIM_STTS_HIST_READ_REGION);
-					if ((i < nrow) && (j < ncol))
-						hist_matrix[i*ncol*16+j*16+k]
-							= data32;
+					hist_matrix[i*ncol*16+j*16+k] = data32;
 				}
 				if (!(data32 & 0x40000000))
 					invalid_val_cnt++;
@@ -621,99 +622,56 @@ void LD_MtxInv(int *oDat, int *iDat, int nRow, int nCol)
 	}
 }
 
-#if 0
-int Tmp[][32] = {
-	{ 443,  889, 1336, 1782, 2229, 2675, 3122, 3221, 3315, 3404,
-		3488, 3567, 3641, 3710, 3774, 3833, 3887, 3936, 3980, 4019,
-		4053, 4082, 4095, 4095, 4095, 4095, 4095, 4095, 4095, 4095,
-		4095, 4095},
-	{ 324,  651,  977, 1304, 1630, 1957, 2283, 2610, 2936, 3263,
-		3356, 3445, 3528, 3605, 3678, 3745, 3806, 3863, 3914, 3960,
-		4000, 4035, 4065, 4090, 4095, 4095, 4095, 4095, 4095, 4095,
-		4095, 4095},
-	{ 270,  542,  814, 1086, 1358, 1630, 1902, 2174, 2446, 2718,
-		2990, 3262, 3534, 3600, 3663, 3721, 3775, 3825, 3871, 3913,
-		3951, 3985, 4014, 4040, 4061, 4078, 4091, 4095, 4095, 4095,
-		4095, 4095},
-	{ 237,  476,  715,  954, 1193, 1432, 1671, 1910, 2149, 2387,
-		2626, 2865, 3104, 3343, 3582, 3648, 3710, 3766, 3819, 3867,
-		3911, 3950, 3984, 4015, 4040, 4061, 4078, 4091, 4095, 4095,
-		4095, 4095},
-	{ 214,  430,  647,  863, 1079, 1295, 1511, 1727, 1943, 2159,
-		2375, 2591, 2807, 3024, 3240, 3456, 3548, 3634, 3712, 3784,
-		3849, 3906, 3957, 4000, 4036, 4066, 4088, 4095, 4095, 4095,
-		4095, 4095},
-	{ 198,  397,  596,  795,  994, 1193, 1392, 1591, 1790, 1989,
-		2188, 2387, 2586, 2785, 2984, 3183, 3382, 3581, 3661, 3734,
-		3800, 3860, 3913, 3960, 4000, 4033, 4060, 4080, 4094, 4095,
-		4095, 4095},
-	{ 184,  370,  556,  741,  927, 1113, 1299, 1484, 1670, 1856,
-		2041, 2227, 2413, 2598, 2784, 2970, 3156, 3341, 3527, 3713,
-		3774, 3830, 3880, 3926, 3965, 4000, 4029, 4053, 4072, 4085,
-		4093, 4095},
-	{ 174,  348,  523,  698,  873, 1048, 1223, 1398, 1572, 1747,
-		1922, 2097, 2272, 2447, 2622, 2797, 2971, 3146, 3321, 3496,
-		3671, 3748, 3818, 3879, 3933, 3980, 4018, 4049, 4072, 4088,
-		4095, 4095},
-	{ 165,  330,  496,  662,  828,  994, 1160, 1325, 1491, 1657,
-		1823, 1989, 2155, 2320, 2486, 2652, 2818, 2984, 3150, 3316,
-		3481, 3647, 3738, 3819, 3890, 3950, 4000, 4040, 4069, 4088,
-		4095, 4095},
-	{ 157,  315,  473,  631,  790,  948, 1106, 1264, 1422, 1580,
-		1739, 1897, 2055, 2213, 2371, 2529, 2687, 2846, 3004, 3162,
-		3320, 3478, 3636, 3740, 3831, 3909, 3973, 4024, 4062, 4086,
-		4095, 4095},
-	{ 150,  302,  453,  605,  756,  908, 1059, 1211, 1362, 1514,
-		1665, 1817, 1969, 2120, 2272, 2423, 2575, 2726, 2878, 3029,
-		3181, 3332, 3484, 3635, 3787, 3860, 3923, 3977, 4021, 4055,
-		4080, 4095},
-	{ 145,  290,  436,  582,  727,  873, 1019, 1164, 1310, 1456,
-		1602, 1747, 1893, 2039, 2184, 2330, 2476, 2621, 2767, 2913,
-		3058, 3204, 3350, 3496, 3641, 3787, 3871, 3942, 4000, 4045,
-		4076, 4095},
-	{ 139,  280,  421,  561,  702,  842,  983, 1123, 1264, 1404,
-		1545, 1685, 1826, 1966, 2107, 2248, 2388, 2529, 2669, 2810,
-		2950, 3091, 3231, 3372, 3512, 3653, 3793, 3889, 3968, 4028,
-		4070, 4095},
-	{ 135,  271,  407,  543,  679,  815,  950, 1086, 1222, 1358,
-		1494, 1630, 1766, 1902, 2038, 2174, 2310, 2446, 2582, 2718,
-		2853, 2989, 3125, 3261, 3397, 3533, 3669, 3805, 3915, 4000,
-		4060, 4095},
-	{ 131,  263,  394,  526,  658,  790,  921, 1053, 1185, 1317,
-		1448, 1580, 1712, 1844, 1976, 2107, 2239, 2371, 2503, 2634,
-		2766, 2898, 3030, 3162, 3293, 3425, 3557, 3689, 3820, 3950,
-		4041, 4095},
-	{ 127,  255,  383,  511,  639,  767,  895, 1023, 1151, 1279,
-		1407, 1535, 1663, 1791, 1919, 2047, 2175, 2303, 2431, 2559,
-		2687, 2815, 2943, 3071, 3199, 3327, 3455, 3583, 3711, 3925,
-		4053, 4095}
-	};
-#endif
-
+#if 1
 void LD_LUTInit(struct LDReg *Reg)
 {
-	int k = 0;
-	int t = 0;
-	int tmp = 0;
+	int i, j, v1, v2, bin1, bin2, gain_1, gain_2, gain_3,
+			offset_1, offset_2, offset_3;
 
-	/* Emulate the FW to set the LUTs */
-	for (k = 0; k < 16; k++) {
-		/*set the LUT to be inverse of the Lit_value,*/
-		/* lit_idx distribute equal space, set by FW */
-		Reg->X_idx[0][k] = 4095 - 256*k;
-		Reg->X_nrm[0][k] = 8;
-		for (t = 0; t < 32; t++) {
-			/* May be different from Matlab when (16-k)
-			is an odd integer */
-			tmp = Round(64*(t + 1)*32, (16 - k));
-			if (tmp > 4095)
-				tmp = 4095;
-			Reg->X_lut[0][k][t] = tmp;
-			Reg->X_lut[1][k][t] = tmp;
-			Reg->X_lut[2][k][t] = tmp;
+	for (i = 0; i < 16; i++) {
+		Reg->X_idx[0][i] = 4095 - 256*i;
+		Reg->X_nrm[0][i] = 8;
+
+		v1 = (unsigned int)Reg->val_1[i];
+		v2 = (unsigned int)Reg->val_2[i];
+		bin1 = (unsigned int)Reg->bin_1[i];
+		bin2 = (unsigned int)Reg->bin_2[i];
+
+		gain_1 = v1 / bin1;
+		gain_2 = (v2 - v1) / (bin2 - bin1);
+		gain_3 = (4096 - v2) / (32 - bin2);
+
+		offset_1 = 0;
+		offset_2 = v1 - bin1 * gain_2;
+		offset_3 = v2 - bin2 * gain_3;
+
+		for (j = 0; j < 32; j++) {
+			if (j <= bin1) {
+				Reg->X_lut[0][i][j] = MIN((gain_1 * (j + 1)
+						+ offset_1), 4095);
+				Reg->X_lut[1][i][j] = MIN((gain_1 * (j + 1)
+						+ offset_1), 4095);
+				Reg->X_lut[2][i][j] = MIN((gain_1 * (j + 1)
+						+ offset_1), 4095);
+			} else if (j <= bin2) {
+				Reg->X_lut[0][i][j] = MIN((gain_2 * (j + 1)
+						+ offset_2), 4095);
+				Reg->X_lut[1][i][j] = MIN((gain_2 * (j + 1)
+						+ offset_2), 4095);
+				Reg->X_lut[2][i][j] = MIN((gain_2 * (j + 1)
+						+ offset_2), 4095);
+			} else {
+				Reg->X_lut[0][i][j] = MIN((gain_3 * (j + 1)
+						+ offset_3), 4095);
+				Reg->X_lut[1][i][j] = MIN((gain_3 * (j + 1)
+						+ offset_3), 4095);
+				Reg->X_lut[2][i][j] = MIN((gain_3 * (j + 1)
+						+ offset_3), 4095);
+			}
 		}
 	}
 }
+#endif
 
 #if 1
 void LD_ConLDReg(struct LDReg *Reg)
@@ -731,7 +689,7 @@ void LD_ConLDReg(struct LDReg *Reg)
 	LD_IntialData(Reg->reg_LD_pic_RGBsum, 3, 0);
 
 	/* set same region division for statistics */
-	Reg->reg_LD_STA_Vnum  = 1;
+	Reg->reg_LD_STA_Vnum  = 8;
 	Reg->reg_LD_STA_Hnum  = 8;
 
 	/*Image Statistic options */
@@ -766,6 +724,64 @@ void LD_ConLDReg(struct LDReg *Reg)
 		Reg->reg_LD_STA2max_Vidx[T] = LD_STA2max_Vidx[T];/*u12x 17*/
 		Reg->reg_LD_STAhist_Vidx[T] = LD_STAhist_Vidx[T];/*u12x 17*/
 	}
+
+	/******	FBC3 fw_hw_alg_frm	*******/
+	Reg->reg_ldfw_BLmax = 4095;       /*maximum BL value*/
+	Reg->reg_ldfw_blk_norm = 128;
+	/*u8: normalization gain for blk number,
+	1/blk_num= norm>>(rs+8), norm = (1<<(rs+8))/blk_num*/
+
+	Reg->reg_ldfw_blk_norm_rs = 2;
+	/*u3: 0~7,  1/blk_num= norm>>(rs+8)*/
+
+	for (T = 0; T < 8; T++)
+		Reg->reg_ldfw_sta_hdg_weight[T] = 64;
+
+	Reg->reg_ldfw_sta_max_mode = 3;
+	/* u2: maximum selection for components:
+	0: r_max, 1: g_max, 2: b_max; 3: max(r,g,b)*/
+
+	Reg->reg_ldfw_sta_max_hist_mode = 0;
+	/* u2: mode of reference max/hist mode:
+	0: MIN(max, hist), 1: MAX(max, hist) 2: (max+hist)/2,
+	3: (max(a,b)*3 + min(a,b))/4  */
+
+	Reg->reg_ldfw_hist_valid_rate = 64;
+	/* u8, norm to 512 as "1", if hist_matrix[i]>(rate*histavg)>>9 */
+
+	Reg->reg_ldfw_hist_valid_ofst = 63;/* u8, hist valid bin upward offset*/
+	Reg->reg_ldfw_sedglit_RL = 1;/*u1: single edge lit right/bottom mode*/
+
+	Reg->reg_ldfw_sf_thrd = 1600;
+	/*u12: threshold of difference to enable the sf;*/
+
+	Reg->reg_ldfw_boost_gain = 64;
+	/* u8: boost gain for the region that is
+	larger than the average, norm to 16 as "1" */
+
+	Reg->reg_ldfw_tf_alpha_rate = 16;
+	/*u8: rate to SFB_BL_matrix from last frame difference;*/
+
+	Reg->reg_ldfw_tf_alpha_ofst = 32;
+	/* u8: ofset to alpha SFB_BL_matrix from last frame difference;*/
+
+	Reg->reg_ldfw_tf_disable_th = 255;
+	/* u8: 4x is the threshod to disable tf to the alpha
+	(SFB_BL_matrix from last frame difference;*/
+
+	Reg->reg_ldfw_blest_acmode = 1;
+	/* u3: 0: est on BLmatrix; 1: est on (BL-DC);
+	2: est on (BL-MIN); 3: est on (BL-MAX) 4: 2048; 5:1024  */
+
+	Reg->reg_ldfw_sf_enable = 0;
+	/* u1: enable signal for spatial filter on the tbl_matrix */
+
+	Reg->reg_ldfw_boost_enable = 0;
+	/* u1: enable signal for Boost filter on the tbl_matrix */
+
+	Reg->ro_ldfw_bl_matrix_avg = 0;
+	/* u12: read-only register for bl_matrix */
+
 	/*---------------------Setting BL_matrix initial value
 			(will be updated frame to frame in FW)*/
 	Vnum = Reg->reg_LD_BLK_Vnum;
@@ -900,14 +916,14 @@ void ld_fw_cfg_once(struct LDReg *nPRM)
 	nPRM->reg_LD_BkLit_Celnum = (nPRM->reg_LD_pic_ColMax + 63)/32;
 
 	/* set same region division for statistics */
-	nPRM->reg_LD_STA_Vnum  = nPRM->reg_LD_BLK_Vnum;
-	nPRM->reg_LD_STA_Hnum  = nPRM->reg_LD_BLK_Hnum;
+	/*nPRM->reg_LD_STA_Vnum  = nPRM->reg_LD_BLK_Vnum;*/
+	/*nPRM->reg_LD_STA_Hnum  = nPRM->reg_LD_BLK_Hnum;*/
 
 	/* STA1max_Hidx */
 	nPRM->reg_LD_STA1max_Hidx[0] = 0;
 	for (k = 1; k < LD_STA_LEN_H; k++) {
 		nPRM->reg_LD_STA1max_Hidx[k] = ((nPRM->reg_LD_pic_ColMax +
-			(nPRM->reg_LD_BLK_Hnum) - 1)/(nPRM->reg_LD_BLK_Hnum))*k;
+			(nPRM->reg_LD_STA_Hnum) - 1)/(nPRM->reg_LD_STA_Hnum))*k;
 		if (nPRM->reg_LD_STA1max_Hidx[k] > 4095)
 			nPRM->reg_LD_STA1max_Hidx[k] = 4095;/* clip U12 */
 	}
@@ -915,7 +931,7 @@ void ld_fw_cfg_once(struct LDReg *nPRM)
 	nPRM->reg_LD_STA1max_Vidx[0] = 0;
 	for (k = 1; k < LD_STA_LEN_V; k++) {
 		nPRM->reg_LD_STA1max_Vidx[k] = ((nPRM->reg_LD_pic_RowMax +
-			(nPRM->reg_LD_BLK_Vnum) - 1)/(nPRM->reg_LD_BLK_Vnum))*k;
+			(nPRM->reg_LD_STA_Vnum) - 1)/(nPRM->reg_LD_STA_Vnum))*k;
 		if (nPRM->reg_LD_STA1max_Vidx[k] > 4095)
 			nPRM->reg_LD_STA1max_Vidx[k] = 4095;/* clip to U12 */
 	}

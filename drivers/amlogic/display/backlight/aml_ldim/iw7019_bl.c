@@ -26,7 +26,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
-/*#include <linux/workqueue.h>*/
 #include "iw7019_lpf.h"
 #include "iw7019_bl.h"
 #include "ldim_extern.h"
@@ -43,8 +42,6 @@
 #define IW7019_CHIPID 0x28
 
 static int test_mode = 1;
-struct tasklet_struct   ldim_tasklet;
-spinlock_t  vsync_isr_lock;
 
 struct iw7019 {
 	int en_gpio;
@@ -53,8 +50,6 @@ struct iw7019 {
 	struct class cls;
 	u8 cur_addr;
 };
-
-static struct iw7019 *iw7019_bl;
 
 static u8 iw7019_ini_data[][2] = {
 	/* step1: */
@@ -116,8 +111,6 @@ static u8 iw7019_ini_data[][2] = {
 static int test_brightness[] = {
 	0xccc, 0xccc, 0xccc, 0xccc, 0xccc, 0xccc, 0xccc, 0xccc
 };
-
-
 
 static int iw7019_rreg(struct spi_device *spi, u8 addr, u8 *val)
 {
@@ -205,22 +198,11 @@ static void iw7019_smr(struct spi_device *spi)
 	val, ARRAY_SIZE(val));
 }
 
-void iw7019_smr_spi(unsigned long data)
-{
-	iw7019_smr(iw7019_bl->spi);
-	/*LDIMPR("hello amlogic!, data[%d]\n", (int)data);*/
-}
-
 static irqreturn_t iw7019_vsync_isr(int irq, void *dev_id)
 {
-	ulong flags;
-	/*struct iw7019 *bl = (struct iw7019 *)dev_id;
-		iw7019_smr(bl->spi);*/
+	struct iw7019 *bl = (struct iw7019 *)dev_id;
 
-	spin_lock_irqsave(&vsync_isr_lock, flags);
-	tasklet_schedule(&ldim_tasklet);
-	spin_unlock_irqrestore(&vsync_isr_lock, flags);
-
+	iw7019_smr(bl->spi);
 	return IRQ_HANDLED;
 }
 
@@ -311,6 +293,8 @@ static struct class_attribute iw7019_class_attrs[] = {
 
 static int iw7019_probe(struct spi_device *spi)
 {
+	struct iw7019 *bl;
+/*	struct resource *res_irq; */
 	struct device_node *np = spi->dev.of_node;
 	int ret;
 	const char *str;
@@ -323,55 +307,50 @@ static int iw7019_probe(struct spi_device *spi)
 		if (strncmp(str, "disabled", 2) == 0)
 			return 0;
 	}
-	iw7019_bl = kzalloc(sizeof(struct iw7019), GFP_KERNEL);
-	if (iw7019_bl == NULL) {
-			pr_err("%s: malloc iw7019_bl failed\n", __func__);
-			return -ENODEV;
-		}
+	bl = kzalloc(sizeof(struct iw7019), GFP_KERNEL);
+	bl->spi = spi;
+	bl->en_gpio = of_get_named_gpio(np, "en-gpio", 0);
+	pr_err("en_gpio = %d\n", bl->en_gpio);
+	if (bl->en_gpio)
+		gpio_request(bl->en_gpio, "iw7019_en");
 
-	iw7019_bl->spi = spi;
-	iw7019_bl->en_gpio = of_get_named_gpio(np, "en-gpio", 0);
-	pr_err("en_gpio = %d\n", iw7019_bl->en_gpio);
-	if (iw7019_bl->en_gpio)
-		gpio_request(iw7019_bl->en_gpio, "iw7019_en");
-	spin_lock_init(&vsync_isr_lock);
+/*res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res_irq)
+		return -ENODEV;
+	bl->irq = res_irq->start; */
+	bl->irq = INT_VIU_VSYNC;
 
-	tasklet_init(&ldim_tasklet, iw7019_smr_spi, iw7019_bl->en_gpio);
-	iw7019_bl->irq = INT_VIU_VSYNC;
-	dev_set_drvdata(&spi->dev, iw7019_bl);
+	dev_set_drvdata(&spi->dev, bl);
 	spi->bits_per_word = 8;
 	spi->mode = SPI_MODE_0;
 	ret = spi_setup(spi);
 
 	/* init panel parameters */
-	if (iw7019_hw_init(iw7019_bl) < 0) {
+	if (iw7019_hw_init(bl) < 0) {
 		pr_err("%s: hw init failed\n", __func__);
 		return -ENODEV;
 	}
 
-	ret = request_irq(iw7019_bl->irq, &iw7019_vsync_isr,
-				IRQF_SHARED, "iw7019", (void *)iw7019_bl);
+	ret = request_irq(bl->irq, &iw7019_vsync_isr,
+				IRQF_SHARED, "iw7019", (void *)bl);
 	if (ret) {
 		pr_err("%s: request_irq error!\n", __func__);
 		return ret;
 	}
 
-	iw7019_bl->cls.name = kzalloc(10, GFP_KERNEL);
-	sprintf((char *)iw7019_bl->cls.name, "iw7019");
-	iw7019_bl->cls.class_attrs = iw7019_class_attrs;
-	ret = class_register(&iw7019_bl->cls);
+	bl->cls.name = kzalloc(10, GFP_KERNEL);
+	sprintf((char *)bl->cls.name, "iw7019");
+	bl->cls.class_attrs = iw7019_class_attrs;
+	ret = class_register(&bl->cls);
 	if (ret < 0)
 		pr_err("register class failed! (%d)\n", ret);
 
 	pr_info("%s probe ok!\n", __func__);
-
 	return ret;
 }
 
 static int iw7019_remove(struct spi_device *spi)
 {
-	/*tasklet_kill(&ldim_tasklet);
-		free_irq(INT_VIU_VSYNC, iw7019_bl->en_gpio);*/
 	/* @todo */
 	return 0;
 }
