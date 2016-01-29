@@ -5441,6 +5441,9 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		di_post_stru.buf_type = di_buf->di_buf_dup_p[0]->type;
 		initial_di_post_2(di_width, di_height, hold_line);
 
+		if ((di_buf->di_buf_dup_p[0]->vframe == NULL) ||
+			(di_buf->vframe == NULL))
+			return 0;
 		if (di_post_stru.buf_type == VFRAME_TYPE_IN &&
 		    !(di_buf->di_buf_dup_p[0]->vframe->type &
 		      VIDTYPE_VIU_FIELD)) {
@@ -5564,6 +5567,11 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 	}
 	di_post_stru.next_canvas_id = di_post_stru.canvas_id ? 0 : 1;
 #endif
+	if (di_buf->di_buf_dup_p[1] == NULL)
+		return 0;
+	if ((di_buf->di_buf_dup_p[1]->vframe == NULL) ||
+		di_buf->di_buf_dup_p[0]->vframe == NULL)
+		return 0;
 	switch (di_buf->pulldown_mode) {
 	case PULL_DOWN_BLEND_0:
 	case PULL_DOWN_NORMAL:
