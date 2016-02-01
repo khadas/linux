@@ -927,6 +927,7 @@ static ssize_t store_config(struct device *dev,
 {
 	int ret = 0;
 
+	pr_info("hdmitx: config: %s\n", buf);
 	if (strncmp(buf, "force", 5) == 0)
 		hdmitx_device.disp_switch_config = DISP_SWITCH_FORCE;
 	else if (strncmp(buf, "edid", 4) == 0)
@@ -1378,9 +1379,11 @@ static ssize_t show_hdcp_ver(struct device *dev,
 		return pos;
 	}
 	/* Detect RX support HDCP14 */
-	ver = hdcp_rd_hdcp14_ver();
 	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
-	if (1) {
+	if (ver == 0) {
+		ver = hdcp_rd_hdcp14_ver();
+		if (ver == 0)
+			pr_info("hdmitx: rx don't support HDCP14???\n");
 		pos += snprintf(buf+pos, PAGE_SIZE, "14\n\r");
 		return pos;
 	}
