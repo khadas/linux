@@ -333,6 +333,7 @@ static irqreturn_t vreal_isr(int irq, void *dev_id)
 #endif
 		vf->canvas0Addr = vf->canvas1Addr = index2canvas(buffer_index);
 		vf->orientation = 0;
+		vf->type_original = vf->type;
 
 		vfbuf_use[buffer_index] = 1;
 

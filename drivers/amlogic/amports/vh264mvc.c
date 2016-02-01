@@ -452,7 +452,7 @@ static struct vframe_s *vh264mvc_vf_get(void *op_arg)
 			}
 		}
 	}
-
+	vf->type_original = vf->type;
 	if (((vfpool_idx[get_ptr].view0_drop != 0)
 		 || (vfpool_idx[get_ptr].view1_drop != 0))
 		&& ((no_dropping_cnt >= DROPPING_FIRST_WAIT)))

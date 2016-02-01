@@ -4527,7 +4527,7 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 					hevc->params->p.conf_win_bottom_offset,
 					vf->width, vf->height);
 		}
-
+		vf->type_original = vf->type;
 		kfifo_put(&display_q, (const struct vframe_s *)vf);
 
 		vf_notify_receiver(PROVIDER_NAME,

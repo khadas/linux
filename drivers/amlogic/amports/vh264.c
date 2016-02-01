@@ -1609,6 +1609,7 @@ static void vh264_isr(void)
 				vf->pts_us64 = div64_u64(((u64)vf->pts)*100, 9);
 				vf->canvas0Addr = vf->canvas1Addr =
 					spec2canvas(&buffer_spec[buffer_index]);
+				vf->type_original = vf->type;
 				vfbuf_use[buffer_index]++;
 
 				if ((error_recovery_mode_use & 2) && error) {
@@ -1653,6 +1654,7 @@ static void vh264_isr(void)
 				vf->pts_us64 = div64_u64(((u64)vf->pts)*100, 9);
 				vf->canvas0Addr = vf->canvas1Addr =
 					spec2canvas(&buffer_spec[buffer_index]);
+				vf->type_original = vf->type;
 				vfbuf_use[buffer_index]++;
 				vf->ready_jiffies64 = jiffies_64;
 
@@ -1705,6 +1707,7 @@ static void vh264_isr(void)
 
 				vf->canvas0Addr = vf->canvas1Addr =
 					spec2canvas(&buffer_spec[buffer_index]);
+				vf->type_original = vf->type;
 				vfbuf_use[buffer_index]++;
 
 				p_last_vf = vf;

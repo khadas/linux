@@ -88,6 +88,7 @@ struct amvideocap_global_data {
 	u64 wait_max_ms;
 };
 static struct amvideocap_global_data amvideocap_gdata;
+static struct ge2d_context_s *ge2d_amvideocap_context;
 static inline struct amvideocap_global_data *getgctrl(void)
 {
 	return &amvideocap_gdata;
@@ -256,7 +257,6 @@ static ssize_t amvideocap_YUV_to_RGB(
 	int v_index = (cur_index >> 16) & 0xff;
 	int input_x, input_y, input_width, input_height, intfmt;
 	unsigned long RGB_addr;
-	struct ge2d_context_s *context = create_ge2d_work_queue();
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 	intfmt = amvideocap_get_input_format(vf);
 
@@ -308,9 +308,13 @@ static ssize_t amvideocap_YUV_to_RGB(
 	} else
 		input_height = priv->src_rect.height;
 
-	if (intfmt == GE2D_FORMAT_S16_YUV422)
-		input_height = input_height / 2;
-
+	if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu()) {
+		if (vf->type_original & VIDTYPE_INTERLACE)
+			input_height = input_height / 2;
+	} else {
+		if (intfmt == GE2D_FORMAT_S16_YUV422)
+			input_height = input_height / 2;
+	}
 	ge2d_config.alu_const_color = 0;
 	ge2d_config.bitmask_en = 0;
 	ge2d_config.src1_gb_alpha = 0;
@@ -371,12 +375,12 @@ static ssize_t amvideocap_YUV_to_RGB(
 	ge2d_config.dst_para.width = w;
 	ge2d_config.dst_para.height = h;
 
-	if (ge2d_context_config_ex(context, &ge2d_config) < 0) {
+	if (ge2d_context_config_ex(ge2d_amvideocap_context, &ge2d_config) < 0) {
 		pr_err("++ge2d configing error.\n");
 		return -1;
 	}
 
-	stretchblt_noalpha(context,
+	stretchblt_noalpha(ge2d_amvideocap_context,
 					   0,
 					   0,
 					   ge2d_config.src_para.width,
@@ -385,10 +389,6 @@ static ssize_t amvideocap_YUV_to_RGB(
 					   0,
 					   ge2d_config.dst_para.width,
 					   ge2d_config.dst_para.height);
-	if (context) {
-		destroy_ge2d_work_queue(context);
-		context = NULL;
-	}
 	if (canvas_idx)
 		canvas_pool_map_free_canvas(canvas_idx);
 	return 0;
@@ -976,6 +976,8 @@ static int __init amvideocap_init_module(void)
 {
 
 	pr_info("amvideocap_init_module\n");
+	if (ge2d_amvideocap_context == NULL)
+		ge2d_amvideocap_context = create_ge2d_work_queue();
 	if ((platform_driver_register(&amvideocap_drv))) {
 		pr_err("failed to register amstream module\n");
 		return -ENODEV;
@@ -987,6 +989,10 @@ static int __init amvideocap_init_module(void)
 static void __exit amvideocap_remove_module(void)
 {
 	platform_driver_unregister(&amvideocap_drv);
+	if (ge2d_amvideocap_context) {
+		destroy_ge2d_work_queue(ge2d_amvideocap_context);
+		ge2d_amvideocap_context = NULL;
+	}
 	pr_info("amvideocap module removed.\n");
 }
 

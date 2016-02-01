@@ -347,6 +347,7 @@ static void vavs_isr(void)
 #endif
 			vf->canvas0Addr = vf->canvas1Addr =
 				index2canvas(buffer_index);
+			vf->type_original = vf->type;
 
 			if (debug_flag & 1) {
 				pr_info("buffer_index %d, canvas addr %x\n",
@@ -395,7 +396,7 @@ static void vavs_isr(void)
 #endif
 			vf->canvas0Addr = vf->canvas1Addr =
 				index2canvas(buffer_index);
-
+			vf->type_original = vf->type;
 			vfbuf_use[buffer_index]++;
 
 			kfifo_put(&display_q,
@@ -458,7 +459,7 @@ static void vavs_isr(void)
 #endif
 			vf->canvas0Addr = vf->canvas1Addr =
 				index2canvas(buffer_index);
-
+			vf->type_original = vf->type;
 			if (debug_flag & 1) {
 				pr_info("buffer_index %d, canvas addr %x\n",
 					   buffer_index, vf->canvas0Addr);

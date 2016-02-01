@@ -457,6 +457,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 			vf->canvas0Addr = vf->canvas1Addr =
 						index2canvas(buffer_index);
 			vf->orientation = 0;
+			vf->type_original = vf->type;
 			set_aspect_ratio(vf, READ_VREG(VC1_PIC_RATIO));
 
 			vfbuf_use[buffer_index]++;
@@ -511,6 +512,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 			vf->canvas0Addr = vf->canvas1Addr =
 					index2canvas(buffer_index);
 			vf->orientation = 0;
+			vf->type_original = vf->type;
 			set_aspect_ratio(vf, READ_VREG(VC1_PIC_RATIO));
 
 			vfbuf_use[buffer_index]++;
@@ -591,6 +593,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 			vf->canvas0Addr = vf->canvas1Addr =
 						index2canvas(buffer_index);
 			vf->orientation = 0;
+			vf->type_original = vf->type;
 			set_aspect_ratio(vf, READ_VREG(VC1_PIC_RATIO));
 
 			vfbuf_use[buffer_index]++;

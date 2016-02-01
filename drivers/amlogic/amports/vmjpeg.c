@@ -201,6 +201,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			vf->pts = (pts_valid) ? pts : 0;
 			vf->pts_us64 = (pts_valid) ? pts_us64 : 0;
 			vf->orientation = 0;
+			vf->type_original = vf->type;
 			vfbuf_use[index]++;
 
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
@@ -278,7 +279,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 				vf->pts = 0;
 				vf->pts_us64 = 0;
 			}
-
+			vf->type_original = vf->type;
 			vfbuf_use[index]++;
 
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
