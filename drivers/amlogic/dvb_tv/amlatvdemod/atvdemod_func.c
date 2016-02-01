@@ -326,7 +326,7 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(0x0f, 0x3c, reg_23cf);/*zhuangwei*/
 		/*guanzhong@20150804a*/
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1);
-		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46180200);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x60180200);
 		/*dezhi@20150610a 0x1a maybe better?!*/
 		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x09, 0x19); */
 	} else {
