@@ -70,6 +70,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 {
 	static UINT32 DIF01[HISDIFNUM]; /* Last one is global */
 	static UINT32 DIF02[HISDIFNUM]; /* Last one is global */
+    /* Dif01 of 5th windows used for 2-2 */
+	static UINT32 DifW5[HISDIFNUM];
+
 
 	static struct sFlmDatSt pRDat;
 
@@ -109,6 +112,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		for (nT1 = 0; nT1 < HISDIFNUM; nT1++) {
 			DIF01[nT1] = 0;
 			DIF02[nT1] = 0;
+			DifW5[nT1] = 0;
 		}
 
 		for (nT1 = 0; nT1 < HISDETNUM; nT1++) {
@@ -143,6 +147,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	for (nT1 = 1; nT1 < HISDIFNUM; nT1++) {
 		DIF01[nT1 - 1] = DIF01[nT1];
 		DIF02[nT1 - 1] = DIF02[nT1];
+		DifW5[nT1-1]   = DifW5[nT1];
 	}
 
 	DIF01[HISDIFNUM - 1] = rROFldDif01[0];	/* 5windows+global */
@@ -157,9 +162,18 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	}
 	/* --------------------------------------------------------- */
 	/* Film-Detection */
-	FlmDetSft(&pRDat, nDIF01, nDIF02, nT0, pPar);
+	nS1 = FlmDetSft(&pRDat, nDIF01, nDIF02, nT0, pPar);
 	/* FlmDetSft((&pRGlb), nDIF01, nDIF02, nT0); */
 	/* --------------------------------------------------------- */
+
+	/* for panda 2-2 : flag 1, 3. diff01 of the 5th window*/
+	if (pRDat.pFlg22[HISDETNUM-1] & 0x1)
+		DifW5[HISDIFNUM-1] = 16*rROFldDif01[5]/(rROFldDif01[0]+1024);
+	/* for panda 2-2: VOF */
+	/* nS1 > 10  ? */
+	if (DifW5[HISDIFNUM-1] > 6)
+		nS1 = 20; /* reset the 5th window */
+    /* for panda 2-2 : flag 1, 3 */
 
 	/* Current f(t-0) with previous */
 	/* pFMReg->rCmb32Spcl =0; */
@@ -221,7 +235,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		*rFlmPstMod = 0;
 	}
 
-	nS1 = VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
+	VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
 		rPstCYWnd0, rPstCYWnd1, rPstCYWnd2, rPstCYWnd3,
 		nMod, rROCmbInf, &pRDat, pPar, nROW, nCOL);
 
@@ -253,16 +267,16 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 int FlmDetSft(struct sFlmDatSt *pRDat, int *nDif01, int *nDif02,
 	      int WND, struct sFlmSftPar *pPar)
 {
-	/* int nT0=0; */
+	int nT0 = 0;
 	/* 3-2 */
 	Flm32DetSft(pRDat, nDif02, nDif01, pPar);
 
 	/* Film2-2 Detection */
 	/* debug0304 */
-	Flm22DetSft(pRDat, nDif01, pPar);
+	nT0 = Flm22DetSft(pRDat, nDif02, nDif01, pPar);
 	/* ---------------------------------------- */
 
-	return 0;
+	return nT0;
 }
 
 /* pFlm02[0:nLEN-1] : recursive, 0-2 dif */
@@ -317,6 +331,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 	int nFlgChk1 = 0;
 	int nFlgChk2 = 0;
+	int nFlgChk3 = 0; /* for Mit32VHLine */
 
 	/* ---------------------------------- */
 	/* Get min/max from the last fives */
@@ -347,16 +362,35 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	nAV1 = (sFrmDifAvgRat * nAV11 + (32 - sFrmDifAvgRat) * nAV12);
 	nAV1 = ((nAV1 + 16) >> 5);
 
+	/* for Mit32VHLine */
+	if (nDif02[HISDIFNUM-1] > nDif02[HISDIFNUM-6])
+		nFlgChk1 = nDif02[HISDIFNUM-1] - nDif02[HISDIFNUM-6];
+	else
+		nFlgChk1 = nDif02[HISDIFNUM-6] - nDif02[HISDIFNUM-1];
+
+	/* if (pFlg32[HISDETNUM-1] == 4) { */
+	/* B-B A-A-A X-Y-Z */
+	/* ---------=>Sceen changed */
+	if (pFlg32[HISDETNUM-1] == 4 || pFlg32[HISDETNUM-1] == 5) {
+		nFlgChk3 = nFlgChk1;
+		for (nT0 = 2; nT0 <= 5; nT0++) {
+			nFlgChk2 = nDif02[HISDIFNUM-nT0]
+					- nDif02[HISDIFNUM-nT0-5];
+			if (nFlgChk2 < 0)
+				nFlgChk2 = -nFlgChk2;
+
+			/* 5-loop: maximum */
+			if (nFlgChk2 > nFlgChk3)
+				nFlgChk3 = nFlgChk2;
+		}
+		nFlgChk3 = 16 * nFlgChk3 / nAV1;
+	} else
+		nFlgChk3 = 255;
+	/* for Mit32VHLine */
+
 	if (pFlg32[HISDETNUM - 1] == 2 || pFlg32[HISDETNUM - 1] == 4
 		|| pFlg32[HISDETNUM - 1] == 3) {
 		/* ========================================== */
-		if (nDif02[HISDIFNUM - 1] > nDif02[HISDIFNUM - 6])
-			nFlgChk1 =
-			    nDif02[HISDIFNUM - 1] - nDif02[HISDIFNUM - 6];
-		else
-			nFlgChk1 =
-			    nDif02[HISDIFNUM - 6] - nDif02[HISDIFNUM - 1];
-
 		if (nDif02[HISDIFNUM - 2] > nDif02[HISDIFNUM - 7])
 			nFlgChk2 =
 			    nDif02[HISDIFNUM - 2] - nDif02[HISDIFNUM - 7];
@@ -387,6 +421,9 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 		if (pr_pd & 8) /* flag check */
 			pr_info("\tnFlgChk1/2=(%2d,%2d)\n", nFlgChk1, nFlgChk2);
+	} else {
+		nFlgChk1 = 0;
+		nFlgChk2 = 0;
 	}
 	/* ============================================= */
 
@@ -526,7 +563,10 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	/* the next should be 1 and 3 */
 	/* dif02(flg=2 vs 1) almost same */
 	/* dif02(flg=4 vs 3) almost same */
-	if (nFlgChk1 > 25 || nFlgChk2 > 16) {
+	/* nFlgChk3: for Mit32VHLine */
+	/* last: for sceen change */
+	if ((nFlgChk1 > 25 && nFlgChk3 > 8) || nFlgChk2 > 16
+		|| (pFlg32[HISDETNUM-1] == 4 && nFlgChk3 > 16)) {
 		pRDat->pMod32[HISDETNUM - 1] = 0;
 		pRDat->pFlg32[HISDETNUM - 1] = 0;
 	}
@@ -624,7 +664,7 @@ int Cal32Flm01(UINT8 *pFlm01, int *nDif01, int iDx,
 		if (nSP < dDif05[nT0])
 			nSP = dDif05[nT0]; /* maximum */
 	}
-	if (nSP <= 1) {
+	if (nSP <= 3) {
 		if (iDx == 2) {
 			pFlm01[HISDETNUM-1] = 16;
 			pFlm01[HISDETNUM-2] = 0;
@@ -749,14 +789,15 @@ int Flm32DetSub1(struct sFlmDatSt *pRDat, UINT8 *nFlg12, UINT8 *pFlm02t,
 }
 
 /* Film2-2 Detection */
-int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif01,
-			struct sFlmSftPar *pPar)
+int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
+			int *nDif01, struct sFlmSftPar *pPar)
 {
 	UINT8 *pFlg = pRDat->pFlg22;
 	UINT8 *pMod = pRDat->pMod22;
 
 	UINT8 *pStp = pRDat->pStp22;
 	UINT8 *pSmp = pRDat->pSmp22;
+	UINT8 *mNum22 = pRDat->mNum22;
 
 	int sFlm2MinAlpha = pPar->sFlm2MinAlpha;	/* 32; // [0~63] */
 	int sFlm2MinBelta = pPar->sFlm2MinBelta;	/* 32; // [0~63] */
@@ -793,12 +834,79 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif01,
 
 	int FdTg[6];
 
+	int nFlgChk1 = 0; /* chk1 */
+	int nFlgCk20 = 0; /* chk2-0 */
+	int nFlgCk21 = 0; /* chk2-1 */
+	int nFlgChk3 = 0; /* chk3 */
+	int nFlgChk4 = 0; /* chk4 */
+
+	static UINT8 nCk20Cnt;
+	static UINT8 nCk21Cnt;
+	/* check 2-2: for panda sequence */
+	static UINT8 nCk22Flg[HISDETNUM];
+	static UINT8 nCk22Cnt;
+
 	for (nT0 = 0; nT0 < HISDETNUM - 1; nT0++) {
 		pFlg[nT0] = pFlg[nT0 + 1];
 		pMod[nT0] = pMod[nT0 + 1];
 		pStp[nT0] = pStp[nT0 + 1];
 		pSmp[nT0] = pSmp[nT0 + 1];
+		nCk22Flg[nT0] = nCk22Flg[nT0+1];
 	}
+
+
+
+	/* ========== check1/3 2-2 mode  ========== */
+	/* |dif02(t-1) - dif02(t-0)| => should be small */
+	/* |dif01(t-1) - (dif01(t)+dif02(t))| => should be small */
+	nFlgChk1 = 0;
+	nFlgChk3 = 0;
+	nAV20 = 0;
+	if (pFlg[HISDETNUM-1] == 0) {
+		nFlgChk1 = 255;
+		nFlgChk3 = 255;
+		nFlgChk4 = 0;
+		nCk22Cnt = 0;
+	} else if (pFlg[HISDETNUM-1] == 2
+			|| pFlg[HISDETNUM-1] == 4) {
+		for (nT0 = 1; nT0 <= 7; nT0 = nT0+2) {
+			if (nDif02[HISDIFNUM-nT0] > nDif02[HISDIFNUM-nT0-1]) {
+				nOfst = nDif02[HISDIFNUM-nT0]
+					- nDif02[HISDIFNUM-nT0-1];
+				nAV20 = nAV20 + nDif02[HISDIFNUM-nT0-1];
+			} else {
+				nOfst = nDif02[HISDIFNUM-nT0-1]
+					- nDif02[HISDIFNUM-nT0];
+				nAV20 = nAV20 + nDif02[HISDIFNUM-nT0];
+			}
+
+			/* maximum */
+			if (nOfst > nFlgChk1)
+				nFlgChk1 = nOfst;
+
+			tMgn = nDif02[HISDIFNUM-nT0]+nDif01[HISDIFNUM-nT0];
+			if (tMgn > nDif01[HISDIFNUM-nT0-1])
+				BtMn = tMgn - nDif01[HISDIFNUM-nT0-1];
+			else
+				BtMn = nDif01[HISDIFNUM-nT0-1] - tMgn;
+
+			if (BtMn > nFlgChk3)
+				nFlgChk3 = BtMn;
+
+		}
+		nAV20 = nAV20>>2;
+		nFlgChk1 = 16*nFlgChk1/(nAV20+1024);
+		nFlgChk3 = 16*nFlgChk3/(nAV20+1024);
+	} else {
+		nFlgChk1 = 0;
+		nFlgChk3 = 0;
+
+		for (nT0 = 1; nT0 <= 8; nT0 = nT0 + 2) {
+			if (nDif02[HISDIFNUM-nT0] > nDif01[HISDIFNUM-nT0])
+				nFlgChk4++;
+		}
+	}
+	/* ========== check1/3 2-2 mode  ========== */
 
 	for (nT0 = 2; nT0 <= 4; nT0++) {
 		nT1 = nDif01[HISDIFNUM - nT0];
@@ -832,6 +940,41 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif01,
 	nAV22 = (nSM22 + nL22 / 2) / nL22;	/* Low average */
 	nOfst = nAV21 - nAV22;
 
+	/* ========== check2 2-2 mode  ========== */
+	/* |dif01(t-0) - dif01(t-2)| => should be small */
+	/* |dif01(t-0) - dif01(t-4)| => should be small */
+	nFlgCk20 = 0;
+	nFlgCk21 = 0;
+	for (nT0 = 1; nT0 <= 4; nT0++) {
+		nOfst = nDif01[HISDIFNUM-nT0] - nDif01[HISDIFNUM-nT0-2];
+		if (nOfst < 0)
+			nOfst = -nOfst;
+		if (nOfst > nFlgCk20) /* maximum */
+			nFlgCk20 = nOfst;
+
+		nOfst = nDif01[HISDIFNUM-nT0] - nDif01[HISDIFNUM-nT0-4];
+		if (nOfst < 0)
+			nOfst = -nOfst;
+		if (nOfst > nFlgCk21) /* maximum */
+			nFlgCk21 = nOfst;
+	}
+	nFlgCk20 = 16*nFlgCk20/(nAV22+1024);
+	nFlgCk21 = 16*nFlgCk21/(nAV22+1024);
+
+	if (nFlgCk20 < 6) {
+		if (nCk20Cnt < 255)
+			nCk20Cnt++;
+	} else
+		nCk20Cnt = 0;
+
+	if (nFlgCk21 < 6) {
+		if (nCk21Cnt < 255)
+			nCk21Cnt++;
+	} else
+		nCk21Cnt = 0;
+
+	/* ========== check2 2-2 mode  ========== */
+
 	/* ------------------------------ */
 	/* Max or min of (5/6) */
 	if (nDif01[HISDIFNUM - 1] > nDif01[HISDIFNUM - 2]) {
@@ -856,21 +999,26 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif01,
 		sFlm2MinBelta = sFlm2MinBelta - ((CNT0 * 36 + 8) >> 4);
 	}
 
-	nT0 = sFlm2MinAlpha * Mn56 + sFlm20ftAlpha * nOfst;
-	tMgn = ((nT0 + 16) >> 5);
+		/* water girl: part-2 */
+	if (nCk21Cnt < 10) {
+		nT0 = sFlm2MinAlpha*Mn56+sFlm20ftAlpha*nOfst;
+		tMgn = ((nT0+16)>>5);
 
-	nT1 = sFlm2MinBelta * Mn56;
-	BtMn = ((nT1 + 32) >> 6);
+		nT1 = sFlm2MinBelta*Mn56;
+		BtMn = ((nT1+32)>>6);
 
-	/* ----------------------------------- */
-	/* int *pStp = pRDat->pStp22; */
-	/* int *pSmp = pRDat->pSmp22; */
-	nT0 = 16 * (Mx56 - tMgn) + (BtMn + sFlm2LgDifThd) / 2;
-	nT1 = nT0 / (BtMn + sFlm2LgDifThd);
-	if (nT1 > 16)
+		/* ----------------------------------- */
+		/* int *pStp = pRDat->pStp22; */
+		/* int *pSmp = pRDat->pSmp22; */
+		nT0 = 16*(Mx56-tMgn) + (BtMn+sFlm2LgDifThd)/2;
+		nT1 = nT0/(BtMn+sFlm2LgDifThd);
+		if (nT1 > 16)
+			nT1 = 16;
+		else if (nT1 < 0)
+			nT1 = 0;
+	} else {
 		nT1 = 16;
-	else if (nT1 < 0)
-		nT1 = 0;
+	}
 
 	pStp[HISDETNUM - 1] = nT1;
 	if (Mx56 == nDif01[HISDIFNUM - 1])
@@ -926,5 +1074,59 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif01,
 	pMod[HISDETNUM - 1] = nT1;
 	/* ----------------------------------- */
 
-	return 0;
+	/* ========== check2 2-2 mode  ========== */
+
+	/* No check mode */
+	/* 2-2 but with combing: force dejaggies */
+	/* return information */
+	nT0 = 0;
+	if (nFlgChk1 > 3)
+		nT0 = 11;
+
+	else if (nCk20Cnt < 10 && nCk21Cnt < 10)
+		nT0 = 12;
+	else if (nFlgChk3 > 12)
+		nT0 = 13;
+	else if (nFlgChk4 > 0)
+		nT0 = 14;
+
+	/* for sony-mp3 */
+	if (nFlgChk1 > 32 || nFlgChk4 > 80)
+		mNum22[HISDETNUM-1] = 0;
+	/* for sony-mp3 */
+
+
+	/* for panda */
+	/* check bug */
+	if (pFlg[HISDETNUM-1] & 0x1) {
+		nCk22Flg[HISDETNUM-1] = nT0;
+
+		if (nT0 == 0)
+			nCk22Cnt = nCk22Cnt+1;
+		else
+			nCk22Cnt = 0;
+
+		if (nCk22Cnt > 254)
+			nCk22Cnt = 254;
+	}
+
+	/* debug 2-2 mode */
+	/* if(pr_pd && (nT0 != 0) && pFlg[HISDETNUM-1]!=0) { */
+	if (pr_pd && (pFlg[HISDETNUM-1] & 0x1)) {
+		if (nT0 != 0) {
+			pr_info("2-2: nCk1/3/4=(%2d,%2d,%2d)\n",
+				nFlgChk1, nFlgChk3, nFlgChk4);
+			pr_info("2-2: nCk20/1Cnt=(%2d,%2d)\n",
+				nCk20Cnt, nCk21Cnt);
+			pr_info("2-2: nT0=(%d)\n", nT0);
+		} else if (nCk22Flg[HISDETNUM-2] != 0)
+			pr_info("2-2: nCk22Flg 1==>0\n");
+	}
+
+	/* panda */
+	if (pFlg[HISDETNUM-1] && nCk22Cnt < 20)
+		nT0 = 15;
+	/* ========== check2 2-2 mode  ========== */
+
+	return nT0;
 }

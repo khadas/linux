@@ -19,6 +19,15 @@ unsigned int RDMA_WR_BITS(unsigned int adr, unsigned int val,
 unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 		unsigned int len);
 
+#define SRSHARP0_SHARP_SR2_CTRL     ((0x3257)) /* << 2) + 0xd0100000) */
+/* Bit 24,  sr2_dejaggy_en  */
+
+#define SRSHARP0_SHARP_DEJ2_MISC    ((0x3263)) /* << 2) + 0xd0100000) */
+/* Bit 3 sr2_dejaggy2_alpha_force,
+force enable of the alpha for dejaggy2 */
+/* Bit 2: 0	sr2_dejaggy2_alpha_value,
+  forced value of alpha for dejaggy2     */
+
 #define SRSHARP0_SHARP_DEJ2_PRC     ((0x3261)) /* << 2) + 0xd0100000) */
 /* Bit 31:24,  reg_dejaggy2_hcon_thrd             : .
 unsigned, default =5,hcon threshold, only pixels with hcon equal or
@@ -1370,6 +1379,7 @@ gain to CurDif to map to alpha, normalized to 32; */
 /* bit 29				nrwr_rev_y */
 /* bit 28:16				nrwr_start_y */
 /* bit 15				nrwr_ext_en */
+/* bit 14		Nrwr bit10 mode */
 /* bit 12:0				nrwr_end_y */
 #define DI_NRWR_CTRL                     ((0x17c2)) /* << 2) + 0xd0100000) */
 /* bit 31				pending_ddr_wrrsp_diwr */
@@ -1491,12 +1501,16 @@ gain to CurDif to map to alpha, normalized to 32; */
 
 #define VD1_IF0_GEN_REG3                0x1aa7
 		/* 0xd0106a9c */
+/*bit9:8	bit mode: 0 = 8bits, 1=10bits 422,  2 = 10bits 444 */
 #define DI_IF1_GEN_REG3                 0x20a7
 		/* 0xd010829c */
+/*bit9:8	bit mode: 0 = 8bits, 1=10bits 422,  2 = 10bits 444 */
 #define DI_INP_GEN_REG3                 0x20a8
 		/* 0xd01082a0 */
+/*bit9:8	bit mode: 0 = 8bits, 1=10bits 422,  2 = 10bits 444 */
 #define DI_MEM_GEN_REG3                 0x20a9
 		/* 0xd01082a4 */
+/*bit9:8	bit mode: 0 = 8bits, 1=10bits 422,  2 = 10bits 444 */
 #define DI_CHAN2_GEN_REG3               0x20aa
 		/* 0xd01082a8 */
 /* dnr  Base Addr: 0xd0100000 */

@@ -1053,7 +1053,7 @@ static ssize_t pd_param_show(struct device *dev,
 	len += sprintf(buff + len, "rFlmPstGCm=%u.\n", dectres.rFlmPstGCm);
 	len += sprintf(buff + len, "rFlmSltPre=%u.\n", dectres.rFlmSltPre);
 	len += sprintf(buff + len, "rFlmPstMod=%d.\n", dectres.rFlmPstMod);
-
+	len += sprintf(buff + len, "rF22Flag=%d.\n", dectres.rF22Flag);
 	return len;
 }
 
@@ -3781,6 +3781,7 @@ static void pre_de_done_buf_config(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 	bool dynamic_flag = false;
+	int hHeight = di_pre_stru.di_nrwr_mif.end_y;
 
 	if (di_pre_stru.di_wr_buf) {
 		if (di_pre_stru.pre_throw_flag > 0) {
@@ -3817,7 +3818,8 @@ static void pre_de_done_buf_config(void)
 			if (pulldown_enable) {
 				/* read_new_pulldown_info(&flmreg); */
 				if (pldn_calc_en == 1) {
-					FlmVOFSftTop(&(dectres.rCmb32Spcl),
+					dectres.rF22Flag = FlmVOFSftTop(
+						&(dectres.rCmb32Spcl),
 						dectres.rPstCYWnd0,
 						dectres.rPstCYWnd1,
 						dectres.rPstCYWnd2,
@@ -3829,8 +3831,7 @@ static void pre_de_done_buf_config(void)
 						flmreg.rROFldDif01,
 						flmreg.rROFrmDif02,
 						flmreg.rROCmbInf, &pd_param,
-						di_pre_stru.di_nrwr_mif.end_y +
-						1,
+						hHeight + 1,
 						di_pre_stru.di_nrwr_mif.end_x +
 						1);
 				}
@@ -3862,10 +3863,11 @@ static void pre_de_done_buf_config(void)
 				di_pre_stru.di_post_wr_buf->reg3_bmode = 0;
 			}
 
-			if (pulldown_enable == 1
-			&& dectres.rFlmPstMod != 0
-			&& di_pre_stru.di_post_wr_buf) {
-				if (pldn_mod == 0 && dectres.rFlmPstGCm == 0) {
+			if (pulldown_enable == 1 && dectres.rFlmPstMod != 0
+				&& di_pre_stru.di_post_wr_buf) {
+				/* 2-2 force */
+				if (pldn_mod == 0 && (dectres.rFlmPstMod == 1 ||
+					dectres.rFlmPstGCm == 0)) {
 					if (dectres.rFlmSltPre == 1)
 						di_pre_stru.di_post_wr_buf
 						->pulldown_mode =
@@ -3919,9 +3921,35 @@ static void pre_de_done_buf_config(void)
 						dectres.rPstCYWnd2[2];
 					di_pre_stru.di_post_wr_buf->reg3_bmode =
 						dectres.rPstCYWnd3[2];
+				} else if (dectres.rF22Flag > 1 &&
+					dectres.rFlmPstMod == 1 &&
+					pldn_cmb0 == 1) {
+					di_pre_stru.di_post_wr_buf->reg0_s =
+						dectres.rF22Flag == 20 ?
+						(hHeight - (hHeight>>3)) : 0;
+
+					di_pre_stru.di_post_wr_buf->reg0_e =
+						di_pre_stru.di_nrwr_mif.end_y;
+
+					/* 3: normal di-mode */
+					di_pre_stru.di_post_wr_buf->reg0_bmode
+						= 3;
+
+					RDMA_WR_BITS(SRSHARP0_SHARP_SR2_CTRL,
+						1, 4, 1);
+					RDMA_WR_BITS(SRSHARP0_SHARP_DEJ2_MISC,
+						0xc, 0, 4);
+					RDMA_WR_BITS(SRSHARP0_SHARP_DEJ1_MISC,
+						0xc, 0, 4);
+
+					if (pr_pd) {
+						pr_info("force dejaggies=[%3d ~ %3d]\n",
+					di_pre_stru.di_post_wr_buf->reg0_s,
+					di_pre_stru.di_post_wr_buf->reg0_e);
+					}
 				} else if (dectres.rFlmPstGCm == 0
-					   && pldn_cmb0 > 1
-					   && pldn_cmb0 <= 5) {
+					&& pldn_cmb0 > 1
+					&& pldn_cmb0 <= 5) {
 					di_pre_stru.di_post_wr_buf->reg0_s =
 						dectres.rPstCYWnd0[0];
 					di_pre_stru.di_post_wr_buf->reg0_e =

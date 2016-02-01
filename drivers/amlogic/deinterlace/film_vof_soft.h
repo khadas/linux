@@ -103,6 +103,7 @@ struct FlmDectRes {
 	UShort rPstCYWnd2[3];
 	UShort rPstCYWnd3[3];
 	UShort rPstCYWnd4[3];
+	UShort rF22Flag;
 };
 
 UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar);
@@ -141,8 +142,8 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02, int *nDif01,
 		struct sFlmSftPar *pPar);
 
 /* Film2-2 Detection */
-int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif01,
-			struct sFlmSftPar *pPar);
+int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
+			int *nDif01, struct sFlmSftPar *pPar);
 
 /* length: [0:5] */
 /* MIX: [1~5] */

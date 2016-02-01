@@ -19,6 +19,8 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	static UINT8 BGN;
 	static UINT8 frmNoCmb; /* counter from No combing */
 	static UINT8 CmbFlds;  /* counter of combing field */
+	static UINT8 NumSmFd;  /* counter for same field */
+
 	int mDly = pPar->mPstDlyPre;
 
 	/* UINT8 *PREWV = pRDat.pFlg32; or pRDat.pFlg22 */
@@ -76,14 +78,17 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		TCNm[nT0 - 1] = TCNm[nT0];
 	}
 
-	/* static int CWND[6][10]; //6-history, 10-5Wnd(bgn/end) */
+	/* static int CWND[6][10]; */
+    /* 6-history, 10-5Wnd(bgn/end) */
 	for (nT0 = 0; nT0 < HISDETNUM - 1; nT0++) {
 		for (nT1 = 0; nT1 < 2 * VOFWNDNUM; nT1++)
 			CWND[nT0][nT1] = CWND[nT0 + 1][nT1];
 	}
 
-	for (nT1 = 0; nT1 < 2 * VOFWNDNUM; nT1++)
+	for (nT1 = 0; nT1 < 2 * VOFWNDNUM; nT1++) {
 		CWND[HISDETNUM - 1][nT1] = 0;/* f(t-0) vs f(t-1) */
+		VOFWnd[nT1] = 0; /* initialization */
+	}
 
 	/* nS0 = 0; */
 	nCSum = 0;
@@ -139,7 +144,7 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		nWCmb = 0;
 		nBCmb = 0;
 		for (nT0 = 0; nT0 < nT1; nT0++) {
-			if (VOFWnd[2 * nT0] > nROW / 2) {
+			if (VOFWnd[2 * nT0] > (3*nROW >> 2)) {
 				/* window expand to +-4 */
 				/* can be set as param */
 				CWND[HISDETNUM - 1][2 * nT0]
@@ -148,13 +153,26 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 					VOFWnd[2 * nT0 + 1] + 4;
 
 				nBCmb = VOFWnd[2*nT0+1]-VOFWnd[2*nT0]+1;
+				/* patch for MIT32Mix ending vof */
+				if ((CWND[4][2*nT0] < CWND[5][2*nT0]+4) &&
+				(CWND[5][2*nT0] < CWND[4][2*nT0]+4) &&
+				(CWND[4][2*nT0+1] < CWND[5][2*nT0+1]+4) &&
+				(CWND[5][2*nT0+1] < CWND[4][2*nT0+1]+4)) {
+					if (CWND[4][2*nT0] < CWND[5][2*nT0])
+						CWND[5][2*nT0] = CWND[4][2*nT0];
+
+					if (CWND[4][2*nT0+1] > CWND[5][2*nT0+1])
+						CWND[5][2*nT0+1]
+						= CWND[4][2*nT0+1];
+				}
+				/* patch for MIT32Mix ending vof */
 			}
 			nWCmb += VOFWnd[2*nT0+1]-VOFWnd[2*nT0]+1;
 		}
 
 		/* VOF using last ones */
 		if (nBCmb == 0) {
-			if (frmNoCmb > 30)
+			if (frmNoCmb > 40 || DIF02[0] < 1024)
 				CmbFlds = 0;
 
 			if (frmNoCmb < 255)
@@ -172,11 +190,18 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 
 		/* parameter setting */
 		/* if (nBCmb==0 && frmNoCmb<10 && CmbFlds>10) */
-		if (nBCmb == 0 && frmNoCmb < 30 && CmbFlds > 5) {
+		if (nBCmb == 0 && frmNoCmb < 40 && CmbFlds > 5
+			&& DIF02[0] > 1024) {
 			for (nT0 = 0; nT0 < 2*VOFWNDNUM; nT0++)
 				CWND[HISDETNUM-1][nT0] = CWND[HISDETNUM-2][nT0];
 		}
 		/* VOF using last ones */
+		/* patch for cadence-32 */
+		if (NumSmFd > 4 && mNum32[HISDETNUM-1] > 20) {
+			for (nT0 = 0; nT0 < 2*VOFWNDNUM; nT0++)
+				CWND[HISDETNUM-1][nT0] = 0;
+		}
+		/* patch for cadence-32 */
 
 		/* here can set as parameters */
 		/* circus's not good if following is on */
@@ -195,6 +220,14 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 				mNum32[HISDETNUM-1] = 0;
 			}
 			*/
+			/* patch for cadence-32 */
+			if (DIF02[0] < 1024) {
+				if (NumSmFd < 255)
+					NumSmFd = NumSmFd+1;
+			} else {
+				NumSmFd = 0;
+			}
+			/* patch for cadence-32 */
 
 			/* 256/16 = 16 */
 			/* 64/16  = 4 for 8-bit */
@@ -227,11 +260,11 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 
 		/* return: the number of windows */
 		nT1 = VOFDetSub1(VOFWnd, &nCSum, 2, nRCmbAd, nROW, pPar);
-		for (nT0 = 0; nT0 < nT1; nT0++)
-			if (VOFWnd[2*nT0] > nROW/2) {
-				CWND[HISDETNUM-1][2*nT0]   = VOFWnd[2*nT0];
-				CWND[HISDETNUM-1][2*nT0+1] = VOFWnd[2*nT0+1];
-			}
+		for (nT0 = 0; nT0 < nT1; nT0++) {
+			/* window used for dejaggies */
+			CWND[HISDETNUM-1][2*nT0]   = VOFWnd[2*nT0];
+			CWND[HISDETNUM-1][2*nT0+1] = VOFWnd[2*nT0+1];
+		}
 	}
 
 	/* film-mode: pMod22[5-mDly] or pMod32[5-mDly] */
