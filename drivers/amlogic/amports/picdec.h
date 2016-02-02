@@ -59,6 +59,9 @@ struct picdec_device_s {
 	int disp_height;
 	int frame_render;
 	int frame_post;
+	int target_width;
+	int target_height;
+	int p2p_mode;
 	struct ge2d_context_s *context;
 	int cur_index;
 	int use_reserved;

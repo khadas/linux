@@ -71,6 +71,7 @@
 /*class property info.*/
 /* #include "picdeccls.h" */
 static int debug_flag;
+static int p2p_mode = 1;
 /* #define MM_ALLOC_SIZE 48*SZ_1M */
 #define NO_TASK_MODE
 
@@ -300,6 +301,9 @@ static int render_frame(struct ge2d_context_s *context,
 
 	unsigned long time_use = 0;
 
+	struct picdec_device_s *dev =  &picdec_device;
+	struct source_input_s *input = &picdec_input;
+
 	do_gettimeofday(&start);
 
 	index = get_unused_picdec_index();
@@ -312,15 +316,49 @@ static int render_frame(struct ge2d_context_s *context,
 		index = fill_ptr;
 
 	}
-
-	/* pr_info("render buffer index is %d!!!!!\n", index); */
+	dev->p2p_mode = p2p_mode;
+	switch (dev->p2p_mode) {
+	case 0:
+		if ((input->frame_width < dev->disp_width) &&
+(input->frame_height < dev->disp_width)) {
+			dev->target_width  = input->frame_width;
+			dev->target_height = input->frame_height;
+		} else {
+			dev->target_width  = dev->disp_width;
+			dev->target_height = dev->disp_height;
+		}
+		break;
+	case 1:
+		if ((input->frame_width >=  1280) &&
+			(input->frame_height >= 720)) {
+			if ((input->frame_width < dev->disp_width) &&
+(input->frame_height < dev->disp_width)) {
+				dev->target_width  = input->frame_width;
+				dev->target_height = input->frame_height;
+			} else {
+				dev->target_width  = dev->disp_width;
+				dev->target_height = dev->disp_height;
+			}
+		} else {
+			dev->target_width  = dev->disp_width;
+			dev->target_height = dev->disp_height;
+		}
+		break;
+	case 2:
+	default:
+		dev->target_width  = dev->disp_width;
+		dev->target_height = dev->disp_height;
+		break;
+	}
+	aml_pr_info(1, "p2p_mode :%d ----render buffer index is %d\n",
+dev->p2p_mode, index);
+	aml_pr_info(1, "render target width: %d ; target height: %d\n",
+dev->target_width, dev->target_height);
 	new_vf = &vfpool[fill_ptr];
-
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
 
-	new_vf->width = picdec_device.disp_width;
-
-	new_vf->height = picdec_device.disp_height;
+	new_vf->width =  dev->target_width;
+	new_vf->height = dev->target_height;
 
 	new_vf->type =
 		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21
@@ -368,7 +406,8 @@ static int render_frame_block(void)
 	struct config_para_ex_s ge2d_config;
 
 	struct ge2d_context_s *context = picdec_device.context;
-
+	struct picdec_device_s	*dev =  &picdec_device;
+	struct source_input_s	*input = &picdec_input;
 	do_gettimeofday(&start);
 
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -383,15 +422,50 @@ static int render_frame_block(void)
 		index = fill_ptr;
 
 	}
-
-	aml_pr_info(1, "render buffer index is %d$$$$$$$$$$$$$$$\n", index);
+	dev->p2p_mode = p2p_mode;
+	switch (dev->p2p_mode) {
+	case 0:
+		if ((input->frame_width < dev->disp_width) &&
+(input->frame_height < dev->disp_width)) {
+			dev->target_width  = input->frame_width;
+			dev->target_height = input->frame_height;
+		} else {
+			dev->target_width  = dev->disp_width;
+			dev->target_height = dev->disp_height;
+		}
+		break;
+	case 1:
+		if ((input->frame_width >=  1280) &&
+			(input->frame_height >= 720)) {
+			if ((input->frame_width < dev->disp_width) &&
+(input->frame_height < dev->disp_width)) {
+				dev->target_width  = input->frame_width;
+				dev->target_height = input->frame_height;
+			} else {
+				dev->target_width  = dev->disp_width;
+				dev->target_height = dev->disp_height;
+			}
+		} else {
+			dev->target_width  = dev->disp_width;
+			dev->target_height = dev->disp_height;
+		}
+		break;
+	case 2:
+	default:
+		dev->target_width  = dev->disp_width;
+		dev->target_height = dev->disp_height;
+		break;
+	}
+	aml_pr_info(1, "p2p_mode :%d ----render buffer index is %d\n",
+dev->p2p_mode , index);
+	aml_pr_info(1, "render target width: %d ; target height: %d\n",
+dev->target_width , dev->target_height);
 	new_vf = &vfpool[fill_ptr];
 
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(index);
 
-	new_vf->width = picdec_device.disp_width;
-
-	new_vf->height = picdec_device.disp_height;
+	new_vf->width = picdec_device.target_width;
+	new_vf->height = picdec_device.target_height;
 
 	new_vf->type =
 		VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21
@@ -945,10 +1019,8 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.top = 0;
 
 	ge2d_config->dst_para.left = 0;
-
-	ge2d_config->dst_para.width = picdec_device.disp_width;
-
-	ge2d_config->dst_para.height = picdec_device.disp_height;
+	ge2d_config->dst_para.width = picdec_device.target_width;
+	ge2d_config->dst_para.height = picdec_device.target_height;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 
@@ -962,9 +1034,8 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	dst_left = 0;
 
-	dst_width = picdec_device.disp_width;
-
-	dst_height = picdec_device.disp_height;
+	dst_width =  picdec_device.target_width;
+	dst_height = picdec_device.target_height;
 
 	stretchblt_noalpha(context, 0, 0, 640, 480, dst_left, dst_top,
 					   dst_width, dst_height);
@@ -1402,17 +1473,38 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	dst_left = 0;
 
-	dst_width = picdec_device.disp_width;
-
-	dst_height = picdec_device.disp_height;
+	dst_width =  picdec_device.target_width;
+	dst_height = picdec_device.target_height;
 
 	rotate_adjust(frame_width, frame_height, &dst_width, &dst_height,
 				  picdec_input.rotate);
-
-	dst_left = (picdec_device.disp_width - dst_width) >> 1;
-
-	dst_top = (picdec_device.disp_height - dst_height) >> 1;
-
+	dst_width  = (dst_width + 0x1) & ~0x1;
+	dst_height = (dst_height + 0x1) & ~0x1;
+	switch (picdec_device.p2p_mode) {
+	case 0:
+		dst_left = 0;
+		dst_top = 0;
+		vf->width  = dst_width;
+		vf->height = dst_height;
+		break;
+	case 1:
+		if ((picdec_input.frame_width >=  1280) &&
+		(picdec_input.frame_height >= 720)) {
+			dst_left = 0;
+			dst_top = 0;
+			vf->width  = dst_width;
+			vf->height = dst_height;
+		} else {
+			dst_left = (picdec_device.disp_width - dst_width) >> 1;
+			dst_top = (picdec_device.disp_height - dst_height) >> 1;
+		}
+		break;
+	case 2:
+	default:
+		dst_left = (picdec_device.disp_width - dst_width) >> 1;
+		dst_top = (picdec_device.disp_height - dst_height) >> 1;
+		break;
+	}
 	stretchblt_noalpha(context, 0, 0, frame_width, frame_height,
 			dst_left, dst_top, dst_width, dst_height);
 
@@ -2279,6 +2371,7 @@ static int picdec_driver_probe(struct platform_device *pdev)
 	picdec_device.cma_mode = 1;
 	picdec_device.pdev = pdev;
 	init_picdec_device();
+	picdec_device.p2p_mode = 0;
 	return r;
 
 	/* char *buf_start; */
@@ -2384,6 +2477,10 @@ module_exit(picdec_remove_module);
 RESERVEDMEM_OF_DECLARE(picdec, "amlogic, picdec_memory", picdec_mem_setup);
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
 module_param(debug_flag, uint, 0664);
+
+module_param(p2p_mode, uint, 0664);
+MODULE_PARM_DESC(p2p_mode, "\n picdec zoom mode\n");
+
 
 MODULE_DESCRIPTION("Amlogic picture decoder driver");
 MODULE_LICENSE("GPL");
