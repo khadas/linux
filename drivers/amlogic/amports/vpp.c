@@ -1441,16 +1441,6 @@ static void vpp_set_scaler(u32 src_width,
 	if (width_out > SUPER_CORE1_WIDTH_MAX*2)
 		next_frame_par->supsc1_enable = 0;
 
-	if (hor_sc_multiple_num >= 2) {
-		next_frame_par->supsc0_hori_ratio =
-			next_frame_par->supsc0_enable ? 1 : 0;
-		next_frame_par->supsc1_hori_ratio =
-			next_frame_par->supsc1_enable ? 1 : 0;
-	} else {
-		next_frame_par->supsc0_hori_ratio = 0;
-		next_frame_par->supsc1_hori_ratio = 0;
-	}
-
 	if (ver_sc_multiple_num >= 2) {
 		if (src_width > SUPER_CORE0_WIDTH_MAX/2)
 			next_frame_par->supsc0_vert_ratio = 0;
@@ -1463,6 +1453,17 @@ static void vpp_set_scaler(u32 src_width,
 			next_frame_par->supsc1_vert_ratio =
 				next_frame_par->supsc1_enable ? 1 : 0;
 	} else {
+		next_frame_par->supsc0_vert_ratio = 0;
+		next_frame_par->supsc1_vert_ratio = 0;
+	}
+	if (hor_sc_multiple_num >= 2) {
+		next_frame_par->supsc0_hori_ratio =
+			next_frame_par->supsc0_enable ? 1 : 0;
+		next_frame_par->supsc1_hori_ratio =
+			next_frame_par->supsc1_enable ? 1 : 0;
+	} else {
+		next_frame_par->supsc0_hori_ratio = 0;
+		next_frame_par->supsc1_hori_ratio = 0;
 		next_frame_par->supsc0_vert_ratio = 0;
 		next_frame_par->supsc1_vert_ratio = 0;
 	}
