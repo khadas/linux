@@ -14,12 +14,12 @@
  * more details.
  *
 */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
+#include <linux/kfifo.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/amlogic/amports/ptsserv.h>
@@ -28,8 +28,6 @@
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/amports/vformat.h>
-/* #include <mach/am_regs.h> */
-#include <linux/module.h>
 #include "vdec_reg.h"
 #include "streambuf_reg.h"
 #include "amvdec.h"
@@ -44,7 +42,7 @@
 #define NV21
 #endif
 
-/* #define USE_AVS_SEQ_INFO_ONLY */
+#define USE_AVS_SEQ_INFO
 #define HANDLE_AVS_IRQ
 #define DEBUG_PTS
 
@@ -74,10 +72,8 @@
 #define MEM_OFFSET_REG      AV_SCRATCH_F
 #define AVS_ERROR_RECOVERY_MODE   AV_SCRATCH_G
 
-#define VF_POOL_SIZE        12
+#define VF_POOL_SIZE        16
 #define PUT_INTERVAL        (HZ/100)
-
-#define INCPTR(p) ptr_atomic_wrap_inc(&p)
 
 #if 1 /*MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8*/
 #define INT_AMVENCODER INT_DOS_MAILBOX_1
@@ -93,23 +89,27 @@ static int debug_flag;
 static struct vframe_s *vavs_vf_peek(void *);
 static struct vframe_s *vavs_vf_get(void *);
 static void vavs_vf_put(struct vframe_s *, void *);
+static int vavs_vf_states(struct vframe_states *states, void *);
 
 static const char vavs_dec_id[] = "vavs-dev";
 
 #define PROVIDER_NAME   "decoder.avs"
+static DEFINE_SPINLOCK(lock);
 
 static const struct vframe_operations_s vavs_vf_provider = {
 	.peek = vavs_vf_peek,
 	.get = vavs_vf_get,
 	.put = vavs_vf_put,
+	.vf_states = vavs_vf_states,
 };
 
 static struct vframe_provider_s vavs_vf_prov;
 
+#define  VF_BUF_NUM 4
+
+
 static struct vframe_s vfpool[VF_POOL_SIZE];
-static u32 vfpool_idx[VF_POOL_SIZE];
-static s32 vfbuf_use[4];
-static s32 fill_ptr, get_ptr, putting_ptr, put_ptr;
+static s32 vfbuf_use[VF_BUF_NUM];
 static u32 saved_resolution;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
@@ -129,6 +129,10 @@ static u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 
 static struct dec_sysinfo vavs_amstream_dec_info;
 
+static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
+static DECLARE_KFIFO(display_q, struct vframe_s *, VF_POOL_SIZE);
+static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
+
 static inline u32 index2canvas(u32 index)
 {
 	const u32 canvas_tab[4] = {
@@ -140,18 +144,6 @@ static inline u32 index2canvas(u32 index)
 	};
 
 	return canvas_tab[index];
-}
-
-static inline void ptr_atomic_wrap_inc(u32 *ptr)
-{
-	u32 i = *ptr;
-
-	i++;
-
-	if (i >= VF_POOL_SIZE)
-		i = 0;
-
-	*ptr = i;
 }
 
 static const u32 frame_rate_tab[16] = {
@@ -186,7 +178,7 @@ static void set_frame_info(struct vframe_s *vf, unsigned *duration)
 		vf->height = READ_VREG(AVS_PIC_HEIGHT);
 		frame_width = vf->width;
 		frame_height = vf->height;
-		/* pr_info("%s: (%d,%d)\n", __func__,vf->width, vf->height); */
+		/* pr_info("%s: (%d,%d)\n", __func__,vf->width, vf->height);*/
 	}
 
 #ifndef USE_AVS_SEQ_INFO
@@ -305,8 +297,11 @@ static void vavs_isr(void)
 					   picture_type);
 			}
 
-			vfpool_idx[fill_ptr] = buffer_index;
-			vf = &vfpool[fill_ptr];
+			if (kfifo_get(&newframe_q, &vf) == 0) {
+				pr_info
+				("fatal error, no available buffer slot.");
+				return IRQ_HANDLED;
+			}
 			set_frame_info(vf, &dur);
 			vf->bufWidth = 1920;
 			pic_type = 2;
@@ -341,7 +336,7 @@ static void vavs_isr(void)
 					next_pts = 0;
 				}
 			}
-
+			vf->index = buffer_index;
 			vf->duration_pulldown = 0;
 			vf->type =
 				(reg & TOP_FIELD_FIRST_FLAG)
@@ -360,13 +355,16 @@ static void vavs_isr(void)
 
 			vfbuf_use[buffer_index]++;
 
-			INCPTR(fill_ptr);
+			kfifo_put(&display_q,
+					  (const struct vframe_s *)vf);
 			vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
 
-			vfpool_idx[fill_ptr] = buffer_index;
-			vf = &vfpool[fill_ptr];
+			if (kfifo_get(&newframe_q, &vf) == 0) {
+				pr_info("fatal error, no available buffer slot.");
+				return IRQ_HANDLED;
+						}
 			set_frame_info(vf, &dur);
 			vf->bufWidth = 1920;
 
@@ -386,7 +384,7 @@ static void vavs_isr(void)
 				vf->duration = dur >> 1;
 				next_pts = 0;
 			}
-
+			vf->index = buffer_index;
 			vf->duration_pulldown = 0;
 			vf->type =
 				(reg & TOP_FIELD_FIRST_FLAG) ?
@@ -400,7 +398,8 @@ static void vavs_isr(void)
 
 			vfbuf_use[buffer_index]++;
 
-			INCPTR(fill_ptr);
+			kfifo_put(&display_q,
+					  (const struct vframe_s *)vf);
 			vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
@@ -412,9 +411,11 @@ static void vavs_isr(void)
 				pr_info("progressive picture type %d\n",
 					   picture_type);
 			}
-
-			vfpool_idx[fill_ptr] = buffer_index;
-			vf = &vfpool[fill_ptr];
+			if (kfifo_get(&newframe_q, &vf) == 0) {
+				pr_info
+				("fatal error, no available buffer slot.");
+				return IRQ_HANDLED;
+			}
 			set_frame_info(vf, &dur);
 			vf->bufWidth = 1920;
 			pic_type = 1;
@@ -449,7 +450,7 @@ static void vavs_isr(void)
 					next_pts = 0;
 				}
 			}
-
+			vf->index = buffer_index;
 			vf->duration_pulldown = 0;
 			vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
 #ifdef NV21
@@ -464,8 +465,8 @@ static void vavs_isr(void)
 			}
 
 			vfbuf_use[buffer_index]++;
-
-			INCPTR(fill_ptr);
+			kfifo_put(&display_q,
+					  (const struct vframe_s *)vf);
 			vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
@@ -493,34 +494,30 @@ static int error_recovery_mode;   /*0: blocky  1: mosaic*/
 
 static struct vframe_s *vavs_vf_peek(void *op_arg)
 {
-	if (run_flag == 0)
-		return NULL;
-	if (get_ptr == fill_ptr)
-		return NULL;
+	struct vframe_s *vf;
 
-	return &vfpool[get_ptr];
+	if (kfifo_peek(&display_q, &vf))
+		return vf;
+
+	return NULL;
+
 }
 
 static struct vframe_s *vavs_vf_get(void *op_arg)
 {
 	struct vframe_s *vf;
-	if (run_flag == 0)
-		return NULL;
 
-	if (get_ptr == fill_ptr)
-		return NULL;
+	if (kfifo_get(&display_q, &vf))
+		return vf;
 
-	vf = &vfpool[get_ptr];
+	return NULL;
 
-	INCPTR(get_ptr);
-	if (step_flag)
-		run_flag = 0;
-	return vf;
 }
 
 static void vavs_vf_put(struct vframe_s *vf, void *op_arg)
 {
-	INCPTR(putting_ptr);
+	kfifo_put(&recycle_q, (const struct vframe_s *)vf);
+
 }
 
 int vavs_dec_status(struct vdec_status *vstatus)
@@ -737,8 +734,6 @@ static void vavs_local_init(void)
 
 	avi_flag = (unsigned long) vavs_amstream_dec_info.param;
 
-	fill_ptr = get_ptr = put_ptr = putting_ptr = 0;
-
 	frame_width = frame_height = frame_dur = frame_prog = 0;
 
 	throw_pb_flag = 1;
@@ -750,9 +745,30 @@ static void vavs_local_init(void)
 #ifdef DEBUG_PTS
 	pts_hit = pts_missed = pts_i_hit = pts_i_missed = 0;
 #endif
+	INIT_KFIFO(display_q);
+	INIT_KFIFO(recycle_q);
+	INIT_KFIFO(newframe_q);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < VF_POOL_SIZE; i++) {
+		const struct vframe_s *vf = &vfpool[i];
+		vfpool[i].index = VF_BUF_NUM;
+		vfpool[i].bufWidth = 1920;
+		kfifo_put(&newframe_q, vf);
+	}
+	for (i = 0; i < VF_BUF_NUM; i++)
 		vfbuf_use[i] = 0;
+}
+
+static int vavs_vf_states(struct vframe_states *states, void *op_arg)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&lock, flags);
+	states->vf_pool_size = VF_POOL_SIZE;
+	states->buf_free_num = kfifo_len(&newframe_q);
+	states->buf_avail_num = kfifo_len(&display_q);
+	states->buf_recycle_num = kfifo_len(&recycle_q);
+	spin_unlock_irqrestore(&lock, flags);
+	return 0;
 }
 
 #ifdef CONFIG_POST_PROCESS_MANAGER
@@ -791,13 +807,18 @@ static void vavs_put_timer_func(unsigned long arg)
 	}
 #endif
 
-	if ((putting_ptr != put_ptr) && (READ_VREG(AVS_BUFFERIN) == 0)) {
-		u32 index = vfpool_idx[put_ptr];
+	if (!kfifo_is_empty(&recycle_q) && (READ_VREG(AVS_BUFFERIN) == 0)) {
+		struct vframe_s *vf;
+		if (kfifo_get(&recycle_q, &vf)) {
+			if ((vf->index < VF_BUF_NUM) &&
+			 (--vfbuf_use[vf->index] == 0)) {
+				WRITE_VREG(AVS_BUFFERIN, ~(1 << vf->index));
+				vf->index = VF_BUF_NUM;
+			}
+				kfifo_put(&newframe_q,
+						  (const struct vframe_s *)vf);
+		}
 
-		if (--vfbuf_use[index] == 0)
-			WRITE_VREG(AVS_BUFFERIN, ~(1 << index));
-
-		INCPTR(put_ptr);
 	}
 	if (frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
