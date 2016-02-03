@@ -17,7 +17,6 @@
 #ifdef CONFIG_ARM64
 #define AML_D_P_UPGRADE_CHECK   (0x80)
 #define AML_DATA_PROCESS		(0x820000FF)
-#define CHECK_SEC_OPT			0x11
 
 int aml_is_secure_set(void);
 unsigned long aml_sec_boot_check(unsigned long nType,

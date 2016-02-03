@@ -38,6 +38,9 @@
 
 #define DEFENDKEY_DEVICE_NAME	"defendkey"
 #define DEFENDKEY_CLASS_NAME "defendkey"
+void __iomem *mem_base_virt;
+unsigned long mem_size;
+unsigned long random_virt;
 
 struct defendkey_dev_t {
 	struct cdev cdev;
@@ -96,28 +99,16 @@ static ssize_t defendkey_read(struct file *file,
 static ssize_t defendkey_write(struct file *file,
 	const char __user *buf, size_t count, loff_t *ppos)
 {
-	int value = -1;
+	ssize_t value = -1;
 	int ret = -EINVAL;
 
-	struct page cma_pages;
-	struct page *pcma;
-	unsigned long mem_base_phy;
-	unsigned long mem_size;
-	void __iomem *mem_base_virt;
+	unsigned long mem_base_phy, copy_base, copy_size, random;
+	unsigned long option = 0;
+	int i;
 
-	pcma =  &cma_pages;
-	pcma = dma_alloc_from_contiguous(
-					&defendkey_pdev->dev,
-					(32 * SZ_1M) >> PAGE_SHIFT, 0);
+	mem_size = 1 * SZ_1M;
 
-	if (!pcma) {
-		pr_err("defendkey:%s: CMA alloc fail\n", __func__);
-		return -1;
-	}
-	mem_base_phy = page_to_phys(pcma);
-	mem_size = 32 * SZ_1M;
-
-	mem_base_virt = phys_to_virt(mem_base_phy);
+	mem_base_phy = virt_to_phys(mem_base_virt);
 
 	if (!mem_base_phy || !mem_size) {
 		pr_err("bad secure check memory!\nmem_base_phy:%lx,size:%lx\n",
@@ -126,31 +117,62 @@ static ssize_t defendkey_write(struct file *file,
 	}
 	pr_info("defendkey: mem_base_phy:%lx mem_size:%lx mem_base_virt:%p\n",
 		mem_base_phy, mem_size, mem_base_virt);
+	random = readl((void *)random_virt);
 
-	ret = copy_from_user(mem_base_virt, buf, count);
-	if (ret) {
-		pr_err("defendkey:copy_from_user fail! ret : %d\n", ret);
-		ret =  -EFAULT;
-		goto exit;
-	}
-	pr_info("defendkey: copy_from_user OK! count %Zd\n", count);
-	__dma_flush_range(mem_base_virt, mem_base_virt+count);
-	pr_info("defendkey: firmware checking...\n");
-	ret = aml_sec_boot_check(AML_D_P_UPGRADE_CHECK,
-		(unsigned long) mem_base_phy, count, 0);
-	if (ret > 0) {
-		pr_err("defendkey:write defendkey error,%s:%d: ret %d\n",
+	for (i = 0; i <= count/mem_size; i++) {
+		copy_size = mem_size;
+		copy_base = (unsigned long)buf+i*mem_size;
+		if ((i+1)*mem_size > count)
+			copy_size = count - mem_size*i;
+		ret = copy_from_user(mem_base_virt,
+			(const void __user *)copy_base, copy_size);
+		if (ret) {
+			pr_err("defendkey:copy_from_user fail! ret:%d\n", ret);
+			ret =  -EFAULT;
+			goto exit;
+		}
+		/*pr_info("defendkey: copy_from_user OK!");
+		pr_info("user copy_base: 0x%lx copy_size:0x%lx\n",
+			copy_base, copy_size);*/
+		__dma_flush_range((const void *)mem_base_virt,
+			(const void *)(mem_base_virt+copy_size));
+		/*pr_info("defendkey: firmware checking...\n");*/
+
+		if (i == 0) {
+			option = 1;
+			if (count <= mem_size) {
+				/*just transfer data to BL31 one time*/
+				option = 1|2|4;
+			}
+			option |= (random<<32);
+		} else if ((i > 0) && (i < (count/mem_size))) {
+			option = 2|(random<<32);
+			if ((count%mem_size == 0) &&
+				(i == (count/mem_size - 1)))
+				option = 4|(random<<32);
+		} else if (i == (count/mem_size)) {
+			if (count%mem_size == 0)
+				break;
+			else
+				option = 4|(random<<32);
+		}
+		/*pr_info("defendkey:%d: copy_size:0x%lx, option:0x%lx\n",
+			__LINE__, copy_size, option);*/
+		ret = aml_sec_boot_check(AML_D_P_UPGRADE_CHECK,
+			(unsigned long) mem_base_phy, copy_size, option);
+		if (ret) {
+			value = 0;
+			pr_err("defendkey: aml_sec_boot_check error,%s:%d: ret %d\n",
 			__func__, __LINE__, ret);
-		value = -2;
-		goto exit;
+			goto exit;
+		}
 	}
+
 	if (!ret) {
 		pr_info("defendkey: aml_sec_boot_check ok!\n");
 		value = 1;
 	}
 exit:
-	dma_release_from_contiguous(&defendkey_pdev->dev,
-		pcma, (32 * SZ_1M) >> PAGE_SHIFT);
 	return value;
 }
 
@@ -210,12 +232,33 @@ static struct class defendkey_class = {
 
 static int aml_defendkey_probe(struct platform_device *pdev)
 {
-	int r;
 	int ret =  -1;
+	u64 val64;
+	struct resource *res;
 
 	struct device *devp;
 
 	defendkey_pdev = pdev;
+	ret = of_property_read_u64(pdev->dev.of_node, "mem_size", &val64);
+	if (ret) {
+		dev_err(&pdev->dev, "please config mem_size in dts\n");
+		return -1;
+	}
+	mem_size = val64;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (IS_ERR(res)) {
+		dev_err(&pdev->dev, "reg: cannot obtain I/O memory region");
+		return PTR_ERR(res);
+	}
+	random_virt = (unsigned long)devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR((void *)random_virt))
+		return PTR_ERR((void *)random_virt);
+	mem_base_virt = kmalloc(mem_size, GFP_KERNEL);
+	if (!mem_base_virt) {
+		dev_err(&pdev->dev, "defendkey: failed to allocate memory\n ");
+		return -ENOMEM;
+	}
 	ret = alloc_chrdev_region(&defendkey_devno, 0, 1,
 		DEFENDKEY_DEVICE_NAME);
 	if (ret < 0) {
@@ -253,12 +296,6 @@ static int aml_defendkey_probe(struct platform_device *pdev)
 	}
 
 	defendkey_device = devp;
-
-	r = of_reserved_mem_device_init(&pdev->dev);
-	if (r) {
-		dev_err(&pdev->dev, "of_reserved_mem_device_init fail!\n");
-		goto error4;
-	}
 
 	dev_info(&pdev->dev, "defendkey: device %s created ok\n",
 			DEFENDKEY_DEVICE_NAME);

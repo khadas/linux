@@ -24,52 +24,6 @@
 #ifdef CONFIG_ARM64
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 
-#if 0
-int aml_is_secure_set(void)
-{
-	int ret = 1;
-
-	unsigned long nType;
-	unsigned long pBuffer;
-	unsigned long nLength;
-	unsigned long nOption;
-
-	register uint64_t x0 asm("x0");
-	register uint64_t x1 asm("x1");
-	register uint64_t x2 asm("x2");
-	register uint64_t x3 asm("x3");
-	register uint64_t x4 asm("x4");
-
-	nType = AML_D_P_UPGRADE_CHECK,
-	pBuffer = 1;
-	nLength = 1;
-	nOption = CHECK_SEC_OPT;
-
-	asm __volatile__("" : : : "memory");
-
-	x0 = AML_DATA_PROCESS;
-	x1 = nType;
-	x2 = pBuffer;
-	x3 = nLength;
-	x4 = nOption;
-
-	do {
-		asm volatile(
-			__asmeq("%0", "x0")
-			__asmeq("%1", "x0")
-			__asmeq("%2", "x1")
-			__asmeq("%3", "x2")
-			__asmeq("%4", "x3")
-			__asmeq("%5", "x4")
-		    "smc #0\n"
-		    : "=r"(x0)
-		    : "r"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4));
-	} while (0);
-
-	ret = x0;
-	return ret;
-}
-#else
 int aml_is_secure_set(void)
 {
 	int ret;
@@ -80,7 +34,6 @@ int aml_is_secure_set(void)
 			aml_read_aobus(0x228), ret); */
 	return ret;
 }
-#endif
 
 unsigned long aml_sec_boot_check(unsigned long nType,
 	unsigned long pBuffer,
@@ -121,5 +74,4 @@ unsigned long aml_sec_boot_check(unsigned long nType,
 	return ret;
 
 }
-
 #endif
