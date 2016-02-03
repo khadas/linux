@@ -1429,6 +1429,17 @@
 		status = "disabled";
 		pinctrl-names="default";
 		pinctrl-0=<&d_i2c_master>;
+
+		at24 {
+			/*compatible = "at24,24c32";*/
+			dev_name = "at24";
+			reg = <0x50>;
+			status = "disabled";
+			pagesize = <8>;
+			write_ops_interval= <10>;/*Write operation interval  at24c32 at24c64 is 10ms  at24c128 is 5ms in spec*/
+			wp_gpios = <&gpio  GPIOY_7  GPIO_ACTIVE_HIGH>;
+			write_gpio_port_status = <0>;
+		};
 	};
 &pinmux {
 	audio_pins:audio_pin{
