@@ -292,6 +292,8 @@
 		compatible = "amlogic, hdmirx";
 		dev_name = "hdmirx";
 		status = "ok";
+		pinctrl-names = "hdmirx_pins";
+		pinctrl-0 = <&hdmirx_pins>;
 		interrupts = <0 56 1>;
 		clocks = <&clock CLK_HDMIRX_MODET_CLK>,
 			<&clock CLK_HDMIRX_CFG_CLK>,
@@ -385,6 +387,8 @@
 		compatible = "amlogic, aml_atv_demod";
 		dev_name = "aml_atv_demod";
 		status = "okay";
+		pinctrl-names="atvdemod_agc";
+		pinctrl-0=<&atvdemod_agc>;
 		reg = <0x0 0xc8840000 0x0 0x2000>;
 		reg_23cf = <0x88188832>;/*default:0x88188832;r840 on haier:0x48188832*/
 	};
@@ -1003,7 +1007,15 @@
 			"GPIOZ_14","GPIOZ_15","GPIOZ_16","GPIOZ_17",
 			"GPIOZ_18","GPIOZ_19","GPIOZ_20";
 	};
-
+	hdmirx_pins: hdmirx_pins {
+                amlogic,setmask = <6  0x3def780>;
+                amlogic,clrmask = <6  0x04210800>,
+                                  <10 0x0000001e>;
+                amlogic,pins = "GPIOW_5","GPIOW_6","GPIOW_7","GPIOW_8",
+                        "GPIOW_9","GPIOW_10","GPIOW_11","GPIOW_12",
+                        "GPIOW_13","GPIOW_14","GPIOW_15","GPIOW_16",
+                        "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
+        };
 	/*PWM-A*/
 	/*pwm_a_pins:pwm_a_pins{
 		amlogic,setmask=<10 0x200000>;
