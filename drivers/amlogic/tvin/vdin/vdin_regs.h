@@ -1124,6 +1124,11 @@
 /* the total pixels = VDIN_HISTXX*(2^(VDIN_HIST_POW+3)) */
 #define HIST_POW_BIT                    5
 #define HIST_POW_WID                    2
+/* Bit 3:2   hist_din_sel    the source used for hist statistics.
+ *  00: from matrix0 dout,  01: from vsc_dout,
+ *  10: from matrix1 dout, 11: form matrix1 din */
+#define HIST_HIST_DIN_SEL_BIT           2
+#define HIST_HIST_DIN_SEL_WID           2
 /* Histgram range: 0: full picture, 1: histgram window
  * defined by VDIN_HIST_H_START_END & VDIN_HIST_V_START_END */
 #define HIST_WIN_EN_BIT                 1

@@ -143,6 +143,7 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	enum tvin_color_fmt_e cur_color_fmt, pre_color_fmt;
+	enum tvin_color_fmt_range_e cur_color_range, pre_color_range;
 	struct tvin_sig_property_s *prop, *pre_prop;
 
 	if (!devp || !devp->frontend) {
@@ -158,20 +159,51 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	if ((port < TVIN_PORT_HDMI0) || (port > TVIN_PORT_HDMI7))
 		return;
 
-	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-		if (sm_ops->get_sig_propery) {
-			sm_ops->get_sig_propery(devp->frontend, prop);
-			cur_color_fmt = prop->color_format;
-			pre_color_fmt = pre_prop->color_format;
-			if (cur_color_fmt != pre_color_fmt) {
-				pr_info("[smr.%d] : config hdmi color fmt(%d->%d)\n",
+	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
+		(sm_ops->get_sig_propery)) {
+		sm_ops->get_sig_propery(devp->frontend, prop);
+
+		/* check luma range with hist */
+		if (prop->color_format != TVIN_RGB444) {
+			if ((devp->parm.histgram[0] != 0) ||
+				(devp->parm.histgram[1] != 0) ||
+				(devp->parm.histgram[2] != 0) ||
+				(devp->parm.histgram[3] != 0) ||
+				(devp->parm.histgram[63] != 0) ||
+				(devp->parm.histgram[62] != 0) ||
+				(devp->parm.histgram[61] != 0) ||
+				(devp->parm.histgram[60] != 0)) {
+				if ((devp->csc_cfg & 0x10) == 0) {
+					/*hist change csc_config*/
+				pr_info("[smr.%d] h_c:%d, c_g:0x%x\n",
 						devp->index,
-						pre_color_fmt, cur_color_fmt);
-				pre_prop->color_format = prop->color_format;
-				vdin_get_format_convert(devp);
-				vdin_set_matrix(devp);
+						prop->color_fmt_range,
+						devp->csc_cfg);
+				} /*else*/
+					prop->color_fmt_range = TVIN_YUV_FULL;
 			}
 		}
+
+		cur_color_range = prop->color_fmt_range;
+		pre_color_range = pre_prop->color_fmt_range;
+		cur_color_fmt = prop->color_format;
+		pre_color_fmt = pre_prop->color_format;
+
+		if ((cur_color_fmt != pre_color_fmt) ||
+			(cur_color_range != pre_color_range)) {
+			pr_info("[smr.%d] color fmt(%d->%d),csc_cfg:0x%x\n",
+					devp->index,
+					pre_color_fmt, cur_color_fmt,
+					devp->csc_cfg);
+			pr_info("[smr.%d] range(%d->%d),csc_cfg:0x%x\n",
+					devp->index,
+					pre_color_range, cur_color_range,
+					devp->csc_cfg);
+			/*pre_prop->color_format = prop->color_format;*/
+			vdin_get_format_convert(devp);
+			devp->csc_cfg |= 0x01;
+		} else
+			devp->csc_cfg &= 0x10;
 	}
 }
 
@@ -196,7 +228,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 	unsigned int unstb_in;
 	struct tvin_sm_s *sm_p;
 	struct tvin_frontend_s *fe;
-	struct tvin_sig_property_s prop;
+	struct tvin_sig_property_s *prop, *pre_prop;
 
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
@@ -209,7 +241,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 	info = &devp->parm.info;
 	pre_info = &devp->pre_info;
 	port = devp->parm.port;
-	prop = devp->prop;
+	prop = &devp->prop;
+	pre_prop = &devp->pre_prop;
 
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:
@@ -314,13 +347,15 @@ void tvin_smr(struct vdin_dev_s *devp)
 						info->fmt =
 							sm_ops->get_fmt(fe);
 						sm_ops->get_sig_propery(fe,
-							&prop);
+							prop);
+						memcpy(pre_prop, prop,
+					sizeof(struct tvin_sig_property_s));
 						devp->parm.info.trans_fmt =
-							prop.trans_fmt;
+							prop->trans_fmt;
 						devp->parm.info.reserved =
-							prop.dvi_info & 0xf;
+							prop->dvi_info & 0xf;
 						devp->parm.info.fps =
-							prop.dvi_info >> 4;
+							prop->dvi_info >> 4;
 					}
 				} else
 					info->fmt = TVIN_SIG_FMT_NULL;

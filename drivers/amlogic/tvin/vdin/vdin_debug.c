@@ -254,7 +254,15 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 				curparm->reserved, devp->flags);
 		pr_info("max buffer num %u.\n", devp->canvas_max_num);
 	}
-
+	pr_info(" format_convert = %s(%d)\n",
+			vdin_fmt_convert_str(devp->format_convert),
+			devp->format_convert);
+	pr_info("color fmt(%d),csc_cfg:0x%x\n",
+			devp->prop.color_format,
+			devp->csc_cfg);
+	pr_info("range(%d),csc_cfg:0x%x\n",
+			devp->prop.color_fmt_range,
+			devp->csc_cfg);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
 
@@ -263,7 +271,7 @@ static void vdin_dump_histgram(struct vdin_dev_s *devp)
 	uint i;
 	pr_info("%s:\n", __func__);
 	for (i = 0; i < 64; i++) {
-		pr_info("0x%-8x\t", devp->parm.histgram[i]);
+		pr_info("[%d]0x%-8x\t", i, devp->parm.histgram[i]);
 		if ((i+1)%8 == 0)
 			pr_info("\n");
 	}

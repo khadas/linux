@@ -1110,6 +1110,7 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 		prop->color_format = TVIN_YUV444;
 		prop->dest_cfmt = TVIN_YUV422;
 	}
+	prop->color_fmt_range = TVIN_YUV_LIMIT;
 	prop->aspect_ratio = TVIN_ASPECT_NULL;
 	prop->decimation_ratio = 0;
 	prop->dvi_info = 0;

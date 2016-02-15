@@ -782,6 +782,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vs_cnt_valid = 0;
 	devp->vs_cnt_ignore = 0;
 
+	memset(&devp->parm.histgram[0], 0, sizeof(unsigned short) * 64);
+
 	devp->curr_field_type = vdin_get_curr_field_type(devp);
 	/* pr_info("start clean_counter is %d\n",clean_counter); */
 	/* configure regs and enable hw */
@@ -879,6 +881,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->flags &= (~VDIN_FLAG_RDMA_ENABLE);
 	ignore_frames = 0;
 	devp->cycle = 0;
+	 /* clear color para*/
+	memset(&devp->prop, 0, sizeof(devp->prop));
 	if (time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",
 				devp->index, jiffies_to_msecs(jiffies),
@@ -1371,6 +1375,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	int vdin2nr = 0;
 	unsigned int offset;
 	enum tvin_trans_fmt trans_fmt;
+	struct tvin_sig_property_s *prop, *pre_prop;
 	/* unsigned long long total_time; */
 	/* unsigned long long total_tmp; */
 /* unsigned int vdin0_sw_reset_flag = 0; */
@@ -1495,6 +1500,15 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	curr_wr_vfe = devp->curr_wr_vfe;
 	curr_wr_vf  = &curr_wr_vfe->vf;
 
+	/* change color matrix */
+	if ((devp->csc_cfg & 0x01) != 0) {
+		prop = &devp->prop;
+		pre_prop = &devp->pre_prop;
+		vdin_set_matrix(devp);
+		pre_prop->color_format = prop->color_format;
+		pre_prop->color_fmt_range = prop->color_fmt_range;
+		devp->csc_cfg |= 0x10;
+	}
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
 		vdin_irq_flag = 8;

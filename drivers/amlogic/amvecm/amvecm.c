@@ -28,6 +28,7 @@
 #include <linux/ctype.h>/* for parse_para_pq */
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amvecm/amvecm.h>
+#include <linux/amlogic/vout/vout_notify.h>
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
@@ -117,6 +118,7 @@ static unsigned int sr1_index;/* for sr1 read */
 module_param(sr1_index, uint, 0664);
 MODULE_PARM_DESC(sr1_index, "\n sr1_index\n");
 
+static enum vframe_source_type_e pre_src_type = VFRAME_SOURCE_TYPE_COMP;
 
 /* extern unsigned int cm_size; */
 /* extern unsigned int ve_size; */
@@ -131,6 +133,172 @@ MODULE_PARM_DESC(sr1_index, "\n sr1_index\n");
 /* extern struct tcon_gamma_table_s video_gamma_table_g_adj; */
 /* extern struct tcon_gamma_table_s video_gamma_table_b_adj; */
 /* extern struct tcon_rgb_ogo_s     video_rgb_ogo; */
+
+/* csc mode:
+	0: 601 limit to RGB
+		vd1 for ycbcr to rgb
+	1: 601 full to RGB
+		vd1 for ycbcr to rgb
+	2: 709 limit to RGB
+		vd1 for ycbcr to rgb
+	3: 709 full to RGB
+		vd1 for ycbcr to rgb
+	4: 2020 limit to RGB
+		vd1 for ycbcr to rgb
+		post for rgb to r'g'b'
+	5: 2020(G:33c2,86c4 B:1d4c,0bb8 R:84d0,3e80) limit to RGB
+		vd1 for ycbcr to rgb
+		post for rgb to r'g'b'
+	6: customer matrix calculation according to src and dest primary
+		vd1 for ycbcr to rgb
+		post for rgb to r'g'b' */
+static void vpp_set_matrix(
+		enum vpp_matrix_sel_e vd1_or_vd2_or_post,
+		unsigned int on,
+		enum vpp_matrix_csc_e csc_mode)
+{
+	if (vd1_or_vd2_or_post == VPP_MATRIX_VD1) {
+		/* vd1 matrix */
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 5, 1);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 8, 2);
+	} else if (vd1_or_vd2_or_post == VPP_MATRIX_VD2) {
+		/* vd2 matrix */
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 4, 1);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 2, 8, 2);
+	} else {
+		/* post matrix */
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 8, 2);
+		/* saturation enable for 601 & 709 limited input */
+		if ((csc_mode == VPP_MATRIX_YUV601_RGB) ||
+			(csc_mode == VPP_MATRIX_YUV709_RGB))
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 1, 2);
+		else
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 1, 2);
+	}
+
+	if (!on)
+		return;
+
+	if (csc_mode == VPP_MATRIX_YUV601_RGB) {
+		/* ycbcr limit, 601 to RGB */
+		/*  -16  1.164   0       1.596   0
+		    -128 1.164   -0.392  -0.813  0
+		    -128 1.164   2.017   0       0 */
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04A80000);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x066204A8);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1e701cbf);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x04A80812);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000000);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x00000000);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x00000000);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+	} else if (csc_mode == VPP_MATRIX_YUV601F_RGB) {
+		/* ycbcr full range, 601F to RGB */
+		/*  0    1    0           1.402    0
+		   -128  1   -0.34414    -0.71414  0
+		   -128  1    1.772       0        0 */
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, (0x400 << 16) | 0);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, (0x59c << 16) | 0x400);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, (0x1ea0 << 16) | 0x1d24);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, (0x400 << 16) | 0x718);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+	} else if (csc_mode == VPP_MATRIX_YUV709_RGB) {
+		/* ycbcr limit range, 709 to RGB */
+		/* -16      1.164  0      1.793  0 */
+		/* -128     1.164 -0.213 -0.534  0 */
+		/* -128     1.164  2.115  0      0 */
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04A80000);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x072C04A8);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1F261DDD);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x04A80876);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+	} else if (csc_mode == VPP_MATRIX_YUV709F_RGB) {
+		/* ycbcr full range, 709F to RGB */
+		/*  0    1      0       1.575   0
+		   -128  1     -0.187  -0.468   0
+		   -128  1      1.856   0       0 */
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04000000);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x064D0400);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1F411E21);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x0400076D);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
+	}
+}
+
+/* matrix betreen xvycclut and linebuffer*/
+static void vpp_set_matrix3(
+		unsigned int on,
+		enum vpp_matrix_csc_e csc_mode)
+{
+	WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 6, 1);
+
+	if (!on)
+		return;
+
+	WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 2);
+	if (csc_mode == VPP_MATRIX_RGB_YUV709F) {
+		/* RGB -> 709F*/
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0xda02dc);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x4a1f8a);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1e760200);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x2001e2f);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x1fd1);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x200);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x200);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
+	}
+}
+
+static void vpp_matrix_update(struct vframe_s *vf)
+{
+	static const struct vinfo_s *vinfo;
+
+	if (!is_meson_gxtvbb_cpu())
+		return;
+
+	vinfo = get_current_vinfo();
+
+	if (pre_src_type != vf->source_type) {
+		vecm_latch_flag |= FLAG_MATRIX_UPDATE;
+		pre_src_type = vf->source_type;
+	}
+
+	if ((vecm_latch_flag & FLAG_MATRIX_UPDATE) == 0)
+		return;
+
+	vpp_set_matrix(VPP_MATRIX_POST, 0, VPP_MATRIX_NULL);
+
+	/* check output format(Panel or Tx)  */
+	if (vinfo->viu_color_fmt != TVIN_RGB444)
+		vpp_set_matrix3(1, VPP_MATRIX_RGB_YUV709F);
+	else
+		vpp_set_matrix3(0, VPP_MATRIX_NULL);
+
+	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
+		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
+		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
+		(vf->source_type == VFRAME_SOURCE_TYPE_HDMI)) {
+		/* 709F->RGB*/
+		vpp_set_matrix(VPP_MATRIX_VD1, 1, VPP_MATRIX_YUV709F_RGB);
+	} else {/* for local play */
+		/* 601->RGB */
+		vpp_set_matrix(VPP_MATRIX_VD1, 1, VPP_MATRIX_YUV601_RGB);
+	}
+
+	vecm_latch_flag &= ~FLAG_MATRIX_UPDATE;
+}
 
 static void amvecm_size_patch(void)
 {
@@ -674,7 +842,6 @@ void amvecm_video_latch(void)
 	amvecm_size_patch();
 	ve_dnlp_latch_process();
 	ve_lcd_gamma_process();
-	amvecm_bricon_process(vd1_brightness, vd1_contrast);
 	lvds_freq_process();
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 	if (is_meson_g9tv_cpu()) {
@@ -688,8 +855,13 @@ void amvecm_on_vs(struct vframe_s *vf)
 	if (probe_ok == 0)
 		return;
 	amvecm_video_latch();
+
 	if (vf != NULL) {
+		amvecm_bricon_process(vd1_brightness, vd1_contrast, vf);
 		vpp_get_vframe_hist_info(vf);
+
+		/* matrix ajust */
+		vpp_matrix_update(vf);
 
 		ve_on_vs(vf);
 	}
@@ -927,7 +1099,8 @@ static ssize_t amvecm_brightness_store(struct class *cla,
 		return -EINVAL;
 
 	vd1_brightness = val;
-	vecm_latch_flag |= FLAG_BRI_CON;
+	/*vecm_latch_flag |= FLAG_BRI_CON;*/
+	vecm_latch_flag |= FLAG_VADJ1_BRI;
 	return count;
 }
 
@@ -948,7 +1121,8 @@ static ssize_t amvecm_contrast_store(struct class *cla,
 		return -EINVAL;
 
 	vd1_contrast = val;
-	vecm_latch_flag |= FLAG_BRI_CON;
+	/*vecm_latch_flag |= FLAG_BRI_CON;*/
+	vecm_latch_flag |= FLAG_VADJ1_CON;
 	return count;
 }
 

@@ -41,8 +41,6 @@ extern void lcd_tcon_config(struct lcd_config_s *pconf);
 extern int lcd_vmode_change(struct lcd_config_s *pconf);
 extern void lcd_clk_gate_switch(int status);
 
-extern void vpp_set_matrix_ycbcr2rgb(int vd1_or_vd2_or_post, int mode);
-
 /* lcd debug */
 extern int lcd_class_creat(void);
 extern int lcd_class_remove(void);

@@ -2458,6 +2458,62 @@ void sharpness_process(struct vframe_s *vf)
 }
 /* sharpness process end */
 
+/*for gxbbtv contrast adj in vadj1*/
+void vpp_vd_adj1_contrast(signed int cont_val)
+{
+	unsigned int vd1_contrast;
+	if ((cont_val > 1023) || (cont_val < -1024))
+		return;
+	cont_val = ((cont_val + 1024) >> 3);
+
+	vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff00) |
+					(cont_val << 0);
+	WRITE_VPP_REG(VPP_VADJ1_Y, vd1_contrast);
+}
+
+void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
+{
+	signed int vd1_brightness;
+
+	signed int ao0 =  -64;
+	signed int ao1 = -512;
+	signed int ao2 = -512;
+	unsigned int a01 =    0, a_2 =    0;
+	/* enable vd0_csc */
+
+	unsigned int ori = READ_VPP_REG(VPP_MATRIX_CTRL) | 0x00000020;
+	/* point to vd0_csc */
+	unsigned int ctl = (ori & 0xfffffcff) | 0x00000100;
+
+	if (bri_val > 1023 || bri_val < -1024)
+		return;
+
+	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
+		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
+		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
+		(vf->source_type == VFRAME_SOURCE_TYPE_HDMI))
+		vd1_brightness = bri_val;
+	else {
+		bri_val += ao0;
+		if (bri_val < -1024)
+			bri_val = -1024;
+		vd1_brightness = bri_val;
+	}
+
+	a01 = ((vd1_brightness << 16) & 0x0fff0000) |
+			((ao1 <<  0) & 0x00000fff);
+	a_2 = ((ao2 <<	0) & 0x00000fff);
+	/*p01 = ((po0 << 16) & 0x0fff0000) |*/
+			/*((po1 <<  0) & 0x00000fff);*/
+	/*p_2 = ((po2 <<	0) & 0x00000fff);*/
+
+	WRITE_VPP_REG(VPP_MATRIX_CTRL         , ctl);
+	WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, a01);
+	WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , a_2);
+	WRITE_VPP_REG(VPP_MATRIX_CTRL         , ori);
+}
+
+
 /* brightness/contrast adjust process begin */
 static void vd1_brightness_contrast(signed int brightness,
 		signed int contrast)
@@ -2541,9 +2597,22 @@ static void vd1_brightness_contrast(signed int brightness,
 	WRITE_VPP_REG(VPP_MATRIX_CTRL         , ori);
 }
 
-void amvecm_bricon_process(unsigned int bri_val, unsigned int cont_val)
+void amvecm_bricon_process(unsigned int bri_val,
+		unsigned int cont_val, struct vframe_s *vf)
 {
-	if (vecm_latch_flag & FLAG_BRI_CON) {
+	if (vecm_latch_flag & FLAG_VADJ1_BRI) {
+		vecm_latch_flag &= ~FLAG_VADJ1_BRI;
+		vpp_vd_adj1_brightness(bri_val, vf);
+		pr_amve_dbg("\n[amve..] set vd1_brightness OK!!!\n");
+	}
+
+	if (vecm_latch_flag & FLAG_VADJ1_CON) {
+		vecm_latch_flag &= ~FLAG_VADJ1_CON;
+		vpp_vd_adj1_contrast(cont_val);
+		pr_amve_dbg("\n[amve..] set vd1_contrast OK!!!\n");
+	}
+
+	if (0) { /* vecm_latch_flag & FLAG_BRI_CON) { */
 		vecm_latch_flag &= ~FLAG_BRI_CON;
 		vd1_brightness_contrast(bri_val, cont_val);
 		pr_amve_dbg("\n[amve..] set vd1_brightness_contrast OK!!!\n");

@@ -25,6 +25,38 @@
 #include <linux/amlogic/cpu_version.h>
 
 
+enum vpp_matrix_sel_e {
+	VPP_MATRIX_VD1,
+	VPP_MATRIX_VD2,
+	VPP_MATRIX_POST,
+	VPP_MATRIX_XVYCC,
+};
+
+enum vpp_matrix_csc_e {
+	VPP_MATRIX_NULL = 0,
+	VPP_MATRIX_RGB_YUV601,
+	VPP_MATRIX_RGB_YUV601F,
+	VPP_MATRIX_RGB_YUV709,
+	VPP_MATRIX_RGB_YUV709F,
+	VPP_MATRIX_YUV601_RGB,
+	VPP_MATRIX_YUV601_YUV601F,
+	VPP_MATRIX_YUV601_YUV709,
+	VPP_MATRIX_YUV601_YUV709F,
+	VPP_MATRIX_YUV601F_RGB,
+	VPP_MATRIX_YUV601F_YUV601,
+	VPP_MATRIX_YUV601F_YUV709,
+	VPP_MATRIX_YUV601F_YUV709F,
+	VPP_MATRIX_YUV709_RGB,
+	VPP_MATRIX_YUV709_YUV601,
+	VPP_MATRIX_YUV709_YUV601F,
+	VPP_MATRIX_YUV709_YUV709F,
+	VPP_MATRIX_YUV709F_RGB,
+	VPP_MATRIX_YUV709F_YUV601,
+	VPP_MATRIX_YUV709F_YUV709,
+	VPP_MATRIX_YUV709F_YUV601F,
+};
+
+
 /* struct ve_dnlp_s          video_ve_dnlp; */
 
 #define FLAG_RSV31              (1 << 31)
@@ -41,8 +73,8 @@
 #define FLAG_VLOCK_EN          (1 << 20)
 #define FLAG_VE_DNLP_EN         (1 << 19)
 #define FLAG_VE_DNLP_DIS        (1 << 18)
-#define FLAG_RSV17              (1 << 17)
-#define FLAG_RSV16              (1 << 16)
+#define FLAG_VADJ1_CON			(1 << 17)
+#define FLAG_VADJ1_BRI			(1 << 16)
 #define FLAG_GAMMA_TABLE_EN     (1 << 15)
 #define FLAG_GAMMA_TABLE_DIS    (1 << 14)
 #define FLAG_GAMMA_TABLE_R      (1 << 13)
@@ -50,7 +82,7 @@
 #define FLAG_GAMMA_TABLE_B      (1 << 11)
 #define FLAG_RGB_OGO            (1 << 10)
 #define FLAG_RSV9               (1 <<  9)
-#define FLAG_RSV8               (1 <<  8)
+#define FLAG_MATRIX_UPDATE      (1 <<  8)
 #define FLAG_BRI_CON            (1 <<  7)
 #define FLAG_LVDS_FREQ_SW       (1 <<  6)
 #define FLAG_REG_MAP5           (1 <<  5)

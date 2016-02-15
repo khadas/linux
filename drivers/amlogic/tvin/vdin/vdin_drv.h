@@ -233,6 +233,8 @@ struct vdin_dev_s {
 	unsigned int			cma_mem_size[2];/*BYTE*/
 	unsigned int			cma_mem_alloc[2];
 #endif
+	/* bit0: enable/disable; bit4: luma range info */
+	unsigned int            csc_cfg;
 };
 
 
