@@ -52,7 +52,7 @@
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			size = <0x0 0x2200000>; //10x1920x1088x3/2 + 4M =30M
+			size = <0x0 0x3300000>; //10x1920x1088x3/2 + 4M =30M 10bit mode: 30*1.5 = 45M
 			//no-map;
 			multi-use;
 		};
@@ -259,7 +259,7 @@
 				0 6 1>;
 		interrupt-names = "de_irq",
 				"timerc";
-		buffer-size = <3133440>;	//1920x1088x3/2
+		buffer-size = <4700160>;	//1920x1088x3/2, 10bit mode: need times 1.5
 		hw-version = <2>;
 	};
 	amlvideo2 {

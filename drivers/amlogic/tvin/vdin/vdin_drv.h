@@ -164,7 +164,7 @@ struct vdin_dev_s {
 
 	enum vframe_source_type_e	source_type;
 	enum vframe_source_mode_e	source_mode;
-
+	unsigned int			source_bitdepth;
 	unsigned int			*canvas_ids;
 	unsigned int			canvas_h;
 	unsigned int			canvas_w;

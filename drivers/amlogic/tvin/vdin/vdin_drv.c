@@ -568,6 +568,26 @@ static void vdin_set_display_ratio(struct vframe_s *vf)
 	else
 		vf->ratio_control = 0x100 << DISP_RATIO_ASPECT_RATIO_BIT;
 }
+
+static inline void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
+		struct vframe_s *vf)
+{
+	switch (devp->source_bitdepth) {
+	case 10:
+		vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+		break;
+	case 9:
+		vf->bitdepth = BITDEPTH_Y9 | BITDEPTH_U9 | BITDEPTH_V9;
+		break;
+	case 8:
+		vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		break;
+	default:
+		vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		break;
+	}
+}
+
 /*
    based on the bellow parameters:
    1.h_active
@@ -628,6 +648,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		vdin_set_pixel_aspect_ratio(devp, vf);
 		/*set display ratio control */
 		vdin_set_display_ratio(vf);
+		vdin_set_source_bitdepth(devp, vf);
 		/* init slave vframe */
 		slave  = vf_get_slave(p, i);
 		slave->flag = master->flag;
@@ -642,6 +663,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		/* set slave vf source type & mode */
 		slave->vf.source_type = vf->source_type;
 		slave->vf.source_mode = vf->source_mode;
+		slave->vf.bitdepth = vf->bitdepth;
 		if (vdin_dbg_en)
 			pr_info("\t%2d: 0x%2x %ux%u, duration = %u\n",
 					vf->index, vf->canvas0Addr, vf->width,
@@ -714,6 +736,9 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_set_decimation(devp);
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
+	if (is_meson_gxtvbb_cpu())
+		vdin_set_bitdepth(devp);
+
 #ifdef CONFIG_AML_RDMA
 	if (rdma_enable && devp->rdma_handle > 0)
 		devp->flags |= VDIN_FLAG_RDMA_ENABLE;

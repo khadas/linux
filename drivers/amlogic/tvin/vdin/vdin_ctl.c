@@ -102,6 +102,19 @@ MODULE_PARM_DESC(rgb_info_b, "rgb_info_b");
 static unsigned int vdin_ldim_max_en = 1;
 module_param(vdin_ldim_max_en, uint, 0644);
 MODULE_PARM_DESC(vdin_ldim_max_en, "vdin_ldim_max_en");
+/*
+ *10:vdin 10 bit mode
+ *9:vdin 9 bit mode
+ *8:vdin 8 bit mode
+*/
+static unsigned int vdin_bit_depth;
+module_param(vdin_bit_depth, uint, 0664);
+MODULE_PARM_DESC(vdin_bit_depth, "vdin_bit_depth");
+/*0: 1 word in 1burst, 1: 2 words in 1burst;
+2: 4 words in 1burst;*/
+static unsigned int vdin_wr_burst_mode = 2;
+module_param(vdin_wr_burst_mode, uint, 0644);
+MODULE_PARM_DESC(vdin_wr_burst_mode, "vdin_wr_burst_mode");
 /***************************Local defines**********************************/
 #define BBAR_BLOCK_THR_FACTOR           3
 #define BBAR_LINE_THR_FACTOR            7
@@ -1943,6 +1956,8 @@ void vdin_set_default_regmap(unsigned int offset)
 			WRITE_CHROMA_CANVAS_ADDR_WID);
 	wr_bits(offset, VDIN_WR_CTRL2, 0,
 		DISCARD_BEF_LINE_FIFO_BIT, DISCARD_BEF_LINE_FIFO_WID);
+	wr_bits(offset, VDIN_WR_CTRL2, vdin_wr_burst_mode,
+		VDIN_WR_BURST_MODE_BIT, VDIN_WR_BURST_MODE_WID);
 	/* [20:25] interger = 0 */
 	/* [0:19] fraction = 0 */
 	wr(offset, VDIN_VSC_PHASE_STEP, 0x0000000);
@@ -2454,6 +2469,50 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 		devp->v_active = devp->prop.scaling4h;
 	}
 	pr_info(" dst vactive:%u.\n", devp->v_active);
+}
+
+void vdin_set_bitdepth(struct vdin_dev_s *devp)
+{
+	unsigned int offset = devp->addr_offset;
+	switch (vdin_bit_depth) {
+	case 10:
+		devp->source_bitdepth = 10;
+		wr_bits(offset, VDIN_WR_CTRL2, 1,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		break;
+	case 9:
+		devp->source_bitdepth = 9;
+		wr_bits(offset, VDIN_WR_CTRL2, 1,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		break;
+	case 8:
+		devp->source_bitdepth = 8;
+		wr_bits(offset, VDIN_WR_CTRL2, 0,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		break;
+	case 0:
+		/* vdin_bit_depth is set to 0 by defaut, in this case,
+		devp->source_bitdepth is controled by colordepth */
+		if (8 == devp->prop.colordepth) {
+			devp->source_bitdepth = 8;
+			wr_bits(offset, VDIN_WR_CTRL2, 0,
+				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		} else if (10 == devp->prop.colordepth) {
+			devp->source_bitdepth = 10;
+			wr_bits(offset, VDIN_WR_CTRL2, 1,
+				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		} else {
+			devp->source_bitdepth = 8;
+			wr_bits(offset, VDIN_WR_CTRL2, 0,
+				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		}
+		break;
+	default:
+		devp->source_bitdepth = 8;
+		wr_bits(offset, VDIN_WR_CTRL2, 0,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		break;
+	}
 }
 
 void vdin_wr_reverse(unsigned int offset, bool hreverse, bool vreverse)

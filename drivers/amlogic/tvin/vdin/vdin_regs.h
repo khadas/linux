@@ -941,6 +941,13 @@
 
 
 /* #define VDIN_WR_CTRL2                           0x121f */
+/*1: enable WR 10 bit mode, 0: disable WR 10 bit mode */
+#define VDIN_WR_10BIT_MODE_BIT		19
+#define VDIN_WR_10BIT_MODE_WID		1
+/*0: 1 word in 1burst, 1: 2 words in 1burst;
+10: 4 words in 1burst; 11: reserved */
+#define VDIN_WR_BURST_MODE_BIT		12
+#define VDIN_WR_BURST_MODE_WID		4
 /* 1: discard data before line fifo, 0: normal mode */
 #define DISCARD_BEF_LINE_FIFO_BIT		8
 #define DISCARD_BEF_LINE_FIFO_WID       1

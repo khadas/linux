@@ -67,13 +67,23 @@ module_param(mcdebug_mode, ushort, 0664);
 static unsigned short debug_blend_mode_ctrl = 0xff;
 MODULE_PARM_DESC(debug_blend_mode_ctrl, "\n debug blend mode ctrl\n");
 module_param(debug_blend_mode_ctrl, ushort, 0664);
-
+/*
+ * 0: use vframe->bitdepth,
+ * 8: froce to 8 bit mode.
+ * 10: froce to 10 bit mode and enable nr 10 bit.
+ */
+unsigned int di_force_bit_mode = 10;
+module_param(di_force_bit_mode, uint, 0664);
+MODULE_PARM_DESC(di_force_bit_mode, "force DI bit mode to 8 or 10 bit");
 
 #ifdef DET3D
 static unsigned int det3d_cfg;
 #endif
 
 static int vdin_en;
+
+/* parameter for cfg nr bit mode when bypass */
+static unsigned int bit_mode_last_bypass_flag;
 
 static void set_di_inp_fmt_more(
 		int hfmt_en,
@@ -266,9 +276,9 @@ void enable_di_pre_aml(
 	if (nr_en) {
 		RDMA_WR(DI_NRWR_X, (di_nrwr_mif->start_x << 16)|
 			(di_nrwr_mif->end_x));
-		RDMA_WR(DI_NRWR_Y, (di_nrwr_mif->start_y << 16)|
-						3 << 30|/*nrwr_words_lim*/
-					(di_nrwr_mif->end_y));
+		RDMA_WR_BITS(DI_NRWR_Y, di_nrwr_mif->start_y, 16, 13);
+		RDMA_WR_BITS(DI_NRWR_Y, di_nrwr_mif->end_y, 0, 13);
+		RDMA_WR_BITS(DI_NRWR_Y, 3, 30, 2);
 		RDMA_WR(DI_NRWR_CTRL, di_nrwr_mif->canvas_num|
 			(urgent<<16)|
 			2<<26 |/*burst_lim 1->2 2->4*/
@@ -1663,15 +1673,100 @@ static void di_nr_init(void)
 	Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
 	Wr(NR3_SUREMOT_CGAIN, 0x22264014);
 }
-
-void set_nr_10bit_mode(bool nr_10bit_en)
+/*
+ * config bit mode according to the vframe source
+ * bitdepth.
+ */
+void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 {
-	uint nrwr_y_val = nr_10bit_en?1:0;
-	uint reg3_val = nr_10bit_en?1:0;
-	Wr_reg_bits(DI_NRWR_Y, nrwr_y_val, 14, 1);
-	Wr_reg_bits(DI_IF1_GEN_REG3, reg3_val, 8, 2);
-	Wr_reg_bits(DI_MEM_GEN_REG3, reg3_val, 8, 2);
-	Wr_reg_bits(DI_CHAN2_GEN_REG3, reg3_val, 8, 2);
-	Wr_reg_bits(VD1_IF0_GEN_REG3, reg3_val, 8, 2);
-	return;
+	if (((vframe->width > 1920) || (vframe->height > 1080))
+		&& ((vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE)) {
+		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
+		 * input source*/
+		if (vframe->bitdepth & BITDEPTH_Y10)
+			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+		else
+			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+
+		Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+		/*force to 8 bit mode */
+		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
+		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
+		pr_info("Beyond 1080P, config bit mode as 8bit. width:%d, height:%d\n",
+			vframe->width, vframe->height);
+		return;
+	}
+
+	if (di_force_bit_mode == 0) {
+		/*use vframe source bitdepth*/
+		if (vframe->bitdepth & BITDEPTH_Y10) {
+			Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
+			Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
+			Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
+			Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
+			Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
+			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+		} else {
+			Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
+			Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
+			Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+			Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
+			Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
+			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+		}
+	} else if (di_force_bit_mode == 10) {
+		/* In bypass mode,VD1_IF0_GEN_REG3 should in line with
+		 * input source */
+		if (bypass_flag) {
+			if (vframe->bitdepth & BITDEPTH_Y10)
+				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+			else
+				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+		} else
+			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+		/* DI_INP_GEN_REG3 should always in line with input source */
+		if (vframe->bitdepth & BITDEPTH_Y10)
+			Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
+		 else
+			Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+		/*force to 10 bit mode and enable nr 10 bit.*/
+		Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
+		Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
+		Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
+		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
+	} else if (di_force_bit_mode == 8) {
+		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
+		 * input source*/
+		if (bypass_flag) {
+			if (vframe->bitdepth & BITDEPTH_Y10)
+				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+			else
+				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+		} else
+				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+		/* DI_INP_GEN_REG3 should always in line with input source */
+		if (vframe->bitdepth & BITDEPTH_Y10)
+			Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
+		 else
+			Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+		/*force to 8 bit mode */
+		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
+		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
+	} else {
+		pr_err("%s: unrecognize bit mode: %d, please enter: 0,8 or 10\n",
+			__func__, di_force_bit_mode);
+	}
+}
+
+void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag)
+{
+	if (bypass_flag != bit_mode_last_bypass_flag) {
+		config_di_bit_mode(vframe, bypass_flag);
+		bit_mode_last_bypass_flag = bypass_flag;
+		pr_info("di_bit_mode_bypass_cfg, bypass: %d\n", bypass_flag);
+	}
 }

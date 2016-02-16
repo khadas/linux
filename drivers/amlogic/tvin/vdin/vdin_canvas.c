@@ -112,6 +112,8 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	} else{
 		devp->canvas_w = devp->h_active * 2;
 	}
+	if (devp->source_bitdepth > 8)
+		devp->canvas_w = devp->canvas_w * 3 / 2;
 #if 0
 	const struct tvin_format_s *fmt_info =
 			tvin_get_fmt_info(devp->parm.info.fmt);
@@ -178,6 +180,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	} else{
 		devp->canvas_w = devp->h_active * 2;
 	}
+	if (devp->source_bitdepth > 8)
+		devp->canvas_w = devp->canvas_w * 3 / 2;
 	devp->canvas_w = roundup(devp->canvas_w, 32);
 	devp->canvas_h = devp->v_active;
 

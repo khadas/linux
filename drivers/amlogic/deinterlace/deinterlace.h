@@ -212,6 +212,9 @@ extern void di_hw_init(void);
 extern void di_hw_uninit(void);
 
 extern int di_vscale_skip_count;
+
+extern unsigned int di_force_bit_mode;
+
 /*
 di hardware internal
 */
@@ -418,7 +421,8 @@ int get_current_vscale_skip_count(struct vframe_s *vf);
 void di_set_power_control(unsigned char type, unsigned char enable);
 
 unsigned char di_get_power_control(unsigned char type);
-void set_nr_10bit_mode(bool nr_10bit_en);
+void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
+void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag);
 
 #define DI_COUNT   1
 

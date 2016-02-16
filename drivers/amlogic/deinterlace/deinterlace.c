@@ -117,14 +117,25 @@ bool mcpre_en = true;
 module_param(mcpre_en, bool, 0664);
 MODULE_PARM_DESC(mcpre_en, "enable/disable me in pre");
 
+static unsigned int dump_vf_start_flag;
+module_param(dump_vf_start_flag, uint, 0664);
+MODULE_PARM_DESC(dump_vf_start_flag, "dump_vf_start_flag");
+static unsigned int dump_vf_num = 5;
+module_param(dump_vf_num, uint, 0664);
+MODULE_PARM_DESC(dump_vf_num, "dump_vf_num");
+static unsigned int dump_vf_num_inner;
+static unsigned int dump_one_frame_size;
+static unsigned int dump_vf_in_width = 768;
+module_param(dump_vf_in_width, uint, 0664);
+MODULE_PARM_DESC(dump_vf_in_width, "dump_vf_in_width");
+static unsigned int dump_vf_in_height = 576;
+module_param(dump_vf_in_height, uint, 0664);
+MODULE_PARM_DESC(dump_vf_in_height, "dump_vf_in_height");
 #ifdef NEW_DI_V4
 static bool dnr_en;
 module_param(dnr_en, bool, 0664);
 MODULE_PARM_DESC(dnr_en, "enable/disable dnr in pre");
 
-static bool nr_10bit_en;
-module_param(nr_10bit_en, bool, 0664);
-MODULE_PARM_DESC(nr_10bit_en, "enable/disable nr 10bit_mode");
 
 #endif
 static unsigned int di_pre_rdma_enable;
@@ -151,7 +162,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-01-15a";
+static const char version_s[] = "2016-02-16a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -331,6 +342,9 @@ static unsigned int recovery_log_reason;
 static unsigned int recovery_log_queue_idx;
 static struct di_buf_s *recovery_log_di_buf;
 
+static void *vf_input_buff;
+static unsigned int vf_input_size;
+static unsigned int dump_buff_offset;
 
 #define VFM_NAME "deinterlace"
 
@@ -1827,7 +1841,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			continue;
 		parm[n++] = token;
 	}
-	if (!strcmp(parm[0], "capture")) {
+	if (0 == strcmp(parm[0], "capture")) {
 		if (parm[1] != NULL)
 			if (unlikely(di_pre_stru.di_mem_buf_dup_p == NULL))
 				return len;
@@ -1875,6 +1889,33 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		set_fs(old_fs);
 		pr_info("write buffer %d  to %s.\n",
 			di_pre_stru.di_mem_buf_dup_p->seq, parm[1]);
+	} else if (0 == strcmp(parm[0], "cap_input")) {
+		if (parm[1] != NULL)
+			if (vf_input_buff == NULL) {
+				pr_info("vf_input_buff is NULL\n");
+				return len;
+			}
+		canvas_real_size = vf_input_size;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		pr_info("dump path =%s\n", parm[1]);
+		filp = filp_open(parm[1], O_RDWR | O_CREAT, 0666);
+		if (IS_ERR(filp)) {
+			pr_err("create %s error.\n", parm[1]);
+			return len;
+		}
+		dump_state_flag = 1;
+		pos = 0;
+		vfs_write(filp, vf_input_buff,
+			dump_one_frame_size * dump_vf_num, &pos);
+		vfs_fsync(filp, 0);
+		dump_state_flag = 0;
+		filp_close(filp, NULL);
+		set_fs(old_fs);
+		if (NULL != vf_input_buff) {
+			kfree(vf_input_buff);
+			vf_input_buff = NULL;
+		}
 	} else
 		pr_info("wrong dump di canvas\n");
 
@@ -2333,12 +2374,7 @@ static void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 	int mtn_canvas_idx)
 {
 	unsigned int width, canvas_height;
-	uint ratio = 2;
 
-	if (nr_10bit_en)
-		ratio = 3;
-	else
-		ratio = 2;
 	if (!di_buf)
 		return;
 	width = (di_buf->canvas_config_size >> 16) & 0xffff;
@@ -2347,14 +2383,14 @@ static void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 		if (nr_canvas_idx >= 0) {
 			di_buf->nr_canvas_idx = nr_canvas_idx;
 			canvas_config(
-				nr_canvas_idx, di_buf->nr_adr, width * ratio,
+				nr_canvas_idx, di_buf->nr_adr, width * 2,
 				canvas_height, 0, 0);
 		}
 	} else if (di_buf->canvas_config_flag == 2) {
 		if (nr_canvas_idx >= 0) {
 			di_buf->nr_canvas_idx = nr_canvas_idx;
 			canvas_config(
-				nr_canvas_idx, di_buf->nr_adr, width * ratio,
+				nr_canvas_idx, di_buf->nr_adr, width * 2,
 				canvas_height / 2, 0, 0);
 		}
 		if (mtn_canvas_idx >= 0) {
@@ -2421,12 +2457,6 @@ static void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
 static void config_canvas(struct di_buf_s *di_buf)
 {
 	unsigned int width, canvas_height;
-	uint ratio = 2;
-
-	if (nr_10bit_en)
-		ratio = 3;
-	else
-		ratio = 2;
 
 	if (!di_buf)
 		return;
@@ -2434,12 +2464,12 @@ static void config_canvas(struct di_buf_s *di_buf)
 	canvas_height = (di_buf->canvas_config_size) & 0xffff;
 	if (di_buf->canvas_config_flag == 1) {
 		canvas_config(
-			di_buf->nr_canvas_idx, di_buf->nr_adr, width * ratio,
+			di_buf->nr_canvas_idx, di_buf->nr_adr, width * 2,
 			canvas_height, 0, 0);
 		di_buf->canvas_config_flag = 0;
 	} else if (di_buf->canvas_config_flag == 2) {
 		canvas_config(
-			di_buf->nr_canvas_idx, di_buf->nr_adr, width * ratio,
+			di_buf->nr_canvas_idx, di_buf->nr_adr, width * 2,
 			canvas_height / 2, 0, 0);
 		canvas_config(
 			di_buf->mtn_canvas_idx, di_buf->mtn_adr, width / 2,
@@ -3421,7 +3451,6 @@ static void pre_de_process(void)
 	else if (di_pre_rdma_enable & 1)
 		rdma_config(de_devp->rdma_handle, RDMA_DEINT_IRQ);
 #endif
-	set_nr_10bit_mode(nr_10bit_en);
 }
 
 static void pre_de_done_buf_clear(void)
@@ -4354,6 +4383,67 @@ static struct di_buf_s *get_free_linked_buf(int idx)
 	return di_buf;
 }
 
+
+static void dump_vframe_input(vframe_t *vframe)
+{
+	unsigned int canvas_w = 0, canvas_h = 0, canvas_real_size = 0;
+	unsigned int y_size = 0;
+	unsigned int uv_size = 0;
+	void *buff = NULL;
+	struct canvas_s vf_canvas;
+	if (NULL == vframe)
+		return;
+	canvas_read(vframe->canvas0Addr & 0xff, &vf_canvas);
+	canvas_w = vf_canvas.width;
+	canvas_h = vf_canvas.height;
+	y_size = canvas_w * canvas_h;
+	uv_size = canvas_w * canvas_h / 2;
+	canvas_real_size = y_size + uv_size;
+	dump_one_frame_size = canvas_real_size;
+	pr_info("canvas_w: %d, canvas_h: %d, canvas_real_size: %d\n",
+		canvas_w, canvas_h, canvas_real_size);
+	pr_info("canvas0Addr: %x\n", vframe->canvas0Addr);
+	pr_info("canvas1Addr: %x\n", vframe->canvas1Addr);
+	if (dump_vf_start_flag) {
+		pr_info("vf_input_buff size: %d\n",
+			canvas_real_size * dump_vf_num);
+		vf_input_buff =
+			kmalloc(canvas_real_size * dump_vf_num, GFP_KERNEL);
+		pr_info("malloc vframe buff\n");
+	}
+	if (NULL == vf_input_buff) {
+		dump_vf_num_inner = 0;
+		pr_info("kmalloc vf_input_buff failed\n");
+		return;
+	}
+	if ((!is_progressive(vframe))
+		&& ((vframe->height == 576) || (vframe->height == 480))
+		&& ((vframe->type & VIDTYPE_TYPEMASK)
+			== VIDTYPE_INTERLACE_TOP)) {
+		return;
+	}
+	buff = phys_to_virt(canvas_get_addr(vframe->canvas0Addr & 0xff));
+	if (NULL == buff) {
+		dump_vf_num_inner = 0;
+		pr_info("buff is NULL\n");
+		return;
+	}
+	vf_input_size = canvas_real_size;
+	memcpy(vf_input_buff + (dump_buff_offset * canvas_real_size),
+		buff, y_size);
+	buff = phys_to_virt(canvas_get_addr((vframe->canvas0Addr >> 8) & 0xff));
+	if (NULL == buff) {
+		dump_vf_num_inner = 0;
+		return;
+	}
+	memcpy(vf_input_buff + y_size + (dump_buff_offset * vf_input_size),
+		buff, uv_size);
+	++dump_buff_offset;
+	--dump_vf_num_inner;
+	pr_info("dup vf_input_buff OK\n");
+	return;
+}
+
 static unsigned char pre_de_buf_config(void)
 {
 	struct di_buf_s *di_buf = NULL;
@@ -4385,6 +4475,11 @@ static unsigned char pre_de_buf_config(void)
 		if (di_linked_buf_idx == -1)
 			return 0;
 	}
+
+	/* In bypass mode, register should in line with input source */
+	vframe = vf_peek(VFM_NAME);
+	if (NULL != vframe)
+		di_bit_mode_bypass_cfg(vframe, bypass_state);
 
 	if (di_pre_stru.di_inp_buf_next) {
 		di_pre_stru.di_inp_buf = di_pre_stru.di_inp_buf_next;
@@ -4426,6 +4521,16 @@ static unsigned char pre_de_buf_config(void)
 
 		if (vframe == NULL)
 			return 0;
+
+		if (dump_vf_start_flag)
+			dump_vf_num_inner = dump_vf_num;
+
+		if (dump_vf_num_inner) {
+			dump_vframe_input(vframe);
+			dump_vf_start_flag = 0;
+		}
+		if (0 == dump_vf_num_inner)
+			dump_buff_offset = 0;
 
 		if (vframe->width > 10000 || vframe->height > 10000 ||
 		    di_pre_stru.bad_frame_throw_count > 0) {
@@ -6844,8 +6949,16 @@ static void di_reg_process_irq(void)
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
 			/* di_init_buf(vframe->width,
 			 * vframe->height, 1); */
-			di_init_buf(default_width, default_height, 1);
+			 /*
+			 * 10 bit mode need 1.5 times buffer size of
+			 * 8 bit mode, init the buffer size as 10 bit
+			 * mode size, to make sure can switch bit mode
+			 * smoothly.
+			 */
+			di_init_buf(default_width * 3 / 2,
+				default_height, 1);
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			config_di_bit_mode(vframe, bypass_state);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
@@ -6855,8 +6968,16 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			di_init_buf(default_width, default_height, 0);
+			/*
+			 * 10 bit mode need 1.5 times buffer size of
+			 * 8 bit mode, init the buffer size as 10 bit
+			 * mode size, to make sure can switch bit mode
+			 * smoothly.
+			 */
+			di_init_buf(default_width * 3 / 2,
+				default_height, 0);
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+			config_di_bit_mode(vframe, bypass_state);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
@@ -7728,11 +7849,13 @@ static void set_di_flag(void)
 		pulldown_mode = 1;
 		di_vscale_skip_enable = 3;
 		use_2_interlace_buff = true;
+		di_force_bit_mode = 10;
 	} else {
 		mcpre_en = false;
 		pulldown_mode = 0;
 		di_vscale_skip_enable = 4;
 		use_2_interlace_buff = false;
+		di_force_bit_mode = 8;
 	}
 	return;
 }
