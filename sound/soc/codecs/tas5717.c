@@ -55,12 +55,30 @@ static u8 TAS5717_drc1_table[3][8] = {
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 };
 
+static u8 TAS5717_drc2_table[3][8] = {
+	/* 0x3D drc2_ae */
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	/* 0x3E drc2_aa */
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	/* 0x3F drc2_ad */
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+};
+
 static u8 tas5717_drc1_tko_table[3][4] = {
 	/* 0x40 drc1_t */
 	{ 0x00, 0x00, 0x00, 0x00 },
 	/* 0x41 drc1_k */
 	{ 0x00, 0x00, 0x00, 0x00 },
 	/* 0x42 drc1_o */
+	{ 0x00, 0x00, 0x00, 0x00 }
+};
+
+static u8 tas5717_drc2_tko_table[3][4] = {
+	/* 0x43 drc2_t */
+	{ 0x00, 0x00, 0x00, 0x00 },
+	/* 0x44 drc2_k */
+	{ 0x00, 0x00, 0x00, 0x00 },
+	/* 0x45 drc2_o */
 	{ 0x00, 0x00, 0x00, 0x00 }
 };
 
@@ -81,21 +99,78 @@ struct tas5717_priv {
 	unsigned char Ch2_vol;
 	unsigned mclk;
 };
+/*Master Volume*/
+static int tad5717_mv_16bit_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int ret;
+	unsigned int value = 0;
+	unsigned char data_tmp = 0;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int max = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
+	ret = regmap_raw_read(codec->control_data, mc->reg,
+				      ucontrol->value.bytes.data,
+				      2);
+	data_tmp = ucontrol->value.bytes.data[0];
+	ucontrol->value.bytes.data[0] = ucontrol->value.bytes.data[1];
+	ucontrol->value.bytes.data[1] = data_tmp;
+	/*dev_info(codec->dev, " ucontrol->value.bytes.data=[%x][%x]!\n",
+	ucontrol->value.bytes.data[0],ucontrol->value.bytes.data[1]);*/
+	value = (((u16 *)(&ucontrol->value.bytes.data))[0]>>2) & mask;
+	if (invert)
+		value = max - value;
+	((u16 *)(&ucontrol->value.bytes.data))[0] = value;
+	/*dev_info(codec->dev, "tad5717_mv_16bit_get %x[%d]=%d!\n",
+	mc->reg,codec->val_bytes,value);*/
+	return ret;
+}
+
+static int tad5717_mv_16bit_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int ret;
+	unsigned int value = 0;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	int max = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int mask = (1 << fls(max)) - 1;
+	value = ((u16 *)(&ucontrol->value.integer.value))[0] & mask;
+	if (invert)
+		value = max - value;
+	/*dev_info(codec->dev, "set1!mc =%d mask%d\n",value, mask);*/
+	value <<= 2;
+	value = ((value >> 8) & 0xff) | ((value << 8) & 0xff00);
+	/*dev_info(codec->dev, "set2!mc =%d mask%d\n",value, mask);*/
+	ret = regmap_raw_write(codec->control_data, mc->reg, &value, 2);
+	return ret;
+}
 
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12700, 50, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);
 
 static const struct snd_kcontrol_new tas5717_snd_controls[] = {
-	SOC_SINGLE_TLV("Master Volume", DDX_MASTER_VOLUME, 0,
-		       0xff, 1, mvol_tlv),
-	SOC_SINGLE_TLV("Ch1 Volume", DDX_CHANNEL1_VOL, 0,
-		       0xff, 1, chvol_tlv),
-	SOC_SINGLE_TLV("Ch2 Volume", DDX_CHANNEL2_VOL, 0,
-		       0xff, 1, chvol_tlv),
+	SOC_SINGLE_EXT_TLV("Master Volume",
+		DDX_MASTER_VOLUME, 0, 0xff, 1,
+		tad5717_mv_16bit_get, tad5717_mv_16bit_put, mvol_tlv),
+	SOC_SINGLE_EXT_TLV("Headphone Volume",
+	DDX_HEADPHONE_VOL, 0, 0xff, 1,
+	tad5717_mv_16bit_get, tad5717_mv_16bit_put, mvol_tlv),
+	SOC_SINGLE_EXT_TLV("Ch1 Volume",
+	DDX_CHANNEL1_VOL, 0, 0xff, 1,
+	tad5717_mv_16bit_get, tad5717_mv_16bit_put, chvol_tlv),
+	SOC_SINGLE_EXT_TLV("Ch2 Volume",
+	DDX_CHANNEL2_VOL, 0, 0xff, 1,
+	tad5717_mv_16bit_get, tad5717_mv_16bit_put, chvol_tlv),
 	SOC_SINGLE("Ch1 Switch", DDX_SOFT_MUTE, 0, 1, 1),
 	SOC_SINGLE("Ch2 Switch", DDX_SOFT_MUTE, 1, 1, 1),
 	SOC_SINGLE_RANGE("Fine Master Volume", DDX_CHANNEL3_VOL, 0,
-			   0x80, 0x83, 0),
+			0x80, 0x83, 0),
 };
 
 static int tas5717_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -218,18 +293,23 @@ static struct snd_soc_dai_driver tas5717_dai = {
 static int tas5717_set_master_vol(struct snd_soc_codec *codec)
 {
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
+	unsigned char vol_data[2] = {0x01, 0x00};
 
 	/* using user BSP defined master vol config; */
 	if (pdata && pdata->custom_master_vol) {
-		pr_debug("tas5717_set_master_vol::%d\n",
+		pr_info("tas5717_set_master_vol::%d\n",
 			pdata->custom_master_vol);
-		snd_soc_write(codec, DDX_MASTER_VOLUME,
-			      (0xff - pdata->custom_master_vol));
+		vol_data[0] = (pdata->custom_master_vol * 4 + 3) >> 8;
+		vol_data[1] = pdata->custom_master_vol * 4 + 3;
+		regmap_raw_write(codec->control_data, DDX_MASTER_VOLUME,
+			      vol_data, 2);
 	} else {
-		pr_debug
+		pr_info
 			("get dtd master_vol failed:using default setting\n");
-		snd_soc_write(codec, DDX_MASTER_VOLUME, 0x30);
+		regmap_raw_write(codec->control_data, DDX_MASTER_VOLUME,
+						  vol_data, 2);
 	}
+	pr_info("vol_data::0x%x,%x\n", vol_data[0], vol_data[1]);
 
 	return 0;
 }
@@ -278,22 +358,68 @@ static int tas5717_set_drc1(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int tas5717_set_drc2(struct snd_soc_codec *codec)
+{
+	int i = 0, j = 0;
+	u8 *p = NULL;
+	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
+
+	if (pdata && pdata->custom_drc2_table
+	    && pdata->custom_drc2_table_len == 24) {
+		p = pdata->custom_drc2_table;
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 8; j++)
+				TAS5717_drc2_table[i][j] = p[i * 8 + j];
+
+			regmap_raw_write(codec->control_data, DDX_DRC2_AE + i,
+					 TAS5717_drc2_table[i], 8);
+			/*for (j = 0; j < 8; j++)
+				pr_info("TAS5717_drc2_table[%d][%d]: %x\n",
+					 i, j, TAS5717_drc2_table[i][j]);*/
+		}
+	} else {
+		return -1;
+	}
+
+	if (pdata && pdata->custom_drc2_tko_table
+	    && pdata->custom_drc2_tko_table_len == 12) {
+		p = pdata->custom_drc2_tko_table;
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 4; j++)
+				tas5717_drc2_tko_table[i][j] = p[i * 4 + j];
+
+			regmap_raw_write(codec->control_data, DDX_DRC2_T + i,
+					 tas5717_drc2_tko_table[i], 4);
+			/*for (j = 0; j < 4; j++)
+				pr_info("tas5717_drc2_tko_table[%d][%d]: %x\n",
+					 i, j, tas5717_drc2_tko_table[i][j]);*/
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
 static int tas5717_set_drc(struct snd_soc_codec *codec)
 {
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 	char drc_mask = 0;
 	u8 tas5717_drc_ctl_table[] = { 0x00, 0x00, 0x00, 0x00 };
 
-	if (pdata && pdata->enable_ch1_drc && pdata->drc_enable) {
-		drc_mask |= 0x01;
+	if (pdata && pdata->enable_ch1_drc
+		&& pdata->enable_ch2_drc && pdata->drc_enable) {
+		drc_mask |= 0x03;
 		tas5717_drc_ctl_table[3] = drc_mask;
 		tas5717_set_drc1(codec);
+		tas5717_set_drc2(codec);
 	    regmap_raw_write(codec->control_data, DDX_DRC_CTL,
 			 tas5717_drc_ctl_table, 4);
 	    return 0;
 	}
 	return -1;
 }
+
 
 static int tas5717_set_eq_biquad(struct snd_soc_codec *codec)
 {
@@ -485,8 +611,13 @@ static int tas5717_init(struct snd_soc_codec *codec)
 	int err;
 	unsigned char burst_data[][4] = {
 		{ 0x00, 0x01, 0x77, 0x72 },
-		{ 0x00, 0x00, 0x42, 0x03 },
+		{ 0x00, 0x00, 0x43, 0x03 },
 		{ 0x01, 0x02, 0x13, 0x45 },
+	};
+	unsigned char channel_vol[][2] = {
+		{ 0x00, 0xC0 },
+		{ 0x00, 0xC0 },
+		{ 0x00, 0xC0 },
 	};
 	unsigned char test_data[2] = {0x01, 0x00};
 	struct tas5717_priv *tas5717 = snd_soc_codec_get_drvdata(codec);
@@ -494,22 +625,13 @@ static int tas5717_init(struct snd_soc_codec *codec)
 	reset_tas5717_GPIO(codec);
 
 	dev_info(codec->dev, "tas5717_init!\n");
-	/*kthread for phone*/
-	phone_task = kthread_create(phone_thread, codec, "phone_thread");
-	if (IS_ERR(phone_task)) {
-		dev_err(codec->dev, "Unable to start kernel thread./n");
-		err = PTR_ERR(phone_task);
-		phone_task = NULL;
-		return err;
-	}
-	wake_up_process(phone_task);
-	if (0) {
+	if (1) {
 		snd_soc_write(codec, DDX_OSC_TRIM, 0x80);
 	msleep(50);
 	snd_soc_write(codec, DDX_CLOCK_CTL, 0x6c);
 	snd_soc_write(codec, DDX_SYS_CTL_1, 0xa0);
 	snd_soc_write(codec, DDX_SERIAL_DATA_INTERFACE, 0x05);
-	snd_soc_write(codec, DDX_BKND_ERR, 0x02);
+	snd_soc_write(codec, DDX_BKND_ERR, 0x57);
 
 	regmap_raw_write(codec->control_data, DDX_INPUT_MUX, burst_data[0], 4);
 	regmap_raw_write(codec->control_data, DDX_CH4_SOURCE_SELECT,
@@ -526,19 +648,31 @@ static int tas5717_init(struct snd_soc_codec *codec)
 	if ((tas5717_customer_init(codec)) < 0)
 		dev_err(codec->dev, " fail to set tas5717 customer init!\n");
 
-	snd_soc_write(codec, DDX_VOLUME_CONFIG, 0xD1);
+	snd_soc_write(codec, DDX_VOLUME_CONFIG, 0xF0);
 	snd_soc_write(codec, DDX_SYS_CTL_2, 0x00);
-	snd_soc_write(codec, DDX_START_STOP_PERIOD, 0x95);
+	snd_soc_write(codec, DDX_START_STOP_PERIOD, 0x68);
 	snd_soc_write(codec, DDX_PWM_SHUTDOWN_GROUP, 0x30);
 	snd_soc_write(codec, DDX_MODULATION_LIMIT, 0x02);
 	/*normal operation */
 	if ((tas5717_set_master_vol(codec)) < 0)
 		dev_err(codec->dev, "fail to set tas5717 master vol!\n");
-
-	snd_soc_write(codec, DDX_CHANNEL1_VOL, tas5717->Ch1_vol);
-	snd_soc_write(codec, DDX_CHANNEL2_VOL, tas5717->Ch2_vol);
+	channel_vol[0][0] = ((tas5717->Ch1_vol * 4 + 3) & 0xFF00) >> 8;
+	channel_vol[0][1] = (tas5717->Ch1_vol * 4 + 3) & 0x00FF;
+	channel_vol[1][0] = ((tas5717->Ch2_vol * 4 + 3) & 0xFF00) >> 8;
+	channel_vol[1][1] = (tas5717->Ch2_vol * 4 + 3) & 0x00FF;
+	pr_info("channel_vol[0]::0x%x,%x\n",
+		channel_vol[0][0], channel_vol[0][1]);
+	pr_info("channel_vol[1]::0x%x,%x\n",
+		channel_vol[1][0], channel_vol[1][1]);
+	pr_info("channel_vol[2]::0x%x,%x\n",
+		channel_vol[2][0], channel_vol[2][1]);
+	regmap_raw_write(codec->control_data, DDX_CHANNEL1_VOL,
+		channel_vol[0], 2);
+	regmap_raw_write(codec->control_data, DDX_CHANNEL2_VOL,
+		channel_vol[1], 2);
 	snd_soc_write(codec, DDX_SOFT_MUTE, 0x00);
-	snd_soc_write(codec, DDX_CHANNEL3_VOL, 0x80);
+	regmap_raw_write(codec->control_data, DDX_CHANNEL3_VOL,
+		channel_vol[2], 2);
 	} else {
 		pr_info("GST 5705 test_init\n");
 		snd_soc_write(codec, DDX_SYS_CTL_2, 0x00);
@@ -546,6 +680,15 @@ static int tas5717_init(struct snd_soc_codec *codec)
 		regmap_raw_write(codec->control_data, DDX_MASTER_VOLUME,
 			test_data, 2);
 	}
+	/*kthread for phone*/
+	phone_task = kthread_create(phone_thread, codec, "phone_thread");
+	if (IS_ERR(phone_task)) {
+		dev_err(codec->dev, "Unable to start kernel thread./n");
+		err = PTR_ERR(phone_task);
+		phone_task = NULL;
+		return err;
+	}
+	wake_up_process(phone_task);
 	return 0;
 }
 
@@ -696,7 +839,6 @@ static int tas5717_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, tas5717);
 	tas5717->control_type = SND_SOC_I2C;
-
 	ret = snd_soc_register_codec(&i2c->dev, &tas5717_codec,
 				     &tas5717_dai, 1);
 	if (ret != 0)

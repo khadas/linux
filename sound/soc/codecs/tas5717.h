@@ -14,6 +14,7 @@
 #define DDX_CHANNEL1_VOL                            0x08
 #define DDX_CHANNEL2_VOL                            0x09
 #define DDX_CHANNEL3_VOL                            0x0A
+#define DDX_HEADPHONE_VOL                           0x0C
 #define DDX_VOLUME_CONFIG                           0x0E
 
 #define DDX_MODULATION_LIMIT                        0x10
