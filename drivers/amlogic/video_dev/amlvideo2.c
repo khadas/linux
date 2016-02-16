@@ -3214,6 +3214,10 @@ static enum tvin_scan_mode_e vmode2scan_mode(enum vmode_e mode)
 	case VMODE_XGA:
 	case VMODE_SXGA:
 	case VMODE_LCD:
+	case VMODE_4K2K_50HZ:
+	case VMODE_4K2K_50HZ_Y420:
+	case VMODE_4K2K_60HZ:
+	case VMODE_4K2K_60HZ_Y420:
 		scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
 		break;
 	default:
