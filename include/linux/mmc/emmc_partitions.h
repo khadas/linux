@@ -16,7 +16,7 @@
 #define	STORE_DATA				(1<<2)
 
 #define     MAX_PART_NAME_LEN               16
-#define     MAX_MMC_PART_NUM                16
+#define     MAX_MMC_PART_NUM                32
 
 /* MMC Partition Table */
 #define     MMC_PARTITIONS_MAGIC            "MPT"
