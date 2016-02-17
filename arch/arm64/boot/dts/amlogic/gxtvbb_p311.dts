@@ -52,7 +52,7 @@
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			size = <0x0 0x02200000>; //10x1920x1088x3/2=30M
+			size = <0x0 0x2200000>; //10x1920x1088x3/2 + 4M =30M
 			//no-map;
 			multi-use;
 		};
@@ -65,31 +65,20 @@
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x4000000>;
+			//size = <0x0 0x4000000>;
+			/* the most significant 64M memory reserved for ion */
+			reg = <0x0 0x3c000000 0x0 0x4000000>; /* for 1G memory */
+			//reg = <0x0 0x5c000000 0x0 0x4000000>; /* for 1.5G memory*/
+			//reg = <0x0 0x7c000000 0x0 0x4000000>; /* for 2G memory */
 		};
 
-		/*  PICDEC reserved memory */
-		picdec_reserved:linux,picdec {
-			compatible = "amlogic, picdec_memory";
-			size = <0x0 0x1000000>;
-			//no-map;
-			multi-use;
-		};
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
 			size = <0x0 0x1000000>;
 			multi-use;
 		};
-		/* AVC Encode CMA pool */
-		avc_cma_reserved:linux,avc_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <1>;
-			reusable;
-			size = <0x0 0x2400000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-		};
+
 		amlvideo2_reserved:linux,amlvideo2 {
 			compatible = "amlogic, amlvideo2_memory";
 			size = <0x0 0x01800000>;
@@ -101,23 +90,29 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
-
-
+		picdec_cma_reserved:linux,picdec {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x0>;
+			linux,contiguous-region;
+		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0 0x4100000>;
 			alignment = <0x0 0x100000>;
+ 			//no-map;
 		};
 		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <4>;
-			reusable;
+		//vdin0_cma_reserved:linux,vdin0_cma {
+		//	compatible = "shared-dma-pool";
+		//	linux,phandle = <4>;
+		//	reusable;
 			/* 3840x2160x2x4  =64+4 M */
-			size = <0x0 0x04400000>;
-			alignment = <0x0 0x400000>;
-		};
+		//	size = <0x0 0x04400000>;
+		//	alignment = <0x0 0x400000>;
+		//};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
@@ -128,14 +123,14 @@
 			alignment = <0x0 0x400000>;
 		};
 		/*  tvafe CMA pool */
-		tvafe_cma_reserved:linux,tvafe_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <6>;
-			reusable;
+		//tvafe_cma_reserved:linux,tvafe_cma {
+		//	compatible = "shared-dma-pool";
+		//	linux,phandle = <6>;
+		//	reusable;
 			/* 5 M */
-			size = <0x0 0x00800000>;
-			alignment = <0x0 0x400000>;
-		};
+		//	size = <0x0 0x00800000>;
+		//	alignment = <0x0 0x400000>;
+		//};
 	};
 
 	meson-vout {
@@ -219,6 +214,7 @@
 		compatible = "amlogic, amvideocap";
 		dev_name = "amvideocap.0";
 		status = "okay";
+		max_size = <8>;//8M
 	};
 
 	ion_dev {
@@ -243,7 +239,12 @@
 			"mailbox_1",
 			"mailbox_2";
 	};
-
+	picdec {
+		   compatible = "amlogic, picdec";
+		   memory-region = <&picdec_cma_reserved>;
+		   dev_name = "picdec";
+		   status = "okay";
+	};
 	ppmgr {
 		compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
 		memory-region = <&ppmgr_reserved>;

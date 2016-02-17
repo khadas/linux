@@ -52,7 +52,7 @@
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			size = <0x0 0x02200000>; //10x1920x1088x3/2=30M
+			size = <0x0 0x2200000>; //10x1920x1088x3/2 + 4M =30M
 			//no-map;
 			multi-use;
 		};
@@ -78,15 +78,7 @@
 			size = <0x0 0x1000000>;
 			multi-use;
 		};
-		/* AVC Encode CMA pool */
-		avc_cma_reserved:linux,avc_cma {
-			compatible = "shared-dma-pool";
-			linux,phandle = <1>;
-			reusable;
-			size = <0x0 0x2400000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-		};
+
 		amlvideo2_reserved:linux,amlvideo2 {
 			compatible = "amlogic, amlvideo2_memory";
 			size = <0x0 0x01800000>;
@@ -110,6 +102,7 @@
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0 0x4100000>;
 			alignment = <0x0 0x100000>;
+ 			//no-map;
 		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -426,7 +419,7 @@
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		//memory-region = <&amvenc_avc_reserved>;
-		memory-region = <&avc_cma_reserved>;
+		//memory-region = <&avc_cma_reserved>;
 		dev_name = "amvenc_avc";
 		status = "okay";
 		interrupts = <0 45 1>;
