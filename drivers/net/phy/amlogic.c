@@ -493,6 +493,15 @@ static int pmu4_read_status(struct phy_device *phydev)
 	int value;
 	int timeout = 50000;
 	uint8_t pmu4_ver = 0;
+	uint8_t val;
+
+	if (phydev->link) {
+			aml_pmu4_read(0x7B, &val);
+			aml_pmu4_write(0x7B, val|0x4);
+	} else {
+			aml_pmu4_read(0x7B, &val);
+			aml_pmu4_write(0x7B, val&(~0x4));
+	}
 
 	/* strange state in PMU4v1, reset to return normal */
 	err = aml_pmu4_version(&pmu4_ver);
