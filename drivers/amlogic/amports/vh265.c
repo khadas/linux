@@ -1025,6 +1025,8 @@ struct tile_s {
 	unsigned int sao_abv_start_addr;
 };
 
+#define SEI_MASTER_DISPLAY_COLOR_MASK 0x00000001
+
 #define VF_POOL_SIZE        32
 struct hevc_state_s {
 	struct BuffInfo_s *work_space_buf;
@@ -1180,6 +1182,9 @@ struct hevc_state_s {
 	u32 predisp_addr;
 	u32 predisp_size;
 
+	u32 sei_present_flag;
+
+	/* data for SEI_MASTER_DISPLAY_COLOR */
 	unsigned int primaries[3][2];
 	unsigned int white_point[2];
 	unsigned int luminance[2];
@@ -1260,6 +1265,8 @@ static void hevc_init_stru(struct hevc_state_s *hevc,
 
 	hevc->pre_top_pic = NULL;
 	hevc->pre_bot_pic = NULL;
+
+	hevc->sei_present_flag = 0;
 }
 
 static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic);
@@ -4344,6 +4351,7 @@ static int init_buf_spec(struct hevc_state_s *hevc)
 static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 {
 	unsigned int ar;
+	int i, j;
 
 	if (double_write_mode == 2) {
 		vf->width = hevc->frame_width/4;
@@ -4359,8 +4367,26 @@ static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 	ar = min_t(u32, hevc->frame_ar, DISP_RATIO_ASPECT_RATIO_MAX);
 	vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);
 
+	/* signal_type */
 	if (hevc->video_signal_type & VIDEO_SIGNAL_TYPE_AVAILABLE_MASK)
 		vf->signal_type = hevc->video_signal_type;
+
+	/* master_display_colour */
+	if (hevc->sei_present_flag & SEI_MASTER_DISPLAY_COLOR_MASK) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				vf->prop.master_display_colour.primaries[i][j]
+					= hevc->primaries[i][j];
+		for (i = 0; i < 2; i++) {
+			vf->prop.master_display_colour.white_point[i]
+				= hevc->white_point[i];
+			vf->prop.master_display_colour.luminance[i]
+				= hevc->luminance[i];
+		}
+		vf->prop.master_display_colour.present_flag = 1;
+	} else
+		vf->prop.master_display_colour.present_flag = 0;
+
 	return;
 }
 
@@ -4876,13 +4902,17 @@ static void process_nal_sei(struct hevc_state_s *hevc,
 	int payload_type, int payload_size)
 {
 	unsigned short data;
-	/* MASTERING_DISPLAY_COLOUR_VOLUME */
+#if 0
 	pr_info("\tsei message: payload_type = 0x%02x, payload_size = 0x%02x\n",
 		payload_type, payload_size);
-
+#endif
 	if (payload_type == 137) {
 		int i, j;
+		/* MASTERING_DISPLAY_COLOUR_VOLUME */
 		if (payload_size >= 24) {
+#if 0
+			pr_info("\tsei MASTERING_DISPLAY_COLOUR_VOLUME available\n");
+#endif
 			for (i = 0; i < 3; i++) {
 				for (j = 0; j < 2; j++) {
 					data =
@@ -4890,16 +4920,20 @@ static void process_nal_sei(struct hevc_state_s *hevc,
 					hevc->primaries[i][j] = data;
 					WRITE_HREG(HEVC_SHIFT_COMMAND,
 					(1<<7)|16);
+#if 0
 					pr_info("\t\tprimaries[%1d][%1d] = %04x\n",
 						i, j, hevc->primaries[i][j]);
+#endif
 				}
 			}
 			for (i = 0; i < 2; i++) {
 				data = (READ_HREG(HEVC_SHIFTED_DATA) >> 16);
 				hevc->white_point[i] = data;
 				WRITE_HREG(HEVC_SHIFT_COMMAND, (1<<7)|16);
+#if 0
 				pr_info("\t\twhite_point[%1d] = %04x\n",
 					i, hevc->white_point[i]);
+#endif
 			}
 			for (i = 0; i < 2; i++) {
 					data =
@@ -4912,9 +4946,12 @@ static void process_nal_sei(struct hevc_state_s *hevc,
 					hevc->luminance[i] |= data;
 					WRITE_HREG(HEVC_SHIFT_COMMAND,
 					(1<<7)|16);
+#if 0
 					pr_info("\t\tluminance[%1d] = %08x\n",
 						i, hevc->luminance[i]);
+#endif
 			}
+			hevc->sei_present_flag |= SEI_MASTER_DISPLAY_COLOR_MASK;
 		}
 		payload_size -= 24;
 		while (payload_size > 0) {
@@ -5436,6 +5473,7 @@ static irqreturn_t vh265_isr(int irq, void *data)
 				| hevc->param.p.color_description)) {
 				u32 v = hevc->param.p.video_signal_type;
 				u32 c = hevc->param.p.color_description;
+#if 0
 				if (v & 0x2000) {
 					pr_info("video_signal_type present:\n");
 					pr_info(" %s %s\n",
@@ -5454,6 +5492,7 @@ static irqreturn_t vh265_isr(int irq, void *data)
 						matrix_coeffs_names[c & 0xff]);
 					}
 				}
+#endif
 				hevc->video_signal_type = (v << 16) | c;
 				video_signal_type = hevc->video_signal_type;
 			}
@@ -5830,6 +5869,7 @@ static int vh265_local_init(struct hevc_state_s *hevc)
 	if (hevc->frame_width && hevc->frame_height)
 		hevc->frame_ar = hevc->frame_height * 0x100 / hevc->frame_width;
 	hevc->error_watchdog_count = 0;
+	hevc->sei_present_flag = 0;
 /*
 TODO:FOR VERSION
 */

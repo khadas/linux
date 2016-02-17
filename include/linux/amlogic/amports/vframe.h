@@ -41,7 +41,7 @@
 #define VIDTYPE_PRE_INTERLACE           0x40000
 #define VIDTYPE_HIGHRUN                 0x80000
 #define VIDTYPE_COMPRESS                0x100000
-#define VIDTYPE_PIC	 	                0x200000
+#define VIDTYPE_PIC		                0x200000
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -122,11 +122,20 @@ struct vframe_view_s {
 	unsigned int height;
 } /*vframe_view_t */;
 
+struct vframe_master_display_colour_s {
+	u32 present_flag;
+	u32 primaries[3][2];
+	u32 white_point[2];
+	u32 luminance[2];
+}; /* master_display_colour_info_volume from SEI */
+
 /* vframe properties */
 struct vframe_prop_s {
 	struct vframe_hist_s hist;
 	struct vframe_bbar_s bbar;
 	struct vframe_meas_s meas;
+	struct vframe_master_display_colour_s
+		master_display_colour;
 } /*vframe_prop_t */;
 
 enum vframe_source_type_e {
