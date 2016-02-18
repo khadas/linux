@@ -1679,8 +1679,7 @@ static void di_nr_init(void)
  */
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 {
-	if (((vframe->width > 1920) || (vframe->height > 1080))
-		&& ((vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE)) {
+	if ((vframe->width > 1920) || (vframe->height > 1080)) {
 		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
 		 * input source*/
 		if (vframe->bitdepth & BITDEPTH_Y10)
