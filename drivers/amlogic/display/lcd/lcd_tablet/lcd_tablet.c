@@ -337,6 +337,8 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 
 static void lcd_config_init(struct lcd_config_s *pconf)
 {
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config();
+	unsigned int ss_level;
 	unsigned int clk;
 	unsigned int sync_duration, h_period, v_period;
 
@@ -355,6 +357,8 @@ static void lcd_config_init(struct lcd_config_s *pconf)
 	pconf->lcd_timing.lcd_clk_dft = pconf->lcd_timing.lcd_clk;
 	lcd_tcon_config(pconf);
 	lcd_clk_generate_parameter(pconf);
+	ss_level = pconf->lcd_timing.ss_level;
+	cconf->ss_level = (ss_level >= cconf->ss_level_max) ? 0 : ss_level;
 }
 
 static int lcd_get_config(struct lcd_config_s *pconf,
