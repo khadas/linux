@@ -96,6 +96,7 @@ struct bl_gpio_s {
 };
 
 struct bl_pwm_config_s {
+	unsigned int index;
 	enum bl_pwm_method_e pwm_method;
 	enum bl_pwm_port_e pwm_port;
 	unsigned int level_max;
@@ -111,6 +112,7 @@ struct bl_pwm_config_s {
 	unsigned int pwm_level; /* internal used for pwm control */
 	unsigned int pwm_gpio;
 	unsigned int pwm_gpio_off;
+	unsigned int pinmux_flag;
 };
 
 struct bl_config_s {
@@ -138,6 +140,7 @@ struct bl_config_s {
 
 	struct bl_gpio_s bl_gpio[BL_GPIO_NUM_MAX];
 	struct pinctrl *pin;
+	unsigned int pinmux_flag;
 };
 
 #define BL_INDEX_DEFAULT     0
