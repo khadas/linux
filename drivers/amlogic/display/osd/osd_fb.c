@@ -156,11 +156,28 @@ const struct color_bit_define_s default_color_format_array[] = {
 		16, 8, 0, 8, 8, 0, 0, 8, 0, 0, 0, 0,
 		FB_VISUAL_TRUECOLOR, 24
 	},
-	/*32 bit color*/
-	INVALID_BPP_ITEM,
-	INVALID_BPP_ITEM,
-	INVALID_BPP_ITEM,
-	INVALID_BPP_ITEM,
+	/*32 bit color RGBX */
+	{
+		COLOR_INDEX_32_BGRX, 3, 5,
+		8, 8, 0, 16, 8, 0, 24, 8, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	{
+		COLOR_INDEX_32_XBGR, 2, 5,
+		0, 8, 0, 8, 8, 0, 16, 8, 0, 24, 0, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	{
+		COLOR_INDEX_32_RGBX, 0, 5,
+		24, 8, 0, 16, 8, 0, 8, 8, 0, 0, 0, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	{
+		COLOR_INDEX_32_XRGB, 1, 5,
+		16, 8, 0, 8, 8, 0, 0, 8, 0, 24, 0, 0,
+		FB_VISUAL_TRUECOLOR, 32
+	},
+	/*32 bit color RGBA */
 	{
 		COLOR_INDEX_32_BGRA, 3, 5,
 		8, 8, 0, 16, 8, 0, 24, 8, 0, 0, 8, 0,
@@ -397,8 +414,15 @@ _find_color_format(struct fb_var_screeninfo *var)
 		lower_margin = COLOR_INDEX_24_6666_A;
 		break;
 	case 3:
-		upper_margin = COLOR_INDEX_32_ARGB;
-		lower_margin = COLOR_INDEX_32_BGRA;
+		if ((var->nonstd != 0)
+		    && (var->transp.length == 0)) {
+			/* RGBX Mode */
+			upper_margin = COLOR_INDEX_32_XRGB;
+			lower_margin = COLOR_INDEX_32_BGRX;
+		} else {
+			upper_margin = COLOR_INDEX_32_ARGB;
+			lower_margin = COLOR_INDEX_32_BGRA;
+		}
 		break;
 	case 4:
 		upper_margin = COLOR_INDEX_YUV_422;
@@ -412,7 +436,25 @@ _find_color_format(struct fb_var_screeninfo *var)
 	 * if not provide color component length
 	 * then we find the first depth match.
 	 */
-	if ((var->red.length == 0) || (var->green.length == 0)
+
+	if ((var->nonstd != 0) && (level == 3)
+	    && (var->transp.length == 0)) {
+		/* RGBX Mode */
+		for (i = upper_margin; i >= lower_margin; i--) {
+			color = &default_color_format_array[i];
+			if ((color->red_length == var->red.length) &&
+			    (color->green_length == var->green.length) &&
+			    (color->blue_length == var->blue.length) &&
+			    (color->transp_offset == var->transp.offset) &&
+			    (color->green_offset == var->green.offset) &&
+			    (color->blue_offset == var->blue.offset) &&
+			    (color->red_offset == var->red.offset)) {
+				found = color;
+				break;
+			}
+			color--;
+		}
+	} else if ((var->red.length == 0) || (var->green.length == 0)
 	    || (var->blue.length == 0) ||
 	    var->bits_per_pixel != (var->red.length + var->green.length +
 		    var->blue.length + var->transp.length)) {

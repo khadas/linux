@@ -555,16 +555,6 @@ static inline void walk_through_update_list(void)
 	}
 }
 
-static void osd1_update_afbcd_gbl_alpha(void)
-{
-	u32 data32;
-	if (osd_hw.osd_afbcd[OSD1].enable) {
-		data32 = VSYNCOSD_RD_MPEG_REG(VIU_OSD1_CTRL_STAT2);
-		data32 &= ~(0x1ff << 6);
-		data32 |= osd_hw.gbl_alpha[OSD1] << 6;
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_CTRL_STAT2, data32);
-	}
-}
 static void osd1_update_afbcd_color_mode(void)
 {
 	if (osd_hw.osd_afbcd[OSD1].enable) {
@@ -727,7 +717,6 @@ void osd_reset_afbcd(u32 index)
 		VSYNCOSD_SET_MPEG_REG_MASK(VIU_SW_RESET, 1 << 31);
 		VSYNCOSD_CLR_MPEG_REG_MASK(VIU_SW_RESET, 1 << 31);
 		osd1_update_afbcd_color_mode();
-		osd1_update_afbcd_gbl_alpha();
 		osd1_basic_update_afbcd_disp_geometry();
 		VSYNCOSD_WR_MPEG_REG_BITS(OSD1_AFBCD_ENABLE, 1, 8, 1);
 	}
@@ -2362,6 +2351,19 @@ static void osd1_update_color_mode(void)
 			VSYNCOSD_WR_MPEG_REG_BITS(OSD1_AFBCD_CHROMA_PTR,
 				0xe4, 24, 8);
 		}
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+			enum color_index_e idx =
+				osd_hw.color_info[OSD1]->color_index;
+			if (idx >= COLOR_INDEX_32_BGRX
+			    && idx <= COLOR_INDEX_32_XRGB)
+				VSYNCOSD_WR_MPEG_REG_BITS(
+					VIU_OSD1_CTRL_STAT2,
+					0x1ff, 6, 9);
+			else
+				VSYNCOSD_WR_MPEG_REG_BITS(
+					VIU_OSD1_CTRL_STAT2,
+					0, 6, 9);
+		}
 	}
 	remove_from_update_list(OSD1, OSD_COLOR_MODE);
 }
@@ -2385,6 +2387,19 @@ static void osd2_update_color_mode(void)
 		/* osd_blk_mode */
 		data32 |=  osd_hw.color_info[OSD2]->hw_blkmode << 8;
 		VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK0_CFG_W0, data32);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+			enum color_index_e idx =
+				osd_hw.color_info[OSD2]->color_index;
+			if (idx >= COLOR_INDEX_32_BGRX
+			    && idx <= COLOR_INDEX_32_XRGB)
+				VSYNCOSD_WR_MPEG_REG_BITS(
+					VIU_OSD2_CTRL_STAT2,
+					0x1ff, 6, 9);
+			else
+				VSYNCOSD_WR_MPEG_REG_BITS(
+					VIU_OSD2_CTRL_STAT2,
+					0, 6, 9);
+		}
 	}
 	remove_from_update_list(OSD2, OSD_COLOR_MODE);
 }
@@ -2741,12 +2756,6 @@ static   void  osd1_update_gbl_alpha(void)
 	data32 &= ~(0x1ff << 12);
 	data32 |= osd_hw.gbl_alpha[OSD1] << 12;
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_CTRL_STAT, data32);
-	if (osd_hw.osd_afbcd[OSD1].enable) {
-		data32 = VSYNCOSD_RD_MPEG_REG(VIU_OSD1_CTRL_STAT2);
-		data32 &= ~(0x1ff << 6);
-		data32 |= osd_hw.gbl_alpha[OSD1] << 6;
-		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_CTRL_STAT2, data32);
-	}
 	remove_from_update_list(OSD1, OSD_GBL_ALPHA);
 }
 static   void  osd2_update_gbl_alpha(void)
