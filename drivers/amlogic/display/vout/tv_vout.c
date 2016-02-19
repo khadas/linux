@@ -163,6 +163,8 @@ static void cvbs_cntl_output(unsigned int open)
 		cntl1 = 8;
 		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
 		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
+		tv_out_hiu_setb(HHI_VDAC_CNTL0, 0, 9, 1);
+		tv_out_hiu_setb(HHI_VDAC_CNTL1, 0, 3, 1);
 	} else if (open == 1) { /* open */
 		cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
@@ -170,6 +172,8 @@ static void cvbs_cntl_output(unsigned int open)
 			      vdac_cfg_valid, cntl0, cntl1);
 		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
 		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
+		tv_out_hiu_setb(HHI_VDAC_CNTL0, 1, 9, 1);
+		tv_out_hiu_setb(HHI_VDAC_CNTL1, 1, 3, 1);
 	}
 	return;
 }
