@@ -520,7 +520,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			std_bk = 0;
 			return DVBFE_ALGO_SEARCH_FAILED;
 		}
-		mdelay(delay_cnt);
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
+			mdelay(delay_cnt);
 		/*#if ((MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) ||
 		 * (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9BB))*/
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
@@ -602,6 +603,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	minafcfreq = p->frequency - p->analog.afc_range;
 	maxafcfreq = p->frequency + p->analog.afc_range;
 /*from the min freq start,and set the afc_step*/
+
+	/*avoid to miss the number of program in searching*/
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		slow_mode = 1;
 	if (slow_mode || (fee->tuner->drv->id == AM_TUNER_FQ1216) ||
 	    (AM_TUNER_HTM == fee->tuner->drv->id)) {
 		pr_dbg("[%s]this is slow mode to search the channel\n",
@@ -640,7 +645,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		if (fee->tuner->drv->id != AM_TUNER_R840 &&
 		fee->tuner->drv->id != AM_TUNER_SI2151) {
 			do {
-				mdelay(delay_cnt);
+				if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
+					mdelay(delay_cnt);
 				if ((fe->ops.tuner_ops.get_pll_status == NULL)
 				    ||
 				    (fe->ops.analog_ops.get_pll_status ==
@@ -701,6 +707,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					}
 					if (tuner_status_cnt_local == 0)
 						break;
+				if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
 					mdelay(delay_cnt);
 				} while (1);
 			}
@@ -714,7 +721,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		}
 		tuner_status_cnt_local = tuner_status_cnt;
 		do {
-			mdelay(delay_cnt);
+			if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
+				mdelay(delay_cnt);
 			/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 				if ((fe->ops.tuner_ops.get_pll_status == NULL)
@@ -903,7 +911,8 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 					timer_init_state = 1;
 				}
 			}
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV)
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV
+				&& get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
 				mdelay(delay_afc);
 			pr_dbg("[aml_fe..]%s get afc %d khz, freq %u.\n",
 			       __func__, afc, c->frequency);
