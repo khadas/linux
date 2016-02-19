@@ -2248,6 +2248,8 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 0, 0, 4); /* CT */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, audio_param->channel_num,
 		4, 3); /* CC */
+	if (hdev->aud_output_ch)
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 1, 4, 3);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 0, 3); /* SF */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 4, 2); /* SS */
 	switch (audio_param->type) {
@@ -2258,12 +2260,13 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x13);
 		break;
 	case CT_PCM:
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0,
-			audio_param->channel_num, 4, 3);
-		if (audio_param->channel_num == 0x7)
+		if (!hdev->aud_output_ch)
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0,
+				audio_param->channel_num, 4, 3);
+		if ((audio_param->channel_num == 0x7) && (!hdev->aud_output_ch))
 			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x13);
 		else
-			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x00);
+			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x10);
 		break;
 	case CT_DTS:
 	case CT_DTS_HD:
@@ -2366,7 +2369,7 @@ static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 0, 7, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 0, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF1, 24, 0, 5);
-		if (audio_param->channel_num == 0x7)
+		if ((audio_param->channel_num == 0x7) && (!hdev->aud_output_ch))
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 1, 0, 1);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 0, 0, 1);
@@ -2414,6 +2417,10 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		tx_aud_src = 1;
 	else
 		tx_aud_src = 0;
+
+	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
+	tx_aud_src = !!(hdev->aud_output_ch);
+
 	pr_info("hdmitx tx_aud_src = %d\n", tx_aud_src);
 
 	/* set_hdmi_audio_source(tx_aud_src ? 1 : 2); */
@@ -2475,16 +2482,19 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	set_aud_chnls(hdev, audio_param);
 
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, tx_aud_src, 5, 1);
 	if (tx_aud_src == 1) {
-		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 1, 5, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
+		if (hdev->aud_output_ch)
+			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
+				(1 << (hdev->aud_output_ch - 1)), 0, 4);
+		else
+			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		/* Enable audi2s_fifo_overrun interrupt */
 		hdmitx_wr_reg(HDMITX_DWC_AUD_INT1,
 			hdmitx_rd_reg(HDMITX_DWC_AUD_INT1) & (~(1<<4)));
 		/* Wait for 40 us for TX I2S decoder to settle */
 		msleep(20);
-	} else
-		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 5, 1);
+	}
 	set_aud_fifo_rst();
 	udelay(10);
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
@@ -4028,7 +4038,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
  */
 	data32  = 0;
 	data32 |= (0 << 7);
-	data32 |= (1 << 5);
+	data32 |= (tx_aud_src << 5);
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_AUD_CONF0, data32);
 

@@ -1519,6 +1519,21 @@ static void Edid_VersionParse(struct rx_cap *pRxCap,
 	return;
 }
 
+/* if edid block 0 are all zeros, then consider RX as HDMI device */
+static int edid_zero_data(unsigned char *buf)
+{
+	int sum = 0;
+	int i = 0;
+
+	for (i = 0; i < 128; i++)
+		sum += buf[i];
+
+	if (sum == 0)
+		return 1;
+	else
+		return 0;
+}
+
 int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char CheckSum;
@@ -1684,9 +1699,11 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		!hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
 		pRXCap->IEEEOUI = 0x0;
 		pr_info("hdmitx: edid: sink is DVI device\n");
-	} else {
+	} else
 		pRXCap->IEEEOUI = 0x0c03;
-	}
+
+	if (edid_zero_data(EDID_buf))
+		pRXCap->IEEEOUI = 0x0c03;
 
 	edid_save_checkvalue(EDID_buf, BlockCount+1);
 

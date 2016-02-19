@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
+#include <linux/ctype.h>
 #include <linux/switch.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
@@ -1289,6 +1290,56 @@ static ssize_t store_aud_ch(struct device *dev,
 	return count;
 }
 
+/* hdmitx audio output channel */
+static ssize_t show_aud_output_chs(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int pos = 0;
+	char *des_aud[] = {"ch", "ch0/1", "ch2/3", "ch4/5", "ch5/6", NULL};
+
+	if (hdev->aud_output_ch)
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"Audio Output Channels: %s\n",
+			des_aud[hdev->aud_output_ch]);
+
+	return pos;
+}
+
+static ssize_t store_aud_output_chs(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int tmp = -1;
+	int ret = 0;
+	unsigned long no;
+
+	if (isdigit(buf[0]))
+		tmp = buf[0] - '0';
+
+	if (!((tmp == 0) || (tmp == 2))) {
+		pr_info("Wrong channel setting, must be 2, or 0 as default\n");
+		return count;
+	}
+
+	/* get channel no. For I2S, there are 4 I2S_in[3:0] */
+	if ((buf[1] == ':') && (isxdigit(buf[2])))
+		ret = kstrtoul(&buf[2], 16, &no);
+	else
+		no = 0;  /* default select no 0 */
+	if (ret || (no > 0x3)) {
+		pr_info("Wrong channel no, must [0~3]\n");
+		return count;
+	}
+	if (tmp)
+		hdev->aud_output_ch = no + 1;
+	else
+		hdev->aud_output_ch = 0;
+	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
+
+	return count;
+}
+
 /*
  *  1: set avmute
  * -1: clear avmute
@@ -1648,6 +1699,8 @@ static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
 static DEVICE_ATTR(hdr_cap, S_IRUGO, show_hdr_cap, NULL);
 static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
+static DEVICE_ATTR(aud_output_chs, S_IWUSR | S_IRUGO | S_IWGRP,
+	show_aud_output_chs, store_aud_output_chs);
 static DEVICE_ATTR(avmute, S_IWUSR | S_IRUGO | S_IWGRP, show_avmute,
 	store_avmute);
 static DEVICE_ATTR(vic, S_IWUSR | S_IRUGO | S_IWGRP, show_vic, store_vic);
@@ -2461,6 +2514,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_aud_cap);
 	ret = device_create_file(dev, &dev_attr_hdr_cap);
 	ret = device_create_file(dev, &dev_attr_aud_ch);
+	ret = device_create_file(dev, &dev_attr_aud_output_chs);
 	ret = device_create_file(dev, &dev_attr_avmute);
 	ret = device_create_file(dev, &dev_attr_vic);
 	ret = device_create_file(dev, &dev_attr_phy);
@@ -2662,6 +2716,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_avmute);
 	device_remove_file(dev, &dev_attr_vic);
 	device_remove_file(dev, &dev_attr_hdcp_test);
+	device_remove_file(dev, &dev_attr_aud_output_chs);
 
 	cdev_del(&hdmitx_device.cdev);
 
