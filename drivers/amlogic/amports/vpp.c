@@ -1104,7 +1104,8 @@ RESTART:
 			filter->vpp_vert_coeff =
 				filter_table[COEF_2POINT_BILINEAR];
 			filter->vpp_vert_filter = COEF_2POINT_BILINEAR;
-		} else if (next_frame_par->VPP_line_in_length_ > 1280) {
+		} else if ((next_frame_par->VPP_line_in_length_ > 1280) &&
+			!is_meson_gxtvbb_cpu()) {
 			filter->vpp_vert_coeff =
 				filter_table[COEF_3POINT_TRIANGLE];
 			filter->vpp_vert_filter = COEF_3POINT_TRIANGLE;
