@@ -168,9 +168,9 @@ static DEFINE_SPINLOCK(lock);
 #define ADV_MV_8x8_WEIGHT 0x200
 #define ADV_MV_4x4x4_WEIGHT 0x300
 #else
-#define ME_WEIGHT_OFFSET 0x3320
+#define ME_WEIGHT_OFFSET 0x3520
 #define I4MB_WEIGHT_OFFSET 0x3655
-#define I16MB_WEIGHT_OFFSET 0x3320
+#define I16MB_WEIGHT_OFFSET 0x3520
 
 #define ADV_MV_16x16_WEIGHT 0x000
 #define ADV_MV_16_8_WEIGHT 0x2000
@@ -252,76 +252,7 @@ static DEFINE_SPINLOCK(lock);
 #define v3_left_small_max_me_sad 0x40
 
 #ifndef USE_OLD_DUMP_MC
-static u32 qp_table_id;
 static u32 qp_table_pr;
-static u32  quant_tbl_i4[2][8] = {
-	{
-		0x15151515,
-		0x16161616,
-		0x17171717,
-		0x18181818,
-		0x19191919,
-		0x1a1a1a1a,
-		0x1b1b1b1b,
-		0x1c1c1c1c,
-	},
-	{
-		0x1f1f1e1e,
-		0x20201f1f,
-		0x21212020,
-		0x22222121,
-		0x23232222,
-		0x24242323,
-		0x25252424,
-		0x26262525
-	}
-};
-
-static u32  quant_tbl_i16[2][8] = {
-	{
-		0x15151515,
-		0x16161616,
-		0x17171717,
-		0x18181818,
-		0x19191919,
-		0x1a1a1a1a,
-		0x1b1b1b1b,
-		0x1c1c1c1c,
-	},
-	{
-		0x1f1f1e1e,
-		0x20201f1f,
-		0x21212020,
-		0x22222121,
-		0x23232222,
-		0x24242323,
-		0x25252424,
-		0x26262525
-	}
-};
-
-static u32  quant_tbl_me[2][8] = {
-	{
-		0x15151515,
-		0x16161616,
-		0x17171717,
-		0x18181818,
-		0x19191919,
-		0x1a1a1a1a,
-		0x1b1b1b1b,
-		0x1c1c1c1c,
-	},
-	{
-		0x1f1f1e1e,
-		0x20201f1f,
-		0x21212020,
-		0x22222121,
-		0x23232222,
-		0x24242323,
-		0x25252424,
-		0x26262525
-	}
-};
 
 static u32 v3_mv_sad[64] = {
 	/* For step0 */
@@ -646,7 +577,7 @@ static const char *select_ucode(u32 ucode_index)
 }
 
 #ifndef USE_OLD_DUMP_MC
-static void hcodec_prog_qtbl(uint32_t index)
+static void hcodec_prog_qtbl(struct encode_wq_s *wq)
 {
 
 	WRITE_HREG(HCODEC_Q_QUANT_CONTROL,
@@ -654,63 +585,63 @@ static void hcodec_prog_qtbl(uint32_t index)
 		(1 << 22));  /* quant_table_addr_update */
 
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][0]);
+		wq->quant_tbl_i4[wq->qp_table_id][0]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][1]);
+		wq->quant_tbl_i4[wq->qp_table_id][1]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][2]);
+		wq->quant_tbl_i4[wq->qp_table_id][2]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][3]);
+		wq->quant_tbl_i4[wq->qp_table_id][3]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][4]);
+		wq->quant_tbl_i4[wq->qp_table_id][4]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][5]);
+		wq->quant_tbl_i4[wq->qp_table_id][5]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][6]);
+		wq->quant_tbl_i4[wq->qp_table_id][6]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i4[index][7]);
+		wq->quant_tbl_i4[wq->qp_table_id][7]);
 
 	WRITE_HREG(HCODEC_Q_QUANT_CONTROL,
 		(8 << 23) |  /* quant_table_addr */
 		(1 << 22));  /* quant_table_addr_update */
 
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][0]);
+		wq->quant_tbl_i16[wq->qp_table_id][0]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][1]);
+		wq->quant_tbl_i16[wq->qp_table_id][1]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][2]);
+		wq->quant_tbl_i16[wq->qp_table_id][2]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][3]);
+		wq->quant_tbl_i16[wq->qp_table_id][3]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][4]);
+		wq->quant_tbl_i16[wq->qp_table_id][4]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][5]);
+		wq->quant_tbl_i16[wq->qp_table_id][5]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][6]);
+		wq->quant_tbl_i16[wq->qp_table_id][6]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_i16[index][7]);
+		wq->quant_tbl_i16[wq->qp_table_id][7]);
 
 	WRITE_HREG(HCODEC_Q_QUANT_CONTROL,
 		(16 << 23) | /* quant_table_addr */
 		(1 << 22));  /* quant_table_addr_update */
 
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][0]);
+		wq->quant_tbl_me[wq->qp_table_id][0]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][1]);
+		wq->quant_tbl_me[wq->qp_table_id][1]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][2]);
+		wq->quant_tbl_me[wq->qp_table_id][2]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][3]);
+		wq->quant_tbl_me[wq->qp_table_id][3]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][4]);
+		wq->quant_tbl_me[wq->qp_table_id][4]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][5]);
+		wq->quant_tbl_me[wq->qp_table_id][5]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][6]);
+		wq->quant_tbl_me[wq->qp_table_id][6]);
 	WRITE_HREG(HCODEC_QUANT_TABLE_DATA,
-		quant_tbl_me[index][7]);
+		wq->quant_tbl_me[wq->qp_table_id][7]);
 	return;
 }
 #endif
@@ -1403,7 +1334,8 @@ static s32 set_input_format(struct encode_wq_s *wq,
 	return ret;
 }
 
-static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
+static void avc_prot_init(struct encode_wq_s *wq,
+	struct encode_request_s *request, u32 quant, bool IDR)
 {
 	u32 data32;
 	u32 pic_width, pic_height;
@@ -1418,10 +1350,6 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 	pic_mby    = 0;
 	i_pic_qp   = quant;
 	p_pic_qp   = quant;
-
-	wq->me_weight = 0;
-	wq->i4_weight = 0;
-	wq->i16_weight = 0;
 
 #ifndef USE_OLD_DUMP_MC
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
@@ -1486,24 +1414,52 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (1 << 2) | /* ie_I16_enable */
 			   (3 << 0)); /* ie_done_sel  // fastest when waiting */
 
-		WRITE_HREG(HCODEC_IE_WEIGHT,
-			   (I16MB_WEIGHT_OFFSET << 16) |
-			   (I4MB_WEIGHT_OFFSET << 0));
+		if (request != NULL) {
+			WRITE_HREG(HCODEC_IE_WEIGHT,
+				   (request->i16_weight << 16) |
+				   (request->i4_weight << 0));
 
-		WRITE_HREG(HCODEC_ME_WEIGHT, (ME_WEIGHT_OFFSET << 0));
+			WRITE_HREG(HCODEC_ME_WEIGHT, (request->me_weight << 0));
 
-		WRITE_HREG(HCODEC_SAD_CONTROL_0,
-				/* ie_sad_offset_I16 */
-			   (I16MB_WEIGHT_OFFSET << 16) |
-			   (I4MB_WEIGHT_OFFSET << 0)); /* ie_sad_offset_I4 */
+			WRITE_HREG(HCODEC_SAD_CONTROL_0,
+					/* ie_sad_offset_I16 */
+				   (request->i16_weight << 16) |
+					/* ie_sad_offset_I4 */
+				   (request->i4_weight << 0));
 
-		WRITE_HREG(HCODEC_SAD_CONTROL_1,
-			   (IE_SAD_SHIFT_I16 << 24) |   /* ie_sad_shift_I16 */
-			   (IE_SAD_SHIFT_I4 << 20) |   /* ie_sad_shift_I4 */
-				/* me_sad_shift_INTER */
-			   (ME_SAD_SHIFT_INTER << 16) |
-				/* me_sad_offset_INTER */
-			   (ME_WEIGHT_OFFSET << 0));
+			WRITE_HREG(HCODEC_SAD_CONTROL_1,
+					/* ie_sad_shift_I16 */
+				   (IE_SAD_SHIFT_I16 << 24) |
+					/* ie_sad_shift_I4 */
+				   (IE_SAD_SHIFT_I4 << 20) |
+					/* me_sad_shift_INTER */
+				   (ME_SAD_SHIFT_INTER << 16) |
+					/* me_sad_offset_INTER */
+				   (request->me_weight << 0));
+		} else {
+			WRITE_HREG(HCODEC_IE_WEIGHT,
+				   (I16MB_WEIGHT_OFFSET << 16) |
+				   (I4MB_WEIGHT_OFFSET << 0));
+
+			WRITE_HREG(HCODEC_ME_WEIGHT, (ME_WEIGHT_OFFSET << 0));
+
+			WRITE_HREG(HCODEC_SAD_CONTROL_0,
+					/* ie_sad_offset_I16 */
+				   (I16MB_WEIGHT_OFFSET << 16) |
+					/* ie_sad_offset_I4 */
+				   (I4MB_WEIGHT_OFFSET << 0));
+
+			WRITE_HREG(HCODEC_SAD_CONTROL_1,
+					/* ie_sad_shift_I16 */
+				   (IE_SAD_SHIFT_I16 << 24) |
+					/* ie_sad_shift_I4 */
+				   (IE_SAD_SHIFT_I4 << 20) |
+					/* me_sad_shift_INTER */
+				   (ME_SAD_SHIFT_INTER << 16) |
+					/* me_sad_offset_INTER */
+				   (ME_WEIGHT_OFFSET << 0));
+		}
+
 
 		WRITE_HREG(HCODEC_ADV_MV_CTL0,
 			   (ADV_MV_LARGE_16x8 << 31) |
@@ -1518,13 +1474,13 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (ADV_MV_LARGE_16x16 << 15) |
 			   (ADV_MV_16_8_WEIGHT << 0));  /* adv_mv_16_8_weight */
 
-		hcodec_prog_qtbl(qp_table_id);
+		hcodec_prog_qtbl(wq);
 		if (IDR) {
-			i_pic_qp = quant_tbl_i4[qp_table_id][0] & 0xff;
+			i_pic_qp = wq->quant_tbl_i4[wq->qp_table_id][0] & 0xff;
 			p_pic_qp = i_pic_qp;
 		} else {
-			i_pic_qp = quant_tbl_i4[qp_table_id][0] & 0xff;
-			p_pic_qp = quant_tbl_me[qp_table_id][0] & 0xff;
+			i_pic_qp = wq->quant_tbl_i4[wq->qp_table_id][0] & 0xff;
+			p_pic_qp = wq->quant_tbl_me[wq->qp_table_id][0] & 0xff;
 			slice_qp = (i_pic_qp + p_pic_qp) / 2;
 			i_pic_qp = slice_qp;
 			p_pic_qp = i_pic_qp;
@@ -1540,9 +1496,11 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			   (26 << 6) | /* vlc_max_delta_q_neg */
 			   (25 << 0)); /* vlc_max_delta_q_pos */
 
-		wq->me_weight = ME_WEIGHT_OFFSET;
-		wq->i4_weight = I4MB_WEIGHT_OFFSET;
-		wq->i16_weight = I16MB_WEIGHT_OFFSET;
+		if (request != NULL) {
+			wq->me_weight = request->me_weight;
+			wq->i4_weight = request->i4_weight;
+			wq->i16_weight = request->i16_weight;
+		}
 	}
 #endif
 
@@ -2051,9 +2009,17 @@ static void avc_prot_init(struct encode_wq_s *wq, u32 quant, bool IDR)
 			WRITE_HREG(HCODEC_V3_L2_SKIP_WEIGHT,
 				(V3_FORCE_SKIP_SAD_2 << 16) |
 				(V3_SKIP_WEIGHT_2 << 0));
-			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
-				(V3_IE_F_ZERO_SAD_I16 << 16) |
-				(V3_IE_F_ZERO_SAD_I4 << 0));
+			if (request != NULL) {
+				WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
+					/* (V3_IE_F_ZERO_SAD_I16 << 16) | */
+					((request->i16_weight + 0x80) << 16) |
+					(V3_IE_F_ZERO_SAD_I4 << 0));
+			} else {
+				WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
+					/* (V3_IE_F_ZERO_SAD_I16 << 16) | */
+					(V3_IE_F_ZERO_SAD_I16 << 16) |
+					(V3_IE_F_ZERO_SAD_I4 << 0));
+			}
 			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_1,
 				(0 << 25) | /* v3_no_ver_when_top_zero_en */
 				(1 << 24) | /* v3_no_hor_when_left_zero_en */
@@ -2538,10 +2504,18 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 	int i = 0;
 	u8 *qp_tb;
 	u8 *ptr;
+	u32 i16_refresh = 0;
+	u32 cmd_off_i16refsh = 0;
+	u32 cmd_off_i16wt = 0;
 	u32 cmd = cmd_info[0];
 	if (!wq)
 		return -1;
 	memset(&wq->request, 0, sizeof(struct encode_request_s));
+
+	wq->request.me_weight = ME_WEIGHT_OFFSET;
+	wq->request.i4_weight = I4MB_WEIGHT_OFFSET;
+	wq->request.i16_weight = I16MB_WEIGHT_OFFSET;
+
 
 	if (cmd == ENCODER_SEQUENCE) {
 		wq->request.cmd = cmd;
@@ -2553,6 +2527,13 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 	} else if ((cmd == ENCODER_IDR) || (cmd == ENCODER_NON_IDR)) {
 		wq->request.cmd = cmd;
 		wq->request.ucode_mode = cmd_info[1];
+
+		if (cmd  == ENCODER_IDR)
+			wq->fcnt_since_idr = 0;
+		else
+			wq->fcnt_since_idr++;
+
+
 		if (wq->request.ucode_mode == UCODE_MODE_FULL) {
 			wq->request.type = cmd_info[2];
 			wq->request.fmt = cmd_info[3];
@@ -2565,9 +2546,17 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 				wq->request.nr_mode =
 					(nr_mode > 0) ? nr_mode : cmd_info[9];
 			if (wq->request.quant == ADJUSTED_QP_FLAG) {
+				cmd_off_i16refsh = 10 +
+					sizeof(wq->quant_tbl_i4[0]) * 3 / 4;
+				cmd_off_i16wt = 10 +
+					sizeof(wq->quant_tbl_i4[0]) * 3 / 4 + 1;
+				i16_refresh = cmd_info[cmd_off_i16refsh];
+				if (!(wq->fcnt_since_idr % (i16_refresh * 2)))
+					wq->request.i16_weight -=
+						cmd_info[cmd_off_i16wt];
 				ptr = (u8 *) &cmd_info[10];
 				for (i = 0; i < 8; i++) {
-					u8 *qp = (u8 *)&quant_tbl_i4[1][i];
+					u8 *qp = (u8 *)&wq->quant_tbl_i4[1][i];
 					*(qp++) = *(ptr + 3);
 					*(qp++) = *(ptr + 2);
 					*(qp++) = *(ptr + 1);
@@ -2577,7 +2566,7 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 				}
 
 				for (i = 0; i < 8; i++) {
-					u8 *qp = (u8 *)&quant_tbl_i16[1][i];
+					u8 *qp = (u8 *)&wq->quant_tbl_i16[1][i];
 					*(qp++) = *(ptr + 3);
 					*(qp++) = *(ptr + 2);
 					*(qp++) = *(ptr + 1);
@@ -2587,7 +2576,7 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 				}
 
 				for (i = 0; i < 8; i++) {
-					u8 *qp = (u8 *)&quant_tbl_me[1][i];
+					u8 *qp = (u8 *)&wq->quant_tbl_me[1][i];
 					*(qp++) = *(ptr + 3);
 					*(qp++) = *(ptr + 2);
 					*(qp++) = *(ptr + 1);
@@ -2596,24 +2585,25 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 
 				}
 				/* switch to 1 qp table */
-				qp_table_id = 1;
+				wq->qp_table_id = 1;
 
 				if (qp_table_pr != 0) {
-					qp_tb = (u8 *) (&quant_tbl_i4[1][0]);
+					qp_tb = (u8 *)(&wq->quant_tbl_i4[1][0]);
 					for (i = 0; i < 32; i++) {
 						enc_pr(LOG_INFO, "%d ", *qp_tb);
 						qp_tb++;
 					}
 					enc_pr(LOG_INFO, "\n");
 
-					qp_tb = (u8 *) (&quant_tbl_i16[1][0]);
+					qp_tb = (u8 *)
+						(&wq->quant_tbl_i16[1][0]);
 					for (i = 0; i < 32; i++) {
 						enc_pr(LOG_INFO, "%d ", *qp_tb);
 						qp_tb++;
 					}
 					enc_pr(LOG_INFO, "\n");
 
-					qp_tb = (u8 *) (&quant_tbl_me[1][0]);
+					qp_tb = (u8 *)(&wq->quant_tbl_me[1][0]);
 					for (i = 0; i < 32; i++) {
 						enc_pr(LOG_INFO, "%d ", *qp_tb);
 						qp_tb++;
@@ -2622,13 +2612,13 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 				}
 
 			} else {
-				qp_table_id = 0;
-				memset(quant_tbl_me[0], wq->request.quant,
-						sizeof(quant_tbl_me[0]));
-				memset(quant_tbl_i4[0], wq->request.quant,
-						sizeof(quant_tbl_i4[0]));
-				memset(quant_tbl_i16[0], wq->request.quant,
-						sizeof(quant_tbl_i16[0]));
+				wq->qp_table_id = 0;
+				memset(wq->quant_tbl_me[0], wq->request.quant,
+						sizeof(wq->quant_tbl_me[0]));
+				memset(wq->quant_tbl_i4[0], wq->request.quant,
+						sizeof(wq->quant_tbl_i4[0]));
+				memset(wq->quant_tbl_i16[0], wq->request.quant,
+						sizeof(wq->quant_tbl_i16[0]));
 			}
 		} else {
 			wq->request.quant = cmd_info[2];
@@ -2722,7 +2712,7 @@ void amvenc_avc_start_cmd(struct encode_wq_s *wq,
 			(request->cmd == ENCODER_IDR) ? true : false);
 		avc_init_input_buffer(wq);
 		avc_init_output_buffer(wq);
-		avc_prot_init(wq, request->quant,
+		avc_prot_init(wq, request, request->quant,
 			(request->cmd == ENCODER_IDR) ? true : false);
 		avc_init_assit_buffer(wq);
 		enc_pr(LOG_INFO,
@@ -2982,7 +2972,7 @@ s32 amvenc_avc_start(struct encode_wq_s *wq, u32 clock)
 #else
 	ie_me_mode = (0 & ME_PIXEL_MODE_MASK) << ME_PIXEL_MODE_SHIFT;
 #endif
-	avc_prot_init(wq, wq->pic.init_qppicture, true);
+	avc_prot_init(wq, NULL, wq->pic.init_qppicture, true);
 	if (request_irq(encode_manager.irq_num, enc_isr, IRQF_SHARED,
 			"enc-irq", (void *)&encode_manager) == 0)
 		encode_manager.irq_requested = true;
@@ -3235,7 +3225,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 	long r = 0;
 	u32 amrisc_cmd = 0;
 	struct encode_wq_s *wq = (struct encode_wq_s *)file->private_data;
-#define MAX_ADDR_INFO_SIZE 40
+#define MAX_ADDR_INFO_SIZE 50
 	u32 addr_info[MAX_ADDR_INFO_SIZE + 4];
 	ulong argV;
 	u32 buf_start;

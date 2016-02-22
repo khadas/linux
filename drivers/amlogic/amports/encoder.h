@@ -190,6 +190,10 @@ struct encode_request_s {
 	u32 framesize;
 	u32 qp_info_size;
 
+	u32 me_weight;
+	u32 i4_weight;
+	u32 i16_weight;
+
 	u32 nr_mode;
 	u32 flush_flag;
 	u32 timeout;
@@ -303,6 +307,14 @@ struct encode_wq_s {
 	u32 me_weight;
 	u32 i4_weight;
 	u32 i16_weight;
+
+	u32 quant_tbl_i4[2][8];
+	u32 quant_tbl_i16[2][8];
+	u32 quant_tbl_me[2][8];
+	u32 qp_table_id;
+
+	u32 fcnt_since_idr;
+
 	struct encode_meminfo_s mem;
 	struct encode_picinfo_s pic;
 	struct encode_control_s control;
