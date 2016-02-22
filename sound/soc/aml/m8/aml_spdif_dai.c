@@ -46,6 +46,7 @@
 #include "aml_i2s.h"
 #include <linux/amlogic/sound/aout_notify.h>
 #include <linux/amlogic/sound/aiu_regs.h>
+#include <linux/amlogic/cpu_version.h>
 
 /*
  0 --  other formats except(DD,DD+,DTS)
@@ -68,65 +69,66 @@ struct aml_spdif *spdif_p;
 unsigned int clk81 = 0;
 EXPORT_SYMBOL(clk81);
 
-static int iec958buf[32 + 16];
 static int old_samplerate = -1;
 
 void aml_spdif_play(void)
 {
-#if 1
-	struct _aiu_958_raw_setting_t set;
-	struct _aiu_958_channel_status_t chstat;
-	struct snd_pcm_substream substream;
-	struct snd_pcm_runtime runtime;
-	substream.runtime = &runtime;
-	runtime.rate = 48000;
-	runtime.format = SNDRV_PCM_FORMAT_S16_LE;
-	runtime.channels = 2;
-	runtime.sample_bits = 16;
-	memset((void *)(&set), 0, sizeof(set));
-	memset((void *)(&chstat), 0, sizeof(chstat));
-	set.chan_stat = &chstat;
-	set.chan_stat->chstat0_l = 0x0100;
-	set.chan_stat->chstat0_r = 0x0100;
-	set.chan_stat->chstat1_l = 0X200;
-	set.chan_stat->chstat1_r = 0X200;
-	audio_hw_958_enable(0);
-	if (old_samplerate != AUDIO_CLK_FREQ_48) {
-		pr_info("enterd %s,set_clock:%d,sample_rate=%d\n",
-		__func__, old_samplerate, AUDIO_CLK_FREQ_48);
-		old_samplerate = AUDIO_CLK_FREQ_48;
-		aml_set_spdif_clk(48000 * 512, 0);
-	}
-	/* Todo, div can be changed, for most case, div = 2 */
-	/* audio_set_spdif_clk_div(); */
-	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
-	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
-		pr_info("set 4x audio clk for 958\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-	} else if (0) {
-		pr_info("share the same clock\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
-	} else {
-		pr_info("set normal 512 fs /4 fs\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
-	}
-	/* enable 958 divider */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
-	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
-	memset(iec958buf, 0, sizeof(iec958buf));
-	audio_set_958outbuf((virt_to_phys(iec958buf) + 63) & (~63), 128, 0);
-	audio_set_958_mode(AIU_958_MODE_PCM16, &set);
+	if (is_meson_gxtvbb_cpu() == false) {
+		static int iec958buf[32 + 16];
+		struct _aiu_958_raw_setting_t set;
+		struct _aiu_958_channel_status_t chstat;
+		struct snd_pcm_substream substream;
+		struct snd_pcm_runtime runtime;
+		substream.runtime = &runtime;
+		runtime.rate = 48000;
+		runtime.format = SNDRV_PCM_FORMAT_S16_LE;
+		runtime.channels = 2;
+		runtime.sample_bits = 16;
+		memset((void *)(&set), 0, sizeof(set));
+		memset((void *)(&chstat), 0, sizeof(chstat));
+		set.chan_stat = &chstat;
+		set.chan_stat->chstat0_l = 0x0100;
+		set.chan_stat->chstat0_r = 0x0100;
+		set.chan_stat->chstat1_l = 0X200;
+		set.chan_stat->chstat1_r = 0X200;
+		audio_hw_958_enable(0);
+		if (old_samplerate != AUDIO_CLK_FREQ_48) {
+			pr_info("enterd %s,set_clock:%d,sample_rate=%d\n",
+			__func__, old_samplerate, AUDIO_CLK_FREQ_48);
+			old_samplerate = AUDIO_CLK_FREQ_48;
+			aml_set_spdif_clk(48000 * 512, 0);
+		}
+		/* Todo, div can be changed, for most case, div = 2 */
+		/* audio_set_spdif_clk_div(); */
+		/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
+		if (IEC958_mode_codec == 4	|| IEC958_mode_codec == 5 ||
+		IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+			pr_info("set 4x audio clk for 958\n");
+			aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
+		} else if (0) {
+			pr_info("share the same clock\n");
+			aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+		} else {
+			pr_info("set normal 512 fs /4 fs\n");
+			aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
+		}
+		/* enable 958 divider */
+		aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
+		audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+		memset(iec958buf, 0, sizeof(iec958buf));
+		audio_set_958outbuf((virt_to_phys(iec958buf) + 63) & (~63),
+					128, 0);
+		audio_set_958_mode(AIU_958_MODE_PCM16, &set);
 #if OVERCLOCK == 1 || IEC958_OVERCLOCK == 1
-	/* 512fs divide 4 == 128fs */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x3 << 4);
+		/* 512fs divide 4 == 128fs */
+		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x3 << 4);
 #else
-	/* 256fs divide 2 == 128fs */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x1 << 4);
+		/* 256fs divide 2 == 128fs */
+		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x1 << 4);
 #endif
-	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
-	audio_hw_958_enable(1);
-#endif
+		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
+		audio_hw_958_enable(1);
+	}
 }
 
 static void aml_spdif_play_stop(void)
