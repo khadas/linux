@@ -2442,18 +2442,17 @@ static int vh264_stop(int mode)
 		sei_data_buffer_phys = 0;
 	}
 	amvdec_disable();
-	if (is_4k && (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)) {
-			if (!get_blackout_policy()) {
-				msleep(50); /* wait for last frame  displayed */
-				canvas_read(
-					(READ_VCBUS_REG(VD1_IF0_CANVAS0)
-						& 0xff), &cur_canvas);
-					disp_addr = cur_canvas.addr;
+	if (is_4k && !get_blackout_policy()) {
+		msleep(50); /* wait for last frame  displayed */
+		canvas_read(
+			(READ_VCBUS_REG(VD1_IF0_CANVAS0)
+			& 0xff), &cur_canvas);
+		disp_addr = cur_canvas.addr;
 		}
 
 	  for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
 			if (buffer_spec[i].phy_addr) {
-				if (disp_addr ==
+				if (is_4k && disp_addr ==
 					(u32)buffer_spec[i].phy_addr)
 					pr_info("Skip releasing CMA buffer %d\n",
 								i);
@@ -2465,12 +2464,11 @@ static int vh264_stop(int mode)
 					buffer_spec[i].alloc_count = 0;
 				}
 			}
-		 if (buffer_spec[i].y_addr == disp_addr) {
+		 if (is_4k && buffer_spec[i].y_addr == disp_addr) {
 			pr_info("4K2K dec stop, keeping buffer index = %d\n",
 				   i);
 		}
 	  }
-	}
 	return 0;
 }
 
