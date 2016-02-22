@@ -74,8 +74,10 @@ EXPORT_SYMBOL_GPL(vout_notifier_call_chain);
 const struct vinfo_s *get_current_vinfo(void)
 {
 	const struct vinfo_s *info = NULL;
+	unsigned int atomic_flag = in_interrupt();
 
-	mutex_lock(&vout_mutex);
+	if (atomic_flag == 0)
+		mutex_lock(&vout_mutex);
 
 	if (vout_module.curr_vout_server) {
 		BUG_ON(vout_module.curr_vout_server->op.get_vinfo == NULL);
@@ -84,7 +86,8 @@ const struct vinfo_s *get_current_vinfo(void)
 	if (info == NULL) /* avoid crash mistake */
 		info = get_invalid_vinfo();
 
-	mutex_unlock(&vout_mutex);
+	if (atomic_flag == 0)
+		mutex_unlock(&vout_mutex);
 
 	return info;
 }
