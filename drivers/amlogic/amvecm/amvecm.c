@@ -360,11 +360,7 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, on, 0, 1);
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 8, 2);
 		/* saturation enable for 601 & 709 limited input */
-		if ((csc_mode == VPP_MATRIX_YUV601_RGB) ||
-			(csc_mode == VPP_MATRIX_YUV709_RGB))
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 1, 2);
-		else
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 1, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 1, 2);
 	}
 
 	if (!on)
