@@ -2780,8 +2780,14 @@ static ssize_t amvecm_dump_reg_store(struct class *cla,
 	return 0;
 }
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
-/* void init_sharpness(void) */
-/* { */
+void init_sharpness(void)
+{
+	/*probe close sr0 peaking for switch on video*/
+	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
+	/*WRITE_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 1,0,1);*/
+	WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE, 0, 1, 1);
+/* WRITE_VPP_REG_BITS(SRSHARP1_SHARP_PK_NR_ENABLE, 0,1,1);*/
+
 /* WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1,1,1); */
 /* WRITE_VPP_REG(NR_GAUSSIAN_MODE, 0x0); */
 /* WRITE_VPP_REG(PK_HVCON_LPF_MODE, 0x11111111); */
@@ -2815,8 +2821,8 @@ static ssize_t amvecm_dump_reg_store(struct class *cla,
 /* WRITE_VPP_REG(PK_DRTFB_HP_CORING, 0x00043f04); */
 /* WRITE_VPP_REG(SHARP_HVBLANK_NUM, 0x00003c3c); */
 /* pr_info("**********sharpness init ok!*********\n"); */
-/* } */
-/* #endif */
+}
+/* #endif*/
 
 static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(dnlp, S_IRUGO | S_IWUSR,
@@ -2952,8 +2958,8 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		goto fail_create_device;
 	}
 	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
-	/* if (is_meson_g9tv_cpu()) */
-	/* init_sharpness(); */
+	if (is_meson_gxtvbb_cpu())
+		init_sharpness();
 	/* #endif */
 	vpp_get_hist_en();
 
