@@ -486,11 +486,11 @@
 			amlogic,clrmask=<10 0x1e03000>;
 			amlogic,pins="GPIOY_12","GPIOY_13";
 		};
-		/* b_i2c_master_pin1:b_i2c_pin1{
+		b_i2c_master_pin1:b_i2c_pin1{
 			amlogic,setmask=<7 0xc0>;
 			amlogic,clrmask=<7 0x180000>;
 			amlogic,pins="GPIOH_3","GPIOH_4";
-		}; */ /* HDMITX DDC used */
+		};
 		/*I2C-C*/
 		c_i2c_master:c_i2c{
 			amlogic,setmask=<1 0xc00000>;
