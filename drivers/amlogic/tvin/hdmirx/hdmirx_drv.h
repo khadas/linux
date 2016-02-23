@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/01/29a"
+#define HDMIRX_VER "Ref.2016/02/18"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -422,6 +422,7 @@ struct rx_s {
 	struct hdmi_rx_ctrl_video cur_params;
 	struct hdmi_rx_ctrl_video reltime_video_params;
 	struct vendor_specific_info_s vendor_specific_info;
+	struct tvin_hdr_data_s hdr_data;
 	bool open_fg;
 	bool scdc_tmds_cfg;
 	unsigned int pwr_sts;

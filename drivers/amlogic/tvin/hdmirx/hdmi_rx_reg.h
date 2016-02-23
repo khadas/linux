@@ -178,6 +178,8 @@
 #define	TOP_SEC_SCRATCH					 0x06f
 #define TOP_DONT_TOUCH0                  0x0fe
 #define TOP_DONT_TOUCH1                  0x0ff
+#define TOP_PDEC_DRM_HB				     0x4c0
+#define TOP_PDEC_DRM_PAYLOAD0			 0x4c4
 /* hdmi2.0 new end */
 #define TOP_EDID_OFFSET                  0x200
 
@@ -654,6 +656,9 @@
 #define		GCP_RCV					_BIT(16)
 /** Vendor Specific Info frame changed */
 #define		VSI_CKS_CHG				_BIT(15)
+/** Drm set entry */
+#define		DRM_CKS_CHG				_BIT(10)
+#define	DRM_RCV_EN				_BIT(9)
 /** Packet FIFO new entry */
 #define		PD_FIFO_NEW_ENTRY		_BIT(8)
 /** Packet FIFO overflow */

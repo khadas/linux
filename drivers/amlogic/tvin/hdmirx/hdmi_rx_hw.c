@@ -65,9 +65,9 @@
 
 #define AUDIO_OUTPUT_SELECT I2S_32BIT_256FS_OUTPUT
 
-#define HDMIRX_ADDR_PORT	0xC883e000 /* 0xda83e000 */
-#define HDMIRX_DATA_PORT	0xC883e004 /* 0xda83e004 */
-#define HDMIRX_CTRL_PORT	0xC883e008 /* 0xda83e008 */
+#define HDMIRX_ADDR_PORT	0xda83e000
+#define HDMIRX_DATA_PORT	0xda83e004
+#define HDMIRX_CTRL_PORT	0xda83e008
 
 static DEFINE_SPINLOCK(reg_rw_lock);
 
@@ -188,13 +188,15 @@ uint16_t hdmirx_rd_phy(uint8_t reg_address)
 	hdmirx_wr_dwc(DWC_I2CM_PHYG3_ADDRESS, reg_address);
 	hdmirx_wr_dwc(DWC_I2CM_PHYG3_OPERATION, 0x02);
 	do {
-		/* wait i2cmpdone */
-		if (hdmirx_rd_dwc(DWC_HDMI_ISTS)&(1<<28)) {
-			hdmirx_wr_dwc(DWC_HDMI_ICLR, 1<<28);
-			break;
+		if ((cnt % 100) == 0) {
+			/* wait i2cmpdone */
+			if (hdmirx_rd_dwc(DWC_HDMI_ISTS)&(1<<28)) {
+				hdmirx_wr_dwc(DWC_HDMI_ICLR, 1<<28);
+				break;
+			}
 		}
 		cnt++;
-		if (cnt > 10000) {
+		if (cnt > 50000) {
 			rx_print("[HDMIRX err]: %s(%x,%x) timeout\n",
 				__func__, 0x39, reg_address);
 			break;
@@ -216,12 +218,14 @@ int hdmirx_wr_phy(uint8_t reg_address, uint16_t data)
 
 	do {
 		/* wait i2cmpdone */
-		if (hdmirx_rd_dwc(DWC_HDMI_ISTS)&(1<<28)) {
-			hdmirx_wr_dwc(DWC_HDMI_ICLR, 1<<28);
-			break;
+		if ((cnt % 100) == 0) {
+			if (hdmirx_rd_dwc(DWC_HDMI_ISTS)&(1<<28)) {
+				hdmirx_wr_dwc(DWC_HDMI_ICLR, 1<<28);
+				break;
+			}
 		}
 		cnt++;
-		if (cnt > 10000) {
+		if (cnt > 50000) {
 			error = -1;
 			if (log_flag & ERR_LOG) {
 				rx_print("[error]:(%x,%x,%x)timeout\n",
@@ -421,7 +425,7 @@ int hdmirx_irq_open(void)
 {
 	int error = 0;
 
-	/* hdmirx_wr_dwc(HDMIRX_DWC_PDEC_IEN_SET, GCP_RCV); */
+	hdmirx_wr_dwc(DWC_PDEC_IEN_SET, DRM_RCV_EN);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
 	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
 	/*hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);*/
@@ -692,8 +696,8 @@ void hdmirx_set_pinmux(void)
 
 void clk_off(void)
 {
-	wr_reg(HHI_HDMIRX_CLK_CNTL, 0);
-	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, 0);
+	/* wr_reg(HHI_HDMIRX_CLK_CNTL, 0); */
+	/* wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, 0); */
 }
 
 void clk_init(void)
@@ -709,8 +713,8 @@ void clk_init(void)
 	/* APB3 to HDMIRX-TOP err_en */
 	/* default 0x3ff, | bit15 = 1 */
 
-	hdmirx_wr_ctl_port(0, 0x83ff);
-	hdmirx_wr_ctl_port(0x10, 0x83ff);
+	/* hdmirx_wr_ctl_port(0, 0x83ff); */
+	/* hdmirx_wr_ctl_port(0x10, 0x83ff); */
 
     /* turn on clocks: md, cfg... */
 	/* G9 clk tree */
@@ -731,7 +735,7 @@ void clk_init(void)
 	data32 |= 3 << 9;
 	data32 |= 1 << 8;
 	data32 |= 2 << 0;
-	wr_reg(HHI_HDMIRX_CLK_CNTL, data32);
+	/* wr_reg(HHI_HDMIRX_CLK_CNTL, data32); */
 
 	data32 = 0;
 	data32 |= 2	<< 25;
@@ -740,7 +744,7 @@ void clk_init(void)
 	data32 |= 2	<< 9;
 	data32 |= 1	<< 8;
 	data32 |= 2	<< 0;
-	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32);
+	/* wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32); */
 #ifdef HDCP22_ENABLE
 	if (hdcp_22_on) {
 		/* Enable clk81_hdcp22_pclk */

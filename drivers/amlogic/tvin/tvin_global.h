@@ -355,6 +355,35 @@ enum tvin_aspect_ratio_e {
 
 const char *tvin_aspect_ratio_str(enum tvin_aspect_ratio_e aspect_ratio);
 
+enum tvin_hdr_eotf_e {
+	EOTF_SDR,
+	EOTF_HDR,
+	EOTF_SMPTE_ST_2048,
+	EOTF_MAX,
+};
+
+struct tvin_hdr_property_s {
+	unsigned char x_lsb;
+	unsigned char x_msb;
+	unsigned char y_lsb;
+	unsigned char y_msb;
+};
+
+struct tvin_hdr_data_s {
+	enum tvin_hdr_eotf_e eotf:8;
+	unsigned char metadata_id;
+	unsigned char lenght;
+	unsigned char reserved;
+	struct tvin_hdr_property_s primaries[3];
+	struct tvin_hdr_property_s points;
+	struct tvin_hdr_property_s master_lum;
+	unsigned char mcll_lsb;
+	unsigned char mcll_msb;
+	unsigned char mfall_lsb;
+	unsigned char mfall_msb;
+	unsigned char playload[4];/*playload count is 28*/
+};
+
 struct tvin_sig_property_s {
 	enum tvin_trans_fmt	trans_fmt;
 	enum tvin_color_fmt_e	color_format;
@@ -371,6 +400,7 @@ struct tvin_sig_property_s {
 	unsigned int		decimation_ratio;	/* for decimation */
 	unsigned int		colordepth; /* for color bit depth */
 	enum tvin_color_fmt_range_e color_fmt_range;
+	struct tvin_hdr_data_s hdr_data;
 };
 
 #define TVAFE_VF_POOL_SIZE			6 /* 8 */

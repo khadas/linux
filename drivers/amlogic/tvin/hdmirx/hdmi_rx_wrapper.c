@@ -342,7 +342,7 @@ struct rx_s rx;
 #define TMDS_TOLERANCE  (4000)
 #define MAX_AUDIO_SAMPLE_RATE		(192000+1000)	/* 192K */
 #define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
-
+#define TOP_PDEC_DRM_PLOAD_LEN		(28 / 4)
 
 static void dump_state(unsigned char enable);
 static void dump_audio_info(unsigned char enable);
@@ -431,6 +431,31 @@ static int clock_handler(struct hdmi_rx_ctrl *ctx)
 	return error;
 }
 
+static int drm_handler(struct hdmi_rx_ctrl *ctx)
+{
+	int error = 0;
+	int i;
+
+	if (rx.state != FSM_SIG_READY)
+		return 0;
+
+	if (sm_pause)
+		return 0;
+
+	if (ctx == 0)
+		return -EINVAL;
+
+	rx.hdr_data.eotf =
+		(unsigned char)hdmirx_rd_dwc(TOP_PDEC_DRM_HB);
+	rx.hdr_data.metadata_id =
+		(unsigned char)(hdmirx_rd_dwc(TOP_PDEC_DRM_HB) >> 8);
+	for (i = 0; i < TOP_PDEC_DRM_PLOAD_LEN; i++)
+		*((unsigned int *)&(rx.hdr_data.primaries) + i) =
+			hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0 + i*4);
+	return error;
+}
+
+
 
 /*static int md_handler(struct hdmi_rx_ctrl *ctx)
 {
@@ -487,7 +512,7 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	bool video_handle_flag = false;
 	/* bool audio_handle_flag = false; */
 	bool vsi_handle_flag = false;
-
+	bool drm_handle_flag = false;
 
 	/* clear interrupt quickly */
 	intr_hdmi =
@@ -572,6 +597,11 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 				rx_print("[irq] VSI_CKS_CHG\n");
 			vsi_handle_flag = true;
 		}
+		if (get(intr_pedc, DRM_RCV_EN) != 0) {
+			if (log_flag & 0x400)
+				rx_print("[irq] DRM_RCV_EN %#x\n", intr_pedc);
+				drm_handle_flag = true;
+		}
 		/* if (get(intr_pedc, AIF_CKS_CHG) != 0) { */
 		/* if(log_flag&0x400) */
 		/* rx_print("[HDMIrx isr] AIF_CKS_CHG\n"); */
@@ -612,6 +642,9 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 
 	/* if (vsi_handle_flag) */
 	/*	vsi_handler(); */
+
+	if (drm_handle_flag)
+		drm_handler(ctx);
 
 	return error;
 }
@@ -1617,9 +1650,7 @@ void hdmirx_error_count_config(void)
 
 bool hdmirx_tmds_pll_lock(void)
 {
-	if ((((hdmirx_rd_phy(0x30) & 0x80) == 0x80)) &&
-	(((hdmirx_rd_phy(0x50) & 0x80) == 0x80)) &&
-	(((hdmirx_rd_phy(0x70) & 0x80) == 0x80)))
+	if ((hdmirx_rd_dwc(0x30) & 1) == 1)
 		return true;
 	else
 		return false;
@@ -2887,6 +2918,18 @@ void dump_edid_reg(void)
 	}
 }
 
+void dump_hdr_reg(void)
+{
+	int i = 0;
+
+	rx_print("\n********** hdr *************\n");
+
+	for (i = 0; i < (TOP_PDEC_DRM_PLOAD_LEN + 1) * 4; i++)
+		rx_print("playload[%d]: %#x\n", i ,
+		*((unsigned char *)&(rx.hdr_data) + i));
+	rx_print("\n********** hdr end*************\n");
+}
+
 void timer_state(void)
 {
 	rx_print("timer state:");
@@ -2958,6 +3001,8 @@ int hdmirx_debug(const char *buf, int size)
 		dump_reg();
 	} else if (strncmp(tmpbuf, "edid", 4) == 0) {
 		dump_edid_reg();
+	} else if (strncmp(tmpbuf, "hdr", 3) == 0) {
+		dump_hdr_reg();
 	} else if (strncmp(tmpbuf, "hdcp123", 7) == 0) {
 		dump_hdcp_data();
 	} else if (strncmp(tmpbuf, "esmhpd", 6) == 0) {

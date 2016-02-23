@@ -152,25 +152,27 @@ static int in_reg_maps_idx(unsigned int addr)
 	return -1;
 }
 
-static int check_regmap_flag(unsigned int addr)
+void rx_init_reg_map(void)
 {
-	int idx;
+	int i;
 
-	idx = in_reg_maps_idx(addr);
-	if ((idx != -1) && (reg_maps[idx].flag))
-		return 1;
-	else {
-		reg_maps[idx].p =
-			ioremap(reg_maps[idx].phy_addr, reg_maps[idx].size);
-		if (!reg_maps[idx].p) {
-			pr_info("Failed Mapped PHY: 0x%x\n", addr);
-			return 0;
+	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
+		reg_maps[i].p = ioremap(reg_maps[i].phy_addr, reg_maps[i].size);
+		if (!reg_maps[i].p) {
+			rx_print("hdmirx: failed Mapped PHY: 0x%x\n",
+				reg_maps[i].phy_addr);
 		} else {
-			reg_maps[idx].flag = 1;
-			pr_info("Mapped PHY: 0x%x\n", reg_maps[idx].phy_addr);
-			return 1;
+			reg_maps[i].flag = 1;
+			rx_print("hdmirx: Mapped PHY: 0x%x\n",
+				reg_maps[i].phy_addr);
 		}
 	}
+}
+
+static int check_regmap_flag(unsigned int addr)
+{
+		return 1;
+
 }
 
 unsigned int rd_reg(unsigned int addr)
@@ -526,6 +528,8 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
 			break;
 	}
+
+	prop->hdr_data = rx.hdr_data;
 }
 
 bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
@@ -1062,7 +1066,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		clk_set_parent(hdevp->modet_clk, xtal_clk);
 		clk_set_rate(hdevp->modet_clk, 24000000);
 		clk_rate = clk_get_rate(hdevp->modet_clk);
-		clk_put(hdevp->modet_clk);
 		pr_info("%s: modet_clk is %d MHZ\n", __func__,
 				clk_rate/1000000);
 	}
@@ -1071,39 +1074,37 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (IS_ERR(hdevp->cfg_clk))
 		rx_print("get cfg_clk err\n");
 	else {
-		clk_set_parent(hdevp->cfg_clk, xtal_clk);
+		clk_set_parent(hdevp->cfg_clk, fclk_div5_clk);
 		clk_set_rate(hdevp->cfg_clk, 133333333);
 		clk_rate = clk_get_rate(hdevp->cfg_clk);
-		clk_put(hdevp->cfg_clk);
 		pr_info("%s: cfg_clk is %d MHZ\n", __func__,
 				clk_rate/1000000);
 	}
 
+	/*
 	hdevp->acr_ref_clk = clk_get(&pdev->dev, "hdmirx_acr_ref_clk");
 	if (IS_ERR(hdevp->acr_ref_clk))
 		rx_print("get acr_ref_clk err\n");
 	else {
-		clk_set_parent(hdevp->acr_ref_clk, xtal_clk);
+		clk_set_parent(hdevp->acr_ref_clk, fclk_div5_clk);
 		clk_set_rate(hdevp->acr_ref_clk, 24000000);
 		clk_rate = clk_get_rate(hdevp->acr_ref_clk);
-		clk_put(hdevp->acr_ref_clk);
 		pr_info("%s: acr_ref_clk is %d MHZ\n", __func__,
 				clk_rate/1000000);
 	}
-
+	*/
 	hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
 	if (IS_ERR(hdevp->audmeas_clk))
 		rx_print("get audmeas_clk err\n");
 	else {
-		clk_set_parent(hdevp->audmeas_clk, xtal_clk);
-		clk_set_rate(hdevp->audmeas_clk, 24000000);
+		clk_set_parent(hdevp->audmeas_clk, fclk_div5_clk);
+		clk_set_rate(hdevp->audmeas_clk, 200000000);
 		clk_rate = clk_get_rate(hdevp->audmeas_clk);
-		clk_put(hdevp->audmeas_clk);
 		pr_info("%s: audmeas_clk is %d MHZ\n", __func__,
 				clk_rate/1000000);
 	}
 
-
+	rx_init_reg_map();
 	/* create for hot plug function */
 	hpd_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&hpd_dwork, hdmirx_plug_det);

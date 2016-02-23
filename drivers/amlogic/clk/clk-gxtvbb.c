@@ -82,11 +82,10 @@ PNAME(cts_vid_lock_clk_p) = {"xtal", "cts_encl_clk", "cts_enci_clk",
 PNAME(cts_vdin_meas_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5",
 		"vid_pll_clk", "vid2_pll_clk"};
 /* hdmirx */
-PNAME(clk_hdmirx_pclk_p) = {};
-PNAME(clk_modet_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
-PNAME(clk_cfg_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
-PNAME(clk_acr_ref_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
-PNAME(clk_audmeas_clk_p) = {"fclk_div3", "fclk_div4", "fclk_div5", "xtal"};
+PNAME(clk_modet_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(clk_cfg_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(clk_acr_ref_clk_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
+PNAME(clk_audmeas_clk_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 /* hdmirx */
 
 /* fixed rate clocks generated outside the soc */
@@ -180,35 +179,34 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_VID_LOCK_CLK_CNTL, 0, 7, 0,
 			HHI_VID_LOCK_CLK_CNTL, 7, 0),
 	/* hdmirx_pclk, HHI_GCLK_MPEG0 bit21 = 1 */
-	COMPOSITE(CLK_HDMIRX_PCLK, "clk_hdmirx_pclk", clk_hdmirx_pclk_p,
-			CLK_SET_RATE_NO_REPARENT,
-			HHI_GCLK_MPEG0, 0, 0, 0,
-			HHI_GCLK_MPEG0, 0, 0, 0,
-			HHI_GCLK_MPEG0, 21, 1),
 	/* hdmirx_modet clk */
 	COMPOSITE(CLK_HDMIRX_MODET_CLK, "clk_hdmirx_modet_clk", clk_modet_clk_p,
 			CLK_SET_RATE_NO_REPARENT,
 			HHI_HDMIRX_CLK_CNTL, 25, 2, 0,
-			HHI_HDMIRX_CLK_CNTL, 16, 7, 0,
+			HHI_HDMIRX_CLK_CNTL, 16, 7,
+			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_HDMIRX_CLK_CNTL, 24, 1),
 	COMPOSITE(CLK_HDMIRX_CFG_CLK, "clk_hdmirx_cfg_clk", clk_cfg_clk_p,
 			CLK_SET_RATE_NO_REPARENT,
-			HHI_HDMIRX_CLK_CNTL, 9, 2, 2,
-			HHI_HDMIRX_CLK_CNTL, 0, 7, 0,
+			HHI_HDMIRX_CLK_CNTL, 9, 2, 0,
+			HHI_HDMIRX_CLK_CNTL, 0, 7,
+			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_HDMIRX_CLK_CNTL, 8, 1),
 	/* hdmirx_config clk */
 	COMPOSITE(CLK_HDMIRX_ACR_REF_CLK, "clk_hdmirx_acr_ref_clk",
 			clk_acr_ref_clk_p,
 			CLK_SET_RATE_NO_REPARENT,
-			HHI_HDMIRX_AUD_CLK_CNTL, 25, 2, 2,
-			HHI_HDMIRX_AUD_CLK_CNTL, 16, 7, 0,
+			HHI_HDMIRX_AUD_CLK_CNTL, 25, 2, 0,
+			HHI_HDMIRX_AUD_CLK_CNTL, 16, 7,
+			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_HDMIRX_AUD_CLK_CNTL, 24, 0),
 	/* hdmirx_config clk */
 	COMPOSITE(CLK_HDMIRX_AUDMEAS_CLK, "clk_hdmirx_audmeas_clk",
 			clk_audmeas_clk_p,
 			CLK_SET_RATE_NO_REPARENT,
-			HHI_HDMIRX_AUD_CLK_CNTL, 9, 2, 2,
-			HHI_HDMIRX_AUD_CLK_CNTL, 0, 7, 2,
+			HHI_HDMIRX_AUD_CLK_CNTL, 9, 2, 0,
+			HHI_HDMIRX_AUD_CLK_CNTL, 0, 7,
+			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_HDMIRX_AUD_CLK_CNTL, 8, 1),
 	COMPOSITE(CLK_VDIN_MEAS_CLK, "cts_vdin_meas_clk", cts_vdin_meas_clk_p,
 			CLK_SET_RATE_NO_REPARENT,
