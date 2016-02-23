@@ -274,7 +274,7 @@ static inline uint32_t rd_bits(uint32_t offset,
 #ifdef TVAFE_SET_CVBS_CDTO_EN
 #define TVAFE_SET_CVBS_CDTO_START   300
 #define TVAFE_SET_CVBS_CDTO_STEP    0
-#define HS_CNT_STANDARD             0x17a00
+#define HS_CNT_STANDARD             0x31380	/*0x17a00*/
 #endif
 
 enum tvin_sync_pol_e {

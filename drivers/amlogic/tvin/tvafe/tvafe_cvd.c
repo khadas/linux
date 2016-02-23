@@ -215,7 +215,7 @@ MODULE_PARM_DESC(force_nostd,
 			"fixed nosig problem by removing the nostd config.\n");
 
 /*0x001:enable cdto adj 0x010:enable 3d adj 0x100:enable pga*/
-static unsigned int  cvd_isr_en = 0x110;
+static unsigned int  cvd_isr_en = 0x111;
 module_param(cvd_isr_en, uint, 0644);
 MODULE_PARM_DESC(cvd_isr_en, "cvd_isr_en\n");
 
