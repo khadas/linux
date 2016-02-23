@@ -361,9 +361,9 @@ MODULE_PARM_DESC(sync_3d_sync_to_vbo, "\n sync_3d_sync_to_vbo\n");
 static void ve_hist_gamma_tgt(struct vframe_s *vf)
 {
 	struct vframe_prop_s *p = &vf->prop;
-	video_ve_hist.sum    = p->hist.luma_sum;
-	video_ve_hist.width  = p->hist.width;
-	video_ve_hist.height = p->hist.height;
+	video_ve_hist.sum    = p->hist.vpp_luma_sum;
+	video_ve_hist.width  = p->hist.vpp_width;
+	video_ve_hist.height = p->hist.vpp_height;
 }
 
 static void ve_dnlp_calculate_tgt_ext(struct vframe_s *vf)

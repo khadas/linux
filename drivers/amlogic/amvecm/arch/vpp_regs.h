@@ -647,6 +647,10 @@
 #define VI_HIST_ON_BIN_62_BIT              0
 #define VI_HIST_ON_BIN_62_WID              16
 
-
+/* #define VDIN_HIST_PIC_SIZE                   0x2e28 */
+#define VI_HIST_PIC_HEIGHT_BIT                 16
+#define VI_HIST_PIC_HEIGHT_WID                 13
+#define VI_HIST_PIC_WIDTH_BIT                   0
+#define VI_HIST_PIC_WIDTH_WID                   13
 #endif
 

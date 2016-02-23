@@ -1583,15 +1583,10 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 	vf->prop.hist.vpp_chroma_sum = rd(0, VI_HIST_CHROMA_SUM);
 	vf->prop.hist.vpp_pixel_sum  = rd_bits(0, VI_HIST_SPL_PIX_CNT,
 			VI_HIST_PIX_CNT_BIT, VI_HIST_PIX_CNT_WID);
-	vf->prop.hist.vpp_height     = rd_bits(0, VI_HIST_V_START_END,
-			VI_HIST_VEND_BIT, VI_HIST_VEND_WID) -
-		rd_bits(0, VI_HIST_V_START_END,
-				VI_HIST_VSTART_BIT, VI_HIST_VSTART_WID)+1;
-
-	vf->prop.hist.vpp_width      = rd_bits(0, VI_HIST_H_START_END,
-			VI_HIST_HEND_BIT, VI_HIST_HEND_WID) -
-		rd_bits(0, VI_HIST_H_START_END,
-				VI_HIST_HSTART_BIT, VI_HIST_HSTART_WID)+1;
+	vf->prop.hist.vpp_height     = rd_bits(0, VI_HIST_PIC_SIZE,
+			VI_HIST_PIC_HEIGHT_BIT, VI_HIST_PIC_HEIGHT_WID);
+	vf->prop.hist.vpp_width      = rd_bits(0, VI_HIST_PIC_SIZE,
+			VI_HIST_PIC_WIDTH_BIT, VI_HIST_PIC_WIDTH_WID);
 	vf->prop.hist.vpp_luma_max   = rd_bits(0, VI_HIST_MAX_MIN,
 			VI_HIST_MAX_BIT, VI_HIST_MAX_WID);
 	vf->prop.hist.vpp_luma_min   = rd_bits(0, VI_HIST_MAX_MIN,
