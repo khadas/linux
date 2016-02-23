@@ -304,37 +304,8 @@
 		compatible = "amlogic, hdmirx";
 		dev_name = "hdmirx";
 		status = "ok";
-		pinctrl-names = "hdmirx_pins","hu_det_init",
-				"hu_det_u1","hu_det_u2","hu_det_u3",
-				"hu_det_h1","hu_det_h2","hu_det_h3",
-				"hu_det_h1h2","hu_det_h1h3","hu_det_h2h3","hu_det_h1h2h3",
-				"hu_det_u1_h2","hu_det_u1_h3","hu_det_u1_h2h3",
-				"hu_det_u2_h1","hu_det_u2_h3","hu_det_u2_h1h3",
-				"hu_det_u3_h1","hu_det_u3_h2","hu_det_u3_h1h2";
+		pinctrl-names = "hdmirx_pins";
 		pinctrl-0 = <&hdmirx_pins>;
-		pinctrl-1 = <&hdmirx_pins &hu_hpds_gpio>;
-		pinctrl-2 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in>;
-		pinctrl-3 = <&hdmirx_pins &hu_hpds_gpio &u_ch2_in>;
-		pinctrl-4 = <&hdmirx_pins &hu_hpds_gpio &u_ch3_in>;
-		pinctrl-5 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux>;
-		pinctrl-6 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd2_pinmux>;
-		pinctrl-7 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd3_pinmux>;
-		pinctrl-8 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux &hu_hpd2_pinmux>;
-		pinctrl-9 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux &hu_hpd3_pinmux>;
-		pinctrl-10 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd2_pinmux &hu_hpd3_pinmux>;
-		pinctrl-11 = <&hdmirx_pins &hu_hpds_gpio &hu_hpd1_pinmux &hu_hpd2_pinmux &hu_hpd3_pinmux>;
-		pinctrl-12 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in &hu_hpd2_pinmux>;
-		pinctrl-13 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in &hu_hpd3_pinmux>;
-		pinctrl-14 = <&hdmirx_pins &hu_hpds_gpio &u_ch1_in &hu_hpd2_pinmux &hu_hpd3_pinmux>;
-		pinctrl-15 = <&hdmirx_pins &hu_hpds_gpio &u_ch2_in &hu_hpd1_pinmux>;
-		pinctrl-16 = <&hdmirx_pins &hu_hpds_gpio &u_ch2_in &hu_hpd3_pinmux>;
-		pinctrl-17 = <&hdmirx_pins &hu_hpds_gpio &u_ch2_in &hu_hpd1_pinmux &hu_hpd3_pinmux>;
-		pinctrl-18 = <&hdmirx_pins &hu_hpds_gpio &u_ch3_in &hu_hpd1_pinmux>;
-		pinctrl-19 = <&hdmirx_pins &hu_hpds_gpio &u_ch3_in &hu_hpd2_pinmux>;
-		pinctrl-20 = <&hdmirx_pins &hu_hpds_gpio &u_ch3_in &hu_hpd1_pinmux &hu_hpd2_pinmux>;
-		hdmiuart1_pin =  <&gpio       GPIOW_5       GPIO_ACTIVE_HIGH>;
-		hdmiuart2_pin =  <&gpio       GPIOW_9       GPIO_ACTIVE_HIGH>;
-		hdmiuart3_pin =  <&gpio       GPIOW_13      GPIO_ACTIVE_HIGH>;
 		interrupts = <0 56 1>;
 		clocks = <&clock CLK_HDMIRX_MODET_CLK>,
 			<&clock CLK_HDMIRX_CFG_CLK>,

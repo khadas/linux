@@ -44,7 +44,7 @@
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
-#include "uart_hdmi.h"
+
 
 #define TVHDMI_NAME				"hdmirx"
 #define TVHDMI_DRIVER_NAME		"hdmirx"
@@ -1110,8 +1110,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&hpd_dwork, hdmirx_plug_det);
 
 	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
-
-	uart_hdmi_probe(pdev);
 
 	rx_print("hdmirx: driver probe ok\n");
 
