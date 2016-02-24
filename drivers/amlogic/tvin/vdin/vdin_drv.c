@@ -651,6 +651,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		vdin_set_source_bitdepth(devp, vf);
 		/* init slave vframe */
 		slave  = vf_get_slave(p, i);
+		if (slave == NULL)
+			continue;
 		slave->flag = master->flag;
 		memset(&slave->vf, 0, sizeof(struct vframe_s));
 		slave->vf.index	  = vf->index;
@@ -1233,6 +1235,8 @@ static inline void vdin_set_view(struct vdin_dev_s *devp, struct vframe_s *vf)
 			vactive = (fmt_info->v_active - vspace -
 					vspace - vspace + 1) >> 2;
 			slave = vf_get_slave(devp->vfp, vf->index);
+			if (slave == NULL)
+				break;
 			slave->vf.left_eye.start_x  = 0;
 			slave->vf.left_eye.start_y  = vactive + vspace +
 					vactive + vspace - 1;

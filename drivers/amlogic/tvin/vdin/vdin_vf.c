@@ -274,11 +274,15 @@ void isr_log(struct vf_pool *p)
 #endif
 struct vf_entry *vf_get_master(struct vf_pool *p, int index)
 {
+	if (index >= p->max_size)
+		return NULL;
 	return &p->master[index];
 }
 
 struct vf_entry *vf_get_slave(struct vf_pool *p, int index)
 {
+	if (index >= p->max_size)
+		return NULL;
 	return &p->slave[index];
 }
 
@@ -322,6 +326,7 @@ struct vf_pool *vf_pool_alloc(int size)
 /* size: valid canvas quantity*/
 int vf_pool_init(struct vf_pool *p, int size)
 {
+	bool log_state = true;
 	int i = 0;
 	unsigned long flags;
 	struct vf_entry *master, *slave;
@@ -374,6 +379,10 @@ int vf_pool_init(struct vf_pool *p, int size)
 	/* initialize provider write list */
 	for (i = 0; i < size; i++) {
 		master = vf_get_master(p, i);
+		if (master == NULL) {
+			log_state = false;
+			break;
+		}
 		master->status = VF_STATUS_WL;
 		master->flag |= VF_FLAG_NORMAL_FRAME;
 		master->flag &= (~VF_FLAG_FREEZED_FRAME);
@@ -385,12 +394,16 @@ int vf_pool_init(struct vf_pool *p, int size)
 
 	for (i = 0; i < size; i++) {
 		slave = vf_get_slave(p, i);
+		if (slave == NULL) {
+			log_state = false;
+			break;
+		}
 		slave->status = VF_STATUS_SL;
 	}
 
 #ifdef VF_LOG_EN
 	vf_log_init(p);
-	vf_log(p, VF_OPERATION_INIT, true);
+	vf_log(p, VF_OPERATION_INIT, log_state);
 #endif
 	return 0;
 }
@@ -589,7 +602,10 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 
 
 	master = vf_get_master(p, vf->index);
-
+	if (master == NULL) {
+		vf_log(p, VF_OPERATION_BPUT, false);
+		return;
+	}
 	/*keep the frozen frame in rd list&recycle the
 	 * frame which not in fz list when unfreeze*/
 	if (master->flag & VF_FLAG_FREEZED_FRAME) {
@@ -630,6 +646,11 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		 * the entry 'pos' found in wt_list maybe
 		 * entry 'master' or 'slave' */
 		slave = vf_get_slave(p, vf->index);
+		if (slave == NULL) {
+			spin_unlock_irqrestore(&p->wt_lock, flags);
+			vf_log(p, VF_OPERATION_BPUT, false);
+			return;
+		}
 		/* if found associated entry in wait list */
 		if (found_in_wt_list) {
 			/* remove from wait list,
