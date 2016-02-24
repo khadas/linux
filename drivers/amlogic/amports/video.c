@@ -3013,9 +3013,12 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			/* pts==0 is a keep frame maybe. */
 			if (systime > next_vf->pts || next_vf->pts == 0)
 				return true;
+			if (omx_secret_mode == true)
+				return true;
 
 			return false;
-		}
+		} else if (omx_secret_mode == true)
+			return true;
 	}
 #if 1
 	if (vsync_pts_inc_upint && (!freerun_mode)) {
