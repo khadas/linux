@@ -115,6 +115,10 @@ MODULE_PARM_DESC(vdin_bit_depth, "vdin_bit_depth");
 static unsigned int vdin_wr_burst_mode = 2;
 module_param(vdin_wr_burst_mode, uint, 0644);
 MODULE_PARM_DESC(vdin_wr_burst_mode, "vdin_wr_burst_mode");
+
+static unsigned int delay_line_num = 10;
+module_param(delay_line_num, uint, 0644);
+MODULE_PARM_DESC(delay_line_num, "delay_line_num");
 /***************************Local defines**********************************/
 #define BBAR_BLOCK_THR_FACTOR           3
 #define BBAR_LINE_THR_FACTOR            7
@@ -1783,6 +1787,12 @@ void vdin_delay_line(unsigned short num, unsigned int offset)
 {
 	wr_bits(offset, VDIN_COM_CTRL0, num,
 			DLY_GO_FLD_LN_NUM_BIT, DLY_GO_FLD_LN_NUM_WID);
+	if (num)
+		wr_bits(offset, VDIN_COM_CTRL0, 1,
+			DLY_GO_FLD_EN_BIT, DLY_GO_FLD_EN_WID);
+	else
+		wr_bits(offset, VDIN_COM_CTRL0, 0,
+			DLY_GO_FLD_EN_BIT, DLY_GO_FLD_EN_WID);
 }
 
 void vdin_set_default_regmap(unsigned int offset)
@@ -1806,6 +1816,7 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* [    4]         top.datapath_en      = 1 */
 	/* [ 3: 0] top.mux = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
+	vdin_delay_line(delay_line_num, offset);
 	/* [   23] asfifo_tvfe.de_en            = 1 */
 	/* [   22] asfifo_tvfe.vs_en            = 1 */
 	/* [   21] asfifo_tvfe.hs_en            = 1 */
@@ -2103,6 +2114,7 @@ void vdin_hw_disable(unsigned int offset)
 	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	wr_bits(offset, VDIN_COM_CTRL0, 0, 0, 4);
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
+	vdin_delay_line(delay_line_num, offset);
 	wr(offset, VDIN_WR_CTRL, 0x0bc01000);
 
 	/* disable clock of blackbar, histogram, histogram, line fifo1, matrix,
@@ -2576,6 +2588,7 @@ void vdin_set_mpegin(struct vdin_dev_s *devp)
 	/* aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100); */
 
 	wr(offset, VDIN_COM_CTRL0, 0x80000911);
+	vdin_delay_line(delay_line_num, offset);
 	wr(offset, VDIN_COM_GCLK_CTRL, 0x0);
 
 	wr(offset, VDIN_INTF_WIDTHM1, devp->h_active-1);
