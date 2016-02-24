@@ -783,6 +783,11 @@ static void meson_serial_console_write(struct console *co, const char *s,
 						+(struct_size
 						+DEFAULT_STR_LEN))) {
 						cur_s = data_cache;
+					} else if (tmp_count > (struct_size +
+						DEFAULT_STR_LEN)) {
+						cur_s = tail_s->s +
+						tail_s->offset + tail_s->count;
+						need_default = 1;
 					} else {
 						cur_s = data_cache;
 						need_default = 1;
