@@ -214,7 +214,7 @@ static void set_hpll_od3_clk_div(int div_sel)
 
 	pr_info("%s[%d] div = %d\n", __func__, __LINE__, div_sel);
 	/* Disable the output clock */
-	hd_set_reg_bits(P_HHI_VID_PLL_CLK_DIV, 0, 19, 1);
+	hd_set_reg_bits(P_HHI_VID_PLL_CLK_DIV, 0, 18, 2);
 	hd_set_reg_bits(P_HHI_VID_PLL_CLK_DIV, 0, 15, 1);
 
 	switch (div_sel) {

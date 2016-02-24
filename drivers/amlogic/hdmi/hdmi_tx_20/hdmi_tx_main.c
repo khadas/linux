@@ -502,6 +502,8 @@ static int set_disp_mode_auto(void)
 	}
 	if (strstr(mode, "hz420") != NULL)
 		hdmitx_device.colorspace = COLOR_SPACE_YUV420;
+	else
+		hdmitx_device.colorspace = COLOR_SPACE_YUV444;
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
@@ -527,6 +529,7 @@ static int set_disp_mode_auto(void)
 		hdmitx_pre_display_init();
 
 	hdmitx_device.cur_VIC = HDMI_Unkown;
+	hdmitx_device.colordepth = hdmi_color_depth_24B; /* default value */
 /* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(&hdmitx_device, vic);
 	if (ret >= 0) {
