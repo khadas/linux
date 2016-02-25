@@ -24,6 +24,7 @@
 #define DURATION_REG2    0x9
 #define DURATION_REG3    0xa
 #define FRAME_BODY1 0xb
+#define OPERATION_CTRL_REG3 0xe
 #define CONFIG_END 0xff
 /*config remote register val*/
 struct reg_s {
@@ -71,6 +72,7 @@ enum {
 	DECODEMODE_SANYO,
 	DECODEMODE_NEC_RCA_2IN1 = 14,
 	DECODEMODE_NEC_TOSHIBA_2IN1 = 15,
+	DECODEMODE_NEC_RCMM_2IN1,
 	DECODEMODE_SW,
 	DECODEMODE_MAX ,
 	DECODEMODE_SW_NEC,
@@ -337,6 +339,30 @@ static const struct reg_s RDECODEMODE_NEC_TOSHIBA_2IN1[] = {
 	{DURATION_REG3, 0},
 	{CONFIG_END,            0      }
 };
+static const struct reg_s RDECODEMODE_NEC_RCMM_2IN1[] = {
+	/*used old decode*/
+	{LDR_ACTIVE-0x40, ((unsigned)477<<16) | ((unsigned)400<<0)},/*leader*/
+	{LDR_IDLE-0x40, 248<<16 | 202<<0},/*leader idle*/
+	{LDR_REPEAT-0x40, 130<<16|110<<0}, /* leader repeat*/
+	{DURATION_REG0-0x40, 60<<16|48<<0 },/*logic '0' or '00'*/
+	{OPERATION_CTRL_REG0-0x40, 3<<28|(0xFA0<<12)|0x13}, /*base time = 20*/
+	{DURATION_REG1_AND_STATUS-0x40, (111<<20)|(100<<10)},/*logic '1'or'01'*/
+	{OPERATION_CTRL_REG1-0x40, 0xbe00},/*boby long decode (9-13)*/
+	/*used new decode*/
+	{LDR_ACTIVE, ((unsigned)35<<16) | ((unsigned)17<<0)},/*leader active*/
+	{LDR_IDLE, 17<<16 | 8<<0},/*leader idle*/
+	{LDR_REPEAT, 31<<16 | 11<<0},  /*leader repeat*/
+	{DURATION_REG0, 25<<16|21<<0 },/*logic '0' or '00' 1200us*/
+	{OPERATION_CTRL_REG0, 3<<28|(590<<12)|0x13},  /*time.base time = 20*/
+	{DURATION_REG1_AND_STATUS, (33<<20)|(29<<10)},/*logic '1' or '01'*/
+	{OPERATION_CTRL_REG1, 0x9f00},/*boby long decode (8-13)*/
+	{OPERATION_CTRL_REG2, 0x1150a},
+	{DURATION_REG2, 41<<16 | 36<<0},
+	{DURATION_REG3, 50<<16 | 44<<0},
+	{OPERATION_CTRL_REG3, 1200<<0},
+	{CONFIG_END,            0      }
+};
+
 static const struct reg_s RDECODEMODE_RC5[] = {
 	{LDR_ACTIVE,    },
 	{LDR_IDLE,     },
@@ -592,11 +618,13 @@ extern int remote_hw_report_key(struct remote *remote_data);
 extern int remote_duokan_report_key(struct remote *remote_data);
 extern int remote_hw_nec_rca_2in1_report_key(struct remote *remote_data);
 extern int remote_hw_nec_toshiba_2in1_report_key(struct remote *remote_data);
+extern int remote_hw_nec_rcmm_2in1_report_key(struct remote *remote_data);
 extern int remote_sw_report_key(struct remote *remote_data);
 extern void remote_nec_report_release_key(struct remote *remote_data);
 extern void remote_nec_rca_2in1_report_release_key(struct remote *remote_data);
 extern void remote_nec_toshiba_2in1_report_release_key(struct remote
 		*remote_data);
+extern void remote_nec_rcmm_2in1_report_release_key(struct remote *remote_data);
 extern void remote_duokan_report_release_key(struct remote *remote_data);
 extern void remote_sw_report_release_key(struct remote *remote_data);
 extern void remote_null_report_release_key(struct remote *remote_data);

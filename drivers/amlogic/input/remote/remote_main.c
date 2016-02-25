@@ -107,6 +107,7 @@ static  int (*remote_report_key[])(struct remote *remote_data) = {
 	remote_hw_report_null_key,
 	remote_hw_nec_rca_2in1_report_key,
 	remote_hw_nec_toshiba_2in1_report_key,
+	remote_hw_nec_rcmm_2in1_report_key,
 	remote_sw_report_key
 };
 
@@ -127,6 +128,7 @@ static  void (*remote_report_release_key[])(struct remote *remote_data) = {
 	remote_null_report_release_key,
 	remote_nec_rca_2in1_report_release_key,
 	remote_nec_toshiba_2in1_report_release_key,
+	remote_nec_rcmm_2in1_report_release_key,
 	remote_sw_report_release_key
 };
 static __u16 mouse_map[20][6];
