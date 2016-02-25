@@ -143,7 +143,6 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	enum tvin_color_fmt_e cur_color_fmt, pre_color_fmt;
-	enum tvin_color_fmt_range_e cur_color_range, pre_color_range;
 	struct tvin_sig_property_s *prop, *pre_prop;
 
 	if (!devp || !devp->frontend) {
@@ -163,47 +162,18 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 		(sm_ops->get_sig_propery)) {
 		sm_ops->get_sig_propery(devp->frontend, prop);
 
-		/* check luma range with hist */
-		if (prop->color_format != TVIN_RGB444) {
-			if ((devp->parm.histgram[0] != 0) ||
-				(devp->parm.histgram[1] != 0) ||
-				(devp->parm.histgram[2] != 0) ||
-				(devp->parm.histgram[3] != 0) ||
-				(devp->parm.histgram[63] != 0) ||
-				(devp->parm.histgram[62] != 0) ||
-				(devp->parm.histgram[61] != 0) ||
-				(devp->parm.histgram[60] != 0)) {
-				if ((devp->csc_cfg & 0x10) == 0) {
-					/*hist change csc_config*/
-				pr_info("[smr.%d] h_c:%d, c_g:0x%x\n",
-						devp->index,
-						prop->color_fmt_range,
-						devp->csc_cfg);
-				} /*else*/
-					prop->color_fmt_range = TVIN_YUV_FULL;
-			}
-		}
-
-		cur_color_range = prop->color_fmt_range;
-		pre_color_range = pre_prop->color_fmt_range;
 		cur_color_fmt = prop->color_format;
 		pre_color_fmt = pre_prop->color_format;
 
-		if ((cur_color_fmt != pre_color_fmt) ||
-			(cur_color_range != pre_color_range)) {
+		if (cur_color_fmt != pre_color_fmt) {
 			pr_info("[smr.%d] color fmt(%d->%d),csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,
 					devp->csc_cfg);
-			pr_info("[smr.%d] range(%d->%d),csc_cfg:0x%x\n",
-					devp->index,
-					pre_color_range, cur_color_range,
-					devp->csc_cfg);
-			/*pre_prop->color_format = prop->color_format;*/
 			vdin_get_format_convert(devp);
-			devp->csc_cfg |= 0x01;
+			devp->csc_cfg = 1;
 		} else
-			devp->csc_cfg &= 0x10;
+			devp->csc_cfg = 0;
 	}
 }
 

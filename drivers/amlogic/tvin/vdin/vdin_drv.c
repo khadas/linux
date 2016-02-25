@@ -1501,13 +1501,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	curr_wr_vf  = &curr_wr_vfe->vf;
 
 	/* change color matrix */
-	if ((devp->csc_cfg & 0x01) != 0) {
+	if (devp->csc_cfg != 0) {
 		prop = &devp->prop;
 		pre_prop = &devp->pre_prop;
 		vdin_set_matrix(devp);
 		pre_prop->color_format = prop->color_format;
-		pre_prop->color_fmt_range = prop->color_fmt_range;
-		devp->csc_cfg |= 0x10;
 	}
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
