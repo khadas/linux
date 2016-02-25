@@ -286,7 +286,8 @@ MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
 #if 0	/* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 static unsigned int bypass_ratio = 150;
 #else
-static unsigned int bypass_ratio = 196;
+/* gxtvbb clk 666M , g9tv 696M bypass_ratio = 196 */
+static unsigned int bypass_ratio = 205;
 #endif
 module_param(bypass_ratio, uint, 0664);
 MODULE_PARM_DESC(bypass_ratio, "bypass_ratio");
