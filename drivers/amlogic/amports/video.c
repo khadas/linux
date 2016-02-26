@@ -1927,13 +1927,12 @@ static void zoom_display_vert(void)
 		int t_aligned;
 		int b_aligned;
 		if (zoom_start_y_lines > 0) {
-			t_aligned = round_down(zoom_start_y_lines, 32);
-			b_aligned = round_up(zoom_end_y_lines, 32);
+			t_aligned = round_down(zoom_start_y_lines, 4);
+			b_aligned = round_up(zoom_end_y_lines, 4);
 		} else {
-			t_aligned = round_down(zoom_start_y_lines, 32);
-			b_aligned = round_up(zoom_end_y_lines, 32);
+			t_aligned = round_down(zoom_start_y_lines, 4);
+			b_aligned = round_up(zoom_end_y_lines, 4);
 		}
-
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
 		    b_aligned - t_aligned);
 
@@ -2486,7 +2485,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				r |= 0x33;
 			if (frame_par->vscale_skip_count)
 				r |= 0xcc;
-
+#ifdef TV_REVERSE
+			if (reverse)
+				r |= (1<<26)|(1<<27);
+#endif
 			if (vf->bitdepth & BITDEPTH_SAVING_MODE)
 				r |= (1<<28); /* mem_saving_mode */
 			VSYNC_WR_MPEG_REG(AFBC_MODE, r);
