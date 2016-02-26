@@ -7,7 +7,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/gxbb.h>
-#include <dt-bindings/gpio/gxbb.h>
+#include <dt-bindings/gpio/gxl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxbb.h>
 #include "mesongxl.dtsi"
@@ -334,7 +334,7 @@
 		compatible = "amlogic, bt-dev";
 		dev_name = "bt-dev";
 		status = "ok";
-		gpio_reset = <&gpio       GPIOX_20       GPIO_ACTIVE_HIGH>;
+		gpio_reset = <&gpio       GPIOX_18       GPIO_ACTIVE_HIGH>;
 	};
 
 	rtc{
@@ -353,8 +353,6 @@
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_HIGH";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "wifi_32k_pins";
-		pinctrl-0 = <&wifi_32k_pins>;
 	};
     sd{
         compatible = "amlogic, aml_sd_emmc";
@@ -665,8 +663,6 @@
 		arc_port_mask = <0x0>;
 		interrupts = <0 199 1>;
 		interrupt-names = "hdmi_aocec";
-		pinctrl-names = "hdmitx_aocec";
-		pinctrl-0=<&hdmitx_aocec>;
 		reg = <0x0 0xc810023c 0x0 0x4
 		       0x0 0xc8100000 0x0 0x200>;
 	};
@@ -736,8 +732,6 @@
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
 		fifosize = < 64 >;
-		pinctrl-names = "default";
-		pinctrl-0 = <&c_uart_pins>;
 		resets = <&clock GCLK_IDX_UART2>;
 	};
 	uart_AO_B: serial@c81004e0 {

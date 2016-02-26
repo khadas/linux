@@ -1,5 +1,5 @@
 #include <dt-bindings/clock/gxbb.h>
-#include <dt-bindings/gpio/gxbb.h>
+#include <dt-bindings/gpio/gxl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxbb.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -163,7 +163,7 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 	pinmux: pinmux{
-		compatible = "amlogic, pinmux-gxbb";
+		compatible = "amlogic, pinmux-gxl";
 		dev_name = "pinmux";
 		#pinmux-cells=<2>;
 		#address-cells = <2>;
@@ -199,7 +199,7 @@
                 };
 		jtag_apao_pins:jtag_apao_pin{
 			amlogic,clrmask = <AO 0x78000000>;
-			amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
+			amlogic,pins = "GPIOAO_8","GPIOAO_9";
 		};
 		jtag_apee_pins:jtag_apee_pin{
 			amlogic,clrmask = <2 0xcc00>;
@@ -224,16 +224,6 @@
 		b_uart_pins:b_uart{
 			amlogic,setmask=<2 0x30000000>;
 			amlogic,pins="GPIODV_24", "GPIODV_25";
-		};
-		c_uart_pins:c_uart{
-			amlogic,setmask=<1 0xc0000>;
-			amlogic,pins="GPIOY_13", "GPIOY_14";
-		};
-		wifi_32k_pins:wifi_32k_pins{
-			amlogic,setmask=<2 0x40000000>;
-			amlogic,clrmask=<2 0x400000
-												3 0x8000>;
-			amlogic,pins="GPIOX_19";
 		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
 		    amlogic,setmask=<6 0x0000000c>,
@@ -348,14 +338,7 @@
 						6 0x1ff3>;
 				amlogic,pins = "GPIOZ_0","GPIOZ_1","GPIOZ_3","GPIOZ_4","GPIOZ_5","GPIOZ_6","GPIOZ_7","GPIOZ_8","GPIOZ_9","GPIOZ_10","GPIOZ_11";
 		};
-		cam_gpio_a: cam_gpio_a{
-				amlogic,setmask=<2 0x3f0000>;
-				amlogic,clrmask=<1 0x7030ff
-						3 0x37>;
-				amlogic,pins = "GPIOY_1","GPIOY_0","GPIOY_2","GPIOY_15","GPIOY_16",
-					"GPIOY_3","GPIOY_4","GPIOY_5","GPIOY_6",
-					"GPIOY_7","GPIOY_8","GPIOY_9","GPIOY_10";
-		};*/
+		*/
 		conf_nand_pulldown: conf_nand_pulldown{
 			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
 						"BOOT_5","BOOT_6","BOOT_7","BOOT_15";
@@ -391,18 +374,6 @@
 			amlogic,setmask=<1 0x03000000>;
 			amlogic,pins="GPIOH_1", "GPIOH_2";
 		};
-		hdmitx_aocec: hdmitx_aocec {
-			amlogic,setmask=<AO  0x00008000>;
-			amlogic,clrmask=<AO  0x00024000
-					 AO2 0x00000001>;
-			amlogic,pins="GPIOAO_12";
-		};
-		hdmitx_eecec: hdmitx_eecec {
-			amlogic,setmask=<AO  0x00004000>;
-			amlogic,clrmask=<AO  0x00028000
-					 AO2 0x00000001>;
-			amlogic,pins="GPIOAO_12";
-		};
 
 		/*p200 i2c-A multiplex with usb PWR*/
 		a_i2c_master:a_i2c{
@@ -424,16 +395,6 @@
 			amlogic,setmask=<4 0xc>;
 			amlogic,clrmask=<2 0x3000000 3 0x1000>;
 			amlogic,pins="GPIOX_16","GPIOX_17";
-		};
-		dvb_p_ts0_pins: dvb_p_ts0_pins {
-			amlogic,setmask = <3 0x37>;
-			amlogic,clrmask = <2 0xf0000 1 0x30ff>;
-			amlogic,pins = "GPIOY_0","GPIOY_1","GPIOY_2", "GPIOY_3","GPIOY_4","GPIOY_5","GPIOY_6","GPIOY_7","GPIOY_8","GPIOY_9","GPIOY_10";
-		};
-		dvb_s_ts0_pins: dvb_s_ts0_pins {
-			amlogic,setmask = <3 0x17>;
-			amlogic,clrmask = <2 0xf0000 1 0x7>;
-			amlogic,pins = "GPIOY_0","GPIOY_1","GPIOY_2","GPIOY_3";
 		};
 	};
 	cpu_version{
