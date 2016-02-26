@@ -733,6 +733,21 @@ start_chk:
 		x = val;
 		pr_info("matrix set : %d\n", x);
 		vdin_set_before_after_mat0(devp->addr_offset, x, devp);
+	} else if (!strcmp(parm[0], "hdr")) {
+		int i;
+		struct vframe_master_display_colour_s *prop;
+		prop = &devp->curr_wr_vfe->vf.prop.master_display_colour;
+		pr_info("present_flag: %d\n", prop->present_flag);
+		for (i = 0; i < 6; i++)
+			pr_info("primaries %d: %#x\n", i,
+				*(((u32 *)(prop->primaries)) + i));
+
+		pr_info("white point x: %#x, y: %#x\n",
+				*((u32 *)(prop->white_point)),
+				*((u32 *)(prop->white_point) + 1));
+		pr_info("lumi max: %#x, min: %#x\n",
+				*((u32 *)(prop->luminance)),
+				*(((u32 *)(prop->luminance)) + 1));
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

@@ -528,7 +528,10 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 			break;
 	}
 
-	prop->hdr_data = rx.hdr_data;
+	if (rx.hdr_data.data_status == HDR_STATE_NEW) {
+		prop->hdr_data = rx.hdr_data;
+		rx.hdr_data.data_status = HDR_STATE_OLD;
+	}
 }
 
 bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)

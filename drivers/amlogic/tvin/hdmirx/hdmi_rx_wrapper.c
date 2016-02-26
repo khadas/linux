@@ -283,6 +283,10 @@ static int wait_no_signal_cnt;
 MODULE_PARM_DESC(wait_no_signal_cnt, "\n wait_no_signal_cnt\n");
 module_param(wait_no_signal_cnt, int, 0664);
 
+static bool hdr_enable;
+MODULE_PARM_DESC(hdr_enable, "\n hdr_enable\n");
+module_param(hdr_enable, bool, 0664);
+
 #ifdef HDCP22_ENABLE
 /* to inform ESM whether the cable is connected or not */
 static bool hpd_to_esm;
@@ -346,7 +350,6 @@ struct rx_s rx;
 #define TMDS_TOLERANCE  (4000)
 #define MAX_AUDIO_SAMPLE_RATE		(192000+1000)	/* 192K */
 #define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
-#define TOP_PDEC_DRM_PLOAD_LEN		(28 / 4)
 
 static void dump_state(unsigned char enable);
 static void dump_audio_info(unsigned char enable);
@@ -438,9 +441,8 @@ static int clock_handler(struct hdmi_rx_ctrl *ctx)
 static int drm_handler(struct hdmi_rx_ctrl *ctx)
 {
 	int error = 0;
-	int i;
 
-	if (rx.state != FSM_SIG_READY)
+	if ((rx.state != FSM_SIG_READY) || (hdr_enable == false))
 		return 0;
 
 	if (sm_pause)
@@ -449,13 +451,51 @@ static int drm_handler(struct hdmi_rx_ctrl *ctx)
 	if (ctx == 0)
 		return -EINVAL;
 
+	rx.hdr_data.data_status = HDR_STATE_READ;
 	rx.hdr_data.eotf =
-		(unsigned char)hdmirx_rd_dwc(TOP_PDEC_DRM_HB);
+		(hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0) >> 8) & 0xFF;
 	rx.hdr_data.metadata_id =
+		(hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0) >> 16) & 0xFF;
+	rx.hdr_data.lenght =
 		(unsigned char)(hdmirx_rd_dwc(TOP_PDEC_DRM_HB) >> 8);
-	for (i = 0; i < TOP_PDEC_DRM_PLOAD_LEN; i++)
-		*((unsigned int *)&(rx.hdr_data.primaries) + i) =
-			hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0 + i*4);
+
+	rx.hdr_data.primaries[0].x =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0) >> 24) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) << 8) & 0xFF00);
+	rx.hdr_data.primaries[0].y =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) >> 8) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) >> 8) & 0xFF00);
+	rx.hdr_data.primaries[1].x =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) >> 24) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) << 8) & 0xFF00);
+	rx.hdr_data.primaries[1].y =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) >> 8) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) >> 8) & 0xFF00);
+	rx.hdr_data.primaries[2].x =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) >> 24) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) << 8) & 0xFF00);
+	rx.hdr_data.primaries[2].y =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) >> 8) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) >> 8) & 0xFF00);
+	rx.hdr_data.white_points.x =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) >> 24) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) << 8) & 0xFF00);
+	rx.hdr_data.white_points.y =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) >> 8) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) >> 8) & 0xFF00);
+	rx.hdr_data.master_lum.x =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) >> 24) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) << 8) & 0xFF00);
+	rx.hdr_data.master_lum.y =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) >> 8) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) >> 8) & 0xFF00);
+	rx.hdr_data.mcll =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) >> 24) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD6) << 8) & 0xFF00);
+	rx.hdr_data.mfall =
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD6) >> 8) & 0xFF) +
+		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD6) >> 8) & 0xFF00);
+	rx.hdr_data.data_status = HDR_STATE_NEW;
 	return error;
 }
 
@@ -601,7 +641,7 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 				rx_print("[irq] VSI_CKS_CHG\n");
 			vsi_handle_flag = true;
 		}
-		if (get(intr_pedc, DRM_RCV_EN) != 0) {
+		if (get(intr_pedc, DRM_RCV_EN | DRM_CKS_CHG) != 0) {
 			if (log_flag & 0x400)
 				rx_print("[irq] DRM_RCV_EN %#x\n", intr_pedc);
 				drm_handle_flag = true;
@@ -1813,8 +1853,7 @@ void hdmirx_hw_monitor(void)
 		return;
 	} else {
 		if (rx.state != FSM_SIG_READY) {
-			if (wait_no_signal_cnt >
-				(wait_clk_stable_max + sig_pll_unlock_max))
+			if (wait_no_signal_cnt > wait_clk_stable_max)
 				rx.no_signal = true;
 			else
 				wait_no_signal_cnt++;
@@ -2338,7 +2377,7 @@ static unsigned char v2_edid[] = {
 0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0xfd,
 0x00, 0x3b, 0x46, 0x1f, 0x8c, 0x3c, 0x00, 0x0a,
 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x01, 0x1e,
-0x02, 0x03, 0x41, 0xf0, 0x5b, 0x5f, 0x10, 0x1f,
+0x02, 0x03, 0x45, 0xf0, 0x5b, 0x5f, 0x10, 0x1f,
 0x14, 0x05, 0x13, 0x04, 0x20, 0x22, 0x3c, 0x3e,
 0x12, 0x16, 0x03, 0x07, 0x11, 0x15, 0x02, 0x06,
 0x01, 0x61, 0x5d, 0x64, 0x65, 0x66, 0x62, 0x60,
@@ -2346,14 +2385,14 @@ static unsigned char v2_edid[] = {
 0x6a, 0x03, 0x0c, 0x00, 0x20, 0x00, 0x88, 0x3c,
 0x20, 0x80, 0x00, 0x67, 0xd8, 0x5d, 0xc4, 0x01,
 0x78, 0x88, 0x01, 0xe5, 0x0f, 0x00, 0x00, 0x90,
-0x05, 0x02, 0x3a, 0x80, 0xd0, 0x72, 0x38, 0x2d,
-0x40, 0x10, 0x2c, 0x45, 0x80, 0x30, 0xeb, 0x52,
-0x00, 0x00, 0x1f, 0x01, 0x1d, 0x00, 0xbc, 0x52,
-0xd0, 0x1e, 0x20, 0xb8, 0x28, 0x55, 0x40, 0x30,
-0xeb, 0x52, 0x00, 0x00, 0x1f, 0x8c, 0x0a, 0xd0,
-0x8a, 0x20, 0xe0, 0x2d, 0x10, 0x10, 0x3e, 0x96,
-0x00, 0x13, 0x8e, 0x21, 0x00, 0x00, 0x18, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xed,
+0x05, 0xe3, 0x06, 0x05, 0x01, 0x02, 0x3a, 0x80,
+0xd0, 0x72, 0x38, 0x2d, 0x40, 0x10, 0x2c, 0x45,
+0x80, 0x30, 0xeb, 0x52, 0x00, 0x00, 0x1f, 0x01,
+0x1d, 0x00, 0xbc, 0x52, 0xd0, 0x1e, 0x20, 0xb8,
+0x28, 0x55, 0x40, 0x30, 0xeb, 0x52, 0x00, 0x00,
+0x1f, 0x8c, 0x0a, 0xd0, 0x8a, 0x20, 0xe0, 0x2d,
+0x10, 0x10, 0x3e, 0x96, 0x00, 0x13, 0x8e, 0x21,
+0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x00, 0xfa,
 };
 
 
@@ -2934,9 +2973,9 @@ void dump_hdr_reg(void)
 
 	rx_print("\n********** hdr *************\n");
 
-	for (i = 0; i < (TOP_PDEC_DRM_PLOAD_LEN + 1) * 4; i++)
+	for (i = 0; i < sizeof(rx.hdr_data)/4; i++)
 		rx_print("playload[%d]: %#x\n", i ,
-		*((unsigned char *)&(rx.hdr_data) + i));
+		*((unsigned int *)&(rx.hdr_data) + i));
 	rx_print("\n********** hdr end*************\n");
 }
 

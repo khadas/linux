@@ -425,7 +425,7 @@ int hdmirx_irq_open(void)
 {
 	int error = 0;
 
-	hdmirx_wr_dwc(DWC_PDEC_IEN_SET, DRM_RCV_EN);
+	hdmirx_wr_dwc(DWC_PDEC_IEN_SET, DRM_RCV_EN | DRM_CKS_CHG);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
 	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
 	/*hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);*/

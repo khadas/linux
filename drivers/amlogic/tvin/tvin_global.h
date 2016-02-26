@@ -362,26 +362,27 @@ enum tvin_hdr_eotf_e {
 	EOTF_MAX,
 };
 
+enum tvin_hdr_state_e {
+	HDR_STATE_OLD,
+	HDR_STATE_READ,
+	HDR_STATE_NEW,
+};
+
 struct tvin_hdr_property_s {
-	unsigned char x_lsb;
-	unsigned char x_msb;
-	unsigned char y_lsb;
-	unsigned char y_msb;
+	unsigned int x;/* max */
+	unsigned int y;/* min */
 };
 
 struct tvin_hdr_data_s {
 	enum tvin_hdr_eotf_e eotf:8;
 	unsigned char metadata_id;
 	unsigned char lenght;
-	unsigned char reserved;
+	enum tvin_hdr_state_e data_status:8;
 	struct tvin_hdr_property_s primaries[3];
-	struct tvin_hdr_property_s points;
-	struct tvin_hdr_property_s master_lum;
-	unsigned char mcll_lsb;
-	unsigned char mcll_msb;
-	unsigned char mfall_lsb;
-	unsigned char mfall_msb;
-	unsigned char playload[4];/*playload count is 28*/
+	struct tvin_hdr_property_s white_points;
+	struct tvin_hdr_property_s master_lum;/* max min lum */
+	unsigned int mcll;
+	unsigned int mfall;
 };
 
 struct tvin_sig_property_s {

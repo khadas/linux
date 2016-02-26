@@ -180,6 +180,13 @@
 #define TOP_DONT_TOUCH1                  0x0ff
 #define TOP_PDEC_DRM_HB				     0x4c0
 #define TOP_PDEC_DRM_PAYLOAD0			 0x4c4
+#define TOP_PDEC_DRM_PAYLOAD1			 0x4c8
+#define TOP_PDEC_DRM_PAYLOAD2			 0x4cc
+#define TOP_PDEC_DRM_PAYLOAD3			 0x4d0
+#define TOP_PDEC_DRM_PAYLOAD4			 0x4d4
+#define TOP_PDEC_DRM_PAYLOAD5			 0x4d8
+#define TOP_PDEC_DRM_PAYLOAD6			 0x4dc
+
 /* hdmi2.0 new end */
 #define TOP_EDID_OFFSET                  0x200
 

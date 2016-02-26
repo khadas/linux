@@ -1053,7 +1053,7 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 
 	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x1c94);
 	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
-	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24dc);
+	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24da);
 	hdmirx_wr_phy(MPLL_PARAMETERS5,    0x5492);
 	hdmirx_wr_phy(MPLL_PARAMETERS6,    0x4b0d);
 	hdmirx_wr_phy(MPLL_PARAMETERS7,    0x4760);

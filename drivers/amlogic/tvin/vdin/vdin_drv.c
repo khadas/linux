@@ -68,6 +68,7 @@
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
+#include "../tvin_global.h"
 #include "vdin_regs.h"
 #include "vdin_drv.h"
 #include "vdin_ctl.h"
@@ -177,6 +178,50 @@ static int irq_max_count;
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
 char *vf_get_receiver_name(const char *provider_name);
+
+static void vdin_set_drm_data(struct vdin_dev_s *devp,
+		struct vframe_s *vf)
+{
+	if (devp->prop.hdr_data.data_status == HDR_STATE_NEW) {
+		memcpy(vf->prop.master_display_colour.primaries,
+			devp->prop.hdr_data.primaries,
+			sizeof(u32)*6);
+		memcpy(vf->prop.master_display_colour.white_point,
+			&devp->prop.hdr_data.white_points, sizeof(u32)*2);
+		memcpy(vf->prop.master_display_colour.luminance,
+			&devp->prop.hdr_data.master_lum, sizeof(u32)*2);
+		if ((devp->prop.hdr_data.primaries[0].x == 0) &&
+			(devp->prop.hdr_data.primaries[0].y == 0) &&
+			(devp->prop.hdr_data.primaries[1].x == 0) &&
+			(devp->prop.hdr_data.primaries[1].y == 0) &&
+			(devp->prop.hdr_data.primaries[2].x == 0) &&
+			(devp->prop.hdr_data.primaries[2].y == 0) &&
+			(devp->prop.hdr_data.white_points.x == 0) &&
+			(devp->prop.hdr_data.white_points.y == 0) &&
+			(devp->prop.hdr_data.master_lum.x == 0) &&
+			(devp->prop.hdr_data.master_lum.y == 0))
+			vf->prop.master_display_colour.present_flag = false;
+		else
+			vf->prop.master_display_colour.present_flag = true;
+
+		if ((devp->prop.hdr_data.eotf == EOTF_SMPTE_ST_2048) ||
+			(devp->prop.hdr_data.eotf == EOTF_HDR)) {
+			vf->signal_type |= (1 << 29);
+			vf->signal_type |= (1 << 25);
+			vf->signal_type = ((9 << 16) |
+				(vf->signal_type & (~0xFF0000)));
+			vf->signal_type = ((16 << 8) |
+				(vf->signal_type & (~0xFF00)));
+			vf->signal_type = ((9 << 0) |
+				(vf->signal_type & (~0xFF)));
+		} else {
+			vf->signal_type &= ~(1 << 29);
+			vf->signal_type &= ~(1 << 25);
+		}
+
+		devp->prop.hdr_data.data_status = HDR_STATE_OLD;
+	}
+}
 
 static u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 {
@@ -1562,6 +1607,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vf->type |=  VIDTYPE_PRE_INTERLACE;
 	}
 
+	vdin_set_drm_data(devp, curr_wr_vf);
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 	vdin_backup_histgram(curr_wr_vf, devp);
 	#ifdef CONFIG_AML_LOCAL_DIMMING
