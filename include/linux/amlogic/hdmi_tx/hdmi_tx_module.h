@@ -405,7 +405,7 @@ extern void hdmi_set_audio_para(int para);
 extern void hdmitx_output_rgb(void);
 
 extern int get_cur_vout_index(void);
-extern const struct vinfo_s *hdmi_get_current_vinfo(void);
+extern struct vinfo_s *hdmi_get_current_vinfo(void);
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 extern enum fine_tune_mode_e get_hpll_tune_mode(void);
 extern void register_hdmi_edid_supported_func(int (*pfunc)(char *mode_name));

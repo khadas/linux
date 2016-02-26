@@ -73,13 +73,14 @@
 static dev_t hdmitx_id;
 static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
-const struct vinfo_s *hdmi_get_current_vinfo(void);
+struct vinfo_s *hdmi_get_current_vinfo(void);
 static int edid_rx_data(unsigned char regaddr, unsigned char *rx_data,
 	int length);
 static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
 	unsigned char *rx_data,	int length);
 static void gpio_read_edid(unsigned char *rx_edid);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
+static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
 
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
@@ -313,9 +314,9 @@ return value: 1, vout; 2, vout2;
 	return vout_index;
 }
 
-const struct vinfo_s *hdmi_get_current_vinfo(void)
+struct vinfo_s *hdmi_get_current_vinfo(void)
 {
-	const struct vinfo_s *info;
+	struct vinfo_s *info;
 #ifdef CONFIG_AM_TV_OUTPUT2
 	if (get_cur_vout_index() == 2) {
 		info = get_current_vinfo2();
@@ -449,20 +450,20 @@ EXPORT_SYMBOL(hdmitx_is_vmode_supported);
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
-	const struct vinfo_s *info = NULL;
+	struct vinfo_s *info = NULL;
+	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char mode[16];
 	enum hdmi_vic vic = HDMI_Unkown;
 	/* vic_ready got from IP */
-	enum hdmi_vic vic_ready = hdmitx_device.HWOp.GetState(
-		&hdmitx_device, STAT_VIDEO_VIC, 0);
+	enum hdmi_vic vic_ready = hdev->HWOp.GetState(
+		hdev, STAT_VIDEO_VIC, 0);
 
 	memset(mode, 0, 16);
 
 	/* if HDMI plug-out, directly return */
-	if (!(hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
-		MISC_HPD_GPI_ST, 0))) {
+	if (!(hdev->HWOp.CntlMisc(hdev,	MISC_HPD_GPI_ST, 0))) {
 		hdmi_print(ERR, HPD "HPD deassert!\n");
-	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP,
+		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP,
 		TMDS_PHY_DISABLE);
 		return -1;
 	}
@@ -474,6 +475,17 @@ static int set_disp_mode_auto(void)
 	if (info == NULL)
 		return -1;
 
+	info->fresh_tx_hdr_pkt = hdmitx_set_drm_pkt;
+	info->hdr_info.hdr_support = hdev->RXCap.hdr_sup_eotf_smpte_st_2084;
+	info->master_display_info.features = (hdev->RXCap.hdr_sup_eotf_sdr << 0)
+			|| (hdev->RXCap.hdr_sup_eotf_hdr << 1)
+			|| (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 << 2);
+	info->hdr_info.lumi_max = hdev->RXCap.hdr_lum_max;
+	info->hdr_info.lumi_avg = hdev->RXCap.hdr_lum_avg;
+	info->hdr_info.lumi_min = hdev->RXCap.hdr_lum_min;
+	pr_info("hdmitx: update rx hdr info %x\n",
+		info->master_display_info.features);
+
 	/* If info->name equals to cvbs, then set mode to I mode to hdmi
 	 */
 	if ((strncmp(info->name, "480cvbs", 7) == 0) ||
@@ -481,19 +493,15 @@ static int set_disp_mode_auto(void)
 		(strncmp(info->name, "panel", 5) == 0) ||
 		(strncmp(info->name, "null", 4) == 0)) {
 		hdmi_print(ERR, VID "%s not valid hdmi mode\n", info->name);
-	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-		CONF_CLR_AVI_PACKET, 0);
-	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-		CONF_CLR_VSDB_PACKET, 0);
-	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP,
-		TMDS_PHY_DISABLE);
-	hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-		CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
-	return -1;
+		hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
+		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
+		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
+		return -1;
 	} else
 		memcpy(mode, info->name, strlen(info->name));
 	/* msleep(500); */
-	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
+	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
 	} else if (strncmp(info->name, "2160p25hz",
@@ -509,9 +517,9 @@ static int set_disp_mode_auto(void)
 	/* nothing */
 	}
 	if (strstr(mode, "hz420") != NULL)
-		hdmitx_device.colorspace = COLOR_SPACE_YUV420;
+		hdev->colorspace = COLOR_SPACE_YUV420;
 	else
-		hdmitx_device.colorspace = COLOR_SPACE_YUV444;
+		hdev->colorspace = COLOR_SPACE_YUV444;
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
@@ -521,51 +529,49 @@ static int set_disp_mode_auto(void)
 	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
 		hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
-		if (hdmitx_device.RXCap.IEEEOUI == 0) {
+		if (hdev->RXCap.IEEEOUI == 0) {
 			/* DVI case judgement. In uboot, directly output HDMI
 			 * mode
 			 */
-			hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
-				CONF_HDMI_DVI_MODE, DVI_MODE);
+			hdev->HWOp.CntlConfig(hdev, CONF_HDMI_DVI_MODE,
+				DVI_MODE);
 			hdmi_print(IMP, SYS "change to DVI mode\n");
 		}
-		hdmitx_device.cur_VIC = vic;
-		hdmitx_device.output_blank_flag = 1;
-		hdmitx_device.ready = 1;
+		hdev->cur_VIC = vic;
+		hdev->output_blank_flag = 1;
+		hdev->ready = 1;
 		return 1;
 	} else
 		hdmitx_pre_display_init();
 
-	hdmitx_device.cur_VIC = HDMI_Unkown;
-	hdmitx_device.colordepth = hdmi_color_depth_24B; /* default value */
+	hdev->cur_VIC = HDMI_Unkown;
+	hdev->colordepth = hdmi_color_depth_24B; /* default value */
 /* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
-	ret = hdmitx_set_display(&hdmitx_device, vic);
+	ret = hdmitx_set_display(hdev, vic);
 	if (ret >= 0) {
-		hdmitx_device.HWOp.Cntl(&hdmitx_device,
-			HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
-		hdmitx_device.cur_VIC = vic;
-		hdmitx_device.audio_param_update_flag = 1;
-		hdmitx_device.auth_process_timer = AUTH_PROCESS_TIME;
-		hdmitx_device.internal_mode_change = 0;
+		hdev->HWOp.Cntl(hdev, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
+		hdev->cur_VIC = vic;
+		hdev->audio_param_update_flag = 1;
+		hdev->auth_process_timer = AUTH_PROCESS_TIME;
+		hdev->internal_mode_change = 0;
 		set_test_mode();
 	}
-	if (hdmitx_device.cur_VIC == HDMI_Unkown) {
+	if (hdev->cur_VIC == HDMI_Unkown) {
 		if (hpdmode == 2) {
 			/* edid will be read again when hpd is muxed
 			 * and it is high
 			 */
-			hdmitx_edid_clear(&hdmitx_device);
-			hdmitx_device.mux_hpd_if_pin_high_flag = 0;
+			hdmitx_edid_clear(hdev);
+			hdev->mux_hpd_if_pin_high_flag = 0;
 		}
 		/* If current display is NOT panel, needn't TURNOFF_HDMIHW */
 		if (strncmp(mode, "panel", 5) == 0) {
-			hdmitx_device.HWOp.Cntl(&hdmitx_device,
-				HDMITX_HWCMD_TURNOFF_HDMIHW,
+			hdev->HWOp.Cntl(hdev, HDMITX_HWCMD_TURNOFF_HDMIHW,
 				(hpdmode == 2)?1:0);
 		}
 	}
-	if (hdmitx_device.colorspace == COLOR_SPACE_YUV420) {
-		switch (hdmitx_device.cur_VIC) {
+	if (hdev->colorspace == COLOR_SPACE_YUV420) {
+		switch (hdev->cur_VIC) {
 		/* Currently, only below formats support 420 mode */
 		case HDMI_3840x2160p60_16x9:
 		case HDMI_3840x2160p50_16x9:
@@ -576,33 +582,28 @@ static int set_disp_mode_auto(void)
 		case HDMI_4096x2160p50_256x135_Y420:
 		case HDMI_4096x2160p60_256x135_Y420:
 			pr_info("configure mode420, VIC = %d\n",
-				hdmitx_device.cur_VIC);
-			hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
-				MISC_CONF_MODE420, 0);
+				hdev->cur_VIC);
+			hdev->HWOp.CntlMisc(hdev, MISC_CONF_MODE420, 0);
 			break;
 		default:
 			pr_info("mode420 is not supported at VIC: %d for now.\n",
-				hdmitx_device.cur_VIC);
+				hdev->cur_VIC);
 		}
 	}
-	hdmitx_set_audio(&hdmitx_device,
-		&(hdmitx_device.cur_audio_param), hdmi_ch);
-	hdmitx_device.output_blank_flag = 1;
-	if (hdmitx_device.hdcp_mode == 1) {
-		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-			DDC_HDCP_MUX_INIT, 1);
-		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-			DDC_HDCP_OP, HDCP14_ON);
+	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
+	hdev->output_blank_flag = 1;
+	if (hdev->hdcp_mode == 1) {
+		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
+		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_ON);
 	}
-	if (hdmitx_device.hdcp_mode == 2) {
-		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-			DDC_HDCP_MUX_INIT, 2);
-		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-			DDC_HDCP_OP, HDCP22_ON);
+	if (hdev->hdcp_mode == 2) {
+		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 2);
+		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP22_ON);
 	}
-	hdmitx_device.ready = 1;
+	hdev->ready = 1;
 	return ret;
 }
+
 static unsigned char is_dispmode_valid_for_hdmi(void)
 {
 	enum hdmi_vic vic;
@@ -929,6 +930,50 @@ void hdmitx_audio_mute_op(unsigned int flag)
 }
 EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
+#define GET_LOW8BIT(a)	(a && 0xff)
+#define GET_HIGH8BIT(a)	((a >> 8) && 0xff)
+static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
+	unsigned char DRM_DB[26] = {0x0};
+
+	if (!data) {
+		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
+		pr_info("hdmitx: off DRM packet send\n");
+		return;
+	}
+
+	/* update DRM data */
+	if (hdev->RXCap.hdr_sup_eotf_smpte_st_2084)
+		DRM_DB[0] = (0x1 << 2); /* SMPTE ST 2084 */
+	DRM_DB[1] = 0x0;
+	DRM_DB[2] = GET_LOW8BIT(data->primaries[0][0]);
+	DRM_DB[3] = GET_HIGH8BIT(data->primaries[0][0]);
+	DRM_DB[4] = GET_LOW8BIT(data->primaries[0][1]);
+	DRM_DB[5] = GET_HIGH8BIT(data->primaries[0][1]);
+	DRM_DB[6] = GET_LOW8BIT(data->primaries[1][0]);
+	DRM_DB[7] = GET_HIGH8BIT(data->primaries[1][0]);
+	DRM_DB[8] = GET_LOW8BIT(data->primaries[1][1]);
+	DRM_DB[9] = GET_HIGH8BIT(data->primaries[1][1]);
+	DRM_DB[10] = GET_LOW8BIT(data->primaries[2][0]);
+	DRM_DB[11] = GET_HIGH8BIT(data->primaries[2][0]);
+	DRM_DB[12] = GET_LOW8BIT(data->primaries[2][1]);
+	DRM_DB[13] = GET_HIGH8BIT(data->primaries[2][1]);
+	DRM_DB[14] = GET_LOW8BIT(data->white_point[0]);
+	DRM_DB[15] = GET_HIGH8BIT(data->white_point[0]);
+	DRM_DB[16] = GET_LOW8BIT(data->white_point[1]);
+	DRM_DB[17] = GET_HIGH8BIT(data->white_point[1]);
+	DRM_DB[18] = GET_LOW8BIT(data->luminance[0]);
+	DRM_DB[19] = GET_HIGH8BIT(data->luminance[0]);
+	DRM_DB[20] = GET_LOW8BIT(data->luminance[1]);
+	DRM_DB[21] = GET_HIGH8BIT(data->luminance[1]);
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+	pr_info("hdmitx: update DRM packet done\n");
+}
+
 static ssize_t store_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -979,6 +1024,18 @@ static ssize_t store_config(struct device *dev,
 			hdmi_print(IMP, AUD "configure auto\n");
 		} else
 			hdmi_print(ERR, AUD "configure error\n");
+	} else if (strncmp(buf, "drm", 3) == 0) {
+		unsigned char DRM_HB[3] = {0x87, 0x1, 26};
+		unsigned char DRM_DB[26] = {
+			0x00, 0x00, 0xc2, 0x33, 0xc4, 0x86, 0x4c, 0x1d,
+			0xb8, 0x0b, 0xd0, 0x84, 0x80, 0x3e, 0x13, 0x3d,
+			0x42, 0x40, 0x4c, 0x04, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00,
+		};
+
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
+				DRM_DB, DRM_HB);
 	}
 	return 16;
 }
@@ -1233,8 +1290,6 @@ static ssize_t show_avmute(struct device *dev,
 static ssize_t store_colordepth(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned char DRM_HB[3] = {0x87, 0x1, 0x1};
-	unsigned char DRM_DB[27] = {0x1, /* need R&D, TODO */};
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
 	if (strncmp(buf, "24", 2) == 0)
@@ -1264,9 +1319,6 @@ static ssize_t store_colordepth(struct device *dev,
 	hdev->HWOp.CntlMisc(hdev, MISC_HPLL_OP, HPLL_SET);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_CLK_DIV40, 0);
 	hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_MAPPING, 0);
-	/* Only GXTVBB has HDR DRMInfoPkt, no GXBB */
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
 
 	msleep(200); /* need delay some time */
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);

@@ -81,7 +81,7 @@ static struct vmode_match_s vmode_match_table[] = {
 	{"invalid",       VMODE_INIT_NULL},
 };
 
-static const struct vinfo_s vinfo_invalid = {
+static struct vinfo_s vinfo_invalid = {
 	.name              = "invalid",
 	.mode              = VMODE_INIT_NULL,
 	.width             = 1920,
@@ -124,7 +124,7 @@ const char *vmode_mode_to_name(enum vmode_e vmode)
 	return str;
 }
 
-const struct vinfo_s *get_invalid_vinfo(void)
+struct vinfo_s *get_invalid_vinfo(void)
 {
 	vout_log_info("error: invalid vinfo. current vmode is not supported\n");
 	return &vinfo_invalid;

@@ -2040,7 +2040,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
 		break;
 	case HDMI_PACKET_DRM:
-		pkt_data_len = 27;
+		pkt_data_len = 26;
 		if ((!DB) || (!HB)) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0, 6, 1);
 			hdmitx_set_reg_bits(

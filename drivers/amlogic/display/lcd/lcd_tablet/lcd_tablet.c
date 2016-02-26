@@ -56,7 +56,7 @@ static enum vmode_e lcd_validate_vmode(char *mode)
 	return VMODE_MAX;
 }
 
-static const struct vinfo_s *lcd_get_current_info(void)
+static struct vinfo_s *lcd_get_current_info(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 

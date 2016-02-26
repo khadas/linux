@@ -71,9 +71,9 @@ EXPORT_SYMBOL_GPL(vout_notifier_call_chain);
 /*
 *interface export to client who want to get current vinfo.
 */
-const struct vinfo_s *get_current_vinfo(void)
+struct vinfo_s *get_current_vinfo(void)
 {
-	const struct vinfo_s *info = NULL;
+	struct vinfo_s *info = NULL;
 	unsigned int atomic_flag = in_interrupt();
 
 	if (atomic_flag == 0)

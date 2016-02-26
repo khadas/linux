@@ -53,7 +53,7 @@ enum {
 	LCD_OUTPUT_MODE_MAX,
 };
 
-static const struct vinfo_s lcd_info[] = {
+static struct vinfo_s lcd_info[] = {
 	{
 		.name              = "768p60hz",
 		.mode              = VMODE_768P,
@@ -214,9 +214,9 @@ static const struct vinfo_s *lcd_get_valid_vinfo(char *mode)
 	return vinfo;
 }
 
-const struct vinfo_s *lcd_tv_get_vinfo(void)
+struct vinfo_s *lcd_tv_get_vinfo(void)
 {
-	const struct vinfo_s *info;
+	struct vinfo_s *info;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	info = &lcd_info[lcd_output_mode];
@@ -266,7 +266,7 @@ static enum vmode_e lcd_validate_vmode(char *mode)
 	return VMODE_MAX;
 }
 
-static const struct vinfo_s *lcd_get_current_info(void)
+static struct vinfo_s *lcd_get_current_info(void)
 {
 	return lcd_tv_get_vinfo();
 }

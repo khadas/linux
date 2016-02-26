@@ -1094,9 +1094,39 @@ static void print_primaries_info(struct vframe_master_display_colour_s *p)
 		p->luminance[0], p->luminance[1]);
 }
 
+static void amvecm_cp_hdr_info(struct master_display_info_s hdr_data,
+		struct vframe_s *vf)
+{
+	int i, j;
+
+	memcpy(hdr_data.primaries,
+		vf->prop.master_display_colour.primaries,
+		sizeof(u32)*6);
+	memcpy(hdr_data.white_point,
+		vf->prop.master_display_colour.white_point,
+		sizeof(u32)*2);
+	memcpy(hdr_data.luminance,
+		vf->prop.master_display_colour.luminance,
+		sizeof(u32)*2);
+	hdr_data.present_flag =
+		vf->prop.master_display_colour.present_flag;
+
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 2; j++)
+			pr_amvecm_dbg(
+				"\t\tTx primaries[%1d][%1d] = %04x\n",
+				i, j,
+				hdr_data.primaries[i][j]);
+	pr_amvecm_dbg("\t\tTx white_point = (%04x, %04x)\n",
+			hdr_data.white_point[0], hdr_data.white_point[1]);
+	pr_amvecm_dbg("\t\tTx max,min luminance = %08x, %08x\n",
+			hdr_data.luminance[0], hdr_data.luminance[1]);
+	pr_amvecm_dbg("\t\tTx  hdr_data.present_flag: %08x\n",
+			hdr_data.present_flag);
+}
 static void vpp_matrix_update(struct vframe_s *vf)
 {
-	static const struct vinfo_s *vinfo;
+	struct vinfo_s *vinfo;
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
 	int signal_change_flag = 0;
 	struct vframe_master_display_colour_s *p;
@@ -1110,6 +1140,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 		{0, 0, 0},
 		1
 	};
+	struct master_display_info_s send_info;
 	int need_adjust_contrast = 0;
 
 	if (!is_meson_gxtvbb_cpu())
@@ -1119,7 +1150,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 
 	/* check hdr support info from Tx or Panel */
 	if (hdr_mode == 2) { /* auto */
-		if (vinfo->hdr_support)
+		if (vinfo->hdr_info.hdr_support)
 			hdr_process_mode = 0; /* hdr->hdr*/
 		else
 			hdr_process_mode = 1; /* hdr->sdr*/
@@ -1141,9 +1172,16 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	|| (signal_change_flag
 	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE))) {
 		/* check output format(Panel or Tx)  */
-		if (vinfo->viu_color_fmt != TVIN_RGB444)
+		if (vinfo->viu_color_fmt != TVIN_RGB444) {
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
-		else
+			if (hdr_process_mode == 0) { /* bypass */
+				if (vinfo->hdr_info.hdr_support) {
+					amvecm_cp_hdr_info(send_info, vf);
+					vinfo->fresh_tx_hdr_pkt(&send_info);
+				} else
+					vinfo->fresh_tx_hdr_pkt = NULL;
+			}
+		} else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 		/* decided by edid or panel info or user setting */
 		if (!hdr_process_mode) {

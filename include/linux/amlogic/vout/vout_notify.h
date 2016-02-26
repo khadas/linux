@@ -28,7 +28,7 @@
 #include "vinfo.h"
 
 struct vout_op_s {
-	const struct vinfo_s* (*get_vinfo)(void);
+	struct vinfo_s* (*get_vinfo)(void);
 	int (*set_vmode)(enum vmode_e);
 	enum vmode_e (*validate_vmode)(char *);
 	int (*vmode_is_supported)(enum vmode_e);
@@ -56,7 +56,7 @@ extern int vout_register_server(struct vout_server_s *);
 extern int vout_unregister_server(struct vout_server_s *);
 extern int vout_notifier_call_chain(unsigned long, void *);
 
-extern const struct vinfo_s *get_current_vinfo(void);
+extern struct vinfo_s *get_current_vinfo(void);
 extern enum vmode_e get_current_vmode(void);
 extern int set_current_vmode(enum vmode_e);
 extern enum vmode_e validate_vmode(char *);

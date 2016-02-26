@@ -566,7 +566,7 @@ static const struct vinfo_s *get_valid_vinfo(char  *mode)
 	return vinfo;
 }
 
-static const struct vinfo_s *tv_get_current_info(void)
+static struct vinfo_s *tv_get_current_info(void)
 {
 	return info->vinfo;
 }
