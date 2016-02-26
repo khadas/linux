@@ -136,6 +136,8 @@ static u32 tsync_pcr_down_delay_time = TIME_UNIT90K * 1.5;
 static u32 tsync_pcr_min_delay_time = TIME_UNIT90K * 0.8;
 
 static u32 tsync_apts_adj_value = 150000;  /* add it by dolby av sync */
+static u32 tsync_pcr_adj_value = 27000;  /* 300ms*/
+
 
 static u32 tsync_pcr_first_video_frame_pts;
 static u32 tsync_pcr_first_audio_frame_pts;
@@ -375,7 +377,7 @@ void tsync_pcr_pcrscr_set(void)
 		&& !(tsync_pcr_inited_flag & complete_init_flag)
 		&& (cur_pcr < min_checkinpts)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_PCR;
-		ref_pcr = cur_pcr - tsync_pcr_ref_latency;
+		ref_pcr = cur_pcr - tsync_pcr_adj_value;
 		timestamp_pcrscr_set(ref_pcr);
 		tsync_pcr_usepcr = 1;
 
@@ -720,7 +722,7 @@ static unsigned long tsync_pcr_check(void)
 		u64 cur_system_time = (jiffies * TIME_UNIT90K) / HZ;
 		if (cur_system_time - first_time_record < 270000) {
 			/*tsync_pcr_inited_mode = INIT_MODE_VIDEO;*/
-			tsync_pcr_pcrscr_set();
+			/*tsync_pcr_pcrscr_set();*/
 		} else {
 			tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
 			tsync_pcr_pcrscr_set();
@@ -1240,6 +1242,28 @@ static ssize_t tsync_apts_adj_value_store(struct class *cla,
 
 	return count;
 }
+
+static ssize_t tsync_pcr_adj_value_show(struct class *cla,
+	    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_pcr_adj_value);
+}
+
+static ssize_t tsync_pcr_adj_value_store(struct class *cla,
+	    struct class_attribute *attr, const char *buf, size_t count)
+{
+	size_t r;
+
+	r = sscanf(buf, "%d", &tsync_pcr_adj_value);
+
+	pr_info("%s(%d)\n", __func__, tsync_pcr_adj_value);
+
+	if (r != 1)
+		return -EINVAL;
+
+	return count;
+}
+
 /* ----------------------------------------------------------------------- */
 /* define of tsync pcr module */
 
@@ -1259,6 +1283,8 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 	tsync_pcr_recovery_span_show, tsync_pcr_recovery_span_store),
 	__ATTR(tsync_apts_adj_value, S_IRUGO | S_IWUSR,
 	tsync_apts_adj_value_show, tsync_apts_adj_value_store),
+	__ATTR(tsync_pcr_adj_value, S_IRUGO | S_IWUSR,
+	tsync_pcr_adj_value_show, tsync_pcr_adj_value_store),
 	__ATTR_NULL
 };
 

@@ -3003,7 +3003,8 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			if (next_vf->pts != 0)
 				tsync_avevent_locked(VIDEO_TSTAMP_DISCONTINUITY,
 						     next_vf->pts);
-			else
+			else if (next_vf->pts == 0 &&
+				(tsync_get_mode() != TSYNC_MODE_PCRMASTER))
 				tsync_avevent_locked(VIDEO_TSTAMP_DISCONTINUITY,
 						     pts);
 
