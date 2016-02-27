@@ -287,7 +287,7 @@ static u32 error_handle_threshold = 30;
 static u32 error_handle_nal_skip_threshold = 10;
 static u32 error_handle_system_threshold = 30;
 static u32 interlace_enable = 1;
-static u32 parser_sei_enable = 1;
+static u32 parser_sei_enable;
 
 static u32 max_buf_num = 16;
 
@@ -5245,8 +5245,6 @@ static irqreturn_t vh265_isr(int irq, void *data)
 		process_nal_sei(hevc, payload_type, payload_size);
 
 		WRITE_VREG(HEVC_DEC_STATUS_REG, HEVC_SEI_DAT_DONE);
-		/* Interrupt Amrisc to excute */
-		WRITE_VREG(HEVC_MCPU_INTR_REQ, AMRISC_MAIN_REQ);
 	} else if (dec_status == HEVC_NAL_SEARCH_DONE) {
 		int naltype = READ_HREG(CUR_NAL_UNIT_TYPE);
 		int parse_type = HEVC_DISCARD_NAL;
@@ -6079,6 +6077,8 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	struct hevc_state_s *hevc = &gHevc;
 	mutex_lock(&vh265_mutex);
 
+	if (is_meson_gxtvbb_cpu())
+		parser_sei_enable = 1;
 	hevc->init_flag = 0;
 	hevc->uninit_list = 0;
 	hevc->fatal_error = 0;
