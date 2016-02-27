@@ -306,9 +306,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 				   READ_VREG(MP4_PIC_WH) & 0xffff);
 		}
 #endif
-		if (vmpeg4_amstream_dec_info.rate == 0) {
+		if (vmpeg4_amstream_dec_info.rate == 0
+		|| vmpeg4_amstream_dec_info.rate > 96000) {
 			/* if ((rate >> 16) != 0) { */
-			if ((rate & 0xffff) != 0) {
+			if ((rate & 0xffff) != 0 && (rate >> 16) != 0) {
 				vmpeg4_amstream_dec_info.rate =
 					(rate >> 16) * DURATION_UNIT /
 					(rate & 0xffff);
