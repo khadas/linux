@@ -257,7 +257,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		sprintf(debug_str+strlen(debug_str), "\n");
 		pr_info("%s", debug_str);
 	}
-	return nS1;
+	return 0;
 }
 
 /* Film Detection Software implementation */

@@ -241,9 +241,8 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 				mNum32[HISDETNUM-1] = 0;
 		}
 		/* here for vertical moving VOF */
-	} else if ((pMod22[HISDETNUM-1] == 2) &&
-	    (pFlg22[HISDETNUM-1] & 0x1)) {
-		if (nCSum > nROW/2)
+	} else if (pMod22[HISDETNUM-1] == 2) {
+		if ((pFlg22[HISDETNUM-1] & 0x1) && (nCSum > nROW/2))
 			WGlb[HISDETNUM-1] = 1; /*global combing*/
 
 		for (nT0 = 0; nT0 < ROWCMBLEN; nT0++) {
