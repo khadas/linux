@@ -46,7 +46,6 @@
 #define pr_amvecm_error(fmt, args...)\
 	pr_error("AMVECM: " fmt, ## args)
 
-
 #define AMVECM_NAME               "amvecm"
 #define AMVECM_DRIVER_NAME        "amvecm"
 #define AMVECM_MODULE_NAME        "amvecm"
@@ -149,7 +148,8 @@ MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
 /* knee factor = 256 */
 static int num_knee_setting = MAX_KNEE_SETTING;
 static int knee_setting[MAX_KNEE_SETTING] = {
-	0, 16, 96, 224, 320, 544, 720, 864, 1000, 1016, 1023
+	/* 0, 16, 96, 224, 320, 544, 720, 864, 1000, 1016, 1023 */
+	0, 16, 96, 204, 320, 512, 720, 864, 980, 1016, 1023
 };
 
 static int num_knee_linear_setting = MAX_KNEE_SETTING;
@@ -167,7 +167,8 @@ static int knee_linear_setting[MAX_KNEE_SETTING] = {
 	0x3ff
 };
 
-static int knee_factor = 128; /* 128 = 0.25 */
+static int knee_factor; /* 0 ~ 256, 128 = 0.5 */
+static int knee_interpolation_mode = 1; /* 0: linear, 1: cubic */
 
 module_param_array(knee_setting, int, &num_knee_setting, 0664);
 MODULE_PARM_DESC(knee_setting, "\n knee_setting, 256=1.0\n");
@@ -177,6 +178,9 @@ MODULE_PARM_DESC(knee_linear_setting, "\n reference linear knee_setting\n");
 
 module_param(knee_factor, int, 0664);
 MODULE_PARM_DESC(knee_factor, "\n knee_factor, 255=1.0\n");
+
+module_param(knee_interpolation_mode, int, 0664);
+MODULE_PARM_DESC(knee_interpolation_mode, "\n 0: linear, 1: cubic\n");
 
 #define NUM_MATRIX_PARAM 16
 static uint num_customer_matrix_param = NUM_MATRIX_PARAM;
@@ -222,6 +226,72 @@ module_param_array(customer_matrix_param, uint,
 MODULE_PARM_DESC(customer_matrix_param,
 	 "\n matrix from source primary to panel primary\n");
 
+/* norm to 128 as 1, LUT can be changed */
+static uint num_extra_con_lut = 5;
+static uint extra_con_lut[] = {166, 152, 140, 132, 128};
+module_param_array(extra_con_lut, uint,
+	&num_extra_con_lut, 0664);
+MODULE_PARM_DESC(extra_con_lut,
+	 "\n lookup table for contrast match source luminance.\n");
+
+#define clip(y, ymin, ymax) ((y > ymax) ? ymax : ((y < ymin) ? ymin : y))
+static const int coef[] = {
+	  0,   256,     0,     0, /* phase 0  */
+	 -2,   256,     2,     0, /* phase 1  */
+	 -4,   256,     4,     0, /* phase 2  */
+	 -5,   254,     7,     0, /* phase 3  */
+	 -7,   254,    10,    -1, /* phase 4  */
+	 -8,   252,    13,    -1, /* phase 5  */
+	-10,   251,    16,    -1, /* phase 6  */
+	-11,   249,    19,    -1, /* phase 7  */
+	-12,   247,    23,    -2, /* phase 8  */
+	-13,   244,    27,    -2, /* phase 9  */
+	-14,   242,    31,    -3, /* phase 10 */
+	-15,   239,    35,    -3, /* phase 11 */
+	-16,   236,    40,    -4, /* phase 12 */
+	-17,   233,    44,    -4, /* phase 13 */
+	-17,   229,    49,    -5, /* phase 14 */
+	-18,   226,    53,    -5, /* phase 15 */
+	-18,   222,    58,    -6, /* phase 16 */
+	-18,   218,    63,    -7, /* phase 17 */
+	-19,   214,    68,    -7, /* phase 18 */
+	-19,   210,    73,    -8, /* phase 19 */
+	-19,   205,    79,    -9, /* phase 20 */
+	-19,   201,    83,    -9, /* phase 21 */
+	-19,   196,    89,   -10, /* phase 22 */
+	-19,   191,    94,   -10, /* phase 23 */
+	-19,   186,   100,   -11, /* phase 24 */
+	-18,   181,   105,   -12, /* phase 25 */
+	-18,   176,   111,   -13, /* phase 26 */
+	-18,   171,   116,   -13, /* phase 27 */
+	-18,   166,   122,   -14, /* phase 28 */
+	-17,   160,   127,   -14, /* phase 28 */
+	-17,   155,   133,   -15, /* phase 30 */
+	-16,   149,   138,   -15, /* phase 31 */
+	-16,   144,   144,   -16  /* phase 32 */
+};
+
+int cubic_interpolation(int y0, int y1, int y2, int y3, int mu)
+{
+	int c0, c1, c2, c3;
+	int d0, d1, d2, d3;
+
+	if (mu <= 32) {
+		c0 = coef[(mu << 2) + 0];
+		c1 = coef[(mu << 2) + 1];
+		c2 = coef[(mu << 2) + 2];
+		c3 = coef[(mu << 2) + 3];
+		d0 = y0; d1 = y1; d2 = y2; d3 = y3;
+	} else {
+		c0 = coef[((64 - mu) << 2) + 0];
+		c1 = coef[((64 - mu) << 2) + 1];
+		c2 = coef[((64 - mu) << 2) + 2];
+		c3 = coef[((64 - mu) << 2) + 3];
+		d0 = y3; d1 = y2; d2 = y1; d3 = y0;
+	}
+	return (d0 * c0 + d1 * c1 + d2 * c2 + d3 * c3 + 128) >> 8;
+}
+
 static int knee_lut_on;
 static int cur_knee_factor;
 static void load_knee_lut(int on, uint factor)
@@ -248,13 +318,9 @@ static void load_knee_lut(int on, uint factor)
 			for (i = 0; i < 16; i++) {
 				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				value = final_knee_setting[0]
-					+ (((final_knee_setting[1] -
-						final_knee_setting[0]) * i)
-						>> 4);
-				if (value > 0x3ff)
-					value = 0x3ff;
-				else if (value < 0)
-					value = 0;
+					+ (((final_knee_setting[1]
+					- final_knee_setting[0]) * i) >> 4);
+				value = clip(value, 0, 0x3ff);
 				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
 				if (j == 0)
@@ -264,14 +330,19 @@ static void load_knee_lut(int on, uint factor)
 			for (i = 16; i < 272; i++) {
 				k = 1 + ((i - 16) >> 5);
 				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
-				value = final_knee_setting[k]
-					+ (((final_knee_setting[k+1]
+				if (knee_interpolation_mode == 0)
+					value = final_knee_setting[k]
+						+ (((final_knee_setting[k+1]
 						- final_knee_setting[k])
-					* ((i - 16) & 0x1f)) >> 5);
-				if (value > 0x3ff)
-					value = 0x3ff;
-				else if (value < 0)
-					value = 0;
+						* ((i - 16) & 0x1f)) >> 5);
+				else
+					value = cubic_interpolation(
+						final_knee_setting[k-1],
+						final_knee_setting[k],
+						final_knee_setting[k+1],
+						final_knee_setting[k+2],
+						((i - 16) & 0x1f) << 1);
+				value = clip(value, 0, 0x3ff);
 				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
 				if (j == 0)
@@ -282,13 +353,10 @@ static void load_knee_lut(int on, uint factor)
 				k = MAX_KNEE_SETTING - 2;
 				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				value = final_knee_setting[k]
-				+ (((final_knee_setting[k+1]
+					+ (((final_knee_setting[k+1]
 					- final_knee_setting[k])
-				* (i - 272)) >> 4);
-				if (value > 0x3ff)
-					value = 0x3ff;
-				else if (value < 0)
-					value = 0;
+					* (i - 272)) >> 4);
+				value = clip(value, 0, 0x3ff);
 				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
 				if (j == 0)
@@ -909,15 +977,42 @@ enum vpp_matrix_csc_e prepare_customer_matrix(
 	return VPP_MATRIX_BT2020YUV_BT2020RGB;
 }
 
+/* Max luminance lookup table for contrast */
+static const int maxLuma_thrd[5] = {512, 1024, 2048, 4096, 8192};
 static int calculate_contrast_adj(int max_lumin)
 {
-	if (max_lumin <= 1000)
-		return 128;
-	else if (max_lumin <= 2000)
-		return 64;
-	else if (max_lumin <= 4000)
-		return 32;
-	return 0;
+	int k;
+	int left, right, norm, alph;
+	int ratio, target_contrast;
+
+	if (max_lumin < maxLuma_thrd[0])
+		k = 0;
+	else if (max_lumin < maxLuma_thrd[1])
+		k = 1;
+	else if (max_lumin < maxLuma_thrd[2])
+		k = 2;
+	else if (max_lumin < maxLuma_thrd[3])
+		k = 3;
+	else if (max_lumin < maxLuma_thrd[4])
+		k = 4;
+	else
+		k = 5;
+
+	if (k == 0)
+		ratio = extra_con_lut[0];
+	else if (k == 5)
+		ratio = extra_con_lut[4];
+	else {
+		left = extra_con_lut[k - 1];
+		right = extra_con_lut[k];
+		norm = maxLuma_thrd[k] - maxLuma_thrd[k - 1];
+		alph = max_lumin - maxLuma_thrd[k - 1];
+		ratio = left + (alph * (right - left) + (norm >> 1)) / norm;
+	}
+	target_contrast = ((vd1_contrast + 1024) * ratio + 64) >> 7;
+	target_contrast = clip(target_contrast, 0, 2047);
+	target_contrast -= 1024;
+	return target_contrast - vd1_contrast;
 }
 
 static void print_primaries_info(struct vframe_master_display_colour_s *p)
@@ -1660,7 +1755,7 @@ void amvecm_on_vs(struct vframe_s *vf)
 
 		amvecm_bricon_process(
 			vd1_brightness,
-			vd1_contrast + vd1_contrast_offset, vf);
+			vd1_contrast  + vd1_contrast_offset, vf);
 
 		ve_on_vs(vf);
 	}
