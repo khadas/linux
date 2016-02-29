@@ -187,7 +187,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			}
 
 			set_frame_info(vf);
-
+			vf->signal_type = 0;
 			vf->index = index;
 #ifdef NV21
 			vf->type =
@@ -225,7 +225,7 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			}
 
 			set_frame_info(vf);
-
+			vf->signal_type = 0;
 			vf->index = index;
 #if 0
 			if (reg & PICINFO_AVI1) {

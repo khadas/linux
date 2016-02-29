@@ -336,6 +336,7 @@ static void vavs_isr(void)
 					next_pts = 0;
 				}
 			}
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->duration_pulldown = 0;
 			vf->type =
@@ -385,6 +386,7 @@ static void vavs_isr(void)
 				vf->duration = dur >> 1;
 				next_pts = 0;
 			}
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->duration_pulldown = 0;
 			vf->type =
@@ -451,6 +453,7 @@ static void vavs_isr(void)
 					next_pts = 0;
 				}
 			}
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->duration_pulldown = 0;
 			vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;

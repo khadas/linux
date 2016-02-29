@@ -435,7 +435,7 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->width = vmpeg4_amstream_dec_info.width;
 			vf->height = vmpeg4_amstream_dec_info.height;
@@ -471,7 +471,7 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 				"fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->width = vmpeg4_amstream_dec_info.width;
 			vf->height = vmpeg4_amstream_dec_info.height;
@@ -514,7 +514,7 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->width = vmpeg4_amstream_dec_info.width;
 			vf->height = vmpeg4_amstream_dec_info.height;

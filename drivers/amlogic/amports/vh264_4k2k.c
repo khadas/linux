@@ -806,7 +806,7 @@ static irqreturn_t vh264_4k2k_isr(int irq, void *dev_id)
 				frame_dur = 96000 / 10;
 			}
 #endif
-
+			vf->signal_type = 0;
 			vf->index = display_buff_id;
 			vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
 			vf->type |= VIDTYPE_VIU_NV21;

@@ -240,6 +240,8 @@ static u32 last_pts;
 #endif
 static bool check_pts_discontinue;
 static u32 wait_buffer_counter;
+static u32 video_signal_from_vui;
+
 static uint error_recovery_mode;
 static uint error_recovery_mode_in = 3;
 static uint error_recovery_mode_use = 3;
@@ -602,7 +604,7 @@ static void vh264_set_params(struct work_struct *work)
 	unsigned long addr;
 	unsigned int post_canvas;
 	unsigned int frame_mbs_only_flag;
-	unsigned int chroma_format_idc, chroma444;
+	unsigned int chroma_format_idc, chroma444, video_signal;
 	unsigned int crop_infor, crop_bottom, crop_right, level_idc;
 	u32 disp_addr = 0xffffffff;
 	struct canvas_s cur_canvas;
@@ -615,6 +617,26 @@ static void vh264_set_params(struct work_struct *work)
 	num_units_in_tick = READ_VREG(AV_SCRATCH_4);
 	time_scale = READ_VREG(AV_SCRATCH_5);
 	level_idc = READ_VREG(AV_SCRATCH_A);
+	video_signal = READ_VREG(AV_SCRATCH_H);
+	video_signal_from_vui =
+				((video_signal & 0xffff) << 8) |
+				((video_signal & 0xff0000) >> 16) |
+				((video_signal & 0x3f000000));
+	pr_info("video_signal_type_present_flag 0x%x\n",
+				(video_signal_from_vui >> 29) & 1);
+	pr_info("video_format  0x%x\n",
+				(video_signal_from_vui >> 26) & 7);
+	pr_info("video_full_range_flag  0x%x\n",
+				(video_signal_from_vui >> 25) & 1);
+	pr_info("color_description_present_flag  0x%x\n",
+				(video_signal_from_vui >> 24) & 1);
+	pr_info("color_primaries	0x%x\n",
+				(video_signal_from_vui >> 16) & 0xff);
+	pr_info("transfer_characteristic	0x%x\n",
+				(video_signal_from_vui >> 8) & 0xff);
+	pr_info("matrix_coefficient	0x%x\n",
+				video_signal_from_vui  & 0xff);
+
 	mb_total = (mb_width >> 8) & 0xffff;
 	max_reference_size = (mb_width >> 24) & 0x7f;
 	mb_mv_byte = (mb_width & 0x80000000) ? 24 : 96;
@@ -625,7 +647,6 @@ static void vh264_set_params(struct work_struct *work)
 	}
 	mb_height = mb_total / mb_width;
 	last_duration = 0;
-
 	/* AV_SCRATCH_2
 	   bit 15: frame_mbs_only_flag
 	   bit 13-14: chroma_format_idc */
@@ -1601,6 +1622,7 @@ static void vh264_isr(void)
 					VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
 #endif
 				vf->duration_pulldown = 0;
+				vf->signal_type = video_signal_from_vui;
 				vf->index = buffer_index;
 				vf->pts = (pts_valid) ? pts : 0;
 				if (pts_us64_valid == 1)
@@ -1646,6 +1668,7 @@ static void vh264_isr(void)
 
 				vf->duration >>= 1;
 				vf->duration_pulldown = 0;
+				vf->signal_type = video_signal_from_vui;
 				vf->index = buffer_index;
 				vf->pts = (pts_valid) ? pts : 0;
 				if (pts_us64_valid == 1)
@@ -1702,6 +1725,7 @@ static void vh264_isr(void)
 
 				vf->duration >>= 1;
 				vf->duration_pulldown = 0;
+				vf->signal_type = video_signal_from_vui;
 				vf->index = buffer_index;
 				vf->pts = 0;
 

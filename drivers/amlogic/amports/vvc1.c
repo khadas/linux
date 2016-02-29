@@ -396,7 +396,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->width = vvc1_amstream_dec_info.width;
 			vf->height = vvc1_amstream_dec_info.height;
@@ -474,7 +474,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->width = vvc1_amstream_dec_info.width;
 			vf->height = vvc1_amstream_dec_info.height;
@@ -529,7 +529,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
-
+			vf->signal_type = 0;
 			vf->index = buffer_index;
 			vf->width = vvc1_amstream_dec_info.width;
 			vf->height = vvc1_amstream_dec_info.height;

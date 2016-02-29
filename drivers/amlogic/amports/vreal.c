@@ -317,6 +317,7 @@ static irqreturn_t vreal_isr(int irq, void *dev_id)
 		/* pr_info("pts %d, picture type %d\n", vf->pts, pictype); */
 
 		info = READ_VREG(RV_PIC_INFO);
+		vf->signal_type = 0;
 		vf->index = buffer_index;
 		vf->width = info >> 16;
 		vf->height = (info >> 4) & 0xfff;

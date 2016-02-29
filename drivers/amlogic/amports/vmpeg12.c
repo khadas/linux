@@ -341,7 +341,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 			}
 
 			set_frame_info(vf);
-
+			vf->signal_type = 0;
 			vf->index = index;
 #ifdef NV21
 			vf->type =
@@ -434,7 +434,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 			vfbuf_use[index] = 2;
 
 			set_frame_info(vf);
-
+			vf->signal_type = 0;
 			vf->index = index;
 			vf->type =
 				(first_field_type == VIDTYPE_INTERLACE_TOP) ?
@@ -475,7 +475,7 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 			}
 
 			set_frame_info(vf);
-
+			vf->signal_type = 0;
 			vf->index = index;
 			vf->type = (first_field_type ==
 				VIDTYPE_INTERLACE_TOP) ?
