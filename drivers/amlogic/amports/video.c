@@ -2509,10 +2509,13 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
 				(0x8 << VFORMATTER_PHASE_BIT) |
 				VFORMATTER_EN);
-
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
+					cur_dev->viu_off, 1, 20, 1);
 			return;
 
 		} else {
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
+					cur_dev->viu_off, 0, 20, 1);
 			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0);
 		}
 	}
@@ -2812,6 +2815,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		}
 	}
 #endif
+
+
 }
 
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -3720,6 +3725,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				viu_set_dcu(cur_frame_par, cur_dispbuf);
 		}
 
+#if 0
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 			if (cur_dispbuf->type & VIDTYPE_COMPRESS) {
 				/*SET_VCBUS_REG_MASK(VIU_MISC_CTRL0,
@@ -3733,6 +3739,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					cur_dev->viu_off, 0, 20, 1);
 			}
 		}
+#endif
 
 #ifdef TV_3D_FUNCTION_OPEN
 		if ((cur_frame_par->hscale_skip_count)
