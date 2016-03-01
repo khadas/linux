@@ -50,6 +50,10 @@ struct sFlmDatSt {
 	UINT8 pSmp22[HISDETNUM];
 
 	UINT32 *rROFrmDif02;
+
+	/* size of the image */
+	int iHeight;
+	int iWidth;
 };
 
 /* Software parameters */

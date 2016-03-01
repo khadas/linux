@@ -3964,12 +3964,13 @@ static void pre_de_done_buf_config(void)
 					di_pre_stru.di_post_wr_buf->reg0_bmode
 						= 3;
 
-					RDMA_WR_BITS(SRSHARP0_SHARP_SR2_CTRL,
+/*					RDMA_WR_BITS(SRSHARP0_SHARP_SR2_CTRL,
 						1, 4, 1);
 					RDMA_WR_BITS(SRSHARP0_SHARP_DEJ2_MISC,
 						0xc, 0, 4);
 					RDMA_WR_BITS(SRSHARP0_SHARP_DEJ1_MISC,
 						0xc, 0, 4);
+					*/
 
 					if (pr_pd) {
 						pr_info("force dejaggies=[%3d ~ %3d]\n",

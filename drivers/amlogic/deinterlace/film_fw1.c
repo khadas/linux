@@ -106,6 +106,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 
 	/* difference */
 	pRDat.rROFrmDif02 = rROFrmDif02;
+	/* size of the image */
+	pRDat.iHeight = nROW; /* field height */
+	pRDat.iWidth  = nCOL;
 
 	/* Initialization */
 	if (field_count == 0) {
@@ -846,6 +849,10 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	static UINT8 nCk22Flg[HISDETNUM];
 	static UINT8 nCk22Cnt;
 
+	/* size of image */
+	int iWidth  = pRDat->iWidth;
+	int iHeight = pRDat->iHeight;
+
 	for (nT0 = 0; nT0 < HISDETNUM - 1; nT0++) {
 		pFlg[nT0] = pFlg[nT0 + 1];
 		pMod[nT0] = pMod[nT0 + 1];
@@ -1063,8 +1070,15 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		/* --------------------------------------- */
 		/* patch for toilet paper */
 		/* Low average avg>(totoal*x) x>1 */
-		tMgn = (nAV22 * 64) >> 8;
-		if (tMgn > 720 * 240) {
+		/* tMgn = (nAV22 * 64) >> 8; */
+		/* if(tMgn > 720*240) */
+		/* if(tMgn > iWidth*iHeight*32) */ /*toilet paper*/
+		/* parameter */
+		if (nAV22 > iWidth * iHeight * 16) {
+			nT0 = 0;
+			nT1 = 0;
+		} else if ((nAV22<<4) > (iWidth * iHeight * 50)) {
+			/* parameter */
 			nT0 = 0;
 			nT1 = 0;
 		}
