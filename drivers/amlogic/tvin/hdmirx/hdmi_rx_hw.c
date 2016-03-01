@@ -911,7 +911,8 @@ void hdmirx_hw_probe(void)
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
 	hdmi_rx_ctrl_edid_update();
-
+	hdmirx_set_hpd(rx.port, 0);
+	mdelay(100);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
