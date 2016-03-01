@@ -625,7 +625,10 @@ static void vpp_set_matrix3(
 	cur_csc_mode = csc_mode;
 }
 
-static u32 cur_signal_type = 0xffffffff;
+static uint cur_signal_type = 0xffffffff;
+module_param(cur_signal_type, uint, 0664);
+MODULE_PARM_DESC(cur_signal_type, "\n cur_signal_type\n");
+
 static struct vframe_master_display_colour_s cur_master_display_colour = {
 	0,
 	{

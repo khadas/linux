@@ -7311,7 +7311,8 @@ static int __init video_early_init(void)
 	WRITE_VCBUS_REG(VPP_BLEND_VD2_H_START_END, 4096);
 #endif
 	 /*fix S905 av out flicker black dot*/
-	/*SET_VCBUS_REG_MASK(VPP_MISC, VPP_OUT_SATURATE);*/
+	if (is_meson_gxbb_cpu())
+		SET_VCBUS_REG_MASK(VPP_MISC, VPP_OUT_SATURATE);
 
 	if (get_logo_vmode() >= VMODE_MAX) {
 		CLEAR_VCBUS_REG_MASK(VPP_VSC_PHASE_CTRL,

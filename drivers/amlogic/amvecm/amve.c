@@ -198,19 +198,19 @@ module_param(ve_dnlp_cliprate_new, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_cliprate_new,
 		"ve_dnlp_cliprate_new");
 
-int ve_dnlp_sbgnbnd = 0;
+int ve_dnlp_sbgnbnd;
 module_param(ve_dnlp_sbgnbnd, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_sbgnbnd, "ve_dnlp_sbgnbnd");
 
-static int ve_dnlp_sendbnd = 5;
+static int ve_dnlp_sendbnd;
 module_param(ve_dnlp_sendbnd, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_sendbnd, "ve_dnlp_sendbnd");
 
-int ve_dnlp_clashBgn = 0;
+int ve_dnlp_clashBgn;
 module_param(ve_dnlp_clashBgn, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_clashBgn, "ve_dnlp_clashBgn");
 
-static int ve_dnlp_clashEnd = 10;
+static int ve_dnlp_clashEnd = 15;
 module_param(ve_dnlp_clashEnd, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_clashEnd, "ve_dnlp_clashEnd");
 
@@ -223,7 +223,7 @@ module_param(ve_blkgma_rate, int, 0664);
 MODULE_PARM_DESC(ve_blkgma_rate, "ve_blkgma_rate");
 
 /*dnlp method = 3, use this flag or no use*/
-bool ve_dnlp_respond_flag = 0;
+bool ve_dnlp_respond_flag;
 module_param(ve_dnlp_respond_flag, bool, 0664);
 MODULE_PARM_DESC(ve_dnlp_respond_flag,
 		"ve_dnlp_respond_flag");
@@ -244,14 +244,153 @@ module_param(ve_dnlp_brgt_range, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_brgt_range, "dnlp brighter range");
 
 /*yout=yin+ve_dnlp_brght_add*/
-static int ve_dnlp_brght_add = 1;
+static int ve_dnlp_brght_add;
 module_param(ve_dnlp_brght_add, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_brght_add, "dnlp brightness up absolute");
 
 /*yout=yin+ve_dnlp_brght_add + ve_dnlp_brght_max*rate*/
-static int ve_dnlp_brght_max = 16;
+static int ve_dnlp_brght_max;
 module_param(ve_dnlp_brght_max, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_brght_max, "dnlp brightness up maximum");
+
+/* define the black or white scence */
+static int ve_dnlp_almst_wht = 63;
+module_param(ve_dnlp_almst_wht, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_almst_wht, "define the white scence");
+
+/* global setting clip rate */
+static int ve_dnlp_glb_crate;
+module_param(ve_dnlp_glb_crate, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_glb_crate, "global clash rate");
+
+static int ve_dnlp_lrate00 = 32;
+module_param(ve_dnlp_lrate00, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate00, "Clash Local Clip rate 00");
+
+static int ve_dnlp_lrate02 = 33;
+module_param(ve_dnlp_lrate02, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate02, "Clash Local Clip rate 02");
+
+static int ve_dnlp_lrate04 = 34;
+module_param(ve_dnlp_lrate04, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate04, "Clash Local Clip rate 04");
+
+static int ve_dnlp_lrate06 = 35;
+module_param(ve_dnlp_lrate06, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate06, "Clash Local Clip rate 06");
+
+static int ve_dnlp_lrate08 = 36;
+module_param(ve_dnlp_lrate08, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate08, "Clash Local Clip rate 08");
+
+static int ve_dnlp_lrate10 = 37;
+module_param(ve_dnlp_lrate10, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate10, "Clash Local Clip rate 10");
+
+static int ve_dnlp_lrate12 = 38;
+module_param(ve_dnlp_lrate12, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate12, "Clash Local Clip rate 12");
+
+static int ve_dnlp_lrate14 = 39;
+module_param(ve_dnlp_lrate14, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate14, "Clash Local Clip rate 14");
+
+static int ve_dnlp_lrate16 = 40;
+module_param(ve_dnlp_lrate16, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate16, "Clash Local Clip rate 16");
+
+static int ve_dnlp_lrate18 = 41;
+module_param(ve_dnlp_lrate18, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate18, "Clash Local Clip rate 18");
+
+static int ve_dnlp_lrate20 = 42;
+module_param(ve_dnlp_lrate20, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate20, "Clash Local Clip rate 20");
+
+static int ve_dnlp_lrate22 = 43;
+module_param(ve_dnlp_lrate22, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate22, "Clash Local Clip rate 22");
+
+static int ve_dnlp_lrate24 = 44;
+module_param(ve_dnlp_lrate24, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate24, "Clash Local Clip rate 24");
+
+static int ve_dnlp_lrate26 = 45;
+module_param(ve_dnlp_lrate26, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate26, "Clash Local Clip rate 26");
+
+static int ve_dnlp_lrate28 = 46;
+module_param(ve_dnlp_lrate28, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate28, "Clash Local Clip rate 28");
+
+static int ve_dnlp_lrate30 = 47;
+module_param(ve_dnlp_lrate30, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate30, "Clash Local Clip rate 30");
+
+static int ve_dnlp_lrate32 = 48;
+module_param(ve_dnlp_lrate32, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate32, "Clash Local Clip rate 32");
+
+static int ve_dnlp_lrate34 = 49;
+module_param(ve_dnlp_lrate34, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate34, "Clash Local Clip rate 34");
+
+static int ve_dnlp_lrate36 = 50;
+module_param(ve_dnlp_lrate36, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate36, "Clash Local Clip rate 36");
+
+static int ve_dnlp_lrate38 = 51;
+module_param(ve_dnlp_lrate38, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate38, "Clash Local Clip rate 38");
+
+static int ve_dnlp_lrate40 = 52;
+module_param(ve_dnlp_lrate40, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate40, "Clash Local Clip rate 40");
+
+static int ve_dnlp_lrate42 = 53;
+module_param(ve_dnlp_lrate42, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate42, "Clash Local Clip rate 42");
+
+static int ve_dnlp_lrate44 = 54;
+module_param(ve_dnlp_lrate44, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate44, "Clash Local Clip rate 44");
+
+static int ve_dnlp_lrate46 = 55;
+module_param(ve_dnlp_lrate46, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate46, "Clash Local Clip rate 46");
+
+static int ve_dnlp_lrate48 = 56;
+module_param(ve_dnlp_lrate48, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate48, "Clash Local Clip rate 48");
+
+static int ve_dnlp_lrate50 = 57;
+module_param(ve_dnlp_lrate50, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate50, "Clash Local Clip rate 50");
+
+static int ve_dnlp_lrate52 = 58;
+module_param(ve_dnlp_lrate52, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate52, "Clash Local Clip rate 52");
+
+static int ve_dnlp_lrate54 = 59;
+module_param(ve_dnlp_lrate54, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate54, "Clash Local Clip rate 54");
+
+static int ve_dnlp_lrate56 = 60;
+module_param(ve_dnlp_lrate56, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate56, "Clash Local Clip rate 56");
+
+static int ve_dnlp_lrate58 = 61;
+module_param(ve_dnlp_lrate58, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate58, "Clash Local Clip rate 58");
+
+static int ve_dnlp_lrate60 = 62;
+module_param(ve_dnlp_lrate60, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate60, "Clash Local Clip rate 60");
+
+static int ve_dnlp_lrate62 = 63;
+module_param(ve_dnlp_lrate62, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_lrate62, "Clash Local Clip rate 62");
+/* Local clip rate */
 
 bool dnlp_prt_hst = 0;
 module_param(dnlp_prt_hst, bool, 0664);
@@ -771,9 +910,11 @@ void GetGmCurves(unsigned int *rGmOt, unsigned int *rGmIn,
 		for (nT0 = 0; nT0 < 65; nT0++)
 			rGmOt[nT0] = rGmIn[nT0];
 		return;
-	} else if (pval >= 63) {
+	/*} else if (pval >= 63) {*/
+	} else if (pval >= ve_dnlp_almst_wht) {
 		for (nT0 = 0; nT0 < 65; nT0++)
-			rGmOt[64-nT0] = 255-rGmIn[nT0];
+			rGmOt[nT0] = rGmIn[nT0];
+			/* rGmOt[64-nT0] = 255-rGmIn[nT0]; */
 		return;
 	}
 
@@ -818,6 +959,7 @@ unsigned int AdjHistAvg(unsigned int pval, unsigned int ihstEnd)
 	return pval;
 }
 
+int old_dnlp_lrate[32];
 
 /*iHst[0:63]: [0,4)->iHst[0], [252,256)->iHst[63]*/
 /*oMap[0:64]:0:4:256*/
@@ -828,14 +970,30 @@ void clash(unsigned int *oMap, unsigned int *iHst,
 	unsigned int i = 0, j = 0;
 	unsigned int tmax = 0;
 	unsigned int tsum = 0;
-	unsigned int oHst[65];
+	unsigned int oHst[64];
 	unsigned int cLmt = 0;
 	unsigned int tLen = (hstEnd - hstBgn);
 	unsigned int tAvg = 0;
-	unsigned int nExc = 0;
 	unsigned int nStp = 0;
-	unsigned int uLmt = 0;
-	unsigned int stp = 0;
+	/*unsigned int uLmt = 0;*/
+	/*unsigned int stp = 0;*/
+	unsigned int idx[64];
+	unsigned int tHst[64];
+
+	int nNum = 0;
+	int nExc = 0;
+	int tExc = 0;
+
+	/* local limit 64-bin*/
+	unsigned int lcl_lmt[64];
+	/*	{32,33,33,34,34,35,35,36,
+		36,37,37,38,38,39,39,40,
+		40,41,41,42,42,43,43,44,
+		44,45,45,46,46,47,47,48,
+		48,49,49,50,50,51,51,52,
+		52,53,53,54,54,55,55,56,
+		56,57,57,58,58,59,59,60,
+		60,61,61,62,62,63,63,64}; */
 
 	if (hstBgn > 16)
 		hstBgn = 16;
@@ -851,6 +1009,9 @@ void clash(unsigned int *oMap, unsigned int *iHst,
 		oHst[i] = iHst[i];
 		oMap[i] = 4*i;
 
+		tHst[i] = iHst[i];
+		idx[i] = i;
+
 		if (i >= hstBgn && i <= hstEnd-1) {
 			if (tmax < iHst[i])
 				tmax = iHst[i];
@@ -858,7 +1019,12 @@ void clash(unsigned int *oMap, unsigned int *iHst,
 		} else {
 			oHst[i] = 0;
 		}
+
+		lcl_lmt[i] = old_dnlp_lrate[(i>>1)];
 	}
+
+	for (i = 1; i <= 61; i += 2)
+		lcl_lmt[i] = ((lcl_lmt[i-1] + lcl_lmt[i+1] + 1)>>1);
 
 	if (hstEnd <= hstBgn)
 		return;
@@ -869,64 +1035,87 @@ void clash(unsigned int *oMap, unsigned int *iHst,
 	if (tmax <= (tLen<<4))
 		return;
 
-	nExc = 0;
-	/*[bgn, end-1]*/
-	for (i = hstBgn; i < hstEnd; i++) {
-		if (iHst[i] > cLmt)
-			nExc += (iHst[i] - cLmt);
+	/* local clip rate */
+	if (ve_dnlp_glb_crate == 0) {
+		for (i = 0; i < 64; i++)
+			lcl_lmt[i] = ((lcl_lmt[i]*cLmt+32) >> 6);
+
+		for (i = 0; i < 64; i++) {
+			for (j = 0; j < 64-i-1; j++) {
+				if (tHst[j] < tHst[j+1]) {
+					nExc = tHst[j];
+					tHst[j] = tHst[j+1];
+					tHst[j+1] = nExc;
+
+					nNum = idx[j];
+					idx[j] = idx[j+1];
+					idx[j+1] = nNum;
+				}
+			}
+		}
+	} else {
+		for (i = 0; i < 64; i++)
+			lcl_lmt[i] = cLmt;
 	}
-	nStp = (nExc + tLen/2)/tLen;
-	uLmt = cLmt - nStp;
+
+	nExc = 0;
+	nNum = 0;
+	for (i = hstBgn; i < hstEnd; i++) {
+		if (iHst[i] > lcl_lmt[i]) {
+			nExc += (iHst[i] - lcl_lmt[i]);
+			oHst[i] = lcl_lmt[i];
+		} else {
+			nNum++;
+			oHst[i] = iHst[i];
+		}
+	}
 
 	if (clip_rate <= 4 || tAvg <= 2) {
 		cLmt = (tsum + tLen/2)/tLen;
 		tsum = cLmt*tLen;
-		for (i = hstBgn; i < hstEnd; i++)
-			oHst[i] = cLmt;
-	} else if (nStp != 0) {
 		for (i = hstBgn; i < hstEnd; i++) {
-			if (iHst[i] >= cLmt)
 				oHst[i] = cLmt;
-			else {
-				if (iHst[i] > uLmt) {
-					oHst[i] = cLmt;
-					nExc -= cLmt - iHst[i];
-				} else {
-					oHst[i] = iHst[i]+nStp;
-					nExc -= nStp;
-				}
-				if (nExc < 0)
-					nExc = 0;
-			}
 		}
-		j = hstBgn;
-		while (nExc > 0) {
-			if (nExc >= tLen) {
-				nStp = 1;
-				stp = nExc/tLen;
-			} else {
-				nStp = tLen/nExc;
-				stp = 1;
-			}
-			for (i = j; i < hstEnd; i += nStp) {
-				if (oHst[i] < cLmt) {
-					oHst[i] += stp;
-					nExc -= stp;
+	} else {
+		while ((nNum > 0) && (nExc > 0)) {
+			nStp = (nExc+nNum/2)/nNum;
+
+			tExc = nExc;
+
+			for (j = 0; j < 64; j++) {
+				i = idx[j];
+				if ((i < hstBgn) || (i > hstEnd-1))
+					continue;
+
+				if ((oHst[i] + nStp) < lcl_lmt[i]) {
+					oHst[i] = oHst[i] + nStp;
+					nExc = nExc - nStp;
+				} else if (lcl_lmt[i] > oHst[i]) {
+					oHst[i] = lcl_lmt[i];
+					nExc = nExc - (lcl_lmt[i] - oHst[i]);
+					nNum = nNum - 1;
 				}
-				if (nExc <= 1)
+
+				if ((nNum <= 0) || (nExc <= 0))
 					break;
 			}
-			j += 1;
-			if (j > hstEnd - 1)
+
+			if (nExc == tExc)
 				break;
+		} /* end while */
+
+		if (nNum == 0 && tExc > 0 && nExc > tLen) {
+			nStp = (nExc + tLen/2)/tLen;
+			for (i = hstBgn; i < hstEnd; i++)
+				oHst[i] = oHst[i] + nStp;
 		}
 	}
 
 	/*hstBgn:hstEnd-1*/
 	tsum = 0;
 	for (i = hstBgn; i < hstEnd; i++) {
-		if (oHst[i] > cLmt)
-			oHst[i] = cLmt;
+		/*if(oHst[i]>cLmt)*/
+		/*oHst[i] = cLmt;*/
 		tsum += oHst[i];
 	}
 
@@ -961,6 +1150,8 @@ int old_dnlp_brght_add;
 int old_dnlp_brght_max;
 int old_dnlp_lgst_bin;
 int old_dnlp_lgst_dst;
+int old_dnlp_almst_wht;
+int old_dnlp_glb_crate;
 
 static int cal_brght_plus(int luma_avg4, int low_lavg4)
 {
@@ -1010,8 +1201,8 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	static unsigned int sum_b, sum_c;
 	unsigned int i = 0, sum = 0, max = 0;
 	unsigned int nTmp = 0;
-	unsigned int nT0 = 0, nT1 = 0;
 	unsigned int lSby = 0;
+	int nT0 = 0, nT1 = 0;
 
 	int dnlp_brightness = 0;
 	unsigned int mMaxLst[4];
@@ -1108,7 +1299,41 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 			(old_dnlp_brght_add != ve_dnlp_brght_add) ||
 			(old_dnlp_brght_max != ve_dnlp_brght_max) ||
 			(old_dnlp_lgst_bin != ve_dnlp_lgst_bin) ||
-			(old_dnlp_lgst_dst != ve_dnlp_lgst_dst))
+			(old_dnlp_lgst_dst != ve_dnlp_lgst_dst) ||
+			(old_dnlp_almst_wht != ve_dnlp_almst_wht) ||
+			(old_dnlp_glb_crate != ve_dnlp_glb_crate) ||
+			(old_dnlp_lrate[0] != ve_dnlp_lrate00)	||
+			(old_dnlp_lrate[1] != ve_dnlp_lrate02)	||
+			(old_dnlp_lrate[2] != ve_dnlp_lrate04) ||
+			(old_dnlp_lrate[3] != ve_dnlp_lrate06) ||
+			(old_dnlp_lrate[4] != ve_dnlp_lrate08) ||
+			(old_dnlp_lrate[5] != ve_dnlp_lrate10) ||
+			(old_dnlp_lrate[6] != ve_dnlp_lrate12) ||
+			(old_dnlp_lrate[7] != ve_dnlp_lrate14) ||
+			(old_dnlp_lrate[8] != ve_dnlp_lrate16) ||
+			(old_dnlp_lrate[9] != ve_dnlp_lrate18) ||
+			(old_dnlp_lrate[10] != ve_dnlp_lrate20) ||
+			(old_dnlp_lrate[11] != ve_dnlp_lrate22) ||
+			(old_dnlp_lrate[12] != ve_dnlp_lrate24) ||
+			(old_dnlp_lrate[13] != ve_dnlp_lrate26) ||
+			(old_dnlp_lrate[14] != ve_dnlp_lrate28) ||
+			(old_dnlp_lrate[15] != ve_dnlp_lrate30) ||
+			(old_dnlp_lrate[16] != ve_dnlp_lrate32) ||
+			(old_dnlp_lrate[17] != ve_dnlp_lrate34) ||
+			(old_dnlp_lrate[18] != ve_dnlp_lrate36) ||
+			(old_dnlp_lrate[19] != ve_dnlp_lrate38) ||
+			(old_dnlp_lrate[20] != ve_dnlp_lrate40) ||
+			(old_dnlp_lrate[21] != ve_dnlp_lrate42) ||
+			(old_dnlp_lrate[22] != ve_dnlp_lrate44) ||
+			(old_dnlp_lrate[23] != ve_dnlp_lrate46) ||
+			(old_dnlp_lrate[24] != ve_dnlp_lrate48) ||
+			(old_dnlp_lrate[25] != ve_dnlp_lrate50) ||
+			(old_dnlp_lrate[26] != ve_dnlp_lrate52) ||
+			(old_dnlp_lrate[27] != ve_dnlp_lrate54) ||
+			(old_dnlp_lrate[28] != ve_dnlp_lrate56) ||
+			(old_dnlp_lrate[29] != ve_dnlp_lrate58) ||
+			(old_dnlp_lrate[30] != ve_dnlp_lrate60) ||
+			(old_dnlp_lrate[31] != ve_dnlp_lrate62))
 			ve_dnlp_respond_flag = 1;
 		else
 			ve_dnlp_respond_flag = 0;
@@ -1132,6 +1357,40 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	old_dnlp_brght_max = ve_dnlp_brght_max;
 	old_dnlp_lgst_bin = ve_dnlp_lgst_bin;
 	old_dnlp_lgst_dst = ve_dnlp_lgst_dst;
+	old_dnlp_almst_wht = ve_dnlp_almst_wht;
+	old_dnlp_glb_crate = ve_dnlp_glb_crate;
+	old_dnlp_lrate[0] = ve_dnlp_lrate00;
+	old_dnlp_lrate[1] = ve_dnlp_lrate02;
+	old_dnlp_lrate[2] = ve_dnlp_lrate04;
+	old_dnlp_lrate[3] = ve_dnlp_lrate06;
+	old_dnlp_lrate[4] = ve_dnlp_lrate08;
+	old_dnlp_lrate[5] = ve_dnlp_lrate10;
+	old_dnlp_lrate[6] = ve_dnlp_lrate12;
+	old_dnlp_lrate[7] = ve_dnlp_lrate14;
+	old_dnlp_lrate[8] = ve_dnlp_lrate16;
+	old_dnlp_lrate[9] = ve_dnlp_lrate18;
+	old_dnlp_lrate[10] = ve_dnlp_lrate20;
+	old_dnlp_lrate[11] = ve_dnlp_lrate22;
+	old_dnlp_lrate[12] = ve_dnlp_lrate24;
+	old_dnlp_lrate[13] = ve_dnlp_lrate26;
+	old_dnlp_lrate[14] = ve_dnlp_lrate28;
+	old_dnlp_lrate[15] = ve_dnlp_lrate30;
+	old_dnlp_lrate[16] = ve_dnlp_lrate32;
+	old_dnlp_lrate[17] = ve_dnlp_lrate34;
+	old_dnlp_lrate[18] = ve_dnlp_lrate36;
+	old_dnlp_lrate[19] = ve_dnlp_lrate38;
+	old_dnlp_lrate[20] = ve_dnlp_lrate40;
+	old_dnlp_lrate[21] = ve_dnlp_lrate42;
+	old_dnlp_lrate[22] = ve_dnlp_lrate44;
+	old_dnlp_lrate[23] = ve_dnlp_lrate46;
+	old_dnlp_lrate[24] = ve_dnlp_lrate48;
+	old_dnlp_lrate[25] = ve_dnlp_lrate50;
+	old_dnlp_lrate[26] = ve_dnlp_lrate52;
+	old_dnlp_lrate[27] = ve_dnlp_lrate54;
+	old_dnlp_lrate[28] = ve_dnlp_lrate56;
+	old_dnlp_lrate[29] = ve_dnlp_lrate58;
+	old_dnlp_lrate[30] = ve_dnlp_lrate60;
+	old_dnlp_lrate[31] = ve_dnlp_lrate62;
 
 	if (low_alpha > 64)
 		low_alpha = 64;
@@ -1173,7 +1432,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 
 	if (dnlp_prt_hst) {
 		for (i = 0; i < 64; i++)
-			pr_amve_dbg("[%03d,%03d): %05d\n",
+			pr_info("[%03d,%03d): %05d\n",
 			4*i, 4*(i+1), iHst[i]);
 	}
 
@@ -1190,8 +1449,10 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	clash_curve[64] = 256;
 
 	/* new historic luma sum*/
-	pr_amve_dbg("ve_dnlp_luma_sum=%x,sum_b=%x,sum_c=%x\n",
+	if (dnlp_prt_hst)
+		pr_amve_dbg("ve_dnlp_luma_sum=%x,sum_b=%x,sum_c=%x\n",
 				ve_dnlp_luma_sum, sum_b, sum_c);
+
 	/* picture mode: freeze dnlp curve*/
 	sum = 0;
 	max = 0;
@@ -1224,7 +1485,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 			low_lavg4 = luma_avg; /*low luma average*/
 
 		if (dnlp_printk && (nTstCnt == 1))
-			pr_amve_dbg("0.0 %u => %u\n", nTmp, sum);
+			pr_info("0.0 %u => %u\n", nTmp, sum);
 
 		/*Get the maximum4*/
 		for (nT0 = 0; nT0 < 4; nT0++) {
@@ -1242,7 +1503,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	}
 
 	if (dnlp_prt_hst) {
-		pr_amve_dbg("Max: %04d(%d) > %04d(%d) > %04d(%d) > %04d(%d)\n",
+		pr_info("Max: %04d(%d) > %04d(%d) > %04d(%d) > %04d(%d)\n",
 		mMaxLst[0], mMaxIdx[0], mMaxLst[1], mMaxIdx[1],
 		mMaxLst[2], mMaxIdx[2], mMaxLst[3], mMaxIdx[3]);
 		dnlp_prt_hst = 0;
@@ -1314,11 +1575,11 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	}
 
 	if (dnlp_printk) {
-		pr_amve_dbg("Rflsh: %03u\n", nTstCnt);
-		pr_amve_dbg("0.0 sum(%u~%u) =%u\n",
+		pr_info("Rflsh: %03u\n", nTstCnt);
+		pr_info("0.0 sum(%u~%u) =%u\n",
 					ihstBgn, ihstEnd, sum);
-		pr_amve_dbg("1.0 CalAvg (%u, %u)\n", max, luma_avg4);
-		pr_amve_dbg("1.1 GetGmCurves (%u, %u, %u)\n",
+		pr_info("1.0 CalAvg (%u, %u)\n", max, luma_avg4);
+		pr_info("1.1 GetGmCurves (%u, %u, %u)\n",
 				luma_avg, sBgnBnd, sEndBnd);
 	}
 	GetGmCurves(pst_0_gamma, rGm1p2, luma_avg, sBgnBnd, sEndBnd);
@@ -1344,15 +1605,27 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	clash(clash_curve, iHst, clip_rate, clashBgn, clashEnd);
 
 	/*patch for black+white stripe*/
-	if ((mMaxLst[1] > (ve_dnlp_lgst_bin*sum>>8)) &&
-		((mMaxIdx[1] > (mMaxIdx[0]+ve_dnlp_lgst_dst)) ||
-		(mMaxIdx[0] > (mMaxIdx[1]+ve_dnlp_lgst_dst)))) {
-		gmma_rate = 255;
-		low_alpha = 0;
-		hgh_alpha = 0;
-		mtdbld_rate = 64;
+	if (mMaxIdx[1] > mMaxIdx[0]) {
+		nT0 = mMaxIdx[0];
+		nT1 = 63 - mMaxIdx[1];
+	} else {
+		nT0 = mMaxIdx[1];
+		nT1 = 63 - mMaxIdx[0];
 	}
-	/*=========================================================*/
+	nTmp = (nT0 < nT1) ? nT0 : nT1;
+	nTmp = (nTmp > 16) ? 16 : nTmp;
+
+	if ((mMaxLst[1] > (ve_dnlp_lgst_bin*sum>>8)) &&
+		((mMaxIdx[1] > (mMaxIdx[0] + ve_dnlp_lgst_dst)) ||
+		(mMaxIdx[0] > (mMaxIdx[1] + ve_dnlp_lgst_dst)))) {
+		gmma_rate += (nTmp*(255 - gmma_rate)>>4);
+		low_alpha -= (low_alpha*nTmp>>4);
+		hgh_alpha -= (hgh_alpha*nTmp>>4);
+		mtdbld_rate += (nTmp*(64 - mtdbld_rate)>>4);
+	}
+	/*========================================================*/
+	if (dnlp_prt_curve)
+		pr_info("dnlp blend curve:\n");
 
 	for (i = 0; i < 64; i++) {
 		nTmp = (((256 - gmma_rate)*pst_0_gamma[i] +
@@ -1363,39 +1636,56 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		else
 			nTmp = (nTmp*(64 - hgh_alpha) + hgh_alpha*4*i + 32)>>6;
 
+	    if (dnlp_prt_curve) {
+			pr_info("%03d: %03d-%03d-%03d vs ", 4*i, pst_0_gamma[i],
+				pst_curve_1[i], nTmp);
+		}
+
 		nTmp = nTmp*mtdbld_rate + clash_curve[i]*(64 - mtdbld_rate);
 		nTmp = (nTmp + 32)>>6;
+		if (dnlp_prt_curve)
+			pr_info("cl(%03d-%03d) vs ", clash_curve[i], nTmp);
+
 		nTmp = rGm1p8[i]*blkgma_rate + nTmp*(64 - blkgma_rate);
 		nTmp = (nTmp+32)>>6;
+		if (dnlp_prt_curve)
+			pr_info("bk(%03d-%03d) => ", rGm1p8[i], nTmp);
 
-		nTmp += dnlp_brightness;
-
-		if (nTmp > 255)
+		/* nTmp += dnlp_brightness; */
+		nT0 = dnlp_brightness + nTmp;
+		if (nT0 < 0)
+			nTmp = 0;
+		else if (nT0 > 255)
 			nTmp = 255;
-		/*else if (nTmp < 0)*/
-		/*    nTmp=0; //unsigned*/
+		else
+			nTmp = nT0;
+
+		if (dnlp_prt_curve)
+			pr_info("%03d\n", nTmp);
 
 		pst_0_gamma[i] = nTmp;
 		ve_dnlp_tgt[i] = nTmp;
 	}
 
 	if (dnlp_prt_curve) {
-		pr_amve_dbg("low_avg=%03d all_avg=%03d\n",
+		pr_info("low_avg=%03d all_avg=%03d\n",
 						low_lavg4, luma_avg4);
 
 	    for (i = 0; i < 64; i++)
-			pr_amve_dbg("%02d: %03d=>%03d\n",
+			pr_info("%02d: %03d=>%03d\n",
 					i, 4*i, ve_dnlp_tgt[i]);
 		dnlp_prt_curve = 0;
 	}
 
 	if (dnlp_printk) {
-		pr_amve_dbg("3.1Pars %d,%d,%d,%d,%d,%d\n", mvreflsh,
+		pr_info("3.1Pars %d,%d,%d,%d,%d,%d\n", mvreflsh,
 				gmma_rate, low_alpha, hgh_alpha,
 				sBgnBnd, sEndBnd);
-		pr_amve_dbg("3.2Pars %d,%d,%d,%d\n\n",
+		pr_info("3.2Pars %d,%d,%d,%d\n\n",
 				clip_rate, clashBgn,
 				clashEnd, mtdbld_rate);
+		pr_info("3.3Pars %d,%d\n\n",
+				mtdbld_rate, blkgma_rate);
 	}
 
 	pre_luma_avg4 = luma_avg4;
@@ -1828,16 +2118,54 @@ void ve_set_new_dnlp(struct ve_dnlp_table_s *p)
 	ve_dnlp_gmma_rate = p->new_gmma_rate;
 	ve_dnlp_lowalpha_new  = p->new_lowalpha;
 	ve_dnlp_hghalpha_new  = p->new_hghalpha;
-
 	ve_dnlp_sbgnbnd   = p->new_sbgnbnd;
 	ve_dnlp_sendbnd   = p->new_sendbnd;
-
 	ve_dnlp_cliprate_new  = p->new_cliprate;
 	ve_dnlp_clashBgn  = p->new_clashBgn;
 	ve_dnlp_clashEnd  = p->new_clashEnd;
-
 	ve_mtdbld_rate    = p->new_mtdbld_rate;
 	ve_blkgma_rate    = p->new_blkgma_rate;
+
+	dnlp_sel = p->dnlp_sel;
+	ve_dnlp_blk_cctr = p->dnlp_blk_cctr;
+	ve_dnlp_brgt_ctrl = p->dnlp_brgt_ctrl;
+	ve_dnlp_brgt_range = p->dnlp_brgt_range;
+	ve_dnlp_brght_add = p->dnlp_brght_add;
+	ve_dnlp_brght_max = p->dnlp_brght_max;
+	ve_dnlp_almst_wht = p->dnlp_almst_wht;
+
+	ve_dnlp_lrate00 = p->dnlp_lrate00;
+	ve_dnlp_lrate02 = p->dnlp_lrate02;
+	ve_dnlp_lrate04 = p->dnlp_lrate04;
+	ve_dnlp_lrate06 = p->dnlp_lrate06;
+	ve_dnlp_lrate08 = p->dnlp_lrate08;
+	ve_dnlp_lrate10 = p->dnlp_lrate10;
+	ve_dnlp_lrate12 = p->dnlp_lrate12;
+	ve_dnlp_lrate14 = p->dnlp_lrate14;
+	ve_dnlp_lrate16 = p->dnlp_lrate16;
+	ve_dnlp_lrate18 = p->dnlp_lrate18;
+	ve_dnlp_lrate20 = p->dnlp_lrate20;
+	ve_dnlp_lrate22 = p->dnlp_lrate22;
+	ve_dnlp_lrate24 = p->dnlp_lrate24;
+	ve_dnlp_lrate26 = p->dnlp_lrate26;
+	ve_dnlp_lrate28 = p->dnlp_lrate28;
+	ve_dnlp_lrate30 = p->dnlp_lrate30;
+	ve_dnlp_lrate32 = p->dnlp_lrate32;
+	ve_dnlp_lrate34 = p->dnlp_lrate34;
+	ve_dnlp_lrate36 = p->dnlp_lrate36;
+	ve_dnlp_lrate38 = p->dnlp_lrate38;
+	ve_dnlp_lrate40 = p->dnlp_lrate40;
+	ve_dnlp_lrate42 = p->dnlp_lrate42;
+	ve_dnlp_lrate44 = p->dnlp_lrate44;
+	ve_dnlp_lrate46 = p->dnlp_lrate46;
+	ve_dnlp_lrate48 = p->dnlp_lrate48;
+	ve_dnlp_lrate50 = p->dnlp_lrate50;
+	ve_dnlp_lrate52 = p->dnlp_lrate52;
+	ve_dnlp_lrate54 = p->dnlp_lrate54;
+	ve_dnlp_lrate56 = p->dnlp_lrate56;
+	ve_dnlp_lrate58 = p->dnlp_lrate58;
+	ve_dnlp_lrate60 = p->dnlp_lrate60;
+	ve_dnlp_lrate62 = p->dnlp_lrate62;
 
 	if (ve_en) {
 		/* clear historic luma sum */
@@ -2093,6 +2421,85 @@ void ve_new_dnlp_param_update(void)
 		am_ve_new_dnlp.midalpha = 48;
 	if (am_ve_new_dnlp.hghalpha > 48)
 		am_ve_new_dnlp.hghalpha = 48;
+
+	if (am_ve_new_dnlp.dnlp_blk_cctr > 64)
+		am_ve_new_dnlp.dnlp_blk_cctr = 64;
+	if (am_ve_new_dnlp.dnlp_brgt_ctrl > 64)
+		am_ve_new_dnlp.dnlp_brgt_ctrl = 64;
+	if (am_ve_new_dnlp.dnlp_brgt_range > 64)
+		am_ve_new_dnlp.dnlp_brgt_range = 64;
+	if (am_ve_new_dnlp.dnlp_brght_add > 64)
+		am_ve_new_dnlp.dnlp_brght_add = 64;
+	if (am_ve_new_dnlp.dnlp_brght_max > 64)
+		am_ve_new_dnlp.dnlp_brght_max = 64;
+	if (am_ve_new_dnlp.dnlp_almst_wht > 64)
+		am_ve_new_dnlp.dnlp_almst_wht = 64;
+
+	if (am_ve_new_dnlp.dnlp_lrate00 > 64)
+		am_ve_new_dnlp.dnlp_lrate00 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate02 > 64)
+		am_ve_new_dnlp.dnlp_lrate02 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate04 > 64)
+		am_ve_new_dnlp.dnlp_lrate04 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate06 > 64)
+		am_ve_new_dnlp.dnlp_lrate06 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate08 > 64)
+		am_ve_new_dnlp.dnlp_lrate08 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate10 > 64)
+		am_ve_new_dnlp.dnlp_lrate10 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate12 > 64)
+		am_ve_new_dnlp.dnlp_lrate12 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate14 > 64)
+		am_ve_new_dnlp.dnlp_lrate14 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate16 > 64)
+		am_ve_new_dnlp.dnlp_lrate16 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate18 > 64)
+		am_ve_new_dnlp.dnlp_lrate18 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate20 > 64)
+		am_ve_new_dnlp.dnlp_lrate20 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate22 > 64)
+		am_ve_new_dnlp.dnlp_lrate22 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate24 > 64)
+		am_ve_new_dnlp.dnlp_lrate24 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate26 > 64)
+		am_ve_new_dnlp.dnlp_lrate26 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate28 > 64)
+		am_ve_new_dnlp.dnlp_lrate28 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate30 > 64)
+		am_ve_new_dnlp.dnlp_lrate30 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate32 > 64)
+		am_ve_new_dnlp.dnlp_lrate32 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate34 > 64)
+		am_ve_new_dnlp.dnlp_lrate34 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate36 > 64)
+		am_ve_new_dnlp.dnlp_lrate36 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate38 > 64)
+		am_ve_new_dnlp.dnlp_lrate38 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate40 > 64)
+		am_ve_new_dnlp.dnlp_lrate40 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate42 > 64)
+		am_ve_new_dnlp.dnlp_lrate42 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate44 > 64)
+		am_ve_new_dnlp.dnlp_lrate44 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate46 > 64)
+		am_ve_new_dnlp.dnlp_lrate46 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate48 > 64)
+		am_ve_new_dnlp.dnlp_lrate48 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate50 > 64)
+		am_ve_new_dnlp.dnlp_lrate50 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate52 > 64)
+		am_ve_new_dnlp.dnlp_lrate52 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate54 > 64)
+		am_ve_new_dnlp.dnlp_lrate54 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate56 > 64)
+		am_ve_new_dnlp.dnlp_lrate56 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate58 > 64)
+		am_ve_new_dnlp.dnlp_lrate58 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate60 > 64)
+		am_ve_new_dnlp.dnlp_lrate60 = 64;
+	if (am_ve_new_dnlp.dnlp_lrate62 > 64)
+		am_ve_new_dnlp.dnlp_lrate62 = 64;
+
 	vecm_latch_flag |= FLAG_VE_NEW_DNLP;
 }
 

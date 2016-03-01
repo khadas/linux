@@ -84,6 +84,45 @@ struct ve_dnlp_table_s {
 	unsigned int new_cliprate;
 	unsigned int new_mtdbld_rate;
 	unsigned int new_blkgma_rate;
+	unsigned int dnlp_sel;
+	unsigned int dnlp_blk_cctr;/*blk signal add brightness*/
+	unsigned int dnlp_brgt_ctrl;
+	unsigned int dnlp_brgt_range;
+	unsigned int dnlp_brght_add;
+	unsigned int dnlp_brght_max;
+	unsigned int dnlp_almst_wht;
+	unsigned int dnlp_lrate00;/*0-64bin curve slope*/
+	unsigned int dnlp_lrate02;
+	unsigned int dnlp_lrate04;
+	unsigned int dnlp_lrate06;
+	unsigned int dnlp_lrate08;
+	unsigned int dnlp_lrate10;
+	unsigned int dnlp_lrate12;
+	unsigned int dnlp_lrate14;
+	unsigned int dnlp_lrate16;
+	unsigned int dnlp_lrate18;
+	unsigned int dnlp_lrate20;
+	unsigned int dnlp_lrate22;
+	unsigned int dnlp_lrate24;
+	unsigned int dnlp_lrate26;
+	unsigned int dnlp_lrate28;
+	unsigned int dnlp_lrate30;
+	unsigned int dnlp_lrate32;
+	unsigned int dnlp_lrate34;
+	unsigned int dnlp_lrate36;
+	unsigned int dnlp_lrate38;
+	unsigned int dnlp_lrate40;
+	unsigned int dnlp_lrate42;
+	unsigned int dnlp_lrate44;
+	unsigned int dnlp_lrate46;
+	unsigned int dnlp_lrate48;
+	unsigned int dnlp_lrate50;
+	unsigned int dnlp_lrate52;
+	unsigned int dnlp_lrate54;
+	unsigned int dnlp_lrate56;
+	unsigned int dnlp_lrate58;
+	unsigned int dnlp_lrate60;
+	unsigned int dnlp_lrate62;
 };
 #else
 struct ve_dnlp_s {
