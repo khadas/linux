@@ -59,24 +59,24 @@ static struct vmode_match_s vmode_match_table[] = {
 	{"smpte24hz",     VMODE_4K2K_SMPTE},
 	{"smpte25hz",     VMODE_4K2K_SMPTE_25HZ},
 	{"smpte30hz",     VMODE_4K2K_SMPTE_30HZ},
-	{"smpte50hz",     VMODE_4K2K_SMPTE_50HZ},
 	{"smpte50hz420",  VMODE_4K2K_SMPTE_50HZ_Y420},
-	{"smpte60hz",     VMODE_4K2K_SMPTE_60HZ},
+	{"smpte50hz",     VMODE_4K2K_SMPTE_50HZ},
 	{"smpte60hz420",  VMODE_4K2K_SMPTE_60HZ_Y420},
+	{"smpte60hz",     VMODE_4K2K_SMPTE_60HZ},
 	{"4k2k5g",        VMODE_4K2K_FAKE_5G},
-	{"2160p60hz",     VMODE_4K2K_60HZ},
 	{"2160p60hz420",  VMODE_4K2K_60HZ_Y420},
-	{"2160p50hz",     VMODE_4K2K_50HZ},
+	{"2160p60hz",     VMODE_4K2K_60HZ},
 	{"2160p50hz420",  VMODE_4K2K_50HZ_Y420},
+	{"2160p50hz",     VMODE_4K2K_50HZ},
 	{"2160p5g",       VMODE_4K2K_5G},
-	{"4k1k120hz",     VMODE_4K1K_120HZ},
 	{"4k1k120hz420",  VMODE_4K1K_120HZ_Y420},
-	{"4k1k100hz",     VMODE_4K1K_100HZ},
+	{"4k1k120hz",     VMODE_4K1K_120HZ},
 	{"4k1k100hz420",  VMODE_4K1K_100HZ_Y420},
-	{"4k05k240hz",    VMODE_4K05K_240HZ},
+	{"4k1k100hz",     VMODE_4K1K_100HZ},
 	{"4k05k240hz420", VMODE_4K05K_240HZ_Y420},
-	{"4k05k200hz",    VMODE_4K05K_200HZ},
+	{"4k05k240hz",    VMODE_4K05K_240HZ},
 	{"4k05k200hz420", VMODE_4K05K_200HZ_Y420},
+	{"4k05k200hz",    VMODE_4K05K_200HZ},
 	{"panel",         VMODE_LCD},
 	{"invalid",       VMODE_INIT_NULL},
 };
@@ -100,10 +100,16 @@ enum vmode_e vmode_name_to_mode(const char *str)
 	enum vmode_e vmode = VMODE_MAX;
 
 	for (i = 0; i < ARRAY_SIZE(vmode_match_table); i++) {
+		if (strstr(str, vmode_match_table[i].name)) {
+			vmode = vmode_match_table[i].mode;
+			break;
+		}
+#if 0
 		if (strcmp(vmode_match_table[i].name, str) == 0) {
 			vmode = vmode_match_table[i].mode;
 			break;
 		}
+#endif
 	}
 
 	return vmode;

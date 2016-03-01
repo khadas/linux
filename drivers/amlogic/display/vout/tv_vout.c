@@ -550,7 +550,7 @@ static const struct file_operations am_tv_fops = {
 
 static const struct vinfo_s *get_valid_vinfo(char  *mode)
 {
-	const struct vinfo_s *vinfo = NULL;
+	struct vinfo_s *vinfo = NULL;
 	int  i, count = ARRAY_SIZE(tv_info);
 	int mode_name_len = 0;
 	for (i = 0; i < count; i++) {
@@ -563,6 +563,8 @@ static const struct vinfo_s *get_valid_vinfo(char  *mode)
 			}
 		}
 	}
+	if (vinfo)
+		strncpy(vinfo->ext_name, mode, strlen(mode));
 	return vinfo;
 }
 

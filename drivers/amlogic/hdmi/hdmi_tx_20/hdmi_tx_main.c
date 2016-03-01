@@ -447,26 +447,21 @@ EXPORT_SYMBOL(hdmitx_is_vmode_supported);
 
 #endif
 
+static char local_name[32] = {0};
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
 	struct vinfo_s *info = NULL;
 	struct hdmitx_dev *hdev = &hdmitx_device;
-	unsigned char mode[16];
+	struct hdmi_format_para *para = NULL;
+	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_Unkown;
 	/* vic_ready got from IP */
 	enum hdmi_vic vic_ready = hdev->HWOp.GetState(
 		hdev, STAT_VIDEO_VIC, 0);
 
 	memset(mode, 0, 16);
-
-	/* if HDMI plug-out, directly return */
-	if (!(hdev->HWOp.CntlMisc(hdev,	MISC_HPD_GPI_ST, 0))) {
-		hdmi_print(ERR, HPD "HPD deassert!\n");
-		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP,
-		TMDS_PHY_DISABLE);
-		return -1;
-	}
 
 	/* get current vinfo */
 	info = hdmi_get_current_vinfo();
@@ -500,6 +495,13 @@ static int set_disp_mode_auto(void)
 		return -1;
 	} else
 		memcpy(mode, info->name, strlen(info->name));
+	if ((info->name) && (info->name[0]))
+		para = hdmi_get_fmt_name(info->name);
+	if ((info->ext_name) && (info->ext_name[0])) {
+		para = hdmi_get_fmt_name(info->ext_name);
+		pr_info("hdmitx: get ext_name %s\n", hdev->para->ext_name);
+	}
+	hdev->para = para;
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
@@ -516,17 +518,12 @@ static int set_disp_mode_auto(void)
 	else {
 	/* nothing */
 	}
-	if (strstr(mode, "hz420") != NULL)
-		hdev->colorspace = COLOR_SPACE_YUV420;
-	else
-		hdev->colorspace = COLOR_SPACE_YUV444;
-
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
 		vic_ready = HDMI_Unkown;
 #endif
-
-	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
+	if ((!strcmp(local_name, hdev->para->ext_name))
+	&& (vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
 		hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
 		if (hdev->RXCap.IEEEOUI == 0) {
@@ -545,7 +542,6 @@ static int set_disp_mode_auto(void)
 		hdmitx_pre_display_init();
 
 	hdev->cur_VIC = HDMI_Unkown;
-	hdev->colordepth = hdmi_color_depth_24B; /* default value */
 /* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(hdev, vic);
 	if (ret >= 0) {
@@ -570,7 +566,7 @@ static int set_disp_mode_auto(void)
 				(hpdmode == 2)?1:0);
 		}
 	}
-	if (hdev->colorspace == COLOR_SPACE_YUV420) {
+	if (hdev->para->cs == COLORSPACE_YUV420) {
 		switch (hdev->cur_VIC) {
 		/* Currently, only below formats support 420 mode */
 		case HDMI_3840x2160p60_16x9:
@@ -590,6 +586,7 @@ static int set_disp_mode_auto(void)
 				hdev->cur_VIC);
 		}
 	}
+	strcpy(local_name, hdev->para->ext_name);
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->output_blank_flag = 1;
 	if (hdev->hdcp_mode == 1) {
@@ -890,12 +887,30 @@ static ssize_t show_rawedid(struct device *dev,
 	return pos;
 }
 
+static void dump_tx_info(void)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	pr_info("dump tx info\n");
+	pr_info("cur_VIC=%d\n", hdev->cur_VIC);
+	if (hdev->cur_video_param)
+		pr_info("cur_video_param->VIC=%d\n",
+			hdev->cur_video_param->VIC);
+	if (hdev->para) {
+		pr_info("name=%s\n", hdev->para->ext_name);
+		pr_info("cd=%d\n", hdev->para->cd);
+		pr_info("cs=%d\n", hdev->para->cs);
+	}
+}
+
 /*config attr*/
 static ssize_t show_config(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	unsigned char *aud_conf;
+
+	dump_tx_info();
 	switch (hdmitx_device.tx_aud_cfg) {
 	case 0:
 	aud_conf = "off";
@@ -946,7 +961,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	/* update DRM data */
 	if (hdev->RXCap.hdr_sup_eotf_smpte_st_2084)
-		DRM_DB[0] = (0x1 << 2); /* SMPTE ST 2084 */
+		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
 	DRM_DB[1] = 0x0;
 	DRM_DB[2] = GET_LOW8BIT(data->primaries[0][0]);
 	DRM_DB[3] = GET_HIGH8BIT(data->primaries[0][0]);
@@ -971,7 +986,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
-	pr_info("hdmitx: update DRM packet done\n");
 }
 
 static ssize_t store_config(struct device *dev,
@@ -1281,122 +1295,6 @@ static ssize_t show_avmute(struct device *dev,
 	return 0;
 }
 
-/* ColorDepth configure
- *   24: 3 * 8bits, default
- *   30: 3 * 10bits
- *   36: 3 * 12bits
- *   48: 3 * 16bits
- */
-static ssize_t store_colordepth(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct hdmitx_dev *hdev = &hdmitx_device;
-
-	if (strncmp(buf, "24", 2) == 0)
-		hdmitx_device.colordepth = hdmi_color_depth_24B;
-	else if (strncmp(buf, "30", 2) == 0)
-		hdmitx_device.colordepth = hdmi_color_depth_30B;
-	else if (strncmp(buf, "36", 2) == 0)
-		hdmitx_device.colordepth = hdmi_color_depth_36B;
-	else if (strncmp(buf, "48", 2) == 0)
-		hdmitx_device.colordepth = hdmi_color_depth_48B;
-	else /* default */
-		hdmitx_device.colordepth = hdmi_color_depth_24B;
-
-	switch (hdev->cur_VIC) {
-	case HDMI_1920x1080p50_16x9:
-	case HDMI_1920x1080p60_16x9:
-	case HDMI_3840x2160p60_16x9_Y420:
-	case HDMI_3840x2160p50_16x9_Y420:
-		break;
-	default:
-		pr_info("hdmitx: not support VIC: %d\n", hdev->cur_VIC);
-		return count;
-	}
-
-	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-
-	hdev->HWOp.CntlMisc(hdev, MISC_HPLL_OP, HPLL_SET);
-	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_CLK_DIV40, 0);
-	hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_MAPPING, 0);
-
-	msleep(200); /* need delay some time */
-	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
-	hdev->HWOp.CntlDDC(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
-
-	return count;
-}
-
-static ssize_t show_colordepth(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-
-	pos += snprintf(buf + pos, PAGE_SIZE, "color depth = ");
-	switch (hdmitx_device.colordepth) {
-	case hdmi_color_depth_30B:
-		pos += snprintf(buf + pos, PAGE_SIZE, "30");
-		break;
-	case hdmi_color_depth_36B:
-		pos += snprintf(buf + pos, PAGE_SIZE, "36");
-		break;
-	case hdmi_color_depth_48B:
-		pos += snprintf(buf + pos, PAGE_SIZE, "48");
-		break;
-	default:
-		pos += snprintf(buf + pos, PAGE_SIZE, "24");
-		break;
-	}
-	pos += snprintf(buf + pos, PAGE_SIZE, " bits\n\r");
-	return 0;
-}
-
-/* ColorSpace configure
- *   rgb:   RGB444
- *   y444:  YCbCr444, default
- *   y422:  YCbCr422
- *   y420:  YCbCr420
- */
-static ssize_t store_colorspace(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	if (strncmp(buf, "rgb", 3) == 0)
-		hdmitx_device.colorspace = COLOR_SPACE_RGB444;
-	else if (strncmp(buf, "y444", 4) == 0)
-		hdmitx_device.colorspace = COLOR_SPACE_YUV444;
-	else if (strncmp(buf, "y422", 4) == 0)
-		hdmitx_device.colorspace = COLOR_SPACE_YUV422;
-	else if (strncmp(buf, "y420", 4) == 0)
-		hdmitx_device.colorspace = COLOR_SPACE_YUV420;
-	else /* default */
-		hdmitx_device.colorspace = COLOR_SPACE_YUV444;
-	return count;
-}
-
-static ssize_t show_colorspace(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-
-	pos += snprintf(buf + pos, PAGE_SIZE, "color space = ");
-	switch (hdmitx_device.colorspace) {
-	case hdmi_color_format_RGB:
-		pos += snprintf(buf + pos, PAGE_SIZE, "rgb");
-		break;
-	case hdmi_color_format_422:
-		pos += snprintf(buf + pos, PAGE_SIZE, "y422");
-		break;
-	case hdmi_color_format_420:
-		pos += snprintf(buf + pos, PAGE_SIZE, "y420");
-		break;
-	default:
-		pos += snprintf(buf + pos, PAGE_SIZE, "y444");
-		break;
-	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n\r");
-	return 0;
-}
-
 /*
  *  1: enable hdmitx phy
  *  0: disable hdmitx phy
@@ -1672,10 +1570,6 @@ static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
 static DEVICE_ATTR(avmute, S_IWUSR | S_IRUGO | S_IWGRP, show_avmute,
 	store_avmute);
-static DEVICE_ATTR(colordepth, S_IWUSR | S_IRUGO | S_IWGRP, show_colordepth,
-	store_colordepth);
-static DEVICE_ATTR(colorspace, S_IWUSR | S_IRUGO | S_IWGRP, show_colorspace,
-	store_colorspace);
 static DEVICE_ATTR(phy, S_IWUSR | S_IRUGO | S_IWGRP, show_phy, store_phy);
 static DEVICE_ATTR(hdcp_clkdis, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_clkdis,
 	store_hdcp_clkdis);
@@ -1723,9 +1617,8 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 	if (info == NULL) {
 		hdmi_print(ERR, VID "cann't get valid mode\n");
 		return -1;
-	} else
-		hdmi_print(IMP, VID "get current mode: %s\n",
-			info->name);
+	}
+
 	vic_now = hdmitx_edid_get_VIC(&hdmitx_device, info->name, 1);
 	if ((HDMI_Unkown != vic_ready) && (vic_ready == vic_now)) {
 		if (KEEP_HPLL != fine_tune_mode) {
@@ -2089,7 +1982,6 @@ static int hdmi_task_handle(void *data)
 	hdmitx_device->tx_aud_cfg = 1; /* default audio configure is on */
 	if (init_flag & INIT_FLAG_POWERDOWN) {
 		/* power down */
-		hdmitx_device->HWOp.SetDispMode(hdmitx_device, NULL);
 		hdmitx_device->unplug_powerdown = 1;
 		hdmitx_device->HWOp.Cntl(hdmitx_device,
 			HDMITX_HWCMD_TURNOFF_HDMIHW, (hpdmode != 0)?1:0);
@@ -2434,8 +2326,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.force_audio_flag = 0;
 	hdmitx_device.hdcp_mode = -1; /* no hdcp by default */
 	hdmitx_device.ready = 0;
-	hdmitx_device.colordepth = hdmi_color_depth_24B;
-	hdmitx_device.colorspace = COLOR_SPACE_YUV444;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -2473,8 +2363,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdr_cap);
 	ret = device_create_file(dev, &dev_attr_aud_ch);
 	ret = device_create_file(dev, &dev_attr_avmute);
-	ret = device_create_file(dev, &dev_attr_colordepth);
-	ret = device_create_file(dev, &dev_attr_colorspace);
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_hdcp_clkdis);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
@@ -2671,8 +2559,6 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_ready);
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_avmute);
-	device_remove_file(dev, &dev_attr_colorspace);
-	device_remove_file(dev, &dev_attr_colordepth);
 
 	cdev_del(&hdmitx_device.cdev);
 

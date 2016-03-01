@@ -1429,9 +1429,9 @@ static void hdmi_hw_reset(struct hdmitx_dev *hdmitx_device,
 
 	digital_clk_on(7);
 
-	if (param->color == COLOR_SPACE_YUV444)
+	if (param->color == COLORSPACE_YUV444)
 		TX_OUTPUT_COLOR_FORMAT = 1;
-	else if (param->color == COLOR_SPACE_YUV422)
+	else if (param->color == COLORSPACE_YUV422)
 		TX_OUTPUT_COLOR_FORMAT = 3;
 	else
 		TX_OUTPUT_COLOR_FORMAT = 0;
@@ -1469,7 +1469,7 @@ static void hdmi_hw_reset(struct hdmitx_dev *hdmitx_device,
 		} else
 			hdmi_wr_reg(0x018, serial_reg_val);
 		if ((param->VIC == HDMI_1080p60) &&
-			(param->color_depth == hdmi_color_depth_30B) &&
+			(param->color_depth == COLORDEPTH_30B) &&
 			(hdmi_rd_reg(0x018) == 0x22))
 			hdmi_wr_reg(0x018, 0x12);
 	}
@@ -1726,7 +1726,7 @@ static void hdmi_hw_reset(struct hdmitx_dev *hdmitx_device,
 		} else
 			hdmi_wr_reg(0x018, serial_reg_val);
 		if ((param->VIC == HDMI_1080p60) &&
-			(param->color_depth == hdmi_color_depth_30B) &&
+			(param->color_depth == COLORDEPTH_30B) &&
 			(hdmi_rd_reg(0x018) == 0x22))
 			hdmi_wr_reg(0x018, 0x12);
 	} else {
@@ -2125,9 +2125,9 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdmitx_device)
 hdmi_print(IMP, SYS "phy setting done\n");
 }
 
-static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
-		struct hdmitx_vidpara *param)
+static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 {
+	struct hdmitx_vidpara *param = hdev->cur_video_param;
 	if (param == NULL) { /* disable HDMI */
 		hdmi_tx_gate_pwr_ctrl(VID_DIS, hdev);
 		return 0;
@@ -2137,13 +2137,13 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev,
 	}
 
 	if (color_depth_f == 24)
-		param->color_depth = hdmi_color_depth_24B;
+		param->color_depth = COLORDEPTH_24B;
 	else if (color_depth_f == 30)
-		param->color_depth = hdmi_color_depth_30B;
+		param->color_depth = COLORDEPTH_30B;
 	else if (color_depth_f == 36)
-		param->color_depth = hdmi_color_depth_36B;
+		param->color_depth = COLORDEPTH_36B;
 	else if (color_depth_f == 48)
-		param->color_depth = hdmi_color_depth_48B;
+		param->color_depth = COLORDEPTH_48B;
 	hdmi_print(INF, SYS " %d (cd%d,cs%d,pm%d,vd%d,%x)\n", param->VIC,
 		color_depth_f, color_space_f, power_mode, power_off_vdac_flag,
 		serial_reg_val);

@@ -270,7 +270,7 @@ static void set_hpll_clk_out_gxbb(unsigned int clk)
 	int ret;
 
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x5800023d);
-	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00404e00);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00444e00);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
@@ -287,7 +287,7 @@ static void set_hpll_clk_out_gxbb(unsigned int clk)
 	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
 	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
 
-	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 18, 1);
 	/* Enable the final output clock */
 	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 19, 1);
 
@@ -321,7 +321,7 @@ static void set_hpll_clk_out_gxtvbb(unsigned int clk)
 	int ret;
 
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x5800023d);
-	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00404380);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x00444380);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
@@ -338,7 +338,7 @@ static void set_hpll_clk_out_gxtvbb(unsigned int clk)
 	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
 	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
 
-	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 18, 1);
 	/* Enable the final output clock */
 	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 19, 1);
 

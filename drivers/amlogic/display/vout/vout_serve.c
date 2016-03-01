@@ -169,26 +169,47 @@ static int  meson_vout_suspend(struct platform_device *pdev,
 static int  meson_vout_resume(struct platform_device *pdev);
 #endif
 
+static char local_name[32] = {0};
+
 static int set_vout_mode(char *name)
 {
 	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
 	enum vmode_e mode;
 	vout_log_info("vmode set to %s\n", name);
-	mode = validate_vmode(name);
 
+	if (strcmp(name, local_name)) {
+		memset(local_name, 0, sizeof(local_name));
+		strcpy(local_name, name);
+		mode = validate_vmode(name);
+		goto next;
+	} else
+		return -1;
+
+	mode = validate_vmode(name);
 	if (VMODE_MAX == mode) {
 		vout_log_info("no matched vout mode\n");
 		return -1;
 	}
-
 	if (mode == get_current_vmode()) {
 		vout_log_info("don't set the same mode as current\n");
 		return -1;
 	}
-
+next:
 	if (hdmitx_device->hdtx_dev) {
-		phy_pll_off();
-		vout_log_info("disable HDMI PHY as soon as possible\n");
+		/*
+		 * On kernel booting, there happens call phy_pll_off() a time,
+		 * this will cause hdmitx disable output for a short while.
+		 * So, just using flag to prevent the first error call.
+		 * [    5.038667@0] vout_serve: vmode set to 1080p60hz
+		 * [    5.038711@0] vout_serve: disable HDMI PHY as soon as
+		*/
+		static int flag = 1;
+		if (flag == 1)
+			flag = 0;
+		else {
+			phy_pll_off();
+			vout_log_info("disable HDMI PHY as soon as possible\n");
+		}
 	}
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
 	set_current_vmode(mode);

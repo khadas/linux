@@ -163,8 +163,7 @@ struct hdmitx_dev {
 			unsigned char *HB);
 		void (*SetAudioInfoFrame)(unsigned char *AUD_DB,
 			unsigned char *CHAN_STAT_BUF);
-		int (*SetDispMode)(struct hdmitx_dev *hdmitx_device,
-			struct hdmitx_vidpara *param);
+		int (*SetDispMode)(struct hdmitx_dev *hdmitx_device);
 		int (*SetAudMode)(struct hdmitx_dev *hdmitx_device,
 			struct hdmitx_audpara *audio_param);
 		void (*SetupIRQ)(struct hdmitx_dev *hdmitx_device);
@@ -233,8 +232,9 @@ struct hdmitx_dev {
 	/* For some un-well-known TVs, no edid at all */
 	unsigned int tv_no_edid;
 	unsigned int hpd_lock;
+	struct hdmi_format_para *para;
 	/* 0: RGB444  1: Y444  2: Y422  3: Y420 */
-	enum hdmi_color_space_type colorspace;
+	enum hdmi_color_space colorspace;
 	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
 	enum hdmi_color_depth colordepth;
 	/* if equals to 1, means current video & audio output are blank */
@@ -247,7 +247,6 @@ struct hdmitx_dev {
 	struct clk *clk_pixel;
 	struct clk *clk_phy;
 	struct clk *clk_vid;
-	unsigned int mode4k60hz420;
 	unsigned int gpio_i2c_enable;
 };
 

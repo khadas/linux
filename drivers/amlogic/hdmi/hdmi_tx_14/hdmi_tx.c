@@ -69,7 +69,7 @@ static struct device *hdmitx_dev;
 static struct gpio_desc *hdmi_gd;
 static struct device *hdmi_dev;
 static int set_disp_mode_auto(void);
-const struct vinfo_s *hdmi_get_current_vinfo(void);
+struct vinfo_s *hdmi_get_current_vinfo(void);
 
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
@@ -256,9 +256,9 @@ return value: 1, vout; 2, vout2;
 	return vout_index;
 }
 
-const struct vinfo_s *hdmi_get_current_vinfo(void)
+struct vinfo_s *hdmi_get_current_vinfo(void)
 {
-	const struct vinfo_s *info;
+	struct vinfo_s *info;
 #ifdef CONFIG_AM_TV_OUTPUT2
 	if (get_cur_vout_index() == 2) {
 		info = get_current_vinfo2();
@@ -1350,7 +1350,6 @@ static int hdmi_task_handle(void *data)
 	hdmitx_device->HWOp.SetupIRQ(hdmitx_device);
 	if (init_flag&INIT_FLAG_POWERDOWN) {
 		/* power down */
-		hdmitx_device->HWOp.SetDispMode(hdmitx_device, NULL);
 		hdmitx_device->unplug_powerdown = 1;
 		if (hdmitx_device->HWOp.Cntl) {
 			hdmitx_device->HWOp.Cntl(hdmitx_device,
