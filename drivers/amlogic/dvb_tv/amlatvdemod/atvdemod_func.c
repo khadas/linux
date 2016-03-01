@@ -1578,9 +1578,17 @@ int aml_audiomode_autodet(void)
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG:
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
-		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK;
-		break;
+
+		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M;
+		atvdemod_init();
+		temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
+		temp_data = temp_data & (~0x80); /* 0xbf; */
+		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
+		/* pr_err("%s, SECAM ,audio set SECAM_L\n", __func__); */
+		return broad_std;
+
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK2:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK3:
@@ -1641,18 +1649,7 @@ int aml_audiomode_autodet(void)
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 			break;
-		case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
-			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I;
-			break;
-		case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I:
-			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG;
-			break;
-		case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG:
-			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC;
-			break;
-		case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
-			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK;
-			break;
+
 		default:
 			pr_err("unsupport broadcast_standard!!!\n");
 			break;

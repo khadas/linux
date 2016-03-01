@@ -248,6 +248,7 @@ extern int retrieve_vpll_carrier_afc(void);
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK		12
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG	13
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I	14
+#define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M    15
 /* new add @20150813 end */
 
 /*GDE_Curve*/
