@@ -4370,6 +4370,8 @@ static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 	/* signal_type */
 	if (hevc->video_signal_type & VIDEO_SIGNAL_TYPE_AVAILABLE_MASK)
 		vf->signal_type = hevc->video_signal_type;
+	else
+		vf->signal_type = 0;
 
 	/* master_display_colour */
 	if (hevc->sei_present_flag & SEI_MASTER_DISPLAY_COLOR_MASK) {
