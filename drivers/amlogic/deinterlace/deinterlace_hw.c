@@ -1679,6 +1679,9 @@ static void di_nr_init(void)
  */
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 {
+	if (!is_meson_gxtvbb_cpu())
+		return;
+
 	if ((vframe->width > 1920) || (vframe->height > 1080)) {
 		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
 		 * input source*/
@@ -1763,6 +1766,9 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 
 void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag)
 {
+	if (!is_meson_gxtvbb_cpu())
+		return;
+
 	if (bypass_flag != bit_mode_last_bypass_flag) {
 		config_di_bit_mode(vframe, bypass_flag);
 		bit_mode_last_bypass_flag = bypass_flag;

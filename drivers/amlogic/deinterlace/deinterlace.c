@@ -4477,10 +4477,12 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 	}
 
-	/* In bypass mode, register should in line with input source */
-	vframe = vf_peek(VFM_NAME);
-	if (NULL != vframe)
-		di_bit_mode_bypass_cfg(vframe, bypass_state);
+	if (is_meson_gxtvbb_cpu()) {
+		/* In bypass mode, register should in line with input source */
+		vframe = vf_peek(VFM_NAME);
+		if (NULL != vframe)
+			di_bit_mode_bypass_cfg(vframe, bypass_state);
+	}
 
 	if (di_pre_stru.di_inp_buf_next) {
 		di_pre_stru.di_inp_buf = di_pre_stru.di_inp_buf_next;
@@ -6948,18 +6950,23 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			/* di_init_buf(vframe->width,
-			 * vframe->height, 1); */
-			 /*
-			 * 10 bit mode need 1.5 times buffer size of
-			 * 8 bit mode, init the buffer size as 10 bit
-			 * mode size, to make sure can switch bit mode
-			 * smoothly.
-			 */
-			di_init_buf(default_width * 3 / 2,
-				default_height, 1);
+			if (is_meson_gxtvbb_cpu()) {
+				/* di_init_buf(vframe->width,
+				 * vframe->height, 1); */
+				 /*
+				 * 10 bit mode need 1.5 times buffer size of
+				 * 8 bit mode, init the buffer size as 10 bit
+				 * mode size, to make sure can switch bit mode
+				 * smoothly.
+				 */
+				di_init_buf(default_width * 3 / 2,
+					default_height, 1);
+
+				config_di_bit_mode(vframe, bypass_state);
+			} else
+				di_init_buf(default_width, default_height, 1);
+
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
-			config_di_bit_mode(vframe, bypass_state);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
@@ -6969,16 +6976,21 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			/*
-			 * 10 bit mode need 1.5 times buffer size of
-			 * 8 bit mode, init the buffer size as 10 bit
-			 * mode size, to make sure can switch bit mode
-			 * smoothly.
-			 */
-			di_init_buf(default_width * 3 / 2,
-				default_height, 0);
+			if (is_meson_gxtvbb_cpu()) {
+				/*
+				 * 10 bit mode need 1.5 times buffer size of
+				 * 8 bit mode, init the buffer size as 10 bit
+				 * mode size, to make sure can switch bit mode
+				 * smoothly.
+				 */
+				di_init_buf(default_width * 3 / 2,
+					default_height, 0);
+
+				config_di_bit_mode(vframe, bypass_state);
+			} else
+				di_init_buf(default_width, default_height, 0);
+
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
-			config_di_bit_mode(vframe, bypass_state);
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
