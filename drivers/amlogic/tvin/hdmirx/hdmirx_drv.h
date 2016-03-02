@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/03/01a"
+#define HDMIRX_VER "Ref.2016/03/01"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -63,7 +63,7 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_MAGIC 'H'
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
 
-/* #define HDCP22_ENABLE */
+#define HDCP22_ENABLE
 
 /* add new value at the end,
  * do not insert new value in the middle
@@ -454,6 +454,7 @@ extern bool irq_ctrl_reg_en; /* enable/disable reg rd/wr in irq  */
 
 extern int rgb_quant_range;
 extern int yuv_quant_range;
+extern int hdcp_22_on;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

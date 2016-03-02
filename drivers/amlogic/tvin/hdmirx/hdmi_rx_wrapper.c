@@ -1803,7 +1803,8 @@ void hdmirx_hw_monitor(void)
 			rx.state = FSM_INIT;
 		}
 		#ifdef HDCP22_ENABLE
-		hpd_to_esm = 0;
+		if (hdcp_22_on)
+			hpd_to_esm = 0;
 		#endif
 		return;
 	} else {
@@ -1841,7 +1842,8 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_HPD_READY:
 		#ifdef HDCP22_ENABLE
-		hpd_to_esm = 1;
+		if (hdcp_22_on)
+			hpd_to_esm = 1;
 		#endif
 		/*check mhl 3.4gb*/
 		if ((true == rx.scdc_tmds_cfg) ||
@@ -2064,7 +2066,8 @@ void hdmirx_hw_monitor(void)
 				hdmirx_audio_enable(0);
 				hdmirx_audio_fifo_rst();
 				#ifdef HDCP22_ENABLE
-				video_stable_to_esm = 0;
+				if (hdcp_22_on)
+					video_stable_to_esm = 0;
 				#endif
 				sig_lost_lock_cnt = 0;
 				wait_no_signal_cnt = 0;
@@ -2103,7 +2106,8 @@ void hdmirx_hw_monitor(void)
 				rx.state = FSM_HDMI5V_HIGH;
 				wait_no_signal_cnt = 0;
 				#ifdef HDCP22_ENABLE
-				video_stable_to_esm = 0;
+				if (hdcp_22_on)
+					video_stable_to_esm = 0;
 				#endif
 				memcpy(&rx.pre_params,
 					&rx.cur_params,
@@ -2127,7 +2131,8 @@ void hdmirx_hw_monitor(void)
 				rx.state = FSM_HDMI5V_HIGH;
 				wait_no_signal_cnt = 0;
 				#ifdef HDCP22_ENABLE
-				video_stable_to_esm = 0;
+				if (hdcp_22_on)
+					video_stable_to_esm = 0;
 				#endif
 				memcpy(&rx.pre_params,
 					&rx.cur_params,
@@ -2150,7 +2155,8 @@ void hdmirx_hw_monitor(void)
 			if (enable_hpd_reset)
 				sig_unstable_reset_hpd_cnt = 0;
 				#ifdef HDCP22_ENABLE
-				video_stable_to_esm = 1;
+				if (hdcp_22_on)
+					video_stable_to_esm = 1;
 				#endif
 		}
 

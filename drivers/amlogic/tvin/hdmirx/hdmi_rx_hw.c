@@ -110,7 +110,7 @@ static bool hdcp_enable = 1;
 MODULE_PARM_DESC(hdcp_enable, "\n hdcp_enable\n");
 module_param(hdcp_enable, bool, 0664);
 #ifdef HDCP22_ENABLE
-static int hdcp_22_on = 1;
+int hdcp_22_on;
 MODULE_PARM_DESC(hdcp_22_on, "\n hdcp_22_on\n");
 module_param(hdcp_22_on, int, 0664);
 static int hdcp_22_nonce_hw_en = 1;
