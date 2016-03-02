@@ -889,12 +889,14 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 				c->frequency = set_freq;
 				return -1;
 			}
+			#if 0 /*if enable ,it would miss program*/
 			if (unlikely(c->frequency < minafcfreq)) {
 				pr_dbg("[%s]:[%d ] is exceed minafcfreq[%d]\n",
 				       __func__, c->frequency, minafcfreq);
 				c->frequency = set_freq;
 				return -1;
 			}
+			#endif
 			if (likely(!(count--))) {
 				pr_dbg("[%s]:exceed the afc count\n", __func__);
 				c->frequency = set_freq;
