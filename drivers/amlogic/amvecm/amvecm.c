@@ -135,6 +135,7 @@ module_param(hdr_mode, uint, 0664);
 MODULE_PARM_DESC(hdr_mode, "\n set hdr_mode\n");
 
 static uint hdr_process_mode = 1; /* 0: hdr->hdr, 1:hdr->sdr */
+static uint cur_hdr_process_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr */
 module_param(hdr_process_mode, uint, 0444);
 MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 
@@ -293,17 +294,16 @@ int cubic_interpolation(int y0, int y1, int y2, int y3, int mu)
 }
 
 static int knee_lut_on;
-static int cur_knee_factor;
-static void load_knee_lut(int on, uint factor)
+static int cur_knee_factor = -1;
+static void load_knee_lut(int on)
 {
 	int i, j, k;
 	int value;
 	int final_knee_setting[MAX_KNEE_SETTING];
 
-	if (on) {
-		if (knee_lut_on && (cur_knee_factor == factor))
-			return;
-		knee_factor = factor;
+	if (cur_knee_factor != knee_factor) {
+		pr_amvecm_dbg("Knee_factor changed from %d to %d\n",
+			cur_knee_factor, knee_factor);
 		for (i = 0; i < MAX_KNEE_SETTING; i++) {
 			final_knee_setting[i] =
 				knee_linear_setting[i] + (((knee_setting[i]
@@ -364,9 +364,11 @@ static void load_knee_lut(int on, uint factor)
 							j, i, value);
 			}
 		}
+		cur_knee_factor = knee_factor;
+	}
+	if (on) {
 		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
 		knee_lut_on = 1;
-		cur_knee_factor = knee_factor;
 	} else {
 		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
 		knee_lut_on = 0;
@@ -635,6 +637,11 @@ static struct vframe_master_display_colour_s cur_master_display_colour = {
 	{0, 0}
 };
 
+#define SIG_CS_CHG	0x01
+#define SIG_SRC_CHG	0x02
+#define SIG_PRI_INFO	0x04
+#define SIG_KNEE_FACTOR	0x08
+#define SIG_HDR_MODE	0x10
 int signal_type_changed(struct vframe_s *vf)
 {
 	u32 signal_type = 0;
@@ -651,42 +658,39 @@ int signal_type_changed(struct vframe_s *vf)
 		default_signal_type =
 			/* default 709 full */
 			  (1 << 29)	/* video available */
-			| (5 << 26) /* unspecified */
+			| (5 << 26)	/* unspecified */
 			| (1 << 25)	/* full */
 			| (1 << 24)	/* color available */
 			| (1 << 16)	/* bt709 */
 			| (1 << 8)	/* bt709 */
 			| (1 << 0);	/* bt709 */
 	} else { /* for local play */
-		default_signal_type =
-			/* default 709 limited */
-			  (1 << 29)	/* video available */
-			| (5 << 26) /* unspecified */
-			| (0 << 25)	/* limited */
-			| (1 << 24)	/* color available */
-			| (0 << 16)	/* unknown */
-			| (3 << 8)	/* bt601 */
-			| (3 << 0);	/* bt601 */
+		if (vf->height >= 720)
+			default_signal_type =
+				/* HD default 709 limit */
+				  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (1 << 16)	/* bt709 */
+				| (1 << 8)	/* bt709 */
+				| (1 << 0);	/* bt709 */
+		else
+			default_signal_type =
+				/* SD default 601 limited */
+				  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limited */
+				| (1 << 24)	/* color available */
+				| (3 << 16)	/* bt601 */
+				| (3 << 8)	/* bt601 */
+				| (3 << 0);	/* bt601 */
 	}
-
-	/* if (hdr_mode == 0) */
 	if (vf->signal_type & (1 << 29))
 		signal_type = vf->signal_type;
 	else
 		signal_type = default_signal_type;
 
-	if (signal_type != cur_signal_type) {
-		pr_amvecm_dbg("signal type changed from 0x%x to 0x%x\n",
-			cur_signal_type, signal_type);
-		change_flag |= 1;
-		cur_signal_type = signal_type;
-	}
-	if (pre_src_type != vf->source_type) {
-		pr_amvecm_dbg("signal source changed from 0x%x to 0x%x\n",
-			pre_src_type, vf->source_type);
-		change_flag |= 2;
-		pre_src_type = vf->source_type;
-	}
 	p_new = &vf->prop.master_display_colour;
 	p_cur = &cur_master_display_colour;
 	if (p_new->present_flag) {
@@ -694,35 +698,56 @@ int signal_type_changed(struct vframe_s *vf)
 			for (j = 0; j < 2; j++) {
 				if (p_cur->primaries[i][j]
 				 != p_new->primaries[i][j])
-					change_flag |= 4;
+					change_flag |= SIG_PRI_INFO;
 				p_cur->primaries[i][j]
 					= p_new->primaries[i][j];
 			}
 		for (i = 0; i < 2; i++) {
 			if (p_cur->white_point[i]
 			 != p_new->white_point[i])
-				change_flag |= 4;
+				change_flag |= SIG_PRI_INFO;
 			p_cur->white_point[i]
 				= p_new->white_point[i];
 		}
 		for (i = 0; i < 2; i++) {
 			if (p_cur->luminance[i]
 			 != p_new->luminance[i])
-				change_flag |= 4;
+				change_flag |= SIG_PRI_INFO;
 			p_cur->luminance[i]
 				= p_new->luminance[i];
 		}
 		if (!p_cur->present_flag) {
 			p_cur->present_flag = 1;
-			change_flag |= 4;
+			change_flag |= SIG_PRI_INFO;
 		}
 	} else if (p_cur->present_flag) {
 		p_cur->present_flag = 0;
-		change_flag |= 4;
+		change_flag |= SIG_PRI_INFO;
 	}
-	if (change_flag & 4)
+	if (change_flag & SIG_PRI_INFO)
 		pr_amvecm_dbg("Master_display_colour changed.\n");
 
+	if (signal_type != cur_signal_type) {
+		pr_amvecm_dbg("Signal type changed from 0x%x to 0x%x.\n",
+			cur_signal_type, signal_type);
+		change_flag |= SIG_CS_CHG;
+		cur_signal_type = signal_type;
+	}
+	if (pre_src_type != vf->source_type) {
+		pr_amvecm_dbg("Signal source changed from 0x%x to 0x%x.\n",
+			pre_src_type, vf->source_type);
+		change_flag |= SIG_SRC_CHG;
+		pre_src_type = vf->source_type;
+	}
+	if (cur_knee_factor != knee_factor) {
+		pr_amvecm_dbg("Knee factor changed.\n");
+		change_flag |= SIG_KNEE_FACTOR;
+	}
+	if (cur_hdr_process_mode != hdr_process_mode) {
+		pr_amvecm_dbg("HDR mode changed.\n");
+		change_flag |= SIG_HDR_MODE;
+		cur_hdr_process_mode = hdr_process_mode;
+	}
 	return change_flag;
 }
 
@@ -732,19 +757,54 @@ int signal_type_changed(struct vframe_s *vf)
 enum vpp_matrix_csc_e get_csc_type(void)
 {
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
-	if (signal_color_primaries == 0)
-		if (signal_range == 0)
-			csc_type = VPP_MATRIX_YUV601_RGB;
-		else
-			csc_type = VPP_MATRIX_YUV601F_RGB;
-	else if (signal_color_primaries == 1)
+	if (signal_color_primaries == 1) {
 		if (signal_range == 0)
 			csc_type = VPP_MATRIX_YUV709_RGB;
 		else
 			csc_type = VPP_MATRIX_YUV709F_RGB;
-	else if (signal_color_primaries == 9)
+	} else if (signal_color_primaries == 3) {
 		if (signal_range == 0)
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			csc_type = VPP_MATRIX_YUV601_RGB;
+		else
+			csc_type = VPP_MATRIX_YUV601F_RGB;
+	} else if (signal_color_primaries == 9) {
+		if (signal_transfer_characteristic == 16) {
+			/* smpte st-2084 */
+			if (signal_range == 0)
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			else {
+				pr_amvecm_dbg("\tWARNING: full range HDR!!!\n");
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			}
+		} else if (signal_transfer_characteristic == 14) {
+			/* bt2020-10 */
+			pr_amvecm_dbg("\tWARNING: bt2020-10 HDR!!!\n");
+			if (signal_range == 0)
+				csc_type = VPP_MATRIX_YUV709_RGB;
+			else
+				csc_type = VPP_MATRIX_YUV709F_RGB;
+		} else if (signal_transfer_characteristic == 15) {
+			/* bt2020-12 */
+			pr_amvecm_dbg("\tWARNING: bt2020-12 HDR!!!\n");
+			if (signal_range == 0)
+				csc_type = VPP_MATRIX_YUV709_RGB;
+			else
+				csc_type = VPP_MATRIX_YUV709F_RGB;
+		} else {
+			/* unknown transfer characteristic */
+			pr_amvecm_dbg("\tWARNING: unknown HDR!!!\n");
+			if (signal_range == 0)
+				csc_type = VPP_MATRIX_YUV709_RGB;
+			else
+				csc_type = VPP_MATRIX_YUV709F_RGB;
+		}
+	} else {
+		pr_amvecm_dbg("\tWARNING: unsupported colour space!!!\n");
+		if (signal_range == 0)
+			csc_type = VPP_MATRIX_YUV601_RGB;
+		else
+			csc_type = VPP_MATRIX_YUV601F_RGB;
+	}
 	return csc_type;
 }
 
@@ -1065,48 +1125,50 @@ static void vpp_matrix_update(struct vframe_s *vf)
 
 	signal_change_flag = signal_type_changed(vf);
 
-	if ((!signal_change_flag)
-	&& (force_csc_type == 0xff))
+	if ((!signal_change_flag) && (force_csc_type == 0xff))
 		return;
 
 	vecm_latch_flag |= FLAG_MATRIX_UPDATE;
 
-	/* check output format(Panel or Tx)  */
-	if (vinfo->viu_color_fmt != TVIN_RGB444)
-		vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
-	else
-		vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	if (force_csc_type != 0xff)
 		csc_type = force_csc_type;
 	else
 		csc_type = get_csc_type();
-	if ((cur_csc_type != csc_type) || (signal_change_flag & 4)) {
-		/* decided by edid info */
-		switch (hdr_process_mode) {
-		case 0: /* hdr->hdr */
-			/* bypass hdr processing*/
-			if (vinfo->viu_color_fmt == TVIN_RGB444)
-				/* vd1 matrix convert YUV to RGB */
-				/* matrix3 convert RGB->709F.*/
+	if ((cur_csc_type != csc_type)
+	|| (signal_change_flag
+	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE))) {
+		/* check output format(Panel or Tx)  */
+		if (vinfo->viu_color_fmt != TVIN_RGB444)
+			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
+		else
+			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
+		/* decided by edid or panel info or user setting */
+		if (!hdr_process_mode) {
+			/* hdr->hdr */
+			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
+				/* bypass hdr processing*/
+				/* TODO: use post matrix to do
+				   rgb to yuv instead of matrix3 */
 				csc_type = VPP_MATRIX_YUV709_RGB;
-			else
-				csc_type = VPP_MATRIX_NULL;
-			if (cur_csc_type != csc_type) {
 				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
-					csc_type, NULL);
-				/* post matrix off */
-				vpp_set_matrix(VPP_MATRIX_POST, CSC_OFF,
-					csc_type, NULL);
-				/* disable lut matrix */
-				load_knee_lut(CSC_OFF, knee_factor);
-				pr_amvecm_dbg("hdr bypass !!!\n");
+						csc_type, NULL);
+			} else {
+				/* vd1 matrix on */
+				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
+						csc_type, NULL);
 			}
-			break;
-		case 1: /* hdr->sdr */
-			/* decided by signal type */
+			/* post matrix off */
+			vpp_set_matrix(VPP_MATRIX_POST, CSC_OFF,
+				csc_type, NULL);
+			/* xvycc lut off */
+			load_knee_lut(CSC_OFF);
+		} else {
+			/* hdr->sdr */
 			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				/* bt2020 to RGB */
-				if ((signal_change_flag & 4) || (cur_csc_type
+				if ((signal_change_flag
+				& (SIG_PRI_INFO | SIG_KNEE_FACTOR
+				| SIG_HDR_MODE)) || (cur_csc_type
 				< VPP_MATRIX_BT2020YUV_BT2020RGB)) {
 					p = &cur_master_display_colour;
 					if (p->present_flag) {
@@ -1134,6 +1196,8 @@ static void vpp_matrix_update(struct vframe_s *vf)
 					/* turn post matrix on */
 					vpp_set_matrix(VPP_MATRIX_POST, CSC_ON,
 						csc_type, &m);
+					/* xvycc lut on */
+					load_knee_lut(CSC_ON);
 				}
 			} else {
 				/* vd1 matrix on */
@@ -1142,35 +1206,9 @@ static void vpp_matrix_update(struct vframe_s *vf)
 				/* post matrix off */
 				vpp_set_matrix(VPP_MATRIX_POST, CSC_OFF,
 						csc_type, NULL);
+				/* xvycc lut off */
+				load_knee_lut(CSC_OFF);
 			}
-			/* TODO:
-			knee_factor should be calculated by vinfo&lumin */
-			if (csc_type >= VPP_MATRIX_BT2020YUV_BT2020RGB)
-				/* bt2020 */
-				load_knee_lut(CSC_ON, knee_factor);
-			else
-				load_knee_lut(CSC_OFF, knee_factor);
-			break;
-		case 2: /* disable hdr */
-			if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
-				(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
-				(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
-				(vf->source_type == VFRAME_SOURCE_TYPE_HDMI)) {
-				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
-						VPP_MATRIX_YUV709F_RGB, NULL);
-			} else { /* for local play */
-				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
-						VPP_MATRIX_YUV601_RGB, NULL);
-			}
-			/* post matrix off */
-			vpp_set_matrix(VPP_MATRIX_POST, CSC_OFF,
-					VPP_MATRIX_NULL, NULL);
-			/* lut matrix off */
-			load_knee_lut(CSC_OFF, knee_factor);
-			pr_amvecm_dbg("hdr disable !!!\n");
-			break;
-		default:
-			break;
 		}
 		if (need_adjust_contrast) {
 			vd1_contrast_offset =
@@ -1750,7 +1788,7 @@ void amvecm_on_vs(struct vframe_s *vf)
 
 		amvecm_bricon_process(
 			vd1_brightness,
-			vd1_contrast  + vd1_contrast_offset, vf);
+			vd1_contrast + vd1_contrast_offset, vf);
 
 		ve_on_vs(vf);
 	}
@@ -2686,107 +2724,6 @@ static ssize_t amvecm_sr1_reg_store(struct class *cla,
 
 }
 
-static ssize_t amvecm_hdr_set_sel_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
-{
-	return 0;
-}
-
-/* 0:open hdr; 2: sdr->sdr; 3:hdr->hdr; 4:hdr->sdr level1 300*/
-/* 5:hdr->sdr level2 500  1: close hdr*/
-static ssize_t amvecm_hdr_set_sel_store(struct class *cla,
-			struct class_attribute *attr,
-			const char *buf, size_t count)
-{
-	size_t r;
-	unsigned int hdr_sel_flag, i = 0, j = 0;
-
-	r = sscanf(buf, "%d", &hdr_sel_flag);
-	if (r != 1)
-		return -EINVAL;
-	switch (hdr_sel_flag) {
-	case 0:
-			WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
-		break;
-	case 1:
-			WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-		break;
-	case 2:
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-		for (j = 0; j < 3; j++) {
-			for (i = 0; i < 578; i++)
-				r_lut_sdr_sdr.am_reg[i].addr += 2*j;
-
-			am_set_regmap(&r_lut_sdr_sdr);
-
-			for (i = 0; i < 578; i++)
-				r_lut_sdr_sdr.am_reg[i].addr -= 2*j;
-		}
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
-		break;
-	case 3:
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-		for (j = 0; j < 3; j++) {
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_hdr.am_reg[i].addr += 2*j;
-
-			am_set_regmap(&r_lut_hdr_hdr);
-
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_hdr.am_reg[i].addr -= 2*j;
-		}
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
-		break;
-	case 4:
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-		for (j = 0; j < 3; j++) {
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_sdr_level1.am_reg[i].addr += 2*j;
-
-			am_set_regmap(&r_lut_hdr_sdr_level1);
-
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_sdr_level1.am_reg[i].addr -= 2*j;
-		}
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
-		break;
-	case 5:
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-		for (j = 0; j < 3; j++) {
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_sdr_level2.am_reg[i].addr += 2*j;
-
-			am_set_regmap(&r_lut_hdr_sdr_level2);
-
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_sdr_level2.am_reg[i].addr -= 2*j;
-		}
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
-		break;
-	case 6:
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x0);
-		for (j = 0; j < 3; j++) {
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_sdr_level3.am_reg[i].addr += 2*j;
-
-			am_set_regmap(&r_lut_hdr_sdr_level3);
-
-			for (i = 0; i < 578; i++)
-				r_lut_hdr_sdr_level3.am_reg[i].addr -= 2*j;
-		}
-		WRITE_VPP_REG(XVYCC_LUT_CTL, 0x7f);
-		break;
-	case 255:
-		load_knee_lut(CSC_ON, knee_factor);
-		break;
-	default:
-		break;
-	}
-
-	return count;
-
-}
-
 static ssize_t amvecm_dump_reg_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
@@ -2974,8 +2911,6 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_dump_reg_show, amvecm_dump_reg_store),
 	__ATTR(sr1_reg, S_IRUGO | S_IWUSR,
 		amvecm_sr1_reg_show, amvecm_sr1_reg_store),
-	__ATTR(hdr_sel, S_IRUGO | S_IWUSR,
-		amvecm_hdr_set_sel_show, amvecm_hdr_set_sel_store),
 	__ATTR_NULL
 };
 
