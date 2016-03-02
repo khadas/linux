@@ -1935,7 +1935,8 @@ static void vh264_put_timer_func(unsigned long arg)
 		   && (vh264_stream_switching_state == SWITCHING_STATE_OFF)) {
 		struct vframe_s *vf;
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index >= 0) && (vf != &switching_fense_vf)) {
+			if ((vf->index >= 0) && (vf->index < VF_BUF_NUM) &&
+					(vf != &switching_fense_vf)) {
 				if (--vfbuf_use[vf->index] == 0) {
 					if (READ_VREG(AV_SCRATCH_7) == 0) {
 						WRITE_VREG(AV_SCRATCH_7,
@@ -1957,7 +1958,7 @@ static void vh264_put_timer_func(unsigned long arg)
 		while (!kfifo_is_empty(&recycle_q)) {
 			struct vframe_s *vf;
 			if (kfifo_get(&recycle_q, &vf)) {
-				if ((vf->index >= 0)
+				if ((vf->index >= 0 && (vf->index < VF_BUF_NUM))
 					&& (vf != &switching_fense_vf)) {
 					vf->index = VF_BUF_NUM;
 					kfifo_put(&newframe_q,

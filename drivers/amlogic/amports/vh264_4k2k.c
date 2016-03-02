@@ -988,9 +988,11 @@ static void vh264_4k2k_put_timer_func(unsigned long arg)
 			(READ_VREG(BUFFER_RECYCLE) == 0)) {
 		struct vframe_s *vf;
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index >= 0) && (--vfbuf_use[vf->index] == 0)) {
+			if ((vf->index >= 0)
+					&& (vf->index < DECODE_BUFFER_NUM_MAX)
+					&& (--vfbuf_use[vf->index] == 0)) {
 				WRITE_VREG(BUFFER_RECYCLE, vf->index + 1);
-				vf->index = -1;
+				vf->index = DECODE_BUFFER_NUM_MAX;
 			}
 
 			kfifo_put(&newframe_q, (const struct vframe_s *)vf);
@@ -1371,7 +1373,7 @@ static void vh264_4k2k_local_init(void)
 
 	for (i = 0; i < VF_POOL_SIZE; i++) {
 		const struct vframe_s *vf = &vfpool[i];
-		vfpool[i].index = -1;
+		vfpool[i].index = DECODE_BUFFER_NUM_MAX;
 		kfifo_put(&newframe_q, vf);
 	}
 
