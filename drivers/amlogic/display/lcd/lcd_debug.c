@@ -199,23 +199,31 @@ static void lcd_info_print(void)
 		pr_info("lvds_repack       %u\n"
 			"dual_port         %u\n"
 			"pn_swap           %u\n"
-			"port_swap         %u\n\n",
+			"port_swap         %u\n"
+			"phy_vswing        %u\n"
+			"phy_preemphasis   %u\n\n",
 			pconf->lcd_control.lvds_config->lvds_repack,
 			pconf->lcd_control.lvds_config->dual_port,
 			pconf->lcd_control.lvds_config->pn_swap,
-			pconf->lcd_control.lvds_config->port_swap);
+			pconf->lcd_control.lvds_config->port_swap,
+			pconf->lcd_control.lvds_config->phy_vswing,
+			pconf->lcd_control.lvds_config->phy_preem);
 		break;
 	case LCD_VBYONE:
 		pr_info("lane_count        %u\n"
 			"region_num        %u\n"
 			"byte_mode         %u\n"
 			"color_fmt         %u\n"
-			"bit_rate          %u\n\n",
+			"bit_rate          %u\n"
+			"phy_vswing        %u\n"
+			"phy_preemphasis   %u\n\n",
 			pconf->lcd_control.vbyone_config->lane_count,
 			pconf->lcd_control.vbyone_config->region_num,
 			pconf->lcd_control.vbyone_config->byte_mode,
 			pconf->lcd_control.vbyone_config->color_fmt,
-			pconf->lcd_control.vbyone_config->bit_rate);
+			pconf->lcd_control.vbyone_config->bit_rate,
+			pconf->lcd_control.lvds_config->phy_vswing,
+			pconf->lcd_control.lvds_config->phy_preem);
 		break;
 	case LCD_MIPI:
 		dconf = pconf->lcd_control.mipi_config;
@@ -965,6 +973,12 @@ static const char *lcd_lvds_debug_usage_str = {
 "    <pn_swap>   : 0=normal, 1=swap p/n channels\n"
 "    <port_swap> : 0=normal, 1=swap A/B port\n"
 "\n"
+"    echo <vswing> <preem> > phy ; set vbyone phy config\n"
+"data format:\n"
+"    <vswing> : vswing level, support 0~7\n"
+"    <preem>  : preemphasis level, support 0~7\n"
+"    <byte_mode>  : 3/4/5\n"
+"\n"
 };
 
 static const char *lcd_vbyone_debug_usage_str = {
@@ -973,6 +987,12 @@ static const char *lcd_vbyone_debug_usage_str = {
 "data format:\n"
 "    <lane_count> : 4/8/16\n"
 "    <region_num> : 1/2\n"
+"    <byte_mode>  : 3/4/5\n"
+"\n"
+"    echo <vswing> <preem> > phy ; set vbyone phy config\n"
+"data format:\n"
+"    <vswing> : vswing level, support 0~7\n"
+"    <preem>  : preemphasis level, support 0~7\n"
 "    <byte_mode>  : 3/4/5\n"
 "\n"
 };
@@ -1123,6 +1143,84 @@ static ssize_t lcd_edp_debug_store(struct class *class,
 	return count;
 }
 
+static void lcd_phy_config_update(unsigned int vswing, unsigned int preem)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int type;
+	unsigned int data32;
+
+	pconf = lcd_drv->lcd_config;
+	type = pconf->lcd_basic.lcd_type;
+	switch (type) {
+	case LCD_LVDS:
+		pconf->lcd_control.lvds_config->phy_vswing = vswing;
+		pconf->lcd_control.lvds_config->phy_preem = preem;
+		data32 = 0x606cca80 | (vswing << 26) | (preem << 0);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+		break;
+	case LCD_VBYONE:
+		pconf->lcd_control.vbyone_config->phy_vswing = vswing;
+		pconf->lcd_control.vbyone_config->phy_preem = preem;
+		data32 = 0x6e0ec900 | (vswing << 3);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+		data32 = 0x00000a7c | (preem << 20);
+		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, data32);
+		break;
+	default:
+		LCDERR("%s: not support lcd_type: %s\n",
+			__func__, lcd_type_type_to_str(type));
+		break;
+	}
+}
+
+static ssize_t lcd_phy_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	unsigned int vswing = 0xff, preem = 0xff;
+
+	pconf = lcd_drv->lcd_config;
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
+		vswing = pconf->lcd_control.lvds_config->phy_vswing;
+		preem = pconf->lcd_control.lvds_config->phy_preem;
+		break;
+	case LCD_VBYONE:
+		vswing = pconf->lcd_control.vbyone_config->phy_vswing;
+		preem = pconf->lcd_control.vbyone_config->phy_preem;
+		break;
+	default:
+		break;
+	}
+	return sprintf(buf, "%s: vswing=%d, preemphasis=%d\n",
+			__func__, vswing, preem);
+}
+
+static ssize_t lcd_phy_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int para[2];
+
+	ret = sscanf(buf, "%d %d", &para[0], &para[1]);
+
+	if ((para[0] <= 7) && (para[1] <= 7)) {
+		LCDPR("%s: vswing=%d, preemphasis=%d\n",
+			__func__, para[0], para[1]);
+		lcd_phy_config_update(para[0], para[1]);
+	} else {
+		LCDERR("%s: wrong value: vswing=%d, preemphasis=%d\n",
+			__func__, para[0], para[1]);
+	}
+
+	if (ret != 1 || ret != 2)
+		return -EINVAL;
+
+	return count;
+}
+
 static struct class_attribute lcd_interface_debug_class_attrs[] = {
 	__ATTR(ttl,    S_IRUGO | S_IWUSR,
 		lcd_ttl_debug_show, lcd_ttl_debug_store),
@@ -1134,6 +1232,11 @@ static struct class_attribute lcd_interface_debug_class_attrs[] = {
 		lcd_mipi_debug_show, lcd_mipi_debug_store),
 	__ATTR(edp,    S_IRUGO | S_IWUSR,
 		lcd_edp_debug_show, lcd_edp_debug_store),
+};
+
+static struct class_attribute lcd_phy_debug_class_attrs[] = {
+	__ATTR(phy,    S_IRUGO | S_IWUSR,
+		lcd_phy_debug_show, lcd_phy_debug_store),
 };
 
 static struct class *lcd_debug_class;
@@ -1168,6 +1271,21 @@ int lcd_class_creat(void)
 			LCDERR("create lcd_interface debug attribute %s fail\n",
 				lcd_interface_debug_class_attrs[i].attr.name);
 		}
+	}
+
+	switch (type) {
+	case LCD_LVDS:
+	case LCD_VBYONE:
+		for (i = 0; i < ARRAY_SIZE(lcd_phy_debug_class_attrs); i++) {
+			if (class_create_file(lcd_debug_class,
+				&lcd_phy_debug_class_attrs[i])) {
+				LCDERR("create phy debug attribute %s fail\n",
+					lcd_phy_debug_class_attrs[i].attr.name);
+			}
+		}
+		break;
+	default:
+		break;
 	}
 
 	return 0;

@@ -792,6 +792,7 @@
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 20 /* signal disable */
@@ -805,6 +806,7 @@
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <0 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 20 /* signal disable */
@@ -818,6 +820,7 @@
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 20 /* signal disable */
@@ -832,6 +835,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <0 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 50 /* signal disable */
@@ -846,6 +850,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 50 /* signal disable */
@@ -860,6 +865,7 @@
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 50 /* signal disable */
@@ -874,6 +880,7 @@
 			lcd_timing = <33 477 1 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <2 0 0 50  /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 30 /* signal disable */

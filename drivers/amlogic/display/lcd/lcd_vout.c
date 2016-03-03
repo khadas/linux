@@ -64,6 +64,8 @@ static struct lvds_config_s lcd_lvds_config = {
 	.pn_swap = 0,
 	.port_swap = 0,
 	.port_sel = 0,
+	.phy_vswing = LVDS_PHY_VSWING_DFT,
+	.phy_preem = LVDS_PHY_PREEM_DFT,
 };
 
 static struct vbyone_config_s lcd_vbyone_config = {
@@ -73,6 +75,8 @@ static struct vbyone_config_s lcd_vbyone_config = {
 	.color_fmt = 4,
 	.phy_div = 1,
 	.bit_rate = 0,
+	.phy_vswing = VX1_PHY_VSWING_DFT,
+	.phy_preem = VX1_PHY_PREEM_DFT,
 };
 
 static unsigned char dsi_init_on_table[DSI_INIT_ON_MAX] = {0xff, 0xff};

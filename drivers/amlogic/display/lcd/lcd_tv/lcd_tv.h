@@ -20,7 +20,7 @@
 #define __AML_LCD_TV_H__
 #include <linux/amlogic/vout/lcd_vout.h>
 
-#define LCD_DRV_VERSION    "20160218"
+#define LCD_DRV_VERSION    "20160303"
 
 extern const struct vinfo_s *lcd_tv_get_vinfo(void);
 

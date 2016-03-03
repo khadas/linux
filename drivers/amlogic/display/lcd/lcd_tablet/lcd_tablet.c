@@ -319,6 +319,18 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 			pconf->lcd_control.lvds_config->pn_swap = para[2];
 			pconf->lcd_control.lvds_config->port_swap = para[3];
 		}
+		ret = of_property_read_u32_array(child, "phy_attr",
+			&para[0], 2);
+		if (ret) {
+			if (lcd_debug_print_flag)
+				LCDPR("failed to get phy_attr\n");
+		} else {
+			pconf->lcd_control.lvds_config->phy_vswing = para[0];
+			pconf->lcd_control.lvds_config->phy_preem = para[1];
+			LCDPR("set phy vswing=%d, preemphasis=%d\n",
+				pconf->lcd_control.lvds_config->phy_vswing,
+				pconf->lcd_control.lvds_config->phy_preem);
+		}
 		break;
 	default:
 		LCDERR("invalid lcd type\n");
