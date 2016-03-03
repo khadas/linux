@@ -260,7 +260,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		sprintf(debug_str+strlen(debug_str), "\n");
 		pr_info("%s", debug_str);
 	}
-	return 0;
+	return nS1;
 }
 
 /* Film Detection Software implementation */
@@ -1074,11 +1074,15 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		/* if(tMgn > 720*240) */
 		/* if(tMgn > iWidth*iHeight*32) */ /*toilet paper*/
 		/* parameter */
+		nOfst = nAV21 - nAV22;
 		if (nAV22 > iWidth * iHeight * 16) {
 			nT0 = 0;
 			nT1 = 0;
 		} else if ((nAV22<<4) > (iWidth * iHeight * 50)) {
 			/* parameter */
+			nT0 = 0;
+			nT1 = 0;
+		} else if (((nAV22 * 46) >> 7)) {
 			nT0 = 0;
 			nT1 = 0;
 		}
