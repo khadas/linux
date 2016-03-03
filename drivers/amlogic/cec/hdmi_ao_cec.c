@@ -796,8 +796,6 @@ static void cec_rx_process(void)
 	case CEC_OC_STANDBY:
 		cec_inactive_source(initiator);
 		cec_menu_status_smp(initiator, DEVICE_MENU_INACTIVE);
-		if (!cec_dev->cec_suspend)
-			cec_key_report(1);
 		break;
 
 	case CEC_OC_SET_STREAM_PATH:
