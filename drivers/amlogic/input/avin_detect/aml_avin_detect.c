@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/uaccess.h>
+#include <linux/delay.h>
 #include "aml_avin_detect.h"
 
 #ifndef CONFIG_OF
@@ -22,6 +23,10 @@
 #define AVIN_NAME  "avin_detect"
 #define AVIN_NAME_CH1  "avin_detect_ch1"
 #define AVIN_NAME_CH2  "avin_detect_ch2"
+
+/* after request_irq, irq handler maybe into one time */
+char first_time_into_irqhandle1 = 0;
+char first_time_into_irqhandle2 = 0;
 
 /*#ifdef USE_INPUT_EVENT_REPORT*/
 #define ABS_AVIN_1 0
@@ -39,6 +44,7 @@ static irqreturn_t avin_detect_handler1(int irq, void *data)
 	struct avin_det_s *avdev = (struct avin_det_s *)data;
 	avdev->irq1_falling_times[avdev->detect_channel1_times]++;
 	disable_irq_nosync(avdev->irq_num1);
+	first_time_into_irqhandle1 = 1;
 	return IRQ_HANDLED;
 }
 static irqreturn_t avin_detect_handler2(int irq, void *data)
@@ -46,6 +52,7 @@ static irqreturn_t avin_detect_handler2(int irq, void *data)
 	struct avin_det_s *avdev = (struct avin_det_s *)data;
 	avdev->irq2_falling_times[avdev->detect_channel2_times]++;
 	disable_irq_nosync(avdev->irq_num2);
+	first_time_into_irqhandle2 = 1;
 	return IRQ_HANDLED;
 }
 
@@ -66,6 +73,7 @@ void avin_timer_sr(unsigned long data)
 			if (avdev->detect_channel1_times !=
 					avdev->set_detect_times) {
 				enable_irq(avdev->irq_num1);
+
 			} else {
 				avdev->detect_channel1_times = 0;
 				avdev->first_time_into_loop = 0;
@@ -367,8 +375,6 @@ static int init_resource(struct avin_det_s *avdev)
 	if (irq_ret)
 		return -EINVAL;
 
-	disable_irq(avdev->irq_num1);
-
 	irq_ret = request_irq(avdev->irq_num2,
 	avin_detect_handler2, IRQF_DISABLED, AVIN_NAME_CH2,
 	(void *)avdev);
@@ -377,11 +383,20 @@ static int init_resource(struct avin_det_s *avdev)
 		return -EINVAL;
 	}
 
-	disable_irq(avdev->irq_num2);
+	msleep(25);
+	if (first_time_into_irqhandle1)
+		avdev->irq1_falling_times[avdev->detect_channel1_times] = 0;
+	else
+		disable_irq(avdev->irq_num1);
+
+	if (first_time_into_irqhandle2)
+		avdev->irq2_falling_times[avdev->detect_channel2_times] = 0;
+	else
+		disable_irq(avdev->irq_num2);
 
 	/* set timer */
 	setup_timer(&avdev->timer, avin_timer_sr, (unsigned long)avdev);
-	mod_timer(&avdev->timer, jiffies+msecs_to_jiffies(1000));
+	mod_timer(&avdev->timer, jiffies+msecs_to_jiffies(2000));
 
 	INIT_WORK(&(avdev->work_update1), update_work_func_channel1);
 	INIT_WORK(&(avdev->work_update2), update_work_func_channel2);
@@ -505,7 +520,6 @@ static int avin_detect_resume(struct platform_device *pdev)
 	return 0;
 }
 
-
 int avin_detect_remove(struct platform_device *pdev)
 {
 	struct avin_det_s *avdev = platform_get_drvdata(pdev);
@@ -522,7 +536,8 @@ int avin_detect_remove(struct platform_device *pdev)
 	kfree(avdev->irq1_falling_times);
 	kfree(avdev->irq2_falling_times);
 	kfree(avdev);
-
+	first_time_into_irqhandle1 = 0;
+	first_time_into_irqhandle2 = 0;
 	return 0;
 }
 
