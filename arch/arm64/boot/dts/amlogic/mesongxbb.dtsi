@@ -646,6 +646,8 @@
 
 			/* replicator output ports */
 			port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0>;
 				replicator_out_port0: endpoint {
 					reg = <0>;
@@ -654,6 +656,8 @@
 			};
 
 			port@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <1>;
 				replicator_out_port1: endpoint {
 					reg = <1>;
