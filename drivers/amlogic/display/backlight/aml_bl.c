@@ -63,6 +63,10 @@ static unsigned int brightness_bypass;
 module_param(brightness_bypass, uint, 0664);
 MODULE_PARM_DESC(brightness_bypass, "bl_brightness_bypass");
 
+static unsigned int bl_pwm_duty_free;
+module_param(bl_pwm_duty_free, uint, 0664);
+MODULE_PARM_DESC(bl_pwm_duty_free, "bl_pwm_duty_free");
+
 static DEFINE_MUTEX(bl_power_mutex);
 static DEFINE_MUTEX(bl_level_mutex);
 
@@ -696,9 +700,11 @@ static void bl_power_on(void)
 
 	mutex_lock(&bl_power_mutex);
 
-	if ((bl_drv->level == 0) ||
-		(bl_drv->state & BL_STATE_BL_ON)) {
-		goto exit_power_on_bl;
+	if (brightness_bypass == 0) {
+		if ((bl_drv->level == 0) ||
+			(bl_drv->state & BL_STATE_BL_ON)) {
+			goto exit_power_on_bl;
+		}
 	}
 
 	ret = 0;
@@ -995,16 +1001,25 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 
 static void bl_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 {
-	if (bl_pwm->pwm_duty > bl_pwm->pwm_duty_max) {
-		BLERR("pwm_duty %d%% is bigger than duty_max %d%%\n",
-			bl_pwm->pwm_duty, bl_pwm->pwm_duty_max);
-		bl_pwm->pwm_duty = bl_pwm->pwm_duty_max;
-		BLPR("reset to duty_max\n");
-	} else if (bl_pwm->pwm_duty < bl_pwm->pwm_duty_min) {
-		BLERR("pwm_duty %d%% is smaller than duty_min %d%%\n",
-			bl_pwm->pwm_duty, bl_pwm->pwm_duty_min);
-		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
-		BLPR("reset to duty_min\n");
+	if (bl_pwm_duty_free) {
+		if (bl_pwm->pwm_duty > 100) {
+			BLERR("pwm_duty %d%% is bigger 100%%\n",
+				bl_pwm->pwm_duty);
+			bl_pwm->pwm_duty = 100;
+			BLPR("reset to 100%%\n");
+		}
+	} else {
+		if (bl_pwm->pwm_duty > bl_pwm->pwm_duty_max) {
+			BLERR("pwm_duty %d%% is bigger than duty_max %d%%\n",
+				bl_pwm->pwm_duty, bl_pwm->pwm_duty_max);
+			bl_pwm->pwm_duty = bl_pwm->pwm_duty_max;
+			BLPR("reset to duty_max\n");
+		} else if (bl_pwm->pwm_duty < bl_pwm->pwm_duty_min) {
+			BLERR("pwm_duty %d%% is smaller than duty_min %d%%\n",
+				bl_pwm->pwm_duty, bl_pwm->pwm_duty_min);
+			bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
+			BLPR("reset to duty_min\n");
+		}
 	}
 
 	bl_pwm->pwm_level = bl_pwm->pwm_cnt * bl_pwm->pwm_duty / 100;
@@ -2316,6 +2331,7 @@ static int aml_bl_probe(struct platform_device *pdev)
 
 	/* init backlight parameters */
 	brightness_bypass = 0;
+	bl_pwm_duty_free = 0;
 
 	bl_chip_type = aml_bl_check_chip();
 	bl_drv = kzalloc(sizeof(struct aml_bl_drv_s), GFP_KERNEL);
