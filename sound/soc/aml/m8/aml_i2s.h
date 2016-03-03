@@ -25,6 +25,16 @@
 #define dug_printk(fmt, args...)
 #endif
 
+#define BASE_IRQ                (32)
+#define AM_IRQ(reg)             (reg + BASE_IRQ)
+#define INT_TIMER_D             AM_IRQ(29)
+/* note: we use TIEMRD. MODE: 1: periodic, 0: one-shot*/
+#define TIMERD_MODE             1
+/* timerbase resolution: 00: 1us; 01: 10us; 10: 100us; 11: 1ms*/
+#define TIMERD_RESOLUTION       0x1
+/* timer count: 16bits*/
+#define TIMER_COUNT             100
+
 struct audio_stream {
 	int stream_id;
 	unsigned int last_ptr;

@@ -184,6 +184,13 @@
 #define AIU_I2S_CBUS_DDR_WDATA		0x15aa
 #define AIU_I2S_CBUS_DDR_ADDR		0x15ab
 
+#define ISA_TIMER_MUX   0x2650
+#define ISA_TIMERA      0x2651
+#define ISA_TIMERB      0x2652
+#define ISA_TIMERC      0x2653
+#define ISA_TIMERD      0x2654
+#define ISA_TIMERE      0x2655
+
 #define MEDIA_CPU_CTL				0x2661
 #define RESET2_REGISTER				0x1103
 
