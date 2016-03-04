@@ -72,6 +72,8 @@ struct vppfilter_mode_s {
 	bool vpp_pre_hsc_en;
 	u32 vpp_vert_filter;
 	u32 vpp_horz_filter;
+	const u32 *vpp_vert_chroma_coeff;
+	u32 vpp_vert_chroma_filter_en;
 };
 
 struct vpp_filters_s {

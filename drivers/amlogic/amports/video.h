@@ -212,9 +212,11 @@ extern bool pre_scaler_en;
 
 #define VPP_COEF_IDXINC         (1 << 15)
 #define VPP_COEF_RD_CBUS        (1 << 14)
+#define VPP_COEF_SEP_EN	        (1 << 13)
 #define VPP_COEF_9BIT           (1 << 9)
 #define VPP_COEF_TYPE           (1 << 8)
 #define VPP_COEF_VERT           (0 << 8)
+#define VPP_COEF_VERT_CHROMA    (1 << 7)
 #define VPP_COEF_HORZ           (1 << 8)
 #define VPP_COEF_INDEX_MASK     0x7f
 #define VPP_COEF_INDEX_BIT      0

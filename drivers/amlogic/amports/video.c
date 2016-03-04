@@ -4026,6 +4026,19 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			VSYNC_WR_MPEG_REG(VPP_SCALE_COEF + cur_dev->vpp_off,
 					  vpp_filter->vpp_vert_coeff[i + 2]);
 		}
+
+		/* vertical chroma filter settings */
+		if (vpp_filter->vpp_vert_chroma_filter_en) {
+			const u32 *pCoeff = vpp_filter->vpp_vert_chroma_coeff;
+			VSYNC_WR_MPEG_REG(
+				VPP_SCALE_COEF_IDX + cur_dev->vpp_off,
+				VPP_COEF_VERT_CHROMA|VPP_COEF_SEP_EN);
+			for (i = 0; i < pCoeff[1]; i++)
+				VSYNC_WR_MPEG_REG(
+					VPP_SCALE_COEF + cur_dev->vpp_off,
+					pCoeff[i + 2]);
+		}
+
 #if (!HAS_VPU_PROT)
 		if (is_meson_gxbb_cpu()) {
 			cur_frame_par->VPP_pic_in_height_ = (zoom_end_y_lines -
