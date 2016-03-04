@@ -303,6 +303,10 @@ MODULE_PARM_DESC(hdcp_auth_status, "\n hdcp_auth_status\n");
 module_param(hdcp_auth_status, bool, 0664);
 #endif
 
+static int pre_port = 0xff;
+module_param(pre_port, int, 0664);
+MODULE_PARM_DESC(pre_port, "pre_port");
+
 /****************************/
 /*  func enhancements  */
 /****************************/
@@ -1738,8 +1742,8 @@ void hdmirx_sw_reset(int level)
 		data32 |= 0 << 5;	/* [5]cec_enable */
 		data32 |= 0 << 4;	/* [4]aud_enable */
 		data32 |= 0 << 3;	/* [3]bus_enable */
-		data32 |= 0 << 2;	/* [2]hdmi_enable */
-		data32 |= 1 << 1;	/* [1]modet_enable */
+		data32 |= 1 << 2;	/* [2]hdmi_enable */
+		data32 |= 0 << 1;	/* [1]modet_enable */
 		data32 |= 0 << 0;	/* [0]cfg_enable */
 
 	} else if (level == 2) {
@@ -1991,7 +1995,7 @@ void hdmirx_hw_monitor(void)
 				sig_unstable_cnt = 0;
 				rx.change = 0;
 				sig_lost_lock_max = 50;
-				sig_unready_max = 25;
+				sig_unready_max = 20;
 				rx.state = FSM_CHECK_DDC_CORRECT;
 				rx.no_signal = false;
 				irq_video_mute_flag = false;
@@ -3155,8 +3159,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	if (sm_pause)
 		return;
 
-
-	memset(&rx, 0, sizeof(struct rx_s));
+	/* memset(&rx, 0, sizeof(struct rx_s)); */
 	/* memset(rx.pow5v_state, */
 	/*	0, */
 	/*	sizeof(rx.pow5v_state)); */
@@ -3169,7 +3172,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 
 	memset(&rx.vendor_specific_info, 0,
 			sizeof(struct vendor_specific_info_s));
-	rx.state = FSM_HDMI5V_LOW;
+
 	rx.phy.cfg_clk = cfg_clk;
 	rx.phy.lock_thres = lock_thres;
 	rx.phy.fsm_enhancement = fsm_enhancement;
@@ -3180,9 +3183,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.ctrl.tmds_clk = 0;
 	rx.ctrl.tmds_clk2 = 0;
 	rx.ctrl.acr_mode = acr_mode;
-
 	rx.port = (port_map >> ((port - TVIN_PORT_HDMI0) << 2)) & 0xf;
-
 	rx.portA_pow5v_state = 0;
 	rx.portB_pow5v_state = 0;
 	rx.portC_pow5v_state = 0;
@@ -3190,10 +3191,14 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.portA_pow5v_state_pre = 0;
 	rx.portB_pow5v_state_pre = 0;
 	rx.portC_pow5v_state_pre = 0;
-
-	hdmi_rx_ctrl_edid_update();
-	hdmirx_hw_config();
-
+	if (pre_port != rx.port) {
+		rx.state = FSM_HDMI5V_LOW;
+		hdmi_rx_ctrl_edid_update();
+		hdmirx_hw_config();
+		pre_port = rx.port;
+	} else {
+		rx.state = FSM_SIG_UNSTABLE;
+	}
 	rx_print("%s %d\n", __func__, rx.port);
 
 }

@@ -86,7 +86,6 @@ int hdmirx_de_repeat_enable = 1;
 module_param(hdmirx_de_repeat_enable, int, 0664);
 MODULE_PARM_DESC(hdmirx_de_repeat_enable, "hdmirx_do_de_repeat_enable");
 
-
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;

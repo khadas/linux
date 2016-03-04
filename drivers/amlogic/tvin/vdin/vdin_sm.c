@@ -88,7 +88,7 @@ static int atv_unstable_out_cnt = 50;
 module_param(atv_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_out_cnt, "atv_unstable_out_cnt");
 
-static int hdmi_unstable_out_cnt = 3;
+static int hdmi_unstable_out_cnt = 20;
 module_param(hdmi_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_unstable_out_cnt, "hdmi_unstable_out_cnt");
 
