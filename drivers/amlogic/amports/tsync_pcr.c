@@ -751,7 +751,7 @@ static unsigned long tsync_pcr_check(void)
 		if (tsync_pcr_lastcheckin_apts == last_checkin_apts
 			&& tsync_pcr_lastcheckin_vpts == last_checkin_vpts) {
 			++tsync_pcr_pausecheck_cnt;
-			if (tsync_pcr_pausecheck_cnt > 50) {
+			if (tsync_pcr_pausecheck_cnt > 100) {
 				pr_info
 				("[tsync_pcr_check]reset abuf_level=%x ",
 				 abuf_level);
