@@ -840,8 +840,10 @@ int osd_set_scan_mode(u32 index)
 		case VMODE_4K2K_30HZ:
 		case VMODE_4K2K_SMPTE:
 			if (osd_hw.fb_for_4k2k) {
-				if (osd_hw.free_scale_enable[index])
-					osd_hw.scale_workaround = 1;
+				if (osd_hw.free_scale_enable[index]) {
+					if (!is_meson_gxtvbb_cpu())
+						osd_hw.scale_workaround = 1;
+				}
 			}
 			osd_hw.field_out_en = 0;
 			break;
@@ -1455,6 +1457,12 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.cursor_dispdata[index].y_start = y0;
 	osd_hw.cursor_dispdata[index].y_end = y1;
 #endif
+	if (osd_hw.free_dst_data[index].y_end >= 2159) {
+		if (!is_meson_gxtvbb_cpu())
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x808000);
+		else
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
+	}
 	osd_update_window_axis = true;
 	mutex_unlock(&osd_mutex);
 }
