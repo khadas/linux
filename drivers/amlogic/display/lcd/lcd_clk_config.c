@@ -94,7 +94,7 @@ static char *lcd_pll_ss_table_g9bb[] = {
 static char *lcd_pll_ss_table_gxtvbb[] = {
 	"0, disable",
 	"1, +/-0.3%",
-	"2, +/-0.6%",
+	"2, +/-0.5%",
 	"3, +/-0.9%",
 	"4, +/-1.2%",
 };
@@ -160,13 +160,13 @@ static void lcd_clk_config_init_print(void)
 	case LCD_CHIP_M8M2:
 	case LCD_CHIP_M8B:
 		LCDPR("lcd clk config init:\n"
-			"pll_m_max:      %d\n"
-			"pll_m_min:      %d\n"
-			"pll_n_max:      %d\n"
-			"pll_n_min:      %d\n"
-			"pll_frac_range: %d\n"
-			"pll_od_sel_max: %d\n"
-			"ss_level_max:   %d\n"
+			"pll_m_max:         %d\n"
+			"pll_m_min:         %d\n"
+			"pll_n_max:         %d\n"
+			"pll_n_min:         %d\n"
+			"pll_frac_range:    %d\n"
+			"pll_od_sel_max:    %d\n"
+			"ss_level_max:      %d\n"
 			"pll_ref_fmax:      %d\n"
 			"pll_ref_fmin:      %d\n"
 			"pll_vco_fmax:      %d\n"
@@ -191,13 +191,13 @@ static void lcd_clk_config_init_print(void)
 	case LCD_CHIP_G9BB:
 	case LCD_CHIP_GXTVBB:
 		LCDPR("lcd clk config:\n"
-			"pll_m_max:      %d\n"
-			"pll_m_min:      %d\n"
-			"pll_n_max:      %d\n"
-			"pll_n_min:      %d\n"
-			"pll_frac_range: %d\n"
-			"pll_od_sel_max: %d\n"
-			"ss_level_max:   %d\n"
+			"pll_m_max:         %d\n"
+			"pll_m_min:         %d\n"
+			"pll_n_max:         %d\n"
+			"pll_n_min:         %d\n"
+			"pll_frac_range:    %d\n"
+			"pll_od_sel_max:    %d\n"
+			"ss_level_max:      %d\n"
 			"pll_ref_fmax:      %d\n"
 			"pll_ref_fmin:      %d\n"
 			"pll_vco_fmax:      %d\n"
@@ -234,14 +234,16 @@ void lcd_clk_config_print(void)
 			"pll_m:        %d\n"
 			"pll_n:        %d\n"
 			"pll_frac:     0x%03x\n"
+			"pll_fvco:     %dkHz\n"
 			"pll_od:       %d\n"
-			"pll_out:      %dHz\n"
+			"pll_out:      %dkHz\n"
 			"div_pre:      %d\n"
 			"div_post:     %d\n"
 			"xd:           %d\n"
-			"fout:         %dHz\n"
+			"fout:         %dkHz\n"
 			"ss_level:     %d\n\n",
-			clk_conf.pll_m, clk_conf.pll_n, clk_conf.pll_frac,
+			clk_conf.pll_m, clk_conf.pll_n,
+			clk_conf.pll_frac, clk_conf.pll_fvco,
 			clk_conf.pll_od1_sel, clk_conf.pll_fout,
 			clk_conf.div_pre, clk_conf.div_post,
 			clk_conf.xd, clk_conf.fout, clk_conf.ss_level);
@@ -253,15 +255,17 @@ void lcd_clk_config_print(void)
 			"pll_m:        %d\n"
 			"pll_n:        %d\n"
 			"pll_frac:     0x%03x\n"
+			"pll_fvco:     %dkHz\n"
 			"pll_od1:      %d\n"
 			"pll_od2:      %d\n"
 			"pll_od3:      %d\n"
-			"pll_out:      %dHz\n"
+			"pll_out:      %dkHz\n"
 			"div_sel:      %s(index %d)\n"
 			"xd:           %d\n"
-			"fout:         %dHz\n"
+			"fout:         %dkHz\n"
 			"ss_level:     %d\n\n",
-			clk_conf.pll_m, clk_conf.pll_n, clk_conf.pll_frac,
+			clk_conf.pll_m, clk_conf.pll_n,
+			clk_conf.pll_frac, clk_conf.pll_fvco,
 			clk_conf.pll_od1_sel, clk_conf.pll_od2_sel,
 			clk_conf.pll_od3_sel, clk_conf.pll_fout,
 			lcd_clk_div_sel_table[clk_conf.div_sel],
@@ -783,37 +787,72 @@ static void lcd_update_pll_frac_g9(struct lcd_clk_config_s *cConf)
 
 static void lcd_set_pll_ss_gxtvbb(struct lcd_clk_config_s *cConf)
 {
-	switch (cConf->ss_level) {
-	case 1: /* +/- 0.3% */
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb01da72c);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
-		break;
-	case 2: /* +/- 0.6% */
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb05da72c);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
-		break;
-	case 3: /* +/- 0.9% */
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb09da72c);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
-		break;
-	case 4: /* +/- 1.2% */
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb0dda72c);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
-		break;
-	default: /* disable */
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x135c5091);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
-		lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000a55);
-		break;
+	if ((cConf->pll_fvco >= 5500000) && (cConf->pll_fvco <= 6000000)) {
+		switch (cConf->ss_level) {
+		case 1: /* +/- 0.3% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x131c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb01da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		case 2: /* +/- 0.5% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x131c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xa85da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		case 3: /* +/- 0.9% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x131c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb09da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		case 4: /* +/- 1.2% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x131c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb0dda72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		default: /* disable */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x135c5091);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000a55);
+			break;
+		}
+	} else {
+		switch (cConf->ss_level) {
+		case 1: /* +/- 0.3% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb01da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		case 2: /* +/- 0.5% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xa85da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		case 3: /* +/- 0.9% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb09da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		case 4: /* +/- 1.2% */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x0d1c5090);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0xb0dda72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x51486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00082a55);
+			break;
+		default: /* disable */
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x135c5091);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL4, 0x801da72c);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
+			lcd_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000a55);
+			break;
+		}
 	}
 	LCDPR("set pll spread spectrum: %s\n",
 		lcd_pll_ss_table_gxtvbb[cConf->ss_level]);
@@ -1109,6 +1148,7 @@ static int check_pll_m8(struct lcd_clk_config_s *cConf,
 			od_fb = 0;
 			pll_level = 1;
 		}
+		cConf->pll_fvco = pll_fvco;
 		n = 1;
 		pll_fvco = pll_fvco / (od_fb + 1);
 		m = pll_fvco / cConf->fin;
@@ -1294,6 +1334,7 @@ static void lcd_clk_generate_m8(struct lcd_config_s *pconf)
 			pll_level = 1;
 			pll_frac = 0x800;
 			pll_fout = 1620000;
+			cConf->pll_fvco = 1620000;
 			break;
 		case 1:
 		default:
@@ -1303,6 +1344,7 @@ static void lcd_clk_generate_m8(struct lcd_config_s *pconf)
 			pll_level = 4;
 			pll_frac = 0x400;
 			pll_fout = 2700000;
+			cConf->pll_fvco = 2700000;
 			break;
 		}
 		cConf->pll_m = m;
@@ -1565,6 +1607,7 @@ static int check_pll_g9_gxtvbb(struct lcd_clk_config_s *cConf,
 						(od3_sel - 1));
 					LCDPR("pll_fvco=%d\n", pll_fvco);
 				}
+				cConf->pll_fvco = pll_fvco;
 				n = 1;
 				od_fb = 0; /* pll default */
 				pll_fvco = pll_fvco / ((od_fb + 1) * 2);
@@ -1781,6 +1824,7 @@ static void lcd_pll_frac_generate_g9_gxtvbb(struct lcd_config_s *pconf)
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s pll_fvco=%d\n", __func__, pll_fvco);
 
+	cConf->pll_fvco = pll_fvco;
 	od_fb = 0; /* pll default */
 	pll_fvco = pll_fvco / ((od_fb + 1) * 2);
 	temp = cConf->fin * m / n;
