@@ -1101,7 +1101,8 @@ static DEVICE_ATTR(tvp_region, 0444, show_tvp_region, NULL);
 ***************************/
 #define MAX_IN_BUF_NUM            16
 #define MAX_LOCAL_BUF_NUM         12
-#define MAX_POST_BUF_NUM          16
+/*16 -->3 avoid ff/fb problem*/
+#define MAX_POST_BUF_NUM          3
 
 #define VFRAME_TYPE_IN                  1
 #define VFRAME_TYPE_LOCAL               2
