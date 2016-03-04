@@ -223,6 +223,9 @@ static int di_blocking;
  */
 static int di_vscale_skip_enable;
 
+/* 0: not surpport nr10bit, 1: surpport nr10bit */
+static unsigned int nr10bit_surpport;
+
 #ifdef RUN_DI_PROCESS_IN_IRQ
 /*
  * di_process() run in irq,
@@ -6960,8 +6963,12 @@ static void di_reg_process_irq(void)
 				 * mode size, to make sure can switch bit mode
 				 * smoothly.
 				 */
-				di_init_buf(default_width * 3 / 2,
-					default_height, 1);
+				if (nr10bit_surpport)
+					di_init_buf(default_width * 3 / 2,
+						default_height, 1);
+				else
+					di_init_buf(default_width,
+						default_height, 1);
 
 				config_di_bit_mode(vframe, bypass_state);
 			} else
@@ -6984,8 +6991,12 @@ static void di_reg_process_irq(void)
 				 * mode size, to make sure can switch bit mode
 				 * smoothly.
 				 */
-				di_init_buf(default_width * 3 / 2,
-					default_height, 0);
+				if (nr10bit_surpport)
+					di_init_buf(default_width * 3 / 2,
+						default_height, 0);
+				else
+					di_init_buf(default_width,
+						default_height, 0);
 
 				config_di_bit_mode(vframe, bypass_state);
 			} else
@@ -7863,7 +7874,10 @@ static void set_di_flag(void)
 		pulldown_mode = 1;
 		di_vscale_skip_enable = 3;
 		use_2_interlace_buff = true;
-		di_force_bit_mode = 10;
+		if (nr10bit_surpport)
+			di_force_bit_mode = 10;
+		else
+			di_force_bit_mode = 8;
 	} else {
 		mcpre_en = false;
 		pulldown_mode = 0;
@@ -7954,6 +7968,14 @@ static int di_probe(struct platform_device *pdev)
 		pr_err("DI-%s: get hw version error.\n", __func__);
 	pr_info("DI hw version %u.\n", di_devp->hw_version);
 	vout_register_client(&display_mode_notifier_nb_v);
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"nr10bit-surpport",
+		&(di_devp->nr10bit_surpport));
+	if (ret)
+		nr10bit_surpport = 0;
+	else
+		nr10bit_surpport = di_devp->nr10bit_surpport;
 
 	memset(&di_post_stru, 0, sizeof(di_post_stru));
 	di_post_stru.next_canvas_id = 1;
@@ -8409,6 +8431,9 @@ MODULE_PARM_DESC(unreg_cnt, "\n cnt for unreg\n");
 
 module_param(debug_blend_mode, int, 0664);
 MODULE_PARM_DESC(debug_blend_mode, "\n force post blend mode\n");
+
+module_param(nr10bit_surpport, uint, 0664);
+MODULE_PARM_DESC(nr10bit_surpport, "\n nr10bit surpport flag\n");
 
 module_param(static_pic_threshold, int, 0664);
 MODULE_PARM_DESC(static_pic_threshold, "/n threshold for static pic /n");

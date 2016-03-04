@@ -440,6 +440,8 @@ struct di_dev_s {
 	unsigned int	   buf_num_avail;
 	unsigned int	   hw_version;
 	int							rdma_handle;
+	/* is surpport nr10bit */
+	unsigned int	   nr10bit_surpport;
 };
 #define di_dev_t struct di_dev_s
 #endif

@@ -52,7 +52,7 @@
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			size = <0x0 0x3300000>; //10x1920x1088x3/2 + 4M =30M 10bit mode: 30*1.5 = 45M
+			size = <0x0 0x2800000>; //40M for gxtvbb
 			//no-map;
 			multi-use;
 		};
@@ -263,8 +263,9 @@
 				0 6 1>;
 		interrupt-names = "de_irq",
 				"timerc";
-		buffer-size = <4700160>;	//1920x1088x3/2, 10bit mode: need times 1.5
+		buffer-size = <3552320>;	//for gxtvbb, include mcdi, nr10bit size
 		hw-version = <2>;
+		nr10bit-surpport = <1>;
 	};
 /*
 	amlvideo2 {
