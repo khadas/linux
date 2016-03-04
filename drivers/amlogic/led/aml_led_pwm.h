@@ -23,6 +23,11 @@
 #include <linux/pwm.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+#include <linux/amlogic/led.h>
+
 
 
 struct aml_pwmled_dev {
@@ -37,6 +42,9 @@ struct aml_pwmled_dev {
 	struct led_timer_data ltd;
 
 	struct work_struct work;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend es;
+#endif
 };
 
 #endif

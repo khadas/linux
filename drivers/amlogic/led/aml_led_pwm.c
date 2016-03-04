@@ -27,7 +27,11 @@
 #include <linux/printk.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
 
+#include <linux/amlogic/jtag.h>
 #include <linux/amlogic/led.h>
 #include <linux/amlogic/scpi_protocol.h>
 
@@ -37,8 +41,6 @@
 #define AML_LED_NAME		"led-pwm"
 
 #define DEFAULT_PWM_PERIOD	100000;
-
-struct led_timer_data ledtd;
 
 static unsigned int ledmode;
 
@@ -50,6 +52,13 @@ static int __init ledmode_setup(char *str)
 }
 
 __setup("ledmode=", ledmode_setup);
+
+
+static void scpi_send_led_timer(struct led_timer_data *data)
+{
+	scpi_send_usr_data(SCPI_CL_LED_TIMER,
+				(u32 *)data, sizeof(*data));
+}
 
 static void aml_pwmled_work(struct work_struct *work)
 {
@@ -103,7 +112,11 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* @todo pinctrl setup */
+	if (is_jtag_apao()) {
+		pr_err("conflict with jtag apao\n");
+		return -1;
+	}
+
 	p = devm_pinctrl_get_select(&pdev->dev, "pwm_ao_a_pins");
 	if (IS_ERR(p)) {
 		pr_err("failed to get select pins\n");
@@ -140,6 +153,7 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 		return -1;
 	}
 	pr_info("get expires %d\n", ldev->ltd.expires);
+	ldev->ltd.expires *= 1000;
 
 	ret = of_property_read_u32(node, "expires_count",
 						&ldev->ltd.expires_count);
@@ -149,16 +163,7 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 	}
 	pr_info("get expires_count %d\n", ldev->ltd.expires_count);
 
-	ret = of_property_read_u32(node, "led_mode", &ldev->ltd.led_mode);
-	if (ret < 0) {
-		pr_err("failed to get led_mode\n");
-		return -1;
-	}
-	pr_info("get led_mode %d\n", ldev->ltd.led_mode);
-
-	ledtd.expires = ldev->ltd.expires * 1000;
-	ledtd.expires_count = ldev->ltd.expires_count;
-	ledtd.led_mode = ldev->ltd.led_mode;
+	ldev->ltd.led_mode = ledmode;
 
 	return 0;
 }
@@ -172,33 +177,36 @@ static const struct of_device_id aml_pwmled_dt_match[] = {
 	{},
 };
 
+
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
 
 static int led_early_suspend_flag;
 
 static void pwmled_early_suspend(struct early_suspend *h)
 {
-
 	struct led_timer_data ltd;
+	struct aml_pwmled_dev *ldev;
+
+	ldev = container_of(h, struct aml_pwmled_dev, es);
 
 	pr_info("%s\n", __func__);
 	if (led_early_suspend_flag)
 		return;
 
-	ltd.expires = ledtd.expires;
-	ltd.expires_count = ledtd.expires_count;
-	ltd.led_mode = ledtd.led_mode;
+	ltd.expires = ldev->ltd.expires;
+	ltd.expires_count = ldev->ltd.expires_count;
+	ltd.led_mode = ldev->ltd.led_mode;
 	lwm_set_suspend(ltd.led_mode, SUSPEND_RESUME_MODE);
 
-	scpi_send_usr_data(SCPI_CL_LED_TIMER,
-				(u32 *)&ltd, sizeof(ltd));
+	scpi_send_led_timer(&ltd);
+
 	pr_info("%s scpi send SCPI_CL_LED_TIMER\n", __func__);
 
 	led_early_suspend_flag = 1;
 }
 
-static void pwmled_late_suspend(struct early_suspend *h)
+static void pwmled_late_resume(struct early_suspend *h)
 {
 	pr_info("%s\n", __func__);
 	if (!led_early_suspend_flag)
@@ -207,43 +215,8 @@ static void pwmled_late_suspend(struct early_suspend *h)
 	led_early_suspend_flag = 0;
 }
 
-static struct early_suspend led_early_suspend = {
-	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
-	.suspend = pwmled_early_suspend,
-	.resume = pwmled_late_suspend,
-};
-#endif
+#endif /* CONFIG_HAS_EARLYSUSPEND */
 
-
-static ssize_t led_debug_show(struct class *cls,
-			struct class_attribute *attr, char *buf)
-{
-	unsigned int len = 0;
-	len += sprintf(buf + len, "SCPI_CL_LED_TIMER:\n");
-	len += sprintf(buf + len, "    expires  = %u\n", ledtd.expires);
-	len += sprintf(buf + len, "    count    = %u\n", ledtd.expires_count);
-	len += sprintf(buf + len, "    led_mode = %u\n", ledtd.led_mode);
-	return len;
-}
-
-static ssize_t led_debug_store(struct class *cls,
-			 struct class_attribute *attr,
-			 const char *buffer, size_t count)
-{
-	if (!strncmp(buffer, "send", 4)) {
-		scpi_send_usr_data(SCPI_CL_LED_TIMER,
-					(u32 *)&ledtd, sizeof(ledtd));
-		pr_info("scpi send SCPI_CL_LED_TIMER\n");
-	}
-	return count;
-}
-
-static struct class_attribute led_attrs[] = {
-	__ATTR(debug,  0644, led_debug_show, led_debug_store),
-	__ATTR_NULL,
-};
-
-static struct class ledcls;
 
 
 static int aml_pwmled_probe(struct platform_device *pdev)
@@ -294,15 +267,11 @@ static int aml_pwmled_probe(struct platform_device *pdev)
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	register_early_suspend(&led_early_suspend);
+	ldev->es.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
+	ldev->es.suspend = pwmled_early_suspend,
+	ldev->es.resume = pwmled_late_resume,
+	register_early_suspend(&ldev->es);
 #endif
-
-
-	/* create class attributes */
-	ledcls.name = AML_LED_NAME;
-	ledcls.owner = THIS_MODULE;
-	ledcls.class_attrs = led_attrs;
-	class_register(&ledcls);
 
 	pr_info("module probed ok\n");
 	return 0;
@@ -314,9 +283,8 @@ static int __exit aml_pwmled_remove(struct platform_device *pdev)
 	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&led_early_suspend);
+	unregister_early_suspend(&ldev->es);
 #endif
-	class_unregister(&ledcls);
 	led_classdev_unregister(&ldev->cdev);
 	cancel_work_sync(&ldev->work);
 	platform_set_drvdata(pdev, NULL);

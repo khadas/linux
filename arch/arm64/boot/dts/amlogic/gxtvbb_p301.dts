@@ -861,7 +861,6 @@
 		/* led timer data */
 		expires = <400>; /* ms */
 		expires_count = <8>;
-		led_mode = <0x113>;
 	};
 
 	lcd{

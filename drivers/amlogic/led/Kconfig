@@ -45,5 +45,26 @@ config AML_LED_TRIGGER_BREATHE
 	  Enable this option to allow the userspace to control
 	  the led breathe trigger.
 
+config AML_LED_TRIGGER_SCPI
+	tristate "led scpi trigger support"
+	depends on LEDS_TRIGGERS
+	depends on AML_LED_PWM
+	default n
+	help
+	  This option enables support for led scpi trigger drivers.
+
+	  Enable this option to allow the userspace to control
+	  the led scpi trigger for firmware.
+
+config AML_LED_TRIGGER_SCPISTOP
+	tristate "led scpistop trigger support"
+	depends on LEDS_TRIGGERS
+	depends on AML_LED_PWM
+	default n
+	help
+	  This option enables support for led scpistop trigger drivers.
+
+	  Enable this option to allow the userspace to scpi send to stop
+	  the led timer of firmware.
 
 endif
