@@ -3946,6 +3946,20 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			zoom_display_vert();
 		}
 
+		/* vpp super scaler */
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
+			vpp_set_super_sclaer_regs(cur_frame_par->supscl_path,
+				cur_frame_par->supsc0_enable,
+				cur_frame_par->spsc0_w_in,
+				cur_frame_par->spsc0_h_in,
+				cur_frame_par->supsc0_hori_ratio,
+				cur_frame_par->supsc0_vert_ratio,
+				cur_frame_par->supsc1_enable,
+				cur_frame_par->spsc1_w_in,
+				cur_frame_par->spsc1_h_in,
+				cur_frame_par->supsc1_hori_ratio,
+				cur_frame_par->supsc1_vert_ratio);
+
 		/* vpp filters */
 		/* SET_MPEG_REG_MASK(VPP_SC_MISC + cur_dev->vpp_off, */
 		/* VPP_SC_TOP_EN | VPP_SC_VERT_EN | VPP_SC_HORZ_EN); */

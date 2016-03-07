@@ -1362,7 +1362,7 @@ VPP_SRSHARP0_CTRL:0x1d91
 [1]if sharpness is enable or vscaler is enable,must set to 1,
 sharpness1;reg can only to be w
 */
-static int vpp_set_super_sclaer_regs(int scaler_path_sel,
+int vpp_set_super_sclaer_regs(int scaler_path_sel,
 		int reg_srscl0_enable,
 		int reg_srscl0_hsize,
 		int reg_srscl0_vsize,
@@ -1488,8 +1488,6 @@ static void vpp_set_scaler(u32 src_width,
 			struct vpp_frame_par_s *next_frame_par,
 			struct vframe_s *vf)
 {
-
-	unsigned int spsc0_h_in, spsc0_w_in, spsc1_h_in, spsc1_w_in;
 	unsigned int spsc1_h_out, spsc1_w_out;
 	unsigned int ppsc_h_in, ppsc_w_in;
 	unsigned int ppsc_h_out, ppsc_w_out;
@@ -1585,8 +1583,8 @@ static void vpp_set_scaler(u32 src_width,
 		next_frame_par->supsc1_hori_ratio = 0;
 		next_frame_par->supsc1_vert_ratio = 0;
 	}
-	spsc0_h_in = src_height;
-	spsc0_w_in = src_width;
+	next_frame_par->spsc0_h_in = src_height;
+	next_frame_par->spsc0_w_in = src_width;
 	if (super_debug)
 		pr_info(
 		"supsc0_hori=%d,supsc1_hori=%d,supsc0_v=%d,supsc1_v=%d\n",
@@ -1597,9 +1595,9 @@ static void vpp_set_scaler(u32 src_width,
 	/* select the scaler path:[core0 =>>
 	ppscaler =>> core1]  or
 	[core0  =>> ppscaler =>> postblender =>> core1]*/
-	ppsc_h_in = (spsc0_h_in <<
+	ppsc_h_in = (next_frame_par->spsc0_h_in <<
 		next_frame_par->supsc0_vert_ratio);
-	ppsc_w_in = (spsc0_w_in <<
+	ppsc_w_in = (next_frame_par->spsc0_w_in <<
 		next_frame_par->supsc0_hori_ratio);
 	spsc1_h_out = height_out;
 	spsc1_w_out = width_out;
@@ -1607,38 +1605,39 @@ static void vpp_set_scaler(u32 src_width,
 		(spsc1_h_out >> next_frame_par->supsc1_vert_ratio);
 	ppsc_w_out =
 		(spsc1_w_out >> next_frame_par->supsc1_hori_ratio);
-	spsc1_h_in = ppsc_h_out;
-	spsc1_w_in = ppsc_w_out;
+	next_frame_par->spsc1_h_in = ppsc_h_out;
+	next_frame_par->spsc1_w_in = ppsc_w_out;
 
 	vpp_set_filters2(ppsc_w_in, ppsc_h_in, ppsc_w_out, ppsc_h_out, vinfo,
 					 vpp_flags, next_frame_par, vf);
 	if (next_frame_par->supscl_path == sup0_pp_sp1_scpath) {
-		spsc1_h_in = next_frame_par->VPP_vsc_endp -
+		next_frame_par->spsc1_h_in = next_frame_par->VPP_vsc_endp -
 			next_frame_par->VPP_vsc_startp + 1;
 		/* (ppsc_h_in<<18)/
 		(next_frame_par->vpp_filter.vpp_vsc_start_phase_step>>6); */
-		spsc1_w_in = next_frame_par->VPP_hsc_endp -
+		next_frame_par->spsc1_w_in = next_frame_par->VPP_hsc_endp -
 			next_frame_par->VPP_hsc_startp + 1;
 		/* (ppsc_w_in<<18)/
 		(next_frame_par->vpp_filter.vpp_hsc_start_phase_step>>6); */
 	}
-	vpp_set_super_sclaer_regs(next_frame_par->supscl_path,
+	/*vpp_set_super_sclaer_regs(next_frame_par->supscl_path,
 		next_frame_par->supsc0_enable,
-		spsc0_w_in,
-		spsc0_h_in,
+		next_frame_par->spsc0_w_in,
+		next_frame_par->spsc0_h_in,
 		next_frame_par->supsc0_hori_ratio,
 		next_frame_par->supsc0_vert_ratio,
 		next_frame_par->supsc1_enable,
-		spsc1_w_in,
-		spsc1_h_in,
+		next_frame_par->spsc1_w_in,
+		next_frame_par->spsc1_h_in,
 		next_frame_par->supsc1_hori_ratio,
-		next_frame_par->supsc1_vert_ratio);
+		next_frame_par->supsc1_vert_ratio);*/
 	if (super_debug) {
 		pr_info
 		("ppsc_w_in=%u, ppsc_h_in=%u, ppsc_w_out=%u, ppsc_h_out=%u.\n",
 		 ppsc_w_in, ppsc_h_in, ppsc_w_out, ppsc_h_out);
 		pr_info("spsc0_w_in=%u, spsc0_h_in=%u, spsc1_w_in=%u, spsc1_h_in=%u.\n",
-		 spsc0_w_in, spsc0_h_in, spsc1_w_in, spsc1_h_in);
+		 next_frame_par->spsc0_w_in, next_frame_par->spsc0_h_in,
+		 next_frame_par->spsc1_w_in, next_frame_par->spsc1_h_in);
 	}
 	/* vpp_set_ppsclaer(src_width,src_height,ppsc_w_in,
 	* ppsc_h_in,vinfo,vpp_flags,next_frame_par); */
@@ -1941,14 +1940,16 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 			next_frame_par->supsc0_hori_ratio = 0;
 			next_frame_par->supsc0_vert_ratio = 0;
 
-			next_frame_par->supsc1_enable = 0;
-			next_frame_par->supsc1_hori_ratio = 0;
-			next_frame_par->supsc1_vert_ratio = 0;
-			vpp_set_super_sclaer_regs(
-				0, 0, src_width, src_height, 0, 0,
-				vinfo->width, vinfo->height, 0, 0,
-				0);	/* disable super scaler */
-			vpp_set_filters2(src_width, src_height, vinfo->width,
+		next_frame_par->supsc1_enable = 0;
+		next_frame_par->supsc1_hori_ratio = 0;
+		next_frame_par->supsc1_vert_ratio = 0;
+
+		next_frame_par->spsc0_w_in = src_width;
+		next_frame_par->spsc0_h_in = src_height;
+		next_frame_par->spsc1_w_in = vinfo->width;
+		next_frame_par->spsc1_h_in = vinfo->height;
+
+		vpp_set_filters2(src_width, src_height, vinfo->width,
 				vinfo->height, vinfo, vpp_flags,
 				next_frame_par, vf);
 		}

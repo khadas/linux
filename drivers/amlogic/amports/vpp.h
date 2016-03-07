@@ -126,6 +126,11 @@ struct vpp_frame_par_s {
 	u32 supsc1_hori_ratio;
 	u32 supsc0_vert_ratio;
 	u32 supsc1_vert_ratio;
+	u32 spsc0_w_in;
+	u32 spsc0_h_in;
+	u32 spsc1_w_in;
+	u32 spsc1_h_in;
+
 };
 
 #if 0
@@ -249,5 +254,17 @@ extern void vpp2_set_zoom_ratio(u32 r);
 
 extern u32 vpp2_get_zoom_ratio(void);
 #endif
+
+extern int vpp_set_super_sclaer_regs(int scaler_path_sel,
+		int reg_srscl0_enable,
+		int reg_srscl0_hsize,
+		int reg_srscl0_vsize,
+		int reg_srscl0_hori_ratio,
+		int reg_srscl0_vert_ratio,
+		int reg_srscl1_enable,
+		int reg_srscl1_hsize,
+		int reg_srscl1_vsize,
+		int reg_srscl1_hori_ratio,
+		int reg_srscl1_vert_ratio);
 
 #endif				/* VPP_H */
