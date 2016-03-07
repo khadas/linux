@@ -294,6 +294,11 @@ MODULE_PARM_DESC(vert_coeff_settings, "\n vert_coeff_settings\n");
 module_param_array(horz_coeff_settings, uint, &num_coeff_level, 0664);
 MODULE_PARM_DESC(horz_coeff_settings, "\n horz_coeff_settings\n");
 
+bool vert_chroma_filter_en = true;
+module_param(vert_chroma_filter_en, bool, 0664);
+MODULE_PARM_DESC(vert_chroma_filter_en, "enable vertical chromafilter\n");
+
+
 uint cur_vert_filter;
 MODULE_PARM_DESC(cur_vert_filter, "cur_vert_filter");
 module_param(cur_vert_filter, int, 0444);
