@@ -1557,13 +1557,14 @@ int aml_audiomode_autodet(void)
 {
 	unsigned long carrier_power = 0;
 	unsigned long carrier_power_max = 0;
+	unsigned long carrier_power_average_max = 0;
+	unsigned long carrier_power_average[4] = {0};
 	unsigned long reg_addr = 0x03 , temp_data;
 	int carrier_lock_count = 0;
 	int lock = 0;
 	int broad_std_final = 0;
-	int carrier_threshold = 500; /* 4.5MHz */
-	int num = 0;
-
+	int num = 0, i = 0, final_id = 0;
+	int search_num = 0;
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data | 0x80;/* 0x40 */
 
@@ -1622,19 +1623,52 @@ int aml_audiomode_autodet(void)
 		}
 	/* ----------------read carrier_power--------------------- */
 	/* SIF_STG_2[0x09],address 0x03 */
-	while (carrier_power < carrier_threshold) {
-		if (carrier_power_max < carrier_power) {
-			carrier_power_max = carrier_power;
-			broad_std_final = broad_std;
-		}
-		if (num++ > 5) {
+	while (1) {
+		if (num >= 12) {
 			temp_data =
 				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 			temp_data = temp_data & (~0x80);/* ;0xbf */
 			atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,
-				temp_data);
+					temp_data);
+			carrier_power_max = carrier_power_average[0];
+			for (i = 0; i < 4; i++) {
+				if (carrier_power_max <
+					carrier_power_average[i]) {
+					carrier_power_max =
+						carrier_power_average[i];
+					final_id = i;
+				}
+			}
+			switch (final_id) {
+			case 0:
+				broad_std_final =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
+				break;
+			case 1:
+				broad_std_final =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+				break;
+			case 2:
+				broad_std_final =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
+				break;
+			case 3:
+				broad_std_final =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+				break;
+			}
+
 			broad_std = broad_std_final;
-			return broad_std_final;
+			carrier_power_average_max = carrier_power_max/4;
+			pr_err("%s:broad_std:%d,carri_power_average_max:%lu\n",
+				__func__, broad_std, carrier_power_average_max);
+			if ((search_num == 0) &&
+				(carrier_power_average_max < 100)) {
+				search_num = 1;
+				num = 0;
+				msleep(20);
+			} else
+				return broad_std_final;
 		}
 		switch (broad_std) {
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
@@ -1664,8 +1698,7 @@ int aml_audiomode_autodet(void)
 			if (carrier_lock_count >= 10) {
 				pr_err("%s step2, retrieve_vpll_carrier_lock failed\n",
 					__func__);
-				break;
-				/* return broad_std; */
+				return broad_std;
 			}
 			usleep_range(6000, 9000);
 		}
@@ -1673,9 +1706,14 @@ int aml_audiomode_autodet(void)
 		carrier_power =
 			atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, reg_addr);
 			/* SIF_STG_2[0x09],address 0x03 */
-		pr_err("[amlatvdemod.. %d ]%s: atvdemo audio carrier power report:%lu.\n",
-				num, __func__, carrier_power);
+		if (atvdemod_debug_en&0x1) {
+			pr_err("[amlatvdemod.. %d ]%s: atvdemo audio carrier power report:%lu.\n",
+					num, __func__, carrier_power);
+		}
+		carrier_power_average[num%4] += carrier_power;
+		num++;
 	}
+
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data & (~0x80);/* ;0xbf */
 
