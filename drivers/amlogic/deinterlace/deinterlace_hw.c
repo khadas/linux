@@ -1775,3 +1775,23 @@ void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag)
 		pr_info("di_bit_mode_bypass_cfg, bypass: %d\n", bypass_flag);
 	}
 }
+void di_vdin2nr_cfg(bool enable_flag)
+{
+	if (enable_flag == false) {
+		if (Rd_reg_bits(VIUB_MISC_CTRL0, 24, 3) != 3)
+			Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+			if (Rd_reg_bits(VIUB_MISC_CTRL0, 17, 1) != 0)
+				Wr_reg_bits(VIUB_MISC_CTRL0, 0, 17, 1);
+		}
+	} else {
+		if (Rd_reg_bits(VIUB_MISC_CTRL0, 24, 3) != 5)
+			Wr_reg_bits(VDIN_WR_CTRL, 0x5, 24, 3);
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+			if (Rd_reg_bits(VIUB_MISC_CTRL0, 17, 1) != 1)
+				Wr_reg_bits(VIUB_MISC_CTRL0, 1, 17, 1);
+		}
+	}
+
+}
+
