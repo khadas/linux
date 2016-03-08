@@ -1221,9 +1221,9 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 			pdata->is_in = true;
 		if (aml_is_sduart(pdata)
 		&& (!mmc_host_uhs(pdata->mmc))) {
-			if (!pdata->is_sduart) { /* status change */
-				pr_info("Uart in\n");
+			/*if (!pdata->is_sduart) {  status change */
 				aml_uart_switch(pdata, 1);
+				pr_info("Uart in\n");
 				pdata->mmc->caps &= ~MMC_CAP_4_BIT_DATA;
 				if (aml_is_sdjtag(pdata)) {
 					is_jtag = true;
@@ -1234,7 +1234,7 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 					return 0;
 				}
 				pr_info("aml_is_sdjtag\n");
-			}
+			/*}*/
 		} else {
 			pr_info("normal card in\n");
 			aml_uart_switch(pdata, 0);
@@ -1244,7 +1244,7 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 				pdata->mmc->caps |= MMC_CAP_4_BIT_DATA;
 		}
 	} else {
-		if (!pdata->is_in)
+		if ((!pdata->is_in) && (is_jtag == false))
 			return 1;
 		else
 			pdata->is_in = false;
@@ -1279,7 +1279,6 @@ irqreturn_t aml_irq_cd_thread(int irq, void *data)
 		return IRQ_HANDLED;
 	if ((pdata->is_in == 0) && aml_card_type_non_sdio(pdata))
 		pdata->host->init_flag = 0;
-
 	/* mdelay(500); */
 	if (pdata->is_in == 0)
 		mmc_detect_change(pdata->mmc, msecs_to_jiffies(2));

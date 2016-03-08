@@ -1856,8 +1856,11 @@ void aml_sd_emmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (aml_check_unsupport_cmd(mmc, mrq))
 		return;
 
+	if ((pdata->is_in) && (mrq->cmd->opcode == 0))
+		host->init_flag = 1;
 	/* only for SDCARD */
-	if (!pdata->is_in || (!host->init_flag && aml_card_type_sd(pdata))) {
+	if (!pdata->is_in || (!host->init_flag &&
+		aml_card_type_non_sdio(pdata))) {
 		spin_lock_irqsave(&host->mrq_lock, flags);
 		mrq->cmd->error = -ENOMEDIUM;
 		mrq->cmd->retries = 0;
@@ -1879,8 +1882,6 @@ void aml_sd_emmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	mmc_hostname(mmc), mrq->cmd->opcode,
 	mrq->cmd->arg, mrq->cmd->flags);
 
-	if (mrq->cmd->opcode == 0)
-		host->init_flag = 1;
 
 	/*clear error flag if last command retried failed */
 	if (host->error_flag & (1 << 30))
