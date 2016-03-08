@@ -658,6 +658,16 @@ static long unifykey_unlocked_ioctl(struct file *file,
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static long unifykey_compat_ioctl(struct file *file,
+	unsigned int cmd,
+	unsigned long arg)
+{
+	return unifykey_unlocked_ioctl(file, cmd,
+				(unsigned long) compat_ptr(arg));
+}
+#endif
+
 static ssize_t unifykey_read(struct file *file,
 	char __user *buf,
 	size_t count,
@@ -1040,8 +1050,12 @@ static const struct file_operations unifykey_fops = {
 	.release    = unifykey_release,
 	.read       = unifykey_read,
 	.write      = unifykey_write,
-	.unlocked_ioctl      = unifykey_unlocked_ioctl,
+	.unlocked_ioctl  = unifykey_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= unifykey_compat_ioctl,
+#endif
 };
+
 
 #define KEY_READ_ATTR  (S_IRUSR|S_IRGRP)
 #define KEY_WRITE_ATTR (S_IWUSR|S_IWGRP)
