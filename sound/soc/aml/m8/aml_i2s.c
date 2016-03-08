@@ -935,12 +935,44 @@ static const struct of_device_id amlogic_audio_dt_match[] = {
 #define amlogic_audio_dt_match NULL
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static unsigned long isa_timerd_saved;
+static unsigned long isa_timerd_mux_saved;
+static int aml_i2s_freeze(struct device *dev)
+{
+	isa_timerd_saved = aml_read_cbus(ISA_TIMERD);
+	isa_timerd_mux_saved = aml_read_cbus(ISA_TIMER_MUX);
+	return 0;
+}
+
+static int aml_i2s_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int aml_i2s_restore(struct device *dev)
+{
+	aml_write_cbus(ISA_TIMERD, isa_timerd_saved);
+	aml_write_cbus(ISA_TIMER_MUX, isa_timerd_mux_saved);
+	return 0;
+}
+
+const struct dev_pm_ops aml_i2s_pm = {
+	.freeze		= aml_i2s_freeze,
+	.thaw		= aml_i2s_thaw,
+	.restore	= aml_i2s_restore,
+};
+#endif
+
 static struct platform_driver aml_i2s_driver = {
 	.driver = {
-		   .name = "aml-i2s",
-		   .owner = THIS_MODULE,
-		   .of_match_table = amlogic_audio_dt_match,
-		   },
+		.name = "aml-i2s",
+		.owner = THIS_MODULE,
+		.of_match_table = amlogic_audio_dt_match,
+#ifdef CONFIG_HIBERNATION
+		.pm     = &aml_i2s_pm,
+#endif
+		},
 
 	.probe = aml_soc_platform_probe,
 	.remove = aml_soc_platform_remove,
