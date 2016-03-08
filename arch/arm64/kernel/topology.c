@@ -13,6 +13,7 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/node.h>
@@ -20,8 +21,12 @@
 #include <linux/of.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/amlogic/cpu_version.h>
 
+#include <asm/cputype.h>
 #include <asm/topology.h>
+#include <asm/smp_plat.h>
+
 
 /*
  * cpu power table
@@ -469,7 +474,7 @@ void __init arch_get_fast_and_slow_cpus(struct cpumask *fast,
 			break;
 		}
 
-		if (is_little_cpu(cn))
+		if (!arch_big_cpu(cpu) && is_little_cpu(cn))
 			cpumask_set_cpu(cpu, slow);
 		else
 			cpumask_set_cpu(cpu, fast);
@@ -515,6 +520,34 @@ void __init arch_get_hmp_domains(struct list_head *hmp_domains_list)
 	list_add(&domain->hmp_domains, hmp_domains_list);
 }
 #endif /* CONFIG_SCHED_HMP */
+
+/*
+ * cluster_to_logical_mask - return cpu logical mask of CPUs in a cluster
+ * @socket_id:		cluster HW identifier
+ * @cluster_mask:	the cpumask location to be initialized, modified by the
+ *			function only if return value == 0
+ *
+ * Return:
+ *
+ * 0 on success
+ * -EINVAL if cluster_mask is NULL or there is no record matching socket_id
+ */
+int cluster_to_logical_mask(unsigned int socket_id, cpumask_t *cluster_mask)
+{
+	int cpu;
+
+	if (!cluster_mask)
+		return -EINVAL;
+
+	for_each_online_cpu(cpu) {
+		if (socket_id == topology_physical_package_id(cpu)) {
+			cpumask_copy(cluster_mask, topology_core_cpumask(cpu));
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
 
 static void __init reset_cpu_topology(void)
 {

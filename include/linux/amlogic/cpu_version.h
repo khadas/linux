@@ -63,10 +63,16 @@ extern unsigned int system_serial_high1;
 int  meson_cpu_version_init(void);
 #ifdef CONFIG_AML_CPU_VERSION
 int get_meson_cpu_version(int level);
+int arch_big_cpu(int cpu);
 #else
 static inline int get_meson_cpu_version(int level)
 {
 	return -1;
+}
+
+static inline int arch_big_cpu(int cpu)
+{
+	return 0;
 }
 #endif
 static inline bool package_id_is(unsigned int id)

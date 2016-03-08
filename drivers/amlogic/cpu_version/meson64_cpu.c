@@ -34,6 +34,32 @@ int get_meson_cpu_version(int level)
 }
 EXPORT_SYMBOL(get_meson_cpu_version);
 
+/*
+ * detect if a cpu id is big cpu
+ */
+int arch_big_cpu(int cpu)
+{
+	int type;
+	struct device_node *cpu_version;
+	cpu_version = of_find_node_by_path("/cpu_version");
+	if (cpu_version)
+		assist_hw_rev = of_iomap(cpu_version, 0);
+	else
+		return 0;
+
+	type = readl(assist_hw_rev) >> 24;
+	switch (type) {
+	case MESON_CPU_MAJOR_ID_GXM:	/* 0 ~ 3 is faster cpu for GXM */
+		if (cpu < 4)
+			return 1;
+
+	default:
+		return 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(arch_big_cpu);
+
 int __init meson_cpu_version_init(void)
 {
 	unsigned int ver;
