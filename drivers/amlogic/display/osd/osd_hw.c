@@ -250,7 +250,7 @@ static void osd_vpu_power_on(void)
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_ON);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_ON);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_ON);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
 		switch_vpu_mem_pd_vmod(VPU_AFBC_DEC,
 			VPU_MEM_POWER_ON);
 	}
@@ -759,7 +759,7 @@ void osd_set_pxp_mode(u32 mode)
 }
 void osd_set_afbc(u32 enable)
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 		osd_hw.osd_afbcd[OSD1].enable = enable;
 }
 

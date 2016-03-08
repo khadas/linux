@@ -107,6 +107,12 @@ static void vpu_chip_detect(void)
 		vpu_conf.clk_level_max = CLK_LEVEL_MAX_GXTVBB;
 		vpu_conf.fclk_type = FCLK_TYPE_GXTVBB;
 		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+		vpu_chip_type = VPU_CHIP_GXL;
+		vpu_conf.clk_level_dft = CLK_LEVEL_DFT_GXL;
+		vpu_conf.clk_level_max = CLK_LEVEL_MAX_GXL;
+		vpu_conf.fclk_type = FCLK_TYPE_GXL;
+		break;
 	default:
 		vpu_chip_type = VPU_CHIP_MAX;
 		vpu_conf.clk_level_dft = 0;
@@ -165,6 +171,7 @@ unsigned int get_vpu_clk(void)
 	switch (vpu_chip_type) {
 	case VPU_CHIP_GXBB:
 	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
 		reg = HHI_VPU_CLK_CNTL_GX;
 		break;
 	default:
@@ -399,6 +406,7 @@ static int adjust_vpu_clk(unsigned int clk_level)
 		break;
 	case VPU_CHIP_GXBB:
 	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
 		switch_vpu_clk_gx();
 		break;
 	default:
@@ -438,6 +446,7 @@ static int set_vpu_clk(unsigned int vclk)
 	switch (vpu_chip_type) {
 	case VPU_CHIP_GXBB:
 	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
 		reg = HHI_VPU_CLK_CNTL_GX;
 		break;
 	default:
@@ -663,6 +672,7 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	switch (vpu_chip_type) {
 	case VPU_CHIP_GXBB:
 	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
 		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
 		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
 		break;
@@ -722,11 +732,12 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_DI_POST:
 		vpu_hiu_setb(_reg0, val, 28, 2);
 		break;
-	case VPU_SHARP: /* G9TV, G9BB, GXBB, GXTVBB */
+	case VPU_SHARP: /* G9TV, G9BB, GXBB, GXTVBB, GXL */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_G9BB) ||
 			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			vpu_hiu_setb(_reg0, val, 30, 2);
 		}
 		break;
@@ -759,7 +770,8 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_VPU_ARB: /* GXBB, GXTVBB */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			vpu_hiu_setb(_reg1, val, 14, 2);
 		}
 		break;
@@ -769,7 +781,8 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_AFBC_DEC0: /* GXTVBB */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			vpu_hiu_setb(_reg1, val, 16, 2);
 		}
 		break;
@@ -850,6 +863,7 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	switch (vpu_chip_type) {
 	case VPU_CHIP_GXBB:
 	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
 		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
 		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
 		break;
@@ -913,7 +927,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_G9BB) ||
 			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			val = vpu_hiu_getb(_reg0, 30, 2);
 		} else {
 			val = VPU_MEM_PD_ERR;
@@ -950,7 +965,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_VPU_ARB: /* GXBB, GXTVBB */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			val = vpu_hiu_getb(_reg1, 14, 2);
 		} else {
 			val = VPU_MEM_PD_ERR;
@@ -962,7 +978,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_AFBC_DEC0: /* GXTVBB */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			val = vpu_hiu_getb(_reg1, 16, 2);
 		} else {
 			val = VPU_MEM_PD_ERR;
@@ -990,7 +1007,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_LDIM_STTS: /* GXTVBB */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			val = vpu_hiu_getb(_reg1, 28, 2);
 		} else {
 			val = VPU_MEM_PD_ERR;
@@ -1000,7 +1018,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_XVYCC_LUT: /* GXTVBB */
 		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
 			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
+			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			(vpu_chip_type == VPU_CHIP_GXL)) {
 			val = vpu_hiu_getb(_reg1, 30, 2);
 		} else {
 			val = VPU_MEM_PD_ERR;
@@ -1123,6 +1142,7 @@ static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 	switch (vpu_chip_type) {
 	case VPU_CHIP_GXBB:
 	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
 		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
 		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
 		break;

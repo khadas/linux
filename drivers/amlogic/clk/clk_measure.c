@@ -443,7 +443,8 @@ EXPORT_SYMBOL(meson_clk_measure);
 
 static int dump_clk(struct seq_file *s, void *what)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXL))
 		gxbb_clk_measure(s, what, clk_msr_index);
 	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 		gxtvbb_clk_measure(s, what, clk_msr_index);

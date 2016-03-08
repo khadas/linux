@@ -539,6 +539,7 @@ static int vdec_clock_get(enum vdec_type_e core)
 #define CLK_FOR_CPU {\
 	MESON_CPU_MAJOR_ID_GXBB,\
 	MESON_CPU_MAJOR_ID_GXTVBB,\
+	MESON_CPU_MAJOR_ID_GXL,\
 	0}
 #include "clk.h"
 ARCH_VDEC_CLK_INIT();

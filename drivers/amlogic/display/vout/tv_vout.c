@@ -124,7 +124,8 @@ static void set_tvmode_misc(enum tvmode_e mode)
 	/* for hdmi mode, leave the hpll setting to be done by hdmi module. */
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)) {
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)) {
 		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
 			set_vmode_clk(mode);
 	} else
@@ -226,7 +227,8 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_m8[index];
 		type = 3;
-	} else if (check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) {
+	} else if ((check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) ||
+			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXL))) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;

@@ -148,6 +148,7 @@ static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 {
 	switch (get_cpu_type()) {
 	case MESON_CPU_MAJOR_ID_GXBB:
+	case MESON_CPU_MAJOR_ID_GXL:
 		return hdmitx_hpd_hw_op_gxbb(cmd);
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
@@ -163,6 +164,7 @@ int read_hpd_gpio(void)
 {
 	switch (get_cpu_type()) {
 	case MESON_CPU_MAJOR_ID_GXBB:
+	case MESON_CPU_MAJOR_ID_GXL:
 		return read_hpd_gpio_gxbb();
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
@@ -179,6 +181,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 {
 	switch (get_cpu_type()) {
 	case MESON_CPU_MAJOR_ID_GXBB:
+	case MESON_CPU_MAJOR_ID_GXL:
 		return hdmitx_ddc_hw_op_gxbb(cmd);
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
