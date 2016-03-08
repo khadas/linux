@@ -2230,8 +2230,11 @@ static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(_dev->parent);	\
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n",			\
+	if (cpu_online(drvdata->cpu))					\
+		return scnprintf(buf, PAGE_SIZE, "0x%x\n",		\
 			 readl_relaxed(drvdata->base + offset));	\
+	else								\
+		return 0;						\
 }									\
 DEVICE_ATTR_RO(name)
 
