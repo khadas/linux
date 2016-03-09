@@ -1107,7 +1107,7 @@ static int osd_open(struct fb_info *info, int arg)
 			fb_index, fbdev->fb_mem_vaddr);
 		memset(fbdev->fb_mem_vaddr, 0x0, fbdev->fb_len);
 		if (fb_index == DEV_OSD0 && osd_get_afbc()) {
-			for (j = 1; j < OSD_MAX_BUF_NUM; j++) {
+			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
 				osd_log_info(
 					"---------------clear fb%d memory %p\n",
 					fb_index,
@@ -1116,11 +1116,40 @@ static int osd_open(struct fb_info *info, int arg)
 					0x0,
 					fbdev->fb_afbc_len[j]);
 			}
+		} else {
+			/*two case in one
+			 * 1. the big buffer ion alloc
+			 * 2. reserved memory
+			 */
+
+			memset(fb_rmem_vaddr[fb_index],
+					0x0,
+					fb_rmem_size[fb_index]);
 		}
 		/* setup osd if not logo layer */
 		osddev_setup(fbdev);
+	} else {
+		memset(fb_rmem_vaddr[fb_index],
+				0x0,
+				fb_rmem_size[fb_index]);
 	}
 	return 0;
+}
+
+static ssize_t osd_clear(struct device *device, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	u32 res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("clear: osd %d\n", res);
+
+	memset(fb_rmem_vaddr[res],
+			0x0,
+			fb_rmem_size[res]);
+
+	return count;
 }
 
 int osd_blank(int blank_mode, struct fb_info *info)
@@ -2286,6 +2315,8 @@ static struct device_attribute osd_attrs[] = {
 	__ATTR(ver_update_pan, S_IWUGO | S_IWUSR, NULL, store_ver_update_pan),
 	__ATTR(osd_afbcd, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_afbcd, store_afbcd),
+	__ATTR(osd_clear, S_IRUGO | S_IWUSR | S_IWGRP,
+			NULL, osd_clear),
 };
 
 #ifdef CONFIG_PM
