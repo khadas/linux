@@ -3525,8 +3525,8 @@ static unsigned int pldn_calc_en = 1;
 module_param(pldn_calc_en, uint, 0644);
 MODULE_PARM_DESC(pldn_calc_en, "/n pulldonw calculation enable./n");
 
-#define MAX_NUM_DI_REG 16
-
+#define MAX_NUM_DI_REG 32
+#define GXTVBB_REG_START 12
 static unsigned int combing_setting_registers[MAX_NUM_DI_REG] = {
 	DI_MTN_1_CTRL1,
 	DI_MTN_1_CTRL2,
@@ -3540,9 +3540,11 @@ static unsigned int combing_setting_registers[MAX_NUM_DI_REG] = {
 	DI_MTN_1_CTRL10,
 	DI_MTN_1_CTRL11,
 	DI_MTN_1_CTRL12,
+	/* below reg are gxtvbb only, offset defined in GXTVBB_REG_START */
 	MCDI_REL_DET_PD22_CHK,
 	MCDI_PD22_CHK_THD,
 	MCDI_PD22_CHK_THD_RT,
+	NR2_MATNR_DEGHOST,
 	0
 };
 
@@ -3562,6 +3564,7 @@ static unsigned int combing_setting_masks[MAX_NUM_DI_REG] = {
 	0x0003ff1f,
 	0x01ff3fff,
 	0x07ffff1f,
+	0x000001ff,
 	0
 };
 
@@ -3580,7 +3583,8 @@ static unsigned int combing_pure_still_setting[MAX_NUM_DI_REG] = {
 	0x40020A04,
 	0x0001FF0C,
 	0x00400204,
-	0x00016404
+	0x00016404,
+	0x00000199
 };
 
 static unsigned int combing_bias_static_setting[MAX_NUM_DI_REG] = {
@@ -3598,7 +3602,8 @@ static unsigned int combing_bias_static_setting[MAX_NUM_DI_REG] = {
 	0x40020A04,
 	0x0001FF0C,
 	0x00400204,
-	0x00016404
+	0x00016404,
+	0x00000166
 };
 
 
@@ -3617,7 +3622,8 @@ static unsigned int combing_normal_setting[MAX_NUM_DI_REG] = {
 	0x60000404,
 	0x0001FF0C,
 	0x00400204,
-	0x00016404
+	0x00016404,
+	0x00000133
 };
 
 static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
@@ -3633,9 +3639,10 @@ static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
 	0x020A060C,
 	0x03040508,
 	0x60000404,
-	0x0001FF12,
-	0x00200204,
-	0x00012002
+	0x0001ff0c, /* 0x0001FF12 */
+	0x00400204, /* 0x00200204 */
+	0x00016404, /* 0x00012002 */
+	0x00000122
 };
 
 static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
@@ -3651,9 +3658,10 @@ static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
 	0x020A060C,
 	0x03040508,
 	0x60000404,
-	0x0001FF12,
-	0x00200204,
-	0x00012002
+	0x0001ff0c, /* 0x0001FF12 */
+	0x00400204, /* 0x00200204 */
+	0x00016404, /* 0x00012002 */
+	0x00000100
 };
 
 static unsigned int (*combing_setting_values[5])[MAX_NUM_DI_REG] = {
@@ -3706,9 +3714,15 @@ module_param_named(combing_cur_lev, cur_lev, int, 0444);
 static int force_lev = 0xff;
 module_param_named(combing_force_lev, force_lev, int, 0664);
 static int dejaggy_flag = -1;
-module_param_named(combing_dejaggy_flag, dejaggy_flag, int, 0444);
-static int dejaggy_enable;
+module_param_named(combing_dejaggy_flag, dejaggy_flag, int, 0664);
+static int dejaggy_enable = 1;
 module_param_named(combing_dejaggy_enable, dejaggy_enable, int, 0664);
+static uint num_dejaggy_setting = 5;
+/* 0:off 1:1-14-1 2:1-6-1 3:3-10-3 4:100% */
+/* current setting dejaggy always on when interlace source */
+static int combing_dejaggy_setting[5] = {1, 1, 1, 1, 2};
+module_param_array(combing_dejaggy_setting, uint,
+	&num_dejaggy_setting, 0664);
 
 static int last_lev = -1;
 static int glb_mot[5] = { 0, 0, 0, 0, 0 };
@@ -3716,12 +3730,45 @@ static int still_field_count;
 
 UINT32 field_count = 0;
 
-static void adaptive_combing_fixing(pulldown_detect_info_t *field_pd_info)
+void set_combing_regs(int lvl)
+{
+	int i;
+	for (i = 0; i < MAX_NUM_DI_REG; i++) {
+		if ((combing_setting_registers[i] == 0)
+		|| (combing_setting_masks[i] == 0))
+			break;
+		if (combing_setting_registers[i] == DI_MTN_1_CTRL1)
+			di_mtn_1_ctrl1 =
+				(di_mtn_1_ctrl1 &
+				~combing_setting_masks[i]) |
+				((*combing_setting_values[lvl])[0] &
+				combing_setting_masks[i]);
+		else if (i < GXTVBB_REG_START)
+			/* TODO: need change to check if
+			register only in GCTVBB */
+			VSYNC_WR_MPEG_REG(combing_setting_registers[i],
+				((*combing_setting_values[lvl])[i] &
+				combing_setting_masks[i]) |
+				(VSYNC_RD_MPEG_REG(
+					combing_setting_registers[i])
+				& ~combing_setting_masks[i]));
+		else if (is_meson_gxtvbb_cpu())
+			VSYNC_WR_MPEG_REG(combing_setting_registers[i],
+				((*combing_setting_values[lvl])[i] &
+				combing_setting_masks[i]) |
+				(VSYNC_RD_MPEG_REG(
+					combing_setting_registers[i])
+				& ~combing_setting_masks[i]));
+	}
+}
+
+static void adaptive_combing_fixing(
+	pulldown_detect_info_t *field_pd_info,
+	int frame_type)
 {
 	unsigned int glb_mot_avg2;
 	unsigned int glb_mot_avg3;
 	unsigned int glb_mot_avg5;
-	int i;
 
 	if (!combing_fix_en)
 		return;
@@ -3757,56 +3804,65 @@ static void adaptive_combing_fixing(pulldown_detect_info_t *field_pd_info)
 	if ((force_lev >= 0) & (force_lev < 5))
 		cur_lev = force_lev;
 	if (cur_lev != last_lev) {
-		for (i = 0; i < MAX_NUM_DI_REG; i++) {
-			if ((combing_setting_registers[i] == 0)
-			|| (combing_setting_masks[i] == 0))
-				break;
-			if (combing_setting_registers[i] == DI_MTN_1_CTRL1)
-				di_mtn_1_ctrl1 =
-					(di_mtn_1_ctrl1 &
-					~combing_setting_masks[i]) |
-					((*combing_setting_values[cur_lev])[0] &
-					combing_setting_masks[i]);
-			else
-				VSYNC_WR_MPEG_REG(combing_setting_registers[i],
-					((*combing_setting_values[cur_lev])[i] &
-					combing_setting_masks[i]) |
-					(VSYNC_RD_MPEG_REG(
-						combing_setting_registers[i])
-					& ~combing_setting_masks[i]));
-		}
+		set_combing_regs(cur_lev);
 		if (pr_pd & 0x400)
 			pr_info("\t%5d: from %d to %d: di_mtn_1_ctrl1 = %08x\n",
 				field_count, last_lev, cur_lev, di_mtn_1_ctrl1);
 
 		last_lev = cur_lev;
 	}
-	if (is_meson_gxtvbb_cpu() &&
-		pulldown_enable &&
-		pldn_calc_en &&
-		dejaggy_enable) {
-		if (dejaggy_flag == -1) {
-			/* first time set default */
-			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_DEJ2_PRC,
-				0xff, 24, 8);
-			VSYNC_WR_MPEG_REG(SRSHARP0_SHARP_DEJ1_PRC,
-				(0x02<<24)|(0xd1<<16)|(0xe<<8)|0x31);
-			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_DEJ1_MISC,
-				0x02, 8, 4);
-			dejaggy_flag = 0;
-		}
-		if (dejaggy_enable) {
-			if (dejaggy_enable == 2)
-				dejaggy_flag = 1;
-			else if (cur_lev <= 2)
+
+	if (is_meson_gxtvbb_cpu() && dejaggy_enable) {
+		/* only enable dejaggy for interlace */
+		if ((frame_type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE) {
+			if (dejaggy_flag != -1) {
+				dejaggy_flag = -1;
+				Wr_reg_bits(SRSHARP0_SHARP_DEJ1_MISC, 0, 3, 1);
+			}
+		} else {
+			if ((dejaggy_flag == -1)
+			|| ((Rd(SRSHARP0_SHARP_SR2_CTRL) & (1 << 24)) == 0)) {
+				/* enable dejaggy module */
+				VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+					1, 24, 1);
+				/* first time set default */
+				VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_DEJ2_PRC,
+					0xff, 24, 8);
+				VSYNC_WR_MPEG_REG(SRSHARP0_SHARP_DEJ1_PRC,
+					(0xff<<24)|(0xd1<<16)|(0xe<<8)|0x31);
+				VSYNC_WR_MPEG_REG(
+					SRSHARP0_SHARP_DEJ2_MISC, 0x30);
+				VSYNC_WR_MPEG_REG(
+					SRSHARP0_SHARP_DEJ1_MISC, 0x02f4);
 				dejaggy_flag = 0;
-			else
+			}
+			if (dejaggy_enable) {
+				/* dejaggy alpha according to motion level */
 				dejaggy_flag =
-					(dectres.rFlmPstMod == 1) ? 1 : 0;
-			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_DEJ1_MISC,
-				dejaggy_flag, 3, 1);
-		} else
-			dejaggy_flag = 0;
+					combing_dejaggy_setting[cur_lev];
+				/* TODO: check like_pulldown22_flag and
+				ATV noise_level
+				if (like_pulldown22_flag && (cur_lev > 2)
+					dejaggy_flag += 1; */
+				/* overwrite dejaggy alpha */
+				if (dejaggy_enable >= 2)
+					dejaggy_flag = dejaggy_enable;
+				if (dejaggy_flag > 4)
+					dejaggy_flag = 4;
+				if (dejaggy_flag)
+					Wr_reg_bits(
+						SRSHARP0_SHARP_DEJ1_MISC,
+						(1<<3)|dejaggy_flag, 0, 4);
+				else
+					Wr_reg_bits(
+						SRSHARP0_SHARP_DEJ1_MISC,
+						0, 3, 1);
+			} else
+				dejaggy_flag = 0;
+		}
+	} else if (is_meson_gxtvbb_cpu()) {
+		dejaggy_flag = -1;
+		Wr_reg_bits(SRSHARP0_SHARP_DEJ1_MISC, 0, 3, 1);
 	}
 }
 
@@ -3841,7 +3897,7 @@ static void pre_de_done_buf_config(void)
 					PULL_DOWN_NORMAL;
 			}
 			adaptive_combing_fixing(&(di_pre_stru.di_post_wr_buf->
-				field_pd_info));
+				field_pd_info), di_pre_stru.cur_inp_type);
 		}
 
 		if (is_meson_gxtvbb_cpu()) {
@@ -6834,6 +6890,12 @@ static void di_unreg_process_irq(void)
 /* stop rdma */
 	rdma_clear(de_devp->rdma_handle);
 #endif
+	if (is_meson_gxtvbb_cpu())
+		if (dejaggy_enable) {
+			dejaggy_flag = -1;
+			Wr_reg_bits(SRSHARP0_SHARP_DEJ1_MISC, 0, 3, 1);
+		}
+
 	di_set_power_control(0, 0);
 #ifndef NEW_DI_V3
 	Wr(DI_CLKG_CTRL, 0xff0000);
