@@ -91,6 +91,18 @@ struct ve_dnlp_table_s {
 	unsigned int dnlp_brght_add;
 	unsigned int dnlp_brght_max;
 	unsigned int dnlp_almst_wht;
+	unsigned int dnlp_hghbin;/*1*/
+	unsigned int dnlp_hghnum;
+	unsigned int dnlp_lowbin;
+	unsigned int dnlp_lownum;
+	unsigned int dnlp_bkgend;
+	unsigned int dnlp_bkgert;
+	unsigned int dnlp_blkext;
+	unsigned int dnlp_whtext;
+	unsigned int dnlp_bextmx;
+	unsigned int dnlp_wextmx;
+	unsigned int dnlp_smhist_ck;
+	unsigned int dnlp_glb_crate;/*12*/
 	unsigned int dnlp_lrate00;/*0-64bin curve slope*/
 	unsigned int dnlp_lrate02;
 	unsigned int dnlp_lrate04;

@@ -1820,22 +1820,28 @@ void amvecm_on_vs(struct vframe_s *vf)
 	if (probe_ok == 0)
 		return;
 	amvecm_video_latch();
-
 	if (vf != NULL) {
-		vpp_get_vframe_hist_info(vf);
-
 		/* matrix ajust */
 		vpp_matrix_update(vf);
 
 		amvecm_bricon_process(
 			vd1_brightness,
-			vd1_contrast + vd1_contrast_offset, vf);
-
-		ve_on_vs(vf);
+			vd1_contrast  + vd1_contrast_offset, vf);
 	}
+
 	pq_enable_disable();
 }
+
+void refresh_on_vs(struct vframe_s *vf)
+{
+	if (vf != NULL) {
+		vpp_get_vframe_hist_info(vf);
+		ve_on_vs(vf);
+	}
+}
+
 EXPORT_SYMBOL(amvecm_on_vs);
+EXPORT_SYMBOL(refresh_on_vs);
 
 static int amvecm_open(struct inode *inode, struct file *file)
 {
@@ -2765,6 +2771,27 @@ static ssize_t amvecm_sr1_reg_store(struct class *cla,
 
 }
 
+static ssize_t amvecm_write_sr1_reg_val_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t amvecm_write_sr1_reg_val_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	unsigned int val;
+	r = sscanf(buf, "0x%x", &val);
+	if (r != 1)
+		return -EINVAL;
+	sr1_reg_val[sr1_index] = val;
+
+	return count;
+
+}
+
 static ssize_t amvecm_dump_reg_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
@@ -2952,6 +2979,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_dump_reg_show, amvecm_dump_reg_store),
 	__ATTR(sr1_reg, S_IRUGO | S_IWUSR,
 		amvecm_sr1_reg_show, amvecm_sr1_reg_store),
+	__ATTR(write_sr1_reg_val, S_IRUGO | S_IWUSR,
+		amvecm_write_sr1_reg_val_show, amvecm_write_sr1_reg_val_store),
 	__ATTR_NULL
 };
 

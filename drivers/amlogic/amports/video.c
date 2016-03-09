@@ -3592,7 +3592,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				      "skipped\n");
 
 #if defined(CONFIG_AM_VECM)
-			amvecm_on_vs(vf);
+			refresh_on_vs(vf);
 #endif
 
 			vf = video_vf_get();
@@ -3693,9 +3693,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				} else
 					vsync_toggle_frame(cur_dispbuf);
 			}
-#if defined(CONFIG_AM_VECM)
-			amvecm_on_vs(vf);
-#endif
+
 			break;
 		}
 
