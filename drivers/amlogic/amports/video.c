@@ -3298,7 +3298,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 	bool show_nosync = false;
 	u32 vpp_misc_save, vpp_misc_set;
-
+	int first_set = 0;
 #ifdef CONFIG_AM_VIDEO_LOG
 	int toggle_cnt;
 #endif
@@ -4101,6 +4101,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		vpp_settings_v(cur_frame_par);
 		frame_par_ready_to_set = 0;
 		frame_par_force_to_set = 0;
+		first_set = 1;
 	}
 	/* VPP one time settings */
 	wait_sync = 0;
@@ -4129,7 +4130,23 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
 				VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND
 				   | VPP_POSTBLEND_EN);
-		pr_info("should never happen, rdma fail!");
+		pr_info("VPP_VD1_POSTBLEND register rdma write fail!");
+	}
+	if ((video_enabled == 1) && cur_frame_par
+	&& (cur_dispbuf != &vf_local) && (first_set == 0)
+	&& (video_onoff_state == VIDEO_ENABLE_STATE_IDLE)) {
+		struct vppfilter_mode_s *vpp_filter =
+		    &cur_frame_par->vpp_filter;
+		u32 h_phase_step , v_phase_step;
+		h_phase_step = READ_VCBUS_REG(
+		VPP_HSC_START_PHASE_STEP + cur_dev->vpp_off);
+		v_phase_step = READ_VCBUS_REG(
+		VPP_VSC_START_PHASE_STEP + cur_dev->vpp_off);
+		if ((vpp_filter->vpp_hsc_start_phase_step != h_phase_step) ||
+		(vpp_filter->vpp_vsc_start_phase_step != v_phase_step)) {
+			video_property_changed = true;
+			pr_info("frame info register rdma write fail!\n");
+		}
 	}
 	if (likely(video_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
 		/* state change for video layer enable/disable */
