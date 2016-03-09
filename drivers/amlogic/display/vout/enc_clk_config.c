@@ -630,6 +630,12 @@ void set_vmode_clk(enum vmode_e mode)
 		if (mode == p_enc[j].mode)
 			break;
 	}
+	if (j == sizeof(setting_enc_clk_val_gxbb)
+		/ sizeof(struct enc_clk_val_s)) {
+		mutex_unlock(&setclk_mutex);
+		pr_info("not for hdmitx clk set\n");
+		return;
+	}
 	set_viu_path(1, p_enc[j].viu_type); /* default viu1 */
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
 
