@@ -691,6 +691,8 @@ static int urb_enqueue(struct usb_hcd *hcd,
 						   !(usb_pipein(urb->pipe))));
 
 	buf = urb->transfer_buffer;
+	/*phys_to_virt api can not geting virt address,we can not use it.*/
+#if 0
 	if (hcd->self.uses_dma)
 		/*
 		 * Calculate virtual address from physical address,
@@ -699,7 +701,7 @@ static int urb_enqueue(struct usb_hcd *hcd,
 		 * when handling non DWORD aligned buffers.
 		 */
 		buf = phys_to_virt(urb->transfer_dma);
-
+#endif
 	if (!(urb->transfer_flags & URB_NO_INTERRUPT))
 		flags |= URB_GIVEBACK_ASAP;
 	if (urb->transfer_flags & URB_ZERO_PACKET)
