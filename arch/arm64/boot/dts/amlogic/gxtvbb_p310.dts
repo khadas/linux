@@ -52,7 +52,9 @@
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			size = <0x0 0x2800000>; //40M for gxtvbb
+			/* if nr10bit-surpport set to 1, size should be <0x0 0x3300000>, 51M */
+			/* if nr10bit-surpport set to 0, size should be <0x0 0x2200000>, 34M */
+			size = <0x0 0x3300000>; //51M for support nr10bit
 			//no-map;
 			multi-use;
 		};
@@ -263,6 +265,8 @@
 				"timerc";
 		buffer-size = <3552320>;	//for gxtvbb, include mcdi, nr10bit size
 		hw-version = <2>;
+		/* if enable nr10bit, set nr10bit-surpport to 1 */
+		/* if disable nr10bit, set nr10bit-surpport to 0 */
 		nr10bit-surpport = <1>;
 	};
 /*

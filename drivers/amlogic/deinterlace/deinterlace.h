@@ -423,7 +423,6 @@ void di_set_power_control(unsigned char type, unsigned char enable);
 unsigned char di_get_power_control(unsigned char type);
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
 void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag);
-void di_vdin2nr_cfg(bool enable_flag);
 
 #define DI_COUNT   1
 

@@ -1105,7 +1105,7 @@ static DEVICE_ATTR(tvp_region, 0444, show_tvp_region, NULL);
 #define MAX_IN_BUF_NUM            16
 #define MAX_LOCAL_BUF_NUM         12
 /*16 -->3 avoid ff/fb problem*/
-#define MAX_POST_BUF_NUM          3
+#define MAX_POST_BUF_NUM          16
 
 #define VFRAME_TYPE_IN                  1
 #define VFRAME_TYPE_LOCAL               2
@@ -2316,6 +2316,9 @@ static unsigned char is_bypass_post(void)
 static unsigned char is_input2pre(void)
 {
 	if (input2pre
+#ifdef NEW_DI_V3
+	    && di_pre_stru.cur_prog_flag
+#endif
 	    && vdin_source_flag
 	    && (bypass_state == 0))
 		return 1;
@@ -7249,7 +7252,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		bypass_state = 1;
 #ifdef RUN_DI_PROCESS_IN_IRQ
 		if (vdin_source_flag)
-			di_vdin2nr_cfg(0);
+			Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
 
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
@@ -7320,7 +7323,7 @@ light_unreg:
 		if (active_flag && vdin_source_flag) {
 			if (is_bypass(NULL)) {
 				if (di_pre_stru.pre_de_busy == 0) {
-					di_vdin2nr_cfg(0);
+					Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
 					di_pre_stru.vdin2nr = 0;
 				}
 				if (di_pre_stru.bypass_start_count <
@@ -7343,7 +7346,7 @@ light_unreg:
 				}
 
 				if (di_pre_stru.pre_de_busy == 0) {
-					di_vdin2nr_cfg(1);
+					Wr_reg_bits(VDIN_WR_CTRL, 0x5, 24, 3);
 					di_pre_stru.vdin2nr = 1;
 					di_process();
 					log_buffer_state("pr_");
@@ -7365,7 +7368,7 @@ light_unreg:
 				}
 			} else {
 				if (di_pre_stru.pre_de_busy == 0) {
-					di_vdin2nr_cfg(0);
+					Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
 					di_pre_stru.vdin2nr = 0;
 				}
 				di_pre_stru.bypass_start_count =
@@ -7875,14 +7878,12 @@ static void set_di_flag(void)
 			di_force_bit_mode = 10;
 		else
 			di_force_bit_mode = 8;
-		input2pre = 1;
 	} else {
 		mcpre_en = false;
 		pulldown_mode = 0;
 		di_vscale_skip_enable = 4;
 		use_2_interlace_buff = false;
 		di_force_bit_mode = 8;
-		input2pre = 0;
 	}
 	return;
 }
