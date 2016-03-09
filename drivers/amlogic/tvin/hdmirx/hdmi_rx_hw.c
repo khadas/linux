@@ -860,6 +860,7 @@ void hdmirx_20_init(void)
 	data32 |= 10	<< 20; /* [29:20]  chlock_max_err */
 	data32 |= 24000	<< 0;  /* [15:0]   milisec_timer_limit */
 	hdmirx_wr_dwc(DWC_CHLOCK_CONFIG, data32);
+	hdmirx_wr_bits_dwc(DWC_HDCP_SETTINGS, HDCP_FAST_MODE, 0);
 	/* hdcp2.2 ctl */
 #ifdef HDCP22_ENABLE
 	if (hdcp_22_on) {

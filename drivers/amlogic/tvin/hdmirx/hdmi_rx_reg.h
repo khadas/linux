@@ -767,6 +767,8 @@
 #define		HDCP_ENABLE				_BIT(0)
 /** Register address: configuration */
 #define DWC_HDCP_SETTINGS		(0x0C4UL)
+/*fast mode*/
+#define HDCP_FAST_MODE			_BIT(12)
 /** Register address: key description seed */
 #define DWC_HDCP_SEED			(0x0C8UL)
 /** Register address: receiver key selection */

@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/03/23"
+#define HDMIRX_VER "Ref.2016/03/28"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -334,6 +334,10 @@ struct hdmi_rx_ctrl {
 struct hdmi_rx_ctrl_hdcp {
 	/** Repeater mode else receiver only */
 	bool repeat;
+	/*downstream depth*/
+	unsigned char depth;
+	/*downstream count*/
+	uint32_t count;
 	/** Key description seed */
 	uint32_t seed;
 	/**
@@ -438,6 +442,78 @@ struct _hdcp_ksv {
 	uint32_t bksv1;
 };
 
+enum edid_audio_format_e {
+	AUDIO_FORMAT_HEADER,
+	AUDIO_FORMAT_LPCM,
+	AUDIO_FORMAT_AC3,
+	AUDIO_FORMAT_MPEG1,
+	AUDIO_FORMAT_MP3,
+	AUDIO_FORMAT_MPEG2,
+	AUDIO_FORMAT_AAC,
+	AUDIO_FORMAT_DTS,
+	AUDIO_FORMAT_ATRAC,
+	AUDIO_FORMAT_OBA,
+	AUDIO_FORMAT_DDP,
+	AUDIO_FORMAT_DTSHD,
+	AUDIO_FORMAT_MAT,
+	AUDIO_FORMAT_DST,
+	AUDIO_FORMAT_WMAPRO,
+};
+
+enum edid_tag_e {
+	EDID_TAG_NONE,
+	EDID_TAG_AUDIO = 1,
+	EDID_TAG_VIDEO = 2,
+	EDID_TAG_VENDOR = 3,
+	EDID_TAG_HDR = ((0x7<<8)|6),
+};
+
+struct edid_audio_block_t {
+	unsigned char max_channel:3;
+	unsigned char format_code:5;
+	unsigned char freq_32khz:1;
+	unsigned char freq_441khz:1;
+	unsigned char freq_48khz:1;
+	unsigned char freq_882khz:1;
+	unsigned char freq_96khz:1;
+	unsigned char freq_1764khz:1;
+	unsigned char freq_192khz:1;
+	unsigned char freq_reserv:1;
+	union bit_rate_u {
+		struct pcm_t {
+			unsigned char rate_16bit:1;
+			unsigned char rate_20bit:1;
+			unsigned char rate_24bit:1;
+			unsigned char rate_reserv:5;
+		} pcm;
+		unsigned char others;
+	} bit_rate;
+};
+
+struct edid_hdr_block_t {
+	unsigned char ext_tag_code;
+	unsigned char sdr:1;
+	unsigned char hdr:1;
+	unsigned char smtpe_2048:1;
+	unsigned char future:5;
+	unsigned char meta_des_type1:1;
+	unsigned char reserv:7;
+	unsigned char max_lumi;
+	unsigned char avg_lumi;
+	unsigned char min_lumi;
+};
+
+enum edid_list_e {
+	EDID_LIST_BUFF,
+	EDID_LIST_AML,
+	EDID_LIST_AML_DD,
+	EDID_LIST_SKYWORTH,
+	EDID_LIST_4K,
+	EDID_LIST_DOMY,
+	EDID_LIST_V2,
+	EDID_LIST_NUM
+};
+
 /* hpd event */
 extern struct delayed_work     hpd_dwork;
 extern struct workqueue_struct *hpd_wq;
@@ -449,7 +525,7 @@ extern int hdmi_ists_en;
 extern int real_port_map;
 extern bool hpd_to_esm;
 extern bool hdcp_enable;
-
+extern int it_content;
 extern struct rx_s rx;
 extern int log_flag;
 extern unsigned char is_alternative(void);
@@ -496,7 +572,13 @@ void hdmirx_hdcp22_init(void);
 
 uint32_t get(uint32_t data, uint32_t mask);
 uint32_t set(uint32_t data, uint32_t mask, uint32_t value);
-
+int rx_set_receiver_edid(unsigned char *data, int len);
+int rx_set_hdr_lumi(unsigned char *data, int len);
+bool rx_set_receive_hdcp(unsigned char *data, int len, int depth);
+void rx_repeat_hpd_state(bool plug);
+void rx_repeat_hdcp_ver(int version);
+void rx_edid_physical_addr(int a, int b, int c, int d);
+void rx_check_repeat(void);
 int hdmirx_control_clk_range(unsigned long min, unsigned long max);
 int hdmirx_packet_fifo_rst(void);
 void hdmirx_audio_enable(bool en);
@@ -506,8 +588,10 @@ void hdmirx_phy_init(int rx_port_sel, int dcm);
 void hdmirx_hw_config(void);
 void hdmirx_hw_reset(void);
 void hdmirx_hw_probe(void);
+void hdmi_rx_load_edid_data(unsigned char *buffer);
 int hdmi_rx_ctrl_edid_update(void);
 void hdmirx_set_hpd(int port, unsigned char val);
+bool hdmirx_repeat_support(void);
 
 int hdmirx_irq_close(void);
 int hdmirx_irq_open(void);
@@ -563,6 +647,7 @@ extern bool hdmirx_tmds_pll_lock(void);
 extern ssize_t hdmirx_cable_status_buf(char *buf);
 extern ssize_t hdmirx_signal_status_buf(char *buf);
 extern void hdmirx_irq_init(void);
+extern void hdmirx_check_new_edid(void);
 
 extern void hdmirx_plug_det(struct work_struct *work);
 extern void hdmirx_wait_query(void);

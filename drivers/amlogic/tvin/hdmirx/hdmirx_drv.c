@@ -78,13 +78,17 @@ static int force_colorspace;
 MODULE_PARM_DESC(force_colorspace, "\n force_colorspace\n");
 module_param(force_colorspace, int, 0664);
 
-static int hdmi_yuv444_enable;
+static int hdmi_yuv444_enable = 1;
 module_param(hdmi_yuv444_enable, int, 0664);
 MODULE_PARM_DESC(hdmi_yuv444_enable, "hdmi_yuv444_enable");
 
 int hdmirx_de_repeat_enable = 1;
 module_param(hdmirx_de_repeat_enable, int, 0664);
 MODULE_PARM_DESC(hdmirx_de_repeat_enable, "hdmirx_do_de_repeat_enable");
+
+static int repeat_function;
+MODULE_PARM_DESC(repeat_function, "\n repeat_function\n");
+module_param(repeat_function, int, 0664);
 
 struct reg_map {
 	unsigned int phy_addr;
@@ -153,8 +157,13 @@ void rx_init_reg_map(void)
 
 static int check_regmap_flag(unsigned int addr)
 {
-		return 1;
+	return 1;
 
+}
+
+bool hdmirx_repeat_support(void)
+{
+	return repeat_function;
 }
 
 unsigned int rd_reg(unsigned int addr)
@@ -400,7 +409,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	switch (hdmirx_hw_get_color_fmt()) {
 	case 1:
 		prop->color_format = TVIN_YUV444;
-		if (hdmi_yuv444_enable)
+		/* if (hdmi_yuv444_enable) */
 			prop->dest_cfmt = TVIN_YUV444;
 		break;
 	case 3:
@@ -408,7 +417,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		break;
 	case 0:
 		prop->color_format = TVIN_RGB444;
-		if (hdmi_yuv444_enable)
+		if ((hdmi_yuv444_enable) && (it_content))
 			prop->dest_cfmt = TVIN_YUV444;
 		break;
 	default:
@@ -1043,6 +1052,14 @@ static int hdmirx_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (pdev->dev.of_node) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"repeat", &repeat_function);
+		if (ret) {
+			pr_err("get repeat_function fail.\n");
+			repeat_function = 0;
+		}
+	}
 
 	/* hdmirx_hw_enable(); */
 
