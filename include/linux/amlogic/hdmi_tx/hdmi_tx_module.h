@@ -69,6 +69,13 @@ struct rx_cap {
 	unsigned int scdc_present:1;
 	unsigned int scdc_rr_capable:1; /* SCDC read request */
 	unsigned int lte_340mcsc_scramble:1;
+	unsigned int dc_y444:1;
+	unsigned int dc_30bit:1;
+	unsigned int dc_36bit:1;
+	unsigned int dc_48bit:1;
+	unsigned int dc_30bit_420:1;
+	unsigned int dc_36bit_420:1;
+	unsigned int dc_48bit_420:1;
 	unsigned int hdr_sup_eotf_sdr:1;
 	unsigned int hdr_sup_eotf_hdr:1;
 	unsigned int hdr_sup_eotf_smpte_st_2084:1;

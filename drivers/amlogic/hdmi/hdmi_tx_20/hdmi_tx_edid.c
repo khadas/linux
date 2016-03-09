@@ -309,7 +309,7 @@ int get_vsdb_phy_addr(struct vsdb_phyaddr *vsdb)
 	return vsdb->valid;
 }
 
-void set_vsdb_phy_addr(struct vsdb_phyaddr *vsdb,
+static void set_vsdb_phy_addr(struct vsdb_phyaddr *vsdb,
 	unsigned char *edid_offset)
 {
 	vsdb->a = (edid_offset[4] >> 4) & 0xf;
@@ -320,9 +320,27 @@ void set_vsdb_phy_addr(struct vsdb_phyaddr *vsdb,
 	vsdb->valid = 1;
 }
 
-int Edid_Parse_check_HDMI_VSDB(struct hdmitx_info *info,
+static void set_vsdb_dc_cap(struct rx_cap *pRXCap,
+	unsigned char *edid_offset)
+{
+	pRXCap->dc_y444 = !!(edid_offset[6] & (1 << 3));
+	pRXCap->dc_30bit = !!(edid_offset[6] & (1 << 4));
+	pRXCap->dc_36bit = !!(edid_offset[6] & (1 << 5));
+	pRXCap->dc_48bit = !!(edid_offset[6] & (1 << 6));
+}
+
+static void set_vsdb_dc_420_cap(struct rx_cap *pRXCap,
+	unsigned char *edid_offset)
+{
+	pRXCap->dc_30bit_420 = !!(edid_offset[6] & (1 << 0));
+	pRXCap->dc_36bit_420 = !!(edid_offset[6] & (1 << 1));
+	pRXCap->dc_48bit_420 = !!(edid_offset[6] & (1 << 2));
+}
+
+int Edid_Parse_check_HDMI_VSDB(struct hdmitx_dev *hdev,
 	unsigned char *buff)
 {
+	struct hdmitx_info *info = &(hdev->hdmi_info);
 	unsigned char  VSpecificBoundary, BlockAddr, len;
 	int temp_addr = 0;
 	VSpecificBoundary = buff[2];
@@ -347,6 +365,7 @@ int Edid_Parse_check_HDMI_VSDB(struct hdmitx_info *info,
 		info->vsdb_phy_addr.b,
 		info->vsdb_phy_addr.c,
 		info->vsdb_phy_addr.d);
+	set_vsdb_dc_cap(&hdev->RXCap, &buff[BlockAddr]);
 
 	if (temp_addr >= VSpecificBoundary) {
 		info->output_state = CABLE_PLUGIN_DVI_OUT;
@@ -1253,6 +1272,8 @@ case_hf:
 				!!(BlockBuf[offset+5] & (1 << 6));
 			pRXCap->lte_340mcsc_scramble =
 				!!(BlockBuf[offset+5] & (1 << 3));
+			set_vsdb_dc_420_cap(&hdmitx_device->RXCap,
+				&BlockBuf[offset]);
 case_next:
 			offset += count; /* ignore the remaind. */
 			break;
@@ -1644,7 +1665,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			if (((BlockCount == 1) && (i == 1)) ||
 				((BlockCount > 1) && (i == 2)))
 				Edid_Parse_check_HDMI_VSDB(
-					&hdmitx_device->hdmi_info,
+					hdmitx_device,
 					&EDID_buf[i * 128]);
 
 			for (j = 0, CheckSum = 0 ; j < 128 ; j++) {
@@ -1766,6 +1787,9 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"1080p59hz", HDMI_1080p60},
 #endif
+	{"2160p30hz44410bit", HDMI_3840x2160p30_16x9},
+	{"2160p25hz44410bit", HDMI_3840x2160p25_16x9},
+	{"2160p24hz44410bit", HDMI_3840x2160p24_16x9},
 	{"2160p30hz",  HDMI_4k2k_30},
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	{"4k2k29hz",  HDMI_4k2k_30},
@@ -1907,6 +1931,13 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 	pRXCap->native_Mode = 0;
 	pRXCap->native_VIC = 0xff;
 	pRXCap->RxSpeakerAllocation = 0;
+	pRXCap->dc_y444 = 0;
+	pRXCap->dc_30bit = 0;
+	pRXCap->dc_36bit = 0;
+	pRXCap->dc_48bit = 0;
+	pRXCap->dc_30bit_420 = 0;
+	pRXCap->dc_36bit_420 = 0;
+	pRXCap->dc_48bit_420 = 0;
 	hdmitx_device->hdmi_info.vsdb_phy_addr.a = 0;
 	hdmitx_device->hdmi_info.vsdb_phy_addr.b = 0;
 	hdmitx_device->hdmi_info.vsdb_phy_addr.c = 0;

@@ -1235,6 +1235,45 @@ static ssize_t show_aud_cap(struct device *dev,
 }
 
 /**/
+static ssize_t show_dc_cap(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct rx_cap *pRXCap = &(hdmitx_device.RXCap);
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "DeepColor:\n");
+
+	if (pRXCap->dc_y444) {
+		if (pRXCap->dc_30bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "  Y444 10bit\n");
+		if (pRXCap->dc_36bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "  Y444 12bit\n");
+		if (pRXCap->dc_48bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "  Y444 16bit\n");
+		if (pRXCap->dc_30bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "  Y422 10bit\n");
+		if (pRXCap->dc_36bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "  Y422 12bit\n");
+	}
+
+	if (pRXCap->dc_30bit)
+		pos += snprintf(buf + pos, PAGE_SIZE, "  RGB 10bit\n");
+	if (pRXCap->dc_36bit)
+		pos += snprintf(buf + pos, PAGE_SIZE, "  RGB 12bit\n");
+	if (pRXCap->dc_48bit)
+		pos += snprintf(buf + pos, PAGE_SIZE, "  RGB 16bit\n");
+
+	if (pRXCap->dc_30bit_420)
+		pos += snprintf(buf + pos, PAGE_SIZE, "  Y420 10bit\n");
+	if (pRXCap->dc_36bit_420)
+		pos += snprintf(buf + pos, PAGE_SIZE, "  Y420 12bit\n");
+	if (pRXCap->dc_48bit_420)
+		pos += snprintf(buf + pos, PAGE_SIZE, "  Y420 16bit\n");
+
+	return pos;
+}
+
+/**/
 static ssize_t show_hdr_cap(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1697,6 +1736,7 @@ static DEVICE_ATTR(debug, S_IWUSR, NULL, store_debug);
 static DEVICE_ATTR(disp_cap, S_IRUGO, show_disp_cap, NULL);
 static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
 static DEVICE_ATTR(hdr_cap, S_IRUGO, show_hdr_cap, NULL);
+static DEVICE_ATTR(dc_cap, S_IRUGO, show_dc_cap, NULL);
 static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
 static DEVICE_ATTR(aud_output_chs, S_IWUSR | S_IRUGO | S_IWGRP,
@@ -2529,6 +2569,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_ready);
 	ret = device_create_file(dev, &dev_attr_support_3d);
+	ret = device_create_file(dev, &dev_attr_dc_cap);
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	register_hdmi_edid_supported_func(hdmitx_is_vmode_supported);
 #endif
@@ -2710,6 +2751,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_disp_cap);
 	device_remove_file(dev, &dev_attr_disp_cap_3d);
 	device_remove_file(dev, &dev_attr_hdr_cap);
+	device_remove_file(dev, &dev_attr_dc_cap);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_ready);
 	device_remove_file(dev, &dev_attr_support_3d);

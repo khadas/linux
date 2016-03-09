@@ -34,11 +34,11 @@ static void tmds_config(unsigned long arg)
 	scdc_wr_sink(TMDS_CFG, hdev->para->tmds_clk_div40 ? 0x3 : 0);
 	scdc_rd_sink(SCRAMBLER_ST, &st);
 	cnt++;
-	if (st & 0x1) {
+	if ((hdev->para->tmds_clk_div40) && (st & 0x1)) {
 		pr_info("hdmitx20: rx scrambler status\n");
 		return;
 	} else {
-		if (cnt < 3)
+		if ((hdev->para->tmds_clk_div40) && (cnt < 3))
 			mod_timer(&scdc_tmds_cfg_timer, jiffies + HZ);
 		else
 			cnt = 0;
