@@ -1189,6 +1189,9 @@ static int aml_bl_update_status(struct backlight_device *bd)
 {
 	int brightness = bd->props.brightness;
 
+	if (brightness_bypass)
+		return 0;
+
 	mutex_lock(&bl_level_mutex);
 	if (brightness < 0)
 		brightness = 0;
@@ -1198,7 +1201,7 @@ static int aml_bl_update_status(struct backlight_device *bd)
 	if ((bl_drv->state & BL_STATE_LCD_ON) == 0)
 		brightness = 0;
 
-	if (brightness_bypass == 0) {
+	if (bl_debug_print_flag) {
 		BLPR("%s: %u, real brightness: %u, state: 0x%x\n",
 			__func__, bd->props.brightness,
 			brightness, bl_drv->state);
@@ -1207,8 +1210,7 @@ static int aml_bl_update_status(struct backlight_device *bd)
 		if (bl_drv->state & BL_STATE_BL_ON)
 			bl_power_off();
 	} else {
-		if (brightness_bypass == 0)
-			aml_bl_set_level(brightness);
+		aml_bl_set_level(brightness);
 		if ((bl_drv->state & BL_STATE_BL_ON) == 0)
 			bl_power_on();
 	}
