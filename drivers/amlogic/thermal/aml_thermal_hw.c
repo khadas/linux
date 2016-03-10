@@ -145,10 +145,10 @@ static int aml_thermal_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 	if (of_property_read_u32_array(np, "min_state", min_buf, 4)) {
-		dev_err(&pdev->dev, "read min_state failed\n");
+		pr_debug("read min_state failed\n");
 		min_exist = 0;
 	} else {
-		dev_info(&pdev->dev, "min state:%d %d %d %d\n",
+		pr_debug("min state:%d %d %d %d\n",
 			 min_buf[0], min_buf[1], min_buf[2], min_buf[3]);
 		min_exist = 1;
 	}
@@ -160,12 +160,11 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	snprintf(node_name, sizeof(node_name), "%s", "thermal_cpu_cores");
 	np = of_find_node_by_name(NULL, node_name);
 	if (!np)
-		dev_err(&pdev->dev, "not found cpucore node\n");
+		pr_debug("not found cpucore node\n");
 	else {
 		soc_sensor.cpucore_cdev = cpucore_cooling_register(np);
 		if (IS_ERR(soc_sensor.cpucore_cdev)) {
-			dev_err(&pdev->dev,
-				"Error cpu core cooling device, cdev:%p\n",
+			pr_debug("Error cpu core cooling device, cdev:%p\n",
 				soc_sensor.cpucore_cdev);
 		}
 	}
@@ -173,20 +172,19 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	/* 2. cpu freq cooling */
 	np = pdev->dev.of_node;
 	if (of_property_read_u32(np, "cpu_dyn_coeff", &dyn_coeff))
-		dev_err(&pdev->dev, "read cpu_dyn_coeff failed\n");
+		pr_debug("read cpu_dyn_coeff failed\n");
 	memset(node_name, 0, sizeof(node_name));
 	snprintf(node_name, 16, "cpus");
 	np = of_find_node_by_name(NULL, node_name);
 	if (!np) {
-		dev_err(&pdev->dev, "not found cpu node\n");
+		pr_debug("not found cpu node\n");
 	} else {
 		soc_sensor.cpufreq_cdev = of_cpufreq_power_cooling_register(np,
 							&soc_sensor.mask,
 							dyn_coeff,
 							NULL);
 		if (IS_ERR(soc_sensor.cpufreq_cdev)) {
-			dev_err(&pdev->dev,
-				"Error cpu freq cooling device, cdev:%p\n",
+			pr_debug("Error cpu freq cooling device, cdev:%p\n",
 				soc_sensor.cpufreq_cdev);
 		}
 	}
@@ -196,7 +194,7 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	snprintf(node_name, sizeof(node_name), "%s", "thermal_gpu_cores");
 	np = of_find_node_by_name(NULL, node_name);
 	if (!np) {
-		dev_err(&pdev->dev, "not found gpucore node\n");
+		pr_debug("not found gpucore node\n");
 	} else {
 		/*
 		 * gpu is ko, save parsed parameters to wating ko insert
@@ -207,16 +205,16 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	/* 4. gpu frequent cooling */
 	np = pdev->dev.of_node;
 	if (of_property_read_u32(np, "gpu_dyn_coeff", &dyn_coeff)) {
-		dev_err(&pdev->dev, "read gpu_dyn_coeff failed\n");
+		pr_debug("read gpu_dyn_coeff failed\n");
 		goto next;
 	}
 	snprintf(node_name, sizeof(node_name), "%s", "mali");
 	np = of_find_node_by_name(NULL, node_name);
 	if (!np) {
-		dev_err(&pdev->dev, "not found mali node\n");
+		pr_debug("not found mali node\n");
 	} else {
 		of_property_read_u32(np, "num_of_pp", &pp);
-		dev_info(&pdev->dev, "gpu coef:%d, pp:%d\n", dyn_coeff, pp);
+		pr_debug("gpu coef:%d, pp:%d\n", dyn_coeff, pp);
 		save_gpu_cool_para(dyn_coeff, np, pp);
 	}
 
@@ -245,7 +243,7 @@ next:
 					   soc_sensor.cpufreq_cdev, i);
 		if (ins) {
 			ins->upper = min_state;
-			dev_info(&pdev->dev, "%s set upper to %ld\n",
+			pr_debug("%s set upper to %ld\n",
 				 ins->name, ins->upper);
 		}
 	}
@@ -257,7 +255,7 @@ next:
 					   soc_sensor.cpucore_cdev, i);
 		if (ins) {
 			ins->upper = min_state;
-			dev_info(&pdev->dev, "%s set upper to %ld\n",
+			pr_debug("%s set upper to %ld\n",
 				 ins->name, ins->upper);
 		}
 	}
