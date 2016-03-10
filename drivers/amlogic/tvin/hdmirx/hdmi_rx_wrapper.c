@@ -3048,6 +3048,8 @@ int hdmirx_debug(const char *buf, int size)
 		sm_pause = value;
 	} else if (strncmp(tmpbuf, "reg", 3) == 0) {
 		dump_reg();
+	}  else if (strncmp(tmpbuf, "duk", 3) == 0) {
+		rx_sec_set_duk();
 	} else if (strncmp(tmpbuf, "edid", 4) == 0) {
 		dump_edid_reg();
 	} else if (strncmp(tmpbuf, "hdr", 3) == 0) {
