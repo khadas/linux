@@ -295,7 +295,7 @@ static void __init parse_dt_cpu_power(void)
 
 		rate = of_get_property(cn, "clock-frequency", &len);
 		if (!rate || len != 4) {
-			pr_err("%s: Missing clock-frequency property\n",
+			pr_info("%s: Missing clock-frequency property\n",
 				cn->full_name);
 			continue;
 		}
