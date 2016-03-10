@@ -373,9 +373,8 @@ void tsync_pcr_pcrscr_set(void)
 			cur_pcr = 0;
 	}
 	/* decide use which para to init */
-	if (cur_pcr && first_apts && first_vpts
-		&& !(tsync_pcr_inited_flag & complete_init_flag)
-		&& (cur_pcr < min_checkinpts)) {
+	if (cur_pcr && !(tsync_pcr_inited_flag & complete_init_flag)
+		&& (min_checkinpts != 0)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_PCR;
 		ref_pcr = cur_pcr - tsync_pcr_adj_value;
 		timestamp_pcrscr_set(ref_pcr);
@@ -396,7 +395,7 @@ void tsync_pcr_pcrscr_set(void)
 	}
 
 	if (first_apts && !(tsync_pcr_inited_flag & complete_init_flag)
-		&& (first_apts < min_checkinpts)) {
+		&& (min_checkinpts != 0)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_APTS;
 		ref_pcr = first_apts;
 
@@ -424,7 +423,7 @@ void tsync_pcr_pcrscr_set(void)
 	}
 
 	if (first_vpts && !(tsync_pcr_inited_flag & complete_init_flag)
-		&& (first_vpts < min_checkinpts)) {
+		&& (min_checkinpts != 0)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_VPTS;
 		ref_pcr = first_vpts - tsync_pcr_ref_latency * 2;
 		timestamp_pcrscr_set(ref_pcr);
@@ -779,20 +778,23 @@ static unsigned long tsync_pcr_check(void)
 		if (last_cur_pcr - cur_apts > MAX_SYNC_AGAP_TIME &&
 			abs(cur_apts - cur_vpts) > MAX_SYNC_AGAP_TIME &&
 			last_checkin_apts > 0 &&
-			last_checkin_apts - last_cur_pcr < MIN_SYNC_ACHACH_TIME
+			(last_checkin_apts > last_cur_pcr &&
+			last_checkin_apts - last_cur_pcr < MIN_SYNC_ACHACH_TIME)
 			&& !(tsync_pcr_tsdemuxpcr_discontinue
-			& PCR_DISCONTINUE))
+			& PCR_DISCONTINUE) && tsync_pcr_astart_flag) {
 			tsync_pcr_asynccheck_cnt++;
-		else
+			} else
 			tsync_pcr_asynccheck_cnt = 0;
 
 		if (last_cur_pcr - cur_vpts > MAX_SYNC_VGAP_TIME &&
 			abs(cur_apts - cur_vpts) > MAX_SYNC_VGAP_TIME &&
 			last_checkin_vpts > 0 &&
-			last_checkin_vpts - last_cur_pcr < MIN_SYNC_VCHACH_TIME
+			(last_checkin_vpts > last_cur_pcr &&
+			last_checkin_vpts - last_cur_pcr < MIN_SYNC_VCHACH_TIME)
 			&& !(tsync_pcr_tsdemuxpcr_discontinue
-			& PCR_DISCONTINUE))
+			& PCR_DISCONTINUE) && tsync_pcr_vstart_flag) {
 			tsync_pcr_vsynccheck_cnt++;
+			}
 		else
 			tsync_pcr_vsynccheck_cnt = 0;
 

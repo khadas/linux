@@ -28,8 +28,18 @@ static int debug_demod;
 module_param(debug_demod, int, 0644);
 
 MODULE_PARM_DESC(demod_timeout, "\n\t\t timeout debug information");
-static int demod_timeout = 150;
+static int demod_timeout = 80;
 module_param(demod_timeout, int, 0644);
+
+MODULE_PARM_DESC(demod_sync_count, "\n\t\t timeout debug information");
+static int demod_sync_count = 60;
+module_param(demod_sync_count, int, 0644);
+
+MODULE_PARM_DESC(demod_sync_delay_time, "\n\t\t timeout debug information");
+static int demod_sync_delay_time = 8;
+module_param(demod_sync_delay_time, int, 0644);
+
+
 
 MODULE_PARM_DESC(demod_mobile_power, "\n\t\t demod_mobile_power debug information");
 static int demod_mobile_power = 100;
@@ -909,7 +919,7 @@ void dtmb_all_reset(void)
 	dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
 	dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG7, 0xc09aa8cd);
 	dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, 0x0);
-	dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x209dc59);/*snr avg ,0x269dc59*/
+	dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x9dc59);/*snr avg ,0x269dc59*/
 	/*0x2 is auto,0x406 is  invert spectrum*/
 	if (dtmb_spectrum == 0)
 		dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x406);
@@ -927,8 +937,11 @@ void dtmb_all_reset(void)
 	/*cci para*/
 	dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG3, 0x80201f6);
 	dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG2, 0x3f20080);
-	dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0x0d0000);
+	dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
 	dtmb_write_reg(DTMB_TOP_CTRL_AGC, 0x3);
+	dtmb_write_reg(DTMB_TOP_CTRL_TS_SFO_CFO, 0x20403006);
+	dtmb_write_reg(DTMB_FRONT_AGC_CONFIG2, 0x7200a16);
+
 	/*jump fsm1(agc ready),*/
 
 	if (demod_enable_performance) {
@@ -1088,24 +1101,96 @@ int dtmb_check_fsm(void)
 
 }
 
+int patch_ts3(int delay1_us, int delay2_us)
+{
+	if (((dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0)&0xf) == 0x7)&1) {
+		dtmb_write_reg(DTMB_TOP_CTRL_FSM, 0x300f);
+		dtmb_write_reg(DTMB_TOP_CTRL_FSM, 0x310f);
+		msleep(delay1_us);
+		dtmb_write_reg(DTMB_TOP_CTRL_ENABLE, 0xffdfff);
+		dtmb_write_reg(DTMB_TOP_CTRL_ENABLE, 0xffffff);
+		dtmb_write_reg(DTMB_TOP_CTRL_FSM, 0x3110);
+		dtmb_write_reg(DTMB_TOP_CTRL_FSM, 0x3010);
+		dtmb_write_reg(DTMB_TOP_CTRL_FSM, 0x3000);
+		return 1;
+	} else
+		return 0;
+}
+
+
+int read_cfo_all(void)
+{
+	int icfo_all, fcfo_all;
+	icfo_all = dtmb_read_reg(DTMB_TOP_CTRL_ICFO_ALL) & 0xfffff;
+	fcfo_all = dtmb_read_reg(DTMB_TOP_CTRL_FCFO_ALL) & 0x3fff;
+	if (icfo_all > (1 << 19))
+		icfo_all = icfo_all - (1 << 20);
+	if (fcfo_all > (1 << 13))
+		fcfo_all = fcfo_all - (1 << 14);
+
+	return (int)(icfo_all*4+fcfo_all);
+
+}
+
+
+int dtmb_v3_soft_sync(int cfo_init)
+{
+
+	int cfo_all;
+	int cfo_setting;
+
+	if (cfo_init == 0) {
+		cfo_init = patch_ts3(11, 0);
+		if (cfo_init == 1) {
+			cfo_all = read_cfo_all();
+			cfo_setting = dtmb_read_reg(DTMB_FRONT_DDC_BYPASS);
+			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS,
+			cfo_setting+cfo_all);
+			dtmb_write_reg(DTMB_TOP_CTRL_LOOP, 0x3);
+			dtmb_reset();
+		}
+	}
+	return cfo_init;
+
+}
 
 int dtmb_read_snr(struct dvb_frontend *fe)
 {
 	int local_state;
 	int time_cnt;/* cci_det, src_config;*/
+	int cfo_init, count;
 
 	dtmb_information();
 	time_cnt = 0;
 	local_state = 0;
+	cfo_init = 0;
 	if (check_dtmb_fec_lock() != 1) {
+		dtmb_register_reset();
+		dtmb_all_reset();
+		count = 20;
+		while ((count) &&
+		((dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0)&0xf) < 0x6)) {
+			msleep(20);
+			count--;
+		}
+
+		count = demod_sync_count;
+		while ((count) && (cfo_init == 0)) {
+
+			cfo_init = dtmb_v3_soft_sync(cfo_init);
+
+			msleep(demod_sync_delay_time);
+			count--;
+		}
+		if (cfo_init == 0) {
+			return 0;
+		}
 		while ((time_cnt < 10) && (check_dtmb_fec_lock() != 1)) {
 			msleep(demod_timeout);
 			time_cnt++;
 			local_state = AMLOGIC_DTMB_STEP3;
-			dtmb_check_cci();
 			dtmb_information();
-			if (dtmb_check_fsm() != 1)
-				return 0;
+			dtmb_check_cci();
 			if (time_cnt > 8)
 				pr_dbg
 					("* local_state = %d\n", local_state);
@@ -1114,9 +1199,7 @@ int dtmb_read_snr(struct dvb_frontend *fe)
 			if (dtmb_spectrum == 0)
 				dtmb_spectrum = 1;
 			else
-				dtmb_spectrum = 0;
-			dtmb_register_reset();
-			dtmb_all_reset();
+				dtmb_spectrum = 1;
 			local_state = AMLOGIC_DTMB_STEP4;
 			time_cnt = 0;
 			pr_dbg
@@ -1137,8 +1220,10 @@ int dtmb_read_snr(struct dvb_frontend *fe)
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1,
 				src_config | (0x1 << 28));
 		}
-		#endif
+	#endif
 	}
+	if (check_dtmb_fec_lock() == 1)
+		dtmb_write_reg(DTMB_TOP_CTRL_LOOP, 0xf);
 	return 0;
 }
 
