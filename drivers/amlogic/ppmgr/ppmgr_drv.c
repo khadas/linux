@@ -1461,7 +1461,7 @@ static struct rmem_multi_user rmem_ppmgr_muser = {
 
 static int __init ppmgr_mem_setup(struct reserved_mem *rmem)
 {
-	PPMGRDRV_WARN("ppmgr share mem setup\n");
+	PPMGRDRV_DBG("ppmgr share mem setup\n");
 	ppmgr_device.use_reserved = 0;
 	ppmgr_device.buffer_size = 0;
 	of_add_rmem_multi_user(rmem, &rmem_ppmgr_muser);

@@ -2648,7 +2648,7 @@ static int __init rmem_fb_setup(struct reserved_mem *rmem)
 	fb_rmem.base = rmem->base;
 	fb_rmem.size = rmem->size;
 	rmem->ops = &rmem_fb_ops;
-	osd_log_info("Reserved memory: created fb at 0x%p, size %ld MiB\n",
+	osd_log_dbg("Reserved memory: created fb at 0x%p, size %ld MiB\n",
 		     (void *)rmem->base, (unsigned long)rmem->size / SZ_1M);
 	return 0;
 }

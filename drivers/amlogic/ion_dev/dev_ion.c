@@ -202,7 +202,7 @@ static struct rmem_multi_user rmem_ion_muser = {
 static int __init ion_dev_mem_setup(struct reserved_mem *rmem)
 {
 	of_add_rmem_multi_user(rmem, &rmem_ion_muser);
-	pr_info("ion_dev mem setup\n");
+	pr_debug("ion_dev mem setup\n");
 
 	return 0;
 }

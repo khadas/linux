@@ -143,7 +143,7 @@ static const struct reserved_mem_ops rmem_secmon_ops = {
 static int __init secmon_mem_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &rmem_secmon_ops;
-	pr_info("share mem setup\n");
+	pr_debug("share mem setup\n");
 
 	return 0;
 }

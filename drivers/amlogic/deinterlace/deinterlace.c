@@ -7908,7 +7908,7 @@ static int __init rmem_di_setup(struct reserved_mem *rmem)
 	rmem->ops = &rmem_di_ops;
 /* rmem->priv = cma; */
 
-	pr_info(
+	pr_debug(
 	"DI reserved memory: created CMA memory pool at %pa, size %ld MiB\n",
 		&rmem->base, (unsigned long)rmem->size / SZ_1M);
 

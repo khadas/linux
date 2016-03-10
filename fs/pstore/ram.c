@@ -649,7 +649,7 @@ static int __init rmem_pstore_setup(struct reserved_mem *rmem)
 {
 	mem_address = (ulong)rmem->base;
 	mem_size = (ulong)rmem->size;
-	pr_info("%s: %lx, size %ld\n", __func__, mem_address, mem_size);
+	pr_debug("%s: %lx, size %ld\n", __func__, mem_address, mem_size);
 	return 0;
 }
 RESERVEDMEM_OF_DECLARE(aml_pstore, "amlogic, pstore", rmem_pstore_setup);

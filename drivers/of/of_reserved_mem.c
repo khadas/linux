@@ -110,7 +110,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	int ret;
 	int multi_use;
 
-	pr_info("__reserved_mem_alloc_size: %s\n", uname);
+	pr_debug("__reserved_mem_alloc_size: %s\n", uname);
 
 	prop = of_get_flat_dt_prop(node, "size", &len);
 	if (!prop)
@@ -183,6 +183,8 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 
 	*res_base = base;
 	*res_size = size;
+	pr_info("%25s: %pa - 0x%016llx  (%ld MiB)\n",
+		uname, &base, (base+size), (unsigned long)size / SZ_1M);
 
 	return 0;
 }
@@ -211,7 +213,7 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 		 * is used by multi-users.
 		 */
 		if (initfn(rmem) == 0) {
-			pr_info("Reserved memory: initialized node %s, compatible id %s\n",
+			pr_debug("Reserved memory: initialized node %s, compatible id %s\n",
 				rmem->name, compat);
 		} else
 			ret--;
@@ -225,6 +227,8 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 void __init fdt_init_reserved_mem(void)
 {
 	int i;
+	unsigned long totalsize = 0;
+
 	for (i = 0; i < reserved_mem_count; i++) {
 		struct reserved_mem *rmem = &reserved_mem[i];
 		unsigned long node = rmem->fdt_node;
@@ -237,13 +241,17 @@ void __init fdt_init_reserved_mem(void)
 			prop = of_get_flat_dt_prop(node, "linux,phandle", &len);
 		if (prop)
 			rmem->phandle = of_read_number(prop, len/4);
-
+		if (i == 0)
+			pr_info("fdt Reserved memory table:\n");
 		if (rmem->size == 0)
 			err = __reserved_mem_alloc_size(node, rmem->name,
 					&rmem->base, &rmem->size, &rmem->flags);
 		if (err == 0)
 			__reserved_mem_init_node(rmem);
+		totalsize += rmem->size;
 	}
+	pr_info("fdt Reserved memory total:  %ld MiB\n",
+		(unsigned long)totalsize / SZ_1M);
 }
 
 static inline struct reserved_mem *__find_rmem(struct device_node *node)
@@ -309,14 +317,14 @@ int of_add_rmem_multi_user(struct reserved_mem *rmem,
 		return -EINVAL;
 	if (!rmem->user) {
 		rmem->user = user;
-		pr_info("%s add multi user:%p\n", rmem->name, user);
+		pr_debug("%s add multi user:%p\n", rmem->name, user);
 		return 0;
 	}
 
 	u = rmem->user;
 	while (u->next)
 		u = u->next;
-	pr_info("%s add multi user:%p\n", rmem->name, user);
+	pr_debug("%s add multi user:%p\n", rmem->name, user);
 	u->next = user;
 	user->next = NULL;
 
