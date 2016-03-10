@@ -696,6 +696,7 @@ static u32 disable_video = VIDEO_DISABLE_NONE;
 static u32 video_enabled __nosavedata;
 /* show first frame*/
 static bool show_first_frame_nosync;
+bool show_first_picture = false;
 /* static bool first_frame=false; */
 
 /* test screen*/
@@ -3524,7 +3525,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 						     (vf->pts) ? vf->pts :
 						     timestamp_vpts_get());
 
-			if (show_first_frame_nosync)
+			if (show_first_frame_nosync || show_first_picture)
 				show_nosync = true;
 
 			if (slowsync_repeat_enable)
@@ -4646,6 +4647,7 @@ static void video_vf_unreg_provider(void)
 #endif
 	atomic_set(&video_unreg_flag, 0);
 	enable_video_discontinue_report = 1;
+	show_first_picture = false;
 }
 
 static void video_vf_light_unreg_provider(void)
@@ -6835,6 +6837,26 @@ static ssize_t show_first_frame_nosync_store(struct class *cla,
 	return count;
 }
 
+static ssize_t show_first_picture_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	size_t r;
+	int value;
+
+	r = sscanf(buf, "%d", &value);
+
+	if (r != 1)
+		return -EINVAL;
+
+	if (value == 0)
+		show_first_picture = false;
+	else
+		show_first_picture = true;
+
+	return count;
+}
+
 static ssize_t video_free_keep_buffer_store(struct class *cla,
 				   struct class_attribute *attr,
 				   const char *buf, size_t count)
@@ -6956,6 +6978,9 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       S_IRUGO | S_IWUSR,
 	       show_first_frame_nosync_show,
 	       show_first_frame_nosync_store),
+	__ATTR(show_first_picture,
+	       S_IRUGO | S_IWUSR | S_IWGRP, NULL,
+	       show_first_picture_store),
 	__ATTR(slowsync_repeat_enable,
 	       S_IRUGO | S_IWUSR,
 	       slowsync_repeat_enable_show,
