@@ -183,8 +183,8 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 
 	*res_base = base;
 	*res_size = size;
-	pr_info("%25s: %pa - 0x%016llx  (%ld MiB)\n",
-		uname, &base, (base+size), (unsigned long)size / SZ_1M);
+	pr_info("%25s: %pa - 0x%016lx  (%ld MiB)\n", uname, &base,
+		(unsigned long)(base+size), (unsigned long)size / SZ_1M);
 
 	return 0;
 }
