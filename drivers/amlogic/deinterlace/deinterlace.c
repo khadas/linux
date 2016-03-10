@@ -1104,7 +1104,6 @@ static DEVICE_ATTR(tvp_region, 0444, show_tvp_region, NULL);
 ***************************/
 #define MAX_IN_BUF_NUM            16
 #define MAX_LOCAL_BUF_NUM         12
-/*16 -->3 avoid ff/fb problem*/
 #define MAX_POST_BUF_NUM          16
 
 #define VFRAME_TYPE_IN                  1
@@ -7699,8 +7698,8 @@ get_vframe:
 			vframe_ret->early_process_fun(
 				vframe_ret->private_data, vframe_ret);
 	}
-	if (vframe_ret)
-		recycle_keep_buffer();
+	/*if (vframe_ret)
+		recycle_keep_buffer();*/
 
 	return vframe_ret;
 }
@@ -7721,7 +7720,10 @@ static void di_vf_put(vframe_t *vf, void *arg)
 	if (di_blocking)
 		return;
 	log_buffer_state("pu_");
-	recycle_keep_buffer();
+	if (used_post_buf_index != -1) {
+		if (di_buf == &(di_buf_post[used_post_buf_index]))
+			recycle_keep_buffer();
+	}
 	if (di_buf->type == VFRAME_TYPE_POST) {
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
 
