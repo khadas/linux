@@ -2444,9 +2444,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	res = &memobj;
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret == 0)
-		pr_err(".\n vdin memory resource done.\n");
+		pr_info("\n vdin memory resource done.\n");
 	else
-		pr_info(".\n vdin memory resource undefined!!\n");
+		pr_info("\n vdin memory resource undefined!!\n");
 #endif
 /* if (!res) { */
 /* pr_err("%s: can't get mem resource !!!!!!!!!!\n", __func__); */

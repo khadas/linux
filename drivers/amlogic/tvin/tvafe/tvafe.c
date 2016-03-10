@@ -2079,9 +2079,9 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	res = &tvafe_memobj;
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret == 0)
-		pr_info(".\n tvafe memory resource done.\n");
+		pr_info("\n tvafe memory resource done.\n");
 	else
-		pr_err("tvafe: can't get memory resource\n");
+		pr_info("tvafe: can't get memory resource\n");
 #endif
 #ifdef CONFIG_CMA
 	if (!tvafe_use_reserved_mem) {
