@@ -66,6 +66,10 @@ struct matrix_s {
 	u16 right_shift;
 };
 
+static struct vframe_s *dbg_vf;
+static struct master_display_info_s dbg_hdr_send;
+static struct hdr_info receiver_hdr_info;
+
 static int hue_pre;  /*-25~25*/
 static int saturation_pre;  /*-128~127*/
 static int hue_post;  /*-25~25*/
@@ -143,6 +147,10 @@ MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 static uint force_csc_type = 0xff;
 module_param(force_csc_type, uint, 0664);
 MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
+
+static uint cur_hdr_support;
+module_param(cur_hdr_support, uint, 0664);
+MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
 
 #define MAX_KNEE_SETTING	11
 /* recommended setting for 100 nits panel: */
@@ -230,7 +238,7 @@ MODULE_PARM_DESC(customer_matrix_param,
 
 /* norm to 128 as 1, LUT can be changed */
 static uint num_extra_con_lut = 5;
-static uint extra_con_lut[] = {166, 152, 140, 132, 128};
+static uint extra_con_lut[] = {144, 136, 132, 130, 128};
 module_param_array(extra_con_lut, uint,
 	&num_extra_con_lut, 0664);
 MODULE_PARM_DESC(extra_con_lut,
@@ -646,7 +654,8 @@ static struct vframe_master_display_colour_s cur_master_display_colour = {
 #define SIG_PRI_INFO	0x04
 #define SIG_KNEE_FACTOR	0x08
 #define SIG_HDR_MODE	0x10
-int signal_type_changed(struct vframe_s *vf)
+#define SIG_HDR_SUPPORT	0x20
+int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	u32 signal_type = 0;
 	u32 default_signal_type;
@@ -752,6 +761,12 @@ int signal_type_changed(struct vframe_s *vf)
 		change_flag |= SIG_HDR_MODE;
 		cur_hdr_process_mode = hdr_process_mode;
 	}
+	if (cur_hdr_support != (vinfo->hdr_info.hdr_support & 0x4)) {
+		pr_amvecm_dbg("Tx HDR support changed.\n");
+		change_flag |= SIG_HDR_SUPPORT;
+		cur_hdr_support = vinfo->hdr_info.hdr_support & 0x4;
+	}
+
 	return change_flag;
 }
 
@@ -1095,35 +1110,42 @@ static void print_primaries_info(struct vframe_master_display_colour_s *p)
 		p->luminance[0], p->luminance[1]);
 }
 
-static void amvecm_cp_hdr_info(struct master_display_info_s hdr_data,
+static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 		struct vframe_s *vf)
 {
 	int i, j;
 
-	memcpy(hdr_data.primaries,
-		vf->prop.master_display_colour.primaries,
-		sizeof(u32)*6);
-	memcpy(hdr_data.white_point,
-		vf->prop.master_display_colour.white_point,
-		sizeof(u32)*2);
-	memcpy(hdr_data.luminance,
-		vf->prop.master_display_colour.luminance,
-		sizeof(u32)*2);
-	hdr_data.present_flag =
-		vf->prop.master_display_colour.present_flag;
+	if (vf->prop.master_display_colour.present_flag) {
 
-	for (i = 0; i < 3; i++)
-		for (j = 0; j < 2; j++)
-			pr_amvecm_dbg(
-				"\t\tTx primaries[%1d][%1d] = %04x\n",
-				i, j,
-				hdr_data.primaries[i][j]);
-	pr_amvecm_dbg("\t\tTx white_point = (%04x, %04x)\n",
-			hdr_data.white_point[0], hdr_data.white_point[1]);
-	pr_amvecm_dbg("\t\tTx max,min luminance = %08x, %08x\n",
-			hdr_data.luminance[0], hdr_data.luminance[1]);
-	pr_amvecm_dbg("\t\tTx  hdr_data.present_flag: %08x\n",
-			hdr_data.present_flag);
+		memcpy(hdr_data->primaries,
+			vf->prop.master_display_colour.primaries,
+			sizeof(u32)*6);
+		memcpy(hdr_data->white_point,
+			vf->prop.master_display_colour.white_point,
+			sizeof(u32)*2);
+		hdr_data->luminance[0] =
+			vf->prop.master_display_colour.luminance[0];
+		hdr_data->luminance[1] =
+			vf->prop.master_display_colour.luminance[1];
+	} else {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				hdr_data->primaries[i][j] =
+						bt2020_primaries[i][j];
+		hdr_data->white_point[0] = bt709_white_point[0];
+		hdr_data->white_point[1] = bt709_white_point[1];
+		/* default luminance
+		 * (got from exodus uhd hdr exodus draft.mp4) */
+		hdr_data->luminance[0] = 0xb71b00;
+		hdr_data->luminance[1] = 0xc8;
+	}
+	hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
+	hdr_data->present_flag = 1;
+
+	/* hdr send information debug */
+	memcpy(&dbg_hdr_send, hdr_data,
+			sizeof(struct master_display_info_s));
+
 }
 static void vpp_matrix_update(struct vframe_s *vf)
 {
@@ -1147,18 +1169,25 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	if (!is_meson_gxtvbb_cpu())
 		return;
 
+	/* debug vframe info backup */
+	dbg_vf = vf;
+
 	vinfo = get_current_vinfo();
+
+	/* Tx hdr information */
+	memcpy(&receiver_hdr_info, &vinfo->hdr_info,
+			sizeof(struct hdr_info));
 
 	/* check hdr support info from Tx or Panel */
 	if (hdr_mode == 2) { /* auto */
-		if (vinfo->hdr_info.hdr_support)
+		if (vinfo->hdr_info.hdr_support & 0x4)
 			hdr_process_mode = 0; /* hdr->hdr*/
 		else
 			hdr_process_mode = 1; /* hdr->sdr*/
 	} else
 		hdr_process_mode = hdr_mode;
 
-	signal_change_flag = signal_type_changed(vf);
+	signal_change_flag = signal_type_changed(vf, vinfo);
 
 	if ((!signal_change_flag) && (force_csc_type == 0xff))
 		return;
@@ -1169,20 +1198,51 @@ static void vpp_matrix_update(struct vframe_s *vf)
 		csc_type = force_csc_type;
 	else
 		csc_type = get_csc_type();
+
+	/* send signal info to tx
+	 * TODO: need discuss with TX driver
+	 */
+	if (vinfo->viu_color_fmt != TVIN_RGB444) {
+		/* bypass mode */
+		if ((hdr_process_mode == 0) &&
+			(csc_type >= VPP_MATRIX_BT2020YUV_BT2020RGB)) {
+			/* source is hdr, send hdr info */
+			/* use the features to discribe source info */
+			send_info.features =
+					  (1 << 29)	/* video available */
+					| (5 << 26)	/* unspecified */
+					| (0 << 25)	/* limit */
+					| (1 << 24)	/* color available */
+					| (9 << 16)	/* bt2020 */
+					| (14 << 8)	/* bt2020-10 */
+					| (10 << 0);	/* bt2020c */
+			amvecm_cp_hdr_info(&send_info, vf);
+			if (vinfo->fresh_tx_hdr_pkt)
+				vinfo->fresh_tx_hdr_pkt(&send_info);
+		} else {
+			/* sdr source send normal info
+			 * use the features to discribe source info */
+			send_info.features =
+					/* default 709 full */
+					  (1 << 29)	/* video available */
+					| (5 << 26)	/* unspecified */
+					| (1 << 25)	/* full */
+					| (1 << 24)	/* color available */
+					| (1 << 16)	/* bt709 */
+					| (1 << 8)	/* bt709 */
+					| (1 << 0);	/* bt709 */
+			if (vinfo->fresh_tx_hdr_pkt)
+				vinfo->fresh_tx_hdr_pkt(&send_info);
+		}
+	}
+
 	if ((cur_csc_type != csc_type)
 	|| (signal_change_flag
 	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE))) {
 		/* check output format(Panel or Tx)  */
-		if (vinfo->viu_color_fmt != TVIN_RGB444) {
+		if (vinfo->viu_color_fmt != TVIN_RGB444)
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
-			if (hdr_process_mode == 0) { /* bypass */
-				if (vinfo->hdr_info.hdr_support) {
-					amvecm_cp_hdr_info(send_info, vf);
-					vinfo->fresh_tx_hdr_pkt(&send_info);
-				} else
-					vinfo->fresh_tx_hdr_pkt = NULL;
-			}
-		} else
+		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 		/* decided by edid or panel info or user setting */
 		if (!hdr_process_mode) {
@@ -1845,19 +1905,60 @@ void amvecm_video_latch(void)
 	}
 /* #endif */
 }
+
+static struct vframe_s *last_vf;
+static int null_vf_cnt;
+
+unsigned int null_vf_max = 5;
+module_param(null_vf_max, uint, 0664);
+MODULE_PARM_DESC(null_vf_max, "\n null_vf_max\n");
+void amvecm_matrix_process(struct vframe_s *vf)
+{
+	struct vframe_s fake_vframe;
+
+	if (vf == last_vf)
+		return;
+
+	if (vf != NULL) {
+		vpp_matrix_update(vf);
+		last_vf = vf;
+		null_vf_cnt = 0;
+	} else {
+		/* check last signal type */
+		if ((last_vf != NULL) &&
+			((last_vf->signal_type >> 16) & 0xff) == 9)
+			null_vf_cnt++;
+		if (((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
+			&& (null_vf_cnt > null_vf_max)) {
+			/* send a faked vframe to switch matrix
+			   from 2020 to 601 when video disabled */
+			fake_vframe.source_type = VFRAME_SOURCE_TYPE_OTHERS;
+			fake_vframe.signal_type = 0;
+			fake_vframe.width = 720;
+			fake_vframe.height = 480;
+			fake_vframe.prop.master_display_colour.present_flag = 0;
+			vpp_matrix_update(&fake_vframe);
+			last_vf = vf;
+			null_vf_cnt = 0;
+		}
+	}
+}
+
 void amvecm_on_vs(struct vframe_s *vf)
 {
 	if (probe_ok == 0)
 		return;
 	amvecm_video_latch();
+
 	if (vf != NULL) {
 		/* matrix ajust */
-		vpp_matrix_update(vf);
+		amvecm_matrix_process(vf);
 
 		amvecm_bricon_process(
 			vd1_brightness,
 			vd1_contrast  + vd1_contrast_offset, vf);
-	}
+	} else
+		amvecm_matrix_process(NULL);
 
 	pq_enable_disable();
 }
@@ -2922,6 +3023,132 @@ static ssize_t amvecm_dump_vpp_hist_store(struct class *cla,
 	return 0;
 }
 
+static ssize_t amvecm_hdr_dbg_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int i, j;
+
+	if (dbg_vf == NULL)
+		goto hdr_dump;
+	pr_info("\n----vframe info----\n");
+	pr_info("vframe:%p\n", dbg_vf);
+	pr_info("index:%d, type:0x%x, type_backup:0x%x, blend_mode:%d\n",
+			dbg_vf->index, dbg_vf->type,
+			dbg_vf->type_backup, dbg_vf->blend_mode);
+	pr_info("duration:%d, duration_pulldown:%d, pts:%d, flag:0x%x\n",
+			dbg_vf->duration, dbg_vf->duration_pulldown,
+			dbg_vf->pts, dbg_vf->flag);
+	pr_info("canvas0Addr:0x%x, canvas1Addr:0x%x, bufWidth:%d\n",
+			dbg_vf->canvas0Addr, dbg_vf->canvas1Addr,
+			dbg_vf->bufWidth);
+	pr_info("width:%d, height:%d, ratio_control:0x%x, bitdepth:%d\n",
+			dbg_vf->width, dbg_vf->height,
+			dbg_vf->ratio_control, dbg_vf->bitdepth);
+	pr_info("signal_type:%x, orientation:%d, video_angle:0x%x\n",
+			dbg_vf->signal_type, dbg_vf->orientation,
+			dbg_vf->video_angle);
+	pr_info("source_type:%d, phase:%d, soruce_mode:%d, sig_fmt:0x%x\n",
+			dbg_vf->source_type, dbg_vf->phase,
+			dbg_vf->source_mode, dbg_vf->sig_fmt);
+	/*
+	pr_info(
+		"trans_fmt 0x%x, lefteye(%d %d %d %d), righteye(%d %d %d %d)\n",
+		vf->trans_fmt, vf->left_eye.start_x, vf->left_eye.start_y,
+		vf->left_eye.width, vf->left_eye.height,
+		vf->right_eye.start_x, vf->right_eye.start_y,
+		vf->right_eye.width, vf->right_eye.height);
+	pr_info("mode_3d_enable %d",
+		vf->mode_3d_enable);
+	pr_info("early_process_fun 0x%p, process_fun 0x%p,
+	private_data %p\n",
+		vf->early_process_fun, vf->process_fun, vf->private_data);
+
+	pr_info("hist_pow %d, luma_sum %d, chroma_sum %d, pixel_sum %d\n",
+		vf->prop.hist.hist_pow, vf->prop.hist.luma_sum,
+		vf->prop.hist.chroma_sum, vf->prop.hist.pixel_sum);
+
+	pr_info("height %d, width %d, luma_max %d, luma_min %d\n",
+		vf->prop.hist.hist_pow, vf->prop.hist.hist_pow,
+		vf->prop.hist.hist_pow, vf->prop.hist.hist_pow);
+
+	pr_info("vpp_luma_sum %d, vpp_chroma_sum %d, vpp_pixel_sum %d\n",
+		vf->prop.hist.vpp_luma_sum, vf->prop.hist.vpp_chroma_sum,
+		vf->prop.hist.vpp_pixel_sum);
+
+	pr_info("vpp_height %d, vpp_width %d, vpp_luma_max %d,
+	 vpp_luma_min %d\n",
+		vf->prop.hist.vpp_height, vf->prop.hist.vpp_width,
+		vf->prop.hist.vpp_luma_max, vf->prop.hist.vpp_luma_min);
+
+	pr_info("vs_span_cnt %d, vs_cnt %d, hs_cnt0 %d, hs_cnt1 %d\n",
+		vf->prop.meas.vs_span_cnt, vf->prop.meas.vs_cnt,
+		vf->prop.meas.hs_cnt0, vf->prop.meas.hs_cnt1);
+
+	pr_info("hs_cnt2 %d, vs_cnt %d, hs_cnt3 %d,
+	 vs_cycle %d, vs_stamp %d\n",
+		vf->prop.meas.hs_cnt2, vf->prop.meas.hs_cnt3,
+		vf->prop.meas.vs_cycle, vf->prop.meas.vs_stamp);
+	*/
+	pr_info("\t\tdisplay colour present_flag:%d\n",
+		dbg_vf->prop.master_display_colour.present_flag);
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 2; j++)
+			pr_info(
+				"\t\t primaries[%1d][%1d] = %04x\n",
+			i, j,
+			dbg_vf->prop.master_display_colour.primaries[i][j]);
+	pr_info("\t\twhite_point = (%04x, %04x)\n",
+			dbg_vf->prop.master_display_colour.white_point[0],
+			dbg_vf->prop.master_display_colour.white_point[1]);
+	pr_info("\t\tmax,min luminance = %08x, %08x\n",
+			dbg_vf->prop.master_display_colour.luminance[0],
+			dbg_vf->prop.master_display_colour.luminance[1]);
+
+	pr_info("pixel_ratio:%d list:%p\n",
+			dbg_vf->pixel_ratio, &dbg_vf->list);
+
+	pr_info("ready_jiffies64:%lld, frame_dirty %d\n",
+			dbg_vf->ready_jiffies64, dbg_vf->frame_dirty);
+hdr_dump:
+	pr_info("\n-------HDR process info-------\n");
+
+	pr_info("hdr_mode:%d, hdr_process_mode:%d, force_csc_type:0x%x\n",
+			hdr_mode, hdr_process_mode, force_csc_type);
+	pr_info("cur_signal_type:0x%x, cur_csc_mode:0x%x, cur_csc_type:0x%x\n",
+			cur_signal_type, cur_csc_mode, cur_csc_type);
+
+	pr_info("knee_lut_on:%d,knee_interpolation_mode:%d,cur_knee_factor:%d\n",
+			knee_lut_on, knee_interpolation_mode, cur_knee_factor);
+
+	pr_info("\n-------Tx HDR process info-------\n");
+	pr_info("hdr_support:0x%x,lumi_max:%d,lumi_avg:%d,lumi_min:%d\n",
+			receiver_hdr_info.hdr_support,
+			receiver_hdr_info.lumi_max,
+			receiver_hdr_info.lumi_avg,
+			receiver_hdr_info.lumi_min);
+
+	pr_info("\n----Send master display info----\n");
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 2; j++)
+			pr_info(
+				"\t\t primaries[%1d][%1d] = %04x\n",
+				i, j,
+				dbg_hdr_send.primaries[i][j]);
+	pr_info("\t\twhite_point = (%04x, %04x)\n",
+			dbg_hdr_send.white_point[0],
+			dbg_hdr_send.white_point[1]);
+	pr_info("\t\tmax,min luminance = %08x, %08x\n",
+			dbg_hdr_send.luminance[0], dbg_hdr_send.luminance[1]);
+
+	return 0;
+}
+
+static ssize_t amvecm_hdr_dbg_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	return 0;
+}
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_sharpness(void)
 {
@@ -3031,6 +3258,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_write_sr1_reg_val_show, amvecm_write_sr1_reg_val_store),
 	__ATTR(dump_vpp_hist, S_IRUGO | S_IWUSR,
 		amvecm_dump_vpp_hist_show, amvecm_dump_vpp_hist_store),
+	__ATTR(hdr_dbg, S_IRUGO | S_IWUSR,
+			amvecm_hdr_dbg_show, amvecm_hdr_dbg_store),
 	__ATTR_NULL
 };
 

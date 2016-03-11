@@ -64,6 +64,8 @@ struct rx_cap {
 	/*vendor*/
 	unsigned int IEEEOUI;
 	unsigned int HF_IEEEOUI;	/* For HDMI Forum */
+	/* CEA861-F, Table 56, Colorimetry Data Block */
+	unsigned int colorimetry_data;
 	unsigned int scdc_present:1;
 	unsigned int scdc_rr_capable:1; /* SCDC read request */
 	unsigned int lte_340mcsc_scramble:1;

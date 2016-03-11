@@ -471,15 +471,14 @@ static int set_disp_mode_auto(void)
 		return -1;
 
 	info->fresh_tx_hdr_pkt = hdmitx_set_drm_pkt;
-	info->hdr_info.hdr_support = hdev->RXCap.hdr_sup_eotf_smpte_st_2084;
-	info->master_display_info.features = (hdev->RXCap.hdr_sup_eotf_sdr << 0)
+	info->hdr_info.hdr_support = (hdev->RXCap.hdr_sup_eotf_sdr << 0)
 			|| (hdev->RXCap.hdr_sup_eotf_hdr << 1)
 			|| (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 << 2);
 	info->hdr_info.lumi_max = hdev->RXCap.hdr_lum_max;
 	info->hdr_info.lumi_avg = hdev->RXCap.hdr_lum_avg;
 	info->hdr_info.lumi_min = hdev->RXCap.hdr_lum_min;
 	pr_info("hdmitx: update rx hdr info %x\n",
-		info->master_display_info.features);
+		info->hdr_info.hdr_support);
 
 	/* If info->name equals to cvbs, then set mode to I mode to hdmi
 	 */
@@ -945,23 +944,38 @@ void hdmitx_audio_mute_op(unsigned int flag)
 }
 EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
-#define GET_LOW8BIT(a)	(a && 0xff)
-#define GET_HIGH8BIT(a)	((a >> 8) && 0xff)
+#define GET_LOW8BIT(a)	((a) & 0xff)
+#define GET_HIGH8BIT(a)	(((a) >> 8) & 0xff)
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	unsigned char DRM_DB[26] = {0x0};
 
-	if (!data) {
+	if ((!data) || (!(hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
+		!(hdev->RXCap.hdr_sup_eotf_hdr) &&
+		!(hdev->RXCap.hdr_sup_eotf_sdr))) {
+		DRM_HB[1] = 0;
+		DRM_HB[2] = 0;
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
+		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_AVI,
+			(unsigned char *)&hdmitx_device, DRM_HB);
 		pr_info("hdmitx: off DRM packet send\n");
 		return;
 	}
 
 	/* update DRM data */
-	if (hdev->RXCap.hdr_sup_eotf_smpte_st_2084)
+	if ((hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
+		(((data->features >> 16) & 0xff) == 0x9)) {
 		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
+	} else {
+		memset(DRM_DB, 0, sizeof(DRM_DB));
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
+				DRM_DB, DRM_HB);
+			goto next_avipkt;
+		}
+	}
 	DRM_DB[1] = 0x0;
 	DRM_DB[2] = GET_LOW8BIT(data->primaries[0][0]);
 	DRM_DB[3] = GET_HIGH8BIT(data->primaries[0][0]);
@@ -986,6 +1000,19 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+
+next_avipkt:
+	if (((data->features >> 16) && 0xff) == 9) {
+		DRM_HB[1] = 3;
+		DRM_HB[2] = 6;
+	} else {
+		DRM_HB[1] = 0;
+		DRM_HB[2] = 0;
+	}
+	if ((hdmitx_device.RXCap.colorimetry_data >> 5) & 0x7) {
+		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_AVI,
+			(unsigned char *)&hdmitx_device, DRM_HB);
+	}
 }
 
 static ssize_t store_config(struct device *dev,
@@ -1896,6 +1923,19 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_unlock(&setclk_mutex);
 }
 
+static void clear_hdr_info(struct hdmitx_dev *hdev)
+{
+	struct vinfo_s *info = get_current_vinfo();
+
+	if (info) {
+		info->hdr_info.hdr_support = 0;
+		info->hdr_info.lumi_max = 0;
+		info->hdr_info.lumi_avg = 0;
+		info->hdr_info.lumi_min = 0;
+		pr_info("hdmitx: clear RX hdr info\n");
+	}
+}
+
 void hdmitx_hpd_plugout_handler(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
@@ -1920,6 +1960,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
 		hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
 	}
+	clear_hdr_info(hdev);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	switch_set_state(&sdev, 0);

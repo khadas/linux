@@ -58,6 +58,7 @@
 #define HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG       7
 
 /* DRM stands for "Dynamic Range and Mastering " */
+#define EXTENSION_COLORMETRY_TAG 0x5
 #define EXTENSION_DRM_TAG	0x6
 #define EXTENSION_Y420_VDB_TAG	0xe
 #define EXTENSION_Y420_CMDB_TAG	0xf
@@ -1257,6 +1258,10 @@ case_next:
 
 				ext_tag = BlockBuf[offset+1];
 				switch (ext_tag) {
+				case EXTENSION_COLORMETRY_TAG:
+					pRXCap->colorimetry_data =
+						BlockBuf[offset + 2];
+					break;
 				case EXTENSION_DRM_TAG:
 					Edid_ParsingDRMBlock(pRXCap,
 						&BlockBuf[offset]);
@@ -1677,16 +1682,14 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* update RX HDR information */
 	info = get_current_vinfo();
 	if (info) {
-		info->hdr_info.hdr_support = pRXCap->hdr_sup_eotf_smpte_st_2084;
-		info->master_display_info.features =
-			(pRXCap->hdr_sup_eotf_sdr << 0)
+		info->hdr_info.hdr_support = (pRXCap->hdr_sup_eotf_sdr << 0)
 			|| (pRXCap->hdr_sup_eotf_hdr << 1)
 			|| (pRXCap->hdr_sup_eotf_smpte_st_2084 << 2);
 		info->hdr_info.lumi_max = pRXCap->hdr_lum_max;
 		info->hdr_info.lumi_avg = pRXCap->hdr_lum_avg;
 		info->hdr_info.lumi_min = pRXCap->hdr_lum_min;
 		pr_info("hdmitx: update RX hdr info %x\n",
-			info->master_display_info.features);
+			info->hdr_info.hdr_support);
 	}
 	return 0;
 
@@ -2045,6 +2048,9 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		pRXCap->IEEEOUI);
 	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",
 		pRXCap->HF_IEEEOUI);
+	if (pRXCap->colorimetry_data)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			"ColorMetry: 0x%x\n", pRXCap->colorimetry_data);
 	pos += snprintf(buffer+pos, buffer_len-pos, "SCDC: %x\n",
 		pRXCap->scdc_present);
 	pos += snprintf(buffer+pos, buffer_len-pos, "RR_Cap: %x\n",

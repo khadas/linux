@@ -674,9 +674,6 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 					VideoCode);
 			else
 				hdmi_set_vend_spec_infofram(hdmitx_device, 0);
-
-			hdmitx_device->HWOp.SetPacket(HDMI_PACKET_AVI,
-				AVI_DB, AVI_HB);
 			ret = 0;
 		}
 	}

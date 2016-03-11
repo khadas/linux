@@ -1935,14 +1935,51 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	return 0;
 }
 
+#define SET_AVI_Y2Y1Y0(a) \
+	do { \
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, (a) & 0x3, 0, 2); \
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, !!(a & 0x4), 7, 1);\
+	} while (0)
+#define SET_AVI_C1C0(a) \
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, a & 0x3, 6, 2)
+#define SET_AVI_EC2ECEC0(a) \
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, a & 0x7, 4, 3)
+#define SET_AVI_Y_C_EC(a, b, c) \
+	do { \
+		SET_AVI_Y2Y1Y0(a); \
+		SET_AVI_C1C0(b); \
+		SET_AVI_EC2ECEC0(c); \
+	} while (0)
+
 static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 {
 	int i;
 	int pkt_data_len = 0;
+	struct hdmitx_dev *hdev;
 
 	switch (type) {
-	case HDMI_PACKET_AVI: /* TODO */
-		pkt_data_len = 13;
+	case HDMI_PACKET_AVI:
+		hdev = (struct hdmitx_dev *)DB;
+		if (hdev->para->cd != COLORDEPTH_24B) {
+			/* Refet to CEA861-F, P59 Tabel 13*/
+			switch (hdev->para->cs) {
+			case COLORSPACE_RGB444:
+				SET_AVI_Y_C_EC(0, HB[1], HB[2]);
+				break;
+			case COLORSPACE_YUV422:
+				SET_AVI_Y_C_EC(1, HB[1], HB[2]);
+				break;
+			case COLORSPACE_YUV444:
+				SET_AVI_Y_C_EC(2, HB[1], HB[2]);
+				break;
+			case COLORSPACE_YUV420:
+				SET_AVI_Y_C_EC(3, HB[1], HB[2]);
+				break;
+			default:
+				break;
+			}
+		} else
+			SET_AVI_Y_C_EC(hdev->para->cs, 0, 0);
 		break;
 	case HDMI_PACKET_VEND:
 		if (!DB) {
