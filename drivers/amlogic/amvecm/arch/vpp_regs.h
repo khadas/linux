@@ -348,6 +348,7 @@
 #define VI_HIST_BLACK_WHITE_VALUE  0x2e29
 #define VI_HIST_GCLK_CTRL  0x2e2a
 
+#define VPP_IN_H_V_SIZE  0x1da6
 
 
 /* 3D process */

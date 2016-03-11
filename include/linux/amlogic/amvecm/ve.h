@@ -136,6 +136,12 @@ struct ve_dnlp_table_s {
 	unsigned int dnlp_lrate60;
 	unsigned int dnlp_lrate62;
 };
+struct vpp_hist_param_s {
+	unsigned int vpp_hist_pow;
+	unsigned int vpp_luma_sum;
+	unsigned int vpp_pixel_sum;
+	unsigned short vpp_histgram[64];
+};
 #else
 struct ve_dnlp_s {
 	unsigned char en;

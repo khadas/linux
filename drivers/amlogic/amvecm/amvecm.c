@@ -75,7 +75,8 @@ static signed int vd1_contrast_offset;
 static struct amvecm_dev_s amvecm_dev;
 unsigned int sr1_reg_val[101];
 unsigned int sr1_ret_val[101];
-
+struct vpp_hist_param_s vpp_hist_param;
+static unsigned int pre_hist_height, pre_hist_width;
 
 static bool debug_amvecm;
 module_param(debug_amvecm, bool, 0664);
@@ -1636,6 +1637,28 @@ void pq_enable_disable(void)
 
 }
 
+static void vpp_backup_histgram(struct vframe_s *vf)
+{
+	unsigned int i = 0;
+
+	vpp_hist_param.vpp_hist_pow = vf->prop.hist.hist_pow;
+	vpp_hist_param.vpp_luma_sum = vf->prop.hist.vpp_luma_sum;
+	vpp_hist_param.vpp_pixel_sum = vf->prop.hist.vpp_pixel_sum;
+	for (i = 0; i < 64; i++)
+		vpp_hist_param.vpp_histgram[i] = vf->prop.hist.vpp_gamma[i];
+}
+
+static void vdin_dump_histgram(void)
+{
+	uint i;
+	pr_info("%s:\n", __func__);
+	for (i = 0; i < 64; i++) {
+		pr_info("[%d]0x%-8x\t", i, vpp_hist_param.vpp_histgram[i]);
+		if ((i+1)%8 == 0)
+			pr_info("\n");
+	}
+}
+
 void vpp_get_hist_en(void)
 {
 	wr_bits(0, VI_HIST_CTRL, 0x1, 11, 3);
@@ -1646,11 +1669,18 @@ void vpp_get_hist_en(void)
 
 void vpp_get_vframe_hist_info(struct vframe_s *vf)
 {
-	/*unsigned int offset = devp->addr_offset;*/
-	/*struct vframe_bbar_s bbar = {0};*/
-	wr_bits(0, VI_HIST_PIC_SIZE, vf->height, 16, 13);
-	wr_bits(0, VI_HIST_PIC_SIZE, vf->width, 0, 13);
+	unsigned int hist_height, hist_width;
 
+	hist_height = rd_bits(0, VPP_IN_H_V_SIZE, 0, 13);
+	hist_width = rd_bits(0, VPP_IN_H_V_SIZE, 16, 13);
+
+	if ((hist_height != pre_hist_height) ||
+		(hist_width != pre_hist_width)) {
+		pre_hist_height = hist_height;
+		pre_hist_width = hist_width;
+		wr_bits(0, VI_HIST_PIC_SIZE, hist_height, 16, 13);
+		wr_bits(0, VI_HIST_PIC_SIZE, hist_width, 0, 13);
+	}
 	/* fetch hist info */
 	/* vf->prop.hist.luma_sum   = READ_CBUS_REG_BITS(VDIN_HIST_SPL_VAL,
 	 * HIST_LUMA_SUM_BIT,    HIST_LUMA_SUM_WID   ); */
@@ -1837,6 +1867,7 @@ void refresh_on_vs(struct vframe_s *vf)
 	if (vf != NULL) {
 		vpp_get_vframe_hist_info(vf);
 		ve_on_vs(vf);
+		vpp_backup_histgram(vf);
 	}
 }
 
@@ -1922,15 +1953,18 @@ static long amvecm_ioctl(struct file *file,
 		argp = (void __user *)arg;
 		if ((video_ve_hist.height == 0) || (video_ve_hist.width == 0))
 			ret = -EFAULT;
-		else {
-			video_ve_hist.ave =
-				video_ve_hist.sum/(video_ve_hist.height*
-						video_ve_hist.width);
-			if (copy_to_user(argp,
+		else if (copy_to_user(argp,
 					&video_ve_hist,
 					sizeof(struct ve_hist_s)))
 				ret = -EFAULT;
-		}
+		break;
+	case AMVECM_IOC_G_HIST_BIN:
+		argp = (void __user *)arg;
+		if (vpp_hist_param.vpp_pixel_sum == 0)
+			ret = -EFAULT;
+		else if (copy_to_user(argp, &vpp_hist_param,
+					sizeof(struct vpp_hist_param_s)))
+			ret = -EFAULT;
 		break;
 	/**********************************************************************
 	gamma ioctl
@@ -2874,6 +2908,20 @@ static ssize_t amvecm_dump_reg_store(struct class *cla,
 {
 	return 0;
 }
+static ssize_t amvecm_dump_vpp_hist_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	vdin_dump_histgram();
+	return 0;
+}
+
+static ssize_t amvecm_dump_vpp_hist_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	return 0;
+}
+
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_sharpness(void)
 {
@@ -2981,6 +3029,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_sr1_reg_show, amvecm_sr1_reg_store),
 	__ATTR(write_sr1_reg_val, S_IRUGO | S_IWUSR,
 		amvecm_write_sr1_reg_val_show, amvecm_write_sr1_reg_val_store),
+	__ATTR(dump_vpp_hist, S_IRUGO | S_IWUSR,
+		amvecm_dump_vpp_hist_show, amvecm_dump_vpp_hist_store),
 	__ATTR_NULL
 };
 
@@ -3057,6 +3107,9 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		init_sharpness();
 	/* #endif */
 	vpp_get_hist_en();
+
+	memset(&vpp_hist_param.vpp_histgram[0],
+		0, sizeof(unsigned short) * 64);
 
 	aml_vecm_dt_parse(pdev);
 	probe_ok = 1;

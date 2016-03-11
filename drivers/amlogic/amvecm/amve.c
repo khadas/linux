@@ -548,10 +548,22 @@ MODULE_PARM_DESC(sync_3d_sync_to_vbo, "\n sync_3d_sync_to_vbo\n");
 /* *********************************************************************** */
 static void ve_hist_gamma_tgt(struct vframe_s *vf)
 {
+	int ave_luma;
 	struct vframe_prop_s *p = &vf->prop;
 	video_ve_hist.sum    = p->hist.vpp_luma_sum;
 	video_ve_hist.width  = p->hist.vpp_width;
 	video_ve_hist.height = p->hist.vpp_height;
+
+	video_ve_hist.ave =
+		video_ve_hist.sum/(video_ve_hist.height*
+				video_ve_hist.width);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {
+		ave_luma = video_ve_hist.ave;
+		ave_luma = (ave_luma - 16) < 0 ? 0 : (ave_luma - 16);
+		video_ve_hist.ave = ave_luma*255/(235-16);
+		if (video_ve_hist.ave > 255)
+			video_ve_hist.ave = 255;
+	}
 }
 
 static void ve_dnlp_calculate_tgt_ext(struct vframe_s *vf)
