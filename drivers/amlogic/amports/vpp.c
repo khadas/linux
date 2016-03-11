@@ -335,11 +335,6 @@ uint cur_vert_chroma_filter;
 MODULE_PARM_DESC(cur_vert_chroma_filter, "cur_vert_chroma_filter");
 module_param(cur_vert_chroma_filter, int, 0444);
 
-bool vert_chroma_filter_en = true;
-module_param(vert_chroma_filter_en, bool, 0664);
-MODULE_PARM_DESC(vert_chroma_filter_en, "enable vertical chromafilter\n");
-
-
 uint cur_vert_filter;
 MODULE_PARM_DESC(cur_vert_filter, "cur_vert_filter");
 module_param(cur_vert_filter, int, 0444);
