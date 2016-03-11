@@ -1930,8 +1930,8 @@ static void zoom_display_vert(void)
 		int t_aligned;
 		int b_aligned;
 		if (zoom_start_y_lines > 0) {
-			t_aligned = round_down(zoom_start_y_lines, 4);
-			b_aligned = round_up(zoom_end_y_lines, 4);
+			t_aligned = round_down(ori_start_y_lines, 4);
+			b_aligned = round_up(ori_end_y_lines, 4);
 		} else {
 			t_aligned = round_down(zoom_start_y_lines, 4);
 			b_aligned = round_up(zoom_end_y_lines, 4);
@@ -4041,26 +4041,43 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 #if (!HAS_VPU_PROT)
 		if (is_meson_gxbb_cpu()) {
-			cur_frame_par->VPP_pic_in_height_ = (zoom_end_y_lines -
-				zoom_start_y_lines + 1) /
-			(cur_frame_par->vscale_skip_count + 1);
-			if (cur_dispbuf->type & VIDTYPE_MVC)
-				cur_frame_par->VPP_pic_in_height_ *= 2;
-			cur_frame_par->VPP_line_in_length_ = (zoom_end_x_lines -
-				zoom_start_x_lines + 1) /
-			(cur_frame_par->hscale_skip_count + 1);
+			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
+				cur_frame_par->VPP_pic_in_height_ =
+				zoom_end_y_lines - zoom_start_y_lines + 1;
+				cur_frame_par->VPP_line_in_length_ =
+				zoom_end_x_lines - zoom_start_x_lines + 1;
+			} else {
+				cur_frame_par->VPP_pic_in_height_ =
+				(zoom_end_y_lines - zoom_start_y_lines + 1) /
+				(cur_frame_par->vscale_skip_count + 1);
+				if (cur_dispbuf->type & VIDTYPE_MVC)
+					cur_frame_par->VPP_pic_in_height_ *= 2;
+				cur_frame_par->VPP_line_in_length_ =
+				(zoom_end_x_lines - zoom_start_x_lines + 1) /
+				(cur_frame_par->hscale_skip_count + 1);
+			}
 		}
 		if (is_meson_gxtvbb_cpu()) {
-			cur_frame_par->VPP_pic_in_height_ = ((zoom_end_y_lines -
-				zoom_start_y_lines + 1) /
+			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
+				cur_frame_par->VPP_pic_in_height_ =
+				(zoom_end_y_lines - zoom_start_y_lines + 1)  <<
+				cur_frame_par->supsc0_vert_ratio;
+				cur_frame_par->VPP_line_in_length_ =
+				(zoom_end_x_lines - zoom_start_x_lines + 1) <<
+				cur_frame_par->supsc0_hori_ratio;
+			} else {
+				cur_frame_par->VPP_pic_in_height_ =
+				((zoom_end_y_lines - zoom_start_y_lines + 1) /
 				(cur_frame_par->vscale_skip_count + 1)) <<
 				cur_frame_par->supsc0_vert_ratio;
-			if (cur_dispbuf->type & VIDTYPE_MVC)
-				cur_frame_par->VPP_pic_in_height_ *= 2;
-			cur_frame_par->VPP_line_in_length_ = ((zoom_end_x_lines
-				- zoom_start_x_lines + 1) /
+				if (cur_dispbuf->type & VIDTYPE_MVC)
+					cur_frame_par->VPP_pic_in_height_ *= 2;
+				cur_frame_par->VPP_line_in_length_ =
+				((zoom_end_x_lines - zoom_start_x_lines + 1) /
 				(cur_frame_par->hscale_skip_count + 1)) <<
 				cur_frame_par->supsc0_hori_ratio;
+			}
+
 			VSYNC_WR_MPEG_REG(VPP_IN_H_V_SIZE,
 				(((cur_frame_par->VPP_line_in_length_ >>
 				cur_frame_par->supsc0_hori_ratio) & 0x1fff) <<
