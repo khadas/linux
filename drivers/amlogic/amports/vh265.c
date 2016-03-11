@@ -167,6 +167,7 @@ static u32 force_fps;
 #define H265_DEBUG_DISCARD_NAL              0x400
 #define H265_DEBUG_OUT_PTS                  0x800
 #define H265_DEBUG_PRINT_DECODE_STATUS      0x1000
+#define H265_DEBUG_PRINT_SEI		      0x2000
 #define H265_DEBUG_DIS_LOC_ERROR_PROC       0x10000
 #define H265_DEBUG_DIS_SYS_ERROR_PROC   0x20000
 #define H265_DEBUG_DUMP_PIC_LIST       0x40000
@@ -4904,17 +4905,16 @@ static void process_nal_sei(struct hevc_state_s *hevc,
 	int payload_type, int payload_size)
 {
 	unsigned short data;
-#if 0
-	pr_info("\tsei message: payload_type = 0x%02x, payload_size = 0x%02x\n",
+	if (debug & H265_DEBUG_PRINT_SEI)
+		pr_info("\tsei message: payload_type = 0x%02x, payload_size = 0x%02x\n",
 		payload_type, payload_size);
-#endif
+
 	if (payload_type == 137) {
 		int i, j;
 		/* MASTERING_DISPLAY_COLOUR_VOLUME */
 		if (payload_size >= 24) {
-#if 0
-			pr_info("\tsei MASTERING_DISPLAY_COLOUR_VOLUME available\n");
-#endif
+			if (debug & H265_DEBUG_PRINT_SEI)
+				pr_info("\tsei MASTERING_DISPLAY_COLOUR_VOLUME available\n");
 			for (i = 0; i < 3; i++) {
 				for (j = 0; j < 2; j++) {
 					data =
@@ -4922,20 +4922,18 @@ static void process_nal_sei(struct hevc_state_s *hevc,
 					hevc->primaries[i][j] = data;
 					WRITE_HREG(HEVC_SHIFT_COMMAND,
 					(1<<7)|16);
-#if 0
-					pr_info("\t\tprimaries[%1d][%1d] = %04x\n",
+					if (debug & H265_DEBUG_PRINT_SEI)
+						pr_info("\t\tprimaries[%1d][%1d] = %04x\n",
 						i, j, hevc->primaries[i][j]);
-#endif
 				}
 			}
 			for (i = 0; i < 2; i++) {
 				data = (READ_HREG(HEVC_SHIFTED_DATA) >> 16);
 				hevc->white_point[i] = data;
 				WRITE_HREG(HEVC_SHIFT_COMMAND, (1<<7)|16);
-#if 0
-				pr_info("\t\twhite_point[%1d] = %04x\n",
+				if (debug & H265_DEBUG_PRINT_SEI)
+					pr_info("\t\twhite_point[%1d] = %04x\n",
 					i, hevc->white_point[i]);
-#endif
 			}
 			for (i = 0; i < 2; i++) {
 					data =
@@ -4948,10 +4946,9 @@ static void process_nal_sei(struct hevc_state_s *hevc,
 					hevc->luminance[i] |= data;
 					WRITE_HREG(HEVC_SHIFT_COMMAND,
 					(1<<7)|16);
-#if 0
-					pr_info("\t\tluminance[%1d] = %08x\n",
+					if (debug & H265_DEBUG_PRINT_SEI)
+						pr_info("\t\tluminance[%1d] = %08x\n",
 						i, hevc->luminance[i]);
-#endif
 			}
 			hevc->sei_present_flag |= SEI_MASTER_DISPLAY_COLOR_MASK;
 		}
@@ -6079,7 +6076,7 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	struct hevc_state_s *hevc = &gHevc;
 	mutex_lock(&vh265_mutex);
 
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu() && (parser_sei_enable & 0x100) == 0)
 		parser_sei_enable = 1;
 	hevc->init_flag = 0;
 	hevc->uninit_list = 0;
