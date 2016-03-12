@@ -118,6 +118,10 @@ static int eq_clk_rate_wait = 2;
 MODULE_PARM_DESC(eq_clk_rate_wait, "\n eq_clk_rate_wait\n");
 module_param(eq_clk_rate_wait, int, 0664);
 
+static int mpll_param4 = 0x24dc;
+MODULE_PARM_DESC(mpll_param4, "\n mpll_param4\n");
+module_param(mpll_param4, int, 0664);
+
 bool phy_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting)
 {
 	int min = ch0Setting;
@@ -1053,7 +1057,7 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 
 	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x1c94);
 	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
-	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24da);
+	hdmirx_wr_phy(MPLL_PARAMETERS4,    mpll_param4);
 	hdmirx_wr_phy(MPLL_PARAMETERS5,    0x5492);
 	hdmirx_wr_phy(MPLL_PARAMETERS6,    0x4b0d);
 	hdmirx_wr_phy(MPLL_PARAMETERS7,    0x4760);

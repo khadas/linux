@@ -1037,6 +1037,16 @@ static int hdmirx_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (pdev->dev.of_node) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"rx_port_maps", &real_port_map);
+		if (ret) {
+			pr_err("get port_map fail.\n");
+			real_port_map = 0x3120;
+		}
+	}
+
+
 	/* hdmirx_hw_enable(); */
 	hdmirx_hw_probe();
 	dev_set_drvdata(hdevp->dev, hdevp);

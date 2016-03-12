@@ -91,9 +91,9 @@ static int scramble_sel = 1;
 MODULE_PARM_DESC(scramble_sel, "\n scramble_sel\n");
 module_param(scramble_sel, int, 0664);
 
-int rx_md_ists_en = VIDEO_MODE;
-MODULE_PARM_DESC(rx_md_ists_en, "\n rx_md_ists_en\n");
-module_param(rx_md_ists_en, int, 0664);
+int md_ists_en = VIDEO_MODE;
+MODULE_PARM_DESC(md_ists_en, "\n rx_md_ists_en\n");
+module_param(md_ists_en, int, 0664);
 
 /* bit5 pll_lck_chg_en */
 /* bit6 clk_change_en */
@@ -208,7 +208,7 @@ uint16_t hdmirx_rd_phy(uint8_t reg_address)
 	hdmirx_wr_dwc(DWC_I2CM_PHYG3_ADDRESS, reg_address);
 	hdmirx_wr_dwc(DWC_I2CM_PHYG3_OPERATION, 0x02);
 	do {
-		if ((cnt % 100) == 0) {
+		if ((cnt % 10) == 0) {
 			/* wait i2cmpdone */
 			if (hdmirx_rd_dwc(DWC_HDMI_ISTS)&(1<<28)) {
 				hdmirx_wr_dwc(DWC_HDMI_ICLR, 1<<28);
@@ -238,7 +238,7 @@ int hdmirx_wr_phy(uint8_t reg_address, uint16_t data)
 
 	do {
 		/* wait i2cmpdone */
-		if ((cnt % 100) == 0) {
+		if ((cnt % 10) == 0) {
 			if (hdmirx_rd_dwc(DWC_HDMI_ISTS)&(1<<28)) {
 				hdmirx_wr_dwc(DWC_HDMI_ICLR, 1<<28);
 				break;

@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/03/09"
+#define HDMIRX_VER "Ref.2016/03/12"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -169,6 +169,7 @@ enum fsm_states_e {
 	FSM_SIG_STABLE,
 	FSM_CHECK_DDC_CORRECT,
 	FSM_SIG_READY,
+	FSM_WAIT_AUDIO_STABLE,
 	FSM_PHY_RESET,
 	FSM_DWC_RESET,
 };
@@ -439,8 +440,9 @@ extern struct workqueue_struct *hpd_wq;
 extern unsigned int pwr_sts;
 extern unsigned char *pEdid_buffer;
 extern bool multi_port_edid_enable;
-extern int rx_md_ists_en;
+extern int md_ists_en;
 extern int hdmi_ists_en;
+extern int real_port_map;
 
 extern struct rx_s rx;
 extern int log_flag;
