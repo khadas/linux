@@ -60,6 +60,7 @@
 #define MAX_NONLINEAR_FACTOR    0x40
 
 #define VPP_SPEED_FACTOR 0x110ULL
+#define SUPER_SCALER_V_FACTOR  100
 
 const u32 vpp_filter_coefs_bicubic_sharp[] = {
 	3,
@@ -346,6 +347,10 @@ uint cur_skip_line;
 
 MODULE_PARM_DESC(cur_skip_line, "cur_skip_line");
 module_param(cur_skip_line, int, 0444);
+
+unsigned int super_scaler_v_ratio = 133;
+MODULE_PARM_DESC(super_scaler_v_ratio, "super_scaler_v_ratio");
+module_param(super_scaler_v_ratio, uint, 0664);
 
 static u32 vpp_wide_mode;
 static u32 vpp_zoom_ratio = 100;
@@ -1516,13 +1521,17 @@ static void vpp_set_scaler(u32 src_width,
 		v_crop_enable = true;
 	}
 	hor_sc_multiple_num = width_out / src_width;
-	ver_sc_multiple_num = height_out / src_height;
+	ver_sc_multiple_num = height_out*SUPER_SCALER_V_FACTOR / src_height;
 
 	/* just calcuate the enable sclaer module */
-	if ((hor_sc_multiple_num >= 4) || (ver_sc_multiple_num >= 4)) {
-		next_frame_par->supsc0_enable = 1;
-		next_frame_par->supsc1_enable = 1;
-	} else if ((hor_sc_multiple_num >= 2) || (ver_sc_multiple_num >= 2)) {
+	if ((hor_sc_multiple_num >= 4) || (ver_sc_multiple_num >=
+				(4*SUPER_SCALER_V_FACTOR))) {
+		if (bypass_spscl0 == 0)
+			next_frame_par->supsc0_enable = 1;
+		if (bypass_spscl1 == 0)
+			next_frame_par->supsc1_enable = 1;
+	} else if ((hor_sc_multiple_num >= 2) || (ver_sc_multiple_num >=
+				(2*SUPER_SCALER_V_FACTOR))) {
 		if (((src_width > SUPER_CORE0_WIDTH_MAX/2)
 			&& (src_width <= SUPER_CORE0_WIDTH_MAX)
 			&& (bypass_spscl1 == 0))
@@ -1547,7 +1556,7 @@ static void vpp_set_scaler(u32 src_width,
 	if (width_out > SUPER_CORE1_WIDTH_MAX*2)
 		next_frame_par->supsc1_enable = 0;
 
-	if (ver_sc_multiple_num >= 2) {
+	if (ver_sc_multiple_num >= (2*SUPER_SCALER_V_FACTOR)) {
 		if (src_width > SUPER_CORE0_WIDTH_MAX/2)
 			next_frame_par->supsc0_vert_ratio = 0;
 		else
@@ -1572,6 +1581,18 @@ static void vpp_set_scaler(u32 src_width,
 		next_frame_par->supsc1_hori_ratio = 0;
 		next_frame_par->supsc0_vert_ratio = 0;
 		next_frame_par->supsc1_vert_ratio = 0;
+	}
+	if ((ver_sc_multiple_num <= super_scaler_v_ratio) &&
+		(src_height >= SUPER_CORE0_WIDTH_MAX/2) &&
+		(src_height <= 1088) &&
+		(ver_sc_multiple_num > SUPER_SCALER_V_FACTOR) &&
+		(vinfo->height >= 2000)) {
+		next_frame_par->supsc0_enable = 0;
+		next_frame_par->supsc1_enable = 1;
+		next_frame_par->supsc0_hori_ratio = 0;
+		next_frame_par->supsc1_hori_ratio = 1;
+		next_frame_par->supsc0_vert_ratio = 0;
+		next_frame_par->supsc1_vert_ratio = 1;
 	}
 	if (bypass_spscl0) {
 		next_frame_par->supsc0_enable = 0;
