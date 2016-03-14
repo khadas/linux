@@ -768,26 +768,50 @@
 		interrupt-names = "rdma";
 	};
 
-	dwc2_b {
-		compatible = "amlogic,dwc2";
-		device_name = "dwc2_b";
+	dwc3: dwc3@c9000000 {
+		compatible = "synopsys, gxl-dwc3";
+		reg = <0x0 0xc9000000 0x0 0x100000>;
+		interrupts = <0 30 4>;
+		usb-phy = <&usb2_phy>, <&usb3_phy>;
+		cpu-type = "gxl";
+		clock-src = "usb3.0";
+		status = "disable";
+	};
+
+	usb2_phy: usb2phy@d0078000 {
+		compatible = "amlogic, aml-gxl-usb2";
+		portnum = <4>;
+		reg = <0x0 0xd0078000 0x0 0x80>;
+		status = "disable";
+	};
+
+	usb3_phy: usb3phy@d0078080 {
+		compatible = "amlogic, aml-gxl-usb3";
+		portnum = <1>;
+		reg = <0x0 0xd0078080 0x0 0x20>;
+		interrupts = <0 16 4>;
+		status = "disable";
+	};
+
+	dwc2_a {
+		compatible = "amlogic, gxl_dwc2";
+		device_name = "dwc2_a";
 		reg = <0x0 0xc9100000 0x0 0x40000>;
 		interrupts = <0 31 4>;
-		status = "okay";
-		pl-periph-id = <1>; /** lm name */
-		clock-src = "usb1"; /** clock src */
-		port-id = <1>;   /** ref to mach/usb.h */
-		port-type = <1>;	/** 0: otg, 1: host, 2: slave */
-		port-speed = <0>; /** 0: default, 1: high, 2: full */
+		status = "disable";
+		pl-periph-id = <0>; /** lm name */
+		clock-src = "usb0"; /** clock src */
+		port-id = <0>;  /** ref to mach/usb.h */
+		port-type = <2>;        /** 0: otg, 1: host, 2: slave */
+		port-speed = <0>; /** 0: default, high, 1: full */
 		port-config = <0>; /** 0: default */
 		port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
-		port-id-mode = <1>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
-		phy-reg = <0xc0000020>;
-		phy-reg-size = <0x20>;
-		usb-fifo = <1024>;
-		host-only-core = <1>;
-		pmu-apply-power = <1>;
-		cpu-type = "gxbaby";
+		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
+		usb-fifo = <512>;
+		cpu-type = "gxl";
+		controller-type = <1>; /** 0: normal, 1: otg+dwc3*/
+		phy-reg = <0xd0078000>;
+		phy-reg-size = <0xa0>;
 		resets = <&clock GCLK_IDX_USB_GENERAL
 					&clock GCLK_IDX_MISC_USB1_TO_DDR
 					&clock GCLK_IDX_USB1>;
@@ -796,34 +820,6 @@
 						"usb1_to_ddr";
 	};
 
-	dwc2_a {
-		compatible = "amlogic,dwc2";
-		device_name = "dwc2_a";
-		reg = <0x0 0xc9000000 0x0 0x40000>;
-		interrupts = <0 30 4>;
-		status = "okay";
-		pl-periph-id = <0>; /** lm name */
-		clock-src = "usb0"; /** clock src */
-		port-id = <0>;  /** ref to mach/usb.h */
-		port-type = <0>;	/** 0: otg, 1: host, 2: slave */
-		port-speed = <0>; /** 0: default, high, 1: full */
-		port-config = <0>; /** 0: default */
-		port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
-		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
-		gpio-vbus-power = "GPIODV_24";
-		gpios = <&gpio       GPIODV_24       GPIO_ACTIVE_HIGH>;
-		gpio-work-mask	= <1>; /**0: work on pulldown,1:work on pullup*/
-		phy-reg = <0xc0000000>;
-		phy-reg-size = <0x20>;
-		usb-fifo = <1024>;
-		cpu-type = "gxbaby";
-		resets = <&clock GCLK_IDX_USB_GENERAL
-					    &clock GCLK_IDX_MISC_USB0_TO_DDR
-              &clock GCLK_IDX_USB0>;
-		reset-names = "usb_general",
-						"usb0",
-						"usb0_to_ddr";
-	};
 
 	/* AUDIO MESON8 DEVICES */
 	i2s_dai: I2S {
