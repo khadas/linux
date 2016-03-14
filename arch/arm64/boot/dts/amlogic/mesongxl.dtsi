@@ -1,7 +1,7 @@
-#include <dt-bindings/clock/gxbb.h>
+#include <dt-bindings/clock/gxl.h>
 #include <dt-bindings/gpio/gxl.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/reset/aml_gxbb.h>
+#include <dt-bindings/reset/aml_gxl.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "mesongxbb-gpu-mali450.dtsi"
@@ -151,7 +151,7 @@
 		pinctrl-1 = <&jtag_apee_pins>;
 	};
 	clock: meson_clock {
-		compatible = "amlogic, gxbb-clock";
+		compatible = "amlogic, gxl-clock";
 		reg = <0x0 0xc883c000 0x0 0x1000>,   /* HIU BUS*/
 		          <0x0 0xc8100000 0x0 0x1000>;   //AOBUS
 		#clock-cells = <1>;
