@@ -382,8 +382,8 @@ static int init_resource(struct avin_det_s *avdev)
 		free_irq(avdev->irq_num1, (void *)avdev);
 		return -EINVAL;
 	}
-
 	msleep(25);
+
 	if (first_time_into_irqhandle1)
 		avdev->irq1_falling_times[avdev->detect_channel1_times] = 0;
 	else
@@ -501,6 +501,7 @@ get_param_mem_fail:
 static int avin_detect_suspend(struct platform_device *pdev ,
 	pm_message_t state)
 {
+	int i;
 	struct avin_det_s *avdev = platform_get_drvdata(pdev);
 	avdev->first_time_into_loop = 0;
 	del_timer_sync(&avdev->timer);
@@ -508,6 +509,13 @@ static int avin_detect_suspend(struct platform_device *pdev ,
 	cancel_work_sync(&avdev->work_update2);
 	free_irq(avdev->irq_num1, (void *)avdev);
 	free_irq(avdev->irq_num2, (void *)avdev);
+	for (i = 0; i < avdev->set_detect_times; i++)
+		avdev->irq2_falling_times[i] = 0;
+	avdev->detect_channel1_times = 0;
+	avdev->detect_channel2_times = 0;
+	first_time_into_irqhandle1 = 0;
+	first_time_into_irqhandle2 = 0;
+
 	avin_det_info("avin_detect_suspend ok.\n");
 	return 0;
 }
