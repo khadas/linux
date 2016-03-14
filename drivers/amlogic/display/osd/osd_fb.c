@@ -846,9 +846,13 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 					sync_request.in_fen_fd);
 		ret = copy_to_user(argp, &sync_request,
 				sizeof(struct fb_sync_request_s));
-		if (sync_request.out_fen_fd  < 0)
+		if (sync_request.out_fen_fd  < 0) {
 			/* fence create fail. */
 			ret = -1;
+		} else {
+			info->var.xoffset = sync_request.xoffset;
+			info->var.yoffset = sync_request.yoffset;
+		}
 		break;
 	case FBIOGET_DMABUF:
 		{
