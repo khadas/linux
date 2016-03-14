@@ -145,7 +145,7 @@ int32_t amlkey_init(uint8_t *seed, uint32_t len)
 		storagekey_info.size = buffer_size;
 	}
 
-	pr_err("%s() storagekey_info.buffer=%p, storagekey_info.size = %0x!\n",
+	pr_info("%s() storagekey_info.buffer=%p, storagekey_info.size = %0x!\n",
 		__func__,
 		storagekey_info.buffer,
 		storagekey_info.size);

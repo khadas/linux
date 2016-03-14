@@ -879,7 +879,7 @@ static ssize_t name_store(struct class *cla,
 		memcpy(name, buf, count);
 
 	query_name_len = strlen(name);
-	pr_err("%s() %d, name %s, %d\n",
+	pr_info("%s() %d, name %s, %d\n",
 		__func__,
 		__LINE__,
 		name,
@@ -891,7 +891,7 @@ static ssize_t name_store(struct class *cla,
 			if (!strncmp(name, unifykey->name,
 				((strlen(unifykey->name) > query_name_len)
 				? strlen(unifykey->name) : query_name_len))) {
-				pr_err("%s() %d\n", __func__, __LINE__);
+				pr_info("%s() %d\n", __func__, __LINE__);
 				curkey = unifykey;
 				break;
 			}
