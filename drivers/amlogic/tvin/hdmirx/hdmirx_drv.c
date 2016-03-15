@@ -289,6 +289,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	struct tvin_parm_s *parm;
 
 	/* open_flage = 0; */
+	rx.open_fg = 0;
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
 	del_timer_sync(&devp->timer);
@@ -297,7 +298,6 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 	to_init_state();
-	rx.open_fg = 0;
 	rx_print("%s ok\n", __func__);
 }
 

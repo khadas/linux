@@ -3252,7 +3252,7 @@ void hdmirx_hw_uninit(void)
 	/*hdmirx_set_hpd(rx.port, 0);*/
 
 	/* hdmirx_wr_top(TOP_INTR_MASKN, 0); */
-	hdmirx_irq_close();
+	/*hdmirx_irq_close();*/
 	audio_status_init();
 
 	rx.ctrl.status = 0;
