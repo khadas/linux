@@ -182,8 +182,10 @@ static int set_vout_mode(char *name)
 		strcpy(local_name, name);
 		mode = validate_vmode(name);
 		goto next;
-	} else
+	} else {
+		vout_log_info("don't set the same mode as current\n");
 		return -1;
+	}
 
 	mode = validate_vmode(name);
 	if (VMODE_MAX == mode) {
@@ -221,6 +223,7 @@ next:
 static int set_vout_init_mode(void)
 {
 	enum vmode_e vmode;
+	const char *name;
 
 	if (VMODE_MAX == vout_init_vmode) {
 		vout_log_info("no matched vout_init mode\n");
@@ -235,8 +238,12 @@ static int set_vout_init_mode(void)
 	/* force to init display, for clk-gating disabled */
 	vmode = vout_init_vmode;
 #endif
+
+	name = vmode_mode_to_name(vout_init_vmode);
+	memset(local_name, 0, sizeof(local_name));
+	strcpy(local_name, name);
 	set_current_vmode(vmode);
-	vout_log_info("init mode %s\n", vmode_mode_to_name(vout_init_vmode));
+	vout_log_info("init mode %s\n", name);
 
 	return 0;
 }
