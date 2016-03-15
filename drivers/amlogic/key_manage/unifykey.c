@@ -28,6 +28,8 @@
 #define KEY_WRITE_PERMIT	(10<<4)
 #define KEY_WRITE_PROHIBIT	(11<<4)
 
+#define SHA256_SUM_LEN	32
+
 static struct unifykey_dev_t *unifykey_devp;
 static dev_t unifykey_devno;
 static struct device *unifykey_device;
@@ -123,13 +125,12 @@ static int key_storage_write(char *keyname, unsigned char *keydata,
 {
 	int ret = 0;
 	ssize_t writenLen = 0;
-	const int isSecure = 0;
 	/* fixme, todo write down this. */
 
 	writenLen = amlkey_write((uint8_t *)keyname,
 		(uint8_t *)keydata,
 		datalen,
-		isSecure);
+		flag);
 	if (writenLen != datalen) {
 		pr_err("Want to write %u bytes, but only %zd Bytes\n",
 			datalen,
@@ -137,6 +138,22 @@ static int key_storage_write(char *keyname, unsigned char *keydata,
 		return -EINVAL;
 	}
 
+	return ret;
+}
+
+static int key_secure_read_hash(char *keyname, unsigned char *keydata,
+		unsigned int datalen, unsigned int *reallen, int flag)
+{
+	int ret;
+
+	ret = amlkey_hash_4_secure((uint8_t *)keyname, keydata);
+	if (ret) {
+		pr_err("Failed when gen hash for sec-key[%s],ret=%d\n",
+				keyname,
+				ret);
+		return -EINVAL;
+	}
+	*reallen = SHA256_SUM_LEN;
 	return ret;
 }
 
@@ -163,7 +180,7 @@ static int key_storage_read(char *keyname, unsigned char *keydata,
 			readLen);
 		return -EINVAL;
 	}
-
+	*reallen = readLen;
 	return ret;
 }
 
@@ -337,11 +354,7 @@ int key_unify_write(char *keyname, unsigned char *keydata,
 			err = key_efuse_write(keyname, keydata, datalen);
 			break;
 		case KEY_M_SECURE:
-		#if 0
-			/* todo */
-			if (err == 0x1fe)
-				err = -0x1fe;
-		#endif
+			err = key_storage_write(keyname, keydata, datalen, 1);
 			break;
 		case KEY_M_NORMAL:
 			err = key_storage_write(keyname, keydata, datalen, 0);
@@ -370,6 +383,13 @@ int key_unify_read(char *keyname, unsigned char *keydata,
 {
 	int err = 0;
 	struct key_item_t *unifykey;
+
+	if (!keydata) {
+		pr_err("%s:%d, keydata is NULL\n",
+			__func__, __LINE__);
+		return -EINVAL;
+	}
+
 	unifykey = unifykey_find_item_by_name(keyname);
 	if (unifykey == NULL) {
 		pr_err("%s:%d,%s key name is not exist\n",
@@ -390,7 +410,8 @@ int key_unify_read(char *keyname, unsigned char *keydata,
 				datalen, reallen);
 			break;
 		case KEY_M_SECURE:
-
+			err = key_secure_read_hash(keyname, keydata,
+				datalen, reallen, 1);
 			break;
 		case KEY_M_NORMAL:
 			err = key_storage_read(keyname, keydata,
@@ -504,11 +525,9 @@ int key_unify_query(char *keyname, unsigned int *keystate,
 			}
 			break;
 		case KEY_M_SECURE:
-			/* err = key_securestorage_query(keyname,keystate); */
+			err = key_storage_query(keyname, keystate);
 			*keypermit = KEY_READ_PROHIBIT;
 			*keypermit |= KEY_WRITE_PERMIT;
-			pr_info("Fail to query secure key, keypermit=%d",
-				*keypermit);
 			break;
 		case KEY_M_NORMAL:
 			err = key_storage_query(keyname, keystate);
@@ -677,13 +696,8 @@ static ssize_t unifykey_read(struct file *file,
 	int id;
 	unsigned int reallen;
 	struct key_item_t *item;
-	char *local_buf;
-	local_buf = kzalloc(count, GFP_KERNEL);
-	if (!local_buf) {
-		pr_err(KERN_INFO "memory not enough,%s:%d\n",
-			__func__, __LINE__);
-		return -ENOMEM;
-	}
+	char *local_buf = NULL;
+
 	id = (int)(*ppos);
 	pr_err("%s() %d\n", __func__, __LINE__);
 	item = unifykey_find_item_by_id(id);
@@ -691,6 +705,16 @@ static ssize_t unifykey_read(struct file *file,
 		ret =  -EINVAL;
 		goto exit;
 	}
+
+	if (item->dev == KEY_M_SECURE)
+		count = SHA256_SUM_LEN;
+	local_buf = kzalloc(count, GFP_KERNEL);
+	if (!local_buf) {
+		pr_err(KERN_INFO "memory not enough,%s:%d\n",
+			__func__, __LINE__);
+		return -ENOMEM;
+	}
+
 	pr_err("%s() %d\n", __func__, __LINE__);
 	ret = key_unify_read(item->name, local_buf, count, &reallen);
 	if (ret < 0)
@@ -932,6 +956,8 @@ static ssize_t read_show(struct class *cla,
 				curkey->name);
 			goto _out;
 		}
+		if (curkey->dev == KEY_M_SECURE)
+			keysize = SHA256_SUM_LEN;
 		pr_err("name: %s, size %d\n", curkey->name, keysize);
 		keydata = kzalloc(keysize, GFP_KERNEL);
 		if (keydata == NULL) {
