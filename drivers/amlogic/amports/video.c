@@ -125,9 +125,6 @@ static int omx_pts_interval_upper = 11000;
 static int omx_pts_interval_lower = -5500;
 static bool bypass_pps;
 
-/* for bit depth setting. */
-int bit_depth_flag = 8;
-
 bool omx_secret_mode = false;
 #define DEBUG_FLAG_FFPLAY	(1<<0)
 #define DEBUG_FLAG_CALC_PTS_INC	(1<<1)
@@ -3570,10 +3567,16 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	/* toggle_3d_fa_frame  determine the out frame is L or R or blank */
 	judge_3d_fa_out_mode();
 #endif
-	if (vf) {
+	if (vf && is_meson_gxtvbb_cpu() && (vf->di_process_type != 1)) {
 		/* force set bitdepth to 8bit mode when src is 8bit */
-		if (is_meson_gxtvbb_cpu() && (bit_depth_flag == 8)
-			&& (vf->bitdepth != 10)) {
+		/* and DI not in path */
+		if ((vf->bitdepth & BITDEPTH_Y10)) {
+			if (((READ_VCBUS_REG(VD1_IF0_GEN_REG3) >> 8)
+				& 0x1) == 0)
+				WRITE_VCBUS_REG_BITS(VD1_IF0_GEN_REG3,
+					0x1, 8, 2);
+
+		} else {
 			if (((READ_VCBUS_REG(VD1_IF0_GEN_REG3) >> 8)
 				& 0x1) == 1)
 				WRITE_VCBUS_REG_BITS(VD1_IF0_GEN_REG3,
@@ -4707,12 +4710,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 			set_clone_frame_rate(video_play_clone_rate, 100);
 		}
 #endif
-		/* if provider is not deinterlace, set bit depth to 8 */
-		if (strncmp((char *)data, "deinterlace", 11) != 0)
-			bit_depth_flag = 8;
-		else
-			bit_depth_flag = 10;
-		pr_info("set bit_depth_flag to %d\n", bit_depth_flag);
 #ifdef TV_3D_FUNCTION_OPEN
 
 		if ((process_3d_type & MODE_3D_FA) && !cur_dispbuf->trans_fmt)
@@ -4752,12 +4749,6 @@ static int video4osd_receiver_event_fun(int type, void *data,
 			pr_info("[video4osd] clear osd_prov\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		osd_prov = vf_get_provider(RECEIVER4OSD_NAME);
-		/* if provider is not deinterlace, set bit depth to 8 */
-		if (strncmp((char *)data, "deinterlace", 11) != 0)
-			bit_depth_flag = 8;
-		else
-			bit_depth_flag = 10;
-		pr_info("set bit_depth_flag to %d\n", bit_depth_flag);
 
 		if (debug_flag & DEBUG_FLAG_BLACKOUT)
 			pr_info("[video4osd] set osd_prov\n");

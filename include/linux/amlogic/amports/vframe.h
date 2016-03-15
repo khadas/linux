@@ -256,6 +256,7 @@ struct vframe_s {
 	u64 ready_jiffies64;	/* ready from decode on  jiffies_64 */
 	atomic_t use_cnt;
 	u32 frame_dirty;
+	u32 di_process_type; /* 0:not processed by di,1: processed by di */
 } /*vframe_t */;
 
 #if 0
