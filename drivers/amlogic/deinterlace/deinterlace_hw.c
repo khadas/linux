@@ -202,7 +202,7 @@ void di_hw_init(void)
 	Wr(DI_CHAN2_LUMA_FIFO_SIZE, fifo_size);
 	/* 17b3 is DI_chan2_luma_fifo_size */
 #endif
-	Wr(DI_PRE_HOLD, (0 << 31) | (31 << 16) | 31);
+	Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
 
 #if 0
 	/* need not set DI_CLKG_CTRL, hardware default
