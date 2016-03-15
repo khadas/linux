@@ -173,7 +173,7 @@ void at24_wp_enable(struct at24_platform_data *chip)
 {
 	int ret;
 	if (chip->wp_port > 0) {
-		ret = amlogic_gpio_request(chip->wp_port , MODULE_NAME);
+		ret = gpio_request(chip->wp_port , MODULE_NAME);
 		if (ret)
 			pr_info("faild to alloc write protect (%d)!\n" ,
 								chip->wp_port);
