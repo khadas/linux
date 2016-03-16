@@ -434,6 +434,15 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 	struct ge2d_context_s *context = ppd->context;
 	struct config_para_ex_s *ge2d_config = &(ppd->ge2d_config);
 	int angle = (ppd->angle + src_vf->orientation) % 4;
+
+	if (src_vf->type & VIDTYPE_INTERLACE) {
+		if ((ppd->bottom_first && src_vf->type & 0x2)
+			|| (ppd->bottom_first == 0
+			&& (src_vf->type & 0x2) == 0)) {
+			return -EAGAIN;
+		}
+	}
+
 	if (dst_canvas_id < 0)
 		ppmgr2_printk(0,
 			"canvas:%d, index:%d\n",

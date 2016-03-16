@@ -55,6 +55,8 @@ static unsigned int skip_frames;
 module_param(skip_frames, uint, 0664);
 MODULE_PARM_DESC(skip_frames, "skip frames");
 
+static struct ionvideo_dmaqueue *cur_dma_q;
+
 static const struct ionvideo_fmt formats[] = {
 	{.name = "RGB32 (LE)",
 	.fourcc = V4L2_PIX_FMT_RGB32, /* argb */
@@ -292,6 +294,7 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	struct ionvideo_buffer *buf;
 	unsigned long flags = 0;
 	struct vframe_s *vf;
+	int vf_wait_cnt = 0;
 
 	int w, h;
 	dprintk(dev, 4, "Thread tick\n");
@@ -302,8 +305,9 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 
 	vf = vf_peek(RECEIVER_NAME);
 	if (!vf) {
+		vf_wait_cnt++;
 		/* msleep(5); */
-		usleep_range(40000, 50000);
+		usleep_range(1000, 2000);
 		return;
 	}
 	dev->ppmgr2_dev.dst_width = dev->width;
@@ -320,15 +324,14 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	}
 	if (freerun_mode == 0 && ionvideo_size_changed(dev, w, h)) {
 		/* msleep(10); */
-		usleep_range(90000, 100000);
+		usleep_range(4000, 5000);
 		return;
 	}
 	spin_lock_irqsave(&dev->slock, flags);
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, 3, "No active queue to serve\n");
 		spin_unlock_irqrestore(&dev->slock, flags);
-		/* msleep(5); */
-		usleep_range(40000, 50000);
+		schedule_timeout_interruptible(msecs_to_jiffies(20));
 		return;
 	}
 	buf = list_entry(dma_q->active.next, struct ionvideo_buffer, list);
@@ -336,11 +339,13 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	/* Fill buffer */
 	if (ionvideo_fillbuff(dev, buf))
 		return;
+	vf_wait_cnt = 0;
 
 	spin_lock_irqsave(&dev->slock, flags);
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&dev->slock, flags);
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+	dma_q->vb_ready++;
 	dprintk(dev, 4, "[%p/%d] done\n", buf, buf->vb.v4l2_buf.index);
 }
 
@@ -402,7 +407,6 @@ static int ionvideo_start_generating(struct ionvideo_dev *dev)
 	dev->ms = 0;
 	/* dev->jiffies = jiffies; */
 
-	dma_q->frame = 0;
 	/* dma_q->ini_jiffies = jiffies; */
 	dma_q->kthread = kthread_run(ionvideo_thread, dev, dev->v4l2_dev.name);
 
@@ -535,7 +539,11 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct ionvideo_dev *dev = vb2_get_drv_priv(vq);
+	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
+
+	cur_dma_q = dma_q;
 	is_actived = 1;
+	dma_q->vb_ready = 0;
 	dprintk(dev, 2, "%s\n", __func__);
 	return ionvideo_start_generating(dev);
 }
@@ -544,6 +552,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 static int stop_streaming(struct vb2_queue *vq)
 {
 	struct ionvideo_dev *dev = vb2_get_drv_priv(vq);
+	cur_dma_q = NULL;
 	is_actived = 0;
 	dprintk(dev, 2, "%s\n", __func__);
 	ionvideo_stop_generating(dev);
@@ -742,6 +751,7 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct ionvideo_dev *dev = video_drvdata(file);
+	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
 	struct ppmgr2_device *ppmgr2_dev = &(dev->ppmgr2_dev);
 	int ret = 0;
 
@@ -767,7 +777,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 			return -ENOMEM;
 		}
 	}
-
+	wake_up_interruptible(&dma_q->wq);
 	return ret;
 }
 
@@ -887,10 +897,17 @@ static int vidioc_synchronization_dqbuf(struct file *file, void *priv,
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
+	struct ionvideo_dev *dev = video_drvdata(file);
+	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
+	int ret = 0;
+
 	if (freerun_mode == 0)
 		return vidioc_synchronization_dqbuf(file, priv, p);
 
-	return vb2_ioctl_dqbuf(file, priv, p);
+	ret = vb2_ioctl_dqbuf(file, priv, p);
+	if (ret == 0)
+		dma_q->vb_ready--;
+	return ret;
 }
 
 #define NUM_INPUTS 10
@@ -1061,6 +1078,7 @@ static int __init ionvideo_create_instance(int inst)
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	init_waitqueue_head(&dev->vidq.wq);
+	dev->vidq.pdev = dev;
 
 	vfd = &dev->vdev;
 	*vfd = ionvideo_template;

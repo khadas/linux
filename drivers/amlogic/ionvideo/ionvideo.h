@@ -101,8 +101,8 @@ struct ionvideo_dmaqueue {
 	struct task_struct *kthread;
 	wait_queue_head_t wq;
 	/* Counters to control fps rate */
-	int frame;
-	int ini_jiffies;
+	int vb_ready;
+	struct ionvideo_dev *pdev;
 };
 
 struct ppmgr2_device {

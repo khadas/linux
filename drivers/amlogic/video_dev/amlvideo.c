@@ -615,17 +615,10 @@ static int freerun_dqbuf(struct v4l2_buffer *p)
 	u64 pts_us64 = 0;
 	if (omx_secret_mode == true) {
 		if (vfq_level(&q_ready) > AMLVIDEO_POOL_SIZE - 1) {
-			/* msleep(10); */
-			usleep_range(9000, 10000);
 			return -EAGAIN;
 		}
 	}
 	if (!vf_peek(RECEIVER_NAME)) {
-		/* printk("%s, %s, %d, %s\n",
-		 * __FILE__, __FUNCTION__, __LINE__,
-		 * RECEIVER_NAME); */
-		/* msleep(10); */
-		usleep_range(9000, 10000);
 		return -EAGAIN;
 	}
 	if (omx_secret_mode != true)
