@@ -1488,16 +1488,21 @@ static ssize_t store_hdcp_mode(struct device *dev,
 		hdmitx_device.hdcp_mode = -1;
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_OP, HDCP14_OFF);
+		rx_repeat_hdcp_ver(0);
 	}
-	if (strncmp(buf, "0", 1) == 0)
+	if (strncmp(buf, "0", 1) == 0) {
 		hdmitx_device.hdcp_mode = 0;
+		rx_repeat_hdcp_ver(0);
+	}
 	if (strncmp(buf, "1", 1) == 0) {
 		hdmitx_device.hdcp_mode = 1;
+		rx_repeat_hdcp_ver(14);
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_OP, HDCP14_ON);
 	}
 	if (strncmp(buf, "2", 1) == 0) {
 		hdmitx_device.hdcp_mode = 2;
+		rx_repeat_hdcp_ver(22);
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_MUX_INIT, 2);
 	}
@@ -1965,6 +1970,7 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_lock(&setclk_mutex);
 	/* start reading E-EDID */
 	hdev->hpd_state = 1;
+	rx_repeat_hpd_state(1);
 	hdmitx_get_edid(hdev);
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
@@ -2000,6 +2006,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	mutex_lock(&setclk_mutex);
 	hdev->ready = 0;
 	hdev->hpd_state = 0;
+	rx_repeat_hpd_state(0);
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_OFF);

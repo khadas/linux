@@ -343,6 +343,10 @@ int Edid_Parse_check_HDMI_VSDB(struct hdmitx_info *info,
 	}
 
 	set_vsdb_phy_addr(&info->vsdb_phy_addr, &buff[BlockAddr]);
+	rx_edid_physical_addr(info->vsdb_phy_addr.a,
+		info->vsdb_phy_addr.b,
+		info->vsdb_phy_addr.c,
+		info->vsdb_phy_addr.d);
 
 	if (temp_addr >= VSpecificBoundary) {
 		info->output_state = CABLE_PLUGIN_DVI_OUT;
@@ -971,12 +975,18 @@ static void Edid_Y420CMDB_Reset(struct hdmitx_info *info)
 
 	return;
 }
+
+static char *rptx_edid_aud;
+static char rptx_edid_buf[512];
+MODULE_PARM_DESC(rptx_edid_aud, "\n receive_edid\n");
+module_param(rptx_edid_aud, charp, 0444);
+
 /* ----------------------------------------------------------- */
 int Edid_ParsingCEADataBlockCollection(struct hdmitx_info *info,
 	unsigned char *buff)
 {
 	unsigned char AddrTag, D, Addr, Data;
-	int temp_addr;
+	int temp_addr, i, len, pos;
 
 	/* Byte number offset d where Detailed Timing data begins */
 	D = buff[2];
@@ -993,6 +1003,12 @@ int Edid_ParsingCEADataBlockCollection(struct hdmitx_info *info,
 				break;
 
 		case AUDIO_TAG:
+			len = (Data & 0x1f) + 1;
+			rx_set_receiver_edid(&buff[AddrTag], len);
+			for (pos = 0, i = 0; i < len; i++)
+				pos += sprintf(rptx_edid_buf+pos, "%02x",
+					buff[AddrTag + i]);
+			rptx_edid_buf[pos + 1] = 0;
 			if ((Addr + (Data&0x1f)) < D)
 				Edid_ParsingAudioDATABlock(info, buff,
 					Addr + 1, (Data & 0x1F));
@@ -1519,7 +1535,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	else
 		EDID_buf = hdmitx_device->EDID_buf1;
 	hdmi_print(0, "EDID Parser:\n");
-
+	memset(rptx_edid_buf, 0, sizeof(rptx_edid_buf));
+	rptx_edid_aud = &rptx_edid_buf[0];
 	/* Calculate the EDID hash for special use */
 	memset(hdmitx_device->EDID_hash, 0,
 		ARRAY_SIZE(hdmitx_device->EDID_hash));

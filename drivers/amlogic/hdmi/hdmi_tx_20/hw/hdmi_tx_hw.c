@@ -98,6 +98,14 @@ unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 
 static unsigned int tx_aud_src; /* 0: SPDIF  1: I2S */
 
+/* store downstream ksv lists */
+static char *rptx_ksvs;
+static char rptx_ksv_prbuf[1271]; /* 127 * 5 * 2 + 1 */
+MODULE_PARM_DESC(rptx_ksvs, "\n downstream ksvs\n");
+module_param(rptx_ksvs, charp, 0444);
+static int rptx_ksv_no;
+static char rptx_ksv_buf[635];
+
 /* static struct tasklet_struct EDID_tasklet; */
 static unsigned delay_flag;
 static unsigned long serial_reg_val = 0x1;
@@ -548,6 +556,7 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	hdmi_hwi_init(hdev);
 	config_avmute(CLR_AVMUTE);
 	hdmitx_set_audmode(NULL, NULL);
+	rptx_ksvs = &rptx_ksv_prbuf[0];
 }
 
 static irqreturn_t intr_handler(int irq, void *dev)
@@ -3123,6 +3132,26 @@ static unsigned char tmp_edid_buf[128*EDID_MAX_BLOCK] = { 0 };
 
 #define HDCP_NMOOFDEVICES 127
 
+static int get_hdcp_depth(void)
+{
+	int ret;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
+	ret = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1) & 0x3;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
+
+	return ret;
+}
+
+static void hdcp_ksv_store(unsigned char *dat, int no)
+{
+	int i;
+	for (i = 0; i < no; i++) {
+		rptx_ksv_buf[rptx_ksv_no] = dat[i];
+		rptx_ksv_no++;
+	}
+}
+
 static uint8_t *hdcp_mKsvListBuf;
 static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 {
@@ -3130,6 +3159,8 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 	size_t size = 0;
 	size_t i = 0;
 	int valid = HDCP_IDLE;
+	unsigned char ksvs[127] = {0};
+	int j = 0;
 
 	/* 0x165e: Page 95 */
 	hdcp_mKsvListBuf = kmalloc(0x1660, GFP_KERNEL);
@@ -3148,6 +3179,8 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 					hdcp_mKsvListBuf[i - HEADER] =
 						hdmitx_rd_reg(
 						HDMITX_DWC_HDCP_BSTATUS_0 + i);
+					ksvs[j] = hdcp_mKsvListBuf[i - HEADER];
+					j++;
 				} else { /* SHA */
 					hdcp_mKsvListBuf[i] = hdmitx_rd_reg(
 						HDMITX_DWC_HDCP_BSTATUS_0 + i);
@@ -3160,6 +3193,8 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL,
 			(valid == HDCP_KSV_LIST_READY) ? 0 : 1, 3, 1);
+		if (valid == HDCP_KSV_LIST_READY)
+			hdcp_ksv_store(ksvs, j);
 		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 2, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 2, 1);
 		kfree(hdcp_mKsvListBuf);
@@ -3170,11 +3205,28 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 static void hdcp_ksv_event(unsigned long arg)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)arg;
+	unsigned char ksv[5] = {0};
+	int pos, i;
+
 	pr_info("hdcp14: instat: 0x%x\n",
 		(uint8_t)hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT));
 	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 7)) {
+		unsigned int bcaps_6_rp;
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, 1 << 7);
 		hdmitx_hdcp_opr(3);
+		for (i = 0; i < 5; i++)
+			ksv[i] = (unsigned char)
+				hdmitx_rd_reg(HDMITX_DWC_HDCPREG_BKSV0 + i);
+		hdcp_ksv_store(ksv, 5);
+		bcaps_6_rp =
+			!!(hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & (1 << 6));
+		rx_set_receive_hdcp(ksv, 5,
+			(bcaps_6_rp ? get_hdcp_depth() : 0) + 1);
+		memset(rptx_ksv_prbuf, 0, sizeof(rptx_ksv_prbuf));
+			for (pos = 0, i = 0; i < rptx_ksv_no; i++)
+				pos += sprintf(rptx_ksv_prbuf + pos, "%02x",
+					rptx_ksv_buf[i]);
+			rptx_ksv_prbuf[pos + 1] = '\0';
 	}
 	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
@@ -3263,14 +3315,17 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case DDC_HDCP_OP:
 		if (argv == HDCP14_ON) {
+			rptx_ksv_no = 0;
+			memset(rptx_ksv_buf, 0, sizeof(rptx_ksv_buf));
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 0, 6, 1);
 			hdmitx_hdcp_opr(6);
 			hdmitx_hdcp_opr(1);
 			hdcp_start_timer(hdev);
 		}
-		if (argv == HDCP14_OFF)
+		if (argv == HDCP14_OFF) {
 			hdmitx_hdcp_opr(4);
+		}
 		if (argv == HDCP22_ON) {
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			hdmitx_hdcp_opr(5);

@@ -388,6 +388,45 @@ extern void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 
 extern const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
 
+/*
+ * HDMI Repeater TX I/F
+ * RX downstream Information from rptx to rprx
+*/
+/* send part raw edid from TX to RX */
+extern void rx_repeat_hpd_state(unsigned int st);
+/* prevent compile error in no HDMIRX case */
+void __attribute__((weak))rx_repeat_hpd_state(unsigned int st)
+{
+	pr_warn("not HDMI Repeater\n");
+}
+
+extern void rx_edid_physical_addr(unsigned char a, unsigned char b,
+	unsigned char c, unsigned char d);
+void __attribute__((weak))rx_edid_physical_addr(unsigned char a,
+	unsigned char b, unsigned char c, unsigned char d)
+{
+	pr_warn("not HDMI Repeater\n");
+}
+
+extern void rx_set_receiver_edid(unsigned char *data, int len);
+void __attribute__((weak))rx_set_receiver_edid(unsigned char *data, int len)
+{
+	pr_warn("not HDMI Repeater\n");
+}
+
+extern void rx_repeat_hdcp_ver(unsigned int ver);
+void __attribute__((weak))rx_repeat_hdcp_ver(unsigned int ver)
+{
+	pr_warn("not HDMI Repeater\n");
+}
+
+extern void rx_set_receive_hdcp(unsigned char *data, int len, int depth);
+void __attribute__((weak))rx_set_receive_hdcp(unsigned char *data, int len,
+	int depth)
+{
+	pr_warn("not HDMI Repeater\n");
+}
+
 extern int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 	enum hdmi_vic VideoCode);
 

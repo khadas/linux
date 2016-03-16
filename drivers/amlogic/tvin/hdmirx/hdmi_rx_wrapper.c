@@ -3062,21 +3062,22 @@ int hdmi_rx_ctrl_edid_update(void)
 			edid_size = EDID_SIZE + 4;
 		memcpy(edid_temp, edid_list[edid_mode&0xf] + 4, edid_size - 4);
 		if (hdmirx_repeat_support()) {
-			rx_modify_edid(edid_list[edid_mode&0xf] + 4, edid_size
-				- 4, receive_edid);
-			rx_modify_edid(edid_list[edid_mode&0xf] + 4, edid_size
-				- 4, receive_hdr_lum);
+			hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0xE0) + (6 & 0x1f);
+			hdr_edid[1] = EDID_TAG_HDR & 0xFF;
+			memcpy(hdr_edid + 4, receive_hdr_lum,
+						sizeof(unsigned char)*3);
+			rx_modify_edid(edid_temp, edid_size - 4, receive_edid);
+			rx_modify_edid(edid_temp, edid_size - 4, hdr_edid);
 		}
 	} else if ((edid_mode > 0) && (edid_mode < EDID_LIST_NUM)) {
-		hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0xE0) + (6 & 0x1f);
-		hdr_edid[1] = EDID_TAG_HDR & 0xFF;
-		memcpy(hdr_edid + 4, receive_hdr_lum, sizeof(unsigned char)*3);
 		memcpy(edid_temp, edid_list[edid_mode&0xf], EDID_SIZE);
 		if (hdmirx_repeat_support()) {
-			rx_modify_edid(edid_list[edid_mode&0xf], EDID_SIZE,
-								receive_edid);
-			rx_modify_edid(edid_list[edid_mode&0xf], EDID_SIZE,
-								hdr_edid);
+			hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0xE0) + (6 & 0x1f);
+			hdr_edid[1] = EDID_TAG_HDR & 0xFF;
+			memcpy(hdr_edid + 4, receive_hdr_lum,
+						sizeof(unsigned char)*3);
+			rx_modify_edid(edid_temp, EDID_SIZE, receive_edid);
+			rx_modify_edid(edid_temp, EDID_SIZE, hdr_edid);
 		}
 	} else {
 		return false;
