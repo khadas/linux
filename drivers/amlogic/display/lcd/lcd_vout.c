@@ -37,6 +37,7 @@
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vout/lcd_vout.h>
 #include <linux/amlogic/vout/lcd_notify.h>
+#include <linux/amlogic/vout/lcd_unifykey.h>
 #ifdef CONFIG_AML_LCD_EXTERN
 #include <linux/amlogic/vout/lcd_extern.h>
 #endif
@@ -331,76 +332,21 @@ static void lcd_chip_detect(void)
 
 static void lcd_init_vout(void)
 {
-	if (lcd_driver->vout_server_init)
-		lcd_driver->vout_server_init();
-}
-
-static int lcd_mode_probe(struct platform_device *pdev)
-{
-	const char *str;
-	int ret = 0;
-
-	if (pdev->dev.of_node == NULL) {
-		LCDERR("dev of_node is null\n");
-		lcd_driver->lcd_mode = LCD_MODE_MAX;
-		return -1;
-	}
-
-	/* lcd driver assign */
-	ret = of_property_read_string(pdev->dev.of_node, "mode", &str);
-	if (ret) {
-		str = "none";
-		LCDERR("failed to get mode\n");
-		return -1;
-	}
-	lcd_driver->lcd_mode = lcd_mode_str_to_mode(str);
-	LCDPR("detect mode: %s\n", str);
-
-	lcd_driver->lcd_config = &lcd_config_dft;
-	lcd_driver->vpp_sel = 1;
-	lcd_driver->power_ctrl = lcd_power_ctrl;
-	if (lcd_vcbus_read(ENCL_VIDEO_EN))
-		lcd_driver->lcd_status = 1;
-	else
-		lcd_driver->lcd_status = 0;
-	LCDPR("status: %d\n", lcd_driver->lcd_status);
-
 	switch (lcd_driver->lcd_mode) {
 #ifdef CONFIG_AML_LCD_TV
 	case LCD_MODE_TV:
-		lcd_tv_probe(pdev);
+		lcd_tv_vout_server_init();
 		break;
 #endif
 #ifdef CONFIG_AML_LCD_TABLET
 	case LCD_MODE_TABLET:
-		lcd_tablet_probe(pdev);
+		lcd_tablet_vout_server_init();
 		break;
 #endif
 	default:
 		LCDPR("invalid lcd mode\n");
 		break;
 	}
-	return 0;
-}
-
-static int lcd_mode_remove(struct platform_device *pdev)
-{
-	switch (lcd_driver->lcd_mode) {
-#ifdef CONFIG_AML_LCD_TV
-	case LCD_MODE_TV:
-		lcd_tv_remove(pdev);
-		break;
-#endif
-#ifdef CONFIG_AML_LCD_TABLET
-	case LCD_MODE_TABLET:
-		lcd_tablet_remove(pdev);
-		break;
-#endif
-	default:
-		LCDPR("invalid lcd mode\n");
-		break;
-	}
-	return 0;
 }
 
 static int lcd_reboot_notifier(struct notifier_block *nb,
@@ -419,33 +365,25 @@ static struct notifier_block lcd_reboot_nb = {
 	.notifier_call = lcd_reboot_notifier,
 };
 
-static int lcd_probe(struct platform_device *pdev)
+static int lcd_mode_probe(struct device *dev)
 {
-	int ret = 0;
+	int ret;
 
-#ifdef LCD_DEBUG_INFO
-	lcd_debug_print_flag = 1;
-#else
-	lcd_debug_print_flag = 0;
+	switch (lcd_driver->lcd_mode) {
+#ifdef CONFIG_AML_LCD_TV
+	case LCD_MODE_TV:
+		lcd_tv_probe(dev);
+		break;
 #endif
-	lcd_driver = kmalloc(sizeof(struct aml_lcd_drv_s), GFP_KERNEL);
-	if (!lcd_driver) {
-		LCDERR("probe: Not enough memory\n");
-		return -ENOMEM;
+#ifdef CONFIG_AML_LCD_TABLET
+	case LCD_MODE_TABLET:
+		lcd_tablet_probe(dev);
+		break;
+#endif
+	default:
+		LCDPR("invalid lcd mode\n");
+		break;
 	}
-	lcd_driver->dev = &pdev->dev;
-
-	lcd_chip_detect();
-	lcd_ioremap();
-	lcd_clk_config_probe();
-	ret = lcd_mode_probe(pdev);
-	if (ret) {
-		kfree(lcd_driver);
-		lcd_driver = NULL;
-		LCDERR("probe exit\n");
-		return -1;
-	}
-	lcd_init_vout();
 
 	lcd_class_creat();
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
@@ -458,17 +396,163 @@ static int lcd_probe(struct platform_device *pdev)
 	if (ret)
 		LCDERR("register lcd_reboot_notifier failed\n");
 
-	LCDPR("probe ok\n");
+	return 0;
+}
+
+static int lcd_mode_remove(struct device *dev)
+{
+	switch (lcd_driver->lcd_mode) {
+#ifdef CONFIG_AML_LCD_TV
+	case LCD_MODE_TV:
+		lcd_tv_remove(dev);
+		break;
+#endif
+#ifdef CONFIG_AML_LCD_TABLET
+	case LCD_MODE_TABLET:
+		lcd_tablet_remove(dev);
+		break;
+#endif
+	default:
+		LCDPR("invalid lcd mode\n");
+		break;
+	}
+	return 0;
+}
+
+static void lcd_config_probe_delayed(struct work_struct *work)
+{
+	int key_init_flag = 0;
+	int i = 0;
+	int ret;
+
+	if (lcd_driver->lcd_key_valid) {
+		key_init_flag = key_unify_get_init_flag();
+		while (key_init_flag == 0) {
+			if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
+				break;
+			msleep(20);
+			key_init_flag = key_unify_get_init_flag();
+		}
+		LCDPR("key_init_flag=%d, i=%d\n", key_init_flag, i);
+	}
+	ret = lcd_mode_probe(lcd_driver->dev);
+	if (ret) {
+		kfree(lcd_driver);
+		lcd_driver = NULL;
+		LCDERR("probe exit\n");
+	}
+}
+
+static int lcd_config_probe(void)
+{
+	const char *str;
+	unsigned int val;
+	int ret = 0;
+
+	if (lcd_driver->dev->of_node == NULL) {
+		LCDERR("dev of_node is null\n");
+		lcd_driver->lcd_mode = LCD_MODE_MAX;
+		return -1;
+	}
+
+	/* lcd driver assign */
+	ret = of_property_read_string(lcd_driver->dev->of_node, "mode", &str);
+	if (ret) {
+		str = "none";
+		LCDERR("failed to get mode\n");
+		return -1;
+	}
+	lcd_driver->lcd_mode = lcd_mode_str_to_mode(str);
+	ret = of_property_read_u32(lcd_driver->dev->of_node, "key_valid", &val);
+	if (ret) {
+		if (lcd_debug_print_flag)
+			LCDPR("failed to get key_valid\n");
+		lcd_driver->lcd_key_valid = 0;
+	} else {
+		lcd_driver->lcd_key_valid = (unsigned char)val;
+	}
+	LCDPR("detect mode: %s, key_valid: %d\n", str, val);
+
+	lcd_driver->lcd_info = NULL;
+	lcd_driver->lcd_config = &lcd_config_dft;
+	lcd_driver->vpp_sel = 1;
+	lcd_driver->power_ctrl = lcd_power_ctrl;
+	if (lcd_vcbus_read(ENCL_VIDEO_EN))
+		lcd_driver->lcd_status = 1;
+	else
+		lcd_driver->lcd_status = 0;
+	LCDPR("status: %d\n", lcd_driver->lcd_status);
+
+	lcd_init_vout();
+	if (lcd_driver->lcd_key_valid) {
+		if (lcd_driver->workqueue) {
+			queue_delayed_work(lcd_driver->workqueue,
+				&lcd_driver->lcd_delayed_work,
+				msecs_to_jiffies(2000));
+		} else {
+			LCDPR("Warning: no lcd_probe_delayed workqueue\n");
+			ret = lcd_mode_probe(lcd_driver->dev);
+			if (ret) {
+				kfree(lcd_driver);
+				lcd_driver = NULL;
+				LCDERR("probe exit\n");
+			}
+		}
+	} else {
+		ret = lcd_mode_probe(lcd_driver->dev);
+		if (ret) {
+			kfree(lcd_driver);
+			lcd_driver = NULL;
+			LCDERR("probe exit\n");
+		}
+	}
+
+	return 0;
+}
+
+static int lcd_probe(struct platform_device *pdev)
+{
+#ifdef LCD_DEBUG_INFO
+	lcd_debug_print_flag = 1;
+#else
+	lcd_debug_print_flag = 0;
+#endif
+	lcd_driver = kmalloc(sizeof(struct aml_lcd_drv_s), GFP_KERNEL);
+	if (!lcd_driver) {
+		LCDERR("probe: Not enough memory\n");
+		return -ENOMEM;
+	}
+	lcd_driver->dev = &pdev->dev;
+
+	/* init workqueue */
+	INIT_DELAYED_WORK(&lcd_driver->lcd_delayed_work,
+		lcd_config_probe_delayed);
+	lcd_driver->workqueue = create_workqueue("lcd_probe_queue");
+	if (lcd_driver->workqueue == NULL)
+		LCDERR("can't create lcd workqueue\n");
+
+	lcd_chip_detect();
+	lcd_ioremap();
+	lcd_clk_config_probe();
+	lcd_config_probe();
+
+	LCDPR("%s\n", __func__);
 	return 0;
 }
 
 static int lcd_remove(struct platform_device *pdev)
 {
+	int ret;
+
+	ret = cancel_delayed_work(&lcd_driver->lcd_delayed_work);
+	if (lcd_driver->workqueue)
+		destroy_workqueue(lcd_driver->workqueue);
+
 	if (lcd_driver) {
 		aml_lcd_notifier_unregister(&lcd_power_nb);
 		aml_lcd_notifier_unregister(&lcd_bl_select_nb);
 		lcd_class_remove();
-		lcd_mode_remove(pdev);
+		lcd_mode_remove(lcd_driver->dev);
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 	}

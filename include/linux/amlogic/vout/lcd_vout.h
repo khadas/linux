@@ -348,9 +348,11 @@ struct lcd_config_s {
 struct aml_lcd_drv_s {
 	char *version;
 	enum lcd_chip_e chip_type;
-	unsigned int lcd_mode;
-	unsigned int lcd_status;
-	unsigned int vpp_sel; /*0:vpp, 1:vpp2 */
+	unsigned char lcd_mode;
+	unsigned char lcd_status;
+	unsigned char lcd_key_valid;
+	unsigned char lcd_config_load;
+	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
@@ -373,6 +375,9 @@ struct aml_lcd_drv_s {
 	3=power+signal for normal */
 	unsigned char power_level;
 	void (*power_ctrl)(int status);
+
+	struct workqueue_struct *workqueue;
+	struct delayed_work     lcd_delayed_work;
 };
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);

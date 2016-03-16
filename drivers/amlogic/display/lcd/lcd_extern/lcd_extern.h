@@ -29,11 +29,18 @@
 #define LCD_EXTERN_DRIVER		"lcd_extern"
 
 #ifdef CONFIG_USE_OF
-extern struct device_node *aml_lcd_extern_get_dt_child(int index);
+extern struct device_node *aml_lcd_extern_get_dts_child(int index);
 #endif
-extern void lcd_extern_gpio_set(struct gpio_desc *ext_gpio, int value);
-extern unsigned int lcd_extern_gpio_get(struct gpio_desc *ext_gpio);
+extern void lcd_extern_gpio_register(unsigned char index);
+extern void lcd_extern_gpio_set(unsigned char index, int value);
+extern unsigned int lcd_extern_gpio_get(unsigned char index);
 
+#define LCD_EXTERN_DEFAULT_ENABLE
+
+#ifdef LCD_EXTERN_DEFAULT_ENABLE
+extern int aml_lcd_extern_default_probe(
+	struct aml_lcd_extern_driver_s *ext_drv);
+#endif
 #ifdef CONFIG_AML_LCD_EXTERN_I2C_T5800Q
 extern int aml_lcd_extern_i2c_T5800Q_probe(
 	struct aml_lcd_extern_driver_s *ext_drv);

@@ -39,6 +39,7 @@ typedef int (*key_unify_dev_init)(char *buf, unsigned int len);
 typedef int (*key_unify_dev_uninit)(void);
 
 static int init_flag;
+static int module_init_flag;
 
 static int key_storage_init(char *buf, unsigned int len)
 {
@@ -562,6 +563,12 @@ int key_unify_uninit(void)
 	return bakerr;
 }
 EXPORT_SYMBOL(key_unify_uninit);
+
+int key_unify_get_init_flag(void)
+{
+	return module_init_flag;
+}
+EXPORT_SYMBOL(key_unify_get_init_flag);
 
 static int unifykey_open(struct inode *inode, struct file *file)
 {
@@ -1214,6 +1221,7 @@ static int __init aml_unifykeys_init(void)
 		pr_err("failed to register unifykey driver, error %d\n", ret);
 		return -ENODEV;
 	}
+	module_init_flag = 1;
 	pr_info(KERN_INFO "%s done!\n", __func__);
 
 	return ret;

@@ -18,6 +18,7 @@
 
 #ifndef __AML_LCD_COMMON_H__
 #define __AML_LCD_COMMON_H__
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/vout/lcd_vout.h>
 #include "lcd_clk_config.h"
@@ -27,15 +28,17 @@
 /* lcd common */
 extern int lcd_type_str_to_type(const char *str);
 extern char *lcd_type_type_to_str(int type);
-extern int lcd_mode_str_to_mode(const char *str);
+extern unsigned char lcd_mode_str_to_mode(const char *str);
 extern char *lcd_mode_mode_to_str(int mode);
 
 extern void lcd_cpu_gpio_register(unsigned int index);
 extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
 extern void lcd_ttl_pinmux_set(int status);
-extern int lcd_get_power_config(struct lcd_config_s *pconf,
-		struct platform_device *pdev);
+extern int lcd_power_load_from_dts(struct lcd_config_s *pconf,
+		struct device_node *child);
+extern int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
+		unsigned char *buf, int key_len);
 
 extern void lcd_tcon_config(struct lcd_config_s *pconf);
 extern int lcd_vmode_change(struct lcd_config_s *pconf);
@@ -47,12 +50,14 @@ extern int lcd_class_remove(void);
 
 /* lcd driver */
 #ifdef CONFIG_AML_LCD_TV
-extern int lcd_tv_probe(struct platform_device *pdev);
-extern int lcd_tv_remove(struct platform_device *pdev);
+extern void lcd_tv_vout_server_init(void);
+extern int lcd_tv_probe(struct device *dev);
+extern int lcd_tv_remove(struct device *dev);
 #endif
 #ifdef CONFIG_AML_LCD_TABLET
-extern int lcd_tablet_probe(struct platform_device *pdev);
-extern int lcd_tablet_remove(struct platform_device *pdev);
+extern void lcd_tablet_vout_server_init(void);
+extern int lcd_tablet_probe(struct device *dev);
+extern int lcd_tablet_remove(struct device *dev);
 #endif
 
 #endif

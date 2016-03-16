@@ -33,6 +33,7 @@
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vout/lcd_vout.h>
+#include <linux/amlogic/vout/lcd_unifykey.h>
 #include <linux/amlogic/vout/lcd_notify.h>
 #include "lcd_tv.h"
 #include "../lcd_reg.h"
@@ -278,7 +279,6 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 	const struct vinfo_s *info;
 
 	mutex_lock(&lcd_vout_mutex);
-	LCDPR("driver version: %s\n", lcd_drv->version);
 
 	/* do not change mode value here, for bit mask is useful */
 	lcd_vmode_vinfo_update(mode & VMODE_MODE_BIT_MASK);
@@ -365,8 +365,14 @@ static struct vout_server_s lcd_vout_server = {
 	},
 };
 
-static void lcd_vout_server_init(void)
+void lcd_tv_vout_server_init(void)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	lcd_drv->lcd_info = kmalloc(sizeof(struct vinfo_s), GFP_KERNEL);
+	if (!lcd_drv->lcd_info)
+		LCDERR("tv_probe: Not enough memory\n");
+
 	vout_register_server(&lcd_vout_server);
 }
 
@@ -421,16 +427,44 @@ static void lcd_config_print(struct lcd_config_s *pconf)
 	}
 }
 
-static int lcd_get_model_timing(struct lcd_config_s *pconf,
-		struct platform_device *pdev)
+static int lcd_init_load_from_dts(struct lcd_config_s *pconf,
+		struct device *dev)
+{
+	int ret = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_VBYONE:
+		if (lcd_drv->lcd_status) { /* lock pinmux if lcd in on */
+			pconf->pin = devm_pinctrl_get_select(dev,
+				"vbyone");
+			if (IS_ERR(pconf->pin))
+				LCDERR("get vbyone pinmux error\n");
+		}
+		break;
+	default:
+		break;
+	}
+
+	pconf->rstc.encl = devm_reset_control_get(dev, "encl");
+	if (IS_ERR(pconf->rstc.encl))
+		LCDERR("get reset control encl error\n");
+	pconf->rstc.vencl = devm_reset_control_get(dev, "vencl");
+	if (IS_ERR(pconf->rstc.vencl))
+		LCDERR("get reset control vencl error\n");
+
+	return ret;
+}
+
+static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
+		struct device *dev)
 {
 	int ret = 0;
 	const char *str;
 	unsigned int para[10];
 	struct device_node *child;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	child = of_get_child_by_name(pdev->dev.of_node, pconf->lcd_propname);
+	child = of_get_child_by_name(dev->of_node, pconf->lcd_propname);
 	if (child == NULL) {
 		LCDERR("failed to get %s\n", pconf->lcd_propname);
 		return -1;
@@ -533,27 +567,181 @@ static int lcd_get_model_timing(struct lcd_config_s *pconf,
 				pconf->lcd_control.vbyone_config->phy_vswing,
 				pconf->lcd_control.vbyone_config->phy_preem);
 		}
-
-		if (lcd_drv->lcd_status) { /* lock pinmux if lcd in on */
-			pconf->pin = devm_pinctrl_get_select(lcd_drv->dev,
-				"vbyone");
-			if (IS_ERR(pconf->pin))
-				LCDERR("get vbyone pinmux error\n");
-		}
 		break;
 	default:
 		LCDERR("invalid lcd type\n");
 		break;
 	}
 
-	pconf->rstc.encl = devm_reset_control_get(&pdev->dev, "encl");
-	if (IS_ERR(pconf->rstc.encl))
-		LCDERR("get reset control encl error\n");
-	pconf->rstc.vencl = devm_reset_control_get(&pdev->dev, "vencl");
-	if (IS_ERR(pconf->rstc.vencl))
-		LCDERR("get reset control vencl error\n");
+	ret = lcd_power_load_from_dts(pconf, child);
 
 	return ret;
+}
+
+static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
+{
+	unsigned char *para;
+	int key_len, len;
+	unsigned char *p;
+	const char *str;
+	struct aml_lcd_unifykey_header_s lcd_header;
+	int ret;
+
+	para = kmalloc((sizeof(unsigned char) * LCD_UKEY_LCD_SIZE), GFP_KERNEL);
+	if (!para) {
+		LCDERR("%s: Not enough memory\n", __func__);
+		return -1;
+	}
+	key_len = LCD_UKEY_LCD_SIZE;
+	memset(para, 0, (sizeof(unsigned char) * key_len));
+	ret = lcd_unifykey_get("lcd", para, &key_len);
+	if (ret < 0) {
+		kfree(para);
+		return -1;
+	}
+
+	/* check lcd unifykey length */
+	len = 10 + 36 + 18 + 31 + 20;
+	ret = lcd_unifykey_len_check(key_len, len);
+	if (ret < 0) {
+		kfree(para);
+		return -1;
+	}
+
+	/* header: 10byte */
+	lcd_unifykey_header_check(para, &lcd_header);
+	if (lcd_debug_print_flag) {
+		LCDPR("unifykey header:\n");
+		LCDPR("crc32             = 0x%08x\n", lcd_header.crc32);
+		LCDPR("data_len          = %d\n", lcd_header.data_len);
+		LCDPR("version           = 0x%04x\n", lcd_header.version);
+		LCDPR("reserved          = 0x%04x\n", lcd_header.reserved);
+	}
+
+	/* basic: 36byte */
+	p = para + LCD_UKEY_HEAD_SIZE;
+	*(p + LCD_UKEY_MODEL_NAME - 1) = '\0'; /* ensure string ending */
+	str = (const char *)p;
+	strcpy(pconf->lcd_basic.model_name, str);
+	p += LCD_UKEY_MODEL_NAME;
+	pconf->lcd_basic.lcd_type = *p;
+	p += LCD_UKEY_INTERFACE;
+	pconf->lcd_basic.lcd_bits = *p;
+	p += LCD_UKEY_LCD_BITS;
+	pconf->lcd_basic.screen_width = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_SCREEN_WIDTH;
+	pconf->lcd_basic.screen_height = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_SCREEN_HEIGHT;
+
+	/* timing: 18byte */
+	pconf->lcd_basic.h_active = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_H_ACTIVE;
+	pconf->lcd_basic.v_active = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_V_ACTIVE;
+	pconf->lcd_basic.h_period = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_H_PERIOD;
+	pconf->lcd_basic.v_period = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_V_PERIOD;
+	pconf->lcd_timing.hsync_width = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_HS_WIDTH;
+	pconf->lcd_timing.hsync_bp = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_HS_BP;
+	pconf->lcd_timing.hsync_pol = *p;
+	p += LCD_UKEY_HS_POL;
+	pconf->lcd_timing.vsync_width = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_VS_WIDTH;
+	pconf->lcd_timing.vsync_bp = (*p | ((*(p + 1)) << 8));
+	p += LCD_UKEY_VS_BP;
+	pconf->lcd_timing.vsync_pol = *p;
+	p += LCD_UKEY_VS_POL;
+
+	/* customer: 31byte */
+	pconf->lcd_timing.fr_adjust_type = *p;
+	p += LCD_UKEY_FR_ADJ_TYPE;
+	pconf->lcd_timing.ss_level = *p;
+	p += LCD_UKEY_SS_LEVEL;
+	pconf->lcd_timing.clk_auto = *p;
+	p += LCD_UKEY_CLK_AUTO_GEN;
+	/* dummy pointer */
+	p += LCD_UKEY_PCLK;
+	p += LCD_UKEY_CUST_VAL_4;
+	p += LCD_UKEY_CUST_VAL_5;
+	p += LCD_UKEY_CUST_VAL_6;
+	p += LCD_UKEY_CUST_VAL_7;
+	p += LCD_UKEY_CUST_VAL_8;
+	p += LCD_UKEY_CUST_VAL_9;
+
+	/* interface: 20byte */
+	if (pconf->lcd_basic.lcd_type == LCD_VBYONE) {
+		pconf->lcd_control.vbyone_config->lane_count =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_0;
+		pconf->lcd_control.vbyone_config->region_num =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_1;
+		pconf->lcd_control.vbyone_config->byte_mode  =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_2;
+		pconf->lcd_control.vbyone_config->color_fmt  =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_3;
+		pconf->lcd_control.vbyone_config->phy_vswing =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_4;
+		pconf->lcd_control.vbyone_config->phy_preem  =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_5;
+		/* dummy pointer */
+		p += LCD_UKEY_IF_ATTR_6;
+		p += LCD_UKEY_IF_ATTR_7;
+		p += LCD_UKEY_IF_ATTR_8;
+		p += LCD_UKEY_IF_ATTR_9;
+	} else if (pconf->lcd_basic.lcd_type == LCD_LVDS) {
+		pconf->lcd_control.lvds_config->lvds_repack =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_0;
+		pconf->lcd_control.lvds_config->dual_port =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_1;
+		pconf->lcd_control.lvds_config->pn_swap  =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_2;
+		pconf->lcd_control.lvds_config->port_swap  =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_3;
+		pconf->lcd_control.lvds_config->phy_vswing =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_4;
+		pconf->lcd_control.lvds_config->phy_vswing =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
+		p += LCD_UKEY_IF_ATTR_5;
+		/* dummy pointer */
+		p += LCD_UKEY_IF_ATTR_6;
+		p += LCD_UKEY_IF_ATTR_7;
+		p += LCD_UKEY_IF_ATTR_8;
+		p += LCD_UKEY_IF_ATTR_9;
+	} else {
+		LCDERR("unsupport lcd_type: %d\n", pconf->lcd_basic.lcd_type);
+		p += LCD_UKEY_IF_ATTR_0;
+		p += LCD_UKEY_IF_ATTR_1;
+		p += LCD_UKEY_IF_ATTR_2;
+		p += LCD_UKEY_IF_ATTR_3;
+		p += LCD_UKEY_IF_ATTR_4;
+		p += LCD_UKEY_IF_ATTR_5;
+		p += LCD_UKEY_IF_ATTR_6;
+		p += LCD_UKEY_IF_ATTR_7;
+		p += LCD_UKEY_IF_ATTR_8;
+		p += LCD_UKEY_IF_ATTR_9;
+	}
+
+	ret = lcd_power_load_from_unifykey(pconf, para, key_len);
+	if (ret < 0) {
+		kfree(para);
+		return -1;
+	}
+
+	kfree(para);
+	return 0;
 }
 
 static void lcd_vmode_init(struct lcd_config_s *pconf)
@@ -584,15 +772,33 @@ static void lcd_config_init(struct lcd_config_s *pconf)
 	cconf->ss_level = (ss_level >= cconf->ss_level_max) ? 0 : ss_level;
 }
 
-static int lcd_get_config(struct lcd_config_s *pconf,
-		struct platform_device *pdev)
+static int lcd_get_config(struct lcd_config_s *pconf, struct device *dev)
 {
-	if (pdev->dev.of_node == NULL) {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	int load_id = 0;
+	int ret;
+
+	if (dev->of_node == NULL) {
 		LCDERR("dev of_node is null\n");
 		return -1;
 	}
-	lcd_get_model_timing(pconf, pdev);
-	lcd_get_power_config(pconf, pdev);
+	if (lcd_drv->lcd_key_valid) {
+		ret = lcd_unifykey_check("lcd");
+		if (ret < 0)
+			load_id = 0;
+		else
+			load_id = 1;
+	}
+	if (load_id) {
+		LCDPR("%s from unifykey\n", __func__);
+		lcd_drv->lcd_config_load = 1;
+		lcd_config_load_from_unifykey(pconf);
+	} else {
+		LCDPR("%s from dts\n", __func__);
+		lcd_drv->lcd_config_load = 0;
+		lcd_config_load_from_dts(pconf, dev);
+	}
+	lcd_init_load_from_dts(pconf, dev);
 	lcd_config_print(pconf);
 
 	lcd_config_init(pconf);
@@ -641,22 +847,17 @@ static struct notifier_block lcd_frame_rate_adjust_nb = {
 /* ************************************************** *
    lcd tv
  * ************************************************** */
-int lcd_tv_probe(struct platform_device *pdev)
+int lcd_tv_probe(struct device *dev)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	int ret;
 
-	lcd_drv->lcd_info = NULL;
-	lcd_drv->lcd_info = kmalloc(sizeof(struct vinfo_s), GFP_KERNEL);
-	if (!lcd_drv->lcd_info)
-		LCDERR("tv_probe: Not enough memory\n");
-
 	lcd_drv->version = LCD_DRV_VERSION;
-	lcd_drv->vout_server_init = lcd_vout_server_init;
+	lcd_drv->vout_server_init = lcd_tv_vout_server_init;
 	lcd_drv->driver_init = lcd_tv_driver_init;
 	lcd_drv->driver_disable = lcd_tv_driver_disable;
 
-	lcd_get_config(lcd_drv->lcd_config, pdev);
+	lcd_get_config(lcd_drv->lcd_config, dev);
 
 	switch (lcd_drv->lcd_config->lcd_basic.lcd_type) {
 	case LCD_VBYONE:
@@ -673,7 +874,7 @@ int lcd_tv_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int lcd_tv_remove(struct platform_device *pdev)
+int lcd_tv_remove(struct device *dev)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 

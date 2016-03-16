@@ -116,7 +116,7 @@ struct bl_pwm_config_s {
 };
 
 struct bl_config_s {
-	char name[20];
+	char name[30];
 	unsigned int level_default;
 	unsigned int level_min;
 	unsigned int level_max;

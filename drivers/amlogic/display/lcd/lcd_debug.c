@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/amlogic/vout/lcd_vout.h>
 #include <linux/amlogic/vout/lcd_notify.h>
+#include <linux/amlogic/vout/lcd_unifykey.h>
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
@@ -48,6 +49,9 @@ static const char *lcd_common_usage_str = {
 "\n"
 "    echo <cmd> ... > debug ; lcd common debug, use 'cat debug' for help\n"
 "    cat debug ; print help information for debug command\n"
+"\n"
+"    cat key_valid ; print lcd_key_valid setting\n"
+"    cat config_load ; print lcd_config load_id(0=dts, 1=unifykey)\n"
 };
 
 static const char *lcd_debug_usage_str = {
@@ -150,8 +154,10 @@ static void lcd_info_print(void)
 	sync_duration = sync_duration / pconf->lcd_timing.sync_duration_den;
 
 	LCDPR("panel_type: %s\n", pconf->lcd_propname);
-	LCDPR("status: %d\n", lcd_drv->lcd_status);
-	LCDPR("mode  : %s\n", lcd_mode_mode_to_str(lcd_drv->lcd_mode));
+	LCDPR("key_valid: %d, config_load: %d\n",
+		lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load);
+	LCDPR("mode  : %s, status: %d\n",
+		lcd_mode_mode_to_str(lcd_drv->lcd_mode), lcd_drv->lcd_status);
 
 	LCDPR("%s, %s %ubit, %ux%u@%u.%02uHz\n",
 		pconf->lcd_basic.model_name,
@@ -937,19 +943,46 @@ static ssize_t lcd_debug_print_store(struct class *class,
 	return count;
 }
 
+static ssize_t lcd_debug_key_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	lcd_unifykey_print();
+	return sprintf(buf, "\n");
+}
+
+static ssize_t lcd_debug_key_valid_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return sprintf(buf, "%d\n", lcd_drv->lcd_key_valid);
+}
+
+static ssize_t lcd_debug_config_load_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return sprintf(buf, "%d\n", lcd_drv->lcd_config_load);
+}
+
 static struct class_attribute lcd_debug_class_attrs[] = {
-	__ATTR(help,       S_IRUGO | S_IWUSR, lcd_debug_common_help, NULL),
-	__ATTR(debug,      S_IRUGO | S_IWUSR, lcd_debug_show, lcd_debug_store),
-	__ATTR(enable,     S_IRUGO | S_IWUSR, NULL, lcd_debug_enable_store),
-	__ATTR(frame_rate, S_IRUGO | S_IWUSR,
+	__ATTR(help,        S_IRUGO | S_IWUSR, lcd_debug_common_help, NULL),
+	__ATTR(debug,       S_IRUGO | S_IWUSR, lcd_debug_show, lcd_debug_store),
+	__ATTR(enable,      S_IRUGO | S_IWUSR, NULL, lcd_debug_enable_store),
+	__ATTR(frame_rate,  S_IRUGO | S_IWUSR,
 		lcd_debug_frame_rate_show, lcd_debug_frame_rate_store),
-	__ATTR(ss,         S_IRUGO | S_IWUSR,
+	__ATTR(ss,          S_IRUGO | S_IWUSR,
 		lcd_debug_ss_show, lcd_debug_ss_store),
-	__ATTR(clk,        S_IRUGO | S_IWUSR, lcd_debug_clk_show, NULL),
-	__ATTR(test,       S_IRUGO | S_IWUSR, NULL, lcd_debug_test_store),
-	__ATTR(reg,        S_IRUGO | S_IWUSR, NULL, lcd_debug_reg_store),
-	__ATTR(print,      S_IRUGO | S_IWUSR,
+	__ATTR(clk,         S_IRUGO | S_IWUSR, lcd_debug_clk_show, NULL),
+	__ATTR(test,        S_IRUGO | S_IWUSR, NULL, lcd_debug_test_store),
+	__ATTR(reg,         S_IRUGO | S_IWUSR, NULL, lcd_debug_reg_store),
+	__ATTR(print,       S_IRUGO | S_IWUSR,
 		lcd_debug_print_show, lcd_debug_print_store),
+	__ATTR(key,         S_IRUGO | S_IWUSR, lcd_debug_key_show, NULL),
+	__ATTR(key_valid,   S_IRUGO | S_IWUSR, lcd_debug_key_valid_show, NULL),
+	__ATTR(config_load, S_IRUGO | S_IWUSR,
+		lcd_debug_config_load_show, NULL),
 };
 
 static const char *lcd_ttl_debug_usage_str = {

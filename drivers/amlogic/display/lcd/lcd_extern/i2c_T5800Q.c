@@ -33,22 +33,21 @@
 static struct i2c_client *aml_T5800Q_i2c_client;
 static struct lcd_extern_config_s *ext_config;
 
-#define INIT_LEN        7
-static unsigned char i2c_init_table[][INIT_LEN] = {
-	/* QFHD 50/60Hz 1 division Video Mode */
-	{0x20, 0x01, 0x02, 0x00, 0x40, 0xFF, 0x00},
-	{0x80, 0x02, 0x00, 0x40, 0x62, 0x51, 0x73},
-	{0x61, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00},
-	{0xC1, 0x05, 0x0F, 0x00, 0x08, 0x70, 0x00},
-	{0x13, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00},
-	/*Color Engine Bypass Enable */
-	{0x3D, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00},
-	/* Mute only when starting */
-	{0xED, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00},
-	/* MEMC off */
-	{0x23, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00},
-	{0xFF, 0xFF, 0x0A, 0xFF, 0xFF, 0xFF, 0xFF},
-	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+#define LCD_EXTERN_CMD_SIZE        9
+static unsigned char init_on_table[] = {
+	0x10, 0x20, 0x01, 0x02, 0x00, 0x40, 0xFF, 0x00, 0x00,
+	0x10, 0x80, 0x02, 0x00, 0x40, 0x62, 0x51, 0x73, 0x00,
+	0x10, 0x61, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x10, 0xC1, 0x05, 0x0F, 0x00, 0x08, 0x70, 0x00, 0x00,
+	0x10, 0x13, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x10, 0x3D, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x10, 0xED, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x10, 0x23, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A,  /* delay 10ms */
+	0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  /* ending */
+};
+
+static unsigned char init_off_table[] = {
+	0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  /* ending */
 };
 
 static int lcd_extern_i2c_write(struct i2c_client *i2client,
@@ -112,32 +111,55 @@ static int lcd_extern_reg_write(unsigned char reg, unsigned char value)
 	return ret;
 }
 
-static int lcd_extern_i2c_init(void)
+static int lcd_extern_power_cmd(unsigned char *init_table)
 {
-	int i = 0, ending_flag = 0;
+	int i = 0, len;
 	int ret = 0;
 
-	while (ending_flag == 0) {
-		if ((i2c_init_table[i][0] == 0xff) &&
-			(i2c_init_table[i][1] == 0xff)) { /* special flag */
-			if (i2c_init_table[i][2] == 0xff) /* ending flag */
-				ending_flag = 1;
-			else /* delay flag */
-				mdelay(i2c_init_table[i][2]);
-		} else {
-			lcd_extern_i2c_write(aml_T5800Q_i2c_client,
-				i2c_init_table[i], INIT_LEN);
-		}
-		i++;
+	len = ext_config->cmd_size;
+	if (len < 1) {
+		EXTERR("%s: cmd_size %d is invalid\n", __func__, len);
+		return -1;
 	}
-	EXTPR("%s: %s\n", __func__, ext_config->name);
+
+	while (i <= LCD_EXTERN_INIT_TABLE_MAX) {
+		if (init_table[i] == LCD_EXTERN_INIT_END) {
+			break;
+		} else if (init_table[i] == LCD_EXTERN_INIT_NONE) {
+			/* do nothing, only for delay */
+		} else if (init_table[i] == LCD_EXTERN_INIT_GPIO) {
+			if (init_table[i+1] < LCD_GPIO_MAX) {
+				lcd_extern_gpio_set(init_table[i+1],
+					init_table[i+2]);
+			}
+		} else if (init_table[i] == LCD_EXTERN_INIT_CMD) {
+			ret = lcd_extern_i2c_write(aml_T5800Q_i2c_client,
+				&init_table[i+1], (len-2));
+		} else {
+			EXTERR("%s(%d: %s): pwoer_type %d is invalid\n",
+				__func__, ext_config->index,
+				ext_config->name, ext_config->type);
+		}
+		if (init_table[i+len-1] > 0)
+			mdelay(init_table[i+len-1]);
+		i += len;
+	}
+
 	return ret;
 }
 
-static int lcd_extern_i2c_remove(void)
+static int lcd_extern_power_ctrl(int flag)
 {
+	struct aml_lcd_extern_driver_s *ext_drv = aml_lcd_extern_get_driver();
 	int ret = 0;
 
+	if (flag)
+		ret = lcd_extern_power_cmd(ext_config->table_init_on);
+	else
+		ret = lcd_extern_power_cmd(ext_config->table_init_off);
+
+	EXTPR("%s(%d: %s): %d\n",
+		__func__, ext_config->index, ext_config->name, flag);
 	return ret;
 }
 
@@ -145,7 +167,7 @@ static int lcd_extern_power_on(void)
 {
 	int ret;
 
-	ret = lcd_extern_i2c_init();
+	ret = lcd_extern_power_ctrl(1);
 	return ret;
 }
 
@@ -153,25 +175,27 @@ static int lcd_extern_power_off(void)
 {
 	int ret;
 
-	ret = lcd_extern_i2c_remove();
+	ret = lcd_extern_power_ctrl(0);
 	return ret;
 }
 
 static int lcd_extern_driver_update(struct aml_lcd_extern_driver_s *ext_drv)
 {
-	int ret = 0;
-
-	if (ext_drv) {
-		ext_drv->reg_read  = lcd_extern_reg_read;
-		ext_drv->reg_write = lcd_extern_reg_write;
-		ext_drv->power_on  = lcd_extern_power_on;
-		ext_drv->power_off = lcd_extern_power_off;
-	} else {
+	if (ext_drv == NULL) {
 		EXTERR("%s driver is null\n", LCD_EXTERN_NAME);
-		ret = -1;
+		return -1;
 	}
 
-	return ret;
+	if (ext_drv->config.table_init_loaded == 0) {
+		ext_drv->config.table_init_on = init_on_table;
+		ext_drv->config.table_init_off = init_off_table;
+	}
+	ext_drv->reg_read  = lcd_extern_reg_read;
+	ext_drv->reg_write = lcd_extern_reg_write;
+	ext_drv->power_on  = lcd_extern_power_on;
+	ext_drv->power_off = lcd_extern_power_off;
+
+	return 0;
 }
 
 /* *********************************************************

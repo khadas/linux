@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/amlogic/vout/lcd_vout.h>
+#include <linux/amlogic/vout/lcd_unifykey.h>
 #include "lcd_common.h"
 #include "lcd_reg.h"
 
@@ -81,9 +82,9 @@ static char *lcd_mode_table[] = {
 	"invalid",
 };
 
-int lcd_mode_str_to_mode(const char *str)
+unsigned char lcd_mode_str_to_mode(const char *str)
 {
-	int mode;
+	unsigned char mode;
 
 	for (mode = 0; mode < ARRAY_SIZE(lcd_mode_table); mode++) {
 		if (!strcmp(str, lcd_mode_table[mode]))
@@ -259,18 +260,16 @@ void lcd_ttl_pinmux_set(int status)
 		LCDERR("set ttl pinmux error\n");
 }
 
-int lcd_get_power_config(struct lcd_config_s *pconf,
-		struct platform_device *pdev)
+int lcd_power_load_from_dts(struct lcd_config_s *pconf,
+		struct device_node *child)
 {
 	int ret = 0;
 	unsigned int para[5];
 	unsigned int val;
-	struct device_node *child;
 	struct lcd_power_ctrl_s *lcd_power = pconf->lcd_power;
 	int i, j;
 	unsigned int index;
 
-	child = of_get_child_by_name(pdev->dev.of_node, pconf->lcd_propname);
 	if (child == NULL) {
 		LCDPR("error: failed to get %s\n", pconf->lcd_propname);
 		return -1;
@@ -385,6 +384,115 @@ int lcd_get_power_config(struct lcd_config_s *pconf,
 	}
 
 	return ret;
+}
+
+int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
+		unsigned char *buf, int key_len)
+{
+	int i, len;
+	unsigned char *p;
+	unsigned int index;
+	int ret;
+
+	len = 10 + 36 + 18 + 31 + 20;
+	/* power: (5byte * n) */
+	p = buf + len;
+	i = 0;
+	if (lcd_debug_print_flag)
+		LCDPR("power_on step:\n");
+	while (i < LCD_PWR_STEP_MAX) {
+		len += 5;
+		ret = lcd_unifykey_len_check(key_len, len);
+		if (ret < 0) {
+			pconf->lcd_power->power_on_step[i].type = 0xff;
+			pconf->lcd_power->power_on_step[i].index = 0;
+			pconf->lcd_power->power_on_step[i].value = 0;
+			pconf->lcd_power->power_on_step[i].delay = 0;
+			return -1;
+		}
+		pconf->lcd_power->power_on_step[i].type = *p;
+		p += LCD_UKEY_PWR_TYPE;
+		pconf->lcd_power->power_on_step[i].index = *p;
+		p += LCD_UKEY_PWR_INDEX;
+		pconf->lcd_power->power_on_step[i].value = *p;
+		p += LCD_UKEY_PWR_VAL;
+		pconf->lcd_power->power_on_step[i].delay =
+				(*p | ((*(p + 1)) << 8));
+		p += LCD_UKEY_PWR_DELAY;
+
+		/* gpio request */
+		switch (pconf->lcd_power->power_on_step[i].type) {
+		case LCD_POWER_TYPE_CPU:
+			index = pconf->lcd_power->power_on_step[i].index;
+			if (index < LCD_CPU_GPIO_NUM_MAX)
+				lcd_cpu_gpio_register(index);
+			break;
+		default:
+			break;
+		}
+		if (lcd_debug_print_flag) {
+			LCDPR("%d: type=%d, index=%d, value=%d, delay=%d\n",
+				i, pconf->lcd_power->power_on_step[i].type,
+				pconf->lcd_power->power_on_step[i].index,
+				pconf->lcd_power->power_on_step[i].value,
+				pconf->lcd_power->power_on_step[i].delay);
+		}
+		if (pconf->lcd_power->power_on_step[i].type >=
+			LCD_POWER_TYPE_MAX) {
+			break;
+		} else {
+			i++;
+		}
+	}
+	i = 0;
+	if (lcd_debug_print_flag)
+		LCDPR("power_off step:\n");
+	while (i < LCD_PWR_STEP_MAX) {
+		len += 5;
+		ret = lcd_unifykey_len_check(key_len, len);
+		if (ret < 0) {
+			pconf->lcd_power->power_off_step[i].type = 0xff;
+			pconf->lcd_power->power_off_step[i].index = 0;
+			pconf->lcd_power->power_off_step[i].value = 0;
+			pconf->lcd_power->power_off_step[i].delay = 0;
+			return -1;
+		}
+		pconf->lcd_power->power_off_step[i].type = *p;
+		p += LCD_UKEY_PWR_TYPE;
+		pconf->lcd_power->power_off_step[i].index = *p;
+		p += LCD_UKEY_PWR_INDEX;
+		pconf->lcd_power->power_off_step[i].value = *p;
+		p += LCD_UKEY_PWR_VAL;
+		pconf->lcd_power->power_off_step[i].delay =
+				(*p | ((*(p + 1)) << 8));
+		p += LCD_UKEY_PWR_DELAY;
+
+		/* gpio request */
+		switch (pconf->lcd_power->power_off_step[i].type) {
+		case LCD_POWER_TYPE_CPU:
+			index = pconf->lcd_power->power_off_step[i].index;
+			if (index < LCD_CPU_GPIO_NUM_MAX)
+				lcd_cpu_gpio_register(index);
+			break;
+		default:
+			break;
+		}
+		if (lcd_debug_print_flag) {
+			LCDPR("%d: type=%d, index=%d, value=%d, delay=%d\n",
+				i, pconf->lcd_power->power_off_step[i].type,
+				pconf->lcd_power->power_off_step[i].index,
+				pconf->lcd_power->power_off_step[i].value,
+				pconf->lcd_power->power_off_step[i].delay);
+		}
+		if (pconf->lcd_power->power_off_step[i].type >=
+			LCD_POWER_TYPE_MAX) {
+			break;
+		} else {
+			i++;
+		}
+	}
+
+	return 0;
 }
 
 void lcd_tcon_config(struct lcd_config_s *pconf)
