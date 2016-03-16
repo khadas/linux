@@ -1309,7 +1309,7 @@
 #define VPU_PROT3_STAT_1 0x277a
 #define VPU_PROT3_STAT_2 0x277b
 #define VPU_PROT3_REQ_ONOFF 0x277c
-
+#define VPU_RDARB_MODE_L1C2 0x2799
 /* osd super scale */
 #define OSDSR_HV_SIZEIN 0x3130
 #define OSDSR_CTRL_MODE 0x3131

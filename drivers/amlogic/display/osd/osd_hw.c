@@ -2415,7 +2415,16 @@ static void osd2_update_color_mode(void)
 static void osd1_update_enable(void)
 {
 	u32 video_enable = 0;
-
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) &&
+		(osd_hw.enable[OSD1] == ENABLE)) {
+		if (((VSYNCOSD_RD_MPEG_REG(VPP_MISC) &
+			VPP_OSD1_POSTBLEND) == 0) &&
+			((VSYNCOSD_RD_MPEG_REG(VPU_RDARB_MODE_L1C2) &
+			(1<<16)) == 0)) {
+			VSYNCOSD_WR_MPEG_REG_BITS(VPU_RDARB_MODE_L1C2,
+				1, 16, 1);
+		}
+	}
 	if ((osd_hw.osd_afbcd[OSD1].enable == ENABLE) &&
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)) {
 		/*VSYNCOSD_CLR_MPEG_REG_MASK(
@@ -3438,7 +3447,10 @@ void osd_init_hw(u32 logo_loaded)
 	if (!logo_loaded) {
 		/* init vpu fifo control register */
 		data32 = osd_reg_read(VPP_OFIFO_SIZE);
-		data32 |= 0x77f;
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+			data32 |= 0xfff;
+		else
+			data32 |= 0x77f;
 		osd_reg_write(VPP_OFIFO_SIZE, data32);
 		data32 = 0x08080808;
 		osd_reg_write(VPP_HOLD_LINES, data32);
