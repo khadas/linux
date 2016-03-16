@@ -401,6 +401,7 @@
 	   				//"MMC_CAP_UHS_SDR104";
 	   		f_min = <400000>;
 	   		f_max = <100000000>;
+			tx_phase = <0>;
 	   		max_req_size = <0x20000>;          /**128KB*/
 			gpio_dat3 = <&gpio       CARD_4       GPIO_ACTIVE_HIGH>;
 			jtag_pin =  <&gpio       CARD_0       GPIO_ACTIVE_HIGH>;

@@ -441,6 +441,7 @@
             caps2 = "MMC_CAP2_HS200";
 			f_min = <300000>;
             f_max = <200000000>;
+			tx_phase = <0>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
 		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;

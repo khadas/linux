@@ -842,14 +842,15 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 }
 
 
-static void aml_sd_emmc_reg_set(struct amlsd_host *host)
+static void aml_sd_emmc_tx_phase_set(struct amlsd_host *host,
+						struct amlsd_platform *pdata)
 {
 	u32 vclkc = 0;
 	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 	struct sd_emmc_clock *pclkc = (struct sd_emmc_clock *)&vclkc;
 
 	vclkc = sd_emmc_regs->gclock;
-	pclkc->tx_phase = 1;
+	pclkc->tx_phase = pdata->tx_phase;
 
 	sd_emmc_regs->gclock = vclkc;
 	return;
@@ -3230,9 +3231,8 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		mmc_free_host(mmc);
 
 	if (aml_card_type_mmc(pdata)) {
-			/**set specified regs here**/
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-			aml_sd_emmc_reg_set(host);
+		/**set emmc tx_phase regs here base on dts**/
+		aml_sd_emmc_tx_phase_set(host, pdata);
 		if (!is_storage_emmc()) {
 				mmc_free_host(mmc);
 				goto fail_init_host;

@@ -30,6 +30,7 @@
 /* #include <mach/am_regs.h> */
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include "amlsd.h"
+#include <linux/amlogic/cpu_version.h>
 
 static const struct sd_caps host_caps[] = {
 	SD_CAPS(MMC_CAP_4_BIT_DATA, "MMC_CAP_4_BIT_DATA"),
@@ -221,6 +222,13 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 						str, pdata->jtag_pin);
 		SD_PARSE_U32_PROP_DEC(child, "card_type",
 						prop, pdata->card_type);
+		if (aml_card_type_mmc(pdata)) {
+			/*tx_phase set default value first*/
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+				pdata->tx_phase = 1;
+			SD_PARSE_U32_PROP_DEC(child, "tx_phase",
+						prop, pdata->tx_phase);
+		}
 		SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3",
 						str, pdata->gpio_dat3);
 		SD_PARSE_GPIO_NUM_PROP(child, "hw_reset",
