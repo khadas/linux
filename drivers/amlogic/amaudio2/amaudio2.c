@@ -441,28 +441,28 @@ void direct_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 	for (j = 0; j < count; j += 256) {
 		for (i = 0; i < 8; i++) {
 			samp = *lf;
-			*lf++ = clip24((((samp) >> 8) * music_gain +
+			*lf++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_left_gain) >> 8);
 			samp = *cf;
-			*cf++ = clip24((((samp) >> 8) * music_gain +
+			*cf++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_right_gain) >> 8);
 			samp = *rf;
-			*rf++ = clip24((((samp) >> 8) * music_gain +
+			*rf++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_left_gain) >> 8);
 			samp = *ls;
-			*ls++ = clip24((((samp) >> 8) * music_gain +
+			*ls++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_right_gain) >> 8);
 			samp = *rs;
-			*rs++ = clip24((((samp) >> 8) * music_gain +
+			*rs++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_left_gain) >> 8);
 			samp = *lef;
-			*lef++ = clip24((((samp) >> 8) * music_gain +
+			*lef++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_right_gain) >> 8);
 			samp = *sbl;
-			*sbl++ = clip24((((samp) >> 8) * music_gain +
+			*sbl++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_left_gain) >> 8);
 			samp = *sbr;
-			*sbr++ = clip24((((samp) >> 8) * music_gain +
+			*sbr++ = clip24(((samp) * music_gain +
 				((*tfrom++) >> 8) * direct_right_gain) >> 8);
 		}
 		lf += 56;
@@ -582,9 +582,9 @@ static void i2s_copy(struct amaudio_t *amaudio)
 	if (audio_out_mode == 0)
 		(*aml_cover_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
 	else if (audio_out_mode == 1)
-		(*aml_direct_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
-	else if (audio_out_mode == 2)
 		(*aml_inter_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
+	else if (audio_out_mode == 2)
+		(*aml_direct_mix_memcpy)(hw, hw->wr, sw, sw->rd, int_block);
 
 	hw->wr = (hw->wr + int_block) % hw->size;
 	hw->level = (hw->wr + hw->size - i2s_out_ptr) % hw->size;
