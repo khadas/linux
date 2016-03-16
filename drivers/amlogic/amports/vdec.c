@@ -1169,7 +1169,7 @@ static int vdec_probe(struct platform_device *pdev)
 		vdec_clock_hi_enable();
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
 		/* set vdec dmc request to urgent */
 		WRITE_DMCREG(DMC_AM5_CHAN_CTRL, 0x3f203cf);
 	}
