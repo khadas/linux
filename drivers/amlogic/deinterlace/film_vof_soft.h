@@ -49,6 +49,9 @@ struct sFlmDatSt {
 	UINT8 pStp22[HISDETNUM];
 	UINT8 pSmp22[HISDETNUM];
 
+	UINT8 pFlgXx[HISDETNUM]; /* pre-1, nxt-0 */
+	UINT8 pMdLXx[HISDETNUM]; /* mode level */
+
 	UINT32 *rROFrmDif02;
 
 	/* size of the image */
@@ -114,6 +117,9 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar);
 /* Get 1-Row combing information, 1bit */
 /* iHSCMB[9]; 9x32=288 */
 UINT8 Get1RCmb(UINT32 *iHSCMB, UINT32 iRow);
+
+int FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02);
+
 
 /*  */
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, UShort *rPstCYWnd0, UShort *rPstCYWnd1,

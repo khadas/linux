@@ -3719,7 +3719,7 @@ module_param_named(combing_dejaggy_enable, dejaggy_enable, int, 0664);
 static uint num_dejaggy_setting = 5;
 /* 0:off 1:1-14-1 2:1-6-1 3:3-10-3 4:100% */
 /* current setting dejaggy always on when interlace source */
-static int combing_dejaggy_setting[5] = {1, 1, 1, 1, 2};
+static int combing_dejaggy_setting[5] = {1, 1, 1, 2, 3};
 module_param_array(combing_dejaggy_setting, uint,
 	&num_dejaggy_setting, 0664);
 
@@ -3760,6 +3760,8 @@ void set_combing_regs(int lvl)
 				& ~combing_setting_masks[i]));
 	}
 }
+
+int like_pulldown22_flag = 0;
 
 static void adaptive_combing_fixing(
 	pulldown_detect_info_t *field_pd_info,
@@ -3839,10 +3841,10 @@ static void adaptive_combing_fixing(
 				/* dejaggy alpha according to motion level */
 				dejaggy_flag =
 					combing_dejaggy_setting[cur_lev];
-				/* TODO: check like_pulldown22_flag and
-				ATV noise_level
-				if (like_pulldown22_flag && (cur_lev > 2)
-					dejaggy_flag += 1; */
+				/* TODO: check like_pulldown22_flag and ATV
+				noise_level */
+				if (like_pulldown22_flag && (cur_lev > 2))
+					dejaggy_flag += 1;
 				/* overwrite dejaggy alpha */
 				if (dejaggy_enable >= 2)
 					dejaggy_flag = dejaggy_enable;
@@ -3865,11 +3867,22 @@ static void adaptive_combing_fixing(
 	}
 }
 
+static unsigned int flm22_sure_num = 100;
+module_param(flm22_sure_num, uint, 0644);
+MODULE_PARM_DESC(flm22_sure_num, "ture film-22/n");
+
+static unsigned int flmxx_sure_num = 50;
+module_param(flmxx_sure_num, uint, 0644);
+MODULE_PARM_DESC(flmxx_sure_num, "ture film-xx/n");
+
 static void pre_de_done_buf_config(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 	bool dynamic_flag = false;
 	int hHeight = di_pre_stru.di_nrwr_mif.end_y;
+	bool flm32 = false;
+	bool flm22 = false;
+	bool flmxx = false;
 
 	if (di_pre_stru.di_wr_buf) {
 		if (di_pre_stru.pre_throw_flag > 0) {
@@ -3950,12 +3963,23 @@ static void pre_de_done_buf_config(void)
 				di_pre_stru.di_post_wr_buf->reg3_e = 0;
 				di_pre_stru.di_post_wr_buf->reg3_bmode = 0;
 			}
+			like_pulldown22_flag = dectres.rF22Flag;
 
 			if (pulldown_enable == 1 && dectres.rFlmPstMod != 0
 				&& di_pre_stru.di_post_wr_buf) {
+				flm32 = (dectres.rFlmPstMod == 2 &&
+					dectres.rFlmPstGCm == 0);
+				flm22 = (dectres.rFlmPstMod == 1  &&
+					dectres.rF22Flag >= flm22_sure_num);
+				flmxx = (dectres.rFlmPstMod >= flmxx_sure_num);
+
+				if (flmxx && pr_pd)
+					pr_info("film mode xx = %3d\n",
+					dectres.rFlmPstMod);
+
 				/* 2-2 force */
-				if (pldn_mod == 0 && (dectres.rFlmPstMod == 1 ||
-					dectres.rFlmPstGCm == 0)) {
+				if ((pldn_mod == 0) &&
+					(flm32 || flm22 || flmxx)) {
 					if (dectres.rFlmSltPre == 1)
 						di_pre_stru.di_post_wr_buf
 						->pulldown_mode =
@@ -3979,8 +4003,7 @@ static void pre_de_done_buf_config(void)
 						PULL_DOWN_NORMAL;
 				}
 
-				if ((dectres.rFlmPstGCm == 0) &&
-				    pldn_cmb0 == 1) {
+				if (flm32 && (pldn_cmb0 == 1)) {
 					di_pre_stru.di_post_wr_buf->reg0_s =
 						dectres.rPstCYWnd0[0];
 					di_pre_stru.di_post_wr_buf->reg0_e =
@@ -4012,29 +4035,13 @@ static void pre_de_done_buf_config(void)
 				} else if (dectres.rF22Flag > 1 &&
 					dectres.rFlmPstMod == 1 &&
 					pldn_cmb0 == 1) {
-					di_pre_stru.di_post_wr_buf->reg0_s =
-						dectres.rF22Flag == 20 ?
-						(hHeight - (hHeight>>3)) : 0;
-
-					di_pre_stru.di_post_wr_buf->reg0_e =
-						di_pre_stru.di_nrwr_mif.end_y;
-
-					/* 3: normal di-mode */
-					di_pre_stru.di_post_wr_buf->reg0_bmode
-						= 3;
-
-/*					RDMA_WR_BITS(SRSHARP0_SHARP_SR2_CTRL,
-						1, 4, 1);
-					RDMA_WR_BITS(SRSHARP0_SHARP_DEJ2_MISC,
-						0xc, 0, 4);
-					RDMA_WR_BITS(SRSHARP0_SHARP_DEJ1_MISC,
-						0xc, 0, 4);
-					*/
+					/* SRSHARP0_SHARP_SR2_CTRL */
+					/* SRSHARP0_SHARP_DEJ2_MISC */
+					/* SRSHARP0_SHARP_DEJ1_MISC */
 
 					if (pr_pd) {
-						pr_info("force dejaggies=[%3d ~ %3d]\n",
-					di_pre_stru.di_post_wr_buf->reg0_s,
-					di_pre_stru.di_post_wr_buf->reg0_e);
+						pr_info("dejaggies level= %3d\n",
+						dectres.rF22Flag);
 					}
 				} else if (dectres.rFlmPstGCm == 0
 					&& pldn_cmb0 > 1
