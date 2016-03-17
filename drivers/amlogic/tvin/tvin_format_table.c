@@ -688,8 +688,8 @@ const char *tvin_sig_fmt_str(enum tvin_sig_fmt_e fmt)
 	case TVIN_SIG_FMT_HDMI_4096_2160_00HZ:
 		return "TVIN_SIG_FMT_HDMI_4096_2160_00HZ";
 		break;
-	case TVIN_SIG_FMT_HDMI_RESERVE7:
-		return "TVIN_SIG_FMT_HDMI_RESERVE7";
+	case TVIN_SIG_FMT_HDMI_1600X900_60HZ:
+		return "TVIN_SIG_FMT_HDMI_1600X900_60HZ";
 		break;
 	case TVIN_SIG_FMT_HDMI_RESERVE8:
 		return "TVIN_SIG_FMT_HDMI_RESERVE8";
@@ -2148,8 +2148,8 @@ const struct tvin_format_s tvin_hdmi_fmt_tbl[TVIN_SIG_FMT_HDMI_MAX -
 	0, TVIN_SYNC_POL_POSITIVE, TVIN_SYNC_POL_POSITIVE,
 	TVIN_SCAN_MODE_PROGRESSIVE,  29700,   0,   0, 4000
 	},
-	{/* TVIN_SIG_FMT_HDMI_RESERVE7, //220 */
-	0,    0, 0,  0, 0,  0, 0,
+	{ /* TVIN_SIG_FMT_HDMI_1600X900_60HZ, */
+	1600, 900, 0,  0, 0,  0, 0,
 	0,    0,   0,   0,   0, 0, 0,
 	0, TVIN_SYNC_POL_NULL, TVIN_SYNC_POL_NULL,
 	TVIN_SCAN_MODE_PROGRESSIVE,  0,   0,   0, 1600

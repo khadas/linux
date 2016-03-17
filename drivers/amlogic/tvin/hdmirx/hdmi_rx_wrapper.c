@@ -1009,6 +1009,7 @@ struct freq_ref_s freq_ref[] = {
 	{HDMI_1360_768, 0, 0, 1360, 768, 768, 768, 0, 0},
 	{HDMI_1366_768, 0, 0, 1366, 768, 768, 768, 0, 0},
 	{HDMI_1600_1200, 0, 0, 1600, 1200, 1200, 1200, 0, 0},
+	{HDMI_1600_900, 0, 0, 1600, 900, 900, 900, 0, 0},
 	{HDMI_1920_1200, 0, 0, 1920, 1200, 1200, 1200, 0, 0},
 	{HDMI_1440_900, 0, 0, 1440, 900, 900, 900, 0, 0},
 	{HDMI_1400_1050, 0, 0, 1400, 1050, 1050, 1050, 0, 0},
@@ -1294,6 +1295,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		break;
 	case HDMI_1600_1200:
 		fmt = TVIN_SIG_FMT_HDMI_1600X1200_00HZ;
+		break;
+	case HDMI_1600_900:
+		fmt = TVIN_SIG_FMT_HDMI_1600X900_60HZ;
 		break;
 	case HDMI_1920_1200:
 		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
