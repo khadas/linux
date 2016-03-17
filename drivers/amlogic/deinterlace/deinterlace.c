@@ -132,7 +132,7 @@ static unsigned int dump_vf_in_height = 576;
 module_param(dump_vf_in_height, uint, 0664);
 MODULE_PARM_DESC(dump_vf_in_height, "dump_vf_in_height");
 #ifdef NEW_DI_V4
-static bool dnr_en;
+static bool dnr_en = 1;
 module_param(dnr_en, bool, 0664);
 MODULE_PARM_DESC(dnr_en, "enable/disable dnr in pre");
 
