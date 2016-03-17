@@ -1255,6 +1255,8 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 			pr_info("card out\n");
 
 		pdata->is_tuned = false;
+		if (pdata->mmc && pdata->mmc->card)
+			mmc_card_set_removed(pdata->mmc->card);
 		aml_uart_switch(pdata, 0);
 		/* aml_jtag_gpioao(); */
 		aml_jtag_switch_ao(pdata);

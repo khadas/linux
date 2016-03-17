@@ -667,6 +667,7 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 		mmc_host_clk_hold(card->host);
 		err = card->host->ops->execute_tuning(card->host,
 						      MMC_SEND_TUNING_BLOCK);
+		card->host->uhs_speed = 1;
 		mmc_host_clk_release(card->host);
 	}
 

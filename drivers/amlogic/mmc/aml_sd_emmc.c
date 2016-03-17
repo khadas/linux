@@ -2317,7 +2317,8 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 
 		if (aml_card_type_non_sdio(pdata)
 			&& (host->error_flag & (1<<0))
-			&& mrq->cmd->retries) {
+			&& mrq->cmd->retries
+			&& host->mmc->uhs_speed) {
 			sd_emmc_err("retry cmd %d the %d-th time(s)\n",
 					mrq->cmd->opcode, mrq->cmd->retries);
 			rx_phase = clkc->rx_phase;
@@ -3271,6 +3272,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	mmc->f_max = pdata->f_max;
 	mmc->max_current_180 = 300; /* 300 mA in 1.8V */
 	mmc->max_current_330 = 300; /* 300 mA in 3.3V */
+	mmc->uhs_speed = 0;
 
 	if (aml_card_type_sdio(pdata)) { /* if sdio_wifi */
 		mmc->host_rescan_disable = true;

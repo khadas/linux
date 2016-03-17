@@ -425,7 +425,7 @@ struct mmc_host {
 
 	/* device attached to this host */
 	struct mmc_card		*card;
-
+	bool		uhs_speed;
 	wait_queue_head_t	wq;
 	/* task that has host claimed */
 	struct task_struct	*claimer;
