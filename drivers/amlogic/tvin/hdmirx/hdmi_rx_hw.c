@@ -946,6 +946,10 @@ void hdmirx_hw_probe(void)
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
 	hdmi_rx_ctrl_edid_update();
+	#ifdef HDCP22_ENABLE
+	if (hdcp_22_on)
+		hpd_to_esm = 1;
+	#endif
 	hdmirx_set_hpd(rx.port, 0);
 	mdelay(100);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
