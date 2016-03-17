@@ -18,6 +18,7 @@
 #include <linux/dirent.h>
 #include <linux/syscalls.h>
 #include <linux/utime.h>
+#include <linux/async.h>
 
 static __initdata char *message;
 static void __init error(char *x)
@@ -579,7 +580,11 @@ static void __init clean_rootfs(void)
 }
 #endif
 
-static int __init populate_rootfs(void)
+
+static __initdata ASYNC_DOMAIN(populate_rootfs_domain);
+static int populate_rootfs_done __initdata;
+
+static void __init async_do_populate_rootfs(void *data, async_cookie_t cookie)
 {
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
@@ -616,12 +621,23 @@ static int __init populate_rootfs(void)
 			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
 		free_initrd();
 #endif
-		/*
-		 * Try loading default modules from initramfs.  This gives
-		 * us a chance to load before device_initcalls.
-		 */
-		load_default_modules();
+		populate_rootfs_done = 1;
 	}
+}
+
+static int __init pre_populate_rootfs(void)
+{
+	async_schedule_domain(async_do_populate_rootfs,
+				NULL, &populate_rootfs_domain);
+	return 0;
+}
+postcore_initcall(pre_populate_rootfs);
+
+static int __init populate_rootfs(void)
+{
+	async_synchronize_full_domain(&populate_rootfs_domain);
+	if (populate_rootfs_done)
+		load_default_modules();
 	return 0;
 }
 rootfs_initcall(populate_rootfs);

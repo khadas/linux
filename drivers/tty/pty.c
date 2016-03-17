@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/async.h>
 
 #undef TTY_DEBUG_HANGUP
 #ifdef TTY_DEBUG_HANGUP
@@ -872,10 +873,22 @@ static void __init unix98_pty_init(void)
 static inline void unix98_pty_init(void) { }
 #endif
 
-static int __init pty_init(void)
+#ifndef MODULE
+static __init void pty_async_init(void *data, async_cookie_t cookie)
 {
 	legacy_pty_init();
 	unix98_pty_init();
+}
+#endif
+
+static int __init pty_init(void)
+{
+#ifdef MODULE
+	legacy_pty_init();
+	unix98_pty_init();
+#else
+	async_schedule(pty_async_init, NULL);
+#endif
 	return 0;
 }
 module_init(pty_init);
