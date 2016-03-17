@@ -1072,7 +1072,8 @@ out:
 	return err ? 0 : 1;
 }
 
-static int mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
+static int __attribute__((unused)) mmc_blk_issue_secdiscard_rq(
+				       struct mmc_queue *mq,
 				       struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
@@ -2033,7 +2034,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		if (card->host->areq)
 			mmc_blk_issue_rw_rq(mq, NULL);
 		if (req->cmd_flags & REQ_SECURE)
-			ret = mmc_blk_issue_secdiscard_rq(mq, req);
+			/*ret = mmc_blk_issue_secdiscard_rq(mq, req);*/
+			ret = mmc_blk_issue_discard_rq(mq, req);
 		else
 			ret = mmc_blk_issue_discard_rq(mq, req);
 	} else if (cmd_flags & REQ_FLUSH) {

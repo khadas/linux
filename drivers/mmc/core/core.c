@@ -2060,26 +2060,26 @@ int _mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	return mmc_do_erase(card, from, to, arg);
 }
 
-#define		ERASE_512M		0x100000
+#define		ERASE_UNIT		0x14000	/* 40MBytes */
 int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	      unsigned int arg)
 {
 	unsigned int group , start;
 	int ret = 0, count = 1;
-	if (nr > ERASE_512M) {
+	if (nr > ERASE_UNIT) {
 		do {
 			start = from;
-			group = ERASE_512M;
+			group = ERASE_UNIT;
 			ret = _mmc_erase(card, start, group, arg);
 			if (ret) {
 				pr_err("%s [%d] count = %x\n",
 					__func__, __LINE__, count);
 				return ret;
 			}
-			from += ERASE_512M;
-			nr -= ERASE_512M;
+			from += ERASE_UNIT;
+			nr -= ERASE_UNIT;
 			count++;
-		} while (nr > ERASE_512M);
+		} while (nr > ERASE_UNIT);
 		ret = _mmc_erase(card, from, nr, arg);
 		if (ret) {
 			pr_err("%s [%d] count = %x\n",
