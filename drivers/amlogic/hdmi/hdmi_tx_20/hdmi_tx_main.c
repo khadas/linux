@@ -447,8 +447,6 @@ EXPORT_SYMBOL(hdmitx_is_vmode_supported);
 
 #endif
 
-static char local_name[32] = {0};
-
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -461,7 +459,7 @@ static int set_disp_mode_auto(void)
 	enum hdmi_vic vic_ready = hdev->HWOp.GetState(
 		hdev, STAT_VIDEO_VIC, 0);
 
-	memset(mode, 0, 16);
+	memset(mode, 0, sizeof(mode));
 
 	/* get current vinfo */
 	info = hdmi_get_current_vinfo();
@@ -502,7 +500,7 @@ static int set_disp_mode_auto(void)
 	}
 	hdev->para = para;
 	/* msleep(500); */
-	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
+	vic = hdmitx_edid_get_VIC(hdev, mode, 0);
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
 	} else if (strncmp(info->name, "2160p25hz",
@@ -521,8 +519,7 @@ static int set_disp_mode_auto(void)
 	if (suspend_flag == 1)
 		vic_ready = HDMI_Unkown;
 #endif
-	if ((!strcmp(local_name, hdev->para->ext_name))
-	&& (vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
+	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
 		hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
 		if (hdev->RXCap.IEEEOUI == 0) {
@@ -585,7 +582,6 @@ static int set_disp_mode_auto(void)
 				hdev->cur_VIC);
 		}
 	}
-	strcpy(local_name, hdev->para->ext_name);
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->output_blank_flag = 1;
 	if (hdev->hdcp_mode == 1) {
@@ -1323,6 +1319,35 @@ static ssize_t show_avmute(struct device *dev,
 }
 
 /*
+ * 0: clear vic
+ */
+static ssize_t store_vic(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (strncmp(buf, "0", 1) == 0) {
+		hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
+		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
+	}
+
+	return count;
+}
+
+static ssize_t show_vic(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	enum hdmi_vic vic = HDMI_Unkown;
+	int pos = 0;
+
+	vic = hdev->HWOp.GetState(hdev, STAT_VIDEO_VIC, 0);
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", vic);
+
+	return pos;
+}
+
+/*
  *  1: enable hdmitx phy
  *  0: disable hdmitx phy
  */
@@ -1597,6 +1622,7 @@ static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
 static DEVICE_ATTR(avmute, S_IWUSR | S_IRUGO | S_IWGRP, show_avmute,
 	store_avmute);
+static DEVICE_ATTR(vic, S_IWUSR | S_IRUGO | S_IWGRP, show_vic, store_vic);
 static DEVICE_ATTR(phy, S_IWUSR | S_IRUGO | S_IWGRP, show_phy, store_phy);
 static DEVICE_ATTR(hdcp_clkdis, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_clkdis,
 	store_hdcp_clkdis);
@@ -2404,6 +2430,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdr_cap);
 	ret = device_create_file(dev, &dev_attr_aud_ch);
 	ret = device_create_file(dev, &dev_attr_avmute);
+	ret = device_create_file(dev, &dev_attr_vic);
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_hdcp_clkdis);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
@@ -2600,6 +2627,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_ready);
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_avmute);
+	device_remove_file(dev, &dev_attr_vic);
 
 	cdev_del(&hdmitx_device.cdev);
 

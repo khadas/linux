@@ -1745,6 +1745,10 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"smpte25hz", HDMI_4096x2160p25_256x135},
 	{"smpte30hz", HDMI_4096x2160p30_256x135},
 	{"smpte50hz", HDMI_4096x2160p50_256x135},
+	{"2160p60hz42010bit", HDMI_4k2k_60_y420},
+	{"2160p50hz42010bit", HDMI_4k2k_50_y420},
+	{"2160p60hz42210bit", HDMI_4k2k_60},
+	{"2160p50hz42210bit", HDMI_4k2k_50},
 	{"smpte50hz420", HDMI_4096x2160p50_256x135_Y420},
 	{"smpte60hz", HDMI_4096x2160p60_256x135},
 	{"smpte60hz420", HDMI_4096x2160p60_256x135_Y420},
@@ -1808,6 +1812,8 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 	int  j;
 	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
 
+	/* no need recheck from RX side, for 10bit */
+	force_flag = 1;
 	if (vic != HDMI_Unkown) {
 		if (force_flag == 0) {
 			for (j = 0 ; j < pRXCap->VIC_count ; j++) {
