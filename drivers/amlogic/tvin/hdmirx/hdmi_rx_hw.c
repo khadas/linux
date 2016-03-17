@@ -928,7 +928,7 @@ void hdmirx_hw_config(void)
 	DWC_init(rx.port);
 	hdmirx_audio_init();
 	packet_init();
-	/* hdmirx_20_init(); */
+	hdmirx_20_init();
 	hdmirx_audio_fifo_rst();
 	hdmirx_packet_fifo_rst();
 	/*enable irq */
@@ -944,13 +944,8 @@ void hdmirx_hw_probe(void)
 	hdmirx_wr_top(TOP_MEM_PD, 0);
 	hdmirx_wr_top(TOP_SW_RESET,	0);
 	clk_init();
-	hdmirx_20_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
 	hdmi_rx_ctrl_edid_update();
-	#ifdef HDCP22_ENABLE
-	if (hdcp_22_on)
-		hpd_to_esm = 1;
-	#endif
 	hdmirx_set_hpd(rx.port, 0);
 	mdelay(100);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);

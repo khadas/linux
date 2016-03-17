@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/03/17"
+#define HDMIRX_VER "Ref.2016/03/12"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -443,7 +443,6 @@ extern bool multi_port_edid_enable;
 extern int md_ists_en;
 extern int hdmi_ists_en;
 extern int real_port_map;
-extern bool hpd_to_esm;
 
 extern struct rx_s rx;
 extern int log_flag;
