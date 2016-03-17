@@ -293,7 +293,7 @@ module_param(hdr_enable, bool, 0664);
 
 #ifdef HDCP22_ENABLE
 /* to inform ESM whether the cable is connected or not */
-static bool hpd_to_esm;
+bool hpd_to_esm;
 MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
 module_param(hpd_to_esm, bool, 0664);
 
@@ -309,6 +309,10 @@ module_param(hdcp_mode_sel, int, 0664);
 static bool hdcp_auth_status;
 MODULE_PARM_DESC(hdcp_auth_status, "\n hdcp_auth_status\n");
 module_param(hdcp_auth_status, bool, 0664);
+
+static int wait_hdcp22_cnt = 1000;
+MODULE_PARM_DESC(wait_hdcp22_cnt, "\n wait_hdcp22_cnt\n");
+module_param(wait_hdcp22_cnt, int, 0664);
 #endif
 
 static int pre_port = 0xff;
@@ -1894,11 +1898,11 @@ void hdmirx_hw_monitor(void)
 		rx_print("5V_high->HPD_READY\n");
 		break;
 	case FSM_HPD_READY:
+		/*check mhl 3.4gb*/
 		#ifdef HDCP22_ENABLE
 		if (hdcp_22_on)
 			hpd_to_esm = 1;
 		#endif
-		/*check mhl 3.4gb*/
 		if ((true == rx.scdc_tmds_cfg) ||
 			((hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1)) {
 			hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
@@ -3070,6 +3074,20 @@ int hdmirx_debug(const char *buf, int size)
 		hdmirx_hw_config();
 	} else if (strncmp(tmpbuf, "timer_state", 11) == 0) {
 		timer_state();
+	} else if (strncmp(tmpbuf, "load22key", 9) == 0) {
+		rx_print("load 2.2 key-i\n");
+		/* wr_reg(HHI_HDCP22_CLK_CNTL, 0x0); */
+		/* wr_reg(HHI_HDCP22_CLK_CNTL, 0x1000100); */
+		sm_pause = 1;
+		hpd_to_esm = 0;
+		mdelay(wait_hdcp22_cnt);
+		hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
+		hdmirx_hw_config();
+		hpd_to_esm = 1;
+		hdmirx_set_hpd(rx.port, 0);
+		mdelay(2000);
+		sm_pause = 0;
+		/* hdmirx_set_hpd(rx.port, 1); */
 	} else if (strncmp(tmpbuf, "clock", 5) == 0) {
 		if (kstrtol(tmpbuf + 5, 10, &value) < 0)
 			return -EINVAL;
