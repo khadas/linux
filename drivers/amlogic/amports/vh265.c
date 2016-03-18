@@ -1996,6 +1996,7 @@ static struct PIC_s *output_pic(struct hevc_state_s *hevc,
 			pic_display->output_mark = 0;
 			pic_display->recon_mark = 0;
 			pic_display->output_ready = 1;
+			pic_display->referenced = 0;
 		}
 	} else {
 		for (i = 0; i < MAX_REF_PIC_NUM; i++) {
@@ -3578,7 +3579,7 @@ static void flush_output(struct hevc_state_s *hevc, struct PIC_s *pic)
 					prepare_display_buf(hevc, pic_display);
 					if (debug & H265_DEBUG_BUFMGR) {
 						pr_info
-						("[BM] Display: POC %d, ",
+						("[BM] flush Display: POC %d, ",
 						 pic_display->POC);
 						pr_info
 						("decoding index %d\n",
@@ -3595,7 +3596,10 @@ static inline void hevc_pre_pic(struct hevc_state_s *hevc,
 {
 
 	/* prev pic */
-	if (hevc->curr_POC != 0) {
+	/*if (hevc->curr_POC != 0) {*/
+	if (hevc->m_nalUnitType != NAL_UNIT_CODED_SLICE_IDR
+			&& hevc->m_nalUnitType !=
+			NAL_UNIT_CODED_SLICE_IDR_N_LP) {
 		struct PIC_s *pic_display;
 		pic = get_pic_by_POC(hevc, hevc->iPrevPOC);
 		if (pic && (pic->POC != INVALID_POC)) {
@@ -3649,6 +3653,15 @@ static inline void hevc_pre_pic(struct hevc_state_s *hevc,
 						prepare_display_buf
 							(hevc,
 							 pic_display);
+					if (debug & H265_DEBUG_BUFMGR) {
+						pr_info
+						("[BM] Display: POC %d, ",
+							 pic_display->POC);
+							pr_info
+							("decoding index %d\n",
+							 pic_display->
+							 decode_idx);
+						}
 					}
 				}
 			}
@@ -5572,9 +5585,13 @@ static void vh265_put_timer_func(unsigned long arg)
 	unsigned int buf_level;
 
 	enum receviver_start_e state = RECEIVER_INACTIVE;
-
-	if (hevc->init_flag == 0)
+	if (hevc->init_flag == 0) {
+		if (hevc->stat & STAT_TIMER_INIT) {
+			timer->expires = jiffies + PUT_INTERVAL;
+			add_timer(&hevc->timer);
+		}
 		return;
+	}
 
 	if (vf_get_receiver(PROVIDER_NAME)) {
 		state =
@@ -5946,7 +5963,7 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 
 	hevc->stat |= STAT_VF_HOOK;
 
-	hevc->timer.data = (ulong) (&hevc->timer);
+	hevc->timer.data = (ulong) hevc;
 	hevc->timer.function = vh265_put_timer_func;
 	hevc->timer.expires = jiffies + PUT_INTERVAL;
 
@@ -6037,6 +6054,7 @@ static int vh265_stop(struct hevc_state_s *hevc)
 		hevc->stat &= ~STAT_ISR_REG;
 	}
 
+	hevc->stat &= ~STAT_TIMER_INIT;
 	if (hevc->stat & STAT_TIMER_ARM) {
 		del_timer_sync(&hevc->timer);
 		hevc->stat &= ~STAT_TIMER_ARM;
