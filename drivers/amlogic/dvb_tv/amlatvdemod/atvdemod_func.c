@@ -298,6 +298,11 @@ void atv_dmd_wr_byte(unsigned long block_addr, unsigned long reg_addr,
 	((reg_addr & 0xff) >>2)) << 2), data);*/
 }
 
+void set_audio_gain_val(int val)
+{
+	audio_gain_val = val;
+}
+
 void atv_dmd_soft_reset(void)
 {
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x0);

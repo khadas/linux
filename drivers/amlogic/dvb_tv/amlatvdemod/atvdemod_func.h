@@ -162,6 +162,7 @@ extern void atv_dmd_wr_word(unsigned long block_address,
 extern void atv_dmd_wr_byte(unsigned long block_address,
 				unsigned long reg_addr,
 				unsigned long data);
+extern void set_audio_gain_val(int val);
 extern void atv_dmd_soft_reset(void);
 extern void atv_dmd_input_clk_32m(void);
 extern void read_version_register(void);
