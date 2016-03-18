@@ -16,6 +16,8 @@
  *
 */
 
+#define pr_fmt(fmt)	"sysled: " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -33,16 +35,6 @@
 
 #define AML_DEV_NAME		"sysled"
 #define AML_LED_NAME		"led-sys"
-
-#define DEBUG
-
-#ifndef DEBUG
-#define INFO(format, arg...)
-#define ERR(format,  arg...)
-#else
-#define INFO(format, arg...) pr_info("%s: " format, __func__ , ## arg)
-#define ERR(format,  arg...) pr_err("%s: "  format, __func__ , ## arg)
-#endif
 
 
 static void aml_sysled_work(struct work_struct *work)
@@ -91,15 +83,15 @@ static int aml_sysled_dt_parse(struct platform_device *pdev)
 	ldev = platform_get_drvdata(pdev);
 	node = pdev->dev.of_node;
 	if (!node) {
-		ERR("failed to find node for %s\n", AML_DEV_NAME);
+		pr_err("failed to find node for %s\n", AML_DEV_NAME);
 		return -ENODEV;
 	}
 
 	desc = of_get_named_gpiod_flags(node, "led_gpio", 0, &flags);
 	ldev->d.pin = desc_to_gpio(desc);
 	ldev->d.active_low = flags & OF_GPIO_ACTIVE_LOW;
-	INFO("led_gpio = %u\n", ldev->d.pin);
-	INFO("active_low = %u\n", ldev->d.active_low);
+	pr_info("led_gpio = %u\n", ldev->d.pin);
+	pr_info("active_low = %u\n", ldev->d.active_low);
 	gpio_request(ldev->d.pin, AML_DEV_NAME);
 	gpio_direction_output(ldev->d.pin, 1);
 
@@ -123,7 +115,7 @@ static int aml_sysled_probe(struct platform_device *pdev)
 
 	ldev = kzalloc(sizeof(struct aml_sysled_dev), GFP_KERNEL);
 	if (!ldev) {
-		ERR("kzalloc error\n");
+		pr_err("kzalloc error\n");
 		return -ENOMEM;
 	}
 
@@ -146,7 +138,7 @@ static int aml_sysled_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	INFO("module probed ok\n");
+	pr_info("module probed ok\n");
 	return 0;
 }
 
@@ -160,6 +152,7 @@ static int __exit aml_sysled_remove(struct platform_device *pdev)
 	gpio_free(ldev->d.pin);
 	platform_set_drvdata(pdev, NULL);
 	kfree(ldev);
+	pr_info("module removed ok\n");
 	return 0;
 }
 
@@ -177,9 +170,9 @@ static struct platform_driver aml_sysled_driver = {
 
 static int __init aml_sysled_init(void)
 {
-	INFO("module init\n");
+	pr_info("module init\n");
 	if (platform_driver_register(&aml_sysled_driver)) {
-		ERR("failed to register driver\n");
+		pr_err("failed to register driver\n");
 		return -ENODEV;
 	}
 
@@ -189,7 +182,7 @@ static int __init aml_sysled_init(void)
 
 static void __exit aml_sysled_exit(void)
 {
-	INFO("module exit\n");
+	pr_info("module exit\n");
 	platform_driver_unregister(&aml_sysled_driver);
 }
 
