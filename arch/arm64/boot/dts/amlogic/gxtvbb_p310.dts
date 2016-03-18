@@ -925,6 +925,13 @@
 		clocks = <&clock CLK_XTAL>;
 	};
 
+	sysled {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		status = "okay";
+		led_gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+	};
+
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
 		device_name = "thermal";
