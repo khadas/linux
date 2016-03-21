@@ -4964,6 +4964,7 @@ static unsigned char pre_de_buf_config(void)
 		if (di_buf == NULL) {
 			/* recycle_vframe_type_pre(di_pre_stru.di_inp_buf); */
 			/*save for next process*/
+			recycle_keep_buffer();
 			di_pre_stru.di_inp_buf_next = di_pre_stru.di_inp_buf;
 			return 0;
 		}
