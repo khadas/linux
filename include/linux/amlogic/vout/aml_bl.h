@@ -162,6 +162,9 @@ struct aml_bl_drv_s {
 };
 
 extern struct aml_bl_drv_s *aml_bl_get_driver(void);
+extern void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm);
+extern enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str);
+extern void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status);
 
 #define BL_GPIO_OUTPUT_LOW		0
 #define BL_GPIO_OUTPUT_HIGH		1

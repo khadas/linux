@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include "iw7019_lpf.h"
-#include "ldim_extern.h"
+#include "ldim_drv.h"
 
 static DEFINE_SPINLOCK(bri_lock);
 

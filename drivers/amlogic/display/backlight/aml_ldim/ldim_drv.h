@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/cdev.h>
+#include <linux/amlogic/vout/aml_bl.h>
 
 #define AML_LDIM_MODULE_NAME "aml_ldim"
 #define AML_LDIM_DRIVER_NAME "aml_ldim"
@@ -22,10 +23,13 @@
 #define WRITE_VCBUS_REG(reg, val)	aml_write_vcbus(reg, val)
 #define WRITE_VCBUS_REG_BITS(reg, val, st, len)W_APB_BIT(reg, val, st, len)
 
-extern void ldim_update_setting(void);
+/*#define LDIM_EXT_DEBUG_INFO*/
+#define LDIMPR(fmt, args...)     pr_info("ldim: "fmt"", ## args)
+#define LDIMERR(fmt, args...)    pr_info("ldim: error: "fmt"", ## args)
+
+extern unsigned int ldim_debug_print;
+
 extern void set_bri_for_channels(unsigned short bri[16]);
-extern void ldim_on_vs_arithmetic(void);
-extern void ldim_on_vs_spi(unsigned long data);
 
 /* each base has 16 address space */
 #define REG_LD_CFG_BASE          0x00
@@ -74,6 +78,14 @@ extern void ldim_on_vs_spi(unsigned long data);
 #define LD_BLKHMAX 32
 #define LD_BLKVMAX 32
 #define LD_BLKREGNUM 384  /* maximum support 24*16*/
+
+struct ldim_config_s {
+	unsigned short hsize;
+	unsigned short vsize;
+	unsigned char bl_mode;
+	unsigned short bl_mapping[LD_BLKREGNUM];
+	struct bl_pwm_config_s pwm_config;
+};
 
 struct LDReg {
 	int reg_LD_pic_RowMax;            /*u13*/

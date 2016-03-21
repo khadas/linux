@@ -620,7 +620,7 @@ static void bl_pwm_pinmux_ctrl(struct bl_config_s *bconf, int status)
 	}
 }
 
-static void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
+void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 {
 	int port, pre_div;
 
@@ -692,7 +692,7 @@ static void bl_power_on(void)
 	struct aml_bl_extern_driver_s *bl_ext;
 #endif
 #ifdef CONFIG_AML_LOCAL_DIMMING
-	struct aml_ld_driver_s *aml_ld;
+	struct aml_ldim_driver_s *ldim_drv;
 #endif
 	int ret;
 
@@ -743,14 +743,14 @@ static void bl_power_on(void)
 		/* step 1: power on enable */
 		bl_power_en_ctrl(bconf, 1);
 		/* step 2: power on ldim */
-		aml_ld = aml_ld_get_driver();
-		if (aml_ld == NULL) {
-			BLPR("no ldim driver\n");
+		ldim_drv = aml_ldim_get_driver();
+		if (ldim_drv == NULL) {
+			BLERR("no ldim driver\n");
 		} else {
-			if (aml_ld->power_on) {
-				ret = aml_ld->power_on();
+			if (ldim_drv->power_on) {
+				ret = ldim_drv->power_on();
 				if (ret) {
-					BLPR("ldim: power on error\n");
+					BLERR("ldim: power on error\n");
 					goto exit_power_on_bl;
 				}
 			} else {
@@ -799,7 +799,7 @@ static void bl_power_off(void)
 	struct aml_bl_extern_driver_s *bl_ext;
 #endif
 #ifdef CONFIG_AML_LOCAL_DIMMING
-	struct aml_ld_driver_s *aml_ld;
+	struct aml_ldim_driver_s *ldim_drv;
 #endif
 	int ret;
 
@@ -839,16 +839,16 @@ static void bl_power_off(void)
 #ifdef CONFIG_AML_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMING:
 		/* step 1: power off ldim */
-		aml_ld = aml_ld_get_driver();
-		if (aml_ld == NULL) {
-			BLPR("no ldim driver\n");
+		ldim_drv = aml_ldim_get_driver();
+		if (ldim_drv == NULL) {
+			BLERR("no ldim driver\n");
 		} else {
-			if (aml_ld->power_off) {
-				ret = aml_ld->power_off();
+			if (ldim_drv->power_off) {
+				ret = ldim_drv->power_off();
 				if (ret)
-						BLPR("ldim: power off error\n");
-			else
-				BLPR("ldim: power off is null\n");
+					BLERR("ldim: power off error\n");
+			} else {
+				BLERR("ldim: power off is null\n");
 			}
 		}
 		/* step 2: power off enable */
@@ -1096,19 +1096,19 @@ static void bl_set_level_extern(unsigned int level)
 #ifdef CONFIG_AML_LOCAL_DIMMING
 static void bl_set_level_ldim(unsigned int level)
 {
-	struct aml_ld_driver_s *aml_ld;
+	struct aml_ldim_driver_s *ldim_drv;
 	int ret = 0;
 
-	aml_ld = aml_ld_get_driver();
-	if (aml_ld == NULL) {
-		BLPR("no ldim driver\n");
+	ldim_drv = aml_ldim_get_driver();
+	if (ldim_drv == NULL) {
+		BLERR("no ldim driver\n");
 	} else {
-		if (aml_ld->set_level) {
-			ret = aml_ld->set_level(level);
+		if (ldim_drv->set_level) {
+			ret = ldim_drv->set_level(level);
 			if (ret)
-				BLPR("ldim: set_level error\n");
+				BLERR("ldim: set_level error\n");
 		} else {
-			BLPR("ldim: set_level is null\n");
+			BLERR("ldim: set_level is null\n");
 		}
 	}
 }
@@ -1252,7 +1252,7 @@ static char *bl_pwm_name[] = {
 	"PWM_VS",
 };
 
-static enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str)
+enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str)
 {
 	enum bl_pwm_port_e pwm_port = BL_PWM_MAX;
 	int i;
@@ -1267,7 +1267,7 @@ static enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str)
 	return pwm_port;
 }
 
-static void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
+void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 {
 	unsigned int freq, cnt, pre_div;
 	int i;
@@ -2340,10 +2340,8 @@ static ssize_t bl_status_read(struct class *class,
 			bconf->pwm_on_delay, bconf->pwm_off_delay);
 		break;
 	case BL_CTRL_LOCAL_DIMING:
-		len += sprintf(buf+len, "to do\n");
 		break;
 	case BL_CTRL_EXTERN:
-		len += sprintf(buf+len, "to do\n");
 		break;
 	default:
 		len += sprintf(buf+len, "wrong backlight control method\n");
@@ -2722,6 +2720,9 @@ static int aml_bl_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 	struct backlight_device *bldev;
 	struct bl_config_s *bconf;
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	struct aml_ldim_driver_s *ldim_drv;
+#endif
 	int ret;
 
 #ifdef AML_BACKLIGHT_DEBUG
@@ -2787,6 +2788,26 @@ static int aml_bl_probe(struct platform_device *pdev)
 	aml_bl_creat_class();
 
 	/* update bl status */
+	switch (bl_drv->bconf->method) {
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	case BL_CTRL_LOCAL_DIMING:
+		ldim_drv = aml_ldim_get_driver();
+		if (ldim_drv == NULL) {
+			BLERR("no ldim driver\n");
+		} else {
+			if (ldim_drv->init) {
+				ret = ldim_drv->init();
+				if (ret)
+					BLERR("ldim_init error\n");
+			} else {
+				BLERR("ldim_init is null\n");
+			}
+		}
+		break;
+#endif
+	default:
+		break;
+	}
 	bl_drv->state = (BL_STATE_LCD_ON | BL_STATE_BL_ON);
 	aml_bl_update_status(bl_drv->bldev);
 

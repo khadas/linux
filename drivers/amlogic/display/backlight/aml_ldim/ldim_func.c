@@ -39,7 +39,6 @@
 #include "ldim_drv.h"
 #include "ldim_func.h"
 #include "ldim_reg.h"
-#include "ldim_extern.h"
 
 #ifndef MIN
 #define MIN(a, b)   ((a < b) ? a:b)
@@ -520,7 +519,7 @@ void ldim_read_region(unsigned int nrow, unsigned int ncol)
 	0x00000000, 0x00000000, 0x00000000,},*/
 void ldim_set_matrix_ycbcr2rgb(void)
 {
-	Wr_reg_bits(LDIM_STTS_CTRL0, 1, 2, 1);
+	Wr_reg_bits(LDIM_STTS_CTRL0, 0, 2, 1);
 
 	Wr(LDIM_STTS_MATRIX_PRE_OFFSET0_1, 0x07c00600);
 	Wr(LDIM_STTS_MATRIX_PRE_OFFSET2, 0x00000600);

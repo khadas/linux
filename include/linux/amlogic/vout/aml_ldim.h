@@ -12,12 +12,21 @@ struct ld_config_s {
 };
 
 /*******global API******/
-struct aml_ld_driver_s {
+struct aml_ldim_driver_s {
+	struct ld_config_s *ld_config;
+	unsigned short *ldim_matrix_2_spi;
+	int (*init)(void);
 	int (*power_on)(void);
 	int (*power_off)(void);
 	int (*set_level)(unsigned int level);
+	int (*pinmux_ctrl)(int status);
+	int (*device_power_on)(void);
+	int (*device_power_off)(void);
+	int (*device_bri_update)(unsigned short *buf, unsigned char len);
+	struct device *dev;
+	struct pinctrl *pin;
 };
 
-extern struct aml_ld_driver_s *aml_ld_get_driver(void);
+extern struct aml_ldim_driver_s *aml_ldim_get_driver(void);
 #endif
 
