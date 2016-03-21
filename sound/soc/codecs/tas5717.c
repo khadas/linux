@@ -681,14 +681,17 @@ static int tas5717_init(struct snd_soc_codec *codec)
 			test_data, 2);
 	}
 	/*kthread for phone*/
-	phone_task = kthread_create(phone_thread, codec, "phone_thread");
-	if (IS_ERR(phone_task)) {
-		dev_err(codec->dev, "Unable to start kernel thread./n");
-		err = PTR_ERR(phone_task);
-		phone_task = NULL;
-		return err;
+	if (tas5717->pdata->scan_pin > 0) {
+		phone_task =
+			kthread_create(phone_thread, codec, "phone_thread");
+		if (IS_ERR(phone_task)) {
+			dev_err(codec->dev, "Unable to start kernel thread./n");
+			err = PTR_ERR(phone_task);
+			phone_task = NULL;
+			return err;
+		}
+		wake_up_process(phone_task);
 	}
-	wake_up_process(phone_task);
 	return 0;
 }
 
