@@ -1929,6 +1929,52 @@ void aml_sd_emmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_irqrestore(&host->mrq_lock, flags);
 }
 
+void aml_host_bus_fsm_show(struct amlsd_host *host, int fsm_val)
+{
+	switch (fsm_val) {
+	case BUS_FSM_IDLE:
+		sd_emmc_err("%s: err: idle, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_SND_CMD:
+		sd_emmc_err("%s: err: send cmd, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_CMD_DONE:
+		sd_emmc_err("%s: err: wait for cmd done, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_RESP_START:
+		sd_emmc_err("%s: err: resp start, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+			break;
+	case BUS_FSM_RESP_DONE:
+		sd_emmc_err("%s: err: wait for resp done, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_DATA_START:
+		sd_emmc_err("%s: err: data start, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_DATA_DONE:
+		sd_emmc_err("%s: err: wait for data done, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_DESC_WRITE_BACK:
+		sd_emmc_err("%s: err: wait for desc write back, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	case BUS_FSM_IRQ_SERVICE:
+		sd_emmc_err("%s: err: wait for irq service, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	default:
+		sd_emmc_err("%s: err: unknow err, bus_fsm:0x%x",
+				mmc_hostname(host->mmc), fsm_val);
+		break;
+	}
+}
+
 /*sd_emmc controller irq*/
 static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 {
@@ -1946,7 +1992,7 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	struct sd_emmc_start *desc_start = (struct sd_emmc_start *)&vstart;
 
 	virqc = sd_emmc_regs->girq_en & 0xffff;
-	vstat = sd_emmc_regs->gstatus & 0xffff;
+	vstat = sd_emmc_regs->gstatus & 0xffffffff;
 	sd_emmc_dbg(AMLSD_DBG_REQ , "%s %d occurred, vstat:0x%x\n"
 		"sd_emmc_regs->gstatus:%x\n",
 		__func__, __LINE__, vstat, sd_emmc_regs->gstatus);
@@ -2039,44 +2085,53 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 	sd_emmc_regs->gstatus &= 0xffff;
 	spin_unlock_irqrestore(&host->mrq_lock, flags);
 
-	if ((ista->rxd_err) || (ista->txd_err)) {
-		host->status = HOST_DAT_CRC_ERR;
-		mrq->cmd->error = -EILSEQ;
-		if (host->is_tunning == 0) {
-			sd_emmc_err("%s: warning... data crc, vstat:0x%x, virqc:%x",
-				mmc_hostname(host->mmc), vstat, virqc);
-			sd_emmc_err("@ cmd %d with %p; stop %d, status %d\n",
-				mrq->cmd->opcode, mrq->data,
-				host->cmd_is_stop, host->status);
-		}
-	} else if (ista->resp_err) {
-		if (host->is_tunning == 0)
-			sd_emmc_err("%s: warning... response crc,vstat:0x%x,virqc:%x\n",
-				mmc_hostname(host->mmc), vstat, virqc);
-		host->status = HOST_RSP_CRC_ERR;
-		mrq->cmd->error = -EILSEQ;
-	} else if (ista->resp_timeout) {
-		if (host->is_tunning == 0)
-			sd_emmc_err("%s: resp_timeout,vstat:0x%x,virqc:%x\n",
-				mmc_hostname(host->mmc), vstat, virqc);
-		host->status = HOST_RSP_TIMEOUT_ERR;
-		mrq->cmd->error = -ETIMEDOUT;
-	} else if (ista->desc_timeout) {
-		if (host->is_tunning == 0)
-			sd_emmc_err("%s: desc_timeout,vstat:0x%x,virqc:%x\n",
-				mmc_hostname(host->mmc), vstat, virqc);
-		host->status = HOST_DAT_TIMEOUT_ERR;
-		mrq->cmd->error = -ETIMEDOUT;
-	} else if ((ista->end_of_chain) || (ista->desc_irq)) {
+	if ((ista->end_of_chain) || (ista->desc_irq)) {
 		if (mrq->data)
 			host->status = HOST_TASKLET_DATA;
 		else
 			host->status = HOST_TASKLET_CMD;
 		mrq->cmd->error = 0;
-	} else{
-	   host->xfer_step = XFER_IRQ_UNKNOWN_IRQ;
-		sd_emmc_err("%s: %s Unknown Irq Ictl 0x%x, Ista 0x%x\n",
-		mmc_hostname(host->mmc), pdata->pinname, virqc, vstat);
+	} else { /* error */
+		if ((ista->rxd_err) || (ista->txd_err)) {
+			host->status = HOST_DAT_CRC_ERR;
+			mrq->cmd->error = -EILSEQ;
+			if (host->is_tunning == 0) {
+				sd_emmc_err("%s: warning... data crc, vstat:0x%x, virqc:%x",
+						mmc_hostname(host->mmc),
+						vstat, virqc);
+				sd_emmc_err("@ cmd %d with %p; stop %d, status %d\n",
+						mrq->cmd->opcode, mrq->data,
+						host->cmd_is_stop,
+						host->status);
+			}
+		} else if (ista->resp_err) {
+			if (host->is_tunning == 0)
+				sd_emmc_err("%s: warning... response crc,vstat:0x%x,virqc:%x\n",
+						mmc_hostname(host->mmc),
+						vstat, virqc);
+			host->status = HOST_RSP_CRC_ERR;
+			mrq->cmd->error = -EILSEQ;
+		} else if (ista->resp_timeout) {
+			if (host->is_tunning == 0)
+				sd_emmc_err("%s: resp_timeout,vstat:0x%x,virqc:%x\n",
+						mmc_hostname(host->mmc),
+						vstat, virqc);
+			host->status = HOST_RSP_TIMEOUT_ERR;
+			mrq->cmd->error = -ETIMEDOUT;
+		} else if (ista->desc_timeout) {
+			if (host->is_tunning == 0)
+				sd_emmc_err("%s: desc_timeout,vstat:0x%x,virqc:%x\n",
+						mmc_hostname(host->mmc),
+						vstat, virqc);
+			host->status = HOST_DAT_TIMEOUT_ERR;
+			mrq->cmd->error = -ETIMEDOUT;
+		} else{
+			host->xfer_step = XFER_IRQ_UNKNOWN_IRQ;
+			sd_emmc_err("%s: %s Unknown Irq Ictl 0x%x, Ista 0x%x\n",
+					mmc_hostname(host->mmc),
+					pdata->pinname, virqc, vstat);
+		}
+		aml_host_bus_fsm_show(host, ista->bus_fsm);
 	}
 
 

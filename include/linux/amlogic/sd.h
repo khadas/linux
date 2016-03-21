@@ -62,6 +62,18 @@ enum aml_host_status { /* Host controller status */
 	HOST_TASKLET_DATA,		/* 9 */
 };
 
+enum aml_host_bus_fsm { /* Host bus fsm status */
+	BUS_FSM_IDLE,			/* 0, idle */
+	BUS_FSM_SND_CMD,		/* 1, send cmd */
+	BUS_FSM_CMD_DONE,		/* 2, wait for cmd done */
+	BUS_FSM_RESP_START,		/* 3, resp start */
+	BUS_FSM_RESP_DONE,		/* 4, wait for resp done */
+	BUS_FSM_DATA_START,		/* 5, data start */
+	BUS_FSM_DATA_DONE,		/* 6, wait for data done */
+	BUS_FSM_DESC_WRITE_BACK,/* 7, wait for desc write back */
+	BUS_FSM_IRQ_SERVICE,	/* 8, wait for irq service */
+};
+
 struct amlsd_host;
 struct amlsd_platform {
 	struct amlsd_host *host;
@@ -1054,11 +1066,14 @@ struct sd_emmc_status {
 	u32 cmd_i:1;
 	/*[25]	  Input data strobe. */
 	u32 ds:1;
-	 /*[30:28]   BUS fsm */
-	u32 bus_fsm:1;
-	/*[31]	  Descriptor write back process is done
+	 /*[29:26]   BUS fsm */
+	u32 bus_fsm:4;
+	/*[30]	  Descriptor write back process is done
 	and it is ready for CPU to read.*/
 	u32 desc_wr_rdy:1;
+	/*[31]	  Core is busy,desc_busy or sd_emmc_irq
+	 *  or bus_fsm is not idle.*/
+	u32 core_wr_rdy:1;
 };
 struct sd_emmc_irq_en {
 	/*[7:0]	 RX data CRC error per wire.*/
