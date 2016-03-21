@@ -37,25 +37,24 @@
 #define AML_LED_NAME		"led-sys"
 
 
+static void aml_sysled_output_setup(struct aml_sysled_dev *ldev,
+				enum led_brightness value)
+{
+	unsigned int level = !!value;
+
+	if (ldev->d.active_low)
+		level = !level;
+	gpio_direction_output(ldev->d.pin, level);
+}
+
 static void aml_sysled_work(struct work_struct *work)
 {
 	struct aml_sysled_dev *ldev;
-	unsigned int level;
 
 	ldev = container_of(work, struct aml_sysled_dev, work);
 
 	mutex_lock(&ldev->lock);
-
-	if (ldev->new_brightness == LED_OFF)
-		level = 0;
-	else
-		level = 1;
-
-	if (ldev->d.active_low)
-		level = !level;
-
-	gpio_direction_output(ldev->d.pin, level);
-
+	aml_sysled_output_setup(ldev, ldev->new_brightness);
 	mutex_unlock(&ldev->lock);
 }
 
@@ -138,6 +137,9 @@ static int aml_sysled_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* set led default on */
+	aml_sysled_output_setup(ldev, 1);
+
 	pr_info("module probed ok\n");
 	return 0;
 }
@@ -157,6 +159,36 @@ static int __exit aml_sysled_remove(struct platform_device *pdev)
 }
 
 
+static void aml_sysled_shutdown(struct platform_device *pdev)
+{
+	struct aml_sysled_dev *ldev = platform_get_drvdata(pdev);
+	/* set led off*/
+	aml_sysled_output_setup(ldev, 0);
+	pr_info("module shutdown ok\n");
+}
+
+
+#ifdef CONFIG_PM
+static int aml_sysled_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct aml_sysled_dev *ldev = platform_get_drvdata(pdev);
+	/* set led off */
+	aml_sysled_output_setup(ldev, 0);
+	pr_info("module suspend ok\n");
+	return 0;
+}
+
+static int aml_sysled_resume(struct platform_device *pdev)
+{
+	struct aml_sysled_dev *ldev = platform_get_drvdata(pdev);
+	/* set led on */
+	aml_sysled_output_setup(ldev, 1);
+	pr_info("module resume ok\n");
+	return 0;
+}
+#endif
+
+
 static struct platform_driver aml_sysled_driver = {
 	.driver = {
 		.name = AML_DEV_NAME,
@@ -165,6 +197,11 @@ static struct platform_driver aml_sysled_driver = {
 	},
 	.probe = aml_sysled_probe,
 	.remove = __exit_p(aml_sysled_remove),
+	.shutdown = aml_sysled_shutdown,
+#ifdef	CONFIG_PM
+	.suspend = aml_sysled_suspend,
+	.resume = aml_sysled_resume,
+#endif
 };
 
 
