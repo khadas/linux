@@ -87,6 +87,10 @@ static int edid_clock_divide = 9;
 MODULE_PARM_DESC(edid_clock_divide, "\n edid_clock_divide\n");
 module_param(edid_clock_divide, int, 0664);
 
+static int edid_clk_stretch_en = 1;
+MODULE_PARM_DESC(edid_clk_stretch_en, "\n edid_clk_stretch_en\n");
+module_param(edid_clk_stretch_en, int, 0664);
+
 static int scramble_sel = 1;
 MODULE_PARM_DESC(scramble_sel, "\n scramble_sel\n");
 module_param(scramble_sel, int, 0664);
@@ -566,7 +570,7 @@ static int DWC_init(unsigned port)
 	data32 |= EDID_AUTO_CEC_ENABLE	<< 11;
 	data32 |= 0	<< 10;
 	data32 |= 0	<< 9;
-	data32 |= 1	<< 8;
+	data32 |= edid_clk_stretch_en << 8;
 	data32 |= edid_clock_divide << 0;
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
 
@@ -924,7 +928,7 @@ void hdmirx_hw_config(void)
 		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
 
 	hdmirx_phy_init(rx.port, 0);
-	hdmirx_wr_top(TOP_PORT_SEL, 0x1f);
+	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
 	DWC_init(rx.port);
 	hdmirx_audio_init();
 	packet_init();
@@ -935,7 +939,12 @@ void hdmirx_hw_config(void)
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
 	hdmirx_irq_open();
-	hdmirx_set_hpd(rx.port, 1);
+
+	mdelay(200);
+	if (hdmirx_rd_dwc(0xe0) != 0) {
+		rx_print("hdcp engine busy\n");
+		mdelay(300);
+	}
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 
@@ -1102,6 +1111,9 @@ void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)
 	if (video_params->video_format == 0) {
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x00);
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH_0_1, MSK(16, 0), 0x00);
+	} else if (video_params->video_format == 3) {
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x1000);
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH_0_1, MSK(16, 0), 0x8000);
 	} else {
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x8000);
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH_0_1, MSK(16, 0), 0x8000);
