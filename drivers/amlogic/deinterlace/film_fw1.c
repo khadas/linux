@@ -1298,6 +1298,8 @@ int GetMinNIdx(int *nMax4, int *nXId4, int N, int *nQt01, int nLen)
 /* 10: 3-2-3-2 */
 /* pulldown pattern number */
 #define PD_PT_NUM 7
+/* define outside function, for reslove compile warn */
+static int nQt01[15];
 int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 {
 	int iWidth  = pRDat->iWidth;
@@ -1320,7 +1322,7 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 	{2, 4}, {4, -2}, {4, -2}, {4, -2} };
 
 	int nModLvl[PD_PT_NUM] = {0, 0, 0, 0, 0, 0, 0}; /* mode level */
-	int nQt01[15];
+	/* int nQt01[15]; *//* Make this define for resolve cmpl warn */
 	int nQt02[15];
 
 	int aMax01[15]; /* maximum 4 */
