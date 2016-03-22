@@ -233,8 +233,15 @@ static DEFINE_SPINLOCK(lock);
 
 #define V3_LEVEL_1_F_SKIP_MAX_SAD 0x20
 #define V3_LEVEL_1_SKIP_MAX_SAD 0x60
+
+/* remove additional offset for intra Force Zero in V3 */
+#if 0
 #define V3_IE_F_ZERO_SAD_I16 (I16MB_WEIGHT_OFFSET + 0x80)
 #define V3_IE_F_ZERO_SAD_I4 (I4MB_WEIGHT_OFFSET + 0x80)
+#else
+#define V3_IE_F_ZERO_SAD_I16 I16MB_WEIGHT_OFFSET
+#define V3_IE_F_ZERO_SAD_I4 I4MB_WEIGHT_OFFSET
+#endif
 
 #define I4_ipred_weight_most   0x18
 #define I4_ipred_weight_else   0x28
@@ -2011,12 +2018,10 @@ static void avc_prot_init(struct encode_wq_s *wq,
 				(V3_SKIP_WEIGHT_2 << 0));
 			if (request != NULL) {
 				WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
-					/* (V3_IE_F_ZERO_SAD_I16 << 16) | */
-					((request->i16_weight + 0x80) << 16) |
+					(request->i16_weight << 16) |
 					(V3_IE_F_ZERO_SAD_I4 << 0));
 			} else {
 				WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
-					/* (V3_IE_F_ZERO_SAD_I16 << 16) | */
 					(V3_IE_F_ZERO_SAD_I16 << 16) |
 					(V3_IE_F_ZERO_SAD_I4 << 0));
 			}
