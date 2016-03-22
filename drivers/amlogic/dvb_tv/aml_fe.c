@@ -1462,6 +1462,27 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	}
 #endif				/*CONFIG_OF */
 
+	snprintf(buf, sizeof(buf), "%s%d_spectrum", name, id);
+#ifdef CONFIG_OF
+	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
+	if (!ret) {
+		dev->spectrum = value;
+		pr_inf("%s: %d\n", buf, value);
+	} else {
+		dev->spectrum = 2;
+	}
+#else				/*CONFIG_OF */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, buf);
+	if (res) {
+		int spectrum = res->start;
+
+		dev->spectrum = spectrum;
+	} else {
+		dev->spectrum = 0;
+	}
+#endif
+
+
 #ifdef CONFIG_OF
 	dev->mem_start = memstart;
 #endif

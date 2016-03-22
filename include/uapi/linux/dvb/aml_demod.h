@@ -85,6 +85,7 @@ struct aml_demod_sta {
 	u8_t debug;
 	u8_t tmp;
 	u32_t sts;		/*pointer */
+	u8_t spectrum;
 };
 
 struct aml_demod_dvbc {
@@ -142,7 +143,7 @@ struct aml_cap_data {
 	u32_t cap_addr;
 	u32_t cap_size;
 	u32_t cap_afifo;
-
+	char  *cap_dev_name;
 };
 
 struct aml_demod_reg {

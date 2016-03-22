@@ -28,7 +28,7 @@ static int debug_demod;
 module_param(debug_demod, int, 0644);
 
 MODULE_PARM_DESC(demod_timeout, "\n\t\t timeout debug information");
-static int demod_timeout = 80;
+static int demod_timeout = 120;
 module_param(demod_timeout, int, 0644);
 
 MODULE_PARM_DESC(demod_sync_count, "\n\t\t timeout debug information");
@@ -941,9 +941,8 @@ void dtmb_all_reset(void)
 	dtmb_write_reg(DTMB_TOP_CTRL_AGC, 0x3);
 	dtmb_write_reg(DTMB_TOP_CTRL_TS_SFO_CFO, 0x20403006);
 	dtmb_write_reg(DTMB_FRONT_AGC_CONFIG2, 0x7200a16);
-
-	/*jump fsm1(agc ready),*/
-
+	/*close ts3 timing loop*/
+	dtmb_write_reg(DTMB_TOP_CTRL_DAGC_CCI, 0x305);
 	if (demod_enable_performance) {
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG1, 0x4040002);
 		temp_data = dtmb_read_reg(DTMB_CHE_FD_TD_COEFF);
@@ -973,7 +972,8 @@ void dtmb_all_reset(void)
 void dtmb_initial(struct aml_demod_sta *demod_sta)
 {
 /* dtmb_write_reg(0x049, memstart);		//only for init */
-	dtmb_spectrum = 0;
+	dtmb_spectrum = 1;
+	dtmb_spectrum = demod_sta->spectrum;
 	dtmb_register_reset();
 	dtmb_all_reset();
 #if 0
@@ -1047,7 +1047,7 @@ int dtmb_information(void)
 	     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
 	pr_dbg
 	    ("¡¾TPS ¡¿ SC or MC %2d,f_r %2d qam_nr %2d ",
-	     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 24) & 0x1,
+	     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
 	     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
 	pr_dbg
 		("intlv %2d,cr %2d constl %2d\n",
@@ -1076,6 +1076,7 @@ int dtmb_check_cci(void)
 	((dtmb_read_reg(DTMB_TOP_SYNC_CCI_NF2_POSITION) >> 22)
 		& 0x3);
 	if (cci_det > 0) {
+			pr_dbg("find cci\n");
 			dtmb_write_reg(DTMB_CHE_CCIDET_CONFIG, 0x20210290);
 			dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG3, 0x20081f6);
 			dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG2, 0x3f08020);
@@ -1136,11 +1137,12 @@ int read_cfo_all(void)
 int dtmb_v3_soft_sync(int cfo_init)
 {
 
-	int cfo_all;
-	int cfo_setting;
+/*	int cfo_all;*/
+/*	int cfo_setting;*/
 
 	if (cfo_init == 0) {
 		cfo_init = patch_ts3(11, 0);
+		#if 0
 		if (cfo_init == 1) {
 			cfo_all = read_cfo_all();
 			cfo_setting = dtmb_read_reg(DTMB_FRONT_DDC_BYPASS);
@@ -1149,6 +1151,7 @@ int dtmb_v3_soft_sync(int cfo_init)
 			dtmb_write_reg(DTMB_TOP_CTRL_LOOP, 0x3);
 			dtmb_reset();
 		}
+		#endif
 	}
 	return cfo_init;
 
@@ -1167,7 +1170,7 @@ int dtmb_read_snr(struct dvb_frontend *fe)
 	if (check_dtmb_fec_lock() != 1) {
 		dtmb_register_reset();
 		dtmb_all_reset();
-		count = 20;
+		count = 15;
 		while ((count) &&
 		((dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0)&0xf) < 0x6)) {
 			msleep(20);
@@ -1182,7 +1185,10 @@ int dtmb_read_snr(struct dvb_frontend *fe)
 			msleep(demod_sync_delay_time);
 			count--;
 		}
-		if (cfo_init == 0) {
+		if ((cfo_init == 0) &&
+			((dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0)&0xf) <= 7)) {
+			pr_dbg("over 400ms,status is %x, need reset\n",
+				(dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0)&0xf));
 			return 0;
 		}
 		while ((time_cnt < 10) && (check_dtmb_fec_lock() != 1)) {
@@ -1196,16 +1202,13 @@ int dtmb_read_snr(struct dvb_frontend *fe)
 					("* local_state = %d\n", local_state);
 		}
 		if (time_cnt >= 10 && (check_dtmb_fec_lock() != 1)) {
-			if (dtmb_spectrum == 0)
-				dtmb_spectrum = 1;
-			else
-				dtmb_spectrum = 1;
 			local_state = AMLOGIC_DTMB_STEP4;
 			time_cnt = 0;
 			pr_dbg
 				("*all reset,timeout is %d\n", demod_timeout);
 		}
 	} else {
+		dtmb_check_cci();
 	#if 0
 		cci_det = dtmb_check_cci();
 		if ((check_dtmb_mobile_det() <= demod_mobile_power)
@@ -2211,12 +2214,14 @@ struct demod_status_ops *dvbt_get_status_ops(void)
 
 int app_apb_read_reg(int addr)
 {
-	return (int)(apb_read_reg(DVBT_BASE + (addr << 2)));
+	addr = DTMB_TOP_ADDR(addr);
+	return (int)demod_read_demod_reg(addr);
 }
 
 int app_apb_write_reg(int addr, int data)
 {
-	apb_write_reg((DVBT_BASE + (addr << 2)), data);
+	addr = DTMB_TOP_ADDR(addr);
+	demod_set_demod_reg(data, addr);
 	return 0;
 }
 

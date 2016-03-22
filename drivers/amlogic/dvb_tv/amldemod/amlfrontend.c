@@ -1026,6 +1026,7 @@ int Gxtv_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 	sys.demod_clk = Demod_Clk_200M;
 	demod_status.ch_if = Si2176_5M_If;
 	demod_status.tmp = Adc_mode;
+	demod_status.spectrum = dev->spectrum;
 	demod_set_sys(&demod_status, &i2c, &sys);
 	return 0;
 }

@@ -142,6 +142,9 @@ struct aml_fe_dev {
 	/*for mem reserved*/
 	int			mem_start;
 	int			mem_end;
+
+	/*for dtv spectrum*/
+	int			spectrum;
 };
 struct aml_demod_param {
 	/*for tuner video if to amlatvdemod*/
