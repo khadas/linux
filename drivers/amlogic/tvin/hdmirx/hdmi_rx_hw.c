@@ -151,6 +151,10 @@ static int duk_flag;
 MODULE_PARM_DESC(duk_flag, "\n duk_flag\n");
 module_param(duk_flag, int, 0664);
 
+static int is_duk_key_set;
+MODULE_PARM_DESC(is_duk_key_set, "\n is_duk_key_set\n");
+module_param(is_duk_key_set, int, 0664);
+
 static unsigned int hdcp_22_nonce_sw_0 = 0x76543210;
 static unsigned int hdcp_22_nonce_sw_1 = 0xfedcba98;
 static unsigned int hdcp_22_nonce_sw_2 = 0x89abcdef;
@@ -911,6 +915,24 @@ void hdmirx_hdcp22_esm_rst(void)
 	hdmirx_wr_top(TOP_SW_RESET, 0x0);
 	rx_print("esm rst\n");
 }
+
+void hdmirx_hdcp22_init(void)
+{
+	int ret = 0;
+
+	ret = rx_sec_set_duk();
+
+	if (ret == 1) {
+		hdcp_22_on = 1;
+		/* hpd_to_esm = 1; */
+		is_duk_key_set = 1;
+		rx_print("hdcp22 on\n");
+	} else {
+		hdcp_22_on = 0;
+		is_duk_key_set = 0;
+		rx_print("hdcp22 off\n");
+	}
+}
 #endif
 
 void hdmirx_hw_config(void)
@@ -955,10 +977,11 @@ void hdmirx_hw_probe(void)
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
 	hdmi_rx_ctrl_edid_update();
-	#ifdef HDCP22_ENABLE
-	if (hdcp_22_on)
-		hpd_to_esm = 1;
-	#endif
+	/* #ifdef HDCP22_ENABLE */
+	/* if (hdcp_22_on) */
+	/*	hpd_to_esm = 1; */
+	/* #endif */
+	hdmirx_hdcp22_init();
 	hdmirx_set_hpd(rx.port, 0);
 	mdelay(100);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);

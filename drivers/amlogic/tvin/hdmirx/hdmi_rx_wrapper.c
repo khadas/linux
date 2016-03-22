@@ -2986,6 +2986,7 @@ int hdmirx_debug(const char *buf, int size)
 	int i = 0;
 	long adr;
 	long value = 0;
+	int ret = 0;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -3071,19 +3072,22 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(tmpbuf, "timer_state", 11) == 0) {
 		timer_state();
 	} else if (strncmp(tmpbuf, "load22key", 9) == 0) {
-		rx_print("load 2.2 key-i\n");
-		/* wr_reg(HHI_HDCP22_CLK_CNTL, 0x0); */
-		/* wr_reg(HHI_HDCP22_CLK_CNTL, 0x1000100); */
-		sm_pause = 1;
-		hpd_to_esm = 0;
-		mdelay(wait_hdcp22_cnt);
-		hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
-		hdmirx_hw_config();
-		hpd_to_esm = 1;
-		hdmirx_set_hpd(rx.port, 0);
-		mdelay(2000);
-		sm_pause = 0;
-		/* hdmirx_set_hpd(rx.port, 1); */
+		rx_print("load 2.2 key-a\n");
+		ret = rx_sec_set_duk();
+		rx_print("ret = %d\n", ret);
+		if (ret == 1) {
+			hdcp_22_on = 1;
+			sm_pause = 1;
+			hpd_to_esm = 0;
+			mdelay(wait_hdcp22_cnt);
+			hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
+			hdmirx_hw_config();
+			hpd_to_esm = 1;
+			hdmirx_set_hpd(rx.port, 0);
+			mdelay(2000);
+			sm_pause = 0;
+		} else
+			hdcp_22_on = 0;
 	} else if (strncmp(tmpbuf, "clock", 5) == 0) {
 		if (kstrtol(tmpbuf + 5, 10, &value) < 0)
 			return -EINVAL;

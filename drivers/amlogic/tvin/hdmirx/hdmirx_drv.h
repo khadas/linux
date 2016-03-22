@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/03/21"
+#define HDMIRX_VER "Ref.2016/03/22"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -486,6 +486,7 @@ unsigned sec_top_read(unsigned *addr);
 void sec_top_write(unsigned *addr, unsigned value);
 void hdmirx_hdcp22_esm_rst(void);
 unsigned rx_sec_set_duk(void);
+void hdmirx_hdcp22_init(void);
 #endif
 
 uint32_t get(uint32_t data, uint32_t mask);
