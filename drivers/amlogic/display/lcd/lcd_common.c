@@ -363,13 +363,13 @@ int lcd_get_power_config(struct lcd_config_s *pconf,
 				break;
 			}
 			if (lcd_debug_print_flag) {
-				LCDPR("power_on %d type: %d\n", i,
+				LCDPR("power_off %d type: %d\n", i,
 					lcd_power->power_off_step[i].type);
-				LCDPR("power_on %d index: %d\n", i,
+				LCDPR("power_off %d index: %d\n", i,
 					lcd_power->power_off_step[i].index);
-				LCDPR("power_on %d value: %d\n", i,
+				LCDPR("power_off %d value: %d\n", i,
 					lcd_power->power_off_step[i].value);
-				LCDPR("power_on %d delay: %d\n", i,
+				LCDPR("power_off %d delay: %d\n", i,
 					lcd_power->power_off_step[i].delay);
 			}
 			i++;
