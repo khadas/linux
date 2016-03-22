@@ -48,6 +48,7 @@
 #define MESON_CPU_MAJOR_ID_GXBB		0x1F
 #define MESON_CPU_MAJOR_ID_GXTVBB	0x20
 #define MESON_CPU_MAJOR_ID_GXL		0x21
+#define MESON_CPU_MAJOR_ID_GXM		0x22
 
 #define MESON_CPU_VERSION_LVL_MAJOR	0
 #define MESON_CPU_VERSION_LVL_MINOR	1
@@ -148,6 +149,10 @@ static inline bool is_meson_gxl_package_905L(void)
 static inline bool is_meson_gxl_package_905M2(void)
 {
 	return is_meson_gxl_cpu() && package_id_is(0xe0);
+static inline bool is_meson_gxm_cpu(void)
+{
+	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) ==
+		MESON_CPU_MAJOR_ID_GXM;
 }
 static inline u32 get_cpu_type(void)
 {

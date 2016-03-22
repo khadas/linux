@@ -108,6 +108,7 @@ static void vpu_chip_detect(void)
 		vpu_conf.fclk_type = FCLK_TYPE_GXTVBB;
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
 		vpu_chip_type = VPU_CHIP_GXL;
 		vpu_conf.clk_level_dft = CLK_LEVEL_DFT_GXL;
 		vpu_conf.clk_level_max = CLK_LEVEL_MAX_GXL;

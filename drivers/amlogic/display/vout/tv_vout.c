@@ -125,7 +125,8 @@ static void set_tvmode_misc(enum tvmode_e mode)
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) ||
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)) {
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
 		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
 			set_vmode_clk(mode);
 	} else
@@ -228,7 +229,8 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		s = tvregs_576cvbs_performance_m8[index];
 		type = 3;
 	} else if ((check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) ||
-			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXL))) {
+			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXL)) ||
+			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXM))) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;
