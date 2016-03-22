@@ -328,6 +328,7 @@ bool det3d_en = false;
 static unsigned int det3d_mode;
 #endif
 
+static unsigned int registed_state;
 
 static int force_duration_0;
 
@@ -4546,7 +4547,7 @@ static unsigned char pre_de_buf_config(void)
 	if (is_meson_gxtvbb_cpu()) {
 		/* In bypass mode, register should in line with input source */
 		vframe = vf_peek(VFM_NAME);
-		if (NULL != vframe)
+		if ((NULL != vframe) && registed_state)
 			di_bit_mode_bypass_cfg(vframe, bypass_state);
 	}
 
@@ -5006,10 +5007,12 @@ static unsigned char pre_de_buf_config(void)
 	di_buf->vframe->private_data = di_buf;
 	di_buf->vframe->canvas0Addr = di_buf->nr_canvas_idx;
 	di_buf->vframe->canvas1Addr = di_buf->nr_canvas_idx;
-	if (!bypass_state)
-		di_buf->vframe->di_process_type = 1;
+	if ((!bypass_state) && (di_force_bit_mode == 10))
+		di_buf->vframe->bitdepth |= BITDEPTH_Y10;
+/*
 	else
 		di_buf->vframe->di_process_type = 0;
+	*/
 
 	if (di_pre_stru.prog_proc_type) {
 		di_buf->vframe->type = VIDTYPE_PROGRESSIVE |
@@ -7322,6 +7325,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		}
 #endif
 		bypass_state = 1;
+		registed_state = 0;
 #ifdef RUN_DI_PROCESS_IN_IRQ
 		if (vdin_source_flag)
 			Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
@@ -7485,6 +7489,7 @@ light_unreg:
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 		bypass_state = 0;
+		registed_state = 1;
 		di_pre_stru.reg_req_flag = 1;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
 		while (di_pre_stru.reg_req_flag)

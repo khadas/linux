@@ -3567,7 +3567,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	/* toggle_3d_fa_frame  determine the out frame is L or R or blank */
 	judge_3d_fa_out_mode();
 #endif
-	if (vf && is_meson_gxtvbb_cpu() && (vf->di_process_type != 1)) {
+	if (vf && is_meson_gxtvbb_cpu()) {
 		/* force set bitdepth to 8bit mode when src is 8bit */
 		/* and DI not in path */
 		if ((vf->bitdepth & BITDEPTH_Y10)) {
