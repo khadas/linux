@@ -232,8 +232,6 @@ static u32 vh264_running;
 static s32 vh264_stream_switching_state;
 static s32 vh264_eos;
 static struct vframe_s *p_last_vf;
-static s32 iponly_early_mode;
-
 /*TODO irq*/
 #if 1
 static u32 last_pts, last_pts_remainder;
@@ -594,9 +592,10 @@ static int get_max_dpb_size(int level_idc, int mb_width, int mb_height)
 				(mb_width * mb_height / 2)) * 256 * 10;
 		r = (r * 1024 + size-1) / size;
 		r = min(r, 16);
-		/*pr_info("max_dpb %d size:%d\n", r, size);*/
+		pr_info("max_dpb %d size:%d\n", r, size);
 		return r;
 }
+
 static void vh264_set_params(struct work_struct *work)
 {
 	int aspect_ratio_info_present_flag, aspect_ratio_idc;
@@ -619,7 +618,7 @@ static void vh264_set_params(struct work_struct *work)
 	time_scale = READ_VREG(AV_SCRATCH_5);
 	level_idc = READ_VREG(AV_SCRATCH_A);
 	video_signal = READ_VREG(AV_SCRATCH_H);
-/*	video_signal_from_vui =
+	video_signal_from_vui =
 				((video_signal & 0xffff) << 8) |
 				((video_signal & 0xff0000) >> 16) |
 				((video_signal & 0x3f000000));
@@ -636,13 +635,11 @@ static void vh264_set_params(struct work_struct *work)
 	pr_info("transfer_characteristic	0x%x\n",
 				(video_signal_from_vui >> 8) & 0xff);
 	pr_info("matrix_coefficient	0x%x\n",
-				video_signal_from_vui  & 0xff);*/
+				video_signal_from_vui  & 0xff);
 
 	mb_total = (mb_width >> 8) & 0xffff;
 	max_reference_size = (mb_width >> 24) & 0x7f;
 	mb_mv_byte = (mb_width & 0x80000000) ? 24 : 96;
-	if (ucode_type == UCODE_IP_ONLY_PARAM)
-		mb_mv_byte = 96;
 	mb_width = mb_width & 0xff;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		if (!mb_width && mb_total)
@@ -718,24 +715,25 @@ static void vh264_set_params(struct work_struct *work)
 	 /*max_reference_size <= max_dpb_size <= actual_dpb_size*/
 	 is_4k = (mb_total > 8160) ? true:false;
 	if (is_4k) {
-		/*4k2k*/
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
-			max_dpb_size = get_max_dpb_size(
-					level_idc, mb_width, mb_height);
-			actual_dpb_size = max_dpb_size + 4;
+			/*4k2k*/
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+					max_dpb_size = get_max_dpb_size(
+						level_idc, mb_width, mb_height);
+					actual_dpb_size = max_dpb_size + 4;
 		      if (actual_dpb_size > VF_BUF_NUM)
-			actual_dpb_size = VF_BUF_NUM;
+					actual_dpb_size = VF_BUF_NUM;
+			} else {
+				 vh264_running = 0;
+				 fatal_error_flag =
+					 DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+				 mutex_unlock(&vh264_mutex);
+			     pr_err
+					("oversize ! mb_total %d,\n", mb_total);
+				return;
+			 }
 		} else {
-			vh264_running = 0;
-			fatal_error_flag =
-			DECODER_FATAL_ERROR_SIZE_OVERFLOW;
-			mutex_unlock(&vh264_mutex);
-			pr_err("oversize ! mb_total %d,\n", mb_total);
-			return;
-		}
-	} else {
-		actual_dpb_size = (frame_buffer_size - mb_total * mb_mv_byte *
-				max_reference_size) / (mb_total * 384);
+	     actual_dpb_size = (frame_buffer_size -	 mb_total * mb_mv_byte *
+					max_reference_size) / (mb_total * 384);
 		actual_dpb_size = min(actual_dpb_size, VF_BUF_NUM);
 		max_dpb_size = get_max_dpb_size(level_idc, mb_width, mb_height);
 		if (actual_dpb_size < (max_dpb_size + 4)) {
@@ -1353,9 +1351,7 @@ static void vh264_isr(void)
 
 			if ((error_recovery_mode_use & 2) && error)
 				check_pts_discontinue = true;
-			if (ucode_type == UCODE_IP_ONLY_PARAM
-				&& iponly_early_mode)
-				continue;
+
 			if ((p_last_vf != NULL)
 				&& (p_last_vf->index == buffer_index))
 				continue;
@@ -1792,49 +1788,7 @@ static void vh264_isr(void)
 			 &first_pts64) == 0)
 			first_pts_cached = true;
 		WRITE_VREG(AV_SCRATCH_0, 0);
-
-	} else if ((cpu_cmd & 0xff) == 0xa) {
-			int b_offset = READ_VREG(AV_SCRATCH_2);
-			buffer_index = READ_VREG(AV_SCRATCH_1);
-			/*pr_info("iponly output %d  b_offset %x\n",
-				buffer_index,b_offset);*/
-			if (kfifo_get(&newframe_q, &vf) == 0) {
-				WRITE_VREG(AV_SCRATCH_0, 0);
-				pr_info
-				("fatal error, no available buffer slot.");
-				return IRQ_HANDLED;
-			}
-			if (pts_lookup_offset_us64 (PTS_TYPE_VIDEO, b_offset,
-						&pts, 0, &pts_us64) != 0)
-				vf->pts_us64 = vf->pts = 0;
-			else {
-					vf->pts_us64 = pts_us64;
-					vf->pts = pts;
-				}
-
-			set_frame_info(vf);
-#ifdef NV21
-			vf->type = VIDTYPE_PROGRESSIVE |
-					VIDTYPE_VIU_FIELD |
-					VIDTYPE_VIU_NV21;
-#else
-			vf->type =
-					VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
-#endif
-			vf->duration_pulldown = 0;
-			vf->signal_type = video_signal_from_vui;
-			vf->index = buffer_index;
-			vf->canvas0Addr = vf->canvas1Addr =
-					spec2canvas(&buffer_spec[buffer_index]);
-			vf->type_original = vf->type;
-			vfbuf_use[buffer_index]++;
-			p_last_vf = vf;
-			pts_discontinue = false;
-			iponly_early_mode = 1;
-			kfifo_put(&display_q, (const struct vframe_s *)vf);
-			vf_notify_receiver(PROVIDER_NAME, vf_ready, NULL);
-			WRITE_VREG(AV_SCRATCH_0, 0);
-		}
+	}
 
 	sei_itu35_flags = READ_VREG(AV_SCRATCH_J);
 	if (sei_itu35_flags & (1 << 15)) {	/* data ready */
@@ -2019,8 +1973,8 @@ static void vh264_put_timer_func(unsigned long arg)
 		if (kfifo_len(&newframe_q) == VF_POOL_SIZE)
 			stream_switching_done();
 	}
-	if (ucode_type != UCODE_IP_ONLY_PARAM &&
-		frame_dur > 0 && saved_resolution !=
+
+	if (frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
 		if (frame_dur < 10) /*dur is too small ,think it errors fps*/
@@ -2206,6 +2160,7 @@ static void vh264_local_init(void)
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 	last_interlaced = 1;
 #endif
+	is_4k = false;
 	h264_first_pts_ready = 0;
 	h264_first_valid_pts_ready = false;
 	h264pts1 = 0;
@@ -2248,7 +2203,6 @@ static s32 vh264_init(void)
 	first_pts_cached = false;
 	fixed_frame_rate_check_count = 0;
 	saved_resolution = 0;
-	iponly_early_mode = 0;
 	vh264_local_init();
 
 	query_video_status(0, &trickmode_fffb);
@@ -2851,6 +2805,7 @@ static int amvdec_h264_remove(struct platform_device *pdev)
 	vh264_stop(MODE_FULL);
 	vdec_source_changed(VFORMAT_H264, 0, 0, 0);
 	atomic_set(&vh264_active, 0);
+
 #ifdef DEBUG_PTS
 	pr_info
 	("pts missed %ld, pts hit %ld, pts_outside %d, duration %d, ",
