@@ -1388,6 +1388,29 @@ static ssize_t show_hdcp_clkdis(struct device *dev,
 	return 0;
 }
 
+static int hdcp_tst_sig;
+static ssize_t store_hdcp_test(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] == '1')
+		hdcp_tst_sig = 1;
+	if (buf[0] == '0')
+		hdcp_tst_sig = 0;
+	return count;
+}
+
+static ssize_t show_hdcp_test(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", !!hdcp_tst_sig);
+	if (hdcp_tst_sig == 1)
+		hdcp_tst_sig = 0;
+
+	return pos;
+}
+
 static ssize_t store_hdcp_byp(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -1626,6 +1649,8 @@ static DEVICE_ATTR(vic, S_IWUSR | S_IRUGO | S_IWGRP, show_vic, store_vic);
 static DEVICE_ATTR(phy, S_IWUSR | S_IRUGO | S_IWGRP, show_phy, store_phy);
 static DEVICE_ATTR(hdcp_clkdis, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_clkdis,
 	store_hdcp_clkdis);
+static DEVICE_ATTR(hdcp_test, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_test,
+	store_hdcp_test);
 static DEVICE_ATTR(hdcp_byp, S_IWUSR, NULL, store_hdcp_byp);
 static DEVICE_ATTR(hdcp_mode, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_mode,
 	store_hdcp_mode);
@@ -2433,6 +2458,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_vic);
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_hdcp_clkdis);
+	ret = device_create_file(dev, &dev_attr_hdcp_test);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
 	ret = device_create_file(dev, &dev_attr_hdcp_ver);
 	ret = device_create_file(dev, &dev_attr_hdcp_byp);
@@ -2628,6 +2654,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_avmute);
 	device_remove_file(dev, &dev_attr_vic);
+	device_remove_file(dev, &dev_attr_hdcp_test);
 
 	cdev_del(&hdmitx_device.cdev);
 
