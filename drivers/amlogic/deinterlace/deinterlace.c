@@ -4612,7 +4612,6 @@ static unsigned char pre_de_buf_config(void)
 				VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
 			return 0;
 		}
-#if 0/*input 1920x1088,output 4k,right of the screen may be bad*/
 		if (
 			((vframe->type & VIDTYPE_TYPEMASK) !=
 			 VIDTYPE_PROGRESSIVE) &&
@@ -4620,7 +4619,6 @@ static unsigned char pre_de_buf_config(void)
 			force_height = 1080;
 		else
 			force_height = 0;
-#endif
 		di_pre_stru.source_trans_fmt = vframe->trans_fmt;
 		di_pre_stru.left_right = di_pre_stru.left_right ? 0 : 1;
 
