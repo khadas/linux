@@ -361,6 +361,8 @@ static s32 video_layer_top, video_layer_left, video_layer_width,
 	   video_layer_height;
 static u32 video_source_crop_top, video_source_crop_left,
 	   video_source_crop_bottom, video_source_crop_right;
+static u32 video_crop_top_resv, video_crop_left_resv,
+	   video_crop_bottom_resv, video_crop_right_resv;
 static s32 video_layer_global_offset_x, video_layer_global_offset_y;
 static s32 osd_layer_top, osd_layer_left, osd_layer_width, osd_layer_height;
 static u32 video_speed_check_width = 1800, video_speed_check_height = 1400;
@@ -1963,6 +1965,17 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 	src_width = vf->width;
 	src_height = vf->height;
 #endif
+	if (vf->type & VIDTYPE_MVC) {
+		video_source_crop_top = 0;
+		video_source_crop_left = 0;
+		video_source_crop_bottom = 0;
+		video_source_crop_right = 0;
+	} else {
+		video_source_crop_top = video_crop_top_resv;
+		video_source_crop_left = video_crop_left_resv;
+		video_source_crop_bottom = video_crop_bottom_resv;
+		video_source_crop_right = video_crop_right_resv;
+	}
 	vpp_wide_mode = wide_mode;
 	vpp_flags |= wide_mode | (aspect_ratio << VPP_FLAG_AR_BITS);
 
@@ -2103,18 +2116,18 @@ void vpp_set_osd_layer_position(s32 *para)
 
 void vpp_set_video_source_crop(u32 t, u32 l, u32 b, u32 r)
 {
-	video_source_crop_top = t;
-	video_source_crop_left = l;
-	video_source_crop_bottom = b;
-	video_source_crop_right = r;
+	video_crop_top_resv = t;
+	video_crop_left_resv = l;
+	video_crop_bottom_resv = b;
+	video_crop_right_resv = r;
 }
 
 void vpp_get_video_source_crop(u32 *t, u32 *l, u32 *b, u32 *r)
 {
-	*t = video_source_crop_top;
-	*l = video_source_crop_left;
-	*b = video_source_crop_bottom;
-	*r = video_source_crop_right;
+	*t = video_crop_top_resv;
+	*l = video_crop_left_resv;
+	*b = video_crop_bottom_resv;
+	*r = video_crop_right_resv;
 }
 
 void vpp_set_video_layer_position(s32 x, s32 y, s32 w, s32 h)
