@@ -162,7 +162,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-02-16a";
+static const char version_s[] = "2016-03-22a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -3296,39 +3296,29 @@ static void pre_de_process(void)
 		blkhsize = (di_pre_stru.di_nrwr_mif.end_x + 4) / 5;
 		RDMA_WR(MCDI_HV_SIZEIN, (di_pre_stru.di_nrwr_mif.end_y + 1)
 			| ((di_pre_stru.di_nrwr_mif.end_x + 1) << 16));
-		Wr(MCDI_HV_BLKSIZEIN, (overturn ? 3 : 0) << 30 | blkhsize << 16
+		RDMA_WR(MCDI_HV_BLKSIZEIN, (overturn ? 3 : 0) << 30
+			| blkhsize << 16
 			| (di_pre_stru.di_nrwr_mif.end_y + 1));
 		RDMA_WR(MCDI_BLKTOTAL,
 			blkhsize * (di_pre_stru.di_nrwr_mif.end_y + 1));
 	}
-/* set interrupt mask for pre module. */
-	if (mcpre_en) {
-		RDMA_WR(DI_INTR_CTRL,
-			/* mask nrwr interrupt. */
-			((di_pre_stru.enable_mtnwr ? 1 : 0) << 16) |
-			/* mtnwr interrupt. */
-			((di_pre_stru.enable_mtnwr ? 0 : 1) << 17) |
-			(1 << 18) | /* mask diwr interrupt. */
-			(1 << 19) | /* mask hist check interrupt. */
-			(1 << 20) | /* mask cont interrupt. */
-			(1 << 21) | /* mask medi interrupt. */
-			(1 << 22) | /* mask vecwr interrupt. */
-			(1 << 23) | /* mask infwr interrupt. */
-			0xf);	/* clean all pending interrupt bits. */
-	} else {
-		RDMA_WR(DI_INTR_CTRL,
-			/* mask nrwr interrupt. */
-			((di_pre_stru.enable_mtnwr ? 1 : 0) << 16) |
-			/* mtnwr interrupt. */
-			((di_pre_stru.enable_mtnwr ? 0 : 1) << 17) |
-			(1 << 18) |	/* mask diwr interrupt. */
-			(1 << 19) |	/* mask hist check interrupt. */
-			(1 << 20) |	/* mask cont interrupt. */
-			0xf);		/* clean all pending interrupt bits. */
-	}
+	/* set interrupt mask for pre module. */
+	/* we need to only leave one mask open
+	   to prevent multiple entry for de_irq */
+	RDMA_WR(DI_INTR_CTRL,
+		/* mask nrwr interrupt. */
+		((di_pre_stru.enable_mtnwr ? 1 : 0) << 16) |
+		/* mtnwr interrupt. */
+		((di_pre_stru.enable_mtnwr ? 0 : 1) << 17) |
+		(1 << 18) | /* mask diwr interrupt. */
+		(1 << 19) | /* mask hist check interrupt. */
+		(1 << 20) | /* mask cont interrupt. */
+		(1 << 21) | /* mask medi interrupt. */
+		(1 << 22) | /* mask vecwr interrupt. */
+		(1 << 23) | /* mask infwr interrupt. */
+		(1 << 24) | /* mask det3d interrupt. */
+		0x1ff);	/* clean all pending interrupt bits. */
 
-/* Wr(DI_PRE_CTRL, 0x3 << 30);
- * //remove it for M6, can not disalbe it here */
 	enable_di_pre_aml(&di_pre_stru.di_inp_mif,      /* di_inp */
 		&di_pre_stru.di_mem_mif,                /* di_mem */
 		&di_pre_stru.di_chan2_mif,              /* chan2 */
@@ -3355,8 +3345,6 @@ static void pre_de_process(void)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		enable_afbc_input(di_pre_stru.di_inp_buf->vframe);
 
-	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | (0x3 << 30));
-/* add for M6, reset */
 	if (mcpre_en) {
 		if (!di_pre_stru.cur_prog_flag && mcpre_en)
 			enable_mc_di_pre(&di_pre_stru.di_mcinford_mif,
@@ -3449,6 +3437,10 @@ static void pre_de_process(void)
 			vdin_ops->tvin_vdin_func(0, &vdin_arg);
 	}
 #endif
+
+	/* enable pre mif*/
+	enable_di_pre_mif(1);
+
 #ifdef CONFIG_AML_RDMA
 	if (di_pre_rdma_enable & 0x2)
 		rdma_config(de_devp->rdma_handle, RDMA_TRIGGER_MANUAL);
@@ -5294,16 +5286,29 @@ static void set_post_mcinfo(struct mcinfo_pre_s *curr_field_mcinfo)
 static irqreturn_t de_irq(int irq, void *dev_instance)
 {
 #ifndef CHECK_DI_DONE
-	unsigned int data32;
-	data32 = Rd(DI_INTR_CTRL);
-/* if ( (data32 & 0xf) != 0x1 ) { */
-/* pr_info("%s: error %x\n", __func__, data32); */
-/* } else { */
+	unsigned int data32 = Rd(DI_INTR_CTRL);
+	unsigned int mask32 = (data32 >> 16) & 0x1ff;
+	int flag = 0;
+
 	Wr(DI_INTR_CTRL, data32);
-/* } */
+
+	if (di_pre_stru.pre_de_busy) {
+		/* only one inetrrupr mask should be enable */
+		if ((data32 & 4) && !(mask32 & 4)) {
+			di_print("== DIWR ==\n");
+			flag = 1;
+		} else if ((data32 & 2) && !(mask32 & 2)) {
+			di_print("== MTNWR ==\n");
+			flag = 1;
+		} else if ((data32 & 1) && !(mask32 & 1)) {
+			di_print("== NRWR ==\n");
+			flag = 1;
+		} else {
+			pr_error("== DI IRQ %x ==\n", data32);
+			flag = 0;
+		}
+	}
 #endif
-/* Wr(A9_0_IRQ_IN1_INTR_STAT_CLR, 1 << 14); */
-/* Rd(A9_0_IRQ_IN1_INTR_STAT_CLR); */
 	if (pre_process_time_force)
 		return IRQ_HANDLED;
 
@@ -5312,28 +5317,32 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		return IRQ_HANDLED;
 	}
 #ifdef DI_DEBUG
-	di_print("%s: start\n", __func__);
+	di_print("%s: start %d\n", __func__, flag);
 #endif
 
-	if (mcpre_en)
-		get_mcinfo_from_reg_in_irq();
+	if (flag) {
+		if (mcpre_en)
+			get_mcinfo_from_reg_in_irq();
 
 #ifdef NEW_DI_V4
-	if (dnr_en)
-		run_dnr_in_irq(
-			di_pre_stru.di_nrwr_mif.end_x + 1,
-			di_pre_stru.di_nrwr_mif.end_y + 1);
-	else
-		if ((Rd(DNR_CTRL) != 0) && dnr_reg_update)
-			Wr(DNR_CTRL, 0);
-
+		if (dnr_en)
+			run_dnr_in_irq(
+				di_pre_stru.di_nrwr_mif.end_x + 1,
+				di_pre_stru.di_nrwr_mif.end_y + 1);
+		else
+			if ((Rd(DNR_CTRL) != 0) && dnr_reg_update)
+				Wr(DNR_CTRL, 0);
 #endif
-	di_pre_stru.pre_de_process_done = 1;
-	di_pre_stru.pre_de_busy = 0;
+		/* disable mif */
+		enable_di_pre_mif(0);
 
-	if (init_flag)
-		/* pr_info("%s:up di sema\n", __func__); */
-		trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
+		di_pre_stru.pre_de_process_done = 1;
+		di_pre_stru.pre_de_busy = 0;
+
+		if (init_flag)
+			/* pr_info("%s:up di sema\n", __func__); */
+			trigger_pre_di_process(TRIGGER_PRE_BY_DE_IRQ);
+	}
 
 #ifdef DI_DEBUG
 	di_print("%s: end\n", __func__);
@@ -7159,8 +7168,6 @@ static void di_process(void)
 
 				di_pre_stru.pre_de_process_done = 0;
 				di_pre_stru.pre_de_clear_flag = 0;
-/* Wr(DI_PRE_CTRL,
- * 0x3 << 30|Rd(DI_PRE_CTRL) & 0x14);//disable, and reset */
 #ifdef CHECK_DI_DONE
 			}
 #endif
@@ -7544,9 +7551,6 @@ static void fast_process(void)
 			spin_lock_irqsave(&plist_lock, flags);
 			if (di_pre_stru.pre_de_process_done) {
 				pre_de_done_buf_config();
-/* Wr(DI_PRE_CTRL,
- * 0x3 << 30|Rd(DI_PRE_CTRL) & 0x14);
- * //disable, and reset */
 				di_pre_stru.pre_de_process_done = 0;
 			}
 

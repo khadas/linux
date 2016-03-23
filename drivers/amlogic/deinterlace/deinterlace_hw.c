@@ -229,6 +229,24 @@ void di_hw_uninit(void)
 {
 }
 
+void enable_di_pre_mif(int en)
+{
+	if (en) {
+		/* enable input mif*/
+		Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
+		Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
+		Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) | 0x1);
+		/* cont rd will be enable when config pre */
+	} else {
+		/* disable cont rd */
+		Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
+		/* disable input mif*/
+		Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
+		Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
+		Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
+	}
+}
+
 unsigned int nr2_en = 0x1;
 module_param(nr2_en, uint, 0644);
 MODULE_PARM_DESC(nr2_en, "\n nr2_en\n");
@@ -334,9 +352,9 @@ void enable_di_pre_aml(
 	/*enable noise meter*/
 	RDMA_WR_BITS(NR2_SW_EN, 1, 17, 1);
 #endif
-	/* reset pre */
-	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 1 << 31);
-	/* frame reset for the pre modules. */
+
+	/* frame + soft reset for the pre modules. */
+	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 3 << 30);
 
 	RDMA_WR(DI_PRE_CTRL, nr_en |			/* NR enable */
 					(mtn_en << 1) |	/* MTN_EN */
@@ -614,7 +632,7 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				(3 << 8)	|/*burst_size_y*/
 				(chro_rpt_lastl_ctrl << 6)	|
 				((mif->set_separate_en != 0) << 1) |
-				(1 << 0)/* cntl_enable */
+				(0 << 0)/* cntl_enable */
 	  );
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
@@ -827,7 +845,7 @@ static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				(3 << 8)	|/*burst_size_y*/
 				(chro_rpt_lastl_ctrl << 6)	|
 				((mif->set_separate_en != 0) << 1)|
-				(1 << 0)	/* cntl_enable */
+				(0 << 0)	/* cntl_enable */
 	  );
 
 	/* ---------------------- */
@@ -1065,7 +1083,7 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				(1 << 10)	|/*burst_size_cb*/
 				(3 << 8) |/*burst_size_y*/
 ((hold_line == 0 ? 1 : 0) << 7) |
-(0 << 6)|(0 << 1)|(1 << 0));
+(0 << 6)|(0 << 1)|(0 << 0));
 
 
 	/* ---------------------- */
@@ -1700,6 +1718,11 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 			vframe->width, vframe->height);
 		return;
 	}
+
+	if (vframe->source_type == VFRAME_SOURCE_TYPE_CVBS)
+		Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 15);
+	else
+		Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
 
 	if (di_force_bit_mode == 0) {
 		/*use vframe source bitdepth*/

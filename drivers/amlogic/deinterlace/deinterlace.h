@@ -211,6 +211,8 @@ extern void di_hw_init(void);
 
 extern void di_hw_uninit(void);
 
+extern void enable_di_pre_mif(int);
+
 extern int di_vscale_skip_count;
 
 extern unsigned int di_force_bit_mode;
