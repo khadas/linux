@@ -812,11 +812,11 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	}
 
 #ifdef AML_CALIBRATION
-	if ((aml_card_type_mmc(pdata)) && (pdata->need_cali == 1)) {
-		pdata->need_cali = 1;
+	if ((aml_card_type_mmc(pdata))
+			&& (mmc->ios.timing != MMC_TIMING_MMC_HS400)) {
 		if (clkc->div <= 7)
 			err = aml_sd_emmc_execute_tuning_index(mmc,
-							&adj_win_start);
+					&adj_win_start);
 		/* if calibration failed, gdelay use default value */
 		if (err) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
@@ -2132,7 +2132,8 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 					mmc_hostname(host->mmc),
 					pdata->pinname, virqc, vstat);
 		}
-		aml_host_bus_fsm_show(host, ista->bus_fsm);
+		if (host->is_tunning == 0)
+			aml_host_bus_fsm_show(host, ista->bus_fsm);
 	}
 
 
@@ -3294,9 +3295,6 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		host_emmc = host;
 		creat_emmc_class();
 		creat_emmc_attr();
-#ifdef AML_CALIBRATION
-		pdata->need_cali = 1;
-#endif
 	}
 	if (pdata->port_init)
 		pdata->port_init(pdata);

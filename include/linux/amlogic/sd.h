@@ -127,7 +127,6 @@ struct amlsd_platform {
 	struct delayed_work	retuning;
 #ifdef AML_CALIBRATION
 	unsigned char caling;
-	unsigned char need_cali;
 	unsigned char calout[20][20];
 #endif
 	/* we used this flag to filter
