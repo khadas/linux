@@ -270,6 +270,11 @@ static void lcd_lvds_control_set(struct lcd_config_s *pconf)
 		(2 << 14));	/* b_select  //0:R, 1:G, 2:B, 3:0 */
 }
 
+static void lcd_lvds_disable(void)
+{
+	lcd_vcbus_setb(LVDS_GEN_CNTL, 0, 3, 1); /* disable lvds fifo */
+}
+
 #if 0
 static void lcd_vbyone_ctlbits(int p3d_en, int p3d_lr, int mode)
 {
@@ -478,12 +483,30 @@ static void lcd_vbyone_control_set(struct lcd_config_s *pconf)
 
 	/*force vencl clk enable, otherwise, it might auto turn off by mipi DSI
 	//lcd_vcbus_setb(VPU_MISC_CTRL, 1, 0, 1); */
+
+	/* reset vbyone */
+	lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
+	udelay(5);
+	lcd_vcbus_write(VBO_SOFT_RST, 0);
+}
+
+static void lcd_vbyone_disable(void)
+{
+	lcd_vcbus_setb(VBO_CTRL_L, 0, 0, 1);
 }
 
 #define VBYONE_INTR_UNMASK    0x2a00 /* enable htpdn_fail,lockn_fail,acq_hold */
 static void lcd_vbyone_interrupt_enable(int flag)
 {
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, flag);
+
 	if (flag) {
+		vx1_fsm_acq_st = 0;
+		/* clear interrupt */
+		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9);
+		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
+
 		/* set hold in FSM_ACQ */
 		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
 		/* enable interrupt */
@@ -521,14 +544,15 @@ static void lcd_vbyone_interrupt_init(void)
 
 static void lcd_vbyone_wait_stable(void)
 {
-	int i = 1000;
+	int i = 5000;
 
 	while ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) != 0x20) {
-		udelay(5);
+		udelay(10);
 		if (i-- == 0)
 			break;
 	}
-	LCDPR("%s status: 0x%x\n", __func__, lcd_vcbus_read(VBO_STATUS_L));
+	LCDPR("%s status: 0x%x, i=%d\n",
+		__func__, lcd_vcbus_read(VBO_STATUS_L), i);
 	lcd_vbyone_interrupt_enable(1);
 }
 
@@ -805,9 +829,9 @@ int lcd_tv_driver_init(void)
 			lcd_lvds_phy_set(pconf, 1);
 			break;
 		case LCD_VBYONE:
+			lcd_vbyone_pinmux_set(1);
 			lcd_vbyone_control_set(pconf);
 			lcd_vbyone_phy_set(pconf, 1);
-			lcd_vbyone_pinmux_set(1);
 			break;
 		default:
 			break;
@@ -857,12 +881,13 @@ void lcd_tv_driver_disable(void)
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
 		lcd_lvds_phy_set(pconf, 0);
-		lcd_vcbus_setb(LVDS_GEN_CNTL, 0, 3, 1); /* disable lvds fifo */
+		lcd_lvds_disable();
 		break;
 	case LCD_VBYONE:
 		lcd_vbyone_interrupt_enable(0);
 		lcd_vbyone_phy_set(pconf, 0);
 		lcd_vbyone_pinmux_set(0);
+		lcd_vbyone_disable();
 		break;
 	default:
 		break;
