@@ -110,7 +110,7 @@ MODULE_PARM_DESC(multi_port_edid_enable,
 	"\n multi_port_edid_enable\n");
 module_param(multi_port_edid_enable, bool, 0664);
 
-static bool hdcp_enable = 1;
+bool hdcp_enable = 1;
 MODULE_PARM_DESC(hdcp_enable, "\n hdcp_enable\n");
 module_param(hdcp_enable, bool, 0664);
 #ifdef HDCP22_ENABLE
@@ -962,10 +962,10 @@ void hdmirx_hw_config(void)
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
 	hdmirx_irq_open();
 
-	mdelay(200);
+	mdelay(100);
 	if (hdmirx_rd_dwc(0xe0) != 0) {
 		rx_print("hdcp engine busy\n");
-		mdelay(300);
+		mdelay(100);
 	}
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
@@ -982,12 +982,12 @@ void hdmirx_hw_probe(void)
 	/*	hpd_to_esm = 1; */
 	/* #endif */
 	hdmirx_hdcp22_init();
-	hdmirx_set_hpd(rx.port, 0);
+	hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
 	mdelay(100);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
-	hdmirx_set_hpd(rx.port, 1);
+	hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
 	rx_print("%s Done!\n", __func__);
 }
 

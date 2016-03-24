@@ -577,6 +577,20 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	}
+	case HDMI_IOC_HDCP_ON:
+		hdcp_enable = 1;
+		hdmirx_hw_config();
+		hdmirx_set_hpd(rx.port, 0);
+		break;
+	case HDMI_IOC_HDCP_OFF:
+		hdcp_enable = 0;
+		hdmirx_hw_config();
+		hdmirx_set_hpd(rx.port, 0);
+		break;
+	case HDMI_IOC_EDID_UPDATE:
+		hdmi_rx_ctrl_edid_update();
+		hdmirx_set_hpd(rx.port, 0);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;

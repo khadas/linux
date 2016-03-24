@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/03/22"
+#define HDMIRX_VER "Ref.2016/03/23"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -61,6 +61,10 @@ struct hdmirx_dev_s {
 };
 
 #define HDMI_IOC_MAGIC 'H'
+#define HDMI_IOC_HDCP_ON	_IO(HDMI_IOC_MAGIC, 0x01)
+#define HDMI_IOC_HDCP_OFF	_IO(HDMI_IOC_MAGIC, 0x02)
+#define HDMI_IOC_EDID_UPDATE	_IO(HDMI_IOC_MAGIC, 0x03)
+
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
 
 #define HDCP22_ENABLE
@@ -444,6 +448,7 @@ extern int md_ists_en;
 extern int hdmi_ists_en;
 extern int real_port_map;
 extern bool hpd_to_esm;
+extern bool hdcp_enable;
 
 extern struct rx_s rx;
 extern int log_flag;
