@@ -1812,8 +1812,6 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 	int  j;
 	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
 
-	/* no need recheck from RX side, for 10bit */
-	force_flag = 1;
 	if (vic != HDMI_Unkown) {
 		if (force_flag == 0) {
 			for (j = 0 ; j < pRXCap->VIC_count ; j++) {
