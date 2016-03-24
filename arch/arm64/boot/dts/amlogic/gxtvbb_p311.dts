@@ -392,6 +392,7 @@
 		fe0_ts = <2>;
 		fe0_dev = <0>;
 		dtv_demod0_mem = <0>;
+		dtv_demod0_spectrum = <1>;
 		memory-region = <&demod_reserved>;
 		tuner0 = "r840_tuner";
 		tuner0_i2c_adap_id = <1>;
