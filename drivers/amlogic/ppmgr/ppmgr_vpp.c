@@ -116,7 +116,7 @@ static DEFINE_SPINLOCK(lock);
 static bool ppmgr_blocking;
 static bool ppmgr_inited;
 static int ppmgr_reset_type;
-
+static int ppmgr_buffer_status;
 static struct ppframe_s vfp_pool[VF_POOL_SIZE];
 static struct vframe_s *vfp_pool_free[VF_POOL_SIZE + 1];
 static struct vframe_s *vfp_pool_ready[VF_POOL_SIZE + 1];
@@ -1355,6 +1355,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	struct canvas_s cs0, cs1, cs2, cd;
 	int i;
 	u32 mode = 0;
+	int ret = 0;
 	unsigned cur_angle = 0;
 	int pic_struct = 0, interlace_mode;
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
@@ -1425,7 +1426,20 @@ static void process_vf_rotate(struct vframe_s *vf,
 		vfq_push(&q_ready, new_vf);
 		return;
 	}
-
+#ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
+	if (plarform_type == PLATFORM_TV)
+		ret = ppmgr_buffer_init(1);
+	else
+		ret = ppmgr_buffer_init(0);
+#else
+	ret = ppmgr_buffer_init(0);
+#endif
+	if (ret < 0) {
+		pp_vf->dec_frame = vf;
+		*new_vf = *vf;
+		vfq_push(&q_ready, new_vf);
+		return;
+	}
 #ifdef INTERLACE_DROP_MODE
 	if (interlace_mode) {
 		mycount++;
@@ -1937,6 +1951,17 @@ static void process_vf_change(struct vframe_s *vf,
 	int pic_struct = 0, interlace_mode;
 	unsigned temp_angle = 0;
 	unsigned cur_angle = 0;
+	int ret = 0;
+#ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
+	if (plarform_type == PLATFORM_TV)
+		ret = ppmgr_buffer_init(1);
+	else
+		ret = ppmgr_buffer_init(0);
+#else
+	ret = ppmgr_buffer_init(0);
+#endif
+	if (ret < 0)
+		return;
 	temp_vf.duration = vf->duration;
 	temp_vf.duration_pulldown = vf->duration_pulldown;
 	temp_vf.pts = vf->pts;
@@ -2156,12 +2181,22 @@ static int process_vf_adjust(struct vframe_s *vf,
 	int sx, sy, sw, sh, dx, dy, dw, dh;
 	unsigned ratio_x;
 	unsigned ratio_y;
+	int ret = 0;
 	int i;
 	struct ppframe_s *pp_vf = to_ppframe(vf);
 	u32 mode = amvideo_get_scaler_para(&rect_x, &rect_y, &rect_w, &rect_h,
 			&ratio);
 	unsigned cur_angle = pp_vf->angle;
-
+#ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
+	if (plarform_type == PLATFORM_TV)
+		ret = ppmgr_buffer_init(1);
+	else
+		ret = ppmgr_buffer_init(0);
+#else
+	ret = ppmgr_buffer_init(0);
+#endif
+	if (ret < 0)
+		return -1;
 	rect_w = max(rect_w, 64);
 	rect_h = max(rect_h, 64);
 
@@ -2782,6 +2817,7 @@ int ppmgr_buffer_uninit(void)
 		ppmgr_device.buffer_start = 0;
 		ppmgr_device.buffer_size = 0;
 	}
+	ppmgr_buffer_status = 0;
 	return 0;
 }
 
@@ -2794,14 +2830,23 @@ int ppmgr_buffer_init(int vout_mode)
 	int buf_size;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
 	/* int flags = CODEC_MM_FLAGS_DMA; */
-	int flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR|
-			CODEC_MM_FLAGS_FOR_VDECODER;
+	int flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
 #ifdef INTERLACE_DROP_MODE
 	mycount = 0;
 #endif
+	switch (ppmgr_buffer_status) {
+	case 0:/*not config*/
+		break;
+	case 1:/*config before , return ok*/
+		return 0;
+	case 2:/*config fail, won't retry , return failure*/
+		return -1;
+	default:
+		return -1;
+	}
 	if ((!ppmgr_device.use_reserved) &&
 	    (ppmgr_device.buffer_start == 0)) {
-		PPMGRVPP_INFO("reserved memory config fail , use CMA	.\n");
+		PPMGRVPP_INFO("reserved memory config fail,use CMA.\n");
 
 		ppmgr_device.buffer_start = codec_mm_alloc_for_dma(
 				"ppmgr",
@@ -2811,10 +2856,12 @@ int ppmgr_buffer_init(int vout_mode)
 		(unsigned)ppmgr_device.buffer_start ,
 		(unsigned)ppmgr_device.buffer_size);
 		if (ppmgr_device.buffer_start == 0) {
+			ppmgr_buffer_status = 2;
 			PPMGRVPP_ERR("cma memory config fail\n");
 			return -1;
 		}
 	}
+	ppmgr_buffer_status = 1;
 	get_ppmgr_buf_info(&buf_start, &buf_size);
 #ifdef CONFIG_V4L_AMLOGIC_VIDEO
 	if (ppmgr_device.receiver != 0) {
@@ -3035,15 +3082,7 @@ int start_ppmgr_task(void)
 	/*#endif*/
 	if (!task) {
 		vf_local_init();
-		/*if (get_buff_change())*/
-#ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
-		if (plarform_type == PLATFORM_TV)
-			ppmgr_buffer_init(1);
-		else
-			ppmgr_buffer_init(0);
-#else
-		ppmgr_buffer_init(0);
-#endif
+		ppmgr_buffer_status = 0;
 		task = kthread_run(ppmgr_task, 0, "ppmgr");
 	}
 	task_running = 1;

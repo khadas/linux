@@ -1375,9 +1375,11 @@ int init_ppmgr_device(void)
 	}
 	buff_change = 0;
 	ppmgr_register();
+#if 0
 	if (ppmgr_buffer_init(0) < 0)
 		goto unregister_dev;
 	ppmgr_buffer_uninit();
+#endif
 	/*if (start_vpp_task()<0) return -1;*/
 	ppmgr_device.use_prot = 1;
 #if HAS_VPU_PROT
