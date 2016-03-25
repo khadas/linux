@@ -29,6 +29,7 @@
 #include "amve.h"
 #include "amve_gamma_table.h"
 #include "amvecm_vlock_regmap.h"
+#include <linux/io.h>
 
 #define pr_amve_dbg(fmt, args...)\
 	do {\
@@ -39,6 +40,8 @@
 /* printk(KERN_##(KERN_INFO) "AMVECM: " fmt, ## args) */
 
 #define GAMMA_RETRY        1000
+
+#define SPEED_CTL_VALUE  1
 
 /* 0: Invalid */
 /* 1: Valid */
@@ -56,6 +59,8 @@ MODULE_PARM_DESC(dnlp_sel, "dnlp_sel");
 /* #endif */
 
 struct ve_hist_s video_ve_hist;
+
+bool is_vlock = false;
 
 static unsigned char ve_dnlp_tgt[64];
 bool ve_en;
@@ -96,6 +101,20 @@ struct tcon_gamma_table_s video_gamma_table_b_adj;
 struct tcon_rgb_ogo_s     video_rgb_ogo;
 
 #define FLAG_LVDS_FREQ_SW1       (1 <<  6)
+
+
+int amvecm_hiu_reg_read(unsigned int reg, unsigned int *val)
+{
+	*val = readl(amvecm_hiu_reg_base+((reg - 0x1000)<<2));
+	return 0;
+}
+
+int amvecm_hiu_reg_write(unsigned int reg, unsigned int val)
+{
+	writel(val, (amvecm_hiu_reg_base+((reg - 0x1000)<<2)));
+	return 0;
+}
+
 
 module_param(ve_dnlp_waist_h, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_waist_h, "ve_dnlp_waist_h");
@@ -541,6 +560,8 @@ static unsigned int assist_cnt2;/* ASSIST_SPARE8_REG2; */
 /* video lock */
 #define VLOCK_MODE_ENC          0
 #define VLOCK_MODE_PLL		1
+#define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
+
 
 unsigned int vlock_mode = VLOCK_MODE_PLL;/* 0:enc;1:pll */
 module_param(vlock_mode, uint, 0664);
@@ -607,6 +628,11 @@ module_param(sync_3d_sync_to_vbo, uint, 0664);
 MODULE_PARM_DESC(sync_3d_sync_to_vbo, "\n sync_3d_sync_to_vbo\n");
 /* #endif */
 /* 3d sync parts end */
+
+unsigned int vlock_debug = 0;
+module_param(vlock_debug, uint, 0664);
+MODULE_PARM_DESC(vlock_debug, "\n vlock_debug\n");
+
 
 
 /* *********************************************************************** */
@@ -1416,9 +1442,9 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 	if (clip_rate <= 4 || tAvg <= 2) {
 		cLmt = (tsum + tLen/2)/tLen;
 		tsum = cLmt*tLen;
-		for (i = hstBgn; i < hstEnd; i++) {
+		for (i = hstBgn; i < hstEnd; i++)
 				oHst[i] = cLmt;
-		}
+
 	} else {
 		while ((nNum > 0) && (nExc > 0)) {
 			nStp = (nExc+nNum/2)/nNum;
@@ -3700,7 +3726,7 @@ static unsigned int amvecm_vlock_check_input_hz(struct vframe_s *vf)
 		ret_hz = 0;
 	else if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 		if (duration != 0)
-			ret_hz = 96000/duration;
+			ret_hz = (96000 + duration/2)/duration;
 	} else if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) {
 		if (vf->source_mode == VFRAME_SOURCE_MODE_NTSC)
@@ -3747,28 +3773,36 @@ static void amvecm_vlock_setting(struct vframe_s *vf,
 		unsigned int input_hz, unsigned int output_hz)
 {
 	unsigned int freq_hz = 0;
+	unsigned int reg_value, hiu_reg_value, hiu_reg_value_2;
+	unsigned int m_reg_value, m_reg_value_2, m_reg_value_3;
+	unsigned int tmp_value, abs_value;
 	if (((input_hz != output_hz) && (vlock_adapt == 0)) ||
 			(input_hz == 0) || (output_hz == 0)) {
 		/* VLOCK_CNTL_EN disable */
 		/* WRITE_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL6,0,20,1); */
-		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 1<<20, 0);
+		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 0<<20, 0);
 		vlock_dis_cnt = vlock_dis_cnt_limit;
 		pr_info("[%s]auto disable vlock module for no support case!!!\n",
 				__func__);
 		return;
 	}
-	aml_write_cbus(HHI_VID_LOCK_CLK_CNTL, 0x80);
+	amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
 	if (vlock_mode == VLOCK_MODE_ENC) {
 		am_set_regmap(&vlock_enc_lcd720x480);
 		/* VLOCK_CNTL_EN disable */
 		/* WRITE_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL6,0,20,1); */
-		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 1<<20, 0);
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL6, &hiu_reg_value);
+		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL6, hiu_reg_value|(0<<20));
 		/* disable to adjust pll */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 29, 1);
 		/* CFG_VID_LOCK_ADJ_EN enable */
 		WRITE_VPP_REG_BITS(ENCL_MAX_LINE_SWITCH_POINT, 1, 13, 1);
 		/* enable to adjust pll */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 30, 1);
+		/*clear accum1 value*/
+		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 2, 1);
+		/*clear accum0 value*/
+		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 5, 1);
 	}
 	if (vlock_mode == VLOCK_MODE_PLL) {
 		/* av pal in,1080p60 hdmi out as default */
@@ -3793,22 +3827,44 @@ static void amvecm_vlock_setting(struct vframe_s *vf,
 		/*set PLL M_INT;PLL M_frac*/
 		/* WRITE_VPP_REG_BITS(VPU_VLOCK_MX4096, */
 		/* READ_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL,0,9),12,9); */
-		WRITE_VPP_REG_BITS(VPU_VLOCK_MX4096,
-			(aml_read_cbus(HHI_HDMI_PLL_CNTL) & 0x3ff), 12, 9);
-		/* WRITE_VPP_REG_BITS(VPU_VLOCK_MX4096, */
-		/* READ_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL,0,12),0,12); */
-		WRITE_VPP_REG_BITS(VPU_VLOCK_MX4096,
-			(aml_read_cbus(HHI_HDMI_PLL_CNTL) & 0x1fff), 0, 12);
+	if (is_vlock) {
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &hiu_reg_value);
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL2, &hiu_reg_value_2);
+		reg_value = ((hiu_reg_value & 0x1FF) << 12)
+					+ ((hiu_reg_value_2 & 0x3FF) << 2);
+		WRITE_VPP_REG_BITS(VPU_VLOCK_MX4096, reg_value, 0, 21);
+		is_vlock = false;
+	}
+
+	m_reg_value = READ_VPP_REG_BITS(VPU_VLOCK_RO_M_INT_FRAC, 16, 9);
+	amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &m_reg_value_2);
+	abs_value = abs(m_reg_value - (m_reg_value_2 & 0x1ff));
+
+	if (abs_value <= SPEED_CTL_VALUE) {
+		m_reg_value_3 = READ_VPP_REG(VPU_VLOCK_RO_M_INT_FRAC);
+
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL2, &tmp_value);
+		tmp_value = (tmp_value & 0xfffff000) |
+					((m_reg_value_3 >> 2) & 0x3ff);
+		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL2, tmp_value);
+
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &tmp_value);
+		tmp_value = (tmp_value & 0xfffffe00) |
+					((m_reg_value_3 >> 16) & 0x1ff);
+		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL, tmp_value);
+	}
+
+
 		/* vlock module output goes to which module */
 		switch (READ_VPP_REG_BITS(VPU_VIU_VENC_MUX_CTRL, 0, 2)) {
 		case 0:/* ENCL */
-			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 0, 26, 2);
+			WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 26, 2);
 			break;
 		case 1:/* ENCI */
-			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 2, 26, 2);
+			WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 2, 26, 2);
 			break;
 		case 2: /* ENCP */
-			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 1, 26, 2);
+			WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 26, 2);
 			break;
 		default:
 			break;
@@ -3820,17 +3876,17 @@ static void amvecm_vlock_setting(struct vframe_s *vf,
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 30, 1);
 		/* VLOCK_CNTL_EN enable */
 		/* WRITE_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL6,1,20,1); */
-		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 1<<20, 1);
+		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 0<<20, 1);
 		/* enable to adjust pll */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 29, 1);
 	}
 	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS))
 		/* Input Vsync source select from tv-decoder */
-		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 16, 3);
+		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 2, 16, 3);
 	else if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI)
 		/* Input Vsync source select from hdmi-rx */
-		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 2, 16, 3);
+		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 16, 3);
 	WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 31, 1);
 }
 /* won't change this function internal seqence,
@@ -3843,7 +3899,7 @@ void amve_vlock_process(struct vframe_s *vf)
 	if (vecm_latch_flag & FLAG_VLOCK_DIS) {
 		/* VLOCK_CNTL_EN disable */
 		/* WRITE_CBUS_REG_BITS(HHI_HDMI_PLL_CNTL6,0,20,1); */
-		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 1<<20, 0);
+		aml_cbus_update_bits(HHI_HDMI_PLL_CNTL6, 0<<20, 0);
 		vlock_dis_cnt = vlock_dis_cnt_limit;
 		vlock_en = 0;
 		vecm_latch_flag &= ~FLAG_VLOCK_DIS;
@@ -3852,24 +3908,27 @@ void amve_vlock_process(struct vframe_s *vf)
 	if (vlock_en == 1) {
 		vinfo = get_current_vinfo();
 		input_hz = amvecm_vlock_check_input_hz(vf);
+		is_vlock = true;
 		if (input_hz == 0)
 			return;
 		output_hz =
 			amvecm_vlock_check_output_hz(vinfo->sync_duration_num);
-		if ((vinfo->mode != pre_vmode) ||
+	if ((vinfo->mode != pre_vmode) ||
 			(vf->source_type != pre_source_type) ||
 			(vf->source_mode != pre_source_mode) ||
 			(input_hz != pre_input_freq) ||
 			(output_hz != pre_output_freq)) {
-			amvecm_vlock_setting(vf, input_hz, output_hz);
+		amvecm_vlock_setting(vf, input_hz, output_hz);
+		if (vlock_debug) {
 			pr_amve_dbg("%s:vmode/source_type/source_mode/",
-					__func__);
+			__func__);
 			pr_amve_dbg("input_freq/output_freq change:");
 			pr_amve_dbg("%d/%d/%d/%d/%d=>%d/%d/%d/%d/%d\n",
-				pre_vmode, pre_source_type, pre_source_mode,
-				pre_input_freq, pre_output_freq, vinfo->mode,
-				vf->source_type, vf->source_mode,
-				input_hz, output_hz);
+			pre_vmode, pre_source_type, pre_source_mode,
+			pre_input_freq, pre_output_freq, vinfo->mode,
+			vf->source_type, vf->source_mode,
+			input_hz, output_hz);
+		}
 			pre_vmode = vinfo->mode;
 			pre_source_type = vf->source_type;
 			pre_source_mode = vf->source_mode;
@@ -3880,13 +3939,18 @@ void amve_vlock_process(struct vframe_s *vf)
 		if (vlock_sync_limit_flag < 5) {
 			vlock_sync_limit_flag++;
 			if (vlock_sync_limit_flag == 5) {
-				input_vs_cnt =
-				READ_VPP_REG_BITS(VPU_VLOCK_RO_VS_I_DIST,
-					0, 28);
+				/*input_vs_cnt =*/
+				/*READ_VPP_REG_BITS(VPU_VLOCK_RO_VS_I_DIST,*/
+				/*	0, 28);*/
+				input_vs_cnt = XTAL_VLOCK_CLOCK/input_hz;
 				WRITE_VPP_REG(VPU_VLOCK_LOOP1_IMISSYNC_MAX,
-						input_vs_cnt*103/100);
+						input_vs_cnt*125/100);
 				WRITE_VPP_REG(VPU_VLOCK_LOOP1_IMISSYNC_MIN,
-						input_vs_cnt*97/100);
+						input_vs_cnt*70/100);
+				/*cal accum1 value*/
+				WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 2, 1);
+				/*cal accum0 value*/
+				WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 5, 1);
 			}
 		}
 		return;

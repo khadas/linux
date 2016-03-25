@@ -400,6 +400,7 @@
 
 /* for pll bug */
 #define HHI_HDMI_PLL_CNTL			    0x10c8
+#define HHI_HDMI_PLL_CNTL2			    0x10c9
 #define HHI_VID_LOCK_CLK_CNTL			0x10f2
 #define HHI_HDMI_PLL_CNTL6			    0x10cd
 #define ENCL_MAX_LINE_SWITCH_POINT		0x1cc8

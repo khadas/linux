@@ -82,6 +82,8 @@ unsigned int sr1_ret_val[101];
 struct vpp_hist_param_s vpp_hist_param;
 static unsigned int pre_hist_height, pre_hist_width;
 
+void __iomem *amvecm_hiu_reg_base;/* = *ioremap(0xc883c000, 0x2000); */
+
 static bool debug_amvecm;
 module_param(debug_amvecm, bool, 0664);
 MODULE_PARM_DESC(debug_amvecm, "\n debug_amvecm\n");
@@ -1962,6 +1964,8 @@ void amvecm_on_vs(struct vframe_s *vf)
 
 	pq_enable_disable();
 }
+EXPORT_SYMBOL(amvecm_on_vs);
+
 
 void refresh_on_vs(struct vframe_s *vf)
 {
@@ -1971,8 +1975,6 @@ void refresh_on_vs(struct vframe_s *vf)
 		vpp_backup_histgram(vf);
 	}
 }
-
-EXPORT_SYMBOL(amvecm_on_vs);
 EXPORT_SYMBOL(refresh_on_vs);
 
 static int amvecm_open(struct inode *inode, struct file *file)
@@ -3426,6 +3428,8 @@ static struct platform_driver aml_vecm_driver = {
 static int __init aml_vecm_init(void)
 {
 	pr_info("module init\n");
+	/* remap the hiu bus */
+	amvecm_hiu_reg_base = ioremap(0xc883c000, 0x2000);
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");
 		return -ENODEV;

@@ -107,6 +107,8 @@ extern void amvecm_3d_black_process(void);
 extern void amvecm_3d_sync_process(void);
 extern void amve_vlock_process(struct vframe_s *vf);
 
+int amvecm_hiu_reg_read(unsigned int reg, unsigned int *val);
+int amvecm_hiu_reg_write(unsigned int reg, unsigned int val);
 extern unsigned int vecm_latch_flag;
 extern unsigned int cm_size;
 extern unsigned int sync_3d_h_start;
@@ -115,6 +117,9 @@ extern unsigned int sync_3d_v_start;
 extern unsigned int sync_3d_v_end;
 extern unsigned int sync_3d_polarity;
 extern unsigned int sync_3d_out_inv;
+
+extern void __iomem *amvecm_hiu_reg_base;
+
 
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
