@@ -27,9 +27,6 @@
 #include <linux/printk.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 
 #include <linux/amlogic/jtag.h>
 #include <linux/amlogic/led.h>
@@ -53,12 +50,6 @@ static int __init ledmode_setup(char *str)
 
 __setup("ledmode=", ledmode_setup);
 
-
-static void scpi_send_led_timer(struct led_timer_data *data)
-{
-	scpi_send_usr_data(SCPI_CL_LED_TIMER,
-				(u32 *)data, sizeof(*data));
-}
 
 static void aml_pwmled_work(struct work_struct *work)
 {
@@ -178,47 +169,6 @@ static const struct of_device_id aml_pwmled_dt_match[] = {
 };
 
 
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-
-static int led_early_suspend_flag;
-
-static void pwmled_early_suspend(struct early_suspend *h)
-{
-	struct led_timer_data ltd;
-	struct aml_pwmled_dev *ldev;
-
-	ldev = container_of(h, struct aml_pwmled_dev, es);
-
-	pr_info("%s\n", __func__);
-	if (led_early_suspend_flag)
-		return;
-
-	ltd.expires = ldev->ltd.expires;
-	ltd.expires_count = ldev->ltd.expires_count;
-	ltd.led_mode = ldev->ltd.led_mode;
-	lwm_set_suspend(ltd.led_mode, SUSPEND_RESUME_MODE);
-
-	scpi_send_led_timer(&ltd);
-
-	pr_info("%s scpi send SCPI_CL_LED_TIMER\n", __func__);
-
-	led_early_suspend_flag = 1;
-}
-
-static void pwmled_late_resume(struct early_suspend *h)
-{
-	pr_info("%s\n", __func__);
-	if (!led_early_suspend_flag)
-		return;
-
-	led_early_suspend_flag = 0;
-}
-
-#endif /* CONFIG_HAS_EARLYSUSPEND */
-
-
-
 static int aml_pwmled_probe(struct platform_device *pdev)
 {
 	struct aml_pwmled_dev *ldev;
@@ -265,14 +215,6 @@ static int aml_pwmled_probe(struct platform_device *pdev)
 		pr_err("set default period = %u\n", ldev->period);
 	}
 
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	ldev->es.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
-	ldev->es.suspend = pwmled_early_suspend,
-	ldev->es.resume = pwmled_late_resume,
-	register_early_suspend(&ldev->es);
-#endif
-
 	pr_info("module probed ok\n");
 	return 0;
 }
@@ -282,9 +224,6 @@ static int __exit aml_pwmled_remove(struct platform_device *pdev)
 {
 	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&ldev->es);
-#endif
 	led_classdev_unregister(&ldev->cdev);
 	cancel_work_sync(&ldev->work);
 	platform_set_drvdata(pdev, NULL);
@@ -306,20 +245,20 @@ static struct platform_driver aml_pwmled_driver = {
 
 static int __init aml_pwmled_init(void)
 {
-	pr_info("module init\n");
 	if (platform_driver_register(&aml_pwmled_driver)) {
 		pr_err("failed to register driver\n");
 		return -ENODEV;
 	}
 
+	pr_info("module init\n");
 	return 0;
 }
 
 
 static void __exit aml_pwmled_exit(void)
 {
-	pr_info("module exit\n");
 	platform_driver_unregister(&aml_pwmled_driver);
+	pr_info("module exit\n");
 }
 
 

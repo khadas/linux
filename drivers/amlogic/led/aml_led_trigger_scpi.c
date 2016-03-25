@@ -138,9 +138,12 @@ static ssize_t scpi_send_store(struct device *dev,
 {
 	struct led_classdev *lcdev = dev_get_drvdata(dev);
 	struct led_timer_data *ltd = lcdev->trigger_data;
+	struct aml_pwmled_dev *ldev;
 
 	unsigned long val;
 	int ret;
+
+	ldev = container_of(lcdev, struct aml_pwmled_dev, cdev);
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret)
@@ -148,6 +151,10 @@ static ssize_t scpi_send_store(struct device *dev,
 
 	switch (val) {
 	case SCPI_CL_LED_TIMER:
+		/* sync data */
+		ldev->ltd.expires = ltd->expires;
+		ldev->ltd.expires_count = ltd->expires_count;
+		ldev->ltd.led_mode = ltd->led_mode;
 		scpi_send_usr_data(SCPI_CL_LED_TIMER,
 				(u32 *)ltd, sizeof(*ltd));
 		break;
