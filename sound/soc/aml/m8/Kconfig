@@ -8,3 +8,4 @@ menuconfig SND_AML_M8
 	select SND_SOC_TAS5707
 	select SND_SOC_TAS5717
 	select SND_SOC_TAS5731
+	select SND_SOC_AMLT9015

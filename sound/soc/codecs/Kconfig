@@ -579,4 +579,7 @@ config SND_SOC_AMLPMU4
 	tristate
 
 config SND_SOC_PCM2BT
-   tristate
+	tristate
+
+config SND_SOC_AMLT9015
+	tristate
