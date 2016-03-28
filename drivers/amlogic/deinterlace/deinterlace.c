@@ -4503,6 +4503,14 @@ static void dump_vframe_input(vframe_t *vframe)
 	return;
 }
 
+static unsigned int is_need_set_bitdepth_10bit(vframe_t *vframe)
+{
+	if ((!bypass_state) && (di_force_bit_mode == 10))
+		return 1;
+
+	return 0;
+}
+
 static unsigned char pre_de_buf_config(void)
 {
 	struct di_buf_s *di_buf = NULL;
@@ -4999,12 +5007,9 @@ static unsigned char pre_de_buf_config(void)
 	di_buf->vframe->private_data = di_buf;
 	di_buf->vframe->canvas0Addr = di_buf->nr_canvas_idx;
 	di_buf->vframe->canvas1Addr = di_buf->nr_canvas_idx;
-	if ((!bypass_state) && (di_force_bit_mode == 10))
+
+	if (is_need_set_bitdepth_10bit(di_buf->vframe) == 1)
 		di_buf->vframe->bitdepth |= BITDEPTH_Y10;
-/*
-	else
-		di_buf->vframe->di_process_type = 0;
-	*/
 
 	if (di_pre_stru.prog_proc_type) {
 		di_buf->vframe->type = VIDTYPE_PROGRESSIVE |

@@ -1700,25 +1700,6 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 	if (!is_meson_gxtvbb_cpu())
 		return;
 
-	if ((vframe->width > 1920) || (vframe->height > 1080)) {
-		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
-		 * input source*/
-		if (vframe->bitdepth & BITDEPTH_Y10)
-			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
-		else
-			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
-
-		Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
-		/*force to 8 bit mode */
-		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
-		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
-		pr_info("Beyond 1080P, config bit mode as 8bit. width:%d, height:%d\n",
-			vframe->width, vframe->height);
-		return;
-	}
-
 	if (vframe->source_type == VFRAME_SOURCE_TYPE_CVBS)
 		Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 15);
 	else
