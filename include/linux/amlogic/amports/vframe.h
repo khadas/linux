@@ -256,6 +256,10 @@ struct vframe_s {
 	u64 ready_jiffies64;	/* ready from decode on  jiffies_64 */
 	atomic_t use_cnt;
 	u32 frame_dirty;
+	/* prog_proc_config:
+	 *1: process p from decoder as filed;
+	 *0: process p from decoder as frame*/
+	u32 prog_proc_config;
 } /*vframe_t */;
 
 #if 0

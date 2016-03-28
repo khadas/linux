@@ -4584,6 +4584,8 @@ static unsigned char pre_de_buf_config(void)
 		if (vframe == NULL)
 			return 0;
 
+		vframe->prog_proc_config = (prog_proc_config&0x20) >> 5;
+
 		if (dump_vf_start_flag)
 			dump_vf_num_inner = dump_vf_num;
 

@@ -1606,6 +1606,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vf->type |=  VIDTYPE_PROGRESSIVE;
 		curr_wr_vf->type |=  VIDTYPE_PRE_INTERLACE;
 	}
+	curr_wr_vf->type_original = curr_wr_vf->type;
 
 	vdin_set_drm_data(devp, curr_wr_vf);
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
@@ -1746,6 +1747,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	curr_wr_vf  = &curr_wr_vfe->vf;
 
 	curr_wr_vf->type = last_field_type;
+	curr_wr_vf->type_original = curr_wr_vf->type;
 
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 	vdin_backup_histgram(curr_wr_vf, devp);
