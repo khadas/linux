@@ -1,7 +1,11 @@
 #
 #Makefile for the gpio dirver
 #
-obj-$(CONFIG_PINCTRL_AMLOGIC)+= pinctrl_amlogic.o pinctrl_m8.o pinctrl_gxbb.o\
-				pinctrl_gxtvbb.o sample_code.o
 
-
+ifneq ($(CONFIG_ARM64),)
+obj-$(CONFIG_PINCTRL_AMLOGIC)	+= pinctrl_amlogic.o sample_code.o \
+					pinctrl_gxbb.o pinctrl_gxtvbb.o
+else
+obj-$(CONFIG_PINCTRL_AMLOGIC)	+= pinctrl_amlogic.o sample_code.o \
+					pinctrl_m8.o
+endif

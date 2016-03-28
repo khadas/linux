@@ -641,6 +641,9 @@ static int  gxtvbb_clear_pinmux(struct amlogic_pmx *apmx, unsigned int pin)
 	return 0;
 }
 
+
+#ifdef CONFIG_ARM64
+
 /*
  * function id 0x82000046 is to set AO_SEC_REG0 bit[0] in bl31.
  * bit[0] is set with arg0.
@@ -666,6 +669,16 @@ static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
 
 	return function_id;
 }
+
+#else
+
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					 u64 arg2)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ARM64 */
 
 
 /*
