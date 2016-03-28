@@ -5,6 +5,7 @@
 #include <linux/amlogic/iomap.h>
 #include "register.h"
 #include "dnr.h"
+#include "deinterlace.h"
 
 static DNR_PRM_t dnr_param;
 static DNR_PRM_t *pDnrPrm = &dnr_param;
@@ -209,9 +210,9 @@ int hor_blk_ofst_calc_sw(int *pHbOfVldCnt,
 	}
 	*/
 	if (dnr_pr) {
-		pr_info("Max1 = %5d, Max2 = %5d, MaxIdx = %5d, Rat0 = %5d,Rat1 = %5d.\n",
+		pr_dbg("Max1 = %5d, Max2 = %5d, MaxIdx = %5d, Rat0 = %5d,Rat1 = %5d.\n",
 				nMax1, nMax2, nMaxIdx, nRat0, nRat1);
-		pr_info("CurHbOfst = %5d, HbOfVldFlg = %d, HbOfVldCnt = %d.\n",
+		pr_dbg("CurHbOfst = %5d, HbOfVldFlg = %d, HbOfVldCnt = %d.\n",
 				nCurHbOfst, *pHbOfVldFlg, *pHbOfVldCnt);
 	}
 
@@ -440,7 +441,7 @@ static ssize_t dnr_param_store(struct device *dev,
 		if (!strcmp(parm[0], dnr_params[i].name)) {
 			vaule = kstrtol(parm[1], 10, NULL);
 			*(dnr_params[i].addr) = vaule;
-			pr_info("%s=%d.\n", dnr_params[i].name,
+			pr_dbg("%s=%d.\n", dnr_params[i].name,
 *(dnr_params[i].addr));
 		}
 	}

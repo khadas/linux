@@ -123,7 +123,7 @@ int read_cbus_reg_signed_bits(unsigned int reg, unsigned int startbit,
 	val = READ_DET3D_REG_BITS(reg, startbit, length);
 	tmp = tmp << (length - 1);
 
-	/* pr_info("len = %d, unsigned value = %d,
+	/* pr_dbg("len = %d, unsigned value = %d,
 signed value = %d",length,val,((val >= tmp )?(val - (tmp << 1)):val));*/
 	return (val >= tmp)?(val - (tmp << 1)):val;
 }
@@ -204,7 +204,7 @@ det3d_info.tscore_3d_tb_accum + (tb_score <= 0) -
 		det3d_info.score_3d_chs = det3d_info.score_3d_chs + tmp1;
 		det3d_info.score_3d_int = det3d_info.score_3d_int + tmp2;
 		if (det3d_debug)
-			pr_info("%s input(%d,%d),output (%d,%d).\n",
+			pr_dbg("%s input(%d,%d),output (%d,%d).\n",
 __func__, chessbd_score, int_score,
 det3d_info.score_3d_chs, det3d_info.score_3d_int);
 		/* cliping to s7 */
@@ -400,9 +400,9 @@ chessbd_ver_thrd);
 	}
 
 	if (det3d_debug)
-		pr_info("det3d:frame = %d, 3D_fmt = %d, score_3d_lr = %d,",
+		pr_dbg("det3d:frame = %d, 3D_fmt = %d, score_3d_lr = %d,",
 det3d_info.nfrm, det3d_info.tfw_det3d_fmt, det3d_info.score_3d_lr);
-		pr_info("score_3d_tb = %d, score_3d_int = %d, score_3d_chs = %d",
+		pr_dbg("score_3d_tb = %d, score_3d_int = %d, score_3d_chs = %d",
 det3d_info.score_3d_tb, det3d_info.score_3d_int, det3d_info.score_3d_chs);
 	return det3d_info.tfw_det3d_fmt;
 }

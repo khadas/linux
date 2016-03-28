@@ -1641,7 +1641,7 @@ bool read_pulldown_info(pulldown_detect_info_t *field_pd_info,
 	fdn[4] = field_pd_info->frame_diff_num;
 	/* if (fdn[0] || fdn[1] || fdn[2] || fdn[3] || fdn[4]) */
 	if (frame_dynamic_dbg)
-		pr_info("\n fdn[4]= %x", fdn[4]);
+		pr_dbg("\n fdn[4]= %x", fdn[4]);
 	if (frame_dynamic_level == 0)
 		fdn[4] = fdn[4]&0xffff00;
 	else if (frame_dynamic_level == 1)
@@ -1908,6 +1908,6 @@ void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag)
 	if (bypass_flag != bit_mode_last_bypass_flag) {
 		config_di_bit_mode(vframe, bypass_flag);
 		bit_mode_last_bypass_flag = bypass_flag;
-		pr_info("di_bit_mode_bypass_cfg, bypass: %d\n", bypass_flag);
+		pr_dbg("di_bit_mode_bypass_cfg, bypass: %d\n", bypass_flag);
 	}
 }

@@ -452,4 +452,11 @@ struct di_dev_s {
 	unsigned int       post_wr_surpport;
 };
 #define di_dev_t struct di_dev_s
+
+#define di_pr_info(fmt, args ...)   pr_info("DI: " fmt, ## args)
+
+#define pr_dbg(fmt, args ...)       pr_debug("DI: " fmt, ## args)
+
+#define pr_error(fmt, args ...)     pr_err("DI: " fmt, ## args)
+
 #endif
