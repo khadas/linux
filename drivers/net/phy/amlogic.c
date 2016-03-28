@@ -637,6 +637,15 @@ static int amlogic_phy_config_aneg(struct phy_device *phydev)
 
 	return genphy_config_aneg(phydev);
 }
+static int amlogic_phy_suspend(struct phy_device *phydev)
+{
+	uint8_t val;
+	/*enable 50M clock,or eth up will fail*/
+	aml_pmu4_read(0x7B, &val);
+	aml_pmu4_write(0x7B, val|0x4);
+	return genphy_suspend(phydev);
+}
+
 static struct phy_driver amlogic_phy_driver[] = {
 	{
 		.phy_id		= 0x79898963,
@@ -677,7 +686,7 @@ static struct phy_driver amlogic_phy_driver[] = {
 		.ack_interrupt	= &amlogic_phy_ack_interrupt,
 		.config_intr	= &amlogic_phy_config_intr,
 
-		.suspend	= genphy_suspend,
+		.suspend	= amlogic_phy_suspend,
 		.resume		= genphy_resume,
 
 		.driver		= { .owner = THIS_MODULE, }
