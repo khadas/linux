@@ -1804,6 +1804,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	p += LCD_UKEY_BL_METHOD;
 
 	bconf->en_gpio = *p;
+	bl_gpio_register(bconf->en_gpio);
 	p += LCD_UKEY_BL_EN_GPIO;
 	bconf->en_gpio_on = *p;
 	p += LCD_UKEY_BL_EN_GPIO_ON;
