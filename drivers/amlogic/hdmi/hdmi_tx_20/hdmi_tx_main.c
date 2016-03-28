@@ -500,7 +500,7 @@ static int set_disp_mode_auto(void)
 	}
 	hdev->para = para;
 	/* msleep(500); */
-	vic = hdmitx_edid_get_VIC(hdev, mode, 0);
+	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
 	} else if (strncmp(info->name, "2160p25hz",
