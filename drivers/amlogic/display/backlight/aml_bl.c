@@ -66,6 +66,9 @@ MODULE_PARM_DESC(bl_off_policy, "bl_off_policy");
 static unsigned int brightness_bypass;
 module_param(brightness_bypass, uint, 0664);
 MODULE_PARM_DESC(brightness_bypass, "bl_brightness_bypass");
+static unsigned int pwm_bypass;
+module_param(pwm_bypass, uint, 0664);
+MODULE_PARM_DESC(pwm_bypass, "bl_pwm_bypass");
 
 static unsigned int bl_pwm_duty_free;
 module_param(bl_pwm_duty_free, uint, 0664);
@@ -1005,6 +1008,9 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 
 static void bl_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 {
+	if (pwm_bypass)
+		return;
+
 	if (bl_pwm_duty_free) {
 		if (bl_pwm->pwm_duty > 100) {
 			BLERR("pwm_duty %d%% is bigger 100%%\n",
@@ -1041,6 +1047,9 @@ static void bl_set_level_pwm(struct bl_pwm_config_s *bl_pwm, unsigned int level)
 	unsigned int max = bl_pwm->level_max;
 	unsigned int pwm_max = bl_pwm->pwm_max;
 	unsigned int pwm_min = bl_pwm->pwm_min;
+
+	if (pwm_bypass)
+		return;
 
 	level = bl_level_mapping(level);
 	max = bl_level_mapping(max);
@@ -2664,6 +2673,7 @@ static int aml_bl_probe(struct platform_device *pdev)
 
 	/* init backlight parameters */
 	brightness_bypass = 0;
+	pwm_bypass = 0;
 	bl_pwm_duty_free = 0;
 
 	bl_chip_type = aml_bl_check_chip();
