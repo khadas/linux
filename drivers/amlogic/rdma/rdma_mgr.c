@@ -549,6 +549,7 @@ EXPORT_SYMBOL(rdma_write_reg);
 int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 {
 	int i;
+	int match = 0;
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	u32 read_val = READ_VCBUS_REG(adr);
@@ -560,11 +561,16 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	for (i = (ins->rdma_item_count - 1) ; i >= 0; i--) {
 		if (ins->reg_buf[i<<1] == adr) {
 			read_val = ins->reg_buf[(i<<1)+1];
+			match = 1;
 			break;
 		}
 	}
 	write_val = (read_val & ~(((1L<<(len))-1)<<(start)))
 		|((unsigned int)(val) << (start));
+	if (match) {
+		ins->reg_buf[(i << 1) + 1] = write_val;
+		return 0;
+	}
 	if (debug_flag & 1)
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
 			handle, ins->rdma_item_count, adr, write_val);
