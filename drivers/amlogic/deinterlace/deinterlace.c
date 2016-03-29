@@ -162,7 +162,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-03-22a";
+static const char version_s[] = "2016-03-28a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -2120,7 +2120,6 @@ static void dis2_di(void)
 	di_set_power_control(0, 0);
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
-		disable_post_deinterlace_2();
 		Wr(DI_CLKG_CTRL, 0x2);
 	}
 
@@ -6932,7 +6931,6 @@ static void di_unreg_process_irq(void)
 #endif
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
-		disable_post_deinterlace_2();
 		Wr(DI_CLKG_CTRL, 0x2);
 	}
 	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
