@@ -61,8 +61,11 @@ void vf_update_active_map(void)
 					[j]);
 				if (vfp == NULL)
 					vfm_map[i]->active &= (~(1 << j));
-				else
-					vfm_map[i]->active |= (1 << j);
+				else {
+					if ((j > 0 && vfm_map[i]->active & 0x1)
+							|| j == 0)
+						vfm_map[i]->active |= (1 << j);
+				}
 			}
 		}
 	}
@@ -245,7 +248,7 @@ char *vf_get_receiver_name(const char *provider_name)
 	int i;
 	char *receiver_name = NULL;
 	for (i = 0; i < vfm_map_num; i++) {
-		if (vfm_map[i] && vfm_map[i]->valid) {
+		if (vfm_map[i] && vfm_map[i]->valid && vfm_map[i]->active) {
 			receiver_name = vf_get_receiver_name_inmap(i,
 					provider_name);
 		}
