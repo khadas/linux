@@ -941,6 +941,8 @@ void dtmb_all_reset(void)
 	dtmb_write_reg(DTMB_TOP_CTRL_AGC, 0x3);
 	dtmb_write_reg(DTMB_TOP_CTRL_TS_SFO_CFO, 0x20403006);
 	dtmb_write_reg(DTMB_FRONT_AGC_CONFIG2, 0x7200a16);
+	dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x1e00000);
+	dtmb_write_reg(DTMB_TOP_CTRL_ENABLE, 0x7fffff);
 	/*close ts3 timing loop*/
 	dtmb_write_reg(DTMB_TOP_CTRL_DAGC_CCI, 0x305);
 	if (demod_enable_performance) {
