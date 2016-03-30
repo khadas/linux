@@ -1354,9 +1354,12 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 
 	snprintf(buf, sizeof(buf), "%s%d_reset_gpio", name, id);
 #ifdef CONFIG_OF
-	dev->reset_gpio = desc_to_gpio(devm_gpiod_get(&pdev->dev, buf));
-	if (dev->reset_gpio) {
-		pr_inf("%s: %d\n", buf, dev->reset_gpio);
+	ret = of_property_read_string(pdev->dev.of_node, buf, &str);
+	if (!ret) {
+		dev->reset_gpio =
+		    desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
+							  buf, 0, NULL));
+		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->reset_gpio = -1;
 		pr_error("cannot find resource \"%s\"\n", buf);
@@ -1402,7 +1405,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	if (!ret) {
 		dev->tuner_power_gpio =
 		    desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
-							  name, 0, NULL));
+							  buf, 0, NULL));
 		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->tuner_power_gpio = -1;
@@ -1424,7 +1427,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	if (!ret) {
 		dev->lnb_power_gpio =
 		    desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
-							  name, 0, NULL));
+							  buf, 0, NULL));
 		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->lnb_power_gpio = -1;
@@ -1446,7 +1449,7 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 	if (!ret) {
 		dev->antoverload_gpio =
 		    desc_to_gpio(of_get_named_gpiod_flags(pdev->dev.of_node,
-							  name, 0, NULL));
+							  buf, 0, NULL));
 		pr_inf("%s: %s\n", buf, str);
 	} else {
 		dev->antoverload_gpio = -1;
