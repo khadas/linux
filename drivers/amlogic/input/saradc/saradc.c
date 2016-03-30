@@ -24,10 +24,15 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/amlogic/saradc.h>
+#include <linux/amlogic/cpu_version.h>
 #include "saradc_reg.h"
 
 /* #define ENABLE_DYNAMIC_POWER */
 #define CLEAN_BUFF_BEFORE_SARADC 1
+
+/* flag_12bit = 0 : 10 bit
+   flag_12bit = 1 : 12 bit*/
+static char flag_12bit;
 
 #define saradc_info(x...) dev_info(adc->dev, x)
 #define saradc_dbg(x...) /* dev_info(adc->dev, x) */
@@ -186,14 +191,40 @@ static int saradc_get_cal_value(struct saradc *adc, int val)
 	return nominal;
 }
 
-int get_adc_sample(int dev_id, int ch)
+static int saradc_get_cal_value_12bit(struct saradc *adc, int val)
+{
+	int nominal;
+/*
+	((nominal - ref_nominal) << 10) / (val - ref_val) = coef
+	==> nominal = ((val - ref_val) * coef >> 10) + ref_nominal
+*/
+	nominal = val;
+	if ((adc->coef > 0) && (val > 0)) {
+		nominal = (val - adc->ref_val) * adc->coef;
+		nominal >>= 12;
+		nominal += adc->ref_nominal;
+	}
+	if (nominal < 0)
+		nominal = 0;
+	if (nominal > 4095)
+		nominal = 4095;
+	return nominal;
+}
+
+/* if_10bit=1:10bit
+   if_10bit=0:12bit */
+int get_adc_sample_early(int dev_id, int ch, char if_10bit)
 {
 	struct saradc *adc;
 	void __iomem *mem_base;
 	int value, count, sum;
 	int max = 0;
 	int min = 0x3ff;
+	int min_12bit = 0xfff;
 	unsigned long flags;
+
+	if (!if_10bit)
+		min = min_12bit;
 
 	adc = gp_saradc;
 	mem_base = adc->mem_base;
@@ -240,7 +271,15 @@ int get_adc_sample(int dev_id, int ch)
 	while (getb(mem_base, FIFO_COUNT) && (count < FIFO_MAX)) {
 		value = readl(mem_base+SARADC_FIFO_RD);
 		if (((value>>12) & 0x07) == ch) {
-			value &= 0x3ff;
+			if (if_10bit) {
+				if (flag_12bit) {
+					value &= 0xffc;
+					value >>= 2;
+				} else
+					value &= 0x3ff;
+			} else
+				value &= 0xfff;
+
 			if (value > max)
 				max = value;
 			if (value < min)
@@ -261,7 +300,10 @@ int get_adc_sample(int dev_id, int ch)
 	value = sum / count;
 	saradc_dbg("before cal: %d, count=%d\n", value, count);
 	if (adc->coef) {
-		value = saradc_get_cal_value(adc, value);
+		if (if_10bit)
+			value = saradc_get_cal_value(adc, value);
+		else
+			value = saradc_get_cal_value_12bit(adc, value);
 		saradc_dbg("after cal: %d\n", value);
 	}
 end1:
@@ -275,6 +317,21 @@ end:
 	adc->state = SARADC_STATE_IDLE;
 	spin_unlock_irqrestore(&adc->lock, flags);
 	return value;
+}
+
+
+int get_adc_sample(int dev_id, int ch)
+{
+	int val;
+	val = get_adc_sample_early(dev_id, ch, 1);
+	return val;
+}
+
+int get_adc_sample_12bit(int dev_id, int ch)
+{
+	int val;
+	val = get_adc_sample_early(dev_id, ch, 0);
+	return val;
 }
 
 static void __iomem *
@@ -361,6 +418,11 @@ static int saradc_probe(struct platform_device *pdev)
 	int err;
 	struct saradc *adc;
 	struct reset_control *rst;
+
+	if (is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu())
+		flag_12bit = 0;
+	else
+		flag_12bit = 1;
 
 	adc = kzalloc(sizeof(struct saradc), GFP_KERNEL);
 	if (!adc) {
