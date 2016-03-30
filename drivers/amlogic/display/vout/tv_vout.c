@@ -113,10 +113,11 @@ static int check_cpu_type(unsigned int cpu_type)
 	return ret;
 }
 
-static int get_cpu_minor(void)
-{
-	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
-}
+/* static int get_cpu_minor(void)
+* {
+*	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
+* }
+*/
 
 static void set_tvmode_misc(enum tvmode_e mode)
 {
@@ -169,11 +170,10 @@ static void cvbs_cntl_output(unsigned int open)
 		cntl1 = 8;
 		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
 		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
-		if (check_cpu_type(MESON_CPU_MAJOR_ID_GXTVBB) &&
-			(get_cpu_minor() == 0xb)) {
-			tv_out_hiu_setb(HHI_VDAC_CNTL0, 0, 9, 1);
-			tv_out_hiu_setb(HHI_VDAC_CNTL1, 0, 3, 1);
-		}
+
+		/* must enable adc bandgap, the adc ref signal for demod */
+		ana_ref_cntl0_bit9(0, 0x8);
+		vdac_out_cntl1_bit3(0, 0x8);
 	} else if (open == 1) { /* open */
 		cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
@@ -181,11 +181,10 @@ static void cvbs_cntl_output(unsigned int open)
 			      vdac_cfg_valid, cntl0, cntl1);
 		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
 		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
-		if (check_cpu_type(MESON_CPU_MAJOR_ID_GXTVBB) &&
-			(get_cpu_minor() == 0xb)) {
-			tv_out_hiu_setb(HHI_VDAC_CNTL0, 1, 9, 1);
-			tv_out_hiu_setb(HHI_VDAC_CNTL1, 1, 3, 1);
-		}
+
+		/* must enable adc bandgap, the adc ref signal for demod */
+		ana_ref_cntl0_bit9(1, 0x8);
+		vdac_out_cntl1_bit3(1, 0x8);
 	}
 	return;
 }

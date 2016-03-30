@@ -4053,42 +4053,29 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 		if (enable) {
 			if (port == TVIN_PORT_CVBS3) {
 				W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
-				if (chip_ver == 0xA)
-					W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
-				else
-					W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
-				/* open CVBS DAC */
+				/* enable dac output */
+				vdac_out_cntl1_bit3(1, 0x4);
 				W_HIU_BIT(HHI_VDAC_CNTL0, 1, 0, 3);
 				/* clock delay control */
 				W_HIU_BIT(HHI_VIID_CLK_DIV, 1, 19, 1);
 				/* vdac_clock_mux form atv demod */
-				W_HIU_BIT(HHI_VID_CLK_CNTL2, 1, 8, 1);/*  */
+				W_HIU_BIT(HHI_VID_CLK_CNTL2, 1, 8, 1);
 				W_HIU_BIT(HHI_VID_CLK_CNTL2, 1, 4, 1);
 				/* vdac_clk gated clock control */
 				W_VCBUS_BIT(VENC_VDAC_DACSEL0, 1, 5, 1);
 				W_HIU_BIT(HHI_GCLK_OTHER, 1, 10, 1);
-				//if set not need set again */
-
 			} else{
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
-				/* close atv demod to cvd */
-
-				if (chip_ver == 0xA)
-					W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
-				else
-					W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
-				/* close CVBS DAC(CDAC_PWD=1) */
+				 /* enable dac output */
+				vdac_out_cntl1_bit3(0, 0x4);
+				/* enable AFE output buffer */
 				W_HIU_BIT(HHI_VDAC_CNTL0, 1, 10, 1);
-				/* Enable AFE output buffer */
 			}
 		} else{
-			if (chip_ver == 0xA)
-				W_HIU_BIT(HHI_VDAC_CNTL1, 1, 3, 1);
-			else
-				W_HIU_BIT(HHI_VDAC_CNTL1, 0, 3, 1);
-
-			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
+			/* enable dac output */
+			vdac_out_cntl1_bit3(0, 0x4);
 			/* Disable AFE output buffer */
+			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
 		}
 #if 0
 	} else {
@@ -4229,16 +4216,7 @@ void tvafe_enable_module(bool enable)
 	if (get_cpu_type() < MESON_CPU_TYPE_MESONG9TV)
 		W_APB_BIT(ADC_REG_21, 1, FULLPDZ_BIT, FULLPDZ_WID);
 #endif
-	/*Enable AFE Bandgap*/
-	if (is_meson_gxtvbb_cpu()) {
-		if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR)
-				== 0xA)
-			/* chip A */
-			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 9, 1);
-		else
-			/* chip B*/
-			W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);
-	}
+
 	/*reset module*/
 	tvafe_reset_module();
 
@@ -4266,5 +4244,11 @@ void tvafe_enable_module(bool enable)
 		W_HIU_REG(HHI_VAFE_CLKPI_CNTL, 0);
 		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0);
 	}
+	/* adc bandgap, the adc ref signal for demod */
+	if (enable)
+		ana_ref_cntl0_bit9(1, 0x4);
+	else
+		ana_ref_cntl0_bit9(0, 0x4);
+
 }
 

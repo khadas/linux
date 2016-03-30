@@ -242,6 +242,10 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 		pr_dbg("[amlatvdemod..]%s init atvdemod error.\n", __func__);
 		return err_code;
 	}
+
+	/* must enable the adc ref signal for demod */
+	ana_ref_cntl0_bit9(1, 0x1);
+
 	return 0;
 }
 
@@ -252,6 +256,9 @@ static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 		devm_pinctrl_put(amlatvdemod_devp->pin);
 		amlatvdemod_devp->pin = NULL;
 	}
+	/* should disable the adc ref signal for demod */
+	ana_ref_cntl0_bit9(0, 0x1);
+
 	return 0;
 }
 
