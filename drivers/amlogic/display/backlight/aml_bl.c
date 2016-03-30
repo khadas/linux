@@ -1772,6 +1772,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	int key_len, len;
 	unsigned char *p;
 	const char *str;
+	unsigned char temp;
 	struct aml_lcd_unifykey_header_s bl_header;
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
@@ -1830,12 +1831,24 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	bconf->level_mid_mapping = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_MID_MAP;
 
+	/* adjust brightness_bypass by level_default */
+	if (bconf->level_default > bconf->level_max) {
+		brightness_bypass = 1;
+		BLPR("level_default > level_max, enable brightness_bypass\n");
+	}
+
 	/* method: 8byte */
-	bconf->method = *p;
+	temp = *p;
+	bconf->method = (temp >= BL_CTRL_MAX) ? BL_CTRL_MAX : temp;
 	p += LCD_UKEY_BL_METHOD;
 
-	bconf->en_gpio = *p;
-	bl_gpio_register(bconf->en_gpio);
+	temp = *p;
+	if (temp >= BL_GPIO_NUM_MAX) {
+		bconf->en_gpio = BL_GPIO_MAX;
+	} else {
+		bconf->en_gpio = temp;
+		bl_gpio_register(bconf->en_gpio);
+	}
 	p += LCD_UKEY_BL_EN_GPIO;
 	bconf->en_gpio_on = *p;
 	p += LCD_UKEY_BL_EN_GPIO_ON;
@@ -1872,12 +1885,28 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 		p += LCD_UKEY_BL_PWM_PORT;
 		bl_pwm->pwm_freq = (*p | ((*(p + 1)) << 8) |
 				((*(p + 2)) << 8) | ((*(p + 3)) << 8));
+		if (bl_pwm->pwm_port == BL_PWM_VS) {
+			if (bl_pwm->pwm_freq > 4) {
+				BLERR("bl_pwm_vs wrong freq %d\n",
+					bl_pwm->pwm_freq);
+				bl_pwm->pwm_freq = BL_FREQ_VS_DEFAULT;
+			}
+		} else {
+			if (bl_pwm->pwm_freq > XTAL_HALF_FREQ_HZ)
+				bl_pwm->pwm_freq = XTAL_HALF_FREQ_HZ;
+		}
 		p += LCD_UKEY_BL_PWM_FREQ;
 		bl_pwm->pwm_duty_max = *p;
 		p += LCD_UKEY_BL_PWM_DUTY_MAX;
 		bl_pwm->pwm_duty_min = *p;
 		p += LCD_UKEY_BL_PWM_DUTY_MIN;
-		bl_pwm->pwm_gpio = *p;
+		temp = *p;
+		if (temp >= BL_GPIO_NUM_MAX) {
+			bl_pwm->pwm_gpio = BL_GPIO_MAX;
+		} else {
+			bl_pwm->pwm_gpio = temp;
+			bl_gpio_multiplex_register(bl_pwm->pwm_gpio);
+		}
 		p += LCD_UKEY_BL_PWM_GPIO;
 		bl_pwm->pwm_gpio_off = *p;
 		p += LCD_UKEY_BL_PWM_GPIO_OFF;
@@ -1931,12 +1960,28 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 		p += LCD_UKEY_BL_PWM_PORT;
 		pwm_combo0->pwm_freq = (*p | ((*(p + 1)) << 8) |
 				((*(p + 2)) << 8) | ((*(p + 3)) << 8));
+		if (pwm_combo0->pwm_port == BL_PWM_VS) {
+			if (pwm_combo0->pwm_freq > 4) {
+				BLERR("bl_pwm_0_vs wrong freq %d\n",
+					pwm_combo0->pwm_freq);
+				pwm_combo0->pwm_freq = BL_FREQ_VS_DEFAULT;
+			}
+		} else {
+			if (pwm_combo0->pwm_freq > XTAL_HALF_FREQ_HZ)
+				pwm_combo0->pwm_freq = XTAL_HALF_FREQ_HZ;
+		}
 		p += LCD_UKEY_BL_PWM_FREQ;
 		pwm_combo0->pwm_duty_max = *p;
 		p += LCD_UKEY_BL_PWM_DUTY_MAX;
 		pwm_combo0->pwm_duty_min = *p;
 		p += LCD_UKEY_BL_PWM_DUTY_MIN;
-		pwm_combo0->pwm_gpio = *p;
+		temp = *p;
+		if (temp >= BL_GPIO_NUM_MAX) {
+			pwm_combo0->pwm_gpio = BL_GPIO_MAX;
+		} else {
+			pwm_combo0->pwm_gpio = temp;
+			bl_gpio_multiplex_register(pwm_combo0->pwm_gpio);
+		}
 		p += LCD_UKEY_BL_PWM_GPIO;
 		pwm_combo0->pwm_gpio_off = *p;
 		p += LCD_UKEY_BL_PWM_GPIO_OFF;
@@ -1946,12 +1991,28 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 		p += LCD_UKEY_BL_PWM2_PORT;
 		pwm_combo1->pwm_freq = (*p | ((*(p + 1)) << 8) |
 				((*(p + 2)) << 8) | ((*(p + 3)) << 8));
+		if (pwm_combo1->pwm_port == BL_PWM_VS) {
+			if (pwm_combo1->pwm_freq > 4) {
+				BLERR("bl_pwm_1_vs wrong freq %d\n",
+					pwm_combo1->pwm_freq);
+				pwm_combo1->pwm_freq = BL_FREQ_VS_DEFAULT;
+			}
+		} else {
+			if (pwm_combo1->pwm_freq > XTAL_HALF_FREQ_HZ)
+				pwm_combo1->pwm_freq = XTAL_HALF_FREQ_HZ;
+		}
 		p += LCD_UKEY_BL_PWM2_FREQ;
 		pwm_combo1->pwm_duty_max = *p;
 		p += LCD_UKEY_BL_PWM2_DUTY_MAX;
 		pwm_combo1->pwm_duty_min = *p;
 		p += LCD_UKEY_BL_PWM2_DUTY_MIN;
-		pwm_combo1->pwm_gpio = *p;
+		temp = *p;
+		if (temp >= BL_GPIO_NUM_MAX) {
+			pwm_combo1->pwm_gpio = BL_GPIO_MAX;
+		} else {
+			pwm_combo1->pwm_gpio = temp;
+			bl_gpio_multiplex_register(pwm_combo1->pwm_gpio);
+		}
 		p += LCD_UKEY_BL_PWM2_GPIO;
 		pwm_combo1->pwm_gpio_off = *p;
 		p += LCD_UKEY_BL_PWM2_GPIO_OFF;
