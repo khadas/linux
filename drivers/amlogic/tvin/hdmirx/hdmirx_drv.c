@@ -44,7 +44,7 @@
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
-
+#include "uart_hdmi.h"
 
 #define TVHDMI_NAME				"hdmirx"
 #define TVHDMI_DRIVER_NAME		"hdmirx"

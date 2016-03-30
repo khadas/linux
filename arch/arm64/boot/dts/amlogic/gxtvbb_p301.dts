@@ -310,6 +310,43 @@
 		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 	};
+	hdmirx_uart {
+		compatible = "amlogic, hdmirx_uart";
+		status = "ok";
+		pinctrl-names = "hdmirx_init_pin","hu_det_none",
+				"hu_det_u1","hu_det_u2","hu_det_u3",
+				"hu_det_h1","hu_det_h2","hu_det_h3",
+				"hu_det_h1h2","hu_det_h1h3","hu_det_h2h3","hu_det_h1h2h3",
+				"hu_det_u1_h2","hu_det_u1_h3","hu_det_u1_h2h3",
+				"hu_det_u2_h1","hu_det_u2_h3","hu_det_u2_h1h3",
+				"hu_det_u3_h1","hu_det_u3_h2","hu_det_u3_h1h2";
+		pinctrl-0 = <&hdmirx_init_pin>;
+		pinctrl-1 = <&hdmirx_init_pin &hu_hpds_gpio>;
+		pinctrl-2 = <&hdmirx_init_pin &hu_hpds_gpio &u_ch1_in>;
+		pinctrl-3 = <&hdmirx_init_pin &hu_hpds_gpio &u_ch2_in>;
+		pinctrl-4 = <&hdmirx_init_pin &hu_hpds_gpio &u_ch3_in>;
+		pinctrl-5 = <&hdmirx_init_pin &hu_hpd2_gpio &hu_hpd3_gpio>;
+		pinctrl-6 = <&hdmirx_init_pin &hu_hpd1_gpio &hu_hpd3_gpio>;
+		pinctrl-7 = <&hdmirx_init_pin &hu_hpd1_gpio &hu_hpd2_gpio>;
+		pinctrl-8 = <&hdmirx_init_pin &hu_hpd3_gpio>;
+		pinctrl-9 = <&hdmirx_init_pin &hu_hpd2_gpio>;
+		pinctrl-10 = <&hdmirx_init_pin &hu_hpd1_gpio>;
+		pinctrl-11 = <&hdmirx_init_pin &hu_uart_init>;
+		pinctrl-12 = <&hdmirx_init_pin &hu_hpd1_gpio &hu_hpd3_gpio &u_ch1_in>;
+		pinctrl-13 = <&hdmirx_init_pin &hu_hpd1_gpio &hu_hpd2_gpio &u_ch1_in>;
+		pinctrl-14 = <&hdmirx_init_pin &hu_hpd1_gpio &u_ch1_in>;
+		pinctrl-15 = <&hdmirx_init_pin &hu_hpd2_gpio &hu_hpd3_gpio &u_ch2_in>;
+		pinctrl-16 = <&hdmirx_init_pin &hu_hpd1_gpio &hu_hpd2_gpio &u_ch2_in>;
+		pinctrl-17 = <&hdmirx_init_pin &hu_hpd2_gpio &u_ch2_in>;
+		pinctrl-18 = <&hdmirx_init_pin &hu_hpd2_gpio &hu_hpd3_gpio &u_ch3_in>;
+		pinctrl-19 = <&hdmirx_init_pin &hu_hpd1_gpio &hu_hpd3_gpio &u_ch3_in>;
+		pinctrl-20 = <&hdmirx_init_pin &hu_hpd3_gpio &u_ch3_in>;
+		hdmiuart1_pin =  <&gpio       GPIOW_5       GPIO_ACTIVE_HIGH>;
+		hdmiuart2_pin =  <&gpio       GPIOW_9       GPIO_ACTIVE_HIGH>;
+		hdmiuart3_pin =  <&gpio       GPIOW_13      GPIO_ACTIVE_HIGH>;
+		hdmiuart_use_num = <7>;/*0:dont use. 1:use num1. 2:use num2. 4:use num3*/
+	};
+
 	hdmirx {
 		compatible = "amlogic, hdmirx";
 		dev_name = "hdmirx";
@@ -1542,11 +1579,86 @@
                 amlogic,setmask = <6  0x3def780>;
                 amlogic,clrmask = <6  0x04210800>,
                                   <10 0x0000001e>;
-                amlogic,pins = "GPIOW_5","GPIOW_6","GPIOW_7","GPIOW_8",
-                        "GPIOW_9","GPIOW_10","GPIOW_11","GPIOW_12",
-                        "GPIOW_13","GPIOW_14","GPIOW_15","GPIOW_16",
+                amlogic,pins = "GPIOW_6","GPIOW_8",
+                        "GPIOW_10","GPIOW_12",
+                        "GPIOW_14","GPIOW_16",
                         "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
         };
+	hdmirx_init_pin:hdmirx_init_pin {
+		        amlogic,setmask = <6  0x3def780>;
+                amlogic,clrmask = <6  0x04210800>,
+                                  <10 0x0000001e>;
+                amlogic,pins = "GPIOW_7";
+	};
+	u_ch1_in:u_ch1_in {
+		amlogic,clrmask = <AO 0x33>,
+						  <6  0x600>;
+		amlogic,setmask = <6  0x800>,
+						  <10 0x2>;
+		amlogic,pins = "GPIOW_7";
+	};
+	u_ch2_in:u_ch2_in {
+		amlogic,clrmask = <AO 0x33>,
+						  <6  0xC000>;
+		amlogic,setmask = <6  0x10000>,
+						  <10 0x4>;
+		amlogic,pins = "GPIOW_11";
+	};
+	u_ch3_in:u_ch3_in {
+		amlogic,clrmask = <AO 0x33>,
+						  <6  0x180000>;
+		amlogic,setmask = <6  0x200000>,
+						  <10 0x8>;
+		amlogic,pins = "GPIOW_15";
+	};
+	hu_hpd1_pinmux:hu_hpd1_pinmux {
+		amlogic,setmask=<6 0x80>;
+		amlogic,pins = "GPIOW_5";
+	};
+	hu_hpd2_pinmux:hu_hpd2_pinmux {
+		amlogic,setmask=<6 0x1000>;
+		amlogic,pins = "GPIOW_9";
+	};
+	hu_hpd3_pinmux:hu_hpd3_pinmux {
+		amlogic,setmask=<6 0x20000>;
+		amlogic,pins = "GPIOW_13";
+	};
+	hu_hpd1_gpio:hu_hpd1_gpio {
+		amlogic,setmask=<AO 0x3>;
+		amlogic,clrmask=<6 0x80>;
+		amlogic,pins = "GPIOW_5";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<1>;
+		amlogic,pullup=<0>;
+	};
+	hu_hpd2_gpio:hu_hpd2_gpio {
+		amlogic,setmask=<AO 0x3>;
+		amlogic,clrmask=<6 0x1000>;
+		amlogic,pins = "GPIOW_9";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<1>;
+		amlogic,pullup=<0>;
+	};
+	hu_hpd3_gpio:hu_hpd3_gpio {
+		amlogic,setmask=<AO 0x3>;
+		amlogic,clrmask=<6 0x20000>;
+		amlogic,pins = "GPIOW_13";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<1>;
+		amlogic,pullup=<0>;
+	};
+	hu_hpds_gpio:hu_hpds_gpio {
+		amlogic,setmask=<AO 0x3>;
+		amlogic,clrmask=<6 0x21080>;
+		amlogic,pins = "GPIOW_5","GPIOW_9","GPIOW_13";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<1>;
+		amlogic,pullup=<0>;
+	};
+	hu_uart_init:hu_uart_init {
+		amlogic,setmask=<AO 0x3>;
+		amlogic,pins = "GPIOW_5";
+	};
 
 	/* pwm_ao_a */
 	pwm_ao_a_pins:pwm_ao_a_pins {
