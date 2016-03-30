@@ -3618,14 +3618,16 @@ static int dmx_remove_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 
 int aml_dmx_hw_init(struct aml_dmx *dmx)
 {
+	/*
 	struct aml_dvb *dvb = (struct aml_dvb *)dmx->demux.priv;
 	unsigned long flags;
+	*/
 	int ret;
 
 	/*Demux initialize */
-	spin_lock_irqsave(&dvb->slock, flags);
+	/*spin_lock_irqsave(&dvb->slock, flags);*/
 	ret = dmx_init(dmx);
-	spin_unlock_irqrestore(&dvb->slock, flags);
+	/*spin_unlock_irqrestore(&dvb->slock, flags);*/
 
 	return ret;
 }
