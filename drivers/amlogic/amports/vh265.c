@@ -1054,6 +1054,7 @@ struct hevc_state_s {
 	int lcu_size_log2;
 	int lcu_x_num_pre;
 	int lcu_y_num_pre;
+	int first_pic_after_recover;
 
 	int num_tile_col;
 	int num_tile_row;
@@ -1263,6 +1264,7 @@ static void hevc_init_stru(struct hevc_state_s *hevc,
 	hevc->pic_num = 0;
 	hevc->lcu_x_num_pre = 0;
 	hevc->lcu_y_num_pre = 0;
+	hevc->first_pic_after_recover = 0;
 
 	hevc->pre_top_pic = NULL;
 	hevc->pre_bot_pic = NULL;
@@ -3688,17 +3690,24 @@ static void check_pic_decoded_lcu_count(struct hevc_state_s *hevc)
 		pr_info("cur lcu idx = %d, (total %d)\n",
 			current_lcu_idx, hevc->lcu_total);
 	}
+	if ((error_handle_policy & 0x20) == 0 && hevc->cur_pic != NULL) {
+		if (hevc->first_pic_after_recover) {
+			if (current_lcu_idx !=
+			 ((hevc->lcu_x_num_pre*hevc->lcu_y_num_pre) - 1))
+				hevc->cur_pic->error_mark = 1;
+		} else {
+			if (hevc->lcu_x_num_pre != 0
+			 && hevc->lcu_y_num_pre != 0
+			 && current_lcu_idx != 0
+			 && current_lcu_idx <
+			 ((hevc->lcu_x_num_pre*hevc->lcu_y_num_pre) - 1))
+				hevc->cur_pic->error_mark = 1;
+		}
+		if (hevc->cur_pic->error_mark)
+			pr_info("cur lcu idx = %d, (total %d), set error_mark\n",
+				current_lcu_idx,
+				hevc->lcu_x_num_pre*hevc->lcu_y_num_pre);
 
-	if ((error_handle_policy & 0x20) == 0 && hevc->cur_pic != NULL
-		&& hevc->lcu_x_num_pre != 0
-		&& hevc->lcu_y_num_pre != 0
-		&& current_lcu_idx != 0
-		&& current_lcu_idx <
-		((hevc->lcu_x_num_pre*hevc->lcu_y_num_pre) - 1)) {
-		pr_info("cur lcu idx = %d, (total %d), set error_mark\n",
-			current_lcu_idx,
-			hevc->lcu_x_num_pre*hevc->lcu_y_num_pre);
-		hevc->cur_pic->error_mark = 1;
 	}
 	hevc->lcu_x_num_pre = hevc->lcu_x_num;
 	hevc->lcu_y_num_pre = hevc->lcu_y_num;
@@ -3922,7 +3931,7 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 					hevc->pic_list_init_flag = 3;
 				}
 			}
-
+			hevc->first_pic_after_recover = 0;
 			if (debug & H265_DEBUG_BUFMGR_MORE)
 				dump_pic_list(hevc);
 			/* prev pic */
@@ -5123,6 +5132,8 @@ static void hevc_recover(struct hevc_state_s *hevc)
 	WRITE_VREG(HEVC_DEC_STATUS_REG, HEVC_ACTION_DONE);
 	/* Interrupt Amrisc to excute */
 	WRITE_VREG(HEVC_MCPU_INTR_REQ, AMRISC_MAIN_REQ);
+
+	hevc->first_pic_after_recover = 1;
 }
 
 
