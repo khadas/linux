@@ -466,9 +466,9 @@ unsigned int RC5_DOMAIN(struct remote *remote_data, int domain)
 unsigned int RC6_DOMAIN(struct remote *remote_data, int domain)
 {
 	if (domain)
-		return (remote_data->cur_lsbkeycode >> 5) & 0x7f;
+		return (remote_data->cur_lsbkeycode) & 0xff;
 	else
-		return remote_data->cur_lsbkeycode & 0x1f;
+		return (remote_data->cur_lsbkeycode >> 16) & 0xffff;
 
 }
 
@@ -526,8 +526,8 @@ unsigned int (*get_cur_key_domian[])
 	MITSUBISHI_DOMAIN,
 	SONYSIRC_DOMAIN,
 	TOSHIBA_DOMAIN,
-	RC5_DOMAIN,
 	RC6_DOMAIN,
+	RC5_DOMAIN,
 	NULL_DUOKAN_DOMAIN,
 	RCA_DOMAIN,
 	NULL_DUOKAN_DOMAIN,
@@ -903,6 +903,62 @@ int remote_duokan_report_key(struct remote *remote_data)
 	remote_data->cur_lsbkeycode = 0;
 	remote_data->timer.data = (unsigned long)remote_data;
 #endif
+	return 0;
+}
+int remote_rc6_report_key(struct remote *remote_data)
+{
+	static int last_scan_code;
+	int i;
+
+	get_cur_scanstatus(remote_data);
+	get_cur_scancode(remote_data);
+	if (!auto_repeat_count) {
+		if (remote_data->cur_lsbkeycode) {	/*key first press */
+			if (remote_data->ig_custom_enable) {
+				for (i = 0; i < ARRAY_SIZE
+					(remote_data->custom_code);) {
+					if (remote_data->custom_code[i] !=
+						get_cur_key_domian
+						[remote_data->work_mode]
+						(remote_data, CUSTOMDOMAIN)) {
+						/*return -1; */
+						i++;
+					} else {
+						remote_data->map_num = i;
+						break;
+					}
+					if (i == ARRAY_SIZE
+						(remote_data->custom_code)) {
+						input_dbg
+						("Wrong custom code 0x%08x\n",
+						remote_data->cur_lsbkeycode);
+						return -1;
+				}
+			}
+		}
+
+	remote_data->remote_send_key(remote_data->input,
+		     get_cur_key_domian
+		     [remote_data->work_mode]
+		     (remote_data, KEYDOMIAN), 1, 0);
+			auto_repeat_count++;
+	remote_data->repeat_release_code =
+			get_cur_key_domian
+			[remote_data->work_mode]
+			(remote_data , KEYDOMIAN);
+		remote_data->enable_repeat_falg = 1;
+		}
+	}
+
+	mod_timer(&remote_data->timer,
+	  jiffies +
+	  msecs_to_jiffies(remote_data->release_delay
+			   [remote_data->map_num]));
+
+	last_scan_code = remote_data->cur_lsbkeycode;
+	remote_data->cur_keycode = last_scan_code;
+	remote_data->cur_lsbkeycode = 0;
+	remote_data->timer.data = (unsigned long)remote_data;
 	return 0;
 }
 
@@ -1509,6 +1565,17 @@ void remote_duokan_report_release_key(struct remote *remote_data)
 					     remote_data->repeat_release_code,
 					     0, 0);
 		remote_data->enable_repeat_falg = 0;
+		auto_repeat_count = 0;
+	}
+}
+void remote_rc6_report_release_key(struct remote *remote_data)
+{
+	if (remote_data->enable_repeat_falg) {
+		remote_data->remote_send_key(remote_data->input,
+					     remote_data->repeat_release_code,
+					     0, 0);
+		remote_data->enable_repeat_falg = 0;
+
 		auto_repeat_count = 0;
 	}
 }

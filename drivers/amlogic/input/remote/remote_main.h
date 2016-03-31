@@ -390,16 +390,22 @@ static const struct reg_s RDECODEMODE_RESERVED[] = {
 	{CONFIG_END,            0      }
 };
 static const struct reg_s RDECODEMODE_RC6[] = {
-	{LDR_ACTIVE,    },
-	{LDR_IDLE,     },
-	{LDR_REPEAT,    },
-	{DURATION_REG0, },
-	{OPERATION_CTRL_REG0,},
-	{DURATION_REG1_AND_STATUS,},
-	{OPERATION_CTRL_REG1,},
-	{OPERATION_CTRL_REG2,},
-	{DURATION_REG2,},
-	{DURATION_REG3,},
+	{LDR_ACTIVE, ((unsigned)210 << 16) | ((unsigned)125 << 0)},
+	/*rca leader 4000us,200* timebase*/
+	{LDR_IDLE, 50 << 16 | 38 << 0}, /* leader idle 400*/
+	{LDR_REPEAT, 145 << 16 | 125 << 0}, /* leader repeat*/
+	{DURATION_REG0, 51 << 16 | 38 << 0 }, /* logic '0' or '00' 1500us*/
+	{OPERATION_CTRL_REG0, (3 << 28)|(0xFA0 << 12)|0x13},
+	/* sys clock boby time.base time = 20 body frame*/
+	{DURATION_REG1_AND_STATUS, (94 << 20) | (82 << 10)},
+	/* logic '1' or '01'     2500us*/
+	{OPERATION_CTRL_REG1, 0xa440},/*20bit 9440  36bit a340 32bit 9f40*/
+	/* boby long decode (8-13) //framn len = 24bit*/
+	/*it may get the wrong customer value and key value from register if
+	the value is set to 0x4,so the register value must set to 0x104*/
+	{OPERATION_CTRL_REG2, 0x109},
+	{DURATION_REG2, ((28 << 16) | (16 << 0))},
+	{DURATION_REG3, ((51 << 16) | (38 << 0))},
 	{CONFIG_END,            0      }
 };
 
@@ -616,6 +622,7 @@ extern irqreturn_t remote_null_bridge_isr(int irq, void *dev_id);
 extern int remote_hw_report_null_key(struct remote *remote_data);
 extern int remote_hw_report_key(struct remote *remote_data);
 extern int remote_duokan_report_key(struct remote *remote_data);
+extern int remote_rc6_report_key(struct remote *remote_data);
 extern int remote_hw_nec_rca_2in1_report_key(struct remote *remote_data);
 extern int remote_hw_nec_toshiba_2in1_report_key(struct remote *remote_data);
 extern int remote_hw_nec_rcmm_2in1_report_key(struct remote *remote_data);
@@ -626,6 +633,7 @@ extern void remote_nec_toshiba_2in1_report_release_key(struct remote
 		*remote_data);
 extern void remote_nec_rcmm_2in1_report_release_key(struct remote *remote_data);
 extern void remote_duokan_report_release_key(struct remote *remote_data);
+extern void remote_rc6_report_release_key(struct remote *remote_data);
 extern void remote_sw_report_release_key(struct remote *remote_data);
 extern void remote_null_report_release_key(struct remote *remote_data);
 #ifdef REMOTE_FIQ
