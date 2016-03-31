@@ -489,6 +489,7 @@ static int set_disp_mode_auto(void)
 		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
+		hdev->para = para = hdmi_get_fmt_name("invalid");
 		return -1;
 	} else
 		memcpy(mode, info->name, strlen(info->name));
@@ -947,7 +948,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	unsigned char DRM_DB[26] = {0x0};
-
 	if ((!data) || (!(hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
 		!(hdev->RXCap.hdr_sup_eotf_hdr) &&
 		!(hdev->RXCap.hdr_sup_eotf_sdr))) {

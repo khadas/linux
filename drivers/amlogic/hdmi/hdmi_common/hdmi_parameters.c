@@ -982,6 +982,12 @@ static struct hdmi_format_para fmt_para_4096x2160p60_256x135_y420 = {
 	},
 };
 
+static struct hdmi_format_para fmt_para_non_hdmi_fmt = {
+	.vic = HDMI_Unkown,
+	.name = "invalid",
+	.sname = "invalid",
+};
+
 /* end of Y420 modes*/
 
 static struct hdmi_format_para *all_fmt_paras[] = {
@@ -1016,6 +1022,7 @@ static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_4096x2160p60_256x135_y420,
 	&fmt_para_3840x2160p50_16x9_y420,
 	&fmt_para_4096x2160p50_256x135_y420,
+	&fmt_para_non_hdmi_fmt,
 	NULL,
 };
 
@@ -1120,6 +1127,9 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name)
 		para = all_fmt_paras[i];
 		memset(&para->ext_name[0], 0, sizeof(para->ext_name));
 		memcpy(&para->ext_name[0], name, strlen(name));
+		hdmi_parse_attr(para, name);
+	} else {
+		para = &fmt_para_non_hdmi_fmt;
 		hdmi_parse_attr(para, name);
 	}
 	return para;
