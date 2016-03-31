@@ -113,6 +113,18 @@ static void set_di_mem_fmt_more(
 
 static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
+static void set_di_if0_fmt_more(
+		int hfmt_en,
+		int hz_yc_ratio,		/* 2bit */
+		int hz_ini_phase,		/* 4bit */
+		int vfmt_en,
+		int vt_yc_ratio,		/* 2bit */
+		int vt_ini_phase,		/* 4bit */
+		int y_length,
+		int c_length,
+		int hz_rpt				  /* 1bit */
+	);
+
 static void set_di_if1_fmt_more(
 		int hfmt_en,
 		int hz_yc_ratio,	/* 2bit */
@@ -915,6 +927,39 @@ static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	}
 }
 
+static void set_di_if0_fmt_more(int hfmt_en,
+				int hz_yc_ratio,		/* 2bit */
+				int hz_ini_phase,		/* 4bit */
+				int vfmt_en,
+				int vt_yc_ratio,		/* 2bit */
+				int vt_ini_phase,		/* 4bit */
+				int y_length,
+				int c_length,
+				int hz_rpt		        /* 1bit */
+				)
+{
+	int vt_phase_step = (16 >> vt_yc_ratio);
+
+	VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL,
+(hz_rpt << 28)	|		    /* hz rpt pixel */
+(hz_ini_phase << 24)	|		    /* hz ini phase */
+(0 << 23)		|		    /* repeat p0 enable */
+(hz_yc_ratio << 21)	|		    /* hz yc ratio */
+(hfmt_en << 20)	|		    /* hz enable */
+(1 << 17)		|		    /* nrpt_phase0 enable */
+(0 << 16)		|		    /* repeat l0 enable */
+(0 << 12)		|		    /* skip line num */
+(vt_ini_phase << 8)	|		    /* vt ini phase */
+(vt_phase_step << 1)	|		    /* vt phase step (3.4) */
+(vfmt_en << 0)		            /* vt enable */
+					);
+
+	VSYNC_WR_MPEG_REG(VIU_VD1_FMT_W,
+		(y_length << 16) |		/* hz format width */
+		(c_length << 0)			/* vt format width */
+					);
+}
+
 static void set_di_if1_fmt_more(int hfmt_en,
 				int hz_yc_ratio,/* 2bit */
 				int hz_ini_phase,/* 4bit */
@@ -1151,6 +1196,7 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int pat, loop = 0;
+	unsigned bytes_per_pixel, demux_mode;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(di_vscale_skip_count_real<<1)+1];
@@ -1161,6 +1207,28 @@ static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	} else {
 		loop = 0;
 	pat = vpat[di_vscale_skip_count_real];
+
+	if ((post_wr_en && post_wr_surpport)) {
+		bytes_per_pixel =
+			mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
+		demux_mode = mif->video_mode;
+		VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG,
+(0 << 29) | /* reset on go field */
+(urgent << 28)		|	/* urgent */
+(urgent << 27)		|	/* luma urgent */
+(1 << 25)		|	/* no dummy data. */
+(hold_line << 19)	|	/* hold lines */
+(1 << 18)		|	/* push dummy pixel */
+(demux_mode << 16)	|	/* demux_mode */
+(bytes_per_pixel << 14)	|
+(1 << 12)	|
+(1 << 10)	|
+(3 << 8)	|
+(0 << 6)	|
+((mif->set_separate_en != 0) << 1)	|
+(1 << 0)			/* cntl_enable */
+		);
+	}
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
@@ -1190,6 +1258,33 @@ static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				   (loop << 0));
 	VSYNC_WR_MPEG_REG(VD1_IF0_LUMA0_RPT_PAT,   pat);
 	VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA0_RPT_PAT, pat);
+
+	if ((post_wr_en && post_wr_surpport)) {
+		/* 4:2:0 block mode. */
+		if (mif->set_separate_en != 0) {
+			set_di_if0_fmt_more(
+			1, /* hfmt_en */
+			1,	/* hz_yc_ratio */
+			0,	/* hz_ini_phase */
+			1,	/* vfmt_en */
+			1, /* vt_yc_ratio */
+			0, /* vt_ini_phase */
+mif->luma_x_end0 - mif->luma_x_start0 + 1, /* y_length */
+mif->chroma_x_end0 - mif->chroma_x_start0 + 1, /* c length */
+			0); /* hz repeat. */
+		} else {
+			set_di_if0_fmt_more(
+	1,	/* hfmt_en */
+	1,	/* hz_yc_ratio */
+	0,  /* hz_ini_phase */
+	0,	/* vfmt_en */
+	0,	/* vt_yc_ratio */
+	0,  /* vt_ini_phase */
+	mif->luma_x_end0 - mif->luma_x_start0 + 1, /* y_length */
+	((mif->luma_x_end0>>1) - (mif->luma_x_start0>>1) + 1), /* c length */
+	0); /* hz repeat */
+		}
+	}
 }
 
 void initial_di_pre_aml(int hsize_pre, int vsize_pre, int hold_line)
@@ -1270,6 +1365,8 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 		/* enable ma,disable if0 to vpp */
 		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5)
 			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
+		if (post_wr_en)
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 1, 28, 1);
 	}
 }
 
@@ -1311,8 +1408,15 @@ void di_post_switch_buffer(
 	}
 
 	if (di_ddr_en) {
-		VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num |
-			(urgent << 16)); /* urgent. */
+		if ((post_wr_en && post_wr_surpport)) {
+			VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
+				di_diwr_mif->canvas_num);
+			VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL, urgent, 16, 1);
+			VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL, di_ddr_en, 30, 1);
+		} else {
+			VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
+			di_diwr_mif->canvas_num | (urgent << 16)); /* urgent. */
+		}
 	}
 	if (is_meson_gxtvbb_cpu() && (pldn_ctrl_rflsh == 1)
 		&& pulldown_enable) {
@@ -1359,7 +1463,7 @@ void di_post_switch_buffer(
 			(di_vpp_en << 12) | /* post viu link */
 			(hold_line << 16) | /* post hold line number */
 			(post_field_num << 29) |	/* post field number. */
-			(0x1 << 30)	/* post soft rst  post frame rst. */
+			(0x3 << 30)	/* post soft rst  post frame rst. */
 		);
 }
 
@@ -1401,13 +1505,23 @@ blend_mtn_en,blend_mode); */
 	}
 
 	if (di_ddr_en) {
+		if ((post_wr_en && post_wr_surpport)) {
+		VSYNC_WR_MPEG_REG(DI_DIWR_X,
+(di_diwr_mif->start_x << 16) | (di_diwr_mif->end_x));
+	   VSYNC_WR_MPEG_REG(DI_DIWR_Y,
+(di_diwr_mif->start_y << 16) | (di_diwr_mif->end_y));
+	   VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num|
+(urgent << 16) |
+		(di_ddr_en << 30));
+		} else {
 		VSYNC_WR_MPEG_REG(DI_DIWR_X,
 (di_diwr_mif->start_x << 16) | (di_diwr_mif->end_x));
 	   VSYNC_WR_MPEG_REG(DI_DIWR_Y,
 (di_diwr_mif->start_y << 16) | (di_diwr_mif->end_y * 2 + 1));
 	   VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num|
 (urgent << 16));
-	}
+		}
+}
 
 	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
 	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
@@ -1434,7 +1548,8 @@ blend_mtn_en,blend_mode); */
 (di_vpp_en << 12) |	/* post viu link */
 (hold_line << 16) |	/* post hold line number */
 (post_field_num << 29) |	/* post field number. */
-(0x1 << 30)	/* post soft rst  post frame rst. */
+(((post_wr_en && post_wr_surpport)?0x3:0x1) << 30)
+/* post soft rst  post frame rst. */
 		);
 }
 
@@ -1631,6 +1746,15 @@ void di_post_read_reverse_irq(bool reverse)
 		}
 	}
 }
+
+void diwr_set_power_control(unsigned char enable)
+{
+	switch_vpu_mem_pd_vmod(VPU_VIU_VD1,
+		enable?VPU_MEM_POWER_ON:VPU_MEM_POWER_DOWN);
+	switch_vpu_mem_pd_vmod(VPU_DI_POST,
+		enable?VPU_MEM_POWER_ON:VPU_MEM_POWER_DOWN);
+}
+
 
 static unsigned char pre_power_on;
 static unsigned char post_power_on;

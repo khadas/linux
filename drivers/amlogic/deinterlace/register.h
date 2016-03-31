@@ -1496,6 +1496,37 @@ gain to CurDif to map to alpha, normalized to 32; */
 #define DI_CANVAS_URGENT1                ((0x170b)) /* << 2) + 0xd0100000) */
 #define DI_CANVAS_URGENT2                ((0x170e)) /* << 2) + 0xd0100000) */
 
+#define VD1_IF0_GEN_REG				    0x1a50
+/* ((0x1a50  << 2) + 0xd0100000) */
+#define VD1_IF0_LUMA_FIFO_SIZE          0x1a63
+/* ((0x1a63  << 2) + 0xd0100000) */
+
+#define VIU_VD1_FMT_CTRL			    0x1a68
+/* ((0x1a68  << 2) + 0xd0100000) */
+/* Bit 31    it true, disable clock, otherwise enable clock        */
+/* Bit 30    soft rst bit */
+/* Bit 28    if true, horizontal formatter use repeating to */
+/* generete pixel, otherwise use bilinear interpolation */
+/* Bit 27:24 horizontal formatter initial phase */
+/* Bit 23    horizontal formatter repeat pixel 0 enable */
+/* Bit 22:21 horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1 */
+/* Bit 20    horizontal formatter enable */
+/* Bit 19    if true, always use phase0 while vertical formater, */
+/* meaning always repeat data, no interpolation */
+/* Bit 18    if true, disable vertical formatter chroma repeat last line */
+/* Bit 17    veritcal formatter dont need repeat */
+/* line on phase0, 1: enable, 0: disable */
+/* Bit 16    veritcal formatter repeat line 0 enable */
+/* Bit 15:12 vertical formatter skip line num at the beginning */
+/* Bit 11:8  vertical formatter initial phase */
+/* Bit 7:1   vertical formatter phase step (3.4) */
+/* Bit 0     vertical formatter enable */
+#define VIU_VD1_FMT_W				    0x1a69
+/* ((0x1a69  << 2) + 0xd0100000) */
+/* Bit 27:16  horizontal formatter width */
+/* Bit 11:0   vertical formatter width */
+
+
 #define VD1_IF0_GEN_REG2		0x1a6d
 #define VD2_IF0_GEN_REG2		0x1a8d
 

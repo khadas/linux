@@ -393,6 +393,9 @@ extern int mpeg2vdin_flag;
 extern int di_vscale_skip_count_real;
 extern unsigned int pulldown_enable;
 
+extern bool post_wr_en;
+extern unsigned int post_wr_surpport;
+
 int di_print(const char *fmt, ...);
 
 
@@ -421,6 +424,7 @@ struct reg_cfg_ {
 int get_current_vscale_skip_count(struct vframe_s *vf);
 
 void di_set_power_control(unsigned char type, unsigned char enable);
+void diwr_set_power_control(unsigned char enable);
 
 unsigned char di_get_power_control(unsigned char type);
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
@@ -444,6 +448,8 @@ struct di_dev_s {
 	int							rdma_handle;
 	/* is surpport nr10bit */
 	unsigned int	   nr10bit_surpport;
+	/* is DI surpport post wr to mem for OMX */
+	unsigned int       post_wr_surpport;
 };
 #define di_dev_t struct di_dev_s
 #endif
