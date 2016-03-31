@@ -68,6 +68,11 @@ static inline int get_meson_cpu_version(int level)
 	return -1;
 }
 #endif
+static inline bool package_id_is(unsigned int id)
+{
+	return (get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK) & 0xF0) ==
+		id;
+}
 static inline bool is_meson_m8_cpu(void)
 {
 	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) ==
@@ -127,6 +132,22 @@ static inline bool is_meson_gxl_cpu(void)
 {
 	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) ==
 		MESON_CPU_MAJOR_ID_GXL;
+}
+static inline bool is_meson_gxl_package_905D(void)
+{
+	return is_meson_gxl_cpu() && package_id_is(0x0);
+}
+static inline bool is_meson_gxl_package_905X(void)
+{
+	return is_meson_gxl_cpu() && package_id_is(0x80);
+}
+static inline bool is_meson_gxl_package_905L(void)
+{
+	return is_meson_gxl_cpu() && package_id_is(0xc0);
+}
+static inline bool is_meson_gxl_package_905M2(void)
+{
+	return is_meson_gxl_cpu() && package_id_is(0xe0);
 }
 static inline u32 get_cpu_type(void)
 {
