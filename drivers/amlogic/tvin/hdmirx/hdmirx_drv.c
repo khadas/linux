@@ -409,8 +409,8 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	switch (hdmirx_hw_get_color_fmt()) {
 	case 1:
 		prop->color_format = TVIN_YUV444;
-		/* if (hdmi_yuv444_enable) */
-			prop->dest_cfmt = TVIN_YUV444;
+		/* if (hdmi_yuv444_enable)
+		prop->dest_cfmt = TVIN_YUV444*/;
 		break;
 	case 3:
 		prop->color_format = TVIN_YUV422;
