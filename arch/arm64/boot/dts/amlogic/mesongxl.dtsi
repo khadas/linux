@@ -382,34 +382,34 @@
 			amlogic,pins = "BOOT_8","BOOT_9";
 		};
 		hdmitx_hpd: hdmitx_hpd {
-			amlogic,setmask=<1 0x04000000>;
+			amlogic,setmask=<6 0x80000000>;
 			amlogic,pins="GPIOH_0";
 		};
 		hdmitx_ddc: hdmitx_ddc {
-			amlogic,setmask=<1 0x03000000>;
+			amlogic,setmask=<6 0x30000000>;
 			amlogic,pins="GPIOH_1", "GPIOH_2";
 		};
 
 		/*p200 i2c-A multiplex with usb PWR*/
 		a_i2c_master:a_i2c{
-			amlogic,setmask=<7 0xc000000>;
-			amlogic,clrmask=<0 0x18c0 2 0x30000000 5 0x1800>;
+			amlogic,setmask=<1 0xc000>;
+			amlogic,clrmask=<0 0x18 2 0x18000 2 0xc0 1 0x600000>;
 			amlogic,pins="GPIODV_24","GPIODV_25";
 		};
 		b_i2c_master:b_i2c{
-			amlogic,setmask=<7 0x3000000>;
-			amlogic,clrmask=<0 0x600 2 0xc000000 5 0x700>;
+			amlogic,setmask=<1 0x3000>;
+			amlogic,clrmask=<2 0x6000 1 0x1c0000>;
 			amlogic,pins="GPIODV_26","GPIODV_27";
 		};
 		c_i2c_master:c_i2c{
-			amlogic,setmask=<7 0xc00000>;
-			amlogic,clrmask=<3 0x700000>;
+			amlogic,setmask=<1 0xc00>;
+			amlogic,clrmask=<2 0x1800 1 0x200 2 0x20>;
 			amlogic,pins="GPIODV_28","GPIODV_29";
 		};
 		d_i2c_master:d_i2c{
-			amlogic,setmask=<4 0xc>;
-			amlogic,clrmask=<2 0x3000000 3 0x1000>;
-			amlogic,pins="GPIOX_16","GPIOX_17";
+			amlogic,setmask=<5 0x30>;
+			amlogic,clrmask=<5 0x300c03 6 0x3>;
+			amlogic,pins="GPIOX_10","GPIOX_11";
 		};
 
 		spicc_pins_z11z12z13: spicc_pins_z11z12z13{
