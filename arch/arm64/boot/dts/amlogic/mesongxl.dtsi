@@ -413,6 +413,37 @@
 			amlogic,clrmask=<2 0x3000000 3 0x1000>;
 			amlogic,pins="GPIOX_16","GPIOX_17";
 		};
+
+		spicc_pins_z11z12z13: spicc_pins_z11z12z13{
+			amlogic,setmask=<4 0x1c>;
+			amlogic,clrmask=<3 0x800 4 0x1c00>;
+			amlogic,pins="GPIOZ_11","GPIOZ_12","GPIOZ_13";
+		};
+		spicc_pulldown_z11z12z13: spicc_pulldown_z11z12z13{
+			amlogic,pins="GPIOZ_11","GPIOZ_12","GPIOZ_13";
+			amlogic,pullup=<0>;
+			amlogic,pullupen=<1>;
+		};
+		spicc_pullup_z11z12z13: spicc_pullup_z11z12z13{
+			amlogic,pins="GPIOZ_11","GPIOZ_12","GPIOZ_13";
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		spicc_pins_x8x9x11: spicc_pins_x8x9x11{
+			amlogic,setmask=<5 0xd>;
+			amlogic,clrmask=<5 0xd03430 6 0xd>;
+			amlogic,pins="GPIOX_8","GPIOX_9","GPIOX_11";
+		};
+		spicc_pulldown_x8x9x11: spicc_pulldown_x8x9x11{
+			amlogic,pins = "GPIOX_8","GPIOX_9","GPIOX_11";
+			amlogic,pullup=<0>;
+			amlogic,pullupen=<1>;
+		};
+		spicc_pullup_x8x9x11: spicc_pullup_x8x9x11{
+			amlogic,pins = "GPIOX_8","GPIOX_9","GPIOX_11";
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
 	};
 	cpu_version{
 		reg=<0x0 0xc8100220 0x0 0x4>;
@@ -582,6 +613,17 @@
 	defendkey: defendkey {
 		compatible = "amlogic, defendkey";
 		status = "disabled";
+	};
+
+	spicc:spicc{
+		compatible = "amlogic, spicc";
+		status = "disabled";
+		reg = <0x0 0xc1108d80 0x0 0x28>;
+		resets = <&clock GCLK_IDX_SPICC>;
+		clocks = <&clock CLK_81>;
+		clock-names = "spicc_clk";
+		interrupts = <0 81 1>;
+		device_id = <0>;
 	};
 
 };/* end of / */
