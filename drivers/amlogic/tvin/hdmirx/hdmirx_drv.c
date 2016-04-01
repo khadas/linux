@@ -271,7 +271,7 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	parm = &devp->param;
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
-	to_init_state();
+	/*to_init_state();*/
 	rx_print("%s ok\n", __func__);
 }
 
