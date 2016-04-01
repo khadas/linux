@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/io.h>
 
 #define AMVDAC_NAME               "amvdac"
 #define AMVDAC_DRIVER_NAME        "amvdac"
