@@ -3693,6 +3693,20 @@ void osd_resume_hw(void)
 
 #ifdef CONFIG_HIBERNATION
 static unsigned int fb0_cfg_w0_save;
+static u32 __nosavedata free_scale_enable[HW_OSD_COUNT];
+
+void osd_realdata_save_hw(void)
+{
+	free_scale_enable[OSD1] = osd_hw.free_scale_enable[OSD1];
+	free_scale_enable[OSD2] = osd_hw.free_scale_enable[OSD2];
+}
+
+void osd_realdata_restore_hw(void)
+{
+	osd_hw.free_scale_enable[OSD1] = free_scale_enable[OSD1];
+	osd_hw.free_scale_enable[OSD2] = free_scale_enable[OSD2];
+}
+
 void  osd_freeze_hw(void)
 {
 #ifdef CONFIG_VSYNC_RDMA

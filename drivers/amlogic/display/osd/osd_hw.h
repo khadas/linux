@@ -31,6 +31,8 @@
 extern void osd_freeze_hw(void);
 extern void osd_thaw_hw(void);
 extern void osd_restore_hw(void);
+extern void osd_realdata_save_hw(void);
+extern void osd_realdata_restore_hw(void);
 #endif
 extern struct hw_para_s osd_hw;
 extern void osd_set_color_key_hw(u32 index, u32 bpp, u32 colorkey);
