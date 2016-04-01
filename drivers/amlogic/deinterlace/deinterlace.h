@@ -429,7 +429,9 @@ void diwr_set_power_control(unsigned char enable);
 unsigned char di_get_power_control(unsigned char type);
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
 void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag);
-
+#ifdef CONFIG_AM_ATVDEMOD
+extern int aml_atvdemod_get_snr_ex(void);
+#endif
 #define DI_COUNT   1
 
 struct di_dev_s {

@@ -3786,7 +3786,14 @@ static uint num_dejaggy_setting = 5;
 static int combing_dejaggy_setting[5] = {1, 1, 1, 2, 3};
 module_param_array(combing_dejaggy_setting, uint,
 	&num_dejaggy_setting, 0664);
-
+#ifdef CONFIG_AM_ATVDEMOD
+static int atv_snr_val = 30;
+module_param_named(atv_snr_val, atv_snr_val, int, 0664);
+static int atv_snr_cnt;
+module_param_named(atv_snr_cnt, atv_snr_cnt, int, 0664);
+static int atv_snr_cnt_limit = 30;
+module_param_named(atv_snr_cnt_limit, atv_snr_cnt_limit, int, 0664);
+#endif
 static int last_lev = -1;
 static int glb_mot[5] = { 0, 0, 0, 0, 0 };
 static int still_field_count;
@@ -3907,6 +3914,15 @@ static void adaptive_combing_fixing(
 					combing_dejaggy_setting[cur_lev];
 				/* TODO: check like_pulldown22_flag and ATV
 				noise_level */
+				#ifdef CONFIG_AM_ATVDEMOD
+				if ((aml_atvdemod_get_snr_ex() < atv_snr_val)
+					&& (di_pre_stru.cur_source_type ==
+					VFRAME_SOURCE_TYPE_TUNER)) {
+					if (atv_snr_cnt++ > atv_snr_cnt_limit)
+						dejaggy_flag += 3;
+				} else if (atv_snr_cnt)
+					atv_snr_cnt = 0;
+				#endif
 				if (like_pulldown22_flag && (cur_lev > 2))
 					dejaggy_flag += 1;
 				/* overwrite dejaggy alpha */
@@ -7535,10 +7551,12 @@ light_unreg:
 				if (di_pre_stru.bypass_start_count <
 				    INPUT2PRE_2_BYPASS_SKIP_COUNT) {
 					vframe_t *vframe_tmp = vf_get(VFM_NAME);
-					vf_put(vframe_tmp, VFM_NAME);
-					vf_notify_provider(VFM_NAME,
+					if (vframe_tmp != NULL) {
+						vf_put(vframe_tmp, VFM_NAME);
+						vf_notify_provider(VFM_NAME,
 						VFRAME_EVENT_RECEIVER_PUT,
 						NULL);
+					}
 					di_pre_stru.bypass_start_count++;
 				}
 			} else if (is_input2pre()) {
@@ -7560,10 +7578,12 @@ light_unreg:
 						input2pre_proc_miss_count++;
 				} else {
 					vframe_t *vframe_tmp = vf_get(VFM_NAME);
-					vf_put(vframe_tmp, VFM_NAME);
-					vf_notify_provider(VFM_NAME,
+					if (vframe_tmp != NULL) {
+						vf_put(vframe_tmp, VFM_NAME);
+						vf_notify_provider(VFM_NAME,
 						VFRAME_EVENT_RECEIVER_PUT,
 						NULL);
+					}
 					input2pre_buf_miss_count++;
 					if ((di_pre_stru.cur_width > 720 &&
 					     di_pre_stru.cur_height > 576) ||

@@ -184,6 +184,9 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 				amlatvdemod_devp->pin_name);
 		pr_dbg("atvdemod agc pinmux name:%s\n",
 				amlatvdemod_devp->pin_name);
+	} else if (!strncmp(parm[0], "snr_cur", strlen("snr_cur"))) {
+		data_snr_avg = aml_atvdemod_get_snr_ex();
+		pr_dbg("**********snr_cur:%d*********\n", data_snr_avg);
 	} else
 		pr_dbg("invalid command\n");
 	kfree(buf_orig);
@@ -277,23 +280,54 @@ static int aml_atvdemod_get_afc(struct dvb_frontend *fe,int *afc)
 {
 	return 0;
 }*/
-static int aml_atvdemod_get_snr(struct dvb_frontend *fe)
+
+/*ret:5~100;the val is bigger,the signal is better*/
+int aml_atvdemod_get_snr(struct dvb_frontend *fe)
 {
 	unsigned int snr_val;
 	int ret;
 	snr_val = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x50) >> 8;
+	/* snr_val:900000~0xffffff,ret:5~15 */
 	if (snr_val > 900000)
-		ret = 5;
+		ret = 15 - (snr_val - 900000)*10/(0xffffff - 900000);
+	/* snr_val:158000~900000,ret:15~30 */
 	else if (snr_val > 158000)
-		ret = 15;
+		ret = 30 - (snr_val - 158000)*15/(900000 - 158000);
+	/* snr_val:31600~158000,ret:30~50 */
 	else if (snr_val > 31600)
-		ret = 30;
+		ret = 50 - (snr_val - 31600)*20/(158000 - 31600);
+	/* snr_val:316~31600,ret:50~80 */
 	else if (snr_val > 316)
-		ret = 50;
+		ret = 80 - (snr_val - 316)*30/(31600 - 316);
+	/* snr_val:0~316,ret:80~100 */
 	else
-		ret = 80;
+		ret = 100 - (316 - snr_val)*20/316;
 	return ret;
 }
+
+int aml_atvdemod_get_snr_ex(void)
+{
+	unsigned int snr_val;
+	int ret;
+	snr_val = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x50) >> 8;
+	/* snr_val:900000~0xffffff,ret:5~15 */
+	if (snr_val > 900000)
+		ret = 15 - (snr_val - 900000)*10/(0xffffff - 900000);
+	/* snr_val:158000~900000,ret:15~30 */
+	else if (snr_val > 158000)
+		ret = 30 - (snr_val - 158000)*15/(900000 - 158000);
+	/* snr_val:31600~158000,ret:30~50 */
+	else if (snr_val > 31600)
+		ret = 50 - (snr_val - 31600)*20/(158000 - 31600);
+	/* snr_val:316~31600,ret:50~80 */
+	else if (snr_val > 316)
+		ret = 80 - (snr_val - 316)*30/(31600 - 316);
+	/* snr_val:0~316,ret:80~100 */
+	else
+		ret = 100 - (316 - snr_val)*20/316;
+	return ret;
+}
+EXPORT_SYMBOL(aml_atvdemod_get_snr_ex);
 
 /*tuner lock status & demod lock status should be same in silicon tuner*/
 static int aml_atvdemod_get_status(struct dvb_frontend *fe, void *stat)

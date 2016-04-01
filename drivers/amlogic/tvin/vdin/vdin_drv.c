@@ -465,11 +465,6 @@ static inline void vdin_set_source_type(struct vdin_dev_s *devp,
 {
 	switch (devp->parm.port) {
 	case TVIN_PORT_CVBS3:
-		if (is_meson_g9tv_cpu())
-			vf->source_type = VFRAME_SOURCE_TYPE_TUNER;
-		else
-			vf->source_type = VFRAME_SOURCE_TYPE_CVBS;
-		break;
 	case TVIN_PORT_CVBS0:
 		vf->source_type = VFRAME_SOURCE_TYPE_TUNER;
 		break;
