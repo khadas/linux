@@ -57,6 +57,8 @@ struct picdec_device_s {
 	const struct vinfo_s *vinfo;
 	int disp_width;
 	int disp_height;
+	int origin_width;
+	int origin_height;
 	int frame_render;
 	int frame_post;
 	int target_width;

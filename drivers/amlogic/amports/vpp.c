@@ -1952,7 +1952,8 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		if (super_scaler &&
-		(vpp_wide_mode != VIDEO_WIDEOPTION_NORMAL_NOSCALEUP)) {
+		(vpp_wide_mode != VIDEO_WIDEOPTION_NORMAL_NOSCALEUP)
+		&& (!(vf->type & VIDTYPE_PIC))) {
 			next_frame_par->supscl_path = scaler_path_sel;
 			vpp_set_scaler(src_width, src_height,
 				vinfo, vpp_flags, next_frame_par, vf);
