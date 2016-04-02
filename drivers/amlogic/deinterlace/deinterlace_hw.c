@@ -1823,7 +1823,15 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 {
 	if (!is_meson_gxtvbb_cpu())
 		return;
-
+	if (vframe->type & VIDTYPE_PIC) {
+		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
+		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
+		Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+		return;
+	}
 	if (vframe->source_type == VFRAME_SOURCE_TYPE_CVBS)
 		Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 15);
 	else
