@@ -157,6 +157,7 @@
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+		pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
