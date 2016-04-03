@@ -72,6 +72,8 @@
 #define OSD_TYPE_TOP_FIELD 0
 #define OSD_TYPE_BOT_FIELD 1
 
+#define WAIT_AFBC_READY_COUNT 100
+
 struct hw_para_s osd_hw;
 static DEFINE_MUTEX(osd_mutex);
 static DEFINE_SPINLOCK(osd_onoff_lock);
@@ -1520,6 +1522,7 @@ void osd_enable_3d_mode_hw(u32 index, u32 enable)
 
 void osd_enable_hw(u32 index, u32 enable)
 {
+	int i = 0;
 	if (index == 0) {
 		osd_log_info("osd[%d] enable: %d (%s)\n",
 				index, enable, current->comm);
@@ -1531,7 +1534,7 @@ void osd_enable_hw(u32 index, u32 enable)
 	/* reset viu 31bit ?? */
 	if (index == OSD1 &&
 			!osd_hw.enable[index] &&
-			osd_hw.osd_afbcd[index].enable) {
+			osd_hw.osd_afbcd[index].enable && enable) {
 		osd_reg_set_mask(VIU_SW_RESET, 1 << 31);
 		osd_reg_clr_mask(VIU_SW_RESET, 1 << 31);
 		osd_afbc_dec_enable = false;
@@ -1539,7 +1542,18 @@ void osd_enable_hw(u32 index, u32 enable)
 		add_to_update_list(index, OSD_COLOR_MODE);
 		add_to_update_list(index, OSD_GBL_ALPHA);
 		add_to_update_list(index, DISP_GEOMETRY);
+		osd_wait_vsync_hw();
 	}
+
+	while ((index == 0) && osd_hw.osd_afbcd[index].enable &&
+			(osd_hw.osd_afbcd[index].phy_addr == 0) &&
+			enable && (i < WAIT_AFBC_READY_COUNT)) {
+		osd_wait_vsync_hw();
+		i++;
+	}
+	if (i > 0)
+		osd_log_info("osd[%d]: wait %d vsync first buffer ready.\n",
+			index, i);
 	osd_hw.enable[index] = enable;
 	add_to_update_list(index, OSD_ENABLE);
 	osd_wait_vsync_hw();
