@@ -1,7 +1,19 @@
 /*
- * Amlogic Ltd. GXBaby Plaform
+ * arch/arm64/boot/dts/amlogic/gxl_pxp.dts
  *
- */
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
 
 /dts-v1/;
 
@@ -340,7 +352,7 @@
 	bt-dev{
 		compatible = "amlogic, bt-dev";
 		dev_name = "bt-dev";
-		status = "ok";
+		status = "disabled";
 		gpio_reset = <&gpio       GPIOX_18       GPIO_ACTIVE_HIGH>;
 	};
 
@@ -355,7 +367,7 @@
 	wifi{
 		compatible = "amlogic, aml_wifi";
 		dev_name = "aml_wifi";
-		status = "okay";
+		status = "disabled";
 		interrupt_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_HIGH";
@@ -661,7 +673,7 @@
 	aocec: aocec{
 		compatible = "amlogic, amlogic-aocec";
 		device_name = "aocec";
-		status = "okay";
+		status = "disabled";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
 		product_desc = "GXBB Mbox"; /* Max Chars: 16    */
@@ -682,6 +694,7 @@
 
 	i2c_gpio: i2c_gpio {
 		compatible = "i2c-gpio";
+		status = "disabled";
 		dev_name = "i2c-gpio";
 		i2c-gpio,delay-us = <10>; /* 50 kHz */
 		gpios = <&gpio GPIOH_1 0
@@ -711,7 +724,7 @@
 		compatible = "amlogic, meson-uart";
 		reg = <0x0 0xc11084c0 0x0 0x18>;
 		interrupts = <0 26 1>;
-		status = "okay";
+		status = "disabled";
 		clocks = <&clock CLK_XTAL>;
 		clock-names = "clk_uart";
 		fifosize = < 128 >;
@@ -976,11 +989,11 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_codec_T9015";
 		reg = <0x0 0xc8832000 0x0 0x14>;
-		status = "okay";
+		status = "disabled";
 	};
 	aml_m8_snd {
 		compatible = "aml, aml_snd_m8";
-		status = "okay";
+		status = "disabled";
 		aml-sound-card,format = "i2s";
 		aml_sound_card,name = "AML-M8AUDIO";
 		aml,audio-routing =
@@ -1040,10 +1053,10 @@
 	};
 };
 &efuse {
-	status = "okay";
+	status = "disabled";
 };
 &audio_data{
-	status = "okay";
+	status = "disabled";
 };
 &defendkey {
 	memory-region = <&sec_chk>;
