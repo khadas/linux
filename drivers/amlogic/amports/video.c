@@ -4648,6 +4648,7 @@ static void video_vf_unreg_provider(void)
 	atomic_set(&video_unreg_flag, 0);
 	enable_video_discontinue_report = 1;
 	show_first_picture = false;
+	show_first_frame_nosync = false;
 }
 
 static void video_vf_light_unreg_provider(void)

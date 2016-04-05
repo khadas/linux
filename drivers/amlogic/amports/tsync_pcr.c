@@ -376,7 +376,7 @@ void tsync_pcr_pcrscr_set(void)
 	if (cur_pcr && !(tsync_pcr_inited_flag & complete_init_flag)
 		&& (min_checkinpts != 0)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_PCR;
-		ref_pcr = cur_pcr - tsync_pcr_adj_value;
+		ref_pcr = cur_pcr - tsync_pcr_adj_value * 15;
 		timestamp_pcrscr_set(ref_pcr);
 		tsync_pcr_usepcr = 1;
 
@@ -425,7 +425,7 @@ void tsync_pcr_pcrscr_set(void)
 	if (first_vpts && !(tsync_pcr_inited_flag & complete_init_flag)
 		&& (min_checkinpts != 0)) {
 		tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_VPTS;
-		ref_pcr = first_vpts - tsync_pcr_ref_latency * 2;
+		ref_pcr = first_vpts - tsync_pcr_ref_latency * 15;
 		timestamp_pcrscr_set(ref_pcr);
 		if (cur_pcr > 0)
 			tsync_pcr_usepcr = 1;
@@ -449,6 +449,8 @@ void tsync_pcr_pcrscr_set(void)
 void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 {
 	ulong flags;
+	u32 cur_apts, cur_pcr, last_pcr, cur_vpts;
+	u32 first_vpts, first_checkinvpts;
 	spin_lock_irqsave(&tsync_pcr_lock, flags);
 
 	switch (event) {
@@ -501,6 +503,8 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 			u32 last_checkin_minpts =
 				tsync_pcr_get_min_checkinpts();
 			u32 ref_pcr = 0;
+			cur_apts = timestamp_apts_get();
+			cur_pcr = timestamp_pcrscr_get();
 
 			ref_pcr = param - tsync_pcr_ref_latency;
 			pr_info("[%s]Use param.",  __func__);
@@ -532,7 +536,18 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 			/* if(ref_pcr == 0) */
 			/* ref_pcr=tsdemux_pcr-tsync_pcr_vstream_delayed(); */
 
-			timestamp_pcrscr_set(ref_pcr);
+			/* if pcr larger than vpts, apts and pcr in 500ms
+			    arrange, apts not discontinue,not set pcr
+			*/
+			if (cur_pcr - param > TIME_UNIT90K &&
+				abs(cur_pcr - cur_apts) < (TIME_UNIT90K >> 1) &&
+				!(tsync_pcr_tsdemuxpcr_discontinue &
+					AUDIO_DISCONTINUE)) {
+				/*pr_info("%s,discontinue, not set pcr\n",
+					__FUNCTION__); */
+			} else {
+				timestamp_pcrscr_set(ref_pcr);
+			}
 
 			tsync_pcr_tsdemux_startpcr = tsdemux_pcr;
 			tsync_pcr_system_startpcr = ref_pcr;
@@ -572,10 +587,24 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		tsync_pcr_astart_flag = 1;
 		tsync_pcr_apause_flag = 0;
 
+		pr_info("audio start!timestamp_apts_set =%x.\n", param);
+
 		/*tsync_pcr_inited_mode = INIT_MODE_AUDIO;*/
 		tsync_pcr_pcrscr_set();
 
-		pr_info("audio start!timestamp_apts_set =%x.\n", param);
+		/*acroding apts,vpts set pcr */
+		cur_apts = timestamp_apts_get();
+		last_pcr = timestamp_pcrscr_get();
+		cur_vpts = timestamp_vpts_get();
+		first_vpts = timestamp_firstvpts_get();
+		first_checkinvpts = timestamp_checkin_firstvpts_get();
+
+		timestamp_pcrscr_set(param);
+
+		pr_info("after audio:cur_pcr =0x%x,cur_apts=0x%x,cur_vpts=0x%x\n",
+			timestamp_pcrscr_get(), cur_apts, cur_vpts);
+		pr_info("after audio:last_pcr=0x%x,first_vpts=0x%x,first_checkinvpts=0x%x\n",
+			last_pcr, first_vpts, first_checkinvpts);
 		break;
 
 	case AUDIO_RESUME:
