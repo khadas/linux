@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/led/aml_led_trigger_breathe.c
+ * drivers/amlogic/led/led_trigger_breathe.c
  *
  *
  * Copyright (C) 2016 Amlogic, Inc. All rights reserved.

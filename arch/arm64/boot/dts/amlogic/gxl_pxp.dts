@@ -129,6 +129,13 @@
 
 	};
 
+	sysled {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		status = "okay";
+		led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
+	};
+
 	meson-vout {
 		compatible = "amlogic, meson-vout";
 		dev_name = "meson-vout";

@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/led/aml_led_pwm.h
+ * drivers/amlogic/led/led_pwm.h
  *
  *
  * Copyright (C) 2016 Amlogic, Inc. All rights reserved.

@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/led/aml_led_trigger_scpistop.c
+ * drivers/amlogic/led/led_trigger_scpistop.c
  *
  *
  * Copyright (C) 2016 Amlogic, Inc. All rights reserved.
@@ -31,7 +31,7 @@
 
 #include <linux/amlogic/scpi_protocol.h>
 
-#include "aml_led_pwm.h"
+#include "led_pwm.h"
 
 
 
