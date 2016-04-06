@@ -130,6 +130,18 @@ sub process
 				print "[Ch]File", $file, "\n";
 				licence_process($file);
 			}
+		if(($file =~ /.*\.dts$/i))
+				{
+					$c_cnt++;
+				print "[Ch]File", $file, "\n";
+				licence_process($file);
+			}
+		if(($file =~ /.*\.dtsi$/i))
+				{
+					$c_cnt++;
+				print "[Ch]File", $file, "\n";
+				licence_process($file);
+			}
 	}
 }
 
