@@ -5,6 +5,8 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
+#include <linux/of.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
