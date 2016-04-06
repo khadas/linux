@@ -57,6 +57,8 @@ static struct amvdac_dev_s amvdac_dev;
 
 void __iomem *vdac_hiu_reg_base;/* = *ioremap(0xc883c000, 0x2000); */
 
+static bool vdac_init_succ_flag;
+
 static unsigned int vdac_cntl0_bit9;
 module_param(vdac_cntl0_bit9, uint, 0644);
 MODULE_PARM_DESC(vdac_cntl0_bit9, "vdac_cntl0_bit9");
@@ -68,12 +70,21 @@ MODULE_PARM_DESC(vdac_cntl1_bit3, "vdac_cntl1_bit3");
 
 static inline uint32_t vdac_hiu_reg_read(uint32_t reg)
 {
-	return readl(vdac_hiu_reg_base+((reg - 0x1000)<<2));
+	if (vdac_init_succ_flag)
+		return readl(vdac_hiu_reg_base+((reg - 0x1000)<<2));
+	else {
+		pr_err("%s: vdac rd error !!\n", __func__);
+		return 0;
+	}
 }
 
 static inline uint32_t vdac_hiu_reg_write(uint32_t reg, uint32_t val)
 {
-	writel(val, (vdac_hiu_reg_base+((reg - 0x1000)<<2)));
+	if (vdac_init_succ_flag)
+		writel(val, (vdac_hiu_reg_base+((reg - 0x1000)<<2)));
+	else
+		pr_err("%s: vdac wr error !!\n", __func__);
+
 	return 0;
 }
 
@@ -335,6 +346,8 @@ static int __init aml_vdac_init(void)
 {
 	pr_info("%s: module init\n", __func__);
 
+	vdac_init_succ_flag = 0;
+
 	/* remap the hiu bus */
 	vdac_hiu_reg_base = ioremap(0xc883c000, 0x2000);
 
@@ -343,6 +356,7 @@ static int __init aml_vdac_init(void)
 		return -ENODEV;
 	}
 
+	vdac_init_succ_flag = 1;
 	return 0;
 }
 
@@ -352,7 +366,7 @@ static void __exit aml_vdac_exit(void)
 	platform_driver_unregister(&aml_vdac_driver);
 }
 
-module_init(aml_vdac_init);
+postcore_initcall(aml_vdac_init);
 module_exit(aml_vdac_exit);
 
 MODULE_DESCRIPTION("AMLOGIC vdac driver");
