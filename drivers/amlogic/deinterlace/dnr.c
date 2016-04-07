@@ -295,12 +295,12 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #endif
 	if (dnr_reg_update == 0)
 		return;
-	Wr(DNR_CTRL, 0x1df00);
-	Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(dnr_dm_en << 9)|(1 << 11));
-	Wr(DNR_HVSIZE, nCol<<16|nRow);
-	Wr(DNR_STAT_X_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
+	DI_Wr(DNR_CTRL, 0x1df00);
+	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(dnr_dm_en << 9)|(1 << 11));
+	DI_Wr(DNR_HVSIZE, nCol<<16|nRow);
+	DI_Wr(DNR_STAT_X_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
 		|((nCol-(8*dnr_stat_coef+1))&0x3fff));
-	Wr(DNR_STAT_Y_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
+	DI_Wr(DNR_STAT_Y_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
 		|((nRow-(8*dnr_stat_coef+1))&0x3fff));
 	ro_gbs_stat_lr = Rd(DNR_RO_GBS_STAT_LR);
 	ro_gbs_stat_ll = Rd(DNR_RO_GBS_STAT_LL);
@@ -356,25 +356,26 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 #endif
 	/* update hardware registers */
 	if (0 == pDnrPrm->prm_sw_gbs_ctrl) {
-		Wr(DNR_GBS, (1 == pDnrPrm->sw_gbs_vld_flg)?pDnrPrm->sw_gbs : 0);
+		DI_Wr(DNR_GBS,
+			(1 == pDnrPrm->sw_gbs_vld_flg)?pDnrPrm->sw_gbs : 0);
 	} else if (1 == pDnrPrm->prm_sw_gbs_ctrl) {
-		Wr_reg_bits(DNR_BLK_OFFST,
+		DI_Wr_reg_bits(DNR_BLK_OFFST,
 1 == pDnrPrm->sw_hbof_vld_flg?pDnrPrm->sw_hbof:0, 4, 3);
-		Wr(DNR_GBS,
+		DI_Wr(DNR_GBS,
 (1 == pDnrPrm->sw_hbof_vld_flg &&
 1 == pDnrPrm->sw_gbs_vld_flg)?pDnrPrm->sw_gbs:0);
 	} else if (2 == pDnrPrm->prm_sw_gbs_ctrl) {
-		Wr_reg_bits(DNR_BLK_OFFST,
+		DI_Wr_reg_bits(DNR_BLK_OFFST,
 1 == pDnrPrm->sw_vbof_vld_flg?pDnrPrm->sw_vbof:0, 0, 3);
-		Wr(DNR_GBS,
+		DI_Wr(DNR_GBS,
 (1 == pDnrPrm->sw_vbof_vld_flg &&
 1 == pDnrPrm->sw_gbs_vld_flg)?pDnrPrm->sw_gbs:0);
 	} else if (3 == pDnrPrm->prm_sw_gbs_ctrl) {
-		Wr_reg_bits(DNR_BLK_OFFST,
+		DI_Wr_reg_bits(DNR_BLK_OFFST,
 1 == pDnrPrm->sw_hbof_vld_flg ? pDnrPrm->sw_hbof : 0, 4, 3);
-	Wr_reg_bits(DNR_BLK_OFFST,
+	DI_Wr_reg_bits(DNR_BLK_OFFST,
 1 == pDnrPrm->sw_vbof_vld_flg ? pDnrPrm->sw_vbof : 0, 0, 3);
-	Wr(DNR_GBS,
+	DI_Wr(DNR_GBS,
 (1 == pDnrPrm->sw_hbof_vld_flg && 1 == pDnrPrm->sw_vbof_vld_flg &&
 1 == pDnrPrm->sw_gbs_vld_flg)?pDnrPrm->sw_gbs:0);
 	}

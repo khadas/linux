@@ -148,42 +148,42 @@ static void di_nr_init(void);
 static void ma_di_init(void)
 {
 	/* 420->422 chrome difference is large motion is large,flick */
-	Wr(DI_MTN_1_CTRL4, 0x01800880);
-	Wr(DI_MTN_1_CTRL7, 0x0a800480);
+	DI_Wr(DI_MTN_1_CTRL4, 0x01800880);
+	DI_Wr(DI_MTN_1_CTRL7, 0x0a800480);
 	/* ei setting */
-	Wr(DI_EI_CTRL0, 0x00ff0100);
-	Wr(DI_EI_CTRL1, 0x5a0a0f2d);
-	Wr(DI_EI_CTRL2, 0x050a0a5d);
-	Wr(DI_EI_CTRL3, 0x80000013);
+	DI_Wr(DI_EI_CTRL0, 0x00ff0100);
+	DI_Wr(DI_EI_CTRL1, 0x5a0a0f2d);
+	DI_Wr(DI_EI_CTRL2, 0x050a0a5d);
+	DI_Wr(DI_EI_CTRL3, 0x80000013);
 	/* mtn setting */
-	Wr(DI_MTN_1_CTRL1, 0xa0202015);
+	DI_Wr(DI_MTN_1_CTRL1, 0xa0202015);
 	#if 0
 	/* no use from g9tv */
-	Wr(DI_MTN_CTRL, 0xe228c440);
-	Wr(DI_BLEND_CTRL1, 0xc4402840);
-	Wr(DI_BLEND_CTRL2, 0x430);
+	DI_Wr(DI_MTN_CTRL, 0xe228c440);
+	DI_Wr(DI_BLEND_CTRL1, 0xc4402840);
+	DI_Wr(DI_BLEND_CTRL2, 0x430);
 	#endif
 }
 #endif
 
 static void mc_di_param_init(void)
 {
-	Wr(MCDI_CHK_EDGE_GAIN_OFFST, 0x4f6124);
-	Wr(MCDI_LMV_RT, 0x7455);
-	Wr(MCDI_LMV_GAINTHD, 0x6014d409);
-	Wr(MCDI_REL_DET_LPF_MSK_22_30, 0x0a010001);
-	Wr(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
+	DI_Wr(MCDI_CHK_EDGE_GAIN_OFFST, 0x4f6124);
+	DI_Wr(MCDI_LMV_RT, 0x7455);
+	DI_Wr(MCDI_LMV_GAINTHD, 0x6014d409);
+	DI_Wr(MCDI_REL_DET_LPF_MSK_22_30, 0x0a010001);
+	DI_Wr(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
 }
 
 static void init_field_mode(void)
 {
 	if (is_meson_gxtvbb_cpu()) {
-		Wr(DIPD_COMB_CTRL0, 0x02400210);
-		Wr(DIPD_COMB_CTRL1, 0x88080808);
-		Wr(DIPD_COMB_CTRL2, 0x41041008);
-		Wr(DIPD_COMB_CTRL3, 0x00008053);
-		Wr(DIPD_COMB_CTRL4, 0x20070002);
-		Wr(DIPD_COMB_CTRL5, 0x04040804);
+		DI_Wr(DIPD_COMB_CTRL0, 0x02400210);
+		DI_Wr(DIPD_COMB_CTRL1, 0x88080808);
+		DI_Wr(DIPD_COMB_CTRL2, 0x41041008);
+		DI_Wr(DIPD_COMB_CTRL3, 0x00008053);
+		DI_Wr(DIPD_COMB_CTRL4, 0x20070002);
+		DI_Wr(DIPD_COMB_CTRL5, 0x04040804);
 	}
 }
 
@@ -196,30 +196,30 @@ void di_hw_init(void)
 #ifdef NEW_DI_V1
 	/* enable old DI mode for m6tv */
 	if (is_meson_gxtvbb_cpu())
-		Wr(DI_CLKG_CTRL, 0xffff0001);
+		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
 	else
-		Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
+		DI_Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 
 	/* fifo size setting from 0x1be60 to 0x1bf20 */
-	Wr(VD1_IF0_LUMA_FIFO_SIZE,	fifo_size);
+	DI_Wr(VD1_IF0_LUMA_FIFO_SIZE,	fifo_size);
 	/* 1a63 is vd1_if0_luma_fifo_size */
-	Wr(VD2_IF0_LUMA_FIFO_SIZE,	fifo_size);
+	DI_Wr(VD2_IF0_LUMA_FIFO_SIZE,	fifo_size);
 	/* 1a83 is vd2_if0_luma_fifo_size */
-	Wr(DI_INP_LUMA_FIFO_SIZE,	fifo_size);
+	DI_Wr(DI_INP_LUMA_FIFO_SIZE,	fifo_size);
 	/* 17d8 is DI_INP_luma_fifo_size */
-	Wr(DI_MEM_LUMA_FIFO_SIZE,	fifo_size);
+	DI_Wr(DI_MEM_LUMA_FIFO_SIZE,	fifo_size);
 	/* 17e5 is DI_MEM_luma_fifo_size */
-	Wr(DI_IF1_LUMA_FIFO_SIZE,	fifo_size);
+	DI_Wr(DI_IF1_LUMA_FIFO_SIZE,	fifo_size);
 	/* 17f2 is  DI_IF1_luma_fifo_size */
-	Wr(DI_CHAN2_LUMA_FIFO_SIZE, fifo_size);
+	DI_Wr(DI_CHAN2_LUMA_FIFO_SIZE, fifo_size);
 	/* 17b3 is DI_chan2_luma_fifo_size */
 #endif
-	Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
+	DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
 
 #if 0
 	/* need not set DI_CLKG_CTRL, hardware default
 	value of this register is already 0 */
-	/* Wr_reg_bits(DI_CLKG_CTRL, 0x0, 0, 2);
+	/* DI_Wr_reg_bits(DI_CLKG_CTRL, 0x0, 0, 2);
 	// bit 0: 1, no clock; bit 1: 0, auto clock gate */
 #endif
 	/* nr default setting */
@@ -234,7 +234,7 @@ void di_hw_init(void)
 	if (mcpre_en)
 		mc_di_param_init();
 
-	Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
+	DI_Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
 }
 
 void di_hw_uninit(void)
@@ -245,17 +245,17 @@ void enable_di_pre_mif(int en)
 {
 	if (en) {
 		/* enable input mif*/
-		Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
-		Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
-		Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) | 0x1);
+		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
+		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
+		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) | 0x1);
 		/* cont rd will be enable when config pre */
 	} else {
 		/* disable cont rd */
-		Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
+		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
 		/* disable input mif*/
-		Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
-		Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
-		Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
+		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
+		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
+		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
 	}
 }
 
@@ -491,7 +491,7 @@ void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 	RDMA_WR(MCDI_MCINFORD_CANVAS_SIZE,
 		(di_mcinford_mif->size_x<<16)+di_mcinford_mif->size_y);
 
-	/* Wr(MCDI_MOTINEN,1<<1);	//enable motin refinement */
+	/* DI_Wr(MCDI_MOTINEN,1<<1);	//enable motin refinement */
 
 	RDMA_WR(MCDI_MCVECWR_CTRL, di_mcvecwr_mif->canvas_num |
 			(0<<14) |	 /* sync latch en */
@@ -513,27 +513,27 @@ void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 	int urgent, bool reverse)
 {
-	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_X, (reverse?1:0)<<30 |
+	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_X, (reverse?1:0)<<30 |
 			di_mcvecrd_mif->start_x<<16 |
 			(di_mcvecrd_mif->size_x+di_mcvecrd_mif->start_x));
-	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_Y, (reverse?1:0)<<30 |
+	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_Y, (reverse?1:0)<<30 |
 						di_mcvecrd_mif->start_y<<16 |
 			(di_mcvecrd_mif->size_y+di_mcvecrd_mif->start_y));
-	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CANVAS_SIZE,
+	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CANVAS_SIZE,
 			(di_mcvecrd_mif->size_x<<16)+di_mcvecrd_mif->size_y);
-	VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL, di_mcvecrd_mif->canvas_num |
+	DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL, di_mcvecrd_mif->canvas_num |
 						(urgent<<8)|/* urgent */
 						(1<<9)|/* canvas enable */
 						(0 << 10) |
 						(0x31<<16));
-	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, di_mcvecrd_mif->vecrd_offset,
+	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, di_mcvecrd_mif->vecrd_offset,
 		12, 3);
 	if (di_mcvecrd_mif->blend_mode == 3)
-		VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
+		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
 	else
-		VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
-	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 9, 1);
-	VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcdebug_mode, 2, 3);
+		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
+	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 9, 1);
+	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcdebug_mode, 2, 3);
 }
 
 
@@ -940,7 +940,7 @@ static void set_di_if0_fmt_more(int hfmt_en,
 {
 	int vt_phase_step = (16 >> vt_yc_ratio);
 
-	VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL,
+	DI_VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL,
 (hz_rpt << 28)	|		    /* hz rpt pixel */
 (hz_ini_phase << 24)	|		    /* hz ini phase */
 (0 << 23)		|		    /* repeat p0 enable */
@@ -954,7 +954,7 @@ static void set_di_if0_fmt_more(int hfmt_en,
 (vfmt_en << 0)		            /* vt enable */
 					);
 
-	VSYNC_WR_MPEG_REG(VIU_VD1_FMT_W,
+	DI_VSYNC_WR_MPEG_REG(VIU_VD1_FMT_W,
 		(y_length << 16) |		/* hz format width */
 		(c_length << 0)			/* vt format width */
 					);
@@ -973,7 +973,7 @@ static void set_di_if1_fmt_more(int hfmt_en,
 {
 	int vt_phase_step = (16 >> vt_yc_ratio);
 
-	VSYNC_WR_MPEG_REG(DI_IF1_FMT_CTRL,
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_FMT_CTRL,
 	(hz_rpt << 28)|/* hz rpt pixel */
 	(hz_ini_phase << 24)|/* hz ini phase */
 	(0 << 23)|/* repeat p0 enable */
@@ -987,7 +987,7 @@ static void set_di_if1_fmt_more(int hfmt_en,
 	(vfmt_en << 0) /* vt enable */
 					);
 
-	VSYNC_WR_MPEG_REG(DI_IF1_FMT_W, (y_length << 16) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_FMT_W, (y_length << 16) |
 							 (c_length << 0));
 }
 
@@ -1019,7 +1019,7 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	/* General register */
 	/* ---------------------- */
 
-	VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, (0 << 29) | /* reset on go field */
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, (0 << 29) | /* reset on go field */
 			(urgent << 28)	|/* urgent */
 			(urgent << 27)	|/* luma urgent */
 			(1 << 25)|/* no dummy data. */
@@ -1038,35 +1038,35 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
-	VSYNC_WR_MPEG_REG(DI_IF1_CANVAS0, (mif->canvas0_addr2 << 16) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_CANVAS0, (mif->canvas0_addr2 << 16) |
 (mif->canvas0_addr1 << 8) | (mif->canvas0_addr0 << 0));
 
 	/* ---------------------- */
 	/* Picture 0 X/Y start,end */
 	/* ---------------------- */
-	VSYNC_WR_MPEG_REG(DI_IF1_LUMA_X0, (mif->luma_x_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_LUMA_X0, (mif->luma_x_end0 << 16) |
 (mif->luma_x_start0 << 0));
-	VSYNC_WR_MPEG_REG(DI_IF1_LUMA_Y0, (mif->luma_y_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_LUMA_Y0, (mif->luma_y_end0 << 16) |
 (mif->luma_y_start0 << 0));
-	VSYNC_WR_MPEG_REG(DI_IF1_CHROMA_X0, (mif->chroma_x_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_CHROMA_X0, (mif->chroma_x_end0 << 16) |
 (mif->chroma_x_start0 << 0));
-	VSYNC_WR_MPEG_REG(DI_IF1_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
 (mif->chroma_y_start0 << 0));
 
 	/* ---------------------- */
 	/* Repeat or skip */
 	/* ---------------------- */
-	VSYNC_WR_MPEG_REG(DI_IF1_RPT_LOOP, (loop << 24) |
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_RPT_LOOP, (loop << 24) |
 							   (loop << 16) |
 							   (loop << 8) |
 							   (loop << 0)
 					 );
 
-	VSYNC_WR_MPEG_REG(DI_IF1_LUMA0_RPT_PAT, pat);
-	VSYNC_WR_MPEG_REG(DI_IF1_CHROMA0_RPT_PAT, pat);
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_LUMA0_RPT_PAT, pat);
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_CHROMA0_RPT_PAT, pat);
 
 	/* Dummy pixel value */
-	VSYNC_WR_MPEG_REG(DI_IF1_DUMMY_PIXEL, 0x00808000);
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_DUMMY_PIXEL, 0x00808000);
 	if (mif->set_separate_en != 0) { /* 4:2:0 block mode. */
 		set_di_if1_fmt_more(1, /* hfmt_en */
 		1,/* hz_yc_ratio */
@@ -1212,7 +1212,7 @@ static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 		bytes_per_pixel =
 			mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 		demux_mode = mif->video_mode;
-		VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG,
+		DI_VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG,
 (0 << 29) | /* reset on go field */
 (urgent << 28)		|	/* urgent */
 (urgent << 27)		|	/* luma urgent */
@@ -1232,32 +1232,32 @@ static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
-	VSYNC_WR_MPEG_REG(VD1_IF0_CANVAS0, (mif->canvas0_addr2 << 16)|
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_CANVAS0, (mif->canvas0_addr2 << 16)|
 (mif->canvas0_addr1 << 8)|(mif->canvas0_addr0 << 0));
 
 	/* ---------------------- */
 	/* Picture 0 X/Y start,end */
 	/* ---------------------- */
-	VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_X0, (mif->luma_x_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_X0, (mif->luma_x_end0 << 16) |
 (mif->luma_x_start0 << 0));
-	VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_Y0, (mif->luma_y_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_Y0, (mif->luma_y_end0 << 16) |
 (mif->luma_y_start0 << 0));
-	VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_X0, (mif->chroma_x_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_X0, (mif->chroma_x_end0 << 16) |
 (mif->chroma_x_start0 << 0));
-	VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_Y0, (mif->chroma_y_end0 << 16) |
 (mif->chroma_y_start0 << 0));
 
 	}
 	/* ---------------------- */
 	/* Repeat or skip */
 	/* ---------------------- */
-	VSYNC_WR_MPEG_REG(VD1_IF0_RPT_LOOP,
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_RPT_LOOP,
 				   (loop << 24) |
 				   (loop << 16)   |
 				   (loop << 8) |
 				   (loop << 0));
-	VSYNC_WR_MPEG_REG(VD1_IF0_LUMA0_RPT_PAT,   pat);
-	VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA0_RPT_PAT, pat);
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_LUMA0_RPT_PAT,   pat);
+	DI_VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA0_RPT_PAT, pat);
 
 	if ((post_wr_en && post_wr_surpport)) {
 		/* 4:2:0 block mode. */
@@ -1289,8 +1289,8 @@ mif->chroma_x_end0 - mif->chroma_x_start0 + 1, /* c length */
 
 void initial_di_pre_aml(int hsize_pre, int vsize_pre, int hold_line)
 {
-	Wr(DI_PRE_SIZE, (hsize_pre - 1) | ((vsize_pre - 1) << 16));
-	Wr(DI_PRE_CTRL, 0 |	/* NR enable */
+	DI_Wr(DI_PRE_SIZE, (hsize_pre - 1) | ((vsize_pre - 1) << 16));
+	DI_Wr(DI_PRE_CTRL, 0 |	/* NR enable */
 (0 << 1) |	/* MTN_EN */
 (1 << 2) |	/* check 3:2 pulldown */
 (0 << 3) |	/* check 2:2 pulldown */
@@ -1309,42 +1309,42 @@ void initial_di_pre_aml(int hsize_pre, int vsize_pre, int hold_line)
 			);
 #ifdef SUPPORT_MPEG_TO_VDIN
 	if (mpeg2vdin_flag)
-		Wr_reg_bits(DI_PRE_CTRL, 1, 13, 1);
+		DI_Wr_reg_bits(DI_PRE_CTRL, 1, 13, 1);
 #endif
-	Wr(DI_MC_22LVL0, (Rd(DI_MC_22LVL0) & 0xffff0000) | 256);
-	Wr(DI_MC_32LVL0, (Rd(DI_MC_32LVL0) & 0xffffff00) | 16);
+	DI_Wr(DI_MC_22LVL0, (Rd(DI_MC_22LVL0) & 0xffff0000) | 256);
+	DI_Wr(DI_MC_32LVL0, (Rd(DI_MC_32LVL0) & 0xffffff00) | 16);
 }
 
 void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 {
-	VSYNC_WR_MPEG_REG(DI_POST_SIZE,
+	DI_VSYNC_WR_MPEG_REG(DI_POST_SIZE,
 (hsize_post - 1) | ((vsize_post - 1) << 16));
 
 #if 0
 	/* di demo */
-	VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, ((hsize_post-1)>>1));
-	VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
-	VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
+	DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, ((hsize_post-1)>>1));
+	DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
+	DI_VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 (0x2 << 20) |	/* top mode. EI only */
 25); /* KDEINT */
 #endif
 
 	if (is_meson_gxtvbb_cpu() && pulldown_enable) {
-		/* VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post>>2)-1 ); */
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG1_Y,
+		/* DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post>>2)-1 ); */
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_Y,
 			((vsize_post>>2)<<16) | (2*(vsize_post>>2)-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG2_Y,
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG2_Y,
 			((2*(vsize_post>>2))<<16) | (3*(vsize_post>>2)-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG3_Y,
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG3_Y,
 			((3*(vsize_post>>2))<<16) | (vsize_post-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, (hsize_post-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG1_X, (hsize_post-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG2_X, (hsize_post-1));
-		VSYNC_WR_MPEG_REG(DI_BLEND_REG3_X, (hsize_post-1));
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, (hsize_post-1));
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_X, (hsize_post-1));
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG2_X, (hsize_post-1));
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG3_X, (hsize_post-1));
 	}
 
-	VSYNC_WR_MPEG_REG(DI_POST_CTRL, (0 << 0) |
+	DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL, (0 << 0) |
 					  (0 << 1)	|
 					  (0 << 2)	|
 					  (0 << 3)	|
@@ -1364,9 +1364,9 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* enable ma,disable if0 to vpp */
 		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5)
-			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
+			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 		if (post_wr_en)
-			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 1, 28, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 1, 28, 1);
 	}
 }
 
@@ -1394,14 +1394,14 @@ void di_post_switch_buffer(
 		set_di_if0_mif(di_buf0_mif, urgent, hold_line);
 
 	if (!ei_only && (di_ddr_en || di_vpp_en)) {
-		VSYNC_WR_MPEG_REG(DI_IF1_CANVAS0,
+		DI_VSYNC_WR_MPEG_REG(DI_IF1_CANVAS0,
 (di_buf1_mif->canvas0_addr2 << 16) |
 (di_buf1_mif->canvas0_addr1 << 8) | (di_buf1_mif->canvas0_addr0 << 0));
 	}
 
 	/* motion for current display field. */
 	if (blend_mtn_en) {
-		VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
+		DI_VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
 (di_mtnprd_mif->canvas_num << 8) | (urgent << 16)
 	 ); /* current field mtn canvas index. */
 
@@ -1409,45 +1409,47 @@ void di_post_switch_buffer(
 
 	if (di_ddr_en) {
 		if ((post_wr_en && post_wr_surpport)) {
-			VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
+			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
 				di_diwr_mif->canvas_num);
-			VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL, urgent, 16, 1);
-			VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL, di_ddr_en, 30, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL, urgent, 16, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL,
+				di_ddr_en, 30, 1);
 		} else {
-			VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
+			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
 			di_diwr_mif->canvas_num | (urgent << 16)); /* urgent. */
 		}
 	}
 	if (is_meson_gxtvbb_cpu() && (pldn_ctrl_rflsh == 1)
 		&& pulldown_enable) {
-		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_en, 31, 1);
-		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
-		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_mode, 20, 2);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_en, 31, 1);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_mode, 20, 2);
 		if (debug_blend_mode_ctrl != 0xff)
-			VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+			DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 				debug_blend_mode_ctrl&0x3, 20, 2);
 	} else
-		VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
+		DI_VSYNC_WR_MPEG_REG(DI_BLEND_CTRL, Rd(DI_BLEND_CTRL)|
 			(blend_en<<31) | (blend_mode<<20) | 0x1c0001f);
 
 	if (mcpre_en) {
-		VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL,
+		DI_VSYNC_WR_MPEG_REG(MCDI_MCVECRD_CTRL,
 	(Rd(MCDI_MCVECRD_CTRL) & 0xffffff00) |
 	(1<<9) |	  /* canvas enable */
 	di_mcvecrd_mif->canvas_num |  /* canvas index. */
 	(urgent << 8));
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 				di_mcvecrd_mif->vecrd_offset, 12, 3);
 			if (di_mcvecrd_mif->blend_mode == 3)
-				VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mcen_mode, 0, 2);
 			else
-				VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
+				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+					0, 0, 2);
 	}
 	if (is_meson_gxtvbb_cpu() && pulldown_enable)
-		VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL, post_field_num, 29, 1);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL, post_field_num, 29, 1);
 	else
-		VSYNC_WR_MPEG_REG(DI_POST_CTRL,
+		DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 			((ei_en|blend_en) << 0) | /* line buf 0 enable */
 			((blend_mode == 1?1:0) << 1)  |
 			(ei_en << 2) |			/* ei  enable */
@@ -1494,45 +1496,46 @@ di_ddr_en %d,blend_mtn_en %d,blend_mode %d.\n",
 __func__,ei_only,buf1_en,ei_en,di_vpp_en,di_ddr_en,
 blend_mtn_en,blend_mode); */
 	/* motion for current display field. */
-		VSYNC_WR_MPEG_REG(DI_MTNPRD_X,
+		DI_VSYNC_WR_MPEG_REG(DI_MTNPRD_X,
 (di_mtnprd_mif->start_x << 16) | (di_mtnprd_mif->end_x));
-		VSYNC_WR_MPEG_REG(DI_MTNPRD_Y,
+		DI_VSYNC_WR_MPEG_REG(DI_MTNPRD_Y,
 (di_mtnprd_mif->start_y << 16) | (di_mtnprd_mif->end_y));
 	if (blend_mtn_en) {
-		VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
+		DI_VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
 (di_mtnprd_mif->canvas_num << 8) | (urgent << 16)
 	 ); /* current field mtn canvas index */
 	}
 
 	if (di_ddr_en) {
 		if ((post_wr_en && post_wr_surpport)) {
-		VSYNC_WR_MPEG_REG(DI_DIWR_X,
+			DI_VSYNC_WR_MPEG_REG(DI_DIWR_X,
 (di_diwr_mif->start_x << 16) | (di_diwr_mif->end_x));
-	   VSYNC_WR_MPEG_REG(DI_DIWR_Y,
+			DI_VSYNC_WR_MPEG_REG(DI_DIWR_Y,
 (di_diwr_mif->start_y << 16) | (di_diwr_mif->end_y));
-	   VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num|
-(urgent << 16) |
-		(di_ddr_en << 30));
+			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
+			di_diwr_mif->canvas_num|
+			(urgent << 16) |
+			(di_ddr_en << 30));
 		} else {
-		VSYNC_WR_MPEG_REG(DI_DIWR_X,
+		DI_VSYNC_WR_MPEG_REG(DI_DIWR_X,
 (di_diwr_mif->start_x << 16) | (di_diwr_mif->end_x));
-	   VSYNC_WR_MPEG_REG(DI_DIWR_Y,
+	   DI_VSYNC_WR_MPEG_REG(DI_DIWR_Y,
 (di_diwr_mif->start_y << 16) | (di_diwr_mif->end_y * 2 + 1));
-	   VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num|
+	   DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num|
 (urgent << 16));
 		}
 }
 
-	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
-	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
+	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 		blend_en&0x1, 31, 1);
-	VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 		blend_mode&0x3, 20, 2);
 	if (debug_blend_mode_ctrl != 0xff)
-		VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 			debug_blend_mode_ctrl&0x3, 20, 2);
 
-	VSYNC_WR_MPEG_REG(DI_POST_CTRL,
+	DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 ((ei_en | blend_en) << 0) |	/* line buffer 0 enable */
 ((blend_mode == 1?1:0) << 1)  |
 (ei_en << 2) | /* ei  enable */
@@ -1555,17 +1558,17 @@ blend_mtn_en,blend_mode); */
 
 void disable_post_deinterlace_2(void)
 {
-	VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
-	VSYNC_WR_MPEG_REG(DI_POST_SIZE, (32-1) | ((128-1) << 16));
-	VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, 0x3 << 30);
+	DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
+	DI_VSYNC_WR_MPEG_REG(DI_POST_SIZE, (32-1) | ((128-1) << 16));
+	DI_VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, 0x3 << 30);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* disable ma,enable if0 to vpp,enable afbc to vpp */
 		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 4) != 0)
-			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
+			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
 		/* DI inp(current data) switch to memory */
-		VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
+		DI_VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
 	}
-	/* VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG,
+	/* DI_VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG,
 Rd(DI_IF1_GEN_REG) & 0xfffffffe); */
 }
 
@@ -1624,7 +1627,7 @@ bool read_pulldown_info(pulldown_detect_info_t *field_pd_info,
 	int i;
 	unsigned long pd_info[6];
 	unsigned long tmp;
-	Wr(DI_INFO_ADDR, 0);
+	DI_Wr(DI_INFO_ADDR, 0);
 	for (i  = 0; i < 6; i++)
 		pd_info[i] = Rd(DI_INFO_DATA);
 
@@ -1700,23 +1703,23 @@ void di_post_read_reverse(bool reverse)
 {
 #ifdef NEW_DI_TV
 	if (reverse) {
-		Wr_reg_bits(DI_IF1_GEN_REG2, 3, 2, 2);
-		Wr_reg_bits(VD1_IF0_GEN_REG2, 0xf, 2, 4);
-		Wr_reg_bits(VD2_IF0_GEN_REG2, 0xf, 2, 4);
+		DI_Wr_reg_bits(DI_IF1_GEN_REG2, 3, 2, 2);
+		DI_Wr_reg_bits(VD1_IF0_GEN_REG2, 0xf, 2, 4);
+		DI_Wr_reg_bits(VD2_IF0_GEN_REG2, 0xf, 2, 4);
 		if (mcpre_en) {
 			/* motion vector read reverse*/
-			Wr_reg_bits(MCDI_MCVECRD_X, 1, 30, 1);
-			Wr_reg_bits(MCDI_MCVECRD_Y, 1, 30, 1);
-			Wr_reg_bits(MCDI_MC_CRTL, 0, 8, 1);
+			DI_Wr_reg_bits(MCDI_MCVECRD_X, 1, 30, 1);
+			DI_Wr_reg_bits(MCDI_MCVECRD_Y, 1, 30, 1);
+			DI_Wr_reg_bits(MCDI_MC_CRTL, 0, 8, 1);
 		}
 	} else {
-		Wr_reg_bits(DI_IF1_GEN_REG2,  0, 2, 2);
-		Wr_reg_bits(VD1_IF0_GEN_REG2, 0, 2, 4);
-		Wr_reg_bits(VD2_IF0_GEN_REG2, 0, 2, 4);
+		DI_Wr_reg_bits(DI_IF1_GEN_REG2,  0, 2, 2);
+		DI_Wr_reg_bits(VD1_IF0_GEN_REG2, 0, 2, 4);
+		DI_Wr_reg_bits(VD2_IF0_GEN_REG2, 0, 2, 4);
 		if (mcpre_en) {
-			Wr_reg_bits(MCDI_MCVECRD_X, 0, 30, 1);
-			Wr_reg_bits(MCDI_MCVECRD_Y, 0, 30, 1);
-			Wr_reg_bits(MCDI_MC_CRTL, 1, 8, 1);
+			DI_Wr_reg_bits(MCDI_MCVECRD_X, 0, 30, 1);
+			DI_Wr_reg_bits(MCDI_MCVECRD_Y, 0, 30, 1);
+			DI_Wr_reg_bits(MCDI_MC_CRTL, 1, 8, 1);
 		}
 	}
 #endif
@@ -1724,25 +1727,25 @@ void di_post_read_reverse(bool reverse)
 void di_post_read_reverse_irq(bool reverse)
 {
 	if (reverse) {
-		VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,    3, 2, 2);
-		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0xf, 2, 4);
-		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2, 0xf, 2, 4);
-		VSYNC_WR_MPEG_REG_BITS(DI_MTNRD_CTRL, 0xf, 17, 4);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,    3, 2, 2);
+		DI_VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0xf, 2, 4);
+		DI_VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2, 0xf, 2, 4);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_MTNRD_CTRL, 0xf, 17, 4);
 		if (mcpre_en) {
 			/* motion vector read reverse*/
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 8, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 8, 1);
 		}
 	} else {
-		VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,  0, 2, 2);
-		VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0, 2, 4);
-		VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2, 0, 2, 4);
-		VSYNC_WR_MPEG_REG_BITS(DI_MTNRD_CTRL, 0, 17, 4);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG2,  0, 2, 2);
+		DI_VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2, 0, 2, 4);
+		DI_VSYNC_WR_MPEG_REG_BITS(VD2_IF0_GEN_REG2, 0, 2, 4);
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_MTNRD_CTRL, 0, 17, 4);
 		if (mcpre_en) {
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
-			VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 8, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 8, 1);
 		}
 	}
 }
@@ -1790,30 +1793,30 @@ unsigned char di_get_power_control(unsigned char type)
 
 static void di_nr_init(void)
 {
-	Wr(DI_NR_CTRL0, 0xc60c0804);
-	Wr(DI_NR_CTRL1, 0x403e3c3a);
-	Wr(DI_NR_CTRL2, 0x08010a01);
-	Wr(NR2_MET_NM_CCTRL, 0x45056410);
-	Wr(NR2_MATNR_SNR_NRM_GAIN, 0x4);
-	Wr(NR2_MATNR_SNR_LPF_CFG, 0xc2b64);
-	Wr(NR2_MATNR_SNR_EDGE2B, 0xcff08);
-	Wr(NR2_MATNR_YBETA_SCL, 0x00ff2000);
-	Wr(NR2_MATNR_MTN_CRTL2, 0x32020);
-	Wr(NR2_MATNR_MTN_COR, 0x3333);
-	Wr(NR2_MATNR_DEGHOST, 0x133);
-	Wr(NR2_MATNR_ALPHALP_LUT1, 0x80805040);
-	Wr(NR2_MATNR_ALPHALP_LUT2, 0x90808080);
-	Wr(NR2_MATNR_ALPHALP_LUT3, 0xffe0c0a4);
-	Wr(NR2_MATNR_ALPHAHP_LUT1, 0x80805040);
-	Wr(NR2_MATNR_ALPHAHP_LUT2, 0x90808080);
-	Wr(NR2_MATNR_ALPHAHP_LUT3, 0xffe0c0a4);
-	Wr(NR3_MODE, 0x3);
-	Wr(NR3_COOP_PARA, 0x28ff00);
-	Wr(NR3_CNOOP_GAIN, 0x881900);
-	Wr(NR3_YMOT_PARA, 0x0c0a1e);
-	Wr(NR3_CMOT_PARA, 0x08140f);
-	Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
-	Wr(NR3_SUREMOT_CGAIN, 0x22264014);
+	DI_Wr(DI_NR_CTRL0, 0xc60c0804);
+	DI_Wr(DI_NR_CTRL1, 0x403e3c3a);
+	DI_Wr(DI_NR_CTRL2, 0x08010a01);
+	DI_Wr(NR2_MET_NM_CCTRL, 0x45056410);
+	DI_Wr(NR2_MATNR_SNR_NRM_GAIN, 0x4);
+	DI_Wr(NR2_MATNR_SNR_LPF_CFG, 0xc2b64);
+	DI_Wr(NR2_MATNR_SNR_EDGE2B, 0xcff08);
+	DI_Wr(NR2_MATNR_YBETA_SCL, 0x00ff2000);
+	DI_Wr(NR2_MATNR_MTN_CRTL2, 0x32020);
+	DI_Wr(NR2_MATNR_MTN_COR, 0x3333);
+	DI_Wr(NR2_MATNR_DEGHOST, 0x133);
+	DI_Wr(NR2_MATNR_ALPHALP_LUT1, 0x80805040);
+	DI_Wr(NR2_MATNR_ALPHALP_LUT2, 0x90808080);
+	DI_Wr(NR2_MATNR_ALPHALP_LUT3, 0xffe0c0a4);
+	DI_Wr(NR2_MATNR_ALPHAHP_LUT1, 0x80805040);
+	DI_Wr(NR2_MATNR_ALPHAHP_LUT2, 0x90808080);
+	DI_Wr(NR2_MATNR_ALPHAHP_LUT3, 0xffe0c0a4);
+	DI_Wr(NR3_MODE, 0x3);
+	DI_Wr(NR3_COOP_PARA, 0x28ff00);
+	DI_Wr(NR3_CNOOP_GAIN, 0x881900);
+	DI_Wr(NR3_YMOT_PARA, 0x0c0a1e);
+	DI_Wr(NR3_CMOT_PARA, 0x08140f);
+	DI_Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
+	DI_Wr(NR3_SUREMOT_CGAIN, 0x22264014);
 }
 /*
  * config bit mode according to the vframe source
@@ -1823,6 +1826,7 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 {
 	if (!is_meson_gxtvbb_cpu())
 		return;
+
 	if (vframe->type & VIDTYPE_PIC) {
 		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
 		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
@@ -1832,68 +1836,69 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 		Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
 		return;
 	}
+
 	if (vframe->source_type == VFRAME_SOURCE_TYPE_CVBS)
-		Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 15);
+		DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 15);
 	else
-		Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
+		DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
 
 	if (di_force_bit_mode == 0) {
 		/*use vframe source bitdepth*/
 		if (vframe->bitdepth & BITDEPTH_Y10) {
-			Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
-			Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
-			Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
-			Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
-			Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
-			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
+			DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
 		} else {
-			Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
-			Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
-			Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
-			Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
-			Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
-			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
+			DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
 		}
 	} else if (di_force_bit_mode == 10) {
 		/* In bypass mode,VD1_IF0_GEN_REG3 should in line with
 		 * input source */
 		if (bypass_flag) {
 			if (vframe->bitdepth & BITDEPTH_Y10)
-				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
 			else
-				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
 		} else
-			Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
 		/* DI_INP_GEN_REG3 should always in line with input source */
 		if (vframe->bitdepth & BITDEPTH_Y10)
-			Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
 		 else
-			Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
 		/*force to 10 bit mode and enable nr 10 bit.*/
-		Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
-		Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
-		Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
-		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
+		DI_Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
+		DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
+		DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
+		DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
 	} else if (di_force_bit_mode == 8) {
 		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
 		 * input source*/
 		if (bypass_flag) {
 			if (vframe->bitdepth & BITDEPTH_Y10)
-				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
+				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
 			else
-				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
 		} else
-				Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
+				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
 		/* DI_INP_GEN_REG3 should always in line with input source */
 		if (vframe->bitdepth & BITDEPTH_Y10)
-			Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
+			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
 		 else
-			Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
+			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
 		/*force to 8 bit mode */
-		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
-		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
+		DI_Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
+		DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
+		DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
+		DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
 	} else {
 		pr_err("%s: unrecognize bit mode: %d, please enter: 0,8 or 10\n",
 			__func__, di_force_bit_mode);

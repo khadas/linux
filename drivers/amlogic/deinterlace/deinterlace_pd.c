@@ -570,22 +570,22 @@ void init_pd_para(void)
 			win_pd_th[i].field_diff_num_th = 10;
 	}
 
-	Wr(DI_MC_32LVL1, 16 |	/* region 3 */
+	DI_Wr(DI_MC_32LVL1, 16 |	/* region 3 */
 	(16 << 8));/* region 4 */
 
-	Wr(DI_MC_32LVL0, 16	|	/* field 32 level */
+	DI_Wr(DI_MC_32LVL0, 16	|	/* field 32 level */
 	(16 << 8)  |	/* region 0 */
 	(16 << 16) |	/* region 1 */
 	(16 << 24));	/* region 2 */
-	Wr(DI_MC_22LVL0,  256  |/* field 22 level */
+	DI_Wr(DI_MC_22LVL0,  256  |/* field 22 level */
 	(768 << 16));	/* region 0 */
 
-	Wr(DI_MC_22LVL1, 768	|/* region 1 */
+	DI_Wr(DI_MC_22LVL1, 768	|/* region 1 */
 	(768 << 16));	/* region 2 */
 
-	Wr(DI_MC_22LVL2, 768 |	/* region 3 */
+	DI_Wr(DI_MC_22LVL2, 768 |	/* region 3 */
 	(768 << 16));	/* region 4. */
-	Wr(DI_MC_CTRL, 0x1f);	/* enable region level */
+	DI_Wr(DI_MC_CTRL, 0x1f);	/* enable region level */
 
 }
 
