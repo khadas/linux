@@ -575,7 +575,7 @@ static u32 _get_storage_dev_by_gp(void)
 		case STORAGE_DEV_SDCARD:
 		/* fixme, any other ways to identify main media? */
 			aml_nand_msg("warning you may need update your uboot!");
-			BUG();
+			/* BUG(); */
 		break;
 
 		default:
@@ -601,7 +601,7 @@ static u32 _get_storage_dev_by_gp(void)
 static u32 get_storage_dev_by_clk(void)
 {
 	u32 ret = 0;
-	BUG();
+	/*BUG();*/
 	return ret;
 }
 

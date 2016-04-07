@@ -368,19 +368,17 @@
 			amlogic,pullupen=<1>;
 		};
 		all_nand_pins: all_nand_pins{
-			amlogic,setmask=<4 0x7ff00000>;
-			amlogic,clrmask=<0 0x80000
-							4 0x800c0000
-							5 0xf>;
+			amlogic,setmask=<7 0x800000ff>;
+			amlogic,clrmask=<7 0x70ffbc00>;
 			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
 						"BOOT_5","BOOT_6","BOOT_7","BOOT_8","BOOT_9",
 						"BOOT_10","BOOT_11","BOOT_12","BOOT_13",
-						"BOOT_14","BOOT_15","BOOT_16","BOOT_17";
+						"BOOT_14","BOOT_15";
 			amlogic,enable-output=<1>;
 		};
 		nand_cs_pins: nand_cs{
-			amlogic,setmask=<4 0xc000000>;
-			amlogic,clrmask=<4 0x40000>;
+			amlogic,setmask=<7 0xc0>;
+			amlogic,clrmask=<7 0x40040000>;
 			amlogic,pins = "BOOT_8","BOOT_9";
 		};
 		hdmitx_hpd: hdmitx_hpd {
