@@ -3686,7 +3686,10 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.ctrl.tmds_clk = 0;
 	rx.ctrl.tmds_clk2 = 0;
 	rx.ctrl.acr_mode = acr_mode;
-	rx.hdcp.repeat = repeat_plug;
+	if (hdmirx_repeat_support())
+		rx.hdcp.repeat = repeat_plug;
+	else
+		rx.hdcp.repeat = 0;
 	rx.port = (port_map >> ((port - TVIN_PORT_HDMI0) << 2)) & 0xf;
 	rx.portA_pow5v_state = pow5v_max_cnt;
 	rx.portB_pow5v_state = pow5v_max_cnt;
