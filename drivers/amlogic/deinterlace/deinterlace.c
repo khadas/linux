@@ -3816,17 +3816,17 @@ void set_combing_regs(int lvl)
 		else if (i < GXTVBB_REG_START)
 			/* TODO: need change to check if
 			register only in GCTVBB */
-			VSYNC_WR_MPEG_REG(combing_setting_registers[i],
+			Wr(combing_setting_registers[i],
 				((*combing_setting_values[lvl])[i] &
 				combing_setting_masks[i]) |
-				(VSYNC_RD_MPEG_REG(
+				(Rd(
 					combing_setting_registers[i])
 				& ~combing_setting_masks[i]));
 		else if (is_meson_gxtvbb_cpu())
-			VSYNC_WR_MPEG_REG(combing_setting_registers[i],
+			Wr(combing_setting_registers[i],
 				((*combing_setting_values[lvl])[i] &
 				combing_setting_masks[i]) |
-				(VSYNC_RD_MPEG_REG(
+				(Rd(
 					combing_setting_registers[i])
 				& ~combing_setting_masks[i]));
 	}
@@ -3895,16 +3895,16 @@ static void adaptive_combing_fixing(
 			if ((dejaggy_flag == -1)
 			|| ((Rd(SRSHARP0_SHARP_SR2_CTRL) & (1 << 24)) == 0)) {
 				/* enable dejaggy module */
-				VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_SR2_CTRL,
+				Wr_reg_bits(SRSHARP0_SHARP_SR2_CTRL,
 					1, 24, 1);
 				/* first time set default */
-				VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SHARP_DEJ2_PRC,
+				Wr_reg_bits(SRSHARP0_SHARP_DEJ2_PRC,
 					0xff, 24, 8);
-				VSYNC_WR_MPEG_REG(SRSHARP0_SHARP_DEJ1_PRC,
+				Wr(SRSHARP0_SHARP_DEJ1_PRC,
 					(0xff<<24)|(0xd1<<16)|(0xe<<8)|0x31);
-				VSYNC_WR_MPEG_REG(
+				Wr(
 					SRSHARP0_SHARP_DEJ2_MISC, 0x30);
-				VSYNC_WR_MPEG_REG(
+				Wr(
 					SRSHARP0_SHARP_DEJ1_MISC, 0x02f4);
 				dejaggy_flag = 0;
 			}
