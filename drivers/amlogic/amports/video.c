@@ -2512,11 +2512,20 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
 				(0x8 << VFORMATTER_PHASE_BIT) |
 				VFORMATTER_EN);
+
+			if ((READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1) == 0)
+				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
+					cur_dev->viu_off, 0, 16, 3);
+
 			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 1, 20, 1);
 			return;
 
 		} else {
+			if ((READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1) == 0)
+				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
+					cur_dev->viu_off, 0, 16, 3);
+
 			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 20, 1);
 			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0);
