@@ -35,11 +35,16 @@
 #include <linux/dma-contiguous.h>
 
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/codec_mm_scatter.h>
 
 #include "codec_mm_priv.h"
+#include "codec_mm_scatter_priv.h"
+#include "codec_mm_keeper_priv.h"
 
 #define TVP_POOL_NAME "TVP_POOL"
 #define CMA_RES_POOL_NAME "CMA_RES"
+
+
 
 #define RES_IS_MAPED
 
@@ -74,7 +79,6 @@ trace memory alloc/free info:0x20,
 
 */
 static u32 debug_mode;
-
 #define TVP_MAX_SLOT 8
 struct extpool_mgt_s {
 	struct gen_pool *gen_pool[TVP_MAX_SLOT];
@@ -99,7 +103,6 @@ struct codec_mm_mgt_s {
 	int total_alloced_size;
 	int total_cma_size;
 	int total_reserved_size;
-	int total_cma_res_size;
 	int max_used_mem_size;
 
 	int alloced_res_size;
@@ -199,7 +202,6 @@ static int codec_mm_alloc_pre_check_in(
 		have_space = have_space & 8;
 	}
 	if (debug_mode & 0xf) {
-		pr_info("codec mm is enabled debug_mode:%d\n", debug_mode);
 		have_space = have_space & (~(debug_mode & 1));
 		have_space = have_space & (~(debug_mode & 2));
 		have_space = have_space & (~(debug_mode & 4));
@@ -437,7 +439,7 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 			mem->buffer_size);
 		mgt->tvp_pool.alloced_size -= mem->buffer_size;
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_PAGES) {
-		__free_pages((struct page *)mem->mem_handle,
+		free_pages((unsigned long)mem->mem_handle,
 			get_order(mem->buffer_size));
 		mgt->alloced_sys_size -= mem->buffer_size;
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES) {
@@ -451,7 +453,7 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 	return;
 }
 
-static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
+struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		int align2n, int memflags)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -530,7 +532,7 @@ static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	return mem;
 }
 
-static void codec_mm_release(struct codec_mm_s *mem, const char *owner)
+void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 {
 
 	int index;
@@ -829,6 +831,8 @@ static int codec_mm_is_in_tvp_region(ulong phy_addr)
 void *codec_mm_phys_to_virt(unsigned long phy_addr)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	if (codec_mm_is_in_tvp_region(phy_addr))
+		return NULL;	/* no virt for tvp memory; */
 
 	if (phy_addr >= mgt->rmem.base &&
 			phy_addr < mgt->rmem.base + mgt->rmem.size) {
@@ -836,8 +840,7 @@ void *codec_mm_phys_to_virt(unsigned long phy_addr)
 			return phys_to_virt(phy_addr);
 		return NULL;	/* no virt for reserved memory; */
 	}
-	if (codec_mm_is_in_tvp_region(phy_addr))
-		return NULL;	/* no virt for tvp memory; */
+
 	return phys_to_virt(phy_addr);
 }
 
@@ -941,10 +944,13 @@ static int dump_mem_infos(void *buf, int size)
 		mem->buffer_size, mem->from_flags,
 		atomic_read(&mem->use_cnt));
 
-		if (buf)
+		if (buf) {
 			pbuf += s;
-		else
+			if (tsize + s > size - 128)
+				break;/*no memory for dump now.*/
+		} else {
 			pr_info("%s", sbuf);
+		}
 		tsize += s;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
@@ -961,14 +967,34 @@ int codec_mm_video_tvp_enabled(void)
 int codec_mm_get_total_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	return mgt->total_codec_mem_size;
+	int total_size = mgt->total_codec_mem_size;
+	if ((debug_mode & 0xf) == 0) {/*no debug memory mode.*/
+		return total_size;
+	}
+	/*
+	disable reserved:1
+	disable cma:2
+	disable sys memory:4
+	disable half memory:8,
+	*/
+	if (debug_mode & 0x8)
+		total_size -=  mgt->total_codec_mem_size/2;
+	if (debug_mode & 0x1) {
+		total_size -= mgt->total_reserved_size;
+		total_size -= mgt->cma_res_pool.total_size;
+	}
+	if (debug_mode & 0x2)
+		total_size -=  mgt->total_cma_size;
+	if (total_size < 0)
+		total_size = 0;
+	return total_size;
 }
 
 int codec_mm_get_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	return mgt->total_codec_mem_size -
-	mgt->total_alloced_size;
+	return codec_mm_get_total_size() -
+		mgt->total_alloced_size;
 }
 
 int codec_mm_get_reserved_size(void)
@@ -988,7 +1014,6 @@ int codec_mm_enough_for_size(int size)
 	}
 	return 1;
 }
-
 
 
 
@@ -1097,7 +1122,21 @@ static ssize_t codec_mm_dump_show(struct class *class,
 	ret = dump_mem_infos(buf, PAGE_SIZE);
 	return ret;
 }
+static ssize_t codec_mm_scatter_dump_show(struct class *class,
+	struct class_attribute *attr, char *buf)
+{
+	size_t ret;
+	ret = codec_mm_scatter_info_dump(buf, PAGE_SIZE);
+	return ret;
+}
 
+static ssize_t codec_mm_keeper_dump_show(struct class *class,
+	struct class_attribute *attr, char *buf)
+{
+	size_t ret;
+	ret = codec_mm_keeper_dump_info(buf, PAGE_SIZE);
+	return ret;
+}
 
 static ssize_t tvp_enable_help_show(struct class *class,
 		struct class_attribute *attr,
@@ -1215,6 +1254,7 @@ static ssize_t codec_mm_config_show(struct class *class,
 		"default_tvp_4k_size:0x%x(%d MB)\n",
 		mgt->tvp_pool.default_4k_size,
 		mgt->tvp_pool.default_4k_size / SZ_1M);
+	ret += codec_mm_scatter_mgt_get_config(buf + ret);
 	return ret;
 }
 
@@ -1235,7 +1275,7 @@ static ssize_t codec_mm_config_store(struct class *class,
 		mgt->tvp_pool.default_4k_size = val;
 		return size;
 	}
-	return -1;
+	return codec_mm_scatter_mgt_set_config(buf, size);
 }
 
 static ssize_t tvp_region_show(struct class *class,
@@ -1258,11 +1298,89 @@ static ssize_t tvp_region_show(struct class *class,
 	return off;
 }
 
+static ssize_t codec_mm_debug_show(struct class *class,
+		struct class_attribute *attr,
+		char *buf)
+{
+	ssize_t size = 0;
+	size += sprintf(buf, "mm_scatter help:\n");
+	size += sprintf(buf + size, "echo n > mm_scatter_debug\n");
+	size += sprintf(buf + size, "n==0: clear all debugs)\n");
+	size += sprintf(buf + size,
+	"n=1: dump all alloced scatters\n");
+	size += sprintf(buf + size,
+	"n=2: dump all slots\n");
 
+	size += sprintf(buf + size,
+	"n=3: dump all free slots\n");
+
+	size += sprintf(buf + size,
+	"n=4: dump all sid hash table\n");
+
+	size += sprintf(buf + size,
+	"n=5: free all free slot now!\n");
+
+	size += sprintf(buf + size,
+	"n=10: force free all keeper\n");
+
+	size += sprintf(buf + size,
+	"n==100: cmd mode p1 p ##mode:0,dump, 1,alloc 2,more,3,free some,4,free all\n");
+	return size;
+}
+
+
+
+static ssize_t codec_mm_debug_store(struct class *class,
+		struct class_attribute *attr,
+		const char *buf, size_t size)
+{
+	unsigned val;
+	ssize_t ret;
+	val = -1;
+	ret = sscanf(buf, "%d", &val);
+	if (ret != 1)
+		return -EINVAL;
+	switch (val) {
+	case 0:
+		pr_info("clear debug!\n");
+		break;
+	case 1:
+		codec_mm_dump_all_scatters();
+		break;
+	case 2:
+		codec_mm_dump_all_slots();
+		break;
+	case 3:
+		codec_mm_dump_free_slots();
+		break;
+	case 4:
+		codec_mm_dump_all_hash_table();
+		break;
+	case 5:
+		codec_mm_free_all_free_slots();
+		break;
+	case 10:
+		codec_mm_keeper_free_all_keep(1);
+		break;
+	case 100: {
+		int cmd, mode, p1, p2;
+		mode = p1 = p2 = 0;
+		ret = sscanf(buf, "%d %d %d %d", &cmd, &mode, &p1, &p2);
+		codec_mm_scatter_test(mode, p1, p2);
+		}
+		break;
+	default:
+		pr_err("unknow cmd! %d\n", val);
+	}
+	return size;
+
+}
 
 
 static struct class_attribute codec_mm_class_attrs[] = {
 	__ATTR_RO(codec_mm_dump),
+	__ATTR_RO(codec_mm_scatter_dump),
+	__ATTR_RO(codec_mm_keeper_dump),
 	__ATTR_RO(tvp_region),
 	__ATTR(tvp_enable, S_IRUGO | S_IWUSR | S_IWGRP,
 		tvp_enable_help_show, tvp_enable_store),
@@ -1270,6 +1388,8 @@ static struct class_attribute codec_mm_class_attrs[] = {
 		fastplay_enable_help_show, fastplay_enable_store),
 	__ATTR(config, S_IRUGO | S_IWUSR | S_IWGRP,
 		codec_mm_config_show, codec_mm_config_store),
+	__ATTR(debug, S_IRUGO | S_IWUSR | S_IWGRP,
+		codec_mm_debug_show, codec_mm_debug_store),
 	__ATTR_NULL
 };
 
@@ -1298,8 +1418,11 @@ static int codec_mm_probe(struct platform_device *pdev)
 		pr_debug("codec_mm reserved memory probed done\n");
 
 	pr_debug("codec_mm_probe ok\n");
-	amstream_test_init();
 
+	codec_mm_scatter_mgt_init();
+	codec_mm_keeper_mgr_init();
+	amstream_test_init();
+	codec_mm_scatter_mgt_test();
 	return 0;
 }
 
@@ -1396,4 +1519,6 @@ RESERVEDMEM_OF_DECLARE(codec_mm_reserved, "amlogic, codec-mm-reserved",
 
 module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");
+
+
 

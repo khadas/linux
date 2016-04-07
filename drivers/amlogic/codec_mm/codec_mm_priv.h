@@ -93,10 +93,18 @@ struct codec_mm_s {
 	atomic_t use_cnt;
 
 	spinlock_t lock;
-
+	char *pagemap;
+	int pagemap_size;
+	int alloced_page_num;
+	int next_bit;
 	struct list_head list;
 
 };
 extern void dma_clear_buffer(struct page *page, size_t size);
+struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
+		int align2n, int memflags);
+void codec_mm_release(struct codec_mm_s *mem, const char *owner);
+u32 get_codec_mm_profiles(void);
+
 #endif				/*
 				 */
