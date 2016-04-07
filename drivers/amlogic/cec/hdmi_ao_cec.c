@@ -81,6 +81,7 @@ struct ao_cec_dev {
 	unsigned int arc_port;
 	unsigned int hal_flag;
 	unsigned int phy_addr;
+	unsigned int port_seq;
 	unsigned long irq_cec;
 	void __iomem *exit_reg;
 	void __iomem *cec_reg;
@@ -951,6 +952,12 @@ static ssize_t osd_name_show(struct class *cla,
 	return sprintf(buf, "%s\n", cec_dev->cec_info.osd_name);
 }
 
+static ssize_t port_seq_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%x\n", cec_dev->port_seq);
+}
+
 static ssize_t port_status_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
@@ -1017,6 +1024,7 @@ static ssize_t dbg_en_store(struct class *cla, struct class_attribute *attr,
 
 static struct class_attribute aocec_class_attr[] = {
 	__ATTR_RO(port_num),
+	__ATTR_RO(port_seq),
 	__ATTR_RO(osd_name),
 	__ATTR_RO(port_status),
 	__ATTR_RO(arc_port),
@@ -1087,6 +1095,33 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	/* delay a byte for continue message send */
 	msleep(25);
 	return ret;
+}
+
+static void init_cec_port_info(struct hdmi_port_info *port,
+			       struct ao_cec_dev *cec_dev)
+{
+	unsigned int a, b, c;
+
+	b = cec_dev->port_num;
+	for (a = 0; a < b; a++) {
+		port[a].type = HDMI_INPUT;
+		port[a].port_id = a + 1;
+		port[a].cec_supported = 1;
+		/* set ARC feature according mask */
+		if (cec_dev->arc_port & (1 << a))
+			port[a].arc_supported = 1;
+		else
+			port[a].arc_supported = 0;
+
+		/* set port physical address according port sequence */
+		if (cec_dev->port_seq) {
+			c = (cec_dev->port_seq >> (4 * a)) & 0xf;
+			port[a].physical_address = (c + 1) * 0x1000;
+		} else {
+			/* asending order if port_seq is not set */
+			port[a].physical_address = (a + 1) * 0x1000;
+		}
+	}
 }
 
 static long hdmitx_cec_ioctl(struct file *f,
@@ -1167,17 +1202,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			}
 		} else {
 			b = cec_dev->port_num;
-			for (a = 0; a < b; a++) {
-				port[a].type = HDMI_INPUT;
-				port[a].port_id = a + 1;
-				port[a].cec_supported = 1;
-				/* set ARC feature according mask */
-				if (cec_dev->arc_port & (1 << a))
-					port[a].arc_supported = 1;
-				else
-					port[a].arc_supported = 0;
-				port[a].physical_address = (a + 1) * 0x1000;
-			}
+			init_cec_port_info(port, cec_dev);
 			if (copy_to_user(argp, port, sizeof(*port) * b)) {
 				kfree(port);
 				return -EINVAL;
@@ -1485,7 +1510,20 @@ static int aml_cec_probe(struct platform_device *pdev)
 		CEC_INFO("not find cec osd string\n");
 		strcpy(vend->cec_osd_string, "AML TV/BOX");
 	}
+
+	/* get port sequence */
+	node = of_find_node_by_path("/hdmirx");
+	if (node == NULL) {
+		CEC_ERR("can't find hdmirx\n");
+		cec_dev->port_seq = 0;
+	} else {
+		r = of_property_read_u32(node, "rx_port_maps",
+					 &(cec_dev->port_seq));
+		if (r)
+			CEC_INFO("not find rx_port_maps\n");
+	}
 #endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	aocec_suspend_handler.level   = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 20;
 	aocec_suspend_handler.suspend = aocec_early_suspend;
