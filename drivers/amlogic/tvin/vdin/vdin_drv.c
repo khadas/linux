@@ -288,9 +288,22 @@ static const struct vframe_operations_s vdin_vf_ops = {
 void vdin_cma_alloc(struct vdin_dev_s *devp)
 {
 	char vdin_name[5];
-	unsigned int mem_size = devp->cma_mem_size[devp->index];
+	unsigned int mem_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_CPU;
+	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB))
+		mem_size = devp->h_active * devp->v_active * 3;
+	else
+		mem_size = devp->h_active * devp->v_active * 2;
+	if (devp->source_bitdepth > 8)
+		mem_size = mem_size*3/2;
+	mem_size = PAGE_ALIGN(mem_size)*4;
+	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
+	if (mem_size > devp->cma_mem_size[devp->index])
+		mem_size = devp->cma_mem_size[devp->index];
 	if (devp->cma_config_en == 0)
 		return;
 	if (devp->cma_mem_alloc[devp->index] == 1)

@@ -234,6 +234,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 			devp->prop.aspect_ratio,
 			devp->prop.decimation_ratio, devp->prop.dvi_info);
 	pr_info("color_depth:%d\n", devp->prop.colordepth);
+	pr_info("cma_flag:%d\n", devp->cma_config_flag);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe(%u):\n", vf->index);
