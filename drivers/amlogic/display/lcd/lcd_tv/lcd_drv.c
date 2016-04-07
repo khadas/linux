@@ -832,10 +832,13 @@ int lcd_tv_driver_init(void)
 			lcd_vbyone_pinmux_set(1);
 			lcd_vbyone_control_set(pconf);
 			lcd_vbyone_phy_set(pconf, 1);
+			lcd_vbyone_wait_stable();
 			break;
 		default:
 			break;
 		}
+		if (pconf->lcd_timing.ss_level > 0)
+			lcd_set_spread_spectrum();
 	} else { /* change */
 		switch (pconf->lcd_timing.fr_adjust_type) {
 		case 0: /* clk adjust */
@@ -850,13 +853,12 @@ int lcd_tv_driver_init(void)
 		default:
 			break;
 		}
-	}
-	switch (pconf->lcd_basic.lcd_type) {
-	case LCD_VBYONE:
-		lcd_vbyone_wait_stable();
-		break;
-	default:
-		break;
+		if (pconf->lcd_basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_wait_stable();
+		if (pconf->lcd_timing.fr_adjust_type == 0) { /* clk adjust */
+			if (pconf->lcd_timing.ss_level > 0)
+				lcd_set_spread_spectrum();
+		}
 	}
 
 	lcd_vcbus_write(VENC_INTCTRL, 0x200);
