@@ -157,8 +157,11 @@ static long cmd_load_code(struct esm_device *esm,
 		sizeof(struct esm_hld_ioctl_load_code));
 	if (ret)
 		pr_info("copy left %ld Bytes\n", ret);
-	esm->code_loaded = krequest.returned_status == ESM_HL_DRIVER_SUCCESS;
-
+	if (do_esm_rst_flag == 1)
+		esm->code_loaded = 0;
+	else
+		esm->code_loaded = (krequest.returned_status ==
+		ESM_HL_DRIVER_SUCCESS);
 	return 0;
 }
 
@@ -230,7 +233,11 @@ static long cmd_load_code32(struct esm_device *esm,
 		sizeof(struct compact_esm_hld_ioctl_load_code));
 	if (ret)
 		pr_info("copy left %ld Bytes\n", ret);
-	esm->code_loaded = krequest.returned_status == ESM_HL_DRIVER_SUCCESS;
+	if (do_esm_rst_flag == 1)
+		esm->code_loaded = 0;
+	else
+		esm->code_loaded = (krequest.returned_status ==
+		ESM_HL_DRIVER_SUCCESS);
 
 	return 0;
 }

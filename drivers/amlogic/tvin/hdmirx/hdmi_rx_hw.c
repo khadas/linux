@@ -971,6 +971,29 @@ void hdmirx_hw_config(void)
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 
+void hdcp22_hw_cfg(void)
+{
+	rx_print("hdcp22_hw_cfg\n");
+
+	hdmirx_wr_top(TOP_INTR_MASKN, 0);
+	clk_init();
+	control_reset();
+
+	hdmi_rx_ctrl_edid_update();
+	if (hdcp_enable)
+		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
+	else
+		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
+
+	hdmirx_phy_init(rx.port, 0);
+	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
+	DWC_init(rx.port);
+	packet_init();
+	hdmirx_audio_init();
+	hdmirx_20_init();
+	hdmirx_audio_fifo_rst();
+	hdmirx_packet_fifo_rst();
+}
 void hdmirx_hw_probe(void)
 {
 	hdmirx_wr_top(TOP_MEM_PD, 0);
@@ -983,12 +1006,9 @@ void hdmirx_hw_probe(void)
 	/*	hpd_to_esm = 1; */
 	/* #endif */
 	hdmirx_hdcp22_init();
-	hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
-	mdelay(100);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
-	hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
 	rx_print("%s Done!\n", __func__);
 }
 

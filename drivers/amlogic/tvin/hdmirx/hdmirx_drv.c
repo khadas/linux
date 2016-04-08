@@ -269,9 +269,9 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
-	parm->info.fmt = TVIN_SIG_FMT_NULL;
-	parm->info.status = TVIN_SIG_STATUS_NULL;
-	/*to_init_state();*/
+	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
+	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
+	to_init_state();
 	rx_print("%s ok\n", __func__);
 }
 
@@ -409,8 +409,8 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	switch (hdmirx_hw_get_color_fmt()) {
 	case 1:
 		prop->color_format = TVIN_YUV444;
-		/* if (hdmi_yuv444_enable)
-		prop->dest_cfmt = TVIN_YUV444*/;
+		/* if (hdmi_yuv444_enable) */
+			/* prop->dest_cfmt = TVIN_YUV444; */
 		break;
 	case 3:
 		prop->color_format = TVIN_YUV422;
