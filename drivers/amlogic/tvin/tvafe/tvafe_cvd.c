@@ -328,6 +328,8 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
 	W_APB_BIT(ACD_REG_21, DECODER_VBI_START_ADDR,
 			AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
+	/*open front lpf for av ring*/
+	W_APB_BIT(ACD_REG_26, 1, 8, 1);
 
 	return;
 }
