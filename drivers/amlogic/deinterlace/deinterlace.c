@@ -168,7 +168,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-03-28a";
+static const char version_s[] = "2016-04-07a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -319,6 +319,7 @@ static int prog_proc_config = (1 << 5) | (1 << 1) | 1;
 static int pulldown_detect = 0x10;
 static int skip_wrong_field = 1;
 static int frame_count;
+static int frame_count_check = 16;
 static int provider_vframe_level;
 static int disp_frame_count;
 static int start_frame_drop_count = 2;
@@ -664,6 +665,8 @@ store_dbg(struct device *dev,
 		pr_dbg("----dump reg done----\n");
 	} else if (strncmp(buf, "robust_test", 11) == 0) {
 		recovery_flag = 1;
+	} else if (strncmp(buf, "recycle_buf", 11) == 0) {
+		recycle_keep_buffer();
 	}
 
 	return count;
@@ -4700,8 +4703,12 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 	} else if (di_pre_stru.prog_proc_type == 2) {
 		di_linked_buf_idx = peek_free_linked_buf();
-		if (di_linked_buf_idx == -1)
+		if (di_linked_buf_idx == -1) {
+			recycle_keep_buffer();
+			pr_info("%s: recycle keep buffer for peek null linked buf\n",
+				__func__);
 			return 0;
+		}
 	}
 
 	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
@@ -4854,6 +4861,16 @@ static unsigned char pre_de_buf_config(void)
 				di_pre_stru.di_chan2_buf_dup_p->pre_ref_count =
 					0;
 				di_pre_stru.di_chan2_buf_dup_p = NULL;
+			}
+			/* force recycle keep buffer when switch source */
+			if (used_post_buf_index != -1) {
+				if (di_buf_post[used_post_buf_index].vframe
+					->source_type !=
+					di_buf->vframe->source_type) {
+					recycle_keep_buffer();
+					pr_info("%s: source type changed!!!\n",
+						__func__);
+				}
 			}
 			pr_dbg(
 			"%s: source change: 0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
@@ -7992,7 +8009,7 @@ static void di_vf_put(vframe_t *vf, void *arg)
 		return;
 	log_buffer_state("pu_");
 	if (used_post_buf_index != -1) {
-		if (di_buf == &(di_buf_post[used_post_buf_index]))
+		if (frame_count > frame_count_check)
 			recycle_keep_buffer();
 	}
 	if (di_buf->type == VFRAME_TYPE_POST) {
