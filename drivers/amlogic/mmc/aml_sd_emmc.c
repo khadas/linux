@@ -161,6 +161,221 @@ static int aml_sd_emmc_cali_transfer(struct mmc_host *mmc,
 	mmc_wait_for_req(mmc, &mrq);
 	return data.error | cmd.error;
 }
+static int  aml_sd_emmc_gxl_calibration(struct mmc_host *mmc,
+			u32 *adj_win_start)
+{
+#if 1
+	return -1;
+#else
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+
+	u32 line_delay;
+	struct sd_emmc_delay *line_dly = (struct sd_emmc_delay *)&line_delay;
+	u32 adjust = sd_emmc_regs->gadjust;
+	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
+	u32 base_index[10] = {0};
+	u32 base_index_val = 0;
+	u32 base_index_min = max_index + 1;
+	u32 base_index_max = 0;
+	u32 max_cal_result = 0;
+	u32 min_cal_result = 10000;
+	u32 cal_result[8];
+	u8 is_base_index;
+	u32 cali_retry = 0;
+	u8 bus_width = 8;
+	u8 ln_delay[8] = {0};
+	u8 delay_step;
+#ifdef CHOICE_DEBUG
+	u8 i;
+#endif
+	u32 blksz = 512;
+	u8 *blk_test;
+		blk_test = kmalloc(blksz * CALI_BLK_CNT, GFP_KERNEL);
+	if (!blk_test)
+		return -ENOMEM;
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
+		delay_step = 125;
+	else
+		delay_step = 200;
+
+	if (mmc->ios.bus_width == 0)
+		bus_width = 1;
+	else if (mmc->ios.bus_width == 2)
+		bus_width = 4;
+	else
+		bus_width = 8;
+	max_index = (sd_emmc_regs->gclock & 0x3f) - 1;
+
+_cali_retry:
+	max_cal_result = 0;
+	min_cal_result = 10000;
+	base_index_min = max_index + 1;
+	base_index_max = 0;
+	pr_info("%s: trying cali %d-th time(s)\n",
+				mmc_hostname(mmc), cali_retry);
+	host->is_tunning = 1;
+	/* for each line */
+	for (line_x = 0; line_x < bus_width; line_x++) {
+		base_index_val = 0;
+		is_base_index = 1;
+		memset(pdata->calout, 0xFF, 20 * 20);
+		/* for each delay index! */
+		for (dly_tmp = 0; dly_tmp < MAX_DELAY_CNT; dly_tmp++) {
+			line_delay = 0;
+			line_delay = dly_tmp << (4 * line_x);
+			sd_emmc_regs->gdelay = line_delay;
+			pdata->caling = 1;
+			aml_sd_emmc_cali_transfer(mmc,
+				MMC_READ_MULTIPLE_BLOCK,
+				blk_test, blksz);
+			pdata->calout[dly_tmp][line_x] =
+				(sd_emmc_regs->gcalout[0] >> 24) & 0x3f;
+#ifdef CHOICE_DEBUG
+			for (i = 0; i > 4; i++)
+				pr_info("cali_index[%d] =0x%x\n",
+					i, sd_emmc_regs->gcalout[i] >> 24);
+#endif
+			pdata->caling = 0;
+			gadjust->cali_enable = 0;
+			gadjust->cali_sel = 0;
+			sd_emmc_regs->gadjust = adjust;
+			if (is_base_index == 1) {
+				is_base_index = 0;
+				base_index[line_x] =
+					pdata->calout[dly_tmp][line_x];
+				if (base_index[line_x] < base_index_min)
+					base_index_min = base_index[line_x];
+				if (base_index[line_x] > base_index_max)
+					base_index_max = base_index[line_x];
+			}
+			if (pdata->calout[dly_tmp][line_x] > base_index[line_x])
+				break;
+		}  /* endof dly_tmp loop... */
+		/* get a valid index on current line! */
+		if (dly_tmp == MAX_DELAY_CNT) {
+			/* Do not get a valid line delay index value! */
+			if (cali_retry < MAX_CALI_RETRY) {
+				pr_err("Do't get valid ln_delay @ line %d, try\n",
+					line_x);
+				cali_retry++;
+				goto _cali_retry;
+			} else {
+				kfree(blk_test);
+				blk_test = NULL;
+				pr_info("%s: calibration failed, use default\n",
+					mmc_hostname(host->mmc));
+				return -1;
+			}
+		} else {
+			ln_delay[line_x] = dly_tmp;
+		}
+
+#ifdef CHOICE_DEBUG
+		for (i = 0; i < 16; i++)
+			pr_info("%02x, ", pdata->calout[i][line_x]);
+		pr_info("\n");
+#endif
+	}
+	host->is_tunning = 0;
+
+	/* if base index wrap, fix */
+	for (line_x = 0; line_x < bus_width; line_x++) {
+		/* 1000 means index is 1ns */
+		/* make sure no neg-value  for ln_delay*/
+		if (ln_delay[line_x]*delay_step > 1000)
+			ln_delay[line_x] = 1000 / delay_step;
+
+		if (base_index[line_x] == max_index) {
+			cal_result[line_x] = ((max_index+1))*1000 -
+				ln_delay[line_x]*delay_step;
+		} else if ((base_index_max == max_index) &&
+			(base_index[line_x] != (max_index - 1)) &&
+			(base_index[line_x] != (max_index - 2))) {
+			cal_result[line_x] = ((base_index[line_x]+1)%
+			(max_index+1) + (max_index+1))*1000 -
+				ln_delay[line_x]*delay_step;
+		} else {
+			cal_result[line_x] = (base_index[line_x]+1)%
+				(max_index+1) * 1000 -
+					ln_delay[line_x]*delay_step;
+		}
+		max_cal_result = (max_cal_result < cal_result[line_x])
+				? cal_result[line_x] : max_cal_result;
+		min_cal_result = (min_cal_result > cal_result[line_x])
+				? cal_result[line_x] : min_cal_result;
+		pr_info("%s: delay[%d]=%5d padding=%2d, bidx=%d\n",
+				mmc_hostname(mmc), line_x, cal_result[line_x],
+				ln_delay[line_x], base_index[line_x]);
+	}
+	pr_info("%s: calibration result @ %d: max(%d), min(%d)\n",
+		mmc_hostname(mmc), cali_retry, max_cal_result, min_cal_result);
+	/* retry cali here! */
+	if ((max_cal_result - min_cal_result) >= 2000) {
+		if (cali_retry < MAX_CALI_RETRY) {
+			cali_retry++;
+			goto _cali_retry;
+		} else {
+			kfree(blk_test);
+			blk_test = NULL;
+			pr_info("%s: calibration failed, use default\n",
+				mmc_hostname(host->mmc));
+			return -1;
+		}
+	}
+
+	/* swap base_index_max */
+	if ((base_index_max == max_index) && (base_index_min == 0))
+		base_index_max = 0;
+	if (max_cal_result < (base_index_max * 1000))
+		max_cal_result = (base_index_max * 1000);
+	/* calculate each line delay we should use! */
+	line_dly->dat0 = (((max_cal_result - cal_result[0]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[0]) / delay_step);
+	line_dly->dat1 = (((max_cal_result - cal_result[1]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[1]) / delay_step);
+	line_dly->dat2 = (((max_cal_result - cal_result[2]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[2]) / delay_step);
+	line_dly->dat3 = (((max_cal_result - cal_result[3]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[3]) / delay_step);
+	line_dly->dat4 = (((max_cal_result - cal_result[4]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[4]) / delay_step);
+	line_dly->dat5 = (((max_cal_result - cal_result[5]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[5]) / delay_step);
+	line_dly->dat6 = (((max_cal_result - cal_result[6]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[6]) / delay_step);
+	line_dly->dat7 = (((max_cal_result - cal_result[7]) / delay_step)
+			> 15) ? 15 :
+			((max_cal_result - cal_result[7]) / delay_step);
+	/* set default cmd delay*/
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
+		gadjust->cmd_delay = 7;
+
+	pr_info("%s: line_delay =0x%x, max_cal_result =%d\n",
+		mmc_hostname(mmc), line_delay, max_cal_result);
+	sd_emmc_regs->gadjust = adjust;
+	/* set delay count into reg*/
+	sd_emmc_regs->gdelay = line_delay;
+
+	pr_info("%s: base_index_max %d, base_index_min %d\n",
+		mmc_hostname(mmc), base_index_max, base_index_min);
+
+	/* get adjust point! */
+	*adj_win_start = base_index_max + 2;
+
+	kfree(blk_test);
+	blk_test = NULL;
+	return 0;
+#endif
+}
 
 static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc,
 			u32 *adj_win_start)
@@ -243,7 +458,7 @@ _cali_retry:
 					MMC_READ_MULTIPLE_BLOCK,
 					blk_test, blksz);
 				pdata->calout[dly_tmp][cal_time] =
-						sd_emmc_regs->gcalout & 0x3f;
+						sd_emmc_regs->gcalout[0] & 0x3f;
 				pdata->caling = 0;
 				gadjust->cali_enable = 0;
 				gadjust->cali_sel = 0;
@@ -334,7 +549,7 @@ _cali_retry:
 				? cal_result[line_x] : max_cal_result;
 		min_cal_result = (min_cal_result > cal_result[line_x])
 				? cal_result[line_x] : min_cal_result;
-		pr_err("%s: delay[%d]=%5d padding=%2d, bidx=%d\n",
+		pr_info("%s: delay[%d]=%5d padding=%2d, bidx=%d\n",
 				mmc_hostname(mmc), line_x, cal_result[line_x],
 				ln_delay[line_x], base_index[line_x]);
 	}
@@ -814,9 +1029,14 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 #ifdef AML_CALIBRATION
 	if ((aml_card_type_mmc(pdata))
 			&& (mmc->ios.timing != MMC_TIMING_MMC_HS400)) {
-		if (clkc->div <= 7)
-			err = aml_sd_emmc_execute_tuning_index(mmc,
-					&adj_win_start);
+		if (clkc->div <= 7) {
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
+				err = aml_sd_emmc_gxl_calibration(mmc,
+						&adj_win_start);
+			else
+				err = aml_sd_emmc_execute_tuning_index(mmc,
+						&adj_win_start);
+		}
 		/* if calibration failed, gdelay use default value */
 		if (err) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
@@ -3045,7 +3265,7 @@ static ssize_t emmc_read_debug(struct class *class,
 			pr_info("gclock =0x%x\n", sd_emmc_regs->gclock);
 			pr_info("gdelay =0x%x\n", sd_emmc_regs->gdelay);
 			pr_info("gadjust =0x%x\n", sd_emmc_regs->gadjust);
-			pr_info("gcalout =0x%x\n", sd_emmc_regs->gcalout);
+			pr_info("gcalout =0x%x\n", sd_emmc_regs->gcalout[0]);
 			pr_info("gstart =0x%x\n", sd_emmc_regs->gstart);
 			pr_info("gcfg =0x%x\n", sd_emmc_regs->gcfg);
 			pr_info("gstatus =0x%x\n", sd_emmc_regs->gstatus);
@@ -3123,7 +3343,7 @@ static u32 _get_storage_dev_by_gp(void)
 		case STORAGE_DEV_SDCARD:
 		/* fixme...*/
 			pr_err("warning you may need update your uboot!");
-			BUG();
+			/* BUG(); */
 		break;
 		default:
 		break;
@@ -3146,7 +3366,7 @@ static u32 _get_storage_dev_by_gp(void)
 static u32 get_storage_dev_by_clk(void)
 {
 	u32 ret = 0;
-	BUG();
+	/* BUG(); */
 	return ret;
 }
 
@@ -3234,7 +3454,8 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	if (aml_card_type_mmc(pdata)) {
 		/**set emmc tx_phase regs here base on dts**/
 		aml_sd_emmc_tx_phase_set(host, pdata);
-		if (!is_storage_emmc()) {
+		if (!is_storage_emmc()
+			&& (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)) {
 				mmc_free_host(mmc);
 				goto fail_init_host;
 		}

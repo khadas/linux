@@ -873,8 +873,8 @@ struct sd_emmc_regs {
 	u32 gdelay;	 /* 0x04 */
 	u32 gadjust;	/* 0x08 */
 	u32 reserved_0c;	   /* 0x0c */
-	u32 gcalout;	/* 0x10 */
-	u32 reserved_14[11];   /* 0x14~0x3c */
+	u32 gcalout[4];	/* 0x10~0x1c */
+	u32 reserved_20[8];   /* 0x20~0x3c */
 	u32 gstart;	 /* 0x40 */
 	u32 gcfg;	   /* 0x44 */
 	u32 gstatus;	/* 0x48 */
@@ -958,11 +958,17 @@ struct sd_emmc_adjust {
 	/*[14]	   1: test the rising edge.
 	0: test the falling edge. */
 	u32 cali_rise:1;
-	u32 reserved15:1;
+	/*[15]	   1: Sampling the DAT based on DS in HS400 mode.
+	0: Sampling the DAT based on RXCLK. */
+	u32 ds_enable:1;
 	 /*[21:16]	   Resample the input signals
 	when clock index==adj_delay. */
 	u32 adj_delay:6;
-	u32 reserved22:10;
+	/*[22]	   1: Use cali_dut first falling edge to adjust
+		the timing, set cali_enable to 1 to use this function.
+	0: no use adj auto. */
+	u32 adj_auto:1;
+	u32 reserved22:9;
 };
 struct sd_emmc_calout {
 	/*[5:0]	   Calibration reading.
