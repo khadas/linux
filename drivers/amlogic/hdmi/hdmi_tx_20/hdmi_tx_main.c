@@ -955,9 +955,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
-		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_AVI,
-			(unsigned char *)&hdmitx_device, DRM_HB);
-		pr_info("hdmitx: off DRM packet send\n");
 		return;
 	}
 
@@ -970,7 +967,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
 				DRM_DB, DRM_HB);
-			goto next_avipkt;
+			return;
 		}
 	}
 	DRM_DB[1] = 0x0;
@@ -997,19 +994,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
-
-next_avipkt:
-	if (((data->features >> 16) && 0xff) == 9) {
-		DRM_HB[1] = 3;
-		DRM_HB[2] = 6;
-	} else {
-		DRM_HB[1] = 0;
-		DRM_HB[2] = 0;
-	}
-	if ((hdmitx_device.RXCap.colorimetry_data >> 5) & 0x7) {
-		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_AVI,
-			(unsigned char *)&hdmitx_device, DRM_HB);
-	}
 }
 
 static ssize_t store_config(struct device *dev,
