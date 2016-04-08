@@ -358,6 +358,7 @@ void __init setup_arch(char **cmdline_p)
 	* Unmask asynchronous aborts early to catch possible system errors.
 	*/
 	local_async_enable();
+	local_dbg_enable();
 	setup_processor();
 
 	setup_machine_fdt(__fdt_pointer);

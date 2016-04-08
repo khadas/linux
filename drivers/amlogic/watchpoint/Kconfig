@@ -1,0 +1,7 @@
+config	AMLOGIC_WATCHPOINT
+	tristate "Amlogic point driver"
+	depends on HAVE_HW_BREAKPOINT
+	default y
+	help
+	  say y to enable Amlogic watch point driver
+
