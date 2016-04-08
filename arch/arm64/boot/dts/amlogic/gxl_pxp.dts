@@ -25,7 +25,7 @@
 #include "mesongxl.dtsi"
 / {
 	model = "Amlogic";
-	compatible = "amlogic, Gxbb";
+	compatible = "amlogic, gxl";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -70,14 +70,6 @@
 			no-map;
 		};
 
-		sec_chk:linux,secchk {
-			compatible = "shared-dma-pool";
-			status = "disabled";
-			reusable;
-			size = <0x0 0x2000000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
 			size = <0x0 0x2000000>;
@@ -1059,6 +1051,5 @@
 	status = "disabled";
 };
 &defendkey {
-	memory-region = <&sec_chk>;
-	status = "disabled";
+	status = "okay";
 };
