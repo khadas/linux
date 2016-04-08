@@ -1243,6 +1243,7 @@ RESTART:
 	/*pre hsc&vsc in pps for scaler down*/
 	if ((filter->vpp_hf_start_phase_step >= 0x2000000) &&
 		(filter->vpp_vsc_start_phase_step >= 0x2000000) &&
+		(get_cpu_type() != MESON_CPU_MAJOR_ID_GXBB) &&
 		pre_scaler_en) {
 		filter->vpp_pre_vsc_en = 1;
 		filter->vpp_vsc_start_phase_step >>= 1;
@@ -1250,6 +1251,7 @@ RESTART:
 		filter->vpp_pre_vsc_en = 0;
 
 	if ((filter->vpp_hf_start_phase_step >= 0x2000000) &&
+		(get_cpu_type() != MESON_CPU_MAJOR_ID_GXBB) &&
 		pre_scaler_en) {
 		filter->vpp_pre_hsc_en = 1;
 		filter->vpp_hf_start_phase_step >>= 1;
