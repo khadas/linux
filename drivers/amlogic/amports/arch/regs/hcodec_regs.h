@@ -699,5 +699,8 @@
 #define HCODEC_V3_IPRED_TYPE_WEIGHT_1 0x1f79
 #define HCODEC_V3_LEFT_SMALL_MAX_SAD 0x1f7a
 
+/* add from GXL */
+#define HCODEC_V4_FORCE_SKIP_CFG 0x1f7b
+
 #endif
 

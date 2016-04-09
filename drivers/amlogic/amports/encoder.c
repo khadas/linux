@@ -209,7 +209,7 @@ static DEFINE_SPINLOCK(lock);
 #define ME_SAD_ENOUGH_2_DATA 0x11
 #define ADV_MV_8x8_ENOUGH_DATA 0x20
 
-#ifdef V4_COLOR_BLOCK_FIX
+/* V4_COLOR_BLOCK_FIX */
 #define V3_FORCE_SKIP_SAD_0 0x10
 /* 4 Blocks */
 #define V3_FORCE_SKIP_SAD_1 0x60
@@ -217,13 +217,6 @@ static DEFINE_SPINLOCK(lock);
 #define V3_FORCE_SKIP_SAD_2 0x250
 /* almost disable it -- use t_lac_coeff_2 output to F_ZERO is better */
 #define V3_ME_F_ZERO_SAD (ME_WEIGHT_OFFSET + 0x20)
-#else /* avoid color block */
-#define V3_FORCE_SKIP_SAD_0 0
-#define V3_FORCE_SKIP_SAD_1 0
-#define V3_FORCE_SKIP_SAD_2 0
- /* skip will still go through DCT/Q to avoid color block */
-#define V3_ME_F_ZERO_SAD 0
-#endif
 
 #define V3_SKIP_WEIGHT_0 0x20
 /* 4 Blocks  8 seperate search sad can be very low */
@@ -1997,12 +1990,19 @@ static void avc_prot_init(struct encode_wq_s *wq,
 		WRITE_HREG(HCODEC_ME_SAD_RANGE_INC, me_sad_range_inc);
 
 #ifndef USE_OLD_DUMP_MC
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
-			int i;
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
+			WRITE_HREG(HCODEC_V4_FORCE_SKIP_CFG,
+				(20 << 26) | /* v4_force_q_r_intra */
+				(20 << 20) | /* v4_force_q_r_inter */
+				(0 << 19) | /* v4_force_q_y_enable */
+				(5 << 16) | /* v4_force_qr_y */
+				(6 << 12) | /* v4_force_qp_y */
+				(0 << 0)); /* v4_force_skip_sad */
+
 			/* V3 Force skip */
 			WRITE_HREG(HCODEC_V3_SKIP_CONTROL,
 				(1 << 31) | /* v3_skip_enable */
-				(1 << 30) | /* v3_step_1_weight_enable */
+				(0 << 30) | /* v3_step_1_weight_enable */
 				(1 << 28) | /* v3_mv_sad_weight_enable */
 				(1 << 27) | /* v3_ipred_type_enable */
 				(V3_FORCE_SKIP_SAD_1 << 12) |
@@ -2027,10 +2027,38 @@ static void avc_prot_init(struct encode_wq_s *wq,
 			}
 			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_1,
 				(0 << 25) | /* v3_no_ver_when_top_zero_en */
-				(1 << 24) | /* v3_no_hor_when_left_zero_en */
+				(0 << 24) | /* v3_no_hor_when_left_zero_en */
 				(3 << 16) |  /* type_hor break */
 				(V3_ME_F_ZERO_SAD << 0));
-
+		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+			/* V3 Force skip */
+			WRITE_HREG(HCODEC_V3_SKIP_CONTROL,
+				(1 << 31) | /* v3_skip_enable */
+				(0 << 30) | /* v3_step_1_weight_enable */
+				(1 << 28) | /* v3_mv_sad_weight_enable */
+				(1 << 27) | /* v3_ipred_type_enable */
+				(0 << 12) | /* V3_FORCE_SKIP_SAD_1 */
+				(0 << 0)); /* V3_FORCE_SKIP_SAD_0 */
+			WRITE_HREG(HCODEC_V3_SKIP_WEIGHT,
+				(V3_SKIP_WEIGHT_1 << 16) |
+				(V3_SKIP_WEIGHT_0 << 0));
+			WRITE_HREG(HCODEC_V3_L1_SKIP_MAX_SAD,
+				(V3_LEVEL_1_F_SKIP_MAX_SAD << 16) |
+				(V3_LEVEL_1_SKIP_MAX_SAD << 0));
+			WRITE_HREG(HCODEC_V3_L2_SKIP_WEIGHT,
+				(0 << 16) | /* V3_FORCE_SKIP_SAD_2 */
+				(V3_SKIP_WEIGHT_2 << 0));
+			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_0,
+				(0 << 16) | /* V3_IE_F_ZERO_SAD_I16 */
+				(0 << 0)); /* V3_IE_F_ZERO_SAD_I4 */
+			WRITE_HREG(HCODEC_V3_F_ZERO_CTL_1,
+				(0 << 25) | /* v3_no_ver_when_top_zero_en */
+				(0 << 24) | /* v3_no_hor_when_left_zero_en */
+				(3 << 16) |  /* type_hor break */
+				(0 << 0)); /* V3_ME_F_ZERO_SAD */
+		}
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+			int i;
 			/* MV SAD Table */
 			for (i = 0; i < 64; i++)
 				WRITE_HREG(HCODEC_V3_MV_SAD_TABLE,
@@ -3411,7 +3439,11 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		put_user(wq->mem.buf_size, (u32 *)arg);
 		break;
 	case AMVENC_AVC_IOC_GET_DEVINFO:
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+			/* send the same id as GXTVBB to upper*/
+			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_GXTVBB,
+				strlen(AMVENC_DEVINFO_GXTVBB));
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
 			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_GXTVBB,
 				strlen(AMVENC_DEVINFO_GXTVBB));
 		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {

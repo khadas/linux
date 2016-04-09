@@ -3024,7 +3024,11 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
 		r = copy_to_user((u32 *)arg, addr_info , 7 * sizeof(u32));
 		break;
 	case JPEGENC_IOC_GET_DEVINFO:
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+			/* GXL send same id of GXTVBB to upper*/
+			r = copy_to_user((s8 *)arg, JPEGENC_DEVINFO_GXTVBB,
+				strlen(JPEGENC_DEVINFO_GXTVBB));
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
 			r = copy_to_user((s8 *)arg, JPEGENC_DEVINFO_GXTVBB,
 				strlen(JPEGENC_DEVINFO_GXTVBB));
 		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
