@@ -334,14 +334,14 @@
 		    amlogic,pullupen=<1>;
 		};
 		sdio_clk_cmd_pins:sdio_clk_cmd_pins{
-		    amlogic,setmask=<5 0x03000000>;
+		    amlogic,setmask=<5 0x0c000000>;
 		    amlogic,pins = "GPIOX_4","GPIOX_5"; /** GPIOX_5:CMD, GPIOX_4:CLK */
 		    amlogic,enable-output=<1>; /** 0:output, 1:input */
 		    amlogic,pullup=<1>;
 		    amlogic,pullupen=<1>;
 		};
 		sdio_all_pins:sdio_all_pins{
-		    amlogic,setmask=<5 0xf3000000>;
+		    amlogic,setmask=<5 0xfc000000>;
 		    amlogic,pins = "GPIOX_0","GPIOX_1","GPIOX_2","GPIOX_3","GPIOX_4","GPIOX_5";
 		    amlogic,enable-output=<1>; /** 0:output, 1:input */
 		    amlogic,pullup=<1>;
