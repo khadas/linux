@@ -389,7 +389,7 @@
 	   		pinname = "sd";
 	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
 	   		caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-	   				"MMC_CAP_SD_HIGHSPEED","MMC_CAP_NONREMOVABLE";
+				"MMC_CAP_SD_HIGHSPEED";
 	   				//"MMC_CAP_UHS_SDR12",
 	   				//"MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50",
 	   				//"MMC_CAP_UHS_SDR104";
@@ -399,8 +399,8 @@
 			gpio_dat3 = <&gpio       CARD_4       GPIO_ACTIVE_HIGH>;
 			jtag_pin =  <&gpio       CARD_0       GPIO_ACTIVE_HIGH>;
 			gpio_cd =  <&gpio       CARD_6       GPIO_ACTIVE_HIGH>;
-	   		//irq_in = <3>;
-	   		//irq_out = <5>;
+			irq_in = <3>;
+			irq_out = <5>;
 	   		card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
 		};
     };
@@ -422,7 +422,7 @@
 					"MMC_CAP_HW_RESET", "MMC_CAP_ERASE", "MMC_CAP_CMD23";
             caps2 = "MMC_CAP2_HS200";
 			f_min = <300000>;
-            f_max = <200000000>;
+            f_max = <50000000>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
 		gpio_dat3 = <&gpio       BOOT_3      GPIO_ACTIVE_HIGH>;
