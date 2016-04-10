@@ -148,11 +148,13 @@ static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 {
 	switch (get_cpu_type()) {
 	case MESON_CPU_MAJOR_ID_GXBB:
-	case MESON_CPU_MAJOR_ID_GXL:
 		return hdmitx_hpd_hw_op_gxbb(cmd);
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
 		return hdmitx_hpd_hw_op_gxtvbb(cmd);
+		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+		return hdmitx_hpd_hw_op_gxl(cmd);
 		break;
 	default:
 		break;
@@ -164,11 +166,13 @@ int read_hpd_gpio(void)
 {
 	switch (get_cpu_type()) {
 	case MESON_CPU_MAJOR_ID_GXBB:
-	case MESON_CPU_MAJOR_ID_GXL:
 		return read_hpd_gpio_gxbb();
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
 		return read_hpd_gpio_gxtvbb();
+		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+		return read_hpd_gpio_gxl();
 		break;
 	default:
 		break;
@@ -181,11 +185,13 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 {
 	switch (get_cpu_type()) {
 	case MESON_CPU_MAJOR_ID_GXBB:
-	case MESON_CPU_MAJOR_ID_GXL:
 		return hdmitx_ddc_hw_op_gxbb(cmd);
 		break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
 		return hdmitx_ddc_hw_op_gxtvbb(cmd);
+		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+		return hdmitx_ddc_hw_op_gxl(cmd);
 		break;
 	default:
 		break;
@@ -1706,6 +1712,26 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev)
 
 static void set_phy_by_mode(unsigned int mode)
 {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+		switch (mode) {
+		case 1: /* 5.94Gbps, 3.7125Gbsp */
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33353282);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a315b);
+			break;
+		case 2: /* 2.97Gbps */
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33353282);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a315b);
+			break;
+		case 3: /* 1.485Gbps, and below */
+		default:
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33353282);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x211a315b);
+			break;
+		}
+		return;
+	}
+
+	/* other than GXL */
 	switch (mode) {
 	case 1: /* 5.94Gbps, 3.7125Gbsp */
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33353245);
@@ -1775,6 +1801,8 @@ do { \
 
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
 	msleep(100);
 	RESET_HDMI_PHY();

@@ -25,4 +25,8 @@ int hdmitx_hpd_hw_op_gxtvbb(enum hpd_op cmd);
 int read_hpd_gpio_gxtvbb(void);
 int hdmitx_ddc_hw_op_gxtvbb(enum ddc_op cmd);
 
+int hdmitx_hpd_hw_op_gxl(enum hpd_op cmd);
+int read_hpd_gpio_gxl(void);
+int hdmitx_ddc_hw_op_gxl(enum ddc_op cmd);
+
 #endif
