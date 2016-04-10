@@ -38,11 +38,6 @@
 		serial4 = &uart_AO_B;
 	};
 
-	gpu_dvfs_tbl:gpu_dvfs_tbl {
-		sc_mpp = <3>;/* number of pp used most of time.*/
-		tbl = <&clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk800_cfg>;
-	};
-
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x1000000 0x0 0x7f000000>;

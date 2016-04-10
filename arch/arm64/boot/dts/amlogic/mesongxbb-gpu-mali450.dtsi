@@ -50,7 +50,6 @@
 
 		  /*control_interval x keep_count == 900 - 1000ms */
 		  control_interval = <200>;
-		  dvfs_tbl = <&gpu_dvfs_tbl>;
 
 		  clk125_cfg:clk125_cfg {
 			clk_freq = <125000000>;
@@ -104,6 +103,15 @@
 			voltage = <1150>;
 			keep_count = <5>;
 			threshold = <210 236>;
+		  };
+
+		  clk750_cfg:clk750_cfg {
+			clk_freq = <768000000>;
+			clk_parent = "gp0_pll";
+			clkp_freq = <768000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <230 255>;
 		  };
 
 		  clk800_cfg:clk800_cfg {
