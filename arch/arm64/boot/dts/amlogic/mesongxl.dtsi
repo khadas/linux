@@ -597,7 +597,7 @@
 
 	saradc: saradc {
 		compatible = "amlogic, saradc";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 9 1>;
 		interrupt-names = "saradc_int";
 		clocks = <&clock CLK_XTAL>;
