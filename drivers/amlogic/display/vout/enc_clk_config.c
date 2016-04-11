@@ -249,7 +249,7 @@ static void set_hpll_clk_out_m8b(unsigned int clk)
 				 & (~(0xf << 12))) | (0x6 << 12));
 } /* meson8b */
 
-static int hpll_wait_lock_gxbb(unsigned int reg, unsigned int lock_bit)
+static int hpll_wait_lock(unsigned int reg, unsigned int lock_bit)
 {
 	unsigned int pll_lock;
 	int wait_loop = 200;
@@ -276,7 +276,7 @@ static void set_hpll_clk_out_gxbb(unsigned int clk)
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000e55);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4800023d);
-	ret = hpll_wait_lock_gxbb(HHI_HDMI_PLL_CNTL, 31);
+	ret = hpll_wait_lock(HHI_HDMI_PLL_CNTL, 31);
 	if (ret)
 		pr_info("[error]: hdmi_pll lock failed\n");
 
@@ -316,6 +316,57 @@ static void set_hpll_clk_out_gxbb(unsigned int clk)
 	tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 1, 4, 1);
 }
 
+static void set_hpll_clk_out_gxl(unsigned int clk)
+{
+	int ret;
+
+	/* config hpll to vco = 2970MHz */
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4000027b);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x800cb300);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0xa6412844);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL4, 0x0c4d000c);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x001fa729);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL6, 0x01a31500);
+	tv_out_hiu_setb(HHI_HDMI_PLL_CNTL, 0x1, 28, 1);
+	tv_out_hiu_setb(HHI_HDMI_PLL_CNTL, 0x0, 28, 1);
+	ret = hpll_wait_lock(HHI_HDMI_PLL_CNTL, 31);
+	if (ret)
+		pr_info("[error]: hdmi_pll lock failed\n");
+
+	/* clk div */
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
+
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);
+	/* Enable the final output clock */
+	tv_out_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 19, 1);
+
+	/* setup the XD divider value */
+	tv_out_hiu_setb(HHI_VIID_CLK_DIV, (55 - 1), VCLK2_XD, 8);
+	udelay(5);
+	/* Bit[18:16] - v2_cntl_clk_in_sel */
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 4, VCLK2_CLK_IN_SEL, 3);
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
+	udelay(2);
+
+	/* [15:12] encl_clk_sel, select vclk2_div1 */
+	tv_out_hiu_setb(HHI_VID_CLK_DIV, 8, 28, 4);
+	tv_out_hiu_setb(HHI_VIID_CLK_DIV, 8, 28, 4);
+	/* release vclk2_div_reset and enable vclk2_div */
+	tv_out_hiu_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
+	udelay(5);
+
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
+	udelay(10);
+	tv_out_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
+	udelay(5);
+
+	tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 1, 0, 1);
+	tv_out_hiu_setb(HHI_VID_CLK_CNTL2, 1, 4, 1);
+	return;
+}
+
 static void set_hpll_clk_out_gxtvbb(unsigned int clk)
 {
 	int ret;
@@ -327,7 +378,7 @@ static void set_hpll_clk_out_gxtvbb(unsigned int clk)
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x71486980);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL6, 0x00000e55);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4800023d);
-	ret = hpll_wait_lock_gxbb(HHI_HDMI_PLL_CNTL, 31);
+	ret = hpll_wait_lock(HHI_HDMI_PLL_CNTL, 31);
 	if (ret)
 		pr_info("[error]: hdmi_pll lock failed\n");
 
@@ -399,7 +450,7 @@ static void set_hpll_clk_out(unsigned clk)
 		set_hpll_clk_out_gxtvbb(clk);
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
-		set_hpll_clk_out_gxbb(clk);
+		set_hpll_clk_out_gxl(clk);
 		break;
 	default:
 		break;
@@ -607,7 +658,11 @@ void set_vmode_clk(enum vmode_e mode)
 	int j = 0;
 
 	mutex_lock(&setclk_mutex);
-	if (is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) {
+	if (is_meson_gxl_cpu()) {
+		p_enc = &setting_enc_clk_val_gxl[0];
+		i = sizeof(setting_enc_clk_val_gxl)
+			/ sizeof(struct enc_clk_val_s);
+	} else if (is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) {
 		p_enc = &setting_enc_clk_val_gxbb[0];
 		i = sizeof(setting_enc_clk_val_gxbb)
 			/ sizeof(struct enc_clk_val_s);
