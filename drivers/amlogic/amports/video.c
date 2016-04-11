@@ -1805,7 +1805,8 @@ static void zoom_display_horz(int hscale)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		int l_aligned;
 		int r_aligned;
-		if (zoom_start_x_lines > 0) {
+		if ((zoom_start_x_lines > 0) ||
+		(zoom_end_x_lines < ori_end_x_lines)) {
 			l_aligned = round_down(ori_start_x_lines, 32);
 			r_aligned = round_up(ori_end_x_lines, 32);
 		} else {
@@ -1927,7 +1928,8 @@ static void zoom_display_vert(void)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		int t_aligned;
 		int b_aligned;
-		if (zoom_start_y_lines > 0) {
+		if ((zoom_start_y_lines > 0) ||
+		(zoom_end_y_lines < ori_end_y_lines)) {
 			t_aligned = round_down(ori_start_y_lines, 4);
 			b_aligned = round_up(ori_end_y_lines, 4);
 		} else {
@@ -4191,7 +4193,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		if ((vpp_filter->vpp_hsc_start_phase_step != h_phase_step) ||
 		(vpp_filter->vpp_vsc_start_phase_step != v_phase_step)) {
 			video_property_changed = true;
-			pr_info("frame info register rdma write fail!\n");
+			/*pr_info("frame info register rdma write fail!\n");*/
 		}
 	}
 	if (likely(video_onoff_state != VIDEO_ENABLE_STATE_IDLE)) {

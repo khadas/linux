@@ -559,8 +559,8 @@ vpp_process_speed_check(s32 width_in,
 			return SPEED_CHECK_DONE;
 
 		if (height_in > height_out) {
-			if (get_cpu_type() ==
-				MESON_CPU_MAJOR_ID_GXTVBB) {
+			if (get_cpu_type() >=
+				MESON_CPU_MAJOR_ID_GXBB) {
 				cur_ratio = div_u64((u64)height_in *
 						(u64)vinfo->height *
 						1000,
@@ -661,6 +661,8 @@ vpp_set_filters2(u32 width_in,
 	u32 ratio_x = 0;
 	u32 ratio_y = 0;
 	u32 tmp_ratio_y = 0;
+	int temp_width;
+	int temp_height;
 	struct vppfilter_mode_s *filter = &next_frame_par->vpp_filter;
 	u32 wide_mode;
 	s32 height_shift = 0;
@@ -942,11 +944,19 @@ RESTART:
 				(vpp_zoom_center_y << 10) +
 				(ratio_y >> 1)) / ratio_y;
 	end = ((h_in << 18) + (ratio_y >> 1)) / ratio_y + start - 1;
+	if (super_debug)
+		pr_info("top:start =%d,%d,%d,%d  %d,%d,%d\n",
+			start, end, video_top,
+			video_height, h_in, ratio_y, vpp_zoom_center_y);
 #else
 	start =
 		video_top + video_height / 2 - ((h_in << 17) +
 		(vpp_zoom_center_y << 10)) / ratio_y;
 	end = (h_in << 18) / ratio_y + start - 1;
+	if (super_debug)
+		pr_info("top:start =%d,%d,%d,%d  %d,%d,%d\n",
+			start, end, video_top,
+			video_height, h_in, ratio_y, vpp_zoom_center_y);
 #endif
 
 #ifdef TV_REVERSE
@@ -983,7 +993,8 @@ RESTART:
 
 			} else
 				next_frame_par->VPP_vd_start_lines_ = 0;
-
+			temp_height = min((video_top + video_height - 1),
+			(vinfo->height - 1));
 		} else {
 			if (start < video_top) {
 				temp = ((video_top - start) * ratio_y) >> 18;
@@ -991,11 +1002,13 @@ RESTART:
 
 			} else
 				next_frame_par->VPP_vd_start_lines_ = 0;
+			temp_height = min((video_top + video_height - 1),
+			(vinfo->height - 1)) - video_top + 1;
 		}
 
 		temp =
 			next_frame_par->VPP_vd_start_lines_ +
-			(video_height * ratio_y >> 18);
+			(temp_height * ratio_y >> 18);
 		next_frame_par->VPP_vd_end_lines_ =
 			(temp <= (h_in - 1)) ? temp : (h_in - 1);
 	}
@@ -1013,7 +1026,7 @@ RESTART:
 	[video_top, video_top+video_height-1]
 	*/
 	start = max(start, max(0, video_top));
-	end = min(end, min((s32)(start + height_out - 1),
+	end = min(end, min((s32)(vinfo->height - 1),
 		(s32)(video_top + video_height - 1)));
 
 	if (start >= end) {
@@ -1060,7 +1073,7 @@ RESTART:
 				(ratio_x >> 1)) / ratio_x;
 	end = ((w_in << 18) + (ratio_x >> 1)) / ratio_x + start - 1;
 	if (super_debug)
-		pr_info("start =%d,%d,%d,%d  %d,%d,%d\n",
+		pr_info("left:start =%d,%d,%d,%d  %d,%d,%d\n",
 			start, end, video_left,
 			video_width, w_in, ratio_x, vpp_zoom_center_x);
 #else
@@ -1069,6 +1082,9 @@ RESTART:
 		(vpp_zoom_center_x << 10)) /
 		ratio_x;
 	end = (w_in << 18) / ratio_x + start - 1;
+	pr_info("left:start =%d,%d,%d,%d  %d,%d,%d\n",
+			start, end, video_left,
+			video_width, w_in, ratio_x, vpp_zoom_center_x);
 #endif
 	/* calculate source horizontal clip */
 #ifdef TV_REVERSE
@@ -1101,7 +1117,8 @@ RESTART:
 
 			} else
 				next_frame_par->VPP_hd_start_lines_ = 0;
-
+			temp_width = min((video_left + video_width - 1),
+			(vinfo->width - 1));
 		} else {
 			if (start < video_left) {
 				temp = ((video_left - start) * ratio_x) >> 18;
@@ -1109,11 +1126,12 @@ RESTART:
 
 			} else
 				next_frame_par->VPP_hd_start_lines_ = 0;
+			temp_width = min((video_left + video_width - 1),
+			(vinfo->width - 1)) - video_left + 1;
 		}
-
 		temp =
 			next_frame_par->VPP_hd_start_lines_ +
-			(video_width * ratio_x >> 18);
+			(temp_width * ratio_x >> 18);
 		next_frame_par->VPP_hd_end_lines_ =
 			(temp <= (w_in - 1)) ? temp : (w_in - 1);
 	}
@@ -1132,7 +1150,7 @@ RESTART:
 	 */
 	start = max(start, max(0, video_left));
 	end = min(end,
-		min((s32)(start + width_out - 1),
+		min((s32)(vinfo->width - 1),
 		(s32)(video_left + video_width - 1)));
 
 	if (start >= end) {
@@ -1503,9 +1521,11 @@ static void vpp_set_scaler(u32 src_width,
 	u32 width_out = vinfo->width;
 	u32 height_out = vinfo->height;
 
-	if (video_layer_width > 0 && video_layer_width <= vinfo->width)
+	if (video_layer_width > 0 && video_layer_width <= vinfo->width
+	&& ((video_layer_width + video_layer_left) <= vinfo->width))
 		width_out = video_layer_width;
-	if (video_layer_height > 0 && video_layer_height <= vinfo->height)
+	if (video_layer_height > 0 && video_layer_height <= vinfo->height
+	&& ((video_layer_height + video_layer_top) <= vinfo->height))
 		height_out = video_layer_height;
 
 	if ((likely(src_width >
