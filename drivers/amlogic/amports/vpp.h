@@ -239,6 +239,8 @@ void vpp_set_video_speed_check(u32 h, u32 w);
 extern
 void vpp_get_video_speed_check(u32 *h, u32 *w);
 
+extern
+void vpp_super_scaler_support(void);
 
 #ifdef CONFIG_AM_VIDEO2
 extern void

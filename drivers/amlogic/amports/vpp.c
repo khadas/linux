@@ -2189,3 +2189,14 @@ void vpp_set_3d_scale(bool enable)
 	vpp_3d_scale = enable;
 }
 #endif
+
+void vpp_super_scaler_support(void)
+{
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		super_scaler = 1;
+	else
+		super_scaler = 0;
+}
+
+
+

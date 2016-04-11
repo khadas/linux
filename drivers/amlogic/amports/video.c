@@ -7493,6 +7493,9 @@ static int __init video_init(void)
 	DisableVideoLayer();
 	DisableVideoLayer2();
 
+	/* check super scaler support status */
+	vpp_super_scaler_support();
+
 #ifndef CONFIG_AM_VIDEO2
 	DisableVPP2VideoLayer();
 #endif
