@@ -2366,7 +2366,7 @@ static s32 vh264_init(void)
 		*/
 		r5 = get_decoder_firmware_data(VFORMAT_H264, "vh264_slice_mc",
 			(u8 *) mc_cpu_addr + MC_OFFSET_SLICE, MC_SWAP_SIZE);
-	 } else if (cpu_type == MESON_CPU_MAJOR_ID_GXTVBB) {
+	 } else if (cpu_type >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		r0 = amvdec_loadmc_ex(VFORMAT_H264, "gxtvbb_vh264_mc", NULL);
 		r1 = get_decoder_firmware_data(VFORMAT_H264,
 			"gxtvbb_vh264_header_mc",

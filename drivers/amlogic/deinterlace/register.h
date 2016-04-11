@@ -205,11 +205,13 @@ unit=16 pixel need to set = 2^n */
 /* Bit   31:0,   mif_info_baddr      uns, default = 32'h0; */
 #define AFBC_BODY_BADDR                    ((0x1ae7)) /* << 2) + 0xd0100000) */
 /* Bit   31:0,   mif_data_baddr      uns, default = 32'h0001_0000; */
-#define AFBC_OUT_XSCOPE                    ((0x1ae8)) /* << 2) + 0xd0100000) */
-/* Bit   31:29,   reserved */
-/* Bit   28:16,   out_horz_bgn        uns, default = 0    ; // unit: 1 pixel */
-/* Bit   15:13,   reserved */
-/* Bit    12:0,   out_horz_end        uns, default = 1919 ; // unit: 1 pixel */
+
+#define AFBC_SIZE_OUT                    ((0x1ae8)) /* << 2) + 0xd0100000) */
+/*Bit   31:29,   reserved
+   Bit   28:16,   hsize_out    uns, default = 1920    ;    unit: 1 pixel
+   Bit   15:13,   reserved
+   Bit    12:0,   vsize_out    uns, default = 1080 ;       unit: 1 pixel*/
+
 #define AFBC_OUT_YSCOPE                    ((0x1ae9)) /* << 2) + 0xd0100000) */
 /* Bit   31:29,   reserved */
 /* Bit   28:16,   out_vert_bgn        uns, default = 0    ; // unit: 1 pixel */

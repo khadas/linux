@@ -238,6 +238,7 @@ enum vformat_e {
 	VFORMAT_H264MVC,
 	VFORMAT_H264_4K2K,
 	VFORMAT_HEVC,
+	VFORMAT_VP9,
 	VFORMAT_H264_ENC,
 	VFORMAT_JPEG_ENC,
 	VFORMAT_MAX
@@ -300,6 +301,10 @@ static  struct clk_set_setting clks_for_formats[] = {
 		{{1280*720*30, 100}, {1920*1080*30, 100}, {1920*1080*60, 166},
 		{4096*2048*30, 333}, {4096*2048*60, 630}, {INT_MAX, 630},}
 	},
+	{/*VFORMAT_VP9*/
+		{{1280*720*30, 100}, {1920*1080*30, 100}, {1920*1080*60, 166},
+		{4096*2048*30, 333}, {4096*2048*60, 630}, {INT_MAX, 630},}
+	},
 	{/*VFORMAT_H264_ENC*/
 		{{1280*720*30, 0}, {INT_MAX, 0},
 		{0, 0}, {0, 0}, {0, 0}, {0, 0},}
@@ -308,6 +313,7 @@ static  struct clk_set_setting clks_for_formats[] = {
 		{{1280*720*30, 0}, {INT_MAX, 0},
 		{0, 0}, {0, 0}, {0, 0}, {0, 0},}
 	},
+
 };
 
 
@@ -350,6 +356,8 @@ static int vdec_clock_set(int clk)
 		else
 			clk = clock_real_clk[VDEC_1];
 	}
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL && clk >= 500)
+		clk = 667;
 	vdec_get_clk_source(clk, &source, &div, &rclk);
 
 	if (clock_real_clk[VDEC_1] == rclk)
@@ -474,6 +482,8 @@ static int hevc_clock_set(int clk)
 		else
 			clk = clock_real_clk[VDEC_HEVC];
 	}
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL && clk >= 500)
+		clk = 667;
 
 	vdec_get_clk_source(clk, &source, &div, &rclk);
 

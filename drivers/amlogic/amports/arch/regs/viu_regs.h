@@ -172,7 +172,7 @@
 #define AFBC_LBUF_DEPTH 0x1ae5
 #define AFBC_HEAD_BADDR 0x1ae6
 #define AFBC_BODY_BADDR 0x1ae7
-#define AFBC_OUT_XSCOPE 0x1ae8
+#define AFBC_SIZE_OUT     0x1ae8
 #define AFBC_OUT_YSCOPE 0x1ae9
 #define AFBC_STAT 0x1aea
 #define AFBC_VD_CFMT_CTRL 0x1aeb

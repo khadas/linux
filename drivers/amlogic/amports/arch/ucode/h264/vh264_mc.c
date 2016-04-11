@@ -66,27 +66,27 @@
 
 
 #undef FOR_CPUS
-#define FOR_CPUS {MESON_CPU_MAJOR_ID_GXBB, MESON_CPU_MAJOR_ID_GXTVBB, 0}
+#define FOR_CPUS {MESON_CPU_MAJOR_ID_GXTVBB, MESON_CPU_MAJOR_ID_GXL, 0}
 #define FOR_VFORMAT VFORMAT_H264
 
-#define DEF_FIRMEARE_FOR_GXTVBB(n) \
-		REGISTER_FIRMARE_PER_CPU(MESON_CPU_MAJOR_ID_GXTVBB,\
+#define DEF_FIRMEARE_FOR_GXBB(n) \
+		REGISTER_FIRMARE_PER_CPU(MESON_CPU_MAJOR_ID_GXBB,\
 		FOR_VFORMAT, n)
 
 #define REG_FIRMWARE_ALL()\
 	do {\
-		DEF_FIRMWARE(vh264_mc);\
-		DEF_FIRMEARE_FOR_GXTVBB(gxtvbb_vh264_mc);\
-		DEF_FIRMWARE(vh264_header_mc);\
-		DEF_FIRMEARE_FOR_GXTVBB(gxtvbb_vh264_header_mc);\
-		DEF_FIRMWARE(vh264_data_mc);\
-		DEF_FIRMEARE_FOR_GXTVBB(gxtvbb_vh264_data_mc);\
-		DEF_FIRMWARE(vh264_mmco_mc);\
-		DEF_FIRMEARE_FOR_GXTVBB(gxtvbb_vh264_mmco_mc);\
-		DEF_FIRMWARE(vh264_list_mc);\
-		DEF_FIRMEARE_FOR_GXTVBB(gxtvbb_vh264_list_mc);\
-		DEF_FIRMWARE(vh264_slice_mc);\
-		DEF_FIRMEARE_FOR_GXTVBB(gxtvbb_vh264_slice_mc);\
+		DEF_FIRMEARE_FOR_GXBB(vh264_mc);\
+		DEF_FIRMWARE(gxtvbb_vh264_mc);\
+		DEF_FIRMEARE_FOR_GXBB(vh264_header_mc);\
+		DEF_FIRMWARE(gxtvbb_vh264_header_mc);\
+		DEF_FIRMEARE_FOR_GXBB(vh264_data_mc);\
+		DEF_FIRMWARE(gxtvbb_vh264_data_mc);\
+		DEF_FIRMEARE_FOR_GXBB(vh264_mmco_mc);\
+		DEF_FIRMWARE(gxtvbb_vh264_mmco_mc);\
+		DEF_FIRMEARE_FOR_GXBB(vh264_list_mc);\
+		DEF_FIRMWARE(gxtvbb_vh264_list_mc);\
+		DEF_FIRMEARE_FOR_GXBB(vh264_slice_mc);\
+		DEF_FIRMWARE(gxtvbb_vh264_slice_mc);\
 	} while (0)
 
 INIT_DEF_FIRMWARE();

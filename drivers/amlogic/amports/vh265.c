@@ -1901,36 +1901,34 @@ static void init_decode_head_hw(struct hevc_state_s *hevc)
 
 }
 #endif
+#define HEVCD_MPP_ANC2AXI_TBL_DATA                 0x3464
 
 static void init_pic_list_hw(struct hevc_state_s *hevc)
 {
 	int i;
 	int cur_pic_num = MAX_REF_PIC_NUM;
-	WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CONF_ADDR, 0x0);
+	WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CONF_ADDR,
+		(0x1 << 1) | (0x1 << 2));
+
 	for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 		if (hevc->m_PIC[i].index == -1) {
 			cur_pic_num = i;
 			break;
 		}
-		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CMD_ADDR,
-				   hevc->m_PIC[i].mc_y_adr | (hevc->m_PIC[i].
-					   mc_canvas_y << 8) | 0x1);
+		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_DATA,
+					hevc->m_PIC[i].mc_y_adr >> 5);
 
 		if (double_write_mode & 0x10)
-			WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CMD_ADDR,
-				   hevc->m_PIC[i].mc_u_v_adr | (hevc->m_PIC[i].
-					   mc_canvas_u_v << 8) | 0x1);
-
+			WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_DATA,
+					hevc->m_PIC[i].mc_u_v_adr >> 5);
 	}
 
 	for (; i < MAX_REF_PIC_NUM; i++) {
-		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CMD_ADDR,
-			hevc->m_PIC[cur_pic_num-1].mc_y_adr|
-			(hevc->m_PIC[cur_pic_num-1].mc_canvas_y<<8)|0x1);
+		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_DATA,
+			hevc->m_PIC[cur_pic_num-1].mc_y_adr >> 5);
 #ifndef LOSLESS_COMPRESS_MODE
-		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_CMD_ADDR,
-			hevc->m_PIC[cur_pic_num-1].mc_u_v_adr|
-			(hevc->m_PIC[cur_pic_num-1].mc_canvas_u_v<<8)|0x1);
+		WRITE_VREG(HEVCD_MPP_ANC2AXI_TBL_DATA,
+			hevc->m_PIC[cur_pic_num-1].mc_u_v_adr >> 5);
 #endif
 	}
 

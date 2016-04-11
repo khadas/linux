@@ -98,7 +98,8 @@ static const char * const vdec_device_name[] = {
 	"amvdec_yuv",
 	"amvdec_h264mvc",
 	"amvdec_h264_4k2k",
-	"amvdec_h265"
+	"amvdec_h265",
+	"amvdec_vp9"
 };
 
 static int vdec_default_buf_size[] = {
@@ -113,7 +114,8 @@ static int vdec_default_buf_size[] = {
 	32, /*"amvdec_yuv",*/
 	64, /*"amvdec_h264mvc",*/
 	64, /*"amvdec_h264_4k2k", else alloc on decoder*/
-	16, /*"amvdec_h265", else alloc on decoder*/
+	48, /*"amvdec_h265", else alloc on decoder*/
+	48, /*"amvdec_vp9", else alloc on decoder*/
 	0
 };
 

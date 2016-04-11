@@ -496,7 +496,6 @@ static int video_port_init(struct stream_port_s *port,
 				vdec_poweroff(VDEC_HEVC);
 		}
 	}
-
 	r = stbuf_init(pbuf);
 	if (r < 0) {
 		pr_err("video_port_init %d, stbuf_init failed\n", __LINE__);
@@ -722,10 +721,10 @@ static int amstream_port_init(struct stream_port_s *port)
 		pubuf->buf_rp = 0;
 		pubuf->for_4k = 0;
 		if (has_hevc_vdec()) {
-			if (port->vformat == VFORMAT_HEVC)
+			if (port->vformat == VFORMAT_HEVC ||
+				port->vformat == VFORMAT_VP9)
 				pvbuf = &bufs[BUF_TYPE_HEVC];
 		}
-
 		r = video_port_init(port, pvbuf);
 		if (r < 0) {
 			pr_err("video_port_init  failed\n");
@@ -813,7 +812,8 @@ static int amstream_port_release(struct stream_port_s *port)
 	struct stream_buf_s *psbuf = &bufs[BUF_TYPE_SUBTITLE];
 
 	if (has_hevc_vdec()) {
-		if (port->vformat == VFORMAT_HEVC)
+		if (port->vformat == VFORMAT_HEVC
+			|| port->vformat == VFORMAT_VP9)
 			pvbuf = &bufs[BUF_TYPE_HEVC];
 	}
 
@@ -884,6 +884,7 @@ static ssize_t amstream_vbuf_write(struct file *file, const char *buf,
 	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
 	struct stream_buf_s *pbuf = NULL;
 	int r;
+
 
 	if (has_hevc_vdec()) {
 		pbuf = (port->type & PORT_TYPE_HEVC) ? &bufs[BUF_TYPE_HEVC] :

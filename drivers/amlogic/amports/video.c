@@ -1826,9 +1826,12 @@ static void zoom_display_horz(int hscale)
 			  ((zoom_start_x_lines - l_aligned) << 16) |
 			  (zoom_end_x_lines - l_aligned));
 
-		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
-			  (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff) |
-			  ((r_aligned - l_aligned) << 16));
+	VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
+		  (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff) |
+		  ((r_aligned - l_aligned) << 16));
+	VSYNC_WR_MPEG_REG(AFBC_SIZE_OUT,
+		  (VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) & 0xffff) |
+		  ((r_aligned - l_aligned) << 16));
 	}
 
 	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_X0,
@@ -1947,9 +1950,12 @@ static void zoom_display_vert(void)
 		    ((zoom_start_y_lines - t_aligned) << 16) |
 		    (zoom_end_y_lines - t_aligned));
 
-		VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
-		    (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff0000) |
-		    (b_aligned - t_aligned));
+	VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
+		(VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff0000) |
+		(b_aligned - t_aligned));
+	VSYNC_WR_MPEG_REG(AFBC_SIZE_OUT,
+		(VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) & 0xffff0000) |
+		(b_aligned - t_aligned));
 	}
 }
 
