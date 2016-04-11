@@ -926,7 +926,8 @@
 				"Ext Spk","LOUTL",
 				"Ext Spk","LOUTR";
 
-		mute_gpio-gpios = <&gpio GPIOH_3 0>;
+		mute_gpio-gpios = <&gpio GPIOH_5 0>;
+		mute_inv;
 		hp_disable;
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
@@ -1029,8 +1030,8 @@
 
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<6 0x3800000>;
-		amlogic,clrmask=<6 0x7e0000>;
+		amlogic,setmask=<6 0x7800000>;
+		amlogic,clrmask=<6 0x07e0000>;
 		amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9";
 	};
 

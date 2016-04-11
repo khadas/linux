@@ -494,20 +494,8 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 	int val;
-	if (is_jtag_apao())
-		return;
-	p_aml_audio = snd_soc_card_get_drvdata(card);
-	val = aml_read_sec_reg(0xda004004);
-	pr_info("audio use jtag pinmux as i2s output, read val =%x\n",
-		aml_read_sec_reg(0xda004004));
-	val = val & (~((1<<8) | (1<<1)));
-	aml_write_sec_reg(0xda004004, val);
-	p_aml_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "aml_snd_m8");
-	if (IS_ERR(p_aml_audio->pin_ctl)) {
-		pr_info("%s,aml_m8_pinmux_init error!\n", __func__);
-		return;
-	}
 
+	p_aml_audio = snd_soc_card_get_drvdata(card);
 	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
 	p_aml_audio->mute_inv =
 	    of_property_read_bool(card->dev->of_node, "mute_inv");
@@ -515,6 +503,20 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 		val = p_aml_audio->mute_inv ?
 			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
 		gpiod_direction_output(p_aml_audio->mute_desc, val);
+	}
+
+	if (is_jtag_apao())
+		return;
+	val = aml_read_sec_reg(0xda004004);
+	pr_info("audio use jtag pinmux as i2s output, read val =%x\n",
+		aml_read_sec_reg(0xda004004));
+	val = val & (~((1<<8) | (1<<1)));
+	aml_write_sec_reg(0xda004004, val);
+
+	p_aml_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "aml_snd_m8");
+	if (IS_ERR(p_aml_audio->pin_ctl)) {
+		pr_info("%s,aml_m8_pinmux_init error!\n", __func__);
+		return;
 	}
 }
 

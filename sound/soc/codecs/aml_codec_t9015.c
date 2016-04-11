@@ -54,9 +54,9 @@ struct T9015_audio_init_reg {
 };
 
 static struct T9015_audio_init_reg init_list[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x3400Bc06},
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x3400Bc0F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x50502929},
-	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFFFF0000},
+	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFBFB0000},
 	{LINE_OUT_CONFIG, 0x00004242},
 	{POWER_CONFIG, 0x00010000},
 };
@@ -467,6 +467,13 @@ static int aml_T9015_audio_probe(struct snd_soc_codec *codec)
 	aml_T9015_audio_reset(codec);
 	aml_T9015_audio_start_up(codec);
 	aml_T9015_audio_reg_init(codec);
+
+	aml_write_cbus(AIU_ACODEC_CTRL, (1 << 4)
+			   |(1 << 6)
+			   |(1 << 11)
+			   |(1 << 15)
+			   |(2 << 2)
+	);
 
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	T9015_audio->codec = codec;

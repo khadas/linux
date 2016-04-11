@@ -28,15 +28,15 @@
 #define PGAL_IN_EN                  0x0B
 #define PGAR_IN_EN                  0x0A
 #define PGAL_IN_ZC_EN               0x09
-#define PGAR_IN_ZC_EN               0x09
-#define ADCL_EN                     0x08
-#define ADCR_EN                     0x07
-#define DACL_EN                     0x06
-#define DACR_EN                     0x05
-#define LOLP_EN                     0x04
-#define LOLN_EN                     0x03
-#define LORP_EN                     0x02
-#define LORN_EN                     0x01
+#define PGAR_IN_ZC_EN               0x08
+#define ADCL_EN                     0x07
+#define ADCR_EN                     0x06
+#define DACL_EN                     0x05
+#define DACR_EN                     0x04
+#define LOLP_EN                     0x03
+#define LOLN_EN                     0x02
+#define LORP_EN                     0x01
+#define LORN_EN                     0x00
 
 #define ADC_VOL_CTR_PGA_IN_CONFIG       ACODEC_TOP_ADDR(0x04)
 #define DAC_GAIN_SEL_H              0x1F
