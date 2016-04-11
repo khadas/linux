@@ -3415,9 +3415,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	amvecm_on_vs(vf);
 #endif
 #ifdef CONFIG_TVIN_VDIN
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
+	/* patch for m8 4k2k wifidisplay bandwith bottleneck */
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8) {
 		vdin_ops = get_vdin_v4l2_ops();
-		if (vdin_ops) {
+		if (vdin_ops && vdin_ops->tvin_vdin_func) {
 			arg.cmd = VDIN_CMD_ISR;
 			vdin_ops->tvin_vdin_func(1, &arg);
 #ifdef CONFIG_AM_VIDEO2
