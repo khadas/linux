@@ -747,7 +747,8 @@ static int amstream_port_init(struct stream_port_s *port)
 			(port->flag & PORT_FLAG_AID) ? port->aid : 0xffff,
 			(port->flag & PORT_FLAG_SID) ? port->sid : 0xffff,
 			(port->pcr_inited == 1) ? port->pcrid : 0xffff,
-			(port->vformat == VFORMAT_HEVC));
+			(port->vformat == VFORMAT_HEVC) ||
+			(port->vformat == VFORMAT_VP9));
 		} else {
 			r = tsdemux_init(
 			(port->flag & PORT_FLAG_VID) ? port->vid : 0xffff,
@@ -939,9 +940,9 @@ static ssize_t amstream_mpts_write(struct file *file, const char *buf,
 	int r = 0;
 
 	if (has_hevc_vdec()) {
-		pvbuf =	(port->vformat ==
-			VFORMAT_HEVC) ? &bufs[BUF_TYPE_HEVC] :
-			&bufs[BUF_TYPE_VIDEO];
+		pvbuf =	(port->vformat == VFORMAT_HEVC ||
+					port->vformat == VFORMAT_VP9) ?
+			&bufs[BUF_TYPE_HEVC] : &bufs[BUF_TYPE_VIDEO];
 	} else
 		pvbuf = &bufs[BUF_TYPE_VIDEO];
 
@@ -1771,8 +1772,9 @@ static long amstream_ioctl_get_ex(struct stream_port_s *this, ulong arg)
 			struct am_ioctl_parm_ex *p = &parm;
 			struct stream_buf_s *buf = NULL;
 
-			buf = (this->vformat ==
-				VFORMAT_HEVC) ? &bufs[BUF_TYPE_HEVC] :
+			buf = (this->vformat == VFORMAT_HEVC ||
+				this->vformat == VFORMAT_VP9) ?
+				&bufs[BUF_TYPE_HEVC] :
 				&bufs[BUF_TYPE_VIDEO];
 
 			if (p == NULL)
@@ -2112,8 +2114,9 @@ static long amstream_do_ioctl_old(struct stream_port_s *this,
 			struct am_io_param *p = &para;
 			struct stream_buf_s *buf = NULL;
 
-			buf = (this->vformat ==
-				VFORMAT_HEVC) ? &bufs[BUF_TYPE_HEVC] :
+			buf = (this->vformat == VFORMAT_HEVC ||
+					this->vformat == VFORMAT_VP9) ?
+				&bufs[BUF_TYPE_HEVC] :
 				&bufs[BUF_TYPE_VIDEO];
 
 			if (p == NULL)
