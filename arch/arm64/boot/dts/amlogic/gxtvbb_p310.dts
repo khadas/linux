@@ -80,12 +80,7 @@
 			size = <0x0 0x0>;
 			multi-use;
 		};
-/*
-		amlvideo2_reserved:linux,amlvideo2 {
-			compatible = "amlogic, amlvideo2_memory";
-			size = <0x0 0x01800000>;
-		};
-*/
+
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -270,14 +265,12 @@
 		/* if disable nr10bit, set nr10bit-surpport to 0 */
 		nr10bit-surpport = <1>;
 	};
-/*
 	amlvideo2 {
 		compatible = "amlogic, amlvideo2";
-		memory-region = <&amlvideo2_reserved>;
 		dev_name = "amlvideo2";
 		status = "okay";
+		cma_mode = <1>;
 	};
-*/
 	vdin0 {
 		compatible = "amlogic, vdin";
 		/*memory-region = <&vdin0_cma_reserved>;*/

@@ -54,6 +54,8 @@
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/dma-contiguous.h>
 #include "amlvideo2.h"
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -119,6 +121,8 @@ KERNEL_VERSION(\
 
 #define DUR2PTS(x) ((x) - ((x) >> 4))
 #define DUR2PTS_RM(x) ((x) & 0xf)
+
+#define CMA_ALLOC_SIZE 24
 
 MODULE_DESCRIPTION(
 	"pass a frame of amlogic video2 codec device  to user in style of v4l2");
@@ -300,9 +304,16 @@ struct amlvideo2_node_dmaqueue {
 struct amlvideo2_device {
 struct mutex mutex;
 struct v4l2_device v4l2_dev;
-
+struct platform_device *pdev;
 struct amlvideo2_node *node[MAX_SUB_DEV_NODE];
 int node_num;
+resource_size_t buffer_start;
+unsigned int buffer_size;
+struct page *cma_pages;
+struct resource memobj;
+int cma_mode;
+bool use_reserve;
+
 };
 
 struct amlvideo2_fh;
@@ -3511,6 +3522,67 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
+int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev)
+{
+	int flags;
+	if (!vid_dev->use_reserve) {
+		if (vid_dev->cma_mode == 0) {
+			vid_dev->cma_pages = dma_alloc_from_contiguous(
+				&(vid_dev->pdev->dev),
+				(CMA_ALLOC_SIZE*SZ_1M) >> PAGE_SHIFT, 0);
+	    if (vid_dev->cma_pages) {
+			vid_dev->buffer_start = page_to_phys(
+				vid_dev->cma_pages);
+			vid_dev->buffer_size = (CMA_ALLOC_SIZE*SZ_1M);
+	    } else {
+		pr_err("amlvideo2 alloc cma alone failed\n");
+		return -1;
+	    }
+		} else {
+			flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
+			vid_dev->buffer_start = codec_mm_alloc_for_dma(
+				"amlvideo2",
+				(CMA_ALLOC_SIZE*SZ_1M)/PAGE_SIZE, 0, flags);
+	    if (!(vid_dev->buffer_start)) {
+		pr_err("amlvideo2 alloc cma buffer failed\n");
+		return -1;
+	    } else {
+		vid_dev->buffer_size = (CMA_ALLOC_SIZE*SZ_1M);
+	    }
+		}
+		pr_info("amlvideo2 cma memory is %x , size is  %x\n" ,
+			(unsigned)vid_dev->buffer_start ,
+			(unsigned)vid_dev->buffer_size);
+	}
+
+	return 0;
+}
+
+int amlvideo2_cma_buf_uninit(struct amlvideo2_device *vid_dev)
+{
+	if (!vid_dev->use_reserve) {
+		if (vid_dev->cma_mode == 0) {
+			if (vid_dev->cma_pages) {
+				dma_release_from_contiguous(
+					&vid_dev->pdev->dev,
+					vid_dev->cma_pages,
+					(CMA_ALLOC_SIZE*SZ_1M) >> PAGE_SHIFT);
+				vid_dev->cma_pages = NULL;
+			}
+		} else {
+			if (vid_dev->buffer_start != 0) {
+				codec_mm_free_for_dma(
+				"amlvideo2",
+				vid_dev->buffer_start);
+				vid_dev->buffer_start = 0;
+				vid_dev->buffer_size = 0;
+				pr_info("amlvideo2 cma memory release succeed\n");
+			}
+		}
+	}
+	return 0;
+}
+
 /* ------------------------------------------------------------------
  File operations for the device
  ------------------------------------------------------------------*/
@@ -3519,6 +3591,8 @@ static int amlvideo2_open(struct file *file)
 	struct amlvideo2_node *node = video_drvdata(file);
 	struct amlvideo2_fh *fh = NULL;
 	struct videobuf_res_privdata *res = NULL;
+	struct resource *reserve = NULL;
+	int ret;
 
 	mutex_lock(&node->mutex);
 	node->users++;
@@ -3546,6 +3620,9 @@ static int amlvideo2_open(struct file *file)
 		return -ENODEV;
 	}
 	#endif
+	ret = amlvideo2_cma_buf_init(node->vid_dev);
+	if (ret < 0)
+		return -ENOMEM;
 
 	fh = node->fh;
 	if (NULL == fh) {
@@ -3553,6 +3630,21 @@ static int amlvideo2_open(struct file *file)
 		/* node->provider  = NULL; */
 		mutex_unlock(&node->mutex);
 		return -ENOMEM;
+	}
+
+	if (node->vid_dev->use_reserve) {
+		reserve = &node->vid_dev->memobj;
+		if (!reserve) {
+			pr_err("alloc reserve buffer failed !\n");
+			return -ENOMEM;
+		} else {
+			node->res.start = reserve->start;
+			node->res.end = reserve->end;
+		}
+	} else {
+		node->res.start = node->vid_dev->buffer_start;
+		node->res.end = node->vid_dev->buffer_start +
+					node->vid_dev->buffer_size;
 	}
 	mutex_unlock(&node->mutex);
 	node->input = 0; /* default input is miracast */
@@ -3650,7 +3742,7 @@ static int amlvideo2_close(struct file *file)
 
 	videobuf_stop(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
-
+	amlvideo2_cma_buf_uninit(node->vid_dev);
 	mutex_lock(&node->mutex);
 	if (AML_RECEIVER_NONE == node->r_type) {
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -3879,7 +3971,7 @@ static int amlvideo2_release_node(struct amlvideo2_device *vid_dev)
 	return 0;
 }
 
-static struct resource memobj;
+/* static struct resource memobj; */
 static int amlvideo2_create_node(struct platform_device *pdev)
 {
 	int ret = 0, i = 0, j = 0;
@@ -3902,7 +3994,8 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 	#if 0
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 	#else
-		res = &memobj;
+
+	res = &vid_dev->memobj;
 		/*
 		 ret = find_reserve_block(pdev->dev.of_node->name,i);
 		 if(ret < 0){
@@ -3921,8 +4014,6 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 		if (!vid_node)
 			break;
 
-		vid_node->res.start = res->start;
-		vid_node->res.end = res->end;
 		vid_node->res.magic = MAGIC_RE_MEM;
 		vid_node->res.priv = NULL;
 		vid_node->context = create_ge2d_work_queue();
@@ -4016,10 +4107,19 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 	pr_err("amlvideo2 probe called\n");
 
 	pdev->num_resources = MAX_SUB_DEV_NODE;
+	platform_set_drvdata(pdev, &(dev->v4l2_dev));
 	ret = of_reserved_mem_device_init(&pdev->dev);
 
 	if (ret == 0)
 		pr_info("amlvideo2_probe done\n");
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"cma_mode", &(dev->cma_mode));
+	if (ret) {
+		pr_err("don't find  match cma_mode\n");
+		dev->cma_mode = 1;
+	}
+	dev->pdev = pdev;
 
 	if (v4l2_device_register(&pdev->dev, &dev->v4l2_dev) < 0) {
 		dev_err(&pdev->dev, "v4l2_device_register failed\n");
@@ -4091,9 +4191,15 @@ static int amlvideo2_mem_device_init(struct reserved_mem *rmem,
 					struct device *dev)
 {
 	struct resource *res = NULL;
-	res = &memobj;
+	struct platform_device *pdev = container_of(dev,
+			struct platform_device, dev);
+	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
+	struct amlvideo2_device *vdevp = container_of(v4l2_dev,
+			struct amlvideo2_device, v4l2_dev);
+	res = &(vdevp->memobj);
 	res->start = rmem->base;
 	res->end = rmem->base + rmem->size - 1;
+	vdevp->use_reserve = 1;
 	pr_info("amlvideo2 mem:%lx->%lx\n", (unsigned long)res->start,
 		(unsigned long)res->end);
 	return 0;
@@ -4119,6 +4225,7 @@ static int amlvideo2_drv_remove(struct platform_device *pdev)
 
 	amlvideo2_release_node(vid_dev);
 	v4l2_device_unregister(v4l2_dev);
+	platform_set_drvdata(pdev, NULL);
 	kfree(vid_dev);
 	return 0;
 }
