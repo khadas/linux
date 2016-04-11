@@ -323,7 +323,7 @@ static void set_hpll_clk_out_gxl(unsigned int clk)
 	/* config hpll to vco = 2970MHz */
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL, 0x4000027b);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL2, 0x800cb300);
-	tv_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0xa6412844);
+	tv_out_hiu_write(HHI_HDMI_PLL_CNTL3, 0xa6212844);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL4, 0x0c4d000c);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL5, 0x001fa729);
 	tv_out_hiu_write(HHI_HDMI_PLL_CNTL6, 0x01a31500);
