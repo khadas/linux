@@ -2972,7 +2972,7 @@ static void __exit amhdmitx_exit(void)
 }
 
 /* module_init(amhdmitx_init); */
-arch_initcall(amhdmitx_init);
+subsys_initcall(amhdmitx_init);
 module_exit(amhdmitx_exit);
 
 MODULE_DESCRIPTION("AMLOGIC HDMI TX driver");
