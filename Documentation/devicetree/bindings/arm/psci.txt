@@ -53,3 +53,5 @@ Example:
 		cpu_on		= <0x95c10002>;
 		migrate		= <0x95c10003>;
 	};
+
+idle-state idlestate, state

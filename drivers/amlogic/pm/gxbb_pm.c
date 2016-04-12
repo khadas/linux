@@ -148,7 +148,7 @@ static void meson_gx_suspend(void)
 {
 	pr_info("enter meson_pm_suspend!\n");
 	late_suspend();
-	cpu_suspend(0x0010000);
+	cpu_suspend(0x1);
 	early_resume();
 	pr_info("... wake up\n");
 

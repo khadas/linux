@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/smp.h>
+#include <linux/slab.h>
 
 #include <asm/compiler.h>
 #include <asm/cpu_ops.h>
@@ -25,6 +26,7 @@
 #include <asm/psci.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
+#include <asm/system_misc.h>
 
 #define PSCI_POWER_STATE_TYPE_STANDBY		0
 #define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
@@ -54,6 +56,9 @@ enum psci_function {
 	PSCI_FN_MIGRATE,
 	PSCI_FN_MAX,
 };
+
+static DEFINE_PER_CPU_READ_MOSTLY(struct psci_power_state *,
+				psci_power_state);
 
 static u32 psci_function_id[PSCI_FN_MAX];
 
@@ -93,6 +98,17 @@ static u32 psci_power_state_pack(struct psci_power_state state)
 			<< PSCI_POWER_STATE_TYPE_SHIFT)	|
 		((state.affinity_level & PSCI_POWER_STATE_AFFL_MASK)
 			<< PSCI_POWER_STATE_AFFL_SHIFT);
+}
+
+static void psci_power_state_unpack(u32 power_state,
+					struct psci_power_state *state)
+{
+	state->id = ((power_state >> PSCI_POWER_STATE_ID_SHIFT)
+						& PSCI_POWER_STATE_ID_MASK);
+	state->type = ((power_state >> PSCI_POWER_STATE_TYPE_SHIFT)
+						& PSCI_POWER_STATE_TYPE_MASK);
+	state->affinity_level = ((power_state >> PSCI_POWER_STATE_AFFL_SHIFT)
+						& PSCI_POWER_STATE_AFFL_MASK);
 }
 
 static int psci_cpu_suspend(struct psci_power_state state,
@@ -136,6 +152,63 @@ static int psci_migrate(unsigned long cpuid)
 	fn = psci_function_id[PSCI_FN_MIGRATE];
 	err = invoke_psci_fn(fn, cpuid, 0, 0);
 	return psci_to_linux_errno(err);
+}
+
+static int __maybe_unused cpu_psci_cpu_init_idle(struct device_node *cpu_node,
+						 unsigned int cpu)
+{
+	int i, ret, count = 0;
+	struct psci_power_state *psci_states;
+	struct device_node *state_node;
+
+	/*
+	 * If the PSCI cpu_suspend function hook has not been initialized
+	 * idle states must not be enabled, so bail out
+	 */
+	if (!psci_ops.cpu_suspend)
+		return -EOPNOTSUPP;
+
+	/* Count idle states */
+	while ((state_node = of_parse_phandle(cpu_node, "cpu-idle-states",
+					      count))) {
+		count++;
+		of_node_put(state_node);
+	}
+
+	if (!count)
+		return -ENODEV;
+
+	psci_states = kcalloc(count, sizeof(*psci_states), GFP_KERNEL);
+	if (!psci_states)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		u32 psci_power_state;
+
+		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
+
+		ret = of_property_read_u32(state_node,
+					   "arm,psci-suspend-param",
+					   &psci_power_state);
+		if (ret) {
+			pr_warn(" * %s missing arm,psci-suspend-param property\n",
+				state_node->full_name);
+			of_node_put(state_node);
+			goto free_mem;
+		}
+
+		of_node_put(state_node);
+		pr_debug("psci-power-state %#x index %d\n", psci_power_state,
+							    i);
+		psci_power_state_unpack(psci_power_state, &psci_states[i]);
+	}
+	/* Idle states parsed correctly, initialize per-cpu pointer */
+	per_cpu(psci_power_state, cpu) = psci_states;
+	return 0;
+
+free_mem:
+	kfree(psci_states);
+	return ret;
 }
 
 static const struct of_device_id psci_of_match[] __initconst = {
@@ -250,15 +323,20 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 #endif
 static int psci_suspend_finisher(unsigned long index)
 {
-	/* struct psci_power_state *state =
-	 * __this_cpu_read(psci_power_state); */
-	struct psci_power_state  state = {
+	 struct psci_power_state *state =
+		__this_cpu_read(psci_power_state);
+
+	struct psci_power_state  state_no_idle = {
 		.id = 0,
 		.type = 1,
 		.affinity_level = 0,
 	};
 
-	return psci_ops.cpu_suspend(state,
+	if (!state)
+		return psci_ops.cpu_suspend(state_no_idle,
+				    virt_to_phys(cpu_resume));
+	else
+		return psci_ops.cpu_suspend(state[index - 1],
 				    virt_to_phys(cpu_resume));
 }
 
@@ -284,6 +362,9 @@ static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
 
 const struct cpu_operations cpu_psci_ops = {
 	.name		= "psci",
+#ifdef CONFIG_CPU_IDLE
+	.cpu_init_idle	= cpu_psci_cpu_init_idle,
+#endif
 	.cpu_init	= cpu_psci_cpu_init,
 	.cpu_prepare	= cpu_psci_cpu_prepare,
 	.cpu_boot	= cpu_psci_cpu_boot,
