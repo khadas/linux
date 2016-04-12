@@ -2212,7 +2212,7 @@ void hdmirx_hw_monitor(void)
 		return;
 	} else {
 		if (rx.state != FSM_SIG_READY) {
-			if (wait_no_signal_cnt > wait_clk_stable_max)
+			if (wait_no_signal_cnt == wait_clk_stable_max)
 				rx.no_signal = true;
 			else
 				wait_no_signal_cnt++;
@@ -3749,7 +3749,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 
 	memset(&rx.vendor_specific_info, 0,
 			sizeof(struct vendor_specific_info_s));
-
+	rx.no_signal = false;
 	rx.phy.cfg_clk = cfg_clk;
 	rx.phy.lock_thres = lock_thres;
 	rx.phy.fsm_enhancement = fsm_enhancement;
@@ -3780,7 +3780,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	} else {
 		rx.state = FSM_HDMI5V_LOW;
 	}
-	rx_print("%s %d\n", __func__, rx.port);
+	rx_print("%s %d nosignal:%d\n", __func__, rx.port, rx.no_signal);
 
 }
 

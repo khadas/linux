@@ -249,7 +249,7 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
 	rx.open_fg = 1;
-	rx_print("%s port:%x ok\n", __func__, port);
+	rx_print("%s port:%x ok nosignal:%d\n", __func__, port, rx.no_signal);
 	return 0;
 }
 
