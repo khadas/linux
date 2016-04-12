@@ -4677,7 +4677,7 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 	}
 
-	if (is_meson_gxtvbb_cpu()) {
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
 		/* In bypass mode, register should in line with input source */
 		vframe = vf_peek(VFM_NAME);
 		if ((NULL != vframe) && registed_state)
@@ -7238,7 +7238,7 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			if (is_meson_gxtvbb_cpu()) {
+			if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
 				/* di_init_buf(vframe->width,
 				 * vframe->height, 1); */
 				 /*
@@ -7268,7 +7268,7 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			if (is_meson_gxtvbb_cpu()) {
+			if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
 				/*
 				 * 10 bit mode need 1.5 times buffer size of
 				 * 8 bit mode, init the buffer size as 10 bit

@@ -1824,7 +1824,7 @@ static void di_nr_init(void)
  */
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 {
-	if (!is_meson_gxtvbb_cpu())
+	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu())
 		return;
 
 	if (vframe->type & VIDTYPE_PIC) {
@@ -1907,7 +1907,7 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
 
 void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag)
 {
-	if (!is_meson_gxtvbb_cpu())
+	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu())
 		return;
 
 	if (bypass_flag != bit_mode_last_bypass_flag) {
