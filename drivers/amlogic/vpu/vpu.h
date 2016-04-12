@@ -146,7 +146,7 @@ static unsigned int vpu_clk_table[2][12][3] = {/* compatible for all chip */
 		{696000000,    GPLL_CLK,     0}, /* 8 */ /* G9TV use gp1_pll */
 		{850000000,    FCLK_DIV3,    0}, /* 9 */
 	},
-	{ /* gxbb, fpll=2000M */
+	{ /* gxbb, gxtvbb, gxl, fpll=2000M */
 		/* frequency   clk_mux       div */
 		{100000000,    FCLK_DIV5,    3}, /* 0 */
 		{166667000,    FCLK_DIV3,    3}, /* 1 */
@@ -173,38 +173,45 @@ static char *vpu_mod_table[] = {
 	"viu_vd2",
 	"viu_chroma",
 	"viu_ofifo",
-	"viu_scale",
-	"viu_osd_scale",
+	"viu_scaler",
+	"viu_osd_scaler",
 	"viu_vdin0",
 	"viu_vdin1",
 	"pic_rot1",
 	"pic_rot2",
 	"pic_rot3",
+	"viu_super_scaler",
+	"viu_osd_super_scaler",
+	"afbc_dec",
 	"di_pre",
 	"di_post",
 	"viu_sharpness_line_buffer",
+
 	"viu2_osd1",
 	"viu2_osd2",
+	"d2d3",
 	"viu2_vd1",
 	"viu2_chroma",
 	"viu2_ofifo",
-	"viu2_scale",
-	"viu2_osd_scale",
-	"vdin_arbitor_am_sync",
+	"viu2_scaler",
+	"viu2_osd_scaler",
+	"vdin_arbitor_am_async",
 	"vpu_arb",
-	"display_arbitor_am_sync",
+	"display_arbitor_am_async",
+	"osd1_afbcd",
+	"afbc_dec0",
 	"afbc_dec",
-	"vpu_arbitor_am_sync",
+	"vpu_arbitor2_am_async",
 	"vencp",
 	"vencl",
 	"venci",
 	"isp",
 	"cvd2",
 	"atv_dmd",
-	"viu_video_super_scaler",
-	"viu_osd_super_scaler",
-	"reserved",
-	"d2d3",
+	"ldim_stts",
+	"xvycc_lut",
+
+	"viu1_water_mark",
 	"none",
 };
 

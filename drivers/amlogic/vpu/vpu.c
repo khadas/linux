@@ -657,8 +657,7 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 {
 	unsigned vpu_mod;
 	unsigned long flags = 0;
-	unsigned int _reg0;
-	unsigned int _reg1;
+	unsigned int _reg0, _reg1, _reg2;
 	unsigned int val;
 	int ret = 0;
 
@@ -675,10 +674,12 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_CHIP_GXL:
 		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
 		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
+		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
 		break;
 	default:
 		_reg0 = HHI_VPU_MEM_PD_REG0;
 		_reg1 = HHI_VPU_MEM_PD_REG1;
+		_reg2 = 0;
 		break;
 	}
 
@@ -715,12 +716,12 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 		vpu_hiu_setb(_reg0, val, 18, 2);
 		break;
 	case VPU_PIC_ROT1:
-	case VPU_VIU_SRSCL: /* G9TV, GXBB, GXTVBB */
+	case VPU_VIU_SRSCL:
 		vpu_hiu_setb(_reg0, val, 20, 2);
 		break;
 	case VPU_PIC_ROT2:
-	case VPU_VIU_OSDSR: /* G9TV, GXBB */
-	case VPU_AFBC_DEC1: /* GXTVBB */
+	case VPU_VIU_OSDSR:
+	case VPU_AFBC_DEC1:
 		vpu_hiu_setb(_reg0, val, 22, 2);
 		break;
 	case VPU_PIC_ROT3:
@@ -732,14 +733,8 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_DI_POST:
 		vpu_hiu_setb(_reg0, val, 28, 2);
 		break;
-	case VPU_SHARP: /* G9TV, G9BB, GXBB, GXTVBB, GXL */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			vpu_hiu_setb(_reg0, val, 30, 2);
-		}
+	case VPU_SHARP:
+		vpu_hiu_setb(_reg0, val, 30, 2);
 		break;
 	case VPU_VIU2_OSD1:
 		vpu_hiu_setb(_reg1, val, 0, 2);
@@ -747,7 +742,7 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_VIU2_OSD2:
 		vpu_hiu_setb(_reg1, val, 2, 2);
 		break;
-	case VPU_D2D3: /* G9TV */
+	case VPU_D2D3:
 		if (vpu_chip_type == VPU_CHIP_G9TV)
 			vpu_hiu_setb(_reg1, ((val << 2) | val), 0, 4);
 		break;
@@ -766,27 +761,17 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_VIU2_OSD_SCALE:
 		vpu_hiu_setb(_reg1, val, 12, 2);
 		break;
-	case VPU_VDIN_AM_ASYNC: /* G9TV */
-	case VPU_VPU_ARB: /* GXBB, GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			vpu_hiu_setb(_reg1, val, 14, 2);
-		}
+	case VPU_VDIN_AM_ASYNC:
+	case VPU_VPU_ARB:
+		vpu_hiu_setb(_reg1, val, 14, 2);
 		break;
-	case VPU_VDISP_AM_ASYNC: /* G9TV */
-	case VPU_AFBC_DEC: /* GXBB */
-	case VPU_OSD1_AFBCD: /* GXTVBB */
-	case VPU_AFBC_DEC0: /* GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			vpu_hiu_setb(_reg1, val, 16, 2);
-		}
+	case VPU_VDISP_AM_ASYNC:
+	case VPU_AFBC_DEC:
+	case VPU_OSD1_AFBCD:
+	case VPU_AFBC_DEC0:
+		vpu_hiu_setb(_reg1, val, 16, 2);
 		break;
-	case VPU_VPUARB2_AM_ASYNC: /* G9TV */
+	case VPU_VPUARB2_AM_ASYNC:
 		if (vpu_chip_type == VPU_CHIP_G9TV)
 			vpu_hiu_setb(_reg1, val, 18, 2);
 		break;
@@ -802,21 +787,17 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_ISP:
 		vpu_hiu_setb(_reg1, val, 26, 2);
 		break;
-	case VPU_CVD2: /* G9TV, G9BB */
-	case VPU_LDIM_STTS: /* GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
-			vpu_hiu_setb(_reg1, val, 28, 2);
-		}
+	case VPU_CVD2:
+	case VPU_LDIM_STTS:
+		vpu_hiu_setb(_reg1, val, 28, 2);
 		break;
-	case VPU_ATV_DMD: /* G9TV, G9BB */
-	case VPU_XVYCC_LUT: /* GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB)) {
-			vpu_hiu_setb(_reg1, val, 30, 2);
-		}
+	case VPU_ATV_DMD:
+	case VPU_XVYCC_LUT:
+		vpu_hiu_setb(_reg1, val, 30, 2);
+		break;
+	case VPU_VIU1_WM:
+		if (vpu_chip_type == VPU_CHIP_GXL)
+			vpu_hiu_setb(_reg2, val, 0, 2);
 		break;
 	default:
 		VPUPR("switch_vpu_mem_pd: unsupport vpu mod\n");
@@ -851,8 +832,7 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 int get_vpu_mem_pd_vmod(unsigned int vmod)
 {
 	unsigned int vpu_mod;
-	unsigned int _reg0;
-	unsigned int _reg1;
+	unsigned int _reg0, _reg1, _reg2;
 	unsigned int val;
 	int ret = 0;
 
@@ -866,10 +846,12 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_CHIP_GXL:
 		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
 		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
+		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
 		break;
 	default:
 		_reg0 = HHI_VPU_MEM_PD_REG0;
 		_reg1 = HHI_VPU_MEM_PD_REG1;
+		_reg2 = 0;
 		break;
 	}
 
@@ -906,12 +888,12 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		val = vpu_hiu_getb(_reg0, 18, 2);
 		break;
 	case VPU_PIC_ROT1:
-	case VPU_VIU_SRSCL: /* G9TV, GXBB, GXTVBB */
+	case VPU_VIU_SRSCL:
 		val = vpu_hiu_getb(_reg0, 20, 2);
 		break;
 	case VPU_PIC_ROT2:
-	case VPU_VIU_OSDSR: /* G9TV, GXBB */
-	case VPU_AFBC_DEC1: /* GXTVBB */
+	case VPU_VIU_OSDSR:
+	case VPU_AFBC_DEC1:
 		val = vpu_hiu_getb(_reg0, 22, 2);
 		break;
 	case VPU_PIC_ROT3:
@@ -923,16 +905,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_DI_POST:
 		val = vpu_hiu_getb(_reg0, 28, 2);
 		break;
-	case VPU_SHARP: /* G9TV, G9BB, GXBB, GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			val = vpu_hiu_getb(_reg0, 30, 2);
-		} else {
-			val = VPU_MEM_PD_ERR;
-		}
+	case VPU_SHARP:
+		val = vpu_hiu_getb(_reg0, 30, 2);
 		break;
 	case VPU_VIU2_OSD1:
 		val = vpu_hiu_getb(_reg1, 0, 2);
@@ -940,7 +914,7 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_VIU2_OSD2:
 		val = vpu_hiu_getb(_reg1, 2, 2);
 		break;
-	case VPU_D2D3: /* G9TV */
+	case VPU_D2D3:
 		if (vpu_chip_type == VPU_CHIP_G9TV)
 			val = vpu_hiu_getb(_reg1, 0, 4);
 		else
@@ -961,31 +935,17 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_VIU2_OSD_SCALE:
 		val = vpu_hiu_getb(_reg1, 12, 2);
 		break;
-	case VPU_VDIN_AM_ASYNC: /* G9TV */
-	case VPU_VPU_ARB: /* GXBB, GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			val = vpu_hiu_getb(_reg1, 14, 2);
-		} else {
-			val = VPU_MEM_PD_ERR;
-		}
+	case VPU_VDIN_AM_ASYNC:
+	case VPU_VPU_ARB:
+		val = vpu_hiu_getb(_reg1, 14, 2);
 		break;
-	case VPU_VDISP_AM_ASYNC: /* G9TV */
-	case VPU_AFBC_DEC: /* GXBB */
-	case VPU_OSD1_AFBCD: /* GXTVBB */
-	case VPU_AFBC_DEC0: /* GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_GXBB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			val = vpu_hiu_getb(_reg1, 16, 2);
-		} else {
-			val = VPU_MEM_PD_ERR;
-		}
+	case VPU_VDISP_AM_ASYNC:
+	case VPU_AFBC_DEC:
+	case VPU_OSD1_AFBCD:
+	case VPU_AFBC_DEC0:
+		val = vpu_hiu_getb(_reg1, 16, 2);
 		break;
-	case VPU_VPUARB2_AM_ASYNC: /* G9TV */
+	case VPU_VPUARB2_AM_ASYNC:
 		if (vpu_chip_type == VPU_CHIP_G9TV)
 			val = vpu_hiu_getb(_reg0, 18, 2);
 		else
@@ -1003,27 +963,19 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_ISP:
 		val = vpu_hiu_getb(_reg1, 26, 2);
 		break;
-	case VPU_CVD2: /* G9TV, G9BB */
-	case VPU_LDIM_STTS: /* GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			val = vpu_hiu_getb(_reg1, 28, 2);
-		} else {
-			val = VPU_MEM_PD_ERR;
-		}
+	case VPU_CVD2:
+	case VPU_LDIM_STTS:
+		val = vpu_hiu_getb(_reg1, 28, 2);
 		break;
-	case VPU_ATV_DMD: /* G9TV, G9BB */
-	case VPU_XVYCC_LUT: /* GXTVBB */
-		if ((vpu_chip_type == VPU_CHIP_G9TV) ||
-			(vpu_chip_type == VPU_CHIP_G9BB) ||
-			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
-			(vpu_chip_type == VPU_CHIP_GXL)) {
-			val = vpu_hiu_getb(_reg1, 30, 2);
-		} else {
+	case VPU_ATV_DMD:
+	case VPU_XVYCC_LUT:
+		val = vpu_hiu_getb(_reg1, 30, 2);
+		break;
+	case VPU_VIU1_WM:
+		if (vpu_chip_type == VPU_CHIP_GXL)
+			val = vpu_hiu_getb(_reg2, 0, 2);
+		else
 			val = VPU_MEM_PD_ERR;
-		}
 		break;
 	default:
 		val = VPU_MEM_PD_ERR;
@@ -1137,7 +1089,7 @@ static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 {
 	unsigned int ret;
 	unsigned int tmp[2], temp;
-	unsigned int _reg0, _reg1;
+	unsigned int _reg0, _reg1, _reg2;
 
 	switch (vpu_chip_type) {
 	case VPU_CHIP_GXBB:
@@ -1145,16 +1097,20 @@ static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 	case VPU_CHIP_GXL:
 		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
 		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
+		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
 		break;
 	default:
 		_reg0 = HHI_VPU_MEM_PD_REG0;
 		_reg1 = HHI_VPU_MEM_PD_REG1;
+		_reg2 = 0;
 		break;
 	}
 	switch (buf[0]) {
 	case 'r':
 		VPUPR("mem_pd0: 0x%08x\n", vpu_hiu_read(_reg0));
 		VPUPR("mem_pd1: 0x%08x\n", vpu_hiu_read(_reg1));
+		if (vpu_chip_type == VPU_CHIP_GXL)
+			VPUPR("mem_pd2: 0x%08x\n", vpu_hiu_read(_reg2));
 		break;
 	case 'w':
 		ret = sscanf(buf, "w %u %u", &tmp[0], &tmp[1]);

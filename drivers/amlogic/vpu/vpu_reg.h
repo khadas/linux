@@ -59,6 +59,7 @@ extern void __iomem *reg_base_cbus;
 #define HHI_MEM_PD_REG0_GX              0x40
 #define HHI_VPU_MEM_PD_REG0_GX          0x41
 #define HHI_VPU_MEM_PD_REG1_GX          0x42
+#define HHI_VPU_MEM_PD_REG2_GX          0x4d
 
 #define HHI_VPU_CLK_CNTL                0x106f
 /* GX register */

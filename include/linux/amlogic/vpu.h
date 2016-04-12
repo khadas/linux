@@ -37,7 +37,7 @@ enum vpu_mod_e {
 	VPU_AFBC_DEC1,        /* reg0[23:22]  //GXTVBB */
 	VPU_DI_PRE,           /* reg0[27:26] //common */
 	VPU_DI_POST,          /* reg0[29:28] //common */
-	VPU_SHARP,            /* reg0[31:30]  //G9TV, G9BB, GXBB, GXTVBB */
+	VPU_SHARP,            /* reg0[31:30]  //common */
 
 	VPU_VIU2_OSD1,        /* reg1[1:0] */
 	VPU_VIU2_OSD2,        /* reg1[3:2] */
@@ -48,7 +48,7 @@ enum vpu_mod_e {
 	VPU_VIU2_SCALE,       /* reg1[11:10] */
 	VPU_VIU2_OSD_SCALE,   /* reg1[13:12] */
 	VPU_VDIN_AM_ASYNC,    /* reg1[15:14]  //G9TV */
-	VPU_VPU_ARB,          /* reg1[15:14]  //GXBB, GXTVBB */
+	VPU_VPU_ARB,          /* reg1[15:14]  //GXBB, GXTVBB, GXL */
 	VPU_VDISP_AM_ASYNC,   /* reg1[17:16]  //G9TV */
 	VPU_OSD1_AFBCD,       /* reg1[17:16]  //GXTVBB */
 	VPU_AFBC_DEC0,        /* reg1[17:16]  //GXTVBB */
@@ -60,8 +60,11 @@ enum vpu_mod_e {
 	VPU_ISP,              /* reg1[27:26] */
 	VPU_CVD2,             /* reg1[29:28]  //G9TV, G9BB */
 	VPU_ATV_DMD,          /* reg1[31:30]  //G9TV, G9BB */
-	VPU_LDIM_STTS,        /* reg1[29:28]  //GXTVBB */
-	VPU_XVYCC_LUT,        /* reg1[31:30]  //GXTVBB */
+	VPU_LDIM_STTS,        /* reg1[29:28]  //GXTVBB, GXL */
+	VPU_XVYCC_LUT,        /* reg1[31:30]  //GXTVBB, GXL */
+
+	VPU_VIU1_WM,          /* reg2[1:0]  //GXL */
+
 	VPU_MAX,
 };
 
