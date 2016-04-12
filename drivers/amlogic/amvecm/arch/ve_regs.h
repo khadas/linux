@@ -489,42 +489,24 @@
 #define PEAKING_FILTER_SEL_WID      4
 
 #define VPP_VE_H_V_SIZE             0x1da4
-#define DNLP_EN					0x31c5
-/* #define P_DNLP_EN				VCBUS_REG_ADDR(DNLP_EN) */
-#define DNLP_00					0x31c6
-/* #define P_DNLP_00				VCBUS_REG_ADDR(DNLP_00) */
-#define DNLP_01					0x31c7
-#define P_DNLP_01				VCBUS_REG_ADDR(DNLP_01)
-#define DNLP_02					0x31c8
-/* #define P_DNLP_02				VCBUS_REG_ADDR(DNLP_02) */
-#define DNLP_03					0x31c9
-/* #define P_DNLP_03				VCBUS_REG_ADDR(DNLP_03) */
-#define DNLP_04					0x31ca
-/* #define P_DNLP_04				VCBUS_REG_ADDR(DNLP_04) */
-#define DNLP_05					0x31cb
-/* #define P_DNLP_05				VCBUS_REG_ADDR(DNLP_05) */
-#define DNLP_06					0x31cc
-/* #define P_DNLP_06				VCBUS_REG_ADDR(DNLP_06) */
-#define DNLP_07					0x31cd
-/* #define P_DNLP_07				VCBUS_REG_ADDR(DNLP_07) */
-#define DNLP_08					0x31ce
-/* #define P_DNLP_08				VCBUS_REG_ADDR(DNLP_08) */
-#define DNLP_09					0x31cf
-/* #define P_DNLP_09				VCBUS_REG_ADDR(DNLP_09) */
-#define DNLP_10					0x31d0
-/* #define P_DNLP_10				VCBUS_REG_ADDR(DNLP_10) */
-#define DNLP_11					0x31d1
-/* #define P_DNLP_11				VCBUS_REG_ADDR(DNLP_11) */
-#define DNLP_12					0x31d2
-/* #define P_DNLP_12				VCBUS_REG_ADDR(DNLP_12) */
-#define DNLP_13					0x31d3
-/* #define P_DNLP_13				VCBUS_REG_ADDR(DNLP_13) */
-#define DNLP_14					0x31d4
-/* #define P_DNLP_14				VCBUS_REG_ADDR(DNLP_14) */
-#define DNLP_15					0x31d5
-/* #define P_DNLP_15				VCBUS_REG_ADDR(DNLP_15) */
-#define DEMO_CRTL				0x31d6
-/* #define P_DEMO_CRTL				VCBUS_REG_ADDR(DEMO_CRTL) */
 
+#define SRSHARP0_DNLP_EN					0x3245
+#define SRSHARP0_DNLP_00					0x3246
+#define SRSHARP0_DNLP_01					0x3247
+#define SRSHARP0_DNLP_02					0x3248
+#define SRSHARP0_DNLP_03					0x3249
+#define SRSHARP0_DNLP_04					0x324a
+#define SRSHARP0_DNLP_05					0x324b
+#define SRSHARP0_DNLP_06					0x324c
+#define SRSHARP0_DNLP_07					0x324d
+#define SRSHARP0_DNLP_08					0x324e
+#define SRSHARP0_DNLP_09					0x324f
+#define SRSHARP0_DNLP_10					0x3250
+#define SRSHARP0_DNLP_11					0x3251
+#define SRSHARP0_DNLP_12					0x3252
+#define SRSHARP0_DNLP_13					0x3253
+#define SRSHARP0_DNLP_14					0x3254
+#define SRSHARP0_DNLP_15					0x3255
+#define SRSHARP0_DEMO_CRTL					0x3256
 
 #endif /* _VE_REG_H */
