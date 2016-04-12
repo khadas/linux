@@ -107,6 +107,8 @@ enum vformat_e {
 	VFORMAT_H264MVC,
 	VFORMAT_H264_4K2K,
 	VFORMAT_HEVC,
+	VFORMAT_H264_ENC,
+	VFORMAT_JPEG_ENC,
 	VFORMAT_VP9,
 	VFORMAT_MAX
 };
@@ -124,6 +126,8 @@ static const struct type_name vformat_type_name[] = {
 	{VFORMAT_H264MVC, "h264mvc"},
 	{VFORMAT_H264_4K2K, "h264_4k"},
 	{VFORMAT_HEVC, "hevc"},
+	{VFORMAT_H264_ENC, "h264_enc"},
+	{VFORMAT_JPEG_ENC, "jpeg_enc"},
 	{VFORMAT_VP9, "vp9"},
 	{VFORMAT_YUV, "yuv"},
 	{0, NULL},
