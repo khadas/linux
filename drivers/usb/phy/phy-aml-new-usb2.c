@@ -15,9 +15,9 @@ phy-aml-gxl-usb2.c
 #include <linux/delay.h>
 #include <linux/usb/phy.h>
 #include <linux/amlogic/usb-gxl.h>
-#include "phy-aml-gxl-usb.h"
+#include "phy-aml-new-usb.h"
 
-static int amlogic_gxl_usb2_init(struct usb_phy *x)
+static int amlogic_new_usb2_init(struct usb_phy *x)
 {
 	int time_dly = 500;
 	int i, j;
@@ -26,7 +26,7 @@ static int amlogic_gxl_usb2_init(struct usb_phy *x)
 	struct u2p_aml_regs_t u2p_aml_regs;
 	union u2p_r0_t reg0;
 
-	amlogic_gxl_usbphy_reset();
+	amlogic_new_usbphy_reset();
 
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 3; j++) {
@@ -39,8 +39,7 @@ static int amlogic_gxl_usb2_init(struct usb_phy *x)
 		reg0.b.por = 1;
 		reg0.b.dmpulldown = 1;
 		reg0.b.dppulldown = 1;
-		if (1 == i)
-			reg0.b.idpullup = 1;
+
 		writel(reg0.d32, u2p_aml_regs.u2p_r[0]);
 
 		udelay(time_dly);
@@ -53,12 +52,12 @@ static int amlogic_gxl_usb2_init(struct usb_phy *x)
 	return 0;
 }
 
-static int amlogic_gxl_usb2_suspend(struct usb_phy *x, int suspend)
+static int amlogic_new_usb2_suspend(struct usb_phy *x, int suspend)
 {
 	return 0;
 }
 
-static int amlogic_gxl_usb2_probe(struct platform_device *pdev)
+static int amlogic_new_usb2_probe(struct platform_device *pdev)
 {
 	struct amlogic_usb			*phy;
 	struct device *dev = &pdev->dev;
@@ -94,8 +93,8 @@ static int amlogic_gxl_usb2_probe(struct platform_device *pdev)
 	phy->portnum      = portnum;
 	phy->phy.dev		= phy->dev;
 	phy->phy.label		= "amlogic-usbphy2";
-	phy->phy.init		= amlogic_gxl_usb2_init;
-	phy->phy.set_suspend	= amlogic_gxl_usb2_suspend;
+	phy->phy.init		= amlogic_new_usb2_init;
+	phy->phy.set_suspend	= amlogic_new_usb2_suspend;
 	phy->phy.type		= USB_PHY_TYPE_USB2;
 
 	usb_add_phy_dev(&phy->phy);
@@ -107,56 +106,56 @@ static int amlogic_gxl_usb2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amlogic_gxl_usb2_remove(struct platform_device *pdev)
+static int amlogic_new_usb2_remove(struct platform_device *pdev)
 {
 	return 0;
 }
 
 #ifdef CONFIG_PM_RUNTIME
 
-static int amlogic_gxl_usb2_runtime_suspend(struct device *dev)
+static int amlogic_new_usb2_runtime_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int amlogic_gxl_usb2_runtime_resume(struct device *dev)
+static int amlogic_new_usb2_runtime_resume(struct device *dev)
 {
 	unsigned ret = 0;
 
 	return ret;
 }
 
-static const struct dev_pm_ops amlogic_gxl_usb2_pm_ops = {
-	SET_RUNTIME_PM_OPS(amlogic_gxl_usb2_runtime_suspend,
-		amlogic_gxl_usb2_runtime_resume,
+static const struct dev_pm_ops amlogic_new_usb2_pm_ops = {
+	SET_RUNTIME_PM_OPS(amlogic_new_usb2_runtime_suspend,
+		amlogic_new_usb2_runtime_resume,
 		NULL)
 };
 
-#define DEV_PM_OPS     (&amlogic_gxl_usb2_pm_ops)
+#define DEV_PM_OPS     (&amlogic_new_usb2_pm_ops)
 #else
 #define DEV_PM_OPS     NULL
 #endif
 
 #ifdef CONFIG_OF
-static const struct of_device_id amlogic_gxl_usb2_id_table[] = {
-	{ .compatible = "amlogic, amlogic-gxl-usb2" },
+static const struct of_device_id amlogic_new_usb2_id_table[] = {
+	{ .compatible = "amlogic, amlogic-new-usb2" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, amlogic_gxl_usb2_id_table);
+MODULE_DEVICE_TABLE(of, amlogic_new_usb2_id_table);
 #endif
 
-static struct platform_driver amlogic_gxl_usb2_driver = {
-	.probe		= amlogic_gxl_usb2_probe,
-	.remove		= amlogic_gxl_usb2_remove,
+static struct platform_driver amlogic_new_usb2_driver = {
+	.probe		= amlogic_new_usb2_probe,
+	.remove		= amlogic_new_usb2_remove,
 	.driver		= {
-		.name	= "amlogic-gxl-usb2",
+		.name	= "amlogic-new-usb2",
 		.owner	= THIS_MODULE,
 		.pm	= DEV_PM_OPS,
-		.of_match_table = of_match_ptr(amlogic_gxl_usb2_id_table),
+		.of_match_table = of_match_ptr(amlogic_new_usb2_id_table),
 	},
 };
 
-module_platform_driver(amlogic_gxl_usb2_driver);
+module_platform_driver(amlogic_new_usb2_driver);
 
 MODULE_ALIAS("platform: amlogic_usb2");
 MODULE_AUTHOR("Amlogic Inc.");

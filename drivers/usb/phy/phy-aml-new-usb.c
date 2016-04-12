@@ -12,9 +12,9 @@
 #include <linux/of_address.h>
 #include <linux/amlogic/usb-gxl.h>
 #include <linux/amlogic/iomap.h>
-#include "phy-aml-gxl-usb.h"
+#include "phy-aml-new-usb.h"
 
-int amlogic_gxl_usbphy_reset(void)
+int amlogic_new_usbphy_reset(void)
 {
 	static int	init_count;
 	int i = 0;
@@ -28,4 +28,4 @@ int amlogic_gxl_usbphy_reset(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(amlogic_gxl_usbphy_reset);
+EXPORT_SYMBOL_GPL(amlogic_new_usbphy_reset);

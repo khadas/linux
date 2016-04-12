@@ -794,28 +794,24 @@
 	};
 
 	dwc3: dwc3@c9000000 {
-		compatible = "synopsys, gxl-dwc3";
+		compatible = "synopsys, dwc3";
 		reg = <0x0 0xc9000000 0x0 0x100000>;
 		interrupts = <0 30 4>;
 		usb-phy = <&usb2_phy>, <&usb3_phy>;
 		cpu-type = "gxl";
 		clock-src = "usb3.0";
-		status = "disable";
 	};
 
 	usb2_phy: usb2phy@d0078000 {
-		compatible = "amlogic, aml-gxl-usb2";
-		portnum = <4>;
+		compatible = "amlogic, amlogic-new-usb2";
+		portnum = <2>;
 		reg = <0x0 0xd0078000 0x0 0x80>;
-		status = "disable";
 	};
 
 	usb3_phy: usb3phy@d0078080 {
-		compatible = "amlogic, aml-gxl-usb3";
-		portnum = <1>;
+		compatible = "amlogic, amlogic-new-usb3";
+		portnum = <0>;
 		reg = <0x0 0xd0078080 0x0 0x20>;
-		interrupts = <0 16 4>;
-		status = "disable";
 	};
 
 	dwc2_a {

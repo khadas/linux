@@ -7,4 +7,4 @@
 
 #define	phy_to_amlusb(x)	container_of((x), struct amlogic_usb, phy)
 
-extern int amlogic_gxl_usbphy_reset(void);
+extern int amlogic_new_usbphy_reset(void);
