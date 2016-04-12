@@ -392,7 +392,7 @@
 		/*p200 i2c-A multiplex with usb PWR*/
 		a_i2c_master:a_i2c{
 			amlogic,setmask=<1 0xc000>;
-			amlogic,clrmask=<0 0x18 2 0x18000 2 0xc0 1 0x600000>;
+			amlogic,clrmask=<3 0x18 2 0x18000 2 0xc0 1 0x600000>;
 			amlogic,pins="GPIODV_24","GPIODV_25";
 		};
 		b_i2c_master:b_i2c{
