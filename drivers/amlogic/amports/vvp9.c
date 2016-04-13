@@ -24,6 +24,7 @@
 #include <linux/timer.h>
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
+#include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/amstream.h>
@@ -273,7 +274,8 @@ typedef unsigned short u16;
 
 
 static u32 debug =
-	VP9_DEBUG_SEND_PARAM_WITH_REG|VP9_DEBUG_BUFMGR|VP9_DEBUG_BUFMGR_MORE;
+	VP9_DEBUG_SEND_PARAM_WITH_REG
+		/*|VP9_DEBUG_BUFMGR|VP9_DEBUG_BUFMGR_MORE*/;
 
 #define DEBUG_REG
 #ifdef DEBUG_REG
@@ -297,6 +299,7 @@ VP9 buffer management start
 #ifdef VP9_10B_MMU
 #define MMU_COMPRESS_HEADER_SIZE  0x48000
 #endif
+static DEFINE_SPINLOCK(lock);
 
 #define   lock_buffer_pool(pool)
 #define   unlock_buffer_pool(pool)
@@ -672,8 +675,8 @@ static int get_free_fb(struct VP9_Common_s *cm)
 
 	if (i != FRAME_BUFFERS) {
 		frame_bufs[i].ref_count = 1;
-		pr_info("[MMU DEBUG 1] set ref_count[%d] : %d\r\n",
-					i, frame_bufs[i].ref_count);
+		/*pr_info("[MMU DEBUG 1] set ref_count[%d] : %d\r\n",
+					i, frame_bufs[i].ref_count);*/
 	} else {
 		/* Reset i to be INVALID_IDX to indicate
 			no free buffer found*/
@@ -695,15 +698,15 @@ static void ref_cnt_fb(struct RefCntBuffer_s *bufs, int *idx, int new_idx)
 
 	if (ref_index >= 0 && bufs[ref_index].ref_count > 0) {
 		bufs[ref_index].ref_count--;
-		pr_info("[MMU DEBUG 2] dec ref_count[%d] : %d\r\n",
-				ref_index, bufs[ref_index].ref_count);
+		/*pr_info("[MMU DEBUG 2] dec ref_count[%d] : %d\r\n",
+				ref_index, bufs[ref_index].ref_count);*/
 	}
 
 	*idx = new_idx;
 
 	bufs[new_idx].ref_count++;
-	pr_info("[MMU DEBUG 3] inc ref_count[%d] : %d\r\n",
-				new_idx, bufs[new_idx].ref_count);
+	/*pr_info("[MMU DEBUG 3] inc ref_count[%d] : %d\r\n",
+				new_idx, bufs[new_idx].ref_count);*/
 }
 
 int vp9_release_frame_buffer(struct vpx_codec_frame_buffer_s *fb)
@@ -844,23 +847,23 @@ static int setup_frame_size_with_refs(struct VP9_Common_s *cm,
 				(REFS_PER_FRAME - i - 1)) & 0x1) {
 			struct PIC_BUFFER_CONFIG_s *const buf =
 							cm->frame_refs[i].buf;
-			if (print_header_info)
+			/*if (print_header_info)
 				pr_info
-				(" * 1-bit same_frame_size[%d] read : 1\n", i);
+				("1-bit same_frame_size[%d] read : 1\n", i);*/
 				width = buf->y_crop_width;
 				height = buf->y_crop_height;
-			if (print_header_info)
+			/*if (print_header_info)
 				pr_info
-				(" - same_frame_size width : %d\n", width);
-			if (print_header_info)
+				(" - same_frame_size width : %d\n", width);*/
+			/*if (print_header_info)
 				pr_info
-				(" - same_frame_size height : %d\n", height);
+				(" - same_frame_size height : %d\n", height);*/
 			found = 1;
 			break;
 		} else {
-			if (print_header_info)
+			/*if (print_header_info)
 				pr_info
-				(" * 1-bit same_frame_size[%d] read : 0\n", i);
+				("1-bit same_frame_size[%d] read : 0\n", i);*/
 		}
 	}
 
@@ -868,14 +871,14 @@ static int setup_frame_size_with_refs(struct VP9_Common_s *cm,
 		/*vp9_read_frame_size(rb, &width, &height);*/
 		width = params->p.width;
 		height = params->p.height;
-		if (print_header_info)
+		/*if (print_header_info)
 			pr_info
 			(" * 16-bits w read : %d (width : %d)\n",
 				width, height);
 		if (print_header_info)
 			pr_info
 			(" * 16-bits h read : %d (height : %d)\n",
-				width, height);
+				width, height);*/
 	}
 
 	if (width <= 0 || height <= 0) {
@@ -962,7 +965,7 @@ static int setup_frame_size_with_refs(struct VP9_Common_s *cm,
 	return 0;
 }
 
-uint8_t print_header_info = 1;
+uint8_t print_header_info = 0;
 
 struct buff_s {
 	u32 buf_start;
@@ -1157,13 +1160,13 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		release_buffer_4k(cm->new_fb_idx);
 #endif
 	}
-	pr_info("Before get_free_fb, prev_fb_idx : %d, new_fb_idx : %d\r\n",
-		cm->prev_fb_idx, cm->new_fb_idx);
+	/*pr_info("Before get_free_fb, prev_fb_idx : %d, new_fb_idx : %d\r\n",
+		cm->prev_fb_idx, cm->new_fb_idx);*/
 	cm->new_fb_idx = get_free_fb(cm);
 	cm->cur_frame = &pool->frame_bufs[cm->new_fb_idx];
-	if (debug & VP9_DEBUG_BUFMGR)
+	/*if (debug & VP9_DEBUG_BUFMGR)
 		pr_info("[VP9 DEBUG]%s(get_free_fb): %d\r\n", __func__,
-				cm->new_fb_idx);
+				cm->new_fb_idx);*/
 	if (cm->new_fb_idx == INVALID_IDX) {
 		pr_info("get_free_fb error\r\n");
 		return -1;
@@ -1195,7 +1198,7 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		}
 
 		frame_to_show = cm->ref_frame_map[frame_to_show_idx];
-		pr_info("frame_to_show %d\r\n", frame_to_show);
+		/*pr_info("frame_to_show %d\r\n", frame_to_show);*/
 		lock_buffer_pool(pool);
 		if (frame_to_show < 0 ||
 			frame_bufs[frame_to_show].ref_count < 1) {
@@ -1244,14 +1247,14 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		}
 	} else {
 		cm->intra_only = cm->show_frame ? 0 : params->p.intra_only;
-		if (print_header_info) {
+		/*if (print_header_info) {
 			if (cm->show_frame)
 				pr_info
 				("intra_only set to 0 because of show_frame\n");
 			else
 				pr_info
 				("1-bit intra_only read: %d\n", cm->intra_only);
-		}
+		}*/
 
 
 		cm->reset_frame_context = cm->error_resilient_mode ?
@@ -1285,9 +1288,9 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 
 			pbi->refresh_frame_flags =
 				params->p.refresh_frame_flags;
-			if (print_header_info)
+			/*if (print_header_info)
 				pr_info("*%d-bits refresh_frame read:0x%x\n",
-				REF_FRAMES, pbi->refresh_frame_flags);
+				REF_FRAMES, pbi->refresh_frame_flags);*/
 			setup_frame_size(cm, params,  pbi->frame_mmu_map_addr,
 				print_header_info);
 			if (pbi->need_resync) {
@@ -1323,13 +1326,14 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 					if (print_header_info)
 						pr_info
 						("1bit ref_frame_sign_bias");
-						pr_info
+						/*pr_info
 						("%dread: %d\n",
 						LAST_FRAME+i,
 						cm->ref_frame_sign_bias
-						[LAST_FRAME + i]);
-					pr_info("[VP9 DEBUG]%s(get ref):%d\r\n",
-					__func__, ref_frame->idx);
+						[LAST_FRAME + i]);*/
+					/*pr_info
+					("[VP9 DEBUG]%s(get ref):%d\r\n",
+					__func__, ref_frame->idx);*/
 
 				}
 
@@ -1358,18 +1362,18 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		if (mask & 1) {
 			cm->next_ref_frame_map[ref_index] = cm->new_fb_idx;
 			++frame_bufs[cm->new_fb_idx].ref_count;
-			pr_info("[MMU DEBUG 4] inc ref_count[%d] : %d\r\n",
-			cm->new_fb_idx, frame_bufs[cm->new_fb_idx].ref_count);
+			/*pr_info("[MMU DEBUG 4] inc ref_count[%d] : %d\r\n",
+			cm->new_fb_idx, frame_bufs[cm->new_fb_idx].ref_count);*/
 		} else
 			cm->next_ref_frame_map[ref_index] =
 				cm->ref_frame_map[ref_index];
 		/* Current thread holds the reference frame.*/
 		if (cm->ref_frame_map[ref_index] >= 0) {
 			++frame_bufs[cm->ref_frame_map[ref_index]].ref_count;
-			pr_info
+			/*pr_info
 			("[MMU DEBUG 5] inc ref_count[%d] : %d\r\n",
 			cm->ref_frame_map[ref_index],
-			frame_bufs[cm->ref_frame_map[ref_index]].ref_count);
+			frame_bufs[cm->ref_frame_map[ref_index]].ref_count);*/
 		}
 		++ref_index;
 	}
@@ -1380,9 +1384,9 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 		/* Current thread holds the reference frame.*/
 		if (cm->ref_frame_map[ref_index] >= 0) {
 			++frame_bufs[cm->ref_frame_map[ref_index]].ref_count;
-			pr_info("[MMU DEBUG 6] inc ref_count[%d] : %d\r\n",
+			/*pr_info("[MMU DEBUG 6] inc ref_count[%d] : %d\r\n",
 			cm->ref_frame_map[ref_index],
-			frame_bufs[cm->ref_frame_map[ref_index]].ref_count);
+			frame_bufs[cm->ref_frame_map[ref_index]].ref_count);*/
 		}
 	}
 	unlock_buffer_pool(pool);
@@ -1413,12 +1417,12 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 			cm->last_show_frame &&
 			(cm->last_frame_type != KEY_FRAME);
 
-	pr_info
+	/*pr_info
 	("set use_prev_frame_mvs to %d (last_width %d last_height %d",
 	cm->use_prev_frame_mvs, cm->last_width, cm->last_height);
 	pr_info
 	(" last_intra_only %d last_show_frame %d last_frame_type %d)\n",
-	cm->last_intra_only, cm->last_show_frame, cm->last_frame_type);
+	cm->last_intra_only, cm->last_show_frame, cm->last_frame_type);*/
 	return 0;
 }
 
@@ -1427,8 +1431,8 @@ static void decrease_ref_count(int idx, struct RefCntBuffer_s *const frame_bufs,
 {
 	if (idx >= 0) {
 		--frame_bufs[idx].ref_count;
-		pr_info("[MMU DEBUG 7] dec ref_count[%d] : %d\r\n", idx,
-			frame_bufs[idx].ref_count);
+		/*pr_info("[MMU DEBUG 7] dec ref_count[%d] : %d\r\n", idx,
+			frame_bufs[idx].ref_count);*/
 		/*A worker may only get a free framebuffer index when
 		calling get_free_fb. But the private buffer is not set up
 		until finish decoding header. So any error happens during
@@ -1481,8 +1485,8 @@ void swap_frame_buffers(struct VP9Decoder_s *pbi)
 	/*if (!pbi->frame_parallel_decode || !cm->show_frame) {*/
 	lock_buffer_pool(pool);
 	--frame_bufs[cm->new_fb_idx].ref_count;
-	pr_info("[MMU DEBUG 8] dec ref_count[%d] : %d\r\n", cm->new_fb_idx,
-		frame_bufs[cm->new_fb_idx].ref_count);
+	/*pr_info("[MMU DEBUG 8] dec ref_count[%d] : %d\r\n", cm->new_fb_idx,
+		frame_bufs[cm->new_fb_idx].ref_count);*/
 	unlock_buffer_pool(pool);
 	/*}*/
 
@@ -1603,12 +1607,13 @@ int vp9_bufmgr_postproc(struct VP9Decoder_s *pbi)
 		cm->current_video_frame++;
 
 	if (vp9_get_raw_frame(pbi, &sd) == 0) {
-		pr_info("Display frame index %d\r\n", sd.index);
+		/*pr_info("Display frame index %d\r\n", sd.index);*/
+		/*sd.stream_offset = READ_VREG(HEVC_SHIFT_BYTE_COUNT);*/
 		prepare_display_buf(pbi, &sd);
-	} else
+	} /*else
 		pr_info
 		("Not display this frame,ready_for_new_data%d show_frame%d\r\n",
-		pbi->ready_for_new_data, cm->show_frame);
+		pbi->ready_for_new_data, cm->show_frame);*/
 	return 0;
 }
 
@@ -3587,16 +3592,12 @@ static int config_pic_size(struct VP9Decoder_s *pbi, unsigned short bit_depth)
 	pbi->frame_width = cur_pic_config->y_crop_width;
 	pbi->frame_height = cur_pic_config->y_crop_height;
 	cur_pic_config->bit_depth = bit_depth;
-
 	losless_comp_header_size =
 		compute_losless_comp_header_size(pbi->frame_width,
 		pbi->frame_height);
 	losless_comp_body_size =
 		compute_losless_comp_body_size(pbi->frame_width,
 		pbi->frame_height, (bit_depth == VPX_BITS_10));
-	pr_info("%s: width %d height %d depth %d head_size 0x%x body_size 0x%x\r\n",
-		__func__, pbi->frame_width, pbi->frame_height, bit_depth,
-		losless_comp_header_size, losless_comp_body_size);
 	cur_pic_config->comp_body_size = losless_comp_body_size;
 #ifdef LOSLESS_COMPRESS_MODE
 	data32 = READ_VREG(HEVC_SAO_CTRL5);
@@ -3680,10 +3681,6 @@ static int config_mc_buffer(struct VP9Decoder_s *pbi, unsigned short bit_depth)
 	ref_pic_body_size =
 		compute_losless_comp_body_size(pic_config->y_crop_width,
 		pic_config->y_crop_height, (bit_depth == VPX_BITS_10));
-	pr_info("%d:ref width/height(%d,%d),cur width/height(%d,%d)ref_pic_body_size 0x%x\n",
-		i, pic_config->y_crop_width, pic_config->y_crop_height,
-		cur_pic_config->y_crop_width, cur_pic_config->y_crop_height,
-		ref_pic_body_size);
 	WRITE_VREG(VP9D_MPP_REFINFO_DATA,
 		(pic_config->y_crop_width << 14)
 		/ cur_pic_config->y_crop_width);
@@ -3780,8 +3777,8 @@ static void config_sao_hw(struct VP9Decoder_s *pbi, union param_u *params)
 	WRITE_VREG(HEVC_SAO_Y_START_ADDR, pic_config->mc_y_adr);
 #endif
 	data32 = (mc_buffer_size_u_v_h << 16) << 1;
-	pr_info("data32=%x,mc_buffer_size_u_v_h=%x,lcu_total=%x\n",
-		data32, mc_buffer_size_u_v_h, pic_config->lcu_total);
+	/*pr_info("data32=%x,mc_buffer_size_u_v_h=%x,lcu_total=%x\n",
+		data32, mc_buffer_size_u_v_h, pic_config->lcu_total);*/
 	WRITE_VREG(HEVC_SAO_Y_LENGTH, data32);
 #ifndef LOSLESS_COMPRESS_MODE
 	WRITE_VREG(HEVC_SAO_C_START_ADDR, pic_config->mc_u_v_adr);
@@ -4379,7 +4376,7 @@ static void  config_mcrcc_axi_hw(struct VP9Decoder_s *pbi)
 {
 	unsigned int rdata32;
 	unsigned short is_inter;
-	pr_info("Entered config_mcrcc_axi_hw...\n");
+	/*pr_info("Entered config_mcrcc_axi_hw...\n");*/
 	WRITE_VREG(HEVCD_MCRCC_CTL1, 0x2);/* reset mcrcc*/
 	is_inter = ((pbi->common.frame_type != KEY_FRAME) &&
 			(!pbi->common.intra_only)) ? 1 : 0;
@@ -4731,11 +4728,20 @@ static struct vframe_s *vvp9_vf_get(void *op_arg)
 	if (step == 2)
 		return NULL;
 	else if (step == 1)
-		step = 2;
+			step = 2;
 
-	if (kfifo_get(&pbi->display_q, &vf))
-		return vf;
-
+	if (kfifo_get(&pbi->display_q, &vf)) {
+		uint8_t index = vf->index & 0xff;
+		 if (index >= 0	&& index < FRAME_BUFFERS) {
+			ulong spin_flags;
+			struct VP9_Common_s *cm = &pbi->common;
+			struct BufferPool_s *const pool = cm->buffer_pool;
+			spin_lock_irqsave(&lock, spin_flags);
+			pool->frame_bufs[index].buf.vf_ref++;
+			spin_unlock_irqrestore(&lock, spin_flags);
+			return vf;
+		 }
+	}
 	return NULL;
 }
 
@@ -4748,9 +4754,13 @@ static void vvp9_vf_put(struct vframe_s *vf, void *op_arg)
 
 	if (index >= 0
 		&& index < FRAME_BUFFERS) {
+		ulong spin_flags;
 		struct VP9_Common_s *cm = &pbi->common;
-		if (cm->buffer_pool->frame_bufs[index].buf.vf_ref > 0)
-			cm->buffer_pool->frame_bufs[index].buf.vf_ref--;
+		struct BufferPool_s *const pool = cm->buffer_pool;
+		spin_lock_irqsave(&lock, spin_flags);
+		if (pool->frame_bufs[index].buf.vf_ref > 0)
+			pool->frame_bufs[index].buf.vf_ref--;
+		spin_unlock_irqrestore(&lock, spin_flags);
 	}
 
 }
@@ -4777,13 +4787,13 @@ static int vvp9_event_cb(int type, void *data, void *private_data)
 
 	return 0;
 }
-
+/*
 static void inc_vf_ref(struct VP9Decoder_s *pbi, int index)
 {
 	struct VP9_Common_s *cm = &pbi->common;
 	cm->buffer_pool->frame_bufs[index].buf.vf_ref++;
 }
-
+*/
 
 static int prepare_display_buf(struct VP9Decoder_s *pbi,
 				struct PIC_BUFFER_CONFIG_s *pic_config)
@@ -4844,7 +4854,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			pbi->last_lookup_pts = vf->pts;
 
 		if ((pbi->pts_mode == PTS_NONE_REF_USE_DURATION)
-			&& (slice_type != 2))
+			&& (slice_type != 0))
 			vf->pts = pbi->last_pts + DUR2PTS(pbi->frame_dur);
 		pbi->last_pts = vf->pts;
 
@@ -4852,7 +4862,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			pbi->last_lookup_pts_us64 = vf->pts_us64;
 
 		if ((pbi->pts_mode == PTS_NONE_REF_USE_DURATION)
-			&& (slice_type != 2)) {
+			&& (slice_type != 0)) {
 			vf->pts_us64 =
 				pbi->last_pts_us64 +
 				(DUR2PTS(pbi->frame_dur) * 100 / 9);
@@ -4934,7 +4944,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			else
 				vf->duration = 0;
 		}
-		inc_vf_ref(pbi, pic_config->index);
+		/*inc_vf_ref(pbi, pic_config->index);*/
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
 		vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
@@ -5120,7 +5130,7 @@ if (debug & VP9_DEBUG_DBG_LF_PRINT) {
 		return IRQ_HANDLED;
 	} else if (ret == 0) {
 		pbi->frame_count++;
-		pr_info("Decode Frame Data %d\n", pbi->frame_count);
+		/*pr_info("Decode Frame Data %d\n", pbi->frame_count);*/
 		config_pic_size(pbi, vp9_param.p.bit_depth);
 		if ((pbi->common.frame_type != KEY_FRAME)
 			&& (!pbi->common.intra_only)) {
@@ -5158,10 +5168,11 @@ if (debug & VP9_DEBUG_DBG_LF_PRINT) {
 	/*
 	* Update loop filter Thr/Lvl table for every frame
 	*/
-	pr_info("[test.c] vp9_loop_filter_frame_init (run before every frame decoding start)\n");
+	/*pr_info
+	("vp9_loop_filter (run before every frame decoding start)\n");*/
 	vp9_loop_filter_frame_init(seg_4lf, lfi, lf, default_filt_lvl);
 #endif
-	pr_info("HEVC_DEC_STATUS_REG <= VP9_10B_DECODE_SLICE\n");
+	/*pr_info("HEVC_DEC_STATUS_REG <= VP9_10B_DECODE_SLICE\n");*/
 
 	WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DECODE_SLICE);
 	} else {
