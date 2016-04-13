@@ -1,10 +1,20 @@
 /*
- * drivers/amlogic/mmc/aml_sdhc.c
+ * drivers/amlogic/mmc/aml_sd_emmc.c
  *
- * SDHC Driver
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
- * Copyright (C) 2010 Amlogic, Inc.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
 */
+
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/interrupt.h>
@@ -161,12 +171,9 @@ static int aml_sd_emmc_cali_transfer(struct mmc_host *mmc,
 	mmc_wait_for_req(mmc, &mrq);
 	return data.error | cmd.error;
 }
-static int  aml_sd_emmc_gxl_calibration(struct mmc_host *mmc,
+static int  aml_sd_emmc_auto_calibration(struct mmc_host *mmc,
 			u32 *adj_win_start)
 {
-#if 1
-	return -1;
-#else
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
 	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
@@ -187,9 +194,9 @@ static int  aml_sd_emmc_gxl_calibration(struct mmc_host *mmc,
 	u8 bus_width = 8;
 	u8 ln_delay[8] = {0};
 	u8 delay_step;
-#ifdef CHOICE_DEBUG
-	u8 i;
-#endif
+	u8 i, max_cali_i = 0;
+	u32 max_cali_count;
+	u32 cali_tmp[4];
 	u32 blksz = 512;
 	u8 *blk_test;
 		blk_test = kmalloc(blksz * CALI_BLK_CNT, GFP_KERNEL);
@@ -223,6 +230,8 @@ _cali_retry:
 		memset(pdata->calout, 0xFF, 20 * 20);
 		/* for each delay index! */
 		for (dly_tmp = 0; dly_tmp < MAX_DELAY_CNT; dly_tmp++) {
+			max_cali_count = 0;
+			max_cali_i = 0;
 			line_delay = 0;
 			line_delay = dly_tmp << (4 * line_x);
 			sd_emmc_regs->gdelay = line_delay;
@@ -230,12 +239,21 @@ _cali_retry:
 			aml_sd_emmc_cali_transfer(mmc,
 				MMC_READ_MULTIPLE_BLOCK,
 				blk_test, blksz);
+			for (i = 0; i < 4; i++) {
+				cali_tmp[i] = sd_emmc_regs->gcalout[i];
+				if (max_cali_count < (cali_tmp[i] & 0xffffff)) {
+					max_cali_count =
+					(cali_tmp[i] & 0xffffff);
+					max_cali_i = i;
+				}
+			}
 			pdata->calout[dly_tmp][line_x] =
-				(sd_emmc_regs->gcalout[0] >> 24) & 0x3f;
+				(cali_tmp[max_cali_i] >> 24) & 0x3f;
 #ifdef CHOICE_DEBUG
-			for (i = 0; i > 4; i++)
-				pr_info("cali_index[%d] =0x%x\n",
-					i, sd_emmc_regs->gcalout[i] >> 24);
+			for (i = 0; i < 4; i++)
+				pr_info("cali_index[%d] =0x%x, cali_count[%d] = %d\n",
+					i, cali_tmp[i] >> 24, i,
+					cali_tmp[i] & 0xffffff);
 #endif
 			pdata->caling = 0;
 			gadjust->cali_enable = 0;
@@ -250,7 +268,8 @@ _cali_retry:
 				if (base_index[line_x] > base_index_max)
 					base_index_max = base_index[line_x];
 			}
-			if (pdata->calout[dly_tmp][line_x] > base_index[line_x])
+			if (is_larger(pdata->calout[dly_tmp][line_x],
+					base_index[line_x], max_index))
 				break;
 		}  /* endof dly_tmp loop... */
 		/* get a valid index on current line! */
@@ -374,7 +393,6 @@ _cali_retry:
 	kfree(blk_test);
 	blk_test = NULL;
 	return 0;
-#endif
 }
 
 static int aml_sd_emmc_execute_tuning_index(struct mmc_host *mmc,
@@ -1005,6 +1023,8 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct aml_tuning_data tuning_data;
 	u32 vclk = sd_emmc_regs->gclock;
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
+	u32 adjust = sd_emmc_regs->gadjust;
+	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
 	int err = -ENOSYS;
 	u32 adj_win_start = 100;
 
@@ -1031,7 +1051,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			&& (mmc->ios.timing != MMC_TIMING_MMC_HS400)) {
 		if (clkc->div <= 7) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
-				err = aml_sd_emmc_gxl_calibration(mmc,
+				err = aml_sd_emmc_auto_calibration(mmc,
 						&adj_win_start);
 			else
 				err = aml_sd_emmc_execute_tuning_index(mmc,
@@ -1047,13 +1067,20 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	}
 #endif
 	/* execute tuning... */
-	if ((clkc->div > 5)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB))
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+		err = 0;
+		adjust = sd_emmc_regs->gadjust;
+		gadjust->cali_enable = 1;
+		gadjust->adj_auto = 1;
+		sd_emmc_regs->gadjust = adjust;
+	} else if ((clkc->div > 5)
+		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)) {
 		err = aml_sd_emmc_execute_tuning_(mmc, opcode,
 				&tuning_data, adj_win_start);
-	else
+	} else {
 		err = aml_sd_emmc_execute_tuning_rxclk(mmc, opcode,
 				&tuning_data);
+	}
 
 	pr_info("%s: gclock =0x%x, gdelay=0x%x, gadjust=0x%x\n",
 		mmc_hostname(mmc), sd_emmc_regs->gclock, sd_emmc_regs->gdelay,
@@ -2706,13 +2733,21 @@ static void aml_sd_emmc_set_timing(
 	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
 	u32 vclkc = sd_emmc_regs->gclock;
 	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&vclkc;
+	u32 adjust = sd_emmc_regs->gadjust;
+	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
 	u8 clk_div;
 	u32 clk_rate = 1000000000;
 	if ((timing == MMC_TIMING_MMC_HS400) ||
 			 (timing == MMC_TIMING_MMC_DDR52) ||
 				 (timing == MMC_TIMING_UHS_DDR50)) {
-		if (timing == MMC_TIMING_MMC_HS400)
+		if (timing == MMC_TIMING_MMC_HS400) {
 			ctrl->chk_ds = 1;
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+				adjust = sd_emmc_regs->gadjust;
+				gadjust->ds_enable = 1;
+				sd_emmc_regs->gadjust = adjust;
+			}
+		}
 		ctrl->ddr = 1;
 		clk_div = clkc->div;
 		if (clk_div & 0x01)
@@ -3454,10 +3489,9 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	if (aml_card_type_mmc(pdata)) {
 		/**set emmc tx_phase regs here base on dts**/
 		aml_sd_emmc_tx_phase_set(host, pdata);
-		if (!is_storage_emmc()
-			&& (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)) {
-				mmc_free_host(mmc);
-				goto fail_init_host;
+		if (!is_storage_emmc()) {
+			mmc_free_host(mmc);
+			goto fail_init_host;
 		}
 	}
 	dev_set_name(&mmc->class_dev, "%s", pdata->pinname);

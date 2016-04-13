@@ -1,14 +1,19 @@
 /*
- *  linux/drivers/mmc/core/mmc.c
+ * drivers/mmc/core/mmc.c
  *
- *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
- *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
- *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
 
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -1074,12 +1079,6 @@ static int mmc_select_hs400(struct mmc_card *card)
 
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
-	mmc_host_clk_hold(host);
-	err = host->ops->execute_tuning(host, MMC_SEND_TUNING_BLOCK_HS200);
-	mmc_host_clk_release(host);
-
-	if (err)
-		return err;
 
 	return 0;
 }
