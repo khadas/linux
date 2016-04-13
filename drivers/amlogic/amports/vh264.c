@@ -619,11 +619,11 @@ static void vh264_set_params(struct work_struct *work)
 	time_scale = READ_VREG(AV_SCRATCH_5);
 	level_idc = READ_VREG(AV_SCRATCH_A);
 	video_signal = READ_VREG(AV_SCRATCH_H);
-/*	video_signal_from_vui =
+	video_signal_from_vui =
 				((video_signal & 0xffff) << 8) |
 				((video_signal & 0xff0000) >> 16) |
 				((video_signal & 0x3f000000));
-	pr_info("video_signal_type_present_flag 0x%x\n",
+/*	pr_info("video_signal_type_present_flag 0x%x\n",
 				(video_signal_from_vui >> 29) & 1);
 	pr_info("video_format  0x%x\n",
 				(video_signal_from_vui >> 26) & 7);
