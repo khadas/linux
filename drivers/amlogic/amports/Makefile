@@ -4,75 +4,15 @@
 
 # Object file lists.
 
-ifeq ($(CONFIG_ARCH_MESON1),y)
-obj-y = m1/
-endif
-ifeq ($(CONFIG_ARCH_MESON2),y)
-obj-y = m2/
-endif
-ifeq ($(CONFIG_ARCH_MESON3),y)
-obj-y = m3/
-endif
-ifeq ($(CONFIG_ARCH_MESON6),y)
-obj-y = m6/
-endif
-ifeq ($(CONFIG_ARCH_MESON6TV),y)
-obj-y = m6tv/
-endif
-ifeq ($(CONFIG_ARCH_MESON6TVD),y)
-obj-y = m6tvd/
-endif
-ifeq ($(CONFIG_ARCH_MESON8),y)
-obj-y = m8/
-endif
-ifeq ($(CONFIG_ARCH_MESON8B),y)
-obj-y = m8b/
-endif
-ifeq ($(CONFIG_ARCH_MESONG9TV),y)
-obj-y = g9tv/
-endif
 
 
 obj-$(CONFIG_AM_STREAMING) += amports.o
 
 AMPORTS_OBJS = amstream.o streambuf.o vdec.o adec.o tsdemux.o psparser.o esparser.o rmparser.o amvdec.o amstream_profile.o tsync_pcr.o amports_gate.o gp_pll.o thread_rw.o
 
-ifeq ($(CONFIG_ARCH_MESON8B),y)
-amports-y    := amstream.o streambuf.o vdec.o adec.o tsdemux.o psparser.o esparser.o rmparser.o amvdec.o amstream_profile.o  tsync_pcr.o
-else
-ifeq ($(CONFIG_ARCH_MESON8),y)
 amports-objs := $(AMPORTS_OBJS)
 amports-y    := $(AMPORTS_OBJS)
-else
-ifeq ($(CONFIG_ARCH_MESONG9TV),y)
-amports-objs := $(AMPORTS_OBJS)
-amports-y    := $(AMPORTS_OBJS)
-else
-ifeq ($(CONFIG_ARCH_MESON6),y)
-amports-objs := $(AMPORTS_OBJS)
-amports-y    := $(AMPORTS_OBJS)
-else
-ifeq ($(CONFIG_ARCH_MESON6TV),y)
-amports-objs := $(AMPORTS_OBJS)
-amports-y    := $(AMPORTS_OBJS)
-else
-ifeq ($(CONFIG_ARCH_MESON6TVD),y)
-amports-objs := $(AMPORTS_OBJS)
-amports-y    := $(AMPORTS_OBJS)
-else
-ifeq ($(CONFIG_ARCH_MESONG9TV),y)
-amports-objs := $(AMPORTS_OBJS)
-amports-y    := $(AMPORTS_OBJS)
-else
-amports-objs := $(AMPORTS_OBJS)
-amports-y    := $(AMPORTS_OBJS)
-endif
-endif
-endif
-endif
-endif
-endif
-endif
+
 
 obj-$(CONFIG_AM_VDEC_MPEG12) += amvdec_mpeg12.o
 amvdec_mpeg12-objs := vmpeg12.o
