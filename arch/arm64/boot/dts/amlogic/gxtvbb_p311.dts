@@ -292,6 +292,7 @@
 			<&clock CLK_VDIN_MEAS_CLK>;
 		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
+		tv_bit_mode = <10>;/*0:auto base on frontend color depath;10:force 10bit;8:force 8bit*/
 	};
 	vdin1 {
 		compatible = "amlogic, vdin";

@@ -103,9 +103,8 @@ static unsigned int vdin_ldim_max_en = 1;
 module_param(vdin_ldim_max_en, uint, 0644);
 MODULE_PARM_DESC(vdin_ldim_max_en, "vdin_ldim_max_en");
 /*
- *10:vdin 10 bit mode
- *9:vdin 9 bit mode
  *8:vdin 8 bit mode
+ *10:vdin auto bit mode according to frontend
 */
 static unsigned int vdin_bit_depth;
 module_param(vdin_bit_depth, uint, 0664);
@@ -2475,26 +2474,21 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 	pr_info(" dst vactive:%u.\n", devp->v_active);
 }
 
+void vdin_bit_mode_ctl(unsigned int mode)
+{
+	vdin_bit_depth = mode;
+}
+
 void vdin_set_bitdepth(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	switch (vdin_bit_depth) {
-	case 10:
-		devp->source_bitdepth = 10;
-		wr_bits(offset, VDIN_WR_CTRL2, 1,
-			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-		break;
-	case 9:
-		devp->source_bitdepth = 9;
-		wr_bits(offset, VDIN_WR_CTRL2, 1,
-			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-		break;
 	case 8:
 		devp->source_bitdepth = 8;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
-	case 0:
+	case 10:
 		/* vdin_bit_depth is set to 0 by defaut, in this case,
 		devp->source_bitdepth is controled by colordepth */
 		if (8 == devp->prop.colordepth) {

@@ -2359,6 +2359,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct vdin_dev_s *vdevp;
 	struct resource *res;
+	unsigned int bit_mode = 8;
 	/* const void *name; */
 	/* int offset, size; */
 	/* struct device_node *of_node = pdev->dev.of_node; */
@@ -2528,6 +2529,14 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (ret) {
 		pr_err("don't find  match rdma irq, disable rdma\n");
 		vdevp->rdma_irq = 0;
+	}
+	/* vdin0 for tv */
+	if (vdevp->index == 0) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"tv_bit_mode", &bit_mode);
+		if (ret)
+			pr_info("no bit mode found, set 8bit as default\n");
+		vdin_bit_mode_ctl(bit_mode);
 	}
 	#endif
 	vdevp->irq = res->start;
