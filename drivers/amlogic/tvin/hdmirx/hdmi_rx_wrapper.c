@@ -83,7 +83,7 @@ MODULE_PARM_DESC(sig_pll_unlock_max, "\n sig_pll_unlock_max\n");
 module_param(sig_pll_unlock_max, int, 0664);
 
 static int sig_pll_lock_cnt;
-static unsigned sig_pll_lock_max = 4;
+static unsigned sig_pll_lock_max = 30;
 MODULE_PARM_DESC(sig_pll_lock_max, "\n sig_pll_lock_max\n");
 module_param(sig_pll_lock_max, int, 0664);
 
@@ -3552,6 +3552,7 @@ int hdmirx_debug(const char *buf, int size)
 		memcpy(&rx.hdcp, &init_hdcp_data,
 		       sizeof(struct hdmi_rx_ctrl_hdcp));
 		hdmirx_hw_config();
+		pre_port = 0xff;
 	} else if (strncmp(tmpbuf, "timer_state", 11) == 0) {
 		timer_state();
 	} else if (strncmp(tmpbuf, "load22key", 9) == 0) {
@@ -3776,7 +3777,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		hdmirx_hw_config();
 		pre_port = rx.port;
 	} else {
-		rx.state = FSM_SIG_STABLE;
+		rx.state = FSM_HDMI5V_LOW;
 	}
 	rx_print("%s %d\n", __func__, rx.port);
 

@@ -90,6 +90,10 @@ static int repeat_function;
 MODULE_PARM_DESC(repeat_function, "\n repeat_function\n");
 module_param(repeat_function, int, 0664);
 
+static int force_color_range;
+MODULE_PARM_DESC(force_color_range, "\n force_color_range\n");
+module_param(force_color_range, int, 0664);
+
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -398,12 +402,13 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 {
 	unsigned char _3d_structure, _3d_ext_data;
 	enum tvin_sig_fmt_e sig_fmt;
+	int dvi_info = hdmirx_hw_get_dvi_info();
 	unsigned int rate = rx.pre_params.refresh_rate * 2;
 
 	/* use dvi info bit4~ for frame rate display */
 	rate = rate/100 + (((rate%100)/10 >= 5) ? 1 : 0);
 
-	prop->dvi_info = (rate << 4) | hdmirx_hw_get_dvi_info();
+	prop->dvi_info = (rate << 4) | dvi_info;
 	prop->colordepth = rx_get_colordepth();
 	prop->dest_cfmt = TVIN_YUV422;
 	switch (hdmirx_hw_get_color_fmt()) {
@@ -499,25 +504,43 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	switch (prop->color_format) {
 	case TVIN_YUV444:
 	case TVIN_YUV422:
-		if (yuv_quant_range == 1)
-			prop->color_fmt_range = TVIN_YUV_LIMIT;
-		else if (yuv_quant_range == 2)
-			prop->color_fmt_range = TVIN_YUV_FULL;
-		else
-			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		if (force_color_range) {
+			if (force_color_range == 1)
+				prop->color_fmt_range = TVIN_YUV_FULL;
+			else if (force_color_range == 2)
+				prop->color_fmt_range = TVIN_YUV_LIMIT;
+			else
+				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		} else {
+			if (yuv_quant_range == 1)
+				prop->color_fmt_range = TVIN_YUV_LIMIT;
+			else if (yuv_quant_range == 2)
+				prop->color_fmt_range = TVIN_YUV_FULL;
+			else
+				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		}
 		break;
 	case TVIN_RGB444:
-		if (rgb_quant_range == 1)
-			prop->color_fmt_range = TVIN_RGB_LIMIT;
-		else if (rgb_quant_range == 2)
-			prop->color_fmt_range = TVIN_RGB_FULL;
-		else
-			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-	break;
+		if (force_color_range) {
+			if (force_color_range == 1)
+				prop->color_fmt_range = TVIN_RGB_FULL;
+			else if (force_color_range == 2)
+				prop->color_fmt_range = TVIN_RGB_LIMIT;
+			else
+				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		} else {
+			if ((rgb_quant_range == 2) || (dvi_info == 1))
+				prop->color_fmt_range = TVIN_RGB_FULL;
+			else if (rgb_quant_range == 1)
+				prop->color_fmt_range = TVIN_RGB_LIMIT;
+			else
+				prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		}
+		break;
 
 	default:
-			prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
-			break;
+		prop->color_fmt_range = TVIN_FMT_RANGE_NULL;
+		break;
 	}
 
 	if (rx.hdr_data.data_status == HDR_STATE_NEW) {
