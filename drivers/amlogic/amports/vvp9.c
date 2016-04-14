@@ -36,6 +36,7 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <asm-generic/div64.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
 #include <linux/amlogic/codec_mm/codec_mm.h>
@@ -198,7 +199,10 @@ static u32 video_signal_type;
 #define MAX_FRAME_4K_NUM 0x1200
 #define FRAME_MMU_MAP_SIZE  (MAX_FRAME_4K_NUM * 4)
 
-
+static inline int div_r32(int64_t m, int n)
+{
+	return (int)(do_div(m, n));
+}
 
 
 /*USE_BUF_BLOCK*/
@@ -2373,9 +2377,11 @@ void   vp9_tree_merge_probs(unsigned int *prev_prob, unsigned int *cur_prob,
 	if (den == 0)
 		new_prob = pre_prob;
 	else {
-		m_count = (den < MODE_MV_COUNT_SAT) ? den : MODE_MV_COUNT_SAT;
-		get_prob = clip_prob(((int64_t)tree_left * 256 + (den >> 1))
-				/ den);
+		m_count = (den < MODE_MV_COUNT_SAT) ?
+			den : MODE_MV_COUNT_SAT;
+		get_prob = clip_prob(
+				div_r32(((int64_t)tree_left * 256 + (den >> 1)),
+				den));
 		/*weighted_prob*/
 		factor = count_to_update_factor[m_count];
 		new_prob = ROUND_POWER_OF_TWO(pre_prob * (256 - factor)
@@ -2503,9 +2509,11 @@ void adapt_coef_probs(int pic_count, int prev_kf, int cur_kf, int pre_fc,
 
 							get_prob =
 							(den == 0) ? 128u :
-							clip_prob(((int64_t)
+							clip_prob(
+							div_r32(((int64_t)
 							num * 256
-							+ (den >> 1)) / den);
+							+ (den >> 1)),
+							den));
 
 							factor =
 							update_factor * m_count
@@ -2624,8 +2632,10 @@ if (cur_kf == 0) {
 			m_count = (den < MODE_MV_COUNT_SAT) ?
 				den : MODE_MV_COUNT_SAT;
 			get_prob =
-				clip_prob(((int64_t)count[coef_count_node_start]
-				* 256 + (den >> 1)) / den);
+				clip_prob(
+				div_r32(((int64_t)count[coef_count_node_start]
+				* 256 + (den >> 1)),
+				den));
 			/*weighted_prob*/
 			factor = count_to_update_factor[m_count];
 			new_prob =
