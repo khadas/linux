@@ -440,8 +440,9 @@ static void aml_i2s_timer_callback(unsigned long data)
 			prtd->xrun_num = 0;
 		} else if (last_ptr == s->last_ptr) {
 			if (prtd->xrun_num++ > XRUN_NUM) {
-				dev_info(substream->pcm->card->dev,
+				/*dev_info(substream->pcm->card->dev,
 					"alsa capture long time no data, quit xrun!\n");
+				*/
 				prtd->xrun_num = 0;
 				s->size = runtime->period_size;
 			}
