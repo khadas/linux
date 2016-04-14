@@ -29,6 +29,19 @@ static int amlogic_new_usb3_suspend(struct usb_phy *x, int suspend)
 
 static int amlogic_new_usb3_init(struct usb_phy *x)
 {
+	struct amlogic_usb *phy = phy_to_amlusb(x);
+	union usb_r1_t r1 = {.d32 = 0};
+	int i = 0;
+
+	for (i = 0; i < 7; i++) {
+		usb_new_aml_regs.usb_r[i] = (void __iomem *)
+			((unsigned long)phy->regs + 4*i);
+	}
+
+	r1.d32 = readl(usb_new_aml_regs.usb_r[1]);
+	r1.b.u3h_fladj_30mhz_reg = 0x20;
+	writel(r1.d32, usb_new_aml_regs.usb_r[1]);
+
 	return 0;
 }
 
