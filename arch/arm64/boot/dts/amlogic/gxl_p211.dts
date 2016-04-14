@@ -376,9 +376,16 @@
         interrupts = <	0 217 1
         				0 67 1
         				0 69 1>;
-        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins";
+        pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins", "sd_1bit_pins","sd_clk_cmd_uart_pins","sd_1bit_uart_pins", "sd_to_ao_uart_pins", "ao_to_sd_uart_pins","ao_to_sd_jtag_pins","sd_to_ao_jtag_pins";
         pinctrl-0 = <&sd_clk_cmd_pins>;
         pinctrl-1 = <&sd_all_pins>;
+        pinctrl-2 = <&sd_1bit_pins>;
+        pinctrl-3 = <&sd_clk_cmd_uart_pins>;
+        pinctrl-4 = <&sd_1bit_uart_pins>;
+        pinctrl-5 = <&sd_to_ao_uart_pins>;
+        pinctrl-6 = <&ao_to_sd_uart_pins>;
+        pinctrl-7 = <&ao_to_sd_jtag_pins>;
+        pinctrl-8 = <&sd_to_ao_jtag_pins>;
 		sd{
 	   		status = "okay";
 	   		pinname = "sd";
@@ -713,7 +720,7 @@
 		clock-names = "clk_uart";
 		fifosize = < 64 >;
 		pinctrl-names = "default";
-		pinctrl-0 = <&ao_uart_pins>;
+		//pinctrl-0 = <&ao_uart_pins>;
 		support-sysrq = <0>;	/* 0 not support , 1 support */
 	};
 	uart_A: serial@c11084c0 {

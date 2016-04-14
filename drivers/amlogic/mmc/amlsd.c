@@ -893,9 +893,8 @@ void of_amlsd_xfer_pre(struct amlsd_platform *pdata)
 
 	if (pdata->mmc->ios.chip_select == MMC_CS_DONTCARE) {
 		if ((pdata->mmc->caps & MMC_CAP_4_BIT_DATA)
-		|| (pdata->port != MESON_SDIO_PORT_B)
+		|| (strcmp(pdata->pinname, "sd"))
 		|| (pdata->mmc->caps & MMC_CAP_8_BIT_DATA)) {
-
 			aml_snprint(&p, &size, "%s_all_pins", pdata->pinname);
 		} else{
 			if (pdata->is_sduart && (!strcmp(pdata->pinname, "sd")))
@@ -1097,8 +1096,8 @@ static int aml_uart_switch(struct amlsd_platform *pdata, bool on)
 		"sd_to_ao_uart_pins",
 		"ao_to_sd_uart_pins",
 	};
-	if (on == pdata->is_sduart)
-		return 0;
+	/* if (on == pdata->is_sduart)
+		 return 0; */
 
 	pdata->is_sduart = on;
 	mutex_lock(&pdata->host->pinmux_lock);
@@ -1233,7 +1232,6 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 					pr_info("JTAG in\n");
 					return 0;
 				}
-				pr_info("aml_is_sdjtag\n");
 			/*}*/
 		} else {
 			pr_info("normal card in\n");
@@ -1244,7 +1242,7 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 				pdata->mmc->caps |= MMC_CAP_4_BIT_DATA;
 		}
 	} else {
-		if ((!pdata->is_in) && (is_jtag == false))
+		if ((!pdata->is_in) && (pdata->is_sduart == false))
 			return 1;
 		else
 			pdata->is_in = false;
