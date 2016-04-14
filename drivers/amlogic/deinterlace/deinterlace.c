@@ -5118,6 +5118,11 @@ static unsigned char pre_de_buf_config(void)
 	if (is_need_set_bitdepth_10bit(di_buf->vframe) == 1)
 		di_buf->vframe->bitdepth |= BITDEPTH_Y10;
 
+	if (di_force_bit_mode == 8) {
+		di_buf->vframe->bitdepth &= (~(BITDEPTH_Y10));
+		di_buf->vframe->bitdepth |= (BITDEPTH_Y8);
+	}
+
 	if (di_pre_stru.prog_proc_type) {
 		di_buf->vframe->type = VIDTYPE_PROGRESSIVE |
 				       VIDTYPE_VIU_422 |
