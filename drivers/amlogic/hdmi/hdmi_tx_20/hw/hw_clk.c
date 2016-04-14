@@ -95,7 +95,7 @@ static void set_gxb_hpll_clk_out(unsigned clk)
 		break;
 	case 2970000:
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x5800023d);
-		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 0x4e00, 0, 16);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00000000);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x0d5c5091);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x801da72c);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x71486980);
@@ -103,6 +103,7 @@ static void set_gxb_hpll_clk_out(unsigned clk)
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0x4, 28, 3);
 		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL));
+		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 0x4e00, 0, 16);
 		break;
 	case 4320000:
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x5800025a);
