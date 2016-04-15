@@ -3562,12 +3562,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					u32 cur_index =
 					    READ_VCBUS_REG(VD1_IF0_CANVAS0 +
 							   cur_dev->viu_off);
-					if (!((get_cpu_type() >=
-						MESON_CPU_MAJOR_ID_GXBB) &&
-						(cur_dispbuf->type &
-						  VIDTYPE_COMPRESS)))
-						cur_dispbuf->canvas0Addr
-							= cur_index;
+					if ((get_cpu_type() >=
+					MESON_CPU_MAJOR_ID_GXBB) &&
+					(cur_dispbuf->type &
+					VIDTYPE_COMPRESS)) {
+						cur_dispbuf->canvas0Addr =
+						READ_VCBUS_REG(AFBC_HEAD_BADDR)
+						<< 4;
+					} else {
+						cur_dispbuf->canvas0Addr =
+						cur_index;
+					}
 				}
 				vsync_toggle_frame(cur_dispbuf);
 			} else
