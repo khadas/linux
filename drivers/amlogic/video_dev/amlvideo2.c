@@ -2431,7 +2431,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 					break;
 			}
 			if ((node->p_type == AML_PROVIDE_HDMIIN_VDIN0) ||
-				(node->p_type == AML_PROVIDE_HDMIIN_VDIN1)) {
+				(node->p_type == AML_PROVIDE_HDMIIN_VDIN1) ||
+				(node->p_type == AML_PROVIDE_MIRROCAST_VDIN1)) {
 				if (((vf->type & VIDTYPE_TYPEMASK)
 					== VIDTYPE_INTERLACE_BOTTOM) &&
 					(vf->canvas0Addr == vf->canvas1Addr)) {
