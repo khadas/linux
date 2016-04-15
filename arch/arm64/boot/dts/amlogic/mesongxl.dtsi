@@ -235,12 +235,17 @@
 			amlogic,pins="GPIOAO_4", "GPIOAO_5";
 		};
 		a_uart_pins:a_uart{
-			amlogic,setmask=<4 0x3c00>;
+			amlogic,setmask=<5 0xf0000>;
+			amlogic,clrmask=<5 0x3c0>;
 			amlogic,pins="GPIOX_12", "GPIOX_13", "GPIOX_14", "GPIOX_15";
 		};
 		b_uart_pins:b_uart{
-			amlogic,setmask=<2 0x30000000>;
+			amlogic,setmask=<2 0x18000>;
 			amlogic,pins="GPIODV_24", "GPIODV_25";
+		};
+		c_uart_pins:c_uart{
+			amlogic,setmask=<5 0x3000>;
+			amlogic,pins="GPIOX_8", "GPIOX_9";
 		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
 			amlogic,setmask=<6 0x0000000c>,
