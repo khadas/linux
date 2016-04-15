@@ -142,7 +142,7 @@ static struct vfq_s q_ready;
 /*void vf_inqueue(struct vframe_s *vf, const char *receiver);*/
 
 struct vframe_s *amlvideo2_pool_ready;
-
+static bool video_blocking;
 struct timeval thread_ts1;
 struct timeval thread_ts2;
 static int frameInv_adjust;
@@ -2388,6 +2388,15 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	if ((AML_RECEIVER_NONE != node->r_type) && vfq_full(&q_ready))
 		return -1;
 
+	if ((video_blocking) && (amlvideo2_pool_ready != NULL)) {
+		vfq_init(&q_ready,
+		amlvideo2_pool_size + 1,
+		(struct vframe_s **)&amlvideo2_pool_ready[0]);
+		video_blocking = false;
+		pr_err("video blocking need to reset@!!!!!\n");
+		return 0;
+	}
+
 	if (!fh->is_streamed_on) {
 		dpr_err(node->vid_dev, 1, "dev doesn't stream on\n");
 		while (vf_peek(node->recv.name) && (!vfq_full(&q_ready))) {
@@ -2769,16 +2778,22 @@ enum aml_provider_type_e get_sub_receiver_type(const char *name)
  *-----------------------------------------------------------------*/
 static struct vframe_s *amlvideo2_vf_peek(void *op_arg)
 {
+	if (video_blocking)
+		return NULL;
 	return vfq_peek(&q_ready);
 }
 
 static struct vframe_s *amlvideo2_vf_get(void *op_arg)
 {
+	if (video_blocking)
+		return NULL;
 	return vfq_pop(&q_ready);
 }
 
 static void amlvideo2_vf_put(struct vframe_s *vf, void *op_arg)
 {
+	if (video_blocking)
+		return;
 	vf_put(vf, DEVICE_NAME);
 }
 
@@ -3845,6 +3860,7 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_VFRAME_READY:
 		node->provide_ready = 1;
+		video_blocking = false;
 		if (vf_peek(node->recv.name) != NULL)
 			wake_up_interruptible(&node->vidq.wq);
 		break;
@@ -3936,6 +3952,17 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 		break;
 	case VFRAME_EVENT_PROVIDER_RESET:
 		pr_err("provider reset\n");
+		vf_notify_receiver(DEVICE_NAME,
+		VFRAME_EVENT_PROVIDER_RESET,
+					NULL);
+		if (node->vidq.task_running) {
+			video_blocking = true;
+			wake_up_interruptible(&node->vidq.wq);
+		}
+		break;
+	case VFRAME_EVENT_PROVIDER_FR_HINT:
+	case VFRAME_EVENT_PROVIDER_FR_END_HINT:
+		vf_notify_receiver(DEVICE_NAME, type, data);
 		break;
 	default:
 		break;
