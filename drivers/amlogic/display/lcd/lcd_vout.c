@@ -247,6 +247,7 @@ static void lcd_power_ctrl(int status)
 static void lcd_module_enable(void)
 {
 	LCDPR("driver version: %s\n", lcd_driver->version);
+	lcd_driver->driver_init_pre();
 	lcd_driver->power_ctrl(1);
 	lcd_driver->lcd_status = 1;
 }

@@ -310,7 +310,7 @@ static void lcd_venc_set(struct lcd_config_s *pconf)
 	}
 }
 
-int lcd_tablet_driver_init(void)
+void lcd_tablet_driver_init_pre(void)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
@@ -320,7 +320,7 @@ int lcd_tablet_driver_init(void)
 	pconf = lcd_drv->lcd_config;
 	ret = lcd_type_supported(pconf);
 	if (ret)
-		return -1;
+		return;
 
 #ifdef CONFIG_AML_VPU
 	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
@@ -328,10 +328,23 @@ int lcd_tablet_driver_init(void)
 #endif
 	lcd_clk_gate_switch(1);
 
-	/* init driver */
 	lcd_clk_set(pconf);
 	lcd_venc_set(pconf);
 	lcd_tcon_set(pconf);
+}
+
+int lcd_tablet_driver_init(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return -1;
+
+	/* init driver */
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
 		lcd_ttl_control_set(pconf);
@@ -344,8 +357,6 @@ int lcd_tablet_driver_init(void)
 	default:
 		break;
 	}
-	if (pconf->lcd_timing.ss_level > 0)
-		lcd_set_spread_spectrum();
 
 	lcd_vcbus_write(VENC_INTCTRL, 0x200);
 

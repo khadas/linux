@@ -854,6 +854,7 @@ int lcd_tv_probe(struct device *dev)
 
 	lcd_drv->version = LCD_DRV_VERSION;
 	lcd_drv->vout_server_init = lcd_tv_vout_server_init;
+	lcd_drv->driver_init_pre = lcd_tv_driver_init_pre;
 	lcd_drv->driver_init = lcd_tv_driver_init;
 	lcd_drv->driver_disable = lcd_tv_driver_disable;
 

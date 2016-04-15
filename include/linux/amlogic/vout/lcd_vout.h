@@ -359,6 +359,7 @@ struct aml_lcd_drv_s {
 	struct vinfo_s *lcd_info;
 
 	void (*vout_server_init)(void);
+	void (*driver_init_pre)(void);
 	int (*driver_init)(void);
 	void (*driver_disable)(void);
 	/*void (*module_enable)(void);
