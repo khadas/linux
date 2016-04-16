@@ -1641,7 +1641,7 @@ int vp9_bufmgr_postproc(struct VP9Decoder_s *pbi)
 
 	if (vp9_get_raw_frame(pbi, &sd) == 0) {
 		/*pr_info("Display frame index %d\r\n", sd.index);*/
-		/*sd.stream_offset = READ_VREG(HEVC_SHIFT_BYTE_COUNT);*/
+		sd.stream_offset = READ_VREG(HEVC_SHIFT_BYTE_COUNT);
 		prepare_display_buf(pbi, &sd);
 	} /*else
 		pr_info
@@ -4902,7 +4902,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			pbi->last_lookup_pts = vf->pts;
 
 		if ((pbi->pts_mode == PTS_NONE_REF_USE_DURATION)
-			&& (slice_type != 0))
+			&& (slice_type != KEY_FRAME))
 			vf->pts = pbi->last_pts + DUR2PTS(pbi->frame_dur);
 		pbi->last_pts = vf->pts;
 
@@ -4910,7 +4910,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			pbi->last_lookup_pts_us64 = vf->pts_us64;
 
 		if ((pbi->pts_mode == PTS_NONE_REF_USE_DURATION)
-			&& (slice_type != 0)) {
+			&& (slice_type != KEY_FRAME)) {
 			vf->pts_us64 =
 				pbi->last_pts_us64 +
 				(DUR2PTS(pbi->frame_dur) * 100 / 9);
