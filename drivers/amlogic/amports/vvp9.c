@@ -48,6 +48,8 @@
 #include "vdec.h"
 #include "amvdec.h"
 
+/*#define VP9_BUFOVERWRITE_WORK_AROUND*/
+
 /*#define VP9_10B_MMU*/
 #include "vvp9.h"
 #define VP9D_MPP_REFINFO_TBL_ACCCONFIG             0x3442
@@ -75,8 +77,10 @@
 #define MAX_BUF_NUM 24
 #define MAX_REF_ACTIVE  16
 #define VF_POOL_SIZE        32
-
-
+/*
+#undef pr_info
+#define pr_info printk
+*/
 /*---------------------------------------------------
  Include "parser_cmd.h"
 ---------------------------------------------------*/
@@ -267,6 +271,7 @@ typedef unsigned short u16;
 #define VP9_DEBUG_NO_DISPLAY               0x200
 #define VP9_DEBUG_DBG_LF_PRINT             0x400
 #define VP9_DEBUG_OUT_PTS                  0x800
+#define VP9_DEBUG_VF_REF				   0x1000
 #define VP9_DEBUG_DIS_LOC_ERROR_PROC       0x10000
 #define VP9_DEBUG_DIS_SYS_ERROR_PROC   0x20000
 #define VP9_DEBUG_DUMP_PIC_LIST       0x40000
@@ -304,7 +309,6 @@ VP9 buffer management start
 #define MMU_COMPRESS_HEADER_SIZE  0x48000
 #endif
 static DEFINE_SPINLOCK(lock);
-
 #define   lock_buffer_pool(pool)
 #define   unlock_buffer_pool(pool)
 #define INVALID_IDX -1  /* Invalid buffer index.*/
@@ -390,7 +394,6 @@ struct PIC_BUFFER_CONFIG_s {
 	int comp_body_size;
 	int buf_size;
 	int vf_ref;
-	uint8_t used_by_display;
 	int y_canvas_index;
 	int uv_canvas_index;
 
@@ -400,6 +403,7 @@ struct PIC_BUFFER_CONFIG_s {
 	int RefNum_L1;
 	int num_reorder_pic;
 	int stream_offset;
+	uint8_t used_by_display;
 	uint8_t referenced;
 	uint8_t output_mark;
 	uint8_t recon_mark;
@@ -664,19 +668,26 @@ struct VP9_Common_s {
 static void set_canvas(struct PIC_BUFFER_CONFIG_s *pic_config);
 static int prepare_display_buf(struct VP9Decoder_s *pbi,
 					struct PIC_BUFFER_CONFIG_s *pic_config);
-
 static int get_free_fb(struct VP9_Common_s *cm)
 {
 	struct RefCntBuffer_s *const frame_bufs = cm->buffer_pool->frame_bufs;
 	int i;
 
 	lock_buffer_pool(cm->buffer_pool);
-	for (i = 0; i < FRAME_BUFFERS; ++i)
+	for (i = 0; i < FRAME_BUFFERS; ++i) {
+		if (debug & VP9_DEBUG_BUFMGR_MORE)
+			pr_info("%s:%d, ref_count %d vf_ref %d used_by_d %d index %d\r\n",
+			__func__, i, frame_bufs[i].ref_count,
+			frame_bufs[i].buf.vf_ref,
+			frame_bufs[i].buf.used_by_display,
+			frame_bufs[i].buf.index);
 		if ((frame_bufs[i].ref_count == 0) &&
 			(frame_bufs[i].buf.vf_ref == 0) &&
-			(frame_bufs[i].buf.used_by_display == 0))
+			(frame_bufs[i].buf.used_by_display == 0) &&
+			(frame_bufs[i].buf.index != -1)
+			)
 			break;
-
+	}
 	if (i != FRAME_BUFFERS) {
 		frame_bufs[i].ref_count = 1;
 		/*pr_info("[MMU DEBUG 1] set ref_count[%d] : %d\r\n",
@@ -689,6 +700,24 @@ static int get_free_fb(struct VP9_Common_s *cm)
 
 	unlock_buffer_pool(cm->buffer_pool);
 	return i;
+}
+
+static unsigned char is_buffer_empty(struct VP9_Common_s *cm)
+{
+	struct RefCntBuffer_s *const frame_bufs = cm->buffer_pool->frame_bufs;
+	int i;
+
+	for (i = 0; i < FRAME_BUFFERS; ++i)
+		if ((frame_bufs[i].ref_count == 0) &&
+			(frame_bufs[i].buf.vf_ref == 0) &&
+			(frame_bufs[i].buf.used_by_display == 0) &&
+			(frame_bufs[i].buf.index != -1)
+			)
+			break;
+	if (i != FRAME_BUFFERS)
+		return 0;
+
+	return 1;
 }
 
 static struct PIC_BUFFER_CONFIG_s *get_frame_new_buffer(struct VP9_Common_s *cm)
@@ -3429,7 +3458,11 @@ static int config_pic(struct VP9Decoder_s *pbi,
 	if ((pbi->work_space_buf->mpred_mv.buf_start +
 		(((pic_config->index + 1) * lcu_total) * MV_MEM_UNIT))
 		<= mpred_mv_end) {
+#ifdef VP9_BUFOVERWRITE_WORK_AROUND
+		for (i = 1; i < pbi->buf_num; i++) {
+#else
 		for (i = 0; i < pbi->buf_num; i++) {
+#endif
 			y_adr = ((pbi->m_BUF[i].free_start_adr
 				+ 0xffff) >> 16) << 16;
 			/*64k alignment*/
@@ -3519,6 +3552,7 @@ static void init_pic_list(struct VP9Decoder_s *pbi)
 	int i;
 	struct VP9_Common_s *cm = &pbi->common;
 	struct PIC_BUFFER_CONFIG_s *pic_config;
+
 	for (i = 0; i < FRAME_BUFFERS; i++) {
 		pic_config = &cm->buffer_pool->frame_bufs[i].buf;
 		pic_config->index = i;
@@ -4742,15 +4776,8 @@ static struct vframe_s *vvp9_vf_get(void *op_arg)
 
 	if (kfifo_get(&pbi->display_q, &vf)) {
 		uint8_t index = vf->index & 0xff;
-		 if (index >= 0	&& index < FRAME_BUFFERS) {
-			ulong spin_flags;
-			struct VP9_Common_s *cm = &pbi->common;
-			struct BufferPool_s *const pool = cm->buffer_pool;
-			spin_lock_irqsave(&lock, spin_flags);
-			pool->frame_bufs[index].buf.vf_ref++;
-			spin_unlock_irqrestore(&lock, spin_flags);
+		 if (index >= 0	&& index < FRAME_BUFFERS)
 			return vf;
-		 }
 	}
 	return NULL;
 }
@@ -4771,6 +4798,10 @@ static void vvp9_vf_put(struct vframe_s *vf, void *op_arg)
 		if (pool->frame_bufs[index].buf.vf_ref > 0)
 			pool->frame_bufs[index].buf.vf_ref--;
 		spin_unlock_irqrestore(&lock, spin_flags);
+		if (pbi->wait_buf)
+			WRITE_VREG(HEVC_ASSIST_MBOX1_IRQ_REG,
+						0x1);
+
 	}
 
 }
@@ -4797,13 +4828,18 @@ static int vvp9_event_cb(int type, void *data, void *private_data)
 
 	return 0;
 }
-/*
-static void inc_vf_ref(struct VP9Decoder_s *pbi, int index)
+
+void inc_vf_ref(struct VP9Decoder_s *pbi, int index)
 {
 	struct VP9_Common_s *cm = &pbi->common;
 	cm->buffer_pool->frame_bufs[index].buf.vf_ref++;
+
+	if (debug & VP9_DEBUG_BUFMGR)
+		pr_info("%s index = %d new vf_ref = %d\r\n",
+			__func__, index,
+			cm->buffer_pool->frame_bufs[index].buf.vf_ref);
 }
-*/
+
 
 static int prepare_display_buf(struct VP9Decoder_s *pbi,
 				struct PIC_BUFFER_CONFIG_s *pic_config)
@@ -4812,6 +4848,8 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 	int stream_offset = pic_config->stream_offset;
 	unsigned short slice_type = pic_config->slice_type;
 
+	if (debug & VP9_DEBUG_BUFMGR)
+		pr_info("%s index = %d\r\n", __func__, pic_config->index);
 	if (kfifo_get(&pbi->newframe_q, &vf) == 0) {
 		pr_info("fatal error, no available buffer slot.");
 		return -1;
@@ -4954,7 +4992,8 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			else
 				vf->duration = 0;
 		}
-		/*inc_vf_ref(pbi, pic_config->index);*/
+		if ((debug & VP9_DEBUG_VF_REF) == 0)
+			inc_vf_ref(pbi, pic_config->index);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
 		vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
@@ -5030,6 +5069,20 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	} else if (pbi->error_flag == 3) {
 		return IRQ_HANDLED;
 	}
+
+	if (is_buffer_empty(cm)) {
+		/*
+		if (pbi->wait_buf == 0)
+			pr_info("set wait_buf to 1\r\n");
+		*/
+		pbi->wait_buf = 1;
+		return IRQ_HANDLED;
+	}
+
+	/*if (pbi->wait_buf)
+		pr_info("set wait_buf to 0\r\n");
+	*/
+	pbi->wait_buf = 0;
 
 	if ((adapt_prob_status & 0xff) == 0xfd) {
 		/*VP9_REQ_ADAPT_PROB*/

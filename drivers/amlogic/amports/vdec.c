@@ -119,7 +119,7 @@ static int vdec_default_buf_size[] = {
 	48, /*"amvdec_h265", else alloc on decoder*/
 	0,  /* avs encoder */
 	0,  /* jpg encoder */
-	16, /*"amvdec_vp9", else alloc on decoder*/
+	32, /*"amvdec_vp9", else alloc on decoder*/
 	0
 };
 
