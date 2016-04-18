@@ -149,6 +149,7 @@ static inline bool is_meson_gxl_package_905L(void)
 static inline bool is_meson_gxl_package_905M2(void)
 {
 	return is_meson_gxl_cpu() && package_id_is(0xe0);
+}
 static inline bool is_meson_gxm_cpu(void)
 {
 	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) ==
