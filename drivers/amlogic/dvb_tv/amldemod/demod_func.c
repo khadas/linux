@@ -1407,7 +1407,7 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 	else if (demod_reg->mode == 11)
 		demod_set_cbus_reg(demod_reg->val, demod_reg->addr);
 	else if (demod_reg->mode == 10)
-		apb_write_reg(demod_reg->addr, demod_reg->val);
+		apb_write_reg_collect(demod_reg->addr, demod_reg->val);
 	/* demod_reg->val_high = apb_read_reg_high(demod_reg->addr); */
 	else
 		demod_set_demod_reg(demod_reg->val, demod_reg->addr);
@@ -1447,18 +1447,37 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 	} else if (demod_reg->mode == 11) {
 		demod_reg->val = demod_read_cbus_reg(demod_reg->addr);
 	} else if (demod_reg->mode == 10) {
-		demod_reg->val = apb_read_reg(demod_reg->addr);
+		demod_reg->val = apb_read_reg_collect(demod_reg->addr);
 	/*	demod_reg->val_high = apb_read_reg_high(demod_reg->addr);*/
 	} else {
 		demod_reg->val = demod_read_demod_reg(demod_reg->addr);
 	}
 }
 
-
-void apb_write_reg(unsigned int addr, unsigned int data)
+void apb_write_reg_collect(unsigned int addr, unsigned int data)
 {
 	writel(data, ((void __iomem *)(phys_to_virt(addr))));
 /* *(volatile unsigned int*)addr = data; */
+}
+
+unsigned long apb_read_reg_collect(unsigned long addr)
+{
+	unsigned long tmp;
+/*	void __iomem *vaddr;
+	vaddr = ioremap(((unsigned long)phys_to_virt(addr)), 0x4);
+	tmp = readl(vaddr);
+	iounmap(vaddr);*/
+	tmp = readl((void __iomem *)(phys_to_virt(addr)));
+/*tmp = *(volatile unsigned long *)((unsigned long)phys_to_virt(addr));*/
+/* printk("[all][read]%lx,data is %lx\n",addr,tmp); */
+	return tmp & 0xffffffff;
+}
+
+
+
+void apb_write_reg(unsigned int addr, unsigned int data)
+{
+	demod_set_demod_reg(data, addr);
 }
 
 unsigned long apb_read_reg_high(unsigned long addr)
@@ -1470,15 +1489,7 @@ unsigned long apb_read_reg_high(unsigned long addr)
 
 unsigned long apb_read_reg(unsigned long addr)
 {
-	unsigned long tmp;
-/*	void __iomem *vaddr;
-	vaddr = ioremap(((unsigned long)phys_to_virt(addr)), 0x4);
-	tmp = readl(vaddr);
-	iounmap(vaddr);*/
-	tmp = readl((void __iomem *)(phys_to_virt(addr)));
-/*tmp = *(volatile unsigned long *)((unsigned long)phys_to_virt(addr));*/
-/* printk("[all][read]%lx,data is %lx\n",addr,tmp); */
-	return tmp & 0xffffffff;
+	return demod_read_demod_reg(addr);
 }
 
 void apb_write_regb(unsigned long addr, int index, unsigned long data)

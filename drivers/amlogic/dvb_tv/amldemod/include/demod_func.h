@@ -282,6 +282,8 @@ int dtmb_read_reg(int reg_addr);
 void dtmb_register_reset(void);
 
 /* demod functions */
+unsigned long apb_read_reg_collect(unsigned long addr);
+void apb_write_reg_collect(unsigned int addr, unsigned int data);
 void apb_write_reg(unsigned int reg, unsigned int val);
 unsigned long apb_read_reg_high(unsigned long addr);
 unsigned long apb_read_reg(unsigned long reg);

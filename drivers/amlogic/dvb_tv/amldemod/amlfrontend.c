@@ -479,18 +479,18 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 	demod_status.dvb_mode = Gxtv_Dvbc;
 
 	if (mode == Adc_mode) {
-		sys.adc_clk = 35000;
-		sys.demod_clk = 100000;
+		sys.adc_clk = Adc_Clk_25M;
+		sys.demod_clk = Demod_Clk_200M;
 		demod_status.tmp = Adc_mode;
 	} else {
 		sys.adc_clk = Adc_Clk_24M;
 		sys.demod_clk = Demod_Clk_72M;
 		demod_status.tmp = Cry_mode;
 	}
-	demod_status.ch_if = Si2176_6M_If * 1000;
+	demod_status.ch_if = Si2176_5M_If * 1000;
 	pr_dbg("[%s]adc_clk is %d,demod_clk is %d\n", __func__, sys.adc_clk,
 	       sys.demod_clk);
-	autoFlagsTrig = 1;
+	autoFlagsTrig = 0;
 	demod_set_sys(&demod_status, &i2c, &sys);
 	return 0;
 }
@@ -1165,10 +1165,15 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 	memstart_dtmb = fe->dtv_demod->mem_start;
 	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
 	/*mem_buf = (long *)phys_to_virt(memstart);*/
-	Gxtv_Demod_Dtmb_Init(dev);
-	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
-	pr_dbg("[dtmb]mem_buf is 0x%x\n",
-		dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
+	if (mode == AM_FE_DTMB) {
+		Gxtv_Demod_Dtmb_Init(dev);
+		dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
+		pr_dbg("[dtmb]mem_buf is 0x%x\n",
+			dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
+	} else if (mode == AM_FE_QAM) {
+		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
+	}
+
 
 	/* must enable the adc ref signal for demod, */
 	vdac_enable(1, 0x2);

@@ -5,7 +5,7 @@
 #include "demod_func.h"
 #include <linux/kthread.h>
 
-static int debug_amldvbc;
+static int debug_amldvbc = 1;
 #define dprintk(a ...) do { if (debug_amldvbc) printk(a); } while (0)
 
 static struct task_struct *cci_task;
@@ -670,6 +670,8 @@ static void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	ch_if = demod_sta->ch_if;	/* kHz */
 	ch_bw = demod_sta->ch_bw;	/* kHz */
 	symb_rate = demod_sta->symb_rate;	/* k/sec */
+	dprintk("ch_if is %d,  %d,  %d,  %d, %d\n",
+		ch_if, ch_mode, ch_freq, ch_bw, symb_rate);
 /*    ch_mode=4;*/
 /*      apb_write_reg(DEMOD_CFG_BASE,0x00000007);*/
 	/* disable irq */
@@ -1064,8 +1066,7 @@ int dvbc_set_ch(struct aml_demod_sta *demod_sta,
 	dprintk("f=%d, s=%d, q=%d\n",
 		demod_dvbc->ch_freq, demod_dvbc->symb_rate, demod_dvbc->mode);
 	demod_i2c->tuner = 7;
-/*	mode = demod_dvbc->mode;*/
-	mode = 0;
+	mode = demod_dvbc->mode;
 	symb_rate = demod_dvbc->symb_rate;
 	ch_freq = demod_dvbc->ch_freq;
 	if (mode > 4) {
@@ -1101,7 +1102,9 @@ int dvbc_set_ch(struct aml_demod_sta *demod_sta,
 	else if (demod_i2c->tuner == 7)
 		/*   demod_sta->ch_if     = 5000; // TODO  Si2176 tuner */
 
-		demod_sta->ch_bw = 8000;	/* TODO */
+	demod_sta->ch_bw = 8000;	/* TODO */
+	if (demod_sta->ch_if == 0)
+		demod_sta->ch_if = 5000;
 	demod_sta->symb_rate = symb_rate;
 	dvbc_reg_initial(demod_sta);
 
