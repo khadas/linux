@@ -1404,9 +1404,26 @@ void hdmirx_read_audio_info(struct aud_info_s *audio_info)
 
 void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 {
+	#ifdef HDMI20_ENABLE
+	struct vsi_infoframe_t vsi_info;
+	memset(&vsi_info, 0, sizeof(struct vsi_infoframe_t));
+	vs->identifier = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST0, IEEE_REG_ID);
+	*((unsigned int *)&vsi_info + 1) =
+				hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
+	vs->vd_fmt = vsi_info.vid_format;
+	if ((vsi_info.vid_format != VSI_FORMAT_NO_DATA) &&
+		(vsi_info.vid_format == VSI_FORMAT_3D_FORMAT)) {
+		vs->_3d_structure = vsi_info.detail.data_3d.struct_3d;
+		vs->_3d_ext_data = vsi_info.struct_3d_ext;
+	} else {
+		vs->_3d_structure = 0;
+		vs->_3d_ext_data = 0;
+	}
+	#else
 	vs->identifier = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST0, IEEE_REG_ID);
 	vs->vd_fmt = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, HDMI_VIDEO_FORMAT);
 	vs->_3d_structure = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, H3D_STRUCTURE);
 	vs->_3d_ext_data = hdmirx_rd_bits_dwc(DWC_PDEC_VSI_ST1, H3D_EXT_DATA);
+	#endif
 }
 

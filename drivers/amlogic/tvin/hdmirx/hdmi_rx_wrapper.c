@@ -1238,8 +1238,9 @@ int hdmirx_hw_get_dvi_info(void)
 int hdmirx_hw_get_3d_structure(unsigned char *_3d_structure,
 			       unsigned char *_3d_ext_data)
 {
+	hdmirx_read_vendor_specific_info_frame(&rx.vendor_specific_info);
 	if ((rx.vendor_specific_info.identifier == 0x000c03) &&
-	    (rx.vendor_specific_info.vd_fmt == 0x2)) {
+	    (rx.vendor_specific_info.vd_fmt == VSI_FORMAT_3D_FORMAT)) {
 		*_3d_structure = rx.vendor_specific_info._3d_structure;
 		*_3d_ext_data = rx.vendor_specific_info._3d_ext_data;
 		return 0;
@@ -1835,7 +1836,7 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 			 (abs
 			  (video_par->vactive -
 			   freq_ref[i].vactive_alternative) <=
-			  diff_line_th))
+			  diff_line_th) && (video_par->video_format != 3))
 			video_par->sw_alternative = 1;
 		/*********** repetition Check patch start ***********/
 		if (repeat_check) {

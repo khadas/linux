@@ -68,6 +68,7 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
 
 #define HDCP22_ENABLE
+#define HDMI20_ENABLE 1
 
 /* add new value at the end,
  * do not insert new value in the middle
@@ -512,6 +513,30 @@ enum edid_list_e {
 	EDID_LIST_DOMY,
 	EDID_LIST_V2,
 	EDID_LIST_NUM
+};
+
+enum vsi_vid_format_e {
+	VSI_FORMAT_NO_DATA,
+	VSI_FORMAT_EXT_RESOLUTION,
+	VSI_FORMAT_3D_FORMAT,
+	VSI_FORMAT_FUTURE,
+};
+
+struct vsi_infoframe_t {
+	unsigned int checksum:8;
+	unsigned int ieee_id:24;
+	unsigned char reserv:5;
+	enum vsi_vid_format_e vid_format:3;
+	union detail_u {
+		unsigned char hdmi_vic:8;
+		struct struct_3d_t {
+			unsigned char reserv1:4;
+			unsigned char struct_3d:4;
+
+		} data_3d;
+	} detail;
+	unsigned char reserv2:4;
+	unsigned char struct_3d_ext:4;
 };
 
 /* hpd event */

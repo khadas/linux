@@ -631,6 +631,10 @@
 #define H3D_EXT_DATA        MSK(4, 20)
 #define HDMI_VIDEO_FORMAT   MSK(3, 5)
 
+#define DWC_PDEC_VSI_PLAYLOAD0 (0x368UL)
+#define DWC_PDEC_VSI_PLAYLOAD1 (0x36CUL)
+
+
 /*
  * DTL Interface registers
  */
