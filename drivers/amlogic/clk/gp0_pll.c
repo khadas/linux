@@ -31,7 +31,7 @@
 
 
 
-void __iomem *hiu_base;
+static void __iomem *hiu_base;
 struct gpll_rate_table {
 	unsigned long rate;
 	unsigned int m;
@@ -45,7 +45,7 @@ struct gpll_rate_table {
 #define m_sft 0
 #define n_sft  9
 
-void gp0_update_bits(size_t reg, size_t mask, unsigned int val)
+static void gp0_update_bits(size_t reg, size_t mask, unsigned int val)
 {
 	unsigned int tmp, orig;
 	orig = readl(hiu_base + reg);

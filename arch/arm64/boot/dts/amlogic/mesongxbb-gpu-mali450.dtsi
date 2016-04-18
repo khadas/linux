@@ -106,9 +106,9 @@
 		  };
 
 		  clk750_cfg:clk750_cfg {
-			clk_freq = <768000000>;
+			clk_freq = <744000000>;
 			clk_parent = "gp0_pll";
-			clkp_freq = <768000000>;
+			clkp_freq = <744000000>;
 			voltage = <1150>;
 			keep_count = <5>;
 			threshold = <230 255>;

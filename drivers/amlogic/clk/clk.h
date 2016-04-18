@@ -445,6 +445,7 @@ extern void __init sys_pll_init(void __iomem *base,
 void amlogic_clk_register_branches(struct amlogic_clk_branch *clk_list,
 				    unsigned int nr_clk);
 extern void __init gp0_clk_init(void __iomem *reg_base, unsigned int id);
+extern void __init gp0_clk_gxl_init(void __iomem *reg_base, unsigned int id);
 extern unsigned long _get_rate(const char *clk_name);
 #ifdef CONFIG_RESET_CONTROLLER
 void meson_register_rstc(struct device_node *np, unsigned int num_regs,
