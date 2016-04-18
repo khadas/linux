@@ -32,6 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
+#include <linux/amlogic/iomap.h>
 
 #ifdef CONFIG_SUPPORT_SYSRQ
 #define SUPPORT_SYSRQ
@@ -92,13 +93,14 @@
 #define AML_UART_BAUD_MASK		0x7fffff
 #define AML_UART_BAUD_USE		BIT(23)
 #define AML_UART_BAUD_XTAL		BIT(24)
+#define AML_UART_BAUD_XTAL_TICK	BIT(26)
 
 #define AML_UART_PORT_MAX		16
 #define AML_UART_DEV_NAME		"ttyS"
 
 /*#define UART_TEST_DEBUG*/
 static struct uart_driver meson_uart_driver;
-
+unsigned int xtal_tick_en = 0;
 struct meson_uart_port {
 	struct uart_port	port;
 	spinlock_t wr_lock;
@@ -541,11 +543,22 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	val = readl(port->membase + AML_UART_REG5);
 	val &= ~AML_UART_BAUD_MASK;
 	if (port->uartclk == 24000000) {
-		dev_info(&pdev->dev, "ttyS%d use xtal %d change %ld to %ld\n",
-			port->line, port->uartclk,
-			mup->baud, baud);
-		val = (port->uartclk / 3) / baud  - 1;
-		val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL);
+		if (xtal_tick_en) {
+			/*xtal_tick_en first*/
+			aml_aobus_update_bits((0x19<<2), (1<<18), (1<<18));
+			dev_info(&pdev->dev, "ttyS%d use xtal(24M) %d change %ld to %ld\n",
+				port->line, port->uartclk,
+				mup->baud, baud);
+			val = (port->uartclk) / baud  - 1;
+			val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL
+				|AML_UART_BAUD_XTAL_TICK);
+		} else {
+			dev_info(&pdev->dev, "ttyS%d use xtal(8M) %d change %ld to %ld\n",
+				port->line, port->uartclk,
+				mup->baud, baud);
+			val = (port->uartclk / 3) / baud  - 1;
+			val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL);
+		}
 	} else {
 		dev_info(&pdev->dev, "ttyS%d use clk81 %d change %ld to %ld\n",
 			port->line, port->uartclk,
@@ -1040,6 +1053,12 @@ static int meson_uart_probe(struct platform_device *pdev)
 	prop = of_get_property(pdev->dev.of_node, "fifosize", NULL);
 	if (prop)
 		port->fifosize = of_read_ulong(prop, 1);
+
+	if (!xtal_tick_en) {
+		prop = of_get_property(pdev->dev.of_node, "xtal_tick_en", NULL);
+		if (prop)
+			xtal_tick_en = of_read_ulong(prop, 1);
+	}
 	port->uartclk = clk->rate;
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
