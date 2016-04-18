@@ -15,6 +15,8 @@
 /* The number of VOF window */
 #define VOFWNDNUM 4
 
+#define PDXX_PT_NUM 7
+
 /* 288Row, 1bit/row -> (288/32)=9 */
 #define ROWCMBNUM 288
 #define ROWCMBLEN 9
@@ -32,6 +34,9 @@
 #endif
 
 extern uint pr_pd;
+extern bool prt_flg;
+extern char debug_str[];
+
 /* Software: Film Detection and VOF parameters */
 struct sFlmDatSt {
 	UINT8 pFlg32[HISDETNUM]; /* history information */
@@ -49,8 +54,9 @@ struct sFlmDatSt {
 	UINT8 pStp22[HISDETNUM];
 	UINT8 pSmp22[HISDETNUM];
 
+	UINT8 pModXx[HISDETNUM]; /* mode */
 	UINT8 pFlgXx[HISDETNUM]; /* pre-1, nxt-0 */
-	UINT8 pMdLXx[HISDETNUM]; /* mode level */
+	UINT8 pLvlXx[HISDETNUM]; /* mode level */
 
 	UINT32 *rROFrmDif02;
 
@@ -159,9 +165,6 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 /* MIX: [1~5] */
 int Flm32DetSub1(struct sFlmDatSt *pRDat, UINT8 *nFlg12, UINT8 *pFlm02t,
 		 UINT8 *nFlg01, UINT8 *nFlg02, UINT8 MIX);
-
-UINT8 Get1RHstCmb(UINT32 HSCMB[HISCMBNUM][ROWCMBLEN], UINT8 *wPRE,
-		  UINT32 iRow);
 
 int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	      UShort *rPstCYWnd0, UShort *rPstCYWnd1, UShort *rPstCYWnd2,

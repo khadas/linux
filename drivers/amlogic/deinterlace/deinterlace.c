@@ -4014,9 +4014,17 @@ static unsigned int flm22_sure_num = 100;
 module_param(flm22_sure_num, uint, 0644);
 MODULE_PARM_DESC(flm22_sure_num, "ture film-22/n");
 
+/*
 static unsigned int flmxx_sure_num = 50;
 module_param(flmxx_sure_num, uint, 0644);
 MODULE_PARM_DESC(flmxx_sure_num, "ture film-xx/n");
+*/
+
+/* static unsigned int flmxx_sure_num[7]
+ = {50, 50, 50, 50, 50, 50, 50}; */
+static unsigned int flmxx_sure_num[7] = {20, 20, 20, 20, 20, 20, 20};
+static unsigned int flmxx_snum_adr = 7;
+module_param_array(flmxx_sure_num, uint, &flmxx_snum_adr, 0664);
 
 static void pre_de_done_buf_config(void)
 {
@@ -4059,31 +4067,48 @@ static void pre_de_done_buf_config(void)
 			/* always read and print data */
 			read_new_pulldown_info(&flmreg);
 
-			if (pulldown_enable) {
-				/* read_new_pulldown_info(&flmreg); */
-				if (pldn_calc_en == 1) {
-					dectres.rF22Flag = FlmVOFSftTop(
-						&(dectres.rCmb32Spcl),
-						dectres.rPstCYWnd0,
-						dectres.rPstCYWnd1,
-						dectres.rPstCYWnd2,
-						dectres.rPstCYWnd3,
-						dectres.rPstCYWnd4,
-						&(dectres.rFlmPstGCm),
-						&(dectres.rFlmSltPre),
-						&(dectres.rFlmPstMod),
-						flmreg.rROFldDif01,
-						flmreg.rROFrmDif02,
-						flmreg.rROCmbInf, &pd_param,
-						hHeight + 1,
-						di_pre_stru.di_nrwr_mif.end_x +
-						1);
-				}
+			/* read_new_pulldown_info(&flmreg); */
+			if ((pldn_calc_en == 1) && pulldown_enable) {
+				dectres.rF22Flag = FlmVOFSftTop(
+					&(dectres.rCmb32Spcl),
+					dectres.rPstCYWnd0,
+					dectres.rPstCYWnd1,
+					dectres.rPstCYWnd2,
+					dectres.rPstCYWnd3,
+					dectres.rPstCYWnd4,
+					&(dectres.rFlmPstGCm),
+					&(dectres.rFlmSltPre),
+					&(dectres.rFlmPstMod),
+					flmreg.rROFldDif01,
+					flmreg.rROFrmDif02,
+					flmreg.rROCmbInf, &pd_param,
+					hHeight + 1,
+					di_pre_stru.di_nrwr_mif.end_x +
+					1);
 
-				if (pr_pd & 0x100) /* top vof window */
-					pr_dbg("\tcal-wnd=[%3d ~ %3d]\n",
-						dectres.rPstCYWnd0[0],
-						dectres.rPstCYWnd0[1]);
+				prt_flg = ((pr_pd >> 1) & 0x1);
+				if (prt_flg) {
+					sprintf(debug_str, "#Pst-Dbg:\n");
+					sprintf(debug_str + strlen(debug_str),
+					"Mod=%d, Pre=%d, GCmb=%d, Lvl2=%d\n",
+					dectres.rFlmPstMod,
+					dectres.rFlmSltPre,
+					dectres.rFlmPstGCm,
+					dectres.rF22Flag);
+
+					sprintf(debug_str + strlen(debug_str),
+					"Wnd[%d~%d], [%d~%d], [%d~%d], [%d~%d]\n",
+					dectres.rPstCYWnd0[0],
+					dectres.rPstCYWnd0[1],
+					dectres.rPstCYWnd1[0],
+					dectres.rPstCYWnd1[1],
+					dectres.rPstCYWnd2[0],
+					dectres.rPstCYWnd2[1],
+					dectres.rPstCYWnd3[0],
+					dectres.rPstCYWnd3[1]);
+
+					pr_info("%s", debug_str);
+				}
 			}
 
 			if (pulldown_enable && di_pre_stru.di_post_wr_buf) {
@@ -4106,7 +4131,10 @@ static void pre_de_done_buf_config(void)
 				di_pre_stru.di_post_wr_buf->reg3_e = 0;
 				di_pre_stru.di_post_wr_buf->reg3_bmode = 0;
 			}
-			like_pulldown22_flag = dectres.rF22Flag;
+			if (dectres.rFlmPstMod == 1)
+				like_pulldown22_flag = dectres.rF22Flag;
+			else
+				like_pulldown22_flag = 0;
 
 			if (pulldown_enable == 1 && dectres.rFlmPstMod != 0
 				&& di_pre_stru.di_post_wr_buf) {
@@ -4114,11 +4142,11 @@ static void pre_de_done_buf_config(void)
 					dectres.rFlmPstGCm == 0);
 				flm22 = (dectres.rFlmPstMod == 1  &&
 					dectres.rF22Flag >= flm22_sure_num);
-				flmxx = (dectres.rFlmPstMod >= flmxx_sure_num);
-
-				if (flmxx && pr_pd)
-					pr_dbg("film mode xx = %3d\n",
-					dectres.rFlmPstMod);
+				if (dectres.rFlmPstMod >= 4)
+					flmxx = (dectres.rF22Flag >=
+					flmxx_sure_num[dectres.rFlmPstMod - 4]);
+				else
+					flmxx = 0;
 
 				/* 2-2 force */
 				if ((pldn_mod == 0) &&
@@ -4182,10 +4210,9 @@ static void pre_de_done_buf_config(void)
 					/* SRSHARP0_SHARP_DEJ2_MISC */
 					/* SRSHARP0_SHARP_DEJ1_MISC */
 
-					if (pr_pd) {
-						pr_dbg("dejaggies level= %3d\n",
+					if ((pr_pd >> 1) & 0x1)
+						pr_info("dejaggies level= %3d\n",
 						dectres.rF22Flag);
-					}
 				} else if (dectres.rFlmPstGCm == 0
 					&& pldn_cmb0 > 1
 					&& pldn_cmb0 <= 5) {

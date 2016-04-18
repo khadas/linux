@@ -61,12 +61,18 @@ uint pr_pd = 0;
 module_param(pr_pd, uint, 0644);
 MODULE_PARM_DESC(pr_pd, "/n printk /n");
 
+bool prt_flg = 0;
+module_param(prt_flg, bool, 0644);
+MODULE_PARM_DESC(prt_flg, "/n prt_flg /n");
+
+char debug_str[512];
+
 /* if flmxx level > flmxx_first_num */
 /* flmxx first: even when 2-2 3-2 detected */
-unsigned int flmxx_first_num = 50;
-module_param(flmxx_first_num, uint, 0644);
-MODULE_PARM_DESC(flmxx_first_num,
-"/n flmxx first: even when 2-2 3-2 detected /n");
+/* unsigned int flmxx_first_num = 50; */
+/* module_param(flmxx_first_num, uint, 0644); */
+/* MODULE_PARM_DESC(flmxx_first_num, */
+/* "/n flmxx first: even when 2-2 3-2 detected /n"); */
 
 /* if flmxx level > flmxx_maybe_num */
 /* mabye flmxx: when 2-2 3-2 not detected */
@@ -74,6 +80,92 @@ unsigned int flmxx_maybe_num = 15;
 module_param(flmxx_maybe_num, uint, 0644);
 MODULE_PARM_DESC(flmxx_maybe_num,
 "/n mabye flmxx: when 2-2 3-2 not detected /n");
+
+int flm32_mim_frms = 6;
+module_param(flm32_mim_frms, int, 0644);
+MODULE_PARM_DESC(flm32_mim_frms, "flm32_mim_frms");
+
+int flm22_mim_frms = 60;
+module_param(flm22_mim_frms, int, 0644);
+MODULE_PARM_DESC(flm22_mim_frms, "flm22_mim_frms");
+
+int flm32_f2fdif_min0 = 11;
+module_param(flm32_f2fdif_min0, int, 0644);
+MODULE_PARM_DESC(flm32_f2fdif_min0, "flm32_f2fdif_min0");
+
+int flm32_f2fdif_min1 = 11;
+module_param(flm32_f2fdif_min1, int, 0644);
+MODULE_PARM_DESC(flm32_f2fdif_min1, "flm32_f2fdif_min1");
+
+int flm32_chk1_rtn = 25;
+module_param(flm32_chk1_rtn, int, 0644);
+MODULE_PARM_DESC(flm32_chk1_rtn, "flm32_chk1_rtn");
+
+int flm32_ck13_rtn = 8;
+module_param(flm32_ck13_rtn, int, 0644);
+MODULE_PARM_DESC(flm32_ck13_rtn, "flm32_ck13_rtn");
+
+int flm32_chk2_rtn = 16;
+module_param(flm32_chk2_rtn, int, 0644);
+MODULE_PARM_DESC(flm32_chk2_rtn, "flm32_chk2_rtn");
+
+int flm32_chk3_rtn = 16;
+module_param(flm32_chk3_rtn, int, 0644);
+MODULE_PARM_DESC(flm32_chk3_rtn, "flm32_chk3_rtn");
+
+int flm22_chk20_sml = 6;
+module_param(flm22_chk20_sml, int, 0644);
+MODULE_PARM_DESC(flm22_chk20_sml, "flm22_chk20_sml");
+
+int flm22_chk21_sml = 6;
+module_param(flm22_chk21_sml, int, 0644);
+MODULE_PARM_DESC(flm22_chk21_sml, "flm22_chk21_sml");
+
+int flm22_chk21_sm2 = 10;
+module_param(flm22_chk21_sm2, int, 0644);
+MODULE_PARM_DESC(flm22_chk21_sm2, "flm22_chk21_sm2");
+
+int flm22_lavg_sft = 4;
+module_param(flm22_lavg_sft, int, 0644);
+MODULE_PARM_DESC(flm22_lavg_sft, "flm22_lavg_sft");
+
+int flm22_lavg_lg = 24;
+module_param(flm22_lavg_lg, int, 0644);
+MODULE_PARM_DESC(flm22_lavg_lg, "flm22_lavg_lg");
+
+/* dif02 < (size >> sft) => static */
+int flm22_stl_sft = 7; /*10*/
+module_param(flm22_stl_sft, int, 0644);
+MODULE_PARM_DESC(flm22_stl_sft, "flm22_stl_sft");
+
+int flm22_chk5_avg = 50;
+module_param(flm22_chk5_avg, int, 0644);
+MODULE_PARM_DESC(flm22_chk5_avg, "flm22_chk5_avg");
+
+int flm22_chk6_max = 20;
+module_param(flm22_chk6_max, int, 0644);
+MODULE_PARM_DESC(flm22_chk6_max, "flm22_chk6_max");
+
+int flm22_anti_chk1 = 61;
+module_param(flm22_anti_chk1, int, 0644);
+MODULE_PARM_DESC(flm22_anti_chk1, "flm22_anti_chk1");
+
+int flm22_anti_chk3 = 140;
+module_param(flm22_anti_chk3, int, 0644);
+MODULE_PARM_DESC(flm22_anti_chk3, "flm22_anti_chk3");
+
+int flm22_anti_chk4 = 128;
+module_param(flm22_anti_chk4, int, 0644);
+MODULE_PARM_DESC(flm22_anti_chk4, "flm22_anti_chk4");
+
+int flm22_anti_ck140 = 32;
+module_param(flm22_anti_ck140, int, 0644);
+MODULE_PARM_DESC(flm22_anti_ck140, "flm22_anti_ck140");
+
+int flm22_anti_ck141 = 80;
+module_param(flm22_anti_ck141, int, 0644);
+MODULE_PARM_DESC(flm22_anti_ck141, "flm22_anti_ck141");
+
 
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 unsigned short *rPstCYWnd1, unsigned short *rPstCYWnd2,
@@ -87,17 +179,8 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
     /* Dif01 of 5th windows used for 2-2 */
 	static UINT32 DifW5[HISDIFNUM];
 
-
 	static struct sFlmDatSt pRDat;
 	static int pre22lvl;
-
-	char debug_str[256];
-
-	/* replaced by pFlg32/pFlg22... */
-	/* static UINT8 PREWV[HISCMBNUM];1-weaver with Previous field,
-	0:with next */
-
-	/* struct sFlmDatSt pRGlb; */
 
 	int nDIF01[HISDIFNUM];
 	int nDIF02[HISDIFNUM];
@@ -106,15 +189,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	/* int nRCMB[ROWCMBNUM]; */
 	int mDly = pPar->mPstDlyPre;
 	int mNDly = pPar->mNxtDlySft;
-	/* int rSChgNumRCmb = (nROW/2);
-	Scene changed (the number of R-Combing) */
-	/* int mF32CmbSpcl = 0; //combing special processing for 3-2 film */
-	/* UINT32 sF32Dif02M0 = pPar->sF32Dif02M0; */
-	/* UINT32 sF32Dif02M1 = pPar->sF32Dif02M1; */
 
 	int nT0 = 0;
 	int nT1 = 0;
-	/* int nT2=0; */
 	int nS0 = 0;
 	int nS1 = 0;
 	int nMod = 0;
@@ -124,6 +201,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	/* size of the image */
 	pRDat.iHeight = nROW; /* field height */
 	pRDat.iWidth  = nCOL;
+
+	prt_flg = 0;
+	debug_str[0] = '\0';
 
 	/* Initialization */
 	if (field_count == 0) {
@@ -150,8 +230,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			pRDat.pSmp22[nT1] = 0;
 
 			/* HISDETNUM hist */
+			pRDat.pModXx[nT1] = 0;
 			pRDat.pFlgXx[nT1] = 0; /* pre-1, nxt-0 */
-			pRDat.pMdLXx[nT1] = 0;  /* mode level */
+			pRDat.pLvlXx[nT1] = 0;  /* mode level */
 		}
 		field_count = 1;
 	} else {
@@ -175,6 +256,28 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	DIF01[HISDIFNUM - 1] = rROFldDif01[0];	/* 5windows+global */
 	DIF02[HISDIFNUM - 1] = rROFrmDif02[0];	/* 5windows+global */
 
+	if (pr_pd)
+		sprintf(debug_str, "\nField#%5d: [%4dx%4d]\n",
+			field_count, nROW, nCOL);
+
+	prt_flg = (pr_pd & 0x1);
+	if (prt_flg) {
+		sprintf(debug_str + strlen(debug_str), "Dif012=[%u,%u]\n",
+			DIF01[HISDIFNUM - 1], DIF02[HISDIFNUM - 1]);
+
+		for (nT1 = 1; nT1 < 6; nT1++)
+			sprintf(debug_str + strlen(debug_str),
+				"WDif12[%d]=[%u,%u]\n", nT1,
+				rROFldDif01[nT1], rROFrmDif02[nT1]);
+
+		for (nT1 = 0; nT1 < ROWCMBLEN; nT1++)
+			sprintf(debug_str + strlen(debug_str),
+				"rROCmbInf[%d]=%08x\n", nT1,
+				rROCmbInf[nT1]);
+	}
+	if (pr_pd)
+		pr_info("%s", debug_str);
+
 	/* --------------------------------------------------------------- */
 	/* int nDIF01[HISDIFNUM]; */
 	/* int nDIF02[HISDIFNUM]; */
@@ -186,7 +289,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	/* Film-Detection */
 	nS1 = FlmDetSft(&pRDat, nDIF01, nDIF02, nT0, pPar);
 
-	FlmModsDet(&pRDat, rROFldDif01[0], rROFrmDif02[0]);
+	nS0 = FlmModsDet(&pRDat, rROFldDif01[0], rROFrmDif02[0]);
 	/* --------------------------------------------------------- */
 
 	/* for panda 2-2 : flag	1, 3 */
@@ -210,7 +313,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	*rCmb32Spcl = 0;
 	if (pRDat.pMod32[HISDETNUM - 1] == 3) {
 		nMod = pRDat.pMod32[HISDETNUM - 1];
-		nT0 = pRDat.pFlg32[HISDETNUM - 1] % 2;
+		/* nT0 = pRDat.pFlg32[HISDETNUM - 1] % 2; */
 
 		if (pRDat.mNum32[HISDETNUM - 1] < 255)	/* maximum */
 			pRDat.mNum32[HISDETNUM - 1] += 1;
@@ -220,7 +323,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			*rCmb32Spcl = 1;
 	} else if (pRDat.pMod22[HISDETNUM - 1] == 2) {
 		nMod = pRDat.pMod22[HISDETNUM - 1];
-		nT0 = pRDat.pFlg22[HISDETNUM - 1] % 2;
+		/* nT0 = pRDat.pFlg22[HISDETNUM - 1] % 2; */
 
 		if (pRDat.mNum22[HISDETNUM - 1] < 255)	/* maximum */
 			pRDat.mNum22[HISDETNUM - 1] += 1;
@@ -242,7 +345,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		01: 2-2 film, 10: 2-3 film, 11:-others */
 		*rFlmPstMod = 2;
 		/* param: at least 5 field+5 */
-		if (pRDat.mNum32[HISDETNUM - 1] < 6) {
+		if (pRDat.mNum32[HISDETNUM - 1] < flm32_mim_frms) {
 			*rFlmSltPre = 0;
 			*rFlmPstMod = 0;
 		}
@@ -255,7 +358,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		*rFlmPstMod = 1;
 
 		/* param: at least 60 field+4 */
-		if (pRDat.mNum22[HISDETNUM - 1] < 60) {
+		if (pRDat.mNum22[HISDETNUM - 1] < flm22_mim_frms) {
 			*rFlmSltPre = 0;
 			*rFlmPstMod = 0;
 		}
@@ -267,36 +370,18 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		nS1 = 0;
 	}
 
-	nT1 = pRDat.pMdLXx[HISDETNUM - 1 - mDly];
-	if (((*rFlmPstMod == 0) && (nT1 > flmxx_maybe_num)) ||
-		((*rFlmPstMod != 0) && (nT1 > flmxx_first_num))) {
-		*rFlmSltPre = pRDat.pFlgXx[HISDETNUM - 1 - mDly];
-		*rFlmPstMod = nT1;
-		nS1 = 0;
-	}
-
 	VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
 		rPstCYWnd0, rPstCYWnd1, rPstCYWnd2, rPstCYWnd3,
 		nMod, rROCmbInf, &pRDat, pPar, nROW, nCOL);
 
-	if (pr_pd & 0xff) {
-		sprintf(debug_str, "Field#%5d:", field_count);
-		if (pr_pd & 1) /* Field/Frame Diff */
-			sprintf(debug_str+strlen(debug_str),
-				"\tDif012=%9u,%9u",
-				DIF01[HISDIFNUM - 1], DIF02[HISDIFNUM - 1]);
-		if (pr_pd & 2) /* Pulldown Field # */
-			sprintf(debug_str+strlen(debug_str),
-				"\tmNum32=%3d, mNum22=%3d",
-				pRDat.mNum32[HISDETNUM - 1],
-				pRDat.mNum22[HISDETNUM - 1]);
-		if (pr_pd % 4) /* Film mode and global combing */
-			sprintf(debug_str+strlen(debug_str),
-				"\tFlmPstMod=%1d, rFlmPstGCm=%1d",
-				*rFlmPstMod, *rFlmPstGCm);
-		sprintf(debug_str+strlen(debug_str), "\n");
-		pr_info("%s", debug_str);
+	nT1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
+	if ((*rFlmPstMod == 0) && (nT1 > flmxx_maybe_num)
+		&& (nS0 != 6) && (pRDat.pMod22[HISDETNUM - 1 - mDly] != 2)) {
+		*rFlmSltPre = pRDat.pFlgXx[HISDETNUM - 1 - mDly];
+		*rFlmPstMod = 4 + pRDat.pModXx[HISDETNUM - 1 - mDly];
+		nS1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	}
+
 	return nS1;
 }
 
@@ -308,6 +393,7 @@ int FlmDetSft(struct sFlmDatSt *pRDat, int *nDif01, int *nDif02,
 	      int WND, struct sFlmSftPar *pPar)
 {
 	int nT0 = 0;
+
 	/* 3-2 */
 	Flm32DetSft(pRDat, nDif02, nDif01, pPar);
 
@@ -315,7 +401,7 @@ int FlmDetSft(struct sFlmDatSt *pRDat, int *nDif01, int *nDif02,
 	/* debug0304 */
 	nT0 = Flm22DetSft(pRDat, nDif02, nDif01, pPar);
 	/* ---------------------------------------- */
-
+	prt_flg = 0;
 	return nT0;
 }
 
@@ -363,6 +449,10 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	int nFlgChk1 = 0;
 	int nFlgChk2 = 0;
 	int nFlgChk3 = 0; /* for Mit32VHLine */
+
+	prt_flg = ((pr_pd >> 2) & 0x1);
+	if (prt_flg)
+		sprintf(debug_str, "#Dbg32:\n");
 
 	/* ---------------------------------- */
 	/* Get min/max from the last fives */
@@ -450,8 +540,10 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 		nFlgChk1 = 16 * nFlgChk1 / nAV1;
 
-		if (pr_pd & 8) /* flag check */
-			pr_info("\tnFlgChk1/2=(%2d,%2d)\n", nFlgChk1, nFlgChk2);
+		if (prt_flg)
+			sprintf(debug_str + strlen(debug_str),
+				"nFlgChk1/2/3=(%2d,%2d,%02d)\n",
+			    nFlgChk1, nFlgChk2, nFlgChk3);
 	} else {
 		nFlgChk1 = 0;
 		nFlgChk2 = 0;
@@ -460,7 +552,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 	nT2 = 5 * nDif02[HISDIFNUM - 1] / (nMn + sFrmDifLgTDif + 1);
 	nT2 = nT2>>1;
-	if (nMn <= 2048) {
+	if (nMn <= (1 << flm32_f2fdif_min0)) {
 		nSTP = nT2;
 	} else {
 		nSTP =
@@ -563,7 +655,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 			nSTP += (16 - pRDat->pFrm32[HISDETNUM - 6 + nT1]);
 	}
 
-	if (nMn < 2048 && nSTP <= 2) {
+	if (nMn < (1 << flm32_f2fdif_min1) && nSTP <= 2) {
 		nSTP = 0;
 		for (nT1 = 4; nT1 >= 0; nT1--) {
 			if (sFld32[nT1] >= pRDat->pFld32[HISDETNUM - 6 + nT1]) {
@@ -596,12 +688,30 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	/* dif02(flg=4 vs 3) almost same */
 	/* nFlgChk3: for Mit32VHLine */
 	/* last: for sceen change */
-	if ((nFlgChk1 > 25 && nFlgChk3 > 8) || nFlgChk2 > 16
-		|| (pFlg32[HISDETNUM-1] == 4 && nFlgChk3 > 16)) {
+	if (((nFlgChk1 > flm32_chk1_rtn) &&
+		(nFlgChk3 > flm32_ck13_rtn))
+		|| (nFlgChk2 > flm32_chk2_rtn)
+		|| ((pFlg32[HISDETNUM-1] == 4) &&
+		(nFlgChk3 > flm32_chk3_rtn))) {
 		pRDat->pMod32[HISDETNUM - 1] = 0;
 		pRDat->pFlg32[HISDETNUM - 1] = 0;
+
+		if (prt_flg)
+			sprintf(debug_str + strlen(debug_str),
+			"Reg: ck1=%d, ck13=%d, ck2=%d, ck3=%d\n",
+			flm32_chk1_rtn, flm32_ck13_rtn,
+			flm32_chk2_rtn, flm32_chk3_rtn);
 	}
 	/* ============================================= */
+
+	if (prt_flg) {
+		sprintf(debug_str + strlen(debug_str),
+			"Mod=%d, Flg=%d, Num=%3d\n",
+			pRDat->pMod32[HISDETNUM - 1],
+			pRDat->pFlg32[HISDETNUM - 1],
+			pRDat->mNum32[HISDETNUM - 1]);
+		pr_info("%s", debug_str);
+	}
 
 	return 0;
 }
@@ -704,7 +814,6 @@ int Cal32Flm01(UINT8 *pFlm01, int *nDif01, int iDx,
 			pFlm01[HISDETNUM-2] = 16;
 		}
 	}
-
 
 	return 0;
 }
@@ -841,7 +950,6 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 	int nT0 = 0;
 	int nT1 = 0;
-	/* int nT2=0; */
 	int CNT0 = 0;
 	int CNT1 = 0;
 
@@ -876,23 +984,26 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	static UINT8 nCk20Cnt;
 	static UINT8 nCk21Cnt;
 	/* check 2-2: for panda sequence */
-	static UINT8 nCk22Flg[HISDETNUM];
-	static UINT8 nCk22Cnt;
+	/* static UINT8 nCk22Flg[HISDETNUM]; */
+	/* static UINT8 nCk22Cnt; */
 
 	/* size of image */
 	int iWidth  = pRDat->iWidth;
 	int iHeight = pRDat->iHeight;
 	int nFlm22Lvl = 0;
+	int nSIZE = iWidth * iHeight + 1;
+
+	prt_flg = ((pr_pd >> 3) & 0x1);
+	if (prt_flg)
+		sprintf(debug_str, "#Dbg22:\n");
 
 	for (nT0 = 0; nT0 < HISDETNUM - 1; nT0++) {
 		pFlg[nT0] = pFlg[nT0 + 1];
 		pMod[nT0] = pMod[nT0 + 1];
 		pStp[nT0] = pStp[nT0 + 1];
 		pSmp[nT0] = pSmp[nT0 + 1];
-		nCk22Flg[nT0] = nCk22Flg[nT0+1];
+		/* nCk22Flg[nT0] = nCk22Flg[nT0+1]; */
 	}
-
-
 
 	/* ========== check1/3 2-2 mode  ========== */
 	/* |dif02(t-1) - dif02(t-0)| => should be small */
@@ -904,7 +1015,7 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		nFlgChk1 = 255;
 		nFlgChk3 = 255;
 		nFlgChk4 = 0;
-		nCk22Cnt = 0;
+		/* nCk22Cnt = 0; */
 	} else if (pFlg[HISDETNUM-1] == 2
 			|| pFlg[HISDETNUM-1] == 4) {
 		for (nT0 = 1; nT0 <= 7; nT0 = nT0+2) {
@@ -935,6 +1046,13 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		nAV20 = nAV20>>2;
 		nFlgChk1 = 16*nFlgChk1/(nAV20+1024);
 		nFlgChk3 = 16*nFlgChk3/(nAV20+1024);
+		if (nAV20 < (nSIZE >> flm22_stl_sft))
+			mNum22[HISDETNUM-1] = 0; /* static sequence */
+
+		if (prt_flg)
+			sprintf(debug_str + strlen(debug_str),
+			"nAV20(%04d) < (%04d)\n",
+			nAV20, (nSIZE >> flm22_stl_sft));
 	} else {
 		nFlgChk1 = 0;
 		nFlgChk3 = 0;
@@ -981,6 +1099,15 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	nAV22 = (nSM22 + nL22 / 2) / nL22;	/* Low average */
 	nOfst = nAV21 - nAV22;
 
+	if (prt_flg)
+		sprintf(debug_str + strlen(debug_str),
+		"LAvg=%04d\n", (nAV22/nSIZE));
+
+	if (nAV22 > (nSIZE << 3))
+		mNum22[HISDETNUM - 1] = 0;
+	else if (nAV22 > (nSIZE * flm22_lavg_lg >> 3))
+		mNum22[HISDETNUM - 1] = 0;
+
 	/* ========== check2 2-2 mode  ========== */
 	/* |dif01(t-0) - dif01(t-2)| => should be small */
 	/* |dif01(t-0) - dif01(t-4)| => should be small */
@@ -1002,13 +1129,13 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	nFlgCk20 = 16*nFlgCk20/(nAV22+1024);
 	nFlgCk21 = 16*nFlgCk21/(nAV22+1024);
 
-	if (nFlgCk20 < 6) {
+	if (nFlgCk20 < flm22_chk20_sml) {
 		if (nCk20Cnt < 255)
 			nCk20Cnt++;
 	} else
 		nCk20Cnt = 0;
 
-	if (nFlgCk21 < 6) {
+	if (nFlgCk21 < flm22_chk21_sml) {
 		if (nCk21Cnt < 255)
 			nCk21Cnt++;
 	} else
@@ -1041,7 +1168,7 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	}
 
 	/* water girl: part-2 */
-	if (nCk21Cnt < 10) {
+	if (nCk21Cnt < flm22_chk21_sm2) {
 		nT0 = sFlm2MinAlpha*Mn56+sFlm20ftAlpha*nOfst;
 		tMgn = ((nT0+16)>>5);
 
@@ -1110,25 +1237,18 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		/* if(tMgn > iWidth*iHeight*32) */ /*toilet paper*/
 		/* parameter */
 		nOfst = nAV21 - nAV22;
-		nL22 = iWidth * iHeight + 1;
-		if (nAV22 > (nL22 << 4)) {/* low average */
-			/* nT0 = 0; */
-			/* nT1 = 0; */
+		if (nAV22 > (nSIZE << flm22_lavg_sft)) /* low average */
 			nFlgChk5 = 16;
-		} else if ((nAV22<<4) > (nL22 * 50)) {
-			/* nT0 = 0; */
-			/* nT1 = 0; */
-			nFlgChk5 = nAV22 / nL22;
-		} else if (nOfst < ((nAV22 * 46) >> 7)) {
-			/* nT0=0; */
-			/* nT1=0; */
+		else if ((nAV22 << 4) > (nSIZE * flm22_chk5_avg))
+			nFlgChk5 = nAV22 / nSIZE;
+		else if (nOfst < ((nAV22 * 46) >> 7))
 			nFlgChk5 = (nAV22 << 2) / (nOfst + 32);
-		}
+
 		if (nFlgChk5 > 32)
 			nFlgChk5 = 32;
 		/* --------------------------------------- */
 
-		nL22 = (nL22 >> 9) + 1;
+		nL22 = (nSIZE >> 9) + 1;
 		if (nFlgChk6 < nL22)
 			nFlgChk6 = nL22 / (nFlgChk6 + 1);
 		else if (nFlgChk6 > (nL22 << 1))
@@ -1136,8 +1256,8 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		else
 			nFlgChk6 = 0;
 
-		if (nFlgChk6 > 20)
-			nFlgChk6 = 20;
+		if (nFlgChk6 > flm22_chk6_max)
+			nFlgChk6 = flm22_chk6_max;
 	}
 	pFlg[HISDETNUM - 1] = nT0;
 	pMod[HISDETNUM - 1] = nT1;
@@ -1145,6 +1265,7 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 	/* for panda */
 	/* check bug */
+	/*
 	if (pFlg[HISDETNUM-1] & 0x1) {
 		nCk22Flg[HISDETNUM-1] = nT0;
 
@@ -1156,18 +1277,19 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		if (nCk22Cnt > 254)
 			nCk22Cnt = 254;
 	}
+	*/
 
 	/* debug 2-2 mode */
 	/* if(pr_pd && (nT0 != 0) && pFlg[HISDETNUM-1]!=0) { */
-	if (pr_pd && (pFlg[HISDETNUM-1] & 0x1)) {
+	if (prt_flg && (pFlg[HISDETNUM-1] & 0x1)) {
 		if (nT0 != 0) {
-			pr_info("2-2: nCk1/3/4=(%2d,%2d,%2d)\n",
+			sprintf(debug_str + strlen(debug_str),
+				"nCk1/3/4=(%2d,%2d,%2d)\n",
 				nFlgChk1, nFlgChk3, nFlgChk4);
-			pr_info("2-2: nCk20/1Cnt=(%2d,%2d)\n",
+			sprintf(debug_str + strlen(debug_str),
+				"nCk20/1Cnt=(%2d,%2d)\n",
 				nCk20Cnt, nCk21Cnt);
-			pr_info("2-2: nT0=(%d)\n", nT0);
-		} else if (nCk22Flg[HISDETNUM-2] != 0)
-			pr_info("2-2: nCk22Flg 1==>0\n");
+		}
 	}
 
 	/* ========== check2 2-2 mode  ========== */
@@ -1176,13 +1298,13 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		nFlm22Lvl	= 64;
 
 	/* panda */
-	if (pFlg[HISDETNUM-1] && nCk22Cnt < 20)
-		nFlm22Lvl = nFlm22Lvl + nCk22Cnt - 20;
+	/* if (pFlg[HISDETNUM-1] && nCk22Cnt < 20) */
+	/*	nFlm22Lvl = nFlm22Lvl + nCk22Cnt - 20; */
 
 	/* 2-2 but with combing: force dejaggies */
 	/* return information */
-	if (nFlgChk1 < 61) {
-		nT1 = ((61 - nFlgChk1) >> 2);
+	if (nFlgChk1 < flm22_anti_chk1) {
+		nT1 = ((flm22_anti_chk1 - nFlgChk1) >> 2);
 		nFlm22Lvl += nT1;
 	}
 
@@ -1192,22 +1314,27 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	nT1 = ((nT1 + 4) >> 3);
 	nFlm22Lvl += nT1;
 
-	if (nFlgChk3 < 140) {
-		nT1 = ((140 - nFlgChk3) >> 3);
+	if (nFlgChk3 < flm22_anti_chk3) {
+		nT1 = ((flm22_anti_chk3 - nFlgChk3) >> 3);
 		nFlm22Lvl += nT1;
 	}
 
-	if (nFlgChk4 < 128) {
-		nT1 = ((128 - nFlgChk4) >> 3);
+	if (nFlgChk4 < flm22_anti_chk4) {
+		nT1 = ((flm22_anti_chk4 - nFlgChk4) >> 3);
 		nFlm22Lvl += nT1;
 	}
 
 	/* for sony-mp3 */
-	if ((nFlgChk1 > 32) || (nFlgChk4 > 80)) {
-		if (nFlgChk1 > (nFlgChk4 + 48))
-			nT1 = nFlgChk1 - 32;
+	if (flm22_anti_ck141 < flm22_anti_ck140)
+		flm22_anti_ck141 = flm22_anti_ck140;
+	nT0 = flm22_anti_ck141 - flm22_anti_ck140;
+
+	if ((nFlgChk1 > flm22_anti_ck140) ||
+		(nFlgChk4 > flm22_anti_ck141)) {
+		if (nFlgChk1 > (nFlgChk4 + nT0))
+			nT1 = nFlgChk1 - flm22_anti_ck140;
 		else
-			nT1 = nFlgChk4 - 80;
+			nT1 = nFlgChk4 - flm22_anti_ck141;
 
 		if (nT1 > 128)
 			nT1 = 128;
@@ -1224,480 +1351,14 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	if (nFlm22Lvl < 0)
 		nFlm22Lvl = 0;
 
+	if (prt_flg) {
+		sprintf(debug_str + strlen(debug_str),
+			"Mod=%d, Flg=%d, Num=%3d, Lvl=%3d\n",
+			pMod[HISDETNUM - 1], pFlg[HISDETNUM - 1],
+			mNum22[HISDETNUM-1], nFlm22Lvl);
+
+		pr_info("%s", debug_str);
+	}
+
 	return nFlm22Lvl;
-}
-
-int GetMaxNIdx(int *nMax4, int *nXId4, int N, int *nQt01, int nLen)
-{
-	int nT1 = 0;
-	int nT3 = 0;
-	int nT4 = 0;
-	int nTmp = 0;
-
-	for (nT1 = 0; nT1 <	N; nT1++) {
-		nMax4[nT1] = 0;
-		nXId4[nT1] = 0;
-	}
-
-	for (nT1 = 0; nT1 <	nLen; nT1++) {
-		nTmp = nQt01[nT1];
-
-		/* maximum */
-		for (nT3 = 0; nT3 < N; nT3++) {
-			if (nTmp > nMax4[nT3]) {
-				for (nT4 = 3; nT4 >= nT3+1; nT4--) {
-					nMax4[nT4] = nMax4[nT4-1];
-					nXId4[nT4] = nXId4[nT4-1];
-				}
-				nMax4[nT3] = nTmp;
-				nXId4[nT3] = nT1;
-				break;
-			}
-		}
-	}
-	return 0;
-}
-
-int GetMinNIdx(int *nMax4, int *nXId4, int N, int *nQt01, int nLen)
-{
-	int nT1 = 0;
-	int nT3 = 0;
-	int nT4 = 0;
-	int nTmp = 0;
-
-	for (nT1 = 0; nT1 <	N; nT1++) {
-		nMax4[nT1] = 17;
-		nXId4[nT1] = 0;
-	}
-
-	for (nT1 = 0; nT1 <	nLen; nT1++) {
-		nTmp = nQt01[nT1];
-
-		/* minimum */
-		for (nT3 = 0; nT3 < N; nT3++) {
-			if (nTmp < nMax4[nT3]) {
-				for (nT4 = 3; nT4 >= nT3+1; nT4--) {
-					nMax4[nT4] = nMax4[nT4-1];
-					nXId4[nT4] = nXId4[nT4-1];
-				}
-				nMax4[nT3] = nTmp;
-				nXId4[nT3] = nT1;
-				break;
-			}
-		}
-	}
-	return 0;
-}
-
-/* 15: 8-7 */
-/* 12: 3-2-3-2-2 */
-/* 10: 6-4 */
-/* 10: 5-5 */
-/* 10: 2-2-2-4 */
-/* 10: 2-3-3-2 */
-/* 10: 3-2-3-2 */
-/* pulldown pattern number */
-#define PD_PT_NUM 7
-/* define outside function, for reslove compile warn */
-static int nQt01[15];
-int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
-{
-	int iWidth  = pRDat->iWidth;
-	int iHeight = pRDat->iHeight;
-	int iMxDif  = (iWidth * iHeight >> 6);
-	int nPrtLog[PD_PT_NUM] = {87, 32322, 64, 55, 2224, 2332, 3232};
-
-	/* HISDETNUM hist */
-	UINT8 *pFlgXx = pRDat->pFlgXx; /* pre-1, nxt-0 */
-	UINT8 *pMdLXx = pRDat->pMdLXx;  /* mode level */
-
-	static unsigned int sModFlg01[PD_PT_NUM]; /* flags */
-	static unsigned int sModFlg02[PD_PT_NUM]; /* flags */
-	static int nModCnt[PD_PT_NUM]; /* mode counter */
-
-	unsigned int tModFlg01[PD_PT_NUM]; /* current flags */
-	unsigned int tModFlg02[PD_PT_NUM]; /* current flags */
-
-	int nMxMn[PD_PT_NUM][2] = { {2, 4}, {-2, -2}, {2, 4},
-	{2, 4}, {4, -2}, {4, -2}, {4, -2} };
-
-	int nModLvl[PD_PT_NUM] = {0, 0, 0, 0, 0, 0, 0}; /* mode level */
-	/* int nQt01[15]; *//* Make this define for resolve cmpl warn */
-	int nQt02[15];
-
-	int aMax01[15]; /* maximum 4 */
-	int aXId01[15];
-	int aMin01[15]; /* minimum 4 */
-	int aNId01[15];
-	int aXMI01[15];
-
-	int aMax02[15]; /* maximum 4 */
-	int aXId02[15];
-	int aMin02[15]; /* minimum 4 */
-	int aNId02[15];
-	int aXMI02[15];
-
-	int	nT0	= 0;
-	int	nT1	= 0;
-	int	nT2	= 0;
-	int	nT3	= 0;
-	int	nT4	= 0;
-
-	int	tT0	= 0;
-	int	tT1	= 0;
-	int	tT2	= 0;
-	int	tT3	= 0;
-
-	unsigned int uT01 = 0;
-	unsigned int uT02 = 0;
-	unsigned int uT03 = 0;
-
-	int	nS01[PD_PT_NUM]	= {0, 0, 0,	0, 0, 0, 0};
-	int	nS02[PD_PT_NUM]	= {0, 0, 0,	0, 0, 0, 0};
-	int	nStp[PD_PT_NUM]	= {15, 12, 10, 10, 10, 10};
-
-	static int	pDif01[30];
-	static int	pDif02[30];
-
-	int nLen1 = 0;
-	int nLen2 = 0;
-
-	int	nMin01 = 0;
-	int	nMax01 = 0;
-	int	nMin02 = 0;
-	int	nMax02 = 0;
-	int tModLvl = 0;
-	iMxDif = (iMxDif >> 4);
-
-	for (nT0 = 1; nT0 < HISDETNUM; nT0++) {
-		pFlgXx[nT0 - 1] = pFlgXx[nT0];
-		pMdLXx[nT0 - 1] = pMdLXx[nT0];
-	}
-
-	for	(nT0 = 0; nT0 <	29;	nT0++) {
-		pDif01[nT0]	= pDif01[nT0 + 1];
-		pDif02[nT0]	= pDif02[nT0 + 1];
-	}
-	pDif01[29] = (nDif01 >> 6);
-	pDif02[29] = (nDif02 >> 6);
-
-	for	(nT0 = 0; nT0 <	3; nT0++) {
-		nT2	= nStp[nT0];
-
-		nT3	= pDif01[29];
-		nT4	= pDif02[29];
-
-		nMin01 = nT3;
-		nMax01 = nT3;
-		nMin02 = nT4;
-		nMax02 = nT4;
-
-		nT3 = pDif01[29] - pDif01[29 - nT2];
-		nT4 = pDif02[29] - pDif02[29 - nT2];
-		if (nT3 < 0)
-			nT3 = -nT3;
-		if (nT4 < 0)
-			nT4 = -nT4;
-		nS01[nT0] =	nT3;
-		nS02[nT0] =	nT4;
-
-		/* nS01, nS02: sum of difference */
-		for	(nT1 = 1; nT1 <	nT2; nT1++)	{
-			nT3	= pDif01[29	- nT1];
-			nT4	= pDif02[29	- nT1];
-
-			if (nT3 > nMax01)
-				nMax01 = nT3;
-			if (nT3 < nMin01)
-				nMin01 = nT3;
-
-			if (nT4 > nMax02)
-				nMax02 = nT4;
-			if (nT4 < nMin02)
-				nMin02 = nT4;
-
-			/* diff max */
-			nT3 = pDif01[29	- nT1] - pDif01[29 - nT1 - nT2];
-			nT4	= pDif02[29	- nT1] - pDif02[29 - nT1 - nT2];
-			if (nT3 < 0)
-				nT3 = -nT3;
-			if (nT4 < 0)
-				nT4 = -nT4;
-			if (nT3 > nS01[nT0])
-				nS01[nT0] = nT3;
-			if (nT4 > nS02[nT0])
-				nS02[nT0] = nT4;
-		}
-
-		for (nT1 = 0; nT1 <	nT2; nT1++)	{
-			nT3 = pDif01[29 - nT1] - nMin01;
-			nT4 = nMax01 - nMin01 + 32;
-			nT3 = (16 * nT3) + (nT4 / 2);
-			nQt01[nT1] = (nT3 / nT4);
-
-			nT3 = pDif02[29 - nT1] - nMin02;
-			nT4 = nMax02 - nMin02 + 32;
-			nT3 = (16 * nT3) + (nT4 / 2);
-			nQt02[nT1] = (nT3 / nT4);
-		}
-
-		if (nT0 == 2)
-			tT2 = PD_PT_NUM - 2;
-		else
-			tT2 = 1;
-
-		for (tT1 = 0; tT1 < tT2; tT1++) {
-			tT0	= nT0 + tT1;
-
-			tModLvl = ((nModCnt[tT0] + 2) >> 2);
-			if (tModLvl > 64)
-				tModLvl = 64;
-
-			if (nS01[nT0] > nMax01)
-				nT3 = 8;
-			else {
-				nT3 = (nS01[nT0] << 3);
-				nT3 = nT3 + (nMax01 >> 1);
-				nT3 = nT3 / (nMax01 + 1);
-				if (nT3 > 8)
-					nT3 = 8;
-			}
-			tModLvl -= nT3;
-
-			if (nS02[nT0] > nMax02)
-				nT4 = 8;
-			else {
-				nT4 = (nS02[nT0] << 3);
-				nT4 = nT4 + (nMax02 >> 1);
-				nT4 = nT4 / (nMax02 + 1);
-				if (nT4 > 8)
-					nT4 = 8;
-			}
-			tModLvl -= nT4;
-
-			if (nMxMn[tT0][0] > 0) {
-				nLen1 = nMxMn[tT0][0];
-				GetMaxNIdx(aMax01, aXId01, nLen1, nQt01, nT2);
-
-				nT4 = 0;
-				for (tT3 = 0; tT3 < nLen1; tT3++) {
-					aXMI01[tT3] = aXId01[tT3];
-					nT4 += (16 - aMax01[tT3]);
-				}
-				nT4 /= nLen1;
-				tModLvl -= nT4;
-			} else {
-				nLen1 = -nMxMn[tT0][0];
-				GetMinNIdx(aMin01, aNId01, nLen1, nQt01, nT2);
-
-				nT4 = 0;
-				for (tT3 = 0; tT3 < nLen1; tT3++) {
-					aXMI01[tT3] = aNId01[tT3];
-					nT4 += aMin01[tT3];
-				}
-				nT4 /= nLen1;
-				tModLvl -= nT4;
-			}
-
-			if (nMxMn[tT0][1] > 0) {
-				nLen2 = nMxMn[tT0][1];
-				GetMaxNIdx(aMax02, aXId02, nLen2, nQt02, nT2);
-
-				nT4 = 0;
-				for (tT3 = 0; tT3 < nLen2; tT3++) {
-					aXMI02[tT3] = aXId02[tT3];
-					nT4 += (16 - aMax02[tT3]);
-				}
-				nT4 /= nLen1;
-				tModLvl -= nT4;
-			} else {
-				nLen2 = -nMxMn[tT0][1];
-				GetMinNIdx(aMin02, aNId02, nLen2, nQt02, nT2);
-
-				nT3 = 0;
-				nT4 = 0;
-				for (tT3 = 0; tT3 < nLen2; tT3++) {
-					aXMI02[tT3] = aNId02[tT3];
-					nT4 += aMin02[tT3];
-
-					nT3 = pDif02[29 - aNId02[tT3]];
-					if (nT3 > iMxDif)
-						nT4 += 8;
-					else {
-						nT3 = (nT3 << 3)
-							+ (iMxDif >> 1);
-						nT3 /= (iMxDif + 1);
-						nT4 += nT3;
-					}
-				}
-				nT4 /= (2 * nLen2);
-				tModLvl -= nT4;
-			}
-
-			tModFlg01[tT0] = 0;
-			for (tT3 = 0; tT3 < nLen1; tT3++)
-				tModFlg01[tT0] |= (1 << aXMI01[tT3]);
-
-			tModFlg02[tT0] = 0;
-			for (tT3 = 0; tT3 < nLen2; tT3++)
-				tModFlg02[tT0] |= (1 << aXMI02[tT3]);
-
-			uT03 = (1 << nT2) - 1;
-			tModFlg01[tT0] &= uT03;
-			tModFlg02[tT0] &= uT03;
-
-			uT01 = (sModFlg01[tT0] << 1);
-			uT01 |= (uT01 >> nT2);
-			uT01 &= uT03;
-
-			uT02 = (sModFlg02[tT0] << 1);
-			uT02 |= (uT02 >> nT2);
-			uT02 &= uT03;
-
-			/* minimum check */
-			nLen2 = 0;
-			if (tT0 == 0) { /* 8-7 */
-				nLen2 = 11;
-			} else if (tT0 == 2) { /* 6-4 */
-				nLen2 = 6;
-			} else if (tT0 == 3) { /* 5-5 */
-				nLen2 = 6;
-			}
-
-			if (nLen2 > 0) {
-				GetMinNIdx(aMin02, aNId02, nLen2, nQt02, nT2);
-				nT4 = 0;
-				for (tT3 = 0; tT3 < nLen2; tT3++) {
-					nT3 = pDif02[29 - aNId02[tT3]];
-					if (nT3 > iMxDif)
-						nT4 += 8;
-					else {
-						nT3 = (nT3 << 3)
-							+ (iMxDif >> 1);
-						nT3 /= (iMxDif + 1);
-						nT4 += nT3;
-					}
-				}
-				nT4 /= nLen2;
-				tModLvl -= nT4;
-			}
-
-			if (nMin02 > iMxDif) {
-				tModLvl -= 16;
-				nModCnt[tT0] = 0;
-			} else {
-				nT4 = (nMin02 << 4);
-				nT4 = nT4 / iMxDif;
-				tModLvl -= nT4;
-			}
-
-
-			/* Distance between maximum-2 dif01*/
-			if (aXMI01[1] > aXMI01[0])
-				nT3 = aXMI01[1] - aXMI01[0];
-			else
-				nT3 = aXMI01[0] - aXMI01[1];
-
-			/* Distance between minimium-2 dif02 */
-			if (aXMI02[1] > aXMI02[0])
-				nT4 = aXMI02[1] - aXMI02[0];
-			else
-				nT4 = aXMI02[0] - aXMI02[1];
-
-			if ((uT01 == tModFlg01[tT0]) &&
-				(uT02 == tModFlg02[tT0]) &&
-				(nT3 > 0) && (uT01 > 0) &&
-				(uT02 > 0)) {
-				if (tT0 == 0) {
-					if (nT3 == 7 || nT3 == 8) {
-						nModCnt[tT0] += 1;
-						tModLvl += 2;
-					} else
-						nModCnt[tT0] = 0;
-				} else if (tT0 == 2) {
-					if (nT3 == 4 || nT3 == 6) {
-						nModCnt[tT0] += 1;
-						tModLvl += 2;
-					} else
-						nModCnt[tT0] = 0;
-				} else if (tT0 == 3) {
-					if (nT3 == 5) {
-						nModCnt[tT0] += 1;
-						tModLvl += 2;
-					} else
-						nModCnt[tT0] = 0;
-				}
-			}
-
-			if ((uT02 == tModFlg02[tT0]) &&
-				(nT4 > 0) && (uT02 > 0)) {
-				if ((uT01 == tModFlg01[tT0]) && (uT01 > 0))
-					tModLvl += 1;
-
-				if (tT0 == 1) {
-					if (nT4 == 5 || nT4 == 7) {
-						nModCnt[tT0] += 1;
-						tModLvl += 1;
-					} else
-						nModCnt[tT0] = 0;
-				}  else if (tT0 == 4) {
-					if (nT4 == 1 || nT4 == 9) {
-						nModCnt[tT0] += 1;
-						tModLvl += 1;
-					} else
-						nModCnt[tT0] = 0;
-				} else if (tT0 == 5) {
-					if (nT4 == 3 || nT4 == 7) {
-						nModCnt[tT0] += 1;
-						tModLvl += 1;
-					} else
-						nModCnt[tT0] = 0;
-				} else if (tT0 == 6) {
-					if (nT4 == 5) {
-						nModCnt[tT0] += 1;
-						tModLvl += 1;
-					} else
-						nModCnt[tT0] = 0;
-				}
-			}
-
-			if (nModCnt[tT0] > 254)
-				nModCnt[tT0] = 254;
-
-			if (tModLvl < 0)
-				tModLvl = 0;
-
-			nModLvl[tT0] = tModLvl;
-
-			sModFlg01[tT0] = tModFlg01[tT0];
-			sModFlg02[tT0] = tModFlg02[tT0];
-		} /* 2-3-4-5*/
-	}
-
-	tModLvl = nModLvl[0];
-	nT1 = 0;
-	for	(nT0 = 1; nT0 <	PD_PT_NUM; nT0++) {
-		if (nModLvl[nT0] > tModLvl) {
-			tModLvl = nModLvl[nT0];
-			nT1 = nT0;
-		}
-	}
-	pMdLXx[HISDETNUM - 1] = tModLvl;
-	pFlgXx[HISDETNUM - 1] = (pDif01[29] < pDif01[28]);
-
-	/* recheck */
-	if ((pFlgXx[HISDETNUM - 2] == 0) &&
-		(pDif01[29] > pDif01[28]))
-		pFlgXx[HISDETNUM - 2] = 1;
-
-	if (pr_pd && tModLvl > 0) {
-		pr_info("#FM%5d detected ct(%3d) lvl(%2d)\n",
-		nPrtLog[nT1], nModCnt[nT1], nModLvl[nT1]);
-		if (pDif01[29] < pDif01[28])
-			pr_info("#Pre: A<-A\n");
-		else
-			pr_info("#Nxt: A B->\n");
-	}
-
-	return 0;
 }
