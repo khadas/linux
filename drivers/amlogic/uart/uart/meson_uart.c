@@ -1059,6 +1059,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 		if (prop)
 			xtal_tick_en = of_read_ulong(prop, 1);
 	}
+	xtal_tick_en = 0;
 	port->uartclk = clk->rate;
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
