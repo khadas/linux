@@ -72,6 +72,7 @@
 
 #define DWC_DRIVER_VERSION	"3.10a 12-MAY-2014"
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
+
 static const char dwc_driver_name[] = "dwc_otg";
 extern int pcd_init(struct platform_device *pdev);
 extern int hcd_init(struct platform_device *pdev);
@@ -1145,17 +1146,32 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		}
 	}
 
+
+
 	if (1 == controller_type) {
-		dwc_otg_module_params.data_fifo_size = -1;
-		dwc_otg_module_params.host_rx_fifo_size = -1;
-		dwc_otg_module_params.host_nperio_tx_fifo_size = -1;
-		dwc_otg_module_params.host_perio_tx_fifo_size = -1;
-		dwc_otg_module_params.host_channels = -1;
-		dwc_otg_module_params.dev_rx_fifo_size = 164;
-		dwc_otg_module_params.dev_nperio_tx_fifo_size = 144;
-		dwc_otg_module_params.dev_tx_fifo_size[0] = 144;
-		dwc_otg_module_params.dev_tx_fifo_size[1] = -1;
-		dwc_otg_module_params.dev_tx_fifo_size[2] = -1;
+		if (dwc_otg_module_params.data_fifo_size == 728) {
+			dwc_otg_module_params.data_fifo_size = -1;
+			dwc_otg_module_params.host_rx_fifo_size = -1;
+			dwc_otg_module_params.host_nperio_tx_fifo_size = -1;
+			dwc_otg_module_params.host_perio_tx_fifo_size = -1;
+			dwc_otg_module_params.host_channels = -1;
+			dwc_otg_module_params.dev_rx_fifo_size = 164;
+			dwc_otg_module_params.dev_nperio_tx_fifo_size = 144;
+			dwc_otg_module_params.dev_tx_fifo_size[0] = 144;
+			dwc_otg_module_params.dev_tx_fifo_size[1] = 128;
+			dwc_otg_module_params.dev_tx_fifo_size[2] = 128;
+		} else {
+			dwc_otg_module_params.data_fifo_size = -1;
+			dwc_otg_module_params.host_rx_fifo_size = -1;
+			dwc_otg_module_params.host_nperio_tx_fifo_size = -1;
+			dwc_otg_module_params.host_perio_tx_fifo_size = -1;
+			dwc_otg_module_params.host_channels = -1;
+			dwc_otg_module_params.dev_rx_fifo_size = 164;
+			dwc_otg_module_params.dev_nperio_tx_fifo_size = 144;
+			dwc_otg_module_params.dev_tx_fifo_size[0] = 144;
+			dwc_otg_module_params.dev_tx_fifo_size[1] = -1;
+			dwc_otg_module_params.dev_tx_fifo_size[2] = -1;
+		}
 	}
 	/*
 	* Validate parameter values.

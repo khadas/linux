@@ -40,13 +40,6 @@
 /*
  * M chip USB clock setting
  */
-
-#define MESON8		"meson8"
-#define G9TV		"g9TV"
-#define GXBABY		"gxbaby"
-#define GXBABYTV	"gxtvbaby"
-#define GXL			"gxl"
-
 static int init_count;
 
 struct clk_reset {

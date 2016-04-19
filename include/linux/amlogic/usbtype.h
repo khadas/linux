@@ -20,6 +20,12 @@
 
 #include <linux/platform_device.h>
 
+#define MESON8		"meson8"
+#define G9TV		"g9TV"
+#define GXBABY		"gxbaby"
+#define GXBABYTV	"gxtvbaby"
+#define GXL		"gxl"
+
 #define USB_BC_MODE_DISCONNECT	0	/* Disconnected */
 #define USB_BC_MODE_SDP		1	/* PC */
 #define USB_BC_MODE_DCP		2	/* Charger */
