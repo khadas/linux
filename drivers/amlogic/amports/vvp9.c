@@ -36,7 +36,6 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
-#include <asm-generic/div64.h>
 #include <linux/slab.h>
 #include "amports_priv.h"
 #include <linux/amlogic/codec_mm/codec_mm.h>
@@ -205,7 +204,15 @@ static u32 video_signal_type;
 
 static inline int div_r32(int64_t m, int n)
 {
-	return (int)(do_div(m, n));
+/*
+return (int)(m/n)
+*/
+#ifndef CONFIG_ARM64
+	do_div(m, n);
+	return (int)m;
+#else
+	return (int)(m/n);
+#endif
 }
 
 
@@ -266,6 +273,7 @@ typedef unsigned short u16;
 #define VP9_DEBUG_BUFMGR_MORE              0x02
 #define VP9_DEBUG_UCODE                    0x04
 #define VP9_DEBUG_REG                      0x08
+#define VP9_DEBUG_MERGE			0x10
 #define VP9_DEBUG_DISPLAY_CUR_FRAME        0x40
 #define VP9_DEBUG_SEND_PARAM_WITH_REG      0x100
 #define VP9_DEBUG_NO_DISPLAY               0x200
@@ -2466,8 +2474,8 @@ void adapt_coef_probs(int pic_count, int prev_kf, int cur_kf, int pre_fc,
 
 	int new_prob;
 
-
-	pr_info
+	if (debug & VP9_DEBUG_MERGE)
+		pr_info
 	("\n ##adapt_coef_probs (pre_fc : %d ,prev_kf : %d,cur_kf : %d)##\n\n",
 	pre_fc, prev_kf, cur_kf);
 
@@ -2597,11 +2605,13 @@ if (cur_kf == 0) {
 
 			if (coef_count_node_start ==
 				VP9_INTRA_INTER_COUNT_START) {
-				pr_info(" # merge_intra_inter_prob\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_intra_inter_prob\n");
 				coef_node_start = VP9_INTRA_INTER_START;
 			} else if (coef_count_node_start ==
 				VP9_COMP_INTER_COUNT_START) {
-				pr_info(" # merge_comp_inter_prob\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_comp_inter_prob\n");
 				coef_node_start = VP9_COMP_INTER_START;
 			}
 			/*
@@ -2618,31 +2628,38 @@ if (cur_kf == 0) {
 			*/
 			else if (coef_count_node_start ==
 				VP9_TX_MODE_COUNT_START) {
-				pr_info(" # merge_tx_mode_probs\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_tx_mode_probs\n");
 				coef_node_start = VP9_TX_MODE_START;
 			} else if (coef_count_node_start ==
 				VP9_SKIP_COUNT_START) {
-				pr_info(" # merge_skip_probs\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_skip_probs\n");
 				coef_node_start = VP9_SKIP_START;
 			} else if (coef_count_node_start ==
 				VP9_MV_SIGN_0_COUNT_START) {
-				pr_info(" # merge_sign_0\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_sign_0\n");
 				coef_node_start = VP9_MV_SIGN_0_START;
 			} else if (coef_count_node_start ==
 				VP9_MV_SIGN_1_COUNT_START) {
-				pr_info(" # merge_sign_1\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_sign_1\n");
 				coef_node_start = VP9_MV_SIGN_1_START;
 			} else if (coef_count_node_start ==
 				VP9_MV_BITS_0_COUNT_START) {
-				pr_info(" # merge_bits_0\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_bits_0\n");
 				coef_node_start = VP9_MV_BITS_0_START;
 			} else if (coef_count_node_start ==
 				VP9_MV_BITS_1_COUNT_START) {
-				pr_info(" # merge_bits_1\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_bits_1\n");
 				coef_node_start = VP9_MV_BITS_1_START;
 			} else if (coef_count_node_start ==
 					VP9_MV_CLASS0_HP_0_COUNT_START) {
-				pr_info(" # merge_class0_hp\n");
+				if (debug & VP9_DEBUG_MERGE)
+					pr_info(" # merge_class0_hp\n");
 				coef_node_start = VP9_MV_CLASS0_HP_0_START;
 			}
 
@@ -2678,8 +2695,8 @@ if (cur_kf == 0) {
 
 		coef_node_start = coef_node_start + 1;
 	}
-
-	pr_info(" # merge_vp9_inter_mode_tree\n");
+	if (debug & VP9_DEBUG_MERGE)
+		pr_info(" # merge_vp9_inter_mode_tree\n");
 	coef_node_start = VP9_INTER_MODE_START;
 	coef_count_node_start = VP9_INTER_MODE_COUNT_START;
 	for (tree_i = 0; tree_i < 7; tree_i++) {
@@ -2717,8 +2734,8 @@ if (cur_kf == 0) {
 		}
 		coef_count_node_start = coef_count_node_start + 4;
 	}
-
-	pr_info(" # merge_vp9_intra_mode_tree\n");
+	if (debug & VP9_DEBUG_MERGE)
+		pr_info(" # merge_vp9_intra_mode_tree\n");
 	coef_node_start = VP9_IF_Y_MODE_START;
 	coef_count_node_start = VP9_IF_Y_MODE_COUNT_START;
 	for (tree_i = 0; tree_i < 14; tree_i++) {
@@ -2820,7 +2837,8 @@ if (cur_kf == 0) {
 		coef_count_node_start = coef_count_node_start + 10;
 	}
 
-	pr_info(" # merge_vp9_partition_tree\n");
+	if (debug & VP9_DEBUG_MERGE)
+		pr_info(" # merge_vp9_partition_tree\n");
 	coef_node_start = VP9_PARTITION_P_START;
 	coef_count_node_start = VP9_PARTITION_P_COUNT_START;
 	for (tree_i = 0; tree_i < 16; tree_i++) {
@@ -2859,7 +2877,8 @@ if (cur_kf == 0) {
 		coef_count_node_start = coef_count_node_start + 4;
 	}
 
-	pr_info(" # merge_vp9_switchable_interp_tree\n");
+	if (debug & VP9_DEBUG_MERGE)
+		pr_info(" # merge_vp9_switchable_interp_tree\n");
 	coef_node_start = VP9_INTERP_START;
 	coef_count_node_start = VP9_INTERP_COUNT_START;
 	for (tree_i = 0; tree_i < 4; tree_i++) {
@@ -2890,7 +2909,8 @@ if (cur_kf == 0) {
 		coef_count_node_start = coef_count_node_start + 3;
 	}
 
-	pr_info("# merge_vp9_mv_joint_tree\n");
+	if (debug & VP9_DEBUG_MERGE)
+		pr_info("# merge_vp9_mv_joint_tree\n");
 	coef_node_start = VP9_MV_JOINTS_START;
 	coef_count_node_start = VP9_MV_JOINTS_COUNT_START;
 	for (tree_i = 0; tree_i < 1; tree_i++) {
@@ -2929,7 +2949,8 @@ if (cur_kf == 0) {
 	}
 
 	for (mvd_i = 0; mvd_i < 2; mvd_i++) {
-		pr_info(" # merge_vp9_mv_class_tree [%d]  -\n", mvd_i);
+		if (debug & VP9_DEBUG_MERGE)
+			pr_info(" # merge_vp9_mv_class_tree [%d]  -\n", mvd_i);
 		coef_node_start =
 			mvd_i ? VP9_MV_CLASSES_1_START : VP9_MV_CLASSES_0_START;
 		coef_count_node_start =
@@ -3042,7 +3063,8 @@ if (cur_kf == 0) {
 			coef_node_start = coef_node_start + 1;
 		}
 
-		pr_info(" # merge_vp9_mv_class0_tree [%d]  -\n", mvd_i);
+		if (debug & VP9_DEBUG_MERGE)
+			pr_info(" # merge_vp9_mv_class0_tree [%d]  -\n", mvd_i);
 		coef_node_start =
 			mvd_i ? VP9_MV_CLASS0_1_START : VP9_MV_CLASS0_0_START;
 		coef_count_node_start =
@@ -3055,8 +3077,9 @@ if (cur_kf == 0) {
 
 		vp9_tree_merge_probs(prev_prob, cur_prob, coef_node_start,
 			tree_left, tree_right, tree_i, node);
-
-		pr_info(" # merge_vp9_mv_fp_tree_class0_fp [%d]  -\n", mvd_i);
+		if (debug & VP9_DEBUG_MERGE)
+			pr_info(" # merge_vp9_mv_fp_tree_class0_fp [%d]  -\n",
+				mvd_i);
 		coef_node_start =
 			mvd_i ? VP9_MV_CLASS0_FP_1_START :
 			VP9_MV_CLASS0_FP_0_START;
@@ -4263,6 +4286,11 @@ static void vp9_init_decoder_hw(void)
 	if (debug & VP9_DEBUG_BUFMGR)
 		pr_info("[test.c] Enable HEVC Parser Interrupt\n");
 		data32 = READ_VREG(HEVC_PARSER_INT_CONTROL);
+#if 1
+		/* set bit 31~29 to 3 if HEVC_STREAM_FIFO_CTL[29] is 1 */
+		data32 &= ~(7 << 29);
+		data32 |= (3 << 29);
+#endif
 		data32 = data32 |
 		(1 << 24) |/*stream_buffer_empty_int_amrisc_enable*/
 		(1 << 22) |/*stream_fifo_empty_int_amrisc_enable*/
