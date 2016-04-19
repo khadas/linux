@@ -50,7 +50,7 @@
 
 
 /*#define CONFIG_RDMA_IN_RDMAIRQ*/
-#define CONFIG_RDMA_IN_TASK
+/*#define CONFIG_RDMA_IN_TASK*/
 
 #define RDMA_TABLE_SIZE                    (2 * (PAGE_SIZE))
 

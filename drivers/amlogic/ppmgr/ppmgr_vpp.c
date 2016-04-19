@@ -2712,6 +2712,10 @@ static int ppmgr_task(void *data)
 					&ge2d_config,
 					(ret > 0) ? ret : 0);
 #endif
+			vf_notify_receiver(
+				PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY,
+				NULL);
 		}
 
 		if (ppmgr_blocking) {

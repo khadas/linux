@@ -50,6 +50,7 @@
 #define rdma_io_read(addr) readl(addr)
 #define rdma_io_write(addr, val) writel((val), addr);
 
+#define RDMA_VSYNC_INPUT_TRIG		0x1
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
@@ -57,6 +58,7 @@ static int ctrl_ahb_wr_burst_size = 3;
 static int rdma_watchdog = 4;
 static int reset_count;
 static int rdma_watchdog_count;
+static int rdma_isr_done;
 static int rdma_monitor_reg;
 static int rdma_force_reset = -1;
 #define RDMA_NUM 8
@@ -267,14 +269,18 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 
 	if (debug_flag & 2)
 		pr_info("%s: %x\r\n", __func__, rdma_status);
-		rdma_watchdog_count = 0;
 	for (i = 0; i < RDMA_NUM; i++) {
 		struct rdma_instance_s *ins = &info->rdma_ins[i];
 		if (ins->not_process)
 			continue;
+		if (!(rdma_status & (1 << (i+24))))
+			continue;
 		/*bypass osd rdma done case*/
 		if (i == 3)
 			continue;
+		if (ins->prev_trigger_type	== RDMA_VSYNC_INPUT_TRIG) {
+			rdma_isr_done = 1;
+		}
 		if (rdma_status & (1 << ins->rdma_regadr->irq_status_bitpos)) {
 			if (debug_flag & 2)
 				pr_info("%s: process %d\r\n", __func__, i);
@@ -322,8 +328,7 @@ int rdma_config(int handle, int trigger_type)
 			__func__, handle);
 		return -1;
 	}
-	/*This is a memory barrier*/
-	wmb();
+
 	if (ins->rdma_item_count <= 0 || trigger_type == 0) {
 		if (trigger_type == RDMA_TRIGGER_MANUAL)
 			WRITE_VCBUS_REG(RDMA_ACCESS_MAN,
@@ -337,6 +342,8 @@ int rdma_config(int handle, int trigger_type)
 			0, ins->rdma_regadr->trigger_mask_reg_bitpos, 8);
 		ret = 0;
 	} else {
+	/*This is a memory barrier*/
+		wmb();
 		memcpy(ins->rdma_table_addr, ins->reg_buf,
 			ins->rdma_item_count * 2 * sizeof(u32));
 
@@ -480,6 +487,10 @@ EXPORT_SYMBOL(rdma_read_reg);
 int rdma_reset_tigger_flag = 0;
 int rdma_watchdog_setting(int flag)
 {
+	if (rdma_isr_done) {
+		rdma_watchdog_count = 0;
+		rdma_isr_done = 0;
+	}
 	if (flag == 0)
 		rdma_watchdog_count = 0;
 	else
@@ -508,21 +519,16 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		ins->reg_buf[ins->rdma_item_count << 1] = adr;
 		ins->reg_buf[(ins->rdma_item_count << 1) + 1] = val;
 		ins->rdma_item_count++;
-	}	else {
+	} else {
 		int i;
 		if (debug_flag & 4)
 			pr_info("%s(%d, %x, %x) buf overflow\n",
 				__func__, handle, adr, val);
-		rdma_watchdog_count++;
-		if (debug_flag & 4) {
-			rdma_watchdog_count = 4;
-			debug_flag = 0;
-		}
 		if (rdma_watchdog > 0 && rdma_watchdog_count > rdma_watchdog) {
+			pr_info("%s rdma reset :%d\n",
+			__func__, rdma_watchdog_count);
 			rdma_watchdog_count = 0;
 			rdma_reset(1);
-			rdma_config(handle, ins->prev_trigger_type);
-			pr_info("%s rdma reset\n", __func__);
 			rdma_reset_tigger_flag = 1;
 		}	else {
 			for (i = 0; i < ins->rdma_item_count; i++)
