@@ -516,6 +516,7 @@ static int aml_pmu4_i2c_resume(struct i2c_client *client)
 #define AML_I2C_BUS_AO		0
 #define AML_I2C_BUS_A		1
 #define AML_I2C_BUS_B		2
+#define AML_I2C_BUS_C		3
 
 static int aml_pmu4_probe(struct platform_device *pdev)
 {
@@ -539,6 +540,8 @@ static int aml_pmu4_probe(struct platform_device *pdev)
 		}
 		if (!strncmp(str, "i2c_bus_ao", 10))
 			bus_type = AML_I2C_BUS_AO;
+		else if (!strncmp(str, "i2c_bus_c", 9))
+			bus_type = AML_I2C_BUS_C;
 		else if (!strncmp(str, "i2c_bus_b", 9))
 			bus_type = AML_I2C_BUS_B;
 		else if (!strncmp(str, "i2c_bus_a", 9))
