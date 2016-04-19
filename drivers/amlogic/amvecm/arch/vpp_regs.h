@@ -304,6 +304,7 @@
 #define VPP2_OSD_SCALE_COEF_IDX 0x19cc
 #define VPP2_OSD_SCALE_COEF 0x19cd
 #define VPP2_INT_LINE_NUM 0x19ce
+#define VIU_OSD1_BLK0_CFG_W0 0x1a1b
 
 #define VI_HIST_CTRL  0x2e00
 #define VI_HIST_H_START_END  0x2e01

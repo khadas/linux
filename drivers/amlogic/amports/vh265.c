@@ -6133,7 +6133,8 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	struct hevc_state_s *hevc = &gHevc;
 	mutex_lock(&vh265_mutex);
 
-	if (is_meson_gxtvbb_cpu() && (parser_sei_enable & 0x100) == 0)
+	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
+		(parser_sei_enable & 0x100) == 0)
 		parser_sei_enable = 1;
 	hevc->init_flag = 0;
 	hevc->uninit_list = 0;

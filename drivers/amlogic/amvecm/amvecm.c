@@ -96,11 +96,11 @@ unsigned int pq_load_en = 1;/* load pq table enable/disable */
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
-bool gamma_en = 1;  /* wb_gamma_en enable/disable */
+bool gamma_en;  /* wb_gamma_en enable/disable */
 module_param(gamma_en, bool, 0664);
 MODULE_PARM_DESC(gamma_en, "\n gamma_en\n");
 
-bool wb_en = 1;  /* wb_en enable/disable */
+bool wb_en;  /* wb_en enable/disable */
 module_param(wb_en, bool, 0664);
 MODULE_PARM_DESC(wb_en, "\n wb_en\n");
 
@@ -524,10 +524,14 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x04000000);
 		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0);
 		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x04000000);
-		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x00000400);
-		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x00000000);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000400);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xe00);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
+		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode >= VPP_MATRIX_BT2020YUV_BT2020RGB) {
 		if (vd1_or_vd2_or_post == VPP_MATRIX_VD1) {
@@ -539,6 +543,10 @@ static void vpp_set_matrix(
 			WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
 			WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 			WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+			if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xe00);
+				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
+			}
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 		}
 		if (vd1_or_vd2_or_post == VPP_MATRIX_POST) {
@@ -1168,7 +1176,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	struct master_display_info_s send_info;
 	int need_adjust_contrast = 0;
 
-	if (!is_meson_gxtvbb_cpu())
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)
 		return;
 
 	/* debug vframe info backup */
@@ -1242,30 +1250,40 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	|| (signal_change_flag
 	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE))) {
 		/* check output format(Panel or Tx)  */
-		if (vinfo->viu_color_fmt != TVIN_RGB444)
+		if ((vinfo->viu_color_fmt != TVIN_RGB444)
+		&& (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB))
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 		/* decided by edid or panel info or user setting */
 		if (!hdr_process_mode) {
 			/* hdr->hdr */
-			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
-				/* bypass hdr processing*/
-				/* TODO: use post matrix to do
-				   rgb to yuv instead of matrix3 */
-				csc_type = VPP_MATRIX_YUV709_RGB;
-				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
+			if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+				WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
+					1, 7, 1);
+				vpp_set_matrix(VPP_MATRIX_VD1, CSC_OFF,
 						csc_type, NULL);
+				vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 			} else {
-				/* vd1 matrix on */
-				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
-						csc_type, NULL);
+			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
+					/* bypass hdr processing*/
+					/* TODO: use post matrix to do
+					   rgb to yuv instead of matrix3 */
+					csc_type = VPP_MATRIX_YUV709_RGB;
+					vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
+							csc_type, NULL);
+				} else {
+					/* vd1 matrix on */
+					vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
+							csc_type, NULL);
+				}
 			}
 			/* post matrix off */
 			vpp_set_matrix(VPP_MATRIX_POST, CSC_OFF,
 				csc_type, NULL);
 			/* xvycc lut off */
 			load_knee_lut(CSC_OFF);
+			/* osd YUV blend */
 		} else {
 			/* hdr->sdr */
 			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
@@ -1302,16 +1320,36 @@ static void vpp_matrix_update(struct vframe_s *vf)
 						csc_type, &m);
 					/* xvycc lut on */
 					load_knee_lut(CSC_ON);
+					if (get_cpu_type() >
+					MESON_CPU_MAJOR_ID_GXTVBB) {
+						vpp_set_matrix3(CSC_ON,
+						VPP_MATRIX_RGB_YUV709F);
+						WRITE_VPP_REG_BITS(
+							VIU_OSD1_BLK0_CFG_W0,
+							0, 7, 1);
+					}
 				}
 			} else {
 				/* vd1 matrix on */
-				vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
+				if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
+					vpp_set_matrix(VPP_MATRIX_VD1, CSC_OFF,
+						csc_type, NULL);
+				else
+					vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
 						csc_type, NULL);
 				/* post matrix off */
 				vpp_set_matrix(VPP_MATRIX_POST, CSC_OFF,
 						csc_type, NULL);
 				/* xvycc lut off */
 				load_knee_lut(CSC_OFF);
+				if (get_cpu_type() >
+				MESON_CPU_MAJOR_ID_GXTVBB) {
+					vpp_set_matrix3(CSC_OFF,
+						VPP_MATRIX_NULL);
+					WRITE_VPP_REG_BITS(
+						VIU_OSD1_BLK0_CFG_W0,
+						1, 7, 1);
+				}
 			}
 		}
 		if (need_adjust_contrast) {
@@ -1336,7 +1374,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 static void amvecm_size_patch(void)
 {
 	unsigned int hs, he, vs, ve;
-	if (is_meson_gxtvbb_cpu()) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		hs = READ_VPP_REG_BITS(VPP_HSC_REGION12_STARTP, 16, 12);
 		he = READ_VPP_REG_BITS(VPP_HSC_REGION4_ENDP, 0, 12);
 
@@ -3196,6 +3234,39 @@ void init_sharpness(void)
 }
 /* #endif*/
 
+static void amvecm_gamma_init(bool en)
+{
+	unsigned int i;
+	unsigned short data[256];
+
+	if (en) {
+		for (i = 0; i < 256; i++)
+			data[i] = i << 2;
+		vpp_set_lcd_gamma_table(
+					data,
+					H_SEL_R);
+		vpp_set_lcd_gamma_table(
+					data,
+					H_SEL_G);
+		vpp_set_lcd_gamma_table(
+					data,
+					H_SEL_B);
+	}
+	WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+			en, GAMMA_EN, 1);
+}
+static void amvecm_wb_init(bool en)
+{
+	if (en) {
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
+			(1024 << 16) | 1024);
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
+			(1024 << 16));
+	}
+
+	WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, en, 31, 1);
+}
+
 static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(dnlp, S_IRUGO | S_IWUSR,
 		amvecm_dnlp_show, amvecm_dnlp_store),
@@ -3298,6 +3369,10 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 		else
 			cm_en = val;
 	}
+	/* init module status */
+	amvecm_wb_init(wb_en);
+	amvecm_gamma_init(gamma_en);
+	WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1);
 }
 
 static int aml_vecm_probe(struct platform_device *pdev)
