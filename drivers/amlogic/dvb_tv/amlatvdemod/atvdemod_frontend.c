@@ -135,7 +135,7 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 			AMLATVDEMOD_VER);
 	} else if (!strncmp(parm[0], "audio_autodet",
 		strlen("audio_autodet"))) {
-		aml_audiomode_autodet();
+		aml_audiomode_autodet(NULL);
 	} else if (!strncmp(parm[0], "overmodule_det",
 			strlen("overmodule_det"))) {
 		/* unsigned long over_threshold, */

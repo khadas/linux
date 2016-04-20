@@ -275,6 +275,8 @@ vs_freq==60,freq_hz=15734,freq_hz_cvrt=0x101c9
 #define AML_ATV_DEMOD_FREQ_50HZ_VERT	0xffff	/*65535*/
 #define AML_ATV_DEMOD_FREQ_60HZ_VERT	0x101c9	/*65993*/
 
+#define CARR_AFC_DEFAULT_VAL 500
+
 enum amlatvdemod_snr_level_e {
 	very_low = 1,
 	low,
@@ -297,12 +299,13 @@ struct amlatvdemod_device_s {
 	const char *pin_name;
 };
 
+extern void amlatvdemod_set_std(int val);
 extern struct amlatvdemod_device_s *amlatvdemod_devp;
 extern void aml_fix_PWM_adjust(int enable);
 extern void aml_audio_valume_gain_set(unsigned int audio_gain);
 extern unsigned int aml_audio_valume_gain_get(void);
 extern void aml_atvdemod_overmodule_det(void);
-extern int aml_audiomode_autodet(void);
+extern int aml_audiomode_autodet(struct dvb_frontend *fe);
 extern void retrieve_frequency_offset(int *freq_offset);
 extern int aml_atvdemod_get_snr_ex(void);
 

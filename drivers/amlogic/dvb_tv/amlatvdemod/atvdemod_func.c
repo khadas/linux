@@ -55,6 +55,10 @@ static int if_inv;
 module_param(if_inv, int, 0644);
 MODULE_PARM_DESC(if_inv, "\n if_inv\n");
 
+static int afc_default = CARR_AFC_DEFAULT_VAL;
+module_param(afc_default, int, 0644);
+MODULE_PARM_DESC(afc_default, "\n afc_default\n");
+
 /*GDE_Curve
 			0: CURVE-M
 			1: CURVE-A
@@ -119,9 +123,23 @@ static unsigned int audio_gain_val = 512;
 module_param(audio_gain_val, uint, 0644);
 MODULE_PARM_DESC(audio_gain_val, "\n audio_gain_val\n");
 
+enum AUDIO_SCAN_ID {
+	ID_PAL_I = 0,
+	ID_PAL_M,
+	ID_PAL_DK,
+	ID_PAL_BG,
+	ID_MAX,
+};
+
 static unsigned int mix1_freq;
 static unsigned int timer_init_flag;
 struct timer_list atvdemod_timer;
+
+void amlatvdemod_set_std(int val)
+{
+	broad_std = val;
+}
+EXPORT_SYMBOL(amlatvdemod_set_std);
 
 void atv_dmd_wr_reg(unsigned char block, unsigned char reg, unsigned long data)
 {
@@ -1161,7 +1179,7 @@ int retrieve_vpll_carrier_afc(void)
 	/* if((atv_dmd_rd_byte(APB_BLOCK_ADDR_CARR_RCVY,0x43)&0x1) == 1){ */
 	if ((pll_lock == 1) || (line_lock == 0x10)) {
 		/*if pll unlock, afc is invalid*/
-		data_ret = 500;
+		data_ret = afc_default;/* 500; */
 		return data_ret;
 	}
 	data_h = atv_dmd_rd_byte(APB_BLOCK_ADDR_CARR_RCVY, 0x40);
@@ -1553,7 +1571,7 @@ void atv_dmd_set_std(void)
 		pr_info("[atvdemod..]%s: atv restart error.\n", __func__);
 }
 
-int aml_audiomode_autodet(void)
+int aml_audiomode_autodet(struct dvb_frontend *fe)
 {
 	unsigned long carrier_power = 0;
 	unsigned long carrier_power_max = 0;
@@ -1561,20 +1579,25 @@ int aml_audiomode_autodet(void)
 	unsigned long carrier_power_average[4] = {0};
 	unsigned long reg_addr = 0x03 , temp_data;
 	int carrier_lock_count = 0;
-	int lock = 0;
+	int lock = 0, try_num = 0;
 	int broad_std_final = 0;
 	int num = 0, i = 0, final_id = 0;
-	int search_num = 0;
+	int delay_ms = 20, delay_ms_default = 40;
+	int cur_std = ID_PAL_DK;
+	struct dtv_frontend_properties *p =
+		fe != NULL ? &fe->dtv_property_cache:NULL;
+#if 0
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data | 0x80;/* 0x40 */
-
 	atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
+#endif
+
 	switch (broad_std) {
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
-		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I:
@@ -1604,120 +1627,154 @@ int aml_audiomode_autodet(void)
 		return broad_std;
 	default:
 		pr_err("unsupport broadcast_standard!!!\n");
+		temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
+		temp_data = temp_data & (~0x80); /* 0xbf; */
+		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
 		return broad_std;
 	}
-	atvdemod_init();
-
-	while (1) {
-			retrieve_vpll_carrier_lock(&lock);
-			if (lock == 0)
-				break;
-			carrier_lock_count++;
-			if (carrier_lock_count >= 10) {
-				pr_err("%s, retrieve_vpll_carrier_lock failed\n",
-					 __func__);
-				break;
-				/* return broad_std; */
-			}
-			usleep_range(6000, 9000);
-		}
 	/* ----------------read carrier_power--------------------- */
 	/* SIF_STG_2[0x09],address 0x03 */
 	while (1) {
 		if (num >= 12) {
 			temp_data =
 				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-			temp_data = temp_data & (~0x80);/* ;0xbf */
+			temp_data = temp_data & (~0x80);
 			atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,
 					temp_data);
 			carrier_power_max = carrier_power_average[0];
-			for (i = 0; i < 4; i++) {
+			for (i = 0; i < ID_MAX; i++) {
 				if (carrier_power_max <
 					carrier_power_average[i]) {
 					carrier_power_max =
-						carrier_power_average[i];
+					    carrier_power_average[i];
 					final_id = i;
 				}
 			}
 			switch (final_id) {
-			case 0:
+			case ID_PAL_I:
 				broad_std_final =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
+				   AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
 				break;
-			case 1:
+			case ID_PAL_BG:
 				broad_std_final =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+				    AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
 				break;
-			case 2:
+			case ID_PAL_M:
 				broad_std_final =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
+				    AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
 				break;
-			case 3:
+			case ID_PAL_DK:
 				broad_std_final =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+				    AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 				break;
 			}
 
 			broad_std = broad_std_final;
-			carrier_power_average_max = carrier_power_max/4;
-			pr_err("%s:broad_std:%d,carri_power_average_max:%lu\n",
-				__func__, broad_std, carrier_power_average_max);
-			if ((search_num == 0) &&
-				(carrier_power_average_max < 100)) {
-				search_num = 1;
-				num = 0;
-				msleep(20);
-			} else
-				return broad_std_final;
+			carrier_power_average_max = carrier_power_max/3;
+			pr_err("%s:broad_std:%d,average_max:%lu\n",
+				__func__, broad_std,
+				carrier_power_average_max);
+			if ((carrier_power_average_max < 150) &&
+				(try_num < 1)) {
+				pr_err("%s,average_max too low error\n\n",
+					__func__);
+			}
+			return broad_std;
 		}
 		switch (broad_std) {
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
+			cur_std = ID_PAL_I;
+			if (p != NULL) {
+				p->analog.std =
+				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I;
+				p->frequency += 1;
+				p->analog.audmode = V4L2_STD_PAL_I;
+			}
+			delay_ms = delay_ms_default;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+			cur_std = ID_PAL_BG;
+			if (p != NULL) {
+				p->analog.std =
+				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
+				p->frequency += 1;
+				p->analog.audmode = V4L2_STD_PAL_BG;
+			}
+			delay_ms = delay_ms_default;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
+			cur_std = ID_PAL_M;
+			if (p != NULL) {
+				p->analog.std =
+				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_M;
+				p->frequency += 1;
+				p->analog.audmode = V4L2_STD_PAL_M;
+			}
+			delay_ms = delay_ms_default;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+			cur_std = ID_PAL_DK;
+			if (p != NULL) {
+				p->analog.std =
+				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
+				p->frequency += 1;
+				p->analog.audmode = V4L2_STD_PAL_DK;
+			}
+			delay_ms = delay_ms_default;
 			break;
 
 		default:
 			pr_err("unsupport broadcast_standard!!!\n");
 			break;
 		}
-		atvdemod_init();
+		if (p != NULL)
+			fe->ops.set_frontend(fe);
+		/* atvdemod_init(); //set_frontend has already called it */
+
+		/* enable audio detect function */
+		temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
+		temp_data = temp_data | 0x80;/* 0x40 */
+		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
+
+		mdelay(delay_ms);
+
 		carrier_lock_count = 0;
-		while (1) {
+		i = 4;
+		while (i--) {
 			retrieve_vpll_carrier_lock(&lock);
 			if (lock == 0)
 				break;
 			carrier_lock_count++;
-			if (carrier_lock_count >= 10) {
-				pr_err("%s step2, retrieve_vpll_carrier_lock failed\n",
+			if (carrier_lock_count >= 20) {
+				pr_err("%s step2, vpll_carrier_lock failed\n",
 					__func__);
-				return broad_std;
+				/* fe->ops.set_frontend(fe); */
+			/* return broad_std; */
 			}
 			usleep_range(6000, 9000);
 		}
 		/* ----------------read carrier_power--------------------- */
-		carrier_power =
-			atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, reg_addr);
-			/* SIF_STG_2[0x09],address 0x03 */
-		if (atvdemod_debug_en&0x1) {
-			pr_err("[amlatvdemod.. %d ]%s: atvdemo audio carrier power report:%lu.\n",
-					num, __func__, carrier_power);
+		for (i = 0; i < 100; i++) {
+			carrier_power =
+				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2,
+					reg_addr);
+			/* if (carrier_power_max < carrier_power) */
+				carrier_power_max += carrier_power;
+			/* udelay(10); */
 		}
-		carrier_power_average[num%4] += carrier_power;
+		carrier_power = carrier_power_max/i;
+		carrier_power_max = 0;
+			/* SIF_STG_2[0x09],address 0x03 */
+		pr_err("[%s num:%d,std:%d ]:carr power report:%lu. @@@@@@\n",
+			__func__, num, broad_std, carrier_power);
+		carrier_power_average[cur_std] += carrier_power;
 		num++;
 	}
 
-	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-	temp_data = temp_data & (~0x80);/* ;0xbf */
-
-	atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
 	return broad_std;
 }
 
@@ -1751,7 +1808,7 @@ void aml_atvdemod_overmodule_det(void)
 	int vlock = 0;
 	switch (audio_det_mode) {
 	case AUDIO_AUTO_DETECT:
-		aml_audiomode_autodet();
+		aml_audiomode_autodet(NULL);
 		return;
 #if 0
 		while (1) {
