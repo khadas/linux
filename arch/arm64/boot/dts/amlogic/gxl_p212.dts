@@ -1086,7 +1086,7 @@
 	status = "disabled";
 };
 &audio_data{
-	status = "disabled";
+	status = "okay";
 };
 &defendkey {
 	memory-region = <&sec_chk>;
