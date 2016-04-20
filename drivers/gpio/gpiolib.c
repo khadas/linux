@@ -2151,6 +2151,25 @@ int gpio_for_irq(unsigned gpio, unsigned int flag)
 	return gpiod_for_irq(gpio_to_desc(gpio), flag);
 }
 EXPORT_SYMBOL_GPL(gpio_for_irq);
+int gpiod_mask_irq(const struct gpio_desc *desc, unsigned int flag)
+{
+	struct gpio_chip	*chip;
+	int			offset;
+
+	if (!desc)
+		return -EINVAL;
+	chip = desc->chip;
+	offset = gpio_chip_hwgpio(desc);
+	return chip->mask_gpio_irq ?
+		chip->mask_gpio_irq(chip, offset, flag) : -ENXIO;
+}
+EXPORT_SYMBOL_GPL(gpiod_mask_irq);
+
+int gpio_mask_irq(unsigned gpio, unsigned int flag)
+{
+	return gpiod_mask_irq(gpio_to_desc(gpio), flag);
+}
+EXPORT_SYMBOL_GPL(gpio_mask_irq);
 
 int gpiod_set_pullup(const struct gpio_desc *desc, int val)
 {

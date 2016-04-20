@@ -94,6 +94,8 @@ struct gpio_chip {
 	int (*set_gpio_to_irq)(struct gpio_chip *chip, unsigned int gpio,
 							unsigned gpio_flag);
 
+	int (*mask_gpio_irq)(struct gpio_chip *chip, unsigned int gpio,
+							unsigned gpio_flag);
 	int			base;
 	u16			ngpio;
 	struct gpio_desc	*desc;

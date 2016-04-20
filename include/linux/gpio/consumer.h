@@ -64,6 +64,8 @@ int desc_to_gpio(const struct gpio_desc *desc);
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
 int gpiod_set_pullup(const struct gpio_desc *desc, int val);
 int gpio_set_pullup(unsigned gpio, int val);
+int gpiod_mask_irq(const struct gpio_desc *desc, unsigned int flag);
+int gpio_mask_irq(unsigned gpio, unsigned int flag);
 
 #else /* CONFIG_GPIOLIB */
 

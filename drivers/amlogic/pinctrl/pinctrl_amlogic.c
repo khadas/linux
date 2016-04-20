@@ -927,6 +927,38 @@ static int meson_gpio_to_irq(struct gpio_chip *chip,
 			0x7<<start_bit, filter<<start_bit);
 	return 0;
 }
+static int meson_gpio_mask_irq(struct gpio_chip *chip,
+			     unsigned int gpio, unsigned gpio_flag)
+{
+	unsigned start_bit;
+	unsigned irq_bank = gpio_flag&0x7;
+	unsigned filter = (gpio_flag>>8)&0x7;
+	unsigned irq_type = (gpio_flag>>16)&0x3;
+	unsigned int pin;
+	unsigned type[] = {0x0,	/*GPIO_IRQ_HIGH*/
+				0x10000, /*GPIO_IRQ_LOW*/
+				0x1,	/*GPIO_IRQ_RISING*/
+				0x10001, /*GPIO_IRQ_FALLING*/
+				};
+	 /*set trigger type*/
+	 pin = 0xff;
+	 regmap_update_bits(int_reg, (GPIO_EDGE * 4),
+						0x10001<<irq_bank,
+						type[irq_type]<<irq_bank);
+	/*select pin*/
+	start_bit = (irq_bank&3)*8;
+	regmap_update_bits(int_reg,
+			irq_bank < 4?(GPIO_SELECT_0_3*4):(GPIO_SELECT_4_7*4),
+			0xff<<start_bit,
+			pin << start_bit);
+	/*set filter*/
+	start_bit = (irq_bank)*4;
+
+	regmap_update_bits(int_reg,  (GPIO_FILTER_NUM*4),
+			0x7<<start_bit, filter<<start_bit);
+	return 0;
+}
+
 struct pinctrl_dev *pctl;
 static int meson_gpiolib_register(struct amlogic_pmx  *pc)
 {
@@ -946,6 +978,7 @@ static int meson_gpiolib_register(struct amlogic_pmx  *pc)
 		domain->chip.set = meson_gpio_set;
 		domain->chip.set_pullup_down = meson_gpio_set_pullup_down;
 		domain->chip.set_gpio_to_irq = meson_gpio_to_irq;
+		domain->chip.mask_gpio_irq = meson_gpio_mask_irq;
 		domain->chip.base = -1;
 		domain->chip.ngpio = domain->data->num_pins;
 		domain->chip.can_sleep = false;
