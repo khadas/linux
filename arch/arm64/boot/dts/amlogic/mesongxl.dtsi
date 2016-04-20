@@ -436,7 +436,7 @@
 		};
 		d_i2c_master:d_i2c{
 			amlogic,setmask=<5 0x30>;
-			amlogic,clrmask=<5 0x300c03 6 0x3>;
+			amlogic,clrmask=<5 0x300c03>;
 			amlogic,pins="GPIOX_10","GPIOX_11";
 		};
 

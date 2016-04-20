@@ -1106,8 +1106,7 @@
 	audio_btpcm_pins:audio_btpcm_pins{
 		/* BT PCM PINMUX SETTING*/
 		amlogic,setmask=<5 0xf00000>;
-		amlogic,clrmask=<5 0x3c33
-				6 0x3>;
+		amlogic,clrmask=<5 0x3c33>;
 		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
 	};
 };
