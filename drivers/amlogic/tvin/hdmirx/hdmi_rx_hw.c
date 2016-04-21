@@ -121,44 +121,9 @@ static int hdcp_22_nonce_hw_en = 1;
 
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 
-static int hdcp_22_pkf_0 = 0xccddeeff;/* pkf[31:0] */
-MODULE_PARM_DESC(hdcp_22_pkf_0, "\n hdcp_22_pkf_0\n");
-module_param(hdcp_22_pkf_0, int, 0664);
-static int hdcp_22_pkf_1 = 0x8899aabb;/* pkf[63:32] */
-MODULE_PARM_DESC(hdcp_22_pkf_1, "\n hdcp_22_pkf_1\n");
-module_param(hdcp_22_pkf_1, int, 0664);
-static int hdcp_22_pkf_2 = 0x44556677;/* pkf[95:64] */
-MODULE_PARM_DESC(hdcp_22_pkf_2, "\n hdcp_22_pkf_2\n");
-module_param(hdcp_22_pkf_2, int, 0664);
-static int hdcp_22_pkf_3 = 0x00112233;/* pkf[127:96] */
-MODULE_PARM_DESC(hdcp_22_pkf_3, "\n hdcp_22_pkf_3\n");
-module_param(hdcp_22_pkf_3, int, 0664);
-
-static int hdcp_22_duk_0 = 0x33221100;/* duk[31:0] */
-MODULE_PARM_DESC(hdcp_22_duk_0, "\n hdcp_22_duk_0\n");
-module_param(hdcp_22_duk_0, int, 0664);
-static int hdcp_22_duk_1 = 0x77665544;/* duk[63:32] */
-MODULE_PARM_DESC(hdcp_22_duk_1, "\n hdcp_22_duk_1\n");
-module_param(hdcp_22_duk_1, int, 0664);
-static int hdcp_22_duk_2 = 0xbbaa9988;/* duk[95:64] */
-MODULE_PARM_DESC(hdcp_22_duk_2, "\n hdcp_22_duk_2\n");
-module_param(hdcp_22_duk_2, int, 0664);
-static int hdcp_22_duk_3 = 0xffeeddcc;/* duk[127:96] */
-MODULE_PARM_DESC(hdcp_22_duk_3, "\n hdcp_22_duk_3\n");
-module_param(hdcp_22_duk_3, int, 0664);
-
-static int duk_flag;
-MODULE_PARM_DESC(duk_flag, "\n duk_flag\n");
-module_param(duk_flag, int, 0664);
-
 static int is_duk_key_set;
 MODULE_PARM_DESC(is_duk_key_set, "\n is_duk_key_set\n");
 module_param(is_duk_key_set, int, 0664);
-
-static unsigned int hdcp_22_nonce_sw_0 = 0x76543210;
-static unsigned int hdcp_22_nonce_sw_1 = 0xfedcba98;
-static unsigned int hdcp_22_nonce_sw_2 = 0x89abcdef;
-static unsigned int hdcp_22_nonce_sw_3 = 0x01234567;
 #endif
 
 static int hdmi_mode_hyst = 5;
@@ -868,19 +833,9 @@ void hdmirx_20_init(void)
 		/* (0x1002 | (hdcp_22_on<<2))); */
 		/* hdmirx_wr_dwc(DWC_HDCP_SETTINGS, 0x13374); */
 		/* Configure pkf[127:0] */
-		if (duk_flag) {
-			hdcp22_wr_top(TOP_PKF_0,	hdcp_22_pkf_0);
-			hdcp22_wr_top(TOP_PKF_1,	hdcp_22_pkf_1);
-			hdcp22_wr_top(TOP_PKF_2,	hdcp_22_pkf_2);
-			hdcp22_wr_top(TOP_PKF_3,	hdcp_22_pkf_3);
-
-			/* Configure duk[127:0] */
-			hdcp22_wr_top(TOP_DUK_0,	hdcp_22_duk_0);
-			hdcp22_wr_top(TOP_DUK_1,	hdcp_22_duk_1);
-			hdcp22_wr_top(TOP_DUK_2,	hdcp_22_duk_2);
-			hdcp22_wr_top(TOP_DUK_3,	hdcp_22_duk_3);
-		} else
-			rx_sec_set_duk();
+		if (hdcp22_firmware_ok_flag)
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+		rx_sec_set_duk();
 		/* Validate PKF and DUK */
 			data32	= 0;
 			/* duk_vld */
@@ -890,15 +845,6 @@ void hdmirx_20_init(void)
 			/* nonce_hw_en */
 			data32 |= (hdcp_22_nonce_hw_en	<< 0);
 			hdcp22_wr_top(TOP_SKP_CNTL_STAT, data32);
-
-			if (!hdcp_22_nonce_hw_en) {
-				/* Configure nonce[127:0],MSB must be written */
-				/* the last to assert nonce_vld signal. */
-				hdcp22_wr_top(TOP_NONCE_0, hdcp_22_nonce_sw_0);
-				hdcp22_wr_top(TOP_NONCE_1, hdcp_22_nonce_sw_1);
-				hdcp22_wr_top(TOP_NONCE_2, hdcp_22_nonce_sw_2);
-				hdcp22_wr_top(TOP_NONCE_3, hdcp_22_nonce_sw_3);
-			}
 
 			/* Wait until nonce is valid */
 			/* hdmirx_poll_reg(0, TOP_SKP_CNTL_STAT, */

@@ -66,7 +66,6 @@ struct esm_device {
 
 /* Configuration parameters */
 static int verbose;
-static int nonce_mode = 1; /* 1: use HW nonce   0: use SW nonce */
 
 /* Constant strings */
 static const char *MY_TAG = "ESM HLD: ";
@@ -273,8 +272,8 @@ static long cmd_get_data_phys_addr(struct esm_device *esm,
 	krequest.returned_phys_addr = esm->data_base;
 	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
 
-	pr_info("%scmd_get_data_phys_addr: returning data_base=0x%x\n",
-			MY_TAG, krequest.returned_phys_addr);
+	rx_print("%scmd_get_data_phys_addr: returning data_base=0x%x\n",
+		MY_TAG, krequest.returned_phys_addr);
 
 	ret = copy_to_user(request, &krequest,
 		sizeof(struct esm_hld_ioctl_get_data_phys_addr));
@@ -293,8 +292,8 @@ static long cmd_get_data_size(struct esm_device *esm,
 	krequest.returned_data_size = esm->data_size;
 	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
 
-	pr_info("%scmd_get_data_size: returning data_size=0x%x\n",
-			MY_TAG, krequest.returned_data_size);
+	rx_print("%scmd_get_data_size: returning data_size=0x%x\n",
+		MY_TAG, krequest.returned_data_size);
 
 	ret = copy_to_user(request, &krequest,
 		sizeof(struct esm_hld_ioctl_get_data_size));
@@ -1178,6 +1177,4 @@ MODULE_DESCRIPTION("ESM Linux Host Library Driver");
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Enable (1) or disable (0) the debug traces.");
 
-module_param(nonce_mode, int, 0644);
-MODULE_PARM_DESC(nonce_mode, "Enable (1) or disable (0) the debug traces.");
 #endif

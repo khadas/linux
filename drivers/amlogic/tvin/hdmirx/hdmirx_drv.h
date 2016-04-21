@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/04/11b"
+#define HDMIRX_VER "Ref.2016/04/21"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -565,6 +565,7 @@ extern int rgb_quant_range;
 extern int yuv_quant_range;
 extern int hdcp_22_on;
 extern int do_esm_rst_flag;
+extern int hdcp22_firmware_ok_flag;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

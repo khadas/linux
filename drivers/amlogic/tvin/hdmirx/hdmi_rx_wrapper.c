@@ -368,6 +368,10 @@ bool hpd_to_esm;
 MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
 module_param(hpd_to_esm, bool, 0664);
 
+bool reset_esm_flag;
+MODULE_PARM_DESC(reset_esm_flag, "\n reset_esm_flag\n");
+module_param(reset_esm_flag, bool, 0664);
+
 /* to inform ESM whether the cable is connected or not */
 static bool video_stable_to_esm;
 MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
@@ -401,7 +405,6 @@ static int wait_hdcp22_cnt3 = 900;
 MODULE_PARM_DESC(wait_hdcp22_cnt3, "\n wait_hdcp22_cnt3\n");
 module_param(wait_hdcp22_cnt3, int, 0664);
 
-
 static int enable_hdcp22_loadkey = 1;
 MODULE_PARM_DESC(enable_hdcp22_loadkey, "\n enable_hdcp22_loadkey\n");
 module_param(enable_hdcp22_loadkey, int, 0664);
@@ -409,6 +412,14 @@ module_param(enable_hdcp22_loadkey, int, 0664);
 int do_esm_rst_flag;
 MODULE_PARM_DESC(do_esm_rst_flag, "\n do_esm_rst_flag\n");
 module_param(do_esm_rst_flag, int, 0664);
+
+bool enable_hdcp22_esm_log;
+MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
+module_param(enable_hdcp22_esm_log, bool, 0664);
+
+int hdcp22_firmware_ok_flag = 1;
+MODULE_PARM_DESC(hdcp22_firmware_ok_flag, "\n hdcp22_firmware_ok_flag\n");
+module_param(hdcp22_firmware_ok_flag, int, 0664);
 #endif
 
 static int pre_port = 0xff;
@@ -2198,6 +2209,8 @@ void hdmirx_hw_monitor(void)
 		if (rx.state != FSM_INIT) {
 			rx_print("5v_lost->FSM_INIT\n");
 			rx.no_signal = true;
+			pre_port = 0xfe;
+			hdmirx_set_hpd(rx.port, 0);
 			hdmirx_audio_enable(0);
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
@@ -2207,7 +2220,7 @@ void hdmirx_hw_monitor(void)
 		}
 		#ifdef HDCP22_ENABLE
 		if (hdcp_22_on)
-			hpd_to_esm = 0;
+			video_stable_to_esm = 0;
 		#endif
 		return;
 	} else {
@@ -2238,15 +2251,12 @@ void hdmirx_hw_monitor(void)
 			break;
 		hpd_wait_cnt = 0;
 		rx.scdc_tmds_cfg = 0;
+		pre_port = rx.port;
 		hdmirx_set_hpd(rx.port, 1);
 		rx.state = FSM_HPD_READY;
 		rx_print("5V_high->HPD_READY\n");
 		break;
 	case FSM_HPD_READY:
-		#ifdef HDCP22_ENABLE
-		if (hdcp_22_on)
-			hpd_to_esm = 1;
-		#endif
 		/*check mhl 3.4gb*/
 		if ((true == rx.scdc_tmds_cfg) ||
 			((hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1)) {
@@ -2314,6 +2324,10 @@ void hdmirx_hw_monitor(void)
 				rx.state = FSM_DWC_RST_WAIT;
 				if (reset_sw)
 					rx_dwc_reset();
+				#ifdef HDCP22_ENABLE
+				if (hdcp_22_on)
+					video_stable_to_esm = 1;
+				#endif
 				sig_pll_unlock_cnt = 0;
 				sig_pll_lock_cnt = 0;
 				rx.no_signal = false;
@@ -2550,10 +2564,10 @@ void hdmirx_hw_monitor(void)
 			}
 			if (enable_hpd_reset)
 				sig_unstable_reset_hpd_cnt = 0;
-			#ifdef HDCP22_ENABLE
-				if (hdcp_22_on)
-					video_stable_to_esm = 1;
-				#endif
+			/* #ifdef HDCP22_ENABLE */
+			/*	if (hdcp_22_on) */
+			/*		video_stable_to_esm = 1; */
+			/*	#endif */
 		}
 
 		if (rx.no_signal == true)
@@ -3772,13 +3786,23 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.portA_pow5v_state_pre = 0;
 	rx.portB_pow5v_state_pre = 0;
 	rx.portC_pow5v_state_pre = 0;
+	if (pre_port == 0xff)
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f & (~(1<<rx.port)));
 	if (pre_port != rx.port) {
 		rx.state = FSM_HDMI5V_LOW;
 		hdmirx_set_hpd(rx.port, 0);
+		#ifdef HDCP22_ENABLE
+		if (hdcp_22_on) {
+			video_stable_to_esm = 0;
+			hpd_to_esm = 1;
+		}
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x2);
+		mdelay(100);
+		#endif
 		hdmirx_hw_config();
-		pre_port = rx.port;
+		/* pre_port = rx.port; */
 	} else {
-		rx.state = FSM_HDMI5V_LOW;
+		rx.state = FSM_SIG_STABLE;
 	}
 	rx_print("%s %d nosignal:%d\n", __func__, rx.port, rx.no_signal);
 
