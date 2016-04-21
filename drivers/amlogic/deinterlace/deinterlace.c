@@ -330,7 +330,7 @@ static int force_bob_flag;
 int di_vscale_skip_count = 0;
 int di_vscale_skip_count_real = 0;
 
-#ifdef DET3D
+#if 1/*def DET3D*/
 bool det3d_en = false;
 static unsigned int det3d_mode;
 #endif
@@ -3475,7 +3475,7 @@ static void pre_de_process(void)
 		(1 << 21) | /* mask medi interrupt. */
 		(1 << 22) | /* mask vecwr interrupt. */
 		(1 << 23) | /* mask infwr interrupt. */
-		(1 << 24) | /* mask det3d interrupt. */
+		((det3d_en ? 0 : 1) << 24) | /* mask det3d interrupt. */
 		((post_wr_en && post_wr_surpport)?0xb:0xf));
 		/* clean all pending interrupt bits. */
 
@@ -5383,7 +5383,7 @@ static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf)
  * return ret;
  * }
  */
-static irqreturn_t det3d_irq(int irq, void *dev_instance)
+static void det3d_irq(void)
 {
 	unsigned int data32 = 0;
 
@@ -5397,7 +5397,6 @@ static irqreturn_t det3d_irq(int irq, void *dev_instance)
 		det3d_mode = 0;
 	}
 	di_pre_stru.det3d_trans_fmt = det3d_mode;
-	return IRQ_HANDLED;
 }
 #endif
 
@@ -5473,11 +5472,18 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		} else if ((data32 & 1) && !(mask32 & 1)) {
 			di_print("== NRWR ==\n");
 			flag = 1;
+		} else if ((data32 & 0x100) && !(mask32 & 0x100)) {
+			di_print("== det3d irq ==\n");
+			flag = 0;
 		} else {
 			pr_error("== DI IRQ %x ==\n", data32);
 			flag = 0;
 		}
 	}
+#endif
+#ifdef DET3D
+	if ((data32 & 0x100) && !(mask32 & 0x100))
+		det3d_irq();
 #endif
 	if ((post_wr_en && post_wr_surpport) && (data32&0x4)) {
 		di_post_stru.de_post_process_done = 1;
@@ -7806,7 +7812,7 @@ light_unreg:
 	}
 #ifdef DET3D
 	else if (type == VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE) {
-		int flag = (int)data;
+		int flag = (long)data;
 		di_pre_stru.vframe_interleave_flag = flag;
 	}
 #endif
@@ -8321,6 +8327,8 @@ static int di_probe(struct platform_device *pdev)
 	of_reserved_mem_device_init(&pdev->dev);
 	di_devp->di_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	di_devp->timerc_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
+	pr_info("di_irq:%d,timerc_irq:%d\n",
+		di_devp->di_irq, di_devp->timerc_irq);
 #ifdef CONFIG_AML_RDMA
 /* rdma handle */
 	di_rdma_op.arg = di_devp;
@@ -8412,11 +8420,7 @@ static int di_probe(struct platform_device *pdev)
 /* data32 = (*P_A9_0_IRQ_IN1_INTR_STAT_CLR); */
 	ret = request_irq(di_devp->di_irq, &de_irq, IRQF_SHARED,
 		"deinterlace", (void *)"deinterlace");
-#ifdef DET3D
-	ret = request_irq(INT_DET3D, &det3d_irq,
-		IRQF_SHARED, "det3d",
-		(void *)"det3d");
-#endif
+
 	sema_init(&di_sema, 1);
 	di_sema_init_flag = 1;
 

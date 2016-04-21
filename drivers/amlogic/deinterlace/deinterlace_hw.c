@@ -78,6 +78,8 @@ MODULE_PARM_DESC(di_force_bit_mode, "force DI bit mode to 8 or 10 bit");
 
 #ifdef DET3D
 static unsigned int det3d_cfg;
+module_param(det3d_cfg, uint, 0664);
+MODULE_PARM_DESC(det3d_cfg, "det3d_cfg");
 #endif
 
 static int vdin_en;
@@ -414,7 +416,7 @@ void enable_di_pre_aml(
 		det3d_cfg = 1;
 	} else if ((!det3d_en) && det3d_cfg) {
 		det3d_enable(0);
-	det3d_cfg = 0;
+		det3d_cfg = 0;
 	}
 #endif
 }

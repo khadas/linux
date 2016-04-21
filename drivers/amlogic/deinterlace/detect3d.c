@@ -5,9 +5,11 @@
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/tvin/tvin.h>
+#include <linux/amlogic/iomap.h>
 
 #include "register.h"
 #include "detect3d.h"
+#include "deinterlace.h"
 
 /*******************Local defines**********************/
 #define DET3D_REG_NUM				9
@@ -86,23 +88,23 @@ void det3d_enable(bool flag)
 
 	if (flag == 1) {
 		/* disable 3D detection */
-		WRITE_DET3D_REG_BITS(NR2_SW_EN, 0, DET3D_EN_BIT, DET3D_EN_WID);
+		DI_Wr_reg_bits(NR2_SW_EN, 0, DET3D_EN_BIT, DET3D_EN_WID);
 
 		/* initalize the registers */
 		for (i = 0; i < DET3D_REG_NUM; i++)
-			WRITE_DET3D_REG((DET3D_BASE_ADD + i), det3d_table[i]);
+			DI_Wr((DET3D_BASE_ADD + i), det3d_table[i]);
 
 		/* Det 3D interrupt enble */
-		WRITE_DET3D_REG_BITS(DET3D_MOTN_CFG, 1,
+		DI_Wr_reg_bits(DET3D_MOTN_CFG, 1,
 DET3D_INTR_EN_BIT, DET3D_INTR_EN_WID);
 		/* enable 3D detection */
-		WRITE_DET3D_REG_BITS(NR2_SW_EN, 1, DET3D_EN_BIT, DET3D_EN_WID);
+		DI_Wr_reg_bits(NR2_SW_EN, 1, DET3D_EN_BIT, DET3D_EN_WID);
 	} else{
 		/* Det 3D interrupt disable */
-		WRITE_DET3D_REG_BITS(DET3D_MOTN_CFG, 0,
+		DI_Wr_reg_bits(DET3D_MOTN_CFG, 0,
 DET3D_INTR_EN_BIT, DET3D_INTR_EN_WID);
 		/* disable 3D detection */
-		WRITE_DET3D_REG_BITS(NR2_SW_EN, 0, DET3D_EN_BIT, DET3D_EN_WID);
+		DI_Wr_reg_bits(NR2_SW_EN, 0, DET3D_EN_BIT, DET3D_EN_WID);
 		memset(&det3d_info, 0, sizeof(det3d_info));
 	}
 }
@@ -120,7 +122,7 @@ int read_cbus_reg_signed_bits(unsigned int reg, unsigned int startbit,
 
 	if (length > 31)
 		length = 31;
-	val = READ_DET3D_REG_BITS(reg, startbit, length);
+	val = Rd_reg_bits(reg, startbit, length);
 	tmp = tmp << (length - 1);
 
 	/* pr_dbg("len = %d, unsigned value = %d,
@@ -228,7 +230,7 @@ INTERLACE_FMT_SCORE_MIN : det3d_info.score_3d_int;
  * detect 3D format
  * execute one or more frame after init;
  */
-enum det3d_fmt_e det3d_fmt_detect(void)
+enum tvin_trans_fmt det3d_fmt_detect(void)
 {
 	/* FW registers */
 	int chessbd_hor_rate = 31;/* 8bits: norm to 16 */
@@ -253,14 +255,14 @@ enum det3d_fmt_e det3d_fmt_detect(void)
 
 	/* Split line contribution */
 	tmp_sp_lr =
-READ_DET3D_REG_BITS(DET3D_RO_SPLT_HT,
+Rd_reg_bits(DET3D_RO_SPLT_HT,
 	DET3D_SPLIT_HT_VAILID_BIT, DET3D_SPLIT_HT_VAILID_WID)
-+ READ_DET3D_REG_BITS(DET3D_RO_SPLT_HB,
++ Rd_reg_bits(DET3D_RO_SPLT_HB,
 	DET3D_SPLIT_HB_VAILID_BIT, DET3D_SPLIT_HB_VAILID_WID);
 	tmp_sp_tb =
-READ_DET3D_REG_BITS(DET3D_RO_SPLT_VL,
+Rd_reg_bits(DET3D_RO_SPLT_VL,
 	DET3D_SPLIT_VL_VAILID_BIT, DET3D_SPLIT_VL_VAILID_WID)
-+ READ_DET3D_REG_BITS(DET3D_RO_SPLT_VR,
++ Rd_reg_bits(DET3D_RO_SPLT_VR,
 	DET3D_SPLIT_VR_VAILID_BIT, DET3D_SPLIT_VR_VAILID_WID);
 
 	/* protect static graphics pattern */
@@ -305,24 +307,24 @@ READ_DET3D_REG_BITS(DET3D_RO_SPLT_VL,
 
 	for (m = 0; m < 8; m++) {
 		tmp_symtc_lr = tmp_symtc_lr
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_LUMA_LR, DET3D_LUMA_LR_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_CHRU_LR, DET3D_CHRU_LR_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_CHRV_LR, DET3D_CHRV_LR_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_HEDG_LR, DET3D_HEDG_LR_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_VEDG_LR, DET3D_VEDG_LR_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_MOTN_LR, DET3D_MOTN_LR_SYMTC_BIT + m, 1);
++ Rd_reg_bits(DET3D_RO_MAT_LUMA_LR, (DET3D_LUMA_LR_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_CHRU_LR, (DET3D_CHRU_LR_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_CHRV_LR, (DET3D_CHRV_LR_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_HEDG_LR, (DET3D_HEDG_LR_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_VEDG_LR, (DET3D_VEDG_LR_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_MOTN_LR, (DET3D_MOTN_LR_SYMTC_BIT + m), 1);
 		tmp_symtc_tb = tmp_symtc_tb
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_LUMA_TB, DET3D_LUMA_TB_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_CHRU_TB, DET3D_CHRU_TB_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_CHRV_TB, DET3D_CHRV_TB_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_HEDG_TB, DET3D_HEDG_TB_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_VEDG_TB, DET3D_VEDG_TB_SYMTC_BIT + m, 1)
-+ READ_DET3D_REG_BITS(DET3D_RO_MAT_MOTN_TB, DET3D_MOTN_TB_SYMTC_BIT + m, 1);
++ Rd_reg_bits(DET3D_RO_MAT_LUMA_TB, (DET3D_LUMA_TB_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_CHRU_TB, (DET3D_CHRU_TB_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_CHRV_TB, (DET3D_CHRV_TB_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_HEDG_TB, (DET3D_HEDG_TB_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_VEDG_TB, (DET3D_VEDG_TB_SYMTC_BIT + m), 1)
++ Rd_reg_bits(DET3D_RO_MAT_MOTN_TB, (DET3D_MOTN_TB_SYMTC_BIT + m), 1);
 	}
 
 	tmp_symtc_lr = tmp_symtc_lr > LR_SYMMETRY_LOWER_LIMIT;
 	tmp_symtc_tb = tmp_symtc_tb > TB_SYMMETRY_LOWER_LIMIT;
-	tmp_frmstill = READ_DET3D_REG_BITS(DET3D_RO_FRM_MOTN,
+	tmp_frmstill = Rd_reg_bits(DET3D_RO_FRM_MOTN,
 DET3D_FRAME_MOTION_BIT, DET3D_FRAME_MOTION_WID) < 100;
 
 	/* if FrmStill && score>=0, force score decrease 1 */
@@ -336,16 +338,16 @@ DET3D_FRAME_MOTION_BIT, DET3D_FRAME_MOTION_WID) < 100;
 	/* if (tmp_frmstill&&tmp_symtc_tb&&(tmp_tb>=0)) tmp_tb = 0; */
 
 	/* ChessBoard/interlace mode score */
-	tmp1 = READ_DET3D_REG_BITS(DET3D_RO_DET_CB_HOR,
+	tmp1 = Rd_reg_bits(DET3D_RO_DET_CB_HOR,
 DET3D_CHESSBD_HOR_VALUE_BIT, DET3D_CHESSBD_HOR_VALUE_WID);
-	tmp2 = READ_DET3D_REG_BITS(DET3D_RO_DET_CB_HOR,
+	tmp2 = Rd_reg_bits(DET3D_RO_DET_CB_HOR,
 DET3D_CHESSBD_NHOR_VALUE_BIT, DET3D_CHESSBD_NHOR_VALUE_WID);
 	chessbd_hor_valid = tmp1 >
 (((tmp2 * chessbd_hor_rate) >> 4) + chessbd_hor_thrd);
 
-	tmp1 = READ_DET3D_REG_BITS(DET3D_RO_DET_CB_VER,
+	tmp1 = Rd_reg_bits(DET3D_RO_DET_CB_VER,
 DET3D_CHESSBD_VER_VALUE_BIT, DET3D_CHESSBD_VER_VALUE_WID);
-	tmp2 = READ_DET3D_REG_BITS(DET3D_RO_DET_CB_VER,
+	tmp2 = Rd_reg_bits(DET3D_RO_DET_CB_VER,
 DET3D_CHESSBD_NVER_VALUE_BIT, DET3D_CHESSBD_NVER_VALUE_WID);
 	chessbd_ver_valid = tmp1 > (((tmp2 * chessbd_vrate) >> 4) +
 chessbd_ver_thrd);
@@ -399,11 +401,12 @@ chessbd_ver_thrd);
 		}
 	}
 
-	if (det3d_debug)
+	if (det3d_debug) {
 		pr_dbg("det3d:frame = %d, 3D_fmt = %d, score_3d_lr = %d,",
 det3d_info.nfrm, det3d_info.tfw_det3d_fmt, det3d_info.score_3d_lr);
 		pr_dbg("score_3d_tb = %d, score_3d_int = %d, score_3d_chs = %d",
 det3d_info.score_3d_tb, det3d_info.score_3d_int, det3d_info.score_3d_chs);
+	}
 	return det3d_info.tfw_det3d_fmt;
 }
 

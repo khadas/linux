@@ -35,7 +35,8 @@
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #define NEW_KEEP_LAST_FRAME
 /* #endif */
-#undef DET3D
+/*#undef DET3D*/
+#define	DET3D
 #undef SUPPORT_MPEG_TO_VDIN /* for all ic after m6c@20140731 */
 
 #ifndef CONFIG_VSYNC_RDMA
