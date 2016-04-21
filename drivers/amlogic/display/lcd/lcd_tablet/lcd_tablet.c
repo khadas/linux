@@ -72,10 +72,12 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 	mutex_lock(&lcd_vout_mutex);
 
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
-		if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK))
+		if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK)) {
+			lcd_drv->driver_init_pre();
 			ret = lcd_drv->driver_init();
-		else
+		} else {
 			ret = -EINVAL;
+		}
 	}
 
 	lcd_vcbus_write(VPP_POSTBLEND_H_SIZE, lcd_drv->lcd_info->width);

@@ -293,6 +293,7 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 		case VMODE_4K2K_50HZ_Y420:
 		case VMODE_4K2K_60HZ:
 		case VMODE_4K2K_50HZ:
+			lcd_drv->driver_init_pre();
 			ret = lcd_drv->driver_init();
 			break;
 		default:
