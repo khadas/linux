@@ -170,23 +170,19 @@ static void cvbs_cntl_output(unsigned int open)
 	if (open == 0) { /* close */
 		cntl0 = 0;
 		cntl1 = 8;
-		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
-		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
+		vdac_set_ctrl0_ctrl1(cntl0, cntl1);
 
 		/* must enable adc bandgap, the adc ref signal for demod */
-		ana_ref_cntl0_bit9(0, 0x8);
-		vdac_out_cntl1_bit3(0, 0x8);
+		vdac_enable(0, 0x8);
 	} else if (open == 1) { /* open */
 		cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
 		vout_log_info("vdac open.%d = 0x%x, 0x%x\n",
 			      vdac_cfg_valid, cntl0, cntl1);
-		tv_out_hiu_write(HHI_VDAC_CNTL1, cntl1);
-		tv_out_hiu_write(HHI_VDAC_CNTL0, cntl0);
+		vdac_set_ctrl0_ctrl1(cntl0, cntl1);
 
-		/* must enable adc bandgap, the adc ref signal for demod */
-		ana_ref_cntl0_bit9(1, 0x8);
-		vdac_out_cntl1_bit3(1, 0x8);
+		/*vdac ctrl for cvbsout/rf signal,adc bandgap*/
+		vdac_enable(1, 0x8);
 	}
 	return;
 }

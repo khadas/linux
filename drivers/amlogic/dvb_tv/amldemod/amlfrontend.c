@@ -1171,7 +1171,7 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 		dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
 
 	/* must enable the adc ref signal for demod, */
-	ana_ref_cntl0_bit9(1, 0x2);
+	vdac_enable(1, 0x2);
 
 	return 0;
 }
@@ -1183,7 +1183,7 @@ static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 		dvbc_kill_cci_task();
 
 	/* should disable the adc ref signal for demod */
-	ana_ref_cntl0_bit9(0, 0x2);
+	vdac_enable(0, 0x2);
 
 	return 0;
 }

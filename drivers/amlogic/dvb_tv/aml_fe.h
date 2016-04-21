@@ -198,9 +198,9 @@ extern int amlogic_gpio_direction_output(unsigned int pin, int value,
 					 const char *owner);
 extern int amlogic_gpio_request(unsigned int pin, const char *label);
 
-/* adc/dac ref signal,
+/* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
-void ana_ref_cntl0_bit9(bool on, unsigned int module_sel);
+extern void vdac_enable(bool on, unsigned int module_sel);
 
 #endif /*_AML_FE_H_*/

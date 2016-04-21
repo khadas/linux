@@ -63,14 +63,13 @@ extern enum vmode_e validate_vmode(char *);
 extern int set_vframe_rate_hint(int);
 extern int set_vframe_rate_end_hint(void);
 
-/* adc/dac ref signal,
+/* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
-extern void ana_ref_cntl0_bit9(bool on, unsigned int module_sel);
-/* dac out ctl,
- * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
-*/
-extern void vdac_out_cntl1_bit3(bool on, unsigned int module_sel);
+extern void vdac_enable(bool on, unsigned int module_sel);
+
+/*set vdac HHI_VDAC_CNTL0 HHI_VDAC_CNTL1*/
+extern void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1);
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 extern void update_vmode_status(char *name);

@@ -4052,10 +4052,7 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 		chip_ver = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
 		if (enable) {
 			if (port == TVIN_PORT_CVBS3) {
-				W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
-				/* enable dac output */
-				vdac_out_cntl1_bit3(1, 0x4);
-				W_HIU_BIT(HHI_VDAC_CNTL0, 1, 0, 3);
+				vdac_enable(1, 0x1);
 				/* clock delay control */
 				W_HIU_BIT(HHI_VIID_CLK_DIV, 1, 19, 1);
 				/* vdac_clock_mux form atv demod */
@@ -4064,18 +4061,15 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 				/* vdac_clk gated clock control */
 				W_VCBUS_BIT(VENC_VDAC_DACSEL0, 1, 5, 1);
 				W_HIU_BIT(HHI_GCLK_OTHER, 1, 10, 1);
-			} else{
+			} else {
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
-				 /* enable dac output */
-				vdac_out_cntl1_bit3(0, 0x4);
-				/* enable AFE output buffer */
-				W_HIU_BIT(HHI_VDAC_CNTL0, 1, 10, 1);
+				vdac_enable(1, 0x4);
 			}
-		} else{
-			/* enable dac output */
-			vdac_out_cntl1_bit3(0, 0x4);
-			/* Disable AFE output buffer */
-			W_HIU_BIT(HHI_VDAC_CNTL0, 0, 10, 1);
+		} else {
+			if (port == TVIN_PORT_CVBS3)
+				vdac_enable(0, 0x1);
+			else
+				vdac_enable(0, 0x4);
 		}
 #if 0
 	} else {
@@ -4245,10 +4239,10 @@ void tvafe_enable_module(bool enable)
 		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0);
 	}
 	/* adc bandgap, the adc ref signal for demod */
-	if (enable)
+	/*if (enable)
 		ana_ref_cntl0_bit9(1, 0x4);
 	else
-		ana_ref_cntl0_bit9(0, 0x4);
+		ana_ref_cntl0_bit9(0, 0x4);*/
 
 }
 

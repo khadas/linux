@@ -198,14 +198,10 @@ extern void tvafe_set_apb_bus_err_ctrl(void);
 extern void tvafe_enable_module(bool enable);
 extern void tvafe_enable_avout(enum tvin_port_e port, bool enable);
 
-/* adc/dac ref signal,
- * module sel: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
+/* vdac ctrl,adc/dac ref signal,cvbs out signal
+ * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
-void ana_ref_cntl0_bit9(bool on, unsigned int module_sel);
-/* dac out ctl,
- * module sel: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
-*/
-void vdac_out_cntl1_bit3(bool on, unsigned int module_sel);
+void vdac_enable(bool on, unsigned int module_sel);
 
 #endif  /* _TVAFE_GENERAL_H */
 

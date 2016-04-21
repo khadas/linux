@@ -59,6 +59,11 @@ void __iomem *vdac_hiu_reg_base;/* = *ioremap(0xc883c000, 0x2000); */
 
 static bool vdac_init_succ_flag;
 
+/* priority for module,
+ * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; cvbsout:0x8
+*/
+static unsigned int pri_flag;
+
 static unsigned int vdac_cntl0_bit9;
 module_param(vdac_cntl0_bit9, uint, 0644);
 MODULE_PARM_DESC(vdac_cntl0_bit9, "vdac_cntl0_bit9");
@@ -67,6 +72,13 @@ static unsigned int vdac_cntl1_bit3;
 module_param(vdac_cntl1_bit3, uint, 0644);
 MODULE_PARM_DESC(vdac_cntl1_bit3, "vdac_cntl1_bit3");
 
+static unsigned int vdac_cntl0_bit0;
+module_param(vdac_cntl0_bit0, uint, 0644);
+MODULE_PARM_DESC(vdac_cntl0_bit0, "vdac_cntl0_bit0");
+
+static unsigned int vdac_cntl0_bit10;
+module_param(vdac_cntl0_bit10, uint, 0644);
+MODULE_PARM_DESC(vdac_cntl0_bit10, "vdac_cntl0_bit10");
 
 static inline uint32_t vdac_hiu_reg_read(uint32_t reg)
 {
@@ -162,7 +174,107 @@ void ana_ref_cntl0_bit9(bool on, unsigned int module_sel)
 }
 EXPORT_SYMBOL(ana_ref_cntl0_bit9);
 
-/* dac out ctl,
+/*avin cvbsout signal,
+ * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
+*/
+void vdac_out_cntl0_bit10(bool on, unsigned int module_sel)
+{
+	bool enable = 0;
+
+	switch (module_sel & 0xf) {
+	case VDAC_MODULE_ATV_DEMOD: /* dtv demod */
+		if (on)
+			vdac_cntl0_bit10 |= VDAC_MODULE_ATV_DEMOD;
+		else
+			vdac_cntl0_bit10 &= ~VDAC_MODULE_ATV_DEMOD;
+		break;
+	case VDAC_MODULE_DTV_DEMOD: /* atv demod */
+		if (on)
+			vdac_cntl0_bit10 |= VDAC_MODULE_DTV_DEMOD;
+		else
+			vdac_cntl0_bit10 &= ~VDAC_MODULE_DTV_DEMOD;
+		break;
+	case VDAC_MODULE_TVAFE: /* av in demod */
+		if (on)
+			vdac_cntl0_bit10 |= VDAC_MODULE_TVAFE;
+		else
+			vdac_cntl0_bit10 &= ~VDAC_MODULE_TVAFE;
+		break;
+	case VDAC_MODULE_CVBS_OUT: /* cvbs out demod */
+		if (on)
+			vdac_cntl0_bit10 |= VDAC_MODULE_CVBS_OUT;
+		else
+			vdac_cntl0_bit10 &= ~VDAC_MODULE_CVBS_OUT;
+		break;
+	default:
+		pr_err("module_sel: 0x%x wrong module index !! ", module_sel);
+		break;
+	}
+	/* pr_info("\vdac_cntl0_bit0: 0x%x\n", vdac_cntl1_bit3); */
+
+	if ((vdac_cntl0_bit10 & 0xf) == 0)
+		enable = 0;
+	else
+		enable = 1;
+
+	vdac_hiu_reg_setb(HHI_VDAC_CNTL0, enable, 10, 1);
+
+	/* pr_info("\vdac_cntl0_bit0 reg:0x%x\n",
+			vdac_hiu_reg_getb(HHI_VDAC_CNTL0, 10, 1)); */
+}
+EXPORT_SYMBOL(vdac_out_cntl0_bit10);
+
+/*atv cvbsout signal,
+ * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
+*/
+void vdac_out_cntl0_bit0(bool on, unsigned int module_sel)
+{
+	bool enable = 0;
+
+	switch (module_sel & 0xf) {
+	case VDAC_MODULE_ATV_DEMOD: /* dtv demod */
+		if (on)
+			vdac_cntl0_bit0 |= VDAC_MODULE_ATV_DEMOD;
+		else
+			vdac_cntl0_bit0 &= ~VDAC_MODULE_ATV_DEMOD;
+		break;
+	case VDAC_MODULE_DTV_DEMOD: /* atv demod */
+		if (on)
+			vdac_cntl0_bit0 |= VDAC_MODULE_DTV_DEMOD;
+		else
+			vdac_cntl0_bit0 &= ~VDAC_MODULE_DTV_DEMOD;
+		break;
+	case VDAC_MODULE_TVAFE: /* av in demod */
+		if (on)
+			vdac_cntl0_bit0 |= VDAC_MODULE_TVAFE;
+		else
+			vdac_cntl0_bit0 &= ~VDAC_MODULE_TVAFE;
+		break;
+	case VDAC_MODULE_CVBS_OUT: /* cvbs in demod */
+		if (on)
+			vdac_cntl0_bit0 |= VDAC_MODULE_CVBS_OUT;
+		else
+			vdac_cntl0_bit0 &= ~VDAC_MODULE_CVBS_OUT;
+		break;
+	default:
+		pr_err("module_sel: 0x%x wrong module index !! ", module_sel);
+		break;
+	}
+	/* pr_info("\vdac_cntl0_bit0: 0x%x\n", vdac_cntl1_bit3); */
+
+	if ((vdac_cntl0_bit0 & 0xf) == 0)
+		enable = 0;
+	else
+		enable = 1;
+
+	vdac_hiu_reg_setb(HHI_VDAC_CNTL0, enable, 0, 1);
+
+	/* pr_info("\vdac_cntl0_bit0 reg:0x%x\n",
+			vdac_hiu_reg_getb(HHI_VDAC_CNTL0, 0, 1)); */
+}
+EXPORT_SYMBOL(vdac_out_cntl0_bit0);
+
+/* dac out pwd ctl,
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
 void vdac_out_cntl1_bit3(bool on, unsigned int module_sel)
@@ -170,19 +282,19 @@ void vdac_out_cntl1_bit3(bool on, unsigned int module_sel)
 	bool enable = 0;
 
 	switch (module_sel & 0xf) {
-	case VDAC_MODULE_ATV_DEMOD: /* dtv demod */
+	case VDAC_MODULE_ATV_DEMOD: /* atv demod */
 		if (on)
 			vdac_cntl1_bit3 |= VDAC_MODULE_ATV_DEMOD;
 		else
 			vdac_cntl1_bit3 &= ~VDAC_MODULE_ATV_DEMOD;
 		break;
-	case VDAC_MODULE_DTV_DEMOD: /* atv demod */
+	case VDAC_MODULE_DTV_DEMOD: /* dtv demod */
 		if (on)
 			vdac_cntl1_bit3 |= VDAC_MODULE_DTV_DEMOD;
 		else
 			vdac_cntl1_bit3 &= ~VDAC_MODULE_DTV_DEMOD;
 		break;
-	case VDAC_MODULE_TVAFE: /* cvbs in demod */
+	case VDAC_MODULE_TVAFE: /* av in demod */
 		if (on)
 			vdac_cntl1_bit3 |= VDAC_MODULE_TVAFE;
 		else
@@ -216,6 +328,100 @@ void vdac_out_cntl1_bit3(bool on, unsigned int module_sel)
 }
 EXPORT_SYMBOL(vdac_out_cntl1_bit3);
 
+void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1)
+{
+	vdac_hiu_reg_write(HHI_VDAC_CNTL0, ctrl0);
+	vdac_hiu_reg_write(HHI_VDAC_CNTL1, ctrl1);
+}
+EXPORT_SYMBOL(vdac_set_ctrl0_ctrl1);
+
+/* dac ctl,
+ * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
+*/
+void vdac_enable(bool on, unsigned int module_sel)
+{
+	pr_info("\n%s: on:%d,module_sel:%x\n", __func__, on, module_sel);
+	switch (module_sel) {
+	case VDAC_MODULE_ATV_DEMOD: /* atv demod */
+		if (on) {
+			ana_ref_cntl0_bit9(1, VDAC_MODULE_ATV_DEMOD);
+			pri_flag &= ~VDAC_MODULE_TVAFE;
+			pri_flag |= VDAC_MODULE_ATV_DEMOD;
+			if (pri_flag & VDAC_MODULE_CVBS_OUT)
+				break;
+			/*Cdac pwd*/
+			vdac_out_cntl1_bit3(1, VDAC_MODULE_ATV_DEMOD);
+			/* enable AFE output buffer */
+			vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 10, 1);
+			vdac_out_cntl0_bit0(1, VDAC_MODULE_ATV_DEMOD);
+		} else {
+			ana_ref_cntl0_bit9(0, VDAC_MODULE_ATV_DEMOD);
+			pri_flag &= ~VDAC_MODULE_ATV_DEMOD;
+			if (pri_flag & VDAC_MODULE_CVBS_OUT)
+				break;
+			vdac_out_cntl0_bit0(0, 0x4);
+			/* Disable AFE output buffer */
+			vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 10, 1);
+			/* enable dac output */
+			vdac_out_cntl1_bit3(0, 0x4);
+		}
+		break;
+	case VDAC_MODULE_DTV_DEMOD: /* dtv demod */
+		if (on)
+			ana_ref_cntl0_bit9(1, VDAC_MODULE_DTV_DEMOD);
+		else
+			ana_ref_cntl0_bit9(0, VDAC_MODULE_DTV_DEMOD);
+		break;
+	case VDAC_MODULE_TVAFE: /* av in demod */
+		if (on) {
+			ana_ref_cntl0_bit9(1, VDAC_MODULE_TVAFE);
+			pri_flag &= ~VDAC_MODULE_ATV_DEMOD;
+			pri_flag |= VDAC_MODULE_TVAFE;
+			if (pri_flag & VDAC_MODULE_CVBS_OUT)
+				break;
+			vdac_out_cntl1_bit3(0, VDAC_MODULE_TVAFE);
+			vdac_out_cntl0_bit10(1, VDAC_MODULE_TVAFE);
+		} else {
+			ana_ref_cntl0_bit9(0, VDAC_MODULE_TVAFE);
+			pri_flag &= ~VDAC_MODULE_TVAFE;
+			if (pri_flag & VDAC_MODULE_CVBS_OUT)
+				break;
+			/* Disable AFE output buffer */
+			vdac_out_cntl0_bit10(0, VDAC_MODULE_TVAFE);
+			/* enable dac output */
+			vdac_out_cntl1_bit3(0, VDAC_MODULE_TVAFE);
+		}
+		break;
+	case VDAC_MODULE_CVBS_OUT: /* cvbs in demod */
+		if (on) {
+			vdac_out_cntl1_bit3(1, VDAC_MODULE_CVBS_OUT);
+			vdac_out_cntl0_bit0(1, VDAC_MODULE_CVBS_OUT);
+			ana_ref_cntl0_bit9(1, VDAC_MODULE_CVBS_OUT);
+			vdac_out_cntl0_bit10(1, VDAC_MODULE_CVBS_OUT);
+			pri_flag |= VDAC_MODULE_CVBS_OUT;
+		} else {
+			vdac_out_cntl0_bit10(0, VDAC_MODULE_CVBS_OUT);
+			ana_ref_cntl0_bit9(0, VDAC_MODULE_CVBS_OUT);
+			vdac_out_cntl0_bit0(0, VDAC_MODULE_CVBS_OUT);
+			vdac_out_cntl1_bit3(0, VDAC_MODULE_CVBS_OUT);
+			pri_flag &= ~VDAC_MODULE_CVBS_OUT;
+			if (pri_flag & VDAC_MODULE_ATV_DEMOD) {
+				vdac_out_cntl1_bit3(1, VDAC_MODULE_ATV_DEMOD);
+				vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 10, 1);
+				vdac_out_cntl0_bit0(1, VDAC_MODULE_ATV_DEMOD);
+			} else if (pri_flag & VDAC_MODULE_TVAFE) {
+				vdac_out_cntl1_bit3(0, VDAC_MODULE_TVAFE);
+				vdac_out_cntl0_bit10(1, VDAC_MODULE_TVAFE);
+			}
+		}
+		break;
+	default:
+		pr_err("%s:module_sel: 0x%x wrong module index !! "
+					, __func__, module_sel);
+		break;
+	}
+}
+EXPORT_SYMBOL(vdac_enable);
 
 static int amvdac_open(struct inode *inode, struct file *file)
 {
