@@ -629,7 +629,8 @@ static int tas5731_resume(struct snd_soc_codec *codec)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void tas5731_early_suspend(struct early_suspend *h)
 {
-	struct snd_soc_codec *codec = NULL;
+	return;
+	/*struct snd_soc_codec *codec = NULL;
 	struct tas57xx_platform_data *pdata = NULL;
 
 	codec = (struct snd_soc_codec *)(h->param);
@@ -639,12 +640,13 @@ static void tas5731_early_suspend(struct early_suspend *h)
 	if (pdata && pdata->early_suspend_func)
 		pdata->early_suspend_func();
 
-	snd_soc_write(codec, DDX_MASTER_VOLUME, 0xFF);
+	snd_soc_write(codec, DDX_MASTER_VOLUME, 0xFF);*/
 }
 
 static void tas5731_late_resume(struct early_suspend *h)
 {
-	struct snd_soc_codec *codec = NULL;
+	return;
+	/*struct snd_soc_codec *codec = NULL;
 	struct tas57xx_platform_data *pdata = NULL;
 
 	codec = (struct snd_soc_codec *)(h->param);
@@ -654,7 +656,7 @@ static void tas5731_late_resume(struct early_suspend *h)
 	if (pdata && pdata->late_resume_func)
 		pdata->late_resume_func();
 
-	tas5731_set_master_vol(codec);
+	tas5731_set_master_vol(codec);*/
 }
 #endif
 
