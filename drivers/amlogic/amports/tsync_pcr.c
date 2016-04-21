@@ -450,7 +450,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 {
 	ulong flags;
 	u32 cur_apts, cur_pcr, last_pcr, cur_vpts;
-	u32 first_vpts, first_checkinvpts;
+	u32 first_vpts, first_checkinvpts, ref_vpts;
 	spin_lock_irqsave(&tsync_pcr_lock, flags);
 
 	switch (event) {
@@ -599,7 +599,26 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		first_vpts = timestamp_firstvpts_get();
 		first_checkinvpts = timestamp_checkin_firstvpts_get();
 
-		timestamp_pcrscr_set(param);
+		if (cur_vpts > 0 && cur_vpts == first_checkinvpts
+		    && cur_vpts < first_vpts)
+			ref_vpts = first_vpts;
+		else if (cur_vpts > 0 && cur_apts > 0 &&
+		    abs(cur_vpts - cur_apts) > 10 * 90000 &&
+		    abs(first_vpts - cur_apts) < 3 * 90000)
+			ref_vpts = first_vpts;
+		else
+			ref_vpts = cur_vpts;
+
+		if (cur_apts >= ref_vpts && ref_vpts > 0)
+			cur_pcr = ref_vpts;
+		else if (cur_apts < ref_vpts && ref_vpts - cur_apts < 27000)
+			cur_pcr = cur_apts - 6300;
+		else if (ref_vpts > 0 && cur_apts > 0)
+			cur_pcr = cur_apts - 6300;
+		else
+			cur_pcr = cur_apts - 6300;
+
+		timestamp_pcrscr_set(cur_pcr);
 
 		pr_info("after audio:cur_pcr =0x%x,cur_apts=0x%x,cur_vpts=0x%x\n",
 			timestamp_pcrscr_get(), cur_apts, cur_vpts);
@@ -773,6 +792,19 @@ static unsigned long tsync_pcr_check(void)
 	last_checkin_minpts = tsync_pcr_get_min_checkinpts();
 	cur_apts = timestamp_apts_get();
 	cur_vpts = timestamp_vpts_get();
+
+	/*set pcr after discontinue according to apts and vpts*/
+	if (tsync_pcr_tsdemuxpcr_discontinue &
+		(AUDIO_DISCONTINUE | VIDEO_DISCONTINUE)) {
+		if (cur_apts < cur_vpts && cur_vpts - cur_apts < 3 * 90000
+			&& last_checkin_minpts - cur_apts > 54000)
+			timestamp_pcrscr_set(cur_apts + 6300);
+		else
+			timestamp_pcrscr_set(cur_apts);
+
+		pr_info("after discontinue, pcr = 0x%x,apts=0x%x,vpts=0x%x\n",
+			timestamp_pcrscr_get(), cur_apts, cur_vpts);
+	}
 
 	if (tsync_pcr_reset_flag == 0) {
 		/* check whether it need reset */
@@ -1295,6 +1327,11 @@ static ssize_t tsync_pcr_adj_value_store(struct class *cla,
 	return count;
 }
 
+static ssize_t tsync_pcr_discontinue_show(struct class *cla,
+	    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", tsync_pcr_tsdemuxpcr_discontinue);
+}
 /* ----------------------------------------------------------------------- */
 /* define of tsync pcr module */
 
@@ -1316,6 +1353,7 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 	tsync_apts_adj_value_show, tsync_apts_adj_value_store),
 	__ATTR(tsync_pcr_adj_value, S_IRUGO | S_IWUSR,
 	tsync_pcr_adj_value_show, tsync_pcr_adj_value_store),
+	__ATTR_RO(tsync_pcr_discontinue),
 	__ATTR_NULL
 };
 
