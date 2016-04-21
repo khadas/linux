@@ -7,6 +7,12 @@ int flm2224_stl_sft = 7; /*10*/
 module_param(flm2224_stl_sft, int, 0644);
 MODULE_PARM_DESC(flm2224_stl_sft, "flm2224_stl_sft");
 
+int aMax02[15]; /* maximum 4 */
+int aXId02[15];
+int aMin02[15]; /* minimum 4 */
+int aNId02[15];
+int aXMI02[15];
+
 int GetMaxNIdx(int *nMax4, int *nXId4, int N, int *nQt01, int nLen)
 {
 	int nT1 = 0;
@@ -109,12 +115,6 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 	int aMin01[15]; /* minimum 4 */
 	int aNId01[15];
 	int aXMI01[15];
-
-	int aMax02[15]; /* maximum 4 */
-	int aXId02[15];
-	int aMin02[15]; /* minimum 4 */
-	int aNId02[15];
-	int aXMI02[15];
 
 	int	nT0	= 0;
 	int	nT1	= 0;
