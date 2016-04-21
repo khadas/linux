@@ -143,7 +143,7 @@
 	};
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-scpi";
-		status = "disabled";
+		status = "okay";
 		clocks = <&scpi_dvfs 0>;
 		clock-names = "cpu_clk";
         };
