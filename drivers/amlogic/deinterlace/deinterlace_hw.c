@@ -82,9 +82,6 @@ static unsigned int det3d_cfg;
 
 static int vdin_en;
 
-/* parameter for cfg nr bit mode when bypass */
-static unsigned int bit_mode_last_bypass_flag;
-
 static void set_di_inp_fmt_more(
 		int hfmt_en,
 		int hz_yc_ratio,	/* 2bit */
@@ -258,6 +255,18 @@ void enable_di_pre_mif(int en)
 		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
 	}
 }
+/* config di pre bit mode */
+static void pre_bit_mode_config(unsigned char inp,
+	unsigned char mem, unsigned char chan2, unsigned char nrwr)
+{
+	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu())
+		return;
+
+	RDMA_WR_BITS(DI_INP_GEN_REG3, inp, 8, 2);
+	RDMA_WR_BITS(DI_MEM_GEN_REG3, mem, 8, 2);
+	RDMA_WR_BITS(DI_CHAN2_GEN_REG3, chan2, 8, 2);
+	RDMA_WR_BITS(DI_NRWR_Y, nrwr, 14, 1);
+}
 
 unsigned int nr2_en = 0x1;
 module_param(nr2_en, uint, 0644);
@@ -313,9 +322,12 @@ void enable_di_pre_aml(
 			(urgent<<16)|
 			2<<26 |/*burst_lim 1->2 2->4*/
 			1<<30); /* urgent bit 16 */
-
 	}
 
+	pre_bit_mode_config(di_inp_mif->bit_mode,
+				di_mem_mif->bit_mode,
+				di_chan2_mif->bit_mode,
+				di_nrwr_mif->bit_mode);
 	/* motion wr mif. */
 	if (mtn_en)	{
 #ifdef NEW_DI_V1
@@ -859,7 +871,6 @@ static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				((mif->set_separate_en != 0) << 1)|
 				(0 << 0)	/* cntl_enable */
 	  );
-
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
@@ -1034,7 +1045,9 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 			((mif->set_separate_en != 0) << 1)|
 			(1 << 0)/* cntl_enable */
 		);
-
+	/* post bit mode config, if0 config in video.c */
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3, mif->bit_mode, 8, 2);
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
@@ -1129,8 +1142,6 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				(3 << 8) |/*burst_size_y*/
 ((hold_line == 0 ? 1 : 0) << 7) |
 (0 << 6)|(0 << 1)|(0 << 0));
-
-
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
@@ -1397,6 +1408,10 @@ void di_post_switch_buffer(
 		DI_VSYNC_WR_MPEG_REG(DI_IF1_CANVAS0,
 (di_buf1_mif->canvas0_addr2 << 16) |
 (di_buf1_mif->canvas0_addr1 << 8) | (di_buf1_mif->canvas0_addr0 << 0));
+	/* post bit mode config, if0 config in video.c */
+		if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+			DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+						di_buf1_mif->bit_mode, 8, 2);
 	}
 
 	/* motion for current display field. */
@@ -1817,102 +1832,4 @@ static void di_nr_init(void)
 	DI_Wr(NR3_CMOT_PARA, 0x08140f);
 	DI_Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
 	DI_Wr(NR3_SUREMOT_CGAIN, 0x22264014);
-}
-/*
- * config bit mode according to the vframe source
- * bitdepth.
- */
-void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag)
-{
-	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu())
-		return;
-
-	if (vframe->type & VIDTYPE_PIC) {
-		Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
-		Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
-		Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
-		return;
-	}
-
-	if (vframe->source_type == VFRAME_SOURCE_TYPE_CVBS)
-		DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 15);
-	else
-		DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
-
-	if (di_force_bit_mode == 0) {
-		/*use vframe source bitdepth*/
-		if (vframe->bitdepth & BITDEPTH_Y10) {
-			DI_Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
-			DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
-			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
-			DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
-			DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
-			DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
-		} else {
-			DI_Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
-			DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
-			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
-			DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
-			DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
-			DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
-		}
-	} else if (di_force_bit_mode == 10) {
-		/* In bypass mode,VD1_IF0_GEN_REG3 should in line with
-		 * input source */
-		if (bypass_flag) {
-			if (vframe->bitdepth & BITDEPTH_Y10)
-				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
-			else
-				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
-		} else
-			DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
-		/* DI_INP_GEN_REG3 should always in line with input source */
-		if (vframe->bitdepth & BITDEPTH_Y10)
-			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
-		 else
-			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
-		/*force to 10 bit mode and enable nr 10 bit.*/
-		DI_Wr_reg_bits(DI_NRWR_Y, 0x1, 14, 1);
-		DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x1, 8, 2);
-		DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x1, 8, 2);
-		DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x1, 8, 2);
-	} else if (di_force_bit_mode == 8) {
-		/* In bypass mode, VD1_IF0_GEN_REG3 should in line with
-		 * input source*/
-		if (bypass_flag) {
-			if (vframe->bitdepth & BITDEPTH_Y10)
-				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x1, 8, 2);
-			else
-				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
-		} else
-				DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0x0, 8, 2);
-		/* DI_INP_GEN_REG3 should always in line with input source */
-		if (vframe->bitdepth & BITDEPTH_Y10)
-			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x1, 8, 2);
-		 else
-			DI_Wr_reg_bits(DI_INP_GEN_REG3, 0x0, 8, 2);
-		/*force to 8 bit mode */
-		DI_Wr_reg_bits(DI_NRWR_Y, 0x0, 14, 1);
-		DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0x0, 8, 2);
-		DI_Wr_reg_bits(DI_MEM_GEN_REG3, 0x0, 8, 2);
-		DI_Wr_reg_bits(DI_CHAN2_GEN_REG3, 0x0, 8, 2);
-	} else {
-		pr_err("%s: unrecognize bit mode: %d, please enter: 0,8 or 10\n",
-			__func__, di_force_bit_mode);
-	}
-}
-
-void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag)
-{
-	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu())
-		return;
-
-	if (bypass_flag != bit_mode_last_bypass_flag) {
-		config_di_bit_mode(vframe, bypass_flag);
-		bit_mode_last_bypass_flag = bypass_flag;
-		pr_dbg("di_bit_mode_bypass_cfg, bypass: %d\n", bypass_flag);
-	}
 }

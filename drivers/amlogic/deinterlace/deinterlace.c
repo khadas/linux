@@ -168,7 +168,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-04-07a";
+static const char version_s[] = "2016-04-25a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -336,8 +336,6 @@ int di_vscale_skip_count_real = 0;
 bool det3d_en = false;
 static unsigned int det3d_mode;
 #endif
-
-static unsigned int registed_state;
 
 static int force_duration_0;
 
@@ -2972,8 +2970,9 @@ static void dump_pool(int index)
 static void dump_vframe(vframe_t *vf)
 {
 	pr_dbg("vframe %p:\n", vf);
-	pr_dbg("index %d, type 0x%x, type_backup 0x%x, blend_mode %d\n",
-		vf->index, vf->type, vf->type_backup, vf->blend_mode);
+	pr_dbg("index %d, type 0x%x, type_backup 0x%x, blend_mode %d bitdepth %d\n",
+		vf->index, vf->type, vf->type_backup,
+		vf->blend_mode, (vf->bitdepth&BITDEPTH_Y10)?10:8);
 	pr_dbg("duration %d, duration_pulldown %d, pts %d, flag 0x%x\n",
 		vf->duration, vf->duration_pulldown, vf->pts, vf->flag);
 	pr_dbg("canvas0Addr 0x%x, canvas1Addr 0x%x, bufWidth %d\n",
@@ -3003,12 +3002,13 @@ static void print_di_buf(struct di_buf_s *di_buf, int format)
 		return;
 	if (format == 1) {
 		pr_dbg(
-		"\t+index %d, 0x%p, type %d, vframetype 0x%x, trans_fmt %u\n",
+		"\t+index %d, 0x%p, type %d, vframetype 0x%x, trans_fmt %u,bitdepath %d\n",
 			di_buf->index,
 			di_buf,
 			di_buf->type,
 			di_buf->vframe->type,
-			di_buf->vframe->trans_fmt);
+			di_buf->vframe->trans_fmt,
+			di_buf->vframe->bitdepth);
 		if (di_buf->di_wr_linked_buf) {
 			pr_dbg("\tlinked  +index %d, 0x%p, type %d\n",
 				di_buf->di_wr_linked_buf->index,
@@ -3016,14 +3016,15 @@ static void print_di_buf(struct di_buf_s *di_buf, int format)
 				di_buf->di_wr_linked_buf->type);
 		}
 	} else if (format == 2) {
-		pr_dbg("index %d, 0x%p(vframe 0x%p), type %d,",
+		pr_dbg("index %d, 0x%p(vframe 0x%p), type %d\n",
 			di_buf->index, di_buf,
 			di_buf->vframe, di_buf->type);
-		pr_dbg("vframetype 0x%x, trans_fmt %u,duration %d pts %d\n",
+		pr_dbg("vframetype 0x%x, trans_fmt %u,duration %d pts %d,bitdepth %d\n",
 			di_buf->vframe->type,
 			di_buf->vframe->trans_fmt,
 			di_buf->vframe->duration,
-			di_buf->vframe->pts);
+			di_buf->vframe->pts,
+			di_buf->vframe->bitdepth);
 		if (di_buf->di_wr_linked_buf) {
 			pr_dbg("linked index %d, 0x%p, type %d\n",
 				di_buf->di_wr_linked_buf->index,
@@ -3232,6 +3233,7 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 	di_nrwr_mif->start_x = 0;
 	di_nrwr_mif->end_x = in_vframe->width - 1;
 	di_nrwr_mif->start_y = 0;
+	di_nrwr_mif->bit_mode = (di_buf->vframe->bitdepth & BITDEPTH_Y10)?1:0;
 	if (di_pre_stru.prog_proc_type == 0)
 		di_nrwr_mif->end_y = in_vframe->height / 2 - 1;
 	else
@@ -3255,7 +3257,7 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 		(di_buf->vframe->canvas0Addr >> 8) & 0xff;
 	di_mif->canvas0_addr2 =
 		(di_buf->vframe->canvas0Addr >> 16) & 0xff;
-
+	di_mif->bit_mode = (di_buf->vframe->bitdepth & BITDEPTH_Y10)?1:0;
 	if (di_buf->vframe->type & VIDTYPE_VIU_422) {
 		/* from vdin or local vframe */
 		if ((!is_progressive(di_buf->vframe))
@@ -3405,6 +3407,7 @@ static void pre_de_process(void)
 		di_pre_stru.di_chan2_buf_dup_p);
 	config_di_wr_mif(&di_pre_stru.di_nrwr_mif, &di_pre_stru.di_mtnwr_mif,
 		di_pre_stru.di_wr_buf, di_pre_stru.di_inp_buf->vframe);
+
 #ifdef NEW_DI_V1
 	config_di_cnt_mif(&di_pre_stru.di_contp2rd_mif,
 		di_pre_stru.di_mem_buf_dup_p);
@@ -4667,14 +4670,6 @@ static void dump_vframe_input(vframe_t *vframe)
 	return;
 }
 
-static unsigned int is_need_set_bitdepth_10bit(vframe_t *vframe)
-{
-	if ((!bypass_state) && (di_force_bit_mode == 10))
-		return 1;
-
-	return 0;
-}
-
 static unsigned char pre_de_buf_config(void)
 {
 	struct di_buf_s *di_buf = NULL;
@@ -4710,14 +4705,14 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 		}
 	}
-
+#if 0
 	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
 		/* In bypass mode, register should in line with input source */
 		vframe = vf_peek(VFM_NAME);
 		if ((NULL != vframe) && registed_state)
 			di_bit_mode_bypass_cfg(vframe, bypass_state);
 	}
-
+#endif
 	if (di_pre_stru.di_inp_buf_next) {
 		di_pre_stru.di_inp_buf = di_pre_stru.di_inp_buf_next;
 		di_pre_stru.di_inp_buf_next = NULL;
@@ -5158,14 +5153,12 @@ static unsigned char pre_de_buf_config(void)
 	di_buf->vframe->private_data = di_buf;
 	di_buf->vframe->canvas0Addr = di_buf->nr_canvas_idx;
 	di_buf->vframe->canvas1Addr = di_buf->nr_canvas_idx;
-
-	if (is_need_set_bitdepth_10bit(di_buf->vframe) == 1)
-		di_buf->vframe->bitdepth |= BITDEPTH_Y10;
-
-	if (di_force_bit_mode == 8) {
-		di_buf->vframe->bitdepth &= (~(BITDEPTH_Y10));
+	/* set vframe bit info */
+	di_buf->vframe->bitdepth &= ~(BITDEPTH_YMASK);
+	if (di_force_bit_mode == 10)
+		di_buf->vframe->bitdepth |= (BITDEPTH_Y10);
+	else
 		di_buf->vframe->bitdepth |= (BITDEPTH_Y8);
-	}
 
 	if (di_pre_stru.prog_proc_type) {
 		di_buf->vframe->type = VIDTYPE_PROGRESSIVE |
@@ -5818,6 +5811,14 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		if ((di_buf->di_buf_dup_p[0]->vframe == NULL) ||
 			(di_buf->vframe == NULL))
 			return 0;
+		/* bit mode config */
+		if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
+			di_post_stru.di_buf0_mif.bit_mode = 1;
+			di_post_stru.di_buf1_mif.bit_mode = 1;
+		} else {
+			di_post_stru.di_buf0_mif.bit_mode = 0;
+			di_post_stru.di_buf1_mif.bit_mode = 0;
+		}
 		if (di_post_stru.buf_type == VFRAME_TYPE_IN &&
 		    !(di_buf->di_buf_dup_p[0]->vframe->type &
 		      VIDTYPE_VIU_FIELD)) {
@@ -7303,7 +7304,6 @@ static void di_reg_process_irq(void)
 					di_init_buf(default_width,
 						default_height, 1);
 
-				config_di_bit_mode(vframe, bypass_state);
 			} else
 				di_init_buf(default_width, default_height, 1);
 
@@ -7331,7 +7331,6 @@ static void di_reg_process_irq(void)
 					di_init_buf(default_width,
 						default_height, 0);
 
-				config_di_bit_mode(vframe, bypass_state);
 			} else
 				di_init_buf(default_width, default_height, 0);
 
@@ -7588,7 +7587,6 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		}
 #endif
 		bypass_state = 1;
-		registed_state = 0;
 #ifdef RUN_DI_PROCESS_IN_IRQ
 		if (vdin_source_flag)
 			DI_Wr_reg_bits(VDIN_WR_CTRL, 0x3, 24, 3);
@@ -7754,7 +7752,6 @@ light_unreg:
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 		bypass_state = 0;
-		registed_state = 1;
 		di_pre_stru.reg_req_flag = 1;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
 		while (di_pre_stru.reg_req_flag)

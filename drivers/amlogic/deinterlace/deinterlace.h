@@ -246,6 +246,7 @@ struct DI_MIF_s {
 	unsigned		src_field_mode:1;
 	unsigned		video_mode:1;
 	unsigned		output_field_num:1;
+	unsigned		bit_mode:2;
 	/*
 	unsigned		burst_size_y:2; set 3 as default
 	unsigned		burst_size_cb:2;set 1 as default
@@ -261,6 +262,7 @@ struct DI_SIM_MIF_s {
 	unsigned short	start_y;
 	unsigned short	end_y;
 	unsigned short	canvas_num;
+	unsigned short	bit_mode;
 };
 struct DI_MC_MIF_s {
 	unsigned short start_x;
