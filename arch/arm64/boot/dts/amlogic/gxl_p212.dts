@@ -600,7 +600,7 @@
 		compatible = "amlogic, unifykey";
 		status = "ok";
 
-		unifykey-num = <11>;
+		unifykey-num = <14>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -612,6 +612,9 @@
 		unifykey-index-8 = <&keysn_8>;
 		unifykey-index-9 = <&keysn_9>;
 		unifykey-index-10= <&keysn_10>;
+		unifykey-index-11= <&keysn_11>;
+		unifykey-index-12= <&keysn_12>;
+		unifykey-index-13= <&keysn_13>;
 
                 keysn_0: key_0{
 			key-name = "usid";
@@ -669,6 +672,21 @@
 		};
 		keysn_10:key_10{
 			key-name = "hdcp22_fw_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_11:key_11{
+			key-name = "PlayReadykeybox25";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_12:key_12{
+			key-name = "prpubkeybox";// PlayReady
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_13:key_13{
+			key-name = "prprivkeybox";// PlayReady
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
