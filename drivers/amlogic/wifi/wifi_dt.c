@@ -456,7 +456,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			"pinctrl-names", NULL)) {
 			unsigned int pwm_misc;
 
-			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 				/* pwm_e */
 				WIFI_INFO("set pwm as 32k output");
 				aml_write_cbus(0x21b0, 0x7f107f2);

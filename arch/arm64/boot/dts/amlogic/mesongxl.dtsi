@@ -237,6 +237,10 @@
 			amlogic,setmask=<5 0x3000>;
 			amlogic,pins="GPIOX_8", "GPIOX_9";
 		};
+		wifi_32k_pins:wifi_32k_pins{
+			amlogic,setmask=<5 0x8000>;
+			amlogic,pins="GPIOX_16";
+		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
 			amlogic,setmask=<6 0x0000000c>,
 					<AO 0x00001800>;
