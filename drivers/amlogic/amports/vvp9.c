@@ -47,9 +47,10 @@
 #include "vdec.h"
 #include "amvdec.h"
 
-/*#define VP9_BUFOVERWRITE_WORK_AROUND*/
-
+#define MIX_STREAM_SUPPORT
+#define SUPPORT_4K2K
 /*#define VP9_10B_MMU*/
+
 #include "vvp9.h"
 #define VP9D_MPP_REFINFO_TBL_ACCCONFIG             0x3442
 #define VP9D_MPP_REFINFO_DATA                      0x3443
@@ -192,6 +193,8 @@ static struct vframe_provider_s vvp9_vf_prov;
 
 static u32 bit_depth_luma;
 static u32 bit_depth_chroma;
+static u32 frame_width;
+static u32 frame_height;
 static u32 video_signal_type;
 
 
@@ -1088,12 +1091,9 @@ struct VP9Decoder_s {
 	struct vframe_s vfpool[VF_POOL_SIZE];
 	int buf_num;
 	int pic_num;
-	int mem_saving_mode;
 	int lcu_size_log2;
 	unsigned int losless_comp_body_size;
 
-	u32 bit_depth_luma;
-	u32 bit_depth_chroma;
 	u32 video_signal_type;
 
 	int pts_mode;
@@ -1126,8 +1126,8 @@ struct VP9Decoder_s {
 	unsigned int frame_height;
 
 	unsigned short *rpm_ptr;
-	int     pic_w;
-	int     pic_h;
+	int     init_pic_w;
+	int     init_pic_h;
 	int     lcu_x_num;
 	int     lcu_y_num;
 	int     lcu_total;
@@ -1721,8 +1721,8 @@ static u32 buf_alloc_width;
 static u32 buf_alloc_height;
 static u32 dynamic_buf_num_margin = 7;
 #endif
+static u32 buf_alloc_depth = 10;
 static u32 buf_alloc_size;
-static u32 re_config_pic_flag;
 /*
 bit[0]: 0,
     bit[1]: 0, always release cma buffer when stop
@@ -1740,7 +1740,7 @@ bit[3]: 1, if blackout is not 1, do not release current
 /* set to 1 for fast play;
 	set to 8 for other case of "keep last frame"
 */
-static u32 buffer_mode = 1;
+static u32 buffer_mode;
 /* buffer_mode_dbg: debug only*/
 static u32 buffer_mode_dbg = 0xffff0000;
 /**/
@@ -2023,21 +2023,25 @@ static struct BuffInfo_s amvvp9_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 
 /*Losless compression body buffer size 4K per 64x32 (jt)*/
 int  compute_losless_comp_body_size(int width, int height,
-				uint8_t bit_depth_10)
+				uint8_t is_bit_depth_10)
 {
 	int     width_x64;
 	int     height_x32;
 	int     bsize;
-	int    bit_depth = 0;/*(bit_depth_10 == VPX_BITS_10);*/
 	width_x64 = width + 63;
 	width_x64 >>= 6;
 	height_x32 = height + 31;
 	height_x32 >>= 5;
 #ifdef VP9_10B_MMU
-	 bsize = (bit_depth?4096:3200)*width_x64*height_x32;
+	 bsize = (is_bit_depth_10?4096:3200)*width_x64*height_x32;
 #else
-	 bsize = (bit_depth?4096:3072)*width_x64*height_x32;
+	 bsize = (is_bit_depth_10?4096:3072)*width_x64*height_x32;
 #endif
+	if (debug & VP9_DEBUG_BUFMGR_MORE)
+		pr_info("%s(%d,%d,%d)=>%d\n",
+			__func__, width, height,
+			is_bit_depth_10, bsize);
+
 	return  bsize;
 }
 
@@ -2053,11 +2057,17 @@ static  int  compute_losless_comp_header_size(int width, int height)
 	height_x64 >>= 6;
 
 	hsize = 32 * width_x128 * height_x64;
+	if (debug & VP9_DEBUG_BUFMGR_MORE)
+		pr_info("%s(%d,%d)=>%d\n",
+			__func__, width, height,
+			hsize);
+
 	return  hsize;
 }
 
 static void init_buff_spec(struct BuffInfo_s *buf_spec)
 {
+	void *mem_start_virt;
 	buf_spec->ipp.buf_start = buf_spec->start_adr;
 	buf_spec->sao_abv.buf_start =
 		buf_spec->ipp.buf_start + buf_spec->ipp.buf_size;
@@ -2122,6 +2132,11 @@ static void init_buff_spec(struct BuffInfo_s *buf_spec)
 				buf_spec->rpm.buf_size;
 		}
 	}
+	mem_start_virt = codec_mm_phys_to_virt(buf_spec->dblk_para.buf_start);
+	if (mem_start_virt)
+		memset(mem_start_virt, 0, buf_spec->dblk_para.buf_size);
+	else
+		pr_err("mem_start_virt failed\n");
 
 	if (debug) {
 		pr_info("%s workspace (%x %x) size = %x\n", __func__,
@@ -3261,15 +3276,14 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 		if (debug)
 			pr_info("[Buffer Management] init_buf_list:\n");
 	} else {
-		int pic_width = buf_alloc_width ? buf_alloc_width : pbi->pic_w;
-		int pic_height =
-			buf_alloc_height ? buf_alloc_height : pbi->pic_h;
+		int pic_width = pbi->init_pic_w;
+		int pic_height = pbi->init_pic_h;
 
 	/*SUPPORT_10BIT*/
 	int losless_comp_header_size = compute_losless_comp_header_size
 			(pic_width, pic_height);
 	int losless_comp_body_size = compute_losless_comp_body_size
-			(pic_width, pic_height, !pbi->mem_saving_mode);
+			(pic_width, pic_height, buf_alloc_depth == 10);
 	int mc_buffer_size = losless_comp_header_size
 		+ losless_comp_body_size;
 	int mc_buffer_size_h = (mc_buffer_size + 0xffff)>>16;
@@ -3420,10 +3434,8 @@ static int config_pic(struct VP9Decoder_s *pbi,
 {
 	int ret = -1;
 	int i;
-	int pic_width = ((re_config_pic_flag == 0) && buf_alloc_width) ?
-			buf_alloc_width : pbi->pic_w;
-	int pic_height = ((re_config_pic_flag == 0) && buf_alloc_height) ?
-			buf_alloc_height : pbi->pic_h;
+	int pic_width = pbi->init_pic_w;
+	int pic_height = pbi->init_pic_h;
 	int MV_MEM_UNIT = 0x240;
 	int lcu_size = 64; /*fixed 64*/
 	int pic_width_64 = (pic_width + 63) & (~0x3f);
@@ -3445,7 +3457,7 @@ static int config_pic(struct VP9Decoder_s *pbi,
 			compute_losless_comp_header_size(pic_width ,
 			pic_height);
 	int losless_comp_body_size = compute_losless_comp_body_size(pic_width ,
-			pic_height, !pbi->mem_saving_mode);
+			pic_height, buf_alloc_depth == 10);
 	int mc_buffer_size = losless_comp_header_size + losless_comp_body_size;
 	int mc_buffer_size_h = (mc_buffer_size + 0xffff) >> 16;
 	int mc_buffer_size_u_v = 0;
@@ -3481,11 +3493,7 @@ static int config_pic(struct VP9Decoder_s *pbi,
 	if ((pbi->work_space_buf->mpred_mv.buf_start +
 		(((pic_config->index + 1) * lcu_total) * MV_MEM_UNIT))
 		<= mpred_mv_end) {
-#ifdef VP9_BUFOVERWRITE_WORK_AROUND
-		for (i = 1; i < pbi->buf_num; i++) {
-#else
 		for (i = 0; i < pbi->buf_num; i++) {
-#endif
 			y_adr = ((pbi->m_BUF[i].free_start_adr
 				+ 0xffff) >> 16) << 16;
 			/*64k alignment*/
@@ -3587,8 +3595,8 @@ static void init_pic_list(struct VP9Decoder_s *pbi)
 			pic_config->index = -1;
 			break;
 		}
-		pic_config->y_crop_width = pbi->pic_w;
-		pic_config->y_crop_height = pbi->pic_h;
+		pic_config->y_crop_width = pbi->init_pic_w;
+		pic_config->y_crop_height = pbi->init_pic_h;
 		set_canvas(pic_config);
 	}
 	for (; i < FRAME_BUFFERS; i++) {
@@ -3656,15 +3664,15 @@ static int config_pic_size(struct VP9Decoder_s *pbi, unsigned short bit_depth)
 	int losless_comp_header_size, losless_comp_body_size;
 	struct VP9_Common_s *cm = &pbi->common;
 	struct PIC_BUFFER_CONFIG_s *cur_pic_config = &cm->cur_frame->buf;
-	pbi->frame_width = cur_pic_config->y_crop_width;
-	pbi->frame_height = cur_pic_config->y_crop_height;
+	frame_width = cur_pic_config->y_crop_width;
+	frame_height = cur_pic_config->y_crop_height;
 	cur_pic_config->bit_depth = bit_depth;
 	losless_comp_header_size =
-		compute_losless_comp_header_size(pbi->frame_width,
-		pbi->frame_height);
+		compute_losless_comp_header_size(cur_pic_config->y_crop_width,
+		cur_pic_config->y_crop_height);
 	losless_comp_body_size =
-		compute_losless_comp_body_size(pbi->frame_width,
-		pbi->frame_height, (bit_depth == VPX_BITS_10));
+		compute_losless_comp_body_size(cur_pic_config->y_crop_width,
+		cur_pic_config->y_crop_height, (bit_depth == VPX_BITS_10));
 	cur_pic_config->comp_body_size = losless_comp_body_size;
 #ifdef LOSLESS_COMPRESS_MODE
 	data32 = READ_VREG(HEVC_SAO_CTRL5);
@@ -3918,11 +3926,11 @@ static void vp9_config_work_space_hw(struct VP9Decoder_s *pbi)
 	struct BuffInfo_s *buf_spec = pbi->work_space_buf;
 #ifdef LOSLESS_COMPRESS_MODE
 	int losless_comp_header_size =
-		compute_losless_comp_header_size(pbi->frame_width,
-		pbi->frame_height);
+		compute_losless_comp_header_size(pbi->init_pic_w,
+		pbi->init_pic_h);
 	int losless_comp_body_size =
-		compute_losless_comp_body_size(pbi->frame_width,
-		pbi->frame_height, 1);
+		compute_losless_comp_body_size(pbi->init_pic_w,
+		pbi->init_pic_h, buf_alloc_depth == 10);
 #endif
 #ifdef VP9_10B_MMU
 	unsigned int data32;
@@ -4532,7 +4540,7 @@ static void vp9_local_uninit(struct VP9Decoder_s *pbi)
 static int vp9_local_init(struct VP9Decoder_s *pbi)
 {
 	int ret = -1;
-	int losless_comp_header_size, losless_comp_body_size;
+	/*int losless_comp_header_size, losless_comp_body_size;*/
 
 	struct BuffInfo_s *cur_buf_info = NULL;
 	memset(&pbi->param, 0, sizeof(union param_u));
@@ -4555,33 +4563,19 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 
 	vp9_bufmgr_init(pbi, cur_buf_info, &pbi->mc_buf_spec);
 
-	pbi->frame_width = pbi->work_space_buf->max_width;
-	pbi->frame_height = pbi->work_space_buf->max_height;
-	pbi->pic_w = pbi->frame_width;
-	pbi->pic_h = pbi->frame_height;
-	losless_comp_header_size =
-		compute_losless_comp_header_size(pbi->frame_width,
-		pbi->frame_height);
-	losless_comp_body_size =
-		compute_losless_comp_body_size(pbi->frame_width,
-				pbi->frame_height, 1);
-	pr_info("losless_comp_body_size:%d losless_comp_header_size:%d\n",
-		losless_comp_body_size, losless_comp_header_size);
+	pbi->init_pic_w = buf_alloc_width ? buf_alloc_width :
+		(pbi->vvp9_amstream_dec_info.width ?
+		pbi->vvp9_amstream_dec_info.width :
+		pbi->work_space_buf->max_width);
+	pbi->init_pic_h = buf_alloc_height ? buf_alloc_height :
+		(pbi->vvp9_amstream_dec_info.height ?
+		pbi->vvp9_amstream_dec_info.height :
+		pbi->work_space_buf->max_height);
 	init_buf_list(pbi);
 	init_pic_list(pbi);
 
-	pbi->bit_depth_luma = 8;
-	pbi->bit_depth_chroma = 8;
 	pbi->video_signal_type = 0;
-	bit_depth_luma = pbi->bit_depth_luma;
-	bit_depth_chroma = pbi->bit_depth_chroma;
 	video_signal_type = pbi->video_signal_type;
-	if (pbi->bit_depth_luma == 8 &&
-		pbi->bit_depth_chroma == 8 &&
-		enable_mem_saving)
-		pbi->mem_saving_mode = 1;
-	else
-		pbi->mem_saving_mode = 0;
 
 	if ((debug & VP9_DEBUG_SEND_PARAM_WITH_REG) == 0) {
 		pbi->rpm_addr = kmalloc(RPM_BUF_SIZE, GFP_KERNEL);
@@ -4750,13 +4744,6 @@ static void set_frame_info(struct VP9Decoder_s *pbi, struct vframe_s *vf)
 {
 	unsigned int ar;
 
-	if (double_write_mode == 2) {
-		vf->width = pbi->frame_width/4;
-		vf->height = pbi->frame_height/4;
-	} else {
-		vf->width = pbi->frame_width;
-		vf->height = pbi->frame_height;
-	}
 	vf->duration = pbi->frame_dur;
 	vf->duration_pulldown = 0;
 	vf->flag = 0;
@@ -4961,29 +4948,22 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 				spec2canvas(pic_config);
 		} else {
 			vf->type = VIDTYPE_COMPRESS | VIDTYPE_VIU_FIELD;
-			switch (pbi->bit_depth_luma) {
-			case 9:
-				vf->bitdepth = BITDEPTH_Y9;
+			switch (pic_config->bit_depth) {
+			case VPX_BITS_8:
+				vf->bitdepth = BITDEPTH_Y8 |
+					BITDEPTH_U8 | BITDEPTH_V8;
 				break;
-			case 10:
-				vf->bitdepth = BITDEPTH_Y10;
-				break;
-			default:
-				vf->bitdepth = BITDEPTH_Y8;
-				break;
-			}
-			switch (pbi->bit_depth_chroma) {
-			case 9:
-				vf->bitdepth |= (BITDEPTH_U9 | BITDEPTH_V9);
-				break;
-			case 10:
-				vf->bitdepth |= (BITDEPTH_U10 | BITDEPTH_V10);
+			case VPX_BITS_10:
+			case VPX_BITS_12:
+				vf->bitdepth = BITDEPTH_Y10 |
+					BITDEPTH_U10 | BITDEPTH_V10;
 				break;
 			default:
-				vf->bitdepth |= (BITDEPTH_U8 | BITDEPTH_V8);
+				vf->bitdepth = BITDEPTH_Y10 |
+					BITDEPTH_U10 | BITDEPTH_V10;
 				break;
 			}
-			if (pbi->mem_saving_mode == 1)
+			if (pic_config->bit_depth == VPX_BITS_8)
 				vf->bitdepth |= BITDEPTH_SAVING_MODE;
 
 			vf->canvas1Addr = pic_config->mc_y_adr; /*body adr*/
@@ -5215,6 +5195,10 @@ if (debug & VP9_DEBUG_DBG_LF_PRINT) {
 	}
 	pr_info("\r\n");
 	}
+
+	bit_depth_luma = vp9_param.p.bit_depth;
+	bit_depth_chroma = vp9_param.p.bit_depth;
+
 	ret = vp9_bufmgr_process(pbi, &vp9_param);
 	if (ret < 0) {
 		pr_info("Error: vp9_bufmgr_process=> %d\r\n", ret);
@@ -5374,13 +5358,13 @@ static void vvp9_put_timer_func(unsigned long arg)
 	/*don't changed at start.*/
 	if (pbi->get_frame_dur && pbi->show_frame_num > 60 &&
 		pbi->frame_dur > 0 && pbi->saved_resolution !=
-		pbi->frame_width * pbi->frame_height *
+		frame_width * frame_height *
 			(96000 / pbi->frame_dur)) {
 		int fps = 96000 / pbi->frame_dur;
 		if (hevc_source_changed(VFORMAT_VP9,
-			pbi->frame_width, pbi->frame_height, fps) > 0)
-			pbi->saved_resolution = pbi->frame_width *
-			pbi->frame_height * fps;
+			frame_width, frame_height, fps) > 0)
+			pbi->saved_resolution = frame_width *
+			frame_height * fps;
 	}
 
 	add_timer(timer);
@@ -5390,8 +5374,8 @@ static void vvp9_put_timer_func(unsigned long arg)
 int vvp9_dec_status(struct vdec_status *vstatus)
 {
 	struct VP9Decoder_s *pbi = &gHevc;
-	vstatus->width = pbi->frame_width;
-	vstatus->height = pbi->frame_height;
+	vstatus->width = frame_width;
+	vstatus->height = frame_height;
 	if (pbi->frame_dur != 0)
 		vstatus->fps = 96000 / pbi->frame_dur;
 	else
@@ -5500,24 +5484,25 @@ static int vvp9_local_init(struct VP9Decoder_s *pbi)
 {
 	int i;
 	int ret;
+	int width, height;
 #ifdef DEBUG_PTS
 	pbi->pts_missed = 0;
 	pbi->pts_hit = 0;
 #endif
 	pbi->saved_resolution = 0;
 	pbi->get_frame_dur = false;
-	pbi->frame_width = pbi->vvp9_amstream_dec_info.width;
-	pbi->frame_height = pbi->vvp9_amstream_dec_info.height;
+	width = pbi->vvp9_amstream_dec_info.width;
+	height = pbi->vvp9_amstream_dec_info.height;
 	pbi->frame_dur =
 		(pbi->vvp9_amstream_dec_info.rate ==
 		 0) ? 3600 : pbi->vvp9_amstream_dec_info.rate;
-	if (pbi->frame_width && pbi->frame_height)
-		pbi->frame_ar = pbi->frame_height * 0x100 / pbi->frame_width;
+	if (width && height)
+		pbi->frame_ar = height * 0x100 / width;
 /*
 TODO:FOR VERSION
 */
 	pr_info("vp9: ver (%d,%d) decinfo: %dx%d rate=%d\n", vp9_version,
-		   0, pbi->frame_width, pbi->frame_height, pbi->frame_dur);
+		   0, width, height, pbi->frame_dur);
 
 	if (pbi->frame_dur == 0)
 		pbi->frame_dur = 96000 / 24;
@@ -5816,6 +5801,12 @@ MODULE_PARM_DESC(bit_depth_luma, "\n amvdec_vp9 bit_depth_luma\n");
 module_param(bit_depth_chroma, uint, 0664);
 MODULE_PARM_DESC(bit_depth_chroma, "\n amvdec_vp9 bit_depth_chroma\n");
 
+module_param(frame_width, uint, 0664);
+MODULE_PARM_DESC(frame_width, "\n amvdec_vp9 frame_width\n");
+
+module_param(frame_height, uint, 0664);
+MODULE_PARM_DESC(frame_height, "\n amvdec_vp9 frame_height\n");
+
 module_param(debug, uint, 0664);
 MODULE_PARM_DESC(debug, "\n amvdec_vp9 debug\n");
 
@@ -5857,6 +5848,9 @@ MODULE_PARM_DESC(buf_alloc_width, "\n buf_alloc_width\n");
 
 module_param(buf_alloc_height, uint, 0664);
 MODULE_PARM_DESC(buf_alloc_height, "\n buf_alloc_height\n");
+
+module_param(buf_alloc_depth, uint, 0664);
+MODULE_PARM_DESC(buf_alloc_depth, "\n buf_alloc_depth\n");
 
 module_param(buf_alloc_size, uint, 0664);
 MODULE_PARM_DESC(buf_alloc_size, "\n buf_alloc_size\n");
