@@ -553,6 +553,84 @@ static int pmu4_read_status(struct phy_device *phydev)
 	return err;
 }
 
+static void internal_config(struct phy_device *phydev)
+{
+	/*Enable Analog and DSP register Bank access by*/
+	phy_write(phydev, 0x14, 0x0000);
+	phy_write(phydev, 0x14, 0x0400);
+	phy_write(phydev, 0x14, 0x0000);
+	phy_write(phydev, 0x14, 0x0400);
+	/*Write Analog register 23*/
+	phy_write(phydev, 0x17, 0x8E0D);
+	phy_write(phydev, 0x14, 0x4417);
+	/*Enable fractional PLL*/
+	phy_write(phydev, 0x17, 0x0005);
+	phy_write(phydev, 0x14, 0x5C1B);
+	/*Programme fraction FR_PLL_DIV1*/
+	phy_write(phydev, 0x17, 0x029A);
+	phy_write(phydev, 0x14, 0x5C1D);
+	/*programme fraction FR_PLL_DiV1*/
+	phy_write(phydev, 0x17, 0xAAAA);
+	phy_write(phydev, 0x14, 0x5C1C);
+}
+
+static int internal_config_init(struct phy_device *phydev)
+{
+
+	int val;
+	u32 features;
+	internal_config(phydev);
+
+	/* For now, I'll claim that the generic driver supports
+	 * all possible port types
+	 */
+	features = (SUPPORTED_TP | SUPPORTED_MII
+			| SUPPORTED_AUI | SUPPORTED_FIBRE |
+			SUPPORTED_BNC);
+
+	/* Do we support autonegotiation? */
+	val = phy_read(phydev, MII_BMSR);
+	if (val < 0)
+		return val;
+
+	if (val & BMSR_ANEGCAPABLE)
+		features |= SUPPORTED_Autoneg;
+
+	if (val & BMSR_100FULL)
+		features |= SUPPORTED_100baseT_Full;
+	if (val & BMSR_100HALF)
+		features |= SUPPORTED_100baseT_Half;
+	if (val & BMSR_10FULL)
+		features |= SUPPORTED_10baseT_Full;
+	if (val & BMSR_10HALF)
+		features |= SUPPORTED_10baseT_Half;
+
+	if (val & BMSR_ESTATEN) {
+		val = phy_read(phydev, MII_ESTATUS);
+		if (val < 0)
+			return val;
+
+		if (val & ESTATUS_1000_TFULL)
+			features |= SUPPORTED_1000baseT_Full;
+		if (val & ESTATUS_1000_THALF)
+			features |= SUPPORTED_1000baseT_Half;
+	}
+
+	phydev->supported = features;
+	phydev->advertising = features;
+
+	return 0;
+
+}
+
+int internal_phy_resume(struct phy_device *phydev)
+{
+	int rc1, rc2;
+	rc1 = genphy_resume(phydev);
+	rc2 = phy_init_hw(phydev);
+	return rc1|rc2;
+}
+
 
 static int amlogic_phy_config_aneg(struct phy_device *phydev)
 {
@@ -605,16 +683,34 @@ static struct phy_driver amlogic_phy_driver[] = {
 		.driver		= { .owner = THIS_MODULE, }
 	} };
 
+static struct phy_driver internal_phy = {
+	.phy_id = 0x01814400,
+	.name		= "gxl internal phy",
+	.phy_id_mask	= 0x0fffffff,
+	.config_init	= internal_config_init,
+	.features	= 0,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.suspend	= genphy_suspend,
+	.resume = internal_phy_resume,
+	.driver	= { .owner = THIS_MODULE, },
+};
+
 static int __init amlogic_init(void)
 {
-	return phy_drivers_register(amlogic_phy_driver,
+	int rc1, rc2;
+	rc1 = phy_drivers_register(amlogic_phy_driver,
 			ARRAY_SIZE(amlogic_phy_driver));
+	rc2 = phy_driver_register(&internal_phy);
+
+	return rc1 || rc2;
 }
 
 static void __exit amlogic_exit(void)
 {
-	return phy_drivers_unregister(amlogic_phy_driver,
+	phy_drivers_unregister(amlogic_phy_driver,
 			ARRAY_SIZE(amlogic_phy_driver));
+	phy_driver_unregister(&internal_phy);
 }
 
 MODULE_DESCRIPTION("Amlogic PHY driver");

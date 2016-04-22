@@ -698,7 +698,6 @@ int phy_suspend(struct phy_device *phydev)
 int phy_resume(struct phy_device *phydev)
 {
 	struct phy_driver *phydrv = to_phy_driver(phydev->dev.driver);
-
 	if (phydrv->resume)
 		return phydrv->resume(phydev);
 	return 0;
@@ -1083,29 +1082,6 @@ static int gen10g_config_init(struct phy_device *phydev)
 
 	return 0;
 }
-static int internal_config_init(struct phy_device *phydev)
-{
-	pr_info("internal_config_init\n");
-	/*Enable Analog and DSP register Bank access by*/
-	phy_write(phydev, 0x14, 0x0000);
-	phy_write(phydev, 0x14, 0x0400);
-	phy_write(phydev, 0x14, 0x0000);
-	phy_write(phydev, 0x14, 0x0400);
-	/*Write Analog register 23*/
-	phy_write(phydev, 0x17, 0x8E0D);
-	phy_write(phydev, 0x14, 0x4417);
-	/*Enable fractional PLL*/
-	phy_write(phydev, 0x17, 0x0005);
-	phy_write(phydev, 0x14, 0x5C1B);
-	/*Programme fraction FR_PLL_DIV1*/
-	phy_write(phydev, 0x17, 0x029A);
-	phy_write(phydev, 0x14, 0x5C1D);
-	/*programme fraction FR_PLL_DiV1*/
-	phy_write(phydev, 0x17, 0xAAAA);
-	phy_write(phydev, 0x14, 0x5C1C);
-	return genphy_config_init(phydev);
-
-}
 int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
@@ -1290,18 +1266,6 @@ static struct phy_driver genphy_driver[] = {
 	.resume         = gen10g_resume,
 	.driver         = {.owner = THIS_MODULE, },
 } };
-static struct phy_driver internal_phy = {
-	.phy_id	= 0x01814400,
-	.name		= "gxl internal phy",
-	.phy_id_mask	= 0x0fffffff,
-	.config_init	= internal_config_init,
-	.features	= 0,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.suspend	= genphy_suspend,
-	.resume		= genphy_resume,
-	.driver		= { .owner = THIS_MODULE, },
-};
 
 static int __init phy_init(void)
 {
@@ -1315,10 +1279,6 @@ static int __init phy_init(void)
 				  ARRAY_SIZE(genphy_driver));
 	if (rc)
 		mdio_bus_exit();
-	rc = phy_driver_register(&internal_phy);
-	if (rc)
-		mdio_bus_exit();
-	pr_info("phy_init : %d", rc);
 	return rc;
 }
 

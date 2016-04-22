@@ -204,16 +204,6 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
-		eth_pins:eth_pins{
-                        amlogic,setmask =<6 0x3fff>;
-                        amlogic,clrmask =<6 0xc000>,
-                                         <5 0x3c0000f0>,
-                                         <4  0x300>;
-                        amlogic,pins="GPIOZ_0","GPIOZ_1","GPIOZ_2","GPIOZ_3",
-                                "GPIOZ_4","GPIOZ_5","GPIOZ_6","GPIOZ_7",
-                                "GPIOZ_8","GPIOZ_9","GPIOZ_10","GPIOZ_11",
-                                "GPIOZ_12","GPIOZ_13","GPIOZ_15";
-                };
 		jtag_apao_pins:jtag_apao_pin{
 			amlogic,clrmask = <6 0x7fe0000>;
 			amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9";

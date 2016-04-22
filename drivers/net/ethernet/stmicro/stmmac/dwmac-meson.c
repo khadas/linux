@@ -47,21 +47,6 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	/*map reg0 and reg 1 addr.*/
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	addr = devm_ioremap_resource(dev, res);
-	if (!of_property_read_u32(np, "internal_phy", &internal_phy)) {
-		res2 = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-		addr2 = devm_ioremap_resource(dev, res2);
-		PREG_ETH_REG2 = addr2;
-		PREG_ETH_REG3 = addr2+4;
-		PREG_ETH_REG4 = addr2+8;
-		if (internal_phy == 1) {
-			pr_info("internal phy\n");
-			writel(0x10110181, PREG_ETH_REG2);
-			writel(0xe409087f, PREG_ETH_REG3);
-		}
-		pr_info("REG2:REG3:REG4 = 0x%x :0x%x :0x%x\n",
-			readl(PREG_ETH_REG2), readl(PREG_ETH_REG3),
-			readl(PREG_ETH_REG4));
-	}
 	PREG_ETH_REG0 = addr;
 	PREG_ETH_REG1 = addr+4;
 	pr_debug("REG0:REG1 = %p :%p\n", PREG_ETH_REG0, PREG_ETH_REG1);
@@ -82,6 +67,21 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	} else {
 		pr_debug("Ethernet :got cali_val 0x%x .set it\n", cali_val);
 		writel(cali_val, addr+4);
+	}
+	if (!of_property_read_u32(np, "internal_phy", &internal_phy)) {
+		res2 = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+		addr2 = devm_ioremap_resource(dev, res2);
+		PREG_ETH_REG2 = addr2;
+		PREG_ETH_REG3 = addr2+4;
+		PREG_ETH_REG4 = addr2+8;
+		if (internal_phy == 1) {
+			pr_debug("internal phy\n");
+			writel(0x10110181, PREG_ETH_REG2);
+			writel(0xe40908ff, PREG_ETH_REG3);
+		}
+		pr_debug("REG2:REG3:REG4 = 0x%x :0x%x :0x%x\n",
+			readl(PREG_ETH_REG2), readl(PREG_ETH_REG3),
+			readl(PREG_ETH_REG4));
 	}
 	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	pr_debug("Ethernet: pinmux setup ok\n");
