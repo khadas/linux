@@ -1270,6 +1270,10 @@ RESTART:
 			next_frame_par->VPP_hf_ini_phase_,
 			((vf->type_original & VIDTYPE_TYPEMASK)
 				!= VIDTYPE_PROGRESSIVE));
+	/*for gxl cvbs out index*/
+	if ((vinfo->mode == VMODE_576CVBS) &&
+		(filter->vpp_hf_start_phase_step == (1 << 24)))
+		filter->vpp_horz_filter = COEF_BICUBIC_SHARP;
 	filter->vpp_horz_coeff =
 		filter_table[filter->vpp_horz_filter];
 
