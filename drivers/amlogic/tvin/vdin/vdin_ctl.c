@@ -67,7 +67,7 @@ static unsigned int max_undone_cnt = 60;
 module_param(max_undone_cnt, uint, 0644);
 MODULE_PARM_DESC(max_undone_cnt, "the max vdin undone cnt to reset vpp");
 
-static unsigned int use_frame_rate = 1;
+static unsigned int use_frame_rate;
 module_param(use_frame_rate, uint, 0644);
 MODULE_PARM_DESC(use_frame_rate, "use frame rate to cal duraton");
 

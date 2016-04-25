@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2016/04/07a"
+#define VDIN_VER "Ref.2016/04/25a"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -235,6 +235,8 @@ struct vdin_dev_s {
 #endif
 	/* bit0: enable/disable; bit4: luma range info */
 	unsigned int            csc_cfg;
+	/* duration of current timing */
+	unsigned int			duration;
 };
 
 

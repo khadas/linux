@@ -818,6 +818,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	else
 		devp->vfp->size = devp->canvas_max_num;
 #endif
+	if (devp->prop.dvi_info>>4 &&
+		devp->parm.port >= TVIN_PORT_HDMI0 &&
+		devp->parm.port <= TVIN_PORT_HDMI7)
+		devp->duration = 96000/devp->prop.dvi_info;
+	else
+		devp->duration = devp->fmt_info_p->duration;
 
 	devp->vfp->size = devp->canvas_max_num;
 	vf_pool_init(devp->vfp, devp->vfp->size);
@@ -1628,7 +1634,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vf->trans_fmt = devp->parm.info.trans_fmt;
 		vdin_set_view(devp, curr_wr_vf);
 	}
+#if 0
 	vdin_calculate_duration(devp);
+#endif
+	curr_wr_vf->duration = devp->duration;
 	/* put for receiver
 
 	   ppmgr had handled master and slave vf by itself,

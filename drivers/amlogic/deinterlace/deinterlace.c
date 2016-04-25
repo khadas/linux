@@ -168,7 +168,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-04-25a";
+static const char version_s[] = "2016-04-25b";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -4069,7 +4069,7 @@ static void pre_de_done_buf_config(void)
 				field_pd_info), di_pre_stru.cur_inp_type);
 		}
 
-		if (is_meson_gxtvbb_cpu()) {
+		if (is_meson_gxtvbb_cpu() && !di_pre_stru.cur_prog_flag) {
 			/* always read and print data */
 			read_new_pulldown_info(&flmreg);
 
@@ -6152,7 +6152,8 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 /* set pull down region (f(t-1) */
 
-	if (is_meson_gxtvbb_cpu() && pulldown_enable) {
+	if (is_meson_gxtvbb_cpu() && pulldown_enable &&
+		!di_pre_stru.cur_prog_flag) {
 		if (pldn_wnd_flsh == 1) {
 			DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_REG0_Y,
 				di_pldn_buf->reg0_s, 17, 12);
@@ -6539,7 +6540,7 @@ int set_pulldown_mode(int buffer_keep_count, struct di_buf_s *di_buf)
 {
 	int pulldown_mode_hise = 0;
 	if (is_meson_gxtvbb_cpu()) {
-		if (pulldown_enable)
+		if (pulldown_enable && !di_pre_stru.cur_prog_flag)
 			di_buf->pulldown_mode =
 				di_buf->di_buf_dup_p[pldn_dly1]->pulldown_mode;
 		else
