@@ -74,6 +74,13 @@ enum aml_host_bus_fsm { /* Host bus fsm status */
 	BUS_FSM_IRQ_SERVICE,	/* 8, wait for irq service */
 };
 
+enum aml_host_tuning_mode {
+	NONE_TUNING,
+	ADJ_TUNING_MODE,
+	AUTO_TUNING_MODE,
+	RX_PHASE_DELAY_TUNING_MODE,
+};
+
 struct amlsd_host;
 struct amlsd_platform {
 	struct amlsd_host *host;
@@ -219,6 +226,7 @@ struct amlsd_host {
 	dma_addr_t		dma_gping; /* 0x400 */
 	dma_addr_t		dma_gpong; /* 0x800 */
 	char is_tunning;
+	char tuning_mode;
 	unsigned int irq;
 	unsigned int irq_in;
 	unsigned int irq_out;

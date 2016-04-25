@@ -1071,15 +1071,21 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)) {
 		err = aml_sd_emmc_execute_tuning_(mmc, opcode,
 				&tuning_data, adj_win_start);
+		if (!err)
+			host->tuning_mode = ADJ_TUNING_MODE;
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		err = 0;
 		adjust = sd_emmc_regs->gadjust;
 		gadjust->cali_enable = 1;
 		gadjust->adj_auto = 1;
 		sd_emmc_regs->gadjust = adjust;
+		if (!err)
+			host->tuning_mode = AUTO_TUNING_MODE;
 	} else {
 		err = aml_sd_emmc_execute_tuning_rxclk(mmc, opcode,
 				&tuning_data);
+		if (!err)
+			host->tuning_mode = RX_PHASE_DELAY_TUNING_MODE;
 	}
 
 	pr_info("%s: gclock =0x%x, gdelay=0x%x, gadjust=0x%x\n",
@@ -2585,9 +2591,10 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 			sd_emmc_err("retry cmd %d the %d-th time(s)\n",
 				mrq->cmd->opcode, mrq->cmd->retries);
 			/* chage configs on current host */
-			if ((emmc_adj->clk_div > 5)
-					|| (get_cpu_type()
-						== MESON_CPU_MAJOR_ID_GXBB)) {
+			switch (host->tuning_mode) {
+			case AUTO_TUNING_MODE:
+				break;
+			case ADJ_TUNING_MODE:
 				emmc_adj->adj_point++;
 				emmc_adj->adj_point	%= emmc_adj->clk_div;
 				pr_err("emmc, %d retry, adj %d -> %d\n",
@@ -2599,7 +2606,8 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 				gadjust->adj_delay = emmc_adj->adj_point;
 				gadjust->adj_enable = 1;
 				sd_emmc_regs->gadjust = adjust;
-			} else {
+				break;
+			case RX_PHASE_DELAY_TUNING_MODE:
 				emmc_rxclk->rxclk_point++;
 				emmc_rxclk->rxclk_point %= 25;
 				if (emmc_rxclk->rxclk_point < 10) {
@@ -2621,6 +2629,18 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 				clkc->rx_delay = emmc_rxclk->rxclk_rx_delay;
 				sd_emmc_regs->gclock = vclk;
 				pdata->clkc = vclk;
+				break;
+			case NONE_TUNING:
+			default:
+				rx_phase = clkc->rx_phase;
+				rx_phase++;
+				rx_phase %= 4;
+				pr_err("emmc: retry, rx_phase %d -> %d\n",
+						clkc->rx_phase, rx_phase);
+				clkc->rx_phase = rx_phase;
+				sd_emmc_regs->gclock = vclk;
+				pdata->clkc = vclk;
+				break;
 			}
 		}
 		/* last retry effort! */
