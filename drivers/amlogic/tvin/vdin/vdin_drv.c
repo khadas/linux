@@ -160,8 +160,9 @@ static unsigned int vdin_irq_flag;
 module_param(vdin_irq_flag, uint, 0664);
 MODULE_PARM_DESC(vdin_irq_flag, "vdin_irq_flag");
 
-/* viu isr select */
-static unsigned int viu_hw_irq;
+/* viu isr select:
+   enable viu_hw_irq for the bandwidth is enough on gxbb/gxtvbb and laters ic*/
+static unsigned int viu_hw_irq = 1;
 module_param(viu_hw_irq, uint, 0664);
 MODULE_PARM_DESC(viu_hw_irq, "viu_hw_irq");
 
@@ -328,7 +329,7 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 	} else if (devp->cma_config_flag == 0) {
 		devp->venc_pages[devp->index] = dma_alloc_from_contiguous(
 			&(devp->this_pdev[devp->index]->dev),
-			mem_size >> PAGE_SHIFT, 0);
+			devp->cma_mem_size[devp->index] >> PAGE_SHIFT, 0);
 		if (devp->venc_pages) {
 			devp->mem_start =
 				page_to_phys(devp->venc_pages[devp->index]);
