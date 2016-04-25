@@ -87,8 +87,21 @@ struct workqueue_struct *ldim_read_queue = NULL;
 struct work_struct   ldim_read_work;
 
 #if 1
-unsigned long fw_LD_ThSF_l = 1600;
-unsigned long fw_LD_ThTF_l = 256;
+static unsigned long fw_LD_ThSF_l = 1600;
+static unsigned long fw_LD_ThTF_l = 256;
+
+static unsigned long avg_gain_sf = 128;  /* [1~128~256] */
+static unsigned long dif_gain_sf = 128;  /* [1~128] */
+
+static unsigned long avg_gain_sf_l = 128;  /* [1~128~256] */
+unsigned long dif_gain_sf_l = 0;  /* [0~128] */
+
+unsigned long Debug = 0;
+static unsigned long LPF = 1;  /* [0~128] */
+
+static unsigned long  lpf_gain = 128;  /* [0~128~256]*/
+static unsigned long  idx_gain = 113;  /* 1024/9 = 113*/
+
 #endif
 
 unsigned long ldim_frm_time = 0;
@@ -351,7 +364,7 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 	unsigned int fw_LD_ThTF = 32;
 
 	unsigned int fw_LD_BLEst_ACmode = 1;
-
+	int num = 0, mm = 0, nn = 0;
     /* u2: 0: est on BLmatrix; 1: est on (BL-DC);
     2: est on (BL-MIN); 3: est on (BL-MAX) */
 	unsigned int fw_hist_mx;
@@ -360,6 +373,9 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
     /* tBL_matrix = (unsigned int *)
     kmalloc(Bsize*sizeof(unsigned int),GFP_KERNEL); */
 #if 1
+	int SF_avg = 0;
+	unsigned int SF_dif = 0;
+
 	fw_LD_ThSF = fw_LD_ThSF_l;
 	fw_LD_ThTF = fw_LD_ThTF_l;
 #endif
@@ -460,12 +476,68 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 	}
 	#endif
 
-    /* Temperary filter */
+	/*20160408 optimize	*/
+	#if 1
+	SF_avg = SF_sum/fw_blk_num;
+	for (blkRow = 0; blkRow < Vnum; blkRow++) {
+		for (blkCol = 0; blkCol < Hnum; blkCol++) {
+			if (Debug == 1) {
+				SF_dif = FDat->SF_BL_matrix[blkRow*Hnum
+					+ blkCol] - SF_avg;
+				if (FDat->SF_BL_matrix[blkRow*Hnum
+					+ blkCol] <= SF_avg) {
+					FDat->SF_BL_matrix[blkRow*Hnum + blkCol]
+						= ((SF_avg * avg_gain_sf + 64)
+						>> 7);
+					dif_gain_sf_l = 0;
+					avg_gain_sf_l = 0;
+				} else
+					FDat->SF_BL_matrix[blkRow*Hnum
+						+ blkCol] = ((SF_avg *
+						avg_gain_sf + 64) >> 7)
+						+ ((SF_dif * dif_gain_sf
+						+ 64) >> 7);
+
+				if (FDat->SF_BL_matrix[blkRow*Hnum
+					+ blkCol] > 4095)
+					FDat->SF_BL_matrix[blkRow*Hnum
+					+ blkCol] = 4095;
+				}
+		}
+	}
+	#endif
+
+
+	/* LPF  Only for Xiaomi 8 Led ,here Vnum = 1;*/
+	if (LPF == 1) {
+		for (blkRow = 0; blkRow < Vnum; blkRow++) {
+			for (blkCol = 0; blkCol < Hnum; blkCol++) {
+				sum = 0;
+				for (m =  -1; m < 2; m++) {
+					for (n =  -1; n < 2; n++) {
+						mm = MIN(MAX(blkRow+m, 0),
+							Vnum-1);
+						nn = MIN(MAX(blkCol+n, 0),
+							Hnum-1);
+						num = MIN(MAX((mm*Hnum + nn),
+							0), (Vnum * Hnum - 1));
+						sum += FDat->SF_BL_matrix[num];
+					}
+				}
+				FDat->SF_BL_matrix[blkRow*Hnum + blkCol] =
+					(((sum * idx_gain >> 10) *
+					lpf_gain) >> 7);
+						/*1024/9 = 113*/
+			if (FDat->SF_BL_matrix[blkRow*Hnum + blkCol] > 4095)
+				FDat->SF_BL_matrix[blkRow*Hnum + blkCol] = 4095;
+			}
+		}
+	}
+
+  /* Temperary filter */
 	sum = 0; Bmin = 4096; Bmax = 0;
 	for (blkRow = 0; blkRow < Vnum; blkRow++) {
-
 		for (blkCol = 0; blkCol < Hnum; blkCol++) {
-
 			/* Optimization needed here */
 			dif_RGB = MAX(MAX(ABS(FDat->last_STA1_MaxRGB
 				[blkRow*3*stride + blkCol*3 + 0] -
@@ -499,30 +571,32 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 			/* 256 normalized as "1" */
 
 			/* get the temporary filtered BL_value */
-			bl_value = (((256-alpha) *
-				(FDat->TF_BL_matrix[blkRow*Hnum + blkCol])
-				+ alpha*(FDat->SF_BL_matrix[blkRow*Hnum +
-				blkCol]) + 128)>>8);
+			bl_value = (((256-alpha) * (FDat->TF_BL_matrix
+				[blkRow*Hnum + blkCol]) + alpha*
+				(FDat->SF_BL_matrix[blkRow*Hnum
+				+ blkCol]) + 128) >> 8);
 
-#if 1
+			/*ld_curve map
+			// com = bl_value_pre >> 8;//  bl_value /256
+			// mod = bl_value_pre - com * 256;
+			// bl_l = Led_curve[com];
+			// bl_r = Led_curve[MIN((com + 1), 15)];
+			// bl_value = bl_l + mod * (bl_r - bl_l) >> 8 ;
+			//mod * (bl_r - bl_l) / 256;*/
+
+			if (bl_value < 127)
+				bl_value = 127;
+
 			if (nPRM->reg_LD_BackLit_mode == 1)
-				nPRM->BL_matrix[blkCol*Vnum +
-					blkRow] = bl_value;
+				nPRM->BL_matrix[blkCol*Vnum + blkRow]
+					= bl_value;
 			else
-				nPRM->BL_matrix[blkRow*Hnum +
-					blkCol] = bl_value;
-#endif
-#if 0
-			if ((nPRM->reg_LD_BackLit_mode == 1) ||
-				(nPRM->reg_LD_BackLit_mode == 2))
-				nPRM->BL_matrix[blkCol*Vnum +
-					blkRow] = bl_value;
-			else
-				nPRM->BL_matrix[blkRow*Hnum +
-					blkCol] = bl_value;
-#endif
+				nPRM->BL_matrix[blkRow*Hnum + blkCol]
+					= bl_value;
+
 			/* Get the TF_BL_matrix */
-			FDat->TF_BL_matrix[blkRow*Hnum + blkCol] = bl_value;
+			FDat->TF_BL_matrix[blkRow*Hnum + blkCol]
+				= bl_value;
 
 			/* leave the Delayed version for next frame */
 			for (k = 0; k < 3; k++)
@@ -537,7 +611,7 @@ void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 			Bmax = MAX(Bmax, bl_value);
 		}
 	}
-    /* set the DC reduction for the BL_modeling */
+	/* set the DC reduction for the BL_modeling */
 	if (fw_LD_BLEst_ACmode == 0)
 		nPRM->reg_BL_matrix_AVG = 0;
 	else if (fw_LD_BLEst_ACmode == 1)
@@ -1665,6 +1739,23 @@ static ssize_t ldim_attr_show(struct class *cla,
 	"echo fw_LD_ThSF_l 1600 > /sys/class/aml_ldim/attr\n");
 	len += sprintf(buf+len,
 	"echo fw_LD_ThTF_l 32 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo avg_gain_sf 128 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo dif_gain_sf 128 > /sys/class/aml_ldim/attr\n");
+
+	len += sprintf(buf+len,
+	"echo avg_gain_sf_l 128 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo dif_gain_sf_l 0 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo Debug 0 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo LPF 0 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo lpf_gain 0 > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf+len,
+	"echo idx_gain 0 > /sys/class/aml_ldim/attr\n");
 #endif
 	len += sprintf(buf+len,
 	"echo litgain 4096 > /sys/class/aml_ldim/attr\n");
@@ -1885,7 +1976,56 @@ static ssize_t ldim_attr_store(struct class *cla,
 				return -EINVAL;
 		}
 		pr_info("set fw_LD_ThTF_l=%ld\n", fw_LD_ThTF_l);
+	} else if (!strcmp(parm[0], "avg_gain_sf")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &avg_gain_sf) < 0)
+				return -EINVAL;
+		}
+		pr_info("set avg_gain_sf=%ld\n", avg_gain_sf);
+	} else if (!strcmp(parm[0], "dif_gain_sf")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &dif_gain_sf) < 0)
+				return -EINVAL;
+		}
+		pr_info("set dif_gain_sf=%ld\n", dif_gain_sf);
+	} else if (!strcmp(parm[0], "avg_gain_sf_l")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &avg_gain_sf_l) < 0)
+				return -EINVAL;
+		}
+		pr_info("set avg_gain_sf_l=%ld\n", avg_gain_sf_l);
+	} else if (!strcmp(parm[0], "dif_gain_sf_l")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &dif_gain_sf_l) < 0)
+				return -EINVAL;
+		}
+		pr_info("set dif_gain_sf_l=%ld\n", dif_gain_sf_l);
+	} else if (!strcmp(parm[0], "Debug")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &Debug) < 0)
+				return -EINVAL;
+		}
+		pr_info("set Debug=%ld\n", Debug);
+	}	else if (!strcmp(parm[0], "LPF")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &LPF) < 0)
+				return -EINVAL;
+		}
+		pr_info("set LPF=%ld\n", LPF);
+	} else if (!strcmp(parm[0], "lpf_gain")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &lpf_gain) < 0)
+				return -EINVAL;
+		}
+		pr_info("set lpf_gain=%ld\n", lpf_gain);
+	} else if (!strcmp(parm[0], "idx_gain")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &idx_gain) < 0)
+				return -EINVAL;
+		}
+		pr_info("set idx_gain=%ld\n", idx_gain);
 	}
+
 #endif
 	else if (!strcmp(parm[0], "litgain")) {
 		if (parm[1] != NULL) {
@@ -1905,8 +2045,7 @@ static ssize_t ldim_attr_store(struct class *cla,
 				return -EINVAL;
 		}
 		pr_info("set avg_gain=%ld\n", avg_gain);
-	}
-	 else if (!strcmp(parm[0], "vs_time_record")) {
+	} else if (!strcmp(parm[0], "vs_time_record")) {
 		if (parm[1] != NULL) {
 			if (kstrtoul(parm[1], 16, &vs_time_record) < 0)
 				return -EINVAL;
