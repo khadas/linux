@@ -1434,9 +1434,7 @@ int aml_sd_voltage_switch(struct amlsd_platform *pdata, char signal_voltage)
 #endif
 #endif
 	struct amlsd_host *host = pdata->host;
-	if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB))
-		&& (!aml_card_type_mmc(pdata)))
+	if (!aml_card_type_mmc(pdata))
 		host->sd_sdio_switch_volat_done = 1;
 	return 0;
 }

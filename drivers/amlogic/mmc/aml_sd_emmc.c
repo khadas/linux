@@ -1051,7 +1051,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	if ((aml_card_type_mmc(pdata))
 			&& (mmc->ios.timing != MMC_TIMING_MMC_HS400)) {
 		if (clkc->div <= 7) {
-			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
 				err = aml_sd_emmc_auto_calibration(mmc,
 						&adj_win_start);
 			else
@@ -1072,7 +1072,7 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)) {
 		err = aml_sd_emmc_execute_tuning_(mmc, opcode,
 				&tuning_data, adj_win_start);
-	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		err = 0;
 		adjust = sd_emmc_regs->gadjust;
 		gadjust->cali_enable = 1;
@@ -2743,7 +2743,7 @@ static void aml_sd_emmc_set_timing(
 				 (timing == MMC_TIMING_UHS_DDR50)) {
 		if (timing == MMC_TIMING_MMC_HS400) {
 			ctrl->chk_ds = 1;
-			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 				adjust = sd_emmc_regs->gadjust;
 				gadjust->ds_enable = 1;
 				sd_emmc_regs->gadjust = adjust;
@@ -2928,13 +2928,8 @@ static int aml_sd_emmc_card_busy(struct mmc_host *mmc)
 	u32 vconf = sd_emmc_regs->gcfg;
 	struct sd_emmc_config *pconf = (struct sd_emmc_config *)&vconf;
 	status = ista->dat_i & 0xf;
-	/* sd_emmc_dbg(AMLSD_DBG_COMMON, "dat[0:3]=%#x\n", stat->dat3_0); */
-	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
-		BUG_ON(1);
 	/*must open auto_clk after sd/sdio switch volatile base on sd spec.*/
-	if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB))
-			&& (!aml_card_type_mmc(pdata))
+	if ((!aml_card_type_mmc(pdata))
 			&& (host->sd_sdio_switch_volat_done)) {
 		pconf->auto_clk = 1;
 		sd_emmc_regs->gcfg = vconf;
