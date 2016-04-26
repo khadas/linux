@@ -923,8 +923,15 @@
  			compatible = "amlogic, aml_local_dimming";
  			dev_name = "aml_local_dimming";
 			status = "disabled";
+			pinctrl-names = "ldim_pwm";
+			pinctrl-0 = <&ldim_pwm_pins>;
 			interrupts = <0 3 1
 				0 143 1>;
+			ldim_region_row_col = <1 8>;
+			ldim_bl_mode = <1>; /* 1=single_side(top, bottom, left or right), 2=uniform(top/bottom, left/right) */
+			ldim_bl_mapping = <0 1 2 3 4 5 6 7>;
+			ldim_pwm_port = "none"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
+			ldim_pwm_attr = <1 2 50>; /* pol, freq(Hz for pwm, v-freq mulit for pwm_vs), duty(%) */
 	};
 
 	backlight{
@@ -978,6 +985,7 @@
 		backlight_2{
 			index = <2>;
 			bl_name = "backlight_2";
+			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
 			bl_ctrl_method = <3>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
@@ -1248,6 +1256,14 @@
 			"GPIOZ_18","GPIOZ_19","GPIOZ_20";
 	};
 
+	ldim_pwm_pins:ldim_pwm_pin {
+		amlogic,setmask = <2 0x00200000>;
+		amlogic,clrmask = <0 0x00900000
+				   1 0x00000008
+				   2 0x00180400
+                                   3 0x20000000>;
+		amlogic,pins = "GPIOX_10";
+	};
 	bl_pwm_on_pins:bl_pwm_on_pin {
 		amlogic,setmask = <10 0x00800000>;
 		amlogic,clrmask = <10 0x0100a000>;
@@ -1295,12 +1311,17 @@
 		iw7019 {
 			compatible = "amlogic, iw7019";
 			status = "disabled";
-			interrupts = <0 3 1>;
-			interrupt-names = "viu-vsync";
 			en-gpio = <&gpio GPIOX_9 GPIO_ACTIVE_HIGH>;
+			spi_cs_delay = <10 10>; /* hold_high_delay, clk_cs_delay (unit: us) */
+			spi_write_check = <0>;
+			lamp_err_check = <0>;
+			lamp_err-gpio = <&gpio GPIOX_11 GPIO_ACTIVE_HIGH>;
 			reg = <0>;
 			spi-max-frequency = <3000000>;
 			spi-cpha = <0>;
 			spi-cpol = <0>;
+
+			dim_max_min = <0xfff 0x7f>; /* dim_max, dim_min */
+			cmd_size = <4>;
 		};
 	};

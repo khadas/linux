@@ -99,6 +99,7 @@ static int lcd_vmode_is_supported(enum vmode_e mode)
 static int lcd_vout_disable(enum vmode_e cur_vmod)
 {
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+	LCDPR("%s finished\n", __func__);
 	return 0;
 }
 
@@ -106,11 +107,13 @@ static int lcd_vout_disable(enum vmode_e cur_vmod)
 static int lcd_suspend(void)
 {
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+	LCDPR("%s finished\n", __func__);
 	return 0;
 }
 static int lcd_resume(void)
 {
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+	LCDPR("%s finished\n", __func__);
 	return 0;
 }
 #endif

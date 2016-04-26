@@ -79,6 +79,9 @@ extern void set_bri_for_channels(unsigned short bri[16]);
 #define LD_BLKVMAX 32
 #define LD_BLKREGNUM 384  /* maximum support 24*16*/
 
+#define LD_DATA_DEPTH   12
+#define LD_DATA_MAX     0xfff
+
 struct ldim_config_s {
 	unsigned short hsize;
 	unsigned short vsize;

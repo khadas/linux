@@ -340,7 +340,7 @@ static int lcd_extern_get_config_dts(struct device_node *of_node,
 				extconf->name, extconf->cmd_size);
 		}
 		cmd_size = extconf->cmd_size;
-		if (cmd_size >= 1) {
+		if (cmd_size > 1) {
 			i = 0;
 			while (i < LCD_EXTERN_INIT_TABLE_MAX) {
 				for (j = 0; j < cmd_size; j++) {
@@ -479,7 +479,7 @@ i2c_get_init_off_dts:
 				extconf->name, extconf->cmd_size);
 		}
 		cmd_size = extconf->cmd_size;
-		if (cmd_size >= 1) {
+		if (cmd_size > 1) {
 			i = 0;
 			while (i < LCD_EXTERN_INIT_TABLE_MAX) {
 				for (j = 0; j < cmd_size; j++) {
