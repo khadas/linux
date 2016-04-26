@@ -3886,7 +3886,8 @@ module_param_named(atv_snr_cnt_limit, atv_snr_cnt_limit, int, 0664);
 static int last_lev = -1;
 static int glb_mot[5] = { 0, 0, 0, 0, 0 };
 static int still_field_count;
-
+static int dejaggy_4p = true;
+module_param_named(dejaggy_4p, dejaggy_4p, int, 0664);
 UINT32 field_count = 0;
 
 void set_combing_regs(int lvl)
@@ -3978,7 +3979,8 @@ static void adaptive_combing_fixing(
 
 	if (is_meson_gxtvbb_cpu() && dejaggy_enable) {
 		/* only enable dejaggy for interlace */
-		if ((frame_type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE) {
+		if ((frame_type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE &&
+			!dejaggy_4p) {
 			if (dejaggy_flag != -1) {
 				dejaggy_flag = -1;
 				DI_Wr_reg_bits(SRSHARP0_SHARP_DEJ1_MISC,
