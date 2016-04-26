@@ -471,8 +471,8 @@ static int set_disp_mode_auto(void)
 
 	info->fresh_tx_hdr_pkt = hdmitx_set_drm_pkt;
 	info->hdr_info.hdr_support = (hdev->RXCap.hdr_sup_eotf_sdr << 0)
-			|| (hdev->RXCap.hdr_sup_eotf_hdr << 1)
-			|| (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 << 2);
+			| (hdev->RXCap.hdr_sup_eotf_hdr << 1)
+			| (hdev->RXCap.hdr_sup_eotf_smpte_st_2084 << 2);
 	info->hdr_info.lumi_max = hdev->RXCap.hdr_lum_max;
 	info->hdr_info.lumi_avg = hdev->RXCap.hdr_lum_avg;
 	info->hdr_info.lumi_min = hdev->RXCap.hdr_lum_min;

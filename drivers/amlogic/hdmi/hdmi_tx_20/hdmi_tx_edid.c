@@ -1738,8 +1738,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	info = get_current_vinfo();
 	if (info) {
 		info->hdr_info.hdr_support = (pRXCap->hdr_sup_eotf_sdr << 0)
-			|| (pRXCap->hdr_sup_eotf_hdr << 1)
-			|| (pRXCap->hdr_sup_eotf_smpte_st_2084 << 2);
+			| (pRXCap->hdr_sup_eotf_hdr << 1)
+			| (pRXCap->hdr_sup_eotf_smpte_st_2084 << 2);
 		info->hdr_info.lumi_max = pRXCap->hdr_lum_max;
 		info->hdr_info.lumi_avg = pRXCap->hdr_lum_avg;
 		info->hdr_info.lumi_min = pRXCap->hdr_lum_min;
