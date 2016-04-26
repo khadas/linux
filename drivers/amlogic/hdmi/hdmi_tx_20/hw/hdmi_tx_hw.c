@@ -2490,7 +2490,8 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		tx_aud_src = 0;
 
 	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
-	tx_aud_src = !!(hdev->aud_output_ch);
+	if (hdev->aud_output_ch)
+		tx_aud_src = 1;
 
 	pr_info("hdmitx tx_aud_src = %d\n", tx_aud_src);
 
