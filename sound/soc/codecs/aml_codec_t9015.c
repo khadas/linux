@@ -77,7 +77,8 @@ static unsigned int aml_T9015_audio_read(struct snd_soc_codec *codec,
 				unsigned int reg)
 {
 	u32 val;
-	val = acodec_reg_read(ACODEC_BASE_ADD + reg);
+	u32 int_reg = reg >> 2 << 2;
+	val = acodec_reg_read(ACODEC_BASE_ADD + int_reg);
 	return val;
 
 }
@@ -85,7 +86,8 @@ static unsigned int aml_T9015_audio_read(struct snd_soc_codec *codec,
 static int aml_T9015_audio_write(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int val)
 {
-	acodec_reg_write(val, (ACODEC_BASE_ADD + reg));
+	u32 int_reg = reg >> 2 << 2;
+	acodec_reg_write(val, (ACODEC_BASE_ADD + int_reg));
 	return 0;
 }
 
@@ -97,7 +99,7 @@ static int aml_DAC_Gain_get_enum(
 	u32 val = acodec_reg_read(add);
 	u32 val1 = (val & (0x1 <<  DAC_GAIN_SEL_L)) >> DAC_GAIN_SEL_L;
 	u32 val2 = (val & (0x1 <<  DAC_GAIN_SEL_H)) >> (DAC_GAIN_SEL_H - 1);
-	val = val1 & val2;
+	val = val1 | val2;
 	ucontrol->value.enumerated.item[0] = val;
 	return 0;
 }
