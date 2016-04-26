@@ -410,8 +410,6 @@ struct PIC_BUFFER_CONFIG_s {
 
 	int decode_idx;
 	int slice_type;
-	int RefNum_L0;
-	int RefNum_L1;
 	int num_reorder_pic;
 	int stream_offset;
 	uint8_t used_by_display;
@@ -665,7 +663,6 @@ struct VP9_Common_s {
 	int error_resilient_mode;
 	int frame_parallel_decoding_mode;
 
-	int log2_tile_cols, log2_tile_rows;
 	int byte_alignment;
 	int skip_loop_filter;
 
@@ -1128,45 +1125,15 @@ struct VP9Decoder_s {
 	unsigned short *rpm_ptr;
 	int     init_pic_w;
 	int     init_pic_h;
-	int     lcu_x_num;
-	int     lcu_y_num;
 	int     lcu_total;
 	int     lcu_size;
 
-	int num_tile_col;
-	int num_tile_row;
-	int tile_enabled;
-	int     tile_x;
-	int     tile_y;
-	int     tile_y_x;
-	int     tile_start_lcu_x;
-	int     tile_start_lcu_y;
-	int     tile_width_lcu;
-	int     tile_height_lcu;
 	int     slice_type;
-	int     slice_addr;
-	int     slice_segment_addr;
-
-	unsigned short misc_flag0;
-	int     m_temporalId;
-	int     m_nalUnitType;
-	int     TMVPFlag;
-	int     isNextSliceSegment;
-	int     LDCFlag;
-	int     plevel;
-	int     MaxNumMergeCand;
-
-	int     list_no;
-	int     RefNum_L0;
-	int     RefNum_L1;
-	int     ColFromL0Flag;
-	int     LongTerm_Curr;
-	int     LongTerm_Col;
-	int     LongTerm_Ref;
 
 	int skip_flag;
 	int decode_idx;
 	int slice_idx;
+	uint8_t has_keyframe;
 	uint8_t wait_buf;
 	uint8_t error_flag;
 
@@ -1186,6 +1153,12 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 	int i, mask, ref_index = 0;
 
 	pbi->ready_for_new_data = 0;
+
+	if (pbi->has_keyframe == 0 &&
+		params->p.frame_type != KEY_FRAME){
+		return -2;
+	}
+	pbi->has_keyframe = 1;
 
 #ifdef VP9_10B_MMU
 	if (cm->prev_fb_idx >= 0) {
@@ -1598,16 +1571,10 @@ int vp9_bufmgr_init(struct VP9Decoder_s *pbi, struct BuffInfo_s *buf_spec_i,
 	pbi->use_cma_flag = 0;
 	pbi->decode_idx = 0;
 	pbi->slice_idx = 0;
-	pbi->list_no = 0;
 	/*int m_uiMaxCUWidth = 1<<7;*/
 	/*int m_uiMaxCUHeight = 1<<7;*/
-	pbi->tile_enabled = 0;
-	pbi->tile_x = 0;
-	pbi->tile_y = 0;
-	pbi->slice_addr = 0;
-	pbi->slice_segment_addr = 0;
+	pbi->has_keyframe = 0;
 	pbi->skip_flag = 0;
-	pbi->misc_flag0 = 0;
 	pbi->wait_buf = 0;
 	pbi->error_flag = 0;
 
@@ -5201,7 +5168,9 @@ if (debug & VP9_DEBUG_DBG_LF_PRINT) {
 
 	ret = vp9_bufmgr_process(pbi, &vp9_param);
 	if (ret < 0) {
-		pr_info("Error: vp9_bufmgr_process=> %d\r\n", ret);
+		pr_info("vp9_bufmgr_process=> %d, VP9_10B_DISCARD_NAL\r\n",
+		 ret);
+		WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DISCARD_NAL);
 		return IRQ_HANDLED;
 	} else if (ret == 0) {
 		pbi->frame_count++;
