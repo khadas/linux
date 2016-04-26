@@ -310,7 +310,9 @@ void cm_latch_process(void)
 	} while (0);
 	if (cm_en && (cm_level_last != cm_level)) {
 		cm_level_last = cm_level;
-		amcm_level_sel(cm_level);
+		if (!is_meson_gxtvbb_cpu())
+			amcm_level_sel(cm_level);
+		amcm_enable();
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");
 	} else if ((cm_en == 0) && (cm_level_last != 0xff)) {
 		cm_level_last = 0xff;
