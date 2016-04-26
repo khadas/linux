@@ -35,6 +35,9 @@
 #include <dt-bindings/gpio/gxl.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/uaccess.h>
+
+
 #define EE_OFFSET 10
 #define MESON_PIN(x, n) PINCTRL_PIN((x+EE_OFFSET), n)
 /* Pad names for the pinmux subsystem */
@@ -501,16 +504,67 @@ static int  gxl_clear_pinmux(struct amlogic_pmx *apmx, unsigned int pin)
 	return 0;
 
 }
+
+
+#ifdef CONFIG_ARM64
+
+/*
+ * function id 0x82000046 is to set AO_SEC_REG0 bit[0] in bl31.
+ * bit[0] is set with arg0.
+ * 0: gpio input 1: gpio output
+ *
+ * this function supported by xing.xu@amlogic.com
+ */
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					 u64 arg2)
+{
+	register long x0 asm("x0") = function_id;
+	register long x1 asm("x1") = arg0;
+	register long x2 asm("x2") = arg1;
+	register long x3 asm("x3") = arg2;
+	asm volatile(
+			__asmeq("%0", "x0")
+			__asmeq("%1", "x1")
+			__asmeq("%2", "x2")
+			__asmeq("%3", "x3")
+			"smc	#0\n"
+		: "+r" (x0)
+		: "r" (x1), "r" (x2), "r" (x3));
+
+	return function_id;
+}
+
+#else
+
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					 u64 arg2)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ARM64 */
+
+/*
+ * AO_GPIO_O_EN_N	0x09<<2=0x24	bit[31]		output level
+ * AO_GPIO_I		0x0a<<2=0x28	bit[31]		input level
+ * AO_SEC_REG0		0x50<<2=0x140	bit[0]		input enable
+ * AO_SEC_REG0		0xda100000+0x140=0xda100140
+ * AO_RTI_PULL_UP_REG	0x0b<<2=0x2c	bit[30]		pull-up/down
+ * AO_RTI_PULL_UP_REG	0x0b<<2=0x2c	bit[14]		pull-up enable
+ */
 static int gxl_extern_gpio_output(struct meson_domain *domain,
 				   unsigned int pin,
 				   int value)
 {
 	if (PIN_GPIO_TEST_N == pin) {
-		int val;
+		pr_info("%s PIN_GPIO_TEST_N\n", __func__);
+
+		/* set TEST_N to gpio output */
+		/* AO_SEC_REG0 bit[0] = 1 */
+		__invoke_psci_fn_smc(0x82000046, 1, 0, 0);
+
+		/* set TEST_N output level to #value */
 		aml_aobus_update_bits(0x24, BIT(31), value ? BIT(31) : 0);
-		val = aml_read_sec_reg(0xda004000);
-		val = val | (BIT(1));
-		aml_write_sec_reg(0xda004000, val);
 		return 0;
 	}
 	return 1;

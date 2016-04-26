@@ -26,7 +26,7 @@
 #include <linux/amlogic/pinctrl_amlogic.h>
 #include <linux/amlogic/gpio-amlogic.h>
 #include <linux/amlogic/iomap.h>
-#include <asm/compiler.h>
+#include <linux/uaccess.h>
 
 #include "pinctrl_gxtvbb.h"
 
