@@ -1573,11 +1573,11 @@ int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,
 		/* yyh0704, avoid bbt mismatch block status! */
 		ret = operation->block_isbad(aml_chip);
 		if (ret) {
-			if (memcmp(name, DTD_INFO_HEAD_MAGIC, 4)) {
+			/*if (memcmp(name, DTD_INFO_HEAD_MAGIC, 4)) {*/
 				aml_nand_msg("nand block at blk %d is bad ",
 					start_blk);
 				continue;
-			}
+			/*}*/
 		}
 		for (i = 0; i < pages_read;) {
 			memset((unsigned char *)ops_para, 0x0,
