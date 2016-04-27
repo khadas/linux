@@ -302,6 +302,50 @@ static const struct snd_soc_dapm_widget aml_asoc_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
 };
 
+int audio_in_GPIO = 0;
+struct gpio_desc *av_source;
+static const char * const audio_in_switch_texts[] = { "AV", "Karaok"};
+
+static const struct soc_enum audio_in_switch_enum = SOC_ENUM_SINGLE(
+		SND_SOC_NOPM, 0, ARRAY_SIZE(audio_in_switch_texts),
+		audio_in_switch_texts);
+
+static int aml_get_audio_in_switch(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+
+	if (audio_in_GPIO == 0) {
+		ucontrol->value.enumerated.item[0] = 0;
+		pr_info("audio in source: AV\n");
+	} else if (audio_in_GPIO == 1) {
+		ucontrol->value.enumerated.item[0] = 1;
+		pr_info("audio in source: Karaok\n");
+	}
+	return 0;
+}
+
+static int aml_set_audio_in_switch(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+	if (ucontrol->value.enumerated.item[0] == 0) {
+		gpiod_direction_output(av_source,
+					   GPIOF_OUT_INIT_LOW);
+		audio_in_GPIO = 0;
+		pr_info("Set audio in source: AV\n");
+	} else if (ucontrol->value.enumerated.item[0] == 1) {
+		gpiod_direction_output(av_source,
+					   GPIOF_OUT_INIT_HIGH);
+		audio_in_GPIO = 1;
+		pr_info("Set audio in source: Karaok\n");
+	}
+	return 0;
+}
+
+static const struct snd_kcontrol_new av_controls[] = {
+	SOC_ENUM_EXT("AudioIn Switch",
+			 audio_in_switch_enum,
+			 aml_get_audio_in_switch,
+			 aml_set_audio_in_switch),
+};
+
 static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 	SOC_ENUM_EXT("Audio In Source",
 		     audio_in_source_enum,
@@ -327,7 +371,6 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     output_swap_enum,
 		     aml_output_swap_get_enum,
 		     aml_output_swap_set_enum),
-
 };
 
 static int aml_suspend_pre(struct snd_soc_card *card)
@@ -418,13 +461,20 @@ static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 		pr_info("%s, aml_g9tv_pinmux_init error!\n", __func__);
 		return;
 	}
+
 	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
-	if (IS_ERR(p_aml_audio->mute_desc)) {
-		return;
-	} else {
+	if (!IS_ERR(p_aml_audio->mute_desc)) {
 		pr_info("%s, make avmute gpio high!\n", __func__);
 		gpiod_direction_output(p_aml_audio->mute_desc,
-				       GPIOF_OUT_INIT_HIGH);
+					   GPIOF_OUT_INIT_HIGH);
+	}
+
+	av_source = gpiod_get(card->dev, "av_source");
+	if (!IS_ERR(av_source)) {
+		pr_info("%s, make av_source gpio low!\n", __func__);
+		gpiod_direction_output(av_source, GPIOF_OUT_INIT_LOW);
+		snd_soc_add_card_controls(card, av_controls,
+					ARRAY_SIZE(av_controls));
 	}
 	return;
 }
