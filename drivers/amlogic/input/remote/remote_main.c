@@ -878,6 +878,13 @@ static int remote_resume(struct platform_device *pdev)
 			input_event(gp_remote->input, EV_KEY, KEY_POWER, 0);
 			input_sync(gp_remote->input);
 		}
+
+		if (get_resume_method() == REMOTE_CUS_WAKEUP) {
+			input_event(gp_remote->input, EV_KEY, 133, 1);
+			input_sync(gp_remote->input);
+			input_event(gp_remote->input, EV_KEY, 133, 0);
+			input_sync(gp_remote->input);
+		}
 	}
 	gp_remote->sleep = 0;
 	input_dbg("to clear irq ...\n");
