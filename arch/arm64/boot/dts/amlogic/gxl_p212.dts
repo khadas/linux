@@ -662,7 +662,6 @@
 		keysn_8:key_8{
 			key-name = "widevinekeybox";
 			key-device = "secure";
-			key-type = "sha1";
 			key-permit = "read","write","del";
 		};
 		keysn_9:key_9{
