@@ -949,7 +949,6 @@
 	};
 	aml_m8_snd {
 		compatible = "aml, aml_snd_m8";
-		later_init = "true";
 		status = "okay";
 		aml-sound-card,format = "i2s";
 		aml_sound_card,name = "AML-M8AUDIO";

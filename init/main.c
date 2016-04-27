@@ -77,7 +77,6 @@
 #include <linux/sched_clock.h>
 #include <linux/context_tracking.h>
 #include <linux/random.h>
-#include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -851,9 +850,6 @@ static int __ref kernel_init(void *unused)
 	numa_default_policy();
 
 	flush_delayed_fput();
-
-	/* some device can be probed later and use async method */
-	platform_later_populate();
 
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);

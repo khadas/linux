@@ -22,8 +22,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/async.h>
-#include <linux/kobject.h>
 
 const struct of_device_id of_default_bus_match_table[] = {
 	{ .compatible = "simple-bus", },
@@ -368,8 +366,7 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 static int of_platform_bus_create(struct device_node *bus,
 				  const struct of_device_id *matches,
 				  const struct of_dev_auxdata *lookup,
-				  struct device *parent, bool strict,
-				  bool later_init)
+				  struct device *parent, bool strict)
 {
 	const struct of_dev_auxdata *auxdata;
 	struct device_node *child;
@@ -377,8 +374,6 @@ static int of_platform_bus_create(struct device_node *bus,
 	const char *bus_id = NULL;
 	void *platform_data = NULL;
 	int rc = 0;
-	bool real_later_init = false;
-	const char *later_init_prop = NULL;
 
 	/* Make sure it has a compatible property */
 	if (strict && (!of_get_property(bus, "compatible", NULL))) {
@@ -386,13 +381,6 @@ static int of_platform_bus_create(struct device_node *bus,
 			 __func__, bus->full_name);
 		return 0;
 	}
-
-	later_init_prop = of_get_property(bus, "later_init", NULL);
-	if (later_init_prop && !strcmp("true", later_init_prop))
-		real_later_init = true;
-
-	if (later_init != real_later_init)
-		return 0;
 
 	auxdata = of_dev_lookup(lookup, bus);
 	if (auxdata) {
@@ -415,8 +403,7 @@ static int of_platform_bus_create(struct device_node *bus,
 
 	for_each_child_of_node(bus, child) {
 		pr_debug("   create child: %s\n", child->full_name);
-		rc = of_platform_bus_create(child, matches, lookup,
-				&dev->dev, strict, later_init);
+		rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
 		if (rc) {
 			of_node_put(child);
 			break;
@@ -450,13 +437,11 @@ int of_platform_bus_probe(struct device_node *root,
 
 	/* Do a self check of bus type, if there's a match, create children */
 	if (of_match_node(matches, root)) {
-		rc = of_platform_bus_create(root, matches, NULL,
-						parent, false, false);
+		rc = of_platform_bus_create(root, matches, NULL, parent, false);
 	} else for_each_child_of_node(root, child) {
 		if (!of_match_node(matches, child))
 			continue;
-		rc = of_platform_bus_create(child, matches, NULL,
-						parent, false, false);
+		rc = of_platform_bus_create(child, matches, NULL, parent, false);
 		if (rc)
 			break;
 	}
@@ -498,8 +483,7 @@ int of_platform_populate(struct device_node *root,
 		return -EINVAL;
 
 	for_each_child_of_node(root, child) {
-		rc = of_platform_bus_create(child, matches, lookup,
-						parent, true, false);
+		rc = of_platform_bus_create(child, matches, lookup, parent, true);
 		if (rc)
 			break;
 	}
@@ -508,80 +492,4 @@ int of_platform_populate(struct device_node *root,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(of_platform_populate);
-
-static ASYNC_DOMAIN_EXCLUSIVE(platform_later_populate_domain);
-
-static void of_platform_later_populate(void *data, async_cookie_t cookie)
-{
-	struct device_node *child;
-	struct device_node *root;
-	int rc = 0;
-	ktime_t calltime, delta, rettime;
-	unsigned long long duration;
-	calltime = ktime_get();
-
-	root = of_find_node_by_path("/");
-	if (!root)
-		return;
-
-	for_each_child_of_node(root, child) {
-		rc = of_platform_bus_create(child,
-			of_default_bus_match_table, NULL, NULL, true, true);
-		if (rc)
-			break;
-	}
-
-	of_node_put(root);
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	pr_debug("later init device cost %llu us\n", duration);
-}
-
-int platform_later_populate(void)
-{
-	async_schedule_domain(of_platform_later_populate,
-				NULL, &platform_later_populate_domain);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(platform_later_populate);
-
-#if 0
-static int wait_later_init_complete(void)
-{
-	ktime_t calltime, delta, rettime;
-	unsigned long long duration;
-	calltime = ktime_get();
-	async_synchronize_full_domain(&platform_later_populate_domain);
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	pr_debug("wait for later init device cost %llu us\n", duration);
-	return 0;
-}
-
-/* wait for all later init devices being added into system */
-static ssize_t wait_later_init_show(struct kobject *kobj,
-				  struct kobj_attribute *attr, char *buf)
-{
-	wait_later_init_complete();
-	return 0;
-}
-static struct kobj_attribute wait_later_init_attr = __ATTR_RO(wait_later_init);
-
-static struct attribute *kernel_attrs[] = {
-	&wait_later_init_attr.attr,
-	NULL
-};
-
-static struct attribute_group kernel_attr_group = {
-	.attrs = kernel_attrs,
-};
-
-static int __init platform_ksysfs_init(void)
-{
-	return sysfs_create_group(kernel_kobj, &kernel_attr_group);
-}
-device_initcall(platform_ksysfs_init);
-#endif
 #endif /* CONFIG_OF_ADDRESS */

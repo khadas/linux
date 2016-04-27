@@ -41,7 +41,6 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/mmc/emmc_partitions.h>
-#include <linux/async.h>
 #include <../drivers/mmc/core/mmc_ops.h>
 #include "amlsd.h"
 
@@ -3425,7 +3424,7 @@ int is_storage_emmc(void)
 		ret = 1;
 	return ret;
 }
-static inline int __aml_sd_emmc_probe(struct platform_device *pdev)
+static int aml_sd_emmc_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = NULL;
 	struct amlsd_host *host = NULL;
@@ -3617,24 +3616,6 @@ fail_init_host:
 	print_tmp("aml_sd_emmc_probe() fail!\n");
 	return ret;
 }
-
-#ifndef MODULE
-static __init void aml_sd_emmc_probe_async(void *data, async_cookie_t cookie)
-{
-	struct platform_device *pdev = data;
-	__aml_sd_emmc_probe(pdev);
-}
-#endif
-static int aml_sd_emmc_probe(struct platform_device *pdev)
-{
-#ifndef MODULE
-	async_schedule(aml_sd_emmc_probe_async, pdev);
-	return 0;
-#else
-	return __aml_sd_emmc_probe(pdev);
-#endif
-}
-
 
 int aml_sd_emmc_remove(struct platform_device *pdev)
 {
