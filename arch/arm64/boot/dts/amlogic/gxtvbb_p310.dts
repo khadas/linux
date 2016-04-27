@@ -476,7 +476,7 @@
 					"MMC_CAP_SD_HIGHSPEED","MMC_PM_KEEP_POWER",
 	   				"MMC_CAP_UHS_SDR104","MMC_CAP_NONREMOVABLE","MMC_CAP_SDIO_IRQ";
 	   		f_min = <300000>;
-	   		f_max = <200000000>;
+	   		f_max = <100000000>;
 	   		max_req_size = <0x20000>;          /**128KB*/
 	   		card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
 		};
@@ -499,7 +499,7 @@
 				"MMC_CAP_ERASE", "MMC_CAP_HW_RESET", "MMC_CAP_CMD23";
 			caps2 = "MMC_CAP2_HS200";
 			f_min = <300000>;
-            f_max = <200000000>;
+            f_max = <100000000>;
 			tx_phase = <1>;
             max_req_size = <0x20000>;          /**256KB*/
 //            gpio_dat3 = "BOOT_3"
