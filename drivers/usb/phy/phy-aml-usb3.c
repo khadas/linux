@@ -235,6 +235,7 @@ static int amlogic_usb3_init(struct usb_phy *x)
 		*/
 		data = cr_bus_read(0x30);
 		data &= ~(0xf << 4);
+		data |= (0x8 << 4);
 		cr_bus_write(0x30, data);
 
 		/*
