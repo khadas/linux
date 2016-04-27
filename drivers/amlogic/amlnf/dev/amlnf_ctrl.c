@@ -519,8 +519,10 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 				break;
 		}
 		each_boot_pages = valid_pages/boot_num;
+		/*
 		each_boot_pages =
 			(en_slc)?(each_boot_pages<<1):each_boot_pages;
+		*/
 
 		info->ce_mask = aml_chip->ce_bit_mask;
 		info->nand_read_info = nand_read_info;

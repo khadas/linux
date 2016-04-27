@@ -39,7 +39,7 @@ static int read_uboot(struct amlnand_phydev *phydev)
 	unsigned short tmp_ecc_unit, tmp_ecc_bytes, tmp_ecc_steps;
 	uint64_t addr, readlen = 0, len = 0;
 	int ret = 0;
-	unsigned int tmp_value, en_slc = 0;
+	unsigned int tmp_value, en_slc = 0, tmp_index;
 	unsigned int boot_num = 1, each_boot_pages, i;
 	unsigned int valid_pages = BOOT_COPY_NUM * BOOT_PAGES_PER_COPY;
 
@@ -113,7 +113,7 @@ static int read_uboot(struct amlnand_phydev *phydev)
 			break;
 	}
 	each_boot_pages = valid_pages/boot_num;
-	each_boot_pages = (en_slc)?(each_boot_pages<<1):each_boot_pages;
+	/*each_boot_pages = (en_slc)?(each_boot_pages<<1):each_boot_pages;*/
 	aml_nand_msg("boot_num = %d each_boot_pages = %d", boot_num,
 		each_boot_pages);
 
@@ -147,13 +147,16 @@ static int read_uboot(struct amlnand_phydev *phydev)
 		ops_para->page_addr = ((unsigned int)addr / flash->pagesize);
 		if ((ops_para->option & DEV_SLC_MODE)) {
 			tmp_value = ops_para->page_addr;
-			tmp_value &= (~(pages_per_blk - 1));
+			tmp_value &= (~((pages_per_blk >> 1) - 1));
+			/*128-->256; 256-->512 ......*/
+			tmp_value <<= 0x01;
+			tmp_index = ops_para->page_addr % (pages_per_blk >> 1);
 			if ((flash->new_type > 0) && (flash->new_type < 10))
 				ops_para->page_addr = tmp_value |
-				(slc_info->pagelist[ops_para->page_addr % 256]);
+				(slc_info->pagelist[tmp_index]);
 			if (flash->new_type == SANDISK_19NM)
 				ops_para->page_addr = tmp_value |
-				((ops_para->page_addr % pages_per_blk) << 1);
+				(tmp_index << 1);
 		}
 
 		ret = operation->read_page(aml_chip);
@@ -285,7 +288,7 @@ static int write_uboot(struct amlnand_phydev *phydev)
 	unsigned char *fill_buf = NULL;
 	unsigned char *oob_buf = NULL, *page0_buf = NULL;
 	unsigned char tmp_bch_mode, tmp_user_mode, tmp_ecc_limit, tmp_ecc_max;
-	unsigned char tmp_rand;
+	unsigned char tmp_rand, tmp_index;
 	unsigned int configure_data, pages_per_blk;
 	unsigned int oobsize, page_size, tmp_size, priv_lsb, ops_tem;
 	unsigned short tmp_ecc_unit, tmp_ecc_bytes, tmp_ecc_steps;
@@ -431,22 +434,29 @@ static int write_uboot(struct amlnand_phydev *phydev)
 			ops_tem = ops_para->page_addr;
 			if ((ops_para->option & DEV_SLC_MODE)) {
 				tmp_value = ops_para->page_addr;
-				tmp_value &= (~(pages_per_blk - 1));
+				tmp_value &= (~((pages_per_blk >> 1) - 1));
+				/*128-->256; 256-->512 ......*/
+				tmp_value <<= 0x01;
+				tmp_index =
+				ops_para->page_addr % (pages_per_blk >> 1);
 				if ((flash->new_type > 0)
 					&& (flash->new_type < 10))
 					ops_para->page_addr = tmp_value |
-				(slc_info->pagelist[ops_para->page_addr % 256]);
+						(slc_info->pagelist[tmp_index]);
 				if (flash->new_type == SANDISK_19NM)
 					ops_para->page_addr = tmp_value |
-				((ops_para->page_addr % pages_per_blk) << 1);
+						(tmp_index << 1);
 			}
 #if 1
 			if (flash->new_type == HYNIX_1YNM) {
-				if ((ops_tem % 256) > 1) {
+				if ((ops_tem % (pages_per_blk >> 1)) > 1) {
 					tmp_value = ops_tem;
-					tmp_value &= (~(pages_per_blk - 1));
+					tmp_value &= (~((pages_per_blk>>1)-1));
+					/*128-->256; 256-->512 ......*/
+					tmp_value <<= 0x01;
+					tmp_index = ops_tem%(pages_per_blk>>1);
 					priv_lsb = tmp_value |
-					(slc_info->pagelist[(ops_tem % 256)-1]);
+					(slc_info->pagelist[tmp_index - 1]);
 					ops_tem = ops_para->page_addr;
 					while (ops_tem > (priv_lsb+1)) {
 						ops_para->data_buf = fill_buf;
