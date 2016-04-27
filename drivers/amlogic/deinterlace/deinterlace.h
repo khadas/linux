@@ -3,6 +3,7 @@
 #include <linux/cdev.h>
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/video.h>
+#include <linux/atomic.h>
 
 /* di hardware version m8m2*/
 #define NEW_DI_V1 0x00000002 /* from m6tvc */
@@ -194,6 +195,10 @@ struct di_buf_s {
 	struct di_buf_s *di_buf_dup_p[5];
 	/* 0~4: n-2, n-1, n, n+1, n+2;	n is the field to display*/
 	struct di_buf_s *di_wr_linked_buf;
+	/* debug for di-vf-get/put
+	1: after get
+	0: after put*/
+	atomic_t di_cnt;
 };
 extern uint di_mtn_1_ctrl1;
 #ifdef DET3D

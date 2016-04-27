@@ -318,7 +318,6 @@ static int prog_proc_config = (1 << 5) | (1 << 1) | 1;
 static int pulldown_detect = 0x10;
 static int skip_wrong_field = 1;
 static int frame_count;
-static int frame_count_check = 16;
 static int provider_vframe_level;
 static int disp_frame_count;
 static int start_frame_drop_count = 2;
@@ -623,9 +622,12 @@ store_dbg(struct device *dev,
 			prog_proc_config = 1;
 		else
 			prog_proc_config = 0;
-	} /*else if (strncmp(buf, "time_div", 8) == 0) {
-	   * }*/
-	else if (strncmp(buf, "show_osd", 8) == 0) {
+	} else if (strncmp(buf, "init_flag", 9) == 0) {
+		if (buf[9] == '1')
+			init_flag = 1;
+		else
+			init_flag = 0;
+	}	else if (strncmp(buf, "show_osd", 8) == 0) {
 		DI_Wr(VIU_OSD1_CTRL_STAT,
 			Rd(VIU_OSD1_CTRL_STAT) | (0xff << 12));
 	} else if (strncmp(buf, "run", 3) == 0) {
@@ -1820,6 +1822,12 @@ static void dump_di_pre_stru(void)
 		di_pre_stru.pre_de_irq_timeout_count);
 	pr_dbg("unreg_req_flag		   = %d\n",
 		di_pre_stru.unreg_req_flag);
+	pr_dbg("unreg_req_flag_irq		   = %d\n",
+		di_pre_stru.unreg_req_flag_irq);
+	pr_dbg("reg_req_flag		   = %d\n",
+		di_pre_stru.reg_req_flag);
+	pr_dbg("reg_req_flag_irq		   = %d\n",
+		di_pre_stru.reg_req_flag_irq);
 	pr_dbg("cur_width			   = %d\n",
 		di_pre_stru.cur_width);
 	pr_dbg("cur_height			   = %d\n",
@@ -2198,6 +2206,7 @@ static void dis2_di(void)
 /* vf_unreg_provider(&di_vf_prov); */
 	vf_light_unreg_provider(&di_vf_prov);
 	di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+	reg_flag = 0;
 	spin_lock_irqsave(&plist_lock, flags);
 	di_lock_irqfiq_save(irq_flag2, fiq_flag);
 	if (di_pre_stru.di_inp_buf) {
@@ -2599,8 +2608,14 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	frame_count = 0;
 	disp_frame_count = 0;
 	cur_post_ready_di_buf = NULL;
-	for (i = 0; i < MAX_IN_BUF_NUM; i++)
-		vframe_in[i] = NULL;
+	for (i = 0; i < MAX_IN_BUF_NUM; i++) {
+		if (vframe_in[i]) {
+			vf_put(vframe_in[i], VFM_NAME);
+			vf_notify_provider(
+				VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
+			vframe_in[i] = NULL;
+		}
+	}
 
 	memset(&di_pre_stru, 0, sizeof(di_pre_stru));
 	if (prog_flag) {
@@ -2843,8 +2858,14 @@ static void di_uninit_buf(void)
 #else
 	queue_init(0);
 #endif
-	for (i = 0; i < MAX_IN_BUF_NUM; i++)
-		vframe_in[i] = NULL;
+	for (i = 0; i < MAX_IN_BUF_NUM; i++) {
+		if (vframe_in[i]) {
+			vf_put(vframe_in[i], VFM_NAME);
+			vf_notify_provider(
+				VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
+			vframe_in[i] = NULL;
+		}
+	}
 
 	di_pre_stru.pre_de_process_done = 0;
 	di_pre_stru.pre_de_busy = 0;
@@ -2949,6 +2970,7 @@ static void dump_di_buf(struct di_buf_s *di_buf)
 	pr_dbg("cnt_adr 0x%lx, cnt_canvas_idx 0x%x\n",
 		di_buf->cnt_adr, di_buf->cnt_canvas_idx);
 #endif
+	pr_dbg("di_cnt %d\n", atomic_read(&di_buf->di_cnt));
 }
 
 static void dump_pool(int index)
@@ -4679,7 +4701,7 @@ static unsigned char pre_de_buf_config(void)
 	if (di_blocking)
 		return 0;
 	if ((queue_empty(QUEUE_IN_FREE) && (!di_pre_stru.di_inp_buf_next)) ||
-	    queue_empty(QUEUE_LOCAL_FREE))
+	    (queue_empty(QUEUE_LOCAL_FREE) && (used_post_buf_index == -1)))
 		return 0;
 
 	if (is_bypass(NULL)) {
@@ -5121,6 +5143,8 @@ static unsigned char pre_de_buf_config(void)
 	} else {
 		di_buf = get_di_buf_head(QUEUE_LOCAL_FREE);
 		if (check_di_buf(di_buf, 11)) {
+			recycle_keep_buffer();
+			pr_dbg("%s:recycle keep buffer\n", __func__);
 			recycle_vframe_type_pre(di_pre_stru.di_inp_buf);
 			return 0;
 		}
@@ -7200,7 +7224,6 @@ static void di_reg_process(void)
 	reg_cnt++;
 	if (reg_cnt > 0x3fffffff)
 		reg_cnt = 0;
-	di_pre_stru.reg_req_flag_irq = 1;
 	di_print("########%s\n", __func__);
 }
 #ifdef CONFIG_AML_RDMA
@@ -7335,7 +7358,7 @@ static void di_reg_process_irq(void)
 
 		reset_pulldown_state();
 		init_flag = 1;
-		di_pre_stru.reg_req_flag_irq = 0;
+		di_pre_stru.reg_req_flag_irq = 1;
 	}
 }
 
@@ -7507,9 +7530,11 @@ static int di_task_handle(void *data)
 				di_pre_stru.disable_req_flag) &&
 				(di_pre_stru.pre_de_busy == 0))
 				di_unreg_process();
-			if (di_pre_stru.reg_req_flag) {
+			if (di_pre_stru.reg_req_flag_irq ||
+				di_pre_stru.reg_req_flag) {
 				di_reg_process();
 				di_pre_stru.reg_req_flag = 0;
+				di_pre_stru.reg_req_flag_irq = 0;
 			}
 		}
 	}
@@ -7525,7 +7550,7 @@ static irqreturn_t timer_irq(int irq, void *dev_instance)
 	if (active_flag) {
 		if (di_pre_stru.unreg_req_flag_irq)
 			di_unreg_process_irq();
-		if (init_flag == 0 && di_pre_stru.reg_req_flag_irq == 1)
+		if (init_flag == 0 && di_pre_stru.reg_req_flag_irq == 0)
 			di_reg_process_irq();
 	}
 
@@ -7548,7 +7573,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	if (type == VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR) {
 		return di_pre_stru.vdin2nr;
 	} else if (type == VFRAME_EVENT_PROVIDER_UNREG) {
-		di_print("%s , is_bypass() %d trick_mode %d bypass_all %d\n",
+		pr_dbg("%s , is_bypass() %d trick_mode %d bypass_all %d\n",
 			__func__, is_bypass(NULL), trick_mode, bypass_all);
 
 		if ((Rd(DI_IF1_GEN_REG) & 0x1) == 0 &&
@@ -7557,7 +7582,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 			 * to keep displayed vframe */
 			DI_Wr(DI_IF1_GEN_REG, 0x3 << 30);
 
-		di_print("%s: vf_notify_receiver unreg\n", __func__);
+		pr_dbg("%s: vf_notify_receiver unreg\n", __func__);
 
 		di_pre_stru.unreg_req_flag = 1;
 		provider_vframe_level = 0;
@@ -7587,13 +7612,13 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		di_blocking = 1;
 
-		di_print("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
+		pr_dbg("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
 
 		goto light_unreg;
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
 		di_blocking = 1;
 
-		di_print("%s: vf_notify_receiver ligth unreg\n", __func__);
+		pr_dbg("%s: vf_notify_receiver ligth unreg\n", __func__);
 
 light_unreg:
 		provider_vframe_level = 0;
@@ -7613,7 +7638,7 @@ light_unreg:
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME) {
 		unsigned char vf_put_flag = 0;
 
-		di_print(
+		pr_dbg(
 			"%s:VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME\n",
 			__func__);
 
@@ -7638,7 +7663,6 @@ light_unreg:
 
 		spin_unlock_irqrestore(&plist_lock, flags);
 	} else if (type == VFRAME_EVENT_PROVIDER_VFRAME_READY) {
-		di_print("%s: vframe ready\n", __func__);
 		provider_vframe_level++;
 		trigger_pre_di_process(TRIGGER_PRE_BY_VFRAME_READY);
 
@@ -7745,6 +7769,7 @@ light_unreg:
 		char *provider_name = (char *)data;
 		bypass_state = 0;
 		di_pre_stru.reg_req_flag = 1;
+		pr_dbg("%s: vframe provider reg\n", __func__);
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
 		while (di_pre_stru.reg_req_flag)
 			usleep_range(10000, 10001);
@@ -7979,7 +8004,7 @@ get_vframe:
 	}
 	/*if (vframe_ret)
 		recycle_keep_buffer();*/
-
+	atomic_set(&di_buf->di_cnt, 1);
 	return vframe_ret;
 }
 
@@ -7998,7 +8023,6 @@ static void di_vf_put(vframe_t *vf, void *arg)
 		return;
 	log_buffer_state("pu_");
 	if (used_post_buf_index != -1) {
-		if (frame_count > frame_count_check)
 			recycle_keep_buffer();
 	}
 	if (di_buf->type == VFRAME_TYPE_POST) {
@@ -8014,6 +8038,8 @@ static void di_vf_put(vframe_t *vf, void *arg)
 		recycle_vframe_type_post_print(di_buf, __func__, __LINE__);
 #endif
 	} else {
+		if (!atomic_dec_and_test(&di_buf->di_cnt))
+			pr_err("%s,di_cnt > 0\n", __func__);
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
 		queue_in(di_buf, QUEUE_RECYCLE);
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
