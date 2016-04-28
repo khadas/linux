@@ -144,6 +144,7 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	enum tvin_color_fmt_e cur_color_fmt, pre_color_fmt;
 	struct tvin_sig_property_s *prop, *pre_prop;
+	unsigned int vdin_hdr_flag, pre_vdin_hdr_flag;
 
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
@@ -165,7 +166,11 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 		cur_color_fmt = prop->color_format;
 		pre_color_fmt = pre_prop->color_format;
 
-		if (cur_color_fmt != pre_color_fmt) {
+		vdin_hdr_flag = prop->vdin_hdr_Flag;
+		pre_vdin_hdr_flag = pre_prop->vdin_hdr_Flag;
+
+		if ((cur_color_fmt != pre_color_fmt) ||
+			(vdin_hdr_flag != pre_vdin_hdr_flag)) {
 			pr_info("[smr.%d] color fmt(%d->%d),csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,

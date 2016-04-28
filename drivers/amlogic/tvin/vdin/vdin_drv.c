@@ -200,15 +200,18 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 			(devp->prop.hdr_data.white_points.x == 0) &&
 			(devp->prop.hdr_data.white_points.y == 0) &&
 			(devp->prop.hdr_data.master_lum.x == 0) &&
-			(devp->prop.hdr_data.master_lum.y == 0))
+			(devp->prop.hdr_data.master_lum.y == 0)) {
+			devp->prop.vdin_hdr_Flag = false;
 			vf->prop.master_display_colour.present_flag = false;
-		else
+		} else {
+			devp->prop.vdin_hdr_Flag = true;
 			vf->prop.master_display_colour.present_flag = true;
+		}
 
 		if ((devp->prop.hdr_data.eotf == EOTF_SMPTE_ST_2048) ||
 			(devp->prop.hdr_data.eotf == EOTF_HDR)) {
 			vf->signal_type |= (1 << 29);
-			vf->signal_type |= (1 << 25);
+			vf->signal_type |= (0 << 25);/*0:limit*/
 			vf->signal_type = ((9 << 16) |
 				(vf->signal_type & (~0xFF0000)));
 			vf->signal_type = ((16 << 8) |
@@ -1570,6 +1573,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		pre_prop = &devp->pre_prop;
 		vdin_set_matrix(devp);
 		pre_prop->color_format = prop->color_format;
+		pre_prop->vdin_hdr_Flag = prop->vdin_hdr_Flag;
 	}
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {

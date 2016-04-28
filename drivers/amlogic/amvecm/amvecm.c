@@ -1022,6 +1022,18 @@ static int check_primaries(
 		if ((*si)[3][i] != bt2020_white_point[i])
 			need_calculate_mtx = 1;
 	}
+
+	if (((*si)[0][0] == 0) &&
+		((*si)[0][1] == 0) &&
+		((*si)[1][0] == 0) &&
+		((*si)[1][1] == 0) &&
+		((*si)[2][0] == 0) &&
+		((*si)[2][1] == 0) &&
+		((*si)[3][0] == 0) &&
+		((*si)[3][0] == 0))
+		/* if primaries is 0, set default mtx*/
+		need_calculate_mtx = 0;
+
 	/* check display */
 	if (v->master_display_info.present_flag) {
 		d = &v->master_display_info;

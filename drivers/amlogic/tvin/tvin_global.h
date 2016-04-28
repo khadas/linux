@@ -400,6 +400,7 @@ struct tvin_sig_property_s {
 	unsigned int		ve;	/* for vertical end cut window */
 	unsigned int		decimation_ratio;	/* for decimation */
 	unsigned int		colordepth; /* for color bit depth */
+	unsigned int		vdin_hdr_Flag;
 	enum tvin_color_fmt_range_e color_fmt_range;
 	struct tvin_hdr_data_s hdr_data;
 };
