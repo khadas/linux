@@ -39,9 +39,17 @@ static bool audio_det_en;
 module_param(audio_det_en, bool, 0644);
 MODULE_PARM_DESC(audio_det_en, "\n audio_det_en\n");
 
+static bool non_std_en;
+module_param(non_std_en, bool, 0644);
+MODULE_PARM_DESC(non_std__en, "\n non_std_en\n");
+
 static int audio_det_mode = AUDIO_AUTO_DETECT;
 module_param(audio_det_mode, int, 0644);
 MODULE_PARM_DESC(audio_det_mode, "\n audio_det_mode\n");
+
+static int dk_audio_det_delay = 40;
+module_param(dk_audio_det_delay, int, 0644);
+MODULE_PARM_DESC(dk_audio_det_delay, "\n dk_audio_det_delay\n");
 
 static int aud_dmd_jilinTV;
 module_param(aud_dmd_jilinTV, int, 0644);
@@ -373,6 +381,16 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(0x09, 0x04, 0x1900000);
 		if (aud_dmd_jilinTV)
 			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+		if (non_std_en == 1) {
+			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+			atv_dmd_wr_long(0x0f, 0x44, 0x7c8808c1);
+			atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
+		} else {
+			atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+			atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
+			atv_dmd_wr_long(0x06, 0x24, 0xc030901);
+		}
+
 	}
 }
 
@@ -1179,7 +1197,7 @@ int retrieve_vpll_carrier_afc(void)
 	/* if((atv_dmd_rd_byte(APB_BLOCK_ADDR_CARR_RCVY,0x43)&0x1) == 1){ */
 	if ((pll_lock == 1) || (line_lock == 0x10)) {
 		/*if pll unlock, afc is invalid*/
-		data_ret = afc_default;/* 500; */
+		data_ret = 0xffff;/* 500; */
 		return data_ret;
 	}
 	data_h = atv_dmd_rd_byte(APB_BLOCK_ADDR_CARR_RCVY, 0x40);
@@ -1532,31 +1550,6 @@ void atv_dmd_set_std(void)
 	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_R840) {
 		if_freq = amlatvdemod_devp->parm.if_freq;
 		if_inv = amlatvdemod_devp->parm.if_inv;
-		/* amlatvdemod_devp->pin =
-			devm_pinctrl_get_select(amlatvdemod_devp->dev,
-				amlatvdemod_devp->pin_name);*/
-		#if 0
-		if (atvdemod_agc_pinmux == 1) {
-			/* Disable ATV_AGC PINMUX */
-			W_CBUS_BIT(PERIPHS_PIN_MUX_8, 0, 13, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_8, 0, 12, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_11, 0, 17, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_7, 0, 21, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_9, 0, 21, 1);
-			/* GPIOW_3 OUTPUT 0 */
-			W_CBUS_BIT(PREG_PAD_GPIO0_EN_N, 0, 3, 1);
-			W_CBUS_BIT(PREG_PAD_GPIO0_O, 0, 3, 1);
-		} else if (atvdemod_agc_pinmux == 2) {
-			/* Disable ATV_AGC PINMUX */
-			W_CBUS_BIT(PERIPHS_PIN_MUX_8, 0, 13, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_8, 0, 12, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_11, 1, 17, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_7, 0, 21, 1);
-			W_CBUS_BIT(PERIPHS_PIN_MUX_9, 0, 21, 1);
-			/* GPIOW_3 set as INPUT */
-			W_CBUS_BIT(PREG_PAD_GPIO0_EN_N, 1, 3, 1);
-		}
-		#endif
 	} else if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_MXL661) {
 		if_freq = amlatvdemod_devp->parm.if_freq;
 		if_inv = amlatvdemod_devp->parm.if_inv;
@@ -1579,13 +1572,14 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 	unsigned long carrier_power_average[4] = {0};
 	unsigned long reg_addr = 0x03 , temp_data;
 	int carrier_lock_count = 0;
-	int lock = 0, try_num = 0;
+	int lock = 0;
 	int broad_std_final = 0;
 	int num = 0, i = 0, final_id = 0;
 	int delay_ms = 20, delay_ms_default = 40;
 	int cur_std = ID_PAL_DK;
-	struct dtv_frontend_properties *p =
-		fe != NULL ? &fe->dtv_property_cache:NULL;
+	struct dtv_frontend_properties
+		*p = fe != NULL ? &fe->dtv_property_cache:NULL;
+	struct aml_fe *fee = fe?fe->demodulator_priv:NULL;
 #if 0
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data | 0x80;/* 0x40 */
@@ -1635,7 +1629,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 	/* ----------------read carrier_power--------------------- */
 	/* SIF_STG_2[0x09],address 0x03 */
 	while (1) {
-		if (num >= 12) {
+		if (num >= 8) {
 			temp_data =
 				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 			temp_data = temp_data & (~0x80);
@@ -1643,42 +1637,50 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 					temp_data);
 			carrier_power_max = carrier_power_average[0];
 			for (i = 0; i < ID_MAX; i++) {
-				if (carrier_power_max <
-					carrier_power_average[i]) {
+				if (carrier_power_max
+					< carrier_power_average[i]) {
 					carrier_power_max =
-					    carrier_power_average[i];
+						carrier_power_average[i];
 					final_id = i;
 				}
 			}
 			switch (final_id) {
 			case ID_PAL_I:
 				broad_std_final =
-				   AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
 				break;
 			case ID_PAL_BG:
 				broad_std_final =
-				    AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
 				break;
 			case ID_PAL_M:
 				broad_std_final =
-				    AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
 				break;
 			case ID_PAL_DK:
 				broad_std_final =
-				    AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 				break;
 			}
 
 			broad_std = broad_std_final;
-			carrier_power_average_max = carrier_power_max/3;
-			pr_err("%s:broad_std:%d,average_max:%lu\n",
-				__func__, broad_std,
-				carrier_power_average_max);
-			if ((carrier_power_average_max < 150) &&
-				(try_num < 1)) {
-				pr_err("%s,average_max too low error\n\n",
-					__func__);
-			}
+			if (final_id == ID_PAL_M && fee
+				&& fee->tuner->drv->id == AM_TUNER_MXL661) {
+				/* maybe don't need this */
+				carrier_power_average_max =
+					carrier_power_average[1]/2;
+				if (carrier_power_average_max > 100) {
+					broad_std_final =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+					pr_err("%s, BG is near M,should BG\n",
+						__func__);
+				}
+			} else
+				carrier_power_average_max = carrier_power_max/2;
+			pr_err("%s:broad_std:%d,carrier_power_average_max:%lu\n",
+				__func__, broad_std, carrier_power_average_max);
+			if (carrier_power_average_max < 150)
+				pr_err("%s,carrier too low error\n", __func__);
 			return broad_std;
 		}
 		switch (broad_std) {
@@ -1687,7 +1689,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 			cur_std = ID_PAL_I;
 			if (p != NULL) {
 				p->analog.std =
-				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I;
+					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I;
 				p->frequency += 1;
 				p->analog.audmode = V4L2_STD_PAL_I;
 			}
@@ -1698,7 +1700,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 			cur_std = ID_PAL_BG;
 			if (p != NULL) {
 				p->analog.std =
-				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
+					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
 				p->frequency += 1;
 				p->analog.audmode = V4L2_STD_PAL_BG;
 			}
@@ -1709,7 +1711,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 			cur_std = ID_PAL_M;
 			if (p != NULL) {
 				p->analog.std =
-				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_M;
+					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_M;
 				p->frequency += 1;
 				p->analog.audmode = V4L2_STD_PAL_M;
 			}
@@ -1720,11 +1722,11 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 			cur_std = ID_PAL_DK;
 			if (p != NULL) {
 				p->analog.std =
-				    V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
+					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
 				p->frequency += 1;
 				p->analog.audmode = V4L2_STD_PAL_DK;
 			}
-			delay_ms = delay_ms_default;
+			delay_ms = dk_audio_det_delay;
 			break;
 
 		default:
@@ -1733,7 +1735,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 		}
 		if (p != NULL)
 			fe->ops.set_frontend(fe);
-		/* atvdemod_init(); //set_frontend has already called it */
+		/* atvdemod_init(); //set_frontend has already been called it */
 
 		/* enable audio detect function */
 		temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
@@ -1750,9 +1752,8 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 				break;
 			carrier_lock_count++;
 			if (carrier_lock_count >= 20) {
-				pr_err("%s step2, vpll_carrier_lock failed\n",
+				pr_err("%s step2, retrieve_vpll_carrier_lock failed\n",
 					__func__);
-				/* fe->ops.set_frontend(fe); */
 			/* return broad_std; */
 			}
 			usleep_range(6000, 9000);
@@ -1762,15 +1763,12 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 			carrier_power =
 				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2,
 					reg_addr);
-			/* if (carrier_power_max < carrier_power) */
-				carrier_power_max += carrier_power;
-			/* udelay(10); */
+			carrier_power_max += carrier_power;
 		}
 		carrier_power = carrier_power_max/i;
 		carrier_power_max = 0;
-			/* SIF_STG_2[0x09],address 0x03 */
-		pr_err("[%s num:%d,std:%d ]:carr power report:%lu. @@@@@@\n",
-			__func__, num, broad_std, carrier_power);
+		pr_err("[amlatvdemod.. %d,std:%d ]%s: atvdemo audio carrier power report:%lu. @@@@@@@@@@\n",
+			num, broad_std, __func__, carrier_power);
 		carrier_power_average[cur_std] += carrier_power;
 		num++;
 	}

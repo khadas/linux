@@ -129,7 +129,7 @@ static int force_fmt_flag;
 static unsigned int scene_colorful = 1;
 static int scene_colorful_old;
 static int auto_de_en = 1;
-
+static int lock_cnt;
 static unsigned int cvd_reg8a = 0xa;
 
 module_param(auto_de_en, int, 0664);
@@ -769,7 +769,7 @@ inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 	}
 
 	if (fmt != cvd2->config_fmt) {
-
+		lock_cnt = 0;
 		pr_info("[tvafe..] %s: try new fmt:%s\n",
 				__func__, tvin_sig_fmt_str(fmt));
 		cvd2->config_fmt = fmt;
@@ -1100,13 +1100,18 @@ enum tvafe_cvbs_video_e tvafe_cvd2_get_lock_status(
 
 	if (!cvd2->hw.h_lock && !cvd2->hw.v_lock)
 		cvbs_lock_status = TVAFE_CVBS_VIDEO_HV_UNLOCKED;
-	else if (cvd2->hw.h_lock && cvd2->hw.v_lock)
+	else if (cvd2->hw.h_lock && cvd2->hw.v_lock) {
 		cvbs_lock_status = TVAFE_CVBS_VIDEO_HV_LOCKED;
-	else if (cvd2->hw.h_lock)
+		lock_cnt++;
+	} else if (cvd2->hw.h_lock) {
 		cvbs_lock_status = TVAFE_CVBS_VIDEO_H_LOCKED;
-	else if (cvd2->hw.v_lock)
+		lock_cnt++;
+	} else if (cvd2->hw.v_lock) {
 		cvbs_lock_status = TVAFE_CVBS_VIDEO_V_LOCKED;
-
+		lock_cnt++;
+	}
+	if (lock_cnt >= 1)
+		cvbs_lock_status = TVAFE_CVBS_VIDEO_HV_LOCKED;
 	return cvbs_lock_status;
 }
 
@@ -2013,14 +2018,15 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 	static bool ret;
 	static int time_flag;
 
-	/* get signal status from HW */
 	tvafe_cvd2_get_signal_status(cvd2);
 
-	time_flag++;
 	/*TVAFE register status need more time to be stable.
-	for 30ms delay.*/
-	if (time_flag%3 != 0)
+	for double time delay.*/
+	time_flag++;
+	if (time_flag%2 != 0)
 		return ret;
+
+	/* get signal status from HW */
 
 	/* search video mode */
 	tvafe_cvd2_search_video_mode(cvd2, mem);

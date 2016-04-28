@@ -64,7 +64,7 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 	block_addr = 0;
 	block_reg = 0;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, "\n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -366,17 +366,50 @@ static void aml_atvdemod_get_pll_status(struct dvb_frontend *fe, void *stat)
 }
 
 static int aml_atvdemod_get_atv_status(struct dvb_frontend *fe,
-				       struct atv_status_s *atv_status)
+		struct atv_status_s *atv_status)
 {
-	int vpll_lock;
+	int vpll_lock, line_lock;
+	int try_freq = 3;
+	int cnt = 10;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	if (fe && atv_status) {
+	while (fe && atv_status && try_freq--) {
 		atv_status->afc = retrieve_vpll_carrier_afc();
 		retrieve_vpll_carrier_lock(&vpll_lock);
-		if ((vpll_lock&0x1) == 0)
+		line_lock = atv_dmd_rd_byte(APB_BLOCK_ADDR_VDAGC, 0x4f)&0x10;
+		if ((vpll_lock&0x1) == 0 || line_lock == 0) {
 			atv_status->atv_lock = 1;
-		else
+			if ((c->analog.std & 0xff000000) == V4L2_COLOR_STD_PAL)
+				break;
+			if (atv_status->afc > 1500) {
+				pr_err("freq:%d afc:%d, try PAL-BG\n",
+					c->frequency, atv_status->afc);
+				c->analog.std =
+					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
+				c->frequency += 1;
+				fe->ops.set_frontend(fe);
+				mdelay(20);
+			}
+
+			while (cnt--) {
+				if (atv_status->afc < 1500)
+					break;
+				atv_status->afc = retrieve_vpll_carrier_afc();
+				mdelay(5);
+			}
+
+			pr_err("%s,freq:%d, afc:%d\n",
+				__func__, c->frequency, atv_status->afc);
+			break;
+		} else if (try_freq) {
+			if ((c->analog.std & 0xff000000) == V4L2_COLOR_STD_PAL)
+				break;
+			c->analog.std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
+			c->frequency += 1;
+			fe->ops.set_frontend(fe);
+			mdelay(10);
 			atv_status->atv_lock = 0;
+		}
 	}
 	return 0;
 }

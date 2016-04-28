@@ -275,7 +275,7 @@ vs_freq==60,freq_hz=15734,freq_hz_cvrt=0x101c9
 #define AML_ATV_DEMOD_FREQ_50HZ_VERT	0xffff	/*65535*/
 #define AML_ATV_DEMOD_FREQ_60HZ_VERT	0x101c9	/*65993*/
 
-#define CARR_AFC_DEFAULT_VAL 500
+#define CARR_AFC_DEFAULT_VAL 0xffff
 
 enum amlatvdemod_snr_level_e {
 	very_low = 1,

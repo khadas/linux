@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("search the channel by slow_mode,by add +1MHz\n");
 
 static int video_mode_manul;
 module_param(video_mode_manul, int, 0644);
-MODULE_DESCRIPTION("search the video manully by get_froutend api\n");
+MODULE_DESCRIPTION("search the video manully by get_frontend api\n");
 
 static int audio_mode_manul;
 module_param(audio_mode_manul, int, 0644);
@@ -74,7 +74,6 @@ static struct aml_fe_drv *tuner_drv_list;
 static struct aml_fe_drv *atv_demod_drv_list;
 static struct aml_fe_drv *dtv_demod_drv_list;
 static struct aml_fe_man fe_man;
-
 static long aml_fe_suspended;
 static int memstart = 0x1ef00000;
 
@@ -91,7 +90,7 @@ MODULE_PARM_DESC(aml_timer_en, "\n aml_timer_en\n");
 
 static DEFINE_SPINLOCK(lock);
 static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
-			     int maxafcfqreq);
+			     int maxafcfreq, int isAutoSearch);
 
 typedef int (*hook_func_t) (void);
 hook_func_t aml_fe_hook_atv_status = NULL;
@@ -118,7 +117,6 @@ int amlogic_gpio_request(unsigned int pin, const char *label)
 {
 	return 0;
 }
-
 
 static v4l2_std_id trans_tvin_fmt_to_v4l2_std(int fmt)
 {
@@ -281,21 +279,27 @@ static void aml_fe_do_work(struct work_struct *work)
 	struct dvb_frontend *fe = dvb->fe;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int afc = 100;
+	static int afc_wave_cnt;
 	struct aml_fe *fee;
 	fee = fe->demodulator_priv;
 	retrieve_frequency_offset(&afc);
 	afc = afc*488/1000;
-	if (abs(afc) < 50)
+	if (abs(afc) < AFC_BEST_LOCK) {
+		afc_wave_cnt = 0;
 		return;
+	} else {
+		afc_wave_cnt++;
+	}
+	if (afc_wave_cnt < 10) {
+		pr_err("%s,afc is wave,ignore\n", __func__);
+		return;
+	}
 	if (abs(afc_offset) >= 2000) {
 		no_sig_cnt++;
 		if (no_sig_cnt == 20) {
 			c->frequency -= afc_offset*1000;
 			if (fe->ops.tuner_ops.set_params)
 				fe->ops.tuner_ops.set_params(fe);
-			if (debug_fe)
-				pr_err("%s no sig, freq:%d\n",
-					__func__, c->frequency);
 			afc_offset = 0;
 		}
 		return;
@@ -305,8 +309,6 @@ static void aml_fe_do_work(struct work_struct *work)
 	afc_offset += afc;
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
-	if (debug_fe)
-		pr_err("%s signal, freq:%d\n", __func__, c->frequency);
 }
 
 void aml_timer_hander(unsigned long arg)
@@ -407,43 +409,39 @@ static int aml_fe_analog_get_frontend(struct dvb_frontend *fe)
 		fe->ops.analog_ops.get_pll_status(fe, &ade_state);
 		if ((FE_HAS_LOCK == ade_state) ||
 				(FE_HAS_LOCK == tuner_state)) {
-				for (i = 0; i < 100; i++) {
-					if (aml_fe_hook_get_fmt == NULL)
-						break;
-					std_bk = aml_fe_hook_get_fmt();
-					if (std_bk)
-						varify_cnt++;
-					if (varify_cnt > 3)
-						break;
-					msleep(20);
-				}
-				if (std_bk == 0) {
-					pr_err("%s, failed to get v fmt\n",
-							__func__);
-					p->analog.std &= 0x00ffffff;
-					p->analog.std |= V4L2_COLOR_STD_PAL;
-				} else {
-					p->analog.std &= 0x00ffffff;
-					p->analog.std |=
+			for (i = 0; i < 100; i++) {
+				if (aml_fe_hook_get_fmt == NULL)
+					break;
+				std_bk = aml_fe_hook_get_fmt();
+				if (std_bk)
+					varify_cnt++;
+				if (varify_cnt > 3)
+					break;
+				msleep(20);
+			}
+			if (std_bk == 0) {
+				pr_err("%s, failed to get v fmt\n",
+						__func__);
+				p->analog.std &= 0x00ffffff;
+				p->analog.std |= V4L2_COLOR_STD_PAL;
+			} else {
+				p->analog.std &= 0x00ffffff;
+				p->analog.std |=
 					trans_tvin_fmt_to_v4l2_std(std_bk);
-					pr_err(
-					"%s, freq:%d,std_bk:0x%x ,std:0x%x\n",
-						__func__, p->frequency,
-						(unsigned int)std_bk,
-						(unsigned int)p->analog.std);
-				}
+				pr_err("%s,frequency:%d,std_bk:0x%x,std:0x%x\n",
+					__func__, p->frequency,
+					(unsigned int)std_bk,
+					(unsigned int)p->analog.std);
+			}
 		}
 	}
 	if (audio_mode_manul) {
 		std_bk = p->analog.std & 0xff000000;
 		if (std_bk == V4L2_COLOR_STD_NTSC) {
 			audio = V4L2_STD_NTSC_M;
-			pr_err("%s,  V4L2_STD_NTSC_M\n", __func__);
 		} else if (std_bk == V4L2_COLOR_STD_SECAM) {
 			audio = V4L2_STD_SECAM_L;
-			pr_err("%s, V4L2_STD_SECAM_L\n", __func__);
 		} else {
-			pr_err("%s, V4L2_STD_PAL\n", __func__);
 			amlatvdemod_set_std(
 				AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
 			audio = aml_audiomode_autodet(fe);
@@ -454,8 +452,7 @@ static int aml_fe_analog_get_frontend(struct dvb_frontend *fe)
 		p->analog.std &= 0xff000000;
 		p->analog.std |= audio;
 		pr_err("[%s] params.frequency:%d, audio:0x%0x, vfmt:0x%x\n",
-			__func__, p->frequency,
-			(unsigned int)p->analog.audmode,
+			__func__, p->frequency, (unsigned int)p->analog.audmode,
 			(unsigned int)p->analog.std);
 	}
 	return 0;
@@ -533,6 +530,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	fe_status_t tuner_state = FE_TIMEDOUT;
 	fe_status_t ade_state = FE_TIMEDOUT;
+	struct atv_status_s atv_status;
 	__u32 set_freq = 0;
 	__u32 minafcfreq, maxafcfreq;
 	__u32 frist_step;
@@ -542,6 +540,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	v4l2_std_id std_bk = 0;
 	struct aml_fe *fee;
 	int audio = 0;
+	int try_ntsc = 0, get_vfmt_maxcnt = 50;
 	int varify_cnt = 0, i = 0;
 
 #ifdef DEBUG_TIME_CUS
@@ -554,27 +553,56 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	atv_cvd_format = 0;
 	hv_lock_status = 0;
 	snr_vale = 0;
-	pr_dbg("[%s] is working,afc_range=%d,flag=0x%x[1->auto,11->mannul],the received freq=[%d]\n",
+	pr_dbg("[%s],afc_range=%d,flag=0x%x[1->auto,11->mannul], freq=[%d]\n",
 	     __func__, p->analog.afc_range, p->analog.flag, p->frequency);
 	pr_dbg("the tuner type is [%d]\n", fee->tuner->drv->id);
 	/* backup the freq by api */
 	set_freq = p->frequency;
+
 	if (p->analog.std == 0) {
 		p->analog.std = (V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M);
 		pr_dbg("%s, user analog.std is 0, so set it to NTSC | M\n",
 			__func__);
 	}
+	if (p->analog.afc_range == 0) {
+		pr_dbg("[%s]:afc_range==0,skip the search\n", __func__);
+		return DVBFE_ALGO_SEARCH_FAILED;
+	}
+/*set the frist_step*/
+	if (p->analog.afc_range > ATV_AFC_1_0MHZ)
+		frist_step = ATV_AFC_1_0MHZ;
+	else
+		frist_step = p->analog.afc_range;
+/*set the afc_range and start freq*/
+	minafcfreq = p->frequency - p->analog.afc_range;
+	maxafcfreq = p->frequency + p->analog.afc_range;
+/*from the min freq start,and set the afc_step*/
+
+	if (slow_mode || (fee->tuner->drv->id == AM_TUNER_FQ1216) ||
+	    (AM_TUNER_HTM == fee->tuner->drv->id)) {
+		pr_dbg("[%s]this is slow mode to search the channel\n",
+		       __func__);
+		p->frequency = minafcfreq;
+		afc_step = ATV_AFC_1_0MHZ;
+	} else if (!slow_mode) {
+		p->frequency = minafcfreq;
+		afc_step = ATV_AFC_2_0MHZ;
+	} else {
+		pr_dbg("[%s]unknown tuner type, slow_mode search the channel\n",
+			__func__);
+		p->frequency = minafcfreq;
+		afc_step = ATV_AFC_1_0MHZ;
+	}
+
+	/**enter manual search mode**/
 	if (p->analog.flag == ANALOG_FLAG_MANUL_SCAN) {
 		/*manul search force to ntsc_m */
 		std_bk = p->analog.std;
 		pr_dbg("%s Manully user analog.std:0x%08x\n",
 			__func__, (uint32_t)std_bk);
-		/*#if ((MESON_CPU_TYPE != MESON_CPU_TYPE_MESONG9TV) &&
-		 * (MESON_CPU_TYPE != MESON_CPU_TYPE_MESONG9BB))*/
 		if (get_cpu_type() < MESON_CPU_MAJOR_ID_MG9TV)
 			p->analog.std = (V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M);
-		if (fee->tuner->drv->id == AM_TUNER_MXL661)
-			p->analog.std = (V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M);
+
 		if (fe->ops.set_frontend(fe)) {
 			pr_error("[%s]the func of set_param err.\n", __func__);
 			p->analog.std = std_bk;
@@ -582,10 +610,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			std_bk = 0;
 			return DVBFE_ALGO_SEARCH_FAILED;
 		}
-		if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
-			mdelay(delay_cnt);
-		/*#if ((MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) ||
-		 * (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9BB))*/
+		mdelay(delay_cnt+20); /*delete it will be not get program*/
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 			if ((fe->ops.tuner_ops.get_pll_status == NULL) ||
 			    (fe->ops.analog_ops.get_pll_status == NULL)) {
@@ -605,18 +630,35 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			fe->ops.tuner_ops.get_status(fe, &tuner_state);
 			fe->ops.analog_ops.get_status(fe, &ade_state);
 		}
-		/* mdelay(delay_cnt); */
-		if ((FE_HAS_LOCK == ade_state) ||
-			 (FE_HAS_LOCK == tuner_state)) {
-			if (aml_fe_afc_closer(fe, p->frequency - ATV_AFC_1_0MHZ,
-					      p->frequency + ATV_AFC_1_0MHZ) ==
-			    0) {
-				if (debug_fe)
-					pr_err("[%s] manul scan mode:p->frequency=[%d] has lock\n",
-					__func__, p->frequency);
+		if (((FE_HAS_LOCK == ade_state ||
+		      FE_HAS_LOCK == tuner_state) &&
+		     (fee->tuner->drv->id != AM_TUNER_R840)) ||
+		    ((FE_HAS_LOCK == ade_state &&
+		      FE_HAS_LOCK == tuner_state) &&
+		     (fee->tuner->drv->id == AM_TUNER_R840))) {
+			if (debug_fe & 0x1)
+				pr_err("[%s][%d]freq:%d pll lock success\n",
+					__func__, __LINE__, p->frequency);
+			if (fee->tuner->drv->id == AM_TUNER_MXL661) {
+				fe->ops.analog_ops.get_atv_status(fe,
+					&atv_status);
+				if (atv_status.atv_lock)
+					mdelay(20);
+			}
+			mdelay(40);
+			if (aml_fe_afc_closer(fe, p->frequency,
+					      p->frequency + ATV_AFC_1_0MHZ, 1)
+				== 0) {
+				try_ntsc = 0;
+				get_vfmt_maxcnt = 100;
+				p->analog.std =
+					(V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I);
+				p->frequency += 1;
 				fe->ops.set_frontend(fe);
+				mdelay(20);
 
-				for (i = 0; i < 500; i++) {
+			while (1) {
+				for (i = 0; i < get_vfmt_maxcnt; i++) {
 					if (aml_fe_hook_get_fmt == NULL)
 						break;
 					std_bk = aml_fe_hook_get_fmt();
@@ -624,73 +666,82 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						varify_cnt++;
 					if (varify_cnt > 3)
 						break;
+					if (i == (get_vfmt_maxcnt/2)) {
+						p->analog.std =
+							(V4L2_COLOR_STD_NTSC
+							| V4L2_STD_NTSC_M);
+						p->frequency += 1;
+						fe->ops.set_frontend(fe);
+					}
 					msleep(20);
 				}
-				if (std_bk == 0)
-					pr_err("[dgt]%s, failed to get v fmt\n",
+				if (std_bk == 0) {
+					pr_err("%s, failed to get v fmt !!\n",
 						__func__);
-				std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
-				if (std_bk == V4L2_COLOR_STD_NTSC) {
-					audio = V4L2_STD_NTSC_M;
-				} else if (std_bk == V4L2_COLOR_STD_SECAM) {
-					audio = V4L2_STD_SECAM_L;
-				} else {
-					amlatvdemod_set_std(
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
-					audio = aml_audiomode_autodet(fe);
-					audio = demod_fmt_2_v4l2_std(audio);
+					if (try_ntsc > 0) {
+						pr_err("%s,vfmt assume PAL!!\n",
+							__func__);
+						std_bk =
+							TVIN_SIG_FMT_CVBS_PAL_I;
+						break;
+					} else {
+						p->analog.std =
+							(V4L2_COLOR_STD_NTSC
+							| V4L2_STD_NTSC_M);
+						p->frequency += 1;
+						fe->ops.set_frontend(fe);
+						msleep(40);
+						try_ntsc++;
+						continue;
+					}
 				}
-
-				pr_err("%s,Manully search: std_bk:0x%x ,audmode:0x%x\n",
-					__func__, (unsigned int)std_bk, audio);
-				p->analog.std = std_bk | audio;
-				p->analog.audmode = audio;
-				std_bk = 0;
-				return DVBFE_ALGO_SEARCH_SUCCESS;
-			} else {
-				p->analog.std = std_bk;
-				fe->ops.set_frontend(fe);
-				std_bk = 0;
-				return DVBFE_ALGO_SEARCH_FAILED;
+				break;
 			}
-		} else {
-			pr_dbg("[%s][%d] unlock\n", __func__, __LINE__);
-			return DVBFE_ALGO_SEARCH_FAILED;
+			if (try_ntsc) {
+				p->analog.std =
+					(V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK);
+				p->frequency += 1;
+				fe->ops.set_frontend(fe);
+				mdelay(20);
+			}
+			std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
+			if (std_bk == V4L2_COLOR_STD_NTSC) {
+				audio = V4L2_STD_NTSC_M;
+			} else if (std_bk == V4L2_COLOR_STD_SECAM) {
+				audio = V4L2_STD_SECAM_L;
+			} else {
+				amlatvdemod_set_std(
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
+				audio = aml_audiomode_autodet(fe);
+				audio = demod_fmt_2_v4l2_std(audio);
+			}
+			pr_err("%s,Manual freq:%d: std_bk:0x%x ,audmode:0x%x\n",
+				__func__, p->frequency,
+				(unsigned int)std_bk, audio);
+			if (std_bk != 0) {
+				p->analog.audmode = audio;
+				p->analog.std = std_bk | audio;
+				/*avoid std unenable */
+				p->frequency -= 1;
+				std_bk = 0;
+			}
+#ifdef DEBUG_TIME_CUS
+			time_end = jiffies_to_msecs(jiffies);
+			time_delta = time_end - time_start;
+			pr_dbg("[ATV_SEARCH_SUCCESS]%s: time_delta:%d ms\n",
+				__func__, time_delta);
+#endif
+			/*sync param */
+			aml_fe_analog_sync_frontend(fe);
+			return DVBFE_ALGO_SEARCH_SUCCESS;
+
+			}
 		}
-	}
-	if (p->analog.afc_range == 0) {
-		pr_dbg("[%s]:afc_range==0,skip the search\n", __func__);
+		mdelay(40);
+		p->frequency += afc_step;
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
-
-/*set the frist_step*/
-	if (p->analog.afc_range > ATV_AFC_1_0MHZ)
-		frist_step = ATV_AFC_1_0MHZ;
-	else
-		frist_step = p->analog.afc_range;
-/*set the afc_range and start freq*/
-	minafcfreq = p->frequency - p->analog.afc_range;
-	maxafcfreq = p->frequency + p->analog.afc_range;
-/*from the min freq start,and set the afc_step*/
-
-	/*avoid to miss the number of program in searching*/
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-		slow_mode = 1;
-	if (slow_mode || (fee->tuner->drv->id == AM_TUNER_FQ1216) ||
-	    (AM_TUNER_HTM == fee->tuner->drv->id)) {
-		pr_dbg("[%s]this is slow mode to search the channel\n",
-		       __func__);
-		p->frequency = minafcfreq;
-		afc_step = ATV_AFC_1_0MHZ;
-	} else if (!slow_mode) {
-		p->frequency = minafcfreq + frist_step;
-		afc_step = ATV_AFC_2_0MHZ;
-	} else {
-		pr_dbg("[%s]this is ukown tuner type and on slow_mode to search the channel\n",
-			__func__);
-		p->frequency = minafcfreq;
-		afc_step = ATV_AFC_1_0MHZ;
-	}
+	/**enter auto search mode**/
 	pr_dbg("%s Autosearch user analog.std:0x%08x\n",
 		__func__, (uint32_t)p->analog.std);
 	if (fe->ops.set_frontend(fe)) {
@@ -711,9 +762,11 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 	while (p->frequency <= maxafcfreq) {
-		pr_dbg("[%s] p->frequency=[%d] is processing\n",
-		       __func__, p->frequency);
+		if (debug_fe & 0x3)
+			pr_err("[%s] p->frequency=[%d] is processing\n",
+				__func__, p->frequency);
 		if (fee->tuner->drv->id != AM_TUNER_R840 &&
+		fee->tuner->drv->id != AM_TUNER_MXL661 &&
 		fee->tuner->drv->id != AM_TUNER_SI2151) {
 			do {
 				if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
@@ -793,9 +846,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		}
 		tuner_status_cnt_local = tuner_status_cnt;
 		do {
-			if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
-				mdelay(delay_cnt);
-			/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
+			if (fee->tuner->drv->id == AM_TUNER_MXL661)
+				mdelay(delay_cnt+15);
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 				if ((fe->ops.tuner_ops.get_pll_status == NULL)
 				    ||
@@ -838,11 +890,21 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		    ((FE_HAS_LOCK == ade_state &&
 		      FE_HAS_LOCK == tuner_state) &&
 		     (fee->tuner->drv->id == AM_TUNER_R840))) {
-			pr_dbg("[%s][%d] pll lock success\n",
-			       __func__, __LINE__);
-			if (aml_fe_afc_closer(fe, minafcfreq, maxafcfreq)
-				== 0) {
-				for (i = 0; i < 500; i++) {
+			if (debug_fe & 0x1)
+				pr_err("[%s][%d]freq:%d pll lock success\n",
+			       __func__, __LINE__, p->frequency);
+			if (fee->tuner->drv->id == AM_TUNER_MXL661) {
+				fe->ops.analog_ops.get_atv_status(fe,
+					&atv_status);
+				if (atv_status.atv_lock)
+					mdelay(20);
+			}
+			if (aml_fe_afc_closer(fe, minafcfreq,
+				maxafcfreq + ATV_AFC_1_0MHZ, 1) == 0) {
+				try_ntsc = 0;
+				get_vfmt_maxcnt = 100;
+			while (1) {
+				for (i = 0; i < get_vfmt_maxcnt; i++) {
 					if (aml_fe_hook_get_fmt == NULL)
 						break;
 					std_bk = aml_fe_hook_get_fmt();
@@ -850,26 +912,59 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						varify_cnt++;
 					if (varify_cnt > 3)
 						break;
+					if (i == get_vfmt_maxcnt/2) {
+						p->analog.std =
+							(V4L2_COLOR_STD_NTSC
+							| V4L2_STD_NTSC_M);
+						p->frequency += 1;
+						fe->ops.set_frontend(fe);
+					}
 					msleep(20);
 				}
-				if (std_bk == 0)
-					pr_err("[dgt]%s, failed to get v fmt\n",
+				if (std_bk == 0) {
+					pr_err("%s, failed to get v fmt !!\n",
 						__func__);
-				std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
-
-				if (std_bk == V4L2_COLOR_STD_NTSC) {
-					audio = V4L2_STD_NTSC_M;
-				} else if (std_bk == V4L2_COLOR_STD_SECAM) {
-					audio = V4L2_STD_SECAM_L;
-				} else {
-					amlatvdemod_set_std(
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
-					audio = aml_audiomode_autodet(fe);
-					audio = demod_fmt_2_v4l2_std(audio);
+					if (try_ntsc > 0) {
+						pr_err("%s,vfmt assume PAL!!\n",
+							__func__);
+						std_bk =
+							TVIN_SIG_FMT_CVBS_PAL_I;
+						break;
+					} else {
+						p->analog.std =
+							(V4L2_COLOR_STD_NTSC
+							| V4L2_STD_NTSC_M);
+						p->frequency += 1;
+						fe->ops.set_frontend(fe);
+						msleep(40);
+						try_ntsc++;
+						continue;
+					}
 				}
+				break;
+			}
+			if (try_ntsc) {
+				p->analog.std = (V4L2_COLOR_STD_PAL
+					| V4L2_STD_PAL_DK);
+				p->frequency += 1;
+				fe->ops.set_frontend(fe);
+				mdelay(20);
+			}
+			std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
 
-				pr_err("%s,Auto search: std_bk:0x%x ,audmode:0x%x\n",
-					__func__, (unsigned int)std_bk, audio);
+			if (std_bk == V4L2_COLOR_STD_NTSC) {
+				audio = V4L2_STD_NTSC_M;
+			} else if (std_bk == V4L2_COLOR_STD_SECAM) {
+				audio = V4L2_STD_SECAM_L;
+			} else {
+				amlatvdemod_set_std(
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
+				audio = aml_audiomode_autodet(fe);
+				audio = demod_fmt_2_v4l2_std(audio);
+			}
+			pr_err("%s,Auto search freq:%d: std_bk:0x%x ,audmode:0x%x\n",
+					__func__, p->frequency,
+					(unsigned int)std_bk, audio);
 				if (std_bk != 0) {
 					p->analog.audmode = audio;
 					p->analog.std = std_bk | audio;
@@ -923,19 +1018,46 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 }
 
 static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
-			     int maxafcfqreq)
+			     int maxafcfreq, int isAutoSearch)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int afc = 100;
 	__u32 set_freq;
-	int count = 10;
+	int count = 25;
+	int lock_cnt = 0;
+	int afc_unlock_cnt = 0;
 	struct aml_fe *fee;
-
+	static int freq_success;
+	struct timespec time_now;
+	static struct timespec success_time;
 	fee = fe->demodulator_priv;
+	if (debug_fe & 0x2)
+		pr_err("%s: freq_success:%d,freq:%d,minfreq:%d,maxfreq:%d\n",
+			__func__, freq_success, c->frequency,
+			minafcfreq, maxafcfreq);
 
+	/* avoid more search the same program */
+	if (abs(c->frequency - freq_success) < 3000000) {
+		ktime_get_ts(&time_now);
+		if (debug_fe & 0x2)
+			pr_err("%s: tv_sec now:%ld,tv_sec success:%ld\n",
+				__func__, time_now.tv_sec, success_time.tv_sec);
+		/* beyond 10s search same frequency is ok */
+		if ((time_now.tv_sec - success_time.tv_sec) < 10)
+			return -1;
+	}
 	/*do the auto afc make sure the afc<50k or the range from api */
 	if ((fe->ops.analog_ops.get_afc || fe->ops.tuner_ops.get_afc) &&
 	    fe->ops.set_frontend) {
+		/*
+			delete it will miss program
+			when c->frequency equal program frequency
+		*/
+		c->frequency++;
+		if (fe->ops.tuner_ops.set_params)
+			fe->ops.tuner_ops.set_params(fe);
+		mdelay(20);
+		/*****************************/
 		set_freq = c->frequency;
 		while (abs(afc) > AFC_BEST_LOCK) {
 			if ((fe->ops.analog_ops.get_afc) &&
@@ -945,11 +1067,46 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 				fe->ops.analog_ops.get_afc(fe, &afc);
 			else if (fe->ops.tuner_ops.get_afc)
 				fe->ops.tuner_ops.get_afc(fe, &afc);
+
+			if (afc == 0xffff) {
+				/*last lock, but this unlock,so try get afc*/
+				if (lock_cnt > 0) {
+					afc_unlock_cnt++;
+					if (debug_fe & 0x2)
+						pr_err("%s,afc_unlock_cnt:%d\n",
+							__func__,
+							afc_unlock_cnt);
+					if (afc_unlock_cnt > 5)
+						return -1;
+					mdelay(2);
+					continue;
+				} else
+					afc = 500;
+			} else {
+				lock_cnt++;
+				if (debug_fe & 0x2)
+					pr_err("%s,lock_cnt:%d\n",
+						__func__, lock_cnt);
+			}
+
+			if (((abs(afc) > (500 - AFC_BEST_LOCK))
+				&& (abs(afc) < (500 + AFC_BEST_LOCK))
+				&& (abs(afc) != 500))
+				|| ((abs(afc) == 500) && (lock_cnt > 0))) {
+				c->frequency += afc * 1000;
+				break;
+			}
+
+			if (afc >= (500 + AFC_BEST_LOCK))
+				afc = 500;
+
 			c->frequency += afc * 1000;
 
-			if (unlikely(c->frequency > maxafcfqreq)) {
-				pr_dbg("[%s]:[%d] is exceed maxafcfqreq[%d]\n",
-				       __func__, c->frequency, maxafcfqreq);
+			if (unlikely(c->frequency > maxafcfreq)) {
+				if (debug_fe & 0x2)
+					pr_err("[%s]:[%d] is exceed maxafcfreq[%d]\n",
+						__func__, c->frequency,
+						maxafcfreq);
 				c->frequency = set_freq;
 				return -1;
 			}
@@ -962,14 +1119,12 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 			}
 			#endif
 			if (likely(!(count--))) {
-				pr_dbg("[%s]:exceed the afc count\n", __func__);
+				if (debug_fe & 0x2)
+					pr_err("[%s]:exceed the afc count\n",
+						__func__);
 				c->frequency = set_freq;
 				return -1;
 			}
-
-			/*fe->ops.set_frontend(fe); */
-			if (fe->ops.tuner_ops.set_params)
-				fe->ops.tuner_ops.set_params(fe);
 
 			/* afc tune */
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
@@ -993,14 +1148,21 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 					timer_init_state = 1;
 				}
 			}
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV
-				&& get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB)
-				mdelay(delay_afc);
-			pr_dbg("[aml_fe..]%s get afc %d khz, freq %u.\n",
-			       __func__, afc, c->frequency);
+			c->frequency++;
+			if (fe->ops.tuner_ops.set_params)
+				fe->ops.tuner_ops.set_params(fe);
+
+			mdelay(20);/*delete it will miss program*/
+
+			if (debug_fe & 0x2)
+				pr_err("[aml_fe..]%s get afc %d khz, freq %u.\n",
+					__func__, afc, c->frequency);
 		}
-		pr_dbg("[aml_fe..]%s get afc %d khz done, freq %u.\n",
-		       __func__, afc, c->frequency);
+		freq_success = c->frequency;
+		ktime_get_ts(&success_time);
+		if (debug_fe & 0x2)
+			pr_err("[aml_fe..]%s get afc %d khz done, freq %u.\n",
+				__func__, afc, c->frequency);
 	}
 	return 0;
 }
