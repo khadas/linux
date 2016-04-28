@@ -118,6 +118,7 @@ struct amlsd_platform {
 	unsigned int irq_in_edge;
 	unsigned int irq_out;
 	unsigned int irq_out_edge;
+	struct mutex in_out_lock;
 	unsigned int gpio_cd;
 	unsigned int gpio_cd_level;
 	unsigned int gpio_power;

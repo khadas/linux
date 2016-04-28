@@ -3595,18 +3595,17 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 		host->irq_out = irq_of_parse_and_map(
 			pdev->dev.of_node, 2);
 		pdata->irq_init(pdata);
-		ret = request_threaded_irq(host->irq_in,
-			(irq_handler_t)aml_sd_irq_cd, aml_irq_cd_thread,
-			IRQF_DISABLED, "sd_emmc_mmc_in", (void *)pdata);
+		mutex_init(&pdata->in_out_lock);
+		ret = request_threaded_irq(host->irq_in, NULL,
+			aml_irq_cd_thread, IRQF_ONESHOT,
+			"sd_in", (void *)pdata);
 		if (ret) {
 			sd_emmc_err("Failed to request mmc IN detect\n");
 			goto probe_free_host;
 		}
-		ret |= request_threaded_irq(host->irq_out,
-			(irq_handler_t)aml_sd_irq_cd,
-			aml_irq_cd_thread,
-			IRQF_DISABLED,
-			"sd_emmc_mmc_out", (void *)pdata);
+		ret |= request_threaded_irq(host->irq_out, NULL,
+			aml_irq_cd_thread, IRQF_ONESHOT,
+			"sd_out", (void *)pdata);
 		if (ret) {
 			sd_emmc_err("Failed to request mmc OUT detect\n");
 			goto fail_cd_irq_in;

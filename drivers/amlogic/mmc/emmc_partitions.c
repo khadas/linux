@@ -633,9 +633,16 @@ static ssize_t get_bootloader_offset(struct class *class,
 	int offset = 0;
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
 		offset = 512;
-	sprintf(buf, "%d", offset);
 	return sprintf(buf, "%d", offset);
 }
+
+/* extern u32 cd_irq_cnt[2];
+
+static ssize_t get_cdirq_cnt(struct class *class,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "in:%d, out:%d\n", cd_irq_cnt[1], cd_irq_cnt[0]);
+} */
 
 static struct class_attribute aml_version =
 	__ATTR(version, S_IRUGO, emmc_version_get, NULL);
@@ -645,6 +652,10 @@ static struct class_attribute aml_store_device =
 	__ATTR(store_device, S_IRUGO, store_device_flag_get, NULL);
 static struct class_attribute bootloader_offset =
 	__ATTR(bl_off_bytes, S_IRUGO, get_bootloader_offset, NULL);
+
+/* for irq cd dbg */
+/* static struct class_attribute cd_irq_cnt_ =
+	__ATTR(cdirq_cnt, S_IRUGO, get_cdirq_cnt, NULL); */
 
 int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 {
@@ -729,6 +740,11 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		goto out_class3;
 	}
 
+	/* ret = class_create_file(aml_store_class, &cd_irq_cnt_);
+	if (ret) {
+		pr_info("[%s] can't create aml_store_class file .\n", __func__);
+		goto out_class3;
+	} */
 	pr_info("Exit %s %s.\n", __func__, (ret == 0)?"OK":"ERROR");
 	return ret;
 

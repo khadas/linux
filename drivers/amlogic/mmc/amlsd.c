@@ -1014,9 +1014,21 @@ void aml_cs_dont_care(struct amlsd_platform *pdata) /* chip select don't care */
 
 static int aml_is_card_insert(struct amlsd_platform *pdata)
 {
-	int ret = 0;
-	if (pdata->gpio_cd)
-		ret = gpio_get_value(pdata->gpio_cd);
+	int ret = 0, in_count = 0, out_count = 0, i;
+	if (pdata->gpio_cd) {
+		for (i = 0; i < 200; i++) {
+			ret = gpio_get_value(pdata->gpio_cd);
+			if (ret)
+				out_count++;
+			in_count++;
+			if ((out_count > 100) || (in_count > 100))
+				break;
+		}
+		if (out_count > 100)
+			ret = 1;
+		else if (in_count > 100)
+			ret = 0;
+	}
 	sdio_err("card %s\n", ret?"OUT":"IN");
 	if (!pdata->gpio_cd_level)
 		ret = !ret; /* reverse, so ---- 0: no inserted  1: inserted */
@@ -1268,23 +1280,31 @@ int aml_sd_uart_detect(struct amlsd_platform *pdata)
 	return 0;
 }
 
+/*u32 cd_irq_cnt[2] = {0, 0}; //debug*/
+static int card_dealed;
 irqreturn_t aml_irq_cd_thread(int irq, void *data)
 {
 	struct amlsd_platform *pdata = (struct amlsd_platform *)data;
-	int card_dealing = 0;
-
-	mdelay(20);
-	card_dealing = aml_sd_uart_detect(pdata);
-	if (card_dealing == 1)
+	int ret = 0;
+	/* cd_irq_cnt[(irq == 99)] ++; //debug */
+	mutex_lock(&pdata->in_out_lock);
+	if (card_dealed == 1) {
+		card_dealed = 0;
+		mutex_unlock(&pdata->in_out_lock);
 		return IRQ_HANDLED;
+	}
+	ret = aml_sd_uart_detect(pdata);
+	if (ret == 1) {/* the same as the last*/
+		mutex_unlock(&pdata->in_out_lock);
+		return IRQ_HANDLED;
+	}
+	card_dealed = 1;
 	if ((pdata->is_in == 0) && aml_card_type_non_sdio(pdata))
 		pdata->host->init_flag = 0;
+	mutex_unlock(&pdata->in_out_lock);
 	/* mdelay(500); */
-	if (pdata->is_in == 0)
-		mmc_detect_change(pdata->mmc, msecs_to_jiffies(2));
-	else
-		mmc_detect_change(pdata->mmc, msecs_to_jiffies(500));
-
+	mmc_detect_change(pdata->mmc, msecs_to_jiffies(0));
+	card_dealed = 0;
 	return IRQ_HANDLED;
 }
 
