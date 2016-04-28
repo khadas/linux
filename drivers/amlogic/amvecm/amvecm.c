@@ -478,6 +478,10 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000000);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x00000000);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x00000000);
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0fc00e00);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , 0xe00);
+		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_YUV601F_RGB) {
 		/* ycbcr full range, 601F to RGB */
@@ -491,6 +495,10 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x00000e00);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , 0xe00);
+		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_YUV709_RGB) {
 		/* ycbcr limit range, 709 to RGB */
@@ -504,7 +512,10 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0fc00e00);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , 0xe00);
+		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_YUV709F_RGB) {
 		/* ycbcr full range, 709F to RGB */
@@ -518,6 +529,10 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x00000e00);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , 0xe00);
+		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode == VPP_MATRIX_NULL) {
 		/* bypass matrix */
@@ -529,8 +544,8 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
 		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
-			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xe00);
-			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
+			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
 		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode >= VPP_MATRIX_BT2020YUV_BT2020RGB) {
@@ -544,8 +559,10 @@ static void vpp_set_matrix(
 			WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 			WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
 			if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xe00);
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
+					WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
+								0x0fc00e00);
+					WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
+								0xe00);
 			}
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 		}
@@ -1125,33 +1142,34 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 {
 	int i, j;
 
-	if (vf->prop.master_display_colour.present_flag) {
+	if (((hdr_data->features >> 16) & 0xff) == 9) {
+		if (vf->prop.master_display_colour.present_flag) {
 
-		memcpy(hdr_data->primaries,
-			vf->prop.master_display_colour.primaries,
-			sizeof(u32)*6);
-		memcpy(hdr_data->white_point,
-			vf->prop.master_display_colour.white_point,
-			sizeof(u32)*2);
-		hdr_data->luminance[0] =
-			vf->prop.master_display_colour.luminance[0];
-		hdr_data->luminance[1] =
-			vf->prop.master_display_colour.luminance[1];
-	} else {
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++)
-				hdr_data->primaries[i][j] =
-						bt2020_primaries[i][j];
-		hdr_data->white_point[0] = bt709_white_point[0];
-		hdr_data->white_point[1] = bt709_white_point[1];
-		/* default luminance
-		 * (got from exodus uhd hdr exodus draft.mp4) */
-		hdr_data->luminance[0] = 0xb71b00;
-		hdr_data->luminance[1] = 0xc8;
+			memcpy(hdr_data->primaries,
+				vf->prop.master_display_colour.primaries,
+				sizeof(u32)*6);
+			memcpy(hdr_data->white_point,
+				vf->prop.master_display_colour.white_point,
+				sizeof(u32)*2);
+			hdr_data->luminance[0] =
+				vf->prop.master_display_colour.luminance[0];
+			hdr_data->luminance[1] =
+				vf->prop.master_display_colour.luminance[1];
+		} else {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++)
+					hdr_data->primaries[i][j] =
+							bt2020_primaries[i][j];
+			hdr_data->white_point[0] = bt709_white_point[0];
+			hdr_data->white_point[1] = bt709_white_point[1];
+			/* default luminance
+			 * (got from exodus uhd hdr exodus draft.mp4) */
+			hdr_data->luminance[0] = 0xb71b00;
+			hdr_data->luminance[1] = 0xc8;
+		}
+		hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
+		hdr_data->present_flag = 1;
 	}
-	hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
-	hdr_data->present_flag = 1;
-
 	/* hdr send information debug */
 	memcpy(&dbg_hdr_send, hdr_data,
 			sizeof(struct master_display_info_s));
@@ -1176,7 +1194,8 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	struct master_display_info_s send_info;
 	int need_adjust_contrast = 0;
 
-	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)
+	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
+		is_meson_gxl_package_905M2())
 		return;
 
 	/* debug vframe info backup */
@@ -1226,9 +1245,6 @@ static void vpp_matrix_update(struct vframe_s *vf)
 					| (9 << 16)	/* bt2020 */
 					| (14 << 8)	/* bt2020-10 */
 					| (10 << 0);	/* bt2020c */
-			amvecm_cp_hdr_info(&send_info, vf);
-			if (vinfo->fresh_tx_hdr_pkt)
-				vinfo->fresh_tx_hdr_pkt(&send_info);
 		} else {
 			/* sdr source send normal info
 			 * use the features to discribe source info */
@@ -1241,9 +1257,10 @@ static void vpp_matrix_update(struct vframe_s *vf)
 					| (1 << 16)	/* bt709 */
 					| (1 << 8)	/* bt709 */
 					| (1 << 0);	/* bt709 */
-			if (vinfo->fresh_tx_hdr_pkt)
-				vinfo->fresh_tx_hdr_pkt(&send_info);
 		}
+		amvecm_cp_hdr_info(&send_info, vf);
+		if (vinfo->fresh_tx_hdr_pkt)
+			vinfo->fresh_tx_hdr_pkt(&send_info);
 	}
 
 	if ((cur_csc_type != csc_type)

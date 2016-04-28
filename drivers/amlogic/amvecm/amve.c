@@ -4011,8 +4011,13 @@ void vpp_vd_adj1_contrast(signed int cont_val)
 		return;
 	cont_val = ((cont_val + 1024) >> 3);
 
-	vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff00) |
-					(cont_val << 0);
+	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x1ff00) |
+						(cont_val << 0);
+	} else {
+		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff00) |
+						(cont_val << 0);
+	}
 	WRITE_VPP_REG(VPP_VADJ1_Y, vd1_contrast);
 }
 
@@ -4033,29 +4038,37 @@ void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
 	if (bri_val > 1023 || bri_val < -1024)
 		return;
 
-	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
-		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
-		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
-		(vf->source_type == VFRAME_SOURCE_TYPE_HDMI))
-		vd1_brightness = bri_val;
-	else {
-		bri_val += ao0;
-		if (bri_val < -1024)
-			bri_val = -1024;
-		vd1_brightness = bri_val;
+	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+		bri_val = bri_val >> 1;
+		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff) |
+			(bri_val << 8);
+
+		WRITE_VPP_REG(VPP_VADJ1_Y, vd1_brightness);
+	} else {
+		if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
+			(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
+			(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
+			(vf->source_type == VFRAME_SOURCE_TYPE_HDMI))
+			vd1_brightness = bri_val;
+		else {
+			bri_val += ao0;
+			if (bri_val < -1024)
+				bri_val = -1024;
+			vd1_brightness = bri_val;
+		}
+
+		a01 = ((vd1_brightness << 16) & 0x0fff0000) |
+				((ao1 <<  0) & 0x00000fff);
+		a_2 = ((ao2 <<	0) & 0x00000fff);
+		/*p01 = ((po0 << 16) & 0x0fff0000) |*/
+				/*((po1 <<  0) & 0x00000fff);*/
+		/*p_2 = ((po2 <<	0) & 0x00000fff);*/
+
+		WRITE_VPP_REG(VPP_MATRIX_CTRL         , ctl);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, a01);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , a_2);
+		WRITE_VPP_REG(VPP_MATRIX_CTRL         , ori);
 	}
-
-	a01 = ((vd1_brightness << 16) & 0x0fff0000) |
-			((ao1 <<  0) & 0x00000fff);
-	a_2 = ((ao2 <<	0) & 0x00000fff);
-	/*p01 = ((po0 << 16) & 0x0fff0000) |*/
-			/*((po1 <<  0) & 0x00000fff);*/
-	/*p_2 = ((po2 <<	0) & 0x00000fff);*/
-
-	WRITE_VPP_REG(VPP_MATRIX_CTRL         , ctl);
-	WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, a01);
-	WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2  , a_2);
-	WRITE_VPP_REG(VPP_MATRIX_CTRL         , ori);
 }
 
 
