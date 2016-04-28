@@ -3902,6 +3902,9 @@ void set_combing_regs(int lvl)
 				~combing_setting_masks[i]) |
 				((*combing_setting_values[lvl])[0] &
 				combing_setting_masks[i]);
+		if (di_force_bit_mode != 10 &&
+			combing_setting_registers[i] == NR2_MATNR_DEGHOST)
+			break;
 		else if (i < GXTVBB_REG_START)
 			/* TODO: need change to check if
 			register only in GCTVBB */
