@@ -606,6 +606,8 @@ static struct vinfo_s *get_tv_info(enum vmode_e mode)
 }
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+static enum fine_tune_mode_e fine_tune_mode = KEEP_HPLL;
+
 /* for hdmi (un)plug during fps automation */
 static int want_hdmi_mode(enum vmode_e mode)
 {
@@ -650,6 +652,26 @@ static int want_hdmi_mode(enum vmode_e mode)
 /* if plug hdmi during fps (stream is playing), then adjust mode to fps vmode */
 static void fps_auto_adjust_mode(enum vmode_e *pmode)
 {
+	/* mode_by_user is set as the current
+		display/mode when framerate_auto is
+		actived, so if the pmode is not equal
+		to mode_by_user, then we think the
+		application set a different resolution,
+		then we close framerate process and change
+		to the pmode.
+		if pmode is equal to mode_by_user, then we
+		think the following two event maybe occur,
+		and then they set hdmi mode again:
+			1. hdmi plug out/in
+			2. suspend/resume
+	*/
+
+	if (*pmode != mode_by_user) {
+		fine_tune_mode = KEEP_HPLL;
+		mode_by_user = *pmode;
+		fps_target_mode = *pmode;
+	}
+
 	if (fps_playing_flag == 1) {
 		if (want_hdmi_mode(*pmode) == 1) {
 			if ((hdmitx_is_vmode_supported_process(
@@ -665,7 +687,6 @@ static void fps_auto_adjust_mode(enum vmode_e *pmode)
 	}
 }
 
-static enum fine_tune_mode_e fine_tune_mode = KEEP_HPLL;
 #endif
 
 static int tv_out_enci_is_required(enum vmode_e mode)
@@ -1046,6 +1067,7 @@ static int framerate_automation_set_mode(
 {
 	const struct vinfo_s *pvinfo;
 	enum vmode_e mode_current = VMODE_INIT_NULL;
+
 	if ((mode_target&VMODE_MODE_BIT_MASK) > VMODE_MAX)
 		return 1;
 	pvinfo = tv_get_current_info();
