@@ -2987,6 +2987,13 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 
 	case FE_SET_MODE:
+		/*
+		    set thread idle to avoid unnecessary EVT notification.
+		    potential calls due to the EVT/s
+		    may destroy the internal info.
+		*/
+		fepriv->state = FESTATE_IDLE;
+
 		if (fe->ops.set_mode) {
 			err = fe->ops.set_mode(fe, (long)parg);
 			if (err == 0) {
