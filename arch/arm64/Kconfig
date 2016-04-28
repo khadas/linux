@@ -277,7 +277,7 @@ config DISABLE_CPU_SCHED_DOMAIN_BALANCE
 
 config SCHED_HMP
 	bool "(EXPERIMENTAL) Heterogenous multiprocessor scheduling"
-	depends on DISABLE_CPU_SCHED_DOMAIN_BALANCE && SCHED_MC && FAIR_GROUP_SCHED && !SCHED_AUTOGROUP
+	depends on SCHED_MC && FAIR_GROUP_SCHED && !SCHED_AUTOGROUP
 	help
 	  Experimental scheduler optimizations for heterogeneous platforms.
 	  Attempts to introspectively select task affinity to optimize power
