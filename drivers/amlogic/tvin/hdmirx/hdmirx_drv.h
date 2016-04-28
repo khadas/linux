@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/04/21"
+#define HDMIRX_VER "Ref.2016/04/29"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -177,6 +177,12 @@ enum fsm_states_e {
 	FSM_WAIT_AUDIO_STABLE,
 	FSM_PHY_RESET,
 	FSM_DWC_RESET,
+};
+
+enum repeater_state_e {
+	REPEATER_STATE_WAIT_KSV,
+	REPEATER_STATE_WAIT_ACK,
+	REPEATER_STATE_IDLE,
 };
 
 /** Configuration clock minimum [kHz] */
@@ -333,6 +339,8 @@ struct hdmi_rx_ctrl {
  * @short HDMI RX controller HDCP configuration
  */
 struct hdmi_rx_ctrl_hdcp {
+	/*hdcp auth state*/
+	enum repeater_state_e state;
 	/** Repeater mode else receiver only */
 	bool repeat;
 	/*downstream depth*/
@@ -616,7 +624,7 @@ void hdmirx_hw_config(void);
 void hdcp22_hw_cfg(void);
 void hdmirx_hw_reset(void);
 void hdmirx_hw_probe(void);
-void hdmi_rx_load_edid_data(unsigned char *buffer);
+void hdmi_rx_load_edid_data(unsigned char *buffer, int port);
 int hdmi_rx_ctrl_edid_update(void);
 void hdmirx_set_hpd(int port, unsigned char val);
 bool hdmirx_repeat_support(void);

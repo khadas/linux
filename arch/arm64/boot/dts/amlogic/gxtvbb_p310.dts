@@ -308,7 +308,7 @@
 		pinctrl-names = "hdmirx_pins";
 		pinctrl-0 = <&hdmirx_pins>;
 		rx_port_maps = <0x3120>;
-		repeat = <0>;
+		repeat = <1>;
 		interrupts = <0 56 1>;
 		clocks = <&clock CLK_HDMIRX_MODET_CLK>,
 			<&clock CLK_HDMIRX_CFG_CLK>,

@@ -64,6 +64,21 @@
 #define MAX_REPEAT_COUNT	127
 #define MAX_REPEAT_DEPTH	7
 #define MAX_KSV_LIST_SIZE	(MAX_KSV_SIZE*MAX_REPEAT_COUNT)
+/*size of one format in edid*/
+#define FORMAT_SIZE			sizeof(struct edid_audio_block_t)
+#define is_audio_support(x) (((x) == AUDIO_FORMAT_LPCM) || \
+		((x) == AUDIO_FORMAT_DTS) || ((x) == AUDIO_FORMAT_DDP))
+#define EDID_SIZE			256
+#define EDID_HDR_SIZE			7
+#define HDR_IGNOR_TIME			500 /*5s*/
+#define MAX_EDID_BUF_SIZE 1024
+#define EDID_DEFAULT_START		132
+#define EDID_DESCRIP_OFFSET		2
+#define EDID_BLOCK1_OFFSET		128
+#define MAX_KEY_BUF_SIZE 512
+#define KSV_LIST_WR_TH			100
+#define KSV_V_WR_TH			500
+#define KSV_LIST_WR_MAX			15
 
 static int audio_enable = 1;
 MODULE_PARM_DESC(audio_enable, "\naudio_enable\n");
@@ -222,7 +237,7 @@ static int acr_mode;
 MODULE_PARM_DESC(acr_mode, "\n acr_mode\n");
 module_param(acr_mode, int, 0664);
 
-static int edid_mode = EDID_LIST_AML;
+static int edid_mode;
 MODULE_PARM_DESC(edid_mode, "\n edid_mode\n");
 module_param(edid_mode, int, 0664);
 
@@ -343,9 +358,10 @@ module_param(new_hdr_lum, bool, 0664);
 
 /*edid original data from device*/
 static unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
-static int hdcp_len = MAX_KSV_LIST_SIZE;
+static int hdcp_array_len = MAX_KSV_LIST_SIZE;
 MODULE_PARM_DESC(receive_hdcp, "\n receive_hdcp\n");
-module_param_array(receive_hdcp, byte, &hdcp_len, 0664);
+module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
+static int hdcp_len;
 MODULE_PARM_DESC(hdcp_len, "\n hdcp_len\n");
 module_param(hdcp_len, int, 0664);
 
@@ -361,6 +377,9 @@ static bool repeat_plug;
 MODULE_PARM_DESC(repeat_plug, "\n repeat_plug\n");
 module_param(repeat_plug, bool, 0664);
 
+static int ksvlist_wr_count = KSV_LIST_WR_TH;
+MODULE_PARM_DESC(ksvlist_wr_count, "\n ksvlist_wr_count\n");
+module_param(ksvlist_wr_count, int, 0664);
 
 #ifdef HDCP22_ENABLE
 /* to inform ESM whether the cable is connected or not */
@@ -466,18 +485,6 @@ struct rx_s rx;
 #define TMDS_TOLERANCE  (4000)
 #define MAX_AUDIO_SAMPLE_RATE		(192000+1000)	/* 192K */
 #define MIN_AUDIO_SAMPLE_RATE		(8000-1000)	/* 8K */
-/*size of one format in edid*/
-#define FORMAT_SIZE			sizeof(struct edid_audio_block_t)
-#define is_audio_support(x) (((x) == AUDIO_FORMAT_LPCM) || \
-		((x) == AUDIO_FORMAT_DTS) || ((x) == AUDIO_FORMAT_DDP))
-#define EDID_SIZE			256
-#define EDID_HDR_SIZE			7
-#define HDR_IGNOR_TIME			500 /*5s*/
-#define MAX_EDID_BUF_SIZE 1024
-#define EDID_DEFAULT_START		132
-#define EDID_DESCRIP_OFFSET		2
-#define EDID_BLOCK1_OFFSET		128
-#define MAX_KEY_BUF_SIZE 512
 
 struct hdmi_rx_ctrl_hdcp init_hdcp_data;
 static char key_buf[MAX_KEY_BUF_SIZE];
@@ -2203,8 +2210,8 @@ void hdmirx_hw_monitor(void)
 	if (sm_pause)
 		return;
 
-	rx_check_repeat();
 	HPD_controller();
+	rx_check_repeat();
 	if (rx.current_port_tx_5v_status == 0) {
 		if (rx.state != FSM_INIT) {
 			rx_print("5v_lost->FSM_INIT\n");
@@ -2644,6 +2651,44 @@ void hdmirx_hw_monitor(void)
 	}
 }
 
+int rx_get_edid_index(void)
+{
+	if ((edid_mode == 0) &&
+		edid_size > 4 &&
+		edid_buf[0] == 'E' &&
+		edid_buf[1] == 'D' &&
+		edid_buf[2] == 'I' &&
+		edid_buf[3] == 'D') {
+		rx_print("edid: use Top edid\n");
+		return EDID_LIST_BUFF;
+	} else {
+		if (edid_mode == 0)
+			return EDID_LIST_AML;
+		else if (edid_mode < EDID_LIST_NUM)
+			return edid_mode;
+		else
+			return EDID_LIST_AML;
+	}
+}
+
+unsigned char *rx_get_edid_buffer(int index)
+{
+	if (index == EDID_LIST_BUFF)
+		return edid_list[index] + 4;
+	else
+		return edid_list[index];
+}
+
+int rx_get_edid_size(int index)
+{
+	if (index == EDID_LIST_BUFF) {
+		if (edid_size > EDID_SIZE + 4)
+			edid_size = EDID_SIZE + 4;
+		return edid_size - 4;
+	} else
+		return EDID_SIZE;
+}
+
 int rx_set_receiver_edid(unsigned char *data, int len)
 {
 	if ((data == NULL) || (len == 0) || (len > MAX_RECEIVE_EDID))
@@ -2666,7 +2711,7 @@ int rx_set_hdr_lumi(unsigned char *data, int len)
 }
 EXPORT_SYMBOL(rx_set_hdr_lumi);
 
-void rx_poll_dwc(uint16_t addr, uint32_t exp_data,
+bool rx_poll_dwc(uint16_t addr, uint32_t exp_data,
 			uint32_t mask, uint32_t max_try)
 {
 	uint32_t rd_data;
@@ -2675,23 +2720,28 @@ void rx_poll_dwc(uint16_t addr, uint32_t exp_data,
 
 	rd_data = hdmirx_rd_dwc(addr);
 	while (((cnt < max_try) || (max_try == 0)) && (done != 1)) {
-		if ((rd_data | mask) == (exp_data | mask)) {
+		if ((rd_data & mask) == (exp_data & mask)) {
 			done = 1;
 		} else {
 			cnt++;
 			rd_data = hdmirx_rd_dwc(addr);
 		}
 	}
+	rx_print("poll dwc cnt :%d\n", cnt);
 	if (done == 0) {
 		/* if(log_flag & ERR_LOG) */
 		rx_print("poll dwc%x time-out!\n", addr);
+		return false;
 	}
+	return true;
 }
 
 bool rx_set_repeat_aksv(unsigned char *data, int len, int depth)
 {
-	int i, j;
-	rx_print("set ksv list len:%d,depth:%d\n", len, depth);
+	int i;
+	/* rx_print("set ksv list len:%d,depth:%d\n", len, depth); */
+	if ((len < MAX_KSV_SIZE) || (data == 0))
+		return false;
 	/*set repeat depth*/
 	if (depth <= MAX_REPEAT_DEPTH) {
 		hdmirx_wr_bits_dwc(DWC_HDCP_RPT_BSTATUS, MAX_CASCADE_EXCEEDED,
@@ -2723,39 +2773,37 @@ bool rx_set_repeat_aksv(unsigned char *data, int len, int depth)
 	}
 	/*write ksv list to fifo*/
 	for (i = 0; i < rx.hdcp.count; i++) {
-		for (j = 0; j < 3000; j++) {
+		if (rx_poll_dwc(DWC_HDCP_RPT_CTRL, ~KSV_HOLD, KSV_HOLD,
+		KSV_LIST_WR_TH)) {
 			/*check fifo can be written*/
-			if (!hdmirx_rd_bits_dwc(DWC_HDCP_RPT_CTRL, KSV_HOLD)) {
-				hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFOCTRL, i);
-				hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFO1,
-					*(data + i*MAX_KSV_SIZE + 4));
-				hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFO0,
-					*((uint32_t *)(data + i*MAX_KSV_SIZE)));
-				rx_print(
-				"set ksv list index:%d, ksv hi:%#x, low:%#x\n",
-					i, *(data + i*MAX_KSV_SIZE +
-				4), *((uint32_t *)(data + i*MAX_KSV_SIZE)));
-				break;
-			}
-		}
-		if (j >= 3000)
+			hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFOCTRL, i);
+			hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFO1,
+				*(data + i*MAX_KSV_SIZE + 4));
+			hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFO0,
+				*((uint32_t *)(data + i*MAX_KSV_SIZE)));
+			rx_print(
+			"set ksv list index:%d, ksv hi:%#x, low:%#x\n",
+				i, *(data + i*MAX_KSV_SIZE +
+			4), *((uint32_t *)(data + i*MAX_KSV_SIZE)));
+		} else {
 			return false;
+		}
 	}
 	/* Wait for ksv_hold=0*/
-	rx_poll_dwc(DWC_HDCP_RPT_CTRL, (0<<6), ~(1<<6), 10000);
+	rx_poll_dwc(DWC_HDCP_RPT_CTRL, ~KSV_HOLD, KSV_HOLD, KSV_LIST_WR_TH);
 	/*set ksv list ready*/
 	hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL, KSVLIST_READY,
 					(rx.hdcp.count > 0));
 	/* Wait for HW completion of V value*/
-	rx_poll_dwc(DWC_HDCP_RPT_CTRL, (1<<4), ~(1<<4), 40000);
+	rx_poll_dwc(DWC_HDCP_RPT_CTRL, FIFO_READY, FIFO_READY, KSV_V_WR_TH);
 
 	return true;
 }
 
-void rx_clear_repeat(void)
+void rx_set_repeat_signal(bool repeat)
 {
-	rx.hdcp.repeat = 0;
-	hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL, REPEATER, rx.hdcp.repeat);
+	rx.hdcp.repeat = repeat;
+	hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL, REPEATER, repeat);
 }
 
 bool rx_set_receive_hdcp(unsigned char *data, int len, int depth)
@@ -2764,7 +2812,6 @@ bool rx_set_receive_hdcp(unsigned char *data, int len, int depth)
 		memcpy(receive_hdcp, data, len);
 	hdcp_len = len;
 	hdcp_repeat_depth = depth;
-	new_hdcp = true;
 
 	return true;
 }
@@ -2788,48 +2835,72 @@ void rx_edid_physical_addr(int a, int b, int c, int d)
 }
 EXPORT_SYMBOL(rx_edid_physical_addr);
 
+void rx_send_hpd_pulse(void)
+{
+	hdmirx_set_hpd(rx.port, 0);
+	rx.state = FSM_HDMI5V_HIGH;
+}
+
 void rx_check_repeat(void)
 {
-	unsigned char hdr_edid[EDID_HDR_SIZE];
-
 	if (!hdmirx_repeat_support())
 		return;
 
-	if (new_edid) {
-		if (repeat_plug)
-			hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL, REPEATER, 1);
-		/*check receive change*/
-		rx_modify_edid(edid_list[edid_mode&0xf],
-		       EDID_SIZE,
-		       receive_edid);
-		hdmi_rx_load_edid_data(edid_temp);
-		rx_print("repeat ready pulse hpd\n");
-		new_edid = false;
-		hdmirx_set_hpd(rx.port, 0);
+	if (rx.hdcp.repeat != repeat_plug) {
+		rx_set_repeat_signal(repeat_plug);
+		if (!repeat_plug) {
+			hdcp_len = 0;
+			hdcp_repeat_depth = 0;
+			memset(&receive_hdcp, 0 , sizeof(receive_hdcp));
+			new_edid = true;
+			memset(&receive_edid, 0 , sizeof(receive_edid));
+		}
 	}
-	if (new_hdcp) {
-		if (repeat_plug) {
-			if (!hdmirx_rd_bits_dwc(DWC_HDCP_RPT_CTRL, WAITING_KSV))
-				return;
-			rx_set_repeat_aksv(receive_hdcp, hdcp_len,
-				       hdcp_repeat_depth);
-		} else
-		       rx_clear_repeat();
-		new_hdcp = false;
+	if (new_edid) {
+		/*check downstream plug when new plug occur*/
+		/*check receive change*/
+		hdmi_rx_ctrl_edid_update();
+		new_edid = false;
+		rx_send_hpd_pulse();
+	}
+	if (repeat_plug) {
+		switch (rx.hdcp.state) {
+		case REPEATER_STATE_WAIT_KSV:
+		if (!rx.current_port_tx_5v_status) {
+			rx.hdcp.state = REPEATER_STATE_IDLE;
+			break;
+		}
+		if (hdmirx_rd_bits_dwc(DWC_HDCP_RPT_CTRL, WAITING_KSV)) {
+			if (ksvlist_wr_count < KSV_LIST_WR_MAX) {
+				ksvlist_wr_count++;
+				break;
+			}
+			if (rx_set_repeat_aksv(receive_hdcp, hdcp_len,
+						hdcp_repeat_depth))
+				ksvlist_wr_count = 0;
+		}
+		/*rx.hdcp.state = REPEATER_STATE_IDLE;*/
+		/*if support hdcp2.2 jump to wait_ack else to idle*/
+		break;
+
+		case REPEATER_STATE_WAIT_ACK:
+		/*if receive ack jump to idle else send auth_req*/
+		break;
+
+		case REPEATER_STATE_IDLE:
+			if (rx.current_port_tx_5v_status)
+				rx.hdcp.state = REPEATER_STATE_WAIT_KSV;
+		break;
+
+		default:
+		break;
+		}
 	}
 	/*hdr change from app*/
 	if (new_hdr_lum) {
-		hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0x7) +
-					       (6 & 0x1f);
-	       hdr_edid[1] = EDID_TAG_HDR & 0xFF;
-	       memcpy(hdr_edid + 4, receive_hdr_lum,
-			       sizeof(unsigned char)*3);
-	       rx_modify_edid(edid_list[edid_mode&0xf],
-		       EDID_SIZE,
-		       hdr_edid);
-	       new_hdr_lum = false;
-	       hdmi_rx_load_edid_data(edid_temp);
-	       hdmirx_set_hpd(rx.port, 0);
+		hdmi_rx_ctrl_edid_update();
+		new_hdr_lum = false;
+		rx_send_hpd_pulse();
 	}
 
 }
@@ -3011,39 +3082,39 @@ void rx_modify_edid(unsigned char *buffer,
 			start_addr, cur_size, addition_size);
 
 		/*set the block value to edid_temp*/
-		start_addr_temp = rx_get_ceadata_offset(edid_temp, addition);
-		temp_len = ((edid_temp[start_addr_temp] & 0x1f) + 1);
+		start_addr_temp = rx_get_ceadata_offset(buffer, addition);
+		temp_len = ((buffer[start_addr_temp] & 0x1f) + 1);
 		rx_print("edid_temp start: %#x, len: %d\n", start_addr_temp,
 							temp_len);
 		/*move data behind current data if need*/
 		if (temp_len < addition_size) {
 			for (i = 0; i < EDID_SIZE - start_addr_temp -
 				addition_size; i++) {
-				edid_temp[255 - i] =
-				edid_temp[255 - (addition_size - temp_len)
+				buffer[255 - i] =
+				buffer[255 - (addition_size - temp_len)
 						 - i];
 			}
 		} else if (temp_len > addition_size) {
 			for (i = 0; i < EDID_SIZE - start_addr_temp -
 						temp_len; i++) {
-				edid_temp[start_addr_temp + i + addition_size]
-				 = edid_temp[start_addr_temp + i + temp_len];
+				buffer[start_addr_temp + i + addition_size]
+				 = buffer[start_addr_temp + i + temp_len];
 			}
 		}
 		/*check detail description offset if needs modify*/
-		if (edid_temp[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] +
+		if (buffer[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] +
 				EDID_BLOCK1_OFFSET > start_addr_temp)
-			edid_temp[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET]
+			buffer[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET]
 				+= (addition_size - temp_len);
 		/*copy current edid data*/
-		memcpy(edid_temp + start_addr_temp, cur_data,
+		memcpy(buffer + start_addr_temp, cur_data,
 						addition_size);
 		if (cur_data != 0)
 			kfree(cur_data);
 	}
 }
 
-void hdmi_rx_load_edid_data(unsigned char *buffer)
+void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 {
 	unsigned char value = 0;
 	unsigned char check_sum = 0;
@@ -3078,13 +3149,13 @@ void hdmi_rx_load_edid_data(unsigned char *buffer)
 	}
 
 	for (i = 0; i < 3; i++) {
-		if (((real_port_map >> i*4) & 0xf) == 0) {
+		if (((port >> i*4) & 0xf) == 0) {
 			phy_addr[i] = 0x10;
 			checksum[i] = value;
-		} else if (((real_port_map >> i*4) & 0xf) == 1) {
+		} else if (((port >> i*4) & 0xf) == 1) {
 			phy_addr[i] = 0x20;
 			checksum[i] = (0x100 + value - 0x10) & 0xff;
-		} else if (((real_port_map >> i*4) & 0xf) == 2) {
+		} else if (((port >> i*4) & 0xf) == 2) {
 			phy_addr[i] = 0x30;
 			checksum[i] = (0x100 + value - 0x20) & 0xff;
 		}
@@ -3101,45 +3172,24 @@ void hdmi_rx_load_edid_data(unsigned char *buffer)
 
 }
 
-
 int hdmi_rx_ctrl_edid_update(void)
 {
 	unsigned char hdr_edid[EDID_HDR_SIZE];
+	int edid_index = rx_get_edid_index();
 
-	if ((edid_mode == 0) &&
-		edid_size > 4 &&
-		edid_buf[0] == 'E' &&
-		edid_buf[1] == 'D' &&
-		edid_buf[2] == 'I' &&
-		edid_buf[3] == 'D') {
-		rx_print("edid: use Top edid\n");
-
-		if (edid_size > EDID_SIZE + 4)
-			edid_size = EDID_SIZE + 4;
-		memcpy(edid_temp, edid_list[edid_mode&0xf] + 4, edid_size - 4);
-		if (hdmirx_repeat_support()) {
-			hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0xE0) + (6 & 0x1f);
-			hdr_edid[1] = EDID_TAG_HDR & 0xFF;
-			memcpy(hdr_edid + 4, receive_hdr_lum,
-						sizeof(unsigned char)*3);
-			rx_modify_edid(edid_temp, edid_size - 4, receive_edid);
-			rx_modify_edid(edid_temp, edid_size - 4, hdr_edid);
-		}
-	} else if ((edid_mode > 0) && (edid_mode < EDID_LIST_NUM)) {
-		memcpy(edid_temp, edid_list[edid_mode&0xf], EDID_SIZE);
-		if (hdmirx_repeat_support()) {
-			hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0xE0) + (6 & 0x1f);
-			hdr_edid[1] = EDID_TAG_HDR & 0xFF;
-			memcpy(hdr_edid + 4, receive_hdr_lum,
-						sizeof(unsigned char)*3);
-			rx_modify_edid(edid_temp, EDID_SIZE, receive_edid);
-			rx_modify_edid(edid_temp, EDID_SIZE, hdr_edid);
-		}
-	} else {
-		return false;
+	memcpy(edid_temp, rx_get_edid_buffer(edid_index),
+				rx_get_edid_size(edid_index));
+	if (hdmirx_repeat_support()) {
+		hdr_edid[0] = ((EDID_TAG_HDR >> 3)&0xE0) + (6 & 0x1f);
+		hdr_edid[1] = EDID_TAG_HDR & 0xFF;
+		memcpy(hdr_edid + 4, receive_hdr_lum,
+					sizeof(unsigned char)*3);
+		rx_modify_edid(edid_temp, rx_get_edid_size(edid_index),
+							receive_edid);
+		rx_modify_edid(edid_temp, rx_get_edid_size(edid_index),
+							hdr_edid);
 	}
-
-	hdmi_rx_load_edid_data(edid_temp);
+	hdmi_rx_load_edid_data(edid_temp, real_port_map);
 	return true;
 }
 

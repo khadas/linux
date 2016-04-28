@@ -809,6 +809,8 @@
 #define		KSV_HOLD				_BIT(6)
 /** KSV list waiting status */
 #define		WAITING_KSV				_BIT(5)
+/** V` waiting status */
+#define		FIFO_READY				_BIT(4)
 /** Repeater capability */
 #define		REPEATER				_BIT(3)
 /** KSV list ready */
