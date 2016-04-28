@@ -1,5 +1,4 @@
-/*
- * Amlogic M2
+/* * Amlogic M2
  * frame buffer driver-----------Deinterlace
  * Author: Rain Zhang <rain.zhang@amlogic.com>
  * Copyright (C) 2010 Amlogic, Inc.
@@ -168,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-04-25b";
+static const char version_s[] = "2016-04-28c";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -4705,14 +4704,6 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 		}
 	}
-#if 0
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
-		/* In bypass mode, register should in line with input source */
-		vframe = vf_peek(VFM_NAME);
-		if ((NULL != vframe) && registed_state)
-			di_bit_mode_bypass_cfg(vframe, bypass_state);
-	}
-#endif
 	if (di_pre_stru.di_inp_buf_next) {
 		di_pre_stru.di_inp_buf = di_pre_stru.di_inp_buf_next;
 		di_pre_stru.di_inp_buf_next = NULL;
@@ -7164,7 +7155,7 @@ static void di_unreg_process_irq(void)
 	DI_Wr(DI_CLKG_CTRL, 0xff0000);
 /* di enable nr clock gate */
 #else
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
 	else
 		DI_Wr(DI_CLKG_CTRL, 0xf60000);

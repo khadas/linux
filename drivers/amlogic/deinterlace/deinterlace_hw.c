@@ -192,7 +192,7 @@ void di_hw_init(void)
 
 #ifdef NEW_DI_V1
 	/* enable old DI mode for m6tv */
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
 	else
 		DI_Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
@@ -364,7 +364,7 @@ void enable_di_pre_aml(
 	nr_h = (di_nrwr_mif->end_y - di_nrwr_mif->start_y + 1);
 	RDMA_WR(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
 	/*gate for nr*/
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
 		RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
 	else {
 		/*only process sd,avoid affecting sharp*/
