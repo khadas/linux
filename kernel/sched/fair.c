@@ -5219,7 +5219,8 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu,
 #ifdef CONFIG_SCHED_HMP
 	/* always put non-kernel forking tasks on a big domain */
 	if (unlikely(sd_flag & SD_BALANCE_FORK) &&
-	    hmp_task_should_forkboost(p)) {
+	    hmp_task_should_forkboost(p) &&
+	    arch_multi_cluster != 0) {
 		new_cpu = hmp_select_faster_cpu(p, prev_cpu);
 		if (new_cpu != num_possible_cpus()) {
 			hmp_next_up_delay(&p->se, new_cpu);
@@ -5301,6 +5302,9 @@ unlock:
 	rcu_read_unlock();
 
 #ifdef CONFIG_SCHED_HMP
+	if (arch_multi_cluster == 0)
+		return new_cpu;
+
 	prev_cpu = task_cpu(p);
 
 	if (hmp_up_migration(prev_cpu, &new_cpu, &p->se)) {
@@ -7484,7 +7488,7 @@ void idle_balance(int this_cpu, struct rq *this_rq)
 	}
 	rcu_read_unlock();
 #ifdef CONFIG_SCHED_HMP
-	if (!pulled_task)
+	if (!pulled_task && arch_multi_cluster != 0)
 		pulled_task = hmp_idle_pull(this_cpu);
 #endif
 	raw_spin_lock(&this_rq->lock);
@@ -8477,18 +8481,19 @@ static void run_rebalance_domains(struct softirq_action *h)
 						CPU_IDLE : CPU_NOT_IDLE;
 
 #ifdef CONFIG_SCHED_HMP
-	/* shortcut for hmp idle pull wakeups */
-	if (unlikely(this_rq->wake_for_idle_pull)) {
-		this_rq->wake_for_idle_pull = 0;
-		if (hmp_idle_pull(this_cpu)) {
-			/* break out unless running nohz idle as well */
-			if (idle != CPU_IDLE)
-				return;
+	if (arch_multi_cluster) {
+		/* shortcut for hmp idle pull wakeups */
+		if (unlikely(this_rq->wake_for_idle_pull)) {
+			this_rq->wake_for_idle_pull = 0;
+			if (hmp_idle_pull(this_cpu)) {
+				/* break out unless running nohz idle as well */
+				if (idle != CPU_IDLE)
+					return;
+			}
 		}
+		hmp_force_up_migration(this_cpu);
 	}
 #endif
-
-	hmp_force_up_migration(this_cpu);
 
 	rebalance_domains(this_cpu, idle);
 

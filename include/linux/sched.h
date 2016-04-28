@@ -984,6 +984,7 @@ struct hmp_domain {
 	struct cpumask possible_cpus;
 	struct list_head hmp_domains;
 };
+extern int arch_multi_cluster;
 #endif /* CONFIG_SCHED_HMP */
 #else /* CONFIG_SMP */
 

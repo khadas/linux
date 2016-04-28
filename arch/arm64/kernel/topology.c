@@ -403,6 +403,13 @@ void store_cpu_topology(unsigned int cpuid)
 
 #ifdef CONFIG_SCHED_HMP
 
+#define CLUSTER_BIG		(1 << 0)
+#define CLUSTER_LITTLE		(1 << 1)
+
+
+int __read_mostly arch_multi_cluster;
+EXPORT_SYMBOL_GPL(arch_multi_cluster);
+
 /*
  * Retrieve logical cpu index corresponding to a given MPIDR[23:0]
  *  - mpidr: MPIDR[23:0] to be used for the look-up
@@ -437,6 +444,7 @@ void __init arch_get_fast_and_slow_cpus(struct cpumask *fast,
 {
 	struct device_node *cn = NULL;
 	int cpu;
+	int multi_cluster = 0;
 
 	cpumask_clear(fast);
 	cpumask_clear(slow);
@@ -474,12 +482,21 @@ void __init arch_get_fast_and_slow_cpus(struct cpumask *fast,
 			break;
 		}
 
-		if (!arch_big_cpu(cpu) && is_little_cpu(cn))
+		if (!arch_big_cpu(cpu) && is_little_cpu(cn)) {
 			cpumask_set_cpu(cpu, slow);
-		else
+			multi_cluster |= CLUSTER_LITTLE;
+		} else {
 			cpumask_set_cpu(cpu, fast);
+			multi_cluster |= CLUSTER_BIG;
+		}
 	}
 
+	if (multi_cluster == (CLUSTER_BIG | CLUSTER_LITTLE))
+		arch_multi_cluster = 1;
+	else
+		arch_multi_cluster = 0;
+
+	pr_info("arch_multi_cluster:%d\n", arch_multi_cluster);
 	if (!cpumask_empty(fast) && !cpumask_empty(slow))
 		return;
 
