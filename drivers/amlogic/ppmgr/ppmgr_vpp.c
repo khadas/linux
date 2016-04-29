@@ -458,6 +458,10 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
 		PPMGRVPP_WARN("register now\n");
 #endif
 		vf_ppmgr_reg_provider();
+		vf_notify_receiver(
+				PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_START,
+				NULL);
 		break;
 	case VFRAME_EVENT_PROVIDER_UNREG:
 #ifdef DDD

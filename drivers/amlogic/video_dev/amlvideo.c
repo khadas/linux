@@ -281,6 +281,7 @@ unsigned eventparam[4];
 struct mutex vfpMutex;
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
+	struct vframe_states states;
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		unregFlag = 1;
 		if (index != 8)
@@ -304,7 +305,19 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		first_frame = 0;
 		mutex_unlock(&vfpMutex);
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
-		return RECEIVER_ACTIVE;
+		amlvideo_vf_states(&states, NULL);
+		if (states.buf_avail_num > 0) {
+			return RECEIVER_ACTIVE;
+		} else {
+			if (vf_notify_receiver(
+				PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_QUREY_STATE,
+				NULL)
+			== RECEIVER_ACTIVE)
+				return RECEIVER_ACTIVE;
+			return RECEIVER_INACTIVE;
+		}
+		/*break;*/
 	} else if (type == VFRAME_EVENT_PROVIDER_START) {
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_START\n");
 		if (vf_get_receiver(PROVIDER_NAME)) {
