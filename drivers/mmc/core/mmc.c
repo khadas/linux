@@ -351,7 +351,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		if (card->ext_csd.sectors > (2u * 1024 * 1024 * 1024) / 512)
 			mmc_card_set_blockaddr(card);
 	}
-
+	card->ext_csd.driver_strength = ext_csd[EXT_CSD_DRIVER_STRENGTH];
 	card->ext_csd.raw_card_type = ext_csd[EXT_CSD_CARD_TYPE];
 	mmc_select_card_type(card);
 
@@ -1033,7 +1033,7 @@ static int mmc_select_hs400(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	int err = 0;
-
+	u8 strength_and_hs400 = 0;
 	/*
 	 * HS400 mode requires 8-bit bus width
 	 */
@@ -1066,9 +1066,22 @@ static int mmc_select_hs400(struct mmc_card *card)
 			mmc_hostname(host), err);
 		return err;
 	}
+	if (card->ext_csd.driver_strength & (1 << 4)) {
+		strength_and_hs400 = (0x4 << 4) | EXT_CSD_TIMING_HS400;
+		pr_info("%s: support driver strength type 4\n",
+				mmc_hostname(host));
+	} else if (card->ext_csd.driver_strength & (1 << 1)) {
+		strength_and_hs400 = (0x1 << 4) | EXT_CSD_TIMING_HS400;
+		pr_info("%s: support driver strength type 4\n",
+				mmc_hostname(host));
+	} else	{
+		strength_and_hs400 = EXT_CSD_TIMING_HS400;
+		pr_info("%s: no support driver strength type 4 and 1\n",
+			mmc_hostname(host));
+	}
 
 	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			   EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS400,
+			   EXT_CSD_HS_TIMING, strength_and_hs400,
 			   card->ext_csd.generic_cmd6_time,
 			   true, true, true);
 	if (err) {
