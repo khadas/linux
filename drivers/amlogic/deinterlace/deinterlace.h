@@ -35,7 +35,6 @@
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 #define NEW_KEEP_LAST_FRAME
 /* #endif */
-/*#undef DET3D*/
 #define	DET3D
 #undef SUPPORT_MPEG_TO_VDIN /* for all ic after m6c@20140731 */
 
@@ -217,7 +216,7 @@ extern void di_hw_init(void);
 
 extern void di_hw_uninit(void);
 
-extern void enable_di_pre_mif(int);
+extern void enable_di_pre_mif(int enable);
 
 extern int di_vscale_skip_count;
 

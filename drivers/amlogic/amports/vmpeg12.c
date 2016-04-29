@@ -199,13 +199,23 @@ static inline u32 index2canvas(u32 index)
 static void set_frame_info(struct vframe_s *vf)
 {
 	unsigned ar_bits;
+	u32 temp;
 
 #ifdef CONFIG_AM_VDEC_MPEG12_LOG
 	bool first = (frame_width == 0) && (frame_height == 0);
 #endif
+	temp = READ_VREG(MREG_PIC_WIDTH);
+	if (temp > 1920)
+		vf->width = frame_width = 1920;
+	else
+		vf->width = frame_width = temp;
 
-	vf->width = frame_width = READ_VREG(MREG_PIC_WIDTH);
-	vf->height = frame_height = READ_VREG(MREG_PIC_HEIGHT);
+	temp = READ_VREG(MREG_PIC_HEIGHT);
+	if (temp > 1088)
+		vf->height = frame_height = 1088;
+	else
+		vf->height = frame_height = temp;
+
 	vf->flag = 0;
 
 	if (frame_dur > 0)

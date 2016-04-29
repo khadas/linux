@@ -240,23 +240,6 @@ void di_hw_uninit(void)
 {
 }
 
-void enable_di_pre_mif(int en)
-{
-	if (en) {
-		/* enable input mif*/
-		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
-		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
-		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) | 0x1);
-		/* cont rd will be enable when config pre */
-	} else {
-		/* disable cont rd */
-		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
-		/* disable input mif*/
-		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
-		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
-		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
-	}
-}
 /* config di pre bit mode */
 static void pre_bit_mode_config(unsigned char inp,
 	unsigned char mem, unsigned char chan2, unsigned char nrwr)
@@ -1834,4 +1817,53 @@ static void di_nr_init(void)
 	DI_Wr(NR3_CMOT_PARA, 0x08140f);
 	DI_Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
 	DI_Wr(NR3_SUREMOT_CGAIN, 0x22264014);
+}
+
+void enable_di_pre_mif(int en)
+{
+	if (en) {
+		/* enable input mif*/
+		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
+		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
+		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) | 0x1);
+		/* nrwr no clk gate en=0 */
+		RDMA_WR_BITS(DI_NRWR_CTRL, 0, 24, 1);
+		if (mcpre_en) {
+			/* gate clk */
+			RDMA_WR_BITS(MCDI_MCVECWR_CTRL, 0, 9, 1);
+			/* gate clk */
+			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 0, 9, 1);
+		}
+		/* enable di nr/mtn/mv mif */
+		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f);
+	} else {
+		/* nrwr no clk gate en=1 */
+		RDMA_WR_BITS(DI_NRWR_CTRL, 1, 24, 1);
+		/* nr wr req en =0 */
+		RDMA_WR_BITS(DI_PRE_CTRL, 0, 0, 1);
+		/* mtn wr req en =0 */
+		RDMA_WR_BITS(DI_PRE_CTRL, 0, 1, 1);
+		/* cont wr req en =0 */
+		RDMA_WR_BITS(DI_MTN_1_CTRL1, 0, 31, 1);
+		if (mcpre_en) {
+			/* no gate clk */
+			RDMA_WR_BITS(MCDI_MCVECWR_CTRL, 1, 9, 1);
+			/* no gate clk */
+			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 1, 9, 1);
+			/* mcvec wr req en =0 */
+			RDMA_WR_BITS(MCDI_MCVECWR_CTRL, 0, 12, 1);
+			/* mcinfo wr req en =0 */
+			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 0, 12, 1);
+			/* mcinfo rd req en = 0 */
+			RDMA_WR_BITS(MCDI_MCINFORD_CTRL, 0, 9, 1);
+		}
+		/* disable nr cont mtn mv minfo mif */
+		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b);
+		/* disable cont rd */
+		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
+		/* disable input mif*/
+		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
+		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
+		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
+	}
 }

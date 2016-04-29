@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-05-16a";
+static const char version_s[] = "2016-05-16b";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -330,7 +330,7 @@ static int force_bob_flag;
 int di_vscale_skip_count = 0;
 int di_vscale_skip_count_real = 0;
 
-#if 1/*def DET3D*/
+#ifdef DET3D
 bool det3d_en = false;
 static unsigned int det3d_mode;
 #endif
@@ -3475,7 +3475,11 @@ static void pre_de_process(void)
 		(1 << 21) | /* mask medi interrupt. */
 		(1 << 22) | /* mask vecwr interrupt. */
 		(1 << 23) | /* mask infwr interrupt. */
+		#ifdef DET3D
 		((det3d_en ? 0 : 1) << 24) | /* mask det3d interrupt. */
+		#else
+		(1 << 24) | /* mask det3d interrupt. */
+		#endif
 		((post_wr_en && post_wr_surpport)?0xb:0xf));
 		/* clean all pending interrupt bits. */
 
@@ -4706,7 +4710,7 @@ static unsigned char pre_de_buf_config(void)
 	if (di_blocking)
 		return 0;
 	if ((queue_empty(QUEUE_IN_FREE) && (!di_pre_stru.di_inp_buf_next)) ||
-	    queue_empty(QUEUE_LOCAL_FREE))
+	    (queue_empty(QUEUE_LOCAL_FREE)))
 		return 0;
 
 	if (is_bypass(NULL)) {
@@ -4797,6 +4801,16 @@ static unsigned char pre_de_buf_config(void)
 			force_height = 1080;
 		else
 			force_height = 0;
+		if (
+			(vframe->source_type == VFRAME_SOURCE_TYPE_OTHERS) &&
+			(vframe->width % 2 == 1)) {
+			force_width = vframe->width - 1;
+			if (force_width != (vframe->width - 1))
+				pr_info("DI: force source width %u to even num %d.\n",
+					vframe->width, force_width);
+		} else {
+			force_width = 0;
+		}
 		di_pre_stru.source_trans_fmt = vframe->trans_fmt;
 		di_pre_stru.left_right = di_pre_stru.left_right ? 0 : 1;
 
@@ -5148,6 +5162,8 @@ static unsigned char pre_de_buf_config(void)
 	} else {
 		di_buf = get_di_buf_head(QUEUE_LOCAL_FREE);
 		if (check_di_buf(di_buf, 11)) {
+			/* recycle_keep_buffer();
+			pr_dbg("%s:recycle keep buffer\n", __func__);*/
 			recycle_vframe_type_pre(di_pre_stru.di_inp_buf);
 			return 0;
 		}
@@ -5478,6 +5494,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 			flag = 0;
 		}
 	}
+
 #endif
 #ifdef DET3D
 	if ((data32 & 0x100) && !(mask32 & 0x100))
@@ -5514,7 +5531,6 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 #endif
 		/* disable mif */
 		enable_di_pre_mif(0);
-
 		di_pre_stru.pre_de_process_done = 1;
 		di_pre_stru.pre_de_busy = 0;
 
@@ -6142,6 +6158,8 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			enable_mc_di_post(
 				&di_post_stru.di_mcvecrd_mif, post_urgent,
 				overturn);
+		else if (is_meson_gxtvbb_cpu())
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 	} else {
 		di_post_switch_buffer(
 			&di_post_stru.di_buf0_mif,
@@ -6172,7 +6190,9 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 		if (di_buf->di_buf_dup_p[2])
 			set_post_mcinfo(&di_buf->di_buf_dup_p[2]
 				->curr_field_mcinfo);
-	}
+	} else if (is_meson_gxtvbb_cpu())
+			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
+
 
 /* set pull down region (f(t-1) */
 
@@ -7487,12 +7507,15 @@ static void di_process(void)
 #endif
 	}
 }
-
+static unsigned int nr_done_check_cnt = 5;
+module_param_named(nr_done_check_cnt, nr_done_check_cnt, uint, 0644);
 void di_timer_handle(struct work_struct *work)
 {
+
 	if (di_pre_stru.pre_de_busy) {
 		di_pre_stru.pre_de_busy_timer_count++;
-		if (di_pre_stru.pre_de_busy_timer_count >= 100) {
+		if (di_pre_stru.pre_de_busy_timer_count >= nr_done_check_cnt) {
+			enable_di_pre_mif(0);
 			di_pre_stru.pre_de_busy_timer_count = 0;
 			di_pre_stru.pre_de_irq_timeout_count++;
 			if (timeout_miss_policy == 0) {
@@ -7507,6 +7530,8 @@ void di_timer_handle(struct work_struct *work)
 			pr_dbg("***** DI ****** wait %d pre_de_irq timeout\n",
 				di_pre_stru.field_count_for_cont);
 		}
+	} else {
+		di_pre_stru.pre_de_busy_timer_count = 0;
 	}
 
 	/* if(force_trig){ */
