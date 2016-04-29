@@ -1384,10 +1384,8 @@ enum aml_provider_type_e p_type)
 
 		ge2d_config->src_para.canvas_index = output_canvas;
 		ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-		ge2d_config->src_para.format = get_interlace_input_format(
-			vf, output)|GE2D_LITTLE_ENDIAN;
-		ge2d_config->src_para.format =
-			get_interlace_input_format(vf, output);
+		ge2d_config->src_para.format = get_output_format(
+			output->v4l2_format) | GE2D_LITTLE_ENDIAN;
 		ge2d_config->src_para.fill_color_en = 0;
 		ge2d_config->src_para.fill_mode = 0;
 		ge2d_config->src_para.x_rev = 0;
