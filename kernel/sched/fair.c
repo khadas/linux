@@ -8464,8 +8464,6 @@ done:
 	spin_unlock(&hmp_force_migration);
 	return force;
 }
-#else
-static void hmp_force_up_migration(int this_cpu) { }
 #endif /* CONFIG_SCHED_HMP */
 
 
