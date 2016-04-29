@@ -121,7 +121,7 @@ static const struct snd_pcm_hardware aml_i2s_capture = {
 
 static unsigned int period_sizes[] = {
 	64, 128, 256, 512, 1024, 2048, 4096, 8192,
-	16384, 32768, 65536, 65536 * 2,	65536 * 4
+	16384, 32768, 65536, 65536 * 2, 65536 * 4
 };
 
 static struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
@@ -258,6 +258,8 @@ static int aml_i2s_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	struct aml_audio_buffer *tmp_buf = buf->private_data;
 
 	if (s && s->device_type == AML_AUDIO_I2SOUT && trigger_underrun) {
 		dev_info(substream->pcm->card->dev, "clear i2s out trigger underrun\n");
@@ -265,6 +267,7 @@ static int aml_i2s_prepare(struct snd_pcm_substream *substream)
 	}
 	if (s && s->device_type == AML_AUDIO_I2SOUT)
 		aml_i2s_playback_channel = runtime->channels;
+	tmp_buf->cached_len = 0;
 	return 0;
 }
 
@@ -554,17 +557,17 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	int res = 0;
 	int n;
 	int i = 0, j = 0;
-	int align = runtime->channels * 32 / runtime->byte_align;
-	char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos);
+	int align = runtime->channels * 32;
+	unsigned long offset = frames_to_bytes(runtime, pos);
+	char *hwbuf = runtime->dma_area + offset;
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct snd_dma_buffer *buffer = &substream->dma_buffer;
 	struct aml_audio_buffer *tmp_buf = buffer->private_data;
 	void *ubuf = tmp_buf->buffer_start;
 	struct audio_stream *s = &prtd->s;
 	struct device *dev = substream->pcm->card->dev;
-
-	if (s->device_type == AML_AUDIO_I2SOUT)
-		aml_i2s_alsa_write_addr = frames_to_bytes(runtime, pos);
+	int cached_len = tmp_buf->cached_len;
+	char *cache_buffer_bytes = tmp_buf->cache_buffer_bytes;
 
 	n = frames_to_bytes(runtime, count);
 	if (n > tmp_buf->buffer_size) {
@@ -575,6 +578,45 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	res = copy_from_user(ubuf, buf, n);
 	if (res)
 		return -EFAULT;
+
+	/*mask align byte(64 or 256)*/
+	if ((cached_len != 0 || (n % align) != 0)) {
+		int byte_size = n;
+		int total_len;
+		int ouput_len;
+		int next_cached_len;
+		int cache_buffer_bytes_tmp[256];
+
+		offset -= cached_len;
+		hwbuf = runtime->dma_area + offset;
+
+		total_len = byte_size + cached_len;
+		ouput_len = total_len & (~(align - 1));
+		next_cached_len = total_len - ouput_len;
+
+		if (next_cached_len)
+			memcpy((void *)cache_buffer_bytes_tmp,
+				(void *)((char *)ubuf +
+				byte_size - next_cached_len),
+				next_cached_len);
+		memmove((void *)((char *)ubuf + cached_len),
+				(void *)ubuf, ouput_len - cached_len);
+		if (cached_len)
+			memcpy((void *)ubuf,
+				(void *)cache_buffer_bytes, cached_len);
+		if (next_cached_len)
+			memcpy((void *)cache_buffer_bytes,
+				(void *)cache_buffer_bytes_tmp,
+				next_cached_len);
+
+		tmp_buf->cached_len = next_cached_len;
+		n = ouput_len;
+	}
+	/*end of mask*/
+
+	if (s->device_type == AML_AUDIO_I2SOUT)
+		aml_i2s_alsa_write_addr = offset;
+
 	if (access_ok(VERIFY_READ, buf, frames_to_bytes(runtime, count))) {
 		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
 
@@ -584,10 +626,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 
 			left = to;
 			right = to + 16;
-			if (pos % align) {
-				dev_err(dev, "audio data unligned: pos=%d, n=%d, align=%d\n",
-				     (int)pos, n, align);
-			}
 
 			for (j = 0; j < n; j += 64) {
 				for (i = 0; i < 16; i++) {
@@ -606,10 +644,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 			left = to;
 			right = to + 8;
 
-			if (pos % align) {
-				dev_err(dev, "audio data unaligned: pos=%d, n=%d, align=%d\n",
-				     (int)pos, n, align);
-			}
 			for (j = 0; j < n; j += 64) {
 				for (i = 0; i < 8; i++) {
 					*left++ = (*tfrom++);
@@ -626,11 +660,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 
 			left = to;
 			right = to + 8;
-
-			if (pos % align) {
-				dev_err(dev, "audio data unaligned: pos=%d, n=%d, align=%d\n",
-				     (int)pos, n, align);
-			}
 
 			if (runtime->channels == 8) {
 				int32_t *lf, *cf, *rf, *ls, *rs, *lef, *sbl,

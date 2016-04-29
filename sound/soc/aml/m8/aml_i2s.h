@@ -49,6 +49,8 @@ struct audio_stream {
 struct aml_audio_buffer {
 	void *buffer_start;
 	unsigned int buffer_size;
+	char cache_buffer_bytes[256];
+	int cached_len;
 };
 
 struct aml_i2s_dma_params {
