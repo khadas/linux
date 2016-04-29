@@ -62,7 +62,8 @@
 #include <linux/earlysuspend.h>
 static struct early_suspend aocec_suspend_handler;
 #endif
-
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/jtag.h>
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
@@ -1432,6 +1433,15 @@ static int aml_cec_probe(struct platform_device *pdev)
 		CEC_INFO("Failed to register device\n");
 		input_free_device(cec_dev->cec_info.remote_cec_dev);
 	}
+
+	/* hdmi cec is conflict with jtag ao.
+	 * if jtag select apao, don't probe hdmi cec
+	 */
+	if (is_meson_gxtvbb_cpu() && is_jtag_apao()) {
+		CEC_ERR("conflict with jtag apao, stop to probe\n");
+		return -EFAULT;
+	}
+
 
 #ifdef CONFIG_OF
 	/* pinmux set */
