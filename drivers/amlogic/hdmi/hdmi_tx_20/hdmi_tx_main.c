@@ -2874,9 +2874,20 @@ static int amhdmitx_restore(struct device *dev)
 	}
 	return 0;
 }
-
+static int amhdmitx_pm_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return amhdmitx_suspend(pdev, PMSG_SUSPEND);
+}
+static int amhdmitx_pm_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return amhdmitx_resume(pdev);
+}
 static const struct dev_pm_ops amhdmitx_pm = {
 	.restore	= amhdmitx_restore,
+	.suspend	= amhdmitx_pm_suspend,
+	.resume		= amhdmitx_pm_resume,
 };
 #endif
 

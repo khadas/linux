@@ -2419,6 +2419,16 @@ static int osd_restore(struct device *dev)
 	osd_restore_hw();
 	return 0;
 }
+static int osd_pm_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return osd_suspend(pdev, PMSG_SUSPEND);
+}
+static int osd_pm_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return osd_resume(pdev);
+}
 #endif
 
 static int osd_probe(struct platform_device *pdev)
@@ -2718,6 +2728,8 @@ const struct dev_pm_ops osd_pm = {
 	.freeze		= osd_freeze,
 	.thaw		= osd_thaw,
 	.restore	= osd_restore,
+	.suspend	= osd_pm_suspend,
+	.resume		= osd_pm_resume,
 };
 #endif
 

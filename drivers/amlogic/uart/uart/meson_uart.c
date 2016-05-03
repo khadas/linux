@@ -986,10 +986,26 @@ static int meson_uart_restore(struct device *dev)
 	return 0;
 }
 
+static int meson_uart_suspend(struct platform_device *pdev,
+	pm_message_t state);
+static int meson_uart_resume(struct platform_device *pdev);
+static int meson_uart_pm_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return meson_uart_suspend(pdev, PMSG_SUSPEND);
+
+}
+static int meson_uart_pm_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return meson_uart_resume(pdev);
+}
 const struct dev_pm_ops meson_uart_pm = {
 	.freeze		= meson_uart_freeze,
 	.thaw		= meson_uart_thaw,
 	.restore	= meson_uart_restore,
+	.suspend	= meson_uart_pm_suspend,
+	.resume		= meson_uart_pm_resume,
 };
 #endif
 

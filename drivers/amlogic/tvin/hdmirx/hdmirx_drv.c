@@ -1276,9 +1276,22 @@ static int hdmirx_restore(struct device *dev)
 	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
 	return 0;
 }
+static int hdmirx_pm_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return hdmirx_suspend(pdev, PMSG_SUSPEND);
+}
+
+static int hdmirx_pm_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	return hdmirx_resume(pdev);
+}
 
 const struct dev_pm_ops hdmirx_pm = {
 	.restore	= hdmirx_restore,
+	.suspend	= hdmirx_pm_suspend,
+	.resume		= hdmirx_pm_resume,
 };
 #endif
 
