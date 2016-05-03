@@ -4007,9 +4007,14 @@ void sharpness_process(struct vframe_s *vf)
 void vpp_vd_adj1_contrast(signed int cont_val)
 {
 	unsigned int vd1_contrast;
+	unsigned int vdj1_ctl;
 	if ((cont_val > 1023) || (cont_val < -1024))
 		return;
 	cont_val = ((cont_val + 1024) >> 3);
+	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
+	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
+	if (vdj1_ctl)
+		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x1ff00) |
