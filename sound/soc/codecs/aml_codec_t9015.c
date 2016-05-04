@@ -54,10 +54,10 @@ struct T9015_audio_init_reg {
 };
 
 static struct T9015_audio_init_reg init_list[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x3400Bc0F},
-	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x50502929},
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000B00F},
+	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
 	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFBFB0000},
-	{LINE_OUT_CONFIG, 0x00004242},
+	{LINE_OUT_CONFIG, 0x00001111},
 	{POWER_CONFIG, 0x00010000},
 };
 
@@ -77,7 +77,7 @@ static unsigned int aml_T9015_audio_read(struct snd_soc_codec *codec,
 				unsigned int reg)
 {
 	u32 val;
-	u32 int_reg = reg >> 2 << 2;
+	u32 int_reg = reg & (~0x3);
 	val = acodec_reg_read(ACODEC_BASE_ADD + int_reg);
 	return val;
 
@@ -86,7 +86,7 @@ static unsigned int aml_T9015_audio_read(struct snd_soc_codec *codec,
 static int aml_T9015_audio_write(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int val)
 {
-	u32 int_reg = reg >> 2 << 2;
+	u32 int_reg = reg & (~0x3);
 	acodec_reg_write(val, (ACODEC_BASE_ADD + int_reg));
 	return 0;
 }
@@ -119,20 +119,21 @@ static int aml_DAC_Gain_set_enum(
 		val &= ~(0x1 << DAC_GAIN_SEL_H);
 		val |= (0x1 << DAC_GAIN_SEL_L);
 		acodec_reg_write(val, add);
+		pr_info("It has risk of distortion!\n");
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
 		val |= (0x1 << DAC_GAIN_SEL_H);
 		val &= ~(0x1 << DAC_GAIN_SEL_L);
 		acodec_reg_write(val, add);
+		pr_info("It has risk of distortion!\n");
 	} else if (ucontrol->value.enumerated.item[0] == 3) {
 		val |= (0x1 << DAC_GAIN_SEL_H);
 		val |= (0x1 << DAC_GAIN_SEL_L);
 		acodec_reg_write(val, add);
+		pr_info("It has risk of distortion!\n");
 	}
 	return 0;
 }
 
-static const DECLARE_TLV_DB_SCALE(pga_in_tlv, -1200, 250, 1);
-static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -29625, 375, 1);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -95250, 375, 1);
 
 static const char *const DAC_Gain_texts[] = { "0dB", "6dB", "12dB", "18dB" };
@@ -142,20 +143,12 @@ static const struct soc_enum DAC_Gain_enum = SOC_ENUM_SINGLE(
 			DAC_Gain_texts);
 
 static const struct snd_kcontrol_new T9015_audio_snd_controls[] = {
-	/*PGA_IN Gain */
-	SOC_DOUBLE_TLV("PGA IN Gain", ADC_VOL_CTR_PGA_IN_CONFIG,
-		       PGAL_IN_GAIN, PGAR_IN_GAIN,
-		       0x1f, 0, pga_in_tlv),
-
-	/*ADC Digital Volume control */
-	SOC_DOUBLE_TLV("ADC Digital Capture Volume", ADC_VOL_CTR_PGA_IN_CONFIG,
-		       ADCL_VC, ADCR_VC,
-		       0x7f, 0, adc_vol_tlv),
 
 	/*DAC Digital Volume control */
-	SOC_DOUBLE_TLV("DAC Digital Playback Volume", DAC_VOL_CTR_DAC_SOFT_MUTE,
-		       DACL_VC, DACR_VC,
-		       0xff, 0, dac_vol_tlv),
+	SOC_DOUBLE_TLV("DAC Digital Playback Volume",
+			   DAC_VOL_CTR_DAC_SOFT_MUTE,
+			   DACL_VC, DACR_VC,
+			   0xff, 0, dac_vol_tlv),
 
     /*DAC extra Digital Gain control */
 	SOC_ENUM_EXT("DAC Extra Digital Gain",
@@ -165,104 +158,51 @@ static const struct snd_kcontrol_new T9015_audio_snd_controls[] = {
 
 };
 
-/*pgain Left Channel Input */
-static const char * const T9015_pgain_left_txt[] = {
-	"None", "AIL1", "AIL2", "AIL3", "AIL4"
-};
-
-static const SOC_ENUM_SINGLE_DECL(T9015_pgain_left_enum,
-				  ADC_VOL_CTR_PGA_IN_CONFIG   ,
-				  PGAL_IN_SEL, T9015_pgain_left_txt);
-
-static const struct snd_kcontrol_new pgain_ln_mux =
-SOC_DAPM_ENUM("ROUTE_L", T9015_pgain_left_enum);
-
-/*pgain right Channel Input */
-static const char * const T9015_pgain_right_txt[] = {
-	"None", "AIR1", "AIR2", "AIR3", "AIR4"
-};
-
-static const SOC_ENUM_SINGLE_DECL(T9015_pgain_right_enum,
-				  ADC_VOL_CTR_PGA_IN_CONFIG   ,
-				  PGAR_IN_SEL, T9015_pgain_right_txt);
-
-static const struct snd_kcontrol_new pgain_rn_mux =
-SOC_DAPM_ENUM("ROUTE_R", T9015_pgain_right_enum);
-
 /*line out Left Positive mux */
 static const char * const T9015_out_lp_txt[] = {
-	"None", "LOLP_SEL_AIL_INV", "LOLP_SEL_AIL", "Reserved", "LOLP_SEL_DACL"
+	"None", "LOLP_SEL_DACL", "LOLP_SEL_DACL_INV"
 };
 
 static const SOC_ENUM_SINGLE_DECL(T9015_out_lp_enum, LINE_OUT_CONFIG,
-				  LOLP_SEL_AIL_INV, T9015_out_lp_txt);
+				  LOLP_SEL_DACL, T9015_out_lp_txt);
 
 static const struct snd_kcontrol_new line_out_lp_mux =
 SOC_DAPM_ENUM("ROUTE_LP_OUT", T9015_out_lp_enum);
 
 /*line out Left Negative mux */
 static const char * const T9015_out_ln_txt[] = {
-	"None", "LOLN_SEL_AIL", "LOLN_SEL_DACL", "Reserved", "LOLN_SEL_DACL_INV"
+	"None", "LOLN_SEL_DACL_INV", "LOLN_SEL_DACL"
 };
 
 static const SOC_ENUM_SINGLE_DECL(T9015_out_ln_enum, LINE_OUT_CONFIG,
-				  LOLN_SEL_AIL, T9015_out_ln_txt);
+				  LOLN_SEL_DACL_INV, T9015_out_ln_txt);
 
 static const struct snd_kcontrol_new line_out_ln_mux =
 SOC_DAPM_ENUM("ROUTE_LN_OUT", T9015_out_ln_enum);
 
 /*line out Right Positive mux */
 static const char * const T9015_out_rp_txt[] = {
-	"None", "LORP_SEL_AIR_INV", "LORP_SEL_AIR", "Reserved", "LORP_SEL_DACR"
+	"None", "LORP_SEL_DACR", "LORP_SEL_DACR_INV"
 };
 
 static const SOC_ENUM_SINGLE_DECL(T9015_out_rp_enum, LINE_OUT_CONFIG,
-				  LORP_SEL_AIR_INV, T9015_out_rp_txt);
+				  LORP_SEL_DACR, T9015_out_rp_txt);
 
 static const struct snd_kcontrol_new line_out_rp_mux =
 SOC_DAPM_ENUM("ROUTE_RP_OUT", T9015_out_rp_enum);
 
 /*line out Right Negative mux */
 static const char * const T9015_out_rn_txt[] = {
-	"None", "LORN_SEL_AIR", "LORN_SEL_DACR", "Reserved", "LORN_SEL_DACR_INV"
+	"None", "LORN_SEL_DACR_INV", "LORN_SEL_DACR"
 };
 
 static const SOC_ENUM_SINGLE_DECL(T9015_out_rn_enum, LINE_OUT_CONFIG,
-				  LORN_SEL_AIR, T9015_out_rn_txt);
+				  LORN_SEL_DACR_INV, T9015_out_rn_txt);
 
 static const struct snd_kcontrol_new line_out_rn_mux =
 SOC_DAPM_ENUM("ROUTE_RN_OUT", T9015_out_rn_enum);
 
 static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets[] = {
-
-	/* Input */
-	SND_SOC_DAPM_INPUT("Linein left 1"),
-	SND_SOC_DAPM_INPUT("Linein left 2"),
-	SND_SOC_DAPM_INPUT("Linein left 3"),
-	SND_SOC_DAPM_INPUT("Linein left 4"),
-
-	SND_SOC_DAPM_INPUT("Linein right 1"),
-	SND_SOC_DAPM_INPUT("Linein right 2"),
-	SND_SOC_DAPM_INPUT("Linein right 3"),
-	SND_SOC_DAPM_INPUT("Linein right 4"),
-
-	/*PGA input */
-	SND_SOC_DAPM_PGA("PGAL_IN_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			 PGAL_IN_EN, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PGAR_IN_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			 PGAL_IN_EN, 0, NULL, 0),
-
-	/*PGA input source select */
-	SND_SOC_DAPM_MUX("Linein left switch", SND_SOC_NOPM,
-			 0, 0, &pgain_ln_mux),
-	SND_SOC_DAPM_MUX("Linein right switch", SND_SOC_NOPM,
-			 0, 0, &pgain_rn_mux),
-
-	/*ADC capture stream */
-	SND_SOC_DAPM_ADC("Left ADC", "HIFI Capture", AUDIO_CONFIG_BLOCK_ENABLE,
-			 ADCL_EN, 0),
-	SND_SOC_DAPM_ADC("Right ADC", "HIFI Capture", AUDIO_CONFIG_BLOCK_ENABLE,
-			 ADCR_EN, 0),
 
 	/*Output */
 	SND_SOC_DAPM_OUTPUT("Lineout left N"),
@@ -271,21 +211,22 @@ static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Lineout right P"),
 
 	/*DAC playback stream */
-	SND_SOC_DAPM_DAC("Left DAC", "HIFI Playback", AUDIO_CONFIG_BLOCK_ENABLE,
+	SND_SOC_DAPM_DAC("Left DAC", "HIFI Playback",
+			 AUDIO_CONFIG_BLOCK_ENABLE,
 			 DACL_EN, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "HIFI Playback",
 			 AUDIO_CONFIG_BLOCK_ENABLE,
 			 DACR_EN, 0),
 
 	/*DRV output */
-	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			     LOLP_EN, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("LOLN_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			     LOLN_EN, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("LORP_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			     LORP_EN, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("LORN_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			     LORN_EN, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", SND_SOC_NOPM,
+			     0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("LOLN_OUT_EN", SND_SOC_NOPM,
+			     0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("LORP_OUT_EN", SND_SOC_NOPM,
+			     0, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("LORN_OUT_EN", SND_SOC_NOPM,
+			     0, 0, NULL, 0),
 
 	/*MUX output source select */
 	SND_SOC_DAPM_MUX("Lineout left P switch", SND_SOC_NOPM,
@@ -299,39 +240,18 @@ static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route T9015_audio_dapm_routes[] = {
-/* Input path */
-	{"Linein left switch", "AIL1", "Linein left 1"},
-	{"Linein left switch", "AIL2", "Linein left 2"},
-	{"Linein left switch", "AIL3", "Linein left 3"},
-	{"Linein left switch", "AIL4", "Linein left 4"},
-
-	{"Linein right switch", "AIR1", "Linein right 1"},
-	{"Linein right switch", "AIR2", "Linein right 2"},
-	{"Linein right switch", "AIR3", "Linein right 3"},
-	{"Linein right switch", "AIR4", "Linein right 4"},
-
-	{"PGAL_IN_EN", NULL, "Linein left switch"},
-	{"PGAR_IN_EN", NULL, "Linein right switch"},
-
-	{"Left ADC", NULL, "PGAL_IN_EN"},
-	{"Right ADC", NULL, "PGAR_IN_EN"},
-
-/*Output path*/
+    /*Output path*/
 	{"Lineout left P switch", "LOLP_SEL_DACL", "Left DAC"},
-	{"Lineout left P switch", "LOLP_SEL_AIL", "PGAL_IN_EN"},
-	{"Lineout left P switch", "LOLP_SEL_AIL_INV", "PGAL_IN_EN"},
+	{"Lineout left P switch", "LOLP_SEL_DACL_INV", "Left DAC"},
 
-	{"Lineout left N switch", "LOLN_SEL_AIL", "PGAL_IN_EN"},
-	{"Lineout left N switch", "LOLN_SEL_DACL", "Left DAC"},
 	{"Lineout left N switch", "LOLN_SEL_DACL_INV", "Left DAC"},
+	{"Lineout left N switch", "LOLN_SEL_DACL", "Left DAC"},
 
 	{"Lineout right P switch", "LORP_SEL_DACR", "Right DAC"},
-	{"Lineout right P switch", "LORP_SEL_AIR", "PGAR_IN_EN"},
-	{"Lineout right P switch", "LORP_SEL_AIR_INV", "PGAR_IN_EN"},
+	{"Lineout right P switch", "LORP_SEL_DACR_INV", "Right DAC"},
 
-	{"Lineout right N switch", "LORN_SEL_AIR", "PGAR_IN_EN"},
-	{"Lineout right N switch", "LORN_SEL_DACR", "Right DAC"},
 	{"Lineout right N switch", "LORN_SEL_DACR_INV", "Right DAC"},
+	{"Lineout right N switch", "LORN_SEL_DACR", "Right DAC"},
 
 	{"LOLN_OUT_EN", NULL, "Lineout left N switch"},
 	{"LOLP_OUT_EN", NULL, "Lineout left P switch"},
@@ -529,13 +449,6 @@ struct snd_soc_dai_driver aml_T9015_audio_dai[] = {
 		      .rates = T9015_AUDIO_STEREO_RATES,
 		      .formats = T9015_AUDIO_FORMATS,
 		      },
-	 .capture = {
-		     .stream_name = "HIFI Capture",
-		     .channels_min = 1,
-		     .channels_max = 2,
-		     .rates = T9015_AUDIO_STEREO_RATES,
-		     .formats = T9015_AUDIO_FORMATS,
-		     },
 	 .ops = &T9015_audio_aif_dai_ops,
 	 },
 };
@@ -597,7 +510,7 @@ static int __init aml_T9015_audio_modinit(void)
 
 	ret = platform_driver_register(&aml_T9015_codec_platform_driver);
 	if (ret != 0) {
-		pr_info(KERN_ERR
+		pr_err(
 			"Failed to register AML T9015 codec platform driver: %d\n",
 			ret);
 	}

@@ -575,7 +575,7 @@ static char drc1_table[15] = "drc1_table_0";
 static char drc1_tko_table[20] = "drc1_tko_table_0";
 static char drc2_table[15] = "drc2_table_0";
 static char drc2_tko_table[20] = "drc2_tko_table_0";
-static int __init aml_drc_type_select(char *s)
+static int aml_drc_type_select(char *s)
 {
 	char *sel = s;
 
@@ -593,7 +593,7 @@ __setup("amp_drc_type=", aml_drc_type_select);
 static char table[10] = "table_0";
 static char wall[10] = "wall_0";
 static char sub_bq_table[20] = "sub_bq_table_0";
-static int __init aml_eq_type_select(char *s)
+static int aml_eq_type_select(char *s)
 {
 	char *sel = s;
 

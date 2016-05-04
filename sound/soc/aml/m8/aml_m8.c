@@ -696,6 +696,7 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	}
 
 	aml_i2s_play();
+	msleep(100);
 	aml_m8_pinmux_init(card);
 	return 0;
  err:
