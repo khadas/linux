@@ -1177,8 +1177,6 @@ static void set_pkf_duk_nonce(void)
 
 static void hdcp22_hw_init(void)
 {
-	hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 3, 21, 2);
-	hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 3, 24, 2); /* MUX DDC */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x7);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x73);
@@ -1190,11 +1188,12 @@ static void hdcp22_hw_init(void)
 	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 6, 1);
 	/* Enable tmds_clk to HDCP2.2 IP */
 	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 5, 1);
+#if 0
 	/* sw_reset_hdcp22: to reset HDCP2.2 IP */
 	hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
 	mdelay(10);
 	hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
-
+#endif
 	set_pkf_duk_nonce();
 }
 
