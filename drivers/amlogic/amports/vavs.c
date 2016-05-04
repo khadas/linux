@@ -33,7 +33,10 @@
 #include "amvdec.h"
 #include "arch/register.h"
 #include "amports_priv.h"
-
+#include <linux/dma-mapping.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/slab.h>
+#include "avs.h"
 
 #define DRIVER_NAME "amvdec_avs"
 #define MODULE_NAME "amvdec_avs"
@@ -72,7 +75,7 @@
 #define MEM_OFFSET_REG      AV_SCRATCH_F
 #define AVS_ERROR_RECOVERY_MODE   AV_SCRATCH_G
 
-#define VF_POOL_SIZE        16
+#define VF_POOL_SIZE        32
 #define PUT_INTERVAL        (HZ/100)
 
 #if 1 /*MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8*/
@@ -85,6 +88,13 @@
 #define VPP_VD1_POSTBLEND       (1 << 10)
 
 static int debug_flag;
+
+static int firmware_sel; /* 0, normal; 1, old ucode */
+
+int avs_get_debug_flag(void)
+{
+	return debug_flag;
+}
 
 static struct vframe_s *vavs_vf_peek(void *);
 static struct vframe_s *vavs_vf_get(void *);
@@ -105,11 +115,21 @@ static const struct vframe_operations_s vavs_vf_provider = {
 
 static struct vframe_provider_s vavs_vf_prov;
 
-#define  VF_BUF_NUM 4
+#define  VF_BUF_NUM_MAX 16
 
+/*static u32 vf_buf_num = 4*/
+static u32 vf_buf_num = 4;
+static u32 vf_buf_num_used;
+static u32 canvas_base = 128;
+#ifdef NV21
+	int	canvas_num = 2; /*NV21*/
+#else
+	int	canvas_num = 3;
+#endif
+	static u32 work_buf_size;
 
 static struct vframe_s vfpool[VF_POOL_SIZE];
-static s32 vfbuf_use[VF_BUF_NUM];
+static s32 vfbuf_use[VF_BUF_NUM_MAX];
 static u32 saved_resolution;
 static u32 frame_width, frame_height, frame_dur, frame_prog;
 static struct timer_list recycle_timer;
@@ -127,7 +147,19 @@ static unsigned char throw_pb_flag;
 static u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
 #endif
 
+static u32 radr, rval;
 static struct dec_sysinfo vavs_amstream_dec_info;
+
+#ifdef AVSP_LONG_CABAC
+static struct work_struct long_cabac_wd_work;
+void *es_write_addr_virt;
+dma_addr_t es_write_addr_phy;
+
+void *bitstream_read_tmp;
+dma_addr_t bitstream_read_tmp_phy;
+void *avsp_heap_adr;
+
+#endif
 
 static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(display_q, struct vframe_s *, VF_POOL_SIZE);
@@ -135,15 +167,22 @@ static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
 
 static inline u32 index2canvas(u32 index)
 {
-	const u32 canvas_tab[4] = {
-#ifdef NV21
+	const u32 canvas_tab[VF_BUF_NUM_MAX] = {
+		0x010100, 0x030302, 0x050504, 0x070706,
+		0x090908, 0x0b0b0a, 0x0d0d0c, 0x0f0f0e,
+		0x111110, 0x131312, 0x151514, 0x171716,
+		0x191918, 0x1b1b1a, 0x1d1d1c, 0x1f1f1e,
+	};
+	const u32 canvas_tab_3[4] = {
 		0x010100, 0x040403, 0x070706, 0x0a0a09
-#else
-		0x020100, 0x050403, 0x080706, 0x0b0a09
-#endif
 	};
 
-	return canvas_tab[index];
+	if (canvas_num == 2)
+		return canvas_tab[index] + (canvas_base << 16)
+		+ (canvas_base << 8) + canvas_base;
+
+	return canvas_tab_3[index] + (canvas_base << 16)
+		+ (canvas_base << 8) + canvas_base;
 }
 
 static const u32 frame_rate_tab[16] = {
@@ -237,23 +276,33 @@ static void vavs_isr(void)
 	u32 repeat_count;
 	u32 picture_type;
 	u32 buffer_index;
+	u32 picture_struct;
 	unsigned int pts, pts_valid = 0, offset;
-	if (debug_flag & 2) {
+	if (debug_flag & AVS_DEBUG_UCODE) {
 		if (READ_VREG(AV_SCRATCH_E) != 0) {
 			pr_info("dbg%x: %x\n", READ_VREG(AV_SCRATCH_E),
 				   READ_VREG(AV_SCRATCH_D));
 			WRITE_VREG(AV_SCRATCH_E, 0);
 		}
 	}
-
+#ifdef AVSP_LONG_CABAC
+	if (firmware_sel == 0 && READ_VREG(LONG_CABAC_REQ)) {
+#ifdef PERFORMANCE_DEBUG
+		pr_info("%s:schedule long_cabac_wd_work\r\n", __func__);
+#endif
+		schedule_work(&long_cabac_wd_work);
+	}
+#endif
 	reg = READ_VREG(AVS_BUFFEROUT);
 
 	if (reg) {
-		if (debug_flag & 1)
-			pr_info("AVS_BUFFEROUT=%x\n", reg);
+		picture_struct = READ_VREG(AV_SCRATCH_5);
+		if (debug_flag & AVS_DEBUG_PRINT)
+			pr_info("AVS_BUFFEROUT=%x, picture_struct is 0x%x\n",
+				reg, picture_struct);
 		if (pts_by_offset) {
 			offset = READ_VREG(AVS_OFFSET_REG);
-			if (debug_flag & 1)
+			if (debug_flag & AVS_DEBUG_PRINT)
 				pr_info("AVS OFFSET=%x\n", offset);
 			if (pts_lookup_offset(PTS_TYPE_VIDEO, offset, &pts, 0)
 				== 0) {
@@ -269,7 +318,14 @@ static void vavs_isr(void)
 		}
 
 		repeat_count = READ_VREG(AVS_REPEAT_COUNT);
-		buffer_index = ((reg & 0x7) - 1) & 3;
+		if (firmware_sel == 0)
+			buffer_index =
+				((reg & 0x7) +
+				(((reg >> 8) & 0x3) << 3) - 1) & 0x1f;
+		else
+			buffer_index =
+				((reg & 0x7) - 1) & 3;
+
 		picture_type = (reg >> 3) & 7;
 #ifdef DEBUG_PTS
 		if (picture_type == I_PICTURE) {
@@ -284,7 +340,7 @@ static void vavs_isr(void)
 
 		if (throw_pb_flag && picture_type != I_PICTURE) {
 
-			if (debug_flag & 1) {
+			if (debug_flag & AVS_DEBUG_PRINT) {
 				pr_info("picture type %d throwed\n",
 					   picture_type);
 			}
@@ -292,7 +348,7 @@ static void vavs_isr(void)
 		} else if (reg & INTERLACE_FLAG) {	/* interlace */
 			throw_pb_flag = 0;
 
-			if (debug_flag & 1) {
+			if (debug_flag & AVS_DEBUG_PRINT) {
 				pr_info("interlace, picture type %d\n",
 					   picture_type);
 			}
@@ -350,7 +406,7 @@ static void vavs_isr(void)
 				index2canvas(buffer_index);
 			vf->type_original = vf->type;
 
-			if (debug_flag & 1) {
+			if (debug_flag & AVS_DEBUG_PRINT) {
 				pr_info("buffer_index %d, canvas addr %x\n",
 					   buffer_index, vf->canvas0Addr);
 			}
@@ -410,7 +466,7 @@ static void vavs_isr(void)
 		} else {	/* progressive */
 			throw_pb_flag = 0;
 
-			if (debug_flag & 1) {
+			if (debug_flag & AVS_DEBUG_PRINT) {
 				pr_info("progressive picture type %d\n",
 					   picture_type);
 			}
@@ -463,7 +519,7 @@ static void vavs_isr(void)
 			vf->canvas0Addr = vf->canvas1Addr =
 				index2canvas(buffer_index);
 			vf->type_original = vf->type;
-			if (debug_flag & 1) {
+			if (debug_flag & AVS_DEBUG_PRINT) {
 				pr_info("buffer_index %d, canvas addr %x\n",
 					   buffer_index, vf->canvas0Addr);
 			}
@@ -494,7 +550,6 @@ static void vavs_isr(void)
 static int run_flag = 1;
 static int step_flag;
 static int error_recovery_mode;   /*0: blocky  1: mosaic*/
-
 
 static struct vframe_s *vavs_vf_peek(void *op_arg)
 {
@@ -545,8 +600,8 @@ static void vavs_canvas_init(void)
 	u32 canvas_width, canvas_height;
 	u32 decbuf_size, decbuf_y_size, decbuf_uv_size;
 	u32 disp_addr = 0xffffffff;
-	int canvas_num = 3;
-
+	int vf_buf_num_avail = 0;
+	vf_buf_num_used = vf_buf_num;
 	if (buf_size <= 0x00400000) {
 		/* SD only */
 		canvas_width = 768;
@@ -554,9 +609,12 @@ static void vavs_canvas_init(void)
 		decbuf_y_size = 0x80000;
 		decbuf_uv_size = 0x20000;
 		decbuf_size = 0x100000;
+		vf_buf_num_avail =
+		((buf_size - work_buf_size) / decbuf_size) - 1;
 		pr_info
-		("avs (SD only): buf_start %p, buf_size %x, buf_offset %x\n",
-		 (void *)buf_start, buf_size, buf_offset);
+		("avs(SD):buf_start %p, size %x, offset %x avail %d\n",
+		 (void *)buf_start, buf_size, buf_offset,
+		 vf_buf_num_avail);
 	} else {
 		/* HD & SD */
 		canvas_width = 1920;
@@ -564,10 +622,16 @@ static void vavs_canvas_init(void)
 		decbuf_y_size = 0x200000;
 		decbuf_uv_size = 0x80000;
 		decbuf_size = 0x300000;
-		pr_info("avs: buf_start %p, buf_size %x, buf_offset %x\n",
-			   (void *)buf_start, buf_size, buf_offset);
+		vf_buf_num_avail =
+		((buf_size - work_buf_size) / decbuf_size) - 1;
+		pr_info("avs: buf_start %p, buf_size %x, buf_offset %x buf avail %d\n",
+			   (void *)buf_start, buf_size, buf_offset,
+			   vf_buf_num_avail);
 	}
+	if (vf_buf_num_used > vf_buf_num_avail)
+		vf_buf_num_used = vf_buf_num_avail;
 
+	buf_offset = buf_offset + ((vf_buf_num_used + 1) * decbuf_size);
 	if (READ_MPEG_REG(VPP_MISC) & VPP_VD1_POSTBLEND) {
 		struct canvas_s cur_canvas;
 
@@ -576,16 +640,18 @@ static void vavs_canvas_init(void)
 		disp_addr = (cur_canvas.addr + 7) >> 3;
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < vf_buf_num_used; i++) {
 		if (((buf_start + i * decbuf_size + 7) >> 3) == disp_addr) {
 #ifdef NV21
-			canvas_config(canvas_num * i + 0,
-					buf_start + 4 * decbuf_size,
+			canvas_config(canvas_base + canvas_num * i + 0,
+					buf_start +
+					vf_buf_num_used * decbuf_size,
 					canvas_width, canvas_height,
 					CANVAS_ADDR_NOWRAP,
 					CANVAS_BLKMODE_32X32);
-			canvas_config(canvas_num * i + 1,
-					buf_start + 4 * decbuf_size +
+			canvas_config(canvas_base + canvas_num * i + 1,
+					buf_start +
+					vf_buf_num_used * decbuf_size +
 					decbuf_y_size, canvas_width,
 					canvas_height / 2,
 					CANVAS_ADDR_NOWRAP,
@@ -609,20 +675,21 @@ static void vavs_canvas_init(void)
 					CANVAS_ADDR_NOWRAP,
 					CANVAS_BLKMODE_32X32);
 #endif
-			if (debug_flag & 1) {
-				pr_info("canvas config %d, addr %p\n", 4,
+			if (debug_flag & AVS_DEBUG_PRINT) {
+				pr_info("canvas config %d, addr %p\n",
+					vf_buf_num_used,
 					   (void *)(buf_start +
-					   4 * decbuf_size));
+					   vf_buf_num_used * decbuf_size));
 			}
 
 		} else {
 #ifdef NV21
-			canvas_config(canvas_num * i + 0,
+			canvas_config(canvas_base + canvas_num * i + 0,
 					buf_start + i * decbuf_size,
 					canvas_width, canvas_height,
 					CANVAS_ADDR_NOWRAP,
 					CANVAS_BLKMODE_32X32);
-			canvas_config(canvas_num * i + 1,
+			canvas_config(canvas_base + canvas_num * i + 1,
 					buf_start + i * decbuf_size +
 					decbuf_y_size, canvas_width,
 					canvas_height / 2,
@@ -647,7 +714,7 @@ static void vavs_canvas_init(void)
 					CANVAS_ADDR_NOWRAP,
 					CANVAS_BLKMODE_32X32);
 #endif
-			if (debug_flag & 1) {
+			if (debug_flag & AVS_DEBUG_PRINT) {
 				pr_info("canvas config %d, addr %p\n", i,
 					   (void *)(buf_start +
 					   i * decbuf_size));
@@ -685,12 +752,31 @@ static void vavs_prot_init(void)
 	WRITE_VREG_BITS(VLD_MEM_VIFIFO_CONTROL, 8, MEM_LEVEL_CNT_BIT, 6);
 
 	vavs_canvas_init();
-
+	if (firmware_sel == 0)
+		WRITE_VREG(AV_SCRATCH_5, 0);
 #ifdef NV21
-	WRITE_VREG(AV_SCRATCH_0, 0x010100);
-	WRITE_VREG(AV_SCRATCH_1, 0x040403);
-	WRITE_VREG(AV_SCRATCH_2, 0x070706);
-	WRITE_VREG(AV_SCRATCH_3, 0x0a0a09);
+		if (firmware_sel == 0) {
+			/* fixed canvas index */
+			WRITE_VREG(AV_SCRATCH_0, canvas_base);
+			WRITE_VREG(AV_SCRATCH_1, vf_buf_num_used);
+		} else {
+			int ii;
+			for (ii = 0; ii < 4; ii++) {
+				WRITE_VREG(AV_SCRATCH_0 + ii,
+					(canvas_base + canvas_num * ii) |
+					((canvas_base + canvas_num * ii + 1)
+						<< 8) |
+					((canvas_base + canvas_num * ii + 1)
+						<< 16)
+				);
+			}
+			/*
+			WRITE_VREG(AV_SCRATCH_0, 0x010100);
+			WRITE_VREG(AV_SCRATCH_1, 0x040403);
+			WRITE_VREG(AV_SCRATCH_2, 0x070706);
+			WRITE_VREG(AV_SCRATCH_3, 0x0a0a09);
+			*/
+		}
 #else
 	/* index v << 16 | u << 8 | y */
 	WRITE_VREG(AV_SCRATCH_0, 0x020100);
@@ -728,8 +814,19 @@ static void vavs_prot_init(void)
 	CLEAR_VREG_MASK(MDEC_PIC_DC_CTRL, 1 << 31);
 #endif
 
+#ifdef AVSP_LONG_CABAC
+	if (firmware_sel == 0) {
+		WRITE_VREG(LONG_CABAC_DES_ADDR, es_write_addr_phy);
+		WRITE_VREG(LONG_CABAC_REQ, 0);
+		WRITE_VREG(LONG_CABAC_PIC_SIZE, 0);
+		WRITE_VREG(LONG_CABAC_SRC_ADDR, 0);
+	}
+#endif
 }
 
+#ifdef AVSP_LONG_CABAC
+static unsigned char es_write_addr[MAX_CODED_FRAME_SIZE]  __aligned(64);
+#endif
 static void vavs_local_init(void)
 {
 	int i;
@@ -755,12 +852,13 @@ static void vavs_local_init(void)
 
 	for (i = 0; i < VF_POOL_SIZE; i++) {
 		const struct vframe_s *vf = &vfpool[i];
-		vfpool[i].index = VF_BUF_NUM;
+		vfpool[i].index = vf_buf_num;
 		vfpool[i].bufWidth = 1920;
 		kfifo_put(&newframe_q, vf);
 	}
-	for (i = 0; i < VF_BUF_NUM; i++)
+	for (i = 0; i < vf_buf_num; i++)
 		vfbuf_use[i] = 0;
+
 }
 
 static int vavs_vf_states(struct vframe_states *states, void *op_arg)
@@ -810,14 +908,23 @@ static void vavs_put_timer_func(unsigned long arg)
 		amvdec_start();
 	}
 #endif
+	if (radr != 0) {
+		if (rval != 0) {
+			WRITE_VREG(radr, rval);
+			pr_info("WRITE_VREG(%x,%x)\n", radr, rval);
+		} else
+			pr_info("READ_VREG(%x)=%x\n", radr, READ_VREG(radr));
+		rval = 0;
+		radr = 0;
+	}
 
 	if (!kfifo_is_empty(&recycle_q) && (READ_VREG(AVS_BUFFERIN) == 0)) {
 		struct vframe_s *vf;
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index < VF_BUF_NUM) &&
+			if ((vf->index < vf_buf_num) &&
 			 (--vfbuf_use[vf->index] == 0)) {
 				WRITE_VREG(AVS_BUFFERIN, ~(1 << vf->index));
-				vf->index = VF_BUF_NUM;
+				vf->index = vf_buf_num;
 			}
 				kfifo_put(&newframe_q,
 						  (const struct vframe_s *)vf);
@@ -828,14 +935,121 @@ static void vavs_put_timer_func(unsigned long arg)
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
 		saved_resolution = frame_width * frame_height * fps;
-		vdec_source_changed(VFORMAT_H264,
+		if (firmware_sel == 0 &&
+			(debug_flag & AVS_DEBUG_USE_FULL_SPEED)) {
+			vdec_source_changed(VFORMAT_AVS,
+				4096, 2048, 60);
+		} else {
+			vdec_source_changed(VFORMAT_AVS,
 			frame_width, frame_height, fps);
+		}
+
 	}
 
 	timer->expires = jiffies + PUT_INTERVAL;
 
 	add_timer(timer);
 }
+
+#ifdef AVSP_LONG_CABAC
+
+static void long_cabac_do_work(struct work_struct *work)
+{
+#ifdef PERFORMANCE_DEBUG
+	pr_info("enter %s buf level (new %d, display %d, recycle %d)\r\n",
+		__func__,
+		kfifo_len(&newframe_q),
+		kfifo_len(&display_q),
+		kfifo_len(&recycle_q)
+		);
+#endif
+	while (READ_VREG(LONG_CABAC_REQ))
+		process_long_cabac();
+#ifdef PERFORMANCE_DEBUG
+	pr_info("exit %s buf level (new %d, display %d, recycle %d)\r\n",
+		__func__,
+		kfifo_len(&newframe_q),
+		kfifo_len(&display_q),
+		kfifo_len(&recycle_q)
+		);
+#endif
+
+}
+#endif
+
+#ifdef AVSP_LONG_CABAC
+static void init_avsp_long_cabac_buf(void)
+{
+#if 0
+	es_write_addr_phy = (unsigned long)codec_mm_alloc_for_dma(
+		"vavs",
+		PAGE_ALIGN(MAX_CODED_FRAME_SIZE)/PAGE_SIZE,
+		0, CODEC_MM_FLAGS_DMA_CPU);
+	es_write_addr_virt = codec_mm_phys_to_virt(es_write_addr_phy);
+
+#elif 0
+	es_write_addr_virt =
+		(void *)dma_alloc_coherent(amports_get_dma_device(),
+		 MAX_CODED_FRAME_SIZE, &es_write_addr_phy,
+		GFP_KERNEL);
+#else
+	/*es_write_addr_virt = kmalloc(MAX_CODED_FRAME_SIZE, GFP_KERNEL);
+		es_write_addr_virt = (void *)__get_free_pages(GFP_KERNEL,
+		get_order(MAX_CODED_FRAME_SIZE));
+	*/
+	es_write_addr_virt = &es_write_addr[0];
+	if (es_write_addr_virt == NULL) {
+		pr_err("%s: failed to alloc es_write_addr_virt buffer\n",
+			__func__);
+		return;
+	}
+
+	es_write_addr_phy = dma_map_single(amports_get_dma_device(),
+			es_write_addr_virt,
+			MAX_CODED_FRAME_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(amports_get_dma_device(),
+			es_write_addr_phy)) {
+		pr_err("%s: failed to map es_write_addr_virt buffer\n",
+			__func__);
+		/*kfree(es_write_addr_virt);*/
+		es_write_addr_virt = NULL;
+		return;
+	}
+#endif
+
+
+#ifdef BITSTREAM_READ_TMP_NO_CACHE
+	bitstream_read_tmp =
+		(void *)dma_alloc_coherent(amports_get_dma_device(),
+			SVA_STREAM_BUF_SIZE, &bitstream_read_tmp_phy,
+			 GFP_KERNEL);
+
+#else
+
+	bitstream_read_tmp = kmalloc(SVA_STREAM_BUF_SIZE, GFP_KERNEL);
+		/*bitstream_read_tmp = (void *)__get_free_pages(GFP_KERNEL,
+		get_order(MAX_CODED_FRAME_SIZE));
+		*/
+	if (bitstream_read_tmp == NULL) {
+		pr_err("%s: failed to alloc bitstream_read_tmp buffer\n",
+			__func__);
+		return;
+	}
+
+	bitstream_read_tmp_phy = dma_map_single(amports_get_dma_device(),
+			bitstream_read_tmp,
+			SVA_STREAM_BUF_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(amports_get_dma_device(),
+			bitstream_read_tmp_phy)) {
+		pr_err("%s: failed to map rpm buffer\n", __func__);
+		kfree(bitstream_read_tmp);
+		bitstream_read_tmp = NULL;
+		return;
+	}
+#endif
+}
+#endif
+
 
 static s32 vavs_init(void)
 {
@@ -848,18 +1062,32 @@ static s32 vavs_init(void)
 
 	vavs_local_init();
 
-	if (debug_flag & 2) {
+#ifdef AVSP_LONG_CABAC
+	if (firmware_sel == 0)
+		init_avsp_long_cabac_buf();
+#endif
+	if (debug_flag & AVS_DEBUG_UCODE) {
 		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc_debug", NULL) < 0) {
 			amvdec_disable();
 			pr_info("failed\n");
 			return -EBUSY;
 		}
+		pr_info("debug ucode loaded\r\n");
+	} else if (firmware_sel == 1) {
+		/* old ucode */
+		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc_old", NULL) < 0) {
+			amvdec_disable();
+			pr_info("failed\n");
+			return -EBUSY;
+		}
+		pr_info("old ucode loaded\r\n");
 	} else {
 		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc", NULL) < 0) {
 			amvdec_disable();
 			pr_info("failed\n");
 			return -EBUSY;
 		}
+		pr_info("ucode loaded\r\n");
 	}
 
 	stat |= STAT_MC_LOAD;
@@ -901,6 +1129,11 @@ static s32 vavs_init(void)
 
 	stat |= STAT_TIMER_ARM;
 
+#ifdef AVSP_LONG_CABAC
+	if (firmware_sel == 0)
+		INIT_WORK(&long_cabac_wd_work, long_cabac_do_work);
+#endif
+
 	amvdec_start();
 
 	stat |= STAT_VDEC_RUN;
@@ -919,9 +1152,29 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 		pr_info("amvdec_avs memory resource undefined.\n");
 		return -EFAULT;
 	}
+	if (firmware_sel == 1) {
+		vf_buf_num = 4;
+		canvas_base = 0;
+		canvas_num = 3;
+	} else {
+		/*if(vf_buf_num <= 4)
+			canvas_base = 0;
+		else */
+		canvas_base = 128;
+		canvas_num = 2; /*NV21*/
+	}
 
+#ifdef AVSP_LONG_CABAC
+	buf_start = pdata->mem_start;
+	buf_size = pdata->mem_end - pdata->mem_start + 1
+		- (MAX_CODED_FRAME_SIZE * 2)
+		- LOCAL_HEAP_SIZE;
+	avsp_heap_adr = codec_mm_phys_to_virt(
+		pdata->mem_start + buf_size);
+#else
 	buf_start = pdata->mem_start;
 	buf_size = pdata->mem_end - pdata->mem_start + 1;
+#endif
 
 	if (buf_start > ORI_BUFFER_START_ADDR)
 		buf_offset = buf_start - ORI_BUFFER_START_ADDR;
@@ -958,7 +1211,40 @@ static int amvdec_avs_remove(struct platform_device *pdev)
 		del_timer_sync(&recycle_timer);
 		stat &= ~STAT_TIMER_ARM;
 	}
+#ifdef AVSP_LONG_CABAC
+	if (firmware_sel == 0) {
+		cancel_work_sync(&long_cabac_wd_work);
 
+		if (es_write_addr_virt) {
+#if 0
+			codec_mm_free_for_dma("vavs", es_write_addr_phy);
+#else
+			dma_unmap_single(amports_get_dma_device(),
+				es_write_addr_phy,
+				MAX_CODED_FRAME_SIZE, DMA_FROM_DEVICE);
+			/*kfree(es_write_addr_virt);*/
+			es_write_addr_virt = NULL;
+#endif
+		}
+
+#ifdef BITSTREAM_READ_TMP_NO_CACHE
+		if (bitstream_read_tmp) {
+			dma_free_coherent(amports_get_dma_device(),
+				SVA_STREAM_BUF_SIZE, bitstream_read_tmp,
+				bitstream_read_tmp_phy);
+			bitstream_read_tmp = NULL;
+		}
+#else
+		if (bitstream_read_tmp) {
+			dma_unmap_single(amports_get_dma_device(),
+				bitstream_read_tmp_phy,
+				SVA_STREAM_BUF_SIZE, DMA_FROM_DEVICE);
+			kfree(bitstream_read_tmp);
+			bitstream_read_tmp = NULL;
+		}
+#endif
+	}
+#endif
 	if (stat & STAT_VF_HOOK) {
 		vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_FR_END_HINT, NULL);
@@ -1039,6 +1325,28 @@ MODULE_PARM_DESC(error_recovery_mode, "\n error_recovery_mode\n");
 
 module_param(pic_type, uint, 0444);
 MODULE_PARM_DESC(pic_type, "\n amdec_vas picture type\n");
+
+module_param(radr, uint, 0664);
+MODULE_PARM_DESC(radr, "\nradr\n");
+
+module_param(rval, uint, 0664);
+MODULE_PARM_DESC(rval, "\nrval\n");
+
+module_param(vf_buf_num, uint, 0664);
+MODULE_PARM_DESC(vf_buf_num, "\nvf_buf_num\n");
+
+module_param(vf_buf_num_used, uint, 0664);
+MODULE_PARM_DESC(vf_buf_num_used, "\nvf_buf_num_used\n");
+
+module_param(canvas_base, uint, 0664);
+MODULE_PARM_DESC(canvas_base, "\ncanvas_base\n");
+
+module_param(work_buf_size, uint, 0664);
+MODULE_PARM_DESC(work_buf_size, "\nwork_buf_size\n");
+
+module_param(firmware_sel, uint, 0664);
+MODULE_PARM_DESC(firmware_sel, "\firmware_sel\n");
+
 
 module_init(amvdec_avs_driver_init_module);
 module_exit(amvdec_avs_driver_remove_module);
