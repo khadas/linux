@@ -197,7 +197,7 @@ static int bt_probe(struct platform_device *pdev)
 	bt_device_init(pdata);
 	/* default to bluetooth off */
 	/* rfkill_switch_all(RFKILL_TYPE_BLUETOOTH, 1); */
-	bt_device_off(pdata);
+	/* bt_device_off(pdata); */
 
 	bt_rfk = rfkill_alloc("bt-dev", &pdev->dev,
 		RFKILL_TYPE_BLUETOOTH,

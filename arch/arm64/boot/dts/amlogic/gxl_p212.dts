@@ -368,12 +368,12 @@
 			6: 500.0M    7: 666.7M */
 	};
 	//if use bt, open it
-	//bt-dev{
-	//	compatible = "amlogic, bt-dev";
-	//	dev_name = "bt-dev";
-	//	status = "okay";
-	//	gpio_reset = <&gpio       GPIOX_17       GPIO_ACTIVE_HIGH>;
-	//};
+	bt-dev{
+		compatible = "amlogic, bt-dev";
+		dev_name = "bt-dev";
+		status = "okay";
+		gpio_reset = <&gpio       GPIOX_17       GPIO_ACTIVE_HIGH>;
+	};
 
 	rtc{
 		compatible = "amlogic, aml_vrtc";
@@ -391,9 +391,9 @@
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
-		//dhd_static_buf;    //if use bcm wifi, config dhd_static_buf and 32k as bellow
-		//pinctrl-names = "wifi_32k_pins";
-		//pinctrl-0 = <&wifi_32k_pins>;
+		dhd_static_buf;    //if use bcm wifi, config dhd_static_buf and 32k as bellow
+		pinctrl-names = "wifi_32k_pins";
+		pinctrl-0 = <&wifi_32k_pins>;
 	};
     sd{
         compatible = "amlogic, aml_sd_emmc";
