@@ -1369,9 +1369,17 @@ static int aml_cec_probe(struct platform_device *pdev)
 	resource_size_t *base;
 #endif
 
+	/* hdmi cec is conflict with jtag ao.
+	 * if jtag select apao, don't probe hdmi cec
+	 */
+	if (is_meson_gxtvbb_cpu() && is_jtag_apao()) {
+		pr_err("aocec: conflict with jtag apao, stop to probe");
+		return -EFAULT;
+	}
+
 	cec_dev = kzalloc(sizeof(struct ao_cec_dev), GFP_KERNEL);
 	if (!cec_dev) {
-		CEC_ERR("alloc memory failed\n");
+		pr_err("aocec: alloc memory failed\n");
 		return -ENOMEM;
 	}
 	cec_dev->dev_type = DEV_TYPE_TX;
@@ -1433,15 +1441,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 		CEC_INFO("Failed to register device\n");
 		input_free_device(cec_dev->cec_info.remote_cec_dev);
 	}
-
-	/* hdmi cec is conflict with jtag ao.
-	 * if jtag select apao, don't probe hdmi cec
-	 */
-	if (is_meson_gxtvbb_cpu() && is_jtag_apao()) {
-		CEC_ERR("conflict with jtag apao, stop to probe\n");
-		return -EFAULT;
-	}
-
 
 #ifdef CONFIG_OF
 	/* pinmux set */
