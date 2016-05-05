@@ -425,6 +425,11 @@
 			amlogic,clrmask=<2 0x3000000 3 0x1000>;
 			amlogic,pins="GPIOX_16","GPIOX_17";
 		};
+		i2c_slave_pin:s_i2c{
+			amlogic,setmask=<AO 0x6>;
+			amlogic,clrmask=<AO 0x1800060>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
 		dvb_p_ts0_pins: dvb_p_ts0_pins {
 			amlogic,setmask = <3 0x37>;
 			amlogic,clrmask = <2 0xf0000 1 0x30ff>;
@@ -508,6 +513,15 @@
 		clocks = <&clock CLK_81>;
 		clock-names = "clk_i2c";
 		resets = <&clock GCLK_IDX_I2C>;
+	};
+	i2c_slave:i2c_slave@c8100540{
+		compatible = "amlogic, meson-i2c-slave";
+		status = "disabled";
+		reg = <0x0 0xc8100540 0x0 0x20>;
+		interrupts = <0 194 1>;
+		pinctrl-names="default";
+		pinctrl-0=<&i2c_slave_pin>;
+
 	};
 	efuse: efuse{
 		compatible = "amlogic, efuse";

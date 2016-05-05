@@ -8,6 +8,11 @@ config I2C_AML
 	help
 		Yet another Amlogic I2C Driver, normal master
 
+config I2C_SLAVE_AML
+	boolean "Amlogic I2C Slave Driver"
+	help
+		Yet  Amlogic I2C Slave Driver
+
 config I2C_SW_AML
 	boolean "Amlogic software I2C Driver"
 	select I2C

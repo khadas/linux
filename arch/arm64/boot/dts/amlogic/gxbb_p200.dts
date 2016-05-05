@@ -1131,6 +1131,9 @@
 };
 */
 
+&i2c_slave {
+	status = "disabled";
+};
 &pinmux {
 	audio_pins:audio_pin{
 		amlogic,setmask=<AO 0x78000000>;
