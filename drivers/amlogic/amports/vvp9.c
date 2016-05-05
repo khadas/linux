@@ -4933,11 +4933,12 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			if (pic_config->bit_depth == VPX_BITS_8)
 				vf->bitdepth |= BITDEPTH_SAVING_MODE;
 
-			vf->canvas1Addr = pic_config->mc_y_adr; /*body adr*/
-			vf->canvas0Addr = pic_config->mc_y_adr +
+			vf->compBodyAddr = pic_config->mc_y_adr; /*body adr*/
+			vf->compHeadAddr = pic_config->mc_y_adr +
 						pic_config->comp_body_size;
 						/*head adr*/
-	}
+			vf->canvas0Addr = vf->canvas1Addr = 0;
+		}
 #else
 		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
 		vf->type |= VIDTYPE_VIU_NV21;
@@ -4952,7 +4953,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		if (double_write_mode == 2) {
 			vf->width = pic_config->y_crop_width/4;
 			vf->height = pic_config->y_crop_height/4;
-		}	else {
+		} else {
 			vf->width = pic_config->y_crop_width;
 			vf->height = pic_config->y_crop_height;
 		}
@@ -4960,6 +4961,8 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			vf->width = (force_w_h >> 16) & 0xffff;
 			vf->height = force_w_h & 0xffff;
 		}
+		vf->compWidth = vf->width;
+		vf->compHeight = vf->height;
 		if (force_fps & 0x100) {
 			u32 rate = force_fps & 0xff;
 			if (rate)

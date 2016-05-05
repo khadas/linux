@@ -600,8 +600,9 @@ vpp_process_speed_check(s32 width_in,
 					return SPEED_CHECK_VSKIP;
 				/* 4K down scaling to non 4K > 30hz,
 				   skip lines for memory bandwidth */
-				else if (((vf->type & VIDTYPE_COMPRESS)
-					   == 0) &&
+				else if ((((vf->type & VIDTYPE_COMPRESS)
+					   == 0) || (next_frame_par->nocomp))
+					&&
 					 (height_in > 2048) &&
 					 (height_out < 2048) &&
 					 (vinfo->sync_duration_num >
@@ -718,6 +719,7 @@ vpp_set_filters2(u32 width_in,
 	next_frame_par->vscale_skip_count = 0;
 	next_frame_par->hscale_skip_count = 0;
 #endif
+	next_frame_par->nocomp = false;
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->vscale_skip_count++;
 	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
@@ -1212,6 +1214,24 @@ RESTART:
 
 		} else if (skip == SPEED_CHECK_HSKIP)
 			next_frame_par->hscale_skip_count = 1;
+	}
+
+	if ((vf->type & VIDTYPE_COMPRESS) &&
+		(vf->canvas0Addr != 0) &&
+		(next_frame_par->vscale_skip_count > 1) &&
+		(!next_frame_par->nocomp)) {
+		pr_info("Try DW buffer for compressed frame scaling.\n");
+
+		/* for VIDTYPE_COMPRESS, check if we can use double write
+		 * buffer when primary frame can not be scaled.
+		 */
+		next_frame_par->nocomp = true;
+		w_in = width_in = vf->width;
+		h_in = height_in = vf->height;
+		next_frame_par->hscale_skip_count = 0;
+		next_frame_par->vscale_skip_count = 0;
+
+		goto RESTART;
 	}
 
 	filter->vpp_hsc_start_phase_step = ratio_x << 6;
@@ -1921,7 +1941,7 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 			process_3d_type, vf, next_frame_par);
 	} else {
 		src_width = vf->width;
-	src_height = vf->height;
+		src_height = vf->height;
 		next_frame_par->vpp_3d_mode = VPP_3D_MODE_NULL;
 		next_frame_par->vpp_2pic_mode = 0;
 		next_frame_par->vpp_3d_scale = 0;
@@ -1962,8 +1982,13 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 	if (vf->type & VIDTYPE_VSCALE_DISABLE)
 		vpp_flags |= VPP_FLAG_VSCALE_DISABLE;
 #ifndef TV_3D_FUNCTION_OPEN
-	src_width = vf->width;
-	src_height = vf->height;
+	if (vf->type & VIDTYPE_COMPRESS) {
+		src_width = vf->compWidth;
+		src_height = vf->compHeight;
+	} else {
+		src_width = vf->width;
+		src_height = vf->height;
+	}
 #endif
 	if (vf->type & VIDTYPE_MVC) {
 		video_source_crop_top = 0;

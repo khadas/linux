@@ -197,10 +197,14 @@ struct vframe_s {
 
 	u32 canvas0Addr;
 	u32 canvas1Addr;
+	u32 compHeadAddr;
+	u32 compBodyAddr;
 
 	u32 bufWidth;
 	u32 width;
 	u32 height;
+	u32 compWidth;
+	u32 compHeight;
 	u32 ratio_control;
 	u32 bitdepth;
 	u32 signal_type;

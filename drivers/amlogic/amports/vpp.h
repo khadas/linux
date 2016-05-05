@@ -131,6 +131,8 @@ struct vpp_frame_par_s {
 	u32 spsc1_w_in;
 	u32 spsc1_h_in;
 
+	bool nocomp;
+
 };
 
 #if 0

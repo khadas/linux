@@ -2015,9 +2015,11 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	unsigned long flags;
 	frame_count++;
 	ori_start_x_lines = 0;
-	ori_end_x_lines = vf->width - 1;
+	ori_end_x_lines = ((vf->type & VIDTYPE_COMPRESS) ?
+		vf->compWidth : vf->width) - 1;
 	ori_start_y_lines = 0;
-	ori_end_y_lines = vf->height - 1;
+	ori_end_y_lines = ((vf->type & VIDTYPE_COMPRESS) ?
+		vf->compHeight : vf->height) - 1;
 	if (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME)
 		pr_info("%s()\n", __func__);
 
@@ -2122,12 +2124,14 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	}
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
-
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(vf->type & VIDTYPE_COMPRESS)) {
-		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->canvas0Addr>>4);
-		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->canvas1Addr>>4);
-	} else if ((VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) == 0) {
+		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->compHeadAddr>>4);
+		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->compBodyAddr>>4);
+	}
+
+	if ((vf->canvas0Addr != 0) &&
+		(VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) == 0) {
 #ifdef CONFIG_VSYNC_RDMA
 		canvas_copy(vf->canvas0Addr & 0xff,
 			    disp_canvas_index[rdma_canvas_id][0]);
@@ -2427,7 +2431,10 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8)
 		    && !is_meson_mtvd_cpu()) {
-			if ((vf->width > 1920) && (vf->height > 1088)) {
+			if (((vf->width > 1920) && (vf->height > 1088)) ||
+				((vf->type & VIDTYPE_COMPRESS) &&
+				 (vf->compWidth > 1920) &&
+				 (vf->compHeight > 1080))) {
 				if (vpu_clk_level == 0) {
 					vpu_clk_level = 1;
 
@@ -2486,9 +2493,13 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	u32 pat, loop;
 	static const u32 vpat[] = { 0, 0x8, 0x9, 0xa, 0xb, 0xc };
 	u32 u, v;
+	u32 type = vf->type;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-		if (vf->type & VIDTYPE_COMPRESS) {
+		if (frame_par->nocomp)
+			type &= ~VIDTYPE_COMPRESS;
+
+		if (type & VIDTYPE_COMPRESS) {
 			r = (3 << 24) |
 			    (17 << 16) |
 			    (1 << 14) | /*burst1 1*/
@@ -2550,10 +2561,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	if (debug_flag & DEBUG_FLAG_GOFIELD_MANUL)
 		r |= 1<<7; /*for manul triggle gofiled.*/
 
-	if ((vf->type & VIDTYPE_VIU_SINGLE_PLANE) == 0)
+	if ((type & VIDTYPE_VIU_SINGLE_PLANE) == 0)
 		r |= VDIF_SEPARATE_EN;
 	else {
-		if (vf->type & VIDTYPE_VIU_422)
+		if (type & VIDTYPE_VIU_422)
 			r |= VDIF_FORMAT_422;
 		else {
 			r |= VDIF_FORMAT_RGB888_YUV444 |
@@ -2578,7 +2589,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
-		if (vf->type & VIDTYPE_VIU_NV21) {
+		if (type & VIDTYPE_VIU_NV21) {
 			VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG2 +
 				cur_dev->viu_off, 1, 0, 1);
 		} else {
@@ -2622,20 +2633,20 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	/* #endif */
 
 	/* chroma formatter */
-	if (vf->type & VIDTYPE_VIU_444) {
+	if (type & VIDTYPE_VIU_444) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 				  HFORMATTER_YC_RATIO_1_1);
 		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				  HFORMATTER_YC_RATIO_1_1);
-	} else if (vf->type & VIDTYPE_VIU_FIELD) {
+	} else if (type & VIDTYPE_VIU_FIELD) {
 		vini_phase = 0xc << VFORMATTER_INIPHASE_BIT;
 		vphase =
-		    ((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
+		    ((type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
 		    VFORMATTER_PHASE_BIT;
 	if (is_meson_gxtvbb_cpu()) {
 		if ((vf->width >= 3840) &&
 			(vf->height >= 2160) &&
-			(vf->type & VIDTYPE_VIU_422)) {
+			(type & VIDTYPE_VIU_422)) {
 			VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 			HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 			VFORMATTER_RPTLINE0_EN | vini_phase | vphase);
@@ -2667,28 +2678,28 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
 				VFORMATTER_EN);
 		}
-	} else if (vf->type & VIDTYPE_MVC) {
+	} else if (type & VIDTYPE_MVC) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 |
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				(0xe << VFORMATTER_INIPHASE_BIT) |
-				(((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
 		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN | (0xa <<
 				VFORMATTER_INIPHASE_BIT) |
-				(((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
-	} else if ((vf->type & VIDTYPE_INTERLACE)
+	} else if ((type & VIDTYPE_INTERLACE)
 		   &&
-		   (((vf->type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP))) {
+		   (((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP))) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN | (0xe <<
 				VFORMATTER_INIPHASE_BIT) |
-				(((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
 
 		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -2696,7 +2707,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				(0xe << VFORMATTER_INIPHASE_BIT) |
-				(((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
 	} else {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -2704,7 +2715,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				  HFORMATTER_EN |
 				  VFORMATTER_RPTLINE0_EN |
 				  (0xa << VFORMATTER_INIPHASE_BIT) |
-				  (((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				  (((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				   << VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
 
 		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -2712,7 +2723,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				(0xa << VFORMATTER_INIPHASE_BIT) |
-				(((vf->type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
 	}
 #if HAS_VPU_PROT
@@ -2731,15 +2742,15 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	/* LOOP/SKIP pattern */
 	pat = vpat[frame_par->vscale_skip_count];
 
-	if (vf->type & VIDTYPE_VIU_FIELD) {
+	if (type & VIDTYPE_VIU_FIELD) {
 		loop = 0;
 
-		if (vf->type & VIDTYPE_INTERLACE)
+		if (type & VIDTYPE_INTERLACE)
 			pat = vpat[frame_par->vscale_skip_count >> 1];
-	} else if (vf->type & VIDTYPE_MVC) {
+	} else if (type & VIDTYPE_MVC) {
 		loop = 0x11;
 		pat = 0x80;
-	} else if ((vf->type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
+	} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 		loop = 0x11;
 		pat <<= 4;
 	} else
@@ -2762,7 +2773,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	VSYNC_WR_MPEG_REG(VD1_IF0_LUMA1_RPT_PAT + cur_dev->viu_off, pat);
 	VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA1_RPT_PAT + cur_dev->viu_off, pat);
 
-	if (vf->type & VIDTYPE_MVC)
+	if (type & VIDTYPE_MVC)
 		pat = 0x88;
 
 	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA0_RPT_PAT, pat);
@@ -2772,9 +2783,9 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 #ifndef TV_3D_FUNCTION_OPEN
 	/* picture 0/1 control */
-	if (((vf->type & VIDTYPE_INTERLACE) == 0) &&
-	    ((vf->type & VIDTYPE_VIU_FIELD) == 0) &&
-	    ((vf->type & VIDTYPE_MVC) == 0)) {
+	if (((type & VIDTYPE_INTERLACE) == 0) &&
+	    ((type & VIDTYPE_VIU_FIELD) == 0) &&
+	    ((type & VIDTYPE_MVC) == 0)) {
 		/* progressive frame in two pictures */
 		VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_PSEL +
 		cur_dev->viu_off, (2 << 26) |	/* two pic mode */
@@ -2794,9 +2805,9 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	}
 #else
 	/* picture 0/1 control */
-	if ((((vf->type & VIDTYPE_INTERLACE) == 0) &&
-	     ((vf->type & VIDTYPE_VIU_FIELD) == 0) &&
-	     ((vf->type & VIDTYPE_MVC) == 0)) ||
+	if ((((type & VIDTYPE_INTERLACE) == 0) &&
+	     ((type & VIDTYPE_VIU_FIELD) == 0) &&
+	     ((type & VIDTYPE_MVC) == 0)) ||
 	    (frame_par->vpp_2pic_mode & 0x3)) {
 		/* progressive frame in two pictures */
 		if (frame_par->vpp_2pic_mode & VPP_PIC1_FIRST) {
@@ -3573,7 +3584,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					MESON_CPU_MAJOR_ID_GXBB) &&
 					(cur_dispbuf->type &
 					VIDTYPE_COMPRESS)) {
-						cur_dispbuf->canvas0Addr =
+						cur_dispbuf->compHeadAddr =
 						READ_VCBUS_REG(AFBC_HEAD_BADDR)
 						<< 4;
 					} else {
@@ -6463,8 +6474,12 @@ static ssize_t frame_width_show(struct class *cla,
 			struct class_attribute *attr,
 			char *buf)
 {
-	if (cur_dispbuf)
-		return sprintf(buf, "%d\n", cur_dispbuf->width);
+	if (cur_dispbuf) {
+		if (cur_dispbuf->type & VIDTYPE_COMPRESS)
+			return sprintf(buf, "%d\n", cur_dispbuf->compWidth);
+		else
+			return sprintf(buf, "%d\n", cur_dispbuf->width);
+	}
 
 	return sprintf(buf, "NA\n");
 }
@@ -6472,8 +6487,12 @@ static ssize_t frame_width_show(struct class *cla,
 static ssize_t frame_height_show(struct class *cla,
 				 struct class_attribute *attr, char *buf)
 {
-	if (cur_dispbuf)
-		return sprintf(buf, "%d\n", cur_dispbuf->height);
+	if (cur_dispbuf) {
+		if (cur_dispbuf->type & VIDTYPE_COMPRESS)
+			return sprintf(buf, "%d\n", cur_dispbuf->compHeight);
+		else
+			return sprintf(buf, "%d\n", cur_dispbuf->height);
+	}
 
 	return sprintf(buf, "NA\n");
 }
@@ -6481,15 +6500,22 @@ static ssize_t frame_height_show(struct class *cla,
 static ssize_t frame_format_show(struct class *cla,
 				 struct class_attribute *attr, char *buf)
 {
+	ssize_t ret = 0;
+
 	if (cur_dispbuf) {
 		if ((cur_dispbuf->type & VIDTYPE_TYPEMASK) ==
 		    VIDTYPE_INTERLACE_TOP)
-			return sprintf(buf, "interlace-top\n");
+			ret = sprintf(buf, "interlace-top\n");
 		else if ((cur_dispbuf->type & VIDTYPE_TYPEMASK) ==
 			 VIDTYPE_INTERLACE_BOTTOM)
-			return sprintf(buf, "interlace-bottom\n");
+			ret = sprintf(buf, "interlace-bottom\n");
 		else
-			return sprintf(buf, "progressive\n");
+			ret = sprintf(buf, "progressive\n");
+
+		if (cur_dispbuf->type & VIDTYPE_COMPRESS)
+			ret += sprintf(buf + ret, "Compressed\n");
+
+		return ret;
 	}
 
 	return sprintf(buf, "NA\n");
