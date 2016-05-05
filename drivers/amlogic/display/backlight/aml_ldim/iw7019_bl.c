@@ -68,6 +68,8 @@ struct iw7019 {
 	unsigned char write_check;
 	unsigned char fault_check;
 	int en_gpio;
+	int en_on;
+	int en_off;
 	int lamp_err_gpio;
 	int cs_hold_delay;
 	int cs_clk_delay;
@@ -319,7 +321,7 @@ static int iw7019_hw_init(struct iw7019 *bl)
 {
 	struct aml_ldim_driver_s *ld_drv = aml_ldim_get_driver();
 
-	gpio_direction_output(bl->en_gpio, 1);
+	gpio_direction_output(bl->en_gpio, bl->en_on);
 	mdelay(2);
 	ld_drv->pinmux_ctrl(1);
 	mdelay(100);
@@ -333,12 +335,12 @@ static int iw7019_hw_init_off(struct iw7019 *bl)
 	struct aml_ldim_driver_s *ld_drv = aml_ldim_get_driver();
 
 	ld_drv->pinmux_ctrl(0);
-	gpio_direction_output(bl->en_gpio, 0);
+	gpio_direction_output(bl->en_gpio, bl->en_off);
 
 	return 0;
 }
 
-static void iw7019_spi_read(void)
+static void iw7019_spi_dump(void)
 {
 	unsigned char i, val;
 
@@ -355,7 +357,7 @@ static void iw7019_fault_handler(void)
 	unsigned int val;
 
 	if (fault_cnt >= 35) {
-		if (ldim_debug_print) {
+		if (ldim_debug_print >= 2) {
 			LDIMPR("%s: bypass fault check, fault_cnt=%d\n",
 				__func__, fault_cnt);
 		}
@@ -382,10 +384,11 @@ static void iw7019_fault_handler(void)
 	val = gpio_get_value(bl_iw7019->lamp_err_gpio);
 	if (val) {
 		fault_cnt++;
-		if (fault_cnt < 35) {
+		if (fault_cnt <= 35) {
 			if (ldim_debug_print) {
 				LDIMPR("%s: fault detected\n", __func__);
-				iw7019_spi_read();
+				if (ldim_debug_print >= 2)
+					iw7019_spi_dump();
 			}
 			iw7019_wreg(bl_iw7019->spi, 0x35, 0x43);
 		}
@@ -396,9 +399,9 @@ static int iw7019_reset_handler(void)
 {
 	/* disable BL_ON once */
 	LDIMPR("reset iw7019 BL_ON\n");
-	gpio_direction_output(bl_iw7019->en_gpio, 0);
+	gpio_direction_output(bl_iw7019->en_gpio, bl_iw7019->en_off);
 	mdelay(1000);
-	gpio_direction_output(bl_iw7019->en_gpio, 1);
+	gpio_direction_output(bl_iw7019->en_gpio, bl_iw7019->en_on);
 	mdelay(2);
 	iw7019_power_on_init(IW7019_POWER_RESET);
 
@@ -537,6 +540,7 @@ static ssize_t iw7019_show(struct class *class,
 	struct iw7019 *bl = container_of(class, struct iw7019, cls);
 	int ret = 0;
 	u8 val = 0;
+	int i;
 
 	if (!strcmp(attr->attr.name, "cur_addr"))
 		ret = sprintf(buf, "0x%02x\n", bl->cur_addr);
@@ -562,6 +566,8 @@ static ssize_t iw7019_show(struct class *class,
 	} else if (!strcmp(attr->attr.name, "status")) {
 		ret = sprintf(buf, "iw7019 status:\n"
 				"on_flag       = %d\n"
+				"en_on         = %d\n"
+				"en_off        = %d\n"
 				"cs_hold_delay = %d\n"
 				"cs_clk_delay  = %d\n"
 				"spi_op_flag   = %d\n"
@@ -571,7 +577,7 @@ static ssize_t iw7019_show(struct class *class,
 				"fault_cnt     = %d\n"
 				"dim_max       = 0x%03x\n"
 				"dim_min       = 0x%03x\n",
-				iw7019_on_flag,
+				iw7019_on_flag, bl->en_on, bl->en_off,
 				bl->cs_hold_delay, bl->cs_clk_delay,
 				iw7019_spi_op_flag,
 				bl->write_check, bl->fault_check,
@@ -584,6 +590,20 @@ static ssize_t iw7019_show(struct class *class,
 	} else if (!strcmp(attr->attr.name, "fault_check")) {
 		ret = sprintf(buf, "iw7019 fault_check = %d\n",
 			bl->fault_check);
+	} else if (!strcmp(attr->attr.name, "dump")) {
+		i = 1000;
+		while ((iw7019_spi_op_flag) && (i > 0)) {
+			i--;
+			udelay(10);
+		}
+		if (iw7019_spi_op_flag == 0) {
+			iw7019_spi_op_flag = 1;
+			iw7019_spi_dump();
+			iw7019_spi_op_flag = 0;
+		} else {
+			LDIMERR("%s: wait spi idle state failed\n", __func__);
+		}
+		ret = sprintf(buf, "\n");
 	}
 	return ret;
 }
@@ -633,8 +653,22 @@ static ssize_t iw7019_store(struct class *class,
 		i = sscanf(buf, "%d", &val);
 		bl_iw7019->fault_check = (unsigned char)val;
 		LDIMPR("fault_check=%d\n", bl_iw7019->fault_check);
+	} else if (!strcmp(attr->attr.name, "reset")) {
+		i = 1000;
+		while ((iw7019_spi_op_flag) && (i > 0)) {
+			i--;
+			udelay(10);
+		}
+		if (iw7019_spi_op_flag == 0) {
+			iw7019_spi_op_flag = 1;
+			iw7019_spi_err_flag = 1;
+			iw7019_reset_handler();
+			iw7019_spi_op_flag = 0;
+		} else {
+			LDIMERR("%s: wait spi idle state failed\n", __func__);
+		}
 	} else
-		LDIMPR("LDIM argment error!\n");
+		LDIMERR("LDIM argment error!\n");
 	return count;
 }
 
@@ -646,10 +680,12 @@ static struct class_attribute iw7019_class_attrs[] = {
 	__ATTR(reg, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR(test, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR(brightness, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
-	__ATTR(status, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
+	__ATTR(status, S_IRUGO | S_IWUSR, iw7019_show, NULL),
 	__ATTR(write_err_force, S_IRUGO | S_IWUSR, NULL, iw7019_store),
 	__ATTR(write_check, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR(fault_check, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
+	__ATTR(reset, S_IRUGO | S_IWUSR, NULL, iw7019_store),
+	__ATTR(dump, S_IRUGO | S_IWUSR, iw7019_show, NULL),
 	__ATTR_NULL
 };
 
@@ -680,6 +716,16 @@ static int iw7019_get_config_from_dts(struct device_node *np)
 		bl_iw7019->write_check = 0;
 	else
 		bl_iw7019->write_check = (unsigned char)temp[0];
+
+	ret = of_property_read_u32_array(np, "en_gpio_on_off", &temp[0], 2);
+	if (ret) {
+		LDIMERR("failed to get en_gpio_on_off\n");
+		bl_iw7019->en_on = 1;
+		bl_iw7019->en_off = 0;
+	} else {
+		bl_iw7019->en_on = temp[0];
+		bl_iw7019->en_off = temp[1];
+	}
 
 	ret = of_property_read_u32(np, "lamp_err_check", &temp[0]);
 	if (ret)

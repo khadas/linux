@@ -1711,12 +1711,14 @@
 			compatible = "amlogic, iw7019";
 			status = "disabled";
 			en-gpio = <&gpio GPIOX_9 GPIO_ACTIVE_HIGH>;
-			spi_cs_delay = <10 10>; /* hold_high_delay, clk_cs_delay (unit: us) */
-			spi_write_check = <0>;
-			lamp_err_check = <0>;
+			en_gpio_name = "GPIOX_9";
+			en_gpio_on_off = <1 0>;
+			spi_cs_delay = <10 100>; /* hold_high_delay, clk_cs_delay (unit: us) */
+			spi_write_check = <1>;
+			lamp_err_check = <1>;
 			lamp_err-gpio = <&gpio GPIOX_11 GPIO_ACTIVE_HIGH>;
 			reg = <0>;
-			spi-max-frequency = <3000000>;
+			spi-max-frequency = <400000>;
 			spi-cpha = <0>;
 			spi-cpol = <0>;
 
