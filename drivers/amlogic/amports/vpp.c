@@ -1451,10 +1451,11 @@ int vpp_set_super_sclaer_regs(int scaler_path_sel,
 	}
 	/* core1 config */
 	tmp_data = sharpness1_sr2_ctrl_32d7;
-	if ((((tmp_data >> 5)&0x1) != (reg_srscl1_vert_ratio&0x1)) ||
+	/*if ((((tmp_data >> 5)&0x1) != (reg_srscl1_vert_ratio&0x1)) ||
 		(((tmp_data >> 4)&0x1) != (reg_srscl1_hori_ratio&0x1)) ||
 		((tmp_data & 0x1) == (reg_srscl1_hori_ratio&0x1)) ||
-		(((tmp_data >> 2)&0x1) != 1)) {
+		(((tmp_data >> 2)&0x1) != 1)) {*/
+	if (1) {/* modify for avoid reg not be write@20160505 */
 		tmp_data = tmp_data & (~(1 << 5));
 		tmp_data = tmp_data & (~(1 << 4));
 		tmp_data = tmp_data & (~(1 << 2));
@@ -1478,7 +1479,7 @@ int vpp_set_super_sclaer_regs(int scaler_path_sel,
 
 	tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
 			   (reg_srscl1_vsize & 0x1fff);
-	if (sharpness1_sr2_ctrl_3280 != tmp_data) {
+	if (1) {/*(sharpness1_sr2_ctrl_3280 != tmp_data) {*/
 		VSYNC_WR_MPEG_REG(SRSHARP1_SHARP_HVSIZE, tmp_data);
 		sharpness1_sr2_ctrl_3280 = tmp_data;
 	}
