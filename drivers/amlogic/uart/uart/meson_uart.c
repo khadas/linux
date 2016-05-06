@@ -127,11 +127,8 @@ static int meson_serial_console_setup(struct console *co, char *options);
 #define DEFAULT_STR_LEN	4
 #define DEFAULT_STR   "..."
 
-#ifdef CONFIG_PRINTK_NOBLOCK_MODE
-	bool new_printk_enabled = 1;	/*0: disable   1: enable*/
-#else
-	bool new_printk_enabled = 0;
-#endif
+/*0: disable   1: enable*/
+static bool new_printk_enabled;
 
 struct meson_uart_struct {
 	struct console *co;
