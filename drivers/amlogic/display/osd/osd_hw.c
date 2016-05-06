@@ -1093,7 +1093,9 @@ void osd_setup_hw(u32 index,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 #endif
 	}
-	if (color != osd_hw.color_info[index]) {
+
+	/* need always set color mode for osd2 */
+	if ((color != osd_hw.color_info[index]) || (index == OSD2)) {
 		update_color_mode = 1;
 		osd_hw.color_info[index] = color;
 	}
