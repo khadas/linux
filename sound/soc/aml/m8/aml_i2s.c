@@ -585,7 +585,7 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 		int total_len;
 		int ouput_len;
 		int next_cached_len;
-		int cache_buffer_bytes_tmp[256];
+		char cache_buffer_bytes_tmp[256];
 
 		offset -= cached_len;
 		hwbuf = runtime->dma_area + offset;
