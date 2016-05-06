@@ -71,7 +71,7 @@
 /*class property info.*/
 /* #include "picdeccls.h" */
 static int debug_flag;
-static int p2p_mode = 1;
+static int p2p_mode = 2;
 /* #define MM_ALLOC_SIZE 48*SZ_1M */
 #define NO_TASK_MODE
 
@@ -126,8 +126,8 @@ static int task_running;
 /*same as tvin pool*/
 static int PICDEC_POOL_SIZE = 2;
 static int VF_POOL_SIZE = 2;
-#define ZOOM_WIDTH 1280
-#define ZOOM_HEIGHT 720
+static int ZOOM_WIDTH = 1280;
+static int ZOOM_HEIGHT = 720;
 /*same as tvin pool*/
 
 static struct picdec_device_s picdec_device;
@@ -310,6 +310,8 @@ static int render_frame(struct ge2d_context_s *context,
 
 	unsigned long time_use = 0;
 	int temp;
+	unsigned phase = 0;
+	unsigned h_phase , v_phase;
 	struct picdec_device_s *dev =  &picdec_device;
 	struct source_input_s *input = &picdec_input;
 
@@ -332,6 +334,9 @@ static int render_frame(struct ge2d_context_s *context,
 		input->frame_width = input->frame_height;
 		input->frame_height = temp;
 	}
+	h_phase = (input->frame_width << 18) / dev->disp_width;
+	v_phase = (input->frame_height << 18) / dev->disp_height;
+	phase = max(h_phase, v_phase);
 	dev->p2p_mode = p2p_mode;
 	switch (dev->p2p_mode) {
 	case 0:
@@ -361,6 +366,18 @@ static int render_frame(struct ge2d_context_s *context,
 		}
 		break;
 	case 2:
+		if ((phase <= (1 << 18)) && (phase >= (1 << 16))) {
+			input->frame_width  =
+			(input->frame_width << 18) / phase;
+			input->frame_height =
+			(input->frame_height << 18) / phase;
+		} else if (phase < (1 << 16)) {
+			input->frame_width  <<= 2;
+			input->frame_height <<= 2;
+		}
+		dev->target_width = dev->disp_width;
+		dev->target_height = dev->disp_height;
+		break;
 	default:
 		dev->target_width  = dev->disp_width;
 		dev->target_height = dev->disp_height;
@@ -418,6 +435,8 @@ static int render_frame_block(void)
 
 	struct timeval end;
 	int temp;
+	unsigned phase = 0;
+	unsigned h_phase , v_phase;
 	unsigned long time_use = 0;
 
 	struct config_para_ex_s ge2d_config;
@@ -446,6 +465,9 @@ static int render_frame_block(void)
 		input->frame_width = input->frame_height;
 		input->frame_height = temp;
 	}
+	h_phase = (input->frame_width << 18) / dev->disp_width;
+	v_phase = (input->frame_height << 18) / dev->disp_height;
+	phase = max(h_phase, v_phase);
 	dev->p2p_mode = p2p_mode;
 	switch (dev->p2p_mode) {
 	case 0:
@@ -475,6 +497,18 @@ static int render_frame_block(void)
 		}
 		break;
 	case 2:
+		if ((phase <= (1 << 18)) && (phase >= (1 << 16))) {
+			input->frame_width  =
+			(input->frame_width << 18) / phase;
+			input->frame_height =
+			(input->frame_height << 18) / phase;
+		} else if (phase < (1 << 16)) {
+			input->frame_width  <<= 2;
+			input->frame_height <<= 2;
+		}
+		dev->target_width = dev->disp_width;
+		dev->target_height = dev->disp_height;
+		break;
 	default:
 		dev->target_width  = dev->disp_width;
 		dev->target_height = dev->disp_height;
@@ -1529,6 +1563,9 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 		}
 		break;
 	case 2:
+		dst_left = (picdec_device.disp_width - dst_width) >> 1;
+		dst_top = (picdec_device.disp_height - dst_height) >> 1;
+		break;
 	default:
 		dst_left = (picdec_device.disp_width - dst_width) >> 1;
 		dst_top = (picdec_device.disp_height - dst_height) >> 1;
