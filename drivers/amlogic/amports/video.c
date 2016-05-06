@@ -2606,9 +2606,15 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		if (reverse) {
 			VSYNC_WR_MPEG_REG_BITS((VD1_IF0_GEN_REG2 +
 				cur_dev->viu_off), 0xf, 2, 4);
+			if (vf->type & VIDTYPE_MVC)
+				VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
+					cur_dev->viu_off), 0xf, 2, 4);
 		} else {
 			VSYNC_WR_MPEG_REG_BITS((VD1_IF0_GEN_REG2 +
 				cur_dev->viu_off), 0, 2, 4);
+			if (vf->type & VIDTYPE_MVC)
+				VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
+					cur_dev->viu_off), 0, 2, 4);
 		}
 #endif
 #endif
