@@ -1808,10 +1808,10 @@ static void zoom_display_horz(int hscale)
 		if ((zoom_start_x_lines > 0) ||
 		(zoom_end_x_lines < ori_end_x_lines)) {
 			l_aligned = round_down(ori_start_x_lines, 32);
-			r_aligned = round_up(ori_end_x_lines, 32);
+			r_aligned = round_up(ori_end_x_lines + 1, 32);
 		} else {
 			l_aligned = round_down(zoom_start_x_lines, 32);
-			r_aligned = round_up(zoom_end_x_lines, 32);
+			r_aligned = round_up(zoom_end_x_lines + 1, 32);
 		}
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_W,
 			  ((r_aligned - l_aligned) << 16) |
@@ -1936,10 +1936,10 @@ static void zoom_display_vert(void)
 		if ((zoom_start_y_lines > 0) ||
 		(zoom_end_y_lines < ori_end_y_lines)) {
 			t_aligned = round_down(ori_start_y_lines, 4);
-			b_aligned = round_up(ori_end_y_lines, 4);
+			b_aligned = round_up(ori_end_y_lines + 1, 4);
 		} else {
 			t_aligned = round_down(zoom_start_y_lines, 4);
-			b_aligned = round_up(zoom_end_y_lines, 4);
+			b_aligned = round_up(zoom_end_y_lines + 1, 4);
 		}
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
 		    b_aligned - t_aligned);
