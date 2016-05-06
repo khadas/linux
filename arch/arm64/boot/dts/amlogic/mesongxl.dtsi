@@ -735,5 +735,5 @@
 
 &gpu{
 /*gpu max freq is 750M*/
-    tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk750_cfg>;
+    tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk750_cfg &clk750_cfg>;
 };

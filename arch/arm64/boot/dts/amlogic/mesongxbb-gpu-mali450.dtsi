@@ -13,10 +13,10 @@
 		compatible = "arm,mali-450";
 		interrupt-parent = <&gic>;
 		reg = <0 0xd00c0000 0 0x40000>, /*mali APB bus base address*/
-		      <0 0xc883c000 0 0x00004>, /*hiubus base address for gpu clk cntl*/
-		      <0 0xc8100000 0 0x00004>, /*aobus  base address for gpu pmu domain*/
-		      <0 0xc883c000 0 0x00100>, /*hiubus base address for gpu clk cntl*/
-		      <0 0xc1104440 0 0x00100>;
+		      <0 0xc883c000 0 0x01000>, /*hiubus base address for gpu clk cntl*/
+		      <0 0xc8100000 0 0x01000>, /*aobus  base address for gpu pmu domain*/
+		      <0 0xc883c000 0 0x01000>, /*hiubus base address for gpu clk cntl*/
+		      <0 0xc1104440 0 0x01000>;
 		interrupts = <0 160 4>, <0 161 4>, <0 162 4>, <0 163 4>,
 				   <0 164 4>, <0 165 4>, <0 166 4>, <0 167 4>,
 				   <0 168 4>, <0 169 4>;
