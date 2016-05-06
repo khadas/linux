@@ -377,7 +377,7 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd)
 
 	ctx->fast_nents = 0;
 
-	if (ctx->bufcnt || ctx->offset)
+	if (ctx->bufcnt || ctx->offset || ctx->total < ctx->block_size)
 		return aml_sha_update_dma_slow(dd);
 
 	sg = ctx->sg;

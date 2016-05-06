@@ -324,7 +324,8 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 		out = IS_ALIGNED(dd->out_sg->length, dd->ctx->block_size);
 		fast = in && out;
 
-		if (dd->in_sg->length != dd->out_sg->length)
+		if (dd->in_sg->length != dd->out_sg->length
+				|| dd->total < dd->ctx->block_size)
 			fast = 0;
 		dd->fast_nents = 0;
 	}
