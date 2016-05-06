@@ -24,44 +24,6 @@
 #include <linux/amlogic/amports/amstream.h>
 #include <linux/amlogic/cpu_version.h>
 
-
-enum vpp_matrix_sel_e {
-	VPP_MATRIX_VD1,
-	VPP_MATRIX_VD2,
-	VPP_MATRIX_POST,
-	VPP_MATRIX_XVYCC,
-};
-
-enum vpp_matrix_csc_e {
-	VPP_MATRIX_NULL = 0,
-	VPP_MATRIX_RGB_YUV601 = 0x1,
-	VPP_MATRIX_RGB_YUV601F = 0x2,
-	VPP_MATRIX_RGB_YUV709 = 0x3,
-	VPP_MATRIX_RGB_YUV709F = 0x4,
-	VPP_MATRIX_YUV601_RGB = 0x10,
-	VPP_MATRIX_YUV601_YUV601F = 0x11,
-	VPP_MATRIX_YUV601_YUV709 = 0x12,
-	VPP_MATRIX_YUV601_YUV709F = 0x13,
-	VPP_MATRIX_YUV601F_RGB = 0x14,
-	VPP_MATRIX_YUV601F_YUV601 = 0x15,
-	VPP_MATRIX_YUV601F_YUV709 = 0x16,
-	VPP_MATRIX_YUV601F_YUV709F = 0x17,
-	VPP_MATRIX_YUV709_RGB = 0x20,
-	VPP_MATRIX_YUV709_YUV601 = 0x21,
-	VPP_MATRIX_YUV709_YUV601F = 0x22,
-	VPP_MATRIX_YUV709_YUV709F = 0x23,
-	VPP_MATRIX_YUV709F_RGB = 0x24,
-	VPP_MATRIX_YUV709F_YUV601 = 0x25,
-	VPP_MATRIX_YUV709F_YUV709 = 0x26,
-	VPP_MATRIX_BT2020YUV_BT2020RGB = 0x40,
-	VPP_MATRIX_BT2020RGB_709RGB,
-	VPP_MATRIX_BT2020RGB_CUSRGB,
-};
-
-
-#define CSC_ON              1
-#define CSC_OFF             0
-
 /* struct ve_dnlp_s          video_ve_dnlp; */
 
 #define FLAG_RSV31              (1 << 31)
@@ -177,6 +139,8 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 
 	return val;
 }
+
+extern signed int vd1_brightness, vd1_contrast;
 
 extern void amvecm_on_vs(struct vframe_s *vf);
 extern void refresh_on_vs(struct vframe_s *vf);
