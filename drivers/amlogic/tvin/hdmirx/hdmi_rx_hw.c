@@ -99,6 +99,12 @@ int md_ists_en = VIDEO_MODE;
 MODULE_PARM_DESC(md_ists_en, "\n rx_md_ists_en\n");
 module_param(md_ists_en, int, 0664);
 
+/* note: generator AG506 cannot set true */
+static bool use_hw_avmute_ctl = true;
+MODULE_PARM_DESC(use_hw_avmute_ctl,
+	"\n use_hw_avmute_ctl\n");
+module_param(use_hw_avmute_ctl, bool, 0664);
+
 /* bit5 pll_lck_chg_en */
 /* bit6 clk_change_en */
 int hdmi_ists_en = PLL_LCK_CHG | CLK_CHANGE;
@@ -493,8 +499,14 @@ static int packet_init(void)
 	data32 |= 0 << 0; /* checksum_err_filter */
 	hdmirx_wr_dwc(DWC_PDEC_ERR_FILTER, data32);
 
-	hdmirx_wr_dwc(DWC_PDEC_CTRL,
-		PFIFO_STORE_FILTER_EN|PD_FIFO_WE|PDEC_BCH_EN|GCP_GLOBAVMUTE);
+	if (use_hw_avmute_ctl)
+		hdmirx_wr_dwc(DWC_PDEC_CTRL,
+			PFIFO_STORE_FILTER_EN|PD_FIFO_WE|
+			PDEC_BCH_EN|GCP_GLOBAVMUTE);
+	else
+		hdmirx_wr_dwc(DWC_PDEC_CTRL,
+			PFIFO_STORE_FILTER_EN|PD_FIFO_WE|PDEC_BCH_EN);
+
 	hdmirx_wr_dwc(DWC_PDEC_ASP_CTRL,
 		AUTO_VMUTE|AUTO_SPFLAT_MUTE);
 	return error;
@@ -835,6 +847,9 @@ void hdmirx_20_init(void)
 		/* Configure pkf[127:0] */
 		if (hdcp22_firmware_ok_flag)
 			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+		else
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
+
 		rx_sec_set_duk();
 		/* Validate PKF and DUK */
 			data32	= 0;
@@ -866,8 +881,8 @@ void hdmirx_hdcp22_esm_rst(void)
 void hdmirx_hdcp22_init(void)
 {
 	int ret = 0;
-
-	ret = rx_sec_set_duk();
+	if (1 == hdcp22_firmware_ok_flag)
+		ret = rx_sec_set_duk();
 
 	if (ret == 1) {
 		hdcp_22_on = 1;
@@ -951,6 +966,8 @@ void hdmirx_hw_probe(void)
 	/* if (hdcp_22_on) */
 	/*	hpd_to_esm = 1; */
 	/* #endif */
+	hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
+	mdelay(100);
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);

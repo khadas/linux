@@ -178,6 +178,10 @@ int yuv_quant_range = 0;
 MODULE_PARM_DESC(yuv_quant_range, "\n yuv_quant_range\n");
 module_param(yuv_quant_range, int, 0664);
 
+bool scdc_cfg_en = true;
+MODULE_PARM_DESC(scdc_cfg_en, "\n scdc_cfg_en\n");
+module_param(scdc_cfg_en, bool, 0664);
+
 int it_content;
 MODULE_PARM_DESC(it_content, "\n it_content\n");
 module_param(it_content, int, 0664);
@@ -1504,8 +1508,13 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_1080p24:	/*32 */
 		if (is_frame_packing())
 			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_24HZ_FRAME_PACKING;
-		else if (is_alternative())
-			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_24HZ_ALTERNATIVE;
+		else if (is_alternative()) {
+			if (rx.pre_params.video_format == 3)
+				fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+			else
+				fmt =
+				TVIN_SIG_FMT_HDMI_1920X1080P_24HZ_ALTERNATIVE;
+		}
 		else
 			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_24HZ;
 		break;
@@ -1540,14 +1549,21 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 			fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
 		break;
 	case HDMI_1080p25:	/*33 */
-		fmt = TVIN_SIG_FMT_HDMI_1920X1080P_25HZ;
+		if (is_alternative() && (rx.pre_params.video_format == 3))
+			fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+		else
+			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_25HZ;
 		break;
 	case HDMI_1080p30:	/*34 */
 		if (is_frame_packing())
 			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_FRAME_PACKING;
-		else if (is_alternative())
-			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_ALTERNATIVE;
-		else
+		else if (is_alternative()) {
+			if (rx.pre_params.video_format == 3)
+				fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+			else
+				fmt =
+				TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_ALTERNATIVE;
+		} else
 			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
 		break;
 	case HDMI_720p24:	/*60 */
@@ -2201,6 +2217,12 @@ void rx_dwc_reset(void)
 	hdmirx_sw_reset(2);
 }
 
+void set_scdc_cfg(int hpdlow, int pwrprovided)
+{
+	hdmirx_wr_dwc(DWC_SCDC_CONFIG,
+		(hpdlow << 1) | (pwrprovided << 0));
+}
+
 void hdmirx_hw_monitor(void)
 {
 	int pre_sample_rate;
@@ -2217,6 +2239,8 @@ void hdmirx_hw_monitor(void)
 			rx_print("5v_lost->FSM_INIT\n");
 			rx.no_signal = true;
 			pre_port = 0xfe;
+			if (scdc_cfg_en)
+				set_scdc_cfg(1, 0);
 			hdmirx_set_hpd(rx.port, 0);
 			hdmirx_audio_enable(0);
 			hdmirx_audio_fifo_rst();
@@ -2248,6 +2272,8 @@ void hdmirx_hw_monitor(void)
 		rx_print("INIT->5V_LOW\n");
 		break;
 	case FSM_HDMI5V_LOW:
+		if (scdc_cfg_en)
+			set_scdc_cfg(1, 1);
 		audio_status_init();
 		Signal_status_init();
 		rx.state = FSM_HDMI5V_HIGH;
@@ -2260,6 +2286,8 @@ void hdmirx_hw_monitor(void)
 		rx.scdc_tmds_cfg = 0;
 		pre_port = rx.port;
 		hdmirx_set_hpd(rx.port, 1);
+		if (scdc_cfg_en)
+			set_scdc_cfg(0, 1);
 		rx.state = FSM_HPD_READY;
 		rx_print("5V_high->HPD_READY\n");
 		break;
@@ -2327,7 +2355,14 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_SIG_UNSTABLE:
 		if (hdmirx_tmds_pll_lock()) {
-			if (sig_pll_lock_cnt++ > sig_pll_lock_max) {
+			sig_pll_lock_cnt++;
+			if	(sig_pll_lock_cnt > 5) {
+				#ifdef HDCP22_ENABLE
+				if (hdcp_22_on)
+					video_stable_to_esm = 1;
+				#endif
+			}
+			if (sig_pll_lock_cnt > sig_pll_lock_max) {
 				rx.state = FSM_DWC_RST_WAIT;
 				if (reset_sw)
 					rx_dwc_reset();
@@ -2466,6 +2501,8 @@ void hdmirx_hw_monitor(void)
 				hdmirx_wr_top(TOP_SW_RESET,
 							0x0);
 				hdmirx_set_hpd(rx.port, 0);
+				if (scdc_cfg_en)
+					set_scdc_cfg(1, 1);
 				ddc_state_err_cnt = 0;
 				rx.state = FSM_HDMI5V_LOW;
 				rx_print("DDC ERROR->HPD_LOW\n");
@@ -2474,6 +2511,10 @@ void hdmirx_hw_monitor(void)
 	    } else {
 			ddc_state_err_cnt = 0;
 			rx.state = FSM_SIG_READY;
+			#ifdef HDCP22_ENABLE
+				if (hdcp_22_on)
+					video_stable_to_esm = 1;
+			#endif
 			pll_stable_protect_cnt = pll_stable_protect_max;
 			stable_protect_cnt = stable_protect_max;
 			rx_print("DDCERROR->READY\n");
@@ -3617,7 +3658,7 @@ int hdmirx_debug(const char *buf, int size)
 		memcpy(&rx.hdcp, &init_hdcp_data,
 		       sizeof(struct hdmi_rx_ctrl_hdcp));
 		hdmirx_hw_config();
-		pre_port = 0xff;
+		pre_port = 0xfe;
 	} else if (strncmp(tmpbuf, "timer_state", 11) == 0) {
 		timer_state();
 	} else if (strncmp(tmpbuf, "load22key", 9) == 0) {
@@ -3628,8 +3669,9 @@ int hdmirx_debug(const char *buf, int size)
 			if (ret == 1) {
 				if ((hdmirx_rd_dwc(0xf68) & _BIT(3)) == 0) {
 					rx_print("load-1\n");
-					hdcp_22_on = 1;
 					sm_pause = 1;
+					hdmirx_set_hpd(rx.port, 0);
+					hdcp_22_on = 1;
 					hdcp22_kill_esm = 1;
 					mdelay(wait_hdcp22_cnt1);
 					hdcp22_kill_esm = 0;
@@ -3644,14 +3686,16 @@ int hdmirx_debug(const char *buf, int size)
 					hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
 					hdmirx_hw_config();
 					hpd_to_esm = 1;
-					hdmirx_set_hpd(rx.port, 0);
 					mdelay(wait_hdcp22_cnt);
-					rx.state = FSM_HDMI5V_HIGH;
+					hdmirx_set_hpd(rx.port, 1);
+					/* rx.state = FSM_HDMI5V_HIGH; */
+					/* pre_port = 0xee; */
 					sm_pause = 0;
 				} else {
 					rx_print("load-2\n");
-					hdcp_22_on = 1;
 					sm_pause = 1;
+					hdmirx_set_hpd(rx.port, 0);
+					hdcp_22_on = 1;
 					hdcp22_kill_esm = 1;
 					mdelay(wait_hdcp22_cnt1);
 					hdcp22_kill_esm = 0;
@@ -3666,9 +3710,8 @@ int hdmirx_debug(const char *buf, int size)
 					hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
 					hdmirx_hw_config();
 					hpd_to_esm = 1;
-					hdmirx_set_hpd(rx.port, 0);
 					mdelay(wait_hdcp22_cnt3);
-					rx.state = FSM_HDMI5V_HIGH;
+					hdmirx_set_hpd(rx.port, 1);
 					sm_pause = 0;
 				}
 			} else
@@ -3846,8 +3889,6 @@ void hdmirx_hw_init(enum tvin_port_e port)
 			video_stable_to_esm = 0;
 			hpd_to_esm = 1;
 		}
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x2);
-		mdelay(100);
 		#endif
 		hdmirx_hw_config();
 		/* pre_port = rx.port; */

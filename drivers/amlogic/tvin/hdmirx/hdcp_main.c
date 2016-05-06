@@ -104,6 +104,9 @@ static long cmd_load_code(struct esm_device *esm,
 		MY_TAG, krequest.code, krequest.code_size);
 	}
 
+	if (do_esm_rst_flag == 1)
+			esm->code_loaded = 0;
+
 	if (esm->code_loaded == 1) {
 		pr_info("%scmd_load_code: Code already loaded.\n", MY_TAG);
 		krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
@@ -156,9 +159,11 @@ static long cmd_load_code(struct esm_device *esm,
 		sizeof(struct esm_hld_ioctl_load_code));
 	if (ret)
 		pr_info("copy left %ld Bytes\n", ret);
+	#if 0
 	if (do_esm_rst_flag == 1)
 		esm->code_loaded = 0;
 	else
+	#endif
 		esm->code_loaded = (krequest.returned_status ==
 		ESM_HL_DRIVER_SUCCESS);
 	return 0;
@@ -179,6 +184,9 @@ static long cmd_load_code32(struct esm_device *esm,
 	r |= get_user(krequest.code_size, &uf->code_size);
 	if (r)
 		return -EFAULT;
+
+	if (do_esm_rst_flag == 1)
+			esm->code_loaded = 0;
 
 	if (esm->code_loaded == 1) {
 		pr_info("%scmd_load_code: Code already loaded.\n", MY_TAG);
@@ -232,9 +240,12 @@ static long cmd_load_code32(struct esm_device *esm,
 		sizeof(struct compact_esm_hld_ioctl_load_code));
 	if (ret)
 		pr_info("copy left %ld Bytes\n", ret);
-	if (do_esm_rst_flag == 1)
-		esm->code_loaded = 0;
-	else
+
+	#if 0
+		if (do_esm_rst_flag == 1)
+			esm->code_loaded = 0;
+		else
+	#endif
 		esm->code_loaded = (krequest.returned_status ==
 		ESM_HL_DRIVER_SUCCESS);
 

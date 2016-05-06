@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/04/29"
+#define HDMIRX_VER "Ref.2016/05/04"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -565,7 +565,7 @@ extern unsigned char is_alternative(void);
 extern unsigned char is_frame_packing(void);
 extern void clk_init(void);
 extern void clk_off(void);
-
+extern void set_scdc_cfg(int hpdlow, int pwrprovided);
 extern int hdmirx_print_flag;
 extern bool irq_ctrl_reg_en; /* enable/disable reg rd/wr in irq  */
 
