@@ -633,6 +633,9 @@ unsigned int vlock_debug = 0;
 module_param(vlock_debug, uint, 0664);
 MODULE_PARM_DESC(vlock_debug, "\n vlock_debug\n");
 
+unsigned int contrast_adj_sel;/*0:vdj1, 1:vd1 mtx rgb contrast*/
+module_param(contrast_adj_sel, uint, 0664);
+MODULE_PARM_DESC(contrast_adj_sel, "\n contrast_adj_sel\n");
 
 
 /* *********************************************************************** */
@@ -4003,6 +4006,25 @@ void sharpness_process(struct vframe_s *vf)
 }
 /* sharpness process end */
 
+/*for gxbbtv rgb contrast adj in vd1 matrix */
+void vpp_vd1_mtx_rgb_contrast(signed int cont_val)
+{
+	unsigned int vd1_contrast;
+	unsigned int vdj1_ctl;
+	if ((cont_val > 1023) || (cont_val < -1024))
+		return;
+	cont_val = cont_val + 1024;
+	/*VPP_VADJ_CTRL bit 1 on for rgb contrast adj*/
+	vdj1_ctl = READ_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1);
+	if (!vdj1_ctl)
+		WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1, 1);
+
+	vd1_contrast = (READ_VPP_REG(XVYCC_VD1_RGB_CTRST) & 0xf000ffff) |
+					(cont_val << 16);
+
+	WRITE_VPP_REG(XVYCC_VD1_RGB_CTRST, vd1_contrast);
+}
+
 /*for gxbbtv contrast adj in vadj1*/
 void vpp_vd_adj1_contrast(signed int cont_val)
 {
@@ -4171,7 +4193,10 @@ void amvecm_bricon_process(unsigned int bri_val,
 
 	if (vecm_latch_flag & FLAG_VADJ1_CON) {
 		vecm_latch_flag &= ~FLAG_VADJ1_CON;
-		vpp_vd_adj1_contrast(cont_val);
+		if (contrast_adj_sel)
+			vpp_vd1_mtx_rgb_contrast(cont_val);
+		else
+			vpp_vd_adj1_contrast(cont_val);
 		pr_amve_dbg("\n[amve..] set vd1_contrast OK!!!\n");
 	}
 
