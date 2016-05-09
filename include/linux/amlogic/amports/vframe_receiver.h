@@ -38,6 +38,8 @@
 #define VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE         12
 #define VFRAME_EVENT_PROVIDER_FR_HINT                          13
 #define VFRAME_EVENT_PROVIDER_FR_END_HINT                      14
+#define VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO    15
+
 
 enum receviver_start_e {
 	RECEIVER_STATE_NULL = -1,

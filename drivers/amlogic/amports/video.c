@@ -4731,6 +4731,41 @@ static void video_vf_light_unreg_provider(void)
 	spin_unlock_irqrestore(&lock, flags);
 }
 
+static int  get_display_info(void *data)
+{
+	s32 w, h, x, y;
+	struct vdisplay_info_s  *info_para = (struct vdisplay_info_s *)data;
+	const struct vinfo_s *info = get_current_vinfo();
+
+	if ((!cur_frame_par) || (!info))
+		return -1;
+	vpp_get_video_layer_position(&x, &y, &w, &h);
+	if ((w == 0) || (w  > info->width))
+		w =  info->width;
+	if ((h == 0) || (h  > info->height))
+		h =  info->height;
+
+	info_para->frame_hd_start_lines_ = cur_frame_par->VPP_hd_start_lines_;
+	info_para->frame_hd_end_lines_ = cur_frame_par->VPP_hd_end_lines_;
+	info_para->frame_vd_start_lines_ = cur_frame_par->VPP_vd_start_lines_;
+	info_para->frame_vd_end_lines_ = cur_frame_par->VPP_vd_end_lines_;
+	info_para->display_hsc_startp = cur_frame_par->VPP_hsc_startp - x;
+	info_para->display_hsc_endp =
+	cur_frame_par->VPP_hsc_endp + (info->width - x - w);
+	info_para->display_vsc_startp = cur_frame_par->VPP_vsc_startp - y;
+	info_para->display_vsc_endp =
+	cur_frame_par->VPP_vsc_endp + (info->height - y - h);
+	info_para->screen_vd_h_start_ =
+	cur_frame_par->VPP_post_blend_vd_h_start_;
+	info_para->screen_vd_h_end_ =
+	cur_frame_par->VPP_post_blend_vd_h_end_;
+	info_para->screen_vd_v_start_ =
+	cur_frame_par->VPP_post_blend_vd_v_start_;
+	info_para->screen_vd_v_end_ = cur_frame_par->VPP_post_blend_vd_v_end_;
+
+	return 0;
+}
+
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
 #ifdef CONFIG_AM_VIDEO2
@@ -4783,6 +4818,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 #ifdef CONFIG_AM_VOUT
 		set_vframe_rate_end_hint();
 #endif
+	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO) {
+		get_display_info(data);
 	}
 	return 0;
 }

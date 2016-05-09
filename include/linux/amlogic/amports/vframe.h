@@ -138,6 +138,21 @@ struct vframe_prop_s {
 		master_display_colour;
 } /*vframe_prop_t */;
 
+struct vdisplay_info_s {
+	u32 frame_hd_start_lines_;
+	u32 frame_hd_end_lines_;
+	u32 frame_vd_start_lines_;
+	u32 frame_vd_end_lines_;
+	u32 display_vsc_startp;
+	u32 display_vsc_endp;
+	u32 display_hsc_startp;
+	u32 display_hsc_endp;
+	u32 screen_vd_v_start_;
+	u32 screen_vd_v_end_;
+	u32 screen_vd_h_start_;
+	u32 screen_vd_h_end_;
+};
+
 enum vframe_source_type_e {
 	VFRAME_SOURCE_TYPE_OTHERS = 0,
 	VFRAME_SOURCE_TYPE_TUNER,
