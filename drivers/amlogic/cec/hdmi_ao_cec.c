@@ -214,6 +214,8 @@ void cec_logicaddr_set(int logicaddr)
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, (logicaddr & 0xf));
 	udelay(100);
 	aocec_wr_reg(CEC_LOGICAL_ADDR0, (0x1 << 4) | (logicaddr & 0xf));
+	/* save logical address for suspend/wake up */
+	cec_set_reg_bits(AO_DEBUG_REG1, logicaddr, 16, 4);
 	if (cec_msg_dbg_en)
 		CEC_INFO("set logical addr:0x%x\n",
 			aocec_rd_reg(CEC_LOGICAL_ADDR0));
@@ -434,14 +436,38 @@ void ao_cec_init(void)
 {
 	unsigned long data32;
 	unsigned int reg;
-	/* Assert SW reset AO_CEC */
-	reg = readl(cec_dev->cec_reg + AO_CRT_CLK_CNTL1);
-	/* 24MHz/ (731 + 1) = 32786.885Hz */
-	reg &= ~(0x7ff << 16);
-	reg |= (731 << 16);	/* divider from 24MHz */
-	reg |= (0x1 << 26);
-	reg &= ~(0x800 << 16);	/* select divider */
-	writel(reg, cec_dev->cec_reg + AO_CRT_CLK_CNTL1);
+
+	if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) >=
+		MESON_CPU_MAJOR_ID_GXBB) {
+		reg =   (0 << 31) |
+			(0 << 30) |
+			(1 << 28) |		/* clk_div0/clk_div1 in turn */
+			((732-1) << 12) |	/* Div_tcnt1 */
+			((733-1) << 0);		/* Div_tcnt0 */
+		writel(reg, cec_dev->cec_reg + AO_RTC_ALT_CLK_CNTL0);
+		reg =   (0 << 13) |
+			((11-1)  << 12) |
+			((8-1)  <<  0);
+		writel(reg, cec_dev->cec_reg + AO_RTC_ALT_CLK_CNTL1);
+
+		reg = readl(cec_dev->cec_reg + AO_RTC_ALT_CLK_CNTL0);
+		reg |= (1 << 31);
+		writel(reg, cec_dev->cec_reg + AO_RTC_ALT_CLK_CNTL0);
+
+		udelay(200);
+		reg |= (1 << 30);
+		writel(reg, cec_dev->cec_reg + AO_RTC_ALT_CLK_CNTL0);
+
+		reg = readl(cec_dev->cec_reg + AO_CRT_CLK_CNTL1);
+		reg |= (0x800 << 16);	/* select cts_rtc_oscin_clk */
+		writel(reg, cec_dev->cec_reg + AO_CRT_CLK_CNTL1);
+
+		reg = readl(cec_dev->cec_reg + AO_RTI_PWR_CNTL_REG0);
+		reg &= ~(0x07 << 10);
+		reg |=  (0x04 << 10);	/* XTAL generate 32k */
+		writel(reg, cec_dev->cec_reg + AO_RTI_PWR_CNTL_REG0);
+	}
+
 	data32  = 0;
 	data32 |= 0 << 1;   /* [2:1]	cntl_clk: */
 				/* 0=Disable clk (Power-off mode); */
@@ -1045,6 +1071,8 @@ static int hdmitx_cec_open(struct inode *inode, struct file *file)
 		cec_dev->cec_info.hal_ctl = 1;
 		/* enable all cec features */
 		cec_config(0x2f, 1);
+		/* set default logical addr flag for uboot */
+		cec_set_reg_bits(AO_DEBUG_REG1, 0xf, 16, 4);
 	}
 	return 0;
 }
@@ -1056,6 +1084,7 @@ static int hdmitx_cec_release(struct inode *inode, struct file *file)
 		cec_dev->cec_info.hal_ctl = 0;
 		/* disable all cec features */
 		cec_config(0x0, 1);
+		cec_set_reg_bits(AO_DEBUG_REG1, 0xf, 16, 4);
 	}
 	return 0;
 }

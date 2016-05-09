@@ -9,7 +9,10 @@
 #define AO_CEC_INTR_CLR			((0x43 << 2))
 #define AO_CEC_INTR_STAT		((0x44 << 2))
 
+#define AO_RTI_PWR_CNTL_REG0		((0x04 << 2))
 #define AO_CRT_CLK_CNTL1		((0x1a << 2))
+#define AO_RTC_ALT_CLK_CNTL0		((0x25 << 2))
+#define AO_RTC_ALT_CLK_CNTL1		((0x26 << 2))
 
 #define AO_DEBUG_REG0			((0x28 << 2))
 #define AO_DEBUG_REG1			((0x29 << 2))
