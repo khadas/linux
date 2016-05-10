@@ -166,6 +166,10 @@ static unsigned int viu_hw_irq = 1;
 module_param(viu_hw_irq, uint, 0664);
 MODULE_PARM_DESC(viu_hw_irq, "viu_hw_irq");
 
+static unsigned int vdin_reset_flag;
+module_param(vdin_reset_flag, uint, 0664);
+MODULE_PARM_DESC(vdin_reset_flag, "vdin_reset_flag");
+
 /*
  *2:enable manul rdam
  *1:enable auto rdma
@@ -1451,6 +1455,19 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 /* char provider_name[] = "deinterlace"; */
 /* char provider_vdin0[] = "vdin0"; */
 
+	isr_log(devp->vfp);
+	irq_cnt++;
+	/* debug interrupt interval time
+	 *
+	 * this code about system time must be outside of spinlock.
+	 * because the spinlock may affect the system time.
+	 */
+
+	/* ignore fake irq caused by sw reset*/
+	if (vdin_reset_flag) {
+		vdin_reset_flag = 0;
+		return IRQ_HANDLED;
+	}
 
 	/* avoid null pointer oops */
 	if (!devp || !devp->frontend) {
@@ -1496,10 +1513,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 */
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
-
-
-	/* vdin_write_done_check(devp->addr_offset, devp); */
-
+	/* W_VCBUS_BIT(VDIN_MISC_CTRL, 0, 0, 2); */
+	vdin_reset_flag = vdin_vsync_reset_mif(devp->index);
 	if ((devp->flags & VDIN_FLAG_DEC_STOP_ISR) &&
 		(!(isr_flag & VDIN_BYPASS_STOP_CHECK))) {
 		vdin_hw_disable(offset);
@@ -1716,10 +1731,14 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	if (!devp)
 		return IRQ_HANDLED;
+	if (vdin_reset_flag) {
+		vdin_reset_flag = 0;
+		return IRQ_HANDLED;
+	}
 	isr_log(devp->vfp);
 	irq_cnt++;
 	spin_lock_irqsave(&devp->isr_lock, flags);
-
+	vdin_reset_flag = vdin_vsync_reset_mif(devp->index);
 	offset = devp->addr_offset;
 	if (devp)
 		/* avoid null pointer oops */

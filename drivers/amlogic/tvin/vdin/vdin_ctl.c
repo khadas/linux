@@ -23,7 +23,7 @@
 /* #include <linux/amlogic/amports/canvas.h> */
 #include <linux/amlogic/tvin/tvin.h>
 /* #include <linux/amlogic/aml_common.h> */
-
+#include <linux/delay.h>
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "vdin_ctl.h"
@@ -115,9 +115,29 @@ static unsigned int vdin_wr_burst_mode = 2;
 module_param(vdin_wr_burst_mode, uint, 0644);
 MODULE_PARM_DESC(vdin_wr_burst_mode, "vdin_wr_burst_mode");
 
-static unsigned int delay_line_num = 10;
+static unsigned int delay_line_num;
 module_param(delay_line_num, uint, 0644);
 MODULE_PARM_DESC(delay_line_num, "delay_line_num");
+
+bool enable_reset = 1;
+module_param(enable_reset, bool, 0664);
+MODULE_PARM_DESC(enable_reset, "enable_reset");
+static int vsync_reset_mask;
+module_param(vsync_reset_mask, int, 0664);
+MODULE_PARM_DESC(vsync_reset_mask, "vsync_reset_mask");
+
+static int vdin_det_idle_wait = 100;
+module_param(vdin_det_idle_wait, int, 0664);
+MODULE_PARM_DESC(vdin_det_idle_wait, "vdin_det_idle_wait");
+
+int try_count;
+int try_count_max = 3;
+module_param(try_count_max, int, 0664);
+MODULE_PARM_DESC(try_count_max, "try_count_max");
+
+
+unsigned int vpu_reg_27af = 0x3;
+
 /***************************Local defines**********************************/
 #define BBAR_BLOCK_THR_FACTOR           3
 #define BBAR_LINE_THR_FACTOR            7
@@ -164,6 +184,32 @@ MODULE_PARM_DESC(delay_line_num, "delay_line_num");
 #undef pr_info
 #define pr_info(fmt, ...)
 #endif
+
+static void vdin0_wr_mif_reset(void)
+{
+	if (vsync_reset_mask & 0x08) {
+		W_VCBUS_BIT(VDIN_WR_CTRL, 1, FRAME_SOFT_RST_EN_BIT, 1);
+		W_VCBUS_BIT(VDIN_COM_CTRL0, 1, 28, 1);
+		udelay(1);
+		W_VCBUS_BIT(VDIN_WR_CTRL, 0, FRAME_SOFT_RST_EN_BIT, 1);
+	} else {
+		W_VCBUS_BIT(VDIN_WR_CTRL, 0, 10, 1);
+		W_VCBUS_BIT(VDIN_MISC_CTRL, 1, 2, 1);
+		W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_MIF_RST_BIT, 1);
+		udelay(1);
+		W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN0_MIF_RST_BIT, 1);
+		W_VCBUS_BIT(VDIN_MISC_CTRL, 0, 2, 1);
+		W_VCBUS_BIT(VDIN_WR_CTRL, 1, 8, 1);
+		W_VCBUS_BIT(VDIN_WR_CTRL, 1, 10, 1);
+	}
+};
+
+#define vdin1_wr_mif_reset() do { \
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN1_MIF_RST_BIT, 1); \
+			udelay(1); \
+			W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN1_MIF_RST_BIT, 1); \
+			} while (0)
+
 
 /***************************Local Structures**********************************/
 static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
@@ -1440,7 +1486,10 @@ void vdin_set_def_wr_canvas(struct vdin_dev_s *devp)
 	/* [    9]       write.req_urgent       = 0 ***sub_module.enable*** */
 	/* [    8]       write.req_en           = 0 ***sub_module.enable*** */
 	/* [ 7: 0]       write.canvas           = 0 */
-	wr(offset, VDIN_WR_CTRL, (0x0bc01000 | def_canvas));
+	if (enable_reset)
+		wr(offset, VDIN_WR_CTRL, (0x0b401000 | def_canvas));
+	else
+		wr(offset, VDIN_WR_CTRL, (0x0bc01000 | def_canvas));
 }
 
 #ifdef CONFIG_AML_LOCAL_DIMMING
@@ -1965,7 +2014,10 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* [    9]       write.req_urgent       = 0 ***sub_module.enable*** */
 	/* [    8]       write.req_en           = 0 ***sub_module.enable*** */
 	/* [ 7: 0]       write.canvas           = 0 */
-	wr(offset, VDIN_WR_CTRL, (0x0bc01000 | def_canvas_id));
+	if (enable_reset)
+		wr(offset, VDIN_WR_CTRL, (0x0b401000 | def_canvas_id));
+	else
+		wr(offset, VDIN_WR_CTRL, (0x0bc01000 | def_canvas_id));
 
 	/* [8]   discard data before line fifo= 0  normal mode */
 	/* [7:0] write chroma addr = 1 */
@@ -2130,7 +2182,10 @@ void vdin_hw_disable(unsigned int offset)
 	wr_bits(offset, VDIN_COM_CTRL0, 0, 0, 4);
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
 	vdin_delay_line(delay_line_num, offset);
-	wr(offset, VDIN_WR_CTRL, 0x0bc01000);
+	if (enable_reset)
+		wr(offset, VDIN_WR_CTRL, 0x0b401000);
+	else
+		wr(offset, VDIN_WR_CTRL, 0x0bc01000);
 
 	/* disable clock of blackbar, histogram, histogram, line fifo1, matrix,
 	 * hscaler, pre hscaler, clock0
@@ -2152,7 +2207,75 @@ unsigned int vdin_get_field_type(unsigned int offset)
 	return rd_bits(offset, VDIN_COM_STATUS0, 0, 1);
 }
 
+int vdin_vsync_reset_mif(int index)
+{
+	int i;
+#if 0
+	int start_line = aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff;
+#endif
+	if (!enable_reset)
+		return 0;
+	if (index == 0) {
+		W_VCBUS_BIT(VDIN_WR_CTRL, 0, 25, 1); /* vdin->vdin mif wr en */
+		W_VCBUS_BIT(VDIN_WR_CTRL, 1, 29, 1); /* clock gate */
+		/* wr req en */
+		W_VCBUS_BIT(VDIN_WR_CTRL, 0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+		aml_write_vcbus(VPU_WRARB_REQEN_SLV_L1C2, vpu_reg_27af &
+						(~(1 << VDIN0_REQ_EN_BIT)));
+		vpu_reg_27af &= (~VDIN0_REQ_EN_BIT);
+		if (R_VCBUS_BIT(VPU_ARB_DBG_STAT_L1C2, VDIN_DET_IDLE_BIT,
+				VDIN_DET_IDLE_WIDTH) & VDIN0_IDLE_MASK) {
+			vdin0_wr_mif_reset();
+		} else {
+			for (i = 0; i < vdin_det_idle_wait; i++) {
+				if (R_VCBUS_BIT(VPU_ARB_DBG_STAT_L1C2,
+					VDIN_DET_IDLE_BIT, VDIN_DET_IDLE_WIDTH)
+							& VDIN0_IDLE_MASK) {
+					vdin0_wr_mif_reset();
+					break;
+				}
+			}
+			if (i >= vdin_det_idle_wait)
+				pr_info("============== !!! idle wait timeout\n");
+		}
 
+		aml_write_vcbus(VPU_WRARB_REQEN_SLV_L1C2,
+				vpu_reg_27af | (1 << VDIN0_REQ_EN_BIT));
+
+		W_VCBUS_BIT(VDIN_WR_CTRL, 1, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+		W_VCBUS_BIT(VDIN_WR_CTRL, 0, 29, 1);
+		W_VCBUS_BIT(VDIN_WR_CTRL, 1, 25, 1);
+
+		vpu_reg_27af |= VDIN0_REQ_EN_BIT;
+	} else if (index == 1) {
+		aml_write_vcbus(VPU_WRARB_REQEN_SLV_L1C2,
+				vpu_reg_27af & (~(1 << VDIN1_REQ_EN_BIT)));
+		vpu_reg_27af &= (~(1 << VDIN1_REQ_EN_BIT));
+		if (R_VCBUS_BIT(VPU_ARB_DBG_STAT_L1C2, VDIN_DET_IDLE_BIT,
+				VDIN_DET_IDLE_WIDTH) & VDIN1_IDLE_MASK) {
+			vdin1_wr_mif_reset();
+		} else {
+			for (i = 0; i < vdin_det_idle_wait; i++) {
+				if (R_VCBUS_BIT(VPU_ARB_DBG_STAT_L1C2,
+					VDIN_DET_IDLE_BIT, VDIN_DET_IDLE_WIDTH)
+							& VDIN1_IDLE_MASK) {
+					vdin1_wr_mif_reset();
+					break;
+				}
+			}
+		}
+		aml_write_vcbus(VPU_WRARB_REQEN_SLV_L1C2,
+				vpu_reg_27af | (1 << VDIN1_REQ_EN_BIT));
+		vpu_reg_27af |= (1 << VDIN1_REQ_EN_BIT);
+	}
+#if 0 /* TODO: if start or end line > 0, should drop this frame! */
+	if ((aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff) > 0) {
+		pr_info("============== !!! line counter = %d -> %d !!!\n",
+		start_line, aml_read_vcbus(VDIN_LCNT_STATUS) & 0xff);
+	}
+#endif
+	return vsync_reset_mask & 0x08;
+}
 
 void vdin_enable_module(unsigned int offset, bool enable)
 {

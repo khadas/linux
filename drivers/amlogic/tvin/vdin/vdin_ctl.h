@@ -141,6 +141,7 @@ extern void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
 extern void vdin_hw_enable(unsigned int offset);
 extern void vdin_hw_disable(unsigned int offset);
 extern unsigned int vdin_get_field_type(unsigned int offset);
+extern int vdin_vsync_reset_mif(int index);
 extern void vdin_set_cutwin(struct vdin_dev_s *devp);
 extern void vdin_set_decimation(struct vdin_dev_s *devp);
 extern unsigned int vdin_get_meas_hcnt64(unsigned int offset);
