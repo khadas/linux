@@ -60,6 +60,7 @@ struct threadrw_write_task {
 	int buffered_data_size;
 	int passed_data_len;
 	int buffer_size;
+	int data_offset;
 	int writework_on;
 	unsigned long codec_mm_buffer;
 	wait_queue_head_t wq;
@@ -177,7 +178,10 @@ static ssize_t threadrw_write_in(
 
 	/*end: */
 	spin_lock_irqsave(&task->lock, flags);
-	task->buffered_data_size += off;
+	if (off > 0) {
+		task->buffered_data_size += off;
+		task->data_offset += off;
+	}
 	spin_unlock_irqrestore(&task->lock, flags);
 	if (off > 0)
 		return off;
@@ -230,8 +234,8 @@ static int do_write_work_in(struct threadrw_write_task *task)
 		task->errors = ret;
 	}
 	if (write_len > 0) {
-		task->passed_data_len += write_len;
 		spin_lock_irqsave(&task->lock, flags);
+		task->passed_data_len += write_len;
 		task->buffered_data_size -= write_len;
 		spin_unlock_irqrestore(&task->lock, flags);
 	}
@@ -410,6 +414,18 @@ int threadrw_passed_len(struct stream_buf_s *stbuf)
 	if (task)
 		return task->passed_data_len;
 	return 0;
+
+}
+/*
+all data writed.;
+*/
+int threadrw_dataoffset(struct stream_buf_s *stbuf)
+{
+	struct threadrw_write_task *task = stbuf->write_thread;
+	int offset = 0;
+	if (task)
+		return task->data_offset;
+	return offset;
 
 }
 

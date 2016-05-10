@@ -300,14 +300,22 @@ end_write:
 
 s32 es_vpts_checkin_us64(struct stream_buf_s *buf, u64 us64)
 {
-	u32 passed = video_data_parsed + threadrw_buffer_level(buf);
+	u32 passed;
+	if (buf->write_thread)
+		passed = threadrw_dataoffset(buf);
+	else
+		passed = video_data_parsed;
 	return pts_checkin_offset_us64(PTS_TYPE_VIDEO, passed, us64);
 
 }
 
 s32 es_apts_checkin_us64(struct stream_buf_s *buf, u64 us64)
 {
-	u32 passed = audio_data_parsed + threadrw_buffer_level(buf);
+	u32 passed;
+	if (buf->write_thread)
+		passed = threadrw_dataoffset(buf);
+	else
+		passed = audio_data_parsed;
 	return pts_checkin_offset_us64(PTS_TYPE_AUDIO, passed, us64);
 }
 
