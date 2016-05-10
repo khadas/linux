@@ -64,15 +64,6 @@
 			reg = <0x0 0x07300000 0x0 0x100000>;
 			no-map;
 		};
-
-		sec_chk:linux,secchk {
-			compatible = "shared-dma-pool";
-			status = "disabled";
-			reusable;
-			size = <0x0 0x2000000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-		};
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
 			size = <0x0 0x2000000>;
@@ -1111,12 +1102,11 @@
 	};
 };
 &efuse {
-	status = "disabled";
+	status = "okay";
 };
 &audio_data{
 	status = "okay";
 };
 &defendkey {
-	memory-region = <&sec_chk>;
-	status = "disabled";
+	status = "okay";
 };
