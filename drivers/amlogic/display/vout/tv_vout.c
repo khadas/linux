@@ -175,7 +175,10 @@ static void cvbs_cntl_output(unsigned int open)
 		/* must enable adc bandgap, the adc ref signal for demod */
 		vdac_enable(0, 0x8);
 	} else if (open == 1) { /* open */
-		cntl0 = 0x1;
+		if (is_meson_gxl_cpu())
+			cntl0 = 0xb0001;
+		else
+			cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
 		vout_log_info("vdac open.%d = 0x%x, 0x%x\n",
 			      vdac_cfg_valid, cntl0, cntl1);
@@ -225,7 +228,6 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		s = tvregs_576cvbs_performance_m8[index];
 		type = 3;
 	} else if ((check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) ||
-			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXL)) ||
 			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXM))) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
@@ -238,6 +240,18 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_gxtvbb[index];
 		type = 5;
+	} else if (is_meson_gxl_package_905X()) {
+		max = sizeof(tvregs_576cvbs_performance_905x)
+			/ sizeof(struct reg_s *);
+		index = (index >= max) ? 0 : index;
+		s = tvregs_576cvbs_performance_905x[index];
+		type = 6;
+	} else if (is_meson_gxl_package_905L()) {
+		max = sizeof(tvregs_576cvbs_performance_905l)
+			/ sizeof(struct reg_s *);
+		index = (index >= max) ? 0 : index;
+		s = tvregs_576cvbs_performance_905l[index];
+		type = 7;
 	}
 
 	vout_log_info("cvbs performance type = %d, table = %d\n", type, index);
@@ -1324,6 +1338,41 @@ static void dump_clk_registers(void)
 	return;
 }
 
+static void cvbs_performance_regs_dump(void)
+{
+	unsigned int performance_regs_enci[] = {
+			VENC_VDAC_DAC0_GAINCTRL,
+			ENCI_SYNC_ADJ,
+			ENCI_VIDEO_BRIGHT,
+			ENCI_VIDEO_CONT,
+			ENCI_VIDEO_SAT,
+			ENCI_VIDEO_HUE,
+			ENCI_YC_DELAY,
+			VENC_VDAC_DAC0_FILT_CTRL0,
+			VENC_VDAC_DAC0_FILT_CTRL1
+		};
+	unsigned int performance_regs_vdac[] = {
+			HHI_VDAC_CNTL0,
+			HHI_VDAC_CNTL1
+		};
+	int i, size;
+
+	size = sizeof(performance_regs_enci)/sizeof(unsigned int);
+	pr_info("------------------------\n");
+	for (i = 0; i < size; i++) {
+		pr_info("vcbus [0x%x] = 0x%x\n", performance_regs_enci[i],
+			tv_out_reg_read(performance_regs_enci[i]));
+	}
+
+	size = sizeof(performance_regs_vdac)/sizeof(unsigned int);
+	pr_info("------------------------\n");
+	for (i = 0; i < size; i++) {
+		pr_info("hiu [0x%x] = 0x%x\n", performance_regs_vdac[i],
+			tv_out_hiu_read(performance_regs_vdac[i]));
+	}
+	pr_info("------------------------\n");
+}
+
 enum {
 	CMD_REG_READ,
 	CMD_REG_READ_BITS,
@@ -1335,6 +1384,8 @@ enum {
 	CMD_CLK_MSR,
 
 	CMD_BIST,
+
+	CMD_VP_DUMP, /* dump video performance registers */
 
 	CMD_HELP,
 
@@ -1405,6 +1456,8 @@ static void cvbs_debug_store(char *buf)
 		cmd = CMD_CLK_MSR;
 	else if (!strncmp(argv[0], "bist", strlen("bist")))
 		cmd = CMD_BIST;
+	else if (!strncmp(argv[0], "dumpvp", strlen("dumpvp")))
+		cmd = CMD_VP_DUMP;
 	else if (!strncmp(argv[0], "help", strlen("help")))
 		cmd = CMD_HELP;
 	else {
@@ -1529,6 +1582,10 @@ static void cvbs_debug_store(char *buf)
 		}
 
 		bist_test_store(argv[1]);
+		break;
+
+	case CMD_VP_DUMP:
+		cvbs_performance_regs_dump();
 		break;
 
 	case CMD_HELP:
