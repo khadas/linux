@@ -3746,7 +3746,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	case MISC_FINE_TUNE_HPLL:
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 		if (hdmi_get_current_vinfo()) {
-			static unsigned int save_div_frac;
 			switch (hdmi_get_current_vinfo()->mode) {
 			case VMODE_720P:
 			case VMODE_1080I:
@@ -3756,15 +3755,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 			case VMODE_4K2K_24HZ:
 			case VMODE_4K2K_60HZ_Y420:
 			case VMODE_4K2K_SMPTE_60HZ_Y420:
-				if (argv == DOWN_HPLL) {
-					save_div_frac = hd_read_reg(
-						P_HHI_HDMI_PLL_CNTL2);
-					hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
-					0xd03 , 0, 11);
-				} else if (argv == UP_HPLL) {
-					hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
-					save_div_frac&0xfff , 0, 11);
-				}
+				hdmitx_fine_tune_hpll(argv);
 				break;
 			case VMODE_4K2K_60HZ:
 				if (argv == DOWN_HPLL)

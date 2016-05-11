@@ -672,3 +672,28 @@ next:
 	set_encp_div(p_enc[j].encp_div);
 	set_enci_div(p_enc[j].enci_div);
 }
+
+int hdmitx_fine_tune_hpll(enum fine_tune_mode_e mode)
+{
+	static unsigned int save_div_frac;
+
+	if (mode == DOWN_HPLL) {
+		save_div_frac = hd_read_reg(P_HHI_HDMI_PLL_CNTL2);
+		if (is_meson_gxl_cpu() || is_meson_gxm_cpu()) {
+			if ((save_div_frac & 0xfff) == 0x300)
+				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+					0x280 , 0, 11);
+			else if ((save_div_frac & 0xfff) == 0x200)
+				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+					0x100 , 0, 11);
+		} else
+			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+				0xd03 , 0, 11);
+	} else if (mode == UP_HPLL) {
+		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2,
+		save_div_frac&0xfff , 0, 11);
+	}
+
+	return 0;
+}
+
