@@ -598,8 +598,8 @@
 		scpi_dvfs: scpi_clocks@0 {
 			compatible = "arm,scpi-clk-indexed";
 			#clock-cells = <1>;
-			clock-indices = <0>;
-			clock-output-names = "vcpu";
+			clock-indices = <0 1>;
+			clock-output-names = "vbig","vlittle";
 		};
 
 	};
