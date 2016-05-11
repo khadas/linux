@@ -2251,7 +2251,8 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {
 
 		pr_info("tvafe: shutdown module, close afe port first\n");
-		/* tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED); */
+		/*close afe port,disable tvafe_is_nosig check*/
+		tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);
 		/*del_timer_sync(&tdevp->timer);*/
 
 		/**set cvd2 reset to high**/
