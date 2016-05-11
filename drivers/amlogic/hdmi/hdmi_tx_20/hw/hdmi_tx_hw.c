@@ -3861,11 +3861,12 @@ void set_crt_video_enc(uint32_t vIdx, uint32_t inSel, uint32_t DivN)
  * output_color_format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420
  */
 static void config_hdmi20_tx(enum hdmi_vic vic,
-	struct hdmi_format_para *para,
+	struct hdmitx_dev *hdev,
 	unsigned char color_depth,
 	unsigned char input_color_format,
 	unsigned char output_color_format)
 {
+	struct hdmi_format_para *para = hdev->para;
 	struct hdmi_cea_timing *t = &para->timing;
 	unsigned long   data32;
 	unsigned char   vid_map;
@@ -4387,15 +4388,22 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_DATMAN, 0);
 
 	/* packet scheduller configuration for AVI, GCP, AUDI, ACR. */
-	data32  = 0;
-	data32 |= (0 << 6);
-	data32 |= (0 << 5);
-	data32 |= (0 << 4);
-	data32 |= (1 << 3);
-	data32 |= (1 << 2);
-	data32 |= (1 << 1);
-	data32 |= (0 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO3, data32);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0xe, 0, 6);
+	/* If RX not support HDR, then disable HDR send out */
+	if (!hdev->RXCap.hdr_sup_eotf_hdr) {
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0, 6, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 7, 1);
+	} else {
+		/* If RX support HDR, and feature is HDR,
+		 * then enable HDR send out
+		*/
+		if (hdev->hdr_src_feature) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN,
+				1, 7, 1);
+		}
+	}
+
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB0,  0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB1,  0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB2,  0);
@@ -4410,7 +4418,6 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_RDRB11, 0);
 
 	/* Packet transmission enable */
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 7, 1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 1, 1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 2, 1);
 
@@ -4720,7 +4727,6 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 {
 	enum hdmi_vic vic = HDMI_Unkown;
 	struct hdmi_format_para *para = NULL;
-	struct hdmi_cea_timing *t = NULL;
 
 	if (hdev->cur_video_param == NULL) {
 		pr_info("error at null vidpara!\n");
@@ -4735,9 +4741,7 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 	}
 
 	pr_info("%s[%d] set VIC = %d\n", __func__, __LINE__, para->vic);
-	t = &para->timing;
-
-	config_hdmi20_tx(vic, hdev->para,
+	config_hdmi20_tx(vic, hdev,
 			hdev->para->cd,
 			TX_INPUT_COLOR_FORMAT,
 			hdev->para->cs);

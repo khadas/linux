@@ -949,24 +949,26 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	unsigned char DRM_DB[26] = {0x0};
+
 	if ((!data) || (!(hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
 		!(hdev->RXCap.hdr_sup_eotf_hdr) &&
 		!(hdev->RXCap.hdr_sup_eotf_sdr))) {
+		hdev->hdr_src_feature = 0;
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
 		return;
 	}
 
+	hdev->hdr_src_feature = (((data->features >> 16) & 0xff) == 0x9);
 	/* update DRM data */
-	if ((hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
-		(((data->features >> 16) & 0xff) == 0x9)) {
+	if ((hdev->RXCap.hdr_sup_eotf_smpte_st_2084) && hdev->hdr_src_feature)
 		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
-	} else {
+	else {
 		memset(DRM_DB, 0, sizeof(DRM_DB));
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
-				DRM_DB, DRM_HB);
+				NULL, NULL);
 			return;
 		}
 	}
