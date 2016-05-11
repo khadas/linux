@@ -132,16 +132,17 @@ struct amlsd_platform {
 	bool is_in;
 	bool is_tuned;		/* if card has been tuning */
 	bool need_retuning;
+	bool rmpb_cmd_flag;
+	bool rpmb_valid_command;
+	/* we used this flag to filter
+	some unnecessary cmd before initialized flow */
+	/* has been initialized for the first time */
+	bool is_fir_init;
 	struct delayed_work	retuning;
 #ifdef AML_CALIBRATION
 	unsigned char caling;
 	unsigned char calout[20][20];
 #endif
-	/* we used this flag to filter
-	some unnecessary cmd before initialized flow */
-
-	/* has been initialized for the first time */
-	bool is_fir_init;
 	/* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD),
 	3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card,
 	5:NON sdio device(means sd/mmc card), other:reserved */

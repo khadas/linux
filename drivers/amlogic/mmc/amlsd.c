@@ -1342,6 +1342,21 @@ static int aml_cmd_invalid(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	return -EINVAL;
 }
+static int aml_rpmb_cmd_invalid(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->mrq_lock, flags);
+	host->xfer_step = XFER_FINISHED;
+	host->mrq = NULL;
+	host->status = HOST_INVALID;
+	spin_unlock_irqrestore(&host->mrq_lock, flags);
+	mrq->data->bytes_xfered = mrq->data->blksz*mrq->data->blocks;
+	mmc_request_done(mmc, mrq);
+	return -EINVAL;
+}
 
 int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
 {
@@ -1359,6 +1374,24 @@ int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
 	/* CMD3 means the first time initialized flow is running */
 	if (mrq->cmd->opcode == 3)
 		mmc->first_init_flag = false;
+
+	if (aml_card_type_mmc(pdata)) {
+		if (mrq->cmd->opcode == 6) {
+			if (mrq->cmd->arg == 0x3B30301)
+				pdata->rmpb_cmd_flag = 1;
+			else
+				pdata->rmpb_cmd_flag = 0;
+		}
+		if (pdata->rmpb_cmd_flag && (!pdata->rpmb_valid_command)) {
+			if ((mrq->cmd->opcode == 18)
+				|| (mrq->cmd->opcode == 25))
+				return aml_rpmb_cmd_invalid(mmc, mrq);
+		}
+		if (pdata->rmpb_cmd_flag && (mrq->cmd->opcode == 23))
+			pdata->rpmb_valid_command = 1;
+		else
+			pdata->rpmb_valid_command = 0;
+	}
 
 	if (mmc->caps & MMC_CAP_NONREMOVABLE) { /* nonremovable device */
 	if (mmc->first_init_flag) { /* init for the first time */
