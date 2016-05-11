@@ -57,6 +57,7 @@
 
 
 #define RES_MEM_FLAGS_HAVE_MAPED 0x4
+static int dump_mem_infos(void *buf, int size);
 
 /*
 debug_mode:
@@ -67,6 +68,8 @@ disable sys memory:4
 disable half memory:8,
 	only used half memory,for debug.
 	return nomem,if alloced > total/2;
+dump memory info on failed:0x10,
+trace memory alloc/free info:0x20,
 
 */
 static u32 debug_mode;
@@ -184,7 +187,7 @@ static int codec_mm_alloc_pre_check_in(
 	if (flags & 1) {
 		have_space = have_space & 8;
 	}
-	if (debug_mode) {
+	if (debug_mode & 0xf) {
 		pr_info("codec mm is enabled debug_mode:%d\n", debug_mode);
 		have_space = have_space & (~(debug_mode & 1));
 		have_space = have_space & (~(debug_mode & 2));
@@ -244,8 +247,12 @@ static int codec_mm_alloc_in(
 		can_from_sys = can_from_sys && (have_space & 4);
 		can_from_tvp = can_from_tvp && (have_space & 8);
 		if (!can_from_res && !can_from_cma &&
-			!can_from_sys && !can_from_tvp)
+			!can_from_sys && !can_from_tvp) {
+			if (debug_mode & 0x10)
+				pr_info("error, codec mm have space:%x\n",
+					have_space);
 			return -10002;
+		}
 	}
 
 	do {
@@ -429,6 +436,8 @@ static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		pr_err("not enough mem for %s size %d, ret=%d\n",
 				owner, size, ret);
 		kfree(mem);
+		if (debug_mode & 0x10)
+			dump_mem_infos(NULL, 0);
 		return NULL;
 	}
 
@@ -459,11 +468,10 @@ static struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 			mgt->max_used_mem_size = mgt->total_alloced_size;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
-	/*
-	pr_err("%s alloc mem size %d at %lx from %d\n",
+	if (debug_mode & 0x20)
+		pr_err("%s alloc mem size %d at %lx from %d\n",
 			owner, size, mem->phy_addr,
 			mem->from_flags);
-	*/
 	return mem;
 }
 
@@ -485,6 +493,10 @@ static void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 		if (mem->owner[i] && strcmp(owner, mem->owner[i]) == 0)
 			mem->owner[i] = max_owner;
 	}
+	if (debug_mode & 0x20)
+		pr_err("%s free mem size %d at %lx from %d,index =%d\n",
+			owner, mem->buffer_size, mem->phy_addr,
+			mem->from_flags, index);
 	mem->owner[index] = NULL;
 	if (index == 0) {
 		spin_unlock_irqrestore(&mem->lock, flags);
@@ -776,7 +788,7 @@ unsigned long codec_mm_virt_to_phys(void *vaddr)
 	return page_to_phys((struct page *)vaddr);
 }
 
-int dump_mem_infos(void *buf, int size)
+static int dump_mem_infos(void *buf, int size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem;
@@ -900,8 +912,11 @@ int codec_mm_enough_for_size(int size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	int have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
-	if (!have_mem)
+	if (!have_mem) {
+		if (debug_mode & 0x20)
+			dump_mem_infos(NULL, 0);
 		return 0;
+	}
 	return 1;
 }
 
