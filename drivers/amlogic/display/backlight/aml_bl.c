@@ -1211,7 +1211,8 @@ static int aml_bl_update_status(struct backlight_device *bd)
 	else if (brightness > 255)
 		brightness = 255;
 
-	if ((bl_drv->state & BL_STATE_LCD_ON) == 0)
+	if (((bl_drv->state & BL_STATE_LCD_ON) == 0) ||
+		((bl_drv->state & BL_STATE_BL_POWER_ON) == 0))
 		brightness = 0;
 
 	if (bl_debug_print_flag) {
@@ -2091,7 +2092,7 @@ static void aml_bl_delayd_on(struct work_struct *work)
 		return;
 
 	/* lcd power on backlight flag */
-	bl_drv->state |= BL_STATE_LCD_ON;
+	bl_drv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	BLPR("%s: bl_level=%u, state=0x%x\n",
 		__func__, bl_drv->level, bl_drv->state);
 	if (brightness_bypass) {
@@ -2126,7 +2127,8 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 			BLPR("Warning: no bl workqueue\n");
 			msleep(bconf->power_on_delay);
 			/* lcd power on backlight flag */
-			bl_drv->state |= BL_STATE_LCD_ON;
+			bl_drv->state |=
+				(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 			if (brightness_bypass) {
 				if ((bl_drv->state & BL_STATE_BL_ON) == 0)
 					bl_power_on();
@@ -2152,7 +2154,7 @@ static int aml_bl_off_notifier(struct notifier_block *nb,
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
 
-	bl_drv->state &= ~BL_STATE_LCD_ON;
+	bl_drv->state &= ~(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	if (brightness_bypass) {
 		if (bl_drv->state & BL_STATE_BL_ON)
 			bl_power_off();
@@ -2595,7 +2597,7 @@ static ssize_t bl_debug_power_show(struct class *class,
 	if ((bl_drv->state & BL_STATE_LCD_ON) == 0) {
 		state = 0;
 	} else {
-		if (bl_drv->state & BL_STATE_BL_ON)
+		if (bl_drv->state & BL_STATE_BL_POWER_ON)
 			state = 1;
 		else
 			state = 0;
@@ -2616,9 +2618,11 @@ static ssize_t bl_debug_power_store(struct class *class,
 		BLPR("backlight force off for lcd is off\n");
 	}
 	if (temp == 0) {
+		bl_drv->state &= ~BL_STATE_BL_POWER_ON;
 		if (bl_drv->state & BL_STATE_BL_ON)
 			bl_power_off();
 	} else {
+		bl_drv->state |= BL_STATE_BL_POWER_ON;
 		if ((bl_drv->state & BL_STATE_BL_ON) == 0)
 			bl_power_on();
 	}
@@ -2808,7 +2812,8 @@ static int aml_bl_probe(struct platform_device *pdev)
 	default:
 		break;
 	}
-	bl_drv->state = (BL_STATE_LCD_ON | BL_STATE_BL_ON);
+	bl_drv->state = (BL_STATE_LCD_ON |
+			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
 	aml_bl_update_status(bl_drv->bldev);
 
 	BLPR("probe OK\n");
