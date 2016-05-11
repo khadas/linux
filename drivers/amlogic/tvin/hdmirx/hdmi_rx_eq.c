@@ -289,7 +289,7 @@ void phy_EQ_workaround(void)
 		pll_rate_value = (eq_mainfsm_status >> 9 & 0x3);
 		rx_print("eq_mainfsm_status: %#x,tmds_clk:%d\n",
 			eq_mainfsm_status, hdmirx_get_tmds_clock());
-		if (rx.scdc_tmds_cfg == 0) {
+		if (!hdmirx_tmds_34g()) {
 			if (((eq_mainfsm_status >> 10) & 0x1) != 0) {
 				/* pll_rate smaller than 94.5MHz, algorithm
 				not needed Please make sure that PHY get the
@@ -322,7 +322,7 @@ void phy_EQ_workaround(void)
 		eq_counter_th = EQ_COUNTERTHRESHOLD;
 		if ((((eq_mainfsm_status >> 9) & 0x3) == 0))
 			fat_bit_status = EQ_FATBIT_MASK_4k;
-		if (rx.scdc_tmds_cfg) {
+		if (hdmirx_tmds_34g()) {
 			fat_bit_status = EQ_FATBIT_MASK_HDMI20;
 			eq_counter_th = EQ_COUNTERTHRESHOLD_HDMI20;
 			min_max_diff = MINDIFF_HDMI20;
@@ -892,7 +892,7 @@ bool hdmirx_phy_clk_rate_monitor(void)
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
 
-	if (clk_rate != rx.scdc_tmds_cfg) {
+	if (clk_rate != hdmirx_tmds_34g()) {
 		changed = true;
 		for (i = 0; i < 3; i++) {
 			if (1 == clk_rate) {

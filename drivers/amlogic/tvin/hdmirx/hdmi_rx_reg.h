@@ -749,6 +749,11 @@
 /** Clock change interrupt */
 #define		CLK_CHANGE				_BIT(6)
 #define		PLL_LCK_CHG				_BIT(5)
+
+#define DWC_HDMI2_ISTS			(0xF68UL)
+#define DWC_HDMI2_IEN			(0xF6CUL)
+#define DWC_HDMI2_ICLR			(0xF70UL)
+#define DWC_HDMI2_IEN_SET		(0xF64UL)
 /*
  * DMI registers
  */

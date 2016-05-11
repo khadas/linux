@@ -69,7 +69,7 @@ static int verbose;
 
 /* Constant strings */
 static const char *MY_TAG = "ESM HLD: ";
-static const char *ESM_DEVICE_NAME = "esm";
+static const char *ESM_DEVICE_NAME = "esm_rx";
 static const char *ESM_DEVICE_CLASS = "elliptic";
 
 /* Linux device, class and range */
