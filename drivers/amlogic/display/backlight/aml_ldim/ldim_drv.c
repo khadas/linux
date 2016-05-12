@@ -113,7 +113,9 @@ static unsigned long LPF = 1;  /* [0~128] */
 static unsigned long  rgb_base = 128;  /* [1~128], norm 128 as 1 */
 static unsigned long  lpf_gain = 128;  /* [0~128~256], norm 128 as 1*/
 static unsigned long  lpf_res = 41;    /* 1024/9 = 113*/
-
+static unsigned long bl_remap_curve[16] = {272, 317, 392, 497, 632,
+	797, 991, 1216, 1471, 1756, 2071, 2416, 2791, 3195, 3630, 4095};
+		/*BL_matrix remap curve*/
 #endif
 
 unsigned long ldim_frm_time = 0;
@@ -375,10 +377,13 @@ static void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 		2: est on (BL-MIN); 3: est on (BL-MAX) */
 	unsigned int fw_hist_mx;
 	unsigned int SF_sum = 0, TF_sum = 0, dif_sum = 0;
-	/* alocate the memory for the matrix */
-	/* tBL_matrix = (unsigned int *)
-	kmalloc(Bsize*sizeof(unsigned int),GFP_KERNEL); */
-#if 1
+    /* alocate the memory for the matrix */
+    /* tBL_matrix = (unsigned int *)
+    kmalloc(Bsize*sizeof(unsigned int),GFP_KERNEL); */
+	int int_x, rmd_x, norm;
+	int left,  right, bl_value_map;
+
+	#if 1
 	int SF_avg = 0;
 	unsigned int SF_dif = 0;
 
@@ -588,26 +593,35 @@ static void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 			if (bl_value > 4095)
 				bl_value = 4095;
 
-			/*ld_curve map
-			// com = bl_value_pre >> 8;//  bl_value /256
-			// mod = bl_value_pre - com * 256;
-			// bl_l = Led_curve[com];
-			// bl_r = Led_curve[MIN((com + 1), 15)];
-			// bl_value = bl_l + mod * (bl_r - bl_l) >> 8 ;
-			//mod * (bl_r - bl_l) / 256;*/
+			/*ld_curve map*/
+			int_x = bl_value>>8;
+			rmd_x = bl_value%256;
+			norm  = 256;
+			if (int_x == 0)
+				left = 0;
+			else
+				left = bl_remap_curve[int_x - 1];
 
-			if (bl_value < 127)
-				bl_value = 127;
+			right = bl_remap_curve[int_x];
+
+			bl_value_map = left + (((right-left)*rmd_x + 128)>>8);
+			bl_value_map = (bl_value_map > 4095) ? 4095 :
+				bl_value_map;
+				/*clip to u12: debug 20150728  output u12*/
+
+			if (bl_value_map < 127)
+				bl_value_map = 127;
 
 			if (nPRM->reg_LD_BackLit_mode == 1)
 				nPRM->BL_matrix[blkCol*Vnum + blkRow]
-					= bl_value;
+					= bl_value_map;
 			else
 				nPRM->BL_matrix[blkRow*Hnum + blkCol]
-					= bl_value;
+					= bl_value_map;
 
 			/* Get the TF_BL_matrix */
-			FDat->TF_BL_matrix[blkRow*Hnum + blkCol] = bl_value;
+			FDat->TF_BL_matrix[blkRow*Hnum + blkCol]
+				= bl_value_map;
 
 			/* leave the Delayed version for next frame */
 			for (k = 0; k < 3; k++) {
@@ -617,9 +631,9 @@ static void ld_fw_alg_frm(struct LDReg *nPRM, struct FW_DAT *FDat,
 						blkCol*3 + k];
 			}
 			/* get the sum/min/max */
-			sum += bl_value;
-			Bmin = MIN(Bmin, bl_value);
-			Bmax = MAX(Bmax, bl_value);
+			sum += bl_value_map;
+			Bmin = MIN(Bmin, bl_value_map);
+			Bmax = MAX(Bmax, bl_value_map);
 		}
 	}
 
@@ -670,8 +684,8 @@ static void ldim_stts_initial(unsigned int pic_h, unsigned int pic_v,
 	Wr(LDIM_STTS_CTRL0, 3<<3);/*4 mux to vpp_dout*/
 	ldim_set_matrix_ycbcr2rgb();
 
-	/* ldim_set_matrix_rgb2ycbcr(0); */
-	ldim_stts_en(resolution, 0, 0, 3, 1, 1, 0); /* hist_mode=3 */
+/*	ldim_set_matrix_rgb2ycbcr(0); */
+	ldim_stts_en(resolution, 0, 0, 1, 1, 1, 0);
 	resolution_region = 0;
 #if 0
 	blk_height = pic_v/BLK_Vnum;
