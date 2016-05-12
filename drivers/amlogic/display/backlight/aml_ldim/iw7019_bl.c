@@ -53,6 +53,8 @@ static int iw7019_spi_err_flag;
 static int iw7019_spi_force_err_flag;
 static unsigned short vsync_cnt;
 static unsigned short fault_cnt;
+static unsigned int reset_cnt;
+static unsigned int reset_cnt_high;
 
 static spinlock_t iw7019_spi_lock;
 
@@ -399,6 +401,12 @@ static int iw7019_reset_handler(void)
 {
 	/* disable BL_ON once */
 	LDIMPR("reset iw7019 BL_ON\n");
+	if (reset_cnt == 0xffffffff) {
+		reset_cnt = 0;
+		reset_cnt_high++;
+	} else {
+		reset_cnt++;
+	}
 	gpio_direction_output(bl_iw7019->en_gpio, bl_iw7019->en_off);
 	mdelay(1000);
 	gpio_direction_output(bl_iw7019->en_gpio, bl_iw7019->en_on);
@@ -565,23 +573,26 @@ static ssize_t iw7019_show(struct class *class,
 				test_brightness[7]);
 	} else if (!strcmp(attr->attr.name, "status")) {
 		ret = sprintf(buf, "iw7019 status:\n"
-				"on_flag       = %d\n"
-				"en_on         = %d\n"
-				"en_off        = %d\n"
-				"cs_hold_delay = %d\n"
-				"cs_clk_delay  = %d\n"
-				"spi_op_flag   = %d\n"
-				"write_check   = %d\n"
-				"fault_check   = %d\n"
-				"vsync_cnt     = %d\n"
-				"fault_cnt     = %d\n"
-				"dim_max       = 0x%03x\n"
-				"dim_min       = 0x%03x\n",
+				"on_flag        = %d\n"
+				"en_on          = %d\n"
+				"en_off         = %d\n"
+				"cs_hold_delay  = %d\n"
+				"cs_clk_delay   = %d\n"
+				"spi_op_flag    = %d\n"
+				"write_check    = %d\n"
+				"fault_check    = %d\n"
+				"vsync_cnt      = %d\n"
+				"fault_cnt      = %d\n"
+				"reset_cnt_high = %d\n"
+				"reset_cnt      = %d\n"
+				"dim_max        = 0x%03x\n"
+				"dim_min        = 0x%03x\n",
 				iw7019_on_flag, bl->en_on, bl->en_off,
 				bl->cs_hold_delay, bl->cs_clk_delay,
 				iw7019_spi_op_flag,
 				bl->write_check, bl->fault_check,
 				vsync_cnt, fault_cnt,
+				reset_cnt_high, reset_cnt,
 				iw7019_ld_config.dim_max,
 				iw7019_ld_config.dim_min);
 	} else if (!strcmp(attr->attr.name, "write_check")) {
@@ -604,6 +615,8 @@ static ssize_t iw7019_show(struct class *class,
 			LDIMERR("%s: wait spi idle state failed\n", __func__);
 		}
 		ret = sprintf(buf, "\n");
+	} else if (!strcmp(attr->attr.name, "fault_cnt")) {
+		ret = sprintf(buf, "iw7019 fault_cnt = %d\n", fault_cnt);
 	}
 	return ret;
 }
@@ -667,6 +680,10 @@ static ssize_t iw7019_store(struct class *class,
 		} else {
 			LDIMERR("%s: wait spi idle state failed\n", __func__);
 		}
+	} else if (!strcmp(attr->attr.name, "fault_cnt")) {
+		i = sscanf(buf, "%d", &val);
+		fault_cnt = (unsigned char)val;
+		LDIMPR("fault_cnt=%d\n", fault_cnt);
 	} else
 		LDIMERR("LDIM argment error!\n");
 	return count;
@@ -684,6 +701,7 @@ static struct class_attribute iw7019_class_attrs[] = {
 	__ATTR(write_err_force, S_IRUGO | S_IWUSR, NULL, iw7019_store),
 	__ATTR(write_check, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR(fault_check, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
+	__ATTR(fault_cnt, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR(reset, S_IRUGO | S_IWUSR, NULL, iw7019_store),
 	__ATTR(dump, S_IRUGO | S_IWUSR, iw7019_show, NULL),
 	__ATTR_NULL
@@ -813,6 +831,8 @@ static int iw7019_probe(struct spi_device *spi)
 	const char *str;
 	int ret;
 
+	reset_cnt_high = 0;
+	reset_cnt = 0;
 	iw7019_on_flag = 1; /* default enable in uboot */
 	iw7019_spi_op_flag = 0;
 	iw7019_spi_err_flag = 0;

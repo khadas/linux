@@ -58,6 +58,12 @@ static unsigned int ldim_remap_en;
 static unsigned int ldim_test_en;
 module_param(ldim_test_en, uint, 0664);
 MODULE_PARM_DESC(ldim_test_en, "ldim_test_en_flag");
+static unsigned int ldim_bypass;
+module_param(ldim_bypass, uint, 0664);
+MODULE_PARM_DESC(ldim_bypass, "ldim_bypass");
+static unsigned int ldim_level_update;
+module_param(ldim_level_update, uint, 0664);
+MODULE_PARM_DESC(ldim_level_update, "ldim_level_update");
 
 struct LDReg nPRM;
 struct FW_DAT FDat;
@@ -1149,6 +1155,8 @@ static void ldim_on_vs_spi(unsigned long data)
 
 	if (ldim_on_flag == 0)
 		return;
+	if (ldim_bypass)
+		return;
 
 	size = ldim_blk_row * ldim_blk_col;
 	mapping = &ldim_config.bl_mapping[0];
@@ -1174,6 +1182,14 @@ static void ldim_on_vs_spi(unsigned long data)
 			}
 		}
 	} else {
+		if (ldim_level_update) {
+			ldim_level_update = 0;
+			if (ldim_debug_print) {
+				LDIMPR("%s: level update: 0x%lx\n",
+					__func__, litgain);
+			}
+		} else
+			return;
 		for (i = 0; i < size; i++) {
 			local_ldim_matrix[i] =
 				(unsigned short)nPRM.BL_matrix[mapping[i]];
@@ -1565,9 +1581,7 @@ static void ldim_func_ctrl(int status)
 		/* enable update */
 		ldim_avg_update_en = 1;
 		ldim_matrix_update_en = 1;
-		ldim_func_en = 1;
 	} else {
-		ldim_func_en = 0;
 		/* disable update */
 		ldim_avg_update_en = 0;
 		ldim_matrix_update_en = 0;
@@ -1607,7 +1621,7 @@ static int ldim_power_on(void)
 
 	LDIMPR("%s\n", __func__);
 
-	ldim_func_ctrl(1);
+	ldim_func_ctrl(ldim_func_en);
 
 	if (ldim_driver.device_power_on)
 		ldim_driver.device_power_on();
@@ -1642,6 +1656,7 @@ static int ldim_set_level(unsigned int level)
 	level = ((level - level_min) * LD_DATA_MAX) / (level_max - level_min);
 	level &= LD_DATA_MAX;
 	litgain = (unsigned long)level;
+	ldim_level_update = 1;
 
 	return ret;
 }
@@ -1994,9 +2009,11 @@ static ssize_t ldim_attr_store(struct class *cla,
 		ldim_get_matrix_info();
 		pr_info("**************ldim matrix info over*************\n");
 	} else if (!strcmp(parm[0], "ldim_enable")) {
+		ldim_func_en = 1;
 		ldim_func_ctrl(1);
 		pr_info("**************ldim enable ok*************\n");
 	} else if (!strcmp(parm[0], "ldim_disable")) {
+		ldim_func_en = 0;
 		ldim_func_ctrl(0);
 		pr_info("**************ldim disable ok*************\n");
 	} else if (!strcmp(parm[0], "ldim_info")) {
@@ -2587,7 +2604,8 @@ static ssize_t ldim_func_en_store(struct class *class,
 
 	ret = sscanf(buf, "%d", &val);
 	LDIMPR("local diming function: %s\n", (val ? "enable" : "disable"));
-	ldim_func_ctrl(val);
+	ldim_func_en = val ? 1 : 0;
+	ldim_func_ctrl(ldim_func_en);
 
 	return count;
 }
@@ -2705,6 +2723,8 @@ static int aml_ldim_probe(struct platform_device *pdev)
 	ldim_on_flag = 0;
 	ldim_func_en = 0;
 	ldim_test_en = 0;
+	ldim_bypass = 0;
+	ldim_level_update = 0;
 	ldim_avg_update_en = 0;
 	ldim_matrix_update_en = 0;
 	ldim_alg_en = 0;
@@ -2842,7 +2862,7 @@ static  int aml_ldim_remove(struct platform_device *pdev)
 	class_destroy(aml_ldim_clsp);
 	unregister_chrdev_region(aml_ldim_devno, 1);
 
-	LDIMPR("%s, driver remove ok\n", __func__);
+	LDIMPR("%s ok\n", __func__);
 	return 0;
 }
 static const struct of_device_id ldim_dt_match[] = {
