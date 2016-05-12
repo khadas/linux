@@ -816,6 +816,7 @@ static int Edid_ParsingY420VDBBlock(struct rx_cap *pRXCap,
 {
 	unsigned char tag = 0, ext_tag = 0, data_end = 0;
 	unsigned int pos = 0;
+	int i = 0, found = 0;
 
 	tag = (buf[pos] >> 5) & 0x7;
 	data_end = (buf[pos] & 0x1f)+1;
@@ -827,11 +828,25 @@ static int Edid_ParsingY420VDBBlock(struct rx_cap *pRXCap,
 
 	pos++;
 	while (pos < data_end) {
-		if (pRXCap->VIC_count < VIC_MAX_NUM)
-			pRXCap->VIC[pRXCap->VIC_count] =
+		if (pRXCap->VIC_count < VIC_MAX_NUM) {
+			for (i = 0; i < pRXCap->VIC_count; i++) {
+				if (pRXCap->VIC[i] == buf[pos]) {
+					pRXCap->VIC[i] =
+					HDMITX_VIC420_OFFSET + buf[pos];
+					found = 1;
+					/* Here we do not break,because
+						some EDID may have the same
+						repeated VICs
+					*/
+				}
+			}
+			if (0 == found) {
+				pRXCap->VIC[pRXCap->VIC_count] =
 				HDMITX_VIC420_OFFSET + buf[pos];
+				pRXCap->VIC_count++;
+			}
+		}
 		pos++;
-		pRXCap->VIC_count++;
 	}
 
 	return 0;
