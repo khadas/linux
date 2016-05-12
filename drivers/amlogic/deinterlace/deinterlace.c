@@ -7208,7 +7208,8 @@ static void di_unreg_process_irq(void)
 	DI_Wr(DI_CLKG_CTRL, 0xff0000);
 /* di enable nr clock gate */
 #else
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() ||
+		is_meson_gxm_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
 	else
 		DI_Wr(DI_CLKG_CTRL, 0xf60000);
@@ -7332,7 +7333,8 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
+			if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() ||
+				is_meson_gxm_cpu()) {
 				/* di_init_buf(vframe->width,
 				 * vframe->height, 1); */
 				 /*
@@ -7361,7 +7363,8 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()) {
+			if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() ||
+				is_meson_gxm_cpu()) {
 				/*
 				 * 10 bit mode need 1.5 times buffer size of
 				 * 8 bit mode, init the buffer size as 10 bit

@@ -194,7 +194,7 @@ void di_hw_init(void)
 
 #ifdef NEW_DI_V1
 	/* enable old DI mode for m6tv */
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
 	else
 		DI_Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
@@ -244,7 +244,8 @@ void di_hw_uninit(void)
 static void pre_bit_mode_config(unsigned char inp,
 	unsigned char mem, unsigned char chan2, unsigned char nrwr)
 {
-	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu())
+	if (!is_meson_gxtvbb_cpu() && !is_meson_gxl_cpu() &&
+		!is_meson_gxm_cpu())
 		return;
 
 	RDMA_WR_BITS(DI_INP_GEN_REG3, inp, 8, 2);
@@ -349,7 +350,7 @@ void enable_di_pre_aml(
 	nr_h = (di_nrwr_mif->end_y - di_nrwr_mif->start_y + 1);
 	RDMA_WR(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
 	/*gate for nr*/
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
 	else {
 		/*only process sd,avoid affecting sharp*/
@@ -1031,7 +1032,7 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 			(1 << 0)/* cntl_enable */
 		);
 	/* post bit mode config, if0 config in video.c */
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3, mif->bit_mode, 8, 2);
 	/* ---------------------- */
 	/* Canvas */
@@ -1394,7 +1395,8 @@ void di_post_switch_buffer(
 (di_buf1_mif->canvas0_addr2 << 16) |
 (di_buf1_mif->canvas0_addr1 << 8) | (di_buf1_mif->canvas0_addr0 << 0));
 	/* post bit mode config, if0 config in video.c */
-		if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu())
+		if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() ||
+			is_meson_gxm_cpu())
 			DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
 						di_buf1_mif->bit_mode, 8, 2);
 	}
