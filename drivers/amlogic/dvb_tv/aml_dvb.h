@@ -164,8 +164,8 @@ struct aml_dmx {
 	unsigned long        sub_pages;
 	unsigned long        sub_pages_map;
 	int                  sub_buf_len;
-	struct aml_channel   channel[CHANNEL_COUNT];
-	struct aml_filter    filter[FILTER_COUNT];
+	struct aml_channel   channel[CHANNEL_COUNT+1];
+	struct aml_filter    filter[FILTER_COUNT+1];
 	irq_handler_t        irq_handler;
 	void                *irq_data;
 	int                  aud_chan;

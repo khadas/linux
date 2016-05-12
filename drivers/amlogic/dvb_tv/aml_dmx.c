@@ -2189,7 +2189,8 @@ static int dmx_enable(struct aml_dmx *dmx)
 			      (1 << SECTION_END_WITH_TABLE_ID) |
 			      (1 << ENABLE_FREE_CLK_FEC_DATA_VALID) |
 			      (1 << ENABLE_FREE_CLK_STB_REG) |
-			      (1 << STB_DEMUX_ENABLE));
+			      (1 << STB_DEMUX_ENABLE) |
+			      (1 << NOT_USE_OF_SOP_INPUT));
 	} else {
 		DMX_WRITE_REG(dmx->id, STB_INT_MASK, 0);
 		DMX_WRITE_REG(dmx->id, FEC_INPUT_CONTROL, 0);
@@ -2829,6 +2830,7 @@ void dmx_reset_hw_ex(struct aml_dvb *dvb, int reset_irq)
 			struct aml_dsc_channel *ch = &dsc->channel[n];
 			/*if(ch->used) */
 			{
+				ch->id = n;
 				dsc_set_pid(ch, ch->pid);
 
 				if (ch->set & 1)
