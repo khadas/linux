@@ -659,7 +659,8 @@ void set_vmode_clk(enum vmode_e mode)
 	int j = 0;
 
 	mutex_lock(&setclk_mutex);
-	if (is_meson_gxl_cpu()) {
+	if (is_meson_gxl_cpu() ||
+		is_meson_gxm_cpu()) {
 		p_enc = &setting_enc_clk_val_gxl[0];
 		i = sizeof(setting_enc_clk_val_gxl)
 			/ sizeof(struct enc_clk_val_s);
