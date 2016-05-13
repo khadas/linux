@@ -1072,7 +1072,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpu 0 4>;
+					cooling-device = <&t83x_gpu 0 4>;
 					contribution = <1024>;
 				};
 			};

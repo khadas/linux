@@ -25,7 +25,7 @@
 #include "mesongxl.dtsi"
 / {
 	model = "Amlogic";
-	compatible = "amlogic, Gxbb";
+	compatible = "amlogic, Gxm";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -65,19 +65,11 @@
 			no-map;
 		};
 
-		sec_chk:linux,secchk {
-			compatible = "shared-dma-pool";
-			status = "disabled";
-			reusable;
-			size = <0x0 0x2000000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-		};
-		fb_reserved:linux,meson-fb {
+		/*fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
 			size = <0x0 0x2000000>;
 			no-map;
-		};
+		};*/
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
@@ -87,7 +79,7 @@
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x4000000>;
 		};
 
 		/*  vdin0 */
@@ -151,16 +143,17 @@
 	};
 	meson-fb {
 		compatible = "amlogic, meson-fb";
-		memory-region = <&fb_reserved>;
+		//memory-region = <&fb_reserved>;
 		dev_name = "meson-fb";
 		status = "okay";
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
+		mem_size = <0x01851000 0x00100000>; /* fb0/fb1 memory size */
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+		logo_addr = "0x3d851000"; /*ion base + fb0 memory size for uboot logo osd1*/
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
@@ -1034,6 +1027,7 @@
 		#cooling-cells = <2>; /* min followed by max */
 	};
 	thermal-zones {
+		status = "disabled";
 		soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
@@ -1077,7 +1071,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpu 0 4>;
+					cooling-device = <&t83x_gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -1106,18 +1100,16 @@
 	audio_btpcm_pins:audio_btpcm_pins{
 		/* BT PCM PINMUX SETTING*/
 		amlogic,setmask=<5 0xf00000>;
-		amlogic,clrmask=<5 0x3c33
-				6 0x3>;
+		amlogic,clrmask=<5 0x3c33>;
 		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
 	};
 };
 &efuse {
-	status = "disabled";
+	status = "ok";
 };
 &audio_data{
 	status = "okay";
 };
 &defendkey {
-	memory-region = <&sec_chk>;
-	status = "disabled";
+	status = "okay";
 };

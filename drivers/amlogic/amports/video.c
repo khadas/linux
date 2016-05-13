@@ -392,11 +392,11 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 	} while (0)
 
 #ifndef CONFIG_AM_VIDEO2
-#define DisableVPP2VideoLayer() \
-	CLEAR_VCBUS_REG_MASK(VPP2_MISC, \
+#define DisableVPP2VideoLayer()
+/*	CLEAR_VCBUS_REG_MASK(VPP2_MISC, \
 		VPP_VD1_PREBLEND|VPP_VD2_PREBLEND|\
 		VPP_VD2_POSTBLEND|VPP_VD1_POSTBLEND);
-
+*/
 #endif
 /*********************************************************/
 static struct switch_dev video1_state_sdev = {
@@ -7539,7 +7539,7 @@ static int __init video_init(void)
 	vpp_super_scaler_support();
 
 #ifndef CONFIG_AM_VIDEO2
-	DisableVPP2VideoLayer();
+	/*DisableVPP2VideoLayer();*/
 #endif
 
 	cur_dispbuf = NULL;

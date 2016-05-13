@@ -970,9 +970,11 @@ static int osd_open(struct fb_info *info, int arg)
 	fix = &info->fix;
 	var = &info->var;
 	if (fb_rmem.base == 0) {
+		pr_info("Brian test-- use ion buffer for fb memory\n");
 		if (!fb_ion_client)
 			fb_ion_client = meson_ion_client_create(-1, "meson-fb");
 		if (fb_index == DEV_OSD0 && osd_get_afbc()) {
+			pr_info("Brian test --OSD0 as afbcd mode\n");
 			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
 				fb_ion_handle[fb_index][j] =
 				ion_alloc(fb_ion_client,

@@ -162,6 +162,10 @@ void codecio_write_aobus(unsigned int reg, unsigned int val)
 int codecio_read_vcbus(unsigned int reg)
 {
 	int ret, val;
+	if ((reg >= 0x1900) && (reg < 0x1a00)) {
+		pr_err("read vcbus reg %x error!\n", reg);
+		return 0;
+	}
 	ret = codecio_reg_read(CODECIO_VCBUS_BASE, reg<<2, &val);
 	if (ret) {
 		pr_err("read vcbus reg %x error %d\n", reg, ret);
@@ -173,6 +177,10 @@ int codecio_read_vcbus(unsigned int reg)
 void codecio_write_vcbus(unsigned int reg, unsigned int val)
 {
 	int ret;
+	if ((reg >= 0x1900) && (reg < 0x1a00)) {
+		pr_err("write vcbus reg %x error!\n", reg);
+		return;
+	}
 	ret = codecio_reg_write(CODECIO_VCBUS_BASE, reg<<2, val);
 	if (ret) {
 		pr_err("write vcbus reg %x error %d\n", reg, ret);

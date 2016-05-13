@@ -266,6 +266,7 @@ static void set_hpll_clk_out(unsigned clk)
 		set_gxtvbb_hpll_clk_out(clk);
 		break;
 	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
 		set_gxl_hpll_clk_out(clk);
 		break;
 	}
@@ -275,7 +276,7 @@ static void set_hpll_clk_out(unsigned clk)
 
 static void set_hpll_od1(unsigned div)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		switch (div) {
 		case 1:
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0, 21, 2);
@@ -314,7 +315,7 @@ static void set_hpll_od1(unsigned div)
 
 static void set_hpll_od2(unsigned div)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		switch (div) {
 		case 1:
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0, 23, 2);
@@ -353,7 +354,7 @@ static void set_hpll_od2(unsigned div)
 
 static void set_hpll_od3(unsigned div)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		switch (div) {
 		case 1:
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0, 19, 2);

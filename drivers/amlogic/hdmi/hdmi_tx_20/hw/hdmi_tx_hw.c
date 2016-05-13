@@ -1715,7 +1715,7 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev)
 
 static void set_phy_by_mode(unsigned int mode)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		switch (mode) {
 		case 1: /* 5.94Gbps, 3.7125Gbsp */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x333d3282);
@@ -1810,7 +1810,7 @@ do { \
 
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
 	msleep(100);

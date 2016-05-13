@@ -14,6 +14,7 @@
 #include "osd_fb.h"
 #include "osd_hw.h"
 #include "osd_io.h"
+#include "osd_reg.h"
 
 struct src_dst_info_s {
 	struct rectangle_s  src_rect;

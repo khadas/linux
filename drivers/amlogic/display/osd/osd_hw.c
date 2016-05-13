@@ -250,7 +250,8 @@ static void osd_vpu_power_on(void)
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_ON);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD2, VPU_MEM_POWER_ON);
 	switch_vpu_mem_pd_vmod(VPU_VIU_OSD_SCALE, VPU_MEM_POWER_ON);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
 		switch_vpu_mem_pd_vmod(VPU_AFBC_DEC,
 			VPU_MEM_POWER_ON);
 	}
@@ -715,7 +716,8 @@ void osd_reset_afbcd(u32 index)
 		return;
 	}
 	if (osd_hw.osd_afbcd[OSD1].enable &&
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB))  {
+		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)))  {
 		VSYNCOSD_SET_MPEG_REG_MASK(VIU_SW_RESET, 1 << 31);
 		VSYNCOSD_CLR_MPEG_REG_MASK(VIU_SW_RESET, 1 << 31);
 		osd1_update_afbcd_color_mode();
@@ -743,7 +745,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
 #endif
-#ifdef CONFIG_VSYNC_RDMA
+#ifdef CONFIG_FB_OSD_VSYNC_RDMA
 	osd_rdma_interrupt_done_clear();
 #endif
 	osd_reset_afbcd(OSD1);
@@ -759,7 +761,8 @@ void osd_set_pxp_mode(u32 mode)
 }
 void osd_set_afbc(u32 enable)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))
 		osd_hw.osd_afbcd[OSD1].enable = enable;
 }
 
@@ -843,7 +846,8 @@ int osd_set_scan_mode(u32 index)
 		case VMODE_4K2K_SMPTE:
 			if (osd_hw.fb_for_4k2k) {
 				if (osd_hw.free_scale_enable[index]) {
-					if (!is_meson_gxtvbb_cpu())
+					if (!(is_meson_gxtvbb_cpu() ||
+						  is_meson_gxm_cpu()))
 						osd_hw.scale_workaround = 1;
 				}
 			}
@@ -1054,8 +1058,11 @@ void osd_setup_hw(u32 index,
 			for (i = 0; i < OSD_MAX_BUF_NUM; i++)
 				osd_hw.osd_afbcd[index].addr[i] =
 					(u32)afbc_fbmem[i];
-			/*osd_hw.osd_afbcd[index].phy_addr =
-					osd_hw.osd_afbcd[index].addr[0];*/
+			if (pxp_mode)
+				osd_hw.osd_afbcd[index].phy_addr =
+					osd_hw.osd_afbcd[index].addr[0];
+			else
+				osd_hw.osd_afbcd[index].phy_addr = 0;
 			/* we need update geometry
 			 * and color mode for afbc mode */
 			/*update_geometry = 1;
@@ -1525,6 +1532,7 @@ void osd_enable_3d_mode_hw(u32 index, u32 enable)
 void osd_enable_hw(u32 index, u32 enable)
 {
 	int i = 0;
+	int count = (pxp_mode == 1)?3:WAIT_AFBC_READY_COUNT;
 	if (index == 0) {
 		osd_log_info("osd[%d] enable: %d (%s)\n",
 				index, enable, current->comm);
@@ -1549,7 +1557,7 @@ void osd_enable_hw(u32 index, u32 enable)
 
 	while ((index == 0) && osd_hw.osd_afbcd[index].enable &&
 			(osd_hw.osd_afbcd[index].phy_addr == 0) &&
-			enable && (i < WAIT_AFBC_READY_COUNT)) {
+			enable && (i < count)) {
 		osd_wait_vsync_hw();
 		i++;
 	}
@@ -2431,7 +2439,8 @@ static void osd2_update_color_mode(void)
 static void osd1_update_enable(void)
 {
 	u32 video_enable = 0;
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) &&
+	if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) &&
 		(osd_hw.enable[OSD1] == ENABLE)) {
 		if (((VSYNCOSD_RD_MPEG_REG(VPP_MISC) &
 			VPP_OSD1_POSTBLEND) == 0) &&
@@ -2442,7 +2451,8 @@ static void osd1_update_enable(void)
 		}
 	}
 	if ((osd_hw.osd_afbcd[OSD1].enable == ENABLE) &&
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)) {
+		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))) {
 		/*VSYNCOSD_CLR_MPEG_REG_MASK(
 			VIU_OSD1_CTRL_STAT,
 			1 << 21);*/
@@ -2536,33 +2546,16 @@ static void osd2_update_enable(void)
 
 	if (osd_hw.free_scale_mode[OSD2]) {
 		if (osd_hw.enable[OSD2] == ENABLE) {
-			if (osd_hw.free_scale_enable[OSD2]) {
-				VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC,
-						VPP_OSD1_POSTBLEND
-						| VPP_POSTBLEND_EN);
-				VSYNCOSD_SET_MPEG_REG_MASK(VIU_OSD2_CTRL_STAT,
-						1 << 21);
-			} else {
-				VSYNCOSD_CLR_MPEG_REG_MASK(VIU_OSD2_CTRL_STAT,
-						1 << 21);
-#ifndef CONFIG_FB_OSD2_CURSOR
-				/*
-				VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC,
-						VPP_OSD1_POSTBLEND);
-				*/
-#endif
-				VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC,
-						VPP_OSD2_POSTBLEND
-						| VPP_POSTBLEND_EN);
-			}
+			VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC,
+				VPP_OSD2_POSTBLEND
+				| VPP_POSTBLEND_EN);
+			VSYNCOSD_SET_MPEG_REG_MASK(VIU_OSD2_CTRL_STAT,
+				1 << 21);
 		} else {
-			if (osd_hw.enable[OSD1] == ENABLE)
-				VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC,
-						VPP_OSD2_POSTBLEND);
-			else
-				VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC,
-						VPP_OSD1_POSTBLEND
-						| VPP_OSD2_POSTBLEND);
+			VSYNCOSD_CLR_MPEG_REG_MASK(VIU_OSD2_CTRL_STAT,
+				1 << 21);
+			VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC,
+				VPP_OSD2_POSTBLEND);
 		}
 	} else {
 		video_enable |= VSYNCOSD_RD_MPEG_REG(VPP_MISC)&VPP_VD1_PREBLEND;
@@ -3463,7 +3456,8 @@ void osd_init_hw(u32 logo_loaded)
 	if (!logo_loaded) {
 		/* init vpu fifo control register */
 		data32 = osd_reg_read(VPP_OFIFO_SIZE);
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))
 			data32 |= 0xfff;
 		else
 			data32 |= 0x77f;

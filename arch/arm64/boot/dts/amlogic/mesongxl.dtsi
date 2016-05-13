@@ -22,6 +22,7 @@
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "mesongxbb-gpu-mali450.dtsi"
+#include "mesongxtvbb-gpu-t83x.dtsi"
 / {
 	cpus:cpus {
 		#address-cells = <2>;
