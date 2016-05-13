@@ -26,6 +26,9 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#ifdef CONFIG_AM_GE2D
+#include <linux/amlogic/ge2d/ge2d.h>
+#endif
 
 #define AMVENC_DEVINFO_M8 "AML-M8"
 #define AMVENC_DEVINFO_G9 "AML-G9"
@@ -195,6 +198,14 @@ struct encode_request_s {
 	u32 i4_weight;
 	u32 i16_weight;
 
+	u32 crop_top;
+	u32 crop_bottom;
+	u32 crop_left;
+	u32 crop_right;
+	u32 src_w;
+	u32 src_h;
+	u32 scale_enable;
+
 	u32 nr_mode;
 	u32 flush_flag;
 	u32 timeout;
@@ -231,6 +242,7 @@ struct BuffInfo_s {
 	struct Buff_s intra_bits_info;
 	struct Buff_s intra_pred_info;
 	struct Buff_s qp_info;
+	struct Buff_s scale_buff;
 #ifdef USE_VDEC2
 	struct Buff_s vdec2_info;
 #endif
@@ -256,6 +268,7 @@ struct encode_meminfo_s {
 	u32 intra_bits_info_ddr_start_addr;
 	u32 intra_pred_info_ddr_start_addr;
 	u32 sw_ctl_info_start_addr;
+	u32 scaler_buff_start_addr;
 #ifdef USE_VDEC2
 	u32 vdec2_start_addr;
 #endif
@@ -314,8 +327,6 @@ struct encode_wq_s {
 	u32 quant_tbl_me[2][8];
 	u32 qp_table_id;
 
-	u32 fcnt_since_idr;
-
 	struct encode_meminfo_s mem;
 	struct encode_picinfo_s pic;
 	struct encode_control_s control;
@@ -342,7 +353,9 @@ struct encode_manager_s {
 	u32 wq_count;
 	u32 ucode_index;
 	u32 max_instance;
-
+#ifdef CONFIG_AM_GE2D
+	struct ge2d_context_s *context;
+#endif
 	bool irq_requested;
 	bool dblk_fix_flag;
 	bool need_reset;

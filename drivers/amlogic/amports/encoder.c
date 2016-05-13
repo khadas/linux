@@ -54,7 +54,7 @@
 
 #define ENCODE_NAME "encoder"
 #define AMVENC_CANVAS_INDEX 0xE4
-#define AMVENC_CANVAS_MAX_INDEX 0xEC
+#define AMVENC_CANVAS_MAX_INDEX 0xEF
 
 #define MIN_SIZE 18
 #define DUMP_INFO_BYTES_PER_MB 80
@@ -413,6 +413,10 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 		.qp_info = {
 			.buf_start = 0x438000,
 			.buf_size = 0x8000,
+		},
+			.scale_buff = {
+			.buf_start = 0,
+			.buf_size = 0,
 		}
 #ifdef USE_VDEC2
 		,
@@ -465,6 +469,10 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 		.qp_info = {
 			.buf_start = 0x890000,
 			.buf_size = 0x8000,
+		},
+		.scale_buff = {
+			.buf_start = 0,
+			.buf_size = 0,
 		}
 #ifdef USE_VDEC2
 		,
@@ -477,7 +485,7 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 		.lev_id = AMVENC_BUFFER_LEVEL_1080P,
 		.max_width = 1920,
 		.max_height = 1088,
-		.min_buffsize = 0x1160000,
+		.min_buffsize = 0x1370000,
 		.dct = {
 			.buf_start = 0,
 			.buf_size = 0x6ba000,
@@ -498,8 +506,12 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 			.buf_start = 0xe00000,
 			.buf_size = 0x100000,
 		},
-		.inter_bits_info = {
+		.scale_buff = {
 			.buf_start = 0xf00000,
+			.buf_size = 0x200000,
+		},
+		.inter_bits_info = {
+			.buf_start = 0x1100000,
 			.buf_size = 0x8000,
 		},
 		.inter_mv_info = {
@@ -507,21 +519,21 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 			.buf_size = 0x80000,
 		},
 		.intra_bits_info = {
-			.buf_start = 0xf88000,
+			.buf_start = 0x1188000,
 			.buf_size = 0x8000,
 		},
 		.intra_pred_info = {
-			.buf_start = 0xf90000,
+			.buf_start = 0x1190000,
 			.buf_size = 0x80000,
 		},
 		.qp_info = {
-			.buf_start = 0x1010000,
+			.buf_start = 0x1210000,
 			.buf_size = 0x8000,
 		}
 #ifdef USE_VDEC2
 		,
 		.vdec2_info = {
-			.buf_start = 0x1020000,
+			.buf_start = 0x12b0000,
 			.buf_size = 0x13e000,
 		}
 #endif
@@ -560,6 +572,7 @@ const char *ucode_name[] = {
 };
 
 static void dma_flush(u32 buf_start, u32 buf_size);
+static void cache_flush(u32 buf_start , u32 buf_size);
 
 static const char *select_ucode(u32 ucode_index)
 {
@@ -621,7 +634,6 @@ static const char *select_ucode(u32 ucode_index)
 #ifndef USE_OLD_DUMP_MC
 static void hcodec_prog_qtbl(struct encode_wq_s *wq)
 {
-
 	WRITE_HREG(HCODEC_Q_QUANT_CONTROL,
 		(0 << 23) |  /* quant_table_addr */
 		(1 << 22));  /* quant_table_addr_update */
@@ -1271,6 +1283,129 @@ static void mfdin_basic(u32 input, u8 iformat,
 		(1 << 18) | (0 << 21));
 }
 
+#ifdef CONFIG_AM_GE2D
+static int scale_frame(struct encode_wq_s *wq,
+	struct encode_request_s *request,
+	struct config_para_ex_s *ge2d_config)
+{
+	struct ge2d_context_s *context = encode_manager.context;
+	int src_top, src_left, src_width, src_height;
+	struct canvas_s cs0, cs1, cs2, cd;
+	u32 src_canvas, dst_canvas;
+	u32 src_canvas_w, dst_canvas_w;
+	u32 src_h = request->src_h;
+	u32 dst_w = ((wq->pic.encoder_width + 15) >> 4) << 4;
+	u32 dst_h = ((wq->pic.encoder_height + 15) >> 4) << 4;
+	int input_format = GE2D_FORMAT_M24_NV21;
+	src_top = request->crop_top;
+	src_left = request->crop_left;
+	src_width = request->src_w - src_left - request->crop_right;
+	src_height = request->src_h - src_top - request->crop_bottom;
+	if ((request->fmt == FMT_NV21) || (request->fmt == FMT_NV12)) {
+		src_canvas_w =  ((request->src_w + 31) >> 5) << 5;
+		canvas_config(ENC_CANVAS_OFFSET + 9,
+			wq->mem.dct_buff_start_addr,
+			src_canvas_w, src_h,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(ENC_CANVAS_OFFSET + 10,
+			wq->mem.dct_buff_start_addr + src_canvas_w*src_h,
+			src_canvas_w , src_h / 2,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		src_canvas = ((ENC_CANVAS_OFFSET + 10) << 8) |
+			(ENC_CANVAS_OFFSET + 9);
+		input_format =  GE2D_FORMAT_M24_NV21;
+	} else {
+		src_canvas_w =  ((request->src_w + 63) >> 6) << 6;
+		canvas_config(ENC_CANVAS_OFFSET + 9,
+			wq->mem.dct_buff_start_addr,
+			src_canvas_w, src_h,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(ENC_CANVAS_OFFSET + 10,
+			wq->mem.dct_buff_start_addr + src_canvas_w*src_h,
+			src_canvas_w / 2, src_h / 2,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(ENC_CANVAS_OFFSET + 11,
+			wq->mem.dct_buff_start_addr +
+			src_canvas_w * src_h * 5 / 4,
+			src_canvas_w / 2 , src_h / 2,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		src_canvas = ((ENC_CANVAS_OFFSET + 11) << 16) |
+			((ENC_CANVAS_OFFSET + 10) << 8) |
+			(ENC_CANVAS_OFFSET + 9);
+		input_format =  GE2D_FORMAT_M24_YUV420;
+	}
+	dst_canvas_w =  ((dst_w + 31) >> 5) << 5;
+	canvas_config(ENC_CANVAS_OFFSET + 6,
+		wq->mem.scaler_buff_start_addr,
+		dst_canvas_w, dst_h,
+		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+	canvas_config(ENC_CANVAS_OFFSET + 7,
+		wq->mem.scaler_buff_start_addr + dst_canvas_w*dst_h,
+		dst_canvas_w , dst_h / 2,
+		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+	dst_canvas = ((ENC_CANVAS_OFFSET + 7) << 8) |
+		(ENC_CANVAS_OFFSET + 6);
+	ge2d_config->alu_const_color = 0;
+	ge2d_config->bitmask_en  = 0;
+	ge2d_config->src1_gb_alpha = 0;
+	ge2d_config->dst_xy_swap = 0;
+	canvas_read(src_canvas & 0xff, &cs0);
+	canvas_read((src_canvas >> 8) & 0xff, &cs1);
+	canvas_read((src_canvas>>16) & 0xff, &cs2);
+	ge2d_config->src_planes[0].addr = cs0.addr;
+	ge2d_config->src_planes[0].w = cs0.width;
+	ge2d_config->src_planes[0].h = cs0.height;
+	ge2d_config->src_planes[1].addr = cs1.addr;
+	ge2d_config->src_planes[1].w = cs1.width;
+	ge2d_config->src_planes[1].h = cs1.height;
+	ge2d_config->src_planes[2].addr = cs2.addr;
+	ge2d_config->src_planes[2].w = cs2.width;
+	ge2d_config->src_planes[2].h = cs2.height;
+	canvas_read(dst_canvas & 0xff, &cd);
+	ge2d_config->dst_planes[0].addr = cd.addr;
+	ge2d_config->dst_planes[0].w = cd.width;
+	ge2d_config->dst_planes[0].h = cd.height;
+	ge2d_config->src_key.key_enable = 0;
+	ge2d_config->src_key.key_mask = 0;
+	ge2d_config->src_key.key_mode = 0;
+	ge2d_config->src_para.canvas_index = src_canvas;
+	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->src_para.format = input_format | GE2D_LITTLE_ENDIAN;
+	ge2d_config->src_para.fill_color_en = 0;
+	ge2d_config->src_para.fill_mode = 0;
+	ge2d_config->src_para.x_rev = 0;
+	ge2d_config->src_para.y_rev = 0;
+	ge2d_config->src_para.color = 0xffffffff;
+	ge2d_config->src_para.top = 0;
+	ge2d_config->src_para.left = 0;
+	ge2d_config->src_para.width = request->src_w;
+	ge2d_config->src_para.height = request->src_h;
+	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.canvas_index = dst_canvas;
+	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.format =
+		GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN;
+	ge2d_config->dst_para.fill_color_en = 0;
+	ge2d_config->dst_para.fill_mode = 0;
+	ge2d_config->dst_para.x_rev = 0;
+	ge2d_config->dst_para.y_rev = 0;
+	ge2d_config->dst_para.color = 0;
+	ge2d_config->dst_para.top = 0;
+	ge2d_config->dst_para.left = 0;
+	ge2d_config->dst_para.width = dst_w;
+	ge2d_config->dst_para.height = dst_h;
+	ge2d_config->dst_para.x_rev = 0;
+	ge2d_config->dst_para.y_rev = 0;
+	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
+		pr_err("++ge2d configing error.\n");
+		return -1;
+	}
+	stretchblt_noalpha(context, src_left, src_top, src_width, src_height,
+		0, 0, wq->pic.encoder_width, wq->pic.encoder_height);
+	return dst_canvas_w*dst_h * 3 / 2;
+}
+#endif
+
 static s32 set_input_format(struct encode_wq_s *wq,
 			    struct encode_request_s *request)
 {
@@ -1291,7 +1426,34 @@ static s32 set_input_format(struct encode_wq_s *wq,
 			if (request->flush_flag & AMVENC_FLUSH_FLAG_INPUT)
 				dma_flush(wq->mem.dct_buff_start_addr,
 					request->framesize);
-			input = wq->mem.dct_buff_start_addr;
+			if (request->scale_enable) {
+#ifdef CONFIG_AM_GE2D
+				struct config_para_ex_s ge2d_config;
+				memset(&ge2d_config, 0,
+					sizeof(struct config_para_ex_s));
+				if (request->flush_flag &
+					AMVENC_FLUSH_FLAG_INPUT) {
+					int scale_size =
+						scale_frame(wq, request,
+							&ge2d_config);
+					if (scale_size > 0)
+						cache_flush(
+						wq->mem.scaler_buff_start_addr,
+						scale_size);
+				}
+#else
+				enc_pr(LOG_ERROR,
+					"Warning: need enable ge2d for scale frame!\n");
+#endif
+				iformat = 2;
+				r2y_en = 0;
+				input = ((ENC_CANVAS_OFFSET + 7) << 8) |
+						(ENC_CANVAS_OFFSET + 6);
+				ret = 0;
+				goto MFDIN;
+			} else {
+				input = wq->mem.dct_buff_start_addr;
+			}
 		}
 		if (request->fmt <= FMT_YUV444_PLANE)
 			r2y_en = 0;
@@ -1403,6 +1565,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 		} else
 			ret = -1;
 	}
+MFDIN:
 	if (ret == 0)
 		mfdin_basic(input, iformat, oformat,
 			    picsize_x, picsize_y, r2y_en,
@@ -1538,7 +1701,6 @@ static void avc_prot_init(struct encode_wq_s *wq,
 				   (ME_WEIGHT_OFFSET << 0));
 		}
 
-
 		WRITE_HREG(HCODEC_ADV_MV_CTL0,
 			   (ADV_MV_LARGE_16x8 << 31) |
 			   (ADV_MV_LARGE_8x16 << 30) |
@@ -1554,12 +1716,19 @@ static void avc_prot_init(struct encode_wq_s *wq,
 
 		hcodec_prog_qtbl(wq);
 		if (IDR) {
-			i_pic_qp = wq->quant_tbl_i4[wq->qp_table_id][0] & 0xff;
+			i_pic_qp =
+				wq->quant_tbl_i4[wq->qp_table_id][0] & 0xff;
+			i_pic_qp +=
+				wq->quant_tbl_i16[wq->qp_table_id][0] & 0xff;
+			i_pic_qp /= 2;
 			p_pic_qp = i_pic_qp;
 		} else {
-			i_pic_qp = wq->quant_tbl_i4[wq->qp_table_id][0] & 0xff;
+			i_pic_qp =
+				wq->quant_tbl_i4[wq->qp_table_id][0] & 0xff;
+			i_pic_qp +=
+				wq->quant_tbl_i16[wq->qp_table_id][0] & 0xff;
 			p_pic_qp = wq->quant_tbl_me[wq->qp_table_id][0] & 0xff;
-			slice_qp = (i_pic_qp + p_pic_qp) / 2;
+			slice_qp = (i_pic_qp + p_pic_qp) / 3;
 			i_pic_qp = slice_qp;
 			p_pic_qp = i_pic_qp;
 		}
@@ -2075,8 +2244,8 @@ static void avc_prot_init(struct encode_wq_s *wq,
 #ifndef USE_OLD_DUMP_MC
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			WRITE_HREG(HCODEC_V4_FORCE_SKIP_CFG,
-				(20 << 26) | /* v4_force_q_r_intra */
-				(20 << 20) | /* v4_force_q_r_inter */
+				(i_pic_qp << 26) | /* v4_force_q_r_intra */
+				(i_pic_qp << 20) | /* v4_force_q_r_inter */
 				(0 << 19) | /* v4_force_q_y_enable */
 				(5 << 16) | /* v4_force_qr_y */
 				(6 << 12) | /* v4_force_qp_y */
@@ -2634,18 +2803,14 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 	int i = 0;
 	u8 *qp_tb;
 	u8 *ptr;
-	u32 i16_refresh = 0;
-	u32 cmd_off_i16refsh = 0;
-	u32 cmd_off_i16wt = 0;
+	u32 weight_offset;
 	u32 cmd = cmd_info[0];
 	if (!wq)
 		return -1;
 	memset(&wq->request, 0, sizeof(struct encode_request_s));
-
 	wq->request.me_weight = ME_WEIGHT_OFFSET;
 	wq->request.i4_weight = I4MB_WEIGHT_OFFSET;
 	wq->request.i16_weight = I16MB_WEIGHT_OFFSET;
-
 
 	if (cmd == ENCODER_SEQUENCE) {
 		wq->request.cmd = cmd;
@@ -2657,12 +2822,6 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 	} else if ((cmd == ENCODER_IDR) || (cmd == ENCODER_NON_IDR)) {
 		wq->request.cmd = cmd;
 		wq->request.ucode_mode = cmd_info[1];
-
-		if (cmd  == ENCODER_IDR)
-			wq->fcnt_since_idr = 0;
-		else
-			wq->fcnt_since_idr++;
-
 		if (wq->request.ucode_mode == UCODE_MODE_FULL) {
 			wq->request.type = cmd_info[2];
 			wq->request.fmt = cmd_info[3];
@@ -2671,19 +2830,23 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 			wq->request.quant = cmd_info[6];
 			wq->request.flush_flag = cmd_info[7];
 			wq->request.timeout = cmd_info[8];
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
+			wq->request.crop_top = cmd_info[9];
+			wq->request.crop_bottom = cmd_info[10];
+			wq->request.crop_left = cmd_info[11];
+			wq->request.crop_right = cmd_info[12];
+			wq->request.src_w = cmd_info[13];
+			wq->request.src_h = cmd_info[14];
+			wq->request.scale_enable = cmd_info[15];
+
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 				wq->request.nr_mode =
-					(nr_mode > 0) ? nr_mode : cmd_info[9];
+					(nr_mode > 0) ? nr_mode : cmd_info[16];
+				if (cmd == ENCODER_IDR)
+					wq->request.nr_mode = 0;
+			}
+
 			if (wq->request.quant == ADJUSTED_QP_FLAG) {
-				cmd_off_i16refsh = 10 +
-					sizeof(wq->quant_tbl_i4[0]) * 3 / 4;
-				cmd_off_i16wt = 10 +
-					sizeof(wq->quant_tbl_i4[0]) * 3 / 4 + 1;
-				i16_refresh = cmd_info[cmd_off_i16refsh];
-				if (!(wq->fcnt_since_idr % (i16_refresh * 2)))
-					wq->request.i16_weight -=
-						cmd_info[cmd_off_i16wt];
-				ptr = (u8 *) &cmd_info[10];
+				ptr = (u8 *) &cmd_info[17];
 				memcpy(wq->quant_tbl_i4[1], ptr,
 					sizeof(wq->quant_tbl_i4[1]));
 				ptr += sizeof(wq->quant_tbl_i4[1]);
@@ -2692,6 +2855,19 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 				ptr += sizeof(wq->quant_tbl_i16[1]);
 				memcpy(wq->quant_tbl_me[1], ptr,
 					sizeof(wq->quant_tbl_me[1]));
+
+				weight_offset = 17 +
+					(sizeof(wq->quant_tbl_i4[1])
+					+ sizeof(wq->quant_tbl_i16[1])
+					+ sizeof(wq->quant_tbl_me[1])) / 4;
+
+				wq->request.i4_weight -=
+					cmd_info[weight_offset];
+				wq->request.i16_weight -=
+					cmd_info[weight_offset + 1];
+				wq->request.me_weight -=
+					cmd_info[weight_offset + 2];
+
 				/* switch to 1 qp table */
 				wq->qp_table_id = 1;
 				if (qp_table_pr != 0) {
@@ -3291,6 +3467,8 @@ static s32 amvenc_avc_open(struct inode *inode, struct file *file)
 		wq->mem.buf_start + wq->mem.bufspec.intra_pred_info.buf_start;
 	wq->mem.sw_ctl_info_start_addr =
 		wq->mem.buf_start + wq->mem.bufspec.qp_info.buf_start;
+	wq->mem.scaler_buff_start_addr =
+		wq->mem.buf_start + wq->mem.bufspec.scale_buff.buf_start;
 #ifdef USE_VDEC2
 	wq->mem.vdec2_start_addr =
 		wq->mem.buf_start + wq->mem.bufspec.vdec2_info.buf_start;
@@ -3482,7 +3660,9 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		addr_info[20] = wq->mem.bufspec.intra_pred_info.buf_size;
 		addr_info[21] = wq->mem.bufspec.qp_info.buf_start;
 		addr_info[22] = wq->mem.bufspec.qp_info.buf_size;
-		r = copy_to_user((u32 *)arg, addr_info , 23 * sizeof(u32));
+		addr_info[23] = wq->mem.bufspec.scale_buff.buf_start;
+		addr_info[24] = wq->mem.bufspec.scale_buff.buf_size;
+		r = copy_to_user((u32 *)arg, addr_info , 25*sizeof(u32));
 		break;
 	case AMVENC_AVC_IOC_FLUSH_CACHE:
 		if (copy_from_user(addr_info, (void *)arg,
@@ -3565,6 +3745,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 			addr_info[0] = 0;
 			addr_info[1] = 0;
 		}
+		dma_flush(dst.addr, dst.width * dst.height * 3 / 2);
 		r = copy_to_user((u32 *)arg, addr_info , 2 * sizeof(u32));
 		break;
 	case AMVENC_AVC_IOC_MAX_INSTANCE:
@@ -4011,6 +4192,11 @@ static s32 encode_monitor_thread(void *data)
 				manager->current_wq = first_wq;
 				spin_unlock(&manager->event.sem_lock);
 				if (first_wq) {
+#ifdef CONFIG_AM_GE2D
+					if (!manager->context)
+						manager->context =
+						create_ge2d_work_queue();
+#endif
 					avc_init(first_wq);
 					manager->inited = true;
 				}
@@ -4034,6 +4220,12 @@ static s32 encode_monitor_thread(void *data)
 			spin_unlock(&manager->event.sem_lock);
 			manager->inited = false;
 			amvenc_avc_stop();
+#ifdef CONFIG_AM_GE2D
+			if (manager->context) {
+				destroy_ge2d_work_queue(manager->context);
+				manager->context = NULL;
+			}
+#endif
 			enc_pr(LOG_DEBUG, "power off encode.\n");
 			continue;
 		} else if (!list_empty(&manager->process_queue)) {
