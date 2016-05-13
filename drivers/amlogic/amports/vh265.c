@@ -5666,7 +5666,7 @@ static void vh265_put_timer_func(unsigned long arg)
 
 	enum receviver_start_e state = RECEIVER_INACTIVE;
 	if (hevc->init_flag == 0) {
-		if (hevc->stat & STAT_TIMER_INIT) {
+		if (hevc->stat & STAT_TIMER_ARM) {
 			timer->expires = jiffies + PUT_INTERVAL;
 			add_timer(&hevc->timer);
 		}
@@ -5753,8 +5753,6 @@ static void vh265_put_timer_func(unsigned long arg)
 		hevc->error_system_watchdog_count = 0;
 	}
 
-	timer->expires = jiffies + PUT_INTERVAL;
-
 	if (decode_stop_pos != decode_stop_pos_pre) {
 		WRITE_VREG(DECODE_STOP_POS, decode_stop_pos);
 		decode_stop_pos_pre = decode_stop_pos;
@@ -5825,6 +5823,8 @@ static void vh265_put_timer_func(unsigned long arg)
 			hevc->frame_height * fps;
 	}
 
+
+	timer->expires = jiffies + PUT_INTERVAL;
 	add_timer(timer);
 }
 
