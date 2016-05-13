@@ -5336,8 +5336,13 @@ static void vvp9_put_timer_func(unsigned long arg)
 	unsigned int buf_level;
 
 	enum receviver_start_e state = RECEIVER_INACTIVE;
-	if (pbi->init_flag == 0)
+	if (pbi->init_flag == 0) {
+		if (pbi->stat & STAT_TIMER_ARM) {
+			timer->expires = jiffies + PUT_INTERVAL;
+			add_timer(&pbi->timer);
+		}
 		return;
+	}
 	if (vf_get_receiver(PROVIDER_NAME)) {
 		state =
 			vf_notify_receiver(PROVIDER_NAME,
@@ -5374,8 +5379,6 @@ static void vvp9_put_timer_func(unsigned long arg)
 			}*/
 		}
 	}
-
-	timer->expires = jiffies + PUT_INTERVAL;
 
 	if (decode_stop_pos != decode_stop_pos_pre) {
 		WRITE_VREG(DECODE_STOP_POS, decode_stop_pos);
@@ -5436,6 +5439,7 @@ static void vvp9_put_timer_func(unsigned long arg)
 			frame_height * fps;
 	}
 
+	timer->expires = jiffies + PUT_INTERVAL;
 	add_timer(timer);
 }
 
@@ -5646,7 +5650,7 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 
 	pbi->stat |= STAT_VF_HOOK;
 
-	pbi->timer.data = (ulong)&gHevc;
+	pbi->timer.data = (ulong)pbi;
 	pbi->timer.function = vvp9_put_timer_func;
 	pbi->timer.expires = jiffies + PUT_INTERVAL;
 
@@ -5768,8 +5772,8 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	/*set the max clk for smooth playing...*/
-	/*hevc_source_changed(VFORMAT_VP9,
-			4096, 2048, 30);*/
+	hevc_source_changed(VFORMAT_VP9,
+			4096, 2048, 60);
 	mutex_unlock(&vvp9_mutex);
 
 	return 0;

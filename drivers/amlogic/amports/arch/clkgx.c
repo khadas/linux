@@ -482,9 +482,6 @@ static int hevc_clock_set(int clk)
 		else
 			clk = clock_real_clk[VDEC_HEVC];
 	}
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL && clk >= 500)
-		clk = 667;
-
 	vdec_get_clk_source(clk, &source, &div, &rclk);
 
 	if (rclk == clock_real_clk[VDEC_HEVC])
