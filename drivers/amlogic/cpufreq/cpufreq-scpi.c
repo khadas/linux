@@ -35,7 +35,7 @@
 #include <linux/amlogic/scpi_protocol.h>
 #include <linux/pm_opp.h>
 #include <linux/cpu.h>
-
+#include <linux/amlogic/cpu_version.h>
 
 struct meson_cpufreq {
 	struct device *dev;
@@ -273,6 +273,8 @@ static struct cpufreq_driver meson_cpufreq_driver = {
 
 static int __init meson_cpufreq_probe(struct platform_device *pdev)
 {
+	if (is_meson_gxm_cpu())
+		return -1;
 	dev_info(&pdev->dev, "enter  cpufreq\n");
 	cpufreq.dev = &pdev->dev;
 	cpufreq.armclk = clk_get(&pdev->dev, "cpu_clk");
