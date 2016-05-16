@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-04-28c";
+static const char version_s[] = "2016-05-16a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -4706,7 +4706,7 @@ static unsigned char pre_de_buf_config(void)
 	if (di_blocking)
 		return 0;
 	if ((queue_empty(QUEUE_IN_FREE) && (!di_pre_stru.di_inp_buf_next)) ||
-	    (queue_empty(QUEUE_LOCAL_FREE) && (used_post_buf_index == -1)))
+	    queue_empty(QUEUE_LOCAL_FREE))
 		return 0;
 
 	if (is_bypass(NULL)) {
@@ -5148,8 +5148,6 @@ static unsigned char pre_de_buf_config(void)
 	} else {
 		di_buf = get_di_buf_head(QUEUE_LOCAL_FREE);
 		if (check_di_buf(di_buf, 11)) {
-			recycle_keep_buffer();
-			pr_dbg("%s:recycle keep buffer\n", __func__);
 			recycle_vframe_type_pre(di_pre_stru.di_inp_buf);
 			return 0;
 		}
