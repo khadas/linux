@@ -1463,7 +1463,7 @@ static ssize_t show_hdcp_clkdis(struct device *dev,
 }
 
 static int hdcp_tst_sig;
-static ssize_t store_hdcp_test(struct device *dev,
+static ssize_t store_hdcp_pwr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	if (buf[0] == '1')
@@ -1473,7 +1473,7 @@ static ssize_t store_hdcp_test(struct device *dev,
 	return count;
 }
 
-static ssize_t show_hdcp_test(struct device *dev,
+static ssize_t show_hdcp_pwr(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
@@ -1731,8 +1731,8 @@ static DEVICE_ATTR(vic, S_IWUSR | S_IRUGO | S_IWGRP, show_vic, store_vic);
 static DEVICE_ATTR(phy, S_IWUSR | S_IRUGO | S_IWGRP, show_phy, store_phy);
 static DEVICE_ATTR(hdcp_clkdis, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_clkdis,
 	store_hdcp_clkdis);
-static DEVICE_ATTR(hdcp_test, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_test,
-	store_hdcp_test);
+static DEVICE_ATTR(hdcp_pwr, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_pwr,
+	store_hdcp_pwr);
 static DEVICE_ATTR(hdcp_byp, S_IWUSR, NULL, store_hdcp_byp);
 static DEVICE_ATTR(hdcp_mode, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_mode,
 	store_hdcp_mode);
@@ -2142,6 +2142,7 @@ static int hdmi_task_handle(void *data)
 	sdev.state = !!(hdmitx_device->HWOp.CntlMisc(hdmitx_device,
 		MISC_HPD_GPI_ST, 0));
 	hdmitx_device->hpd_state = sdev.state;
+	switch_set_state(&hdmi_power, hdmitx_device->hpd_state);
 
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx_edid_ram_buffer_clear(hdmitx_device);
@@ -2543,7 +2544,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_vic);
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_hdcp_clkdis);
-	ret = device_create_file(dev, &dev_attr_hdcp_test);
+	ret = device_create_file(dev, &dev_attr_hdcp_pwr);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
 	ret = device_create_file(dev, &dev_attr_hdcp_ver);
 	ret = device_create_file(dev, &dev_attr_hdcp_byp);
@@ -2741,7 +2742,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_avmute);
 	device_remove_file(dev, &dev_attr_vic);
-	device_remove_file(dev, &dev_attr_hdcp_test);
+	device_remove_file(dev, &dev_attr_hdcp_pwr);
 	device_remove_file(dev, &dev_attr_aud_output_chs);
 
 	cdev_del(&hdmitx_device.cdev);
