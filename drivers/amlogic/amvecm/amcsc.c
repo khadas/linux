@@ -2319,19 +2319,19 @@ static int hdr_process(
 			eotf_33_linear_mapping, /* R */
 			eotf_33_linear_mapping, /* G */
 			eotf_33_linear_mapping, /* B */
-			CSC_ON);
+			CSC_OFF);
 
 		/* eotf matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
 			eotf_bypass_coeff,
-			CSC_ON);
+			CSC_OFF);
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_OETF,
 			oetf_41_linear_mapping, /* R */
 			oetf_41_linear_mapping, /* G */
 			oetf_41_linear_mapping, /* B */
-			CSC_ON);
+			CSC_OFF);
 
 		/* osd matrix RGB709 to YUV709 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
@@ -2424,19 +2424,19 @@ static void bypass_hdr_process(
 			eotf_33_linear_mapping, /* R */
 			eotf_33_linear_mapping, /* G */
 			eotf_33_linear_mapping, /* B */
-			CSC_ON);
+			CSC_OFF);
 
 		/* eotf matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
 			eotf_bypass_coeff,
-			CSC_ON);
+			CSC_OFF);
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_OETF,
 			oetf_41_linear_mapping, /* R */
 			oetf_41_linear_mapping, /* G */
 			oetf_41_linear_mapping, /* B */
-			CSC_ON);
+			CSC_OFF);
 
 		/* osd matrix RGB709 to YUV709 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
@@ -2514,14 +2514,6 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	struct vframe_master_display_colour_s *p = &cur_master_display_colour;
 	struct master_display_info_s send_info;
 	int need_adjust_contrast = 0;
-
-	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
-		is_meson_gxl_package_905M2() ||
-		skip_csc_en)
-		return;
-
-	/* debug vframe info backup */
-	dbg_vf = vf;
 
 	vinfo = get_current_vinfo();
 
@@ -2626,6 +2618,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 static struct vframe_s *last_vf;
 static int null_vf_cnt;
 
+static unsigned int fg_vf_sw_dbg;
 unsigned int null_vf_max = 5;
 module_param(null_vf_max, uint, 0664);
 MODULE_PARM_DESC(null_vf_max, "\n null_vf_max\n");
@@ -2633,6 +2626,11 @@ void amvecm_matrix_process(struct vframe_s *vf)
 {
 	struct vframe_s fake_vframe;
 	int i;
+
+	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
+		is_meson_gxl_package_905M2() ||
+		skip_csc_en)
+		return;
 
 	if (reload_mtx) {
 		for (i = 0; i < NUM_MATRIX; i++)
@@ -2650,6 +2648,9 @@ void amvecm_matrix_process(struct vframe_s *vf)
 					CSC_ON);
 	}
 
+	/* debug vframe info backup */
+	dbg_vf = vf;
+
 	if (vf == last_vf)
 		return;
 
@@ -2657,6 +2658,7 @@ void amvecm_matrix_process(struct vframe_s *vf)
 		vpp_matrix_update(vf);
 		last_vf = vf;
 		null_vf_cnt = 0;
+		fg_vf_sw_dbg = 1;
 	} else {
 		/* check last signal type */
 		if ((last_vf != NULL) &&
@@ -2674,7 +2676,9 @@ void amvecm_matrix_process(struct vframe_s *vf)
 			vpp_matrix_update(&fake_vframe);
 			last_vf = vf;
 			null_vf_cnt = 0;
-		}
+			fg_vf_sw_dbg = 2;
+		} else
+			fg_vf_sw_dbg = 3;
 	}
 }
 
@@ -2774,6 +2778,7 @@ hdr_dump:
 
 	pr_err("knee_lut_on:%d,knee_interpolation_mode:%d,cur_knee_factor:%d\n",
 		knee_lut_on, knee_interpolation_mode, cur_knee_factor);
+	pr_err("fg_vf_sw_dbg: %d\n", fg_vf_sw_dbg);
 
 	pr_err("\n----TV EDID info----\n");
 	pr_err("hdr_support:0x%x,lumi_max:%d,lumi_avg:%d,lumi_min:%d\n",
