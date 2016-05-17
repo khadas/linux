@@ -801,9 +801,10 @@ static unsigned long tsync_pcr_check(void)
 			timestamp_pcrscr_set(cur_apts + 6300);
 		else
 			timestamp_pcrscr_set(cur_apts);
-
+/*
 		pr_info("after discontinue, pcr = 0x%x,apts=0x%x,vpts=0x%x\n",
 			timestamp_pcrscr_get(), cur_apts, cur_vpts);
+*/
 	}
 
 	if (tsync_pcr_reset_flag == 0) {
