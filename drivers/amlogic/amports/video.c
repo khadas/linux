@@ -6226,6 +6226,14 @@ static u32 yuv2rgb(u32 yuv)
 
 	return  (r << 16) | (g << 8) | b;
 }
+/* 8bit convert to 10bit */
+static u32 eight2ten(u32 yuv)
+{
+	int y = (yuv >> 16) & 0xff;
+	int cb = (yuv >> 8) & 0xff;
+	int cr = yuv & 0xff;
+	return  (y << 20) | (cb << 10) | cr;
+}
 
 static ssize_t video_test_screen_store(struct class *cla,
 				       struct class_attribute *attr,
@@ -6260,12 +6268,21 @@ static ssize_t video_test_screen_store(struct class *cla,
 	   data &= (~VPP_VD2_POSTBLEND);
 	 */
 	/* show test screen  YUV blend*/
-	if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
-		WRITE_VCBUS_REG(VPP_DUMMY_DATA1, test_screen & 0x00ffffff);
-	else /* RGB blend */
-		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+	if (is_meson_gxm_cpu()) {/* bit width change to 10bit in gxm */
+		if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+				eight2ten(test_screen & 0x00ffffff));
+		else /* RGB blend */
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+				eight2ten(yuv2rgb(test_screen & 0x00ffffff)));
+	} else {
+		if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+				test_screen & 0x00ffffff);
+		else /* RGB blend */
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				yuv2rgb(test_screen & 0x00ffffff));
-
+	}
 	WRITE_VCBUS_REG(VPP_MISC, data);
 
 	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
@@ -7490,7 +7507,11 @@ static int __init video_early_init(void)
 	WRITE_VCBUS_REG_BITS(VPU_OSD3_MMC_CTRL, 2, 12, 2);
 	/* select vdin_mmc_arb for VIU2_OSD1 request */
 #endif
-
+	/* default 10bit setting for gxm */
+	if (is_meson_gxm_cpu()) {
+		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
+		WRITE_VCBUS_REG(VPP_DOLBY_CTRL, 0x20000);
+	}
 	/* temp: enable VPU arb mem */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
 		switch_vpu_mem_pd_vmod(VPU_VPU_ARB, VPU_MEM_POWER_ON);

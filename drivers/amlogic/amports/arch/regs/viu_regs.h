@@ -24,6 +24,7 @@
 #define VIU_ADDR_END 0x1aff
 #define VIU_SW_RESET 0x1a01
 #define VIU_MISC_CTRL0 0x1a06
+#define VIU_MISC_CTRL1 0x1a07
 #define D2D3_INTF_LENGTH 0x1a08
 #define D2D3_INTF_CTRL0 0x1a09
 #define VIU_OSD1_CTRL_STAT 0x1a10
