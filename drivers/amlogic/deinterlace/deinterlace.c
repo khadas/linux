@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-05-16b";
+static const char version_s[] = "2016-05-17a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -296,12 +296,11 @@ static bool use_2_interlace_buff;
  * 0 "prog vdin" use two field buffers,
  * 1 "prog vdin" use single frame buffer
  * bit[4]:
- * 0 "prog frame from decoder" use two field buffers,
+ * 0 "prog frame from decoder/vdin" use two field buffers,
  * 1 use single frame buffer
  * bit[5]:
  * when two field buffers are used for decoder (bit[4] is 0):
- * 0, use process_count; 1, handle prog frame
- * as two interlace frames
+ * 1,handle prog frame as two interlace frames
  * bit[6]:(bit[4] is 0,bit[5] is 0,use_2_interlace_buff is 0): 0,
  * process progress frame as field,blend by post;
  * 1, process progress frame as field,process by normal di
@@ -2415,10 +2414,6 @@ static unsigned char is_bypass_post(void)
 
 
 #ifdef DET3D
-	if (det3d_en)
-		return 1;
-
-
 	if (di_pre_stru.vframe_interleave_flag != 0)
 		return 1;
 
@@ -5168,7 +5163,10 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 		}
 		queue_out(di_buf);
-		di_buf->canvas_config_flag = 2;
+		if (di_pre_stru.prog_proc_type & 0x10)
+			di_buf->canvas_config_flag = 1;
+		else
+			di_buf->canvas_config_flag = 2;
 		di_buf->di_wr_linked_buf = NULL;
 	}
 
@@ -5405,7 +5403,7 @@ static void det3d_irq(void)
 		data32 = det3d_fmt_detect();
 		if (det3d_mode != data32) {
 			det3d_mode = data32;
-			pr_dbg("[det3d..]new 3d fmt: %d\n", det3d_mode);
+			di_print("[det3d..]new 3d fmt: %d\n", det3d_mode);
 		}
 	} else {
 		det3d_mode = 0;
@@ -6826,8 +6824,7 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		}
 	} else {
 #ifdef DET3D
-		if ((ready_di_buf->vframe->trans_fmt == 0) &&
-		    bypass_post_state){
+		if (ready_di_buf->vframe->trans_fmt == 0) {
 			if (det3d_en &&
 			    di_pre_stru.det3d_trans_fmt != 0) {
 				ready_di_buf->vframe->trans_fmt =
@@ -7296,8 +7293,12 @@ static void di_reg_process_irq(void)
 
 	if (vframe) {
 		/* patch for vdin progressive input */
-		if ((vframe->type & VIDTYPE_VIU_422) &&
+		if (((vframe->type & VIDTYPE_VIU_422) &&
 		    ((vframe->type & VIDTYPE_PROGRESSIVE) == 0))
+			#ifdef DET3D
+			|| det3d_en
+			#endif
+			)
 			use_2_interlace_buff = 1;
 		else
 			use_2_interlace_buff = 0;
