@@ -1383,7 +1383,8 @@ static void uninit_buf_list(struct hevc_state_s *hevc)
 
 		msleep(50); /* ensure RDMA for display is done */
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB &&
-			double_write_mode == 0) {
+			((double_write_mode == 0) ||
+			 (double_write_mode == 3))) {
 			hevc->predisp_addr =
 			READ_VCBUS_REG(AFBC_BODY_BADDR) << 4;
 		} else {
