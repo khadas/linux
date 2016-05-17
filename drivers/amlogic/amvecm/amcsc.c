@@ -2597,6 +2597,9 @@ static void vpp_matrix_update(struct vframe_s *vf)
 		} else {
 			/* for gxtvbb and gxl HDR bypass process */
 			bypass_hdr_process(csc_type, vinfo);
+
+			if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+				csc_type = VPP_MATRIX_YUV709_RGB;
 		}
 		if (need_adjust_contrast) {
 			vd1_contrast_offset =

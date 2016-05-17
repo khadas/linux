@@ -3779,7 +3779,7 @@ static unsigned int combing_normal_setting[MAX_NUM_DI_REG] = {
 	0x0001FF0C,
 	0x00400204,
 	0x00016404,
-	0x00000133
+	0x00000153
 };
 
 static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
@@ -3798,7 +3798,7 @@ static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
 	0x0001ff0c, /* 0x0001FF12 */
 	0x00400204, /* 0x00200204 */
 	0x00016404, /* 0x00012002 */
-	0x00000122
+	0x00000142
 };
 
 static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
@@ -3817,7 +3817,7 @@ static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
 	0x0001ff0c, /* 0x0001FF12 */
 	0x00400204, /* 0x00200204 */
 	0x00016404, /* 0x00012002 */
-	0x00000100
+	0x00000131
 };
 
 static unsigned int (*combing_setting_values[5])[MAX_NUM_DI_REG] = {

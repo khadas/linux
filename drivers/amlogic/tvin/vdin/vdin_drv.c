@@ -179,6 +179,10 @@ static unsigned int rdma_enable;
 module_param(rdma_enable, uint, 0664);
 MODULE_PARM_DESC(rdma_enable, "rdma_enable");
 
+static unsigned int hdr_switch_cnt;
+module_param(hdr_switch_cnt, uint, 0664);
+MODULE_PARM_DESC(hdr_switch_cnt, "hdr_switch_cnt");
+
 static int irq_max_count;
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
@@ -188,6 +192,8 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
 	if (devp->prop.hdr_data.data_status == HDR_STATE_NEW) {
+		if (hdr_switch_cnt != 1)
+			hdr_switch_cnt = 1;
 		memcpy(vf->prop.master_display_colour.primaries,
 			devp->prop.hdr_data.primaries,
 			sizeof(u32)*6);
@@ -228,6 +234,15 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		}
 
 		devp->prop.hdr_data.data_status = HDR_STATE_OLD;
+	} else if (devp->prop.hdr_data.data_status == HDR_STATE_OLD) {
+		if ((hdr_switch_cnt == 0) &&
+			(vf->prop.master_display_colour.present_flag == false))
+			return;
+		hdr_switch_cnt = 0;
+		devp->prop.vdin_hdr_Flag = false;
+		vf->prop.master_display_colour.present_flag = false;
+		vf->signal_type &= ~(1 << 29);
+		vf->signal_type &= ~(1 << 25);
 	}
 }
 

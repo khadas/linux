@@ -1420,7 +1420,7 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 	/* the lowest bins */
 	nStp = tAvg * ve_dnlp_lowbin + 32;
 	nStp = (nStp >> 6);
-	for (j = 0; j < ve_dnlp_lowbin; j++) {
+	for (j = 0; j < ve_dnlp_lownum; j++) {
 		i = idx[tLen - 1 - j];
 
 		/* max */
@@ -1641,7 +1641,7 @@ static void clash_blend(void)
 				pgmma[j][i] = clash_curve[i];
 }
 
-int curve_rfrsh_chk(int hstSum)
+int curve_rfrsh_chk(int hstSum, int rbase)
 {
 	static unsigned int tLumAvg[30];
 	static unsigned int tAvgDif[30];
@@ -1677,8 +1677,8 @@ int curve_rfrsh_chk(int hstSum)
 	if (prt_flg)
 		pr_info("bld_lvl=%02d\n", bld_lvl);
 
-	if (bld_lvl > 64)
-		bld_lvl = 64;
+	if (bld_lvl > rbase)
+		bld_lvl = rbase;
 	else if (bld_lvl < ve_dnlp_cuvbld_min)
 		bld_lvl = ve_dnlp_cuvbld_min;
 	else if (bld_lvl > ve_dnlp_cuvbld_max)
@@ -2346,13 +2346,13 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	for (i = 0; i < 28; i++)
 		PreTstDat[i] = CrtTstDat[i];
 
-	dnlp_bld_lvl = curve_rfrsh_chk(hstSum);
+	dnlp_bld_lvl = curve_rfrsh_chk(hstSum, RBASE);
 	CrtTstDat[0] = dnlp_bld_lvl;
 
 	if (ve_dnlp_respond_flag) {
 		dnlp_bld_lvl = RBASE;
 		dnlp_scn_chg = 1;
-	} else if (dnlp_bld_lvl == 64) {
+	} else if (dnlp_bld_lvl >= RBASE) {
 		dnlp_bld_lvl = RBASE;
 		dnlp_scn_chg = 1;
 	}
