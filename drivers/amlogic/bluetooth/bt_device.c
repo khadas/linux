@@ -77,14 +77,14 @@ static void bt_device_on(struct bt_dev_data *pdata)
 	if (pdata->gpio_en > 0)
 		gpio_direction_output(pdata->gpio_en,
 			pdata->power_low_level);
-	msleep(20);
+	msleep(200);
 	if (pdata->gpio_reset > 0)
 		gpio_direction_output(pdata->gpio_reset,
 			!pdata->power_low_level);
 	if (pdata->gpio_en > 0)
 		gpio_direction_output(pdata->gpio_en,
 			!pdata->power_low_level);
-	msleep(20);
+	msleep(200);
 }
 
 static void bt_device_off(struct bt_dev_data *pdata)
