@@ -568,6 +568,7 @@ static const struct vinfo_s *get_valid_vinfo(char  *mode)
 	struct vinfo_s *vinfo = NULL;
 	int  i, count = ARRAY_SIZE(tv_info);
 	int mode_name_len = 0;
+
 	for (i = 0; i < count; i++) {
 		if (strncmp(tv_info[i].name, mode,
 			    strlen(tv_info[i].name)) == 0) {
@@ -579,7 +580,7 @@ static const struct vinfo_s *get_valid_vinfo(char  *mode)
 		}
 	}
 	if (vinfo)
-		strncpy(vinfo->ext_name, mode, strlen(mode));
+		strcpy(vinfo->ext_name, mode);
 	return vinfo;
 }
 
