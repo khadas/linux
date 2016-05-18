@@ -117,7 +117,7 @@ static char *first_field_type;
 module_param(first_field_type, charp, 0664);
 MODULE_PARM_DESC(first_field_type, "first field type in simple work mode");
 
-static int max_ignore_frames;
+static int max_ignore_frames = 2;
 module_param(max_ignore_frames, int, 0664);
 MODULE_PARM_DESC(max_ignore_frames, "ignore first <n> frames");
 
