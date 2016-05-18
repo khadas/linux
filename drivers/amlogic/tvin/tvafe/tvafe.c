@@ -2258,7 +2258,7 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 
 		pr_info("tvafe: shutdown module, close afe port first\n");
 		/*close afe port,disable tvafe_is_nosig check*/
-		tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);
+		/*tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);*/
 		/*del_timer_sync(&tdevp->timer);*/
 
 		/**set cvd2 reset to high**/
@@ -2268,9 +2268,10 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 	}
 
     /*disable and reset tvafe clock*/
-	tvafe_enable_module(false);
+	/*this cause crash when cmd reboot..*/
+	/*tvafe_enable_module(false);
 
-	pr_info("tvafe: shutdown module\n");
+	pr_info("tvafe: shutdown module\n");*/
 
 	return;
 }
