@@ -1074,13 +1074,19 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		if (!err)
 			host->tuning_mode = ADJ_TUNING_MODE;
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
-		err = 0;
-		adjust = sd_emmc_regs->gadjust;
-		gadjust->cali_enable = 1;
-		gadjust->adj_auto = 1;
-		sd_emmc_regs->gadjust = adjust;
-		if (!err)
+		if (aml_card_type_sdio(pdata)) {
+			err = aml_sd_emmc_execute_tuning_(mmc, opcode,
+					&tuning_data, adj_win_start);
+			if (!err)
+				host->tuning_mode = ADJ_TUNING_MODE;
+		} else {
+			err = 0;
+			adjust = sd_emmc_regs->gadjust;
+			gadjust->cali_enable = 1;
+			gadjust->adj_auto = 1;
+			sd_emmc_regs->gadjust = adjust;
 			host->tuning_mode = AUTO_TUNING_MODE;
+		}
 	} else {
 		err = aml_sd_emmc_execute_tuning_rxclk(mmc, opcode,
 				&tuning_data);
