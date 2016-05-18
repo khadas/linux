@@ -2311,8 +2311,9 @@ static int hdr_process(
 		/* RGB to YUV */
 		/* not using old RGB2YUV convert HW */
 		/* use new 10bit OSD convert matrix */
-		WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
+		/* WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
 			0, 7, 1);
+		*/
 
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_EOTF,
@@ -2336,7 +2337,7 @@ static int hdr_process(
 		/* osd matrix RGB709 to YUV709 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
 			RGB709_to_YUV709l_coeff,
-			CSC_ON);
+			CSC_OFF);
 
 		/************** VIDEO **************/
 		/* vd1 matrix bypass */
@@ -2416,8 +2417,9 @@ static void bypass_hdr_process(
 		/* RGB to YUV */
 		/* not using old RGB2YUV convert HW */
 		/* use new 10bit OSD convert matrix */
-		WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
+		/* WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
 			0, 7, 1);
+		*/
 
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_EOTF,
@@ -2441,7 +2443,7 @@ static void bypass_hdr_process(
 		/* osd matrix RGB709 to YUV709 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
 			RGB709_to_YUV709l_coeff,
-			CSC_ON);
+			CSC_OFF);
 
 		/************** VIDEO **************/
 		/* vd1 matrix bypass */
