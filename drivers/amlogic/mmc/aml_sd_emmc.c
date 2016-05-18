@@ -2944,6 +2944,13 @@ int aml_sd_emmc_get_cd(struct mmc_host *mmc)
 	return pdata->is_in; /* 0: no inserted  1: inserted */
 }
 
+int aml_signal_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	 struct amlsd_platform *pdata = mmc_priv(mmc);
+
+	 return aml_sd_voltage_switch(pdata, ios->signal_voltage);
+}
+
 /* Check if the card is pulling dat[0:3] low */
 static int aml_sd_emmc_card_busy(struct mmc_host *mmc)
 {
@@ -3554,6 +3561,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	mmc->max_current_180 = 300; /* 300 mA in 1.8V */
 	mmc->max_current_330 = 300; /* 300 mA in 3.3V */
 	mmc->uhs_speed = 0;
+	mmc->vol_switch_delay = pdata->vol_switch_delay;
 
 	if (aml_card_type_sdio(pdata)) { /* if sdio_wifi */
 		mmc->host_rescan_disable = true;

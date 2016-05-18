@@ -220,6 +220,12 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 						str, pdata->pinname);
 		SD_PARSE_GPIO_NUM_PROP(child, "jtag_pin",
 						str, pdata->jtag_pin);
+		SD_PARSE_GPIO_NUM_PROP(child, "vol_switch",
+						str, pdata->vol_switch);
+		SD_PARSE_U32_PROP_DEC(child, "vol_switch_18",
+						prop, pdata->vol_switch_18);
+		SD_PARSE_U32_PROP_DEC(child, "vol_switch_delay",
+						prop, pdata->vol_switch_delay);
 		SD_PARSE_U32_PROP_DEC(child, "card_type",
 						prop, pdata->card_type);
 		if (aml_card_type_mmc(pdata)) {

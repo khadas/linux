@@ -1435,60 +1435,39 @@ int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
 
 int aml_sd_voltage_switch(struct amlsd_platform *pdata, char signal_voltage)
 {
-#if ((defined CONFIG_ARCH_MESON8))
-#ifdef CONFIG_AMLOGIC_BOARD_HAS_PMU
-	int vol = LDO4DAC_REG_3_3_V;
-	int delay_ms = 0;
-	char *str;
-	struct aml_pmu_driver *pmu_driver;
-
-	/* only SDHC_B support voltage switch */
-	if ((pdata->port != PORT_SDHC_B)
-		|| (pdata->signal_voltage == signal_voltage))
-		return 0; /* voltage is the same, return directly */
-
-	pmu_driver = aml_pmu_get_driver();
-	if (pmu_driver == NULL) {
-		sdhc_err("no pmu driver\n");
-		return -EINVAL;
-	} else if (pmu_driver->pmu_reg_write) {
-		switch (signal_voltage) {
-
-		case MMC_SIGNAL_VOLTAGE_180:
-			vol = LDO4DAC_REG_1_8_V;
-			delay_ms = 20;
-			str = "1.80 V";
-
-			if (!mmc_host_uhs(pdata->mmc))
-				sdhc_err("switch to 1.8V for a non-uhs device.\n");
-
-			break;
-		case MMC_SIGNAL_VOLTAGE_330:
-			vol = LDO4DAC_REG_3_3_V;
-			delay_ms = 20;
-			str = "3.30 V";
-			break;
-		/*we don't support 1.2V now */
-		case MMC_SIGNAL_VOLTAGE_120:
-			str = "1.20 V";
-			break;
-		default:
-			str = "invalid";
-			break;
-		}
-
-		 /* set voltage */
-		pmu_driver->pmu_reg_write(LDO4DAC_REG_ADDR, vol);
-		pdata->signal_voltage = signal_voltage;
-		mdelay(delay_ms); /* wait for voltage to be stable */
-		sdhc_dbg(AMLSD_DBG_COMMON, "voltage: %s\n", str);
-		/* sdhc_err("delay %dms.\n", delay_ms); */
-	}
-#endif
-#endif
 	struct amlsd_host *host = pdata->host;
-	if (!aml_card_type_mmc(pdata))
-		host->sd_sdio_switch_volat_done = 1;
+	int ret = 0;
+
+	/* voltage is the same, return directly */
+	if (!aml_card_type_non_sdio(pdata)
+		|| (pdata->signal_voltage == signal_voltage)) {
+		if (aml_card_type_sdio(pdata))
+			host->sd_sdio_switch_volat_done = 1;
+			return 0;
+	}
+	if (pdata->vol_switch) {
+		if (pdata->signal_voltage == 0xff) {
+			gpio_free(pdata->vol_switch);
+			ret = gpio_request_one(pdata->vol_switch,
+					GPIOF_OUT_INIT_HIGH, MODULE_NAME);
+			if (ret) {
+				pr_err("%s [%d] request error\n",
+						__func__, __LINE__);
+				return -EINVAL;
+			}
+		}
+		if (signal_voltage == MMC_SIGNAL_VOLTAGE_180)
+			ret = gpio_direction_output(pdata->vol_switch,
+						pdata->vol_switch_18);
+		else
+			ret = gpio_direction_output(pdata->vol_switch,
+					(!pdata->vol_switch_18));
+		CHECK_RET(ret);
+		pdata->signal_voltage = signal_voltage;
+	} else
+		return -EINVAL;
+
+	host->sd_sdio_switch_volat_done = 1;
 	return 0;
 }
 

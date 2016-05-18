@@ -1467,7 +1467,10 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	}
 
 	/* Keep clock gated for at least 5 ms */
-	mmc_delay(5);
+	if (host->vol_switch_delay)
+		mmc_delay(host->vol_switch_delay);
+	else
+		mmc_delay(5);
 	host->ios.clock = clock;
 	mmc_set_ios(host);
 

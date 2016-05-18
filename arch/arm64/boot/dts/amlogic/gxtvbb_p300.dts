@@ -478,16 +478,17 @@
 	   		pinname = "sd";
 	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
 	   		caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-					"MMC_CAP_SD_HIGHSPEED";
-	   				//,"MMC_CAP_UHS_SDR12",
-	   				//"MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50",
-	   				//"MMC_CAP_UHS_SDR104","MMC_CAP_NONREMOVABLE";
+					"MMC_CAP_SD_HIGHSPEED","MMC_CAP_UHS_SDR12",
+					"MMC_CAP_UHS_SDR25","MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104";
 	   		f_min = <300000>;
 	   		f_max = <100000000>;
 	   		max_req_size = <0x20000>;          /**128KB*/
 			gpio_dat3 = <&gpio       CARD_4       GPIO_ACTIVE_HIGH>;
 			jtag_pin =  <&gpio       CARD_0       GPIO_ACTIVE_HIGH>;
 			gpio_cd =  <&gpio       CARD_6       GPIO_ACTIVE_HIGH>;
+			/*if card have no switch gpio, remove all relative to vol_switch */
+			vol_switch =  <&gpio       GPIOY_2       GPIO_ACTIVE_HIGH>;
+			vol_switch_18 = <1>; /* 1 = high, 0 = low */
 			irq_in = <3>;
 			irq_out = <5>;
 	   		card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */

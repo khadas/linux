@@ -347,7 +347,8 @@ struct mmc_host {
 
 #define MMC_CAP2_PACKED_CMD	(MMC_CAP2_PACKED_RD | \
 				 MMC_CAP2_PACKED_WR)
-
+/*Host switch 1.8v delay time before detect card busy */
+	unsigned int vol_switch_delay;
 /* Don't power up before scan */
 #define MMC_CAP2_NO_PRESCAN_POWERUP (1 << 14)
 #define MMC_CAP2_HS400_1_8V	(1 << 15)	/* Can support HS400 1.8V */
