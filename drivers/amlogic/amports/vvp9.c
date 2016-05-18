@@ -197,6 +197,7 @@ static u32 bit_depth_chroma;
 static u32 frame_width;
 static u32 frame_height;
 static u32 video_signal_type;
+static u32 pts_unstable;
 
 
 #define PROB_SIZE    (496 * 2 * 4)
@@ -4600,6 +4601,9 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 	init_buf_list(pbi);
 	init_pic_list(pbi);
 
+	pts_unstable = ((unsigned long)(pbi->vvp9_amstream_dec_info.param)
+			& 0x40) >> 6;
+
 	pbi->video_signal_type = 0;
 	video_signal_type = pbi->video_signal_type;
 
@@ -4915,6 +4919,8 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		else
 			pbi->pts_hit++;
 #endif
+		if (pts_unstable)
+			pbi->pts_mode = PTS_NONE_REF_USE_DURATION;
 
 		if ((pbi->pts_mode == PTS_NORMAL) && (vf->pts != 0)
 			&& pbi->get_frame_dur) {
