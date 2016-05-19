@@ -107,7 +107,7 @@ static unsigned int atvdemod_afc_offset = 500;
 module_param(atvdemod_afc_offset, uint, 0644);
 MODULE_PARM_DESC(atvdemod_afc_offset, "\n atvdemod_afc_offset\n");
 
-static unsigned int atvdemod_timer_en;
+static unsigned int atvdemod_timer_en = 1;
 module_param(atvdemod_timer_en, uint, 0644);
 MODULE_PARM_DESC(atvdemod_timer_en, "\n atvdemod_timer_en\n");
 
@@ -118,6 +118,10 @@ MODULE_PARM_DESC(atvdemod_afc_en, "\n atvdemod_afc_en\n");
 static unsigned int atvdemod_monitor_en;
 module_param(atvdemod_monitor_en, uint, 0644);
 MODULE_PARM_DESC(atvdemod_monitor_en, "\n atvdemod_monitor_en\n");
+
+static unsigned int atvdemod_det_snr_en = 1;
+module_param(atvdemod_det_snr_en, uint, 0644);
+MODULE_PARM_DESC(atvdemod_det_snr_en, "\n atvdemod_det_snr_en\n");
 
 static unsigned int pwm_kp = 0x19;
 module_param(pwm_kp, uint, 0644);
@@ -142,6 +146,13 @@ enum AUDIO_SCAN_ID {
 static unsigned int mix1_freq;
 static unsigned int timer_init_flag;
 struct timer_list atvdemod_timer;
+static int snr_val;
+
+int get_atvdemod_snr_val(void)
+{
+	return snr_val;
+}
+EXPORT_SYMBOL(get_atvdemod_snr_val);
 
 void amlatvdemod_set_std(int val)
 {
@@ -1395,6 +1406,12 @@ void atvdemod_monitor_serice(void)
 			atv_dmd_wr_byte(APB_BLOCK_ADDR_VFORMAT, 0xe, 0xe);
 	}
 }
+
+void atvdemod_det_snr_serice(void)
+{
+	snr_val = aml_atvdemod_get_snr(NULL);
+}
+
 void atvdemod_timer_hander(unsigned long arg)
 {
 	if (atvdemod_timer_en == 0)
@@ -1407,6 +1424,8 @@ void atvdemod_timer_hander(unsigned long arg)
 		atvdemod_monitor_serice();
 	if (audio_det_en)
 		aml_atvdemod_overmodule_det();
+	if (atvdemod_det_snr_en)
+		atvdemod_det_snr_serice();
 }
 int atvdemod_init(void)
 {

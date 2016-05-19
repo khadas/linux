@@ -299,9 +299,13 @@ int aml_atvdemod_get_snr(struct dvb_frontend *fe)
 		ret = 100 - (316 - snr_val)*20/316;
 	return ret;
 }
+EXPORT_SYMBOL(aml_atvdemod_get_snr);
 
 int aml_atvdemod_get_snr_ex(void)
 {
+#if 1
+	return get_atvdemod_snr_val();
+#else
 	unsigned int snr_val;
 	int ret;
 	snr_val = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x50) >> 8;
@@ -321,6 +325,7 @@ int aml_atvdemod_get_snr_ex(void)
 	else
 		ret = 100 - (316 - snr_val)*20/316;
 	return ret;
+#endif
 }
 EXPORT_SYMBOL(aml_atvdemod_get_snr_ex);
 
