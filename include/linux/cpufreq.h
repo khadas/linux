@@ -566,4 +566,8 @@ static inline void cpufreq_set_max_cpu_num(unsigned int cpu_num)
 {
 }
 #endif
+int dev_pm_opp_init_cpufreq_table(struct device *dev,
+		struct cpufreq_frequency_table **table);
+void dev_pm_opp_free_cpufreq_table(struct device *dev,
+		struct cpufreq_frequency_table   **table);
 #endif /* _LINUX_CPUFREQ_H */

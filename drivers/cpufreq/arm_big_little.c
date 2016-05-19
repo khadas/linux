@@ -128,7 +128,8 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 	int ret;
 	bool bLs = is_bL_switching_enabled();
 
-	mutex_lock(&cluster_lock[new_cluster]);
+	/* only one mailbox chan for both clusters */
+	mutex_lock(&cluster_lock[0]);
 
 	if (bLs) {
 		prev_rate = per_cpu(cpu_last_req_freq, cpu);
@@ -153,12 +154,12 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 			per_cpu(physical_cluster, cpu) = old_cluster;
 		}
 
-		mutex_unlock(&cluster_lock[new_cluster]);
+		mutex_unlock(&cluster_lock[0]);
 
 		return ret;
 	}
 
-	mutex_unlock(&cluster_lock[new_cluster]);
+	mutex_unlock(&cluster_lock[0]);
 
 	/* Recalc freq for old cluster when switching clusters */
 	if (old_cluster != new_cluster) {
@@ -168,7 +169,7 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 		/* Switch cluster */
 		bL_switch_request(cpu, new_cluster);
 
-		mutex_lock(&cluster_lock[old_cluster]);
+		mutex_lock(&cluster_lock[0]);
 
 		/* Set freq of old cluster if there are cpus left on it */
 		new_rate = find_cluster_maxfreq(old_cluster);
@@ -182,7 +183,7 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 				pr_err("%s: clk_set_rate failed: %d, old cluster: %d\n",
 						__func__, ret, old_cluster);
 		}
-		mutex_unlock(&cluster_lock[old_cluster]);
+		mutex_unlock(&cluster_lock[0]);
 	}
 
 	return 0;

@@ -63,6 +63,8 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 0>;
+			clock-names = "cpu-cluster.0";
 		};
 
 		CPU1:cpu@1 {
@@ -70,12 +72,16 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 0>;
+			clock-names = "cpu-cluster.0";
 		};
 		CPU2:cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 0>;
+			clock-names = "cpu-cluster.0";
 		};
 
 		CPU3:cpu@3 {
@@ -83,6 +89,8 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 0>;
+			clock-names = "cpu-cluster.0";
 		};
 
 		CPU4:cpu@100 {
@@ -90,6 +98,8 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 1>;
+			clock-names = "cpu-cluster.1";
 		};
 
 		CPU5:cpu@101 {
@@ -97,12 +107,16 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 1>;
+			clock-names = "cpu-cluster.1";
 		};
 		CPU6:cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 1>;
+			clock-names = "cpu-cluster.1";
 		};
 
 		CPU7:cpu@103 {
@@ -110,6 +124,8 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
+			clocks = <&scpi_dvfs 1>;
+			clock-names = "cpu-cluster.1";
 		};
 	};
 
@@ -197,12 +213,10 @@
 			reg = <0x0 0xc8100000 0x0 0x100000>;
 		};
 	};
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-scpi";
-		status = "okay";
-		clocks = <&scpi_dvfs 0>;
-		clock-names = "cpu_clk";
-        };
+
+	cpufreq {
+		compatible = "arm, scpi-cpufreq";
+	};
 
 	amlogic-watchdog{
 		compatible = "amlogic, gx-wdt";
@@ -654,8 +668,8 @@
 		scpi_dvfs: scpi_clocks@0 {
 			compatible = "arm,scpi-clk-indexed";
 			#clock-cells = <1>;
-			clock-indices = <0>;
-			clock-output-names = "vcpu";
+			clock-indices = <0 1>;
+			clock-output-names = "vbig", "vlittle";
 		};
 
 	};
