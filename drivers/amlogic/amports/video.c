@@ -7548,6 +7548,12 @@ static int __init video_early_init(void)
 	if (is_meson_gxm_cpu()) {
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
 		WRITE_VCBUS_REG(VPP_DOLBY_CTRL, 0x20000);
+		/* default setting is black for dummy data1& dumy data0,
+		for dummy data1 the y/cb/cr data width is 10bit on gxm,
+		for dummy data the y/cb/cr data width is 8bit but
+		vpp_dummy_data will be left shift 2bit auto on gxm!!! */
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA1, 0x1020080);
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA, 0x42020);
 	}
 	/* temp: enable VPU arb mem */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
