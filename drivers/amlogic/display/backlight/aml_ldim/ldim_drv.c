@@ -132,7 +132,7 @@ unsigned long ld_fw_alg_frm_end_time = 0;
 long ld_fw_alg_frm_time = 0;
 
 unsigned long litgain = LD_DATA_DEPTH; /* 0xfff */
-unsigned long boost_gain = 128; /*256;*/
+unsigned long boost_gain = 280; /*256;*/
 unsigned long avg_gain = LD_DATA_DEPTH; /* 0xfff */
 /*unsigned long Backlit_coeff_l = 4096;*/
 
@@ -1618,7 +1618,7 @@ static int ldim_on_init(void)
 	ldim_stts_initial(ldim_config.hsize, ldim_config.vsize,
 		ldim_blk_row, ldim_blk_col);
 	LDIM_Initial(ldim_config.hsize, ldim_config.vsize,
-		ldim_blk_row, ldim_blk_col, ldim_config.bl_mode, 0, 0);
+		ldim_blk_row, ldim_blk_col, ldim_config.bl_mode, 1, 0);
 
 	ldim_func_ctrl(0); /* default disable ldim function */
 
@@ -2227,12 +2227,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[0] = bin1;
 		nPRM.val_2[0] = val2;
 		nPRM.bin_2[0] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[0] = val1;
 		nPRM.bin_1[0] = bin1;
 		nPRM.val_2[0] = val2;
 		nPRM.bin_2[0] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_0 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_1")) {
 		if (parm[4] != NULL) {
@@ -2251,12 +2251,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[1] = bin1;
 		nPRM.val_2[1] = val2;
 		nPRM.bin_2[1] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[1] = val1;
 		nPRM.bin_1[1] = bin1;
 		nPRM.val_2[1] = val2;
 		nPRM.bin_2[1] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_1 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_2")) {
 		if (parm[4] != NULL) {
@@ -2275,12 +2275,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[2] = bin1;
 		nPRM.val_2[2] = val2;
 		nPRM.bin_2[2] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[2] = val1;
 		nPRM.bin_1[2] = bin1;
 		nPRM.val_2[2] = val2;
 		nPRM.bin_2[2] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_2 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_3")) {
 		if (parm[4] != NULL) {
@@ -2299,12 +2299,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[3] = bin1;
 		nPRM.val_2[3] = val2;
 		nPRM.bin_2[3] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[3] = val1;
 		nPRM.bin_1[3] = bin1;
 		nPRM.val_2[3] = val2;
 		nPRM.bin_2[3] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_3 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_4")) {
 		if (parm[4] != NULL) {
@@ -2323,12 +2323,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[4] = bin1;
 		nPRM.val_2[4] = val2;
 		nPRM.bin_2[4] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[4] = val1;
 		nPRM.bin_1[4] = bin1;
 		nPRM.val_2[4] = val2;
 		nPRM.bin_2[4] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_4 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_5")) {
 		if (parm[4] != NULL) {
@@ -2347,12 +2347,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[5] = bin1;
 		nPRM.val_2[5] = val2;
 		nPRM.bin_2[5] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[5] = val1;
 		nPRM.bin_1[5] = bin1;
 		nPRM.val_2[5] = val2;
 		nPRM.bin_2[5] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_5 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_6")) {
 		if (parm[4] != NULL) {
@@ -2371,12 +2371,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[6] = bin1;
 		nPRM.val_2[6] = val2;
 		nPRM.bin_2[6] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[6] = val1;
 		nPRM.bin_1[6] = bin1;
 		nPRM.val_2[6] = val2;
 		nPRM.bin_2[6] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_6 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_7")) {
 		if (parm[4] != NULL) {
@@ -2395,12 +2395,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[7] = bin1;
 		nPRM.val_2[7] = val2;
 		nPRM.bin_2[7] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[7] = val1;
 		nPRM.bin_1[7] = bin1;
 		nPRM.val_2[7] = val2;
 		nPRM.bin_2[7] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_7 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_8")) {
 		if (parm[4] != NULL) {
@@ -2419,12 +2419,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[8] = bin1;
 		nPRM.val_2[8] = val2;
 		nPRM.bin_2[8] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[8] = val1;
 		nPRM.bin_1[8] = bin1;
 		nPRM.val_2[8] = val2;
 		nPRM.bin_2[8] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_8 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_9")) {
 		if (parm[4] != NULL) {
@@ -2443,12 +2443,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[9] = bin1;
 		nPRM.val_2[9] = val2;
 		nPRM.bin_2[9] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[9] = val1;
 		nPRM.bin_1[9] = bin1;
 		nPRM.val_2[9] = val2;
 		nPRM.bin_2[9] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_9 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_10")) {
 		if (parm[4] != NULL) {
@@ -2467,12 +2467,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[10] = bin1;
 		nPRM.val_2[10] = val2;
 		nPRM.bin_2[10] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[10] = val1;
 		nPRM.bin_1[10] = bin1;
 		nPRM.val_2[10] = val2;
 		nPRM.bin_2[10] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_10 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_11")) {
 		if (parm[4] != NULL) {
@@ -2491,12 +2491,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[11] = bin1;
 		nPRM.val_2[11] = val2;
 		nPRM.bin_2[11] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[11] = val1;
 		nPRM.bin_1[11] = bin1;
 		nPRM.val_2[11] = val2;
 		nPRM.bin_2[11] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_11 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_12")) {
 		if (parm[4] != NULL) {
@@ -2515,12 +2515,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[12] = bin1;
 		nPRM.val_2[12] = val2;
 		nPRM.bin_2[12] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[12] = val1;
 		nPRM.bin_1[12] = bin1;
 		nPRM.val_2[12] = val2;
 		nPRM.bin_2[12] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_12 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_13")) {
 		if (parm[4] != NULL) {
@@ -2539,12 +2539,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[13] = bin1;
 		nPRM.val_2[13] = val2;
 		nPRM.bin_2[13] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[13] = val1;
 		nPRM.bin_1[13] = bin1;
 		nPRM.val_2[13] = val2;
 		nPRM.bin_2[13] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_13 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_14")) {
 		if (parm[4] != NULL) {
@@ -2563,12 +2563,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[14] = bin1;
 		nPRM.val_2[14] = val2;
 		nPRM.bin_2[14] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[14] = val1;
 		nPRM.bin_1[14] = bin1;
 		nPRM.val_2[14] = val2;
 		nPRM.bin_2[14] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_14 ok*************\n");
 	} else if (!strcmp(parm[0], "curve_15")) {
 		if (parm[4] != NULL) {
@@ -2587,12 +2587,12 @@ static ssize_t ldim_attr_store(struct class *cla,
 		nPRM.bin_1[15] = bin1;
 		nPRM.val_2[15] = val2;
 		nPRM.bin_2[15] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		nPRM.val_1[15] = val1;
 		nPRM.bin_1[15] = bin1;
 		nPRM.val_2[15] = val2;
 		nPRM.bin_2[15] = bin2;
-		LDIM_Initial(3840, 2160, 16, 24, 2, 0, 0);
+		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_15 ok*************\n");
 	} else
 		pr_info("no support cmd!!!\n");
