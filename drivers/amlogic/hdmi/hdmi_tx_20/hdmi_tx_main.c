@@ -1577,27 +1577,41 @@ static ssize_t store_hdcp_mode(struct device *dev,
 		hdmitx_device.hdcp_mode = -1;
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_OP, HDCP14_OFF);
-		rx_repeat_hdcp_ver(0);
 	}
 	if (strncmp(buf, "0", 1) == 0) {
 		hdmitx_device.hdcp_mode = 0;
-		rx_repeat_hdcp_ver(0);
 	}
 	if (strncmp(buf, "1", 1) == 0) {
+		pr_info("%s[%d]", __func__, __LINE__);
 		hdmitx_device.hdcp_mode = 1;
-		rx_repeat_hdcp_ver(14);
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_OP, HDCP14_ON);
 	}
 	if (strncmp(buf, "2", 1) == 0) {
 		hdmitx_device.hdcp_mode = 2;
-		rx_repeat_hdcp_ver(22);
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_MUX_INIT, 2);
 	}
 
 	return count;
 }
+
+void direct_hdcptx14_start(void)
+{
+	pr_info("%s[%d]", __func__, __LINE__);
+	hdmitx_device.hdcp_mode = 1;
+	hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+			DDC_HDCP_OP, HDCP14_ON);
+}
+EXPORT_SYMBOL(direct_hdcptx14_start);
+
+void direct_hdcptx14_stop(void)
+{
+	pr_info("%s[%d]", __func__, __LINE__);
+	hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+		DDC_HDCP_OP, HDCP14_OFF);
+}
+EXPORT_SYMBOL(direct_hdcptx14_stop);
 
 static ssize_t store_hdcp_ctrl(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -2050,9 +2064,19 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 	mutex_unlock(&getedid_mutex);
 }
 
+static int get_downstream_hdcp_ver(void)
+{
+	if (hdcp_rd_hdcp22_ver())
+		return 22;
+	if (hdcp_rd_hdcp14_ver())
+		return 14;
+	return 0;
+}
+
 static DEFINE_MUTEX(setclk_mutex);
 void hdmitx_hpd_plugin_handler(struct work_struct *work)
 {
+	char bksv_buf[5];
 	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
 		struct hdmitx_dev, work_hpd_plugin);
 
@@ -2064,6 +2088,10 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdev->hpd_state = 1;
 	rx_repeat_hpd_state(1);
 	hdmitx_get_edid(hdev);
+	rx_repeat_hdcp_ver(get_downstream_hdcp_ver());
+	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_GET_BKSV,
+		(unsigned long int)bksv_buf);
+	rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	switch_set_state(&sdev, 1);

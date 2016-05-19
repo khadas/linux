@@ -3225,10 +3225,55 @@ static int get_hdcp_depth(void)
 	int ret;
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
 	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
-	ret = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1) & 0x3;
+	ret = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1) & 0x7;
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
 
 	return ret;
+}
+
+static bool get_hdcp_max_cascade(void)
+{
+	bool ret;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
+	ret = (hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1) >> 3) & 0x1;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
+
+	return ret;
+}
+
+static bool get_hdcp_max_devs(void)
+{
+	bool ret;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
+	ret = (hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0) >> 7) & 0x1;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
+
+	return ret;
+}
+
+static int get_hdcp_device_count(void)
+{
+	int ret;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
+	ret = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0) & 0x7f;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
+
+	return ret;
+}
+
+static void get_hdcp_bstatus(void)
+{
+	int ret1 = 0;
+	int ret2 = 0;
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
+	ret1 = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0);
+	ret2 = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1);
+	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
+	pr_info("BSTATUS0 = 0x%x   BSTATUS1 = 0x%x\n", ret1, ret2);
 }
 
 static void hdcp_ksv_store(unsigned char *dat, int no)
@@ -3240,6 +3285,31 @@ static void hdcp_ksv_store(unsigned char *dat, int no)
 	}
 }
 
+static void hdcp_ksv_print(void)
+{
+	unsigned int i, pos;
+	unsigned char *tmp_buf = NULL;
+
+	tmp_buf = kmalloc(2000, GFP_KERNEL);
+	if (!tmp_buf) {
+		pr_info("hdmitx: no memory\n");
+		return;
+	}
+
+	pos = 0;
+	memset(tmp_buf, 0, sizeof(2000));
+	pos += sprintf(tmp_buf + pos, "Dump ksv test START\n");
+	for (i = 0; (i < rptx_ksv_no) && (i < 635); i++) {
+		pos += sprintf(tmp_buf + pos, "%02x", rptx_ksv_buf[i]);
+		if (((i+1) % 40) == 0)    /* print 40bytes a line */
+			pos += sprintf(tmp_buf + pos, "\n");
+	}
+	pos += sprintf(tmp_buf + pos, "\n");
+	pos += sprintf(tmp_buf + pos, "Dump ksv test END\n");
+	pr_info("%s\n", tmp_buf);
+	kfree(tmp_buf);
+}
+
 static uint8_t *hdcp_mKsvListBuf;
 static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 {
@@ -3247,7 +3317,7 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 	size_t size = 0;
 	size_t i = 0;
 	int valid = HDCP_IDLE;
-	unsigned char ksvs[127] = {0};
+	unsigned char ksvs[635] = {0}; /* Max 127 * 5 */
 	int j = 0;
 
 	/* 0x165e: Page 95 */
@@ -3295,11 +3365,14 @@ static void hdcp_ksv_event(unsigned long arg)
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)arg;
 	unsigned char ksv[5] = {0};
 	int pos, i;
+	unsigned int bcaps_6_rp;
+	static unsigned int st_flag = -1;
 
-	pr_info("hdcp14: instat: 0x%x\n",
-		(uint8_t)hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT));
-	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 7)) {
-		unsigned int bcaps_6_rp;
+	if (st_flag != hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT)) {
+		st_flag = hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT);
+		pr_info("hdcp14: instat: 0x%x\n", st_flag);
+	}
+	if (st_flag & (1 << 7)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, 1 << 7);
 		hdmitx_hdcp_opr(3);
 		for (i = 0; i < 5; i++)
@@ -3308,28 +3381,37 @@ static void hdcp_ksv_event(unsigned long arg)
 		hdcp_ksv_store(ksv, 5);
 		bcaps_6_rp =
 			!!(hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & (1 << 6));
-		rx_set_receive_hdcp(ksv, 5,
-			(bcaps_6_rp ? get_hdcp_depth() : 0) + 1);
+		get_hdcp_bstatus();
+		rx_set_receive_hdcp(rptx_ksv_buf, (rptx_ksv_no + 1) / 5,
+			(bcaps_6_rp ? get_hdcp_depth() : 0) + 1,
+			bcaps_6_rp ? get_hdcp_max_cascade() : 0,
+			bcaps_6_rp ? get_hdcp_max_devs() : 0);
+		pr_info("%s[%d]  ksvs Num = %d  device_count = %d\n",
+			__func__, __LINE__,
+			(rptx_ksv_no + 1) / 5,
+			bcaps_6_rp ? get_hdcp_device_count() : 0);
 		memset(rptx_ksv_prbuf, 0, sizeof(rptx_ksv_prbuf));
 			for (pos = 0, i = 0; i < rptx_ksv_no; i++)
 				pos += sprintf(rptx_ksv_prbuf + pos, "%02x",
 					rptx_ksv_buf[i]);
 			rptx_ksv_prbuf[pos + 1] = '\0';
+		if (1)
+			hdcp_ksv_print();
 	}
-	if (hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & (1 << 1)) {
+	if (st_flag & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
 		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1);
 		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1<<1), 2 * HZ);
-		if (hdmitx_rd_reg(HDMITX_DWC_A_KSVMEMCTRL) & (1 << 1)) {
+		if (hdmitx_rd_reg(HDMITX_DWC_A_KSVMEMCTRL) & (1 << 1))
 			hdcp_ksv_sha1_calc(hdev);
-		} else {
+		else {
 			pr_info("hdcptx14: KSV List memory access denied\n");
 			return;
 		}
 		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x4);
 	}
 	if (hdev->hdcp_try_times)
-		mod_timer(&hdev->hdcp_timer, jiffies + HZ);
+		mod_timer(&hdev->hdcp_timer, jiffies + HZ / 100);
 	else
 		return;
 	hdev->hdcp_try_times--;
@@ -3344,14 +3426,14 @@ static void hdcp_start_timer(struct hdmitx_dev *hdev)
 		init_timer(&hdev->hdcp_timer);
 		hdev->hdcp_timer.data = (ulong)hdev;
 		hdev->hdcp_timer.function = hdcp_ksv_event;
-		hdev->hdcp_timer.expires = jiffies + 2 * HZ;
+		hdev->hdcp_timer.expires = jiffies + HZ / 100;
 		add_timer(&hdev->hdcp_timer);
-		hdev->hdcp_try_times = 5;
+		hdev->hdcp_try_times = 500;
 		return;
 	}
-	hdev->hdcp_try_times = 5;
-	hdev->hdcp_timer.expires = jiffies + HZ;
-	mod_timer(&hdev->hdcp_timer, jiffies + HZ);
+	hdev->hdcp_try_times = 500;
+	hdev->hdcp_timer.expires = jiffies + HZ / 100;
+	mod_timer(&hdev->hdcp_timer, jiffies + HZ / 100);
 }
 
 static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
