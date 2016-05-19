@@ -179,6 +179,9 @@ extern void retrieve_vpll_carrier_lock(int *lock);
 extern void retrieve_video_lock(int *lock);
 extern int retrieve_vpll_carrier_afc(void);
 
+extern int get_atvdemod_snr_val(void);
+extern int aml_atvdemod_get_snr(struct dvb_frontend *fe);
+
 /*atv demod block address*/
 /*address interval is 4, because it's 32bit interface,
  but the address is in byte*/
