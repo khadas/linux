@@ -130,6 +130,10 @@ static int hdcp_22_nonce_hw_en = 1;
 static int is_duk_key_set;
 MODULE_PARM_DESC(is_duk_key_set, "\n is_duk_key_set\n");
 module_param(is_duk_key_set, int, 0664);
+
+int force_hdcp14_en;
+MODULE_PARM_DESC(force_hdcp14_en, "\n force_hdcp14_en\n");
+module_param(force_hdcp14_en, int, 0664);
 #endif
 
 static int hdmi_mode_hyst = 5;
@@ -847,7 +851,8 @@ void hdmirx_20_init(void)
 		/* (0x1002 | (hdcp_22_on<<2))); */
 		/* hdmirx_wr_dwc(DWC_HDCP_SETTINGS, 0x13374); */
 		/* Configure pkf[127:0] */
-		if (hdcp22_firmware_ok_flag)
+		if (hdcp22_firmware_ok_flag &&
+			(force_hdcp14_en == 0))
 			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
 		else
 			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);

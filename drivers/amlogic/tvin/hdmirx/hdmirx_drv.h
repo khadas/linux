@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/05/11"
+#define HDMIRX_VER "Ref.2016/05/19"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -64,6 +64,10 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_HDCP_ON	_IO(HDMI_IOC_MAGIC, 0x01)
 #define HDMI_IOC_HDCP_OFF	_IO(HDMI_IOC_MAGIC, 0x02)
 #define HDMI_IOC_EDID_UPDATE	_IO(HDMI_IOC_MAGIC, 0x03)
+#define HDMI_IOC_PC_MODE_ON		_IO(HDMI_IOC_MAGIC, 0x04)
+#define HDMI_IOC_PC_MODE_OFF	_IO(HDMI_IOC_MAGIC, 0x05)
+#define HDMI_IOC_HDCP22_AUTO	_IO(HDMI_IOC_MAGIC, 0x06)
+#define HDMI_IOC_HDCP22_FORCE14 _IO(HDMI_IOC_MAGIC, 0x07)
 
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
 
@@ -574,6 +578,7 @@ extern int yuv_quant_range;
 extern int hdcp_22_on;
 extern int do_esm_rst_flag;
 extern int hdcp22_firmware_ok_flag;
+extern int force_hdcp14_en;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

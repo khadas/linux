@@ -94,6 +94,10 @@ static int force_color_range;
 MODULE_PARM_DESC(force_color_range, "\n force_color_range\n");
 module_param(force_color_range, int, 0664);
 
+static int pc_mode_en;
+MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
+module_param(pc_mode_en, int, 0664);
+
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -414,6 +418,8 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	switch (hdmirx_hw_get_color_fmt()) {
 	case 1:
 		prop->color_format = TVIN_YUV444;
+		if (pc_mode_en)
+			prop->dest_cfmt = TVIN_YUV444;
 		/* if (hdmi_yuv444_enable) */
 			/* prop->dest_cfmt = TVIN_YUV444; */
 		break;
@@ -422,11 +428,14 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		break;
 	case 0:
 		prop->color_format = TVIN_RGB444;
-		if ((hdmi_yuv444_enable) && (it_content))
+		if (((hdmi_yuv444_enable) && (it_content)) ||
+			 pc_mode_en)
 			prop->dest_cfmt = TVIN_YUV444;
 		break;
 	default:
 		prop->color_format = TVIN_RGB444;
+		if (pc_mode_en)
+			prop->dest_cfmt = TVIN_YUV444;
 		break;
 	}
 
@@ -495,11 +504,8 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	else
 		prop->decimation_ratio = (hdmirx_hw_get_pixel_repeat() - 1);
 
-	if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) ||
-		(TVIN_SIG_FMT_HDMI_3840_2160_00HZ == sig_fmt) ||
-		(rx.pre_params.interlaced == 1)) {
+	if (rx.pre_params.interlaced == 1)
 		prop->dest_cfmt = TVIN_YUV422;
-	}
 
 	switch (prop->color_format) {
 	case TVIN_YUV444:
@@ -622,6 +628,24 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case HDMI_IOC_EDID_UPDATE:
 		hdmi_rx_ctrl_edid_update();
 		hdmirx_set_hpd(rx.port, 0);
+		break;
+	case HDMI_IOC_PC_MODE_ON:
+		pc_mode_en = 1;
+		rx_print("pc mode on\n");
+		break;
+	case HDMI_IOC_PC_MODE_OFF:
+		pc_mode_en = 0;
+		rx_print("pc mode off\n");
+		break;
+	case HDMI_IOC_HDCP22_AUTO:
+		force_hdcp14_en = 0;
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+		rx_print("hdcp22 auto\n");
+		break;
+	case HDMI_IOC_HDCP22_FORCE14:
+		force_hdcp14_en = 1;
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x2);
+		rx_print("force hdcp1.4\n");
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
