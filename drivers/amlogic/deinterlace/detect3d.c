@@ -369,13 +369,15 @@ chessbd_ver_thrd);
 (det3d_info.score_3d_tb < -127)) || ((det3d_info.tscore_3d_tb_accum >= 4) &&
 (det3d_info.score_3d_tb > 63)))
 		det3d_info.score_3d_tb = 0;
-
+#if 0 /*mark chessboard 3d detection*/
 	if ((det3d_info.score_3d_chs > CHESSBOADE_SCORE_LOWER_LIMIT) &&
 (det3d_info.score_3d_int < NOT_INTERLACE_SCORE_UPPER_LIMIT)) {
 		det3d_info.tfw_det3d_fmt = TVIN_TFMT_3D_DET_CHESSBOARD;
 		det3d_info.score_3d_lr = 0;
 		det3d_info.score_3d_tb = 0;
-	} else if ((det3d_info.score_3d_int > INTERLACE_SCORE_LOWER_LIMIT) &&
+	} else
+#endif
+	if ((det3d_info.score_3d_int > INTERLACE_SCORE_LOWER_LIMIT) &&
 (det3d_info.score_3d_chs < NOT_CHESSBOAD_SCORE_UPPER_LIMIT)) {
 		det3d_info.tfw_det3d_fmt = TVIN_TFMT_3D_DET_INTERLACE;
 		det3d_info.score_3d_lr = 0;

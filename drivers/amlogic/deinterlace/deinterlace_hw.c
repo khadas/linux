@@ -315,7 +315,7 @@ void enable_di_pre_aml(
 				di_chan2_mif->bit_mode,
 				di_nrwr_mif->bit_mode);
 	/* motion wr mif. */
-	if (mtn_en)	{
+	if (mtn_en) {
 #ifdef NEW_DI_V1
 		RDMA_WR(DI_CONTWR_X, (di_contwr_mif->start_x << 16)|
 			(di_contwr_mif->end_x));

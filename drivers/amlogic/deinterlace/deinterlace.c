@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-05-24a";
+static const char version_s[] = "2016-05-26a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -260,7 +260,7 @@ static int input2pre = 1;
 #else
 static int input2pre;
 #endif
-static bool use_2_interlace_buff;
+static int use_2_interlace_buff;
 static int input2pre_buf_miss_count;
 static int input2pre_proc_miss_count;
 static int input2pre_throw_count;
@@ -278,12 +278,13 @@ static int input2pre_miss_policy;
 #endif
 #else
 #ifdef NEW_DI_TV
-static bool use_2_interlace_buff = true;
+static int use_2_interlace_buff = 1;
 /*false:process progress by field;
- * true: process progress by frame with 2 interlace buffer
+ * bit0: process progress by frame with 2 interlace buffer
+ * bit1: temp add debug for 3d process FA,1:bit0 force to 1;
  */
 #else
-static bool use_2_interlace_buff;
+static int use_2_interlace_buff;
 #endif
 #endif
 /* prog_proc_config,
@@ -332,6 +333,7 @@ int di_vscale_skip_count_real = 0;
 #ifdef DET3D
 bool det3d_en = false;
 static unsigned int det3d_mode;
+static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf);
 #endif
 
 static int force_duration_0;
@@ -1784,6 +1786,10 @@ struct di_pre_stru_s {
 	int	vdin2nr;
 	enum tvin_trans_fmt	source_trans_fmt;
 	enum tvin_trans_fmt	det3d_trans_fmt;
+	unsigned int det_lr;
+	unsigned int det_tp;
+	unsigned int det_la;
+	unsigned int det_null;
 #ifdef DET3D
 	int	vframe_interleave_flag;
 #endif
@@ -3017,7 +3023,7 @@ static void print_di_buf(struct di_buf_s *di_buf, int format)
 	if (!di_buf)
 		return;
 	if (format == 1) {
-		pr_dbg(
+		pr_info(
 		"\t+index %d, 0x%p, type %d, vframetype 0x%x, trans_fmt %u,bitdepath %d\n",
 			di_buf->index,
 			di_buf,
@@ -3026,23 +3032,23 @@ static void print_di_buf(struct di_buf_s *di_buf, int format)
 			di_buf->vframe->trans_fmt,
 			di_buf->vframe->bitdepth);
 		if (di_buf->di_wr_linked_buf) {
-			pr_dbg("\tlinked  +index %d, 0x%p, type %d\n",
+			pr_info("\tlinked  +index %d, 0x%p, type %d\n",
 				di_buf->di_wr_linked_buf->index,
 				di_buf->di_wr_linked_buf,
 				di_buf->di_wr_linked_buf->type);
 		}
 	} else if (format == 2) {
-		pr_dbg("index %d, 0x%p(vframe 0x%p), type %d\n",
+		pr_info("index %d, 0x%p(vframe 0x%p), type %d\n",
 			di_buf->index, di_buf,
 			di_buf->vframe, di_buf->type);
-		pr_dbg("vframetype 0x%x, trans_fmt %u,duration %d pts %d,bitdepth %d\n",
+		pr_info("vframetype 0x%x, trans_fmt %u,duration %d pts %d,bitdepth %d\n",
 			di_buf->vframe->type,
 			di_buf->vframe->trans_fmt,
 			di_buf->vframe->duration,
 			di_buf->vframe->pts,
 			di_buf->vframe->bitdepth);
 		if (di_buf->di_wr_linked_buf) {
-			pr_dbg("linked index %d, 0x%p, type %d\n",
+			pr_info("linked index %d, 0x%p, type %d\n",
 				di_buf->di_wr_linked_buf->index,
 				di_buf->di_wr_linked_buf,
 				di_buf->di_wr_linked_buf->type);
@@ -3057,70 +3063,70 @@ static void dump_state(void)
 	int i;
 
 	dump_state_flag = 1;
-	pr_dbg("version %s, provider vframe level %d,",
+	pr_info("version %s, provider vframe level %d,",
 		version_s, provider_vframe_level);
-	pr_dbg("init_flag %d, is_bypass %d, receiver_is_amvideo %d\n",
+	pr_info("init_flag %d, is_bypass %d, receiver_is_amvideo %d\n",
 		init_flag, is_bypass(NULL), receiver_is_amvideo);
-	pr_dbg("recovery_flag = %d, recovery_log_reason=%d, di_blocking=%d",
+	pr_info("recovery_flag = %d, recovery_log_reason=%d, di_blocking=%d",
 		recovery_flag, recovery_log_reason, di_blocking);
-	pr_dbg("recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
+	pr_info("recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
 		recovery_log_queue_idx, recovery_log_di_buf);
-	pr_dbg("new_keep_last_frame_enable %d,", new_keep_last_frame_enable);
-	pr_dbg("used_post_buf_index %d(0x%p),", used_post_buf_index,
+	pr_info("new_keep_last_frame_enable %d,", new_keep_last_frame_enable);
+	pr_info("used_post_buf_index %d(0x%p),", used_post_buf_index,
 		(used_post_buf_index ==
 		 -1) ? NULL : &(di_buf_post[used_post_buf_index]));
-	pr_dbg("used_local_buf_index:\n");
+	pr_info("used_local_buf_index:\n");
 	for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
 		int tmp = used_local_buf_index[i];
-		pr_dbg("%d(0x%p) ", tmp,
+		pr_info("%d(0x%p) ", tmp,
 			(tmp == -1) ? NULL :  &(di_buf_local[tmp]));
 	}
 
-	pr_dbg("\nin_free_list (max %d):\n", MAX_IN_BUF_NUM);
+	pr_info("\nin_free_list (max %d):\n", MAX_IN_BUF_NUM);
 	queue_for_each_entry(p, ptmp, QUEUE_IN_FREE, list) {
-		pr_dbg("index %2d, 0x%p, type %d\n",
+		pr_info("index %2d, 0x%p, type %d\n",
 			p->index, p, p->type);
 	}
-	pr_dbg("local_free_list (max %d):\n", local_buf_num);
+	pr_info("local_free_list (max %d):\n", local_buf_num);
 	queue_for_each_entry(p, ptmp, QUEUE_LOCAL_FREE, list) {
-		pr_dbg("index %2d, 0x%p, type %d\n", p->index, p, p->type);
+		pr_info("index %2d, 0x%p, type %d\n", p->index, p, p->type);
 	}
 
-	pr_dbg("post_doing_list:\n");
+	pr_info("post_doing_list:\n");
 	queue_for_each_entry(p, ptmp, QUEUE_POST_DOING, list) {
 		print_di_buf(p, 2);
 	}
-	pr_dbg("pre_ready_list:\n");
+	pr_info("pre_ready_list:\n");
 	queue_for_each_entry(p, ptmp, QUEUE_PRE_READY, list) {
 		print_di_buf(p, 2);
 	}
-	pr_dbg("post_free_list (max %d):\n", MAX_POST_BUF_NUM);
+	pr_info("post_free_list (max %d):\n", MAX_POST_BUF_NUM);
 	queue_for_each_entry(p, ptmp, QUEUE_POST_FREE, list) {
-		pr_dbg("index %2d, 0x%p, type %d, vframetype 0x%x\n",
+		pr_info("index %2d, 0x%p, type %d, vframetype 0x%x\n",
 			p->index, p, p->type, p->vframe->type);
 	}
-	pr_dbg("post_ready_list:\n");
+	pr_info("post_ready_list:\n");
 	queue_for_each_entry(p, ptmp, QUEUE_POST_READY, list) {
 		print_di_buf(p, 2);
 		print_di_buf(p->di_buf[0], 1);
 		print_di_buf(p->di_buf[1], 1);
 	}
-	pr_dbg("display_list:\n");
+	pr_info("display_list:\n");
 	queue_for_each_entry(p, ptmp, QUEUE_DISPLAY, list) {
 		print_di_buf(p, 2);
 		print_di_buf(p->di_buf[0], 1);
 		print_di_buf(p->di_buf[1], 1);
 	}
-	pr_dbg("recycle_list:\n");
+	pr_info("recycle_list:\n");
 	queue_for_each_entry(p, ptmp, QUEUE_RECYCLE, list) {
-		pr_dbg(
+		pr_info(
 "index %d, 0x%p, type %d, vframetype 0x%x pre_ref_count %d post_ref_count %d\n",
 			p->index, p, p->type,
 			p->vframe->type,
 			p->pre_ref_count,
 			p->post_ref_count);
 		if (p->di_wr_linked_buf) {
-			pr_dbg(
+			pr_info(
 	"linked index %2d, 0x%p, type %d pre_ref_count %d post_ref_count %d\n",
 				p->di_wr_linked_buf->index,
 				p->di_wr_linked_buf,
@@ -3130,32 +3136,32 @@ static void dump_state(void)
 		}
 	}
 	if (di_pre_stru.di_inp_buf) {
-		pr_dbg("di_inp_buf:index %d, 0x%p, type %d\n",
+		pr_info("di_inp_buf:index %d, 0x%p, type %d\n",
 			di_pre_stru.di_inp_buf->index,
 			di_pre_stru.di_inp_buf,
 			di_pre_stru.di_inp_buf->type);
 	} else {
-		pr_dbg("di_inp_buf: NULL\n");
+		pr_info("di_inp_buf: NULL\n");
 	}
 	if (di_pre_stru.di_wr_buf) {
-		pr_dbg("di_wr_buf:index %d, 0x%p, type %d\n",
+		pr_info("di_wr_buf:index %d, 0x%p, type %d\n",
 			di_pre_stru.di_wr_buf->index,
 			di_pre_stru.di_wr_buf,
 			di_pre_stru.di_wr_buf->type);
 	} else {
-		pr_dbg("di_wr_buf: NULL\n");
+		pr_info("di_wr_buf: NULL\n");
 	}
 	dump_di_pre_stru();
 	dump_di_post_stru();
-	pr_dbg("vframe_in[]:");
+	pr_info("vframe_in[]:");
 
 	for (i = 0; i < MAX_IN_BUF_NUM; i++)
-		pr_dbg("0x%p ", vframe_in[i]);
+		pr_info("0x%p ", vframe_in[i]);
 
-	pr_debug("\n");
-	pr_dbg("vf_peek()=>0x%p,di_process_cnt = %d\n",
+	pr_info("\n");
+	pr_info("vf_peek()=>0x%p,di_process_cnt = %d\n",
 		vf_peek(VFM_NAME), di_process_cnt);
-	pr_dbg("video_peek_cnt = %d,force_trig_cnt = %d\n",
+	pr_info("video_peek_cnt = %d,force_trig_cnt = %d\n",
 		video_peek_cnt, force_trig_cnt);
 	dump_state_flag = 0;
 }
@@ -3510,7 +3516,7 @@ static void pre_de_process(void)
 				&di_pre_stru.di_mcinfowr_mif,
 				&di_pre_stru.di_mcvecwr_mif, pre_urgent);
 	}
-	if (di_pre_stru.cur_prog_flag == 1) {
+	if (di_pre_stru.cur_prog_flag == 1 || di_pre_stru.enable_mtnwr == 0) {
 		di_mtn_1_ctrl1 &= (~(1 << 31)); /* disable contwr */
 		di_mtn_1_ctrl1 &= (~(1 << 29)); /* disable txt */
 		cont_rd = 0;
@@ -3546,10 +3552,15 @@ static void pre_de_process(void)
 			RDMA_WR(DNR_CTRL, 0);
 #endif
 		if (mcpre_en) {
-			if (di_pre_stru.cur_prog_flag == 0)
+			if ((di_pre_stru.cur_prog_flag == 0) &&
+				(di_pre_stru.enable_mtnwr == 1)
+			   )
 				RDMA_WR(DI_MTN_CTRL1,
 					(mcpre_en ? 0x3000 : 0) |
 					RDMA_RD(DI_MTN_CTRL1));
+			else
+				RDMA_WR(DI_MTN_CTRL1,
+					(0xffffcfff & RDMA_RD(DI_MTN_CTRL1)));
 			/* enable me(mc di) */
 			if (di_pre_stru.field_count_for_cont == 4) {
 				di_mtn_1_ctrl1 &= (~(1 << 30));
@@ -4073,6 +4084,15 @@ static void pre_de_done_buf_config(void)
 		} else {
 			di_pre_stru.di_wr_buf->throw_flag = 0;
 		}
+#ifdef DET3D
+		if (di_pre_stru.di_wr_buf->vframe->trans_fmt == 0 &&
+			di_pre_stru.det3d_trans_fmt != 0 && det3d_en) {
+				di_pre_stru.di_wr_buf->vframe->trans_fmt =
+				di_pre_stru.det3d_trans_fmt;
+				set3d_view(di_pre_stru.det3d_trans_fmt,
+					di_pre_stru.di_wr_buf->vframe);
+		}
+#endif
 		if (di_pre_stru.di_post_wr_buf) {
 			dynamic_flag = read_pulldown_info(
 				&(di_pre_stru.di_post_wr_buf->field_pd_info),
@@ -5395,20 +5415,58 @@ static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf)
  * return ret;
  * }
  */
+static unsigned int det3d_frame_cnt = 50;
+module_param_named(det3d_frame_cnt, det3d_frame_cnt, uint, 0644);
 static void det3d_irq(void)
 {
-	unsigned int data32 = 0;
+	unsigned int data32 = 0, likely_val = 0;
+	unsigned long frame_sum = 0;
+	if (!det3d_en)
+		return;
 
-	if (det3d_en) {
-		data32 = det3d_fmt_detect();
-		if (det3d_mode != data32) {
-			det3d_mode = data32;
-			di_print("[det3d..]new 3d fmt: %d\n", det3d_mode);
-		}
-	} else {
-		det3d_mode = 0;
+	data32 = det3d_fmt_detect();
+	switch (data32) {
+	case TVIN_TFMT_3D_DET_LR:
+	case TVIN_TFMT_3D_LRH_OLOR:
+		di_pre_stru.det_lr++;
+		break;
+	case TVIN_TFMT_3D_DET_TB:
+	case TVIN_TFMT_3D_TB:
+		di_pre_stru.det_tp++;
+		break;
+	case TVIN_TFMT_3D_DET_INTERLACE:
+		di_pre_stru.det_la++;
+		break;
+	default:
+		di_pre_stru.det_null++;
+		break;
 	}
-	di_pre_stru.det3d_trans_fmt = det3d_mode;
+
+	if (det3d_mode != data32) {
+		det3d_mode = data32;
+		di_print("[det3d..]new 3d fmt: %d\n", det3d_mode);
+	}
+	if (frame_count > 20) {
+		frame_sum = di_pre_stru.det_lr + di_pre_stru.det_tp
+					+ di_pre_stru.det_la
+					+ di_pre_stru.det_null;
+		if ((frame_count%det3d_frame_cnt) || (frame_sum > UINT_MAX))
+			return;
+		likely_val = max3(di_pre_stru.det_lr,
+						di_pre_stru.det_tp,
+						di_pre_stru.det_la);
+		if (di_pre_stru.det_null >= likely_val)
+			det3d_mode = 0;
+		else if (likely_val == di_pre_stru.det_lr)
+			det3d_mode = TVIN_TFMT_3D_LRH_OLOR;
+		else if (likely_val == di_pre_stru.det_tp)
+			det3d_mode = TVIN_TFMT_3D_TB;
+		else
+			det3d_mode = TVIN_TFMT_3D_DET_INTERLACE;
+		di_pre_stru.det3d_trans_fmt = det3d_mode;
+	} else {
+		di_pre_stru.det3d_trans_fmt = 0;
+	}
 }
 #endif
 
@@ -5488,7 +5546,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 			di_print("== det3d irq ==\n");
 			flag = 0;
 		} else {
-			pr_error("== DI IRQ %x ==\n", data32);
+			di_print("== DI IRQ %x ==\n", data32);
 			flag = 0;
 		}
 	}
@@ -6694,7 +6752,6 @@ static int process_post_vframe(void)
 				break;
 		}
 	}
-
 	if (ready_di_buf->post_proc_flag > 0) {
 		if (ready_count >= buffer_keep_count) {
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
@@ -6823,17 +6880,6 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 			ret = 1;
 		}
 	} else {
-#ifdef DET3D
-		if (ready_di_buf->vframe->trans_fmt == 0) {
-			if (det3d_en &&
-			    di_pre_stru.det3d_trans_fmt != 0) {
-				ready_di_buf->vframe->trans_fmt =
-					di_pre_stru.det3d_trans_fmt;
-				set3d_view(di_pre_stru.det3d_trans_fmt,
-					ready_di_buf->vframe);
-			}
-		}
-#endif
 		if (is_progressive(ready_di_buf->vframe) ||
 		    ready_di_buf->type == VFRAME_TYPE_IN ||
 		    ready_di_buf->post_proc_flag < 0 ||
@@ -7298,6 +7344,7 @@ static void di_reg_process_irq(void)
 			#ifdef DET3D
 			|| det3d_en
 			#endif
+			|| (use_2_interlace_buff & 0x2)
 			)
 			use_2_interlace_buff = 1;
 		else
@@ -8279,7 +8326,7 @@ static void set_di_flag(void)
 		mcpre_en = true;
 		pulldown_mode = 1;
 		di_vscale_skip_enable = 3;
-		use_2_interlace_buff = true;
+		use_2_interlace_buff = 1;
 		if (nr10bit_surpport)
 			di_force_bit_mode = 10;
 		else
@@ -8288,7 +8335,7 @@ static void set_di_flag(void)
 		mcpre_en = false;
 		pulldown_mode = 0;
 		di_vscale_skip_enable = 4;
-		use_2_interlace_buff = false;
+		use_2_interlace_buff = 0;
 		di_force_bit_mode = 8;
 	}
 	return;
@@ -8835,7 +8882,7 @@ module_param(force_update_post_reg, uint, 0664);
 MODULE_PARM_DESC(update_post_reg_count, "\n update_post_reg_count\n");
 module_param(update_post_reg_count, uint, 0664);
 
-module_param(use_2_interlace_buff, bool, 0664);
+module_param(use_2_interlace_buff, int, 0664);
 MODULE_PARM_DESC(use_2_interlace_buff,
 	"/n debug for progress interlace mixed source /n");
 
