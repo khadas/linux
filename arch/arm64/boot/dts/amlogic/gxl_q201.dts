@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/gxl_p212.dts
+ * arch/arm64/boot/dts/amlogic/gxl_q201.dts
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -39,7 +39,7 @@
 	};
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x1000000 0x0 0x7f000000>;
+		linux,usable-memory = <0x0 0x1000000 0x0 0x3f000000>;
 	};
 
 	reserved-memory {

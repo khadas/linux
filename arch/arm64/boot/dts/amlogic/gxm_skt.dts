@@ -22,7 +22,7 @@
 #include <dt-bindings/gpio/gxl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxl.h>
-#include "mesongxl.dtsi"
+#include "mesongxm.dtsi"
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxm";

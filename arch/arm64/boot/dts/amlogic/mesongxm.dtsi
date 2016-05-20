@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/mesongxl.dtsi
+ * arch/arm64/boot/dts/amlogic/mesongxm.dtsi
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -21,40 +21,96 @@
 #include <dt-bindings/reset/aml_gxl.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "mesongxbb-gpu-mali450.dtsi"
+#include "mesongxtvbb-gpu-t83x.dtsi"
 / {
 	cpus:cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
 		#cooling-cells = <2>; /* min followed by max */
 
-		cpu0:cpu@0 {
+		cpu-map {
+			cluster0:cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+				core2 {
+					cpu = <&CPU2>;
+				};
+				core3 {
+					cpu = <&CPU3>;
+				};
+			};
+			cluster1:cluster1 {
+				core0 {
+					cpu = <&CPU4>;
+				};
+				core1 {
+					cpu = <&CPU5>;
+				};
+				core2 {
+					cpu = <&CPU6>;
+				};
+				core3 {
+					cpu = <&CPU7>;
+				};
+			};
+		};
+		CPU0:cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
-		cpu1:cpu@1 {
+		CPU1:cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
-		cpu2:cpu@2 {
+		CPU2:cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
-		cpu3:cpu@3 {
+		CPU3:cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};
 
+		CPU4:cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x100>;
+			enable-method = "psci";
+		};
+
+		CPU5:cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x101>;
+			enable-method = "psci";
+		};
+		CPU6:cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x102>;
+			enable-method = "psci";
+		};
+
+		CPU7:cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x103>;
+			enable-method = "psci";
+		};
 	};
 
 	timer {
@@ -676,8 +732,3 @@
 	 };
 
 };/* end of / */
-
-&gpu{
-/*gpu max freq is 750M*/
-    tbl = <&clk125_cfg &clk285_cfg &clk400_cfg &clk500_cfg &clk666_cfg &clk750_cfg &clk750_cfg>;
-};
