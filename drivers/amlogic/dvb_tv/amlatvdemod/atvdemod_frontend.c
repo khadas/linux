@@ -39,9 +39,22 @@
 struct amlatvdemod_device_s *amlatvdemod_devp;
 #define AMLATVDEMOD_VER "Ref.2015/09/01a"
 
+static int afc_wave_cnt;
+static int last_frq, last_std;
+
 unsigned int reg_23cf = 0x88188832; /*IIR filter*/
 module_param(reg_23cf, uint, 0664);
 MODULE_PARM_DESC(reg_23cf, "\n reg_23cf\n");
+
+unsigned int atvdemod_scan_mode = 0; /*IIR filter*/
+module_param(atvdemod_scan_mode, uint, 0664);
+MODULE_PARM_DESC(atvdemod_scan_mode, "\n atvdemod_scan_mode\n");
+
+int is_atvdemod_scan_mode(void)
+{
+	return atvdemod_scan_mode;
+}
+EXPORT_SYMBOL(is_atvdemod_scan_mode);
 
 static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode);
 /*static void sound_store(const char *buff, v4l2_std_id *std);*/
@@ -121,7 +134,7 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 		for (i = 0; i < 128; i++) {
 			data_snr[i] =
 			    (atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x50) >> 8);
-			mdelay(50);
+			usleep_range(50*1000, 50*1000+100);
 			data_snr_avg += data_snr[i];
 		}
 		data_snr_avg = data_snr_avg / 128;
@@ -246,17 +259,18 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 		return err_code;
 	}
 
+	set_aft_thread_enable(1);
 	return 0;
 }
 
 static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 {
+	set_aft_thread_enable(0);
 	atvdemod_uninit();
 	if (amlatvdemod_devp->pin != NULL) {
 		devm_pinctrl_put(amlatvdemod_devp->pin);
 		amlatvdemod_devp->pin = NULL;
 	}
-
 	return 0;
 }
 
@@ -369,46 +383,103 @@ static int aml_atvdemod_get_atv_status(struct dvb_frontend *fe,
 		struct atv_status_s *atv_status)
 {
 	int vpll_lock, line_lock;
-	int try_freq = 3;
+	int try_std = 1;
+	int loop_cnt = 5;
 	int cnt = 10;
+	int try_std_cnt = 0;
+	static int last_report_freq;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	while (fe && atv_status && try_freq--) {
+	while (fe && atv_status && loop_cnt--) {
 		atv_status->afc = retrieve_vpll_carrier_afc();
 		retrieve_vpll_carrier_lock(&vpll_lock);
 		line_lock = atv_dmd_rd_byte(APB_BLOCK_ADDR_VDAGC, 0x4f)&0x10;
 		if ((vpll_lock&0x1) == 0 || line_lock == 0) {
 			atv_status->atv_lock = 1;
-			if ((c->analog.std & 0xff000000) == V4L2_COLOR_STD_PAL)
-				break;
-			if (atv_status->afc > 1500) {
-				pr_err("freq:%d afc:%d, try PAL-BG\n",
-					c->frequency, atv_status->afc);
-				c->analog.std =
-					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
-				c->frequency += 1;
-				fe->ops.set_frontend(fe);
-				mdelay(20);
-			}
-
-			while (cnt--) {
-				if (atv_status->afc < 1500)
-					break;
+			try_std_cnt = 2;
+			while (try_std_cnt--) {
 				atv_status->afc = retrieve_vpll_carrier_afc();
-				mdelay(5);
+				if (atv_status->afc > 1500
+					&& atvdemod_scan_mode) {
+					if ((c->analog.std & 0xff000000)
+						!= V4L2_COLOR_STD_PAL) {
+						c->analog.std =
+							V4L2_COLOR_STD_PAL
+							| V4L2_STD_PAL_BG;
+						c->frequency += 1;
+						fe->ops.set_frontend(fe);
+						msleep(20);
+					} else {
+						c->analog.std =
+							V4L2_COLOR_STD_NTSC
+							| V4L2_STD_NTSC_M;
+						c->frequency += 1;
+						fe->ops.set_frontend(fe);
+						msleep(20);
+					}
+					atv_status->afc =
+						retrieve_vpll_carrier_afc();
+
+					cnt = 4;
+				while (cnt--) {
+					if (atv_status->afc < 1500)
+						break;
+					atv_status->afc =
+						retrieve_vpll_carrier_afc();
+					usleep_range(5*1000, 5*1000+100);
+				}
+					if (atv_status->afc < 1500)
+						break;
+				}
 			}
 
-			pr_err("%s,freq:%d, afc:%d\n",
-				__func__, c->frequency, atv_status->afc);
+			if (atv_status->afc > 4000 && !atvdemod_scan_mode)
+				atv_status->atv_lock = 0;
+
+			if (last_report_freq != c->frequency)
+				last_report_freq = c->frequency;
+
+			if (atvdemod_scan_mode)
+				pr_err("%s,freq:%d, afc:%d\n", __func__,
+					c->frequency, atv_status->afc);
 			break;
-		} else if (try_freq) {
-			if ((c->analog.std & 0xff000000) == V4L2_COLOR_STD_PAL)
-				break;
-			c->analog.std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
-			c->frequency += 1;
+
+		} else if (try_std%3 == 0 && atvdemod_scan_mode) {
+			if ((c->analog.std & 0xff000000)
+				!= V4L2_COLOR_STD_PAL) {
+				c->analog.std =
+					V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
+			}
+			if (1000000 < abs(c->frequency - last_report_freq)) {
+				c->frequency -= 500000;
+				pr_err("@@@ %s freq:%d unlock,try back 0.25M\n",
+					__func__, c->frequency);
+			} else
+				c->frequency += 1;
 			fe->ops.set_frontend(fe);
-			mdelay(10);
-			atv_status->atv_lock = 0;
+			usleep_range(10*1000, 10*1000+100);
+		}
+		if (atvdemod_scan_mode)
+			pr_err("@@@ %s freq:%d unlock, read lock again\n",
+				__func__, c->frequency);
+		else
+			break;
+		atv_status->atv_lock = 0;
+		try_std++;
+	}
+	if (0 == atvdemod_scan_mode) {
+		if (20 > abs(atv_status->afc))
+			afc_wave_cnt = 0;
+		if (500*1000 > abs(last_frq - c->frequency)
+				&& 20 < abs(atv_status->afc)
+				&& 200 > abs(atv_status->afc)) {
+			afc_wave_cnt++;
+			pr_err("%s play mode,afc_wave_cnt:%d\n",
+				__func__, afc_wave_cnt);
+			if (afc_wave_cnt < 20) {
+				atv_status->afc = 0;
+				pr_err("%s, afc is wave,ignore\n", __func__);
+			}
 		}
 	}
 	return 0;
@@ -417,6 +488,7 @@ static int aml_atvdemod_get_atv_status(struct dvb_frontend *fe,
 void aml_atvdemod_set_params(struct dvb_frontend *fe,
 				struct analog_parameters *p)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	if (FE_ANALOG == fe->ops.info.type) {
 		if ((p->std != amlatvdemod_devp->parm.std) ||
 			(p->tuner_id == AM_TUNER_R840) ||
@@ -434,6 +506,8 @@ void aml_atvdemod_set_params(struct dvb_frontend *fe,
 				devm_pinctrl_get_select(amlatvdemod_devp->dev,
 						amlatvdemod_devp->pin_name);
 			atv_dmd_set_std();
+			last_frq = c->frequency;
+			last_std = c->analog.std;
 			pr_info("[amlatvdemod..]%s set std color %s, audio type %s.\n",
 				__func__,
 			v4l2_std_to_str(0xff000000&amlatvdemod_devp->parm.std),

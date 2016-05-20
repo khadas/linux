@@ -202,5 +202,5 @@ extern int amlogic_gpio_request(unsigned int pin, const char *label);
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
 extern void vdac_enable(bool on, unsigned int module_sel);
-
+extern void set_aft_thread_enable(int enable);
 #endif /*_AML_FE_H_*/

@@ -47,10 +47,6 @@ static int audio_det_mode = AUDIO_AUTO_DETECT;
 module_param(audio_det_mode, int, 0644);
 MODULE_PARM_DESC(audio_det_mode, "\n audio_det_mode\n");
 
-static int dk_audio_det_delay = 40;
-module_param(dk_audio_det_delay, int, 0644);
-MODULE_PARM_DESC(dk_audio_det_delay, "\n dk_audio_det_delay\n");
-
 static int aud_dmd_jilinTV;
 module_param(aud_dmd_jilinTV, int, 0644);
 MODULE_PARM_DESC(aud_dmd_jilinTV, "\naud dmodulation setting for jilin TV\n");
@@ -1445,7 +1441,7 @@ int atvdemod_init(void)
 	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
 	W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
 	/* TVFE reset */
-	W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
+	/*W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);*/
 
 	read_version_register();
 
@@ -1594,7 +1590,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 	int lock = 0;
 	int broad_std_final = 0;
 	int num = 0, i = 0, final_id = 0;
-	int delay_ms = 20, delay_ms_default = 40;
+	int delay_ms = 10, delay_ms_default = 10;
 	int cur_std = ID_PAL_DK;
 	struct dtv_frontend_properties
 		*p = fe != NULL ? &fe->dtv_property_cache:NULL;
@@ -1648,7 +1644,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 	/* ----------------read carrier_power--------------------- */
 	/* SIF_STG_2[0x09],address 0x03 */
 	while (1) {
-		if (num >= 8) {
+		if (num >= 4) {
 			temp_data =
 				atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 			temp_data = temp_data & (~0x80);
@@ -1681,13 +1677,11 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 				break;
 			}
-
-			broad_std = broad_std_final;
 			if (final_id == ID_PAL_M && fee
 				&& fee->tuner->drv->id == AM_TUNER_MXL661) {
 				/* maybe don't need this */
 				carrier_power_average_max =
-					carrier_power_average[1]/2;
+					carrier_power_average[1];
 				if (carrier_power_average_max > 100) {
 					broad_std_final =
 					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
@@ -1695,11 +1689,39 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 						__func__);
 				}
 			} else
-				carrier_power_average_max = carrier_power_max/2;
+				carrier_power_average_max = carrier_power_max;
+			broad_std = broad_std_final;
 			pr_err("%s:broad_std:%d,carrier_power_average_max:%lu\n",
 				__func__, broad_std, carrier_power_average_max);
 			if (carrier_power_average_max < 150)
 				pr_err("%s,carrier too low error\n", __func__);
+
+			if (p != NULL) {
+				p->analog.std = V4L2_COLOR_STD_PAL;
+				switch (broad_std) {
+				case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
+					p->analog.std |= V4L2_STD_PAL_DK;
+					p->analog.audmode = V4L2_STD_PAL_DK;
+				break;
+				case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
+					p->analog.std |= V4L2_STD_PAL_I;
+					p->analog.audmode = V4L2_STD_PAL_I;
+				break;
+				case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
+					p->analog.std |= V4L2_STD_PAL_BG;
+					p->analog.audmode = V4L2_STD_PAL_BG;
+				break;
+				case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
+					p->analog.std |= V4L2_STD_PAL_M;
+					p->analog.audmode = V4L2_STD_PAL_M;
+				break;
+				default:
+					p->analog.std |= V4L2_STD_PAL_DK;
+					p->analog.audmode = V4L2_STD_PAL_DK;
+				}
+				p->frequency += 1;
+				fe->ops.set_frontend(fe);
+			}
 			return broad_std;
 		}
 		switch (broad_std) {
@@ -1745,7 +1767,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 				p->frequency += 1;
 				p->analog.audmode = V4L2_STD_PAL_DK;
 			}
-			delay_ms = dk_audio_det_delay;
+			delay_ms = delay_ms_default;
 			break;
 
 		default:
@@ -1761,7 +1783,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 		temp_data = temp_data | 0x80;/* 0x40 */
 		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
 
-		mdelay(delay_ms);
+		usleep_range(delay_ms*1000, delay_ms*1000+100);
 
 		carrier_lock_count = 0;
 		i = 4;
