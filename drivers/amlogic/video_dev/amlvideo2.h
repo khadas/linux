@@ -18,6 +18,6 @@
 #ifndef AMLVIDEO2_H_
 #define AMLVIDEO2_H_
 
-void vf_inqueue(struct vframe_s *vf, const char *receiver);
+/* void vf_inqueue(struct vframe_s *vf, const char *receiver); */
 
 #endif /* AMLVIDEO2_H_ */

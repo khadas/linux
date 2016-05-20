@@ -305,7 +305,7 @@ static void vfm_init(void)
 				 */
 #ifdef CONFIG_V4L_AMLOGIC_VIDEO2
 	char def_amlvideo2_id[] = "default_amlvideo2";
-	char def_amlvideo2_chain[] = "vdin1 amlvideo2";
+	char def_amlvideo2_chain[] = "vdin1 amlvideo2_1";
 #endif				/*
 				 */
 #if (defined CONFIG_TVIN_AFE) || (defined CONFIG_TVIN_HDMI)
