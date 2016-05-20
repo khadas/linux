@@ -268,6 +268,13 @@
 #define VIU_VD2_FMT_CTRL 0x1a88
 #define VIU_VD2_FMT_W 0x1a89
 
+#define	VIU_OSD1_EOTF_CTL		0x1ad4
+#define VIU_OSD1_EOTF_LUT_ADDR_PORT	0x1ada
+#define VIU_OSD1_EOTF_LUT_DATA_PORT	0x1adb
+#define VIU_OSD1_OETF_CTL		0x1adc
+#define VIU_OSD1_OETF_LUT_ADDR_PORT	0x1add
+#define VIU_OSD1_OETF_LUT_DATA_PORT	0x1ade
+
 /* vpp */
 #define VPP_DUMMY_DATA 0x1d00
 #define VPP_LINE_IN_LENGTH 0x1d01

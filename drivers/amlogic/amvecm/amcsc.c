@@ -1615,10 +1615,6 @@ static void vpp_set_matrix(
 		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00000400);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
-			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xe00);
-			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
-		}
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	} else if (csc_mode >= VPP_MATRIX_BT2020YUV_BT2020RGB) {
 		if (vd1_or_vd2_or_post == VPP_MATRIX_VD1) {
@@ -1630,10 +1626,6 @@ static void vpp_set_matrix(
 			WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x0);
 			WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x0);
 			WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x0);
-			if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0xe00);
-				WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0xe00);
-			}
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 		}
 		if (vd1_or_vd2_or_post == VPP_MATRIX_POST) {
@@ -2320,24 +2312,24 @@ static int hdr_process(
 			eotf_33_linear_mapping, /* R */
 			eotf_33_linear_mapping, /* G */
 			eotf_33_linear_mapping, /* B */
-			CSC_OFF);
+			CSC_ON);
 
 		/* eotf matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
 			eotf_bypass_coeff,
-			CSC_OFF);
+			CSC_ON);
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_OETF,
 			oetf_41_linear_mapping, /* R */
 			oetf_41_linear_mapping, /* G */
 			oetf_41_linear_mapping, /* B */
-			CSC_OFF);
+			CSC_ON);
 
 		/* osd matrix RGB709 to YUV709 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
 			RGB709_to_YUV709l_coeff,
-			CSC_OFF);
+			CSC_ON);
 
 		/************** VIDEO **************/
 		/* vd1 matrix bypass */
@@ -2426,27 +2418,27 @@ static void bypass_hdr_process(
 			eotf_33_linear_mapping, /* R */
 			eotf_33_linear_mapping, /* G */
 			eotf_33_linear_mapping, /* B */
-			CSC_OFF);
+			CSC_ON);
 
 		/* eotf matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
 			eotf_bypass_coeff,
-			CSC_OFF);
+			CSC_ON);
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_OETF,
 			oetf_41_linear_mapping, /* R */
 			oetf_41_linear_mapping, /* G */
 			oetf_41_linear_mapping, /* B */
-			CSC_OFF);
+			CSC_ON);
 
 		/* osd matrix RGB709 to YUV709 limit */
 		set_vpp_matrix(VPP_MATRIX_OSD,
 			RGB709_to_YUV709l_coeff,
-			CSC_OFF);
+			CSC_ON);
 
 		/************** VIDEO **************/
-		/* vd1 matrix bypass */
+		/* vd1 matrix: bypass */
 		set_vpp_matrix(VPP_MATRIX_VD1,
 			bypass_coeff,
 			CSC_ON);
@@ -2598,7 +2590,8 @@ static void vpp_matrix_update(struct vframe_s *vf)
 			/* for gxtvbb and gxl HDR bypass process */
 			bypass_hdr_process(csc_type, vinfo);
 
-			if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+			if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+				(get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB))
 				csc_type = VPP_MATRIX_YUV709_RGB;
 		}
 		if (need_adjust_contrast) {
@@ -2653,11 +2646,11 @@ void amvecm_matrix_process(struct vframe_s *vf)
 					CSC_ON);
 	}
 
-	/* debug vframe info backup */
-	dbg_vf = vf;
-
 	if (vf == last_vf)
 		return;
+
+	/* debug vframe info backup */
+	dbg_vf = vf;
 
 	if (vf != NULL) {
 		vpp_matrix_update(vf);
@@ -2694,7 +2687,6 @@ int amvecm_hdr_dbg(void)
 	if (dbg_vf == NULL)
 		goto hdr_dump;
 	pr_err("\n----vframe info----\n");
-	pr_err("vframe:%p\n", dbg_vf);
 	pr_err("index:%d, type:0x%x, type_backup:0x%x, blend_mode:%d\n",
 		dbg_vf->index, dbg_vf->type,
 		dbg_vf->type_backup, dbg_vf->blend_mode);
@@ -2752,9 +2744,8 @@ int amvecm_hdr_dbg(void)
 		vf->prop.meas.hs_cnt2, vf->prop.meas.hs_cnt3,
 		vf->prop.meas.vs_cycle, vf->prop.meas.vs_stamp);
 	*/
-	pr_err("pixel_ratio:%d list:%p\n",
-		dbg_vf->pixel_ratio, &dbg_vf->list);
-	pr_err("ready_jiffies64:%lld, frame_dirty %d\n",
+	pr_err("pixel_ratio:%d list:%p ready_jiffies64:%lld, frame_dirty %d\n",
+		dbg_vf->pixel_ratio, &dbg_vf->list,
 		dbg_vf->ready_jiffies64, dbg_vf->frame_dirty);
 
 	pr_err("\n----Source HDR info----\n");
@@ -2764,7 +2755,7 @@ int amvecm_hdr_dbg(void)
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 2; j++)
 			pr_err(
-				"\t\t primaries[%1d][%1d] = %04x\n",
+				"\t\tprimaries[%1d][%1d] = %04x\n",
 			i, j,
 			dbg_vf->prop.master_display_colour.primaries[i][j]);
 	pr_err("\t\twhite_point = (%04x, %04x)\n",
@@ -2797,7 +2788,7 @@ hdr_dump:
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 2; j++)
 			pr_err(
-				"\t\t primaries[%1d][%1d] = %04x\n",
+				"\t\tprimaries[%1d][%1d] = %04x\n",
 				i, j,
 				dbg_hdr_send.primaries[i][j]);
 	pr_err("\t\twhite_point = (%04x, %04x)\n",
