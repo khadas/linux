@@ -630,7 +630,8 @@ static int rdma_probe(struct platform_device *pdev)
 			/*do not change it in normal case*/
 			info->rdma_ins[i].used = 0;
 	}
-
+	WRITE_MPEG_REG(RESET4_REGISTER,
+				   (1 << 5));
 #if 1
 	info->rdma_ins[3].used = 1; /* OSD driver uses this channel */
 #endif
