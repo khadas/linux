@@ -3692,7 +3692,7 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		put_user(wq->mem.buf_size, (u32 *)arg);
 		break;
 	case AMVENC_AVC_IOC_GET_DEVINFO:
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			/* send the same id as GXTVBB to upper*/
 			r = copy_to_user((s8 *)arg, AMVENC_DEVINFO_GXTVBB,
 				strlen(AMVENC_DEVINFO_GXTVBB));
