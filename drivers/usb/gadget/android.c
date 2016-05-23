@@ -151,6 +151,31 @@ static struct usb_configuration android_config_driver = {
 	.MaxPower	= 500, /* 500ma */
 };
 
+/* adjust the wake_lock to change action for system suspend */
+static void adjust_gadget_wake_lock(struct wake_lock *pwake_lock, int islock)
+{
+	struct usb_composite_dev *cdev;
+	cdev = container_of(pwake_lock, struct usb_composite_dev, wake_lock);
+
+	/* if disconnect to pc, we should unlock the android lock */
+	if (islock == -1) {
+		pr_info("%s unlock\n", __func__);
+		cdev->is_lock = 0;
+		wake_unlock(pwake_lock);
+		return;
+	}
+
+	if (!islock && cdev->is_lock && !--cdev->is_lock) {
+		pr_info("%s unlock\n", __func__);
+		wake_unlock(pwake_lock);
+	} else if (islock) {
+		pr_info("%s lock\n", __func__);
+		wake_lock(pwake_lock);
+		cdev->is_lock++;
+	}
+}
+
+
 static void android_work(struct work_struct *data)
 {
 	struct android_dev *dev = container_of(data, struct android_dev, work);
@@ -167,6 +192,11 @@ static void android_work(struct work_struct *data)
 	else if (dev->connected != dev->sw_connected)
 		uevent_envp = dev->connected ? connected : disconnected;
 	dev->sw_connected = dev->connected;
+	if (!dev->connected)
+		adjust_gadget_wake_lock(&cdev->wake_lock, -1);
+	else if (uevent_envp == configured)
+		adjust_gadget_wake_lock(&cdev->wake_lock, 1);
+
 	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	if (uevent_envp) {

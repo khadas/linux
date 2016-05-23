@@ -1332,12 +1332,10 @@ void pcd_remove(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 int get_pcd_ums_state(dwc_otg_pcd_t *pcd)
 {
-#if 0
 	if (gadget_wrapper &&
 		(pcd == gadget_wrapper->pcd) &&
 		gadget_wrapper->gadget.priv_data)
 		return *(int *)gadget_wrapper->gadget.priv_data;
-#endif
 	return 0;
 }
 #endif

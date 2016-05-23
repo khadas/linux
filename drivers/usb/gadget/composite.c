@@ -1545,7 +1545,7 @@ static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
 		cdev->driver->unbind(cdev);
 
 	composite_dev_cleanup(cdev);
-
+	wake_lock_destroy(&cdev->wake_lock);
 	kfree(cdev->def_manufacturer);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
@@ -1667,12 +1667,13 @@ static int composite_bind(struct usb_gadget *gadget,
 	if (!cdev)
 		return status;
 
+	gadget->priv_data = &cdev->is_lock;
 	spin_lock_init(&cdev->lock);
 	cdev->gadget = gadget;
 	set_gadget_data(gadget, cdev);
 	INIT_LIST_HEAD(&cdev->configs);
 	INIT_LIST_HEAD(&cdev->gstrings);
-
+	wake_lock_init(&cdev->wake_lock, WAKE_LOCK_SUSPEND,  "usb_composite");
 	status = composite_dev_prepare(composite, cdev);
 	if (status)
 		goto fail;
