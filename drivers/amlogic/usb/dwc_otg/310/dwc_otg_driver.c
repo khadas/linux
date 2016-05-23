@@ -57,6 +57,7 @@
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd_if.h"
 #include "dwc_otg_hcd_if.h"
+#include "dwc_otg_pcd.h"
 
 #include <linux/of_platform.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
@@ -69,6 +70,7 @@
 #include <linux/amlogic/usbtype.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/workqueue.h>
 
 #define DWC_DRIVER_VERSION	"3.10a 12-MAY-2014"
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
@@ -589,6 +591,29 @@ void dwc_otg_charger_detect_notifier_call(int bc_mode)
 	blocking_notifier_call_chain(&dwc_otg_charger_detect_notifier_list, bc_mode, NULL);
 }
 
+static void amlogic_device_detect_work(struct work_struct *work)
+{
+	dwc_otg_device_t *dwc_otg_device =
+		container_of(work, dwc_otg_device_t, work.work);
+	int ret;
+
+	if (USB_OTG == dwc_otg_device->core_if->controller_type) {
+		ret = device_status((unsigned long)dwc_otg_device->
+				core_if->usb_peri_reg);
+		if (!ret) {
+			DWC_PRINTF("usb device plug out, stop pcd!!!\n");
+			if (dwc_otg_device->pcd->core_if->pcd_cb->stop)
+				dwc_otg_device->pcd->core_if->
+					pcd_cb->stop(dwc_otg_device->pcd);
+		} else {
+			schedule_delayed_work(&dwc_otg_device->work,
+				msecs_to_jiffies(100));
+		}
+	}
+
+	return;
+}
+
 #define FORCE_ID_CLEAR	-1
 #define FORCE_ID_HOST	0
 #define FORCE_ID_SLAVE	1
@@ -916,7 +941,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	struct gpio_desc *usb_gd = NULL;
 	struct dwc_otg_driver_module_params *pcore_para;
 	static int dcount;
-	int controller_type = 0;
+	int controller_type = USB_NORMAL;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
 
@@ -1020,6 +1045,11 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (controller_type == USB_HOST_ONLY && !force_device_mode) {
+		DWC_PRINTF("%s host only, not probe usb_otg!!!\n", __func__);
+		return -ENODEV;
+	}
+
 	dwc_otg_device = DWC_ALLOC(sizeof(dwc_otg_device_t));
 
 	if (!dwc_otg_device) {
@@ -1079,7 +1109,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "dwc_otg_device=0x%p\n", dwc_otg_device);
 
 	if (clk_enable_usb(pdev, s_clock_name,
-		(unsigned long)phy_reg_addr, cpu_type)) {
+		(unsigned long)phy_reg_addr, cpu_type, controller_type)) {
 		dev_err(&pdev->dev, "Set dwc_otg PHY clock failed!\n");
 		return -ENODEV;
 	}
@@ -1148,7 +1178,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 
 
 
-	if (1 == controller_type) {
+	if (USB_NORMAL != controller_type) {
 		if (dwc_otg_module_params.data_fifo_size == 728) {
 			dwc_otg_module_params.data_fifo_size = -1;
 			dwc_otg_module_params.host_rx_fifo_size = -1;
@@ -1309,6 +1339,8 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	}
 
 	dwc_otg_save_global_regs(dwc_otg_device->core_if);
+
+	INIT_DELAYED_WORK(&dwc_otg_device->work, amlogic_device_detect_work);
 
 	/*
 	 * Enable the global interrupt after all the interrupt

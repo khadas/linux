@@ -61,6 +61,7 @@
 #include "dwc_otg_dbg.h"
 #include <linux/platform_device.h>
 #include <linux/usb/gadget.h>
+#include <linux/amlogic/usb-gxl.h>
 
 static struct gadget_wrapper {
 	dwc_otg_pcd_t *pcd;
@@ -1246,6 +1247,24 @@ static void free_wrapper(struct gadget_wrapper *d)
 	d = NULL;
 }
 
+int dwc_usb_change(struct notifier_block *nb,
+			      unsigned long value, void *pdata)
+{
+	dwc_otg_device_t *otg_dev;
+
+	otg_dev = container_of(nb, dwc_otg_device_t, nb);
+
+	if (value) {
+		DWC_DEBUGPL(DBG_PCDV, "start usb device\n");
+		otg_dev->pcd->core_if->pcd_cb->start(otg_dev->pcd);
+	} else {
+		DWC_DEBUGPL(DBG_PCDV, "stop usb device\n");
+		otg_dev->pcd->core_if->pcd_cb->stop(otg_dev->pcd);
+	}
+
+	return 0;
+}
+
 /**
  * This function initialized the PCD portion of the driver.
  *
@@ -1264,6 +1283,10 @@ int pcd_init(struct platform_device *pdev)
 		DWC_ERROR("dwc_otg_pcd_init failed\n");
 		return -ENOMEM;
 	}
+
+
+	aml_new_usb_register_notifier(&otg_dev->nb);
+	otg_dev->nb.notifier_call = dwc_usb_change;
 
 	otg_dev->pcd->otg_dev = otg_dev;
 	gadget_wrapper = alloc_wrapper(pdev);
@@ -1326,6 +1349,7 @@ void pcd_remove(struct platform_device *pdev)
 	free_irq(irq, pcd);
 	free_wrapper(gadget_wrapper);
 	dwc_otg_pcd_remove(otg_dev->pcd);
+	aml_new_usb_unregister_notifier(&otg_dev->nb);
 	otg_dev->pcd = 0;
 }
 

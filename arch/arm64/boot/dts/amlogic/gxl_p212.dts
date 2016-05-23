@@ -859,7 +859,7 @@
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		usb-fifo = <728>;
 		cpu-type = "gxl";
-		controller-type = <1>; /** 0: normal, 1: otg+dwc3*/
+		controller-type = <1>; /** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 		phy-reg = <0xd0078000>;
 		phy-reg-size = <0xa0>;
 		resets = <&clock GCLK_IDX_USB_GENERAL

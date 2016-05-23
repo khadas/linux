@@ -26,6 +26,11 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 	struct u2p_aml_regs_t u2p_aml_regs;
 	union u2p_r0_t reg0;
 
+	if (phy->suspend_flag) {
+		phy->suspend_flag = 0;
+		return 0;
+	}
+
 	amlogic_new_usbphy_reset();
 
 	for (i = 0; i < phy->portnum; i++) {
@@ -39,7 +44,8 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 		reg0.b.por = 1;
 		reg0.b.dmpulldown = 1;
 		reg0.b.dppulldown = 1;
-
+		if (1 == i)
+			reg0.b.idpullup = 1;
 		writel(reg0.d32, u2p_aml_regs.u2p_r[0]);
 
 		udelay(time_dly);
@@ -55,6 +61,13 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 static int amlogic_new_usb2_suspend(struct usb_phy *x, int suspend)
 {
 	return 0;
+}
+
+static void amlogic_new_usb2phy_shutdown(struct usb_phy *x)
+{
+	struct amlogic_usb *phy = phy_to_amlusb(x);
+
+	phy->suspend_flag = 1;
 }
 
 static int amlogic_new_usb2_probe(struct platform_device *pdev)
@@ -91,10 +104,12 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy->dev		= dev;
 	phy->regs		= phy_base;
 	phy->portnum      = portnum;
+	phy->suspend_flag = 0;
 	phy->phy.dev		= phy->dev;
 	phy->phy.label		= "amlogic-usbphy2";
 	phy->phy.init		= amlogic_new_usb2_init;
 	phy->phy.set_suspend	= amlogic_new_usb2_suspend;
+	phy->phy.shutdown	= amlogic_new_usb2phy_shutdown;
 	phy->phy.type		= USB_PHY_TYPE_USB2;
 
 	usb_add_phy_dev(&phy->phy);

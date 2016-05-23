@@ -3,9 +3,16 @@
 
 #include <linux/usb/phy.h>
 #include <linux/platform_device.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/workqueue.h>
+#include <linux/notifier.h>
 
 #define PHY_REGISTER_SIZE	0x20
 /* Register definitions */
+
+int aml_new_usb_register_notifier(struct notifier_block *nb);
+int aml_new_usb_unregister_notifier(struct notifier_block *nb);
+
 struct u2p_aml_regs_t {
 	void __iomem	*u2p_r[3];
 };
@@ -217,7 +224,15 @@ struct amlogic_usb {
 	struct usb_phy		phy;
 	struct device		*dev;
 	void __iomem	*regs;
+
+	/* Set VBus Power though GPIO */
+	int vbus_power_pin;
+	int vbus_power_pin_work_mask;
+	struct delayed_work	work;
+	struct gpio_desc *usb_gpio_desc;
+
 	int portnum;
+	int suspend_flag;
 };
 
 #endif

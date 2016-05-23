@@ -42,6 +42,8 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
+#include <linux/notifier.h>
+
 /* Type declarations */
 struct dwc_otg_pcd;
 struct dwc_otg_hcd;
@@ -77,6 +79,10 @@ typedef struct dwc_otg_device {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend usb_early_suspend;
 #endif
+
+	struct notifier_block nb;
+
+	struct delayed_work	work;
 } dwc_otg_device_t;
 
 /*We must clear S3C24XX_EINTPEND external interrupt register

@@ -2004,7 +2004,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 		usb_peri_reg_t *peri;
 		usb_adp_bc_data_t adp_bc;
 
-		if (core_if->controller_type == 1) {
+		if (core_if->controller_type != 0) {
 			core_if->session_valid = 1;
 			core_if->dev_if->vbus_on = 1;
 			return;

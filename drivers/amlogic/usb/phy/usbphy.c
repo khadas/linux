@@ -50,6 +50,25 @@ struct clk_reset {
 
 struct clk_reset p_clk_reset[4];
 
+/*ret 1: device plug in
+   ret  0: device plug out*/
+int device_status(unsigned long usb_peri_reg)
+{
+	struct u2p_aml_regs_t u2p_aml_regs;
+	union u2p_r2_t reg2;
+	int ret = 1;
+
+	u2p_aml_regs.u2p_r[2] = (void __iomem	*)
+				((unsigned long)usb_peri_reg +
+					PHY_REGISTER_SIZE + 0x8);
+	reg2.d32 = readl(u2p_aml_regs.u2p_r[2]);
+	if (!reg2.b.device_sess_vld)
+		ret = 0;
+
+	return ret;
+}
+EXPORT_SYMBOL(device_status);
+
 int clk_enable_usb_meson8(struct platform_device *pdev,
 			const char *s_clock_name, unsigned long usb_peri_reg)
 {
@@ -308,7 +327,8 @@ void clk_disable_usb_gxbaby(struct platform_device *pdev,
 	return;
 }
 
-static void set_device_mode(unsigned long reg_addr)
+static void set_device_mode(struct platform_device *pdev,
+				unsigned long reg_addr, int controller_type)
 {
 	struct u2p_aml_regs_t u2p_aml_regs;
 	struct usb_aml_regs_t usb_aml_regs;
@@ -341,15 +361,16 @@ static void set_device_mode(unsigned long reg_addr)
 	r4.b.p21_SLEEPM0 = 0x1;
 	writel(r4.d32, usb_aml_regs.usb_r[4]);
 
-	r1.d32 = readl(usb_aml_regs.usb_r[1]);
-	r1.b.u3h_host_u2_port_disable = 0x2;
-	writel(r1.d32, usb_aml_regs.usb_r[1]);
-
+	if (USB_OTG != controller_type) {
+		r1.d32 = readl(usb_aml_regs.usb_r[1]);
+		r1.b.u3h_host_u2_port_disable = 0x2;
+		writel(r1.d32, usb_aml_regs.usb_r[1]);
+	}
 }
 
 int clk_enable_usb_gxbabytv(struct platform_device *pdev,
-			const char *s_clock_name,
-			unsigned long usb_peri_reg)
+			const char *s_clock_name, unsigned long usb_peri_reg,
+			int controller_type)
 {
 	struct reset_control *usb_reset;
 	usb_reset = devm_reset_control_get(&pdev->dev, "usb_general");
@@ -361,16 +382,17 @@ int clk_enable_usb_gxbabytv(struct platform_device *pdev,
 	usb_reset = devm_reset_control_get(&pdev->dev, "usb1_to_ddr");
 	reset_control_deassert(usb_reset);
 	p_clk_reset[pdev->id].usb_reset_usb_to_ddr = usb_reset;
-	set_device_mode(usb_peri_reg);
+	set_device_mode(pdev, usb_peri_reg, controller_type);
 	return 0;
 }
 
 
 int clk_enable_usb_gxl(struct platform_device *pdev,
-			const char *s_clock_name,
-			unsigned long usb_peri_reg)
+			const char *s_clock_name, unsigned long usb_peri_reg,
+			int controller_type)
 {
 	struct reset_control *usb_reset;
+
 	usb_reset = devm_reset_control_get(&pdev->dev, "usb_general");
 	reset_control_deassert(usb_reset);
 	p_clk_reset[pdev->id].usb_reset_usb_general = usb_reset;
@@ -380,7 +402,7 @@ int clk_enable_usb_gxl(struct platform_device *pdev,
 	usb_reset = devm_reset_control_get(&pdev->dev, "usb1_to_ddr");
 	reset_control_deassert(usb_reset);
 	p_clk_reset[pdev->id].usb_reset_usb_to_ddr = usb_reset;
-	set_device_mode(usb_peri_reg);
+	set_device_mode(pdev, usb_peri_reg, controller_type);
 	return 0;
 }
 
@@ -477,8 +499,8 @@ int clk_resume_usb_gxl(struct platform_device *pdev,
 
 
 int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
-		unsigned long usb_peri_reg,
-		const char *cpu_type)
+		unsigned long usb_peri_reg, const char *cpu_type,
+		int controller_type)
 {
 	int ret = 0;
 
@@ -493,10 +515,10 @@ int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
 				s_clock_name, usb_peri_reg);
 	else if (!strcmp(cpu_type, GXBABYTV))
 		ret = clk_enable_usb_gxbabytv(pdev,
-				s_clock_name, usb_peri_reg);
+				s_clock_name, usb_peri_reg, controller_type);
 	else if (!strcmp(cpu_type, GXL))
 		ret = clk_enable_usb_gxl(pdev,
-				s_clock_name, usb_peri_reg);
+				s_clock_name, usb_peri_reg, controller_type);
 
 	/*add other cpu type's usb clock enable*/
 

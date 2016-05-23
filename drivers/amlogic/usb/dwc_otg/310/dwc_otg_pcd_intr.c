@@ -33,6 +33,7 @@
 #ifndef DWC_HOST_ONLY
 
 #include "dwc_otg_pcd.h"
+#include <linux/workqueue.h>
 
 #ifdef DWC_UTE_CFI
 #include "dwc_otg_cfi.h"
@@ -612,10 +613,10 @@ void dwc_otg_pcd_stop(dwc_otg_pcd_t *pcd)
 	num_in_eps = GET_CORE_IF(pcd)->dev_if->num_in_eps;
 	num_out_eps = GET_CORE_IF(pcd)->dev_if->num_out_eps;
 
-	DWC_DEBUGPL(DBG_PCDV, "%s() \n", __func__);
+	DWC_DEBUGPL(DBG_PCDV, "%s()\n", __func__);
 	/* don't disconnect drivers more than once */
 	if (pcd->ep0state == EP0_DISCONNECT) {
-		DWC_DEBUGPL(DBG_ANY, "%s() Already Disconnected\n", __func__);
+		DWC_DEBUGPL(DBG_PCDV, "%s() Already Disconnected\n", __func__);
 		DWC_SPINUNLOCK_IRQRESTORE(pcd->lock, flags);
 		return;
 	}
@@ -1133,6 +1134,9 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *pcd)
 	gintsts.b.enumdone = 1;
 	DWC_WRITE_REG32(&GET_CORE_IF(pcd)->core_global_regs->gintsts,
 			gintsts.d32);
+
+	schedule_delayed_work(&pcd->otg_dev->work, msecs_to_jiffies(10));
+
 	return 1;
 }
 

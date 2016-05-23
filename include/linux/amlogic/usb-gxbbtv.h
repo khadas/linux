@@ -3,6 +3,8 @@
 
 #include <linux/usb/phy.h>
 #include <linux/platform_device.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/workqueue.h>
 
 #define PHY_REGISTER_SIZE	0x20
 /* Register definitions */
@@ -207,7 +209,14 @@ struct amlogic_usb {
 	struct usb_phy		phy;
 	struct device		*dev;
 	void __iomem	*regs;
+
+	/* Set VBus Power though GPIO */
+	int vbus_power_pin;
+	int vbus_power_pin_work_mask;
+	struct gpio_desc *usb_gpio_desc;
+	struct delayed_work	work;
 	int portnum;
+	int suspend_flag;
 };
 
 #endif
