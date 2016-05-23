@@ -945,6 +945,8 @@ void dtmb_all_reset(void)
 	dtmb_write_reg(DTMB_TOP_CTRL_ENABLE, 0x7fffff);
 	/*close ts3 timing loop*/
 	dtmb_write_reg(DTMB_TOP_CTRL_DAGC_CCI, 0x305);
+	/*dektec card issue,close f case snr drop*/
+	dtmb_write_reg(DTMB_CHE_MC_SC_TIMING_POWTHR, 0xc06100a);
 	if (demod_enable_performance) {
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG1, 0x4040002);
 		temp_data = dtmb_read_reg(DTMB_CHE_FD_TD_COEFF);
@@ -1356,6 +1358,7 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 /* demod_sta->tmp=Adc_mode; */
 	unsigned char dvb_mode;
 	int clk_adc, clk_dem;
+	int gpiW_2;
 
 	dvb_mode = demod_sta->dvb_mode;
 	clk_adc = demod_sys->adc_clk;
@@ -1367,9 +1370,12 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	clocks_set_sys_defaults(dvb_mode);
 	/* open dtv adc pinmux */
 /* demod_set_cbus_reg(0x10000,0x2034); */
-	demod_set_demod_reg(0x2c0f07e, 0xc88344c4);
-
-	pr_dbg("[R840]set adc pinmux\n");
+/* demod_set_demod_reg(0x2c0f07e, 0xc88344c4);*/
+	gpiW_2 = demod_read_demod_reg(0xc88344c4);
+	gpiW_2 = gpiW_2 | (0x1 << 25);
+	gpiW_2 = gpiW_2 & ~(0xd << 24);
+	demod_set_demod_reg(gpiW_2, 0xc88344c4);
+	pr_dbg("[R840]set adc pinmux,gpiW_2 %x\n", gpiW_2);
 	/* set adc clk */
 	demod_set_adc_core_clk(clk_adc, clk_dem, dvb_mode);
 	/* init for dtmb */

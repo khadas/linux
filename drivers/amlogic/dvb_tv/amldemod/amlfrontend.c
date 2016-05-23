@@ -95,37 +95,88 @@ static ssize_t dvbc_auto_sym_store(struct class *cls,
 	return 0;
 }
 
-static ssize_t dvbc_para_show(struct class *cls, struct class_attribute *attr,
-			      char *buf)
+static unsigned dtmb_mode;
+
+enum {
+	DTMB_READ_STRENGTH = 0,
+	DTMB_READ_SNR = 1,
+	DTMB_READ_LOCK = 2,
+	DTMB_READ_BCH = 3,
+};
+
+
+
+int convert_snr(int in_snr)
 {
-/*	struct aml_demod_sts demod_sts;
-	struct aml_demod_i2c demod_i2c;
-	char *pbuf = buf;
-	int strength = 0;
+	int out_snr;
+	static int calce_snr[40] = {
+		5, 6, 8, 10, 13,
+		16, 20, 25, 32, 40,
+		50, 63, 80, 100, 126,
+		159, 200, 252, 318, 400,
+		504, 634, 798, 1005, 1265,
+		1592, 2005, 2524, 3177, 4000,
+		5036, 6340, 7981, 10048, 12649,
+		15924, 20047, 25238, 31773, 40000};
+	for (out_snr = 1 ; out_snr <= 40; out_snr++)
+		if (in_snr <= calce_snr[out_snr])
+			break;
 
-	mutex_lock(&aml_lock);
-
-	dvbc_status(&demod_status, &demod_i2c, &demod_sts);
-	pbuf += sprintf(pbuf, "dvbc_para: ch_sts is %d", demod_sts.ch_sts);
-	pbuf += sprintf(pbuf, "snr %d dB\n", demod_sts.ch_snr / 100);
-	pbuf += sprintf(pbuf, "ber %d", demod_sts.ch_ber);
-	pbuf += sprintf(pbuf, "per %d\n", demod_sts.ch_per);
-	pbuf += sprintf(pbuf, "srate %d", demod_sts.symb_rate);
-	pbuf += sprintf(pbuf, "freqoff %d kHz\n", demod_sts.freq_off);
-	pbuf += sprintf(pbuf, "power is %d db", demod_sts.ch_pow);
-	pbuf += sprintf(pbuf, "tuner strength -%d db", (256 - strength));
-
-	mutex_unlock(&aml_lock);
-
-	return pbuf - buf;*/
-	return 0;
+	return out_snr;
 }
 
-static ssize_t dvbc_para_store(struct class *cls, struct class_attribute *attr,
-			       const char *buf, size_t count)
-{
 
-	return 0;
+static ssize_t dtmb_para_show(struct class *cls,
+				  struct class_attribute *attr, char *buf)
+{
+	int snr, lock_status, bch, agc_if_gain;
+	struct dvb_frontend *dvbfe;
+	int strength = 0;
+	if (dtmb_mode == DTMB_READ_STRENGTH) {
+		dvbfe = get_si2177_tuner();
+		if (dvbfe != NULL)
+			if (dvbfe->ops.tuner_ops.get_strength) {
+				strength =
+				dvbfe->ops.tuner_ops.get_strength(dvbfe);
+			}
+		if (strength <= -56) {
+			agc_if_gain =
+				((dtmb_read_reg(DTMB_TOP_FRONT_AGC))&0x3ff);
+			strength = dtmb_get_power_strength(agc_if_gain);
+		}
+		return sprintf(buf, "strength is %d\n", strength);
+	} else if (dtmb_mode == DTMB_READ_SNR) {
+		snr = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR) & 0x3fff;
+		snr = convert_snr(snr);
+		return sprintf(buf, "snr is %d\n", snr);
+	} else if (dtmb_mode == DTMB_READ_LOCK) {
+		lock_status =
+			(dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR) >> 14) & 0x1;
+		return sprintf(buf, "lock_status is %d\n", lock_status);
+	} else if (dtmb_mode == DTMB_READ_BCH) {
+		bch = dtmb_read_reg(DTMB_TOP_FEC_BCH_ACC);
+		return sprintf(buf, "bch is %d\n", bch);
+	} else {
+		return sprintf(buf, "dtmb_para_show can't match mode\n");
+	}
+}
+
+
+
+static ssize_t dtmb_para_store(struct class *cls,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	if (buf[0] == '0')
+		dtmb_mode = DTMB_READ_STRENGTH;
+	else if (buf[0] == '1')
+		dtmb_mode = DTMB_READ_SNR;
+	else if (buf[0] == '2')
+		dtmb_mode = DTMB_READ_LOCK;
+	else if (buf[0] == '3')
+		dtmb_mode = DTMB_READ_BCH;
+
+	return count;
 }
 
 static int readregdata;
@@ -149,7 +200,7 @@ static ssize_t dvbc_reg_store(struct class *cls, struct class_attribute *attr,
 }
 
 static CLASS_ATTR(auto_sym, 0644, dvbc_auto_sym_show, dvbc_auto_sym_store);
-static CLASS_ATTR(dvbc_para, 0644, dvbc_para_show, dvbc_para_store);
+static CLASS_ATTR(dtmb_para, 0644, dtmb_para_show, dtmb_para_store);
 static CLASS_ATTR(dvbc_reg, 0666, dvbc_reg_show, dvbc_reg_store);
 
 #if 0
@@ -1226,7 +1277,7 @@ static int __init gxtvdemodfrontend_init(void)
 	if (ret)
 		pr_error("[gxtv demod]%s create class error.\n", __func__);
 
-	ret = class_create_file(gxtv_clsp, &class_attr_dvbc_para);
+	ret = class_create_file(gxtv_clsp, &class_attr_dtmb_para);
 	if (ret)
 		pr_error("[gxtv demod]%s create class error.\n", __func__);
 
@@ -1244,7 +1295,7 @@ static void __exit gxtvdemodfrontend_exit(void)
 	mutex_destroy(&aml_lock);
 
 	class_remove_file(gxtv_clsp, &class_attr_auto_sym);
-	class_remove_file(gxtv_clsp, &class_attr_dvbc_para);
+	class_remove_file(gxtv_clsp, &class_attr_dtmb_para);
 	class_remove_file(gxtv_clsp, &class_attr_dvbc_reg);
 	class_destroy(gxtv_clsp);
 	aml_unregister_fe_drv(AM_DEV_DTV_DEMOD, &gxtv_demod_dtv_demod_drv);
