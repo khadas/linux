@@ -55,8 +55,11 @@ static unsigned short vsync_cnt;
 static unsigned short fault_cnt;
 static unsigned int reset_cnt;
 static unsigned int reset_cnt_high;
+static int iw7019_spi_rw_test_flag;
 
 static spinlock_t iw7019_spi_lock;
+static struct workqueue_struct  *iw7019_workqueue;
+static struct work_struct iw7019_work;
 
 struct ld_config_s iw7019_ld_config = {
 	.dim_min = 0x7f, /* min 3% duty */
@@ -342,6 +345,106 @@ static int iw7019_hw_init_off(struct iw7019 *bl)
 	return 0;
 }
 
+static int spi_rw_test_en;
+static unsigned long spi_rw_test_cnt;
+static unsigned long spi_rw_test_err;
+static unsigned int spi_rw_test_retry_max;
+#define RW_TEST_PR(err_cnt, total_cnt, addr, rval, wval, retry_n) \
+	LDIMPR("%s: failed: %ld/%ld, 0x%02x=0x%02x, w_val=0x%02x, retry=%d\n", \
+		__func__, err_cnt, total_cnt, addr, rval, wval, retry_n);
+static void iw7019_spi_rw_test_check(unsigned char reg, unsigned char val)
+{
+	int i;
+	unsigned char reg_chk;
+	unsigned int retry_cnt = 0, retry_max = 1000;
+
+	for (i = 0; i < retry_max; i++) {
+		iw7019_rreg(bl_iw7019->spi, reg, &reg_chk);
+		if (val != reg_chk) {
+			spi_rw_test_err++;
+			/*RW_TEST_PR(spi_rw_test_err, spi_rw_test_cnt,
+				reg, reg_chk, val, retry_cnt);*/
+			iw7019_wreg(bl_iw7019->spi, reg, val);
+			spi_rw_test_cnt++;
+			retry_cnt++;
+		} else {
+			break;
+		}
+	}
+	if (spi_rw_test_retry_max < retry_cnt)
+		spi_rw_test_retry_max = retry_cnt;
+	if (retry_cnt > 0) {
+		RW_TEST_PR(spi_rw_test_err, spi_rw_test_cnt,
+				reg, reg_chk, val, retry_cnt);
+	}
+}
+
+static void iw7019_spi_rw_test(struct work_struct *work)
+{
+	unsigned char val[13], n;
+	unsigned int i, j;
+
+	if (iw7019_on_flag == 0) {
+		LDIMPR("%s: on_flag=%d\n", __func__, iw7019_on_flag);
+		return;
+	}
+	if (iw7019_spi_rw_test_flag) {
+		LDIMPR("%s: is already runing\n", __func__);
+		return;
+	}
+	i = 1000;
+	while ((iw7019_spi_op_flag) && (i > 0)) {
+		i--;
+		udelay(10);
+	}
+	if (iw7019_spi_op_flag == 1) {
+		LDIMERR("%s: wait spi idle state failed\n", __func__);
+		return;
+	}
+
+	iw7019_spi_rw_test_flag = 1;
+	iw7019_spi_op_flag = 1;
+	spi_rw_test_cnt = 0;
+	spi_rw_test_err = 0;
+	spi_rw_test_retry_max = 0;
+	spi_rw_test_en = 1;
+	LDIMPR("%s: start\n", __func__);
+
+	val[0] = 0x0f;
+	while (spi_rw_test_en) {
+		for (j = 0x7f; j < 0xfff; j++) {
+			if (spi_rw_test_en == 0)
+				break;
+			for (i = 0; i < 4; i++) {
+				/* br0[11~4] */
+				val[i*3 + 1] = (j >> 4) & 0xff;
+				/* br0[3~0]|br1[11~8] */
+				val[i*3 + 2] = ((j & 0xf) << 4) |
+					((j >> 8) & 0xf);
+				/* br1[7~0] */
+				val[i*3 + 3] = j & 0xff;
+			}
+			iw7019_wregs(bl_iw7019->spi, 0x00, val, 13);
+			spi_rw_test_cnt++;
+			for (n = 0x00; n <= 0x0c; n++)
+				iw7019_spi_rw_test_check(n, val[n]);
+		}
+	}
+
+	iw7019_spi_op_flag = 0;
+	iw7019_spi_rw_test_flag = 0;
+	LDIMPR("%s: stop\n", __func__);
+	LDIMPR("iw7019 rw_test status:\n"
+		"total_test_cnt      = %ld\n"
+		"total_err_cnt       = %ld\n"
+		"retry_cnt_max       = %d\n"
+		"spi_rw_test_en      = %d\n"
+		"spi_rw_test_flag    = %d\n",
+		spi_rw_test_cnt, spi_rw_test_err,
+		spi_rw_test_retry_max,
+		spi_rw_test_en, iw7019_spi_rw_test_flag);
+}
+
 static void iw7019_spi_dump(void)
 {
 	unsigned char i, val;
@@ -431,12 +534,14 @@ static unsigned int iw7019_get_value(unsigned int level)
 
 static int iw7019_smr(unsigned short *buf, unsigned char len)
 {
-	int i, offset, cmd_len;
+	int i, j, offset, cmd_len;
 	u8 val[13];
 	unsigned int br0, br1;
 	unsigned char bri_reg;
 	unsigned char temp, reg_chk, clk_sel;
 
+	if (iw7019_spi_rw_test_flag)
+		return 0;
 	if (iw7019_on_flag == 0) {
 		if (ldim_debug_print) {
 			LDIMPR("%s: on_flag=%d\n",
@@ -492,21 +597,38 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 	iw7019_wregs(bl_iw7019->spi, bri_reg, val, cmd_len);
 
 	if (bl_iw7019->write_check) { /* brightness write check */
+		/* reg 0x00 check */
 		iw7019_rreg(bl_iw7019->spi, 0x00, &reg_chk);
 		for (i = 1; i < 3; i++) {
 			iw7019_rreg(bl_iw7019->spi, 0x00, &temp);
 			if (temp != reg_chk)
-				break;
+				goto iw7019_smr_write_chk2;
 		}
 		clk_sel = (reg_chk >> 1) & 0x3;
 		if ((reg_chk == 0xff) || (clk_sel == 0x1) || (clk_sel == 0x2) ||
 			(iw7019_spi_force_err_flag > 0)) {
 			iw7019_spi_err_flag = 1;
 			iw7019_spi_force_err_flag = 0;
-			LDIMPR("%s: spi write failed, 0x00=0x%02x\n",
+			LDIMERR("%s: spi write failed, 0x00=0x%02x\n",
 				__func__, reg_chk);
 			iw7019_reset_handler();
 			goto iw7019_smr_end;
+		}
+iw7019_smr_write_chk2:
+		/* reg brightness check */
+		for (j = 0x01; j <= 0x0c; j++) {
+			for (i = 1; i < 3; i++) {
+				iw7019_rreg(bl_iw7019->spi, j, &reg_chk);
+				if (val[j] == reg_chk) {
+					break;
+				} else {
+					LDIMERR("%s: brightness write failed\n",
+						__func__);
+					LDIMERR("0x%02x=0x%02x, w_val=0x%02x\n",
+						j, reg_chk, val[j]);
+					iw7019_wreg(bl_iw7019->spi, j, val[j]);
+				}
+			}
 		}
 	}
 	if (bl_iw7019->fault_check) {
@@ -617,6 +739,16 @@ static ssize_t iw7019_show(struct class *class,
 		ret = sprintf(buf, "\n");
 	} else if (!strcmp(attr->attr.name, "fault_cnt")) {
 		ret = sprintf(buf, "iw7019 fault_cnt = %d\n", fault_cnt);
+	} else if (!strcmp(attr->attr.name, "rw_test")) {
+		ret = sprintf(buf, "iw7019 rw_test status:\n"
+				"total_test_cnt      = %ld\n"
+				"total_err_cnt       = %ld\n"
+				"retry_cnt_max       = %d\n"
+				"spi_rw_test_en      = %d\n"
+				"spi_rw_test_flag    = %d\n",
+				spi_rw_test_cnt, spi_rw_test_err,
+				spi_rw_test_retry_max,
+				spi_rw_test_en, iw7019_spi_rw_test_flag);
 	}
 	return ret;
 }
@@ -684,6 +816,16 @@ static ssize_t iw7019_store(struct class *class,
 		i = sscanf(buf, "%d", &val);
 		fault_cnt = (unsigned char)val;
 		LDIMPR("fault_cnt=%d\n", fault_cnt);
+	} else if (!strcmp(attr->attr.name, "rw_test")) {
+		i = sscanf(buf, "%d", &val);
+		if (val) {
+			if (iw7019_spi_rw_test_flag)
+				LDIMPR("rw_test is already running\n");
+			else
+				queue_work(iw7019_workqueue, &iw7019_work);
+		} else {
+			spi_rw_test_en = 0;
+		}
 	} else
 		LDIMERR("LDIM argment error!\n");
 	return count;
@@ -704,6 +846,7 @@ static struct class_attribute iw7019_class_attrs[] = {
 	__ATTR(fault_cnt, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR(reset, S_IRUGO | S_IWUSR, NULL, iw7019_store),
 	__ATTR(dump, S_IRUGO | S_IWUSR, iw7019_show, NULL),
+	__ATTR(rw_test, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR_NULL
 };
 
@@ -839,6 +982,8 @@ static int iw7019_probe(struct spi_device *spi)
 	iw7019_spi_force_err_flag = 0;
 	vsync_cnt = 0;
 	fault_cnt = 0;
+	iw7019_spi_rw_test_flag = 0;
+	spi_rw_test_en = 0;
 	spin_lock_init(&iw7019_spi_lock);
 
 	ret = of_property_read_string(spi->dev.of_node, "status", &str);
@@ -868,12 +1013,22 @@ static int iw7019_probe(struct spi_device *spi)
 	if (ret < 0)
 		pr_err("register class failed! (%d)\n", ret);
 
+	/* init workqueue */
+	INIT_WORK(&iw7019_work, iw7019_spi_rw_test);
+	iw7019_workqueue = create_workqueue("iw7019_workqueue");
+	if (iw7019_workqueue == NULL)
+		BLERR("can't create iw7019_workqueue\n");
+
 	pr_info("%s ok\n", __func__);
 	return ret;
 }
 
 static int iw7019_remove(struct spi_device *spi)
 {
+	cancel_work_sync(&iw7019_work);
+	if (iw7019_workqueue)
+		destroy_workqueue(iw7019_workqueue);
+
 	kfree(bl_iw7019);
 	bl_iw7019 = NULL;
 	return 0;
