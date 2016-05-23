@@ -96,7 +96,11 @@ static int hdmi_stable_out_cnt = 1;/* 25; */
 module_param(hdmi_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_stable_out_cnt, "hdmi_stable_out_cnt");
 
-static int atv_stable_out_cnt = 10;
+/* change it from 10 to 100 in gxtvbb@20160523,reaseon:
+ *gxtvbb add atv snow config,the config will affect signal detect.
+ *if atv_stable_out_cnt < 100,the signal state will change
+ *after swich source to atv or after atv search*/
+static int atv_stable_out_cnt = 100;
 module_param(atv_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_out_cnt, "atv_stable_out_cnt");
 
@@ -205,6 +209,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 	struct tvin_frontend_s *fe;
 	struct tvin_sig_property_s *prop, *pre_prop;
 
+	if (devp->flags & VDIN_FLAG_SM_DISABLE)
+		return;
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return;

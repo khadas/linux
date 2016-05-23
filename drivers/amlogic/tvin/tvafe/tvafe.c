@@ -223,7 +223,14 @@ static ssize_t tvafe_store(struct device *dev,
 		afe_version, cvd_version, adc_version);
 		pr_info("LAST VERSION:[tvafe version]:%s\t[cvd2 version]:%s\t[adc version]:%s\t[format table version]:NUll\n",
 		last_afe_version, last_cvd_version, last_adc_version);
-
+	} else if (!strncmp(buff, "snowon", strlen("snowon"))) {
+			tvafe_snow_config(1);
+			devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
+			pr_info("[tvafe..]%s:tvafe snowon\n", __func__);
+	} else if (!strncmp(buff, "snowoff", strlen("snowoff"))) {
+			tvafe_snow_config(0);
+			devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
+			pr_info("[tvafe..]%s:tvafe snowoff\n", __func__);
 	} else
 		pr_info("[%s]:invaild command.\n", __func__);
 	return count;
@@ -999,7 +1006,6 @@ bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 		ret = tvafe_adc_no_sig();
 #endif
 	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_SVIDEO7)) {
-
 		ret = tvafe_cvd2_no_sig(&tvafe->cvd2, &devp->mem);
 
 		/* normal sigal & adc reg error, reload source mux */

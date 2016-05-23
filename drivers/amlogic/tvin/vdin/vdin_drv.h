@@ -74,6 +74,10 @@
 #define VDIN_FLAG_MANUAL_CONVERTION     0x00001000
 /*flag for vdin rdma enable*/
 #define VDIN_FLAG_RDMA_ENABLE           0x00002000
+/*flag for vdin snow on&off*/
+#define VDIN_FLAG_SNOW_FLAG             0x00004000
+/*flag for disable vdin sm*/
+#define VDIN_FLAG_SM_DISABLE            0x00008000
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
 #define VDIN_BYPASS_CYC_CHECK           0x00000002
@@ -273,5 +277,6 @@ extern void LDIM_Initial(int pic_h, int pic_v, int BLK_Vnum,
 	int BLK_Hnum, int BackLit_mode, int ldim_bl_en, int ldim_hvcnt_bypass);
 extern void ldim_get_matrix(int *data, int reg_sel);
 extern void ldim_set_matrix(int *data, int reg_sel);
+extern void tvafe_snow_config(unsigned int onoff);
 #endif /* __TVIN_VDIN_DRV_H */
 

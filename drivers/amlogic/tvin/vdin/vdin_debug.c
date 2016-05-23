@@ -749,6 +749,28 @@ start_chk:
 		pr_info("lumi max: %#x, min: %#x\n",
 				*((u32 *)(prop->luminance)),
 				*(((u32 *)(prop->luminance)) + 1));
+	} else if (!strcmp(parm[0], "snowon")) {
+		unsigned int fmt;
+		fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+		devp->flags |= VDIN_FLAG_SNOW_FLAG;
+		devp->flags |= VDIN_FLAG_SM_DISABLE;
+		if (devp->flags & VDIN_FLAG_DEC_STARTED)
+			pr_info("TVIN_IOC_START_DEC() TVIN_PORT_CVBS3, started already\n");
+		else {
+			devp->parm.info.fmt = fmt;
+			devp->fmt_info_p  =
+				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
+			vdin_start_dec(devp);
+			devp->flags |= VDIN_FLAG_DEC_STARTED;
+			pr_info("TVIN_IOC_START_DEC port TVIN_PORT_CVBS3, decode started ok\n\n");
+		}
+		devp->flags &= (~VDIN_FLAG_SM_DISABLE);
+		tvafe_snow_config(1);
+		pr_info("snowon config done!!\n");
+	} else if (!strcmp(parm[0], "snowoff")) {
+		devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
+		tvafe_snow_config(0);
+		pr_info("snowoff config done!!\n");
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

@@ -915,6 +915,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		tsync_set_enable(0);
 		/* enable system_time */
 		timestamp_pcrscr_enable(1);
+		pr_info("****[%s]disable tysnc& enable system time!****\n",
+			__func__);
 	}
 #endif
 	irq_cnt = 0;
@@ -1554,7 +1556,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	}
 	/*check vs is valid base on the time during continuous vs*/
-	if (vdin_check_cycle(devp) && (!(isr_flag & VDIN_BYPASS_CYC_CHECK))) {
+	if (vdin_check_cycle(devp) && (!(isr_flag & VDIN_BYPASS_CYC_CHECK))
+		&& (!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		vdin_irq_flag = 4;
 
 		goto irq_handled;
@@ -1565,7 +1568,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	/* ignore invalid vs base on the continuous fields
 	 * different cnt to void screen flicker */
 	if (vdin_check_vs(devp) &&
-		(!(isr_flag & VDIN_BYPASS_VSYNC_CHECK))) {
+		(!(isr_flag & VDIN_BYPASS_VSYNC_CHECK))
+		&& (!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		vdin_irq_flag = 5;
 
 		goto irq_handled;
@@ -1577,8 +1581,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	/* ignore the unstable signal */
 	state = tvin_get_sm_status(devp->index);
-	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE ||
-			state != TVIN_SM_STATUS_STABLE) {
+	if (((devp->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
+		(state != TVIN_SM_STATUS_STABLE)) &&
+		(!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		vdin_irq_flag = 6;
 		goto irq_handled;
 	}

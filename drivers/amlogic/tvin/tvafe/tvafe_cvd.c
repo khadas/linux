@@ -1792,7 +1792,8 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		if (cvd_dbg_en)
 			pr_info("[tvafe..] %s: current fmt is:%s\n",
 			__func__, tvin_sig_fmt_str(cvd2->config_fmt));
-	} else if (cvd2->info.state == TVAFE_CVD2_STATE_FIND) {
+	} else if ((cvd2->info.state == TVAFE_CVD2_STATE_FIND) &&
+		!(cvd2->manual_fmt)) {
 		/* manual mode => go directly to the manual format */
 		try_format_cnt = 0;
 		if (tvafe_cvd2_condition_shift(cvd2)) {
@@ -2527,4 +2528,14 @@ void tvafe_cvd2_set_reg8a(unsigned int v)
 	W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, cvd_reg8a);
 }
 
+void tvafe_snow_config(unsigned int onoff)
+{
+	if (onoff) {
+		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
+		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
+	} else {
+		W_APB_BIT(CVD2_OUTPUT_CONTROL, 0, BLUE_MODE_BIT, BLUE_MODE_WID);
+		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);
+	}
+}
 
