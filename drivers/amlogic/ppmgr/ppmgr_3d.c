@@ -34,7 +34,6 @@
 #include <linux/amlogic/amlog.h>
 #include <linux/reset.h>
 #include <linux/amlogic/ge2d/ge2d.h>
-#include "../display/ge2d/ge2d_wq.h"
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
@@ -98,7 +97,7 @@ void Reset3Dclear(void)
 void Set3DProcessPara(unsigned mode)
 {
 	if (_3d_process.all_mode != mode) {
-		memset(&_3d_process, 0, sizeof(Process3d_t));
+		memset(&_3d_process, 0, sizeof(struct Process3d_t));
 		_3d_process.all_mode = mode;
 		_3d_process.mode = mode & PPMGR_3D_PROCESS_MODE_MASK;
 		_3d_process.src_format =

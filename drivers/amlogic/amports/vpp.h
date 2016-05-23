@@ -113,6 +113,7 @@ struct vpp_frame_par_s {
 	u32 vscale_skip_count;
 	u32 hscale_skip_count;
 	u32 vpp_3d_mode;
+	u32 trans_fmt;
 	u32 vpp_2pic_mode;
 	/* bit[1:0] 0: 1 pic,1:two pic one buf,2:tow pic two buf */
 	/* bit[2]0:select pic0,1:select pic1 */
@@ -135,7 +136,7 @@ struct vpp_frame_par_s {
 
 };
 
-#if 0
+#if 1
 /* (MESON_CPU_TYPE==MESON_CPU_TYPE_MESON6TV)||
 (MESON_CPU_TYPE==MESON_CPU_TYPE_MESONG9TV) */
 #define TV_3D_FUNCTION_OPEN
@@ -146,7 +147,7 @@ struct vpp_frame_par_s {
 #ifdef TV_REVERSE
 extern bool reverse;
 #endif
-
+extern bool platform_type;
 enum select_scaler_path_e {
 	sup0_pp_sp1_scpath,
 	sup0_pp_post_blender,
@@ -201,7 +202,8 @@ enum select_scaler_path_e {
 
 extern
 void vpp_set_3d_scale(bool enable);
-
+extern
+void get_vpp_3d_mode(u32 trans_fmt, u32 *vpp_3d_mode);
 #endif
 
 extern void

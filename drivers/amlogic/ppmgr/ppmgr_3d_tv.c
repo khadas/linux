@@ -34,7 +34,6 @@
 #include <linux/reset.h>
 #include <linux/amlogic/amlog.h>
 #include <linux/amlogic/ge2d/ge2d.h>
-#include "../display/ge2d/ge2d_wq.h"
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/semaphore.h>
@@ -107,27 +106,27 @@ int get_tv_process_type(struct vframe_s *vf)
 		process_type = TYPE_NONE;
 		return process_type;
 	}
-	if (status & MODE_3D_ENABLE) {
-		if (status & MODE_LR_SWITCH) {
+	if (status & PPMGR_MODE_3D_ENABLE) {
+		if (status & PPMGR_MODE_LR_SWITCH) {
 			process_type = TYPE_LR_SWITCH;
-		} else if (status & MODE_FIELD_DEPTH) {
+		} else if (status & PPMGR_MODE_FIELD_DEPTH) {
 			process_type = TYPE_FILED_DEPTH;
-		} else if (status & MODE_3D_TO_2D_L) {
+		} else if (status & PPMGR_MODE_3D_TO_2D_L) {
 			process_type = TYPE_3D_TO_2D_L;
-		} else if (status & MODE_3D_TO_2D_R) {
+		} else if (status & PPMGR_MODE_3D_TO_2D_R) {
 			process_type = TYPE_3D_TO_2D_R;
 		} else {
-			if (status & MODE_LR)
+			if (status & PPMGR_MODE_LR)
 				process_type = TYPE_LR;
 
-			if (status & MODE_BT)
+			if (status & PPMGR_MODE_BT)
 				process_type = TYPE_BT;
 
-			if (status & MODE_2D_TO_3D)
+			if (status & PPMGR_MODE_2D_TO_3D)
 				process_type = TYPE_2D_TO_3D;
 
 			/*3D auto mode*/
-			if (status & MODE_AUTO) {
+			if (status & PPMGR_MODE_AUTO) {
 				switch (vf->trans_fmt) {
 				case TVIN_TFMT_3D_TB:
 					process_type = TYPE_BT;
@@ -1478,232 +1477,7 @@ static void process_none(struct vframe_s *vf, struct ge2d_context_s *context,
 }
 
 static int ratio_value = 10; /* 0~255*/
-/*static void process_2d_to_3d(
- * struct vframe_s *vf,
- * struct ge2d_context_s *context,
- * struct config_para_ex_s *ge2d_config)*/
-/*{*/
-/*    struct vframe_s* new_vf;*/
-/*    struct ppframe_s *pp_vf;*/
-/*    int index;*/
-/*    struct display_frame_t input_frame ;*/
-/*    int t,l,w,h,w1,h1,w2,h2;*/
-/*    struct canvas_s cs0,cs1,cs2,cd;*/
-/*    unsigned x_offset = 0, y_offset = 0;*/
-/*    unsigned cut_w = 0,cut_h = 0;*/
-/*    new_vf = vfq_pop(&q_free);*/
-/**/
-/*    if (unlikely((!new_vf) || (!vf)))*/
-/*        return;*/
-/*    pp_vf = to_ppframe(new_vf);*/
-/*    pp_vf->dec_frame = NULL;*/
-/*    memcpy(new_vf , vf, sizeof(struct vframe_s));*/
-/*    get_input_frame(vf,&input_frame);*/
-/**/
-/**/
-/*//    new_vf->type = VIDTYPE_VIU_444|VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;/*vf->type;*/*/
-/*    new_vf->type =
- * VIDTYPE_VIU_444|
- * VIDTYPE_VIU_SINGLE_PLANE |
- * VIDTYPE_PROGRESSIVE ;*/
-/*    new_vf->mode_3d_enable = 1 ;*/
-/*    index = pp_vf->index;*/
-/*    if (index < 0){*/
-/*        pr_warn("======decoder is full\n");*/
-/*        //return -1;*/
-/*    }*/
-/**/
-/*    cut_w = (((input_frame.frame_width<<8) + 0x80) * ratio_value)>>16;*/
-/*    cut_h = (((input_frame.frame_height<<8) + 0x80) * ratio_value)>>16;*/
-/*    x_offset = cut_w>>1;*/
-/*    x_offset = x_offset & 0xfffffffe;*/
-/*    y_offset = cut_h>>1;*/
-/*    y_offset = y_offset & 0xfffffffe;*/
-/**/
-/*    new_vf->canvas0Addr = index2canvas_0(index);*/
-/*    new_vf->canvas1Addr = index2canvas_1(index);*/
-/*//ROUND_1:*/
-/*    /* data operating. */*/
-/*    ge2d_config->alu_const_color= 0;//0x000000ff;*/
-/*    ge2d_config->bitmask_en  = 0;*/
-/*    ge2d_config->src1_gb_alpha = 0;//0xff;*/
-/*    ge2d_config->dst_xy_swap = 0;*/
-/**/
-/*    canvas_read(vf->canvas0Addr&0xff,&cs0);*/
-/*    canvas_read((vf->canvas0Addr>>8)&0xff,&cs1);*/
-/*    canvas_read((vf->canvas0Addr>>16)&0xff,&cs2);*/
-/*    ge2d_config->src_planes[0].addr = cs0.addr;*/
-/*    ge2d_config->src_planes[0].w = cs0.width;*/
-/*    ge2d_config->src_planes[0].h = cs0.height;*/
-/*    ge2d_config->src_planes[1].addr = cs1.addr;*/
-/*    ge2d_config->src_planes[1].w = cs1.width;*/
-/*    ge2d_config->src_planes[1].h = cs1.height;*/
-/*    ge2d_config->src_planes[2].addr = cs2.addr;*/
-/*    ge2d_config->src_planes[2].w = cs2.width;*/
-/*    ge2d_config->src_planes[2].h = cs2.height;*/
-/*    canvas_read(new_vf->canvas0Addr&0xff,&cd);*/
-/**/
-/*    ge2d_config->dst_planes[0].addr = cd.addr;*/
-/*    ge2d_config->dst_planes[0].w = cd.width;*/
-/*    ge2d_config->dst_planes[0].h = cd.height;*/
-/**/
-/*    ge2d_config->src_key.key_enable = 0;*/
-/*    ge2d_config->src_key.key_mask = 0;*/
-/*    ge2d_config->src_key.key_mode = 0;*/
-/**/
-/*    ge2d_config->src_para.canvas_index=vf->canvas0Addr;*/
-/*    ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;*/
-/*    ge2d_config->src_para.format = get_input_format(vf);*/
-/*    ge2d_config->src_para.fill_color_en = 0;*/
-/*    ge2d_config->src_para.fill_mode = 0;*/
-/*    ge2d_config->src_para.x_rev = 0;*/
-/*    ge2d_config->src_para.y_rev = 0;*/
-/*    ge2d_config->src_para.color = 0xffffffff;*/
-/*    ge2d_config->src_para.top = 0;*/
-/*    ge2d_config->src_para.left = 0;*/
-/*    ge2d_config->src_para.width = vf->width;*/
-/*    ge2d_config->src_para.height = vf->height;*/
-/**/
-/*    ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;*/
-/**/
-/*    ge2d_config->dst_para.canvas_index=new_vf->canvas0Addr;*/
-/*    ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;*/
-/*    ge2d_config->dst_para.format = GE2D_FORMAT_S24_YUV444;*/
-/*    ge2d_config->dst_para.fill_color_en = 0;*/
-/*    ge2d_config->dst_para.fill_mode = 0;*/
-/*    ge2d_config->dst_para.x_rev = 0;*/
-/*    ge2d_config->dst_para.y_rev = 0;*/
-/*    ge2d_config->dst_para.color = 0;*/
-/*    t = 0;*/
-/*    l = 0;*/
-/*    w = 0;*/
-/*    h = 0;*/
-/*    w1 = input_frame.frame_width;*/
-/*    h1 = input_frame.frame_height ;*/
-/*    w2 = get_output_width(1) ;*/
-/*    h2 = get_output_height(1);*/
-/*    //w2 = vf->width ;*/
-/*    //h2 = vf->height;*/
-/*	if (!(vf->type & VIDTYPE_PRE_INTERLACE)){*/
-/*		get_output_rect_after_ratio(vf,&t,&l,&w,&h,w1,h1,w2,h2);*/
-/*	}else{*/
-/*	      get_output_rect_after_ratio(vf,&t,&l,&w,&h,w1,2*h1,w2,h2);*/
-/*	}*/
-/*		t >>=1;*/
-/*		h >>=1;*/
-/*    ge2d_config->dst_para.top = 0;*/
-/*    ge2d_config->dst_para.left = 0;*/
-/*    ge2d_config->dst_para.width = w2;*/
-/*    ge2d_config->dst_para.height = h2;*/
-/**/
-/* //   printk("t:%d l:%d w:%d h%d\n",t,l,w,h);*/
-/*    if (ge2d_context_config_ex(context,ge2d_config)<0) {*/
-/*        pr_err("++ge2d configing error.\n");*/
-/*        return;*/
-/*    }*/
-/**/
-/*//    stretchblt_noalpha(context,0,0,vf->width/2,vf->height,t,l,w,h);*/
-/*//   stretchblt_noalpha(context,0,0,vf->width,vf->height,l,t,w,h);*/
-/*    stretchblt_noalpha(
- * context,input_frame.frame_left,
- * input_frame.frame_top,input_frame.frame_width,
- * input_frame.frame_height,l,t,w,h);*/
-/**/
-/*//ROUND_2:*/
-/*    /* data operating. */*/
-/*    ge2d_config->alu_const_color= 0;//0x000000ff;*/
-/*    ge2d_config->bitmask_en  = 0;*/
-/*    ge2d_config->src1_gb_alpha = 0;//0xff;*/
-/*    ge2d_config->dst_xy_swap = 0;*/
-/**/
-/*    canvas_read(vf->canvas0Addr&0xff,&cs0);*/
-/*    canvas_read((vf->canvas0Addr>>8)&0xff,&cs1);*/
-/*    canvas_read((vf->canvas0Addr>>16)&0xff,&cs2);*/
-/*    ge2d_config->src_planes[0].addr = cs0.addr;*/
-/*    ge2d_config->src_planes[0].w = cs0.width;*/
-/*    ge2d_config->src_planes[0].h = cs0.height;*/
-/*    ge2d_config->src_planes[1].addr = cs1.addr;*/
-/*    ge2d_config->src_planes[1].w = cs1.width;*/
-/*    ge2d_config->src_planes[1].h = cs1.height;*/
-/*    ge2d_config->src_planes[2].addr = cs2.addr;*/
-/*    ge2d_config->src_planes[2].w = cs2.width;*/
-/*    ge2d_config->src_planes[2].h = cs2.height;*/
-/*    canvas_read(new_vf->canvas1Addr&0xff,&cd);*/
-/**/
-/*    ge2d_config->dst_planes[0].addr = cd.addr;*/
-/*    ge2d_config->dst_planes[0].w = cd.width;*/
-/*    ge2d_config->dst_planes[0].h = cd.height;*/
-/**/
-/*    ge2d_config->src_key.key_enable = 0;*/
-/*    ge2d_config->src_key.key_mask = 0;*/
-/*    ge2d_config->src_key.key_mode = 0;*/
-/**/
-/*    ge2d_config->src_para.canvas_index=vf->canvas0Addr;*/
-/*    ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;*/
-/*    ge2d_config->src_para.format = get_input_format(vf);*/
-/*    ge2d_config->src_para.fill_color_en = 0;*/
-/*    ge2d_config->src_para.fill_mode = 0;*/
-/*    ge2d_config->src_para.x_rev = 0;*/
-/*    ge2d_config->src_para.y_rev = 0;*/
-/*    ge2d_config->src_para.color = 0xffffffff;*/
-/*    ge2d_config->src_para.top = y_offset;*/
-/*    ge2d_config->src_para.left = x_offset;*/
-/*    ge2d_config->src_para.width = vf->width-cut_w;*/
-/*    ge2d_config->src_para.height = vf->height-cut_h;*/
-/**/
-/*    ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;*/
-/*    ge2d_config->dst_para.canvas_index=new_vf->canvas1Addr;*/
-/*    ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;*/
-/**/
-/*    ge2d_config->dst_para.format = GE2D_FORMAT_S24_YUV444;*/
-/*    ge2d_config->dst_para.fill_color_en = 0;*/
-/*    ge2d_config->dst_para.fill_mode = 0;*/
-/*    ge2d_config->dst_para.x_rev = 0;*/
-/*    ge2d_config->dst_para.y_rev = 0;*/
-/*    ge2d_config->dst_para.color = 0;*/
-/*    t = 0;*/
-/*    l = 0;*/
-/*    w = 0;*/
-/*    h = 0;*/
-/*    w1 = input_frame.frame_width;*/
-/*    h1 = input_frame.frame_height ;*/
-/*    w2 = get_output_width(1) ;*/
-/*    h2 = get_output_height(1);*/
-/*    //w2 = vf->width ;*/
-/*    //h2 = vf->height;*/
-/*	if (!(vf->type & VIDTYPE_PRE_INTERLACE)){*/
-/*		get_output_rect_after_ratio(vf,&t,&l,&w,&h,w1,h1,w2,h2);*/
-/*	}else{*/
-/*	      get_output_rect_after_ratio(vf,&t,&l,&w,&h,w1,2*h1,w2,h2);*/
-/*	}*/
-/*		t >>=1;*/
-/*		h >>=1;*/
-/*    ge2d_config->dst_para.top = 0;*/
-/*    ge2d_config->dst_para.left = 0;*/
-/*    ge2d_config->dst_para.width = w2;*/
-/*    ge2d_config->dst_para.height = h2;*/
-/**/
-/*    if (ge2d_context_config_ex(context,ge2d_config)<0) {*/
-/*        pr_err("++ge2d configing error.\n");*/
-/*        return;*/
-/*    }*/
-/**/
-/*//    stretchblt_noalpha(context,0,vf->width/2,vf->width/2,vf->height,t,l,w,h);*/
-/*//    stretchblt_noalpha(
- * context, x_offset,
- * y_offset, vf->width-cut_w,
- * vf->height-cut_h,l,t,w,h);*/
-/**/
-/*   stretchblt_noalpha(context,input_frame.frame_left + x_offset,input_frame.frame_top + y_offset,input_frame.frame_width -cut_w ,input_frame.frame_height-cut_h,l,t,w,h);*/
-/*    new_vf->width = w2;*/
-/*    new_vf->height = h2 ;*/
-/*    new_vf->ratio_control = 0;*/
-/**/
-/**/
-/*    ppmgr_vf_put_dec(vf);*/
-/*    vfq_push(&q_ready, new_vf);*/
-/*    return;*/
-/*}*/
+
 
 void process_2d_to_3d_switch(
 		struct vframe_s *vf,

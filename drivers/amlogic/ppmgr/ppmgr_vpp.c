@@ -1362,6 +1362,9 @@ static void process_vf_rotate(struct vframe_s *vf,
 	int ret = 0;
 	unsigned cur_angle = 0;
 	int pic_struct = 0, interlace_mode;
+#ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
+	enum platform_type_t platform_type;
+#endif
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
 	int rect_x = 0, rect_y = 0, rect_w = 0, rect_h = 0;
 	u32 ratio = 100;
@@ -1431,7 +1434,8 @@ static void process_vf_rotate(struct vframe_s *vf,
 		return;
 	}
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
-	if (plarform_type == PLATFORM_TV)
+	platform_type = get_platform_type();
+	if (platform_type == PLATFORM_TV)
 		ret = ppmgr_buffer_init(1);
 	else
 		ret = ppmgr_buffer_init(0);
@@ -1957,7 +1961,7 @@ static void process_vf_change(struct vframe_s *vf,
 	unsigned cur_angle = 0;
 	int ret = 0;
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
-	if (plarform_type == PLATFORM_TV)
+	if (platform_type == PLATFORM_TV)
 		ret = ppmgr_buffer_init(1);
 	else
 		ret = ppmgr_buffer_init(0);
@@ -2192,7 +2196,7 @@ static int process_vf_adjust(struct vframe_s *vf,
 			&ratio);
 	unsigned cur_angle = pp_vf->angle;
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
-	if (plarform_type == PLATFORM_TV)
+	if (platform_type == PLATFORM_TV)
 		ret = ppmgr_buffer_init(1);
 	else
 		ret = ppmgr_buffer_init(0);
@@ -2598,7 +2602,7 @@ static int ppmgr_task(void *data)
 				&& (!ppmgr_blocking)) {
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
 			int process_type = TYPE_NONE;
-			enum platform_type_t plarform_type;
+			enum platform_type_t platform_type;
 			vf = ppmgr_vf_get_dec();
 			if (!vf)
 				break;
@@ -2642,15 +2646,15 @@ static int ppmgr_task(void *data)
 					+ ppmgr_device.orientation
 					+ vf->orientation)%4;
 
-			plarform_type = get_platform_type();
-			if (plarform_type == PLATFORM_TV)
+			platform_type = get_platform_type();
+			if (platform_type == PLATFORM_TV)
 				process_type = get_tv_process_type(vf);
 			else
 				process_type = get_mid_process_type(vf);
 
 			if (process_type == TYPE_NONE) {
 				int ret = 0;
-				if (plarform_type != PLATFORM_TV)
+				if (platform_type != PLATFORM_TV)
 					ret = process_vf_deinterlace(vf,
 							context,
 							&ge2d_config);
@@ -2661,7 +2665,7 @@ static int ppmgr_task(void *data)
 						(ret > 0)?ret:0);
 
 			} else {
-				if (plarform_type == PLATFORM_TV)
+				if (platform_type == PLATFORM_TV)
 					ppmgr_vf_3d_tv(vf,
 							context, &ge2d_config);
 				else
@@ -2850,6 +2854,11 @@ int ppmgr_buffer_init(int vout_mode)
 	case 2:/*config fail, won't retry , return failure*/
 		return -1;
 	default:
+		return -1;
+	}
+	if (ppmgr_device.mirror_flag) {
+		PPMGRVPP_INFO("CMA memory force config fail\n");
+		ppmgr_buffer_status = 2;
 		return -1;
 	}
 	if ((!ppmgr_device.use_reserved) &&
@@ -3082,14 +3091,18 @@ int ppmgr_buffer_init(int vout_mode)
 
 int start_ppmgr_task(void)
 {
-	enum platform_type_t plarform_type;
-	plarform_type = get_platform_type();
+	enum platform_type_t platform_type;
+	platform_type = get_platform_type();
 
 	/*    if (get_cpu_type()>= MESON_CPU_TYPE_MESON6)*/
 	/*	    switch_mod_gate_by_name("ge2d", 1);*/
 	/*#endif*/
 	if (!task) {
 		vf_local_init();
+		ppmgr_blocking = false;
+		ppmgr_inited = true;
+		ppmgr_reset_type = 0;
+		set_buff_change(0);
 		ppmgr_buffer_status = 0;
 		task = kthread_run(ppmgr_task, 0, "ppmgr");
 	}

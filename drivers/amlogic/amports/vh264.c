@@ -479,7 +479,7 @@ static int vh264_vf_states(struct vframe_states *states, void *op_arg)
 	return 0;
 }
 
-#ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
+#if 0
 static tvin_trans_fmt_t convert_3d_format(u32 type)
 {
 	const tvin_trans_fmt_t conv_tab[] = {
@@ -506,8 +506,7 @@ static void set_frame_info(struct vframe_s *vf)
 	vf->flag = 0;
 
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
-	vf->trans_fmt = convert_3d_format(frame_packing_type);
-
+	vf->trans_fmt = 0;
 	if ((vf->trans_fmt == TVIN_TFMT_3D_LRF) ||
 		(vf->trans_fmt == TVIN_TFMT_3D_LA)) {
 		vf->left_eye.start_x = 0;
