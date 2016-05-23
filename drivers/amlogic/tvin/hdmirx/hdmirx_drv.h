@@ -191,6 +191,12 @@ enum repeater_state_e {
 	REPEATER_STATE_IDLE,
 };
 
+enum hdcp_version_e {
+	HDCP_VERSION_NONE,
+	HDCP_VERSION_14,
+	HDCP_VERSION_22,
+};
+
 /** Configuration clock minimum [kHz] */
 #define CFG_CLK_MIN				(10000UL)
 /** Configuration clock maximum [kHz] */
@@ -365,6 +371,8 @@ struct hdmi_rx_ctrl_hdcp {
 	 * @note 0: high order, 1: low order
 	 */
 	uint32_t keys[HDCP_KEYS_SIZE];
+	struct switch_dev switch_hdcp_auth;
+	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
 };
 
 #define CHANNEL_STATUS_SIZE   24
@@ -418,6 +426,8 @@ struct rx_s {
 	struct hdmi_rx_ctrl ctrl;
 	/** HDMI RX controller HDCP configuration */
 	struct hdmi_rx_ctrl_hdcp hdcp;
+	/*report hpd status to app*/
+	struct switch_dev hpd_sdev;
 
 	/* wrapper */
 	unsigned int state;

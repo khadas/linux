@@ -1079,7 +1079,22 @@ static int hdmirx_probe(struct platform_device *pdev)
 			"hdmirx%d-irq", hdevp->index);
 	rx_print("hdevpd irq: %d, %d\n", hdevp->index,
 			hdevp->irq);
-
+	if (pdev->dev.of_node) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"repeat", &repeat_function);
+		if (ret) {
+			pr_err("get repeat_function fail.\n");
+			repeat_function = 0;
+		}
+	}
+	rx.hdcp.switch_hdcp_auth.name = "hdmirx_hdcp_auth";
+	ret = switch_dev_register(&rx.hdcp.switch_hdcp_auth);
+	if (ret)
+		pr_err("hdcp_auth switch init fail.\n");
+	rx.hpd_sdev.name = "hdmirx_hpd";
+	ret = switch_dev_register(&rx.hpd_sdev);
+	if (ret)
+		pr_err("hdmirx_hpd switch init fail.\n");
 	if (request_irq(hdevp->irq,
 			&irq_handler,
 			IRQF_SHARED,
@@ -1112,15 +1127,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		if (ret) {
 			pr_err("get port_map fail.\n");
 			real_port_map = 0x3120;
-		}
-	}
-
-	if (pdev->dev.of_node) {
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"repeat", &repeat_function);
-		if (ret) {
-			pr_err("get repeat_function fail.\n");
-			repeat_function = 0;
 		}
 	}
 

@@ -425,6 +425,10 @@ static bool repeat_plug;
 MODULE_PARM_DESC(repeat_plug, "\n repeat_plug\n");
 module_param(repeat_plug, bool, 0664);
 
+static int up_phy_addr;/*d c b a 4bit*/
+MODULE_PARM_DESC(up_phy_addr, "\n up_phy_addr\n");
+module_param(up_phy_addr, int, 0664);
+
 static int ksvlist_wr_count = KSV_LIST_WR_TH;
 MODULE_PARM_DESC(ksvlist_wr_count, "\n ksvlist_wr_count\n");
 module_param(ksvlist_wr_count, int, 0664);
@@ -798,6 +802,12 @@ void hdmirx_plug_det(struct work_struct *work)
 	unsigned int tmp_5v, check_cnt, i, val;
 
 	cancel_delayed_work(&hpd_dwork);
+	if (rx.hdcp.hdcp_version) {
+		switch_set_state(&rx.hdcp.switch_hdcp_auth, 0);
+		switch_set_state(&rx.hdcp.switch_hdcp_auth,
+					rx.hdcp.hdcp_version);
+		rx.hdcp.hdcp_version = HDCP_VERSION_NONE;
+	}
 	if (log_flag & VIDEO_LOG)
 		rx_print("plug detect1:%d\n", pwr_sts);
 	val = 0;
@@ -823,7 +833,6 @@ void hdmirx_plug_det(struct work_struct *work)
 		hdmirx_wait_query();
 		if (log_flag & VIDEO_LOG)
 			rx_print("plug detect2:%d\n", pwr_sts);
-		/* switch_set_state(&hpd_sdev, pwr_sts); */
 	}
 
 	return;
@@ -1048,10 +1057,13 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	if (intr_hdmi != 0) {
 		/*if (get(intr_hdmi, CLK_CHANGE) != 0) */
 			/* clk_handle_flag = true; */
-		if (get(intr_hdmi, hdmi_ists_en) != 0) {
+		if (get(intr_hdmi, AKSV_RCV) != 0) {
 			if (log_flag & 0x100)
 				rx_print("++++++ clock change\n");
-			clk_handle_flag = true;
+			/*clk_handle_flag = true;*/
+			rx.hdcp.hdcp_version = HDCP_VERSION_14;
+			queue_delayed_work(hpd_wq, &hpd_dwork,
+					msecs_to_jiffies(5));
 		}
 		if (get(intr_hdmi, DCM_CURRENT_MODE_CHG) != 0) {
 			if (log_flag & 0x400)
@@ -3163,7 +3175,8 @@ EXPORT_SYMBOL(rx_repeat_hdcp_ver);
 
 void rx_edid_physical_addr(int a, int b, int c, int d)
 {
-
+	up_phy_addr = ((a & 0xf) << 12)  | ((b & 0xf) << 8) | ((c &
+	0xf) << 4) | (d & 0xf);
 }
 EXPORT_SYMBOL(rx_edid_physical_addr);
 
@@ -3452,8 +3465,9 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 	unsigned char check_sum = 0;
 	unsigned char phy_addr_offset = 0;
 	int i, ram_addr;
-	unsigned char phy_addr[3];
+	unsigned int phy_addr[3];
 	unsigned char checksum[3];
+	unsigned char root_offset = 0;
 
 	for (i = 0; i <= 255; i++) {
 		value = buffer[i];
@@ -3463,7 +3477,7 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 			if ((0x0c == buffer[i+1]) &&
 				(0x00 == buffer[i+2]) &&
 				(0x00 == buffer[i+4])) {
-				buffer[i+3] = 0x10;
+				buffer[i+3] = 0x00;
 				phy_addr_offset = i+3;
 			}
 		}
@@ -3479,23 +3493,56 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 		hdmirx_wr_top(ram_addr, value);
 		hdmirx_wr_top(0x100+ram_addr, value);
 	}
+	i = 0;
+	while (i < 4) {
+		if (((up_phy_addr >> (i*4)) & 0xf) != 0) {
+			root_offset = i;
+			break;
+		} else
+			i++;
+	}
+	if (i == 4)
+		root_offset = 4;
 
 	for (i = 0; i < 3; i++) {
 		if (((port >> i*4) & 0xf) == 0) {
-			phy_addr[i] = 0x10;
-			checksum[i] = value;
+			if (root_offset == 0)
+				phy_addr[i] = 0xFFFF;
+			else
+				phy_addr[i] = (up_phy_addr | (0x1 <<
+				(root_offset - 1)*4));
+			checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
+				((phy_addr[i] >> 8) & 0xFF)) & 0xff;
 		} else if (((port >> i*4) & 0xf) == 1) {
-			phy_addr[i] = 0x20;
-			checksum[i] = (0x100 + value - 0x10) & 0xff;
+			if (root_offset == 0)
+				phy_addr[i] = 0xFFFF;
+			else
+				phy_addr[i] = (up_phy_addr | (0x2 <<
+				(root_offset - 1)*4));
+			checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
+				((phy_addr[i] >> 8) & 0xFF));
 		} else if (((port >> i*4) & 0xf) == 2) {
-			phy_addr[i] = 0x30;
-			checksum[i] = (0x100 + value - 0x20) & 0xff;
+			if (root_offset == 0)
+				phy_addr[i] = 0xFFFF;
+			else
+				phy_addr[i] = (up_phy_addr | (0x3 <<
+				(root_offset - 1)*4));
+			checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
+				((phy_addr[i] >> 8) & 0xFF));
 		}
 	}
+
+	hdmirx_wr_top(TOP_EDID_RAM_OVR2,
+		(phy_addr_offset + 1) | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR2_DATA,
+		((phy_addr[0] >> 8) & 0xFF) | (((phy_addr[1] >> 8) & 0xFF)<<8)
+			| (((phy_addr[2] >> 8) & 0xFF)<<16));
+
 	hdmirx_wr_top(TOP_EDID_RAM_OVR1,
 		phy_addr_offset | (0x0f<<16));
 	hdmirx_wr_top(TOP_EDID_RAM_OVR1_DATA,
-		phy_addr[0]|phy_addr[1]<<8|phy_addr[2]<<16);
+		(phy_addr[0] & 0xFF) | ((phy_addr[1] & 0xFF)<<8) |
+			((phy_addr[2] & 0xFF)<<16));
 
 	hdmirx_wr_top(TOP_EDID_RAM_OVR0,
 		0xff | (0x0f<<16));
@@ -4161,8 +4208,10 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		0,
 		sizeof(struct hdmi_rx_ctrl_video));
 
-	memcpy(&rx.hdcp, &init_hdcp_data,
-			sizeof(struct hdmi_rx_ctrl_hdcp));
+	memcpy(rx.hdcp.bksv, init_hdcp_data.bksv,
+		sizeof(init_hdcp_data.bksv));
+	memcpy(rx.hdcp.keys, init_hdcp_data.keys,
+		sizeof(init_hdcp_data.keys));
 
 	memset(&rx.vendor_specific_info, 0,
 			sizeof(struct vendor_specific_info_s));
@@ -4199,6 +4248,9 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		if (hdcp_22_on) {
 			video_stable_to_esm = 0;
 			hpd_to_esm = 1;
+			switch_set_state(&rx.hpd_sdev, 0x01);
+			if (log_flag & VIDEO_LOG)
+				rx_print("switch_set_state:%d\n", pwr_sts);
 		}
 		#endif
 		hdmirx_hw_config();

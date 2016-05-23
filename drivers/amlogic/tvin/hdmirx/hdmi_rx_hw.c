@@ -116,7 +116,7 @@ module_param(phy_init_in_probe, bool, 0664);
 
 /* bit5 pll_lck_chg_en */
 /* bit6 clk_change_en */
-int hdmi_ists_en = PLL_LCK_CHG | CLK_CHANGE;
+int hdmi_ists_en = AKSV_RCV;
 MODULE_PARM_DESC(hdmi_ists_en, "\n hdmi_ists_en\n");
 module_param(hdmi_ists_en, int, 0664);
 
@@ -453,10 +453,8 @@ int hdmirx_irq_open(void)
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
 	if (hdcp_22_on)
 		hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x3f);
-
-	/* hdmirx_wr_dwc(DWC_PDEC_IEN_SET, pdec_ists_en); */
-	/* hdmirx_wr_dwc(DWC_MD_IEN_SET, md_ists_en); */
-	/* hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en); */
+	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
+	hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);
 
 	return error;
 }
