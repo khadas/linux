@@ -3486,6 +3486,10 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 		pic = &hevc->m_PIC[i];
 		if (pic->index == -1)
 			continue;
+		if ((pic->used_by_display)
+			&& ((READ_VCBUS_REG(AFBC_BODY_BADDR) << 4) !=
+				pic->mc_y_adr))
+			pic->used_by_display = 0;
 		if (pic->output_mark == 0 && pic->referenced == 0
 			&& pic->output_ready == 0
 			&& pic->used_by_display == 0) {
@@ -4521,7 +4525,6 @@ static void vh265_vf_put(struct vframe_s *vf, void *op_arg)
 			hevc->m_PIC[index1].vf_ref--;
 
 			if (hevc->m_PIC[index1].vf_ref == 0) {
-				clear_used_by_display_flag(hevc);
 				hevc->m_PIC[index1].output_ready = 0;
 				if (hevc->wait_buf != 0)
 					WRITE_VREG(HEVC_ASSIST_MBOX1_IRQ_REG,
