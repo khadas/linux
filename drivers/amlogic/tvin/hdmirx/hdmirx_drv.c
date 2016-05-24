@@ -1264,7 +1264,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 	if ((resume_flag == 0) && (rx.open_fg == 1))
 		add_timer(&devp_hdmirx_suspend->timer);
 	rx_print("hdmirx: resume module---end,rx.open_fg:%d\n", rx.open_fg);
-
+	pre_port = 0xff;
 	return 0;
 
 }

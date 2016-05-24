@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/05/19"
+#define HDMIRX_VER "Ref.2016/05/23"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -35,7 +35,7 @@
 #define	LOG_EN		0x01
 #define VIDEO_LOG	0x02
 #define AUDIO_LOG	0x04
-#define PHY_LOG		0x08
+#define HDCP_LOG	0x08
 #define PACKET_LOG	0x10
 #define CEC_LOG		0x20
 #define REG_LOG		0x40
@@ -171,8 +171,9 @@ enum fsm_states_e {
 	FSM_HDMI5V_HIGH,
 	FSM_HPD_READY,
 	FSM_EQ_CALIBRATION,
-	FSM_TIMINGCHANGE,
+	FSM_PHY_RST,
 	FSM_WAIT_CLK_STABLE,
+	FSM_WAIT_HDCP_SWITCH,
 	FSM_SIG_UNSTABLE,
 	FSM_DWC_RST_WAIT,
 	FSM_SIG_STABLE,
@@ -227,7 +228,7 @@ struct hdmi_rx_phy {
 struct hdmi_rx_ctrl_video {
 	/** DVI detection status: DVI (true) or HDMI (false) */
 	bool dvi;
-	bool hdcp_enc_state;
+	int hdcp_enc_state;
 	/** Deep color mode: 24, 30, 36 or 48 [bits per pixel] */
 	unsigned deep_color_mode;
 
@@ -579,6 +580,7 @@ extern int hdcp_22_on;
 extern int do_esm_rst_flag;
 extern int hdcp22_firmware_ok_flag;
 extern int force_hdcp14_en;
+extern int pre_port;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

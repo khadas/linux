@@ -689,7 +689,7 @@ void hdmirx_set_hpd(int port, unsigned char val)
 			hdmirx_rd_top(TOP_HPD_PWR5V)|(1<<port));
 	}
 
-	if (log_flag & VIDEO_LOG)
+	if (log_flag & LOG_EN)
 		rx_print("%s, port:%d, val:%d\n", __func__,
 						port, val);
 }
@@ -968,12 +968,12 @@ void hdmirx_hw_probe(void)
 	hdmirx_wr_top(TOP_SW_RESET,	0);
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
+	hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
 	hdmi_rx_ctrl_edid_update();
 	/* #ifdef HDCP22_ENABLE */
 	/* if (hdcp_22_on) */
 	/*	hpd_to_esm = 1; */
 	/* #endif */
-	hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
 	mdelay(100);
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
@@ -1044,8 +1044,8 @@ int hdmirx_get_video_info(struct hdmi_rx_ctrl *ctx,
 	/* DVI mode */
 	params->dvi = hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET) != 0;
 	/* hdcp encrypted state */
-	params->hdcp_enc_state = (hdmirx_rd_bits_dwc(DWC_HDCP_STS,
-		ENCRYPTED_STATUS) != 0);
+	params->hdcp_enc_state = (hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3;
+
 	/* AVI parameters */
 	error |= hdmirx_packet_get_avi(params);
 	if (error != 0)
