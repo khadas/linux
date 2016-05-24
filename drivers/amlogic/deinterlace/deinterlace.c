@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-05-17a";
+static const char version_s[] = "2016-05-24a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 

@@ -857,6 +857,12 @@ static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 				((mif->set_separate_en != 0) << 1)|
 				(0 << 0)	/* cntl_enable */
 	  );
+	if (mif->set_separate_en == 2) {
+		/* Enable NV12 Display */
+		RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 1);
+	} else {
+		RDMA_WR_BITS(DI_MEM_GEN_REG2, 0, 0, 1);
+	}
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
@@ -1131,6 +1137,12 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
+	if (mif->set_separate_en == 2) {
+		/* Enable NV12 Display */
+		RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 1);
+	} else {
+		RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 0, 0, 1);
+	}
 	RDMA_WR(DI_CHAN2_CANVAS, (0 << 16) | /* cntl_canvas0_addr2 */
 (0 << 8)|(mif->canvas0_addr0 << 0));
 
