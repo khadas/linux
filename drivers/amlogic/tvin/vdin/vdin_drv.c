@@ -2728,10 +2728,23 @@ static int vdin_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+struct cpumask vdinirq_mask;
 static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct vdin_dev_s *vdevp;
+	struct irq_desc *desc;
+	const struct cpumask *mask;
+
 	vdevp = platform_get_drvdata(pdev);
+	if (vdevp->irq) {
+		desc = irq_to_desc((long)vdevp->irq);
+		mask = desc->irq_data.affinity;
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+		if (irqd_is_setaffinity_pending(&desc->irq_data))
+			mask = desc->pending_mask;
+#endif
+	cpumask_copy(&vdinirq_mask, mask);
+	}
 	vdin_enable_module(vdevp->addr_offset, false);
 	pr_info("%s ok.\n", __func__);
 	return 0;
@@ -2742,6 +2755,14 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	struct vdin_dev_s *vdevp;
 	vdevp = platform_get_drvdata(pdev);
 	vdin_enable_module(vdevp->addr_offset, true);
+
+	if (vdevp->irq) {
+		if (!irq_can_set_affinity(vdevp->irq))
+			return -EIO;
+		if (cpumask_intersects(&vdinirq_mask, cpu_online_mask))
+			irq_set_affinity(vdevp->irq, &vdinirq_mask);
+
+	}
 	pr_info("%s ok.\n", __func__);
 	return 0;
 }
