@@ -1119,16 +1119,21 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 
 	pr_info("%s %d\n", __func__, __LINE__);
 
-	/* need clear first? */
-	vclkc = 0;
+	/* clear controller's main register setting which set in uboot*/
+	sd_emmc_regs->gdelay = 0;
+	sd_emmc_regs->gadjust = 0;
+	sd_emmc_regs->gclock = 0;
+	sd_emmc_regs->gcfg = 0;
 
+	vclkc = 0;
 	pclkc->div = 60;	 /* 400KHz */
 	pclkc->src = 0;	  /* 0: Crystal 24MHz */
 	pclkc->core_phase = 2;	  /* 2: 180 phase */
+	pclkc->rx_phase = 0;
+	pclkc->tx_phase = 0;
 	pclkc->always_on = 1;	  /* Keep clock always on */
-
 	sd_emmc_regs->gclock = vclkc;
-	/* need clear first?? */
+
 	vconf = 0;
 	/* 1bit mode */
 	pconf->bus_width = 0;
@@ -1139,11 +1144,10 @@ static void aml_sd_emmc_reg_init(struct amlsd_host *host)
 	/* 1024 CLK cycle, Max. 100mS. */
 	pconf->rc_cc = 4;
 	pconf->err_abort = 0;
-
 	pconf->auto_clk = 1;
 	sd_emmc_regs->gcfg = vconf;
-	/*Clear irq status first*/
 
+	/*Clear irq status first*/
 #ifdef SD_EMMC_IRQ_EN_ALL_INIT
 	/*Set Irq Control*/
 	sd_emmc_regs->gstatus = 0xffff;
