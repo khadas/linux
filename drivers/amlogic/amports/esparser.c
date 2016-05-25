@@ -210,15 +210,18 @@ static ssize_t _esparser_write(const char __user *buf,
 			dma_unmap_single(amports_get_dma_device(), dma_addr,
 					FETCHBUF_SIZE, DMA_TO_DEVICE);
 		}
-		WRITE_MPEG_REG(PARSER_FETCH_CMD, (7 << FETCH_ENDIAN) | len);
 
 		search_done = 0;
-
-		WRITE_MPEG_REG(PARSER_FETCH_ADDR, search_pattern_map);
-
-		WRITE_MPEG_REG(PARSER_FETCH_CMD,
-			(7 << FETCH_ENDIAN) | SEARCH_PATTERN_LEN);
-
+		if (!(isphybuf & TYPE_PATTERN)) {
+			WRITE_MPEG_REG(PARSER_FETCH_CMD,
+				(7 << FETCH_ENDIAN) | len);
+			WRITE_MPEG_REG(PARSER_FETCH_ADDR, search_pattern_map);
+			WRITE_MPEG_REG(PARSER_FETCH_CMD,
+				(7 << FETCH_ENDIAN) | SEARCH_PATTERN_LEN);
+		} else {
+			WRITE_MPEG_REG(PARSER_FETCH_CMD,
+				(7 << FETCH_ENDIAN) | (len + 512));
+		}
 		ret = wait_event_interruptible_timeout(wq, search_done != 0,
 			HZ / 5);
 		if (ret == 0) {
@@ -740,11 +743,11 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		return -EFAULT;
 	}
 
-	if (drm->drm_flag == TYPE_DRMINFO && (drm->drm_hasesdata == 0)) {
+	if ((drm->drm_flag & TYPE_DRMINFO) && (drm->drm_hasesdata == 0)) {
 		/* buf only has drminfo not have esdata; */
 		realbuf = drm->drm_phy;
 		realcount = drm->drm_pktsize;
-		isphybuf = 1;
+		isphybuf = drm->drm_flag;
 		/* DRM_PRNT("drm_get_rawdata
 		 *onlydrminfo drm->drm_hasesdata[0x%x]
 		 stbuf->type %d buf[0x%x]\n",

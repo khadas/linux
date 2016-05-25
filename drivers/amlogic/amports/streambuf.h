@@ -107,6 +107,7 @@ struct drm_info {
 } /*drminfo_t */;
 
 #define TYPE_DRMINFO   0x80
+#define TYPE_PATTERN   0x40
 
 struct vdec_s;
 
