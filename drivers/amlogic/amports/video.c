@@ -2356,9 +2356,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	    (cur_dispbuf->bufWidth != vf->bufWidth) ||
 	    (cur_dispbuf->width != vf->width) ||
 	    (cur_dispbuf->height != vf->height) ||
-	    ((process_3d_type & MODE_3D_AUTO) &&
-	     (cur_dispbuf->trans_fmt != vf->trans_fmt)
-	     && (platform_type == 1)) ||
+	     (cur_dispbuf->trans_fmt != vf->trans_fmt) ||
 	     (last_process_3d_type != process_3d_type) ||
 	    (cur_dispbuf->ratio_control != vf->ratio_control) ||
 	    ((cur_dispbuf->type_backup & VIDTYPE_INTERLACE) !=
