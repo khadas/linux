@@ -2183,8 +2183,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	post_canvas = vf->canvas0Addr;
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(vf->type & VIDTYPE_COMPRESS)) {
-		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->canvas0Addr>>4);
-		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->canvas1Addr>>4);
+		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->compHeadAddr>>4);
+		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->compBodyAddr>>4);
 	} else if ((VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) == 0) {
 #ifdef CONFIG_VSYNC_RDMA
 		canvas_copy(vf->canvas0Addr & 0xff,
