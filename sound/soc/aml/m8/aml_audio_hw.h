@@ -126,7 +126,11 @@ void audio_in_spdif_enable(int flag);
 unsigned int audio_in_i2s_rd_ptr(void);
 unsigned int audio_in_i2s_wr_ptr(void);
 unsigned int audio_in_spdif_wr_ptr(void);
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+void audio_set_i2s_mode(u32 mode, unsigned int channel);
+#else
 void audio_set_i2s_mode(u32 mode);
+#endif
 void audio_set_i2s_clk_div(void);
 void audio_set_spdif_clk_div(void);
 void audio_enable_ouput(int flag);

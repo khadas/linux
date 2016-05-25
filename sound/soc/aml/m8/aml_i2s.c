@@ -79,9 +79,13 @@ static void aml_i2s_timer_callback(unsigned long data);
  *	 them against real values for AML
  */
 static const struct snd_pcm_hardware aml_i2s_hardware = {
-	.info = SNDRV_PCM_INFO_INTERLEAVED |
+	.info =
+#ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
+	SNDRV_PCM_INFO_MMAP |
+	SNDRV_PCM_INFO_MMAP_VALID |
+#endif
+	SNDRV_PCM_INFO_INTERLEAVED |
 	    SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE,
-
 	.formats =
 	    SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 	    SNDRV_PCM_FMTBIT_S32_LE,
@@ -96,7 +100,11 @@ static const struct snd_pcm_hardware aml_i2s_hardware = {
 	.rate_max = 48000,
 	.channels_min = 2,
 	.channels_max = 8,
+#ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
+	.fifo_size = 4,
+#else
 	.fifo_size = 0,
+#endif
 };
 
 static const struct snd_pcm_hardware aml_i2s_capture = {
@@ -134,6 +142,28 @@ static struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
 /*--------------------------------------------------------------------------*\
  * Helper functions
 \*--------------------------------------------------------------------------*/
+#ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
+static int aml_i2s_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
+{
+	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	size_t size = aml_i2s_hardware.buffer_bytes_max;
+
+	buf->dev.type = SNDRV_DMA_TYPE_DEV;
+	buf->dev.dev = pcm->card->dev;
+	buf->private_data = NULL;
+
+	buf->area = dmam_alloc_coherent(pcm->card->dev, size,
+			&buf->addr, GFP_KERNEL);
+	dev_info(pcm->card->dev, "aml-pcm %d: playback preallocate_dma_buffer: area=%p, addr=%p, size=%ld\n",
+		stream, (void *) buf->area, (void *) buf->addr, size);
+	if (!buf->area)
+		return -ENOMEM;
+
+	buf->bytes = size;
+	return 0;
+}
+#else
 static int aml_i2s_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
 
@@ -207,7 +237,7 @@ static int aml_i2s_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	return 0;
 
 }
-
+#endif
 /*--------------------------------------------------------------------------*\
  * ISR
 \*--------------------------------------------------------------------------*/
@@ -549,6 +579,7 @@ static int aml_i2s_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+#ifndef CONFIG_SND_AML_SPLIT_MODE_MMAP
 static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 				 snd_pcm_uframes_t pos,
 				 void __user *buf, snd_pcm_uframes_t count,
@@ -556,8 +587,10 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 {
 	int res = 0;
 	int n;
+#ifndef CONFIG_SND_AML_SPLIT_MODE
 	int i = 0, j = 0;
 	int align = runtime->channels * 32;
+#endif
 	unsigned long offset = frames_to_bytes(runtime, pos);
 	char *hwbuf = runtime->dma_area + offset;
 	struct aml_runtime_data *prtd = runtime->private_data;
@@ -566,9 +599,10 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	void *ubuf = tmp_buf->buffer_start;
 	struct audio_stream *s = &prtd->s;
 	struct device *dev = substream->pcm->card->dev;
+#ifndef CONFIG_SND_AML_SPLIT_MODE
 	int cached_len = tmp_buf->cached_len;
 	char *cache_buffer_bytes = tmp_buf->cache_buffer_bytes;
-
+#endif
 	n = frames_to_bytes(runtime, count);
 	if (n > tmp_buf->buffer_size) {
 		dev_err(dev, "FATAL_ERR:UserData/%d > buffer_size/%d\n",
@@ -579,6 +613,7 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	if (res)
 		return -EFAULT;
 
+#ifndef CONFIG_SND_AML_SPLIT_MODE
 	/*mask align byte(64 or 256)*/
 	if ((cached_len != 0 || (n % align) != 0)) {
 		int byte_size = n;
@@ -613,11 +648,15 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 		n = ouput_len;
 	}
 	/*end of mask*/
+#endif
 
 	if (s->device_type == AML_AUDIO_I2SOUT)
 		aml_i2s_alsa_write_addr = offset;
 
 	if (access_ok(VERIFY_READ, buf, frames_to_bytes(runtime, count))) {
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+		memcpy(hwbuf, ubuf, n);
+#else
 		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
 
 			int16_t *tfrom, *to, *left, *right;
@@ -703,7 +742,7 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 				}
 			}
 		}
-
+#endif
 	} else {
 		res = -EFAULT;
 	}
@@ -778,6 +817,7 @@ static int aml_i2s_copy(struct snd_pcm_substream *substream, int channel,
 	}
 	return ret;
 }
+#endif
 
 int aml_i2s_silence(struct snd_pcm_substream *substream, int channel,
 		    snd_pcm_uframes_t pos, snd_pcm_uframes_t count)
@@ -792,6 +832,21 @@ int aml_i2s_silence(struct snd_pcm_substream *substream, int channel,
 	return 0;
 }
 
+#ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
+static int aml_pcm_mmap(struct snd_pcm_substream *substream,
+	struct vm_area_struct *vma)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	dev_info(substream->pcm->card->dev,
+		"\narea=%p,addr=%ld,bytes=%ld,rate:%d, channels:%d, subformat:%d\n",
+		runtime->dma_area, (long)runtime->dma_addr, runtime->dma_bytes,
+		runtime->rate, runtime->channels, runtime->subformat);
+
+	return dma_mmap_writecombine(substream->pcm->card->dev, vma,
+		runtime->dma_area, runtime->dma_addr, runtime->dma_bytes);
+}
+#endif
+
 static struct snd_pcm_ops aml_i2s_ops = {
 	.open = aml_i2s_open,
 	.close = aml_i2s_close,
@@ -801,7 +856,11 @@ static struct snd_pcm_ops aml_i2s_ops = {
 	.prepare = aml_i2s_prepare,
 	.trigger = aml_i2s_trigger,
 	.pointer = aml_i2s_pointer,
+#ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
+	.mmap = aml_pcm_mmap,
+#else
 	.copy = aml_i2s_copy,
+#endif
 	.silence = aml_i2s_silence,
 };
 

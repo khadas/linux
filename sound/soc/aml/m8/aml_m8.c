@@ -56,7 +56,11 @@ static int i2sbuf[32 + 16];
 static void aml_i2s_play(void)
 {
 	audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	audio_set_i2s_mode(AIU_I2S_MODE_PCM16, 2);
+#else
 	audio_set_i2s_mode(AIU_I2S_MODE_PCM16);
+#endif
 	memset(i2sbuf, 0, sizeof(i2sbuf));
 	audio_set_aiubuf((virt_to_phys(i2sbuf) + 63) & (~63), 128, 2);
 	audio_out_i2s_enable(1);

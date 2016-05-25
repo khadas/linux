@@ -314,12 +314,22 @@ static unsigned get_i2s_out_ptr(void)
 void cover_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count)
 {
-	int i, j;
+	int i;
 	int samp;
 
 	short *des_left = (short *)(des->addr + a);
 	short *des_right = des_left + 16;
 	short *src_buf = (short *)(src->addr + b);
+
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	for (i = 0; i < count; i += 2) {
+		samp = ((*src_buf++) * direct_left_gain) >> 8;
+		*des_left++ = (short)samp;
+		samp = ((*src_buf++) * direct_right_gain) >> 8;
+		*des_right++ = (short)samp;
+	}
+#else
+	int j;
 
 	for (i = 0; i < count; i += 64) {
 		for (j = 0; j < 16; j++) {
@@ -331,17 +341,31 @@ void cover_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 		des_left += 16;
 		des_right += 16;
 	}
+#endif
 }
 
 void direct_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count)
 {
-	int i, j;
+	int i;
 	int samp;
 
 	short *des_left = (short *)(des->addr + a);
 	short *des_right = des_left + 16;
 	short *src_buf = (short *)(src->addr + b);
+
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	for (i = 0; i < count; i += 2) {
+		samp = ((*des_left) * music_gain +
+			(*src_buf++) * direct_left_gain) >> 8;
+		*des_left++ = clip16(samp);
+
+		samp = ((*des_right) * music_gain +
+			(*src_buf++) * direct_right_gain) >> 8;
+		*des_right++ = clip16(samp);
+	}
+#else
+	int j;
 
 	for (i = 0; i < count; i += 64) {
 		for (j = 0; j < 16; j++) {
@@ -356,18 +380,37 @@ void direct_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 		des_left += 16;
 		des_right += 16;
 	}
+#endif
 }
 
 void inter_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count)
 {
-	int i, j;
+	int i;
 	short sampL, sampR;
 	int samp, sampLR;
 
 	short *des_left = (short *)(des->addr + a);
 	short *des_right = des_left + 16;
 	short *src_buf = (short *)(src->addr + b);
+
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	for (i = 0; i < count; i += 2) {
+		sampL = *src_buf++;
+		sampR = *src_buf++;
+		/* Here has risk to distortion.
+		* Linein signals are always weak,
+		* so add them direct. */
+		sampLR = (sampL * direct_left_gain +
+		sampR * direct_right_gain) >> 1;
+		samp = ((*des_left) * music_gain + sampLR) >> 8;
+		*des_left++ = clip16(samp);
+
+		samp = ((*des_right) * music_gain + sampLR) >> 8;
+		*des_right++ = clip16(samp);
+	}
+#else
+	int j;
 
 	for (i = 0; i < count; i += 64) {
 		for (j = 0; j < 16; j++) {
@@ -387,21 +430,58 @@ void inter_mix_memcpy(struct BUF *des, int a, struct BUF *src, int b,
 		des_left += 16;
 		des_right += 16;
 	}
+#endif
 }
 
 void cover_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count)
 {
-	int i, j;
-	int32_t *lf = (int32_t *)(des->addr + a);
-	int32_t *cf = lf + 8;
-	int32_t *rf = cf + 8;
-	int32_t *ls = rf + 8;
-	int32_t *rs = ls + 8;
-	int32_t *lef = rs + 8;
-	int32_t *sbl = lef + 8;
-	int32_t *sbr = sbl + 8;
+	int i;
+	int32_t *lf, *cf, *rf, *ls, *rs, *lef, *sbl, *sbr;
+	int32_t *to = (int32_t *)(des->addr + a);
 	int32_t *tfrom = (int32_t *)(src->addr + b);
+
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	lf = to;
+	cf = to + 1;
+	rf = to + 2;
+	ls = to + 3;
+	rs = to + 4;
+	lef = to + 5;
+	sbl = to + 6;
+	sbr = to + 7;
+
+	for (i = 0; i < count; i += 32) {
+		*lf++ = (int32_t)(((long)(*tfrom++) * direct_left_gain) >> 8);
+		*cf++ = (int32_t)(((long)(*tfrom++) * direct_right_gain) >> 8);
+		*rf++ = (int32_t)(((long)(*tfrom++) * direct_left_gain) >> 8);
+		*ls++ = (int32_t)(((long)(*tfrom++) * direct_right_gain) >> 8);
+		*rs++ = (int32_t)(((long)(*tfrom++) * direct_left_gain) >> 8);
+		*lef++ = (int32_t)(((long)(*tfrom++) * direct_right_gain) >> 8);
+		*sbl++ = (int32_t)(((long)(*tfrom++) * direct_left_gain) >> 8);
+		*sbr++ = (int32_t)(((long)(*tfrom++) * direct_right_gain) >> 8);
+
+		lf += 7;
+		cf += 7;
+		rf += 7;
+		ls += 7;
+		rs += 7;
+		lef += 7;
+		sbl += 7;
+		sbr += 7;
+	}
+#else
+	int j;
+
+	lf = to;
+	cf = to + 1 * 8;
+	rf = to + 2 * 8;
+	ls = to + 3 * 8;
+	rs = to + 4 * 8;
+	lef = to + 5 * 8;
+	sbl = to + 6 * 8;
+	sbr = to + 7 * 8;
+
 	for (j = 0; j < count; j += 256) {
 		for (i = 0; i < 8; i++) {
 			*lf++ = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
@@ -422,22 +502,75 @@ void cover_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 		sbl += 56;
 		sbr += 56;
 	}
+#endif
 }
 
 void direct_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count)
 {
-	int i, j;
-	int32_t *lf = (int32_t *)(des->addr + a);
-	int32_t *cf = lf + 8;
-	int32_t *rf = cf + 8;
-	int32_t *ls = rf + 8;
-	int32_t *rs = ls + 8;
-	int32_t *lef = rs + 8;
-	int32_t *sbl = lef + 8;
-	int32_t *sbr = sbl + 8;
+	int i;
+	int32_t *lf, *cf, *rf, *ls, *rs, *lef, *sbl, *sbr;
+	int32_t *to = (int32_t *)(des->addr + a);
 	int32_t *tfrom = (int32_t *)(src->addr + b);
 	int32_t samp;
+
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	lf = to;
+	cf = to + 1;
+	rf = to + 2;
+	ls = to + 3;
+	rs = to + 4;
+	lef = to + 5;
+	sbl = to + 6;
+	sbr = to + 7;
+
+	for (i = 0; i < count; i += 32) {
+		samp = *lf;
+		*lf++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_left_gain)) >> 8);
+		samp = *cf;
+		*cf++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_right_gain)) >> 8);
+		samp = *rf;
+		*rf++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_left_gain)) >> 8);
+		samp = *ls;
+		*ls++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_right_gain)) >> 8);
+		samp = *rs;
+		*rs++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_left_gain)) >> 8);
+		samp = *lef;
+		*lef++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_right_gain)) >> 8);
+		samp = *sbl;
+		*sbl++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_left_gain)) >> 8);
+		samp = *sbr;
+		*sbr++ = (int32_t)((long)(((samp) * music_gain +
+			(*tfrom++) * direct_right_gain)) >> 8);
+
+		lf += 7;
+		cf += 7;
+		rf += 7;
+		ls += 7;
+		rs += 7;
+		lef += 7;
+		sbl += 7;
+		sbr += 7;
+	}
+#else
+	int j;
+
+	lf = to;
+	cf = to + 1 * 8;
+	rf = to + 2 * 8;
+	ls = to + 3 * 8;
+	rs = to + 4 * 8;
+	lef = to + 5 * 8;
+	sbl = to + 6 * 8;
+	sbr = to + 7 * 8;
+
 	for (j = 0; j < count; j += 256) {
 		for (i = 0; i < 8; i++) {
 			samp = *lf;
@@ -474,22 +607,83 @@ void direct_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 		sbl += 56;
 		sbr += 56;
 	}
+#endif
 }
 
 void inter_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 				unsigned count)
 {
-	int i, j;
-	int32_t *lf = (int32_t *)(des->addr + a);
-	int32_t *cf = lf + 8;
-	int32_t *rf = cf + 8;
-	int32_t *ls = rf + 8;
-	int32_t *rs = ls + 8;
-	int32_t *lef = rs + 8;
-	int32_t *sbl = lef + 8;
-	int32_t *sbr = sbl + 8;
+	int i;
+	int32_t *lf, *cf, *rf, *ls, *rs, *lef, *sbl, *sbr;
+	int32_t *to = (int32_t *)(des->addr + a);
 	int32_t *tfrom = (int32_t *)(src->addr + b);
 	int32_t samp, sampLR, sampL, sampR;
+
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	lf = to;
+	cf = to + 1;
+	rf = to + 2;
+	ls = to + 3;
+	rs = to + 4;
+	lef = to + 5;
+	sbl = to + 6;
+	sbr = to + 7;
+
+	for (i = 0; i < count; i += 32) {
+		sampL = (int32_t)((long)((*tfrom++) * direct_left_gain) >> 8);
+		sampR = (int32_t)((long)((*tfrom++) * direct_right_gain) >> 8);
+		sampLR = (sampL + sampR) >> 1;
+
+		samp = *lf;
+		*lf++ = (int32_t)((long)samp * music_gain + sampLR);
+		samp = *cf;
+		*cf++ = (int32_t)((long)samp * music_gain + sampLR);
+
+		sampL = (int32_t)((long)((*tfrom++) * direct_left_gain) >> 8);
+		sampR = (int32_t)((long)((*tfrom++) * direct_right_gain) >> 8);
+		sampLR = (sampL + sampR) >> 1;
+		samp = *rf;
+		*rf++ = (int32_t)((long)samp * music_gain + sampLR);
+		samp = *ls;
+		*ls++ = (int32_t)((long)samp * music_gain + sampLR);
+
+		sampL = (int32_t)((long)((*tfrom++) * direct_left_gain) >> 8);
+		sampR = (int32_t)((long)((*tfrom++) * direct_right_gain) >> 8);
+		sampLR = (sampL + sampR) >> 1;
+		samp = *rs;
+		*rs++ = (int32_t)((long)samp * music_gain + sampLR);
+		samp = *lef;
+		*lef++ = (int32_t)((long)samp * music_gain + sampLR);
+
+		sampL = (int32_t)((long)((*tfrom++) * direct_left_gain) >> 8);
+		sampR = (int32_t)((long)((*tfrom++) * direct_right_gain) >> 8);
+		sampLR = (sampL + sampR) >> 1;
+		samp = *sbl;
+		*sbl++ = (int32_t)((long)samp * music_gain + sampLR);
+		samp = *sbr;
+		*sbr++ = (int32_t)((long)samp * music_gain + sampLR);
+
+		lf += 7;
+		cf += 7;
+		rf += 7;
+		ls += 7;
+		rs += 7;
+		lef += 7;
+		sbl += 7;
+		sbr += 7;
+	}
+#else
+	int j;
+
+	lf = to;
+	cf = to + 1 * 8;
+	rf = to + 2 * 8;
+	ls = to + 3 * 8;
+	rs = to + 4 * 8;
+	lef = to + 5 * 8;
+	sbl = to + 6 * 8;
+	sbr = to + 7 * 8;
+
 	for (j = 0; j < count; j += 256) {
 		for (i = 0; i < 8; i++) {
 			sampL = (((*tfrom++) >> 8) * direct_left_gain) >> 8;
@@ -534,6 +728,7 @@ void inter_mix_memcpy_8_channel(struct BUF *des, int a, struct BUF *src, int b,
 		sbl += 56;
 		sbr += 56;
 	}
+#endif
 }
 
 static void i2s_copy(struct amaudio_t *amaudio)

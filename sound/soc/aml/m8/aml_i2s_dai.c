@@ -71,7 +71,11 @@ static void aml_hw_i2s_init(struct snd_pcm_runtime *runtime)
 		i2s_mode = AIU_I2S_MODE_PCM16;
 		break;
 	}
+#ifdef CONFIG_SND_AML_SPLIT_MODE
+	audio_set_i2s_mode(i2s_mode, runtime->channels);
+#else
 	audio_set_i2s_mode(i2s_mode);
+#endif
 	audio_set_aiubuf(runtime->dma_addr, runtime->dma_bytes,
 			 runtime->channels);
 }
@@ -146,11 +150,10 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		audio_out_i2s_enable(0);
-
-	audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
-
+		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+	}
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		s->i2s_mode = dai_info[dai->id].i2s_mode;
 		audio_in_i2s_set_buf(runtime->dma_addr, runtime->dma_bytes * 2,
