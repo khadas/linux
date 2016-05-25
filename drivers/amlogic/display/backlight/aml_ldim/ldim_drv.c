@@ -1640,6 +1640,7 @@ static int ldim_power_on(void)
 	if (ldim_driver.device_power_on)
 		ldim_driver.device_power_on();
 	ldim_on_flag = 1;
+	ldim_level_update = 1;
 
 	return ret;
 }
