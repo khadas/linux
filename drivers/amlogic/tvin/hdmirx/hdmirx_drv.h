@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/06/02"
+#define HDMIRX_VER "Ref.2016/06/03"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -132,6 +132,7 @@ enum HDMI_Video_Type {
 	HDMI_720p120  = 47,
 
 	HDMI_720p24   = 60,
+	HDMI_720p25   = 61,
 	HDMI_720p30   = 62,
 	HDMI_1080p120 = 63,
 	HDMI_800_600  = 65,
