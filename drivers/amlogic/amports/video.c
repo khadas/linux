@@ -706,6 +706,8 @@ bool show_first_picture = false;
 
 /* test screen*/
 static u32 test_screen;
+/* rgb screen*/
+static u32 rgb_screen;
 
 /* video frame repeat count */
 static u32 frame_repeat_count;
@@ -6273,6 +6275,11 @@ static ssize_t video_test_screen_show(struct class *cla,
 {
 	return sprintf(buf, "0x%x\n", test_screen);
 }
+static ssize_t video_rgb_screen_show(struct class *cla,
+				      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", rgb_screen);
+}
 
 #define SCALE 6
 
@@ -6476,6 +6483,55 @@ static ssize_t video_test_screen_store(struct class *cla,
 	}
 	return count;
 }
+
+static ssize_t video_rgb_screen_store(struct class *cla,
+				       struct class_attribute *attr,
+				       const char *buf, size_t count)
+{
+	size_t r;
+	unsigned data = 0x0;
+	r = sscanf(buf, "0x%x", &rgb_screen);
+	if (r != 1)
+		return -EINVAL;
+
+	/* vdin0 pre post blend enable or disabled */
+	data = READ_VCBUS_REG(VPP_MISC);
+	if (rgb_screen & 0x01000000)
+		data |= VPP_VD1_PREBLEND;
+	else
+		data &= (~VPP_VD1_PREBLEND);
+
+	if (rgb_screen & 0x02000000)
+		data |= VPP_VD1_POSTBLEND;
+	else
+		data &= (~VPP_VD1_POSTBLEND);
+	/*
+	   if (test_screen & 0x04000000)
+	   data |= VPP_VD2_PREBLEND;
+	   else
+	   data &= (~VPP_VD2_PREBLEND);
+
+	   if (test_screen & 0x08000000)
+	   data |= VPP_VD2_POSTBLEND;
+	   else
+	   data &= (~VPP_VD2_POSTBLEND);
+	 */
+	/* show test screen  YUV blend*/
+	if (is_meson_gxtvbb_cpu())   {
+		if (!(READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80))
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+				rgb_screen & 0x00ffffff);
+	}
+	WRITE_VCBUS_REG(VPP_MISC, data);
+
+	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
+		pr_info("%s write(VPP_MISC,%x) write(VPP_DUMMY_DATA1, %x)\n",
+		       __func__, data, rgb_screen & 0x00ffffff);
+	}
+	return count;
+}
+
+
 
 static ssize_t video_nonlinear_factor_show(struct class *cla,
 					   struct class_attribute *attr,
@@ -7193,6 +7249,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       S_IRUGO | S_IWUSR,
 	       video_test_screen_show,
 	       video_test_screen_store),
+	__ATTR(rgb_screen,
+	       S_IRUGO | S_IWUSR,
+	       video_rgb_screen_show,
+	       video_rgb_screen_store),
 	__ATTR(file_name,
 	       S_IRUGO | S_IWUSR,
 	       video_filename_show,

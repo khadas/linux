@@ -1575,6 +1575,63 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	return count;
 }
 
+static ssize_t set_gamma_pattern_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	pr_info("	echo r g b > /sys/class/amvecm/gamma_pattern\n");
+	pr_info("	r g b should be hex\n");
+	return 0;
+}
+
+static ssize_t set_gamma_pattern_store(struct class *cls,
+			struct class_attribute *attr,
+			const char *buffer, size_t count)
+{
+	unsigned short r_val[256], g_val[256], b_val[256];
+	int n = 0;
+	char *buf_orig, *ps, *token;
+	char *parm[3];
+	unsigned int gamma[3];
+	long val, i;
+
+	buf_orig = kstrdup(buffer, GFP_KERNEL);
+	ps = buf_orig;
+	while (1) {
+		token = strsep(&ps, " \n");
+		if (token == NULL)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+	if (kstrtol(parm[0], 16, &val) < 0)
+		return -EINVAL;
+	gamma[0] = val << 2;
+
+	if (kstrtol(parm[1], 16, &val) < 0)
+		return -EINVAL;
+	gamma[1] = val << 2;
+
+	if (kstrtol(parm[2], 16, &val) < 0)
+		return -EINVAL;
+	gamma[2] = val << 2;
+
+	for (i = 0; i < 256; i++) {
+		r_val[i] = gamma[0];
+		g_val[i] = gamma[1];
+		b_val[i] = gamma[2];
+	}
+
+	vpp_set_lcd_gamma_table(r_val, H_SEL_R);
+
+	vpp_set_lcd_gamma_table(g_val, H_SEL_G);
+
+	vpp_set_lcd_gamma_table(b_val, H_SEL_B);
+	return count;
+
+}
+
+
 static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
@@ -1938,6 +1995,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_dump_vpp_hist_show, amvecm_dump_vpp_hist_store),
 	__ATTR(hdr_dbg, S_IRUGO | S_IWUSR,
 			amvecm_hdr_dbg_show, amvecm_hdr_dbg_store),
+	__ATTR(gamma_pattern, S_IRUGO | S_IWUSR,
+			set_gamma_pattern_show, set_gamma_pattern_store),
 	__ATTR_NULL
 };
 
