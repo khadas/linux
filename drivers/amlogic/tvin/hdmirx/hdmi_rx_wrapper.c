@@ -440,7 +440,7 @@ MODULE_PARM_DESC(reset_esm_flag, "\n reset_esm_flag\n");
 module_param(reset_esm_flag, bool, 0664);
 
 /* to inform ESM whether the cable is connected or not */
-static bool video_stable_to_esm;
+bool video_stable_to_esm;
 MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
 module_param(video_stable_to_esm, bool, 0664);
 
@@ -487,6 +487,22 @@ module_param(enable_hdcp22_esm_log, bool, 0664);
 int hdcp22_firmware_ok_flag = 1;
 MODULE_PARM_DESC(hdcp22_firmware_ok_flag, "\n hdcp22_firmware_ok_flag\n");
 module_param(hdcp22_firmware_ok_flag, int, 0664);
+
+int esm_err_force_14;
+MODULE_PARM_DESC(esm_err_force_14, "\n esm_err_force_14\n");
+module_param(esm_err_force_14, int, 0664);
+
+static int reboot_esm_done;
+MODULE_PARM_DESC(reboot_esm_done, "\n reboot_esm_done\n");
+module_param(reboot_esm_done, int, 0664);
+
+int esm_reboot_lvl = 1;
+MODULE_PARM_DESC(esm_reboot_lvl, "\n esm_reboot_lvl\n");
+module_param(esm_reboot_lvl, int, 0664);
+
+int enable_esm_reboot;
+MODULE_PARM_DESC(enable_esm_reboot, "\n enable_esm_reboot\n");
+module_param(enable_esm_reboot, int, 0664);
 #endif
 
 int pre_port = 0xff;
@@ -2363,6 +2379,75 @@ bool hdmirx_tmds_34g_max(void)
 	return rx.scdc_tmds_cfg >= (scdc_tmds_try_max + 1);
 }
 
+#ifdef HDCP22_ENABLE
+void esm_reboot_func(void)
+{
+	if (esm_reboot_lvl == 1) {
+		hdmirx_set_hpd(rx.port, 0);
+		hdcp_22_on = 1;
+		hdcp22_kill_esm = 1;
+		mdelay(wait_hdcp22_cnt1);
+		hdcp22_kill_esm = 0;
+		mdelay(wait_hdcp22_cnt2);
+		hpd_to_esm = 0;
+		do_esm_rst_flag = 1;
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
+		hdmirx_hdcp22_esm_rst();
+		mdelay(loadkey_22_hpd_delay);
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
+			0x1000);
+		hdmirx_hw_config();
+		hpd_to_esm = 1;
+		rx.state = FSM_HDMI5V_HIGH;
+	} else if (esm_reboot_lvl == 2) {
+		hdmirx_set_hpd(rx.port, 0);
+		hdcp_22_on = 1;
+		hdcp22_kill_esm = 1;
+		mdelay(wait_hdcp22_cnt1);
+		hdcp22_kill_esm = 0;
+		mdelay(wait_hdcp22_cnt2);
+		hpd_to_esm = 0;
+		do_esm_rst_flag = 1;
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
+		mdelay(loadkey_22_hpd_delay);
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
+			0x1000);
+		hdmirx_hw_config();
+		hpd_to_esm = 1;
+		rx.state = FSM_HDMI5V_HIGH;
+	}
+	rx_print("esm_reboot_func\n");
+}
+void hdmirx_esm_hw_fault_detect(void)
+{
+	/* detect hdcp2.2 esm status */
+	if (((rx_hdcp22_rd(0x60)>>31) == 1)
+		&& (esm_err_force_14 == 0)) {
+		if (reboot_esm_done == 0) {
+			esm_reboot_func();
+			reboot_esm_done = 1;
+			rx_print("esm reboot done\n");
+		} else {
+			hdmirx_wr_dwc(0x81c,
+				0x2);
+			esm_err_force_14 = 1;
+			rx_print("force 1.4-0\n");
+		}
+	}
+
+	if ((reboot_esm_done == 1) && (esm_err_force_14 == 0) &&
+		(rx_hdcp22_rd(0x60) == 0)) {
+		if ((hdcp22_authenticated == 0xff) &&
+			(hdcp22_capable_sts == 0xff)) {
+			hdmirx_wr_dwc(0x81c,
+				0x2);
+			esm_err_force_14 = 1;
+			rx_print("force 1.4-1\n");
+		}
+	}
+}
+#endif
+
 void hdmirx_hw_monitor(void)
 {
 	int pre_sample_rate;
@@ -2588,6 +2673,16 @@ void hdmirx_hw_monitor(void)
 		if (is_timing_stable(&rx.pre_params,
 			&rx.cur_params) || (force_ready)) {
 			if (sig_stable_cnt++ > sig_stable_max) {
+				#ifdef HDCP22_ENABLE
+				if (hdcp_22_on && enable_esm_reboot) {
+					hdmirx_esm_hw_fault_detect();
+					if ((esm_err_force_14 == 1) ||
+						((rx_hdcp22_rd(0x60)&1) == 1))
+						;
+					else
+						break;
+				}
+				#endif
 				get_timing_fmt(&rx.pre_params);
 				if ((rx.pre_params.sw_vic == HDMI_UNSUPPORT) ||
 					(rx.pre_params.sw_vic == HDMI_UNKNOW)) {
@@ -3784,6 +3879,24 @@ int hdmirx_debug(const char *buf, int size)
 		}
 	} else if (strncmp(tmpbuf, "state", 5) == 0) {
 		dump_state(0xff);
+	} else if (strncmp(tmpbuf, "hdcp14", 6) == 0) {
+		hdmirx_set_hpd(rx.port, 0);
+		force_hdcp14_en = 1;
+		hdcp_22_on = 0;
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x2);
+		video_stable_to_esm = 0;
+		rx.state = FSM_HDMI5V_HIGH;
+		rx.pre_state = FSM_HDMI5V_HIGH;
+		rx_print("force hdcp1.4\n");
+	} else if (strncmp(tmpbuf, "hdcpauto", 8) == 0) {
+		hdmirx_set_hpd(rx.port, 0);
+		hdcp_22_on = 1;
+		force_hdcp14_en = 0;
+		hdmirx_hw_config();
+		hpd_to_esm = 1;
+		rx.state = FSM_HDMI5V_HIGH;
+		rx.pre_state = FSM_HDMI5V_HIGH;
+		rx_print("hdcp22 auto\n");
 	} else if (strncmp(tmpbuf, "pause", 5) == 0) {
 		if (kstrtol(tmpbuf + 5, 10, &value) < 0)
 			return -EINVAL;

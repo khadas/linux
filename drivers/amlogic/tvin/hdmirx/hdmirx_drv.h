@@ -562,6 +562,7 @@ extern int md_ists_en;
 extern int hdmi_ists_en;
 extern int real_port_map;
 extern bool hpd_to_esm;
+extern bool video_stable_to_esm;
 extern bool hdcp_enable;
 extern int it_content;
 extern struct rx_s rx;
@@ -581,6 +582,7 @@ extern int do_esm_rst_flag;
 extern int hdcp22_firmware_ok_flag;
 extern int force_hdcp14_en;
 extern int pre_port;
+extern int esm_err_force_14;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

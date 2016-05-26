@@ -864,7 +864,8 @@ void hdmirx_20_init(void)
 		/* hdmirx_wr_dwc(DWC_HDCP_SETTINGS, 0x13374); */
 		/* Configure pkf[127:0] */
 		if (hdcp22_firmware_ok_flag &&
-			(force_hdcp14_en == 0))
+			(force_hdcp14_en == 0) &&
+			(esm_err_force_14 == 0))
 			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
 		else
 			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
@@ -904,7 +905,10 @@ void hdmirx_hdcp22_init(void)
 		ret = rx_sec_set_duk();
 
 	if (ret == 1) {
-		hdcp_22_on = 1;
+		if (force_hdcp14_en == 0)
+			hdcp_22_on = 1;
+		else
+			hdcp_22_on = 0;
 		/* hpd_to_esm = 1; */
 		is_duk_key_set = 1;
 		rx_print("hdcp22 on\n");

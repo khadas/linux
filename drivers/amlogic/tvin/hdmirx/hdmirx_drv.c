@@ -631,20 +631,36 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case HDMI_IOC_PC_MODE_ON:
 		pc_mode_en = 1;
+		hdmirx_set_hpd(rx.port, 0);
+		rx.state = FSM_HDMI5V_HIGH;
+		rx.pre_state = FSM_HDMI5V_HIGH;
 		rx_print("pc mode on\n");
 		break;
 	case HDMI_IOC_PC_MODE_OFF:
 		pc_mode_en = 0;
+		hdmirx_set_hpd(rx.port, 0);
+		rx.state = FSM_HDMI5V_HIGH;
+		rx.pre_state = FSM_HDMI5V_HIGH;
 		rx_print("pc mode off\n");
 		break;
 	case HDMI_IOC_HDCP22_AUTO:
+		hdmirx_set_hpd(rx.port, 0);
+		hdcp_22_on = 1;
 		force_hdcp14_en = 0;
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+		hdmirx_hw_config();
+		hpd_to_esm = 1;
+		rx.state = FSM_HDMI5V_HIGH;
+		rx.pre_state = FSM_HDMI5V_HIGH;
 		rx_print("hdcp22 auto\n");
 		break;
 	case HDMI_IOC_HDCP22_FORCE14:
+		hdmirx_set_hpd(rx.port, 0);
 		force_hdcp14_en = 1;
+		hdcp_22_on = 0;
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x2);
+		video_stable_to_esm = 0;
+		rx.state = FSM_HDMI5V_HIGH;
+		rx.pre_state = FSM_HDMI5V_HIGH;
 		rx_print("force hdcp1.4\n");
 		break;
 	default:
