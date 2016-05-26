@@ -423,7 +423,12 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 
 	devp->frontend = fe;
 	devp->parm.port        = port;
-	devp->parm.info.fmt    = TVIN_SIG_FMT_NULL;
+	/* for atv snow function */
+	if ((port == TVIN_PORT_CVBS3) &&
+		(devp->parm.info.fmt == TVIN_SIG_FMT_NULL))
+		devp->parm.info.fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+	else
+		devp->parm.info.fmt = TVIN_SIG_FMT_NULL;
 	devp->parm.info.status = TVIN_SIG_STATUS_NULL;
 	if (devp->pre_info.status != TVIN_SIG_STATUS_NULL) {
 		devp->pre_info.status = TVIN_SIG_STATUS_NULL;
@@ -879,7 +884,6 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_hw_enable(devp->addr_offset);
 	vdin_set_all_regs(devp);
 
-
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		devp->frontend->dec_ops &&
 		devp->frontend->dec_ops->start)
@@ -1249,23 +1253,23 @@ static struct vdin_v4l2_ops_s vdin_4v4l2_ops = {
 	.tvin_vdin_func	      = vdin_func,
 };
 
-static void vdin_pause_dec(struct vdin_dev_s *devp)
+void vdin_pause_dec(struct vdin_dev_s *devp)
 {
 	vdin_hw_disable(devp->addr_offset);
 }
 
-static void vdin_resume_dec(struct vdin_dev_s *devp)
+void vdin_resume_dec(struct vdin_dev_s *devp)
 {
 	vdin_hw_enable(devp->addr_offset);
 }
 
-static void vdin_vf_reg(struct vdin_dev_s *devp)
+void vdin_vf_reg(struct vdin_dev_s *devp)
 {
 	vf_reg_provider(&devp->vprov);
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_START, NULL);
 }
 
-static void vdin_vf_unreg(struct vdin_dev_s *devp)
+void vdin_vf_unreg(struct vdin_dev_s *devp)
 {
 	vf_unreg_provider(&devp->vprov);
 }
@@ -2050,8 +2054,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			devp->start_time = jiffies_to_msecs(jiffies);
 			pr_info("TVIN_IOC_START_DEC %ums.\n", devp->start_time);
 		}
-		if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
-				(devp->parm.info.fmt == TVIN_SIG_FMT_NULL)) {
+		if (((devp->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
+			(devp->parm.info.fmt == TVIN_SIG_FMT_NULL)) &&
+			(devp->parm.port != TVIN_PORT_CVBS3)) {
 			pr_err("TVIN_IOC_START_DEC: port %s start invalid\n",
 					tvin_port_str(devp->parm.port));
 			pr_err("	status: %s, fmt: %s\n",
@@ -2061,7 +2066,6 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				mutex_unlock(&devp->fe_lock);
 				break;
 		}
-
 		if (copy_from_user(&parm, argp, sizeof(struct tvin_parm_s))) {
 			pr_err("TVIN_IOC_START_DEC(%d) invalid parameter\n",
 					devp->index);
@@ -2069,7 +2073,11 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&devp->fe_lock);
 			break;
 		}
-		fmt = devp->parm.info.fmt = parm.info.fmt;
+		if ((devp->parm.info.fmt == TVIN_SIG_FMT_NULL) &&
+			(devp->parm.port == TVIN_PORT_CVBS3))
+			fmt = devp->parm.info.fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+		else
+			fmt = devp->parm.info.fmt = parm.info.fmt;
 		devp->fmt_info_p  =
 				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
 		/* devp->fmt_info_p  =
@@ -2270,7 +2278,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vdin_vf_freeze(devp->vfp, 1);
 		else
 			vdin_vf_freeze(devp->vfp, 2);
-		mutex_lock(&devp->fe_lock);
+		mutex_unlock(&devp->fe_lock);
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_FREEZE_VF(%d) ok\n\n", devp->index);
 		break;
 	}
 	case TVIN_IOC_UNFREEZE_VF: {
@@ -2283,7 +2293,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		vdin_vf_unfreeze(devp->vfp);
-		mutex_lock(&devp->fe_lock);
+		mutex_unlock(&devp->fe_lock);
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_UNFREEZE_VF(%d) ok\n\n", devp->index);
 		break;
 	}
 	case TVIN_IOC_CALLMASTER_SET: {
@@ -2317,6 +2329,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		callmaster_status = 0;
 		break;
 	}
+	case TVIN_IOC_SNOWON:
+		devp->flags |= VDIN_FLAG_SNOW_FLAG;
+		break;
+	case TVIN_IOC_SNOWOFF:
+		devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	/* pr_info("%s %d is not supported command\n", __func__, cmd); */

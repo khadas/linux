@@ -70,6 +70,9 @@ MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 static int vga_yuv422_enable;
 module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
+static bool tvafe_dbg_enable;
+module_param(tvafe_dbg_enable, bool, 0644);
+MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 
 static struct tvafe_info_s *g_tvafe_info;
 /***********the  version of changing log************************/
@@ -224,13 +227,13 @@ static ssize_t tvafe_store(struct device *dev,
 		pr_info("LAST VERSION:[tvafe version]:%s\t[cvd2 version]:%s\t[adc version]:%s\t[format table version]:NUll\n",
 		last_afe_version, last_cvd_version, last_adc_version);
 	} else if (!strncmp(buff, "snowon", strlen("snowon"))) {
-			tvafe_snow_config(1);
-			devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
-			pr_info("[tvafe..]%s:tvafe snowon\n", __func__);
+		tvafe_snow_config(1);
+		devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
+		pr_info("[tvafe..]%s:tvafe snowon\n", __func__);
 	} else if (!strncmp(buff, "snowoff", strlen("snowoff"))) {
-			tvafe_snow_config(0);
-			devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
-			pr_info("[tvafe..]%s:tvafe snowoff\n", __func__);
+		tvafe_snow_config(0);
+		devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
+		pr_info("[tvafe..]%s:tvafe snowoff\n", __func__);
 	} else
 		pr_info("[%s]:invaild command.\n", __func__);
 	return count;
@@ -1343,7 +1346,7 @@ static long tvafe_ioctl(struct file *file,
 		return -EPERM;
 	}
 
-		switch (cmd) {
+	switch (cmd) {
 
 		case TVIN_IOC_LOAD_REG:
 			{
@@ -1365,6 +1368,18 @@ static long tvafe_ioctl(struct file *file,
 
 			break;
 		    }
+		case TVIN_IOC_S_AFE_SONWON:
+			devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
+			tvafe_snow_config(1);
+			if (tvafe_dbg_enable)
+				pr_info("[tvafe..]TVIN_IOC_S_AFE_SONWON\n");
+			break;
+		case TVIN_IOC_S_AFE_SONWOFF:
+			tvafe_snow_config(0);
+			devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
+			if (tvafe_dbg_enable)
+				pr_info("[tvafe..]TVIN_IOC_S_AFE_SONWOFF\n");
+			break;
 #if 0
 		case TVIN_IOC_S_AFE_ADC_DIFF:
 			if (copy_from_user(&clamp_diff, argp,

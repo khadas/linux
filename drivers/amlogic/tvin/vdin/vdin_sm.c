@@ -238,7 +238,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					queue_delayed_work(devp->sig_wq,
 						&devp->sig_dwork, 0);
 				}
-				info->fmt           = TVIN_SIG_FMT_NULL;
+				info->fmt = TVIN_SIG_FMT_NULL;
 				if (sm_debug_enable && !sm_print_nosig) {
 					pr_info("[smr.%d] no signal\n",
 							devp->index);

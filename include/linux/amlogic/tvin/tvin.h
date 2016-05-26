@@ -817,6 +817,8 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_VF_UNREG           _IO(_TM_T, 0x44)
 #define TVIN_IOC_FREEZE_VF          _IO(_TM_T, 0x45)
 #define TVIN_IOC_UNFREEZE_VF        _IO(_TM_T, 0x46)
+#define TVIN_IOC_SNOWON             _IO(_TM_T, 0x47)
+#define TVIN_IOC_SNOWOFF            _IO(_TM_T, 0x48)
 
 /* TVAFE */
 #if 0
@@ -846,4 +848,6 @@ struct tvafe_pin_mux_s {
 #if 0
 #define TVIN_IOC_S_AFE_ADC_DIFF _IOW(_TM_T, 0x21, struct tvafe_adc_cal_clamp_s)
 #endif
+#define TVIN_IOC_S_AFE_SONWON     _IO(_TM_T, 0x22)
+#define TVIN_IOC_S_AFE_SONWOFF     _IO(_TM_T, 0x23)
 #endif

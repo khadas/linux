@@ -769,8 +769,62 @@ start_chk:
 		pr_info("snowon config done!!\n");
 	} else if (!strcmp(parm[0], "snowoff")) {
 		devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
+		devp->flags |= VDIN_FLAG_SM_DISABLE;
 		tvafe_snow_config(0);
+		/* if fmt change, need restart dec vdin */
+		if ((devp->parm.info.fmt != TVIN_SIG_FMT_CVBS_NTSC_M) &&
+			(devp->parm.info.fmt != TVIN_SIG_FMT_NULL)) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				pr_err("VDIN_FLAG_DEC_STARTED(%d) decode havn't started\n",
+				devp->index);
+			else {
+				devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
+				vdin_stop_dec(devp);
+				devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
+				devp->flags &= (~VDIN_FLAG_DEC_STARTED);
+				pr_info("VDIN_FLAG_DEC_STARTED(%d) port %s, decode stop ok\n",
+					devp->parm.index,
+					tvin_port_str(devp->parm.port));
+			}
+			if (devp->flags & VDIN_FLAG_DEC_STARTED)
+				pr_info("VDIN_FLAG_DEC_STARTED() TVIN_PORT_CVBS3, started already\n");
+			else {
+				devp->fmt_info_p  =
+				(struct tvin_format_s *)tvin_get_fmt_info(
+				devp->parm.info.fmt);
+				vdin_start_dec(devp);
+				devp->flags |= VDIN_FLAG_DEC_STARTED;
+				pr_info("VDIN_FLAG_DEC_STARTED port TVIN_PORT_CVBS3, decode started ok\n");
+			}
+		}
+		devp->flags &= (~VDIN_FLAG_SM_DISABLE);
 		pr_info("snowoff config done!!\n");
+	} else if (!strcmp(parm[0], "vf_reg")) {
+		if ((devp->flags & VDIN_FLAG_DEC_REGED)
+			== VDIN_FLAG_DEC_REGED) {
+			pr_err("vf_reg(%d) decoder is registered already\n",
+				devp->index);
+		} else {
+			devp->flags |= VDIN_FLAG_DEC_REGED;
+			vdin_vf_reg(devp);
+			pr_info("vf_reg(%d) ok\n\n", devp->index);
+		}
+	} else if (!strcmp(parm[0], "vf_unreg")) {
+		if ((devp->flags & VDIN_FLAG_DEC_REGED)
+			!= VDIN_FLAG_DEC_REGED) {
+			pr_err("vf_unreg(%d) decoder isn't registered\n",
+				devp->index);
+		} else {
+			devp->flags &= (~VDIN_FLAG_DEC_REGED);
+			vdin_vf_unreg(devp);
+			pr_info("vf_unreg(%d) ok\n\n", devp->index);
+		}
+	} else if (!strcmp(parm[0], "pause_dec")) {
+		vdin_pause_dec(devp);
+		pr_info("pause_dec(%d) ok\n\n", devp->index);
+	} else if (!strcmp(parm[0], "resume_dec")) {
+		vdin_resume_dec(devp);
+		pr_info("resume_dec(%d) ok\n\n", devp->index);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */
