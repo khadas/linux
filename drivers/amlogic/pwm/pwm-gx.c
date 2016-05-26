@@ -14,6 +14,7 @@
  * more details.
  *
 */
+
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/export.h>
@@ -56,6 +57,9 @@
 #define DUTY_MAX		1024
 
 #define AML_PWM_NUM		8
+#undef pr_fmt
+#define pr_fmt(fmt) "gx-pwm : " fmt
+
 
 enum pwm_channel {
 	PWM_A = 0,
@@ -72,11 +76,13 @@ static DEFINE_SPINLOCK(aml_pwm_lock);
 
 /*pwm att*/
 struct aml_pwm_channel {
-	u8 pwm_hi;
-	u8 pwm_lo;
-	u8 pwm_pre_div;
-	u32 period;
-	u32 duty;
+	unsigned int pwm_hi;
+	unsigned int pwm_lo;
+	unsigned int pwm_pre_div;
+
+	unsigned int period_ns;
+	unsigned int duty_ns;
+	unsigned int pwm_freq;
 };
 
 /*pwm regiset att*/
@@ -90,6 +96,13 @@ struct aml_pwm_chip {
 	void __iomem *ao_base;
 	struct aml_pwm_variant variant;
 	u8 inverter_mask;
+
+	unsigned int clk_mask;
+	struct clk	*xtal_clk;
+	struct clk	*vid_pll_clk;
+	struct clk	*fclk_div4_clk;
+	struct clk	*fclk_div3_clk;
+
 };
 
 static void pwm_set_reg_bits(void __iomem  *reg,
@@ -122,44 +135,58 @@ struct aml_pwm_chip *to_aml_pwm_chip(struct pwm_chip *chip)
 static
 struct aml_pwm_channel *pwm_aml_calc(struct aml_pwm_chip *chip,
 						struct pwm_device *pwm,
-						int duty, unsigned int pwm_freq)
+						unsigned int duty_ns,
+						unsigned int period_ns,
+						struct clk	*clk)
 {
 	struct aml_pwm_channel *our_chan = pwm_get_chip_data(pwm);
-	unsigned int fout_freq = 0, pwm_pre_div;
+	unsigned int fout_freq = 0, pwm_pre_div = 0;
 	unsigned int i = 0;
-	unsigned int temp = 0;
-	unsigned int pwm_cnt;
+	unsigned long  temp = 0;
+	unsigned long pwm_cnt = 0;
+	unsigned long rate = 0;
+	unsigned int pwm_freq;
+	unsigned long freq_div;
 
-	if ((duty < 0) || (duty > DUTY_MAX)) {
+	if ((duty_ns < 0) || (duty_ns > period_ns)) {
 		dev_err(chip->chip.dev, "Not available duty error!\n");
 		return NULL;
 	}
 
-	fout_freq = ((pwm_freq >= (FIN_FREQ * 500)) ?
-					(FIN_FREQ * 500) : pwm_freq);
+	if (!IS_ERR(clk))
+		rate = clk_get_rate(clk);
+
+	pwm_freq = NSEC_PER_SEC / period_ns;
+
+	fout_freq = ((pwm_freq >= ((rate/1000) * 500)) ?
+					((rate/1000) * 500) : pwm_freq);
 	for (i = 0; i < 0x7f; i++) {
 		pwm_pre_div = i;
-		pwm_cnt = FIN_FREQ * 1000 / (pwm_freq * (pwm_pre_div + 1)) - 2;
+		freq_div = rate / (pwm_pre_div + 1);
+		if (freq_div < pwm_freq)
+			continue;
+		pwm_cnt = freq_div / pwm_freq;
 		if (pwm_cnt <= 0xffff)
 			break;
 	}
 
 	our_chan->pwm_pre_div = pwm_pre_div;
-	if (duty == 0) {
+	if (duty_ns == 0) {
 		our_chan->pwm_hi = 0;
 		our_chan->pwm_lo = pwm_cnt;
 		return our_chan;
-	} else if (duty == DUTY_MAX) {
+	} else if (duty_ns == period_ns) {
 		our_chan->pwm_hi = pwm_cnt;
 		our_chan->pwm_lo = 0;
 		return our_chan;
 	}
 
-	temp = pwm_cnt * duty;
-	temp /= DUTY_MAX;
+	temp = (unsigned long)(pwm_cnt * duty_ns);
+	temp /= period_ns;
 
-	our_chan->pwm_hi = (unsigned int)temp;
-	our_chan->pwm_lo = pwm_cnt - our_chan->pwm_hi;
+	our_chan->pwm_hi = (unsigned int)temp-1;
+	our_chan->pwm_lo = pwm_cnt - (unsigned int)temp-1;
+	our_chan->pwm_freq = pwm_freq;
 
 	return our_chan;
 
@@ -317,28 +344,73 @@ static void pwm_aml_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 }
 
+static int pwm_aml_clk(struct aml_pwm_chip *our_chip,
+						struct pwm_device *pwm,
+						unsigned int duty_ns,
+						unsigned int period_ns,
+						unsigned int offset)
+{
+	struct aml_pwm_channel *our_chan = pwm_get_chip_data(pwm);
+	struct clk	*clk;
+
+	switch ((our_chip->clk_mask >> offset)&0x3) {
+	case 0x0:
+		clk = our_chip->xtal_clk;
+		break;
+	case 0x1:
+		clk = our_chip->vid_pll_clk;
+		break;
+	case 0x2:
+		clk = our_chip->fclk_div4_clk;
+		break;
+	case 0x3:
+		clk = our_chip->fclk_div3_clk;
+		break;
+	default:
+		clk = our_chip->xtal_clk;
+		break;
+	}
+
+	our_chan = pwm_aml_calc(our_chip, pwm, duty_ns, period_ns, clk);
+	if (NULL == our_chan)
+		return -EINVAL;
+
+	return 0;
+}
+
+
 static int pwm_aml_config(struct pwm_chip *chip,
 							struct pwm_device *pwm,
-							int duty,
-							int pwm_freq)
+							int duty_ns,
+							int period_ns)
 {
 	struct aml_pwm_chip *our_chip = to_aml_pwm_chip(chip);
 	struct aml_pwm_channel *our_chan = pwm_get_chip_data(pwm);
 	unsigned int id = pwm->hwpwm;
+	unsigned int offset;
+	int ret;
 
 	if ((~(our_chip->inverter_mask >> id) & 0x1))
-		duty = DUTY_MAX - duty;
+		duty_ns = period_ns - duty_ns;
 
-	if (pwm_freq == our_chan->period && duty == our_chan->duty)
+	if (period_ns > NSEC_PER_SEC)
+		return -ERANGE;
+
+	if (period_ns == our_chan->period_ns && duty_ns == our_chan->duty_ns)
 		return 0;
 
-	our_chan = pwm_aml_calc(our_chip, pwm, duty, pwm_freq);
-	if (NULL == our_chan) {
+	offset = id * 2;
+	ret = pwm_aml_clk(our_chip, pwm, duty_ns, period_ns, offset);
+	if (ret) {
 		dev_err(chip->dev, "tried to calc pwm freq err\n");
 		return -EINVAL;
 	}
+
 	switch (id) {
 	case PWM_A:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+			(0x3 << 4),
+			(((our_chip->clk_mask)&0x3) << 4));
 		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
 			(0x7f << 8)|(1 << 15),
 			(our_chan->pwm_pre_div << 8)|(1 << 15));
@@ -347,12 +419,18 @@ static int pwm_aml_config(struct pwm_chip *chip,
 		break;
 	case PWM_B:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 2)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
 			(0x7f << 16)|(1 << 23),
 			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->base + REG_PWM_B,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_C:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x3 << 4),
+			(((our_chip->clk_mask >> 4)&0x3) << 4));
 		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
 			(0x7f << 8)|(1 << 15),
 			(our_chan->pwm_pre_div << 8)|(1 << 15));
@@ -361,12 +439,18 @@ static int pwm_aml_config(struct pwm_chip *chip,
 		break;
 	case PWM_D:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 6)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
 			(0x7f << 16)|(1 << 23),
 			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->base + REG_PWM_D,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_E:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+			(0x3 << 4),
+			(((our_chip->clk_mask >> 8)&0x3) << 4));
 		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
 			(0x7f << 8)|(1 << 15),
 			(our_chan->pwm_pre_div << 8)|(1 << 15));
@@ -375,6 +459,9 @@ static int pwm_aml_config(struct pwm_chip *chip,
 		break;
 	case PWM_F:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 10)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
 			(0x7f << 16)|(1 << 23),
 			(our_chan->pwm_pre_div << 16)|(1 << 23));
 		pwm_write_reg(our_chip->base + REG_PWM_E,
@@ -382,12 +469,18 @@ static int pwm_aml_config(struct pwm_chip *chip,
 		break;
 	case PWM_AO_A:
 		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+			(0x3 << 4),
+			(((our_chip->clk_mask >> 12)&0x3) << 4));
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
 			(0x7f << 8)|(1 << 15),
 			(our_chan->pwm_pre_div << 8)|(1 << 15));
 		pwm_write_reg(our_chip->ao_base + REG_PWM_AO_A,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_AO_B:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 14)&0x3) << 6));
 		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
 			(0x7f << 16)|(1 << 23),
 			(our_chan->pwm_pre_div << 16)|(1 << 23));
@@ -398,8 +491,8 @@ static int pwm_aml_config(struct pwm_chip *chip,
 	break;
 	}
 
-	our_chan->period = pwm_freq;
-	our_chan->duty = duty;
+	our_chan->period_ns = period_ns;
+	our_chan->duty_ns = duty_ns;
 
 	return 0;
 }
@@ -417,8 +510,8 @@ static void pwm_aml_set_invert(struct pwm_chip *chip, struct pwm_device *pwm,
 	} else {
 		our_chip->inverter_mask &= ~BIT(channel);
 	}
-	pwm_aml_config(chip, pwm, our_chan->duty,
-					our_chan->period);
+	pwm_aml_config(chip, pwm, our_chan->duty_ns,
+					our_chan->period_ns);
 
 	spin_unlock_irqrestore(&aml_pwm_lock, flags);
 }
@@ -456,8 +549,7 @@ static int pwm_aml_parse_dt(struct aml_pwm_chip *chip)
 {
 	struct device_node *np = chip->chip.dev->of_node;
 	const struct of_device_id *match;
-	struct clk *clk;
-
+	int i = 0;
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
@@ -473,12 +565,6 @@ static int pwm_aml_parse_dt(struct aml_pwm_chip *chip)
 	if (IS_ERR(chip->ao_base))
 		return PTR_ERR(chip->ao_base);
 
-	clk = clk_get(chip->chip.dev, NULL);
-	if (IS_ERR(clk)) {
-		dev_err(chip->chip.dev, "failed to get timer base clk\n");
-		return PTR_ERR(clk);
-	}
-
 	of_property_for_each_u32(np, "pwm-outputs", prop, cur, val) {
 		if (val >= AML_PWM_NUM) {
 			dev_err(chip->chip.dev,
@@ -487,6 +573,22 @@ static int pwm_aml_parse_dt(struct aml_pwm_chip *chip)
 			continue;
 		}
 		chip->variant.output_mask |= BIT(val);
+	}
+
+	chip->xtal_clk = clk_get(chip->chip.dev, "xtal");
+	chip->vid_pll_clk = clk_get(chip->chip.dev, "vid_pll_clk");
+	chip->fclk_div4_clk = clk_get(chip->chip.dev, "fclk_div4");
+	chip->fclk_div3_clk = clk_get(chip->chip.dev, "fclk_div3");
+
+	of_property_for_each_u32(np, "clock-select", prop, cur, val) {
+		if (val >= AML_PWM_NUM) {
+			dev_err(chip->chip.dev,
+				"%s: invalid channel index in pwm-outputs property\n",
+								__func__);
+			continue;
+		}
+		chip->clk_mask |= val<<(2 * i);
+		i++;
 	}
 
 	return 0;
@@ -504,7 +606,6 @@ static int pwm_aml_probe(struct platform_device *pdev)
 	struct aml_pwm_chip *chip;
 	int ret;
 
-	pr_info("aml pwm probe\n");
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		dev_err(dev, "pwm alloc MEMORY err!!\n");
@@ -569,8 +670,8 @@ static int pwm_aml_suspend(struct device *dev)
 		if (!chan)
 			continue;
 
-		chan->period = 0;
-		chan->duty = 0;
+		chan->period_ns = 0;
+		chan->duty_ns = 0;
 	}
 
 	return 0;

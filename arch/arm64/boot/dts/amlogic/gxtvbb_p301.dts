@@ -1424,13 +1424,21 @@
 		clock-names = "ethclk81";
 	};
 
-	gx-pwm {
+	pwm {
 		compatible = "amlogic, gx-pwm";
 		status = "okay";
 		pwm-outputs = <0>,<1>,<2>,<3>,<4>,<5>,<6>,<7>;
 		reg = <0x0 0xc1108550 0x0 0x30>,
 				<0x0 0xc8100550 0x0 0x10>;
-		clocks = <&clock CLK_XTAL>;
+		clocks = <&clock CLK_XTAL>,
+				<&clock CLK_VID_PLL>,
+				<&clock CLK_FPLL_DIV4>,
+				<&clock CLK_FPLL_DIV3>;
+		clock-names = "xtal",
+				"vid_pll_clk",
+				"fclk_div4",
+				"fclk_div3";
+		clock-select = <0x0>,<0x0>,<0x0>,<0x0>,<0x3>,<0x0>,<0x0>,<0x0>;
 	};
 	aml_sensor0: aml-sensor@0 {
 		compatible = "amlogic, aml-thermal";
