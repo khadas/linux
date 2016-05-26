@@ -21,12 +21,15 @@
 #include "../tvin/tvin_global.h"
 #include "arch/vpp_hdr_regs.h"
 
+/* use osd rdma reg w/r */
+#include "../display/osd/osd_rdma.h"
+
 #include "amcsc.h"
 
 #define pr_csc(fmt, args...)\
 	do {\
 		if (debug_csc)\
-			pr_info("AMCSC: " fmt, ## args);\
+			pr_info(fmt, ## args);\
 	} while (0)
 
 signed int vd1_contrast_offset;
@@ -733,7 +736,18 @@ static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	COEFF_NORM(0.437500),	COEFF_NORM(-0.397384),	COEFF_NORM(-0.040116),
 	0, 0, 0, /* 10'/11'/12' */
 	0, 0, 0, /* 20'/21'/22' */
-	0, 512, 512, /* offset */
+	64, 512, 512, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
+static int YUV709f_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
+	0, -512, -512, /* pre offset */
+	COEFF_NORM(0.859),	COEFF_NORM(0),	COEFF_NORM(0),
+	COEFF_NORM(0),	COEFF_NORM(0.878),	COEFF_NORM(0),
+	COEFF_NORM(0),	COEFF_NORM(0),	COEFF_NORM(0.878),
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	64, 512, 512, /* offset */
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
@@ -782,7 +796,7 @@ static int eotf_bypass_coeff[EOTF_COEFF_SIZE] = {
 
 /* post matrix: YUV2020 limit to RGB2020 */
 static int YUV2020l_to_RGB2020_coeff[MATRIX_5x3_COEF_SIZE] = {
-	0, -512, -512, /* pre offset */
+	-64, -512, -512, /* pre offset */
 	COEFF_NORM(1.16895),	COEFF_NORM(0.00000),	COEFF_NORM(1.68526),
 	COEFF_NORM(1.16895),	COEFF_NORM(-0.18806),	COEFF_NORM(-0.65298),
 	COEFF_NORM(1.16895),	COEFF_NORM(2.15017),	COEFF_NORM(0.00000),
@@ -1093,42 +1107,42 @@ void set_vpp_matrix(int m_select, int *s, int on)
 
 	if (m_select == VPP_MATRIX_OSD) {
 		/* osd matrix, VPP_MATRIX_0 */
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_PRE_OFFSET0_1,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_PRE_OFFSET0_1,
 			((m[0] & 0xfff) << 16) | (m[1] & 0xfff));
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_PRE_OFFSET2,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_PRE_OFFSET2,
 			m[2] & 0xfff);
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF00_01,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF00_01,
 			((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff));
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF02_10,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF02_10,
 			((m[5] & 0x1fff) << 16) | (m[6] & 0x1fff));
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF11_12,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF11_12,
 			((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff));
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF20_21,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF20_21,
 			((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff));
 		if (m[21]) {
-			WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF22_30,
+			VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF22_30,
 				((m[11] & 0x1fff) << 16) | (m[12] & 0x1fff));
-			WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF31_32,
+			VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF31_32,
 				((m[13] & 0x1fff) << 16) | (m[14] & 0x1fff));
-			WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF40_41,
+			VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF40_41,
 				((m[15] & 0x1fff) << 16) | (m[16] & 0x1fff));
-			WRITE_VPP_REG(VIU_OSD1_MATRIX_COLMOD_COEF42,
+			VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COLMOD_COEF42,
 				m[17] & 0x1fff);
 		} else {
-			WRITE_VPP_REG(VIU_OSD1_MATRIX_COEF22_30,
+			VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_COEF22_30,
 				(m[11] & 0x1fff) << 16);
 		}
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_OFFSET0_1,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_OFFSET0_1,
 			((m[18] & 0xfff) << 16) | (m[19] & 0xfff));
-		WRITE_VPP_REG(VIU_OSD1_MATRIX_OFFSET2,
+		VSYNCOSD_WR_MPEG_REG(VIU_OSD1_MATRIX_OFFSET2,
 			m[20] & 0xfff);
-		WRITE_VPP_REG_BITS(VIU_OSD1_MATRIX_COLMOD_COEF42,
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_MATRIX_COLMOD_COEF42,
 			m[21], 30, 2);
-		WRITE_VPP_REG_BITS(VIU_OSD1_MATRIX_COLMOD_COEF42,
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_MATRIX_COLMOD_COEF42,
 			m[22], 16, 3);
 		/* 23 reserved for clipping control */
-		WRITE_VPP_REG_BITS(VIU_OSD1_MATRIX_CTRL, on, 0, 1);
-		WRITE_VPP_REG_BITS(VIU_OSD1_MATRIX_CTRL, 0, 1, 1);
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_MATRIX_CTRL, on, 0, 1);
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_MATRIX_CTRL, 0, 1, 1);
 	} else if (m_select == VPP_MATRIX_EOTF) {
 		/* eotf matrix, VPP_MATRIX_EOTF */
 		for (i = 0; i < 5; i++)
@@ -1141,12 +1155,12 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	} else if (m_select == VPP_MATRIX_OSD_EOTF) {
 		/* osd eotf matrix, VPP_MATRIX_OSD_EOTF */
 		for (i = 0; i < 5; i++)
-			WRITE_VPP_REG(VIU_OSD1_EOTF_CTL + i + 1,
+			VSYNCOSD_WR_MPEG_REG(VIU_OSD1_EOTF_CTL + i + 1,
 				((m[i * 2] & 0x1fff) << 16)
 				| (m[i * 2 + 1] & 0x1fff));
 
-		WRITE_VPP_REG_BITS(VIU_OSD1_EOTF_CTL, on, 30, 1);
-		WRITE_VPP_REG_BITS(VIU_OSD1_EOTF_CTL, on, 31, 1);
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_EOTF_CTL, on, 30, 1);
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_EOTF_CTL, on, 31, 1);
 	} else {
 		/* vd1 matrix, VPP_MATRIX_1 */
 		/* post matrix, VPP_MATRIX_2 */
@@ -1247,26 +1261,26 @@ static void print_vpp_lut(
 	} else
 		return;
 	if (lut_sel == VPP_LUT_OSD_OETF) {
-		WRITE_VPP_REG(addr_port, 0);
+		VSYNCOSD_WR_MPEG_REG(addr_port, 0);
 		for (i = 0; i < 20; i++) {
-			data = READ_VPP_REG(data_port);
+			data = VSYNCOSD_RD_MPEG_REG(data_port);
 			r_map[i * 2] = data & 0xffff;
 			r_map[i * 2 + 1] = (data >> 16) & 0xffff;
 		}
-		data = READ_VPP_REG(data_port);
+		data = VSYNCOSD_RD_MPEG_REG(data_port);
 		r_map[OSD_OETF_LUT_SIZE - 1] = data & 0xffff;
 		g_map[0] = (data >> 16) & 0xffff;
 		for (i = 0; i < 20; i++) {
-			data = READ_VPP_REG(data_port);
+			data = VSYNCOSD_RD_MPEG_REG(data_port);
 			g_map[i * 2 + 1] = data & 0xffff;
 			g_map[i * 2 + 2] = (data >> 16) & 0xffff;
 		}
 		for (i = 0; i < 20; i++) {
-			data = READ_VPP_REG(data_port);
+			data = VSYNCOSD_RD_MPEG_REG(data_port);
 			b_map[i * 2] = data & 0xffff;
 			b_map[i * 2 + 1] = (data >> 16) & 0xffff;
 		}
-		data = READ_VPP_REG(data_port);
+		data = VSYNCOSD_RD_MPEG_REG(data_port);
 		b_map[OSD_OETF_LUT_SIZE - 1] = data & 0xffff;
 		pr_csc("%s lut %s:\n", lut_name[lut_sel], on ? "on" : "off");
 		for (i = 0; i < OSD_OETF_LUT_SIZE; i++) {
@@ -1274,7 +1288,35 @@ static void print_vpp_lut(
 				i, r_map[i], g_map[i], b_map[i]);
 		}
 		pr_csc("\n");
-	} else if ((lut_sel == VPP_LUT_OSD_EOTF) || (lut_sel == VPP_LUT_EOTF)) {
+	} else if (lut_sel == VPP_LUT_OSD_EOTF) {
+		VSYNCOSD_WR_MPEG_REG(addr_port, 0);
+		for (i = 0; i < 16; i++) {
+			data = VSYNCOSD_RD_MPEG_REG(data_port);
+			r_map[i * 2] = data & 0xffff;
+			r_map[i * 2 + 1] = (data >> 16) & 0xffff;
+		}
+		data = VSYNCOSD_RD_MPEG_REG(data_port);
+		r_map[EOTF_LUT_SIZE - 1] = data & 0xffff;
+		g_map[0] = (data >> 16) & 0xffff;
+		for (i = 0; i < 16; i++) {
+			data = VSYNCOSD_RD_MPEG_REG(data_port);
+			g_map[i * 2 + 1] = data & 0xffff;
+			g_map[i * 2 + 2] = (data >> 16) & 0xffff;
+		}
+		for (i = 0; i < 16; i++) {
+			data = VSYNCOSD_RD_MPEG_REG(data_port);
+			b_map[i * 2] = data & 0xffff;
+			b_map[i * 2 + 1] = (data >> 16) & 0xffff;
+		}
+		data = VSYNCOSD_RD_MPEG_REG(data_port);
+		b_map[EOTF_LUT_SIZE - 1] = data & 0xffff;
+		pr_csc("%s lut %s:\n", lut_name[lut_sel], on ? "on" : "off");
+		for (i = 0; i < EOTF_LUT_SIZE; i++) {
+			pr_csc("\t[%d] = 0x%04x 0x%04x 0x%04x\n",
+				i, r_map[i], g_map[i], b_map[i]);
+		}
+		pr_csc("\n");
+	} else if (lut_sel == VPP_LUT_EOTF) {
 		WRITE_VPP_REG(addr_port, 0);
 		for (i = 0; i < 16; i++) {
 			data = READ_VPP_REG(data_port);
@@ -1387,29 +1429,61 @@ void set_vpp_lut(
 		if (r && r_map)
 			for (i = 0; i < OSD_OETF_LUT_SIZE; i++)
 				b_map[i] = b[i];
-		WRITE_VPP_REG(addr_port, 0);
+		VSYNCOSD_WR_MPEG_REG(addr_port, 0);
 		for (i = 0; i < 20; i++)
-			WRITE_VPP_REG(data_port,
+			VSYNCOSD_WR_MPEG_REG(data_port,
 				r_map[i * 2]
 				| (r_map[i * 2 + 1] << 16));
-		WRITE_VPP_REG(data_port,
+		VSYNCOSD_WR_MPEG_REG(data_port,
 			r_map[OSD_OETF_LUT_SIZE - 1]
 			| (g_map[0] << 16));
 		for (i = 0; i < 20; i++)
-			WRITE_VPP_REG(data_port,
+			VSYNCOSD_WR_MPEG_REG(data_port,
 				g_map[i * 2 + 1]
 				| (g_map[i * 2 + 2] << 16));
 		for (i = 0; i < 20; i++)
-			WRITE_VPP_REG(data_port,
+			VSYNCOSD_WR_MPEG_REG(data_port,
 				b_map[i * 2]
 				| (b_map[i * 2 + 1] << 16));
-		WRITE_VPP_REG(data_port,
+		VSYNCOSD_WR_MPEG_REG(data_port,
 			b_map[OSD_OETF_LUT_SIZE - 1]);
 		if (on)
-			WRITE_VPP_REG_BITS(ctrl_port, 7, 29, 3);
+			VSYNCOSD_WR_MPEG_REG_BITS(ctrl_port, 7, 29, 3);
 		else
-			WRITE_VPP_REG_BITS(ctrl_port, 0, 29, 3);
-	} else if ((lut_sel == VPP_LUT_OSD_EOTF) || (lut_sel == VPP_LUT_EOTF)) {
+			VSYNCOSD_WR_MPEG_REG_BITS(ctrl_port, 0, 29, 3);
+	} else if (lut_sel == VPP_LUT_OSD_EOTF) {
+		if (r && r_map)
+			for (i = 0; i < EOTF_LUT_SIZE; i++)
+				r_map[i] = r[i];
+		if (g && g_map)
+			for (i = 0; i < EOTF_LUT_SIZE; i++)
+				g_map[i] = g[i];
+		if (r && r_map)
+			for (i = 0; i < EOTF_LUT_SIZE; i++)
+				b_map[i] = b[i];
+		VSYNCOSD_WR_MPEG_REG(addr_port, 0);
+		for (i = 0; i < 16; i++)
+			VSYNCOSD_WR_MPEG_REG(data_port,
+				r_map[i * 2]
+				| (r_map[i * 2 + 1] << 16));
+		VSYNCOSD_WR_MPEG_REG(data_port,
+			r_map[EOTF_LUT_SIZE - 1]
+			| (g_map[0] << 16));
+		for (i = 0; i < 16; i++)
+			VSYNCOSD_WR_MPEG_REG(data_port,
+				g_map[i * 2 + 1]
+				| (b_map[i * 2 + 2] << 16));
+		for (i = 0; i < 16; i++)
+			VSYNCOSD_WR_MPEG_REG(data_port,
+				b_map[i * 2]
+				| (b_map[i * 2 + 1] << 16));
+		VSYNCOSD_WR_MPEG_REG(data_port, b_map[EOTF_LUT_SIZE - 1]);
+		if (on)
+			VSYNCOSD_WR_MPEG_REG_BITS(ctrl_port, 7, 27, 3);
+		else
+			VSYNCOSD_WR_MPEG_REG_BITS(ctrl_port, 0, 27, 3);
+		VSYNCOSD_WR_MPEG_REG_BITS(ctrl_port, 1, 31, 1);
+	} else if (lut_sel == VPP_LUT_EOTF) {
 		if (r && r_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				r_map[i] = r[i];
@@ -1716,6 +1790,19 @@ static void vpp_set_matrix3(
 		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x1fd1);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x200);
 		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x200);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
+	} else if (csc_mode == VPP_MATRIX_RGB_YUV709) {
+		/* RGB -> 709 limit */
+		/*WRITE_VPP_REG(VPP_MATRIX_CTRL, 0x7360);*/
+
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01, 0x00bb0275);
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10, 0x003f1f99);
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12, 0x1ea601c2);
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21, 0x01c21e67);
+		WRITE_VPP_REG(VPP_MATRIX_COEF22, 0x00001fd7);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1, 0x00400200);
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2, 0x00000200);
 		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1, 0x0);
 		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2, 0x0);
 	}
@@ -2393,7 +2480,7 @@ static int hdr_process(
 		/* xvyccc matrix3: bypass */
 		if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
 			(get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB))
-			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
+			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
@@ -2432,16 +2519,27 @@ static void bypass_hdr_process(
 			oetf_41_linear_mapping, /* B */
 			CSC_ON);
 
-		/* osd matrix RGB709 to YUV709 limit */
+		/* osd matrix RGB709 to YUV709 limit/full */
 		set_vpp_matrix(VPP_MATRIX_OSD,
 			RGB709_to_YUV709l_coeff,
-			CSC_ON);
+			CSC_ON);	/* use limit range */
 
 		/************** VIDEO **************/
 		/* vd1 matrix: bypass */
-		set_vpp_matrix(VPP_MATRIX_VD1,
-			bypass_coeff,
-			CSC_ON);
+		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
+			set_vpp_matrix(VPP_MATRIX_VD1,
+				bypass_coeff,
+				CSC_ON);	/* limit->limit range */
+		else {
+			if (signal_range == 0) /* limit range */
+				set_vpp_matrix(VPP_MATRIX_VD1,
+					bypass_coeff,
+					CSC_ON);	/* limit->limit range */
+			else
+				set_vpp_matrix(VPP_MATRIX_VD1,
+					YUV709f_to_YUV709l_coeff,
+					CSC_ON);	/* full->limit range */
+		}
 
 		/* post matrix bypass */
 		set_vpp_matrix(VPP_MATRIX_POST,
@@ -2494,7 +2592,7 @@ static void bypass_hdr_process(
 		/* xvyccc matrix3: bypass */
 		if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
 			(get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB))
-			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709F);
+			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}

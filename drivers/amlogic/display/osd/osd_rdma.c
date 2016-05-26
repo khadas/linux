@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 
 /* Local Headers */
+ #include <linux/amlogic/cpu_version.h>
 #include "osd.h"
 #include "osd_io.h"
 #include "osd_reg.h"
@@ -445,6 +446,14 @@ static void osd_reset(void)
 	unsigned int addr_port;
 	unsigned int data_port;
 	unsigned int data;
+
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+		return;
+
+	/* skip reset before eotf enable */
+	if ((VSYNCOSD_RD_MPEG_REG(VIU_OSD1_EOTF_CTL) & 0x80000000)
+		!= 0x80000000)
+		return;
 
 	/* backup osd regs */
 	for (i = 0; i < osd_reg_count; i++)

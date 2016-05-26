@@ -97,5 +97,10 @@ extern signed int vd1_contrast_offset;
 extern void amvecm_matrix_process(struct vframe_s *vf);
 extern int amvecm_hdr_dbg(void);
 
+/* use osd rdma w/r */
+u32 VSYNCOSD_RD_MPEG_REG(u32 reg);
+int VSYNCOSD_WR_MPEG_REG(u32 reg, u32 val);
+int VSYNCOSD_WR_MPEG_REG_BITS(u32 reg, u32 val, u32 start, u32 len);
+
 #endif /* AM_CSC_H */
 
