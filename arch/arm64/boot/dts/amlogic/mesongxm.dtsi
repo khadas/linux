@@ -26,10 +26,10 @@
 	cpus:cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
-		#cooling-cells = <2>; /* min followed by max */
 
 		cpu-map {
 			cluster0:cluster0 {
+				#cooling-cells = <2>; /* min followed by max */
 				core0 {
 					cpu = <&CPU0>;
 				};
@@ -44,6 +44,7 @@
 				};
 			};
 			cluster1:cluster1 {
+				#cooling-cells = <2>; /* min followed by max */
 				core0 {
 					cpu = <&CPU4>;
 				};

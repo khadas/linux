@@ -24,6 +24,7 @@
 #include <linux/cpu.h>
 #include <linux/cpucore_cooling.h>
 #include <linux/thermal_core.h>
+#include <linux/cpumask.h>
 
 /**
  * struct cpucore_cooling_device - data for cooling device with cpucore
@@ -44,6 +45,7 @@
 
 static DEFINE_IDR(cpucore_idr);
 static DEFINE_MUTEX(cooling_cpucore_lock);
+static LIST_HEAD(cpucore_dev_list);
 
 /* notify_table passes value to the cpucore_ADJUST callback function. */
 #define NOTIFY_INVALID NULL
@@ -138,7 +140,7 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long state)
 {
 	struct cpucore_cooling_device *cpucore_device = cdev->devdata;
-	int set_max_num;
+	int set_max_num, id;
 	mutex_lock(&cooling_cpucore_lock);
 	if (cpucore_device->stop_flag) {
 		mutex_unlock(&cooling_cpucore_lock);
@@ -152,8 +154,9 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 	if (cpucore_device->max_cpu_core_num - state > 0) {
 		cpucore_device->cpucore_state = state;
 		set_max_num = cpucore_device->max_cpu_core_num - state;
+		id = cpucore_device->cluster_id;
 		pr_debug("set max cpu num=%d,state=%ld\n", set_max_num, state);
-		cpufreq_set_max_cpu_num(set_max_num);
+		cpufreq_set_max_cpu_num(set_max_num, id);
 	}
 
 	return 0;
@@ -247,12 +250,13 @@ static struct thermal_cooling_device_ops const cpucore_cooling_ops = {
  * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *
-cpucore_cooling_register(struct device_node *np)
+cpucore_cooling_register(struct device_node *np, int cluster_id)
 {
 	struct thermal_cooling_device *cool_dev;
 	struct cpucore_cooling_device *cpucore_dev = NULL;
 	char dev_name[THERMAL_NAME_LENGTH];
-	int ret = 0;
+	int ret = 0, cpu;
+	int cores = 0;
 	cpucore_dev = kzalloc(sizeof(struct cpucore_cooling_device),
 			      GFP_KERNEL);
 	if (!cpucore_dev)
@@ -264,7 +268,16 @@ cpucore_cooling_register(struct device_node *np)
 		return ERR_PTR(-EINVAL);
 	}
 
-	cpucore_dev->max_cpu_core_num = num_possible_cpus();
+	if (mc_capable()) {
+		for_each_possible_cpu(cpu) {
+			if (topology_physical_package_id(cpu) == cluster_id)
+				cores++;
+		}
+	} else {
+		cores = num_possible_cpus();
+	}
+	cpucore_dev->max_cpu_core_num = cores;
+	pr_info("%s, max_cpu_core_num:%d\n", __func__, cores);
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpucore-%d",
 		 cpucore_dev->id);
 
@@ -277,6 +290,7 @@ cpucore_cooling_register(struct device_node *np)
 	}
 	cpucore_dev->cool_dev = cool_dev;
 	cpucore_dev->cpucore_state = 0;
+	cpucore_dev->cluster_id = cluster_id;
 	return cool_dev;
 }
 EXPORT_SYMBOL_GPL(cpucore_cooling_register);

@@ -27,7 +27,9 @@ struct cpucore_cooling_device {
 	struct thermal_cooling_device *cool_dev;
 	unsigned int cpucore_state;
 	unsigned int cpucore_val;
+	struct list_head node;
 	int max_cpu_core_num;
+	int cluster_id;
 	int stop_flag;
 };
 #define CPU_STOP 0x80000000
@@ -37,7 +39,8 @@ struct cpucore_cooling_device {
  * cpucore_cooling_register - function to create cpucore cooling device.
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen
  */
-struct thermal_cooling_device *cpucore_cooling_register(struct device_node *);
+struct thermal_cooling_device *cpucore_cooling_register(struct device_node *,
+							int);
 
 /**
  * cpucore_cooling_unregister - function to remove cpucore cooling device.

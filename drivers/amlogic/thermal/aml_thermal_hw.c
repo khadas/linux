@@ -19,19 +19,39 @@
 #define EFUEE_PRIVATE		0x4
 #define EFUSE_OPS		0xa
 
+enum cluster_type {
+	CLUSTER_BIG = 0,
+	CLUSTER_LITTLE,
+	NUM_CLUSTERS
+};
+
+enum cool_dev_type {
+	COOL_DEV_TYPE_CPU_FREQ = 0,
+	COOL_DEV_TYPE_CPU_CORE,
+	COOL_DEV_TYPE_GPU_FREQ,
+	COOL_DEV_TYPE_GPU_CORE,
+	COOL_DEV_TYPE_MAX
+};
+
+struct cool_dev {
+	int min_state;
+	int coeff;
+	int cluster_id;
+	char *device_type;
+	struct device_node *np;
+	struct thermal_cooling_device *cooling_dev;
+};
+
 struct aml_thermal_sensor {
 	int chip_trimmed;
-	struct cpumask mask;
-	struct thermal_cooling_device *cpufreq_cdev;
-	struct thermal_cooling_device *cpucore_cdev;
-	struct thermal_cooling_device *gpufreq_cdev;
-	struct thermal_cooling_device *gpucore_cdev;
+	int cool_dev_num;
+	int min_exist;
+	struct cpumask mask[NUM_CLUSTERS];
+	struct cool_dev *cool_devs;
 	struct thermal_zone_device    *tzd;
 };
 
 static struct aml_thermal_sensor soc_sensor;
-static int min_buf[4] = {};
-static int min_exist;
 
 int thermal_firmware_init(void)
 {
@@ -69,45 +89,93 @@ static int get_cur_temp(void *data, long *temp)
 	return 0;
 }
 
+static int get_cool_dev_type(char *type)
+{
+	if (!strcmp(type, "cpufreq"))
+		return COOL_DEV_TYPE_CPU_FREQ;
+	if (!strcmp(type, "cpucore"))
+		return COOL_DEV_TYPE_CPU_CORE;
+	if (!strcmp(type, "gpufreq"))
+		return COOL_DEV_TYPE_GPU_FREQ;
+	if (!strcmp(type, "gpucore"))
+		return COOL_DEV_TYPE_GPU_CORE;
+	return COOL_DEV_TYPE_MAX;
+}
+
+static struct cool_dev *get_cool_dev_by_node(struct device_node *np)
+{
+	int i;
+	struct cool_dev *dev;
+
+	if (!np)
+		return NULL;
+	for (i = 0; i < soc_sensor.cool_dev_num; i++) {
+		dev = &soc_sensor.cool_devs[i];
+		if (dev->np == np)
+			return dev;
+	}
+	return NULL;
+}
+
 int aml_thermal_min_update(struct thermal_cooling_device *cdev)
 {
 	struct gpufreq_cooling_device *gf_cdev;
 	struct gpucore_cooling_device *gc_cdev;
 	struct thermal_instance *ins;
+	struct cool_dev *cool;
 	long min_state;
 	int i;
+	int cpu, c_id;
 
-	if (!min_exist)
+	cool = get_cool_dev_by_node(cdev->np);
+	if (!cool)
+		return -ENODEV;
+
+	if (cool->cooling_dev == NULL)
+		cool->cooling_dev = cdev;
+
+	if (cool->min_state == 0)
 		return 0;
-	if (strstr(cdev->type, "gpufreq")) {
-		gf_cdev = (struct gpufreq_cooling_device *)cdev->devdata;
-		min_state = gf_cdev->get_gpu_freq_level(min_buf[1]);
-		soc_sensor.gpufreq_cdev = cdev;
-		for (i = 0; i < soc_sensor.tzd->trips; i++) {
-			ins = get_thermal_instance(soc_sensor.tzd,
-						   cdev, i);
-			if (ins) {
-				ins->upper = min_state;
-				pr_info("%s set upper to %ld\n",
-					 ins->name, ins->upper);
-			}
+
+	switch (get_cool_dev_type(cool->device_type)) {
+	case COOL_DEV_TYPE_CPU_CORE:
+		/* TODO: cluster ID */
+		cool->cooling_dev->ops->get_max_state(cdev, &min_state);
+		min_state = min_state - cool->min_state;
+		break;
+
+	case COOL_DEV_TYPE_CPU_FREQ:
+		for_each_possible_cpu(cpu) {
+			if (mc_capable())
+				c_id = topology_physical_package_id(cpu);
+			else
+				c_id = 0; /* force cluster 0 if no MC */
+			if (c_id == cool->cluster_id)
+				break;
 		}
+		min_state = cpufreq_cooling_get_level(cpu, cool->min_state);
+		break;
+
+	case COOL_DEV_TYPE_GPU_CORE:
+		gc_cdev = (struct gpucore_cooling_device *)cdev->devdata;
+		cdev->ops->get_max_state(cdev, &min_state);
+		min_state = min_state - cool->min_state;
+		break;
+
+	case COOL_DEV_TYPE_GPU_FREQ:
+		gf_cdev = (struct gpufreq_cooling_device *)cdev->devdata;
+		min_state = gf_cdev->get_gpu_freq_level(cool->min_state);
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
-	if (strstr(cdev->type, "gpucore")) {
-		gc_cdev = (struct gpucore_cooling_device *)cdev->devdata;
-		soc_sensor.gpucore_cdev = cdev;
-		cdev->ops->get_max_state(cdev, &min_state);
-		min_state = min_state - min_buf[3];
-		for (i = 0; i < soc_sensor.tzd->trips; i++) {
-			ins = get_thermal_instance(soc_sensor.tzd,
-						   cdev, i);
-			if (ins) {
-				ins->upper = min_state;
-				pr_info("%s set upper to %ld\n",
-					 ins->name, ins->upper);
-			}
-		}
+	for (i = 0; i < soc_sensor.tzd->trips; i++) {
+		ins = get_thermal_instance(soc_sensor.tzd,
+					   cdev, i);
+		if (ins)
+			ins->upper = min_state;
 	}
 
 	return 0;
@@ -118,14 +186,101 @@ static struct thermal_zone_of_device_ops aml_thermal_ops = {
 	.get_temp = get_cur_temp,
 };
 
+static int register_cool_dev(struct cool_dev *cool)
+{
+	int pp;
+	int id = cool->cluster_id;
+	struct cpumask *mask;
+
+	switch (get_cool_dev_type(cool->device_type)) {
+	case COOL_DEV_TYPE_CPU_CORE:
+		cool->cooling_dev = cpucore_cooling_register(cool->np,
+							     cool->cluster_id);
+		break;
+
+	case COOL_DEV_TYPE_CPU_FREQ:
+		mask = &soc_sensor.mask[id];
+		cool->cooling_dev = of_cpufreq_power_cooling_register(cool->np,
+							mask,
+							cool->coeff,
+							NULL);
+		break;
+
+	/* GPU is KO, just save these parameters */
+	case COOL_DEV_TYPE_GPU_FREQ:
+		if (of_property_read_u32(cool->np, "num_of_pp", &pp))
+			pr_err("thermal: read num_of_pp failed\n");
+		save_gpu_cool_para(cool->coeff, cool->np, pp);
+		return 0;
+
+	case COOL_DEV_TYPE_GPU_CORE:
+		save_gpucore_thermal_para(cool->np);
+		return 0;
+
+	default:
+		pr_err("thermal: unknown type:%s\n", cool->device_type);
+		return -EINVAL;
+	}
+
+	if (IS_ERR(cool->cooling_dev)) {
+		pr_err("thermal: register %s failed\n", cool->device_type);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int parse_cool_device(struct device_node *np)
+{
+	int i, temp, ret = 0;
+	struct cool_dev *cool;
+	struct device_node *node, *child;
+	const char *str;
+
+	child = of_get_next_child(np, NULL);
+	for (i = 0; i < soc_sensor.cool_dev_num; i++) {
+		cool = &soc_sensor.cool_devs[i];
+		if (child == NULL)
+			break;
+		if (of_property_read_u32(child, "min_state", &temp))
+			pr_err("thermal: read min_state failed\n");
+		else
+			cool->min_state = temp;
+
+		if (of_property_read_u32(child, "dyn_coeff", &temp))
+			pr_err("thermal: read dyn_coeff failed\n");
+		else
+			cool->coeff = temp;
+
+		if (of_property_read_u32(child, "cluster_id", &temp))
+			pr_err("thermal: read cluster_id failed\n");
+		else
+			cool->cluster_id = temp;
+
+		if (of_property_read_string(child, "device_type", &str))
+			pr_err("thermal: read device_type failed\n");
+		else
+			cool->device_type = (char *)str;
+
+		if (of_property_read_string(child, "node_name", &str))
+			pr_err("thermal: read node_name failed\n");
+		else {
+			node = of_find_node_by_name(NULL, str);
+			if (!node)
+				pr_err("thermal: can't find node\n");
+			cool->np = node;
+		}
+		if (cool->np)
+			ret += register_cool_dev(cool);
+		child = of_get_next_child(np, child);
+	}
+	return ret;
+}
+
 static int aml_thermal_probe(struct platform_device *pdev)
 {
-	int cpu, i, pp;
-	int dyn_coeff = 0;
-	unsigned long min_state;
-	char node_name[32] = {};
-	struct device_node *np;
-	struct thermal_instance *ins;
+	int cpu, i, c_id;
+	struct device_node *np, *child;
+	struct cool_dev *cool;
 
 	memset(&soc_sensor, 0, sizeof(struct aml_thermal_sensor));
 	if (!cpufreq_frequency_get_table(0)) {
@@ -140,85 +295,34 @@ static int aml_thermal_probe(struct platform_device *pdev)
 	}
 
 	for_each_possible_cpu(cpu) {
-		cpumask_set_cpu(cpu, &soc_sensor.mask);
-	}
-
-	np = pdev->dev.of_node;
-	if (of_property_read_u32_array(np, "min_state", min_buf, 4)) {
-		pr_debug("read min_state failed\n");
-		min_exist = 0;
-	} else {
-		pr_debug("min state:%d %d %d %d\n",
-			 min_buf[0], min_buf[1], min_buf[2], min_buf[3]);
-		min_exist = 1;
-	}
-
-	/*
-	 * Many different cooling devices, we need to get their configs
-	 * 1. cpu core cooling
-	 */
-	snprintf(node_name, sizeof(node_name), "%s", "thermal_cpu_cores");
-	np = of_find_node_by_name(NULL, node_name);
-	if (!np)
-		pr_debug("not found cpucore node\n");
-	else {
-		soc_sensor.cpucore_cdev = cpucore_cooling_register(np);
-		if (IS_ERR(soc_sensor.cpucore_cdev)) {
-			pr_debug("Error cpu core cooling device, cdev:%p\n",
-				soc_sensor.cpucore_cdev);
+		if (mc_capable())
+			c_id = topology_physical_package_id(cpu);
+		else
+			c_id = CLUSTER_BIG;	/* Always cluster 0 if no mc */
+		if (c_id > NUM_CLUSTERS) {
+			pr_err("Cluster id: %d > %d\n", c_id, NUM_CLUSTERS);
+			return -EINVAL;
 		}
+		cpumask_set_cpu(cpu, &soc_sensor.mask[c_id]);
 	}
 
-	/* 2. cpu freq cooling */
 	np = pdev->dev.of_node;
-	if (of_property_read_u32(np, "cpu_dyn_coeff", &dyn_coeff))
-		pr_debug("read cpu_dyn_coeff failed\n");
-	memset(node_name, 0, sizeof(node_name));
-	snprintf(node_name, 16, "cpus");
-	np = of_find_node_by_name(NULL, node_name);
-	if (!np) {
-		pr_debug("not found cpu node\n");
-	} else {
-		soc_sensor.cpufreq_cdev = of_cpufreq_power_cooling_register(np,
-							&soc_sensor.mask,
-							dyn_coeff,
-							NULL);
-		if (IS_ERR(soc_sensor.cpufreq_cdev)) {
-			pr_debug("Error cpu freq cooling device, cdev:%p\n",
-				soc_sensor.cpufreq_cdev);
-		}
+	child = of_get_child_by_name(np, "cooling_devices");
+	if (child == NULL) {
+		pr_err("thermal: can't found cooling_devices\n");
+		return -EINVAL;
+	}
+	soc_sensor.cool_dev_num = of_get_child_count(child);
+	i = sizeof(struct cool_dev) * soc_sensor.cool_dev_num;
+	soc_sensor.cool_devs = kzalloc(i, GFP_KERNEL);
+	if (soc_sensor.cool_devs == NULL) {
+		pr_err("thermal: alloc mem failed\n");
+		return -ENOMEM;
 	}
 
-	/* 3. gpu core cooling */
-	np = pdev->dev.of_node;
-	snprintf(node_name, sizeof(node_name), "%s", "thermal_gpu_cores");
-	np = of_find_node_by_name(NULL, node_name);
-	if (!np) {
-		pr_debug("not found gpucore node\n");
-	} else {
-		/*
-		 * gpu is ko, save parsed parameters to wating ko insert
-		 */
-		save_gpucore_thermal_para(np);
-	}
+	if (parse_cool_device(child))
+		return -EINVAL;
 
-	/* 4. gpu frequent cooling */
-	np = pdev->dev.of_node;
-	if (of_property_read_u32(np, "gpu_dyn_coeff", &dyn_coeff)) {
-		pr_debug("read gpu_dyn_coeff failed\n");
-		goto next;
-	}
-	snprintf(node_name, sizeof(node_name), "%s", "mali");
-	np = of_find_node_by_name(NULL, node_name);
-	if (!np) {
-		pr_debug("not found mali node\n");
-	} else {
-		of_property_read_u32(np, "num_of_pp", &pp);
-		pr_debug("gpu coef:%d, pp:%d\n", dyn_coeff, pp);
-		save_gpu_cool_para(dyn_coeff, np, pp);
-	}
-
-next:
 	soc_sensor.tzd = thermal_zone_of_sensor_register(&pdev->dev,
 							  3,
 							  &soc_sensor,
@@ -229,44 +333,22 @@ next:
 			 soc_sensor.tzd);
 		return PTR_ERR(soc_sensor.tzd);
 	}
-
 	thermal_zone_device_update(soc_sensor.tzd);
-	if (!min_exist)
-		return 0;
 
-	/*
-	 * adjust upper and lower for each instance
-	 */
-	min_state = cpufreq_cooling_get_level(0, min_buf[0]);
-	for (i = 0; i < soc_sensor.tzd->trips; i++) {
-		ins = get_thermal_instance(soc_sensor.tzd,
-					   soc_sensor.cpufreq_cdev, i);
-		if (ins) {
-			ins->upper = min_state;
-			pr_debug("%s set upper to %ld\n",
-				 ins->name, ins->upper);
-		}
+	/* update min state for each device */
+	for (i = 0; i < soc_sensor.cool_dev_num; i++) {
+		cool = &soc_sensor.cool_devs[i];
+		if (cool->cooling_dev)
+			aml_thermal_min_update(cool->cooling_dev);
 	}
-	soc_sensor.cpucore_cdev->ops->get_max_state(soc_sensor.cpucore_cdev,
-		&min_state);
-	min_state = min_state - min_buf[2];
-	for (i = 0; i < soc_sensor.tzd->trips; i++) {
-		ins = get_thermal_instance(soc_sensor.tzd,
-					   soc_sensor.cpucore_cdev, i);
-		if (ins) {
-			ins->upper = min_state;
-			pr_debug("%s set upper to %ld\n",
-				 ins->name, ins->upper);
-		}
-	}
-
-
 	thermal_zone_device_update(soc_sensor.tzd);
+
 	return 0;
 }
 
 static int aml_thermal_remove(struct platform_device *pdev)
 {
+	kfree(soc_sensor.cool_devs);
 	return 0;
 }
 

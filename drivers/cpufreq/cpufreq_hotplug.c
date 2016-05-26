@@ -546,7 +546,7 @@ wait_next_event:
 	}
 	return 1;
 }
-void cpufreq_set_max_cpu_num(unsigned int cpu_num)
+void cpufreq_set_max_cpu_num(unsigned int cpu_num, int cluster_id)
 {
 	if (cpu_num >= num_possible_cpus()) {
 		max_cpu_num = num_possible_cpus();
