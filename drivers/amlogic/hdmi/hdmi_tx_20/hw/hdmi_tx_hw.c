@@ -3602,9 +3602,19 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 
 	return 0;
 }
+
+static int hdmitx_get_hdmi_dvi_config(struct hdmitx_dev *hdev)
+{
+	int value = hdmitx_rd_reg(HDMITX_DWC_FC_INVIDCONF) & 0x8;
+
+	return (value == 0)?DVI_MODE:HDMI_MODE;
+}
+
 static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned argv)
 {
+	int ret = 0;
+
 	if (!(cmd & CMD_CONF_OFFSET))
 		hdmi_print(ERR, "config: " "hdmitx: w: invalid cmd 0x%x\n",
 			cmd);
@@ -3614,6 +3624,9 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	switch (cmd) {
 	case CONF_HDMI_DVI_MODE:
 		hdmitx_hdmi_dvi_config(hdev, (argv == DVI_MODE)?1:0);
+		break;
+	case CONF_GET_HDMI_DVI_MODE:
+		ret = hdmitx_get_hdmi_dvi_config(hdev);
 		break;
 	case CONF_SYSTEM_ST:
 		break;
@@ -3659,7 +3672,8 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 	default:
 		hdmi_print(ERR, "config: ""hdmitx: unknown cmd: 0x%x\n", cmd);
 	}
-	return 1;
+
+	return ret;
 }
 
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,

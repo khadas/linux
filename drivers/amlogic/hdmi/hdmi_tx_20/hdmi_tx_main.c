@@ -531,6 +531,12 @@ static int set_disp_mode_auto(void)
 			hdev->HWOp.CntlConfig(hdev, CONF_HDMI_DVI_MODE,
 				DVI_MODE);
 			hdmi_print(IMP, SYS "change to DVI mode\n");
+		} else if ((hdev->RXCap.IEEEOUI == 0xc03) &&
+		(DVI_MODE == hdev->HWOp.CntlConfig(hdev,
+			CONF_GET_HDMI_DVI_MODE, 0))) {
+			hdev->HWOp.CntlConfig(hdev, CONF_HDMI_DVI_MODE,
+				HDMI_MODE);
+			hdmi_print(IMP, SYS "change to HDMI mode\n");
 		}
 		hdev->cur_VIC = vic;
 		hdev->output_blank_flag = 1;

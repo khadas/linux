@@ -312,6 +312,8 @@ struct hdmitx_dev {
 #define CONF_CLR_AVI_PACKET     (CMD_CONF_OFFSET + 0x04)
 #define CONF_CLR_VSDB_PACKET    (CMD_CONF_OFFSET + 0x05)
 #define CONF_VIDEO_MAPPING	(CMD_CONF_OFFSET + 0x06)
+#define CONF_GET_HDMI_DVI_MODE	(CMD_CONF_OFFSET + 0x07)
+
 #define CONF_AUDIO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x00)
 #define AUDIO_MUTE          0x1
 #define AUDIO_UNMUTE        0x2
