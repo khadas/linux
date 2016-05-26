@@ -138,11 +138,19 @@ int vdec_set_clk(int dec, int source, int div)
 	return 0;
 }
 
-/* 648M <-- (1296/2) */
+static bool is_gp0_div2 = true;
+/* set gp0 648M vdec use gp0 clk*/
 #define VDEC1_648M() \
-	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (6 << 9) | (1), 0, 16)
+	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (6 << 9) | (0), 0, 16)
 
 #define HEVC_648M() \
+	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (6 << 9) | (0), 16, 16)
+
+/*set gp0 1296M vdec use gp0 clk div2*/
+#define VDEC1_648M_DIV() \
+	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (6 << 9) | (1), 0, 16)
+
+#define HEVC_648M_DIV() \
 	WRITE_HHI_REG_BITS(HHI_VDEC2_CLK_CNTL, (6 << 9) | (1), 16, 16)
 
 #define VDEC1_WITH_GP_PLL() \
@@ -213,10 +221,17 @@ static int gp_pll_user_cb_vdec(struct gp_pll_user_handle_s *user,
 	if (event == GP_PLL_USER_EVENT_GRANT) {
 		struct clk *clk = clk_get(NULL, "gp0_pll");
 		if (!IS_ERR(clk)) {
-			clk_set_rate(clk, 1296000000UL);
+			if (is_gp0_div2)
+				clk_set_rate(clk, 1296000000UL);
+			else
+				clk_set_rate(clk, 648000000UL);
 			VDEC1_SAFE_CLOCK();
 			VDEC1_CLOCK_OFF();
-			VDEC1_648M();
+			if (is_gp0_div2)
+				VDEC1_648M_DIV();
+			else
+				VDEC1_648M();
+
 			VDEC1_CLOCK_ON();
 			debug_print("gp_pll_user_cb_vdec call set\n");
 		}
@@ -325,6 +340,11 @@ static int vdec_clock_init(void)
 {
 	gp_pll_user_vdec = gp_pll_user_register("vdec", 0,
 		gp_pll_user_cb_vdec);
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL
+		|| get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+		is_gp0_div2 = false;
+	else
+		is_gp0_div2 = true;
 
 	return (gp_pll_user_vdec) ? 0 : -ENOMEM;
 }
@@ -434,10 +454,16 @@ static int gp_pll_user_cb_hevc(struct gp_pll_user_handle_s *user,
 	if (event == GP_PLL_USER_EVENT_GRANT) {
 		struct clk *clk = clk_get(NULL, "gp0_pll");
 		if (!IS_ERR(clk)) {
-			clk_set_rate(clk, 1296000000UL);
+			if (is_gp0_div2)
+				clk_set_rate(clk, 1296000000UL);
+			else
+				clk_set_rate(clk, 648000000UL);
 			HEVC_SAFE_CLOCK();
 			HEVC_CLOCK_OFF();
-			HEVC_648M();
+			if (is_gp0_div2)
+				HEVC_648M_DIV();
+			else
+				HEVC_648M();
 			HEVC_CLOCK_ON();
 			debug_print("gp_pll_user_cb_hevc callback2\n");
 		}
