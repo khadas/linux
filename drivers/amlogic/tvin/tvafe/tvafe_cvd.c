@@ -1792,8 +1792,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		if (cvd_dbg_en)
 			pr_info("[tvafe..] %s: current fmt is:%s\n",
 			__func__, tvin_sig_fmt_str(cvd2->config_fmt));
-	} else if ((cvd2->info.state == TVAFE_CVD2_STATE_FIND) &&
-		!(cvd2->manual_fmt)) {
+	} else if (cvd2->info.state == TVAFE_CVD2_STATE_FIND) {
 		/* manual mode => go directly to the manual format */
 		try_format_cnt = 0;
 		if (tvafe_cvd2_condition_shift(cvd2)) {
