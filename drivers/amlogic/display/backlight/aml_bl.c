@@ -980,8 +980,8 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 		bl_cbus_write(pwm_reg[port], (pwm_hi << 16) | pwm_lo);
 		break;
 	case BL_PWM_VS:
-		memset(vs, 0, sizeof(unsigned int) * 4);
-		memset(ve, 0, sizeof(unsigned int) * 4);
+		memset(vs, 0xffff, sizeof(unsigned int) * 4);
+		memset(ve, 0xffff, sizeof(unsigned int) * 4);
 		n = bl_pwm->pwm_freq;
 		sw = (bl_pwm->pwm_cnt * 10 / n + 5) / 10;
 		pwm_hi = (pwm_hi * 10 / n + 5) / 10;
@@ -1755,8 +1755,10 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		pwm_combo0->pinmux_flag = 0;
 		pwm_combo1->pinmux_flag = 0;
 		break;
+#ifdef CONFIG_AML_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMING:
 		break;
+#endif
 	case BL_CTRL_EXTERN:
 		break;
 	default:
@@ -2081,6 +2083,16 @@ static void aml_bl_config_load(struct bl_config_s *bconf,
 	}
 	aml_bl_pinmux_load(bconf);
 	aml_bl_config_print(bconf);
+
+	switch (bconf->method) {
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	case BL_CTRL_LOCAL_DIMING:
+		aml_ldim_probe(pdev);
+		break;
+#endif
+	default:
+		break;
+	}
 }
 
 /* ****************************************
@@ -2187,7 +2199,7 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
 	if (bl_debug_print_flag)
-		BLPR("bl_lcd_update_notifier for pwm_vs");
+		BLPR("bl_lcd_update_notifier for pwm_vs\n");
 	switch (bl_drv->bconf->method) {
 	case BL_CTRL_PWM:
 		if (bl_drv->bconf->bl_pwm->pwm_port == BL_PWM_VS)
@@ -2216,6 +2228,42 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 
 static struct notifier_block aml_bl_lcd_update_nb = {
 	.notifier_call = aml_bl_lcd_update_notifier,
+};
+
+static int aml_bl_lcd_test_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	int *flag;
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+#endif
+
+	/* If we aren't interested in this event, skip it immediately */
+	if (event != LCD_EVENT_TEST_PATTERN)
+		return NOTIFY_DONE;
+
+	if (aml_bl_check_driver())
+		return NOTIFY_DONE;
+	if (bl_debug_print_flag)
+		BLPR("bl_lcd_test_notifier for lcd test_pattern\n");
+
+	flag = (int *)data;
+	switch (bl_drv->bconf->method) {
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	case BL_CTRL_LOCAL_DIMING:
+		if (ldim_drv->test_ctrl)
+			ldim_drv->test_ctrl(*flag);
+		break;
+#endif
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block aml_bl_lcd_test_nb = {
+	.notifier_call = aml_bl_lcd_test_notifier,
 };
 /* **************************************** */
 
@@ -2252,6 +2300,9 @@ static ssize_t bl_status_read(struct class *class,
 	struct bl_config_s *bconf = bl_drv->bconf;
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+#endif
 	ssize_t len = 0;
 
 	len = sprintf(buf, "read backlight status:\n"
@@ -2341,8 +2392,12 @@ static ssize_t bl_status_read(struct class *class,
 			pwm_combo1->pwm_gpio, pwm_combo1->pwm_gpio_off,
 			bconf->pwm_on_delay, bconf->pwm_off_delay);
 		break;
+#ifdef CONFIG_AML_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMING:
+		if (ldim_drv->config_print)
+			ldim_drv->config_print();
 		break;
+#endif
 	case BL_CTRL_EXTERN:
 		break;
 	default:
@@ -2724,9 +2779,6 @@ static int aml_bl_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 	struct backlight_device *bldev;
 	struct bl_config_s *bconf;
-#ifdef CONFIG_AML_LOCAL_DIMMING
-	struct aml_ldim_driver_s *ldim_drv;
-#endif
 	int ret;
 
 #ifdef AML_BACKLIGHT_DEBUG
@@ -2788,30 +2840,13 @@ static int aml_bl_probe(struct platform_device *pdev)
 	ret = aml_lcd_notifier_register(&aml_bl_lcd_update_nb);
 	if (ret)
 		BLERR("register aml_bl_lcd_update_nb failed\n");
+	ret = aml_lcd_notifier_register(&aml_bl_lcd_test_nb);
+	if (ret)
+		BLERR("register aml_bl_lcd_test_nb failed\n");
 #endif
 	aml_bl_creat_class();
 
 	/* update bl status */
-	switch (bl_drv->bconf->method) {
-#ifdef CONFIG_AML_LOCAL_DIMMING
-	case BL_CTRL_LOCAL_DIMING:
-		ldim_drv = aml_ldim_get_driver();
-		if (ldim_drv == NULL) {
-			BLERR("no ldim driver\n");
-		} else {
-			if (ldim_drv->init) {
-				ret = ldim_drv->init();
-				if (ret)
-					BLERR("ldim_init error\n");
-			} else {
-				BLERR("ldim_init is null\n");
-			}
-		}
-		break;
-#endif
-	default:
-		break;
-	}
 	bl_drv->state = (BL_STATE_LCD_ON |
 			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
 	aml_bl_update_status(bl_drv->bldev);
@@ -2850,6 +2885,11 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 		kfree(bl_drv->bconf->bl_pwm_combo0);
 		kfree(bl_drv->bconf->bl_pwm_combo1);
 		break;
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	case BL_CTRL_LOCAL_DIMING:
+		aml_ldim_remove();
+		break;
+#endif
 	default:
 		break;
 	}

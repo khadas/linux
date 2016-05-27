@@ -1,14 +1,20 @@
 /*
- * Amlogic iw7019 Driver for LCD Panel Backlight
+ * drivers/amlogic/display/backlight/aml_ldim/iw7019_bl.c
  *
- * Author:
- *
- * Copyright (C) 2015 Amlogic Inc.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
@@ -31,6 +37,7 @@
 #include "iw7019_lpf.h"
 #include "iw7019_bl.h"
 #include "ldim_drv.h"
+#include "ldim_dev_drv.h"
 
 #define INT_VIU_VSYNC   35
 
@@ -53,41 +60,27 @@ static int iw7019_spi_err_flag;
 static int iw7019_spi_force_err_flag;
 static unsigned short vsync_cnt;
 static unsigned short fault_cnt;
-static unsigned int reset_cnt;
-static unsigned int reset_cnt_high;
+static unsigned long reset_cnt;
 static int iw7019_spi_rw_test_flag;
 
 static spinlock_t iw7019_spi_lock;
 static struct workqueue_struct  *iw7019_workqueue;
 static struct work_struct iw7019_work;
 
-struct ld_config_s iw7019_ld_config = {
-	.dim_min = 0x7f, /* min 3% duty */
-	.dim_max = 0xfff,
-	.cmd_size = 4,
-};
-
-#define IW7019_GPIO_ERR    0xffff
 struct iw7019 {
 	int test_mode;
-	unsigned char write_check;
-	unsigned char fault_check;
-	int en_gpio;
-	int en_on;
-	int en_off;
-	int lamp_err_gpio;
+	struct spi_device *spi;
 	int cs_hold_delay;
 	int cs_clk_delay;
-	struct spi_device *spi;
+	unsigned char cmd_size;
+	unsigned char *init_data;
 	struct class cls;
-	u8 cur_addr;
+	unsigned char cur_addr;
 };
 struct iw7019 *bl_iw7019;
 
-#define IW7019_INIT_ON_SIZE     300
-#define IW7019_INIT_OFF_SIZE    8
-
-static u8 iw7019_ini_data[IW7019_INIT_ON_SIZE] = {
+#if 0
+static unsigned char iw7019_ini_data[LDIM_SPI_INIT_ON_SIZE] = {
 #if 1
 	/* step1: */
 	0x00, 0x01, 0x08, 0x00,
@@ -199,6 +192,7 @@ static u8 iw7019_ini_data[IW7019_INIT_ON_SIZE] = {
 	0xff, 0x00, 0x00, 0x00,  /* ending */
 #endif
 };
+#endif
 
 static int test_brightness[] = {
 	0xfff, 0xfff, 0xfff, 0xfff, 0xfff, 0xfff, 0xfff, 0xfff
@@ -277,7 +271,7 @@ static int iw7019_wregs(struct spi_device *spi, u8 addr, u8 *val, int len)
 
 static int iw7019_power_on_init(int flag)
 {
-	u8 addr, val;
+	unsigned char addr, val;
 	int i, ret = 0;
 
 	LDIMPR("%s: spi_op_flag=%d\n", __func__, iw7019_spi_op_flag);
@@ -299,19 +293,19 @@ iw7019_power_reset_p:
 	vsync_cnt = 0;
 	fault_cnt = 0;
 
-	for (i = 0; i < IW7019_INIT_ON_SIZE; i += iw7019_ld_config.cmd_size) {
-		if (iw7019_ini_data[i] == 0xff) {
-			if (iw7019_ini_data[i+3] > 0)
-				mdelay(iw7019_ini_data[i+3]);
+	for (i = 0; i < LDIM_SPI_INIT_ON_SIZE; i += bl_iw7019->cmd_size) {
+		if (bl_iw7019->init_data[i] == 0xff) {
+			if (bl_iw7019->init_data[i+3] > 0)
+				mdelay(bl_iw7019->init_data[i+3]);
 			break;
-		} else if (iw7019_ini_data[i] == 0x0) {
-			addr = iw7019_ini_data[i+1];
-			val = iw7019_ini_data[i+2];
+		} else if (bl_iw7019->init_data[i] == 0x0) {
+			addr = bl_iw7019->init_data[i+1];
+			val = bl_iw7019->init_data[i+2];
 			ret = iw7019_wreg(bl_iw7019->spi, addr, val);
 			udelay(1);
 		}
-		if (iw7019_ini_data[i+3] > 0)
-			mdelay(iw7019_ini_data[i+3]);
+		if (bl_iw7019->init_data[i+3] > 0)
+			mdelay(bl_iw7019->init_data[i+3]);
 	}
 
 	iw7019_spi_err_flag = 0;
@@ -322,25 +316,35 @@ iw7019_power_reset_p:
 	return ret;
 }
 
-static int iw7019_hw_init(struct iw7019 *bl)
+static int iw7019_hw_init_on(void)
 {
-	struct aml_ldim_driver_s *ld_drv = aml_ldim_get_driver();
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
-	gpio_direction_output(bl->en_gpio, bl->en_on);
+	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
+		ldim_drv->ldev_conf->en_gpio_on);
 	mdelay(2);
-	ld_drv->pinmux_ctrl(1);
+	ldim_drv->pinmux_ctrl(1);
 	mdelay(100);
 	iw7019_power_on_init(IW7019_POWER_ON);
 
 	return 0;
 }
 
-static int iw7019_hw_init_off(struct iw7019 *bl)
+static int iw7019_hw_init_off(void)
 {
-	struct aml_ldim_driver_s *ld_drv = aml_ldim_get_driver();
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	int i = 1000;
 
-	ld_drv->pinmux_ctrl(0);
-	gpio_direction_output(bl->en_gpio, bl->en_off);
+	while ((iw7019_spi_op_flag) && (i > 0)) {
+		i--;
+		udelay(10);
+	}
+	if (iw7019_spi_op_flag == 1)
+		LDIMERR("%s: wait spi idle state failed\n", __func__);
+
+	ldim_drv->pinmux_ctrl(0);
+	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
+		ldim_drv->ldev_conf->en_gpio_off);
 
 	return 0;
 }
@@ -459,6 +463,7 @@ static void iw7019_spi_dump(void)
 static int fault_cnt_save;
 static void iw7019_fault_handler(void)
 {
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val;
 
 	if (fault_cnt >= 35) {
@@ -486,7 +491,7 @@ static void iw7019_fault_handler(void)
 		LDIMPR("%s: vsync_cnt=%d, fault_cnt=%d\n",
 			__func__, vsync_cnt, fault_cnt);
 	}
-	val = gpio_get_value(bl_iw7019->lamp_err_gpio);
+	val = ldim_gpio_get(ldim_drv->ldev_conf->lamp_err_gpio);
 	if (val) {
 		fault_cnt++;
 		if (fault_cnt <= 35) {
@@ -502,17 +507,16 @@ static void iw7019_fault_handler(void)
 
 static int iw7019_reset_handler(void)
 {
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+
 	/* disable BL_ON once */
 	LDIMPR("reset iw7019 BL_ON\n");
-	if (reset_cnt == 0xffffffff) {
-		reset_cnt = 0;
-		reset_cnt_high++;
-	} else {
-		reset_cnt++;
-	}
-	gpio_direction_output(bl_iw7019->en_gpio, bl_iw7019->en_off);
+	reset_cnt++;
+	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
+		ldim_drv->ldev_conf->en_gpio_off);
 	mdelay(1000);
-	gpio_direction_output(bl_iw7019->en_gpio, bl_iw7019->en_on);
+	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
+		ldim_drv->ldev_conf->en_gpio_on);
 	mdelay(2);
 	iw7019_power_on_init(IW7019_POWER_RESET);
 
@@ -521,11 +525,12 @@ static int iw7019_reset_handler(void)
 
 static unsigned int iw7019_get_value(unsigned int level)
 {
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val;
 	unsigned int dim_max, dim_min;
 
-	dim_max = iw7019_ld_config.dim_max;
-	dim_min = iw7019_ld_config.dim_min;
+	dim_max = ldim_drv->ldev_conf->dim_max;
+	dim_min = ldim_drv->ldev_conf->dim_min;
 
 	val = dim_min + ((level * (dim_max - dim_min)) / LD_DATA_MAX);
 
@@ -534,8 +539,9 @@ static unsigned int iw7019_get_value(unsigned int level)
 
 static int iw7019_smr(unsigned short *buf, unsigned char len)
 {
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int i, j, offset, cmd_len;
-	u8 val[13];
+	unsigned char val[13];
 	unsigned int br0, br1;
 	unsigned char bri_reg;
 	unsigned char temp, reg_chk, clk_sel;
@@ -543,10 +549,8 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 	if (iw7019_spi_rw_test_flag)
 		return 0;
 	if (iw7019_on_flag == 0) {
-		if (ldim_debug_print) {
-			LDIMPR("%s: on_flag=%d\n",
-				__func__, iw7019_on_flag);
-		}
+		if (ldim_debug_print)
+			LDIMPR("%s: on_flag=%d\n", __func__, iw7019_on_flag);
 		return 0;
 	}
 	if (len != 8) {
@@ -569,7 +573,7 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 	}
 
 	iw7019_spi_op_flag = 1;
-	if (bl_iw7019->write_check) {
+	if (ldim_drv->ldev_conf->write_check) {
 		offset = 1;
 		val[0] = 0x0f;
 		cmd_len = 13;
@@ -596,7 +600,7 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 	}
 	iw7019_wregs(bl_iw7019->spi, bri_reg, val, cmd_len);
 
-	if (bl_iw7019->write_check) { /* brightness write check */
+	if (ldim_drv->ldev_conf->write_check) { /* brightness write check */
 		/* reg 0x00 check */
 		iw7019_rreg(bl_iw7019->spi, 0x00, &reg_chk);
 		for (i = 1; i < 3; i++) {
@@ -631,8 +635,8 @@ iw7019_smr_write_chk2:
 			}
 		}
 	}
-	if (bl_iw7019->fault_check) {
-		if (bl_iw7019->lamp_err_gpio == IW7019_GPIO_ERR)
+	if (ldim_drv->ldev_conf->fault_check) {
+		if (ldim_drv->ldev_conf->lamp_err_gpio >= BL_GPIO_NUM_MAX)
 			goto iw7019_smr_end;
 		iw7019_fault_handler();
 	}
@@ -648,7 +652,7 @@ static int iw7019_power_on(void)
 		LDIMPR("%s: iw7019 is already on, exit\n", __func__);
 		return 0;
 	}
-	iw7019_hw_init(bl_iw7019);
+	iw7019_hw_init_on();
 	iw7019_on_flag = 1;
 
 	LDIMPR("%s: ok\n", __func__);
@@ -657,8 +661,8 @@ static int iw7019_power_on(void)
 
 static int iw7019_power_off(void)
 {
-	iw7019_hw_init_off(bl_iw7019);
 	iw7019_on_flag = 0;
+	iw7019_hw_init_off();
 
 	LDIMPR("%s: ok\n", __func__);
 	return 0;
@@ -667,6 +671,7 @@ static int iw7019_power_off(void)
 static ssize_t iw7019_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct iw7019 *bl = container_of(class, struct iw7019, cls);
 	int ret = 0;
 	u8 val = 0;
@@ -695,6 +700,7 @@ static ssize_t iw7019_show(struct class *class,
 				test_brightness[7]);
 	} else if (!strcmp(attr->attr.name, "status")) {
 		ret = sprintf(buf, "iw7019 status:\n"
+				"dev_index      = %d\n"
 				"on_flag        = %d\n"
 				"en_on          = %d\n"
 				"en_off         = %d\n"
@@ -705,24 +711,26 @@ static ssize_t iw7019_show(struct class *class,
 				"fault_check    = %d\n"
 				"vsync_cnt      = %d\n"
 				"fault_cnt      = %d\n"
-				"reset_cnt_high = %d\n"
-				"reset_cnt      = %d\n"
+				"reset_cnt      = %ld\n"
 				"dim_max        = 0x%03x\n"
 				"dim_min        = 0x%03x\n",
-				iw7019_on_flag, bl->en_on, bl->en_off,
-				bl->cs_hold_delay, bl->cs_clk_delay,
+				ldim_drv->dev_index, iw7019_on_flag,
+				ldim_drv->ldev_conf->en_gpio_on,
+				ldim_drv->ldev_conf->en_gpio_off,
+				ldim_drv->ldev_conf->cs_hold_delay,
+				ldim_drv->ldev_conf->cs_clk_delay,
 				iw7019_spi_op_flag,
-				bl->write_check, bl->fault_check,
-				vsync_cnt, fault_cnt,
-				reset_cnt_high, reset_cnt,
-				iw7019_ld_config.dim_max,
-				iw7019_ld_config.dim_min);
+				ldim_drv->ldev_conf->write_check,
+				ldim_drv->ldev_conf->fault_check,
+				vsync_cnt, fault_cnt, reset_cnt,
+				ldim_drv->ldev_conf->dim_max,
+				ldim_drv->ldev_conf->dim_min);
 	} else if (!strcmp(attr->attr.name, "write_check")) {
 		ret = sprintf(buf, "iw7019 write_check = %d\n",
-			bl->write_check);
+			ldim_drv->ldev_conf->write_check);
 	} else if (!strcmp(attr->attr.name, "fault_check")) {
 		ret = sprintf(buf, "iw7019 fault_check = %d\n",
-			bl->fault_check);
+			ldim_drv->ldev_conf->fault_check);
 	} else if (!strcmp(attr->attr.name, "dump")) {
 		i = 1000;
 		while ((iw7019_spi_op_flag) && (i > 0)) {
@@ -757,12 +765,13 @@ static ssize_t iw7019_show(struct class *class,
 static ssize_t iw7019_store(struct class *class,
 	struct class_attribute *attr, const char *buf, size_t count)
 {
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct iw7019 *bl = container_of(class, struct iw7019, cls);
 	unsigned int val, val2;
 	int i;
 
 	if (!strcmp(attr->attr.name, "init"))
-		iw7019_hw_init(bl);
+		iw7019_hw_init_on();
 	else if (!strcmp(attr->attr.name, "cur_addr")) {
 		val = kstrtol(buf, 16, NULL);
 		bl->cur_addr = val;
@@ -792,12 +801,12 @@ static ssize_t iw7019_store(struct class *class,
 		LDIMPR("spi_force_err_flag=%d\n", iw7019_spi_force_err_flag);
 	} else if (!strcmp(attr->attr.name, "write_check")) {
 		i = sscanf(buf, "%d", &val);
-		bl_iw7019->write_check = (unsigned char)val;
-		LDIMPR("write_check=%d\n", bl_iw7019->write_check);
+		ldim_drv->ldev_conf->write_check = (unsigned char)val;
+		LDIMPR("write_check=%d\n", ldim_drv->ldev_conf->write_check);
 	} else if (!strcmp(attr->attr.name, "fault_check")) {
 		i = sscanf(buf, "%d", &val);
-		bl_iw7019->fault_check = (unsigned char)val;
-		LDIMPR("fault_check=%d\n", bl_iw7019->fault_check);
+		ldim_drv->ldev_conf->fault_check = (unsigned char)val;
+		LDIMPR("fault_check=%d\n", ldim_drv->ldev_conf->fault_check);
 	} else if (!strcmp(attr->attr.name, "reset")) {
 		i = 1000;
 		while ((iw7019_spi_op_flag) && (i > 0)) {
@@ -854,129 +863,19 @@ static int iw7019_ldim_driver_update(void)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
-	ldim_drv->ld_config = &iw7019_ld_config;
 	ldim_drv->device_power_on = iw7019_power_on;
 	ldim_drv->device_power_off = iw7019_power_off;
 	ldim_drv->device_bri_update = iw7019_smr;
 	return 0;
 }
 
-static int iw7019_get_config_from_dts(struct device_node *np)
+int ldim_dev_iw7019_probe(void)
 {
-	unsigned int temp[3], val;
-	unsigned char cmd_size;
-	int i, j;
-	int ret = 0;
-
-	bl_iw7019->en_gpio = of_get_named_gpio(np, "en-gpio", 0);
-	LDIMPR("en_gpio = %d\n", bl_iw7019->en_gpio);
-	if (bl_iw7019->en_gpio)
-		gpio_request(bl_iw7019->en_gpio, "iw7019_en");
-	ret = of_property_read_u32(np, "spi_write_check", &temp[0]);
-	if (ret)
-		bl_iw7019->write_check = 0;
-	else
-		bl_iw7019->write_check = (unsigned char)temp[0];
-
-	ret = of_property_read_u32_array(np, "en_gpio_on_off", &temp[0], 2);
-	if (ret) {
-		LDIMERR("failed to get en_gpio_on_off\n");
-		bl_iw7019->en_on = 1;
-		bl_iw7019->en_off = 0;
-	} else {
-		bl_iw7019->en_on = temp[0];
-		bl_iw7019->en_off = temp[1];
-	}
-
-	ret = of_property_read_u32(np, "lamp_err_check", &temp[0]);
-	if (ret)
-		bl_iw7019->fault_check = 0;
-	else
-		bl_iw7019->fault_check = (unsigned char)temp[0];
-	if (bl_iw7019->fault_check) {
-		ret = of_property_read_u32_array(np,
-			"lamp_err-gpio", &temp[0], 3);
-		if (ret) {
-			bl_iw7019->lamp_err_gpio = IW7019_GPIO_ERR;
-			bl_iw7019->fault_check = 0;
-			LDIMERR("failed to get lamp_err-gpio\n");
-		} else {
-			bl_iw7019->lamp_err_gpio =
-				of_get_named_gpio(np, "lamp_err-gpio", 0);
-			LDIMPR("lamp_err_gpio = %d\n",
-				bl_iw7019->lamp_err_gpio);
-			if (bl_iw7019->lamp_err_gpio) {
-				gpio_request(bl_iw7019->lamp_err_gpio,
-					"iw7019_lamp_err");
-				gpio_direction_input(bl_iw7019->lamp_err_gpio);
-			} else {
-				LDIMERR("request lamp_err-gpio error\n");
-			}
-		}
-	} else {
-		bl_iw7019->lamp_err_gpio = IW7019_GPIO_ERR;
-	}
-
-	ret = of_property_read_u32_array(np, "spi_cs_delay", &temp[0], 2);
-	if (ret) {
-		bl_iw7019->cs_hold_delay = 0;
-		bl_iw7019->cs_clk_delay = 0;
-	} else {
-		bl_iw7019->cs_hold_delay = temp[0];
-		bl_iw7019->cs_clk_delay = temp[1];
-	}
-
-	ret = of_property_read_u32_array(np, "dim_max_min", &temp[0], 2);
-	if (ret) {
-		LDIMERR("failed to get dim_max_min\n");
-		iw7019_ld_config.dim_max = 0xfff;
-		iw7019_ld_config.dim_min = 0x7f;
-	} else {
-		iw7019_ld_config.dim_max = temp[0];
-		iw7019_ld_config.dim_min = temp[1];
-	}
-
-	/* get init_cmd */
-	ret = of_property_read_u32(np, "cmd_size", &temp[0]);
-	if (ret) {
-		LDIMERR("failed to get cmd_size\n");
-		iw7019_ld_config.cmd_size = 4;
-	} else {
-		iw7019_ld_config.cmd_size = (unsigned char)temp[0];
-	}
-	cmd_size = iw7019_ld_config.cmd_size;
-	if (cmd_size > 1) {
-		i = 0;
-		while (i < IW7019_INIT_ON_SIZE) {
-			for (j = 0; j < cmd_size; j++) {
-				ret = of_property_read_u32_index(
-					np, "init_on", (i + j), &val);
-				if (ret) {
-					LDIMERR("get init_on failed\n");
-					iw7019_ini_data[i] = 0xff;
-					goto iw7019_get_init_on_dts;
-				}
-				iw7019_ini_data[i + j] = (unsigned char)val;
-			}
-			if (iw7019_ini_data[i] == 0xff)
-				break;
-			i += cmd_size;
-		}
-	} else {
-		iw7019_ld_config.cmd_size = 1;
-	}
-iw7019_get_init_on_dts:
-	return 0;
-}
-
-static int iw7019_probe(struct spi_device *spi)
-{
-	const char *str;
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret;
 
-	reset_cnt_high = 0;
 	reset_cnt = 0;
-	iw7019_on_flag = 1; /* default enable in uboot */
+	iw7019_on_flag = 0;
 	iw7019_spi_op_flag = 0;
 	iw7019_spi_err_flag = 0;
 	iw7019_spi_force_err_flag = 0;
@@ -986,23 +885,17 @@ static int iw7019_probe(struct spi_device *spi)
 	spi_rw_test_en = 0;
 	spin_lock_init(&iw7019_spi_lock);
 
-	ret = of_property_read_string(spi->dev.of_node, "status", &str);
-	if (ret) {
-		LDIMPR("get status failed\n");
-		return 0;
-	} else {
-		if (strncmp(str, "disabled", 2) == 0)
-			return 0;
-	}
 	bl_iw7019 = kzalloc(sizeof(struct iw7019), GFP_KERNEL);
+	if (bl_iw7019 == NULL) {
+		pr_err("malloc bl_iw7019 failed\n");
+		return -1;
+	}
 	bl_iw7019->test_mode = 0;
-	bl_iw7019->spi = spi;
-	iw7019_get_config_from_dts(spi->dev.of_node);
-
-	dev_set_drvdata(&spi->dev, bl_iw7019);
-	spi->bits_per_word = 8;
-	spi->mode = SPI_MODE_0;
-	ret = spi_setup(spi);
+	bl_iw7019->spi = ldim_drv->spi;
+	bl_iw7019->cs_hold_delay = ldim_drv->ldev_conf->cs_hold_delay;
+	bl_iw7019->cs_clk_delay = ldim_drv->ldev_conf->cs_clk_delay;
+	bl_iw7019->cmd_size = ldim_drv->ldev_conf->cmd_size;
+	bl_iw7019->init_data = ldim_drv->ldev_conf->init_on;
 
 	iw7019_ldim_driver_update();
 
@@ -1011,19 +904,21 @@ static int iw7019_probe(struct spi_device *spi)
 	bl_iw7019->cls.class_attrs = iw7019_class_attrs;
 	ret = class_register(&bl_iw7019->cls);
 	if (ret < 0)
-		pr_err("register class failed! (%d)\n", ret);
+		pr_err("register iw7019 class failed\n");
 
 	/* init workqueue */
 	INIT_WORK(&iw7019_work, iw7019_spi_rw_test);
 	iw7019_workqueue = create_workqueue("iw7019_workqueue");
 	if (iw7019_workqueue == NULL)
-		BLERR("can't create iw7019_workqueue\n");
+		LDIMERR("can't create iw7019_workqueue\n");
 
-	pr_info("%s ok\n", __func__);
+	iw7019_on_flag = 1; /* default enable in uboot */
+
+	/* LDIMPR("%s ok\n", __func__); */
 	return ret;
 }
 
-static int iw7019_remove(struct spi_device *spi)
+int ldim_dev_iw7019_remove(void)
 {
 	cancel_work_sync(&iw7019_work);
 	if (iw7019_workqueue)
@@ -1033,54 +928,4 @@ static int iw7019_remove(struct spi_device *spi)
 	bl_iw7019 = NULL;
 	return 0;
 }
-
-static int iw7019_suspend(struct spi_device *spi, pm_message_t mesg)
-{
-	/* @todo iw7019_suspend */
-	return 0;
-}
-
-static int iw7019_resume(struct spi_device *spi)
-{
-	/* @todo iw7019_resume */
-	return 0;
-}
-
-static const struct of_device_id iw7019_of_match[] = {
-	{	.compatible = "amlogic, iw7019", },
-};
-MODULE_DEVICE_TABLE(of, iw7019_of_match);
-
-static struct spi_driver iw7019_driver = {
-	.probe = iw7019_probe,
-	.remove = iw7019_remove,
-	.suspend	= iw7019_suspend,
-	.resume		= iw7019_resume,
-	.driver = {
-		.name = "iw7019",
-		.owner = THIS_MODULE,
-		.bus	= &spi_bus_type,
-		.of_match_table = iw7019_of_match,
-	},
-};
-
-static int __init iw7019_init(void)
-{
-	/*printk("%s start\n", __func__);*/
-	LDIMPR("%s start\n", __func__);
-	return spi_register_driver(&iw7019_driver);
-}
-
-static void __exit iw7019_exit(void)
-{
-	spi_unregister_driver(&iw7019_driver);
-}
-
-fs_initcall(iw7019_init);
-module_exit(iw7019_exit);
-
-
-MODULE_DESCRIPTION("iW7019 LED Driver for LCD Backlight");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Bobby Yang <bo.yang@amlogic.com>");
 

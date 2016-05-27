@@ -506,10 +506,14 @@ static void lcd_test(unsigned int num)
 	unsigned int h_active;
 	unsigned int video_on_pixel;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	int flag;
+
+	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
+	flag = (num > 0) ? 1 : 0;
+	aml_lcd_notifier_call_chain(LCD_EVENT_TEST_PATTERN, &flag);
 
 	h_active = lcd_drv->lcd_config->lcd_basic.h_active;
 	video_on_pixel = lcd_drv->lcd_config->lcd_timing.video_on_pixel;
-	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
 	if (num >= 0) {
 		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, lcd_enc_tst[num][6]);
 		lcd_vcbus_write(ENCL_TST_MDSEL, lcd_enc_tst[num][0]);

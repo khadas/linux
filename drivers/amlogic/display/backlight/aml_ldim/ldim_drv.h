@@ -1,16 +1,23 @@
 /*
- * AMLOGIC Ldim
+ * drivers/amlogic/display/backlight/aml_ldim/ldim_drv.h
  *
- * Author:
- *
- * Copyright (C) 2010 Amlogic Inc.
+ * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
+#ifndef _AML_LDIM_DRV_H_
+#define _AML_LDIM_DRV_H_
 #include <linux/cdev.h>
-#include <linux/amlogic/vout/aml_bl.h>
 
 #define AML_LDIM_MODULE_NAME "aml_ldim"
 #define AML_LDIM_DRIVER_NAME "aml_ldim"
@@ -87,7 +94,6 @@ struct ldim_config_s {
 	unsigned short vsize;
 	unsigned char bl_mode;
 	unsigned short bl_mapping[LD_BLKREGNUM];
-	struct bl_pwm_config_s pwm_config;
 };
 
 struct LDReg {
@@ -313,3 +319,4 @@ struct FW_DAT {
 #define REGION_RD_INDEX_BIT                  0
 #define REGION_RD_INDEX_WID                  7
 
+#endif
