@@ -26,6 +26,7 @@
 / {
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";
+	amlogic-dt-id = "gxl_p212_1g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -39,7 +40,7 @@
 	};
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x1000000 0x0 0x7f000000>;
+		linux,usable-memory = <0x0 0x1000000 0x0 0x3f000000>;
 	};
 
 	reserved-memory {
