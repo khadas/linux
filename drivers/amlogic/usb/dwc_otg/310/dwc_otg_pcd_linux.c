@@ -1284,9 +1284,10 @@ int pcd_init(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-
+#ifdef CONFIG_AMLOGIC_USB3PHY
 	aml_new_usb_register_notifier(&otg_dev->nb);
 	otg_dev->nb.notifier_call = dwc_usb_change;
+#endif
 
 	otg_dev->pcd->otg_dev = otg_dev;
 	gadget_wrapper = alloc_wrapper(pdev);
@@ -1349,7 +1350,9 @@ void pcd_remove(struct platform_device *pdev)
 	free_irq(irq, pcd);
 	free_wrapper(gadget_wrapper);
 	dwc_otg_pcd_remove(otg_dev->pcd);
+#ifdef CONFIG_AMLOGIC_USB3PHY
 	aml_new_usb_unregister_notifier(&otg_dev->nb);
+#endif
 	otg_dev->pcd = 0;
 }
 
