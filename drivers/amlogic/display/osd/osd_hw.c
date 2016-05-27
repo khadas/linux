@@ -1469,8 +1469,10 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.cursor_dispdata[index].y_end = y1;
 #endif
 	if (osd_hw.free_dst_data[index].y_end >= 2159) {
-		if (!is_meson_gxtvbb_cpu())
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x808000);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM)
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00202000);
+		else if (!is_meson_gxtvbb_cpu())
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
 		else
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
 	}
@@ -3548,7 +3550,10 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_data[OSD2].y_end = 0;
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 1;
-		osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM)
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00202000);
+		else
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
 	} else {
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 0;
