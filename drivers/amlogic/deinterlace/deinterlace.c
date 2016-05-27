@@ -1806,64 +1806,64 @@ static struct di_pre_stru_s di_pre_stru;
 
 static void dump_di_pre_stru(void)
 {
-	pr_dbg("di_pre_stru:\n");
-	pr_dbg("di_mem_buf_dup_p	   = 0x%p\n",
+	pr_info("di_pre_stru:\n");
+	pr_info("di_mem_buf_dup_p	   = 0x%p\n",
 		di_pre_stru.di_mem_buf_dup_p);
-	pr_dbg("di_chan2_buf_dup_p	   = 0x%p\n",
+	pr_info("di_chan2_buf_dup_p	   = 0x%p\n",
 		di_pre_stru.di_chan2_buf_dup_p);
-	pr_dbg("in_seq				   = %d\n",
+	pr_info("in_seq				   = %d\n",
 		di_pre_stru.in_seq);
-	pr_dbg("recycle_seq		   = %d\n",
+	pr_info("recycle_seq		   = %d\n",
 		di_pre_stru.recycle_seq);
-	pr_dbg("pre_ready_seq		   = %d\n",
+	pr_info("pre_ready_seq		   = %d\n",
 		di_pre_stru.pre_ready_seq);
-	pr_dbg("pre_de_busy		   = %d\n",
+	pr_info("pre_de_busy		   = %d\n",
 		di_pre_stru.pre_de_busy);
-	pr_dbg("pre_de_busy_timer_count= %d\n",
+	pr_info("pre_de_busy_timer_count= %d\n",
 		di_pre_stru.pre_de_busy_timer_count);
-	pr_dbg("pre_de_process_done   = %d\n",
+	pr_info("pre_de_process_done   = %d\n",
 		di_pre_stru.pre_de_process_done);
-	pr_dbg("pre_de_irq_timeout_count=%d\n",
+	pr_info("pre_de_irq_timeout_count=%d\n",
 		di_pre_stru.pre_de_irq_timeout_count);
-	pr_dbg("unreg_req_flag		   = %d\n",
+	pr_info("unreg_req_flag		   = %d\n",
 		di_pre_stru.unreg_req_flag);
-	pr_dbg("unreg_req_flag_irq		   = %d\n",
+	pr_info("unreg_req_flag_irq		   = %d\n",
 		di_pre_stru.unreg_req_flag_irq);
-	pr_dbg("reg_req_flag		   = %d\n",
+	pr_info("reg_req_flag		   = %d\n",
 		di_pre_stru.reg_req_flag);
-	pr_dbg("reg_req_flag_irq		   = %d\n",
+	pr_info("reg_req_flag_irq		   = %d\n",
 		di_pre_stru.reg_req_flag_irq);
-	pr_dbg("cur_width			   = %d\n",
+	pr_info("cur_width			   = %d\n",
 		di_pre_stru.cur_width);
-	pr_dbg("cur_height			   = %d\n",
+	pr_info("cur_height			   = %d\n",
 		di_pre_stru.cur_height);
-	pr_dbg("cur_inp_type		   = 0x%x\n",
+	pr_info("cur_inp_type		   = 0x%x\n",
 		di_pre_stru.cur_inp_type);
-	pr_dbg("cur_source_type	   = %d\n",
+	pr_info("cur_source_type	   = %d\n",
 		di_pre_stru.cur_source_type);
-	pr_dbg("cur_prog_flag		   = %d\n",
+	pr_info("cur_prog_flag		   = %d\n",
 		di_pre_stru.cur_prog_flag);
-	pr_dbg("source_change_flag	   = %d\n",
+	pr_info("source_change_flag	   = %d\n",
 		di_pre_stru.source_change_flag);
-	pr_dbg("prog_proc_type		   = %d\n",
+	pr_info("prog_proc_type		   = %d\n",
 		di_pre_stru.prog_proc_type);
-	pr_dbg("enable_mtnwr		   = %d\n",
+	pr_info("enable_mtnwr		   = %d\n",
 		di_pre_stru.enable_mtnwr);
-	pr_dbg("enable_pulldown_check	= %d\n",
+	pr_info("enable_pulldown_check	= %d\n",
 		di_pre_stru.enable_pulldown_check);
-	pr_dbg("same_field_source_flag = %d\n",
+	pr_info("same_field_source_flag = %d\n",
 		di_pre_stru.same_field_source_flag);
 #ifdef DET3D
-	pr_dbg("vframe_interleave_flag = %d\n",
+	pr_info("vframe_interleave_flag = %d\n",
 		di_pre_stru.vframe_interleave_flag);
 #endif
-	pr_dbg("left_right		   = %d\n",
+	pr_info("left_right		   = %d\n",
 		di_pre_stru.left_right);
-	pr_dbg("force_interlace   = %s\n",
+	pr_info("force_interlace   = %s\n",
 		di_pre_stru.force_interlace ? "true" : "false");
-	pr_dbg("vdin2nr		   = %d\n",
+	pr_info("vdin2nr		   = %d\n",
 		di_pre_stru.vdin2nr);
-	pr_dbg("bypass_pre		   = %s\n",
+	pr_info("bypass_pre		   = %s\n",
 		di_pre_stru.bypass_pre ? "true" : "false");
 }
 
@@ -7578,7 +7578,7 @@ void di_timer_handle(struct work_struct *work)
 				di_pre_stru.pre_de_busy = 0;
 			} /* else if (timeout_miss_policy == 2) {
 			   * }*/
-			pr_dbg("***** DI ****** wait %d pre_de_irq timeout\n",
+			pr_info("***** DI ****** wait %d pre_de_irq timeout\n",
 				di_pre_stru.field_count_for_cont);
 		}
 	} else {
@@ -8327,6 +8327,7 @@ static void set_di_flag(void)
 		pulldown_mode = 1;
 		di_vscale_skip_enable = 3;
 		use_2_interlace_buff = 1;
+		pre_hold_line = 12;
 		if (nr10bit_surpport)
 			di_force_bit_mode = 10;
 		else
