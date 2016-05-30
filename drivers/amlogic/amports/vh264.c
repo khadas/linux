@@ -107,6 +107,8 @@ static DEFINE_MUTEX(vh264_mutex);
 #define SWITCHING_STATE_OFF       0
 #define SWITCHING_STATE_ON_CMD3   1
 #define SWITCHING_STATE_ON_CMD1   2
+#define SWITCHING_STATE_ON_CMD1_PENDING   3
+
 
 #define DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE 0x0001
 #define DEC_CONTROL_FLAG_FORCE_2500_576P_INTERLACE  0x0002
@@ -609,6 +611,8 @@ static void vh264_set_params(struct work_struct *work)
 	u32 disp_addr = 0xffffffff;
 	struct canvas_s cur_canvas;
 	mutex_lock(&vh264_mutex);
+	if (vh264_stream_switching_state == SWITCHING_STATE_ON_CMD1)
+		vh264_stream_switching_state = SWITCHING_STATE_ON_CMD1_PENDING;
 	post_canvas = get_post_canvas();
 	timing_info_present_flag = 0;
 	mb_width = READ_VREG(AV_SCRATCH_1);
@@ -2588,7 +2592,8 @@ static void stream_switching_done(void)
 					vh264_stream_switching_state);
 		schedule_work(&set_parameter_work);
 		return;
-	}
+	} else if (state == SWITCHING_STATE_ON_CMD1_PENDING)
+		return;
 
 	vh264_stream_switching_state = SWITCHING_STATE_OFF;
 
