@@ -204,12 +204,22 @@ static void vdin0_wr_mif_reset(void)
 	}
 };
 
-#define vdin1_wr_mif_reset() do { \
-			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN1_MIF_RST_BIT, 1); \
-			udelay(1); \
-			W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN1_MIF_RST_BIT, 1); \
-			} while (0)
-
+static void vdin1_wr_mif_reset(void)
+{
+	if (vsync_reset_mask & 0x08) {
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, FRAME_SOFT_RST_EN_BIT, 1);
+		W_VCBUS_BIT(VDIN_COM_CTRL1, 1, 28, 1);
+		udelay(1);
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, FRAME_SOFT_RST_EN_BIT, 1);
+	} else {
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, 10, 1);
+		W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN1_MIF_RST_BIT, 1);
+		udelay(1);
+		W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN1_MIF_RST_BIT, 1);
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, 8, 1);
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, 10, 1);
+	}
+}
 
 /***************************Local Structures**********************************/
 static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
@@ -2248,6 +2258,10 @@ int vdin_vsync_reset_mif(int index)
 
 		vpu_reg_27af |= VDIN0_REQ_EN_BIT;
 	} else if (index == 1) {
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, 25, 1); /* vdin->vdin mif wr en */
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, 29, 1); /* clock gate */
+		/* wr req en */
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		aml_write_vcbus(VPU_WRARB_REQEN_SLV_L1C2,
 				vpu_reg_27af & (~(1 << VDIN1_REQ_EN_BIT)));
 		vpu_reg_27af &= (~(1 << VDIN1_REQ_EN_BIT));
@@ -2267,6 +2281,9 @@ int vdin_vsync_reset_mif(int index)
 		aml_write_vcbus(VPU_WRARB_REQEN_SLV_L1C2,
 				vpu_reg_27af | (1 << VDIN1_REQ_EN_BIT));
 		vpu_reg_27af |= (1 << VDIN1_REQ_EN_BIT);
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, 29, 1);
+		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, 25, 1);
 	}
 #if 0 /* TODO: if start or end line > 0, should drop this frame! */
 	if ((aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff) > 0) {

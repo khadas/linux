@@ -170,6 +170,10 @@ static unsigned int vdin_reset_flag;
 module_param(vdin_reset_flag, uint, 0664);
 MODULE_PARM_DESC(vdin_reset_flag, "vdin_reset_flag");
 
+static unsigned int vdin_reset_flag1;
+module_param(vdin_reset_flag1, uint, 0664);
+MODULE_PARM_DESC(vdin_reset_flag1, "vdin_reset_flag1");
+
 /*
  *2:enable manul rdam
  *1:enable auto rdma
@@ -1756,14 +1760,14 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	if (!devp)
 		return IRQ_HANDLED;
-	if (vdin_reset_flag) {
-		vdin_reset_flag = 0;
+	if (vdin_reset_flag1) {
+		vdin_reset_flag1 = 0;
 		return IRQ_HANDLED;
 	}
 	isr_log(devp->vfp);
 	irq_cnt++;
 	spin_lock_irqsave(&devp->isr_lock, flags);
-	vdin_reset_flag = vdin_vsync_reset_mif(devp->index);
+	vdin_reset_flag1 = vdin_vsync_reset_mif(devp->index);
 	offset = devp->addr_offset;
 	if (devp)
 		/* avoid null pointer oops */

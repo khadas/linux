@@ -37,6 +37,8 @@
 #define VDIN0_MIF_RST_BIT 3
 #define VDIN1_MIF_RST_BIT 4
 #define VDIN_MIF_RST_W 1
+#define VDIN1_WR_CTRL 0x12a0
+#define VDIN_COM_CTRL1 0x1282
 
 
 /* #define VIU_SW_RESET 0x1a01 */
