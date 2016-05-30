@@ -1712,7 +1712,7 @@ bit[3]: 1, if blackout is not 1, do not release current
 /* set to 1 for fast play;
 	set to 8 for other case of "keep last frame"
 */
-static u32 buffer_mode;
+static u32 buffer_mode = 1;
 /* buffer_mode_dbg: debug only*/
 static u32 buffer_mode_dbg = 0xffff0000;
 /**/
@@ -5738,10 +5738,20 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	struct vdec_dev_reg_s *pdata =
 		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
 	int i;
+	u32 predisp_addr;
+	unsigned long pre_last_frame_alloc_addr, pre_last_frame_alloc_size;
+	struct BUF_s BUF[MAX_BUF_NUM];
 	struct VP9Decoder_s *pbi = &gHevc;
 	mutex_lock(&vvp9_mutex);
-
+	predisp_addr = pbi->predisp_addr;
+	pre_last_frame_alloc_addr = pbi->pre_last_frame_alloc_addr;
+	pre_last_frame_alloc_size = pbi->pre_last_frame_alloc_size;
+	memcpy(&BUF[0], &pbi->m_BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 	memset(pbi, 0, sizeof(VP9Decoder));
+	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
+	pbi->predisp_addr = predisp_addr;
+	pbi->pre_last_frame_alloc_addr = pre_last_frame_alloc_addr;
+	pbi->pre_last_frame_alloc_size = pre_last_frame_alloc_size;
 
 	pbi->init_flag = 0;
 	pbi->fatal_error = 0;
