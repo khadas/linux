@@ -1712,6 +1712,12 @@ void aml_sd_emmc_start_cmd(struct amlsd_platform *pdata,
 		sd_emmc_regs->gcfg = vconf;
 		host->sd_sdio_switch_volat_done = 0;
 	}
+
+	if ((pconf->auto_clk) && (pdata->auto_clk_close)) {
+		pconf->auto_clk = 0;
+		sd_emmc_regs->gcfg = vconf;
+	}
+
 	/*check bus width*/
 	if (pconf->bus_width != pdata->width) {
 		conf_flag |= 1<<0;
@@ -2776,6 +2782,7 @@ static void aml_sd_emmc_set_timing(
 				adjust = sd_emmc_regs->gadjust;
 				gadjust->ds_enable = 1;
 				sd_emmc_regs->gadjust = adjust;
+				host->tuning_mode = AUTO_TUNING_MODE;
 			}
 		}
 		ctrl->ddr = 1;
@@ -2833,6 +2840,9 @@ static void aml_sd_emmc_set_bus_width(
 /*call by mmc, power on, power off ...*/
 static void aml_sd_emmc_set_power(struct amlsd_platform *pdata, u32 power_mode)
 {
+	struct amlsd_host *host = (void *)pdata->host;
+	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
+
 	switch (power_mode) {
 	case MMC_POWER_ON:
 		if (pdata->pwr_pre)
@@ -2843,6 +2853,8 @@ static void aml_sd_emmc_set_power(struct amlsd_platform *pdata, u32 power_mode)
 	case MMC_POWER_UP:
 		break;
 	case MMC_POWER_OFF:
+		sd_emmc_regs->gdelay = 0;
+		sd_emmc_regs->gadjust = 0;
 	default:
 		if (pdata->pwr_pre)
 			pdata->pwr_pre(pdata);
@@ -2856,8 +2868,6 @@ static void aml_sd_emmc_set_power(struct amlsd_platform *pdata, u32 power_mode)
 static void aml_sd_emmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
-	struct amlsd_host *host = (void *)pdata->host;
-	struct sd_emmc_regs *sd_emmc_regs = host->sd_emmc_regs;
 
 	if (!pdata->is_in)
 		return;
@@ -2872,11 +2882,6 @@ static void aml_sd_emmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* Set Date Mode */
 	aml_sd_emmc_set_timing(pdata, ios->timing);
-
-	if (ios->power_mode == MMC_POWER_OFF) {
-		sd_emmc_regs->gdelay = 0;
-		sd_emmc_regs->gadjust = 0;
-	}
 
 	if (ios->chip_select == MMC_CS_HIGH) {
 		aml_cs_high(pdata);
@@ -3168,6 +3173,7 @@ static const char *emmc_read_usage_str = {
 "echo tx_phase >read\n"
 "echo line_delay >read\n"
 "echo co_phase >read\n"
+"echo auto_clk >read\n"
 };
 
 static ssize_t emmc_debug_common_help(struct class *class,
@@ -3188,6 +3194,7 @@ static const char *emmc_usage_str = {
 "echo rx_phase 0-3 >debug\n"
 "echo tx_phase 0-3 >debug\n"
 "echo co_phase 0-3 >debug\n"
+"echo auto_clk 0-1 >debug\n"
 };
 static ssize_t emmc_debug_help(struct class *class,
 		struct class_attribute *attr, char *buf)
@@ -3212,6 +3219,17 @@ static ssize_t emmc_debug(struct class *class, struct class_attribute *attr,
 	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
 	u32 clock;
 	switch (buf[0]) {
+	case 'a':
+		ret = sscanf(buf, "auto_clk %d", &t[0]);
+		if (t[0] == 0) {
+			ctrl->auto_clk = 0;
+			pr_info("set auto_clk 0, close auto clock\n");
+		} else {
+			ctrl->auto_clk = 1;
+			pr_info("set auto_clk 1, open auto clock\n");
+		}
+		sd_emmc_regs->gcfg = vctrl;
+		break;
 	case 'c':
 		if (buf[1] == 'l') {
 			ret = sscanf(buf, "clock %d", &t[0]);
@@ -3308,6 +3326,9 @@ static ssize_t emmc_read_debug(struct class *class,
 	u32 clock;
 
 	switch (buf[0]) {
+	case 'a':
+		pr_info("atuc_clk = %d\n", ctrl->auto_clk);
+		break;
 	case 'c':
 		if (buf[1] == 'l') {
 			clock = clk_rate / pclkc->div;
@@ -3323,7 +3344,7 @@ static ssize_t emmc_read_debug(struct class *class,
 		break;
 	case 'l':
 		pr_info("line_deley = 0x%x\n", line_delay);
-			break;
+		break;
 	case 'r':
 		if (buf[1] == 'x') {
 				pr_info("rx_phase = 0x%x\n", pclkc->rx_phase);

@@ -123,6 +123,7 @@ struct amlsd_platform {
 	unsigned int gpio_cd_level;
 	unsigned int gpio_power;
 	unsigned int power_level;
+	unsigned int auto_clk_close;
 	unsigned int vol_switch;
 	unsigned int vol_switch_18;
 	unsigned int vol_switch_delay;
