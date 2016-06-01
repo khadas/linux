@@ -693,7 +693,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						p->frequency += 1;
 						fe->ops.set_frontend(fe);
 					}
-					usleep_range(10*1000, 10*1000+100);
+					usleep_range(20*1000, 20*1000+100);
 				}
 				if (std_bk == 0) {
 					pr_err("%s, failed to get v fmt !!\n",
@@ -727,7 +727,14 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			}
 			std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
 			if (std_bk == V4L2_COLOR_STD_NTSC) {
-				audio = V4L2_STD_NTSC_M;
+				amlatvdemod_set_std(
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
+				audio = aml_audiomode_autodet(fe);
+				audio = demod_fmt_2_v4l2_std(audio);
+				if (audio == V4L2_STD_PAL_M)
+					audio = V4L2_STD_NTSC_M;
+				else
+					std_bk = V4L2_COLOR_STD_PAL;
 			} else if (std_bk == V4L2_COLOR_STD_SECAM) {
 				audio = V4L2_STD_SECAM_L;
 			} else {
@@ -978,7 +985,14 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
 
 			if (std_bk == V4L2_COLOR_STD_NTSC) {
-				audio = V4L2_STD_NTSC_M;
+				amlatvdemod_set_std(
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
+				audio = aml_audiomode_autodet(fe);
+				audio = demod_fmt_2_v4l2_std(audio);
+				if (audio == V4L2_STD_PAL_M)
+					audio = V4L2_STD_NTSC_M;
+				else
+					std_bk = V4L2_COLOR_STD_PAL;
 			} else if (std_bk == V4L2_COLOR_STD_SECAM) {
 				audio = V4L2_STD_SECAM_L;
 			} else {
