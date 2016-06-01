@@ -2531,10 +2531,17 @@ void tvafe_snow_config(unsigned int onoff)
 {
 	if (onoff) {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
-		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
 	} else {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 0, BLUE_MODE_BIT, BLUE_MODE_WID);
-		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);
 	}
 }
+
+void tvafe_snow_config_clamp(unsigned int onoff)
+{
+	if (onoff)
+		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
+	else
+		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);
+}
+
 

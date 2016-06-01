@@ -23,7 +23,7 @@
 /* ************************************************* */
 /* *** macro definitions ********************************************* */
 /* *********************************************************** */
-#define TVAFE_VER "Ref.2015/05/27"
+#define TVAFE_VER "Ref.2015/06/01b"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED       0x00000010

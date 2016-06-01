@@ -766,11 +766,13 @@ start_chk:
 		}
 		devp->flags &= (~VDIN_FLAG_SM_DISABLE);
 		tvafe_snow_config(1);
+		tvafe_snow_config_clamp(1);
 		pr_info("snowon config done!!\n");
 	} else if (!strcmp(parm[0], "snowoff")) {
 		devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
 		devp->flags |= VDIN_FLAG_SM_DISABLE;
 		tvafe_snow_config(0);
+		tvafe_snow_config_clamp(0);
 		/* if fmt change, need restart dec vdin */
 		if ((devp->parm.info.fmt != TVIN_SIG_FMT_CVBS_NTSC_M) &&
 			(devp->parm.info.fmt != TVIN_SIG_FMT_NULL)) {

@@ -70,6 +70,7 @@ static int sm_print_notsup;
 static int sm_print_unstable;
 static int sm_print_fmt_nosig;
 static int sm_print_fmt_chg;
+static int sm_atv_prestable_fmt;
 
 module_param(sm_debug_enable, bool, 0664);
 MODULE_PARM_DESC(sm_debug_enable,
@@ -103,6 +104,10 @@ MODULE_PARM_DESC(hdmi_stable_out_cnt, "hdmi_stable_out_cnt");
 static int atv_stable_out_cnt = 100;
 module_param(atv_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_out_cnt, "atv_stable_out_cnt");
+
+static int atv_prestable_out_cnt = 100;
+module_param(atv_prestable_out_cnt, int, 0664);
+MODULE_PARM_DESC(atv_prestable_out_cnt, "atv_prestable_out_cnt");
 
 static int other_stable_out_cnt = EXIT_STABLE_MAX_CNT;
 module_param(other_stable_out_cnt, int, 0664);
@@ -228,6 +233,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:
 		++sm_p->state_cnt;
+		if (port == TVIN_PORT_CVBS3)
+			tvafe_snow_config_clamp(1);
 		if (sm_ops->nosig(devp->frontend)) {
 			sm_p->exit_nosig_cnt = 0;
 			if (sm_p->state_cnt >= nosig_in_cnt) {
@@ -359,6 +366,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 						sm_ops->fmt_config(fe);
 					tvin_smr_init_counter(devp->index);
 					sm_p->state = TVIN_SM_STATUS_PRESTABLE;
+					sm_atv_prestable_fmt = info->fmt;
 					if (sm_debug_enable) {
 						pr_info("[smr.%d]unstable-->prestable",
 						devp->index);
@@ -376,7 +384,10 @@ void tvin_smr(struct vdin_dev_s *devp)
 		break;
 	case TVIN_SM_STATUS_PRESTABLE: {
 		bool nosig = false, fmt_changed = false;
+		unsigned int prestable_out_cnt = 0;
 		devp->unstable_flag = true;
+		if (port == TVIN_PORT_CVBS3)
+			tvafe_snow_config_clamp(0);
 		if (sm_ops->nosig(devp->frontend)) {
 			nosig = true;
 			if (sm_debug_enable)
@@ -393,7 +404,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 		if (nosig || fmt_changed) {
 			++sm_p->state_cnt;
-			if (sm_p->state_cnt >= other_stable_out_cnt) {
+			if (port == TVIN_PORT_CVBS3)
+				prestable_out_cnt = atv_prestable_out_cnt;
+			else
+				prestable_out_cnt = other_stable_out_cnt;
+			if (sm_p->state_cnt >= prestable_out_cnt) {
 				tvin_smr_init_counter(devp->index);
 				sm_p->state = TVIN_SM_STATUS_UNSTABLE;
 				if (sm_debug_enable)
@@ -405,22 +420,33 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 				break;
 			}
-		} else
+		} else {
 			sm_p->state_cnt = 0;
 
-		sm_p->state = TVIN_SM_STATUS_STABLE;
-		info->status = TVIN_SIG_STATUS_STABLE;
-		if (pre_info->status != info->status) {
-			pre_info->status = info->status;
-			queue_delayed_work(devp->sig_wq,
-					&devp->sig_dwork, 0);
+			if ((port == TVIN_PORT_CVBS3) &&
+				(sm_atv_prestable_fmt != info->fmt)) {
+				++sm_p->exit_prestable_cnt;
+				if (sm_p->exit_prestable_cnt <
+					atv_prestable_out_cnt)
+					break;
+				else
+					sm_p->exit_prestable_cnt = 0;
+			}
+
+			sm_p->state = TVIN_SM_STATUS_STABLE;
+			info->status = TVIN_SIG_STATUS_STABLE;
+			if (pre_info->status != info->status) {
+				pre_info->status = info->status;
+				queue_delayed_work(devp->sig_wq,
+						&devp->sig_dwork, 0);
+			}
+			if (sm_debug_enable)
+				pr_info("[smr.%d] %ums prestable --> stable\n",
+						devp->index,
+						jiffies_to_msecs(jiffies));
+			sm_print_nosig  = 0;
+			sm_print_notsup = 0;
 		}
-		if (sm_debug_enable)
-			pr_info("[smr.%d] %ums prestable --> stable\n",
-					devp->index,
-					jiffies_to_msecs(jiffies));
-		sm_print_nosig  = 0;
-		sm_print_notsup = 0;
 		break;
 	}
 	case TVIN_SM_STATUS_STABLE: {

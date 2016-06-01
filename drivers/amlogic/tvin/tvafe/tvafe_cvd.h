@@ -173,6 +173,7 @@ extern void tvafe_cvd2_hold_rst(struct tvafe_cvd2_s *cvd2);
 extern void tvafe_cvd2_set_reg8a(unsigned int v);
 extern void get_cvd_version(const char **ver, const char **last_ver);
 extern void tvafe_snow_config(unsigned int onoff);
+extern void tvafe_snow_config_clamp(unsigned int onoff);
 
 #endif /* _TVAFE_CVD_H */
 

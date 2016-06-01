@@ -228,10 +228,12 @@ static ssize_t tvafe_store(struct device *dev,
 		last_afe_version, last_cvd_version, last_adc_version);
 	} else if (!strncmp(buff, "snowon", strlen("snowon"))) {
 		tvafe_snow_config(1);
+		tvafe_snow_config_clamp(1);
 		devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
 		pr_info("[tvafe..]%s:tvafe snowon\n", __func__);
 	} else if (!strncmp(buff, "snowoff", strlen("snowoff"))) {
 		tvafe_snow_config(0);
+		tvafe_snow_config_clamp(0);
 		devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
 		pr_info("[tvafe..]%s:tvafe snowoff\n", __func__);
 	} else

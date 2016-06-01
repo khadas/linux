@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2016/05/26a"
+#define VDIN_VER "Ref.2016/06/01b"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -278,6 +278,7 @@ extern void LDIM_Initial(int pic_h, int pic_v, int BLK_Vnum,
 extern void ldim_get_matrix(int *data, int reg_sel);
 extern void ldim_set_matrix(int *data, int reg_sel);
 extern void tvafe_snow_config(unsigned int onoff);
+extern void tvafe_snow_config_clamp(unsigned int onoff);
 extern void vdin_vf_reg(struct vdin_dev_s *devp);
 extern void vdin_vf_unreg(struct vdin_dev_s *devp);
 extern void vdin_pause_dec(struct vdin_dev_s *devp);
