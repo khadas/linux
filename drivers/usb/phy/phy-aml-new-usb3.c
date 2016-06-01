@@ -24,6 +24,9 @@
 #define DEVICE_MODE	1
 
 struct usb_aml_regs_t usb_new_aml_regs;
+struct amlogic_usb	*g_phy;
+
+static void set_mode(unsigned long reg_addr, int mode);
 BLOCKING_NOTIFIER_HEAD(aml_new_usb_notifier_list);
 
 int aml_new_usb_register_notifier(struct notifier_block *nb)
@@ -88,6 +91,21 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 
 	phy->suspend_flag = 1;
 }
+
+void aml_new_usb_init(void)
+{
+	union usb_r5_t r5 = {.d32 = 0};
+	unsigned long reg_addr = ((unsigned long)
+		usb_new_aml_regs.usb_r[0] - 0x80);
+
+	r5.d32 = readl(usb_new_aml_regs.usb_r[5]);
+	if (0 == r5.b.iddig_curr) {
+		amlogic_new_set_vbus_power(g_phy, 1);
+		aml_new_usb_notifier_call(0);
+		set_mode(reg_addr, HOST_MODE);
+	}
+}
+EXPORT_SYMBOL(aml_new_usb_init);
 
 static int amlogic_new_usb3_init(struct usb_phy *x)
 {
@@ -293,6 +311,8 @@ static int amlogic_new_usb3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 
 	pm_runtime_enable(phy->dev);
+
+	g_phy = phy;
 
 	return 0;
 }

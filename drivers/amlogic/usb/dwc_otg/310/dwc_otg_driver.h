@@ -44,6 +44,10 @@
 #endif
 #include <linux/notifier.h>
 
+#ifdef CONFIG_AMLOGIC_USB3PHY
+extern void aml_new_usb_init(void);
+#endif
+
 /* Type declarations */
 struct dwc_otg_pcd;
 struct dwc_otg_hcd;

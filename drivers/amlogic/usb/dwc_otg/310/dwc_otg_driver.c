@@ -1364,6 +1364,12 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device->usb_early_suspend.param = dwc_otg_device;
 	register_early_suspend(&dwc_otg_device->usb_early_suspend);
 #endif
+
+#ifdef CONFIG_AMLOGIC_USB3PHY
+	if (USB_OTG == dwc_otg_device->core_if->controller_type)
+		aml_new_usb_init();
+#endif
+
 	return 0;
 
 fail:
