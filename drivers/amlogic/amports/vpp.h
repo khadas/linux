@@ -172,6 +172,8 @@ enum select_scaler_path_e {
 #define MODE_3D_MVC	    0x00000800
 #define MODE_3D_OUT_TB	0x00010000
 #define MODE_3D_OUT_LR	0x00020000
+#define MODE_FORCE_3D_TO_2D_LR	0x00100000
+#define MODE_FORCE_3D_TO_2D_TB	0x00200000
 
 /*when the output mode is field alterlative*/
 /* LRLRLRLRL mode */
@@ -186,7 +188,8 @@ enum select_scaler_path_e {
 	MODE_3D_OUT_FA_R_FIRST|MODE_3D_OUT_FA_LB_FIRST|MODE_3D_OUT_FA_RB_FIRST)
 
 #define MODE_3D_TO_2D_MASK  \
-	(MODE_3D_TO_2D_L|MODE_3D_TO_2D_R|MODE_3D_OUT_FA_MASK)
+	(MODE_3D_TO_2D_L|MODE_3D_TO_2D_R|MODE_3D_OUT_FA_MASK | \
+	MODE_FORCE_3D_TO_2D_LR | MODE_FORCE_3D_TO_2D_TB)
 
 #define VPP_3D_MODE_NULL 0x0
 #define VPP_3D_MODE_LR   0x1

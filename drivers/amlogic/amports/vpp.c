@@ -1830,7 +1830,9 @@ vpp_get_video_source_size(u32 *src_width, u32 *src_height,
 	if ((process_3d_type & MODE_3D_AUTO) ||
 	(((process_3d_type & MODE_3D_TO_2D_R) ||
 	(process_3d_type & MODE_3D_TO_2D_L) ||
-	(process_3d_type & MODE_3D_LR_SWITCH)) &&
+	(process_3d_type & MODE_3D_LR_SWITCH) ||
+	(process_3d_type & MODE_FORCE_3D_TO_2D_TB) ||
+	(process_3d_type & MODE_FORCE_3D_TO_2D_LR)) &&
 	(process_3d_type & MODE_3D_ENABLE))) {
 		if (vf->trans_fmt) {
 			if (process_3d_type & MODE_3D_TO_2D_MASK)
@@ -1954,6 +1956,9 @@ vpp_get_video_source_size(u32 *src_width, u32 *src_height,
 			next_frame_par->vpp_2pic_mode = VPP_SELECT_PIC0;
 		else if (process_3d_type & MODE_3D_LR_SWITCH)
 			next_frame_par->vpp_2pic_mode |= VPP_PIC1_FIRST;
+		if ((process_3d_type & MODE_FORCE_3D_TO_2D_LR) ||
+		(process_3d_type & MODE_FORCE_3D_TO_2D_TB))
+			next_frame_par->vpp_2pic_mode = VPP_SELECT_PIC0;
 
 		/*only display one pic */
 		if ((next_frame_par->vpp_2pic_mode & 0x3) == 0)

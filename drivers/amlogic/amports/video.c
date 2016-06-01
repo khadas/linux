@@ -1345,6 +1345,32 @@ static inline struct vframe_s *video_vf_get(void)
 			process_3d_type &= (~MODE_3D_MVC);
 			mvc_flag = 0;
 		}
+		if ((process_3d_type & MODE_FORCE_3D_TO_2D_LR)
+		&& (!(vf->type & VIDTYPE_MVC))) {
+			vf->trans_fmt = TVIN_TFMT_3D_DET_LR;
+			vf->left_eye.start_x = 0;
+			vf->left_eye.start_y = 0;
+			vf->left_eye.width = vf->width / 2;
+			vf->left_eye.height = vf->height;
+
+			vf->right_eye.start_x = vf->width / 2;
+			vf->right_eye.start_y = 0;
+			vf->right_eye.width = vf->width / 2;
+		}
+		if ((process_3d_type & MODE_FORCE_3D_TO_2D_TB)
+		&& (!(vf->type & VIDTYPE_MVC))) {
+			vf->trans_fmt = TVIN_TFMT_3D_TB;
+			vf->left_eye.start_x = 0;
+			vf->left_eye.start_y = 0;
+			vf->left_eye.width = vf->width;
+			vf->left_eye.height = vf->height/2;
+
+			vf->right_eye.start_x = 0;
+			vf->right_eye.start_y = vf->height/2;
+			vf->right_eye.width = vf->width;
+			vf->right_eye.height = vf->height/2;
+		}
+
 #endif
 	}
 	return vf;
@@ -2231,6 +2257,19 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 				disp_canvas[rdma_canvas_id][1]);
 			}
 		}
+		if (cur_frame_par
+		&& (process_3d_type & MODE_3D_ENABLE)
+		&& (process_3d_type & MODE_3D_TO_2D_R)
+		&& (cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1)) {
+			VSYNC_WR_MPEG_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off,
+					  disp_canvas[rdma_canvas_id][1]);
+			VSYNC_WR_MPEG_REG(VD1_IF0_CANVAS1 + cur_dev->viu_off,
+					  disp_canvas[rdma_canvas_id][1]);
+			VSYNC_WR_MPEG_REG(VD2_IF0_CANVAS0 + cur_dev->viu_off,
+					  disp_canvas[rdma_canvas_id][1]);
+			VSYNC_WR_MPEG_REG(VD2_IF0_CANVAS1 + cur_dev->viu_off,
+					  disp_canvas[rdma_canvas_id][1]);
+		}
 		/* VSYNC_WR_MPEG_REG(VD2_IF0_CANVAS1,
 		disp_canvas[rdma_canvas_id][1]); */
 		next_rdma_canvas_id = rdma_canvas_id ? 0 : 1;
@@ -2925,13 +2964,13 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		} else {
 			if (frame_par->vpp_2pic_mode & VPP_SELECT_PIC1) {
 				VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_PSEL +
-				cur_dev->viu_off, 0x4000000);
+				cur_dev->viu_off, 0);
 				VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_PSEL +
-				cur_dev->viu_off, 0x4000000);
+				cur_dev->viu_off, 0);
 				VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_PSEL +
-				cur_dev->viu_off, 0x4000000);
+				cur_dev->viu_off, 0);
 				VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_PSEL +
-				cur_dev->viu_off, 0x4000000);
+				cur_dev->viu_off, 0);
 			} else {
 				VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_PSEL +
 				cur_dev->viu_off, 0);
@@ -3961,7 +4000,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_PSEL +
 					cur_dev->viu_off, 0x4000000);
 				}
-				EnableVideoLayer2();
 /*
 VSYNC_WR_MPEG_REG_BITS(VPP_MISC +
 cur_dev->vpp_off,1,15,1);//VPP_VD2_PREBLEND enable
@@ -3973,8 +4011,8 @@ VSYNC_WR_MPEG_REG_BITS(VPP_MISC +
 cur_dev->vpp_off,0x1ff,
 VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 */
-			} else
-				DisableVideoLayer2();
+			}
+
 /*
 else{
 VSYNC_WR_MPEG_REG_BITS(VPP_MISC +
