@@ -935,7 +935,7 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 		return 0;
 	/* if there is any error or overflow, do some reset, then rerurn -1;*/
 	if ((tvafe->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
-			(tvafe->parm.info.fmt == TVIN_SIG_FMT_NULL)) {
+		(tvafe->parm.info.fmt == TVIN_SIG_FMT_NULL)) {
 		return -1;
 	}
 
@@ -1097,8 +1097,9 @@ enum tvin_sig_fmt_e tvafe_get_fmt(struct tvin_frontend_s *fe)
 		fmt = tvafe_cvd2_get_format(&tvafe->cvd2);
 
 	tvafe->parm.info.fmt = fmt;
-
-	pr_info("[tvafe..] %s fmt:%s.\n", __func__, tvin_sig_fmt_str(fmt));
+	if (tvafe_dbg_enable)
+		pr_info("[tvafe..] %s fmt:%s.\n", __func__,
+			tvin_sig_fmt_str(fmt));
 
 	return fmt;
 }

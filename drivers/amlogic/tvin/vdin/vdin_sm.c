@@ -71,6 +71,7 @@ static int sm_print_unstable;
 static int sm_print_fmt_nosig;
 static int sm_print_fmt_chg;
 static int sm_atv_prestable_fmt;
+static int sm_print_prestable;
 
 module_param(sm_debug_enable, bool, 0664);
 MODULE_PARM_DESC(sm_debug_enable,
@@ -97,7 +98,7 @@ static int hdmi_stable_out_cnt = 1;/* 25; */
 module_param(hdmi_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_stable_out_cnt, "hdmi_stable_out_cnt");
 
-/* change it from 10 to 100 in gxtvbb@20160523,reaseon:
+/* new add in gxtvbb@20160523,reason:
  *gxtvbb add atv snow config,the config will affect signal detect.
  *if atv_stable_out_cnt < 100,the signal state will change
  *after swich source to atv or after atv search*/
@@ -105,6 +106,20 @@ static int atv_stable_out_cnt = 100;
 module_param(atv_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_out_cnt, "atv_stable_out_cnt");
 
+/* new add in gxtvbb@20160613,reason:
+ *gxtvbb add atv snow config,the config will affect signal detect.
+ *ensure after fmt change,the new fmt can be detect in time!*/
+static int atv_stable_fmt_check_cnt = 10;
+module_param(atv_stable_fmt_check_cnt, int, 0664);
+MODULE_PARM_DESC(atv_stable_fmt_check_cnt, "atv_stable_fmt_check_cnt");
+
+/* new add in gxtvbb@20160613,reason:
+ * ensure vdin fmt can update when fmt is changed in menu*/
+static int atv_stable_fmt_check_enable;
+
+/* new add in gxtvbb@20160523,reason:
+ *gxtvbb add atv snow config,the config will affect signal detect.
+ *ensure after prestable into stable,the state is really stable!*/
 static int atv_prestable_out_cnt = 100;
 module_param(atv_prestable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_prestable_out_cnt, "atv_prestable_out_cnt");
@@ -384,6 +399,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sm_print_unstable = 0;
 					sm_print_fmt_nosig = 0;
 					sm_print_fmt_chg = 0;
+					sm_print_prestable = 0;
 				}
 			}
 		}
@@ -396,16 +412,20 @@ void tvin_smr(struct vdin_dev_s *devp)
 			tvafe_snow_config_clamp(0);
 		if (sm_ops->nosig(devp->frontend)) {
 			nosig = true;
-			if (sm_debug_enable)
+			if (sm_debug_enable && !(sm_print_prestable&0x1)) {
 				pr_info("[smr.%d] warning: no signal\n",
 						devp->index);
+				sm_print_prestable |= 1;
+			}
 		}
 
 		if (sm_ops->fmt_changed(devp->frontend)) {
 			fmt_changed = true;
-			if (sm_debug_enable)
+			if (sm_debug_enable && !(sm_print_prestable&0x2)) {
 				pr_info("[smr.%d] warning: format changed\n",
 						devp->index);
+				sm_print_prestable |= (1<<1);
+			}
 		}
 
 		if (nosig || fmt_changed) {
@@ -423,14 +443,13 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_nosig  = 0;
 				sm_print_notsup = 0;
 				sm_print_unstable = 0;
-
+				sm_print_prestable = 0;
 				break;
 			}
 		} else {
 			sm_p->state_cnt = 0;
 
-			if ((port == TVIN_PORT_CVBS3) &&
-				(sm_atv_prestable_fmt != info->fmt)) {
+			if (port == TVIN_PORT_CVBS3) {
 				++sm_p->exit_prestable_cnt;
 				if (sm_p->exit_prestable_cnt <
 					atv_prestable_out_cnt)
@@ -452,12 +471,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 						jiffies_to_msecs(jiffies));
 			sm_print_nosig  = 0;
 			sm_print_notsup = 0;
+			sm_print_prestable = 0;
 		}
 		break;
 	}
 	case TVIN_SM_STATUS_STABLE: {
 		bool nosig = false, fmt_changed = false;
 		unsigned int stable_out_cnt = 0;
+		unsigned int stable_fmt = 0;
 		devp->unstable_flag = true;
 
 		if (sm_ops->nosig(devp->frontend)) {
@@ -498,19 +519,53 @@ void tvin_smr(struct vdin_dev_s *devp)
 				stable_out_cnt = hdmi_stable_out_cnt;
 			else
 				stable_out_cnt = other_stable_out_cnt;
+			/*add for atv snow*/
+			if ((sm_p->state_cnt >= atv_stable_fmt_check_cnt) &&
+				(port == TVIN_PORT_CVBS3))
+				atv_stable_fmt_check_enable = 1;
 			if (sm_p->state_cnt >= stable_out_cnt) {
 				tvin_smr_init_counter(devp->index);
 				sm_p->state = TVIN_SM_STATUS_UNSTABLE;
 				if (sm_debug_enable)
 					pr_info("[smr.%d] stable --> unstable\n",
-							devp->index);
+						devp->index);
 				sm_print_nosig  = 0;
 				sm_print_notsup = 0;
 				sm_print_unstable = 0;
 				sm_print_fmt_nosig = 0;
 				sm_print_fmt_chg = 0;
+				sm_print_prestable = 0;
+				atv_stable_fmt_check_enable = 0;
 			}
 		} else {
+			/*add for atv snow*/
+			if ((port == TVIN_PORT_CVBS3) &&
+				atv_stable_fmt_check_enable &&
+				(sm_ops->get_fmt && sm_ops->get_sig_propery)) {
+				sm_p->state_cnt = 0;
+				stable_fmt =
+					sm_ops->get_fmt(fe);
+				if ((sm_atv_prestable_fmt != stable_fmt) &&
+					(stable_fmt != TVIN_SIG_FMT_NULL)) {
+					sm_ops->get_sig_propery(fe, prop);
+					memcpy(pre_prop, prop,
+					sizeof(struct tvin_sig_property_s));
+					devp->parm.info.trans_fmt =
+						prop->trans_fmt;
+					devp->parm.info.reserved =
+						prop->dvi_info & 0xf;
+					devp->parm.info.fps =
+						prop->dvi_info >> 4;
+					info->fmt = stable_fmt;
+					atv_stable_fmt_check_enable = 0;
+					if (sm_debug_enable)
+						pr_info("[smr.%d] stable fmt changed:0x%x-->0x%x\n",
+							devp->index,
+							sm_atv_prestable_fmt,
+							stable_fmt);
+					sm_atv_prestable_fmt = stable_fmt;
+				}
+			}
 			sm_p->state_cnt = 0;
 		}
 		break;

@@ -702,10 +702,10 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		vf->width = devp->h_active;
 		vf->height = devp->v_active;
 		scan_mode = devp->fmt_info_p->scan_mode;
-		if ((scan_mode == TVIN_SCAN_MODE_INTERLACED) &&
+		if (((scan_mode == TVIN_SCAN_MODE_INTERLACED) &&
 		    (!(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
-		      (devp->parm.info.fmt != TVIN_SIG_FMT_NULL))
-		   )
+		      (devp->parm.info.fmt != TVIN_SIG_FMT_NULL))) ||
+		      (devp->parm.port == TVIN_PORT_CVBS3))
 			vf->height <<= 1;
 #ifndef VDIN_DYNAMIC_DURATION
 		vf->duration = devp->fmt_info_p->duration;
@@ -890,7 +890,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		devp->frontend->dec_ops &&
-		devp->frontend->dec_ops->start)
+		devp->frontend->dec_ops->start &&
+		(devp->parm.port != TVIN_PORT_CVBS3))
 		devp->frontend->dec_ops->start(devp->frontend,
 				devp->parm.info.fmt);
 
@@ -952,8 +953,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	disable_irq_nosync(devp->irq);
 	vdin_hw_disable(devp->addr_offset);
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
-			devp->frontend->dec_ops &&
-			devp->frontend->dec_ops->stop)
+		devp->frontend->dec_ops &&
+		devp->frontend->dec_ops->stop &&
+		(devp->parm.port != TVIN_PORT_CVBS3))
 		devp->frontend->dec_ops->stop(devp->frontend, devp->parm.port);
 	vdin_set_default_regmap(devp->addr_offset);
 
@@ -1693,13 +1695,17 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	   ppmgr put the vf that included master vf and slave vf
 	 */
 	/*config height according to 3d mode dynamically*/
-	if ((devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED) &&
+	if (((devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED) &&
 	    (!(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
-	    (devp->parm.info.fmt != TVIN_SIG_FMT_NULL))
-	   )
+	    (devp->parm.info.fmt != TVIN_SIG_FMT_NULL))) ||
+	    (devp->parm.port == TVIN_PORT_CVBS3))
 		curr_wr_vf->height = devp->v_active<<1;
 	else
 		curr_wr_vf->height = devp->v_active;
+	/*new add for atv snow:avoid flick black on bottom when atv search*/
+	if ((devp->parm.port == TVIN_PORT_CVBS3) &&
+		(devp->flags & VDIN_FLAG_SNOW_FLAG))
+		curr_wr_vf->height = 480;
 	curr_wr_vfe->flag |= VF_FLAG_NORMAL_FRAME;
 	if (devp->flags&VDIN_FLAG_RDMA_ENABLE)
 		devp->last_wr_vfe = curr_wr_vfe;
@@ -2336,9 +2342,13 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case TVIN_IOC_SNOWON:
 		devp->flags |= VDIN_FLAG_SNOW_FLAG;
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_SNOWON(%d) ok\n\n", devp->index);
 		break;
 	case TVIN_IOC_SNOWOFF:
 		devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_SNOWOFF(%d) ok\n\n", devp->index);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
