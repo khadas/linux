@@ -1599,7 +1599,6 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 	int cur_std = ID_PAL_DK;
 	struct dtv_frontend_properties
 		*p = fe != NULL ? &fe->dtv_property_cache:NULL;
-	struct aml_fe *fee = fe?fe->demodulator_priv:NULL;
 #if 0
 	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 	temp_data = temp_data | 0x80;/* 0x40 */
@@ -1682,19 +1681,7 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 				break;
 			}
-			if (final_id == ID_PAL_M && fee
-				&& fee->tuner->drv->id == AM_TUNER_MXL661) {
-				/* maybe don't need this */
-				carrier_power_average_max =
-					carrier_power_average[1];
-				if (carrier_power_average_max > 100) {
-					broad_std_final =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
-					pr_err("%s, BG is near M,should BG\n",
-						__func__);
-				}
-			} else
-				carrier_power_average_max = carrier_power_max;
+			carrier_power_average_max = carrier_power_max;
 			broad_std = broad_std_final;
 			pr_err("%s:broad_std:%d,carrier_power_average_max:%lu\n",
 				__func__, broad_std, carrier_power_average_max);

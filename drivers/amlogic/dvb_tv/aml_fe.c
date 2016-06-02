@@ -588,9 +588,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	minafcfreq = p->frequency - p->analog.afc_range;
 	maxafcfreq = p->frequency + p->analog.afc_range;
 /*from the min freq start,and set the afc_step*/
-
-	if (slow_mode || (fee->tuner->drv->id == AM_TUNER_FQ1216) ||
-	    (AM_TUNER_HTM == fee->tuner->drv->id)) {
+	/*if step is 2Mhz,r840 will miss program*/
+	if (slow_mode || (fee->tuner->drv->id == AM_TUNER_R840)) {
 		pr_dbg("[%s]this is slow mode to search the channel\n",
 		       __func__);
 		p->frequency = minafcfreq;
@@ -742,6 +741,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
 				audio = aml_audiomode_autodet(fe);
 				audio = demod_fmt_2_v4l2_std(audio);
+				if (audio == V4L2_STD_PAL_M) {
+					audio = V4L2_STD_PAL_BG;
+					pr_err("M near BG,should be BG\n");
+				}
 			}
 			pr_err("%s,Manual freq:%d: std_bk:0x%x ,audmode:0x%x\n",
 				__func__, p->frequency,
@@ -791,8 +794,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	}
 	while (p->frequency <= maxafcfreq) {
 		if (debug_fe & 0x3)
-			pr_err("[%s] p->frequency=[%d] is processing\n",
-				__func__, p->frequency);
+			pr_err("[%s] p->frequency=[%d] is processing,maxafcfreq:[%d]\n",
+				__func__, p->frequency, maxafcfreq);
 		if (fee->tuner->drv->id != AM_TUNER_R840 &&
 		fee->tuner->drv->id != AM_TUNER_MXL661 &&
 		fee->tuner->drv->id != AM_TUNER_SI2151) {
@@ -879,6 +882,9 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			if (fee->tuner->drv->id == AM_TUNER_MXL661)
 				usleep_range((delay_cnt+15)*1000,
 					(delay_cnt+15)*1000+100);
+			if (fee->tuner->drv->id == AM_TUNER_R840)
+				usleep_range(delay_cnt*1000,
+					 delay_cnt*1000+100);
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 				if ((fe->ops.tuner_ops.get_pll_status == NULL)
 				    ||
@@ -941,6 +947,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					std_bk = aml_fe_hook_get_fmt();
 					if (std_bk)
 						varify_cnt++;
+				if (fee->tuner->drv->id == AM_TUNER_R840) {
+					if (varify_cnt > 0)
+						break;
+				}
 					if (varify_cnt > 3)
 						break;
 					if (i == get_vfmt_maxcnt/2) {
@@ -1000,6 +1010,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK);
 				audio = aml_audiomode_autodet(fe);
 				audio = demod_fmt_2_v4l2_std(audio);
+				if (audio == V4L2_STD_PAL_M) {
+					audio = V4L2_STD_PAL_BG;
+					pr_err("M near BG,should be BG\n");
+				}
 			}
 			pr_err("%s,Auto search freq:%d: std_bk:0x%x ,audmode:0x%x\n",
 					__func__, p->frequency,
@@ -1064,9 +1078,9 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 	__u32 set_freq;
 	int count = 25;
 	int lock_cnt = 0;
-	int afc_unlock_cnt = 0;
 	struct aml_fe *fee;
 	static int freq_success;
+	static int temp_freq, temp_afc;
 	struct timespec time_now;
 	static struct timespec success_time;
 	fee = fe->demodulator_priv;
@@ -1095,7 +1109,11 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 		c->frequency++;
 		if (fe->ops.tuner_ops.set_params)
 			fe->ops.tuner_ops.set_params(fe);
-		usleep_range(10*1000, 10*1000+100);
+		if (fee->tuner->drv->id == AM_TUNER_SI2151
+				|| fee->tuner->drv->id == AM_TUNER_R840)
+			usleep_range(10*1000, 10*1000+100);
+		else if (fee->tuner->drv->id == AM_TUNER_MXL661)
+			usleep_range(20*1000, 20*1000+100);
 		/*****************************/
 		set_freq = c->frequency;
 		while (abs(afc) > AFC_BEST_LOCK) {
@@ -1110,21 +1128,25 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 			if (afc == 0xffff) {
 				/*last lock, but this unlock,so try get afc*/
 				if (lock_cnt > 0) {
-					afc_unlock_cnt++;
+					c->frequency =
+						temp_freq + temp_afc*1000;
 					if (debug_fe & 0x2)
-						pr_err("%s,afc_unlock_cnt:%d\n",
-							__func__,
-							afc_unlock_cnt);
-					if (afc_unlock_cnt > 5)
-						return -1;
-					continue;
+						pr_err("%s,force lock,f:%d\n",
+							__func__, c->frequency);
+					freq_success = c->frequency;
+					ktime_get_ts(&success_time);
+					return 0;
 				} else
 					afc = 500;
 			} else {
 				lock_cnt++;
-				if (debug_fe & 0x2)
-					pr_err("%s,lock_cnt:%d\n",
-						__func__, lock_cnt);
+				temp_freq = c->frequency;
+				if (afc > 50)
+					temp_afc = 500;
+				else if (afc < -50)
+					temp_afc = -500;
+				else
+					temp_afc = afc;
 			}
 
 			if (((abs(afc) > (500 - AFC_BEST_LOCK))
