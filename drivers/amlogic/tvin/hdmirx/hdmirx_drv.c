@@ -1177,12 +1177,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 				clk_rate/1000000);
 	}
 
-	hdmirx_hw_probe();
 	/* create for hot plug function */
 	hpd_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&hpd_dwork, hdmirx_plug_det);
 
 	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
+
+	hdmirx_hw_probe();
 
 	rx_print("hdmirx: driver probe ok\n");
 

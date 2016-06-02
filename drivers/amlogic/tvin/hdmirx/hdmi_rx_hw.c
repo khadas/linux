@@ -99,11 +99,20 @@ int md_ists_en = VIDEO_MODE;
 MODULE_PARM_DESC(md_ists_en, "\n rx_md_ists_en\n");
 module_param(md_ists_en, int, 0664);
 
+int pdec_ists_en = AVI_CKS_CHG | DVIDET;
+MODULE_PARM_DESC(pdec_ists_en, "\n pdec_ists_en\n");
+module_param(pdec_ists_en, int, 0664);
+
 /* note: generator AG506 cannot set true */
 static bool use_hw_avmute_ctl = true;
 MODULE_PARM_DESC(use_hw_avmute_ctl,
 	"\n use_hw_avmute_ctl\n");
 module_param(use_hw_avmute_ctl, bool, 0664);
+
+static bool phy_init_in_probe = true;
+MODULE_PARM_DESC(phy_init_in_probe,
+	"\n phy_init_in_probe\n");
+module_param(phy_init_in_probe, bool, 0664);
 
 /* bit5 pll_lck_chg_en */
 /* bit6 clk_change_en */
@@ -444,8 +453,10 @@ int hdmirx_irq_open(void)
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
 	if (hdcp_22_on)
 		hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x3f);
-	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
-	/*hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);*/
+
+	/* hdmirx_wr_dwc(DWC_PDEC_IEN_SET, pdec_ists_en); */
+	/* hdmirx_wr_dwc(DWC_MD_IEN_SET, md_ists_en); */
+	/* hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en); */
 
 	return error;
 }
@@ -758,7 +769,7 @@ void clk_init(void)
 	data32 |= 3 << 9;
 	data32 |= 1 << 8;
 	data32 |= 2 << 0;
-	/* wr_reg(HHI_HDMIRX_CLK_CNTL, data32); */
+	wr_reg(HHI_HDMIRX_CLK_CNTL, data32);
 
 	data32 = 0;
 	data32 |= 2	<< 25;
@@ -767,7 +778,8 @@ void clk_init(void)
 	data32 |= 2	<< 9;
 	data32 |= 1	<< 8;
 	data32 |= 2	<< 0;
-	/* wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32); */
+	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32);
+
 #ifdef HDCP22_ENABLE
 	if (hdcp_22_on) {
 		/* Enable clk81_hdcp22_pclk */
@@ -974,7 +986,11 @@ void hdmirx_hw_probe(void)
 	/* if (hdcp_22_on) */
 	/*	hpd_to_esm = 1; */
 	/* #endif */
-	mdelay(100);
+	mdelay(150);
+	if (phy_init_in_probe)
+		hdmirx_phy_init(0, 0);
+
+	hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);

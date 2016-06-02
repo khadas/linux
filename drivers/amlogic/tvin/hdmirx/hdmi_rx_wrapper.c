@@ -2194,8 +2194,6 @@ bool is_clk_stable(void)
 	int clk;
 	clk = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 	clk = (clk >> 8) & 1;
-	if (log_flag & VIDEO_LOG)
-		rx_print("clk_stable=%d\n", clk);
 	if (1 == clk)
 		return true;
 	else
@@ -2306,10 +2304,12 @@ void monitor_capable_sts(void)
 
 		if ((rx.state != FSM_WAIT_CLK_STABLE) &&
 			(rx.state != FSM_WAIT_HDCP_SWITCH) &&
-			(rx.state != FSM_SIG_READY))
+			(rx.state != FSM_SIG_READY)) {
 			rx.pre_state = rx.state;
-		rx.state = FSM_WAIT_HDCP_SWITCH;
-		rx_print("\n esm sts change, force wait\n");
+			rx.state = FSM_WAIT_HDCP_SWITCH;
+			if (log_flag & VIDEO_LOG)
+				rx_print("\n esm change,force wait\n");
+		}
 	}
 	pre_sts_1 = hdcp22_capable_sts;
 	pre_sts_2 = hdcp22_authenticated;
@@ -2328,11 +2328,12 @@ void monitor_cable_clk_sts(void)
 		(rx.state > FSM_HPD_READY)) {
 		if ((rx.state != FSM_WAIT_CLK_STABLE) &&
 			(rx.state != FSM_WAIT_HDCP_SWITCH) &&
-			(rx.state != FSM_SIG_READY))
+			(rx.state != FSM_SIG_READY)) {
 			rx.pre_state = rx.state;
-		rx.state = FSM_WAIT_CLK_STABLE;
-		if (log_flag & VIDEO_LOG)
-			rx_print("\n clk unstable, force wait\n");
+			rx.state = FSM_WAIT_CLK_STABLE;
+			if (log_flag & VIDEO_LOG)
+				rx_print("\n clk unstable,force wait\n");
+		}
 	}
 }
 void rx_dwc_reset(void)
@@ -3723,8 +3724,8 @@ void dump_hdr_reg(void)
 
 void timer_state(void)
 {
-	rx_print("timer state:");
-
+	rx_print("timer state:%d\n",
+		rx.state);
 }
 
 int hdmirx_debug(const char *buf, int size)
@@ -4037,8 +4038,9 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.portA_pow5v_state_pre = 0;
 	rx.portB_pow5v_state_pre = 0;
 	rx.portC_pow5v_state_pre = 0;
-	if (pre_port == 0xff)
+	/* if (pre_port == 0xff)
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f & (~(1<<rx.port)));
+	*/
 	if (pre_port != rx.port) {
 		rx.state = FSM_HDMI5V_LOW;
 		hdmirx_set_hpd(rx.port, 0);
