@@ -957,6 +957,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
+		hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,
+			CLR_AVI_BT2020);
 		return;
 	}
 
@@ -966,11 +968,10 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
 	else {
 		memset(DRM_DB, 0, sizeof(DRM_DB));
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
-			hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM,
-				NULL, NULL);
+		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
+		hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,
+			CLR_AVI_BT2020);
 			return;
-		}
 	}
 	DRM_DB[1] = 0x0;
 	DRM_DB[2] = GET_LOW8BIT(data->primaries[0][0]);
@@ -994,8 +995,9 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	DRM_DB[20] = GET_LOW8BIT(data->luminance[1]);
 	DRM_DB[21] = GET_HIGH8BIT(data->luminance[1]);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
-		hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+	hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+	hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,
+			SET_AVI_BT2020);
 }
 
 static ssize_t store_config(struct device *dev,

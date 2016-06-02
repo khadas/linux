@@ -316,6 +316,9 @@ struct hdmitx_dev {
 #define AUDIO_MUTE          0x1
 #define AUDIO_UNMUTE        0x2
 #define CONF_CLR_AUDINFO_PACKET (CMD_CONF_OFFSET + 0x1000 + 0x01)
+#define CONF_AVI_BT2020		(CMD_CONF_OFFSET + 0X2000 + 0x00)
+	#define CLR_AVI_BT2020	0x0
+	#define SET_AVI_BT2020	0x1
 
 /***********************************************************************
  *             MISC control, hpd, hpll //CntlMisc

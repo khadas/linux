@@ -74,6 +74,7 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 	unsigned int dvi_mode);
+static void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para);
 
 unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 
@@ -3647,6 +3648,14 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case CONF_CLR_AUDINFO_PACKET:
 		break;
+	case CONF_AVI_BT2020:
+		if (argv == SET_AVI_BT2020) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
+		}
+		if (argv == CLR_AVI_BT2020)
+			hdmitx_set_avi_colorimetry(hdev->para);
+		break;
 	default:
 		hdmi_print(ERR, "config: ""hdmitx: unknown cmd: 0x%x\n", cmd);
 	}
@@ -3851,6 +3860,94 @@ void set_crt_video_enc(uint32_t vIdx, uint32_t inSel, uint32_t DivN)
 		hd_set_reg_bits(P_HHI_VIID_CLK_DIV, (DivN-1), 0, 8);
 
 		hd_set_reg_bits(P_HHI_VIID_CLK_CNTL, 1, 19, 1);
+	}
+}
+
+void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
+{
+	if (!para)
+		return;
+
+	/* set Colorimetry in AVIInfo */
+	switch (para->vic) {
+	case HDMI_640x480p60_4x3:
+	case HDMI_720x480p60_4x3:
+	case HDMI_720x480p60_16x9:
+	case HDMI_720x480i60_4x3:
+	case HDMI_720x480i60_16x9:
+	case HDMI_720x240p60_4x3:
+	case HDMI_720x240p60_16x9:
+	case HDMI_2880x480i60_4x3:
+	case HDMI_2880x480i60_16x9:
+	case HDMI_2880x240p60_4x3:
+	case HDMI_2880x240p60_16x9:
+	case HDMI_1440x480p60_4x3:
+	case HDMI_1440x480p60_16x9:
+	case HDMI_720x576p50_4x3:
+	case HDMI_720x576p50_16x9:
+	case HDMI_720x576i50_4x3:
+	case HDMI_720x576i50_16x9:
+	case HDMI_720x288p_4x3:
+	case HDMI_720x288p_16x9:
+	case HDMI_2880x576i50_4x3:
+	case HDMI_2880x576i50_16x9:
+	case HDMI_2880x288p50_4x3:
+	case HDMI_2880x288p50_16x9:
+	case HDMI_1440x576p_4x3:
+	case HDMI_1440x576p_16x9:
+	case HDMI_2880x480p60_4x3:
+	case HDMI_2880x480p60_16x9:
+	case HDMI_2880x576p50_4x3:
+	case HDMI_2880x576p50_16x9:
+	case HDMI_720x576p100_4x3:
+	case HDMI_720x576p100_16x9:
+	case HDMI_720x576i100_4x3:
+	case HDMI_720x576i100_16x9:
+	case HDMI_720x480p120_4x3:
+	case HDMI_720x480p120_16x9:
+	case HDMI_720x480i120_4x3:
+	case HDMI_720x480i120_16x9:
+	case HDMI_720x576p200_4x3:
+	case HDMI_720x576p200_16x9:
+	case HDMI_720x576i200_4x3:
+	case HDMI_720x576i200_16x9:
+	case HDMI_720x480p240_4x3:
+	case HDMI_720x480p240_16x9:
+	case HDMI_720x480i240_4x3:
+	case HDMI_720x480i240_16x9:
+		/* C1C0 601 */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 1, 6, 2);
+		break;
+	default:
+		/* C1C0 709 */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
+		break;
+	}
+	switch (para->vic) {
+	case HDMI_3840x2160p24_16x9:
+	case HDMI_3840x2160p25_16x9:
+	case HDMI_3840x2160p30_16x9:
+	case HDMI_3840x2160p50_16x9:
+	case HDMI_3840x2160p60_16x9:
+	case HDMI_4096x2160p24_256x135:
+	case HDMI_4096x2160p25_256x135:
+	case HDMI_4096x2160p30_256x135:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
+	case HDMI_3840x2160p24_64x27:
+	case HDMI_3840x2160p25_64x27:
+	case HDMI_3840x2160p30_64x27:
+	case HDMI_3840x2160p50_64x27:
+	case HDMI_3840x2160p60_64x27:
+		if (para->cd != COLORDEPTH_24B) {
+			/* C1C0 Extended Colorimetry 3 */
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
+			/* Extended Colorimetry EC2/1/0 0 */
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -4230,87 +4327,9 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	/* Active Format Aspect Ratio R3~R0 Same as picture aspect ratio */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 0x8, 0, 4);
 
-	/* set Colorimetry in AVIInfo */
-	switch (para->vic) {
-	case HDMI_640x480p60_4x3:
-	case HDMI_720x480p60_4x3:
-	case HDMI_720x480p60_16x9:
-	case HDMI_720x480i60_4x3:
-	case HDMI_720x480i60_16x9:
-	case HDMI_720x240p60_4x3:
-	case HDMI_720x240p60_16x9:
-	case HDMI_2880x480i60_4x3:
-	case HDMI_2880x480i60_16x9:
-	case HDMI_2880x240p60_4x3:
-	case HDMI_2880x240p60_16x9:
-	case HDMI_1440x480p60_4x3:
-	case HDMI_1440x480p60_16x9:
-	case HDMI_720x576p50_4x3:
-	case HDMI_720x576p50_16x9:
-	case HDMI_720x576i50_4x3:
-	case HDMI_720x576i50_16x9:
-	case HDMI_720x288p_4x3:
-	case HDMI_720x288p_16x9:
-	case HDMI_2880x576i50_4x3:
-	case HDMI_2880x576i50_16x9:
-	case HDMI_2880x288p50_4x3:
-	case HDMI_2880x288p50_16x9:
-	case HDMI_1440x576p_4x3:
-	case HDMI_1440x576p_16x9:
-	case HDMI_2880x480p60_4x3:
-	case HDMI_2880x480p60_16x9:
-	case HDMI_2880x576p50_4x3:
-	case HDMI_2880x576p50_16x9:
-	case HDMI_720x576p100_4x3:
-	case HDMI_720x576p100_16x9:
-	case HDMI_720x576i100_4x3:
-	case HDMI_720x576i100_16x9:
-	case HDMI_720x480p120_4x3:
-	case HDMI_720x480p120_16x9:
-	case HDMI_720x480i120_4x3:
-	case HDMI_720x480i120_16x9:
-	case HDMI_720x576p200_4x3:
-	case HDMI_720x576p200_16x9:
-	case HDMI_720x576i200_4x3:
-	case HDMI_720x576i200_16x9:
-	case HDMI_720x480p240_4x3:
-	case HDMI_720x480p240_16x9:
-	case HDMI_720x480i240_4x3:
-	case HDMI_720x480i240_16x9:
-		/* C1C0 601 */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 1, 6, 2);
-		break;
-	default:
-		/* C1C0 709 */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
-		break;
-	}
-	switch (para->vic) {
-	case HDMI_3840x2160p24_16x9:
-	case HDMI_3840x2160p25_16x9:
-	case HDMI_3840x2160p30_16x9:
-	case HDMI_3840x2160p50_16x9:
-	case HDMI_3840x2160p60_16x9:
-	case HDMI_4096x2160p24_256x135:
-	case HDMI_4096x2160p25_256x135:
-	case HDMI_4096x2160p30_256x135:
-	case HDMI_4096x2160p50_256x135:
-	case HDMI_4096x2160p60_256x135:
-	case HDMI_3840x2160p24_64x27:
-	case HDMI_3840x2160p25_64x27:
-	case HDMI_3840x2160p30_64x27:
-	case HDMI_3840x2160p50_64x27:
-	case HDMI_3840x2160p60_64x27:
-		if (para->cd != COLORDEPTH_24B) {
-			/* C1C0 Extended Colorimetry 3 */
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
-			/* Extended Colorimetry EC2/1/0 0 */
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
-		}
-		break;
-	default:
-		break;
-	}
+	hdmitx_set_avi_colorimetry(para);
+	if (hdev->hdr_src_feature)
+		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
 
 	data32  = 0;
 	data32 |= (((0 == COLORRANGE_FUL) ? 1 : 0) << 2);
