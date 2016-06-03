@@ -4746,11 +4746,14 @@ int get_curren_frame_para(int *top, int *left, int *bottom, int *right)
 
 int get_current_vscale_skip_count(struct vframe_s *vf)
 {
+	int ret = 0;
 	static struct vpp_frame_par_s frame_par;
 
 	vpp_set_filters(process_3d_type, wide_setting, vf, &frame_par, vinfo);
-
-	return frame_par.vscale_skip_count;
+	ret = frame_par.vscale_skip_count;
+	if (cur_frame_par && (process_3d_type & MODE_3D_ENABLE))
+		ret |= (cur_frame_par->vpp_3d_mode<<8);
+	return ret;
 }
 
 int query_video_status(int type, int *value)

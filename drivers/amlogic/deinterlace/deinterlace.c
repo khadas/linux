@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-05-26a";
+static const char version_s[] = "2016-06-03a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -191,7 +191,7 @@ static int bypass_trick_mode = 1;
 static int bypass_1080p;
 static int bypass_3d = 1;
 static int invert_top_bot;
-static int skip_top_bot;
+static int skip_top_bot = 1;/* drop top field */
 static char interlace_output_flag;
 static int bypass_get_buf_threshold = 4;
 
@@ -329,7 +329,7 @@ static int video_peek_cnt;
 static int force_bob_flag;
 int di_vscale_skip_count = 0;
 int di_vscale_skip_count_real = 0;
-
+static int vpp_3d_mode;
 #ifdef DET3D
 bool det3d_en = false;
 static unsigned int det3d_mode;
@@ -2329,7 +2329,7 @@ static int trick_mode;
 static unsigned char is_bypass(vframe_t *vf_in)
 {
 	unsigned int vtype = 0;
-
+	int ret = 0;
 	if (di_debug_flag & 0x10000) /* for debugging */
 		return (di_debug_flag >> 17) & 0x1;
 
@@ -2398,9 +2398,17 @@ static unsigned char is_bypass(vframe_t *vf_in)
 		vtype = vf_in->type;
 		vf_in->type &= (~VIDTYPE_TYPEMASK);
 		vf_in->type |= VIDTYPE_VIU_422;
-		di_vscale_skip_count = get_current_vscale_skip_count(vf_in);
+		ret = get_current_vscale_skip_count(vf_in);
+		di_vscale_skip_count = (ret&0xff);
+		vpp_3d_mode = ((ret>>8)&0xff);
 		vf_in->type = vtype;
-		if (di_vscale_skip_count > 0)
+		if (di_vscale_skip_count > 0 ||
+			(vpp_3d_mode
+			#ifdef DET3D
+			&& (!det3d_en)
+			#endif
+			)
+			)
 			return 1;
 	}
 
@@ -2799,7 +2807,7 @@ static void di_uninit_buf(void)
 		used_post_buf_index = -1;
 	}
 
-	queue_for_each_entry(p, ptmp, QUEUE_DISPLAY, list)
+	queue_for_each_entry(p, ptmp, QUEUE_DISPLAY, list) {
 	if (p->di_buf[0]->type != VFRAME_TYPE_IN &&
 		(p->process_fun_index != PROCESS_FUN_NULL) &&
 		(ii < USED_LOCAL_BUF_MAX) &&
@@ -2829,8 +2837,9 @@ static void di_uninit_buf(void)
 		queue_out(p);
 		break;
 	}
+	}
 	if (used_post_buf_index != -1) {
-		pr_dbg("%s keep cur di_buf %d (%d %d %d)\n",
+		pr_info("%s keep cur di_buf %d (%d %d %d)\n",
 			__func__, used_post_buf_index, used_local_buf_index[0],
 			used_local_buf_index[1], used_local_buf_index[2]);
 	}
@@ -3009,8 +3018,8 @@ static void dump_vframe(vframe_t *vf)
 		vf->left_eye.width, vf->left_eye.height,
 		vf->right_eye.start_x, vf->right_eye.start_y,
 		vf->right_eye.width, vf->right_eye.height);
-	pr_dbg("mode_3d_enable %d, orientation %u,",
-		vf->mode_3d_enable, vf->orientation);
+	pr_dbg("mode_3d_enable %d, use_cnt %d,",
+		vf->mode_3d_enable, atomic_read(&vf->use_cnt));
 	pr_dbg("early_process_fun 0x%p, process_fun 0x%p, private_data %p\n",
 		vf->early_process_fun,
 		vf->process_fun, vf->private_data);
@@ -5691,14 +5700,17 @@ static void vscale_skip_disable_post(struct di_buf_s *di_buf, vframe_t *disp_vf)
 }
 static void process_vscale_skip(struct di_buf_s *di_buf, vframe_t *disp_vf)
 {
+			int ret = 0, vpp_3d_mode = 0;
 	if ((di_buf->di_buf[0] != NULL) && (di_vscale_skip_enable & 0x5) &&
 	    (di_buf->process_fun_index != PROCESS_FUN_NULL)) {
-		di_vscale_skip_count = get_current_vscale_skip_count(disp_vf);
+		ret = get_current_vscale_skip_count(disp_vf);
+		di_vscale_skip_count = (ret & 0xff);
+		vpp_3d_mode = ((ret >> 8) & 0xff);
 		if (((di_vscale_skip_count > 0) &&
 		     (di_vscale_skip_enable & 0x5))
 		    || (di_vscale_skip_enable >> 16) ||
 		    (bypass_dynamic_flag & 0x2)) {
-			if (di_vscale_skip_enable & 0x4) {
+			if ((di_vscale_skip_enable & 0x4) && !vpp_3d_mode) {
 				if (di_buf->di_buf_dup_p[1] &&
 				    di_buf->pulldown_mode != PULL_DOWN_BUF1)
 					di_buf->pulldown_mode = PULL_DOWN_EI;
@@ -7874,14 +7886,10 @@ light_unreg:
 			di_post_stru.run_early_proc_fun_flag = 0;
 			receiver_is_amvideo = 1;
 			/* pr_info("set run_early_proc_fun_flag to 1\n"); */
-		} else if (strcmp(vf_get_receiver_name(VFM_NAME), "ppmgr")
-			== 0) {
+		} else {
 			di_post_stru.run_early_proc_fun_flag = 1;
 			receiver_is_amvideo = 0;
 /* pr_dbg("set run_early_proc_fun_flag to 1\n"); */
-		} else {
-			di_post_stru.run_early_proc_fun_flag = 0;
-			receiver_is_amvideo = 0;
 		}
 	}
 #ifdef DET3D
@@ -8101,7 +8109,7 @@ static void di_vf_put(vframe_t *vf, void *arg)
 /* struct di_buf_s *p = NULL; */
 /* int itmp = 0; */
 	if ((init_flag == 0) || recovery_flag) {
-		di_print("%s: %x\n", __func__, vf);
+		di_print("%s: 0x%p\n", __func__, vf);
 		return;
 	}
 	if (di_blocking)
@@ -8113,18 +8121,19 @@ static void di_vf_put(vframe_t *vf, void *arg)
 	if (di_buf->type == VFRAME_TYPE_POST) {
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
 
-		if (is_in_queue(di_buf, QUEUE_DISPLAY))
+		if (is_in_queue(di_buf, QUEUE_DISPLAY)) {
+			if (!atomic_dec_and_test(&di_buf->di_cnt))
+				di_print("%s,di_cnt > 0\n", __func__);
 			recycle_vframe_type_post(di_buf);
-		di_print("%s: %s[%d] =>recycle_list\n", __func__,
+	} else {
+			di_print("%s: %s[%d] not in display list\n", __func__,
 			vframe_type_name[di_buf->type], di_buf->index);
-
+	}
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 #ifdef DI_DEBUG
 		recycle_vframe_type_post_print(di_buf, __func__, __LINE__);
 #endif
 	} else {
-		if (!atomic_dec_and_test(&di_buf->di_cnt))
-			pr_err("%s,di_cnt > 0\n", __func__);
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
 		queue_in(di_buf, QUEUE_RECYCLE);
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
@@ -8325,7 +8334,7 @@ static void set_di_flag(void)
 	if (is_meson_gxtvbb_cpu()) {
 		mcpre_en = true;
 		pulldown_mode = 1;
-		di_vscale_skip_enable = 3;
+		di_vscale_skip_enable = 4;
 		use_2_interlace_buff = 1;
 		pre_hold_line = 12;
 		if (nr10bit_surpport)
@@ -8800,11 +8809,12 @@ MODULE_PARM_DESC(di_vscale_skip_enable, "\n di_vscale_skip_enable\n");
 module_param(di_vscale_skip_enable, uint, 0664);
 
 MODULE_PARM_DESC(di_vscale_skip_count, "\n di_vscale_skip_count\n");
-module_param(di_vscale_skip_count, uint, 0664);
+module_param(di_vscale_skip_count, int, 0664);
 
 MODULE_PARM_DESC(di_vscale_skip_count_real, "\n di_vscale_skip_count_real\n");
-module_param(di_vscale_skip_count_real, uint, 0664);
+module_param(di_vscale_skip_count_real, int, 0664);
 
+module_param_named(vpp_3d_mode, vpp_3d_mode, int, 0664);
 #ifdef DET3D
 MODULE_PARM_DESC(det3d_en, "\n det3d_enable\n");
 module_param(det3d_en, bool, 0664);
