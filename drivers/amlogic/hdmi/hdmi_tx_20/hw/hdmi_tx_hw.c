@@ -1960,6 +1960,16 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
 	}
+	switch (hdev->para->cd) {
+	case COLORDEPTH_30B:
+	case COLORDEPTH_36B:
+	case COLORDEPTH_48B:
+		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+		break;
+	default:
+		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
+		break;
+	}
 
 	hdmitx_set_hw(hdev);
 
