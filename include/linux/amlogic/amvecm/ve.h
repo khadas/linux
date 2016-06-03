@@ -259,6 +259,44 @@ struct ve_regmap_s {
 	unsigned long reg[43];
 };
 
+/********************OSD HDR registers backup********************************/
+struct hdr_osd_lut_s {
+	uint32_t r_map[33];
+	uint32_t g_map[33];
+	uint32_t b_map[33];
+	uint32_t or_map[41];
+	uint32_t og_map[41];
+	uint32_t ob_map[41];
+};
+
+struct hdr_osd_reg_s {
+	uint32_t viu_osd1_matrix_ctrl; /* 0x1a90 */
+	uint32_t viu_osd1_matrix_coef00_01; /* 0x1a91 */
+	uint32_t viu_osd1_matrix_coef02_10; /* 0x1a92 */
+	uint32_t viu_osd1_matrix_coef11_12; /* 0x1a93 */
+	uint32_t viu_osd1_matrix_coef20_21; /* 0x1a94 */
+	uint32_t viu_osd1_matrix_colmod_coef42; /* 0x1a95 */
+	uint32_t viu_osd1_matrix_offset0_1; /* 0x1a96 */
+	uint32_t viu_osd1_matrix_offset2; /* 0x1a97 */
+	uint32_t viu_osd1_matrix_pre_offset0_1; /* 0x1a98 */
+	uint32_t viu_osd1_matrix_pre_offset2; /* 0x1a99 */
+	uint32_t viu_osd1_matrix_coef22_30; /* 0x1a9d */
+	uint32_t viu_osd1_matrix_coef31_32; /* 0x1a9e */
+	uint32_t viu_osd1_matrix_coef40_41; /* 0x1a9f */
+	uint32_t viu_osd1_eotf_ctl; /* 0x1ad4 */
+	uint32_t viu_osd1_eotf_coef00_01; /* 0x1ad5 */
+	uint32_t viu_osd1_eotf_coef02_10; /* 0x1ad6 */
+	uint32_t viu_osd1_eotf_coef11_12; /* 0x1ad7 */
+	uint32_t viu_osd1_eotf_coef20_21; /* 0x1ad8 */
+	uint32_t viu_osd1_eotf_coef22_rs; /* 0x1ad9 */
+	uint32_t viu_osd1_oetf_ctl; /* 0x1adc */
+	struct hdr_osd_lut_s lut_val;
+};
+
+extern struct hdr_osd_reg_s hdr_osd_reg;
+/***********************OSD HDR registers*******************************/
+
+
 /* ******************************************************************* */
 /* *** MACRO definitions ********** */
 /* ******************************************************************* */

@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 
 /* Local Headers */
- #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/cpu_version.h>
 #include "osd.h"
 #include "osd_io.h"
 #include "osd_reg.h"
@@ -420,157 +420,6 @@ static void osd_rdma_release(struct device *dev)
 	osd_rdma_dev = NULL;
 }
 
-/*************** for GXL/GXM hardware alpha bug workaround ***************/
-static const unsigned short osd_reg_backup[64] = {
-	0x1a10, 0x1a11, 0x1a12, 0x1a13,
-	0x1a17, 0x1a18, 0x1a19, 0x1a1a, 0x1a1b, 0x1a1c, 0x1a1d, 0x1a1e,
-	0x1a2b, 0x1a2c, 0x1a2d,
-	0x1a90, 0x1a91, 0x1a92, 0x1a93, 0x1a94, 0x1a95, 0x1a96, 0x1a97,
-	0x1a98, 0x1a99, 0x1a9a, 0x1a9b, 0x1a9c, 0x1a9d, 0x1a9e, 0x1a9f,
-	0x1ad4, 0x1ad5, 0x1ad6, 0x1ad7, 0x1ad8, 0x1ad9,
-	0x1adc
-};
-
-static unsigned osd_value_backup[64];
-static const unsigned osd_reg_count = 38;
-
-static void osd_reset(void)
-{
-	int i = 0;
-	unsigned short r_map[33];
-	unsigned short g_map[33];
-	unsigned short b_map[33];
-	unsigned short or_map[41];
-	unsigned short og_map[41];
-	unsigned short ob_map[41];
-	unsigned int addr_port;
-	unsigned int data_port;
-	unsigned int data;
-
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
-		return;
-
-	/* skip reset before eotf enable */
-	if ((VSYNCOSD_RD_MPEG_REG(VIU_OSD1_EOTF_CTL) & 0x80000000)
-		!= 0x80000000)
-		return;
-
-	/* backup osd regs */
-	for (i = 0; i < osd_reg_count; i++)
-		osd_value_backup[i] = VSYNCOSD_RD_MPEG_REG(osd_reg_backup[i]);
-
-	/* check osd matrix enable status */
-	if ((VSYNCOSD_RD_MPEG_REG(VIU_OSD1_EOTF_CTL) & 0x80000000)
-		== 0x80000000) {
-		/* backup eotf lut */
-		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
-		data_port = VIU_OSD1_EOTF_LUT_DATA_PORT;
-		osd_reg_write(addr_port, 0);
-		for (i = 0; i < 16; i++) {
-			data = VSYNCOSD_RD_MPEG_REG(data_port);
-			r_map[i * 2] = data & 0xffff;
-			r_map[i * 2 + 1] = (data >> 16) & 0xffff;
-		}
-		data = VSYNCOSD_RD_MPEG_REG(data_port);
-		r_map[33 - 1] = data & 0xffff;
-		g_map[0] = (data >> 16) & 0xffff;
-		for (i = 0; i < 16; i++) {
-			data = VSYNCOSD_RD_MPEG_REG(data_port);
-			g_map[i * 2 + 1] = data & 0xffff;
-			g_map[i * 2 + 2] = (data >> 16) & 0xffff;
-		}
-		for (i = 0; i < 16; i++) {
-			data = VSYNCOSD_RD_MPEG_REG(data_port);
-			b_map[i * 2] = data & 0xffff;
-			b_map[i * 2 + 1] = (data >> 16) & 0xffff;
-		}
-		data = VSYNCOSD_RD_MPEG_REG(data_port);
-		b_map[33 - 1] = data & 0xffff;
-
-		/* backup oetf */
-		addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT;
-		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
-		osd_reg_write(addr_port, 0);
-		for (i = 0; i < 20; i++) {
-			data = VSYNCOSD_RD_MPEG_REG(data_port);
-			or_map[i * 2] = data & 0xffff;
-			or_map[i * 2 + 1] = (data >> 16) & 0xffff;
-		}
-		data = VSYNCOSD_RD_MPEG_REG(data_port);
-		or_map[41 - 1] = data & 0xffff;
-		og_map[0] = (data >> 16) & 0xffff;
-		for (i = 0; i < 20; i++) {
-			data = VSYNCOSD_RD_MPEG_REG(data_port);
-			og_map[i * 2 + 1] = data & 0xffff;
-			og_map[i * 2 + 2] = (data >> 16) & 0xffff;
-		}
-		for (i = 0; i < 20; i++) {
-			data = VSYNCOSD_RD_MPEG_REG(data_port);
-			ob_map[i * 2] = data & 0xffff;
-			ob_map[i * 2 + 1] = (data >> 16) & 0xffff;
-		}
-		data = VSYNCOSD_RD_MPEG_REG(data_port);
-		ob_map[41 - 1] = data & 0xffff;
-	}
-
-	/* reset osd module */
-	VSYNCOSD_WR_MPEG_REG(VIU_SW_RESET, 1);
-	VSYNCOSD_WR_MPEG_REG(VIU_SW_RESET, 0);
-
-	/* restore osd regs */
-	for (i = 0; i < osd_reg_count; i++)
-		VSYNCOSD_WR_MPEG_REG(osd_reg_backup[i], osd_value_backup[i]);
-
-	/* check osd matrix enable status */
-	if ((VSYNCOSD_RD_MPEG_REG(VIU_OSD1_EOTF_CTL) & 0x80000000)
-		== 0x80000000) {
-		/* restore eotf lut */
-		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
-		data_port = VIU_OSD1_EOTF_LUT_DATA_PORT;
-		VSYNCOSD_WR_MPEG_REG(addr_port, 0);
-		for (i = 0; i < 16; i++)
-			VSYNCOSD_WR_MPEG_REG(data_port,
-				r_map[i * 2]
-				| (r_map[i * 2 + 1] << 16));
-		VSYNCOSD_WR_MPEG_REG(data_port,
-			r_map[33 - 1]
-			| (g_map[0] << 16));
-		for (i = 0; i < 16; i++)
-			VSYNCOSD_WR_MPEG_REG(data_port,
-				g_map[i * 2 + 1]
-				| (b_map[i * 2 + 2] << 16));
-		for (i = 0; i < 16; i++)
-			VSYNCOSD_WR_MPEG_REG(data_port,
-				b_map[i * 2]
-				| (b_map[i * 2 + 1] << 16));
-		VSYNCOSD_WR_MPEG_REG(data_port, b_map[33 - 1]);
-
-		/* restore oetf lut */
-		addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT;
-		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
-		VSYNCOSD_WR_MPEG_REG(addr_port, 0);
-		for (i = 0; i < 20; i++)
-			VSYNCOSD_WR_MPEG_REG(data_port,
-				or_map[i * 2]
-				| (or_map[i * 2 + 1] << 16));
-		VSYNCOSD_WR_MPEG_REG(data_port,
-			or_map[41 - 1]
-			| (og_map[0] << 16));
-		for (i = 0; i < 20; i++)
-			VSYNCOSD_WR_MPEG_REG(data_port,
-				og_map[i * 2 + 1]
-				| (og_map[i * 2 + 2] << 16));
-		for (i = 0; i < 20; i++)
-			VSYNCOSD_WR_MPEG_REG(data_port,
-				ob_map[i * 2]
-				| (ob_map[i * 2 + 1] << 16));
-		VSYNCOSD_WR_MPEG_REG(data_port,
-			ob_map[41 - 1]);
-	}
-}
-
-/*************** end of GXL/GXM hardware alpha bug workaround ***************/
-
 static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 {
 	int ret = 0;
@@ -580,7 +429,7 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
 
-	osd_reset();
+	osd_hw_reset();
 
 	if (ret) {
 		/*This is a memory barrier*/

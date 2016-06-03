@@ -83,6 +83,7 @@ struct rdma_table_item {
 extern void osd_update_scan_mode(void);
 extern void osd_update_3d_mode(void);
 extern void osd_update_vsync_hit(void);
+extern void osd_hw_reset(void);
 extern int read_rdma_table(void);
 extern int reset_rdma(void);
 extern int osd_rdma_enable(u32 enable);
