@@ -352,6 +352,10 @@ unsigned int super_scaler_v_ratio = 133;
 MODULE_PARM_DESC(super_scaler_v_ratio, "super_scaler_v_ratio");
 module_param(super_scaler_v_ratio, uint, 0664);
 
+static u32 skip_policy = 0x81;
+module_param(skip_policy, uint, 0664);
+MODULE_PARM_DESC(skip_policy, "\n skip_policy\n");
+
 static u32 vpp_wide_mode;
 static u32 vpp_zoom_ratio = 100;
 static s32 vpp_zoom_center_x, vpp_zoom_center_y;
@@ -682,6 +686,7 @@ vpp_set_filters2(u32 process_3d_type, u32 width_in,
 	bool fill_match = true;
 	u32 orig_aspect = 0;
 	u32 screen_aspect = 0;
+	bool skip_policy_check = true;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		if ((likely(w_in >
@@ -1233,6 +1238,22 @@ RESTART:
 		next_frame_par->vscale_skip_count = 0;
 
 		goto RESTART;
+	}
+
+	if ((skip_policy & 0xf0) && (skip_policy_check == true)) {
+		skip_policy_check = false;
+		if (skip_policy & 0x40) {
+			next_frame_par->vscale_skip_count = skip_policy & 0xf;
+			goto RESTART;
+		} else if (skip_policy & 0x80) {
+			if ((vf->width >= 4096) &&
+			(!(vf->type & VIDTYPE_COMPRESS))
+			&& (next_frame_par->vscale_skip_count == 0)) {
+				next_frame_par->vscale_skip_count =
+				skip_policy & 0xf;
+				goto RESTART;
+			}
+		}
 	}
 
 	filter->vpp_hsc_start_phase_step = ratio_x << 6;
