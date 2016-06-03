@@ -662,6 +662,12 @@ static int freerun_dqbuf(struct v4l2_buffer *p)
 		last_pts_us64 = pts_us64;
 		p->timecode.type = ppmgrvf->width;
 		p->timecode.flags = ppmgrvf->height;
+
+		vf_notify_receiver(
+				PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY,
+				NULL);
+
 		return ret;
 	}
 	if (ppmgrvf->pts != 0) {
