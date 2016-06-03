@@ -2276,14 +2276,18 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 		aud_csb_ori_sampfreq[audio_param->sample_rate], 4, 4);
 }
 
+#define GET_OUTCHN_NO(a)	(((a) >> 4) & 0xf)
+#define GET_OUTCHN_MSK(a)	((a) & 0xf)
+
 static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 	struct hdmitx_audpara *audio_param)
 {
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 0, 0, 4); /* CT */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, audio_param->channel_num,
 		4, 3); /* CC */
-	if (hdev->aud_output_ch)
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0, 1, 4, 3);
+	if (GET_OUTCHN_NO(hdev->aud_output_ch))
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0,
+			GET_OUTCHN_NO(hdev->aud_output_ch) - 1, 4, 3);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 0, 3); /* SF */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 4, 2); /* SS */
 	switch (audio_param->type) {
@@ -2300,7 +2304,24 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 		if ((audio_param->channel_num == 0x7) && (!hdev->aud_output_ch))
 			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x13);
 		else
-			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x10);
+			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x00);
+		/* Refer to CEA861-D P90 */
+		switch (GET_OUTCHN_NO(hdev->aud_output_ch)) {
+		case 2:
+			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x00);
+			break;
+		case 4:
+			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x03);
+			break;
+		case 6:
+			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x0b);
+			break;
+		case 8:
+			hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF2, 0x13);
+			break;
+		default:
+			break;
+		}
 		break;
 	case CT_DTS:
 	case CT_DTS_HD:
@@ -2407,6 +2428,18 @@ static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 1, 0, 1);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 0, 0, 1);
+		switch (GET_OUTCHN_NO(hdev->aud_output_ch)) {
+		case 2:
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 0, 0, 1);
+			break;
+		case 4:
+		case 6:
+		case 8:
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCONF, 1, 0, 1);
+			break;
+		default:
+			break;
+		}
 		break;
 	case CT_AC_3:
 	case CT_DOLBY_D:
@@ -2519,9 +2552,9 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, tx_aud_src, 5, 1);
 	if (tx_aud_src == 1) {
-		if (hdev->aud_output_ch)
+		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
-				(1 << (hdev->aud_output_ch - 1)), 0, 4);
+				GET_OUTCHN_MSK(hdev->aud_output_ch), 0, 4);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		/* Enable audi2s_fifo_overrun interrupt */

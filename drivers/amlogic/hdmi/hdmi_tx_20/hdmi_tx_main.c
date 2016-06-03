@@ -1329,45 +1329,51 @@ static ssize_t show_aud_output_chs(struct device *dev,
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int pos = 0;
-	char *des_aud[] = {"ch", "ch0/1", "ch2/3", "ch4/5", "ch5/6", NULL};
 
 	if (hdev->aud_output_ch)
 		pos += snprintf(buf + pos, PAGE_SIZE,
-			"Audio Output Channels: %s\n",
-			des_aud[hdev->aud_output_ch]);
+			"Audio Output Channels: %x:%x\n",
+			(hdev->aud_output_ch >> 4) & 0xf,
+			(hdev->aud_output_ch & 0xf));
 
 	return pos;
 }
 
+/*
+ * aud_output_chs CONFIGURE:
+ *     [7:4] -- Output Channel Numbers, must be 2/4/6/8
+ *     [3:0] -- Output Channel Mask, matched as CH3/2/1/0 R/L
+ */
 static ssize_t store_aud_output_chs(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int tmp = -1;
 	int ret = 0;
-	unsigned long no;
+	unsigned long msk;
 
 	if (isdigit(buf[0]))
 		tmp = buf[0] - '0';
 
-	if (!((tmp == 0) || (tmp == 2))) {
-		pr_info("Wrong channel setting, must be 2, or 0 as default\n");
+	if (!((tmp == 2) || (tmp == 4) || (tmp == 6) || (tmp == 8))) {
+		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
+		hdev->aud_output_ch = 0;
+		hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
 		return count;
 	}
 
 	/* get channel no. For I2S, there are 4 I2S_in[3:0] */
 	if ((buf[1] == ':') && (isxdigit(buf[2])))
-		ret = kstrtoul(&buf[2], 16, &no);
+		ret = kstrtoul(&buf[2], 16, &msk);
 	else
-		no = 0;  /* default select no 0 */
-	if (ret || (no > 0x3)) {
-		pr_info("Wrong channel no, must [0~3]\n");
+		msk = 0;
+	if (ret || (msk == 0)) {
+		pr_info("err chn msk, must larger than 0\n");
 		return count;
 	}
-	if (tmp)
-		hdev->aud_output_ch = no + 1;
-	else
-		hdev->aud_output_ch = 0;
+
+	hdev->aud_output_ch = (tmp << 4) + msk;
+
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
 
 	return count;
