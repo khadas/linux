@@ -1613,6 +1613,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_set_matrix(devp);
 		pre_prop->color_format = prop->color_format;
 		pre_prop->vdin_hdr_Flag = prop->vdin_hdr_Flag;
+		pre_prop->color_fmt_range = prop->color_fmt_range;
 	}
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
