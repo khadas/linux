@@ -385,7 +385,7 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 
 void pq_enable_disable(void)
 {
-
+	int reg_val;
 	if (pq_on_off == 1) {
 		pq_on_off = 2;
 		/* open dnlp clock gate */
@@ -396,7 +396,6 @@ void pq_enable_disable(void)
 		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 4, 2);
 		cm_en = 1;
 		amcm_enable();
- /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 		if (is_meson_gxtvbb_cpu()) {
 			/* open sharpness clock gate */
 			/*WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);*/
@@ -407,6 +406,29 @@ void pq_enable_disable(void)
 			WRITE_VPP_REG_BITS(
 				SRSHARP1_SHARP_PK_NR_ENABLE,
 				1, 1, 1);
+			reg_val = READ_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC);
+			WRITE_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC,
+					reg_val | 0x10000000);
+			WRITE_VPP_REG(SRSHARP1_HCTI_FLT_CLP_DC,
+					reg_val | 0x10000000);
+
+			reg_val = READ_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC);
+			WRITE_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC,
+					reg_val | 0x10000000);
+			WRITE_VPP_REG(SRSHARP1_HLTI_FLT_CLP_DC,
+					reg_val | 0x10000000);
+
+			reg_val = READ_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP);
+			WRITE_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP,
+					reg_val | 0x4000);
+			WRITE_VPP_REG(SRSHARP1_VLTI_FLT_CON_CLP,
+					reg_val | 0x4000);
+
+			reg_val = READ_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP);
+			WRITE_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP,
+					reg_val | 0x4000);
+			WRITE_VPP_REG(SRSHARP1_VCTI_FLT_CON_CLP,
+					reg_val | 0x4000);
 			/* wb on */
 			wb_en = 1;
 			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
@@ -423,7 +445,6 @@ void pq_enable_disable(void)
 		cm_en = 0;
 		amcm_disable();
 		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 4, 2);
-/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 		if (is_meson_gxtvbb_cpu()) {
 			WRITE_VPP_REG_BITS(
 				SRSHARP0_SHARP_PK_NR_ENABLE,
@@ -431,7 +452,29 @@ void pq_enable_disable(void)
 			WRITE_VPP_REG_BITS(
 				SRSHARP1_SHARP_PK_NR_ENABLE,
 				0, 1, 1);
-			/*WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 30, 2);*/
+			reg_val = READ_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC);
+			WRITE_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC,
+					reg_val & 0xefffffff);
+			WRITE_VPP_REG(SRSHARP1_HCTI_FLT_CLP_DC,
+					reg_val & 0xefffffff);
+
+			reg_val = READ_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC);
+			WRITE_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC,
+					reg_val & 0xefffffff);
+			WRITE_VPP_REG(SRSHARP1_HLTI_FLT_CLP_DC,
+					reg_val & 0xefffffff);
+
+			reg_val = READ_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP);
+			WRITE_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP,
+					reg_val & 0xffffbfff);
+			WRITE_VPP_REG(SRSHARP1_VLTI_FLT_CON_CLP,
+					reg_val & 0xffffbfff);
+
+			reg_val = READ_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP);
+			WRITE_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP,
+					reg_val & 0xffffbfff);
+			WRITE_VPP_REG(SRSHARP1_VCTI_FLT_CON_CLP,
+					reg_val & 0xffffbfff);
 			wb_en = 0;
 			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
@@ -467,12 +510,20 @@ void pq_enable_disable(void)
 	if (is_meson_gxtvbb_cpu()) {
 		if (sharpness_on_off == 1) {
 			sharpness_on_off = 2;
-			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 0, 30, 2);
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SHARP_PK_NR_ENABLE,
+				1, 1, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SHARP_PK_NR_ENABLE,
+				1, 1, 1);
 		} else if (sharpness_on_off == 0) {
 			sharpness_on_off = 2;
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1, 1);
-			WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, 1, 30, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SHARP_PK_NR_ENABLE,
+				0, 1, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SHARP_PK_NR_ENABLE,
+				0, 1, 1);
 		}
 
 		if (wb_on_off == 1) {
@@ -501,7 +552,7 @@ static void vpp_backup_histgram(struct vframe_s *vf)
 		vpp_hist_param.vpp_histgram[i] = vf->prop.hist.vpp_gamma[i];
 }
 
-static void vdin_dump_histgram(void)
+static void vpp_dump_histgram(void)
 {
 	uint i;
 	pr_info("%s:\n", __func__);
@@ -1824,7 +1875,7 @@ static ssize_t amvecm_dump_reg_store(struct class *cla,
 static ssize_t amvecm_dump_vpp_hist_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
-	vdin_dump_histgram();
+	vpp_dump_histgram();
 	return 0;
 }
 
@@ -1851,6 +1902,106 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 {
 	return 0;
 }
+
+static ssize_t amvecm_pc_mode_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	pr_info("pc:echo 0x0 > /sys/class/amvecm/pc_mode\n");
+	pr_info("other:echo 0x1 > /sys/class/amvecm/pc_mode\n");
+	return 0;
+}
+
+static ssize_t amvecm_pc_mode_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val, reg_val;
+	r = sscanf(buf, "0x%x", &val);
+	if ((r != 1))
+		return -EINVAL;
+
+	if (val == 1) {
+		/* open dnlp clock gate */
+		dnlp_en = 1;
+		ve_enable_dnlp();
+		/* open cm clock gate */
+		cm_en = 1;
+		amcm_enable();
+			/* sharpness on */
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_SHARP_PK_NR_ENABLE,
+			1, 1, 1);
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_SHARP_PK_NR_ENABLE,
+			1, 1, 1);
+		reg_val = READ_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC);
+		WRITE_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC,
+				reg_val | 0x10000000);
+		WRITE_VPP_REG(SRSHARP1_HCTI_FLT_CLP_DC,
+				reg_val | 0x10000000);
+
+		reg_val = READ_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC);
+		WRITE_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC,
+				reg_val | 0x10000000);
+		WRITE_VPP_REG(SRSHARP1_HLTI_FLT_CLP_DC,
+				reg_val | 0x10000000);
+
+		reg_val = READ_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP);
+		WRITE_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP,
+				reg_val | 0x4000);
+		WRITE_VPP_REG(SRSHARP1_VLTI_FLT_CON_CLP,
+				reg_val | 0x4000);
+
+		reg_val = READ_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP);
+		WRITE_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP,
+				reg_val | 0x4000);
+		WRITE_VPP_REG(SRSHARP1_VCTI_FLT_CON_CLP,
+				reg_val | 0x4000);
+
+		WRITE_VPP_REG(VPP_VADJ_CTRL, 0xd);
+	} else if (val == 0) {
+		dnlp_en = 0;
+		ve_disable_dnlp();
+		cm_en = 0;
+		amcm_disable();
+
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_SHARP_PK_NR_ENABLE,
+			0, 1, 1);
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_SHARP_PK_NR_ENABLE,
+			0, 1, 1);
+		reg_val = READ_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC);
+		WRITE_VPP_REG(SRSHARP0_HCTI_FLT_CLP_DC,
+				reg_val & 0xefffffff);
+		WRITE_VPP_REG(SRSHARP1_HCTI_FLT_CLP_DC,
+				reg_val & 0xefffffff);
+
+		reg_val = READ_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC);
+		WRITE_VPP_REG(SRSHARP0_HLTI_FLT_CLP_DC,
+				reg_val & 0xefffffff);
+		WRITE_VPP_REG(SRSHARP1_HLTI_FLT_CLP_DC,
+				reg_val & 0xefffffff);
+
+		reg_val = READ_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP);
+		WRITE_VPP_REG(SRSHARP0_VLTI_FLT_CON_CLP,
+				reg_val & 0xffffbfff);
+		WRITE_VPP_REG(SRSHARP1_VLTI_FLT_CON_CLP,
+				reg_val & 0xffffbfff);
+
+		reg_val = READ_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP);
+		WRITE_VPP_REG(SRSHARP0_VCTI_FLT_CON_CLP,
+				reg_val & 0xffffbfff);
+		WRITE_VPP_REG(SRSHARP1_VCTI_FLT_CON_CLP,
+				reg_val & 0xffffbfff);
+
+		WRITE_VPP_REG(VPP_VADJ_CTRL, 0x0);
+	}
+
+	return count;
+}
+
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_sharpness(void)
 {
@@ -1996,7 +2147,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(hdr_dbg, S_IRUGO | S_IWUSR,
 			amvecm_hdr_dbg_show, amvecm_hdr_dbg_store),
 	__ATTR(gamma_pattern, S_IRUGO | S_IWUSR,
-			set_gamma_pattern_show, set_gamma_pattern_store),
+		set_gamma_pattern_show, set_gamma_pattern_store),
+	__ATTR(pc_mode, S_IRUGO | S_IWUSR,
+		amvecm_pc_mode_show, amvecm_pc_mode_store),
 	__ATTR_NULL
 };
 
