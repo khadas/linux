@@ -546,25 +546,54 @@ wait_next_event:
 	}
 	return 1;
 }
+
+static int hg_set_max_cpu;
 void cpufreq_set_max_cpu_num(unsigned int cpu_num, int cluster_id)
 {
+	struct cpufreq_policy *policy = NULL;
+	struct dbs_data *dbs_data = NULL;
+	unsigned int is_hg = 0;
+	unsigned int little_cores;
+
+	if (cluster_id)
+		return;
+	/*dev_err(NULL, " %s <:%d %d>\n", __func__, cpu_num , cluster_id);*/
+	policy = per_cpu(hg_cpu_dbs_info, 0).cdbs.cur_policy;
+	if (policy) {
+		dbs_data = policy->governor_data;
+		is_hg = (dbs_data->cdata->governor == GOV_HOTPLUG) ? 1 : 0;
+	}
+
+	little_cores = cpumask_weight(&hmp_slow_cpu_mask);
+	cpu_num += little_cores;
 	if (cpu_num >= num_possible_cpus()) {
-		max_cpu_num = num_possible_cpus();
+		cpu_num = num_possible_cpus();
 	} else {
-		if (cpu_num > last_max_cpu_num)
-			max_cpu_num = cpu_num;
-		else {
-			max_cpu_num = cpu_num;
-			if (cpu_num >= num_online_cpus())
-				return;
-			cpu_hotplug_flag = CPU_HOTPLUG_UNPLUG;
+		if (cpu_num < little_cores + 1)
+			cpu_num = little_cores + 1;
+	}
+
+	max_cpu_num = cpu_num;
+	if (cpu_num > last_max_cpu_num) {
+		if (!is_hg) {
+			cpu_hotplug_flag = CPU_HOTPLUG_PLUG;
+			hg_set_max_cpu = 1;
 			if (cpu_hotplug_task)
 				wake_up_process(cpu_hotplug_task);
 		}
+	} else {
+		if (cpu_num >= num_online_cpus())
+			return;
+		cpu_hotplug_flag = CPU_HOTPLUG_UNPLUG;
+		hg_set_max_cpu = 1;
+		if (cpu_hotplug_task)
+			wake_up_process(cpu_hotplug_task);
 	}
 	last_max_cpu_num = max_cpu_num;
 	return;
 }
+
+
 static int __ref cpu_hotplug_thread(void *data)
 {
 	int i, j, target_cpu = 1;
@@ -580,25 +609,29 @@ static int __ref cpu_hotplug_thread(void *data)
 	cpu = get_cpu();
 	put_cpu();
 	dbs_info = &per_cpu(hg_cpu_dbs_info, cpu);
+
 	while (1) {
 		if (dbs_info->enable)
+			break;
+		if (hg_set_max_cpu)
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		set_current_state(TASK_RUNNING);
 	}
 	policy = dbs_info->cdbs.cur_policy;
-	dbs_data = policy->governor_data;
-	hg_tuners = dbs_data->tuners;
-
-	dbs_info = &per_cpu(hg_cpu_dbs_info, policy->cpu);
-
+	if (policy) {
+		dbs_data = policy->governor_data;
+		hg_tuners = dbs_data->tuners;
+		dbs_info = &per_cpu(hg_cpu_dbs_info, policy->cpu);
+	}
 	while (1) {
 		if (kthread_should_stop())
 			break;
 
-		mutex_lock(&dbs_info->hotplug_thread_mutex);
-		if (!dbs_info->enable)
+		if (policy)
+			mutex_lock(&dbs_info->hotplug_thread_mutex);
+		if (!(dbs_info->enable || hg_set_max_cpu))
 			goto wait_next_hotplug;
 		if (*hotplug_flag == CPU_HOTPLUG_PLUG) {
 			*hotplug_flag = CPU_HOTPLUG_NONE;
@@ -610,8 +643,9 @@ static int __ref cpu_hotplug_thread(void *data)
 				j++;
 				cpu_up(i);
 				cpumask_set_cpu(i, tsk_cpus_allowed(NULL_task));
-				if (j >= hg_tuners->cpu_num_plug_once)
-					break;
+				if (policy && !hg_set_max_cpu)
+					if (j >= hg_tuners->cpu_num_plug_once)
+						break;
 			}
 		} else if (*hotplug_flag == CPU_HOTPLUG_UNPLUG) {
 			*hotplug_flag = CPU_HOTPLUG_NONE;
@@ -624,6 +658,11 @@ static int __ref cpu_hotplug_thread(void *data)
 						 SD_BALANCE_EXEC, 0);
 				raw_spin_unlock_irqrestore
 					(&NULL_task->pi_lock, flags);
+				if (cpumask_test_cpu(target_cpu,
+					&hmp_slow_cpu_mask)) {
+					i--;
+					goto clear_cpu;
+				}
 				if (target_cpu == 0) {
 					i--;
 					goto clear_cpu;
@@ -635,17 +674,22 @@ static int __ref cpu_hotplug_thread(void *data)
 clear_cpu:
 				cpumask_clear_cpu(target_cpu,
 					  tsk_cpus_allowed(NULL_task));
-				if (cpu_down_num
-					>= hg_tuners->cpu_num_unplug_once ||
-				   cpu_down_num
-				   >= hg_tuners->each_cpu_num_unplug_once
-				   ) {
+				if (policy && !hg_set_max_cpu) {
+					if (cpu_down_num >=
+					hg_tuners->cpu_num_unplug_once
+					|| cpu_down_num >=
+					hg_tuners->each_cpu_num_unplug_once
+					   ) {
+						break;
+					}
+				} else if (num_online_cpus() <= max_cpu_num)
 					break;
-				}
 			}
 		}
 wait_next_hotplug:
-		mutex_unlock(&dbs_info->hotplug_thread_mutex);
+		hg_set_max_cpu = 0;
+		if (policy)
+			mutex_unlock(&dbs_info->hotplug_thread_mutex);
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		set_current_state(TASK_RUNNING);
@@ -1016,8 +1060,12 @@ static int __init cpufreq_gov_dbs_init(void)
 		return err;
 	}
 
-	for (i = 1; i < num_possible_cpus(); i++)
-		cpumask_set_cpu(i, tsk_cpus_allowed(NULL_task));
+	for (i = 1; i < num_possible_cpus(); i++) {
+		if (cpumask_test_cpu(i, &hmp_slow_cpu_mask))
+			cpumask_clear_cpu(i, tsk_cpus_allowed(NULL_task));
+		else
+			cpumask_set_cpu(i, tsk_cpus_allowed(NULL_task));
+	}
 	cpumask_clear_cpu(0, tsk_cpus_allowed(NULL_task));
 	wake_up_process(NULL_task);
 
