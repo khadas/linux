@@ -421,6 +421,7 @@
 			gpio_dat3 = <&gpio       CARD_4       GPIO_ACTIVE_HIGH>;
 			jtag_pin =  <&gpio       CARD_0       GPIO_ACTIVE_HIGH>;
 			gpio_cd =  <&gpio       CARD_6       GPIO_ACTIVE_HIGH>;
+			card_in_delay = <400>;
 			irq_in = <3>;
 			irq_out = <5>;
 	   		card_type = <5>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */

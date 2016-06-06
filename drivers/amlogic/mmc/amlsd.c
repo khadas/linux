@@ -1016,6 +1016,7 @@ static int aml_is_card_insert(struct amlsd_platform *pdata)
 {
 	int ret = 0, in_count = 0, out_count = 0, i;
 	if (pdata->gpio_cd) {
+		mdelay(pdata->card_in_delay);
 		for (i = 0; i < 200; i++) {
 			ret = gpio_get_value(pdata->gpio_cd);
 			if (ret)
@@ -1303,7 +1304,10 @@ irqreturn_t aml_irq_cd_thread(int irq, void *data)
 		pdata->host->init_flag = 0;
 	mutex_unlock(&pdata->in_out_lock);
 	/* mdelay(500); */
-	mmc_detect_change(pdata->mmc, msecs_to_jiffies(0));
+	if (pdata->is_in)
+		mmc_detect_change(pdata->mmc, msecs_to_jiffies(100));
+	else
+		mmc_detect_change(pdata->mmc, msecs_to_jiffies(0));
 	card_dealed = 0;
 	return IRQ_HANDLED;
 }

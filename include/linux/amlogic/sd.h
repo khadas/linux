@@ -133,6 +133,7 @@ struct amlsd_platform {
 	unsigned int hw_reset;
 	unsigned int jtag_pin;
 	int is_sduart;
+	unsigned int card_in_delay;
 	bool is_in;
 	bool is_tuned;		/* if card has been tuning */
 	bool need_retuning;

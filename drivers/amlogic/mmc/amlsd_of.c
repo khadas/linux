@@ -237,6 +237,12 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 			SD_PARSE_U32_PROP_DEC(child, "tx_phase",
 						prop, pdata->tx_phase);
 		}
+		if (aml_card_type_non_sdio(pdata)) {
+			/*card in default value*/
+			pdata->card_in_delay = 0;
+			SD_PARSE_U32_PROP_DEC(child, "card_in_delay",
+						prop, pdata->card_in_delay);
+		}
 		SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3",
 						str, pdata->gpio_dat3);
 		SD_PARSE_GPIO_NUM_PROP(child, "hw_reset",
