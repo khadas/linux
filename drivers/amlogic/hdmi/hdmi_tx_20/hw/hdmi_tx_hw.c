@@ -205,7 +205,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 
 int hdmitx_hdcp_opr(unsigned int val)
 {
-	if (val == 1) {
+	if (val == 1) { /* HDCP14_ENABLE */
 		register long x0 asm("x0") = 0x82000010;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -213,7 +213,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 			: : "r"(x0)
 		);
 	}
-	if (val == 2) {
+	if (val == 2) { /* HDCP14_RESULT */
 		register long x0 asm("x0") = 0x82000011;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -222,7 +222,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 		);
 		return (unsigned)(x0&0xffffffff);
 	}
-	if (val == 0) {
+	if (val == 0) { /* HDCP14_INIT */
 		register long x0 asm("x0") = 0x82000012;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -230,7 +230,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 			: : "r"(x0)
 		);
 	}
-	if (val == 3) {
+	if (val == 3) { /* HDCP14_EN_ENCRYPT */
 		register long x0 asm("x0") = 0x82000013;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -238,7 +238,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 			: : "r"(x0)
 		);
 	}
-	if (val == 4) {
+	if (val == 4) { /* HDCP14_OFF */
 		register long x0 asm("x0") = 0x82000014;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -246,7 +246,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 			: : "r"(x0)
 		);
 	}
-	if (val == 5) {	/* mux hdcp22 */
+	if (val == 5) {	/* HDCP_MUX_22 */
 		register long x0 asm("x0") = 0x82000015;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -254,7 +254,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 			: : "r"(x0)
 		);
 	}
-	if (val == 6) {	/* mux hdcp14 */
+	if (val == 6) {	/* HDCP_MUX_14 */
 		register long x0 asm("x0") = 0x82000016;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -262,7 +262,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 			: : "r"(x0)
 		);
 	}
-	if (val == 7) {
+	if (val == 7) { /* HDCP22_RESULT */
 		register long x0 asm("x0") = 0x82000017;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -271,7 +271,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 		);
 		return (unsigned)(x0&0xffffffff);
 	}
-	if (val == 0xa) {
+	if (val == 0xa) { /* HDCP14_KEY_LSTORE */
 		register long x0 asm("x0") = 0x8200001a;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -280,7 +280,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 		);
 		return (unsigned)(x0&0xffffffff);
 	}
-	if (val == 0xb) {
+	if (val == 0xb) { /* HDCP22_KEY_LSTORE */
 		register long x0 asm("x0") = 0x8200001b;
 		asm volatile(
 			__asmeq("%0", "x0")
@@ -289,7 +289,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 		);
 		return (unsigned)(x0&0xffffffff);
 	}
-	if (val == 0xc) {
+	if (val == 0xc) { /* HDCP22_KEY_SET_DUK */
 		register long x0 asm("x0") = 0x8200001c;
 		asm volatile(
 			__asmeq("%0", "x0")

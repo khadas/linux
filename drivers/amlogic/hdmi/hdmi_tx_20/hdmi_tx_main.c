@@ -82,6 +82,7 @@ static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
 static void gpio_read_edid(unsigned char *rx_edid);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
+static int hdcp_tst_sig;
 
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
@@ -130,13 +131,15 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	suspend_flag = 1;
 #endif
 	phdmi->hpd_lock = 1;
+	hdcp_tst_sig = 1;
+	msleep(20);
+	hdmi_print(IMP, SYS "HDMITX: early suspend\n");
 	phdmi->HWOp.Cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 	phdmi->cur_VIC = HDMI_Unkown;
 	phdmi->output_blank_flag = 0;
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_MUX_INIT, 1);
 	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, HDCP14_OFF);
-	phdmi->HWOp.CntlDDC(phdmi, DDC_HDCP_OP, DDC_RESET_HDCP);
 	if (phdmi->gpio_i2c_enable) {
 		hdmi_print(INF, SYS "unmux DDC for gpio read edid\n");
 		phdmi->HWOp.CntlDDC(phdmi, DDC_PIN_MUX_OP, PIN_UNMUX);
@@ -144,7 +147,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	switch_set_state(&hdmi_power, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
-	hdmi_print(IMP, SYS "HDMITX: early suspend\n");
 }
 
 static int hdmitx_is_hdmi_vmode(char *mode_name)
@@ -161,6 +163,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 {
 	const struct vinfo_s *info = hdmi_get_current_vinfo();
 	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
+
+	hdcp_tst_sig = 0;
 	if (info && (strncmp(info->name, "panel", 5) == 0 ||
 		strncmp(info->name, "null", 4) == 0)) {
 		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
@@ -1478,14 +1482,9 @@ static ssize_t show_hdcp_clkdis(struct device *dev,
 	return 0;
 }
 
-static int hdcp_tst_sig;
 static ssize_t store_hdcp_pwr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	if (buf[0] == '1')
-		hdcp_tst_sig = 1;
-	if (buf[0] == '0')
-		hdcp_tst_sig = 0;
 	return count;
 }
 
@@ -2800,8 +2799,9 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 
 static int amhdmitx_resume(struct platform_device *pdev)
 {
+	hdcp_tst_sig = 0;
+	pr_info("amhdmitx: resume module %d\n", __LINE__);
 #if 0
-	pr_info("amhdmitx: resume module\n");
 	if (hdmi_pdata) {
 		hdmi_pdata->hdmi_5v_ctrl ?
 			hdmi_pdata->hdmi_5v_ctrl(1) : 0;
