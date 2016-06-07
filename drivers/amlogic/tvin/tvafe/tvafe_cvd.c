@@ -267,6 +267,10 @@ static unsigned int try_format_max = 5;
 module_param(try_format_max, uint, 0664);
 MODULE_PARM_DESC(try_format_max, "try_format_max");
 
+static unsigned int acd_h_config = 0x8e035e;
+module_param(acd_h_config, uint, 0664);
+MODULE_PARM_DESC(acd_h_config, "acd_h_config");
+
 static unsigned int try_format_cnt;
 
 static bool cvd_pr_flag;
@@ -2544,4 +2548,10 @@ void tvafe_snow_config_clamp(unsigned int onoff)
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);
 }
 
+void tvafe_snow_config_acd(void)
+{
+	/*0x900360 is debug test result*/
+	if (acd_h_config)
+		W_APB_REG(ACD_REG_2D, acd_h_config);
+}
 

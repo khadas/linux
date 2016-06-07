@@ -236,6 +236,9 @@ static ssize_t tvafe_store(struct device *dev,
 		tvafe_snow_config_clamp(0);
 		devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
 		pr_info("[tvafe..]%s:tvafe snowoff\n", __func__);
+	} else if (!strncmp(buff, "state", strlen("state"))) {
+		pr_info("[tvafe..]%s:devp->flags:0x%x\n",
+			__func__, devp->flags);
 	} else
 		pr_info("[%s]:invaild command.\n", __func__);
 	return count;
@@ -1012,6 +1015,13 @@ bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 #endif
 	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_SVIDEO7)) {
 		ret = tvafe_cvd2_no_sig(&tvafe->cvd2, &devp->mem);
+
+		/*fix black side when config atv snow*/
+		if (ret && (port == TVIN_PORT_CVBS3) &&
+			(devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG) &&
+			(tvafe->cvd2.config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) &&
+			(tvafe->cvd2.info.state != TVAFE_CVD2_STATE_FIND))
+			tvafe_snow_config_acd();
 
 		/* normal sigal & adc reg error, reload source mux */
 		if (tvafe->cvd2.info.adc_reload_en && !ret)
