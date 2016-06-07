@@ -1037,9 +1037,11 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 			((mif->set_separate_en != 0) << 1)|
 			(1 << 0)/* cntl_enable */
 		);
+	#if 0
 	/* post bit mode config, if0 config in video.c */
 	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3, mif->bit_mode, 8, 2);
+	#endif
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */

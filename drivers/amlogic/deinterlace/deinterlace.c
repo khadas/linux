@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-06-03a";
+static const char version_s[] = "2016-06-07a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -6683,18 +6683,13 @@ int set_pulldown_mode(int buffer_keep_count, struct di_buf_s *di_buf)
 void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	int i = 0, drop_flag = 0;
 	di_lock_irqfiq_save(irq_flag2, fiq_flag);
 	if ((frame_count == 0) && check_drop)
 		di_post_stru.start_pts = di_buf->vframe->pts;
 	if ((check_drop && (frame_count < start_frame_drop_count))
 	|| throw_flag) {
-		queue_in(di_buf, QUEUE_TMP);
-		recycle_vframe_type_post(di_buf);
-#ifdef DI_DEBUG
-		recycle_vframe_type_post_print(
-			di_buf, __func__,
-			__LINE__);
-#endif
+		drop_flag = 1;
 	} else {
 		if (check_drop && (frame_count == start_frame_drop_count)) {
 			if ((di_post_stru.start_pts)
@@ -6702,7 +6697,27 @@ void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 				di_buf->vframe->pts = di_post_stru.start_pts;
 			di_post_stru.start_pts = 0;
 		}
-
+		for (i = 0; i < 3; i++) {
+			if (di_buf->di_buf_dup_p[i]) {
+				if (di_buf->di_buf_dup_p[i]->vframe->bitdepth !=
+					di_buf->vframe->bitdepth) {
+					pr_info("%s buf[%d] not match bit mode\n",
+						__func__, i);
+					drop_flag = 1;
+					break;
+				}
+			}
+		}
+	}
+	if (drop_flag) {
+		queue_in(di_buf, QUEUE_TMP);
+		recycle_vframe_type_post(di_buf);
+#ifdef DI_DEBUG
+		recycle_vframe_type_post_print(
+				di_buf, __func__,
+				__LINE__);
+#endif
+	} else {
 		if ((post_wr_en && post_wr_surpport))
 			queue_in(di_buf, QUEUE_POST_DOING);
 		else

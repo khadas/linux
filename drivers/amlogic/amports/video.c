@@ -2395,6 +2395,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	    (cur_dispbuf->bufWidth != vf->bufWidth) ||
 	    (cur_dispbuf->width != vf->width) ||
 	    (cur_dispbuf->height != vf->height) ||
+	    (cur_dispbuf->bitdepth != vf->bitdepth) ||
 	     (cur_dispbuf->trans_fmt != vf->trans_fmt) ||
 	     (last_process_3d_type != process_3d_type) ||
 	    (cur_dispbuf->ratio_control != vf->ratio_control) ||
@@ -2642,7 +2643,6 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
 				(0x8 << VFORMATTER_PHASE_BIT) |
 				VFORMATTER_EN);
-
 			if ((READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
@@ -2652,6 +2652,18 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			return;
 
 		} else {
+			if (vf->bitdepth & BITDEPTH_Y10) {
+				VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
+					1, 8, 2);
+				VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+					1, 8, 2);
+
+			} else {
+				VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
+				0, 8, 2);
+				VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+				0, 8, 2);
+			}
 			if ((READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
@@ -3738,22 +3750,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		* determine the out frame is L or R or blank */
 		judge_3d_fa_out_mode();
 	}
-	if (vf) {
-		/* force set bitdepth to 8bit
-		 * mode when src is 8bit and DI not in path */
-		if ((vf->bitdepth & BITDEPTH_Y10)) {
-			if (((READ_VCBUS_REG(VD1_IF0_GEN_REG3) >> 8)
-				& 0x1) == 0)
-				WRITE_VCBUS_REG_BITS(VD1_IF0_GEN_REG3,
-					0x1, 8, 2);
 
-		} else {
-			if (((READ_VCBUS_REG(VD1_IF0_GEN_REG3) >> 8)
-				& 0x1) == 1)
-				WRITE_VCBUS_REG_BITS(VD1_IF0_GEN_REG3,
-					0x0, 8, 2);
-		}
-	}
 	while (vf) {
 		if (vpts_expire(cur_dispbuf, vf) || show_nosync) {
 			amlog_mask(LOG_MASK_TIMESTAMP,
