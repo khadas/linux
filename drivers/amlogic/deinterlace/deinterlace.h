@@ -53,6 +53,8 @@
 *	 di hardware level interface
 *************************************/
 #define MAX_WIN_NUM			5
+/* if post size < 80, filter can't work */
+#define MIN_POST_WIDTH  80
 
 struct pulldown_detect_info_s {
 	unsigned field_diff;

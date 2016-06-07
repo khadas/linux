@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-06-07a";
+static const char version_s[] = "2016-06-07b";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -5979,6 +5979,13 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		}
 		di_post_stru.update_post_reg_flag = update_post_reg_count;
 	}
+	/* if post size < MIN_POST_WIDTH, force ei */
+	if ((di_width < MIN_POST_WIDTH) &&
+		(di_buf->pulldown_mode == PULL_DOWN_BLEND_0 ||
+		di_buf->pulldown_mode == PULL_DOWN_BLEND_2 ||
+		di_buf->pulldown_mode == PULL_DOWN_NORMAL
+		))
+		di_buf->pulldown_mode = PULL_DOWN_BUF1;
 
 #ifdef DI_USE_FIXED_CANVAS_IDX
 #ifdef CONFIG_VSYNC_RDMA
@@ -6161,9 +6168,9 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			di_post_stru.di_diwr_mif.canvas_num =
 				di_post_idx[di_post_stru.canvas_id][4];
 		post_blend_mode = 1;
-		blend_mtn_en = 1;
-		post_ei = ei_en = 1;
-		post_blend_en = 1;
+		blend_mtn_en = 0;
+		post_ei = ei_en = 0;
+		post_blend_en = 0;
 		break;
 	case PULL_DOWN_EI:
 		if (di_buf->di_buf_dup_p[1]) {
