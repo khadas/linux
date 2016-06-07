@@ -968,7 +968,7 @@
 				min_state = <400>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "t83x";
+				node_name = "t82x";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -1043,7 +1043,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&t83x_gpu 0 4>;
+					cooling-device = <&t82x_gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -1084,4 +1084,7 @@
 };
 &defendkey {
 	status = "okay";
+};
+&t82x_gpu {
+        tbl = <&dvfs285_cfg &dvfs400_cfg &dvfs500_cfg &dvfs666_cfg &dvfs666_cfg>;
 };

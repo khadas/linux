@@ -1,0 +1,208 @@
+/*
+ * Amlogic GXTVBB Platform gpu
+ *
+ * Copyright (c) 2015-2015 Amlogic Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+/ {
+	t82x_gpu:t82x@d00c0000{
+        compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
+		#cooling-cells = <2>; /* min followed by max */
+		reg = <0 0xd00c0000 0 0x100000>,
+		      <0 0xc1104440 0 0x001000>,
+		      <0 0xc8100000 0 0x001000>,
+		      <0 0xc883c000 0 0x001000>, /*hiubus base address for gpu clk cntl*/
+		      <0 0xc1104440 0 0x001000>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 160 4>, <0 161 4>, <0 162 4>;
+		interrupt-names = "GPU", "MMU", "JOB";
+		num_of_pp = <3>;
+		sc_mpp = <1>;/* number of shader cores used most of time.*/
+        /*mali-supply = <&vdd_mali>;*/
+        operating-points = <
+            /* KHz   uV */
+            666666 1000000
+            500000 1000000
+            400000 1000000
+            285714 1000000
+            250000 1000000
+            125000 1000000
+        >;
+
+        tbl = <&dvfs125_cfg &dvfs285_cfg &dvfs400_cfg &dvfs500_cfg &dvfs666_cfg>;
+
+        /*clocks = <&gpu_clk>;
+        clock-names = "clk_mali";*/
+		clocks = <&clock CLK_FPLL_DIV3>,
+			<&clock CLK_FPLL_DIV4>,
+			<&clock CLK_FPLL_DIV5>,
+			<&clock CLK_FPLL_DIV7>,
+			<&clock GP0_PLL>,
+			<&clock CLK_MALI>,
+			<&clock CLK_MALI_0>,
+			<&clock CLK_MALI_1>;
+		clock-names =
+			"fclk_div3",
+			"fclk_div4",
+			"fclk_div5",
+			"fclk_div7",
+			"gp0_pll",
+			"clk_gpu",
+			"clk_gpu_0",
+			"clk_gpu_1";
+
+		  dvfs125_cfg:clk125_cfg {
+			clk_freq = <125000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <30 120>;
+		  };
+
+		  dvfs250_cfg:dvfs250_cfg {
+			clk_freq = <250000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 170>;
+		  };
+
+		  dvfs285_cfg:dvfs285_cfg {
+			clk_freq = <285714000>;
+			clk_parent = "fclk_div7";
+			clkp_freq = <285714000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <100 190>;
+		  };
+
+		  dvfs400_cfg:dvfs400_cfg {
+			clk_freq = <400000000>;
+			clk_parent = "fclk_div5";
+			clkp_freq = <400000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <152 207>;
+		  };
+
+		  dvfs500_cfg:dvfs500_cfg {
+			clk_freq = <500000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <180 220>;
+		  };
+
+		  dvfs666_cfg:dvfs666_cfg {
+			clk_freq = <666000000>;
+			clk_parent = "fclk_div3";
+			clkp_freq = <666000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <210 236>;
+		  };
+
+		  dvfs800_cfg:dvfs800_cfg {
+			clk_freq = <792000000>;
+			clk_parent = "gp0_pll";
+			clkp_freq = <792000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <230 255>;
+		  };
+	};
+
+	gpu_clk:gpu_clk@c883c00 {
+	    compatible = "meson, gpu-clkgen-1.00.a";
+		#clock-cells = <0>;
+        reg = <0 0xc883c000 0 0x001000>;
+		clocks = <&clock CLK_FPLL_DIV3>,
+			<&clock CLK_FPLL_DIV4>,
+			<&clock CLK_FPLL_DIV5>,
+			<&clock CLK_FPLL_DIV7>,
+			<&clock GP0_PLL>,
+			<&clock CLK_GPU>,
+			<&clock CLK_GPU_0>,
+			<&clock CLK_GPU_1>;
+		clock-names =
+			"fclk_div3",
+			"fclk_div4",
+			"fclk_div5",
+			"fclk_div7",
+			"gp0_pll",
+			"clk_gpu",
+			"clk_gpu_0",
+			"clk_gpu_1";
+        clock-output-names = "clk_mali";
+		tbl = <&t82x_clk125_cfg  &t82x_clk250_cfg &t82x_clk285_cfg &t82x_clk400_cfg &t82x_clk500_cfg &t82x_clk666_cfg>;
+		  t82x_clk125_cfg:clk125_cfg {
+			clk_freq = <125000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <30 120>;
+		  };
+
+		  t82x_clk250_cfg:clk250_cfg {
+			clk_freq = <250000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 170>;
+		  };
+
+		  t82x_clk285_cfg:clk285_cfg {
+			clk_freq = <285714000>;
+			clk_parent = "fclk_div7";
+			clkp_freq = <285714000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <100 190>;
+		  };
+
+		  t82x_clk400_cfg:clk400_cfg {
+			clk_freq = <400000000>;
+			clk_parent = "fclk_div5";
+			clkp_freq = <400000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <152 207>;
+		  };
+
+		  t82x_clk500_cfg:clk500_cfg {
+			clk_freq = <500000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <180 220>;
+		  };
+
+		  t82x_clk666_cfg:clk666_cfg {
+			clk_freq = <666666000>;
+			clk_parent = "fclk_div3";
+			clkp_freq = <666666000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <210 236>;
+		  };
+
+		  t82x_clk720_cfg:clk720_cfg {
+			clk_freq = <720000000>;
+			clk_parent = "gp0_pll";
+			clkp_freq = <720000000>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <230 255>;
+		  };
+	};
+
+};/* end of / */

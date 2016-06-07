@@ -21,7 +21,7 @@
 #include <dt-bindings/reset/aml_gxl.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "mesongxtvbb-gpu-t83x.dtsi"
+#include "mesongxm-gpu-t82x.dtsi"
 / {
 	cpus:cpus {
 		#address-cells = <2>;
