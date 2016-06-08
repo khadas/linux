@@ -675,6 +675,7 @@ static void vmpeg4_canvas_init(void)
 	u32 canvas_width, canvas_height;
 	u32 decbuf_size, decbuf_y_size, decbuf_uv_size;
 	u32 disp_addr = 0xffffffff;
+	u32 buff_off = 0;
 
 	if (buf_size <= 0x00400000) {
 		/* SD only */
@@ -684,18 +685,40 @@ static void vmpeg4_canvas_init(void)
 		decbuf_uv_size = 0x20000;
 		decbuf_size = 0x100000;
 	} else {
-		/* HD & SD */
-		if (vmpeg4_amstream_dec_info.height >
-			vmpeg4_amstream_dec_info.width) {
-			canvas_width = 1088;
-			canvas_height = 1920;
+		int w = vmpeg4_amstream_dec_info.width;
+		int h = vmpeg4_amstream_dec_info.height;
+		int align_w, align_h;
+		int max, min;
+		align_w = ALIGN(w, 64);
+		align_h = ALIGN(h, 64);
+		if (align_w > align_h) {
+			max = align_w;
+			min = align_h;
 		} else {
-			canvas_width = 1920;
-			canvas_height = 1088;
+			max = align_h;
+			min = align_w;
 		}
-		decbuf_y_size = 0x200000;
-		decbuf_uv_size = 0x80000;
-		decbuf_size = 0x300000;
+		/* HD & SD */
+		if ((max > 1920 || min > 1088) &&
+			ALIGN(align_w * align_h * 3/2, SZ_64K) * 9 <=
+			buf_size) {
+			canvas_width = align_w;
+			canvas_height = align_h;
+			decbuf_y_size = ALIGN(align_w * align_h, SZ_64K);
+			decbuf_uv_size = ALIGN(align_w * align_h/4, SZ_64K);
+			decbuf_size = ALIGN(align_w * align_h * 3/2, SZ_64K);
+		} else { /*1080p*/
+			if (h > w) {
+				canvas_width = 1088;
+				canvas_height = 1920;
+			} else {
+				canvas_width = 1920;
+				canvas_height = 1088;
+			}
+			decbuf_y_size = 0x200000;
+			decbuf_uv_size = 0x80000;
+			decbuf_size = 0x300000;
+		}
 	}
 
 	if (is_vpp_postblend()) {
@@ -707,61 +730,57 @@ static void vmpeg4_canvas_init(void)
 	}
 
 	for (i = 0; i < 8; i++) {
-		if (((buf_start + i * decbuf_size + 7) >> 3) == disp_addr) {
-#ifdef NV21
-			canvas_config(2 * i + 0,
-				buf_start + 8 * decbuf_size,
-				canvas_width, canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-			canvas_config(2 * i + 1,
-				buf_start + 8 * decbuf_size +
-				decbuf_y_size, canvas_width,
-				canvas_height / 2, CANVAS_ADDR_NOWRAP,
-				CANVAS_BLKMODE_32X32);
-#else
-			canvas_config(3 * i + 0,
-				buf_start + 8 * decbuf_size,
-				canvas_width, canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-			canvas_config(3 * i + 1,
-				buf_start + 8 * decbuf_size +
-				decbuf_y_size, canvas_width / 2,
-				canvas_height / 2, CANVAS_ADDR_NOWRAP,
-				CANVAS_BLKMODE_32X32);
-			canvas_config(3 * i + 2,
-				buf_start + 8 * decbuf_size +
-				decbuf_y_size + decbuf_uv_size,
-				canvas_width / 2, canvas_height / 2,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-#endif
-		} else {
-#ifdef NV21
-			canvas_config(2 * i + 0,
-				buf_start + i * decbuf_size,
-				canvas_width, canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-			canvas_config(2 * i + 1,
-				buf_start + i * decbuf_size +
-				decbuf_y_size, canvas_width,
-				canvas_height / 2, CANVAS_ADDR_NOWRAP,
-				CANVAS_BLKMODE_32X32);
-#else
-			canvas_config(3 * i + 0,
-				buf_start + i * decbuf_size,
-				canvas_width, canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-			canvas_config(3 * i + 1,
-				buf_start + i * decbuf_size +
-				decbuf_y_size, canvas_width / 2,
-				canvas_height / 2, CANVAS_ADDR_NOWRAP,
-				CANVAS_BLKMODE_32X32);
-			canvas_config(3 * i + 2,
-				buf_start + i * decbuf_size +
-				decbuf_y_size + decbuf_uv_size,
-				canvas_width / 2, canvas_height / 2,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-#endif
+		u32 one_buf_start = buf_start + buff_off;
+		if (((one_buf_start + 7) >> 3) == disp_addr) {
+			/*last disp buffer, to next..*/
+			buff_off += decbuf_size;
+			one_buf_start = buf_start + buff_off;
+			pr_info("one_buf_start %d,=== %x disp_addr %x",
+				i, one_buf_start, disp_addr);
 		}
+		if (buff_off < 0x02000000 &&
+			buff_off + decbuf_size > 0x01b00000){
+			/*0x01b00000 is references buffer.
+			to next 32M;*/
+			buff_off = 32 * SZ_1M;/*next 32M*/
+			one_buf_start = buf_start + buff_off;
+		}
+		if (buff_off + decbuf_size > buf_size) {
+			pr_err("ERROR::too small buffer for buf%d %d x%d ,size =%d\n",
+				i,
+				canvas_width,
+				canvas_height,
+				buf_size);
+		}
+		pr_debug("alloced buffer %d at %x,%d\n",
+				i, one_buf_start, decbuf_size);
+#ifdef NV21
+		canvas_config(2 * i + 0,
+			one_buf_start,
+			canvas_width, canvas_height,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+		canvas_config(2 * i + 1,
+			one_buf_start +
+			decbuf_y_size, canvas_width,
+			canvas_height / 2, CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_32X32);
+#else
+		canvas_config(3 * i + 0,
+			one_buf_start,
+			canvas_width, canvas_height,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+		canvas_config(3 * i + 1,
+			one_buf_start +
+			decbuf_y_size, canvas_width / 2,
+			canvas_height / 2, CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_32X32);
+		canvas_config(3 * i + 2,
+			one_buf_start +
+			decbuf_y_size + decbuf_uv_size,
+			canvas_width / 2, canvas_height / 2,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+#endif
+		buff_off = buff_off + decbuf_size;
 	}
 }
 
