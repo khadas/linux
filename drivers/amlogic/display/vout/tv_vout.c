@@ -177,7 +177,7 @@ static void cvbs_cntl_output(unsigned int open)
 	} else if (open == 1) { /* open */
 		if (is_meson_gxl_cpu() ||
 			is_meson_gxm_cpu())
-			cntl0 = 0xb0001;
+			cntl0 = 0xf0001;
 		else
 			cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
@@ -206,6 +206,7 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 	unsigned int max = 0;
 	unsigned int type = 0;
 	const struct reg_s *s = NULL;
+
 	if (TVMODE_576CVBS != mode)
 		return;
 	if (0xff == index)
@@ -1388,7 +1389,15 @@ enum {
 
 	CMD_BIST,
 
-	CMD_VP_DUMP, /* dump video performance registers */
+	/* config a set of performance parameters:
+		0 for sarft,
+		1 for telecom,
+		2 for chinamobile
+	*/
+	CMD_VP_SET,
+
+	/* get the current perfomance config */
+	CMD_VP_GET,
 
 	CMD_HELP,
 
@@ -1459,8 +1468,10 @@ static void cvbs_debug_store(char *buf)
 		cmd = CMD_CLK_MSR;
 	else if (!strncmp(argv[0], "bist", strlen("bist")))
 		cmd = CMD_BIST;
-	else if (!strncmp(argv[0], "dumpvp", strlen("dumpvp")))
-		cmd = CMD_VP_DUMP;
+	else if (!strncmp(argv[0], "vpset", strlen("vpset")))
+		cmd = CMD_VP_SET;
+	else if (!strncmp(argv[0], "vpget", strlen("vpget")))
+		cmd = CMD_VP_GET;
 	else if (!strncmp(argv[0], "help", strlen("help")))
 		cmd = CMD_HELP;
 	else {
@@ -1587,7 +1598,21 @@ static void cvbs_debug_store(char *buf)
 		bist_test_store(argv[1]);
 		break;
 
-	case CMD_VP_DUMP:
+	case CMD_VP_SET:
+		if (argc != 2) {
+			print_info("[%s] cmd_vp_set format:\n"
+			"\tvpset 0/1/2\n", __func__);
+			goto DEBUG_END;
+		}
+		ret = kstrtoul(argv[1], 16, &value);
+		cvbs_performance_index = (value > 2) ? 0 : value;
+		cvbs_performance_enhancement(info->vinfo->mode);
+		cvbs_performance_regs_dump();
+		break;
+
+	case CMD_VP_GET:
+		print_info("current performance index: %d\n",
+			cvbs_performance_index);
 		cvbs_performance_regs_dump();
 		break;
 
