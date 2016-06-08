@@ -3758,7 +3758,7 @@ static unsigned int combing_pure_still_setting[MAX_NUM_DI_REG] = {
 };
 
 static unsigned int combing_bias_static_setting[MAX_NUM_DI_REG] = {
-	0x00000000,
+	0x00202015,
 	0x1A1A3A62,
 	0x15200A0A,
 	0x01800880,
@@ -3845,11 +3845,12 @@ static unsigned int (*combing_setting_values[5])[MAX_NUM_DI_REG] = {
 /* decide the levels based on glb_mot[0:4]
  * or with patches like Hist, smith trig logic
  * level:    0->1  1->2   2->3   3->4
- * from low motion to high motion level */
-static unsigned int combing_glb_mot_thr_LH[4] = {0x80, 0x100, 0x800, 0x1000};
+ * from low motion to high motion level
+ * take 720x480 as example */
+static unsigned int combing_glb_mot_thr_LH[4] = {1440, 2880, 4760, 9520};
 /* level:    0<-1  1<-2   2<-3   3<-4
  * from high motion to low motion level */
-static unsigned int combing_glb_mot_thr_HL[4] = {0x60, 0x0d0, 0x600, 0x0c00};
+static unsigned int combing_glb_mot_thr_HL[4] = {720, 1440, 2880, 5760};
 
 static bool combing_fix_en = true;
 module_param(combing_fix_en, bool, 0664);
@@ -3902,15 +3903,105 @@ static int atv_snr_cnt_limit = 30;
 module_param_named(atv_snr_cnt_limit, atv_snr_cnt_limit, int, 0664);
 #endif
 static int last_lev = -1;
-static int glb_mot[5] = { 0, 0, 0, 0, 0 };
+static int glb_mot[5] = {0, 0, 0, 0, 0};
 static int still_field_count;
 static int dejaggy_4p = true;
 module_param_named(dejaggy_4p, dejaggy_4p, int, 0664);
 UINT32 field_count = 0;
 
-void set_combing_regs(int lvl)
+static int cmb_adpset_cnt = 10;
+module_param(cmb_adpset_cnt, int, 0664);
+static void combing_threshold_config(unsigned int  width)
+{
+	int i = 0;
+	/* init combing threshold */
+	for (i = 0; i < 4; i++) {
+		combing_glb_mot_thr_LH[i] = (width<<1)*(i+1);
+		combing_glb_mot_thr_HL[i] = width<<i;
+	}
+	combing_glb_mot_thr_LH[3] = width*13;
+}
+unsigned int adp_set_mtn_ctrl3(unsigned int diff)
+{
+	int istp = 0;
+	int idats = 0;
+	int idatm = 0;
+	int idatr = 0;
+	unsigned int rst = 0;
+	if (diff <= combing_glb_mot_thr_LH[0])
+		rst = combing_pure_still_setting[2];
+	else if (diff >= combing_glb_mot_thr_LH[3])
+		rst = combing_very_motion_setting[2];
+	else {
+		rst = 0x1520;
+		istp = 64 * (diff - combing_glb_mot_thr_LH[0]) /
+			(combing_glb_mot_thr_LH[3] -
+			combing_glb_mot_thr_LH[0] + 1);
+
+		idats = (combing_pure_still_setting[2] >> 8) & 0xff;
+		idatm = (combing_very_motion_setting[2] >> 8) & 0xff;
+
+		idatr = ((idats - idatm) * istp >> 6) + idatm;
+		rst = (rst<<8) | (idatr & 0xff);
+
+		idats = (combing_pure_still_setting[2]) & 0xff;
+		idatm = (combing_very_motion_setting[2]) & 0xff;
+
+		idatr = ((idats - idatm) * istp >> 6) + idatm;
+		rst = rst | (idatr & 0xff);
+	}
+
+	if (cmb_adpset_cnt > 0) {
+		pr_info("diff=%d, mtn_ctrl3=%8x\n", diff, rst);
+		cmb_adpset_cnt--;
+	}
+
+	return rst;
+}
+
+unsigned int adp_set_mtn_ctrl4(unsigned int diff)
+{
+	int istp = 0, idats = 0, idatm = 0, idatr = 0;
+	unsigned int rst = 0;
+	if (diff <= combing_glb_mot_thr_LH[0])
+		rst = combing_pure_still_setting[3];
+	else if (diff >= combing_glb_mot_thr_LH[3])
+		rst = combing_very_motion_setting[3];
+	else {
+			rst = 1;
+			istp = 64 * (diff - combing_glb_mot_thr_LH[0]) /
+				(combing_glb_mot_thr_LH[3] -
+				combing_glb_mot_thr_LH[0] + 1);
+
+			idats = (combing_pure_still_setting[3] >> 16) & 0xff;
+			idatm = (combing_very_motion_setting[3] >> 16) & 0xff;
+
+			idatr = ((idats - idatm) * istp >> 6) + idatm;
+			rst = (rst<<8) | (idatr & 0xff);
+
+			idats = (combing_pure_still_setting[3] >> 8) & 0xff;
+			idatm = (combing_very_motion_setting[3] >> 8) & 0xff;
+
+			idatr = ((idats - idatm) * istp >> 6) + idatm;
+			rst = (rst<<8) | (idatr & 0xff);
+
+			idats = (combing_pure_still_setting[3]) & 0xff;
+			idatm = (combing_very_motion_setting[3]) & 0xff;
+
+			idatr = ((idats - idatm) * istp >> 6) + idatm;
+			rst = (rst<<8) | (idatr & 0xff);
+	}
+	if (cmb_adpset_cnt > 0) {
+		pr_info("diff=%d, mtn_ctrl4=%8x\n", diff, rst);
+		cmb_adpset_cnt--;
+	}
+	return rst;
+}
+
+void set_combing_regs(int lvl, unsigned int diff)
 {
 	int i;
+	unsigned int ndat = 0;
 	for (i = 0; i < MAX_NUM_DI_REG; i++) {
 		if ((combing_setting_registers[i] == 0)
 		|| (combing_setting_masks[i] == 0))
@@ -3924,22 +4015,28 @@ void set_combing_regs(int lvl)
 		if (di_force_bit_mode != 10 &&
 			combing_setting_registers[i] == NR2_MATNR_DEGHOST)
 			break;
-		else if (i < GXTVBB_REG_START)
+		else if (i < GXTVBB_REG_START) {
 			/* TODO: need change to check if
 			register only in GCTVBB */
+			ndat = (*combing_setting_values[lvl])[i];
+			if (i == 2)
+				ndat = adp_set_mtn_ctrl3(diff);
+			else if (i == 3)
+				ndat = adp_set_mtn_ctrl4(diff);
+
+			DI_Wr(combing_setting_registers[i],
+				(ndat &
+				combing_setting_masks[i]) |
+				(Rd(
+					combing_setting_registers[i])
+				& ~combing_setting_masks[i]));
+		} else if (is_meson_gxtvbb_cpu())
 			DI_Wr(combing_setting_registers[i],
 				((*combing_setting_values[lvl])[i] &
 				combing_setting_masks[i]) |
 				(Rd(
 					combing_setting_registers[i])
-				& ~combing_setting_masks[i]));
-		else if (is_meson_gxtvbb_cpu())
-			DI_Wr(combing_setting_registers[i],
-				((*combing_setting_values[lvl])[i] &
-				combing_setting_masks[i]) |
-				(Rd(
-					combing_setting_registers[i])
-				& ~combing_setting_masks[i]));
+					& ~combing_setting_masks[i]));
 	}
 }
 
@@ -3987,7 +4084,7 @@ static void adaptive_combing_fixing(
 	if ((force_lev >= 0) & (force_lev < 5))
 		cur_lev = force_lev;
 	if (cur_lev != last_lev) {
-		set_combing_regs(cur_lev);
+		set_combing_regs(cur_lev, glb_mot[0]);
 		if (pr_pd & 0x400)
 			pr_dbg("\t%5d: from %d to %d: di_mtn_1_ctrl1 = %08x\n",
 				field_count, last_lev, cur_lev, di_mtn_1_ctrl1);
@@ -4922,7 +5019,7 @@ static unsigned char pre_de_buf_config(void)
 						__func__);
 				}
 			}
-			pr_dbg(
+			pr_info(
 			"%s: source change: 0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
 				__func__,
 				di_pre_stru.cur_inp_type,
@@ -7475,6 +7572,7 @@ static void di_reg_process_irq(void)
 		}
 
 		reset_pulldown_state();
+		combing_threshold_config(vframe->width);
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
 	}
