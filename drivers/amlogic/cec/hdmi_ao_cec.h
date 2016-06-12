@@ -14,6 +14,7 @@
 #define AO_RTC_ALT_CLK_CNTL0		((0x25 << 2))
 #define AO_RTC_ALT_CLK_CNTL1		((0x26 << 2))
 
+#define AO_RTI_STATUS_REG1		((0x01 << 2))
 #define AO_DEBUG_REG0			((0x28 << 2))
 #define AO_DEBUG_REG1			((0x29 << 2))
 #define AO_DEBUG_REG2			((0x2a << 2))
