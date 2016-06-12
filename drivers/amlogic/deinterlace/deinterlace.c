@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-06-07b";
+static const char version_s[] = "2016-06-12a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -656,12 +656,12 @@ store_dbg(struct device *dev,
 		for (i = 0; i < 201; i++)
 			pr_dbg("[0x%x][0x%x]=0x%x\n",
 				0xd0100000 + ((0x2f00 + i) << 2),
-				0x1700 + i, Rd(0x2f00 + i));
+				0x2f00 + i, Rd(0x2f00 + i));
 		pr_dbg("----dump pulldown reg----\n");
 		for (i = 0; i < 26; i++)
 			pr_dbg("[0x%x][0x%x]=0x%x\n",
 				0xd0100000 + ((0x2fd0 + i) << 2),
-				0x1700 + i, Rd(0x2fd0 + i));
+				0x2fd0 + i, Rd(0x2fd0 + i));
 		pr_dbg("----dump reg done----\n");
 	} else if (strncmp(buf, "robust_test", 11) == 0) {
 		recovery_flag = 1;
@@ -2811,7 +2811,6 @@ static void di_uninit_buf(void)
 	if (p->di_buf[0]->type != VFRAME_TYPE_IN &&
 		(p->process_fun_index != PROCESS_FUN_NULL) &&
 		(ii < USED_LOCAL_BUF_MAX) &&
-		(!get_blackout_policy()) &&
 		(p->index == di_post_stru.cur_disp_index)) {
 		used_post_buf_index = p->index;
 		for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
@@ -5853,13 +5852,14 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		     blend_mtn_en = 0, ei_en = 0, post_field_num = 0;
 	int di_vpp_en, di_ddr_en;
 
-	if (di_get_power_control(1) == 0)
+	if ((di_get_power_control(1) == 0) || di_post_stru.vscale_skip_flag)
 		return 0;
-
+	if (is_in_queue(di_buf, QUEUE_POST_FREE)) {
+		pr_info("%s post_buf[%d] is in post free list.\n",
+				__func__, di_buf->index);
+		return 0;
+	}
 	get_vscale_skip_count(zoom_start_x_lines);
-
-	if (di_post_stru.vscale_skip_flag)
-		return 0;
 
 	if ((!di_post_stru.toggle_flag) &&
 	    ((force_update_post_reg & 0x10) == 0))
@@ -7695,11 +7695,10 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		pr_dbg("%s , is_bypass() %d trick_mode %d bypass_all %d\n",
 			__func__, is_bypass(NULL), trick_mode, bypass_all);
 
-		if ((Rd(DI_IF1_GEN_REG) & 0x1) == 0 &&
-		    new_keep_last_frame_enable == 0)
+		if ((Rd(DI_IF1_GEN_REG) & 0x1) && get_blackout_policy())
 			/* disable post di, so can call vf_keep_current()
 			 * to keep displayed vframe */
-			DI_Wr(DI_IF1_GEN_REG, 0x3 << 30);
+				pr_info("DI: disabled, not keep buffer.\n");
 
 		pr_dbg("%s: vf_notify_receiver unreg\n", __func__);
 
