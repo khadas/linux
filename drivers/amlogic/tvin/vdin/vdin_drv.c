@@ -321,10 +321,17 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB))
-		mem_size = devp->h_active * devp->v_active * 3;
-	else
-		mem_size = devp->h_active * devp->v_active * 2;
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)) {
+		if (devp->source_bitdepth > 8)
+			mem_size = devp->h_active * devp->v_active * 4;
+		else
+			mem_size = devp->h_active * devp->v_active * 3;
+	} else {
+		if (devp->source_bitdepth > 8)
+			mem_size = devp->h_active * devp->v_active * 3;
+		else
+			mem_size = devp->h_active * devp->v_active * 2;
+	}
 	if (devp->source_bitdepth > 8)
 		mem_size = mem_size*3/2;
 	mem_size = PAGE_ALIGN(mem_size)*max_buf_num;
@@ -2622,7 +2629,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 				"tv_bit_mode", &bit_mode);
 		if (ret)
 			pr_info("no bit mode found, set 8bit as default\n");
-		vdin_bit_mode_ctl(bit_mode);
+		vdevp->color_depth_support = bit_mode;
+		vdevp->color_depth_config = 0;
 	}
 	#endif
 	vdevp->irq = res->start;

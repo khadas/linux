@@ -248,10 +248,10 @@ static void pre_bit_mode_config(unsigned char inp,
 		!is_meson_gxm_cpu())
 		return;
 
-	RDMA_WR_BITS(DI_INP_GEN_REG3, inp, 8, 2);
-	RDMA_WR_BITS(DI_MEM_GEN_REG3, mem, 8, 2);
-	RDMA_WR_BITS(DI_CHAN2_GEN_REG3, chan2, 8, 2);
-	RDMA_WR_BITS(DI_NRWR_Y, nrwr, 14, 1);
+	RDMA_WR_BITS(DI_INP_GEN_REG3, inp&0x3, 8, 2);
+	RDMA_WR_BITS(DI_MEM_GEN_REG3, mem&0x3, 8, 2);
+	RDMA_WR_BITS(DI_CHAN2_GEN_REG3, chan2&0x3, 8, 2);
+	RDMA_WR_BITS(DI_NRWR_Y, nrwr&0x1, 14, 1);
 }
 
 unsigned int nr2_en = 0x1;

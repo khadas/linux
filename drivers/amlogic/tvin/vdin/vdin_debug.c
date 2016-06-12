@@ -216,24 +216,29 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	struct vframe_s *vf = &devp->curr_wr_vfe->vf;
 	struct tvin_parm_s *curparm = &devp->parm;
 	pr_info("h_active = %d, v_active = %d\n",
-			devp->h_active, devp->v_active);
+		devp->h_active, devp->v_active);
+	pr_info("canvas_w = %d, canvas_h = %d\n",
+		devp->canvas_w, devp->canvas_h);
 	pr_info("signal format	= %s(0x%x)\n",
-			tvin_sig_fmt_str(devp->parm.info.fmt),
-			devp->parm.info.fmt);
+		tvin_sig_fmt_str(devp->parm.info.fmt),
+		devp->parm.info.fmt);
 	pr_info("trans_fmt	= %s(%d)\n",
-			tvin_trans_fmt_str(devp->prop.trans_fmt),
-			devp->prop.trans_fmt);
+		tvin_trans_fmt_str(devp->prop.trans_fmt),
+		devp->prop.trans_fmt);
 	pr_info("color_format	= %s(%d)\n",
-			tvin_color_fmt_str(devp->prop.color_format),
-			devp->prop.color_format);
+		tvin_color_fmt_str(devp->prop.color_format),
+		devp->prop.color_format);
 	pr_info(" format_convert = %s(%d)\n",
-			vdin_fmt_convert_str(devp->format_convert),
-			devp->format_convert);
+		vdin_fmt_convert_str(devp->format_convert),
+		devp->format_convert);
 	pr_info("aspect_ratio	= %s(%d)\n decimation_ratio/dvi	= %u / %u\n",
-			tvin_aspect_ratio_str(devp->prop.aspect_ratio),
-			devp->prop.aspect_ratio,
-			devp->prop.decimation_ratio, devp->prop.dvi_info);
-	pr_info("color_depth:%d\n", devp->prop.colordepth);
+		tvin_aspect_ratio_str(devp->prop.aspect_ratio),
+		devp->prop.aspect_ratio,
+		devp->prop.decimation_ratio, devp->prop.dvi_info);
+	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
+	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
+	pr_info("color_depth_config:%d\n", devp->color_depth_config);
+	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:%d\n", devp->cma_config_flag);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
@@ -242,28 +247,28 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vf->width, vf->height, vf->type, vf->type, vf->duration);
 		pr_info("ratio_control(0x%x).\n", vf->ratio_control);
 		pr_info(" trans fmt %u, left_start_x %u,",
-				vf->trans_fmt, vf->left_eye.start_x);
+			vf->trans_fmt, vf->left_eye.start_x);
 		pr_info("right_start_x %u, width_x %u\n",
-				vf->right_eye.start_x, vf->left_eye.width);
+			vf->right_eye.start_x, vf->left_eye.width);
 		pr_info("left_start_y %u, right_start_y %u, height_y %u\n",
-			  vf->left_eye.start_y, vf->right_eye.start_y,
-			  vf->left_eye.height);
+			vf->left_eye.start_y, vf->right_eye.start_y,
+			vf->left_eye.height);
 		pr_info("current parameters:\n");
 		pr_info(" frontend of vdin index :  %d, 3d flag : 0x%x,",
-				curparm->index,  curparm->flag);
+			curparm->index,  curparm->flag);
 		pr_info("reserved 0x%x, devp->flags:0x%x,",
-				curparm->reserved, devp->flags);
+			curparm->reserved, devp->flags);
 		pr_info("max buffer num %u.\n", devp->canvas_max_num);
 	}
 	pr_info(" format_convert = %s(%d)\n",
-			vdin_fmt_convert_str(devp->format_convert),
-			devp->format_convert);
+		vdin_fmt_convert_str(devp->format_convert),
+		devp->format_convert);
 	pr_info("color fmt(%d),csc_cfg:0x%x\n",
-			devp->prop.color_format,
-			devp->csc_cfg);
+		devp->prop.color_format,
+		devp->csc_cfg);
 	pr_info("range(%d),csc_cfg:0x%x\n",
-			devp->prop.color_fmt_range,
-			devp->csc_cfg);
+		devp->prop.color_fmt_range,
+		devp->csc_cfg);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
 
@@ -827,6 +832,12 @@ start_chk:
 	} else if (!strcmp(parm[0], "resume_dec")) {
 		vdin_resume_dec(devp);
 		pr_info("resume_dec(%d) ok\n\n", devp->index);
+	} else if (!strcmp(parm[0], "color_depth")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		devp->color_depth_config = val;
+		pr_info("color_depth(%d):%d\n\n", devp->index,
+			devp->color_depth_config);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2016/06/02a"
+#define VDIN_VER "Ref.2016/06/17a"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -91,6 +91,12 @@
 /* size for rdma table */
 #define RDMA_TABLE_SIZE (PAGE_SIZE>>3)
 /* #define VDIN_DEBUG */
+
+/*vdin write mem color-depth support*/
+#define VDIN_WR_COLOR_DEPTH_8BIT	1
+#define VDIN_WR_COLOR_DEPTH_9BIT	(1 << 1)
+#define VDIN_WR_COLOR_DEPTH_10BIT	(1 << 2)
+#define VDIN_WR_COLOR_DEPTH_12BIT	(1 << 3)
 
 static inline const char *vdin_fmt_convert_str(
 		enum vdin_format_convert_e fmt_cvt)
@@ -241,6 +247,19 @@ struct vdin_dev_s {
 	unsigned int            csc_cfg;
 	/* duration of current timing */
 	unsigned int			duration;
+	/* color-depth for vdin write */
+	/*vdin write mem color depth support:
+	*bit0:support 8bit
+	*bit1:support 9bit
+	*bit2:support 10bit
+	*bit3:support 12bit*/
+	unsigned int			color_depth_support;
+	/*color depth config
+	*0:auto config as frontend
+	*8:force config as 8bit
+	*10:force config as 10bit
+	*12:force config as 12bit*/
+	unsigned int			color_depth_config;
 };
 
 

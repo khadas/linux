@@ -2653,11 +2653,17 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 		} else {
 			if (vf->bitdepth & BITDEPTH_Y10) {
-				VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
-					1, 8, 2);
-				VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
-					1, 8, 2);
-
+				if (vf->type & VIDTYPE_VIU_444) {
+					VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
+						2, 8, 2);
+					VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+						2, 8, 2);
+				} else {
+					VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
+						1, 8, 2);
+					VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+						1, 8, 2);
+				}
 			} else {
 				VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
 				0, 8, 2);

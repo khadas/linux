@@ -102,13 +102,7 @@ MODULE_PARM_DESC(rgb_info_b, "rgb_info_b");
 static unsigned int vdin_ldim_max_en = 1;
 module_param(vdin_ldim_max_en, uint, 0644);
 MODULE_PARM_DESC(vdin_ldim_max_en, "vdin_ldim_max_en");
-/*
- *8:vdin 8 bit mode
- *10:vdin auto bit mode according to frontend
-*/
-static unsigned int vdin_bit_depth;
-module_param(vdin_bit_depth, uint, 0664);
-MODULE_PARM_DESC(vdin_bit_depth, "vdin_bit_depth");
+
 /*0: 1 word in 1burst, 1: 2 words in 1burst;
 2: 4 words in 1burst;*/
 static unsigned int vdin_wr_burst_mode = 2;
@@ -1993,7 +1987,8 @@ void vdin_set_default_regmap(unsigned int offset)
 	wr(offset, VDIN_MATRIX_PRE_OFFSET2, 0x00000000);
 	/* [11: 0]       write.lfifo_buf_size   = 0x100 */
 	if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
-		is_meson_m8m2_cpu() || is_meson_m8b_cpu())
+		is_meson_m8m2_cpu() || is_meson_m8b_cpu() ||
+		is_meson_gxtvbb_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
@@ -2630,28 +2625,29 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 	pr_info(" dst vactive:%u.\n", devp->v_active);
 }
 
-void vdin_bit_mode_ctl(unsigned int mode)
-{
-	vdin_bit_depth = mode;
-}
-
 void vdin_set_bitdepth(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
-	switch (vdin_bit_depth) {
+	switch (devp->color_depth_config) {
 	case 8:
 		devp->source_bitdepth = 8;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
 	case 10:
+		devp->source_bitdepth = 10;
+		wr_bits(offset, VDIN_WR_CTRL2, 1,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		break;
+	case 0:
 		/* vdin_bit_depth is set to 0 by defaut, in this case,
 		devp->source_bitdepth is controled by colordepth */
 		if (8 == devp->prop.colordepth) {
 			devp->source_bitdepth = 8;
 			wr_bits(offset, VDIN_WR_CTRL2, 0,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-		} else if (10 == devp->prop.colordepth) {
+		} else if ((10 == devp->prop.colordepth) &&
+		(devp->color_depth_support & VDIN_WR_COLOR_DEPTH_10BIT)) {
 			devp->source_bitdepth = 10;
 			wr_bits(offset, VDIN_WR_CTRL2, 1,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);

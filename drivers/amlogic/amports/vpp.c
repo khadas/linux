@@ -418,6 +418,10 @@ bool pre_scaler_en = true;
 module_param(pre_scaler_en, bool, 0664);
 MODULE_PARM_DESC(pre_scaler_en, "pre_scaler_en");
 
+unsigned int force_vskip_cnt;
+MODULE_PARM_DESC(force_vskip_cnt, "force_vskip_cnt");
+module_param(force_vskip_cnt, uint, 0664);
+
 #if 0
 #define DECL_PARM(name)\
 static int name;\
@@ -557,6 +561,9 @@ vpp_process_speed_check(s32 width_in,
 		const struct vinfo_s *vinfo, struct vframe_s *vf)
 {
 	u32 cur_ratio;
+
+	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
+		return SPEED_CHECK_VSKIP;
 
 	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {

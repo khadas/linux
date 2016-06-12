@@ -3288,6 +3288,9 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 	di_mif->canvas0_addr2 =
 		(di_buf->vframe->canvas0Addr >> 16) & 0xff;
 	di_mif->bit_mode = (di_buf->vframe->bitdepth & BITDEPTH_Y10)?1:0;
+	if ((di_buf->vframe->type & VIDTYPE_VIU_444) &&
+		(di_buf->vframe->bitdepth & BITDEPTH_Y10))
+		di_mif->bit_mode = 2;
 	if (di_buf->vframe->type & VIDTYPE_VIU_422) {
 		/* from vdin or local vframe */
 		if ((!is_progressive(di_buf->vframe))
@@ -6021,8 +6024,14 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 			return 0;
 		/* bit mode config */
 		if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
-			di_post_stru.di_buf0_mif.bit_mode = 1;
-			di_post_stru.di_buf1_mif.bit_mode = 1;
+			if ((di_buf->vframe->type & VIDTYPE_VIU_444) &&
+				(di_buf->vframe->bitdepth & BITDEPTH_Y10)) {
+				di_post_stru.di_buf0_mif.bit_mode = 2;
+				di_post_stru.di_buf1_mif.bit_mode = 2;
+			} else {
+				di_post_stru.di_buf0_mif.bit_mode = 1;
+				di_post_stru.di_buf1_mif.bit_mode = 1;
+			}
 		} else {
 			di_post_stru.di_buf0_mif.bit_mode = 0;
 			di_post_stru.di_buf1_mif.bit_mode = 0;
