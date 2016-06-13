@@ -148,4 +148,5 @@ extern void osd_ext_clone_pan(u32 index);
 extern void osd_set_pxp_mode(u32 mode);
 extern void osd_set_afbc(u32 enable);
 extern u32 osd_get_afbc(void);
+extern u32 osd_get_reset_status(void);
 #endif

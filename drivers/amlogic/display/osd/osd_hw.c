@@ -257,6 +257,7 @@ static const u16 osd_reg_backup[OSD_REG_BACKUP_COUNT] = {
 
 static u32 osd_value_backup[OSD_REG_BACKUP_COUNT];
 static bool osd_hdr_on;
+static u32 osd_reset_status;
 
 static void osd_vpu_power_on(void)
 {
@@ -836,7 +837,7 @@ void osd_hw_reset(void)
 	u32 reset_bit = 0;
 
 	/* check hw version */
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)
 		return;
 	if (osd_hw.osd_afbcd[OSD1].enable &&
 		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
@@ -856,11 +857,12 @@ void osd_hw_reset(void)
 	}
 #endif
 
+	osd_reset_status = reset_bit;
 	if (reset_bit == 0)
 		return;
 
-	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (reset_bit & 1) {
+		spin_lock_irqsave(&osd_lock, lock_flags);
 		/* backup osd regs */
 		for (i = 0; i < OSD_REG_BACKUP_COUNT; i++)
 			osd_value_backup[i] =
@@ -870,21 +872,23 @@ void osd_hw_reset(void)
 	VSYNCOSD_SET_MPEG_REG_MASK(VIU_SW_RESET, reset_bit);
 	VSYNCOSD_CLR_MPEG_REG_MASK(VIU_SW_RESET, reset_bit);
 
-	if (reset_bit & 0x80000000) {
-		osd1_update_afbcd_color_mode();
-		osd1_basic_update_afbcd_disp_geometry();
-		VSYNCOSD_WR_MPEG_REG_BITS(OSD1_AFBCD_ENABLE, 1, 8, 1);
-	}
+
 	if (reset_bit & 1) {
 		/* restore osd regs */
 		for (i = 0; i < OSD_REG_BACKUP_COUNT; i++)
 			VSYNCOSD_WR_MPEG_REG(osd_reg_backup[i],
 				osd_value_backup[i]);
+		spin_unlock_irqrestore(&osd_lock, lock_flags);
 	}
-	spin_unlock_irqrestore(&osd_lock, lock_flags);
+
+	if (reset_bit & 0x80000000) {
+		osd1_update_afbcd_color_mode();
+		osd1_basic_update_afbcd_disp_geometry();
+		VSYNCOSD_WR_MPEG_REG_BITS(OSD1_AFBCD_ENABLE, 1, 8, 1);
+	}
 
 #ifdef CONFIG_AM_VECM
-	/* write osd hdr regs */
+	/* write new osd hdr regs */
 	if (reset_bit & 1)
 		hdr_load_osd_csc();
 #endif
@@ -936,6 +940,11 @@ void osd_set_afbc(u32 enable)
 u32 osd_get_afbc(void)
 {
 	return osd_hw.osd_afbcd[OSD1].enable;
+}
+
+u32 osd_get_reset_status(void)
+{
+	return osd_reset_status;
 }
 
 void osd_wait_vsync_hw(void)
@@ -1580,7 +1589,7 @@ void osd_set_scale_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 {
 	const struct vinfo_s *vinfo;
-
+	s32 height;
 	vinfo = get_current_vinfo();
 	if (vinfo) {
 		switch (vinfo->mode) {
@@ -1590,8 +1599,11 @@ void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 		case VMODE_576CVBS:
 		case VMODE_1080I:
 		case VMODE_1080I_50HZ:
+			height = osd_hw.free_dst_data[index].y_end -
+				osd_hw.free_dst_data[index].y_start + 1;
+			height *= 2;
 			*y0 = osd_hw.free_dst_data[index].y_start * 2;
-			*y1 = osd_hw.free_dst_data[index].y_end * 2;
+			*y1 = height + *y0 - 1;
 			break;
 		default:
 			*y0 = osd_hw.free_dst_data[index].y_start;
@@ -3624,6 +3636,7 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.updated[OSD1] = 0;
 	osd_hw.updated[OSD2] = 0;
 	osd_hdr_on = false;
+	osd_reset_status = 0;
 
 	osd_vpu_power_on();
 

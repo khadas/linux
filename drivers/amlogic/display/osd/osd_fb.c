@@ -2151,6 +2151,14 @@ static ssize_t store_ver_update_pan(struct device *device,
 	return count;
 }
 
+static ssize_t show_reset_status(struct device *device,
+	struct device_attribute *attr, char *buf)
+{
+	u32 status = osd_get_reset_status();
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", status);
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -2319,11 +2327,14 @@ static struct device_attribute osd_attrs[] = {
 			show_ver_angle, store_ver_angle),
 	__ATTR(ver_clone, S_IRUGO | S_IWUSR,
 			show_ver_clone, store_ver_clone),
-	__ATTR(ver_update_pan, S_IWUGO | S_IWUSR, NULL, store_ver_update_pan),
+	__ATTR(ver_update_pan, S_IWUGO | S_IWUSR,
+			NULL, store_ver_update_pan),
 	__ATTR(osd_afbcd, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_afbcd, store_afbcd),
 	__ATTR(osd_clear, S_IWUSR | S_IWGRP,
 			NULL, osd_clear),
+	__ATTR(reset_status, S_IRUGO | S_IRUSR,
+			show_reset_status, NULL),
 };
 
 #ifdef CONFIG_PM
