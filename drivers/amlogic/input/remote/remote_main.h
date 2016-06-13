@@ -106,13 +106,14 @@ static const struct reg_s RDECODEMODE_DUOKAN[] = {
 	{LDR_IDLE, ((37 << 16) | (15 << 0))},
 	{LDR_REPEAT, ((30 << 16) | (26 << 0))},
 	{DURATION_REG0, ((63 << 16) | (53 << 0))},
-	{OPERATION_CTRL_REG0, ((3 << 28) | (0x5DC << 12) | (0x13))},
+	{OPERATION_CTRL_REG0, ((3 << 28) | (0x4e2 << 12) | (0x13))},
 	/*body frame 30ms*/
 	{DURATION_REG1_AND_STATUS, ((78 << 20) | (68 << 10))},
 	{OPERATION_CTRL_REG1, 0x9300},
-	{OPERATION_CTRL_REG2, 0x10b},
+	{OPERATION_CTRL_REG2, 0xb90b},
 	{DURATION_REG2, ((96 << 16) | (80 << 0))},
-	{DURATION_REG3, ((112 << 16) | (92 << 0))},
+	{DURATION_REG3, ((112 << 16) | (97 << 0))},
+	{OPERATION_CTRL_REG3, 5000<<0},
 	{CONFIG_END,            0      }
 };
 /****************************************************************/
@@ -530,6 +531,11 @@ void setremotereg(const struct reg_s *r);
 #define REMOTE_LOG_BUF_ORDER        1
 
 
+enum rc_key_state {
+	RC_KEY_STATE_UP = 0,
+	RC_KEY_STATE_DN = 1,
+};
+
 typedef int (*type_printk)(const char *fmt, ...);
 /* this is a message of IR input device,include release timer repeat timer*/
 /*
@@ -583,6 +589,14 @@ struct remote {
 	unsigned int delay;
 	unsigned int step;
 	unsigned int send_data;
+
+	/* 0:up(default) 1:down */
+	unsigned int keystate;
+	/* store irq time */
+	unsigned long jiffies_irq;
+	unsigned long jiffies_old;
+	unsigned long jiffies_new;
+
 #ifdef REMOTE_FIQ
 	bridge_item_t fiq_handle_item;
 #endif

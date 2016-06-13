@@ -337,6 +337,8 @@ static void remote_release_timer_sr(unsigned long data)
 
 static irqreturn_t remote_interrupt(int irq, void *dev_id)
 {
+	gp_remote->jiffies_irq = jiffies;
+
 	tasklet_schedule(&tasklet);
 	return IRQ_HANDLED;
 }
@@ -406,6 +408,11 @@ static int hardware_init(struct platform_device *pdev)
 		return -1;
 	}
 	set_remote_mode(DECODEMODE_NEC);
+
+	gp_remote->jiffies_old = jiffies;
+	gp_remote->jiffies_new = jiffies;
+	gp_remote->keystate = RC_KEY_STATE_UP;
+
 	return request_irq(NEC_REMOTE_IRQ_NO, remote_interrupt, IRQF_SHARED,
 				"keypad",
 				(void *)remote_interrupt);
@@ -798,6 +805,8 @@ static int remote_probe(struct platform_device *pdev)
 		goto err2;
 	}
 	input_dbg("input_register_device completed \r\n");
+
+
 	if (hardware_init(pdev))
 		goto err3;
 	register_remote_dev(gp_remote);

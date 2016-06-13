@@ -19,6 +19,7 @@
 #else
 #define fiq_bridge_pulse_trigger(x)
 #endif
+static DEFINE_SPINLOCK(remote_lock);
 
 #ifdef CONFIG_AML_HDMI_TX
 unsigned char cec_repeat = 10;
@@ -488,7 +489,7 @@ unsigned int DUOKAN_DOMAIN(struct remote *remote_data, int domain)
 {
 	if (remote_data->cur_lsbkeycode == 0x0003cccf)	/* power key */
 		remote_data->cur_lsbkeycode =
-		    ((remote_data->custom_code[0] & 0xff) << 12) | 0xa0;
+		    ((remote_data->custom_code[0] & 0xff) << 12) | 0xa4;
 	if (domain)
 		return (remote_data->cur_lsbkeycode >> 4) & 0xff;
 	else
@@ -548,6 +549,29 @@ irqreturn_t remote_null_bridge_isr(int irq, void *dev_id)
 {
 	return IRQ_HANDLED;
 }
+
+
+/* 0-success other-failed */
+int remote_ig_custom_check(struct remote *rd)
+{
+	int workmode;
+	unsigned int customcode;
+	int i;
+
+	workmode = rd->work_mode;
+	customcode = get_cur_key_domian[workmode](rd, CUSTOMDOMAIN);
+
+	for (i = 0; i < ARRAY_SIZE(rd->custom_code); i++) {
+		if (rd->custom_code[i] == customcode) {
+			rd->map_num = i;
+			return 0;
+		}
+	}
+
+	input_dbg("Wrong custom code 0x%08x\n",	rd->cur_lsbkeycode);
+	return -1;
+}
+
 
 int remote_hw_report_key(struct remote *remote_data)
 {
@@ -696,59 +720,96 @@ int remote_hw_report_key(struct remote *remote_data)
 	return 0;
 }
 
-int remote_duokan_report_key(struct remote *remote_data)
+int remote_duokan_parity_check(struct remote *remote_data)
+{
+	unsigned int data;
+	unsigned int code;
+	unsigned int c74, c30, d74, d30, p30;
+
+	code = remote_data->cur_lsbkeycode;
+	c74 = (code >> 16) & 0xF;
+	c30 = (code >> 12) & 0xF;
+	d74 = (code >> 8)  & 0xF;
+	d30 = (code >> 4)  & 0xF;
+	p30 = (code >> 0)  & 0xF;
+
+	data = c74 ^ c30 ^ d74 ^ d30;
+
+	if (p30 == data) {
+		input_dbg("parity check ok code=0x%x p30=0x%x parity=0x%x\n",
+			code, p30, data);
+		return 0;
+	} else {
+		input_dbg("parity check error code=0x%x p30=0x%x parity=0x%x\n",
+			code, p30, data);
+		remote_data->cur_lsbkeycode = 0;
+		return -1;
+	}
+}
+
+/* 1:frame is repeat 0: frame is normal */
+int is_repeat_key(struct remote *rd)
+{
+	return rd->frame_status & 0x1; /* bit0 */
+}
+
+int remote_duokan_report_key(struct remote *rd)
 {
 	static int last_scan_code;
-	int i;
-	get_cur_scancode(remote_data);
-	get_cur_scanstatus(remote_data);
-	if (!auto_repeat_count) {
-		if (remote_data->cur_lsbkeycode) {	/*key first press */
-			if (remote_data->ig_custom_enable) {
-				for (i = 0; i < ARRAY_SIZE
-					(remote_data->custom_code);) {
-					if (remote_data->custom_code[i] !=
-						get_cur_key_domian
-						[remote_data->work_mode]
-						(remote_data, CUSTOMDOMAIN)) {
-						/*return -1; */
-						i++;
-					} else {
-						remote_data->map_num = i;
-						break;
-					}
-					if (i == ARRAY_SIZE
-						(remote_data->custom_code)) {
-						input_dbg
-						("Wrong custom code 0x%08x\n",
-						remote_data->cur_lsbkeycode);
-						return -1;
-				}
-			}
-		}
+	unsigned long flags;
+	int ret;
+	unsigned int keycode;
+	int workmode;
+	unsigned int releasedelay;
+	unsigned long jiffies_old;
 
-	remote_data->remote_send_key(remote_data->input,
-		     get_cur_key_domian
-		     [remote_data->work_mode]
-		     (remote_data, KEYDOMIAN), 1, 0);
+
+	get_cur_scanstatus(rd);
+	get_cur_scancode(rd);
+
+	ret = remote_duokan_parity_check(rd);
+	if (ret)
+		return 0;
+
+	workmode = rd->work_mode;
+	keycode = get_cur_key_domian[workmode](rd, KEYDOMIAN);
+
+	spin_lock_irqsave(&remote_lock, flags);
+
+	if  (!is_repeat_key(rd)) {
+		rd->jiffies_new = rd->jiffies_irq;
+		jiffies_old = rd->jiffies_old;
+		rd->jiffies_old = rd->jiffies_new;
+
+		rd->jiffies_old = rd->jiffies_new;
+		if (rd->keystate == RC_KEY_STATE_UP) {
+			if (rd->ig_custom_enable &&
+				remote_ig_custom_check(rd)) {
+				spin_unlock_irqrestore(&remote_lock, flags);
+				return -1;
+			}
+
+			rd->remote_send_key(rd->input, keycode, 1, 0);
+			rd->keystate = RC_KEY_STATE_DN;
 			auto_repeat_count++;
-	remote_data->repeat_release_code =
-			get_cur_key_domian
-			[remote_data->work_mode]
-			(remote_data , KEYDOMIAN);
-		remote_data->enable_repeat_falg = 1;
+			rd->repeat_release_code = keycode;
+			rd->enable_repeat_falg = 1;
+		} else {
+			input_dbg("abnormal frame come up\n");
 		}
 	}
 
-	mod_timer(&remote_data->timer,
-	  jiffies +
-	  msecs_to_jiffies(remote_data->release_delay
-			   [remote_data->map_num]));
+	if (rd->keystate == RC_KEY_STATE_DN) {
+		last_scan_code = rd->cur_lsbkeycode;
+		rd->cur_keycode = last_scan_code;
+		rd->cur_lsbkeycode = 0;
+		rd->timer.data = (unsigned long)rd;
+		releasedelay = rd->release_delay[rd->map_num];
+		input_dbg("ready to release keycode=0x%x\n", rd->cur_keycode);
+		mod_timer(&rd->timer, jiffies + msecs_to_jiffies(releasedelay));
+	}
 
-	last_scan_code = remote_data->cur_lsbkeycode;
-	remote_data->cur_keycode = last_scan_code;
-	remote_data->cur_lsbkeycode = 0;
-	remote_data->timer.data = (unsigned long)remote_data;
+	spin_unlock_irqrestore(&remote_lock, flags);
 #if 0
 	if (remote_data->status) {/* repeat enable & come in S timer is open */
 		mod_timer(&remote_data->timer,
@@ -1564,6 +1625,7 @@ void remote_duokan_report_release_key(struct remote *remote_data)
 		remote_data->remote_send_key(remote_data->input,
 					     remote_data->repeat_release_code,
 					     0, 0);
+		remote_data->keystate = RC_KEY_STATE_UP;
 		remote_data->enable_repeat_falg = 0;
 		auto_repeat_count = 0;
 	}
