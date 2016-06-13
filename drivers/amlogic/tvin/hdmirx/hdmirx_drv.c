@@ -594,18 +594,16 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	/* unsigned int delay_cnt = 0; */
 	void __user *argp = (void __user *)arg;
-	if (argp == NULL)
-		return -ENOSYS;
 
 	if (_IOC_TYPE(cmd) != HDMI_IOC_MAGIC) {
 		pr_err("%s invalid command: %u\n", __func__, cmd);
 		return -ENOSYS;
 	}
-
 	switch (cmd) {
-
 	case HDMI_IOC_HDCP_GET_KSV:{
 		struct _hdcp_ksv ksv;
+		if (argp == NULL)
+			return -ENOSYS;
 		ksv.bksv0 = rx.hdcp.bksv[0];
 		ksv.bksv1 = rx.hdcp.bksv[1];
 		if (copy_to_user(argp, &ksv,
@@ -619,28 +617,34 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		hdcp_enable = 1;
 		hdmirx_hw_config();
 		hdmirx_set_hpd(rx.port, 0);
+		rx.state = FSM_HDMI5V_LOW;
+		rx.pre_state = FSM_HDMI5V_LOW;
 		break;
 	case HDMI_IOC_HDCP_OFF:
 		hdcp_enable = 0;
 		hdmirx_hw_config();
 		hdmirx_set_hpd(rx.port, 0);
+		rx.state = FSM_HDMI5V_LOW;
+		rx.pre_state = FSM_HDMI5V_LOW;
 		break;
 	case HDMI_IOC_EDID_UPDATE:
 		hdmi_rx_ctrl_edid_update();
 		hdmirx_set_hpd(rx.port, 0);
+		rx.state = FSM_HDMI5V_LOW;
+		rx.pre_state = FSM_HDMI5V_LOW;
 		break;
 	case HDMI_IOC_PC_MODE_ON:
 		pc_mode_en = 1;
-		hdmirx_set_hpd(rx.port, 0);
-		rx.state = FSM_HDMI5V_HIGH;
-		rx.pre_state = FSM_HDMI5V_HIGH;
+		/* hdmirx_set_hpd(rx.port, 0); */
+		/* rx.state = FSM_HDMI5V_HIGH; */
+		/* rx.pre_state = FSM_HDMI5V_HIGH; */
 		rx_print("pc mode on\n");
 		break;
 	case HDMI_IOC_PC_MODE_OFF:
 		pc_mode_en = 0;
-		hdmirx_set_hpd(rx.port, 0);
-		rx.state = FSM_HDMI5V_HIGH;
-		rx.pre_state = FSM_HDMI5V_HIGH;
+		/* hdmirx_set_hpd(rx.port, 0); */
+		/* rx.state = FSM_HDMI5V_HIGH; */
+		/* rx.pre_state = FSM_HDMI5V_HIGH; */
 		rx_print("pc mode off\n");
 		break;
 	case HDMI_IOC_HDCP22_AUTO:
