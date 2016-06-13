@@ -801,13 +801,15 @@ tunning:
 			mmc_hostname(host->mmc), best_win_start, best_win_size);
 	}
 
-	if (best_win_size == clk_div)
-		adj_delay_find = 0;
-	else {
+	if ((best_win_size != clk_div)
+		|| (aml_card_type_sdio(pdata)
+			&& (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))) {
 		adj_delay_find = best_win_start + (best_win_size - 1) / 2
 						+ (best_win_size - 1) % 2;
 		adj_delay_find = adj_delay_find % clk_div;
-	}
+	} else
+		adj_delay_find = 0;
+
 	/* fixme, for retry debug. */
 	if (aml_card_type_mmc(pdata)
 		&& (clk_div <= 5) && (adj_win_start != 100)
