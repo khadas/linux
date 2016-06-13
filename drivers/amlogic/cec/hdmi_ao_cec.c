@@ -124,6 +124,7 @@ static int cec_tx_result;
 static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
 static unsigned int  new_msg;
+static bool wake_ok = 1;
 bool cec_msg_dbg_en = 0;
 
 #define CEC_ERR(format, args...)				\
@@ -603,6 +604,9 @@ static void cec_pre_init(void)
 	cec_arbit_bit_time_set(3, 0x118, 0);
 	cec_arbit_bit_time_set(5, 0x000, 0);
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
+	reg &= 0xfffff;
+	if ((reg & 0xffff) == 0xffff)
+		wake_ok = 0;
 	pr_info("cec: wake up flag:%x\n", reg);
 }
 
@@ -757,6 +761,16 @@ void cec_active_source_smp(void)
 	cec_ll_tx(msg, 4);
 }
 
+void cec_request_active_source(void)
+{
+	unsigned char msg[2];
+	unsigned char index = cec_dev->cec_info.log_addr;
+
+	msg[0] = ((index & 0xf) << 4) | CEC_BROADCAST_ADDR;
+	msg[1] = CEC_OC_REQUEST_ACTIVE_SOURCE;
+	cec_ll_tx(msg, 2);
+}
+
 void cec_set_stream_path(unsigned char *msg)
 {
 	unsigned int phy_addr_active;
@@ -803,6 +817,18 @@ static void cec_rx_process(void)
 	}
 	opcode = msg[1];
 	switch (opcode) {
+	case CEC_OC_ACTIVE_SOURCE:
+		if (wake_ok == 0) {
+			int phy_addr = msg[2] << 8 | msg[3];
+			if (phy_addr == 0xffff)
+				break;
+			wake_ok = 1;
+			phy_addr |= (initiator << 16);
+			writel(phy_addr, cec_dev->cec_reg + AO_RTI_STATUS_REG1);
+			CEC_INFO("found wake up source:%x", phy_addr);
+		}
+		break;
+
 	case CEC_OC_GET_CEC_VERSION:
 		cec_give_version(initiator);
 		break;
@@ -874,7 +900,7 @@ static void cec_task(struct work_struct *work)
 	struct delayed_work *dwork;
 
 	dwork = &cec_dev->cec_work;
-	if (cec_dev &&
+	if (cec_dev && !wake_ok &&
 	   !(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))) {
 		cec_rx_process();
 	}
@@ -901,6 +927,12 @@ static irqreturn_t cec_isr_handler(int irq, void *dev_instance)
 	new_msg = 1;
 	mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	return IRQ_HANDLED;
+}
+
+static void check_wake_up(void)
+{
+	if (wake_ok == 0)
+		cec_request_active_source();
 }
 
 /******************** cec class interface *************************/
@@ -1430,6 +1462,8 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 		if (cec_dev->dev_type == DEV_TYPE_PLAYBACK)
 			cec_dev->cec_info.menu_status = DEVICE_MENU_ACTIVE;
+		else
+			check_wake_up();
 		break;
 
 	case CEC_IOC_CLR_LOGICAL_ADDR:
