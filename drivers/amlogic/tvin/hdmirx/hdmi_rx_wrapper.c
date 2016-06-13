@@ -1314,13 +1314,17 @@ int hdmirx_hw_get_color_fmt(void)
 {
 	int color_format = 0;
 	int format = rx.pre_params.video_format;
-	if (rx.pre_params.sw_dvi && force_dvi_rgb) {
+	if (rx.pre_params.sw_dvi) {
 		if (HDMI_640x480p60 == rx.pre_params.sw_vic)
 			format = 0;
 
 		if ((HDMI_800_600 <= rx.pre_params.sw_vic) &&
 			(HDMI_1680_1050 >= rx.pre_params.sw_vic))
 			format = 0;
+
+		if (force_dvi_rgb)
+			format = 0;
+
 	}
 
 	if (rx.change > 0)
@@ -2521,7 +2525,7 @@ void hdmirx_hw_monitor(void)
 			pre_port = 0xfe;
 			if (scdc_cfg_en)
 				set_scdc_cfg(1, 0);
-			hdmirx_set_hpd(rx.port, 0);
+			/* hdmirx_set_hpd(rx.port, 0); */
 			hdmirx_audio_enable(0);
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
@@ -2824,6 +2828,7 @@ void hdmirx_hw_monitor(void)
 			stable_protect_cnt--;
 		if (pll_stable_protect_cnt != 0)
 			pll_stable_protect_cnt--;
+
 		if (hdmirx_tmds_pll_lock() == false) {
 			rx.change = 1;
 			if ((sig_lost_lock_cnt++ >= sig_lost_lock_max) &&
@@ -2902,10 +2907,13 @@ void hdmirx_hw_monitor(void)
 				break;
 			}
 	    } else {
-			if ((sig_unready_cnt != 0) && (log_flag & VIDEO_LOG)) {
-				rx_print("sig_unready_cnt=%d",
-					sig_unready_cnt);
+			if (sig_unready_cnt != 0) {
+				if (log_flag & VIDEO_LOG)
+					rx_print("sig_unready_cnt=%d",
+						sig_unready_cnt);
+				sig_unready_cnt = 0;
 			}
+
 			if (stable_protect_cnt == 0)
 				rx.change = 0;
 
