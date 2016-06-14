@@ -3175,8 +3175,8 @@ EXPORT_SYMBOL(rx_repeat_hdcp_ver);
 
 void rx_edid_physical_addr(int a, int b, int c, int d)
 {
-	up_phy_addr = ((a & 0xf) << 12)  | ((b & 0xf) << 8) | ((c &
-	0xf) << 4) | (d & 0xf);
+	up_phy_addr = ((d & 0xf) << 12)  | ((c & 0xf) << 8) | ((b &
+	0xf) << 4) | (a & 0xf);
 }
 EXPORT_SYMBOL(rx_edid_physical_addr);
 
@@ -3459,6 +3459,20 @@ void rx_modify_edid(unsigned char *buffer,
 	}
 }
 
+unsigned int rx_exchange_bits(unsigned int value)
+{
+	unsigned int temp;
+	rx_print("bfe:%#x\n", value);
+	temp = value & 0xF;
+	value = (((value >> 4) & 0xF) | (value & 0xFFF0));
+	value = ((value & 0xFF0F) | (temp << 4));
+	temp = value & 0xF00;
+	value = (((value >> 4) & 0xF00) | (value & 0xF0FF));
+	value = ((value & 0x0FFF) | (temp << 4));
+	rx_print("aft:%#x\n", value);
+	return value;
+}
+
 void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 {
 	unsigned char value = 0;
@@ -3493,9 +3507,10 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 		hdmirx_wr_top(ram_addr, value);
 		hdmirx_wr_top(0x100+ram_addr, value);
 	}
+	/*get the root index*/
 	i = 0;
 	while (i < 4) {
-		if (((up_phy_addr >> (i*4)) & 0xf) != 0) {
+		if (((up_phy_addr << (i*4)) & 0xf000) != 0) {
 			root_offset = i;
 			break;
 		} else
@@ -3509,24 +3524,27 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 			if (root_offset == 0)
 				phy_addr[i] = 0xFFFF;
 			else
-				phy_addr[i] = (up_phy_addr | (0x1 <<
+				phy_addr[i] = (up_phy_addr | (0x1000 >>
 				(root_offset - 1)*4));
+			phy_addr[i] = rx_exchange_bits(phy_addr[i]);
 			checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
 				((phy_addr[i] >> 8) & 0xFF)) & 0xff;
 		} else if (((port >> i*4) & 0xf) == 1) {
 			if (root_offset == 0)
 				phy_addr[i] = 0xFFFF;
 			else
-				phy_addr[i] = (up_phy_addr | (0x2 <<
+				phy_addr[i] = (up_phy_addr | (0x2000 >>
 				(root_offset - 1)*4));
+			phy_addr[i] = rx_exchange_bits(phy_addr[i]);
 			checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
 				((phy_addr[i] >> 8) & 0xFF));
 		} else if (((port >> i*4) & 0xf) == 2) {
 			if (root_offset == 0)
 				phy_addr[i] = 0xFFFF;
 			else
-				phy_addr[i] = (up_phy_addr | (0x3 <<
+				phy_addr[i] = (up_phy_addr | (0x3000 >>
 				(root_offset - 1)*4));
+			phy_addr[i] = rx_exchange_bits(phy_addr[i]);
 			checksum[i] = (0x100 + value - (phy_addr[i] & 0xFF) -
 				((phy_addr[i] >> 8) & 0xFF));
 		}
