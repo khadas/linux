@@ -3912,7 +3912,7 @@ static int dejaggy_4p = true;
 module_param_named(dejaggy_4p, dejaggy_4p, int, 0664);
 UINT32 field_count = 0;
 
-static int cmb_adpset_cnt = 10;
+static int cmb_adpset_cnt;
 module_param(cmb_adpset_cnt, int, 0664);
 static void combing_threshold_config(unsigned int  width)
 {
@@ -4851,7 +4851,7 @@ static unsigned char pre_de_buf_config(void)
 			return 0;
 	} else if (di_pre_stru.prog_proc_type == 2) {
 		di_linked_buf_idx = peek_free_linked_buf();
-		if (di_linked_buf_idx == -1) {
+		if (di_linked_buf_idx == -1 && used_post_buf_index != -1) {
 			recycle_keep_buffer();
 			pr_info("%s: recycle keep buffer for peek null linked buf\n",
 				__func__);
@@ -5637,8 +5637,6 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	unsigned int mask32 = (data32 >> 16) & 0x1ff;
 	int flag = 0;
 
-	DI_Wr(DI_INTR_CTRL, data32);
-
 	if (di_pre_stru.pre_de_busy) {
 		/* only one inetrrupr mask should be enable */
 		if ((data32 & 4) && !(mask32 & 4)) {
@@ -5650,19 +5648,26 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		} else if ((data32 & 1) && !(mask32 & 1)) {
 			di_print("== NRWR ==\n");
 			flag = 1;
-		} else if ((data32 & 0x100) && !(mask32 & 0x100)) {
-			di_print("== det3d irq ==\n");
-			flag = 0;
 		} else {
-			di_print("== DI IRQ %x ==\n", data32);
+			di_print("== DI IRQ 0x%x ==\n", data32);
 			flag = 0;
 		}
 	}
 
 #endif
 #ifdef DET3D
-	if ((data32 & 0x100) && !(mask32 & 0x100))
-		det3d_irq();
+	if (det3d_en) {
+		if ((data32 & 0x100) && !(mask32 & 0x100) && flag) {
+			DI_Wr(DI_INTR_CTRL, data32);
+			det3d_irq();
+		} else {
+			goto end;
+		}
+	} else {
+		DI_Wr(DI_INTR_CTRL, data32);
+	}
+#else
+	DI_Wr(DI_INTR_CTRL, data32);
 #endif
 	if ((post_wr_en && post_wr_surpport) && (data32&0x4)) {
 		di_post_stru.de_post_process_done = 1;
@@ -7634,7 +7639,7 @@ static void di_process(void)
 #endif
 		if (di_pre_stru.pre_de_busy == 0) {
 			if (di_pre_stru.pre_de_process_done) {
-#ifdef CHECK_DI_DONE
+#if 0/*def CHECK_DI_DONE*/
 				/* also for NEW_DI ? 7/15/2013 */
 				unsigned int data32 = Rd(DI_INTR_CTRL);
 				/*DI_INTR_CTRL[bit 0], NRWR_done, set by
