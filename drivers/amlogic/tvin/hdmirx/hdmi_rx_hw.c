@@ -431,13 +431,11 @@ int hdmirx_irq_close(void)
 
 	/* clear enable */
 	hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
 	/* clear status */
 	hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
@@ -709,7 +707,7 @@ void control_reset(void)
 
 	/* Enable functional modules */
 	data32  = 0;
-	data32 |= 0 << 5;   /* [5]      cec_enable */
+	data32 |= 1 << 5;   /* [5]      cec_enable */
 	data32 |= 1 << 4;   /* [4]      aud_enable */
 	data32 |= 1 << 3;   /* [3]      bus_enable */
 	data32 |= 1 << 2;   /* [2]      hdmi_enable */
@@ -719,7 +717,7 @@ void control_reset(void)
 
 	mdelay(1);
 	/* Reset functional modules */
-	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000007F);
+	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000005E);
 }
 
 void hdmirx_set_pinmux(void)

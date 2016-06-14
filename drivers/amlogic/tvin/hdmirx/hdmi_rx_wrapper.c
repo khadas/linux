@@ -1233,7 +1233,7 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* if (hdmirx_top_intr_stat & (0xf << 6)) */
 	/* check the ip interrupt again */
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
-	if (hdmirx_top_intr_stat & (1 << 31)) {
+	if (hdmirx_top_intr_stat & (1 << 31) && !cec_has_irq()) {
 		if (log_flag & 0x100)
 			rx_print("[isr] need clear ip irq---\n");
 		goto reisr;

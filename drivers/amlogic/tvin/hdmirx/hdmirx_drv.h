@@ -709,4 +709,5 @@ extern void hdmirx_plug_det(struct work_struct *work);
 extern void hdmirx_wait_query(void);
 extern bool hdmirx_tmds_34g(void);
 
+extern int cec_has_irq(void);
 #endif  /* _TVHDMI_H */
