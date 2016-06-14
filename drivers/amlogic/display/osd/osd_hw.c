@@ -3884,16 +3884,16 @@ void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w,
 void  osd_suspend_hw(void)
 {
 	osd_hw.reg_status_save = osd_reg_read(VPP_MISC) & OSD_RELATIVE_BITS;
-	/* osd_reg_clr_mask(VPP_MISC, OSD_RELATIVE_BITS); */
-	VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC, OSD_RELATIVE_BITS);
+	osd_reg_clr_mask(VPP_MISC, OSD_RELATIVE_BITS);
+	/* VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC, OSD_RELATIVE_BITS); */
 	osd_log_info("osd_suspended\n");
 	return;
 }
 
 void osd_resume_hw(void)
 {
-	/* osd_reg_set_mask(VPP_MISC, osd_hw.reg_status_save); */
-	VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC, osd_hw.reg_status_save);
+	osd_reg_set_mask(VPP_MISC, osd_hw.reg_status_save);
+	/* VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC, osd_hw.reg_status_save); */
 	osd_log_info("osd_resumed\n");
 	return;
 }
