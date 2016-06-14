@@ -293,6 +293,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 			omx_secret_mode = false;
 		}
 		first_frame = 0;
+		vfq_init(&q_ready, AMLVIDEO_POOL_SIZE + 1,
+			&amlvideo_pool_ready[0]);
 	}
 	if (type == VFRAME_EVENT_PROVIDER_REG) {
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_REG\n");
@@ -325,14 +327,14 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 				PROVIDER_NAME);
 			AMLVIDEO_DBG("aaa->name=%s", aaa->name);
 			omx_secret_mode = true;
+			vfq_init(&q_ready, AMLVIDEO_POOL_SIZE + 1,
+					&amlvideo_pool_ready[0]);
 			vf_provider_init(&amlvideo_vf_prov, PROVIDER_NAME,
 						&amlvideo_vf_provider, NULL);
 			vf_reg_provider(&amlvideo_vf_prov);
 			vf_notify_receiver(PROVIDER_NAME,
 						VFRAME_EVENT_PROVIDER_START,
 						NULL);
-			vfq_init(&q_ready, AMLVIDEO_POOL_SIZE + 1,
-					&amlvideo_pool_ready[0]);
 		}
 	}
 	return 0;
