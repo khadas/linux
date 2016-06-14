@@ -5914,6 +5914,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 	    (di_post_stru.di_buf0_mif.luma_x_start0 != di_start_x) ||
 	    (di_post_stru.di_buf0_mif.luma_y_start0 != di_start_y / 2)) {
 		di_post_stru.buf_type = di_buf->di_buf_dup_p[0]->type;
+
 		initial_di_post_2(di_width, di_height, hold_line);
 
 		if ((di_buf->di_buf_dup_p[0]->vframe == NULL) ||
@@ -5978,6 +5979,9 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 				(di_height >> 1) - 1;
 		}
 		di_post_stru.update_post_reg_flag = update_post_reg_count;
+		/* if height decrease, mtn will not enough */
+		if (di_buf->pulldown_mode != PULL_DOWN_BUF1)
+			di_buf->pulldown_mode = PULL_DOWN_EI;
 	}
 	/* if post size < MIN_POST_WIDTH, force ei */
 	if ((di_width < MIN_POST_WIDTH) &&
