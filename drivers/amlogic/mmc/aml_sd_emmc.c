@@ -182,6 +182,9 @@ static int  aml_sd_emmc_auto_calibration(struct mmc_host *mmc,
 	struct sd_emmc_delay *line_dly = (struct sd_emmc_delay *)&line_delay;
 	u32 adjust = sd_emmc_regs->gadjust;
 	struct sd_emmc_adjust *gadjust = (struct sd_emmc_adjust *)&adjust;
+	u32 vclk = sd_emmc_regs->gclock;
+	struct sd_emmc_clock *clkc = (struct sd_emmc_clock *)&(vclk);
+	u8 clk_div_tmp = clkc->div;
 	u32 base_index[10] = {0};
 	u32 base_index_val = 0;
 	u32 base_index_min = max_index + 1;
@@ -213,6 +216,10 @@ static int  aml_sd_emmc_auto_calibration(struct mmc_host *mmc,
 		bus_width = 4;
 	else
 		bus_width = 8;
+	/* setting clock 200M to calibration */
+	clkc->div = 5;
+	sd_emmc_regs->gclock = vclk;
+	pdata->clkc = vclk;
 	max_index = (sd_emmc_regs->gclock & 0x3f) - 1;
 
 _cali_retry:
@@ -377,7 +384,10 @@ _cali_retry:
 	/* set default cmd delay*/
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
 		gadjust->cmd_delay = 7;
-
+	/* restore original clk setting */
+	clkc->div = clk_div_tmp;
+	sd_emmc_regs->gclock = vclk;
+	pdata->clkc = vclk;
 	pr_info("%s: line_delay =0x%x, max_cal_result =%d\n",
 		mmc_hostname(mmc), line_delay, max_cal_result);
 	sd_emmc_regs->gadjust = adjust;
@@ -1059,11 +1069,11 @@ static int aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 #ifdef AML_CALIBRATION
 	if ((aml_card_type_mmc(pdata))
 			&& (mmc->ios.timing != MMC_TIMING_MMC_HS400)) {
-		if (clkc->div <= 7) {
+		if (clkc->div <= 10) {
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
 				err = aml_sd_emmc_auto_calibration(mmc,
 						&adj_win_start);
-			else
+			else if (clkc->div <= 7)
 				err = aml_sd_emmc_execute_tuning_index(mmc,
 						&adj_win_start);
 		}
@@ -2649,6 +2659,18 @@ static irqreturn_t aml_sd_emmc_data_thread(int irq, void *data)
 			/* chage configs on current host */
 			switch (host->tuning_mode) {
 			case AUTO_TUNING_MODE:
+				if ((status == HOST_RSP_TIMEOUT_ERR)
+					|| (status == HOST_RSP_CRC_ERR)) {
+					if (gadjust->cmd_delay <= 13)
+						gadjust->cmd_delay += 2;
+					else if (gadjust->cmd_delay % 2)
+						gadjust->cmd_delay = 0;
+					else
+						gadjust->cmd_delay = 1;
+					sd_emmc_regs->gadjust = adjust;
+					sd_emmc_err("cmd_delay change to %d\n",
+							gadjust->cmd_delay);
+				}
 				break;
 			case ADJ_TUNING_MODE:
 				emmc_adj->adj_point++;

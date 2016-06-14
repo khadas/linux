@@ -1066,17 +1066,17 @@ static int mmc_select_hs400(struct mmc_card *card)
 			mmc_hostname(host), err);
 		return err;
 	}
-	if (card->ext_csd.driver_strength & (1 << 4)) {
-		strength_and_hs400 = (0x4 << 4) | EXT_CSD_TIMING_HS400;
-		pr_info("%s: support driver strength type 4\n",
-				mmc_hostname(host));
-	} else if (card->ext_csd.driver_strength & (1 << 1)) {
+	if (card->ext_csd.driver_strength & (1 << 1)) {
 		strength_and_hs400 = (0x1 << 4) | EXT_CSD_TIMING_HS400;
+		pr_info("%s: support driver strength type 1\n",
+				mmc_hostname(host));
+	} else if (card->ext_csd.driver_strength & (1 << 4)) {
+		strength_and_hs400 = (0x4 << 4) | EXT_CSD_TIMING_HS400;
 		pr_info("%s: support driver strength type 4\n",
 				mmc_hostname(host));
 	} else	{
 		strength_and_hs400 = EXT_CSD_TIMING_HS400;
-		pr_info("%s: no support driver strength type 4 and 1\n",
+		pr_info("%s: no support driver strength type 1 and 4\n",
 			mmc_hostname(host));
 	}
 
