@@ -2303,18 +2303,32 @@ void rx_aud_pll_ctl(bool en)
 		hdmirx_wr_top(TOP_ACR_CNTL_STAT, tmp);
 
 		if (use_audioresample_reset) {
-			wr_reg(AUD_RESAMPLE_CTRL0,
-				(rd_reg(AUD_RESAMPLE_CTRL0) |
-					0x10000000) & 0x7fffffff);
+			aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				aml_read_cbus(AUD_RESAMPLE_CTRL0)
+					| (1 << 31));
+			aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				aml_read_cbus(AUD_RESAMPLE_CTRL0) &
+					0x7fffffff);
+			aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				aml_read_cbus(AUD_RESAMPLE_CTRL0)
+				| (1 << 29)
+				| (1 << 28));
 		}
 	} else{
 		/* disable pll, into reset mode */
 		wr_reg(HHI_AUD_PLL_CNTL, 0x20000000);
 		if (use_audioresample_reset) {
 			/* reset resample module */
-			wr_reg(AUD_RESAMPLE_CTRL0,
-				(rd_reg(AUD_RESAMPLE_CTRL0) |
-					0x80000000) & 0xefffffff);
+			aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				aml_read_cbus(AUD_RESAMPLE_CTRL0)
+					| (1 << 31));
+			aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				aml_read_cbus(AUD_RESAMPLE_CTRL0) &
+					0x7fffffff);
+			aml_write_cbus(AUD_RESAMPLE_CTRL0,
+				aml_read_cbus(AUD_RESAMPLE_CTRL0)
+				| (1 << 29)
+				| (1 << 28));
 		}
 	}
 }
