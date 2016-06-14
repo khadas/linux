@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/06/03"
+#define HDMIRX_VER "Ref.2016/06/14"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -189,6 +189,7 @@ enum repeater_state_e {
 	REPEATER_STATE_WAIT_KSV,
 	REPEATER_STATE_WAIT_ACK,
 	REPEATER_STATE_IDLE,
+	REPEATER_STATE_START,
 };
 
 enum hdcp_version_e {
@@ -355,12 +356,15 @@ struct hdmi_rx_ctrl_hdcp {
 	enum repeater_state_e state;
 	/** Repeater mode else receiver only */
 	bool repeat;
+	bool cascade_exceed;
+	bool dev_exceed;
 	/*downstream depth*/
 	unsigned char depth;
 	/*downstream count*/
 	uint32_t count;
 	/** Key description seed */
 	uint32_t seed;
+	uint32_t delay;/*according to the timer,5s*/
 	/**
 	 * Receiver key selection
 	 * @note 0: high order, 1: low order
@@ -629,7 +633,7 @@ uint32_t get(uint32_t data, uint32_t mask);
 uint32_t set(uint32_t data, uint32_t mask, uint32_t value);
 int rx_set_receiver_edid(unsigned char *data, int len);
 int rx_set_hdr_lumi(unsigned char *data, int len);
-bool rx_set_receive_hdcp(unsigned char *data, int len, int depth);
+bool rx_set_receive_hdcp(unsigned char *data, int len, int depth, bool , bool);
 void rx_repeat_hpd_state(bool plug);
 void rx_repeat_hdcp_ver(int version);
 void rx_edid_physical_addr(int a, int b, int c, int d);

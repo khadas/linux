@@ -746,6 +746,11 @@
 #define		AKSV_RCV				_BIT(25)
 /** Deep color mode change interrupt */
 #define		DCM_CURRENT_MODE_CHG	_BIT(16)
+#define		CTL3			_BIT(13)
+#define		CTL2			_BIT(12)
+#define		CTL1			_BIT(11)
+#define		CTL0			_BIT(10)
+
 /** Clock change interrupt */
 #define		CLK_CHANGE				_BIT(6)
 #define		PLL_LCK_CHG				_BIT(5)
@@ -820,6 +825,8 @@
 #define		REPEATER				_BIT(3)
 /** KSV list ready */
 #define		KSVLIST_READY			_BIT(2)
+#define		KSVLIST_TIMEOUT			_BIT(1)
+#define		KSVLIST_LOSTAUTH		_BIT(0)
 /** Register address: repeater status */
 #define	DWC_HDCP_RPT_BSTATUS		(0x604UL)
 /** Topology error indicator */

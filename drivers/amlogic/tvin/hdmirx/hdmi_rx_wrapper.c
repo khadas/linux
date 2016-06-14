@@ -78,7 +78,8 @@
 #define MAX_KEY_BUF_SIZE 512
 #define KSV_LIST_WR_TH			100
 #define KSV_V_WR_TH			500
-#define KSV_LIST_WR_MAX			15
+#define KSV_LIST_WR_MAX			5
+#define KSV_LIST_WAIT_DELAY		500/*according to the timer,5s*/
 
 static int audio_enable = 1;
 MODULE_PARM_DESC(audio_enable, "\naudio_enable\n");
@@ -129,7 +130,7 @@ static int debug_1;
 MODULE_PARM_DESC(debug_1, "\n debug_1\n");
 module_param(debug_1, int, 0664);
 
-static bool clk_debug = true;
+static bool clk_debug;
 MODULE_PARM_DESC(clk_debug, "\n clk_debug\n");
 module_param(clk_debug, bool, 0664);
 
@@ -428,10 +429,6 @@ module_param(repeat_plug, bool, 0664);
 static int up_phy_addr;/*d c b a 4bit*/
 MODULE_PARM_DESC(up_phy_addr, "\n up_phy_addr\n");
 module_param(up_phy_addr, int, 0664);
-
-static int ksvlist_wr_count = KSV_LIST_WR_TH;
-MODULE_PARM_DESC(ksvlist_wr_count, "\n ksvlist_wr_count\n");
-module_param(ksvlist_wr_count, int, 0664);
 
 #ifdef HDCP22_ENABLE
 /* to inform ESM whether the cable is connected or not */
@@ -795,6 +792,7 @@ static void dump_audio_info(unsigned char enable);
 static unsigned int get_index_from_ref(struct hdmi_rx_ctrl_video *video_par);
 static void rx_modify_edid(unsigned char *buffer,
 				int len, unsigned char *addition);
+static void rx_start_repeater_auth(void);
 
 /* add for hot plug det */
 void hdmirx_plug_det(struct work_struct *work)
@@ -1059,11 +1057,12 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 			/* clk_handle_flag = true; */
 		if (get(intr_hdmi, AKSV_RCV) != 0) {
 			if (log_flag & 0x100)
-				rx_print("++++++ clock change\n");
+				rx_print("[RX]receive aksv\n");
 			/*clk_handle_flag = true;*/
 			rx.hdcp.hdcp_version = HDCP_VERSION_14;
 			queue_delayed_work(hpd_wq, &hpd_dwork,
 					msecs_to_jiffies(5));
+			rx_start_repeater_auth();
 		}
 		if (get(intr_hdmi, DCM_CURRENT_MODE_CHG) != 0) {
 			if (log_flag & 0x400)
@@ -3102,14 +3101,15 @@ bool rx_poll_dwc(uint16_t addr, uint32_t exp_data,
 	return true;
 }
 
-bool rx_set_repeat_aksv(unsigned char *data, int len, int depth)
+bool rx_set_repeat_aksv(unsigned char *data, int len, int depth,
+	bool dev_exceed, bool cascade_exceed)
 {
 	int i;
-	/* rx_print("set ksv list len:%d,depth:%d\n", len, depth); */
-	if ((len < MAX_KSV_SIZE) || (data == 0))
+	/*rx_print("set ksv list len:%d,depth:%d\n", len, depth);*/
+	if ((len == 0) || (data == 0) || (depth == 0))
 		return false;
 	/*set repeat depth*/
-	if (depth <= MAX_REPEAT_DEPTH) {
+	if ((depth <= MAX_REPEAT_DEPTH) && (!cascade_exceed)) {
 		hdmirx_wr_bits_dwc(DWC_HDCP_RPT_BSTATUS, MAX_CASCADE_EXCEEDED,
 		0);
 		hdmirx_wr_bits_dwc(DWC_HDCP_RPT_BSTATUS, DEPTH, depth);
@@ -3119,10 +3119,10 @@ bool rx_set_repeat_aksv(unsigned char *data, int len, int depth)
 		1);
 	}
 	/*set repeat count*/
-	if (len <= MAX_KSV_LIST_SIZE) {
+	if ((len <= MAX_REPEAT_COUNT) && (!dev_exceed)) {
 		hdmirx_wr_bits_dwc(DWC_HDCP_RPT_BSTATUS, MAX_DEVS_EXCEEDED,
 		0);
-		rx.hdcp.count = len/MAX_KSV_SIZE;
+		rx.hdcp.count = len;
 		hdmirx_wr_bits_dwc(DWC_HDCP_RPT_BSTATUS, DEVICE_COUNT,
 								rx.hdcp.count);
 	} else {
@@ -3148,7 +3148,7 @@ bool rx_set_repeat_aksv(unsigned char *data, int len, int depth)
 			hdmirx_wr_dwc(DWC_HDCP_RPT_KSVFIFO0,
 				*((uint32_t *)(data + i*MAX_KSV_SIZE)));
 			rx_print(
-			"set ksv list index:%d, ksv hi:%#x, low:%#x\n",
+			"[RX]write ksv list index:%d, ksv hi:%#x, low:%#x\n",
 				i, *(data + i*MAX_KSV_SIZE +
 			4), *((uint32_t *)(data + i*MAX_KSV_SIZE)));
 		} else {
@@ -3162,6 +3162,7 @@ bool rx_set_repeat_aksv(unsigned char *data, int len, int depth)
 					(rx.hdcp.count > 0));
 	/* Wait for HW completion of V value*/
 	rx_poll_dwc(DWC_HDCP_RPT_CTRL, FIFO_READY, FIFO_READY, KSV_V_WR_TH);
+	rx_print("[RX]write Ready signal!\n");
 
 	return true;
 }
@@ -3172,12 +3173,17 @@ void rx_set_repeat_signal(bool repeat)
 	hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL, REPEATER, repeat);
 }
 
-bool rx_set_receive_hdcp(unsigned char *data, int len, int depth)
+bool rx_set_receive_hdcp(unsigned char *data, int len, int depth,
+	bool cas_exceed, bool devs_exceed)
 {
 	if ((data != 0) && (len != 0) && (len <= MAX_REPEAT_COUNT))
-		memcpy(receive_hdcp, data, len);
+		memcpy(receive_hdcp, data, len*MAX_KSV_SIZE);
+	rx_print("receive ksv list len:%d,depth:%d,cas:%d,dev:%d\n", len,
+	depth, cas_exceed, devs_exceed);
 	hdcp_len = len;
 	hdcp_repeat_depth = depth;
+	rx.hdcp.cascade_exceed = cas_exceed;
+	rx.hdcp.dev_exceed = devs_exceed;
 
 	return true;
 }
@@ -3208,6 +3214,16 @@ void rx_send_hpd_pulse(void)
 	rx.state = FSM_HDMI5V_HIGH;
 }
 
+void rx_start_repeater_auth(void)
+{
+	rx.hdcp.state = REPEATER_STATE_START;
+	rx.hdcp.delay = 0;
+	/*hdcp_len = 0;*/
+	/*hdcp_repeat_depth = 0;*/
+	rx.hdcp.dev_exceed = 0;
+	rx.hdcp.cascade_exceed = 0;
+}
+
 void rx_check_repeat(void)
 {
 	if (!hdmirx_repeat_support())
@@ -3218,9 +3234,12 @@ void rx_check_repeat(void)
 		if (!repeat_plug) {
 			hdcp_len = 0;
 			hdcp_repeat_depth = 0;
+			rx.hdcp.dev_exceed = 0;
+			rx.hdcp.cascade_exceed = 0;
 			memset(&receive_hdcp, 0 , sizeof(receive_hdcp));
 			new_edid = true;
 			memset(&receive_edid, 0 , sizeof(receive_edid));
+			rx_send_hpd_pulse();
 		}
 	}
 	if (new_edid) {
@@ -3232,21 +3251,40 @@ void rx_check_repeat(void)
 	}
 	if (repeat_plug) {
 		switch (rx.hdcp.state) {
+		case REPEATER_STATE_START:
+			rx_print("[RX] receive aksv\n");
+			hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL,
+						KSVLIST_TIMEOUT, 0);
+			hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL,
+						KSVLIST_LOSTAUTH, 0);
+			hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL,
+						KSVLIST_READY, 0);
+			rx.hdcp.state = REPEATER_STATE_WAIT_KSV;
+		break;
+
 		case REPEATER_STATE_WAIT_KSV:
 		if (!rx.current_port_tx_5v_status) {
 			rx.hdcp.state = REPEATER_STATE_IDLE;
 			break;
 		}
 		if (hdmirx_rd_bits_dwc(DWC_HDCP_RPT_CTRL, WAITING_KSV)) {
-			if (ksvlist_wr_count < KSV_LIST_WR_MAX) {
-				ksvlist_wr_count++;
+			rx.hdcp.delay++;
+			if (rx.hdcp.delay == 1)
+				rx_print("[RX] receive ksv wait signal\n");
+			if (rx.hdcp.delay < KSV_LIST_WR_MAX) {
 				break;
+			} else if (rx.hdcp.delay >= KSV_LIST_WAIT_DELAY) {
+				hdmirx_wr_bits_dwc(DWC_HDCP_RPT_CTRL,
+						KSVLIST_TIMEOUT, 1);
+				rx.hdcp.state = REPEATER_STATE_IDLE;
+				rx_print("[RX] receive ksv wait timeout\n");
 			}
 			if (rx_set_repeat_aksv(receive_hdcp, hdcp_len,
-						hdcp_repeat_depth))
-				ksvlist_wr_count = 0;
+				hdcp_repeat_depth, rx.hdcp.dev_exceed,
+				rx.hdcp.cascade_exceed)) {
+				rx.hdcp.state = REPEATER_STATE_IDLE;
+			}
 		}
-		/*rx.hdcp.state = REPEATER_STATE_IDLE;*/
 		/*if support hdcp2.2 jump to wait_ack else to idle*/
 		break;
 
@@ -3255,8 +3293,7 @@ void rx_check_repeat(void)
 		break;
 
 		case REPEATER_STATE_IDLE:
-			if (rx.current_port_tx_5v_status)
-				rx.hdcp.state = REPEATER_STATE_WAIT_KSV;
+
 		break;
 
 		default:
