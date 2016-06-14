@@ -384,9 +384,9 @@
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
-		//dhd_static_buf;    //if use bcm wifi, config dhd_static_buf and 32k as bellow
-		//pinctrl-names = "wifi_32k_pins";
-		//pinctrl-0 = <&wifi_32k_pins>;
+		dhd_static_buf;    //if use bcm wifi, config dhd_static_buf and 32k as bellow
+		pinctrl-names = "wifi_32k_pins";
+		pinctrl-0 = <&wifi_32k_pins>;
 	};
     sd{
         compatible = "amlogic, aml_sd_emmc";
