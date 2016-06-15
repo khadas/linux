@@ -247,7 +247,8 @@ s32 vdec_release(enum vformat_e vf)
 	if (delay_release-- <= 0 &&
 			!keep_vdec_mem &&
 			vdec_mem_alloced_from_codec &&
-			vdec_dev_reg.mem_start) {
+			vdec_dev_reg.mem_start &&
+			get_blackout_policy()) {
 		codec_mm_free_for_dma(MEM_NAME, vdec_dev_reg.mem_start);
 		vdec_cma_page = NULL;
 		vdec_dev_reg.mem_start = reserved_mem_start;
