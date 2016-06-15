@@ -2255,6 +2255,34 @@ void aml_host_bus_fsm_show(struct amlsd_host *host, int fsm_val)
 	}
 }
 
+void mmc_cmd_LBA_show(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	int i;
+	uint64_t offset, size;
+	struct partitions *pp;
+
+	if (!pt_fmt || !mrq->cmd->arg) /* no disk or no arg, nothing to do */
+		return;
+
+	for (i = 0; i < pt_fmt->part_num; i++) {
+		pp = &(pt_fmt->partitions[i]);
+		offset = pp->offset >> 9; /* unit:512 bytes */
+		size = pp->size >> 9; /* unit:512 bytes */
+
+		if ((mrq->cmd->arg >= offset)
+				&& (mrq->cmd->arg < (offset + size))) {
+			sd_emmc_err("%s: cmd 0x%x, arg 0x%x, operation is in [%s] disk!\n",
+				mmc_hostname(mmc),
+				mrq->cmd->opcode, mrq->cmd->arg, pp->name);
+			break;
+		}
+	}
+	if (i == pt_fmt->part_num)
+		sd_emmc_err("%s: cmd 0x%x, arg 0x%x, operation is in [unknown] disk!\n",
+			mmc_hostname(mmc),
+			mrq->cmd->opcode, mrq->cmd->arg);
+}
+
 /*sd_emmc controller irq*/
 static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 {
@@ -2413,6 +2441,8 @@ static irqreturn_t aml_sd_emmc_irq(int irq, void *dev_id)
 		}
 		if (host->is_tunning == 0)
 			aml_host_bus_fsm_show(host, ista->bus_fsm);
+		if (aml_card_type_mmc(pdata))
+			mmc_cmd_LBA_show(mmc, mrq);
 	}
 
 

@@ -73,3 +73,4 @@ int get_reserve_partition_off(struct mmc_card *card);/* byte unit */
 #endif
 
 extern int amlmmc_dtb_init(struct mmc_card *card);
+extern struct mmc_partitions_fmt *pt_fmt;
