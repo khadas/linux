@@ -327,7 +327,7 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 		mem_size = devp->h_active * devp->v_active * 2;
 	if (devp->source_bitdepth > 8)
 		mem_size = mem_size*3/2;
-	mem_size = PAGE_ALIGN(mem_size)*4;
+	mem_size = PAGE_ALIGN(mem_size)*max_buf_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
 		mem_size = devp->cma_mem_size[devp->index];

@@ -252,6 +252,7 @@ int vdin_ctrl_start_fe(int no, struct vdin_parm_s *para);
 int vdin_ctrl_stop_fe(int no);
 enum tvin_sig_fmt_e vdin_ctrl_get_fmt(int no);
 #endif
+extern unsigned int max_buf_num;
 extern unsigned int   vdin_ldim_max_global[100];
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);

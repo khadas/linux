@@ -30,7 +30,7 @@
 #define pr_info(fmt, ...)
 #endif
 
-static unsigned int max_buf_num = 4;
+unsigned int max_buf_num = 4;
 module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
 

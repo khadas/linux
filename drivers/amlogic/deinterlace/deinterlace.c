@@ -191,7 +191,7 @@ static int bypass_trick_mode = 1;
 static int bypass_1080p;
 static int bypass_3d = 1;
 static int invert_top_bot;
-static int skip_top_bot = 1;/* drop top field */
+static int skip_top_bot;/*1or2: may affect atv when bypass di*/
 static char interlace_output_flag;
 static int bypass_get_buf_threshold = 4;
 
@@ -7050,6 +7050,8 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 					di_buf->di_buf_dup_p[i++] = p;
 					if (i >= vframe_process_count) {
 						di_buf->di_buf_dup_p[i] = NULL;
+						di_buf->di_buf_dup_p[i+1] =
+							NULL;
 						break;
 					}
 				}
