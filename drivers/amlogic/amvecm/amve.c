@@ -4026,7 +4026,7 @@ void vpp_vd1_mtx_rgb_contrast(signed int cont_val)
 }
 
 /*for gxbbtv contrast adj in vadj1*/
-void vpp_vd_adj1_contrast(signed int cont_val)
+void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 {
 	unsigned int vd1_contrast;
 	unsigned int vdj1_ctl;
@@ -4035,8 +4035,13 @@ void vpp_vd_adj1_contrast(signed int cont_val)
 	cont_val = ((cont_val + 1024) >> 3);
 	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
 	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
-	if (vdj1_ctl)
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
+		if (!vdj1_ctl)
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
+	} else {
+		if (vdj1_ctl)
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+	}
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x1ff00) |
@@ -4196,7 +4201,7 @@ void amvecm_bricon_process(unsigned int bri_val,
 		if (contrast_adj_sel)
 			vpp_vd1_mtx_rgb_contrast(cont_val);
 		else
-			vpp_vd_adj1_contrast(cont_val);
+			vpp_vd_adj1_contrast(cont_val, vf);
 		pr_amve_dbg("\n[amve..] set vd1_contrast OK!!!\n");
 	}
 
