@@ -125,8 +125,7 @@ static void set_tvmode_misc(enum tvmode_e mode)
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_M8) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_M8M2) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) ||
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+	    (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
 		if ((mode == TVMODE_480CVBS) || (mode == TVMODE_576CVBS))
 			set_vmode_clk(mode);
 	} else
@@ -175,9 +174,8 @@ static void cvbs_cntl_output(unsigned int open)
 		/* must enable adc bandgap, the adc ref signal for demod */
 		vdac_enable(0, 0x8);
 	} else if (open == 1) { /* open */
-		if (is_meson_gxl_cpu() ||
-			is_meson_gxm_cpu())
-			cntl0 = 0xf0001;
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXL))
+			cntl0 = 0xb0001;
 		else
 			cntl0 = 0x1;
 		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
@@ -229,8 +227,7 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_m8[index];
 		type = 3;
-	} else if ((check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) ||
-			   (check_cpu_type(MESON_CPU_MAJOR_ID_GXM))) {
+	} else if (check_cpu_type(MESON_CPU_MAJOR_ID_GXBB)) {
 		max = sizeof(tvregs_576cvbs_performance_gxbb)
 			/ sizeof(struct reg_s *);
 		index = (index >= max) ? 0 : index;
@@ -242,19 +239,25 @@ static void cvbs_performance_enhancement(enum tvmode_e mode)
 		index = (index >= max) ? 0 : index;
 		s = tvregs_576cvbs_performance_gxtvbb[index];
 		type = 5;
-	} else if (is_meson_gxl_package_905X() ||
-		is_meson_gxm_cpu()) {
-		max = sizeof(tvregs_576cvbs_performance_905x)
-			/ sizeof(struct reg_s *);
-		index = (index >= max) ? 0 : index;
-		s = tvregs_576cvbs_performance_905x[index];
-		type = 6;
-	} else if (is_meson_gxl_package_905L()) {
-		max = sizeof(tvregs_576cvbs_performance_905l)
-			/ sizeof(struct reg_s *);
-		index = (index >= max) ? 0 : index;
-		s = tvregs_576cvbs_performance_905l[index];
-		type = 7;
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) {
+		if (is_meson_gxl_package_905L()) {
+			max = sizeof(tvregs_576cvbs_performance_905l)
+				/ sizeof(struct reg_s *);
+			index = (index >= max) ? 0 : index;
+			s = tvregs_576cvbs_performance_905l[index];
+			type = 7;
+		} else {
+			max = sizeof(tvregs_576cvbs_performance_905x)
+				/ sizeof(struct reg_s *);
+			index = (index >= max) ? 0 : index;
+			s = tvregs_576cvbs_performance_905x[index];
+			type = 6;
+		}
+	}
+
+	if (s == NULL) {
+		vout_log_err("can't find performance table!\n");
+		return;
 	}
 
 	vout_log_info("cvbs performance type = %d, table = %d\n", type, index);
