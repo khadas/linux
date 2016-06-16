@@ -53,9 +53,9 @@
 *	 di hardware level interface
 *************************************/
 #define MAX_WIN_NUM			5
-/* if post size < 80, filter can't work */
+/* if post size < 80, filter of ei can't work */
 #define MIN_POST_WIDTH  80
-
+#define MIN_BLEND_WIDTH  27
 struct pulldown_detect_info_s {
 	unsigned field_diff;
 /* total pixels difference between current field and previous field */

@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-06-12a";
+static const char version_s[] = "2016-06-16a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -6081,7 +6081,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 			di_buf->pulldown_mode = PULL_DOWN_EI;
 	}
 	/* if post size < MIN_POST_WIDTH, force ei */
-	if ((di_width < MIN_POST_WIDTH) &&
+	if ((di_width < MIN_BLEND_WIDTH) &&
 		(di_buf->pulldown_mode == PULL_DOWN_BLEND_0 ||
 		di_buf->pulldown_mode == PULL_DOWN_BLEND_2 ||
 		di_buf->pulldown_mode == PULL_DOWN_NORMAL

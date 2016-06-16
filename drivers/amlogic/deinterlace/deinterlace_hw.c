@@ -1339,6 +1339,11 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 (0x2 << 20) |	/* top mode. EI only */
 25); /* KDEINT */
 #endif
+	/* if post size < MIN_POST_WIDTH, force old ei */
+	if (hsize_post < MIN_POST_WIDTH)
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_EI_CTRL3, 0, 31, 1);
+	else
+		DI_VSYNC_WR_MPEG_REG_BITS(DI_EI_CTRL3, 1, 31, 1);
 
 	if (is_meson_gxtvbb_cpu() && pulldown_enable) {
 		/* DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post>>2)-1 ); */
