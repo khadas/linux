@@ -5287,6 +5287,8 @@ static void _set_video_window(int *p)
 {
 	int w, h;
 	int *parsed = p;
+	int last_x, last_y, last_w, last_h;
+	int new_x, new_y, new_w, new_h;
 #ifdef TV_REVERSE
 	int temp, temp1;
 	const struct vinfo_s *info = get_current_vinfo();
@@ -5303,6 +5305,7 @@ static void _set_video_window(int *p)
 		parsed[3] = info->height - temp1 - 1;
 	}
 #endif
+	vpp_get_video_layer_position(&last_x, &last_y, &last_w, &last_h);
 	if (parsed[0] < 0 && parsed[2] < 2) {
 		parsed[2] = 2;
 		parsed[0] = 0;
@@ -5341,7 +5344,11 @@ static void _set_video_window(int *p)
 						     h);
 		}
 	}
-	video_property_changed = true;
+	vpp_get_video_layer_position(&new_x, &new_y, &new_w, &new_h);
+	if ((last_x != new_x) || (last_y != new_y)
+	|| (last_w != new_w) || (last_h != new_h)) {
+		video_property_changed = true;
+	}
 }
 
 /*********************************************************

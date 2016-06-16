@@ -216,14 +216,17 @@ static ssize_t _ppmgr_angle_write(unsigned long val)
 	ppmgr_device.global_angle = angle;
 	ppmgr_device.videoangle = (angle + ppmgr_device.orientation) % 4;
 	if (!ppmgr_device.use_prot) {
-		if (angle != ppmgr_device.angle)
+		if (angle != ppmgr_device.angle) {
 			property_change = 1;
 			PPMGRDRV_INFO("ppmgr angle:%x\n", ppmgr_device.angle);
 			PPMGRDRV_INFO("orient:%x\n", ppmgr_device.orientation);
 			PPMGRDRV_INFO("vidangl:%x\n", ppmgr_device.videoangle);
+		}
 	} else {
-		set_video_angle(angle);
-		PPMGRDRV_INFO("prot angle:%ld\n", angle);
+		if (angle != ppmgr_device.angle) {
+			set_video_angle(angle);
+			PPMGRDRV_INFO("prot angle:%ld\n", angle);
+		}
 	}
 	ppmgr_device.angle = angle;
 	return 0;
