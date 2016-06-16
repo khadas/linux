@@ -639,7 +639,8 @@ _cali_retry:
 }
 #endif
 
-#define TUNING_RETRY_NUM 10
+#define MAX_TUNING_RETRY 4
+#define TUNING_NUM_PER_POINT 10
 static u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
 	u32 opcode, const u8 *blk_pattern, u8 *blk_test, u32 blksz)
 {
@@ -651,7 +652,7 @@ static u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
 	u32 tuning_err = 0;
 	u32 n, nmatch;
 	/* try ntries */
-	for (n = 0, nmatch = 0; n < TUNING_RETRY_NUM; n++) {
+	for (n = 0, nmatch = 0; n < TUNING_NUM_PER_POINT; n++) {
 		tuning_err = aml_sd_emmc_cali_transfer(mmc,
 						opcode, blk_test, blksz);
 		if (!tuning_err) {
@@ -699,6 +700,7 @@ static int aml_sd_emmc_execute_tuning_(struct mmc_host *mmc, u32 opcode,
 	int adj_delay = 0;
 	struct aml_emmc_adjust *emmc_adj = &host->emmc_adj;
 	u8 *blk_test;
+	u8 tuning_num = 0;
 	u32 clock, clk_div;
 	u32 adj_delay_find;
 	int wrap_win_start = -1, wrap_win_size = 0;
@@ -738,7 +740,7 @@ tunning:
 		nmatch = aml_sd_emmc_tuning_transfer(mmc, opcode,
 				blk_pattern, blk_test, blksz);
 		/*get a ok adjust point!*/
-		if (nmatch == TUNING_RETRY_NUM) {
+		if (nmatch == TUNING_NUM_PER_POINT) {
 			if (adj_delay == 0)
 				wrap_win_start = adj_delay;
 
@@ -790,6 +792,11 @@ tunning:
 		curr_win_size = 0;
 	}
 	if (best_win_size <= 0) {
+		if ((tuning_num++ > MAX_TUNING_RETRY)
+			|| (clkc->div <= 10)) {
+			kfree(blk_test);
+			return -1;
+		}
 		clkc->div += 1;
 		sd_emmc_regs->gclock = vclk;
 		pdata->clkc = sd_emmc_regs->gclock;
@@ -853,7 +860,7 @@ static int aml_sd_emmc_rxclk_find(struct mmc_host *mmc,
 	u8 n;
 	int rxclk_find;
 	for (n = 0; n < total_point; n++) {
-		if (rx_tuning_result[n] == TUNING_RETRY_NUM) {
+		if (rx_tuning_result[n] == TUNING_NUM_PER_POINT) {
 			if (n == 0)
 				wrap_win_start = n;
 			if (wrap_win_start >= 0)
@@ -862,7 +869,8 @@ static int aml_sd_emmc_rxclk_find(struct mmc_host *mmc,
 				curr_win_start = n;
 			curr_win_size++;
 			pr_info("%s: rx_tuning_result[%d] = %d\n",
-				mmc_hostname(host->mmc), n, TUNING_RETRY_NUM);
+				mmc_hostname(host->mmc), n,
+				TUNING_NUM_PER_POINT);
 		} else {
 			if (curr_win_start >= 0) {
 				if (*best_win_start < 0) {
