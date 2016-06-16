@@ -219,7 +219,6 @@ static int cpucore_notify_state(struct thermal_cooling_device *cdev,
 			cur_state = 0;
 			cdev->ops->set_cur_state(cdev, cur_state);
 		}
-		dev_info(&cdev->device, "cur_state:%ld\n", cur_state);
 		break;
 	default:
 		break;

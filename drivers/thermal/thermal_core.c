@@ -432,12 +432,13 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 	tz->ops->get_trip_hyst(tz, trip, &hyst);
 
 	/* notify enter hot and exit hot */
-	if ((tz->temperature >= trip_temp) ||
-	    (tz->temperature + hyst <= trip_temp && tz->enter_hot)) {
+	if (((tz->temperature >= (trip_temp + tz->enter_hot * hyst)) ||
+	    (tz->temperature + hyst <= trip_temp && tz->enter_hot)) &&
+	    (trip_type == THERMAL_TRIP_HOT)) {
 		if ((tz->temperature + hyst) <= trip_temp && tz->enter_hot)
 			tz->enter_hot = 0;
 		else
-			tz->enter_hot = 1;
+			tz->enter_hot++;
 		dev_info(&tz->device,
 			 "temp:%d, hyst:%ld, trip_temp:%ld, hot:%d\n",
 			 tz->temperature, hyst, trip_temp, tz->enter_hot);
