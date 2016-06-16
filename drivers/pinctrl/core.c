@@ -231,7 +231,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 
 	pindesc = pin_desc_get(pctldev, number);
 	if (pindesc != NULL) {
-		pr_err("pin %d already registered on %s\n", number,
+		pr_err("pin %d(%s) already registered on %s\n", number, name,
 		       pctldev->desc->name);
 		return -EINVAL;
 	}
