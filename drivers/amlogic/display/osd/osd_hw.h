@@ -132,7 +132,7 @@ extern void osd_suspend_hw(void);
 extern void osd_resume_hw(void);
 extern void osd_init_hw(u32 logo_loaded);
 extern void osd_init_scan_mode(void);
-extern void osd_set_logo_index(u32 index);
+extern void osd_set_logo_index(int index);
 extern int osd_get_logo_index(void);
 extern int osd_get_init_hw_flag(void);
 extern void osd_get_hw_para(struct hw_para_s **para);
@@ -149,4 +149,7 @@ extern void osd_set_pxp_mode(u32 mode);
 extern void osd_set_afbc(u32 enable);
 extern u32 osd_get_afbc(void);
 extern u32 osd_get_reset_status(void);
+extern void osd_switch_free_scale(
+	u32 pre_index, u32 pre_enable, u32 pre_scale,
+	u32 next_index, u32 next_enable, u32 next_scale);
 #endif

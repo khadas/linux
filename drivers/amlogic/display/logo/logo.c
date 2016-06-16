@@ -57,7 +57,7 @@ static struct para_pair_s logo_args[] = {
 };
 
 struct logo_info_s {
-	u32 index;
+	int index;
 	u32 vmode;
 	u32 debug;
 	u32 loaded;
@@ -130,7 +130,7 @@ static int refresh_mode_and_logo(bool first)
 	if (first) {
 		last_mode = get_logo_vmode();
 
-		if ((logo_info.index >= 0)) {
+		if (logo_info.index >= 0) {
 			osd_set_logo_index(logo_info.index);
 			osd_init_hw(logo_info.loaded);
 		}
@@ -140,13 +140,15 @@ static int refresh_mode_and_logo(bool first)
 		return -1;
 	if (cur_mode != last_mode) {
 		pr_info("mode chang\n");
-		osd_enable_hw(logo_info.index, 0);
+		if (logo_info.index >= 0)
+			osd_enable_hw(logo_info.index, 0);
 		set_logo_vmode(cur_mode);
 		pr_info("set vmode: %s\n",
 			vmode_mode_to_name(cur_mode));
 		last_mode = cur_mode;
 		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &cur_mode);
-		set_osd_freescaler(logo_info.index, cur_mode);
+		if (logo_info.index >= 0)
+			set_osd_freescaler(logo_info.index, cur_mode);
 	}
 
 	return 0;

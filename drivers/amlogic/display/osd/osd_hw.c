@@ -29,7 +29,6 @@
 #include <linux/file.h>
 #include <linux/list.h>
 #include <linux/kthread.h>
-
 /* Android Headers */
 #include <sw_sync.h>
 #include <sync.h>
@@ -129,8 +128,8 @@ module_param(osd_v_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_v_filter_mode, "osd_v_filter_mode");
 
 static int osd_init_hw_flag;
-static unsigned int osd_logo_index = 1;
-module_param(osd_logo_index, uint, 0664);
+static int osd_logo_index = 1;
+module_param(osd_logo_index, int, 0664);
 MODULE_PARM_DESC(osd_logo_index, "osd_logo_index");
 
 static unsigned int osd_filter_coefs_bicubic_sharp[] = {
@@ -2033,6 +2032,103 @@ void osd_get_prot_canvas_hw(u32 index, s32 *x_start, s32 *y_start, s32 *x_end,
 	*y_end = osd_hw.rotation_pandata[index].y_end;
 }
 
+void osd_switch_free_scale(
+	u32 pre_index, u32 pre_enable, u32 pre_scale,
+	u32 next_index, u32 next_enable, u32 next_scale)
+{
+	unsigned int h_enable = 0;
+	unsigned int v_enable = 0;
+	int i = 0;
+	int count = (pxp_mode == 1)?3:WAIT_AFBC_READY_COUNT;
+	osd_log_info("osd[%d] enable: %d scale:0x%x (%s)\n",
+		pre_index, pre_enable, pre_scale, current->comm);
+	osd_log_info("osd[%d] enable: %d scale:0x%x (%s)\n",
+		next_index, next_enable, next_scale, current->comm);
+	if (osd_hw.free_scale_mode[pre_index]
+		|| osd_hw.free_scale_mode[next_index]) {
+		while ((next_index == OSD1)
+			&& osd_hw.osd_afbcd[next_index].enable
+			&& (osd_hw.osd_afbcd[next_index].phy_addr == 0)
+			&& next_enable && (i < count)) {
+			osd_wait_vsync_hw();
+			i++;
+		}
+		if (i > 0)
+			osd_log_info("osd[%d]: wait %d vsync first buffer ready.\n",
+				next_index, i);
+		spin_lock_irqsave(&osd_lock, lock_flags);
+		if (next_index == OSD1
+			&& osd_hw.osd_afbcd[next_index].enable
+			&& next_enable) {
+			osd_reg_set_mask(VIU_SW_RESET, 1 << 31);
+			osd_reg_clr_mask(VIU_SW_RESET, 1 << 31);
+			osd_afbc_dec_enable = false;
+			osd_hw.reg[next_index][OSD_GBL_ALPHA].update_func();
+		}
+		h_enable = (pre_scale & 0xffff0000 ? 1 : 0);
+		v_enable = (pre_scale & 0xffff ? 1 : 0);
+		osd_hw.free_scale[pre_index].h_enable = h_enable;
+		osd_hw.free_scale[pre_index].v_enable = v_enable;
+		osd_hw.free_scale_enable[pre_index] = pre_scale;
+		osd_hw.enable[pre_index] = pre_enable;
+		h_enable = (next_scale & 0xffff0000 ? 1 : 0);
+		v_enable = (next_scale & 0xffff ? 1 : 0);
+		osd_hw.free_scale[next_index].h_enable = h_enable;
+		osd_hw.free_scale[next_index].v_enable = v_enable;
+		osd_hw.free_scale_enable[next_index] = next_scale;
+		osd_hw.enable[next_index] = next_enable;
+
+		if ((osd_hw.free_scale_data[pre_index].x_end > 0)
+			&& h_enable && pre_scale) {
+			osd_hw.free_scale_width[pre_index] =
+				osd_hw.free_scale_data[pre_index].x_end -
+				osd_hw.free_scale_data[pre_index].x_start + 1;
+		}
+		if ((osd_hw.free_scale_data[pre_index].y_end > 0)
+			&& v_enable && pre_scale) {
+			osd_hw.free_scale_height[pre_index] =
+			osd_hw.free_scale_data[pre_index].y_end -
+				osd_hw.free_scale_data[pre_index].y_start + 1;
+		}
+		osd_set_scan_mode(pre_index);
+		osd_hw.reg[pre_index][OSD_COLOR_MODE].update_func();
+		if (pre_scale)
+			osd_hw.reg[pre_index][OSD_FREESCALE_COEF].update_func();
+		osd_hw.reg[pre_index][DISP_GEOMETRY].update_func();
+		osd_hw.reg[pre_index][DISP_FREESCALE_ENABLE].update_func();
+		osd_hw.reg[pre_index][OSD_ENABLE].update_func();
+
+		if ((osd_hw.free_scale_data[next_index].x_end > 0)
+			&& h_enable && next_scale) {
+			osd_hw.free_scale_width[next_index] =
+				osd_hw.free_scale_data[next_index].x_end -
+				osd_hw.free_scale_data[next_index].x_start + 1;
+		}
+		if ((osd_hw.free_scale_data[next_index].y_end > 0)
+			&& v_enable && next_scale) {
+			osd_hw.free_scale_height[next_index] =
+				osd_hw.free_scale_data[next_index].y_end -
+				osd_hw.free_scale_data[next_index].y_start + 1;
+		}
+		osd_set_scan_mode(next_index);
+		osd_hw.reg[next_index][OSD_COLOR_MODE].update_func();
+		if (next_scale)
+			osd_hw.reg[next_index]
+				[OSD_FREESCALE_COEF].update_func();
+		osd_hw.reg[next_index][DISP_GEOMETRY].update_func();
+		osd_hw.reg[next_index][DISP_FREESCALE_ENABLE].update_func();
+		osd_hw.reg[next_index][OSD_ENABLE].update_func();
+
+		spin_unlock_irqrestore(&osd_lock, lock_flags);
+		osd_wait_vsync_hw();
+	} else {
+		osd_enable_hw(pre_index, pre_enable);
+		osd_set_free_scale_enable_mode0(pre_index, pre_scale);
+		osd_enable_hw(next_index, next_enable);
+		osd_set_free_scale_enable_mode0(next_index, next_scale);
+	}
+}
+
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 {
@@ -2964,7 +3060,7 @@ static void osd2_update_color_key_enable(void)
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_BLK0_CFG_W0, data32);
 	remove_from_update_list(OSD2, OSD_COLOR_KEY_ENABLE);
 }
-static   void  osd1_update_gbl_alpha(void)
+static void osd1_update_gbl_alpha(void)
 {
 	u32  data32;
 	data32 = VSYNCOSD_RD_MPEG_REG(VIU_OSD1_CTRL_STAT);
@@ -2973,7 +3069,7 @@ static   void  osd1_update_gbl_alpha(void)
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_CTRL_STAT, data32);
 	remove_from_update_list(OSD1, OSD_GBL_ALPHA);
 }
-static   void  osd2_update_gbl_alpha(void)
+static void osd2_update_gbl_alpha(void)
 {
 	u32  data32;
 	data32 = VSYNCOSD_RD_MPEG_REG(VIU_OSD2_CTRL_STAT);
@@ -3963,7 +4059,7 @@ int osd_get_logo_index(void)
 	return osd_logo_index;
 }
 
-void osd_set_logo_index(u32 index)
+void osd_set_logo_index(int index)
 {
 	osd_logo_index = index;
 }
