@@ -1,6 +1,11 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
+#define CEC_FUNC_MASK			0
+#define ONE_TOUCH_PLAY_MASK		1
+#define ONE_TOUCH_STANDBY_MASK		2
+#define AUTO_POWER_ON_MASK		3
+
 #define AO_BASE				0xc8100000
 
 #define AO_CEC_GEN_CNTL			((0x40 << 2))

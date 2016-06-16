@@ -1156,6 +1156,26 @@ static ssize_t wake_up_show(struct class *cla,
 	return sprintf(buf, "%x\n", reg & 0xfffff);
 }
 
+static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
+	const char *bu, size_t count)
+{
+	int cnt, val;
+
+	cnt = sscanf(bu, "%x", &val);
+	if (cnt < 0 || val > 0xff)
+		return -EINVAL;
+	cec_config(val, 1);
+	return count;
+}
+
+static ssize_t fun_cfg_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	unsigned int reg = cec_config(0, 0);
+
+	return sprintf(buf, "0x%x\n", reg & 0xff);
+}
+
 static struct class_attribute aocec_class_attr[] = {
 	__ATTR_WO(cmd),
 	__ATTR_RO(port_num),
@@ -1170,6 +1190,7 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR(menu_language, 0664, menu_language_show, menu_language_store),
 	__ATTR(device_type, 0664, device_type_show, device_type_store),
 	__ATTR(dbg_en, 0664, dbg_en_show, dbg_en_store),
+	__ATTR(fun_cfg, 0664, fun_cfg_show, fun_cfg_store),
 	__ATTR_NULL
 };
 
@@ -1399,7 +1420,10 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	case CEC_IOC_SET_OPTION_WAKEUP:
-		/* TODO: */
+		tmp = cec_config(0, 0);
+		tmp &= ~(1 << AUTO_POWER_ON_MASK);
+		tmp |=  (arg << AUTO_POWER_ON_MASK);
+		cec_config(tmp, 1);
 		break;
 
 	case CEC_IOC_SET_OPTION_ENALBE_CEC:
