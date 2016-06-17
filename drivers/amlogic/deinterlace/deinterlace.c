@@ -167,7 +167,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-06-16a";
+static const char version_s[] = "2016-06-17a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -5843,11 +5843,12 @@ static int do_nothing_fun(void *arg, vframe_t *disp_vf)
 
 	process_vscale_skip(di_buf, disp_vf);
 
-	if (di_buf->process_fun_index == PROCESS_FUN_NULL)
+	if (di_buf->process_fun_index == PROCESS_FUN_NULL) {
 		if (Rd(DI_IF1_GEN_REG) & 0x1 || Rd(DI_POST_CTRL) & 0xf)
 			disable_post_deinterlace_2();
 	/*if(di_buf->pulldown_mode == PULL_DOWN_EI && Rd(DI_IF1_GEN_REG)&0x1)
 	 * DI_VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, 0x3 << 30);*/
+	}
 	return 0;
 }
 
@@ -5901,9 +5902,10 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 #endif
 		di_post_stru.next_canvas_id = di_post_stru.canvas_id ? 0 : 1;
 
-		if (di_buf->process_fun_index == PROCESS_FUN_NULL)
-			if (Rd(DI_IF1_GEN_REG) & 0x1)
+		if (di_buf->process_fun_index == PROCESS_FUN_NULL) {
+			if (Rd(DI_IF1_GEN_REG) & 0x1 || Rd(DI_POST_CTRL) & 0xf)
 				disable_post_deinterlace_2();
+		}
 
 	}
 #endif
