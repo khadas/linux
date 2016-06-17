@@ -45,7 +45,7 @@
 #define MESON_CPU_MAJOR_ID_GXTVBB		0x20
 #define MESON_CPU_MAJOR_ID_GXL		0x21
 #define MESON_CPU_MAJOR_ID_GXM		0x22
-
+#define MESON_CPU_MAJOR_ID_TXL		0x23
 */
 struct type_name {
 
@@ -66,6 +66,7 @@ static const struct type_name cpu_type_name[] = {
 	{MESON_CPU_MAJOR_ID_GXTVBB, "gxtvbb"},
 	{MESON_CPU_MAJOR_ID_GXL, "gxl"},
 	{MESON_CPU_MAJOR_ID_GXM, "gxm"},
+	{MESON_CPU_MAJOR_ID_TXL, "txl"},
 	{0, NULL},
 };
 
