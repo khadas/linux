@@ -24,6 +24,7 @@
 #include <dt-bindings/reset/aml_txl.h>
 
 #include "mesontxl.dtsi"
+#include "mesontxl-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -903,6 +904,29 @@
 		amlogic,setmask=<6 0x10000000>; /*spdif_out*/
 		amlogic,clrmask=<6 0x8000000>;
 		amlogic,pins ="GPIOH_4"; /*spdif_out*/
+	};
+};
+
+&pinmux {
+	bl_pwm_on_pins:bl_pwm_on_pin {
+		amlogic,setmask = <4 0x00010000>;
+		amlogic,clrmask = <4 0x00008000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_6";
+	};
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		amlogic,setmask = <4 0x00008000>;
+		amlogic,clrmask = <4 0x00010000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_6";
+	};
+	bl_pwm_combo_0_on_pins:bl_pwm_combo_0_on_pin {
+		amlogic,setmask = <4 0x00010000>;
+		amlogic,clrmask = <4 0x00008000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_6";
+	};
+	bl_pwm_combo_1_on_pins:bl_pwm_combo_1_on_pin {
+		amlogic,setmask = <4 0x00080000>;
+		amlogic,clrmask = <4 0x08040000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_4";
 	};
 };
 

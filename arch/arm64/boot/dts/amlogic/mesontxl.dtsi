@@ -392,7 +392,10 @@
 			amlogic,clrmask=<4 0x30c00000 3 0x00006000>;
 			amlogic,pins="GPIOZ_2","GPIOZ_3";
 		};
-
+		lcd_vbyone_pins:lcd_vbyone_pin {
+			amlogic,setmask = <0 0xC0000000>;
+			amlogic,pins = "GPIOH_0","GPIOH_1";
+		};
 	}; /* end of pinmux */
 
 	cpu_version {
