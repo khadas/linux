@@ -1467,27 +1467,24 @@ void di_post_switch_buffer(
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					0, 0, 2);
 	}
-	if (is_meson_gxtvbb_cpu() && pulldown_enable)
-		DI_VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL, post_field_num, 29, 1);
-	else
-		DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL,
-			((ei_en|blend_en) << 0) | /* line buf 0 enable */
-			((blend_mode == 1?1:0) << 1)  |
-			(ei_en << 2) |			/* ei  enable */
-			(blend_mtn_en << 3) |	/* mtn line buffer enable */
-			(blend_mtn_en  << 4) |/* mtnp read mif enable */
-			(blend_en << 5) |
-			(1 << 6) |		/* di mux output enable */
-			(di_ddr_en << 7) |/* di write to SDRAM enable.*/
-			(di_vpp_en << 8) |/* di to VPP enable. */
-			(0 << 9) |		/* mif0 to VPP enable. */
-			(0 << 10) |		/* post drop first. */
-			(0 << 11) |
-			(di_vpp_en << 12) | /* post viu link */
-			(hold_line << 16) | /* post hold line number */
-			(post_field_num << 29) |	/* post field number. */
-			(0x3 << 30)	/* post soft rst  post frame rst. */
-		);
+	DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL,
+		((ei_en|blend_en) << 0) | /* line buf 0 enable */
+		((blend_mode == 1?1:0) << 1)  |
+		(ei_en << 2) |			/* ei  enable */
+		(blend_mtn_en << 3) |	/* mtn line buffer enable */
+		(blend_mtn_en  << 4) |/* mtnp read mif enable */
+		(blend_en << 5) |
+		(1 << 6) |		/* di mux output enable */
+		(di_ddr_en << 7) |/* di write to SDRAM enable.*/
+		(di_vpp_en << 8) |/* di to VPP enable. */
+		(0 << 9) |		/* mif0 to VPP enable. */
+		(0 << 10) |		/* post drop first. */
+		(0 << 11) |
+		(di_vpp_en << 12) | /* post viu link */
+		(hold_line << 16) | /* post hold line number */
+		(post_field_num << 29) |	/* post field number. */
+		(0x3 << 30)	/* post soft rst  post frame rst. */
+	);
 }
 
 void enable_di_post_2(
@@ -1509,7 +1506,7 @@ void enable_di_post_2(
 	if (ei_en || di_vpp_en || di_ddr_en)
 		set_di_if0_mif(di_buf0_mif, di_vpp_en, hold_line);
 
-	if (!ei_only && (di_ddr_en || di_vpp_en))
+	/* if (!ei_only && (di_ddr_en || di_vpp_en)) */
 		set_di_if1_mif(di_buf1_mif, di_vpp_en, hold_line);
 
 	/* printk("%s: ei_only %d,buf1_en %d,ei_en %d,di_vpp_en %d,
