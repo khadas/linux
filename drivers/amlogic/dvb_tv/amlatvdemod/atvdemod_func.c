@@ -1408,9 +1408,32 @@ void atvdemod_monitor_serice(void)
 	}
 }
 
+static int atvdemod_get_snr(struct dvb_frontend *fe)
+{
+	unsigned int snr_val = 0;
+	int ret = 0;
+	snr_val = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x50) >> 8;
+	/* snr_val:900000~0xffffff,ret:5~15 */
+	if (snr_val > 900000)
+		ret = 15 - (snr_val - 900000)*10/(0xffffff - 900000);
+	/* snr_val:158000~900000,ret:15~30 */
+	else if (snr_val > 158000)
+		ret = 30 - (snr_val - 158000)*15/(900000 - 158000);
+	/* snr_val:31600~158000,ret:30~50 */
+	else if (snr_val > 31600)
+		ret = 50 - (snr_val - 31600)*20/(158000 - 31600);
+	/* snr_val:316~31600,ret:50~80 */
+	else if (snr_val > 316)
+		ret = 80 - (snr_val - 316)*30/(31600 - 316);
+	/* snr_val:0~316,ret:80~100 */
+	else
+		ret = 100 - (316 - snr_val)*20/316;
+	return ret;
+}
+
 void atvdemod_det_snr_serice(void)
 {
-	snr_val = aml_atvdemod_get_snr(NULL);
+	snr_val = atvdemod_get_snr(NULL);
 }
 
 void atvdemod_timer_hander(unsigned long arg)
@@ -1428,6 +1451,35 @@ void atvdemod_timer_hander(unsigned long arg)
 	if (atvdemod_det_snr_en)
 		atvdemod_det_snr_serice();
 }
+
+int atvdemod_clk_init(void)
+{
+	/* clocks_set_hdtv (); */
+	/* 1.set system clock */
+	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
+	W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
+	W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
+	W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
+	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+	W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
+	/* TVFE reset */
+	W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
+
+	read_version_register();
+
+	/*2.set atv demod top page control register*/
+	atv_dmd_input_clk_32m();
+	atv_dmd_wr_long(APB_BLOCK_ADDR_TOP, ATV_DMD_TOP_CTRL, 0x1037);
+	atv_dmd_wr_long(APB_BLOCK_ADDR_TOP, (ATV_DMD_TOP_CTRL1 << 2), 0x1f);
+
+	/*3.configure atv demod*/
+	check_communication_interface();
+	power_on_receiver();
+	pr_err("%s done\n", __func__);
+
+	return 0;
+}
+
 int atvdemod_init(void)
 {
 	/* unsigned long data32; */
@@ -1437,6 +1489,7 @@ int atvdemod_init(void)
 			timer_init_flag = 0;
 		}
 	}
+	#if 0
 	/* clocks_set_hdtv (); */
 	/* 1.set system clock */
 	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
@@ -1458,6 +1511,8 @@ int atvdemod_init(void)
 	/*3.configure atv demod*/
 	check_communication_interface();
 	power_on_receiver();
+	#endif
+
 	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
 	atv_dmd_misc();
 	/*4.software reset*/

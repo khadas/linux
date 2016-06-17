@@ -253,6 +253,7 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 		amlatvdemod_devp->pin =
 			devm_pinctrl_get_select(amlatvdemod_devp->dev,
 				amlatvdemod_devp->pin_name);
+	atvdemod_clk_init();
 	err_code = atvdemod_init();
 	if (err_code) {
 		pr_dbg("[amlatvdemod..]%s init atvdemod error.\n", __func__);
@@ -293,6 +294,9 @@ static int aml_atvdemod_get_afc(struct dvb_frontend *fe,int *afc)
 /*ret:5~100;the val is bigger,the signal is better*/
 int aml_atvdemod_get_snr(struct dvb_frontend *fe)
 {
+#if 1
+	return get_atvdemod_snr_val();
+#else
 	unsigned int snr_val;
 	int ret;
 	snr_val = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x50) >> 8;
@@ -312,6 +316,7 @@ int aml_atvdemod_get_snr(struct dvb_frontend *fe)
 	else
 		ret = 100 - (316 - snr_val)*20/316;
 	return ret;
+#endif
 }
 EXPORT_SYMBOL(aml_atvdemod_get_snr);
 
