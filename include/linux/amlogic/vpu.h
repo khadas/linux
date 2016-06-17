@@ -63,7 +63,7 @@ enum vpu_mod_e {
 	VPU_LDIM_STTS,        /* reg1[29:28]  //GXTVBB, GXL */
 	VPU_XVYCC_LUT,        /* reg1[31:30]  //GXTVBB, GXL */
 
-	VPU_VIU1_WM,          /* reg2[1:0]  //GXL */
+	VPU_VIU1_WM,          /* reg2[1:0]  //GXL, TXL */
 
 	VPU_MAX,
 };

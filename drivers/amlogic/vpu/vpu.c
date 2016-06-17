@@ -114,6 +114,12 @@ static void vpu_chip_detect(void)
 		vpu_conf.clk_level_max = CLK_LEVEL_MAX_GXL;
 		vpu_conf.fclk_type = FCLK_TYPE_GXL;
 		break;
+	case MESON_CPU_MAJOR_ID_TXL:
+		vpu_chip_type = VPU_CHIP_TXL;
+		vpu_conf.clk_level_dft = CLK_LEVEL_DFT_TXL;
+		vpu_conf.clk_level_max = CLK_LEVEL_MAX_TXL;
+		vpu_conf.fclk_type = FCLK_TYPE_TXL;
+		break;
 	default:
 		vpu_chip_type = VPU_CHIP_MAX;
 		vpu_conf.clk_level_dft = 0;
@@ -170,13 +176,15 @@ unsigned int get_vpu_clk(void)
 	unsigned int mux, div;
 
 	switch (vpu_chip_type) {
-	case VPU_CHIP_GXBB:
-	case VPU_CHIP_GXTVBB:
-	case VPU_CHIP_GXL:
-		reg = HHI_VPU_CLK_CNTL_GX;
+	case VPU_CHIP_M8:
+	case VPU_CHIP_M8B:
+	case VPU_CHIP_M8M2:
+	case VPU_CHIP_G9TV:
+	case VPU_CHIP_G9BB:
+		reg = HHI_VPU_CLK_CNTL;
 		break;
 	default:
-		reg = HHI_VPU_CLK_CNTL;
+		reg = HHI_VPU_CLK_CNTL_GX;
 		break;
 	}
 
@@ -405,12 +413,8 @@ static int adjust_vpu_clk(unsigned int clk_level)
 	case VPU_CHIP_G9BB:
 		switch_vpu_clk_m8_g9();
 		break;
-	case VPU_CHIP_GXBB:
-	case VPU_CHIP_GXTVBB:
-	case VPU_CHIP_GXL:
-		switch_vpu_clk_gx();
-		break;
 	default:
+		switch_vpu_clk_gx();
 		break;
 	}
 
@@ -445,13 +449,15 @@ static int set_vpu_clk(unsigned int vclk)
 #endif
 
 	switch (vpu_chip_type) {
-	case VPU_CHIP_GXBB:
-	case VPU_CHIP_GXTVBB:
-	case VPU_CHIP_GXL:
-		reg = HHI_VPU_CLK_CNTL_GX;
+	case VPU_CHIP_M8:
+	case VPU_CHIP_M8B:
+	case VPU_CHIP_M8M2:
+	case VPU_CHIP_G9TV:
+	case VPU_CHIP_G9BB:
+		reg = HHI_VPU_CLK_CNTL;
 		break;
 	default:
-		reg = HHI_VPU_CLK_CNTL;
+		reg = HHI_VPU_CLK_CNTL_GX;
 		break;
 	}
 
@@ -670,17 +676,19 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 
 	val = (flag == VPU_MEM_POWER_ON) ? 0 : 3;
 	switch (vpu_chip_type) {
-	case VPU_CHIP_GXBB:
-	case VPU_CHIP_GXTVBB:
-	case VPU_CHIP_GXL:
-		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
-		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
-		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
-		break;
-	default:
+	case VPU_CHIP_M8:
+	case VPU_CHIP_M8B:
+	case VPU_CHIP_M8M2:
+	case VPU_CHIP_G9TV:
+	case VPU_CHIP_G9BB:
 		_reg0 = HHI_VPU_MEM_PD_REG0;
 		_reg1 = HHI_VPU_MEM_PD_REG1;
 		_reg2 = 0;
+		break;
+	default:
+		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
+		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
+		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
 		break;
 	}
 
@@ -797,8 +805,11 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 		vpu_hiu_setb(_reg1, val, 30, 2);
 		break;
 	case VPU_VIU1_WM:
-		if (vpu_chip_type == VPU_CHIP_GXL)
+		if ((vpu_chip_type == VPU_CHIP_GXL) ||
+			(vpu_chip_type == VPU_CHIP_GXM) ||
+			(vpu_chip_type == VPU_CHIP_TXL)) {
 			vpu_hiu_setb(_reg2, val, 0, 2);
+		}
 		break;
 	default:
 		VPUPR("switch_vpu_mem_pd: unsupport vpu mod\n");
@@ -842,17 +853,19 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		return -1;
 
 	switch (vpu_chip_type) {
-	case VPU_CHIP_GXBB:
-	case VPU_CHIP_GXTVBB:
-	case VPU_CHIP_GXL:
-		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
-		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
-		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
-		break;
-	default:
+	case VPU_CHIP_M8:
+	case VPU_CHIP_M8B:
+	case VPU_CHIP_M8M2:
+	case VPU_CHIP_G9TV:
+	case VPU_CHIP_G9BB:
 		_reg0 = HHI_VPU_MEM_PD_REG0;
 		_reg1 = HHI_VPU_MEM_PD_REG1;
 		_reg2 = 0;
+		break;
+	default:
+		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
+		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
+		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
 		break;
 	}
 
@@ -973,10 +986,13 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		val = vpu_hiu_getb(_reg1, 30, 2);
 		break;
 	case VPU_VIU1_WM:
-		if (vpu_chip_type == VPU_CHIP_GXL)
+		if ((vpu_chip_type == VPU_CHIP_GXL) ||
+			(vpu_chip_type == VPU_CHIP_GXM) ||
+			(vpu_chip_type == VPU_CHIP_TXL)) {
 			val = vpu_hiu_getb(_reg2, 0, 2);
-		else
+		} else {
 			val = VPU_MEM_PD_ERR;
+		}
 		break;
 	default:
 		val = VPU_MEM_PD_ERR;
@@ -1093,25 +1109,30 @@ static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 	unsigned int _reg0, _reg1, _reg2;
 
 	switch (vpu_chip_type) {
-	case VPU_CHIP_GXBB:
-	case VPU_CHIP_GXTVBB:
-	case VPU_CHIP_GXL:
-		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
-		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
-		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
-		break;
-	default:
+	case VPU_CHIP_M8:
+	case VPU_CHIP_M8B:
+	case VPU_CHIP_M8M2:
+	case VPU_CHIP_G9TV:
+	case VPU_CHIP_G9BB:
 		_reg0 = HHI_VPU_MEM_PD_REG0;
 		_reg1 = HHI_VPU_MEM_PD_REG1;
 		_reg2 = 0;
+		break;
+	default:
+		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
+		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
+		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
 		break;
 	}
 	switch (buf[0]) {
 	case 'r':
 		VPUPR("mem_pd0: 0x%08x\n", vpu_hiu_read(_reg0));
 		VPUPR("mem_pd1: 0x%08x\n", vpu_hiu_read(_reg1));
-		if (vpu_chip_type == VPU_CHIP_GXL)
+		if ((vpu_chip_type == VPU_CHIP_GXL) ||
+			(vpu_chip_type == VPU_CHIP_GXM) ||
+			(vpu_chip_type == VPU_CHIP_TXL)) {
 			VPUPR("mem_pd2: 0x%08x\n", vpu_hiu_read(_reg2));
+		}
 		break;
 	case 'w':
 		ret = sscanf(buf, "w %u %u", &tmp[0], &tmp[1]);
