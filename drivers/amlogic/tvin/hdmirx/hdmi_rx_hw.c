@@ -68,6 +68,7 @@
 #define HDMIRX_ADDR_PORT	0xda83e000
 #define HDMIRX_DATA_PORT	0xda83e004
 #define HDMIRX_CTRL_PORT	0xda83e008
+#define TOP_INT_MASK_VALUE	0x00000fff
 
 static DEFINE_SPINLOCK(reg_rw_lock);
 
@@ -940,7 +941,7 @@ void hdmirx_hw_config(void)
 	hdmirx_packet_fifo_rst();
 	/*enable irq */
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
+	hdmirx_wr_top(TOP_INTR_MASKN, TOP_INT_MASK_VALUE);
 	hdmirx_irq_open();
 
 	mdelay(100);
@@ -994,7 +995,7 @@ void hdmirx_hw_probe(void)
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_wr_top(TOP_INTR_MASKN, 0x00001fff);
+	hdmirx_wr_top(TOP_INTR_MASKN, TOP_INT_MASK_VALUE);
 	rx_print("%s Done!\n", __func__);
 }
 

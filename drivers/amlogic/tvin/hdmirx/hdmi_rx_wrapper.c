@@ -1191,9 +1191,8 @@ irqreturn_t irq_handler(int irq, void *params)
 			"RX IRQ invalid parameter");
 		return IRQ_HANDLED;
 	}
-
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
-reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
+	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* modify interrupt flow for isr loading */
 	/* top interrupt handler */
 	if ((hdmirx_top_intr_stat & (0xf << 2)) ||
@@ -1232,13 +1231,14 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 
 	/* if (hdmirx_top_intr_stat & (0xf << 6)) */
 	/* check the ip interrupt again */
+	/*
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	if (hdmirx_top_intr_stat & (1 << 31) && !cec_has_irq()) {
 		if (log_flag & 0x100)
 			rx_print("[isr] need clear ip irq---\n");
 		goto reisr;
 
-	}
+	}*/
 	return IRQ_HANDLED;
 }
 
@@ -2522,7 +2522,7 @@ void hdmirx_hw_monitor(void)
 	int tmp;
 	unsigned int tmds_clk;
 
-	if (clk_debug)
+	if ((clk_debug) && (rx.state != FSM_EQ_CALIBRATION))
 		monitor_cable_clk_sts();
 
 	if (sm_pause)
@@ -3501,6 +3501,65 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 	unsigned char check_sum = 0;
 	unsigned char phy_addr_offset = 0;
 	int i, ram_addr;
+	unsigned char phy_addr[3];
+	unsigned char checksum[3];
+
+	for (i = 0; i <= 255; i++) {
+		value = buffer[i];
+
+		/*find phy_addr_offset*/
+		if (value == 0x03) {
+			if ((0x0c == buffer[i+1]) &&
+				(0x00 == buffer[i+2]) &&
+				(0x00 == buffer[i+4])) {
+				buffer[i+3] = 0x10;
+				phy_addr_offset = i+3;
+			}
+		}
+		if ((i >= 128) && (i < 255)) {
+			check_sum += value;
+			check_sum &= 0xff;
+		}
+		if (i == 255) {
+			value = (0x100-check_sum)&0xff;
+			check_sum = 0;
+		}
+		ram_addr = TOP_EDID_OFFSET + i;
+		hdmirx_wr_top(ram_addr, value);
+		hdmirx_wr_top(0x100+ram_addr, value);
+	}
+
+	for (i = 0; i < 3; i++) {
+		if (((port >> i*4) & 0xf) == 0) {
+			phy_addr[i] = 0x10;
+			checksum[i] = value;
+		} else if (((port >> i*4) & 0xf) == 1) {
+			phy_addr[i] = 0x20;
+			checksum[i] = (0x100 + value - 0x10) & 0xff;
+		} else if (((port >> i*4) & 0xf) == 2) {
+			phy_addr[i] = 0x30;
+			checksum[i] = (0x100 + value - 0x20) & 0xff;
+		}
+	}
+	hdmirx_wr_top(TOP_EDID_RAM_OVR1,
+		phy_addr_offset | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR1_DATA,
+		phy_addr[0]|phy_addr[1]<<8|phy_addr[2]<<16);
+
+	hdmirx_wr_top(TOP_EDID_RAM_OVR0,
+		0xff | (0x0f<<16));
+	hdmirx_wr_top(TOP_EDID_RAM_OVR0_DATA,
+			checksum[0]|checksum[1]<<8|checksum[2]<<16);
+
+}
+
+
+void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
+{
+	unsigned char value = 0;
+	unsigned char check_sum = 0;
+	unsigned char phy_addr_offset = 0;
+	int i, ram_addr;
 	unsigned int phy_addr[3];
 	unsigned char checksum[3];
 	unsigned char root_offset = 0;
@@ -3607,8 +3666,9 @@ int hdmi_rx_ctrl_edid_update(void)
 							receive_edid);
 		rx_modify_edid(edid_temp, rx_get_edid_size(edid_index),
 							hdr_edid);
-	}
-	hdmi_rx_load_edid_data(edid_temp, real_port_map);
+		hdmi_rx_load_edid_data_repeater(edid_temp, real_port_map);
+	} else
+		hdmi_rx_load_edid_data(edid_temp, real_port_map);
 	return true;
 }
 
