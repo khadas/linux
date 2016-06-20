@@ -1426,6 +1426,13 @@ static long hdmitx_cec_ioctl(struct file *f,
 		cec_config(tmp, 1);
 		break;
 
+	case CEC_IOC_SET_AUTO_DEVICE_OFF:
+		tmp = cec_config(0, 0);
+		tmp &= ~(1 << ONE_TOUCH_STANDBY_MASK);
+		tmp |=  (arg << ONE_TOUCH_STANDBY_MASK);
+		cec_config(tmp, 1);
+		break;
+
 	case CEC_IOC_SET_OPTION_ENALBE_CEC:
 		tmp = (1 << HDMI_OPTION_ENABLE_CEC);
 		if (arg) {
