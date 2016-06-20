@@ -2711,7 +2711,8 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 	fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 	if (c->delivery_system == SYS_ANALOG &&
 		(c->analog.flag & ANALOG_FLAG_ENABLE_AFC)) {
-		dvb_frontend_add_event(fe, 0);
+		/*dvb_frontend_add_event(fe, 0); */
+		dvb_frontend_clear_events(fe);
 		dvb_frontend_wakeup(fe);
 	} else if (fe->ops.set_frontend) {
 		fe->ops.set_frontend(fe);

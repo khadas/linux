@@ -882,9 +882,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 			if (fee->tuner->drv->id == AM_TUNER_MXL661)
 				usleep_range((delay_cnt+15)*1000,
 					(delay_cnt+15)*1000+100);
-			if (fee->tuner->drv->id == AM_TUNER_R840)
+/*			if (fee->tuner->drv->id == AM_TUNER_R840)
 				usleep_range(delay_cnt*1000,
 					 delay_cnt*1000+100);
+*/
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_MG9TV) {
 				if ((fe->ops.tuner_ops.get_pll_status == NULL)
 				    ||
