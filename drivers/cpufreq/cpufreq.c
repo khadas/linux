@@ -1493,7 +1493,7 @@ static void __ref handle_up_cpu(struct work_struct *work)
 	for (i = 0; i < num_possible_cpus(); i++) {
 		if (cpu_online(i))
 			continue;
-		cpu_up(i);
+		device_online(get_cpu_device(i));
 	}
 }
 #endif

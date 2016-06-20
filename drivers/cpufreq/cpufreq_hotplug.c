@@ -641,7 +641,7 @@ static int __ref cpu_hotplug_thread(void *data)
 				if (cpu_online(i))
 					continue;
 				j++;
-				cpu_up(i);
+				device_online(get_cpu_device(i));
 				cpumask_set_cpu(i, tsk_cpus_allowed(NULL_task));
 				if (policy && !hg_set_max_cpu)
 					if (j >= hg_tuners->cpu_num_plug_once)
@@ -669,7 +669,7 @@ static int __ref cpu_hotplug_thread(void *data)
 				}
 				if (!cpu_active(target_cpu))
 					goto clear_cpu;
-				cpu_down(target_cpu);
+				device_offline(get_cpu_device(target_cpu));
 				cpu_down_num++;
 clear_cpu:
 				cpumask_clear_cpu(target_cpu,
