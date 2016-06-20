@@ -43,7 +43,7 @@
 
 /* #include "../hw/mach_reg.h" */
 #ifdef HDCP22_ENABLE
-#define ESM_DEVICE_MAJOR   58
+#define ESM_DEVICE_MAJOR   60
 #define MAX_ESM_DEVICES    6
 
 /* ESM Device */
@@ -70,7 +70,7 @@ static int verbose;
 /* Constant strings */
 static const char *MY_TAG = "ESM HLD: ";
 static const char *ESM_DEVICE_NAME = "esm_rx";
-static const char *ESM_DEVICE_CLASS = "elliptic";
+static const char *ESM_DEVICE_CLASS = "elliptic_rx";
 
 /* Linux device, class and range */
 static int device_created;
