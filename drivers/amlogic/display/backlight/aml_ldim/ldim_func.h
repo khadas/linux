@@ -24,8 +24,10 @@ extern unsigned int invalid_val_cnt;
 
 #define Wr_reg_bits(adr, val, start, len)  \
 		aml_vcbus_update_bits(adr, ((1<<len)-1)<<start, val<<start)
+/*#define Rd_reg_bits(adr, start, len)  \
+		(aml_read_vcbus(adr)&(((1<<len)-1)<<start))*/
 #define Rd_reg_bits(adr, start, len)  \
-		(aml_read_vcbus(adr)&(((1<<len)-1)<<start))
+		((aml_read_vcbus(adr)>>start)&((1<<len)-1))
 
 extern int  ldim_round(int ix, int ib);
 extern void ldim_stts_en(unsigned int resolution, unsigned int pix_drop_mode,

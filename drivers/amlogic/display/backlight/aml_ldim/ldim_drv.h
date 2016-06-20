@@ -26,9 +26,12 @@
 
 #define Wr(reg, val)   aml_write_vcbus(reg, val)
 #define Rd(adr)       aml_read_vcbus(adr)
+
+/*
 #define READ_VCBUS_REG(reg)	aml_read_vcbus(reg)
 #define WRITE_VCBUS_REG(reg, val)	aml_write_vcbus(reg, val)
 #define WRITE_VCBUS_REG_BITS(reg, val, st, len)W_APB_BIT(reg, val, st, len)
+*/
 
 /*#define LDIM_EXT_DEBUG_INFO*/
 #define LDIMPR(fmt, args...)     pr_info("ldim: "fmt"", ## args)

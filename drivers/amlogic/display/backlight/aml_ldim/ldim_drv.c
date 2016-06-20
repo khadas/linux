@@ -50,6 +50,7 @@
 #include <linux/amlogic/vout/aml_bl.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/vout/lcd_vout.h>
+#include "../../../amports/vdec_reg.h"
 
 #define AML_LDIM_DEV_NAME            "aml_ldim"
 const char ldim_dev_id[] = "ldim-dev";
@@ -58,7 +59,6 @@ const char ldim_dev_id[] = "ldim-dev";
 
 static int ldim_on_flag;
 static unsigned int ldim_func_en;
-static unsigned int ldim_remap_en;
 static unsigned int ldim_func_bypass;
 
 static unsigned int ldim_test_en;
@@ -687,6 +687,7 @@ static void ldim_stts_initial(unsigned int pic_h, unsigned int pic_v,
 		row_start, col_start, BLK_Hnum);
 }
 
+#if 0
 static void ldim_remap_ctrl(int flag)
 {
 	unsigned int data;
@@ -701,6 +702,7 @@ static void ldim_remap_ctrl(int flag)
 		LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);
 	}
 }
+#endif
 
 static void LDIM_Initial(unsigned int pic_h, unsigned int pic_v,
 		unsigned int BLK_Vnum, unsigned int BLK_Hnum,
@@ -715,7 +717,7 @@ static void LDIM_Initial(unsigned int pic_h, unsigned int pic_v,
 		__func__, pic_h, pic_v, BLK_Vnum, BLK_Hnum,
 		BackLit_mode, ldim_bl_en, ldim_hvcnt_bypass);
 
-	ldim_remap_en = ldim_bl_en;
+	ldim_matrix_update_en = ldim_bl_en;
 
 	arrayTmp = kmalloc(1536*sizeof(unsigned int), GFP_KERNEL);
 	LD_ConLDReg(&nPRM);
@@ -975,6 +977,9 @@ static irqreturn_t rdma_ldim_intr(unsigned int irq, void *dev_id)
 static irqreturn_t ldim_vsync_isr(unsigned int irq, void *dev_id)
 {
 	ulong flags;
+
+	if (ldim_on_flag == 0)
+		return IRQ_HANDLED;
 	/*LDIMPR("*********ldim_vsync_isr start*********\n");*/
 	spin_lock_irqsave(&ldim_isr_lock, flags);
 
@@ -1037,41 +1042,68 @@ static irqreturn_t ldim_vsync_isr(unsigned int irq, void *dev_id)
 
 static void ldim_update_setting(void)
 {
-	unsigned int data;
+	unsigned int data, i;
 	/* enable the CBUS configure the RAM */
 	/* REG_LD_MISC_CTRL0  {ram_clk_gate_en,2'h0,ldlut_ram_sel,ram_clk_sel,
 	reg_hvcnt_bypass,reg_ldim_bl_en,soft_bl_start,reg_soft_rst) */
 
 	if (ldim_avg_update_en) {
-		/* LD_BKLIT_PARAM */
-		data = LDIM_RD_32Bits(REG_LD_BKLIT_PARAM);
 		/* pr_info("_1BL_AVG=%x;1BL_COMP=%x\n",nPRM.reg_BL_matrix_AVG,
 		nPRM.reg_BL_matrix_Compensate); */
-		/* data = data|(nPRM.reg_BL_matrix_AVG&0xfff);	*/
-		data = (data&(~0xfff)) | (nPRM.reg_BL_matrix_AVG&0xfff);
 
+		/* LD_BKLIT_PARAM */
+		data = LDIM_RD_32Bits(REG_LD_BKLIT_PARAM);
+		data = (data&(~0xfff)) | (nPRM.reg_BL_matrix_AVG&0xfff);
 		/* pr_info("_2BL_AVG=%x;2BL_COMP=%x\n",nPRM.reg_BL_matrix_AVG,
 		nPRM.reg_BL_matrix_Compensate);*/
 		/* printk("data=%x\n",data); */
-		LDIM_WR_32Bits(REG_LD_BKLIT_PARAM, data);
+		/*LDIM_WR_32Bits(REG_LD_BKLIT_PARAM, data);*/
+		VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, REG_LD_BKLIT_PARAM);
+		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
+
 		/* compensate */
 		data = LDIM_RD_32Bits(REG_LD_LIT_GAIN_COMP);
 		/* data = data|(nPRM.reg_BL_matrix_Compensate&0xfff); */
 		data = (data&(~0xfff)) |
 			(nPRM.reg_BL_matrix_Compensate & 0xfff);
-		LDIM_WR_32Bits(REG_LD_LIT_GAIN_COMP, data);
+		/*LDIM_WR_32Bits(REG_LD_LIT_GAIN_COMP, data);*/
+		VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, REG_LD_LIT_GAIN_COMP);
+		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
 	}
 	if (ldim_matrix_update_en) {
 		data = LDIM_RD_32Bits(REG_LD_MISC_CTRL0);
 		data = data & (~(3<<4));
-		LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);
-		/* gMatrix_LUT: s12*100 ==> max to 8*8 enum ##r/w ram method*/
-		LDIM_WR_BASE_LUT_DRT(REG_LD_MATRIX_BASE,
-			&(nPRM.BL_matrix[0]), ldim_blk_row*ldim_blk_col);
+		data = data | (1<<2);
+		/*LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);*/
+		VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, REG_LD_MISC_CTRL0);
+		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
 
-		data = LDIM_RD_32Bits(REG_LD_MISC_CTRL0);
+		/* gMatrix_LUT: s12*100 ==> max to 8*8 enum ##r/w ram method*/
+		/*LDIM_WR_BASE_LUT_DRT(REG_LD_MATRIX_BASE,
+			&(nPRM.BL_matrix[0]), ldim_blk_row*ldim_blk_col);*/
+#if 0
+		VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, REG_LD_MATRIX_BASE);
+		for (i = 0; i < (ldim_blk_row*ldim_blk_col); i++)
+			VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, nPRM.BL_matrix[i]);
+#else
+		for (i = 0; i < (ldim_blk_row*ldim_blk_col); i++) {
+			VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT,
+				REG_LD_MATRIX_BASE+i);
+			VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, nPRM.BL_matrix[i]);
+		}
+#endif
+
+		/*data = LDIM_RD_32Bits(REG_LD_MISC_CTRL0);*/
 		data = data | (3<<4);
-		LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);
+		/*LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);*/
+		VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, REG_LD_MISC_CTRL0);
+		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
+	} else {
+		data = LDIM_RD_32Bits(REG_LD_MISC_CTRL0);
+		data = data & (~(1<<2));
+		/*LDIM_WR_32Bits(REG_LD_MISC_CTRL0, data);*/
+		VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, REG_LD_MISC_CTRL0);
+		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
 	}
 	/* disable the CBUS configure the RAM */
 }
@@ -1574,24 +1606,24 @@ static void ldim_set_matrix(unsigned int *data, unsigned int reg_sel,
 static void ldim_func_ctrl(int status)
 {
 	if (status) {
-		ldim_remap_ctrl(ldim_remap_en);
+		/*ldim_remap_ctrl(ldim_matrix_update_en);*/
 		/* enable other flag */
 		ldim_top_en = 1;
 		ldim_hist_en = 1;
 		ldim_alg_en = 1;
 		/* enable update */
 		ldim_avg_update_en = 1;
-		ldim_matrix_update_en = 1;
+		/*ldim_matrix_update_en = 1;*/
 	} else {
 		/* disable update */
 		ldim_avg_update_en = 0;
-		ldim_matrix_update_en = 0;
+		/*ldim_matrix_update_en = 0;*/
 		/* disable other flag */
 		ldim_top_en = 0;
 		ldim_hist_en = 0;
 		ldim_alg_en = 0;
 		/* disable remap */
-		ldim_remap_ctrl(0);
+		/*ldim_remap_ctrl(0);*/
 	}
 }
 
@@ -1717,7 +1749,7 @@ static void ldim_config_print(void)
 		"ldim_remap_en         = %d\n"
 		"ldim_test_en          = %d\n\n",
 		ldim_on_flag, ldim_func_en,
-		ldim_remap_en, ldim_test_en);
+		ldim_matrix_update_en, ldim_test_en);
 }
 
 static void ldim_test_ctrl(int flag)
@@ -1930,11 +1962,11 @@ static ssize_t ldim_attr_store(struct class *cla,
 			if (kstrtoul(parm[1], 10, &val1) < 0)
 				return -EINVAL;
 		}
-		ldim_remap_en = (unsigned int)val1;
-		ldim_remap_ctrl(ldim_remap_en);
-		LDIMPR("ldim_remap_en: %d\n", ldim_remap_en);
+		ldim_matrix_update_en = (unsigned int)val1;
+		/*ldim_remap_ctrl(ldim_matrix_update_en);*/
+		LDIMPR("ldim_remap_en: %d\n", ldim_matrix_update_en);
 	} else if (!strcmp(parm[0], "remap_get")) {
-		LDIMPR("ldim_remap_en: %d\n", ldim_remap_en);
+		LDIMPR("ldim_remap_en: %d\n", ldim_matrix_update_en);
 	} else if (!strcmp(parm[0], "ldim_matrix_get")) {
 		unsigned int data[32] = {0};
 		unsigned int k, g;
@@ -1989,15 +2021,13 @@ static ssize_t ldim_attr_store(struct class *cla,
 	} else if (!strcmp(parm[0], "ldim_info")) {
 		pr_info("ldim_on_flag          = %d\n"
 			"ldim_func_en          = %d\n"
-			"ldim_remap_en         = %d\n"
 			"ldim_test_en          = %d\n"
 			"ldim_avg_update_en    = %d\n"
 			"ldim_matrix_update_en = %d\n"
 			"ldim_alg_en           = %d\n"
 			"ldim_top_en           = %d\n"
 			"ldim_hist_en          = %d\n",
-			ldim_on_flag, ldim_func_en,
-			ldim_remap_en, ldim_test_en,
+			ldim_on_flag, ldim_func_en, ldim_test_en,
 			ldim_avg_update_en, ldim_matrix_update_en,
 			ldim_alg_en, ldim_top_en, ldim_hist_en);
 		pr_info("nPRM.reg_LD_BLK_Hnum   = %d\n"
@@ -2012,10 +2042,10 @@ static ssize_t ldim_attr_store(struct class *cla,
 				return -EINVAL;
 		}
 		ldim_test_en = (unsigned int)val1;
-		if (ldim_test_en)
+		/*if (ldim_test_en)
 			ldim_remap_ctrl(0);
 		else
-			ldim_remap_ctrl(ldim_remap_en);
+			ldim_remap_ctrl(ldim_matrix_update_en);*/
 		LDIMPR("test_mode: %d\n", ldim_test_en);
 	} else if (!strcmp(parm[0], "test_set")) {
 		if (parm[2] != NULL) {

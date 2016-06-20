@@ -25,8 +25,9 @@
 #define LDIM_STTS_HIST_START_RD_REGION  0x1ad3
 
 #define VDIN0_HIST_CTRL			0x1230
-#define INT_VIU_VSYNC				35/* AM_IRQ0(3) */
-#define RDMA_LDIM_INTR			175/* AM_IRQ0(143)*/
+
+/*#define INT_VIU_VSYNC				35 */ /* AM_IRQ0(3) */
+/*#define RDMA_LDIM_INTR			175*/ /* AM_IRQ0(143)*/
 
 static inline void W_APB_BIT(unsigned int reg,
 				    unsigned int value,
