@@ -95,7 +95,7 @@ extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
 
 extern void amvecm_matrix_process(struct vframe_s *vf);
-extern int amvecm_hdr_dbg(void);
+extern int amvecm_hdr_dbg(u32 sel);
 
 /* use osd rdma w/r */
 u32 VSYNCOSD_RD_MPEG_REG(u32 reg);

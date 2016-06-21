@@ -2815,14 +2815,14 @@ void amvecm_matrix_process(struct vframe_s *vf)
 	if (vf == last_vf)
 		return;
 
-	/* debug vframe info backup */
-	dbg_vf = vf;
-
 	if (vf != NULL) {
 		vpp_matrix_update(vf);
 		last_vf = vf;
 		null_vf_cnt = 0;
 		fg_vf_sw_dbg = 1;
+
+		/* debug vframe info backup */
+		dbg_vf = vf;
 	} else {
 		/* check last signal type */
 		if ((last_vf != NULL) &&
@@ -2846,13 +2846,18 @@ void amvecm_matrix_process(struct vframe_s *vf)
 	}
 }
 
-int amvecm_hdr_dbg(void)
+int amvecm_hdr_dbg(u32 sel)
 {
 	int i, j;
 
+	/* select debug information */
+	if (sel == 1) /* dump reg */
+		goto reg_dump;
+
 	if (dbg_vf == NULL)
 		goto hdr_dump;
-	pr_err("\n----vframe info----\n");
+
+	pr_err("----vframe info----\n");
 	pr_err("index:%d, type:0x%x, type_backup:0x%x, blend_mode:%d\n",
 		dbg_vf->index, dbg_vf->type,
 		dbg_vf->type_backup, dbg_vf->blend_mode);
@@ -2914,123 +2919,125 @@ int amvecm_hdr_dbg(void)
 		dbg_vf->pixel_ratio, &dbg_vf->list,
 		dbg_vf->ready_jiffies64, dbg_vf->frame_dirty);
 
-	pr_err("\n----Source HDR info----\n");
-	pr_err("\t\tsignal_type:0x%x, present_flag:%d\n",
+	pr_err("----Source HDR info----\n");
+	pr_err("\tsignal_type:0x%x, present_flag:%d\n",
 		dbg_vf->signal_type,
 		dbg_vf->prop.master_display_colour.present_flag);
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 2; j++)
 			pr_err(
-				"\t\tprimaries[%1d][%1d] = %04x\n",
+				"\tprimaries[%1d][%1d] = %04x\n",
 			i, j,
 			dbg_vf->prop.master_display_colour.primaries[i][j]);
-	pr_err("\t\twhite_point = (%04x, %04x)\n",
+	pr_err("\twhite_point = (%04x, %04x)\n",
 		dbg_vf->prop.master_display_colour.white_point[0],
 		dbg_vf->prop.master_display_colour.white_point[1]);
-	pr_err("\t\tmax,min luminance = %08x, %08x\n",
+	pr_err("\tmax,min luminance = %08x, %08x\n",
 		dbg_vf->prop.master_display_colour.luminance[0],
 		dbg_vf->prop.master_display_colour.luminance[1]);
 hdr_dump:
-	pr_err("\n----HDR process info----\n");
+	pr_err("----HDR process info----\n");
 
-	pr_err("hdr_mode:%d, hdr_process_mode:%d, force_csc_type:0x%x\n",
+	pr_err("hdr_mode:0x%x, hdr_process_mode:0x%x, force_csc_type:0x%x\n",
 		hdr_mode, hdr_process_mode, force_csc_type);
 	pr_err("cur_signal_type:0x%x, cur_csc_mode:0x%x, cur_csc_type:0x%x\n",
 		cur_signal_type, cur_csc_mode, cur_csc_type);
 
-	pr_err("knee_lut_on:%d,knee_interpolation_mode:%d,cur_knee_factor:%d\n",
+	pr_err("knee_lut_on:0x%x,knee_interpolation_mode:0x%x,cur_knee_factor:0x%x\n",
 		knee_lut_on, knee_interpolation_mode, cur_knee_factor);
-	pr_err("fg_vf_sw_dbg: %d\n", fg_vf_sw_dbg);
+	pr_err("fg_vf_sw_dbg: 0x%x\n", fg_vf_sw_dbg);
 
-	pr_err("\n----TV EDID info----\n");
+	pr_err("----TV EDID info----\n");
 	pr_err("hdr_support:0x%x,lumi_max:%d,lumi_avg:%d,lumi_min:%d\n",
 		receiver_hdr_info.hdr_support,
 		receiver_hdr_info.lumi_max,
 		receiver_hdr_info.lumi_avg,
 		receiver_hdr_info.lumi_min);
 
-	pr_err("\n----Tx HDR package info----\n");
-	pr_err("\t\t features = 0x%08x\n", dbg_hdr_send.features);
+	pr_err("----Tx HDR package info----\n");
+	pr_err("\tfeatures = 0x%08x\n", dbg_hdr_send.features);
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 2; j++)
 			pr_err(
-				"\t\tprimaries[%1d][%1d] = %04x\n",
+				"\tprimaries[%1d][%1d] = %04x\n",
 				i, j,
 				dbg_hdr_send.primaries[i][j]);
-	pr_err("\t\twhite_point = (%04x, %04x)\n",
+	pr_err("\twhite_point = (%04x, %04x)\n",
 		dbg_hdr_send.white_point[0],
 		dbg_hdr_send.white_point[1]);
-	pr_err("\t\tmax,min luminance = %08x, %08x\n",
+	pr_err("\tmax,min luminance = %08x, %08x\n",
 		dbg_hdr_send.luminance[0], dbg_hdr_send.luminance[1]);
 
+	goto dbg_end;
+
 	/************************dump reg start***************************/
-	pr_err("\n----dump regs----\n");
+reg_dump:
 
 	/* osd matrix, VPP_MATRIX_0 */
-	pr_err("\n----dump regs VPP_MATRIX_OSD----\n");
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("----dump regs VPP_MATRIX_OSD----\n");
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_PRE_OFFSET0_1,
 		READ_VPP_REG(VIU_OSD1_MATRIX_PRE_OFFSET0_1));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_PRE_OFFSET2,
 		READ_VPP_REG(VIU_OSD1_MATRIX_PRE_OFFSET2));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF00_01,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF00_01));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF02_10,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF02_10));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF11_12,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF11_12));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF20_21,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF20_21));
 
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF22_30,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF22_30));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF31_32,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF31_32));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF40_41,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF40_41));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COLMOD_COEF42,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COLMOD_COEF42));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COEF22_30,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COEF22_30));
 
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_OFFSET0_1,
 		READ_VPP_REG(VIU_OSD1_MATRIX_OFFSET0_1));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_OFFSET2,
 		READ_VPP_REG(VIU_OSD1_MATRIX_OFFSET2));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COLMOD_COEF42,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COLMOD_COEF42));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_COLMOD_COEF42,
 		READ_VPP_REG(VIU_OSD1_MATRIX_COLMOD_COEF42));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_PRE_OFFSET0_1,
 		READ_VPP_REG(VIU_OSD1_MATRIX_PRE_OFFSET0_1));
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_MATRIX_CTRL,
 		READ_VPP_REG(VIU_OSD1_MATRIX_CTRL));
 
 	/* osd eotf matrix, VPP_MATRIX_OSD_EOTF */
-	pr_err("\n----dump regs VPP_MATRIX_OSD_EOTF----\n");
+	pr_err("----dump regs VPP_MATRIX_OSD_EOTF----\n");
 
 	for (i = 0; i < 5; i++)
-		pr_err("\t\taddr = %08x, val = %08x\n",
+		pr_err("\taddr = %08x, val = %08x\n",
 			(VIU_OSD1_EOTF_CTL + i + 1),
 			READ_VPP_REG(VIU_OSD1_EOTF_CTL + i + 1));
 
-	pr_err("\t\taddr = %08x, val = %08x\n",
+	pr_err("\taddr = %08x, val = %08x\n",
 		VIU_OSD1_EOTF_CTL,
 		READ_VPP_REG(VIU_OSD1_EOTF_CTL));
 
@@ -3044,7 +3051,7 @@ hdr_dump:
 		unsigned int data;
 		int i;
 
-		pr_err("\n----dump regs VPP_LUT_OSD_OETF----\n");
+		pr_err("----dump regs VPP_LUT_OSD_OETF----\n");
 
 		addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT;
 		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
@@ -3076,12 +3083,11 @@ hdr_dump:
 			pr_err("\t[%d] = 0x%04x 0x%04x 0x%04x\n",
 				i, r_map[i], g_map[i], b_map[i]);
 		}
-		pr_err("\n");
 
 		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
 		data_port = VIU_OSD1_EOTF_LUT_DATA_PORT;
 		ctrl_port = VIU_OSD1_EOTF_CTL;
-		pr_err("\n----dump regs VPP_LUT_OSD_EOTF----\n");
+		pr_err("----dump regs VPP_LUT_OSD_EOTF----\n");
 		WRITE_VPP_REG(addr_port, 0);
 		for (i = 0; i < 16; i++) {
 			data = READ_VPP_REG(data_port);
@@ -3108,8 +3114,8 @@ hdr_dump:
 			pr_err("\t[%d] = 0x%04x 0x%04x 0x%04x\n",
 				i, r_map[i], g_map[i], b_map[i]);
 		}
-		pr_err("\n");
-		pr_err("\n----dump hdr_osd_reg----\n");
+
+		pr_err("----dump hdr_osd_reg----\n");
 
 		pr_err("\tviu_osd1_matrix_ctrl = 0x%04x\n",
 				hdr_osd_reg.viu_osd1_matrix_ctrl);
@@ -3169,5 +3175,7 @@ hdr_dump:
 		pr_err("\n");
 	}
 	/*********************dump reg end*********************/
+dbg_end:
+
 	return 0;
 }

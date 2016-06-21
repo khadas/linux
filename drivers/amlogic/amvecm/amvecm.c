@@ -1891,12 +1891,29 @@ static ssize_t amvecm_hdr_dbg_show(struct class *cla,
 {
 	int ret;
 
-	ret = amvecm_hdr_dbg();
+	ret = amvecm_hdr_dbg(0);
 
 	return 0;
 }
 
 static ssize_t amvecm_hdr_dbg_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	return 0;
+}
+
+static ssize_t amvecm_hdr_reg_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = amvecm_hdr_dbg(1);
+
+	return 0;
+}
+
+static ssize_t amvecm_hdr_reg_store(struct class *cla,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
@@ -2148,6 +2165,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_dump_vpp_hist_show, amvecm_dump_vpp_hist_store),
 	__ATTR(hdr_dbg, S_IRUGO | S_IWUSR,
 			amvecm_hdr_dbg_show, amvecm_hdr_dbg_store),
+	__ATTR(hdr_reg, S_IRUGO | S_IWUSR,
+			amvecm_hdr_reg_show, amvecm_hdr_reg_store),
 	__ATTR(gamma_pattern, S_IRUGO | S_IWUSR,
 		set_gamma_pattern_show, set_gamma_pattern_store),
 	__ATTR(pc_mode, S_IRUGO | S_IWUSR,
