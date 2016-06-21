@@ -139,6 +139,8 @@ int vdec_set_clk(int dec, int source, int div)
 }
 
 static bool is_gp0_div2 = true;
+
+
 /* set gp0 648M vdec use gp0 clk*/
 #define VDEC1_648M() \
 	WRITE_HHI_REG_BITS(HHI_VDEC_CLK_CNTL,  (6 << 9) | (0), 0, 16)
@@ -346,9 +348,29 @@ static int vdec_clock_init(void)
 	else
 		is_gp0_div2 = true;
 
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+		pr_info("used fix clk for vdec clk source!\n");
+		update_vdec_clk_config_settings(1);
+	}
 	return (gp_pll_user_vdec) ? 0 : -ENOMEM;
 }
 
+static void update_clk_with_clk_configs(
+	int clk, int *source, int *div, int *rclk)
+{
+	unsigned int config = get_vdec_clk_config_settings();
+
+	if (!config)
+		return;
+	if (config >= 10) {
+		int wantclk;
+		wantclk = config;
+		vdec_get_clk_source(wantclk, source, div, rclk);
+	}
+	return;
+}
+#define NO_GP0_PLL (get_vdec_clk_config_settings() == 1)
+#define ALWAYS_GP0_PLL (get_vdec_clk_config_settings() == 2)
 
 static int vdec_clock_set(int clk)
 {
@@ -379,11 +401,14 @@ static int vdec_clock_set(int clk)
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL && clk >= 500)
 		clk = 667;
 	vdec_get_clk_source(clk, &source, &div, &rclk);
+	update_clk_with_clk_configs(clk, &source, &div, &rclk);
 
 	if (clock_real_clk[VDEC_1] == rclk)
 		return rclk;
-
-	if (rclk > 500 && clk != 667) {/*default used gp_pull.*/
+	if (NO_GP0_PLL) {
+		use_gpll = 0;
+		clk_seted = 0;
+	} else if ((rclk > 500 && clk != 667) || ALWAYS_GP0_PLL) {
 		if (clock_real_clk[VDEC_1] == 648)
 			return 648;
 		use_gpll = 1;
@@ -487,6 +512,7 @@ static int hevc_clock_set(int clk)
 	int source, div, rclk;
 	int gp_pll_wait = 0;
 	int clk_seted = 0;
+
 	debug_print("hevc_clock_set 1 to clk %d\n", clk);
 	if (clk == 1)
 		clk = 200;
@@ -509,11 +535,14 @@ static int hevc_clock_set(int clk)
 			clk = clock_real_clk[VDEC_HEVC];
 	}
 	vdec_get_clk_source(clk, &source, &div, &rclk);
+	update_clk_with_clk_configs(clk, &source, &div, &rclk);
 
 	if (rclk == clock_real_clk[VDEC_HEVC])
 		return rclk;/*clk not changed,*/
-
-	if (rclk > 500 && clk != 667) {/*500 up default used gp_pull.*/
+	if (NO_GP0_PLL) {
+		use_gpll = 0;
+		clk_seted = 0;
+	} else if ((rclk > 500 && clk != 667) || ALWAYS_GP0_PLL) {
 		if (clock_real_clk[VDEC_HEVC] == 648)
 			return 648;
 		use_gpll = 1;
@@ -538,7 +567,9 @@ static int hevc_clock_set(int clk)
 	if (!use_gpll)
 		gp_pll_release(gp_pll_user_hevc);
 	clock_real_clk[VDEC_HEVC] = rclk;
-	debug_print("hevc_clock_set 2 to rclk=%d\n", rclk);
+	debug_print("hevc_clock_set 2 to rclk=%d, configs=%d\n",
+		rclk,
+		get_vdec_clk_config_settings());
 	return rclk;
 }
 

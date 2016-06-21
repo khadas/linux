@@ -56,6 +56,8 @@ static int inited_vcodec_num;
 static int poweron_clock_level;
 static int keep_vdec_mem;
 static unsigned int debug_trace_num = 16 * 20;
+static unsigned int clk_config;
+
 static int vdec_irq[VDEC_IRQ_MAX];
 static struct platform_device *vdec_device;
 static struct platform_device *vdec_core_device;
@@ -74,6 +76,23 @@ struct am_reg {
 };
 
 static struct vdec_dev_reg_s vdec_dev_reg;
+
+/*
+ clk_config:
+ 0:default
+ 1:no gp0_pll;
+ 2:always used gp0_pll;
+ >=10:fixed n M clk;
+ == 100 , 100M clks;
+*/
+unsigned int get_vdec_clk_config_settings(void)
+{
+	return clk_config;
+}
+void update_vdec_clk_config_settings(unsigned int config)
+{
+	clk_config = config;
+}
 
 static bool hevc_workaround_needed(void)
 {
@@ -1266,6 +1285,7 @@ RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
 
 module_param(debug_trace_num, uint, 0664);
 module_param(hevc_max_reset_count, int, 0664);
+module_param(clk_config, uint, 0664);
 
 module_init(vdec_module_init);
 module_exit(vdec_module_exit);
