@@ -336,6 +336,9 @@ static void lcd_chip_detect(void)
 	case MESON_CPU_MAJOR_ID_GXTVBB:
 		lcd_driver->chip_type = LCD_CHIP_GXTVBB;
 		break;
+	case MESON_CPU_MAJOR_ID_TXL:
+		lcd_driver->chip_type = LCD_CHIP_TXL;
+		break;
 	default:
 		lcd_driver->chip_type = LCD_CHIP_MAX;
 	}

@@ -218,6 +218,9 @@ static int aml_bl_check_driver(void)
 			BLERR("no bl_pwm_combo_1 struct\n");
 		}
 		break;
+	case BL_CTRL_MAX:
+		ret = -1;
+		break;
 	default:
 		break;
 	}
@@ -1313,6 +1316,11 @@ static void aml_bl_config_print(struct bl_config_s *bconf)
 {
 	struct bl_pwm_config_s *bl_pwm;
 
+	if (bconf->method == BL_CTRL_MAX) {
+		BLPR("no backlight exist\n");
+		return;
+	}
+
 	BLPR("name              = %s\n", bconf->name);
 	BLPR("method            = %s(%d)\n",
 		bl_method_type_to_str(bconf->method), bconf->method);
@@ -1470,6 +1478,10 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_SEL, &index);
 #endif
 	bl_drv->index = index;
+	if (bl_drv->index == 0xff) {
+		bconf->method = BL_CTRL_MAX;
+		return -1;
+	}
 	sprintf(bl_propname, "backlight_%d", index);
 	BLPR("load: %s\n", bl_propname);
 	child = of_get_child_by_name(pdev->dev.of_node, bl_propname);
@@ -2048,7 +2060,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	return 0;
 }
 
-static void aml_bl_config_load(struct bl_config_s *bconf,
+static int aml_bl_config_load(struct bl_config_s *bconf,
 		struct platform_device *pdev)
 {
 	int load_id = 0;
@@ -2056,7 +2068,7 @@ static void aml_bl_config_load(struct bl_config_s *bconf,
 
 	if (pdev->dev.of_node == NULL) {
 		BLERR("no backlight of_node exist\n");
-		return;
+		return -1;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"key_valid", &bl_key_valid);
@@ -2077,12 +2089,12 @@ static void aml_bl_config_load(struct bl_config_s *bconf,
 	if (load_id) {
 		BLPR("%s from unifykey\n", __func__);
 		bl_config_load = 1;
-		aml_bl_config_load_from_unifykey(bconf);
+		ret = aml_bl_config_load_from_unifykey(bconf);
 	} else {
 #ifdef CONFIG_OF
 		BLPR("%s from dts\n", __func__);
 		bl_config_load = 0;
-		aml_bl_config_load_from_dts(bconf, pdev);
+		ret = aml_bl_config_load_from_dts(bconf, pdev);
 #endif
 	}
 	aml_bl_pinmux_load(bconf);
@@ -2097,6 +2109,7 @@ static void aml_bl_config_load(struct bl_config_s *bconf,
 	default:
 		break;
 	}
+	return ret;
 }
 
 /* ****************************************
@@ -2826,7 +2839,9 @@ static int aml_bl_probe(struct platform_device *pdev)
 	bconf = &bl_config;
 	bl_drv->dev = &pdev->dev;
 	bl_drv->bconf = bconf;
-	aml_bl_config_load(bconf, pdev);
+	ret = aml_bl_config_load(bconf, pdev);
+	if (ret)
+		goto err;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

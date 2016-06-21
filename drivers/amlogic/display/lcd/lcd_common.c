@@ -433,7 +433,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 	ret = of_property_read_u32(child, "backlight_index", &para[0]);
 	if (ret) {
 		LCDPR("failed to get backlight_index\n");
-		pconf->backlight_index = 0;
+		pconf->backlight_index = 0xff;
 	} else {
 		pconf->backlight_index = para[0];
 	}

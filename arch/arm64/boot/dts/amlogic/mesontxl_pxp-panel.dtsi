@@ -1,0 +1,71 @@
+/*
+ * arch/arm64/boot/dts/amlogic/mesontxl_pxp-panel.dtsi
+ *
+ * Copyright (C) 2016 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+*/
+
+/ {
+	lcd {
+		compatible = "amlogic, lcd";
+		dev_name = "lcd";
+		mode = "tv";
+		status = "okay";
+		key_valid = <0>;
+		resets = <&clock GCLK_IDX_VCLK2_ENCL &clock GCLK_IDX_VCLK2_VENCL>;
+		reset-names = "encl","vencl";
+		interrupts = <0 78 1 0 3 1>;
+		interrupt-names = "vbyone","vbyone_vsync";
+		pinctrl-names = "vbyone";
+		pinctrl-0 = <&lcd_vbyone_pins>;
+
+		/* power type:(0=cpu_gpio, 1=pmu_gpio, 2=signal, 3=extern, 0xff=ending) */
+		/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
+		lcd_cpu-gpios = <&gpio GPIOH_3 1 &gpio GPIOH_4 1>;
+		lcd_cpu_gpio_names = "GPIOH_3","GPIOH_4";
+
+		lvds_0{
+			model_name = "1080p-vfreq";
+			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 0   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+
+		vbyone_0{
+			model_name = "public";
+			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
+			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			power_on_step = <2 0 0 10   /* signal enable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			power_off_step = <2 0 0 10 /* signal disable */
+					0xff 0 0 0>; /* type, index, value, delay */
+			backlight_index = <0xff>;
+		};
+	}; /* end of lcd */
+
+};/* end of / */
+
