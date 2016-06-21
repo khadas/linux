@@ -591,6 +591,7 @@ void vf_ppmgr_init_provider(void)
 
 static inline struct vframe_s *ppmgr_vf_peek_dec(void)
 {
+#if 0
 	struct vframe_provider_s *vfp;
 	struct vframe_s *vf;
 	vfp = vf_get_provider(RECEIVER_NAME);
@@ -599,10 +600,15 @@ static inline struct vframe_s *ppmgr_vf_peek_dec(void)
 
 	vf = vfp->ops->peek(vfp->op_arg);
 	return vf;
+#else
+	return vf_peek(RECEIVER_NAME);
+#endif
 }
 
 static inline struct vframe_s *ppmgr_vf_get_dec(void)
 {
+#if 0
+
 	struct vframe_provider_s *vfp;
 	struct vframe_s *vf;
 	vfp = vf_get_provider(RECEIVER_NAME);
@@ -610,15 +616,24 @@ static inline struct vframe_s *ppmgr_vf_get_dec(void)
 		return NULL;
 	vf = vfp->ops->get(vfp->op_arg);
 	return vf;
+#else
+	return vf_get(RECEIVER_NAME);
+#endif
+
 }
 
 void ppmgr_vf_put_dec(struct vframe_s *vf)
 {
+#if 0
+
 	struct vframe_provider_s *vfp;
 	vfp = vf_get_provider(RECEIVER_NAME);
 	if (!(vfp && vfp->ops && vfp->ops->peek))
 		return;
 	vfp->ops->put(vf, vfp->op_arg);
+#else
+	vf_put(vf, RECEIVER_NAME);
+#endif
 }
 
 /************************************************

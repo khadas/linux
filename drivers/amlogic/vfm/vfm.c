@@ -29,8 +29,16 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
+
+/*for dumpinfos*/
+#include <linux/amlogic/canvas/canvas_mgr.h>
+#include <linux/amlogic/canvas/canvas.h>
+
 /* Local headers */
+#include "vftrace.h"
 #include "vfm.h"
+static DEFINE_SPINLOCK(lock);
+
 #define DRV_NAME    "vfm"
 #define DEV_NAME    "vfm"
 #define BUS_NAME    "vfm"
@@ -49,6 +57,8 @@ struct vfm_map_s {
 struct vfm_map_s *vfm_map[VFM_MAP_COUNT];
 static int vfm_map_num;
 int vfm_debug_flag = 0;		/* 1; */
+int vfm_trace_enable = 0;		/* 1; */
+int vfm_trace_num = 40;		/*  */
 
 void vf_update_active_map(void)
 {
@@ -366,13 +376,81 @@ static ssize_t vfm_map_show(struct class *class,
 	return len;
 }
 
+static int vf_get_states(struct vframe_provider_s *vfp,
+	struct vframe_states *states)
+{
+	int ret = -1;
+	unsigned long flags;
+	spin_lock_irqsave(&lock, flags);
+	if (vfp && vfp->ops && vfp->ops->vf_states)
+		ret = vfp->ops->vf_states(states, vfp->op_arg);
+	spin_unlock_irqrestore(&lock, flags);
+	return ret;
+}
+static inline struct vframe_s *vmf_vf_peek(
+	struct vframe_provider_s *vfp)
+{
+	if (!(vfp && vfp->ops && vfp->ops->peek))
+		return NULL;
+	return vfp->ops->peek(vfp->op_arg);
+}
+static void vfm_dump_provider(const char *name)
+{
+	struct vframe_provider_s *prov = vf_get_provider_by_name(name);
+	struct vframe_states states;
+	unsigned long flags;
+	struct vframe_s *vf;
+
+	if (!prov)
+		return;
+	if (!vf_get_states(prov, &states)) {
+		pr_info("vframe_pool_size=%d\n",
+			states.vf_pool_size);
+		pr_info("vframe buf_free_num=%d\n",
+			states.buf_free_num);
+		pr_info("vframe buf_recycle_num=%d\n",
+			states.buf_recycle_num);
+		pr_info("vframe buf_avail_num=%d\n",
+			states.buf_avail_num);
+
+		spin_lock_irqsave(&lock, flags);
+
+		vf = vmf_vf_peek(prov);
+		if (vf) {
+			pr_info("vframe ready frame delayed =%dms\n",
+				(int)(jiffies_64 -
+				vf->ready_jiffies64) * 1000 /
+				HZ);
+			pr_info("vf index=%d\n", vf->index);
+			pr_info("vf->pts=%d\n", vf->pts);
+			pr_info("vf canvas0Addr=%x\n", vf->canvas0Addr);
+			pr_info("vf canvas1Addr=%x\n", vf->canvas1Addr);
+			pr_info("vf canvas0Addr.y.addr=%x(%d)\n",
+				canvas_get_addr(
+				canvasY(vf->canvas0Addr)),
+				canvas_get_addr(
+				canvasY(vf->canvas0Addr)));
+			pr_info("vf canvas0Adr.uv.adr=%x(%d)\n",
+				canvas_get_addr(
+				canvasUV(vf->canvas0Addr)),
+				canvas_get_addr(
+				canvasUV(vf->canvas0Addr)));
+		}
+		spin_unlock_irqrestore(&lock, flags);
+	}
+	vftrace_dump_trace_infos(prov->traceget);
+	vftrace_dump_trace_infos(prov->traceput);
+}
+
 #define VFM_CMD_ADD 1
 #define VFM_CMD_RM  2
+#define VFM_CMD_DUMP  3
+
 /*
  * echo add <name> <node1 node2 ...> > /sys/class/vfm/map
  * echo rm <name>                    > /sys/class/vfm/map
  * echo rm all                       > /sys/class/vfm/map
- *
+ * echo dump providername			> /sys/class/vfm/map
  * <name> the name of the path.
  * <node1 node2 ...> the name of the nodes in the path.
 */
@@ -400,6 +478,8 @@ static ssize_t vfm_map_store(struct class *class,
 				cmd = VFM_CMD_ADD;
 			else if (!strcmp(token, "rm"))
 				cmd = VFM_CMD_RM;
+			else if (!strcmp(token, "dump"))
+				cmd = VFM_CMD_DUMP;
 			else
 				break;
 		} else if (i == 1) {
@@ -411,6 +491,8 @@ static ssize_t vfm_map_store(struct class *class,
 				/* pr_err("vfm_map_remove(%s)\n",id); */
 				if (vfm_map_remove(id) < 0)
 					count = 0;
+			} else if (cmd == VFM_CMD_DUMP) {
+				vfm_dump_provider(token);
 			}
 			break;
 		}
@@ -453,6 +535,13 @@ MODULE_PARM_DESC(vfm_debug_flag, "\n vfm_debug_flag\n");
 module_param(vfm_debug_flag, int, 0664);
 MODULE_PARM_DESC(vfm_map_num, "\n vfm_map_num\n");
 module_param(vfm_map_num, int, 0664);
+
+module_param(vfm_trace_enable, int, 0664);
+MODULE_PARM_DESC(vfm_trace_enable, "\n vfm_trace_enable\n");
+module_param(vfm_trace_num, int, 0664);
+MODULE_PARM_DESC(vfm_trace_num, "\n vfm_trace_num\n");
+
+
 MODULE_DESCRIPTION("Amlogic video frame manager driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bobby Yang <bo.yang@amlogic.com>");

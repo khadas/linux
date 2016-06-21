@@ -51,6 +51,8 @@ struct vframe_provider_s {
 	const struct vframe_operations_s *ops;
 	void *op_arg;
 	struct list_head list;
+	void *traceget;
+	void *traceput;
 } /*vframe_provider_t */;
 
 extern struct vframe_provider_s *vf_provider_alloc(void);

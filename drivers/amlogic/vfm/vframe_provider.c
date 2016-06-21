@@ -29,6 +29,7 @@
 
 /* Local headers */
 #include "vfm.h"
+#include "vftrace.h"
 
 #define MAX_PROVIDER_NUM    32
 struct vframe_provider_s *provider_table[MAX_PROVIDER_NUM];
@@ -149,6 +150,14 @@ int vf_reg_provider(struct vframe_provider_s *prov)
 	} else{
 		pr_err("%s: Error, provider_table full\n", __func__);
 	}
+	prov->traceget = NULL;
+	if (vfm_trace_enable & 1)
+		prov->traceget = vftrace_alloc_trace(prov->name, 1,
+				vfm_trace_num);
+	prov->traceput = NULL;
+	if (vfm_trace_enable & 2)
+		prov->traceput = vftrace_alloc_trace(prov->name, 0,
+				vfm_trace_num);
 	return 0;
 }
 EXPORT_SYMBOL(vf_reg_provider);
@@ -161,6 +170,14 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 	for (i = 0; i < MAX_PROVIDER_NUM; i++) {
 		p = provider_table[i];
 		if (p && !strcmp(p->name, prov->name)) {
+			if (p->traceget) {
+				vftrace_free_trace(p->traceget);
+				p->traceget = NULL;
+			}
+			if (p->traceput) {
+				vftrace_free_trace(p->traceput);
+				p->traceput = NULL;
+			}
 			provider_table[i] = NULL;
 			if (vfm_debug_flag & 1)
 				pr_err("%s:%s\n", __func__, prov->name);
@@ -245,10 +262,14 @@ struct vframe_s *vf_get(const char *receiver)
 {
 
 	struct vframe_provider_s *vfp;
+	struct vframe_s *vf;
 	vfp = vf_get_provider(receiver);
 	if (!(vfp && vfp->ops && vfp->ops->get))
 		return NULL;
-	return vfp->ops->get(vfp->op_arg);
+	vf = vfp->ops->get(vfp->op_arg);
+	if (vf)
+		vftrace_info_in(vfp->traceget, vf);
+	return vf;
 }
 EXPORT_SYMBOL(vf_get);
 
@@ -258,6 +279,8 @@ void vf_put(struct vframe_s *vf, const char *receiver)
 	vfp = vf_get_provider(receiver);
 	if (!(vfp && vfp->ops && vfp->ops->put))
 		return;
+	if (vf)
+		vftrace_info_in(vfp->traceput, vf);
 	vfp->ops->put(vf, vfp->op_arg);
 }
 EXPORT_SYMBOL(vf_put);

@@ -34,6 +34,8 @@ struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern int vfm_mode;
 
 extern int vfm_debug_flag;
+extern int vfm_trace_enable;		/* 1; */
+extern int vfm_trace_num;		/*  */
 
 #endif				/*
 				 */
