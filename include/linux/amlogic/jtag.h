@@ -18,26 +18,25 @@
 
 #include <linux/types.h>
 
-#define JTAG_STATE_ON	0
-#define JTAG_STATE_OFF	1
+#define JTAG_STATE_ON		0
+#define JTAG_STATE_OFF		1
 
-#define JTAG_DISABLE	(-1)
-#define JTAG_A53_AO	2
-#define JTAG_A53_EE	3
+#define JTAG_DISABLE		(-1)
+#define JTAG_A53_AO		2
+#define JTAG_A53_EE		3
 
 #define JTAG_ON			0x82000040
 #define JTAG_OFF		0x82000041
+
 
 #ifdef CONFIG_AML_JTAG_SETUP
 extern bool is_jtag_disable(void);
 extern bool is_jtag_apao(void);
 extern bool is_jtag_apee(void);
-extern int get_jtag_select(void);
 #else
 static inline bool is_jtag_disable(void) { return true; }
 static inline bool is_jtag_apao(void) { return false; }
 static inline bool is_jtag_apee(void) { return false; }
-static inline int get_jtag_select(void) { return JTAG_DISABLE; }
 #endif
 
 

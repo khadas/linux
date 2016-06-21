@@ -15,6 +15,8 @@
  *
 */
 
+#define pr_fmt(fmt)	"jtag: " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -31,7 +33,10 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
 
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/mmc_notify.h>
 #include <linux/amlogic/jtag.h>
+#include "jtag.h"
 
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
@@ -40,15 +45,10 @@
 #endif
 
 
-#define INFO(format, arg...) pr_info("jtag: " format, ##arg)
-#define ERR(format,  arg...) pr_err("jtag: "  format, ##arg)
-
-
 #define AML_JTAG_NAME		"jtag"
 
-
-static struct class jtag_cls;
 static int jtag_select = JTAG_DISABLE;
+static int jtag_cluster = CLUSTER_DISABLE;
 
 bool is_jtag_disable(void)
 {
@@ -77,16 +77,52 @@ bool is_jtag_apee(void)
 }
 EXPORT_SYMBOL(is_jtag_apee);
 
-int get_jtag_select(void)
+static void aml_jtag_option_parse(struct aml_jtag_dev *jdev, const char *s)
 {
-	return jtag_select;
-}
-EXPORT_SYMBOL(get_jtag_select);
+	char *cluster;
+	unsigned long value;
+	int ret;
 
+	if (!strncmp(s, "disable", 7)) {
+		jdev->select = JTAG_DISABLE;
+		jtag_select = jdev->select;
+	} else if (!strncmp(s, "apao", 4)) {
+		jdev->select = JTAG_A53_AO;
+		jtag_select = jdev->select;
+	} else if (!strncmp(s, "apee", 4)) {
+		jdev->select = JTAG_A53_EE;
+		jtag_select = jdev->select;
+	} else {
+		jdev->select = JTAG_DISABLE;
+		jtag_select = jdev->select;
+	}
+
+	pr_info("jtag select %d\n", jdev->select);
+
+	cluster = strchr(s, ',');
+	if (cluster != NULL) {
+		cluster++;
+		ret = kstrtoul(cluster, 10, &value);
+		if (ret) {
+			pr_err("invalid cluster index %d\n", jdev->cluster);
+			jdev->cluster = CLUSTER_DISABLE;
+		} else {
+			jdev->cluster = value;
+		}
+		jtag_cluster = jdev->cluster;
+
+		pr_info("cluster index %d\n", jdev->cluster);
+	} else {
+		jdev->cluster = CLUSTER_DISABLE;
+		jtag_cluster = jdev->cluster;
+	}
+}
 
 static int __init setup_jtag(char *p)
 {
-	INFO("%s\n", p);
+	char *cluster;
+	unsigned long value;
+	int ret;
 
 	if (!strncmp(p, "disable", 7))
 		jtag_select = JTAG_DISABLE;
@@ -97,8 +133,31 @@ static int __init setup_jtag(char *p)
 	else
 		jtag_select = JTAG_DISABLE;
 
+	pr_info("jtag select %d\n", jtag_select);
+
+	cluster = strchr(p, ',');
+	if (cluster != NULL) {
+		cluster++;
+		ret = kstrtoul(cluster, 10, &value);
+		if (ret) {
+			pr_err("invalid cluster index %d\n", jtag_cluster);
+			jtag_cluster = CLUSTER_DISABLE;
+		} else {
+			jtag_cluster = value;
+		}
+		pr_info("cluster index %d\n", jtag_cluster);
+	}
+
 	return 0;
 }
+
+/*
+ * jtag=[apao|apee]
+ * jtag=[apao|apee]{,[0|1]}
+ *
+ * [apao|apee]: jtag domain
+ * [0|1]: cluster index
+ */
 __setup("jtag=", setup_jtag);
 
 
@@ -109,16 +168,40 @@ __setup("jtag=", setup_jtag);
  *@return: 0 success, other failed
  *
  */
-static int aml_jtag_pinmux_apao(struct platform_device *pdev)
+static int aml_jtag_pinmux_apao(struct aml_jtag_dev *jdev)
 {
 	struct pinctrl *p;
 
-	p = devm_pinctrl_get_select(&pdev->dev, "jtag_apao_pins");
+	p = devm_pinctrl_get_select(&jdev->pdev->dev, "jtag_apao_pins");
 	if (IS_ERR(p)) {
-		ERR("failed to get select pins\n");
+		pr_err("failed to get select pins\n");
 		return -1;
 	}
 	return 0;
+}
+
+static int aml_jtag_pinmux_apee(struct aml_jtag_dev *jdev)
+{
+	/* @todo jtag ee pinmux are setup in sd module,
+	 *       need to do here.
+	 */
+	return 0;
+}
+
+static void aml_jtag_pinctrl(struct aml_jtag_dev *jdev)
+{
+	switch (jdev->select) {
+	case JTAG_A53_AO:
+		aml_jtag_pinmux_apao(jdev);
+		pr_info("pinctrl setup apao\n");
+		break;
+	case JTAG_A53_EE:
+		aml_jtag_pinmux_apee(jdev);
+		pr_info("pinctrl setup apee\n");
+		break;
+	default:
+		break;
+	}
 }
 
 
@@ -141,7 +224,7 @@ void aml_set_jtag_state(unsigned state, unsigned select)
 	__invoke_psci_fn_smc(command, select, 0, 0);
 }
 #else
-void jtag_set_state(unsigned state, unsigned select)
+void aml_set_jtag_state(unsigned state, unsigned select)
 {
 	unsigned command;
 	register unsigned r0 asm("r0");
@@ -165,66 +248,27 @@ void jtag_set_state(unsigned state, unsigned select)
 }
 #endif
 
-void aml_jtag_disable(void)
+
+
+void aml_jtag_select(struct aml_jtag_dev *jdev)
 {
+	unsigned int sel = jdev->select;
+
+	if (jdev->cluster != CLUSTER_DISABLE)
+		sel |= jdev->cluster << CLUSTER_BIT;
+
+	pr_info("set state %u\n", sel);
+
 	set_cpus_allowed_ptr(current, cpumask_of(0));
-	aml_set_jtag_state(JTAG_STATE_OFF, JTAG_DISABLE);
+	aml_set_jtag_state(JTAG_STATE_ON, sel);
 	set_cpus_allowed_ptr(current, cpu_all_mask);
 }
 
-void aml_jtag_select_apao(void)
-{
-	set_cpus_allowed_ptr(current, cpumask_of(0));
-	aml_set_jtag_state(JTAG_STATE_ON, JTAG_A53_AO);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
-}
 
-void aml_jtag_select_apee(void)
+static void aml_jtag_setup(struct aml_jtag_dev *jdev)
 {
-	set_cpus_allowed_ptr(current, cpumask_of(0));
-	aml_set_jtag_state(JTAG_STATE_ON, JTAG_A53_EE);
-	set_cpus_allowed_ptr(current, cpu_all_mask);
-}
-
-static void aml_jtag_select(int select)
-{
-	switch (select) {
-	case JTAG_A53_AO:
-		aml_jtag_select_apao();
-		INFO("select JTAG_A53_AO\n");
-		break;
-	case JTAG_A53_EE:
-		aml_jtag_select_apee();
-		INFO("select JTAG_A53_EE\n");
-		break;
-	default:
-		aml_jtag_disable();
-		INFO("select JTAG_DISABLE\n");
-		break;
-	}
-}
-
-
-static void aml_jtag_setup(struct platform_device *pdev)
-{
-	switch (jtag_select) {
-	case JTAG_A53_AO:
-		aml_jtag_pinmux_apao(pdev);
-		aml_jtag_select_apao();
-		INFO("setup apao\n");
-		break;
-	case JTAG_A53_EE:
-		/*
-		 * jtag ee pinmux are setup in sd module
-		 */
-		aml_jtag_select_apee();
-		INFO("setup apee\n");
-		break;
-	default:
-		aml_jtag_disable();
-		INFO("disable\n");
-		break;
-	}
+	aml_jtag_pinctrl(jdev);
+	aml_jtag_select(jdev);
 }
 
 static ssize_t jtag_select_show(struct class *cls,
@@ -232,12 +276,8 @@ static ssize_t jtag_select_show(struct class *cls,
 {
 	unsigned int len = 0;
 	len += sprintf(buf + len, "usage:\n");
-	len += sprintf(buf + len, "    echo <n> > select\n");
-	len += sprintf(buf + len, "\n");
-	len += sprintf(buf + len, "the value of <n> is:\n");
-	len += sprintf(buf + len, "    0 - disable\n");
-	len += sprintf(buf + len, "    1 - apao(A53 AO)\n");
-	len += sprintf(buf + len, "    2 - apee(A53 EE)\n");
+	len += sprintf(buf + len, "    echo [apao|apee] > select\n");
+	len += sprintf(buf + len, "    echo [apao|apee]{,[0|1]} > select\n");
 	return len;
 }
 
@@ -246,32 +286,11 @@ static ssize_t jtag_select_store(struct class *cls,
 			 struct class_attribute *attr,
 			 const char *buffer, size_t count)
 {
-	long sel;
+	struct aml_jtag_dev *jdev;
 
-	if (kstrtol(buffer, 10, &sel)) {
-		pr_err("unsupported value\n");
-		return count;
-	}
-
-	pr_info("sel = %ld\n", sel);
-
-	switch (sel) {
-	case 1:
-		jtag_select = JTAG_A53_AO;
-		break;
-	case 2:
-		jtag_select = JTAG_A53_EE;
-		break;
-	default:
-		jtag_select = JTAG_DISABLE;
-		break;
-
-	}
-
-	pr_info("jtag_select = %d\n", jtag_select);
-
-	aml_jtag_select(jtag_select);
-
+	jdev = container_of(cls, struct aml_jtag_dev, cls);
+	aml_jtag_option_parse(jdev, buffer);
+	aml_jtag_setup(jdev);
 
 	return count;
 }
@@ -281,26 +300,83 @@ static struct class_attribute aml_jtag_attrs[] = {
 	__ATTR_NULL,
 };
 
+
+static int jtag_notify_callback(struct notifier_block *block,
+			unsigned long event, void *data)
+{
+	struct aml_jtag_dev *jdev;
+
+	jdev = container_of(block, struct aml_jtag_dev, notifier);
+
+
+	/* @todo need mmc driver to implement notify calling */
+	pr_info("%s %lu\n", __func__, event);
+	switch (event) {
+	case MMC_EVENT_JTAG_IN:
+		jdev->select = JTAG_A53_EE;
+		jtag_select = jdev->select;
+		break;
+
+	case MMC_EVENT_JTAG_OUT:
+		jdev->select = JTAG_A53_AO;
+		jtag_select = jdev->select;
+		break;
+
+	default:
+		return NOTIFY_DONE;
+	}
+
+	aml_jtag_setup(jdev);
+
+	return NOTIFY_OK;
+}
+
+
 static int aml_jtag_probe(struct platform_device *pdev)
 {
+	struct aml_jtag_dev *jdev;
+	int ret;
+
+	/* kzalloc device */
+	jdev = kzalloc(sizeof(struct aml_jtag_dev), GFP_KERNEL);
+	if (!jdev) {
+		pr_err("kzalloc error\n");
+		return -ENOMEM;
+	}
 
 	/* create class attributes */
-	jtag_cls.name = AML_JTAG_NAME;
-	jtag_cls.owner = THIS_MODULE;
-	jtag_cls.class_attrs = aml_jtag_attrs;
-	class_register(&jtag_cls);
+	jdev->cls.name = AML_JTAG_NAME;
+	jdev->cls.owner = THIS_MODULE;
+	jdev->cls.class_attrs = aml_jtag_attrs;
+	class_register(&jdev->cls);
 
-	aml_jtag_setup(pdev);
+	/* set driver data */
+	jdev->pdev = pdev;
+	platform_set_drvdata(pdev, jdev);
 
-	INFO("module probed ok\n");
+	/* register mmc notify */
+	jdev->notifier.notifier_call = jtag_notify_callback;
+	ret = mmc_register_client(&jdev->notifier);
+
+	/* setup jtag */
+	jdev->select = jtag_select;
+	jdev->cluster = jtag_cluster;
+	aml_jtag_setup(jdev);
+
+	pr_info("module probed ok\n");
 	return 0;
 }
 
 
 static int __exit aml_jtag_remove(struct platform_device *pdev)
 {
-	class_unregister(&jtag_cls);
-	INFO("module removed ok\n");
+	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
+
+	class_unregister(&jdev->cls);
+	platform_set_drvdata(pdev, NULL);
+	kfree(jdev);
+
+	pr_info("module removed ok\n");
 	return 0;
 }
 
@@ -325,9 +401,9 @@ static struct platform_driver aml_jtag_driver = {
 
 static int __init aml_jtag_init(void)
 {
-	INFO("module init\n");
+	pr_info("module init\n");
 	if (platform_driver_register(&aml_jtag_driver)) {
-		ERR("failed to register driver\n");
+		pr_err("failed to register driver\n");
 		return -ENODEV;
 	}
 
@@ -337,7 +413,7 @@ static int __init aml_jtag_init(void)
 
 static void __exit aml_jtag_exit(void)
 {
-	INFO("module exit\n");
+	pr_info("module exit\n");
 	platform_driver_unregister(&aml_jtag_driver);
 }
 

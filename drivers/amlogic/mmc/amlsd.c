@@ -1199,7 +1199,7 @@ static void aml_jtag_switch_sd(struct amlsd_platform *pdata)
 			break;
 		mdelay(1);
 	}
-	if (get_jtag_select() == JTAG_A53_EE) {
+	if (is_jtag_apee()) {
 		jtag_select_sd();
 		pr_info("setup apee\n");
 	}
