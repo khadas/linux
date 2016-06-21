@@ -598,6 +598,7 @@ extern int hdcp22_firmware_ok_flag;
 extern int force_hdcp14_en;
 extern int pre_port;
 extern int esm_err_force_14;
+extern int pc_mode_en;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

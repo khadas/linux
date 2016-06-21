@@ -1353,6 +1353,11 @@ int hdmirx_hw_get_color_fmt(void)
 int rx_get_colordepth(void)
 {
 	int ret = rx.pre_params.deep_color_mode / 3;
+	if (pc_mode_en == 1) {
+		if ((rx.pre_params.video_mode == HDMI_2160p_60hz_420) ||
+			(rx.pre_params.video_mode == HDMI_4096p_60hz_420))
+			ret = 8;
+	}
 	return ret;
 }
 

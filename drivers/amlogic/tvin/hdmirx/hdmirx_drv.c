@@ -94,7 +94,7 @@ static int force_color_range;
 MODULE_PARM_DESC(force_color_range, "\n force_color_range\n");
 module_param(force_color_range, int, 0664);
 
-static int pc_mode_en;
+int pc_mode_en;
 MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
 module_param(pc_mode_en, int, 0664);
 
