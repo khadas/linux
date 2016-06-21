@@ -46,10 +46,7 @@
 #include "streambuf.h"
 #include <linux/delay.h>
 
-
-#ifdef CONFIG_GE2D_KEEP_FRAME
 #include <linux/amlogic/ge2d/ge2d.h>
-#endif
 
 #define DRIVER_NAME "amvdec_h264"
 #define MODULE_NAME "amvdec_h264"
@@ -69,15 +66,13 @@
 #define PTS2DUR(x) ((x)*96/90)
 #define DUR2PTS_REM(x) (x*90 - DUR2PTS(x)*96)
 #define FIX_FRAME_RATE_CHECK_IDRFRAME_NUM 2
+#define VDEC_CLOCK_ADJUST_FRAME 50
 
 static inline bool close_to(int a, int b, int m)
 {
 	return (abs(a - b) < m) ? true : false;
 }
 
-/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
-#define NV21
-/* #endif */
 static DEFINE_MUTEX(vh264_mutex);
 /* 12M for L41 */
 #define MAX_DPB_BUFF_SIZE       (12*1024*1024)
@@ -127,7 +122,7 @@ struct buffer_spec_s {
 	int y_canvas_index;
 	int u_canvas_index;
 	int v_canvas_index;
-#ifdef CONFIG_GE2D_KEEP_FRAME
+
 	unsigned int y_canvas_width;
 	unsigned int u_canvas_width;
 	unsigned int v_canvas_width;
@@ -135,8 +130,7 @@ struct buffer_spec_s {
 	unsigned int y_canvas_height;
 	unsigned int u_canvas_height;
 	unsigned int v_canvas_height;
-#endif
-	struct page *alloc_pages;
+
 	unsigned long phy_addr;
 	int alloc_count;
 };
@@ -186,11 +180,13 @@ static u32 frame_packing_type;
 static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(display_q, struct vframe_s *, VF_POOL_SIZE);
 static DECLARE_KFIFO(recycle_q, struct vframe_s *, VF_POOL_SIZE);
+static DECLARE_KFIFO(delay_display_q, struct vframe_s *, VF_POOL_SIZE);
 
 static struct vframe_s vfpool[VF_POOL_SIZE];
 static s32 vfbuf_use[VF_BUF_NUM];
 static struct buffer_spec_s buffer_spec[VF_BUF_NUM];
-static struct vframe_s switching_fense_vf;
+static struct buffer_spec_s fense_buffer_spec[2];
+static struct vframe_s fense_vf[2];
 
 static struct timer_list recycle_timer;
 static u32 stat;
@@ -275,6 +271,7 @@ static u64 first_pts64;
 static bool first_pts_cached;
 static void *sei_data_buffer;
 static dma_addr_t sei_data_buffer_phys;
+static int clk_adj_frame_count;
 
 #define MC_OFFSET_HEADER    0x0000
 #define MC_OFFSET_DATA      0x1000
@@ -289,7 +286,10 @@ static dma_addr_t sei_data_buffer_phys;
 #define MODE_FULL  1
 
 static DEFINE_SPINLOCK(lock);
+static DEFINE_SPINLOCK(prepare_lock);
+static DEFINE_SPINLOCK(recycle_lock);
 
+static bool block_display_q;
 static int vh264_stop(int mode);
 static s32 vh264_init(void);
 
@@ -297,7 +297,6 @@ static s32 vh264_init(void);
 
 static bool pts_discontinue;
 
-#ifdef CONFIG_GE2D_KEEP_FRAME
 static struct ge2d_context_s *ge2d_videoh264_context;
 
 static int ge2d_videoh264task_init(void)
@@ -327,8 +326,8 @@ static int ge2d_canvas_dup(struct canvas_s *srcy, struct canvas_s *srcu,
 {
 
 	struct config_para_ex_s ge2d_config;
-	pr_info("[%s]h264 ADDR srcy[0x%lx] srcu[0x%lx] des[0x%lx]\n",
-		   __func__, srcy->addr, srcu->addr, des->addr);
+	/* pr_info("[%s]h264 ADDR srcy[0x%lx] srcu[0x%lx] des[0x%lx]\n",
+		   __func__, srcy->addr, srcu->addr, des->addr); */
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	ge2d_config.alu_const_color = 0;
@@ -379,7 +378,6 @@ static int ge2d_canvas_dup(struct canvas_s *srcy, struct canvas_s *srcu,
 
 	return 0;
 }
-#endif
 
 static inline int fifo_level(void)
 {
@@ -390,7 +388,6 @@ static inline int fifo_level(void)
 void spec_set_canvas(struct buffer_spec_s *spec,
 					 unsigned width, unsigned height)
 {
-#ifdef NV21
 	canvas_config(spec->y_canvas_index,
 			spec->y_addr,
 			width, height,
@@ -400,25 +397,43 @@ void spec_set_canvas(struct buffer_spec_s *spec,
 				  spec->u_addr,
 				  width, height / 2,
 				  CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-#else
-	canvas_config(spec->y_canvas_index,
-				  spec->y_addr,
-				  width, height,
-				  CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-
-	canvas_config(spec->u_canvas_index,
-				  spec->u_addr,
-				  width / 2,
-				  height / 2,
-				  CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-
-	canvas_config(spec->v_canvas_index,
-				  spec->v_addr,
-				  width / 2,
-				  height / 2,
-				  CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-#endif
 	return;
+}
+
+static void prepare_display_q(void)
+{
+	unsigned long flags;
+	int count;
+
+	spin_lock_irqsave(&prepare_lock, flags);
+
+	if (block_display_q) {
+		spin_unlock_irqrestore(&prepare_lock, flags);
+		return;
+	}
+
+	spin_unlock_irqrestore(&prepare_lock, flags);
+
+	count  = (int)VF_POOL_SIZE -
+		kfifo_len(&delay_display_q) -
+		kfifo_len(&display_q) -
+		kfifo_len(&recycle_q) -
+		kfifo_len(&newframe_q);
+
+	if (vh264_stream_switching_state != SWITCHING_STATE_OFF)
+		count = 0;
+	else
+		count = (count < 2) ? 0 : 2;
+
+	while (kfifo_len(&delay_display_q) > count) {
+		struct vframe_s *vf;
+		if (kfifo_get(&delay_display_q, &vf)) {
+			kfifo_put(&display_q,
+				(const struct vframe_s *)vf);
+			vf_notify_receiver(PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		}
+	}
 }
 
 static struct vframe_s *vh264_vf_peek(void *op_arg)
@@ -443,7 +458,14 @@ static struct vframe_s *vh264_vf_get(void *op_arg)
 
 static void vh264_vf_put(struct vframe_s *vf, void *op_arg)
 {
-	kfifo_put(&recycle_q, (const struct vframe_s *)vf);
+	unsigned long flags;
+
+	spin_lock_irqsave(&recycle_lock, flags);
+
+	if ((vf->flag & VFRAME_FLAG_SWITCHING_FENSE) == 0)
+		kfifo_put(&recycle_q, (const struct vframe_s *)vf);
+
+	spin_unlock_irqrestore(&recycle_lock, flags);
 }
 
 static int vh264_event_cb(int type, void *data, void *private_data)
@@ -473,7 +495,8 @@ static int vh264_vf_states(struct vframe_states *states, void *op_arg)
 
 	states->vf_pool_size = VF_POOL_SIZE;
 	states->buf_free_num = kfifo_len(&newframe_q);
-	states->buf_avail_num = kfifo_len(&display_q);
+	states->buf_avail_num = kfifo_len(&display_q) +
+				kfifo_len(&delay_display_q);
 	states->buf_recycle_num = kfifo_len(&recycle_q);
 
 	spin_unlock_irqrestore(&lock, flags);
@@ -614,6 +637,9 @@ static void vh264_set_params(struct work_struct *work)
 	if (vh264_stream_switching_state == SWITCHING_STATE_ON_CMD1)
 		vh264_stream_switching_state = SWITCHING_STATE_ON_CMD1_PENDING;
 	post_canvas = get_post_canvas();
+	clk_adj_frame_count = 0;
+	/* set to max decoder clock rate at the beginning */
+	vdec_source_changed(VFORMAT_H264, 3840, 2160, 60);
 	timing_info_present_flag = 0;
 	mb_width = READ_VREG(AV_SCRATCH_1);
 	seq_info = READ_VREG(AV_SCRATCH_2);
@@ -703,13 +729,14 @@ static void vh264_set_params(struct work_struct *work)
 							   chroma444)
 							  - 1));
 		}
+#if 0
 		pr_info
 		("frame_mbs_only_flag %d, crop_bottom %d,  frame_height %d, ",
 		 frame_mbs_only_flag, crop_bottom, frame_height);
 		pr_info
 		("mb_height %d,crop_right %d, frame_width %d, mb_width %d\n",
 		 mb_height, crop_right, frame_width, mb_width);
-
+#endif
 		if (frame_height == 1088)
 			frame_height = 1080;
 	}
@@ -783,7 +810,7 @@ static void vh264_set_params(struct work_struct *work)
 					>= buf_end) && (!use_alloc)) {
 				pr_info("start alloc for %d\n", i);
 				use_alloc = true;
-			   }
+			}
 			if (use_alloc) {
 #ifdef DOUBLE_WRITE
 				int page_count =
@@ -803,7 +830,6 @@ static void vh264_set_params(struct work_struct *work)
 						codec_mm_free_for_dma(MEM_NAME,
 						buffer_spec[i].phy_addr);
 						buffer_spec[i].phy_addr = 0;
-					buffer_spec[i].alloc_pages = NULL;
 						buffer_spec[i].alloc_count = 0;
 					} else
 					pr_info("Re-use CMA buffer %d\n", i);
@@ -815,15 +841,16 @@ static void vh264_set_params(struct work_struct *work)
 						fatal_error_flag =
 						DECODER_FATAL_ERROR_NO_MEM;
 						vh264_running = 0;
-					mutex_unlock(&vh264_mutex);
-					pr_err("CMA  not enough mem!  %d\n", i);
-					return;
-				}
+						mutex_unlock(&vh264_mutex);
+						pr_err("CMA  not enough mem! %d\n",
+							i);
+						return;
+					}
 					buffer_spec[i].alloc_count = page_count;
 					buffer_spec[i].phy_addr =
 						codec_mm_alloc_for_dma(MEM_NAME,
 						buffer_spec[i].alloc_count,
-						4 +	PAGE_SHIFT,
+						4 + PAGE_SHIFT,
 						CODEC_MM_FLAGS_CMA_CLEAR |
 						CODEC_MM_FLAGS_FOR_VDECODER);
 					pr_info("CMA malloc ok  %d\n", i);
@@ -831,10 +858,11 @@ static void vh264_set_params(struct work_struct *work)
 				alloc_count++;
 				if (!buffer_spec[i].phy_addr) {
 					buffer_spec[i].alloc_count = 0;
-				pr_err("264-4k mem alloc failed %d\n", i);
-				vh264_running = 0;
-				mutex_unlock(&vh264_mutex);
-				return;
+					pr_err("264-4k mem alloc failed %d\n",
+						i);
+					vh264_running = 0;
+					mutex_unlock(&vh264_mutex);
+					return;
 				}
 				addr = buffer_spec[i].phy_addr;
 			} else {
@@ -842,8 +870,6 @@ static void vh264_set_params(struct work_struct *work)
 						codec_mm_free_for_dma(MEM_NAME,
 						buffer_spec[i].phy_addr);
 						buffer_spec[i].phy_addr = 0;
-						buffer_spec[i].alloc_pages =
-							NULL;
 						buffer_spec[i].alloc_count = 0;
 					}
 			}
@@ -853,30 +879,22 @@ static void vh264_set_params(struct work_struct *work)
 			if (i <= 21) {
 				buffer_spec[i].y_addr = addr;
 				addr += mb_total << 8;
-#ifdef NV21
 				buffer_spec[i].u_addr = addr;
 				buffer_spec[i].v_addr = addr;
 				addr += mb_total << 7;
-#else
-				buffer_spec[i].u_addr = addr;
-				addr += mb_total << 6;
-				buffer_spec[i].v_addr = addr;
-				addr += mb_total << 6;
-#endif
 				vfbuf_use[i] = 0;
 
-#ifdef NV21
 				buffer_spec[i].y_canvas_index = 128 + i * 2;
 				buffer_spec[i].u_canvas_index = 128 + i * 2 + 1;
 				buffer_spec[i].v_canvas_index = 128 + i * 2 + 1;
-#ifdef CONFIG_GE2D_KEEP_FRAME
+
 				buffer_spec[i].y_canvas_width = mb_width << 4;
 				buffer_spec[i].y_canvas_height = mb_height << 4;
 				buffer_spec[i].u_canvas_width = mb_width << 4;
 				buffer_spec[i].u_canvas_height = mb_height << 4;
 				buffer_spec[i].v_canvas_width = mb_width << 4;
 				buffer_spec[i].v_canvas_height = mb_height << 4;
-#endif
+
 				canvas_config(128 + i * 2,
 						buffer_spec[i].y_addr,
 						mb_width << 4, mb_height << 4,
@@ -889,73 +907,30 @@ static void vh264_set_params(struct work_struct *work)
 						CANVAS_BLKMODE_32X32);
 				WRITE_VREG(ANC0_CANVAS_ADDR + i,
 						spec2canvas(&buffer_spec[i]));
-#else
-				buffer_spec[i].y_canvas_index = 128 + i * 3;
-				buffer_spec[i].u_canvas_index = 128 + i * 3 + 1;
-				buffer_spec[i].v_canvas_index = 128 + i * 3 + 2;
-
-				canvas_config(128 + i * 3,
-						buffer_spec[i].y_addr,
-						mb_width << 4, mb_height << 4,
-						CANVAS_ADDR_NOWRAP,
-						CANVAS_BLKMODE_32X32);
-				canvas_config(128 + i * 3 + 1,
-						buffer_spec[i].u_addr,
-						mb_width << 3, mb_height << 3,
-						CANVAS_ADDR_NOWRAP,
-						CANVAS_BLKMODE_32X32);
-				canvas_config(128 + i * 3 + 2,
-						buffer_spec[i].v_addr,
-						mb_width << 3, mb_height << 3,
-						CANVAS_ADDR_NOWRAP,
-						CANVAS_BLKMODE_32X32);
-				WRITE_VREG(ANC0_CANVAS_ADDR + i,
-						spec2canvas(&buffer_spec[i]));
-#endif
 				} else {
-#ifdef NV21
 				buffer_spec[i].y_canvas_index =
-					2 * (i - 21) + 2;
+					2 * (i - 21) + 4;
 				buffer_spec[i].y_addr = addr;
 				addr += mb_total << 8;
 				buffer_spec[i].u_canvas_index =
-					2 * (i - 21) + 3;
+					2 * (i - 21) + 5;
 				buffer_spec[i].v_canvas_index =
-					2 * (i - 21) + 3;
+					2 * (i - 21) + 5;
 				buffer_spec[i].u_addr = addr;
 				addr += mb_total << 7;
 				vfbuf_use[i] = 0;
-#ifdef CONFIG_GE2D_KEEP_FRAME
+
 				buffer_spec[i].y_canvas_width = mb_width << 4;
 				buffer_spec[i].y_canvas_height = mb_height << 4;
 				buffer_spec[i].u_canvas_width = mb_width << 4;
 				buffer_spec[i].u_canvas_height = mb_height << 4;
 				buffer_spec[i].v_canvas_width = mb_width << 4;
 				buffer_spec[i].v_canvas_height = mb_height << 4;
-#endif
+
 				spec_set_canvas(&buffer_spec[i]
 					, mb_width << 4, mb_height << 4);
 				WRITE_VREG(ANC0_CANVAS_ADDR + i
 					, spec2canvas(&buffer_spec[i]));
-#else
-				buffer_spec[i].y_canvas_index =
-					3 * (i - 21) + 3;
-				buffer_spec[i].y_addr = addr;
-				addr += mb_total << 8;
-				buffer_spec[i].u_canvas_index =
-					3 * (i - 21) + 4;
-				buffer_spec[i].u_addr = addr;
-				addr += mb_total << 6;
-				buffer_spec[i].v_canvas_index =
-					3 * (i - 21) + 5;
-				buffer_spec[i].v_addr = addr;
-				addr += mb_total << 6;
-				vfbuf_use[i] = 0;
-				spec_set_canvas(&buffer_spec[i]
-					, mb_width << 4, mb_height << 4);
-				WRITE_VREG(ANC0_CANVAS_ADDR + i
-					, spec2canvas(&buffer_spec[i]));
-#endif
 			}
 		}
 	} else
@@ -1279,8 +1254,7 @@ static void vh264_isr(void)
 		DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE;
 	static const unsigned int flg_576_itl =
 		DEC_CONTROL_FLAG_FORCE_2500_576P_INTERLACE;
-	static const unsigned int vf_ready =
-		VFRAME_EVENT_PROVIDER_VFRAME_READY;
+
 	WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
 	if (0 == (stat & STAT_VDEC_RUN)) {
@@ -1385,6 +1359,9 @@ static void vh264_isr(void)
 				("fatal error, no available buffer slot.");
 				return IRQ_HANDLED;
 			}
+
+			if (clk_adj_frame_count < VDEC_CLOCK_ADJUST_FRAME)
+				clk_adj_frame_count++;
 
 			set_frame_info(vf);
 
@@ -1619,15 +1596,10 @@ static void vh264_isr(void)
 							frame_dur);
 
 				vf->index = buffer_index;
-#ifdef NV21
 				vf->type =
 					VIDTYPE_PROGRESSIVE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_VIU_NV21;
-#else
-				vf->type =
-					VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
-#endif
 				vf->duration_pulldown = 0;
 				vf->signal_type = video_signal_from_vui;
 				vf->index = buffer_index;
@@ -1647,14 +1619,9 @@ static void vh264_isr(void)
 				} else {
 					p_last_vf = vf;
 					pts_discontinue = false;
-					kfifo_put(&display_q,
+					kfifo_put(&delay_display_q,
 						  (const struct vframe_s *)vf);
-
-					vf_notify_receiver(PROVIDER_NAME,
-						vf_ready,
-						NULL);
 				}
-
 			} else {
 				if (pic_struct_present
 					&& pic_struct == PIC_TOP_BOT)
@@ -1668,9 +1635,7 @@ static void vh264_isr(void)
 						VIDTYPE_INTERLACE_BOTTOM :
 						VIDTYPE_INTERLACE_TOP;
 				}
-#ifdef NV21
 				vf->type |= VIDTYPE_VIU_NV21;
-#endif
 				vf->type |= VIDTYPE_INTERLACE_FIRST;
 
 				vf->duration >>= 1;
@@ -1694,14 +1659,11 @@ static void vh264_isr(void)
 					continue;
 				} else {
 					pts_discontinue = false;
-					kfifo_put(&display_q,
+					kfifo_put(&delay_display_q,
 						(const struct vframe_s *)vf);
 				}
 
 				if (READ_VREG(AV_SCRATCH_F) & 2) {
-					vf_notify_receiver(PROVIDER_NAME,
-						vf_ready,
-						NULL);
 					continue;
 				}
 
@@ -1726,10 +1688,7 @@ static void vh264_isr(void)
 						VIDTYPE_INTERLACE_BOTTOM;
 				}
 
-#ifdef NV21
 				vf->type |= VIDTYPE_VIU_NV21;
-#endif
-
 				vf->duration >>= 1;
 				vf->duration_pulldown = 0;
 				vf->signal_type = video_signal_from_vui;
@@ -1744,12 +1703,8 @@ static void vh264_isr(void)
 				p_last_vf = vf;
 				vf->ready_jiffies64 = jiffies_64;
 
-				kfifo_put(&display_q,
+				kfifo_put(&delay_display_q,
 						(const struct vframe_s *)vf);
-
-				vf_notify_receiver(PROVIDER_NAME,
-					vf_ready,
-					NULL);
 			}
 		}
 
@@ -1816,14 +1771,9 @@ static void vh264_isr(void)
 				}
 
 			set_frame_info(vf);
-#ifdef NV21
 			vf->type = VIDTYPE_PROGRESSIVE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_VIU_NV21;
-#else
-			vf->type =
-					VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
-#endif
 			vf->duration_pulldown = 0;
 			vf->signal_type = video_signal_from_vui;
 			vf->index = buffer_index;
@@ -1834,8 +1784,8 @@ static void vh264_isr(void)
 			p_last_vf = vf;
 			pts_discontinue = false;
 			iponly_early_mode = 1;
-			kfifo_put(&display_q, (const struct vframe_s *)vf);
-			vf_notify_receiver(PROVIDER_NAME, vf_ready, NULL);
+			kfifo_put(&delay_display_q,
+				(const struct vframe_s *)vf);
 			WRITE_VREG(AV_SCRATCH_0, 0);
 		}
 
@@ -1899,6 +1849,9 @@ static void vh264_put_timer_func(unsigned long arg)
 		pr_info("operation forbidden in timer !\n");
 		goto exit;
 	}
+
+	prepare_display_q();
+
 	if (vf_get_receiver(PROVIDER_NAME)) {
 		state =
 			vf_notify_receiver(PROVIDER_NAME,
@@ -1924,6 +1877,7 @@ static void vh264_put_timer_func(unsigned long arg)
 		wait_i_pass_frames = reg_val & 0xff;
 		if (wait_buffer_status) {
 			if (kfifo_is_empty(&display_q) &&
+				kfifo_is_empty(&delay_display_q) &&
 				kfifo_is_empty(&recycle_q) &&
 				(state == RECEIVER_INACTIVE)) {
 				pr_info("$$$$decoder is waiting for buffer\n");
@@ -1984,8 +1938,7 @@ static void vh264_put_timer_func(unsigned long arg)
 		   && (vh264_stream_switching_state == SWITCHING_STATE_OFF)) {
 		struct vframe_s *vf;
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index >= 0) && (vf->index < VF_BUF_NUM) &&
-					(vf != &switching_fense_vf)) {
+			if ((vf->index >= 0) && (vf->index < VF_BUF_NUM)) {
 				if (--vfbuf_use[vf->index] == 0) {
 					if (READ_VREG(AV_SCRATCH_7) == 0) {
 						WRITE_VREG(AV_SCRATCH_7,
@@ -2007,8 +1960,8 @@ static void vh264_put_timer_func(unsigned long arg)
 		while (!kfifo_is_empty(&recycle_q)) {
 			struct vframe_s *vf;
 			if (kfifo_get(&recycle_q, &vf)) {
-				if ((vf->index >= 0 && (vf->index < VF_BUF_NUM))
-					&& (vf != &switching_fense_vf)) {
+				if ((vf->index >= 0 &&
+					(vf->index < VF_BUF_NUM))) {
 					vf->index = VF_BUF_NUM;
 					kfifo_put(&newframe_q,
 						(const struct vframe_s *)vf);
@@ -2022,7 +1975,9 @@ static void vh264_put_timer_func(unsigned long arg)
 		if (kfifo_len(&newframe_q) == VF_POOL_SIZE)
 			stream_switching_done();
 	}
+
 	if (ucode_type != UCODE_IP_ONLY_PARAM &&
+		(clk_adj_frame_count > VDEC_CLOCK_ADJUST_FRAME) &&
 		frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
@@ -2130,9 +2085,7 @@ static void vh264_prot_init(void)
 	/* enable mailbox interrupt */
 	WRITE_VREG(ASSIST_MBOX1_MASK, 1);
 
-#ifdef NV21
 	SET_VREG_MASK(MDEC_PIC_DC_CTRL, 1 << 17);
-#endif
 	if (ucode_type == UCODE_IP_ONLY_PARAM)
 		SET_VREG_MASK(AV_SCRATCH_F, 1 << 6);
 	else
@@ -2196,6 +2149,7 @@ static void vh264_local_init(void)
 		vfbuf_use[i] = 0;
 
 	INIT_KFIFO(display_q);
+	INIT_KFIFO(delay_display_q);
 	INIT_KFIFO(recycle_q);
 	INIT_KFIFO(newframe_q);
 
@@ -2236,6 +2190,7 @@ static s32 vh264_init(void)
 {
 	int trickmode_fffb = 0;
 	int firmwareloaded = 0;
+	int i;
 
 	/* pr_info("\nvh264_init\n"); */
 	init_timer(&recycle_timer);
@@ -2424,6 +2379,21 @@ static s32 vh264_init(void)
 
 	stat |= STAT_MC_LOAD;
 
+	for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
+		struct buffer_spec_s *s = &fense_buffer_spec[i];
+		if (!codec_mm_enough_for_size(3 * SZ_1M))
+			return -ENOMEM;
+
+		s->alloc_count = 3 * SZ_1M / PAGE_SIZE;
+		s->phy_addr = codec_mm_alloc_for_dma(MEM_NAME,
+			s->alloc_count,
+			4 + PAGE_SHIFT,
+			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_FOR_VDECODER);
+		s->y_canvas_index = 2 * i;
+		s->u_canvas_index = 2 * i + 1;
+		s->v_canvas_index = 2 * i + 1;
+	}
+
 	/* enable AMRISC side protocol */
 	vh264_prot_init();
 
@@ -2532,6 +2502,15 @@ static int vh264_stop(int mode)
 	}
 	amvdec_disable();
 
+	for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
+		if (fense_buffer_spec[i].phy_addr) {
+			codec_mm_free_for_dma(MEM_NAME,
+				fense_buffer_spec[i].phy_addr);
+			fense_buffer_spec[i].phy_addr = 0;
+			fense_buffer_spec[i].alloc_count = 0;
+		}
+	}
+
 	  for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
 			if (buffer_spec[i].phy_addr) {
 				if (is_4k && !get_blackout_policy())
@@ -2541,7 +2520,6 @@ static int vh264_stop(int mode)
 					codec_mm_free_for_dma(MEM_NAME,
 					buffer_spec[i].phy_addr);
 					buffer_spec[i].phy_addr = 0;
-					buffer_spec[i].alloc_pages = NULL;
 					buffer_spec[i].alloc_count = 0;
 				}
 			}
@@ -2608,182 +2586,129 @@ static void stream_switching_done(void)
 	pr_info("Leaving switching mode.\n");
 }
 
-#if !defined(NV21) || !defined(CONFIG_GE2D_KEEP_FRAME)
-static int canvas_dup(u8 *dst, ulong src_paddr, ulong size)
-{
-	void __iomem *p = ioremap_wc(src_paddr, size);
-	if (p) {
-		memcpy(dst, p, size);
-		iounmap(p);
-		return 1;
-	}
-	return 0;
-}
-#endif
-
 /* construt a new frame as a copy of last frame so frame receiver can
  * release all buffer resources to decoder.
  */
 static void stream_switching_do(struct work_struct *work)
 {
-	unsigned int buffer_index;
-	bool do_copy = true;
-	int mb_total_num, mb_width_num, mb_height_num;
-	struct vframe_s *vf;
-
-#ifdef CONFIG_GE2D_KEEP_FRAME
-	u32 y_index, u_index, src_index, des_index, y_desindex, u_dexindex;
+	int mb_total_num, mb_width_num, mb_height_num, i = 0;
+	struct vframe_s *vf = NULL;
+	u32 y_index, u_index, src_index, des_index, y_desindex, u_desindex;
 	struct canvas_s csy, csu, cyd;
-#endif
+	unsigned long flags;
+	bool delay = true;
+
 	if (!atomic_read(&vh264_active))
 		return;
-	if ((!p_last_vf)
-		|| (vh264_stream_switching_state == SWITCHING_STATE_OFF))
+
+	if (vh264_stream_switching_state == SWITCHING_STATE_OFF)
 		return;
 
-	if (atomic_read(&vh264_active)) {
-		ulong videoKeepBuf[3], videoKeepBufPhys[3];
+	if (buffer_index > VF_BUF_NUM - 1 || is_4k)
+		return;
 
-		get_video_keep_buffer(videoKeepBuf, videoKeepBufPhys);
-#ifdef NV21
-#ifdef CONFIG_GE2D_KEEP_FRAME
-		if (!videoKeepBufPhys[0] || !videoKeepBufPhys[1])
-			do_copy = false;
-#else
-		if (!videoKeepBuf[0] || !videoKeepBuf[1])
-			do_copy = false;
-#endif
-#else
-		if (!videoKeepBuf[0] || !videoKeepBuf[1] || !videoKeepBuf[2])
-			do_copy = false;
-#endif
-		buffer_index = p_last_vf->index;
-		mb_total_num = mb_total;
-		mb_width_num = mb_width;
-		mb_height_num = mb_height;
+	spin_lock_irqsave(&prepare_lock, flags);
 
-		if (buffer_index > VF_BUF_NUM - 1 || is_4k)
-			do_copy = false;
+	block_display_q = true;
 
-		/* construct a clone of the frame from last frame */
-		if (do_copy) {
-			/* construct a clone of the frame from last frame */
-#ifdef NV21
-#ifdef CONFIG_GE2D_KEEP_FRAME
-			pr_info
-			("src yaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
-			 buffer_spec[buffer_index].y_addr,
-			 buffer_spec[buffer_index].y_canvas_index,
-			 buffer_spec[buffer_index].y_canvas_width,
-			 buffer_spec[buffer_index].y_canvas_height);
+	spin_unlock_irqrestore(&prepare_lock, flags);
 
-			pr_info
-			("src uaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
-			 buffer_spec[buffer_index].u_addr,
-			 buffer_spec[buffer_index].u_canvas_index,
-			 buffer_spec[buffer_index].u_canvas_width,
-			 buffer_spec[buffer_index].u_canvas_height);
-			y_index = buffer_spec[buffer_index].y_canvas_index;
-			u_index = buffer_spec[buffer_index].u_canvas_index;
-			canvas_read(y_index, &csy);
-			canvas_read(u_index, &csu);
+	mb_total_num = mb_total;
+	mb_width_num = mb_width;
+	mb_height_num = mb_height;
 
-			canvas_config(0, videoKeepBufPhys[0],
-					mb_width_num << 4, mb_height_num << 4,
-					CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_LINEAR);
-			canvas_config(1, videoKeepBufPhys[1],
-					mb_width_num << 4, mb_height_num << 3,
-					CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_LINEAR);
-
-			y_desindex = 0;
-			u_dexindex = 1;
-			canvas_read(y_desindex, &cyd);
-			src_index =
-				((y_index & 0xff) |
-				 ((u_index << 8) & 0x0000ff00));
-			des_index =
-				((y_desindex & 0xff) |
-				 ((u_dexindex << 8) & 0x0000ff00));
-			ge2d_canvas_dup(&csy, &csu, &cyd,
-					GE2D_FORMAT_M24_NV21,
-					src_index, des_index);
-#else
-			canvas_dup((u8 *) videoKeepBuf[0],
-					   buffer_spec[buffer_index].y_addr,
-					   mb_total_num << 8);
-			canvas_dup((u8 *) videoKeepBuf[1],
-					   buffer_spec[buffer_index].u_addr,
-					   mb_total_num << 7);
-
-			canvas_config(0, videoKeepBufPhys[0],
-					mb_width_num << 4,
-					mb_height_num << 4,
-					CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_32X32);
-			canvas_config(1, videoKeepBufPhys[1],
-					mb_width_num << 4,
-					mb_height_num << 3,
-					CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_32X32);
-#endif
-#else
-			canvas_dup((u8 *) videoKeepBuf[0],
-					   buffer_spec[buffer_index].y_addr,
-					   mb_total_num << 8);
-			canvas_dup((u8 *) videoKeepBuf[1],
-					   buffer_spec[buffer_index].u_addr,
-					   mb_total_num << 6);
-			canvas_dup((u8 *) videoKeepBuf[2],
-					   buffer_spec[buffer_index].v_addr,
-					   mb_total_num << 6);
-
-			canvas_config(0, videoKeepBufPhys[0], mb_width_num << 4,
-					mb_height_num << 4, CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_32X32);
-			canvas_config(1, videoKeepBufPhys[1], mb_width_num << 3,
-					mb_height_num << 3, CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_32X32);
-			canvas_config(2, videoKeepBufPhys[2], mb_width_num << 3,
-					mb_height_num << 3, CANVAS_ADDR_NOWRAP,
-					CANVAS_BLKMODE_32X32);
-#endif
-		}
-
-		switching_fense_vf = *p_last_vf;
-		switching_fense_vf.duration = 1;
-		switching_fense_vf.index = -1;
-		switching_fense_vf.flag |= VFRAME_FLAG_SWITCHING_FENSE;
-		if (do_copy) {
-#ifdef NV21
-			switching_fense_vf.canvas0Addr = 0x010100;
-#else
-			switching_fense_vf.canvas0Addr = 0x020100;
-#endif
-		}
-
-		vf = &switching_fense_vf;
-
-		if (vh264_stream_switching_state != SWITCHING_STATE_OFF) {
-			/* we only insert the fense frame when necessary,
-			 * if all buffers are already recycled to decoder
-			 * then it's not  necessary to post fense frame.
-			 * Such cases may happen when receiver side generates
-			 * its own buffer for final output, such as ppmgr
-			 * and ionvideo. The frame buffer from provider will
-			 * be recycled pretty fast. It could happen that
-			 * all frames are returned to decoder before a
-			 * fense frame is ready from this delay work queue.
-			 */
-			kfifo_put(&display_q, (const struct vframe_s *)vf);
+	while (kfifo_len(&delay_display_q) > 2) {
+		if (kfifo_get(&delay_display_q, &vf)) {
+			kfifo_put(&display_q,
+				(const struct vframe_s *)vf);
 			vf_notify_receiver(PROVIDER_NAME,
-					VFRAME_EVENT_PROVIDER_VFRAME_READY,
-					NULL);
-
-			pr_info("Switching fense frame post\n");
+				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		}
 	}
+
+	if (!kfifo_get(&delay_display_q, &vf)) {
+		vf = p_last_vf;
+		delay = false;
+	}
+
+	while (vf) {
+		int buffer_index;
+
+		buffer_index = vf->index & 0xff;
+
+		/* construct a clone of the frame from last frame */
+#if 0
+		pr_info("src yaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
+			buffer_spec[buffer_index].y_addr,
+			buffer_spec[buffer_index].y_canvas_index,
+			buffer_spec[buffer_index].y_canvas_width,
+			buffer_spec[buffer_index].y_canvas_height);
+
+		pr_info("src uaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
+			buffer_spec[buffer_index].u_addr,
+			buffer_spec[buffer_index].u_canvas_index,
+			buffer_spec[buffer_index].u_canvas_width,
+			buffer_spec[buffer_index].u_canvas_height);
+#endif
+		y_index = buffer_spec[buffer_index].y_canvas_index;
+		u_index = buffer_spec[buffer_index].u_canvas_index;
+
+		canvas_read(y_index, &csy);
+		canvas_read(u_index, &csu);
+
+		canvas_config(fense_buffer_spec[i].y_canvas_index,
+			fense_buffer_spec[i].phy_addr,
+			mb_width_num << 4, mb_height_num << 4,
+			CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_LINEAR);
+		canvas_config(fense_buffer_spec[i].u_canvas_index,
+			fense_buffer_spec[i].phy_addr +
+			(mb_total_num << 8),
+			mb_width_num << 4, mb_height_num << 3,
+			CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_LINEAR);
+
+		y_desindex = fense_buffer_spec[i].y_canvas_index;
+		u_desindex = fense_buffer_spec[i].u_canvas_index;
+
+		canvas_read(y_desindex, &cyd);
+
+		src_index = ((y_index & 0xff) |
+			((u_index << 8) & 0x0000ff00));
+		des_index = ((y_desindex & 0xff) |
+			((u_desindex << 8) & 0x0000ff00));
+
+		ge2d_canvas_dup(&csy, &csu, &cyd,
+				GE2D_FORMAT_M24_NV21,
+				src_index,
+				des_index);
+
+		fense_vf[i] = *vf;
+		fense_vf[i].index = -1;
+		fense_vf[i].flag |= VFRAME_FLAG_SWITCHING_FENSE;
+		fense_vf[i].canvas0Addr =
+			spec2canvas(&fense_buffer_spec[i]);
+
+		/* send clone to receiver */
+		kfifo_put(&display_q,
+			(const struct vframe_s *)&fense_vf[i]);
+
+		/* early recycle frames for last session */
+		if (delay)
+			vh264_vf_put(vf, NULL);
+
+		vf_notify_receiver(PROVIDER_NAME,
+			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+
+		i++;
+
+		if (!kfifo_get(&delay_display_q, &vf))
+			break;
+	}
+
+	block_display_q = false;
+
+	pr_info("Switching fense frame post\n");
 }
 
 static int amvdec_h264_probe(struct platform_device *pdev)
@@ -2891,9 +2816,9 @@ static struct codec_profile_t amvdec_h264_profile = {
 static int __init amvdec_h264_driver_init_module(void)
 {
 	pr_debug("amvdec_h264 module init\n");
-#ifdef CONFIG_GE2D_KEEP_FRAME
+
 	ge2d_videoh264task_init();
-#endif
+
 	if (platform_driver_register(&amvdec_h264_driver)) {
 		pr_err("failed to register amvdec_h264 driver\n");
 		return -ENODEV;
@@ -2909,9 +2834,8 @@ static void __exit amvdec_h264_driver_remove_module(void)
 	pr_debug("amvdec_h264 module remove.\n");
 
 	platform_driver_unregister(&amvdec_h264_driver);
-#ifdef CONFIG_GE2D_KEEP_FRAME
+
 	ge2d_videoh264task_release();
-#endif
 }
 
 /****************************************/
