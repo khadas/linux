@@ -251,6 +251,7 @@ struct DI_MIF_s {
 	unsigned short	chroma_y_end0;
 	unsigned		set_separate_en:2;
 	unsigned		src_field_mode:1;
+	unsigned		src_prog:1;
 	unsigned		video_mode:1;
 	unsigned		output_field_num:1;
 	unsigned		bit_mode:2;

@@ -85,7 +85,7 @@ MODULE_PARM_DESC(det3d_cfg, "det3d_cfg");
 static int vdin_en;
 
 static void set_di_inp_fmt_more(
-		int hfmt_en,
+		unsigned int repeat_l0_en,
 		int hz_yc_ratio,	/* 2bit */
 		int hz_ini_phase,	/* 4bit */
 		int vfmt_en,
@@ -536,7 +536,7 @@ void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 
 
 
-static void set_di_inp_fmt_more(int hfmt_en,
+static void set_di_inp_fmt_more(unsigned int repeat_l0_en,
 				int hz_yc_ratio,		/* 2bit */
 				int hz_ini_phase,		/* 4bit */
 				int vfmt_en,
@@ -547,7 +547,7 @@ static void set_di_inp_fmt_more(int hfmt_en,
 				int hz_rpt	/* 1bit */
 		)
 {
-	int repeat_l0_en = 1, nrpt_phase0_en = 0;
+	int hfmt_en = 1, nrpt_phase0_en = 0;
 	int vt_phase_step = (16 >> vt_yc_ratio);
 
 	RDMA_WR(DI_INP_FMT_CTRL, (hz_rpt << 28)	|/* hz rpt pixel */
@@ -572,7 +572,7 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 {
 	unsigned int bytes_per_pixel;
 	unsigned int demux_mode;
-	unsigned int chro_rpt_lastl_ctrl;
+	unsigned int chro_rpt_lastl_ctrl, vfmt_rpt_first = 0;
 	unsigned int luma0_rpt_loop_start;
 	unsigned int luma0_rpt_loop_end;
 	unsigned int luma0_rpt_loop_pat;
@@ -585,15 +585,17 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 		chro_rpt_lastl_ctrl = 1;
 		luma0_rpt_loop_start = 1;
 		luma0_rpt_loop_end = 1;
-		chroma0_rpt_loop_start = 1;
-		chroma0_rpt_loop_end = 1;
+		chroma0_rpt_loop_start = mif->src_prog?0:1;
+		chroma0_rpt_loop_end = mif->src_prog?0:1;
 		luma0_rpt_loop_pat = 0x80;
-		chroma0_rpt_loop_pat = 0x80;
+		chroma0_rpt_loop_pat = mif->src_prog?0:0x80;
 
-		if (mif->output_field_num == 0)
-			vt_ini_phase = 0xe;
-		else
-			vt_ini_phase = 0xa;
+		if (mif->output_field_num == 0) {
+			vt_ini_phase = 0xc;
+			vfmt_rpt_first = 1;
+		} else {
+			vt_ini_phase = 0x4;
+		}
 	} else if (mif->set_separate_en != 0 && mif->src_field_mode == 0) {
 		chro_rpt_lastl_ctrl = 1;
 		luma0_rpt_loop_start = 0;
@@ -697,11 +699,11 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	RDMA_WR(DI_INP_DUMMY_PIXEL, 0x00808000);
 	if ((mif->set_separate_en != 0)) {/* 4:2:0 block mode.*/
 		set_di_inp_fmt_more(
-						1,/* hfmt_en */
+						vfmt_rpt_first,/* hfmt_en */
 						1,/* hz_yc_ratio */
 						0,/* hz_ini_phase */
 						1,/* vfmt_en */
-						1,/* vt_yc_ratio */
+		mif->src_prog?0:1,/* vt_yc_ratio */
 						vt_ini_phase,/* vt_ini_phase */
 		mif->luma_x_end0 - mif->luma_x_start0 + 1,
 						/* y_length */
@@ -710,7 +712,7 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 						0);	/* hz repeat. */
 	} else {
 		set_di_inp_fmt_more(
-						1,	/* hfmt_en */
+						vfmt_rpt_first,	/* hfmt_en */
 						1,	/* hz_yc_ratio */
 						0,	/* hz_ini_phase */
 						0,	/* vfmt_en */
