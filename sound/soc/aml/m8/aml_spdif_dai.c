@@ -70,8 +70,9 @@ unsigned int clk81 = 0;
 EXPORT_SYMBOL(clk81);
 
 static int old_samplerate = -1;
+static int flag_samesrc = -1;
 
-void aml_spdif_play(void)
+void aml_spdif_play(int samesrc)
 {
 	if (is_meson_gxtvbb_cpu() == false) {
 		static int iec958buf[32 + 16];
@@ -92,11 +93,13 @@ void aml_spdif_play(void)
 		set.chan_stat->chstat1_l = 0X200;
 		set.chan_stat->chstat1_r = 0X200;
 		audio_hw_958_enable(0);
-		if (old_samplerate != AUDIO_CLK_FREQ_48) {
+		if (old_samplerate != AUDIO_CLK_FREQ_48
+				|| samesrc != flag_samesrc) {
 			pr_info("enterd %s,set_clock:%d,sample_rate=%d\n",
 			__func__, old_samplerate, AUDIO_CLK_FREQ_48);
 			old_samplerate = AUDIO_CLK_FREQ_48;
-			aml_set_spdif_clk(48000 * 512, 0);
+			flag_samesrc = samesrc;
+			aml_set_spdif_clk(48000 * 512, samesrc);
 		}
 		/* Todo, div can be changed, for most case, div = 2 */
 		/* audio_set_spdif_clk_div(); */
@@ -105,7 +108,7 @@ void aml_spdif_play(void)
 		IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
 			pr_info("set 4x audio clk for 958\n");
 			aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-		} else if (0) {
+		} else if (samesrc) {
 			pr_info("share the same clock\n");
 			aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
 		} else {
@@ -119,13 +122,6 @@ void aml_spdif_play(void)
 		audio_set_958outbuf((virt_to_phys(iec958buf) + 63) & (~63),
 					128, 0);
 		audio_set_958_mode(AIU_958_MODE_PCM16, &set);
-#if OVERCLOCK == 1 || IEC958_OVERCLOCK == 1
-		/* 512fs divide 4 == 128fs */
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x3 << 4);
-#else
-		/* 256fs divide 2 == 128fs */
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 4, 0x1 << 4);
-#endif
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
 		audio_hw_958_enable(1);
 	}
@@ -179,7 +175,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-void aml_hw_iec958_init(struct snd_pcm_substream *substream)
+void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 {
 	struct _aiu_958_raw_setting_t set;
 	struct _aiu_958_channel_status_t chstat;
@@ -243,14 +239,15 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		break;
 	};
 	audio_hw_958_enable(0);
-	pr_info("aml_hw_iec958_init,runtime->rate=%d\n",
-	       runtime->rate);
-	/* int srate; */
-	/* srate = params_rate(params); */
-	if (old_samplerate != sample_rate) {
+	pr_info("aml_hw_iec958_init,runtime->rate=%d, same source mode(%d)\n",
+	       runtime->rate, samesrc);
+
+	if (old_samplerate != sample_rate || samesrc != flag_samesrc) {
 		old_samplerate = sample_rate;
-		aml_set_spdif_clk(runtime->rate * 512, 0);
+		flag_samesrc = samesrc;
+		aml_set_spdif_clk(runtime->rate * 512, samesrc);
 	}
+
 	/* Todo, div can be changed, for most case, div = 2 */
 	/* audio_set_spdif_clk_div(); */
 	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
@@ -258,7 +255,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
 		pr_info("set 4x audio clk for 958\n");
 		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-	} else if (0) {
+	} else if (samesrc) {
 		pr_info("share the same clock\n");
 		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
 	} else {
@@ -483,7 +480,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 	/* audio_stream_t *s = &prtd->s; */
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		aml_hw_iec958_init(substream);
+		aml_hw_iec958_init(substream, 0);
 	} else {
 		audio_in_spdif_set_buf(runtime->dma_addr,
 				       runtime->dma_bytes * 2);
@@ -699,7 +696,7 @@ static int aml_dai_spdif_probe(struct platform_device *pdev)
 	}
 	clk81 = clk_get_rate(spdif_priv->clk_81);
 
-	aml_spdif_play();
+	aml_spdif_play(0);
 	ret = snd_soc_register_component(&pdev->dev, &aml_component,
 					  aml_spdif_dai,
 					  ARRAY_SIZE(aml_spdif_dai));
