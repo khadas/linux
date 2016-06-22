@@ -1735,7 +1735,7 @@ static void vh264_isr(void)
 				vf->signal_type = video_signal_from_vui;
 				vf->index = buffer_index;
 				vf->pts = 0;
-
+				vf->pts_us64 = 0;
 				vf->canvas0Addr = vf->canvas1Addr =
 					spec2canvas(&buffer_spec[buffer_index]);
 				vf->type_original = vf->type;
