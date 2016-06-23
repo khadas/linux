@@ -7408,7 +7408,7 @@ static void di_unreg_process_irq(void)
 #endif
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
-		DI_Wr(DI_CLKG_CTRL, 0x2);
+		DI_Wr(DI_CLKG_CTRL, 0x80000000);
 	}
 	if ((post_wr_en && post_wr_surpport)) {
 		diwr_set_power_control(0);
