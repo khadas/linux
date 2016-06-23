@@ -313,7 +313,8 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 
 		if ((dec_control &
 			 DEC_CONTROL_FLAG_FORCE_2500_720_576_INTERLACE)
-			&& (frame_width == 720) && (frame_height == 576)
+			&& (frame_width == 720 || frame_width == 480)
+			&& (frame_height == 576)
 			&& (frame_dur == 3840))
 			frame_prog = 0;
 		else if ((dec_control &
@@ -338,7 +339,6 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 			frame_prog = 0;
 		else if (dec_control & DEC_CONTROL_FLAG_FORCE_SEQ_INTERLACE)
 			frame_prog = 0;
-
 		if (frame_prog & PICINFO_PROG) {
 			u32 index = ((reg & 0xf) - 1) & 7;
 
