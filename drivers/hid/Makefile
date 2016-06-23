@@ -71,6 +71,7 @@ obj-$(CONFIG_HID_PRODIKEYS)	+= hid-prodikeys.o
 obj-$(CONFIG_HID_PANTHERLORD)	+= hid-pl.o
 obj-$(CONFIG_HID_PETALYNX)	+= hid-petalynx.o
 obj-$(CONFIG_HID_PICOLCD)	+= hid-picolcd.o
+obj-$(CONFIG_HID_DIA_REMOTE)+= hid-dia-remote.o
 hid-picolcd-y			+= hid-picolcd_core.o
 ifdef CONFIG_HID_PICOLCD_FB
 hid-picolcd-y			+= hid-picolcd_fb.o

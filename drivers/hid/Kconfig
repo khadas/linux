@@ -160,6 +160,15 @@ config HID_CHICONY
 	---help---
 	Support for Chicony Tactical pad.
 
+config HID_DIA_REMOTE
+	tristate "Dialog audio and motion remote control support"
+	depends on USB_HID
+	---help---
+	Support for Dialog audio and motion remote control.
+	Say Y here to enable support for this device.
+	- Enable dialog BT remote
+	  Enable dialog BT audio device for voice search
+
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on HID && SND
