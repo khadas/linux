@@ -931,7 +931,7 @@
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
-			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
@@ -947,7 +947,7 @@
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <0 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
-			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
@@ -963,7 +963,7 @@
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
-			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */

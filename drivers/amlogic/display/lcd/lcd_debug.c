@@ -207,13 +207,17 @@ static void lcd_info_print(void)
 			"pn_swap           %u\n"
 			"port_swap         %u\n"
 			"phy_vswing        %u\n"
-			"phy_preemphasis   %u\n\n",
+			"phy_preem         %u\n"
+			"phy_clk_vswing    %u\n"
+			"phy_clk_preem     %u\n\n",
 			pconf->lcd_control.lvds_config->lvds_repack,
 			pconf->lcd_control.lvds_config->dual_port,
 			pconf->lcd_control.lvds_config->pn_swap,
 			pconf->lcd_control.lvds_config->port_swap,
 			pconf->lcd_control.lvds_config->phy_vswing,
-			pconf->lcd_control.lvds_config->phy_preem);
+			pconf->lcd_control.lvds_config->phy_preem,
+			pconf->lcd_control.lvds_config->phy_clk_vswing,
+			pconf->lcd_control.lvds_config->phy_clk_preem);
 		break;
 	case LCD_VBYONE:
 		pr_info("lane_count        %u\n"
@@ -1180,10 +1184,11 @@ static ssize_t lcd_edp_debug_store(struct class *class,
 	return count;
 }
 
-static void lcd_phy_config_update(unsigned int vswing, unsigned int preem)
+static void lcd_phy_config_update(unsigned int *para, int cnt)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
+	struct lvds_config_s *lvdsconf;
 	int type;
 	unsigned int data32;
 
@@ -1191,18 +1196,74 @@ static void lcd_phy_config_update(unsigned int vswing, unsigned int preem)
 	type = pconf->lcd_basic.lcd_type;
 	switch (type) {
 	case LCD_LVDS:
-		pconf->lcd_control.lvds_config->phy_vswing = vswing;
-		pconf->lcd_control.lvds_config->phy_preem = preem;
-		data32 = 0x606cca80 | (vswing << 26) | (preem << 0);
-		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+		lvdsconf = pconf->lcd_control.lvds_config;
+		if (cnt == 4) {
+			if ((para[0] > 7) || (para[1] > 7) ||
+				(para[2] > 7) || (para[3] > 7)) {
+				LCDERR("%s: wrong value:\n", __func__);
+				pr_info("vswing=%d, preemphasis=%d\n",
+					para[0], para[1]);
+				pr_info("clk_vswing=%d, clk_preemphasis=%d\n",
+					para[2], para[3]);
+				return;
+			}
+
+			lvdsconf->phy_vswing = para[0];
+			lvdsconf->phy_preem = para[1];
+			lvdsconf->phy_clk_vswing = para[2];
+			lvdsconf->phy_clk_preem = para[3];
+			data32 = 0x606cca80 | (para[0] << 26) | (para[1] << 0);
+			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+			data32 = 0x0fff0800 | (para[2] << 8) | (para[3] << 5);
+			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, data32);
+
+			LCDPR("%s:\n", __func__);
+			pr_info("vswing=%d, preemphasis=%d\n",
+				para[0], para[1]);
+			pr_info("clk_vswing=%d, clk_preemphasis=%d\n",
+				para[2], para[3]);
+		} else if (cnt == 2) {
+			if ((para[0] > 7) || (para[1] > 7)) {
+				LCDERR("%s: wrong value:\n", __func__);
+				pr_info("vswing=%d, preemphasis=%d\n",
+					para[0], para[1]);
+				return;
+			}
+
+			lvdsconf->phy_vswing = para[0];
+			lvdsconf->phy_preem = para[1];
+			data32 = 0x606cca80 | (para[0] << 26) | (para[1] << 0);
+			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+
+			LCDPR("%s: vswing=%d, preemphasis=%d\n",
+				__func__, para[0], para[1]);
+		} else {
+			LCDERR("%s: invalid parameters cnt: %d\n",
+				__func__, cnt);
+		}
 		break;
 	case LCD_VBYONE:
-		pconf->lcd_control.vbyone_config->phy_vswing = vswing;
-		pconf->lcd_control.vbyone_config->phy_preem = preem;
-		data32 = 0x6e0ec900 | (vswing << 3);
-		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
-		data32 = 0x00000a7c | (preem << 20);
-		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, data32);
+		if (cnt >= 2) {
+			if ((para[0] > 7) || (para[1] > 7)) {
+				LCDERR("%s: wrong value:\n", __func__);
+				pr_info("vswing=%d, preemphasis=%d\n",
+					para[0], para[1]);
+				return;
+			}
+
+			pconf->lcd_control.vbyone_config->phy_vswing = para[0];
+			pconf->lcd_control.vbyone_config->phy_preem = para[1];
+			data32 = 0x6e0ec900 | (para[0] << 3);
+			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+			data32 = 0x00000a7c | (para[1] << 20);
+			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, data32);
+
+			LCDPR("%s: vswing=%d, preemphasis=%d\n",
+				__func__, para[0], para[1]);
+		} else {
+			LCDERR("%s: invalid parameters cnt: %d\n",
+				__func__, cnt);
+		}
 		break;
 	default:
 		LCDERR("%s: not support lcd_type: %s\n",
@@ -1217,45 +1278,54 @@ static ssize_t lcd_phy_debug_show(struct class *class,
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
 	unsigned int vswing = 0xff, preem = 0xff;
+	unsigned int clk_vswing = 0xff, clk_preem = 0xff;
+	ssize_t len = 0;
 
 	pconf = lcd_drv->lcd_config;
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_LVDS:
 		vswing = pconf->lcd_control.lvds_config->phy_vswing;
 		preem = pconf->lcd_control.lvds_config->phy_preem;
+		clk_vswing = pconf->lcd_control.lvds_config->phy_clk_vswing;
+		clk_preem = pconf->lcd_control.lvds_config->phy_clk_preem;
+		len += sprintf(buf+len, "%s:\n", __func__);
+		len += sprintf(buf+len, "vswing=%d, preemphasis=%d\n",
+			vswing, preem);
+		len += sprintf(buf+len, "clk_vswing=%d, clk_preemphasis=%d\n",
+			clk_vswing, clk_preem);
 		break;
 	case LCD_VBYONE:
 		vswing = pconf->lcd_control.vbyone_config->phy_vswing;
 		preem = pconf->lcd_control.vbyone_config->phy_preem;
+		len += sprintf(buf+len, "%s:\n", __func__);
+		len += sprintf(buf+len, "vswing=%d, preemphasis=%d\n",
+			vswing, preem);
 		break;
 	default:
+		len = sprintf(buf, "%s: invalid lcd_type: %d\n",
+			__func__, pconf->lcd_basic.lcd_type);
 		break;
 	}
-	return sprintf(buf, "%s: vswing=%d, preemphasis=%d\n",
-			__func__, vswing, preem);
+	return len;
 }
 
 static ssize_t lcd_phy_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
-	unsigned int para[2];
+	ssize_t ret = 0;
+	unsigned int para[4];
 
-	ret = sscanf(buf, "%d %d", &para[0], &para[1]);
+	ret = sscanf(buf, "%d %d %d %d",
+		&para[0], &para[1], &para[2], &para[3]);
 
-	if ((para[0] <= 7) && (para[1] <= 7)) {
-		LCDPR("%s: vswing=%d, preemphasis=%d\n",
-			__func__, para[0], para[1]);
-		lcd_phy_config_update(para[0], para[1]);
-	} else {
-		LCDERR("%s: wrong value: vswing=%d, preemphasis=%d\n",
-			__func__, para[0], para[1]);
-	}
-
-	if (ret != 1 || ret != 2)
+	if (ret == 4)
+		lcd_phy_config_update(para, 4);
+	else if (ret == 2)
+		lcd_phy_config_update(para, 2);
+	else
 		return -EINVAL;
 
-	return count;
+	return ret;
 }
 
 static struct class_attribute lcd_interface_debug_class_attrs[] = {
