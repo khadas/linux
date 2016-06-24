@@ -52,5 +52,8 @@
 #define HHI_VDEC3_CLK_CNTL 0x107a
 #define HHI_VDEC4_CLK_CNTL 0x107b
 
+/* add from GXM */
+#define HHI_WAVE420L_CLK_CNTL 0x109a
+
 #endif
 

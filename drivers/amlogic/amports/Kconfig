@@ -253,5 +253,11 @@ config AM_VIDEOCAPTURE
 	default n
 	---help---
 		Internal Video Capture driver
+
+config AM_HEVCENC
+	boolean "Amlogic Hevc Encoder support"
+	default n
+	---help---
+		Internal Hevc Encoder driver
 endmenu
 

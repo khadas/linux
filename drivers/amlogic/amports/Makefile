@@ -98,8 +98,8 @@ obj-$(CONFIG_AM_SUBTITLE) += subtitle.o
 
 obj-$(CONFIG_VSYNC_RDMA) += rdma.o
 
-
 obj-y += arch/
+obj-y += cnm/
 
 ifneq ($(CONFIG_AM_DVB),)
 ##EXTRA_CFLAGS = -DENABLE_DEMUX_DRIVER -DMODIFY_TIMESTAMP_INC_WITH_PLL -DCALC_CACHED_TIME #-DUSE_VMASTER_MODE
