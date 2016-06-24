@@ -43,6 +43,8 @@
 
 #define PREG_PAD_GPIO0_EN_N		(0xc8834400 + 0x0c * 4)
 #define PREG_PAD_GPIO0_O		(0xc8834400 + 0x0d * 4)
+#define PREG_PAD_GPIO0_I		(0xc8834400 + 0x0e * 4)
+
 
 
 #define PERIPHS_PIN_MUX_6		(0xc8834400 + 0x32 * 4)

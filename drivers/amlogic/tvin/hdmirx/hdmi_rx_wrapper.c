@@ -130,7 +130,7 @@ static int debug_1;
 MODULE_PARM_DESC(debug_1, "\n debug_1\n");
 module_param(debug_1, int, 0664);
 
-static bool clk_debug;
+static bool clk_debug = true;
 MODULE_PARM_DESC(clk_debug, "\n clk_debug\n");
 module_param(clk_debug, bool, 0664);
 
@@ -365,9 +365,9 @@ static bool is_phy_reset = true;
 MODULE_PARM_DESC(is_phy_reset, "\n is_phy_reset\n");
 module_param(is_phy_reset, bool, 0664);
 
-static bool nend_clk_stable;
-MODULE_PARM_DESC(nend_clk_stable, "\n nend_clk_stable\n");
-module_param(nend_clk_stable, bool, 0664);
+static bool need_clk_stable;
+MODULE_PARM_DESC(need_clk_stable, "\n need_clk_stable\n");
+module_param(need_clk_stable, bool, 0664);
 
 static int eq_calc_mode;
 MODULE_PARM_DESC(eq_calc_mode, "\n eq_calc_mode\n");
@@ -514,6 +514,10 @@ int scdc_tmds_try_max = 4;
 module_param(scdc_tmds_try_max, int, 0664);
 MODULE_PARM_DESC(scdc_tmds_try_max, "scdc_tmds_try_max");
 
+int do_hpd_reset_flag = 0;
+int wait_hpd_reset_max = 300;
+module_param(wait_hpd_reset_max, int, 0664);
+MODULE_PARM_DESC(wait_hpd_reset_max, "wait_hpd_reset_max");
 /****************************/
 /*  func enhancements  */
 /****************************/
@@ -1871,8 +1875,8 @@ static bool is_packetinfo_change(struct hdmi_rx_ctrl_video *pre,
 				 struct hdmi_rx_ctrl_video *cur)
 {
 	/* 1. dvi */
-	/* if (cur->dvi != cur->sw_dvi) */
-	/* return true; */
+	if (cur->dvi != pre->sw_dvi)
+		return true;
 	/* 2. hdcp encrypted */
 	/* if((cur->hdcp_enc_state != pre->hdcp_enc_state)){ */
 	/* printk("cur->hdcp_enc_state=%d,pre->hdcp_enc_state=%d\n",
@@ -2003,6 +2007,8 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 	/* hdmi mode */
 	if (freq_ref[i].vic != 0) {
 		/*found standard hdmi mode */
+		video_par->sw_dvi = video_par->dvi;
+
 		if ((video_par->video_mode == HDMI_1080p60)
 			&& (abs(video_par->hactive - 960)
 			<= diff_pixel_th)) {
@@ -2305,7 +2311,7 @@ void rx_aud_pll_ctl(bool en)
 		wr_reg(HHI_ADC_PLL_CNTL4, 0x805);
 		tmp = hdmirx_rd_top(TOP_ACR_CNTL_STAT) | (1<<11);
 		hdmirx_wr_top(TOP_ACR_CNTL_STAT, tmp);
-
+		#if 0
 		if (use_audioresample_reset) {
 			aml_write_cbus(AUD_RESAMPLE_CTRL0,
 				aml_read_cbus(AUD_RESAMPLE_CTRL0)
@@ -2318,6 +2324,7 @@ void rx_aud_pll_ctl(bool en)
 				| (1 << 29)
 				| (1 << 28));
 		}
+		#endif
 	} else{
 		/* disable pll, into reset mode */
 		wr_reg(HHI_AUD_PLL_CNTL, 0x20000000);
@@ -2395,7 +2402,7 @@ void monitor_capable_sts(void)
 			(rx.state != FSM_SIG_READY)) {
 			rx.pre_state = rx.state;
 			rx.state = FSM_WAIT_HDCP_SWITCH;
-			if (log_flag & VIDEO_LOG)
+			if (log_flag & HDCP_LOG)
 				rx_print("\n esm change,force wait\n");
 		}
 	}
@@ -2526,7 +2533,7 @@ void hdmirx_hw_monitor(void)
 	int tmp;
 	unsigned int tmds_clk;
 
-	if ((clk_debug) && (rx.state != FSM_EQ_CALIBRATION))
+	if ((clk_debug) && (rx.state >= FSM_SIG_UNSTABLE))
 		monitor_cable_clk_sts();
 
 	if (sm_pause)
@@ -2534,8 +2541,10 @@ void hdmirx_hw_monitor(void)
 
 	HPD_controller();
 	rx_check_repeat();
+	#ifdef HDCP22_ENABLE
 	if (hdcp_22_on)
 		monitor_capable_sts();
+	#endif
 	if (rx.current_port_tx_5v_status == 0) {
 		if (rx.state != FSM_INIT) {
 			rx_print("5v_lost->FSM_INIT\n");
@@ -2730,8 +2739,14 @@ void hdmirx_hw_monitor(void)
 		}
 		break;
 	case FSM_DWC_RST_WAIT:
-		if (dwc_rst_wait_cnt++ < dwc_rst_wait_cnt_max)
+		dwc_rst_wait_cnt++;
+		if ((do_hpd_reset_flag) &&
+			(dwc_rst_wait_cnt < wait_hpd_reset_max))
 			break;
+		if ((!do_hpd_reset_flag) &&
+			(dwc_rst_wait_cnt < dwc_rst_wait_cnt_max))
+			break;
+		do_hpd_reset_flag = 0;
 		dwc_rst_wait_cnt = 0;
 		rx.state = FSM_SIG_STABLE;
 		rx_print("DWC_RST->STABLE\n");
@@ -2996,6 +3011,8 @@ void hdmirx_hw_monitor(void)
 					rx.aud_info.coding_type;
 				audio_channel_count =
 					rx.aud_info.channel_count;
+				auds_rcv_sts =
+					rx.aud_info.aud_packet_received;
 
 				if (hdmirx_get_audio_clock() < 100000) {
 					rx_print("update audio\n");
@@ -3007,8 +3024,7 @@ void hdmirx_hw_monitor(void)
 		} else {
 
 		}
-		auds_rcv_sts =
-			rx.aud_info.audio_samples_packet_received;
+
 		break;
 	default:
 		break;

@@ -68,7 +68,7 @@
 #define HDMIRX_ADDR_PORT	0xda83e000
 #define HDMIRX_DATA_PORT	0xda83e004
 #define HDMIRX_CTRL_PORT	0xda83e008
-#define TOP_INT_MASK_VALUE	0x00000fff
+#define TOP_INT_MASK_VALUE	0x000003fd
 
 static DEFINE_SPINLOCK(reg_rw_lock);
 
@@ -432,11 +432,13 @@ int hdmirx_irq_close(void)
 
 	/* clear enable */
 	hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
 	/* clear status */
 	hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
@@ -718,7 +720,7 @@ void control_reset(void)
 
 	mdelay(1);
 	/* Reset functional modules */
-	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000005E);
+	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000003F);
 }
 
 void hdmirx_set_pinmux(void)
@@ -1376,7 +1378,7 @@ void hdmirx_read_audio_info(struct aud_info_s *audio_info)
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, DWNMIX_INHIBIT);
 	audio_info->level_shift_value =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, LEVEL_SHIFT_VAL);
-	audio_info->audio_samples_packet_received =
+	audio_info->aud_packet_received =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AUD_STS, AUDS_RCV);
 
 	audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);

@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/06/14"
+#define HDMIRX_VER "Ref.2016/06/23"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -397,7 +397,7 @@ struct aud_info_s {
 	int channel_allocation;
 	int down_mix_inhibit;
 	int level_shift_value;
-	int audio_samples_packet_received;
+	int aud_packet_received;
 
 	/* channel status */
 	unsigned char channel_status[CHANNEL_STATUS_SIZE];
@@ -599,6 +599,7 @@ extern int force_hdcp14_en;
 extern int pre_port;
 extern int esm_err_force_14;
 extern int pc_mode_en;
+extern int do_hpd_reset_flag;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);
