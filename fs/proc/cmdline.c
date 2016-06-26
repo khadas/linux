@@ -28,7 +28,7 @@ static ssize_t cmdline_proc_write(struct file *file, const char __user *buf,
 	   return -EFAULT;
 	}
 	str[len] = '\0';
-	strlcpy(proc_cmdline, str, min(len, COMMAND_LINE_SIZE));
+	strlcpy(proc_cmdline, str, min((int)len, COMMAND_LINE_SIZE));
 
 	return len;
 }
