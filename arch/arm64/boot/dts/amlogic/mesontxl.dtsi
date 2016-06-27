@@ -383,7 +383,7 @@
 	};
 
 	meson_clk_msr {
-		compatible = "amlogic, gxl_measure";
+		compatible = "amlogic, txl_measure";
 		reg = <0x0 0xc110875c 0x0 0x4
 		       0x0 0xc1108764 0x0 0x4>;
 	};

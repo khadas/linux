@@ -213,7 +213,7 @@ static void __init txl_clk_init(struct device_node *np)
 	meson_register_rstc(np, TXL_RSTC_N_REGS, reg_base_aobus,
 		reg_base_hiubus + HHI_GCLK_MPEG0, TXL_AO_OFF, 0);
 	sys_pll_init(reg_base_hiubus, np, CLK_SYS_PLL);
-	gp0_clk_init(reg_base_hiubus, GP0_PLL);
+	gp0_clk_gxl_init(reg_base_hiubus, GP0_PLL);
 
 	{
 		/* Dump clocks */
