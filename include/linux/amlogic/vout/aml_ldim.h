@@ -50,6 +50,7 @@ struct ldim_dev_config_s {
 struct aml_ldim_driver_s {
 	int valid_flag;
 	int dev_index;
+	int static_pic_flag;
 	struct ldim_dev_config_s *ldev_conf;
 	unsigned short *ldim_matrix_2_spi;
 	int (*init)(void);

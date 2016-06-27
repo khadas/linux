@@ -62,6 +62,8 @@ static unsigned short vsync_cnt;
 static unsigned short fault_cnt;
 static unsigned long reset_cnt;
 static int iw7019_spi_rw_test_flag;
+static int iw7019_static_pic_test_flag;
+static int iw7019_static_pic_test_count;
 
 static spinlock_t iw7019_spi_lock;
 static struct workqueue_struct  *iw7019_workqueue;
@@ -197,6 +199,7 @@ static unsigned char iw7019_ini_data[LDIM_SPI_INIT_ON_SIZE] = {
 static int test_brightness[] = {
 	0xfff, 0xfff, 0xfff, 0xfff, 0xfff, 0xfff, 0xfff, 0xfff
 };
+static unsigned char static_pic_val[13];
 
 static int iw7019_rreg(struct spi_device *spi, u8 addr, u8 *val)
 {
@@ -546,6 +549,7 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 	unsigned int br0, br1;
 	unsigned char bri_reg;
 	unsigned char temp, reg_chk, clk_sel;
+	int static_pic_err_flag = 0;
 
 	if (iw7019_spi_rw_test_flag)
 		return 0;
@@ -610,6 +614,33 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 			val[i + offset] = 0;
 		}
 	iw7019_wregs(bl_iw7019->spi, bri_reg, val, cmd_len);
+
+	if (iw7019_static_pic_test_flag == 1) {
+		if (iw7019_static_pic_test_count == 1) {
+			for (i = 0; i < 13; i++)
+				static_pic_val[i] = val[i];
+			iw7019_static_pic_test_count = 0;
+		}
+		for (j = 0x01; j <= 0x0c; j++) {
+			iw7019_rreg(bl_iw7019->spi, j, &reg_chk);
+			if (static_pic_val[j] == reg_chk) {
+				ldim_drv->static_pic_flag = 0;
+				break;
+			} else if (val[j] != static_pic_val[j]) {
+				LDIMERR(
+			"wr_val 0x%02x=0x%02x, static_pic_val=0x%02x\n",
+			j, val[j], static_pic_val[j]);
+				static_pic_err_flag = 1;
+			} else {
+				LDIMERR(
+			"rd_val 0x%02x=0x%02x, static_pic_val=0x%02x\n",
+			j, reg_chk, static_pic_val[j]);
+					ldim_drv->static_pic_flag = 0;
+			}
+			if (j == 0x0c && static_pic_err_flag == 1)
+				ldim_drv->static_pic_flag = 1;
+		}
+	}
 
 	if (ldim_drv->ldev_conf->write_check) { /* brightness write check */
 		/* reg 0x00 check */
@@ -846,6 +877,18 @@ static ssize_t iw7019_store(struct class *class,
 		} else {
 			spi_rw_test_en = 0;
 		}
+	} else if (!strcmp(attr->attr.name, "static_test")) {
+		i = sscanf(buf, "%d", &val);
+		if (val &&  bl_iw7019->test_mode == 0) {
+			iw7019_static_pic_test_flag = 1;
+			iw7019_static_pic_test_count = 1;
+			LDIMPR("static_test is already running\n");
+		} else {
+			if (bl_iw7019->test_mode)
+				LDIMERR("test mode open,please close it!\n");
+			iw7019_static_pic_test_flag = 0;
+			iw7019_static_pic_test_count = 0;
+		}
 	} else
 		LDIMERR("LDIM argment error!\n");
 	return count;
@@ -867,6 +910,7 @@ static struct class_attribute iw7019_class_attrs[] = {
 	__ATTR(reset, S_IRUGO | S_IWUSR, NULL, iw7019_store),
 	__ATTR(dump, S_IRUGO | S_IWUSR, iw7019_show, NULL),
 	__ATTR(rw_test, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
+	__ATTR(static_test, S_IRUGO | S_IWUSR, iw7019_show, iw7019_store),
 	__ATTR_NULL
 };
 
