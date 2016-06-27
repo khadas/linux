@@ -102,17 +102,21 @@ static const struct reg_s RDECODEMODE_NEC[] = {
 };
 /****************************************************************/
 static const struct reg_s RDECODEMODE_DUOKAN[] = {
-	{LDR_ACTIVE, ((65 << 16) | (40 << 0))},
-	{LDR_IDLE, ((37 << 16) | (15 << 0))},
+	{LDR_ACTIVE, ((70 << 16) | (30 << 0))},
+	{LDR_IDLE, ((50 << 16) | (15 << 0))},
 	{LDR_REPEAT, ((30 << 16) | (26 << 0))},
-	{DURATION_REG0, ((63 << 16) | (53 << 0))},
+	{DURATION_REG0, ((66 << 16) | (40 << 0))},
 	{OPERATION_CTRL_REG0, ((3 << 28) | (0x4e2 << 12) | (0x13))},
+	/*logic '00' max=66*20us ,min=40*20us  */
 	/*body frame 30ms*/
-	{DURATION_REG1_AND_STATUS, ((78 << 20) | (68 << 10))},
+	{DURATION_REG1_AND_STATUS, ((80 << 20) | (66 << 10))},
+	/*logic '01' max=80*20us,min=66*20us */
 	{OPERATION_CTRL_REG1, 0x9300},
 	{OPERATION_CTRL_REG2, 0xb90b},
-	{DURATION_REG2, ((96 << 16) | (80 << 0))},
-	{DURATION_REG3, ((112 << 16) | (97 << 0))},
+	{DURATION_REG2, ((97 << 16) | (80 << 0))},
+	/*logic '10' max=97*20us,min=80*20us */
+	{DURATION_REG3, ((120 << 16) | (97 << 0))},
+	/*logic '11' max=120*20us,min=97*20us */
 	{OPERATION_CTRL_REG3, 5000<<0},
 	{CONFIG_END,            0      }
 };

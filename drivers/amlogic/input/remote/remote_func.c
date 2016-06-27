@@ -762,21 +762,22 @@ int remote_duokan_report_key(struct remote *rd)
 	int workmode;
 	unsigned int releasedelay;
 	unsigned long jiffies_old;
-
+	int parity_flags = 0x00;
 
 	get_cur_scanstatus(rd);
 	get_cur_scancode(rd);
 
+	parity_flags = 0x00;
 	ret = remote_duokan_parity_check(rd);
 	if (ret)
-		return 0;
+		parity_flags = 0x01;
 
 	workmode = rd->work_mode;
 	keycode = get_cur_key_domian[workmode](rd, KEYDOMIAN);
 
 	spin_lock_irqsave(&remote_lock, flags);
 
-	if  (!is_repeat_key(rd)) {
+	if  (!parity_flags && !is_repeat_key(rd)) {
 		rd->jiffies_new = rd->jiffies_irq;
 		jiffies_old = rd->jiffies_old;
 		rd->jiffies_old = rd->jiffies_new;
