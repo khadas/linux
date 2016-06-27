@@ -541,6 +541,7 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int i, j, offset, cmd_len;
+	unsigned int value_flag = 0;
 	unsigned char val[13];
 	unsigned int br0, br1;
 	unsigned char bri_reg;
@@ -583,21 +584,31 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 		cmd_len = 12;
 		bri_reg = IW7019_REG_BRIGHTNESS;
 	}
-	for (i = 0; i < 4; i++) {
-		if (bl_iw7019->test_mode) {
-			br0 = test_brightness[i*2+0];
-			br1 = test_brightness[i*2+1];
-		} else {
-			br0 = iw7019_get_value(buf[i*2+0]);
-			br1 = iw7019_get_value(buf[i*2+1]);
+
+	for (i = 0; i < 8; i++)
+		value_flag = value_flag || buf[i];
+
+	if (value_flag) {
+		for (i = 0; i < 4; i++) {
+			if (bl_iw7019->test_mode) {
+				br0 = test_brightness[i*2+0];
+				br1 = test_brightness[i*2+1];
+			} else {
+				br0 = iw7019_get_value(buf[i*2+0]);
+				br1 = iw7019_get_value(buf[i*2+1]);
+			}
+			/* br0[11~4] */
+			val[i*3 + offset] = (br0 >> 4) & 0xff;
+			/* br0[3~0]|br1[11~8] */
+			val[i*3 + offset + 1] = ((br0 & 0xf) << 4) |
+					((br1 >> 8) & 0xf);
+			/* br1[7~0] */
+			val[i*3 + offset + 2] = br1 & 0xff;
 		}
-		/* br0[11~4] */
-		val[i*3 + offset] = (br0 >> 4) & 0xff;
-		/* br0[3~0]|br1[11~8] */
-		val[i*3 + offset + 1] = ((br0 & 0xf) << 4) | ((br1 >> 8) & 0xf);
-		/* br1[7~0] */
-		val[i*3 + offset + 2] = br1 & 0xff;
-	}
+	} else {
+		for (i = 0; i < 12; i++)
+			val[i + offset] = 0;
+		}
 	iw7019_wregs(bl_iw7019->spi, bri_reg, val, cmd_len);
 
 	if (ldim_drv->ldev_conf->write_check) { /* brightness write check */
