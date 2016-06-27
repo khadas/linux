@@ -152,9 +152,9 @@ static const struct sppdif_audio_info type_texts[] = {
 	{1, 0x1, "AC3"},
 	{2, 0x15, "EAC3"},
 	{3, 0xb, "DTS-I"},
-	{3, 0x10c, "DTS-II"},
-	{3, 0x20d, "DTS-III"},
-	{3, 0x411, "DTS-IV"},
+	{3, 0x0c, "DTS-II"},
+	{3, 0x0d, "DTS-III"},
+	{3, 0x11, "DTS-IV"},
 	{4, 0, "DTS-HD"},
 	{5, 0x16, "TRUEHD"},
 };
