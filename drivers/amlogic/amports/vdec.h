@@ -87,6 +87,11 @@ enum vdec_irq_num {
 	VDEC_IRQ_2,
 	VDEC_IRQ_MAX,
 };
+extern s32 vdec_request_threaded_irq(enum vdec_irq_num num,
+			irq_handler_t handler,
+			irq_handler_t thread_fn,
+			unsigned long irqflags,
+			const char *devname, void *dev);
 extern s32 vdec_request_irq(enum vdec_irq_num num, irq_handler_t handler,
 	const char *devname, void *dev);
 extern void vdec_free_irq(enum vdec_irq_num num, void *dev);
@@ -103,6 +108,7 @@ extern enum vdec2_usage_e get_vdec2_usage(void);
 extern void dma_contiguous_early_fixup(phys_addr_t base, unsigned long size);
 unsigned int get_vdec_clk_config_settings(void);
 void update_vdec_clk_config_settings(unsigned int config);
+unsigned int  get_mmu_mode(void);
 
 
 #endif				/* VDEC_H */

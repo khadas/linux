@@ -522,7 +522,6 @@ static int video_port_init(struct stream_port_s *port,
 	}
 
 	pbuf->flag |= BUF_FLAG_IN_USE;
-
 	return 0;
 }
 

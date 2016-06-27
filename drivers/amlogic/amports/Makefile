@@ -43,8 +43,8 @@ amvdec_h265-objs := vh265.o
 amvdec_h265-y    := vh265.o
 
 obj-$(CONFIG_AM_VDEC_VP9) += amvdec_vp9.o
-amvdec_vp9-objs := vvp9.o vp9_mm.o
-amvdec_vp9-y    := vvp9.o vp9_mm.o
+amvdec_vp9-objs := vvp9.o
+amvdec_vp9-y    := vvp9.o
 
 obj-$(CONFIG_AM_VDEC_MJPEG) += amvdec_mjpeg.o
 amvdec_mjpeg-objs := vmjpeg.o

@@ -39,7 +39,7 @@
 
 #include "amports_config.h"
 #include "amvdec.h"
-
+#include "vvp9.h"
 
 #include "arch/clk.h"
 #include <linux/reset.h>
@@ -138,7 +138,11 @@ static int vdec_default_buf_size[] = {
 	48, /*"amvdec_h265", else alloc on decoder*/
 	0,  /* avs encoder */
 	0,  /* jpg encoder */
-	32, /*"amvdec_vp9", else alloc on decoder*/
+#ifdef VP9_10B_MMU
+	24, /*"amvdec_vp9", else alloc on decoder*/
+#else
+	32,
+#endif
 	0
 };
 
@@ -209,12 +213,22 @@ s32 vdec_init(enum vformat_e vf, int is_4k)
 				m4k_size = 32 * SZ_1M;
 			if ((m4k_size > 0) && (m4k_size < 200 * SZ_1M))
 				alloc_size = m4k_size;
+			if ((vf == VFORMAT_HEVC) && get_mmu_mode() &&
+				(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL))
+				alloc_size =
+				vdec_default_buf_size[VFORMAT_VP9] * SZ_1M;
+#ifdef VP9_10B_MMU
+			if ((vf == VFORMAT_VP9) &&
+				(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL))
+				alloc_size =
+				vdec_default_buf_size[VFORMAT_VP9] * SZ_1M;
+#endif
 		} else if (more_buffers) {
 			alloc_size = alloc_size + 16 * SZ_1M;
 		}
 		vdec_dev_reg.mem_start = codec_mm_alloc_for_dma(MEM_NAME,
 			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
-			CODEC_MM_FLAGS_CMA_CLEAR |
+			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_CPU |
 			CODEC_MM_FLAGS_FOR_VDECODER);
 		if (!vdec_dev_reg.mem_start) {
 			if (retry_num < 1) {
@@ -1042,8 +1056,11 @@ static ssize_t show_keep_vdec_mem(struct class *class,
 		"mailbox_1",
 		"mailbox_2";
 */
-s32 vdec_request_irq(enum vdec_irq_num num, irq_handler_t handler,
-				const char *devname, void *dev)
+s32 vdec_request_threaded_irq(enum vdec_irq_num num,
+			irq_handler_t handler,
+			irq_handler_t thread_fn,
+			unsigned long irqflags,
+			const char *devname, void *dev)
 {
 	s32 res_irq;
 	s32 ret = 0;
@@ -1057,9 +1074,20 @@ s32 vdec_request_irq(enum vdec_irq_num num, irq_handler_t handler,
 		return -EINVAL;
 	}
 	vdec_irq[num] = res_irq;
-	ret = request_irq(vdec_irq[num], handler,
-	IRQF_SHARED, devname, dev);
+	ret = request_threaded_irq(vdec_irq[num], handler,
+		thread_fn,
+		irqflags, devname, dev);
 	return ret;
+}
+s32 vdec_request_irq(enum vdec_irq_num num, irq_handler_t handler,
+				const char *devname, void *dev)
+{
+	return vdec_request_threaded_irq(num,
+		handler,
+		NULL,/*no thread_fn*/
+		IRQF_SHARED,
+		devname,
+		dev);
 }
 
 void vdec_free_irq(enum vdec_irq_num num, void *dev)

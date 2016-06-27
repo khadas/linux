@@ -50,6 +50,8 @@
 #include <linux/dma-contiguous.h>
 #include <linux/switch.h>
 
+
+
 #include "amports_priv.h"
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
@@ -102,6 +104,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "video.h"
 
 #include <linux/amlogic/codec_mm/codec_mm.h>
+#include <linux/amlogic/codec_mm/codec_mm_keeper.h>
+
 #define MEM_NAME "video-keep"
 #ifdef CONFIG_GE2D_KEEP_FRAME
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -718,6 +722,7 @@ static const struct vinfo_s *vinfo;
 /* config */
 static struct vframe_s *cur_dispbuf;
 static struct vframe_s vf_local;
+static int keep_id;
 static u32 vsync_pts_inc;
 static u32 vsync_pts_inc_scale;
 static u32 vsync_pts_inc_scale_base = 1;
@@ -2600,6 +2605,10 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 		av_sync_flag = 0;
 #endif
 	}
+	if (keep_id > 0) {
+		codec_mm_keeper_unmask_keeper(keep_id);
+		keep_id = -1;
+	}
 }
 
 static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
@@ -2631,6 +2640,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 #endif
 			if (vf->bitdepth & BITDEPTH_SAVING_MODE)
 				r |= (1<<28); /* mem_saving_mode */
+			if (type & VIDTYPE_SCATTER)
+				r |= (1<<29);
 			VSYNC_WR_MPEG_REG(AFBC_MODE, r);
 			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0x1700);
 			VSYNC_WR_MPEG_REG(AFBC_CONV_CTRL, 0x100);
@@ -5063,7 +5074,16 @@ unsigned int vf_keep_current(void)
 		pr_info("keep exit is skip VPP_VD1_POSTBLEND\n");
 		return 0;
 	}
-
+	if (cur_dispbuf->type & VIDTYPE_SCATTER) {
+		int old_keep = keep_id;
+		int ret = codec_mm_keeper_mask_keep_mem(cur_dispbuf->mem_handle,
+			MEM_TYPE_CODEC_MM_SCATTER);
+		if (ret > 0)
+			keep_id = ret;
+		if (old_keep)
+			codec_mm_keeper_unmask_keeper(old_keep);
+		return 0;
+	}
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(cur_dispbuf->type & VIDTYPE_COMPRESS)) {
 		/* todo: duplicate compressed video frame */
