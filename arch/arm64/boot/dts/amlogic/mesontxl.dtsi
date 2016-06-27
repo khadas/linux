@@ -349,7 +349,6 @@
 		};
 		emmc_clk_cmd_pins:emmc_clk_cmd_pins{
 			amlogic,setmask=<7 0x60000000>;
-			amlogic,clrmask=<7 0x000000e0>;
 			amlogic,pins = "BOOT_8","BOOT_10"; /** BOOT_10:CMD, BOOT_8:CLK */
 			amlogic,enable-output=<1>; /** 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -362,15 +361,15 @@
 			amlogic,pullupen=<1>;
 		};
 		emmc_conf_pull_done:emmc_conf_pull_done{
-			amlogic,pins = "BOOT_15";
+			amlogic,pins = "BOOT_11";
 			amlogic,pullup=<0>;
 			amlogic,pullupen=<1>;
 		};
 		emmc_all_pins:emmc_all_pins{
 			amlogic,setmask=<7 0xf0000000>;         /*sdhc c*/
-			amlogic,clrmask=<7 0x000000e0>;
+			amlogic,clrmask=<7 0x00F83C00>;
 			amlogic,pins = "BOOT_0","BOOT_1","BOOT_2","BOOT_3","BOOT_4",
-				       "BOOT_5","BOOT_6","BOOT_7","BOOT_8","BOOT_10","BOOT_15";
+				       "BOOT_5","BOOT_6","BOOT_7","BOOT_8","BOOT_10","BOOT_11";
 			amlogic,enable-output=<1>; /** 0:output, 1:input */
 		};
 		i2c_a_master:i2c_a{
