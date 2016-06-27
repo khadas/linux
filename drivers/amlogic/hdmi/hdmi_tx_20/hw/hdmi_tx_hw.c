@@ -4548,7 +4548,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	/* packet scheduller configuration for AVI, GCP, AUDI, ACR. */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0xe, 0, 6);
 	/* If RX not support HDR, then disable HDR send out */
-	if (!hdev->RXCap.hdr_sup_eotf_hdr) {
+	if (!hdev->RXCap.hdr_sup_eotf_smpte_st_2084) {
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 7, 1);
 	} else {
