@@ -721,6 +721,7 @@ void control_reset(void)
 	mdelay(1);
 	/* Reset functional modules */
 	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000003F);
+	cecrx_hw_init();
 }
 
 void hdmirx_set_pinmux(void)

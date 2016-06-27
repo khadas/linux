@@ -343,9 +343,12 @@ static irqreturn_t cecrx_isr(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static int cecrx_hw_init(void)
+int cecrx_hw_init(void)
 {
 	unsigned int data32;
+
+	if (!ee_cec)
+		return -1;
 	/* set cec clk 32768k */
 	data32  = readl(cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
 	data32  = 0;
@@ -369,6 +372,7 @@ static int cecrx_hw_init(void)
 	/* cec enable */
 	hdmirx_set_bits_dwc(DWC_DMI_DISABLE_IF, 1, 5, 1);
 
+	cec_logicaddr_set(cec_dev->cec_info.log_addr);
 	return 0;
 }
 
@@ -468,7 +472,6 @@ static void cec_hw_reset(void)
 {
 	if (ee_cec) {
 		cecrx_hw_init();
-		cec_logicaddr_set(cec_dev->cec_info.log_addr);
 		return;
 	}
 

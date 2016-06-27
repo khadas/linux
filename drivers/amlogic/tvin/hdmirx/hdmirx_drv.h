@@ -716,4 +716,5 @@ extern void hdmirx_wait_query(void);
 extern bool hdmirx_tmds_34g(void);
 
 extern int cec_has_irq(void);
+extern void cecrx_hw_init(void);
 #endif  /* _TVHDMI_H */
