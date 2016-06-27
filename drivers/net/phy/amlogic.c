@@ -555,6 +555,8 @@ static int pmu4_read_status(struct phy_device *phydev)
 
 static void internal_config(struct phy_device *phydev)
 {
+	/*enable auto mdix*/
+	phy_write(phydev, 0x11, 0x0080);
 	/*Enable Analog and DSP register Bank access by*/
 	phy_write(phydev, 0x14, 0x0000);
 	phy_write(phydev, 0x14, 0x0400);
