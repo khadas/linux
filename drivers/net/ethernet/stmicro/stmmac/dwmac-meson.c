@@ -78,6 +78,9 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 			pr_debug("internal phy\n");
 			writel(0x10110181, PREG_ETH_REG2);
 			writel(0xe40908ff, PREG_ETH_REG3);
+		} else {
+			writel(0x10110181, PREG_ETH_REG2);
+			writel(0x2009087f, PREG_ETH_REG3);
 		}
 		pr_debug("REG2:REG3:REG4 = 0x%x :0x%x :0x%x\n",
 			readl(PREG_ETH_REG2), readl(PREG_ETH_REG3),
