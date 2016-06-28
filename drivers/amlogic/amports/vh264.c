@@ -2645,7 +2645,7 @@ static void stream_switching_do(struct work_struct *work)
 		mb_width_num = mb_width;
 		mb_height_num = mb_height;
 
-		if (buffer_index > VF_BUF_NUM - 1)
+		if (buffer_index > VF_BUF_NUM - 1 || is_4k)
 			do_copy = false;
 
 		/* construct a clone of the frame from last frame */
