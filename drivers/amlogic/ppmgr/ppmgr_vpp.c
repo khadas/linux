@@ -698,7 +698,7 @@ static void vf_rotate_adjust(struct vframe_s *vf, struct vframe_s *new_vf,
 	new_vf->width = w;
 	new_vf->height = h;
 }
-
+#ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
 static void display_mode_adjust(struct ge2d_context_s *context,
 		struct vframe_s *new_vf, int pic_struct)
 {
@@ -765,7 +765,7 @@ static void display_mode_adjust(struct ge2d_context_s *context,
 		}
 	}
 }
-
+#endif
 static int process_vf_deinterlace_nv21(struct vframe_s *vf,
 		struct ge2d_context_s *context,
 		struct config_para_ex_s *ge2d_config)
@@ -1372,8 +1372,6 @@ static void process_vf_rotate(struct vframe_s *vf,
 	struct vframe_s *new_vf;
 	struct ppframe_s *pp_vf;
 	struct canvas_s cs0, cs1, cs2, cd;
-	int i;
-	u32 mode = 0;
 	int ret = 0;
 	unsigned cur_angle = 0;
 	int pic_struct = 0, interlace_mode;
@@ -1381,6 +1379,8 @@ static void process_vf_rotate(struct vframe_s *vf,
 	enum platform_type_t platform_type;
 #endif
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
+	int i;
+	u32 mode = 0;
 	int rect_x = 0, rect_y = 0, rect_w = 0, rect_h = 0;
 	u32 ratio = 100;
 	mode = amvideo_get_scaler_para(
