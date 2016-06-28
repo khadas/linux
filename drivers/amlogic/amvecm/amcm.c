@@ -132,6 +132,14 @@ void am_set_regmap(struct am_regs_s *p)
 				} else
 					cm2_patch_flag = 0;
 			}
+			/* add for cm patch size config */
+			if ((p->am_reg[i].addr == 0x205) ||
+				(p->am_reg[i].addr == 0x209) ||
+				(p->am_reg[i].addr == 0x20a)) {
+				pr_amcm_dbg("[amcm]:%s REG_TYPE_INDEX_VPPCHROMA addr:0x%x",
+					__func__, p->am_reg[i].addr);
+				break;
+			}
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 					p->am_reg[i].addr);
 			if (p->am_reg[i].mask == 0xffffffff)
@@ -245,10 +253,6 @@ void cm2_frame_size_patch(unsigned int width, unsigned int height)
 	if (!(READ_VPP_REG(VPP_MISC)&(0x1<<28)))
 		return;
 	vpp_size = width|(height << 16);
-	if (cm_size == 0) {
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x205);
-		cm_size = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-	}
 	if (cm_size != vpp_size) {
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x205);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, vpp_size);
