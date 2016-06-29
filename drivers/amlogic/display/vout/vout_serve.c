@@ -256,13 +256,16 @@ EXPORT_SYMBOL(get_logo_vmode);
 
 int set_logo_vmode(enum vmode_e mode)
 {
+	const char *tmp;
+	char name[32] = {0};
 	int ret = 0;
 
 	if (mode == VMODE_INIT_NULL)
 		return -1;
-
+	tmp = vmode_mode_to_name(mode);
+	strncpy(&name[0], tmp, 32);
 	vout_init_vmode = mode;
-	set_current_vmode(mode);
+	set_vout_mode(name);
 
 	return ret;
 }
