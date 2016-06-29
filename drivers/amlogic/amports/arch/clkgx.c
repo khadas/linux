@@ -348,7 +348,8 @@ static int vdec_clock_init(void)
 	else
 		is_gp0_div2 = true;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL
+		|| get_cpu_type() == MESON_CPU_MAJOR_ID_GXM) {
 		pr_info("used fix clk for vdec clk source!\n");
 		update_vdec_clk_config_settings(1);
 	}
