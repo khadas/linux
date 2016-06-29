@@ -576,12 +576,37 @@ static void internal_config(struct phy_device *phydev)
 	phy_write(phydev, 0x14, 0x5C1C);
 }
 
+void internal_wol_init(struct phy_device *phydev)
+{
+	int val;
+	unsigned char *mac_addr;
+	mac_addr = phydev->attached_dev->dev_addr;
+	/*chose wol register bank*/
+	val = phy_read(phydev, 0x14);
+	val |= 0x800;
+	val &= ~0x1000;
+	phy_write(phydev, 0x14, val);/*write data to wol register bank*/
+	/*write mac address*/
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[0]|mac_addr[1]<<8);
+	phy_write(phydev, 0x14, 0x4800|0x00);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[2]|mac_addr[3]<<8);
+	phy_write(phydev, 0x14, 0x4800|0x01);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[4]|mac_addr[5]<<8);
+	phy_write(phydev, 0x14, 0x4800|0x02);
+	/*enable wol*/
+	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x9);
+	phy_write(phydev, 0x14, 0x4800|0x03);
+	/*enable interrupt*/
+	phy_write(phydev, 0x1E, 0xe00);
+}
+
 static int internal_config_init(struct phy_device *phydev)
 {
 
 	int val;
 	u32 features;
 	internal_config(phydev);
+	internal_wol_init(phydev);
 
 	/* For now, I'll claim that the generic driver supports
 	 * all possible port types
@@ -631,6 +656,20 @@ int internal_phy_resume(struct phy_device *phydev)
 	rc1 = genphy_resume(phydev);
 	rc2 = phy_init_hw(phydev);
 	return rc1|rc2;
+}
+int internal_phy_suspend(struct phy_device *phydev)
+{
+	/*do nothing here if you want WOL enabled*/
+	int value;
+
+	mutex_lock(&phydev->lock);
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
 }
 
 
@@ -766,7 +805,7 @@ static struct phy_driver internal_phy = {
 	.features	= 0,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= internal_phy_read_status,
-	.suspend	= genphy_suspend,
+	.suspend	= internal_phy_suspend,
 	.resume = internal_phy_resume,
 	.driver	= { .owner = THIS_MODULE, },
 };
