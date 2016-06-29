@@ -1205,28 +1205,45 @@
 					     1 18000 100 20>; /* pwm_method, pwm_freq, duty_max, duty_min */
 			bl_pwm_combo_power = <1 0 2 0 10 10>; /* pwm0_gpio_index, pwm0_gpio_off, pwm1_gpio_index, pwm1_gpio_off, pwm_on_delay, pwm_off_delay */
 		};
+		backlight_4{
+			index = <4>;
+			bl_name = "backlight_4";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
+
+			bl_ctrl_method = <3>; /* 0=gpio, 1=pwm, 2=pwm_combo, 3=ldim, 4=extern */
+			bl_power_attr = <0 1 0 200 200>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
+
+			bl_ldim_region_row_col = <1 1>;
+			bl_ldim_mode = <1>; /* 1=single_side(top, bottom, left or right), 2=uniform(top/bottom, left/right) */
+			ldim_dev_index = <2>;
+		};
 	};
 
 	local_diming_device {
 		compatible = "amlogic, ldim_dev";
 		dev_name = "ldim_dev";
 		status = "disabled";
-		spi_bus_num = <0>;
-		spi_chip_select = <0>;
-		spi_max_frequency = <400000>; /* unit: hz */
-		spi_mode = <0>; /* mode: 0, 1, 2, 3 */
-		pinctrl-names = "ldim_pwm";
-		pinctrl-0 = <&ldim_pwm_pins>;
+		pinctrl-names = "ldim_pwm0","ldim_pwm1";
+		pinctrl-0 = <&ldim_pwm0_pins>;
+		pinctrl-1 = <&ldim_pwm1_pins>;
 
 		ldim_dev-gpios = <&gpio GPIOX_9 GPIO_ACTIVE_HIGH
-			&gpio GPIOX_11 GPIO_ACTIVE_HIGH>;
-		ldim_dev_gpio_names = "GPIOX_9","GPIOX_11";
+			&gpio GPIOX_11 GPIO_ACTIVE_HIGH
+			&gpio GPIOY_4 GPIO_ACTIVE_HIGH>;
+		ldim_dev_gpio_names = "GPIOX_9","GPIOX_11","GPIOY_4";
 
 		ldim_dev_0 {
 			index = <0>; /* 120mA */
+			type = <1>; /* 0=normal,1=spi,2=i2c */
 			ldim_dev_name = "iw7019";
+			ldim_pwm_pinmux_sel = "ldim_pwm0";
 			ldim_pwm_port = "none"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			ldim_pwm_attr = <1 2 50>; /* pol, freq(Hz for pwm, v-freq mulit for pwm_vs), duty(%) */
+			spi_bus_num = <0>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <400000>; /* unit: hz */
+			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
 			spi_cs_delay = <10 100>; /* hold_high_delay, clk_cs_delay (unit: us) */
 
 			en_gpio_on_off = <0 1 0>; /* ldim_dev-gpios index, on_level, off_level */
@@ -1298,9 +1315,15 @@
 		};
 		ldim_dev_1 {
 			index = <1>;
+			type = <1>; /* 0=normal,1=spi,2=i2c */
 			ldim_dev_name = "iw7027";
+			ldim_pwm_pinmux_sel = "ldim_pwm0";
 			ldim_pwm_port = "PWM_VS"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			ldim_pwm_attr = <1 2 50>; /* pol, freq(Hz for pwm, v-freq mulit for pwm_vs), duty(%) */
+			spi_bus_num = <0>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <400000>; /* unit: hz */
+			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
 			spi_cs_delay = <10 10>; /* hold_high_delay, clk_cs_delay (unit: us) */
 
 			en_gpio_on_off = <0 1 0>; /* ldim_dev-gpios index, on_level, off_level */
@@ -1314,6 +1337,16 @@
 			/*   data: spi data, fill 0x0 for no use */
 			/*   delay: unit ms */
 			init_on = <0xff 0x00 0x00 0x00>;
+		};
+		ldim_dev_2 {
+			index = <2>;
+			type = <0>; /* 0=normal,1=spi,2=i2c */
+			ldim_dev_name = "ob3350";
+			ldim_pwm_pinmux_sel = "ldim_pwm1";
+			ldim_pwm_port = "PWM_B"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
+			ldim_pwm_attr = <0 200 50>; /* pol, freq(Hz for pwm, v-freq mulit for pwm_vs), duty(%) */
+			dim_max_min = <100 20>; /* dim_max, dim_min */
+			en_gpio_on_off = <2 0 1>; /* ldim_dev-gpios index, on_level, off_level */
 		};
 	};
 
@@ -1740,14 +1773,20 @@
 			"GPIOZ_16","GPIOZ_19","GPIOZ_20";
 	};
 
-	ldim_pwm_pins:ldim_pwm_pin {
+	ldim_pwm0_pins:ldim_pwm0_pin {
 		amlogic,setmask = <2 0x00200000>;
 		amlogic,clrmask = <0 0x00900000
 				   1 0x00000008
 				   2 0x00180400
-                                   3 0x20000000>;
+					 3 0x20000000>;
 		amlogic,pins = "GPIOX_10";
 	};
+	ldim_pwm1_pins:ldim_pwm1_pin {
+		amlogic,setmask = <10 0x00800000>;
+		amlogic,clrmask = <10 0x0100a000>;
+		amlogic,pins = "GPIOY_13";
+	};
+
 	bl_pwm_on_pins:bl_pwm_on_pin {
 		amlogic,setmask = <10 0x00800000>;
 		amlogic,clrmask = <10 0x0100a000>;

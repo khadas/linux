@@ -1571,7 +1571,6 @@ static void ldim_update_matrix(unsigned int mode)
 
 static unsigned short ldim_test_matrix[LD_BLKREGNUM];
 static unsigned short local_ldim_matrix[LD_BLKREGNUM] = {0};
-/*static unsigned short local_ldim_matrix_2_spi[LD_BLKREGNUM] = {0};*/
 
 static void ldim_on_vs_spi(unsigned long data)
 {
@@ -1595,7 +1594,7 @@ static void ldim_on_vs_spi(unsigned long data)
 				local_ldim_matrix[i] =
 					(unsigned short)
 					nPRM.BL_matrix[mapping[i]];
-				ldim_driver.ldim_matrix_2_spi[i] =
+				ldim_driver.ldim_matrix_buf[i] =
 					ldim_test_matrix[mapping[i]];
 			}
 		} else {
@@ -1603,7 +1602,7 @@ static void ldim_on_vs_spi(unsigned long data)
 				local_ldim_matrix[i] =
 					(unsigned short)
 					nPRM.BL_matrix[mapping[i]];
-				ldim_driver.ldim_matrix_2_spi[i] =
+				ldim_driver.ldim_matrix_buf[i] =
 					(unsigned short)
 					(((nPRM.BL_matrix[mapping[i]] * litgain)
 					+ (LD_DATA_MAX / 2)) >> LD_DATA_DEPTH);
@@ -1621,14 +1620,14 @@ static void ldim_on_vs_spi(unsigned long data)
 		for (i = 0; i < size; i++) {
 			local_ldim_matrix[i] =
 				(unsigned short)nPRM.BL_matrix[mapping[i]];
-			ldim_driver.ldim_matrix_2_spi[i] =
+			ldim_driver.ldim_matrix_buf[i] =
 				(unsigned short)(litgain);
 		}
 	}
 
-	/* set_bri_for_channels(ldim_driver.ldim_matrix_2_spi); */
+	/* set_bri_for_channels(ldim_driver.ldim_matrix_buf); */
 	if (ldim_driver.device_bri_update) {
-		ldim_driver.device_bri_update(ldim_driver.ldim_matrix_2_spi,
+		ldim_driver.device_bri_update(ldim_driver.ldim_matrix_buf,
 			size);
 		if (ldim_driver.static_pic_flag == 1) {
 			ldim_get_matrix_info_6();
@@ -1779,7 +1778,7 @@ static void ldim_on_vs(void)
 		for (i = 0; i < (ldim_blk_row * ldim_blk_col); i++) {
 			local_ldim_matrix[i] = nPRM.BL_matrix[
 				ldim_config.bl_mapping[i]];
-			ldim_driver.ldim_matrix_2_spi[i] = (unsigned short)
+			ldim_driver.ldim_matrix_buf[i] = (unsigned short)
 				(((nPRM.BL_matrix[ldim_config.bl_mapping[i]] *
 				litgain) + 2048) >> 12);
 		}
@@ -1787,7 +1786,7 @@ static void ldim_on_vs(void)
 		/* set_bri_for_channels(local_ldim_matrix_2_spi); */
 		if (ldim_driver.device_bri_update) {
 			ldim_driver.device_bri_update(
-				ldim_driver.ldim_matrix_2_spi,
+				ldim_driver.ldim_matrix_buf,
 				(ldim_blk_row * ldim_blk_col));
 		} else {
 			LDIMPR("%s: device_bri_update is null\n", __func__);
@@ -1976,11 +1975,8 @@ static void ldim_get_matrix_info(void)
 
 	memcpy(&local_ldim_matrix_t[0], &local_ldim_matrix[0],
 		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
-	/*memcpy(&local_ldim_matrix_spi_t[0],
-		&local_ldim_matrix_2_spi[0],
-		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));*/
 	memcpy(&local_ldim_matrix_spi_t[0],
-		&ldim_driver.ldim_matrix_2_spi[0],
+		&ldim_driver.ldim_matrix_buf[0],
 		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
 	/*printk("%s and spi info:\n", __func__);*/
 	LDIMPR("%s and spi info:\n", __func__);
@@ -2052,6 +2048,7 @@ static void ldim_func_ctrl(int status)
 static int ldim_on_init(void)
 {
 	int ret = 0;
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
 	LDIMPR("%s\n", __func__);
 
@@ -2064,7 +2061,7 @@ static int ldim_on_init(void)
 	ldim_func_ctrl(0); /* default disable ldim function */
 
 	if (ldim_driver.pinmux_ctrl)
-		ldim_driver.pinmux_ctrl(1);
+		ldim_driver.pinmux_ctrl(ldim_drv->ldev_conf->pinmux_name, 1);
 	ldim_on_flag = 1;
 	ldim_level_update = 1;
 
@@ -2188,7 +2185,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.dev_index = 0,
 	.static_pic_flag = 0,
 	.ldev_conf = NULL,
-	.ldim_matrix_2_spi = NULL,
+	.ldim_matrix_buf = NULL,
 	.init = ldim_on_init,
 	.power_on = ldim_power_on,
 	.power_off = ldim_power_off,
@@ -2196,6 +2193,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.config_print = ldim_config_print,
 	.test_ctrl = ldim_test_ctrl,
 	.pinmux_ctrl = NULL,
+	.pwm_vs_update = NULL,
 	.device_power_on = NULL,
 	.device_power_off = NULL,
 	.device_bri_update = NULL,
@@ -3258,10 +3256,10 @@ int aml_ldim_probe(struct platform_device *pdev)
 	nPRM.bin_2 = &bin_2[0];
 	aml_ldim_get_config(&ldim_config, &pdev->dev);
 
-	ldim_driver.ldim_matrix_2_spi = kzalloc(
+	ldim_driver.ldim_matrix_buf = kzalloc(
 		(sizeof(unsigned char) * LD_BLKREGNUM), GFP_KERNEL);
-	if (ldim_driver.ldim_matrix_2_spi == NULL) {
-		LDIMERR("ldim_driver ldim_matrix_2_spi malloc error\n");
+	if (ldim_driver.ldim_matrix_buf == NULL) {
+		LDIMERR("ldim_driver ldim_matrix_buf malloc error\n");
 		return -1;
 	}
 
@@ -3364,7 +3362,7 @@ int aml_ldim_remove(void)
 	kfree(FDat.TF_BL_matrix_2);
 	kfree(FDat.last_STA1_MaxRGB);
 	kfree(FDat.TF_BL_alpha);
-	kfree(ldim_driver.ldim_matrix_2_spi);
+	kfree(ldim_driver.ldim_matrix_buf);
 
 	free_irq(RDMA_LDIM_INT, (void *)"rdma_ldim");
 	free_irq(VIU_VSYNC_INT, (void *)"ldim_vsync");

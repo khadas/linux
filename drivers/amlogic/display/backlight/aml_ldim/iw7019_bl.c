@@ -326,7 +326,9 @@ static int iw7019_hw_init_on(void)
 	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
 		ldim_drv->ldev_conf->en_gpio_on);
 	mdelay(2);
-	ldim_drv->pinmux_ctrl(1);
+	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->pwm_config));
+	bl_pwm_ctrl(&(ldim_drv->ldev_conf->pwm_config), 1);
+	ldim_drv->pinmux_ctrl(ldim_drv->ldev_conf->pinmux_name, 1);
 	mdelay(100);
 	iw7019_power_on_init(IW7019_POWER_ON);
 
@@ -345,7 +347,7 @@ static int iw7019_hw_init_off(void)
 	if (iw7019_spi_op_flag == 1)
 		LDIMERR("%s: wait spi idle state failed\n", __func__);
 
-	ldim_drv->pinmux_ctrl(0);
+	ldim_drv->pinmux_ctrl(ldim_drv->ldev_conf->pinmux_name, 0);
 	ldim_gpio_set(ldim_drv->ldev_conf->en_gpio,
 		ldim_drv->ldev_conf->en_gpio_off);
 
@@ -924,6 +926,40 @@ static int iw7019_ldim_driver_update(void)
 	return 0;
 }
 
+static int ldim_spi_dev_probe(struct spi_device *spi)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	int ret;
+
+	ldim_drv->spi = spi;
+
+	dev_set_drvdata(&spi->dev, ldim_drv->ldev_conf);
+	spi->bits_per_word = 8;
+	ret = spi_setup(spi);
+	if (ret)
+		LDIMERR("spi setup failed\n");
+
+	/* LDIMPR("%s ok\n", __func__); */
+	return ret;
+}
+
+static int ldim_spi_dev_remove(struct spi_device *spi)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+
+	ldim_drv->spi = NULL;
+	return 0;
+}
+
+static struct spi_driver ldim_spi_dev_driver = {
+	.probe = ldim_spi_dev_probe,
+	.remove = ldim_spi_dev_remove,
+	.driver = {
+		.name = "ldim_dev",
+		.owner = THIS_MODULE,
+	},
+};
+
 int ldim_dev_iw7019_probe(void)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
@@ -945,6 +981,14 @@ int ldim_dev_iw7019_probe(void)
 		pr_err("malloc bl_iw7019 failed\n");
 		return -1;
 	}
+
+	spi_register_board_info(ldim_drv->spi_dev, 1);
+	ret = spi_register_driver(&ldim_spi_dev_driver);
+	if (ret) {
+		LDIMERR("register ldim_dev spi driver failed\n");
+		return -1;
+	}
+
 	bl_iw7019->test_mode = 0;
 	bl_iw7019->spi = ldim_drv->spi;
 	bl_iw7019->cs_hold_delay = ldim_drv->ldev_conf->cs_hold_delay;
@@ -979,8 +1023,10 @@ int ldim_dev_iw7019_remove(void)
 	if (iw7019_workqueue)
 		destroy_workqueue(iw7019_workqueue);
 
+	spi_unregister_driver(&ldim_spi_dev_driver);
 	kfree(bl_iw7019);
 	bl_iw7019 = NULL;
+
 	return 0;
 }
 

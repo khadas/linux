@@ -24,10 +24,19 @@
 #include <linux/amlogic/vout/aml_bl.h>
 #include <linux/spi/spi.h>
 
+enum ldim_dev_type_e {
+	LDIM_DEV_TYPE_NORMAL = 0,
+	LDIM_DEV_TYPE_SPI,
+	LDIM_DEV_TYPE_I2C,
+	LDIM_DEV_TYPE_MAX,
+};
+
 #define LDIM_SPI_INIT_ON_SIZE     300
 #define LDIM_SPI_INIT_OFF_SIZE    20
 struct ldim_dev_config_s {
 	char name[20];
+	char pinmux_name[20];
+	unsigned char type;
 	int cs_hold_delay;
 	int cs_clk_delay;
 	int en_gpio;
@@ -52,12 +61,13 @@ struct aml_ldim_driver_s {
 	int dev_index;
 	int static_pic_flag;
 	struct ldim_dev_config_s *ldev_conf;
-	unsigned short *ldim_matrix_2_spi;
+	unsigned short *ldim_matrix_buf;
 	int (*init)(void);
 	int (*power_on)(void);
 	int (*power_off)(void);
 	int (*set_level)(unsigned int level);
-	int (*pinmux_ctrl)(int status);
+	int (*pinmux_ctrl)(char *pin_str, int status);
+	int (*pwm_vs_update)(void);
 	int (*device_power_on)(void);
 	int (*device_power_off)(void);
 	int (*device_bri_update)(unsigned short *buf, unsigned char len);
@@ -66,6 +76,7 @@ struct aml_ldim_driver_s {
 	struct pinctrl *pin;
 	struct device *dev;
 	struct spi_device *spi;
+	struct spi_board_info *spi_dev;
 };
 
 extern struct aml_ldim_driver_s *aml_ldim_get_driver(void);

@@ -63,6 +63,7 @@ static unsigned int bl_off_policy;
 module_param(bl_off_policy, uint, 0664);
 MODULE_PARM_DESC(bl_off_policy, "bl_off_policy");
 
+static unsigned int bl_level_uboot;
 static unsigned int brightness_bypass;
 module_param(brightness_bypass, uint, 0664);
 MODULE_PARM_DESC(brightness_bypass, "bl_brightness_bypass");
@@ -1488,8 +1489,10 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		&bl_para[0], 2);
 	if (ret) {
 		BLERR("failed to get bl_level_default_uboot_kernel\n");
+		bl_level_uboot = BL_LEVEL_DEFAULT;
 		bconf->level_default = BL_LEVEL_DEFAULT;
 	} else {
+		bl_level_uboot = bl_para[0];
 		bconf->level_default = bl_para[1];
 	}
 	ret = of_property_read_u32_array(child, "bl_level_attr",
@@ -1822,6 +1825,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 	p += LCD_UKEY_BL_NAME;
 
 	/* level: 6byte */
+	bl_level_uboot = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_UBOOT;
 	bconf->level_default = (*p | ((*(p + 1)) << 8));
 	p += LCD_UKEY_BL_LEVEL_KERNEL;  /* dummy pointer */
@@ -2191,6 +2195,9 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
 	struct bl_pwm_config_s *bl_pwm = NULL;
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+#endif
 
 	/* If we aren't interested in this event, skip it immediately */
 	if (event != LCD_EVENT_BACKLIGHT_UPDATE)
@@ -2202,25 +2209,39 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 		BLPR("bl_lcd_update_notifier for pwm_vs\n");
 	switch (bl_drv->bconf->method) {
 	case BL_CTRL_PWM:
-		if (bl_drv->bconf->bl_pwm->pwm_port == BL_PWM_VS)
+		if (bl_drv->bconf->bl_pwm->pwm_port == BL_PWM_VS) {
 			bl_pwm = bl_drv->bconf->bl_pwm;
+			if (bl_pwm) {
+				bl_pwm_config_init(bl_pwm);
+				if (brightness_bypass)
+					bl_set_duty_pwm(bl_pwm);
+				else
+					aml_bl_update_status(bl_drv->bldev);
+			}
+		}
 		break;
 	case BL_CTRL_PWM_COMBO:
 		if (bl_drv->bconf->bl_pwm_combo0->pwm_port == BL_PWM_VS)
 			bl_pwm = bl_drv->bconf->bl_pwm_combo0;
 		else if (bl_drv->bconf->bl_pwm_combo1->pwm_port == BL_PWM_VS)
 			bl_pwm = bl_drv->bconf->bl_pwm_combo1;
+		if (bl_pwm) {
+			bl_pwm_config_init(bl_pwm);
+			if (brightness_bypass)
+				bl_set_duty_pwm(bl_pwm);
+			else
+				aml_bl_update_status(bl_drv->bldev);
+		}
 		break;
+#ifdef CONFIG_AML_LOCAL_DIMMING
+	case BL_CTRL_LOCAL_DIMING:
+		if (ldim_drv->pwm_vs_update)
+			ldim_drv->pwm_vs_update();
+		break;
+#endif
+
 	default:
 		break;
-	}
-
-	if (bl_pwm) {
-		bl_pwm_config_init(bl_pwm);
-		if (brightness_bypass)
-			bl_set_duty_pwm(bl_pwm);
-		else
-			aml_bl_update_status(bl_drv->bldev);
 	}
 
 	return NOTIFY_OK;
@@ -2312,6 +2333,7 @@ static ssize_t bl_status_read(struct class *class,
 		"name:               %s\n"
 		"state:              0x%x\n"
 		"level:              %d\n"
+		"level_uboot:        %d\n"
 		"brightness_bypass:  %d\n\n"
 		"level_max:          %d\n"
 		"level_min:          %d\n"
@@ -2325,7 +2347,7 @@ static ssize_t bl_status_read(struct class *class,
 		"power_off_delay:    %d\n\n",
 		bl_key_valid, bl_config_load,
 		bl_drv->index, bconf->name, bl_drv->state,
-		bl_drv->level, brightness_bypass,
+		bl_drv->level,  bl_level_uboot, brightness_bypass,
 		bconf->level_max, bconf->level_min,
 		bconf->level_mid, bconf->level_mid_mapping,
 		bl_method_type_to_str(bconf->method),
@@ -2849,7 +2871,11 @@ static int aml_bl_probe(struct platform_device *pdev)
 	/* update bl status */
 	bl_drv->state = (BL_STATE_LCD_ON |
 			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
-	aml_bl_update_status(bl_drv->bldev);
+
+	if (brightness_bypass)
+		aml_bl_set_level(bl_level_uboot);
+	else
+		aml_bl_update_status(bl_drv->bldev);
 
 	BLPR("probe OK\n");
 	return 0;
