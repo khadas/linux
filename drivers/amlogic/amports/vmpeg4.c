@@ -648,6 +648,23 @@ static void vmpeg_put_timer_func(unsigned long arg)
 		vdec_source_changed(VFORMAT_MPEG4,
 			frame_width, frame_height, fps);
 	}
+	if (READ_VREG(AV_SCRATCH_L)) {
+		unsigned long flags;
+		pr_info("mpeg4 fatal error happened,need reset    !!\n");
+		amvdec_stop();
+#ifndef CONFIG_POST_PROCESS_MANAGER
+		vf_light_unreg_provider(&vmpeg_vf_prov);
+#endif
+		spin_lock_irqsave(&lock, flags);
+		vmpeg4_local_init();
+		vmpeg4_prot_init();
+		spin_unlock_irqrestore(&lock, flags);
+#ifndef CONFIG_POST_PROCESS_MANAGER
+		vf_reg_provider(&vmpeg_vf_prov);
+#endif
+		amvdec_start();
+	}
+
 
 	timer->expires = jiffies + PUT_INTERVAL;
 
@@ -815,6 +832,7 @@ static void vmpeg4_prot_init(void)
 	WRITE_VREG(AV_SCRATCH_I, 0x141312);
 	WRITE_VREG(AV_SCRATCH_J, 0x171615);
 #endif
+	WRITE_VREG(AV_SCRATCH_L, 0);/*clearfatal error flag*/
 
 	/* notify ucode the buffer offset */
 	WRITE_VREG(AV_SCRATCH_F, buf_offset);
