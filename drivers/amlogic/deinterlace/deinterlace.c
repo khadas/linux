@@ -8006,6 +8006,7 @@ light_unreg:
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
+		char *receiver_name = NULL;
 		bypass_state = 0;
 		di_pre_stru.reg_req_flag = 1;
 		pr_dbg("%s: vframe provider reg\n", __func__);
@@ -8024,14 +8025,19 @@ light_unreg:
 			vdin_source_flag = 0;
 			pre_urgent = 0;
 		}
-		if (strcmp(vf_get_receiver_name(VFM_NAME), "amvideo") == 0) {
-			di_post_stru.run_early_proc_fun_flag = 0;
-			receiver_is_amvideo = 1;
-			/* pr_info("set run_early_proc_fun_flag to 1\n"); */
+		receiver_name = vf_get_receiver_name(VFM_NAME);
+		if (receiver_name) {
+			if (strcmp(receiver_name, "amvideo") == 0) {
+				di_post_stru.run_early_proc_fun_flag = 0;
+				receiver_is_amvideo = 1;
+		/* pr_info("set run_early_proc_fun_flag to 1\n"); */
+			} else {
+				di_post_stru.run_early_proc_fun_flag = 1;
+				receiver_is_amvideo = 0;
+		/* pr_dbg("set run_early_proc_fun_flag to 1\n"); */
+			}
 		} else {
-			di_post_stru.run_early_proc_fun_flag = 1;
-			receiver_is_amvideo = 0;
-/* pr_dbg("set run_early_proc_fun_flag to 1\n"); */
+			pr_info("%s error receiver is null.\n", __func__);
 		}
 	}
 #ifdef DET3D
