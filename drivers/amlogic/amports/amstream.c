@@ -1078,7 +1078,6 @@ static ssize_t amstream_sub_write(struct file *file, const char *buf,
 		if (r < 0)
 			return r;
 	}
-	pr_err("amstream_sub_write\n");
 	r = esparser_write(file, pbuf, buf, count);
 	if (r < 0)
 		return r;
