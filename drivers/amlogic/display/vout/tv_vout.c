@@ -829,42 +829,6 @@ static char *get_name_from_vmode(enum vmode_e mode)
 	return tv_info[i].name;
 }
 
-/* frame_rate = 9600/duration/100 hz */
-static int get_vsource_frame_rate(int duration)
-{
-	int frame_rate = 0;
-	switch (duration) {
-	case 1600:
-		frame_rate = 6000;
-		break;
-	case 1601:
-	case 1602:
-		frame_rate = 5994;
-		break;
-	case 1920:
-		frame_rate = 5000;
-		break;
-	case 3200:
-		frame_rate = 3000;
-		break;
-	case 3203:
-		frame_rate = 2997;
-		break;
-	case 3840:
-		frame_rate = 2500;
-		break;
-	case 4000:
-		frame_rate = 2400;
-		break;
-	case 4004:
-		frame_rate = 2397;
-		break;
-	default:
-		break;
-	}
-	return frame_rate;
-}
-
 static int (*hdmi_edid_supported_func)(char *mode_name);
 void register_hdmi_edid_supported_func(int (*pfunc)(char *mode_name))
 {
@@ -1116,7 +1080,7 @@ static int framerate_automation_process(int duration)
 		vout_log_info("vout frame rate automation disabled!\n");
 		return 1;
 	}
-	fr_vsource = get_vsource_frame_rate(duration);
+	fr_vsource = get_vsource_fps(duration);
 	fps_playing_flag = 0;
 	if ((fr_vsource == 5994)
 		|| (fr_vsource == 2997)

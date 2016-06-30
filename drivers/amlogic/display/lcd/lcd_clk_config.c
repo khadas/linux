@@ -905,13 +905,10 @@ static void lcd_update_pll_frac_gxtvbb(struct lcd_clk_config_s *cConf)
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
 
-	if (cConf->pll_frac > 0) {
-		lcd_hiu_setb(HHI_HDMI_PLL_CNTL2, 1, 14, 1);
+	if (cConf->pll_frac > 0)
 		lcd_hiu_setb(HHI_HDMI_PLL_CNTL2, cConf->pll_frac, 0, 12);
-	} else {
-		lcd_hiu_setb(HHI_HDMI_PLL_CNTL2, 0, 14, 1);
+	else
 		lcd_hiu_setb(HHI_HDMI_PLL_CNTL2, 0, 0, 12);
-	}
 }
 
 static void lcd_set_clk_div_m8(int lcd_type, struct lcd_clk_config_s *cConf)
@@ -1860,7 +1857,7 @@ static void lcd_pll_frac_generate_g9_gxtvbb(struct lcd_config_s *pconf)
 	frac = temp * cConf->pll_frac_range * n / cConf->fin;
 	cConf->pll_frac = frac | (offset << 11);
 	if (lcd_debug_print_flag)
-		LCDPR("lcd_pll_frac_generate frac=%d\n", frac);
+		LCDPR("lcd_pll_frac_generate: frac=0x%x\n", frac);
 }
 
 void lcd_clk_generate_parameter(struct lcd_config_s *pconf)
@@ -1957,11 +1954,6 @@ void lcd_clk_update(struct lcd_config_s *pconf)
 {
 	unsigned long flags = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-	unsigned int pclk = pconf->lcd_timing.lcd_clk_dft;
-
-	/* check if clk frac need update */
-	if (pconf->lcd_timing.lcd_clk == pclk)
-		return;
 
 	spin_lock_irqsave(&lcd_clk_lock, flags);
 	LCDPR("%s\n", __func__);

@@ -314,14 +314,17 @@ static void lcd_venc_set(struct lcd_config_s *pconf)
 
 	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
 
-	/* update backlight parameters for pwm_vs */
-	switch (pconf->lcd_timing.fr_adjust_type) {
-	case 2: /* vtotal adjust */
-		aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
-		break;
-	default:
-		break;
-	}
+	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
+}
+
+void lcd_tablet_clk_update(struct lcd_config_s *pconf)
+{
+#ifdef CONFIG_AML_VPU
+	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
+#endif
+
+	lcd_clk_generate_parameter(pconf);
+	lcd_clk_set(pconf);
 }
 
 void lcd_tablet_driver_init_pre(void)
@@ -330,8 +333,9 @@ void lcd_tablet_driver_init_pre(void)
 	struct lcd_config_s *pconf;
 	int ret;
 
-	LCDPR("tablet driver init(ver: %s)\n", lcd_drv->version);
 	pconf = lcd_drv->lcd_config;
+	LCDPR("tablet driver init(ver %s): %s\n", lcd_drv->version,
+		lcd_type_type_to_str(pconf->lcd_basic.lcd_type));
 	ret = lcd_type_supported(pconf);
 	if (ret)
 		return;

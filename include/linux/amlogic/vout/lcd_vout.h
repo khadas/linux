@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/vout/vout_notify.h>
 
 /* **********************************
  * debug print define
@@ -113,15 +114,26 @@ struct lcd_basic_s {
 	unsigned short v_active;    /* Vertical display area */
 	unsigned short h_period;    /* Horizontal total period time */
 	unsigned short v_period;    /* Vertical total period time */
+	unsigned short h_period_min;
+	unsigned short h_period_max;
+	unsigned short v_period_min;
+	unsigned short v_period_max;
+	unsigned int lcd_clk_min;
+	unsigned int lcd_clk_max;
 
 	unsigned int screen_width;  /* screen physical width(unit: mm) */
 	unsigned int screen_height; /* screen physical height(unit: mm) */
 };
 
+#define LCD_CLK_FRAC_UPDATE     (1 << 0)
+#define LCD_CLK_PLL_CHANGE      (1 << 1)
 struct lcd_timing_s {
 	unsigned char clk_auto; /* clk parameters auto generation */
 	unsigned int lcd_clk;   /* pixel clock(unit: Hz) */
 	unsigned int lcd_clk_dft; /* internal used */
+	unsigned int h_period_dft; /* internal used */
+	unsigned int v_period_dft; /* internal used */
+	unsigned char clk_change; /* internal used */
 	unsigned int pll_ctrl;  /* pll settings */
 	unsigned int div_ctrl;  /* divider settings */
 	unsigned int clk_ctrl;  /* clock settings */
@@ -350,6 +362,11 @@ struct lcd_config_s {
 	struct lcd_clk_gate_ctrl_s rstc;
 };
 
+struct lcd_duration_s {
+	unsigned int duration_num;
+	unsigned int duration_den;
+};
+
 struct aml_lcd_drv_s {
 	char *version;
 	enum lcd_chip_e chip_type;
@@ -362,11 +379,14 @@ struct aml_lcd_drv_s {
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
 	struct vinfo_s *lcd_info;
+	unsigned char fr_auto_policy;
+	struct lcd_duration_s std_duration;
 
 	void (*vout_server_init)(void);
 	void (*driver_init_pre)(void);
 	int (*driver_init)(void);
 	void (*driver_disable)(void);
+	void (*module_reset)(void);
 	/*void (*module_enable)(void);
 	void (*module_disable)(void);
 	void (*set_gamma_table)(unsigned int gamma_en);

@@ -167,6 +167,12 @@ static struct lcd_config_s lcd_config_dft = {
 	.lcd_power = &lcd_power_config,
 };
 
+static struct vinfo_s lcd_vinfo = {
+	.name = "panel",
+	.mode = VMODE_LCD,
+	.viu_color_fmt = TVIN_RGB444,
+};
+
 struct aml_lcd_drv_s *aml_lcd_get_driver(void)
 {
 	return lcd_driver;
@@ -246,7 +252,7 @@ static void lcd_power_ctrl(int status)
 
 static void lcd_module_enable(void)
 {
-	LCDPR("driver version: %s\n", lcd_driver->version);
+	/*LCDPR("driver version: %s\n", lcd_driver->version);*/
 	lcd_driver->driver_init_pre();
 	lcd_driver->power_ctrl(1);
 	lcd_driver->lcd_status = 1;
@@ -256,6 +262,13 @@ static void lcd_module_disable(void)
 {
 	lcd_driver->lcd_status = 0;
 	lcd_driver->power_ctrl(0);
+}
+
+static void lcd_module_reset(void)
+{
+	lcd_module_disable();
+	mdelay(200);
+	lcd_module_enable();
 }
 
 /* ****************************************
@@ -333,21 +346,10 @@ static void lcd_chip_detect(void)
 
 static void lcd_init_vout(void)
 {
-	switch (lcd_driver->lcd_mode) {
-#ifdef CONFIG_AML_LCD_TV
-	case LCD_MODE_TV:
-		lcd_tv_vout_server_init();
-		break;
-#endif
-#ifdef CONFIG_AML_LCD_TABLET
-	case LCD_MODE_TABLET:
-		lcd_tablet_vout_server_init();
-		break;
-#endif
-	default:
-		LCDPR("invalid lcd mode\n");
-		break;
-	}
+	if (lcd_driver->vout_server_init)
+		lcd_driver->vout_server_init();
+	else
+		LCDERR("no vout_server_init function\n");
 }
 
 static int lcd_reboot_notifier(struct notifier_block *nb,
@@ -464,6 +466,15 @@ static int lcd_config_probe(void)
 		return -1;
 	}
 	lcd_driver->lcd_mode = lcd_mode_str_to_mode(str);
+	ret = of_property_read_u32(lcd_driver->dev->of_node,
+		"fr_auto_policy", &val);
+	if (ret) {
+		if (lcd_debug_print_flag)
+			LCDPR("failed to get fr_auto_policy\n");
+		lcd_driver->fr_auto_policy = 0;
+	} else {
+		lcd_driver->fr_auto_policy = (unsigned char)val;
+	}
 	ret = of_property_read_u32(lcd_driver->dev->of_node, "key_valid", &val);
 	if (ret) {
 		if (lcd_debug_print_flag)
@@ -472,20 +483,21 @@ static int lcd_config_probe(void)
 	} else {
 		lcd_driver->lcd_key_valid = (unsigned char)val;
 	}
-	LCDPR("detect mode: %s, key_valid: %d\n", str, val);
+	LCDPR("detect mode: %s, fr_auto_policy: %d, key_valid: %d\n",
+		str, lcd_driver->fr_auto_policy, lcd_driver->lcd_key_valid);
 
-	lcd_driver->lcd_info = NULL;
+	lcd_driver->lcd_info = &lcd_vinfo;
 	lcd_driver->lcd_config = &lcd_config_dft;
 	lcd_driver->lcd_config->pinmux_flag = 0;
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
+	lcd_driver->module_reset = lcd_module_reset;
 	if (lcd_vcbus_read(ENCL_VIDEO_EN))
 		lcd_driver->lcd_status = 1;
 	else
 		lcd_driver->lcd_status = 0;
 	LCDPR("status: %d\n", lcd_driver->lcd_status);
 
-	lcd_init_vout();
 	if (lcd_driver->lcd_key_valid) {
 		if (lcd_driver->workqueue) {
 			queue_delayed_work(lcd_driver->workqueue,
@@ -537,6 +549,7 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_ioremap();
 	lcd_clk_config_probe();
 	lcd_config_probe();
+	lcd_init_vout();
 
 	LCDPR("%s\n", __func__);
 	return 0;

@@ -509,7 +509,7 @@ static void lcd_vbyone_disable(void)
 }
 
 #define VBYONE_INTR_UNMASK    0x2a00 /* enable htpdn_fail,lockn_fail,acq_hold */
-static void lcd_vbyone_interrupt_enable(int flag)
+void lcd_vbyone_interrupt_enable(int flag)
 {
 	if (lcd_debug_print_flag)
 		LCDPR("%s: %d\n", __func__, flag);
@@ -555,7 +555,7 @@ static void lcd_vbyone_interrupt_init(void)
 		LCDPR("%s\n", __func__);
 }
 
-static void lcd_vbyone_wait_stable(void)
+void lcd_vbyone_wait_stable(void)
 {
 	int i = 5000;
 
@@ -722,14 +722,6 @@ static void lcd_venc_set(struct lcd_config_s *pconf)
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, 3);
 
 	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
-}
-
-static void lcd_venc_change(struct lcd_config_s *pconf)
-{
-	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT, pconf->lcd_basic.h_period - 1);
-	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, pconf->lcd_basic.v_period - 1);
-	LCDPR("venc changed: %d,%d\n",
-		pconf->lcd_basic.h_period, pconf->lcd_basic.v_period);
 
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
 }
@@ -804,17 +796,38 @@ static void lcd_vbyone_config_set(struct lcd_config_s *pconf)
 	}
 }
 
+void lcd_tv_clk_update(struct lcd_config_s *pconf)
+{
+#ifdef CONFIG_AML_VPU
+	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
+#endif
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_VBYONE:
+		lcd_vbyone_config_set(pconf);
+		lcd_vbyone_interrupt_enable(0);
+		break;
+	default:
+		break;
+	}
+	lcd_clk_generate_parameter(pconf);
+	lcd_clk_set(pconf);
+	if (pconf->lcd_basic.lcd_type == LCD_VBYONE)
+		lcd_vbyone_wait_stable();
+}
+
 void lcd_tv_config_update(struct lcd_config_s *pconf)
 {
-	const struct vinfo_s *info;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vinfo_s *info;
 
 	/* update lcd config sync_duration */
-	info = lcd_tv_get_vinfo();
+	info = lcd_drv->lcd_info;
 	pconf->lcd_timing.sync_duration_num = info->sync_duration_num;
 	pconf->lcd_timing.sync_duration_den = info->sync_duration_den;
 
 	/* update clk & timing config */
 	lcd_vmode_change(pconf);
+	info->video_clk = pconf->lcd_timing.lcd_clk;
 	/* update interface timing */
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_VBYONE:
@@ -831,8 +844,9 @@ void lcd_tv_driver_init_pre(void)
 	struct lcd_config_s *pconf;
 	int ret;
 
-	LCDPR("tv driver init(ver: %s)\n", lcd_drv->version);
 	pconf = lcd_drv->lcd_config;
+	LCDPR("tv driver init(ver %s): %s\n", lcd_drv->version,
+		lcd_type_type_to_str(pconf->lcd_basic.lcd_type));
 	ret = lcd_type_supported(pconf);
 	if (ret)
 		return;
@@ -885,19 +899,18 @@ int lcd_tv_driver_init(void)
 			break;
 		}
 	} else { /* change */
-		switch (pconf->lcd_timing.fr_adjust_type) {
-		case 0: /* clk adjust */
+		switch (pconf->lcd_timing.clk_change) {
+		case LCD_CLK_PLL_CHANGE:
 			lcd_clk_generate_parameter(pconf);
 			lcd_clk_set(pconf);
 			break;
-		case 1: /* htotal adjust */
-		case 2: /* vtotal adjust */
+		case LCD_CLK_FRAC_UPDATE:
 			lcd_clk_update(pconf);
-			lcd_venc_change(pconf);
 			break;
 		default:
 			break;
 		}
+		lcd_venc_change(pconf);
 	}
 	if (pconf->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();

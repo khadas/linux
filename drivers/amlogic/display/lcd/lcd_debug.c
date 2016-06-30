@@ -156,8 +156,9 @@ static void lcd_info_print(void)
 	LCDPR("panel_type: %s\n", pconf->lcd_propname);
 	LCDPR("key_valid: %d, config_load: %d\n",
 		lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load);
-	LCDPR("mode  : %s, status: %d\n",
-		lcd_mode_mode_to_str(lcd_drv->lcd_mode), lcd_drv->lcd_status);
+	LCDPR("mode : %s, status: %d, fr_auto_policy: %d\n",
+		lcd_mode_mode_to_str(lcd_drv->lcd_mode),
+		lcd_drv->lcd_status, lcd_drv->fr_auto_policy);
 
 	LCDPR("%s, %s %ubit, %ux%u@%u.%02uHz\n",
 		pconf->lcd_basic.model_name,
@@ -187,6 +188,15 @@ static void lcd_info_print(void)
 		pconf->lcd_timing.hsync_pol,
 		pconf->lcd_timing.vsync_width, pconf->lcd_timing.vsync_bp,
 		pconf->lcd_timing.vsync_pol);
+	pr_info("h_period_min      %d\n"
+		"h_period_max      %d\n"
+		"v_period_min      %d\n"
+		"v_period_max      %d\n"
+		"pclk_min          %d\n"
+		"pclk_max          %d\n\n",
+		pconf->lcd_basic.h_period_min, pconf->lcd_basic.h_period_max,
+		pconf->lcd_basic.v_period_min, pconf->lcd_basic.v_period_max,
+		pconf->lcd_basic.lcd_clk_min, pconf->lcd_basic.lcd_clk_max);
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
@@ -536,77 +546,125 @@ static void lcd_test(unsigned int num)
 
 static void lcd_debug_config_update(void)
 {
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
-	mdelay(200);
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	lcd_drv->module_reset();
+}
+
+static void lcd_debug_clk_change(unsigned int pclk)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	unsigned int sync_duration;
+
+	pconf = lcd_drv->lcd_config;
+	sync_duration = pclk / pconf->lcd_basic.h_period;
+	sync_duration = sync_duration * 100 / pconf->lcd_basic.v_period;
+	pconf->lcd_timing.lcd_clk = pclk;
+	pconf->lcd_timing.sync_duration_num = sync_duration;
+	pconf->lcd_timing.sync_duration_den = 100;
+
+	/* update vinfo */
+	lcd_drv->lcd_info->sync_duration_num = sync_duration;
+	lcd_drv->lcd_info->sync_duration_den = 100;
+	lcd_drv->lcd_info->video_clk = pclk;
+
+	switch (lcd_drv->lcd_mode) {
+#ifdef CONFIG_AML_LCD_TV
+	case LCD_MODE_TV:
+		lcd_tv_clk_update(pconf);
+		break;
+#endif
+#ifdef CONFIG_AML_LCD_TABLET
+	case LCD_MODE_TABLET:
+		lcd_tablet_clk_update(pconf);
+		break;
+#endif
+	default:
+		LCDPR("invalid lcd mode\n");
+		break;
+	}
+
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
+		&lcd_drv->lcd_info->mode);
 }
 
 static ssize_t lcd_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	unsigned int temp, val[6];
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
 
+	pconf = lcd_drv->lcd_config;
 	switch (buf[0]) {
 	case 'c':
-		temp = lcd_drv->lcd_config->lcd_timing.lcd_clk;
 		ret = sscanf(buf, "clk %d", &temp);
-		if (temp > 200) {
-			pr_info("set clk: %dHz\n", temp);
-			temp = temp / lcd_drv->lcd_config->lcd_basic.h_period;
-			temp *= 100;
-			temp = temp / lcd_drv->lcd_config->lcd_basic.v_period;
+		if (ret == 1) {
+			if (temp > 200) {
+				pr_info("set clk: %dHz\n", temp);
+			} else {
+				pr_info("set frame_rate: %dHz\n", temp);
+				temp = pconf->lcd_basic.h_period *
+					pconf->lcd_basic.v_period * temp;
+			}
+			pr_info("set frame rate: %d.%02dHz\n",
+				(temp / 100), (temp % 100));
+			lcd_debug_clk_change(temp);
 		} else {
-			temp *= 100;
+			LCDERR("invalid data\n");
+			return -EINVAL;
 		}
-		pr_info("set frame rate: %d.%02dHz\n",
-			(temp / 100), (temp % 100));
-		aml_lcd_notifier_call_chain(LCD_EVENT_FRAME_RATE_ADJUST, &temp);
-		lcd_debug_config_update();
 		break;
 	case 'b':
-		val[0] = lcd_drv->lcd_config->lcd_basic.h_active;
-		val[1] = lcd_drv->lcd_config->lcd_basic.v_active;
-		val[2] = lcd_drv->lcd_config->lcd_basic.h_period;
-		val[3] = lcd_drv->lcd_config->lcd_basic.v_period;
 		ret = sscanf(buf, "basic %d %d %d %d",
 			&val[0], &val[1], &val[2], &val[3]);
-		lcd_drv->lcd_config->lcd_basic.h_active = val[0];
-		lcd_drv->lcd_config->lcd_basic.v_active = val[1];
-		lcd_drv->lcd_config->lcd_basic.h_period = val[2];
-		lcd_drv->lcd_config->lcd_basic.v_period = val[3];
-		pr_info("set h_active=%d, v_active=%d\n", val[0], val[1]);
-		pr_info("set h_period=%d, v_period=%d\n", val[2], val[3]);
-		lcd_tcon_config(lcd_drv->lcd_config);
-		lcd_debug_config_update();
+		if (ret == 4) {
+			pconf->lcd_basic.h_active = val[0];
+			pconf->lcd_basic.v_active = val[1];
+			pconf->lcd_basic.h_period = val[2];
+			pconf->lcd_basic.v_period = val[3];
+			pr_info("set h_active=%d, v_active=%d\n",
+				val[0], val[1]);
+			pr_info("set h_period=%d, v_period=%d\n",
+				val[2], val[3]);
+			lcd_tcon_config(pconf);
+			lcd_debug_config_update();
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	case 's':
-		val[0] = lcd_drv->lcd_config->lcd_timing.hsync_width;
-		val[1] = lcd_drv->lcd_config->lcd_timing.hsync_bp;
-		val[2] = lcd_drv->lcd_config->lcd_timing.hsync_pol;
-		val[3] = lcd_drv->lcd_config->lcd_timing.vsync_width;
-		val[4] = lcd_drv->lcd_config->lcd_timing.vsync_bp;
-		val[5] = lcd_drv->lcd_config->lcd_timing.vsync_pol;
 		ret = sscanf(buf, "sync %d %d %d %d %d %d",
 			&val[0], &val[1], &val[2], &val[3], &val[4], &val[5]);
-		lcd_drv->lcd_config->lcd_timing.hsync_width = val[0];
-		lcd_drv->lcd_config->lcd_timing.hsync_bp =    val[1];
-		lcd_drv->lcd_config->lcd_timing.hsync_pol =   val[2];
-		lcd_drv->lcd_config->lcd_timing.vsync_width = val[3];
-		lcd_drv->lcd_config->lcd_timing.vsync_bp =    val[4];
-		lcd_drv->lcd_config->lcd_timing.vsync_pol =   val[5];
-		pr_info("set hsync width=%d, bp=%d, pol=%d\n",
-			val[0], val[1], val[2]);
-		pr_info("set vsync width=%d, bp=%d, pol=%d\n",
-			val[3], val[4], val[5]);
-		lcd_tcon_config(lcd_drv->lcd_config);
-		lcd_debug_config_update();
+		if (ret == 6) {
+			pconf->lcd_timing.hsync_width = val[0];
+			pconf->lcd_timing.hsync_bp =    val[1];
+			pconf->lcd_timing.hsync_pol =   val[2];
+			pconf->lcd_timing.vsync_width = val[3];
+			pconf->lcd_timing.vsync_bp =    val[4];
+			pconf->lcd_timing.vsync_pol =   val[5];
+			pr_info("set hsync width=%d, bp=%d, pol=%d\n",
+				val[0], val[1], val[2]);
+			pr_info("set vsync width=%d, bp=%d, pol=%d\n",
+				val[3], val[4], val[5]);
+			lcd_tcon_config(pconf);
+			lcd_debug_config_update();
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	case 't':
-		temp = 0;
 		ret = sscanf(buf, "test %d", &temp);
-		lcd_test(temp);
+		if (ret == 1) {
+			lcd_test(temp);
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	case 'i':
 		LCDPR("driver version: %s\n", lcd_drv->version);
@@ -617,9 +675,31 @@ static ssize_t lcd_debug_store(struct class *class,
 			LCDPR("driver version: %s\n", lcd_drv->version);
 			lcd_reg_print();
 		} else if (buf[2] == 's') {
-			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
-			mdelay(200);
-			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+			lcd_drv->module_reset();
+		} else if (buf[2] == 'a') {
+			ret = sscanf(buf, "range %d %d %d %d %d %d",
+				&val[0], &val[1], &val[2], &val[3],
+				&val[4], &val[5]);
+			if (ret == 6) {
+				pconf->lcd_basic.h_period_min = val[0];
+				pconf->lcd_basic.h_period_max = val[1];
+				pconf->lcd_basic.h_period_min = val[2];
+				pconf->lcd_basic.v_period_max = val[3];
+				pconf->lcd_basic.lcd_clk_min  = val[4];
+				pconf->lcd_basic.lcd_clk_max  = val[5];
+				pr_info("set h_period min=%d, max=%d\n",
+					pconf->lcd_basic.h_period_min,
+					pconf->lcd_basic.h_period_max);
+				pr_info("set v_period min=%d, max=%d\n",
+					pconf->lcd_basic.v_period_min,
+					pconf->lcd_basic.v_period_max);
+				pr_info("set pclk min=%d, max=%d\n",
+					pconf->lcd_basic.lcd_clk_min,
+					pconf->lcd_basic.lcd_clk_max);
+			} else {
+				LCDERR("invalid data\n");
+				return -EINVAL;
+			}
 		}
 		break;
 	case 'd':
@@ -629,18 +709,20 @@ static ssize_t lcd_debug_store(struct class *class,
 		lcd_reg_print();
 		break;
 	case 'p':
-		temp = 0;
 		ret = sscanf(buf, "power %d", &temp);
-		LCDPR("power: %d\n", temp);
-		LCDPR("to do\n");
+		if (ret == 1) {
+			LCDPR("power: %d\n", temp);
+			LCDPR("to do\n");
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		LCDERR("wrong command\n");
+		return -EINVAL;
 		break;
 	}
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
 
 	return count;
 }
@@ -648,17 +730,19 @@ static ssize_t lcd_debug_store(struct class *class,
 static ssize_t lcd_debug_enable_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	unsigned int temp = 1;
 
 	ret = sscanf(buf, "%d", &temp);
-	if (temp)
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
-	else
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
-
-	if (ret != 1 || ret != 2)
+	if (ret == 1) {
+		if (temp)
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+		else
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+	} else {
+		LCDERR("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -682,31 +766,64 @@ static ssize_t lcd_debug_frame_rate_show(struct class *class,
 static ssize_t lcd_debug_frame_rate_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
-	unsigned int temp;
+	int ret = 0;
+	unsigned int temp = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	switch (buf[0]) {
 	case 't':
-		temp = 0;
 		ret = sscanf(buf, "type %d", &temp);
-		lcd_drv->lcd_config->lcd_timing.fr_adjust_type = temp;
-		pr_info("set fr_adjust_type: %d\n", temp);
+		if (ret == 1) {
+			lcd_drv->lcd_config->lcd_timing.fr_adjust_type = temp;
+			pr_info("set fr_adjust_type: %d\n", temp);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	case 's':
-		temp = 60 * 100;
 		ret = sscanf(buf, "set %d", &temp);
-		pr_info("set frame rate(*100): %d\n", temp);
-		aml_lcd_notifier_call_chain(LCD_EVENT_FRAME_RATE_ADJUST, &temp);
-		lcd_debug_config_update();
+		if (ret == 1) {
+			pr_info("set frame rate(*100): %d\n", temp);
+			aml_lcd_notifier_call_chain(
+				LCD_EVENT_FRAME_RATE_ADJUST, &temp);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		pr_info("wrong command\n");
+		return -EINVAL;
 		break;
 	}
 
-	if (ret != 1 || ret != 2)
+	return count;
+}
+
+static ssize_t lcd_debug_fr_policy_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return sprintf(buf, "fr_auto_policy: %d\n", lcd_drv->fr_auto_policy);
+}
+
+static ssize_t lcd_debug_fr_policy_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int ret = 0;
+	unsigned int temp = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	ret = sscanf(buf, "%d", &temp);
+	if (ret == 1) {
+		lcd_drv->fr_auto_policy = (unsigned char)temp;
+		pr_info("set fr_auto_policy: %d\n", temp);
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -721,16 +838,18 @@ static ssize_t lcd_debug_ss_show(struct class *class,
 static ssize_t lcd_debug_ss_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	unsigned int temp = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	ret = sscanf(buf, "%d", &temp);
-	lcd_drv->lcd_config->lcd_timing.ss_level = temp;
-	lcd_set_spread_spectrum();
-
-	if (ret != 1 || ret != 2)
+	if (ret == 1) {
+		lcd_drv->lcd_config->lcd_timing.ss_level = temp;
+		lcd_set_spread_spectrum();
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -745,14 +864,16 @@ static ssize_t lcd_debug_clk_show(struct class *class,
 static ssize_t lcd_debug_test_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	unsigned int temp = 0;
 
 	ret = sscanf(buf, "%d", &temp);
-	lcd_test(temp);
-
-	if (ret != 1 || ret != 2)
+	if (ret == 1) {
+		lcd_test(temp);
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -863,7 +984,7 @@ static void lcd_debug_reg_dump(unsigned int reg, unsigned int num,
 static ssize_t lcd_debug_reg_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	unsigned int bus = 0;
 	unsigned int reg32, data32;
 
@@ -883,7 +1004,12 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 			ret = sscanf(buf, "wp %x %x", &reg32, &data32);
 			bus = 3;
 		}
-		lcd_debug_reg_write(reg32, data32, bus);
+		if (ret == 2) {
+			lcd_debug_reg_write(reg32, data32, bus);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	case 'r':
 		reg32 = 0;
@@ -900,7 +1026,12 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 			ret = sscanf(buf, "rp %x", &reg32);
 			bus = 3;
 		}
-		lcd_debug_reg_read(reg32, bus);
+		if (ret == 1) {
+			lcd_debug_reg_read(reg32, bus);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	case 'd':
 		reg32 = 0;
@@ -917,14 +1048,18 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 			ret = sscanf(buf, "dp %x %d", &reg32, &data32);
 			bus = 3;
 		}
-		lcd_debug_reg_dump(reg32, data32, bus);
+		if (ret == 2) {
+			lcd_debug_reg_dump(reg32, data32, bus);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
 		break;
 	default:
+		pr_info("wrong command\n");
+		return -EINVAL;
 		break;
 	}
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
 
 	return count;
 }
@@ -938,15 +1073,17 @@ static ssize_t lcd_debug_print_show(struct class *class,
 static ssize_t lcd_debug_print_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	unsigned int temp = 0;
 
 	ret = sscanf(buf, "%d", &temp);
-	lcd_debug_print_flag = temp;
-	LCDPR("set debug print flag: %d\n", lcd_debug_print_flag);
-
-	if (ret != 1 || ret != 2)
+	if (ret == 1) {
+		lcd_debug_print_flag = temp;
+		LCDPR("set debug print flag: %d\n", lcd_debug_print_flag);
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -980,6 +1117,8 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(enable,      S_IRUGO | S_IWUSR, NULL, lcd_debug_enable_store),
 	__ATTR(frame_rate,  S_IRUGO | S_IWUSR,
 		lcd_debug_frame_rate_show, lcd_debug_frame_rate_store),
+	__ATTR(fr_policy,   S_IRUGO | S_IWUSR,
+		lcd_debug_fr_policy_show, lcd_debug_fr_policy_store),
 	__ATTR(ss,          S_IRUGO | S_IWUSR,
 		lcd_debug_ss_show, lcd_debug_ss_store),
 	__ATTR(clk,         S_IRUGO | S_IWUSR, lcd_debug_clk_show, NULL),
@@ -1018,7 +1157,6 @@ static const char *lcd_lvds_debug_usage_str = {
 "data format:\n"
 "    <vswing> : vswing level, support 0~7\n"
 "    <preem>  : preemphasis level, support 0~7\n"
-"    <byte_mode>  : 3/4/5\n"
 "\n"
 };
 
@@ -1080,6 +1218,13 @@ static ssize_t lcd_vx1_debug_show(struct class *class,
 	return sprintf(buf, "%s\n", lcd_vbyone_debug_usage_str);
 }
 
+static int lcd_vx1_intr_enable = 1;
+static ssize_t lcd_vx1_intr_debug_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", lcd_vx1_intr_enable);
+}
+
 static ssize_t lcd_mipi_debug_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -1095,20 +1240,23 @@ static ssize_t lcd_edp_debug_show(struct class *class,
 static ssize_t lcd_ttl_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct ttl_config_s *ttl_conf;
 
 	ttl_conf = lcd_drv->lcd_config->lcd_control.ttl_config;
 	ret = sscanf(buf, "%d %d %d", &ttl_conf->clk_pol,
 		&ttl_conf->sync_valid, &ttl_conf->swap_ctrl);
-	pr_info("set ttl config:\n"
-		"clk_pol=%d, sync_valid=0x%x, swap_ctrl=0x%x\n",
-		ttl_conf->clk_pol, ttl_conf->sync_valid, ttl_conf->swap_ctrl);
-	lcd_debug_config_update();
-
-	if (ret != 1 || ret != 2)
+	if (ret == 3) {
+		pr_info("set ttl config:\n"
+			"clk_pol=%d, sync_valid=0x%x, swap_ctrl=0x%x\n",
+			ttl_conf->clk_pol, ttl_conf->sync_valid,
+			ttl_conf->swap_ctrl);
+		lcd_debug_config_update();
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -1116,7 +1264,7 @@ static ssize_t lcd_ttl_debug_store(struct class *class,
 static ssize_t lcd_lvds_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lvds_config_s *lvds_conf;
 
@@ -1124,14 +1272,16 @@ static ssize_t lcd_lvds_debug_store(struct class *class,
 	ret = sscanf(buf, "%d %d %d %d",
 		&lvds_conf->lvds_repack, &lvds_conf->dual_port,
 		&lvds_conf->pn_swap, &lvds_conf->port_swap);
-	pr_info("set lvds config:\n"
-		"repack=%d, dual_port=%d, pn_swap=%d, port_swap=%d\n",
-		lvds_conf->lvds_repack, lvds_conf->dual_port,
-		lvds_conf->pn_swap, lvds_conf->port_swap);
-	lcd_debug_config_update();
-
-	if (ret != 1 || ret != 2)
+	if (ret == 4) {
+		pr_info("set lvds config:\n"
+			"repack=%d, dual_port=%d, pn_swap=%d, port_swap=%d\n",
+			lvds_conf->lvds_repack, lvds_conf->dual_port,
+			lvds_conf->pn_swap, lvds_conf->port_swap);
+		lcd_debug_config_update();
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -1139,21 +1289,45 @@ static ssize_t lcd_lvds_debug_store(struct class *class,
 static ssize_t lcd_vx1_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
+	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vbyone_config_s *vx1_conf;
 
 	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
 	ret = sscanf(buf, "%d %d %d", &vx1_conf->lane_count,
 		&vx1_conf->region_num, &vx1_conf->byte_mode);
-	pr_info("set vbyone config:\n"
-		"lane_count=%d, region_num=%d, byte_mode=%d\n",
-		vx1_conf->lane_count, vx1_conf->region_num,
-		vx1_conf->byte_mode);
-	lcd_debug_config_update();
-
-	if (ret != 1 || ret != 2)
+	if (ret == 3) {
+		pr_info("set vbyone config:\n"
+			"lane_count=%d, region_num=%d, byte_mode=%d\n",
+			vx1_conf->lane_count, vx1_conf->region_num,
+			vx1_conf->byte_mode);
+		lcd_debug_config_update();
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t lcd_vx1_intr_debug_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int ret = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vbyone_config_s *vx1_conf;
+	int val;
+
+	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
+	ret = sscanf(buf, "%d", &val);
+	if (ret == 1) {
+		pr_info("set vbyone interrupt enable: %d\n", val);
+		lcd_vbyone_interrupt_enable(val);
+		lcd_vx1_intr_enable = val;
+	} else {
+		pr_info("invalid data\n");
+		return -EINVAL;
+	}
 
 	return count;
 }
@@ -1161,12 +1335,7 @@ static ssize_t lcd_vx1_debug_store(struct class *class,
 static ssize_t lcd_mipi_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
-
 	pr_info("to do\n");
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
 
 	return count;
 }
@@ -1174,12 +1343,7 @@ static ssize_t lcd_mipi_debug_store(struct class *class,
 static ssize_t lcd_edp_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret;
-
 	pr_info("to do\n");
-
-	if (ret != 1 || ret != 2)
-		return -EINVAL;
 
 	return count;
 }
@@ -1312,20 +1476,22 @@ static ssize_t lcd_phy_debug_show(struct class *class,
 static ssize_t lcd_phy_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	ssize_t ret = 0;
+	int ret = 0;
 	unsigned int para[4];
 
 	ret = sscanf(buf, "%d %d %d %d",
 		&para[0], &para[1], &para[2], &para[3]);
 
-	if (ret == 4)
+	if (ret == 4) {
 		lcd_phy_config_update(para, 4);
-	else if (ret == 2)
+	} else if (ret == 2) {
 		lcd_phy_config_update(para, 2);
-	else
+	} else {
+		pr_info("invalid data\n");
 		return -EINVAL;
+	}
 
-	return ret;
+	return count;
 }
 
 static struct class_attribute lcd_interface_debug_class_attrs[] = {
@@ -1335,6 +1501,8 @@ static struct class_attribute lcd_interface_debug_class_attrs[] = {
 		lcd_lvds_debug_show, lcd_lvds_debug_store),
 	__ATTR(vbyone, S_IRUGO | S_IWUSR,
 		lcd_vx1_debug_show, lcd_vx1_debug_store),
+	__ATTR(vbyone_intr, S_IRUGO | S_IWUSR,
+		lcd_vx1_intr_debug_show, lcd_vx1_intr_debug_store),
 	__ATTR(mipi,   S_IRUGO | S_IWUSR,
 		lcd_mipi_debug_show, lcd_mipi_debug_store),
 	__ATTR(edp,    S_IRUGO | S_IWUSR,

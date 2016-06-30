@@ -175,6 +175,8 @@ static int set_vout_mode(char *name)
 {
 	struct hdmitx_dev *hdmitx_device = get_hdmitx_device();
 	enum vmode_e mode;
+	int ret = 0;
+
 	vout_log_info("vmode set to %s\n", name);
 
 	if (strcmp(name, local_name)) {
@@ -190,10 +192,6 @@ static int set_vout_mode(char *name)
 	mode = validate_vmode(name);
 	if (VMODE_MAX == mode) {
 		vout_log_info("no matched vout mode\n");
-		return -1;
-	}
-	if (mode == get_current_vmode()) {
-		vout_log_info("don't set the same mode as current\n");
 		return -1;
 	}
 next:
@@ -214,19 +212,23 @@ next:
 		}
 	}
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
-	set_current_vmode(mode);
-	vout_log_info("new mode %s set ok\n", name);
+	ret = set_current_vmode(mode);
+	if (ret)
+		vout_log_info("new mode %s set error\n", name);
+	else
+		vout_log_info("new mode %s set ok\n", name);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
-	return 0;
+	return ret;
 }
 
 static int set_vout_init_mode(void)
 {
 	enum vmode_e vmode;
-	const char *name;
+	int ret = 0;
 
-	if (VMODE_MAX == vout_init_vmode) {
-		vout_log_info("no matched vout_init mode\n");
+	vout_init_vmode = validate_vmode(vout_mode);
+	if (vout_init_vmode >= VMODE_MAX) {
+		vout_log_info("no matched vout_init mode %s\n", vout_mode);
 		return -1;
 	}
 #if 1
@@ -239,13 +241,12 @@ static int set_vout_init_mode(void)
 	vmode = vout_init_vmode;
 #endif
 
-	name = vmode_mode_to_name(vout_init_vmode);
 	memset(local_name, 0, sizeof(local_name));
-	strcpy(local_name, name);
-	set_current_vmode(vmode);
-	vout_log_info("init mode %s\n", name);
+	strcpy(local_name, vout_mode);
+	ret = set_current_vmode(vmode);
+	vout_log_info("init mode %s\n", vout_mode);
 
-	return 0;
+	return ret;
 }
 
 enum vmode_e get_logo_vmode(void)
@@ -588,13 +589,11 @@ static int str2lower(char *str)
 
 static void vout_init_mode_parse(char *str)
 {
-	enum vmode_e vmode;
+	/*enum vmode_e vmode;*/
 
 	/* detect vout mode */
-	vmode = vmode_name_to_mode(str);
-	if (vmode < VMODE_MAX) {
-		vout_init_vmode = vmode;
-		vout_log_info("%s: %d\n", str, vout_init_vmode);
+	if (strlen(str) <= 1) {
+		vout_log_info("%s: error\n", str);
 		return;
 	}
 
@@ -608,6 +607,19 @@ static void vout_init_mode_parse(char *str)
 		vout_log_info("%s: %d\n", str, uboot_display);
 		return;
 	}
+
+	/* just save the vmode_name,
+	convert to vmode when vout sever registered */
+	strcpy(vout_mode, str);
+	vout_log_info("%s\n", str);
+	/*vmode = vmode_name_to_mode(str);
+	if (vmode < VMODE_MAX) {
+		vout_init_vmode = vmode;
+		vout_log_info("%s: %d\n", str, vout_init_vmode);
+		return;
+	}*/
+	return;
+
 	vout_log_info("%s: error\n", str);
 }
 
@@ -618,6 +630,9 @@ static int __init get_vout_init_mode(char *str)
 	char *option;
 	int count = 3;
 	char find = 0;
+
+	/* init void vout_mode name */
+	memset(vout_mode, 0, sizeof(vout_mode));
 
 	if (NULL == str)
 		return -EINVAL;

@@ -115,6 +115,44 @@ enum vmode_e get_current_vmode(void)
 }
 EXPORT_SYMBOL(get_current_vmode);
 
+/* fps = 9600/duration/100 hz */
+int get_vsource_fps(int duration)
+{
+	int fps = 6000;
+
+	switch (duration) {
+	case 1600:
+		fps = 6000;
+		break;
+	case 1601:
+	case 1602:
+		fps = 5994;
+		break;
+	case 1920:
+		fps = 5000;
+		break;
+	case 3200:
+		fps = 3000;
+		break;
+	case 3203:
+		fps = 2997;
+		break;
+	case 3840:
+		fps = 2500;
+		break;
+	case 4000:
+		fps = 2400;
+		break;
+	case 4004:
+		fps = 2397;
+		break;
+	default:
+		break;
+	}
+	return fps;
+}
+EXPORT_SYMBOL(get_vsource_fps);
+
 /*
 *interface export to client who want to notify about source frame rate.
 */
