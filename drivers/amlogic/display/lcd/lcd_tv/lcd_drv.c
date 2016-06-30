@@ -607,6 +607,8 @@ static irqreturn_t lcd_vbyone_vsync_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#define VX1_LOCKN_WAIT_TIMEOUT    100
+static int vx1_lockn_wait_cnt;
 static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 {
 	unsigned int data32, data32_1;
@@ -642,6 +644,21 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 		LCDPR("vx1 lockn fall edge occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
+		if (vx1_lockn_wait_cnt++ > VX1_LOCKN_WAIT_TIMEOUT) {
+			LCDPR("vx1 sw reset for lockn timeout\n");
+			/* force PHY to 0 */
+			lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
+			lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
+			udelay(5);
+			/* clear lockn raising flag */
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 1, 7, 1);
+			/* realease PHY */
+			lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 8, 2);
+			/* clear lockn raising flag */
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 7, 1);
+			lcd_vcbus_write(VBO_SOFT_RST, 0);
+			vx1_lockn_wait_cnt = 0;
+		}
 	}
 #if 0
 	if (data32 & 0x1000) {
@@ -652,8 +669,10 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 #endif
 	if (data32 & 0x2000) {
 		LCDPR("vx1 fsm_acq wait end\n");
-		LCDPR("vx1 status 0: 0x%x, fsm_acq_st: %d\n",
-			lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
+		if (lcd_debug_print_flag) {
+			LCDPR("vx1 status 0: 0x%x, fsm_acq_st: %d\n",
+				lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
+		}
 		if (vx1_fsm_acq_st == 0) {
 			/* clear FSM_continue */
 			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
@@ -679,6 +698,8 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 			lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
 	}
 	udelay(20);
+	if ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) == 0x20)
+		vx1_lockn_wait_cnt = 0;
 
 	/* enable interrupt */
 	lcd_vcbus_setb(VBO_INTR_UNMASK, VBYONE_INTR_UNMASK, 0, 15);
@@ -964,6 +985,7 @@ void lcd_tv_driver_disable(void)
 void lcd_vbyone_interrupt_up(void)
 {
 	lcd_vbyone_interrupt_init();
+	vx1_lockn_wait_cnt = 0;
 
 	if (request_irq(INT_VIU_VSYNC, &lcd_vbyone_vsync_isr,
 		IRQF_SHARED, "vbyone_vsync", (void *)"vbyone_vsync")) {
