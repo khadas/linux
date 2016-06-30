@@ -3826,9 +3826,10 @@ static void dump_state(unsigned char enable)
 	/* int i = 0; */
 	struct hdmi_rx_ctrl_video v;
 	static struct aud_info_s a;
+	memset(&v, 0, sizeof(struct hdmi_rx_ctrl_video));
 
+	hdmirx_get_video_info(&rx.ctrl, &v);
 	if (enable & 1) {
-		hdmirx_get_video_info(&rx.ctrl, &v);
 		rx_print("[HDMI info]error %d", error);
 		rx_print("video_format %d,", v.video_format);
 		rx_print("VIC %d dvi %d", v.video_mode, v.dvi);
@@ -3841,7 +3842,6 @@ static void dump_state(unsigned char enable)
 
 		rx_print(" deep_color %d", v.deep_color_mode);
 		rx_print(" refresh_rate %d\n", v.refresh_rate);
-
 	}
 	if (enable & 2) {
 		hdmirx_read_audio_info(&a);

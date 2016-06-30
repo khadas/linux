@@ -1064,8 +1064,7 @@ int hdmirx_get_video_info(struct hdmi_rx_ctrl *ctx,
 	/* DVI mode */
 	params->dvi = hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET) != 0;
 	/* hdcp encrypted state */
-	params->hdcp_enc_state = (hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3;
-
+	params->hdcp_enc_state = hdmirx_rd_bits_dwc(DWC_HDCP_STS, _BIT(9));
 	/* AVI parameters */
 	error |= hdmirx_packet_get_avi(params);
 	if (error != 0)
@@ -1333,7 +1332,7 @@ void diff_with_testcode(void)
 
 static unsigned int clk_util_clk_msr(unsigned int clk_mux)
 {
-	return 0;
+	return meson_clk_measure(clk_mux);
 }
 
 unsigned int hdmirx_get_clock(int index)
@@ -1348,10 +1347,12 @@ unsigned int hdmirx_get_audio_clock(void)
 
 unsigned int hdmirx_get_tmds_clock(void)
 {
+	return clk_util_clk_msr(25);
+	/*
 	unsigned int clkrate = 0;
 	clkrate = hdmirx_rd_dwc(DWC_HDMI_CKM_RESULT) & 0xffff;
 	clkrate = clkrate * 158000 / 4095 * 1000;
-	return clkrate;
+	return clkrate;*/
 }
 
 unsigned int hdmirx_get_pixel_clock(void)

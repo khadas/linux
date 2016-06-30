@@ -635,11 +635,27 @@ int gxtvbb_clk_measure(struct seq_file *s, void *what, unsigned int index)
 	clk_msr_index = 0xff;
 	return 0;
 }
-
-void meson_clk_measure(unsigned int clk_mux)
+int  meson_clk_measure(unsigned int clk_mux)
 {
-	if (is_meson_m8m2_cpu())
-		m8m2_clk_measure(clk_mux);
+	int clk_val;
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_M8M2:
+		clk_val = m8m2_clk_measure(clk_mux);
+	break;
+	case MESON_CPU_MAJOR_ID_GXBB:
+	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
+		clk_val = gxbb_clk_util_clk_msr(clk_mux);
+	break;
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		clk_val = gxtvbb_clk_util_clk_msr(clk_mux);
+	break;
+	default:
+		pr_info("Unsupported chip clk measure\n");
+		clk_val = 0;
+	break;
+	}
+	return clk_val;
 
 }
 EXPORT_SYMBOL(meson_clk_measure);

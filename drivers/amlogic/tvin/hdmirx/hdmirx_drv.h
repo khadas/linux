@@ -236,7 +236,7 @@ struct hdmi_rx_phy {
 struct hdmi_rx_ctrl_video {
 	/** DVI detection status: DVI (true) or HDMI (false) */
 	bool dvi;
-	int hdcp_enc_state;
+	bool hdcp_enc_state;
 	/** Deep color mode: 24, 30, 36 or 48 [bits per pixel] */
 	unsigned deep_color_mode;
 
@@ -717,4 +717,5 @@ extern bool hdmirx_tmds_34g(void);
 
 extern int cec_has_irq(void);
 extern void cecrx_hw_init(void);
+extern int  meson_clk_measure(unsigned int clk_mux);
 #endif  /* _TVHDMI_H */

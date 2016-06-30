@@ -789,10 +789,26 @@ int rx_print(const char *fmt, ...)
 	char buf[PRINT_TEMP_BUF_SIZE];
 	int pos = 0;
 	int len = 0;
+	static bool last_break = 1;
 
+	if (last_break == 1) {
+		strcpy(buf, "[RX]-");
+		for (len = 0; len < strlen(fmt); len++)
+			if (fmt[len] == '\n')
+				pos++;
+			else
+				break;
+
+		strcpy(buf + 5, fmt + pos);
+	} else
+		strcpy(buf, fmt);
+	if (fmt[strlen(fmt) - 1] == '\n')
+		last_break = 1;
+	else
+		last_break = 0;
 	if (log_flag & LOG_EN) {
 		va_start(args, fmt);
-		vprintk(fmt, args);
+		vprintk(buf, args);
 		va_end(args);
 		return 0;
 	}
