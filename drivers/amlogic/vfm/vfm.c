@@ -319,8 +319,13 @@ static void vfm_init(void)
 #endif				/*
 				 */
 #if (defined CONFIG_TVIN_AFE) || (defined CONFIG_TVIN_HDMI)
+#ifdef CONFIG_POST_PROCESS_MANAGER
+	char tvpath_id[] = "tvpath";
+	char tvpath_chain[] = "vdin0 ppmgr deinterlace amvideo";
+#else
 	char tvpath_id[] = "tvpath";
 	char tvpath_chain[] = "vdin0 deinterlace amvideo";
+#endif
 #endif				/*
 				 */
 	int i;
