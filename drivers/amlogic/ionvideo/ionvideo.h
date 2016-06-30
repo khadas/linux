@@ -55,8 +55,8 @@
 #define WAKE_NUMERATOR 30
 #define WAKE_DENOMINATOR 1001
 
-#define MAX_WIDTH 1920
-#define MAX_HEIGHT 1920
+#define MAX_WIDTH 4096
+#define MAX_HEIGHT 4096
 
 #define IONVID_INFO(fmt, args...) pr_info("ionvid: info: "fmt"", ## args)
 #define IONVID_DBG(fmt, args...) pr_debug("ionvid: dbg: "fmt"", ## args)
