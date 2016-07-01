@@ -164,8 +164,8 @@ void ana_ref_cntl0_bit9(bool on, unsigned int module_sel)
 	else
 		enable = 1;
 
-	if (is_meson_gxtvbb_cpu() &&
-		(0xa != get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR)))
+	if (is_meson_txl_cpu() || (is_meson_gxtvbb_cpu() &&
+		(0xa != get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR))))
 		vdac_hiu_reg_setb(HHI_VDAC_CNTL0, enable, 9, 1);
 	else
 		vdac_hiu_reg_setb(HHI_VDAC_CNTL0, ~enable, 9, 1);
@@ -317,8 +317,8 @@ void vdac_out_cntl1_bit3(bool on, unsigned int module_sel)
 	else
 		enable = 1;
 
-	if (is_meson_gxtvbb_cpu() &&
-		(0xa != get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR)))
+	if (is_meson_txl_cpu() || (is_meson_gxtvbb_cpu() &&
+		(0xa != get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR))))
 		vdac_hiu_reg_setb(HHI_VDAC_CNTL1, enable, 3, 1);
 	else
 		vdac_hiu_reg_setb(HHI_VDAC_CNTL1, ~enable, 3, 1);
