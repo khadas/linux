@@ -505,7 +505,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 
 			vf->duration_pulldown = 0;
 			vf->type = (reg & BOTTOM_FIELD_FIRST_FLAG) ?
-			VIDTYPE_INTERLACE_BOTTOM : VIDTYPE_INTERLACE_TOP;
+			VIDTYPE_INTERLACE_TOP : VIDTYPE_INTERLACE_BOTTOM;
 #ifdef NV21
 			vf->type |= VIDTYPE_VIU_NV21;
 #endif
