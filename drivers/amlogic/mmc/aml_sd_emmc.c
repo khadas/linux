@@ -381,9 +381,7 @@ _cali_retry:
 	line_dly->dat7 = (((max_cal_result - cal_result[7]) / delay_step)
 			> 15) ? 15 :
 			((max_cal_result - cal_result[7]) / delay_step);
-	/* set default cmd delay*/
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
-		gadjust->cmd_delay = 7;
+
 	/* restore original clk setting */
 	clkc->div = clk_div_tmp;
 	sd_emmc_regs->gclock = vclk;

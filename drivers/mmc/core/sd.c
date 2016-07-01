@@ -1094,8 +1094,7 @@ static int mmc_sd_suspend(struct mmc_host *host)
 	 */
 	int err = 0;
 
-	if (host->ios.timing == MMC_TIMING_SD_HS ||
-		host->ios.timing == MMC_TIMING_MMC_DDR52) {
+	if (!host->uhs_speed) {
 		err = _mmc_sd_suspend(host);
 		if (!err) {
 			pm_runtime_disable(&host->card->dev);
@@ -1141,8 +1140,7 @@ static int mmc_sd_resume(struct mmc_host *host)
 	 */
 	int err = 0;
 
-	if (host->ios.timing == MMC_TIMING_SD_HS ||
-		host->ios.timing == MMC_TIMING_MMC_DDR52) {
+	if (!host->uhs_speed) {
 		if (!(host->caps & MMC_CAP_RUNTIME_RESUME)) {
 			err = _mmc_sd_resume(host);
 			pm_runtime_set_active(&host->card->dev);
