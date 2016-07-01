@@ -122,6 +122,8 @@ static struct cpufreq_interactive_tunables *common_tunables;
 
 static struct attribute_group *get_sysfs_attr(void);
 
+static void cpufreq_hmp_boost(unsigned int, unsigned int, unsigned int);
+
 static void cpufreq_interactive_timer_resched(
 	struct cpufreq_interactive_cpuinfo *pcpu)
 {
@@ -363,6 +365,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	if (WARN_ON_ONCE(!delta_time))
 		goto rearm;
 
+#ifdef CONFIG_SCHED_HMP
+	cpufreq_hmp_boost(data, pcpu->policy->cur, pcpu->policy->max);
+#endif
 	spin_lock_irqsave(&pcpu->target_freq_lock, flags);
 	do_div(cputime_speedadj, delta_time);
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
@@ -600,6 +605,35 @@ static void cpufreq_interactive_boost(struct cpufreq_interactive_tunables *tunab
 	if (anyboost)
 		wake_up_process(speedchange_task);
 }
+
+#ifdef CONFIG_SCHED_HMP
+#define hmp_boost_thresh	3
+#define hmp_boost_pulse		300000
+static void cpufreq_hmp_boost(unsigned int cpu, unsigned int freq,
+	unsigned int freq_max)
+{
+	static int cnt;
+	struct cpufreq_interactive_cpuinfo *pcpu = &per_cpu(cpuinfo, 4);
+	struct cpufreq_interactive_tunables *tunables;
+
+	if (cpu > 3)
+		return;
+
+	if (freq < freq_max || !pcpu->governor_enabled || !get_hmp_boost()) {
+		cnt = 0;
+		return;
+	}
+
+	tunables = pcpu->policy->governor_data;
+	if (cnt++ > hmp_boost_thresh) {
+		tunables->boostpulse_endtime =
+			ktime_to_us(ktime_get()) + hmp_boost_pulse;
+		if (pcpu->policy->cur < tunables->hispeed_freq
+			|| !tunables->boosted)
+			cpufreq_interactive_boost(tunables);
+	}
+}
+#endif
 
 static int cpufreq_interactive_notifier(
 	struct notifier_block *nb, unsigned long val, void *data)
@@ -1030,6 +1064,7 @@ gov_sys_pol_attr_rw(timer_slack);
 gov_sys_pol_attr_rw(boost);
 gov_sys_pol_attr_rw(boostpulse_duration);
 gov_sys_pol_attr_rw(io_is_busy);
+
 
 static struct global_attr boostpulse_gov_sys =
 	__ATTR(boostpulse, 0200, NULL, store_boostpulse_gov_sys);

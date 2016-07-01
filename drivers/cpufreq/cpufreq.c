@@ -687,6 +687,32 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+#ifdef CONFIG_SCHED_HMP
+int hmp_boost_en;
+static ssize_t show_hmp_boost(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%d\n", hmp_boost_en);
+}
+static ssize_t store_hmp_boost(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	hmp_boost_en = val;
+	return count;
+}
+int get_hmp_boost(void)
+{
+	return hmp_boost_en;
+}
+cpufreq_freq_attr_rw(hmp_boost);
+#endif
+
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -716,6 +742,9 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+#ifdef CONFIG_SCHED_HMP
+	&hmp_boost.attr,
+#endif
 	NULL
 };
 

@@ -566,6 +566,7 @@ static inline void cpufreq_set_max_cpu_num(unsigned int cpu_num, int cluster_id)
 {
 }
 #endif
+int get_hmp_boost(void);
 int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		struct cpufreq_frequency_table **table);
 void dev_pm_opp_free_cpufreq_table(struct device *dev,
