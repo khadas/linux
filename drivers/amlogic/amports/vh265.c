@@ -154,7 +154,7 @@ static u32 workaround_enable;
 static u32 force_w_h;
 #endif
 static u32 force_fps;
-
+static u32 pts_unstable;
 #define H265_DEBUG_BUFMGR                   0x01
 #define H265_DEBUG_BUFMGR_MORE              0x02
 #define H265_DEBUG_UCODE                    0x04
@@ -4661,6 +4661,9 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		else
 			hevc->pts_hit++;
 #endif
+		if (pts_unstable && (hevc->frame_dur > 0)) {
+			hevc->pts_mode = PTS_NONE_REF_USE_DURATION;
+		}
 
 		if ((hevc->pts_mode == PTS_NORMAL) && (vf->pts != 0)
 			&& hevc->get_frame_dur) {
@@ -5968,6 +5971,9 @@ static int vh265_local_init(struct hevc_state_s *hevc)
 		hevc->frame_ar = hevc->frame_height * 0x100 / hevc->frame_width;
 	hevc->error_watchdog_count = 0;
 	hevc->sei_present_flag = 0;
+	pts_unstable = ((unsigned long)hevc->vh265_amstream_dec_info.param
+		& 0x40) >> 6;
+	pr_info("h265:pts_unstable=%d\n", pts_unstable);
 /*
 TODO:FOR VERSION
 */
@@ -6448,7 +6454,8 @@ MODULE_PARM_DESC(max_decoding_time, "\n max_decoding_time\n");
 
 module_param(interlace_enable, uint, 0664);
 MODULE_PARM_DESC(interlace_enable, "\n interlace_enable\n");
-
+module_param(pts_unstable, uint, 0664);
+MODULE_PARM_DESC(pts_unstable, "\n amvdec_h265 pts_unstable\n");
 module_param(parser_sei_enable, uint, 0664);
 MODULE_PARM_DESC(parser_sei_enable, "\n parser_sei_enable\n");
 
