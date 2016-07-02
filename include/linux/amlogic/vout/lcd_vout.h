@@ -346,6 +346,7 @@ struct lcd_config_s {
 	struct lcd_control_config_s lcd_control;
 	struct lcd_power_ctrl_s *lcd_power;
 	struct pinctrl *pin;
+	unsigned char pinmux_flag;
 	struct lcd_clk_gate_ctrl_s rstc;
 };
 

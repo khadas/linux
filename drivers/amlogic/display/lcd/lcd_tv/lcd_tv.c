@@ -438,12 +438,8 @@ static int lcd_init_load_from_dts(struct lcd_config_s *pconf,
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_VBYONE:
-		if (lcd_drv->lcd_status) { /* lock pinmux if lcd in on */
-			pconf->pin = devm_pinctrl_get_select(dev,
-				"vbyone");
-			if (IS_ERR(pconf->pin))
-				LCDERR("get vbyone pinmux error\n");
-		}
+		if (lcd_drv->lcd_status) /* lock pinmux if lcd in on */
+			lcd_vbyone_pinmux_set(1);
 		break;
 	default:
 		break;

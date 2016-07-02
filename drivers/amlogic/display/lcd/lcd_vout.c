@@ -476,6 +476,7 @@ static int lcd_config_probe(void)
 
 	lcd_driver->lcd_info = NULL;
 	lcd_driver->lcd_config = &lcd_config_dft;
+	lcd_driver->lcd_config->pinmux_flag = 0;
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	if (lcd_vcbus_read(ENCL_VIDEO_EN))

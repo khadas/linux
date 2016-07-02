@@ -64,37 +64,6 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 	return ret;
 }
 
-/* set VX1_LOCKN && VX1_HTPDN */
-static void lcd_vbyone_pinmux_set(int status)
-{
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-	struct lcd_config_s *pconf;
-
-	if (lcd_debug_print_flag)
-		LCDPR("%s: %d\n", __func__, status);
-
-#if 1
-	pconf = lcd_drv->lcd_config;
-	if (status) {
-		/* request pinmux */
-		pconf->pin = devm_pinctrl_get_select(lcd_drv->dev, "vbyone");
-		if (IS_ERR(pconf->pin))
-			LCDERR("set vbyone pinmux error\n");
-	} else {
-		/* release pinmux */
-		devm_pinctrl_put(pconf->pin);
-	}
-#else
-	if (status) {
-		lcd_pinmux_clr_mask(7,
-			((1 << 1) | (1 << 2) | (1 << 9) | (1 << 10)));
-		lcd_pinmux_set_mask(7, ((1 << 11) | (1 << 12)));
-	} else {
-		lcd_pinmux_clr_mask(7, ((1 << 11) | (1 << 12)));
-	}
-#endif
-}
-
 static void lcd_vbyone_phy_set(struct lcd_config_s *pconf, int status)
 {
 	unsigned int vswing, preem;

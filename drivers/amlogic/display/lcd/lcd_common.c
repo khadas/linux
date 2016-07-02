@@ -237,20 +237,32 @@ void lcd_ttl_pinmux_set(int status)
 		index = 4;
 
 	if (status) {
-		switch (pconf->lcd_control.ttl_config->sync_valid) {
-		case 1: /* hvsync */
-			num = index + 0;
-			break;
-		case 2: /* DE */
-			num = index + 1;
-			break;
-		default:
-		case 3: /* DE + hvsync */
-			num = index + 2;
-			break;
+		if (pconf->pinmux_flag == 0) {
+			pconf->pinmux_flag = 1;
+			switch (pconf->lcd_control.ttl_config->sync_valid) {
+			case 1: /* hvsync */
+				num = index + 0;
+				break;
+			case 2: /* DE */
+				num = index + 1;
+				break;
+			default:
+			case 3: /* DE + hvsync */
+				num = index + 2;
+				break;
+			}
+		} else {
+			LCDPR("vbyone pinmux is already selected\n");
+			return;
 		}
 	} else {
-		num = index + 3;
+		if (pconf->pinmux_flag) {
+			pconf->pinmux_flag = 0;
+			num = index + 3;
+		} else {
+			LCDPR("vbyone pinmux is already released\n");
+			return;
+		}
 	}
 
 	/* request pinmux */
@@ -258,6 +270,48 @@ void lcd_ttl_pinmux_set(int status)
 		lcd_ttl_pinmux_str[num]);
 	if (IS_ERR(pconf->pin))
 		LCDERR("set ttl pinmux error\n");
+}
+
+/* set VX1_LOCKN && VX1_HTPDN */
+void lcd_vbyone_pinmux_set(int status)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d\n", __func__, status);
+
+#if 1
+	pconf = lcd_drv->lcd_config;
+	if (status) {
+		if (pconf->pinmux_flag == 0) {
+			pconf->pinmux_flag = 1;
+			/* request pinmux */
+			pconf->pin = devm_pinctrl_get_select(lcd_drv->dev,
+				"vbyone");
+			if (IS_ERR(pconf->pin))
+				LCDERR("set vbyone pinmux error\n");
+		} else {
+			LCDPR("vbyone pinmux is already selected\n");
+		}
+	} else {
+		if (pconf->pinmux_flag) {
+			pconf->pinmux_flag = 0;
+			/* release pinmux */
+			devm_pinctrl_put(pconf->pin);
+		} else {
+			LCDPR("vbyone pinmux is already released\n");
+		}
+	}
+#else
+	if (status) {
+		lcd_pinmux_clr_mask(7,
+			((1 << 1) | (1 << 2) | (1 << 9) | (1 << 10)));
+		lcd_pinmux_set_mask(7, ((1 << 11) | (1 << 12)));
+	} else {
+		lcd_pinmux_clr_mask(7, ((1 << 11) | (1 << 12)));
+	}
+#endif
 }
 
 int lcd_power_load_from_dts(struct lcd_config_s *pconf,
