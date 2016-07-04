@@ -2653,6 +2653,12 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 	vdevp->flags = 0;
 
+	/*mif reset patch for vdin wr ram bug on gxtvbb*/
+	if (is_meson_gxtvbb_cpu())
+		enable_reset = 1;
+	else
+		enable_reset = 0;
+
 	/* create vf pool */
 	vdevp->vfp = vf_pool_alloc(VDIN_CANVAS_MAX_CNT);
 

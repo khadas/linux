@@ -113,7 +113,7 @@ static unsigned int delay_line_num;
 module_param(delay_line_num, uint, 0644);
 MODULE_PARM_DESC(delay_line_num, "delay_line_num");
 
-bool enable_reset = 1;
+bool enable_reset;
 module_param(enable_reset, bool, 0664);
 MODULE_PARM_DESC(enable_reset, "enable_reset");
 static int vsync_reset_mask;
@@ -2033,6 +2033,12 @@ void vdin_set_default_regmap(unsigned int offset)
 		DISCARD_BEF_LINE_FIFO_BIT, DISCARD_BEF_LINE_FIFO_WID);
 	wr_bits(offset, VDIN_WR_CTRL2, vdin_wr_burst_mode,
 		VDIN_WR_BURST_MODE_BIT, VDIN_WR_BURST_MODE_WID);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
+		wr_bits(offset, VDIN_WR_CTRL2, 1,
+			VDIN_WR_DATA_EXT_EN_BIT, VDIN_WR_DATA_EXT_EN_WID);
+	else
+		wr_bits(offset, VDIN_WR_CTRL2, 0,
+			VDIN_WR_DATA_EXT_EN_BIT, VDIN_WR_DATA_EXT_EN_WID);
 	/* [20:25] interger = 0 */
 	/* [0:19] fraction = 0 */
 	wr(offset, VDIN_VSC_PHASE_STEP, 0x0000000);
@@ -2253,7 +2259,7 @@ int vdin_vsync_reset_mif(int index)
 
 		vpu_reg_27af |= VDIN0_REQ_EN_BIT;
 	} else if (index == 1) {
-		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, 25, 1); /* vdin->vdin mif wr en */
+		W_VCBUS_BIT(VDIN1_WR_CTRL2, 1, 8, 1); /* vdin->vdin mif wr en */
 		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, 29, 1); /* clock gate */
 		/* wr req en */
 		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
@@ -2278,7 +2284,7 @@ int vdin_vsync_reset_mif(int index)
 		vpu_reg_27af |= (1 << VDIN1_REQ_EN_BIT);
 		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		W_VCBUS_BIT(VDIN1_WR_CTRL, 0, 29, 1);
-		W_VCBUS_BIT(VDIN1_WR_CTRL, 1, 25, 1);
+		W_VCBUS_BIT(VDIN1_WR_CTRL2, 0, 8, 1);
 	}
 #if 0 /* TODO: if start or end line > 0, should drop this frame! */
 	if ((aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff) > 0) {

@@ -37,6 +37,7 @@
 #define VDIN0_MIF_RST_BIT 3
 #define VDIN1_MIF_RST_BIT 4
 #define VDIN_MIF_RST_W 1
+#define VDIN1_WR_CTRL2 0x129f
 #define VDIN1_WR_CTRL 0x12a0
 #define VDIN_COM_CTRL1 0x1282
 
@@ -959,6 +960,10 @@
 /*1: enable WR 10 bit mode, 0: disable WR 10 bit mode */
 #define VDIN_WR_10BIT_MODE_BIT		19
 #define VDIN_WR_10BIT_MODE_WID		1
+/* data_ext_en 1:send out data if req was interrupt by soft reset */
+/* 0:normal mode */
+#define VDIN_WR_DATA_EXT_EN_BIT		18
+#define VDIN_WR_DATA_EXT_EN_WID		1
 /*0: 1 word in 1burst, 1: 2 words in 1burst;
 10: 4 words in 1burst; 11: reserved */
 #define VDIN_WR_BURST_MODE_BIT		12
