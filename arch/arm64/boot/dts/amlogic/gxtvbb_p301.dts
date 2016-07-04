@@ -470,6 +470,7 @@
 		reg = <0x0 0xc8840000 0x0 0x2000>;
 		reg_23cf = <0x88188832>;/*default:0x88188832;r840 on haier:0x48188832*/
 		audio_gain_val = <1024>; /*haier need this*/
+		video_gain_val = <0x5C8808C1>;
 	};
 	amlvecm {
 		compatible = "amlogic, vecm";

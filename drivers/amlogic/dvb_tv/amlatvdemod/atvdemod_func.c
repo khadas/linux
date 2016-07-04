@@ -43,6 +43,10 @@ static bool non_std_en;
 module_param(non_std_en, bool, 0644);
 MODULE_PARM_DESC(non_std__en, "\n non_std_en\n");
 
+static int atv_video_gain;
+module_param(atv_video_gain, int, 0644);
+MODULE_PARM_DESC(atv_video_gain, "\n atv_video_gain\n");
+
 static int audio_det_mode = AUDIO_AUTO_DETECT;
 module_param(audio_det_mode, int, 0644);
 MODULE_PARM_DESC(audio_det_mode, "\n audio_det_mode\n");
@@ -303,6 +307,11 @@ void set_audio_gain_val(int val)
 	audio_gain_val = val;
 }
 
+void set_video_gain_val(int val)
+{
+	atv_video_gain = val;
+}
+
 void atv_dmd_soft_reset(void)
 {
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x0);
@@ -399,7 +408,10 @@ void atv_dmd_misc(void)
 			atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
 		} else {
 			atv_dmd_wr_long(0x09, 0x00, 0x1030501);
-			atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
+			if (atv_video_gain)
+				atv_dmd_wr_long(0x0f, 0x44, atv_video_gain);
+			else
+				atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
 			atv_dmd_wr_long(0x06, 0x24, 0xc030901);
 		}
 

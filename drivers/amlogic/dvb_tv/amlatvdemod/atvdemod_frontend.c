@@ -580,6 +580,11 @@ static void aml_atvdemod_dt_parse(struct platform_device *pdev)
 			pr_dbg("Can't find  audio_gain_val.\n");
 		else
 			set_audio_gain_val(val);
+		ret = of_property_read_u32(node, "video_gain_val", &val);
+		if (ret)
+			pr_dbg("Can't find  video_gain_val.\n");
+		else
+			set_video_gain_val(val);
 		/* agc pin mux */
 		ret = of_property_read_string(node, "pinctrl-names",
 			&amlatvdemod_devp->pin_name);
