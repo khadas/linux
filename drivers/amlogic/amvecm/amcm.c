@@ -48,6 +48,10 @@ int cm_en = 0;/* 0:disabel;1:enable */
 module_param(cm_en, int, 0664);
 MODULE_PARM_DESC(cm_en, "\n enable or disable cm\n");
 
+static unsigned int cm_width_limit = 50;/* vlsi adjust */
+module_param(cm_width_limit, uint, 0664);
+MODULE_PARM_DESC(cm_width_limit, "\n cm_width_limit\n");
+
 #if 0
 struct cm_region_s cm_region;
 struct cm_top_s    cm_top;
@@ -249,6 +253,10 @@ void amcm_level_sel(unsigned int cm_level)
 void cm2_frame_size_patch(unsigned int width, unsigned int height)
 {
 	unsigned int vpp_size;
+	if (width < cm_width_limit)
+		amcm_disable();
+	else if (cm_en)
+		amcm_enable();
 	/*check if the cm2 enable/disable to config the cm2 size*/
 	if (!(READ_VPP_REG(VPP_MISC)&(0x1<<28)))
 		return;
