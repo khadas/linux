@@ -2131,7 +2131,7 @@ static void Signal_status_init(void)
 	sig_unready_cnt = 0;
 	sig_unstable_reset_hpd_cnt = 0;
 	wait_no_signal_cnt = 0;
-	rx.no_signal = false;
+	/* rx.no_signal = false; */
 	rx.pre_state = 0;
 }
 
@@ -2415,7 +2415,8 @@ void monitor_cable_clk_sts(void)
 	static bool pre_sts = 0xff;
 	bool sts = is_clk_stable();
 	if (pre_sts != sts) {
-		rx_print("\ncable clk stable = %d\n", sts);
+		if (log_flag & VIDEO_LOG)
+			rx_print("\ncable clk stable = %d\n", sts);
 		pre_sts = sts;
 	}
 	if ((sts == false) &&
