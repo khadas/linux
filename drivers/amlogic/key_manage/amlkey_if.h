@@ -29,6 +29,11 @@ secure 1, non 0
 */
 int32_t amlkey_issecure(const uint8_t *name);
 /*
+ * query if the prgrammed key is encrypt
+ * return encrypt 1, non 0;
+ */
+int32_t amlkey_isencrypt(const uint8_t *name);
+/*
 actual bytes of key value
 */
 ssize_t amlkey_size(const uint8_t *name);
@@ -38,12 +43,14 @@ read non-secure key in bytes, return byets readback actully.
 ssize_t amlkey_read(const uint8_t *name, uint8_t *buffer, uint32_t len);
 
 /*
-write secure/non-secure key in bytes , return byets readback actully
+write key with attr in bytes , return bytes readback actully
+	attr: bit0, secure/non-secure
+		  bit8, encrypt/non-encrypt
 */
 ssize_t amlkey_write(const uint8_t *name,
 		uint8_t *buffer,
 		uint32_t len,
-		uint32_t secure);
+		uint32_t attr);
 
 /*
 get the hash value of programmed secure key | 32bytes length, sha256

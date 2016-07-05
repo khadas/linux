@@ -41,13 +41,18 @@ struct key_item_info_t {
 	unsigned int reserve;
 };
 
+#define KEY_UNIFY_ATTR_ENCRYPT		(1 << 8)
+#define KEY_UNIFY_ATTR_ENCRYPT_MASK	(KEY_UNIFY_ATTR_ENCRYPT)
+#define KEY_UNIFY_ATTR_SECURE		(1 << 0)
+#define KEY_UNIFY_ATTR_SECURE_MASK	(KEY_UNIFY_ATTR_SECURE)
+
 struct key_item_t {
 	char name[KEY_UNIFY_NAME_LEN];
 	int id;
 	unsigned int dev; /* key save in device //efuse, */
 	/* unsigned int df; */
 	unsigned int permit;
-	int flag;
+	int attr;
 	int reserve;
 	struct key_item_t *next;
 };

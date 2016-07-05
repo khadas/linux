@@ -190,7 +190,7 @@ int32_t amlkey_isexsit(const uint8_t *name)
  * 3. query if the prgrammed key is secure
  * return secure 1, non 0;
  */
-int32_t amlkey_issecure(const uint8_t *name)
+int32_t amlkey_get_attr(const uint8_t *name)
 {
 	int32_t ret = 0;
 	uint32_t retval;
@@ -207,6 +207,24 @@ int32_t amlkey_issecure(const uint8_t *name)
 	}
 
 	return (int32_t)retval;
+}
+
+/**
+ * 3.1 query if the prgrammed key is secure
+ * return secure 1, non 0;
+ */
+int32_t amlkey_issecure(const uint8_t *name)
+{
+	return amlkey_get_attr(name) & KEY_UNIFY_ATTR_SECURE_MASK;
+}
+
+/**
+ * 3.2 query if the prgrammed key is encrypt
+ * return encrypt 1, non 0;
+ */
+int32_t amlkey_isencrypt(const uint8_t *name)
+{
+	return amlkey_get_attr(name) & KEY_UNIFY_ATTR_ENCRYPT_MASK;
 }
 
 /**
@@ -259,13 +277,15 @@ _out:
 }
 
 /**
- * 6.write secure/non-secure key in bytes , return bytes readback actully
+ * 6.write key with attr in bytes , return bytes readback actully
+ * attr: bit0, secure/non-secure
+ *       bit8, encrypt/non-encrypt
  * return actual size write down.
  */
 ssize_t amlkey_write(const uint8_t *name,
 	uint8_t *buffer,
 	uint32_t len,
-	uint32_t secure)
+	uint32_t attr)
 {
 	int32_t ret = 0;
 	ssize_t retval = 0;
@@ -276,7 +296,7 @@ ssize_t amlkey_write(const uint8_t *name,
 	}
 	ret = secure_storage_write((uint8_t *)name,
 		buffer, len,
-		secure);
+		attr);
 	if (ret) {
 		pr_err("%s() %d: return %d\n", __func__, __LINE__, ret);
 		retval = 0;
