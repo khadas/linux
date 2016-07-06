@@ -518,6 +518,7 @@ int do_hpd_reset_flag = 0;
 int wait_hpd_reset_max = 300;
 module_param(wait_hpd_reset_max, int, 0664);
 MODULE_PARM_DESC(wait_hpd_reset_max, "wait_hpd_reset_max");
+
 /****************************/
 /*  func enhancements  */
 /****************************/
@@ -1340,8 +1341,9 @@ int hdmirx_hw_get_color_fmt(void)
 	case 2:
 		color_format = 1;	/* YUV444 */
 		break;
-	case 3:					/* YUV420 */
-		color_format = 1;	/* YUV444 */
+	case 3:
+		color_format = 3;	/* YUV422 */
+		/* color_format = 1; */	/* YUV444 */
 		break;
 	case 0:
 	default:
