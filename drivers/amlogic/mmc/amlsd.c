@@ -1480,10 +1480,8 @@ void aml_emmc_hw_reset(struct mmc_host *mmc)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	u32 ret;
-	if (!aml_card_type_mmc(pdata))
+	if (!aml_card_type_mmc(pdata) || !pdata->hw_reset)
 		return;
-
-	pr_info("%s %d\n", __func__, __LINE__);
 
 	/* boot_9 used as eMMC hw_rst pin here. */
 	gpio_free(pdata->hw_reset);

@@ -1462,7 +1462,7 @@ static unsigned aml_sd_emmc_pre_dma(struct amlsd_host *host,
 		sg_blocks += des_cmd_cur->length;
 		sg_addr = sg_dma_address(sg);
 
-		if (sg_addr & 0x7) { /* for 64 bit dma mode */
+		if (sg_addr & 0x7) { /* for no 64 bit addr alignment mode */
 			WARN_ON(host->sg_cnt > 1);
 
 			host->dma_sts |= (1<<1); /*  */
@@ -2279,14 +2279,14 @@ void mmc_cmd_LBA_show(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		if ((mrq->cmd->arg >= offset)
 				&& (mrq->cmd->arg < (offset + size))) {
-			sd_emmc_err("%s: cmd 0x%x, arg 0x%x, operation is in [%s] disk!\n",
+			sd_emmc_err("%s: cmd %d, arg 0x%x, operation is in [%s] disk!\n",
 				mmc_hostname(mmc),
 				mrq->cmd->opcode, mrq->cmd->arg, pp->name);
 			break;
 		}
 	}
 	if (i == pt_fmt->part_num)
-		sd_emmc_err("%s: cmd 0x%x, arg 0x%x, operation is in [unknown] disk!\n",
+		sd_emmc_err("%s: cmd %d, arg 0x%x, operation is in [unknown] disk!\n",
 			mmc_hostname(mmc),
 			mrq->cmd->opcode, mrq->cmd->arg);
 }

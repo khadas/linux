@@ -1345,7 +1345,17 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		/* Erase size depends on CSD and Extended CSD */
 		mmc_set_erase_size(card);
 	}
+	/* If emmc support HW reset so enable the function, when emmc
+	 * switch partition failed or programing stuck, can use this
+	 * function to reset emmc and reinitial.
+	*/
 
+	if (!card->ext_csd.rst_n_function
+		&& (host->caps & MMC_CAP_HW_RESET)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_RST_N_FUNCTION, 1,
+			 card->ext_csd.generic_cmd6_time);
+	}
 	/*
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
 	 * bit.  This bit will be lost every time after a reset or power off.
