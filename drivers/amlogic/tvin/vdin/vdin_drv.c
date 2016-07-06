@@ -2661,6 +2661,11 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 	/* create vf pool */
 	vdevp->vfp = vf_pool_alloc(VDIN_CANVAS_MAX_CNT);
+	if (vdevp->vfp == NULL) {
+		pr_err("%s: fail to alloc vf pool.\n", __func__);
+		goto fail_alloc_vf_pool;
+	}
+
 
 	/* init vframe provider */
 	/* @todo provider name */
@@ -2737,6 +2742,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	pr_info("%s: driver initialized ok\n", __func__);
 	return 0;
 
+fail_alloc_vf_pool:
 fail_get_resource_irq:
 fail_create_dev_file:
 	vdin_delete_device(vdevp->index);

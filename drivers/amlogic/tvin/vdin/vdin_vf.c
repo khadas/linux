@@ -592,7 +592,21 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	vf_log(p, VF_OPERATION_BGET, true);
 	return vfe;
 }
-
+/*check vf point,0:nornal;1:bad*/
+unsigned int check_vf_put(struct vframe_s *vf, struct vf_pool *p)
+{
+	struct vf_entry *master;
+	unsigned int i;
+	if (!vf || !p)
+		return 1;
+	for (i = 0; i < p->size; i++) {
+		master = vf_get_master(p, i);
+		if (&(master->vf) == vf)
+			return 0;
+	}
+	pr_info("[%s]vf:%p!!!!\n", __func__, vf);
+	return 1;
+}
 void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 {
 	struct vf_entry *master, *slave;
@@ -600,7 +614,8 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 	struct vf_entry *pos = NULL, *tmp = NULL;
 	int found_in_wt_list = 0;
 
-
+	if (check_vf_put(vf, p))
+		return;
 	master = vf_get_master(p, vf->index);
 	if (master == NULL) {
 		vf_log(p, VF_OPERATION_BPUT, false);
