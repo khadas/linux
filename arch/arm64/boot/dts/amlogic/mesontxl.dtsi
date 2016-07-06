@@ -280,7 +280,7 @@
 		sd_all_pins:sd_all_pins{
 			amlogic,setmask=<6 0x0000003f>,
 					<AO 0x00001800>;
-			amlogic,clrmask=<6 0x00000fc0>;
+			amlogic,clrmask=<6 0xFC00FF00>;
 			amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -289,7 +289,7 @@
 		sd_1bit_pins:sd_1bit_pins{
 			amlogic,setmask=<6 0x0000001c>,
 					<AO 0x00001800>;
-			amlogic,clrmask=<6 0x00000cc3>;
+			amlogic,clrmask=<6 0x70007F03>;
 			amlogic,pins = "CARD_1","CARD_2","CARD_3";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -297,8 +297,7 @@
 		};
 		sd_clk_cmd_uart_pins:sd_clk_cmd_uart_pins{
 			amlogic,setmask=<6 0x0000030c>;
-			amlogic,clrmask=<6 0x00000cc3>,
-					<AO 0x00001800>;
+			amlogic,clrmask=<6 0x3C003C03>;
 			amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -306,8 +305,7 @@
 		};
 		sd_1bit_uart_pins:sd_1bit_uart_pins{
 			amlogic,setmask=<6 0x0000031c>;
-			amlogic,clrmask=<6 0x00000cc3>,
-					<AO 0x00001800>;
+			amlogic,clrmask=<6 0x7C007C03>;
 			amlogic,pins = "CARD_1","CARD_2","CARD_3";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
@@ -324,25 +322,8 @@
 		ao_to_sd_uart_pins:ao_to_sd_uart_pins{
 			amlogic,setmask=<6 0x00000300>;
 			amlogic,clrmask=<AO 0x00001800>,
-					<6 0x00000cc3>;
+					<6 0x0C000C03>;
 			amlogic,pins = "CARD_4","CARD_5";
-			amlogic,enable-output=<1>; /* 0:output, 1:input */
-			amlogic,pullup=<1>;
-			amlogic,pullupen=<1>;
-		};
-		ao_to_sd_jtag_pins:ao_to_sd_jtag_pins{
-			amlogic,setmask=<6 0x00000300>;  /* set ao uart */
-			amlogic,clrmask=<6 0x0c000c03>,  /* clr sd uart other */
-					<AO 0x01c2c1e6>; /* crl ao  */
-			amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3";
-			amlogic,enable-output=<1>; /* 0:output, 1:input */
-			amlogic,pullup=<1>;
-			amlogic,pullupen=<1>;
-		};
-		sd_to_ao_jtag_pins:sd_to_ao_jtag_pins{
-			amlogic,setmask=<AO 0x00001800>; /* set sd uart */
-			amlogic,clrmask=<6 0x00000fc0>; /* clr ao jtag other */
-			amlogic,pins = "GPIOAO_3","GPIOAO_4","GPIOAO_5","GPIOAO_7";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
