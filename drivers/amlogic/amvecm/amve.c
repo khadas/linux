@@ -553,7 +553,6 @@ static bool hist_sel = 1; /*1->vpp , 0->vdin*/
 module_param(hist_sel, bool, 0664);
 MODULE_PARM_DESC(hist_sel, "hist_sel");
 
-
 static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
 static unsigned int assist_cnt2;/* ASSIST_SPARE8_REG2; */
 

@@ -144,6 +144,7 @@ extern signed int vd1_brightness, vd1_contrast;
 
 extern void amvecm_on_vs(struct vframe_s *vf);
 extern void refresh_on_vs(struct vframe_s *vf);
+extern void pc_mode_process(void);
 
 #endif /* AMVECM_H */
 
