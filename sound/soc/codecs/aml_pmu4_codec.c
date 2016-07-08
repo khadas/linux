@@ -38,7 +38,7 @@ struct pmu4_audio_init_reg {
 #define AML1220_PMU_CTR_04 0x05
 
 static struct pmu4_audio_init_reg init_list[] = {
-	{PMU4_BLOCK_ENABLE, 0xBc06},
+	{PMU4_BLOCK_ENABLE, 0xBCF6},
 	{PMU4_AUDIO_CONFIG, 0x3400},
 	{PMU4_PGA_IN_CONFIG, 0x2929},
 	{PMU4_ADC_VOL_CTR, 0x5050},
