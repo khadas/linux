@@ -1475,7 +1475,8 @@ get_free_blk:
 			}
 		}
 
-		if (arg_info->arg_type == FULL_PAGE) {
+		if ((arg_info->arg_type == FULL_PAGE)
+			&& (flash->blocksize > CONFIG_KEY_MAX_SIZE)) {
 			if (write_page_cnt == 0) {
 				arg_info->arg_valid = 1;
 				full_page_flag = 0;
@@ -2630,6 +2631,14 @@ void amlnand_set_config_attribute(struct amlnand_chip *aml_chip)
 int amlnand_get_dev_configs(struct amlnand_chip *aml_chip)
 {
 	int  ret = 0, i;
+	unsigned int use_min_size;
+	struct nand_flash *flash = &aml_chip->flash;
+
+	use_min_size = min_t(u32, CONFIG_KEY_MAX_SIZE, flash->blocksize);
+	aml_chip->keysize = use_min_size;
+	aml_chip->dtbsize = use_min_size;
+
+	aml_nand_dbg("key size is : 0x%0x", use_min_size);
 
 	ret = amlnand_config_buf_malloc(aml_chip);
 	if (ret < 0) {

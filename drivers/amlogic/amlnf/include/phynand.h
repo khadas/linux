@@ -151,14 +151,10 @@ union nand_core_clk_t {
 
 #define	FBBT_COPY_NUM	1
 
-#define CONFIG_KEYSIZE		(256*1024)
-#define KEYSIZE	(CONFIG_KEYSIZE - (sizeof(uint)))
-
 #define CONFIG_SECURE_SIZE	(0x10000*2) /* 128k */
 #define SECURE_SIZE (CONFIG_SECURE_SIZE - 2*(sizeof(uint)))
-/* fixme, max dtd size is 256KBytes. */
-#define CONFIG_DTB_SIZE  (256*1024U)
-#define DTB_SIZE (CONFIG_DTB_SIZE - (sizeof(uint)))
+
+#define CONFIG_KEY_MAX_SIZE	0x40000
 
 #define FULL_BLK	0
 #define FULL_PAGE	1
@@ -772,7 +768,7 @@ struct shipped_bbt {
 
 struct nand_menson_key {
 	uint crc;
-	unsigned char data[KEYSIZE];
+	unsigned char data[252];
 };
 
 struct secure_t {
@@ -857,6 +853,9 @@ struct amlnand_chip {
 
 	void __iomem *reg_base;
 	void __iomem *nand_clk_reg;
+
+	u32 keysize;
+	u32 dtbsize;
 };
 
 extern struct nand_flash flash_ids_slc[];

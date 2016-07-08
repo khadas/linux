@@ -397,7 +397,8 @@ static void fill_data(uint8_t *buffer)
 #define		EMMC_BLOCK_SIZE		(0x100)
 #define		MAX_EMMC_BLOCK_SIZE	(128*1024)
 
-int32_t emmc_key_read(uint8_t *buffer, uint32_t length)
+int32_t emmc_key_read(uint8_t *buffer,
+	uint32_t length, uint32_t *actual_lenth)
 {
 	int ret;
 	u64  addr = 0;
@@ -406,7 +407,8 @@ int32_t emmc_key_read(uint8_t *buffer, uint32_t length)
 	unsigned char *dst = NULL;
 	struct mmc_card *card = mmc_card_key;
 	int bit = card->csd.read_blkbits;
-	size = EMMC_KEYAREA_SIZE;
+	size = length;
+	*actual_lenth = length;
 	addr = get_reserve_partition_off_from_tbl() + EMMCKEY_RESERVE_OFFSET;
 	blk = addr >> bit;
 	cnt = size >> bit;
@@ -461,7 +463,8 @@ int32_t emmc_key_write(uint8_t *buffer, uint32_t length)
 	return ret;
 }
 */
-int32_t emmc_key_write(uint8_t *buffer, uint32_t length)
+int32_t emmc_key_write(uint8_t *buffer,
+	uint32_t length, uint32_t *actual_lenth)
 {
 	int ret;
 	u64  addr = 0;
@@ -470,7 +473,7 @@ int32_t emmc_key_write(uint8_t *buffer, uint32_t length)
 	unsigned char *src = NULL;
 	struct mmc_card *card = mmc_card_key;
 	int bit = card->csd.read_blkbits;
-	size = EMMC_KEYAREA_SIZE;
+	size = length;
 	addr = get_reserve_partition_off_from_tbl() + EMMCKEY_RESERVE_OFFSET;
 	blk = addr >> bit;
 	cnt = size >> bit;

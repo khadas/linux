@@ -44,16 +44,16 @@ int aml_nand_update_key(struct amlnand_chip *aml_chip, char *key_ptr)
 	char *key_buf = NULL;
 
 	if (key_buf == NULL) {
-		key_buf = kzalloc(CONFIG_KEYSIZE, GFP_KERNEL);
+		key_buf = kzalloc(aml_chip->keysize, GFP_KERNEL);
 		malloc_flag = 1;
 		if (key_buf == NULL)
 			return -ENOMEM;
-		memset(key_buf, 0, CONFIG_KEYSIZE);
+		memset(key_buf, 0, aml_chip->keysize);
 		ret = amlnand_read_info_by_name(aml_chip,
 			(unsigned char *)&(aml_chip->nand_key),
 			key_buf,
 			KEY_INFO_HEAD_MAGIC,
-			CONFIG_KEYSIZE);
+			aml_chip->keysize);
 		if (ret) {
 			aml_nand_msg("read key error,%s\n", __func__);
 			ret = -EFAULT;
@@ -74,7 +74,7 @@ int aml_nand_update_key(struct amlnand_chip *aml_chip, char *key_ptr)
 		(unsigned char *)&(aml_chip->nand_key),
 		key_buf,
 		KEY_INFO_HEAD_MAGIC,
-		CONFIG_KEYSIZE);
+		aml_chip->keysize);
 	if (ret < 0)
 		aml_nand_msg("aml_nand_update_key : save key info failed");
 
@@ -100,35 +100,41 @@ static int32_t nand_key_read(struct aml_keybox_provider_s *provider,
 	struct amlnand_chip *aml_chip = provider->priv;
 */
 int32_t nand_key_read(uint8_t *buf,
-		uint32_t len)
+		uint32_t len, uint32_t *actual_lenth)
 {
 	struct nand_menson_key *key_ptr = NULL;
-	int error = 0;
 	struct amlnand_chip *aml_chip = aml_chip_key;
+	u32 keysize = aml_chip->keysize - sizeof(u32);
+	int error = 0;
 
-	if (len > CONFIG_KEYSIZE) {
+	*actual_lenth = keysize;
+
+	if (len > keysize) {
+		/*
+		No return here! keep consistent, should memset zero
+		for the rest.
+		*/
 		aml_nand_msg("key data len too much,%s", __func__);
-		return -EFAULT;
+		memset(buf + keysize, 0 , len - keysize);
 	}
 
-	key_ptr = kzalloc(CONFIG_KEYSIZE, GFP_KERNEL);
+	key_ptr = kzalloc(aml_chip->keysize, GFP_KERNEL);
 	if (key_ptr == NULL)
 		return -ENOMEM;
 
 	amlnand_get_device(aml_chip, CHIP_READING);
-	memset(key_ptr, 0, CONFIG_KEYSIZE);
 	error = amlnand_read_info_by_name(aml_chip,
 		(unsigned char *)&(aml_chip->nand_key),
 		(unsigned char *)key_ptr,
 		KEY_INFO_HEAD_MAGIC,
-		CONFIG_KEYSIZE);
+		aml_chip->keysize);
 	if (error) {
 		aml_nand_msg("read key error,%s", __func__);
 		error = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(buf, key_ptr->data, len);
+	memcpy(buf, key_ptr->data, keysize);
 exit:
 	amlnand_release_device(aml_chip);
 	kfree(key_ptr);
@@ -145,30 +151,34 @@ static int32_t nand_key_write(struct aml_keybox_provider_s *provider,
 */
 
 int32_t nand_key_write(uint8_t *buf,
-		uint32_t len)
+		uint32_t len, uint32_t *actual_lenth)
 {
 	struct nand_menson_key *key_ptr = NULL;
-	int error = 0;
 	struct amlnand_chip *aml_chip = aml_chip_key;
+	u32 keysize = aml_chip->keysize - sizeof(u32);
+	int error = 0;
 
-	if (len > CONFIG_KEYSIZE) {
+	if (len > keysize) {
+		/*
+		No return here! keep consistent, should memset zero
+		for the rest.
+		*/
 		aml_nand_msg("key data len too much,%s", __func__);
-		return -EFAULT;
+		memset(buf + keysize, 0 , len - keysize);
 	}
 
-	key_ptr = kzalloc(CONFIG_KEYSIZE, GFP_KERNEL);
+	key_ptr = kzalloc(aml_chip->keysize, GFP_KERNEL);
 	if (key_ptr == NULL)
 		return -ENOMEM;
 
-	memset(key_ptr, 0, CONFIG_KEYSIZE);
-	memcpy(key_ptr->data + 0, buf, len);
+	memcpy(key_ptr->data + 0, buf, keysize);
 	amlnand_get_device(aml_chip, CHIP_WRITING);
 
 	error = amlnand_save_info_by_name(aml_chip,
 		(unsigned char *) &(aml_chip->nand_key),
 		(unsigned char *)key_ptr,
 		KEY_INFO_HEAD_MAGIC,
-		CONFIG_KEYSIZE);
+		aml_chip->keysize);
 	if (error) {
 		aml_nand_msg("save key error,%s", __func__);
 		error = -EFAULT;
@@ -196,20 +206,20 @@ int aml_key_init(struct amlnand_chip *aml_chip)
 /*
 	struct aml_keybox_provider_s *provider;
 */
-	key_ptr = aml_nand_malloc(CONFIG_KEYSIZE);
+	key_ptr = aml_nand_malloc(aml_chip->keysize);
 	if (key_ptr == NULL) {
 		aml_nand_msg("nand malloc for key_ptr failed");
 		ret = -1;
 		goto exit_error0;
 	}
-	memset(key_ptr, 0x0, CONFIG_KEYSIZE);
+	memset(key_ptr, 0x0, aml_chip->keysize);
 	aml_nand_dbg("nand key: nand_key_probe. ");
 
 	ret = amlnand_info_init(aml_chip,
 		(unsigned char *)&(aml_chip->nand_key),
 		(unsigned char *)key_ptr,
 		KEY_INFO_HEAD_MAGIC,
-		CONFIG_KEYSIZE);
+		aml_chip->keysize);
 	if (ret < 0)
 		aml_nand_msg("invalid nand key\n");
 
@@ -243,13 +253,13 @@ int aml_key_reinit(struct amlnand_chip *aml_chip)
 	int ret = 0;
 	struct nand_menson_key *key_ptr = NULL;
 
-	key_ptr = vmalloc(CONFIG_KEYSIZE);
+	key_ptr = vmalloc(aml_chip->keysize);
 	if (key_ptr == NULL) {
 		aml_nand_msg("nand malloc for key_ptr failed");
 		ret = -1;
 		goto exit_error0;
 	}
-	memset(key_ptr, 0x0, CONFIG_KEYSIZE);
+	memset(key_ptr, 0x0, aml_chip->keysize);
 	aml_nand_dbg("nand key: nand_key_probe. ");
 
 	amlnand_get_device(aml_chip, CHIP_READING);
@@ -257,7 +267,7 @@ int aml_key_reinit(struct amlnand_chip *aml_chip)
 		(unsigned char *)&(aml_chip->nand_key),
 		(unsigned char *)key_ptr,
 		KEY_INFO_HEAD_MAGIC,
-		CONFIG_KEYSIZE);
+		aml_chip->keysize);
 	if (ret < 0)
 		aml_nand_msg("invalid nand key\n");
 	amlnand_release_device(aml_chip);

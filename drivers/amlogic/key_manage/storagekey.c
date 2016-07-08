@@ -113,7 +113,7 @@ EXPORT_SYMBOL(storage_ops_write);
 int32_t amlkey_init(uint8_t *seed, uint32_t len)
 {
 	int32_t ret = 0;
-	uint32_t buffer_size;
+	uint32_t buffer_size, actual_size;
 
 #ifndef OTHER_METHOD_CALL
 	ret = store_operation_init();
@@ -138,21 +138,18 @@ int32_t amlkey_init(uint8_t *seed, uint32_t len)
 		ret = -1;
 		goto _out;
 	}
-	if (buffer_size != storagekey_info.size) {
-		pr_err("%s() %d: warnning! %d/%d\n",
-			__func__, __LINE__, buffer_size, storagekey_info.size);
-		/* using innor size!*/
-		storagekey_info.size = buffer_size;
-	}
 
+	/* full fill key infos from storage. */
+	if (store_key_read)
+		ret = store_key_read(storagekey_info.buffer,
+					storagekey_info.size, &actual_size);
+
+	storagekey_info.size = actual_size;
 	pr_info("%s() storagekey_info.buffer=%p, storagekey_info.size = %0x!\n",
 		__func__,
 		storagekey_info.buffer,
 		storagekey_info.size);
-	/* full fill key infos from storage. */
-	if (store_key_read)
-		ret = store_key_read(storagekey_info.buffer,
-					storagekey_info.size);
+
 	if (ret) {
 		/* memset head info for bl31 */
 		memset(storagekey_info.buffer, 0, SECUESTORAGE_HEAD_SIZE);
@@ -289,6 +286,7 @@ ssize_t amlkey_write(const uint8_t *name,
 {
 	int32_t ret = 0;
 	ssize_t retval = 0;
+	uint32_t actual_lenth;
 
 	if (NULL == name) {
 		pr_err("%s() %d, invalid key ", __func__, __LINE__);
@@ -307,7 +305,7 @@ ssize_t amlkey_write(const uint8_t *name,
 		if (storagekey_info.buffer != NULL) {
 			if (store_key_write)
 				ret = store_key_write(storagekey_info.buffer,
-							storagekey_info.size);
+					storagekey_info.size, &actual_lenth);
 			if (ret) {
 				pr_err("%s() %d, store_key_write fail\n",
 					__func__, __LINE__);
@@ -338,6 +336,7 @@ int32_t amlkey_hash_4_secure(const uint8_t *name, uint8_t *hash)
 int32_t amlkey_del(const uint8_t *name)
 {
 	int32_t ret = 0;
+	uint32_t actual_lenth;
 
 	/* ret = secure_storage_remove((uint8_t *)name);
 	??????????????????????
@@ -346,7 +345,7 @@ int32_t amlkey_del(const uint8_t *name)
 		/* flush back */
 		if (store_key_write)
 			ret = store_key_write(storagekey_info.buffer,
-						storagekey_info.size);
+				storagekey_info.size, &actual_lenth);
 		if (ret) {
 			pr_err("%s() %d, store_key_write fail\n",
 				 __func__,
