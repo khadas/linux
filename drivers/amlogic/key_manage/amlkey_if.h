@@ -57,13 +57,17 @@ get the hash value of programmed secure key | 32bytes length, sha256
 */
 int32_t amlkey_hash_4_secure(const uint8_t *name, uint8_t *hash);
 
-extern int32_t nand_key_read(uint8_t *buf, uint32_t len);
+extern int32_t nand_key_read(uint8_t *buf,
+			uint32_t len, uint32_t *actual_lenth);
 
-extern int32_t nand_key_write(uint8_t *buf, uint32_t len);
+extern int32_t nand_key_write(uint8_t *buf,
+			uint32_t len, uint32_t *actual_lenth);
 
-extern int32_t emmc_key_read(uint8_t *buf, uint32_t len);
+extern int32_t emmc_key_read(uint8_t *buf,
+			uint32_t len, uint32_t *actual_lenth);
 
-extern int32_t emmc_key_write(uint8_t *buf, uint32_t len);
+extern int32_t emmc_key_write(uint8_t *buf,
+			uint32_t len, uint32_t *actual_lenth);
 
 #endif
 

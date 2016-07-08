@@ -18,7 +18,8 @@
 #ifndef __KEYMANAGE1__
 #define __KEYMANAGE1__
 
-typedef int32_t (*store_key_ops)(uint8_t *buf, uint32_t len);
+typedef int32_t (*store_key_ops)(uint8_t *buf,
+					uint32_t len, uint32_t *actual_lenth);
 
 #ifdef CONFIG_KEY_MANAGE
 void storage_ops_read(store_key_ops read);
