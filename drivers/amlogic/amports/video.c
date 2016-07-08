@@ -7266,6 +7266,25 @@ static ssize_t video_free_keep_buffer_store(struct class *cla,
 }
 
 
+static ssize_t free_cma_buffer_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if (r != 1)
+		return -EINVAL;
+	if (val == 1) {
+		pr_info("start to free cma buffer\n");
+		vh265_free_cmabuf();
+		vh264_4k_free_cmabuf();
+		vdec_free_cmabuf();
+	}
+	return count;
+}
+
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       S_IRUGO | S_IWUSR | S_IWGRP,
@@ -7384,6 +7403,9 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(free_keep_buffer,
 	       S_IRUGO | S_IWUSR | S_IWGRP, NULL,
 	       video_free_keep_buffer_store),
+	__ATTR(free_cma_buffer,
+	       S_IRUGO | S_IWUSR | S_IWGRP, NULL,
+	       free_cma_buffer_store),
 #ifdef CONFIG_AM_VOUT
 	__ATTR_RO(device_resolution),
 #endif

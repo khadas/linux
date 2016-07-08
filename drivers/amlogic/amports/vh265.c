@@ -1351,7 +1351,7 @@ static unsigned int log2i(unsigned int val)
 static int init_buf_spec(struct hevc_state_s *hevc);
 
 /*USE_BUF_BLOCK*/
-static void uninit_buf_list(struct hevc_state_s *hevc)
+static void uninit_buf_list(struct hevc_state_s *hevc, bool force_free)
 {
 	int i;
 	unsigned char release_cma_flag = 0;
@@ -1363,6 +1363,12 @@ static void uninit_buf_list(struct hevc_state_s *hevc)
 	blackout |=  ((buffer_mode_dbg >> 12) & 0xf);
 
 	hevc->predisp_addr = 0;
+
+	if (force_free) {
+		blackout = 0;
+		buffer_mode_real = 0;
+		pr_info("maybe reuinit buf_list, free cma buffer\n");
+	}
 
 	if (buffer_mode_real & 1) {
 		if (blackout == 1)
@@ -5861,7 +5867,7 @@ static int h265_task_handle(void *data)
 
 		if (hevc->uninit_list) {
 			/*USE_BUF_BLOCK*/
-			uninit_buf_list(hevc);
+			uninit_buf_list(hevc, false);
 			pr_info("uninit list\n");
 			hevc->uninit_list = 0;
 		}
@@ -5870,6 +5876,25 @@ static int h265_task_handle(void *data)
 
 	return 0;
 
+}
+
+void vh265_free_cmabuf(void)
+{
+	struct hevc_state_s *hevc = &gHevc;
+
+	mutex_lock(&vh265_mutex);
+
+	if (hevc->init_flag) {
+		mutex_unlock(&vh265_mutex);
+		return;
+	}
+
+	if (use_cma) {
+		pr_info("force uninit_buf_list\n");
+		uninit_buf_list(hevc, true);
+	}
+
+	mutex_unlock(&vh265_mutex);
 }
 
 int vh265_dec_status(struct vdec_status *vstatus)

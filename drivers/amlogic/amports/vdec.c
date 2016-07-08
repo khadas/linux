@@ -186,7 +186,10 @@ s32 vdec_init(enum vformat_e vf, int is_4k)
 		(vf == VFORMAT_HEVC && is_4k)) {
 		try_free_keep_video();
 	}
+
+	mutex_lock(&vdec_mutex);
 	inited_vcodec_num++;
+	mutex_unlock(&vdec_mutex);
 
 	pr_debug("vdec_dev_reg.mem[0x%lx -- 0x%lx]\n",
 		vdec_dev_reg.mem_start,
@@ -280,6 +283,26 @@ s32 vdec_release(enum vformat_e vf)
 	vdec_device = NULL;
 
 	return 0;
+}
+
+void vdec_free_cmabuf(void)
+{
+	mutex_lock(&vdec_mutex);
+
+	if ((inited_vcodec_num > 0) || (vdec_device)) {
+		mutex_unlock(&vdec_mutex);
+		return;
+	}
+
+	if (vdec_mem_alloced_from_codec && vdec_dev_reg.mem_start) {
+		codec_mm_free_for_dma(MEM_NAME, vdec_dev_reg.mem_start);
+		vdec_cma_page = NULL;
+		vdec_dev_reg.mem_start = reserved_mem_start;
+		vdec_dev_reg.mem_end = reserved_mem_end;
+		pr_info("force free vdec memory\n");
+	}
+
+	mutex_unlock(&vdec_mutex);
 }
 
 #if 1				/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */

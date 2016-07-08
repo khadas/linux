@@ -119,6 +119,8 @@ static void *mc_cpu_addr;
 static DEFINE_SPINLOCK(lock);
 static int fatal_error;
 
+static atomic_t vh264_4k2k_active = ATOMIC_INIT(0);
+
 static DEFINE_MUTEX(vh264_4k2k_mutex);
 
 static void (*probe_callback)(void);
@@ -1661,6 +1663,25 @@ static int vh264_4k2k_stop(void)
 	return 0;
 }
 
+void vh264_4k_free_cmabuf(void)
+{
+	int i;
+	if (atomic_read(&vh264_4k2k_active))
+		return;
+	mutex_lock(&vh264_4k2k_mutex);
+	for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
+		if (buffer_spec[i].phy_addr) {
+			codec_mm_free_for_dma(MEM_NAME,
+				buffer_spec[i].phy_addr);
+			buffer_spec[i].phy_addr = 0;
+			buffer_spec[i].alloc_pages = NULL;
+			buffer_spec[i].alloc_count = 0;
+			pr_info("force free CMA buffer %d\n", i);
+		}
+	}
+	mutex_unlock(&vh264_4k2k_mutex);
+}
+
 #if 0 /* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (HAS_HDEC) */
 /* extern void AbortEncodeWithVdec2(int abort); */
 #endif
@@ -1751,6 +1772,7 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 	/*set the max clk for smooth playing...*/
 		vdec_source_changed(VFORMAT_H264_4K2K,
 				4096, 2048, 30);
+	atomic_set(&vh264_4k2k_active, 1);
 	mutex_unlock(&vh264_4k2k_mutex);
 
 	return 0;
@@ -1761,6 +1783,7 @@ static int amvdec_h264_4k2k_remove(struct platform_device *pdev)
 	cancel_work_sync(&alloc_work);
 
 	mutex_lock(&vh264_4k2k_mutex);
+	atomic_set(&vh264_4k2k_active, 0);
 
 	vh264_4k2k_stop();
 

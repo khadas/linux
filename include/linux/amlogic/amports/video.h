@@ -26,6 +26,10 @@ int RDMA_SET_READ(u32 adr);
 #endif
 
 void try_free_keep_video(void);
+void vh265_free_cmabuf(void);
+void vh264_4k_free_cmabuf(void);
+void vdec_free_cmabuf(void);
+
 
 #endif
 
