@@ -311,6 +311,8 @@ static int ldim_pwm_pinmux_ctrl(char *pin_str, int status)
 	LDIMPR("%s: %d\n", __func__, status);
 
 	if (status) {
+		bl_pwm_ctrl(ld_pwm, 1);
+
 		/* request pinmux */
 		if (ld_pwm->pinmux_flag == 0) {
 			ldim_drv->pin = devm_pinctrl_get_select(

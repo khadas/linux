@@ -71,6 +71,7 @@ struct aml_ldim_driver_s {
 	int (*device_power_on)(void);
 	int (*device_power_off)(void);
 	int (*device_bri_update)(unsigned short *buf, unsigned char len);
+	int (*device_bri_check)(void);
 	void (*config_print)(void);
 	void (*test_ctrl)(int flag);
 	struct pinctrl *pin;

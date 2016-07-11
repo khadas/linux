@@ -48,7 +48,6 @@ static int ob3350_hw_init_on(void)
 		ldim_drv->ldev_conf->en_gpio_on);
 	mdelay(2);
 	ldim_set_duty_pwm(&(ldim_drv->ldev_conf->pwm_config));
-	bl_pwm_ctrl(&(ldim_drv->ldev_conf->pwm_config), 1);
 	ldim_drv->pinmux_ctrl(ldim_drv->ldev_conf->pinmux_name, 1);
 	mdelay(20);
 
@@ -133,49 +132,29 @@ static ssize_t ob3350_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
-	struct ob3350 *bl = container_of(class, struct ob3350, cls);
 	int ret = 0;
 
-	if (!strcmp(attr->attr.name, "cur_addr"))
-		ret = sprintf(buf, "0x%02x\n", bl->cur_addr);
-	else if (!strcmp(attr->attr.name, "status")) {
+	if (!strcmp(attr->attr.name, "status")) {
 		ret = sprintf(buf, "ob3350 status:\n"
 				"dev_index      = %d\n"
 				"on_flag        = %d\n"
 				"en_on          = %d\n"
 				"en_off         = %d\n"
-				"dim_max        = 0x%03x\n"
-				"dim_min        = 0x%03x\n",
+				"dim_max        = %d\n"
+				"dim_min        = %d\n"
+				"pwm_duty       = %d%%\n\n",
 				ldim_drv->dev_index, ob3350_on_flag,
 				ldim_drv->ldev_conf->en_gpio_on,
 				ldim_drv->ldev_conf->en_gpio_off,
 				ldim_drv->ldev_conf->dim_max,
-				ldim_drv->ldev_conf->dim_min);
+				ldim_drv->ldev_conf->dim_min,
+				ldim_drv->ldev_conf->pwm_config.pwm_duty);
 	}
 
 	return ret;
 }
 
-static ssize_t ob3350_store(struct class *class,
-	struct class_attribute *attr, const char *buf, size_t count)
-{
-	struct ob3350 *bl = container_of(class, struct ob3350, cls);
-	unsigned int val;
-
-	if (!strcmp(attr->attr.name, "init"))
-		ob3350_hw_init_on();
-	else if (!strcmp(attr->attr.name, "cur_addr")) {
-		val = kstrtol(buf, 16, NULL);
-		bl->cur_addr = val;
-	} else
-		LDIMERR("LDIM argment error!\n");
-
-	return count;
-}
-
 static struct class_attribute ob3350_class_attrs[] = {
-	__ATTR(init, S_IRUGO | S_IWUSR, ob3350_show, ob3350_store),
-	__ATTR(cur_addr, S_IRUGO | S_IWUSR, ob3350_show, ob3350_store),
 	__ATTR(status, S_IRUGO | S_IWUSR, ob3350_show, NULL),
 	__ATTR_NULL
 };

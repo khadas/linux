@@ -1577,6 +1577,7 @@ static void ldim_on_vs_spi(unsigned long data)
 	unsigned int size;
 	unsigned short *mapping;
 	unsigned int i;
+	int ret;
 
 	if (ldim_on_flag == 0)
 		return;
@@ -1615,13 +1616,26 @@ static void ldim_on_vs_spi(unsigned long data)
 				LDIMPR("%s: level update: 0x%lx\n",
 					__func__, litgain);
 			}
-		} else
+			for (i = 0; i < size; i++) {
+				local_ldim_matrix[i] =
+					(unsigned short)
+					nPRM.BL_matrix[mapping[i]];
+				ldim_driver.ldim_matrix_buf[i] =
+					(unsigned short)(litgain);
+			}
+		} else {
+			if (ldim_driver.device_bri_check) {
+				ret = ldim_driver.device_bri_check();
+				if (ret) {
+					if (ldim_debug_print) {
+						LDIMERR(
+						"%s: device_bri_check error\n",
+						__func__);
+					}
+					ldim_level_update = 1;
+				}
+			}
 			return;
-		for (i = 0; i < size; i++) {
-			local_ldim_matrix[i] =
-				(unsigned short)nPRM.BL_matrix[mapping[i]];
-			ldim_driver.ldim_matrix_buf[i] =
-				(unsigned short)(litgain);
 		}
 	}
 
@@ -2197,6 +2211,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.device_power_on = NULL,
 	.device_power_off = NULL,
 	.device_bri_update = NULL,
+	.device_bri_check = NULL,
 };
 
 struct aml_ldim_driver_s *aml_ldim_get_driver(void)
