@@ -166,6 +166,9 @@ unsigned long ld_fw_alg_frm_start_time = 0;
 unsigned long ld_fw_alg_frm_end_time = 0;
 long ld_fw_alg_frm_time = 0;
 
+#define LD_DATA_MIN    10
+static unsigned int ldim_data_min;
+static unsigned int ldim_brightness_level;
 unsigned long litgain = LD_DATA_DEPTH; /* 0xfff */
 unsigned long avg_gain = LD_DATA_DEPTH; /* 0xfff */
 /*unsigned long Backlit_coeff_l = 4096;*/
@@ -1988,10 +1991,10 @@ static void ldim_get_matrix_info(void)
 	unsigned short local_ldim_matrix_spi_t[LD_BLKREGNUM] = {0};
 
 	memcpy(&local_ldim_matrix_t[0], &local_ldim_matrix[0],
-		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned short));
 	memcpy(&local_ldim_matrix_spi_t[0],
 		&ldim_driver.ldim_matrix_buf[0],
-		ldim_blk_col*ldim_blk_row*sizeof(unsigned int));
+		ldim_blk_col*ldim_blk_row*sizeof(unsigned short));
 	/*printk("%s and spi info:\n", __func__);*/
 	LDIMPR("%s and spi info:\n", __func__);
 	for (i = 0; i < ldim_blk_row; i++) {
@@ -2002,7 +2005,15 @@ static void ldim_get_matrix_info(void)
 		pr_info("\n");
 		udelay(10000);
 	}
-	pr_info("\n");
+	LDIMPR("%s: transfer_matrix:\n", __func__);
+	for (i = 0; i < ldim_blk_row; i++) {
+		for (j = 0; j < ldim_blk_col; j++) {
+			pr_info("0x%x\t", local_ldim_matrix_spi_t
+				[ldim_blk_col*i+j]);
+		}
+		pr_info("\n");
+		udelay(10000);
+	}
 	pr_info("\n");
 
 	/*printk("ldim_stts_start_time = %d, ldim_stts_end_time = %d, :\n",);*/
@@ -2056,6 +2067,9 @@ static void ldim_func_ctrl(int status)
 		ldim_alg_en = 0;
 		/* disable remap */
 		/*ldim_remap_ctrl(0);*/
+
+		/* refresh system brightness */
+		ldim_level_update = 1;
 	}
 }
 
@@ -2118,11 +2132,13 @@ static int ldim_set_level(unsigned int level)
 	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
 	unsigned int level_max, level_min;
 
+	ldim_brightness_level = level;
 	level_max = bl_drv->bconf->level_max;
 	level_min = bl_drv->bconf->level_min;
 
-	level = ((level - level_min) * LD_DATA_MAX) / (level_max - level_min);
-	level &= LD_DATA_MAX;
+	level = ((level - level_min) * (LD_DATA_MAX - ldim_data_min)) /
+		(level_max - level_min) + ldim_data_min;
+	level &= 0xfff;
 	litgain = (unsigned long)level;
 	ldim_level_update = 1;
 
@@ -2475,6 +2491,14 @@ static ssize_t ldim_attr_store(struct class *cla,
 		ldim_func_en = 0;
 		ldim_func_ctrl(0);
 		pr_info("**************ldim disable ok*************\n");
+	} else if (!strcmp(parm[0], "data_min")) {
+		if (parm[1] != NULL) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				return -EINVAL;
+		}
+		ldim_data_min = (unsigned int)val1;
+		ldim_set_level(ldim_brightness_level);
+		pr_info("**********ldim brightness data_min update*********\n");
 	} else if (!strcmp(parm[0], "ldim_info")) {
 		pr_info("ldim_on_flag          = %d\n"
 			"ldim_func_en          = %d\n"
@@ -2483,10 +2507,13 @@ static ssize_t ldim_attr_store(struct class *cla,
 			"ldim_matrix_update_en = %d\n"
 			"ldim_alg_en           = %d\n"
 			"ldim_top_en           = %d\n"
-			"ldim_hist_en          = %d\n",
+			"ldim_hist_en          = %d\n"
+			"ldim_data_min         = %d\n"
+			"ldim_data_max         = %d\n",
 			ldim_on_flag, ldim_func_en, ldim_test_en,
 			ldim_avg_update_en, ldim_matrix_update_en,
-			ldim_alg_en, ldim_top_en, ldim_hist_en);
+			ldim_alg_en, ldim_top_en, ldim_hist_en,
+			ldim_data_min, LD_DATA_MAX);
 		pr_info("nPRM.reg_LD_BLK_Hnum   = %d\n"
 			"nPRM.reg_LD_BLK_Vnum   = %d\n"
 			"nPRM.reg_LD_pic_RowMax = %d\n"
@@ -3251,6 +3278,8 @@ int aml_ldim_probe(struct platform_device *pdev)
 	unsigned int ret = 0;
 	unsigned int i;
 
+	ldim_brightness_level = 0;
+	ldim_data_min = LD_DATA_MIN;
 	ldim_on_flag = 0;
 	ldim_func_en = 0;
 	ldim_func_bypass = 0;
@@ -3272,7 +3301,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	aml_ldim_get_config(&ldim_config, &pdev->dev);
 
 	ldim_driver.ldim_matrix_buf = kzalloc(
-		(sizeof(unsigned char) * LD_BLKREGNUM), GFP_KERNEL);
+		(sizeof(unsigned short) * LD_BLKREGNUM), GFP_KERNEL);
 	if (ldim_driver.ldim_matrix_buf == NULL) {
 		LDIMERR("ldim_driver ldim_matrix_buf malloc error\n");
 		return -1;
