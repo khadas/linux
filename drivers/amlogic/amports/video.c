@@ -1841,7 +1841,6 @@ static void zoom_get_vert_pos(struct vframe_s *vf, u32 vpp_3d_mode, u32 *ls,
 static void zoom_display_horz(int hscale)
 {
 	u32 ls, le, rs, re;
-	int content_w, content_l, content_r;
 	if (platform_type == 1) {
 		if (process_3d_type & MODE_3D_ENABLE) {
 			zoom_get_horz_pos(cur_dispbuf,
@@ -1901,20 +1900,11 @@ static void zoom_display_horz(int hscale)
 		VSYNC_WR_MPEG_REG(AFBC_MIF_HOR_SCOPE,
 			  ((l_aligned / 32) << 16) |
 			  ((r_aligned / 32) - 1));
-#ifdef TV_REVERSE
-		if (reverse) {
-			content_w = zoom_end_x_lines - zoom_start_x_lines;
-			content_l = r_aligned - zoom_end_x_lines - l_aligned;
-			content_r = content_l + content_w;
-			VSYNC_WR_MPEG_REG(AFBC_PIXEL_HOR_SCOPE,
-				  (content_l << 16) | content_r);
-		} else
-#endif
-		{
-			VSYNC_WR_MPEG_REG(AFBC_PIXEL_HOR_SCOPE,
-				  ((zoom_start_x_lines - l_aligned) << 16) |
-				  (zoom_end_x_lines - l_aligned));
-		}
+
+
+		VSYNC_WR_MPEG_REG(AFBC_PIXEL_HOR_SCOPE,
+			  ((zoom_start_x_lines - l_aligned) << 16) |
+			  (zoom_end_x_lines - l_aligned));
 
 	VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
 		  (VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff) |
