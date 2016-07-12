@@ -21,7 +21,7 @@
 #include "aml_codec_t9015.h"
 
 static struct mutex acodec;
-void acodec_reg_write(unsigned data, unsigned addr)
+static void acodec_reg_write(unsigned data, unsigned addr)
 {
 	void __iomem *vaddr;
 	mutex_lock(&acodec);
@@ -31,7 +31,7 @@ void acodec_reg_write(unsigned data, unsigned addr)
 	mutex_unlock(&acodec);
 }
 
-unsigned acodec_reg_read(unsigned addr)
+static unsigned acodec_reg_read(unsigned addr)
 {
 	unsigned tmp;
 	void __iomem *vaddr;

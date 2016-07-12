@@ -41,6 +41,7 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include "aml_i2s.h"
 #include "aml_audio_hw.h"
@@ -75,8 +76,12 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	if (ucontrol->value.enumerated.item[0] == 0) {
-		/* select external codec output as I2S source */
-		aml_write_cbus(AUDIN_SOURCE_SEL, 0);
+		if (is_meson_txl_cpu()) {
+			/* select internal acodec output in TXL as I2S source */
+			aml_write_cbus(AUDIN_SOURCE_SEL, 3);
+		} else
+			/* select external codec output as I2S source */
+			aml_write_cbus(AUDIN_SOURCE_SEL, 0);
 		audio_in_source = 0;
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
@@ -209,6 +214,13 @@ static int hardware_resample_enable(int input_sr)
 	Avg_cnt_init = (u16)(clk_rate * 4 / input_sr);
 	pr_info("clk_rate = %u, input_sr = %d, Avg_cnt_init = %u\n",
 		clk_rate, input_sr, Avg_cnt_init);
+
+	if (is_meson_txl_cpu()) {
+		int pause_cnt_thd = 256;
+		aml_write_cbus(AUD_RESAMPLE_CTRL2,
+				(1 << 31)
+				| pause_cnt_thd);
+	}
 
 	aml_write_cbus(AUD_RESAMPLE_CTRL0, (1 << 31));
 	aml_write_cbus(AUD_RESAMPLE_CTRL0, 0);

@@ -583,3 +583,6 @@ config SND_SOC_PCM2BT
 
 config SND_SOC_AMLT9015
 	tristate
+
+config SND_SOC_AMLT9015S
+	tristate
