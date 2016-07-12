@@ -2084,8 +2084,9 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 
 	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGIN)))
 		return;
-	pr_info("hdmitx: plugin\n");
 	mutex_lock(&setclk_mutex);
+	pr_info("hdmitx: plugin\n");
+	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	/* start reading E-EDID */
 	hdev->hpd_state = 1;
 	rx_repeat_hpd_state(1);
@@ -2098,7 +2099,6 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	switch_set_state(&sdev, 1);
 
-	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	mutex_unlock(&setclk_mutex);
 }
 
@@ -2126,6 +2126,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_OFF);
 	mutex_lock(&setclk_mutex);
+	pr_info("hdmitx: plugout\n");
 	hdev->ready = 0;
 	hdev->hpd_state = 0;
 	rx_repeat_hpd_state(0);
@@ -2133,7 +2134,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_OFF);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-	pr_info("hdmitx: plugout\n");
+	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 	hdev->HWOp.CntlMisc(hdev, MISC_ESM_RESET, 0);
 	if (hdev->gpio_i2c_enable) {
 		edid_read_flag = 0;
@@ -2144,7 +2145,6 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	switch_set_state(&sdev, 0);
-	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 	mutex_unlock(&setclk_mutex);
 }
 
