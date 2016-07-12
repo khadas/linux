@@ -389,6 +389,8 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 
 		if (frm.state != RATE_MEASURE_DONE)
 			frm.num += (repeat_count > 1) ? repeat_count : 1;
+		if (0 == vvc1_amstream_dec_info.rate)
+			vvc1_amstream_dec_info.rate = PTS2DUR(frm.rate);
 
 		if (reg & INTERLACE_FLAG) {	/* interlace */
 			if (kfifo_get(&newframe_q, &vf) == 0) {
