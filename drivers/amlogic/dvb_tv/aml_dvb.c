@@ -278,6 +278,7 @@ static int dvb_dsc_open(struct inode *inode, struct file *file)
 		ch = &dsc->channel[id];
 		if (!ch->used) {
 			ch->used = 1;
+			ch->work_mode = -1;
 			dsc->dev->users++;
 			break;
 		}
@@ -294,9 +295,49 @@ static int dvb_dsc_open(struct inode *inode, struct file *file)
 	ch->pid = 0x1fff;
 	ch->set = 0;
 	ch->dsc = dsc;
-
+	ch->aes_mode = -1;
 	file->private_data = ch;
 	return 0;
+}
+
+static int get_dsc_key_work_mode(int key_type)
+{
+	int dtype, work_mode = 0;
+	dtype = key_type & (~AM_DSC_FROM_KL_KEY);
+	if (dtype == AM_DSC_EVEN_KEY || dtype == AM_DSC_ODD_KEY)
+		work_mode = DVBCSA_MODE;
+	else if (dtype == AM_DSC_EVEN_KEY_AES ||
+		dtype == AM_DSC_ODD_KEY_AES ||
+		dtype == AM_DSC_ODD_KEY_AES_IV ||
+		dtype == AM_DSC_EVEN_KEY_AES_IV) {
+		work_mode = CIPLUS_MODE;
+	}
+	return work_mode;
+}
+
+/* Check if there are channels run in previous mode(aes/dvbcsa)
+ in dsc0/ciplus */
+static void dsc_ciplus_switch_check(struct aml_dsc_channel *ch, int key_type)
+{
+	struct aml_dsc *dsc = ch->dsc;
+	int work_mode = 0;
+	struct aml_dsc_channel *pch = NULL;
+	int i;
+
+	work_mode = get_dsc_key_work_mode(key_type);
+	if (dsc->work_mode == work_mode)
+		return;
+
+	dsc->work_mode = work_mode;
+
+	for (i = 0; i < DSC_COUNT; i++) {
+		pch = &dsc->channel[i];
+		if (pch->work_mode != work_mode && pch->work_mode != -1) {
+			pr_error("Dsc work mode changed,");
+			pr_error("but there are still some channels");
+			pr_error("run in different mode\n");
+		}
+	}
 }
 
 static long dvb_dsc_ioctl(struct file *file, unsigned int cmd,
@@ -318,16 +359,29 @@ static long dvb_dsc_ioctl(struct file *file, unsigned int cmd,
 		dsc_set_pid(ch, ch->pid);
 		break;
 	case AMDSC_IOC_SET_KEY:
-		if (copy_from_user
-		    (&key, (void __user *)arg, sizeof(struct am_dsc_key))) {
+		if (copy_from_user(&key, (void __user *)arg,
+					sizeof(struct am_dsc_key))) {
+			pr_err("AML DVB copy_from_user failed\n");
 			ret = -EFAULT;
 		} else {
-			if (key.type)
-				memcpy(ch->odd, key.key, 8);
-			else
+			if (key.type == AM_DSC_EVEN_KEY)
 				memcpy(ch->even, key.key, 8);
-			ch->set |= 1 << (key.type);
+			else if (key.type == AM_DSC_ODD_KEY)
+				memcpy(ch->odd, key.key, 8);
+			else if (key.type == AM_DSC_EVEN_KEY_AES)
+				memcpy(ch->aes_even, key.key, 16);
+			else if (key.type == AM_DSC_ODD_KEY_AES)
+				memcpy(ch->aes_odd, key.key, 16);
+			if (key.type & AM_DSC_FROM_KL_KEY) {
+				ch->set = 0;
+			} else {
+				ch->set &= ~AM_DSC_FROM_KL_KEY;
+				ch->set |= (1 << (key.type &
+							~AM_DSC_FROM_KL_KEY));
+				ch->set |= (key.type & AM_DSC_FROM_KL_KEY);
+			}
 			dsc_set_key(ch, key.type, key.key);
+			dsc_ciplus_switch_check(ch, key.type);
 		}
 		break;
 	default:
@@ -352,11 +406,13 @@ static int dvb_dsc_release(struct inode *inode, struct file *file)
 
 	ch->used = 0;
 	dsc_set_pid(ch, 0x1fff);
+	dsc_release();
 
 	ch->pid = 0x1fff;
 	ch->set = 0;
+	ch->work_mode = -1;
 	ch->dsc->dev->users--;
-
+	ch->aes_mode = -1;
 	spin_unlock_irqrestore(&dvb->slock, flags);
 
 	return 0;
@@ -594,6 +650,8 @@ static ssize_t dsc##i##_store_source(struct class *class,  \
 	else \
 		dst = src; \
 	aml_dsc_hw_set_source(&aml_dvb_device.dsc[i], src, dst);\
+	if (i == 0) \
+		aml_ciplus_hw_set_source(src); \
 	return size;\
 }
 
