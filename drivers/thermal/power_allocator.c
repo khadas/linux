@@ -472,6 +472,17 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip)
 	int ret;
 	unsigned long switch_on_temp, control_temp, current_temp;
 	struct power_allocator_params *params = tz->governor_data;
+	struct thermal_zone_device_ops *ops;
+	enum thermal_device_mode mode;
+
+	ops = tz->ops;
+	if (ops->get_mode && !ops->get_mode(tz, &mode)) {
+		/* do nothing if thermal disabled */
+	    if (mode == THERMAL_DEVICE_DISABLED) {
+			dev_warn(&tz->device, "thermal disabled, nothing to do\n");
+			return 0;
+	    }
+	}
 
 	/*
 	 * We get called for every trip point but we only need to do

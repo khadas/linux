@@ -182,8 +182,28 @@ int aml_thermal_min_update(struct thermal_cooling_device *cdev)
 }
 EXPORT_SYMBOL(aml_thermal_min_update);
 
+int set_cur_mode(struct thermal_zone_device *tzd, enum thermal_device_mode mode)
+{
+	int i, ret = 0;
+	struct thermal_cooling_device *cdev;
+
+	/*
+	 * each cooling device should return to max state if thermal is disalbed
+	 */
+	if (mode != THERMAL_DEVICE_DISABLED)
+		return 0;
+
+	for (i = 0; i < soc_sensor.cool_dev_num; i++) {
+		cdev = soc_sensor.cool_devs[i].cooling_dev;
+		if (cdev)
+			ret |= cdev->ops->set_cur_state(cdev, 0);
+	}
+	return ret;
+}
+
 static struct thermal_zone_of_device_ops aml_thermal_ops = {
 	.get_temp = get_cur_temp,
+	.set_mode = set_cur_mode,
 };
 
 static int register_cool_dev(struct cool_dev *cool)
