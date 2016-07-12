@@ -2225,30 +2225,69 @@ static int check_primaries(
 	int need_calculate_mtx = 0;
 	const struct master_display_info_s *d;
 
-	/* check source */
-	for (i = 0; i < 3; i++) {
-		for (j = 0; j < 2; j++) {
-			(*si)[i][j] = (*p)[(i + 2) % 3][j];
+	/* check and copy primaries */
+	if (((*p)[0][1] > (*p)[1][1])
+		&& ((*p)[0][1] > (*p)[2][1])
+		&& ((*p)[2][0] > (*p)[0][0])
+		&& ((*p)[2][0] > (*p)[1][0])) {
+		/* reasonable g,b,r */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				(*si)[i][j] = (*p)[(i + 2) % 3][j];
 			if ((*si)[i][j] != bt2020_primaries[(i + 2) % 3][j])
 				need_calculate_mtx = 1;
-		}
-	}
-	for (i = 0; i < 2; i++) {
-		(*si)[3][i] = (*w)[i];
-		if ((*si)[3][i] != bt2020_white_point[i])
-			need_calculate_mtx = 1;
+			}
+	} else if (((*p)[0][0] > (*p)[1][0])
+		&& ((*p)[0][0] > (*p)[2][0])
+		&& ((*p)[1][1] > (*p)[0][1])
+		&& ((*p)[1][1] > (*p)[2][1])) {
+		/* reasonable r,g,b */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				(*si)[i][j] = (*p)[i][j];
+			if ((*si)[i][j] != bt2020_primaries[(i + 2) % 3][j])
+				need_calculate_mtx = 1;
+			}
+	} else {
+		/* source not usable, use standard bt2020 */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				(*si)[i][j] = bt2020_primaries[(i + 2) % 3][j];
 	}
 
-	if (((*si)[0][0] == 0) &&
-		((*si)[0][1] == 0) &&
-		((*si)[1][0] == 0) &&
-		((*si)[1][1] == 0) &&
-		((*si)[2][0] == 0) &&
-		((*si)[2][1] == 0) &&
-		((*si)[3][0] == 0) &&
-		((*si)[3][0] == 0))
-		/* if primaries is 0, set default mtx*/
-		need_calculate_mtx = 0;
+	/* check white point */
+	if (need_calculate_mtx == 1) {
+		if (((*w)[0] > (*si)[2][0]) &&
+			((*w)[0] < (*si)[0][0]) &&
+			((*w)[1] > (*si)[2][1]) &&
+			((*w)[1] < (*si)[1][1])) {
+				for (i = 0; i < 2; i++)
+					(*si)[3][i] = (*w)[i];
+		} else {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++)
+					(*si)[i][j] =
+				bt2020_primaries[(i + 2) % 3][j];
+
+			for (i = 0; i < 2; i++)
+				(*si)[3][i] = bt2020_white_point[i];
+			need_calculate_mtx = 0;
+		}
+	} else {
+		if (((*w)[0] > (*si)[2][0]) &&
+			((*w)[0] < (*si)[0][0]) &&
+			((*w)[1] > (*si)[2][1]) &&
+			((*w)[1] < (*si)[1][1])) {
+			for (i = 0; i < 2; i++) {
+				(*si)[3][i] = (*w)[i];
+				if ((*si)[3][i] != bt2020_white_point[i])
+					need_calculate_mtx = 1;
+			}
+		} else {
+			for (i = 0; i < 2; i++)
+				(*si)[3][i] = bt2020_white_point[i];
+		}
+	}
 
 	/* check display */
 	if (v->master_display_info.present_flag) {
