@@ -156,9 +156,9 @@ static void lcd_info_print(void)
 	LCDPR("panel_type: %s\n", pconf->lcd_propname);
 	LCDPR("key_valid: %d, config_load: %d\n",
 		lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load);
-	LCDPR("mode : %s, status: %d, fr_auto_policy: %d\n",
-		lcd_mode_mode_to_str(lcd_drv->lcd_mode),
-		lcd_drv->lcd_status, lcd_drv->fr_auto_policy);
+	LCDPR("chip: %d, mode : %s, status: %d\n",
+		lcd_drv->chip_type, lcd_mode_mode_to_str(lcd_drv->lcd_mode),
+		lcd_drv->lcd_status);
 
 	LCDPR("%s, %s %ubit, %ux%u@%u.%02uHz\n",
 		pconf->lcd_basic.model_name,
