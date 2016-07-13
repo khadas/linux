@@ -24,6 +24,7 @@
 #include <dt-bindings/reset/aml_txl.h>
 
 #include "mesontxl.dtsi"
+#include "mesontxl_skt-panel.dtsi"
 
 / {
 	model = "Amlogic";
