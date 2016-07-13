@@ -53,8 +53,11 @@
 #define CLK_BT656_CLK1		39
 #define CLK_VID_LOCK_CLK	40
 #define CLK_APB_P		41
-
-
+/* hdmirx */
+#define CLK_HDMIRX_MODET_CLK	42
+#define CLK_HDMIRX_CFG_CLK		43
+#define CLK_HDMIRX_ACR_REF_CLK	44
+#define CLK_HDMIRX_AUDMEAS_CLK	45
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
 #define CLK_MALI_0		CLK_GPU_0

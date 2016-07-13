@@ -130,6 +130,10 @@ static struct reg_map reg_maps[] = {
 		.phy_addr = 0xc8834400,
 		.size = 0x2000,
 	},
+	{
+		.phy_addr = 0xda846000,
+		.size = 0x57ba000,
+	},
 };
 
 static int in_reg_maps_idx(unsigned int addr)

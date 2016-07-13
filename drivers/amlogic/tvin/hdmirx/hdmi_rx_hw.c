@@ -691,7 +691,7 @@ static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 
 void hdmirx_set_hpd(int port, unsigned char val)
 {
-	if (!val) {
+	if (val) {
 		hdmirx_wr_top(TOP_HPD_PWR5V,
 			hdmirx_rd_top(TOP_HPD_PWR5V)&(~(1<<port)));
 	} else {

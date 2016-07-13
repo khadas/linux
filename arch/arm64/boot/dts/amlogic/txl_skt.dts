@@ -262,6 +262,30 @@
 		hw-version = <2>;
 	};
 
+	hdmirx {
+		compatible = "amlogic, hdmirx";
+		dev_name = "hdmirx";
+		status = "ok";
+		pinctrl-names = "hdmirx_pins";
+		pinctrl-0 = <&hdmirx_pins>;
+		rx_port_maps = <0x3120>;
+		repeat = <0>;
+		interrupts = <0 56 1>;
+		clocks = <&clock CLK_HDMIRX_MODET_CLK>,
+			<&clock CLK_HDMIRX_CFG_CLK>,
+			<&clock CLK_HDMIRX_ACR_REF_CLK>,
+			<&clock CLK_HDMIRX_AUDMEAS_CLK>,
+			<&clock CLK_XTAL>,
+			<&clock CLK_FPLL_DIV5>;
+		clock-names = "hdmirx_modet_clk",
+			"hdmirx_cfg_clk",
+			"hdmirx_acr_ref_clk",
+			"hdmirx_audmeas_clk",
+			"xtal",
+			"fclk_div5";
+		hdmirx_id = <0>;
+ 	};
+
 	amvenc_avc {
 		compatible = "amlogic, amvenc_avc";
 		//memory-region = <&amvenc_avc_reserved>;
@@ -1002,5 +1026,13 @@
 		amlogic,pins ="GPIOH_17"; /*spdif_out*/
 	};
 
+	hdmirx_pins: hdmirx_pins {
+                amlogic,setmask = <5  0xffff0000>;
+                amlogic,clrmask = <5  0x0000ff00>;
+                amlogic,pins = "GPIOW_6","GPIOW_8",
+                        "GPIOW_10","GPIOW_12",
+                        "GPIOW_14","GPIOW_16",
+                        "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
+        };
 };
 

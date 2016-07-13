@@ -54,6 +54,10 @@ static void __iomem *reg_base_aobus;
 #define	HHI_BT656_CLK_CNTL		OFFSET(0xf5)
 #define	HHI_VID_LOCK_CLK_CNTL		OFFSET(0xf2)
 
+/* hdmirx */
+#define HHI_HDMIRX_CLK_CNTL		OFFSET(0x80)
+#define HHI_HDMIRX_AUD_CLK_CNTL	OFFSET(0x81)
+
 #define TXL_RSTC_N_REGS	6
 #define TXL_AO_OFF		((TXL_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
 PNAME(mux_mali_0_p) = {"xtal", "gp0_pll", "mpll_clk_out1", "mpll_clk_out2",
@@ -77,6 +81,11 @@ PNAME(cts_bt656_clk0_p) = {"fclk_div2", "fclk_div3", "fclk_div5", "fclk_div7"};
 PNAME(cts_vid_lock_clk_p) = {"xtal", "cts_encl_clk", "cts_enci_clk",
 							"cts_encp_clk"};
 
+/* hdmirx */
+PNAME(clk_modet_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(clk_cfg_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(clk_acr_ref_clk_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
+PNAME(clk_audmeas_clk_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock txl_fixed_rate_ext_clks[] __initdata = {
 /*obtain the clock speed of external fixed clock sources from device tree*/
@@ -167,6 +176,35 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_VID_LOCK_CLK_CNTL, 8, 2, 0,
 			HHI_VID_LOCK_CLK_CNTL, 0, 7, 0,
 			HHI_VID_LOCK_CLK_CNTL, 7, 0),
+	/* hdmirx_modet clk */
+	COMPOSITE(CLK_HDMIRX_MODET_CLK, "clk_hdmirx_modet_clk", clk_modet_clk_p,
+					CLK_SET_RATE_NO_REPARENT,
+					HHI_HDMIRX_CLK_CNTL, 25, 2, 0,
+					HHI_HDMIRX_CLK_CNTL, 16, 7,
+					CLK_DIVIDER_ROUND_CLOSEST,
+					HHI_HDMIRX_CLK_CNTL, 24, 1),
+	COMPOSITE(CLK_HDMIRX_CFG_CLK, "clk_hdmirx_cfg_clk", clk_cfg_clk_p,
+					CLK_SET_RATE_NO_REPARENT,
+					HHI_HDMIRX_CLK_CNTL, 9, 2, 0,
+					HHI_HDMIRX_CLK_CNTL, 0, 7,
+					CLK_DIVIDER_ROUND_CLOSEST,
+					HHI_HDMIRX_CLK_CNTL, 8, 1),
+	/* hdmirx_config clk */
+	COMPOSITE(CLK_HDMIRX_ACR_REF_CLK, "clk_hdmirx_acr_ref_clk",
+					clk_acr_ref_clk_p,
+					CLK_SET_RATE_NO_REPARENT,
+					HHI_HDMIRX_AUD_CLK_CNTL, 25, 2, 0,
+					HHI_HDMIRX_AUD_CLK_CNTL, 16, 7,
+					CLK_DIVIDER_ROUND_CLOSEST,
+					HHI_HDMIRX_AUD_CLK_CNTL, 24, 0),
+	/* hdmirx_config clk */
+	COMPOSITE(CLK_HDMIRX_AUDMEAS_CLK, "clk_hdmirx_audmeas_clk",
+					clk_audmeas_clk_p,
+					CLK_SET_RATE_NO_REPARENT,
+					HHI_HDMIRX_AUD_CLK_CNTL, 9, 2, 0,
+					HHI_HDMIRX_AUD_CLK_CNTL, 0, 7,
+					CLK_DIVIDER_ROUND_CLOSEST,
+					HHI_HDMIRX_AUD_CLK_CNTL, 8, 1),
 };
 static struct mpll_clk_tab mpll_tab[] __initdata = {
 	MPLL("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,
