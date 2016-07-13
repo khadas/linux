@@ -1309,7 +1309,7 @@ static void vh264mvc_local_init(void)
 static s32 vh264mvc_init(void)
 {
 	int r1, r2, r3, r4;
-
+	unsigned int cpu_type = get_cpu_type();
 	pr_info("\nvh264mvc_init\n");
 	init_timer(&recycle_timer);
 
@@ -1329,26 +1329,48 @@ static s32 vh264mvc_init(void)
 	}
 
 	WRITE_VREG(UCODE_START_ADDR, mc_dma_handle);
+	if (cpu_type >= MESON_CPU_MAJOR_ID_GXM) {
+		r1 = amvdec_loadmc_ex(VFORMAT_H264MVC, "gxm_vh264mvc_mc", NULL);
 
-	r1 = amvdec_loadmc_ex(VFORMAT_H264MVC, "vh264mvc_mc", NULL);
+		/*memcpy(p, vh264mvc_header_mc, sizeof(vh264mvc_header_mc));*/
+		r2 = get_decoder_firmware_data(VFORMAT_H264MVC,
+			"gxm_vh264mvc_header_mc", mc_cpu_addr, 0x1000);
 
-	/*memcpy(p, vh264mvc_header_mc, sizeof(vh264mvc_header_mc));*/
-	r2 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_header_mc",
-					mc_cpu_addr, 0x1000);
+		/*memcpy((void *)((ulong) p + 0x1000),
+			   vh264mvc_mmco_mc, sizeof(vh264mvc_mmco_mc));
+		*/
+		r3 = get_decoder_firmware_data(VFORMAT_H264MVC,
+			"gxm_vh264mvc_mmco_mc",
+			(void *)((u8 *) mc_cpu_addr + 0x1000), 0x2000);
 
-	/*memcpy((void *)((ulong) p + 0x1000),
-		   vh264mvc_mmco_mc, sizeof(vh264mvc_mmco_mc));
-	*/
-	r3 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_mmco_mc",
-					(void *)((u8 *) mc_cpu_addr + 0x1000),
-					0x2000);
+		/*memcpy((void *)((ulong) p + 0x3000),
+			   vh264mvc_slice_mc, sizeof(vh264mvc_slice_mc));
+		*/
+		r4 = get_decoder_firmware_data(VFORMAT_H264MVC,
+			"gxm_vh264mvc_slice_mc",
+			(void *)((u8 *) mc_cpu_addr + 0x3000), 0x4000);
 
-	/*memcpy((void *)((ulong) p + 0x3000),
-		   vh264mvc_slice_mc, sizeof(vh264mvc_slice_mc));
-	*/
-	r4 = get_decoder_firmware_data(VFORMAT_H264MVC, "vh264mvc_slice_mc",
-					(void *)((u8 *) mc_cpu_addr + 0x3000),
-					0x4000);
+		} else {
+		r1 = amvdec_loadmc_ex(VFORMAT_H264MVC, "vh264mvc_mc", NULL);
+
+		/*memcpy(p, vh264mvc_header_mc, sizeof(vh264mvc_header_mc));*/
+		r2 = get_decoder_firmware_data(VFORMAT_H264MVC,
+			"vh264mvc_header_mc", mc_cpu_addr, 0x1000);
+
+		/*memcpy((void *)((ulong) p + 0x1000),
+			   vh264mvc_mmco_mc, sizeof(vh264mvc_mmco_mc));
+		*/
+		r3 = get_decoder_firmware_data(VFORMAT_H264MVC,
+			"vh264mvc_mmco_mc",
+			(void *)((u8 *) mc_cpu_addr + 0x1000), 0x2000);
+
+		/*memcpy((void *)((ulong) p + 0x3000),
+			   vh264mvc_slice_mc, sizeof(vh264mvc_slice_mc));
+		*/
+		r4 = get_decoder_firmware_data(VFORMAT_H264MVC,
+			"vh264mvc_slice_mc",
+			(void *)((u8 *) mc_cpu_addr + 0x3000), 0x4000);
+		}
 	if (r1 < 0 || r2 < 0 || r3 < 0 || r4 < 0) {
 		amvdec_disable();
 
