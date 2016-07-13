@@ -6605,13 +6605,6 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 		if (di_buf->pulldown_mode != PULL_DOWN_BUF1)
 			di_buf->pulldown_mode = PULL_DOWN_EI;
 	}
-	/* if post size < MIN_POST_WIDTH, force ei */
-	if ((di_width < MIN_BLEND_WIDTH) &&
-		(di_buf->pulldown_mode == PULL_DOWN_BLEND_0 ||
-		di_buf->pulldown_mode == PULL_DOWN_BLEND_2 ||
-		di_buf->pulldown_mode == PULL_DOWN_NORMAL
-		))
-		di_buf->pulldown_mode = PULL_DOWN_BUF1;
 
 #ifdef DI_USE_FIXED_CANVAS_IDX
 #ifdef CONFIG_VSYNC_RDMA
@@ -6832,6 +6825,18 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 	} else {
 		di_vpp_en = 1;
 		di_ddr_en = 0;
+	}
+
+	/* if post size < MIN_POST_WIDTH, force ei */
+	if ((di_width < MIN_BLEND_WIDTH) &&
+		(di_buf->pulldown_mode == PULL_DOWN_BLEND_0 ||
+		di_buf->pulldown_mode == PULL_DOWN_BLEND_2 ||
+		di_buf->pulldown_mode == PULL_DOWN_NORMAL
+		)) {
+		post_blend_mode = 1;
+		blend_mtn_en = 0;
+		post_ei = ei_en = 0;
+		post_blend_en = 0;
 	}
 
 	if (mcpre_en)
