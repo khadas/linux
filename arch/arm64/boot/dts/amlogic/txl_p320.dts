@@ -622,36 +622,32 @@
 	};
 
 	dwc3: dwc3@c9000000 {
-		compatible = "synopsys, gxl-dwc3";
+		compatible = "synopsys, dwc3";
 		reg = <0x0 0xc9000000 0x0 0x100000>;
 		interrupts = <0 30 4>;
 		usb-phy = <&usb2_phy>, <&usb3_phy>;
 		cpu-type = "gxl";
 		clock-src = "usb3.0";
-		status = "disable";
 	};
 
 	usb2_phy: usb2phy@d0078000 {
-		compatible = "amlogic, aml-gxl-usb2";
+		compatible = "amlogic, amlogic-new-usb2";
 		portnum = <4>;
 		reg = <0x0 0xd0078000 0x0 0x80>;
-		status = "disable";
 	};
 
 	usb3_phy: usb3phy@d0078080 {
-		compatible = "amlogic, aml-gxl-usb3";
-		portnum = <1>;
+		compatible = "amlogic, amlogic-new-usb3";
+		portnum = <0>;
 		reg = <0x0 0xd0078080 0x0 0x20>;
-		interrupts = <0 16 4>;
-		status = "disable";
 	};
 
 	dwc2_a {
-		compatible = "amlogic, gxl_dwc2";
+		compatible = "amlogic,dwc2";
 		device_name = "dwc2_a";
 		reg = <0x0 0xc9100000 0x0 0x40000>;
+		status = "okay";
 		interrupts = <0 31 4>;
-		status = "disable";
 		pl-periph-id = <0>; /** lm name */
 		clock-src = "usb0"; /** clock src */
 		port-id = <0>;  /** ref to mach/usb.h */
@@ -660,9 +656,9 @@
 		port-config = <0>; /** 0: default */
 		port-dma = <0>; /** 0: default, 1: single, 2: incr, 3: incr4, 4: incr8, 5: incr16, 6: disable*/
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
-		usb-fifo = <512>;
+		usb-fifo = <728>;
 		cpu-type = "gxl";
-		controller-type = <1>; /** 0: normal, 1: otg+dwc3*/
+		controller-type = <1>; /** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 		phy-reg = <0xd0078000>;
 		phy-reg-size = <0xa0>;
 		resets = <&clock GCLK_IDX_USB_GENERAL
