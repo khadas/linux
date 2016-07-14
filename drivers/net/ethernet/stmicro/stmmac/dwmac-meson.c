@@ -79,7 +79,7 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 		if (internal_phy == 1) {
 			pr_debug("internal phy\n");
 			writel(0x10110181, PREG_ETH_REG2);
-			writel(0xe40908ff, PREG_ETH_REG3);
+			writel(0xe489087f, PREG_ETH_REG3);
 		} else {
 			writel(0x10110181, PREG_ETH_REG2);
 			writel(0x2009087f, PREG_ETH_REG3);
