@@ -385,6 +385,8 @@ int frameInv;
 struct vframe_s *tmp_vf;
 int frame_inittime;
 struct amlvideo2_latency_info latency_info;
+bool pflag;
+struct completion plug_sema;
 };
 
 struct amlvideo2_fh {
@@ -3107,7 +3109,9 @@ void vf_inqueue(struct vframe_s *vf, struct amlvideo2_node *node)
 		return;
 	}
 
+	mutex_lock(&node->mutex);
 	vfq_push(&node->q_ready, vf);
+	mutex_unlock(&node->mutex);
 
 	vf_notify_receiver(
 		name,
@@ -3138,8 +3142,11 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		&& (node->provide_ready)) || (node->vidq.task_running == 0),
 		msecs_to_jiffies(5000));
 
-	if (i_ret == 0 || node->vidq.task_running == 0)
+	if (i_ret == 0 || node->vidq.task_running == 0) {
+		if (node->pflag)
+			complete(&node->plug_sema);
 		return 0;
+	}
 
 	if ((AML_RECEIVER_NONE != node->r_type) && vfq_full(&node->q_ready))
 		return -1;
@@ -3171,7 +3178,14 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		if (amlvideo2_dbg_en)
 			pr_info("provide is not ready .\n");
 		dpr_err(node->vid_dev, 1, "provide is not ready\n");
+		if (node->pflag)
+			complete(&node->plug_sema);
 		return -1;
+	}
+
+	if (node->pflag) {
+		complete(&node->plug_sema);
+		return 0;
 	}
 
 	spin_lock_irqsave(&node->slock, flags);
@@ -3361,6 +3375,11 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	if (waitqueue_active(&buf->vb.done))
 		wake_up(&buf->vb.done);
 
+	if (node->pflag) {
+		complete(&node->plug_sema);
+		return 0;
+	}
+
 	if (amlvideo2_dbg_en)
 		pr_info("filled buffer %p\n", buf);
 
@@ -3400,6 +3419,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	return 0;
 
 unlock: spin_unlock_irqrestore(&node->slock, flags);
+		if (node->pflag)
+			complete(&node->plug_sema);
 	return 0;
 }
 
@@ -3503,6 +3524,7 @@ static int amlvideo2_start_thread(struct amlvideo2_fh *fh)
 
 static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 {
+	int ret = 0;
 	struct amlvideo2_node *node =
 		container_of(dma_q, struct amlvideo2_node, vidq);
 	dpr_err(node->vid_dev, 1, "%s\n", __func__);
@@ -3513,8 +3535,12 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 	#ifdef USE_SEMA_QBUF
 		complete(&dma_q->qbuf_comp);
 	#endif
+		complete(&node->plug_sema);
 		wake_up_interruptible(&dma_q->wq);
-		kthread_stop(dma_q->kthread);
+		ret = kthread_stop(dma_q->kthread);
+		if (ret < 0)
+			pr_info("%s, ret = %d .\n", __func__, ret);
+
 		dma_q->kthread = NULL;
 	}
 }
@@ -3577,10 +3603,14 @@ static struct vframe_s *amlvideo2_vf_peek(void *op_arg)
 
 static struct vframe_s *amlvideo2_vf_get(void *op_arg)
 {
+	struct vframe_s *vf = NULL;
 	struct amlvideo2_node *node = (struct amlvideo2_node *)op_arg;
 	if (node->video_blocking)
 		return NULL;
-	return vfq_pop(&node->q_ready);
+	mutex_lock(&node->mutex);
+	vf = vfq_pop(&node->q_ready);
+	mutex_unlock(&node->mutex);
+	return vf;
 }
 
 static void amlvideo2_vf_put(struct vframe_s *vf, void *op_arg)
@@ -4002,8 +4032,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct amlvideo2_fh *fh = priv;
-
-	return videobuf_dqbuf(&fh->vb_vidq, p, file->f_flags & O_NONBLOCK);
+	int ret = videobuf_dqbuf(&fh->vb_vidq, p, file->f_flags & O_NONBLOCK);
+	return ret;
 }
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -4056,6 +4086,220 @@ static enum tvin_scan_mode_e vmode2scan_mode(enum vmode_e mode)
 	/* pr_err("mode=%d, scan_mode=%d\n", mode, scan_mode); */
 	return scan_mode;
 }
+
+/*the counter of AMLVIDEO2*/
+#define AMLVIDEO2_MAX_NODE		2
+static struct amlvideo2_node  *gAmlvideo2_Node[AMLVIDEO2_MAX_NODE];
+
+static int amlvideo2_stop_tvin_service(struct amlvideo2_node *node)
+{
+	int ret = 0;
+	struct vdin_v4l2_ops_s *vops = &node->vops;
+
+	if (amlvideo2_dbg_en)
+		pr_info("%s , %d\n", __func__, __LINE__);
+
+	if (AML_RECEIVER_NONE == node->r_type)
+		amlvideo2_stop_thread(&node->vidq);
+
+	if (((0 == node->input) || (0x1000C000 == node->input)) &&
+			(AML_RECEIVER_NONE == node->r_type)) {
+		if (amlvideo2_dbg_en)
+			pr_info("stop tvin service .\n");
+		if (!(vops->stop_tvin_service)) {
+			pr_info("stop_tvin_service func is NULL.\n");
+			return -1;
+		}
+		vops->stop_tvin_service(node->vdin_device_num);
+	}
+
+	node->start_vdin_flag = 0;
+	return ret;
+}
+
+static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
+{
+	struct amlvideo2_fh *fh = node->fh;
+	struct vdin_v4l2_ops_s *vops = &node->vops;
+	struct vdin_parm_s para;
+	const struct vinfo_s *vinfo;
+	int dst_w, dst_h;
+	vinfo = get_current_vinfo();
+
+	if ((node->input != 0) && (!node->start_vdin_flag)) /* 0:mirrocast */
+		goto start;
+
+	if ((AML_RECEIVER_NONE != node->r_type) && (!node->start_vdin_flag))
+		goto start;
+
+	if (AML_PROVIDE_MIRROCAST_VDIN0 == node->p_type)
+		node->vdin_device_num = 0;
+	else if (AML_PROVIDE_MIRROCAST_VDIN1 == node->p_type)
+		node->vdin_device_num = 1;
+
+	if (amlvideo2_dbg_en)
+		pr_info("Enter %s .\n", __func__);
+
+	memset(&para, 0, sizeof(para));
+	para.port = node->porttype;
+	para.fmt = TVIN_SIG_FMT_MAX;
+	para.frame_rate = 60;
+	para.h_active = vinfo->width;
+	para.v_active = vinfo->height;
+	para.hsync_phase = 0;
+	para.vsync_phase = 1;
+	para.hs_bp = 0;
+	para.vs_bp = 0;
+	para.dfmt = TVIN_NV21;/* TVIN_YUV422; */
+	para.scan_mode = vmode2scan_mode(
+		vinfo->mode);/* TVIN_SCAN_MODE_PROGRESSIVE; */
+	if (TVIN_SCAN_MODE_INTERLACED == para.scan_mode)
+		para.v_active = para.v_active / 2;
+
+	dst_w = fh->width;
+	dst_h = fh->height;
+	if (vinfo->width < vinfo->height) {
+		if ((vinfo->width <= 768) && (vinfo->height <= 1024)) {
+			dst_w = vinfo->width;
+			dst_h = vinfo->height;
+		} else {
+			dst_w = fh->height;
+			dst_h = fh->width;
+		}
+		output_axis_adjust(vinfo->height, vinfo->width, (int *)&dst_h,
+					(int *)&dst_w, 0, NULL);
+	} else {
+		if ((vinfo->height <= 768) && (vinfo->width <= 1024)) {
+			dst_w = vinfo->width;
+			dst_h = vinfo->height;
+		}
+		output_axis_adjust(vinfo->width, vinfo->height, (int *)&dst_w,
+					(int *)&dst_h, 0, NULL);
+	}
+	para.dest_hactive = dst_w;
+	para.dest_vactive = dst_h;
+	if (TVIN_SCAN_MODE_INTERLACED == para.scan_mode)
+		para.dest_vactive = para.dest_vactive / 2;
+	if (amlvideo2_dbg_en) {
+		pr_info("node->input=%d, node->r_type=%d, node->p_type=%d\n",
+			node->input,
+			node->r_type, node->p_type);
+		pr_info("para.h_active: %d, para.v_active: %d,",
+			para.h_active, para.v_active);
+		pr_info("para.dest_hactive: %d, para.dest_vactive: %d,",
+			para.dest_hactive, para.dest_vactive);
+		pr_info("fh->width: %d, fh->height: %d,",
+			fh->width, fh->height);
+		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
+			vinfo->mode, para.scan_mode);
+		pr_info("node->vdin_device_num = %d .\n" ,
+			node->vdin_device_num);
+	}
+	if (!(vops->start_tvin_service)) {
+		pr_info("start_tvin_service is NULL.\n");
+		return -1;
+	}
+	vops->start_tvin_service(node->vdin_device_num, &para);
+
+start: node->frame_inittime = 1;
+	/* frameInv_adjust = 0; */
+	/* frameInv = 0; */
+	/* tmp_vf = NULL; */
+	do_gettimeofday(&node->thread_ts1);
+	return 0;
+}
+int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
+			void *para)
+{
+	struct amlvideo2_node  *node = NULL;
+	struct vframe_s *recycle_vf = NULL;
+	struct vframe_states states;
+	struct vframe_provider_s *vfp = NULL;
+	int i;
+	int index = 0;
+	int ret = 0;
+	for (i = 0; i < AMLVIDEO2_MAX_NODE; i++) {
+		if (gAmlvideo2_Node[i]->r_type == AML_RECEIVER_NONE)
+			index = 1;
+	}
+	if (amlvideo2_dbg_en)
+		pr_info("%s , index = %d\n", __func__, index);
+	if (index != 1)
+		return ret;
+	node = gAmlvideo2_Node[index];
+	mutex_lock(&node->mutex);
+	switch (cmd) {
+	case  VOUT_EVENT_MODE_CHANGE:
+		pr_info("mode changed in amlvideo2 .\n");
+		vfp = vf_get_provider(node->recv.name);
+		if ((node == NULL) || (vfp == NULL) ||
+			(!node->fh->is_streamed_on)) {
+			pr_info("driver is not ready or not need to screencap.\n");
+			mutex_unlock(&node->mutex);
+			return ret;
+		}
+		node->pflag = true;
+		wait_for_completion_timeout(&node->plug_sema,
+			msecs_to_jiffies(150));
+		if (amlvideo2_dbg_en)
+			pr_info("finish wait plug sema .\n");
+		/* if local queue have vf , should give back to provider */
+		if (vfq_empty(&node->q_ready)) {
+			if (amlvideo2_dbg_en)
+				pr_info("q_ready is empty .\n");
+		} else {
+			recycle_vf = vfq_pop(&node->q_ready);
+			while (recycle_vf) {
+				vf_put(recycle_vf, node->recv.name);
+				recycle_vf = vfq_pop(&node->q_ready);
+			}
+			if (amlvideo2_dbg_en)
+				pr_info("already flush local vf .\n");
+		}
+		/*debug provider vf state*/
+		if (amlvideo2_dbg_en) {
+			if (vfp && vfp->ops && vfp->ops->vf_states)
+				ret = vfp->ops->vf_states(&states, vfp->op_arg);
+			if (ret == 0) {
+				pr_info("vf_pool_size = %d, buf_free_num = %d .\n",
+				states.vf_pool_size, states.buf_free_num);
+				pr_info("buf_recycle_num = %d, buf_avail_num = %d .\n",
+				states.buf_recycle_num, states.buf_avail_num);
+			}
+		}
+		ret = amlvideo2_stop_tvin_service(node);
+		if (ret < 0) {
+			pr_err("stop tvin service failed.\n");
+			mutex_unlock(&node->mutex);
+			node->pflag = false;
+			return ret;
+		}
+
+		if (AML_RECEIVER_NONE == node->r_type)
+			amlvideo2_start_thread(node->fh);
+		msleep(500);
+
+		ret = amlvideo2_start_tvin_service(node);
+		if (ret < 0) {
+			pr_err("start tvin service failed.\n");
+			mutex_unlock(&node->mutex);
+			node->pflag = false;
+			return ret;
+		}
+		node->pflag = false;
+		break;
+	}
+	mutex_unlock(&node->mutex);
+	if (amlvideo2_dbg_en)
+		pr_info("finish amlvideo2_notify_callback .\n");
+	return ret;
+}
+
+
+static struct notifier_block amlvideo2_notifier_nb = {
+	.notifier_call	= amlvideo2_notify_callback,
+};
+
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	int ret;
@@ -4693,6 +4937,7 @@ static int amlvideo2_close(struct file *file)
 	node->crop_info.source_height_crop = 0;
 	node->crop_info.capture_crop_enable = 0;
 	/* node->provider = NULL; */
+	node->pflag = false;
 	mutex_unlock(&node->mutex);
 	return 0;
 }
@@ -4789,7 +5034,6 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_VFRAME_READY:
 		node->provide_ready = 1;
-		node->video_blocking = false;
 		if (vf_peek(node->recv.name) != NULL)
 			wake_up_interruptible(&node->vidq.wq);
 		break;
@@ -4847,6 +5091,7 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 	case VFRAME_EVENT_PROVIDER_REG:
 		node->amlvideo2_pool_ready = NULL;
 		node->amlvideo2_pool_size = 0;
+		node->video_blocking = false;
 		if (vf_get_states(&frame_states, node->vid) == 0)
 			node->amlvideo2_pool_size = frame_states.vf_pool_size;
 		else
@@ -4871,10 +5116,13 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 			pr_err("%s,%dstop thread\n", __func__, __LINE__);
 		}
 		if (amlvideo2_dbg_en)
-			pr_info("unreg amlvideo2\n");
-		vf_unreg_provider(&node->amlvideo2_vf_prov);
+			pr_info("unreg amlvideo2 , pflag = %d\n", node->pflag);
 
-		kfree(node->amlvideo2_pool_ready);
+		if (!node->pflag) {
+			vf_unreg_provider(&node->amlvideo2_vf_prov);
+			kfree(node->amlvideo2_pool_ready);
+		}
+
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 		/* switch_mod_gate_by_name("ge2d", 0); */
 		/* #endif */
@@ -4928,6 +5176,7 @@ static int amlvideo2_release_node(struct amlvideo2_device *vid_dev)
 			kfree(vid_dev->node[i]);
 			vid_dev->node[i] = NULL;
 		}
+		gAmlvideo2_Node[i] = NULL;
 	}
 
 	return 0;
@@ -4990,6 +5239,7 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 		/* initialize locks */
 		spin_lock_init(&vid_node->slock);
 		mutex_init(&vid_node->mutex);
+		init_completion(&vid_node->plug_sema);
 
 		vfd = video_device_alloc();
 		if (!vfd) {
@@ -5040,9 +5290,11 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 		(i == 0) ? DEVICE_NAME0 : DEVICE_NAME1,
 					&amlvideo2_vf_provider,
 					(void *)vid_node);
+		vid_node->pflag = false;
 		vid_dev->node[i] = vid_node;
 		v4l2_info(&vid_dev->v4l2_dev, "V4L2 device registered as %s\n",
 				video_device_node_name(vfd));
+		gAmlvideo2_Node[i] = vid_node;
 		ret = 0;
 	}
 
@@ -5096,6 +5348,8 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto probe_err1;
 
+	/* register vout client */
+	vout_register_client(&amlvideo2_notifier_nb);
 	return 0;
 
 probe_err1: v4l2_device_unregister(&dev->v4l2_dev);
@@ -5184,7 +5438,8 @@ static int amlvideo2_drv_remove(struct platform_device *pdev)
 	struct amlvideo2_device *vid_dev = container_of(v4l2_dev,
 							struct amlvideo2_device,
 							v4l2_dev);
-
+	/* unregister vout client */
+	vout_unregister_client(&amlvideo2_notifier_nb);
 	amlvideo2_release_node(vid_dev);
 	v4l2_device_unregister(v4l2_dev);
 	platform_set_drvdata(pdev, NULL);
