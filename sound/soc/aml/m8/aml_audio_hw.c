@@ -27,6 +27,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/sound/aiu_regs.h>
 #include <linux/amlogic/sound/audin_regs.h>
+#include <linux/amlogic/cpu_version.h>
 #include "aml_audio_hw.h"
 
 /* i2s mode 0: master 1: slave */
@@ -303,14 +304,25 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
 		       | 0 << 0);	/* fifo0_din_pos */
 
 	if (audio_in_source == 0) {
-		aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
-			       | (3 << I2SIN_SIZE)
-			       | (1 << I2SIN_LRCLK_INVT)
-			       | (1 << I2SIN_LRCLK_SKEW)
-			       | (sync_mode << I2SIN_POS_SYNC)
-			       | (!mode << I2SIN_LRCLK_SEL)
-			       | (!mode << I2SIN_CLK_SEL)
-			       | (!mode << I2SIN_DIR));
+		if (is_meson_txl_cpu()) {
+			aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
+					| (3 << I2SIN_SIZE)
+					| (1 << I2SIN_LRCLK_INVT)
+					| (1 << I2SIN_LRCLK_SKEW)
+					| (0 << I2SIN_POS_SYNC)
+					| (0 << I2SIN_LRCLK_SEL)
+					| (0 << I2SIN_CLK_SEL)
+					| (0 << I2SIN_DIR));
+		} else {
+			aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
+					| (3 << I2SIN_SIZE)
+					| (1 << I2SIN_LRCLK_INVT)
+					| (1 << I2SIN_LRCLK_SKEW)
+					| (sync_mode << I2SIN_POS_SYNC)
+					| (!mode << I2SIN_LRCLK_SEL)
+					| (!mode << I2SIN_CLK_SEL)
+					| (!mode << I2SIN_DIR));
+		}
 	} else if (audio_in_source == 1) {
 		aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
 			       | (0 << I2SIN_SIZE)
