@@ -1014,15 +1014,16 @@
 
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<6 0x7800000>;
-		amlogic,clrmask=<6 0x07e0000>;
-		amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9";
+		amlogic,setmask=<4 0x00000780>;
+		amlogic,clrmask=<4 0x0000000e
+				 3 0x001c0000>;
+		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_14";
 	};
 
 	audio_spdif_pins:audio_pin1{
-		amlogic,setmask=<6 0x10000000>; /*spdif_out*/
-		amlogic,clrmask=<6 0x8000000>;
-		amlogic,pins ="GPIOH_4"; /*spdif_out*/
+		amlogic,setmask=<3 0x40000000>; /*spdif_out*/
+		amlogic,clrmask=<3 0x00200000>;
+		amlogic,pins ="GPIOZ_17"; /*spdif_out*/
 	};
 
 	hdmirx_pins: hdmirx_pins {
