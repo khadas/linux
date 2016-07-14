@@ -24,7 +24,7 @@
 #include <dt-bindings/reset/aml_txl.h>
 
 #include "mesontxl.dtsi"
-#include "mesontxl-panel.dtsi"
+#include "mesontxl_p321-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -1053,9 +1053,9 @@
 		amlogic,pins = "GPIOZ_6";
 	};
 	bl_pwm_combo_1_on_pins:bl_pwm_combo_1_on_pin {
-		amlogic,setmask = <4 0x00080000>;
-		amlogic,clrmask = <4 0x08040000 3 0x00200000>;
-		amlogic,pins = "GPIOZ_4";
+		amlogic,setmask = <4 0x00004000>;
+		amlogic,clrmask = <4 0x00002000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_7";
 	};
 };
 
