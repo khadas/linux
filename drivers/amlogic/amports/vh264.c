@@ -633,6 +633,8 @@ static void vh264_set_params(struct work_struct *work)
 	unsigned int crop_infor, crop_bottom, crop_right, level_idc;
 	u32 disp_addr = 0xffffffff;
 	struct canvas_s cur_canvas;
+	if (!atomic_read(&vh264_active))
+		return;
 	mutex_lock(&vh264_mutex);
 	if (vh264_stream_switching_state == SWITCHING_STATE_ON_CMD1)
 		vh264_stream_switching_state = SWITCHING_STATE_ON_CMD1_PENDING;
