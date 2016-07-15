@@ -198,8 +198,6 @@
 			0x0 0xc8834558 0x0 0xc>;
 			interrupts = <0 8 1>;
 			phy-mode= "rmii";
-			pinctrl-names = "eth_pins";
-			pinctrl-0 = <&eth_pins>;
 			mc_val = <0x1800>;
 			resets = <&clock GCLK_IDX_ETHERNET>;
 			reset-names = "ethpower";
