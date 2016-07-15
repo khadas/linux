@@ -2604,7 +2604,7 @@ static void stream_switching_do(struct work_struct *work)
 	if (vh264_stream_switching_state == SWITCHING_STATE_OFF)
 		return;
 
-	if (buffer_index > VF_BUF_NUM - 1 || is_4k)
+	if (is_4k)
 		return;
 
 	spin_lock_irqsave(&prepare_lock, flags);
