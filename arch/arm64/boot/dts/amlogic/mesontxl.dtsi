@@ -270,16 +270,14 @@
 			amlogic,pins="GPIOZ_0", "GPIOZ_1";
 		};
 		sd_clk_cmd_pins:sd_clk_cmd_pins{
-			amlogic,setmask=<6 0x0000000c>,
-					<AO 0x00001800>;
+			amlogic,setmask=<6 0x0000000c>;
 			amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
 		};
 		sd_all_pins:sd_all_pins{
-			amlogic,setmask=<6 0x0000003f>,
-					<AO 0x00001800>;
+			amlogic,setmask=<6 0x0000003f>;
 			amlogic,clrmask=<6 0xFC00FF00>;
 			amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
@@ -287,8 +285,7 @@
 			amlogic,pullupen=<1>;
 		};
 		sd_1bit_pins:sd_1bit_pins{
-			amlogic,setmask=<6 0x0000001c>,
-					<AO 0x00001800>;
+			amlogic,setmask=<6 0x0000001c>;
 			amlogic,clrmask=<6 0x70007F03>;
 			amlogic,pins = "CARD_1","CARD_2","CARD_3";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
@@ -307,23 +304,6 @@
 			amlogic,setmask=<6 0x0000031c>;
 			amlogic,clrmask=<6 0x7C007C03>;
 			amlogic,pins = "CARD_1","CARD_2","CARD_3";
-			amlogic,enable-output=<1>; /* 0:output, 1:input */
-			amlogic,pullup=<1>;
-			amlogic,pullupen=<1>;
-		};
-		sd_to_ao_uart_pins:sd_to_ao_uart_pins{
-			amlogic,setmask=<AO 0x00001800>;
-			amlogic,clrmask=<6 0x00000300>;
-			amlogic,pins = "GPIOAO_0","GPIOAO_1";
-			amlogic,enable-output=<1>; /* 0:output, 1:input */
-			amlogic,pullup=<1>;
-			amlogic,pullupen=<1>;
-		};
-		ao_to_sd_uart_pins:ao_to_sd_uart_pins{
-			amlogic,setmask=<6 0x00000300>;
-			amlogic,clrmask=<AO 0x00001800>,
-					<6 0x0C000C03>;
-			amlogic,pins = "CARD_4","CARD_5";
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
