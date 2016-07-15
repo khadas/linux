@@ -68,9 +68,14 @@ endif
 
 KBUILD_DTBS	:= dtbs
 
-all:	$(KBUILD_IMAGE) $(KBUILD_DTBS)
+all:	$(KBUILD_IMAGE) $(KBUILD_DTBS) showtime
 
 boot := arch/arm64/boot
+
+showtime:
+	@echo -en '\t\tBuild time: '
+	@date
+	@echo -e '\t\tKhadas: Something a little different!\n'
 
 Image Image.gz Image.lzo: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
@@ -78,7 +83,7 @@ Image Image.gz Image.lzo: vmlinux
 zinstall install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-%.dtb: scripts
+%.dtb: scripts showtime
 	$(if $(filter $@,$(mesondtb)),\
 	$(Q)$(MAKE) $(build)=$(boot)/dts/amlogic $(boot)/dts/amlogic/$@,\
 	$(Q)$(MAKE) $(build)=customer/$(boot)/dts customer/$(boot)/dts/$@)
