@@ -340,6 +340,16 @@
 				       "BOOT_5","BOOT_6","BOOT_7","BOOT_8","BOOT_10","BOOT_11";
 			amlogic,enable-output=<1>; /** 0:output, 1:input */
 		};
+		atvdemod_agc: atvdemod_agc {
+			amlogic,setmask=<2  0x800000>;
+			amlogic,clrmask=<2  0x500000>;
+			amlogic,pins="GPIODV_2";
+		};
+		dtvdemod_agc: dtvdemod_agc {
+			amlogic,setmask=<2  0x400000>;
+			amlogic,clrmask=<2  0x980000>;
+			amlogic,pins="GPIODV_2";
+		};
 		i2c_a_master:i2c_a{
 			amlogic,setmask=<4 0x1800>;
 			amlogic,clrmask=<3 0x200000>;

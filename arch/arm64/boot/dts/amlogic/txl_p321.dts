@@ -411,6 +411,16 @@
 		cm_en = <1>;/*1:enabel ;0:disable*/
 	};
 
+	aml_atv_demod {
+		compatible = "amlogic, aml_atv_demod";
+		dev_name = "aml_atv_demod";
+		status = "okay";
+		pinctrl-names="atvdemod_agc";
+		pinctrl-0=<&atvdemod_agc>;
+		reg = <0x0 0xc8840000 0x0 0x2000>;
+		reg_23cf = <0x88188832>;/*default:0x88188832;r840 on haier:0x48188832*/
+	};
+
 	hdmirx {
 		compatible = "amlogic, hdmirx";
 		dev_name = "hdmirx";

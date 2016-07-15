@@ -1468,16 +1468,54 @@ int atvdemod_clk_init(void)
 {
 	/* clocks_set_hdtv (); */
 	/* 1.set system clock */
-	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-	W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
-	W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
-	W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
-	W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
-	/* TVFE reset */
-	W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
 
-	read_version_register();
+	if (is_meson_txl_cpu()) {
+		amlatvdemod_hiu_reg_write(HHI_VDAC_CNTL0, 0x6e0201);
+		amlatvdemod_hiu_reg_write(HHI_VDAC_CNTL1, 0x8);
+		/* for TXL(T962)  */
+		pr_err("%s in TXL\n", __func__);
+
+		/* W_HIU_REG(HHI_ADC_PLL_CNTL,  0x30c54260); */
+	#if 0
+		W_HIU_REG(HHI_ADC_PLL_CNTL,  0x30f14250);
+		W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
+		W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00380);
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xac6a2114);
+		W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02953004);
+		W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00030a00);
+		W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x2c6a2114);
+	#else /* get from feijun 2015/07/19 */
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+		W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
+		W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
+		/*0x5ba00380 from pll;0x5ba00384 clk
+		form crystal*/
+		W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+		W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
+		W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
+		W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+	#endif
+		W_HIU_REG(HHI_DADC_CNTL,  0x00102038);
+		W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
+		W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
+
+		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
+	} else {
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
+		W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
+		W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
+		W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
+		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
+		/* TVFE reset */
+		W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
+	}
+
+	/* read_version_register(); */
 
 	/*2.set atv demod top page control register*/
 	atv_dmd_input_clk_32m();
@@ -1501,29 +1539,8 @@ int atvdemod_init(void)
 			timer_init_flag = 0;
 		}
 	}
-	#if 0
-	/* clocks_set_hdtv (); */
-	/* 1.set system clock */
-	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-	W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
-	W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
-	W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-	W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
-	W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
-	/* TVFE reset */
-	/*W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);*/
 
-	read_version_register();
-
-	/*2.set atv demod top page control register*/
-	atv_dmd_input_clk_32m();
-	atv_dmd_wr_long(APB_BLOCK_ADDR_TOP, ATV_DMD_TOP_CTRL, 0x1037);
-	atv_dmd_wr_long(APB_BLOCK_ADDR_TOP, (ATV_DMD_TOP_CTRL1 << 2), 0x1f);
-
-	/*3.configure atv demod*/
-	check_communication_interface();
-	power_on_receiver();
-	#endif
+	/* 1.set system clock when atv enter*/
 
 	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
 	atv_dmd_misc();
@@ -1917,7 +1934,6 @@ void aml_atvdemod_overmodule_det(void)
 			if (carrier_lock_count >= 1000)
 				return;
 	/* ------------whether need timer delays between the detect lock---- */
-	/* -----------如果一直检测不到怎么办，这里会造成死循环------- */
 		}
 	/* -----------------enable auto_adjust_en------------- */
 		temp_data = atv_dmd_rd_word(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
@@ -1955,8 +1971,6 @@ void aml_atvdemod_overmodule_det(void)
 			carrier_lock_count++;
 			if (carrier_lock_count >= 1000)
 				return;
-	/* ------------whether need timer delays between the detect lock---- */
-	/* -----------如果一直检测不到怎么办，这里会造成死循环--------- */
 		}
 
 		/* -----------------begain to set ov_cnt_en enable---- */
