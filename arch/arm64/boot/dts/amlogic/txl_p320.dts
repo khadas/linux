@@ -1015,6 +1015,17 @@
 
 }; /* end of / */
 
+	&i2c_a {
+		status = "okay";
+		pinctrl-names="default";
+		pinctrl-0=<&i2c_a_master>;
+	};
+	&i2c_b {
+		status = "okay";
+		pinctrl-names="default";
+		pinctrl-0=<&i2c_b_master>;
+	};
+
 &pinmux {
 	audio_pins:audio_pin{
 		amlogic,setmask=<4 0x00000780>;
