@@ -49,6 +49,7 @@ enum Gxtv_Demod_Dvb_Mode {
 #define Demod_Clk_100M    100000	/*  */
 #define Demod_Clk_180M    180000	/*  */
 #define Demod_Clk_200M    200000	/*  */
+#define Demod_Clk_225M    225000
 
 #define Adc_Clk_27M                     27777	/* atsc */
 #define Demod_Clk_83M     83333	/*  */

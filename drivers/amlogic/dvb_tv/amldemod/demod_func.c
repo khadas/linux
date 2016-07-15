@@ -19,7 +19,7 @@
 #define pr_dbg(fmt, args ...) \
 	do { \
 		if (debug_demod) \
-			printk("FE: " fmt, ## args); \
+			pr_info("FE: " fmt, ## args); \
 	} while (0)
 #define pr_error(fmt, args ...) printk("FE: " fmt, ## args)
 
@@ -358,10 +358,15 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 	pll_n = 1;
 	for (pll_m = 1; pll_m < 512; pll_m++) {
 		/* for (pll_n=1; pll_n<=5; pll_n++) { */
-		freq_dco = freq_osc * pll_m / pll_n;
-		if (freq_dco < 750 * unit || freq_dco > 1550 * unit)
-			continue;
-
+		if (is_meson_txl_cpu()) {
+			freq_dco = freq_osc * pll_m / pll_n / 2;/*txl add div2*/
+			if (freq_dco < 700 * unit || freq_dco > 1000 * unit)
+				continue;
+		} else {
+			freq_dco = freq_osc * pll_m / pll_n;
+			if (freq_dco < 750 * unit || freq_dco > 1550 * unit)
+				continue;
+		}
 		pll_xd_a = freq_dco / (1 << pll_od_a) / freq_a;
 		pll_xd_b = freq_dco / (1 << pll_od_b) / freq_b;
 
@@ -380,9 +385,13 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 		adc_pll_cntl.b.pll_od1 = pll_od_a;
 		adc_pll_cntl.b.pll_xd0 = pll_xd_b;
 		adc_pll_cntl.b.pll_xd1 = pll_xd_a;
-
-		adc_pll_cntl2.b.div2_ctrl = freq_dco > 1000 * unit ? 1 : 0;
-
+		if (is_meson_txl_cpu()) {
+			adc_pll_cntl4.b.pll_od3 = 0;
+			adc_pll_cntl.b.pll_od2 = 0;
+		} else {
+			adc_pll_cntl2.b.div2_ctrl =
+				freq_dco > 1000 * unit ? 1 : 0;
+		}
 		found = 1;
 		best_err = err_tmp;
 		/* } */
@@ -395,7 +404,10 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 	pll_xd_b = adc_pll_cntl.b.pll_xd0;
 	pll_xd_a = adc_pll_cntl.b.pll_xd1;
 
-	div2 = adc_pll_cntl2.b.div2_ctrl;
+	if (is_meson_txl_cpu())
+		div2 = 1;
+	else
+		div2 = adc_pll_cntl2.b.div2_ctrl;
 	/*
 	 * p_adc_pll_cntl  =  adc_pll_cntl.d32;
 	 * p_adc_pll_cntl2 = adc_pll_cntl2.d32;
@@ -403,13 +415,15 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 	 * p_adc_pll_cntl4 = adc_pll_cntl4.d32;
 	 */
 	adc_pll_cntl3.b.reset = 0;
-/* *p_adc_pll_cntl3 = adc_pll_cntl3.d32; */
-
+	/* *p_adc_pll_cntl3 = adc_pll_cntl3.d32; */
 	if (!found) {
 		pr_dbg(" ERROR can't setup %7ld kHz %7ld kHz\n",
 		       freq_b / (unit / 1000), freq_a / (unit / 1000));
 	} else {
-		freq_dco = freq_osc * pll_m / pll_n;
+		if (is_meson_txl_cpu())
+			freq_dco = freq_osc * pll_m / pll_n / 2;
+		else
+			freq_dco = freq_osc * pll_m / pll_n;
 		pr_dbg(" ADC PLL  M %3d   N %3d\n", pll_m, pll_n);
 		pr_dbg(" ADC PLL DCO %ld kHz\n", freq_dco / (unit / 1000));
 
@@ -446,39 +460,67 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 
 		/* *p_demod_dig_clk = dig_clk_cfg.d32; */
 	}
-#ifdef GX_TV
-	demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
-	demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
-	/* demod_set_cbus_reg(adc_pll_cntl2.d32, ADC_REG2); */
-	/* demod_set_cbus_reg(adc_pll_cntl3.d32, ADC_REG3); */
-	/* demod_set_cbus_reg(adc_pll_cntl4.d32, ADC_REG4); */
-	/* demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6); */
-	demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
-	demod_set_demod_reg(ADC_REG3_VALUE, ADC_REG3);
-	/* debug */
-	pr_dbg("[adc][%x]%x\n", ADC_REG1, demod_read_demod_reg(ADC_REG1));
-	pr_dbg("[adc][%x]%x\n", ADC_REG2, demod_read_demod_reg(ADC_REG2));
-	pr_dbg("[adc][%x]%x\n", ADC_REG3, demod_read_demod_reg(ADC_REG3));
-	pr_dbg("[adc][%x]%x\n", ADC_REG4, demod_read_demod_reg(ADC_REG4));
-	pr_dbg("[adc][%x]%x\n", ADC_REG6, demod_read_demod_reg(ADC_REG6));
-	pr_dbg("[demod][%x]%x\n", DEMOD_REG1, demod_read_demod_reg(DEMOD_REG1));
-	pr_dbg("[demod][%x]%x\n", DEMOD_REG2, demod_read_demod_reg(DEMOD_REG2));
-	pr_dbg("[demod][%x]%x\n", DEMOD_REG3, demod_read_demod_reg(DEMOD_REG3));
-#else
-	demod_set_cbus_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
-	demod_set_cbus_reg(adc_pll_cntl.d32, ADC_REG1);
-	demod_set_cbus_reg(dig_clk_cfg.d32, ADC_REG6);
-	demod_set_cbus_reg(ADC_REG3_VALUE, ADC_REG3);
-	/* debug */
-	pr_dbg("[adc][%x]%x\n", ADC_REG1, demod_read_cbus_reg(ADC_REG1));
-	pr_dbg("[adc][%x]%x\n", ADC_REG2, demod_read_cbus_reg(ADC_REG2));
-	pr_dbg("[adc][%x]%x\n", ADC_REG3, demod_read_cbus_reg(ADC_REG3));
-	pr_dbg("[adc][%x]%x\n", ADC_REG4, demod_read_cbus_reg(ADC_REG4));
-	pr_dbg("[adc][%x]%x\n", ADC_REG6, demod_read_cbus_reg(ADC_REG6));
-	pr_dbg("[demod][%x]%x\n", DEMOD_REG1, demod_read_demod_reg(DEMOD_REG1));
-	pr_dbg("[demod][%x]%x\n", DEMOD_REG2, demod_read_demod_reg(DEMOD_REG2));
-	pr_dbg("[demod][%x]%x\n", DEMOD_REG3, demod_read_demod_reg(DEMOD_REG3));
-#endif
+	if (is_meson_txl_cpu()) {
+		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
+		demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
+		demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		/* debug */
+		pr_dbg("[adc][%x]%x\n", ADC_REG1,
+				demod_read_demod_reg(ADC_REG1));
+		pr_dbg("[adc][%x]%x\n", ADC_REG2,
+				demod_read_demod_reg(ADC_REG2));
+		pr_dbg("[adc][%x]%x\n", ADC_REG3,
+				demod_read_demod_reg(ADC_REG3));
+		pr_dbg("[adc][%x]%x\n", ADC_REG4,
+				demod_read_demod_reg(ADC_REG4));
+		pr_dbg("[adc][%x]%x\n", ADC_REG5,
+				demod_read_demod_reg(ADC_REG5));
+		pr_dbg("[adc][%x]%x\n", ADC_REG6,
+				demod_read_demod_reg(ADC_REG6));
+		pr_dbg("[adc][%x]%x\n", ADC_REG7,
+				demod_read_demod_reg(ADC_REG7));
+		pr_dbg("[adc][%x]%x\n", ADC_REG8,
+				demod_read_demod_reg(ADC_REG8));
+		pr_dbg("[adc][%x]%x\n", ADC_REG9,
+				demod_read_demod_reg(ADC_REG9));
+		pr_dbg("[adc][%x]%x\n", ADC_REGB,
+				demod_read_demod_reg(ADC_REGB));
+		pr_dbg("[adc][%x]%x\n", ADC_REGC,
+				demod_read_demod_reg(ADC_REGC));
+		pr_dbg("[adc][%x]%x\n", ADC_REGD,
+				demod_read_demod_reg(ADC_REGD));
+		pr_dbg("[adc][%x]%x\n", ADC_REGE,
+				demod_read_demod_reg(ADC_REGE));
+		pr_dbg("[demod][%x]%x\n", DEMOD_REG1,
+				demod_read_demod_reg(DEMOD_REG1));
+		pr_dbg("[demod][%x]%x\n", DEMOD_REG2,
+				demod_read_demod_reg(DEMOD_REG2));
+		pr_dbg("[demod][%x]%x\n", DEMOD_REG3,
+				demod_read_demod_reg(DEMOD_REG3));
+	} else {
+		demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
+		demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
+		demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
+		demod_set_demod_reg(ADC_REG3_VALUE, ADC_REG3);
+		/* debug */
+		pr_dbg("[adc][%x]%x\n", ADC_REG1,
+				demod_read_demod_reg(ADC_REG1));
+		pr_dbg("[adc][%x]%x\n", ADC_REG2,
+				demod_read_demod_reg(ADC_REG2));
+		pr_dbg("[adc][%x]%x\n", ADC_REG3,
+				demod_read_demod_reg(ADC_REG3));
+		pr_dbg("[adc][%x]%x\n", ADC_REG4,
+				demod_read_demod_reg(ADC_REG4));
+		pr_dbg("[adc][%x]%x\n", ADC_REG6,
+				demod_read_demod_reg(ADC_REG6));
+		pr_dbg("[demod][%x]%x\n", DEMOD_REG1,
+				demod_read_demod_reg(DEMOD_REG1));
+		pr_dbg("[demod][%x]%x\n", DEMOD_REG2,
+				demod_read_demod_reg(DEMOD_REG2));
+		pr_dbg("[demod][%x]%x\n", DEMOD_REG3,
+				demod_read_demod_reg(DEMOD_REG3));
+	}
 }
 
 void demod_set_adc_core_clk(int adc_clk, int sys_clk, int dvb_mode)
@@ -577,14 +619,11 @@ void demod_power_switch(int pwr_cntl)
 		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) &
 				     (~(0x1 << 8))), RESET0_LEVEL);
 	/*	msleep(20);*/
-#ifdef GX_TV
+
 		/* remove isolation */
-		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
+			demod_set_ao_reg(
+				(demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
 				  (~(0x3 << 14))), AO_RTI_GEN_PWR_ISO0);
-#else
-		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) &
-				  (~(0x3 << 12))), AO_RTI_GEN_PWR_ISO0);
-#endif
 		/* pull up reset */
 		demod_set_demod_reg((demod_read_demod_reg(RESET0_LEVEL) |
 				     (0x1 << 8)), RESET0_LEVEL);
@@ -592,13 +631,11 @@ void demod_power_switch(int pwr_cntl)
 	} else {
 		pr_dbg("[PWR]: Power off demod_comp\n");
 		/* add isolation */
-#ifdef GX_TV
-		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) |
+
+			demod_set_ao_reg(
+				(demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) |
 				  (0x3 << 14)), AO_RTI_GEN_PWR_ISO0);
-#else
-		demod_set_ao_reg((demod_read_ao_reg(AO_RTI_GEN_PWR_ISO0) |
-				  (0x3 << 12)), AO_RTI_GEN_PWR_ISO0);
-#endif
+
 		/* power down memory */
 		demod_set_demod_reg((demod_read_demod_reg(HHI_DEMOD_MEM_PD_REG)
 			 | 0x2fff), HHI_DEMOD_MEM_PD_REG);
@@ -617,19 +654,39 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 	union demod_cfg2 cfg2;
 
 	demod_power_switch(PWR_ON);
-#ifdef GX_TV
-	pr_dbg("GX_TV config\n");
-	demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);	/* adc reset */
-	demod_set_demod_reg(ADC_REG1_VALUE, ADC_REG1);
-	demod_set_demod_reg(ADC_REG2_VALUE, ADC_REG2);
-	demod_set_demod_reg(ADC_REG4_VALUE, ADC_REG4);
-	demod_set_demod_reg(ADC_REG3_VALUE, ADC_REG3);
-	/* dadc */
-	demod_set_demod_reg(ADC_REG7_VALUE, ADC_REG7);
-	demod_set_demod_reg(ADC_REG8_VALUE, ADC_REG8);
-	demod_set_demod_reg(ADC_REG9_VALUE, ADC_REG9);
-	demod_set_demod_reg(ADC_REGA_VALUE, ADC_REGA);
-#endif
+
+	if (is_meson_gxtvbb_cpu()) {
+		pr_dbg("GX_TV config\n");
+		demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);
+		demod_set_demod_reg(ADC_REG1_VALUE, ADC_REG1);
+		demod_set_demod_reg(ADC_REG2_VALUE, ADC_REG2);
+		demod_set_demod_reg(ADC_REG4_VALUE, ADC_REG4);
+		demod_set_demod_reg(ADC_REG3_VALUE, ADC_REG3);
+		/* dadc */
+		demod_set_demod_reg(ADC_REG7_VALUE, ADC_REG7);
+		demod_set_demod_reg(ADC_REG8_VALUE, ADC_REG8);
+		demod_set_demod_reg(ADC_REG9_VALUE, ADC_REG9);
+		demod_set_demod_reg(ADC_REGA_VALUE, ADC_REGA);
+	} else if (is_meson_txl_cpu()) {
+		pr_dbg("TXL_TV config\n");
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLTV_ADC_REG1_VALUE, ADC_REG1);
+		demod_set_demod_reg(TXLTV_ADC_REGB_VALUE, ADC_REGB);
+		demod_set_demod_reg(TXLTV_ADC_REG2_VALUE, ADC_REG2);
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLTV_ADC_REG4_VALUE, ADC_REG4);
+		demod_set_demod_reg(TXLTV_ADC_REGC_VALUE, ADC_REGC);
+		demod_set_demod_reg(TXLTV_ADC_REGD_VALUE, ADC_REGD);
+		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+
+		/* dadc */
+		demod_set_demod_reg(TXLTV_ADC_REG7_VALUE, ADC_REG7);
+		demod_set_demod_reg(TXLTV_ADC_REG8_VALUE, ADC_REG8);
+		demod_set_demod_reg(TXLTV_ADC_REG9_VALUE, ADC_REG9);
+		demod_set_demod_reg(TXLTV_ADC_REGE_VALUE, ADC_REGE);
+	}
+
 	demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
 	demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
 	demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
@@ -907,69 +964,55 @@ static dtmb_cfg_t list_dtmb_v1[99] = {
 
 void dtmb_all_reset(void)
 {
-	int temp_data;
-/* union DTMB_FRONT_AFIFO_ADC_BITS afifo_adc; */
-/* afifo_adc.d32=dtmb_read_reg(DTMB_FRONT_AFIFO_ADC); */
-/* afifo_adc.b.afifo_data_format = 1;// 1,2 is complement;0 is offset binary */
-/* dtmb_write_reg(DTMB_FRONT_AFIFO_ADC,afifo_adc.d32); */
-	/* improve agc wave 47080137 */
-/* dtmb_write_reg(DTMB_FRONT_DEBUG_CFG,0xf00000); */
-/* dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG7,0xb39ab3cd); */
-	dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
-	dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
-	dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG7, 0xc09aa8cd);
-	dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, 0x0);
-	dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x9dc59);/*snr avg ,0x269dc59*/
-	/*0x2 is auto,0x406 is  invert spectrum*/
-	if (dtmb_spectrum == 0)
-		dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x406);
-	else if (dtmb_spectrum == 1)
-		dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x402);
-	else
-		dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x2);
+	int temp_data = 0;
+	if (is_meson_txl_cpu()) {
+		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1f);
+		dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
+		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x101a7);
+	} else {
+		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
+		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
+		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG7, 0xc09aa8cd);
+		dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, 0x0);
+		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x9dc59);
+		/*0x2 is auto,0x406 is  invert spectrum*/
+		if (dtmb_spectrum == 0)
+			dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x406);
+		else if (dtmb_spectrum == 1)
+			dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x402);
+		else
+			dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x2);
 
-	pr_dbg("dtmb_spectrum is %d\n", dtmb_spectrum);
-	dtmb_write_reg(DTMB_TOP_CTRL_FEC, 0x41444400);
-	dtmb_write_reg(DTMB_TOP_CTRL_INTLV_TIME, 0x180300);
-	dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x662ca0);
-	dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x29);
-	dtmb_write_reg(DTMB_FRONT_DC_HOLD, 0xa1066);
-	/*cci para*/
-	dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG3, 0x80201f6);
-	dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG2, 0x3f20080);
-	dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
-	dtmb_write_reg(DTMB_TOP_CTRL_AGC, 0x3);
-	dtmb_write_reg(DTMB_TOP_CTRL_TS_SFO_CFO, 0x20403006);
-	dtmb_write_reg(DTMB_FRONT_AGC_CONFIG2, 0x7200a16);
-	dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x1e00000);
-	dtmb_write_reg(DTMB_TOP_CTRL_ENABLE, 0x7fffff);
-	/*close ts3 timing loop*/
-	dtmb_write_reg(DTMB_TOP_CTRL_DAGC_CCI, 0x305);
-	/*dektec card issue,close f case snr drop*/
-	dtmb_write_reg(DTMB_CHE_MC_SC_TIMING_POWTHR, 0xc06100a);
-	if (demod_enable_performance) {
-		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG1, 0x4040002);
-		temp_data = dtmb_read_reg(DTMB_CHE_FD_TD_COEFF);
-	    temp_data = (temp_data & ~0x3fff)|(0x241f & 0x3fff);
-	    temp_data = temp_data | (1<<21);
-		/*Set freeze_mode and reset coeff*/
-	    dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, temp_data);
-	    temp_data = temp_data & ~(1<<21);
-		/*Set freeze_mode and reset coeff*/
-	    dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, temp_data);
-
-
-		#if 0
-		/*Set freeze_mode and reset coeff*/
-		dtmb_write_reg(DTMB_CHE_FD_COEFF_FRZ, 0xf000000f);
-	    temp_data = dtmb_read_reg(DTMB_CHE_FD_TD_COEFF);
-	    temp_data = temp_data | (1<<24);
-		/*reset coeff*/
-	    dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, temp_data);
-	    temp_data = temp_data & ~(1<<24);
-		/*reset coeff*/
-	    dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, temp_data);
-		#endif
+		pr_dbg("dtmb_spectrum is %d\n", dtmb_spectrum);
+		dtmb_write_reg(DTMB_TOP_CTRL_FEC, 0x41444400);
+		dtmb_write_reg(DTMB_TOP_CTRL_INTLV_TIME, 0x180300);
+		dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x662ca0);
+		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x29);
+		dtmb_write_reg(DTMB_FRONT_DC_HOLD, 0xa1066);
+		/*cci para*/
+		dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG3, 0x80201f6);
+		dtmb_write_reg(DTMB_CHE_M_CCI_THR_CONFIG2, 0x3f20080);
+		dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
+		dtmb_write_reg(DTMB_TOP_CTRL_AGC, 0x3);
+		dtmb_write_reg(DTMB_TOP_CTRL_TS_SFO_CFO, 0x20403006);
+		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG2, 0x7200a16);
+		dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x1e00000);
+		dtmb_write_reg(DTMB_TOP_CTRL_ENABLE, 0x7fffff);
+		/*close ts3 timing loop*/
+		dtmb_write_reg(DTMB_TOP_CTRL_DAGC_CCI, 0x305);
+		/*dektec card issue,close f case snr drop*/
+		dtmb_write_reg(DTMB_CHE_MC_SC_TIMING_POWTHR, 0xc06100a);
+		if (demod_enable_performance) {
+			dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG1, 0x4040002);
+			temp_data = dtmb_read_reg(DTMB_CHE_FD_TD_COEFF);
+		    temp_data = (temp_data & ~0x3fff)|(0x241f & 0x3fff);
+		    temp_data = temp_data | (1<<21);
+			/*Set freeze_mode and reset coeff*/
+		    dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, temp_data);
+		    temp_data = temp_data & ~(1<<21);
+			/*Set freeze_mode and reset coeff*/
+		    dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, temp_data);
+		}
 	}
 }
 
@@ -1161,7 +1204,7 @@ int dtmb_v3_soft_sync(int cfo_init)
 
 }
 
-int dtmb_read_snr(struct dvb_frontend *fe)
+int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 {
 	int local_state;
 	int time_cnt;/* cci_det, src_config;*/
@@ -1233,6 +1276,14 @@ int dtmb_read_snr(struct dvb_frontend *fe)
 		dtmb_write_reg(DTMB_TOP_CTRL_LOOP, 0xf);
 	return 0;
 }
+
+
+int dtmb_check_status_txl(struct dvb_frontend *fe)
+{
+	dtmb_information();
+	return 0;
+}
+
 
 void dtmb_reset(void)
 {
@@ -1358,6 +1409,7 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 /* demod_sta->tmp=Adc_mode; */
 	unsigned char dvb_mode;
 	int clk_adc, clk_dem;
+	int gpioDV_2;
 	int gpiW_2;
 
 	dvb_mode = demod_sta->dvb_mode;
@@ -1369,13 +1421,22 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	mutex_init(&mp);
 	clocks_set_sys_defaults(dvb_mode);
 	/* open dtv adc pinmux */
-/* demod_set_cbus_reg(0x10000,0x2034); */
-/* demod_set_demod_reg(0x2c0f07e, 0xc88344c4);*/
-	gpiW_2 = demod_read_demod_reg(0xc88344c4);
-	gpiW_2 = gpiW_2 | (0x1 << 25);
-	gpiW_2 = gpiW_2 & ~(0xd << 24);
-	demod_set_demod_reg(gpiW_2, 0xc88344c4);
-	pr_dbg("[R840]set adc pinmux,gpiW_2 %x\n", gpiW_2);
+	if (is_meson_txl_cpu()) {
+		gpioDV_2 = demod_read_demod_reg(0xc8834400 + (0x2e << 2));
+		pr_dbg("[R840]set adc pinmux,gpioDV_2 %x\n", gpioDV_2);
+		gpioDV_2 = gpioDV_2 | (0x1 << 22);
+		gpioDV_2 = gpioDV_2 & ~(0x3 << 19);
+		gpioDV_2 = gpioDV_2 & ~(0x1 << 23);
+		gpioDV_2 = gpioDV_2 & ~(0x1 << 31);
+		demod_set_demod_reg(gpioDV_2, 0xc8834400 + (0x2e << 2));
+		pr_dbg("[R840]set adc pinmux,gpioDV_2 %x\n", gpioDV_2);
+	} else {
+		gpiW_2 = demod_read_demod_reg(0xc88344c4);
+		gpiW_2 = gpiW_2 | (0x1 << 25);
+		gpiW_2 = gpiW_2 & ~(0xd << 24);
+		demod_set_demod_reg(gpiW_2, 0xc88344c4);
+		pr_dbg("[R840]set adc pinmux,gpiW_2 %x\n", gpiW_2);
+	}
 	/* set adc clk */
 	demod_set_adc_core_clk(clk_adc, clk_dem, dvb_mode);
 	/* init for dtmb */
@@ -1390,22 +1451,32 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 
 void demod_set_reg(struct aml_demod_reg *demod_reg)
 {
-	if (demod_reg->mode == 0) {
+	switch (demod_reg->mode) {
+	case 0:
 		demod_reg->addr = demod_reg->addr + QAM_BASE;
-	} else if ((demod_reg->mode == 1) || ((demod_reg->mode == 2))) {
+		break;
+	case 1:
+	case 2:
 		demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
-	} else if (demod_reg->mode == 3) {
+		break;
+	case 3:
 		/* demod_reg->addr=ATSC_BASE; */
-	} else if (demod_reg->mode == 4) {
+		break;
+	case 4:
 		demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
-	} else if (demod_reg->mode == 5) {
+		break;
+	case 5:
 		demod_reg->addr = demod_reg->addr + DEMOD_BASE;
-	} else if (demod_reg->mode == 6) {
+		break;
+	case 6:
 		/* demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
-	} else if (demod_reg->mode == 11) {
+		break;
+	case 11:
 		demod_reg->addr = demod_reg->addr;
-	} else if (demod_reg->mode == 10) {
+		break;
+	case 10:
 		/* demod_reg->addr=(u32_t)phys_to_virt(demod_reg->addr); */
+		break;
 	}
 
 	if (demod_reg->mode == 3)

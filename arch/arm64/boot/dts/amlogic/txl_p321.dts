@@ -83,6 +83,13 @@
 			//no-map;
 		};
 
+		demod_reserved:linux,demod {
+			compatible = "amlogic, demod-mem";
+			size = <0x0 0x6400000>; //20m
+			multi-use;
+			//no-map;
+		};
+
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
 			size = <0x0 0x2000000>;
@@ -1117,6 +1124,41 @@
 		gpucore:thermal_gpu_cores {
 			#cooling-cells = <2>; /* min followed by max */
 		};
+	};
+
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "okay";
+		/*"parallel","serial","disable"*/
+		ts2 = "parallel";
+		ts2_control = <0>;
+		ts2_invert = <0>;
+		resets = <&clock GCLK_IDX_DEMUX
+				&clock GCLK_IDX_ASYNC_FIFO
+				&clock GCLK_IDX_AHB_ARB0
+				&clock GCLK_IDX_HIU_PARSER_TOP>;
+		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
+	dvbfe {
+		compatible = "amlogic, dvbfe";
+		dev_name = "dvbfe";
+		status = "okay";
+		dtv_demod0 = "AMLDEMOD";
+		fe0_dtv_demod = <0>;
+		fe0_ts = <2>;
+		fe0_dev = <0>;
+		dtv_demod0_mem = <0>;
+		dtv_demod0_spectrum = <1>;
+		memory-region = <&demod_reserved>;
+		tuner0 = "r842_tuner";
+		tuner0_i2c_adap_id = <2>;
+		tuner0_i2c_addr = <0xf6>;
+		//tuner0_reset_value = <0>;
+		//tuner0_reset_gpio =  "GPIOY_10" ;  /*GPIOX_8   76*/
+		fe0_tuner = <0>;
+		atv_demod0 = "aml_atv_demod";
+		fe0_atv_demod = <0>;
 	};
 
 	thermal-zones {

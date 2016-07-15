@@ -943,7 +943,10 @@ static int gxtv_demod_dtmb_read_status
 
 /*      s = amdemod_dtmb_stat_islock(dev);*/
 /*      if(s==1)*/
-	s = dtmb_read_snr(fe);
+	if (is_meson_txl_cpu())
+		s = dtmb_check_status_txl(fe);
+	else
+		s = dtmb_check_status_gxtv(fe);
 	s = amdemod_dtmb_stat_islock(dev);
 /*      s=1;*/
 	if (s == 1) {
@@ -1073,8 +1076,13 @@ int Gxtv_Demod_Dtmb_Init(struct aml_fe_dev *dev)
 	memset(&demod_status, 0, sizeof(demod_status));
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
 	demod_status.dvb_mode = Gxtv_Dtmb;
-	sys.adc_clk = Adc_Clk_25M;      /*Adc_Clk_26M;*/
-	sys.demod_clk = Demod_Clk_200M;
+	if (is_meson_txl_cpu()) {
+		sys.adc_clk = Adc_Clk_25M;      /*Adc_Clk_26M;*/
+		sys.demod_clk = Demod_Clk_225M;
+	} else {
+		sys.adc_clk = Adc_Clk_25M;      /*Adc_Clk_26M;*/
+		sys.demod_clk = Demod_Clk_200M;
+	}
 	demod_status.ch_if = Si2176_5M_If;
 	demod_status.tmp = Adc_mode;
 	demod_status.spectrum = dev->spectrum;

@@ -61,6 +61,78 @@
 #define ATSC_BASE  (DEMOD_BASE + 0x800)
 #define DEMOD_CFG_BASE  (DEMOD_BASE + 0xC00)
 
+/* #ifdef TXL_TV */
+#define TXLTV_ADC_RESET_VALUE          0xca6a2110	/* 0xce7a2110 */
+#define TXLTV_ADC_REG1_VALUE           0x5d414260
+#define TXLTV_ADC_REG2_VALUE           0x5ba00384	/* 0x34e0bf81 */
+#define TXLTV_ADC_REG2_VALUE_CRY       0x34e0bf81
+#define TXLTV_ADC_REG3_VALUE           0x4a6a2110	/* 0x4e7a2110 */
+#define TXLTV_ADC_REG4_VALUE           0x02913004
+#define TXLTV_ADC_REG4_CRY_VALUE 0x301
+#define TXLTV_ADC_REG7_VALUE           0x00102038
+#define TXLTV_ADC_REG8_VALUE           0x00000406
+#define TXLTV_ADC_REG9_VALUE           0x00082183
+#define TXLTV_ADC_REGA_VALUE           0x80480240
+#define TXLTV_ADC_REGB_VALUE           0x22000442
+#define TXLTV_ADC_REGC_VALUE           0x00034a00
+#define TXLTV_ADC_REGD_VALUE           0x00005000
+#define TXLTV_ADC_REGE_VALUE           0x00000200
+
+
+/* DADC DPLL */
+#define ADC_REG1         (IO_HIU_BASE + (0xaa << 2))
+#define ADC_REG2         (IO_HIU_BASE + (0xab << 2))
+#define ADC_REG3         (IO_HIU_BASE + (0xac << 2))
+#define ADC_REG4         (IO_HIU_BASE + (0xad << 2))
+
+#define ADC_REG5         (IO_HIU_BASE + (0x73 << 2))
+#define ADC_REG6         (IO_HIU_BASE + (0x74 << 2))
+
+#define ADC_REGB         (IO_HIU_BASE + (0xaf << 2))
+#define ADC_REGC         (IO_HIU_BASE + (0x9e << 2))
+#define ADC_REGD         (IO_HIU_BASE + (0x9f << 2))
+
+/* DADC REG */
+#define ADC_REG7         (IO_HIU_BASE + (0x27 << 2))
+#define ADC_REG8         (IO_HIU_BASE + (0x28 << 2))
+#define ADC_REG9         (IO_HIU_BASE + (0x2a << 2))
+#define ADC_REGA         (IO_HIU_BASE + (0x2b << 2))
+#define ADC_REGE         (IO_HIU_BASE + (0xbd << 2))
+
+/* #endif  */
+
+
+/* #ifdef GX_TV */
+
+#define ADC_RESET_VALUE          0x8a2a2110	/* 0xce7a2110 */
+#define ADC_REG1_VALUE           0x00100228
+#define ADC_REG2_VALUE           0x34e0bf80	/* 0x34e0bf81 */
+#define ADC_REG2_VALUE_CRY       0x34e0bf81
+#define ADC_REG3_VALUE           0x0a2a2110	/* 0x4e7a2110 */
+#define ADC_REG4_VALUE           0x02933800
+#define ADC_REG4_CRY_VALUE 0x301
+#define ADC_REG7_VALUE           0x01411036
+#define ADC_REG8_VALUE           0x00000000
+#define ADC_REG9_VALUE           0x00430036
+#define ADC_REGA_VALUE           0x80480240
+#if 0
+/* DADC DPLL */
+#define ADC_REG1         (IO_HIU_BASE + (0xaa << 2))
+#define ADC_REG2         (IO_HIU_BASE + (0xab << 2))
+#define ADC_REG3         (IO_HIU_BASE + (0xac << 2))
+#define ADC_REG4         (IO_HIU_BASE + (0xad << 2))
+
+#define ADC_REG5         (IO_HIU_BASE + (0x73 << 2))
+#define ADC_REG6         (IO_HIU_BASE + (0x74 << 2))
+
+/* DADC REG */
+#define ADC_REG7         (IO_HIU_BASE + (0x27 << 2))
+#define ADC_REG8         (IO_HIU_BASE + (0x28 << 2))
+#define ADC_REG9         (IO_HIU_BASE + (0x2a << 2))
+#define ADC_REGA         (IO_HIU_BASE + (0x2b << 2))
+#endif
+/* #endif */
+
 #ifdef G9_TV
 
 #define ADC_RESET_VALUE          0x8a2a2110	/* 0xce7a2110 */
@@ -89,37 +161,6 @@
 #define ADC_REG8         0x1028
 #define ADC_REG9         0x102a
 #define ADC_REGA         0x102b
-#endif
-
-#ifdef GX_TV
-
-#define ADC_RESET_VALUE          0x8a2a2110	/* 0xce7a2110 */
-#define ADC_REG1_VALUE           0x00100228
-#define ADC_REG2_VALUE           0x34e0bf80	/* 0x34e0bf81 */
-#define ADC_REG2_VALUE_CRY       0x34e0bf81
-#define ADC_REG3_VALUE           0x0a2a2110	/* 0x4e7a2110 */
-#define ADC_REG4_VALUE           0x02933800
-#define ADC_REG4_CRY_VALUE 0x301
-#define ADC_REG7_VALUE           0x01411036
-#define ADC_REG8_VALUE           0x00000000
-#define ADC_REG9_VALUE           0x00430036
-#define ADC_REGA_VALUE           0x80480240
-
-/* DADC DPLL */
-#define ADC_REG1         (IO_HIU_BASE + (0xaa << 2))
-#define ADC_REG2         (IO_HIU_BASE + (0xab << 2))
-#define ADC_REG3         (IO_HIU_BASE + (0xac << 2))
-#define ADC_REG4         (IO_HIU_BASE + (0xad << 2))
-
-#define ADC_REG5         (IO_HIU_BASE + (0x73 << 2))
-#define ADC_REG6         (IO_HIU_BASE + (0x74 << 2))
-
-/* DADC REG */
-#define ADC_REG7         (IO_HIU_BASE + (0x27 << 2))
-#define ADC_REG8         (IO_HIU_BASE + (0x28 << 2))
-#define ADC_REG9         (IO_HIU_BASE + (0x2a << 2))
-#define ADC_REGA         (IO_HIU_BASE + (0x2b << 2))
-
 #endif
 
 #ifdef M6_TV
@@ -277,7 +318,9 @@ int dtmb_set_ch(struct aml_demod_sta *demod_sta,
 
 void dtmb_reset(void);
 
-int dtmb_read_snr(struct dvb_frontend *fe);
+int dtmb_check_status_gxtv(struct dvb_frontend *fe);
+int dtmb_check_status_txl(struct dvb_frontend *fe);
+
 
 void dtmb_write_reg(int reg_addr, int reg_data);
 int dtmb_read_reg(int reg_addr);
