@@ -34,6 +34,9 @@ $(obj)/Image.gz: $(obj)/Image FORCE
 
 $(obj)/Image.lzo: $(obj)/Image FORCE
 	$(call if_changed,lzo)
+	@echo -en '\n\t\tBuild time: '
+	@date
+	@echo -e '\t\tKhadas: Something a little different!\n'
 
 $(obj)/Image.gz-dtb: $(obj)/Image.gz $(DTB_OBJS) FORCE
 	$(call if_changed,cat)

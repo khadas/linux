@@ -82,6 +82,9 @@ zinstall install: vmlinux
 	$(if $(filter $@,$(mesondtb)),\
 	$(Q)$(MAKE) $(build)=$(boot)/dts/amlogic $(boot)/dts/amlogic/$@,\
 	$(Q)$(MAKE) $(build)=customer/$(boot)/dts customer/$(boot)/dts/$@)
+	@echo -en '\n\t\tBuild time: '
+	@date
+	@echo -e '\t\tKhadas: Something a little different!\n'
 
 dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
