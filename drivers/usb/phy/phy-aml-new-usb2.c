@@ -28,6 +28,17 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 
 	if (phy->suspend_flag) {
 		phy->suspend_flag = 0;
+		for (i = 0; i < phy->portnum; i++) {
+			for (j = 0; j < 3; j++) {
+				u2p_aml_regs.u2p_r[j] = (void __iomem	*)
+				((unsigned long)phy->regs + i*PHY_REGISTER_SIZE
+					+ 4 * j);
+			}
+
+			reg0.d32 = readl(u2p_aml_regs.u2p_r[0]);
+			reg0.b.por = 0;
+			writel(reg0.d32, u2p_aml_regs.u2p_r[0]);
+		}
 		return 0;
 	}
 
@@ -66,8 +77,22 @@ static int amlogic_new_usb2_suspend(struct usb_phy *x, int suspend)
 static void amlogic_new_usb2phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb *phy = phy_to_amlusb(x);
+	struct u2p_aml_regs_t u2p_aml_regs;
+	union u2p_r0_t reg0;
+	int i, j;
 
 	phy->suspend_flag = 1;
+	for (i = phy->portnum - 1; i >= 0; i--) {
+		for (j = 0; j < 3; j++) {
+			u2p_aml_regs.u2p_r[j] = (void __iomem	*)
+				((unsigned long)phy->regs + i*PHY_REGISTER_SIZE
+				+ 4 * j);
+		}
+
+		reg0.d32 = readl(u2p_aml_regs.u2p_r[0]);
+		reg0.b.por = 1;
+		writel(reg0.d32, u2p_aml_regs.u2p_r[0]);
+	}
 }
 
 static int amlogic_new_usb2_probe(struct platform_device *pdev)
