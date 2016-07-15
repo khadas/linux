@@ -40,7 +40,7 @@
 
 struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX];
 
-struct spi_board_info ldim_spi_dev = {
+static struct spi_board_info ldim_spi_dev = {
 	.modalias = "ldim_dev",
 	.mode = SPI_MODE_0,
 	.max_speed_hz = 1000000, /* 1MHz */
@@ -231,6 +231,8 @@ void ldim_set_duty_pwm(struct bl_pwm_config_s *ld_pwm)
 	unsigned int port = ld_pwm->pwm_port;
 	unsigned int vs[4], ve[4], sw, n, i;
 
+	if (ld_pwm->pwm_port >= BL_PWM_MAX)
+		return;
 	ld_pwm->pwm_level = ld_pwm->pwm_cnt * ld_pwm->pwm_duty / 100;
 
 	if (ldim_debug_print) {
@@ -346,6 +348,79 @@ static int ldim_pwm_vs_update(void)
 	return ret;
 }
 
+static void ldim_config_print(void)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct bl_pwm_config_s *ld_pwm;
+
+	LDIMPR("%s:\n", __func__);
+	pr_info("valid_flag            = %d\n"
+		"dev_index             = %d\n",
+		ldim_drv->valid_flag,
+		ldim_drv->dev_index);
+	if (ldim_drv->ldev_conf) {
+		ld_pwm = &ldim_drv->ldev_conf->pwm_config;
+		pr_info("dev_name              = %s\n"
+			"type                  = %d\n"
+			"en_gpio               = %d\n"
+			"en_gpio_on            = %d\n"
+			"en_gpio_off           = %d\n"
+			"dim_min               = 0x%03x\n"
+			"dim_max               = 0x%03x\n\n",
+			ldim_drv->ldev_conf->name,
+			ldim_drv->ldev_conf->type,
+			ldim_drv->ldev_conf->en_gpio,
+			ldim_drv->ldev_conf->en_gpio_on,
+			ldim_drv->ldev_conf->en_gpio_off,
+			ldim_drv->ldev_conf->dim_min,
+			ldim_drv->ldev_conf->dim_max);
+		switch (ldim_drv->ldev_conf->type) {
+		case LDIM_DEV_TYPE_SPI:
+			pr_info("spi_modalias          = %s\n"
+				"spi_mode              = %d\n"
+				"spi_max_speed_hz      = %d\n"
+				"spi_bus_num           = %d\n"
+				"spi_chip_select       = %d\n"
+				"cs_hold_delay         = %d\n"
+				"cs_clk_delay          = %d\n"
+				"lamp_err_gpio         = %d\n"
+				"fault_check           = %d\n"
+				"write_check           = %d\n"
+				"cmd_size              = %d\n\n",
+				ldim_drv->spi_dev->modalias,
+				ldim_drv->spi_dev->mode,
+				ldim_drv->spi_dev->max_speed_hz,
+				ldim_drv->spi_dev->bus_num,
+				ldim_drv->spi_dev->chip_select,
+				ldim_drv->ldev_conf->cs_hold_delay,
+				ldim_drv->ldev_conf->cs_clk_delay,
+				ldim_drv->ldev_conf->lamp_err_gpio,
+				ldim_drv->ldev_conf->fault_check,
+				ldim_drv->ldev_conf->write_check,
+				ldim_drv->ldev_conf->cmd_size);
+			break;
+		case LDIM_DEV_TYPE_I2C:
+			break;
+		case LDIM_DEV_TYPE_NORMAL:
+			break;
+		default:
+			break;
+		}
+		if (ld_pwm->pwm_port < BL_PWM_MAX) {
+			pr_info("pwm_port              = %d\n"
+				"pwm_pol               = %d\n"
+				"pwm_freq              = %d\n"
+				"pwm_duty              = %d%%\n"
+				"pinmux_flag           = %d\n",
+				ld_pwm->pwm_port, ld_pwm->pwm_method,
+				ld_pwm->pwm_freq, ld_pwm->pwm_duty,
+				ld_pwm->pinmux_flag);
+		}
+	} else {
+		pr_info("device config is null\n");
+	}
+}
+
 static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 {
 	char ld_propname[20];
@@ -444,15 +519,14 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 		ldim_dev_config.en_gpio_off = temp[2];
 	}
 
-	ret = of_property_read_u32_array(child, "type", temp, 1);
+	ret = of_property_read_u32(child, "type", &val);
 	if (ret) {
 		LDIMERR("failed to get type\n");
 		ldim_dev_config.type = LDIM_DEV_TYPE_NORMAL;
 	} else {
-		ldim_dev_config.type = temp[0];
+		ldim_dev_config.type = val;
 		LDIMPR("type: %d\n", ldim_dev_config.type);
 	}
-
 	if (ldim_dev_config.type >= LDIM_DEV_TYPE_MAX) {
 		LDIMERR("type num is out of support\n");
 		return -1;
@@ -463,37 +537,35 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 		/* get spi config */
 		ldim_drv->spi_dev = &ldim_spi_dev;
 
-		ret = of_property_read_u32_array(child, "spi_bus_num", temp, 1);
+		ret = of_property_read_u32(child, "spi_bus_num", &val);
 		if (ret) {
 			LDIMERR("failed to get spi_bus_num\n");
 		} else {
-			ldim_spi_dev.bus_num = temp[0];
+			ldim_spi_dev.bus_num = val;
 			LDIMPR("bus_num: %d\n", ldim_spi_dev.bus_num);
 		}
 
-		ret = of_property_read_u32_array(child, "spi_chip_select",
-			temp, 1);
+		ret = of_property_read_u32(child, "spi_chip_select", &val);
 		if (ret) {
 			LDIMERR("failed to get spi_chip_select\n");
 		} else {
-			ldim_spi_dev.chip_select = temp[0];
+			ldim_spi_dev.chip_select = val;
 			LDIMPR("chip_select: %d\n", ldim_spi_dev.chip_select);
 		}
 
-		ret = of_property_read_u32_array(child, "spi_max_frequency",
-			temp, 1);
+		ret = of_property_read_u32(child, "spi_max_frequency", &val);
 		if (ret) {
 			LDIMERR("failed to get spi_chip_select\n");
 		} else {
-			ldim_spi_dev.max_speed_hz = temp[0];
+			ldim_spi_dev.max_speed_hz = val;
 			LDIMPR("max_speed_hz: %d\n", ldim_spi_dev.max_speed_hz);
 		}
 
-		ret = of_property_read_u32_array(child, "spi_mode", temp, 1);
+		ret = of_property_read_u32(child, "spi_mode", &val);
 		if (ret) {
 			LDIMERR("failed to get spi_mode\n");
 		} else {
-			ldim_spi_dev.max_speed_hz = temp[0];
+			ldim_spi_dev.mode = val;
 			LDIMPR("mode: %d\n", ldim_spi_dev.mode);
 		}
 
@@ -598,13 +670,11 @@ ldim_get_init_off:
 		}
 ldim_get_config_end:
 		break;
-
 	case LDIM_DEV_TYPE_I2C:
 		break;
 	case LDIM_DEV_TYPE_NORMAL:
 	default:
 		break;
-
 	}
 	return 0;
 }
@@ -672,6 +742,7 @@ static int ldim_dev_probe(struct platform_device *pdev)
 	ldim_drv->ldev_conf = &ldim_dev_config;
 	ldim_drv->pinmux_ctrl = ldim_pwm_pinmux_ctrl;
 	ldim_drv->pwm_vs_update = ldim_pwm_vs_update;
+	ldim_drv->config_print = ldim_config_print,
 	ldim_dev_get_config_from_dts(pdev->dev.of_node, ldim_drv->dev_index);
 
 	ldim_dev_add_driver(ldim_drv->ldev_conf, ldim_drv->dev_index);

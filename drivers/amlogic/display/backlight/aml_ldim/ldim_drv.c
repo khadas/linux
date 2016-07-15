@@ -2145,62 +2145,6 @@ static int ldim_set_level(unsigned int level)
 	return ret;
 }
 
-static void ldim_config_print(void)
-{
-	struct bl_pwm_config_s *ld_pwm;
-
-	LDIMPR("%s:\n", __func__);
-	pr_info("valid_flag            = %d\n"
-		"dev_index             = %d\n",
-		ldim_driver.valid_flag,
-		ldim_driver.dev_index);
-	if (ldim_driver.ldev_conf) {
-		ld_pwm = &ldim_driver.ldev_conf->pwm_config;
-		pr_info("dev_name              = %s\n"
-			"cs_hold_delay         = %d\n"
-			"cs_clk_delay          = %d\n"
-			"en_gpio               = %d\n"
-			"en_gpio_on            = %d\n"
-			"en_gpio_off           = %d\n"
-			"lamp_err_gpio         = %d\n"
-			"fault_check           = %d\n"
-			"write_check           = %d\n"
-			"dim_min               = 0x%03x\n"
-			"dim_max               = 0x%03x\n"
-			"cmd_size              = %d\n",
-			ldim_driver.ldev_conf->name,
-			ldim_driver.ldev_conf->cs_hold_delay,
-			ldim_driver.ldev_conf->cs_clk_delay,
-			ldim_driver.ldev_conf->en_gpio,
-			ldim_driver.ldev_conf->en_gpio_on,
-			ldim_driver.ldev_conf->en_gpio_off,
-			ldim_driver.ldev_conf->lamp_err_gpio,
-			ldim_driver.ldev_conf->fault_check,
-			ldim_driver.ldev_conf->write_check,
-			ldim_driver.ldev_conf->dim_min,
-			ldim_driver.ldev_conf->dim_max,
-			ldim_driver.ldev_conf->cmd_size);
-		if (ld_pwm->pwm_port < BL_PWM_MAX) {
-			pr_info("pwm_port              = %d\n"
-				"pwm_pol               = %d\n"
-				"pwm_freq              = %d\n"
-				"pwm_duty              = %d%%\n"
-				"pinmux_flag           = %d\n",
-				ld_pwm->pwm_port, ld_pwm->pwm_method,
-				ld_pwm->pwm_freq, ld_pwm->pwm_duty,
-				ld_pwm->pinmux_flag);
-		}
-	} else {
-		pr_info("device config is null\n");
-	}
-	pr_info("ldim_on_flag          = %d\n"
-		"ldim_func_en          = %d\n"
-		"ldim_remap_en         = %d\n"
-		"ldim_test_en          = %d\n\n",
-		ldim_on_flag, ldim_func_en,
-		ldim_matrix_update_en, ldim_test_en);
-}
-
 static void ldim_test_ctrl(int flag)
 {
 	if (flag) /* when enable lcd bist pattern, bypass ldim function */
@@ -2220,8 +2164,8 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.power_on = ldim_power_on,
 	.power_off = ldim_power_off,
 	.set_level = ldim_set_level,
-	.config_print = ldim_config_print,
 	.test_ctrl = ldim_test_ctrl,
+	.config_print = NULL,
 	.pinmux_ctrl = NULL,
 	.pwm_vs_update = NULL,
 	.device_power_on = NULL,
@@ -3150,7 +3094,13 @@ static ssize_t ldim_attr_store(struct class *cla,
 		LDIM_Initial(3840, 2160, 16, 24, 2, 1, 0);
 		pr_info("**************ldim curve_15 ok*************\n");
 	} else if (!strcmp(parm[0], "info")) {
-		ldim_config_print();
+		ldim_driver.config_print();
+		pr_info("ldim_on_flag          = %d\n"
+			"ldim_func_en          = %d\n"
+			"ldim_remap_en         = %d\n"
+			"ldim_test_en          = %d\n\n",
+			ldim_on_flag, ldim_func_en,
+			ldim_matrix_update_en, ldim_test_en);
 	} else
 		pr_info("no support cmd!!!\n");
 
