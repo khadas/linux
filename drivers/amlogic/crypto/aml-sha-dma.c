@@ -348,7 +348,7 @@ static int aml_sha_update_dma_slow(struct aml_sha_dev *dd)
 static int aml_sha_update_dma_start(struct aml_sha_dev *dd)
 {
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(dd->req);
-	unsigned int length, final, tail = 0;
+	unsigned int length = 0, final = 0, tail = 0;
 	struct scatterlist *sg;
 	struct dma_dsc *dsc = dd->descriptor;
 
