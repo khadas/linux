@@ -98,6 +98,10 @@ int pc_mode_en;
 MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
 module_param(pc_mode_en, int, 0664);
 
+unsigned int hdmirx_addr_port;
+unsigned int hdmirx_data_port;
+unsigned int hdmirx_ctrl_port;
+
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -1154,6 +1158,20 @@ static int hdmirx_probe(struct platform_device *pdev)
 			pr_err("get port_map fail.\n");
 			real_port_map = 0x3120;
 		}
+	}
+	if (pdev->dev.of_node) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"hdmirx_addr_port", &hdmirx_addr_port);
+		if (ret)
+			pr_err("get hdmirx_addr_port fail.\n");
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"hdmirx_data_port", &hdmirx_data_port);
+		if (ret)
+			pr_err("get hdmirx_data_port fail.\n");
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"hdmirx_ctrl_port", &hdmirx_ctrl_port);
+		if (ret)
+			pr_err("get hdmirx_ctrl_port fail.\n");
 	}
 
 	/* hdmirx_hw_enable(); */

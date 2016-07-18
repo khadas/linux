@@ -372,6 +372,9 @@
 		rx_port_maps = <0x3120>;
 		repeat = <0>;
 		interrupts = <0 56 1>;
+		hdmirx_addr_port = <0xda83e000>;
+		hdmirx_data_port = <0xda83e004>;
+		hdmirx_ctrl_port = <0xda83e008>;
 		clocks = <&clock CLK_HDMIRX_MODET_CLK>,
 			<&clock CLK_HDMIRX_CFG_CLK>,
 			<&clock CLK_HDMIRX_ACR_REF_CLK>,

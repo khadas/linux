@@ -582,6 +582,10 @@ extern bool hdcp_enable;
 extern int it_content;
 extern struct rx_s rx;
 extern int log_flag;
+
+extern unsigned int hdmirx_addr_port;
+extern unsigned int hdmirx_data_port;
+extern unsigned int hdmirx_ctrl_port;
 extern unsigned char is_alternative(void);
 extern unsigned char is_frame_packing(void);
 extern void clk_init(void);

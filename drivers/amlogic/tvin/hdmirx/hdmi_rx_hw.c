@@ -65,9 +65,6 @@
 
 #define AUDIO_OUTPUT_SELECT I2S_32BIT_256FS_OUTPUT
 
-#define HDMIRX_ADDR_PORT	0xda83e000
-#define HDMIRX_DATA_PORT	0xda83e004
-#define HDMIRX_CTRL_PORT	0xda83e008
 #define TOP_INT_MASK_VALUE	0x000003fd
 
 static DEFINE_SPINLOCK(reg_rw_lock);
@@ -162,8 +159,8 @@ uint32_t hdmirx_rd_dwc(uint16_t addr)
 	int data;
 	unsigned long dev_offset = 0x10;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	wr_reg(HDMIRX_ADDR_PORT | dev_offset, addr);
-	data = rd_reg(HDMIRX_DATA_PORT | dev_offset);
+	wr_reg(hdmirx_addr_port | dev_offset, addr);
+	data = rd_reg(hdmirx_data_port | dev_offset);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 	return data;
 }
@@ -179,8 +176,8 @@ void hdmirx_wr_dwc(uint16_t addr, uint32_t data)
 	ulong flags;
 	unsigned long dev_offset = 0x10;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	wr_reg(HDMIRX_ADDR_PORT | dev_offset, addr);
-	wr_reg(HDMIRX_DATA_PORT | dev_offset, data);
+	wr_reg(hdmirx_addr_port | dev_offset, addr);
+	wr_reg(hdmirx_data_port | dev_offset, data);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
@@ -255,8 +252,8 @@ void hdmirx_wr_top(unsigned long addr, unsigned long data)
 	ulong flags;
 	unsigned long dev_offset = 0;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	wr_reg(HDMIRX_ADDR_PORT | dev_offset, addr);
-	wr_reg(HDMIRX_DATA_PORT | dev_offset, data);
+	wr_reg(hdmirx_addr_port | dev_offset, addr);
+	wr_reg(hdmirx_data_port | dev_offset, data);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
@@ -266,9 +263,9 @@ unsigned long hdmirx_rd_top(unsigned long addr)
 	int data;
 	unsigned long dev_offset = 0;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	wr_reg(HDMIRX_ADDR_PORT | dev_offset, addr);
-	wr_reg(HDMIRX_ADDR_PORT | dev_offset, addr);
-	data = rd_reg(HDMIRX_DATA_PORT | dev_offset);
+	wr_reg(hdmirx_addr_port | dev_offset, addr);
+	wr_reg(hdmirx_addr_port | dev_offset, addr);
+	data = rd_reg(hdmirx_data_port | dev_offset);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 	return data;
 } /* hdmirx_rd_TOP */
@@ -422,7 +419,7 @@ void hdmirx_wr_ctl_port(unsigned int offset, unsigned long data)
 {
 	ulong flags;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	wr_reg(HDMIRX_CTRL_PORT+offset, data);
+	wr_reg(hdmirx_ctrl_port+offset, data);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
@@ -691,12 +688,22 @@ static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 
 void hdmirx_set_hpd(int port, unsigned char val)
 {
-	if (val) {
-		hdmirx_wr_top(TOP_HPD_PWR5V,
-			hdmirx_rd_top(TOP_HPD_PWR5V)&(~(1<<port)));
+	if (is_meson_gxtvbb_cpu()) {
+		if (!val) {
+			hdmirx_wr_top(TOP_HPD_PWR5V,
+				hdmirx_rd_top(TOP_HPD_PWR5V)&(~(1<<port)));
+		} else {
+			hdmirx_wr_top(TOP_HPD_PWR5V,
+				hdmirx_rd_top(TOP_HPD_PWR5V)|(1<<port));
+		}
 	} else {
-		hdmirx_wr_top(TOP_HPD_PWR5V,
-			hdmirx_rd_top(TOP_HPD_PWR5V)|(1<<port));
+		if (val) {
+			hdmirx_wr_top(TOP_HPD_PWR5V,
+				hdmirx_rd_top(TOP_HPD_PWR5V)&(~(1<<port)));
+		} else {
+			hdmirx_wr_top(TOP_HPD_PWR5V,
+				hdmirx_rd_top(TOP_HPD_PWR5V)|(1<<port));
+		}
 	}
 
 	if (log_flag & LOG_EN)
@@ -984,7 +991,10 @@ void hdmirx_hw_probe(void)
 	hdmirx_wr_top(TOP_SW_RESET,	0);
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
-	hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
+	if (is_meson_gxtvbb_cpu())
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
+	else
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
 	hdmi_rx_ctrl_edid_update();
 	/* #ifdef HDCP22_ENABLE */
 	/* if (hdcp_22_on) */
@@ -993,8 +1003,10 @@ void hdmirx_hw_probe(void)
 	mdelay(150);
 	if (phy_init_in_probe)
 		hdmirx_phy_init(0, 0);
-
-	hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
+	if (is_meson_gxtvbb_cpu())
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
+	else
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
