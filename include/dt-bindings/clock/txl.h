@@ -58,6 +58,7 @@
 #define CLK_HDMIRX_CFG_CLK		43
 #define CLK_HDMIRX_ACR_REF_CLK	44
 #define CLK_HDMIRX_AUDMEAS_CLK	45
+#define CLK_VDIN_MEAS_CLK	46
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
 #define CLK_MALI_0		CLK_GPU_0

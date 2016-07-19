@@ -337,6 +337,19 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 
 	return;
 }
+/*
+txl new add adj filter:
+normal filter: 0x3194 = 0x40100160, 0x3195 = 0x50, 0x3196=0x0.
+sharper filter: 0x3194 = 0x40123282, 0x3195 = 0x19dd03a6, 0x96=0x0.
+even sharper filter: 0x3194 = 0x401012da, 0x3195 = 0x2023036c,
+0x3196 = 0xf20815d4
+*/
+static void tvafe_cvd2_filter_config(void)
+{
+	W_APB_REG(ACD_REG_94, 0x40100160);
+	W_APB_REG(ACD_REG_95, 0x50);
+	W_APB_REG(ACD_REG_96, 0x0);
+}
 
 /*
  * tvafe cvd2 load Reg talbe
@@ -350,9 +363,8 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	W_APB_BIT(CVD2_RESET_REGISTER, 1, SOFT_RST_BIT, SOFT_RST_WID);
 
 	/* for rf&cvbs source acd table */
-	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(is_meson_gxtvbb_cpu())) {
+	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+		(cvd2->vd_port == TVIN_PORT_CVBS0)) {
 
 		for (i = 0; i < (ACD_REG_NUM+1); i++) {
 
@@ -373,6 +385,8 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		}
 
 	}
+	/*cvd filter config*/
+	tvafe_cvd2_filter_config();
 
 	/* load CVD2 reg 0x00~3f (char) */
 	for (i = 0; i < CVD_PART1_REG_NUM; i++) {
@@ -426,9 +440,8 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 
 	/* for tuner picture quality */
 
-	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(is_meson_gxtvbb_cpu())) {
+	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+		(cvd2->vd_port == TVIN_PORT_CVBS0)) {
 
 		W_APB_REG(CVD2_REG_B0, 0xf0);
 		W_APB_BIT(CVD2_REG_B2 , 0,
@@ -453,17 +466,15 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	/* vbi reset release, vbi agent enable */
 #endif
 #if defined(CONFIG_TVIN_TUNER_SI2176)
-	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(is_meson_gxtvbb_cpu())) {
+	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+		(cvd2->vd_port == TVIN_PORT_CVBS0)) {
 
 		W_APB_BIT(CVD2_NON_STANDARD_SIGNAL_THRESHOLD, 3,
 				HNON_STD_TH_BIT, HNON_STD_TH_WID);
 	}
 #elif defined(CONFIG_TVIN_TUNER_HTM9AW125)
-	if ((((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
 		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(is_meson_gxtvbb_cpu())) &&
 		(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)) {
 
 		W_APB_BIT(ACD_REG_1B , 0xc, YCSEP_TEST6F_BIT, YCSEP_TEST6F_WID);
@@ -471,9 +482,8 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 #endif
 
 	/* add for board e04&e08  */
-	if ((((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
 		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(is_meson_gxtvbb_cpu())) &&
 		(cvd_reg07_pal != 0x03)
 		&& (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I))
 		W_APB_REG(CVD2_OUTPUT_CONTROL, cvd_reg07_pal);
@@ -523,9 +533,8 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 		}
 
 #ifdef CONFIG_AM_SI2176
-		if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-			(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-			(is_meson_gxtvbb_cpu())) {
+		if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+			(cvd2->vd_port == TVIN_PORT_CVBS0)) {
 
 			W_APB_BIT(CVD2_NON_STANDARD_SIGNAL_THRESHOLD, 3,
 					HNON_STD_TH_BIT, HNON_STD_TH_WID);
@@ -567,9 +576,8 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 		W_APB_REG(TVFE_CLAMP_INTF, 0x8000);
 		W_APB_BIT(CVD2_H_LOOP_MAXSTATE, 4,
 			HSTATE_MAX_BIT, HSTATE_MAX_WID);
-		if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-			(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-			(is_meson_gxtvbb_cpu())) {
+		if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+			(cvd2->vd_port == TVIN_PORT_CVBS0)) {
 
 #if ((defined CONFIG_AM_R840) || (defined CONFIG_AM_MXL661))
 			W_APB_BIT(CVD2_VSYNC_SIGNAL_THRESHOLD, 0,
@@ -600,9 +608,8 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 		W_APB_REG(TVFE_CLAMP_INTF, 0x8666);
 		W_APB_BIT(CVD2_H_LOOP_MAXSTATE, 5,
 			HSTATE_MAX_BIT, HSTATE_MAX_WID);
-		if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-			(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-			(is_meson_gxtvbb_cpu())) {
+		if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+			(cvd2->vd_port == TVIN_PORT_CVBS0)) {
 
 
 #ifdef CVD_SI2176_RSSI
@@ -659,7 +666,7 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 inline void tvafe_cvd2_reset_pga(void)
 {
 	/* reset pga value */
-	if (is_meson_gxtvbb_cpu())
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
 		W_APB_BIT(TVFE_VAFE_CTRL1, pga_default_vale,
 			VAFE_PGA_GAIN_BIT, VAFE_PGA_GAIN_WID);
 	else {
@@ -1439,9 +1446,8 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 			}
 		}
 	}
-	if ((((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
 		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(is_meson_gxtvbb_cpu())) &&
 		force_fmt_flag) {
 		if (cvd_dbg_en)
 			pr_info("[%s]:ignore the pal/358/443 flag and return\n",
@@ -2125,7 +2131,7 @@ inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 
 		cvd2->info.dgain_cnt = TVAFE_SET_CVBS_PGA_START;
 	}
-	if (is_meson_gxtvbb_cpu()) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		if (cvd2->info.dgain_cnt == TVAFE_SET_CVBS_PGA_START) {
 
 			cvd2->info.dgain_cnt = 0;

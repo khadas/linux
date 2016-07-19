@@ -911,7 +911,7 @@ static enum tvafe_adc_ch_e tvafe_adc_pin_muxing(
 					enum tvafe_adc_pin_e pin)
 {
 	enum tvafe_adc_ch_e ret = TVAFE_ADC_CH_NULL;
-	if (is_meson_gxtvbb_cpu()) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		pr_info("[tvafe]%s:pin:%d\n", __func__, (unsigned int)pin);
 		if (pin == TVAFE_CVBS_IN0) {
 
@@ -1131,8 +1131,7 @@ int tvafe_set_source_muxing(enum tvin_port_e port,
 	switch (port) {
 
 	case TVIN_PORT_CVBS0:
-		if (is_meson_gxtvbb_cpu())
-			tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN0]);
+		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN0]);
 #if 0
 		else {
 			if (
@@ -1157,8 +1156,7 @@ int tvafe_set_source_muxing(enum tvin_port_e port,
 #endif
 		break;
 	case TVIN_PORT_CVBS1:
-		if (is_meson_gxtvbb_cpu())
-				tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN1]);
+		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN1]);
 #if 0
 		else {
 			if (tvafe_adc_pin_muxing(pinmux->pin[CVBS1_Y]) ==
@@ -1180,8 +1178,7 @@ int tvafe_set_source_muxing(enum tvin_port_e port,
 #endif
 		break;
 	case TVIN_PORT_CVBS2:
-		if (is_meson_gxtvbb_cpu())
-			tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN2]);
+		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN2]);
 #if 0
 		else {
 			if (tvafe_adc_pin_muxing(pinmux->pin[CVBS2_Y]) ==
@@ -1203,8 +1200,7 @@ int tvafe_set_source_muxing(enum tvin_port_e port,
 #endif
 		break;
 	case TVIN_PORT_CVBS3:
-		if (is_meson_gxtvbb_cpu())
-			tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN3]);
+		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN3]);
 #if 0
 		else {
 			if (tvafe_adc_pin_muxing(pinmux->pin[CVBS3_Y]) ==
@@ -3990,15 +3986,27 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 #endif
 	/*config adc*/
 	if (port == TVIN_PORT_CVBS3) {
-		/** DADC CNTL for LIF signal input **/
-		W_HIU_REG(HHI_DADC_CNTL, 0x1411036);
-		W_HIU_REG(HHI_DADC_CNTL2, 0x0);
-		W_HIU_REG(HHI_DADC_CNTL3, 0x430036);
-		W_HIU_REG(HHI_DADC_CNTL4, 0x80600240);
+		if (is_meson_txl_cpu()) {
+			/** DADC CNTL for LIF signal input **/
+			W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
+			W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
+			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
+		} else {
+			/** DADC CNTL for LIF signal input **/
+			W_HIU_REG(HHI_DADC_CNTL, 0x1411036);
+			W_HIU_REG(HHI_DADC_CNTL2, 0x0);
+			W_HIU_REG(HHI_DADC_CNTL3, 0x430036);
+			W_HIU_REG(HHI_DADC_CNTL4, 0x80600240);
+		}
 	} else{
-		/** CADC CNTL for LIF signal input **/
-		W_HIU_REG(HHI_CADC_CNTL, 0x8022436);
-		W_HIU_REG(HHI_CADC_CNTL2, 0x848000);
+		if (is_meson_txl_cpu()) {
+			W_HIU_REG(HHI_CADC_CNTL, 0x02000A08);
+			W_HIU_REG(HHI_CADC_CNTL2, 0x04007B05);
+		} else if (is_meson_gxtvbb_cpu()) {
+			/** CADC CNTL for LIF signal input **/
+			W_HIU_REG(HHI_CADC_CNTL, 0x8022436);
+			W_HIU_REG(HHI_CADC_CNTL2, 0x848000);
+		}
 	}
 	/** enable tv_decoder mem clk **/
 	W_HIU_BIT(HHI_VPU_CLK_CNTL, 1 , 28, 1);
@@ -4010,7 +4018,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			cvbs_top_reg_default[i][1]);
 		i++;
 	}
-	if (is_meson_gxtvbb_cpu()) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		W_APB_REG(TVFE_VAFE_CTRL0, 0x00090b00);
 		W_APB_REG(TVFE_VAFE_CTRL1, 0x00000110);
 		W_APB_REG(TVFE_VAFE_CTRL2, 0x0010ef93);
@@ -4046,10 +4054,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 
 void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 {
-	int chip_ver = 0;
-
-	if (is_meson_gxtvbb_cpu()) {
-		chip_ver = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 		if (enable) {
 			if (port == TVIN_PORT_CVBS3) {
 				vdac_enable(1, 0x1);
@@ -4136,8 +4141,7 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 #endif
 		if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7)) {
 #if (defined(CONFIG_ADC_DOUBLE_SAMPLING_FOR_CVBS) && defined(CRYSTAL_24M))
-			if (is_meson_gxtvbb_cpu()
-				&& (port != TVIN_PORT_CVBS3)
+			if ((port != TVIN_PORT_CVBS3)
 				&& (port != TVIN_PORT_CVBS0)) {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xa92a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02973800);
@@ -4146,7 +4150,20 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x292a2110);
 			} else
 #endif
-			{
+			if (is_meson_txl_cpu()) {
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
+				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
+				/*0x5ba00380 from pll;0x5ba00384 clk
+				form crystal*/
+				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
+				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
+				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+			} else {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xce7a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
 				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x0484680);

@@ -315,7 +315,7 @@ static const struct vframe_operations_s vdin_vf_ops = {
 void vdin_cma_alloc(struct vdin_dev_s *devp)
 {
 	char vdin_name[5];
-	unsigned int mem_size;
+	unsigned int mem_size, h_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_CPU;
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
@@ -323,17 +323,26 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)) {
 		if (devp->source_bitdepth > 8)
-			mem_size = devp->h_active * devp->v_active * 4;
+			h_size = roundup(devp->h_active * 4, 32);
 		else
-			mem_size = devp->h_active * devp->v_active * 3;
+			h_size = roundup(devp->h_active * 3, 32);
 	} else {
-		if (devp->source_bitdepth > 8)
-			mem_size = devp->h_active * devp->v_active * 3;
+		/* txl new add mode yuv422 pack mode:canvas-w=h*2*10/8
+		*canvas_w must ensure divided exact by 256bit(32byte*/
+		if ((devp->source_bitdepth > 8) &&
+		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
+		(devp->color_depth_mode == 1))
+			h_size = roundup((devp->h_active * 5)/2, 32);
+		else if ((devp->source_bitdepth > 8) &&
+			(devp->color_depth_mode == 0))
+			h_size = roundup(devp->h_active * 3, 32);
 		else
-			mem_size = devp->h_active * devp->v_active * 2;
+			h_size = roundup(devp->h_active * 2, 32);
 	}
-	if (devp->source_bitdepth > 8)
-		mem_size = mem_size*3/2;
+	mem_size = h_size * devp->v_active;
 	mem_size = PAGE_ALIGN(mem_size)*max_buf_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
@@ -678,6 +687,12 @@ static inline void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
 		vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		break;
 	}
+	if (devp->color_depth_mode && (devp->source_bitdepth > 8) &&
+		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)))
+		vf->bitdepth |= FULL_PACK_422_MODE;
 }
 
 /*
@@ -830,7 +845,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_set_decimation(devp);
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		vdin_set_bitdepth(devp);
 
 #ifdef CONFIG_AML_RDMA
@@ -2632,6 +2647,10 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->color_depth_support = bit_mode;
 		vdevp->color_depth_config = 0;
 	}
+	if (vdevp->color_depth_support&VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE)
+		vdevp->color_depth_mode = 1;
+	else
+		vdevp->color_depth_mode = 0;
 	#endif
 	vdevp->irq = res->start;
 	snprintf(vdevp->irq_name, sizeof(vdevp->irq_name),

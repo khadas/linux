@@ -272,7 +272,7 @@ static ssize_t dumpmem_store(struct device *dev,
 	devp = dev_get_drvdata(dev);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, "\n");
+		token = strsep(&ps, " \n");
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -708,8 +708,7 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		mutex_unlock(&devp->afe_mutex);
 		return 1;
 	}
-	if (((port < TVIN_PORT_CVBS0) || (port > TVIN_PORT_CVBS7)) &&
-			(is_meson_gxtvbb_cpu())) {
+	if ((port < TVIN_PORT_CVBS0) || (port > TVIN_PORT_CVBS7)) {
 
 		pr_err("[tvafe..] %s(%d), %s unsupport\n", __func__,
 				devp->index, tvin_port_str(port));
@@ -773,8 +772,7 @@ void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
-	if (((port < TVIN_PORT_CVBS0) || (port > TVIN_PORT_CVBS7)) &&
-			(is_meson_gxtvbb_cpu())) {
+	if ((port < TVIN_PORT_CVBS0) || (port > TVIN_PORT_CVBS7)) {
 
 		pr_err("[tvafe..] %s(%d), %s unsupport\n", __func__,
 				devp->index, tvin_port_str(port));
@@ -818,8 +816,7 @@ void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
-	if (((port < TVIN_PORT_CVBS0) || (port > TVIN_PORT_CVBS7)) &&
-			(is_meson_gxtvbb_cpu())) {
+	if ((port < TVIN_PORT_CVBS0) || (port > TVIN_PORT_CVBS7)) {
 
 		pr_err("[tvafe..] %s(%d), %s unsupport\n", __func__,
 				devp->index, tvin_port_str(port));
@@ -880,9 +877,8 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
-	if (((tvafe->parm.port < TVIN_PORT_CVBS0) ||
-			(tvafe->parm.port > TVIN_PORT_CVBS7)) &&
-			(is_meson_gxtvbb_cpu())) {
+	if ((tvafe->parm.port < TVIN_PORT_CVBS0) ||
+		(tvafe->parm.port > TVIN_PORT_CVBS7)) {
 
 		pr_err("[tvafe..] %s(%d), %s unsupport\n", __func__,
 				devp->index, tvin_port_str(tvafe->parm.port));

@@ -145,7 +145,7 @@ static ssize_t vdin_attr_show(struct device *dev,
 	len += sprintf(buf+len,
 		"/sys/class/vdin/vdinx/attr.\n");
 	len += sprintf(buf+len,
-		"echo v4l2start bt656/viuin/isp h_actve v_active");
+		"echo v4l2start bt656/viuin/video/isp h_actve v_active");
 	len += sprintf(buf+len,
 		"frame_rate cfmt dfmt scan_fmt > /sys/class/vdin/vdinx/attr.\n");
 	len += sprintf(buf+len,
@@ -238,6 +238,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
 	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
 	pr_info("color_depth_config:%d\n", devp->color_depth_config);
+	pr_info("color_depth_mode:%d\n", devp->color_depth_mode);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:%d\n", devp->cma_config_flag);
 	vdin_dump_vf_state(devp->vfp);
@@ -560,6 +561,9 @@ start_chk:
 		} else if (!strcmp(parm[1], "viuin")) {
 			param.port = TVIN_PORT_VIU;
 			pr_info(" port is TVIN_PORT_VIU\n");
+		} else if (!strcmp(parm[1], "video")) {
+			param.port = TVIN_PORT_VIDEO;
+			pr_info(" port is TVIN_PORT_VIDEO\n");
 		} else if (!strcmp(parm[1], "isp")) {
 			param.port = TVIN_PORT_ISP;
 			pr_info(" port is TVIN_PORT_ISP\n");
@@ -838,6 +842,12 @@ start_chk:
 		devp->color_depth_config = val;
 		pr_info("color_depth(%d):%d\n\n", devp->index,
 			devp->color_depth_config);
+	} else if (!strcmp(parm[0], "color_depth_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		devp->color_depth_mode = val;
+		pr_info("color_depth_mode(%d):%d\n\n", devp->index,
+			devp->color_depth_mode);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

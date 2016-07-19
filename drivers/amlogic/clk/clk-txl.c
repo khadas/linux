@@ -53,7 +53,7 @@ static void __iomem *reg_base_aobus;
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
 #define	HHI_BT656_CLK_CNTL		OFFSET(0xf5)
 #define	HHI_VID_LOCK_CLK_CNTL		OFFSET(0xf2)
-
+#define	HHI_VDIN_MEAS_CLK_CNTL	OFFSET(0x94)
 /* hdmirx */
 #define HHI_HDMIRX_CLK_CNTL		OFFSET(0x80)
 #define HHI_HDMIRX_AUD_CLK_CNTL	OFFSET(0x81)
@@ -80,7 +80,8 @@ PNAME(cts_bt656_clk0_p) = {"fclk_div2", "fclk_div3", "fclk_div5", "fclk_div7"};
 
 PNAME(cts_vid_lock_clk_p) = {"xtal", "cts_encl_clk", "cts_enci_clk",
 							"cts_encp_clk"};
-
+PNAME(cts_vdin_meas_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5",
+		"vid_pll_clk", "vid2_pll_clk"};
 /* hdmirx */
 PNAME(clk_modet_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
 PNAME(clk_cfg_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5"};
@@ -176,6 +177,11 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_VID_LOCK_CLK_CNTL, 8, 2, 0,
 			HHI_VID_LOCK_CLK_CNTL, 0, 7, 0,
 			HHI_VID_LOCK_CLK_CNTL, 7, 0),
+	COMPOSITE(CLK_VDIN_MEAS_CLK, "cts_vdin_meas_clk", cts_vdin_meas_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_VDIN_MEAS_CLK_CNTL, 9, 3, 0,
+			HHI_VDIN_MEAS_CLK_CNTL, 0, 7, 0,
+			HHI_VDIN_MEAS_CLK_CNTL, 8, 0),
 	/* hdmirx_modet clk */
 	COMPOSITE(CLK_HDMIRX_MODET_CLK, "clk_hdmirx_modet_clk", clk_modet_clk_p,
 					CLK_SET_RATE_NO_REPARENT,

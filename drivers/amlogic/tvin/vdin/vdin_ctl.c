@@ -680,9 +680,14 @@ static inline void vdin_set_top(unsigned int offset,
 		wr_bits(offset, VDIN_ASFIFO_CTRL2, 0xe4,
 				VDI5_ASFIFO_CTRL_BIT, VDI5_ASFIFO_CTRL_WID);
 		break;
+	case 0xa0:
 	case 0xc0: /* viu */
 		vdin_mux = VDIN_MUX_VIU;
-		wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
+		if (port == TVIN_PORT_VIDEO)
+			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
+				VDI6_ASFIFO_CTRL_BIT, VDI6_ASFIFO_CTRL_WID);
+		else
+			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
 				VDI6_ASFIFO_CTRL_BIT, VDI6_ASFIFO_CTRL_WID);
 		break;
 	case 0x100:/* mipi in mybe need modify base on truth */
@@ -1274,7 +1279,8 @@ static inline void vdin_set_hist_mux(struct vdin_dev_s *devp)
 }
 
 static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
-		unsigned int h, enum vdin_format_convert_e format_convert)
+		unsigned int h, enum vdin_format_convert_e format_convert,
+		unsigned int color_depth_mode, unsigned int source_bitdeth)
 {
 	unsigned int write_format444 = 0, swap_cbcr = 0;
 	/* unsigned int def_canvas_id = offset?
@@ -1299,6 +1305,13 @@ static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
 		write_format444 = 1;
 		break;
 	}
+	/*yuv422 full pack mode for 10bit*/
+	if (((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
+		(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
+		(format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
+		(format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
+		color_depth_mode && (source_bitdeth > 8))
+		write_format444 = 3;
 
 	/* win_he */
 	wr_bits(offset, VDIN_WR_H_START_END, (h - 1), WR_HEND_BIT, WR_HEND_WID);
@@ -1837,7 +1850,8 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 	vdin_set_hist_mux(devp);
 	/* write sub-module */
 	vdin_set_wr_ctrl(devp->addr_offset, devp->v_active,
-			devp->h_active, devp->format_convert);
+			devp->h_active, devp->format_convert,
+			devp->color_depth_mode, devp->source_bitdepth);
 
 	/* top sub-module */
 	vdin_set_top(devp->addr_offset, devp->parm.port,
@@ -1988,7 +2002,7 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* [11: 0]       write.lfifo_buf_size   = 0x100 */
 	if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
 		is_meson_m8m2_cpu() || is_meson_m8b_cpu() ||
-		is_meson_gxtvbb_cpu())
+		is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
