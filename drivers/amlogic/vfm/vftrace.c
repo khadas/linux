@@ -23,14 +23,14 @@
 #include <linux/dma-contiguous.h>
 #include <linux/cma.h>
 #include <linux/slab.h>
-
+#include <linux/time.h>
 #include "vftrace.h"
 
 struct trace_info {
 	void *vf;
 	int type;
 	int index;
-	u32 in_time;		/*in trace jiffies */
+	u64 in_time_us;		/*in trace jiffies */
 	u32 duration;
 	u32 pts;
 };
@@ -56,6 +56,7 @@ void *vftrace_alloc_trace(const char *name, int get, int max)
 	trace->w_index = 0;
 	trace->name = name;
 	trace->get = get;
+	trace->use_lock = 1;
 	spin_lock_init(&trace->lock);
 	return trace;
 }
@@ -82,15 +83,17 @@ void vftrace_info_in(void *vhandle, struct vframe_s *vf)
 	struct vf_trace *vftrace = vhandle;
 	struct trace_info *info;
 	unsigned long flags = 0;
+	struct timeval  tv;
 	if (!vftrace || !vf)
 		return;
+	do_gettimeofday(&tv);
 	TRACE_LOCK(vftrace);
 	info = &vftrace->trace_buf[vftrace->w_index];
 	info->index = vf->index;
 	info->type = vf->type;
 	info->vf = vf;
 	info->pts = vf->pts;
-	info->in_time = jiffies;
+	info->in_time_us = timeval_to_ns(&tv)/1000;
 	info->duration = info->duration;
 	vftrace->w_index++;
 	vftrace->num++;
@@ -102,14 +105,14 @@ void vftrace_info_in(void *vhandle, struct vframe_s *vf)
 
 static void vftrace_dump_trace_info(struct trace_info *info, int i)
 {
-	pr_info("%d: \tvf:%p:%d\ttype:%x \tpts:%d \td:%d \tt:%u\n",
+	pr_info("%d: \tvf:%p:%d\ttype:%x \tpts:%d \td:%d \tt:%lldUs\n",
 		i,
 		info->vf,
 		info->index,
 		info->type,
 		info->pts,
 		info->duration,
-		info->in_time);
+		info->in_time_us);
 }
 
 void vftrace_dump_trace_infos(void *vhandle)
