@@ -300,7 +300,8 @@ static uint coeff(uint *settings, uint ratio, uint phase, bool interlace)
 	}
 	coeff_type = settings[coeff_select];
 	/* TODO: add future TV chips */
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
 		if (coeff_type == COEF_BICUBIC_SHARP)
 			coeff_type = COEF_BICUBIC;
 	} else {
@@ -1445,7 +1446,7 @@ VPP_SRSHARP0_CTRL:0x1d91
 [1]if sharpness is enable or vscaler is enable,must set to 1,
 sharpness1;reg can only to be w
 */
-int vpp_set_super_sclaer_regs(int scaler_path_sel,
+int vpp_set_super_scaler_regs(int scaler_path_sel,
 		int reg_srscl0_enable,
 		int reg_srscl0_hsize,
 		int reg_srscl0_vsize,
@@ -2315,7 +2316,8 @@ void vpp_set_3d_scale(bool enable)
 
 void vpp_super_scaler_support(void)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))
 		super_scaler = 1;
 	else
 		super_scaler = 0;

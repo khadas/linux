@@ -829,9 +829,9 @@ static int YUV709f_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
-#if 0
+
 static int YUV709l_to_RGB709_coeff[MATRIX_5x3_COEF_SIZE] = {
-	0, -512, -512, /* pre offset */
+	-64, -512, -512, /* pre offset */
 	COEFF_NORM(1.16895),	COEFF_NORM(0.00000),	COEFF_NORM(1.79977),
 	COEFF_NORM(1.16895),	COEFF_NORM(-0.21408),	COEFF_NORM(-0.53500),
 	COEFF_NORM(1.16895),	COEFF_NORM(2.12069),	COEFF_NORM(0.00000),
@@ -841,6 +841,7 @@ static int YUV709l_to_RGB709_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
+#if 0
 /*  eotf matrix: RGB2020 to RGB709 */
 static int eotf_RGB2020_to_RGB709_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_NORM(1.6607056/2), EOTF_COEFF_NORM(-0.5877533/2),
@@ -2564,11 +2565,15 @@ static int hdr_process(
 			oetf_289_hlg_mapping,
 			CSC_ON);
 
-		/* xvycc matrix RGB709 to YUV709 limit */
-		set_vpp_matrix(VPP_MATRIX_XVYCC,
-			RGB709_to_YUV709l_coeff,
-			CSC_ON);
-
+		/* xvyccc matrix3: bypass */
+		if (vinfo->viu_color_fmt != TVIN_RGB444)
+			set_vpp_matrix(VPP_MATRIX_XVYCC,
+				RGB709_to_YUV709l_coeff,
+				CSC_ON);
+		else /* xvycc matrix bypass for LCD */
+			set_vpp_matrix(VPP_MATRIX_XVYCC,
+				bypass_coeff,
+				CSC_ON);
 		/* not adjust contrast in gxl for now */
 		need_adjust_contrast = 0;
 	} else {
@@ -2673,9 +2678,14 @@ static void bypass_hdr_process(
 			CSC_OFF);
 
 		/* xvycc matrix bypass */
-		set_vpp_matrix(VPP_MATRIX_XVYCC,
-			bypass_coeff,
-			CSC_ON);
+		if (vinfo->viu_color_fmt != TVIN_RGB444)
+			set_vpp_matrix(VPP_MATRIX_XVYCC,
+				bypass_coeff,
+				CSC_ON);
+		else /* xvycc matrix yuv2rgb for LCD */
+			set_vpp_matrix(VPP_MATRIX_XVYCC,
+				YUV709l_to_RGB709_coeff,
+				CSC_ON);
 	} else {
 		/* OSD */
 		/* keep RGB */

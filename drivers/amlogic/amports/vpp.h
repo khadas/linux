@@ -264,7 +264,7 @@ extern void vpp2_set_zoom_ratio(u32 r);
 extern u32 vpp2_get_zoom_ratio(void);
 #endif
 
-extern int vpp_set_super_sclaer_regs(int scaler_path_sel,
+extern int vpp_set_super_scaler_regs(int scaler_path_sel,
 		int reg_srscl0_enable,
 		int reg_srscl0_hsize,
 		int reg_srscl0_vsize,
