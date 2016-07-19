@@ -628,11 +628,12 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rx.pre_state = FSM_HDMI5V_LOW;
 		break;
 	case HDMI_IOC_EDID_UPDATE:
-		hdmi_rx_ctrl_edid_update();
+		/* hdmi_rx_ctrl_edid_update(); */
 		hdmirx_set_hpd(rx.port, 0);
+		force_reset_hpd = true;
 		do_hpd_reset_flag = 1;
-		rx.state = FSM_HDMI5V_LOW;
-		rx.pre_state = FSM_HDMI5V_LOW;
+		/* rx.state = FSM_HDMI5V_LOW; */
+		/* rx.pre_state = FSM_HDMI5V_LOW; */
 		break;
 	case HDMI_IOC_PC_MODE_ON:
 		pc_mode_en = 1;

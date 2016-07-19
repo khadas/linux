@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/07/05"
+#define HDMIRX_VER "Ref.2016/07/19"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -236,7 +236,7 @@ struct hdmi_rx_phy {
 struct hdmi_rx_ctrl_video {
 	/** DVI detection status: DVI (true) or HDMI (false) */
 	bool dvi;
-	bool hdcp_enc_state;
+	int hdcp_enc_state;
 	/** Deep color mode: 24, 30, 36 or 48 [bits per pixel] */
 	unsigned deep_color_mode;
 
@@ -600,6 +600,7 @@ extern int pre_port;
 extern int esm_err_force_14;
 extern int pc_mode_en;
 extern int do_hpd_reset_flag;
+extern bool force_reset_hpd;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);

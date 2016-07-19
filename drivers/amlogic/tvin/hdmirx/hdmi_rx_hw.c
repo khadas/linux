@@ -933,10 +933,6 @@ void hdmirx_hw_config(void)
 		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
 	else
 		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
-
-	hdmirx_phy_init(rx.port, 0);
-	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
-	DWC_init(rx.port);
 	hdmirx_audio_init();
 	packet_init();
 	hdmirx_20_init();
@@ -952,6 +948,10 @@ void hdmirx_hw_config(void)
 		rx_print("hdcp engine busy\n");
 		mdelay(100);
 	}
+
+	hdmirx_phy_init(rx.port, 0);
+	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
+	DWC_init(rx.port);
 	rx_print("%s  %d Done!\n", __func__, rx.port);
 }
 
