@@ -21,6 +21,7 @@
 		dev_name = "lcd";
 		mode = "tv";
 		status = "okay";
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		resets = <&clock GCLK_IDX_VCLK2_ENCL &clock GCLK_IDX_VCLK2_VENCL>;
 		reset-names = "encl","vencl";
@@ -42,10 +43,11 @@
 			model_name = "1080p-vfreq";
 			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <2060 2650 1100 1480 120000000 160000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
-			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
@@ -58,10 +60,11 @@
 			model_name = "1080p-hfreq";
 			interface = "lvds"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <1920 1080 2200 1125 8 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <2080 2720 1100 1380 133940000 156000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <44 148 0 5 30 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			lvds_attr = <1 1 0 0>; /* lvds_repack, dual_port, pn_swap, port_swap */
-			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
+			phy_attr=<3 0 0 0>; /* vswing_level, preemphasis_level, lvds_clk_vswing_level, lvds_clk_preem_level */
 			power_on_step = <0 0 1 20 /* panel power on */
 					2 0 0 0   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
@@ -75,6 +78,7 @@
 			model_name = "public_2region";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
@@ -91,6 +95,7 @@
 			model_name = "public_1region";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2790 552000000 632000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
@@ -107,6 +112,7 @@
 			model_name = "public_2region";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2760 480000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
@@ -123,6 +129,7 @@
 			model_name = "public_1region";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
+			range_setting = <4240 4800 2200 2790 552000000 632000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
 			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
 			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
 			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
