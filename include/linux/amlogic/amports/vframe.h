@@ -197,7 +197,7 @@ enum vframe_secam_phase_e {
 
 #define BITDEPTH_MASK (BITDEPTH_YMASK | BITDEPTH_UMASK | BITDEPTH_VMASK)
 #define BITDEPTH_SAVING_MODE	0x1
-
+#define FULL_PACK_422_MODE		0x2
 struct vframe_s {
 	u32 index;
 	u32 type;

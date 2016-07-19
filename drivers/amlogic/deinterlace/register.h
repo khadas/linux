@@ -29,6 +29,16 @@ force enable of the alpha for dejaggy2 */
 /* Bit 2: 0	sr2_dejaggy2_alpha_value,
   forced value of alpha for dejaggy2     */
 
+#define SRSHARP0_DEJ_CTRL             0x3264  /*<< 2) + 0xd0100000)*/
+/*Bit 31:4    reserved
+*Bit 3:2,    reg_sr3_dejaggy_sameside_prtct
+*u2:  enable of sr3 dejaggy same side curve protect from filter,
+*[0] for proc, [1] for ctrl path,  default=3
+*Bit 1,      reg_sr3_dejaggy_sameside_mode
+*u1: mode of the sameside flag decision: default =1
+*Bit 0,      reg_sr3_dejaggy_enable
+u1: enable of sr3 dejaggy: default =0*/
+
 #define SRSHARP0_SHARP_DEJ2_PRC     ((0x3261)) /* << 2) + 0xd0100000) */
 /* Bit 31:24,  reg_dejaggy2_hcon_thrd             : .
 unsigned, default =5,hcon threshold, only pixels with hcon equal or
@@ -278,6 +288,28 @@ meaning always */
 		/* 0xd0106818 */
 #define VIUB_MISC_CTRL0					0x2006
 		/* 0xd0108018 */
+/*txl new add begin*/
+#define DI_IF2_GEN_REG					0x2010
+#define DI_IF2_CANVAS0					0x2011
+#define DI_IF2_LUMA_X0					0x2012
+#define DI_IF2_LUMA_Y0					0x2013
+#define DI_IF2_CHROMA_X0				0x2014
+#define DI_IF2_CHROMA_Y0				0x2015
+#define DI_IF2_RPT_LOOP					0x2016
+#define DI_IF2_LUMA0_RPT_PAT			0x2017
+#define DI_IF2_CHROMA0_RPT_PAT			0x2018
+#define DI_IF2_DUMMY_PIXEL				0x2019
+#define DI_IF2_LUMA_FIFO_SIZE			0x201a
+#define DI_IF2_RANGE_MAP_Y				0x201b
+#define DI_IF2_RANGE_MAP_CB				0x201c
+#define DI_IF2_RANGE_MAP_CR				0x201d
+#define DI_IF2_GEN_REG2					0x201e
+#define DI_IF2_FMT_CTRL					0x201f
+#define DI_IF2_FMT_W					0x2020
+#define DI_IF2_URGENT_CTRL				0x2021
+#define DI_IF2_GEN_REG3					0x2022
+/*txl new add end*/
+
 /* di */
 #define DI_IF1_URGENT_CTRL                  (0x20a3)  /*  << 2 + 0xd0100000*/
 /* bit15, auto enable; bit14, canvas write mode ;7:4, high threshold ;3:0 ,
@@ -2207,20 +2239,54 @@ normally 0-16               . unsigned  , default = 1 */
 /* Bit 31: 0,        ro_dm_gms_stat_cnt  . unsigned  , default = 0 */
 #define DNR_RO_DM_GMS_STAT_MS                      ((0x2d78))
 /* Bit 31: 0,        ro_dm_gms_stat_ms  . unsigned  , default = 0 */
+/* txl added */
+#define DECOMB_DET_VERT_CON0				(0x2d80)
+#define DECOMB_DET_VERT_CON1				(0x2d81)
+#define DECOMB_DET_EDGE_CON0				(0x2d82)
+#define DECOMB_DET_EDGE_CON1				(0x2d83)
+#define DECOMB_PARA							(0x2d84)
+#define DECOMB_BLND_CON0					(0x2d85)
+#define DECOMB_BLND_CON1					(0x2d86)
+#define DECOMB_YC_THRD						(0x2d87)
+#define DECOMB_MTN_GAIN_OFST				(0x2d88)
+#define DECOMB_CMB_SEL_GAIN_OFST			(0x2d89)
+#define DECOMB_WIND00						(0x2d8a)
+#define DECOMB_WIND01						(0x2d8b)
+#define DECOMB_WIND10						(0x2d8c)
+#define DECOMB_WIND11						(0x2d8d)
+#define DECOMB_MODE							(0x2d8e)
+#define DECOMB_FRM_SIZE						(0x2d8f)
+#define DECOMB_HV_BLANK						(0x2d90)
+#define NR2_POLAR3_MODE						(0x2d98)
+#define NR2_POLAR3_THRD						(0x2d99)
+#define NR2_POLAR3_PARA0					(0x2d9a)
+#define NR2_POLAR3_PARA1					(0x2d9b)
+#define NR2_POLAR3_CTRL						(0x2d9c)
+#define NR2_RO_POLAR3_NUMOFPIX				(0x2d9d)
+#define NR2_RO_POLAR3_SMOOTHMV				(0x2d9e)
+#define NR2_RO_POLAR3_M1					(0x2d9f)
+#define NR2_RO_POLAR3_P1					(0x2da0)
+#define NR2_RO_POLAR3_M2					(0x2da1)
+#define NR2_RO_POLAR3_P2					(0x2da2)
+#define NR2_RO_POLAR3_32					(0x2da3)
+/* txl end */
 
 
+#define VPU_VD1_MMC_CTRL					(0x2703)
+#define VPU_VD2_MMC_CTRL					(0x2704)
+#define VPU_DI_IF1_MMC_CTRL					(0x2705)
+#define VPU_DI_MEM_MMC_CTRL					(0x2706)
+#define VPU_DI_INP_MMC_CTRL					(0x2707)
+#define VPU_DI_MTNRD_MMC_CTRL				(0x2708)
+#define VPU_DI_CHAN2_MMC_CTRL				(0x2709)
+#define VPU_DI_MTNWR_MMC_CTRL				(0x270a)
+#define VPU_DI_NRWR_MMC_CTRL				(0x270b)
+#define VPU_DI_DIWR_MMC_CTRL				(0x270c)
 
-#define VPU_VD1_MMC_CTRL				0x2703
-#define VPU_VD2_MMC_CTRL				0x2704
-#define VPU_DI_IF1_MMC_CTRL				0x2705
-#define VPU_DI_MEM_MMC_CTRL				0x2706
-#define VPU_DI_INP_MMC_CTRL				0x2707
-#define VPU_DI_MTNRD_MMC_CTRL			0x2708
-#define VPU_DI_CHAN2_MMC_CTRL			0x2709
-#define VPU_DI_MTNWR_MMC_CTRL			0x270a
-#define VPU_DI_NRWR_MMC_CTRL			0x270b
-#define VPU_DI_DIWR_MMC_CTRL			0x270c
-
+#define MCDI_PD_22_CHK_WND0_X				(0x2f59)
+#define MCDI_PD_22_CHK_WND0_Y				(0x2f5a)
+#define MCDI_PD_22_CHK_WND1_X				(0x2f5b)
+#define MCDI_PD_22_CHK_WND1_Y				(0x2f5c)
 /* mc di */
 /* //=================================================================//// */
 /* // memc di core 0 */

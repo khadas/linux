@@ -156,7 +156,7 @@ struct di_buf_s {
 	int cnt_canvas_idx;
 #endif
 #ifdef NEW_DI_V3
-	unsigned int mcinfo_adr;
+	unsigned long mcinfo_adr;
 	int mcinfo_canvas_idx;
 	unsigned long mcvec_adr;
 	int mcvec_canvas_idx;
@@ -166,7 +166,7 @@ struct di_buf_s {
 	unsigned int regs[26];/* reg 0x2fb0~0x2fc9 */
 	} curr_field_mcinfo;
 #endif
-
+	/* blend window */
 	unsigned short reg0_s;
 	unsigned short reg0_e;
 	unsigned short reg0_bmode;
@@ -179,7 +179,8 @@ struct di_buf_s {
 	unsigned short reg3_s;
 	unsigned short reg3_e;
 	unsigned short reg3_bmode;
-
+	/* tff bff check result bit[1:0]*/
+	unsigned int privated;
 	unsigned int canvas_config_flag;
 	/* 0,configed; 1,config type 1 (prog);
 	2, config type 2 (interlace) */
@@ -344,6 +345,7 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line);
 void enable_di_post_2(
 	struct DI_MIF_s		*di_buf0_mif,
 	struct DI_MIF_s		*di_buf1_mif,
+	struct DI_MIF_s		*di_buf2_mif,
 	struct DI_SIM_MIF_s	*di_diwr_mif,
 	#ifndef NEW_DI_V2
 	struct DI_SIM_MIF_s	*di_mtncrd_mif,
@@ -360,6 +362,7 @@ void enable_di_post_2(
 void di_post_switch_buffer(
 	struct DI_MIF_s		*di_buf0_mif,
 	struct DI_MIF_s		*di_buf1_mif,
+	struct DI_MIF_s		*di_buf2_mif,
 	struct DI_SIM_MIF_s	*di_diwr_mif,
 	#ifndef NEW_DI_V2
 	struct DI_SIM_MIF_s	*di_mtncrd_mif,
@@ -438,8 +441,9 @@ void diwr_set_power_control(unsigned char enable);
 
 unsigned char di_get_power_control(unsigned char type);
 void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
-void di_bit_mode_bypass_cfg(vframe_t *vframe, unsigned int bypass_flag);
-
+void combing_pd22_window_config(unsigned int width, unsigned int height);
+int tff_bff_check(int height, int width);
+void tbff_init(void);
 #ifdef CONFIG_AM_ATVDEMOD
 extern int aml_atvdemod_get_snr_ex(void);
 #endif
