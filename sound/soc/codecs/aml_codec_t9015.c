@@ -411,12 +411,15 @@ static int aml_T9015_audio_remove(struct snd_soc_codec *codec)
 
 static int aml_T9015_audio_suspend(struct snd_soc_codec *codec)
 {
+	pr_info("aml_T9015_audio_suspend!\n");
 	aml_T9015_audio_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_write(codec, AUDIO_CONFIG_BLOCK_ENABLE, 0);
 	return 0;
 }
 
 static int aml_T9015_audio_resume(struct snd_soc_codec *codec)
 {
+	pr_info("aml_T9015_audio_resume!\n");
 	aml_T9015_audio_reset(codec);
 	aml_T9015_audio_start_up(codec);
 	aml_T9015_audio_reg_init(codec);

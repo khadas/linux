@@ -990,6 +990,7 @@
 		mute_gpio-gpios = <&gpio GPIOH_5 0>;
 		mute_inv;
 		hp_disable;
+		sleep_time = <100>;
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
 		pinctrl-0 = <&audio_pins>;

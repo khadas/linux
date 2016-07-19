@@ -261,6 +261,7 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 	struct pinctrl_state *state;
+	int val = 0;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
@@ -285,6 +286,12 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 		pinctrl_select_state(p_aml_audio->pin_ctl, state);
 	}
 
+	if (p_aml_audio->mute_desc) {
+		val = p_aml_audio->mute_inv ?
+			GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+		gpiod_direction_output(p_aml_audio->mute_desc, val);
+	};
+
 	return 0;
 }
 
@@ -305,6 +312,7 @@ static int aml_resume_post(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 	struct pinctrl_state *state;
+	int val = 0;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
@@ -329,6 +337,13 @@ static int aml_resume_post(struct snd_soc_card *card)
 		pinctrl_select_state(p_aml_audio->pin_ctl, state);
 	}
 
+	if (p_aml_audio->mute_desc) {
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		val = p_aml_audio->mute_inv ?
+			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+		gpiod_direction_output(p_aml_audio->mute_desc, val);
+	}
 	return 0;
 }
 
@@ -504,6 +519,8 @@ static void aml_m8_pinmux_init(struct snd_soc_card *card)
 	p_aml_audio->mute_inv =
 	    of_property_read_bool(card->dev->of_node, "mute_inv");
 	if (p_aml_audio->mute_desc) {
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
 		val = p_aml_audio->mute_inv ?
 			GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
 		gpiod_direction_output(p_aml_audio->mute_desc, val);
@@ -700,7 +717,6 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	}
 
 	aml_i2s_play();
-	msleep(100);
 	aml_m8_pinmux_init(card);
 	return 0;
  err:
