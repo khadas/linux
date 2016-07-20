@@ -1657,11 +1657,31 @@ static ssize_t show_hdcp_ksv_info(struct device *dev,
 	return pos;
 }
 
+/* Special FBC check */
+static int check_fbc_special(unsigned char *edid_dat)
+{
+	if ((edid_dat[250] == 0xfb) && (edid_dat[251] == 0x0c))
+		return 1;
+	else
+		return 0;
+}
+
 static ssize_t show_hdcp_ver(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-	uint32_t ver;
+	uint32_t ver = 0;
+
+	if (check_fbc_special(&hdmitx_device.EDID_buf[0])
+	    || check_fbc_special(&hdmitx_device.EDID_buf1[0])) {
+		pos += snprintf(buf+pos, PAGE_SIZE, "00\n\r");
+		return pos;
+	}
+
+	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
+	if (hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+		DDC_HDCP_22_LSTORE, 0) == 0)
+		goto next;
 
 	/* Detect RX support HDCP22 */
 	ver = hdcp_rd_hdcp22_ver();
@@ -1670,7 +1690,7 @@ static ssize_t show_hdcp_ver(struct device *dev,
 		pos += snprintf(buf+pos, PAGE_SIZE, "14\n\r");
 		return pos;
 	}
-	/* Detect RX support HDCP14 */
+next:	/* Detect RX support HDCP14 */
 	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
 	if (ver == 0) {
 		ver = hdcp_rd_hdcp14_ver();
@@ -2068,9 +2088,13 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 
 static int get_downstream_hdcp_ver(void)
 {
+	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
+	if (hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+		DDC_HDCP_22_LSTORE, 0) == 0)
+		goto next;
 	if (hdcp_rd_hdcp22_ver())
 		return 22;
-	if (hdcp_rd_hdcp14_ver())
+next:	if (hdcp_rd_hdcp14_ver())
 		return 14;
 	return 0;
 }
