@@ -27,6 +27,14 @@
 #define MicroCode vavs_mc_old
 #include "avs_linux_old.h"
 
+#undef MicroCode
+#define MicroCode txl_vavs_mc
+#include "txl_avs_linux.h"
+#undef MicroCode
+#define MicroCode txl_vavs_mc_debug
+#include "txl_avs_linux_debug.h"
+
+
 #define FOR_VFORMAT VFORMAT_AVS
 
 #define REG_FIRMWARE_ALL()\
@@ -34,6 +42,8 @@
 		DEF_FIRMWARE(vavs_mc);\
 		DEF_FIRMWARE(vavs_mc_debug);\
 		DEF_FIRMWARE(vavs_mc_old);\
+		DEF_FIRMWARE(txl_vavs_mc);\
+		DEF_FIRMWARE(txl_vavs_mc_debug);\
 	} while (0)
 
 INIT_DEF_FIRMWARE();

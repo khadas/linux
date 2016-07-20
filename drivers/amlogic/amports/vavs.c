@@ -1062,32 +1062,53 @@ static s32 vavs_init(void)
 
 	vavs_local_init();
 
-#ifdef AVSP_LONG_CABAC
-	if (firmware_sel == 0)
-		init_avsp_long_cabac_buf();
-#endif
-	if (debug_flag & AVS_DEBUG_UCODE) {
-		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc_debug", NULL) < 0) {
-			amvdec_disable();
-			pr_info("failed\n");
-			return -EBUSY;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+		if (debug_flag & 2) {
+			if (amvdec_loadmc_ex(VFORMAT_AVS,
+				"txl_vavs_mc_debug", NULL) < 0) {
+				amvdec_disable();
+				pr_info("failed\n");
+				return -EBUSY;
+			}
+		} else {
+			if (amvdec_loadmc_ex(VFORMAT_AVS,
+				"txl_vavs_mc", NULL) < 0) {
+				amvdec_disable();
+				pr_info("failed\n");
+				return -EBUSY;
+			}
 		}
-		pr_info("debug ucode loaded\r\n");
-	} else if (firmware_sel == 1) {
-		/* old ucode */
-		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc_old", NULL) < 0) {
-			amvdec_disable();
-			pr_info("failed\n");
-			return -EBUSY;
-		}
-		pr_info("old ucode loaded\r\n");
 	} else {
-		if (amvdec_loadmc_ex(VFORMAT_AVS, "vavs_mc", NULL) < 0) {
-			amvdec_disable();
-			pr_info("failed\n");
-			return -EBUSY;
+#ifdef AVSP_LONG_CABAC
+		if (firmware_sel == 0)
+			init_avsp_long_cabac_buf();
+#endif
+		if (debug_flag & AVS_DEBUG_UCODE) {
+			if (amvdec_loadmc_ex(VFORMAT_AVS,
+				"vavs_mc_debug", NULL) < 0) {
+				amvdec_disable();
+				pr_info("failed\n");
+				return -EBUSY;
+			}
+			pr_info("debug ucode loaded\r\n");
+		} else if (firmware_sel == 1) {
+			/* old ucode */
+			if (amvdec_loadmc_ex(VFORMAT_AVS,
+				"vavs_mc_old", NULL) < 0) {
+				amvdec_disable();
+				pr_info("failed\n");
+				return -EBUSY;
+			}
+			pr_info("old ucode loaded\r\n");
+		} else {
+			if (amvdec_loadmc_ex(VFORMAT_AVS,
+				"vavs_mc", NULL) < 0) {
+				amvdec_disable();
+				pr_info("failed\n");
+				return -EBUSY;
+			}
+			pr_info("ucode loaded\r\n");
 		}
-		pr_info("ucode loaded\r\n");
 	}
 
 	stat |= STAT_MC_LOAD;
@@ -1152,6 +1173,10 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 		pr_info("amvdec_avs memory resource undefined.\n");
 		return -EFAULT;
 	}
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+		firmware_sel = 1;
+	}
+
 	if (firmware_sel == 1) {
 		vf_buf_num = 4;
 		canvas_base = 0;
