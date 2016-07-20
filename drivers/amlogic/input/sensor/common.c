@@ -11,6 +11,7 @@
 #define AML_I2C_BUS_A 1
 #define AML_I2C_BUS_B 2
 #define AML_I2C_BUS_C 3
+#define AML_I2C_BUS_D 4
 #define AML_I2C_BUS_NO (-1)
 #define MAX_SENSOR_ONBOARD  6
 
@@ -144,6 +145,8 @@ int dt_sensor_setup_i2c_dev(struct device_node *node,  struct i2c_board_info
 				*i2c_bus_nr = AML_I2C_BUS_B;
 			else if (!strncmp(value, "i2c_bus_c", 9))
 				*i2c_bus_nr = AML_I2C_BUS_C;
+			else if (!strncmp(value, "i2c_bus_d", 9))
+				*i2c_bus_nr = AML_I2C_BUS_D;
 			else if (!strncmp(value, "i2c_bus_ao", 10))
 				*i2c_bus_nr = AML_I2C_BUS_AO;
 			else
@@ -299,7 +302,7 @@ static int aml_sensor_remove(struct platform_device *pdev)
 
 static const struct of_device_id sensor_prober_dt_match[] = {
 	{
-		.compatible = "amlogic,aml_sensor",
+		.compatible = "amlogic, aml_sensor",
 	},
 	{},
 };
