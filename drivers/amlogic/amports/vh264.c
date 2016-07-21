@@ -462,7 +462,7 @@ static void vh264_vf_put(struct vframe_s *vf, void *op_arg)
 
 	spin_lock_irqsave(&recycle_lock, flags);
 
-	if ((vf->flag & VFRAME_FLAG_SWITCHING_FENSE) == 0)
+	  if ((vf != &fense_vf[0]) && (vf != &fense_vf[1]))
 		kfifo_put(&recycle_q, (const struct vframe_s *)vf);
 
 	spin_unlock_irqrestore(&recycle_lock, flags);
@@ -2612,9 +2612,6 @@ static void stream_switching_do(struct work_struct *work)
 	if (vh264_stream_switching_state == SWITCHING_STATE_OFF)
 		return;
 
-	if (is_4k)
-		return;
-
 	spin_lock_irqsave(&prepare_lock, flags);
 
 	block_display_q = true;
@@ -2625,13 +2622,14 @@ static void stream_switching_do(struct work_struct *work)
 	mb_width_num = mb_width;
 	mb_height_num = mb_height;
 
-	while (kfifo_len(&delay_display_q) > 2) {
+	while (is_4k || kfifo_len(&delay_display_q) > 2) {
 		if (kfifo_get(&delay_display_q, &vf)) {
 			kfifo_put(&display_q,
 				(const struct vframe_s *)vf);
 			vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
-		}
+		} else
+			break;
 	}
 
 	if (!kfifo_get(&delay_display_q, &vf)) {
@@ -2658,44 +2656,48 @@ static void stream_switching_do(struct work_struct *work)
 			buffer_spec[buffer_index].u_canvas_width,
 			buffer_spec[buffer_index].u_canvas_height);
 #endif
-		y_index = buffer_spec[buffer_index].y_canvas_index;
-		u_index = buffer_spec[buffer_index].u_canvas_index;
+		if (!is_4k) {
+			y_index = buffer_spec[buffer_index].y_canvas_index;
+			u_index = buffer_spec[buffer_index].u_canvas_index;
 
-		canvas_read(y_index, &csy);
-		canvas_read(u_index, &csu);
+			canvas_read(y_index, &csy);
+			canvas_read(u_index, &csu);
 
-		canvas_config(fense_buffer_spec[i].y_canvas_index,
-			fense_buffer_spec[i].phy_addr,
-			mb_width_num << 4, mb_height_num << 4,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config(fense_buffer_spec[i].u_canvas_index,
-			fense_buffer_spec[i].phy_addr +
-			(mb_total_num << 8),
-			mb_width_num << 4, mb_height_num << 3,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
+			canvas_config(fense_buffer_spec[i].y_canvas_index,
+				fense_buffer_spec[i].phy_addr,
+				mb_width_num << 4, mb_height_num << 4,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			canvas_config(fense_buffer_spec[i].u_canvas_index,
+				fense_buffer_spec[i].phy_addr +
+				(mb_total_num << 8),
+				mb_width_num << 4, mb_height_num << 3,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 
-		y_desindex = fense_buffer_spec[i].y_canvas_index;
-		u_desindex = fense_buffer_spec[i].u_canvas_index;
+			y_desindex = fense_buffer_spec[i].y_canvas_index;
+			u_desindex = fense_buffer_spec[i].u_canvas_index;
 
-		canvas_read(y_desindex, &cyd);
+			canvas_read(y_desindex, &cyd);
 
-		src_index = ((y_index & 0xff) |
-			((u_index << 8) & 0x0000ff00));
-		des_index = ((y_desindex & 0xff) |
-			((u_desindex << 8) & 0x0000ff00));
+			src_index = ((y_index & 0xff) |
+				((u_index << 8) & 0x0000ff00));
+			des_index = ((y_desindex & 0xff) |
+				((u_desindex << 8) & 0x0000ff00));
 
-		ge2d_canvas_dup(&csy, &csu, &cyd,
+			ge2d_canvas_dup(&csy, &csu, &cyd,
 				GE2D_FORMAT_M24_NV21,
 				src_index,
 				des_index);
-
+		}
 		fense_vf[i] = *vf;
 		fense_vf[i].index = -1;
-		fense_vf[i].flag |= VFRAME_FLAG_SWITCHING_FENSE;
-		fense_vf[i].canvas0Addr =
-			spec2canvas(&fense_buffer_spec[i]);
+
+		if (!is_4k)
+			fense_vf[i].canvas0Addr =
+				spec2canvas(&fense_buffer_spec[i]);
+		else
+			fense_vf[i].flag |= VFRAME_FLAG_SWITCHING_FENSE;
 
 		/* send clone to receiver */
 		kfifo_put(&display_q,
