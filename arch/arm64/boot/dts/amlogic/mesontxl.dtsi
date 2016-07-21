@@ -215,6 +215,12 @@
 			#gpio-cells = <2>;
 		};
 
+		avin_gpio_disable_pull:avin_gpio_disable_pull{
+			amlogic,pins = "GPIODV_8","GPIODV_7";
+			amlogic,enable-output=<1>;
+			amlogic,pullupen=<0>;
+		};
+
 		jtag_apao_pins:jtag_apao_pin{
 			amlogic,clrmask = <AO 0x01C2C2E6>;
 			amlogic,pins = "GPIOAO_3","GPIOAO_4","GPIOAO_5","GPIOAO_7";

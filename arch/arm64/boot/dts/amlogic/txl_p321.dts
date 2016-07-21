@@ -141,6 +141,20 @@
 		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
 	};
 
+	avin_detect {
+		compatible = "amlogic, avin_detect";
+		status = "okay";
+		interrupts = <0 65 1
+			      0 66 1>;
+		pinctrl-names = "avin_gpio_disable_pullup";
+		pinctrl-0 = <&avin_gpio_disable_pull>;
+		avin1_pin =  <&gpio    GPIODV_8    GPIO_ACTIVE_HIGH>;
+		avin2_pin =  <&gpio    GPIODV_7    GPIO_ACTIVE_HIGH>;
+		detect_interval_length = <100>;
+		set_detect_times = <5>;
+		set_fault_tolerance = <1>;
+	};
+
 	meson-vout {
 		compatible = "amlogic, meson-vout";
 		dev_name = "meson-vout";
