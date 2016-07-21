@@ -25,15 +25,18 @@
 #include "avs.h"
 #ifdef AVSP_LONG_CABAC
 
+#define DECODING_SANITY_CHECK
 
 #define TRACE 0
 #define LIWR_FIX 0
 #define pow2(a, b) (1<<b)
 #define io_printf pr_info
 
-unsigned char *local_heap_adr;
-int local_heap_size;
-int local_heap_pos;
+static unsigned char *local_heap_adr;
+static int local_heap_size;
+static int local_heap_pos;
+static int transcoding_error_flag;
+
 unsigned char *local_alloc(int num, int size)
 {
 	unsigned char *ret_buf = NULL;
@@ -3773,7 +3776,7 @@ void readdquant_aec(struct syntaxelement *se, struct img_par *img,
 				ctx->delta_qp_contexts + act_ctx, 1);
 		act_sym++;
 	}
-
+	act_sym &= 0x3f;
 	push_es(UE[act_sym][0], UE[act_sym][1]);
 
 	dquant = (act_sym + 1) / 2;
@@ -3791,6 +3794,7 @@ int csyntax;
 	if (img->qp+curr_mb->delta_quant > 63\
 			|| img->qp+curr_mb->delta_quant < 0) {\
 		csyntax = 0;\
+		transcoding_error_flag = 1;\
 		io_printf("error(0) (%3d|%3d) @ MB%d\n",\
 			curr_mb->delta_quant,\
 			img->qp+curr_mb->delta_quant,\
@@ -3837,10 +3841,19 @@ void readrunlevel_aec_ref(struct syntaxelement *se, struct img_par *img,
 		rank = 0;
 		pos = 0;
 		for (pairs = 0; pairs < 65; pairs++) {
+#ifdef DECODING_SANITY_CHECK
+			/*max index is NUM_BLOCK_TYPES - 1*/
+			pctx = primary[rank & 0x7];
+#else
 			pctx = primary[rank];
-
+#endif
 			if (rank > 0) {
+#ifdef DECODING_SANITY_CHECK
+				/*max index is NUM_BLOCK_TYPES - 1*/
+				pCTX2 = primary[(5 + (pos >> 5)) & 0x7];
+#else
 				pCTX2 = primary[5 + (pos >> 5)];
+#endif
 				ctx2 = (pos >> 1) & 0x0f;
 				ctx = 0;
 
@@ -4734,7 +4747,7 @@ int aec_startcode_follows(struct img_par *img, int eos_bit)
 }
 
 #ifdef AVSP_LONG_CABAC
-void process_long_cabac(void)
+int process_long_cabac(void)
 #else
 void main(void)
 #endif
@@ -4750,11 +4763,11 @@ void main(void)
 #ifdef PERFORMANCE_DEBUG
 	pr_info("enter %s\r\n", __func__);
 #endif
-
+	transcoding_error_flag = 0;
 	es_buf = es_write_addr_virt;
 
 	if (local_heap_init(MAX_CODED_FRAME_SIZE * 4) < 0)
-		return;
+		return -1;
 
 	img = (struct img_par *)local_alloc(1, sizeof(struct img_par));
 	if (img	== NULL)
@@ -4904,13 +4917,16 @@ void main(void)
 #ifdef AVSP_LONG_CABAC
 	push_es(0xff, 64);
 
+	if (transcoding_error_flag == 0) {
 #if 1
-	dma_sync_single_for_device(amports_get_dma_device(), es_write_addr_phy,
+		dma_sync_single_for_device(amports_get_dma_device(),
+			es_write_addr_phy,
 			es_ptr, DMA_TO_DEVICE);
 
-	wmb(); /**/
+		wmb(); /**/
 #endif
-	WRITE_VREG(LONG_CABAC_REQ, 0);
+		WRITE_VREG(LONG_CABAC_REQ, 0);
+	}
 #else
 	fclose(f_es);
 #endif
@@ -4919,6 +4935,6 @@ void main(void)
 #ifdef PERFORMANCE_DEBUG
 	pr_info("exit %s\r\n", __func__);
 #endif
-
+	return (transcoding_error_flag == 0) ? 0 : -1;
 }
 #endif

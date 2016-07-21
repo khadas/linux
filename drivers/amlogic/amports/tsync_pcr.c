@@ -189,6 +189,9 @@ static u8 tsync_pcr_usepcr = 1;
 static u64 first_time_record;
 static u8 wait_pcr_count;
 
+static int abuf_fatal_error;
+static int vbuf_fatal_error;
+
 static DEFINE_SPINLOCK(tsync_pcr_lock);
 
 #define LTRACE() pr_info("[%s:%d]\n", __func__, __LINE__);
@@ -786,6 +789,37 @@ static unsigned long tsync_pcr_check(void)
 	vbuf_level = get_stream_buffer_level(0);
 	vbuf_size = get_stream_buffer_size(0);
 
+	/***********************************************************
+	 On S905/S905X Platform, when we play avs video file on dtv
+	 which contian long cabac   some time it will cause amstream
+	 video buffer enter an error status. vbuf_level will over  vbuf_size,
+	 this will cause a lot of print in this function. And that will
+	 prevent reset ts monitor work thread from getting cpu control
+	 and to reset ts module. So we add the following  code to avoid
+	 this case.
+
+	       Rong.Zhang@amlogic.com    2016-08-10
+	***********************************************************/
+	if (abuf_level > abuf_size) {
+		if (!abuf_fatal_error) {
+			abuf_fatal_error = 1;
+			pr_info("amstream must be some fatal error for audio and wait for reset\n");
+			pr_info("abuf_level = 0x%x, abuf_size = 0x%x, vbuf_level = 0x%x, vbuf_size = 0x%x\n",
+				abuf_level, abuf_size, vbuf_level, vbuf_size);
+		}
+		return res;
+	}
+
+	if (vbuf_level > vbuf_size) {
+		if (!vbuf_fatal_error) {
+			vbuf_fatal_error = 1;
+			pr_info("amstream must be some fatal error for video and wait for reset\n");
+			pr_info("abuf_level = 0x%x, abuf_size = 0x%x, vbuf_level = 0x%x, vbuf_size = 0x%x\n",
+				abuf_level, abuf_size, vbuf_level, vbuf_size);
+		}
+		return res;
+	}
+
 	last_checkin_vpts = (u32) get_last_checkin_pts(PTS_TYPE_VIDEO);
 	last_checkin_apts = (u32) get_last_checkin_pts(PTS_TYPE_AUDIO);
 	last_cur_pcr = timestamp_pcrscr_get();
@@ -899,6 +933,7 @@ static unsigned long tsync_pcr_check(void)
 		|| (abuf_level * 3 > abuf_size * 2 && abuf_size > 0))
 		&& play_mode != PLAY_MODE_FORCE_SPEED) {
 		/* the stream buffer have too much data. speed out */
+#if 0
 		pr_info
 		("[tsync_pcr_check]Buffer will overflow and speed play. ");
 
@@ -906,6 +941,16 @@ static unsigned long tsync_pcr_check(void)
 		("vlevel=%x,vsize=%x\n", vbuf_level, vbuf_size);
 		pr_info("alevel=%x asize=%x play_mode=%d\n",
 			abuf_level, abuf_size, play_mode);
+#else
+		if (vbuf_level * 3 > vbuf_size * 2 && vbuf_size > 0) {
+			pr_info("vbuf > 2/3 %x %x mode=%d\n",
+				vbuf_level, vbuf_size, play_mode);
+		}
+		if (abuf_level * 3 > abuf_size * 2 && abuf_size > 0) {
+			pr_info("abuf > 2/3 %x %x mode=%d\n",
+				abuf_level, abuf_size, play_mode);
+		}
+#endif
 		play_mode = PLAY_MODE_FORCE_SPEED;
 	} else if ((vbuf_level * 5 > vbuf_size * 4 && vbuf_size > 0)
 		|| (abuf_level * 5 > abuf_size * 4 && abuf_size > 0)) {
@@ -919,12 +964,23 @@ static unsigned long tsync_pcr_check(void)
 			 __func__, timestamp_pcrscr_get(), new_pcr);
 		}
 		timestamp_pcrscr_set(new_pcr);
+#if 0
 		pr_info
 		("[tsync_pcr_check]Buffer will overflow and speed play. ");
 		pr_info("new_pcr=%x vlevel=%x vsize=%x ",
 				new_pcr, vbuf_level, vbuf_size);
 		pr_info("alevel=%x asize=%x play_mode=%d\n",
 				abuf_level, abuf_size, play_mode);
+#else
+		if (vbuf_level * 5 > vbuf_size * 4 && vbuf_size > 0) {
+			pr_info("vbuf > 4/5 %x %x new_pcr=%x\n",
+				vbuf_level, vbuf_size, new_pcr);
+		}
+		if (abuf_level * 5 > abuf_size * 4 && abuf_size > 0) {
+			pr_info("abuf > 4/5 %x %x new_pcr=%x\n",
+				abuf_level, abuf_size, new_pcr);
+		}
+#endif
 	}
 
 	if (play_mode == PLAY_MODE_FORCE_SLOW) {
@@ -1162,6 +1218,8 @@ int tsync_pcr_start(void)
 			tsync_pcr_usepcr, tsync_pcr_inited_mode);
 		add_timer(&tsync_pcr_check_timer);
 	}
+	abuf_fatal_error = 0;
+	vbuf_fatal_error = 0;
 	return 0;
 }
 

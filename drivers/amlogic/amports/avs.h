@@ -22,7 +22,7 @@ extern void *avsp_heap_adr;
 
 int avs_get_debug_flag(void);
 
-void process_long_cabac(void);
+int process_long_cabac(void);
 
 /* bit [6] - skip_mode_flag
  bit [5:4] - picture_type
@@ -47,6 +47,7 @@ void process_long_cabac(void);
 */
 #define AVS_DEBUG_PRINT         0x01
 #define AVS_DEBUG_UCODE         0x02
+#define AVS_DEBUG_OLD_ERROR_HANDLE	0x10
 #define AVS_DEBUG_USE_FULL_SPEED 0x80
 #define AEC_DUMP				0x100
 #define STREAM_INFO_DUMP		0x200
