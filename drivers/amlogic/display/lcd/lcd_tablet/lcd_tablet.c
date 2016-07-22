@@ -339,18 +339,9 @@ static void lcd_tablet_vinfo_update_default(void)
 	}
 }
 
-static void lcd_vout_server_init(void)
+void lcd_tablet_vout_server_init(void)
 {
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->lcd_info = kmalloc(sizeof(struct vinfo_s), GFP_KERNEL);
-	if (!lcd_drv->lcd_info) {
-		LCDERR("tablet_probe: Not enough memory\n");
-		return;
-	}
-
 	lcd_tablet_vinfo_update_default();
-
 	vout_register_server(&lcd_vout_server);
 }
 
@@ -920,7 +911,7 @@ int lcd_tablet_probe(struct device *dev)
 	int ret;
 
 	lcd_drv->version = LCD_DRV_VERSION;
-	lcd_drv->vout_server_init = lcd_vout_server_init;
+	lcd_drv->vout_server_init = lcd_tablet_vout_server_init;
 	lcd_drv->driver_init_pre = lcd_tablet_driver_init_pre;
 	lcd_drv->driver_init = lcd_tablet_driver_init;
 	lcd_drv->driver_disable = lcd_tablet_driver_disable;

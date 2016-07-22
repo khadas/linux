@@ -149,6 +149,8 @@ static int lcd_outputmode_to_lcd_vmode(const char *mode)
 	int n;
 
 	p = strchr(mode, 'p');
+	if (p == NULL)
+		return LCD_VMODE_MAX;
 	n = p - mode + 1;
 	strncpy(temp, mode, n);
 	temp[n] = '\0';
@@ -171,9 +173,13 @@ static int lcd_outputmode_to_lcd_frame_rate(const char *mode)
 	int n, i, ret = 0;
 
 	p = strchr(mode, 'p');
+	if (p == NULL)
+		return 0;
 	n = p - mode + 1;
 	strncpy(temp, mode+n, (strlen(mode)-n));
 	p = strchr(temp, 'h');
+	if (p == NULL)
+		return 0;
 	*p = '\0';
 	ret = sscanf(temp, "%d", &n);
 	if (lcd_debug_print_flag)
@@ -228,11 +234,17 @@ static void lcd_vmode_vinfo_update(enum vmode_e mode)
 static enum vmode_e lcd_validate_vmode(char *mode)
 {
 	int lcd_vmode, frame_rate;
+	int ret;
 
 	if (mode == NULL)
 		return VMODE_MAX;
 
 	lcd_vmode = lcd_outputmode_to_lcd_vmode(mode);
+	ret = lcd_vmode_is_mached(lcd_vmode);
+	if (ret) {
+		LCDERR("%s: outputmode is not support\n", __func__);
+		return VMODE_MAX;
+	}
 	frame_rate = lcd_outputmode_to_lcd_frame_rate(mode);
 	if (frame_rate == 0) {
 		LCDERR("%s: frame_rate is not support\n", __func__);
@@ -472,8 +484,45 @@ static struct vout_server_s lcd_vout_server = {
 	},
 };
 
-static void lcd_vout_server_init(void)
+static void lcd_vinfo_update_default(void)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vinfo_s *vinfo;
+	unsigned int h_active, v_active;
+	char *mode;
+
+	if (lcd_drv->lcd_info == NULL) {
+		LCDERR("no lcd_info exist\n");
+		return;
+	}
+
+	mode = get_vout_mode_uboot();
+	h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
+			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
+	v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
+			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
+
+	vinfo = lcd_drv->lcd_info;
+	if (vinfo) {
+		vinfo->name = mode;
+		vinfo->mode = VMODE_LCD;
+		vinfo->width = h_active;
+		vinfo->height = v_active;
+		vinfo->field_height = v_active;
+		vinfo->aspect_ratio_num = h_active;
+		vinfo->aspect_ratio_den = v_active;
+		vinfo->screen_real_width = h_active;
+		vinfo->screen_real_height = v_active;
+		vinfo->sync_duration_num = 60;
+		vinfo->sync_duration_den = 1;
+		vinfo->video_clk = 0;
+		vinfo->viu_color_fmt = TVIN_RGB444;
+	}
+}
+
+void lcd_tv_vout_server_init(void)
+{
+	lcd_vinfo_update_default();
 	vout_register_server(&lcd_vout_server);
 }
 
@@ -905,7 +954,8 @@ static void lcd_vmode_init(struct lcd_config_s *pconf)
 	char *mode;
 	enum vmode_e vmode;
 
-	mode = get_vout_mode_internal();
+	mode = get_vout_mode_uboot();
+	LCDPR("%s mode: %s\n", __func__, mode);
 	vmode = lcd_validate_vmode(mode);
 	if (vmode >= VMODE_MAX) {
 		LCDERR("%s: invalid vout_init_mode: %s\n", __func__, mode);
@@ -1041,7 +1091,7 @@ int lcd_tv_probe(struct device *dev)
 
 	memset(lcd_output_name, 0, sizeof(lcd_output_name));
 	lcd_drv->version = LCD_DRV_VERSION;
-	lcd_drv->vout_server_init = lcd_vout_server_init;
+	lcd_drv->vout_server_init = lcd_tv_vout_server_init;
 	lcd_drv->driver_init_pre = lcd_tv_driver_init_pre;
 	lcd_drv->driver_init = lcd_tv_driver_init;
 	lcd_drv->driver_disable = lcd_tv_driver_disable;

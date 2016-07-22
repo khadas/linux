@@ -54,11 +54,13 @@ extern int lcd_class_remove(void);
 #ifdef CONFIG_AML_LCD_TV
 extern void lcd_vbyone_interrupt_enable(int flag);
 extern void lcd_tv_clk_update(struct lcd_config_s *pconf);
+extern void lcd_tv_vout_server_init(void);
 extern int lcd_tv_probe(struct device *dev);
 extern int lcd_tv_remove(struct device *dev);
 #endif
 #ifdef CONFIG_AML_LCD_TABLET
 extern void lcd_tablet_clk_update(struct lcd_config_s *pconf);
+extern void lcd_tablet_vout_server_init(void);
 extern int lcd_tablet_probe(struct device *dev);
 extern int lcd_tablet_remove(struct device *dev);
 #endif

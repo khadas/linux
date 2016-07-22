@@ -57,6 +57,7 @@ static int early_resume_flag;
 
 static struct class *vout_class;
 static DEFINE_MUTEX(vout_mutex);
+static char vout_mode_uboot[64] __nosavedata;
 static char vout_mode[64] __nosavedata;
 static char vout_axis[64] __nosavedata;
 static u32 vout_init_vmode = VMODE_INIT_NULL;
@@ -226,9 +227,10 @@ static int set_vout_init_mode(void)
 	enum vmode_e vmode;
 	int ret = 0;
 
-	vout_init_vmode = validate_vmode(vout_mode);
+	vout_init_vmode = validate_vmode(vout_mode_uboot);
 	if (vout_init_vmode >= VMODE_MAX) {
-		vout_log_info("no matched vout_init mode %s\n", vout_mode);
+		vout_log_info("no matched vout_init mode %s\n",
+			vout_mode_uboot);
 		return -1;
 	}
 #if 1
@@ -242,9 +244,9 @@ static int set_vout_init_mode(void)
 #endif
 
 	memset(local_name, 0, sizeof(local_name));
-	strcpy(local_name, vout_mode);
+	strcpy(local_name, vout_mode_uboot);
 	ret = set_current_vmode(vmode);
-	vout_log_info("init mode %s\n", vout_mode);
+	vout_log_info("init mode %s\n", vout_mode_uboot);
 
 	return ret;
 }
@@ -285,6 +287,12 @@ char *get_vout_mode_internal(void)
 	return vout_mode;
 }
 EXPORT_SYMBOL(get_vout_mode_internal);
+
+char *get_vout_mode_uboot(void)
+{
+	return vout_mode_uboot;
+}
+EXPORT_SYMBOL(get_vout_mode_uboot);
 
 static void set_vout_axis(char *para)
 {
@@ -610,7 +618,7 @@ static void vout_init_mode_parse(char *str)
 
 	/* just save the vmode_name,
 	convert to vmode when vout sever registered */
-	strcpy(vout_mode, str);
+	strcpy(vout_mode_uboot, str);
 	vout_log_info("%s\n", str);
 	/*vmode = vmode_name_to_mode(str);
 	if (vmode < VMODE_MAX) {
@@ -631,8 +639,8 @@ static int __init get_vout_init_mode(char *str)
 	int count = 3;
 	char find = 0;
 
-	/* init void vout_mode name */
-	memset(vout_mode, 0, sizeof(vout_mode));
+	/* init void vout_mode_uboot name */
+	memset(vout_mode_uboot, 0, sizeof(vout_mode_uboot));
 
 	if (NULL == str)
 		return -EINVAL;

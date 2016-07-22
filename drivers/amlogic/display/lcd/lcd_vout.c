@@ -349,10 +349,21 @@ static void lcd_chip_detect(void)
 
 static void lcd_init_vout(void)
 {
-	if (lcd_driver->vout_server_init)
-		lcd_driver->vout_server_init();
-	else
-		LCDERR("no vout_server_init function\n");
+	switch (lcd_driver->lcd_mode) {
+#ifdef CONFIG_AML_LCD_TV
+	case LCD_MODE_TV:
+		lcd_tv_vout_server_init();
+		break;
+#endif
+#ifdef CONFIG_AML_LCD_TABLET
+	case LCD_MODE_TABLET:
+		lcd_tablet_vout_server_init();
+		break;
+#endif
+	default:
+		LCDPR("invalid lcd mode\n");
+		break;
+	}
 }
 
 static int lcd_reboot_notifier(struct notifier_block *nb,
@@ -501,6 +512,7 @@ static int lcd_config_probe(void)
 		lcd_driver->lcd_status = 0;
 	LCDPR("status: %d\n", lcd_driver->lcd_status);
 
+	lcd_init_vout();
 	if (lcd_driver->lcd_key_valid) {
 		if (lcd_driver->workqueue) {
 			queue_delayed_work(lcd_driver->workqueue,
@@ -552,7 +564,6 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_ioremap();
 	lcd_clk_config_probe();
 	lcd_config_probe();
-	lcd_init_vout();
 
 	LCDPR("%s\n", __func__);
 	return 0;
