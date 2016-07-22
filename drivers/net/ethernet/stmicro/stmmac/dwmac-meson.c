@@ -37,6 +37,8 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct gpio_desc *gdesc;
+	struct gpio_desc *gdesc_z4;
+	struct gpio_desc *gdesc_z5;
 	struct pinctrl *pin_ctl;
 	struct resource *res;
 	struct resource *res2;
@@ -81,6 +83,21 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 		} else {
 			writel(0x10110181, PREG_ETH_REG2);
 			writel(0x2009087f, PREG_ETH_REG3);
+			/* pull reset pin for resetting phy  */
+			gdesc = gpiod_get(&pdev->dev, "rst_pin");
+			gdesc_z4 = gpiod_get(&pdev->dev, "GPIOZ4_pin");
+			gdesc_z5 = gpiod_get(&pdev->dev, "GPIOZ5_pin");
+			if (!IS_ERR(gdesc) && !IS_ERR(gdesc_z4)) {
+				gpiod_direction_output(gdesc_z4, 0);
+				gpiod_direction_output(gdesc_z5, 0);
+				gpiod_direction_output(gdesc, 0);
+				mdelay(20);
+				gpiod_direction_output(gdesc, 1);
+				mdelay(100);
+				gpiod_put(gdesc_z4);
+				gpiod_put(gdesc_z5);
+				pr_debug("Ethernet: gpio reset ok\n");
+			}
 		}
 		pr_debug("REG2:REG3:REG4 = 0x%x :0x%x :0x%x\n",
 			readl(PREG_ETH_REG2), readl(PREG_ETH_REG3),
@@ -88,17 +105,6 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	}
 	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	pr_debug("Ethernet: pinmux setup ok\n");
-	/* reset pin choose pull high 100ms than pull low */
-	gdesc = gpiod_get(&pdev->dev, "rst_pin");
-	/*
-	if (!IS_ERR(gdesc)) {
-		gpiod_direction_output(gdesc, 0);
-		mdelay(10);
-		gpiod_direction_output(gdesc, 1);
-		mdelay(30);
-	}
-	*/
-	pr_debug("Ethernet: gpio reset ok\n");
 	return addr;
 }
 
