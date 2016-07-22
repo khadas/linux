@@ -2009,8 +2009,13 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 		vpp_get_video_source_size(&src_width, &src_height,
 			process_3d_type, vf, next_frame_par);
 	} else {
-		src_width = vf->width;
-		src_height = vf->height;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			src_width = vf->compWidth;
+			src_height = vf->compHeight;
+		} else {
+			src_width = vf->width;
+			src_height = vf->height;
+		}
 		next_frame_par->vpp_3d_mode = VPP_3D_MODE_NULL;
 		next_frame_par->vpp_2pic_mode = 0;
 		next_frame_par->vpp_3d_scale = 0;
