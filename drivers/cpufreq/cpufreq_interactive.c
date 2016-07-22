@@ -616,7 +616,7 @@ static void cpufreq_hmp_boost(unsigned int cpu, unsigned int freq,
 	struct cpufreq_interactive_cpuinfo *pcpu = &per_cpu(cpuinfo, 4);
 	struct cpufreq_interactive_tunables *tunables;
 
-	if (cpu > 3)
+	if (cpu > 3 || !cpu_online(4))
 		return;
 
 	if (freq < freq_max || !pcpu->governor_enabled || !get_hmp_boost()) {
