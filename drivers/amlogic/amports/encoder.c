@@ -1101,7 +1101,7 @@ static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 
 static void mfdin_basic(u32 input, u8 iformat,
 			u8 oformat, u32 picsize_x, u32 picsize_y,
-			u8 r2y_en, u8 nr)
+			u8 r2y_en, u8 nr, u8 ifmt_extra)
 {
 	u8 dsample_en; /* Downsample Enable */
 	u8 interp_en;  /* Interpolation Enable */
@@ -1128,10 +1128,30 @@ static void mfdin_basic(u32 input, u8 iformat,
 	u32 linear_bytesperline;
 	s32 reg_offset;
 	bool linear_enable = false;
+	bool format_err = false;
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+		if ((iformat == 7) && (ifmt_extra > 2))
+			format_err = true;
+	} else if (iformat == 7)
+		format_err = true;
+
+	if (format_err) {
+		enc_pr(LOG_ERROR,
+			"mfdin format err, iformat:%d, ifmt_extra:%d\n",
+			iformat, ifmt_extra);
+		return;
+	}
+	if (iformat != 7)
+		ifmt_extra = 0;
 
 	ifmt444 = ((iformat == 1) || (iformat == 5) || (iformat == 8) ||
 		   (iformat == 9) || (iformat == 12)) ? 1 : 0;
+	if (iformat == 7 && ifmt_extra == 1)
+		ifmt444 = 1;
 	ifmt422 = ((iformat == 0) || (iformat == 10)) ? 1 : 0;
+	if (iformat == 7 && ifmt_extra != 1)
+		ifmt422 = 1;
 	ifmt420 = ((iformat == 2) || (iformat == 3) || (iformat == 4) ||
 		   (iformat == 11)) ? 1 : 0;
 	dsample_en = ((ifmt444 && (oformat != 2)) ||
@@ -1242,7 +1262,8 @@ static void mfdin_basic(u32 input, u8 iformat,
 			(iformat << 0) | (oformat << 4) |
 			(dsample_en << 6) | (y_size << 8) |
 			(interp_en << 9) | (r2y_en << 12) |
-			(r2y_mode << 13) | (nr_enable << 19));
+			(r2y_mode << 13) | (ifmt_extra << 16) |
+			(nr_enable << 19));
 		WRITE_HREG((HCODEC_MFDIN_REG8_DMBL + reg_offset),
 			(picsize_x << 14) | (picsize_y << 0));
 	} else {
@@ -1414,6 +1435,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 	u32 picsize_x, picsize_y;
 	u32 canvas_w = 0;
 	u32 input = request->src;
+	u8 ifmt_extra = 0;
 
 	if ((request->fmt == FMT_RGB565) || (request->fmt >= MAX_FRAME_FMT))
 		return -1;
@@ -1448,7 +1470,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 				iformat = 2;
 				r2y_en = 0;
 				input = ((ENC_CANVAS_OFFSET + 7) << 8) |
-						(ENC_CANVAS_OFFSET + 6);
+					(ENC_CANVAS_OFFSET + 6);
 				ret = 0;
 				goto MFDIN;
 			} else {
@@ -1462,77 +1484,77 @@ static s32 set_input_format(struct encode_wq_s *wq,
 
 		if (request->fmt == FMT_YUV422_SINGLE)
 			iformat = 10;
-		else if ((request->fmt == FMT_YUV444_SINGLE) ||
-				(request->fmt == FMT_RGB888)) {
+		else if ((request->fmt == FMT_YUV444_SINGLE)
+			|| (request->fmt == FMT_RGB888)) {
 			iformat = 1;
 			if (request->fmt == FMT_RGB888)
 				r2y_en = 1;
 			canvas_w =  picsize_x * 3;
 			canvas_w = ((canvas_w + 31) >> 5) << 5;
 			canvas_config(ENC_CANVAS_OFFSET + 6,
-				      input,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			input = ENC_CANVAS_OFFSET + 6;
-		} else if ((request->fmt == FMT_NV21) ||
-				(request->fmt == FMT_NV12)) {
+		} else if ((request->fmt == FMT_NV21)
+			|| (request->fmt == FMT_NV12)) {
 			canvas_w = ((wq->pic.encoder_width + 31) >> 5) << 5;
 			iformat = (request->fmt == FMT_NV21) ? 2 : 3;
 			canvas_config(ENC_CANVAS_OFFSET + 6,
-				      input,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 7,
-				      input + canvas_w * picsize_y,
-				      canvas_w, picsize_y / 2,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y,
+				canvas_w, picsize_y / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			input = ((ENC_CANVAS_OFFSET + 7) << 8) |
-					(ENC_CANVAS_OFFSET + 6);
+				(ENC_CANVAS_OFFSET + 6);
 		} else if (request->fmt == FMT_YUV420) {
 			iformat = 4;
 			canvas_w = ((wq->pic.encoder_width + 63) >> 6) << 6;
 			canvas_config(ENC_CANVAS_OFFSET + 6,
-				      input,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 7,
-				      input + canvas_w * picsize_y,
-				      canvas_w / 2, picsize_y / 2,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y,
+				canvas_w / 2, picsize_y / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 8,
-				      input + canvas_w * picsize_y * 5 / 4,
-				      canvas_w / 2, picsize_y / 2,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y * 5 / 4,
+				canvas_w / 2, picsize_y / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			input = ((ENC_CANVAS_OFFSET + 8) << 16) |
 				((ENC_CANVAS_OFFSET + 7) << 8) |
 				(ENC_CANVAS_OFFSET + 6);
-		} else if ((request->fmt == FMT_YUV444_PLANE) ||
-			   (request->fmt == FMT_RGB888_PLANE)) {
+		} else if ((request->fmt == FMT_YUV444_PLANE)
+			|| (request->fmt == FMT_RGB888_PLANE)) {
 			if (request->fmt == FMT_RGB888_PLANE)
 				r2y_en = 1;
 			iformat = 5;
 			canvas_w = ((wq->pic.encoder_width + 31) >> 5) << 5;
 			canvas_config(ENC_CANVAS_OFFSET + 6,
-				      input,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 7,
-				      input + canvas_w * picsize_y,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 8,
-				      input + canvas_w * picsize_y * 2,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y * 2,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			input = ((ENC_CANVAS_OFFSET + 8) << 16) |
 				((ENC_CANVAS_OFFSET + 7) << 8) |
 				(ENC_CANVAS_OFFSET + 6);
@@ -1549,28 +1571,34 @@ static s32 set_input_format(struct encode_wq_s *wq,
 		} else if (request->fmt == FMT_YUV444_SINGLE) {
 			iformat = 1;
 			input = input & 0xff;
-		} else if ((request->fmt == FMT_NV21) ||
-				(request->fmt == FMT_NV12)) {
+		} else if ((request->fmt == FMT_NV21)
+			|| (request->fmt == FMT_NV12)) {
 			iformat = (request->fmt == FMT_NV21) ? 2 : 3;
 			input = input & 0xffff;
 		} else if (request->fmt == FMT_YUV420) {
 			iformat = 4;
 			input = input & 0xffffff;
-		} else if ((request->fmt == FMT_YUV444_PLANE) ||
-			   (request->fmt == FMT_RGB888_PLANE)) {
+		} else if ((request->fmt == FMT_YUV444_PLANE)
+			|| (request->fmt == FMT_RGB888_PLANE)) {
 			if (request->fmt == FMT_RGB888_PLANE)
 				r2y_en = 1;
 			iformat = 5;
 			input = input & 0xffffff;
+		} else if ((request->fmt == FMT_YUV422_12BIT)
+			|| (request->fmt == FMT_YUV444_10BIT)
+			|| (request->fmt == FMT_YUV422_10BIT)) {
+			iformat = 7;
+			ifmt_extra = request->fmt - FMT_YUV422_12BIT;
+			input = input & 0xff;
 		} else
 			ret = -1;
 	}
 MFDIN:
 	if (ret == 0)
 		mfdin_basic(input, iformat, oformat,
-			    picsize_x, picsize_y, r2y_en,
-			    (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) ?
-				request->nr_mode : 0);
+			picsize_x, picsize_y, r2y_en,
+			(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) ?
+			request->nr_mode : 0, ifmt_extra);
 	wq->control.finish = true;
 	return ret;
 }

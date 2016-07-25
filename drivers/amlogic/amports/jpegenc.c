@@ -2253,8 +2253,9 @@ static void jpegenc_buffspec_init(struct jpegenc_wq_s *wq)
 #define HCODEC_MFDIN_REG15			(HCODEC_MFDIN_REGB_AMPC + 0xa)
 #define HCODEC_MFDIN_REG16			(HCODEC_MFDIN_REGB_AMPC + 0xb)
 
-static void mfdin_basic_jpeg(u32 input, u8 iformat,
-	u8 oformat, u32 picsize_x, u32 picsize_y, u8 r2y_en)
+static void mfdin_basic_jpeg(
+	u32 input, u8 iformat, u8 oformat, u32 picsize_x,
+	u32 picsize_y, u8 r2y_en, u8 ifmt_extra)
 {
 	u8 dsample_en; /* Downsample Enable */
 	u8 interp_en; /* Interpolation Enable */
@@ -2276,10 +2277,30 @@ static void mfdin_basic_jpeg(u32 input, u8 iformat,
 	u32 linear_bytesperline;
 	bool linear_enable = false;
 	s32 reg_offset;
+	bool format_err = false;
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+		if ((iformat == 7) && (ifmt_extra > 2))
+			format_err = true;
+	} else if (iformat == 7)
+		format_err = true;
+
+	if (format_err) {
+		jenc_pr(LOG_ERROR,
+			"mfdin format err, iformat:%d, ifmt_extra:%d\n",
+			iformat, ifmt_extra);
+		return;
+	}
+	if (iformat != 7)
+		ifmt_extra = 0;
 
 	ifmt444 = ((iformat == 1) || (iformat == 5) || (iformat == 8)
 		|| (iformat == 9) || (iformat == 12)) ? 1 : 0;
+	if (iformat == 7 && ifmt_extra == 1)
+		ifmt444 = 1;
 	ifmt422 = ((iformat == 0) || (iformat == 10)) ? 1 : 0;
+	if (iformat == 7 && ifmt_extra != 1)
+		ifmt422 = 1;
 	ifmt420 = ((iformat == 2) || (iformat == 3) || (iformat == 4)
 		|| (iformat == 11)) ? 1 : 0;
 	dsample_en = ((ifmt444 && (oformat != 2))
@@ -2322,7 +2343,8 @@ static void mfdin_basic_jpeg(u32 input, u8 iformat,
 		(iformat << 0) | (oformat << 4) |
 		(dsample_en << 6) | (y_size << 8) |
 		(interp_en << 9) | (r2y_en << 12) |
-		(r2y_mode << 13) | (2 << 29));
+		(r2y_mode << 13) | (ifmt_extra << 16) |
+		(2 << 29));
 
 	if (linear_enable == false) {
 		WRITE_HREG((HCODEC_MFDIN_REG3_CANV + reg_offset),
@@ -2362,6 +2384,7 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
 	u32 picsize_x, picsize_y;
 	u32 canvas_w = 0;
 	u32 input = cmd->src;
+	u8 ifmt_extra = 0;
 
 	jenc_pr(LOG_INFO, "************begin set input format**************\n");
 	jenc_pr(LOG_INFO, "type is %d\n", cmd->type);
@@ -2439,20 +2462,20 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
 			iformat = 4;
 			canvas_w = ((cmd->encoder_width + 63) >> 6) << 6;
 			canvas_config(ENC_CANVAS_OFFSET,
-				      input,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 2,
-				      input + canvas_w * picsize_y,
-				      canvas_w / 2, picsize_y / 2,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y,
+				canvas_w / 2, picsize_y / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 2,
-				      input + canvas_w * picsize_y * 5 / 4,
-				      canvas_w / 2, picsize_y / 2,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y * 5 / 4,
+				canvas_w / 2, picsize_y / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			input = ((ENC_CANVAS_OFFSET + 2) << 16) |
 				((ENC_CANVAS_OFFSET + 1) << 8) |
 				ENC_CANVAS_OFFSET;
@@ -2463,18 +2486,18 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
 				r2y_en = 1;
 			canvas_w = ((cmd->encoder_width + 31) >> 5) << 5;
 			canvas_config(ENC_CANVAS_OFFSET,
-				      input,
-				      canvas_w, picsize_y,
-				      CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 1,
-				      input + canvas_w * picsize_y, canvas_w,
-				      picsize_y, CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y, canvas_w,
+				picsize_y, CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			canvas_config(ENC_CANVAS_OFFSET + 2,
-				      input + canvas_w * picsize_y * 2,
-				      canvas_w, picsize_y, CANVAS_ADDR_NOWRAP,
-				      CANVAS_BLKMODE_LINEAR);
+				input + canvas_w * picsize_y * 2,
+				canvas_w, picsize_y, CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
 			input = ((ENC_CANVAS_OFFSET + 2) << 16) |
 				((ENC_CANVAS_OFFSET + 1) << 8) |
 				ENC_CANVAS_OFFSET;
@@ -2504,12 +2527,18 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
 				r2y_en = 1;
 			iformat = 5;
 			input = input & 0xffffff;
+		} else if ((cmd->input_fmt == JPEGENC_FMT_YUV422_12BIT)
+			|| (cmd->input_fmt == JPEGENC_FMT_YUV444_10BIT)
+			|| (cmd->input_fmt == JPEGENC_FMT_YUV422_10BIT)) {
+			iformat = 7;
+			ifmt_extra = cmd->input_fmt - JPEGENC_FMT_YUV422_12BIT;
+			input = input & 0xff;
 		} else
 			ret = -1;
 	}
 	if (ret == 0)
 		mfdin_basic_jpeg(input, iformat, oformat,
-			picsize_x, picsize_y, r2y_en);
+			picsize_x, picsize_y, r2y_en, ifmt_extra);
 	return ret;
 }
 
