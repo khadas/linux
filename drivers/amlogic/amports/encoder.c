@@ -1477,12 +1477,30 @@ static s32 set_input_format(struct encode_wq_s *wq,
 				input = wq->mem.dct_buff_start_addr;
 			}
 		}
-		if (request->fmt <= FMT_YUV444_PLANE)
+		if ((request->fmt <= FMT_YUV444_PLANE) ||
+			(request->fmt >= FMT_YUV422_12BIT))
 			r2y_en = 0;
 		else
 			r2y_en = 1;
 
-		if (request->fmt == FMT_YUV422_SINGLE)
+		if (request->fmt >= FMT_YUV422_12BIT) {
+			iformat = 7;
+			ifmt_extra = request->fmt - FMT_YUV422_12BIT;
+			if (request->fmt == FMT_YUV422_12BIT)
+				canvas_w = picsize_x * 24 / 8;
+			else if (request->fmt == FMT_YUV444_10BIT)
+				canvas_w = picsize_x * 32 / 8;
+			else
+				canvas_w = (picsize_x * 20 + 7) / 8;
+			canvas_w = ((canvas_w + 31) >> 5) << 5;
+			canvas_config(ENC_CANVAS_OFFSET + 6,
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			input = ENC_CANVAS_OFFSET + 6;
+			input = input & 0xff;
+		} else if (request->fmt == FMT_YUV422_SINGLE)
 			iformat = 10;
 		else if ((request->fmt == FMT_YUV444_SINGLE)
 			|| (request->fmt == FMT_RGB888)) {

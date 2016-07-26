@@ -2415,12 +2415,31 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
 					cmd->framesize);
 			input = wq->InputBuffStart;
 		}
-		if (cmd->input_fmt <= JPEGENC_FMT_YUV444_PLANE)
+		if ((cmd->input_fmt <= JPEGENC_FMT_YUV444_PLANE) ||
+			(cmd->input_fmt >= JPEGENC_FMT_YUV422_12BIT))
 			r2y_en = 0;
 		else
 			r2y_en = 1;
 
-		if (cmd->input_fmt == JPEGENC_FMT_YUV422_SINGLE) {
+		if (cmd->input_fmt >= JPEGENC_FMT_YUV422_12BIT) {
+			iformat = 7;
+			ifmt_extra =
+				cmd->input_fmt - JPEGENC_FMT_YUV422_12BIT;
+			if (cmd->input_fmt == JPEGENC_FMT_YUV422_12BIT)
+				canvas_w = picsize_x * 24 / 8;
+			else if (cmd->input_fmt == JPEGENC_FMT_YUV444_10BIT)
+				canvas_w = picsize_x * 32 / 8;
+			else
+				canvas_w = (picsize_x * 20 + 7) / 8;
+			canvas_w = ((canvas_w + 31) >> 5) << 5;
+			canvas_config(ENC_CANVAS_OFFSET,
+				input,
+				canvas_w, picsize_y,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			input = ENC_CANVAS_OFFSET;
+			input = input & 0xff;
+		} else if (cmd->input_fmt == JPEGENC_FMT_YUV422_SINGLE) {
 			iformat = 0;
 			canvas_w = picsize_x * 2;
 			canvas_w = ((canvas_w + 31) >> 5) << 5;
