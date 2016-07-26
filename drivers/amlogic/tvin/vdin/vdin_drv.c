@@ -2004,6 +2004,19 @@ static int vdin_release(struct inode *inode, struct file *file)
 	}
 
 	devp->flags &= (~VDIN_FLAG_FS_OPENED);
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
+		vdin_stop_dec(devp);
+		/* init flag */
+		devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
+		/* clear the flag of decode started */
+		devp->flags &= (~VDIN_FLAG_DEC_STARTED);
+	}
+	if (devp->flags & VDIN_FLAG_DEC_OPENED) {
+		vdin_close_fe(devp);
+		devp->flags &= (~VDIN_FLAG_DEC_OPENED);
+	}
+	devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
 
 	/* free irq */
 	free_irq(devp->irq, (void *)devp);
