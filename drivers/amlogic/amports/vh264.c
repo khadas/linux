@@ -1521,9 +1521,15 @@ static void vh264_isr(void)
 					last_pts_remainder = 0;
 
 			} else {
-				pts =
-					pts_inc_by_duration(&pts,
-							&last_pts_remainder);
+				if (fixed_frame_rate_flag && !pts_discontinue &&
+					(abs(pts_inc_by_duration(NULL, NULL)
+					 - pts)
+					 > DUR2PTS(frame_dur))) {
+						duration_from_pts_done = 0;
+						pr_info("recalc frame_dur\n");
+				} else
+					pts = pts_inc_by_duration(&pts,
+						&last_pts_remainder);
 				pts_valid = 1;
 			}
 
