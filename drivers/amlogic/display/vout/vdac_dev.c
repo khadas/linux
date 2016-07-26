@@ -397,10 +397,10 @@ void vdac_enable(bool on, unsigned int module_sel)
 			vdac_out_cntl1_bit3(1, VDAC_MODULE_CVBS_OUT);
 			vdac_out_cntl0_bit0(1, VDAC_MODULE_CVBS_OUT);
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_CVBS_OUT);
-			vdac_out_cntl0_bit10(1, VDAC_MODULE_CVBS_OUT);
+			vdac_out_cntl0_bit10(0, VDAC_MODULE_CVBS_OUT);
 			pri_flag |= VDAC_MODULE_CVBS_OUT;
 		} else {
-			vdac_out_cntl0_bit10(0, VDAC_MODULE_CVBS_OUT);
+			/*vdac_out_cntl0_bit10(0, VDAC_MODULE_CVBS_OUT);*/
 			ana_ref_cntl0_bit9(0, VDAC_MODULE_CVBS_OUT);
 			vdac_out_cntl0_bit0(0, VDAC_MODULE_CVBS_OUT);
 			vdac_out_cntl1_bit3(0, VDAC_MODULE_CVBS_OUT);
