@@ -1895,6 +1895,11 @@ static void zoom_display_horz(int hscale)
 			  ((l_aligned / 32) << 16) |
 			  ((r_aligned / 32) - 1));
 
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
+			VSYNC_WR_MPEG_REG(AFBC_SIZE_OUT,
+				(VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) & 0xffff) |
+				((r_aligned - l_aligned) << 16));
+		}
 #ifdef TV_REVERSE
 		if (reverse) {
 			content_w = zoom_end_x_lines - zoom_start_x_lines + 1;
