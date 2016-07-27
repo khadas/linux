@@ -149,6 +149,10 @@ static int ve_dnlp_hghrange = 18;
 module_param(ve_dnlp_hghrange, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_hghrange, "ve_dnlp_hghrange");
 
+static int ve_dnlp_auto_rng;
+module_param(ve_dnlp_auto_rng, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_auto_rng, "ve_dnlp_auto_rng");
+
 static int ve_dnlp_lowalpha = 24;
 module_param(ve_dnlp_lowalpha, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_lowalpha, "ve_dnlp_lowalpha");
@@ -203,7 +207,7 @@ module_param(ve_dnlp_gmma_rate, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_gmma_rate,
 		"ve_dnlp_gmma_rate");
 
-static int ve_dnlp_lowalpha_new = 20;
+static int ve_dnlp_lowalpha_new = 40;
 module_param(ve_dnlp_lowalpha_new, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_lowalpha_new,
 		"ve_dnlp_lowalpha_new");
@@ -213,7 +217,7 @@ module_param(ve_dnlp_hghalpha_new, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_hghalpha_new,
 		"ve_dnlp_hghalpha_new");
 
-static int ve_dnlp_cliprate_new = 6;
+static int ve_dnlp_cliprate_new = 36;
 module_param(ve_dnlp_cliprate_new, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_cliprate_new,
 		"ve_dnlp_cliprate_new");
@@ -238,9 +242,15 @@ static int ve_mtdbld_rate = 53;
 module_param(ve_mtdbld_rate, int, 0664);
 MODULE_PARM_DESC(ve_mtdbld_rate, "ve_mtdbld_rate");
 
+/*
 static int ve_blkgma_rate = 16;
 module_param(ve_blkgma_rate, int, 0664);
 MODULE_PARM_DESC(ve_blkgma_rate, "ve_blkgma_rate");
+*/
+
+static int ve_dnlp_pst_gmarat = 65;
+module_param(ve_dnlp_pst_gmarat, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_pst_gmarat, "ve_dnlp_pst_gmarat");
 
 /*dnlp method = 3, use this flag or no use*/
 bool ve_dnlp_respond_flag;
@@ -327,34 +337,102 @@ module_param(ve_dnlp_lownum, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_lownum, "the number of low bins");
 
 /* black gamma end point setting */
-static int ve_dnlp_bkgend = 20;
+static int ve_dnlp_bkgend;
 module_param(ve_dnlp_bkgend, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_bkgend, "black gamma end point setting");
 
 /* black gamma end point rate */
-static int ve_dnlp_bkgert = 4;
+static int ve_dnlp_bkgert = 64;
 module_param(ve_dnlp_bkgert, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_bkgert, "black gamma end point rate");
 
+static int ve_dnlp_pstgma_brghtrate = 8;
+module_param(ve_dnlp_pstgma_brghtrate, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_pstgma_brghtrate, "ve_dnlp_pstgma_brghtrate");
+
+static int ve_dnlp_pstgma_brghtrat1 = 15;
+module_param(ve_dnlp_pstgma_brghtrat1, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_pstgma_brghtrat1, "ve_dnlp_pstgma_brghtrat1");
+
 /* black extension when sum(hist) <  (ext*tAvg>>6) */
-static int ve_dnlp_blkext = 8;
+static int ve_dnlp_blkext = 4;
 module_param(ve_dnlp_blkext, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_blkext, "black extension: sum()");
 
 /* white extension when sum(hist) < (ext*tAvg>>6) */
-static int ve_dnlp_whtext = 8;
+static int ve_dnlp_whtext = 4;
 module_param(ve_dnlp_whtext, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_whtext, "white extension: sum()");
 
 /* black extension maximum bins */
-static int ve_dnlp_bextmx = 2;
+static int ve_dnlp_bextmx = 4;
 module_param(ve_dnlp_bextmx, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_bextmx, "black extension bins");
 
 /* white extension maximum bins */
-static int ve_dnlp_wextmx = 4;
+static int ve_dnlp_wextmx = 32;
 module_param(ve_dnlp_wextmx, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_wextmx, "white extension bins");
+
+static int ve_dnlp_wext_autorat = 16;
+module_param(ve_dnlp_wext_autorat, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_wext_autorat, "ve_dnlp_wext_autorat");
+
+/* adpative mtdrate low band */
+/* default=0 */
+static int ve_dnlp_adpmtd_lbnd = 19;
+module_param(ve_dnlp_adpmtd_lbnd, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_adpmtd_lbnd, "ve_dnlp_adpmtd_lbnd");
+
+/* adpative mtdrate high band */
+/* default=0 */
+static int ve_dnlp_adpmtd_hbnd = 20;
+module_param(ve_dnlp_adpmtd_hbnd, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_adpmtd_hbnd, "ve_dnlp_adpmtd_hbnd");
+
+static int ve_dnlp_adpalpha_lrate = 32;
+module_param(ve_dnlp_adpalpha_lrate, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_adpalpha_lrate, "ve_dnlp_adpalpha_lrate");
+
+static int ve_dnlp_adpalpha_hrate = 32;
+module_param(ve_dnlp_adpalpha_hrate, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_adpalpha_hrate, "ve_dnlp_adpalpha_hrate");
+
+static int ve_dnlp_set_bext;
+module_param(ve_dnlp_set_bext, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_set_bext, "ve_dnlp_set_bext");
+
+static int ve_dnlp_set_wext;
+module_param(ve_dnlp_set_wext, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_set_wext, "ve_dnlp_set_wext");
+
+static int ve_dnlp_satur_rat = 30;
+module_param(ve_dnlp_satur_rat, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_satur_rat, "ve_dnlp_satur_rat");
+
+static int ve_dnlp_satur_max = 40;
+module_param(ve_dnlp_satur_max, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_satur_max, "ve_dnlp_satur_max");
+
+static int ve_blk_prct_rng = 2;
+module_param(ve_blk_prct_rng, int, 0664);
+MODULE_PARM_DESC(ve_blk_prct_rng, "ve_blk_prct_rng");
+
+static int ve_blk_prct_max = 16;
+module_param(ve_blk_prct_max, int, 0664);
+MODULE_PARM_DESC(ve_blk_prct_max, "ve_blk_prct_max");
+
+static unsigned int ve_dnlp_set_saturtn;
+module_param(ve_dnlp_set_saturtn, uint, 0664);
+MODULE_PARM_DESC(ve_dnlp_set_saturtn, "ve_dnlp_set_saturtn");
+
+static int ve_dnlp_bin0_absmax = 16;
+module_param(ve_dnlp_bin0_absmax, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_bin0_absmax, "ve_dnlp_bin0_absmax");
+
+static int ve_dnlp_bin0_sbtmax = 128;
+module_param(ve_dnlp_bin0_sbtmax, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_bin0_sbtmax, "ve_dnlp_bin0_sbtmax");
 
 static int ve_dnlp_lrate00 = 32;
 module_param(ve_dnlp_lrate00, int, 0664);
@@ -505,7 +583,7 @@ static bool ve_dnlp_limit_rng;
 module_param(ve_dnlp_limit_rng, bool, 0664);
 MODULE_PARM_DESC(ve_dnlp_limit_rng, "input limit range");
 
-static bool ve_dnlp_range_det = 1;
+static bool ve_dnlp_range_det;
 module_param(ve_dnlp_range_det, bool, 0664);
 MODULE_PARM_DESC(ve_dnlp_range_det,
 "input limit or full range detection");
@@ -523,7 +601,7 @@ MODULE_PARM_DESC(ve_dnlp_cuvbld_min,
 		"ve_dnlp_cuvbld_min");
 
 /* curveblend minimmum level */
-static int ve_dnlp_cuvbld_max = 8;
+static int ve_dnlp_cuvbld_max = 17;
 module_param(ve_dnlp_cuvbld_max, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_cuvbld_max,
 		"ve_dnlp_cuvbld_max");
@@ -539,6 +617,31 @@ static int ve_dnlp_dbg_map;
 module_param(ve_dnlp_dbg_map, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_dbg_map,
 		"ve_dnlp_dbg_map");
+
+static int ve_dnlp_scv_dbg;
+module_param(ve_dnlp_scv_dbg, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_scv_dbg,
+		"ve_dnlp_scv_dbg");
+
+static int ve_dnlp_cliprate_min = 19;
+module_param(ve_dnlp_cliprate_min, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_cliprate_min,
+		"ve_dnlp_cliprate_min");
+
+static int ve_dnlp_adpcrat_lbnd = 10;
+module_param(ve_dnlp_adpcrat_lbnd, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_adpcrat_lbnd,
+		"ve_dnlp_adpcrat_lbnd");
+
+static int ve_dnlp_adpcrat_hbnd = 20;
+module_param(ve_dnlp_adpcrat_hbnd, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_adpcrat_hbnd,
+		"ve_dnlp_adpcrat_hbnd");
+
+/* print log once */
+static int ve_dnlp_ponce = 1;
+module_param(ve_dnlp_ponce, int, 0664);
+MODULE_PARM_DESC(ve_dnlp_ponce, "ve_dnlp_ponce");
 
 /* global variable */
 unsigned int iRgnBgn = 0; /* i>=iRgnBgn */
@@ -640,6 +743,16 @@ MODULE_PARM_DESC(contrast_adj_sel, "\n contrast_adj_sel\n");
 /* *********************************************************************** */
 /* *** VPP_FIQ-oriented functions **************************************** */
 /* *********************************************************************** */
+static void ve_dnlp_add_cm(unsigned int value)
+{
+	unsigned int reg_value;
+	VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x207);
+	reg_value = VSYNC_RD_MPEG_REG(VPP_CHROMA_DATA_PORT);
+	reg_value = (reg_value & 0xf000ffff) | (value << 16);
+	VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x207);
+	VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, reg_value);
+}
+
 static void ve_hist_gamma_tgt(struct vframe_s *vf)
 {
 	int ave_luma;
@@ -1009,6 +1122,8 @@ static unsigned int pre_0_gamma[65];
 static unsigned int pst_0_gamma[65];
 
 bool dnlp_scn_chg = 0; /* scene change */
+int dnlp_bld_lvl = 0; /* blend level */
+int RBASE = 1;
 
 /*rGmIn[0:64]   ==>0:4:256, gamma*/
 /*rGmOt[0:pwdth]==>0-0, 0~1024*/
@@ -1044,6 +1159,8 @@ void GetSubCurve(unsigned int *rGmOt,
 		/* rst = ((rst + 128)>>8); */
 		rst = ((rst + 32)>>6);
 
+		if (nT0 == 0)
+			rst = rGmIn[0];
 		if (rst > (pwdth << 4))
 			rst = (pwdth << 4);
 
@@ -1057,12 +1174,12 @@ void GetSubCurve(unsigned int *rGmOt,
 void GetGmBlkCvs(unsigned int *rGmOt, unsigned int *rGmIn,
 		unsigned int Bgn, unsigned int End)
 {
-	static unsigned int pgmma0[7][65];
+	static unsigned int pgmma0[65];
 	int nT0 = 0;
 	int pwdth = End - Bgn; /* 64 */
 	int pLst[65];
 	int i = 0;
-	int j = 0;
+	int nTmp0 = 0;
 
 	GetSubCurve(pLst, rGmIn, pwdth); /*0~1024*/
 
@@ -1071,26 +1188,26 @@ void GetGmBlkCvs(unsigned int *rGmOt, unsigned int *rGmIn,
 			rGmOt[nT0] = (nT0 << 4);
 		else if (nT0 >= End)
 			rGmOt[nT0] = (nT0 << 4);
-		else
-			rGmOt[nT0] = (Bgn << 4) + pLst[nT0 - Bgn];
+		else {
+			if (ve_dnlp_pst_gmarat > 64)
+				rGmOt[nT0] = (Bgn << 4) +
+				(1024 - pLst[64 + Bgn - nT0]);
+			else
+				rGmOt[nT0] = (Bgn << 4) + pLst[nT0 - Bgn];
+		}
 	}
 
 	if (!dnlp_scn_chg)
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				rGmOt[i] += pgmma0[j][i];
+			nTmp0 = dnlp_bld_lvl * rGmOt[i] + (RBASE >> 1);
+			nTmp0 = nTmp0 + (RBASE - dnlp_bld_lvl) * pgmma0[i];
+			nTmp0 = (nTmp0 >> ve_dnlp_mvreflsh); /* 0 ~1024 */
 
-			rGmOt[i] = ((rGmOt[i] + 4)>>3);
-
-			for (j = 0; j < 6; j++)
-				pgmma0[j][i] = pgmma0[j + 1][i];
-
-			pgmma0[6][i] = rGmOt[i]; /* 0 ~1024 */
+			rGmOt[i] = nTmp0;
 		}
-	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma0[j][i] = rGmOt[i];
+
+	for (i = 0; i < 65; i++)
+		pgmma0[i] = rGmOt[i];
 }
 
 
@@ -1191,22 +1308,14 @@ void GetGmCurves(unsigned int *rGmOt, unsigned int *rGmIn,
 
 unsigned int cal_hist_avg(unsigned int pval)
 {
-	static unsigned int ppval[7];
-	int i = 0;
+	static unsigned int ppval;
 
 	if (!dnlp_scn_chg) {
-		for (i = 0; i < 7; i++)
-			pval += ppval[i];
-
-		pval = ((pval + 4) >> 3);
-	} else
-		for (i = 0; i < 7; i++)
-			ppval[i] = pval;
-
-	for (i = 0; i < 6; i++)
-		ppval[i] = ppval[i + 1];
-
-	ppval[6] = pval;
+		pval = dnlp_bld_lvl * pval + (RBASE >> 1);
+		pval = pval + (RBASE - dnlp_bld_lvl) * ppval;
+		pval = (pval >> ve_dnlp_mvreflsh);
+	}
+	ppval = pval;
 
 	return pval;
 }
@@ -1214,24 +1323,55 @@ unsigned int cal_hist_avg(unsigned int pval)
 /* history */
 unsigned int cal_hst_shft_avg(unsigned int pval)
 {
-	static unsigned int ppval[7];
-	int i = 0;
+	static unsigned int ppval;
 
 	if (!dnlp_scn_chg) {
-		for (i = 0; i < 7; i++)
-			pval += ppval[i];
-
-		pval = ((pval + 4) >> 3);
-	} else
-		for (i = 0; i < 7; i++)
-			ppval[i] = pval;
-
-	for (i = 0; i < 6; i++)
-		ppval[i] = ppval[i + 1];
-
-	ppval[6] = pval;
+		pval = dnlp_bld_lvl * pval + (RBASE >> 1);
+		pval = pval + (RBASE - dnlp_bld_lvl) * ppval;
+		pval = (pval >> ve_dnlp_mvreflsh);
+	}
+	ppval = pval;
 
 	return pval;
+}
+
+/* mtdrate: mtdrate in the mid-tone*/
+/* luma_avg: 0~64 */
+static int dnlp_adp_mtdrate(int mtdrate, int luma_avg)
+{
+	int np = 0;
+	int nt = mtdrate;
+	if (ve_dnlp_adpmtd_lbnd > 0 &&
+		luma_avg < ve_dnlp_adpmtd_lbnd) {
+		nt = mtdrate * luma_avg + (ve_dnlp_adpmtd_lbnd >> 1);
+		nt /= ve_dnlp_adpmtd_lbnd;
+
+		np = 4 * (ve_dnlp_adpmtd_lbnd - luma_avg);
+		if (np < mtdrate)
+			np = mtdrate - np;
+		else
+			np = 0;
+
+		if (np > nt)
+			nt = np;
+	} else if (ve_dnlp_adpmtd_hbnd > 0 &&
+		(luma_avg > 64 - ve_dnlp_adpmtd_hbnd)) {
+		nt = mtdrate * (64 - luma_avg);
+		nt += (ve_dnlp_adpmtd_hbnd >> 1);
+		nt /= ve_dnlp_adpmtd_hbnd;
+
+		np = luma_avg - (64 - ve_dnlp_adpmtd_hbnd);
+		np = 4 * np;
+		if (np < mtdrate)
+			np = mtdrate - np;
+		else
+			np = 0;
+
+		if (np > nt)
+			nt = np;
+	}
+
+	return nt;
 }
 
 unsigned int AdjHistAvg(unsigned int pval, unsigned int ihstEnd)
@@ -1252,15 +1392,18 @@ unsigned int AdjHistAvg(unsigned int pval, unsigned int ihstEnd)
 	return pval;
 }
 
-int blk_wht_extsn(int *blk_wht_ext, unsigned int *iHst, int hstSum)
+int blk_wht_extsn(int *blk_wht_ext, unsigned int *iHst,
+	int hstSum, unsigned int luma_avg)
 {
 	int tAvg = ((hstSum + 32) >> 6);
 	int nStp = 0;
 	int nT0 = 0;
+	int nT1 = 0;
 	int i = 0;
+	int dnlp_wextmx = ve_dnlp_wextmx;
 
 	/* black / white extension */
-	static int pblk_wht_ext[7][2];
+	static int pblk_wht_ext[2];
 
 	/* black extension */
 	nStp = tAvg * ve_dnlp_blkext + 32;
@@ -1278,38 +1421,69 @@ int blk_wht_extsn(int *blk_wht_ext, unsigned int *iHst, int hstSum)
 	/* white extension */
 	nStp = tAvg * ve_dnlp_whtext + 32;
 	nStp = (nStp >> 6);
-	blk_wht_ext[1] = 0;
+
+	if (ve_dnlp_wext_autorat > 0)
+		dnlp_wextmx = iRgnEnd - 1;
+	else
+		dnlp_wextmx = ve_dnlp_wextmx;
+
 	nT0 = 0;
-	for (i = 0; i < ve_dnlp_wextmx; i++) {
+	nT1 = 0;
+	for (i = 0; i < dnlp_wextmx; i++) {
 		nT0 += iHst[iRgnEnd - 1 - i];
 		if (nT0 > nStp)
 			break;
 		else if (i >= (64 - iRgnEnd))
-			blk_wht_ext[1] = ((i + iRgnEnd - 63) << 4);
+			nT1 = (i + iRgnEnd - 63);
 	}
+
+	if (ve_dnlp_wext_autorat > 0) {
+		if (luma_avg > 32) /* baby face */
+			nT1 = 0;
+		else {
+			nT1 = (32 - luma_avg) * nT1 * ve_dnlp_wext_autorat;
+			nT1 = ((nT1 + 512) >> 10);
+			if (nT1 > ve_dnlp_wextmx)
+				nT1 = ve_dnlp_wextmx;
+		}
+	}
+	blk_wht_ext[1] = (nT1 << 4);
 
 	if (!dnlp_scn_chg) {
-		for (i = 0; i < 7; i++) {
-			blk_wht_ext[0] += pblk_wht_ext[i][0];
-			blk_wht_ext[1] += pblk_wht_ext[i][1];
-		}
-		blk_wht_ext[0] = ((blk_wht_ext[0] + 4) >> 3);
-		blk_wht_ext[1] = ((blk_wht_ext[1] + 4) >> 3);
-	} else {
-		for (i = 0; i < 7; i++) {
-			pblk_wht_ext[i][0] = blk_wht_ext[0];
-			pblk_wht_ext[i][1] = blk_wht_ext[1];
-		}
+		nT0 = dnlp_bld_lvl * blk_wht_ext[0] + (RBASE >> 1);
+		nT0 = nT0 + (RBASE - dnlp_bld_lvl) * pblk_wht_ext[0];
+		blk_wht_ext[0] = (nT0 >> ve_dnlp_mvreflsh);
+
+		nT1 = dnlp_bld_lvl * blk_wht_ext[1] + (RBASE >> 1);
+		nT1 = nT1 + (RBASE - dnlp_bld_lvl) * pblk_wht_ext[1];
+		blk_wht_ext[1] = (nT1 >> ve_dnlp_mvreflsh);
 	}
 
-	for (i = 0; i < 6; i++) {
-		pblk_wht_ext[i][0] = pblk_wht_ext[i + 1][0];
-		pblk_wht_ext[i][1] = pblk_wht_ext[i + 1][1];
-	}
-	pblk_wht_ext[6][0] = blk_wht_ext[0];
-	pblk_wht_ext[6][1] = blk_wht_ext[1];
+	pblk_wht_ext[0] = blk_wht_ext[0];
+	pblk_wht_ext[1] = blk_wht_ext[1];
 
 	return 0;
+}
+
+static unsigned int dnlp_adp_cliprate(unsigned int clip_rate,
+	unsigned int clip_rmin, unsigned int luma_avg)
+{
+	unsigned int nt = clip_rate;
+	if (luma_avg < ve_dnlp_adpcrat_lbnd) {
+		nt = clip_rate * (ve_dnlp_adpcrat_lbnd - luma_avg) +
+			luma_avg * clip_rmin;
+
+		nt = (nt << 4) + (ve_dnlp_adpcrat_lbnd >> 1);
+		nt /= ve_dnlp_adpcrat_lbnd;
+	} else if (luma_avg > 64 - ve_dnlp_adpcrat_hbnd) {
+		nt = clip_rmin * (64 - luma_avg) +
+			clip_rate * (luma_avg + ve_dnlp_adpcrat_hbnd - 64);
+		nt += (nt << 4) + (ve_dnlp_adpcrat_hbnd >> 1);
+		nt /= ve_dnlp_adpcrat_hbnd;
+	} else
+		nt = (clip_rmin << 4);
+
+	return nt;
 }
 
 int old_dnlp_lrate[32];
@@ -1326,6 +1500,8 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 	unsigned int cLmt = 0;
 	unsigned int tLen = (hstEnd - hstBgn);
 	unsigned int tAvg = 0;
+	unsigned int lAvg4 = 0;
+	unsigned int lAvg1 = 0;
 	unsigned int nStp = 0;
 	/*unsigned int uLmt = 0;*/
 	/*unsigned int stp = 0;*/
@@ -1333,6 +1509,8 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 	unsigned int tHst[64];
 	unsigned int nT0 = 0;
 	unsigned int clip_rate = ve_dnlp_cliprate_new;
+	unsigned int clip_rmin  = ve_dnlp_cliprate_min;
+	unsigned int adp_crate = clip_rate;
 
 	int nNum = 0;
 	int nExc = 0;
@@ -1341,6 +1519,18 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 
 	/* local limit 64-bin*/
 	unsigned int lcl_lmt[64];
+
+	if (clip_rmin > clip_rate)
+		clip_rmin = clip_rate;
+	if (ve_dnlp_adpcrat_lbnd < 2)
+		ve_dnlp_adpcrat_lbnd = 2;
+	else if (ve_dnlp_adpcrat_lbnd > 30)
+		ve_dnlp_adpcrat_lbnd = 30;
+
+	if (ve_dnlp_adpcrat_hbnd < 2)
+		ve_dnlp_adpcrat_hbnd = 2;
+	else if (ve_dnlp_adpcrat_hbnd > 30)
+		ve_dnlp_adpcrat_hbnd = 30;
 
 	if (hstBgn > 16)
 		hstBgn = 16;
@@ -1352,6 +1542,8 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 
 	oMap[64] = 1024; /* 0~1024 */
 	/*64 bins, max, ave*/
+	lAvg4 = 0;
+	lAvg1 = 0;
 	for (i = 0; i < 64; i++) {
 		oHst[i] = iHst[i];
 		oMap[i] = (i << 4); /* 0~1024 */
@@ -1363,16 +1555,24 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 			if (tmax < iHst[i])
 				tmax = iHst[i];
 			tsum += iHst[i];
+			lAvg4 += (iHst[i] * i);
 		} else {
 			oHst[i] = 0;
 		}
 
 		lcl_lmt[i] = old_dnlp_lrate[(i>>1)];
 	}
+	lAvg4 = (lAvg4 << 2) + tsum / 2;
+	lAvg4 = lAvg4 / tsum;
+	lAvg1 = (lAvg4 + 2) >> 2;
+
+	/* << 4 */
+	adp_crate = dnlp_adp_cliprate(clip_rate, clip_rmin, lAvg1);
 
 	prt_flg = ((dnlp_printk >> 9) & 0x1);
 	if (prt_flg)
-		pr_info("#CL: Range[%02d ~ %02d]\n", hstBgn, hstEnd);
+		pr_info("#CL: Range[%02d ~ %02d] lAvg4=%d(%d), (crate << 4)=%d\n",
+			hstBgn, hstEnd, lAvg4, lAvg1, adp_crate);
 
 	for (i = 1; i <= 61; i += 2)
 		lcl_lmt[i] = ((lcl_lmt[i-1] + lcl_lmt[i+1] + 1)>>1);
@@ -1380,7 +1580,12 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 	if (hstEnd <= hstBgn)
 		return;
 
-	cLmt = (clip_rate*tsum)>>8;
+	/*cLmt = (clip_rate*tsum) >> 10;
+		= (tsum >> 6) * (clip_rate>>4)
+	adp_crate >> 4*/
+	cLmt = (adp_crate * tsum) >> 2;
+	cLmt = (cLmt + 2048) >> 12;
+
 	tAvg = (tsum + tLen/2)/tLen;
 
 	/* sort histogram */
@@ -1429,6 +1634,29 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 			lcl_lmt[i] = nT0;
 	}
 
+	/* black protect */
+	nStp = tAvg * ve_blk_prct_max + 4;
+	nStp = (nStp >> 3);
+	for (i = 0; i < ve_blk_prct_rng; i++) {
+		nT0 = (ve_blk_prct_rng - i);
+		if (iHst[i] > nStp)
+			nT0 = nT0 * (iHst[i] - nStp);
+		else
+			nT0 = 0;
+
+		if (lcl_lmt[i] > (nT0 + tAvg))
+			nT0 = lcl_lmt[i] - nT0;
+		else
+			nT0 = tAvg;
+
+		if (nT0 < tAvg)
+			nT0 = tAvg;
+
+		if (prt_flg)
+			pr_info("clmt[%d]: %4d -> %4d\n",
+				i, lcl_lmt[i], nT0);
+	} /* black protect */
+
 	nExc = 0;
 	nNum = 0;
 	for (i = hstBgn; i < hstEnd; i++) {
@@ -1441,11 +1669,11 @@ void clash_fun(unsigned int *oMap, unsigned int *iHst,
 		}
 	}
 
-	if (clip_rate <= 4 || tAvg <= 2) {
+	if (clip_rate <= 8 || tAvg <= 2) {
 		cLmt = (tsum + tLen/2)/tLen;
 		tsum = cLmt*tLen;
 		for (i = hstBgn; i < hstEnd; i++)
-				oHst[i] = cLmt;
+			oHst[i] = cLmt;
 
 	} else {
 		while ((nNum > 0) && (nExc > 0)) {
@@ -1518,7 +1746,7 @@ int old_dnlp_cliprate_new;
 int old_dnlp_clashBgn;
 int old_dnlp_clashEnd;
 int old_mtdbld_rate;
-int old_blkgma_rate;
+int old_dnlp_pst_gmarat;
 int old_dnlp_blk_cctr;
 int old_dnlp_brgt_ctrl;
 int old_dnlp_brgt_range;
@@ -1533,10 +1761,13 @@ int old_dnlp_lowbin;
 int old_dnlp_lownum;
 int old_dnlp_bkgend;
 int old_dnlp_bkgert;
+int old_dnlp_pstgma_brghtrate;
+int old_dnlp_pstgma_brghtrat1;
 int old_dnlp_blkext;
 int old_dnlp_whtext;
 int old_dnlp_bextmx;
 int old_dnlp_wextmx;
+int old_dnlp_wext_autorat;
 int old_dnlp_lavg_cum;
 int old_dnlp_schg_sft;
 bool old_dnlp_smhist_ck;
@@ -1549,8 +1780,28 @@ int old_dnlp_dbg_i2r;
 int old_dnlp_slow_end;
 int old_dnlp_pavg_btsft;
 int old_dnlp_dbg0331;
+int old_dnlp_cliprate_min;
+int old_dnlp_adpcrat_lbnd;
+int old_dnlp_adpcrat_hbnd;
+int old_dnlp_adpmtd_lbnd;
+int	old_dnlp_adpmtd_hbnd;
+int	old_dnlp_set_bext;
+int	old_dnlp_set_wext;
 
-int dnlp_bld_lvl = 0; /* blend level */
+int old_dnlp_satur_rat;
+int old_dnlp_satur_max;
+int	old_blk_prct_rng;
+int	old_blk_prct_max;
+
+int old_dnlp_lowrange;
+int old_dnlp_hghrange;
+int old_dnlp_auto_rng;
+
+int old_dnlp_bin0_absmax;
+int old_dnlp_bin0_sbtmax;
+
+int old_dnlp_adpalpha_lrate;
+int old_dnlp_adpalpha_hrate;
 
 static int cal_brght_plus(int luma_avg4, int low_lavg4)
 {
@@ -1559,10 +1810,9 @@ static int cal_brght_plus(int luma_avg4, int low_lavg4)
 
 	int low_rng = 0;
 	int low_rat = 0;
-	int i = 0;
 
 	int dnlp_brightness = 0;
-	static int pbrtness[7];
+	static int pbrtness;
 
 	if (luma_avg4 > low_lavg4)
 		avg_dif = luma_avg4 - low_lavg4;
@@ -1579,22 +1829,17 @@ static int cal_brght_plus(int luma_avg4, int low_lavg4)
 		low_rat = ve_dnlp_brgt_range - low_rng;
 
 	/* <<2 */
-	dnlp_brightness  = (ve_dnlp_brght_max*dif_rat*low_rat + 64)>>5;
+	dnlp_brightness  = (ve_dnlp_brght_max*dif_rat*low_rat + 16)>>5;
 	/* add=32 => add 0 */
 	dnlp_brightness += ((ve_dnlp_brght_add - 32) << 2);
 
-	if (dnlp_scn_chg)
-		for (i = 0; i < 7; i++)
-			pbrtness[i] = dnlp_brightness;
-
-	for (i = 0; i < 7; i++)
-		dnlp_brightness += pbrtness[i];
-	dnlp_brightness = ((dnlp_brightness + 4) >> 3);
-
-	for (i = 0; i < 6; i++)
-		pbrtness[i] = pbrtness[i + 1];
-
-	pbrtness[6] = dnlp_brightness;
+	if (!dnlp_scn_chg) {
+		dnlp_brightness = dnlp_bld_lvl * dnlp_brightness + (RBASE >> 1);
+		dnlp_brightness = dnlp_brightness +
+				(RBASE - dnlp_bld_lvl) * pbrtness;
+		dnlp_brightness = (dnlp_brightness >> ve_dnlp_mvreflsh);
+	}
+	pbrtness = dnlp_brightness;
 
 	return dnlp_brightness; /* 0 ~ 1024 */
 }
@@ -1616,28 +1861,22 @@ static unsigned int premap0[64];
 
 static int pcurves[8][64];
 
-
 static void clash_blend(void)
 {
 	int i = 0;
-	int j = 0;
-	static unsigned int pgmma[7][65];
+	int nTmp0 = 0;
+	static unsigned int pgmma[65];
 
 	if (!dnlp_scn_chg && ((ve_dnlp_dbg_i2r >> 3) & 0x1))
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				clash_curve[i] += pgmma[j][i];
-			clash_curve[i] = ((clash_curve[i] + 4)>>3);
-
-			for (j = 0; j < 6; j++)
-				pgmma[j][i] = pgmma[j + 1][i];
-
-			pgmma[6][i] = clash_curve[i]; /* 0 ~1024 */
+			nTmp0 = dnlp_bld_lvl * clash_curve[i] + (RBASE >> 1);
+			nTmp0 = nTmp0 + (RBASE - dnlp_bld_lvl) * pgmma[i];
+			nTmp0 = (nTmp0 >> ve_dnlp_mvreflsh);
+			clash_curve[i] = nTmp0;
 		}
-	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma[j][i] = clash_curve[i];
+
+	for (i = 0; i < 65; i++)
+		pgmma[i] = clash_curve[i];
 }
 
 int curve_rfrsh_chk(int hstSum, int rbase)
@@ -1659,7 +1898,8 @@ int curve_rfrsh_chk(int hstSum, int rbase)
 	tAvgDif[29] = (tLumAvg[29] > tLumAvg[28]) ?
 		(tLumAvg[29] - tLumAvg[28]) : (tLumAvg[28] - tLumAvg[29]);
 
-	prt_flg = ((dnlp_printk >> 7) & 0x1);
+	/* prt_flg = ((dnlp_printk >> 7) & 0x1); */
+	prt_flg = (dnlp_printk & 0x1);
 
 	lSby = 0;
 	for (i = 0; i < 8; i++)
@@ -1675,6 +1915,10 @@ int curve_rfrsh_chk(int hstSum, int rbase)
 
 	if (prt_flg)
 		pr_info("bld_lvl=%02d\n", bld_lvl);
+
+	/* play station: return with black scene intersection */
+	if (tAvgDif[29] > bld_lvl)
+		bld_lvl = tAvgDif[29];
 
 	if (bld_lvl > rbase)
 		bld_lvl = rbase;
@@ -1711,7 +1955,7 @@ static void dnlp3_param_refrsh(void)
 			(old_dnlp_clashBgn != ve_dnlp_clashBgn) ||
 			(old_dnlp_clashEnd != ve_dnlp_clashEnd) ||
 			(old_mtdbld_rate != ve_mtdbld_rate) ||
-			(old_blkgma_rate != ve_blkgma_rate) ||
+			(old_dnlp_pst_gmarat != ve_dnlp_pst_gmarat) ||
 			(old_dnlp_blk_cctr != ve_dnlp_blk_cctr) ||
 			(old_dnlp_brgt_ctrl != ve_dnlp_brgt_ctrl) ||
 			(old_dnlp_brgt_range != ve_dnlp_brgt_range) ||
@@ -1759,10 +2003,15 @@ static void dnlp3_param_refrsh(void)
 			(old_dnlp_lownum != ve_dnlp_lownum) ||
 			(old_dnlp_bkgend != ve_dnlp_bkgend) ||
 			(old_dnlp_bkgert != ve_dnlp_bkgert) ||
+			(old_dnlp_pstgma_brghtrate !=
+				ve_dnlp_pstgma_brghtrate) ||
+			(old_dnlp_pstgma_brghtrat1 !=
+				ve_dnlp_pstgma_brghtrat1) ||
 			(old_dnlp_blkext != ve_dnlp_blkext) ||
 			(old_dnlp_whtext != ve_dnlp_whtext) ||
 			(old_dnlp_bextmx != ve_dnlp_bextmx) ||
 			(old_dnlp_wextmx != ve_dnlp_wextmx) ||
+			(old_dnlp_wext_autorat != ve_dnlp_wext_autorat) ||
 			(old_dnlp_schg_sft != ve_dnlp_schg_sft) ||
 			(old_dnlp_smhist_ck != ve_dnlp_smhist_ck) ||
 			(old_dnlp_cuvbld_min != ve_dnlp_cuvbld_min) ||
@@ -1771,7 +2020,25 @@ static void dnlp3_param_refrsh(void)
 			(old_dnlp_dbg_adjavg != ve_dnlp_dbg_adjavg) ||
 			(old_dnlp_dbg_i2r != ve_dnlp_dbg_i2r) ||
 			(old_dnlp_slow_end != ve_dnlp_slow_end) ||
-			(old_dnlp_pavg_btsft != ve_dnlp_pavg_btsft))
+			(old_dnlp_pavg_btsft != ve_dnlp_pavg_btsft) ||
+			(old_dnlp_cliprate_min != ve_dnlp_cliprate_min) ||
+			(old_dnlp_adpcrat_lbnd != ve_dnlp_adpcrat_lbnd) ||
+			(old_dnlp_adpcrat_hbnd != ve_dnlp_adpcrat_hbnd) ||
+			(old_dnlp_adpmtd_lbnd != ve_dnlp_adpmtd_lbnd) ||
+			(old_dnlp_adpmtd_hbnd != ve_dnlp_adpmtd_hbnd) ||
+			(old_dnlp_set_bext != ve_dnlp_set_bext) ||
+			(old_dnlp_set_wext != ve_dnlp_set_wext) ||
+			(old_dnlp_satur_rat != ve_dnlp_satur_rat) ||
+			(old_dnlp_satur_max != ve_dnlp_satur_max) ||
+			(old_blk_prct_rng != ve_blk_prct_rng) ||
+			(old_blk_prct_max != ve_blk_prct_max) ||
+			(old_dnlp_lowrange != ve_dnlp_lowrange) ||
+			(old_dnlp_hghrange != ve_dnlp_hghrange) ||
+			(old_dnlp_auto_rng != ve_dnlp_auto_rng) ||
+			(old_dnlp_bin0_absmax != ve_dnlp_bin0_absmax) ||
+			(old_dnlp_bin0_sbtmax != ve_dnlp_bin0_sbtmax) ||
+			(old_dnlp_adpalpha_lrate != ve_dnlp_adpalpha_lrate) ||
+			(old_dnlp_adpalpha_hrate != ve_dnlp_adpalpha_hrate))
 			ve_dnlp_respond_flag = 1;
 		else
 			ve_dnlp_respond_flag = 0;
@@ -1787,7 +2054,7 @@ static void dnlp3_param_refrsh(void)
 	old_dnlp_clashBgn = ve_dnlp_clashBgn;
 	old_dnlp_clashEnd = ve_dnlp_clashEnd;
 	old_mtdbld_rate = ve_mtdbld_rate;
-	old_blkgma_rate = ve_blkgma_rate;
+	old_dnlp_pst_gmarat = ve_dnlp_pst_gmarat;
 	old_dnlp_blk_cctr = ve_dnlp_blk_cctr;
 	old_dnlp_brgt_ctrl = ve_dnlp_brgt_ctrl;
 	old_dnlp_brgt_range = ve_dnlp_brgt_range;
@@ -1836,11 +2103,14 @@ static void dnlp3_param_refrsh(void)
 
 	old_dnlp_bkgend = ve_dnlp_bkgend;
 	old_dnlp_bkgert = ve_dnlp_bkgert;
+	old_dnlp_pstgma_brghtrate = ve_dnlp_pstgma_brghtrate;
+	old_dnlp_pstgma_brghtrat1 = ve_dnlp_pstgma_brghtrat1;
 
 	old_dnlp_blkext = ve_dnlp_blkext;
 	old_dnlp_whtext = ve_dnlp_whtext;
 	old_dnlp_bextmx = ve_dnlp_bextmx;
 	old_dnlp_wextmx = ve_dnlp_wextmx;
+	old_dnlp_wext_autorat = ve_dnlp_wext_autorat;
 
 	old_dnlp_schg_sft = ve_dnlp_schg_sft;
 
@@ -1852,81 +2122,89 @@ static void dnlp3_param_refrsh(void)
 	old_dnlp_dbg_i2r = ve_dnlp_dbg_i2r;
 	old_dnlp_slow_end = ve_dnlp_slow_end;
 	old_dnlp_pavg_btsft = ve_dnlp_pavg_btsft;
+	old_dnlp_pavg_btsft = ve_dnlp_pavg_btsft;
+	old_dnlp_cliprate_min = ve_dnlp_cliprate_min;
+	old_dnlp_adpcrat_lbnd = ve_dnlp_adpcrat_lbnd;
+	old_dnlp_adpcrat_hbnd = ve_dnlp_adpcrat_hbnd;
+
+	old_dnlp_adpmtd_lbnd = ve_dnlp_adpmtd_lbnd;
+	old_dnlp_adpmtd_hbnd = ve_dnlp_adpmtd_hbnd;
+	old_dnlp_set_bext = ve_dnlp_set_bext;
+	old_dnlp_set_wext = ve_dnlp_set_wext;
+
+	old_dnlp_satur_rat = ve_dnlp_satur_rat;
+	old_dnlp_satur_max = ve_dnlp_satur_max;
+	old_blk_prct_rng = ve_blk_prct_rng;
+	old_blk_prct_max = ve_blk_prct_max;
+
+	old_dnlp_lowrange = ve_dnlp_lowrange;
+	old_dnlp_hghrange = ve_dnlp_hghrange;
+	old_dnlp_auto_rng = ve_dnlp_auto_rng;
+
+	old_dnlp_bin0_absmax = ve_dnlp_bin0_absmax;
+	old_dnlp_bin0_sbtmax = ve_dnlp_bin0_sbtmax;
+	old_dnlp_adpalpha_hrate = ve_dnlp_adpalpha_hrate;
+	old_dnlp_adpalpha_lrate = ve_dnlp_adpalpha_lrate;
 }
 
 static void dnlp_rfrsh_subgmma(void)
 {
 	int i = 0;
-	int j = 0;
-	static unsigned int pgmma0[7][65]; /* 0~4096*/
-	static unsigned int pgmma1[7][65];
+	static unsigned int pgmma0[65]; /* 0~4096*/
+	static unsigned int pgmma1[65];
 
 	if (!dnlp_scn_chg)
 		for (i = 0; i < 65; i++) {
-			gma_scurve0[i] = gma_scurve0[i] << 2;
-			gma_scurve1[i] = gma_scurve1[i] << 2;
+			gma_scurve0[i] = dnlp_bld_lvl *
+					(gma_scurve0[i] << 2) + (RBASE >> 1);
+			gma_scurve1[i] = dnlp_bld_lvl *
+					(gma_scurve1[i] << 2) + (RBASE >> 1);
 
-			for (j = 0; j < 7; j++) {
-				gma_scurve0[i] += pgmma0[j][i];
-				gma_scurve1[i] += pgmma1[j][i];
-			}
-			gma_scurve0[i] = ((gma_scurve0[i] + 4)>>3); /* 0~4096 */
-			gma_scurve1[i] = ((gma_scurve1[i] + 4)>>3);
+			gma_scurve0[i] = gma_scurve0[i] +
+					(RBASE - dnlp_bld_lvl) * pgmma0[i];
+			gma_scurve1[i] = gma_scurve1[i] +
+					(RBASE - dnlp_bld_lvl) * pgmma1[i];
 
-			for (j = 0; j < 6; j++) {
-				pgmma0[j][i] = pgmma0[j + 1][i];
-				pgmma1[j][i] = pgmma1[j + 1][i];
-			}
+			gma_scurve0[i] = (gma_scurve0[i] >> ve_dnlp_mvreflsh);
+			gma_scurve1[i] = (gma_scurve1[i] >> ve_dnlp_mvreflsh);
 
-			pgmma0[6][i] = gma_scurve0[i]; /* 0 ~4096 */
-			pgmma1[6][i] = gma_scurve1[i]; /* 0 ~4096 */
+			pgmma0[i] = gma_scurve0[i]; /* 0~ 4095 */
+			pgmma1[i] = gma_scurve1[i]; /* 0~ 4095 */
 
-			gma_scurve0[i] = (gma_scurve0[i] + 2) >> 2; /*1023*/
-			gma_scurve1[i] = (gma_scurve1[i] + 2) >> 2; /*1023*/
+			gma_scurve0[i] = (gma_scurve0[i] + 2) >> 2; /* 1023 */
+			gma_scurve1[i] = (gma_scurve1[i] + 2) >> 2; /* 1023 */
 		}
 	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++) {
-				pgmma0[j][i] = (gma_scurve0[i] << 2);
-				pgmma1[j][i] = (gma_scurve1[i] << 2);
-			}
+		for (i = 0; i < 65; i++) {
+			pgmma0[i] = (gma_scurve0[i] << 2);
+			pgmma1[i] = (gma_scurve1[i] << 2);
+		}
 }
 
 static void dnlp_inhist_lpf(void)
 {
 	int i = 0;
-	int j = 0;
-	static unsigned int pgmma0[7][65];
-	static unsigned int luma_sum[7];
+	int nTmp = 0;
+	static unsigned int pgmma0[65];
+	static unsigned int luma_sum;
 
 	if (!dnlp_scn_chg && (ve_dnlp_dbg_i2r & 0x1)) {
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				pre_0_gamma[i] += pgmma0[j][i];
-
-			pre_0_gamma[i] = ((pre_0_gamma[i] + 4)>>3);
-
-			for (j = 0; j < 6; j++)
-				pgmma0[j][i] = pgmma0[j + 1][i];
-
-			pgmma0[6][i] = pre_0_gamma[i];
+			nTmp = dnlp_bld_lvl * pre_0_gamma[i] + (RBASE >> 1);
+			nTmp = nTmp + (RBASE - dnlp_bld_lvl) * pgmma0[i];
+			nTmp = (nTmp >> ve_dnlp_mvreflsh);
+			pre_0_gamma[i] = nTmp;
 		}
 
-		for (j = 0; j < 7; j++)
-			ve_dnlp_luma_sum += luma_sum[j];
-		ve_dnlp_luma_sum = ((ve_dnlp_luma_sum + 4) >> 3);
-
-		for (j = 0; j < 6; j++)
-			luma_sum[j] = luma_sum[j + 1];
-		luma_sum[6] = ve_dnlp_luma_sum;
-	} else {
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma0[j][i] = pre_0_gamma[i];
-
-		for (j = 0; j < 7; j++)
-			luma_sum[j] = ve_dnlp_luma_sum;
+		nTmp = dnlp_bld_lvl * ve_dnlp_luma_sum + (RBASE >> 1);
+		nTmp = nTmp + (RBASE - dnlp_bld_lvl) * luma_sum;
+		nTmp = (nTmp >> ve_dnlp_mvreflsh);
+		ve_dnlp_luma_sum = nTmp;
 	}
+
+	for (i = 0; i < 65; i++)
+		pgmma0[i] = pre_0_gamma[i];
+	luma_sum = ve_dnlp_luma_sum;
 }
 
 
@@ -1936,12 +2214,10 @@ static void dnlp_gmma_cuvs(unsigned int gmma_rate,
 	unsigned int lsft_avg)
 {
 	int i = 0;
-	int j = 0;
 	int nTmp = 0;
 	unsigned int luma_avg4 = (lsft_avg >> ve_dnlp_pavg_btsft);
 
-
-	static unsigned int pgmma[7][65];
+	static unsigned int pgmma[65];
 	bool prt_flg = ((dnlp_printk >> 10) & 0x1);
 
 	/* refresh sub gamma */
@@ -1958,10 +2234,10 @@ static void dnlp_gmma_cuvs(unsigned int gmma_rate,
 
 		if (nTmp <= (luma_avg4<<2))
 			nTmp = (nTmp*(64 - low_alpha) +
-				(low_alpha*i<<4) + 16)>>4; /*4096*/
+				(low_alpha*i<<4) + 8)>>4; /*4096*/
 		else
 			nTmp = (nTmp*(64 - hgh_alpha) +
-				(hgh_alpha*i<<4) + 16)>>4;
+				(hgh_alpha*i<<4) + 8)>>4;
 
 		if (nTmp < 0)
 			nTmp = 0;
@@ -1977,19 +2253,15 @@ static void dnlp_gmma_cuvs(unsigned int gmma_rate,
 
 	if (!dnlp_scn_chg && ((ve_dnlp_dbg_i2r >> 2) & 0x1))
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				gma_scurvet[i] += pgmma[j][i];
-			gma_scurvet[i] = ((gma_scurvet[i] + 4)>>3);
+			nTmp = dnlp_bld_lvl * gma_scurvet[i] + (RBASE >> 1);
+			nTmp = nTmp + (RBASE - dnlp_bld_lvl) * pgmma[i];
+			nTmp = (nTmp >> ve_dnlp_mvreflsh);
 
-			for (j = 0; j < 6; j++)
-				pgmma[j][i] = pgmma[j + 1][i];
-
-			pgmma[6][i] = gma_scurvet[i]; /* 4095 */
+			gma_scurvet[i] = nTmp; /* 4095 */
 		}
-	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma[j][i] = gma_scurvet[i]; /* 4095 */
+
+	for (i = 0; i < 65; i++)
+		pgmma[i] = gma_scurvet[i]; /* 4095 */
 
 	for (i = 0; i < 65; i++)
 		gma_scurvet[i] = ((gma_scurvet[i] + 2) >> 2); /*1023*/
@@ -1999,10 +2271,9 @@ static void dnlp_gmma_cuvs(unsigned int gmma_rate,
 static void dnlp_clsh_sbld(unsigned int mtdbld_rate)
 {
 	int i = 0;
-	int j = 0;
 	int nTmp0 = 0;
 
-	static unsigned int pgmma[7][65];
+	static unsigned int pgmma[65];
 
 	for (i = 0; i < 65; i++) {
 		nTmp0 = gma_scurvet[i]; /* 0 ~1024 */
@@ -2013,19 +2284,15 @@ static void dnlp_clsh_sbld(unsigned int mtdbld_rate)
 
 	if (!dnlp_scn_chg && ((ve_dnlp_dbg_i2r >> 4) & 0x1))
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				clsh_scvbld[i] += pgmma[j][i];
-			clsh_scvbld[i] = ((clsh_scvbld[i] + 4)>>3);
+			nTmp0 = dnlp_bld_lvl * clsh_scvbld[i] + (RBASE >> 1);
+			nTmp0 = nTmp0 + (RBASE - dnlp_bld_lvl) * pgmma[i];
+			nTmp0 = (nTmp0 >> ve_dnlp_mvreflsh);
 
-			for (j = 0; j < 6; j++)
-				pgmma[j][i] = pgmma[j + 1][i];
-
-			pgmma[6][i] = clsh_scvbld[i]; /* 1023 */
+			clsh_scvbld[i] = nTmp0;
 		}
-	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma[j][i] = clsh_scvbld[i]; /* 1023 */
+
+	for (i = 0; i < 65; i++)
+		pgmma[i] = clsh_scvbld[i]; /* 1023 */
 }
 
 /* blk_gma_rat[64] */
@@ -2035,8 +2302,7 @@ static void dnlp_blkgma_bld(unsigned int *blk_gma_rat)
 	int nT1 = 0;
 	int nTmp0 = 0;
 	int i = 0;
-	int j = 0;
-	static unsigned int pgmma[7][65];
+	static unsigned int pgmma[65];
 
 	for (i = 0; i < 64; i++) {
 		nT1 = blk_gma_rat[i];
@@ -2045,24 +2311,24 @@ static void dnlp_blkgma_bld(unsigned int *blk_gma_rat)
 		nTmp0 = blk_gma_crv[i]*nT1 + nTmp0*(64 - nT1);
 		nTmp0 = (nTmp0+32)>>6; /* 0~1024 */
 		blk_gma_bld[i] = nTmp0;
+
+		if ((dnlp_printk >> 2) & 0x1)
+			pr_info("sc%04d, gm%04d * rat%04d => %04d\n",
+				clsh_scvbld[i],  blk_gma_crv[i], nT1, nTmp0);
 	}
 	blk_gma_bld[64] = 1023;
 
 	if (!dnlp_scn_chg && ((ve_dnlp_dbg_i2r >> 5) & 0x1))
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				blk_gma_bld[i] += pgmma[j][i];
-			blk_gma_bld[i] = ((blk_gma_bld[i] + 4)>>3);
+			nTmp0 = dnlp_bld_lvl * blk_gma_bld[i] + (RBASE >> 1);
+			nTmp0 = nTmp0 + (RBASE - dnlp_bld_lvl) * pgmma[i];
+			nTmp0 = (nTmp0 >> ve_dnlp_mvreflsh);
 
-			for (j = 0; j < 6; j++)
-				pgmma[j][i] = pgmma[j + 1][i];
-
-			pgmma[6][i] = blk_gma_bld[i]; /* 1023 */
+			blk_gma_bld[i] = nTmp0;
 		}
-	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma[j][i] = blk_gma_bld[i]; /* 1023 */
+
+	for (i = 0; i < 65; i++)
+		pgmma[i] = blk_gma_bld[i]; /* 1023 */
 }
 
 /* blkwht_ebld = blk_gma_bld + extension */
@@ -2074,8 +2340,7 @@ static void dnlp_blkwht_bld(int *blk_wht_ext, int bright,
 	int nT1 = 0;
 	int nTmp0 = 0;
 	int i = 0;
-	int j = 0;
-	static unsigned int pgmma[7][65];
+	static unsigned int pgmma[65];
 
 	/* black / white extension */
 	for (i = 0; i < 64; i++) {
@@ -2086,17 +2351,13 @@ static void dnlp_blkwht_bld(int *blk_wht_ext, int bright,
 			nT1 += (nT0 >> 1);
 			nT1 = nT1 / nT0;
 
-			/* sprintf(pLogs, "%s (-%02d)", pLogs, nT1); */
-
 			nT0 = nTmp0 - nT1;
 		} else if ((luma_avg4 < 4*(iRgnEnd - 1)) && (i >= luma_avg)) {
 			nT0 = 4*(iRgnEnd - 1) - luma_avg4;
 			nT1 = blk_wht_ext[1] * (4*i - luma_avg4) + (nT0 >> 1);
 			nT1 = nT1 / nT0;
 
-			/* sprintf(pLogs, "%s (+%02d)", pLogs, nT1); */
-
-			nT0 = nTmp0 + nT1 / nT0;
+			nT0 = nTmp0 + nT1;
 		} else
 			nT0 = nTmp0;
 
@@ -2112,23 +2373,20 @@ static void dnlp_blkwht_bld(int *blk_wht_ext, int bright,
 
 		blkwht_ebld[i] = nT0;
 	}
+	blkwht_ebld[0]  = 0;
 	blkwht_ebld[64] = 1023;
 
 	if (!dnlp_scn_chg && ((ve_dnlp_dbg_i2r >> 6) & 0x1))
 		for (i = 0; i < 65; i++) {
-			for (j = 0; j < 7; j++)
-				blkwht_ebld[i] += pgmma[j][i];
-			blkwht_ebld[i] = ((blkwht_ebld[i] + 4)>>3);
+			nTmp0 = dnlp_bld_lvl * blkwht_ebld[i] + (RBASE >> 1);
+			nTmp0 = nTmp0 + (RBASE - dnlp_bld_lvl) * pgmma[i];
+			nTmp0 = (nTmp0 >> ve_dnlp_mvreflsh);
 
-			for (j = 0; j < 6; j++)
-				pgmma[j][i] = pgmma[j + 1][i];
-
-			pgmma[6][i] = blkwht_ebld[i]; /* 1023 */
+			blkwht_ebld[i] = nTmp0;
 		}
-	else
-		for (i = 0; i < 65; i++)
-			for (j = 0; j < 7; j++)
-				pgmma[j][i] = blkwht_ebld[i]; /* 1023 */
+
+	for (i = 0; i < 65; i++)
+		pgmma[i] = blkwht_ebld[i]; /* 1023 */
 }
 
 static void dnlp_params_hist(unsigned int *gmma_rate,
@@ -2196,8 +2454,176 @@ static void dnlp_params_hist(unsigned int *gmma_rate,
 	*mtdbld_rate = tmrat;
 }
 
+/* black bord detection, and histogram clipping */
+static void dnlp_refine_bin0(int hstSum)
+{
+	static unsigned int tmp_sum[7];
+	unsigned int nTmp = 0;
+	unsigned int nTmp0 = 0;
+	unsigned int nsum = 0;
+	int j = 0;
+
+	nTmp = (hstSum * ve_dnlp_bin0_absmax + 128) >> 8;
+	nTmp0 = pre_0_gamma[1] + pre_0_gamma[2];
+	if (nTmp0 > nTmp)
+		nTmp = nTmp0;
+
+	if (pre_0_gamma[0] > nTmp) {
+		if (pre_0_gamma[1] > nTmp)
+			nTmp = pre_0_gamma[1];
+		if (pre_0_gamma[2] > nTmp)
+			nTmp = pre_0_gamma[2];
+
+		nsum = pre_0_gamma[0] - nTmp;
+
+		nTmp = (hstSum * ve_dnlp_bin0_sbtmax + 128) >> 8;
+		if (nsum > nTmp)
+			nsum = nTmp;
+	}
+
+	if (!dnlp_scn_chg) {
+		for (j = 0; j < 7; j++)
+			nsum += tmp_sum[j];
+		nsum = ((nsum + 4) >> 3);
+
+		for (j = 0; j < 6; j++)
+			tmp_sum[j] = tmp_sum[j + 1];
+		tmp_sum[6] = nsum;
+	} else {
+		for (j = 0; j < 7; j++)
+			tmp_sum[j] = nsum;
+	}
+
+	if (dnlp_printk & 0x1)
+		pr_info("Bin0 Refine: -%4d\n", nsum);
+
+	if (nsum >= pre_0_gamma[0])
+		pre_0_gamma[0] = 0;
+	else
+		pre_0_gamma[0] = pre_0_gamma[0] - nsum;
+}
+
+static void dnlp_adp_alpharate(unsigned int *lmh_avg,
+	unsigned int *low_alpha, unsigned int *hgh_alpha,
+	unsigned int *pst_gmarat,
+	unsigned int dnlp_lowrange, unsigned int dnlp_hghrange)
+{
+	int nTmp = 0;
+	int ndif = 0;
+	int nlap = 0;
+	int nbrt0 = 0;
+	int nbrt1 = 0;
+
+	if (64 > dnlp_lowrange + lmh_avg[3]) { /* decrease low alpha */
+		nTmp = 64 - (dnlp_lowrange + lmh_avg[3]);
+		nTmp = (ve_dnlp_adpalpha_lrate * nTmp + 16) >> 5;
+		if (*low_alpha < nTmp)
+			*low_alpha = 0;
+		else
+			*low_alpha = *low_alpha - nTmp;
+
+		if (dnlp_printk)
+			pr_info("low alpha-- (%3d) -> %2d\n", nTmp, *low_alpha);
+	} else if (64 < lmh_avg[3]) { /* increase low alpha */
+		ndif = lmh_avg[3] - 64;
+		nlap = (ve_dnlp_adpalpha_lrate * ndif + 16) >> 5;
+		if ((nlap + *low_alpha) > 64)
+			*low_alpha = 64;
+		else
+			*low_alpha += nlap;
+
+		if (lmh_avg[4] < 16) {
+			nbrt0 = ve_dnlp_pstgma_brghtrat1 * (16 - lmh_avg[4]);
+			nbrt0 = (nbrt0 + 8) >> 4;
+		}
+		nbrt1 = (ve_dnlp_pstgma_brghtrate * ndif + 16) >> 6;
+
+		nTmp = nbrt0 + nbrt1;
+
+		if ((*pst_gmarat + nTmp) > 64)
+			*pst_gmarat = 64;
+		else
+			*pst_gmarat += nTmp;
+
+		if (dnlp_printk)
+			pr_info("low alpha++ (%3d) -> %2d pstgma(+%2d +%2d)(%2d)\n",
+			nlap, *low_alpha, nbrt0, nbrt1, *pst_gmarat);
+	}
+
+	/*
+	if (lmh_avg[1] > lmh_avg[0]) {
+		nTmp = (lmh_avg[1] - lmh_avg[0]) * ve_dnlp_adpalpha_lrate;
+		nTmp = (nTmp + 32) >> 6;
+		nTmp += *low_alpha;
+		if (nTmp < 0)
+			*low_alpha = 0;
+		else if (nTmp > 63)
+			*low_alpha = 64;
+		else
+			*low_alpha = nTmp;
+	}
+	*/
+
+	if (lmh_avg[2] < 64 - dnlp_hghrange) { /* decrease hgh alpha */
+		nTmp = 64 - dnlp_hghrange - lmh_avg[2];
+		nTmp = (ve_dnlp_adpalpha_hrate * nTmp + 16) >> 5;
+		if (*hgh_alpha < nTmp)
+			*hgh_alpha = 0;
+		else
+			*hgh_alpha = *hgh_alpha - nTmp;
+		if (dnlp_printk)
+			pr_info("hgh alpha-- (%3d) -> %2d\n", nTmp, *hgh_alpha);
+	} else if (lmh_avg[2] > 63) { /* increase hgh alpha */
+		nTmp = lmh_avg[2] - 63;
+		nTmp = (ve_dnlp_adpalpha_hrate * nTmp + 16) >> 5;
+		if ((nTmp + *hgh_alpha) > 64)
+			*hgh_alpha = 64;
+		else
+			*hgh_alpha += nTmp;
+
+		if (dnlp_printk)
+			pr_info("hgh alpha++ (%3d) -> %2d\n", nTmp, *hgh_alpha);
+	}
+
+	/*
+	if (lmh_avg[2] > lmh_avg[1]) {
+		nTmp = (lmh_avg[2] - lmh_avg[1]) * ve_dnlp_adpalpha_hrate;
+		nTmp = (nTmp + 32) >> 6;
+		nTmp += *hgh_alpha;
+		if (nTmp < 0)
+			*hgh_alpha = 0;
+		else if (nTmp > 63)
+			*hgh_alpha = 64;
+		else
+			*hgh_alpha = nTmp;
+	}
+	*/
+}
+
 static int PreTstDat[28];
 static int CrtTstDat[28];
+
+static void dnlp_tgt_sort(void)
+{
+	int i = 0;
+	int j = 0;
+	unsigned char t = 0;
+	int chk = 0;
+	/* unsigned char ve_dnlp_tgt[64]; */
+	for (j = 0; j < 63; j++) {
+		chk = 0;
+		for (i = 0; i < (63 - i); i++) {
+			if (ve_dnlp_tgt[i] > ve_dnlp_tgt[i+1]) {
+				t = ve_dnlp_tgt[i];
+				ve_dnlp_tgt[i] = ve_dnlp_tgt[i+1];
+				ve_dnlp_tgt[i+1] = t;
+				chk = chk+1;
+			}
+		}
+		if (chk == 0)
+			break;
+	}
+}
 
 static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 {
@@ -2211,17 +2637,18 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	static unsigned int nTstCnt;
 
 	int i = 0;
-	static unsigned int sum_b;
+	/*static unsigned int sum_b;*/
 	unsigned int sum = 0, max = 0;
 	unsigned int nTmp = 0;
 	int nT0 = 0, nT1 = 0;
 	int nTmp0 = 0;
-	int RBASE = (1 << ve_dnlp_mvreflsh);
 
 	int dnlp_brightness = 0;
 	unsigned int mMaxLst[4];
 	unsigned int mMaxIdx[4];
 	int blk_wht_ext[2] = {0, 0};
+	static unsigned int pre_stur;
+	unsigned int dnlp_auto_rng = 0;
 
 	/*u4[0-8] smooth moving,reflesh the curve,0-refresh one frame*/
 	/*u8larger-->near to gamma1.8, smaller->gamma1.2 [0-256]dft60*/
@@ -2249,19 +2676,23 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	unsigned int mtdbld_rate = (unsigned int) ve_mtdbld_rate;
 
 	/*u6 dft32*/
-	unsigned int blkgma_rate = (unsigned int) ve_blkgma_rate;
+	unsigned int dnlp_pst_gmarat = (unsigned int) ve_dnlp_pst_gmarat;
+
+	unsigned int dnlp_lowrange = (unsigned int) ve_dnlp_lowrange;
+	unsigned int dnlp_hghrange = (unsigned int) ve_dnlp_hghrange;
+	unsigned int dnlp_bkgert   = (unsigned int) ve_dnlp_bkgert;
 
 	/*-------------------------------------------------*/
 	unsigned int lsft_avg = 0; /*luma shift average */
 	unsigned int luma_avg = 0;
 	unsigned int luma_avg4 = 0;
-	unsigned int tlma_avg4 = 0;
 	unsigned int low_lavg4 = 0; /*low luma average*/
+	unsigned int lmh_avg[5] = {0, 0, 0, 0, 0};
+	/* low/mid/hgh tone average */
 
 	unsigned int ihstBgn = 0;
 	unsigned int ihstEnd = 0;
 	bool prt_flg = 0;
-	/* char pLogs[256]; */
 
 	unsigned int rGm1p2[] = {0, 2, 4, 7, 9, 12, 15,
 					18, 21, 24, 28, 31, 34,
@@ -2288,6 +2719,11 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		196, 203, 210, 218,
 		225, 233, 240, 248, 255};
 
+	if (ve_dnlp_mvreflsh < 1)
+		ve_dnlp_mvreflsh = 1;
+
+	RBASE = (1 << ve_dnlp_mvreflsh);
+
 	/* parameters refresh */
 	dnlp3_param_refrsh();
 	dnlp_scn_chg = 0;
@@ -2302,8 +2738,9 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		clashEnd = 64;
 	if (clashEnd < 49)
 		clashEnd = 49;
+
 	/* old historic luma sum*/
-	sum_b = ve_dnlp_luma_sum;
+	/*sum_b = ve_dnlp_luma_sum;*/
 	/* new historic luma sum*/
 	if (hist_sel)
 		ve_dnlp_luma_sum = p->hist.vpp_luma_sum;
@@ -2314,10 +2751,6 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	nTstCnt++;
 	if (nTstCnt > 240)
 		nTstCnt = 0;
-
-	if (!ve_dnlp_luma_sum)
-		/*new luma sum is 0,something is wrong,freeze dnlp curve*/
-		return;
 
 	nT0 = 0; /* counter the same histogram */
 	hstSum = 0;
@@ -2340,8 +2773,15 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	}
 
 	if (dnlp_printk)
-		pr_info("\nRflsh%03d: %02d same bins\n",
-			nTstCnt, nT0);
+		pr_info("\nRflsh%03d: %02d same bins hstSum(%d)\n",
+			nTstCnt, nT0, hstSum);
+
+	if (!ve_dnlp_luma_sum) {
+		/*new luma sum is 0,something is wrong,freeze dnlp curve*/
+		dnlp_scn_chg = 1;
+		return;
+	}
+
 	for (i = 0; i < 28; i++)
 		PreTstDat[i] = CrtTstDat[i];
 
@@ -2355,9 +2795,19 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		dnlp_bld_lvl = RBASE;
 		dnlp_scn_chg = 1;
 	}
-	if (dnlp_bld_lvl > RBASE)
-		dnlp_bld_lvl = RBASE;
+	/* if (dnlp_bld_lvl > RBASE)
+		dnlp_bld_lvl = RBASE; */
 	CrtTstDat[1] = dnlp_bld_lvl;
+
+	/*
+	hstSum = 0;
+	for (i = 0; i < 64; i++) {
+		hstSum += pre_0_gamma[i];
+	}
+	*/
+
+	/* black bord detection, and histogram clipping */
+	dnlp_refine_bin0(hstSum);
 
 	/* histogram and luma_sum filters */
 	dnlp_inhist_lpf();
@@ -2365,7 +2815,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	hstSum = 0;
 	for (i = 0; i < 64; i++) {
 		if (pre_0_gamma[i] != 0) {
-			if (ihstBgn == 0)
+			if (ihstBgn == 0 && pre_0_gamma[0] == 0)
 				ihstBgn = i;
 			if (ihstEnd != 64)
 				ihstEnd = i+1;
@@ -2375,27 +2825,6 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		hstSum += pre_0_gamma[i];
 	}
 	clash_curve[64] = 1024;
-
-	CrtTstDat[2] = clashBgn;
-	CrtTstDat[3] = clashEnd;
-	clash_fun(clash_curve, pre_0_gamma, clashBgn, clashEnd); /* 0~1024 */
-	clash_blend();
-
-	blk_wht_extsn(blk_wht_ext, pre_0_gamma, hstSum); /* 0~1024 */
-	CrtTstDat[4] = blk_wht_ext[0];
-	CrtTstDat[5] = blk_wht_ext[1];
-
-	if (dnlp_printk)
-		pr_info("BlkWhtExt: (%d %d), bldlvl=%02d\n",
-			blk_wht_ext[0], blk_wht_ext[1], dnlp_bld_lvl);
-
-	/* all the same */
-	if (nT0 == 64 && ve_dnlp_smhist_ck && (!ve_dnlp_respond_flag))
-		return;
-
-	sum = 0;
-	max = 0;
-	luma_avg = 0;
 
 	if (ve_dnlp_limit_rng) {
 		iRgnBgn = 4; /* i=ihstBgn, i<ihstEnd */
@@ -2417,6 +2846,14 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	CrtTstDat[8] = iRgnBgn;
 	CrtTstDat[9] = iRgnEnd;
 
+	/* all the same */
+	if (nT0 == 64 && ve_dnlp_smhist_ck && (!ve_dnlp_respond_flag))
+		return;
+
+	sum = 0;
+	max = 0;
+	luma_avg = 0;
+
 	/*Get the maximum4*/
 	mMaxLst[0] = 0;
 	mMaxLst[1] = 0;
@@ -2436,7 +2873,8 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 			max = nTmp;
 
 		/*lower extension [0-63]*/
-		luma_avg += nTmp*i;
+		nTmp0 = nTmp*i;
+		luma_avg += nTmp0;
 
 		if (i == 31)
 			low_lavg4 = luma_avg; /*low luma average*/
@@ -2463,15 +2901,8 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 					4*i, 4*(i+1), pre_1_gamma[i],
 					pre_0_gamma[i]);
 	    /* new historic luma sum*/
-		pr_info("luma b=%x, s=%x\n", sum_b, ve_dnlp_luma_sum);
-	    pr_info("hist-sum=%d max=%d\n", sum, max);
-	}
-
-	prt_flg = ((dnlp_printk >> 6) & 0x1);
-	if (prt_flg) {
-		pr_info("Max: %04d(%d) > %04d(%d) > %04d(%d) > %04d(%d)\n",
-		mMaxLst[0], mMaxIdx[0], mMaxLst[1], mMaxIdx[1],
-		mMaxLst[2], mMaxIdx[2], mMaxLst[3], mMaxIdx[3]);
+		pr_info("luma s=%x, hist-sum=%d max=%d\n",
+			ve_dnlp_luma_sum, sum, max);
 	}
 
 	/*invalid histgram: freeze dnlp curve*/
@@ -2483,20 +2914,42 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	luma_avg4 = (lsft_avg >> ve_dnlp_pavg_btsft);
 	luma_avg  = (luma_avg4>>2);
 
+	if (mMaxIdx[0] == 0)
+		nTmp = (mMaxIdx[1] * 2) + mMaxIdx[2] + mMaxIdx[3];
+	else {
+		if (mMaxIdx[1] == 0)
+			nTmp = mMaxIdx[0] + mMaxIdx[2] + mMaxIdx[3];
+		else if (mMaxIdx[2] == 0)
+			nTmp = mMaxIdx[0] + mMaxIdx[1] + mMaxIdx[3];
+		else if (mMaxIdx[3] == 0)
+			nTmp = mMaxIdx[0] + mMaxIdx[1] + mMaxIdx[2];
+		else
+			nTmp = mMaxIdx[1] + mMaxIdx[2] + mMaxIdx[3];
+
+		nTmp += mMaxIdx[0];
+	}
+	lmh_avg[4] = nTmp;
+
+	prt_flg = (dnlp_printk & 0x1);
+	if (prt_flg) {
+		pr_info("Max: %04d(%d) > %04d(%d) > %04d(%d) > %04d(%d) => %d\n",
+		mMaxLst[0], mMaxIdx[0], mMaxLst[1], mMaxIdx[1],
+		mMaxLst[2], mMaxIdx[2], mMaxLst[3], mMaxIdx[3], nTmp);
+		pr_info("%d => %d (%d)\n", luma_avg, lsft_avg, luma_avg4);
+	}
+
 	CrtTstDat[10] = lsft_avg;
 	CrtTstDat[11] = luma_avg4;
 
 	low_lavg4 = 4*low_lavg4/sum;
-	tlma_avg4 = (ve_dnlp_luma_sum + (hstSum >> 1)) / hstSum;
 	if (dnlp_printk)
-		pr_info("[avg1]= (%02d %02d) (%4d, %4d) (%3d, %3d)\n",
-			luma_avg, luma_avg4, lsft_avg, tlma_avg4,
+		pr_info("[avg1]= (%02d %02d) (%4d) (%3d, %3d)\n",
+			luma_avg, luma_avg4, lsft_avg,
 			gmma_rate, low_alpha);
 
 	dnlp_brightness = cal_brght_plus(luma_avg4, low_lavg4);
 
 	CrtTstDat[12] = low_lavg4;
-	CrtTstDat[13] = tlma_avg4;
 	CrtTstDat[14] = dnlp_brightness;
 
 	/*150918 for 32-step luma pattern*/
@@ -2505,6 +2958,109 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 
 	luma_avg4 = cal_hist_avg(luma_avg4);
 	luma_avg = (luma_avg4>>2);
+
+	if (luma_avg < ve_dnlp_auto_rng)
+		dnlp_auto_rng = luma_avg;
+	else if (64 < luma_avg + ve_dnlp_auto_rng)
+		dnlp_auto_rng = 64 - luma_avg;
+	else
+		dnlp_auto_rng = ve_dnlp_auto_rng;
+
+	if (dnlp_auto_rng < 2)
+		dnlp_auto_rng = 2;
+	else if (dnlp_auto_rng > 10)
+		dnlp_auto_rng = 10;
+
+	if (ve_dnlp_auto_rng > 0) {
+		if (luma_avg <= dnlp_auto_rng + 2) {
+			dnlp_lowrange = 2;
+			dnlp_hghrange = 64 - (luma_avg + dnlp_auto_rng);
+		} else if (luma_avg >= 61 - dnlp_auto_rng) {
+			dnlp_lowrange = luma_avg - dnlp_auto_rng;
+			dnlp_hghrange = 2;
+		} else {
+			dnlp_lowrange = luma_avg - dnlp_auto_rng;
+			dnlp_hghrange = (63 - (luma_avg + dnlp_auto_rng));
+		}
+	} else {
+		dnlp_lowrange = ve_dnlp_lowrange;
+		dnlp_hghrange = ve_dnlp_hghrange;
+	}
+	if (dnlp_lowrange > 31)
+		dnlp_lowrange = 31;
+	else if (dnlp_lowrange < 2)
+		dnlp_lowrange = 2;
+	if (dnlp_hghrange > 31)
+		dnlp_hghrange = 31;
+	else if (dnlp_hghrange < 2)
+		dnlp_hghrange = 2;
+
+	for (i = iRgnBgn; i < iRgnEnd; i++) {
+		nTmp0 = pre_0_gamma[i] * i;
+
+		if (i < dnlp_lowrange) {/* low tone */
+			lmh_avg[0] += nTmp0;
+			lmh_avg[3] += pre_0_gamma[i] * (64 - i);
+		} else if (i > (63 - dnlp_hghrange))  /* hgh tone */
+			lmh_avg[2] += nTmp0;
+		else /* mid tone */
+			lmh_avg[1] += nTmp0;
+	}
+
+	/* low/mid/high tone average */
+	lmh_avg[0] = (lmh_avg[0] << 6) / dnlp_lowrange;
+	lmh_avg[3] = (lmh_avg[3] << 6) / dnlp_lowrange;
+	lmh_avg[1] = (lmh_avg[1] << 6) / (64 - dnlp_lowrange - dnlp_hghrange);
+	lmh_avg[2] = (lmh_avg[2] << 6) / dnlp_hghrange;
+
+	lmh_avg[0] = (lmh_avg[0] + (sum >> 1)) / (sum + 1);
+	lmh_avg[3] = (lmh_avg[3] + (sum >> 1)) / (sum + 1);
+	lmh_avg[1] = (lmh_avg[1] + (sum >> 1)) / (sum + 1);
+	lmh_avg[2] = (lmh_avg[2] + (sum >> 1)) / (sum + 1);
+	/*lmh_avg[3] = 64 - lmh_avg[3];*/
+
+	/* adaptive method rate */
+	if (dnlp_printk)
+		pr_info("Adp Mtd/PostGm Rate: %d %d gm(%d)",
+			luma_avg, mtdbld_rate, dnlp_pst_gmarat);
+
+	mtdbld_rate = dnlp_adp_mtdrate(mtdbld_rate, luma_avg);
+
+	/* post gamma rate: global -> auto local */
+	if (ve_dnlp_pst_gmarat > 64)
+		dnlp_pst_gmarat = ve_dnlp_pst_gmarat - 64;
+	else
+		dnlp_pst_gmarat = 64 - ve_dnlp_pst_gmarat;
+
+	dnlp_adp_alpharate(lmh_avg, &low_alpha, &hgh_alpha,
+		&dnlp_pst_gmarat, dnlp_lowrange, dnlp_hghrange);
+
+	if (ve_dnlp_pst_gmarat < 64) /* no adp dnlp_pst_gmarat */
+		dnlp_pst_gmarat = 64 - ve_dnlp_pst_gmarat;
+
+	if (dnlp_printk) {
+		pr_info("mtdbld: %2d (%2d %2d) => %2d (%2d %2d)\n",
+			ve_mtdbld_rate, ve_dnlp_lowalpha_new,
+			ve_dnlp_hghalpha_new,
+			mtdbld_rate, low_alpha, hgh_alpha);
+		pr_info("avg: l[ 0~%2d]=%2d(%2d) m=%2d h[%2d~63]=%2d\n",
+			dnlp_lowrange - 1, lmh_avg[0],
+			64 - lmh_avg[3], lmh_avg[1],
+			64 - dnlp_hghrange, lmh_avg[2]);
+	}
+
+	CrtTstDat[2] = clashBgn;
+	CrtTstDat[3] = clashEnd;
+	clash_fun(clash_curve, pre_0_gamma, clashBgn, clashEnd); /* 0~1024 */
+	clash_blend();
+
+	blk_wht_extsn(blk_wht_ext, pre_0_gamma, hstSum, luma_avg); /* 0~1024 */
+	CrtTstDat[4] = blk_wht_ext[0];
+	CrtTstDat[5] = blk_wht_ext[1];
+
+	if (dnlp_printk)
+		pr_info("BlkWhtExt: (%d %d), bldlvl=%02d\n",
+			blk_wht_ext[0], blk_wht_ext[1], dnlp_bld_lvl);
 
 	/*patch for black+white stripe*/
 	if (mMaxIdx[1] > mMaxIdx[0]) {
@@ -2535,10 +3091,10 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	dnlp_params_hist(&gmma_rate, &low_alpha, &hgh_alpha,
 		&mtdbld_rate, luma_avg, luma_avg4);
 
-	if (dnlp_printk)
-		pr_info("[avg2]= (%02d %02d) (%4d, %4d) (%3d, %3d)\n",
-			luma_avg, luma_avg4, lsft_avg, tlma_avg4,
-			gmma_rate, low_alpha);
+	if (dnlp_printk & 0x1)
+		pr_info("[avg2]= (%3d %3d) (%3d %3d) (%3d %3d)\n",
+			luma_avg, luma_avg4, gmma_rate, mtdbld_rate,
+			low_alpha, hgh_alpha);
 
 	CrtTstDat[15] = luma_avg4;
 	CrtTstDat[16] = luma_avg;
@@ -2546,27 +3102,29 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	CrtTstDat[18] = gmma_rate;
 	CrtTstDat[19] = low_alpha;
 
-	prt_flg = ((dnlp_printk >> 3) & 0x1);
+	prt_flg = (dnlp_printk & 0x1);
 	if (prt_flg) {
 		pr_info("Rflsh-check: %03u\n", nTstCnt);
 		pr_info("BldLvl= %02d\n", dnlp_bld_lvl);
 	}
 
-	/* Black gamma rate: global -> auto local */
+	if (dnlp_bkgert > dnlp_pst_gmarat)
+		dnlp_bkgert = dnlp_pst_gmarat;
+
 	for (i = 0; i < 64; i++) {
-		nT1 = blkgma_rate;
+		nT1 = dnlp_pst_gmarat;
 
 		if (i > ve_dnlp_bkgend)
-			nT1 = ve_dnlp_bkgert;
+			nT1 = dnlp_bkgert;
 		else if (ve_dnlp_bkgend > 0) {
-			nT1 = blkgma_rate - ve_dnlp_bkgert;
+			nT1 = dnlp_pst_gmarat - dnlp_bkgert;
 			nT1 = nT1 * i + (ve_dnlp_bkgend >> 1);
 			nT1 = nT1 / ve_dnlp_bkgend;
-			nT1 = blkgma_rate - nT1;
+			nT1 = dnlp_pst_gmarat - nT1;
 		}
 
 		if (ve_dnlp_limit_rng && (i <= 4)) {
-			nT1 = i * blkgma_rate;
+			nT1 = i * dnlp_pst_gmarat;
 			nT1 = ((nT1 + 2) >> 2);
 		}
 
@@ -2579,9 +3137,17 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	}
 
 	/* 0~1024 */
-	if (dnlp_printk)
+	if (dnlp_printk & 0x1)
 		pr_info("[avg3]= %02d %02d => %4d\n",
 			luma_avg, luma_avg4, lsft_avg);
+
+	if (ve_dnlp_scv_dbg != 0) {
+		nTmp0 = lsft_avg + 16 * ve_dnlp_scv_dbg;
+		if (nTmp0 < 0)
+			lsft_avg = 0;
+		else
+			lsft_avg = nTmp0;
+	}
 	GetGmCurves(gma_scurve0, rGm1p2, lsft_avg, sBgnBnd, sEndBnd);
 	GetGmCurves(gma_scurve1, rGm1p8, lsft_avg, sBgnBnd, sEndBnd);
 	GetGmBlkCvs(blk_gma_crv, rGm1p8, sBgnBnd, iRgnEnd);
@@ -2591,18 +3157,14 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	CrtTstDat[22] = lsft_avg;
 	CrtTstDat[23] = iRgnEnd;
 
-	prt_flg = ((dnlp_printk >> 4) & 0x1);
+	prt_flg = (dnlp_printk & 0x1);
 	if (prt_flg) {
 		pr_info("paramets: %d %d %d %d %d\n",
 			luma_avg, gmma_rate, low_alpha, hgh_alpha, mtdbld_rate);
-
-		pr_info("blk/wht ext: %d %d\n",
-			blk_wht_ext[0], blk_wht_ext[1]);
 	}
 
 	/*=========================================================*/
-	prt_flg = ((dnlp_printk >> 2) & 0x1);
-	if (prt_flg) {
+	if (dnlp_printk & 0x1) {
 		pr_info("dnlp blend curve:\n");
 		pr_info("[luma_sum] = %d\n", ve_dnlp_luma_sum);
 	}
@@ -2631,9 +3193,18 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 	dnlp_blkgma_bld(blk_gma_rat);
 
 	/* blkwht_ebld = blk_gma_bld + extension */
+	blk_wht_ext[0] +=  (ve_dnlp_set_bext << 4);
+	blk_wht_ext[1] +=  (ve_dnlp_set_wext << 4);
 	dnlp_blkwht_bld(blk_wht_ext, dnlp_brightness,
 		luma_avg4, luma_avg, iRgnBgn, iRgnEnd);
 
+	if (prt_flg) {
+		pr_info("blk/wht ext: [%d %d] + %d\n",
+			blk_wht_ext[0], blk_wht_ext[1],
+			dnlp_brightness);
+	}
+
+	prt_flg = ((dnlp_printk >> 2) & 0x1);
 	for (i = 0; i < 64; i++) {
 		premap0[i] = ve_dnlp_tgt[i];
 
@@ -2675,7 +3246,7 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 			nTmp0 = 0;
 
 		if (prt_flg)
-			pr_info("[%02d]: (%4d %4d)%4d %4d %4d (%4d) %4d %4d => %3d",
+			pr_info("[%02d]: (%4d %4d)%4d c%4d cs%4d gm%4d-%4d %4d => %3d\n",
 				i, gma_scurve0[i], gma_scurve1[i],
 				gma_scurvet[i], clash_curve[i],
 				clsh_scvbld[i], blk_gma_crv[i],
@@ -2685,17 +3256,57 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		ve_dnlp_tgt[i] = nTmp0;
 	}
 
-	prt_flg = ((dnlp_printk >> 1) & 0x1);
+	/* 0~255 sort */
+	dnlp_tgt_sort();
+
+	prt_flg = ((dnlp_printk >> 3) & 0x1);
 	if (prt_flg) {
-		for (i = 0; i < 64; i++)
-			pr_info("%02d: %03d=>%03d\n",
-				i, 4*i, ve_dnlp_tgt[i]);
+		for (i = 0; i < 64; i++) {
+			nT0 = ve_dnlp_tgt[i] - 4*i;
+			pr_info("%02d: %03d=>%03d (%3d)\n",
+				i, 4*i, ve_dnlp_tgt[i], nT0);
+		}
 		pr_info("\n");
 	}
 
+	nT0 = 0;
+	nT1 = 0;
+	for (i = 1; i < 64; i++) {
+		if (ve_dnlp_tgt[i] > 4*i) {
+			nT0 += (ve_dnlp_tgt[i] - 4*i) * (65 - i);
+			nT1 += (65 - i);
+		}
+	}
+	nTmp0 = nT0 * ve_dnlp_satur_rat + (nT1 >> 1);
+	nTmp0 = nTmp0 / (nT1 + 1);
+	nTmp0 = ((nTmp0 + 4) >> 3);
+
+	nTmp =  (ve_dnlp_satur_max << 3);
+	if (nTmp0 < nTmp)
+		nTmp = nTmp0;
+
 	if (dnlp_printk)
-		pr_info("#Dbg: [%02d < %02d(%03d vs %03d) < %02d] %03d\n",
-			iRgnBgn, luma_avg, luma_avg4, tlma_avg4,
+		pr_info("#Statu: pre(%3d) => %5d / %3d => %3d cur(%3d)\n",
+			pre_stur, nT0, nT1, nTmp0, nTmp);
+
+	if (ve_dnlp_set_saturtn == 0) {
+		if (nTmp != pre_stur) {
+			ve_dnlp_add_cm(nTmp + 512);
+			pre_stur = nTmp;
+		}
+	} else {
+		if (pre_stur != ve_dnlp_set_saturtn) {
+			if (ve_dnlp_set_saturtn < 512)
+				ve_dnlp_add_cm(ve_dnlp_set_saturtn + 512);
+			else
+				ve_dnlp_add_cm(ve_dnlp_set_saturtn);
+			pre_stur = ve_dnlp_set_saturtn;
+		}
+	}
+
+	if (dnlp_printk)
+		pr_info("#Dbg: [%02d < %02d(%03d) < %02d] %03d\n",
+			iRgnBgn, luma_avg, luma_avg4,
 			iRgnEnd, dnlp_brightness);
 
 	nT0 = 0;
@@ -2712,39 +3323,22 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 			pr_info("#mrate=%02d brt=%02d\n",
 				mtdbld_rate, dnlp_brightness);
 			for (i = 0; i < 64; i++)
-				if ((premap0[i] != ve_dnlp_tgt[i]) ||
-					(pcurves[0][i] != gma_scurve0[i]) ||
-					(pcurves[1][i] != gma_scurve1[i]) ||
-					(pcurves[2][i] != gma_scurvet[i]) ||
-					(pcurves[3][i] != clash_curve[i]) ||
-					(pcurves[4][i] != clsh_scvbld[i]) ||
-					(pcurves[5][i] != blk_gma_crv[i]) ||
-					(pcurves[6][i] != blk_gma_bld[i]) ||
-					(pcurves[7][i] != blkwht_ebld[i])) {
-					pr_info("[%02d]%5d=>%5d:(%4d=>%4d)",
-						i, pre_1_gamma[i],
-						pre_0_gamma[i], pcurves[0][i],
-						gma_scurve0[i]);
-					pr_info(" (%4d=>%4d) (%4d=>%4d)",
-						pcurves[1][i], gma_scurve1[i],
-						pcurves[2][i], gma_scurvet[i]);
-					pr_info(" (%4d=>%4d) (%4d=>%4d)",
-						pcurves[3][i], clash_curve[i],
-						pcurves[4][i], clsh_scvbld[i]);
-					pr_info(" (%4d=>%4d) (%4d=>%4d)",
-						pcurves[5][i], blk_gma_crv[i],
-						pcurves[6][i], blk_gma_bld[i]);
-					pr_info(" (%4d=>%4d) (%4d=>%4d)",
-						pcurves[7][i], blkwht_ebld[i],
+				if (premap0[i] != ve_dnlp_tgt[i])
+					pr_info("[%02d]%5d=>%5d:(%4d=>%4d)\n",
+						i,
+						pre_1_gamma[i], pre_0_gamma[i],
 						premap0[i], ve_dnlp_tgt[i]);
-					}
-			pr_info("\n");
 
 			for (i = 0; i < 28; i++)
 				if (PreTstDat[i] != CrtTstDat[i])
 					pr_info("[%02d] %5d=>%5d\n",
 						i, PreTstDat[i], CrtTstDat[i]);
 			pr_info("\n");
+
+			if (ve_dnlp_ponce >= 2)
+				ve_dnlp_ponce--;
+			else
+				ve_dnlp_ponce = 1;
 		}
 	}
 
@@ -2753,6 +3347,10 @@ static void ve_dnlp_calculate_tgtx_new(struct vframe_s *vf)
 		for (i = 0; i < 64; i++)
 			pr_info("[%02d] %5d=>%5d\n",
 				i, pre_0_gamma[i], ve_dnlp_tgt[i]);
+
+	/* print debug log once */
+	if (ve_dnlp_ponce == 1 && dnlp_printk)
+		dnlp_printk = 0;
 
 	return;
 }
@@ -3188,7 +3786,7 @@ void ve_set_new_dnlp(struct ve_dnlp_table_s *p)
 	ve_dnlp_clashBgn  = p->new_clashBgn;
 	ve_dnlp_clashEnd  = p->new_clashEnd;
 	ve_mtdbld_rate    = p->new_mtdbld_rate;
-	ve_blkgma_rate    = p->new_blkgma_rate;
+	ve_dnlp_pst_gmarat    = p->new_dnlp_pst_gmarat;
 
 	dnlp_sel = p->dnlp_sel;
 	ve_dnlp_blk_cctr = p->dnlp_blk_cctr;
@@ -3210,6 +3808,28 @@ void ve_set_new_dnlp(struct ve_dnlp_table_s *p)
 	ve_dnlp_wextmx = p->dnlp_wextmx;
 	ve_dnlp_smhist_ck = p->dnlp_smhist_ck;
 	ve_dnlp_glb_crate = p->dnlp_glb_crate;
+
+	ve_dnlp_pstgma_brghtrate = p->dnlp_pstgma_brghtrate;
+	ve_dnlp_pstgma_brghtrat1 = p->dnlp_pstgma_brghtrat1;
+	ve_dnlp_wext_autorat = p->dnlp_wext_autorat;
+	ve_dnlp_cliprate_min = p->dnlp_cliprate_min;
+	ve_dnlp_adpcrat_lbnd = p->dnlp_adpcrat_lbnd;
+	ve_dnlp_adpcrat_hbnd = p->dnlp_adpcrat_hbnd;
+	ve_dnlp_adpmtd_lbnd = p->dnlp_adpmtd_lbnd;
+	ve_dnlp_adpmtd_hbnd = p->dnlp_adpmtd_hbnd;
+	ve_dnlp_set_bext = p->dnlp_set_bext;
+	ve_dnlp_set_wext = p->dnlp_set_wext;
+	ve_dnlp_satur_rat = p->dnlp_satur_rat;
+	ve_dnlp_satur_max = p->dnlp_satur_max;
+	ve_blk_prct_rng = p->blk_prct_rng;
+	ve_blk_prct_max = p->blk_prct_max;
+	ve_dnlp_lowrange = p->dnlp_lowrange;
+	ve_dnlp_hghrange = p->dnlp_hghrange;
+	ve_dnlp_auto_rng = p->dnlp_auto_rng;
+	ve_dnlp_bin0_absmax = p->dnlp_bin0_absmax;
+	ve_dnlp_bin0_sbtmax = p->dnlp_bin0_sbtmax;
+	ve_dnlp_adpalpha_lrate = p->dnlp_adpalpha_lrate;
+	ve_dnlp_adpalpha_hrate = p->dnlp_adpalpha_hrate;
 
 	ve_dnlp_lrate00 = p->dnlp_lrate00;
 	ve_dnlp_lrate02 = p->dnlp_lrate02;
@@ -4025,7 +4645,7 @@ void vpp_vd1_mtx_rgb_contrast(signed int cont_val)
 }
 
 /*for gxbbtv contrast adj in vadj1*/
-void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
+void vpp_vd_adj1_contrast(signed int cont_val)
 {
 	unsigned int vd1_contrast;
 	unsigned int vdj1_ctl;
@@ -4034,13 +4654,8 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 	cont_val = ((cont_val + 1024) >> 3);
 	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
 	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
-	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
-		if (!vdj1_ctl)
-			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
-	} else {
-		if (vdj1_ctl)
-			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
-	}
+	if (vdj1_ctl)
+		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x1ff00) |
@@ -4200,7 +4815,7 @@ void amvecm_bricon_process(unsigned int bri_val,
 		if (contrast_adj_sel)
 			vpp_vd1_mtx_rgb_contrast(cont_val);
 		else
-			vpp_vd_adj1_contrast(cont_val, vf);
+			vpp_vd_adj1_contrast(cont_val);
 		pr_amve_dbg("\n[amve..] set vd1_contrast OK!!!\n");
 	}
 

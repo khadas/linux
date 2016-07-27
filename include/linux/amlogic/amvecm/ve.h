@@ -83,7 +83,7 @@ struct ve_dnlp_table_s {
 	unsigned int new_clashEnd;
 	unsigned int new_cliprate;
 	unsigned int new_mtdbld_rate;
-	unsigned int new_blkgma_rate;
+	unsigned int new_dnlp_pst_gmarat;
 	unsigned int dnlp_sel;
 	unsigned int dnlp_blk_cctr;/*blk signal add brightness*/
 	unsigned int dnlp_brgt_ctrl;
@@ -103,6 +103,27 @@ struct ve_dnlp_table_s {
 	unsigned int dnlp_wextmx;
 	unsigned int dnlp_smhist_ck;
 	unsigned int dnlp_glb_crate;/*12*/
+	unsigned int dnlp_pstgma_brghtrate;
+	unsigned int dnlp_pstgma_brghtrat1;
+	unsigned int dnlp_wext_autorat;
+	unsigned int dnlp_cliprate_min;
+	unsigned int dnlp_adpcrat_lbnd;
+	unsigned int dnlp_adpcrat_hbnd;
+	unsigned int dnlp_adpmtd_lbnd;
+	unsigned int dnlp_adpmtd_hbnd;
+	unsigned int dnlp_set_bext;
+	unsigned int dnlp_set_wext;
+	unsigned int dnlp_satur_rat;
+	unsigned int dnlp_satur_max;
+	unsigned int blk_prct_rng;
+	unsigned int blk_prct_max;
+	unsigned int dnlp_lowrange;
+	unsigned int dnlp_hghrange;
+	unsigned int dnlp_auto_rng;
+	unsigned int dnlp_bin0_absmax;
+	unsigned int dnlp_bin0_sbtmax;
+	unsigned int dnlp_adpalpha_lrate;
+	unsigned int dnlp_adpalpha_hrate;
 	unsigned int dnlp_lrate00;/*0-64bin curve slope*/
 	unsigned int dnlp_lrate02;
 	unsigned int dnlp_lrate04;

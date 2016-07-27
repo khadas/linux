@@ -120,6 +120,10 @@ extern unsigned int sync_3d_out_inv;
 
 extern void __iomem *amvecm_hiu_reg_base;
 
+#ifdef CONFIG_VSYNC_RDMA
+extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+extern u32 VSYNC_RD_MPEG_REG(u32 adr);
+#endif
 
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
