@@ -1013,6 +1013,8 @@ void audio_hw_958_enable(unsigned flag)
 			aml_cbus_update_bits(AIU_MEM_IEC958_CONTROL, 0x3 << 1,
 					     0x3 << 1);
 		} else {
+			aml_write_cbus(AIU_RST_SOFT, 0x04);
+			aml_write_cbus(AIU_958_FORCE_LEFT, 0);
 			aml_write_cbus(AIU_958_DCU_FF_CTRL, 0);
 			aml_cbus_update_bits(AIU_MEM_IEC958_CONTROL, 0x3 << 1,
 					     0);
