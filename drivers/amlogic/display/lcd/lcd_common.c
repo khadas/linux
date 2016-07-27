@@ -253,7 +253,7 @@ void lcd_ttl_pinmux_set(int status)
 				break;
 			}
 		} else {
-			LCDPR("vbyone pinmux is already selected\n");
+			LCDPR("ttl pinmux is already selected\n");
 			return;
 		}
 	} else {
@@ -261,7 +261,7 @@ void lcd_ttl_pinmux_set(int status)
 			pconf->pinmux_flag = 0;
 			num = index + 3;
 		} else {
-			LCDPR("vbyone pinmux is already released\n");
+			LCDPR("ttl pinmux is already released\n");
 			return;
 		}
 	}

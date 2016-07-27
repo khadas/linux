@@ -200,7 +200,7 @@ static void lcd_info_print(void)
 
 	switch (pconf->lcd_basic.lcd_type) {
 	case LCD_TTL:
-		pr_info("clk_pol          %u\n"
+		pr_info("clk_pol           %u\n"
 			"hvsync_valid      %u\n"
 			"de_valid          %u\n"
 			"rb_swap           %u\n"

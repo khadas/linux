@@ -543,6 +543,7 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 			pconf->lcd_control.ttl_config->swap_ctrl =
 				((para[3] << 1) | (para[4] << 0));
 		}
+		break;
 	case LCD_LVDS:
 		lvdsconf = pconf->lcd_control.lvds_config;
 		ret = of_property_read_u32_array(child, "lvds_attr",

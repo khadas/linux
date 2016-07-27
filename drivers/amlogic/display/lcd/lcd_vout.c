@@ -460,6 +460,22 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 	}
 }
 
+static void lcd_config_default(void)
+{
+	struct lcd_config_s *pconf;
+
+	pconf = lcd_driver->lcd_config;
+	pconf->lcd_basic.h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
+			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
+	pconf->lcd_basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
+			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
+	if (lcd_vcbus_read(ENCL_VIDEO_EN))
+		lcd_driver->lcd_status = 1;
+	else
+		lcd_driver->lcd_status = 0;
+	LCDPR("status: %d\n", lcd_driver->lcd_status);
+}
+
 static int lcd_config_probe(void)
 {
 	const char *str;
@@ -506,13 +522,9 @@ static int lcd_config_probe(void)
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
-	if (lcd_vcbus_read(ENCL_VIDEO_EN))
-		lcd_driver->lcd_status = 1;
-	else
-		lcd_driver->lcd_status = 0;
-	LCDPR("status: %d\n", lcd_driver->lcd_status);
-
+	lcd_config_default();
 	lcd_init_vout();
+
 	if (lcd_driver->lcd_key_valid) {
 		if (lcd_driver->workqueue) {
 			queue_delayed_work(lcd_driver->workqueue,
