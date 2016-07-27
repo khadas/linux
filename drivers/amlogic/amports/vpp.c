@@ -578,8 +578,10 @@ vpp_process_speed_check(s32 width_in,
 						(u64)vinfo->height *
 						1000,
 						height_out * 2160);
-					if (cur_ratio > MIN_RATIO_1000)
-						return SPEED_CHECK_VSKIP;
+				if ((cur_ratio > MIN_RATIO_1000) &&
+				(vf->source_type != VFRAME_SOURCE_TYPE_TUNER) &&
+				(vf->source_type != VFRAME_SOURCE_TYPE_CVBS))
+					return SPEED_CHECK_VSKIP;
 			}
 			if (vf->type & VIDTYPE_VIU_422) {
 				/*TODO vpu */

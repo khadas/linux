@@ -5079,6 +5079,7 @@ unsigned int vf_keep_current(void)
 	if (!keep_y_addr
 	    || (cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
 		/* no support VIDTYPE_VIU_422... */
+		pr_info("%s:no support VIDTYPE_VIU_422\n", __func__);
 		return -1;
 	}
 
