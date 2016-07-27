@@ -171,6 +171,11 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 		pr_info(KERN_ERR"create %s error.\n", path);
 		return;
 	}
+	if ((devp->cma_config_flag == 1) &&
+		(devp->cma_mem_alloc[devp->index] == 0)) {
+		pr_info("%s:no cma alloc mem!!!\n", __func__);
+		return;
+	}
 
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		pos = canvas_real_size * i;
