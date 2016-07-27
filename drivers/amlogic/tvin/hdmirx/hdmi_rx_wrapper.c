@@ -533,6 +533,7 @@ static bool reset_sw = true;
 static int sm_pause;
 static int ddc_state_err_cnt;
 static int irq_video_mute_flag;
+static bool edid_addr_intr_flag;
 
 /***********************
   TVIN driver interface
@@ -1193,7 +1194,6 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	return error;
 }
 
-
 irqreturn_t irq_handler(int irq, void *params)
 {
 	int error = 0;
@@ -1208,6 +1208,21 @@ irqreturn_t irq_handler(int irq, void *params)
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* modify interrupt flow for isr loading */
 	/* top interrupt handler */
+	if (hdmirx_top_intr_stat & (0x7 << 17)) {
+		if (hdmirx_top_intr_stat & (0x1 << 17))
+			hdmirx_wr_top(TOP_EDID_GEN_STAT,
+			hdmirx_rd_top(TOP_EDID_GEN_STAT) | (1 << 16));
+		else if (hdmirx_top_intr_stat & (0x2 << 17))
+			hdmirx_wr_top(TOP_EDID_GEN_STAT_B,
+			hdmirx_rd_top(TOP_EDID_GEN_STAT_B) | (1 << 16));
+		else if (hdmirx_top_intr_stat & (0x4 << 17))
+			hdmirx_wr_top(TOP_EDID_GEN_STAT_C,
+			hdmirx_rd_top(TOP_EDID_GEN_STAT_C) | (1 << 16));
+		edid_addr_intr_flag = true;
+		if (log_flag & ERR_LOG)
+			rx_print("ddc err-%x",
+			(hdmirx_top_intr_stat & (0x7 << 17)));
+	}
 	if ((hdmirx_top_intr_stat & (0xf << 2)) ||
 		(hdmirx_top_intr_stat & (0xf << 6))) {
 		/* rx_print("%s: %s\n", __func__, " enable queue"); */
@@ -2583,6 +2598,7 @@ void hdmirx_hw_monitor(void)
 			pre_port = 0xfe;
 			if (scdc_cfg_en)
 				set_scdc_cfg(1, 0);
+			hdmirx_set_hpd(rx.port, 0);
 			hdmirx_audio_enable(0);
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
@@ -2636,6 +2652,12 @@ void hdmirx_hw_monitor(void)
 		rx_print("5V_high->HPD_READY\n");
 		break;
 	case FSM_HPD_READY:
+		if (edid_addr_intr_flag) {
+			hdmirx_wr_top(TOP_SW_RESET, 2);
+			udelay(1);
+			hdmirx_wr_top(TOP_SW_RESET, 0);
+			edid_addr_intr_flag = false;
+		}
 		/*check mhl 3.4gb*/
 		if (hdmirx_tmds_34g() ||
 			((hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1)) {

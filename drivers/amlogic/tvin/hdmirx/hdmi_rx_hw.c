@@ -65,8 +65,6 @@
 
 #define AUDIO_OUTPUT_SELECT I2S_32BIT_256FS_OUTPUT
 
-#define TOP_INT_MASK_VALUE	0x000003fd
-
 static DEFINE_SPINLOCK(reg_rw_lock);
 
 static int auto_aclk_mute = 2;
@@ -147,6 +145,9 @@ static int hdmi_mode_hyst = 5;
 MODULE_PARM_DESC(hdmi_mode_hyst, "\n hdmi_mode_hyst\n");
 module_param(hdmi_mode_hyst, int, 0664);
 
+int top_intr_maskn_value = 0x1e03fd;
+MODULE_PARM_DESC(top_intr_maskn_value, "\n top_intr_maskn_value\n");
+module_param(top_intr_maskn_value, int, 0664);
 
 /**
  * Read data from HDMI RX CTRL
@@ -947,7 +948,7 @@ void hdmirx_hw_config(void)
 	hdmirx_packet_fifo_rst();
 	/*enable irq */
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_wr_top(TOP_INTR_MASKN, TOP_INT_MASK_VALUE);
+	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
 	hdmirx_irq_open();
 
 	mdelay(100);
@@ -1014,7 +1015,7 @@ void hdmirx_hw_probe(void)
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_wr_top(TOP_INTR_MASKN, TOP_INT_MASK_VALUE);
+	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
 	rx_print("%s Done!\n", __func__);
 }
 
