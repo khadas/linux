@@ -3510,7 +3510,7 @@ static int amlvideo2_start_thread(struct amlvideo2_fh *fh)
 	fh->src_height = 0;
 
 	node->tmp_vf = NULL;
-	dma_q->task_running = 1;
+
 
 	#ifdef MUTLI_NODE
 	dma_q->kthread =
@@ -3522,8 +3522,10 @@ static int amlvideo2_start_thread(struct amlvideo2_fh *fh)
 
 	if (IS_ERR(dma_q->kthread)) {
 		v4l2_err(&node->vid_dev->v4l2_dev, "kernel_thread() failed\n");
+		dma_q->kthread = NULL;
 		return PTR_ERR(dma_q->kthread);
 	}
+	dma_q->task_running = 1;
 	/* Wakes thread */
 	/* wake_up_interruptible(&dma_q->wq); */
 
@@ -3538,7 +3540,7 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 		container_of(dma_q, struct amlvideo2_node, vidq);
 	dpr_err(node->vid_dev, 1, "%s\n", __func__);
 	/* shutdown control thread */
-	if (dma_q->kthread) {
+	if (!IS_ERR(dma_q->kthread)) {
 		dma_q->task_running = 0;
 		send_sig(SIGTERM, dma_q->kthread, 1);
 	#ifdef USE_SEMA_QBUF
