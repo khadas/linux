@@ -51,7 +51,7 @@ clear thie buffer cache.
 /*used in codec_mm owner.
 don't not set on others.
 */
-#define CODEC_MM_FLAGS_FOR_TVP_POOL 0x8000000
+#define CODEC_MM_FLAGS_FOR_LOCAL_MGR 0x8000000
 
 #define CODEC_MM_FLAGS_FROM_MASK \
 	(CODEC_MM_FLAGS_DMA |\
