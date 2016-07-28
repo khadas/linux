@@ -747,8 +747,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 				audio = aml_audiomode_autodet(fe);
 				audio = demod_fmt_2_v4l2_std(audio);
 				if (audio == V4L2_STD_PAL_M) {
-					audio = V4L2_STD_PAL_BG;
-					pr_err("M near BG,should be BG\n");
+					audio = demod_fmt_2_v4l2_std(
+						broad_std_except_pal_m);
+					pr_err("select best audio mode 0x%x\n",
+						audio);
 				}
 			}
 			pr_err("%s,Manual freq:%d: std_bk:0x%x ,audmode:0x%x\n",
@@ -1021,8 +1023,10 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 				audio = aml_audiomode_autodet(fe);
 				audio = demod_fmt_2_v4l2_std(audio);
 				if (audio == V4L2_STD_PAL_M) {
-					audio = V4L2_STD_PAL_BG;
-					pr_err("M near BG,should be BG\n");
+					audio = demod_fmt_2_v4l2_std(
+						broad_std_except_pal_m);
+					pr_err("select the audio mode 0x%x\n",
+						audio);
 				}
 			}
 			pr_err("%s,Auto search freq:%d: std_bk:0x%x ,audmode:0x%x\n",
