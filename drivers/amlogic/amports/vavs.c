@@ -631,7 +631,9 @@ static void vavs_canvas_init(void)
 	if (vf_buf_num_used > vf_buf_num_avail)
 		vf_buf_num_used = vf_buf_num_avail;
 
-	buf_offset = buf_offset + ((vf_buf_num_used + 1) * decbuf_size);
+	if (firmware_sel == 0)
+		buf_offset = buf_offset + ((vf_buf_num_used + 1) * decbuf_size);
+
 	if (READ_MPEG_REG(VPP_MISC) & VPP_VD1_POSTBLEND) {
 		struct canvas_s cur_canvas;
 
