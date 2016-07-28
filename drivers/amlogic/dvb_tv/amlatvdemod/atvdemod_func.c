@@ -147,6 +147,7 @@ static unsigned int mix1_freq;
 static unsigned int timer_init_flag;
 struct timer_list atvdemod_timer;
 static int snr_val;
+int broad_std_except_pal_m = 0;
 
 int get_atvdemod_snr_val(void)
 {
@@ -1773,7 +1774,34 @@ int aml_audiomode_autodet(struct dvb_frontend *fe)
 				__func__, broad_std, carrier_power_average_max);
 			if (carrier_power_average_max < 150)
 				pr_err("%s,carrier too low error\n", __func__);
-
+			if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M) {
+				/*the max except palm*/
+				carrier_power_average[final_id] = 0;
+				final_id = 0;
+				carrier_power_max = carrier_power_average[0];
+				for (i = 0; i < ID_MAX; i++) {
+					if (carrier_power_max
+						< carrier_power_average[i]) {
+						carrier_power_max =
+						carrier_power_average[i];
+						final_id = i;
+					}
+				}
+			switch (final_id) {
+			case ID_PAL_I:
+				broad_std_except_pal_m =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
+				break;
+			case ID_PAL_BG:
+				broad_std_except_pal_m =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+				break;
+			case ID_PAL_DK:
+				broad_std_except_pal_m =
+					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+				break;
+			}
+			}
 			if (p != NULL) {
 				p->analog.std = V4L2_COLOR_STD_PAL;
 				switch (broad_std) {

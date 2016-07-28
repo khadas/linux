@@ -28,7 +28,7 @@
 extern int atvdemod_debug_en;
 extern struct amlatvdemod_device_s *amlatvdemod_devp;
 extern unsigned int reg_23cf; /* IIR filter */
-
+extern int broad_std_except_pal_m;
 #undef pr_info
 #define pr_info(args...)\
 	do {\
