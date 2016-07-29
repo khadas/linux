@@ -6498,8 +6498,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 /* set pull down region (f(t-1) */
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB) && pulldown_enable &&
-		!di_pre_stru.cur_prog_flag) {
+	if (pulldown_enable && !di_pre_stru.cur_prog_flag) {
 		if (pldn_wnd_flsh == 1) {
 			DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_REG0_Y,
 				di_pldn_buf->reg0_s, 17, 12);
@@ -8592,6 +8591,7 @@ static void set_di_flag(void)
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
 		mcpre_en = true;
 		pulldown_mode = 1;
+		pulldown_enable = 1;
 		di_vscale_skip_enable = 4;
 		use_2_interlace_buff = 1;
 		pre_hold_line = 12;
@@ -8607,6 +8607,7 @@ static void set_di_flag(void)
 	} else {
 		mcpre_en = false;
 		pulldown_mode = 0;
+		pulldown_enable = 0;
 		di_vscale_skip_enable = 4;
 		use_2_interlace_buff = 0;
 		di_force_bit_mode = 8;
@@ -8774,7 +8775,7 @@ static int di_probe(struct platform_device *pdev)
 	init_pd_para();
 	di_hw_init();
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB) && pulldown_enable)
+	if (pulldown_enable)
 		FlmVOFSftInt(&pd_param);
 
 	set_di_flag();

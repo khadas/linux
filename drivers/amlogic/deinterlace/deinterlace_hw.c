@@ -180,14 +180,12 @@ static void mc_di_param_init(void)
 
 static void init_field_mode(void)
 {
-	if (is_meson_gxtvbb_cpu()) {
-		DI_Wr(DIPD_COMB_CTRL0, 0x02400210);
-		DI_Wr(DIPD_COMB_CTRL1, 0x88080808);
-		DI_Wr(DIPD_COMB_CTRL2, 0x41041008);
-		DI_Wr(DIPD_COMB_CTRL3, 0x00008053);
-		DI_Wr(DIPD_COMB_CTRL4, 0x20070002);
-		DI_Wr(DIPD_COMB_CTRL5, 0x04040804);
-	}
+	DI_Wr(DIPD_COMB_CTRL0, 0x02400210);
+	DI_Wr(DIPD_COMB_CTRL1, 0x88080808);
+	DI_Wr(DIPD_COMB_CTRL2, 0x41041008);
+	DI_Wr(DIPD_COMB_CTRL3, 0x00008053);
+	DI_Wr(DIPD_COMB_CTRL4, 0x20070002);
+	DI_Wr(DIPD_COMB_CTRL5, 0x04040804);
 }
 
 void di_hw_init(void)
@@ -236,7 +234,7 @@ void di_hw_init(void)
 	ma_di_init();
 #endif
 
-	if (is_meson_gxtvbb_cpu() && pulldown_enable)
+	if (pulldown_enable)
 		init_field_mode();
 
 	if (mcpre_en)
@@ -360,7 +358,7 @@ void enable_di_pre_aml(
 	nr_h = (di_nrwr_mif->end_y - di_nrwr_mif->start_y + 1);
 	RDMA_WR(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
 	/*gate for nr*/
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 		RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
 	else {
 		/*only process sd,avoid affecting sharp*/
@@ -1491,7 +1489,7 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 	else
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_EI_CTRL3, 1, 31, 1);
 
-	if (is_meson_gxtvbb_cpu() && pulldown_enable) {
+	if (pulldown_enable) {
 		/* DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post>>2)-1 ); */
 		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post-1));
 		DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_Y,
@@ -1598,8 +1596,7 @@ void di_post_switch_buffer(
 			di_diwr_mif->canvas_num | (urgent << 16)); /* urgent. */
 		}
 	}
-	if (is_meson_gxtvbb_cpu() && (pldn_ctrl_rflsh == 1)
-		&& pulldown_enable) {
+	if ((pldn_ctrl_rflsh == 1) && pulldown_enable) {
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_en, 31, 1);
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_mode, 20, 2);
