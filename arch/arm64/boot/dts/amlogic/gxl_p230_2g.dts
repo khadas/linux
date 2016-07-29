@@ -206,7 +206,11 @@
 			phy-mode= "rgmii";
 			pinctrl-names = "eth_pins";
 			pinctrl-0 = <&eth_pins>;
+			rst_pin-gpios = <&gpio GPIOZ_14 0>;
+			GPIOZ4_pin-gpios = <&gpio GPIOZ_4 0>;
+			GPIOZ5_pin-gpios = <&gpio GPIOZ_5 0>;
 			mc_val = <0x1621>;
+			cali_val = <0x20000>;
 			resets = <&clock GCLK_IDX_ETHERNET>;
 			reset-names = "ethpower";
 			interrupt-names = "macirq";
