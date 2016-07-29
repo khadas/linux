@@ -2738,6 +2738,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	buf_size = pdata->mem_end - pdata->mem_start + 1;
 	if (buf_size < DEFAULT_MEM_SIZE) {
 		pr_info("\namvdec_h264 memory size not enough.\n");
+		mutex_unlock(&vh264_mutex);
 		return -ENOMEM;
 	}
 
@@ -2757,6 +2758,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 		if (!sei_data_buffer) {
 			pr_info("%s: Can not allocate sei_data_buffer\n",
 				   __func__);
+			mutex_unlock(&vh264_mutex);
 			return -ENOMEM;
 		}
 		/* pr_info("buffer 0x%x, phys 0x%x, remap 0x%x\n",
