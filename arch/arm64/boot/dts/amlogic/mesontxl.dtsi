@@ -229,6 +229,16 @@
 			amlogic,clrmask = <6 0xF000F03C>;
 			amlogic,pins = "CARD_0","CARD_1","CARD_2","CARD_3";
 		};
+		hdmitx_aocec: hdmitx_aocec {
+			amlogic,setmask=<AO  0x00008000>;
+			amlogic,clrmask=<AO  0x00024000>;
+			amlogic,pins="GPIOAO_7";
+		};
+		hdmitx_eecec: hdmitx_eecec {
+			amlogic,setmask=<AO  0x00004000>;
+			amlogic,clrmask=<AO  0x00028000>;
+			amlogic,pins="GPIOAO_7";
+		};
 		remote_pins:remote_pin{
 			amlogic,setmask = <AO 0x1>;
 			amlogic,clrmask = <AO 0x200000>;
