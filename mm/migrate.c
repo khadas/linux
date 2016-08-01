@@ -945,7 +945,7 @@ uncharge:
 			add_wait_queue(&migrate_wq, &wait);
 			mutex_unlock(&migrate_wait);
 
-			schedule_timeout_interruptible(20);
+			schedule_timeout_interruptible(msecs_to_jiffies(10));
 
 			mutex_lock(&migrate_wait);
 			remove_wait_queue(&migrate_wq, &wait);

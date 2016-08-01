@@ -46,6 +46,25 @@ static struct cma cma_areas[MAX_CMA_AREAS];
 static unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
+static atomic_t cma_allocate;
+int cma_alloc_ref(void)
+{
+	return atomic_read(&cma_allocate);
+}
+EXPORT_SYMBOL(cma_alloc_ref);
+
+void get_cma_alloc_ref(void)
+{
+	atomic_inc(&cma_allocate);
+}
+EXPORT_SYMBOL(get_cma_alloc_ref);
+
+void put_cma_alloc_ref(void)
+{
+	atomic_dec(&cma_allocate);
+}
+EXPORT_SYMBOL(put_cma_alloc_ref);
+
 phys_addr_t cma_get_base(struct cma *cma)
 {
 	return PFN_PHYS(cma->base_pfn);
@@ -137,6 +156,7 @@ static int __init cma_init_reserved_areas(void)
 		if (ret)
 			return ret;
 	}
+	atomic_set(&cma_allocate, 0);
 
 	return 0;
 }
@@ -322,6 +342,7 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 	if (!count)
 		return NULL;
 
+	get_cma_alloc_ref();
 	mask = cma_bitmap_aligned_mask(cma, align);
 	bitmap_maxno = cma_bitmap_maxno(cma);
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
@@ -359,7 +380,7 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 		/* try again with a bit different memory target */
 		start = bitmap_no + mask + 1;
 	}
-
+	put_cma_alloc_ref();
 	pr_debug("%s(): returned %p\n", __func__, page);
 	return page;
 }

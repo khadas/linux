@@ -221,6 +221,7 @@ int min_free_order_shift = 1;
  */
 int extra_free_kbytes = 0;
 
+
 static unsigned long __meminitdata nr_kernel_pages;
 static unsigned long __meminitdata nr_all_pages;
 static unsigned long __meminitdata dma_reserve;
@@ -951,18 +952,43 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 	return 0;
 }
 
+#ifdef CONFIG_CMA
+static inline bool cma_page(struct page *page)
+{
+	int migrate_type = 0;
+
+	migrate_type = get_pageblock_migratetype(page);
+	if (is_migrate_cma(migrate_type) ||
+	   is_migrate_isolate(migrate_type)) {
+		return true;
+	}
+	return false;
+}
+#endif
+
+static inline bool is_writeback(gfp_t flags)
+{
+	return flags & __GFP_WRITE;
+}
+
 /*
  * Go through the free lists for the given migratetype and remove
  * the smallest available page from the freelists
  */
 static inline
 struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-						int migratetype)
+						int migratetype, gfp_t flags)
 {
 	unsigned int current_order;
 	struct free_area *area;
 	struct page *page;
 
+#ifdef CONFIG_CMA
+	/* write back pages should not use CMA */
+	if (migratetype == MIGRATE_CMA &&
+		(is_writeback(flags) || cma_alloc_ref()))
+		return NULL;
+#endif
 	/* Find a page of the appropriate size in the preferred list */
 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
 		area = &(zone->free_area[current_order]);
@@ -1149,7 +1175,8 @@ static int try_to_steal_freepages(struct zone *zone, struct page *page,
 
 /* Remove an element from the buddy allocator from the fallback list */
 static inline struct page *
-__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+__rmqueue_fallback(struct zone *zone, int order,
+		   int start_migratetype, gfp_t gfp_flag)
 {
 	struct free_area *area;
 	int current_order;
@@ -1170,8 +1197,13 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 			if (migratetype == MIGRATE_RESERVE)
 				break;
 #ifdef CONFIG_CMA
-			if (flags && migratetype == MIGRATE_CMA)
-				continue;
+			/* write back pages should not use CMA */
+			if (migratetype == MIGRATE_CMA) {
+				if (flags                  ||
+				    is_writeback(gfp_flag) ||
+				    cma_alloc_ref())
+					continue;
+			}
 #endif
 			area = &(zone->free_area[current_order]);
 			if (list_empty(&area->free_list[migratetype]))
@@ -1215,7 +1247,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
  * Call me with the zone->lock already held.
  */
 static struct page *__rmqueue(struct zone *zone, unsigned int order,
-						int migratetype)
+						int migratetype, gfp_t gfp_flag)
 {
 	struct page *page;
 	int ori_migratetype = migratetype;
@@ -1240,7 +1272,8 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
 				break;
 		}
 		if (tmp_migratetype == MIGRATE_CMA) {
-			page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
+			page = __rmqueue_smallest(zone, order,
+						  MIGRATE_CMA, gfp_flag);
 			if (page) {
 				ori_migratetype = MIGRATE_CMA;
 				goto alloc_page_success;
@@ -1249,10 +1282,10 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
 	}
 #endif
 retry_reserve:
-	page = __rmqueue_smallest(zone, order, ori_migratetype);
+	page = __rmqueue_smallest(zone, order, ori_migratetype, gfp_flag);
 
 	if (unlikely(!page) && ori_migratetype != MIGRATE_RESERVE) {
-		page = __rmqueue_fallback(zone, order, migratetype);
+		page = __rmqueue_fallback(zone, order, migratetype, gfp_flag);
 
 		/*
 		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
@@ -1278,13 +1311,13 @@ alloc_page_success:
  */
 static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list,
-			int migratetype, int cold)
+			int migratetype, int cold, gfp_t flags)
 {
 	int i;
 
 	spin_lock(&zone->lock);
 	for (i = 0; i < count; ++i) {
-		struct page *page = __rmqueue(zone, order, migratetype);
+		struct page *page = __rmqueue(zone, order, migratetype, flags);
 		if (unlikely(page == NULL))
 			break;
 
@@ -1649,7 +1682,7 @@ again:
 #endif
 			pcp->count += rmqueue_bulk(zone, 0,
 					pcp->batch, list,
-					migratetype, cold);
+					migratetype, cold, gfp_flags);
 #ifdef CONFIG_CMA
 			if (gfp_flags & __GFP_BDEV)
 				migratetype &= (~__GFP_BDEV);
@@ -1663,11 +1696,15 @@ again:
 		else
 			page = list_entry(list->next, struct page, lru);
 #ifdef CONFIG_CMA
-		if (gfp_flags & __GFP_BDEV) {
+		/* pcp pages with cma should not used for writeback */
+		if (gfp_flags & __GFP_BDEV  ||
+		    is_writeback(gfp_flags) ||
+		    cma_alloc_ref()) {
 			if (get_freepage_migratetype(page) == MIGRATE_CMA) {
 				spin_lock(&zone->lock);
 				migratetype |= __GFP_BDEV;
-				page = __rmqueue(zone, order, migratetype);
+				page = __rmqueue(zone, order,
+						 migratetype, gfp_flags);
 				migratetype &= (~__GFP_BDEV);
 				spin_unlock(&zone->lock);
 				if (!page)
@@ -1679,7 +1716,8 @@ again:
 		} else if (migratetype == MIGRATE_MOVABLE) {
 			if (get_freepage_migratetype(page) != MIGRATE_CMA) {
 				spin_lock(&zone->lock);
-				tmp_page = __rmqueue(zone, order, MIGRATE_CMA);
+				tmp_page = __rmqueue(zone, order,
+						     MIGRATE_CMA, gfp_flags);
 				spin_unlock(&zone->lock);
 				if (!tmp_page)
 					goto use_pcp_page;
@@ -1708,7 +1746,7 @@ use_pcp_page:
 			WARN_ON_ONCE(order > 1);
 		}
 		spin_lock_irqsave(&zone->lock, flags);
-		page = __rmqueue(zone, order, migratetype);
+		page = __rmqueue(zone, order, migratetype, gfp_flags);
 		spin_unlock(&zone->lock);
 		if (!page)
 			goto failed;
@@ -2944,6 +2982,12 @@ out:
 		goto retry_cpuset;
 
 	memcg_kmem_commit_charge(page, memcg, order);
+#ifdef CONFIG_CMA
+	if (page != NULL && is_writeback(gfp_mask) && cma_page(page)) {
+		WARN(1, "write back in cma, order:%d, mask:%x, migrate:%d\n",
+		     order, gfp_mask, get_pageblock_migratetype(page));
+	}
+#endif
 	return page;
 }
 EXPORT_SYMBOL(__alloc_pages_nodemask);
@@ -6523,7 +6567,7 @@ try_again:
 
 	/* Make sure the range is really isolated. */
 	if (test_pages_isolated(outer_start, end, false)) {
-		pr_warn("alloc_contig_range test_pages_isolated(%lx, %lx) failed\n",
+		pr_debug("alloc_contig_range test_pages_isolated(%lx, %lx) failed\n",
 		       outer_start, end);
 		try_times++;
 		if (try_times < 10)

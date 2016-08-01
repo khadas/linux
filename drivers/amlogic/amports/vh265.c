@@ -1554,6 +1554,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 		}
 	}
 
+	pr_info("allocate begin\n");
+	get_cma_alloc_ref();
 	for (i = 0; i < hevc->used_buf_num; i++) {
 		if (((i + 1) * buf_size) > hevc->mc_buf->buf_size) {
 			if (use_cma)
@@ -1623,7 +1625,7 @@ static void init_buf_list(struct hevc_state_s *hevc)
 					hevc->m_BUF[i].cma_page_count = 0;
 					break;
 				}
-				pr_info("allocate cma buffer[%d] (%d,%ld,%ld)\n",
+				pr_debug("allocate cma buffer[%d] (%d,%ld,%ld)\n",
 						i,
 						hevc->m_BUF[i].cma_page_count,
 						hevc->m_BUF[i].alloc_addr,
@@ -1660,6 +1662,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 				   hevc->m_BUF[i].size);
 		}
 	}
+	put_cma_alloc_ref();
+	pr_info("allocate end\n");
 
 	hevc->buf_num = i;
 
@@ -5845,6 +5849,7 @@ static int h265_task_handle(void *data)
 {
 	int ret = 0;
 	struct hevc_state_s *hevc = (struct hevc_state_s *)data;
+	set_user_nice(current, -10);
 	while (1) {
 		if (use_cma == 0) {
 			pr_info

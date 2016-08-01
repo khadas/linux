@@ -593,6 +593,14 @@ void cpufreq_set_max_cpu_num(unsigned int cpu_num, int cluster_id)
 	return;
 }
 
+static bool can_down(void)
+{
+	bool ret = true;
+#ifdef CONFIG_CMA
+	ret &= cma_alloc_ref() > 0 ? false : true;
+#endif
+	return ret;
+}
 
 static int __ref cpu_hotplug_thread(void *data)
 {
@@ -650,6 +658,8 @@ static int __ref cpu_hotplug_thread(void *data)
 		} else if (*hotplug_flag == CPU_HOTPLUG_UNPLUG) {
 			*hotplug_flag = CPU_HOTPLUG_NONE;
 			cpu_down_num = 0;
+			if (!can_down())
+				goto wait_next_hotplug;
 			for (i = 0; i < num_online_cpus()-1; i++) {
 				raw_spin_lock_irqsave(
 					  &NULL_task->pi_lock, flags);
