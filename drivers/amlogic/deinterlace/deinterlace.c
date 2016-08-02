@@ -3269,7 +3269,11 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 	di_nrwr_mif->start_x = 0;
 	di_nrwr_mif->end_x = in_vframe->width - 1;
 	di_nrwr_mif->start_y = 0;
-	di_nrwr_mif->bit_mode = (di_buf->vframe->bitdepth & BITDEPTH_Y10)?1:0;
+	if (di_buf->vframe->bitdepth & BITDEPTH_Y10)
+		di_nrwr_mif->bit_mode =
+			(di_buf->vframe->bitdepth & FULL_PACK_422_MODE)?3:1;
+	else
+		di_nrwr_mif->bit_mode = 0;
 	if (di_pre_stru.prog_proc_type == 0)
 		di_nrwr_mif->end_y = in_vframe->height / 2 - 1;
 	else
@@ -3967,7 +3971,7 @@ unsigned int adp_set_mtn_ctrl3(unsigned int diff)
 		idatm = (combing_very_motion_setting[2]) & 0xff;
 
 		idatr = ((idats - idatm) * istp >> 6) + idatm;
-		rst = rst | (idatr & 0xff);
+		rst = (rst << 8) | (idatr & 0xff);
 	}
 
 	if (cmb_adpset_cnt > 0) {

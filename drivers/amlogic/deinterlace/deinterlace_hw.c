@@ -258,7 +258,7 @@ static void pre_bit_mode_config(unsigned char inp,
 	RDMA_WR_BITS(DI_MEM_GEN_REG3, mem&0x3, 8, 2);
 	RDMA_WR_BITS(DI_CHAN2_GEN_REG3, chan2&0x3, 8, 2);
 	RDMA_WR_BITS(DI_NRWR_Y, nrwr&0x1, 14, 1);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) && ((mem&0x3) == 0x3))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) && ((nrwr&0x3) == 0x3))
 		RDMA_WR_BITS(DI_NRWR_CTRL, 0x3, 22, 2);
 }
 
