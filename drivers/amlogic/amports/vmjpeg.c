@@ -386,7 +386,7 @@ static void vmjpeg_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vmjpeg_dec_status(struct vdec_status *vstatus)
+int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = frame_width;
 	vstatus->height = frame_height;
@@ -773,15 +773,12 @@ static s32 vmjpeg_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vmjpeg_dec_status);
-
 	return 0;
 }
 
 static int amvdec_mjpeg_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	mutex_lock(&vmjpeg_mutex);
 
@@ -800,6 +797,8 @@ static int amvdec_mjpeg_probe(struct platform_device *pdev)
 
 	if (pdata->sys_info)
 		vmjpeg_amstream_dec_info = *pdata->sys_info;
+
+	pdata->dec_status = vmjpeg_dec_status;
 
 	if (vmjpeg_init() < 0) {
 		amlog_level(LOG_LEVEL_ERROR, "amvdec_mjpeg init failed.\n");

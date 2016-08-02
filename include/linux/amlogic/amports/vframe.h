@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/tvin/tvin.h>
+#include <linux/amlogic/canvas/canvas.h>
 #include <linux/atomic.h>
 #include <linux/amlogic/iomap.h>
 
@@ -215,6 +216,10 @@ struct vframe_s {
 	u32 canvas1Addr;
 	u32 compHeadAddr;
 	u32 compBodyAddr;
+
+	u32 plane_num;
+	struct canvas_config_s canvas0_config[3];
+	struct canvas_config_s canvas1_config[3];
 
 	u32 bufWidth;
 	u32 width;

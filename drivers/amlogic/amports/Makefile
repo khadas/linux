@@ -8,7 +8,7 @@
 
 obj-$(CONFIG_AM_STREAMING) += amports.o
 
-AMPORTS_OBJS = amstream.o streambuf.o vdec.o adec.o tsdemux.o psparser.o esparser.o rmparser.o amvdec.o amstream_profile.o tsync_pcr.o amports_gate.o gp_pll.o thread_rw.o
+AMPORTS_OBJS = amstream.o streambuf.o vdec.o adec.o tsdemux.o psparser.o esparser.o amvdec.o amstream_profile.o tsync_pcr.o amports_gate.o gp_pll.o thread_rw.o vdec_input.o
 
 amports-objs := $(AMPORTS_OBJS)
 amports-y    := $(AMPORTS_OBJS)
@@ -18,9 +18,17 @@ obj-$(CONFIG_AM_VDEC_MPEG12) += amvdec_mpeg12.o
 amvdec_mpeg12-objs := vmpeg12.o
 amvdec_mpeg12-y    := vmpeg12.o
 
+#obj-$(CONFIG_AM_VDEC_MMPEG12) += amvdec_mmpeg12.o
+#amvdec_mmpeg12-objs := vmmpeg12.o
+#amvdec_mmpeg12-y    := vmmpeg12.o
+
 obj-$(CONFIG_AM_VDEC_MPEG4) += amvdec_mpeg4.o
 amvdec_mpeg4-objs := vmpeg4.o
 amvdec_mpeg4-y    := vmpeg4.o
+
+obj-$(CONFIG_AM_VDEC_MMPEG4) += amvdec_mmpeg4.o
+amvdec_mmpeg4-objs := vmmpeg4.o
+amvdec_mmpeg4-y    := vmmpeg4.o
 
 obj-$(CONFIG_AM_VDEC_VC1) += amvdec_vc1.o
 amvdec_vc1-objs := vvc1.o
@@ -29,6 +37,10 @@ amvdec_vc1-y    := vvc1.o
 obj-$(CONFIG_AM_VDEC_H264) += amvdec_h264.o
 amvdec_h264-objs := vh264.o
 amvdec_h264-y    := vh264.o
+
+obj-$(CONFIG_AM_VDEC_MH264) += amvdec_mh264.o
+amvdec_mh264-objs := vmh264.o h264_dpb.o
+amvdec_mh264-y    := vmh264.o h264_dpb.o
 
 obj-$(CONFIG_AM_VDEC_H264MVC) += amvdec_h264mvc.o
 amvdec_h264mvc-objs := vh264mvc.o
@@ -51,8 +63,8 @@ amvdec_mjpeg-objs := vmjpeg.o
 amvdec_mjpeg-y    := vmjpeg.o
 
 obj-$(CONFIG_AM_VDEC_REAL) += amvdec_real.o
-amvdec_real-objs := vreal.o
-amvdec_real-y    := vreal.o
+amvdec_real-objs := vreal.o rmparser.o
+amvdec_real-y    := vreal.o rmparser.o
 
 obj-$(CONFIG_AM_VDEC_AVS) += amvdec_avs.o
 amvdec_avs-objs := vavs.o avsp_trans.o
@@ -106,3 +118,4 @@ ifneq ($(CONFIG_AM_DVB),)
 ##EXTRA_CFLAGS = -DENABLE_DEMUX_DRIVER -DMODIFY_TIMESTAMP_INC_WITH_PLL -DCALC_CACHED_TIME #-DUSE_VMASTER_MODE
 ccflags-y = -DENABLE_DEMUX_DRIVER -DMODIFY_TIMESTAMP_INC_WITH_PLL -DCALC_CACHED_TIME #-DUSE_VMASTER_MODE
 endif
+

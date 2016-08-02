@@ -23,19 +23,15 @@
 #define IONVIDEO_VERSION "1.0"
 #define RECEIVER_NAME "ionvideo"
 
-static int is_actived;
+static struct mutex ppmgr2_ge2d_canvas_mutex;
 
-static unsigned video_nr = 13;
-static DECLARE_WAIT_QUEUE_HEAD(wq);
+static unsigned video_nr_base = 13;
+module_param(video_nr_base, uint, 0644);
+MODULE_PARM_DESC(video_nr_base, "videoX start number, 13 is the base nr");
 
-static u64 last_pts_us64;
+static int scaling_rate = 100;
 
-static int ge2d_quit;
-static int scaling_rate = 50;
-module_param(video_nr, uint, 0644);
-MODULE_PARM_DESC(video_nr, "videoX start number, 13 is autodetect");
-
-static unsigned n_devs = 1;
+static unsigned n_devs = 4;
 module_param(n_devs, uint, 0644);
 MODULE_PARM_DESC(n_devs, "number of video devices to create");
 
@@ -46,16 +42,6 @@ MODULE_PARM_DESC(debug, "activates debug info");
 static unsigned int vid_limit = 16;
 module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
-
-static unsigned int freerun_mode = 1;
-module_param(freerun_mode, uint, 0664);
-MODULE_PARM_DESC(freerun_mode, "av synchronization");
-
-static unsigned int skip_frames;
-module_param(skip_frames, uint, 0664);
-MODULE_PARM_DESC(skip_frames, "skip frames");
-
-static struct ionvideo_dmaqueue *cur_dma_q;
 
 static const struct ionvideo_fmt formats[] = {
 	{.name = "RGB32 (LE)",
@@ -113,6 +99,20 @@ static const struct ionvideo_fmt *get_format(struct v4l2_format *f)
 	return __get_format(f->fmt.pix.pixelformat);
 }
 
+static DEFINE_SPINLOCK(devlist_lock);
+static unsigned long ionvideo_devlist_lock(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&devlist_lock, flags);
+	return flags;
+}
+
+static void ionvideo_devlist_unlock(unsigned long flags)
+{
+	spin_unlock_irqrestore(&devlist_lock, flags);
+}
+
 static LIST_HEAD(ionvideo_devlist);
 
 static DEFINE_SPINLOCK(ion_states_lock);
@@ -139,18 +139,12 @@ unsigned get_ionvideo_debug(void)
 }
 EXPORT_SYMBOL(get_ionvideo_debug);
 
-int is_ionvideo_active(void)
-{
-	return is_actived;
-}
-EXPORT_SYMBOL(is_ionvideo_active);
-
 static void videoc_omx_compute_pts(struct ionvideo_dev *dev,
 					struct vframe_s *vf)
 {
 	if (dev->pts == 0) {
 		if (dev->is_omx_video_started == 0) {
-			dev->pts = last_pts_us64
+			dev->pts = dev->last_pts_us64
 				+ (DUR2PTS(vf->duration) * 100 / 9);
 			if ((vf->type & 0x1) == VIDTYPE_INTERLACE)
 				dev->pts += (DUR2PTS(vf->duration) * 100 / 9);
@@ -159,9 +153,10 @@ static void videoc_omx_compute_pts(struct ionvideo_dev *dev,
 	if (dev->is_omx_video_started)
 		dev->is_omx_video_started = 0;
 
-	last_pts_us64 = dev->pts;
+	dev->last_pts_us64 = dev->pts;
 }
 
+#if 0
 static int canvas_is_valid(struct ionvideo_dev *dev , int index)
 {
 	struct ppmgr2_device *ppd;
@@ -177,6 +172,7 @@ static int canvas_is_valid(struct ionvideo_dev *dev , int index)
 		IONVID_ERR("cancas %d is invalid\n", ppd->canvas_id[index]);
 	return ret;
 }
+#endif
 
 static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 				struct ionvideo_buffer *buf)
@@ -186,13 +182,15 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 	struct vb2_buffer *vb = &(buf->vb);
 	int ret = 0;
 	/* ------------------------------------------------------- */
+#if 0
 	if (!canvas_is_valid(dev, vb->v4l2_buf.index))
 		return -1;
-	vf = vf_get(RECEIVER_NAME);
+#endif
+	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return -EAGAIN;
 	if (vf->flag & VFRAME_FLAG_SWITCHING_FENSE) {
-		vf_put(vf, RECEIVER_NAME);
+		vf_put(vf, dev->vf_receiver_name);
 		return -EAGAIN;
 	}
 
@@ -204,7 +202,7 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 			dev->ppmgr2_dev.bottom_first = 0;
 
 	}
-	if (freerun_mode == 0) {
+	if (dev->freerun_mode == 0) {
 		if ((vf->type & 0x1) == VIDTYPE_INTERLACE) {
 			if ((dev->ppmgr2_dev.bottom_first
 				&& (vf->type & 0x2)) || (dev
@@ -224,10 +222,10 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 		}
 		ret = ppmgr2_process(vf, &dev->ppmgr2_dev, vb->v4l2_buf.index);
 		if (ret) {
-			vf_put(vf, RECEIVER_NAME);
+			vf_put(vf, dev->vf_receiver_name);
 			return ret;
 		}
-		vf_put(vf, RECEIVER_NAME);
+		vf_put(vf, dev->vf_receiver_name);
 	} else {
 		if ((vf->type & 0x1) == VIDTYPE_INTERLACE) {
 			if ((dev->ppmgr2_dev.bottom_first
@@ -261,11 +259,11 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 		}
 		ret = ppmgr2_process(vf, &dev->ppmgr2_dev, vb->v4l2_buf.index);
 		if (ret) {
-			vf_put(vf, RECEIVER_NAME);
+			vf_put(vf, dev->vf_receiver_name);
 			return ret;
 		}
 		videoc_omx_compute_pts(dev, vf);
-		vf_put(vf, RECEIVER_NAME);
+		vf_put(vf, dev->vf_receiver_name);
 		buf->vb.v4l2_buf.timestamp.tv_sec = dev->pts >> 32;
 		buf->vb.v4l2_buf.timestamp.tv_usec = dev->pts & 0xFFFFFFFF;
 		buf->vb.v4l2_buf.timecode.type = dev->ppmgr2_dev.dst_width;
@@ -303,7 +301,7 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	if (!dev)
 		return;
 
-	vf = vf_peek(RECEIVER_NAME);
+	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf) {
 		vf_wait_cnt++;
 		/* msleep(5); */
@@ -322,7 +320,7 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 		w = vf->width;
 		h = vf->height;
 	}
-	if (freerun_mode == 0 && ionvideo_size_changed(dev, w, h)) {
+	if (dev->freerun_mode == 0 && ionvideo_size_changed(dev, w, h)) {
 		/* msleep(10); */
 		usleep_range(4000, 5000);
 		return;
@@ -383,15 +381,15 @@ static int ionvideo_thread(void *data)
 
 	set_freezable();
 
-	ge2d_quit = 0;
+	dev->thread_stoped = 0;
 	for (;;) {
 		ionvideo_sleep(dev);
 
 		if (kthread_should_stop())
 			break;
 	}
-	ge2d_quit = 1;
-	wake_up_interruptible(&wq);
+	dev->thread_stoped = 1;
+	wake_up_interruptible(&dev->wq);
 	dprintk(dev, 2, "thread: exit\n");
 	return 0;
 }
@@ -406,6 +404,8 @@ static int ionvideo_start_generating(struct ionvideo_dev *dev)
 	/* Resets frame counters */
 	dev->ms = 0;
 	/* dev->jiffies = jiffies; */
+
+	init_waitqueue_head(&dev->wq);
 
 	/* dma_q->ini_jiffies = jiffies; */
 	dma_q->kthread = kthread_run(ionvideo_thread, dev, dev->v4l2_dev.name);
@@ -432,7 +432,8 @@ static void ionvideo_stop_generating(struct ionvideo_dev *dev)
 		kthread_stop(dma_q->kthread);
 		dma_q->kthread = NULL;
 	}
-	wait_event_interruptible_timeout(wq, ge2d_quit != 0, HZ/5);
+	wait_event_interruptible_timeout(dev->wq,
+			dev->thread_stoped != 0, HZ/5);
 	/*
 	 * Typical driver might need to wait here until dma engine stops.
 	 * In this case we can abort imiedetly, so it's just a noop.
@@ -541,8 +542,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct ionvideo_dev *dev = vb2_get_drv_priv(vq);
 	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
 
-	cur_dma_q = dma_q;
-	is_actived = 1;
+	dev->is_actived = 1;
 	dma_q->vb_ready = 0;
 	dprintk(dev, 2, "%s\n", __func__);
 	return ionvideo_start_generating(dev);
@@ -552,8 +552,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 static int stop_streaming(struct vb2_queue *vq)
 {
 	struct ionvideo_dev *dev = vb2_get_drv_priv(vq);
-	cur_dma_q = NULL;
-	is_actived = 0;
+	dev->is_actived = 0;
 	dprintk(dev, 2, "%s\n", __func__);
 	ionvideo_stop_generating(dev);
 	return 0;
@@ -583,8 +582,10 @@ static const struct vb2_ops ionvideo_video_qops = {
 static int vidioc_open(struct file *file)
 {
 	struct ionvideo_dev *dev = video_drvdata(file);
-	if (dev->fd_num > 0 || ppmgr2_init(&(dev->ppmgr2_dev)) < 0)
+	if (dev->fd_num > 0 || ppmgr2_init(&(dev->ppmgr2_dev)) < 0) {
+		pr_err("vidioc_open error\n");
 		return -EBUSY;
+	}
 
 	dev->fd_num++;
 	dev->pts = 0;
@@ -592,9 +593,11 @@ static int vidioc_open(struct file *file)
 	dev->c_height = 0;
 	dev->once_record = 1;
 	dev->ppmgr2_dev.bottom_first = 0;
-	skip_frames = 0;
+	dev->skip_frames = 0;
+	dev->freerun_mode = 1;
 	dprintk(dev, 2, "vidioc_open\n");
 	IONVID_INFO("ionvideo open\n");
+	init_waitqueue_head(&dev->wq);
 	return v4l2_fh_open(file);
 }
 
@@ -651,7 +654,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	int ret = 0;
 	unsigned long flags;
 
-	if (freerun_mode == 0) {
+	if (dev->freerun_mode == 0) {
 		if (dev->c_width == 0 || dev->c_height == 0)
 			return -EINVAL;
 
@@ -768,11 +771,17 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		q = dev->vdev.queue;
 		vb = q->bufs[p->index];
 		phy_addr = vb2_plane_cookie(vb, 0);
+		ppmgr2_dev->phy_addr[p->index] = phy_addr;
+		ppmgr2_dev->dst_buffer_width = ALIGN(dev->width, 32);
+		ppmgr2_dev->dst_buffer_height = dev->height;
+		ppmgr2_dev->ge2d_fmt =  v4l_to_ge2d_format(dev->fmt->fourcc);
 		if (phy_addr) {
+#if 0
 			ret = ppmgr2_canvas_config(ppmgr2_dev, dev->width,
 							dev->height,
 							dev->fmt->fourcc,
 							phy_addr, p->index);
+#endif
 		} else {
 			return -ENOMEM;
 		}
@@ -879,10 +888,10 @@ static int vidioc_synchronization_dqbuf(struct file *file, void *priv,
 				if (ret)
 					return ret;
 
-				skip_frames++;
+				dev->skip_frames++;
 			}
 		}
-		dprintk(dev, 1, "s:%u\n", skip_frames);
+		dprintk(dev, 1, "s:%u\n", dev->skip_frames);
 	} else {
 		ret = vb2_ioctl_dqbuf(file, priv, p);
 		if (ret)
@@ -901,7 +910,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
 	int ret = 0;
 
-	if (freerun_mode == 0)
+	if (dev->freerun_mode == 0)
 		return vidioc_synchronization_dqbuf(file, priv, p);
 
 	ret = vb2_ioctl_dqbuf(file, priv, p);
@@ -983,10 +992,15 @@ static int ionvideo_release(void)
 {
 	struct ionvideo_dev *dev;
 	struct list_head *list;
+	unsigned long flags;
+
+	flags = ionvideo_devlist_lock();
 
 	while (!list_empty(&ionvideo_devlist)) {
 		list = ionvideo_devlist.next;
 		list_del(list);
+		ionvideo_devlist_unlock(flags);
+
 		dev = list_entry(list, struct ionvideo_dev, ionvideo_devlist);
 
 		v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
@@ -994,8 +1008,12 @@ static int ionvideo_release(void)
 		video_unregister_device(&dev->vdev);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
+
+		flags = ionvideo_devlist_lock();
 	}
 	/* vb2_dma_contig_cleanup_ctx(ionvideo_dma_ctx); */
+
+	ionvideo_devlist_unlock(flags);
 
 	return 0;
 }
@@ -1008,7 +1026,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		dev->receiver_register = 0;
 		dev->is_omx_video_started = 0;
-		tsync_avevent(VIDEO_STOP, 0);
+		/*tsync_avevent(VIDEO_STOP, 0);*/
 		IONVID_INFO("unreg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		dev->receiver_register = 1;
@@ -1039,6 +1057,7 @@ static int __init ionvideo_create_instance(int inst)
 	struct video_device *vfd;
 	struct vb2_queue *q;
 	int ret;
+	unsigned long flags;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -1055,6 +1074,8 @@ static int __init ionvideo_create_instance(int inst)
 	dev->height = 480;
 	dev->pixelsize = dev->fmt->depth;
 	dev->fd_num = 0;
+	dev->ionvideo_v4l_num = inst + video_nr_base;
+	dev->ppmgr2_dev.ge2d_canvas_mutex = &ppmgr2_ge2d_canvas_mutex;
 
 	/* initialize locks */
 	spin_lock_init(&dev->slock);
@@ -1094,24 +1115,105 @@ static int __init ionvideo_create_instance(int inst)
 	vfd->lock = &dev->mutex;
 	video_set_drvdata(vfd, dev);
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+				inst + video_nr_base);
 	if (ret < 0)
 		goto unreg_dev;
 
-	/* Now that everything is fine, let's add it to device list */
-	list_add_tail(&dev->ionvideo_devlist, &ionvideo_devlist);
-	vf_receiver_init(
-		&dev->video_vf_receiver,
-		RECEIVER_NAME, &video_vf_receiver, dev);
+	dev->inst = inst;
+	snprintf(dev->vf_receiver_name, ION_VF_RECEIVER_NAME_SIZE,
+		(inst == 0) ? RECEIVER_NAME : RECEIVER_NAME ".%x",
+		inst & 0xff);
+
+	vf_receiver_init(&dev->video_vf_receiver,
+			dev->vf_receiver_name,
+			&video_vf_receiver, dev);
 	vf_reg_receiver(&dev->video_vf_receiver);
 	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
-		video_device_node_name(vfd)); return 0;
+		video_device_node_name(vfd));
+
+	/* add to device list */
+	flags = ionvideo_devlist_lock();
+	list_add_tail(&dev->ionvideo_devlist, &ionvideo_devlist);
+	ionvideo_devlist_unlock(flags);
+
+	return 0;
 
 unreg_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
 free_dev:
 	kfree(dev);
 	return ret;
+}
+
+int ionvideo_assign_map(char **receiver_name, int *inst)
+{
+	unsigned long flags;
+	struct ionvideo_dev *dev = NULL;
+	struct list_head *p;
+
+	flags = ionvideo_devlist_lock();
+
+	list_for_each(p, &ionvideo_devlist) {
+		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
+
+		if ((dev->inst == *inst) && (!dev->mapped)) {
+			dev->mapped = true;
+			*inst = dev->inst;
+			*receiver_name = dev->vf_receiver_name;
+			ionvideo_devlist_unlock(flags);
+			return 0;
+		}
+	}
+
+	ionvideo_devlist_unlock(flags);
+
+	return -ENODEV;
+}
+
+int ionvideo_alloc_map(char **receiver_name, int *inst)
+{
+	unsigned long flags;
+	struct ionvideo_dev *dev = NULL;
+	struct list_head *p;
+
+	flags = ionvideo_devlist_lock();
+
+	list_for_each(p, &ionvideo_devlist) {
+		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
+
+		if ((dev->inst >= 0) && (!dev->mapped)) {
+			dev->mapped = true;
+			*inst = dev->inst;
+			*receiver_name = dev->vf_receiver_name;
+			ionvideo_devlist_unlock(flags);
+			return 0;
+		}
+	}
+
+	ionvideo_devlist_unlock(flags);
+	return -ENODEV;
+}
+
+void ionvideo_release_map(int inst)
+{
+	unsigned long flags;
+	struct ionvideo_dev *dev = NULL;
+	struct list_head *p;
+
+	flags = ionvideo_devlist_lock();
+
+	list_for_each(p, &ionvideo_devlist) {
+		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
+		if ((dev->inst >= 0) && (dev->mapped)) {
+			dev->mapped = false;
+			pr_info("ionvideo_release_map %d OK\n", dev->inst);
+			break;
+		}
+	}
+
+	ionvideo_devlist_unlock(flags);
+	return;
 }
 
 static ssize_t vframe_states_show(struct class *class,
@@ -1186,6 +1288,8 @@ static int __init ionvideo_init(void)
 		return ret;
 	if (n_devs <= 0)
 		n_devs = 1;
+
+	mutex_init(&ppmgr2_ge2d_canvas_mutex);
 
 	for (i = 0; i < n_devs; i++) {
 		ret = ionvideo_create_instance(i);

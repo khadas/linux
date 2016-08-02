@@ -126,7 +126,7 @@ static int vfm_map_remove_by_index(int index)
 	return ret;
 }
 
-static int vfm_map_remove(char *id)
+int vfm_map_remove(char *id)
 {
 	int i;
 	int index;
@@ -144,7 +144,7 @@ static int vfm_map_remove(char *id)
 	return ret;
 }
 
-static int vfm_map_add(char *id, char *name_chain)
+int vfm_map_add(char *id, char *name_chain)
 {
 	int i, j;
 	int ret = -1;
@@ -230,6 +230,7 @@ static char *vf_get_receiver_name_inmap(int i, const char *provider_name)
 {
 	int j;
 	int provide_namelen = strlen(provider_name);
+	bool found = false;
 	char *receiver_name = NULL;
 	int namelen;
 
@@ -239,16 +240,25 @@ static char *vf_get_receiver_name_inmap(int i, const char *provider_name)
 			pr_err("%s:vfm_map:%s\n", __func__,
 				vfm_map[i]->name[j]);
 		}
-		if (!strncmp(vfm_map[i]->name[j], provider_name, namelen)) {
-			if ((namelen == provide_namelen) ||
-			    (provider_name[namelen] == '.')) {
-				if ((j + 1) < vfm_map[i]->vfm_map_size) {
-					receiver_name =
-					vfm_map[i]->name[j + 1];
-				}
+		if ((!strncmp(vfm_map[i]->name[j], provider_name, namelen)) &&
+			((j + 1) < vfm_map[i]->vfm_map_size)) {
+			receiver_name = vfm_map[i]->name[j + 1];
+
+			if (namelen == provide_namelen) {
+				/* exact match */
+				receiver_name = vfm_map[i]->name[j + 1];
+				found = true;
 				break;
+			} else if (provider_name[namelen] == '.') {
+				/* continue looking, an exact matching
+				 * has higher priority
+				 */
+				receiver_name = vfm_map[i]->name[j + 1];
 			}
 		}
+
+		if (found)
+			break;
 	}
 	return receiver_name;
 }

@@ -18,7 +18,9 @@
 #ifndef PSPARSER_H
 #define PSPARSER_H
 
-extern s32 psparser_init(u32 vid, u32 aid, u32 sid);
+#include "vdec.h"
+
+extern s32 psparser_init(u32 vid, u32 aid, u32 sid, struct vdec_s *vdec);
 
 extern void psparser_release(void);
 

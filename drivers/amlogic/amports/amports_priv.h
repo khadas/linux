@@ -25,6 +25,11 @@
 #include "arch/log.h"
 
 
+struct port_priv_s {
+	struct vdec_s *vdec;
+	struct stream_port_s *port;
+};
+
 struct stream_buf_s *get_buf_by_type(u32 type);
 
 extern void amvenc_dos_top_reg_fix(void);

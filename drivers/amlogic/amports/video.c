@@ -2102,6 +2102,17 @@ static void judge_3d_fa_out_mode(void)
 
 #endif
 
+static void vframe_canvas_set(struct canvas_config_s *config, u32 planes,
+				u32 *index)
+{
+	int i;
+	u32 *canvas_index = index;
+	struct canvas_config_s *cfg = config;
+
+	for (i = 0; i < planes; i++, canvas_index++, cfg++)
+		canvas_config_config(*canvas_index, cfg);
+}
+
 u32 property_changed_true = 0;
 static void vsync_toggle_frame(struct vframe_s *vf)
 {
@@ -2226,18 +2237,30 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	if ((vf->canvas0Addr != 0) &&
 	(VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) == 0) {
 #ifdef CONFIG_VSYNC_RDMA
-		canvas_copy(vf->canvas0Addr & 0xff,
-			    disp_canvas_index[rdma_canvas_id][0]);
-		canvas_copy((vf->canvas0Addr >> 8) & 0xff,
-			    disp_canvas_index[rdma_canvas_id][1]);
-		canvas_copy((vf->canvas0Addr >> 16) & 0xff,
-			    disp_canvas_index[rdma_canvas_id][2]);
-		canvas_copy(vf->canvas1Addr & 0xff,
-			    disp_canvas_index[rdma_canvas_id][3]);
-		canvas_copy((vf->canvas1Addr >> 8) & 0xff,
-			    disp_canvas_index[rdma_canvas_id][4]);
-		canvas_copy((vf->canvas1Addr >> 16) & 0xff,
-			    disp_canvas_index[rdma_canvas_id][5]);
+		if (vf->canvas0Addr != (u32)-1) {
+			canvas_copy(vf->canvas0Addr & 0xff,
+				disp_canvas_index[rdma_canvas_id][0]);
+			canvas_copy((vf->canvas0Addr >> 8) & 0xff,
+				disp_canvas_index[rdma_canvas_id][1]);
+			canvas_copy((vf->canvas0Addr >> 16) & 0xff,
+				disp_canvas_index[rdma_canvas_id][2]);
+		} else {
+			vframe_canvas_set(&vf->canvas0_config[0],
+				vf->plane_num,
+				&disp_canvas_index[rdma_canvas_id][0]);
+		}
+		if (vf->canvas1Addr != (u32)-1) {
+			canvas_copy(vf->canvas1Addr & 0xff,
+				disp_canvas_index[rdma_canvas_id][3]);
+			canvas_copy((vf->canvas1Addr >> 8) & 0xff,
+				disp_canvas_index[rdma_canvas_id][4]);
+			canvas_copy((vf->canvas1Addr >> 16) & 0xff,
+				disp_canvas_index[rdma_canvas_id][5]);
+		} else {
+			vframe_canvas_set(&vf->canvas1_config[0],
+				vf->plane_num,
+				&disp_canvas_index[rdma_canvas_id][3]);
+		}
 
 		VSYNC_WR_MPEG_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off,
 				  disp_canvas[rdma_canvas_id][0]);

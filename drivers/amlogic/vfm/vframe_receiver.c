@@ -29,7 +29,7 @@
 /* Local headers */
 #include "vfm.h"
 
-#define MAX_RECEIVER_NUM    8
+#define MAX_RECEIVER_NUM    16
 struct vframe_receiver_s *receiver_table[MAX_RECEIVER_NUM];
 
 int receiver_list(char *buf)

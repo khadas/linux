@@ -250,6 +250,14 @@ void canvas_config_ex(u32 index, ulong addr, u32 width, u32 height, u32 wrap,
 }
 EXPORT_SYMBOL(canvas_config_ex);
 
+void canvas_config_config(u32 index, struct canvas_config_s *cfg)
+{
+	canvas_config_ex(index, cfg->phy_addr,
+		cfg->width, cfg->height, CANVAS_ADDR_NOWRAP,
+		cfg->block_mode, cfg->endian);
+}
+EXPORT_SYMBOL(canvas_config_config);
+
 void canvas_config(u32 index, ulong addr, u32 width, u32 height, u32 wrap,
 				   u32 blkmode)
 {

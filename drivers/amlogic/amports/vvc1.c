@@ -682,7 +682,7 @@ static int vvc1_event_cb(int type, void *data, void *private_data)
 	return 0;
 }
 
-int vvc1_dec_status(struct vdec_status *vstatus)
+int vvc1_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = vvc1_amstream_dec_info.width;
 	vstatus->height = vvc1_amstream_dec_info.height;
@@ -1031,15 +1031,12 @@ static s32 vvc1_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vvc1_dec_status);
-
 	return 0;
 }
 
 static int amvdec_vc1_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	if (pdata == NULL) {
 		pr_info("amvdec_vc1 memory resource undefined.\n");
@@ -1052,6 +1049,8 @@ static int amvdec_vc1_probe(struct platform_device *pdev)
 
 	if (pdata->sys_info)
 		vvc1_amstream_dec_info = *pdata->sys_info;
+
+	pdata->dec_status = vvc1_dec_status;
 
 	if (vvc1_init() < 0) {
 		pr_info("amvdec_vc1 init failed.\n");

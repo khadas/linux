@@ -36,6 +36,7 @@
 /* #include <mach/mod_gate.h> */
 /* #endif */
 
+#include "vdec.h"
 #include "vdec_reg.h"
 #include "streambuf_reg.h"
 #include "streambuf.h"
@@ -522,7 +523,8 @@ static int reset_pcr_regs(void)
 	return 1;
 }
 
-s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc)
+s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
+		struct vdec_s *vdec)
 {
 	s32 r;
 	u32 parser_sub_start_ptr;
@@ -609,36 +611,50 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc)
 	/* hook stream buffer with PARSER */
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if (has_hevc_vdec() && is_hevc) {
-		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR,
-					   READ_VREG(HEVC_STREAM_START_ADDR));
-		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR,
-					   READ_VREG(HEVC_STREAM_END_ADDR) - 8);
+		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
+		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
+			vdec->input.size - 8);
 
-		CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
-		/* set vififo_vbuf_rp_sel=>hevc */
-		WRITE_VREG(DOS_GEN_CTRL0, 3 << 1);
-		/* set use_parser_vbuf_wp */
-		SET_VREG_MASK(HEVC_STREAM_CONTROL,
+		if (vdec_stream_based(vdec)) {
+			CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL,
+					ES_VID_MAN_RD_PTR);
+			/* set vififo_vbuf_rp_sel=>hevc */
+			WRITE_VREG(DOS_GEN_CTRL0, 3 << 1);
+			/* set use_parser_vbuf_wp */
+			SET_VREG_MASK(HEVC_STREAM_CONTROL,
 					  (1 << 3) | (0 << 4));
-		/* set stream_fetch_enable */
-		SET_VREG_MASK(HEVC_STREAM_CONTROL, 1);
-		/* set stream_buffer_hole with 256 bytes */
-		SET_VREG_MASK(HEVC_STREAM_FIFO_CTL,
+			/* set stream_fetch_enable */
+			SET_VREG_MASK(HEVC_STREAM_CONTROL, 1);
+			/* set stream_buffer_hole with 256 bytes */
+			SET_VREG_MASK(HEVC_STREAM_FIFO_CTL,
 					  (1 << 29));
+		} else {
+			SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+			WRITE_MPEG_REG(PARSER_VIDEO_WP, vdec->input.start);
+			WRITE_MPEG_REG(PARSER_VIDEO_RP, vdec->input.start);
+		}
 	} else
 		/* #endif */
 	{
-		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR,
-					   READ_VREG(VLD_MEM_VIFIFO_START_PTR));
-		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR,
-					   READ_VREG(VLD_MEM_VIFIFO_END_PTR));
-		CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
+		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
+			vdec->input.size - 8);
 
-		WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
-		CLEAR_VREG_MASK(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
-		/* set vififo_vbuf_rp_sel=>vdec */
-		if (has_hevc_vdec())
-			WRITE_VREG(DOS_GEN_CTRL0, 0);
+		if (vdec_stream_based(vdec)) {
+			CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL,
+					ES_VID_MAN_RD_PTR);
+
+			WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
+			CLEAR_VREG_MASK(VLD_MEM_VIFIFO_BUF_CNTL,
+					MEM_BUFCTRL_INIT);
+			/* set vififo_vbuf_rp_sel=>vdec */
+			if (has_hevc_vdec())
+				WRITE_VREG(DOS_GEN_CTRL0, 0);
+		} else {
+			SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+			WRITE_MPEG_REG(PARSER_VIDEO_WP, vdec->input.start);
+			WRITE_MPEG_REG(PARSER_VIDEO_RP, vdec->input.start);
+		}
 	}
 
 	WRITE_MPEG_REG(PARSER_AUDIO_START_PTR,
@@ -789,6 +805,8 @@ void tsdemux_release(void)
 	pts_stop(PTS_TYPE_VIDEO);
 	pts_stop(PTS_TYPE_AUDIO);
 
+	WRITE_MPEG_REG(RESET1_REGISTER, RESET_PARSER);
+
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 	/*TODO clk */
 	/*
@@ -855,7 +873,8 @@ ssize_t drm_tswrite(struct file *file,
 	int isphybuf = 0;
 	unsigned long realbuf;
 
-	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
+	struct port_priv_s *priv = (struct port_priv_s *)file->private_data;
+	struct stream_port_s *port = priv->port;
 	size_t wait_size, write_size;
 
 	if (buf == NULL || count == 0)
@@ -955,7 +974,8 @@ ssize_t tsdemux_write(struct file *file,
 					  const char __user *buf, size_t count)
 {
 	s32 r;
-	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
+	struct port_priv_s *priv = (struct port_priv_s *)file->private_data;
+	struct stream_port_s *port = priv->port;
 	size_t wait_size, write_size;
 
 	if ((stbuf_space(vbuf) < count) || (stbuf_space(abuf) < count)) {

@@ -58,7 +58,7 @@ static irqreturn_t rm_parser_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-s32 rmparser_init(void)
+s32 rmparser_init(struct vdec_s *vdec)
 {
 	s32 r;
 	parse_halt = 0;
@@ -82,9 +82,10 @@ s32 rmparser_init(void)
 	CLEAR_MPEG_REG_MASK(TS_FILE_CONFIG, (1 << TS_HIU_ENABLE));
 
 	/* hook stream buffer with PARSER */
-	WRITE_MPEG_REG(PARSER_VIDEO_START_PTR,
-				   READ_VREG(VLD_MEM_VIFIFO_START_PTR));
-	WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, READ_VREG(VLD_MEM_VIFIFO_END_PTR));
+	WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
+	WRITE_MPEG_REG(PARSER_VIDEO_END_PTR,
+		vdec->input.start + vdec->input.size - 8);
+
 	CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
 
 	WRITE_MPEG_REG(PARSER_AUDIO_START_PTR,
@@ -270,7 +271,8 @@ ssize_t rmparser_write(struct file *file,
 					   const char __user *buf, size_t count)
 {
 	s32 r;
-	struct stream_port_s *port = (struct stream_port_s *)file->private_data;
+	struct port_priv_s *priv = (struct port_priv_s *)file->private_data;
+	struct stream_port_s *port = priv->port;
 	size_t towrite = count;
 	if ((stbuf_space(vbuf) < count) || (stbuf_space(abuf) < count)) {
 		if (file->f_flags & O_NONBLOCK) {

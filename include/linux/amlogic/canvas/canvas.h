@@ -35,6 +35,14 @@ struct canvas_s {
 	u32 dataH;
 };
 
+struct canvas_config_s {
+	u32 phy_addr;
+	u32 width;
+	u32 height;
+	u32 block_mode;
+	u32 endian;
+};
+
 #define CANVAS_ADDR_NOWRAP      0x00
 #define CANVAS_ADDR_WRAPX       0x01
 #define CANVAS_ADDR_WRAPY       0x02
@@ -52,6 +60,16 @@ struct canvas_s {
 
 #define PPMGR2_MAX_CANVAS 8
 #define PPMGR2_CANVAS_INDEX 0x70    /* 0x70-0x7f for PPMGR2 (IONVIDEO)/ */
+
+/* the following reserved canvas index value
+ * should match the configurations defined
+ * in canvas_mgr.c canvas_pool_config().
+ */
+#define AMVDEC_CANVAS_MAX1        0xbf
+#define AMVDEC_CANVAS_MAX2        0x25
+#define AMVDEC_CANVAS_START_INDEX 0x78
+
+extern void canvas_config_config(u32 index, struct canvas_config_s *cfg);
 
 extern void canvas_config(u32 index, ulong addr, u32 width, u32 height,
 			  u32 wrap, u32 blkmode);

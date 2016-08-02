@@ -605,7 +605,7 @@ static void vavs_vf_put(struct vframe_s *vf, void *op_arg)
 
 }
 
-int vavs_dec_status(struct vdec_status *vstatus)
+int vavs_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = frame_width;	/* vavs_amstream_dec_info.width; */
 	vstatus->height = frame_height;	/* vavs_amstream_dec_info.height; */
@@ -1331,15 +1331,12 @@ static s32 vavs_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vavs_dec_status);
-
 	return 0;
 }
 
 static int amvdec_avs_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	if (pdata == NULL) {
 		pr_info("amvdec_avs memory resource undefined.\n");
@@ -1383,6 +1380,9 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 
 	pr_info("%s (%d,%d) %d\n", __func__, vavs_amstream_dec_info.width,
 		   vavs_amstream_dec_info.height, vavs_amstream_dec_info.rate);
+
+	pdata->dec_status = vavs_dec_status;
+
 	if (vavs_init() < 0) {
 		pr_info("amvdec_avs init failed.\n");
 

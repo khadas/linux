@@ -19,6 +19,10 @@
 #ifndef __AML_VFM_H
 #define __AML_VFM_H
 
+extern int vfm_map_add(char *id, char *name_chain);
+
+extern int vfm_map_remove(char *id);
+
 char *vf_get_provider_name(const char *receiver_name);
 
 char *vf_get_receiver_name(const char *provider_name);

@@ -64,8 +64,10 @@
 #define PARSER_INT_HOST_EN_BIT      8
 
 struct stream_buf_s;
+struct vdec_s;
 
-extern s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc);
+extern s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
+			struct vdec_s *vdec);
 
 extern void tsdemux_release(void);
 extern ssize_t drm_tswrite(struct file *file,

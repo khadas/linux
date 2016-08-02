@@ -671,7 +671,7 @@ static void vmpeg_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vmpeg4_dec_status(struct vdec_status *vstatus)
+int vmpeg4_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = vmpeg4_amstream_dec_info.width;
 	vstatus->height = vmpeg4_amstream_dec_info.height;
@@ -1008,15 +1008,12 @@ static s32 vmpeg4_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vmpeg4_dec_status);
-
 	return 0;
 }
 
 static int amvdec_mpeg4_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	if (pdata == NULL) {
 		amlog_level(LOG_LEVEL_ERROR,
@@ -1030,6 +1027,8 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 
 	if (pdata->sys_info)
 		vmpeg4_amstream_dec_info = *pdata->sys_info;
+
+	pdata->dec_status = vmpeg4_dec_status;
 
 	if (vmpeg4_init() < 0) {
 		amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg4 init failed.\n");

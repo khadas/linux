@@ -1014,7 +1014,7 @@ static void vh264_4k2k_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vh264_4k2k_dec_status(struct vdec_status *vstatus)
+int vh264_4k2k_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = frame_width;
 	vstatus->height = frame_height;
@@ -1027,7 +1027,7 @@ int vh264_4k2k_dec_status(struct vdec_status *vstatus)
 	return 0;
 }
 
-int vh264_4k2k_set_trickmode(unsigned long trickmode)
+int vh264_4k2k_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 {
 	if (trickmode == TRICKMODE_I) {
 		WRITE_VREG(DECODE_MODE, 1);
@@ -1566,11 +1566,6 @@ static s32 vh264_4k2k_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vh264_4k2k_dec_status);
-
-	if (H264_4K2K_SINGLE_CORE)
-		set_trickmode_func(&vh264_4k2k_set_trickmode);
-
 	return 0;
 }
 
@@ -1688,8 +1683,7 @@ void vh264_4k_free_cmabuf(void)
 
 static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	pr_info("amvdec_h264_4k2k probe start.\n");
 
@@ -1751,6 +1745,10 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 
 	if (!H264_4K2K_SINGLE_CORE)
 		vdec2_power_mode(1);
+
+	pdata->dec_status = vh264_4k2k_dec_status;
+	if (H264_4K2K_SINGLE_CORE)
+		pdata->set_trickmode = vh264_4k2k_set_trickmode;
 
 	if (vh264_4k2k_init() < 0) {
 		pr_info("\namvdec_h264_4k2k init failed.\n");

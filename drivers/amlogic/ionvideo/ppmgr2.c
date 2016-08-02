@@ -110,33 +110,75 @@ static int get_input_format(struct vframe_s *vf)
 static inline void ge2d_src_config(struct vframe_s *vf,
 					struct config_para_ex_s *ge2d_config)
 {
+	struct vframe_s src_vf = *vf;
 	struct canvas_s src_cs0, src_cs1, src_cs2;
-	struct vframe_s *src_vf = vf;
 
+	if (vf->canvas0Addr == (u32)-1) {
+		canvas_config_config(PPMGR2_CANVAS_INDEX_SRC,
+					&src_vf.canvas0_config[0]);
+		canvas_config_config(PPMGR2_CANVAS_INDEX_SRC + 1,
+					&src_vf.canvas0_config[1]);
+		if (src_vf.plane_num == 2) {
+			src_vf.canvas0Addr =
+				(PPMGR2_CANVAS_INDEX_SRC)
+				| ((PPMGR2_CANVAS_INDEX_SRC + 1) << 8)
+				| ((PPMGR2_CANVAS_INDEX_SRC + 1) << 16);
+		} else if (src_vf.plane_num == 3) {
+			canvas_config_config(PPMGR2_CANVAS_INDEX_SRC + 2,
+					&src_vf.canvas0_config[2]);
+
+			src_vf.canvas0Addr =
+				(PPMGR2_CANVAS_INDEX_SRC)
+				| ((PPMGR2_CANVAS_INDEX_SRC + 1) << 8)
+				| ((PPMGR2_CANVAS_INDEX_SRC + 2) << 16);
+		}
+
+		ge2d_config->src_planes[0].addr =
+				src_vf.canvas0_config[0].phy_addr;
+		ge2d_config->src_planes[0].w =
+				src_vf.canvas0_config[0].width;
+		ge2d_config->src_planes[0].h =
+				src_vf.canvas0_config[0].height;
+		ge2d_config->src_planes[1].addr =
+				src_vf.canvas0_config[1].phy_addr;
+		ge2d_config->src_planes[1].w =
+				src_vf.canvas0_config[1].width;
+		ge2d_config->src_planes[1].h =
+				src_vf.canvas0_config[1].height << 1;
+
+		if (src_vf.plane_num == 3) {
+			ge2d_config->src_planes[2].addr =
+					src_vf.canvas0_config[2].phy_addr;
+			ge2d_config->src_planes[2].w =
+					src_vf.canvas0_config[2].width;
+			ge2d_config->src_planes[2].h =
+					src_vf.canvas0_config[2].height << 1;
+		}
+	} else {
+		canvas_read(src_vf.canvas0Addr & 0xff, &src_cs0);
+		canvas_read(src_vf.canvas0Addr >> 8 & 0xff, &src_cs1);
+		canvas_read(src_vf.canvas0Addr >> 16 & 0xff, &src_cs2);
+		ge2d_config->src_planes[0].addr = src_cs0.addr;
+		ge2d_config->src_planes[0].w = src_cs0.width;
+		ge2d_config->src_planes[0].h = src_cs0.height;
+		ge2d_config->src_planes[1].addr = src_cs1.addr;
+		ge2d_config->src_planes[1].w = src_cs1.width;
+		ge2d_config->src_planes[1].h = src_cs1.height;
+		ge2d_config->src_planes[2].addr = src_cs2.addr;
+		ge2d_config->src_planes[2].w = src_cs2.width;
+		ge2d_config->src_planes[2].h = src_cs2.height;
+	}
 	/* data operating. */
 	ge2d_config->alu_const_color = 0; /* 0x000000ff; */
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0; /* 0xff; */
 
-	canvas_read(src_vf->canvas0Addr & 0xff, &src_cs0);
-	canvas_read(src_vf->canvas0Addr >> 8 & 0xff, &src_cs1);
-	canvas_read(src_vf->canvas0Addr >> 16 & 0xff, &src_cs2);
-	ge2d_config->src_planes[0].addr = src_cs0.addr;
-	ge2d_config->src_planes[0].w = src_cs0.width;
-	ge2d_config->src_planes[0].h = src_cs0.height;
-	ge2d_config->src_planes[1].addr = src_cs1.addr;
-	ge2d_config->src_planes[1].w = src_cs1.width;
-	ge2d_config->src_planes[1].h = src_cs1.height;
-	ge2d_config->src_planes[2].addr = src_cs2.addr;
-	ge2d_config->src_planes[2].w = src_cs2.width;
-	ge2d_config->src_planes[2].h = src_cs2.height;
-
 	ge2d_config->src_key.key_enable = 0;
 	ge2d_config->src_key.key_mask = 0;
 	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_para.canvas_index = src_vf->canvas0Addr;
+	ge2d_config->src_para.canvas_index = src_vf.canvas0Addr;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = get_input_format(src_vf);
+	ge2d_config->src_para.format = get_input_format(&src_vf);
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -144,11 +186,11 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 	ge2d_config->src_para.color = 0xffffffff;
 	ge2d_config->src_para.top = 0;
 	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = src_vf->width;
+	ge2d_config->src_para.width = src_vf.width;
 	if (vf->type & VIDTYPE_INTERLACE)
-		ge2d_config->src_para.height = src_vf->height >> 1;
+		ge2d_config->src_para.height = src_vf.height >> 1;
 	else
-		ge2d_config->src_para.height = src_vf->height;
+		ge2d_config->src_para.height = src_vf.height;
 
 	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 /*	ppmgr2_printk(2, "vf_width is %d , vf_height is %d type:%p\n",
@@ -334,55 +376,55 @@ int ppmgr2_init(struct ppmgr2_device *ppd)
 	return 0;
 }
 
-int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int dst_width,
-				int dst_height, int dst_fmt, void *phy_addr,
-				int index)
+int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index)
 {
-	int canvas_width = ALIGN(dst_width, 32);
-	int canvas_height = dst_height;
+	int canvas_width = ppd->dst_buffer_width;
+	int canvas_height = ppd->dst_buffer_height;
+	void *phy_addr;
 
 	if (!ppd->phy_addr) {
 		ppmgr2_printk(1, "NULL physical address!\n");
 		return -1;
 	}
+
+	phy_addr = ppd->phy_addr[index];
+
 	if (index >= PPMGR2_MAX_CANVAS) {
 		ppmgr2_printk(0, "canvas index too large! %d>=%d\n", index,
 				PPMGR2_MAX_CANVAS);
 		return -1;
 	}
-	ppd->ge2d_fmt = v4l_to_ge2d_format(dst_fmt);
-	ppd->phy_addr[index] = phy_addr;
 
 	if (ppd->ge2d_fmt == GE2D_FORMAT_M24_NV21 || ppd->ge2d_fmt
 		== GE2D_FORMAT_M24_NV12) {
-		canvas_config(PPMGR2_CANVAS_INDEX + index * 2, (ulong)phy_addr,
+		canvas_config(PPMGR2_CANVAS_INDEX, (ulong)phy_addr,
 				canvas_width, canvas_height, CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_LINEAR);
 		canvas_config(
-			PPMGR2_CANVAS_INDEX + index * 2 + 1,
+			PPMGR2_CANVAS_INDEX + 1,
 			(ulong)(phy_addr + (canvas_width * canvas_height)),
 			canvas_width, canvas_height >> 1, CANVAS_ADDR_NOWRAP,
 			CANVAS_BLKMODE_LINEAR);
-		ppd->canvas_id[index] = (PPMGR2_CANVAS_INDEX + index * 2)
-			| ((PPMGR2_CANVAS_INDEX + index * 2 + 1) << 8);
+		ppd->canvas_id[index] = (PPMGR2_CANVAS_INDEX)
+			| ((PPMGR2_CANVAS_INDEX + 1) << 8);
 	} else if (ppd->ge2d_fmt == GE2D_FORMAT_S8_Y) {
-		canvas_config(PPMGR2_CANVAS_INDEX + index * 3, (ulong)phy_addr,
+		canvas_config(PPMGR2_CANVAS_INDEX, (ulong)phy_addr,
 				canvas_width, canvas_height, CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_LINEAR);
 		canvas_config(
-			PPMGR2_CANVAS_INDEX + index * 3 + 1,
+			PPMGR2_CANVAS_INDEX + 1,
 			(ulong)(phy_addr + canvas_width * canvas_height),
 			canvas_width >> 1, canvas_height >> 1,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		canvas_config(
-			PPMGR2_CANVAS_INDEX + index * 3 + 2,
+			PPMGR2_CANVAS_INDEX + 2,
 			(ulong)(phy_addr + (canvas_width * canvas_height * 5
 				>> 2)),
 			canvas_width >> 1, canvas_height >> 1,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		ppd->canvas_id[index] = (PPMGR2_CANVAS_INDEX + index * 3)
-			| ((PPMGR2_CANVAS_INDEX + index * 3 + 1) << 8)
-			| ((PPMGR2_CANVAS_INDEX + index * 3 + 2) << 16);
+		ppd->canvas_id[index] = (PPMGR2_CANVAS_INDEX)
+			| ((PPMGR2_CANVAS_INDEX + 1) << 8)
+			| ((PPMGR2_CANVAS_INDEX + 2) << 16);
 	} else {
 		int bpp = 0;
 		if (ppd->ge2d_fmt == GE2D_FORMAT_S32_ABGR) {
@@ -396,10 +438,10 @@ int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int dst_width,
 			ppmgr2_printk(1, "Not support format!\n");
 			return -1;
 		}
-		canvas_config(PPMGR2_CANVAS_INDEX + index, (ulong)phy_addr,
+		canvas_config(PPMGR2_CANVAS_INDEX, (ulong)phy_addr,
 				canvas_width * bpp, canvas_height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		ppd->canvas_id[index] = PPMGR2_CANVAS_INDEX + index;
+		ppd->canvas_id[index] = PPMGR2_CANVAS_INDEX;
 
 	}
 	ppmgr2_printk(2, "canvas[%d] phy_addr:%p width:%d height:%d\n", index,
@@ -429,11 +471,11 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 	struct vframe_s *src_vf = vf;
 	int src_position[4] = {0};
 	int dst_paint_position[4] = {0}, dst_plane_position[4] = {0};
-	int dst_canvas_id = ppd->canvas_id[index];
 	int dst_pixel_format = ppd->ge2d_fmt;
 	struct ge2d_context_s *context = ppd->context;
 	struct config_para_ex_s *ge2d_config = &(ppd->ge2d_config);
 	int angle = (ppd->angle + src_vf->orientation) % 4;
+	int dst_canvas_id = 0;
 
 	if (src_vf->type & VIDTYPE_INTERLACE) {
 		if ((ppd->bottom_first && src_vf->type & 0x2)
@@ -443,16 +485,16 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 		}
 	}
 
-	if (dst_canvas_id < 0)
-		ppmgr2_printk(0,
-			"canvas:%d, index:%d\n",
-			dst_canvas_id, index);
+	mutex_lock(ppd->ge2d_canvas_mutex);
+	ppmgr2_canvas_config(ppd, index);
+	dst_canvas_id = ppd->canvas_id[index];
 	src_position[0] = 0;
 	src_position[1] = 0;
 	src_position[2] = src_vf->width;
 	src_position[3] = src_vf->height;
 	if (src_position[2] == 0 || src_position[3] == 0) {
 		ppmgr2_printk(1, "Source frame error!\n");
+		mutex_unlock(ppd->ge2d_canvas_mutex);
 		return -1;
 	}
 	dst_plane_position[0] = 0;
@@ -474,19 +516,8 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 				dst_pixel_format, src_position,
 				dst_paint_position, dst_plane_position);
 
-	/* #ifdef GE2D_DEINTERLACE */
-	if (src_vf->type & VIDTYPE_INTERLACE) {
-		if ((ppd->bottom_first && src_vf->type & 0x2) || (ppd
-			->bottom_first
-			== 0
-			&& (src_vf
-			->type
-			& 0x2)
-			== 0)) {
-			return -EAGAIN;
-		}
-	}
-	/* #endif */
+	mutex_unlock(ppd->ge2d_canvas_mutex);
+
 	return ret;
 }
 

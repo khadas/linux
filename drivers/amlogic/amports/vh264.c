@@ -2028,7 +2028,7 @@ exit:
 	add_timer(timer);
 }
 
-int vh264_dec_status(struct vdec_status *vstatus)
+int vh264_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = frame_width;
 	vstatus->height = frame_height;
@@ -2043,7 +2043,7 @@ int vh264_dec_status(struct vdec_status *vstatus)
 	return 0;
 }
 
-int vh264_set_trickmode(unsigned long trickmode)
+int vh264_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 {
 	if (trickmode == TRICKMODE_I) {
 		WRITE_VREG(AV_SCRATCH_F,
@@ -2480,8 +2480,6 @@ static s32 vh264_init(void)
 	/* -- start decoder */
 	amvdec_start();
 
-	set_vdec_func(&vh264_dec_status);
-	set_trickmode_func(&vh264_set_trickmode);
 	init_userdata_fifo();
 
 	return 0;
@@ -2753,8 +2751,7 @@ static void stream_switching_do(struct work_struct *work)
 
 static int amvdec_h264_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	mutex_lock(&vh264_mutex);
 
@@ -2797,6 +2794,8 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	}
 	pr_debug("amvdec_h264 mem-addr=%lx,buff_offset=%x,buf_start=%lx buf_size %x\n",
 		   pdata->mem_start, buf_offset, buf_start, buf_size);
+	pdata->dec_status = vh264_dec_status;
+	pdata->set_trickmode = vh264_set_trickmode;
 
 	if (vh264_init() < 0) {
 		pr_info("\namvdec_h264 init failed.\n");

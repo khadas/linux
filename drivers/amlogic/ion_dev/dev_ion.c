@@ -205,6 +205,9 @@ static int ion_dev_mem_init(struct reserved_mem *rmem, struct device *dev)
 	my_ion_heap[num_heaps].name = "carveout_ion";
 	my_ion_heap[num_heaps].base = (ion_phys_addr_t) rmem->base;
 	my_ion_heap[num_heaps].size = rmem->size;
+
+	pr_info("ion_dev_mem_init size=0x%llx\n", rmem->size);
+
 	num_heaps++;
 	heaps = kzalloc(sizeof(struct ion_heap *) * num_heaps, GFP_KERNEL);
 	/* idev = ion_device_create(NULL); */

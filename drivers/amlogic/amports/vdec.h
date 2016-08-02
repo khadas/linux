@@ -20,23 +20,16 @@
 #include "amports_config.h"
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/list.h>
+#include <linux/completion.h>
+#include <linux/irqreturn.h>
 
-struct vdec_dev_reg_s {
-	unsigned long mem_start;
-	unsigned long mem_end;
-	struct device *cma_dev;
-	struct dec_sysinfo *sys_info;
-	unsigned long flag;
-} /*vdec_dev_reg_t */;
+#include <linux/amlogic/amports/amstream.h>
+#include <linux/amlogic/amports/vframe.h>
+#include <linux/amlogic/amports/vframe_provider.h>
+#include <linux/amlogic/amports/vframe_receiver.h>
 
-
-
-extern void vdec_set_decinfo(struct dec_sysinfo *p);
-extern int vdec_set_resource(unsigned long start, unsigned long end,
-							 struct device *p);
-
-extern s32 vdec_init(enum vformat_e vf, int is_4k);
-extern s32 vdec_release(enum vformat_e vf);
+#include "vdec_input.h"
 
 s32 vdec_dev_register(void);
 s32 vdec_dev_unregister(void);
@@ -109,6 +102,168 @@ extern void dma_contiguous_early_fixup(phys_addr_t base, unsigned long size);
 unsigned int get_vdec_clk_config_settings(void);
 void update_vdec_clk_config_settings(unsigned int config);
 unsigned int  get_mmu_mode(void);
+
+
+struct vdec_s;
+enum vformat_t;
+
+/* stream based with single instance decoder driver */
+#define VDEC_TYPE_SINGLE           0
+/* stream based with multi-instance decoder with HW resouce sharing */
+#define VDEC_TYPE_STREAM_PARSER    1
+/* frame based with multi-instance decoder, input block list based */
+#define VDEC_TYPE_FRAME_BLOCK      2
+/* frame based with multi-instance decoder, single circular input block */
+#define VDEC_TYPE_FRAME_CIRCULAR   3
+
+/* decoder status: uninitialized */
+#define VDEC_STATUS_UNINITIALIZED  0
+/* decoder status: before the decoder can start consuming data */
+#define VDEC_STATUS_DISCONNECTED   1
+/* decoder status: decoder should become disconnected once it's not active */
+#define VDEC_STATUS_CONNECTED      2
+/* decoder status: decoder owns HW resource and is running */
+#define VDEC_STATUS_ACTIVE         3
+
+#define VDEC_PROVIDER_NAME_SIZE 16
+#define VDEC_RECEIVER_NAME_SIZE 16
+#define VDEC_MAP_NAME_SIZE      40
+
+struct vdec_s {
+	u32 magic;
+	struct list_head list;
+	int id;
+
+	int status;
+	int next_status;
+	int type;
+	int port_flag;
+	int format;
+	u32 pts;
+	u64 pts64;
+	bool pts_valid;
+
+	struct completion inactive_done;
+
+	/* config (temp) */
+	unsigned long mem_start;
+	unsigned long mem_end;
+
+	struct device *cma_dev;
+	struct platform_device *dev;
+	struct dec_sysinfo sys_info_store;
+	struct dec_sysinfo *sys_info;
+
+	/* input */
+	struct vdec_input_s input;
+
+	/* frame provider/receiver interface */
+	char vf_provider_name[VDEC_PROVIDER_NAME_SIZE];
+	struct vframe_provider_s vframe_provider;
+	char *vf_receiver_name;
+	char vfm_map_id[VDEC_MAP_NAME_SIZE];
+	char vfm_map_chain[VDEC_MAP_NAME_SIZE];
+	int vf_receiver_inst;
+	bool use_vfm_path;
+
+	/* canvas */
+	int (*get_canvas)(unsigned int index, unsigned int base);
+
+	int (*dec_status)(struct vdec_s *vdec, struct vdec_status *vstatus);
+	int (*set_trickmode)(struct vdec_s *vdec, unsigned long trickmode);
+
+	bool (*run_ready)(struct vdec_s *vdec);
+	void (*run)(struct vdec_s *vdec,
+			void (*callback)(struct vdec_s *, void *), void *);
+	void (*reset)(struct vdec_s *vdec);
+	irqreturn_t (*irq_handler)(struct vdec_s *);
+	irqreturn_t (*threaded_irq_handler)(struct vdec_s *);
+
+	/* private */
+	void *private;       /* decoder per instance specific data */
+};
+
+/* common decoder vframe provider name to use default vfm path */
+#define VFM_DEC_PROVIDER_NAME "decoder"
+
+#define hw_to_vdec(hw) ((struct vdec_s *) \
+	(platform_get_drvdata(hw->platform_dev)))
+
+#define canvas_y(canvas) ((canvas) & 0xff)
+#define canvas_u(canvas) (((canvas) >> 8) & 0xff)
+#define canvas_v(canvas) (((canvas) >> 16) & 0xff)
+#define canvas_y2(canvas) (((canvas) >> 16) & 0xff)
+#define canvas_u2(canvas) (((canvas) >> 24) & 0xff)
+
+#define vdec_frame_based(vdec) \
+	(((vdec)->type == VDEC_TYPE_FRAME_BLOCK) || \
+	 ((vdec)->type == VDEC_TYPE_FRAME_CIRCULAR))
+#define vdec_stream_based(vdec) \
+	(((vdec)->type == VDEC_TYPE_STREAM_PARSER) || \
+	 ((vdec)->type == VDEC_TYPE_SINGLE))
+#define vdec_stream_auto(vdec) \
+	(vdec->type == VDEC_TYPE_SINGLE)
+
+/* construct vdec strcture */
+extern struct vdec_s *vdec_create(int type);
+
+/* set video format */
+extern int vdec_set_format(struct vdec_s *vdec, int format);
+
+/* set PTS */
+extern int vdec_set_pts(struct vdec_s *vdec, u32 pts);
+
+extern int vdec_set_pts64(struct vdec_s *vdec, u64 pts64);
+
+/* add frame data to input chain */
+extern int vdec_write_vframe(struct vdec_s *vdec, const char *buf,
+				size_t count);
+
+/* mark the vframe_chunk as consumed */
+extern void vdec_vframe_dirty(struct vdec_s *vdec,
+				struct vframe_chunk_s *chunk);
+
+/* prepare decoder input */
+extern int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p);
+
+/* clean decoder input */
+extern void vdec_clean_input(struct vdec_s *vdec);
+
+/* enable decoder input */
+extern void vdec_enable_input(struct vdec_s *vdec);
+
+/* allocate input chain
+ * register vdec_device
+ * create output, vfm or create ionvideo output
+ * insert vdec to vdec_manager for scheduling
+ */
+extern int vdec_connect(struct vdec_s *vdec);
+
+/* remove vdec from vdec_manager scheduling
+ * release input chain
+ * disconnect video output from ionvideo
+ */
+extern int vdec_disconnect(struct vdec_s *vdec);
+
+/* release vdec structure */
+extern int vdec_destroy(struct vdec_s *vdec);
+
+/* reset vdec */
+extern int vdec_reset(struct vdec_s *vdec);
+
+extern void vdec_set_status(struct vdec_s *vdec, int status);
+
+extern void vdec_set_next_status(struct vdec_s *vdec, int status);
+
+extern int vdec_set_decinfo(struct vdec_s *vdec, struct dec_sysinfo *p);
+
+extern int vdec_init(struct vdec_s *vdec, int is_4k);
+
+extern void vdec_release(struct vdec_s *vdec);
+
+extern int vdec_status(struct vdec_s *vdec, struct vdec_status *vstatus);
+
+extern int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode);
 
 
 #endif				/* VDEC_H */

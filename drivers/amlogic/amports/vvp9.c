@@ -5701,7 +5701,7 @@ static void vvp9_put_timer_func(unsigned long arg)
 }
 
 
-int vvp9_dec_status(struct vdec_status *vstatus)
+int vvp9_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	struct VP9Decoder_s *pbi = &gHevc;
 	vstatus->width = frame_width;
@@ -5927,8 +5927,6 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 
 	pbi->stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vvp9_dec_status);
-
 	pbi->init_flag = 1;
 	pbi->process_busy = 0;
 	pr_info("%d, vvp9_init, RP=0x%x\n",
@@ -5994,8 +5992,7 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 
 static int amvdec_vp9_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	int i;
 #ifndef VP9_10B_MMU
 	u32 predisp_addr;
@@ -6047,6 +6044,8 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	}
 
 	cma_dev = pdata->cma_dev;
+
+	pdata->dec_status = vvp9_dec_status;
 
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");

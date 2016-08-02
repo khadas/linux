@@ -1078,7 +1078,7 @@ static void vh264mvc_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vh264mvc_dec_status(struct vdec_status *vstatus)
+int vh264mvc_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = frame_width;
 	vstatus->height = frame_height;
@@ -1091,7 +1091,7 @@ int vh264mvc_dec_status(struct vdec_status *vstatus)
 	return 0;
 }
 
-int vh264mvc_set_trickmode(unsigned long trickmode)
+int vh264mvc_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 {
 	if (trickmode == TRICKMODE_I) {
 		WRITE_VREG(AV_SCRATCH_F,
@@ -1415,9 +1415,6 @@ static s32 vh264mvc_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vh264mvc_dec_status);
-	/* set_trickmode_func(&vh264mvc_set_trickmode); */
-
 	return 0;
 }
 
@@ -1478,8 +1475,8 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 	struct resource mem;
 	int buf_size;
 
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
+
 	pr_info("amvdec_h264mvc probe start.\n");
 
 #if 0
@@ -1508,6 +1505,9 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 	 work_space_adr, DECODE_BUFFER_START, DECODE_BUFFER_END);
 	if (pdata->sys_info)
 		vh264mvc_amstream_dec_info = *pdata->sys_info;
+
+	pdata->dec_status = vh264mvc_dec_status;
+	/* pdata->set_trickmode = vh264mvc_set_trickmode; */
 
 	if (vh264mvc_init() < 0) {
 		pr_info("\namvdec_h264mvc init failed.\n");

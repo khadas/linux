@@ -673,7 +673,7 @@ static void vmpeg_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vmpeg12_dec_status(struct vdec_status *vstatus)
+int vmpeg12_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	vstatus->width = frame_width;
 	vstatus->height = frame_height;
@@ -969,15 +969,12 @@ static s32 vmpeg12_init(void)
 
 	stat |= STAT_VDEC_RUN;
 
-	set_vdec_func(&vmpeg12_dec_status);
-
 	return 0;
 }
 
 static int amvdec_mpeg12_probe(struct platform_device *pdev)
 {
-	struct vdec_dev_reg_s *pdata =
-		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
+	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 probe start.\n");
 
@@ -992,6 +989,8 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 
 	buf_start = pdata->mem_start;
 	buf_size = pdata->mem_end - pdata->mem_start + 1;
+
+	pdata->dec_status = vmpeg12_dec_status;
 
 	if (vmpeg12_init() < 0) {
 		amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg12 init failed.\n");
