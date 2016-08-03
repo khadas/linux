@@ -36,6 +36,7 @@ struct aml_audio_private_data {
 	struct timer_list timer;
 	struct gpio_desc *mute_desc;
 	struct clk *clk;
+	int sleep_time;
 
 	struct switch_dev sdev;	/* for android */
 	struct switch_dev mic_sdev;	/* for android */

@@ -26,6 +26,7 @@
 #define HHI_MPLL_MP1		0xa7
 #define HHI_MPLL_MP2		0xa8
 
+/* AIU regs */
 #define AIU_958_BPF			0x1500
 #define AIU_958_BRST		0x1501
 #define AIU_958_LENGTH		0x1502
@@ -196,5 +197,145 @@
 #define RESET2_REGISTER				0x1103
 #define RESET1_REGISTER				0x1102
 #define ACODEC_RESET				0x1D
+
+/* internal EQ regs */
+#define   AED_EQ_CH1_COEF00                 0x1400
+#define   AED_EQ_CH1_COEF01                 0x1401
+#define   AED_EQ_CH1_COEF02                 0x1402
+#define   AED_EQ_CH1_COEF03                 0x1403
+#define   AED_EQ_CH1_COEF04                 0x1404
+#define   AED_EQ_CH1_COEF10                 0x1405
+#define   AED_EQ_CH1_COEF11                 0x1406
+#define   AED_EQ_CH1_COEF12                 0x1407
+#define   AED_EQ_CH1_COEF13                 0x1408
+#define   AED_EQ_CH1_COEF14                 0x1409
+#define   AED_EQ_CH1_COEF20                 0x140a
+#define   AED_EQ_CH1_COEF21                 0x140b
+#define   AED_EQ_CH1_COEF22                 0x140c
+#define   AED_EQ_CH1_COEF23                 0x140d
+#define   AED_EQ_CH1_COEF24                 0x140e
+#define   AED_EQ_CH1_COEF30                 0x140f
+#define   AED_EQ_CH1_COEF31                 0x1410
+#define   AED_EQ_CH1_COEF32                 0x1411
+#define   AED_EQ_CH1_COEF33                 0x1412
+#define   AED_EQ_CH1_COEF34                 0x1413
+#define   AED_EQ_CH1_COEF40                 0x1414
+#define   AED_EQ_CH1_COEF41                 0x1415
+#define   AED_EQ_CH1_COEF42                 0x1416
+#define   AED_EQ_CH1_COEF43                 0x1417
+#define   AED_EQ_CH1_COEF44                 0x1418
+#define   AED_EQ_CH1_COEF50                 0x1419
+#define   AED_EQ_CH1_COEF51                 0x141a
+#define   AED_EQ_CH1_COEF52                 0x141b
+#define   AED_EQ_CH1_COEF53                 0x141c
+#define   AED_EQ_CH1_COEF54                 0x141d
+#define   AED_EQ_CH1_COEF60                 0x141e
+#define   AED_EQ_CH1_COEF61                 0x141f
+#define   AED_EQ_CH1_COEF62                 0x1420
+#define   AED_EQ_CH1_COEF63                 0x1421
+#define   AED_EQ_CH1_COEF64                 0x1422
+#define   AED_EQ_CH1_COEF70                 0x1423
+#define   AED_EQ_CH1_COEF71                 0x1424
+#define   AED_EQ_CH1_COEF72                 0x1425
+#define   AED_EQ_CH1_COEF73                 0x1426
+#define   AED_EQ_CH1_COEF74                 0x1427
+#define   AED_EQ_CH1_COEF80                 0x1428
+#define   AED_EQ_CH1_COEF81                 0x1429
+#define   AED_EQ_CH1_COEF82                 0x142a
+#define   AED_EQ_CH1_COEF83                 0x142b
+#define   AED_EQ_CH1_COEF84                 0x142c
+#define   AED_EQ_CH1_COEF90                 0x142d
+#define   AED_EQ_CH1_COEF91                 0x142e
+#define   AED_EQ_CH1_COEF92                 0x142f
+#define   AED_EQ_CH1_COEF93                 0x1430
+#define   AED_EQ_CH1_COEF94                 0x1431
+
+#define   AED_EQ_CH2_COEF00                 0x1432
+#define   AED_EQ_CH2_COEF01                 0x1433
+#define   AED_EQ_CH2_COEF02                 0x1434
+#define   AED_EQ_CH2_COEF03                 0x1435
+#define   AED_EQ_CH2_COEF04                 0x1436
+#define   AED_EQ_CH2_COEF10                 0x1437
+#define   AED_EQ_CH2_COEF11                 0x1438
+#define   AED_EQ_CH2_COEF12                 0x1439
+#define   AED_EQ_CH2_COEF13                 0x143a
+#define   AED_EQ_CH2_COEF14                 0x143b
+#define   AED_EQ_CH2_COEF20                 0x143c
+#define   AED_EQ_CH2_COEF21                 0x143d
+#define   AED_EQ_CH2_COEF22                 0x143e
+#define   AED_EQ_CH2_COEF23                 0x143f
+#define   AED_EQ_CH2_COEF24                 0x1440
+#define   AED_EQ_CH2_COEF30                 0x1441
+#define   AED_EQ_CH2_COEF31                 0x1442
+#define   AED_EQ_CH2_COEF32                 0x1443
+#define   AED_EQ_CH2_COEF33                 0x1444
+#define   AED_EQ_CH2_COEF34                 0x1445
+#define   AED_EQ_CH2_COEF40                 0x1446
+#define   AED_EQ_CH2_COEF41                 0x1447
+#define   AED_EQ_CH2_COEF42                 0x1448
+#define   AED_EQ_CH2_COEF43                 0x1449
+#define   AED_EQ_CH2_COEF44                 0x144a
+#define   AED_EQ_CH2_COEF50                 0x144b
+#define   AED_EQ_CH2_COEF51                 0x144c
+#define   AED_EQ_CH2_COEF52                 0x144d
+#define   AED_EQ_CH2_COEF53                 0x144e
+#define   AED_EQ_CH2_COEF54                 0x144f
+#define   AED_EQ_CH2_COEF60                 0x1450
+#define   AED_EQ_CH2_COEF61                 0x1451
+#define   AED_EQ_CH2_COEF62                 0x1452
+#define   AED_EQ_CH2_COEF63                 0x1453
+#define   AED_EQ_CH2_COEF64                 0x1454
+#define   AED_EQ_CH2_COEF70                 0x1455
+#define   AED_EQ_CH2_COEF71                 0x1456
+#define   AED_EQ_CH2_COEF72                 0x1457
+#define   AED_EQ_CH2_COEF73                 0x1458
+#define   AED_EQ_CH2_COEF74                 0x1459
+#define   AED_EQ_CH2_COEF80                 0x145a
+#define   AED_EQ_CH2_COEF81                 0x145b
+#define   AED_EQ_CH2_COEF82                 0x145c
+#define   AED_EQ_CH2_COEF83                 0x145d
+#define   AED_EQ_CH2_COEF84                 0x145e
+#define   AED_EQ_CH2_COEF90                 0x145f
+#define   AED_EQ_CH2_COEF91                 0x1460
+#define   AED_EQ_CH2_COEF92                 0x1461
+#define   AED_EQ_CH2_COEF93                 0x1462
+#define   AED_EQ_CH2_COEF94                 0x1463
+
+#define   AED_EQ_EN                         0x1464
+#define   AED_EQ_VOLUME                     0x1465
+#define   AED_EQ_VOLUME_SLEW_CNT            0x1466
+#define   AED_MUTE                          0x1467
+
+/* internal DRC reg*/
+#define   AED_DRC_EN                        0x1470
+#define   AED_DRC_AE                        0x1471
+#define   AED_DRC_AA                        0x1472
+#define   AED_DRC_AD                        0x1473
+#define   AED_DRC_AE_1M                     0x1474
+#define   AED_DRC_AA_1M                     0x1475
+#define   AED_DRC_AD_1M                     0x1476
+#define   AED_DRC_OFFSET0                   0x1477
+#define   AED_DRC_OFFSET1                   0x1478
+#define   AED_DRC_THD0                      0x1479
+#define   AED_DRC_THD1                      0x147a
+#define   AED_DRC_K0                        0x147b
+#define   AED_DRC_K1                        0x147c
+#define   AED_CLIP_THD                      0x147d
+
+/* internal noise gate regs*/
+#define   AED_NG_THD0                       0x147e
+#define   AED_NG_THD1                       0x147f
+#define   AED_NG_CNT_THD                    0x1480
+#define   AED_NG_CTL                        0x1481
+
+#define   AED_ED_CTL                        0x1482
+#define   AED_DEBUG0                        0x1483
+#define   AED_DEBUG1                        0x1484
+#define   AED_DEBUG2                        0x1485
+#define   AED_DEBUG3                        0x1486
+#define   AED_DEBUG4                        0x1487
+#define   AED_DEBUG5                        0x1488
+#define   AED_DEBUG6                        0x1489
+#define   AED_TOP_CTL                       0x1490
 
 #endif /* _AML_AIU_REGS_H */
