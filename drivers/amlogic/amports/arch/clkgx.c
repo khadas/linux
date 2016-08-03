@@ -342,14 +342,12 @@ static int vdec_clock_init(void)
 {
 	gp_pll_user_vdec = gp_pll_user_register("vdec", 0,
 		gp_pll_user_cb_vdec);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL
-		|| get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
 		is_gp0_div2 = false;
 	else
 		is_gp0_div2 = true;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL
-		|| get_cpu_type() == MESON_CPU_MAJOR_ID_GXM) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 		pr_info("used fix clk for vdec clk source!\n");
 		update_vdec_clk_config_settings(1);
 	}
@@ -399,8 +397,6 @@ static int vdec_clock_set(int clk)
 		else
 			clk = clock_real_clk[VDEC_1];
 	}
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL && clk >= 500)
-		clk = 667;
 	vdec_get_clk_source(clk, &source, &div, &rclk);
 	update_clk_with_clk_configs(clk, &source, &div, &rclk);
 
