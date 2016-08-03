@@ -757,7 +757,6 @@ void amvecm_on_vs(struct vframe_s *vf)
 {
 	if (probe_ok == 0)
 		return;
-	amvecm_video_latch();
 
 	if (vf != NULL) {
 		/* matrix ajust */
@@ -765,9 +764,12 @@ void amvecm_on_vs(struct vframe_s *vf)
 
 		amvecm_bricon_process(
 			vd1_brightness,
-			vd1_contrast  + vd1_contrast_offset, vf);
+			vd1_contrast + vd1_contrast_offset, vf);
 	} else
 		amvecm_matrix_process(NULL);
+
+	/* pq latch process */
+	amvecm_video_latch();
 
 	pq_enable_disable();
 }

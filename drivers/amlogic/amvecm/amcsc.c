@@ -124,6 +124,25 @@ static bool skip_csc_en;
 module_param(skip_csc_en, bool, 0664);
 MODULE_PARM_DESC(skip_csc_en, "\n skip_csc_en\n");
 
+/* white balance adjust */
+static bool cur_eye_protect_mode;
+
+static int num_wb_val = 10;
+static int wb_val[10] = {
+	0, /* wb enable */
+	0, /* -1024~1023, r_pre_offset */
+	0, /* -1024~1023, g_pre_offset */
+	0, /* -1024~1023, b_pre_offset */
+	1024, /* 0~2047, r_gain */
+	1024, /* 0~2047, g_gain */
+	1024, /* 0~2047, b_gain */
+	0, /* -1024~1023, r_post_offset */
+	0, /* -1024~1023, g_post_offset */
+	0  /* -1024~1023, b_post_offset */
+};
+module_param_array(wb_val, int, &num_wb_val, 0664);
+MODULE_PARM_DESC(wb_val, "\n white balance setting\n");
+
 static enum vframe_source_type_e pre_src_type = VFRAME_SOURCE_TYPE_COMP;
 static uint cur_csc_type = 0xffff;
 module_param(cur_csc_type, uint, 0444);
@@ -1899,6 +1918,7 @@ static struct vframe_master_display_colour_s cur_master_display_colour = {
 #define SIG_KNEE_FACTOR	0x08
 #define SIG_HDR_MODE	0x10
 #define SIG_HDR_SUPPORT	0x20
+#define SIG_WB_CHG	0x40
 int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	u32 signal_type = 0;
@@ -2009,6 +2029,12 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 		pr_csc("Tx HDR support changed.\n");
 		change_flag |= SIG_HDR_SUPPORT;
 		cur_hdr_support = vinfo->hdr_info.hdr_support & 0x4;
+	}
+
+	if ((cur_eye_protect_mode != wb_val[0]) ||
+		(cur_eye_protect_mode == 1)) {
+		pr_csc(" eye protect mode changed.\n");
+		change_flag |= SIG_WB_CHG;
 	}
 
 	return change_flag;
@@ -2654,10 +2680,15 @@ static void bypass_hdr_process(
 		}
 
 		/* post matrix bypass */
-		set_vpp_matrix(VPP_MATRIX_POST,
-			bypass_coeff,
-			CSC_ON);
-
+		if (vinfo->viu_color_fmt != TVIN_RGB444)
+			/* yuv2rgb for eye protect mode */
+			set_vpp_matrix(VPP_MATRIX_POST,
+				bypass_coeff,
+				CSC_ON);
+		else /* matrix yuv2rgb for LCD */
+			set_vpp_matrix(VPP_MATRIX_POST,
+				YUV709l_to_RGB709_coeff,
+				CSC_ON);
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_EOTF,
 			eotf_33_linear_mapping, /* R */
@@ -2678,14 +2709,9 @@ static void bypass_hdr_process(
 			CSC_OFF);
 
 		/* xvycc matrix bypass */
-		if (vinfo->viu_color_fmt != TVIN_RGB444)
-			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				bypass_coeff,
-				CSC_ON);
-		else /* xvycc matrix yuv2rgb for LCD */
-			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				YUV709l_to_RGB709_coeff,
-				CSC_ON);
+		set_vpp_matrix(VPP_MATRIX_XVYCC,
+			bypass_coeff,
+			CSC_ON);
 	} else {
 		/* OSD */
 		/* keep RGB */
@@ -2713,6 +2739,47 @@ static void bypass_hdr_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
+}
+
+static int vpp_eye_protection_process(
+	enum vpp_matrix_csc_e csc_type,
+	struct vinfo_s *vinfo)
+{
+	cur_eye_protect_mode = wb_val[0];
+	memcpy(&video_rgb_ogo, wb_val,
+		sizeof(struct tcon_rgb_ogo_s));
+	ve_ogo_param_update();
+
+	/* only SDR need switch csc */
+	if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+			hdr_process_mode)
+		return 0;
+
+	/* post matrix bypass */
+	if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
+		(cur_eye_protect_mode == 0))
+		/* yuv2rgb for eye protect mode */
+		set_vpp_matrix(VPP_MATRIX_POST,
+			bypass_coeff,
+			CSC_ON);
+	else /* matrix yuv2rgb for LCD */
+		set_vpp_matrix(VPP_MATRIX_POST,
+			YUV709l_to_RGB709_coeff,
+			CSC_ON);
+
+	/* xvycc matrix bypass */
+	if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
+		(cur_eye_protect_mode == 1))
+		/*  for eye protect mode */
+		set_vpp_matrix(VPP_MATRIX_XVYCC,
+			RGB709_to_YUV709l_coeff,
+			CSC_ON);
+	else /* matrix yuv2rgb for LCD */
+		set_vpp_matrix(VPP_MATRIX_XVYCC,
+			bypass_coeff,
+			CSC_ON);
+
+	return 0;
 }
 
 static void vpp_matrix_update(struct vframe_s *vf)
@@ -2825,6 +2892,11 @@ static void vpp_matrix_update(struct vframe_s *vf)
 			cur_csc_type = csc_type;
 		}
 	}
+
+	/* eye protection mode */
+	if (signal_change_flag & SIG_WB_CHG)
+		vpp_eye_protection_process(csc_type, vinfo);
+
 	vecm_latch_flag &= ~FLAG_MATRIX_UPDATE;
 }
 
@@ -2861,7 +2933,8 @@ void amvecm_matrix_process(struct vframe_s *vf)
 					CSC_ON);
 	}
 
-	if (vf == last_vf)
+	if ((vf == last_vf) &&
+		(cur_eye_protect_mode == wb_val[0]))
 		return;
 
 	if (vf != NULL) {
@@ -2877,8 +2950,10 @@ void amvecm_matrix_process(struct vframe_s *vf)
 		if ((last_vf != NULL) &&
 			((last_vf->signal_type >> 16) & 0xff) == 9)
 			null_vf_cnt++;
-		if (((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
-			&& (null_vf_cnt > null_vf_max)) {
+
+		if ((((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
+			&& (null_vf_cnt > null_vf_max)) ||
+			(cur_eye_protect_mode != wb_val[0])) {
 			/* send a faked vframe to switch matrix
 			   from 2020 to 601 when video disabled */
 			fake_vframe.source_type = VFRAME_SOURCE_TYPE_OTHERS;

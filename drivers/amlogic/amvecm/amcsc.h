@@ -19,6 +19,10 @@
 #ifndef AM_CSC_H
 #define AM_CSC_H
 
+/* white balance value */
+extern void ve_ogo_param_update(void);
+extern struct tcon_rgb_ogo_s video_rgb_ogo;
+
 enum vpp_matrix_sel_e {
 	VPP_MATRIX_0 = 0,	/* OSD convert matrix - new from GXL */
 	VPP_MATRIX_1,		/* vd1 matrix before post-blend */

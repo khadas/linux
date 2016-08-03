@@ -4313,10 +4313,16 @@ void ve_ogo_param_update(void)
 		video_rgb_ogo.b_pre_offset = -1024;
 	if (video_rgb_ogo.r_gain > 2047)
 		video_rgb_ogo.r_gain = 2047;
+	if (video_rgb_ogo.r_gain < 0)
+		video_rgb_ogo.r_gain = 0;
 	if (video_rgb_ogo.g_gain > 2047)
 		video_rgb_ogo.g_gain = 2047;
+	if (video_rgb_ogo.g_gain < 0)
+		video_rgb_ogo.g_gain = 0;
 	if (video_rgb_ogo.b_gain > 2047)
 		video_rgb_ogo.b_gain = 2047;
+	if (video_rgb_ogo.b_gain < 0)
+		video_rgb_ogo.b_gain = 0;
 	if (video_rgb_ogo.r_post_offset > 1023)
 		video_rgb_ogo.r_post_offset = 1023;
 	if (video_rgb_ogo.r_post_offset < -1024)
