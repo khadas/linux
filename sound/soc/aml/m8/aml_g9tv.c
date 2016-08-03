@@ -28,6 +28,8 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 
+#include <sound/soc.h>
+#include <sound/tlv.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -42,6 +44,7 @@
 #include <linux/of_gpio.h>
 #include <linux/io.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/sound/aiu_regs.h>
 
 #include "aml_i2s.h"
 #include "aml_audio_hw.h"
@@ -51,6 +54,42 @@
 
 int aml_audio_Hardware_resample = 0;
 unsigned int clk_rate = 0;
+
+static u32 aml_EQ_param[20][5] = {
+	/*channel 1 param*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef0*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef1*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef2*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef3*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef4*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef5*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef6*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef7*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef8*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef9*/
+	/*channel 2 param*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef0*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef1*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef2*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef3*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef4*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef5*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef6*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef7*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef8*/
+	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef9*/
+};
+
+static u32 drc_table[3][2] = {
+	{0x800000, 0x00}, /*drc_ae && drc_ae_1m*/
+	{0x800000, 0x00}, /*drc_aa && drc_aa_1m*/
+	{0x800000, 0x00}, /*drc_ad && drc_ad_1m*/
+};
+
+static u32 drc_tko_table[2][3] = {
+	{0x0, 0xbf000000, 0x40000}, /*offset, thd, k*/
+	{0x0, 0x0, 0x40000}, /*offset, thd, k*/
+};
 
 static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI" };
 
@@ -215,13 +254,6 @@ static int hardware_resample_enable(int input_sr)
 	pr_info("clk_rate = %u, input_sr = %d, Avg_cnt_init = %u\n",
 		clk_rate, input_sr, Avg_cnt_init);
 
-	if (is_meson_txl_cpu()) {
-		int pause_cnt_thd = 256;
-		aml_write_cbus(AUD_RESAMPLE_CTRL2,
-				(1 << 31)
-				| pause_cnt_thd);
-	}
-
 	aml_write_cbus(AUD_RESAMPLE_CTRL0, (1 << 31));
 	aml_write_cbus(AUD_RESAMPLE_CTRL0, 0);
 	aml_write_cbus(AUD_RESAMPLE_CTRL0,
@@ -351,6 +383,31 @@ static int aml_set_audio_in_switch(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int init_EQ_DRC_module(void)
+{
+	aml_write_cbus(AED_TOP_CTL, (1 << 31)); /* fifo init */
+	aml_write_cbus(AED_ED_CTL, 1); /* soft reset*/
+	msleep(20);
+	aml_write_cbus(AED_ED_CTL, 0); /* soft reset*/
+	aml_write_cbus(AED_TOP_CTL, (0 << 1) /*i2s in sel*/
+						| (1 << 0)); /*module enable*/
+	aml_write_cbus(AED_NG_CTL, (3 << 30)); /* disable noise gate*/
+	return 0;
+}
+
+static int set_internal_EQ_volume(unsigned master_volume,
+			unsigned channel_1_volume, unsigned channel_2_volume)
+{
+	aml_write_cbus(AED_EQ_VOLUME, (2 << 30) /* volume step: 0.5dB*/
+			| (master_volume << 16) /* master volume: 0dB*/
+			| (channel_1_volume << 8) /* channel 1 volume: 0dB*/
+			| (channel_2_volume << 0) /* channel 2 volume: 0dB*/
+			);
+	aml_write_cbus(AED_EQ_VOLUME_SLEW_CNT, 0x40);
+	aml_write_cbus(AED_MUTE, 0);
+	return 0;
+}
+
 static const struct snd_kcontrol_new av_controls[] = {
 	SOC_ENUM_EXT("AudioIn Switch",
 			 audio_in_switch_enum,
@@ -385,12 +442,122 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     aml_output_swap_set_enum),
 };
 
+static int aml_get_cbus_reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int max = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int value =
+			(((unsigned)aml_read_cbus(reg)) >> shift) & max;
+
+	if (invert)
+		value = (~value) & max;
+	ucontrol->value.integer.value[0] = value;
+
+	return 0;
+}
+
+static int aml_set_cbus_reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int max = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int value = ucontrol->value.integer.value[0];
+	unsigned int reg_value = (unsigned int)aml_read_cbus(reg);
+
+	if (invert)
+		value = (~value) & max;
+	max = ~(max << shift);
+	reg_value &= max;
+	reg_value |= (value << shift);
+	aml_write_cbus(reg, reg_value);
+
+	return 0;
+}
+
+static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12276, 12, 1);
+static const DECLARE_TLV_DB_SCALE(chvol_tlv, -12750, 50, 1);
+
+static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
+	SOC_SINGLE_EXT_TLV("EQ master volume",
+			 AED_EQ_VOLUME, 16, 0x3FF, 1,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 mvol_tlv),
+
+	SOC_SINGLE_EXT_TLV("EQ ch1 volume",
+			 AED_EQ_VOLUME, 8, 0xFF, 1,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 chvol_tlv),
+
+	SOC_SINGLE_EXT_TLV("EQ ch2 volume",
+			 AED_EQ_VOLUME, 0, 0xFF, 1,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 chvol_tlv),
+
+	SOC_SINGLE_EXT_TLV("EQ master volume mute",
+			 AED_MUTE, 31, 0x1, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("EQ enable",
+			 AED_EQ_EN, 0, 0x1, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("DRC enable",
+			 AED_DRC_EN, 0, 0x1, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("NG enable",
+			 AED_NG_CTL, 0, 0x1, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("NG noise thd",
+			 AED_NG_THD0, 8, 0x7FFF, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("NG signal thd",
+			 AED_NG_THD1, 8, 0x7FFF, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("NG counter thd",
+			 AED_NG_CNT_THD, 0, 0xFFFF, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("Hw resample pause enable",
+			 AUD_RESAMPLE_CTRL2, 24, 0x1, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+
+	SOC_SINGLE_EXT_TLV("Hw resample pause thd",
+			 AUD_RESAMPLE_CTRL2, 11, 0x1FFF, 0,
+			 aml_get_cbus_reg, aml_set_cbus_reg,
+			 NULL),
+};
+
 static int aml_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
+	if (p_aml_audio->mute_desc) {
+		gpiod_direction_output(p_aml_audio->mute_desc,
+					GPIOF_OUT_INIT_LOW);
+	};
 	return 0;
 }
 
@@ -413,6 +580,12 @@ static int aml_resume_post(struct snd_soc_card *card)
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
+	if (p_aml_audio->mute_desc) {
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		gpiod_direction_output(p_aml_audio->mute_desc,
+					GPIOF_OUT_INIT_HIGH);
+	}
 	return 0;
 }
 
@@ -465,6 +638,7 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
+	int ret = 0;
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 	p_aml_audio->pin_ctl =
@@ -476,7 +650,12 @@ static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 
 	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
 	if (!IS_ERR(p_aml_audio->mute_desc)) {
-		pr_info("%s, make avmute gpio high!\n", __func__);
+		ret = of_property_read_u32(card->dev->of_node, "sleep_time",
+				&p_aml_audio->sleep_time);
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		pr_info("make av unmute! sleep %d ms\n",
+				p_aml_audio->sleep_time);
 		gpiod_direction_output(p_aml_audio->mute_desc,
 					   GPIOF_OUT_INIT_HIGH);
 	}
@@ -1001,6 +1180,88 @@ err:
 	return ret;
 }
 
+static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
+{
+	struct device_node *audio_codec_node = card->dev->of_node;
+	struct device_node *child;
+	int length = 0;
+	int ret = 0;
+	int i = 0;
+	u32 *reg_ptr = &aml_EQ_param[0][0];
+
+	child = of_get_child_by_name(audio_codec_node, "aml_EQ_DRC");
+	if (child == NULL) {
+		pr_err("Error: failed to find node %s\n", "aml_EQ_DRC");
+		return -1;
+	}
+
+	if (of_find_property(child, "eq_table", &length) == NULL) {
+		pr_err("[%s] not found!\n", "eq_table");
+	} else {
+		/*pr_info("child name: %s, length = %d\n",
+			child->name, length);*/
+		ret = of_property_read_u32_array(child, "eq_table",
+					reg_ptr, 100);
+		if (ret) {
+			pr_err("Can't get EQ param [%s]!\n", "eq_table");
+		} else {
+			for (i = 0; i < 100; i++) {
+				aml_write_cbus(AED_EQ_CH1_COEF00 + i, *reg_ptr);
+				/*pr_info("EQ value[%d]: 0x%x\n",
+					i, *reg_ptr);*/
+				reg_ptr++;
+			}
+		}
+	}
+
+	reg_ptr = &drc_table[0][0];
+	if (of_find_property(child, "drc_table", &length) == NULL) {
+		pr_err("[%s] not found!\n", "drc_table");
+	} else {
+		ret = of_property_read_u32_array(child, "drc_table",
+					reg_ptr, 6);
+		if (ret) {
+			pr_err("Can't get drc param [%s]!\n", "drc_table");
+		} else {
+			aml_write_cbus(AED_DRC_AE, drc_table[0][0]);
+			aml_write_cbus(AED_DRC_AA, drc_table[1][0]);
+			aml_write_cbus(AED_DRC_AD, drc_table[2][0]);
+			aml_write_cbus(AED_DRC_AE_1M, drc_table[0][1]);
+			aml_write_cbus(AED_DRC_AE_1M, drc_table[1][1]);
+			aml_write_cbus(AED_DRC_AE_1M, drc_table[2][1]);
+			/*pr_info("DRC table: 0x%x, 0x%x,"
+					"0x%x, 0x%x, 0x%x, 0x%x,\n",
+					drc_table[0][0], drc_table[1][0],
+					drc_table[2][0], drc_table[0][1],
+					drc_table[1][1], drc_table[2][1]);*/
+		}
+	}
+
+	reg_ptr = &drc_tko_table[0][0];
+	if (of_find_property(child, "drc_tko_table", &length) == NULL) {
+		pr_err("[%s] not found!\n", "drc_tko_table");
+	} else {
+		ret = of_property_read_u32_array(child, "drc_tko_table",
+					reg_ptr, 6);
+		if (ret) {
+			pr_err("Can't get drc param [%s]!\n", "drc_tko_table");
+		} else {
+			aml_write_cbus(AED_DRC_OFFSET0, drc_tko_table[0][0]);
+			aml_write_cbus(AED_DRC_OFFSET1, drc_tko_table[1][0]);
+			aml_write_cbus(AED_DRC_THD0, drc_tko_table[0][1]);
+			aml_write_cbus(AED_DRC_THD1, drc_tko_table[1][1]);
+			aml_write_cbus(AED_DRC_K0, drc_tko_table[0][2]);
+			aml_write_cbus(AED_DRC_K1, drc_tko_table[1][2]);
+			/*pr_info("DRC tko: 0x%x, 0x%x,"
+			"0x%x, 0x%x, 0x%x, 0x%x,\n",
+			drc_tko_table[0][0], drc_tko_table[1][0],
+			drc_tko_table[0][1], drc_tko_table[1][1],
+			drc_tko_table[0][2], drc_tko_table[0][2]);*/
+		}
+	}
+	return 0;
+}
+
 static int aml_g9tv_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1050,6 +1311,14 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(dev, "register aml sound card error %d\n", ret);
 		goto err;
+	}
+
+	if (is_meson_txl_cpu()) {
+		set_internal_EQ_volume(0xc0, 0x30, 0x30);
+		init_EQ_DRC_module();
+		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
+					ARRAY_SIZE(aml_EQ_DRC_controls));
+		aml_EQ_DRC_parse_of(card);
 	}
 
 	aml_g9tv_pinmux_init(card);
