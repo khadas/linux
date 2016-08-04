@@ -239,6 +239,12 @@
 			amlogic,pins="GPIOH_1", "GPIOH_2";
 		};
 
+		b_uart_pins_y:b_uart_y{
+			amlogic,setmask=<10 0x3000>;
+			amlogic,clrmask=<10 0x1e0c000>;
+			amlogic,pins="GPIOY_12", "GPIOY_13";
+		};
+
 		wifi_32k_pins:wifi_32k_pins{
 			amlogic,setmask=<7 0x8000000>;
 			amlogic,clrmask=<7 0x12020000>;
