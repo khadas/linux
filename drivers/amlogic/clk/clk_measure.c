@@ -746,6 +746,7 @@ int  meson_clk_measure(unsigned int clk_mux)
 	case MESON_CPU_MAJOR_ID_GXBB:
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
+	case MESON_CPU_MAJOR_ID_TXL:
 		clk_val = gxbb_clk_util_clk_msr(clk_mux);
 	break;
 	case MESON_CPU_MAJOR_ID_GXTVBB:
