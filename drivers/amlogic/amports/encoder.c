@@ -56,7 +56,7 @@
 #define AMVENC_CANVAS_INDEX 0xE4
 #define AMVENC_CANVAS_MAX_INDEX 0xEF
 
-#define MIN_SIZE 18
+#define MIN_SIZE 20
 #define DUMP_INFO_BYTES_PER_MB 80
 /* #define USE_OLD_DUMP_MC */
 
@@ -98,7 +98,7 @@ static u32 enable_dblk = 1;  /* 0 disable, 1 vdec 2 hdec */
 
 static u32 encode_print_level = LOG_DEBUG;
 static u32 no_timeout;
-static u32 nr_mode = -1;
+static int nr_mode = -1;
 
 static u32 me_mv_merge_ctl =
 	(0x1 << 31)  |  /* [31] me_merge_mv_en_16 */
@@ -294,6 +294,20 @@ static DEFINE_SPINLOCK(lock);
 #define v3_left_small_max_ie_sad 0x00
 #define v3_left_small_max_me_sad 0x40
 
+#define v5_use_small_diff_cnt 0
+#define v5_simple_mb_inter_all_en 1
+#define v5_simple_mb_inter_8x8_en 1
+#define v5_simple_mb_inter_16_8_en 1
+#define v5_simple_mb_inter_16x16_en 1
+#define v5_simple_mb_intra_en 1
+#define v5_simple_mb_C_en 0
+#define v5_simple_mb_Y_en 1
+#define v5_small_diff_Y 0x10
+#define v5_small_diff_C 0x18
+/* shift 8-bits, 2, 1, 0, -1, -2, -3, -4 */
+#define v5_simple_dq_setting 0x43210fed
+#define v5_simple_me_weight_setting 0
+
 #ifndef USE_OLD_DUMP_MC
 static u32 qp_table_pr;
 static u32 v3_mv_sad[64] = {
@@ -349,22 +363,22 @@ static u32 v3_mv_sad[64] = {
 	0x002e0030,
 	0x002f0050,
 	/* For step2 4x4-8x8 */
-	0x00300006,
-	0x0031000c,
-	0x0032000c,
-	0x00330018,
-	0x00340018,
-	0x00350018,
-	0x00360018,
-	0x00370030,
-	0x00380030,
-	0x00390030,
-	0x003a0030,
-	0x003b0030,
-	0x003c0030,
-	0x003d0030,
-	0x003e0030,
-	0x003f0050
+	0x00300001,
+	0x00310002,
+	0x00320002,
+	0x00330004,
+	0x00340004,
+	0x00350004,
+	0x00360004,
+	0x00370006,
+	0x00380006,
+	0x00390006,
+	0x003a0006,
+	0x003b0006,
+	0x003c0006,
+	0x003d0006,
+	0x003e0006,
+	0x003f0006
 };
 #endif
 
@@ -515,7 +529,7 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 			.buf_size = 0x8000,
 		},
 		.inter_mv_info = {
-			.buf_start = 0xf08000,
+			.buf_start = 0x1108000,
 			.buf_size = 0x80000,
 		},
 		.intra_bits_info = {
@@ -553,6 +567,7 @@ enum ucode_type_e {
 	UCODE_VDEC2,
 	UCODE_GX,
 	UCODE_GXTV,
+	UCODE_TXL,
 	UCODE_MAX
 };
 
@@ -569,6 +584,7 @@ const char *ucode_name[] = {
 	"vdec2_encoder_mc",
 	"h264_enc_mc_gx",
 	"h264_enc_mc_gxtv",
+	"h264_enc_mc_txl",
 };
 
 static void dma_flush(u32 buf_start, u32 buf_size);
@@ -579,7 +595,13 @@ static const char *select_ucode(u32 ucode_index)
 	enum ucode_type_e ucode = UCODE_DUMP;
 	switch (ucode_index) {
 	case UCODE_MODE_FULL:
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+#ifndef USE_OLD_DUMP_MC
+			ucode = UCODE_TXL;
+#else
+			ucode = UCODE_DUMP_GX_DBLK;
+#endif
+		} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 #ifndef USE_OLD_DUMP_MC
 			ucode = UCODE_GXTV;
 #else
@@ -2288,6 +2310,28 @@ static void avc_prot_init(struct encode_wq_s *wq,
 		WRITE_HREG(HCODEC_ME_SAD_RANGE_INC, me_sad_range_inc);
 
 #ifndef USE_OLD_DUMP_MC
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+			WRITE_HREG(HCODEC_V5_SIMPLE_MB_CTL, 0);
+			WRITE_HREG(HCODEC_V5_SIMPLE_MB_CTL,
+				(v5_use_small_diff_cnt << 7) |
+				(v5_simple_mb_inter_all_en << 6) |
+				(v5_simple_mb_inter_8x8_en << 5) |
+				(v5_simple_mb_inter_16_8_en << 4) |
+				(v5_simple_mb_inter_16x16_en << 3) |
+				(v5_simple_mb_intra_en << 2) |
+				(v5_simple_mb_C_en << 1) |
+				(v5_simple_mb_Y_en << 0));
+			WRITE_HREG(HCODEC_V5_MB_DIFF_SUM, 0);
+			WRITE_HREG(HCODEC_V5_SMALL_DIFF_CNT,
+				(v5_small_diff_C<<16) |
+				(v5_small_diff_Y<<0));
+			WRITE_HREG(HCODEC_V5_SIMPLE_MB_DQUANT,
+				v5_simple_dq_setting);
+			WRITE_HREG(HCODEC_V5_SIMPLE_MB_ME_WEIGHT,
+				v5_simple_me_weight_setting);
+			WRITE_HREG(HCODEC_QDCT_CONFIG, 1 << 0);
+		}
+
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			WRITE_HREG(HCODEC_V4_FORCE_SKIP_CFG,
 				(i_pic_qp << 26) | /* v4_force_q_r_intra */
@@ -3996,6 +4040,22 @@ Again:
 			}
 		} else {
 			manager->encode_hw_status = ENCODER_ERROR;
+			enc_pr(LOG_DEBUG, "avc encode light reset --- ");
+			enc_pr(LOG_DEBUG,
+				"frame type: %s, size: %dx%d, wq: %p\n",
+				(request->cmd == ENCODER_IDR) ? "IDR" : "P",
+				wq->pic.encoder_width,
+				wq->pic.encoder_height, (void *)wq);
+			enc_pr(LOG_DEBUG,
+				"mb info: 0x%x, encode status: 0x%x, dct status: 0x%x ",
+				READ_HREG(HCODEC_VLC_MB_INFO),
+				READ_HREG(ENCODER_STATUS),
+				READ_HREG(HCODEC_QDCT_STATUS_CTRL));
+			enc_pr(LOG_DEBUG,
+				"vlc status: 0x%x, me status: 0x%x, risc pc:0x%x\n",
+				READ_HREG(HCODEC_VLC_STATUS_CTRL),
+				READ_HREG(HCODEC_ME_STATUS),
+				READ_HREG(HCODEC_MPC_E));
 			amvenc_avc_light_reset(wq, 30);
 		}
 	}
@@ -4842,7 +4902,7 @@ MODULE_PARM_DESC(encode_print_level, "\n encode_print_level\n");
 module_param(no_timeout, uint, 0664);
 MODULE_PARM_DESC(no_timeout, "\n no_timeout flag for process request\n");
 
-module_param(nr_mode, uint, 0664);
+module_param(nr_mode, int, 0664);
 MODULE_PARM_DESC(nr_mode, "\n nr_mode option\n");
 
 module_param(y_tnr_mc_en, uint, 0664);

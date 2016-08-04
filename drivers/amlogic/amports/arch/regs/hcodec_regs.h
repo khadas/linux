@@ -702,5 +702,11 @@
 /* add from GXL */
 #define HCODEC_V4_FORCE_SKIP_CFG 0x1f7b
 
+/* add from TXL */
+#define HCODEC_V5_MB_DIFF_SUM 0x1f7c
+#define HCODEC_V5_SMALL_DIFF_CNT 0x1f7d
+#define HCODEC_V5_SIMPLE_MB_CTL 0x1f7e
+#define HCODEC_V5_SIMPLE_MB_DQUANT 0x1f7f
+#define HCODEC_V5_SIMPLE_MB_ME_WEIGHT 0x1f80
 #endif
 
