@@ -274,6 +274,35 @@ static void set_hpll_clk_out(unsigned clk)
 	pr_info("config HPLL done\n");
 }
 
+static void set_hpll_sspll(enum hdmi_vic vic)
+{
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_GXBB:
+		break;
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
+		switch (vic) {
+		case HDMI_1920x1080p60_16x9:
+		case HDMI_1920x1080p50_16x9:
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x868b48c4);
+			break;
+		case HDMI_1280x720p60_16x9:
+		case HDMI_1280x720p50_16x9:
+		case HDMI_1920x1080i60_16x9:
+		case HDMI_1920x1080i50_16x9:
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x864348c4);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static void set_hpll_od1(unsigned div)
 {
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
@@ -629,6 +658,7 @@ void hdmitx_set_clk(enum hdmi_vic vic)
 next:
 	set_hdmitx_sys_clk();
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
+	set_hpll_sspll(vic);
 	set_hpll_od1(p_enc[j].od1);
 	set_hpll_od2(p_enc[j].od2);
 	set_hpll_od3(p_enc[j].od3);

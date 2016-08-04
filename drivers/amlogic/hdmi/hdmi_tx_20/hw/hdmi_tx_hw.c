@@ -1728,11 +1728,11 @@ static void set_phy_by_mode(unsigned int mode)
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2036315b);
 			break;
 		case 3: /* 1.485Gbps */
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33303362);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33303042);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2016315b);
 			break;
 		default: /* 742.5Mbps, and below */
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33604142);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33604132);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x0016315b);
 			break;
 		}
