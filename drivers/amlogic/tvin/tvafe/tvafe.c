@@ -59,22 +59,29 @@
 
 static dev_t                     tvafe_devno;
 static struct class              *tvafe_clsp;
-static bool                      disableapi;
-static bool                      force_stable;
+struct mutex pll_mutex;
+
 #define TVAFE_TIMER_INTERVAL    (HZ/100)   /* 10ms, #define HZ 100 */
+
+static bool disableapi;
+static bool force_stable;
 static struct am_regs_s tvaferegs;
 static struct tvafe_pin_mux_s tvafe_pinmux;
+
 static bool enable_db_reg = true;
 module_param(enable_db_reg, bool, 0644);
 MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
+
 static int vga_yuv422_enable;
 module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
+
 static bool tvafe_dbg_enable;
 module_param(tvafe_dbg_enable, bool, 0644);
 MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 
 static struct tvafe_info_s *g_tvafe_info;
+
 /***********the  version of changing log************************/
 static const char last_version_s[] = "2013-11-29||11-28";
 static const char version_s[] = "2015-07-08||17-23";
@@ -1987,6 +1994,7 @@ int tvafe_hiu_reg_write(unsigned int reg, unsigned int val)
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_write);
+
 static unsigned int tvafe_use_reserved_mem;
 static struct resource tvafe_memobj;
 static int tvafe_drv_probe(struct platform_device *pdev)
@@ -2190,6 +2198,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	tvin_reg_frontend(&tdevp->frontend);
 
 	mutex_init(&tdevp->afe_mutex);
+	mutex_init(&pll_mutex);
 
 	dev_set_drvdata(tdevp->dev, tdevp);
 	platform_set_drvdata(pdev, tdevp);
@@ -2218,6 +2227,7 @@ static int tvafe_drv_remove(struct platform_device *pdev)
 	tdevp = platform_get_drvdata(pdev);
 
 	mutex_destroy(&tdevp->afe_mutex);
+	mutex_destroy(&pll_mutex);
 	tvin_unreg_frontend(&tdevp->frontend);
 	device_remove_file(tdevp->dev, &dev_attr_debug);
 	device_remove_file(tdevp->dev, &dev_attr_dumpmem);

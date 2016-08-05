@@ -851,4 +851,13 @@ struct tvafe_pin_mux_s {
 #endif
 #define TVIN_IOC_S_AFE_SONWON     _IO(_TM_T, 0x22)
 #define TVIN_IOC_S_AFE_SONWOFF     _IO(_TM_T, 0x23)
+
+/*
+   function defined applied for other driver
+ */
+/* adc pll ctl, atv demod & tvafe use the same adc module
+ * module index: atv demod:0x01; tvafe:0x2
+*/
+extern void adc_set_pll_cntl(bool on, unsigned int module_sel);
+
 #endif
