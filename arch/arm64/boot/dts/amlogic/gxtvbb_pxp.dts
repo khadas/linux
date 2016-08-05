@@ -39,7 +39,12 @@
 			reg = <0x0 0x10000000 0x0 0x200000>;
 			no-map;
 		};
-
+		secos_reserved:linux,secos {
+			status = "disable";
+			compatible = "amlogic, aml_secos_memory";
+			reg = <0x0 0x05300000 0x0 0x2000000>;
+			no-map;
+		};
 		/*fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
 			size = <0x0 0x2000000>;
