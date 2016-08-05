@@ -30,6 +30,7 @@
 #include "atvdemod_func.h"
 #include "../aml_fe.h"
 #include <uapi/linux/dvb/frontend.h>
+#include <linux/amlogic/tvin/tvin.h>
 
 #define ATVDEMOD_DEVICE_NAME                "amlatvdemod"
 #define ATVDEMOD_DRIVER_NAME	"amlatvdemod"
@@ -253,6 +254,8 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 		amlatvdemod_devp->pin =
 			devm_pinctrl_get_select(amlatvdemod_devp->dev,
 				amlatvdemod_devp->pin_name);
+	/* printk("\n%s: set atvdemod pll...\n",__func__); */
+	adc_set_pll_cntl(1, 0x1);
 	atvdemod_clk_init();
 	err_code = atvdemod_init();
 	if (err_code) {
@@ -272,6 +275,10 @@ static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 		devm_pinctrl_put(amlatvdemod_devp->pin);
 		amlatvdemod_devp->pin = NULL;
 	}
+	/* reset adc pll flag */
+	/* printk("\n%s: init atvdemod flag...\n",__func__); */
+	adc_set_pll_cntl(0, 0x1);
+
 	return 0;
 }
 

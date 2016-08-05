@@ -51,6 +51,8 @@ module_param(demod_enable_performance, int, 0644);
 
 
 static struct mutex mp;
+static struct mutex dtvpll_init_lock;
+static int dtvpll_init;
 static int dtmb_spectrum = 2;
 
 
@@ -312,6 +314,30 @@ static struct atsc_cfg list_qam256[113] = {
 	{0x0000, 0x00, 1}
 };
 
+void dtvpll_lock_init(void)
+{
+	mutex_init(&dtvpll_init_lock);
+}
+
+void dtvpll_init_flag(int on)
+{
+	mutex_lock(&dtvpll_init_lock);
+	dtvpll_init = on;
+	mutex_unlock(&dtvpll_init_lock);
+	pr_err("%s %d\n", __func__, on);
+}
+
+int get_dtvpll_init_flag(void)
+{
+	int val;
+	mutex_lock(&dtvpll_init_lock);
+	val = dtvpll_init;
+	mutex_unlock(&dtvpll_init_lock);
+	if (!val)
+		pr_err("%s: %d\n", __func__, val);
+	return val;
+}
+
 void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 {
 	int unit, found, ena, enb, div2;
@@ -521,6 +547,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 		pr_dbg("[demod][%x]%x\n", DEMOD_REG3,
 				demod_read_demod_reg(DEMOD_REG3));
 	}
+	dtvpll_init_flag(1);
 }
 
 void demod_set_adc_core_clk(int adc_clk, int sys_clk, int dvb_mode)
@@ -710,17 +737,23 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 
 void dtmb_write_reg(int reg_addr, int reg_data)
 {
+	if (!get_dtvpll_init_flag())
+		return;
 	demod_set_demod_reg(reg_data, reg_addr);
 /* apb_write_reg(reg_addr,reg_data); */
 }
 
 int dtmb_read_reg(int reg_addr)
 {
+	if (!get_dtvpll_init_flag())
+		return 0;
 	return demod_read_demod_reg(reg_addr);	/* apb_read_reg(reg_addr); */
 }
 
 void atsc_write_reg(int reg_addr, int reg_data)
 {
+	if (!get_dtvpll_init_flag())
+		return;
 	apb_write_reg(ATSC_BASE, (reg_addr & 0xffff) << 8 | (reg_data & 0xff));
 }
 
@@ -728,6 +761,8 @@ unsigned long atsc_read_reg(int reg_addr)
 {
 	unsigned long tmp;
 
+	if (!get_dtvpll_init_flag())
+		return 0;
 	apb_write_reg(ATSC_BASE + 4, (reg_addr & 0xffff) << 8);
 	tmp = apb_read_reg(ATSC_BASE);
 

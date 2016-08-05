@@ -31,6 +31,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
 
 #define AMVDAC_NAME               "amvdac"
 #define AMVDAC_DRIVER_NAME        "amvdac"
@@ -46,6 +47,7 @@ struct amvdac_dev_s {
 	struct class                *clsp;
 };
 static struct amvdac_dev_s amvdac_dev;
+static struct mutex vdac_mutex;
 
 #define HHI_VDAC_CNTL0 0x10bd
 #define HHI_VDAC_CNTL1 0x10be
@@ -350,6 +352,8 @@ EXPORT_SYMBOL(vdac_set_ctrl0_ctrl1);
 void vdac_enable(bool on, unsigned int module_sel)
 {
 	pr_info("\n%s: on:%d,module_sel:%x\n", __func__, on, module_sel);
+
+	mutex_lock(&vdac_mutex);
 	switch (module_sel) {
 	case VDAC_MODULE_ATV_DEMOD: /* atv demod */
 		if (on) {
@@ -437,6 +441,7 @@ void vdac_enable(bool on, unsigned int module_sel)
 					, __func__, module_sel);
 		break;
 	}
+	mutex_unlock(&vdac_mutex);
 }
 EXPORT_SYMBOL(vdac_enable);
 
@@ -571,6 +576,7 @@ static int __init aml_vdac_init(void)
 
 	vdac_init_succ_flag = 0;
 
+	mutex_init(&vdac_mutex);
 	/* remap the hiu bus */
 	vdac_hiu_reg_base = ioremap(0xc883c000, 0x2000);
 
@@ -585,6 +591,7 @@ static int __init aml_vdac_init(void)
 
 static void __exit aml_vdac_exit(void)
 {
+	mutex_destroy(&vdac_mutex);
 	pr_info("%s: module exit\n", __func__);
 	platform_driver_unregister(&aml_vdac_driver);
 }

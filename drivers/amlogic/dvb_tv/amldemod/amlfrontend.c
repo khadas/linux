@@ -1217,6 +1217,9 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 	struct aml_fe_dev *dev = fe->dtv_demod;
 	int memstart_dtmb;
 
+	/* must enable the adc ref signal for demod, */
+	vdac_enable(1, 0x2);
+
 	autoFlagsTrig = 1;
 	if (cci_thread)
 		if (dvbc_get_cci_task() == 1)
@@ -1233,15 +1236,12 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
 	}
 
-
-	/* must enable the adc ref signal for demod, */
-	vdac_enable(1, 0x2);
-
 	return 0;
 }
 
 static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 {
+	dtvpll_init_flag(0);
 	/*dvbc_timer_exit();*/
 	if (cci_thread)
 		dvbc_kill_cci_task();
@@ -1274,6 +1274,7 @@ static int __init gxtvdemodfrontend_init(void)
 	pr_dbg("register gxtv_demod demod driver\n");
 	ret = 0;
 
+	dtvpll_lock_init();
 	mutex_init(&aml_lock);
 
 	gxtv_clsp = class_create(THIS_MODULE, DEMOD_DEVICE_NAME);

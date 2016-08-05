@@ -591,7 +591,8 @@ struct dtmb_cfg {
 	int rw;
 };
 
-
+void dtvpll_lock_init(void);
+void dtvpll_init_flag(int on);
 void demod_set_irq_mask(void);
 void demod_clr_irq_stat(void);
 void demod_set_adc_core_clk(int, int, int);

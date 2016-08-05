@@ -1468,7 +1468,7 @@ int atvdemod_clk_init(void)
 {
 	/* clocks_set_hdtv (); */
 	/* 1.set system clock */
-
+#if 0 /* now set pll in tvafe_general.c */
 	if (is_meson_txl_cpu()) {
 		amlatvdemod_hiu_reg_write(HHI_VDAC_CNTL0, 0x6e0201);
 		amlatvdemod_hiu_reg_write(HHI_VDAC_CNTL1, 0x8);
@@ -1503,17 +1503,19 @@ int atvdemod_clk_init(void)
 		W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
 		W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
 
-		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
 	} else {
 		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
 		W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
 		W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
 		W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
 		W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+
 		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
 		/* TVFE reset */
 		W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
 	}
+#endif
+	W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
 
 	/* read_version_register(); */
 
