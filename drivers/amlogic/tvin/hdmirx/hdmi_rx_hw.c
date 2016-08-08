@@ -991,10 +991,14 @@ void hdmirx_hw_probe(void)
 	hdmirx_wr_top(TOP_SW_RESET,	0);
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu()) {
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
-	else
+		hdmirx_wr_top(TOP_INFILTER,
+			hdmirx_rd_top(TOP_INFILTER) | 0x2001 << 16);
+	} else {
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
+		hdmirx_wr_top(0x2c, 0x20012001);
+	}
 	hdmi_rx_ctrl_edid_update();
 	/* #ifdef HDCP22_ENABLE */
 	/* if (hdcp_22_on) */
