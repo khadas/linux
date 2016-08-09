@@ -256,6 +256,8 @@ struct dvb_frontend *get_si2177_tuner(void)
 
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		dev = &fe_man.tuner[i];
+		if (dev == NULL || dev->drv == NULL || dev->fe == NULL)
+			continue;
 #if (defined CONFIG_AM_SI2177)
 		if (!strcmp(dev->drv->name, "si2177_tuner"))
 			return dev->fe->fe;
