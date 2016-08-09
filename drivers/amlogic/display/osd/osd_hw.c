@@ -1651,12 +1651,13 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.cursor_dispdata[index].y_end = y1;
 #endif
 	if (osd_hw.free_dst_data[index].y_end >= 2159) {
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM)
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00202000);
-		else if (!is_meson_gxtvbb_cpu())
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
-		else
+		else if (get_cpu_type() ==
+			MESON_CPU_MAJOR_ID_GXTVBB)
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
+		else
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
 	}
 	osd_update_window_axis = true;
 	mutex_unlock(&osd_mutex);
@@ -2639,7 +2640,7 @@ static void osd1_update_color_mode(void)
 		data32 |= osd_hw.color_info[OSD1]->hw_colormat << 2;
 		if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) {
 			if (osd_hw.color_info[OSD1]->color_index <
-					COLOR_INDEX_YUV_422)
+				COLOR_INDEX_YUV_422)
 				data32 |= 1 << 7; /* yuv enable */
 		}
 		/* osd_blk_mode */
@@ -2698,7 +2699,7 @@ static void osd2_update_color_mode(void)
 		data32 |= osd_hw.color_info[OSD2]->hw_colormat << 2;
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXTVBB) {
 			if (osd_hw.color_info[OSD2]->color_index <
-					COLOR_INDEX_YUV_422)
+				COLOR_INDEX_YUV_422)
 				data32 |= 1 << 7; /* yuv enable */
 		}
 		/* osd_blk_mode */
@@ -3837,8 +3838,11 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_data[OSD2].y_end = 0;
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 1;
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM)
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00202000);
+		else if (get_cpu_type() ==
+			MESON_CPU_MAJOR_ID_GXTVBB)
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
 		else
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
 	} else {
