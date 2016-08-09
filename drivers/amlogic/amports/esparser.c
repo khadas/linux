@@ -559,12 +559,13 @@ s32 esparser_init(struct stream_buf_s *buf)
 		int block_size = (buf->type == BUF_TYPE_AUDIO) ?
 			PAGE_SIZE << 2 : PAGE_SIZE << 4;
 		int buf_num = (buf->type == BUF_TYPE_AUDIO) ?
-			5 : 5;
-		if (!(buf->type == BUF_TYPE_SUBTITLE) &&
-			!(buf->type == BUF_TYPE_AUDIO)) /*for audio manual*/
+			5 : 10;
+		if (!(buf->type == BUF_TYPE_SUBTITLE))
 			buf->write_thread = threadrw_alloc(buf_num,
 				block_size,
-				esparser_write_ex);
+				esparser_write_ex,
+			(buf->type == BUF_TYPE_AUDIO) ? 1 : 0);
+			/*manul mode for audio*/
 	}
 	return 0;
 

@@ -63,6 +63,7 @@ struct threadrw_write_task {
 	int data_offset;
 	int writework_on;
 	unsigned long codec_mm_buffer;
+	int manual_write;
 	wait_queue_head_t wq;
 	ssize_t (*write)(struct file *,
 		struct stream_buf_s *,
@@ -205,11 +206,17 @@ static int do_write_work_in(struct threadrw_write_task *task)
 		codec_mm_dma_flush(rwbuf->vbuffer,
 				rwbuf->data_size,
 				DMA_TO_DEVICE);
-
-	ret = task->write(task->file, task->sbuf,
+	if (task->manual_write) {
+		ret = task->write(task->file, task->sbuf,
+			(const char __user *)rwbuf->vbuffer + rwbuf->write_off,
+			rwbuf->data_size,
+			2);	/* noblock,virtual addr */
+	} else {
+		ret = task->write(task->file, task->sbuf,
 		(const char __user *)rwbuf->dma_handle + rwbuf->write_off,
 		rwbuf->data_size,
 		3);	/* noblock,phy addr */
+	}
 	if (ret == -EAGAIN) {
 		need_re_write = 0;
 		/*do later retry. */
@@ -330,7 +337,8 @@ static struct threadrw_write_task *threadrw_buf_alloc_in(int num,
 		int block_size,
 		ssize_t (*write)(struct file *,
 			struct stream_buf_s *,
-			const char __user *, size_t, int))
+			const char __user *, size_t, int),
+			int flags)
 {
 	int task_buffer_size = sizeof(struct threadrw_write_task) +
 				sizeof(struct threadrw_buf) * (num - 1) + 4;
@@ -353,6 +361,7 @@ static struct threadrw_write_task *threadrw_buf_alloc_in(int num,
 	task->write = write;
 	task->file = NULL;
 	task->buffer_size = 0;
+	task->manual_write = flags & 1;
 	ret = init_task_buffers(task, num, block_size);
 	if (ret < 0)
 		goto err3;
@@ -460,9 +469,10 @@ void *threadrw_alloc(int num,
 			ssize_t (*write)(struct file *,
 				struct stream_buf_s *,
 				const char __user *,
-				size_t, int))
+				size_t, int),
+				int flags)
 {
-	return threadrw_buf_alloc_in(num, block_size, write);
+	return threadrw_buf_alloc_in(num, block_size, write, flags);
 }
 
 void threadrw_release(struct stream_buf_s *stbuf)
