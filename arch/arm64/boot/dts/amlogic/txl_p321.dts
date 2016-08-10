@@ -85,7 +85,7 @@
 
 		demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
-			size = <0x0 0x6400000>; //20m
+			size = <0x0 0x600000>; //20m
 			multi-use;
 			//no-map;
 		};
