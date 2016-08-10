@@ -62,6 +62,7 @@ static int iw7019_spi_force_err_flag;
 static unsigned char iw7019_chipid_check_vs_cnt;
 static unsigned short vsync_cnt;
 static unsigned short fault_cnt;
+static unsigned short check_id_cnt;
 static unsigned long reset_cnt;
 static int iw7019_spi_rw_test_flag;
 static int iw7019_static_pic_test_flag;
@@ -456,15 +457,25 @@ static void iw7019_spi_rw_test(struct work_struct *work)
 		spi_rw_test_en, iw7019_spi_rw_test_flag);
 }
 
-static void iw7019_spi_dump(void)
+static int iw7019_spi_dump(char *buf)
 {
+	int ret = 0;
 	unsigned char i, val;
 
 	for (i = 0; i <= 0x7f; i++) {
 		iw7019_rreg(bl_iw7019->spi, i, &val);
+		if (buf) {
+			int n = sprintf(buf+ret,
+					"iw7019 reg 0x%02x=0x%02x\n", i, val);
+			ret += n;
+		}
 		pr_info("iw7019 reg 0x%02x=0x%02x\n", i, val);
 	}
+	if (buf)
+		ret += sprintf(buf, "\n");
 	pr_info("\n");
+
+	return ret;
 }
 
 static int fault_cnt_save;
@@ -480,9 +491,11 @@ static int iw7019_fault_handler(void)
 				__func__, fault_cnt);
 		}
 		return 0;
+	} else if (fault_cnt == 1) {
+		vsync_cnt = 0;
 	}
 
-	if (vsync_cnt >= 320) {
+	if (vsync_cnt >= 200) {
 		if (ldim_debug_print) {
 			LDIMPR("%s: vsync_cnt=%d, fault_cnt=%d\n",
 				__func__, vsync_cnt, fault_cnt);
@@ -504,9 +517,10 @@ static int iw7019_fault_handler(void)
 		fault_cnt++;
 		if (fault_cnt <= 35) {
 			if (ldim_debug_print) {
-				LDIMPR("%s: fault detected\n", __func__);
+				LDIMPR("%s: fault detected fault_cnt %d\n",
+					__func__, fault_cnt);
 				if (ldim_debug_print >= 2)
-					iw7019_spi_dump();
+					iw7019_spi_dump(NULL);
 			}
 			iw7019_wreg(bl_iw7019->spi, 0x35, 0x43);
 			ret = -1;
@@ -674,7 +688,7 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 		for (i = 1; i < 3; i++) {
 			iw7019_rreg(bl_iw7019->spi, 0x00, &temp);
 			if (temp != reg_chk)
-				goto iw7019_smr_write_chk2;
+				goto iw7019_smr_end;
 		}
 		clk_sel = (reg_chk >> 1) & 0x3;
 		if ((reg_chk == 0xff) || (clk_sel == 0x1) || (clk_sel == 0x2) ||
@@ -686,7 +700,7 @@ static int iw7019_smr(unsigned short *buf, unsigned char len)
 			iw7019_reset_handler();
 			goto iw7019_smr_end;
 		}
-iw7019_smr_write_chk2:
+/*iw7019_smr_write_chk2:*/
 		/* reg brightness check */
 		for (j = 0x01; j <= 0x0c; j++) {
 			for (i = 1; i < 3; i++) {
@@ -728,8 +742,13 @@ static int iw7019_chip_check(void)
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
 	unsigned char chipid = 0;
-
-	if (iw7019_chipid_check_vs_cnt++ > 10)
+	/**/
+	if (ldim_drv->ldev_conf->fault_check) {
+		if (ldim_drv->ldev_conf->lamp_err_gpio >= BL_GPIO_NUM_MAX)
+			goto iw7019_chip_check_end;
+		ret = iw7019_fault_handler();
+	}
+	if (iw7019_chipid_check_vs_cnt++ > 5)
 		iw7019_chipid_check_vs_cnt = 0;
 	else
 		return 0;
@@ -761,19 +780,21 @@ static int iw7019_chip_check(void)
 	if (ldim_drv->ldev_conf->write_check) {
 		iw7019_rreg(bl_iw7019->spi, IW7019_REG_CHIPID, &chipid);
 		if (chipid != IW7019_CHIPID) {
-			iw7019_spi_err_flag = 1;
-			LDIMERR("%s: read failed, 0x7f=0x%02x\n",
-				__func__, chipid);
-			iw7019_short_reset_handler();
-			ret = -1;
-			goto iw7019_chip_check_end;
+			if (check_id_cnt >= 3) {
+				iw7019_spi_err_flag = 1;
+				LDIMERR("%s: read failed, 0x7f=0x%02x\n",
+					__func__, chipid);
+				LDIMPR("check_id_cnt=%d\n", check_id_cnt);
+				iw7019_short_reset_handler();
+				ret = -1;
+				check_id_cnt = 0;
+				goto iw7019_chip_check_end;
+			} else {
+				check_id_cnt++;
+			}
 		}
 	}
-	if (ldim_drv->ldev_conf->fault_check) {
-		if (ldim_drv->ldev_conf->lamp_err_gpio >= BL_GPIO_NUM_MAX)
-			goto iw7019_chip_check_end;
-		ret = iw7019_fault_handler();
-	}
+
 
 iw7019_chip_check_end:
 	iw7019_spi_op_flag = 0;
@@ -868,12 +889,12 @@ static ssize_t iw7019_show(struct class *class,
 		}
 		if (iw7019_spi_op_flag == 0) {
 			iw7019_spi_op_flag = 1;
-			iw7019_spi_dump();
+			ret = iw7019_spi_dump(buf);
 			iw7019_spi_op_flag = 0;
 		} else {
 			LDIMERR("%s: wait spi idle state failed\n", __func__);
 		}
-		ret = sprintf(buf, "\n");
+		ret += sprintf(buf, "\n");
 	} else if (!strcmp(attr->attr.name, "fault_cnt")) {
 		ret = sprintf(buf, "iw7019 fault_cnt = %d\n", fault_cnt);
 	} else if (!strcmp(attr->attr.name, "rw_test")) {
