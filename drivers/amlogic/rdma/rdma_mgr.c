@@ -51,6 +51,10 @@
 #define rdma_io_write(addr, val) writel((val), addr);
 
 #define RDMA_VSYNC_INPUT_TRIG		0x1
+#define SKIP_OSD_CHANNEL
+
+int rdma_mgr_irq_request;
+
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
@@ -281,7 +285,7 @@ QUERY:
 		if (!(rdma_status & (1 << (i+24))))
 			continue;
 		/*bypass osd rdma done case*/
-#if 0
+#ifdef SKIP_OSD_CHANNEL
 		if (i == 3)
 			continue;
 #endif
@@ -300,8 +304,13 @@ QUERY:
 		}
 	}
 	rdma_status = READ_VCBUS_REG(RDMA_STATUS);
+#ifdef SKIP_OSD_CHANNEL
+	if ((rdma_status & 0xf7000000) && (retry_count < 100))
+		goto QUERY;
+#else
 	if ((rdma_status & 0xff000000) && (retry_count < 100))
 		goto QUERY;
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -622,7 +631,7 @@ static int rdma_probe(struct platform_device *pdev)
 	int_rdma = platform_get_irq_byname(pdev, "rdma");
 
 	pr_info("%s\n", __func__);
-
+	rdma_mgr_irq_request = 0;
 	for (i = 0; i < RDMA_NUM; i++) {
 			info->rdma_ins[i].rdma_table_size = 0;
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
@@ -645,6 +654,7 @@ static int rdma_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	rdma_mgr_irq_request = 1;
 	data32  = 0;
 	data32 |= 0 << 6;
 	data32 |= ctrl_ahb_wr_burst_size << 4;

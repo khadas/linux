@@ -150,6 +150,8 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_CTRL_STAT;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = offset + VIU_OSD1_CTRL_STAT2;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_BLK0_CFG_W0;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = offset + VIU_OSD1_BLK0_CFG_W1;
@@ -162,6 +164,14 @@ static void osd_debug_dump_register_all(void)
 		if (index == 1)
 			reg = VIU_OSD2_BLK0_CFG_W4;
 		osd_log_info("reg[0x%x]: 0x%08x\n\n", reg, osd_reg_read(reg));
+	}
+
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+		for (reg = OSD1_AFBCD_ENABLE;
+			reg <= OSD1_AFBCD_PIXEL_VSCOPE; reg++)
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				reg, osd_reg_read(reg));
 	}
 }
 

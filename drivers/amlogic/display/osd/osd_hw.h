@@ -24,8 +24,13 @@
 #define OSD_RELATIVE_BITS 0x33370
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 #include "osd_rdma.h"
-
 #endif
+
+#define OSD_REG_BACKUP_COUNT 15
+#define OSD_AFBC_REG_BACKUP_COUNT 10
+
+extern const u16 osd_reg_backup[OSD_REG_BACKUP_COUNT];
+extern const u16 osd_afbc_reg_backup[OSD_AFBC_REG_BACKUP_COUNT];
 
 #ifdef CONFIG_HIBERNATION
 extern void osd_freeze_hw(void);
