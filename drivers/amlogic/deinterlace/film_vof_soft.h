@@ -58,6 +58,8 @@ struct sFlmDatSt {
 	UINT8 pFlgXx[HISDETNUM]; /* pre-1, nxt-0 */
 	UINT8 pLvlXx[HISDETNUM]; /* mode level */
 
+	int TCNm[HISCMBNUM];/* history: the number of combing-rows */
+
 	UINT32 *rROFrmDif02;
 
 	/* size of the image */
@@ -132,6 +134,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, UShort *rPstCYWnd0, UShort *rPstCYWnd1,
 		 UShort *rPstCYWnd2, UShort *rPstCYWnd3, UShort *rPstCYWnd4,
 		 UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		 UINT32 *rROFldDif01, UINT32 *rROFrmDif02, UINT32 *rROCmbInf,
+		 int *tTCNm,
 		 struct sFlmSftPar *pPar, int nROW, int nCOL);
 
 /* length of pFlm01/nDif01: [0:5]; */

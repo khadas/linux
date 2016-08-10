@@ -13,7 +13,7 @@ static bool dnr_pr;
 module_param(dnr_pr, bool, 0644);
 MODULE_PARM_DESC(dnr_pr, "/n print dnr debug information /n");
 
-static bool dnr_dm_en;/*gxtvbb can't work normal,must set to 0*/
+bool dnr_dm_en;/*gxtvbb can't work normal,must set to 0*/
 module_param(dnr_dm_en, bool, 0644);
 MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
 
@@ -296,7 +296,8 @@ reg_dnr_stat_yst=0,reg_dnr_stat_yed=0; */
 	if (dnr_reg_update == 0)
 		return;
 	DI_Wr(DNR_CTRL, 0x1df00);
-	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(dnr_dm_en << 9)|(1 << 11));
+	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 11));
+	DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 	DI_Wr(DNR_HVSIZE, nCol<<16|nRow);
 	DI_Wr(DNR_STAT_X_START_END, (((8*dnr_stat_coef)&0x3fff) << 16)
 		|((nCol-(8*dnr_stat_coef+1))&0x3fff));

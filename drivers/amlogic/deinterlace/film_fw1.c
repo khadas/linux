@@ -40,6 +40,8 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->sF32Dif02M0 = 4096;	/* mpeg-4096, cvbs-8192 */
 	pPar->sF32Dif02M1 = 4096;
 
+	field_count = 0;
+
 	return 0;
 }
 
@@ -172,6 +174,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 unsigned short *rPstCYWnd3, unsigned short *rPstCYWnd4,
 		 UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		 UINT32 *rROFldDif01, UINT32 *rROFrmDif02, UINT32 *rROCmbInf,
+		 int *tTCNm,
 		 struct sFlmSftPar *pPar, int nROW, int nCOL)
 {
 	static UINT32 DIF01[HISDIFNUM]; /* Last one is global */
@@ -206,11 +209,11 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	debug_str[0] = '\0';
 
 	/* Initialization */
-	if (field_count == 0) {
+	if (field_count < 3) {
 		for (nT1 = 0; nT1 < HISDIFNUM; nT1++) {
-			DIF01[nT1] = 0;
-			DIF02[nT1] = 0;
-			DifW5[nT1] = 0;
+			DIF01[nT1] = 0xffffffff;
+			DIF02[nT1] = 0xffffffff;
+			DifW5[nT1] = 0xffffffff;
 		}
 
 		for (nT1 = 0; nT1 < HISDETNUM; nT1++) {
@@ -234,7 +237,6 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			pRDat.pFlgXx[nT1] = 0; /* pre-1, nxt-0 */
 			pRDat.pLvlXx[nT1] = 0;  /* mode level */
 		}
-		field_count = 1;
 	} else {
 		for (nT1 = 1; nT1 < HISDETNUM; nT1++) {
 			pRDat.mNum32[nT1 - 1] = pRDat.mNum32[nT1];
@@ -382,6 +384,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		nS1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	}
 
+	*tTCNm = pRDat.TCNm[HISCMBNUM - 1];
 	return nS1;
 }
 

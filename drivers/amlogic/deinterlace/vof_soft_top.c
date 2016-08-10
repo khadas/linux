@@ -79,7 +79,8 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	int mDly = pPar->mPstDlyPre;
 
 	/* UINT8 *PREWV = pRDat.pFlg32; or pRDat.pFlg22 */
-	static int TCNm[HISCMBNUM];/* history: the number of combing-rows */
+	/* static int TCNm[HISCMBNUM]; history: the number of combing-rows */
+	int *TCNm = pRDat->TCNm;
 	static int NWND[HISDETNUM];/* 6-history,the number of combing windows */
 	static int WGlb[HISDETNUM];	/* Global combing */
 	static unsigned int pFlgXx;
