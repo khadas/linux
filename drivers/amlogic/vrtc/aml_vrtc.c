@@ -88,6 +88,28 @@ static int aml_vrtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static int aml_rtc_write_time(struct device *dev, struct rtc_time *tm)
+{
+	unsigned long time_t;
+	unsigned long te = 0;
+	unsigned int time;
+
+	rtc_tm_to_time(tm, &time_t);
+	pr_debug("aml_rtc : write the rtc time, time is %ld\n", time_t);
+
+	time = 0;
+	if (tel_reg_vaddr && teh_reg_vaddr) {
+		te = readl(teh_reg_vaddr);
+		te <<= 32;
+		te += readl(tel_reg_vaddr);
+		time = (u32)(te / 1000000);
+		pr_debug("time_e: %us\n", time);
+	}
+	vrtc_init_date = (unsigned int)time_t - time;
+
+	return 0;
+}
+
 static int set_wakeup_time(unsigned long time)
 {
 	int ret = -1;
@@ -128,6 +150,7 @@ static int aml_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static const struct rtc_class_ops aml_vrtc_ops = {
 	.read_time = aml_vrtc_read_time,
+	.set_time = aml_rtc_write_time,
 	.set_alarm = aml_vrtc_set_alarm,
 };
 
