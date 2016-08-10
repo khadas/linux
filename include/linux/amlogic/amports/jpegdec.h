@@ -18,13 +18,6 @@
 #ifndef JPEGDEC_H
 #define JPEGDEC_H
 
-#define JPEGDEC_IOC_MAGIC  'J'
-
-#define JPEGDEC_IOC_INFOCONFIG	_IOW(JPEGDEC_IOC_MAGIC, 0x00, unsigned int)
-#define JPEGDEC_IOC_DECCONFIG	_IOW(JPEGDEC_IOC_MAGIC, 0x01, unsigned int)
-#define JPEGDEC_IOC_INFO _IOW(JPEGDEC_IOC_MAGIC, 0x02, unsigned int)
-#define JPEGDEC_IOC_STAT _IOW(JPEGDEC_IOC_MAGIC, 0x03, unsigned int)
-#define JPEGDEC_G_MEM_INFO _IOW(JPEGDEC_IOC_MAGIC, 0x04, unsigned int)
 
 #define JPEGDEC_OPT_THUMBNAIL_ONLY		0x01
 #define JPEGDEC_OPT_THUMBNAIL_PREFERED	0x02
@@ -42,6 +35,7 @@
 #define JPEGDEC_STAT_UNSUPPORT			0x10
 #define JPEGDEC_STAT_INFO_READY			0x20
 #define JPEGDEC_STAT_DONE				0x40
+
 enum jpegdec_angle_e {
 	CLKWISE_0 = 0,
 	CLKWISE_90 = 1,
@@ -77,8 +71,51 @@ struct jpegdec_config_s {
 
 	unsigned dec_h;
 
-	jpegdec_angle_t angle;
+	enum jpegdec_angle_e angle;
 };
+
+struct compat_jpegdec_config_s {
+
+	compat_uptr_t addr_y;
+
+	compat_uptr_t addr_u;
+
+	compat_uptr_t addr_v;
+
+	unsigned canvas_width;
+
+	unsigned opt;
+
+	unsigned src_crop_x;
+
+	unsigned src_crop_y;
+
+	unsigned src_crop_w;
+
+	unsigned src_crop_h;
+
+	unsigned dec_x;
+
+	unsigned dec_y;
+
+	unsigned dec_w;
+
+	unsigned dec_h;
+
+	enum jpegdec_angle_e angle;
+};
+
+#define JPEGDEC_IOC_MAGIC  'J'
+
+#define JPEGDEC_IOC_INFOCONFIG	_IOW(JPEGDEC_IOC_MAGIC, 0x00, unsigned int)
+#define JPEGDEC_IOC_DECCONFIG	\
+	_IOW(JPEGDEC_IOC_MAGIC, 0x01, struct jpegdec_config_s)
+#define JPEGDEC_IOC_DECCONFIG32	 \
+	_IOW(JPEGDEC_IOC_MAGIC, 0x01, struct compat_jpegdec_config_s)
+#define JPEGDEC_IOC_INFO _IOW(JPEGDEC_IOC_MAGIC, 0x02, unsigned int)
+#define JPEGDEC_IOC_STAT _IOW(JPEGDEC_IOC_MAGIC, 0x03, unsigned int)
+#define JPEGDEC_G_MEM_INFO _IOW(JPEGDEC_IOC_MAGIC, 0x04, unsigned int)
+
 
 struct jpegdec_info_s {
 
@@ -93,7 +130,7 @@ struct jpegdec_info_s {
 
 struct jpegdec_mem_info_s {
 
-	jpegdec_angle_t angle;
+	enum jpegdec_angle_e angle;
 
 	unsigned dec_w;
 

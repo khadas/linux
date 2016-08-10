@@ -124,7 +124,7 @@ static bool command_valid(unsigned int cmd)
 {
 	bool ret = false;
 
-	ret = (cmd <= GE2D_STRETCHBLIT_NOALPHA_NOBLOCK &&
+	ret = (cmd <= GE2D_CONFIG_EX32 &&
 		cmd >= GE2D_ANTIFLICKER_ENABLE);
 
 	return ret;
@@ -149,21 +149,56 @@ static int ge2d_open(struct inode *inode, struct file *file)
 static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 {
 	struct ge2d_context_s *context = NULL;
-	void __user *argp = (void __user *)args;
 	struct config_para_s ge2d_config;
 	struct ge2d_para_s para;
 	struct config_para_ex_s ge2d_config_ex;
+	struct compat_config_para_s __user *uf;
 	int ret = 0;
+	int r = 0;
+	int i, j;
+	void __user *argp = (void __user *)args;
 
 	if (!command_valid(cmd))
 		return -1;
 
 	context = (struct ge2d_context_s *)filp->private_data;
+	memset(&ge2d_config, 0, sizeof(struct config_para_s));
 	switch (cmd) {
 	case GE2D_CONFIG:
 	case GE2D_SRCCOLORKEY:
 		ret = copy_from_user(&ge2d_config,
 				argp, sizeof(struct config_para_s));
+		break;
+	case GE2D_CONFIG32:
+		uf = (struct compat_config_para_s *)argp;
+		r = get_user(ge2d_config.src_dst_type, &uf->src_dst_type);
+		r |= get_user(ge2d_config.alu_const_color,
+			&uf->alu_const_color);
+		r |= get_user(ge2d_config.src_format, &uf->src_format);
+		r |= get_user(ge2d_config.dst_format, &uf->dst_format);
+		for (i = 0; i < 4; i++) {
+			r |= get_user(ge2d_config.src_planes[i].addr,
+				&uf->src_planes[i].addr);
+			r |= get_user(ge2d_config.src_planes[i].w,
+				&uf->src_planes[i].w);
+			r |= get_user(ge2d_config.src_planes[i].h,
+				&uf->src_planes[i].h);
+		}
+		for (j = 0; j < 4; j++) {
+			r |= get_user(ge2d_config.dst_planes[j].addr,
+				&uf->dst_planes[j].addr);
+			r |= get_user(ge2d_config.dst_planes[j].w,
+				&uf->dst_planes[j].w);
+			r |= get_user(ge2d_config.dst_planes[j].h,
+				&uf->dst_planes[j].h);
+		}
+		r |= copy_from_user(&ge2d_config.src_key, &uf->src_key,
+			sizeof(struct src_key_ctrl_s));
+		if (r) {
+			pr_err("GE2D_CONFIG32 get parameter failed .\n");
+			return -EFAULT;
+		}
+
 		break;
 	case GE2D_CONFIG_EX:
 		ret = copy_from_user(&ge2d_config_ex, argp,
@@ -177,8 +212,10 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		break;
 
 	}
+
 	switch (cmd) {
 	case GE2D_CONFIG:
+	case GE2D_CONFIG32:
 		ret = ge2d_context_config(context, &ge2d_config);
 		break;
 	case GE2D_CONFIG_EX:

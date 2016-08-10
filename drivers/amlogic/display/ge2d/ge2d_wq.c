@@ -493,7 +493,7 @@ static void build_ge2d_config(struct config_para_s *cfg,
 			dst->canvas_index = index;
 			canvas_config(index++ & 0xff,
 				      cfg->dst_planes[0].addr,
-				      cfg->dst_planes[0].w * dst->bpp / 8,
+				      cfg->dst_planes[0].w,
 				      cfg->dst_planes[0].h,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
@@ -504,7 +504,7 @@ static void build_ge2d_config(struct config_para_s *cfg,
 			dst->canvas_index |= index << 8;
 			canvas_config(index++,
 				      cfg->dst_planes[1].addr,
-				      cfg->dst_planes[1].w * dst->bpp / 8,
+				      cfg->dst_planes[1].w,
 				      cfg->dst_planes[1].h,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
@@ -513,7 +513,7 @@ static void build_ge2d_config(struct config_para_s *cfg,
 			dst->canvas_index |= index << 16;
 			canvas_config(index++,
 				      cfg->dst_planes[2].addr,
-				      cfg->dst_planes[2].w * dst->bpp / 8,
+				      cfg->dst_planes[2].w,
 				      cfg->dst_planes[2].h,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
@@ -522,7 +522,7 @@ static void build_ge2d_config(struct config_para_s *cfg,
 			dst->canvas_index |= index << 24;
 			canvas_config(index++,
 				      cfg->dst_planes[3].addr,
-				      cfg->dst_planes[3].w * dst->bpp / 8,
+				      cfg->dst_planes[3].w,
 				      cfg->dst_planes[3].h,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);

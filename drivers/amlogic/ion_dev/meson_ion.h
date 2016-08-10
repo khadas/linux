@@ -21,6 +21,19 @@
 #include <ion/ion.h>
 
 /**
+* CUSTOM IOCTL - CMD
+*/
+
+#define ION_IOC_MESON_PHYS_ADDR             8
+
+struct meson_phys_data {
+	int handle;
+	unsigned int phys_addr;
+	unsigned int size;
+};
+
+
+/**
  * meson_ion_client_create() -  allocate a client and returns it
  * @heap_type_mask:	mask of heaps this client can allocate from
  * @name:		used for debugging

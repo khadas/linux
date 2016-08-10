@@ -24,6 +24,11 @@
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
+
+
 #define MAX_BITBLT_WORK_CONFIG 4
 #define MAX_GE2D_CMD  32   /* 64 */
 
@@ -613,6 +618,14 @@ struct config_planes_s {
 	unsigned int h;
 };
 
+#ifdef CONFIG_COMPAT
+struct compat_config_planes_s {
+	compat_uptr_t addr;
+	unsigned int w;
+	unsigned int h;
+};
+#endif
+
 struct src_key_ctrl_s {
 	int key_enable;
 	int key_color;
@@ -630,6 +643,19 @@ struct config_para_s {
 	struct config_planes_s dst_planes[4];
 	struct src_key_ctrl_s  src_key;
 };
+
+#ifdef CONFIG_COMPAT
+struct compat_config_para_s {
+	int  src_dst_type;
+	int  alu_const_color;
+	unsigned int src_format;
+	unsigned int dst_format; /* add for src&dst all in user space. */
+
+	struct compat_config_planes_s src_planes[4];
+	struct compat_config_planes_s dst_planes[4];
+	struct src_key_ctrl_s  src_key;
+};
+#endif
 
 struct src_dst_para_ex_s {
 	int  canvas_index;
@@ -684,6 +710,62 @@ struct config_para_ex_s {
 	struct config_planes_s src2_planes[4];
 	struct config_planes_s dst_planes[4];
 };
+
+#ifdef CONFIG_COMPAT
+struct compat_config_para_ex_s {
+	struct src_dst_para_ex_s src_para;
+	struct src_dst_para_ex_s src2_para;
+	struct src_dst_para_ex_s dst_para;
+
+	/* key mask */
+	struct src_key_ctrl_s  src_key;
+	struct src_key_ctrl_s  src2_key;
+
+	int alu_const_color;
+	unsigned src1_gb_alpha;
+	unsigned op_mode;
+	unsigned char bitmask_en;
+	unsigned char bytemask_only;
+	unsigned int  bitmask;
+	unsigned char dst_xy_swap;
+
+	/* scaler and phase releated */
+	unsigned hf_init_phase;
+	int hf_rpt_num;
+	unsigned hsc_start_phase_step;
+	int hsc_phase_slope;
+	unsigned vf_init_phase;
+	int vf_rpt_num;
+	unsigned vsc_start_phase_step;
+	int vsc_phase_slope;
+	unsigned char src1_vsc_phase0_always_en;
+	unsigned char src1_hsc_phase0_always_en;
+	/* 1bit, 0: using minus, 1: using repeat data */
+	unsigned char src1_hsc_rpt_ctrl;
+	/* 1bit, 0: using minus  1: using repeat data */
+	unsigned char src1_vsc_rpt_ctrl;
+
+	/* canvas info */
+	struct compat_config_planes_s src_planes[4];
+	struct compat_config_planes_s src2_planes[4];
+	struct compat_config_planes_s dst_planes[4];
+};
+#endif
+
+#define GE2D_IOC_MAGIC  'G'
+
+#define GE2D_CONFIG		_IOW(GE2D_IOC_MAGIC, 0x00, struct config_para_s)
+
+#ifdef CONFIG_COMPAT
+#define GE2D_CONFIG32	_IOW(GE2D_IOC_MAGIC, 0x00, struct compat_config_para_s)
+#endif
+
+#define GE2D_CONFIG_EX	 _IOW(GE2D_IOC_MAGIC, 0x01,  struct config_para_ex_s)
+
+#ifdef CONFIG_COMPAT
+#define GE2D_CONFIG_EX32  \
+	_IOW(GE2D_IOC_MAGIC, 0x01,  struct compat_config_para_ex_s)
+#endif
 
 extern void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
 extern void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
