@@ -41,6 +41,7 @@
 /* if (is_meson_g9tv_cpu() || is_meson_m8_cpu() || */
 /* is_meson_m8m2_cpu() || is_meson_gxbb_cpu() || */
 /* is_meson_m8b_cpu()) */
+#include <linux/of_gpio.h>
 
 #include <linux/amlogic/tvin/tvin.h>
 /* Local include */
@@ -176,6 +177,10 @@ module_param(enable_hpd_reset, bool, 0664);
 static int pow5v_max_cnt = 4;
 MODULE_PARM_DESC(pow5v_max_cnt, "\n pow5v_max_cnt\n");
 module_param(pow5v_max_cnt, int, 0664);
+
+static int uart_plugin_check_cnt = 10;
+MODULE_PARM_DESC(uart_plugin_check_cnt, "\n uart_plugin_check_cnt\n");
+module_param(uart_plugin_check_cnt, int, 0664);
 
 static int sig_unstable_reset_hpd_cnt;
 static int sig_unstable_reset_hpd_max = 5;
@@ -518,6 +523,10 @@ MODULE_PARM_DESC(pre_port, "pre_port");
 int scdc_tmds_try_max = 3;
 module_param(scdc_tmds_try_max, int, 0664);
 MODULE_PARM_DESC(scdc_tmds_try_max, "scdc_tmds_try_max");
+
+int share_with_uart_cfg = 7;
+module_param(share_with_uart_cfg, int, 0664);
+MODULE_PARM_DESC(share_with_uart_cfg, "share_with_uart_cfg");
 
 int do_hpd_reset_flag = 0;
 int wait_hpd_reset_max = 300;
@@ -2204,6 +2213,7 @@ static void Signal_status_init(void)
 /* ---------------------------------------------------------- */
 void HPD_controller(void)
 {
+	#if 0
 	uint32_t tmp_5v = 0;
 
 	tmp_5v = hdmirx_rd_top(TOP_HPD_PWR5V);
@@ -2304,6 +2314,8 @@ void HPD_controller(void)
 				rx.current_port_tx_5v_status = 0;
 		}
 	}
+	#endif
+	rx.current_port_tx_5v_status = (pwr_sts >> rx.port) & 1;
 	if (force_hdmi_5v_high)
 		rx.current_port_tx_5v_status = 1;
 }
@@ -2592,6 +2604,149 @@ void hdmirx_esm_hw_fault_detect(void)
 	}
 }
 #endif
+
+enum func_hdmi_uart_select {
+	func_hdmi = 0,
+	func_uart = 1,
+};
+
+unsigned char share_status[3] = {
+	func_hdmi,
+	func_hdmi,
+	func_hdmi,
+};
+
+static char * const hdmi_uart_state[] = {
+	"hu_det_none",
+	"hu_det_uart0",
+	"hu_det_uart1",
+	"hu_det_uart2",
+};
+
+void func_switch(unsigned int share_stat)
+{
+	struct pinctrl *p = NULL;
+	if ((share_stat & 7) == 0)
+		p = devm_pinctrl_get_select(hdmirx_dev, hdmi_uart_state[0]);
+	else if ((share_stat & 7) == 1)
+		p = devm_pinctrl_get_select(hdmirx_dev, hdmi_uart_state[1]);
+	else if ((share_stat & 7) == 2)
+		p = devm_pinctrl_get_select(hdmirx_dev, hdmi_uart_state[2]);
+	else if ((share_stat & 7) == 4)
+		p = devm_pinctrl_get_select(hdmirx_dev, hdmi_uart_state[3]);
+	if (IS_ERR(p))
+		rx_print("pinmux_setting fail, %ld\n", PTR_ERR(p));
+}
+
+#define GPIO_STATUS(a, b, c)\
+(((a << 0) & 1) | ((b << 1) & 2) | ((c << 2) & 4))
+
+void uart_plugin_monitor(void)
+{
+	int sda_sts[3];
+	static char sda_sts_a;
+	static char sda_sts_b;
+	static char sda_sts_c;
+	bool sts_change = false;
+	static unsigned int share_stat;
+	if (0 == share_with_uart_cfg)
+		return;
+	if (0 == hu_share_choise)
+		return;
+	/* force recover to I2c */
+	if ((pwr_sts & 1)
+		&& (share_status[0] != func_hdmi)) {
+		share_status[0] = func_hdmi;
+		sts_change = true;
+	}
+	if ((pwr_sts & 2)
+		&& (share_status[1] != func_hdmi)) {
+		share_status[1] = func_hdmi;
+		sts_change = true;
+	}
+	if ((pwr_sts & 4)
+		&& (share_status[2] != func_hdmi)) {
+		share_status[2] = func_hdmi;
+		sts_change = true;
+	}
+	sda_sts[0] = gpiod_get_value(g_uart_pin[0]);
+	sda_sts[1] = gpiod_get_value(g_uart_pin[1]);
+	sda_sts[2] = gpiod_get_value(g_uart_pin[2]);
+	if (hu_share_choise & 1) {
+		if ((0 == (pwr_sts & 1))
+			&& (sda_sts[0])
+			&& (share_status[0] == func_hdmi)) {
+			/*in case when there are two uart_hdmi connect,
+			one is in use, the other unsed sta_stat will
+			increase the whole time.*/
+			if (!share_stat)
+				sda_sts_a++;
+		} else if ((0 == (pwr_sts & 1))
+			&& (!sda_sts[0])
+			&& (sda_sts_a > 0)) {
+			sda_sts_a--;
+		}
+	}
+	if (hu_share_choise & 2) {
+		if ((0 == (pwr_sts & 2))
+			&& (sda_sts[1])
+			&& (share_status[1] == func_hdmi)) {
+			if (!share_stat)
+				sda_sts_b++;
+		} else if ((0 == (pwr_sts & 2))
+			&& (!sda_sts[1]) &&
+			(sda_sts_b > 0)) {
+			sda_sts_b--;
+		}
+	}
+	if (hu_share_choise & 4) {
+		if ((0 == (pwr_sts & 4))
+			&& (sda_sts[2])
+			&& (share_status[2] == func_hdmi)) {
+			if (!share_stat)
+				sda_sts_c++;
+		} else if ((0 == (pwr_sts & 4))
+			&& (!sda_sts[2])
+			&& (sda_sts_c > 0)) {
+			sda_sts_c--;
+		}
+	}
+	/*share_stat: must=0, if port A is in use,
+	port B/C won't take effect*/
+	share_stat = GPIO_STATUS(share_status[0],
+		share_status[1], share_status[2]);
+	if ((share_stat == 0)
+		&& (sda_sts_a > uart_plugin_check_cnt)) {
+		share_status[0] = func_uart;
+		sts_change = true;
+	} else if ((0 == sda_sts_a)
+		&& (share_status[0] == func_uart)) {
+		share_status[0] = func_hdmi;
+		sts_change = true;
+	}
+	if ((share_stat == 0)
+		&& (sda_sts_b > uart_plugin_check_cnt)) {
+		share_status[1] = func_uart;
+		sts_change = true;
+	} else if ((0 == sda_sts_b)
+		&& (share_status[1] == func_uart)) {
+		share_status[1] = func_hdmi;
+		sts_change = true;
+	}
+	if ((share_stat == 0)
+		&& (sda_sts_c > uart_plugin_check_cnt)) {
+		share_status[2] = func_uart;
+		sts_change = true;
+	} else if ((0 == sda_sts_c)
+		&& (share_status[2] == func_uart)) {
+		share_status[2] = func_hdmi;
+		sts_change = true;
+	}
+	share_stat = GPIO_STATUS(share_status[0],
+		share_status[1], share_status[2]);
+	if (sts_change)
+		func_switch(share_stat);
+}
 
 void esm_rst_monitor(void)
 {

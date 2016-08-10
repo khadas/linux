@@ -38,13 +38,13 @@
 /* #include <linux/amlogic/amports/canvas.h> */
 /* #include <mach/am_regs.h> */
 #include <linux/amlogic/amports/vframe.h>
+#include <linux/of_gpio.h>
 
 /* Local include */
 
 #include "hdmirx_drv.h"
 #include "hdmi_rx_reg.h"
 #include "hdmi_rx_eq.h"
-#include "uart_hdmi.h"
 
 #define TVHDMI_NAME				"hdmirx"
 #define TVHDMI_DRIVER_NAME		"hdmirx"
@@ -64,7 +64,8 @@ static dev_t	hdmirx_devno;
 static struct class	*hdmirx_clsp;
 /* static int open_flage; */
 struct hdmirx_dev_s *devp_hdmirx_suspend;
-
+unsigned int hu_share_choise;
+struct device *hdmirx_dev;
 struct delayed_work     hpd_dwork;
 struct workqueue_struct *hpd_wq;
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
@@ -101,6 +102,7 @@ module_param(pc_mode_en, int, 0664);
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
+struct gpio_desc *g_uart_pin[3];
 
 struct reg_map {
 	unsigned int phy_addr;
@@ -230,8 +232,9 @@ uint32_t set(uint32_t data, uint32_t mask, uint32_t value)
 void hdmirx_timer_handler(unsigned long arg)
 {
 	struct hdmirx_dev_s *devp = (struct hdmirx_dev_s *)arg;
-
-	hdmirx_hw_monitor();
+	uart_plugin_monitor();
+	if (rx.open_fg)
+		hdmirx_hw_monitor();
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
 }
@@ -258,11 +261,13 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 
 	hdmirx_hw_init(port);
 	/* timer */
+	#if 0
 	init_timer(&devp->timer);
 	devp->timer.data = (ulong)devp;
 	devp->timer.function = hdmirx_timer_handler;
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
+	#endif
 	rx.open_fg = 1;
 	rx_print("%s port:%x ok nosignal:%d\n", __func__, port, rx.no_signal);
 	return 0;
@@ -306,7 +311,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	rx.open_fg = 0;
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
-	del_timer_sync(&devp->timer);
+	/*del_timer_sync(&devp->timer);*/
 	hdmirx_hw_uninit();
 	hdmirx_hw_disable(0);
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
@@ -1019,7 +1024,6 @@ static void hdmirx_delete_device(int minor)
 }
 
 unsigned char *pEdid_buffer;
-
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1034,7 +1038,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	log_init(DEF_LOG_BUF_SIZE);
 	pEdid_buffer = (unsigned char *) pdev->dev.platform_data;
-
+	hdmirx_dev = &pdev->dev;
 	/* allocate memory for the per-device structure */
 	hdevp = kmalloc(sizeof(struct hdmirx_dev_s), GFP_KERNEL);
 	if (!hdevp) {
@@ -1146,6 +1150,18 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (tvin_reg_frontend(&hdevp->frontend) < 0)
 		rx_print("hdmirx: driver probe error!!!\n");
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+			"hdmiuart_share_cfg", &(hu_share_choise));
+	if (ret) {
+		pr_err("%s:don't find hu_cfg.\n", __func__);
+		hu_share_choise = 0;
+	} else if (hu_share_choise == 0) {
+		pr_err("%s:hu_cfg = 0.\n", __func__);
+		hu_share_choise = 0;
+	}
+	hu_share_choise &= share_with_uart_cfg;
+	rx_print("hu_share_choise = %d\n", hu_share_choise);
+
 	/* pinmux set */
 	if (pdev->dev.of_node) {
 		ret = of_property_read_string_index(pdev->dev.of_node,
@@ -1156,7 +1172,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 			rx_print("hdmirx: pinmux:%p, name:%s\n", pin, pin_name);
 		}
 	}
-
 	if (pdev->dev.of_node) {
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"rx_port_maps", &real_port_map);
@@ -1180,6 +1195,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 			pr_err("get hdmirx_ctrl_port fail.\n");
 	}
 
+	g_uart_pin[0] = of_get_named_gpiod_flags(pdev->dev.of_node,
+			"uart_scl_a_pin", 0, NULL);
+	g_uart_pin[1] = of_get_named_gpiod_flags(pdev->dev.of_node,
+			"uart_scl_b_pin", 0, NULL);
+	g_uart_pin[2] = of_get_named_gpiod_flags(pdev->dev.of_node,
+			"uart_scl_c_pin", 0, NULL);
 	/* hdmirx_hw_enable(); */
 
 	dev_set_drvdata(hdevp->dev, hdevp);
@@ -1256,6 +1277,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 	queue_delayed_work(hpd_wq, &hpd_dwork, msecs_to_jiffies(5));
 
 	hdmirx_hw_probe();
+
+	init_timer(&hdevp->timer);
+	hdevp->timer.data = (ulong)hdevp;
+	hdevp->timer.function = hdmirx_timer_handler;
+	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
+	add_timer(&hdevp->timer);
 
 	rx_print("hdmirx: driver probe ok\n");
 

@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/08/08"
+#define HDMIRX_VER "Ref.2016/08/10"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -602,6 +602,11 @@ extern int do_esm_rst_flag;
 extern int hdcp22_firmware_ok_flag;
 extern int force_hdcp14_en;
 extern int pre_port;
+extern int share_with_uart_cfg;
+extern unsigned int hu_share_choise;
+extern struct device *hdmirx_dev;
+extern struct gpio_desc *g_uart_pin[3];
+
 extern int esm_err_force_14;
 extern int pc_mode_en;
 extern int do_hpd_reset_flag;
@@ -688,6 +693,7 @@ irqreturn_t irq_handler(int irq, void *params);
  */
 extern enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
 extern void hdmirx_hw_monitor(void);
+extern void uart_plugin_monitor(void);
 extern bool hdmirx_hw_is_nosig(void);
 extern bool hdmirx_hw_pll_lock(void);
 extern void hdmirx_hw_init(enum tvin_port_e port);

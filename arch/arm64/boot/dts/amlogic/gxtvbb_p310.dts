@@ -328,9 +328,15 @@
 		compatible = "amlogic, hdmirx";
 		dev_name = "hdmirx";
 		status = "ok";
-		pinctrl-names = "hdmirx_pins";
+		pinctrl-names = "hdmirx_pins","hu_det_none",
+				"hu_det_uart0","hu_det_uart1","hu_det_uart2";
 		pinctrl-0 = <&hdmirx_pins>;
+		pinctrl-1 = <&hu_det_none>;
+		pinctrl-2 = <&hdmirx_pins &cha_uart_in>;
+		pinctrl-3 = <&hdmirx_pins &chb_uart_in>;
+		pinctrl-4 = <&hdmirx_pins &chc_uart_in>;
 		rx_port_maps = <0x3120>;
+		hdmiuart_share_cfg = <7>;
 		repeat = <0>;
 		interrupts = <0 56 1>;
 		hdmirx_addr_port = <0xda83e000>;
@@ -349,6 +355,9 @@
 			"xtal",
 			"fclk_div5";
 		hdmirx_id = <0>;
+		uart_scl_a_pin =  <&gpio       GPIOW_8       GPIO_ACTIVE_HIGH>;
+		uart_scl_b_pin =  <&gpio       GPIOW_12      GPIO_ACTIVE_HIGH>;
+		uart_scl_c_pin =  <&gpio       GPIOW_16      GPIO_ACTIVE_HIGH>;
  	};
 	tvafe {
 		compatible = "amlogic, tvafe";
@@ -1230,6 +1239,34 @@ hdmirx_pins: hdmirx_pins {
                         "GPIOW_13","GPIOW_14","GPIOW_15","GPIOW_16",
                         "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
         };
+	hu_det_none: hu_det_none {
+		amlogic,setmask = <6  0x3def780>,
+			<AO 0x3>;
+		amlogic,clrmask = <6  0x04210800>,
+			<10 0x0000001e>;
+		amlogic,pins = "GPIOW_5";
+	};
+	cha_uart_in: cha_uart_in {
+		amlogic,setmask = <6  0x00000800>,
+			<10  0x00000002>;
+		amlogic,clrmask = <6  0x00000600>,
+			<AO 0x33>;
+		amlogic,pins = "GPIOW_7","GPIOW_8";
+	};
+	chb_uart_in: chb_uart_in {
+		amlogic,setmask = <6  0x00010000>,
+			<10  0x00000004>;
+		amlogic,clrmask = <6  0x0000c000>,
+			<AO 0x33>;
+		amlogic,pins = "GPIOW_11","GPIOW_12";
+	};
+	chc_uart_in: chc_uart_in {
+		amlogic,setmask = <6  0x00200000>,
+			<10  0x00000008>;
+		amlogic,clrmask = <6  0x00180000>,
+			<AO 0x33>;
+		amlogic,pins = "GPIOW_15","GPIOW_16";
+	};
 	/*PWM-A*/
 	/*pwm_a_pins:pwm_a_pins{
 		amlogic,setmask=<10 0x200000>;
