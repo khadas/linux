@@ -2,4 +2,4 @@
 # Makefile for PWM
 #
 
-obj-$(CONFIG_GX_PWM)		+= pwm-gx.o
+obj-$(CONFIG_PWM_MESON)		+= pwm_meson.o pwm_meson_sysfs.o

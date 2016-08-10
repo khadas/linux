@@ -22,6 +22,8 @@
 #include <dt-bindings/gpio/txl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_txl.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 
 #include "mesontxl.dtsi"
 #include "mesontxl_p320-panel.dtsi"
@@ -169,6 +171,33 @@
 		clocks = <&clock CLK_81>;
 		clock-names = "ethclk81";
 		internal_phy=<1>;
+	};
+
+	pwm {
+		compatible = "amlogic, meson-pwm";
+		status = "okay";
+		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
+		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+				  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
+			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
+			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
+		reg = <0x0 0xc1108550 0x0 0x30>,
+		      <0x0 0xc8100550  0x0 0x10>;
+		clocks = <&clock CLK_XTAL>,
+			 <&clock CLK_VID_PLL>,
+			 <&clock CLK_FPLL_DIV4>,
+			 <&clock CLK_FPLL_DIV3>;
+		clock-names = "xtal",
+			      "vid_pll_clk",
+			      "fclk_div4",
+			      "fclk_div3";
+		clock-select 	 = <0x0>,<0x0>,<0x0>,<0x0>,
+			       	   <0x0>,<0x0>,<0x0>,<0x0>;
+		clock-select-new = <0x0>,<0x0>,<0x0>,<0x0>,
+		                   <0x0>,<0x0>,<0x0>,<0x0>,
+		                   <0x0>,<0x0>,<0x0>,<0x0>,
+		                   <0x0>,<0x0>,<0x0>,<0x0>;
 	};
 
 	sysled {

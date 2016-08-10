@@ -1,7 +1,7 @@
 /*
- * drivers/amlogic/pwm/pwm-gx.c
+ * drivers/amlogic/pwm/pwm-meson.c
  *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ * Copyright (C) 2016 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +14,10 @@
  * more details.
  *
 */
+
+#undef pr_fmt
+#define pr_fmt(fmt) "pwm: " fmt
+
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -32,80 +36,12 @@
 #include <linux/of_address.h>
 
 #include <linux/amlogic/cpu_version.h>
-
-#define REG_PWM_A			0x0
-#define REG_PWM_B			0x4
-#define REG_MISC_AB		0x8
-#define REG_DS_A_B			0xc
-
-#define REG_PWM_C			0x100
-#define REG_PWM_D			0x104
-#define REG_MISC_CD		0x108
-#define REG_DS_C_D			0x10c
-
-#define REG_PWM_E			0x170
-#define REG_PWM_F			0x174
-#define REG_MISC_EF		0x178
-#define REG_DS_E_F			0x17c
-
-#define REG_PWM_AO_A		0x0
-#define REG_PWM_AO_B		0x4
-#define REG_MISC_AO_AB		0x8
-#define REG_DS_AO_A_B		0xc
-
-#define FIN_FREQ		(24 * 1000)
-#define DUTY_MAX		1024
-
-#define AML_PWM_NUM		8
-#undef pr_fmt
-#define pr_fmt(fmt) "gx-pwm : " fmt
-
-
-enum pwm_channel {
-	PWM_A = 0,
-	PWM_B,
-	PWM_C,
-	PWM_D,
-	PWM_E,
-	PWM_F,
-	PWM_AO_A,
-	PWM_AO_B,
-};
+#include "pwm_meson.h"
 
 static DEFINE_SPINLOCK(aml_pwm_lock);
 
-/*pwm att*/
-struct aml_pwm_channel {
-	unsigned int pwm_hi;
-	unsigned int pwm_lo;
-	unsigned int pwm_pre_div;
 
-	unsigned int period_ns;
-	unsigned int duty_ns;
-	unsigned int pwm_freq;
-};
-
-/*pwm regiset att*/
-struct aml_pwm_variant {
-	u8 output_mask;
-};
-
-struct aml_pwm_chip {
-	struct pwm_chip chip;
-	void __iomem *base;
-	void __iomem *ao_base;
-	struct aml_pwm_variant variant;
-	u8 inverter_mask;
-
-	unsigned int clk_mask;
-	struct clk	*xtal_clk;
-	struct clk	*vid_pll_clk;
-	struct clk	*fclk_div4_clk;
-	struct clk	*fclk_div3_clk;
-
-};
-
-static void pwm_set_reg_bits(void __iomem  *reg,
+void pwm_set_reg_bits(void __iomem  *reg,
 						unsigned int mask,
 						const unsigned int val)
 {
@@ -116,12 +52,29 @@ static void pwm_set_reg_bits(void __iomem  *reg,
 	writel(tmp, reg);
 }
 
-static inline void pwm_write_reg(void __iomem *reg,
+void pwm_write_reg(void __iomem *reg,
 						const unsigned int  val)
 {
 	unsigned int tmp, orig;
 	orig = readl(reg);
 	tmp = orig & ~(0xffffffff);
+	tmp |= val;
+	writel(tmp, reg);
+};
+
+void pwm_clear_reg_bits(void __iomem *reg, const unsigned int val)
+{
+	unsigned int tmp, orig;
+	orig = readl(reg);
+	tmp = orig & ~val;
+	writel(tmp, reg);
+}
+
+void pwm_write_reg1(void __iomem *reg, const unsigned int  val)
+{
+	unsigned int tmp = 0, orig;
+	orig = readl(reg);
+	tmp = orig;
 	tmp |= val;
 	writel(tmp, reg);
 };
@@ -198,13 +151,21 @@ static int pwm_aml_request(struct pwm_chip *chip,
 	struct aml_pwm_chip *our_chip = to_aml_pwm_chip(chip);
 	struct aml_pwm_channel *our_chan;
 
-	if (!(our_chip->variant.output_mask & BIT(pwm->hwpwm))) {
-		dev_warn(chip->dev,
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+		if (!(our_chip->variant.output_mask_new & BIT(pwm->hwpwm))) {
+			dev_warn(chip->dev,
 			"tried to request PWM channel %d without output\n",
 			pwm->hwpwm);
-		return -EINVAL;
+			return -EINVAL;
+		}
+	} else {
+		if (!(our_chip->variant.output_mask & BIT(pwm->hwpwm))) {
+			dev_warn(chip->dev,
+			"tried to request PWM channel %d without output\n",
+			pwm->hwpwm);
+			return -EINVAL;
+		}
 	}
-
 	our_chan = devm_kzalloc(chip->dev, sizeof(*our_chan), GFP_KERNEL);
 	if (!our_chan)
 		return -ENOMEM;
@@ -221,6 +182,155 @@ static void pwm_aml_free(struct pwm_chip *chip,
 	pwm_set_chip_data(pwm, NULL);
 }
 
+static void pwm_gxbb_enable(struct aml_pwm_chip *our_chip,
+								unsigned int id)
+{
+	switch (id) {
+	case PWM_A:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_B:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(1 << 1), (1 << 1));
+		break;
+	case PWM_C:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_D:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 1), (1 << 1));
+		break;
+	case PWM_E:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_F:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 1), (1 << 1));
+		break;
+	case PWM_AO_A:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_AO_B:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 1), (1 << 1));
+		break;
+	default:
+	break;
+	}
+
+}
+
+/*
+ *do it for hardware defect,
+ * PWM_A and PWM_B enable bit should be setted together.
+*/
+static void pwm_gxtvbb_enable(struct aml_pwm_chip *our_chip,
+		unsigned int id)
+{
+	switch (id) {
+	case PWM_A:
+	case PWM_B:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(0x3 << 0), (0x3 << 0));
+		break;
+	case PWM_C:
+	case PWM_D:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(0x3 << 0), (0x3 << 0));
+		break;
+	case PWM_E:
+	case PWM_F:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(0x3 << 0), (0x3 << 0));
+		break;
+	case PWM_AO_A:
+	case PWM_AO_B:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(0x3 << 0), (0x3 << 0));
+		break;
+	default:
+	break;
+	}
+
+}
+
+static void pwm_txl_enable(struct aml_pwm_chip *our_chip,
+								unsigned int id)
+{
+	switch (id) {
+	case PWM_A:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_B:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(1 << 1), (1 << 1));
+		break;
+	case PWM_C:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_D:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 1), (1 << 1));
+		break;
+	case PWM_E:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_F:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 1), (1 << 1));
+		break;
+	case PWM_AO_A:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 0), (1 << 0));
+		break;
+	case PWM_AO_B:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 1), (1 << 1));
+	case PWM_A2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(1 << 25), (1 << 25));
+		break;
+	case PWM_B2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(1 << 24), (1 << 24));
+		break;
+	case PWM_C2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 25), (1 << 25));
+		break;
+	case PWM_D2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 24), (1 << 24));
+		break;
+	case PWM_E2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 25), (1 << 25));
+		break;
+	case PWM_F2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 24), (1 << 24));
+		break;
+	case PWM_AO_A2:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 25), (1 << 25));
+		break;
+	case PWM_AO_B2:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 24), (1 << 24));
+		break;
+	default:
+	break;
+	}
+}
+
+
 static int pwm_aml_enable(struct pwm_chip *chip,
 							struct pwm_device *pwm)
 {
@@ -229,75 +339,19 @@ static int pwm_aml_enable(struct pwm_chip *chip,
 	unsigned long flags;
 
 	spin_lock_irqsave(&aml_pwm_lock, flags);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
-		switch (id) {
-		case PWM_A:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
-							(1 << 0), (1 << 0));
-			break;
-		case PWM_B:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
-							(1 << 1), (1 << 1));
-			break;
-		case PWM_C:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
-							(1 << 0), (1 << 0));
-			break;
-		case PWM_D:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
-							(1 << 1), (1 << 1));
-			break;
-		case PWM_E:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
-							(1 << 0), (1 << 0));
-			break;
-		case PWM_F:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
-							(1 << 1), (1 << 1));
-			break;
-		case PWM_AO_A:
-			pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
-							(1 << 0), (1 << 0));
-			break;
-		case PWM_AO_B:
-			pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
-							(1 << 1), (1 << 1));
-			break;
-		default:
-		break;
-		}
-	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
-		switch (id) {
-		case PWM_A:
-		case PWM_B:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
-							(0x3 << 0), (0x3 << 0));
-			break;
-		case PWM_C:
-		case PWM_D:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
-							(0x3 << 0), (0x3 << 0));
-			break;
-		case PWM_E:
-		case PWM_F:
-			pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
-							(0x3 << 0), (0x3 << 0));
-			break;
-		case PWM_AO_A:
-		case PWM_AO_B:
-			pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
-							(0x3 << 0), (0x3 << 0));
-			break;
-		default:
-		break;
-		}
-	}
-	spin_unlock_irqrestore(&aml_pwm_lock, flags);
+	if (is_meson_gxbb_cpu())
+		pwm_gxbb_enable(our_chip, id);
+	else if (is_meson_gxtvbb_cpu())
+		pwm_gxtvbb_enable(our_chip, id);
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
+		pwm_txl_enable(our_chip, id);
 
+	spin_unlock_irqrestore(&aml_pwm_lock, flags);
 	return 0;
 }
 
-static void pwm_aml_disable(struct pwm_chip *chip, struct pwm_device *pwm)
+static void pwm_aml_disable(struct pwm_chip *chip,
+						struct pwm_device *pwm)
 {
 	struct aml_pwm_chip *our_chip = to_aml_pwm_chip(chip);
 	unsigned int id = pwm->hwpwm;
@@ -378,34 +432,13 @@ static int pwm_aml_clk(struct aml_pwm_chip *our_chip,
 	return 0;
 }
 
-
-static int pwm_aml_config(struct pwm_chip *chip,
-							struct pwm_device *pwm,
-							int duty_ns,
-							int period_ns)
+/*
+ * 8 base channels configuration for gxbb£¬gxtvbb and txl
+ */
+static void pwm_meson_config(struct aml_pwm_chip *our_chip,
+			struct aml_pwm_channel *our_chan,
+			unsigned int id)
 {
-	struct aml_pwm_chip *our_chip = to_aml_pwm_chip(chip);
-	struct aml_pwm_channel *our_chan = pwm_get_chip_data(pwm);
-	unsigned int id = pwm->hwpwm;
-	unsigned int offset;
-	int ret;
-
-	if ((~(our_chip->inverter_mask >> id) & 0x1))
-		duty_ns = period_ns - duty_ns;
-
-	if (period_ns > NSEC_PER_SEC)
-		return -ERANGE;
-
-	if (period_ns == our_chan->period_ns && duty_ns == our_chan->duty_ns)
-		return 0;
-
-	offset = id * 2;
-	ret = pwm_aml_clk(our_chip, pwm, duty_ns, period_ns, offset);
-	if (ret) {
-		dev_err(chip->dev, "tried to calc pwm freq err\n");
-		return -EINVAL;
-	}
-
 	switch (id) {
 	case PWM_A:
 		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
@@ -464,7 +497,7 @@ static int pwm_aml_config(struct pwm_chip *chip,
 		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
 			(0x7f << 16)|(1 << 23),
 			(our_chan->pwm_pre_div << 16)|(1 << 23));
-		pwm_write_reg(our_chip->base + REG_PWM_E,
+		pwm_write_reg(our_chip->base + REG_PWM_F,
 			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
 		break;
 	case PWM_AO_A:
@@ -490,6 +523,133 @@ static int pwm_aml_config(struct pwm_chip *chip,
 	default:
 	break;
 	}
+}
+
+/*
+ * Additional 8 channels configuration for txl
+ */
+static void pwm_meson_config_ext(struct aml_pwm_chip *our_chip,
+					struct aml_pwm_channel *our_chan,
+					unsigned int id)
+{
+	switch (id) {
+	case PWM_A2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+			(0x3 << 4),
+			(((our_chip->clk_mask)&0x3) << 4));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+			(0x7f << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
+		pwm_write_reg(our_chip->base + REG_PWM_A2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_B2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 2)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+			(0x7f << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
+		pwm_write_reg(our_chip->base + REG_PWM_B2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_C2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x3 << 4),
+			(((our_chip->clk_mask >> 4)&0x3) << 4));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x7f << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
+		pwm_write_reg(our_chip->base + REG_PWM_C2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_D2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 6)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+			(0x7f << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
+		pwm_write_reg(our_chip->base + REG_PWM_D2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_E2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+			(0x3 << 4),
+			(((our_chip->clk_mask >> 8)&0x3) << 4));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+			(0x7f << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
+		pwm_write_reg(our_chip->base + REG_PWM_E2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_F2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 10)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+			(0x7f << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
+		pwm_write_reg(our_chip->base + REG_PWM_F2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_AO_A2:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+			(0x3 << 4),
+			(((our_chip->clk_mask >> 12)&0x3) << 4));
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+			(0x7f << 8)|(1 << 15),
+			(our_chan->pwm_pre_div << 8)|(1 << 15));
+		pwm_write_reg(our_chip->ao_base + REG_PWM_AO_A2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	case PWM_AO_B2:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+			(0x3 << 6),
+			(((our_chip->clk_mask >> 14)&0x3) << 6));
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+			(0x7f << 16)|(1 << 23),
+			(our_chan->pwm_pre_div << 16)|(1 << 23));
+		pwm_write_reg(our_chip->ao_base + REG_PWM_AO_B2,
+			(our_chan->pwm_hi << 16) | (our_chan->pwm_lo));
+		break;
+	default:
+	break;
+	}
+
+}
+
+static int pwm_aml_config(struct pwm_chip *chip,
+							struct pwm_device *pwm,
+							int duty_ns,
+							int period_ns)
+{
+	struct aml_pwm_chip *our_chip = to_aml_pwm_chip(chip);
+	struct aml_pwm_channel *our_chan = pwm_get_chip_data(pwm);
+	unsigned int id = pwm->hwpwm;
+	unsigned int offset;
+	int ret;
+
+	if ((~(our_chip->inverter_mask >> id) & 0x1))
+		duty_ns = period_ns - duty_ns;
+
+	if (period_ns > NSEC_PER_SEC)
+		return -ERANGE;
+
+	if (period_ns == our_chan->period_ns && duty_ns == our_chan->duty_ns)
+		return 0;
+
+	offset = id * 2;
+	ret = pwm_aml_clk(our_chip, pwm, duty_ns, period_ns, offset);
+	if (ret) {
+		dev_err(chip->dev, "tried to calc pwm freq err\n");
+		return -EINVAL;
+	}
+
+	if (id < AML_PWM_NUM)
+		pwm_meson_config(our_chip, our_chan, id);
+	else
+		pwm_meson_config_ext(our_chip, our_chan, id);
 
 	our_chan->period_ns = period_ns;
 	our_chan->duty_ns = duty_ns;
@@ -505,11 +665,11 @@ static void pwm_aml_set_invert(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct aml_pwm_channel *our_chan = pwm_get_chip_data(pwm);
 
 	spin_lock_irqsave(&aml_pwm_lock, flags);
-	if (invert) {
+	if (invert)
 		our_chip->inverter_mask |= BIT(channel);
-	} else {
+	else
 		our_chip->inverter_mask &= ~BIT(channel);
-	}
+
 	pwm_aml_config(chip, pwm, our_chan->duty_ns,
 					our_chan->period_ns);
 
@@ -541,7 +701,7 @@ static const struct pwm_ops pwm_aml_ops = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id aml_pwm_matches[] = {
-	{ .compatible = "amlogic, gx-pwm", },
+	{ .compatible = "amlogic, meson-pwm", },
 	{},
 };
 
@@ -565,32 +725,63 @@ static int pwm_aml_parse_dt(struct aml_pwm_chip *chip)
 	if (IS_ERR(chip->ao_base))
 		return PTR_ERR(chip->ao_base);
 
-	of_property_for_each_u32(np, "pwm-outputs", prop, cur, val) {
-		if (val >= AML_PWM_NUM) {
-			dev_err(chip->chip.dev,
-				"%s: invalid channel index in pwm-outputs property\n",
-								__func__);
-			continue;
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+		of_property_for_each_u32(np,
+								"pwm-outputs-new",
+								prop,
+								cur,
+								val) {
+			if (val >= AML_PWM_NUM_NEW) {
+				dev_err(chip->chip.dev,
+				"%s: invalid channel index in pwm-outputs-new property\n",
+				__func__);
+				continue;
+			}
+			chip->variant.output_mask_new |= BIT(val);
 		}
-		chip->variant.output_mask |= BIT(val);
+	} else {
+		of_property_for_each_u32(np, "pwm-outputs", prop, cur, val) {
+			if (val >= AML_PWM_NUM) {
+				dev_err(chip->chip.dev,
+				"%s: invalid channel index in pwm-outputs property\n",
+				__func__);
+				continue;
+			}
+			chip->variant.output_mask |= BIT(val);
+		}
 	}
-
 	chip->xtal_clk = clk_get(chip->chip.dev, "xtal");
 	chip->vid_pll_clk = clk_get(chip->chip.dev, "vid_pll_clk");
 	chip->fclk_div4_clk = clk_get(chip->chip.dev, "fclk_div4");
 	chip->fclk_div3_clk = clk_get(chip->chip.dev, "fclk_div3");
 
-	of_property_for_each_u32(np, "clock-select", prop, cur, val) {
-		if (val >= AML_PWM_NUM) {
-			dev_err(chip->chip.dev,
-				"%s: invalid channel index in pwm-outputs property\n",
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+		of_property_for_each_u32(np,
+								"clock-select-new",
+								prop,
+								cur,
+								val) {
+			if (val >= AML_PWM_NUM_NEW) {
+				dev_err(chip->chip.dev,
+				"%s: invalid channel index in clock-select-new property\n",
 								__func__);
 			continue;
-		}
+			}
 		chip->clk_mask |= val<<(2 * i);
 		i++;
+		}
+	} else {
+		of_property_for_each_u32(np, "clock-select", prop, cur, val) {
+			if (val >= AML_PWM_NUM) {
+				dev_err(chip->chip.dev,
+				"%s: invalid channel index in clock-select property\n",
+				__func__);
+				continue;
+			}
+			chip->clk_mask |= val<<(2 * i);
+			i++;
+		}
 	}
-
 	return 0;
 }
 #else
@@ -605,6 +796,7 @@ static int pwm_aml_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aml_pwm_chip *chip;
 	int ret;
+	int ret_fs;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
@@ -615,8 +807,18 @@ static int pwm_aml_probe(struct platform_device *pdev)
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &pwm_aml_ops;
 	chip->chip.base = -1;
-	chip->chip.npwm = AML_PWM_NUM;
+	/*add for four new node*/
+	chip->variant.constant = 0;
+	chip->variant.blink_enable = 0;
+	chip->variant.blink_times = 0;
+	chip->variant.times = 0;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
+		chip->chip.npwm = AML_PWM_NUM_NEW;
+	else
+		chip->chip.npwm = AML_PWM_NUM;
 	chip->inverter_mask = BIT(AML_PWM_NUM) - 1;
+	/*chip->inverter_mask = BIT_ULL(AML_PWM_NUM) - 1;*/
 
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		ret = pwm_aml_parse_dt(chip);
@@ -631,13 +833,20 @@ static int pwm_aml_probe(struct platform_device *pdev)
 							sizeof(chip->variant));
 	}
 
-	platform_set_drvdata(pdev, chip);
-
 	ret = pwmchip_add(&chip->chip);
 	if (ret < 0) {
 		dev_err(dev, "failed to register PWM chip\n");
 		return ret;
 	}
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+		ret_fs = meson_pwm_sysfs_init(dev);
+		if (ret_fs) {
+			dev_err(dev, "pwm sysfs group creation failed\n");
+			return ret_fs;
+		}
+	}
+	platform_set_drvdata(pdev, chip);
 
 	return 0;
 }
@@ -689,7 +898,7 @@ static const struct dev_pm_ops pwm_aml_pm_ops = {
 
 static struct platform_driver pwm_aml_driver = {
 	.driver		= {
-		.name	= "aml-pwm",
+		.name	= "meson-pwm",
 		.owner	= THIS_MODULE,
 		.pm	= &pwm_aml_pm_ops,
 		.of_match_table = of_match_ptr(aml_pwm_matches),
