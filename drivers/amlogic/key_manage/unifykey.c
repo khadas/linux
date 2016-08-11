@@ -10,6 +10,8 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/efuse-amlogic.h>
 #include <linux/of.h>
+#include <linux/ctype.h>
+
 #include "unifykey.h"
 #include "amlkey_if.h"
 
@@ -29,7 +31,7 @@
 #define KEY_WRITE_PROHIBIT	(11<<4)
 
 #define SHA256_SUM_LEN	32
-
+#define DBG_DUMP_DATA	(0)
 static struct unifykey_dev_t *unifykey_devp;
 static dev_t unifykey_devno;
 static struct device *unifykey_device;
@@ -745,6 +747,17 @@ exit:
 	kfree(local_buf);
 	return ret;
 }
+#if (DBG_DUMP_DATA)
+static void _dump_data(char *buffer, unsigned int len, char *name)
+{
+	int i;
+	pr_err("%s(%s, %d)\n", __func__, name, len);
+	for (i = 0; i < len; i++)
+		pr_err("%02x ", buffer[i]);
+	pr_err("\n");
+	return;
+}
+#endif
 
 static ssize_t unifykey_write(struct file *file,
 	const char __user *buf,
@@ -771,6 +784,9 @@ static ssize_t unifykey_write(struct file *file,
 		ret =  -EFAULT;
 		goto exit;
 	}
+#if (DBG_DUMP_DATA)
+	_dump_data(local_buf, count, item->name);
+#endif
 	ret = key_unify_write(item->name, local_buf, count);
 	if (ret < 0)
 		goto exit;
@@ -1049,15 +1065,22 @@ static ssize_t write_store(struct class *cla,
 				__func__, __LINE__);
 			goto _out;
 		}
-		/* check '\n' and del */
-		if (buf[count - 1] == '\n') {
+		/* check string */
+		for (key_len = 0; key_len < count; key_len++)
+			if (!isascii(buf[key_len]))
+				break;
+		/* check '\n' and del while string */
+		if ((key_len == count) && (buf[count - 1] == '\n')) {
+			pr_err("%s()  is a string\n", __func__);
 			memcpy(keydata, buf, count-1);
 			key_len = count - 1;
 		} else {
 			memcpy(keydata, buf, count);
 			key_len = count;
 		}
-
+	#if (DBG_DUMP_DATA)
+		_dump_data(keydata, key_len, curkey->name);
+	#endif
 		ret = key_unify_write(curkey->name, keydata, key_len);
 		if (ret < 0) {
 			pr_err("%s() %d: key write fail\n",
