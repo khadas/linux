@@ -512,6 +512,8 @@ void setremotereg(const struct reg_s *r);
 #define REMOTE_IOC_SET_PAGEDOWN_KEY_SCANCODE _IOW('I', 138, u32)
 #define   REMOTE_IOC_SET_RELT_DELAY     _IOW('I', 140, u32)
 
+#define   REMOTE_IOC_GET_POWERKEY			 _IOR('I', 141, u32)
+
 #define REMOTE_HW_DECODER_STATUS_MASK       (0xf<<4)
 #define REMOTE_HW_DECODER_STATUS_OK         (0<<4)
 #define REMOTE_HW_DECODER_STATUS_TIMEOUT    (1<<4)

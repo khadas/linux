@@ -65,6 +65,7 @@ enum scpi_std_cmd {
 	SCPI_CMD_SENSOR_CFG_BOUNDS	= 0x1e,
 	SCPI_CMD_SENSOR_ASYNC_VALUE	= 0x1f,
 	SCPI_CMD_SET_USR_DATA = 0x20,
+	SCPI_CMD_GET_USR_DATA = 0x21,
 	SCPI_CMD_COUNT
 };
 
@@ -88,4 +89,5 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain);
 int scpi_get_sensor(char *name);
 int scpi_get_sensor_value(u16 sensor, u32 *val);
 int scpi_send_usr_data(u32 client_id, u32 *val, u32 size);
+int scpi_get_usr_data(u32 client_id, u32 *val, u32 size);
 #endif /*_SCPI_PROTOCOL_H_*/
