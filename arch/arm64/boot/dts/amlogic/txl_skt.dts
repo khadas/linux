@@ -98,7 +98,8 @@
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x0>;
+			multi-use;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
