@@ -723,4 +723,11 @@ extern bool hdmirx_tmds_34g(void);
 extern int cec_has_irq(void);
 extern void cecrx_hw_init(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
+
+/* vdac ctrl,adc/dac ref signal,cvbs out signal
+ * module index: atv demod:0x01; dtv demod:0x02;
+ * tvafe:0x4; dac:0x8, audio pll:0x10
+*/
+extern void vdac_enable(bool on, unsigned int module_sel);
+
 #endif  /* _TVHDMI_H */

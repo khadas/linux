@@ -253,6 +253,9 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp_hdmirx_suspend = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp->param.port = port;
 
+	/* should enable the adc ref signal for audio pll */
+	vdac_enable(1, 0x10);
+
 	hdmirx_hw_init(port);
 	/* timer */
 	init_timer(&devp->timer);
@@ -295,6 +298,9 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
+
+	/* should disable the adc ref signal for audio pll */
+	vdac_enable(0, 0x10);
 
 	/* open_flage = 0; */
 	rx.open_fg = 0;
