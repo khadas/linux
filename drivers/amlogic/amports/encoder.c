@@ -522,26 +522,26 @@ static struct BuffInfo_s amvenc_buffspec[] = {
 		},
 		.scale_buff = {
 			.buf_start = 0xf00000,
-			.buf_size = 0x200000,
+			.buf_size = 0x300000,
 		},
 		.inter_bits_info = {
-			.buf_start = 0x1100000,
+			.buf_start = 0x1200000,
 			.buf_size = 0x8000,
 		},
 		.inter_mv_info = {
-			.buf_start = 0x1108000,
+			.buf_start = 0x1208000,
 			.buf_size = 0x80000,
 		},
 		.intra_bits_info = {
-			.buf_start = 0x1188000,
+			.buf_start = 0x1288000,
 			.buf_size = 0x8000,
 		},
 		.intra_pred_info = {
-			.buf_start = 0x1190000,
+			.buf_start = 0x1290000,
 			.buf_size = 0x80000,
 		},
 		.qp_info = {
-			.buf_start = 0x1210000,
+			.buf_start = 0x1310000,
 			.buf_size = 0x8000,
 		}
 #ifdef USE_VDEC2
@@ -1329,7 +1329,8 @@ static void mfdin_basic(u32 input, u8 iformat,
 #ifdef CONFIG_AM_GE2D
 static int scale_frame(struct encode_wq_s *wq,
 	struct encode_request_s *request,
-	struct config_para_ex_s *ge2d_config)
+	struct config_para_ex_s *ge2d_config,
+	u32 src_addr, bool canvas)
 {
 	struct ge2d_context_s *context = encode_manager.context;
 	int src_top, src_left, src_width, src_height;
@@ -1344,38 +1345,58 @@ static int scale_frame(struct encode_wq_s *wq,
 	src_left = request->crop_left;
 	src_width = request->src_w - src_left - request->crop_right;
 	src_height = request->src_h - src_top - request->crop_bottom;
-	if ((request->fmt == FMT_NV21) || (request->fmt == FMT_NV12)) {
-		src_canvas_w =  ((request->src_w + 31) >> 5) << 5;
-		canvas_config(ENC_CANVAS_OFFSET + 9,
-			wq->mem.dct_buff_start_addr,
-			src_canvas_w, src_h,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		canvas_config(ENC_CANVAS_OFFSET + 10,
-			wq->mem.dct_buff_start_addr + src_canvas_w*src_h,
-			src_canvas_w , src_h / 2,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		src_canvas = ((ENC_CANVAS_OFFSET + 10) << 8) |
-			(ENC_CANVAS_OFFSET + 9);
-		input_format =  GE2D_FORMAT_M24_NV21;
+	if (canvas) {
+		if ((request->fmt == FMT_NV21)
+			|| (request->fmt == FMT_NV12)) {
+			src_canvas = src_addr & 0xffff;
+			input_format = GE2D_FORMAT_M24_NV21;
+		} else {
+			src_canvas = src_addr & 0xffffff;
+			input_format = GE2D_FORMAT_M24_YUV420;
+		}
 	} else {
-		src_canvas_w =  ((request->src_w + 63) >> 6) << 6;
-		canvas_config(ENC_CANVAS_OFFSET + 9,
-			wq->mem.dct_buff_start_addr,
-			src_canvas_w, src_h,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		canvas_config(ENC_CANVAS_OFFSET + 10,
-			wq->mem.dct_buff_start_addr + src_canvas_w*src_h,
-			src_canvas_w / 2, src_h / 2,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		canvas_config(ENC_CANVAS_OFFSET + 11,
-			wq->mem.dct_buff_start_addr +
-			src_canvas_w * src_h * 5 / 4,
-			src_canvas_w / 2 , src_h / 2,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		src_canvas = ((ENC_CANVAS_OFFSET + 11) << 16) |
-			((ENC_CANVAS_OFFSET + 10) << 8) |
-			(ENC_CANVAS_OFFSET + 9);
-		input_format =  GE2D_FORMAT_M24_YUV420;
+		if ((request->fmt == FMT_NV21)
+			|| (request->fmt == FMT_NV12)) {
+			src_canvas_w =
+				((request->src_w + 31) >> 5) << 5;
+			canvas_config(ENC_CANVAS_OFFSET + 9,
+				src_addr,
+				src_canvas_w, src_h,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			canvas_config(ENC_CANVAS_OFFSET + 10,
+				src_addr + src_canvas_w * src_h,
+				src_canvas_w, src_h / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			src_canvas =
+				((ENC_CANVAS_OFFSET + 10) << 8)
+				| (ENC_CANVAS_OFFSET + 9);
+			input_format = GE2D_FORMAT_M24_NV21;
+		} else {
+			src_canvas_w =
+				((request->src_w + 63) >> 6) << 6;
+			canvas_config(ENC_CANVAS_OFFSET + 9,
+				src_addr,
+				src_canvas_w, src_h,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			canvas_config(ENC_CANVAS_OFFSET + 10,
+				src_addr + src_canvas_w * src_h,
+				src_canvas_w / 2, src_h / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			canvas_config(ENC_CANVAS_OFFSET + 11,
+				src_addr + src_canvas_w * src_h * 5 / 4,
+				src_canvas_w / 2, src_h / 2,
+				CANVAS_ADDR_NOWRAP,
+				CANVAS_BLKMODE_LINEAR);
+			src_canvas =
+				((ENC_CANVAS_OFFSET + 11) << 16) |
+				((ENC_CANVAS_OFFSET + 10) << 8) |
+				(ENC_CANVAS_OFFSET + 9);
+			input_format = GE2D_FORMAT_M24_YUV420;
+		}
 	}
 	dst_canvas_w =  ((dst_w + 31) >> 5) << 5;
 	canvas_config(ENC_CANVAS_OFFSET + 6,
@@ -1383,8 +1404,8 @@ static int scale_frame(struct encode_wq_s *wq,
 		dst_canvas_w, dst_h,
 		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 	canvas_config(ENC_CANVAS_OFFSET + 7,
-		wq->mem.scaler_buff_start_addr + dst_canvas_w*dst_h,
-		dst_canvas_w , dst_h / 2,
+		wq->mem.scaler_buff_start_addr + dst_canvas_w * dst_h,
+		dst_canvas_w, dst_h / 2,
 		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 	dst_canvas = ((ENC_CANVAS_OFFSET + 7) << 8) |
 		(ENC_CANVAS_OFFSET + 6);
@@ -1394,7 +1415,7 @@ static int scale_frame(struct encode_wq_s *wq,
 	ge2d_config->dst_xy_swap = 0;
 	canvas_read(src_canvas & 0xff, &cs0);
 	canvas_read((src_canvas >> 8) & 0xff, &cs1);
-	canvas_read((src_canvas>>16) & 0xff, &cs2);
+	canvas_read((src_canvas >> 16) & 0xff, &cs2);
 	ge2d_config->src_planes[0].addr = cs0.addr;
 	ge2d_config->src_planes[0].w = cs0.width;
 	ge2d_config->src_planes[0].h = cs0.height;
@@ -1465,7 +1486,8 @@ static s32 set_input_format(struct encode_wq_s *wq,
 	picsize_x = ((wq->pic.encoder_width + 15) >> 4) << 4;
 	picsize_y = ((wq->pic.encoder_height + 15) >> 4) << 4;
 	oformat = 0;
-	if ((request->type == LOCAL_BUFF) || (request->type == PHYSICAL_BUFF)) {
+	if ((request->type == LOCAL_BUFF)
+		|| (request->type == PHYSICAL_BUFF)) {
 		if (request->type == LOCAL_BUFF) {
 			if (request->flush_flag & AMVENC_FLUSH_FLAG_INPUT)
 				dma_flush(wq->mem.dct_buff_start_addr,
@@ -1473,13 +1495,18 @@ static s32 set_input_format(struct encode_wq_s *wq,
 			if (request->scale_enable) {
 #ifdef CONFIG_AM_GE2D
 				struct config_para_ex_s ge2d_config;
+				u32 src_addr =
+					wq->mem.dct_buff_start_addr;
 				memset(&ge2d_config, 0,
 					sizeof(struct config_para_ex_s));
 				if (request->flush_flag &
 					AMVENC_FLUSH_FLAG_INPUT) {
 					int scale_size =
-						scale_frame(wq, request,
-							&ge2d_config);
+						scale_frame(
+							wq, request,
+							&ge2d_config,
+							src_addr,
+							false);
 					if (scale_size > 0)
 						cache_flush(
 						wq->mem.scaler_buff_start_addr,
@@ -1488,6 +1515,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 #else
 				enc_pr(LOG_ERROR,
 					"Warning: need enable ge2d for scale frame!\n");
+				return -1;
 #endif
 				iformat = 2;
 				r2y_en = 0;
@@ -1497,6 +1525,29 @@ static s32 set_input_format(struct encode_wq_s *wq,
 				goto MFDIN;
 			} else {
 				input = wq->mem.dct_buff_start_addr;
+			}
+		} else {
+			picsize_y = wq->pic.encoder_height;
+			if (request->scale_enable) {
+#ifdef CONFIG_AM_GE2D
+				struct config_para_ex_s ge2d_config;
+				memset(&ge2d_config, 0,
+					sizeof(struct config_para_ex_s));
+				scale_frame(
+					wq, request,
+					&ge2d_config,
+					input, false);
+				iformat = 2;
+				r2y_en = 0;
+				input = ((ENC_CANVAS_OFFSET + 7) << 8) |
+						(ENC_CANVAS_OFFSET + 6);
+				ret = 0;
+				goto MFDIN;
+#else
+				enc_pr(LOG_ERROR,
+					"Warning: need enable ge2d for scale frame!\n");
+				return -1;
+#endif
 			}
 		}
 		if ((request->fmt <= FMT_YUV444_PLANE) ||
@@ -1605,6 +1656,27 @@ static s32 set_input_format(struct encode_wq_s *wq,
 		ret = 0;
 	} else if (request->type == CANVAS_BUFF) {
 		r2y_en = 0;
+		if (request->scale_enable) {
+#ifdef CONFIG_AM_GE2D
+			struct config_para_ex_s ge2d_config;
+			memset(&ge2d_config, 0,
+				sizeof(struct config_para_ex_s));
+				scale_frame(
+				wq, request,
+				&ge2d_config,
+				input, true);
+			iformat = 2;
+			r2y_en = 0;
+			input = ((ENC_CANVAS_OFFSET + 7) << 8) |
+				(ENC_CANVAS_OFFSET + 6);
+			ret = 0;
+			goto MFDIN;
+#else
+			enc_pr(LOG_ERROR,
+				"Warning: need enable ge2d for scale frame!\n");
+			return -1;
+#endif
+		}
 		if (request->fmt == FMT_YUV422_SINGLE) {
 			iformat = 0;
 			input = input & 0xff;
