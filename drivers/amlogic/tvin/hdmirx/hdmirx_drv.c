@@ -468,10 +468,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	prop->trans_fmt = TVIN_TFMT_2D;
 	if (hdmirx_hw_get_3d_structure(&_3d_structure,
 		&_3d_ext_data) >= 0) {
-		if (_3d_structure == 0x0) {
-			/* frame packing */
-			prop->trans_fmt = TVIN_TFMT_3D_FP;
-		} else if (_3d_structure == 0x1) {
+		if (_3d_structure == 0x1) {
 			/* field alternative */
 			prop->trans_fmt = TVIN_TFMT_3D_FA;
 		} else if (_3d_structure == 0x2) {
