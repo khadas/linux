@@ -1474,7 +1474,6 @@ if (report->id == ADPCM_AUDIO_REPORT_ID_0 && data[2] == 0) {
 			}
 		}
 	}
-
 	if (report->id == ADPCM_AUDIO_REPORT_ID_1
 			|| report->id == ADPCM_AUDIO_REPORT_ID_2
 			|| report->id == ADPCM_AUDIO_REPORT_ID_3){
@@ -1484,11 +1483,14 @@ if (report->id == ADPCM_AUDIO_REPORT_ID_0 && data[2] == 0) {
 		/* pr_err("Report size %d", size); */
 		audio_dec(&data[1], PACKET_TYPE_ADPCM, size - 1);
 		/* we've handled the event */
-		return 1;
+		return -1;
 	}
 
-	/* let the event through for regular input processing */
-	return 0;
+
+	if (report->id == ADPCM_AUDIO_REPORT_ID_0)
+		return -1;
+	else
+		return 0;
 }
 
 static int dia_probe(struct hid_device *hdev, const struct hid_device_id *id)
