@@ -784,6 +784,12 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 	return;
 }
 
+void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp)
+{
+	unsigned int offset = devp->addr_offset;
+	wr_bits(offset, VDIN_INTF_WIDTHM1, 3, 24, 2);
+}
+
 /*
    this fucntion will set the bellow parameters of devp:
    1.h_active

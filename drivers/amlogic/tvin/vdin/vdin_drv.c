@@ -847,6 +847,9 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_set_hvscale(devp);
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		vdin_set_bitdepth(devp);
+	/* txl new add fix for hdmi switch resolution cause cpu holding */
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)
+		vdin_fix_nonstd_vsync(devp);
 
 #ifdef CONFIG_AML_RDMA
 	if (rdma_enable && devp->rdma_handle > 0)
