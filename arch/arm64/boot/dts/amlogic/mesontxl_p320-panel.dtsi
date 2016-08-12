@@ -89,10 +89,10 @@
 			power_off_step = <2 0 0 10 /* signal disable */
 					0 0 0 100 /* panel power off */
 					0xff 0 0 0>; /* type, index, value, delay */
-			backlight_index = <0>;
+			backlight_index = <3>;
 		};
 		vbyone_1{
-			model_name = "public_1region";
+			model_name = "INL_V580DJ2";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
 			range_setting = <4240 4800 2200 2790 552000000 632000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
@@ -106,7 +106,7 @@
 			power_off_step = <2 0 0 10 /* signal disable */
 					0 0 0 100 /* panel power off */
 					0xff 0 0 0>; /* type, index, value, delay */
-			backlight_index = <0>;
+			backlight_index = <3>;
 		};
 		vbyone_2{
 			model_name = "public_2region";
@@ -123,24 +123,26 @@
 			power_off_step = <2 0 0 10 /* signal disable */
 					0 0 0 100 /* panel power off */
 					0xff 0 0 0>; /* type, index, value, delay */
-			backlight_index = <0>;
+			backlight_index = <3>;
 		};
 		vbyone_3{
-			model_name = "public_1region";
+			model_name = "BOE_HV550QU2";
 			interface = "vbyone"; /* lcd_interface(lvds, vbyone) */
 			basic_setting = <3840 2160 4400 2250 10 16 9>; /* h_active, v_active, h_period, v_period, lcd_bits, screen_widht, screen_height */
-			range_setting = <4240 4800 2200 2790 552000000 632000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
-			lcd_timing = <33 477 0 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
-			clk_attr = <1 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
-			vbyone_attr = <8 1 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
+			range_setting = <4240 4800 2200 2760 560000000 624000000>; /* h_period_min,max, v_period_min,max, pclk_min,max */
+			lcd_timing = <33 477 1 6 65 0>; /* hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol */
+			clk_attr = <2 0 1 0>; /* fr_adj_type(0=clock, 1=htotal, 2=vtotal), clk_ss_level, clk_auto_generate, pixel_clk(unit in Hz) */
+			vbyone_attr = <8 2 4 4>; /* lane_count, region_num, byte_mode, color_fmt */
 			phy_attr=<3 0>; /* vswing_level, preemphasis_level */
 			power_on_step = <0 0 1 20 /* panel power on */
+					0 1 0 10  /* 3d_disable */
 					2 0 0 10   /* signal enable */
 					0xff 0 0 0>; /* type, index, value, delay */
 			power_off_step = <2 0 0 10 /* signal disable */
+					0 1 2 0   /* 3d_disable */
 					0 0 0 100 /* panel power off */
 					0xff 0 0 0>; /* type, index, value, delay */
-			backlight_index = <0>;
+			backlight_index = <3>;
 		};
 	}; /* end of lcd */
 
@@ -205,7 +207,7 @@
 
 		backlight_0{
 			index = <0>;
-			bl_name = "backlight_0";
+			bl_name = "backlight_pwm";
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
@@ -221,7 +223,7 @@
 		};
 		backlight_1{
 			index = <1>;
-			bl_name = "backlight_1";
+			bl_name = "backlight_pwm_vs";
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
@@ -237,7 +239,7 @@
 		};
 		backlight_2{
 			index = <2>;
-			bl_name = "backlight_2";
+			bl_name = "backlight_pwm_combo";
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
 
@@ -251,6 +253,24 @@
 			bl_pwm_combo_port = "PWM_B","PWM_C"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			bl_pwm_combo_attr = <1 180 100 25
 					     1 18000 100 20>; /* pwm_method, pwm_freq, duty_max, duty_min */
+			bl_pwm_combo_power = <1 0 2 0 10 10>; /* pwm0_gpio_index, pwm0_gpio_off, pwm1_gpio_index, pwm1_gpio_off, pwm_on_delay, pwm_off_delay */
+		};
+		backlight_3{
+			index = <3>;
+			bl_name = "backlight_pwm_combo";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 128 102>; /* max, min, mid, mid_mapping */
+
+			bl_ctrl_method = <2>; /* 1=pwm, 2=pwm_combo */
+			bl_power_attr = <0 1 0 410 110>; /* en_gpio_index, on_value, off_value, on_delay, off_delay */
+
+			/* pwm_method: 0=negative, 1=positive */
+			/* pwm_freq: pwm_vs: 1~4(vfreq multiple), other pwm: real freq(unit: Hz) */
+			/* duty_max, duty_min: unit in % */
+			bl_pwm_combo_level_mapping = <255 10 0 0>; /* level_max, level_min */
+			bl_pwm_combo_port = "PWM_B","PWM_C"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
+			bl_pwm_combo_attr = <1 180 100 25
+					     1 18000 90 90>; /* pwm_method, pwm_freq, duty_max, duty_min */
 			bl_pwm_combo_power = <1 0 2 0 10 10>; /* pwm0_gpio_index, pwm0_gpio_off, pwm1_gpio_index, pwm1_gpio_off, pwm_on_delay, pwm_off_delay */
 		};
 	};

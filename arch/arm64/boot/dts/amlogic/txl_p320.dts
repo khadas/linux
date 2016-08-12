@@ -43,7 +43,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x1000000 0x0 0x3f000000>;
+		linux,usable-memory = <0x0 0x1000000 0x0 0x7f000000>;
 	};
 
 	reserved-memory {
@@ -83,6 +83,13 @@
 			//no-map;
 		};
 
+		demod_reserved:linux,demod {
+			compatible = "amlogic, demod-mem";
+			size = <0x0 0x600000>; //20m
+			multi-use;
+			//no-map;
+		};
+
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
 			size = <0x0 0x2000000>;
@@ -94,7 +101,6 @@
 			size = <0x0 0x0>;
 			multi-use;
 		};
-
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -147,11 +153,41 @@
 		//};
 	};
 
+	ethmac: ethernet@0xc9410000 {
+		compatible = "amlogic, gxbb-rmii-dwmac";
+		reg = <0x0 0xc9410000 0x0 0x10000
+		0x0 0xc8834540 0x0 0x8
+		0x0 0xc8834558 0x0 0xc>;
+		interrupts = <0 8 1>;
+		phy-mode= "rmii";
+		mc_val = <0x1800>;
+		resets = <&clock GCLK_IDX_ETHERNET>;
+		reset-names = "ethpower";
+		interrupt-names = "macirq";
+		clocks = <&clock CLK_81>;
+		clock-names = "ethclk81";
+		internal_phy=<1>;
+	};
+
 	sysled {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
 		status = "disable";
 		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
+	};
+
+	avin_detect {
+		compatible = "amlogic, avin_detect";
+		status = "okay";
+		interrupts = <0 65 1
+			      0 66 1>;
+		pinctrl-names = "avin_gpio_disable_pullup";
+		pinctrl-0 = <&avin_gpio_disable_pull>;
+		avin1_pin =  <&gpio    GPIODV_8    GPIO_ACTIVE_HIGH>;
+		avin2_pin =  <&gpio    GPIODV_7    GPIO_ACTIVE_HIGH>;
+		detect_interval_length = <100>;
+		set_detect_times = <5>;
+		set_fault_tolerance = <1>;
 	};
 
 	meson-vout {
@@ -380,6 +416,16 @@
 		gamma_en = <1>;/*1:enabel ;0:disable*/
 		wb_en = <1>;/*1:enabel ;0:disable*/
 		cm_en = <1>;/*1:enabel ;0:disable*/
+	};
+
+	aml_atv_demod {
+		compatible = "amlogic, aml_atv_demod";
+		dev_name = "aml_atv_demod";
+		status = "okay";
+		pinctrl-names="atvdemod_agc";
+		pinctrl-0=<&atvdemod_agc>;
+		reg = <0x0 0xc8840000 0x0 0x2000>;
+		reg_23cf = <0x88188832>;/*default:0x88188832;r840 on haier:0x48188832*/
 	};
 
 	hdmirx {
@@ -1104,6 +1150,41 @@
 		};
 	};
 
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "okay";
+		/*"parallel","serial","disable"*/
+		ts2 = "parallel";
+		ts2_control = <0>;
+		ts2_invert = <0>;
+		resets = <&clock GCLK_IDX_DEMUX
+				&clock GCLK_IDX_ASYNC_FIFO
+				&clock GCLK_IDX_AHB_ARB0
+				&clock GCLK_IDX_HIU_PARSER_TOP>;
+		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
+	dvbfe {
+		compatible = "amlogic, dvbfe";
+		dev_name = "dvbfe";
+		status = "okay";
+		dtv_demod0 = "AMLDEMOD";
+		fe0_dtv_demod = <0>;
+		fe0_ts = <2>;
+		fe0_dev = <0>;
+		dtv_demod0_mem = <0>;
+		dtv_demod0_spectrum = <1>;
+		memory-region = <&demod_reserved>;
+		tuner0 = "si2151_tuner";
+		tuner0_i2c_adap_id = <2>;
+		tuner0_i2c_addr = <0x60>;
+		//tuner0_reset_value = <0>;
+		//tuner0_reset_gpio =  "GPIOY_10" ;  /*GPIOX_8   76*/
+		fe0_tuner = <0>;
+		atv_demod0 = "aml_atv_demod";
+		fe0_atv_demod = <0>;
+	};
+
 	thermal-zones {
 		soc_thermal {
 			polling-delay = <1000>;
@@ -1175,12 +1256,11 @@
 
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<4 0x00000780>;
-		amlogic,clrmask=<4 0x0000000e
-				 3 0x001c0000>;
-		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_14";
+		amlogic,setmask=<4 0x00000740>;
+		amlogic,clrmask=<4 0x0000000c
+				 3 0x021c0000>;
+		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_15";
 	};
-
 	audio_spdif_pins:audio_pin1{
 		amlogic,setmask=<3 0x40000000>; /*spdif_out*/
 		amlogic,clrmask=<3 0x00200000>;
