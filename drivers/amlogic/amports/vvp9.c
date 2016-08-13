@@ -2039,7 +2039,6 @@ static  int  compute_losless_comp_header_size(int width, int height)
 
 static void init_buff_spec(struct BuffInfo_s *buf_spec)
 {
-	void *mem_start_virt;
 	buf_spec->ipp.buf_start = buf_spec->start_adr;
 	buf_spec->sao_abv.buf_start =
 		buf_spec->ipp.buf_start + buf_spec->ipp.buf_size;
@@ -2104,11 +2103,6 @@ static void init_buff_spec(struct BuffInfo_s *buf_spec)
 				buf_spec->rpm.buf_size;
 		}
 	}
-	mem_start_virt = codec_mm_phys_to_virt(buf_spec->dblk_para.buf_start);
-	if (mem_start_virt)
-		memset(mem_start_virt, 0, buf_spec->dblk_para.buf_size);
-	else
-		pr_err("mem_start_virt failed\n");
 
 	if (debug) {
 		pr_info("%s workspace (%x %x) size = %x\n", __func__,
