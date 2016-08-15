@@ -540,6 +540,7 @@ enum edid_list_e {
 	EDID_LIST_4K,
 	EDID_LIST_DOMY,
 	EDID_LIST_V2,
+	EDID_LIST_ATMOS,
 	EDID_LIST_NUM
 };
 
