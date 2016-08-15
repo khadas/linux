@@ -1524,6 +1524,7 @@ static void vh264_isr(void)
 				if (fixed_frame_rate_flag && !pts_discontinue &&
 					(fixed_frame_rate_check_count
 							> idr_num) &&
+					pts_valid_save &&
 					(abs(pts_inc_by_duration(NULL, NULL)
 					 - pts)
 					 > DUR2PTS(frame_dur))) {
