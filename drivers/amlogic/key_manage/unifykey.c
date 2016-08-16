@@ -944,6 +944,7 @@ static ssize_t name_store(struct class *cla,
 	int index, key_cnt;
 	struct key_item_t *unifykey = NULL;
 	size_t query_name_len;
+	size_t reval;
 
 	if (count >= KEY_UNIFY_NAME_LEN)
 		count = KEY_UNIFY_NAME_LEN - 1;
@@ -969,6 +970,8 @@ static ssize_t name_store(struct class *cla,
 		name,
 		(int)query_name_len);
 
+	curkey = NULL;
+
 	for (index = 0; index < key_cnt; index++) {
 		unifykey = unifykey_find_item_by_id(index);
 		if (unifykey != NULL) {
@@ -987,8 +990,9 @@ static ssize_t name_store(struct class *cla,
 	}
 	if (!IS_ERR_OR_NULL(name))
 		kfree(name);
+	reval =  count+1;
 
-	return count;
+	return reval;
 }
 
 static ssize_t read_show(struct class *cla,
