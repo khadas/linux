@@ -19,7 +19,6 @@
 /* Linux Headers */
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/compat.h>
 #include <linux/fb.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
@@ -32,7 +31,9 @@
 #include <linux/of_fdt.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
-
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
 /* Amlogic Headers */
 #include <linux/amlogic/ge2d/ge2d.h>
 #include <linux/amlogic/ge2d/ge2d_cmd.h>
@@ -123,10 +124,13 @@ static ssize_t log_level_store(struct class *cla,
 static bool command_valid(unsigned int cmd)
 {
 	bool ret = false;
-
+#ifdef CONFIG_COMPAT
 	ret = (cmd <= GE2D_CONFIG_EX32 &&
 		cmd >= GE2D_ANTIFLICKER_ENABLE);
-
+#else
+	ret = (cmd <= GE2D_CONFIG_EX &&
+		cmd >= GE2D_ANTIFLICKER_ENABLE);
+#endif
 	return ret;
 }
 
@@ -152,10 +156,12 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	struct config_para_s ge2d_config;
 	struct ge2d_para_s para;
 	struct config_para_ex_s ge2d_config_ex;
-	struct compat_config_para_s __user *uf;
 	int ret = 0;
+#ifdef CONFIG_COMPAT
+	struct compat_config_para_s __user *uf;
 	int r = 0;
 	int i, j;
+#endif
 	void __user *argp = (void __user *)args;
 
 	if (!command_valid(cmd))
@@ -169,6 +175,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		ret = copy_from_user(&ge2d_config,
 				argp, sizeof(struct config_para_s));
 		break;
+#ifdef CONFIG_COMPAT
 	case GE2D_CONFIG32:
 		uf = (struct compat_config_para_s *)argp;
 		r = get_user(ge2d_config.src_dst_type, &uf->src_dst_type);
@@ -200,6 +207,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		}
 
 		break;
+#endif
 	case GE2D_CONFIG_EX:
 		ret = copy_from_user(&ge2d_config_ex, argp,
 				sizeof(struct config_para_ex_s));
@@ -215,7 +223,9 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 
 	switch (cmd) {
 	case GE2D_CONFIG:
+#ifdef CONFIG_COMPAT
 	case GE2D_CONFIG32:
+#endif
 		ret = ge2d_context_config(context, &ge2d_config);
 		break;
 	case GE2D_CONFIG_EX:
