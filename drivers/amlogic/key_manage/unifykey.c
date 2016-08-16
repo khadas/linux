@@ -992,6 +992,7 @@ static ssize_t name_store(struct class *cla,
 	}
 	if (!IS_ERR_OR_NULL(name))
 		kfree(name);
+	reval =  count+1;
 
 	return reval;
 }
