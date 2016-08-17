@@ -236,6 +236,8 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 			/*tx_phase set default value first*/
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 				pdata->tx_phase = 1;
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)
+				pdata->tx_delay = 3;
 			SD_PARSE_U32_PROP_DEC(child, "tx_phase",
 						prop, pdata->tx_phase);
 		}
