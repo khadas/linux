@@ -3156,12 +3156,21 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		node->amlvideo2_pool_size + 1,
 		(struct vframe_s **)&(node->amlvideo2_pool_ready[0]));
 		node->video_blocking = false;
+		node->tmp_vf = NULL;
 		pr_err("video blocking need to reset@!!!!!\n");
 		return 0;
 	}
 
 	if (!fh->is_streamed_on) {
 		dpr_err(node->vid_dev, 1, "dev doesn't stream on\n");
+		if (AML_RECEIVER_NONE != node->r_type) {
+			if (node->tmp_vf) {
+				vf_inqueue(node->tmp_vf, node);
+				node->tmp_vf = NULL;
+			}
+		} else {
+			node->tmp_vf = NULL;
+		}
 		while (vf_peek(node->recv.name) &&
 			(!vfq_full(&node->q_ready))) {
 			vf = vf_get(node->recv.name);
