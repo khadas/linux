@@ -1324,6 +1324,11 @@ RESTART:
 		pre_scaler_en) {
 		filter->vpp_pre_vsc_en = 1;
 		filter->vpp_vsc_start_phase_step >>= 1;
+		ratio_y >>= 1;
+		f2v_get_vertical_phase(ratio_y, ini_vphase,
+		next_frame_par->VPP_vf_ini_phase_,
+		vpp_flags & VPP_FLAG_INTERLACE_OUT);
+
 	} else
 		filter->vpp_pre_vsc_en = 0;
 
