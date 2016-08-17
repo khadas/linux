@@ -420,7 +420,8 @@ static void prepare_display_q(void)
 		kfifo_len(&recycle_q) -
 		kfifo_len(&newframe_q);
 
-	if (vh264_stream_switching_state != SWITCHING_STATE_OFF)
+	if ((vh264_stream_switching_state != SWITCHING_STATE_OFF)
+		|| is_4k)
 		count = 0;
 	else
 		count = (count < 2) ? 0 : 2;
