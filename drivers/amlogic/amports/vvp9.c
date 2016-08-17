@@ -198,6 +198,7 @@ static u32 frame_width;
 static u32 frame_height;
 static u32 video_signal_type;
 static u32 pts_unstable;
+static u32 on_no_keyframe_skiped;
 
 
 #define PROB_SIZE    (496 * 2 * 4)
@@ -1159,10 +1160,11 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 
 	if (pbi->has_keyframe == 0 &&
 		params->p.frame_type != KEY_FRAME){
+		on_no_keyframe_skiped++;
 		return -2;
 	}
 	pbi->has_keyframe = 1;
-
+	on_no_keyframe_skiped = 0;
 #ifdef VP9_10B_MMU
 	if (cm->prev_fb_idx >= 0) {
 		long used_4k_num = (READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
@@ -5564,6 +5566,7 @@ static int vvp9_local_init(struct VP9Decoder_s *pbi)
 #endif
 	pbi->saved_resolution = 0;
 	pbi->get_frame_dur = false;
+	on_no_keyframe_skiped = 0;
 	width = pbi->vvp9_amstream_dec_info.width;
 	height = pbi->vvp9_amstream_dec_info.height;
 	pbi->frame_dur =
@@ -5972,6 +5975,9 @@ MODULE_PARM_DESC(force_fps, "\n force_fps\n");
 
 module_param(max_decoding_time, uint, 0664);
 MODULE_PARM_DESC(max_decoding_time, "\n max_decoding_time\n");
+
+module_param(on_no_keyframe_skiped, uint, 0664);
+MODULE_PARM_DESC(on_no_keyframe_skiped, "\n on_no_keyframe_skiped\n");
 
 module_init(amvdec_vp9_driver_init_module);
 module_exit(amvdec_vp9_driver_remove_module);
