@@ -1128,6 +1128,8 @@ static void aml_sd_emmc_tx_phase_set(struct amlsd_host *host,
 
 	vclkc = sd_emmc_regs->gclock;
 	pclkc->tx_phase = pdata->tx_phase;
+	if (pdata->tx_delay)
+		pclkc->tx_delay = pdata->tx_delay;
 
 	sd_emmc_regs->gclock = vclkc;
 	return;
