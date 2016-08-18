@@ -1137,3 +1137,10 @@
 &defendkey {
 	status = "okay";
 };
+&i2c_b {
+	status = "okay";
+    kvim_hym8563{
+	  compatible = "kvim_hym8563";
+	  reg = <0x51>;
+	};
+};

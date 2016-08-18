@@ -101,3 +101,4 @@ shared-dma-pool	shared dma pool
 i2c-gpio
 i2c-gpio-edid
 gpio-leds
+kvim_hym8563

@@ -223,6 +223,17 @@ config RTC_DRV_HYM8563
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-hym8563.
 
+config RTC_DRV_KVIM_HYM8563
+    tristate "KVIM HYM8563"
+	depends on I2C && OF
+	help
+	Say Y to enable support for the HYM8563 I2C RTC chip. Apart
+	from the usual rtc functions it provides a clock output of
+	up to 32kHz.
+
+	This driver can also be built as a module. If so, the module
+	will be called rtc-hym8563.
+
 config RTC_DRV_LP8788
 	tristate "TI LP8788 RTC driver"
 	depends on MFD_LP8788
