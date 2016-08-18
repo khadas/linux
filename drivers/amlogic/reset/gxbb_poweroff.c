@@ -32,6 +32,8 @@
 #include <linux/amlogic/cpu_version.h>
 #include <asm/compiler.h>
 #include <linux/kdebug.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 /*
  * Commands accepted by the arm_machine_restart() system call.
  *
@@ -61,6 +63,7 @@
 #define WATCHDOG_TC		0x2640
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
+static int poweroff_gpio;
 static char *kernel_panic;
 static u32 parse_reason(const char *cmd)
 {
@@ -128,6 +131,7 @@ static void do_aml_restart(enum reboot_mode reboot_mode, const char *cmd)
 
 static void do_aml_poweroff(void)
 {
+	gpio_direction_output(poweroff_gpio, 1);
 	/* TODO: Add poweroff capability */
 	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
 	__invoke_psci_fn_smc(psci_function_id_poweroff,
@@ -149,6 +153,8 @@ static int aml_restart_probe(struct platform_device *pdev)
 {
 	u32 id;
 	int ret;
+	struct gpio_desc *desc;
+	enum of_gpio_flags flags;
 	pm_power_off = do_aml_poweroff;
 	arm_pm_restart = do_aml_restart;
 
@@ -157,6 +163,12 @@ static int aml_restart_probe(struct platform_device *pdev)
 
 	if (!of_property_read_u32(pdev->dev.of_node, "sys_poweroff", &id))
 		psci_function_id_poweroff = id;
+
+	desc = of_get_named_gpiod_flags(pdev->dev.of_node,
+			"poweroff_gpio", 0, &flags);
+	poweroff_gpio = desc_to_gpio(desc);
+	gpio_request(poweroff_gpio, "poweroff_gpio");
+	gpio_direction_output(poweroff_gpio, 0);
 	ret = register_die_notifier(&panic_notifier);
 	if (ret != 0)
 			return ret;

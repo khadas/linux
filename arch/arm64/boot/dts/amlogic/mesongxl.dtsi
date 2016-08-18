@@ -122,6 +122,7 @@
 		compatible = "aml, restart";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
+		poweroff_gpio = <&gpio GPIOZ_14  GPIO_ACTIVE_LOW>;
 	};
 
 
