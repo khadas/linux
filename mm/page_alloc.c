@@ -163,7 +163,7 @@ bool pm_suspended_storage(void)
 int pageblock_order __read_mostly;
 #endif
 
-static void __free_pages_ok(struct page *page, unsigned int order);
+static int __free_pages_ok(struct page *page, unsigned int order);
 
 /*
  * results with 256, 32 in the lowmem_reserve sysctl:
@@ -573,7 +573,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
  * -- nyc
  */
 
-static inline void __free_one_page(struct page *page,
+static inline int __free_one_page(struct page *page,
 		struct zone *zone, unsigned int order,
 		int migratetype)
 {
@@ -586,7 +586,7 @@ static inline void __free_one_page(struct page *page,
 
 	if (unlikely(PageCompound(page)))
 		if (unlikely(destroy_compound_page(page, order)))
-			return;
+			return -1;
 
 	VM_BUG_ON(migratetype == -1);
 
@@ -649,6 +649,7 @@ out:
 	zone->free_area[order].nr_free++;
 	if (is_migrate_cma(migratetype))
 		zone->free_area[order].nr_free_cma++;
+	return order;
 }
 
 static inline int free_pages_check(struct page *page)
@@ -741,18 +742,20 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 	spin_unlock(&zone->lock);
 }
 
-static void free_one_page(struct zone *zone, struct page *page, int order,
+static int free_one_page(struct zone *zone, struct page *page, int order,
 				int migratetype)
 {
 	int cur_migratetype;
+	int free_order;
 	spin_lock(&zone->lock);
 	zone->pages_scanned = 0;
 
 	cur_migratetype = get_pageblock_migratetype(page);
-	__free_one_page(page, zone, order, cur_migratetype);
+	free_order = __free_one_page(page, zone, order, cur_migratetype);
 	if (unlikely(!is_migrate_isolate(cur_migratetype)))
 		__mod_zone_freepage_state(zone, 1 << order, cur_migratetype);
 	spin_unlock(&zone->lock);
+	return free_order;
 }
 
 static bool free_pages_prepare(struct page *page, unsigned int order)
@@ -782,20 +785,22 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 	return true;
 }
 
-static void __free_pages_ok(struct page *page, unsigned int order)
+static int __free_pages_ok(struct page *page, unsigned int order)
 {
 	unsigned long flags;
 	int migratetype;
+	int free_order;
 
 	if (!free_pages_prepare(page, order))
-		return;
+		return -1;
 
 	local_irq_save(flags);
 	__count_vm_events(PGFREE, 1 << order);
 	migratetype = get_pageblock_migratetype(page);
 	set_freepage_migratetype(page, migratetype);
-	free_one_page(page_zone(page), page, order, migratetype);
+	free_order = free_one_page(page_zone(page), page, order, migratetype);
 	local_irq_restore(flags);
+	return free_order;
 }
 
 void __init __free_pages_bootmem(struct page *page, unsigned int order)
@@ -3029,6 +3034,24 @@ void __free_pages(struct page *page, unsigned int order)
 }
 
 EXPORT_SYMBOL(__free_pages);
+
+int __free_pages_cma(struct page *page, unsigned int order, unsigned int *cnt)
+{
+	int i;
+	int ref = 0;
+
+	/* clear ref count first */
+	for (i = 0; i < (1 << order); i++) {
+		if (!put_page_testzero(page + i))
+			ref++;
+	}
+	if (ref) {
+		pr_info("%s, %d pages are still in use\n", __func__, ref);
+		*cnt += ref;
+		return -1;
+	}
+	return __free_pages_ok(page, order);
+}
 
 void free_pages(unsigned long addr, unsigned int order)
 {
@@ -6599,12 +6622,37 @@ done:
 void free_contig_range(unsigned long pfn, unsigned nr_pages)
 {
 	unsigned int count = 0;
+	struct page *page;
+	int free_order, start_order = 0;
+	int batch;
 
-	for (; nr_pages--; pfn++) {
-		struct page *page = pfn_to_page(pfn);
-
-		count += page_count(page) != 1;
-		__free_page(page);
+	while (nr_pages) {
+		page = pfn_to_page(pfn);
+		batch = (1 << start_order);
+		free_order = __free_pages_cma(page, start_order, &count);
+		pr_debug("pages:%4d, free:%2d, start:%2d, batch:%4d, pfn:%ld\n",
+			nr_pages, free_order,
+			start_order, batch, pfn);
+		nr_pages -= batch;
+		pfn += batch;
+		/*
+		 * since pages are contigunous, and it's buddy already has large
+		 * order, we can try to free same oder as free_order to get more
+		 * quickly free speed.
+		 */
+		if (free_order < 0) {
+			start_order = 0;
+			continue;
+		}
+		if (nr_pages >= (1 << free_order)) {
+			start_order = free_order;
+		} else {
+			/* remain pages is not enough */
+			start_order = 0;
+			while (nr_pages >= (1 << start_order))
+				start_order++;
+			start_order--;
+		}
 	}
 	WARN(count != 0, "%d pages are still in use!\n", count);
 }
