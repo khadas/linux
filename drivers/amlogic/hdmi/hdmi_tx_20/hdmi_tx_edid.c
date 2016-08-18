@@ -69,6 +69,7 @@
 #define EDID_DETAILED_TIMING_DES_BLOCK3_POS 0x6C
 
 static unsigned char __nosavedata edid_checkvalue[4] = {0};
+static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 
 static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
 {
@@ -1749,6 +1750,10 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	hdmitx_device->tmp_buf[i] = 0;
 	hdmi_print(0, "\n");
 #endif
+	if (!hdmitx_edid_check_valid_blocks(&EDID_buf[0])) {
+		pRXCap->IEEEOUI = 0x0c03;
+		pr_info("hdmitx: Invalid edid, consider RX as HDMI device\n");
+	}
 	/* update RX HDR information */
 	info = get_current_vinfo();
 	if (info) {
