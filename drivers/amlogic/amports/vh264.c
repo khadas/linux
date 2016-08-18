@@ -209,6 +209,7 @@ static u32 aspect_ratio_info;
 static u32 num_units_in_tick;
 static u32 time_scale;
 static u32 h264_ar;
+static u32 decoder_debug_flag;
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 static u32 last_interlaced;
 #endif
@@ -1354,6 +1355,12 @@ static void vh264_isr(void)
 				vh264_eos = 1;
 
 			b_offset = (status >> 16) & 0xffff;
+			if (decoder_debug_flag) {
+				pr_info("slice_type %x idr %x  error %x",
+						slice_type, idr_flag, error);
+				pr_info(" prog %x pic_struct %x offset %x\n",
+				prog_frame, pic_struct,	b_offset);
+			}
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 			last_interlaced = prog_frame ? 0 : 1;
 #endif
@@ -2878,6 +2885,9 @@ MODULE_PARM_DESC(debugfirmware, "\n amvdec_h264 debug load firmware\n");
 module_param(fixed_frame_rate_flag, uint, 0664);
 MODULE_PARM_DESC(fixed_frame_rate_flag,
 				 "\n amvdec_h264 fixed_frame_rate_flag\n");
+module_param(decoder_debug_flag, uint, 0664);
+MODULE_PARM_DESC(decoder_debug_flag,
+				 "\n amvdec_h264 decoder_debug_flag\n");
 
 module_param(decoder_force_reset, uint, 0664);
 MODULE_PARM_DESC(decoder_force_reset,
