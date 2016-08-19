@@ -27,6 +27,7 @@
 #define RTL821x_PHYCR2		0x19
 #define RTL821x_CLKOUT_EN	0x1
 #define RTL821x_EPAGSR		0x1f
+#define RTL821x_LCR		    0x10
 
 #define	RTL8211E_INER_LINK_STATUS	0x400
 
@@ -66,6 +67,10 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	/* disable 1000m adv*/
 	val = phy_read(phydev, 0x9);
 	phy_write(phydev, 0x9, val&(~(1<<9)));
+
+	phy_write(phydev, RTL821x_EPAGSR, 0xd04); /*set page 0xd04*/
+	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
+	phy_write(phydev, RTL821x_EPAGSR, 0x0);
 
 	/* rx reg 21 bit 3 tx reg 17 bit 8*/
 	/* phy_write(phydev, 0x1f, 0xd08);
