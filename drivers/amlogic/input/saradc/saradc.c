@@ -125,7 +125,10 @@ static void saradc_reset(struct saradc *adc)
 	writel(0x84004040, mem_base+SARADC_REG0);
 	writel(0, mem_base+SARADC_CH_LIST);
 	writel(0xaaaa, mem_base+SARADC_AVG_CNTL);
-	writel(0x9388000a, mem_base+SARADC_REG3);
+	if (flag_12bit)
+		writel(0x9b88000a, mem_base+SARADC_REG3);
+	else
+		writel(0x9388000a, mem_base+SARADC_REG3);
 	/* set SARADC_DELAY with 0x190a380a when 32k */
 	writel(0x10a000a, mem_base+SARADC_DELAY);
 	writel(0x3eb1a0c, mem_base+SARADC_AUX_SW);
