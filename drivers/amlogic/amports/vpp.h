@@ -232,22 +232,19 @@ extern u32 vpp_get_zoom_ratio(void);
 
 extern void vpp_set_osd_layer_preblend(u32 *);
 
-extern
-void vpp_set_osd_layer_position(s32 *);
+extern void vpp_set_osd_layer_position(s32 *);
 
-extern
-s32 vpp_set_nonlinear_factor(u32 f);
+extern s32 vpp_set_nonlinear_factor(u32 f);
 
-extern
-u32 vpp_get_nonlinear_factor(void);
-extern
-void vpp_set_video_speed_check(u32 h, u32 w);
+extern u32 vpp_get_nonlinear_factor(void);
 
-extern
-void vpp_get_video_speed_check(u32 *h, u32 *w);
+extern void vpp_set_video_speed_check(u32 h, u32 w);
 
-extern
-void vpp_super_scaler_support(void);
+extern void vpp_get_video_speed_check(u32 *h, u32 *w);
+
+extern void vpp_super_scaler_support(void);
+
+extern void vpp_bypass_ratio_config(void);
 
 #ifdef CONFIG_AM_VIDEO2
 extern void

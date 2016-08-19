@@ -7934,6 +7934,8 @@ static int __init video_init(void)
 
 	/* check super scaler support status */
 	vpp_super_scaler_support();
+	/* adaptive config bypass ratio */
+	vpp_bypass_ratio_config();
 
 #ifndef CONFIG_AM_VIDEO2
 	/*DisableVPP2VideoLayer();*/
