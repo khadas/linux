@@ -13,64 +13,54 @@
 
 #ifndef _HDMI_RX_EQ_H
 #define _HDMI_RX_EQ_H
+/* time mS */
+#define WaitTimeStartConditions	3
+/* WAIT FOR, CDR LOCK and TMDSVALID */
+#define sleep_time_CDR	10
+/* Maximum slope  accumulator to consider the cable as a short cable */
+#define AccLimit	360
+/* Minimum slope accumulator to consider the following setting */
+#define AccMinLimit	0
+/* suitable for a long cable */
+/* Maximum allowable setting, HW as the maximum = 15, should */
+#define maxsetting	14
+/* only be need for ultra long cables at high rates,
+condition never detected on LAB */
+/* Default setting for short cables,
+if system cannot find any one better than this. */
+#define shortcableSetting	4
+/* Default setting when system cannot detect the cable type */
+#define ErrorcableSetting	4
+/* Minimum current slope needed to consider the cable
+as "very long" and therefore */
+#define minSlope	50
+/* max setting is suitable for equalization */
+/* Maximum number of early-counter measures to average each setting */
+#define avgAcq	4
+/* Threshold Value for the statistics counter */
+/* 3'd0: Selects counter threshold 1K */
+/* 3'd1: Selects counter threshold 2K */
+/* 3'd2: Selects counter threshold 4K */
+/* 3d3: Selects counter threshold 8K */
+/* 3d4: Selects counter threshold 16K */
+/* Number of retries in case of algorithm ending with errors */
+#define MINMAX_nTrys	3
+/* theoretical threshold for an equalized system */
+#define equalizedCounterValue	512
+/* theoretical threshold for an equalized system */
+#define equalizedCounterValue_HDMI20	512
+/* Maximum  difference between pairs */
+#define MINMAX_maxDiff	4
+/* Maximum  difference between pairs  under HDMI2.0 MODE */
+#define MINMAX_maxDiff_HDMI20	2
+/* FATBIT MASK FOR hdmi-1.4 xxxx_001 or xxxx_110 */
+#define EQ_FATBIT_MASK	0x0000
+/* hdmi 1.4 ( pll rate = 00) xx00_001 or xx11_110 */
+#define EQ_FATBIT_MASK_4k	0x0c03
+/* for hdmi2.0 x000_001 or x111_110 */
+#define EQ_FATBIT_MASK_HDMI20	0x0e03
 
-/*-------------------macro define---------------------------*/
-#define MIN_SLOPE		50
-#define ACC_MIN_LIMIT	0
-#define ACC_LIMIT		370
-/* #define EQ_MAX_SETTING 12//for very long cable */
-#define MINDIFF		4/* max min diff between data chs on hdmi1.4 */
-#define MINDIFF_HDMI20	2/* max min diff between data chs on hdmi2.0 */
-#define EQ_CLK_WAIT_MAX_COUNT 1000
-#define EQ_CLK_WAIT_STABLE_COUNT (EQ_CLK_WAIT_MAX_COUNT - 900)
-#define EQ_CLK_WAIT_DELAY 5
-#define EQ_TMDS_VALID_WAIT_DELAY 3
-/*#define EQ_CLK_RATE_WAIT 15*/
 #define block_delay_ms(x) msleep_interruptible((x))
-
-/* Default best setting */
-#define EQ_DEFAULT_SETTING 4
-/* wait time between early/late counter acquisitions */
-#define EQ_WAITTIME						1
-/* Slope acumulator, minimum limit  to
-consider setting suitable for long cable */
-#define EQ_SLOPEACM_MINTHRESHOLD			0
-/* Slope acumulator threshold to considere as long cable */
-#define EQ_SLOPEACM_LONG_CABLE_THRESHOLD	360
-/* minimum slope at maximum setting to consider it as a long cable */
-#define EQ_MINSLOPE_VERYLONGCABLE			50
-/* threshold for equalized system */
-#define EQ_COUNTERTHRESHOLD				512
-/* threshold for equalized system */
-#define EQ_COUNTERTHRESHOLD_HDMI20			512
-/* Maximum allowable setting */
-#define EQ_MAX_SETTING						7/* 13 */
-/* Default best setting for short cables (electrical short length) */
-#define EQ_SHORT_CABLE_BEST_SETTING		4
-/* Default setting when not good equalization is achieved,
-same as short cable */
-#define EQ_ERROR_CABLE_BEST_SETTING		4
-/* Stop averaging (Stable measures), if early/late counter
-acquisitions are within the following range 1oread +-20 */
-#define EQ_BOUNDARYSPREAD					20
-/* Minimum number of early/late counter acquisitions
-to considere a stable acquisition */
-#define EQ_MIN_ACQ_STABLE_DETECTION			3
-/* wait time between early/late counter acquisitions */
-#define EQ_WAITTIME							1
-/* Slope acumulator, minimum limit  to consider setting
-suitable for long cable */
-#define EQ_SLOPEACM_MINTHRESHOLD			0
-/* Slope acumulator threshold to considere as long cable */
-#define	EQ_SLOPEACM_LONG_CABLE_THRESHOLD	360
-/* minimum slope at maximum setting to consider it as a long cable */
-#define EQ_MINSLOPE_VERYLONGCABLE			50
-/* hdmi 1.4 */
-#define EQ_FATBIT_MASK						0
-/* hdmi 1.4 & pll rate = 00 */
-#define EQ_FATBIT_MASK_4k					0xc03
-/* for hdmi2.0 */
-#define EQ_FATBIT_MASK_HDMI20				0xe03
 
 #define FSM_LOG_ENABLE		0x01
 #define VIDEO_LOG_ENABLE	0x02
@@ -84,15 +74,9 @@ suitable for long cable */
 /*--------------------------enum define---------------------*/
 enum phy_eq_states_e {
 	EQ_IDLE,
-	EQ_DATA_START,
-	EQ_SET_LOCK_VECTOR,
-	EQ_SET_FORCE_FMS_STATE,
-	EQ_CHECK_TMDS_VALID,
-	EQ_AQUIRE_EARLY_COUNTER,
-	EQ_GET_CABLE_TYPE,
-	EQ_CONF_BEST_SETTING,
-	EQ_SUCCESS_END,
-	EQ_FAILED,
+	EQ_INIT,
+	EQ_MAINLOOP,
+	EQ_END,
 };
 
 enum phy_eq_channel_e {
@@ -107,82 +91,28 @@ enum phy_eq_cmd_e {
 	EQ_STOP,
 };
 
-/*enum define end*/
-
-/*--------------------------struct define---------------------*/
-struct phy_eq_algorithm_data_t {
-	int nretry;
-	/* Auxiliary variable to perform early-late counters averaging */
-	int accumulator[EQ_CH_NUM];
-
-	/* Variables to store early-late counters averaging */
-	int early_cnt[EQ_CH_NUM];
-
-	/* Variables to store early-late counters slope */
-	int slope_accumulator[EQ_CH_NUM];
-
-	/* Auxiliary variable to detect early-late counters trend (up/down) */
-	int last_early_cnt[EQ_CH_NUM];
-
-	/* EQ Best Long cable setting and valid flag */
-	int best_long_setting[EQ_CH_NUM];
-	int valid_long_setting[EQ_CH_NUM];
-
-	/* EQ Best Short cable setting and valid flag */
-	int best_short_setting[EQ_CH_NUM];
-	int valid_short_setting[EQ_CH_NUM];
-
-	/* EQ Final Setting should be programed to the PHY */
-	int best_setting[EQ_CH_NUM];
-
-	/*Auxiliary variables to detect stable acquisitions this
-	will save 2mS * EQ_MAX_SETTING when good cables are used*/
-	int upperBound_acqCH0, upperBound_acqCH1, upperBound_acqCH2;
-	int lowerBound_acqCH0, lowerBound_acqCH1, lowerBound_acqCH2;
-	int outBound_acqCH0, outBound_acqCH1, outBound_acqCH2;
-
-	/* Auxiliary variables to control algorithm status */
-	bool ch0_error_cable_flag;
-	bool ch1_error_cable_flag;
-	bool ch2_error_cable_flag;
-	bool tmds_valid_flag;
-
-	/*Auxiliary variable to control how many times Algorithm
-	will retry if any error is detected*/
-	bool minmax_err_flag;
-	int minmax_check_cnt;
-	int pll_rate_value;
-};
-
-struct hdmirx_phy_data_t {
-	struct completion phy_task_lock;
-	enum phy_eq_states_e phy_eq_state;
-	struct task_struct *task;
-	int phy_clk_wait_count;
-	bool task_running;
-	enum phy_eq_cmd_e cmd;
-	bool new_cmd;
-	spinlock_t slock;
-	struct mutex state_lock;
-	bool last_clk_rate;
-};
-
 /*struct define end*/
+extern struct st_eq_data eq_ch0;
+extern struct st_eq_data eq_ch1;
+extern struct st_eq_data eq_ch2;
 
 /*--------------------------function declare------------------*/
 bool hdmirx_phy_clk_rate_monitor(void);
-void hdmirx_phy_init(int rx_port_sel, int dcm);
-void hdmirx_phy_EQ_workaround_init(void);
+/* void hdmirx_phy_init(int rx_port_sel, int dcm); */
+bool rx_need_eq_workaround(void);
 int hdmirx_phy_probe(void);
 void hdmirx_phy_exit(void);
 int hdmirx_phy_start_eq(void);
-enum phy_eq_states_e hdmirx_phy_get_eq_state(void);
-int hdmirx_phy_stop_eq(void);
-void hdmirx_phy_reset(int rx_port_sel, int dcm);
-int hdmirx_phy_suspend_eq(void);
+uint8_t SettingFinder(void);
+bool eq_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting);
+
+/* int hdmirx_phy_suspend_eq(void); */
 bool hdmirx_phy_check_tmds_valid(void);
 void hdmirx_phy_conf_eq_setting(int rx_port_sel,
 	int ch0Setting,	int ch1Setting, int ch2Setting);
+void phy_conf_eq_setting(int ch0_lockVector,
+				int ch1_lockVector, int ch2_lockVector);
+
 
 /*function declare end*/
 

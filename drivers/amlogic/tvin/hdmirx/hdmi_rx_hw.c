@@ -110,6 +110,10 @@ MODULE_PARM_DESC(phy_init_in_probe,
 	"\n phy_init_in_probe\n");
 module_param(phy_init_in_probe, bool, 0664);
 
+static int mpll_param4 = 0x24dc;
+MODULE_PARM_DESC(mpll_param4, "\n mpll_param4\n");
+module_param(mpll_param4, int, 0664);
+
 /* bit5 pll_lck_chg_en */
 /* bit6 clk_change_en */
 int hdmi_ists_en = AKSV_RCV;
@@ -125,10 +129,10 @@ bool hdcp_enable = 1;
 MODULE_PARM_DESC(hdcp_enable, "\n hdcp_enable\n");
 module_param(hdcp_enable, bool, 0664);
 #ifdef HDCP22_ENABLE
-int hdcp_22_on;
-MODULE_PARM_DESC(hdcp_22_on, "\n hdcp_22_on\n");
-module_param(hdcp_22_on, int, 0664);
-static int hdcp_22_nonce_hw_en = 1;
+int hdcp22_on;
+MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
+module_param(hdcp22_on, int, 0664);
+/* static int hdcp_22_nonce_hw_en = 1; */
 
 #define __asmeq(x, y)  ".ifnc " x "," y " ; .err ; .endif\n\t"
 
@@ -145,7 +149,15 @@ static int hdmi_mode_hyst = 5;
 MODULE_PARM_DESC(hdmi_mode_hyst, "\n hdmi_mode_hyst\n");
 module_param(hdmi_mode_hyst, int, 0664);
 
-int top_intr_maskn_value = 0x1e03fd;
+static bool fast_switching = true;
+MODULE_PARM_DESC(fast_switching, "\n fast_switching\n");
+module_param(fast_switching, bool, 0664);
+
+static bool use_i2c_infilter = true;
+MODULE_PARM_DESC(use_i2c_infilter, "\n use_i2c_infilter\n");
+module_param(use_i2c_infilter, bool, 0664);
+
+int top_intr_maskn_value = 0x1e0001;
 MODULE_PARM_DESC(top_intr_maskn_value, "\n top_intr_maskn_value\n");
 module_param(top_intr_maskn_value, int, 0664);
 
@@ -208,7 +220,7 @@ uint16_t hdmirx_rd_phy(uint8_t reg_address)
 		}
 		cnt++;
 		if (cnt > 50000) {
-			rx_print("[HDMIRX err]: %s(%x,%x) timeout\n",
+			rx_pr("[HDMIRX err]: %s(%x,%x) timeout\n",
 				__func__, 0x39, reg_address);
 			break;
 		}
@@ -239,7 +251,7 @@ int hdmirx_wr_phy(uint8_t reg_address, uint16_t data)
 		if (cnt > 50000) {
 			error = -1;
 			if (log_flag & ERR_LOG) {
-				rx_print("[error]:(%x,%x,%x)timeout\n",
+				rx_pr("[error]:(%x,%x,%x)timeout\n",
 					__func__, 0x39, reg_address, data);
 			}
 			break;
@@ -295,7 +307,7 @@ void rx_hdcp22_rd_check(uint32_t addr, uint32_t exp_data, uint32_t mask)
 	uint32_t rd_data;
 	rd_data = rx_hdcp22_rd(addr);
 	if ((rd_data | mask) != (exp_data | mask))
-		rx_print("addr=0x%02x rd_data=0x%08x\n", addr, rd_data);
+		rx_pr("addr=0x%02x rd_data=0x%08x\n", addr, rd_data);
 }
 
 void rx_hdcp22_wr(uint32_t addr, uint32_t data)
@@ -450,7 +462,7 @@ int hdmirx_irq_open(void)
 
 	hdmirx_wr_dwc(DWC_PDEC_IEN_SET, DRM_RCV_EN | DRM_CKS_CHG);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL|UNDERFL);
-	if (hdcp_22_on)
+	if (hdcp22_on)
 		hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x3f);
 	/*hdmirx_wr_dwc(DWC_MD_IEN_SET, rx_md_ists_en);*/
 	hdmirx_wr_dwc(DWC_HDMI_IEN_SET, hdmi_ists_en);
@@ -554,8 +566,6 @@ static int DWC_init(unsigned port)
 	hdmirx_control_clk_range(TMDS_CLK_MIN,
 		TMDS_CLK_MAX);
 
-	hdmirx_wr_bits_dwc(DWC_HDMI_PCB_CTRL,
-	INPUT_SELECT, port);
 	hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
 		((1 << 2) - 1) << 2, port);
 
@@ -569,7 +579,21 @@ static int DWC_init(unsigned port)
 	data32 |= edid_clock_divide << 0;
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
 
-	hdmirx_wr_top(TOP_EDID_ADDR_CEC, EDID_CEC_ID_ADDR);
+	/* hdmirx_wr_top(TOP_EDID_ADDR_CEC, EDID_CEC_ID_ADDR); */
+
+	if (is_meson_gxtvbb_cpu()) {
+		hdmirx_wr_top(TOP_INFILTER_GXTVBB,
+			(0x2001 << 16));
+	} else if (use_i2c_infilter) {
+		hdmirx_wr_top(TOP_INFILTER_HDCP,
+			(0x20012001));
+		hdmirx_wr_top(TOP_INFILTER_I2C0,
+			(0x20012001));
+		hdmirx_wr_top(TOP_INFILTER_I2C1,
+			(0x20012001));
+		hdmirx_wr_top(TOP_INFILTER_I2C2,
+			(0x20012001));
+	}
 
 	data32 = 0;
 	data32 |= 0	<< 28;
@@ -657,6 +681,7 @@ static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 	int error = 0;
 	unsigned i = 0;
 	unsigned k = 0;
+	hdmirx_wr_bits_dwc(DWC_HDCP_SETTINGS, HDCP_FAST_MODE, 0);
 	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
 	/* hdmirx_wr_bits_dwc(ctx, DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 1); */
 	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 0);
@@ -708,7 +733,7 @@ void hdmirx_set_hpd(int port, unsigned char val)
 	}
 
 	if (log_flag & LOG_EN)
-		rx_print("%s, port:%d, val:%d\n", __func__,
+		rx_pr("%s, port:%d, val:%d\n", __func__,
 						port, val);
 }
 
@@ -728,12 +753,8 @@ void control_reset(void)
 
 	mdelay(1);
 	/* Reset functional modules */
-	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000003F);
+	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000001F);
 	cecrx_hw_init();
-}
-
-void hdmirx_set_pinmux(void)
-{
 }
 
 void clk_off(void)
@@ -741,6 +762,43 @@ void clk_off(void)
 	/* wr_reg(HHI_HDMIRX_CLK_CNTL, 0); */
 	/* wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, 0); */
 }
+
+#ifdef HDCP22_ENABLE
+void hdcp22_clk_init(void)
+{
+	unsigned int data32;
+
+	/* Enable clk81_hdcp22_pclk */
+	wr_reg(HHI_GCLK_MPEG2, (rd_reg(HHI_GCLK_MPEG2)|1<<3));
+
+	/* Enable hdcp22_esmclk */
+	/* .clk0               ( fclk_div7  ), */
+	/* .clk1               ( fclk_div4  ), */
+	/* .clk2               ( fclk_div3  ), */
+	/* .clk3               ( fclk_div5  ), */
+	wr_reg(HHI_HDCP22_CLK_CNTL,
+	(rd_reg(HHI_HDCP22_CLK_CNTL) & 0xffff0000) |
+	 /* [10: 9] clk_sel. select fclk_div7=2000/7=285.71 MHz */
+	((0 << 9)   |
+	 /* [    8] clk_en. Enable gated clock */
+	 (1 << 8)   |
+	 /* [ 6: 0] clk_div. Divide by 1. = 285.71/1 = 285.71 MHz */
+	 (0 << 0)));
+
+	wr_reg(HHI_HDCP22_CLK_CNTL,
+	(rd_reg(HHI_HDCP22_CLK_CNTL) & 0x0000ffff) |
+	/* [26:25] clk_sel. select cts_oscin_clk=24 MHz */
+	((0 << 25)  |
+	 (1 << 24)  |   /* [   24] clk_en. Enable gated clock */
+	 (0 << 16)));
+
+	data32 = hdmirx_rd_top(TOP_CLK_CNTL);
+	data32 |= (hdcp22_on << 5);
+	data32 |= (hdcp22_on << 4);
+	data32 |= (hdcp22_on << 3);
+	hdmirx_wr_top(TOP_CLK_CNTL, data32);    /* DEFAULT: {32'h0} */
+}
+#endif
 
 void clk_init(void)
 {
@@ -788,8 +846,8 @@ void clk_init(void)
 	data32 |= 2	<< 0;
 	wr_reg(HHI_HDMIRX_AUD_CLK_CNTL, data32);
 
-#ifdef HDCP22_ENABLE
-	if (hdcp_22_on) {
+#if 0 /* def HDCP22_ENABLE */
+	if (hdcp22_on) {
 		/* Enable clk81_hdcp22_pclk */
 		wr_reg(HHI_GCLK_MPEG2, (rd_reg(HHI_GCLK_MPEG2)|1<<3));
 
@@ -819,11 +877,6 @@ void clk_init(void)
 	data32 |= 0 << 31;  /* [31]     disable clkgating */
 	data32 |= 1 << 17;  /* [17]     audfifo_rd_en */
 	data32 |= 1 << 16;  /* [16]     pktfifo_rd_en */
-#ifdef HDCP22_ENABLE
-	data32 |= (hdcp_22_on << 5);
-	data32 |= (hdcp_22_on << 4);
-	data32 |= (hdcp_22_on << 3);
-#endif
 	data32 |= 1 << 2;   /* [2]      hdmirx_cecclk_en */
 	data32 |= 0 << 1;   /* [1]      bus_clk_inv */
 	data32 |= 0 << 0;   /* [0]      hdmi_clk_inv */
@@ -863,36 +916,12 @@ void hdmirx_20_init(void)
 	data32 |= 10	<< 20; /* [29:20]  chlock_max_err */
 	data32 |= 24000	<< 0;  /* [15:0]   milisec_timer_limit */
 	hdmirx_wr_dwc(DWC_CHLOCK_CONFIG, data32);
-	hdmirx_wr_bits_dwc(DWC_HDCP_SETTINGS, HDCP_FAST_MODE, 0);
+
 	/* hdcp2.2 ctl */
 #ifdef HDCP22_ENABLE
-	if (hdcp_22_on) {
-		/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, */
-		/* (0x1002 | (hdcp_22_on<<2))); */
-		/* hdmirx_wr_dwc(DWC_HDCP_SETTINGS, 0x13374); */
-		/* Configure pkf[127:0] */
-		if (hdcp22_firmware_ok_flag &&
-			(force_hdcp14_en == 0) &&
-			(esm_err_force_14 == 0))
-			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
-		else
-			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
-
-		rx_sec_set_duk();
-		/* Validate PKF and DUK */
-			data32	= 0;
-			/* duk_vld */
-			data32 |= (1					<< 2);
-			/* pkf_vld */
-			data32 |= (1					<< 1);
-			/* nonce_hw_en */
-			data32 |= (hdcp_22_nonce_hw_en	<< 0);
-			hdcp22_wr_top(TOP_SKP_CNTL_STAT, data32);
-
-			/* Wait until nonce is valid */
-			/* hdmirx_poll_reg(0, TOP_SKP_CNTL_STAT, */
-			/*	(1<<31), ~(1<<31)); */
-		} else
+	if (hdcp22_on && hdcp22_firmware_ok_flag)
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+	else
 #endif
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
 }
@@ -903,40 +932,133 @@ void hdmirx_hdcp22_esm_rst(void)
 	hdmirx_wr_top(TOP_SW_RESET, 0x100);
 	mdelay(1);
 	hdmirx_wr_top(TOP_SW_RESET, 0x0);
-	rx_print("esm rst\n");
+	rx_pr("esm rst\n");
 }
 
 void hdmirx_hdcp22_init(void)
 {
 	int ret = 0;
-	if (1 == hdcp22_firmware_ok_flag)
-		ret = rx_sec_set_duk();
-
+	ret = rx_sec_set_duk();
+	rx_pr("hdcp22 == %d\n", ret);
 	if (ret == 1) {
-		if (force_hdcp14_en == 0)
-			hdcp_22_on = 1;
-		else
-			hdcp_22_on = 0;
-		/* hpd_to_esm = 1; */
-		is_duk_key_set = 1;
-		rx_print("hdcp22 on\n");
-	} else {
-		hdcp_22_on = 0;
-		is_duk_key_set = 0;
-		rx_print("hdcp22 off\n");
-	}
+		hdcp22_wr_top(TOP_SKP_CNTL_STAT, 7);
+		hdcp22_on = 1;
+		hdcp22_clk_init();
+	} else
+		hdcp22_on = 0;
 }
 #endif
 
+void hdmirx_phy_init(int rx_port_sel, int dcm)
+{
+	unsigned int data32;
+	data32 = 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 1 << 1;
+	data32 |= 1 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+	mdelay(1);
+
+	data32	= 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 1 << 1;
+	data32 |= 0 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+
+	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x1c94);
+	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
+	hdmirx_wr_phy(MPLL_PARAMETERS4,    mpll_param4);
+	hdmirx_wr_phy(MPLL_PARAMETERS5,    0x5492);
+	hdmirx_wr_phy(MPLL_PARAMETERS6,    0x4b0d);
+	hdmirx_wr_phy(MPLL_PARAMETERS7,    0x4760);
+	hdmirx_wr_phy(MPLL_PARAMETERS8,    0x008c);
+	hdmirx_wr_phy(MPLL_PARAMETERS9,    0x0010);
+	hdmirx_wr_phy(MPLL_PARAMETERS10,   0x2d20);
+	hdmirx_wr_phy(MPLL_PARAMETERS11, 0x2e31);
+	hdmirx_wr_phy(MPLL_PARAMETERS12, 0x4b64);
+	hdmirx_wr_phy(MPLL_PARAMETERS13, 0x2493);
+	hdmirx_wr_phy(MPLL_PARAMETERS14, 0x676d);
+	hdmirx_wr_phy(MPLL_PARAMETERS15, 0x23e0);
+	hdmirx_wr_phy(MPLL_PARAMETERS16, 0x001b);
+	hdmirx_wr_phy(MPLL_PARAMETERS17, 0x2218);
+	hdmirx_wr_phy(MPLL_PARAMETERS18, 0x1b25);
+	hdmirx_wr_phy(MPLL_PARAMETERS19, 0x2492);
+	hdmirx_wr_phy(MPLL_PARAMETERS20, 0x48ea);
+	hdmirx_wr_phy(MPLL_PARAMETERS21, 0x0011);
+	hdmirx_wr_phy(MPLL_PARAMETERS22, 0x04d2);
+	hdmirx_wr_phy(MPLL_PARAMETERS23, 0x0414);
+
+	#if 0
+	hdmirx_wr_phy(0x43, fat_bit_status);
+	hdmirx_wr_phy(0x63, fat_bit_status);
+	hdmirx_wr_phy(0x83, fat_bit_status);
+	#endif
+
+	/* Configuring I2C to work in fastmode */
+	hdmirx_wr_dwc(DWC_I2CM_PHYG3_MODE,	 0x1);
+	/* disable overload protect for Philips DVD */
+	/* NOTE!!!!! don't remove below setting */
+	hdmirx_wr_phy(OVL_PROT_CTRL, 0xa);
+
+	data32 = 0;
+	data32 |= 0	<< 15;
+	data32 |= 0	<< 13;
+	data32 |= 0	<< 12;
+	data32 |= fast_switching << 11;
+	data32 |= 0	<< 10;
+	data32 |= rx.phy.fsm_enhancement << 9;
+	data32 |= 0	<< 8;
+	data32 |= 0	<< 7;
+	data32 |= dcm << 5;
+	data32 |= 0	<< 3;
+	data32 |= rx.phy.port_select_ovr_en << 2;
+	data32 |= rx_port_sel << 0;
+
+	hdmirx_wr_phy(PHY_SYSTEM_CONFIG,
+		(rx.phy.phy_system_config_force_val != 0) ?
+		rx.phy.phy_system_config_force_val : data32);
+
+	hdmirx_wr_phy(PHY_CMU_CONFIG,
+		(rx.phy.phy_cmu_config_force_val != 0) ?
+		rx.phy.phy_cmu_config_force_val :
+		((rx.phy.lock_thres << 10) | (1 << 9) |
+			(((1 << 9) - 1) & ((rx.phy.cfg_clk * 4) / 1000))));
+
+	#if 0
+	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, eq_setting[EQ_CH0]);
+	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, eq_setting[EQ_CH1]);
+	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, eq_setting[EQ_CH2]);
+	if ((0 == eq_setting[EQ_CH0]) &&
+		(0 == eq_setting[EQ_CH1]) &&
+		(0 == eq_setting[EQ_CH2]))
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
+	else
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
+	#endif
+	/*hdmirx_phy_clk_rate_monitor();*/
+
+	data32 = 0;
+	data32 |= 1 << 6;
+	data32 |= 1 << 4;
+	data32 |= rx_port_sel << 2;
+	data32 |= 0 << 1;
+	data32 |= 0 << 0;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+
+	rx_pr("%s  %d Done!\n", __func__, rx.port);
+}
+
+
 void hdmirx_hw_config(void)
 {
-	rx_print("%s port:%d\n", __func__, rx.port);
-	hdmirx_wr_top(TOP_INTR_MASKN, 0);
-	clk_init();
+	rx_pr("%s port:%d\n", __func__, rx.port);
 	control_reset();
-
 	hdmirx_irq_close();
-	hdmi_rx_ctrl_edid_update();
+	/* hdmi_rx_ctrl_edid_update(); */
 	if (hdcp_enable)
 		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
 	else
@@ -944,34 +1066,29 @@ void hdmirx_hw_config(void)
 	hdmirx_audio_init();
 	packet_init();
 	hdmirx_20_init();
-	hdmirx_audio_fifo_rst();
-	hdmirx_packet_fifo_rst();
-	/*enable irq */
-	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
 	hdmirx_irq_open();
 
 	mdelay(100);
 	if (hdmirx_rd_dwc(0xe0) != 0) {
-		rx_print("hdcp engine busy\n");
+		rx_pr("hdcp engine busy\n");
 		mdelay(100);
 	}
 
 	hdmirx_phy_init(rx.port, 0);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
 	DWC_init(rx.port);
-	rx_print("%s  %d Done!\n", __func__, rx.port);
+	rx_pr("%s  %d Done!\n", __func__, rx.port);
 }
 
 void hdcp22_hw_cfg(void)
 {
-	rx_print("hdcp22_hw_cfg\n");
+	rx_pr("hdcp22_hw_cfg\n");
 
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);
 	clk_init();
 	control_reset();
 
-	hdmi_rx_ctrl_edid_update();
+	/* hdmi_rx_ctrl_edid_update(); */
 	if (hdcp_enable)
 		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
 	else
@@ -989,34 +1106,26 @@ void hdcp22_hw_cfg(void)
 void hdmirx_hw_probe(void)
 {
 	hdmirx_wr_top(TOP_MEM_PD, 0);
-	hdmirx_wr_top(TOP_SW_RESET,	0);
+	hdmirx_wr_top(TOP_SW_RESET, 0);
 	clk_init();
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL, 0x1e109);
-	if (is_meson_gxtvbb_cpu()) {
+
+	if (is_meson_gxtvbb_cpu())
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
-		hdmirx_wr_top(TOP_INFILTER,
-			hdmirx_rd_top(TOP_INFILTER) | 0x2001 << 16);
-	} else {
-		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
-		hdmirx_wr_top(0x2c, 0x20012001);
-	}
-	hdmi_rx_ctrl_edid_update();
-	/* #ifdef HDCP22_ENABLE */
-	/* if (hdcp_22_on) */
-	/*	hpd_to_esm = 1; */
-	/* #endif */
-	mdelay(150);
+
 	if (phy_init_in_probe)
 		hdmirx_phy_init(0, 0);
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu()) {
+		mdelay(150);
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
-	else
-		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
+	}
+
 	hdmirx_hdcp22_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
-	rx_print("%s Done!\n", __func__);
+	edid_update_flag = true;
+	rx_pr("%s Done!\n", __func__);
 }
 
 
@@ -1151,7 +1260,7 @@ void hdmirx_set_video_mute(bool mute)
 {
 	hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, _BIT(16), mute);
 	if (log_flag & VIDEO_LOG)
-		rx_print("%s,mute: %d\n", __func__, mute);
+		rx_pr("%s,mute: %d\n", __func__, mute);
 }
 
 void hdmirx_config_video(struct hdmi_rx_ctrl_video *video_params)

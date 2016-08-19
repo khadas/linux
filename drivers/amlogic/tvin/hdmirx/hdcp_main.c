@@ -283,7 +283,7 @@ static long cmd_get_data_phys_addr(struct esm_device *esm,
 	krequest.returned_phys_addr = esm->data_base;
 	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
 
-	rx_print("%scmd_get_data_phys_addr: returning data_base=0x%x\n",
+	rx_pr("%scmd_get_data_phys_addr: returning data_base=0x%x\n",
 		MY_TAG, krequest.returned_phys_addr);
 
 	ret = copy_to_user(request, &krequest,
@@ -303,7 +303,7 @@ static long cmd_get_data_size(struct esm_device *esm,
 	krequest.returned_data_size = esm->data_size;
 	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
 
-	rx_print("%scmd_get_data_size: returning data_size=0x%x\n",
+	rx_pr("%scmd_get_data_size: returning data_size=0x%x\n",
 		MY_TAG, krequest.returned_data_size);
 
 	ret = copy_to_user(request, &krequest,

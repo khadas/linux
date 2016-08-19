@@ -67,13 +67,22 @@
 
 #define PHY_RESISTOR_CALIBRATION_1 (0x10UL)
 #define PHY_MAIN_FSM_OVERRIDE2	(0x08UL)
-#define PHY_CH0_EQ_CTRL3			(0x3EUL)
-#define PHY_CH1_EQ_CTRL3			(0x5EUL)
-#define PHY_CH2_EQ_CTRL3			(0x7EUL)
+
+#define PHY_CORESTATUS_CH0		(0x30UL)
+#define PHY_CORESTATUS_CH1		(0x50UL)
+#define PHY_CORESTATUS_CH2		(0x70UL)
 
 #define PHY_EQCTRL1_CH0			(0x32UL)
 #define PHY_EQCTRL1_CH1			(0x52UL)
 #define PHY_EQCTRL1_CH2			(0x72UL)
+
+#define PHY_EQLSTATS_CH0		(0x34UL)
+#define PHY_EQLSTATS_CH1		(0x54UL)
+#define PHY_EQLSTATS_CH2		(0x74UL)
+
+#define PHY_CH0_EQ_CTRL3		(0x3EUL)
+#define PHY_CH1_EQ_CTRL3		(0x5EUL)
+#define PHY_CH2_EQ_CTRL3		(0x7EUL)
 
 #define PHY_EQCTRL4_CH0			(0x3FUL)
 #define PHY_EQCTRL4_CH1			(0x5FUL)
@@ -83,9 +92,17 @@
 #define PHY_EQCTRL2_CH1			(0x53UL)
 #define PHY_EQCTRL2_CH2			(0x73UL)
 
+#define PHY_EQLCKST2_CH0		(0x40UL)
+#define PHY_EQLCKST2_CH1		(0x60UL)
+#define PHY_EQLCKST2_CH2		(0x80UL)
+
 #define PHY_EQSTAT3_CH0			(0x42UL)
 #define PHY_EQSTAT3_CH1			(0x62UL)
 #define PHY_EQSTAT3_CH2			(0x82UL)
+
+#define PHY_EQCTRL6_CH0		(0x43UL)
+#define PHY_EQCTRL6_CH1		(0x63UL)
+#define PHY_EQCTRL6_CH2		(0x83UL)
 
 #define OVL_PROT_CTRL                   (0x0DUL)
 #define PHY_CDR_CTRL_CNT			(0x0EUL)
@@ -162,7 +179,16 @@
 #define TOP_EDID_GEN_STAT_C              0x026
 #define TOP_EDID_GEN_STAT_D              0x027
 #define	TOP_ACR_CNTL2					 0x02a
-#define	TOP_INFILTER					 0x02b
+/* Gxtvbb */
+#define	TOP_INFILTER_GXTVBB				 0x02b
+/* Gxtvbb */
+
+#define	TOP_INFILTER_HDCP				 0x02C
+#define	TOP_INFILTER_I2C0				 0x02D
+#define	TOP_INFILTER_I2C1				 0x02E
+#define	TOP_INFILTER_I2C2				 0x02F
+#define	TOP_INFILTER_I2C3				 0x030
+
 #define	TOP_SKP_CNTL_STAT				 0x061
 #define	TOP_NONCE_0						 0x062
 #define	TOP_NONCE_1						 0x063

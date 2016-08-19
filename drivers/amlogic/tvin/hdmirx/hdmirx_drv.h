@@ -27,7 +27,10 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define HDMIRX_VER "Ref.2016/08/10"
+#define RX_VER0 "Ref.2016/08/16"
+#define RX_VER1 "Ref.2016/08/10"
+#define RX_VER2 "Ref.2016/08/10"
+#define RX_VER3 "Ref.2016/08/10"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -37,7 +40,7 @@
 #define AUDIO_LOG	0x04
 #define HDCP_LOG	0x08
 #define PACKET_LOG	0x10
-#define CEC_LOG		0x20
+#define EQ_LOG		0x20
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
 
@@ -68,6 +71,7 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_PC_MODE_OFF	_IO(HDMI_IOC_MAGIC, 0x05)
 #define HDMI_IOC_HDCP22_AUTO	_IO(HDMI_IOC_MAGIC, 0x06)
 #define HDMI_IOC_HDCP22_FORCE14 _IO(HDMI_IOC_MAGIC, 0x07)
+#define HDMI_IOC_HDMI_20_SET	_IO(HDMI_IOC_MAGIC, 0x08)
 
 #define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
 
@@ -168,10 +172,11 @@ enum HDMI_Video_Type {
 
 enum fsm_states_e {
 	FSM_INIT,
-	FSM_HDMI5V_LOW,
-	FSM_HDMI5V_HIGH,
-	FSM_HPD_READY,
+	FSM_HPD_LOW,
+	FSM_HPD_HIGH,
+	FSM_EQ_INIT,
 	FSM_EQ_CALIBRATION,
+	FSM_EQ_END,
 	FSM_PHY_RST,
 	FSM_WAIT_CLK_STABLE,
 	FSM_WAIT_HDCP_SWITCH,
@@ -185,6 +190,15 @@ enum fsm_states_e {
 	FSM_DWC_RESET,
 };
 
+enum port_sts {
+	e_port0,
+	e_port1,
+	e_port2,
+	e_5v_lost = 0xfd,
+	e_hpd_reset = 0xfe,
+	e_init = 0xff,
+};
+
 enum repeater_state_e {
 	REPEATER_STATE_WAIT_KSV,
 	REPEATER_STATE_WAIT_ACK,
@@ -196,6 +210,21 @@ enum hdcp_version_e {
 	HDCP_VERSION_NONE,
 	HDCP_VERSION_14,
 	HDCP_VERSION_22,
+};
+
+enum hdmirx_port_e {
+	HDMIRX_PORT0,
+	HDMIRX_PORT1,
+	HDMIRX_PORT2,
+	HDMIRX_PORT3,
+};
+
+enum hdcp22_auth_state_e {
+	HDCP22_AUTH_STATE_NOT_CAPBLE,
+	HDCP22_AUTH_STATE_CAPBLE,
+	HDCP22_AUTH_STATE_LOST,
+	HDCP22_AUTH_STATE_SUCCESS,
+	HDCP22_AUTH_STATE_FAILED,
 };
 
 /** Configuration clock minimum [kHz] */
@@ -436,18 +465,13 @@ struct rx_s {
 	/* wrapper */
 	unsigned int state;
 	unsigned int pre_state;
-	unsigned char portA_pow5v_state_pre;
-	unsigned char portB_pow5v_state_pre;
-	unsigned char portC_pow5v_state_pre;
-	unsigned char portD_pow5v_state_pre;
-	unsigned char portA_pow5v_state;
-	unsigned char portB_pow5v_state;
-	unsigned char portC_pow5v_state;
-	unsigned char portD_pow5v_state;
-	bool current_port_tx_5v_status;
+
+	unsigned char pre_5v_sts;
+
+	unsigned char cur_5v_sts;
 	/* bool tx_5v_status_pre; */
 	bool no_signal;
-	int hpd_wait_time;
+	/* int hpd_wait_time; */
 	int audio_wait_time;
 	int aud_sr_stable_cnt;
 	int aud_sr_unstable_cnt;
@@ -568,9 +592,28 @@ struct vsi_infoframe_t {
 	unsigned char struct_3d_ext:4;
 };
 
-/* hpd event */
-extern struct delayed_work     hpd_dwork;
-extern struct workqueue_struct *hpd_wq;
+struct st_eq_data {
+	/* Best long cable setting */
+	uint16_t bestLongSetting;
+	/* long cable setting detected and valid */
+	uint8_t validLongSetting;
+	/* best short cable setting */
+	uint16_t bestShortSetting;
+	/* best short cable setting detected and valid */
+	uint8_t validShortSetting;
+	/* TMDS Valid for channel */
+	uint8_t tmdsvalid;
+	/* best setting to be programed */
+	uint16_t bestsetting;
+	/* Accumulator register */
+	uint16_t acc;
+	/* Aquisition register */
+	uint16_t acq;
+	uint16_t lastacq;
+};
+
+extern struct delayed_work     eq_dwork;
+extern struct workqueue_struct *eq_wq;
 extern unsigned int pwr_sts;
 extern unsigned char *pEdid_buffer;
 extern bool multi_port_edid_enable;
@@ -592,12 +635,11 @@ extern unsigned char is_frame_packing(void);
 extern void clk_init(void);
 extern void clk_off(void);
 extern void set_scdc_cfg(int hpdlow, int pwrprovided);
-extern int hdmirx_print_flag;
 extern bool irq_ctrl_reg_en; /* enable/disable reg rd/wr in irq  */
 
 extern int rgb_quant_range;
 extern int yuv_quant_range;
-extern int hdcp_22_on;
+extern int hdcp22_on;
 extern int do_esm_rst_flag;
 extern int hdcp22_firmware_ok_flag;
 extern int force_hdcp14_en;
@@ -610,7 +652,7 @@ extern struct gpio_desc *g_uart_pin[3];
 extern int esm_err_force_14;
 extern int pc_mode_en;
 extern int do_hpd_reset_flag;
-extern bool force_reset_hpd;
+extern bool edid_update_flag;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);
@@ -684,7 +726,6 @@ unsigned int hdmirx_get_audio_clock(void);
 
 void hdmirx_read_audio_info(struct aud_info_s *audio_info);
 void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs);
-void hdmirx_set_pinmux(void);
 unsigned int hdmirx_get_clock(int index);
 irqreturn_t irq_handler(int irq, void *params);
 
@@ -692,6 +733,7 @@ irqreturn_t irq_handler(int irq, void *params);
  * all functions declare
  */
 extern enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
+extern void edid_update(void);
 extern void hdmirx_hw_monitor(void);
 extern void uart_plugin_monitor(void);
 extern bool hdmirx_hw_is_nosig(void);
@@ -699,8 +741,6 @@ extern bool hdmirx_hw_pll_lock(void);
 extern void hdmirx_hw_init(enum tvin_port_e port);
 extern void to_init_state(void);
 extern void hdmirx_hw_uninit(void);
-extern void hdmirx_hw_enable(void);
-extern void hdmirx_default_hpd(bool high);
 extern void hdmirx_hw_disable(unsigned char flag);
 extern void hdmirx_fill_edid_buf(const char *buf, int size);
 extern int hdmirx_read_edid_buf(char *buf, int max_size);
@@ -713,7 +753,7 @@ extern int hdmirx_hw_get_dvi_info(void);
 extern int rx_get_colordepth(void);
 extern int hdmirx_hw_get_pixel_repeat(void);
 extern bool hdmirx_hw_check_frame_skip(void);
-extern int rx_print(const char *fmt, ...);
+extern int rx_pr(const char *fmt, ...);
 extern int hdmirx_de_repeat_enable;
 extern int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 extern bool hdmirx_audio_pll_lock(void);
@@ -723,14 +763,17 @@ extern ssize_t hdmirx_signal_status_buf(char *buf);
 extern void hdmirx_irq_init(void);
 extern void hdmirx_check_new_edid(void);
 
-extern void hdmirx_plug_det(struct work_struct *work);
+extern void eq_algorithm(struct work_struct *work);
 extern void hdmirx_wait_query(void);
-extern bool hdmirx_tmds_34g(void);
+extern bool hdmirx_tmds_6g(void);
 
-extern int cec_has_irq(void);
+/* extern int cec_has_irq(void); */
 extern void cecrx_hw_init(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
-
+extern void esm_set_stable(bool stable);
+extern void rx_5v_det(void);
+extern void hdmirx_set_hdmi20_force(int port, bool value);
+extern bool hdmirx_get_hdmi20_force(int port);
 /* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02;
  * tvafe:0x4; dac:0x8, audio pll:0x10
