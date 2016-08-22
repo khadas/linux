@@ -30,7 +30,7 @@
 #define RX_VER0 "Ref.2016/08/16"
 #define RX_VER1 "Ref.2016/08/10"
 #define RX_VER2 "Ref.2016/08/10"
-#define RX_VER3 "Ref.2016/08/10"
+#define RX_VER3 "Ref.2016/08/22"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -653,6 +653,8 @@ extern int esm_err_force_14;
 extern int pc_mode_en;
 extern int do_hpd_reset_flag;
 extern bool edid_update_flag;
+extern bool reset_sw;
+extern int sm_pause;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);
@@ -779,5 +781,5 @@ extern bool hdmirx_get_hdmi20_force(int port);
  * tvafe:0x4; dac:0x8, audio pll:0x10
 */
 extern void vdac_enable(bool on, unsigned int module_sel);
-
+extern void hdmirx_phy_bist_test(int lvl);
 #endif  /* _TVHDMI_H */
