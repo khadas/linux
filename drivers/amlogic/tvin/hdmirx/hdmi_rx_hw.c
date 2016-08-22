@@ -1544,3 +1544,74 @@ void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs)
 	#endif
 }
 
+
+/* param: */
+/* lvl: 0-bist  1-cdr*/
+void hdmirx_phy_bist_test(int lvl)
+{
+	unsigned int data32;
+
+	/* set CFGCLK,bist:85M   CDR:75M */
+	if (lvl) {
+		rx_pr("cdr test start:\n");
+		wr_reg(HHI_HDMIRX_CLK_CNTL, 0x03060704);
+	} else {
+		rx_pr("bist test start:\n");
+		wr_reg(HHI_HDMIRX_CLK_CNTL, 0x03050704);
+	}
+	sm_pause = 1;
+	reset_sw = 0;
+
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, (0x53 | (rx.port<<2)));
+	mdelay(1);
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, (0x52 | (rx.port<<2)));
+	mdelay(10);
+
+	hdmirx_wr_phy(PHY_CMU_CONFIG, 0x1b2c);
+	hdmirx_wr_phy(MPLL_PARAMETERS2,    0x1c94);
+	hdmirx_wr_phy(MPLL_PARAMETERS3,    0x3713);
+	hdmirx_wr_phy(MPLL_PARAMETERS4,    0x24da);
+	hdmirx_wr_phy(MPLL_PARAMETERS5,    0x5492);
+	hdmirx_wr_phy(MPLL_PARAMETERS6,    0x4b0d);
+	hdmirx_wr_phy(MPLL_PARAMETERS7,    0x4760);
+	hdmirx_wr_phy(MPLL_PARAMETERS8,    0x008c);
+	hdmirx_wr_phy(MPLL_PARAMETERS9,    0x02);
+	hdmirx_wr_phy(MPLL_PARAMETERS10,   0x2d20);
+	hdmirx_wr_phy(MPLL_PARAMETERS11, 0x2e31);
+	hdmirx_wr_phy(MPLL_PARAMETERS12, 0x4b64);
+	hdmirx_wr_phy(MPLL_PARAMETERS13, 0x2493);
+	hdmirx_wr_phy(MPLL_PARAMETERS14, 0x676d);
+	hdmirx_wr_phy(MPLL_PARAMETERS15, 0x23e0);
+	hdmirx_wr_phy(MPLL_PARAMETERS16, 0x001b);
+	hdmirx_wr_phy(MPLL_PARAMETERS17, 0x2218);
+	hdmirx_wr_phy(MPLL_PARAMETERS18, 0x1b25);
+	hdmirx_wr_phy(MPLL_PARAMETERS19, 0x2492);
+	hdmirx_wr_phy(MPLL_PARAMETERS20, 0x48ea);
+	hdmirx_wr_phy(MPLL_PARAMETERS21, 0x0011);
+	hdmirx_wr_phy(MPLL_PARAMETERS22, 0x04d2);
+	hdmirx_wr_phy(MPLL_PARAMETERS23, 0x0414);
+
+	if (lvl) {
+		hdmirx_wr_phy(PHY_MAIN_BIST_CONTROL, 0x31);
+	mdelay(10);
+		hdmirx_wr_phy(PHY_CDR_CTRL_CNT, 0x18);
+	mdelay(10);
+		hdmirx_wr_phy(MPLL_DIVIDER_CONTROL, 0x28);
+	} else
+		hdmirx_wr_phy(PHY_MAIN_BIST_CONTROL, 0xb1);
+
+	mdelay(10);
+
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, (0x50 | (rx.port<<2)));
+	mdelay(10);
+
+	data32 = hdmirx_rd_phy(PHY_MAIN_BIST_RESULTS) & 0x3;
+
+	if (data32 == 0x0 || data32 == 0x2)
+		rx_pr("ERROR: bist test not complete!\n");
+	else if (data32 == 0x1)
+		rx_pr("ERROR: bist test fail!\n");
+	else if (data32 == 0x3)
+		rx_pr("PASS!\n");
+}
+
