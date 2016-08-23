@@ -422,6 +422,11 @@ void __attribute__((weak))rx_edid_physical_addr(unsigned char a,
 {
 }
 
+extern void rx_set_repeater_support(bool enable);
+void __attribute__((weak))rx_set_repeater_support(bool enable)
+{
+}
+
 extern void rx_set_receiver_edid(unsigned char *data, int len);
 void __attribute__((weak))rx_set_receiver_edid(unsigned char *data, int len)
 {
