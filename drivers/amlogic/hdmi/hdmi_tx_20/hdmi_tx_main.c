@@ -82,6 +82,7 @@ static int edid_rx_ext_data(unsigned char *ext, unsigned char regaddr,
 static void gpio_read_edid(unsigned char *rx_edid);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
+static int check_fbc_special(unsigned char *edid_dat);
 static int hdcp_tst_sig;
 
 #ifndef CONFIG_AM_TV_OUTPUT
@@ -2115,6 +2116,11 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdev->hpd_state = 1;
 	rx_repeat_hpd_state(1);
 	hdmitx_get_edid(hdev);
+	if (check_fbc_special(&hdev->EDID_buf[0])
+		|| check_fbc_special(&hdev->EDID_buf1[0]))
+		rx_set_repeater_support(0);
+	else
+		rx_set_repeater_support(1);
 	rx_repeat_hdcp_ver(get_downstream_hdcp_ver());
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_GET_BKSV,
 		(unsigned long int)bksv_buf);
