@@ -1334,6 +1334,13 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 {
 	bool ret = false;
 
+	/* check non standard signal, ignore SECAM/525 mode */
+	if (!tvafe_cvd2_sig_unstable(cvd2))
+		tvafe_cvd2_non_std_signal_det(cvd2);
+
+	if (cvd2->manual_fmt)
+		return false;
+
 	if (tvafe_cvd2_sig_unstable(cvd2)) {
 
 		if (cvd_dbg_en)
@@ -1342,12 +1349,6 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 			cvd2->hw.no_sig, cvd2->hw.h_lock, cvd2->hw.v_lock);
 		return true;
 	}
-
-	/* check non standard signal, ignore SECAM/525 mode */
-	tvafe_cvd2_non_std_signal_det(cvd2);
-
-	if (cvd2->manual_fmt)
-		return false;
 
 	/* check line flag */
 		switch (cvd2->config_fmt) {
@@ -2586,11 +2587,18 @@ void tvafe_snow_config_clamp(unsigned int onoff)
 	else
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);
 }
-
+/*only for pal-i*/
 void tvafe_snow_config_acd(void)
 {
-	/*0x900360 is debug test result*/
+	/*0x8e035e is debug test result*/
 	if (acd_h_config)
 		W_APB_REG(ACD_REG_2D, acd_h_config);
+}
+/*only for pal-i*/
+void tvafe_snow_config_acd_resume(void)
+{
+	/*@todo,0x880358 must be same with cvbs_acd_table/rf_acd_table*/
+	if (R_APB_REG(ACD_REG_2D) != 0X880358)
+		W_APB_REG(ACD_REG_2D, 0X880358);
 }
 
