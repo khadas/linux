@@ -271,6 +271,11 @@ static unsigned int acd_h_config = 0x8e035e;
 module_param(acd_h_config, uint, 0664);
 MODULE_PARM_DESC(acd_h_config, "acd_h_config");
 
+/*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
+static unsigned int cvd2_filter_config_level;
+module_param(cvd2_filter_config_level, uint, 0664);
+MODULE_PARM_DESC(cvd2_filter_config_level, "cvd2_filter_config_level");
+
 static unsigned int try_format_cnt;
 
 static bool cvd_pr_flag;
@@ -346,9 +351,37 @@ even sharper filter: 0x3194 = 0x401012da, 0x3195 = 0x2023036c,
 */
 static void tvafe_cvd2_filter_config(void)
 {
-	W_APB_REG(ACD_REG_94, 0x40100160);
-	W_APB_REG(ACD_REG_95, 0x50);
-	W_APB_REG(ACD_REG_96, 0x0);
+	switch (cvd2_filter_config_level) {
+	case 0:
+		W_APB_REG(ACD_REG_94, 0x40100160);
+		W_APB_REG(ACD_REG_95, 0x50);
+		W_APB_REG(ACD_REG_96, 0x0);
+		break;
+	case 1:
+		W_APB_REG(ACD_REG_94, 0x40126266);
+		W_APB_REG(ACD_REG_95, 0x3ad303a1);
+		W_APB_REG(ACD_REG_96, 0x080ee9fa);
+		break;
+	case 2:
+		W_APB_REG(ACD_REG_94, 0x40114288);
+		W_APB_REG(ACD_REG_95, 0x38f30388);
+		W_APB_REG(ACD_REG_96, 0x0416f7e4);
+		break;
+	case 3:
+		W_APB_REG(ACD_REG_94, 0x40123282);
+		W_APB_REG(ACD_REG_95, 0x19dd03a6);
+		W_APB_REG(ACD_REG_96, 0x0);
+		break;
+	default:
+		W_APB_REG(ACD_REG_94, 0x40100160);
+		W_APB_REG(ACD_REG_95, 0x50);
+		W_APB_REG(ACD_REG_96, 0x0);
+		break;
+	}
+	if (cvd_dbg_en)
+		pr_info("[tvafe..]%s cvd2 filter config level %d.\n",
+				__func__, cvd2_filter_config_level);
+
 }
 
 /*
