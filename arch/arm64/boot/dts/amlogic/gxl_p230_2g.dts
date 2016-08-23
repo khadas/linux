@@ -204,8 +204,8 @@
 			0x0 0xc8834558 0x0 0xc>;
 			interrupts = <0 8 1>;
 			phy-mode= "rgmii";
-			pinctrl-names = "eth_pins";
-			pinctrl-0 = <&eth_pins>;
+			pinctrl-names = "external_eth_pins";
+			pinctrl-0 = <&external_eth_pins>;
 			rst_pin-gpios = <&gpio GPIOZ_14 0>;
 			GPIOZ4_pin-gpios = <&gpio GPIOZ_4 0>;
 			GPIOZ5_pin-gpios = <&gpio GPIOZ_5 0>;
@@ -226,6 +226,8 @@
 			0x0 0xc8834558 0x0 0xc>;
 			interrupts = <0 8 1>;
 			phy-mode= "rmii";
+			pinctrl-names = "internal_eth_pins";
+			pinctrl-0 = <&internal_eth_pins>;
 			mc_val = <0x1800>;
 			resets = <&clock GCLK_IDX_ETHERNET>;
 			reset-names = "ethpower";

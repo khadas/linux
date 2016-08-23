@@ -80,6 +80,8 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 			pr_debug("internal phy\n");
 			writel(0x10110181, PREG_ETH_REG2);
 			writel(0xe489087f, PREG_ETH_REG3);
+			pin_ctl = devm_pinctrl_get_select(&pdev->dev,
+				"internal_eth_pins");
 		} else {
 			writel(0x10110181, PREG_ETH_REG2);
 			writel(0x2009087f, PREG_ETH_REG3);
@@ -98,12 +100,15 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 				gpiod_put(gdesc_z5);
 				pr_debug("Ethernet: gpio reset ok\n");
 			}
+			pin_ctl = devm_pinctrl_get_select(&pdev->dev,
+			"external_eth_pins");
 		}
 		pr_debug("REG2:REG3:REG4 = 0x%x :0x%x :0x%x\n",
 			readl(PREG_ETH_REG2), readl(PREG_ETH_REG3),
 			readl(PREG_ETH_REG4));
+	} else {
+		pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	}
-	pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	pr_debug("Ethernet: pinmux setup ok\n");
 	return addr;
 }
