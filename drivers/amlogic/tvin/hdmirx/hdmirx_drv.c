@@ -93,6 +93,10 @@ static int repeat_function;
 MODULE_PARM_DESC(repeat_function, "\n repeat_function\n");
 module_param(repeat_function, int, 0664);
 
+bool downstream_repeat_support = 1;
+MODULE_PARM_DESC(downstream_repeat_support, "\n downstream_repeat_support\n");
+module_param(downstream_repeat_support, bool, 0664);
+
 static int force_color_range;
 MODULE_PARM_DESC(force_color_range, "\n force_color_range\n");
 module_param(force_color_range, int, 0664);
@@ -183,7 +187,7 @@ static int check_regmap_flag(unsigned int addr)
 
 bool hdmirx_repeat_support(void)
 {
-	return repeat_function;
+	return repeat_function && downstream_repeat_support;
 }
 
 unsigned int rd_reg(unsigned int addr)

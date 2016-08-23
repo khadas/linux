@@ -28,7 +28,7 @@
 #include "../tvin_frontend.h"
 
 #define RX_VER0 "Ref.2016/09/06"
-#define RX_VER1 "Ref.2016/08/10"
+#define RX_VER1 "Ref.2016/08/23"
 #define RX_VER2 "Ref.2016/08/10"
 #define RX_VER3 "Ref.2016/09/02"
 
@@ -628,6 +628,7 @@ extern bool hdcp_enable;
 extern int it_content;
 extern struct rx_s rx;
 extern int log_flag;
+extern bool downstream_repeat_support;
 
 extern unsigned int hdmirx_addr_port;
 extern unsigned int hdmirx_data_port;
@@ -690,6 +691,7 @@ uint32_t get(uint32_t data, uint32_t mask);
 uint32_t set(uint32_t data, uint32_t mask, uint32_t value);
 int rx_set_receiver_edid(unsigned char *data, int len);
 int rx_set_hdr_lumi(unsigned char *data, int len);
+void rx_set_repeater_support(bool enable);
 bool rx_set_receive_hdcp(unsigned char *data, int len, int depth, bool , bool);
 void rx_repeat_hpd_state(bool plug);
 void rx_repeat_hdcp_ver(int version);

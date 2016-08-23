@@ -1212,8 +1212,8 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 				esm_set_stable(0);
 		}
 		if (log_flag & HDCP_LOG) {
-			rx_pr("auth = %d\n",
-					hdcp22_authenticated);
+			rx_pr("auth = %d,%#x\n",
+					hdcp22_authenticated, intr_hdcp22);
 			rx_pr("capable = %d\n",
 					hdcp22_capable_sts);
 		}
@@ -3297,6 +3297,12 @@ int rx_set_hdr_lumi(unsigned char *data, int len)
 	return true;
 }
 EXPORT_SYMBOL(rx_set_hdr_lumi);
+
+void rx_set_repeater_support(bool enable)
+{
+	downstream_repeat_support = enable;
+}
+EXPORT_SYMBOL(rx_set_repeater_support);
 
 bool rx_poll_dwc(uint16_t addr, uint32_t exp_data,
 			uint32_t mask, uint32_t max_try)
