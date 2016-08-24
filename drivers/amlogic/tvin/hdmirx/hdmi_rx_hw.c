@@ -1559,8 +1559,6 @@ void hdmirx_phy_bist_test(int lvl)
 		rx_pr("bist test start:\n");
 		wr_reg(HHI_HDMIRX_CLK_CNTL, 0x03050704);
 	}
-	sm_pause = 1;
-	reset_sw = 0;
 
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, (0x53 | (rx.port<<2)));
 	mdelay(1);
