@@ -78,7 +78,8 @@
 
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
-			/** 10x(1920x1088x(3/2+1/5)+1088)x5/4=43M **/
+			/** 10x(1920x1088x(3/2+1/5)+1088)x5/4=43M 10bit **/
+			/** 10x(1920x1088x(3/2+1/5)+1088)x3/2=51M 12bit **/
 			size = <0x0 0x2b00000>;
 			//no-map;
 		};
