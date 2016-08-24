@@ -553,8 +553,8 @@ bool edid_update_flag;
 bool hdcp22_reauth_enable = 1;
 static int hdcp22_lost_cnt;
 static int last_color_fmt;
-bool reset_sw = true;
-int sm_pause;
+static bool reset_sw = true;
+static int sm_pause;
 static int ddc_state_err_cnt;
 static int irq_video_mute_flag;
 static bool edid_addr_intr_flag;
@@ -4420,6 +4420,8 @@ int hdmirx_debug(const char *buf, int size)
 		} else
 			rx_pr("load-2-no\n");
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
+		sm_pause = 1;
+		reset_sw = 0;
 		hdmirx_phy_bist_test(tmpbuf[4] == '0' ? 0 : 1);
 	} else if (strncmp(tmpbuf, "clock", 5) == 0) {
 		if (kstrtol(tmpbuf + 5, 10, &value) < 0)
@@ -4597,7 +4599,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		}
 		#endif
 	} else {
-		rx.state = FSM_SIG_STABLE;
+		rx.state = FSM_HPD_HIGH;
 	}
 	rx_pr("%s %d nosignal:%d\n", __func__, rx.port, rx.no_signal);
 
