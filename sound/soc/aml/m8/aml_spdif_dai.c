@@ -322,12 +322,18 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 			pr_info("sample_rate==AUDIO_CLK_FREQ_882\n");
 			set.chan_stat->chstat1_l = 0x800;
 			set.chan_stat->chstat1_r = 0x800;
-		}
-
-		if (sample_rate == AUDIO_CLK_FREQ_96) {
+		} else if (sample_rate == AUDIO_CLK_FREQ_96) {
 			pr_info("sample_rate==AUDIO_CLK_FREQ_96\n");
 			set.chan_stat->chstat1_l = 0xa00;
 			set.chan_stat->chstat1_r = 0xa00;
+		} else if (sample_rate == AUDIO_CLK_FREQ_1764) {
+			pr_info("sample_rate==AUDIO_CLK_FREQ_1764\n");
+			set.chan_stat->chstat1_l = 0xc00;
+			set.chan_stat->chstat1_r = 0xc00;
+		} else if (sample_rate == AUDIO_CLK_FREQ_192) {
+			pr_info("sample_rate==AUDIO_CLK_FREQ_192\n");
+			set.chan_stat->chstat1_l = 0xe00;
+			set.chan_stat->chstat1_r = 0xe00;
 		}
 		start = buf->addr;
 		size = snd_pcm_lib_buffer_bytes(substream);
