@@ -603,12 +603,21 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 		luma0_rpt_loop_pat = 0x80;
 		chroma0_rpt_loop_pat = mif->src_prog?0:0x80;
 
-		if (mif->output_field_num == 0) {
-			vt_ini_phase = 0xc;
-			vfmt_rpt_first = 1;
-		} else {
-			vt_ini_phase = 0x4;
-		}
+		vfmt_rpt_first = 1;
+		if (mif->output_field_num == 0)
+			vt_ini_phase = 0xa;
+		else
+			vt_ini_phase = 0xe;
+
+		if (mif->src_prog) {
+			if (mif->output_field_num == 0) {
+				vt_ini_phase = 0x4;
+			} else {
+				vt_ini_phase = 0xc;
+				vfmt_rpt_first = 0;
+			}
+		 }
+
 	} else if (mif->set_separate_en != 0 && mif->src_field_mode == 0) {
 		chro_rpt_lastl_ctrl = 1;
 		luma0_rpt_loop_start = 0;

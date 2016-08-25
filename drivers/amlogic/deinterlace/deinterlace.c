@@ -3407,7 +3407,8 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 					di_buf->vframe->width / 2 - 1;
 				di_mif->chroma_y_start0 = 0;
 				di_mif->chroma_y_end0 =
-					di_buf->vframe->height / 2 - 1;
+					di_buf->vframe->height / 2
+						- (di_mif->src_prog?1:2);
 			} else {
 				di_mif->output_field_num = 1;
 				/* bottom */
@@ -3420,7 +3421,8 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
-				di_mif->chroma_y_start0 = 0;
+				di_mif->chroma_y_start0 =
+					(di_mif->src_prog?0:1);
 				di_mif->chroma_y_end0 =
 					di_buf->vframe->height / 2 - 1;
 			}
