@@ -4,6 +4,15 @@
 #include <linux/cdev.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
+#include <linux/mutex.h>
+#include <linux/gpio/consumer.h>
+
+
+#ifndef bool
+#define bool unsigned char
+#endif
+
+#define INT_GPIO_0	96
 
 enum avin_status_e {
 	AVIN_STATUS_IN = 0,
@@ -13,13 +22,41 @@ enum avin_status_e {
 enum avin_channel_e {
 	AVIN_CHANNEL1 = 0,
 	AVIN_CHANNEL2 = 1,
+	AVIN_CHANNEL3 = 2,
 };
-
-#define INT_GPIO_0	96
 
 struct report_data_s {
 	enum avin_channel_e channel;
 	enum avin_status_e status;
+};
+
+struct dts_const_param_s {
+	unsigned char dts_device_num;
+	unsigned char dts_detect_times;
+	unsigned char dts_fault_tolerance;
+	unsigned char dts_interval_length;
+};
+
+/*
+irq_falling_times[i][j]
+i: number of avin device
+j: the times of set_detect_times  --detect_channel_times
+*/
+struct code_variable_s {
+	bool report_data_flag;
+	bool *pin_mask_irq_flag;
+	unsigned char first_time_into_loop;
+	unsigned char *loop_detect_times;
+	unsigned char *detect_channel_times;
+	unsigned char *actual_into_irq_times;
+	unsigned char *irq_falling_times;
+	struct report_data_s *report_data_s;
+	enum avin_status_e *ch_current_status;
+};
+
+struct hw_resource_s {
+	int *irq_num;
+	struct gpio_desc **pin;
 };
 
 struct avin_det_s {
@@ -28,26 +65,14 @@ struct avin_det_s {
 	struct device *config_dev;
 	struct class *config_class;
 	struct cdev avin_cdev;
-	struct report_data_s report_data_s[2];
-	unsigned int report_data_flag;
-	enum avin_status_e ch1_current_status;
-	enum avin_status_e ch2_current_status;
-	unsigned int irq_num1;
-	unsigned int irq_num2;
-	struct gpio_desc *pin1;
-	struct gpio_desc *pin2;
-	unsigned int set_detect_times;
-	unsigned int set_fault_tolerance;
-	unsigned int detect_channel1_times;
-	unsigned int detect_channel2_times;
-	unsigned int *irq1_falling_times;
-	unsigned int *irq2_falling_times;
-	unsigned int first_time_into_loop;
-	unsigned int detect_interval_length;
+	struct dts_const_param_s dts_param;
+	struct code_variable_s code_variable;
+	struct hw_resource_s hw_res;
 	struct input_dev *input_dev;
 	struct timer_list timer;
-	struct work_struct work_update1;
-	struct work_struct work_update2;
+	struct mutex lock;
+	struct work_struct work_struct_update;
+	struct work_struct work_struct_maskirq;
 };
 
 #endif
