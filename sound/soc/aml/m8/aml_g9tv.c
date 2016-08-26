@@ -554,7 +554,7 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
-	if (p_aml_audio->mute_desc) {
+	if (!IS_ERR(p_aml_audio->mute_desc)) {
 		gpiod_direction_output(p_aml_audio->mute_desc,
 					GPIOF_OUT_INIT_LOW);
 	};
@@ -580,7 +580,7 @@ static int aml_resume_post(struct snd_soc_card *card)
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	if (p_aml_audio->mute_desc) {
+	if (!IS_ERR(p_aml_audio->mute_desc)) {
 		if (p_aml_audio->sleep_time)
 			msleep(p_aml_audio->sleep_time);
 		gpiod_direction_output(p_aml_audio->mute_desc,
