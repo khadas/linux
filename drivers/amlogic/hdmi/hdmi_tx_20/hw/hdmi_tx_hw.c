@@ -4225,7 +4225,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= ((((input_color_format == COLORSPACE_YUV422) &&
 		(output_color_format != COLORSPACE_YUV422)) ? 2 : 0) << 4);
 	data32 |= ((((input_color_format != COLORSPACE_YUV422) &&
-		(output_color_format == COLORSPACE_YUV422)) ? 2 : 0) << 0);
+		(output_color_format == COLORSPACE_YUV422)) ? 1 : 0) << 0);
 	hdmitx_wr_reg(HDMITX_DWC_CSC_CFG, data32);
 	hdmitx_csc_config(input_color_format, output_color_format, color_depth);
 
