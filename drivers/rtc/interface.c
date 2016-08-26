@@ -50,32 +50,35 @@ EXPORT_SYMBOL_GPL(rtc_read_time);
 
 int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 {
-	int err;
+	int err = ENODEV;
+	struct rtc_device *rtc0 = rtc_class_open("rtc0");
+	if (rtc0) {
+		err = rtc_valid_tm(tm);
+		if (err != 0)
+			return err;
 
-	err = rtc_valid_tm(tm);
-	if (err != 0)
-		return err;
+		err = mutex_lock_interruptible(&rtc0->ops_lock);
+		if (err)
+			return err;
 
-	err = mutex_lock_interruptible(&rtc->ops_lock);
-	if (err)
-		return err;
-
-	if (!rtc->ops)
-		err = -ENODEV;
-	else if (rtc->ops->set_time)
-		err = rtc->ops->set_time(rtc->dev.parent, tm);
-	else if (rtc->ops->set_mmss) {
-		unsigned long secs;
-		err = rtc_tm_to_time(tm, &secs);
-		if (err == 0)
-			err = rtc->ops->set_mmss(rtc->dev.parent, secs);
-	} else
-		err = -EINVAL;
-
-	pm_stay_awake(rtc->dev.parent);
-	mutex_unlock(&rtc->ops_lock);
-	/* A timer might have just expired */
-	schedule_work(&rtc->irqwork);
+		if (!rtc0->ops)
+			err = -ENODEV;
+		else if (rtc0->ops->set_time)
+			err = rtc0->ops->set_time(rtc0->dev.parent, tm);
+		else if (rtc0->ops->set_mmss) {
+			unsigned long secs;
+			err = rtc_tm_to_time(tm, &secs);
+			if (err == 0)
+				err = rtc0->ops->set_mmss(
+						rtc0->dev.parent, secs);
+		} else
+			err = -EINVAL;
+		pm_stay_awake(rtc0->dev.parent);
+		mutex_unlock(&rtc0->ops_lock);
+		/* A timer might have just expired */
+		schedule_work(&rtc0->irqwork);
+		rtc_class_close(rtc0);
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_set_time);
