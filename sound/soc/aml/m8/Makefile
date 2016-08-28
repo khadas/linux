@@ -5,7 +5,7 @@ snd-soc-aml-i2s-dai-objs := aml_i2s_dai.o
 snd-soc-aml-pcm-dai-objs := aml_pcm_dai.o
 snd-soc-aml-spdif-dai-objs  := aml_spdif_dai.o
 snd-soc-aml-hw-objs  := aml_audio_hw.o
-snd-soc-aml-hw-pcm2bt-objs  := aml_audio_hw_pcm2bt.o
+snd-soc-aml-hw-pcm2bt-objs  := aml_audio_hw_pcm.o
 
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-pcm.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-i2s.o

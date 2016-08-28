@@ -60,6 +60,8 @@
 #define CLK_HDMIRX_AUDMEAS_CLK	45
 /* hdmirx */
 #define CLK_VDIN_MEAS_CLK	46
+#define CLK_PCM_MCLK        47
+#define CLK_PCM_SCLK        48
 
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100
