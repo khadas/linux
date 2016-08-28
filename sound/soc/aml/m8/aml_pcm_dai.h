@@ -17,6 +17,15 @@
 
 #ifndef AML_DAI_H
 #define AML_DAI_H
+
+struct aml_pcm {
+	struct clk *clk_mpll;
+	struct clk *clk_pcm_mclk;
+	struct clk *clk_pcm_sync;
+	int old_samplerate;
+	int pcm_mode;
+};
+
 void aml_hw_iec958_init(struct snd_pcm_substream *substream);
 extern struct snd_soc_dai_driver aml_dai[];
 

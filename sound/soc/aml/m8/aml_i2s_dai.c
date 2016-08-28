@@ -126,11 +126,11 @@ static int aml_i2s_set_amclk(struct aml_i2s *i2s, unsigned long rate)
 {
 	int ret = 0;
 
-	ret = clk_set_rate(i2s->clk_mpl0, rate * 10);
+	ret = clk_set_rate(i2s->clk_mpll, rate * 10);
 	if (ret)
 		return ret;
 
-	ret = clk_set_parent(i2s->clk_mclk, i2s->clk_mpl0);
+	ret = clk_set_parent(i2s->clk_mclk, i2s->clk_mpll);
 	if (ret)
 		return ret;
 
@@ -365,10 +365,10 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 	i2s->disable_clk_suspend =
 		of_property_read_bool(pnode, "disable_clk_suspend");
 
-	i2s->clk_mpl0 = devm_clk_get(&pdev->dev, "mpll0");
-	if (IS_ERR(i2s->clk_mpl0)) {
-		dev_err(&pdev->dev, "Can't retrieve mpll0 clock\n");
-		ret = PTR_ERR(i2s->clk_mpl0);
+	i2s->clk_mpll = devm_clk_get(&pdev->dev, "mpll2");
+	if (IS_ERR(i2s->clk_mpll)) {
+		dev_err(&pdev->dev, "Can't retrieve mpll2 clock\n");
+		ret = PTR_ERR(i2s->clk_mpll);
 		goto err;
 	}
 
