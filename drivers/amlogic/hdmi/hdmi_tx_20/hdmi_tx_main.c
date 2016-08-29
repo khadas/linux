@@ -2151,6 +2151,12 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_OFF);
 	mutex_lock(&setclk_mutex);
 	pr_info("hdmitx: plugout\n");
+	if (!!(hdev->HWOp.CntlMisc(hdev, MISC_HPD_GPI_ST, 0))) {
+		pr_info("hdmitx: hpd gpi high\n");
+		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+		mutex_unlock(&setclk_mutex);
+		return;
+	}
 	hdev->ready = 0;
 	hdev->hpd_state = 0;
 	rx_repeat_hpd_state(0);
