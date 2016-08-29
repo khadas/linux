@@ -69,7 +69,7 @@ static ssize_t led_max_brightness_show(struct device *dev,
 static DEVICE_ATTR(max_brightness, 0444, led_max_brightness_show, NULL);
 
 #ifdef CONFIG_LEDS_TRIGGERS
-static DEVICE_ATTR(trigger, 0644, led_trigger_show, led_trigger_store);
+static DEVICE_ATTR(trigger, 0777, led_trigger_show, led_trigger_store);
 static struct attribute *led_trigger_attrs[] = {
 	&dev_attr_trigger.attr,
 	NULL,
