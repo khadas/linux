@@ -36,10 +36,10 @@ menu "AMLOGIC CI Driver"
 
 config AM_CI
 	tristate "Amlogic Common Interface driver"
-	default n
+	default y
 	depends on AM_DVB
 	select AM_PCMCIA
-	select AM_IOBUS
+	select AM_SPI
 	help
 		Select to enable Amlogic CI driver.
 		Y: enable
@@ -53,11 +53,11 @@ config AM_PCMCIA
 		Y: enable
 		N: disable
 		M: build as module
-config AM_IOBUS
-	tristate "Amlogic IOBUS driver"
-	default n
+config AM_SPI
+	tristate "Amlogic SPI driver"
+	default y
 	help
-		Select to enable Amlogic IOBUS driver.
+		Select to enable Amlogic SPI driver.
 		Y: enable
 		N: disable
 		M: build as module
