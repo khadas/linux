@@ -1002,8 +1002,12 @@ void dtmb_all_reset(void)
 	int temp_data = 0;
 	if (is_meson_txl_cpu()) {
 		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1f);
+		/*modified bu xiaotong*/
 		dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
+		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x1a027719);
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x101a7);
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x133231);
+		/*detect 64qam 420 595 problems*/
 	} else {
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
@@ -1102,7 +1106,10 @@ int dtmb_information(void)
 	dev = NULL;
 	tps = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT);
 	tmp = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
-	che_snr = tmp & 0xfff;
+	if (is_meson_txl_cpu())
+		che_snr = tmp & 0x3fff;
+	else
+		che_snr = tmp & 0xfff;
 	snr = che_snr;
 	/*	if (che_snr >= 8192) */
 	/*		che_snr = che_snr - 16384;*/
@@ -1165,6 +1172,27 @@ int dtmb_check_cci(void)
 	}
 	return cci_det;
 }
+
+int dtmb_bch_check(void)
+{
+	int fec_bch_add, i;
+	fec_bch_add = dtmb_read_reg(DTMB_TOP_FEC_BCH_ACC);
+	pr_dbg("[debug]fec lock,fec_bch_add is %d\n", fec_bch_add);
+	msleep(100);
+	if (((dtmb_read_reg(DTMB_TOP_FEC_BCH_ACC))-fec_bch_add) >= 50) {
+		pr_dbg("[debug]fec lock,but bch add ,need reset,wait not to reset\n");
+		dtmb_reset();
+		for (i = 0; i < 30; i++) {
+			msleep(100);
+			if (check_dtmb_fec_lock() == 1) {
+				pr_dbg("[debug]fec lock,but bch add ,need reset,now is lock\n");
+				return 0;
+			}
+		}
+	}
+	return 0;
+}
+
 
 int dtmb_check_fsm(void)
 {
@@ -1291,6 +1319,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 		}
 	} else {
 		dtmb_check_cci();
+		dtmb_bch_check();
 	#if 0
 		cci_det = dtmb_check_cci();
 		if ((check_dtmb_mobile_det() <= demod_mobile_power)
@@ -1315,7 +1344,28 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 
 int dtmb_check_status_txl(struct dvb_frontend *fe)
 {
+	int time_cnt;
+	time_cnt = 0;
 	dtmb_information();
+	if (check_dtmb_fec_lock() != 1) {
+		while ((time_cnt < 10) && (check_dtmb_fec_lock() != 1)) {
+			msleep(demod_timeout);
+			time_cnt++;
+			dtmb_information();
+			if (time_cnt > 8)
+				pr_dbg
+					("* time_cnt = %d\n", time_cnt);
+		}
+		if (time_cnt >= 10 && (check_dtmb_fec_lock() != 1)) {
+			time_cnt = 0;
+			dtmb_register_reset();
+			dtmb_all_reset();
+			pr_dbg
+				("*all reset,timeout is %d\n", demod_timeout);
+		}
+	} else {
+		dtmb_bch_check();
+	}
 	return 0;
 }
 

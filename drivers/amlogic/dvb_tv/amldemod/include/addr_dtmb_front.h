@@ -41,7 +41,7 @@
 #define  DTMB_FRONT_IQIB_CONFIG               DTMB_FRONT_ADDR(0x43)
 #define  DTMB_FRONT_ST_CONFIG                 DTMB_FRONT_ADDR(0x44)
 #define  DTMB_FRONT_ST_FREQ                   DTMB_FRONT_ADDR(0x45)
-
+#define  DTMB_FRONT_47_CONFIG                   DTMB_FRONT_ADDR(0x47)
 #define  DTMB_FRONT_DEBUG_CFG                  DTMB_FRONT_ADDR(0x48)
 #define  DTMB_FRONT_MEM_ADDR                  DTMB_FRONT_ADDR(0x49)
 

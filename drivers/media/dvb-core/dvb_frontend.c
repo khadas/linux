@@ -809,7 +809,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 			msleep(100);
 			fe->ops.read_dtmb_fsm(fe, &dtmb_status);
 			for (i = 0 ; i < 8 ; i++) {
-				if (((dtmb_status >> (i*4)) & 0xf) > 4) {
+				if (((dtmb_status >> (i*4)) & 0xf) >= 4) {
 					/*has signal*/
 				/*	dprintk("has signal\n");*/
 					has_singal = 1;
