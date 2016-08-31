@@ -40,7 +40,7 @@
 	};
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x1000000 0x0 0x7f000000>;
+		linux,usable-memory = <0x0 0x100000 0x0 0x7f000000>;
 	};
 
 	reserved-memory {
@@ -95,14 +95,14 @@
 //		};
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
-			compatible = "amlogic, ppmgr_memory";
-			size = <0x0 0x2000000>;
+			compatible = "shared-dma-pool";
+			size = <0x0 0x0>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0xd000000>;
+			size = <0x0 0xc000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
