@@ -338,6 +338,15 @@ static void set_vsdb_dc_420_cap(struct rx_cap *pRXCap,
 	pRXCap->dc_48bit_420 = !!(edid_offset[6] & (1 << 2));
 }
 
+/* Special FBC check */
+static int check_fbc_special(unsigned char *edid_dat)
+{
+	if ((edid_dat[250] == 0xfb) && (edid_dat[251] == 0x0c))
+		return 1;
+	else
+		return 0;
+}
+
 int Edid_Parse_check_HDMI_VSDB(struct hdmitx_dev *hdev,
 	unsigned char *buff)
 {
@@ -362,10 +371,14 @@ int Edid_Parse_check_HDMI_VSDB(struct hdmitx_dev *hdev,
 	}
 
 	set_vsdb_phy_addr(&info->vsdb_phy_addr, &buff[BlockAddr]);
-	rx_edid_physical_addr(info->vsdb_phy_addr.a,
-		info->vsdb_phy_addr.b,
-		info->vsdb_phy_addr.c,
-		info->vsdb_phy_addr.d);
+	if ((check_fbc_special(&hdev->EDID_buf[0])) ||
+	    (check_fbc_special(&hdev->EDID_buf1[0])))
+		rx_edid_physical_addr(0, 0, 0, 0);
+	else
+		rx_edid_physical_addr(info->vsdb_phy_addr.a,
+			info->vsdb_phy_addr.b,
+			info->vsdb_phy_addr.c,
+			info->vsdb_phy_addr.d);
 	set_vsdb_dc_cap(&hdev->RXCap, &buff[BlockAddr]);
 
 	if (temp_addr >= VSpecificBoundary) {
