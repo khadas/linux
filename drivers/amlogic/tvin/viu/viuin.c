@@ -59,7 +59,7 @@
 #define ENCP_INFO_READ 0x271d
 #define ENCT_INFO_READ 0x271e
 #define ENCL_INFO_READ 0x271f
-
+#define VPU_VIU2VDIN_HDN_CTRL 0x2780
 #if 0 /* def CONFIG_GAMMA_AUTO_TUNE */
 
 static bool gamma_tune_en;
@@ -638,6 +638,14 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		/* enable hsync for vdin loop */
 		wr_bits_viu(VIU_MISC_CTRL1, 1, 28, 1);
 		viu_mux = 0x4;
+	} else {
+		if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() ||
+				is_meson_gxl_cpu()) {
+			if (devp->parm.v_active == 2160 &&
+				devp->parm.frame_rate > 30)
+				/* 1/2 down scaling */
+				wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x40f00);
+			}
 	}
 	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
 	wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 8, 4);
@@ -658,6 +666,8 @@ static void viuin_close(struct tvin_frontend_s *fe)
 		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 8, 4);
 		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 4, 4);
 	}
+	if (rd_viu(VPU_VIU2VDIN_HDN_CTRL) != 0)
+		wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x0);
 }
 
 static void viuin_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)

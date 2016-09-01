@@ -4154,7 +4154,7 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 	memset(&para, 0, sizeof(para));
 	para.port = node->porttype;
 	para.fmt = TVIN_SIG_FMT_MAX;
-	para.frame_rate = 60;
+	para.frame_rate = vinfo->sync_duration_num/vinfo->sync_duration_den;
 	para.h_active = vinfo->width;
 	para.v_active = vinfo->height;
 	para.hsync_phase = 0;
