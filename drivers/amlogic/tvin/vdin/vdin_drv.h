@@ -149,7 +149,7 @@ struct vdin_debug_s {
 };
 struct vdin_dev_s {
 	unsigned int			index;
-
+	unsigned int			vdin_max_pixelclk;
 	dev_t					devt;
 	struct cdev				cdev;
 	struct device			*dev;

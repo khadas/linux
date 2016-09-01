@@ -135,6 +135,7 @@ struct vf_pool {
 #ifdef ISR_LOG_EN
 	struct isr_log_s isr_log;
 #endif
+	atomic_t buffer_cnt;
 };
 
 extern void vf_log_init(struct vf_pool *p);

@@ -831,6 +831,14 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 
 }
 
+void vdin_set_config(struct vdin_dev_s *devp)
+{
+	if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() || is_meson_gxl_cpu())
+		/* max pixel clk of vdin for gxbb/gxm/gxl */
+		devp->vdin_max_pixelclk = 248832000; /* 2160p30hz*/
+	else
+		devp->vdin_max_pixelclk = 497664000; /* 2160p60hz*/
+}
 
 
 static inline void vdin_set_color_matrix1(unsigned int offset,
