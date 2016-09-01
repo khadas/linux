@@ -400,7 +400,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 		}
 		slave->status = VF_STATUS_SL;
 	}
-
+	atomic_set(&p->buffer_cnt, 0);
 #ifdef VF_LOG_EN
 	vf_log_init(p);
 	vf_log(p, VF_OPERATION_INIT, log_state);
@@ -702,6 +702,7 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 			vf_log(p, VF_OPERATION_BPUT, true);
 		}
 	}
+	atomic_dec(&p->buffer_cnt);
 }
 
 struct vframe_s *vdin_vf_peek(void *op_arg)
@@ -727,6 +728,7 @@ struct vframe_s *vdin_vf_get(void *op_arg)
 	vfe =  receiver_vf_get(p);
 	if (!vfe)
 		return NULL;
+	atomic_inc(&p->buffer_cnt);
 	return &vfe->vf;
 }
 
@@ -866,6 +868,7 @@ void vdin_dump_vf_state(struct vf_pool *p)
 			pos->vf.canvas1Addr, pos->vf.type);
 	}
 	spin_unlock_irqrestore(&p->tmp_lock, flags);
+	pr_info("buffer get count %d.\n", atomic_read(&p->buffer_cnt));
 
 }
 
