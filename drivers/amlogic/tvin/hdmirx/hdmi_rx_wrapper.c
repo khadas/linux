@@ -467,9 +467,9 @@ bool video_stable_to_esm;
 MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
 module_param(video_stable_to_esm, bool, 0664);
 
-static int hdcp_mode_sel;
+static bool hdcp_mode_sel;
 MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
-module_param(hdcp_mode_sel, int, 0664);
+module_param(hdcp_mode_sel, bool, 0664);
 
 static bool hdcp_auth_status;
 MODULE_PARM_DESC(hdcp_auth_status, "\n hdcp_auth_status\n");
@@ -526,6 +526,10 @@ module_param(esm_reboot_lvl, int, 0664);
 int enable_esm_reboot;
 MODULE_PARM_DESC(enable_esm_reboot, "\n enable_esm_reboot\n");
 module_param(enable_esm_reboot, int, 0664);
+
+bool esm_error_flag;
+MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
+module_param(esm_error_flag, bool, 0664);
 #endif
 
 int pre_port = 0xff;
@@ -912,6 +916,20 @@ void eq_algorithm(struct work_struct *work)
 	return;
 }
 
+void rx_hpd_to_esm_handle(struct work_struct *work)
+{
+	cancel_delayed_work(&eq_dwork);
+
+	switch_set_state(&rx.hpd_sdev, 0x0);
+	rx_pr("esm_hpd-0\n");
+	mdelay(80);
+	switch_set_state(&rx.hpd_sdev, 0x01);
+	rx_pr("esm_hpd-1\n");
+	rx.state = FSM_HPD_HIGH;
+	rx_pr("esm err->FSM_HDMI5V_HIGH\n");
+
+	return;
+}
 /**
  * Clock event handler
  * @param[in,out] ctx context information
@@ -1073,6 +1091,7 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	/* uint32_t intr_aud_clk = 0; */
 	uint32_t intr_aud_fifo = 0;
 	uint32_t intr_hdcp22 = 0;
+	uint32_t intr_aud_cec = 0;
 
 	bool clk_handle_flag = false;
 	bool video_handle_flag = false;
@@ -1113,6 +1132,11 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	if (intr_aud_fifo != 0)
 		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, intr_aud_fifo);
 
+	intr_aud_cec =
+			hdmirx_rd_dwc(DWC_AUD_CEC_ISTS) &
+			hdmirx_rd_dwc(DWC_AUD_CEC_IEN);
+		if (intr_aud_cec != 0)
+			hdmirx_wr_dwc(DWC_AUD_CEC_ICLR, intr_aud_cec);
 
 	intr_hdcp22 =
 		hdmirx_rd_dwc(DWC_HDMI2_ISTS) &
@@ -1276,7 +1300,7 @@ irqreturn_t irq_handler(int irq, void *params)
 		return IRQ_HANDLED;
 	}
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
-	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
+reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* modify interrupt flow for isr loading */
 	/* top interrupt handler */
 	if (hdmirx_top_intr_stat & (0x7 << 17)) {
@@ -1331,14 +1355,14 @@ irqreturn_t irq_handler(int irq, void *params)
 
 	/* if (hdmirx_top_intr_stat & (0xf << 6)) */
 	/* check the ip interrupt again */
-	/*
+
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
-	if (hdmirx_top_intr_stat & (1 << 31) && !cec_has_irq()) {
+	if (hdmirx_top_intr_stat & (1 << 31)) {
 		if (log_flag & 0x100)
 			rx_pr("[isr] need clear ip irq---\n");
 		goto reisr;
 
-	}*/
+	}
 	return IRQ_HANDLED;
 }
 
@@ -2730,6 +2754,13 @@ void hdmirx_hw_monitor(void)
 	if (sm_pause)
 		return;
 
+	if (esm_error_flag) {
+		esm_error_flag = 0;
+		queue_delayed_work(esm_wq,
+				&esm_dwork, msecs_to_jiffies(1));
+		hdmirx_set_hpd(rx.port, 0);
+		rx_pr("esm err->FSM_HDMI5V_HIGH\n");
+	}
 	#ifdef HDCP22_ENABLE
 	if ((hdcp22_on) && (rx.state > FSM_SIG_UNSTABLE))
 		monitor_capable_sts();
@@ -4347,11 +4378,9 @@ int hdmirx_debug(const char *buf, int size)
 		rx_pr("set esm hpd\n");
 		#endif
 	} else if (strncmp(tmpbuf, "esmclk", 6) == 0) {
-		#ifdef HDCP22_ENABLE
-		hdmirx_wr_top(TOP_CLK_CNTL,
-		hdmirx_rd_top(TOP_CLK_CNTL) | (7<<3));
-		rx_pr("set esm hpd\n");
-		#endif
+		hdmirx_hdcp22_init();
+		hdcp22_on = 1;
+		rx_pr("clk & 22 on\n");
 	} else if (strncmp(tmpbuf, "loadkey", 7) == 0) {
 		rx_pr("load hdcp key\n");
 		memcpy(&rx.hdcp, &init_hdcp_data,
@@ -4375,7 +4404,8 @@ int hdmirx_debug(const char *buf, int size)
 					mdelay(wait_hdcp22_cnt1);
 					hdcp22_kill_esm = 0;
 					mdelay(wait_hdcp22_cnt2);
-					hpd_to_esm = 0;
+					switch_set_state(&rx.hpd_sdev, 0x00);
+					hpd_to_esm = 1;
 					do_esm_rst_flag = 1;
 					hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
 					hdmirx_hdcp22_esm_rst();
@@ -4385,7 +4415,7 @@ int hdmirx_debug(const char *buf, int size)
 					hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
 					hdmirx_hw_config();
 					hdmirx_hdcp22_init();
-					hpd_to_esm = 1;
+					switch_set_state(&rx.hpd_sdev, 0x01);
 					mdelay(wait_hdcp22_cnt);
 					hdmirx_set_hpd(rx.port, 1);
 					/* rx.state = FSM_HDMI5V_HIGH; */
@@ -4400,7 +4430,8 @@ int hdmirx_debug(const char *buf, int size)
 					mdelay(wait_hdcp22_cnt1);
 					hdcp22_kill_esm = 0;
 					mdelay(wait_hdcp22_cnt2);
-					hpd_to_esm = 0;
+					switch_set_state(&rx.hpd_sdev, 0x00);
+					hpd_to_esm = 1;
 					do_esm_rst_flag = 1;
 					hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
 					hdmirx_hdcp22_esm_rst();
@@ -4410,7 +4441,7 @@ int hdmirx_debug(const char *buf, int size)
 					hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
 					hdmirx_hw_config();
 					hdmirx_hdcp22_init();
-					hpd_to_esm = 1;
+					switch_set_state(&rx.hpd_sdev, 0x01);
 					mdelay(wait_hdcp22_cnt3);
 					hdmirx_set_hpd(rx.port, 1);
 					sm_pause = 0;
@@ -4419,6 +4450,10 @@ int hdmirx_debug(const char *buf, int size)
 				hdcp22_on = 0;
 		} else
 			rx_pr("load-2-no\n");
+	} else if (strncmp(tmpbuf, "esm0", 4) == 0) {
+		switch_set_state(&rx.hpd_sdev, 0x0);
+	} else if (strncmp(tmpbuf, "esm1", 4) == 0) {
+		switch_set_state(&rx.hpd_sdev, 0x01);
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		sm_pause = 1;
 		reset_sw = 0;

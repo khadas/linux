@@ -30,7 +30,7 @@
 #define RX_VER0 "Ref.2016/08/16"
 #define RX_VER1 "Ref.2016/08/10"
 #define RX_VER2 "Ref.2016/08/10"
-#define RX_VER3 "Ref.2016/08/24"
+#define RX_VER3 "Ref.2016/09/02"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -614,6 +614,8 @@ struct st_eq_data {
 
 extern struct delayed_work     eq_dwork;
 extern struct workqueue_struct *eq_wq;
+extern struct delayed_work		esm_dwork;
+extern struct workqueue_struct	*esm_wq;
 extern unsigned int pwr_sts;
 extern unsigned char *pEdid_buffer;
 extern bool multi_port_edid_enable;
@@ -766,6 +768,7 @@ extern void hdmirx_check_new_edid(void);
 extern void eq_algorithm(struct work_struct *work);
 extern void hdmirx_wait_query(void);
 extern bool hdmirx_tmds_6g(void);
+extern void rx_hpd_to_esm_handle(struct work_struct *work);
 
 /* extern int cec_has_irq(void); */
 extern void cecrx_hw_init(void);

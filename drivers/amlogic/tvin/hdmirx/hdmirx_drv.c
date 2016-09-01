@@ -68,6 +68,8 @@ unsigned int hu_share_choise;
 struct device *hdmirx_dev;
 struct delayed_work     eq_dwork;
 struct workqueue_struct *eq_wq;
+struct delayed_work		esm_dwork;
+struct workqueue_struct	*esm_wq;
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
 unsigned int pwr_sts;
 
@@ -1275,6 +1277,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	/* create for hot plug function */
 	eq_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&eq_dwork, eq_algorithm);
+
+	esm_wq = create_singlethread_workqueue(hdevp->frontend.name);
+	INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
 	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
 
 	hdmirx_hw_probe();
@@ -1320,6 +1325,9 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	cancel_delayed_work(&eq_dwork);
 	destroy_workqueue(eq_wq);
+
+	cancel_delayed_work(&esm_dwork);
+	destroy_workqueue(esm_wq);
 
 	device_remove_file(hdevp->dev, &dev_attr_debug);
 	device_remove_file(hdevp->dev, &dev_attr_edid);

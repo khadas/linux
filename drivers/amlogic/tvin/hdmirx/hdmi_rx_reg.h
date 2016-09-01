@@ -711,18 +711,18 @@
 /*
  * Audio Clock Interrupt registers
  */
-/** Register address: audio clock interrupt clear enable */
-#define DWC_AUD_CLK_IEN_CLR	(0xF90UL)
-/** Register address: audio clock interrupt set enable */
-#define DWC_AUD_CLK_IEN_SET	(0xF94UL)
-/** Register address: audio clock interrupt status */
-#define DWC_AUD_CLK_ISTS		(0xF98UL)
-/** Register address: audio clock interrupt enable */
-#define DWC_AUD_CLK_IEN		(0xF9CUL)
-/** Register address: audio clock interrupt clear status */
-#define DWC_AUD_CLK_ICLR		(0xFA0UL)
-/** Register address: audio clock interrupt set status */
-#define DWC_AUD_CLK_ISET		(0xFA4UL)
+/** Register address: audio clock and cec interrupt clear enable */
+#define DWC_AUD_CEC_IEN_CLR	(0xF90UL)
+/** Register address: audio clock and cec interrupt set enable */
+#define DWC_AUD_CEC_IEN_SET	(0xF94UL)
+/** Register address: audio clock and cec interrupt status */
+#define DWC_AUD_CEC_ISTS		(0xF98UL)
+/** Register address: audio clock and cec interrupt enable */
+#define DWC_AUD_CEC_IEN		(0xF9CUL)
+/** Register address: audio clock and cec interrupt clear status */
+#define DWC_AUD_CEC_ICLR		(0xFA0UL)
+/** Register address: audio clock and cec interrupt set status */
+#define DWC_AUD_CEC_ISET		(0xFA4UL)
 /*
  * Audio FIFO Interrupt registers
  */
