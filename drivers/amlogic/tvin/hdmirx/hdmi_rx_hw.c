@@ -442,13 +442,13 @@ int hdmirx_irq_close(void)
 
 	/* clear enable */
 	hdmirx_wr_dwc(DWC_PDEC_IEN_CLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_CLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_CEC_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_MD_IEN_CLR, ~0);
 	hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
 	/* clear status */
 	hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
-	hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, ~0);
+	hdmirx_wr_dwc(DWC_AUD_CEC_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
 	hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
@@ -1118,6 +1118,8 @@ void hdmirx_hw_probe(void)
 	if (is_meson_gxtvbb_cpu()) {
 		mdelay(150);
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f);
+	} else {
+		hdmirx_wr_top(TOP_HPD_PWR5V, 0x10);
 	}
 
 	hdmirx_hdcp22_init();
