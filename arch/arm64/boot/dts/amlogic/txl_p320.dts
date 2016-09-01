@@ -441,7 +441,7 @@
 		pinctrl-3 = <&hdmirx_pins &chb_uart_in>;
 		pinctrl-4 = <&hdmirx_pins &chc_uart_in>;
 		rx_port_maps = <0x3120>;
-		hdmiuart_share_cfg = <7>;
+		hdmiuart_share_cfg = <0>;
 		repeat = <0>;
 		interrupts = <0 56 1>;
 		hdmirx_addr_port = <0xda846000>;
