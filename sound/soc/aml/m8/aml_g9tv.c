@@ -1227,13 +1227,13 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 			aml_write_cbus(AED_DRC_AA, drc_table[1][0]);
 			aml_write_cbus(AED_DRC_AD, drc_table[2][0]);
 			aml_write_cbus(AED_DRC_AE_1M, drc_table[0][1]);
-			aml_write_cbus(AED_DRC_AE_1M, drc_table[1][1]);
-			aml_write_cbus(AED_DRC_AE_1M, drc_table[2][1]);
+			aml_write_cbus(AED_DRC_AA_1M, drc_table[1][1]);
+			aml_write_cbus(AED_DRC_AD_1M, drc_table[2][1]);
 			/*pr_info("DRC table: 0x%x, 0x%x,"
 					"0x%x, 0x%x, 0x%x, 0x%x,\n",
-					drc_table[0][0], drc_table[1][0],
-					drc_table[2][0], drc_table[0][1],
-					drc_table[1][1], drc_table[2][1]);*/
+					drc_table[0][0], drc_table[0][1],
+					drc_table[1][0], drc_table[1][1],
+					drc_table[2][0], drc_table[2][1]);*/
 		}
 	}
 
@@ -1256,7 +1256,7 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 			"0x%x, 0x%x, 0x%x, 0x%x,\n",
 			drc_tko_table[0][0], drc_tko_table[1][0],
 			drc_tko_table[0][1], drc_tko_table[1][1],
-			drc_tko_table[0][2], drc_tko_table[0][2]);*/
+			drc_tko_table[0][2], drc_tko_table[1][2]);*/
 		}
 	}
 	return 0;
