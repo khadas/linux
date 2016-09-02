@@ -194,8 +194,8 @@ void di_hw_init(void)
 	unsigned short fifo_size_vpp = 0xc0;
 	unsigned short fifo_size_di = 0xc0;
 #endif
-
 #ifdef NEW_DI_V1
+	switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 	/* enable old DI mode for m6tv */
 	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
@@ -241,6 +241,7 @@ void di_hw_init(void)
 		mc_di_param_init();
 
 	DI_Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
+	switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_OFF);
 }
 
 void di_hw_uninit(void)

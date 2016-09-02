@@ -4069,7 +4069,6 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 				W_HIU_BIT(HHI_VID_CLK_CNTL2, 1, 4, 1);
 				/* vdac_clk gated clock control */
 				W_VCBUS_BIT(VENC_VDAC_DACSEL0, 1, 5, 1);
-				W_HIU_BIT(HHI_GCLK_OTHER, 1, 10, 1);
 			} else {
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
 				vdac_enable(1, 0x4);

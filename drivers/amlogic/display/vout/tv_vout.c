@@ -512,9 +512,10 @@ static void tv_out_late_open_vdac(enum tvmode_e mode)
 
 static void tv_out_enable_cvbs_gate(void)
 {
-	tv_out_hiu_set_mask(HHI_GCLK_OTHER,
+	/*do it by vpu ctrl*/
+	/*tv_out_hiu_set_mask(HHI_GCLK_OTHER,
 		(1<<DAC_CLK) | (1<<GCLK_VENCI_INT) |
-		(1<<VCLK2_VENCI1) | (1<<VCLK2_VENCI));
+		(1<<VCLK2_VENCI1) | (1<<VCLK2_VENCI));*/
 	tv_out_hiu_set_mask(HHI_VID_CLK_CNTL2,
 		(1<<ENCI_GATE_VCLK) | (1<<VDAC_GATE_VCLK));
 }
@@ -845,6 +846,23 @@ static void tv_out_vpu_power_ctrl(int status)
 		release_vpu_clk_vmod(vpu_mod);
 	}
 }
+
+static void tv_out_vpu_gate_ctrl(int status)
+{
+	int vpu_mod;
+
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_M8)
+		return;
+
+	if (info->vinfo == NULL)
+		return;
+	vpu_mod = tv_out_enci_is_required(info->vinfo->mode);
+	vpu_mod = (vpu_mod) ? VPU_VENCI : VPU_VENCP;
+	if (status)
+		switch_vpu_clk_gate_vmod(vpu_mod, VPU_CLK_GATE_ON);
+	else
+		switch_vpu_clk_gate_vmod(vpu_mod, VPU_CLK_GATE_OFF);
+}
 #endif
 
 static int tv_set_current_vmode(enum vmode_e mode)
@@ -884,6 +902,7 @@ static int tv_set_current_vmode(enum vmode_e mode)
 
 #ifdef CONFIG_AML_VPU
 	tv_out_vpu_power_ctrl(1);
+	tv_out_vpu_gate_ctrl(1);
 #endif
 	tv_out_reg_write(VPP_POSTBLEND_H_SIZE, info->vinfo->width);
 	if (mode & VMODE_INIT_BIT_MASK) {
@@ -923,6 +942,7 @@ static int tv_module_disable(enum vmode_e cur_vmod)
 
 #ifdef CONFIG_AML_VPU
 	tv_out_vpu_power_ctrl(0);
+	tv_out_vpu_gate_ctrl(0);
 #endif
 	/* video_dac_disable(); */
 	return 0;

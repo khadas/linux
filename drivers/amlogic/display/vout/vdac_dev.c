@@ -32,6 +32,9 @@
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#ifdef CONFIG_AML_VPU
+#include <linux/amlogic/vpu.h>
+#endif
 
 #define AMVDAC_NAME               "amvdac"
 #define AMVDAC_DRIVER_NAME        "amvdac"
@@ -66,6 +69,10 @@ static bool vdac_init_succ_flag;
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; cvbsout:0x8
 */
 static unsigned int pri_flag;
+
+#ifdef CONFIG_AML_VPU
+static unsigned int vpu_gate;
+#endif
 
 static unsigned int vdac_cntl0_bit9;
 module_param(vdac_cntl0_bit9, uint, 0644);
@@ -346,6 +353,56 @@ void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1)
 }
 EXPORT_SYMBOL(vdac_set_ctrl0_ctrl1);
 
+#ifdef CONFIG_AML_VPU
+void vpu_clk_gate_set(bool on, unsigned int module_sel)
+{
+	bool enable = 0;
+	switch (module_sel & 0x1f) {
+	case VDAC_MODULE_ATV_DEMOD: /* dtv demod */
+		if (on)
+			vpu_gate |= VDAC_MODULE_ATV_DEMOD;
+		else
+			vpu_gate &= ~VDAC_MODULE_ATV_DEMOD;
+		break;
+	case VDAC_MODULE_DTV_DEMOD: /* atv demod */
+		if (on)
+			vpu_gate |= VDAC_MODULE_DTV_DEMOD;
+		else
+			vpu_gate &= ~VDAC_MODULE_DTV_DEMOD;
+		break;
+	case VDAC_MODULE_TVAFE: /* cvbs in demod */
+		if (on)
+			vpu_gate |= VDAC_MODULE_TVAFE;
+		else
+			vpu_gate &= ~VDAC_MODULE_TVAFE;
+		break;
+	case VDAC_MODULE_CVBS_OUT: /* cvbs in demod */
+		if (on)
+			vpu_gate |= VDAC_MODULE_CVBS_OUT;
+		else
+			vpu_gate &= ~VDAC_MODULE_CVBS_OUT;
+		break;
+	case VDAC_MODULE_AUDIO_OUT: /* audio out ctrl*/
+		if (on)
+			vpu_gate |= VDAC_MODULE_AUDIO_OUT;
+		else
+			vpu_gate &= ~VDAC_MODULE_AUDIO_OUT;
+		break;
+	default:
+		pr_err("module_sel: 0x%x wrong module index !! ", module_sel);
+		break;
+	}
+	if ((vpu_gate & 0x1f) == 0)
+		enable = 0;
+	else
+		enable = 1;
+	if (enable)
+		switch_vpu_clk_gate_vmod(VPU_VENC_DAC, VPU_CLK_GATE_ON);
+	else
+		switch_vpu_clk_gate_vmod(VPU_VENC_DAC, VPU_CLK_GATE_OFF);
+}
+#endif
+
 /* dac ctl,
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
@@ -442,6 +499,9 @@ void vdac_enable(bool on, unsigned int module_sel)
 		break;
 	}
 	mutex_unlock(&vdac_mutex);
+#ifdef CONFIG_AML_VPU
+	vpu_clk_gate_set(on, module_sel);
+#endif
 }
 EXPORT_SYMBOL(vdac_enable);
 

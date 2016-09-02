@@ -55,6 +55,7 @@
 #include <linux/amlogic/tvin/tvin_v4l2.h>
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/vpu.h>
 #ifdef CONFIG_AML_RDMA
 #include <linux/amlogic/rdma/rdma_mgr.h>
 #endif
@@ -8088,7 +8089,6 @@ static void di_unreg_process_irq(void)
 			dejaggy_flag = -1;
 			DI_Wr_reg_bits(SRSHARP0_SHARP_DEJ1_MISC, 0, 3, 1);
 		}
-
 	di_set_power_control(0, 0);
 #ifndef NEW_DI_V3
 	DI_Wr(DI_CLKG_CTRL, 0xff0000);
@@ -8103,6 +8103,7 @@ static void di_unreg_process_irq(void)
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
 		DI_Wr(DI_CLKG_CTRL, 0x80000000);
+		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_OFF);
 	}
 	if ((post_wr_en && post_wr_surpport)) {
 		diwr_set_power_control(0);
@@ -8198,7 +8199,7 @@ static void di_reg_process_irq(void)
 			use_2_interlace_buff = 1;
 		else
 			use_2_interlace_buff = 0;
-
+		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 		di_set_power_control(0, 1);
 		di_set_power_control(1, 1);
 		if ((post_wr_en && post_wr_surpport)) {

@@ -22,6 +22,7 @@
 /* #include <mach/cpu.h> */
 /* #include <linux/amlogic/amports/canvas.h> */
 #include <linux/amlogic/tvin/tvin.h>
+#include <linux/amlogic/vpu.h>
 /* #include <linux/amlogic/aml_common.h> */
 #include <linux/delay.h>
 #include "../tvin_global.h"
@@ -2224,7 +2225,9 @@ void vdin_hw_enable(unsigned int offset)
 	/* [ 5: 4]  Enable pre hscaler clock    = 00/(auto, off, on, on) */
 	/* [ 3: 2]  Enable clock0               = 00/(auto, off, on, on) */
 	/* [    0]  Enable register clock       = 00/(auto, off!!!!!!!!) */
-	wr(offset, VDIN_COM_GCLK_CTRL, 0x0);
+	switch_vpu_clk_gate_vmod(offset == 0 ? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
+		VPU_CLK_GATE_ON);
+	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x0); */
 }
 
 
@@ -2257,7 +2260,9 @@ void vdin_hw_disable(unsigned int offset)
 	/* [ 5: 4]  Disable pre hscaler clock   = 01/(auto, off, on, on) */
 	/* [ 3: 2]  Disable clock0              = 01/(auto, off, on, on) */
 	/* [    0]  Enable register clock       = 00/(auto, off!!!!!!!!) */
-	wr(offset, VDIN_COM_GCLK_CTRL, 0x5554);
+	switch_vpu_clk_gate_vmod(offset == 0 ? VPU_VIU_VDIN0:VPU_VIU_VDIN1,
+		VPU_CLK_GATE_OFF);
+	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x5554); */
 }
 
 /* get current vsync field type 0:top 1 bottom */

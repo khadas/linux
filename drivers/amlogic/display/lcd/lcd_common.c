@@ -26,6 +26,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/reset.h>
+#ifdef CONFIG_AML_VPU
+#include <linux/amlogic/vpu.h>
+#endif
 #include <linux/amlogic/vout/lcd_vout.h>
 #include <linux/amlogic/vout/lcd_notify.h>
 #include <linux/amlogic/vout/lcd_unifykey.h>
@@ -841,11 +844,17 @@ void lcd_clk_gate_switch(int status)
 			reset_control_deassert(pconf->rstc.encl);
 		if (pconf->rstc.vencl)
 			reset_control_deassert(pconf->rstc.vencl);
+#ifdef CONFIG_AML_VPU
+		switch_vpu_clk_gate_vmod(VPU_VENCL, VPU_CLK_GATE_ON);
+#endif
 	} else {
 		if (pconf->rstc.encl)
 			reset_control_assert(pconf->rstc.encl);
 		if (pconf->rstc.vencl)
 			reset_control_assert(pconf->rstc.vencl);
+#ifdef CONFIG_AML_VPU
+		switch_vpu_clk_gate_vmod(VPU_VENCL, VPU_CLK_GATE_OFF);
+#endif
 	}
 }
 
