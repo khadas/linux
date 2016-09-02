@@ -43,7 +43,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x0100000 0x0 0x3ff00000>;
+		linux,usable-memory = <0x0 0x0100000 0x0 0x1ff00000>;
 	};
 
 	reserved-memory {
@@ -72,7 +72,7 @@
 
 		fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x800000>;
 			no-map;
 		};
 
@@ -81,13 +81,13 @@
 			/** 10x(1920x1088x(3/2+1/5)+1088)=34M **/
 			/** 10x(1920x1088x(3/2+1/5)+1088)x3/2=51M support 12bit **/
 			/** 10x(1920x1088x(3/2+1/5)+1088)x5/4=43M support 10bit **/
-			size = <0x0 0x3300000>;
+			size = <0x0 0x2200000>;//34MB
 			//no-map;
 		};
 
 		demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
-			size = <0x0 0x600000>; //20m
+			size = <0x0 0x600000>;//20m
 			multi-use;
 			//no-map;
 		};
@@ -106,7 +106,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0xbc00000>;
+			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -141,7 +141,7 @@
 			linux,phandle = <5>;
 			reusable;
 			/* 1920x1080x2x4  =16+4 M */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x1000000>;//1920x1080x2x4=16M
 			alignment = <0x0 0x400000>;
 		};
 		/*  tvafe CMA pool */
@@ -206,10 +206,10 @@
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
-		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
+		mem_size = <0x0800000 0x00100000>; /* fb0/fb1 memory size */
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
-		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+		display_size_default = <1280 720 1280 1440 32>; //1280*720*4*2 = 8MB
 		pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
 	};
 
@@ -343,7 +343,7 @@
 		hw-version = <2>;
 		/* reserve-iomap = "true"; */
 		/* if enable nr10bit, set nr10bit-surpport to 1 */
-		nr10bit-surpport = <1>;
+		nr10bit-surpport = <0>;
 	};
 
 	vdin0 {
@@ -371,7 +371,7 @@
 		*bit2:support 10bit
 		*bit3:support 12bit
 		*bit4:support yuv422 10bit full pack mode (from txl new add)*/
-		tv_bit_mode = <21>;
+		tv_bit_mode = <1>;
 	};
 	vdin1 {
 		compatible = "amlogic, vdin";
@@ -480,7 +480,7 @@
 		compatible = "amlogic, vpu";
 		dev_name = "vpu";
 		status = "ok";
-		clk_level = <7>;
+		clk_level = <4>;
 		/**	0: 100.0M    1: 166.7M    2: 200.0M
 			3: 250.0M    4: 333.3M    5: 400.0M
 			6: 500.0M    7: 666.7M */
