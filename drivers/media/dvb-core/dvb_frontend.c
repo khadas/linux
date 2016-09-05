@@ -46,7 +46,7 @@
 #include "dvbdev.h"
 #include <linux/dvb/version.h>
 
-static int dvb_frontend_debug = 1;
+static int dvb_frontend_debug;
 static int dvb_shutdown_timeout;
 static int dvb_force_auto_inversion;
 static int dvb_override_tune_delay;
