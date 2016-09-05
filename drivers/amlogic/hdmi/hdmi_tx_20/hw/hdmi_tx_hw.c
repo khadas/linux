@@ -1761,6 +1761,28 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 {
 	if (!hdev)
 		return;
+	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
+#if 1
+/* P_HHI_HDMI_PHY_CNTL1	bit[1]: enable clock	bit[0]: soft reset */
+#define RESET_HDMI_PHY() \
+do { \
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xf, 0, 4); \
+	mdelay(2); \
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xe, 0, 4); \
+	mdelay(2); \
+} while (0)
+
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
+	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
+	msleep(100);
+	RESET_HDMI_PHY();
+	RESET_HDMI_PHY();
+	RESET_HDMI_PHY();
+#undef RESET_HDMI_PHY
+#endif
 	switch (hdev->cur_VIC) {
 	case HDMI_4k2k_24:
 	case HDMI_4k2k_25:
@@ -1800,28 +1822,7 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 		set_phy_by_mode(4);
 		break;
 	}
-#if 1
-/* P_HHI_HDMI_PHY_CNTL1	bit[1]: enable clock	bit[0]: soft reset */
-#define RESET_HDMI_PHY() \
-do { \
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xf, 0, 4); \
-	mdelay(2); \
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xe, 0, 4); \
-	mdelay(2); \
-} while (0)
-
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
-	msleep(100);
-	RESET_HDMI_PHY();
-	RESET_HDMI_PHY();
-	RESET_HDMI_PHY();
-#undef RESET_HDMI_PHY
-#endif
-	hdmi_print(IMP, SYS "phy setting done\n");
+	hdmi_print(IMP, SYS "PHY Setting Done\n");
 }
 
 static void set_tmds_clk_div40(unsigned int div40)
