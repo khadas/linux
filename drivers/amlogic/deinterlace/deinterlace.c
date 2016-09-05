@@ -2346,7 +2346,7 @@ static unsigned char is_bypass(vframe_t *vf_in)
 	    )
 		return 1;
 	if (bypass_superd &&
-	    ((di_pre_stru.cur_width > 1920) || (di_pre_stru.cur_height > 1080))
+	    ((di_pre_stru.cur_width > 1920) && (di_pre_stru.cur_height > 1080))
 	    )
 		return 1;
 	if ((di_pre_stru.cur_width < 16) || (di_pre_stru.cur_height < 16))
