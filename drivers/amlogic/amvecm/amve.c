@@ -1181,6 +1181,11 @@ void GetGmBlkCvs(unsigned int *rGmOt, unsigned int *rGmIn,
 	int i = 0;
 	int nTmp0 = 0;
 
+	if (!ve_dnlp_luma_sum) {
+		for (nT0 = 0; nT0 < 65; nT0++)
+			pgmma0[nT0] = (nT0 << 4); /* 0 ~1024 */
+	}
+
 	GetSubCurve(pLst, rGmIn, pwdth); /*0~1024*/
 
 	for (nT0 = 0; nT0 < 65; nT0++) {
@@ -1867,6 +1872,11 @@ static void clash_blend(void)
 	int nTmp0 = 0;
 	static unsigned int pgmma[65];
 
+	if (!ve_dnlp_luma_sum) {
+		for (i = 0; i < 65; i++)
+			pgmma[i] = (i << 4); /* 0 ~1024 */
+	}
+
 	if (!dnlp_scn_chg && ((ve_dnlp_dbg_i2r >> 3) & 0x1))
 		for (i = 0; i < 65; i++) {
 			nTmp0 = dnlp_bld_lvl * clash_curve[i] + (RBASE >> 1);
@@ -2153,6 +2163,13 @@ static void dnlp_rfrsh_subgmma(void)
 	static unsigned int pgmma0[65]; /* 0~4096*/
 	static unsigned int pgmma1[65];
 
+	if (!ve_dnlp_luma_sum) {
+		for (i = 0; i < 65; i++) {
+			pgmma0[i] = (i << 6); /* 0 ~4096 */
+			pgmma1[i] = (i << 6); /* 0 ~4096 */
+		}
+	}
+
 	if (!dnlp_scn_chg)
 		for (i = 0; i < 65; i++) {
 			gma_scurve0[i] = dnlp_bld_lvl *
@@ -2220,6 +2237,11 @@ static void dnlp_gmma_cuvs(unsigned int gmma_rate,
 	static unsigned int pgmma[65];
 	bool prt_flg = ((dnlp_printk >> 10) & 0x1);
 
+	if (!ve_dnlp_luma_sum) {
+		for (i = 0; i < 65; i++)
+			pgmma[i] = (i << 6); /* 0 ~4096 */
+	}
+
 	/* refresh sub gamma */
 	if ((ve_dnlp_dbg_i2r >> 1) & 0x1)
 		dnlp_rfrsh_subgmma();
@@ -2275,6 +2297,11 @@ static void dnlp_clsh_sbld(unsigned int mtdbld_rate)
 
 	static unsigned int pgmma[65];
 
+	if (!ve_dnlp_luma_sum) {
+		for (i = 0; i < 65; i++)
+			pgmma[i] = (i << 4); /* 0 ~1024 */
+	}
+
 	for (i = 0; i < 65; i++) {
 		nTmp0 = gma_scurvet[i]; /* 0 ~1024 */
 		nTmp0 = nTmp0*mtdbld_rate + clash_curve[i]*(64 - mtdbld_rate);
@@ -2303,6 +2330,11 @@ static void dnlp_blkgma_bld(unsigned int *blk_gma_rat)
 	int nTmp0 = 0;
 	int i = 0;
 	static unsigned int pgmma[65];
+
+	if (!ve_dnlp_luma_sum) {
+		for (i = 0; i < 65; i++)
+			pgmma[i] = (i << 4); /* 0 ~1024 */
+	}
 
 	for (i = 0; i < 64; i++) {
 		nT1 = blk_gma_rat[i];
@@ -2341,6 +2373,11 @@ static void dnlp_blkwht_bld(int *blk_wht_ext, int bright,
 	int nTmp0 = 0;
 	int i = 0;
 	static unsigned int pgmma[65];
+
+	if (!ve_dnlp_luma_sum) {
+		for (i = 0; i < 65; i++)
+			pgmma[i] = (i << 4); /* 0 ~1024 */
+	}
 
 	/* black / white extension */
 	for (i = 0; i < 64; i++) {
@@ -4548,10 +4585,10 @@ void amve_vlock_process(struct vframe_s *vf)
 			(output_hz != pre_output_freq)) {
 		amvecm_vlock_setting(vf, input_hz, output_hz);
 		if (vlock_debug) {
-			pr_amve_dbg("%s:vmode/source_type/source_mode/",
+			pr_info("%s:vmode/source_type/source_mode/",
 			__func__);
-			pr_amve_dbg("input_freq/output_freq change:");
-			pr_amve_dbg("%d/%d/%d/%d/%d=>%d/%d/%d/%d/%d\n",
+			pr_info("input_freq/output_freq change:");
+			pr_info("%d/%d/%d/%d/%d=>%d/%d/%d/%d/%d\n",
 			pre_vmode, pre_source_type, pre_source_mode,
 			pre_input_freq, pre_output_freq, vinfo->mode,
 			vf->source_type, vf->source_mode,
@@ -4604,10 +4641,10 @@ void amve_vlock_process(struct vframe_s *vf)
 		output_hz =
 			amvecm_vlock_check_output_hz(vinfo->sync_duration_num);
 		amvecm_vlock_setting(vf, input_hz, output_hz);
-		pr_amve_dbg("%s:current vmode/source_type/source_mode/",
+		pr_info("%s:current vmode/source_type/source_mode/",
 				__func__);
-		pr_amve_dbg("input_freq/output_freq/sig_fmt is:");
-		pr_amve_dbg("%d/%d/%d/%d/%d/0x%x\n",
+		pr_info("input_freq/output_freq/sig_fmt is:");
+		pr_info("%d/%d/%d/%d/%d/0x%x\n",
 				vinfo->mode, vf->source_type,
 				vf->source_mode, input_hz,
 				output_hz, vf->sig_fmt);
@@ -4632,17 +4669,29 @@ void sharpness_process(struct vframe_s *vf)
 /* sharpness process end */
 
 /*for gxbbtv rgb contrast adj in vd1 matrix */
-void vpp_vd1_mtx_rgb_contrast(signed int cont_val)
+void vpp_vd1_mtx_rgb_contrast(signed int cont_val, struct vframe_s *vf)
 {
 	unsigned int vd1_contrast;
-	unsigned int vdj1_ctl;
+	unsigned int con_minus_value, rgb_con_en;
 	if ((cont_val > 1023) || (cont_val < -1024))
 		return;
 	cont_val = cont_val + 1024;
+	/*close rgb contrast protect*/
+	WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 0, 0, 1);
 	/*VPP_VADJ_CTRL bit 1 on for rgb contrast adj*/
-	vdj1_ctl = READ_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1);
-	if (!vdj1_ctl)
+	rgb_con_en = READ_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1);
+	if (!rgb_con_en)
 		WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 1, 1, 1);
+
+	/*select full or limit range setting*/
+	con_minus_value = READ_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 4, 10);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
+		if (con_minus_value != 64)
+			WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 64, 4, 10);
+	} else {
+		if (con_minus_value != 0)
+			WRITE_VPP_REG_BITS(XVYCC_VD1_RGB_CTRST, 0, 4, 10);
+	}
 
 	vd1_contrast = (READ_VPP_REG(XVYCC_VD1_RGB_CTRST) & 0xf000ffff) |
 					(cont_val << 16);
@@ -4651,7 +4700,7 @@ void vpp_vd1_mtx_rgb_contrast(signed int cont_val)
 }
 
 /*for gxbbtv contrast adj in vadj1*/
-void vpp_vd_adj1_contrast(signed int cont_val)
+void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 {
 	unsigned int vd1_contrast;
 	unsigned int vdj1_ctl;
@@ -4660,8 +4709,13 @@ void vpp_vd_adj1_contrast(signed int cont_val)
 	cont_val = ((cont_val + 1024) >> 3);
 	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
 	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
-	if (vdj1_ctl)
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
+		if (!vdj1_ctl)
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
+	} else {
+		if (vdj1_ctl)
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+	}
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x3ff00) |
@@ -4819,9 +4873,9 @@ void amvecm_bricon_process(unsigned int bri_val,
 	if (vecm_latch_flag & FLAG_VADJ1_CON) {
 		vecm_latch_flag &= ~FLAG_VADJ1_CON;
 		if (contrast_adj_sel)
-			vpp_vd1_mtx_rgb_contrast(cont_val);
+			vpp_vd1_mtx_rgb_contrast(cont_val, vf);
 		else
-			vpp_vd_adj1_contrast(cont_val);
+			vpp_vd_adj1_contrast(cont_val, vf);
 		pr_amve_dbg("\n[amve..] set vd1_contrast OK!!!\n");
 	}
 
