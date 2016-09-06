@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define RX_VER0 "Ref.2016/08/16"
+#define RX_VER0 "Ref.2016/09/06"
 #define RX_VER1 "Ref.2016/08/10"
 #define RX_VER2 "Ref.2016/08/10"
 #define RX_VER3 "Ref.2016/09/02"
@@ -702,7 +702,6 @@ int hdmirx_audio_fifo_rst(void);
 void hdmirx_phy_init(int rx_port_sel, int dcm);
 
 void hdmirx_hw_config(void);
-void hdcp22_hw_cfg(void);
 void hdmirx_hw_reset(void);
 void hdmirx_hw_probe(void);
 void hdmi_rx_load_edid_data(unsigned char *buffer, int port);

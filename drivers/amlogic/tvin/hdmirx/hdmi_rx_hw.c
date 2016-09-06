@@ -1056,6 +1056,7 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
+	hdmirx_wr_top(TOP_INTR_MASKN, 0);
 	control_reset();
 	hdmirx_irq_close();
 	/* hdmi_rx_ctrl_edid_update(); */
@@ -1066,43 +1067,14 @@ void hdmirx_hw_config(void)
 	hdmirx_audio_init();
 	packet_init();
 	hdmirx_20_init();
+	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
 	hdmirx_irq_open();
-
-	mdelay(100);
-	if (hdmirx_rd_dwc(0xe0) != 0) {
-		rx_pr("hdcp engine busy\n");
-		mdelay(100);
-	}
-
 	hdmirx_phy_init(rx.port, 0);
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
 	DWC_init(rx.port);
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 }
 
-void hdcp22_hw_cfg(void)
-{
-	rx_pr("hdcp22_hw_cfg\n");
-
-	hdmirx_wr_top(TOP_INTR_MASKN, 0);
-	clk_init();
-	control_reset();
-
-	/* hdmi_rx_ctrl_edid_update(); */
-	if (hdcp_enable)
-		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
-	else
-		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
-
-	hdmirx_phy_init(rx.port, 0);
-	hdmirx_wr_top(TOP_PORT_SEL, 0x10 | ((1<<rx.port)));
-	DWC_init(rx.port);
-	packet_init();
-	hdmirx_audio_init();
-	hdmirx_20_init();
-	hdmirx_audio_fifo_rst();
-	hdmirx_packet_fifo_rst();
-}
 void hdmirx_hw_probe(void)
 {
 	hdmirx_wr_top(TOP_MEM_PD, 0);

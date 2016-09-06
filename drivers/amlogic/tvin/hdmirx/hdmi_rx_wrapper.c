@@ -2323,22 +2323,6 @@ bool is_clk_stable(void)
 		return false;
 }
 
-bool is_low_freq_format(void)
-{
-	int clk;
-	clk = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
-	clk = (clk >> 10) & 1;
-	if (1 == clk) {
-		if (log_flag & VIDEO_LOG)
-			rx_pr("under 94.5M\n");
-		return true;
-	} else {
-		if (log_flag & VIDEO_LOG)
-			rx_pr("over 94.5M\n");
-		return false;
-	}
-}
-
 void rx_aud_pll_ctl(bool en)
 {
 	int tmp = 0;
@@ -2479,7 +2463,11 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 
 int get_cur_hpd_sts(void)
 {
-	return hdmirx_rd_top(TOP_HPD_PWR5V) & (1 << rx.port);
+	int tmp;
+	tmp = hdmirx_rd_top(TOP_HPD_PWR5V) & (1 << rx.port);
+	if (!is_meson_gxtvbb_cpu())
+		tmp = (tmp == 0) ? 1 : 0;
+	return tmp;
 }
 
 bool hdmirx_tmds_6g(void)
@@ -2812,7 +2800,7 @@ void hdmirx_hw_monitor(void)
 		rx_pr("HPD_LOW\n");
 		break;
 	case FSM_HPD_HIGH:
-		if (0 == get_cur_hpd_sts() &&
+		if ((0 == get_cur_hpd_sts()) &&
 			(++hpd_wait_cnt <= hpd_wait_max))
 			break;
 		hpd_wait_cnt = 0;
@@ -4636,7 +4624,10 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		}
 		#endif
 	} else {
-		rx.state = FSM_HPD_HIGH;
+		if (0 == get_cur_hpd_sts())
+			rx.state = FSM_HPD_HIGH;
+		else
+			rx.state = FSM_SIG_UNSTABLE;
 	}
 	rx_pr("%s %d nosignal:%d\n", __func__, rx.port, rx.no_signal);
 
