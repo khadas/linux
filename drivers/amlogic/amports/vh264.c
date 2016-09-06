@@ -107,6 +107,7 @@ static DEFINE_MUTEX(vh264_mutex);
 
 #define DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE 0x0001
 #define DEC_CONTROL_FLAG_FORCE_2500_576P_INTERLACE  0x0002
+#define DEC_CONTROL_FLAG_DISABLE_FAST_POC              0x0004
 
 #define INCPTR(p) ptr_atomic_wrap_inc(&p)
 
@@ -2096,8 +2097,10 @@ static void vh264_prot_init(void)
 		 0) ? error_recovery_mode : error_recovery_mode_in;
 	WRITE_VREG(AV_SCRATCH_F,
 			   (READ_VREG(AV_SCRATCH_F) & 0xffffffc3) |
+			   (READ_VREG(AV_SCRATCH_F) & 0xffffff43) |
 			   ((error_recovery_mode_use & 0x1) << 4));
-
+	if (dec_control & DEC_CONTROL_FLAG_DISABLE_FAST_POC)
+				SET_VREG_MASK(AV_SCRATCH_F, 1 << 7);
 	/* clear mailbox interrupt */
 	WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
