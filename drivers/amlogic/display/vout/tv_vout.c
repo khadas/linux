@@ -539,7 +539,18 @@ int tv_out_setmode(enum tvmode_e mode)
 	tv_out_set_clk_gate(mode);
 	tv_out_init_off(mode);
 	/* Before setting clk for CVBS, disable ENCP/I to avoid hungup */
-	tv_out_reg_write(ENCP_VIDEO_EN, 0);
+	switch (mode) {
+	case TVMODE_480I:
+	case TVMODE_480I_RPT:
+	case TVMODE_480CVBS:
+	case TVMODE_576I:
+	case TVMODE_576I_RPT:
+	case TVMODE_576CVBS:
+		tv_out_reg_write(ENCP_VIDEO_EN, 0);
+		break;
+	default:
+		break;
+	}
 	tv_out_reg_write(ENCI_VIDEO_EN, 0);
 	tv_out_set_clk(mode);
 	ret = tv_out_set_venc(mode);
