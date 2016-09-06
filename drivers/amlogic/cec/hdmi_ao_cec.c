@@ -58,6 +58,7 @@
 #include <linux/reboot.h>
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
+#include <linux/random.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static struct early_suspend aocec_suspend_handler;
@@ -80,6 +81,7 @@ static struct early_suspend aocec_suspend_handler;
 #define CEC_EARLY_SUSPEND	(1 << 0)
 #define CEC_DEEP_SUSPEND	(1 << 1)
 
+#define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 
 /* global struct for tx and rx */
 struct ao_cec_dev {
@@ -122,6 +124,9 @@ enum {
 
 static struct ao_cec_dev *cec_dev;
 static int cec_tx_result;
+
+static int cec_line_cnt;
+static struct hrtimer start_bit_check;
 
 static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
@@ -226,14 +231,18 @@ void cecrx_hw_reset(void)
 static int cecrx_trigle_tx(const unsigned char *msg, unsigned char len)
 {
 	int i = 0, size = 0;
+	int lock;
 
 	while (1) {
 		/* send is in process */
+		lock = hdmirx_rd_dwc(DWC_CEC_LOCK);
+		if (lock)
+			CEC_ERR("recevie msg in tx\n");
 		if (hdmirx_rd_dwc(DWC_CEC_CTRL) & 0x01)
 			i++;
 		else
 			break;
-		if (i > 10) {
+		if (i > 25) {
 			CEC_ERR("wating busy timeout\n");
 			return -1;
 		}
@@ -340,6 +349,7 @@ void cecrx_irq_handle(void)
 
 	if (intr_cec & CEC_IRQ_RX_WAKEUP) {
 		CEC_INFO("rx wake up\n");
+		hdmirx_wr_dwc(DWC_CEC_WKUPCTRL, 0);
 		/* TODO: wake up system if needed */
 	}
 }
@@ -356,6 +366,7 @@ int cecrx_hw_init(void)
 
 	if (!ee_cec)
 		return -1;
+	cecrx_hw_reset();
 	/* set cec clk 32768k */
 	data32  = readl(cec_dev->hhi_reg + HHI_32K_CLK_CNTL);
 	data32  = 0;
@@ -656,20 +667,94 @@ void tx_irq_handle(void)
 	complete(&cec_dev->tx_ok);
 }
 
+static int get_line(void)
+{
+	int reg, cpu_type, ret = -EINVAL;
+
+	reg = readl(cec_dev->cec_reg + AO_GPIO_I);
+	cpu_type = get_cpu_type();
+	switch (cpu_type) {
+	case MESON_CPU_MAJOR_ID_M8:
+	case MESON_CPU_MAJOR_ID_M8B:
+	case MESON_CPU_MAJOR_ID_MG9TV:
+	case MESON_CPU_MAJOR_ID_M8M2:
+	case MESON_CPU_MAJOR_ID_GXBB:
+		ret = (reg & (1 << 12));
+		break;
+	case MESON_CPU_MAJOR_ID_GXL:
+	case MESON_CPU_MAJOR_ID_GXM:
+		ret = (reg & (1 <<  8));
+		break;
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		ret = (reg & (1 <<  9));
+		break;
+	case MESON_CPU_MAJOR_ID_TXL:
+		ret = (reg & (1 <<  7));
+		break;
+	default:
+		CEC_ERR("unknow cpu type:%d\n", cpu_type);
+		break;
+	}
+	return ret;
+}
+
+static enum hrtimer_restart cec_line_check(struct hrtimer *timer)
+{
+	if (get_line() == 0)
+		cec_line_cnt++;
+	hrtimer_forward_now(timer, HR_DELAY(1));
+	return HRTIMER_RESTART;
+}
+
+static int check_confilct(void)
+{
+	int i;
+
+	for (i = 0; i < 50; i++) {
+		/*
+		 * sleep 20ms and using hrtimer to check cec line every 1ms
+		 */
+		cec_line_cnt = 0;
+		hrtimer_start(&start_bit_check, HR_DELAY(1), HRTIMER_MODE_REL);
+		msleep(20);
+		hrtimer_cancel(&start_bit_check);
+		if (cec_line_cnt == 0)
+			break;
+		else
+			CEC_INFO("line busy:%d\n", cec_line_cnt);
+	}
+	if (i >= 50)
+		return -EBUSY;
+	else
+		return 0;
+}
+
 /* Return value: < 0: fail, > 0: success */
 int cec_ll_tx(const unsigned char *msg, unsigned char len)
 {
 	int ret = -1;
 	int t = msecs_to_jiffies(2000);
+	int retry = 2;
 
 	if (len == 0)
 		return CEC_FAIL_NONE;
 
 	mutex_lock(&cec_dev->cec_mutex);
-	/*
-	 * do not send messanges if tv is not support CEC
-	 */
+
+try_again:
 	reinit_completion(&cec_dev->tx_ok);
+	/*
+	 * CEC controller won't ack message if it is going to send
+	 * state. If we detect cec line is low during wating signal
+	 * free time, that means a send is already started by other
+	 * device, we should wait it finished.
+	 */
+	if (check_confilct()) {
+		CEC_ERR("bus confilct too long\n");
+		mutex_unlock(&cec_dev->cec_mutex);
+		return CEC_FAIL_BUSY;
+	}
+
 	if (ee_cec)
 		ret = cecrx_trigle_tx(msg, len);
 	else
@@ -677,6 +762,11 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	if (ret < 0) {
 		/* we should increase send idx if busy */
 		CEC_INFO("tx busy\n");
+		if (retry > 0) {
+			retry--;
+			msleep(100 + (prandom_u32() & 0x07) * 10);
+			goto try_again;
+		}
 		mutex_unlock(&cec_dev->cec_mutex);
 		return CEC_FAIL_BUSY;
 	}
@@ -691,6 +781,13 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 		ret = CEC_FAIL_OTHER;
 	} else {
 		ret = cec_tx_result;
+	}
+	if (ret != CEC_FAIL_NONE && ret != CEC_FAIL_NACK) {
+		if (retry > 0) {
+			retry--;
+			msleep(100 + (prandom_u32() & 0x07) * 10);
+			goto try_again;
+		}
 	}
 	mutex_unlock(&cec_dev->cec_mutex);
 
@@ -2044,6 +2141,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	aocec_suspend_handler.param   = cec_dev;
 	register_early_suspend(&aocec_suspend_handler);
 #endif
+	hrtimer_init(&start_bit_check, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	start_bit_check.function = cec_line_check;
 	/* for init */
 	cec_pre_init();
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
