@@ -770,8 +770,8 @@ extern void hdmirx_wait_query(void);
 extern bool hdmirx_tmds_6g(void);
 extern void rx_hpd_to_esm_handle(struct work_struct *work);
 
-/* extern int cec_has_irq(void); */
 extern void cecrx_hw_init(void);
+extern void cecrx_irq_handle(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
 extern void esm_set_stable(bool stable);
 extern void rx_5v_det(void);

@@ -291,7 +291,7 @@ static int cec_pick_msg(unsigned char *msg, unsigned char *out_len)
 	return 0;
 }
 
-static irqreturn_t cecrx_isr(int irq, void *dev_instance)
+void cecrx_irq_handle(void)
 {
 	uint32_t intr_cec;
 
@@ -301,6 +301,9 @@ static irqreturn_t cecrx_isr(int irq, void *dev_instance)
 	/* clear irq */
 	if (intr_cec != 0)
 		hdmirx_wr_dwc(DWC_AUD_CLK_ICLR, intr_cec);
+
+	if (!ee_cec)
+		return;
 
 	/* TX DONE irq, increase tx buffer pointer */
 	if (intr_cec & CEC_IRQ_TX_DONE) {
@@ -339,7 +342,11 @@ static irqreturn_t cecrx_isr(int irq, void *dev_instance)
 		CEC_INFO("rx wake up\n");
 		/* TODO: wake up system if needed */
 	}
+}
 
+static irqreturn_t cecrx_isr(int irq, void *dev_instance)
+{
+	cecrx_irq_handle();
 	return IRQ_HANDLED;
 }
 
