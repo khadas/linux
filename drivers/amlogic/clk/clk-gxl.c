@@ -52,6 +52,7 @@ static void __iomem *reg_base_aobus;
 #define	HHI_AUD_CLK_CNTL		OFFSET(0x5e)
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
 #define	HHI_BT656_CLK_CNTL		OFFSET(0xf5)
+#define	HHI_VDIN_MEAS_CLK_CNTL	OFFSET(0x94)
 #define	HHI_VID_LOCK_CLK_CNTL		OFFSET(0xf2)
 #define	HHI_PCM_CLK_CNTL		OFFSET(0x96)
 
@@ -82,6 +83,8 @@ PNAME(cts_bt656_clk0_p) = {"fclk_div2", "fclk_div3", "fclk_div5", "fclk_div7"};
 
 PNAME(cts_vid_lock_clk_p) = {"xtal", "cts_encl_clk", "cts_enci_clk",
 							"cts_encp_clk"};
+PNAME(cts_vdin_meas_clk_p) = {"xtal", "fclk_div4", "fclk_div3", "fclk_div5",
+		"vid_pll_clk", "vid2_pll_clk"};
 
 /* fixed rate clocks generated outside the soc */
 static struct amlogic_fixed_rate_clock gxl_fixed_rate_ext_clks[] __initdata = {
@@ -187,6 +190,11 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_VID_LOCK_CLK_CNTL, 8, 2, 0,
 			HHI_VID_LOCK_CLK_CNTL, 0, 7, 0,
 			HHI_VID_LOCK_CLK_CNTL, 7, 0),
+	COMPOSITE(CLK_VDIN_MEAS_CLK, "cts_vdin_meas_clk", cts_vdin_meas_clk_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_VDIN_MEAS_CLK_CNTL, 9, 3, 0,
+			HHI_VDIN_MEAS_CLK_CNTL, 0, 7, 0,
+			HHI_VDIN_MEAS_CLK_CNTL, 8, 0),
 };
 static struct mpll_clk_tab mpll_tab[] __initdata = {
 	MPLL("mpll_clk_out0", mpll, HHI_MPLL_CNTL7, HHI_MPLL_CNTL,

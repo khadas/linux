@@ -1,0 +1,10 @@
+#
+# Hdmirx external SII9135 Device Driver Configuration
+#
+
+config TVIN_HDMI_EXT_SII9135
+	bool "hdmirx external sii9135 support"
+	depends on TVIN_HDMI_EXT
+	default y
+	help
+		sii9135 is input with hdmi siganl, and output dvp signal.

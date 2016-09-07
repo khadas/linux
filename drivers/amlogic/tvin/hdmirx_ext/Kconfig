@@ -1,0 +1,13 @@
+#
+# Amlogic external hdmiin chips configuration
+#
+
+menuconfig TVIN_HDMI_EXT
+	bool "External hdmiin chips support"
+	default y
+
+if TVIN_HDMI_EXT
+
+source "drivers/amlogic/tvin/hdmirx_ext/hw_sii9135/Kconfig"
+
+endif # TVIN_HDMI_EXT

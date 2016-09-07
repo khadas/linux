@@ -52,6 +52,7 @@
 #define CLK_BT656_CLK0		38
 #define CLK_BT656_CLK1		39
 #define CLK_VID_LOCK_CLK	40
+#define CLK_VDIN_MEAS_CLK	41
 
 #define CLK_PCM_MCLK        42
 #define CLK_PCM_SCLK        43

@@ -1056,6 +1056,7 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 
 	devp->parm.port = para->port;
 	devp->parm.info.fmt = para->fmt;
+	fmt = devp->parm.info.fmt;
 	/* add for camera random resolution */
 	if (para->fmt >= TVIN_SIG_FMT_MAX) {
 		devp->fmt_info_p = kmalloc(sizeof(struct tvin_format_s),
@@ -1097,6 +1098,10 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 		fe->private_data = para;
 		fe->port         = para->port;
 		devp->frontend   = fe;
+
+		/* vdin msr clock gate enable */
+		clk_prepare_enable(devp->msr_clk);
+
 		if (fe->dec_ops->open)
 			fe->dec_ops->open(fe, fe->port);
 	} else {
