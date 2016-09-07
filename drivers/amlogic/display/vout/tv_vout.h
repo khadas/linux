@@ -25,6 +25,12 @@
 #define TV_CLASS_NAME	"tv"
 #define	MAX_NUMBER_PARA  10
 
+#define _TM_V 'V'
+
+#define VOUT_IOC_CC_OPEN           _IO(_TM_V, 0x01)
+#define VOUT_IOC_CC_CLOSE          _IO(_TM_V, 0x02)
+#define VOUT_IOC_CC_DATA           _IOW(_TM_V, 0x03, struct vout_CCparm_s)
+
 #define print_info(fmt, args...) pr_info(fmt, ##args)
 
 #define SHOW_INFO(name) \
@@ -55,13 +61,22 @@ __ATTR(name, S_IRUGO|S_IWUSR, \
 		aml_TV_attr_##name##_show, aml_TV_attr_##name##_store);
 
 struct disp_module_info_s {
-	unsigned int major;  /* dev major number */
+	/* unsigned int major;  dev major number */
 	struct vinfo_s *vinfo;
 	char name[20];
+	struct cdev   cdev;
+	dev_t         devno;
 	struct class  *base_class;
+	struct device *dev;
 };
 
 static  DEFINE_MUTEX(TV_mutex);
+
+struct vout_CCparm_s {
+	unsigned int type;
+	unsigned char data1;
+	unsigned char data2;
+};
 
 struct vmode_tvmode_tab_s {
 	enum tvmode_e tvmode;

@@ -31,7 +31,8 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/ctype.h>
-#include <linux/major.h>
+/*#include <linux/major.h>*/
+#include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #ifdef CONFIG_INSTABOOT
@@ -53,6 +54,9 @@
 #include "vout_log.h"
 #include "enc_clk_config.h"
 #include "tv_out_reg.h"
+#ifdef CONFIG_AML_WSS
+#include "wss.h"
+#endif
 
 #define PIN_MUX_REG_0 0x202c
 #define P_PIN_MUX_REG_0 CBUS_REG_ADDR(PIN_MUX_REG_0)
@@ -86,9 +90,15 @@ static int hdmitx_is_vmode_supported_process(char *mode_name);
 
 #endif
 
+#ifdef CONFIG_AML_WSS
+struct class_attribute class_TV_attr_wss = __ATTR(wss, S_IRUGO | S_IWUSR,
+			aml_TV_attr_wss_show, aml_TV_attr_wss_store);
+#endif /*CONFIG_AML_WSS*/
+
 static int tv_vdac_power_level;
 
 static DEFINE_MUTEX(setmode_mutex);
+static DEFINE_MUTEX(CC_mutex);
 
 static enum tvmode_e vmode_to_tvmode(enum vmode_e mode);
 static void cvbs_config_vdac(unsigned int flag, unsigned int cfg);
@@ -580,12 +590,93 @@ static const enum tvmode_e vmode_tvmode_map(enum vmode_e mode)
 	return TVMODE_MAX;
 }
 
+static int vout_open(struct inode *inode, struct file *file)
+{
+	struct disp_module_info_s *dinfo;
+	/* Get the per-device structure that contains this cdev */
+	dinfo = container_of(inode->i_cdev, struct disp_module_info_s, cdev);
+	file->private_data = dinfo;
+	return 0;
+}
+
+static int vout_release(struct inode *inode, struct file *file)
+{
+	file->private_data = NULL;
+	return 0;
+}
+
+static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	long ret = 0;
+	unsigned int CC_2byte_data = 0;
+	void __user *argp = (void __user *)arg;
+	vout_log_info("[tv..] %s: cmd_nr = 0x%x\n",
+			__func__, _IOC_NR(cmd));
+	if (_IOC_TYPE(cmd) != _TM_V) {
+		vout_log_err("%s invalid command: %u\n", __func__, cmd);
+		return -ENOSYS;
+	}
+	switch (cmd) {
+	case VOUT_IOC_CC_OPEN:
+		tv_out_reg_setb(ENCI_VBI_SETTING, 0x3, 0, 2);
+		break;
+	case VOUT_IOC_CC_CLOSE:
+		tv_out_reg_setb(ENCI_VBI_SETTING, 0x0, 0, 2);
+		break;
+	case VOUT_IOC_CC_DATA: {
+		struct vout_CCparm_s parm = {0};
+		mutex_lock(&CC_mutex);
+		if (copy_from_user(&parm, argp,
+				sizeof(struct vout_CCparm_s))) {
+			vout_log_err("VOUT_IOC_CC_DATAinvalid parameter\n");
+			ret = -EFAULT;
+			mutex_unlock(&CC_mutex);
+			break;
+		}
+		/*cc standerd:nondisplay control byte + display control byte
+		our chip high-low 16bits is opposite*/
+		CC_2byte_data = parm.data2 << 8 | parm.data1;
+		if (parm.type == 0)
+			tv_out_reg_write(ENCI_VBI_CCDT_EVN, CC_2byte_data);
+		else if (parm.type == 1)
+			tv_out_reg_write(ENCI_VBI_CCDT_ODD, CC_2byte_data);
+		else
+			vout_log_err("CC type:%d,Unknown.\n", parm.type);
+		vout_log_info("VOUT_IOC_CC_DATA..type:%d,0x%x\n",
+					parm.type, CC_2byte_data);
+		mutex_unlock(&CC_mutex);
+		break;
+	}
+	default:
+		ret = -ENOIOCTLCMD;
+		vout_log_err("%s %d is not supported command\n",
+				__func__, cmd);
+		break;
+	}
+	vout_log_info("vout_ioctl..out.ret=0x%lx\n", ret);
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long vout_compat_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
+{
+	unsigned long ret;
+	arg = (unsigned long)compat_ptr(arg);
+	ret = vout_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
+
 static const struct file_operations am_tv_fops = {
-	.open	= NULL,
+	.open	= vout_open,
 	.read	= NULL,/* am_tv_read, */
 	.write	= NULL,
-	.unlocked_ioctl	= NULL,/* am_tv_ioctl, */
-	.release	= NULL,
+	.unlocked_ioctl	= vout_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = vout_compat_ioctl,
+#endif
+	.release	= vout_release,
 	.poll		= NULL,
 };
 
@@ -1678,6 +1769,9 @@ static  struct  class_attribute   *tv_attr[] = {
 	&class_TV_attr_policy_fr_auto_switch,
 #endif
 	&class_TV_attr_debug,
+#ifdef CONFIG_AML_WSS
+	&class_TV_attr_wss,
+#endif
 };
 
 
@@ -1686,16 +1780,32 @@ static int create_tv_attr(struct disp_module_info_s *info)
 {
 	/* create base class for display */
 	int i;
+	int ret = 0;
 	info->base_class = class_create(THIS_MODULE, info->name);
 	if (IS_ERR(info->base_class)) {
-		vout_log_err("create tv display class fail\n");
-		return  -1;
+		ret = PTR_ERR(info->base_class);
+		goto fail_create_class;
 	}
 	/* create class attr */
 	for (i = 0; i < ARRAY_SIZE(tv_attr); i++) {
-		if (class_create_file(info->base_class, tv_attr[i]))
-			vout_log_err("create disp attribute %s fail\n",
-				     tv_attr[i]->attr.name);
+		if (class_create_file(info->base_class, tv_attr[i]) < 0)
+			goto fail_class_create_file;
+	}
+	cdev_init(&info->cdev, &am_tv_fops);
+	info->cdev.owner = THIS_MODULE;
+	ret = cdev_add(&info->cdev, info->devno, 1);
+	if (ret)
+		goto fail_add_cdev;
+
+	/*info->dev = device_create(info->base_class, NULL,
+				MKDEV(info->major, 0), NULL, info->name);*/
+	info->dev = device_create(info->base_class, NULL, info->devno,
+			NULL, info->name);
+	if (IS_ERR(info->dev)) {
+		ret = PTR_ERR(info->dev);
+		goto fail_create_device;
+	} else {
+		vout_log_info("create cdev %s\n", info->name);
 	}
 
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
@@ -1703,6 +1813,22 @@ static int create_tv_attr(struct disp_module_info_s *info)
 	sprintf(policy_fr_auto_switch, "%d", DEFAULT_POLICY_FR_AUTO);
 #endif
 	return 0;
+
+fail_create_device:
+	vout_log_info("[tv.] : tv device create error.\n");
+	cdev_del(&info->cdev);
+fail_add_cdev:
+	vout_log_info("[tv.] : tv add device error.\n");
+	kfree(info);
+fail_class_create_file:
+	vout_log_info("[tv.] : tv class create file error.\n");
+	for (i = 0; i < ARRAY_SIZE(tv_attr); i++)
+		class_remove_file(info->base_class, tv_attr[i]);
+	class_destroy(info->base_class);
+fail_create_class:
+	vout_log_info("[tv.] : tv class create error.\n");
+	unregister_chrdev_region(info->devno, 1);
+	return ret;
 }
 /* **************************************************** */
 
@@ -1728,7 +1854,7 @@ static struct syscore_ops tvconf_ops = {
 
 static int tvout_probe(struct platform_device *pdev)
 {
-	int  ret;
+	int ret = 0;
 #ifdef CONFIG_INSTABOOT
 	INIT_LIST_HEAD(&tvconf_ops.node);
 	register_syscore_ops(&tvconf_ops);
@@ -1737,21 +1863,26 @@ static int tvout_probe(struct platform_device *pdev)
 	info = &disp_module_info;
 	vout_log_info("%s\n", __func__);
 	sprintf(info->name, TV_CLASS_NAME);
-	ret = register_chrdev(0, info->name, &am_tv_fops);
+	/*ret = register_chrdev(0, info->name, &am_tv_fops);*/
+	ret = alloc_chrdev_region(&info->devno, 0, 1, info->name);
 	if (ret < 0) {
-		vout_log_err("register char dev tv error\n");
+		vout_log_err("alloc_chrdev_region error\n");
 		return  ret;
 	}
-	info->major = ret;
+	/*info->major = ret;*/
 	_init_vout();
-	vout_log_err("major number %d for disp\n", ret);
+	vout_log_err("chrdev devno %d for disp\n", info->devno);
 	if (vout_register_server(&tv_server))
 		vout_log_err("register tv module server fail\n");
 	else
 		vout_log_info("register tv module server ok\n");
-	create_tv_attr(info);
-
+	ret = create_tv_attr(info);
+	if (ret < 0) {
+		vout_log_err("create_tv_attr error\n");
+		return -1;
+	}
 	vout_log_info("%s OK\n", __func__);
+
 	return 0;
 }
 
@@ -1765,7 +1896,8 @@ static int tvout_remove(struct platform_device *pdev)
 		class_destroy(info->base_class);
 	}
 	if (info) {
-		unregister_chrdev(info->major, info->name);
+		/*unregister_chrdev(info->major, info->name);*/
+		cdev_del(&info->cdev);
 		kfree(info);
 	}
 	vout_unregister_server(&tv_server);

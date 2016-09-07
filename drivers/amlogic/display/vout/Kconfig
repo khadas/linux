@@ -30,4 +30,10 @@ config AML_VDAC_HW_SWITCH
 	help
 		vdac hardware switch of cvbs/ypbpr for mx.
 
+config AML_WSS
+	bool "WSS function"
+	default y
+	depends on AM_TV_OUTPUT
+	help
+		Wide Screen Signalling config.
 endmenu
