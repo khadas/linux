@@ -984,13 +984,14 @@ static ssize_t name_store(struct class *cla,
 			}
 		}
 	}
+	reval = count;
 	if (curkey == NULL) {
 		/* count = 0; */
+		reval++;
 		pr_err("could not found key %s\n", name);
 	}
 	if (!IS_ERR_OR_NULL(name))
 		kfree(name);
-	reval =  count+1;
 
 	return reval;
 }
