@@ -2276,6 +2276,10 @@ void init_sharpness(void)
 	WRITE_VPP_REG_BITS(SRSHARP0_SHARP_PK_NR_ENABLE, 0, 1, 1);
 
 	WRITE_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 1, 0, 1);
+
+	if (is_meson_txl_cpu())
+		WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP, 2, 16, 2);
+
 /* WRITE_VPP_REG_BITS(SRSHARP1_SHARP_PK_NR_ENABLE, 0,1,1);*/
 
 /* WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1,1,1); */
@@ -2500,7 +2504,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		goto fail_create_device;
 	}
 	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
-	if (is_meson_gxtvbb_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		init_sharpness();
 	/* #endif */
 	vpp_get_hist_en();
