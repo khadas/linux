@@ -530,6 +530,10 @@ module_param(enable_esm_reboot, int, 0664);
 bool esm_error_flag;
 MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
 module_param(esm_error_flag, bool, 0664);
+
+int esm_data_base_addr;
+MODULE_PARM_DESC(esm_data_base_addr, "\n esm_data_base_addr\n");
+module_param(esm_data_base_addr, int, 0664);
 #endif
 
 int pre_port = 0xff;
@@ -1309,10 +1313,10 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 		if (hdmirx_top_intr_stat & (0x1 << 17))
 			hdmirx_wr_top(TOP_EDID_GEN_STAT,
 			hdmirx_rd_top(TOP_EDID_GEN_STAT) | (1 << 16));
-		else if (hdmirx_top_intr_stat & (0x2 << 17))
+		if (hdmirx_top_intr_stat & (0x2 << 17))
 			hdmirx_wr_top(TOP_EDID_GEN_STAT_B,
 			hdmirx_rd_top(TOP_EDID_GEN_STAT_B) | (1 << 16));
-		else if (hdmirx_top_intr_stat & (0x4 << 17))
+		if (hdmirx_top_intr_stat & (0x4 << 17))
 			hdmirx_wr_top(TOP_EDID_GEN_STAT_C,
 			hdmirx_rd_top(TOP_EDID_GEN_STAT_C) | (1 << 16));
 		edid_addr_intr_flag = true;
@@ -1343,7 +1347,7 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* } */
 
 	/* must clear ip interrupt quickly */
-	if (hdmirx_top_intr_stat & (1 << 31)) {
+	if (hdmirx_top_intr_stat & (~(1 << 30))) {
 		error = hdmi_rx_ctrl_irq_handler(
 				&((struct rx_s *)params)->ctrl);
 		if (error < 0) {
@@ -4333,6 +4337,8 @@ int hdmirx_debug(const char *buf, int size)
 		}
 	} else if (strncmp(tmpbuf, "state", 5) == 0) {
 		dump_state(0xff);
+	} else if (strncmp(tmpbuf, "database", 5) == 0) {
+		rx_pr("data base = 0x%x\n", esm_data_base_addr);
 	} else if (strncmp(tmpbuf, "hdcp14", 6) == 0) {
 		hdmirx_set_hpd(rx.port, 0);
 		force_hdcp14_en = 1;

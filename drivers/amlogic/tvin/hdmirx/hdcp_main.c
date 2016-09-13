@@ -283,6 +283,7 @@ static long cmd_get_data_phys_addr(struct esm_device *esm,
 	krequest.returned_phys_addr = esm->data_base;
 	krequest.returned_status = ESM_HL_DRIVER_SUCCESS;
 
+	esm_data_base_addr = (int)krequest.returned_phys_addr;
 	rx_pr("%scmd_get_data_phys_addr: returning data_base=0x%x\n",
 		MY_TAG, krequest.returned_phys_addr);
 
