@@ -33,6 +33,8 @@
 #include <linux/log2.h>
 #include <linux/cma.h>
 #include <linux/highmem.h>
+#include <linux/page-isolation.h>
+#include <linux/list.h>
 
 struct cma {
 	unsigned long	base_pfn;
@@ -42,11 +44,28 @@ struct cma {
 	struct mutex	lock;
 };
 
+
+/*
+ * try to migrate pages with many map count to non cma areas
+ */
+#define CMA_MR_WORK_THRESHOLD		32
+
+struct cma_migrate_list {
+	struct list_head list;
+	unsigned long pfn;
+};
+
+static atomic_t nr_cma_mr_list;
+static LIST_HEAD(mr_list);
+static DEFINE_SPINLOCK(mr_lock);
+struct work_struct cma_migrate_work;
+
 static struct cma cma_areas[MAX_CMA_AREAS];
 static unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
 static atomic_t cma_allocate;
+static __read_mostly unsigned long total_cma_pages;
 int cma_alloc_ref(void)
 {
 	return atomic_read(&cma_allocate);
@@ -64,6 +83,125 @@ void put_cma_alloc_ref(void)
 	atomic_dec(&cma_allocate);
 }
 EXPORT_SYMBOL(put_cma_alloc_ref);
+
+bool can_use_cma(gfp_t gfp_flags)
+{
+	unsigned long free_cma;
+	unsigned long free_pages;
+
+	/*
+	 * do not use cma pages when cma allocate is working.
+	 */
+	if (cma_alloc_ref())
+		return false;
+
+	/*
+	 * __GFP_BDEV and __GFP_WRITE flags will cause long allocate time
+	 * of cma allocation, for these flags, we can't use cma pages.
+	 */
+	if (gfp_flags & (__GFP_BDEV | __GFP_WRITE))
+		return false;
+
+	/*
+	 * __GFP_COLD is a significant flag to identify pages are allocated
+	 * for anon mapping or file mapping. Allocation cost of anon mapping
+	 * is larger than file mapping, because we need allocate a new page
+	 * and copy page data to new page. For file mapping, we just need
+	 * unmap page and free it.
+	 * So if system free memory is enough, we do not use cma pages for
+	 * anon mapping, but if free memory is below threshold, we should
+	 * release this limit.
+	 */
+	free_cma   = global_page_state(NR_FREE_CMA_PAGES);
+	free_pages = global_page_state(NR_FREE_PAGES);
+	if (free_pages - free_cma < mem_management_thresh)
+		return true;
+	if (!(gfp_flags & __GFP_COLD))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL(can_use_cma);
+
+bool cma_page(struct page *page)
+{
+	int migrate_type = 0;
+
+	if (!page)
+		return false;
+	migrate_type = get_pageblock_migratetype(page);
+	if (is_migrate_cma(migrate_type) ||
+	   is_migrate_isolate(migrate_type)) {
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(cma_page);
+
+int mark_cma_migrate_page(struct page *page)
+{
+	struct cma_migrate_list *cma_list, *next;
+	unsigned long pfn;
+
+	/* check if this page has marked */
+	pfn = page_to_pfn(page);
+	spin_lock(&mr_lock);
+	list_for_each_entry_safe(cma_list, next, &mr_list, list) {
+		/* alread marked */
+		if (cma_list->pfn == pfn) {
+			spin_unlock(&mr_lock);
+			goto work;
+		}
+	}
+	spin_unlock(&mr_lock);
+
+	/* add to list */
+	cma_list = kzalloc(sizeof(*cma_list), GFP_KERNEL);
+	if (!cma_list) {
+		pr_err("%s, no memory\n", __func__);
+		return -ENOMEM;
+	}
+	cma_list->pfn = pfn;
+	spin_lock(&mr_lock);
+	list_add_tail(&cma_list->list, &mr_list);
+	atomic_inc(&nr_cma_mr_list);
+	spin_unlock(&mr_lock);
+work:
+	if (atomic_read(&nr_cma_mr_list) > CMA_MR_WORK_THRESHOLD)
+		schedule_work(&cma_migrate_work);
+	return 0;
+}
+EXPORT_SYMBOL(mark_cma_migrate_page);
+
+static void cma_mr_work_func(struct work_struct *work)
+{
+	unsigned int nr_scan = 0, nr_migrate = 0, map_cnt;
+	struct cma_migrate_list *cma_list, *next;
+	struct page *page;
+	unsigned long total_mapcnt = 0;
+
+	list_for_each_entry_safe(cma_list, next, &mr_list, list) {
+		nr_scan++;
+		page = pfn_to_page(cma_list->pfn);
+		map_cnt = page_mapcount(page);
+		/*
+		 * map cnt may reduce during work, if so
+		 * just remove it from list
+		 */
+		if (map_cnt < CMA_MIGRATE_MAP_THRESHOLD ||
+		    !migrate_cma_page(cma_list->pfn)) {
+			total_mapcnt += map_cnt;
+			nr_migrate++;
+			atomic_dec(&nr_cma_mr_list);
+			spin_lock(&mr_lock);
+			list_del(&cma_list->list);
+			spin_unlock(&mr_lock);
+			kfree(cma_list);
+		}
+	}
+	pr_debug("%s, nr_scaned:%d, nr_migrate:%d, total_map:%ld, list:%d\n",
+		__func__, nr_scan, nr_migrate, total_mapcnt,
+		atomic_read(&nr_cma_mr_list));
+}
 
 phys_addr_t cma_get_base(struct cma *cma)
 {
@@ -150,6 +288,7 @@ static int __init cma_init_reserved_areas(void)
 {
 	int i;
 
+	total_cma_pages = 0;
 	for (i = 0; i < cma_area_count; i++) {
 		int ret = cma_activate_area(&cma_areas[i]);
 
@@ -157,6 +296,9 @@ static int __init cma_init_reserved_areas(void)
 			return ret;
 	}
 	atomic_set(&cma_allocate, 0);
+	atomic_set(&nr_cma_mr_list, 0);
+	INIT_LIST_HEAD(&mr_list);
+	INIT_WORK(&cma_migrate_work, cma_mr_work_func);
 
 	return 0;
 }
@@ -206,6 +348,10 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	cma->order_per_bit = order_per_bit;
 	*res_cma = cma;
 	cma_area_count++;
+	total_cma_pages += size / PAGE_SIZE;
+	pr_info("Reserved %ld MiB at %08lx, total cma pages:%ld\n",
+		(unsigned long)size / SZ_1M, (unsigned long)base,
+		total_cma_pages);
 
 	return 0;
 }
@@ -308,8 +454,6 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	if (ret)
 		goto err;
 
-	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
-		(unsigned long)base);
 	return 0;
 
 err:
