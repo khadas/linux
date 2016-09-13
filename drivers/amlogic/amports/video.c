@@ -7860,7 +7860,7 @@ static int __init video_early_init(void)
 	/* default 10bit setting for gxm */
 	if (is_meson_gxm_cpu()) {
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
-		WRITE_VCBUS_REG(VPP_DOLBY_CTRL, 0x20000);
+		WRITE_VCBUS_REG(VPP_DOLBY_CTRL, 0x22000);
 		/* default setting is black for dummy data1& dumy data0,
 		for dummy data1 the y/cb/cr data width is 10bit on gxm,
 		for dummy data the y/cb/cr data width is 8bit but
