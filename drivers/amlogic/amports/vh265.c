@@ -1069,8 +1069,8 @@ struct hevc_state_s {
 	int tile_height_lcu;
 
 	int slice_type;
-	int slice_addr;
-	int slice_segment_addr;
+	unsigned int slice_addr;
+	unsigned int slice_segment_addr;
 
 	unsigned char interlace_flag;
 	unsigned char curr_pic_struct;
@@ -1692,7 +1692,7 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
 					 5 ? 0x80 : 0x20;
 	int mpred_mv_end = hevc->work_space_buf->mpred_mv.buf_start +
 				 hevc->work_space_buf->mpred_mv.buf_size;
-	int y_adr = 0;
+	unsigned int y_adr = 0;
 	int buf_size = 0;
 #ifdef LOSLESS_COMPRESS_MODE
 /*SUPPORT_10BIT*/
