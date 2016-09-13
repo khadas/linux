@@ -225,6 +225,9 @@ static u32 fatal_error_flag;
 static u32 fatal_error_reset;
 static u32 max_refer_buf = 1;
 static u32 decoder_force_reset;
+static unsigned int no_idr_error_count;
+static unsigned int no_idr_error_max = 60;
+
 #if 0
 static u32 vh264_no_disp_wd_count;
 #endif
@@ -1279,9 +1282,11 @@ static void vh264_isr(void)
 		(frame_height >= 1000) && (last_interlaced == 0))
 		SET_VREG_MASK(AV_SCRATCH_F, 0x8);
 #endif
-	if (decoder_force_reset == 1) {
+	if ((decoder_force_reset == 1)
+			|| ((no_idr_error_count >= no_idr_error_max)
+			&& (ucode_type != UCODE_IP_ONLY_PARAM))) {
 		vh264_running = 0;
-		pr_info("force reset decoder !!!\n");
+		pr_info("force reset decoder  %d!!!\n", no_idr_error_count);
 		schedule_work(&error_wd_work);
 		decoder_force_reset = 0;
 	} else if ((cpu_cmd & 0xff) == 1) {
@@ -1356,9 +1361,18 @@ static void vh264_isr(void)
 				vh264_eos = 1;
 
 			b_offset = (status >> 16) & 0xffff;
+
+			if (error)
+				no_idr_error_count++;
+			if (idr_flag ||
+				(!error && (slice_type != SLICE_TYPE_I)))
+				no_idr_error_count = 0;
+
 			if (decoder_debug_flag) {
-				pr_info("slice_type %x idr %x  error %x",
-						slice_type, idr_flag, error);
+				pr_info
+				("slice_type %x idr %x error %x count %d",
+					slice_type, idr_flag, error,
+					no_idr_error_count);
 				pr_info(" prog %x pic_struct %x offset %x\n",
 				prog_frame, pic_struct,	b_offset);
 			}
@@ -2205,6 +2219,7 @@ static void vh264_local_init(void)
 	pts_hit = 0;
 #endif
 	pts_discontinue = false;
+	no_idr_error_count = 0;
 	return;
 }
 
@@ -2895,6 +2910,11 @@ MODULE_PARM_DESC(decoder_debug_flag,
 module_param(decoder_force_reset, uint, 0664);
 MODULE_PARM_DESC(decoder_force_reset,
 		"\n amvdec_h264 decoder force reset\n");
+module_param(no_idr_error_max, uint, 0664);
+MODULE_PARM_DESC(no_idr_error_max,
+		"\n print no_idr_error_max\n");
+
+
 module_init(amvdec_h264_driver_init_module);
 module_exit(amvdec_h264_driver_remove_module);
 
