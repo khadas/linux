@@ -888,7 +888,8 @@ void eq_algorithm(struct work_struct *work)
 
 	cancel_delayed_work(&eq_dwork);
 	if (hdmirx_repeat_support()) {
-		if (rx.hdcp.hdcp_version) {
+		if (rx.hdcp.hdcp_version && hdmirx_is_key_write()
+			&& rx.open_fg) {
 			switch_set_state(&rx.hdcp.switch_hdcp_auth, 0);
 			switch_set_state(&rx.hdcp.switch_hdcp_auth,
 					rx.hdcp.hdcp_version);

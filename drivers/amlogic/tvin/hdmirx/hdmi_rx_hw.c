@@ -675,6 +675,14 @@ static int DWC_init(unsigned port)
 	return err;
 }
 
+bool hdmirx_is_key_write(void)
+{
+	if (hdmirx_rd_dwc(DWC_HDCP_BKSV0) != 0)
+		return 1;
+	else
+		return 0;
+}
+
 #define HDCP_KEY_WR_TRIES		(5)
 static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 {

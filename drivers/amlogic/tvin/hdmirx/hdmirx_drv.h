@@ -28,7 +28,7 @@
 #include "../tvin_frontend.h"
 
 #define RX_VER0 "Ref.2016/09/06"
-#define RX_VER1 "Ref.2016/08/23"
+#define RX_VER1 "Ref.2016/09/13"
 #define RX_VER2 "Ref.2016/08/10"
 #define RX_VER3 "Ref.2016/09/21"
 
@@ -755,6 +755,7 @@ extern int hdmirx_hw_get_color_fmt(void);
 extern int hdmirx_hw_get_3d_structure(unsigned char*, unsigned char*);
 extern int hdmirx_hw_get_dvi_info(void);
 extern int rx_get_colordepth(void);
+extern bool hdmirx_is_key_write(void);
 extern int hdmirx_hw_get_pixel_repeat(void);
 extern bool hdmirx_hw_check_frame_skip(void);
 extern int rx_pr(const char *fmt, ...);
