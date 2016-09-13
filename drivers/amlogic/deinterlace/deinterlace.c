@@ -169,7 +169,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-06-17a";
+static const char version_s[] = "2016-09-13a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -6170,10 +6170,9 @@ static void inc_post_ref_count(struct di_buf_s *di_buf)
 	if (di_buf->di_buf_dup_p[1])
 		di_buf->di_buf_dup_p[1]->post_ref_count++;
 
-	if (di_buf->pulldown_mode != PULL_DOWN_BLEND_2) {
-		if (di_buf->di_buf_dup_p[0])
-			di_buf->di_buf_dup_p[0]->post_ref_count++;
-	}
+	if (di_buf->di_buf_dup_p[0])
+		di_buf->di_buf_dup_p[0]->post_ref_count++;
+
 	if (di_buf->di_buf_dup_p[2])
 		di_buf->di_buf_dup_p[2]->post_ref_count++;
 }
@@ -6192,11 +6191,10 @@ static void dec_post_ref_count(struct di_buf_s *di_buf)
 	if (di_buf->di_buf_dup_p[1])
 		di_buf->di_buf_dup_p[1]->post_ref_count--;
 
-	if (di_buf->pulldown_mode != PULL_DOWN_BLEND_2) {
-		if (di_buf->di_buf_dup_p[0] &&
-		    di_buf->di_buf_dup_p[0]->post_proc_flag != -2)
-			di_buf->di_buf_dup_p[0]->post_ref_count--;
-	}
+	if (di_buf->di_buf_dup_p[0] &&
+	    di_buf->di_buf_dup_p[0]->post_proc_flag != -2)
+		di_buf->di_buf_dup_p[0]->post_ref_count--;
+
 	if (di_buf->di_buf_dup_p[2])
 		di_buf->di_buf_dup_p[2]->post_ref_count--;
 }
