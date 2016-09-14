@@ -34,8 +34,8 @@
 		/* power index:(point gpios_index, or extern_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		lcd_cpu-gpios = <&gpio GPIOH_3 1 &gpio GPIOH_4 1>;
-		lcd_cpu_gpio_names = "GPIOH_3","GPIOH_4";
+		lcd_cpu-gpios = <&gpio GPIOH_4 1 &gpio GPIOH_5 1>;
+		lcd_cpu_gpio_names = "GPIOH_4","GPIOH_5";
 
 		lvds_0{
 			model_name = "1080p-vfreq";
