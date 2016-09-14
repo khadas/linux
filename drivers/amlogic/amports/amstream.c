@@ -2385,26 +2385,26 @@ static long amstream_do_ioctl_old(struct stream_port_s *this,
 			u32 pts = 0, offset;
 			get_user(offset, (unsigned long __user *)arg);
 			pts_lookup_offset(PTS_TYPE_AUDIO, offset, &pts, 300);
-			put_user(pts, (unsigned long __user *)arg);
+			put_user(pts, (int __user *)arg);
 		}
 		return 0;
 	case GET_FIRST_APTS_FLAG:
 		if (this->type & PORT_TYPE_AUDIO) {
 			put_user(first_pts_checkin_complete(PTS_TYPE_AUDIO),
-					 (unsigned long __user *)arg);
+					 (int __user *)arg);
 		}
 		break;
 
 	case AMSTREAM_IOC_APTS:
-		put_user(timestamp_apts_get(), (unsigned long __user *)arg);
+		put_user(timestamp_apts_get(), (int __user *)arg);
 		break;
 
 	case AMSTREAM_IOC_VPTS:
-		put_user(timestamp_vpts_get(), (unsigned long __user *)arg);
+		put_user(timestamp_vpts_get(), (int __user *)arg);
 		break;
 
 	case AMSTREAM_IOC_PCRSCR:
-		put_user(timestamp_pcrscr_get(), (unsigned long __user *)arg);
+		put_user(timestamp_pcrscr_get(), (int __user *)arg);
 		break;
 
 	case AMSTREAM_IOC_SET_PCRSCR:
