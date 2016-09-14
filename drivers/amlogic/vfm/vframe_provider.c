@@ -61,7 +61,8 @@ struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name)
 		int namelen = strlen(provider_name);
 		for (i = 0; i < MAX_PROVIDER_NUM; i++) {
 			p = provider_table[i];
-			if (p && !strncmp(p->name, provider_name, namelen)) {
+			if (p && p->name && !strncmp(p->name,
+					provider_name, namelen)) {
 				if (strlen(p->name) == namelen
 					|| p->name[namelen] == '.')
 					break;

@@ -1289,6 +1289,7 @@ static void vh264_isr(void)
 		pr_info("force reset decoder  %d!!!\n", no_idr_error_count);
 		schedule_work(&error_wd_work);
 		decoder_force_reset = 0;
+		no_idr_error_count = 0;
 	} else if ((cpu_cmd & 0xff) == 1) {
 		if (unlikely
 			(vh264_running
