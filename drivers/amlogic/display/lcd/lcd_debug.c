@@ -1243,15 +1243,19 @@ static ssize_t lcd_ttl_debug_store(struct class *class,
 	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct ttl_config_s *ttl_conf;
+	unsigned int temp[5];
 
 	ttl_conf = lcd_drv->lcd_config->lcd_control.ttl_config;
-	ret = sscanf(buf, "%d %d %d", &ttl_conf->clk_pol,
-		&ttl_conf->sync_valid, &ttl_conf->swap_ctrl);
-	if (ret == 3) {
+	ret = sscanf(buf, "%d %d %d %d %d",
+		&temp[0], &temp[1], &temp[2], &temp[3], &temp[4]);
+	if (ret == 5) {
 		pr_info("set ttl config:\n"
-			"clk_pol=%d, sync_valid=0x%x, swap_ctrl=0x%x\n",
-			ttl_conf->clk_pol, ttl_conf->sync_valid,
-			ttl_conf->swap_ctrl);
+			"clk_pol=%d, de_valid=%d, de_valid=%d\n"
+			"rb_swap=%d, bit_swap=%d\n",
+			temp[0], temp[1], temp[2], temp[3], temp[4]);
+		ttl_conf->clk_pol = temp[0];
+		ttl_conf->sync_valid = ((temp[1] << 1) | temp[2]);
+		ttl_conf->swap_ctrl = ((temp[3] << 1) | temp[4]);
 		lcd_debug_config_update();
 	} else {
 		pr_info("invalid data\n");

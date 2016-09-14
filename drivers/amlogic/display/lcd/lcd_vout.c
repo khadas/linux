@@ -413,6 +413,10 @@ static int lcd_mode_probe(struct device *dev)
 	if (ret)
 		LCDERR("register lcd_reboot_notifier failed\n");
 
+	/* add notifier for video sync_duration info refresh */
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
+		&lcd_driver->lcd_info->mode);
+
 	return 0;
 }
 
