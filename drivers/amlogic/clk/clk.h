@@ -300,7 +300,7 @@ enum amlogic_clk_branch_type {
 		.id		= _id,				\
 		.branch_type	= branch_composite,		\
 		.name		= cname,			\
-		.parent_names	= pname,	\
+		.parent_names	= (const char *[]){ pname },	\
 		.num_parents	= 1,				\
 		.flags		= f,				\
 		.mux_offset	= mo,				\

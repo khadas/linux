@@ -53,8 +53,7 @@
 #define CLK_BT656_CLK1		39
 #define CLK_VID_LOCK_CLK	40
 #define CLK_APB_P			41
-#define CLK_PCM_MCLK        42
-#define CLK_PCM_SCLK        43
+
 
 /* must be greater than maximal clock id */
 #define CLK_NR_CLKS		100

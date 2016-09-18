@@ -20,7 +20,7 @@
 
 extern struct snd_soc_dai_driver aml_dai[];
 struct aml_i2s {
-	struct clk *clk_mpll;
+	struct clk *clk_mpl0;
 	struct clk *clk_mclk;
 	int old_samplerate;
 	bool disable_clk_suspend;
