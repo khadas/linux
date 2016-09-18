@@ -2359,29 +2359,12 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	|| (audio_param->type == CT_DTS_HD_MA))
 		hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, 2);
 
-	switch (audio_param->type) {
-	case 0: /* padding only, unused */
-	case CT_PCM:
-	case CT_AC_3:
-	case CT_DTS:
-	case CT_DTS_HD:
-		aud_n_para = 6144;
-		if ((hdev->cur_VIC == HDMI_4k2k_24) ||
-			(hdev->cur_VIC == HDMI_4k2k_25) ||
-			(hdev->cur_VIC == HDMI_4k2k_30) ||
-			(hdev->cur_VIC == HDMI_4k2k_smpte_24) ||
-			(hdev->cur_VIC == HDMI_4096x2160p25_256x135) ||
-			(hdev->cur_VIC == HDMI_4096x2160p30_256x135) ||
-			(hdev->cur_VIC == HDMI_4k2k_50_y420) ||
-			(hdev->cur_VIC == HDMI_4k2k_60_y420) ||
-			(hdev->cur_VIC == HDMI_4k2k_smpte_50_y420) ||
-			(hdev->cur_VIC == HDMI_4k2k_smpte_60_y420))
-			aud_n_para = 5120;
-		break;
-	default:
-		aud_n_para = 6144 * 4;
-		break;
-	}
+	if (hdev->para->cs == COLORSPACE_YUV422)
+		aud_n_para = hdmi_get_aud_n_paras(audio_param->sample_rate,
+			COLORDEPTH_24B, hdev->para->timing.pixel_freq);
+	else
+		aud_n_para = hdmi_get_aud_n_paras(audio_param->sample_rate,
+			hdev->para->cd, hdev->para->timing.pixel_freq);
 	pr_info("hdmitx aud_n_para = %d\n", aud_n_para);
 
 	/* ACR packet configuration */

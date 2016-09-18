@@ -209,6 +209,8 @@ enum hdmi_vic {
 #define HDMI_4k2k_smpte_50_y420 HDMI_4096x2160p50_256x135_Y420
 #define HDMI_4k2k_smpte_60_y420 HDMI_4096x2160p60_256x135_Y420
 
+enum hdmi_audio_fs;
+
 /* CEA TIMING STRUCT DEFINITION */
 struct hdmi_cea_timing {
 	unsigned int pixel_freq; /* Unit: 1000 */
@@ -331,6 +333,8 @@ unsigned int hdmi_get_csc_coef(
 	unsigned int color_depth, unsigned int color_format,
 	unsigned char **coef_array, unsigned int *coef_length);
 struct hdmi_format_para *hdmi_get_fmt_name(char const *name);
+unsigned int hdmi_get_aud_n_paras(enum hdmi_audio_fs fs,
+	enum hdmi_color_depth cd, unsigned int tmds_clk);
 
 /* HDMI Audio Parmeters */
 /* Refer to CEA-861-D Page 88 */
@@ -499,12 +503,16 @@ struct hdmi_rx_audioinfo {
 	unsigned CTS;
 };
 
-#define AUDIO_PARA_MAX_NUM       7
+#define AUDIO_PARA_MAX_NUM       13
 struct hdmi_audio_fs_ncts {
 	struct {
 		unsigned int tmds_clk;
-		unsigned int n;
-		unsigned int cts;
+		unsigned int n; /* 24 or 30 bit */
+		unsigned int cts; /* 24 or 30 bit */
+		unsigned int n_36bit;
+		unsigned int cts_36bit;
+		unsigned int n_48bit;
+		unsigned int cts_48bit;
 	} array[AUDIO_PARA_MAX_NUM];
 	unsigned int def_n;
 };
