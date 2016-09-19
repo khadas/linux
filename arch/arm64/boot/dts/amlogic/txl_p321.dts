@@ -1331,12 +1331,11 @@
 
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<4 0x00000780>;
-		amlogic,clrmask=<4 0x0000000e
-				 3 0x001c0000>;
-		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_14";
+		amlogic,setmask=<4 0x00000740>;
+		amlogic,clrmask=<4 0x0000000c
+				 3 0x021c0000>;
+		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_15";
 	};
-
 	audio_spdif_pins:audio_pin1{
 		amlogic,setmask=<3 0x40000000>; /*spdif_out*/
 		amlogic,clrmask=<3 0x00200000>;
