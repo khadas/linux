@@ -336,7 +336,6 @@ struct hdmitx_dev {
 #define TMDS_PHY_ENABLE     0x1
 #define TMDS_PHY_DISABLE    0x2
 #define MISC_VIID_IS_USING      (CMD_MISC_OFFSET + 0x05)
-#define MISC_CONF_MODE420       (CMD_MISC_OFFSET + 0x06)
 #define MISC_TMDS_CLK_DIV40     (CMD_MISC_OFFSET + 0x07)
 #define MISC_COMP_HPLL         (CMD_MISC_OFFSET + 0x08)
 #define COMP_HPLL_SET_OPTIMISE_HPLL1    0x1

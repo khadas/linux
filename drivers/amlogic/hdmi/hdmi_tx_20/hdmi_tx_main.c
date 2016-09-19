@@ -583,26 +583,6 @@ static int set_disp_mode_auto(void)
 				(hpdmode == 2)?1:0);
 		}
 	}
-	if (hdev->para->cs == COLORSPACE_YUV420) {
-		switch (hdev->cur_VIC) {
-		/* Currently, only below formats support 420 mode */
-		case HDMI_3840x2160p60_16x9:
-		case HDMI_3840x2160p50_16x9:
-		case HDMI_3840x2160p50_16x9_Y420:
-		case HDMI_3840x2160p60_16x9_Y420:
-		case HDMI_4096x2160p60_256x135:
-		case HDMI_4096x2160p50_256x135:
-		case HDMI_4096x2160p50_256x135_Y420:
-		case HDMI_4096x2160p60_256x135_Y420:
-			pr_info("configure mode420, VIC = %d\n",
-				hdev->cur_VIC);
-			hdev->HWOp.CntlMisc(hdev, MISC_CONF_MODE420, 0);
-			break;
-		default:
-			pr_info("mode420 is not supported at VIC: %d for now.\n",
-				hdev->cur_VIC);
-		}
-	}
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->output_blank_flag = 1;
 	if (hdev->hdcp_mode == 1) {

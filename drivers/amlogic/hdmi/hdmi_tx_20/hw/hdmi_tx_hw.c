@@ -839,7 +839,6 @@ static void hdmi_tvenc1080i_set(struct hdmitx_vidpara *param)
 		(0 << 12)
 	);
 	hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 1, 1);
-
 }
 
 static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
@@ -1966,10 +1965,38 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	case COLORDEPTH_30B:
 	case COLORDEPTH_36B:
 	case COLORDEPTH_48B:
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
+			unsigned int hs_flag = 0;
+			/* 12-10 dithering on */
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
+			/* hsync/vsync not invert */
+			hs_flag = (hd_read_reg(P_VPU_HDMI_SETTING) >> 2) & 0x3;
+			hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 2, 2);
+			/* 12-10 rounding off */
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
+			/* 10-8 dithering off (2x2 old dither) */
+			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 4, 1);
+			/* set hsync/vsync */
+			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, hs_flag, 2, 2);
+		} else {
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
+		}
 		break;
 	default:
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
+			/* 12-10 dithering off */
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+			/* 12-10 rounding on */
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+			/* 10-8 dithering on (2x2 old dither) */
+			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 1, 4, 1);
+			/* set hsync/vsync as default 0 */
+			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 2, 2);
+		} else {
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+			hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+		}
 		break;
 	}
 
@@ -3828,9 +3855,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 		hdmitx_hdcp_opr(6);
 		break;
 	case MISC_VIID_IS_USING:
-		break;
-	case MISC_CONF_MODE420:
-		hd_write_reg(P_VPU_HDMI_SETTING, 0x10e);
 		break;
 	case MISC_TMDS_CLK_DIV40:
 		set_tmds_clk_div40(argv);
