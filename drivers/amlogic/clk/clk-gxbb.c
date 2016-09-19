@@ -54,6 +54,7 @@ static void __iomem *reg_base_aobus;
 #define	HHI_AUD_CLK_CNTL2		OFFSET(0x64)
 #define	HHI_BT656_CLK_CNTL		OFFSET(0xf5)
 #define	HHI_VID_LOCK_CLK_CNTL		OFFSET(0xf2)
+#define	HHI_PCM_CLK_CNTL		OFFSET(0x96)
 
 #define GXBB_RSTC_N_REGS	6
 #define GXBB_AO_OFF		((GXBB_RSTC_N_REGS - 1) * BITS_PER_LONG + 4)
@@ -68,6 +69,11 @@ PNAME(cts_am_p) = {"ddr_pll_clk", "mpll_clk_out0", "mpll_clk_out1",
 							"mpll_clk_out2"};
 PNAME(cts_i958_p) = {"NULL", "mpll_clk_out0", "mpll_clk_out1", "mpll_clk_out2"};
 PNAME(cts_spdif_p) = {"cts_amclk", "cts_i958"};
+
+PNAME(mux_pcm_0_p) = {"mpll_clk_out0", "fclk_div4", "fclk_div3", "fclk_div5"};
+PNAME(mux_pcm_1_p) = {"mux_pcm_0_p"};
+
+
 PNAME(mux_vapb_0_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 PNAME(mux_vapb_1_p) = {"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7"};
 
@@ -153,6 +159,20 @@ static struct amlogic_clk_branch clk_branches[] __initdata = {
 			HHI_AUD_CLK_CNTL2, 16, 8,
 			CLK_DIVIDER_ROUND_CLOSEST,
 			HHI_AUD_CLK_CNTL2, 24, 0),
+
+	COMPOSITE(CLK_PCM_MCLK, "clk_pcm_mclk", mux_pcm_0_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_PCM_CLK_CNTL, 10, 2, 0,
+			HHI_PCM_CLK_CNTL, 0, 9,
+			CLK_DIVIDER_ROUND_CLOSEST,
+			HHI_PCM_CLK_CNTL, 9, 0),
+
+	COMPOSITE_NOMUX(CLK_PCM_SCLK, "clk_pcm_sclk", mux_pcm_1_p,
+			CLK_SET_RATE_NO_REPARENT,
+			HHI_PCM_CLK_CNTL,
+			HHI_PCM_CLK_CNTL, 16, 5,
+			CLK_DIVIDER_ROUND_CLOSEST,
+			HHI_PCM_CLK_CNTL, 22, 0),
 
 	COMPOSITE(CLK_BT656_CLK0, "cts_bt656_clk0", cts_bt656_clk0_p,
 			CLK_SET_RATE_NO_REPARENT,

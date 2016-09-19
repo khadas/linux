@@ -957,9 +957,9 @@
 			"top_level",
 			"aoclk",
 			"aud_in";
-		clocks = <&clock CLK_MPLL0>,
+		clocks = <&clock CLK_MPLL2>,
 			<&clock CLK_AMCLK>;
-		clock-names = "mpll0", "mclk";
+		clock-names = "mpll2", "mclk";
 		compatible = "amlogic, aml-i2s-dai";
 	};
 	spdif_dai: SPDIF {
@@ -983,6 +983,12 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-pcm-dai";
 		pinctrl-names = "aml_audio_btpcm";
+		pinctrl-0 = <&audio_btpcm_pins>;
+		clocks = <&clock CLK_MPLL0>,
+			<&clock CLK_PCM_MCLK>,
+			<&clock CLK_PCM_SCLK>;
+		clock-names = "mpll0", "pcm_mclk", "pcm_sclk";
+		pcm_mode = <1>;	/* 0=slave mode, 1=master mode */
 	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";
@@ -1344,6 +1350,13 @@
 		amlogic,pins ="GPIOZ_17"; /*spdif_out*/
 	};
 
+	audio_btpcm_pins:audio_btpcm_pins{
+		/* BT PCM PINMUX SETTING*/
+		amlogic,setmask=<4 0x1e000>;
+		amlogic,clrmask=<4 0xf3f00000>;
+		amlogic,pins ="GPIOZ_0", "GPIOZ_1", "GPIOZ_2", "GPIOZ_3";
+	};
+
 	hdmirx_pins: hdmirx_pins {
                 amlogic,setmask = <5  0xffff0000>;
                 amlogic,clrmask = <5  0x0000ff00>;
@@ -1401,3 +1414,6 @@
 	};
 };
 
+&audio_data{
+	status = "okay";
+};

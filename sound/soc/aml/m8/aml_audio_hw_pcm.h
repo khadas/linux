@@ -1,5 +1,5 @@
 /*
- * sound/soc/aml/m8/aml_audio_hw_pcm2bt.h
+ * sound/soc/aml/m8/aml_audio_hw_pcm.h
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -18,6 +18,9 @@
 #ifndef __AML_PCM_HW_H__
 #define __AML_PCM_HW_H__
 
+#include "sound/asound.h"
+#include <sound/pcm.h>
+
 void pcm_in_enable(int flag);
 void pcm_in_set_buf(unsigned int addr, unsigned int size);
 int  pcm_in_is_enable(void);
@@ -35,4 +38,6 @@ unsigned int pcm_out_rd_ptr(void);
 unsigned int pcm_out_wr_ptr(void);
 unsigned int pcm_out_set_wr_ptr(unsigned int value);
 
+void pcm_master_in_enable(struct snd_pcm_substream *substream, int flag);
+void pcm_master_out_enable(struct snd_pcm_substream *substream, int flag);
 #endif
