@@ -1939,6 +1939,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t len)
 {
 	unsigned int n = 0, canvas_w = 0, canvas_h = 0, canvas_real_size = 0;
+	unsigned int nr_size = 0;
 	char *buf_orig, *ps, *token;
 	char *parm[3] = { NULL };
 	struct file *filp = NULL;
@@ -1964,12 +1965,10 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 				return len;
 
 		canvas_w =
-			(di_pre_stru.di_mem_buf_dup_p->canvas_config_size >> 16)
-			& 0xffff;
+			di_pre_stru.di_mem_buf_dup_p->canvas_width[NR_CANVAS];
 		canvas_h =
-			(di_pre_stru.di_mem_buf_dup_p->canvas_config_size)
-			& 0xffff;
-		canvas_real_size = canvas_w * canvas_h * 2;
+			di_pre_stru.di_mem_buf_dup_p->canvas_height;
+		nr_size = canvas_w * canvas_h * 2;
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 /* pr_dbg("dump path =%s\n",dump_path); */
@@ -1981,7 +1980,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		dump_state_flag = 1;
 
 		buff = phys_to_virt(di_pre_stru.di_mem_buf_dup_p->nr_adr);
-		vfs_write(filp, buff, canvas_real_size, &pos);
+		vfs_write(filp, buff, nr_size, &pos);
 /*	pr_dbg("di_chan2_buf_dup_p:\n	nr:%u,mtn:%u,cnt:%u\n",
  * di_pre_stru.di_chan2_buf_dup_p->nr_adr,
  * di_pre_stru.di_chan2_buf_dup_p->mtn_adr,
@@ -2039,10 +2038,10 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 				return len;
 
 		canvas_w =
-(di_pre_stru.di_post_wr_buf->canvas_config_size>>16)&0xffff;
+di_pre_stru.di_post_wr_buf->canvas_width[NR_CANVAS];
 		canvas_h =
-(di_pre_stru.di_post_wr_buf->canvas_config_size)&0xffff;
-		canvas_real_size = canvas_w*canvas_h*2;
+di_pre_stru.di_post_wr_buf->canvas_height;
+		nr_size = canvas_w * canvas_h * 2;
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 		/* pr_info("dump path =%s\n",dump_path); */
@@ -2054,7 +2053,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		dump_state_flag = 1;
 
 		buff = phys_to_virt(di_pre_stru.di_post_wr_buf->nr_adr);
-		vfs_write(filp, buff, canvas_real_size, &pos);
+		vfs_write(filp, buff, nr_size, &pos);
 		vfs_fsync(filp, 0);
 		dump_state_flag = 0;
 		filp_close(filp, NULL);
@@ -2529,31 +2528,32 @@ static int di_get_canvas(void)
 static void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 	int mtn_canvas_idx)
 {
-	unsigned int width, canvas_height;
-
+	unsigned int height = 0;
 	if (!di_buf)
 		return;
-	width = (di_buf->canvas_config_size >> 16) & 0xffff;
-	canvas_height = (di_buf->canvas_config_size) & 0xffff;
 	if (di_buf->canvas_config_flag == 1) {
 		if (nr_canvas_idx >= 0) {
+			/* linked two interlace buffer should double height*/
+			if (di_buf->di_wr_linked_buf)
+				height = (di_buf->canvas_height << 1);
+			else
+				height =  di_buf->canvas_height;
 			di_buf->nr_canvas_idx = nr_canvas_idx;
-			canvas_config(
-				nr_canvas_idx, di_buf->nr_adr, width * 2,
-				canvas_height, 0, 0);
+			canvas_config(nr_canvas_idx, di_buf->nr_adr,
+				di_buf->canvas_width[NR_CANVAS], height, 0, 0);
 		}
 	} else if (di_buf->canvas_config_flag == 2) {
 		if (nr_canvas_idx >= 0) {
 			di_buf->nr_canvas_idx = nr_canvas_idx;
-			canvas_config(
-				nr_canvas_idx, di_buf->nr_adr, width * 2,
-				canvas_height / 2, 0, 0);
+			canvas_config(nr_canvas_idx, di_buf->nr_adr,
+				di_buf->canvas_width[NR_CANVAS],
+				di_buf->canvas_height, 0, 0);
 		}
 		if (mtn_canvas_idx >= 0) {
 			di_buf->mtn_canvas_idx = mtn_canvas_idx;
-			canvas_config(
-				mtn_canvas_idx, di_buf->mtn_adr, width / 2,
-				canvas_height / 2, 0, 0);
+			canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
+				di_buf->canvas_width[MTN_CANVAS],
+				di_buf->canvas_height, 0, 0);
 		}
 	}
 	if (nr_canvas_idx >= 0) {
@@ -2566,45 +2566,42 @@ static void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 static void config_cnt_canvas_idx(struct di_buf_s *di_buf,
 	unsigned int cnt_canvas_idx)
 {
-	unsigned int width, canvas_height;
 
 	if (!di_buf)
 		return;
-	width = (di_buf->canvas_config_size >> 16) & 0xffff;
-	canvas_height = (di_buf->canvas_config_size) & 0xffff;
+
 	di_buf->cnt_canvas_idx = cnt_canvas_idx;
 	canvas_config(
-		cnt_canvas_idx, di_buf->cnt_adr, width / 2, canvas_height / 2,
-		0, 0);
+		cnt_canvas_idx, di_buf->cnt_adr,
+		di_buf->canvas_width[MTN_CANVAS],
+		di_buf->canvas_height, 0, 0);
 }
 #endif
 
 static void config_mcinfo_canvas_idx(struct di_buf_s *di_buf,
 	int mcinfo_canvas_idx)
 {
-	unsigned int canvas_height;
 
 	if (!di_buf)
 		return;
-	canvas_height = (di_buf->canvas_config_size) & 0xffff;
+
 	di_buf->mcinfo_canvas_idx = mcinfo_canvas_idx;
 	canvas_config(
-		mcinfo_canvas_idx, di_buf->mcinfo_adr, canvas_height / 2, 2, 0,
-		0);
+		mcinfo_canvas_idx, di_buf->mcinfo_adr,
+		di_buf->canvas_height, 2, 0, 0);
 }
 static void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
 	int mcvec_canvas_idx)
 {
-	unsigned int width, canvas_height;
 
 	if (!di_buf)
 		return;
-	width = (di_buf->canvas_config_size >> 16) & 0xffff;
-	canvas_height = (di_buf->canvas_config_size) & 0xffff;
+
 	di_buf->mcvec_canvas_idx = mcvec_canvas_idx;
 	canvas_config(
-		mcvec_canvas_idx, di_buf->mcvec_adr, width * 2 / 5,
-		canvas_height / 2, 0, 0);
+		mcvec_canvas_idx, di_buf->mcvec_adr,
+		di_buf->canvas_width[MV_CANVAS],
+		di_buf->canvas_height, 0, 0);
 }
 
 
@@ -2612,24 +2609,27 @@ static void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
 
 static void config_canvas(struct di_buf_s *di_buf)
 {
-	unsigned int width, canvas_height;
-
+	unsigned int height = 0;
 	if (!di_buf)
 		return;
-	width = (di_buf->canvas_config_size >> 16) & 0xffff;
-	canvas_height = (di_buf->canvas_config_size) & 0xffff;
+
 	if (di_buf->canvas_config_flag == 1) {
-		canvas_config(
-			di_buf->nr_canvas_idx, di_buf->nr_adr, width * 2,
-			canvas_height, 0, 0);
+		if (nr_canvas_idx >= 0) {
+			/* linked two interlace buffer should double height*/
+			if (di_buf->di_wr_linked_buf)
+				height = (di_buf->canvas_height << 1);
+			else
+				height =  di_buf->canvas_height;
+		canvas_config(di_buf->nr_canvas_idx, di_buf->nr_adr,
+			di_buf->canvas_width[NR_CANVAS], height, 0, 0);
 		di_buf->canvas_config_flag = 0;
 	} else if (di_buf->canvas_config_flag == 2) {
-		canvas_config(
-			di_buf->nr_canvas_idx, di_buf->nr_adr, width * 2,
-			canvas_height / 2, 0, 0);
-		canvas_config(
-			di_buf->mtn_canvas_idx, di_buf->mtn_adr, width / 2,
-			canvas_height / 2, 0, 0);
+		canvas_config(di_buf->nr_canvas_idx, di_buf->nr_adr,
+			di_buf->canvas_width[MV_CANVAS],
+			di_buf->canvas_height, 0, 0);
+		canvas_config(di_buf->mtn_canvas_idx, di_buf->mtn_adr,
+			di_buf->canvas_width[MTN_CANVAS],
+			di_buf->canvas_height, 0, 0);
 		di_buf->canvas_config_flag = 0;
 	}
 }
@@ -2641,8 +2641,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	int i, local_buf_num_available, local_buf_num_valid;
 	int canvas_height = height + 8;
 
-	unsigned int di_buf_size;
-	unsigned int di_post_mem = 0, di_post_buf_size = 0;
+	unsigned int di_buf_size = 0, di_post_buf_size = 0, mtn_size = 0;
+	unsigned int nr_size = 0, count_size = 0, mv_size = 0, mc_size = 0;
+	unsigned int nr_width = width, mtn_width = width, mv_width = width;
+	unsigned long di_post_mem = 0;
 	frame_count = 0;
 	disp_frame_count = 0;
 	cur_post_ready_di_buf = NULL;
@@ -2654,11 +2656,29 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			vframe_in[i] = NULL;
 		}
 	}
-
 	memset(&di_pre_stru, 0, sizeof(di_pre_stru));
+	if (nr10bit_surpport) {
+		if (full_422_pack)
+			nr_width = (width * 5) / 4;/* 2400 roundup to 2432*/
+		else
+			nr_width = (width * 3) / 2;/* 2880 roundup to 2944*/
+	} else {
+		nr_width = width;
+	}
+	/* make sure canvas width must be divided by 256 */
+	if ((nr_width<<1)%256)
+		nr_width = roundup(nr_width, (256>>1));
+
+	if ((mtn_width>>1)%256)
+		mtn_width = roundup(mtn_width, (256<<1)); /* roundup to 2048*/
+
+	if (((mv_width<<1)/5)%256)
+		mv_width = roundup(mv_width, ((256*5)>>1));
+
 	if (prog_flag) {
 		di_pre_stru.prog_proc_type = 1;
-		di_buf_size = width * canvas_height * 2;
+		di_buf_size = nr_width * canvas_height * 2;
+
 		local_buf_num = de_devp->mem_size / di_buf_size;
 		local_buf_num_available = local_buf_num;
 		if (local_buf_num > (2 * MAX_LOCAL_BUF_NUM))
@@ -2670,23 +2690,23 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			new_keep_last_frame_enable = 0;
 	} else {
 		di_pre_stru.prog_proc_type = 0;
-
+		/*nr_size(bits)=w*active_h*8*2(yuv422)
+		* mtn(bits)=w*active_h*4
+		* cont(bits)=w*active_h*4 mv(bits)=w*active_h/5*16
+		* mcinfo(bits)=active_h*16*/
+		nr_size = (nr_width * canvas_height)*8*2/16;
+		mtn_size = (mtn_width * canvas_height)*4/16;
+		count_size = (mtn_width * canvas_height)*4/16;
+		mv_size = (mv_width * canvas_height)/5;
+		mc_size = canvas_height;
 		if (mcpre_en) {
-			/*nr_size(bits)=w*active_h*8*2(yuv422)
-			 * mtn(bits)=w*active_h*4
-			 * cont(bits)=w*active_h*4 mv(bits)=w*active_h/5*16
-			 * mcinfo(bits)=active_h*16*/
-			di_buf_size =
-				(width * canvas_height) * 6 / 4 + width *
-				canvas_height / 5 + canvas_height;
-			/* 3552320 bytes */
+			di_buf_size = nr_size + mtn_size + count_size +
+				mv_size + mc_size;
 		} else {
 #ifdef NEW_DI_V1
-			/* 3133440 bytes */
-			di_buf_size = width * canvas_height * 6 / 4;
+			di_buf_size = nr_size + mtn_size + count_size;
 #else
-			/* 2611200 bytes */
-			di_buf_size = width * canvas_height * 5 / 4;
+			di_buf_size = nr_size + mtn_size;
 #endif
 		}
 
@@ -2694,8 +2714,8 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 
 		if (post_wr_en && post_wr_surpport) {
 			local_buf_num = (de_devp->mem_size +
-				(width*canvas_height<<2)) /
-				(di_buf_size + (width*canvas_height<<1));
+				(nr_width*canvas_height<<2)) /
+				(di_buf_size + (nr_width*canvas_height<<1));
 		}
 
 		local_buf_num_available = local_buf_num;
@@ -2734,39 +2754,38 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			di_buf->type = VFRAME_TYPE_LOCAL;
 			di_buf->pre_ref_count = 0;
 			di_buf->post_ref_count = 0;
+			di_buf->canvas_width[NR_CANVAS] = (nr_width<<1);
+			di_buf->canvas_width[MTN_CANVAS] = (mtn_width>>1);
+			di_buf->canvas_width[MV_CANVAS] = (mv_width<<1)/5;
 			if (prog_flag) {
+				di_buf->canvas_height = canvas_height;
 				di_buf->nr_adr
 					= de_devp->mem_start + di_buf_size * i;
 				di_buf->canvas_config_flag = 1;
-				di_buf->canvas_config_size
-					= (width << 16) | canvas_height;
 			} else {
+				di_buf->canvas_height = (canvas_height>>1);
 				di_buf->nr_adr
 					= de_devp->mem_start + di_buf_size * i;
 				di_buf->mtn_adr
 					= de_devp->mem_start + di_buf_size * i +
-					  width * canvas_height;
+					  nr_size;
 #ifdef NEW_DI_V1
 				di_buf->cnt_adr =
 					de_devp->mem_start + di_buf_size * i +
-					(width * canvas_height) * 5 / 4;
+					nr_size + mtn_size;
 #endif
 
 				if (mcpre_en) {
 					di_buf->mcvec_adr =
 						de_devp->mem_start +
 						di_buf_size * i +
-						(width * canvas_height) * 6 / 4;
+						nr_size + mtn_size + count_size;
 					di_buf->mcinfo_adr =
 						de_devp->mem_start +
-						di_buf_size * i +
-						(width * canvas_height) * 6 /
-						4 +
-						width * canvas_height / 5;
+						di_buf_size * i + nr_size +
+						mtn_size + count_size + mv_size;
 				}
 				di_buf->canvas_config_flag = 2;
-				di_buf->canvas_config_size
-					= (width << 16) | canvas_height;
 			}
 			di_buf->index = i;
 			di_buf->vframe = &(vframe_local[i]);
@@ -6202,8 +6221,7 @@ static void dec_post_ref_count(struct di_buf_s *di_buf)
 static void vscale_skip_disable_post(struct di_buf_s *di_buf, vframe_t *disp_vf)
 {
 	struct di_buf_s *di_buf_i = NULL;
-	int width = (di_buf->di_buf[0]->canvas_config_size >> 16) & 0xffff;
-	int canvas_height = (di_buf->di_buf[0]->canvas_config_size) & 0xffff;
+	int canvas_height = di_buf->di_buf[0]->canvas_height;
 
 	if (di_vscale_skip_enable & 0x2) {/* drop the bottom field */
 		if ((di_buf->di_buf_dup_p[0]) && (di_buf->di_buf_dup_p[1]))
@@ -6234,7 +6252,8 @@ static void vscale_skip_disable_post(struct di_buf_s *di_buf, vframe_t *disp_vf)
 	disp_vf->canvas1Addr = di_post_idx[di_post_stru.canvas_id][0];
 	canvas_config(
 		di_post_idx[di_post_stru.canvas_id][0],
-		di_buf_i->nr_adr, width * 2, canvas_height, 0, 0);
+		di_buf_i->nr_adr, di_buf_i->canvas_width[NR_CANVAS],
+		canvas_height, 0, 0);
 	disable_post_deinterlace_2();
 	di_post_stru.vscale_skip_flag = true;
 }
@@ -6310,9 +6329,14 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 			di_print("error:%s,NULL point!!\n", __func__);
 			return 0;
 		}
-		width = (di_buf->di_buf[0]->canvas_config_size >> 16) & 0xffff;
-		canvas_height =
-			(di_buf->di_buf[0]->canvas_config_size) & 0xffff;
+		width = di_buf->di_buf[0]->canvas_width[NR_CANVAS];
+		/* linked two interlace buffer should double height*/
+		if (di_buf->di_buf[0]->di_wr_linked_buf)
+			canvas_height =
+			(di_buf->di_buf[0]->canvas_height << 1);
+		else
+			canvas_height =
+			di_buf->di_buf[0]->canvas_height;
 #ifdef CONFIG_VSYNC_RDMA
 		if ((is_vsync_rdma_enable() &&
 		     ((force_update_post_reg & 0x40) == 0)) ||
@@ -6326,8 +6350,9 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 
 		canvas_config(
 			di_post_idx[di_post_stru.canvas_id][0],
-			di_buf->di_buf[0]->nr_adr, width * 2, canvas_height, 0,
-			0);
+			di_buf->di_buf[0]->nr_adr,
+			di_buf->di_buf[0]->canvas_width[NR_CANVAS],
+			canvas_height, 0, 0);
 
 		vf->canvas0Addr =
 			di_post_idx[di_post_stru.canvas_id][0];
@@ -6337,7 +6362,8 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 		if (di_pre_stru.vframe_interleave_flag && di_buf->di_buf[1]) {
 			canvas_config(
 				di_post_idx[di_post_stru.canvas_id][1],
-				di_buf->di_buf[1]->nr_adr, width * 2,
+				di_buf->di_buf[1]->nr_adr,
+				di_buf->di_buf[1]->canvas_width[NR_CANVAS],
 				canvas_height, 0, 0);
 			vf->canvas1Addr =
 				di_post_idx[di_post_stru.canvas_id][1];
@@ -8047,23 +8073,13 @@ static void di_reg_process_irq(void)
 			spin_lock_irqsave(&plist_lock, flags);
 #endif
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			/* di_init_buf(vframe->width,
-			 * vframe->height, 1); */
 			 /*
 			 * 10 bit mode need 1.5 times buffer size of
 			 * 8 bit mode, init the buffer size as 10 bit
 			 * mode size, to make sure can switch bit mode
 			 * smoothly.
 			 */
-			if (nr10bit_surpport) {
-				if (full_422_pack)
-					di_init_buf(default_width * 5 / 4,
-						default_height, 1);
-				else
-					di_init_buf(default_width * 3 / 2,
-						default_height, 1);
-			} else
-				di_init_buf(default_width, default_height, 1);
+			di_init_buf(default_width, default_height, 1);
 
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
@@ -8081,16 +8097,7 @@ static void di_reg_process_irq(void)
 			 * mode size, to make sure can switch bit mode
 			 * smoothly.
 			 */
-			if (nr10bit_surpport) {
-				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) &&
-					full_422_pack)
-					di_init_buf(
-				default_width * 3 / 2, default_height, 0);
-				else
-					di_init_buf(
-				default_width * 3 / 2, default_height, 0);
-			} else
-				di_init_buf(default_width, default_height, 0);
+			di_init_buf(default_width, default_height, 0);
 
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 

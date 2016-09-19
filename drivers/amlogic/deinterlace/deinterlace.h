@@ -127,6 +127,12 @@ enum pulldown_mode_e {
 	PULL_DOWN_EI	  = 4,/* ei only */
 	PULL_DOWN_NORMAL  = 5,/* normal di */
 };
+
+enum canvas_idx_e {
+	NR_CANVAS,
+	MTN_CANVAS,
+	MV_CANVAS,
+};
 #define pulldown_mode_t enum pulldown_mode_e
 struct di_buf_s {
 #ifdef USE_LIST
@@ -184,7 +190,8 @@ struct di_buf_s {
 	unsigned int canvas_config_flag;
 	/* 0,configed; 1,config type 1 (prog);
 	2, config type 2 (interlace) */
-	unsigned int canvas_config_size;
+	unsigned int canvas_height;
+	unsigned int canvas_width[3];/* nr/mtn/mv */
 	/*bit [31~16] width; bit [15~0] height*/
 	pulldown_detect_info_t field_pd_info;
 	pulldown_detect_info_t win_pd_info[MAX_WIN_NUM];
