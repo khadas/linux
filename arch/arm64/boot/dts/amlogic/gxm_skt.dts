@@ -42,7 +42,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x1000000 0x0 0x3f000000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x40000000>;
 	};
 
 	reserved-memory {
@@ -69,7 +69,7 @@
 
 		/*fb_reserved:linux,meson-fb {
 			compatible = "amlogic, fb-memory";
-			size = <0x0 0x2000000>;
+			reg = <0x0 0x3e000000 0x0 0x2000000>;
 			no-map;
 		};*/
 
@@ -160,7 +160,7 @@
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
-		logo_addr = "0x3d851000"; /*ion base + fb0 memory size for uboot logo osd1*/
+		logo_addr = "0x3f851000"; /*ion base + fb0 memory size for uboot logo osd1*/
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
