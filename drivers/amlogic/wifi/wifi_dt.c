@@ -469,7 +469,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 				pwm_misc = aml_read_cbus(0x21b2);
 				pwm_misc &= ~((0x7f << 8) | (3 << 4) |
 					(1 << 2) | (1 << 0));
-				pwm_misc |= ((3 << 24) | (1 << 15) |
+				pwm_misc |= ((1 << 25) | (1 << 15) |
 					(0 << 8) | (0 << 4));
 				aml_write_cbus(0x21b2, (pwm_misc | (1 << 0)));
 
