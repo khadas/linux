@@ -30,7 +30,7 @@
 #define RX_VER0 "Ref.2016/09/06"
 #define RX_VER1 "Ref.2016/08/23"
 #define RX_VER2 "Ref.2016/08/10"
-#define RX_VER3 "Ref.2016/09/13"
+#define RX_VER3 "Ref.2016/09/21"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -234,7 +234,7 @@ enum hdcp22_auth_state_e {
 
 /** TMDS clock minimum [kHz] */
 #define TMDS_CLK_MIN			(24000UL)/* (25000UL) */
-#define TMDS_CLK_MAX			(600000UL)/* (340000UL) */
+#define TMDS_CLK_MAX			(340000UL)/* (600000UL) */
 #define CLK_RATE_THRESHOLD		(74000000)/*check clock rate*/
 
 struct hdmi_rx_phy {
