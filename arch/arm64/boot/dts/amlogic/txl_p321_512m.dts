@@ -22,6 +22,8 @@
 #include <dt-bindings/gpio/txl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_txl.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 
 #include "mesontxl.dtsi"
 #include "mesontxl_p321-panel.dtsi"
@@ -106,7 +108,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
+			size = <0x0 0x4400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -122,7 +124,7 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x4100000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
  			//no-map;
 		};
@@ -171,22 +173,47 @@
 		internal_phy=<1>;
 	};
 
+	pwm {
+		compatible = "amlogic, meson-pwm";
+		status = "okay";
+		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
+		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
+				  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>,
+			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
+			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
+		reg = <0x0 0xc1108550 0x0 0x30>,
+		      <0x0 0xc8100550  0x0 0x10>;
+		clocks = <&clock CLK_XTAL>,
+			 <&clock CLK_VID_PLL>,
+			 <&clock CLK_FPLL_DIV4>,
+			 <&clock CLK_FPLL_DIV3>;
+		clock-names = "xtal",
+			      "vid_pll_clk",
+			      "fclk_div4",
+			      "fclk_div3";
+		clock-select 	 = <0x0>,<0x0>,<0x0>,<0x0>,
+			       	   <0x0>,<0x0>,<0x0>,<0x0>;
+		clock-select-new = <0x0>,<0x0>,<0x0>,<0x0>,
+		                   <0x0>,<0x0>,<0x0>,<0x0>,
+		                   <0x0>,<0x0>,<0x0>,<0x0>,
+		                   <0x0>,<0x0>,<0x0>,<0x0>;
+	};
+
 	sysled {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
 		status = "disable";
 		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
 	};
-
 	avin_detect {
 		compatible = "amlogic, avin_detect";
 		status = "okay";
-		interrupts = <0 65 1
-			      0 66 1>;
+		avin_device_num = <1>;
+		interrupts = <0 65 1>;
 		pinctrl-names = "avin_gpio_disable_pullup";
 		pinctrl-0 = <&avin_gpio_disable_pull>;
-		avin1_pin =  <&gpio    GPIODV_8    GPIO_ACTIVE_HIGH>;
-		avin2_pin =  <&gpio    GPIODV_7    GPIO_ACTIVE_HIGH>;
+		avin_det_pin =  <&gpio       GPIODV_8       GPIO_ACTIVE_HIGH>;
 		detect_interval_length = <100>;
 		set_detect_times = <5>;
 		set_fault_tolerance = <1>;
@@ -442,7 +469,7 @@
 		pinctrl-3 = <&hdmirx_pins &chb_uart_in>;
 		pinctrl-4 = <&hdmirx_pins &chc_uart_in>;
 		rx_port_maps = <0x3120>;
-		hdmiuart_share_cfg = <7>;
+		hdmiuart_share_cfg = <0>;
 		repeat = <0>;
 		interrupts = <0 56 1>;
 		hdmirx_addr_port = <0xda846000>;
@@ -480,7 +507,7 @@
 		compatible = "amlogic, vpu";
 		dev_name = "vpu";
 		status = "ok";
-		clk_level = <4>;
+		clk_level = <7>;
 		/**	0: 100.0M    1: 166.7M    2: 200.0M
 			3: 250.0M    4: 333.3M    5: 400.0M
 			6: 500.0M    7: 666.7M */
@@ -1044,13 +1071,13 @@
 				0x00800000 0x00000000 0x00000000 0x00000000 0x00000000 /*eq_coef9*/
 			>;
 			drc_table = /bits/ 32 <
-				0x800000 0x00 /*drc_ae && drc_ae_1m*/
-				0x800000 0x00 /*drc_aa && drc_aa_1m*/
-				0x800000 0x00 /*drc_ad && drc_ad_1m*/
+				0x0000111c 0x0380111c /*drc_ae && drc_ae_1m*/
+				0x00081bfc 0x03881bfc /*drc_aa && drc_aa_1m*/
+				0x00001571 0x03801571 /*drc_ad && drc_ad_1m*/
 			>;
 			drc_tko_table = /bits/ 32 <
-				0x0 0xbf000000 0x40000 /*offset, thd, k*/
-				0x0 0x0 0x40000 /*offset, thd, k*/
+				0x00000000 0xc4000000 0x00060000 /*offset, thd, k*/
+				0x00000000 0xf6000000 0x00028000 /*offset, thd, k*/
 			>;
 		};
 		tas5707 {
@@ -1304,12 +1331,11 @@
 
 &pinmux {
 	audio_pins:audio_pin{
-		amlogic,setmask=<4 0x00000780>;
-		amlogic,clrmask=<4 0x0000000e
-				 3 0x001c0000>;
-		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_14";
+		amlogic,setmask=<4 0x00000740>;
+		amlogic,clrmask=<4 0x0000000c
+				 3 0x021c0000>;
+		amlogic,pins = "GPIOZ_10","GPIOZ_11","GPIOZ_12","GPIOZ_15";
 	};
-
 	audio_spdif_pins:audio_pin1{
 		amlogic,setmask=<3 0x40000000>; /*spdif_out*/
 		amlogic,clrmask=<3 0x00200000>;
