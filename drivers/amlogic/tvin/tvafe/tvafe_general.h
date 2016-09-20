@@ -105,6 +105,11 @@
 #define P_HHI_ADC_PLL_CNTL1			CBUS_REG_ADDR(HHI_ADC_PLL_CNTL1)
 #define HHI_GCLK_OTHER              0x1054
 
+/* adc pll ctl, atv demod & tvafe use the same adc module
+ * module index: atv demod:0x01; tvafe:0x2
+*/
+#define ADC_EN_ATV_DEMOD	0x1
+#define ADC_EN_TVAFE		0x2
 
 #define LOG_ADC_CAL
 /* #define LOG_VGA_EDID */

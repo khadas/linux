@@ -19,12 +19,6 @@
 /* edid config reg value */
 #define TVAFE_EDID_CONFIG           0x03804050/* 0x03800050 */
 
-/* adc pll ctl, atv demod & tvafe use the same adc module
- * module index: atv demod:0x01; tvafe:0x2
-*/
-#define ADC_EN_ATV_DEMOD	0x1
-#define ADC_EN_TVAFE		0x2
-
 static unsigned int adc_pll_chg;
 
 #if 0
@@ -4186,6 +4180,11 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 	struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port,
 	struct tvafe_pin_mux_s *pinmux)
 {
+	unsigned int module_sel = ADC_EN_TVAFE;
+	if (port == TVIN_PORT_CVBS3)
+		module_sel = ADC_EN_ATV_DEMOD;
+	else if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS2))
+		module_sel = ADC_EN_TVAFE;
 #if 0
 	unsigned int i = 0;
 	if ((port >= TVIN_PORT_VGA0) && (port <= TVIN_PORT_VGA7)) {
@@ -4239,7 +4238,7 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x292a2110);
 			} else
 #endif
-			adc_set_pll_cntl(1, 0x2);
+			adc_set_pll_cntl(1, module_sel);
 		}
 		tvafe_set_cvbs_default(cvd2, mem, port, pinmux);
 		/*turn on/off av out*/
@@ -4324,8 +4323,6 @@ void tvafe_enable_module(bool enable)
 		W_HIU_REG(HHI_VAFE_CLKIN_CNTL, 0);
 		W_HIU_REG(HHI_VAFE_CLKPI_CNTL, 0);
 		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0);
-		/* init adc pll flag */
-		adc_set_pll_cntl(0, 0x2);
 	}
 	/* adc bandgap, the adc ref signal for demod */
 	/*if (enable)

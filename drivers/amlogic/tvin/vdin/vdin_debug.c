@@ -77,14 +77,16 @@ static void vdin_set_before_after_mat0(unsigned int offset,
 			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
 }
 
-
 static void parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
+	char delim1[2] = " ";
+	char delim2[2] = "\n";
 	unsigned int n = 0;
 	ps = buf_orig;
+	strcat(delim1, delim2);
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, delim1);
 		if (token == NULL)
 			break;
 		if (*token == '\0')

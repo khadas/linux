@@ -272,6 +272,9 @@ static ssize_t dumpmem_store(struct device *dev,
 	char *buf_orig, *ps, *token;
 	char *parm[6] = {NULL};
 	struct tvafe_dev_s *devp;
+	char delim1[2] = " ";
+	char delim2[2] = "\n";
+	strcat(delim1, delim2);
 	if (!buff)
 		return len;
 	buf_orig = kstrdup(buff, GFP_KERNEL);
@@ -279,7 +282,7 @@ static ssize_t dumpmem_store(struct device *dev,
 	devp = dev_get_drvdata(dev);
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, delim1);
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -909,6 +912,11 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 #ifdef TVAFE_POWERDOWN_IN_IDLE
 	/**disable tvafe clock**/
 	tvafe_enable_module(false);
+	if (tvafe->parm.port == TVIN_PORT_CVBS3)
+		adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD);
+	else if ((tvafe->parm.port >= TVIN_PORT_CVBS0) &&
+		(tvafe->parm.port <= TVIN_PORT_CVBS2))
+		adc_set_pll_cntl(0, ADC_EN_TVAFE);
 #endif
 
 	/* init variable */
