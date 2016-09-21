@@ -155,6 +155,7 @@ struct hdmitx_dev {
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct work_struct work_internal_intr;
+	struct work_struct work_hdr;
 #ifdef CONFIG_AML_HDMI_TX_14
 	struct delayed_work cec_work;
 #endif

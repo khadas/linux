@@ -112,10 +112,13 @@ static int suspend_flag;
 
 static struct hdmitx_dev hdmitx_device;
 static struct switch_dev sdev = { /* android ics switch device */
-	.name = "hdmi",
+	.name = "hdmi_hpd",
 };
 static struct switch_dev hdmi_power = { /* android ics switch device */
 	.name = "hdmi_power",
+};
+static struct switch_dev hdmi_hdr = {
+	.name = "hdmi_hdr",
 };
 static int edid_read_flag __nosavedata;
 
@@ -955,6 +958,14 @@ void hdmitx_audio_mute_op(unsigned int flag)
 }
 EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
+static void hdr_work_func(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev =
+		container_of(work, struct hdmitx_dev, work_hdr);
+
+	switch_set_state(&hdmi_hdr, hdev->hdr_src_feature);
+}
+
 #define GET_LOW8BIT(a)	((a) & 0xff)
 #define GET_HIGH8BIT(a)	(((a) >> 8) & 0xff)
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
@@ -962,6 +973,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	unsigned char DRM_DB[26] = {0x0};
+	static int hdr_state;
 
 	if ((!data) || (!(hdev->RXCap.hdr_sup_eotf_smpte_st_2084) &&
 		!(hdev->RXCap.hdr_sup_eotf_hdr) &&
@@ -976,6 +988,11 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 
 	hdev->hdr_src_feature = (((data->features >> 16) & 0xff) == 0x9);
+	if (hdr_state != hdev->hdr_src_feature) {
+		hdr_state = hdev->hdr_src_feature;
+		schedule_work(&hdev->work_hdr);
+	}
+
 	/* update DRM data */
 	if ((hdev->RXCap.hdr_sup_eotf_smpte_st_2084) && hdev->hdr_src_feature)
 		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
@@ -2249,6 +2266,7 @@ static int hdmi_task_handle(void *data)
 		MISC_HPD_GPI_ST, 0));
 	hdmitx_device->hpd_state = sdev.state;
 	switch_set_state(&hdmi_power, hdmitx_device->hpd_state);
+	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
 
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx_edid_ram_buffer_clear(hdmitx_device);
@@ -2796,6 +2814,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	switch_dev_register(&sdev);
 	switch_dev_register(&hdmi_power);
+	switch_dev_register(&hdmi_hdr);
 
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
 	HDMITX_Meson_Init(&hdmitx_device);
@@ -2818,6 +2837,8 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	struct device *dev = hdmitx_device.hdtx_dev;
 	switch_dev_unregister(&sdev);
 	switch_dev_unregister(&hdmi_power);
+	switch_dev_unregister(&hdmi_hdr);
+	cancel_work_sync(&hdmitx_device.work_hdr);
 
 	if (hdmitx_device.HWOp.UnInit)
 		hdmitx_device.HWOp.UnInit(&hdmitx_device);
