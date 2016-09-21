@@ -133,7 +133,7 @@ static unsigned debug;
 
 #define DEF_FRAMERATE 30
 
-static unsigned int vid_limit = 16;
+static unsigned int vid_limit = 32;
 module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
@@ -208,6 +208,10 @@ static struct amlvideo2_fmt formats[] = {
 {.name = "BGR888 (24)",
 .fourcc = V4L2_PIX_FMT_BGR24, /* 24  BGR-8-8-8 */
 .depth = 24, },
+
+{.name = "RGBA888 (32)",
+.fourcc = V4L2_PIX_FMT_RGB32, /* 32  RGBA-8-8-8 */
+.depth = 32, },
 
 {.name = "12  Y/CbCr 4:2:0",
 .fourcc = V4L2_PIX_FMT_NV12,
@@ -451,6 +455,12 @@ case V4L2_PIX_FMT_RGB24:
 	CANVAS_ADDR_NOWRAP,
 			CANVAS_BLKMODE_LINEAR);
 	break;
+case V4L2_PIX_FMT_RGB32:
+	canvas = start_canvas;
+	canvas_config(canvas, (unsigned long)buf, width * 4, canvas_height,
+	CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_LINEAR);
+	break;
 case V4L2_PIX_FMT_NV12:
 case V4L2_PIX_FMT_NV21:
 	canvas_config(start_canvas, (unsigned long)buf, width, canvas_height,
@@ -507,6 +517,7 @@ int convert_canvas_index(struct amlvideo2_output *output, int start_canvas)
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_RGB32:
 		canvas = start_canvas;
 		break;
 	case V4L2_PIX_FMT_NV12:
@@ -709,6 +720,9 @@ static int get_output_format(int v4l2_format)
 		break;
 	case V4L2_PIX_FMT_RGB24:
 		format = GE2D_FORMAT_S24_BGR;
+		break;
+	case V4L2_PIX_FMT_RGB32:
+		format = GE2D_FORMAT_S32_ABGR;
 		break;
 	case V4L2_PIX_FMT_NV12:
 		format = GE2D_FORMAT_M24_NV12;
@@ -3243,6 +3257,7 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	case V4L2_PIX_FMT_VYUY:
 	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_NV12:
@@ -4796,7 +4811,8 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 		fsize->discrete.width = frmsize->width;
 		fsize->discrete.height = frmsize->height;
-	} else if (fmt->fourcc == V4L2_PIX_FMT_RGB24) {
+	} else if ((fmt->fourcc == V4L2_PIX_FMT_RGB24) ||
+			  (fmt->fourcc == V4L2_PIX_FMT_RGB32)) {
 		if (fsize->index >= ARRAY_SIZE(amlvideo2_pic_resolution))
 			return -EINVAL;
 		frmsize = &amlvideo2_pic_resolution[fsize->index];
