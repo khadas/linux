@@ -51,6 +51,12 @@ unsigned int atvdemod_scan_mode = 0; /*IIR filter*/
 module_param(atvdemod_scan_mode, uint, 0664);
 MODULE_PARM_DESC(atvdemod_scan_mode, "\n atvdemod_scan_mode\n");
 
+/* used for resume */
+#define ATVDEMOD_STATE_IDEL 0
+#define ATVDEMOD_STATE_WORK 1
+#define ATVDEMOD_STATE_SLEEP 2
+static int atvdemod_state = ATVDEMOD_STATE_IDEL;
+
 int is_atvdemod_scan_mode(void)
 {
 	return atvdemod_scan_mode;
@@ -264,6 +270,7 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 	}
 
 	set_aft_thread_enable(1);
+	atvdemod_state = ATVDEMOD_STATE_WORK;
 	return 0;
 }
 
@@ -278,17 +285,25 @@ static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 	/* reset adc pll flag */
 	/* printk("\n%s: init atvdemod flag...\n",__func__); */
 	adc_set_pll_cntl(0, 0x1);
-
+	atvdemod_state = ATVDEMOD_STATE_IDEL;
 	return 0;
 }
 
 static int aml_atvdemod_suspend(struct aml_fe_dev *dev)
 {
+	pr_info("%s\n", __func__);
+	if (ATVDEMOD_STATE_IDEL != atvdemod_state) {
+		aml_atvdemod_leave_mode(NULL, 0);
+		atvdemod_state = ATVDEMOD_STATE_SLEEP;
+	}
 	return 0;
 }
 
 static int aml_atvdemod_resume(struct aml_fe_dev *dev)
 {
+	pr_info("%s\n", __func__);
+	if (atvdemod_state == ATVDEMOD_STATE_SLEEP)
+		aml_atvdemod_enter_mode(NULL, 0);
 	return 0;
 }
 
