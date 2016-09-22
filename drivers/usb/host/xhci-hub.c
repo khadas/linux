@@ -567,7 +567,20 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	u32 status = 0;
+	u32 temp = 0;
 	int slot_id;
+
+	if (raw_port_status & PORT_CEC) {
+		temp |= PORT_CEC;
+		if (raw_port_status & PORT_PLC)
+			temp |= PORT_PLC;
+		if (raw_port_status & PORT_CSC)
+			temp |= PORT_CSC;
+
+		writel(temp, port_array[wIndex]);
+
+		return status;
+	}
 
 	/* wPortChange bits */
 	if (raw_port_status & PORT_CSC)

@@ -17,6 +17,16 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb/xhci_pdriver.h>
+#include <linux/io.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/ioctl.h>
+#include <linux/fs.h>
+#include <linux/preempt.h>
+#include <linux/uaccess.h>
+#include <linux/workqueue.h>
+#include <linux/wakelock_android.h>
 
 #include "xhci.h"
 
@@ -61,7 +71,7 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 	.urb_enqueue =		xhci_urb_enqueue,
 	.urb_dequeue =		xhci_urb_dequeue,
 	.alloc_dev =		xhci_alloc_dev,
-	.free_dev =		xhci_free_dev,
+	.free_dev =			xhci_free_dev,
 	.alloc_streams =	xhci_alloc_streams,
 	.free_streams =		xhci_free_streams,
 	.add_endpoint =		xhci_add_endpoint,
@@ -86,6 +96,161 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 	.bus_resume =		xhci_bus_resume,
 };
 
+struct timer_list	xhci_reset_timer;
+EXPORT_SYMBOL(xhci_reset_timer);
+static int xhci_plat_remove(struct platform_device *dev);
+struct platform_device *g_pdev;
+#define X_FILE  "/sys/devices/c9000000.dwc3/xhci-hcd.0.auto/xhci_power"
+struct delayed_work xhci_work;
+
+int connect_status = 0;
+struct wake_lock xhci_wake_lock;
+static DEFINE_MUTEX(xhci_power_lock);
+
+void xhci_reset_test(unsigned long arg)
+{
+	schedule_delayed_work(&xhci_work, msecs_to_jiffies(10));
+}
+
+static ssize_t show_xhci_status(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return sprintf(buf, "%d\n", connect_status);
+}
+
+
+static ssize_t store_xhci_power(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int power_on;
+	struct usb_hcd	*hcd = platform_get_drvdata(g_pdev);
+	struct resource         *res;
+	int ret = 0;
+	struct xhci_hcd		*xhci;
+	int irq;
+	const struct hc_driver	*driver;
+
+	if (sscanf(buf, "%d", &power_on) != 1)
+		return -EINVAL;
+
+	mutex_lock(&xhci_power_lock);
+
+	if (power_on == 0) {
+		if (connect_status == 0) {
+			clear_bit(HCD_FLAG_DEAD, &hcd->flags);
+			xhci_plat_remove(g_pdev);
+			connect_status = 1;
+		}
+	} else if (power_on == 1) {
+		if (connect_status == 1) {
+			driver = &xhci_plat_xhci_driver;
+
+			irq = platform_get_irq(g_pdev, 0);
+			if (irq < 0) {
+				mutex_unlock(&xhci_power_lock);
+				return -ENODEV;
+			}
+
+			res = platform_get_resource(g_pdev, IORESOURCE_MEM, 0);
+			if (!res) {
+				mutex_unlock(&xhci_power_lock);
+				return -ENODEV;
+			}
+			hcd = usb_create_hcd(driver, &g_pdev->dev,
+					dev_name(&g_pdev->dev));
+			if (!hcd) {
+				mutex_unlock(&xhci_power_lock);
+				return -ENOMEM;
+			}
+
+			hcd->rsrc_start = res->start;
+			hcd->rsrc_len = resource_size(res);
+			set_bit(HCD_FLAG_DWC3, &hcd->flags);
+
+			if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
+					driver->description)) {
+				ret = -EBUSY;
+				mutex_unlock(&xhci_power_lock);
+				return ret;
+			}
+
+			hcd->regs = ioremap_nocache(hcd->rsrc_start,
+							hcd->rsrc_len);
+			if (!hcd->regs) {
+				ret = -EFAULT;
+				mutex_unlock(&xhci_power_lock);
+				return ret;
+			}
+
+			ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
+			if (ret) {
+				mutex_unlock(&xhci_power_lock);
+				return ret;
+			}
+			device_wakeup_enable(hcd->self.controller);
+
+			xhci = hcd_to_xhci(hcd);
+			xhci->shared_hcd = usb_create_shared_hcd(driver,
+				&g_pdev->dev, dev_name(&g_pdev->dev), hcd);
+			if (!xhci->shared_hcd) {
+				ret = -ENOMEM;
+				mutex_unlock(&xhci_power_lock);
+				return ret;
+			}
+
+			*((struct xhci_hcd **) xhci->shared_hcd->hcd_priv)
+					= xhci;
+
+			ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
+			if (ret) {
+				mutex_unlock(&xhci_power_lock);
+				return ret;
+			}
+		}
+		connect_status = 0;
+	}
+
+	mutex_unlock(&xhci_power_lock);
+
+	return count;
+}
+
+
+DEVICE_ATTR(xhci_power, 0777, show_xhci_status, store_xhci_power);
+
+
+static void amlogic_xhci_work(struct work_struct *work)
+{
+	mm_segment_t oldfs;
+	struct file *filp;
+
+	pr_info("%s lock\n", __func__);
+	wake_lock(&xhci_wake_lock);
+
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+
+	filp = filp_open(X_FILE, O_RDWR, 0);
+
+	if (!filp || IS_ERR(filp)) {
+		pr_info("%s amlogic_power: failed to access XHCI\n", __func__);
+	} else {
+		filp->f_op->write(filp, "0", 1, &filp->f_pos);
+
+		msleep(100);
+
+		filp->f_op->write(filp, "1", 1, &filp->f_pos);
+
+		filp_close(filp, NULL);
+	}
+
+	set_fs(oldfs);
+	pr_info("%s unlock\n", __func__);
+	wake_unlock(&xhci_wake_lock);
+}
+
 static int xhci_plat_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
@@ -99,6 +264,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	if (usb_disabled())
 		return -ENODEV;
+
+	g_pdev = pdev;
 
 	driver = &xhci_plat_xhci_driver;
 
@@ -169,6 +336,16 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (ret)
 		goto put_usb3_hcd;
 
+	init_timer(&xhci_reset_timer);
+	xhci_reset_timer.data = (unsigned long) pdev;
+	xhci_reset_timer.function = xhci_reset_test;
+
+	device_create_file(&pdev->dev, &dev_attr_xhci_power);
+
+	INIT_DELAYED_WORK(&xhci_work, amlogic_xhci_work);
+
+	wake_lock_init(&xhci_wake_lock, WAKE_LOCK_SUSPEND,  "xhci");
+
 	return 0;
 
 put_usb3_hcd:
@@ -210,7 +387,12 @@ static int xhci_plat_remove(struct platform_device *dev)
 static int xhci_plat_suspend(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct xhci_hcd	*xhci;
+
+	if (!hcd)
+		return -EBUSY;
+
+	xhci = hcd_to_xhci(hcd);
 
 	/*
 	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
@@ -226,7 +408,12 @@ static int xhci_plat_suspend(struct device *dev)
 static int xhci_plat_resume(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct xhci_hcd	*xhci;
+
+	if (!hcd)
+		return -EBUSY;
+
+	xhci = hcd_to_xhci(hcd);
 
 	return xhci_resume(xhci, 0);
 }
