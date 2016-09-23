@@ -83,8 +83,14 @@ static ssize_t axis_show(struct class *class, struct class_attribute *attr,
 			 char *buf);
 static ssize_t axis_store(struct class *class, struct class_attribute *attr,
 			  const char *buf, size_t count);
+static ssize_t fr_policy_show(struct class *class,
+		struct class_attribute *attr, char *buf);
+static ssize_t fr_policy_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count);
 static CLASS_ATTR(mode, S_IWUSR | S_IRUGO, mode_show, mode_store);
 static CLASS_ATTR(axis, S_IWUSR | S_IRUGO, axis_show, axis_store);
+static CLASS_ATTR(fr_policy, S_IWUSR | S_IRUGO,
+		fr_policy_show, fr_policy_store);
 
 static ssize_t mode_show(struct class *class, struct class_attribute *attr,
 			 char *buf)
@@ -123,6 +129,38 @@ static ssize_t axis_store(struct class *class, struct class_attribute *attr,
 	mutex_lock(&vout_mutex);
 	snprintf(vout_axis, 64, "%s", buf);
 	set_vout_axis(vout_axis);
+	mutex_unlock(&vout_mutex);
+	return count;
+}
+
+static ssize_t fr_policy_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	int policy;
+	int ret = 0;
+
+	policy = get_vframe_rate_policy();
+	ret = sprintf(buf, "%d\n", policy);
+
+	return ret;
+}
+
+static ssize_t fr_policy_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int policy;
+	int ret = 0;
+
+	mutex_lock(&vout_mutex);
+	ret = sscanf(buf, "%d", &policy);
+	if (ret == 1) {
+		ret = set_vframe_rate_policy(policy);
+		if (ret)
+			pr_info("%s: %d failed\n", __func__, policy);
+	} else {
+		pr_info("%s: invalid data\n", __func__);
+		return -EINVAL;
+	}
 	mutex_unlock(&vout_mutex);
 	return count;
 }
@@ -365,18 +403,20 @@ static int create_vout_attr(void)
 
 	/* create vout class attr files */
 	ret = class_create_file(vout_class, &class_attr_mode);
-
 	if (ret != 0)
-		vout_log_err("create class attr failed!\n");
+		vout_log_err("create class attr mode failed!\n");
 
 	ret = class_create_file(vout_class, &class_attr_axis);
-
 	if (ret != 0)
-		vout_log_err("create class attr failed!\n");
+		vout_log_err("create class attr axis failed!\n");
+
+	ret = class_create_file(vout_class, &class_attr_fr_policy);
+	if (ret != 0)
+		vout_log_err("create class attr fr_policy failed!\n");
 
 	ret = class_create_file(vout_class, &class_attr_vinfo);
 	if (ret != 0)
-		vout_log_err("create class attr failed!\n");
+		vout_log_err("create class attr vinfo failed!\n");
 
 	/*
 	 * init /sys/class/display/mode
@@ -527,6 +567,7 @@ static int meson_vout_remove(struct platform_device *pdev)
 #endif
 	class_remove_file(vout_class, &class_attr_mode);
 	class_remove_file(vout_class, &class_attr_axis);
+	class_remove_file(vout_class, &class_attr_fr_policy);
 	class_remove_file(vout_class, &class_attr_vinfo);
 	class_destroy(vout_class);
 	return 0;

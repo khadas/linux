@@ -1172,6 +1172,29 @@ static int tv_set_vframe_rate_end_hint(void)
 	return 0;
 }
 
+static int tv_set_vframe_rate_policy(int policy)
+{
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	if ((policy >= 0) && (policy < 3)) {
+		fr_auto_policy = policy;
+	} else if (policy == 3) {
+		fr_auto_policy = fr_auto_policy_hold;
+		tv_set_vframe_rate_end_hint();
+	}
+	vout_log_info("%s: %d\n", __func__, fr_auto_policy);
+#endif
+	return 0;
+}
+
+static int tv_get_vframe_rate_policy(void)
+{
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	return fr_auto_policy;
+#else
+	return 0;
+#endif
+}
+
 #ifdef CONFIG_PM
 static int tv_suspend(void)
 {
@@ -1201,6 +1224,8 @@ static struct vout_server_s tv_server = {
 		.disable = tv_module_disable,
 		.set_vframe_rate_hint = tv_set_vframe_rate_hint,
 		.set_vframe_rate_end_hint = tv_set_vframe_rate_end_hint,
+		.set_vframe_rate_policy = tv_set_vframe_rate_policy,
+		.get_vframe_rate_policy = tv_get_vframe_rate_policy,
 #ifdef CONFIG_PM
 		.vout_suspend = tv_suspend,
 		.vout_resume = tv_resume,

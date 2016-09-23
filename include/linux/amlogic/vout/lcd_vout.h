@@ -380,7 +380,7 @@ struct aml_lcd_drv_s {
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
 	struct vinfo_s *lcd_info;
-	unsigned char fr_auto_policy;
+	int fr_auto_policy;
 	struct lcd_duration_s std_duration;
 
 	void (*vout_server_init)(void);

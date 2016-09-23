@@ -385,7 +385,7 @@ static int lcd_set_vframe_rate_hint(int duration)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vinfo_s *info;
-	unsigned char fr_policy;
+	int fr_policy;
 	unsigned int frame_rate = 6000;
 	unsigned int duration_num = 60, duration_den = 1;
 	struct lcd_vframe_match_s *vtable = lcd_vframe_match_table_1;
@@ -459,6 +459,28 @@ static int lcd_set_vframe_rate_end_hint(void)
 	return 0;
 }
 
+static int lcd_set_vframe_rate_policy(int policy)
+{
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	lcd_drv->fr_auto_policy = policy;
+	LCDPR("%s: %d\n", __func__, lcd_drv->fr_auto_policy);
+#endif
+	return 0;
+}
+
+static int lcd_get_vframe_rate_policy(void)
+{
+#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return lcd_drv->fr_auto_policy;
+#else
+	return 0;
+#endif
+}
+
 #ifdef CONFIG_PM
 static int lcd_suspend(void)
 {
@@ -484,6 +506,8 @@ static struct vout_server_s lcd_vout_server = {
 		.disable = lcd_vout_disable,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
 		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
+		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
+		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,
 		.vout_resume = lcd_resume,

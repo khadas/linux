@@ -818,7 +818,7 @@ static ssize_t lcd_debug_fr_policy_store(struct class *class,
 
 	ret = sscanf(buf, "%d", &temp);
 	if (ret == 1) {
-		lcd_drv->fr_auto_policy = (unsigned char)temp;
+		lcd_drv->fr_auto_policy = temp;
 		pr_info("set fr_auto_policy: %d\n", temp);
 	} else {
 		pr_info("invalid data\n");

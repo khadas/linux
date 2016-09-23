@@ -35,6 +35,8 @@ struct vout_op_s {
 	int (*disable)(enum vmode_e);
 	int (*set_vframe_rate_hint)(int);
 	int (*set_vframe_rate_end_hint)(void);
+	int (*set_vframe_rate_policy)(int);
+	int (*get_vframe_rate_policy)(void);
 	int (*vout_suspend)(void);
 	int (*vout_resume)(void);
 };
@@ -63,6 +65,8 @@ extern enum vmode_e validate_vmode(char *);
 extern int get_vsource_fps(int duration);
 extern int set_vframe_rate_hint(int);
 extern int set_vframe_rate_end_hint(void);
+extern int set_vframe_rate_policy(int);
+extern int get_vframe_rate_policy(void);
 
 /* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8

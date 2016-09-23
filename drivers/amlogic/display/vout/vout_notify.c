@@ -199,6 +199,52 @@ int set_vframe_rate_end_hint(void)
 }
 EXPORT_SYMBOL(set_vframe_rate_end_hint);
 
+/*
+*interface export to client who want to notify about source fr_policy.
+*/
+int set_vframe_rate_policy(int policy)
+{
+	int r = -1;
+	struct vout_server_s  *p_server;
+
+	/* mutex_lock(&vout_mutex); */
+	list_for_each_entry(p_server, &vout_module.vout_server_list, list) {
+		if ((p_server->op.set_vframe_rate_policy != NULL) &&
+		    (p_server->op.set_vframe_rate_policy(policy) == 0)) {
+			/* mutex_unlock(&vout_mutex); */
+			return 0;
+		}
+	}
+
+	/* mutex_unlock(&vout_mutex); */
+
+	return r;
+}
+EXPORT_SYMBOL(set_vframe_rate_policy);
+
+/*
+*interface export to client who want to notify about source fr_policy.
+*/
+int get_vframe_rate_policy(void)
+{
+	int r = -1;
+	struct vout_server_s  *p_server;
+
+	/* mutex_lock(&vout_mutex); */
+	list_for_each_entry(p_server, &vout_module.vout_server_list, list) {
+		if (p_server->op.get_vframe_rate_policy != NULL) {
+			r = p_server->op.get_vframe_rate_policy();
+			/* mutex_unlock(&vout_mutex); */
+			return r;
+		}
+	}
+
+	/* mutex_unlock(&vout_mutex); */
+
+	return r;
+}
+EXPORT_SYMBOL(get_vframe_rate_policy);
+
 #ifdef CONFIG_SCREEN_ON_EARLY
 static int wake_up_flag;
 void wakeup_early_suspend_proc(void)
