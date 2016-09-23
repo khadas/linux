@@ -216,6 +216,13 @@ static int lcd_set_vframe_rate_hint(int duration)
 	LCDPR("%s: policy = %d, duration = %d, fps = %d, frame_rate = %d\n",
 		__func__, fr_policy, duration, fps, frame_rate);
 
+	/* if the sync_duration is same as current */
+	if ((duration_num == info->sync_duration_num) &&
+		(duration_den == info->sync_duration_den)) {
+		LCDPR("%s: sync_duration is the same, exit\n", __func__);
+		return 0;
+	}
+
 	/* update vinfo */
 	info->sync_duration_num = duration_num;
 	info->sync_duration_den = duration_den;
