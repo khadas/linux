@@ -87,6 +87,14 @@
 #define AMVECM_IOC_S_RGB_OGO   _IOW(_VE_CM, 0x45, struct tcon_rgb_ogo_s)
 #define AMVECM_IOC_G_RGB_OGO  _IOR(_VE_CM, 0x46, struct tcon_rgb_ogo_s)
 
+/*VPP.VLOCK IOCTL command list*/
+#define AMVECM_IOC_VLOCK_EN  _IO(_VE_CM, 0x47)
+#define AMVECM_IOC_VLOCK_DIS _IO(_VE_CM, 0x48)
+
+/*VPP.3D-SYNC IOCTL command list*/
+#define AMVECM_IOC_3D_SYNC_EN  _IO(_VE_CM, 0x49)
+#define AMVECM_IOC_3D_SYNC_DIS _IO(_VE_CM, 0x50)
+
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 /* #define WRITE_VPP_REG(x,val)
  * WRITE_VCBUS_REG(x,val) */
