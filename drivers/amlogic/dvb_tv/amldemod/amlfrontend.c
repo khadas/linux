@@ -244,12 +244,6 @@ static int install_isr(struct aml_fe_dev *state)
 	return r;
 }
 
-static void uninstall_isr(struct aml_fe_dev *state)
-{
-/*      pr_dbg("amdemod irq unregister[IRQ(%d)].\n", INT_DEMOD);*/
-
-/*      free_irq(INT_DEMOD, (void*)state);*/
-}
 
 static int amdemod_qam(fe_modulation_t qam)
 {
@@ -338,11 +332,13 @@ static int gxtv_demod_dvbc_set_qam_mode(struct dvb_frontend *fe)
 
 static void gxtv_demod_dvbc_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_dvbc_read_status
@@ -548,11 +544,13 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_fe_dev *dev, int mode)
 
 static void gxtv_demod_dvbt_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_dvbt_read_status
@@ -730,11 +728,13 @@ int Gxtv_Demod_Dvbt_Init(struct aml_fe_dev *dev)
 
 static void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_atsc_set_qam_mode(struct dvb_frontend *fe)
@@ -924,11 +924,13 @@ int Gxtv_Demod_Atsc_Init(struct aml_fe_dev *dev)
 
 static void gxtv_demod_dtmb_release(struct dvb_frontend *fe)
 {
+/*
 	struct aml_fe_dev *state = fe->demodulator_priv;
 
 	uninstall_isr(state);
 
 	kfree(state);
+*/
 }
 
 static int gxtv_demod_dtmb_read_status
@@ -1115,6 +1117,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 			gxtv_demod_dvbt_read_signal_strength;
 		fe_ops->read_snr = gxtv_demod_dvbt_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_dvbt_read_ucblocks;
+		fe_ops->read_dtmb_fsm = NULL;
 
 		pr_dbg("=========================dvbt demod init\r\n");
 		Gxtv_Demod_Dvbt_Init(dev);
@@ -1142,6 +1145,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_snr = gxtv_demod_dvbc_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_dvbc_read_ucblocks;
 		fe_ops->set_qam_mode = gxtv_demod_dvbc_set_qam_mode;
+		fe_ops->read_dtmb_fsm = NULL;
 		install_isr(dev);
 		pr_dbg("=========================dvbc demod init\r\n");
 		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
@@ -1168,6 +1172,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 		fe_ops->read_snr = gxtv_demod_atsc_read_snr;
 		fe_ops->read_ucblocks = gxtv_demod_atsc_read_ucblocks;
 		fe_ops->set_qam_mode = gxtv_demod_atsc_set_qam_mode;
+		fe_ops->read_dtmb_fsm = NULL;
 		Gxtv_Demod_Atsc_Init(dev);
 	} else if (mode == AM_FE_DTMB) {
 		fe_ops->info.frequency_min = 51000000;

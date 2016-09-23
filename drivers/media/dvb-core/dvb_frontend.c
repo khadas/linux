@@ -575,7 +575,6 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	fe_status_t s;
 	int retval;
 	int time;
-	int dtmb_status, i, has_singal;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
 #if (((defined CONFIG_AM_SI2176) || (defined CONFIG_AM_SI2177)\
@@ -804,6 +803,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 #if 1
 	/*signal_detec dtmb   201512-rsj*/
 		if (fe->ops.read_dtmb_fsm) {
+			int dtmb_status, i, has_singal;
 			LOCK_TIMEOUT = 10000;
 			has_singal = 0;
 			msleep(100);
