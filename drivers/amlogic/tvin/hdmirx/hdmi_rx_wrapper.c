@@ -1008,51 +1008,57 @@ static int drm_handler(struct hdmi_rx_ctrl *ctx)
 	if (ctx == 0)
 		return -EINVAL;
 
-	rx.hdr_data.data_status = HDR_STATE_READ;
-	rx.hdr_data.eotf =
+	/* waiting, before send the hdr data to post modules */
+	if (rx.hdr_info.hdr_state != HDR_STATE_NULL)
+		return -EBUSY;
+
+	rx.hdr_info.hdr_state = HDR_STATE_GET;
+	rx.hdr_info.hdr_data.eotf =
 		(hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0) >> 8) & 0xFF;
-	rx.hdr_data.metadata_id =
+	rx.hdr_info.hdr_data.metadata_id =
 		(hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0) >> 16) & 0xFF;
-	rx.hdr_data.lenght =
+	rx.hdr_info.hdr_data.lenght =
 		(unsigned char)(hdmirx_rd_dwc(TOP_PDEC_DRM_HB) >> 8);
 
-	rx.hdr_data.primaries[0].x =
+	rx.hdr_info.hdr_data.primaries[0].x =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD0) >> 24) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) << 8) & 0xFF00);
-	rx.hdr_data.primaries[0].y =
+	rx.hdr_info.hdr_data.primaries[0].y =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) >> 8) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) >> 8) & 0xFF00);
-	rx.hdr_data.primaries[1].x =
+	rx.hdr_info.hdr_data.primaries[1].x =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD1) >> 24) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) << 8) & 0xFF00);
-	rx.hdr_data.primaries[1].y =
+	rx.hdr_info.hdr_data.primaries[1].y =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) >> 8) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) >> 8) & 0xFF00);
-	rx.hdr_data.primaries[2].x =
+	rx.hdr_info.hdr_data.primaries[2].x =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD2) >> 24) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) << 8) & 0xFF00);
-	rx.hdr_data.primaries[2].y =
+	rx.hdr_info.hdr_data.primaries[2].y =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) >> 8) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) >> 8) & 0xFF00);
-	rx.hdr_data.white_points.x =
+	rx.hdr_info.hdr_data.white_points.x =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD3) >> 24) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) << 8) & 0xFF00);
-	rx.hdr_data.white_points.y =
+	rx.hdr_info.hdr_data.white_points.y =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) >> 8) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) >> 8) & 0xFF00);
-	rx.hdr_data.master_lum.x =
+	rx.hdr_info.hdr_data.master_lum.x =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD4) >> 24) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) << 8) & 0xFF00);
-	rx.hdr_data.master_lum.y =
+	rx.hdr_info.hdr_data.master_lum.y =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) >> 8) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) >> 8) & 0xFF00);
-	rx.hdr_data.mcll =
+	rx.hdr_info.hdr_data.mcll =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD5) >> 24) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD6) << 8) & 0xFF00);
-	rx.hdr_data.mfall =
+	rx.hdr_info.hdr_data.mfall =
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD6) >> 8) & 0xFF) +
 		((hdmirx_rd_dwc(TOP_PDEC_DRM_PAYLOAD6) >> 8) & 0xFF00);
-	rx.hdr_data.data_status = HDR_STATE_NEW;
+
+	rx.hdr_info.hdr_state = HDR_STATE_SET;
+
 	return error;
 }
 
@@ -4299,9 +4305,9 @@ void dump_hdr_reg(void)
 
 	rx_pr("\n********** hdr *************\n");
 
-	for (i = 0; i < sizeof(rx.hdr_data)/4; i++)
+	for (i = 0; i < sizeof(rx.hdr_info.hdr_data)/4; i++)
 		rx_pr("playload[%d]: %#x\n", i ,
-		*((unsigned int *)&(rx.hdr_data) + i));
+		*((unsigned int *)&(rx.hdr_info.hdr_data) + i));
 	rx_pr("\n********** hdr end*************\n");
 }
 

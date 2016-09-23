@@ -862,10 +862,15 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 	case VDIN_FORMAT_CONVERT_RGB_NV21:
 		if ((port >= TVIN_PORT_HDMI0) &&
 			(port <= TVIN_PORT_HDMI7)) {
-			if (color_fmt_range == TVIN_RGB_FULL)
+			if (color_fmt_range == TVIN_RGB_FULL) {
 				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGB_YUV709;
+			} else {
 				matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
+			}
 		} else
 			matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 		break;
@@ -878,10 +883,15 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 	case VDIN_FORMAT_CONVERT_RGB_YUV444:
 		if ((port >= TVIN_PORT_HDMI0) &&
 				(port <= TVIN_PORT_HDMI7)) {
-			if (color_fmt_range == TVIN_RGB_FULL)
+			if (color_fmt_range == TVIN_RGB_FULL) {
 				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGB_YUV709;
+			} else {
 				matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
+			}
 		} else
 			matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 		break;
@@ -991,11 +1001,16 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 	case VDIN_FORMAT_CONVERT_RGB_NV12:
 	case VDIN_FORMAT_CONVERT_RGB_NV21:
 		if ((port >= TVIN_PORT_HDMI0) &&
-				(port <= TVIN_PORT_HDMI7)) {
-			if (color_fmt_range == TVIN_RGB_FULL)
+			(port <= TVIN_PORT_HDMI7)) {
+			if (color_fmt_range == TVIN_RGB_FULL) {
 				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGB_YUV709;
+			} else {
 				matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
+			}
 		} else
 			matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 		break;
@@ -1007,11 +1022,16 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 		break;
 	case VDIN_FORMAT_CONVERT_RGB_YUV444:
 		if ((port >= TVIN_PORT_HDMI0) &&
-				(port <= TVIN_PORT_HDMI7)) {
-			if (color_fmt_range == TVIN_RGB_FULL)
+			(port <= TVIN_PORT_HDMI7)) {
+			if (color_fmt_range == TVIN_RGB_FULL) {
 				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
-			else
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGB_YUV709;
+			} else {
 				matrix_csc = VDIN_MATRIX_RGBS_YUV709F;
+				if (vdin_hdr_flag == 1)
+					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
+			}
 		} else
 			matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 		break;

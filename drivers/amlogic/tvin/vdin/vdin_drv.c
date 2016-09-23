@@ -183,9 +183,6 @@ static unsigned int rdma_enable;
 module_param(rdma_enable, uint, 0664);
 MODULE_PARM_DESC(rdma_enable, "rdma_enable");
 
-static unsigned int hdr_switch_cnt;
-module_param(hdr_switch_cnt, uint, 0664);
-MODULE_PARM_DESC(hdr_switch_cnt, "hdr_switch_cnt");
 
 static int irq_max_count;
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
@@ -195,35 +192,21 @@ char *vf_get_receiver_name(const char *provider_name);
 static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
-	if (devp->prop.hdr_data.data_status == HDR_STATE_NEW) {
-		if (hdr_switch_cnt != 1)
-			hdr_switch_cnt = 1;
+	if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
 		memcpy(vf->prop.master_display_colour.primaries,
-			devp->prop.hdr_data.primaries,
+			devp->prop.hdr_info.hdr_data.primaries,
 			sizeof(u32)*6);
 		memcpy(vf->prop.master_display_colour.white_point,
-			&devp->prop.hdr_data.white_points, sizeof(u32)*2);
+			&devp->prop.hdr_info.hdr_data.white_points,
+			sizeof(u32)*2);
 		memcpy(vf->prop.master_display_colour.luminance,
-			&devp->prop.hdr_data.master_lum, sizeof(u32)*2);
-		if ((devp->prop.hdr_data.primaries[0].x == 0) &&
-			(devp->prop.hdr_data.primaries[0].y == 0) &&
-			(devp->prop.hdr_data.primaries[1].x == 0) &&
-			(devp->prop.hdr_data.primaries[1].y == 0) &&
-			(devp->prop.hdr_data.primaries[2].x == 0) &&
-			(devp->prop.hdr_data.primaries[2].y == 0) &&
-			(devp->prop.hdr_data.white_points.x == 0) &&
-			(devp->prop.hdr_data.white_points.y == 0) &&
-			(devp->prop.hdr_data.master_lum.x == 0) &&
-			(devp->prop.hdr_data.master_lum.y == 0)) {
-			devp->prop.vdin_hdr_Flag = false;
-			vf->prop.master_display_colour.present_flag = false;
-		} else {
-			devp->prop.vdin_hdr_Flag = true;
-			vf->prop.master_display_colour.present_flag = true;
-		}
+			&devp->prop.hdr_info.hdr_data.master_lum,
+			sizeof(u32)*2);
 
-		if ((devp->prop.hdr_data.eotf == EOTF_SMPTE_ST_2048) ||
-			(devp->prop.hdr_data.eotf == EOTF_HDR)) {
+		vf->prop.master_display_colour.present_flag = true;
+
+		if ((devp->prop.hdr_info.hdr_data.eotf == EOTF_SMPTE_ST_2048) ||
+			(devp->prop.hdr_info.hdr_data.eotf == EOTF_HDR)) {
 			vf->signal_type |= (1 << 29);
 			vf->signal_type |= (0 << 25);/*0:limit*/
 			vf->signal_type = ((9 << 16) |
@@ -237,12 +220,10 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 			vf->signal_type &= ~(1 << 25);
 		}
 
-		devp->prop.hdr_data.data_status = HDR_STATE_OLD;
-	} else if (devp->prop.hdr_data.data_status == HDR_STATE_OLD) {
-		if ((hdr_switch_cnt == 0) &&
-			(vf->prop.master_display_colour.present_flag == false))
-			return;
-		hdr_switch_cnt = 0;
+		devp->prop.vdin_hdr_Flag = true;
+
+		devp->prop.hdr_info.hdr_state = HDR_STATE_SET;
+	} else if (devp->prop.hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_Flag = false;
 		vf->prop.master_display_colour.present_flag = false;
 		vf->signal_type &= ~(1 << 29);

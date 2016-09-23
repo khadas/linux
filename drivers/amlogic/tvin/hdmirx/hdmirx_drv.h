@@ -486,7 +486,7 @@ struct rx_s {
 	struct hdmi_rx_ctrl_video cur_params;
 	struct hdmi_rx_ctrl_video reltime_video_params;
 	struct vendor_specific_info_s vendor_specific_info;
-	struct tvin_hdr_data_s hdr_data;
+	struct tvin_hdr_info_s hdr_info;
 	bool open_fg;
 	unsigned char scdc_tmds_cfg;
 	unsigned int pwr_sts;

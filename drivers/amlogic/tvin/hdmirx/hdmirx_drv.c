@@ -577,9 +577,32 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 		break;
 	}
 
-	if (rx.hdr_data.data_status == HDR_STATE_NEW) {
-		prop->hdr_data = rx.hdr_data;
-		rx.hdr_data.data_status = HDR_STATE_OLD;
+	/* hdr data processing */
+	switch (rx.hdr_info.hdr_state) {
+	case HDR_STATE_NULL:
+		/* filter for state, 10*10ms */
+		if (rx.hdr_info.hdr_check_cnt++ > 10) {
+			prop->hdr_info.hdr_state = HDR_STATE_NULL;
+			rx.hdr_info.hdr_check_cnt = 0;
+		}
+	break;
+	case HDR_STATE_GET:
+		rx.hdr_info.hdr_check_cnt = 0;
+	break;
+	case HDR_STATE_SET:
+		rx.hdr_info.hdr_check_cnt = 0;
+		if (prop->hdr_info.hdr_state != HDR_STATE_GET) {
+			prop->hdr_info.hdr_data = rx.hdr_info.hdr_data;
+
+			/* vdin can read current hdr data */
+			prop->hdr_info.hdr_state = HDR_STATE_GET;
+
+			/* Rx can get new hdr data */
+			rx.hdr_info.hdr_state = HDR_STATE_NULL;
+		}
+	break;
+	default:
+	break;
 	}
 }
 
