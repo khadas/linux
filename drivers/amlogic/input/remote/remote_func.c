@@ -14,6 +14,10 @@
 /*#include <mach/am_regs.h>*/
 #include "remote_main.h"
 
+/*save the IR register*/
+#define REG_CACHE_SIZE 32
+unsigned int remote_reg_cache[REG_CACHE_SIZE];
+
 #ifdef REMOTE_FIQ
 #include <plat/fiq_bridge.h>
 #else
@@ -81,6 +85,28 @@ void setremotereg(const struct reg_s *r)
 	am_remote_write_reg(r->reg, r->val);
 	pr_debug("[0x%lx] = 0x%x\n", (g_remote_ao_offset + ((r->reg) << 2)),
 		r->val);
+}
+
+int remote_save_regs(int mode)
+{
+	const struct reg_s *reg;
+	reg = remoteregsTab[mode];
+	while (CONFIG_END != reg->reg && reg->reg < REG_CACHE_SIZE) {
+		remote_reg_cache[reg->reg] = am_remote_read_reg(reg->reg);
+		reg++;
+	}
+	return 0;
+}
+
+int remote_restore_regs(int mode)
+{
+	const struct reg_s *reg;
+	reg = remoteregsTab[mode];
+	while (CONFIG_END != reg->reg && reg->reg < REG_CACHE_SIZE) {
+		am_remote_write_reg(reg->reg, remote_reg_cache[reg->reg]);
+		reg++;
+	}
+	return 0;
 }
 
 void config_sw_init_window(struct remote *remote_data)

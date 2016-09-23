@@ -661,5 +661,8 @@ extern int register_fiq_bridge_handle(bridge_item_t *c_item);
 extern int unregister_fiq_bridge_handle(bridge_item_t *c_item);
 extern int fiq_bridge_pulse_trigger(bridge_item_t *c_item);
 #endif
+extern int remote_save_regs(int mode);
+extern int remote_restore_regs(int mode);
+
 
 #endif

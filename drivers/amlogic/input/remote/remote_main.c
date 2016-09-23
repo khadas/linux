@@ -900,10 +900,12 @@ static int remote_remove(struct platform_device *pdev)
 
 static int remote_resume(struct platform_device *pdev)
 {
+	struct remote *remote = platform_get_drvdata(pdev);
 	input_dbg("remote_resume To do remote resume\n");
 	input_dbg("remote_resume make sure read frame enable ir interrupt\n");
 	am_remote_read_reg(DURATION_REG1_AND_STATUS);
 	am_remote_read_reg(FRAME_BODY);
+	remote_restore_regs(remote->work_mode); /*restore remote regs*/
 	if (is_meson_m8m2_cpu()) {
 #define  AO_RTI_STATUS_REG2 ((0x00 << 10) | (0x02 << 2))
 		if (aml_read_aobus(AO_RTI_STATUS_REG2) == 0x1234abcd) {
@@ -944,7 +946,9 @@ static int remote_resume(struct platform_device *pdev)
 
 static int remote_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct remote *remote = platform_get_drvdata(pdev);
 	input_dbg("remote_suspend, set sleep 1\n");
+	remote_save_regs(remote->work_mode); /*save remote regs*/
 	gp_remote->sleep = 1;
 	return 0;
 }
