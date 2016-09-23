@@ -646,6 +646,9 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data);
 int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 void phy_ethtool_get_wol(struct phy_device *phydev,
 			 struct ethtool_wolinfo *wol);
+int phy_init_hw(struct phy_device *phydev);
+void internal_config(struct phy_device *phydev);
+void wol_test(struct phy_device *phydev);
 
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
