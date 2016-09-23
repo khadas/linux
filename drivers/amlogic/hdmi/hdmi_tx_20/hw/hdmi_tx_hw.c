@@ -3532,43 +3532,17 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 	case DDC_HDCP_BYP:
 		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		break;
-#if 0
 	case DDC_SCDC_DIV40_SCRAMB:
-		argv = 0;
-		switch (hdev->cur_VIC) {
-		case HDMI_3840x2160p50_16x9:
-		case HDMI_3840x2160p60_16x9:
-		case HDMI_4096x2160p50_256x135:
-		case HDMI_4096x2160p60_256x135:
-		case HDMI_3840x2160p50_64x27:
-		case HDMI_3840x2160p60_64x27:
-			argv = 1;
-			break;
-		case HDMI_3840x2160p50_16x9_Y420:
-		case HDMI_3840x2160p60_16x9_Y420:
-		case HDMI_4096x2160p50_256x135_Y420:
-		case HDMI_4096x2160p60_256x135_Y420:
-		case HDMI_3840x2160p50_64x27_Y420:
-		case HDMI_3840x2160p60_64x27_Y420:
-			if (hdev->para->cd != COLORDEPTH_24B)
-				argv = 1;
-			break;
-		default:
-			argv = 0;
-			break;
-		}
 		if (argv == 1) {
-			scdc_config(hdev);
+			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
+			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
 			hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 1);
 		} else {
-			scdc_wr_sink(SOURCE_VER, 0x1);
-			scdc_wr_sink(SOURCE_VER, 0x1);
 			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
 			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
 			hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
 		}
 		break;
-#endif
 	default:
 		hdmi_print(INF, "ddc: " "unknown cmd: 0x%x\n", cmd);
 	}
@@ -3955,16 +3929,6 @@ static int hdmitx_get_state(struct hdmitx_dev *hdev, unsigned cmd,
 	}
 	return 0;
 }
-
-/* The following two functions should move to */
-/* static struct platform_driver amhdmitx_driver.suspend & .wakeup */
-/* For tempelet use only. */
-/* Later will change it. */
-struct hdmi_phy {
-	unsigned long reg;
-	unsigned long val_sleep;
-	unsigned long val_save;
-};
 
 static void hdmi_phy_suspend(void)
 {

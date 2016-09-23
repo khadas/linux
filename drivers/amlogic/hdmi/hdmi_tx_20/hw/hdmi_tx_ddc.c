@@ -191,7 +191,7 @@ uint32_t hdcp_rd_hdcp22_ver(void)
 	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 	ret = ddc_read_1byte(HDCP_SLAVE, HDCP2_VERSION, &ver);
 	if (ret)
-		return ver;
+		return ver == 0x04;
 	else {
 		ret = ddc_read_1byte(HDCP_SLAVE, HDCP2_VERSION, &ver);
 		if (ret)

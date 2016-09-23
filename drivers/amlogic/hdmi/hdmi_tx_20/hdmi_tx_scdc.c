@@ -26,9 +26,6 @@ static void tmds_config(unsigned long arg)
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)arg;
 	uint8_t st = 0;
 
-	hdev = hdev; /* prevent warning, TODO used */
-	scdc_wr_sink(SOURCE_VER, 0x1);
-	scdc_wr_sink(SOURCE_VER, 0x1);
 	/* TMDS 1/40 & Scramble */
 	scdc_wr_sink(TMDS_CFG, hdev->para->tmds_clk_div40 ? 0x3 : 0);
 	scdc_wr_sink(TMDS_CFG, hdev->para->tmds_clk_div40 ? 0x3 : 0);
@@ -39,7 +36,7 @@ static void tmds_config(unsigned long arg)
 		return;
 	} else {
 		if ((hdev->para->tmds_clk_div40) && (cnt < 3))
-			mod_timer(&scdc_tmds_cfg_timer, jiffies + HZ);
+			mod_timer(&scdc_tmds_cfg_timer, jiffies + HZ / 2);
 		else
 			cnt = 0;
 	}
@@ -54,11 +51,10 @@ void scdc_config(void *hdev)
 		init_timer(&scdc_tmds_cfg_timer);
 		scdc_tmds_cfg_timer.data = (ulong)hdev;
 		scdc_tmds_cfg_timer.function = tmds_config;
-		scdc_tmds_cfg_timer.expires = jiffies + HZ;
+		scdc_tmds_cfg_timer.expires = jiffies;
 		add_timer(&scdc_tmds_cfg_timer);
 		return;
 	}
-	scdc_tmds_cfg_timer.expires = jiffies + HZ;
-	mod_timer(&scdc_tmds_cfg_timer, jiffies + HZ);
+	mod_timer(&scdc_tmds_cfg_timer, jiffies);
 }
 
