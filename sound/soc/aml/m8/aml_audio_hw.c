@@ -1031,7 +1031,8 @@ unsigned int read_i2s_mute_swap_reg(void)
 
 void audio_i2s_swap_left_right(unsigned int flag)
 {
-	if (ENABLE_IEC958)
+/*only LPCM output can set aiu hw channel swap*/
+	if (ENABLE_IEC958 && (IEC958_mode_codec == 0 || IEC958_mode_codec == 9))
 		aml_cbus_update_bits(AIU_958_CTRL, 0x3 << 1, flag << 1);
 
 	aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0x3, flag);
