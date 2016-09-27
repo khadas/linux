@@ -29,6 +29,11 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amvecm/amvecm.h>
 #include <linux/amlogic/vout/vout_notify.h>
+
+#ifdef CONFIG_AML_LCD
+#include <linux/amlogic/vout/lcd_notify.h>
+#endif
+
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
@@ -2470,6 +2475,24 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1);
 }
 
+#ifdef CONFIG_AML_LCD
+static int aml_lcd_gamma_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	if ((event & LCD_EVENT_GAMMA_UPDATE) == 0)
+		return NOTIFY_DONE;
+
+	vpp_set_lcd_gamma_table(video_gamma_table_r.data, H_SEL_R);
+	vpp_set_lcd_gamma_table(video_gamma_table_g.data, H_SEL_G);
+	vpp_set_lcd_gamma_table(video_gamma_table_b.data, H_SEL_B);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block aml_lcd_gamma_nb = {
+	.notifier_call = aml_lcd_gamma_notifier,
+};
+#endif
 static int aml_vecm_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -2503,6 +2526,12 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		ret = PTR_ERR(devp->dev);
 		goto fail_create_device;
 	}
+
+#ifdef CONFIG_AML_LCD
+	ret = aml_lcd_notifier_register(&aml_lcd_gamma_nb);
+	if (ret)
+		pr_info("register aml_lcd_gamma_notifier failed\n");
+#endif
 	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		init_sharpness();
@@ -2547,6 +2576,9 @@ static int __exit aml_vecm_remove(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 	kfree(devp);
+#ifdef CONFIG_AML_LCD
+	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
+#endif
 	probe_ok = 0;
 	pr_info("[amvecm.] : amvecm_exit.\n");
 	return 0;
