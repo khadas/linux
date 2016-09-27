@@ -2366,6 +2366,14 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	else
 		aud_n_para = hdmi_get_aud_n_paras(audio_param->sample_rate,
 			hdev->para->cd, hdev->para->timing.pixel_freq);
+	/* N must mutiples 4 for DD+ */
+	switch (audio_param->type) {
+	case CT_DOLBY_D:
+		aud_n_para *= 4;
+		break;
+	default:
+		break;
+	}
 	pr_info("hdmitx aud_n_para = %d\n", aud_n_para);
 
 	/* ACR packet configuration */
