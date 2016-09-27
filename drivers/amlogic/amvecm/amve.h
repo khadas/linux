@@ -117,6 +117,13 @@ extern unsigned int sync_3d_v_start;
 extern unsigned int sync_3d_v_end;
 extern unsigned int sync_3d_polarity;
 extern unsigned int sync_3d_out_inv;
+extern unsigned int sync_3d_black_color;
+extern unsigned int sync_3d_sync_to_vbo;
+
+extern unsigned int vlock_mode;
+extern unsigned int vlock_en;
+extern unsigned int vlock_adapt;
+extern unsigned int vlock_dis_cnt_limit;
 
 extern void __iomem *amvecm_hiu_reg_base;
 

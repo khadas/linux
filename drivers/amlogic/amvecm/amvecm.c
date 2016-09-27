@@ -130,18 +130,18 @@ static void amvecm_size_patch(void)
 {
 	unsigned int hs, he, vs, ve;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
-		hs = READ_VPP_REG_BITS(VPP_HSC_REGION12_STARTP, 16, 12);
-		he = READ_VPP_REG_BITS(VPP_HSC_REGION4_ENDP, 0, 12);
+		hs = READ_VPP_REG_BITS(VPP_HSC_REGION12_STARTP, 16, 13);
+		he = READ_VPP_REG_BITS(VPP_HSC_REGION4_ENDP, 0, 13);
 
-		vs = READ_VPP_REG_BITS(VPP_VSC_REGION12_STARTP, 16, 12);
-		ve = READ_VPP_REG_BITS(VPP_VSC_REGION4_ENDP, 0, 12);
+		vs = READ_VPP_REG_BITS(VPP_VSC_REGION12_STARTP, 16, 13);
+		ve = READ_VPP_REG_BITS(VPP_VSC_REGION4_ENDP, 0, 13);
 		ve_frame_size_patch(he-hs+1, ve-vs+1);
 	}
-	hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 12);
-	he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 0, 12);
+	hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 13);
+	he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 0, 13);
 
-	vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 12);
-	ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 12);
+	vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 13);
+	ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 13);
 	cm2_frame_size_patch(he-hs+1, ve-vs+1);
 }
 
@@ -276,10 +276,13 @@ static void parse_param_amvecm(char *buf_orig, char **parm)
 {
 	char *ps, *token;
 	unsigned int n = 0;
+	char delim1[2] = " ";
+	char delim2[2] = "\n";
+	strcat(delim1, delim2);
 
 	ps = buf_orig;
 	while (1) {
-		token = strsep(&ps, " \n");
+		token = strsep(&ps, delim1);
 		if (token == NULL)
 			break;
 		if (*token == '\0')
@@ -287,20 +290,15 @@ static void parse_param_amvecm(char *buf_orig, char **parm)
 		parm[n++] = token;
 	}
 }
-static ssize_t amvecm_3d_sync_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+static void amvecm_3d_sync_status(void)
 {
-	ssize_t len = 0;
 	unsigned int sync_h_start, sync_h_end, sync_v_start,
 		sync_v_end, sync_polarity,
 		sync_out_inv, sync_en;
-
-	if (!is_meson_g9tv_cpu()) {
-		len += sprintf(buf+len,
-				"\n chip does not support 3D sync process!!!\n");
-		return len;
+	if (!is_meson_g9tv_cpu() && !is_meson_gxtvbb_cpu()) {
+		pr_info("\n chip does not support 3D sync process!!!\n");
+		return;
 	}
-
 	sync_h_start = READ_VPP_REG_BITS(VPU_VPU_3D_SYNC2, 0, 13);
 	sync_h_end = READ_VPP_REG_BITS(VPU_VPU_3D_SYNC2, 16, 13);
 	sync_v_start = READ_VPP_REG_BITS(VPU_VPU_3D_SYNC1, 0, 13);
@@ -308,26 +306,44 @@ static ssize_t amvecm_3d_sync_show(struct class *cla,
 	sync_polarity = READ_VPP_REG_BITS(VPU_VPU_3D_SYNC1, 29, 1);
 	sync_out_inv = READ_VPP_REG_BITS(VPU_VPU_3D_SYNC1, 15, 1);
 	sync_en = READ_VPP_REG_BITS(VPU_VPU_3D_SYNC1, 31, 1);
-	len += sprintf(buf+len, "\n current 3d sync state:\n");
-	len += sprintf(buf+len, "sync_h_start:%d\n", sync_h_start);
-	len += sprintf(buf+len, "sync_h_end:%d\n", sync_h_end);
-	len += sprintf(buf+len, "sync_v_start:%d\n", sync_v_start);
-	len += sprintf(buf+len, "sync_v_end:%d\n", sync_v_end);
-	len += sprintf(buf+len, "sync_polarity:%d\n", sync_polarity);
-	len += sprintf(buf+len, "sync_out_inv:%d\n", sync_out_inv);
-	len += sprintf(buf+len, "sync_en:%d\n", sync_en);
+	pr_info("\n current 3d sync state:\n");
+	pr_info("sync_h_start:%d\n", sync_h_start);
+	pr_info("sync_h_end:%d\n", sync_h_end);
+	pr_info("sync_v_start:%d\n", sync_v_start);
+	pr_info("sync_v_end:%d\n", sync_v_end);
+	pr_info("sync_polarity:%d\n", sync_polarity);
+	pr_info("sync_out_inv:%d\n", sync_out_inv);
+	pr_info("sync_en:%d\n", sync_en);
+	pr_info("sync_3d_black_color:%d\n", sync_3d_black_color);
+	pr_info("sync_3d_sync_to_vbo:%d\n", sync_3d_sync_to_vbo);
+}
+static ssize_t amvecm_3d_sync_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
 	len += sprintf(buf+len,
-			"echo hstart val(D) > /sys/class/amvecm/sync_3d\n");
+		"echo hstart val(D) > /sys/class/amvecm/sync_3d\n");
 	len += sprintf(buf+len,
-			"echo hend val(D) > /sys/class/amvecm/sync_3d\n");
+		"echo hend val(D) > /sys/class/amvecm/sync_3d\n");
 	len += sprintf(buf+len,
-			"echo vstart val(D) > /sys/class/amvecm/sync_3d\n");
+		"echo vstart val(D) > /sys/class/amvecm/sync_3d\n");
 	len += sprintf(buf+len,
-			"echo vend val(D) > /sys/class/amvecm/sync_3d\n");
+		"echo vend val(D) > /sys/class/amvecm/sync_3d\n");
 	len += sprintf(buf+len,
-			"echo pola val(D) > /sys/class/amvecm/sync_3d\n");
+		"echo pola val(D) > /sys/class/amvecm/sync_3d\n");
 	len += sprintf(buf+len,
-			"echo inv val(D) > /sys/class/amvecm/sync_3d\n");
+		"echo inv val(D) > /sys/class/amvecm/sync_3d\n");
+	len += sprintf(buf+len,
+		"echo black_color val(Hex) > /sys/class/amvecm/sync_3d\n");
+	len += sprintf(buf+len,
+		"echo sync_to_vx1 val(D) > /sys/class/amvecm/sync_3d\n");
+	len += sprintf(buf+len,
+		"echo enable > /sys/class/amvecm/sync_3d\n");
+	len += sprintf(buf+len,
+		"echo disable > /sys/class/amvecm/sync_3d\n");
+	len += sprintf(buf+len,
+		"echo status > /sys/class/amvecm/sync_3d\n");
 	return len;
 }
 
@@ -341,7 +357,7 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 	if (!buf)
 		return count;
 
-	if (!is_meson_g9tv_cpu()) {
+	if (!is_meson_g9tv_cpu() && !is_meson_gxtvbb_cpu()) {
 		pr_info("\n chip does not support 3D sync process!!!\n");
 		return count;
 	}
@@ -378,6 +394,95 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 			return -EINVAL;
 		sync_3d_out_inv = val&0x1;
 		WRITE_VPP_REG_BITS(VPU_VPU_3D_SYNC1, sync_3d_out_inv, 15, 1);
+	} else if (!strncmp(parm[0], "black_color", 11)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		sync_3d_black_color = val&0xffffff;
+		WRITE_VPP_REG_BITS(VPP_BLEND_ONECOLOR_CTRL,
+			sync_3d_black_color, 0, 24);
+	} else if (!strncmp(parm[0], "sync_to_vx1", 11)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sync_3d_sync_to_vbo = val&0x1;
+	} else if (!strncmp(parm[0], "enable", 6)) {
+		vecm_latch_flag |= FLAG_3D_SYNC_EN;
+	} else if (!strncmp(parm[0], "disable", 7)) {
+		vecm_latch_flag |= FLAG_3D_SYNC_DIS;
+	} else if (!strncmp(parm[0], "status", 7)) {
+		amvecm_3d_sync_status();
+	}
+	kfree(buf_orig);
+	return count;
+}
+static void amvecm_vlock_status(void)
+{
+	pr_info("\n current vlock state:\n");
+	pr_info("vlock_mode:%d\n", vlock_mode);
+	pr_info("vlock_en:%d\n", vlock_en);
+	pr_info("vlock_adapt:%d\n", vlock_adapt);
+	pr_info("vlock_dis_cnt_limit:%d\n", vlock_dis_cnt_limit);
+}
+static ssize_t amvecm_vlock_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	len += sprintf(buf+len,
+		"echo vlock_mode val(D) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_en val(D) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_adapt val(D) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_dis_cnt_limit val(D) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo enable > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo disable > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo status > /sys/class/amvecm/vlock\n");
+	return len;
+}
+
+static ssize_t amvecm_vlock_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+	long val;
+
+	if (!buf)
+		return count;
+	if (!is_meson_g9tv_cpu() && !is_meson_gxtvbb_cpu() &&
+		!is_meson_gxbb_cpu() &&
+		(get_cpu_type() < MESON_CPU_MAJOR_ID_GXL)) {
+		pr_info("\n chip does not support vlock process!!!\n");
+		return count;
+	}
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+	if (!strncmp(parm[0], "vlock_mode", 10)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_mode = val;
+	} else if (!strncmp(parm[0], "vlock_en", 8)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_en = val;
+	} else if (!strncmp(parm[0], "vlock_adapt", 11)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_adapt = val;
+	} else if (!strncmp(parm[0], "vlock_dis_cnt_limit", 19)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_dis_cnt_limit = val;
+	} else if (!strncmp(parm[0], "enable", 6)) {
+		vecm_latch_flag |= FLAG_VLOCK_EN;
+	} else if (!strncmp(parm[0], "disable", 7)) {
+		vecm_latch_flag |= FLAG_VLOCK_DIS;
+	} else if (!strncmp(parm[0], "status", 6)) {
+		amvecm_vlock_status();
 	}
 	kfree(buf_orig);
 	return count;
@@ -945,6 +1050,20 @@ static long amvecm_ioctl(struct file *file,
 				&video_rgb_ogo, sizeof(struct tcon_rgb_ogo_s)))
 			ret = -EFAULT;
 
+		break;
+	/*VLOCK*/
+	case AMVECM_IOC_VLOCK_EN:
+		vecm_latch_flag |= FLAG_VLOCK_EN;
+		break;
+	case AMVECM_IOC_VLOCK_DIS:
+		vecm_latch_flag |= FLAG_VLOCK_DIS;
+		break;
+	/*3D-SYNC*/
+	case AMVECM_IOC_3D_SYNC_EN:
+		vecm_latch_flag |= FLAG_3D_SYNC_EN;
+		break;
+	case AMVECM_IOC_3D_SYNC_DIS:
+		vecm_latch_flag |= FLAG_3D_SYNC_DIS;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2038,6 +2157,115 @@ void pc_mode_process(void)
 		pc_mode_last = pc_mode;
 	}
 }
+static void dump_vpp_size_info(void)
+{
+	unsigned int vpp_input_h, vpp_input_v,
+		pps_input_lenth, pps_input_height,
+		pps_output_hs, pps_output_he, pps_output_vs, pps_output_ve,
+		vd1_preblend_hs, vd1_preblend_he,
+		vd1_preblend_vs, vd1_preblend_ve,
+		vd2_preblend_hs, vd2_preblend_he,
+		vd2_preblend_vs, vd2_preblend_ve,
+		prelend_input_hsize,
+		vd1_postblend_hs, vd1_postblend_he,
+		vd1_postblend_vs, vd1_postblend_ve,
+		postblend_hsize,
+		ve_hsize, ve_vsize, psr_hsize, psr_vsize,
+		cm_hsize, cm_vsize;
+	vpp_input_h = READ_VPP_REG_BITS(VPP_IN_H_V_SIZE, 16, 13);
+	vpp_input_v = READ_VPP_REG_BITS(VPP_IN_H_V_SIZE, 0, 13);
+	pps_input_lenth = READ_VPP_REG_BITS(VPP_LINE_IN_LENGTH, 0, 13);
+	pps_input_height = READ_VPP_REG_BITS(VPP_PIC_IN_HEIGHT, 0, 13);
+	pps_output_hs = READ_VPP_REG_BITS(VPP_HSC_REGION12_STARTP, 16, 13);
+	pps_output_he = READ_VPP_REG_BITS(VPP_HSC_REGION4_ENDP, 0, 13);
+	pps_output_vs = READ_VPP_REG_BITS(VPP_VSC_REGION12_STARTP, 16, 13);
+	pps_output_ve = READ_VPP_REG_BITS(VPP_VSC_REGION4_ENDP, 0, 13);
+	vd1_preblend_hs = READ_VPP_REG_BITS(VPP_PREBLEND_VD1_H_START_END,
+		0, 13);
+	vd1_preblend_he = READ_VPP_REG_BITS(VPP_PREBLEND_VD1_H_START_END,
+		16, 13);
+	vd1_preblend_vs = READ_VPP_REG_BITS(VPP_PREBLEND_VD1_V_START_END,
+		0, 13);
+	vd1_preblend_ve = READ_VPP_REG_BITS(VPP_PREBLEND_VD1_V_START_END,
+		16, 13);
+	vd2_preblend_hs = READ_VPP_REG_BITS(VPP_BLEND_VD2_H_START_END, 0, 13);
+	vd2_preblend_he = READ_VPP_REG_BITS(VPP_BLEND_VD2_H_START_END, 16, 13);
+	vd2_preblend_vs = READ_VPP_REG_BITS(VPP_BLEND_VD2_V_START_END, 0, 13);
+	vd2_preblend_ve = READ_VPP_REG_BITS(VPP_BLEND_VD2_V_START_END, 16, 13);
+	prelend_input_hsize = READ_VPP_REG_BITS(VPP_PREBLEND_H_SIZE, 0, 13);
+	vd1_postblend_hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END,
+		0, 13);
+	vd1_postblend_he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END,
+		16, 13);
+	vd1_postblend_vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END,
+		0, 13);
+	vd1_postblend_ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END,
+		16, 13);
+	postblend_hsize = READ_VPP_REG_BITS(VPP_POSTBLEND_H_SIZE, 0, 13);
+	ve_hsize = READ_VPP_REG_BITS(VPP_VE_H_V_SIZE, 16, 13);
+	ve_vsize = READ_VPP_REG_BITS(VPP_VE_H_V_SIZE, 0, 13);
+	psr_hsize = READ_VPP_REG_BITS(VPP_PSR_H_V_SIZE, 16, 13);
+	psr_vsize = READ_VPP_REG_BITS(VPP_PSR_H_V_SIZE, 0, 13);
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x205);
+	cm_hsize = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	cm_vsize = cm_hsize & 0xffff;
+	cm_hsize = (cm_hsize >> 16) & 0xffff;
+	pr_info("\n vpp size info:\n");
+	pr_info("vpp_input_h:%d, vpp_input_v:%d\n"
+		"pps_input_lenth:%d, pps_input_height:%d\n"
+		"pps_output_hs:%d, pps_output_he:%d\n"
+		"pps_output_vs:%d, pps_output_ve:%d\n"
+		"vd1_preblend_hs:%d, vd1_preblend_he:%d\n"
+		"vd1_preblend_vs:%d, vd1_preblend_ve:%d\n"
+		"vd2_preblend_hs:%d, vd2_preblend_he:%d\n"
+		"vd2_preblend_vs:%d, vd2_preblend_ve:%d\n"
+		"prelend_input_hsize:%d\n"
+		"vd1_postblend_hs:%d, vd1_postblend_he:%d\n"
+		"vd1_postblend_vs:%d, vd1_postblend_ve:%d\n"
+		"postblend_hsize:%d\n"
+		"ve_hsize:%d, ve_vsize:%d\n"
+		"psr_hsize:%d, psr_vsize:%d\n"
+		"cm_hsize:%d, cm_vsize:%d\n",
+		vpp_input_h, vpp_input_v,
+		pps_input_lenth, pps_input_height,
+		pps_output_hs, pps_output_he,
+		pps_output_vs, pps_output_ve,
+		vd1_preblend_hs, vd1_preblend_he,
+		vd1_preblend_vs, vd1_preblend_ve,
+		vd2_preblend_hs, vd2_preblend_he,
+		vd2_preblend_vs, vd2_preblend_ve,
+		prelend_input_hsize,
+		vd1_postblend_hs, vd1_postblend_he,
+		vd1_postblend_vs, vd1_postblend_ve,
+		postblend_hsize,
+		ve_hsize, ve_vsize,
+		psr_hsize, psr_vsize,
+		cm_hsize, cm_vsize);
+}
+static const char *amvecm_debug_usage_str = {
+	"Usage:\n"
+	"echo vpp_size > /sys/class/amvecm/debug ; get vpp size config\n"
+};
+static ssize_t amvecm_debug_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", amvecm_debug_usage_str);
+}
+static ssize_t amvecm_debug_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+	if (!strncmp(parm[0], "vpp_size", 8))
+		dump_vpp_size_info();
+	kfree(buf_orig);
+	return count;
+}
+
 
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_sharpness(void)
@@ -2120,6 +2348,8 @@ static void amvecm_wb_init(bool en)
 }
 
 static struct class_attribute amvecm_class_attrs[] = {
+	__ATTR(debug, S_IRUGO | S_IWUSR,
+		amvecm_debug_show, amvecm_debug_store),
 	__ATTR(dnlp, S_IRUGO | S_IWUSR,
 		amvecm_dnlp_show, amvecm_dnlp_store),
 	__ATTR(brightness, S_IRUGO | S_IWUSR,
@@ -2156,6 +2386,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(sync_3d, S_IRUGO | S_IWUSR,
 		amvecm_3d_sync_show,
 		amvecm_3d_sync_store),
+	__ATTR(vlock, S_IRUGO | S_IWUSR,
+		amvecm_vlock_show,
+		amvecm_vlock_store),
 	__ATTR(sharpness_on_off, S_IRUGO | S_IWUSR,
 		amvecm_sharpness_en_show, amvecm_sharpness_en_store),
 	__ATTR(gamma_on_off, S_IRUGO | S_IWUSR,

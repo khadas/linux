@@ -148,6 +148,7 @@
 #define VPP_VE_DEMO_LEFT_TOP_SCREEN_WIDTH 0x1da2
 #define VPP_VE_DEMO_CENTER_BAR 0x1da3
 #define VPP_VE_H_V_SIZE 0x1da4
+#define VPP_PSR_H_V_SIZE 0x1da5
 #define VPP_VDO_MEAS_CTRL 0x1da8
 #define VPP_VDO_MEAS_VS_COUNT_HI 0x1da9
 #define VPP_VDO_MEAS_VS_COUNT_LO 0x1daa
@@ -484,7 +485,10 @@
 
 #define ENCL_VIDEO_MAX_LNCNT            0x1cbb
 #define VDIN_MEAS_VS_COUNT_LO 0x125c
-
+/*after GXL new add CNTL1,same with CNTL2 on G9TV/GXTVBB*/
+#define HHI_HDMI_PLL_CNTL1			    0x10c9
+/*after GXL CNTL5[bit3] is same with CNTL6[bit20] on G9TV/GXTVBB*/
+#define HHI_HDMI_PLL_CNTL5			    0x10cd
 
 
 /* #define VI_HIST_CTRL                             0x2e00 */
