@@ -65,8 +65,8 @@
 #define VC1_OFFSET_REG      AV_SCRATCH_C
 #define MEM_OFFSET_REG      AV_SCRATCH_F
 
-#define VF_POOL_SIZE          16
-#define DECODE_BUFFER_NUM_MAX 4
+#define VF_POOL_SIZE          32
+#define DECODE_BUFFER_NUM_MAX 8
 #define PUT_INTERVAL        (HZ/100)
 
 #if 1	/* /MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -170,9 +170,10 @@ static inline bool close_to(int a, int b, int m)
 
 static inline u32 index2canvas(u32 index)
 {
-	const u32 canvas_tab[4] = {
+	const u32 canvas_tab[DECODE_BUFFER_NUM_MAX] = {
 #if 1	/* ALWASY.MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
-		0x010100, 0x030302, 0x050504, 0x070706
+		0x010100, 0x030302, 0x050504, 0x070706,
+		0x090908, 0x0b0b0a, 0x0d0d0c, 0x0f0f0e
 #else
 		0x020100, 0x050403, 0x080706, 0x0b0a09
 #endif
@@ -299,7 +300,7 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 		}
 
 		repeat_count = READ_VREG(VC1_REPEAT_COUNT);
-		buffer_index = ((reg & 0x7) - 1) & 3;
+		buffer_index = reg & 0x7;
 		picture_type = (reg >> 3) & 7;
 
 		if (buffer_index >= DECODE_BUFFER_NUM_MAX) {
@@ -727,30 +728,30 @@ static void vvc1_canvas_init(void)
 		disp_addr = (cur_canvas.addr + 7) >> 3;
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 8; i++) {
 		if (((buf_start + i * decbuf_size + 7) >> 3) == disp_addr) {
 #ifdef NV21
 			canvas_config(2 * i + 0,
-				buf_start + 4 * decbuf_size,
+				buf_start + 8 * decbuf_size,
 				canvas_width, canvas_height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 			canvas_config(2 * i + 1,
-				buf_start + 4 * decbuf_size +
+				buf_start + 8 * decbuf_size +
 				decbuf_y_size, canvas_width,
 				canvas_height / 2, CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_32X32);
 #else
 			canvas_config(3 * i + 0,
-				buf_start + 4 * decbuf_size,
+				buf_start + 8 * decbuf_size,
 				canvas_width, canvas_height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 			canvas_config(3 * i + 1,
-				buf_start + 4 * decbuf_size +
+				buf_start + 8 * decbuf_size +
 				decbuf_y_size, canvas_width / 2,
 				canvas_height / 2, CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_32X32);
 			canvas_config(3 * i + 2,
-				buf_start + 4 * decbuf_size +
+				buf_start + 8 * decbuf_size +
 				decbuf_y_size + decbuf_uv_size,
 				canvas_width / 2, canvas_height / 2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
@@ -822,11 +823,19 @@ static void vvc1_prot_init(void)
 	WRITE_VREG(AV_SCRATCH_1, 0x030302);
 	WRITE_VREG(AV_SCRATCH_2, 0x050504);
 	WRITE_VREG(AV_SCRATCH_3, 0x070706);
+	WRITE_VREG(AV_SCRATCH_G, 0x090908);
+	WRITE_VREG(AV_SCRATCH_H, 0x0b0b0a);
+	WRITE_VREG(AV_SCRATCH_I, 0x0d0d0c);
+	WRITE_VREG(AV_SCRATCH_J, 0x0f0f0e);
 #else
 	WRITE_VREG(AV_SCRATCH_0, 0x020100);
 	WRITE_VREG(AV_SCRATCH_1, 0x050403);
 	WRITE_VREG(AV_SCRATCH_2, 0x080706);
 	WRITE_VREG(AV_SCRATCH_3, 0x0b0a09);
+	WRITE_VREG(AV_SCRATCH_G, 0x090908);
+	WRITE_VREG(AV_SCRATCH_H, 0x0b0b0a);
+	WRITE_VREG(AV_SCRATCH_I, 0x0d0d0c);
+	WRITE_VREG(AV_SCRATCH_J, 0x0f0f0e);
 #endif
 
 	/* notify ucode the buffer offset */
