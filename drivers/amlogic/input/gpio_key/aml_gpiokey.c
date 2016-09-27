@@ -46,6 +46,9 @@
 #include <linux/amlogic/sd.h>
 #include <linux/amlogic/iomap.h>
 #include <dt-bindings/gpio/gxbb.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/pm.h>
+#include <linux/of_address.h>
 
 #include <linux/switch.h>
 #define OFFSET  24
@@ -452,20 +455,13 @@ static int gpio_key_suspend(struct platform_device *dev ,  pm_message_t state)
 
 static int gpio_key_resume(struct platform_device *dev)
 {
- /*if (readl(AO_RTI_STATUS_REG2) == FLAG_WAKEUP_PWRKEY) {
-		//if ( quick_boot_mode == 0 ) {
-		// power button ,  not alarm
-		//dev_info(&kp->input->dev, "gpio_key_resume send KEY_POWER\n");
-		input_report_key(gp_kp->input ,  KEY_POWER ,  0);
-		input_sync(gp_kp->input);
+	if (get_resume_method() == POWER_KEY_WAKEUP) {
+		pr_info("gpio keypad wakeup\n");
 		input_report_key(gp_kp->input ,  KEY_POWER ,  1);
 		input_sync(gp_kp->input);
+		input_report_key(gp_kp->input ,  KEY_POWER ,  0);
+		input_sync(gp_kp->input);
 	}
-	//WRITE_AOBUS_REG(AO_RTI_STATUS_REG2 ,  0);
-	//writel(0 , AO_RTI_STATUS_REG2);
-	deep_suspend_flag = 0;
-	//clr_pwr_key();
-	}*/
 	return 0;
 }
 
