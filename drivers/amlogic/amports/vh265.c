@@ -197,7 +197,7 @@ static u32 pts_unstable;
 #define H265_DEBUG_NOWAIT_DECODE_DONE_WHEN_STOP   0x4000000
 
 #define MAX_BUF_NUM 24
-#define MAX_REF_PIC_NUM 24
+#define MAX_REF_PIC_NUM 20
 #define MAX_REF_ACTIVE  16
 
 const u32 h265_version = 201602101;
@@ -230,7 +230,7 @@ static u32 dynamic_buf_num_margin;
 #else
 static u32 buf_alloc_width;
 static u32 buf_alloc_height;
-static u32 dynamic_buf_num_margin = 7;
+static u32 dynamic_buf_num_margin = 8;
 #endif
 static u32 buf_alloc_size;
 static u32 re_config_pic_flag;
