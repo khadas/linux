@@ -66,7 +66,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 
 		CPU1:cpu@1 {
@@ -76,7 +76,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 		CPU2:cpu@2 {
 			device_type = "cpu";
@@ -85,7 +85,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 
 		CPU3:cpu@3 {
@@ -95,7 +95,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 
 		CPU4:cpu@100 {
@@ -105,7 +105,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 
 		CPU5:cpu@101 {
@@ -115,7 +115,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 		CPU6:cpu@102 {
 			device_type = "cpu";
@@ -124,7 +124,7 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 
 		CPU7:cpu@103 {
@@ -134,14 +134,14 @@
 			enable-method = "psci";
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
-			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			/*cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;*/
 		};
 
 		idle-states {
 			entry-method = "arm,psci";
 
 			CPU_SLEEP_0: cpu-sleep-0 {
-				compatible = "arm, idle-state";
+				/*compatible = "arm, idle-state";*/
 				arm,psci-suspend-param = <0x0010000>;
 				local-timer-stop;
 				entry-latency-us = <5000>;
@@ -150,7 +150,7 @@
 			};
 
 			CLUSTER_SLEEP_0: cluster-sleep-0 {
-				compatible = "arm, idle-state";
+				/*compatible = "arm, idle-state";*/
 				arm,psci-suspend-param = <0x1010000>;
 				local-timer-stop;
 				entry-latency-us = <5000>;
