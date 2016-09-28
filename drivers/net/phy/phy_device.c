@@ -62,6 +62,21 @@ static struct phy_driver genphy_driver[GENPHY_DRV_MAX];
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
 #define  SMI_ADDR_TSTWRITE    23
+int ethernet_debug = 0;
+static int __init check_ethernet_debug(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "on") == 0) {
+		pr_info("ethernet_debug on\n");
+		ethernet_debug = 1;
+	} else {
+		return -EINVAL;
+	}
+	return 0;
+}
+early_param("ethernet_debug", check_ethernet_debug);
 
 /**
  * phy_register_fixup - creates a new phy_fixup and adds it to the list
@@ -1088,6 +1103,10 @@ void wol_test(struct phy_device *phydev)
 	internal_config(phydev);
 	pr_info("wol_reg12 test\n");
 }
+
+unsigned long rx_packets_omiphy = 0;
+unsigned long tx_packets_omiphy = 0;
+
 static int internal_phy_read_status(struct phy_device *phydev)
 {
 	int err;
@@ -1108,6 +1127,10 @@ static int internal_phy_read_status(struct phy_device *phydev)
 	val = ((1 << 15) | (1 << 11) | (1 << 10) | (12 << 5));
 	phy_write(phydev, 0x14, val);
 	wol_reg12 = phy_read(phydev, 0x15);
+	if (ethernet_debug) {
+		pr_info("reg12:0x%x, tx:%ld, rx:%ld\n", wol_reg12,
+			tx_packets_omiphy, rx_packets_omiphy);
+	}
 
 	if (phydev->link) {
 		if ((wol_reg12 & 0x1000))
@@ -1123,8 +1146,12 @@ static int internal_phy_read_status(struct phy_device *phydev)
 	} else
 		omiphy_count_start = 0;
 
-	if (i%15 == 0)
-		val = phy_read(phydev, 26);
+	if (i%15 == 0 && ethernet_debug) {
+		am_net_dump_phyreg();
+		am_net_dump_phy_extended_reg();
+		am_net_dump_phy_wol_reg();
+		am_net_dump_phy_bist_reg();
+	}
 	i++;
 	linkup = phydev->link;
 	err = genphy_update_link(phydev);
