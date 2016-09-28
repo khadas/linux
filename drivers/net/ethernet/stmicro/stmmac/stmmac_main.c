@@ -106,7 +106,7 @@ static int buf_sz = DEFAULT_BUFSIZE;
 module_param(buf_sz, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(buf_sz, "DMA buffer size");
 
-static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
+static const u32 default_msg_level = (NETIF_MSG_DRV |
 				      NETIF_MSG_LINK | NETIF_MSG_IFUP |
 				      NETIF_MSG_IFDOWN | NETIF_MSG_TIMER);
 
@@ -851,7 +851,7 @@ static struct device_attribute phy_reg_attrs[] = {
 };
 #if 1
 static struct phy_device *c_phy_dev;
-static void am_net_dump_phyreg(void)
+void am_net_dump_phyreg(void)
 {
 	int reg = 0;
 	int val = 0;
@@ -1958,6 +1958,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 						      priv->ioaddr);
 			if (likely(tx_error == 0)) {
 				priv->dev->stats.tx_packets++;
+				tx_packets_omiphy++;
 				priv->xstats.tx_pkt_n++;
 			} else
 				priv->dev->stats.tx_errors++;
@@ -2836,6 +2837,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			napi_gro_receive(&priv->napi, skb);
 
 			priv->dev->stats.rx_packets++;
+			rx_packets_omiphy++;
 			priv->dev->stats.rx_bytes += frame_len;
 		}
 		entry = next_entry;
