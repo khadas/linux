@@ -29,7 +29,7 @@
 
 #define RX_VER0 "Ref.2016/09/06"
 #define RX_VER1 "Ref.2016/09/13"
-#define RX_VER2 "Ref.2016/08/10"
+#define RX_VER2 "Ref.2016/09/27"
 #define RX_VER3 "Ref.2016/09/21"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
@@ -631,6 +631,7 @@ extern int log_flag;
 extern bool downstream_repeat_support;
 extern int esm_data_base_addr;
 
+extern int suspend_pddq;
 extern unsigned int hdmirx_addr_port;
 extern unsigned int hdmirx_data_port;
 extern unsigned int hdmirx_ctrl_port;

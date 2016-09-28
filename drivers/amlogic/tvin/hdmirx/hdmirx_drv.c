@@ -105,6 +105,8 @@ int pc_mode_en;
 MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
 module_param(pc_mode_en, int, 0664);
 
+int suspend_pddq = 1;
+
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
@@ -1359,7 +1361,8 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 		for (i = 0; i < 5000; i++)
 			;
 	}
-	/*hdmirx_phy_pddq(1);*/
+	if (suspend_pddq)
+		hdmirx_phy_pddq(1);
 	/*clk_off();*/
 	rx_pr("[hdmirx]: suspend success\n");
 	return 0;
@@ -1369,7 +1372,8 @@ static int hdmirx_resume(struct platform_device *pdev)
 {
 	int i;
 	/*hdmirx_hw_probe();*/
-	/*hdmirx_phy_pddq(0);*/
+	if (suspend_pddq)
+		hdmirx_phy_pddq(0);
 	for (i = 0; i < 5000; i++)
 		;
 	if ((resume_flag == 0) && (rx.open_fg == 1))

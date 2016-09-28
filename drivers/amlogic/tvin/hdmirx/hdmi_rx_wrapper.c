@@ -4503,6 +4503,8 @@ int hdmirx_debug(const char *buf, int size)
 		/* nothing */
 	} else if (strncmp(tmpbuf, "prbs", 4) == 0) {
 		/* nothing */
+	} else if (strncmp(tmpbuf, "suspend_pddq", 12) == 0) {
+		suspend_pddq = (tmpbuf[12] == '0' ? 0 : 1);
 	} else if (tmpbuf[0] == 'w') {
 		if (kstrtol(tmpbuf + 3, 16, &adr) < 0)
 				return -EINVAL;
