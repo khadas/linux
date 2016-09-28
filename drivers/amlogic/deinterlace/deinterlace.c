@@ -2614,7 +2614,6 @@ static void config_canvas(struct di_buf_s *di_buf)
 		return;
 
 	if (di_buf->canvas_config_flag == 1) {
-		if (nr_canvas_idx >= 0) {
 			/* linked two interlace buffer should double height*/
 			if (di_buf->di_wr_linked_buf)
 				height = (di_buf->canvas_height << 1);
@@ -2803,11 +2802,12 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 		di_post_buf_size = width * canvas_height*2;
 		/* pre buffer must 2 more than post buffer */
 		di_post_stru.di_post_num = local_buf_num - 2;
+		pr_info("DI: di post buffer size %u byte.\n", di_post_buf_size);
 	} else {
 		di_post_stru.di_post_num = MAX_POST_BUF_NUM;
 		di_post_buf_size = 0;
 	}
-	for (i = 0; i < di_post_stru.di_post_num; i++) {
+	for (i = 0; i < MAX_IN_BUF_NUM; i++) {
 		struct di_buf_s *di_buf = &(di_buf_in[i]);
 		if (di_buf) {
 			memset(di_buf, 0, sizeof(struct di_buf_s));
@@ -2823,7 +2823,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 		}
 	}
 
-	for (i = 0; i < MAX_POST_BUF_NUM; i++) {
+	for (i = 0; i < di_post_stru.di_post_num; i++) {
 		struct di_buf_s *di_buf = &(di_buf_post[i]);
 		if (di_buf) {
 			if (i != used_post_buf_index) {
@@ -2834,6 +2834,14 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 				di_buf->vframe->private_data = di_buf;
 				di_buf->queue_index = -1;
 				di_buf->invert_top_bot_flag = 0;
+				if (post_wr_en && post_wr_surpport) {
+					di_buf->canvas_width[NR_CANVAS] =
+						(nr_width << 1);
+					di_buf->canvas_height = canvas_height;
+					di_buf->canvas_config_flag = 1;
+					di_buf->nr_adr = di_post_mem +
+						di_post_buf_size*i;
+				}
 				queue_in(di_buf, QUEUE_POST_FREE);
 			}
 		}
@@ -3157,7 +3165,7 @@ static void dump_state(void)
 	queue_for_each_entry(p, ptmp, QUEUE_PRE_READY, list) {
 		print_di_buf(p, 2);
 	}
-	pr_info("post_free_list (max %d):\n", MAX_POST_BUF_NUM);
+	pr_info("post_free_list (max %d):\n", di_post_stru.di_post_num);
 	queue_for_each_entry(p, ptmp, QUEUE_POST_FREE, list) {
 		pr_info("index %2d, 0x%p, type %d, vframetype 0x%x\n",
 			p->index, p, p->type, p->vframe->type);
@@ -6096,10 +6104,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 
 	if (di_pre_stru.pre_de_busy) {
 		/* only one inetrrupr mask should be enable */
-		if ((data32 & 4) && !(mask32 & 4)) {
-			di_print("== DIWR ==\n");
-			flag = 1;
-		} else if ((data32 & 2) && !(mask32 & 2)) {
+		if ((data32 & 2) && !(mask32 & 2)) {
 			di_print("== MTNWR ==\n");
 			flag = 1;
 		} else if ((data32 & 1) && !(mask32 & 1)) {
@@ -6112,6 +6117,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	}
 
 #endif
+
 #ifdef DET3D
 	if (det3d_en) {
 		if ((data32 & 0x100) && !(mask32 & 0x100) && flag) {
@@ -6129,8 +6135,10 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	if ((post_wr_en && post_wr_surpport) && (data32&0x4)) {
 		di_post_stru.de_post_process_done = 1;
 		di_post_stru.post_de_busy = 0;
-		if (!(data32 & 0x2))
+		if (!(data32 & 0x2)) {
+			DI_Wr(DI_INTR_CTRL, data32);
 			goto end;
+		}
 	}
 	if (pre_process_time_force)
 		return IRQ_HANDLED;
@@ -6665,9 +6673,9 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 				di_post_idx[di_post_stru.canvas_id][4]);
 
 		/* for post_wr_en */
-		if ((post_wr_en && post_wr_surpport))
+		if ((post_wr_en && post_wr_surpport) && !mcpre_en)
 			config_canvas_idx(
-			di_buf, di_post_idx[di_post_stru.canvas_id][5], -1);
+			di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 		break;
 	case PULL_DOWN_BLEND_2:
 		config_canvas_idx(
@@ -6686,9 +6694,9 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 			config_mcvec_canvas_idx(
 				di_buf->di_buf_dup_p[2],
 				di_post_idx[di_post_stru.canvas_id][4]);
-		if ((post_wr_en && post_wr_surpport))
+		if ((post_wr_en && post_wr_surpport) && !mcpre_en)
 			config_canvas_idx(
-			di_buf, di_post_idx[di_post_stru.canvas_id][5], -1);
+			di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 		break;
 	case PULL_DOWN_MTN:
 		config_canvas_idx(
@@ -6874,7 +6882,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			&di_post_stru.di_buf0_mif,
 			&di_post_stru.di_buf1_mif,
 			&di_post_stru.di_buf2_mif,
-			((post_wr_en && post_wr_surpport) ?
+			(di_ddr_en ?
 				(&di_post_stru.di_diwr_mif):NULL),
 			&di_post_stru.di_mtnprd_mif,
 			ei_en,                  /* ei enable */
@@ -6898,7 +6906,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			&di_post_stru.di_buf0_mif,
 			&di_post_stru.di_buf1_mif,
 			&di_post_stru.di_buf2_mif,
-((post_wr_en && post_wr_surpport) ? (&di_post_stru.di_diwr_mif):NULL),
+(di_ddr_en ? (&di_post_stru.di_diwr_mif):NULL),
 			&di_post_stru.di_mtnprd_mif,
 			&di_post_stru.di_mcvecrd_mif,
 			ei_en,                  /* ei enable */
@@ -7563,7 +7571,6 @@ static int process_post_vframe(void)
 
 				frame_count++;
 				di_print("%s <interlace>: ", __func__);
-
 				if (!(post_wr_en && post_wr_surpport))
 					vf_notify_receiver(VFM_NAME,
 VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
@@ -8055,7 +8062,7 @@ static void di_reg_process_irq(void)
 		/* di enable nr clock gate */
 #else
 		/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
-		DI_Wr(DI_CLKG_CTRL, 0xfef60000);
+		DI_Wr(DI_CLKG_CTRL, 0xfef60001);
 		/* nr/blend0/ei0/mtn0 clock gate */
 #endif
 		/* add for di Reg re-init */
@@ -8548,14 +8555,14 @@ light_unreg:
 		}
 		receiver_name = vf_get_receiver_name(VFM_NAME);
 		if (receiver_name) {
-			if (strcmp(receiver_name, "amvideo") == 0) {
+			if (!strcmp(receiver_name, "amvideo")) {
 				di_post_stru.run_early_proc_fun_flag = 0;
 				receiver_is_amvideo = 1;
 		/* pr_info("set run_early_proc_fun_flag to 1\n"); */
 			} else {
 				di_post_stru.run_early_proc_fun_flag = 1;
 				receiver_is_amvideo = 0;
-		/* pr_dbg("set run_early_proc_fun_flag to 1\n"); */
+		 pr_info("set run_early_proc_fun_flag to 1\n");
 			}
 		} else {
 			pr_info("%s error receiver is null.\n", __func__);
@@ -8759,7 +8766,7 @@ get_vframe:
 			vframe_ret->duration = 0;
 	}
 
-	if (di_post_stru.run_early_proc_fun_flag && vframe_ret) {
+	if (!post_wr_en && di_post_stru.run_early_proc_fun_flag && vframe_ret) {
 		if (vframe_ret->early_process_fun == do_pre_only_fun)
 			vframe_ret->early_process_fun(
 				vframe_ret->private_data, vframe_ret);

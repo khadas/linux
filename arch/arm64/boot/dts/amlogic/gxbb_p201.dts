@@ -276,6 +276,7 @@
 		compatible = "amlogic, deinterlace";
 		status = "okay";
 		memory-region = <&di_reserved>;
+		//post-wr-surpport = <1>;
 		interrupts = <0 46 1
 				0 6 1>;
 		interrupt-names = "de_irq",

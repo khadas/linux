@@ -1532,10 +1532,12 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 		);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* enable ma,disable if0 to vpp */
-		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5)
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5) {
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
-		if (post_wr_en)
-			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 1, 28, 1);
+			if (post_wr_en)
+				DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0,
+					1, 28, 1);
+		}
 	}
 }
 
@@ -1594,16 +1596,11 @@ void di_post_switch_buffer(
 	}
 
 	if (di_ddr_en) {
-		if ((post_wr_en && post_wr_surpport)) {
 			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
-				di_diwr_mif->canvas_num);
-			DI_VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL, urgent, 16, 1);
-			DI_VSYNC_WR_MPEG_REG_BITS(DI_DIWR_CTRL,
-				di_ddr_en, 30, 1);
-		} else {
-			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
-			di_diwr_mif->canvas_num | (urgent << 16)); /* urgent. */
-		}
+				di_diwr_mif->canvas_num |
+					(urgent << 16)	|
+					(2 << 26)		|
+					(di_ddr_en << 30));
 	}
 	if ((pldn_ctrl_rflsh == 1) && pulldown_enable) {
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_en, 31, 1);
@@ -1692,23 +1689,15 @@ blend_mtn_en,blend_mode); */
 	}
 
 	if (di_ddr_en) {
-		if ((post_wr_en && post_wr_surpport)) {
 			DI_VSYNC_WR_MPEG_REG(DI_DIWR_X,
 (di_diwr_mif->start_x << 16) | (di_diwr_mif->end_x));
-			DI_VSYNC_WR_MPEG_REG(DI_DIWR_Y,
+			DI_VSYNC_WR_MPEG_REG(DI_DIWR_Y, (3 << 30) |
 (di_diwr_mif->start_y << 16) | (di_diwr_mif->end_y));
 			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
 			di_diwr_mif->canvas_num|
 			(urgent << 16) |
+			(2 << 26) |
 			(di_ddr_en << 30));
-		} else {
-		DI_VSYNC_WR_MPEG_REG(DI_DIWR_X,
-(di_diwr_mif->start_x << 16) | (di_diwr_mif->end_x));
-	   DI_VSYNC_WR_MPEG_REG(DI_DIWR_Y,
-(di_diwr_mif->start_y << 16) | (di_diwr_mif->end_y * 2 + 1));
-	   DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL, di_diwr_mif->canvas_num|
-(urgent << 16));
-		}
 }
 
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, 7, 22, 3);
@@ -1736,7 +1725,7 @@ blend_mtn_en,blend_mode); */
 (di_vpp_en << 12) |	/* post viu link */
 (hold_line << 16) |	/* post hold line number */
 (post_field_num << 29) |	/* post field number. */
-(((post_wr_en && post_wr_surpport)?0x3:0x1) << 30)
+(0x3 << 30)
 /* post soft rst  post frame rst. */
 		);
 }
