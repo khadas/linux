@@ -159,13 +159,13 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 		audio_in_i2s_set_buf(runtime->dma_addr, runtime->dma_bytes * 2,
 				     0, i2s_pos_sync);
 		memset((void *)runtime->dma_area, 0, runtime->dma_bytes * 2);
-		{
+		/*{
 			int *ppp =
 			    (int *)(runtime->dma_area + runtime->dma_bytes * 2 -
 				    8);
 			ppp[0] = 0x78787878;
 			ppp[1] = 0x78787878;
-		}
+		}*/
 		s->device_type = AML_AUDIO_I2SIN;
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
