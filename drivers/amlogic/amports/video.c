@@ -2756,10 +2756,16 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		    (cur_vf ? DUR2PTS(cur_vf->duration) : 0);
 	}
 	/* check video PTS discontinuity */
-	else if (timestamp_pcrscr_enable_state() > 0 &&
-		 (enable_video_discontinue_report) &&
+	else if ((enable_video_discontinue_report) &&
 		 (abs(systime - pts) > tsync_vpts_discontinuity_margin()) &&
 		 ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0)) {
+		/**
+		* if paused ignore discontinue
+		*/
+		if (!timestamp_pcrscr_enable_state()) {
+			pr_info("video pts discontinue, but pcrscr is disabled, return false\n");
+			return false;
+		}
 		pts =
 		    timestamp_vpts_get() +
 		    (cur_vf ? DUR2PTS(cur_vf->duration) : 0);

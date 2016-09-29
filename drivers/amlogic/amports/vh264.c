@@ -1148,7 +1148,13 @@ static inline bool vh264_isr_parser(struct vframe_s *vf,
 		h264_pts_count = 0;
 		h264_first_pts_ready = 1;
 	} else {
-
+		if (pts < h264pts1) {
+			if (h264_pts_count > 24) {
+				pr_info("invalid h264pts1, reset\n");
+				h264pts1 = pts;
+				h264_pts_count = 0;
+			}
+		}
 		if (pts_valid && (pts > h264pts1) && (h264_pts_count > 24)
 				&& (duration_from_pts_done == 0)) {
 			unsigned int
