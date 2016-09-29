@@ -30,7 +30,7 @@
 #define RX_VER0 "Ref.2016/09/06"
 #define RX_VER1 "Ref.2016/09/13"
 #define RX_VER2 "Ref.2016/09/27"
-#define RX_VER3 "Ref.2016/09/21"
+#define RX_VER3 "Ref.2016/09/29"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -220,11 +220,13 @@ enum hdmirx_port_e {
 };
 
 enum hdcp22_auth_state_e {
-	HDCP22_AUTH_STATE_NOT_CAPBLE,
-	HDCP22_AUTH_STATE_CAPBLE,
-	HDCP22_AUTH_STATE_LOST,
-	HDCP22_AUTH_STATE_SUCCESS,
-	HDCP22_AUTH_STATE_FAILED,
+	HDCP22_AUTH_STATE_NOT_VALID,
+	HDCP22_AUTH_STATE_VALID,
+	/* HDCP22_AUTH_STATE_NOT_CAPBLE, */
+	/* HDCP22_AUTH_STATE_CAPBLE, */
+	/* HDCP22_AUTH_STATE_LOST, */
+	/* HDCP22_AUTH_STATE_SUCCESS, */
+	/* HDCP22_AUTH_STATE_FAILED, */
 };
 
 /** Configuration clock minimum [kHz] */

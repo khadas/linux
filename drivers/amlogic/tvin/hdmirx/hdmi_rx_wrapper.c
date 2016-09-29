@@ -333,6 +333,10 @@ static int hdcp22_auth_fail = 0xff;
 MODULE_PARM_DESC(hdcp22_auth_fail, "\n hdcp22_auth_fail\n");
 module_param(hdcp22_auth_fail, int, 0664);
 
+static int hdcp22_auth_pre_sts = 0xff;
+MODULE_PARM_DESC(hdcp22_auth_pre_sts, "\n hdcp22_auth_pre_sts\n");
+module_param(hdcp22_auth_pre_sts, int, 0664);
+
 static bool do_link_lost_reset;
 MODULE_PARM_DESC(do_link_lost_reset, "\n do_link_lost_reset\n");
 module_param(do_link_lost_reset, bool, 0664);
@@ -931,7 +935,7 @@ void eq_algorithm(struct work_struct *work)
 
 void rx_hpd_to_esm_handle(struct work_struct *work)
 {
-	cancel_delayed_work(&eq_dwork);
+	cancel_delayed_work(&esm_dwork);
 
 	switch_set_state(&rx.hpd_sdev, 0x0);
 	rx_pr("esm_hpd-0\n");
@@ -1205,50 +1209,42 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 	}
 
 	if (intr_hdcp22 != 0) {
-		if (log_flag & 0x100) {
-			rx_pr("capble sts = %d\n",
-					hdcp22_capable_sts);
-			rx_pr("before auth:");
-			if (hdcp22_auth_pass == HDCP22_AUTH_STATE_SUCCESS)
-				rx_pr("auth pass-3\n");
-			if (hdcp22_auth_fail == HDCP22_AUTH_STATE_FAILED)
-				rx_pr("auth fail-4\n");
-			if (hdcp22_auth_lost == HDCP22_AUTH_STATE_LOST)
-				rx_pr("auth lost-2\n");
-		}
-		if ((intr_hdcp22>>2) != 0) {
-			hdcp22_auth_pass = 254;
-			hdcp22_auth_lost = 254;
-			hdcp22_auth_fail = 254;
-		}
+		hdcp22_auth_pass = 253;
+		hdcp22_auth_fail = 253;
+		hdcp22_auth_lost = 253;
 
+		rx_pr("auth pre-state=%d\n", hdcp22_auth_pre_sts);
 		if (get(intr_hdcp22, _BIT(0)) != 0)
-			hdcp22_capable_sts = HDCP22_AUTH_STATE_CAPBLE;
+			hdcp22_capable_sts = HDCP22_AUTH_STATE_VALID;
 
 		if (get(intr_hdcp22, _BIT(1)) != 0)
-			hdcp22_capable_sts = HDCP22_AUTH_STATE_NOT_CAPBLE;
+			hdcp22_capable_sts = HDCP22_AUTH_STATE_NOT_VALID;
 
-		if (get(intr_hdcp22, _BIT(2)) != 0)
-			hdcp22_auth_lost = HDCP22_AUTH_STATE_LOST;
-
-		if (get(intr_hdcp22, _BIT(3)) != 0)
-			hdcp22_auth_pass = HDCP22_AUTH_STATE_SUCCESS;
-
+		if (get(intr_hdcp22, _BIT(2)) != 0) {
+			hdcp22_auth_lost = HDCP22_AUTH_STATE_VALID;
+			hdcp22_auth_pre_sts = 2;
+		}
+		if (get(intr_hdcp22, _BIT(3)) != 0) {
+			hdcp22_auth_pass = HDCP22_AUTH_STATE_VALID;
+			hdcp22_auth_pre_sts = 3;
+		}
 		if (get(intr_hdcp22, _BIT(4)) != 0) {
-			hdcp22_auth_fail = HDCP22_AUTH_STATE_FAILED;
+			hdcp22_auth_fail = HDCP22_AUTH_STATE_VALID;
+			hdcp22_auth_pre_sts = 4;
 			if (hdcp22_capable_sts)
 				esm_set_stable(0);
 		}
 
 		if (log_flag & HDCP_LOG) {
+			rx_pr("pre_sts=%d\n", hdcp22_auth_pre_sts);
 			rx_pr("intr=%#x\n", intr_hdcp22);
 			rx_pr("capble sts = %d\n",
 					hdcp22_capable_sts);
-			if (hdcp22_auth_pass == HDCP22_AUTH_STATE_SUCCESS)
+			if (hdcp22_auth_pass == HDCP22_AUTH_STATE_VALID)
 				rx_pr("auth pass-3\n");
-			if (hdcp22_auth_fail == HDCP22_AUTH_STATE_FAILED)
+			if (hdcp22_auth_fail == HDCP22_AUTH_STATE_VALID)
 				rx_pr("auth fail-4\n");
-			if (hdcp22_auth_lost == HDCP22_AUTH_STATE_LOST)
+			if (hdcp22_auth_lost == HDCP22_AUTH_STATE_VALID)
 				rx_pr("auth lost-2\n");
 		}
 		hdcp22_sts = intr_hdcp22;
@@ -2452,8 +2448,8 @@ void hdmirx_hdcp22_reauth(void)
 void monitor_capable_sts(void)
 {
 	/*if the auth lost after the success of authentication*/
-	if ((HDCP22_AUTH_STATE_CAPBLE == hdcp22_capable_sts) &&
-		(HDCP22_AUTH_STATE_LOST == hdcp22_auth_lost)) {
+	if ((HDCP22_AUTH_STATE_VALID == hdcp22_capable_sts) &&
+		(HDCP22_AUTH_STATE_VALID == hdcp22_auth_lost)) {
 		hdcp22_lost_cnt++;
 		if ((hdcp22_lost_cnt > hdcp22_lost_max) &&
 			(do_link_lost_reset)) {
@@ -4492,7 +4488,7 @@ int hdmirx_debug(const char *buf, int size)
 		switch_set_state(&rx.hpd_sdev, 0x01);
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		sm_pause = 1;
-		reset_sw = 0;
+		/* reset_sw = 0; */
 		hdmirx_phy_bist_test(tmpbuf[4] == '0' ? 0 : 1);
 	} else if (strncmp(tmpbuf, "clock", 5) == 0) {
 		if (kstrtol(tmpbuf + 5, 10, &value) < 0)
@@ -4666,7 +4662,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		if (hdcp22_on) {
 			esm_set_stable(0);
 			hpd_to_esm = 1;
-			switch_set_state(&rx.hpd_sdev, 0x01);
+			/* switch_set_state(&rx.hpd_sdev, 0x01); */
 			if (log_flag & VIDEO_LOG)
 				rx_pr("switch_set_state:%d\n", pwr_sts);
 		}
