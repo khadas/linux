@@ -191,6 +191,20 @@ s32 vdec_init(enum vformat_e vf, int is_4k)
 		try_free_keep_video();
 	}
 
+	/*when blackout_policy was set, vdec would not free cma buffer, if
+		current vformat require larger buffer size than current
+		buf size, reallocated it
+	*/
+	if (vdec_dev_reg.mem_start != vdec_dev_reg.mem_end &&
+			vdec_dev_reg.mem_end - vdec_dev_reg.mem_start + 1 <
+			vdec_default_buf_size[vf] * SZ_1M) {
+		pr_info("current vdec size %ld, vformat %d need size %d\n",
+			vdec_dev_reg.mem_end - vdec_dev_reg.mem_start,
+			vf, vdec_default_buf_size[vf] * SZ_1M);
+		try_free_keep_video();
+		vdec_free_cmabuf();
+	}
+
 	mutex_lock(&vdec_mutex);
 	inited_vcodec_num++;
 	mutex_unlock(&vdec_mutex);
