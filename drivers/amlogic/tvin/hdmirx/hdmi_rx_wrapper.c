@@ -4655,9 +4655,9 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	*/
 	if (pre_port != rx.port) {
 		rx.state = FSM_HPD_LOW;
+		pre_port = rx.port;
 		hdmirx_set_hpd(rx.port, 0);
 		hdmirx_hw_config();
-		/* pre_port = rx.port; */
 		#ifdef HDCP22_ENABLE
 		if (hdcp22_on) {
 			esm_set_stable(0);
