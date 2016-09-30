@@ -61,22 +61,6 @@ static struct phy_driver genphy_driver[GENPHY_DRV_MAX];
 
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
-#define  SMI_ADDR_TSTWRITE    23
-int ethernet_debug = 0;
-static int __init check_ethernet_debug(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-	if (strcmp(arg, "on") == 0) {
-		pr_info("ethernet_debug on\n");
-		ethernet_debug = 1;
-	} else {
-		return -EINVAL;
-	}
-	return 0;
-}
-early_param("ethernet_debug", check_ethernet_debug);
 
 /**
  * phy_register_fixup - creates a new phy_fixup and adds it to the list
@@ -1015,207 +999,7 @@ int genphy_read_status(struct phy_device *phydev)
 
 	return 0;
 }
-void set_a3_config(struct phy_device *phydev)
-{
-	int value = 0;
-	phy_write(phydev, 0x17, 0xa900);
-	phy_write(phydev, 0x14, 0x4414);
-	pr_info("negotiation is done set a3_config 0xa900\n");
-	phy_write(phydev, 0x14, 0x8680);
-	value = phy_read(phydev, 0x15);
-	pr_info("a3_config=0x%x\n", value);
-}
 EXPORT_SYMBOL(genphy_read_status);
-void internal_wol_init(struct phy_device *phydev)
-{
-	int val;
-	unsigned char *mac_addr;
-	mac_addr = phydev->attached_dev->dev_addr;
-	/*chose wol register bank*/
-	val = phy_read(phydev, 0x14);
-	val |= 0x800;
-	val &= ~0x1000;
-	phy_write(phydev, 0x14, val);/*write data to wol register bank*/
-	/*write mac address*/
-	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[0]|mac_addr[1]<<8);
-	phy_write(phydev, 0x14, 0x4800|0x00);
-	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[2]|mac_addr[3]<<8);
-	phy_write(phydev, 0x14, 0x4800|0x01);
-	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[4]|mac_addr[5]<<8);
-	phy_write(phydev, 0x14, 0x4800|0x02);
-	/*enable wol*/
-	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x9);
-	phy_write(phydev, 0x14, 0x4800|0x03);
-	/*enable interrupt*/
-	phy_write(phydev, 0x1E, 0xe00);
-}
-
-void internal_config(struct phy_device *phydev)
-{
-	int value;
-	/*set reg27[12] = 1*/
-	value = phy_read(phydev, 0x1b);
-	phy_write(phydev, 0x1b, value|0x1000);
-
-	phy_write(phydev, 0x11, 0x0080);
-	/*Enable Analog and DSP register Bank access by*/
-	phy_write(phydev, 0x14, 0x0000);
-	phy_write(phydev, 0x14, 0x0400);
-	phy_write(phydev, 0x14, 0x0000);
-	phy_write(phydev, 0x14, 0x0400);
-	/*Write Analog register 23*/
-	phy_write(phydev, 0x17, 0x8E0D);
-	phy_write(phydev, 0x14, 0x4417);
-	/*Enable fractional PLL*/
-	phy_write(phydev, 0x17, 0x0005);
-	phy_write(phydev, 0x14, 0x5C1B);
-	/*Programme fraction FR_PLL_DIV1*/
-	phy_write(phydev, 0x17, 0x029A);
-	phy_write(phydev, 0x14, 0x5C1D);
-	/*programme fraction FR_PLL_DiV1*/
-	phy_write(phydev, 0x17, 0xAAAA);
-	phy_write(phydev, 0x14, 0x5C1C);
-	pr_info("set driving length c\n");
-	phy_write(phydev, 0x17, 0x000c);
-	phy_write(phydev, 0x14, 0x4418);
-	pr_info("set PLL minimum jitter\n");
-	phy_write(phydev, 0x17, 0x1A0C);
-	phy_write(phydev, 0x14, 0x4417); /* A6_CONFIG */
-	phy_write(phydev, 0x17, 0x6400);
-	phy_write(phydev, 0x14, 0x441A); /* A8_CONFIG */
-}
-
-void wol_test(struct phy_device *phydev)
-{
-	int omiphy_value;
-	if (phydev->drv->features & 0xff00) {
-		pr_info("big test\n");
-		omiphy_value = phy_read(phydev, MII_BMCR);
-		phy_write(phydev, MII_BMCR, omiphy_value | BMCR_PDOWN);
-		msleep(50);
-		omiphy_value = phy_read(phydev, MII_BMCR);
-		phy_write(phydev, MII_BMCR, omiphy_value & ~BMCR_PDOWN);
-		msleep(50);
-	}
-
-	phy_write(phydev, MII_BMCR, 0x8000);
-	msleep(50);
-	internal_config(phydev);
-	pr_info("wol_reg12 test\n");
-}
-
-unsigned long rx_packets_omiphy = 0;
-unsigned long tx_packets_omiphy = 0;
-
-static int internal_phy_read_status(struct phy_device *phydev)
-{
-	int err;
-	int reg31 = 0;
-	int wol_reg12;
-	int linkup = 0;
-	static int val;
-	static int i;
-	static int omiphy_count_start;
-	/* Update the link, but return if there was an error */
-	/* Bit 15: READ*/
-	/*Bit 14: Write*/
-	/*Bit 12:11: BANK_SEL (0: DSP, 1: WOL, 3: BIST)*/
-	/*Bit 10: Test Mode*/
-	/*Bit 9:5: Read Address*/
-	/*Bit 4:0: Write Address*/
-	/*read wol bank reg12*/
-	val = ((1 << 15) | (1 << 11) | (1 << 10) | (12 << 5));
-	phy_write(phydev, 0x14, val);
-	wol_reg12 = phy_read(phydev, 0x15);
-	if (ethernet_debug) {
-		pr_info("reg12:0x%x, tx:%ld, rx:%ld\n", wol_reg12,
-			tx_packets_omiphy, rx_packets_omiphy);
-	}
-
-	if (phydev->link) {
-		if ((wol_reg12 & 0x1000))
-			omiphy_count_start = 0;
-		if (!(wol_reg12 & 0x1000)) {
-			omiphy_count_start++;
-			pr_info("wol_reg12[12]==0, error\n");
-		}
-		if (omiphy_count_start >= (phydev->drv->features & 0xff)) {
-			omiphy_count_start = 0;
-			wol_test(phydev);
-		}
-	} else
-		omiphy_count_start = 0;
-
-	if (i%15 == 0 && ethernet_debug) {
-		am_net_dump_phyreg();
-		am_net_dump_phy_extended_reg();
-		am_net_dump_phy_wol_reg();
-		am_net_dump_phy_bist_reg();
-	}
-	i++;
-	linkup = phydev->link;
-	err = genphy_update_link(phydev);
-	if (err)
-		return err;
-
-	phydev->lp_advertising = 0;
-
-	if (AUTONEG_ENABLE == phydev->autoneg) {
-		reg31 = phy_read(phydev, 0x1f);
-		if (reg31 | 0x1000) {
-			phydev->pause = 0;
-			phydev->asym_pause = 0;
-			phydev->speed = SPEED_10;
-			phydev->duplex = DUPLEX_HALF;
-			reg31 &= 0x1c;
-			if (reg31 == 0x4) {
-				phydev->speed = SPEED_10;
-				phydev->duplex = DUPLEX_HALF;
-			}
-			if (reg31 == 0x14) {
-				phydev->speed = SPEED_10;
-				phydev->duplex = DUPLEX_FULL;
-
-			}
-			if (reg31 == 0x8) {
-				phydev->speed = SPEED_100;
-				phydev->duplex = DUPLEX_HALF;
-			}
-			if (reg31 == 0x18) {
-				phydev->speed = SPEED_100;
-				phydev->duplex = DUPLEX_FULL;
-			}
-		}
-	} else {
-		int bmcr = phy_read(phydev, MII_BMCR);
-
-		if (bmcr < 0)
-			return bmcr;
-
-		if (bmcr & BMCR_FULLDPLX)
-			phydev->duplex = DUPLEX_FULL;
-		else
-			phydev->duplex = DUPLEX_HALF;
-
-		if (bmcr & BMCR_SPEED1000)
-			phydev->speed = SPEED_1000;
-		else if (bmcr & BMCR_SPEED100)
-			phydev->speed = SPEED_100;
-		else
-			phydev->speed = SPEED_10;
-
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
-	}
-	/*every time link up, set a3 config*/
-	if ((linkup == 0) && (phydev->link == 1)) {
-		if (phydev->speed == SPEED_100)
-			set_a3_config(phydev);
-	}
-
-
-	return 0;
-}
 
 static int gen10g_read_status(struct phy_device *phydev)
 {
@@ -1298,30 +1082,9 @@ static int gen10g_config_init(struct phy_device *phydev)
 
 	return 0;
 }
-
-
-static int internal_config_init(struct phy_device *phydev)
-{
-	pr_info("patch1 link down dump phyreg\n");
-	pr_info("patch2 set driving length\n");
-	/*internal_wol_init(phydev);*/
-	internal_config(phydev);
-	return genphy_config_init(phydev);
-}
-
-static int internal_phy_resume(struct phy_device *phydev)
-{
-	int rc;
-	rc = genphy_resume(phydev);
-	phy_init_hw(phydev);
-	return rc;
-}
-
-
 int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
-	/*don't power off if wol is needed*/
 
 	mutex_lock(&phydev->lock);
 
@@ -1503,19 +1266,6 @@ static struct phy_driver genphy_driver[] = {
 	.resume         = gen10g_resume,
 	.driver         = {.owner = THIS_MODULE, },
 } };
-static struct phy_driver internal_phy = {
-	.phy_id	= 0x01814400,
-	.name		= "gxl internal phy",
-	.phy_id_mask	= 0x0fffffff,
-	.config_init	= internal_config_init,
-	/*bit 8-15:omiphy_big_or_small=1,bit 0-7:omiphy_count_sec=15*/
-	.features	= 0x10f,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= internal_phy_read_status,
-	.suspend	= genphy_suspend,
-	.resume		= internal_phy_resume,
-	.driver		= { .owner = THIS_MODULE, },
-};
 
 static int __init phy_init(void)
 {
@@ -1527,9 +1277,6 @@ static int __init phy_init(void)
 
 	rc = phy_drivers_register(genphy_driver,
 				  ARRAY_SIZE(genphy_driver));
-	if (rc)
-		mdio_bus_exit();
-	rc = phy_driver_register(&internal_phy);
 	if (rc)
 		mdio_bus_exit();
 	return rc;
