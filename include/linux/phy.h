@@ -646,16 +646,6 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data);
 int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 void phy_ethtool_get_wol(struct phy_device *phydev,
 			 struct ethtool_wolinfo *wol);
-int phy_init_hw(struct phy_device *phydev);
-void internal_config(struct phy_device *phydev);
-void wol_test(struct phy_device *phydev);
-extern unsigned long rx_packets_omiphy;
-extern unsigned long tx_packets_omiphy;
-
-void am_net_dump_phyreg(void);
-void am_net_dump_phy_extended_reg(void);
-void am_net_dump_phy_wol_reg(void);
-void am_net_dump_phy_bist_reg(void);
 
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);

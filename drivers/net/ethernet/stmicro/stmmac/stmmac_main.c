@@ -106,7 +106,7 @@ static int buf_sz = DEFAULT_BUFSIZE;
 module_param(buf_sz, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(buf_sz, "DMA buffer size");
 
-static const u32 default_msg_level = (NETIF_MSG_DRV |
+static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 				      NETIF_MSG_LINK | NETIF_MSG_IFUP |
 				      NETIF_MSG_IFDOWN | NETIF_MSG_TIMER);
 
@@ -851,7 +851,7 @@ static struct device_attribute phy_reg_attrs[] = {
 };
 #if 1
 static struct phy_device *c_phy_dev;
-void am_net_dump_phyreg(void)
+static void am_net_dump_phyreg(void)
 {
 	int reg = 0;
 	int val = 0;
@@ -886,9 +886,7 @@ static int am_net_read_phyreg(int argc, char **argv)
 	if (reg >= 0 && reg <= 31) {
 		val = phy_read(c_phy_dev, reg);
 		pr_info("read phy [reg_%d] 0x%x\n", reg, val);
-	} else if (reg == 32)
-		pr_info("phy features:0x%x\n", c_phy_dev->drv->features);
-	else
+	} else
 		pr_info("Invalid parameter\n");
 
 	return 0;
@@ -920,110 +918,11 @@ static int am_net_write_phyreg(int argc, char **argv)
 		phy_write(c_phy_dev, reg, val);
 		pr_info("write phy [reg_%d] 0x%x, 0x%x\n",
 				reg, val, phy_read(c_phy_dev, reg));
-	} else if (reg == 32) {
-		if (val > 255) {
-			pr_info("Invalid parameter\n");
-			return 0;
-		}
-		c_phy_dev->drv->features &= 0xff;
-		c_phy_dev->drv->features |= val << 8;
-		} else if (reg == 33) {
-			if (val > 255) {
-				pr_info("Invalid parameter\n");
-				return 0;
-			}
-		c_phy_dev->drv->features &= 0xff00;
-		c_phy_dev->drv->features |= val;
-		}
-	else
+	} else {
 		pr_info("Invalid parameter\n");
+	}
 
 	return 0;
-}
-
-void am_net_dump_phy_wol_reg(void)
-{
-	int reg = 0;
-	int val = 0;
-	int val15 = 0;
-	int val16 = 0;
-	if (c_phy_dev == NULL)
-		return;
-
-	pr_info("========== ETH PHY wol regs ==========\n");
-	for (reg = 0; reg < 13; reg++) {
-		/*Bit 15: READ*/
-		/*Bit 14: Write*/
-		/*Bit 12:11: BANK_SEL (0: DSP, 1: WOL, 3: BIST)*/
-		/*Bit 10: Test Mode*/
-		/*Bit 9:5: Read Address*/
-		/*Bit 4:0: Write Address*/
-		val = ((1 << 15) | (1 << 11) | (1 << 10) | (reg << 5));
-		phy_write(c_phy_dev, 0x14, val);
-		val15 = phy_read(c_phy_dev, 0x15);
-		val16 = phy_read(c_phy_dev, 0x16);
-		val = val16*65536 + val15;
-		pr_info("wol [reg_%d] 0x%x\n", reg, val);
-	}
-
-}
-
-void am_net_dump_phy_bist_reg(void)
-{
-	int reg = 0;
-	int val = 0;
-	int val15 = 0;
-	int val16 = 0;
-	if (c_phy_dev == NULL)
-		return;
-
-	pr_info("========== ETH PHY bist regs ==========\n");
-	for (reg = 0; reg < 32; reg++) {
-		/*Bit 15: READ*/
-		/*Bit 14: Write*/
-		/*Bit 12:11: BANK_SEL (0: DSP, 1: WOL, 3: BIST)*/
-		/*Bit 10: Test Mode*/
-		/*Bit 9:5: Read Address*/
-		/*Bit 4:0: Write Address*/
-
-		val = ((1 << 15) | (1 << 12) | (1 << 11) |
-			(1 << 10) | (reg << 5));
-		phy_write(c_phy_dev, 0x14, val);
-		val15 = phy_read(c_phy_dev, 0x15);
-		val16 = phy_read(c_phy_dev, 0x16);
-		val = val16*65536 + val15;
-		pr_info("bist [reg_%d] 0x%x\n", reg, val);
-	}
-
-}
-
-
-void am_net_dump_phy_extended_reg(void)
-{
-	int reg = 0;
-	int val = 0;
-	int val15 = 0;
-	int val16 = 0;
-	if (c_phy_dev == NULL)
-		return;
-
-	pr_info("========== ETH PHY extended regs ==========\n");
-	for (reg = 0; reg < 32; reg++) {
-		/*Bit 15: READ*/
-		/*Bit 14: Write*/
-		/*Bit 12:11: BANK_SEL (0: DSP, 1: WOL, 3: BIST)*/
-		/*Bit 10: Test Mode*/
-		/*Bit 9:5: Read Address*/
-		/*Bit 4:0: Write Address*/
-
-		val = ((1 << 15) | (1 << 10) | (reg << 5));
-		phy_write(c_phy_dev, 0x14, val);
-		val15 = phy_read(c_phy_dev, 0x15);
-		val16 = phy_read(c_phy_dev, 0x16);
-		val = (val16 << 16) + val15;
-		pr_info("extended [reg_%d] 0x%x\n", reg, val);
-	}
-
 }
 static void am_net_dump_macreg(void)
 {
@@ -1146,14 +1045,6 @@ struct class_attribute *attr, const char *buf, size_t count)
 	case 'd':
 	case 'D':
 		am_net_dump_phyreg();
-		break;
-	case 'p':
-		wol_test(c_phy_dev);
-		break;
-	case 'e':
-		am_net_dump_phy_extended_reg();
-		am_net_dump_phy_wol_reg();
-		am_net_dump_phy_bist_reg();
 		break;
 	default:
 		goto end;
@@ -1681,15 +1572,15 @@ static int init_dma_desc_rings(struct net_device *dev)
 	priv->dma_buf_sz = bfsize;
 
 	if (netif_msg_probe(priv))
-		pr_info("%s: txsize %d, rxsize %d, bfsize %d\n", __func__,
+		pr_debug("%s: txsize %d, rxsize %d, bfsize %d\n", __func__,
 			 txsize, rxsize, bfsize);
 
 	if (netif_msg_probe(priv)) {
-		pr_info("(%s) dma_rx_phy=0x%08x dma_tx_phy=0x%08x\n", __func__,
+		pr_debug("(%s) dma_rx_phy=0x%08x dma_tx_phy=0x%08x\n", __func__,
 			 (u32) priv->dma_rx_phy, (u32) priv->dma_tx_phy);
 
 		/* RX INITIALIZATION */
-		pr_info("\tSKB addresses:\nskb\t\tskb data\tdma data\n");
+		pr_debug("\tSKB addresses:\nskb\t\tskb data\tdma data\n");
 	}
 	for (i = 0; i < rxsize; i++) {
 		struct dma_desc *p;
@@ -1703,7 +1594,7 @@ static int init_dma_desc_rings(struct net_device *dev)
 			goto err_init_rx_buffers;
 
 		if (netif_msg_probe(priv))
-			pr_info("[%p]\t[%p]\t[%x]\n", priv->rx_skbuff[i],
+			pr_debug("[%p]\t[%p]\t[%x]\n", priv->rx_skbuff[i],
 				 priv->rx_skbuff[i]->data,
 				 (unsigned int)priv->rx_skbuff_dma[i]);
 	}
@@ -1958,7 +1849,6 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 						      priv->ioaddr);
 			if (likely(tx_error == 0)) {
 				priv->dev->stats.tx_packets++;
-				tx_packets_omiphy++;
 				priv->xstats.tx_pkt_n++;
 			} else
 				priv->dev->stats.tx_errors++;
@@ -1966,7 +1856,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 			stmmac_get_tx_hwtstamp(priv, entry, skb);
 		}
 		if (netif_msg_tx_done(priv))
-			pr_info("%s: curr %d, dirty %d\n", __func__,
+			pr_debug("%s: curr %d, dirty %d\n", __func__,
 				 priv->cur_tx, priv->dirty_tx);
 
 		if (likely(priv->tx_skbuff_dma[entry])) {
@@ -1993,7 +1883,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		if (netif_queue_stopped(priv->dev) &&
 		    stmmac_tx_avail(priv) > STMMAC_TX_THRESH(priv)) {
 			if (netif_msg_tx_done(priv))
-				pr_info("%s: restart transmit\n", __func__);
+				pr_debug("%s: restart transmit\n", __func__);
 			netif_wake_queue(priv->dev);
 		}
 		netif_tx_unlock(priv->dev);
@@ -2621,7 +2511,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->cur_tx++;
 
 	if (netif_msg_pktdata(priv)) {
-		pr_info("%s: curr %d dirty=%d entry=%d, first=%p, nfrags=%d",
+		pr_debug("%s: curr %d dirty=%d entry=%d, first=%p, nfrags=%d",
 			__func__, (priv->cur_tx % txsize),
 			(priv->dirty_tx % txsize), entry, first, nfrags);
 
@@ -2713,7 +2603,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			priv->hw->mode->refill_desc3(priv, p);
 
 			if (netif_msg_rx_status(priv))
-				pr_info("\trefill entry #%d\n", entry);
+				pr_debug("\trefill entry #%d\n", entry);
 		}
 		wmb();
 		priv->hw->desc->set_rx_owner(p);
@@ -2737,7 +2627,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 	int coe = priv->plat->rx_coe;
 
 	if (netif_msg_rx_status(priv)) {
-		pr_info("%s: descriptor ring:\n", __func__);
+		pr_debug("%s: descriptor ring:\n", __func__);
 		if (priv->extend_desc)
 			stmmac_display_ring((void *)priv->dma_erx, rxsize, 1);
 		else
@@ -2797,7 +2687,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				frame_len -= ETH_FCS_LEN;
 
 			if (netif_msg_rx_status(priv)) {
-				pr_info("\tdesc: %p [entry %d] buff=0x%x\n",
+				pr_debug("\tdesc: %p [entry %d] buff=0x%x\n",
 					 p, entry, p->des2);
 				if (frame_len > ETH_FRAME_LEN)
 					pr_debug("\tframe size %d, COE: %d\n",
@@ -2805,7 +2695,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			}
 			skb = priv->rx_skbuff[entry];
 			if (unlikely(!skb)) {
-				pr_info("%s: Inconsistent Rx descriptor chain\n",
+				pr_debug("%s: Inconsistent Rx descriptor chain\n",
 				       priv->dev->name);
 				priv->dev->stats.rx_dropped++;
 				break;
@@ -2821,7 +2711,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 					 priv->dma_buf_sz, DMA_FROM_DEVICE);
 
 			if (netif_msg_pktdata(priv)) {
-				pr_info("frame received (%dbytes)", frame_len);
+				pr_debug("frame received (%dbytes)", frame_len);
 				print_pkt(skb->data, frame_len);
 			}
 
@@ -2837,7 +2727,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			napi_gro_receive(&priv->napi, skb);
 
 			priv->dev->stats.rx_packets++;
-			rx_packets_omiphy++;
 			priv->dev->stats.rx_bytes += frame_len;
 		}
 		entry = next_entry;

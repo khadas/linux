@@ -553,6 +553,124 @@ static int pmu4_read_status(struct phy_device *phydev)
 	return err;
 }
 
+static void internal_config(struct phy_device *phydev)
+{
+	/*enable auto mdix*/
+	phy_write(phydev, 0x11, 0x0080);
+	/*Enable Analog and DSP register Bank access by*/
+	phy_write(phydev, 0x14, 0x0000);
+	phy_write(phydev, 0x14, 0x0400);
+	phy_write(phydev, 0x14, 0x0000);
+	phy_write(phydev, 0x14, 0x0400);
+	/*Write Analog register 23*/
+	phy_write(phydev, 0x17, 0x8E0D);
+	phy_write(phydev, 0x14, 0x4417);
+	/*Enable fractional PLL*/
+	phy_write(phydev, 0x17, 0x0005);
+	phy_write(phydev, 0x14, 0x5C1B);
+	/*Programme fraction FR_PLL_DIV1*/
+	phy_write(phydev, 0x17, 0x029A);
+	phy_write(phydev, 0x14, 0x5C1D);
+	/*programme fraction FR_PLL_DiV1*/
+	phy_write(phydev, 0x17, 0xAAAA);
+	phy_write(phydev, 0x14, 0x5C1C);
+}
+
+void internal_wol_init(struct phy_device *phydev)
+{
+	int val;
+	unsigned char *mac_addr;
+	mac_addr = phydev->attached_dev->dev_addr;
+	/*chose wol register bank*/
+	val = phy_read(phydev, 0x14);
+	val |= 0x800;
+	val &= ~0x1000;
+	phy_write(phydev, 0x14, val);/*write data to wol register bank*/
+	/*write mac address*/
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[0]|mac_addr[1]<<8);
+	phy_write(phydev, 0x14, 0x4800|0x00);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[2]|mac_addr[3]<<8);
+	phy_write(phydev, 0x14, 0x4800|0x01);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[4]|mac_addr[5]<<8);
+	phy_write(phydev, 0x14, 0x4800|0x02);
+	/*enable wol*/
+	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x9);
+	phy_write(phydev, 0x14, 0x4800|0x03);
+	/*enable interrupt*/
+	phy_write(phydev, 0x1E, 0xe00);
+}
+
+static int internal_config_init(struct phy_device *phydev)
+{
+
+	int val;
+	u32 features;
+	internal_config(phydev);
+	internal_wol_init(phydev);
+
+	/* For now, I'll claim that the generic driver supports
+	 * all possible port types
+	 */
+	features = (SUPPORTED_TP | SUPPORTED_MII
+			| SUPPORTED_AUI | SUPPORTED_FIBRE |
+			SUPPORTED_BNC);
+
+	/* Do we support autonegotiation? */
+	val = phy_read(phydev, MII_BMSR);
+	if (val < 0)
+		return val;
+
+	if (val & BMSR_ANEGCAPABLE)
+		features |= SUPPORTED_Autoneg;
+
+	if (val & BMSR_100FULL)
+		features |= SUPPORTED_100baseT_Full;
+	if (val & BMSR_100HALF)
+		features |= SUPPORTED_100baseT_Half;
+	if (val & BMSR_10FULL)
+		features |= SUPPORTED_10baseT_Full;
+	if (val & BMSR_10HALF)
+		features |= SUPPORTED_10baseT_Half;
+
+	if (val & BMSR_ESTATEN) {
+		val = phy_read(phydev, MII_ESTATUS);
+		if (val < 0)
+			return val;
+
+		if (val & ESTATUS_1000_TFULL)
+			features |= SUPPORTED_1000baseT_Full;
+		if (val & ESTATUS_1000_THALF)
+			features |= SUPPORTED_1000baseT_Half;
+	}
+
+	phydev->supported = features;
+	phydev->advertising = features;
+
+	return 0;
+
+}
+
+int internal_phy_resume(struct phy_device *phydev)
+{
+	int rc1, rc2;
+	rc1 = genphy_resume(phydev);
+	rc2 = phy_init_hw(phydev);
+	return rc1|rc2;
+}
+int internal_phy_suspend(struct phy_device *phydev)
+{
+	/*do nothing here if you want WOL enabled*/
+	int value;
+
+	mutex_lock(&phydev->lock);
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
 
 
 static int amlogic_phy_config_aneg(struct phy_device *phydev)
@@ -614,20 +732,99 @@ static struct phy_driver amlogic_phy_driver[] = {
 
 		.driver		= { .owner = THIS_MODULE, }
 	} };
+static int internal_phy_read_status(struct phy_device *phydev)
+{
+	int err;
+	int reg31 = 0;
 
+	/* Update the link, but return if there was an error */
+	err = genphy_update_link(phydev);
+	if (err)
+		return err;
+
+	phydev->lp_advertising = 0;
+
+	if (AUTONEG_ENABLE == phydev->autoneg) {
+		reg31 = phy_read(phydev, 0x1f);
+		if (reg31 | 0x1000) {
+			phydev->pause = 0;
+			phydev->asym_pause = 0;
+			phydev->speed = SPEED_10;
+			phydev->duplex = DUPLEX_HALF;
+			reg31 &= 0x1c;
+			if (reg31 == 0x4) {
+				phydev->speed = SPEED_10;
+				phydev->duplex = DUPLEX_HALF;
+			}
+			if (reg31 == 0x14) {
+				phydev->speed = SPEED_10;
+				phydev->duplex = DUPLEX_FULL;
+
+			}
+			if (reg31 == 0x8) {
+				phydev->speed = SPEED_100;
+
+				phydev->duplex = DUPLEX_HALF;
+			}
+			if (reg31 == 0x18) {
+				phydev->speed = SPEED_100;
+				phydev->duplex = DUPLEX_FULL;
+			}
+
+		}
+	} else {
+		int bmcr = phy_read(phydev, MII_BMCR);
+
+		if (bmcr < 0)
+			return bmcr;
+
+		if (bmcr & BMCR_FULLDPLX)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			phydev->duplex = DUPLEX_HALF;
+
+		if (bmcr & BMCR_SPEED1000)
+			phydev->speed = SPEED_1000;
+		else if (bmcr & BMCR_SPEED100)
+			phydev->speed = SPEED_100;
+		else
+			phydev->speed = SPEED_10;
+
+		phydev->pause = 0;
+		phydev->asym_pause = 0;
+	}
+
+	return 0;
+}
+
+static struct phy_driver internal_phy = {
+	.phy_id = 0x01814400,
+	.name		= "gxl internal phy",
+	.phy_id_mask	= 0x0fffffff,
+	.config_init	= internal_config_init,
+	.features	= 0,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= internal_phy_read_status,
+	.suspend	= internal_phy_suspend,
+	.resume = internal_phy_resume,
+	.driver	= { .owner = THIS_MODULE, },
+};
 
 static int __init amlogic_init(void)
 {
-	int rc;
-	rc = phy_drivers_register(amlogic_phy_driver,
+	int rc1, rc2;
+	rc1 = phy_drivers_register(amlogic_phy_driver,
 			ARRAY_SIZE(amlogic_phy_driver));
-	return rc;
+	rc2 = phy_driver_register(&internal_phy);
+
+	return rc1 || rc2;
 }
 
 static void __exit amlogic_exit(void)
 {
 	phy_drivers_unregister(amlogic_phy_driver,
 			ARRAY_SIZE(amlogic_phy_driver));
+	phy_driver_unregister(&internal_phy);
 }
 
 MODULE_DESCRIPTION("Amlogic PHY driver");
