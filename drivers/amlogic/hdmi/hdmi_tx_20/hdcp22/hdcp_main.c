@@ -1179,7 +1179,7 @@ static void hdcp22_hw_init(void)
 {
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x7);
-	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x73);
+	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x53);
 	hd_set_reg_bits(P_HHI_GCLK_MPEG2, 1, 3, 1);
 	hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
 	/* Enable skpclk to HDCP2.2 IP */
