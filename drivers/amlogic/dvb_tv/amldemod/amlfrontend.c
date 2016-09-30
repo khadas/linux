@@ -34,6 +34,7 @@
 #include <linux/gpio.h>
 #include "../aml_fe.h"
 
+#include <linux/dma-contiguous.h>
 #include <linux/dvb/aml_demod.h>
 #include "demod_func.h"
 #include "../aml_dvb.h"
@@ -1217,6 +1218,38 @@ static int gxtv_demod_fe_suspend(struct aml_fe_dev *dev)
 	return 0;
 }
 
+#ifdef CONFIG_CMA
+void dtmb_cma_alloc(struct aml_fe_dev *devp)
+{
+	unsigned int mem_size = devp->cma_mem_size;
+	devp->venc_pages =
+			dma_alloc_from_contiguous(&(devp->this_pdev->dev),
+			mem_size >> PAGE_SHIFT, 0);
+		pr_dbg("[cma]mem_size is %d,%d\n",
+			mem_size, mem_size >> PAGE_SHIFT);
+		if (devp->venc_pages) {
+			devp->mem_start = page_to_phys(devp->venc_pages);
+			devp->mem_size  = mem_size;
+			pr_dbg("demod mem_start = 0x%x, mem_size = 0x%x\n",
+				devp->mem_start, devp->mem_size);
+			pr_dbg("demod cma alloc ok!\n");
+		} else {
+			pr_dbg("demod cma mem undefined2.\n");
+		}
+}
+
+void dtmb_cma_release(struct aml_fe_dev *devp)
+{
+	dma_release_from_contiguous(&(devp->this_pdev->dev),
+			devp->venc_pages,
+			devp->cma_mem_size>>PAGE_SHIFT);
+		pr_dbg("demod cma release ok!\n");
+	devp->mem_start = 0;
+	devp->mem_size = 0;
+}
+#endif
+
+
 static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 {
 	struct aml_fe_dev *dev = fe->dtv_demod;
@@ -1229,11 +1262,18 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 	if (cci_thread)
 		if (dvbc_get_cci_task() == 1)
 			dvbc_create_cci_task();
-	memstart_dtmb = fe->dtv_demod->mem_start;
-	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
 	/*mem_buf = (long *)phys_to_virt(memstart);*/
 	if (mode == AM_FE_DTMB) {
 		Gxtv_Demod_Dtmb_Init(dev);
+	if (fe->dtv_demod->cma_flag == 1) {
+		pr_dbg("CMA MODE, cma flag is %d,mem size is %d",
+			fe->dtv_demod->cma_flag, fe->dtv_demod->cma_mem_size);
+		dtmb_cma_alloc(dev);
+		memstart_dtmb = dev->mem_start;
+	} else {
+		memstart_dtmb = fe->dtv_demod->mem_start;
+	}
+		pr_dbg("[im]memstart is %x\n", memstart_dtmb);
 		dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
 		pr_dbg("[dtmb]mem_buf is 0x%x\n",
 			dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
@@ -1246,10 +1286,15 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 
 static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 {
+	struct aml_fe_dev *dev = fe->dtv_demod;
 	dtvpll_init_flag(0);
 	/*dvbc_timer_exit();*/
 	if (cci_thread)
 		dvbc_kill_cci_task();
+	if (mode == AM_FE_DTMB) {
+		if (fe->dtv_demod->cma_flag == 1)
+			dtmb_cma_release(dev);
+	}
 
 	/* should disable the adc ref signal for demod */
 	vdac_enable(0, 0x2);

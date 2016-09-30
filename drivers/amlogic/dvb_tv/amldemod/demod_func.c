@@ -1006,8 +1006,15 @@ void dtmb_all_reset(void)
 		dtmb_write_reg(DTMB_CHE_TPS_CONFIG, 0xc00000);
 		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x1a027719);
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x101a7);
-		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x133231);
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x131a31);
 		/*detect 64qam 420 595 problems*/
+		dtmb_write_reg(DTMB_FRONT_19_CONFIG, 0x300);
+		dtmb_write_reg(DTMB_FRONT_4d_CONFIG, 0x12ffbe0);
+		/*fix fsm b bug*/
+		dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x5680000);
+		/*fix agc problem,skip warm_up status*/
+		dtmb_write_reg(DTMB_FRONT_46_CONFIG, 0x1a000f0f);
+		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
 	} else {
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
@@ -1111,6 +1118,7 @@ int dtmb_information(void)
 	else
 		che_snr = tmp & 0xfff;
 	snr = che_snr;
+	snr = convert_snr(snr);
 	/*	if (che_snr >= 8192) */
 	/*		che_snr = che_snr - 16384;*/
 	/*	snr = che_snr / 32;*/
@@ -1190,6 +1198,22 @@ int dtmb_bch_check(void)
 			}
 		}
 	}
+	return 0;
+}
+
+int dtmb_constell_check(void)
+{
+	int constell;
+	constell = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)>>16 & 0x3;
+	if (constell == 0)/*4qam*/
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x133221);
+	else if (constell == 1)/*16qam*/
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x132821);
+	else if (constell == 2)/*32qam*/
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x131e21);
+	else if (constell == 3)/*64qam*/
+		dtmb_write_reg(DTMB_FRONT_47_CONFIG, 0x131a31);
+
 	return 0;
 }
 
@@ -1365,6 +1389,7 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 		}
 	} else {
 		dtmb_bch_check();
+		dtmb_constell_check();
 	}
 	return 0;
 }

@@ -60,5 +60,6 @@ enum M6_Demod_Pll_Mode {
 };
 
 int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);
+int convert_snr(int in_snr);
 
 #endif

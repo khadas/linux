@@ -575,6 +575,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	fe_status_t s;
 	int retval;
 	int time;
+	int dtmb_status, i, has_singal;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
 #if (((defined CONFIG_AM_SI2176) || (defined CONFIG_AM_SI2177)\
@@ -803,20 +804,36 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 #if 1
 	/*signal_detec dtmb   201512-rsj*/
 		if (fe->ops.read_dtmb_fsm) {
-			int dtmb_status, i, has_singal;
 			LOCK_TIMEOUT = 10000;
 			has_singal = 0;
-			msleep(100);
+			msleep(200);
+			/*fsm status is 4,maybe analog signal*/
 			fe->ops.read_dtmb_fsm(fe, &dtmb_status);
 			for (i = 0 ; i < 8 ; i++) {
-				if (((dtmb_status >> (i*4)) & 0xf) >= 4) {
+				if (((dtmb_status >> (i*4)) & 0xf) > 4) {
 					/*has signal*/
 				/*	dprintk("has signal\n");*/
-					has_singal = 1;
+					has_singal = 0x1;
+				}
+			}
+			if (has_singal == 0x1) {
+				/*fsm status is 6,digital signal*/
+				/*fsm (1->4) 30ms,(4->5) 20ms,
+				(5->6) 10ms,(6->7) 75ms,
+				(7->8) 8ms,(8->9) 55ms, (9->a) 350ms*/
+				msleep(500);
+				fe->ops.read_dtmb_fsm(fe, &dtmb_status);
+				for (i = 0 ; i < 8 ; i++) {
+					if (((dtmb_status >> (i*4))
+						& 0xf) > 6) {
+						/*has signal*/
+					/*	dprintk("has signal\n");*/
+						has_singal = 0x3;
+					}
 				}
 			}
 			dprintk("[DTV]has_singal is %d\n", has_singal);
-			if (has_singal == 0) {
+			if ((has_singal == 0) || (has_singal == 0x1)) {
 				s = FE_TIMEDOUT;
 			dprintk(
 						"event s=%d,fepriv->status is %d\n",

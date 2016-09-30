@@ -142,6 +142,14 @@ struct aml_fe_dev {
 	/*for mem reserved*/
 	int			mem_start;
 	int			mem_end;
+	int			mem_size;
+	int			cma_flag;
+#ifdef CONFIG_CMA
+	struct platform_device	*this_pdev;
+	struct page			*venc_pages;
+	unsigned int			cma_mem_size;/* BYTE */
+	unsigned int			cma_mem_alloc;
+#endif
 
 	/*for dtv spectrum*/
 	int			spectrum;

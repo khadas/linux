@@ -88,12 +88,12 @@
 			//no-map;
 		};
 
-		demod_reserved:linux,demod {
+	/*	demod_reserved:linux,demod {
 			compatible = "amlogic, demod-mem";
-			size = <0x0 0x600000>;//20m
+			size = <0x0 0x600000>; //20m
 			multi-use;
 			//no-map;
-		};
+		};*/
 
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
@@ -128,6 +128,13 @@
 			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
  			//no-map;
+		};
+		demod_cma_reserved:linux,demod_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 5M */
+			size = <0x0 0x0800000>;
+			alignment = <0x0 0x400000>;
 		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -1264,7 +1271,9 @@
 		fe0_dev = <0>;
 		dtv_demod0_mem = <0>;
 		dtv_demod0_spectrum = <1>;
-		memory-region = <&demod_reserved>;
+		dtv_demod0_cma_flag = <1>;
+		dtv_demod0_cma_mem_size = <8>;
+		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 		tuner0 = "r842_tuner";
 		tuner0_i2c_adap_id = <2>;
 		tuner0_i2c_addr = <0xf6>;

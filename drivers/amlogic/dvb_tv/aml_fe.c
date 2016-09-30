@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
+#include <linux/dma-contiguous.h>
 #include "aml_fe.h"
 #include "amlatvdemod/atvdemod_func.h"
 
@@ -1788,18 +1789,64 @@ static int aml_fe_dev_init(struct aml_dvb *dvb, struct platform_device *pdev,
 		dev->spectrum = 0;
 	}
 #endif
+	snprintf(buf, sizeof(buf), "%s%d_cma_flag", name, id);
+#ifdef CONFIG_OF
+		ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
+		if (!ret) {
+			dev->cma_flag = value;
+			pr_inf("%s: %d\n", buf, value);
+		} else {
+			dev->cma_flag = 0;
+		}
+#else				/*CONFIG_OF */
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, buf);
+		if (res) {
+			int cma_flag = res->start;
+			dev->cma_flag = cma_flag;
+		} else {
+			dev->cma_flag = 0;
+		}
+#endif
+	if (dev->cma_flag == 1) {
+		snprintf(buf, sizeof(buf), "%s%d_cma_mem_size", name, id);
+#ifdef CONFIG_CMA
+#ifdef CONFIG_OF
+	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
+	if (!ret) {
+		dev->cma_mem_size = value;
+		pr_inf("%s: %d\n", buf, value);
+	} else {
+		dev->cma_mem_size = 0;
+	}
+#else				/*CONFIG_OF */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, buf);
+	if (res) {
+		int cma_mem_size = res->start;
 
-
+		dev->cma_mem_size = cma_mem_size;
+	} else {
+		dev->cma_mem_size = 0;
+	}
+#endif
+	dev->cma_mem_size =
+				dma_get_cma_size_int_byte(&pdev->dev);
+		dev->this_pdev = pdev;
+		dev->cma_mem_alloc = 0;
+		pr_inf("[cma]demod cma_mem_size = %d MB\n",
+				(u32)dev->cma_mem_size/SZ_1M);
+#endif
+	} else {
 #ifdef CONFIG_OF
 	dev->mem_start = memstart;
 #endif
 
-	if (dev->drv->init) {
-		ret = dev->drv->init(dev);
-		if (ret != 0) {
-			dev->drv = NULL;
-			pr_error("[aml_fe..]%s error.\n", __func__);
-			return ret;
+		if (dev->drv->init) {
+			ret = dev->drv->init(dev);
+			if (ret != 0) {
+				dev->drv = NULL;
+				pr_error("[aml_fe..]%s error.\n", __func__);
+				return ret;
+			}
 		}
 	}
 
