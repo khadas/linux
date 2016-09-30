@@ -28,6 +28,18 @@ config ANDROID_BINDER_IPC_32BIT
 	  Enable to support an old 32-bit Android user-space. Breaks the new
 	  Android user-space.
 
+config ANDROID_BINDER_DEVICES
+	string "Android Binder devices"
+	depends on ANDROID_BINDER_IPC
+	default "binder"
+	---help---
+	  Default value for the binder.devices parameter.
+
+	  The binder.devices parameter is a comma-separated list of strings
+	  that specifies the names of the binder device nodes that will be
+	  created. Each binder device has its own context manager, and is
+	  therefore logically separated from the other devices.
+
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n
