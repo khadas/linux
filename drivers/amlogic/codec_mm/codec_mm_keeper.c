@@ -131,7 +131,7 @@ int codec_mm_keeper_unmask_keeper(int keep_id)
 		}
 	}
 	spin_unlock_irqrestore(&mgr->lock, flags);
-	schedule_delayed_work(&mgr->dealy_work, 100);	/*do free later, */
+	schedule_delayed_work(&mgr->dealy_work, 0);	/*do free later, */
 	return 0;
 }
 

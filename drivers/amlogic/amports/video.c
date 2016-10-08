@@ -4718,6 +4718,10 @@ void try_free_keep_video(void)
 			safe_disble_videolayer();
 		}
 	}
+	if (keep_id > 0) {
+		codec_mm_keeper_unmask_keeper(keep_id);
+		keep_id = -1;
+	}
 	free_alloced_keep_buffer();
 	return;
 }

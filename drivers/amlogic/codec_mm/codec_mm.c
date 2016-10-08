@@ -1166,25 +1166,30 @@ static ssize_t tvp_enable_store(struct class *class,
 	ret = sscanf(buf, "%d", &val);
 	if (ret != 1)
 		return -EINVAL;
+	/*
+	always free all scatter cache for
+	tvp changes.
+	*/
+	codec_mm_scatter_free_all_ignorecache();
 	switch (val) {
 	case 0:
 		ret = codec_mm_extpool_pool_release(&mgt->tvp_pool);
 		mgt->tvp_enable = 0;
-		pr_err("disalbe tvp\n");
+		pr_info("disalbe tvp\n");
 		break;
 	case 1:
 		codec_mm_extpool_pool_alloc(
 			&mgt->tvp_pool,
 			mgt->tvp_pool.default_size, 0, 1);
 		mgt->tvp_enable = 1;
-		pr_err("enable tvp for 1080p\n");
+		pr_info("enable tvp for 1080p\n");
 		break;
 	case 2:
 		codec_mm_extpool_pool_alloc(
 			&mgt->tvp_pool,
 			mgt->tvp_pool.default_4k_size, 0, 1);
 		mgt->tvp_enable = 2;
-		pr_err("enable tvp for 4k\n");
+		pr_info("enable tvp for 4k\n");
 		break;
 	default:
 		pr_err("unknow cmd! %d\n", val);
