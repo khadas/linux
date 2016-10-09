@@ -6528,6 +6528,7 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 static void config_fftffb_mode(struct di_buf_s *di_buf,
 	unsigned int *post_field_type, char fftffb_mode)
 {
+	unsigned char tmp_canvas_idx = 0;
 	switch (fftffb_mode) {
 	case 1:
 		*post_field_type =
@@ -6571,6 +6572,13 @@ static void config_fftffb_mode(struct di_buf_s *di_buf,
 		di_post_stru.di_mtnprd_mif.canvas_num =
 		di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		break;
+	}
+	if (is_meson_txl_cpu() && overturn) {
+		/* swap if1&if2 mean negation of mv */
+		tmp_canvas_idx = di_post_stru.di_buf1_mif.canvas0_addr0;
+		di_post_stru.di_buf1_mif.canvas0_addr0 =
+			di_post_stru.di_buf2_mif.canvas0_addr0;
+		di_post_stru.di_buf2_mif.canvas0_addr0 = tmp_canvas_idx;
 	}
 
 }
