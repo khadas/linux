@@ -275,6 +275,7 @@ struct dma_features {
 #define BUF_SIZE_8KiB 8192
 #define BUF_SIZE_4KiB 4096
 #define BUF_SIZE_2KiB 2048
+#define	DEFAULT_BUFSIZE	1536
 
 /* Power Down and WOL */
 #define PMT_NOT_SUPPORTED 0
