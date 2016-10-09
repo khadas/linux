@@ -245,6 +245,7 @@ static long wifi_power_ioctl(struct file *filp,
 }
 
 static const struct file_operations wifi_power_fops = {
+	.unlocked_ioctl = wifi_power_ioctl,
 	.compat_ioctl = wifi_power_ioctl,
 	.open	= wifi_power_open,
 	.release	= wifi_power_release,
