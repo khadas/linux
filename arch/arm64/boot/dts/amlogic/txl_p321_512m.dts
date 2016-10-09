@@ -990,7 +990,8 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-pcm-dai";
 		pinctrl-names = "aml_audio_btpcm";
-		pinctrl-0 = <&audio_btpcm_pins>;
+		/* disable pcm pin mux temporary, enable it if necessary */
+		/*pinctrl-0 = <&audio_btpcm_pins>;*/
 		clocks = <&clock CLK_MPLL0>,
 			<&clock CLK_PCM_MCLK>,
 			<&clock CLK_PCM_SCLK>;
