@@ -115,6 +115,10 @@ MODULE_PARM_DESC(force_pes_sf, "\n\t\t force sf mode for pes filter");
 static int force_pes_sf;
 module_param(force_pes_sf, int, 0644);
 
+MODULE_PARM_DESC(use_of_sop, "\n\t\t Enable use of sop input");
+static int use_of_sop;
+module_param(use_of_sop, int, 0644);
+
 #define DMX_READ_REG(i, r)\
 	((i)?((i == 1)?READ_MPEG_REG(r##_2) :\
 	READ_MPEG_REG(r##_3)) : READ_MPEG_REG(r))
@@ -2008,9 +2012,13 @@ static int dmx_enable(struct aml_dmx *dmx)
 	int set_stb = 0, fec_s = 0;
 	int s2p_id;
 	u32 invert0 = 0, invert1 = 0, fec_s0 = 0, fec_s1 = 0;
+	u32 use_sop = 0;
 
 	record = dmx_get_record_flag(dmx);
-
+	if (use_of_sop == 1) {
+		use_sop = 1;
+		pr_dbg("dmx use of sop input\r\n");
+	}
 	switch (dmx->source) {
 	case AM_TS_SRC_TS0:
 		fec_sel = 0;
@@ -2190,7 +2198,7 @@ static int dmx_enable(struct aml_dmx *dmx)
 			      (1 << ENABLE_FREE_CLK_FEC_DATA_VALID) |
 			      (1 << ENABLE_FREE_CLK_STB_REG) |
 			      (1 << STB_DEMUX_ENABLE) |
-			      (1 << NOT_USE_OF_SOP_INPUT));
+			      (use_sop << NOT_USE_OF_SOP_INPUT));
 	} else {
 		DMX_WRITE_REG(dmx->id, STB_INT_MASK, 0);
 		DMX_WRITE_REG(dmx->id, FEC_INPUT_CONTROL, 0);
