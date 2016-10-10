@@ -1368,11 +1368,10 @@ static int aml_dvb_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		int s2p_id = 0;
-
+		char buf[32];
+		const char *str;
+		u32 value;
 		for (i = 0; i < TS_IN_COUNT; i++) {
-			char buf[32];
-			const char *str;
-			u32 value;
 
 			advb->ts[i].mode = AM_TS_DISABLE;
 			advb->ts[i].s2p_id = -1;
@@ -1438,6 +1437,14 @@ static int aml_dvb_probe(struct platform_device *pdev)
 					    value;
 				}
 			}
+		}
+		snprintf(buf, sizeof(buf), "ts_out_invert");
+		ret =
+			of_property_read_u32(pdev->dev.of_node, buf,
+				&value);
+		if (!ret) {
+				pr_inf("%s: 0x%x\n", buf, value);
+				advb->ts_out_invert = value;
 		}
 	}
 #endif

@@ -1181,7 +1181,65 @@
 			};
 		};
 	};
+	/* dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		ts1 = "serial";
+		ts1_control = <0x800>;
+		ts1_invert = <0>;
+		ts_out_invert = <0>;
+		pinctrl-names = "p_ts1", "s_ts1";
+		pinctrl-0 = <&dvb_p_ts1_pins>;
+		pinctrl-1 = <&dvb_s_ts1_pins>;
+		resets = <&clock GCLK_IDX_DEMUX
+				&clock GCLK_IDX_ASYNC_FIFO
+				&clock GCLK_IDX_AHB_ARB0
+				&clock GCLK_IDX_HIU_PARSER_TOP>;
+		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	}; */
+	/* dvbfe {
+		compatible = "amlogic, dvbfe";
+		dev_name = "dvbfe";
+		dtv_demod0 = "Avl6211";
+		dtv_demod0_i2c_adap_id = <2>;
+		dtv_demod0_i2c_addr = <0xc6>;
+		dtv_demod0_reset_value = <0>;
+		dtv_demod0_reset_gpio = <&gpio GPIOZ_15 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts = <1>;
+		fe0_dev = <0>;
+	}; */
+
+	//dvbci {
+	//	compatible = "amlogic, dvbci";
+	//	dev_name = "dvbci";
+	//	io_type = <1>; /* 0=iobus,1=spi*/
+  //      interrupts = <	0 70 1 >;
+	//	dvbci_io {
+	//		reset_pin = <&gpio GPIODV_12 GPIO_ACTIVE_HIGH>;
+	//		cd_pin1 = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+	//		cd_pin2 = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+	//		pwr_pin  = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
+	//		irq_cam_pin = <&gpio GPIODV_28 GPIO_ACTIVE_HIGH>;
+	//		ex_tsin_en_pin = <&gpio GPIODV_25 GPIO_ACTIVE_HIGH>;
+	//		irq_cd1 = <6>;
+			/*below is spi config,*/
+		    /*if use iobus you need add iobus config below */
+	//		spi_bus_num = <0>;
+	//		spi_chip_select = <0>;
+	//		spi_max_frequency = <300000>; /* unit: hz */
+	//		spi_mode = <3>; /* mode: 0, 1, 2, 3 */
+	//		spi_cs_delay = <10 100>; /* hold_high_delay, clk_cs_delay (unit: us) */
+	//		spi_write_check = <0>; /* 0=disable, 1=enable */
+	//	};
+	//};
 };
+/*&i2c_a {
+  status = "disabled";
+};*/
+/*&i2c_b {
+  status = "okay";
+};*/
 
 &pinmux {
 	audio_pins:audio_pin{

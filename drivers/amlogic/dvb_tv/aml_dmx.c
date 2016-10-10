@@ -1314,7 +1314,7 @@ static void stb_enable(struct aml_dvb *dvb)
 	int src, tso_src, i;
 	u32 fec_s0, fec_s1;
 	u32 invert0, invert1;
-
+	u32 data;
 	switch (dvb->stb_source) {
 	case AM_TS_SRC_DMX0:
 		src = dvb->dmx[0].source;
@@ -1455,7 +1455,14 @@ static void stb_enable(struct aml_dvb *dvb)
 
 	if (dvb->reset_flag)
 		hiu = 0;
-
+	/* invert ts out clk,add ci model need add this*/
+	if (dvb->ts_out_invert) {
+		/*printk("ts out invert ---\r\n");*/
+		data = READ_MPEG_REG(TS_TOP_CONFIG);
+		data |= 1 << TS_OUT_CLK_INVERT;
+		WRITE_MPEG_REG(TS_TOP_CONFIG, data);
+	}
+	/* invert ts out clk  end */
 	WRITE_MPEG_REG(TS_FILE_CONFIG,
 		       (demux_skipbyte << 16) |
 		       (6 << DES_OUT_DLY) |
