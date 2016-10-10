@@ -407,7 +407,7 @@
 	dvbfe {
 		compatible = "amlogic, dvbfe";
 		dev_name = "dvbfe";
-		status = "okay";
+		status = "disable";
 		dtv_demod0 = "AMLDEMOD";
 		fe0_dtv_demod = <0>;
 		fe0_ts = <2>;
