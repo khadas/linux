@@ -165,27 +165,56 @@ static uint cur_hdr_support;
 module_param(cur_hdr_support, uint, 0664);
 MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
 
-#define MAX_KNEE_SETTING	11
+#define MAX_KNEE_SETTING	35
 /* recommended setting for 100 nits panel: */
 /* 0,16,96,224,320,544,720,864,1000,1016,1023 */
 /* knee factor = 256 */
 static int num_knee_setting = MAX_KNEE_SETTING;
 static int knee_setting[MAX_KNEE_SETTING] = {
 	/* 0, 16, 96, 224, 320, 544, 720, 864, 1000, 1016, 1023 */
-	0, 16, 96, 204, 320, 512, 720, 864, 980, 1016, 1023
+	0, 16, 36, 59, 71, 96,
+	120, 145, 170, 204, 230, 258,
+	288, 320, 355, 390, 428, 470,
+	512, 554, 598, 650, 720, 758,
+	790, 832, 864, 894, 920, 945,
+	968, 980, 1000, 1016, 1023
 };
 
 static int num_knee_linear_setting = MAX_KNEE_SETTING;
 static int knee_linear_setting[MAX_KNEE_SETTING] = {
 	0x000,
 	0x010,
+	0x02f,
+	0x04e,
+	0x06d,
 	0x08c,
+	0x0ab,
+	0x0ca,
+	0x0e9,
 	0x108,
+	0x127,
+	0x146,
+	0x165,
 	0x184,
+	0x1a3,
+	0x1c2,
+	0x1e1,
 	0x200,
+	0x21f,
+	0x23e,
+	0x25d,
 	0x27c,
+	0x29b,
+	0x2ba,
+	0x2d9,
 	0x2f8,
+	0x317,
+	0x336,
+	0x355,
 	0x374,
+	0x393,
+	0x3b2,
+	0x3d1,
 	0x3f0,
 	0x3ff
 };
@@ -396,20 +425,20 @@ static void load_knee_lut(int on)
 							j, i, value);
 			}
 			for (i = 16; i < 272; i++) {
-				k = 1 + ((i - 16) >> 5);
+				k = 1 + ((i - 16) >> 3);
 				WRITE_VPP_REG(XVYCC_LUT_R_ADDR_PORT + 2 * j, i);
 				if (knee_interpolation_mode == 0)
 					value = final_knee_setting[k]
 						+ (((final_knee_setting[k+1]
 						- final_knee_setting[k])
-						* ((i - 16) & 0x1f)) >> 5);
+						* ((i - 16) & 0x7)) >> 3);
 				else
 					value = cubic_interpolation(
 						final_knee_setting[k-1],
 						final_knee_setting[k],
 						final_knee_setting[k+1],
 						final_knee_setting[k+2],
-						((i - 16) & 0x1f) << 1);
+						((i - 16) & 0x7) << 3);
 				value = clip(value, 0, 0x3ff);
 				WRITE_VPP_REG(XVYCC_LUT_R_DATA_PORT + 2 * j,
 						value);
