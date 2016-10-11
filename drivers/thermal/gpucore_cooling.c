@@ -216,7 +216,7 @@ static int gpucore_notify_state(struct thermal_cooling_device *cdev,
 
 	switch (type) {
 	case THERMAL_TRIP_HOT:
-		if (tz->enter_hot) {
+		if (tz->hot_step < 0xffff && tz->hot_step > 0) {
 			for (i = 0; i < tz->trips; i++) {
 				ins = get_thermal_instance(tz, cdev, i);
 				if (ins && ins->upper > upper)
@@ -229,7 +229,9 @@ static int gpucore_notify_state(struct thermal_cooling_device *cdev,
 				cur_state = upper;
 			cdev->ops->set_cur_state(cdev, cur_state);
 		} else {
-			cur_state = 0;
+			cdev->ops->get_cur_state(cdev, &cur_state);
+			if (cur_state > 0)
+				cur_state--;
 			cdev->ops->set_cur_state(cdev, cur_state);
 		}
 		break;
