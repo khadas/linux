@@ -58,6 +58,15 @@ config GE2D_KEEP_FRAME
 menu "Video Decoders"
 	depends on AM_VIDEO
 
+config MULTI_DEC
+	boolean "Support multi-instance decoding"
+	default n
+
+config AM_VDEC_DV
+	boolean "Support Dolby Vision decoding"
+	select MULTI_DEC
+	default n
+
 config AM_VDEC_MPEG12
 	tristate "Amlogic MPEG1/2 Video Decoder"
 	default y
@@ -81,6 +90,7 @@ config AM_VDEC_MPEG4
 
 config AM_VDEC_MMPEG4
 	tristate "Amlogic MMPEG4 Video Decoder"
+	select MULTI_DEC
 	default n
 	---help---
 	  Driver for Mmpeg4 video decoder.
@@ -115,6 +125,7 @@ config AM_VDEC_MH264
 	tristate "Amlogic MH264 Video Decoder"
 	default n
 	select AM_PTSSERVER
+	select MULTI_DEC
 	---help---
 	  Driver for Mh264 video decoder.
 	  need write more details...
@@ -174,6 +185,18 @@ config AM_VDEC_MJPEG
 	default y
 
 	select AM_PTSSERVER
+	---help---
+	  Driver for motion jpeg video decoder.
+	  need write more details...
+	  write need more.....
+	  need more...
+	  more...
+
+config AM_VDEC_MMJPEG
+	tristate "Amlogic MMJPEG Video Decoder"
+	default n
+	select AM_PTSSERVER
+	select MULTI_DEC
 	---help---
 	  Driver for motion jpeg video decoder.
 	  need write more details...
