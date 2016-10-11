@@ -37,6 +37,9 @@
 
 #include "vdec_reg.h"
 #include "vdec.h"
+#ifdef CONFIG_MULTI_DEC
+#include "vdec_profile.h"
+#endif
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt_env.h>
@@ -68,6 +71,7 @@ static int inited_vcodec_num;
 static int poweron_clock_level;
 static int keep_vdec_mem;
 static unsigned int debug_trace_num = 16 * 20;
+static int step_mode;
 static unsigned int clk_config;
 
 static struct page *vdec_cma_page;
@@ -108,6 +112,7 @@ struct vdec_core_s {
 	struct task_struct *thread;
 
 	struct vdec_isr_context_s isr_context[VDEC_IRQ_MAX];
+	int power_ref_count[VDEC_MAX];
 };
 
 static struct vdec_core_s *vdec_core;
@@ -171,8 +176,15 @@ int vdec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 
 int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 {
-	if (vdec->set_trickmode)
-		return vdec->set_trickmode(vdec, trickmode);
+	int r;
+
+	if (vdec->set_trickmode) {
+		r = vdec->set_trickmode(vdec, trickmode);
+
+		if ((r == 0) && (vdec->slave) && (vdec->slave->set_trickmode))
+			r = vdec->slave->set_trickmode(vdec->slave,
+				trickmode);
+	}
 
 	return -1;
 }
@@ -222,7 +234,7 @@ static const char * const vdec_device_name[] = {
 	"amvdec_h265",       "ammvdec_h265",
 	"amvenc_avc",        "amvenc_avc",
 	"jpegenc",           "jpegenc",
-	"amvdec_vp9",        "amvdec_vp9"
+	"amvdec_vp9",        "ammvdec_vp9"
 };
 
 static int vdec_default_buf_size[] = {
@@ -301,9 +313,16 @@ int vdec_set_decinfo(struct vdec_s *vdec, struct dec_sysinfo *p)
 }
 
 /* construct vdec strcture */
-struct vdec_s *vdec_create(int type)
+struct vdec_s *vdec_create(struct stream_port_s *port,
+			struct vdec_s *master)
 {
 	struct vdec_s *vdec;
+	int type = VDEC_TYPE_SINGLE;
+
+	if (port->type & PORT_TYPE_DECODER_SCHED)
+		type = (port->type & PORT_TYPE_FRAME) ?
+			VDEC_TYPE_FRAME_BLOCK :
+			VDEC_TYPE_STREAM_PARSER;
 
 	vdec = kzalloc(sizeof(struct vdec_s), GFP_KERNEL);
 
@@ -312,6 +331,7 @@ struct vdec_s *vdec_create(int type)
 		vdec->magic = 0x43454456;
 		vdec->id = 0;
 		vdec->type = type;
+		vdec->port = port;
 		vdec->sys_info = &vdec->sys_info_store;
 
 		INIT_LIST_HEAD(&vdec->list);
@@ -319,6 +339,12 @@ struct vdec_s *vdec_create(int type)
 		vdec_input_init(&vdec->input, vdec);
 
 		atomic_inc(&vdec_core->vdec_nr);
+
+		if (master) {
+			vdec->master = master;
+			master->slave = vdec;
+			master->sched = 1;
+		}
 	}
 
 	pr_info("vdec_create instance %p, total %d\n", vdec,
@@ -330,6 +356,10 @@ struct vdec_s *vdec_create(int type)
 int vdec_set_format(struct vdec_s *vdec, int format)
 {
 	vdec->format = format;
+
+	if (vdec->slave)
+		vdec->slave->format = format;
+
 	return 0;
 }
 
@@ -355,6 +385,12 @@ void vdec_set_status(struct vdec_s *vdec, int status)
 void vdec_set_next_status(struct vdec_s *vdec, int status)
 {
 	vdec->next_status = status;
+}
+
+int vdec_set_video_path(struct vdec_s *vdec, int video_path)
+{
+	vdec->frame_base_video_path = video_path;
+	return 0;
 }
 
 /* add frame data to input chain */
@@ -388,12 +424,31 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 		dummy = READ_MPEG_REG(RESET0_REGISTER);
 		WRITE_VREG(POWER_CTL_VLD, 1 << 4);
 	} else if (input->target == VDEC_INPUT_TARGET_HEVC) {
-		WRITE_VREG(HEVC_STREAM_CONTROL, 0);
+#if 0
+		/*move to driver*/
+		if (input_frame_based(input))
+			WRITE_VREG(HEVC_STREAM_CONTROL, 0);
 
+		/*
+		 * 2: assist
+		 * 3: parser
+		 * 4: parser_state
+		 * 8: dblk
+		 * 11:mcpu
+		 * 12:ccpu
+		 * 13:ddr
+		 * 14:iqit
+		 * 15:ipp
+		 * 17:qdct
+		 * 18:mpred
+		 * 19:sao
+		 * 24:hevc_afifo
+		 */
 		WRITE_VREG(DOS_SW_RESET3,
 			(1<<3)|(1<<4)|(1<<8)|(1<<11)|(1<<12)|(1<<14)|(1<<15)|
 			(1<<17)|(1<<18)|(1<<19));
 		WRITE_VREG(DOS_SW_RESET3, 0);
+#endif
 	}
 
 	/* setup HW decoder input buffer (VLD context)
@@ -450,6 +505,9 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 				dummy -= block->size;
 			WRITE_VREG(HEVC_STREAM_WR_PTR,
 				round_down(block->start + dummy, FIFO_ALIGN));
+
+			/* set endian */
+			SET_VREG_MASK(HEVC_STREAM_CONTROL, 7 << 4);
 		}
 
 		*p = chunk;
@@ -489,6 +547,8 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 
 				wp = READ_VREG(VLD_MEM_VIFIFO_WP);
 			} else if (input->target == VDEC_INPUT_TARGET_HEVC) {
+				SET_VREG_MASK(HEVC_STREAM_CONTROL, 1);
+
 				/* restore read side */
 				WRITE_VREG(HEVC_STREAM_SWAP_ADDR,
 					page_to_phys(input->swap_page));
@@ -586,7 +646,24 @@ void vdec_enable_input(struct vdec_s *vdec)
 		SET_VREG_MASK(VLD_MEM_VIFIFO_CONTROL, (1<<2) | (1<<1));
 	else if (input->target == VDEC_INPUT_TARGET_HEVC) {
 		SET_VREG_MASK(HEVC_STREAM_CONTROL, 1);
+		if (vdec_stream_based(vdec))
+			CLEAR_VREG_MASK(HEVC_STREAM_CONTROL, 7 << 4);
+		else
+			SET_VREG_MASK(HEVC_STREAM_CONTROL, 7 << 4);
 		SET_VREG_MASK(HEVC_STREAM_FIFO_CTL, (1<<29));
+	}
+}
+
+void vdec_set_flag(struct vdec_s *vdec, u32 flag)
+{
+	vdec->flag = flag;
+}
+
+void vdec_set_next_sched(struct vdec_s *vdec, struct vdec_s *next_vdec)
+{
+	if (vdec && next_vdec) {
+		vdec->sched = 0;
+		next_vdec->sched = 1;
 	}
 }
 
@@ -596,7 +673,13 @@ void vdec_vframe_dirty(struct vdec_s *vdec, struct vframe_chunk_s *chunk)
 		chunk->flag |= VFRAME_CHUNK_FLAG_CONSUMED;
 
 	if (vdec_stream_based(vdec)) {
-		vdec->input.swap_needed = true;
+		if (vdec->slave &&
+			((vdec->slave->flag &
+			VDEC_FLAG_INPUT_KEEP_CONTEXT) == 0)) {
+			vdec->input.swap_needed = false;
+		} else
+			vdec->input.swap_needed = true;
+
 		if (vdec->input.target == VDEC_INPUT_TARGET_VLD) {
 			WRITE_MPEG_REG(PARSER_VIDEO_RP,
 				READ_VREG(VLD_MEM_VIFIFO_RP));
@@ -615,10 +698,12 @@ void vdec_save_input_context(struct vdec_s *vdec)
 {
 	struct vdec_input_s *input = &vdec->input;
 
+#ifdef CONFIG_MULTI_DEC
+	vdec_profile(vdec, VDEC_PROFILE_EVENT_SAVE_INPUT);
+#endif
+
 	if (input->target == VDEC_INPUT_TARGET_VLD)
 		WRITE_VREG(VLD_MEM_VIFIFO_CONTROL, 1<<15);
-	else if (input->target == VDEC_INPUT_TARGET_HEVC)
-		WRITE_VREG(HEVC_STREAM_CONTROL, 0);
 
 	if (input_stream_based(input) && (input->swap_needed)) {
 		if (input->target == VDEC_INPUT_TARGET_VLD) {
@@ -645,7 +730,12 @@ void vdec_save_input_context(struct vdec_s *vdec)
 
 		input->swap_valid = true;
 
-		WRITE_MPEG_REG(PARSER_VIDEO_RP, READ_VREG(VLD_MEM_VIFIFO_RP));
+		if (input->target == VDEC_INPUT_TARGET_VLD)
+			WRITE_MPEG_REG(PARSER_VIDEO_RP,
+				READ_VREG(VLD_MEM_VIFIFO_RP));
+		else
+			WRITE_MPEG_REG(PARSER_VIDEO_RP,
+				READ_VREG(HEVC_STREAM_RD_PTR));
 	}
 }
 
@@ -664,7 +754,7 @@ void vdec_clean_input(struct vdec_s *vdec)
 	vdec_save_input_context(vdec);
 }
 
-static const char *vdec_status_str(struct vdec_s *vdec)
+const char *vdec_status_str(struct vdec_s *vdec)
 {
 	switch (vdec->status) {
 	case VDEC_STATUS_UNINITIALIZED:
@@ -680,7 +770,7 @@ static const char *vdec_status_str(struct vdec_s *vdec)
 	}
 }
 
-static const char *vdec_type_str(struct vdec_s *vdec)
+const char *vdec_type_str(struct vdec_s *vdec)
 {
 	switch (vdec->type) {
 	case VDEC_TYPE_SINGLE:
@@ -694,6 +784,11 @@ static const char *vdec_type_str(struct vdec_s *vdec)
 	default:
 		return "VDEC_TYPE_INVALID";
 	}
+}
+
+const char *vdec_device_name_str(struct vdec_s *vdec)
+{
+	return vdec_device_name[vdec->format * 2 + 1];
 }
 
 void walk_vdec_core_list(char *s)
@@ -718,7 +813,9 @@ void walk_vdec_core_list(char *s)
 	vdec_core_unlock(vdec_core, flags);
 }
 
-/* insert vdec to vdec_core for scheduling */
+/* insert vdec to vdec_core for scheduling,
+ * for dual running decoders, connect/disconnect always runs in pairs
+ */
 int vdec_connect(struct vdec_s *vdec)
 {
 	unsigned long flags;
@@ -731,9 +828,21 @@ int vdec_connect(struct vdec_s *vdec)
 
 	init_completion(&vdec->inactive_done);
 
+	if (vdec->slave) {
+		vdec_set_status(vdec->slave, VDEC_STATUS_CONNECTED);
+		vdec_set_next_status(vdec->slave, VDEC_STATUS_CONNECTED);
+
+		init_completion(&vdec->slave->inactive_done);
+	}
+
 	flags = vdec_core_lock(vdec_core);
 
 	list_add_tail(&vdec->list, &vdec_core->connected_vdec_list);
+
+	if (vdec->slave) {
+		list_add_tail(&vdec->slave->list,
+			&vdec_core->connected_vdec_list);
+	}
 
 	vdec_core_unlock(vdec_core, flags);
 
@@ -745,6 +854,10 @@ int vdec_connect(struct vdec_s *vdec)
 /* remove vdec from vdec_core scheduling */
 int vdec_disconnect(struct vdec_s *vdec)
 {
+#ifdef CONFIG_MULTI_DEC
+	vdec_profile(vdec, VDEC_PROFILE_EVENT_DISCONNECT);
+#endif
+
 	if ((vdec->status != VDEC_STATUS_CONNECTED) &&
 		(vdec->status != VDEC_STATUS_ACTIVE)) {
 		return 0;
@@ -755,9 +868,19 @@ int vdec_disconnect(struct vdec_s *vdec)
 	 */
 	vdec_set_next_status(vdec, VDEC_STATUS_DISCONNECTED);
 
+	if (vdec->slave)
+		vdec_set_next_status(vdec->slave, VDEC_STATUS_DISCONNECTED);
+	else if (vdec->master)
+		vdec_set_next_status(vdec->master, VDEC_STATUS_DISCONNECTED);
+
 	up(&vdec_core->sem);
 
 	wait_for_completion(&vdec->inactive_done);
+
+	if (vdec->slave)
+		wait_for_completion(&vdec->slave->inactive_done);
+	else if (vdec->master)
+		wait_for_completion(&vdec->master->inactive_done);
 
 	return 0;
 }
@@ -765,7 +888,12 @@ int vdec_disconnect(struct vdec_s *vdec)
 /* release vdec structure */
 int vdec_destroy(struct vdec_s *vdec)
 {
-	vdec_input_release(&vdec->input);
+	if (!vdec->master)
+		vdec_input_release(&vdec->input);
+
+#ifdef CONFIG_MULTI_DEC
+	vdec_profile_flush(vdec);
+#endif
 
 	kfree(vdec);
 
@@ -810,8 +938,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		is_4k = 0;
 	}
 
-	dev_name = get_dev_name((vdec->type == VDEC_TYPE_SINGLE),
-			vdec->format);
+	dev_name = get_dev_name(vdec_single(vdec), vdec->format);
 
 	if (dev_name == NULL)
 		return -ENODEV;
@@ -822,7 +949,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 	/* todo: VFM patch control should be configurable,
 	 * for now all stream based input uses default VFM path.
 	 */
-	if (vdec_stream_based(vdec)) {
+	if (vdec_stream_based(vdec) && !vdec_dual(vdec)) {
 		if (vdec_core->vfm_vdec == NULL) {
 			pr_info("vdec_init set vfm decoder %p\n", vdec);
 			vdec_core->vfm_vdec = vdec;
@@ -832,8 +959,9 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		}
 	}
 
-	if (vdec->format == VFORMAT_H264_4K2K ||
-		(vdec->format == VFORMAT_HEVC && is_4k)) {
+	if (vdec_single(vdec) &&
+		((vdec->format == VFORMAT_H264_4K2K) ||
+		(vdec->format == VFORMAT_HEVC && is_4k))) {
 		try_free_keep_video(0);
 	}
 
@@ -841,9 +969,10 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		current vformat require larger buffer size than current
 		buf size, reallocated it
 	*/
-	if (vdec_core->mem_start != vdec_core->mem_end &&
+	if (vdec_single(vdec) &&
+		((vdec_core->mem_start != vdec_core->mem_end &&
 			vdec_core->mem_end - vdec_core->mem_start + 1 <
-			vdec_default_buf_size[vdec->format] * SZ_1M) {
+			vdec_default_buf_size[vdec->format] * SZ_1M))) {
 #ifdef CONFIG_MULTI_DEC
 		pr_info("current vdec size %ld, vformat %d need size %d\n",
 			vdec_core->mem_end - vdec_core->mem_start,
@@ -872,9 +1001,10 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 	p->cma_dev = vdec_core->cma_dev;
 	p->get_canvas = get_canvas;
 	/* todo */
-	p->use_vfm_path = vdec_stream_based(vdec);
+	if (!vdec_dual(vdec))
+		p->use_vfm_path = vdec_stream_based(vdec);
 
-	if (p->use_vfm_path) {
+	if (vdec_single(vdec)) {
 		pr_info("vdec_dev_reg.mem[0x%lx -- 0x%lx]\n",
 			vdec_core->mem_start,
 			vdec_core->mem_end);
@@ -883,18 +1013,13 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 	}
 
 	/* allocate base memory for decoder instance */
-	while (p->mem_start == p->mem_end) {
+	while ((p->mem_start == p->mem_end) && (vdec_single(vdec))) {
 		int alloc_size;
 
 #ifdef CONFIG_MULTI_DEC
-		if (p->use_vfm_path)
-			alloc_size =
-				vdec_default_buf_size[vdec->format * 2]
-				* SZ_1M;
-		else
-			alloc_size =
-				vdec_default_buf_size[vdec->format * 2 + 1]
-				* SZ_1M;
+		alloc_size =
+			vdec_default_buf_size[vdec->format * 2 + 1]
+			* SZ_1M;
 #else
 		alloc_size = vdec_default_buf_size[vdec->format] * SZ_1M;
 #endif
@@ -994,7 +1119,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		break;/*alloc end*/
 	}
 
-	if (p->use_vfm_path) {
+	if (vdec_single(vdec)) {
 		vdec_core->mem_start = p->mem_start;
 		vdec_core->mem_end = p->mem_end;
 		vdec_mem_alloced_from_codec = 1;
@@ -1035,7 +1160,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 
 	if (p->use_vfm_path) {
 		vdec->vf_receiver_inst = -1;
-	} else {
+	} else if (!vdec_dual(vdec)) {
 		/* create IONVIDEO instance and connect decoder's
 		 * vf_provider interface to it
 		 */
@@ -1049,39 +1174,59 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 
 			goto error;
 		}
+		if (p->frame_base_video_path == FRAME_BASE_PATH_IONVIDEO) {
 #if 1
-		r = ionvideo_alloc_map(&vdec->vf_receiver_name,
-				&vdec->vf_receiver_inst);
+			r = ionvideo_alloc_map(&vdec->vf_receiver_name,
+					&vdec->vf_receiver_inst);
 #else
-		/*
-		 * temporarily just use decoder instance ID as iondriver ID
-		 * to solve OMX iondriver instance number check time sequence
-		 * only the limitation is we can NOT mix different video
-		 * decoders since same ID will be used for different decoder
-		 * formats.
-		 */
-		vdec->vf_receiver_inst = p->dev->id;
-		r = ionvideo_assign_map(&vdec->vf_receiver_name,
-				&vdec->vf_receiver_inst);
+			/*
+			 * temporarily just use decoder instance ID as iondriver
+			 * ID to solve OMX iondriver instance number check time
+			 * sequence only the limitation is we can NOT mix
+			 * different video decoders since same ID will be used
+			 * for differentdecoder formats.
+			 */
+			vdec->vf_receiver_inst = p->dev->id;
+			r = ionvideo_assign_map(&vdec->vf_receiver_name,
+					&vdec->vf_receiver_inst);
 #endif
-		if (r < 0) {
-			pr_err("IonVideo frame receiver allocation failed.\n");
+			if (r < 0) {
+				pr_err("IonVideo frame receiver allocation failed.\n");
 
-			mutex_lock(&vdec_mutex);
-			inited_vcodec_num--;
-			mutex_unlock(&vdec_mutex);
+				mutex_lock(&vdec_mutex);
+				inited_vcodec_num--;
+				mutex_unlock(&vdec_mutex);
 
-			goto error;
+				goto error;
+			}
+
+			snprintf(vdec->vfm_map_chain, VDEC_MAP_NAME_SIZE,
+				"%s %s", vdec->vf_provider_name,
+				vdec->vf_receiver_name);
+			snprintf(vdec->vfm_map_id, VDEC_MAP_NAME_SIZE,
+				"%s-%s", vdec->vf_provider_name,
+				vdec->vf_receiver_name);
+
+		} else if (p->frame_base_video_path ==
+				FRAME_BASE_PATH_AMLVIDEO_AMVIDEO) {
+			snprintf(vdec->vfm_map_chain, VDEC_MAP_NAME_SIZE,
+				"%s %s", vdec->vf_provider_name,
+				"amlvideo.0 amvideo");
+			snprintf(vdec->vfm_map_id, VDEC_MAP_NAME_SIZE,
+				"%s-%s", vdec->vf_provider_name,
+				"amlvideo.0 amvideo");
+		} else if (p->frame_base_video_path ==
+				FRAME_BASE_PATH_AMLVIDEO1_AMVIDEO2) {
+			snprintf(vdec->vfm_map_chain, VDEC_MAP_NAME_SIZE,
+				"%s %s", vdec->vf_provider_name,
+				"ppmgr amlvideo.1 amvide2");
+			snprintf(vdec->vfm_map_id, VDEC_MAP_NAME_SIZE,
+				"%s-%s", vdec->vf_provider_name,
+				"ppmgr amlvideo.1 amvide2");
 		}
 
-		snprintf(vdec->vfm_map_chain, VDEC_MAP_NAME_SIZE,
-			"%s %s", vdec->vf_provider_name,
-			vdec->vf_receiver_name);
-		snprintf(vdec->vfm_map_id, VDEC_MAP_NAME_SIZE,
-			"%s-%s", vdec->vf_provider_name,
-			vdec->vf_receiver_name);
-
-		if (vfm_map_add(vdec->vfm_map_id, vdec->vfm_map_chain) < 0) {
+		if (vfm_map_add(vdec->vfm_map_id,
+					vdec->vfm_map_chain) < 0) {
 			r = -ENOMEM;
 			pr_err("Decoder pipeline map creation failed %s.\n",
 				vdec->vfm_map_id);
@@ -1109,10 +1254,9 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		 *       the iondriver receiver's op uses iondev device as
 		 *       op_arg
 		 */
-
 	}
 
-	if (vdec->type != VDEC_TYPE_SINGLE) {
+	if (!vdec_single(vdec)) {
 		vf_reg_provider(&p->vframe_provider);
 
 		vf_notify_receiver(p->vf_provider_name,
@@ -1131,6 +1275,8 @@ error:
 	return r;
 }
 
+/* vdec_create/init/release/destroy are applied to both dual running decoders
+ */
 void vdec_release(struct vdec_s *vdec)
 {
 	vdec_disconnect(vdec);
@@ -1180,6 +1326,8 @@ void vdec_release(struct vdec_s *vdec)
 	mutex_unlock(&vdec_mutex);
 }
 
+/* For dual running decoders, vdec_reset is only called with master vdec.
+ */
 int vdec_reset(struct vdec_s *vdec)
 {
 	vdec_disconnect(vdec);
@@ -1187,14 +1335,26 @@ int vdec_reset(struct vdec_s *vdec)
 	if (vdec->vframe_provider.name)
 		vf_unreg_provider(&vdec->vframe_provider);
 
-	if (vdec->reset)
+	if ((vdec->slave) && (vdec->slave->vframe_provider.name))
+		vf_unreg_provider(&vdec->slave->vframe_provider);
+
+	if (vdec->reset) {
 		vdec->reset(vdec);
+		if (vdec->slave)
+			vdec->slave->reset(vdec->slave);
+	}
 
 	vdec_input_release(&vdec->input);
 
 	vf_reg_provider(&vdec->vframe_provider);
 	vf_notify_receiver(vdec->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_START, vdec);
+
+	if (vdec->slave) {
+		vf_reg_provider(&vdec->slave->vframe_provider);
+		vf_notify_receiver(vdec->slave->vf_provider_name,
+			VFRAME_EVENT_PROVIDER_START, vdec->slave);
+	}
 
 	vdec_connect(vdec);
 
@@ -1248,6 +1408,10 @@ static struct vdec_s *active_vdec(struct vdec_core_s *core)
 static void vdec_callback(struct vdec_s *vdec, void *data)
 {
 	struct vdec_core_s *core = (struct vdec_core_s *)data;
+
+#ifdef CONFIG_MULTI_DEC
+	vdec_profile(vdec, VDEC_PROFILE_EVENT_CB);
+#endif
 
 	up(&core->sem);
 }
@@ -1306,13 +1470,37 @@ static irqreturn_t vdec_thread_isr(int irq, void *dev_id)
 
 static inline bool vdec_ready_to_run(struct vdec_s *vdec)
 {
+	bool r;
+
 	if (vdec->status != VDEC_STATUS_CONNECTED)
 		return false;
 
 	if (!vdec->run_ready)
 		return false;
 
-	return vdec->run_ready(vdec);
+	if ((vdec->slave || vdec->master) &&
+		(vdec->sched == 0))
+		return false;
+
+	if (step_mode) {
+		if ((step_mode & 0xff) != vdec->id)
+			return false;
+	}
+
+	step_mode &= ~0xff;
+
+#ifdef CONFIG_MULTI_DEC
+	vdec_profile(vdec, VDEC_PROFILE_EVENT_CHK_RUN_READY);
+#endif
+
+	r = vdec->run_ready(vdec);
+
+#ifdef CONFIG_MULTI_DEC
+	if (r)
+		vdec_profile(vdec, VDEC_PROFILE_EVENT_RUN_READY);
+#endif
+
+	return r;
 }
 
 /* struct vdec_core_shread manages all decoder instance in active list. When
@@ -1436,6 +1624,9 @@ static int vdec_core_thread(void *data)
 
 			/* activatate the decoder instance to run */
 			core->active_vdec = vdec;
+#ifdef CONFIG_MULTI_DEC
+			vdec_profile(vdec, VDEC_PROFILE_EVENT_RUN);
+#endif
 			vdec->run(vdec, vdec_callback, core);
 		}
 
@@ -1523,7 +1714,16 @@ void vdec_poweron(enum vdec_type_e core)
 	u32 decomp_addr_aligned = 0;
 	int hevc_loop = 0;
 
+	if (core >= VDEC_MAX)
+		return;
+
 	mutex_lock(&vdec_mutex);
+
+	vdec_core->power_ref_count[core]++;
+	if (vdec_core->power_ref_count[core] > 1) {
+		mutex_unlock(&vdec_mutex);
+		return;
+	}
 
 	if (vdec_on(core)) {
 		mutex_unlock(&vdec_mutex);
@@ -1691,7 +1891,17 @@ void vdec_poweron(enum vdec_type_e core)
 
 void vdec_poweroff(enum vdec_type_e core)
 {
+	if (core >= VDEC_MAX)
+		return;
+
 	mutex_lock(&vdec_mutex);
+
+	vdec_core->power_ref_count[core]--;
+	if (vdec_core->power_ref_count[core] > 0) {
+		mutex_unlock(&vdec_mutex);
+		return;
+	}
+
 	if (core == VDEC_1) {
 		if (get_cpu_type() >=
 			MESON_CPU_MAJOR_ID_GXBB) {
@@ -2382,9 +2592,10 @@ static ssize_t core_show(struct class *class, struct class_attribute *attr,
 		struct vdec_s *vdec;
 		list_for_each_entry(vdec, &core->connected_vdec_list, list) {
 			pbuf += sprintf(pbuf,
-				"\tvdec (%p (%s)), status = %s\n",
+				"\tvdec (%p (%s)), status = %s,\ttype = %s\n",
 				vdec, vdec_device_name[vdec->format * 2],
-				vdec_status_str(vdec));
+				vdec_status_str(vdec),
+				vdec_type_str(vdec));
 		}
 	}
 
@@ -2593,6 +2804,7 @@ RESERVEDMEM_OF_DECLARE(vdec, "amlogic, vdec-memory", vdec_mem_setup);
 module_param(debug_trace_num, uint, 0664);
 module_param(hevc_max_reset_count, int, 0664);
 module_param(clk_config, uint, 0664);
+module_param(step_mode, int, 0664);
 
 module_init(vdec_module_init);
 module_exit(vdec_module_exit);

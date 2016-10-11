@@ -9,6 +9,8 @@
 #include "h264_dpb.h"
 
 /* #define OLD_OUTPUT_CODE */
+#undef pr_info
+#define pr_info printk
 int dpb_print(int index, int debug_flag, const char *fmt, ...)
 {
 	if (((h264_debug_flag & debug_flag) &&
@@ -5174,6 +5176,11 @@ int h264_slice_header_process(struct h264_dpb_stru *p_H264_Dpb)
 				p_H264_Dpb->mVideo.dec_picture);
 #if 1
 			/* rain */
+			p_H264_Dpb->mVideo.dec_picture->offset_delimiter_lo  =
+			p_H264_Dpb->dpb_param.l.data[OFFSET_DELIMITER_LO];
+			p_H264_Dpb->mVideo.dec_picture->offset_delimiter_hi  =
+			p_H264_Dpb->dpb_param.l.data[OFFSET_DELIMITER_HI];
+
 			p_H264_Dpb->mVideo.dec_picture->buf_spec_num  = -1;
 			p_H264_Dpb->mVideo.dec_picture->
 				colocated_buf_index = -1;

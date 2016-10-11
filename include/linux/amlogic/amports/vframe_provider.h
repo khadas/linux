@@ -37,6 +37,17 @@ struct vframe_states {
 #define VFRAME_EVENT_RECEIVER_PARAM_SET	0x10
 #define VFRAME_EVENT_RECEIVER_RESET				0x20
 #define VFRAME_EVENT_RECEIVER_FORCE_UNREG			0x40
+#define VFRAME_EVENT_RECEIVER_GET_AUX_DATA			0x80
+
+	/* for VFRAME_EVENT_RECEIVER_GET_AUX_DATA*/
+struct provider_aux_req_s {
+	/*input*/
+	struct vframe_s *vf;
+	unsigned char bot_flag;
+	/*output*/
+	char *aux_buf;
+	int aux_size;
+};
 
 struct vframe_operations_s {
 	struct vframe_s * (*peek)(void *op_arg);
@@ -66,6 +77,8 @@ extern int vf_reg_provider(struct vframe_provider_s *prov);
 extern void vf_unreg_provider(struct vframe_provider_s *prov);
 extern int vf_notify_provider(const char *receiver_name, int event_type,
 			      void *data);
+extern int vf_notify_provider_by_name(const char *provider_name,
+				int event_type, void *data);
 
 void vf_light_unreg_provider(struct vframe_provider_s *prov);
 void vf_ext_light_unreg_provider(struct vframe_provider_s *prov);

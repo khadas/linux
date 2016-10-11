@@ -30,13 +30,14 @@ struct amvdec_dec_reg_s {
 	struct dec_sysinfo *dec_sysinfo;
 };				/*amvdec_dec_reg_t */
 
+struct vdec_s;
 
 extern void amvdec_start(void);
 extern void amvdec_stop(void);
 extern void amvdec_enable(void);
 extern void amvdec_disable(void);
 s32 amvdec_loadmc_ex(enum vformat_e type, const char *name, char *def);
-
+s32 amvdec_vdec_loadmc_ex(struct vdec_s *vdec, const char *name);
 
 extern void amvdec2_start(void);
 extern void amvdec2_stop(void);
@@ -51,7 +52,7 @@ extern void amhevc_stop(void);
 extern void amhevc_enable(void);
 extern void amhevc_disable(void);
 s32 amhevc_loadmc_ex(enum vformat_e type, const char *name, char *def);
-
+s32 amhevc_vdec_loadmc_ex(struct vdec_s *vdec, const char *name);
 
 
 extern void amhcodec_start(void);

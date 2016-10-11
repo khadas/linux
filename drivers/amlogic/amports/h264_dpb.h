@@ -16,11 +16,12 @@
 #define PRINT_FLAG_TIME_STAMP         0x0080
 #define PRINT_FLAG_RUN_SCHEDULE       0x0100
 #define PRINT_FLAG_DEBUG_POC          0x0200
-#define OUTPUT_CURRENT_BUF            0x10000
-#define ONLY_RESET_AT_START           0x20000
-#define LOAD_UCODE_ALWAYS             0x40000
-#define FORCE_NO_SLICE                0x80000
-#define REINIT_DPB_TEST               0x100000
+#define DISABLE_ERROR_HANDLE          0x10000
+#define OUTPUT_CURRENT_BUF            0x20000
+#define ONLY_RESET_AT_START           0x40000
+#define LOAD_UCODE_ALWAYS             0x80000
+#define FORCE_NO_SLICE                0x100000
+#define REINIT_DPB_TEST               0x200000
 
 
 #define MVC_EXTENSION_ENABLE 0
@@ -69,6 +70,9 @@ union param {
 #define PTS_ZERO_0		0X18
 #define PTS_ZERO_1		0X19
 #define FIXED_FRAME_RATE_FLAG                   0X1A
+
+#define OFFSET_DELIMITER_LO                     0x2f
+#define OFFSET_DELIMITER_HI                     0x30
 
 
 #define SLICE_IPONLY_BREAK						0X5C
@@ -611,6 +615,9 @@ struct StorablePicture {
 	char listXsize[MAX_NUM_SLICES][2];
 	struct StorablePicture **listX[MAX_NUM_SLICES][2];
 	int         layer_id;
+
+	int offset_delimiter_lo;
+	int offset_delimiter_hi;
 
 	u32         pts;
 	u64         pts64;

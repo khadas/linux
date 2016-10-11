@@ -522,44 +522,43 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 	}
 
 	/* hook stream buffer with PARSER */
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if (has_hevc_vdec() && is_hevc) {
 		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
 		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
 			vdec->input.size - 8);
 
-		if (vdec_stream_based(vdec)) {
+		if (vdec_single(vdec)) {
 			CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL,
 					ES_VID_MAN_RD_PTR);
 			/* set vififo_vbuf_rp_sel=>hevc */
 			WRITE_VREG(DOS_GEN_CTRL0, 3 << 1);
+
 			/* set use_parser_vbuf_wp */
 			SET_VREG_MASK(HEVC_STREAM_CONTROL,
-					  (1 << 3) | (0 << 4));
+				  (1 << 3) | (0 << 4));
 			/* set stream_fetch_enable */
 			SET_VREG_MASK(HEVC_STREAM_CONTROL, 1);
 			/* set stream_buffer_hole with 256 bytes */
 			SET_VREG_MASK(HEVC_STREAM_FIFO_CTL,
-					  (1 << 29));
+				  (1 << 29));
 		} else {
 			SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
 			WRITE_MPEG_REG(PARSER_VIDEO_WP, vdec->input.start);
 			WRITE_MPEG_REG(PARSER_VIDEO_RP, vdec->input.start);
 		}
-	} else
-		/* #endif */
-	{
+	} else {
 		WRITE_MPEG_REG(PARSER_VIDEO_START_PTR, vdec->input.start);
 		WRITE_MPEG_REG(PARSER_VIDEO_END_PTR, vdec->input.start +
 			vdec->input.size - 8);
 
-		if (vdec_stream_based(vdec)) {
+		if (vdec_single(vdec)) {
 			CLEAR_MPEG_REG_MASK(PARSER_ES_CONTROL,
 					ES_VID_MAN_RD_PTR);
 
 			WRITE_VREG(VLD_MEM_VIFIFO_BUF_CNTL, MEM_BUFCTRL_INIT);
 			CLEAR_VREG_MASK(VLD_MEM_VIFIFO_BUF_CNTL,
-					MEM_BUFCTRL_INIT);
+				MEM_BUFCTRL_INIT);
+
 			/* set vififo_vbuf_rp_sel=>vdec */
 			if (has_hevc_vdec())
 				WRITE_VREG(DOS_GEN_CTRL0, 0);
@@ -689,6 +688,13 @@ void tsdemux_release(void)
 	WRITE_MPEG_REG(PARSER_INT_ENABLE, 0);
 	WRITE_MPEG_REG(PARSER_VIDEO_HOLE, 0);
 	WRITE_MPEG_REG(PARSER_AUDIO_HOLE, 0);
+
+#ifdef CONFIG_MULTI_DEC
+	SET_MPEG_REG_MASK(PARSER_ES_CONTROL, ES_VID_MAN_RD_PTR);
+	WRITE_MPEG_REG(PARSER_VIDEO_WP, 0);
+	WRITE_MPEG_REG(PARSER_VIDEO_RP, 0);
+#endif
+
 	/*TODO irq */
 
 	vdec_free_irq(PARSER_IRQ, (void *)tsdemux_fetch_id);

@@ -271,7 +271,7 @@ static int vmjpeg_vf_states(struct vframe_states *states, void *op_arg)
 	return 0;
 }
 
-int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+static int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
 {
 	struct vdec_mjpeg_hw_s *hw = (struct vdec_mjpeg_hw_s *)vdec->private;
 	vstatus->width = hw->frame_width;
@@ -564,7 +564,7 @@ static void run(struct vdec_s *vdec,
 
 	hw->dec_result = DEC_RESULT_NONE;
 
-	if (amvdec_loadmc_ex(VFORMAT_MJPEG, "vmmjpeg_mc", NULL) < 0) {
+	if (amvdec_vdec_loadmc_ex(vdec, "vmmjpeg_mc") < 0) {
 		pr_err("%s: Error amvdec_loadmc fail\n", __func__);
 		return;
 	}

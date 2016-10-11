@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/amports/vvp9.h
+ * drivers/amlogic/amports/config_parser.c
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -14,12 +14,8 @@
  * more details.
  *
 */
+#ifndef CONFIG_PARSER_HHH_
+#define CONFIG_PARSER_HHH_
+int get_config_int(const char *configs, const char *need, int *val);
 
-#ifndef VVP9_H
-#define VVP9_H
-#ifndef CONFIG_MULTI_DEC
-#define VP9_10B_MMU
-#endif
-void adapt_coef_probs(int pic_count, int prev_kf, int cur_kf, int pre_fc,
-unsigned int *prev_prob, unsigned int *cur_prob, unsigned int *count);
-#endif
+#endif/*CONFIG_PARSER_HHH_*/

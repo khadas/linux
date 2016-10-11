@@ -1097,8 +1097,8 @@ static void run(struct vdec_s *vdec, void (*callback)(struct vdec_s *, void *),
 	if (hw->vmpeg4_amstream_dec_info.format ==
 		VIDEO_DEC_FORMAT_MPEG4_3) {
 		pr_info("load VIDEO_DEC_FORMAT_MPEG4_3\n");
-		if (amvdec_loadmc_ex(VFORMAT_MPEG4,
-					"vmmpeg4_mc_311", NULL) < 0) {
+		if (amvdec_vdec_loadmc_ex(vdec,
+					"vmmpeg4_mc_311") < 0) {
 			pr_err("VIDEO_DEC_FORMAT_MPEG4_3 ucode loading failed\n");
 			hw->dec_result = DEC_RESULT_ERROR;
 			schedule_work(&hw->work);
@@ -1107,8 +1107,8 @@ static void run(struct vdec_s *vdec, void (*callback)(struct vdec_s *, void *),
 	} else if (hw->vmpeg4_amstream_dec_info.format ==
 			VIDEO_DEC_FORMAT_MPEG4_4) {
 		pr_info("load VIDEO_DEC_FORMAT_MPEG4_4\n");
-		if (amvdec_loadmc_ex(VFORMAT_MPEG4,
-					"vmmpeg4_mc_4", NULL) < 0) {
+		if (amvdec_vdec_loadmc_ex(vdec,
+					"vmmpeg4_mc_4") < 0) {
 			hw->dec_result = DEC_RESULT_ERROR;
 			schedule_work(&hw->work);
 			pr_err("VIDEO_DEC_FORMAT_MPEG4_4 ucode loading failed\n");
@@ -1117,8 +1117,8 @@ static void run(struct vdec_s *vdec, void (*callback)(struct vdec_s *, void *),
 	} else if (hw->vmpeg4_amstream_dec_info.format ==
 			VIDEO_DEC_FORMAT_MPEG4_5) {
 		/* pr_info("load VIDEO_DEC_FORMAT_MPEG4_5\n"); */
-		if (amvdec_loadmc_ex(VFORMAT_MPEG4,
-					"vmmpeg4_mc_5", NULL) < 0) {
+		if (amvdec_vdec_loadmc_ex(vdec,
+					"vmmpeg4_mc_5") < 0) {
 			hw->dec_result = DEC_RESULT_ERROR;
 			schedule_work(&hw->work);
 			pr_err("VIDEO_DEC_FORMAT_MPEG4_5 ucode loading failed\n");
@@ -1127,8 +1127,8 @@ static void run(struct vdec_s *vdec, void (*callback)(struct vdec_s *, void *),
 	} else if (hw->vmpeg4_amstream_dec_info.format ==
 			VIDEO_DEC_FORMAT_H263) {
 		pr_info("load VIDEO_DEC_FORMAT_H263\n");
-		if (amvdec_loadmc_ex(VFORMAT_MPEG4,
-					"mh263_mc", NULL) < 0) {
+		if (amvdec_vdec_loadmc_ex(vdec,
+					"mh263_mc") < 0) {
 			hw->dec_result = DEC_RESULT_ERROR;
 			schedule_work(&hw->work);
 			pr_err("VIDEO_DEC_FORMAT_H263 ucode loading failed\n");

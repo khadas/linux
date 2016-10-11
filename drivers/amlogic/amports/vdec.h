@@ -129,11 +129,16 @@ enum vformat_t;
 #define VDEC_RECEIVER_NAME_SIZE 16
 #define VDEC_MAP_NAME_SIZE      40
 
+#define VDEC_FLAG_INPUT_KEEP_CONTEXT 0x01
+
 struct vdec_s {
 	u32 magic;
 	struct list_head list;
 	int id;
 
+	struct vdec_s *master;
+	struct vdec_s *slave;
+	struct stream_port_s *port;
 	int status;
 	int next_status;
 	int type;
@@ -142,6 +147,8 @@ struct vdec_s {
 	u32 pts;
 	u64 pts64;
 	bool pts_valid;
+	int flag;
+	int sched;
 
 	struct completion inactive_done;
 
@@ -157,6 +164,10 @@ struct vdec_s {
 	/* input */
 	struct vdec_input_s input;
 
+	/* mc cache */
+	u32 mc[4096 * 4];
+	bool mc_loaded;
+
 	/* frame provider/receiver interface */
 	char vf_provider_name[VDEC_PROVIDER_NAME_SIZE];
 	struct vframe_provider_s vframe_provider;
@@ -164,7 +175,10 @@ struct vdec_s {
 	char vfm_map_id[VDEC_MAP_NAME_SIZE];
 	char vfm_map_chain[VDEC_MAP_NAME_SIZE];
 	int vf_receiver_inst;
+	enum FRAME_BASE_VIDEO_PATH frame_base_video_path;
 	bool use_vfm_path;
+	char config[PAGE_SIZE];
+	int config_len;
 
 	/* canvas */
 	int (*get_canvas)(unsigned int index, unsigned int base);
@@ -185,6 +199,8 @@ struct vdec_s {
 
 /* common decoder vframe provider name to use default vfm path */
 #define VFM_DEC_PROVIDER_NAME "decoder"
+#define VFM_DEC_DVBL_PROVIDER_NAME "dvbldec"
+#define VFM_DEC_DVEL_PROVIDER_NAME "dveldec"
 
 #define hw_to_vdec(hw) ((struct vdec_s *) \
 	(platform_get_drvdata(hw->platform_dev)))
@@ -201,11 +217,14 @@ struct vdec_s {
 #define vdec_stream_based(vdec) \
 	(((vdec)->type == VDEC_TYPE_STREAM_PARSER) || \
 	 ((vdec)->type == VDEC_TYPE_SINGLE))
-#define vdec_stream_auto(vdec) \
-	(vdec->type == VDEC_TYPE_SINGLE)
+#define vdec_single(vdec) \
+	((vdec)->type == VDEC_TYPE_SINGLE)
+#define vdec_dual(vdec) \
+	((vdec)->port->type & PORT_TYPE_DUALDEC)
 
 /* construct vdec strcture */
-extern struct vdec_s *vdec_create(int type);
+extern struct vdec_s *vdec_create(struct stream_port_s *port,
+				struct vdec_s *master);
 
 /* set video format */
 extern int vdec_set_format(struct vdec_s *vdec, int format);
@@ -214,6 +233,9 @@ extern int vdec_set_format(struct vdec_s *vdec, int format);
 extern int vdec_set_pts(struct vdec_s *vdec, u32 pts);
 
 extern int vdec_set_pts64(struct vdec_s *vdec, u64 pts64);
+
+/* set vfm map when use frame base decoder */
+extern int vdec_set_video_path(struct vdec_s *vdec, int video_path);
 
 /* add frame data to input chain */
 extern int vdec_write_vframe(struct vdec_s *vdec, const char *buf,
@@ -265,5 +287,14 @@ extern int vdec_status(struct vdec_s *vdec, struct vdec_status *vstatus);
 
 extern int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode);
 
+extern void vdec_set_flag(struct vdec_s *vdec, u32 flag);
+
+extern void vdec_set_next_sched(struct vdec_s *vdec, struct vdec_s *next_vdec);
+
+extern const char *vdec_status_str(struct vdec_s *vdec);
+
+extern const char *vdec_type_str(struct vdec_s *vdec);
+
+extern const char *vdec_device_name_str(struct vdec_s *vdec);
 
 #endif				/* VDEC_H */

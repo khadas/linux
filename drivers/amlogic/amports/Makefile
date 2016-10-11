@@ -10,6 +10,12 @@ obj-$(CONFIG_AM_STREAMING) += amports.o
 
 AMPORTS_OBJS = amstream.o streambuf.o vdec.o adec.o tsdemux.o psparser.o esparser.o amvdec.o amstream_profile.o tsync_pcr.o amports_gate.o gp_pll.o thread_rw.o vdec_input.o
 
+ifeq ($(CONFIG_MULTI_DEC),y)
+AMPORTS_OBJS += vdec_profile.o
+endif
+
+AMPORTS_OBJS += config_parser.o
+
 amports-objs := $(AMPORTS_OBJS)
 amports-y    := $(AMPORTS_OBJS)
 
@@ -61,6 +67,10 @@ amvdec_vp9-y    := vvp9.o
 obj-$(CONFIG_AM_VDEC_MJPEG) += amvdec_mjpeg.o
 amvdec_mjpeg-objs := vmjpeg.o
 amvdec_mjpeg-y    := vmjpeg.o
+
+obj-$(CONFIG_AM_VDEC_MMJPEG) += amvdec_mmjpeg.o
+amvdec_mmjpeg-objs := vmmjpeg.o
+amvdec_mmjpeg-y    := vmmjpeg.o
 
 obj-$(CONFIG_AM_VDEC_REAL) += amvdec_real.o
 amvdec_real-objs := vreal.o rmparser.o

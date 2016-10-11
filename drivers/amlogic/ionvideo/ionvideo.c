@@ -1248,7 +1248,7 @@ void ionvideo_release_map(int inst)
 
 	list_for_each(p, &ionvideo_devlist) {
 		dev = list_entry(p, struct ionvideo_dev, ionvideo_devlist);
-		if ((dev->inst >= 0) && (dev->mapped)) {
+		if ((dev->inst == inst) && (dev->mapped)) {
 			dev->mapped = false;
 			pr_info("ionvideo_release_map %d OK\n", dev->inst);
 			break;

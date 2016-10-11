@@ -282,7 +282,11 @@ static void vfm_init(void)
 {
 #if (defined CONFIG_POST_PROCESS_MANAGER) && (defined CONFIG_DEINTERLACE)
 	char def_id[] = "default";
+#ifndef CONFIG_MULTI_DEC
 	char def_name_chain[] = "decoder ppmgr deinterlace amvideo";
+#else
+	char def_name_chain[] = "decoder amvideo";
+#endif
 #elif (defined CONFIG_POST_PROCESS_MANAGER)
 	char def_id[] = "default";
 	char def_name_chain[] = "decoder ppmgr amvideo";
@@ -338,6 +342,15 @@ static void vfm_init(void)
 #endif
 #endif				/*
 				 */
+#ifdef CONFIG_AM_VDEC_DV
+	char def_dvbl_id[] = "dvblpath";
+/*	char def_dvbl_chain[] = "dvbldec dvbl amvideo";*/
+	char def_dvbl_chain[] = "dvbldec amvideo";
+
+	char def_dvel_id[] = "dvelpath";
+	char def_dvel_chain[] = "dveldec dvel";
+#endif
+
 	int i;
 	for (i = 0; i < VFM_MAP_COUNT; i++)
 		vfm_map[i] = NULL;
@@ -360,6 +373,10 @@ static void vfm_init(void)
 	vfm_map_add(def_amlvideo2_id, def_amlvideo2_chain);
 #endif				/*
 				 */
+#ifdef CONFIG_AM_VDEC_DV
+	vfm_map_add(def_dvbl_id, def_dvbl_chain);
+	vfm_map_add(def_dvel_id, def_dvel_chain);
+#endif
 }
 
 /*
@@ -477,7 +494,11 @@ static ssize_t vfm_map_store(struct class *class,
 	int i = 0;
 	int cmd = 0;
 	char *id = NULL;
+#ifdef CONFIG_MULTI_DEC
+	if (1)
+#else
 	if (vfm_debug_flag & 0x10000)
+#endif
 		return count;
 	pr_err("%s:%s\n", __func__, buf);
 	buf_orig = kstrdup(buf, GFP_KERNEL);
