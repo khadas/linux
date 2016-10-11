@@ -63,7 +63,6 @@ static int video_stated_changed = 1;
 static void amvdec_pg_enable(bool enable)
 {
 	ulong timeout;
-
 	if (enable) {
 		AMVDEC_CLK_GATE_ON(MDEC_CLK_PIC_DC);
 		AMVDEC_CLK_GATE_ON(MDEC_CLK_DBLK);
@@ -566,6 +565,7 @@ void amhcodec_start(void)
 
 void amhevc_start(void)
 {
+
 	if (has_hevc_vdec()) {
 #ifdef CONFIG_WAKELOCK
 		amvdec_wake_lock();
@@ -744,6 +744,22 @@ int amvdec_resume(struct platform_device *dev)
 
 	return 0;
 }
+
+int amhevc_suspend(struct platform_device *dev, pm_message_t event)
+{
+	if (has_hevc_vdec())
+		amhevc_pg_enable(false);
+	return 0;
+}
+
+int amhevc_resume(struct platform_device *dev)
+{
+	if (has_hevc_vdec())
+		amhevc_pg_enable(true);
+	return 0;
+}
+
+
 #endif
 
 #ifdef CONFIG_WAKELOCK

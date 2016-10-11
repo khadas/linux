@@ -7567,8 +7567,8 @@ static struct platform_driver amvdec_h265_driver = {
 	.probe = amvdec_h265_probe,
 	.remove = amvdec_h265_remove,
 #ifdef CONFIG_PM
-	.suspend = amvdec_suspend,
-	.resume = amvdec_resume,
+	.suspend = amhevc_suspend,
+	.resume = amhevc_resume,
 #endif
 	.driver = {
 		.name = DRIVER_NAME,
