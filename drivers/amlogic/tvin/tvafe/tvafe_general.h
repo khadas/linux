@@ -215,8 +215,10 @@ extern void tvafe_enable_avout(enum tvin_port_e port, bool enable);
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
 */
 void vdac_enable(bool on, unsigned int module_sel);
+extern void adc_set_pll_reset(void);
 
 extern struct mutex pll_mutex;
+extern bool tvafe_dbg_enable;
 
 #endif  /* _TVAFE_GENERAL_H */
 

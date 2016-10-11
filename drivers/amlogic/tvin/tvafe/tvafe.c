@@ -76,7 +76,7 @@ static int vga_yuv422_enable;
 module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
 
-static bool tvafe_dbg_enable;
+bool tvafe_dbg_enable;
 module_param(tvafe_dbg_enable, bool, 0644);
 MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 
@@ -2273,8 +2273,9 @@ static int tvafe_drv_suspend(struct platform_device *pdev,
 		tvafe_enable_avout(tvafe->parm.port, false);
 	}
 
-    /*disable and reset tvafe clock*/
+	/*disable and reset tvafe clock*/
 	tvafe_enable_module(false);
+	adc_set_pll_reset();
 
 	pr_info("tvafe: suspend module\n");
 
@@ -2287,6 +2288,7 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 	tdevp = platform_get_drvdata(pdev);
 
 	/*disable and reset tvafe clock*/
+	adc_set_pll_reset();
 	tvafe_enable_module(true);
 	pr_info("tvafe: resume module\n");
 	return 0;
@@ -2319,6 +2321,7 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 	/*tvafe_enable_module(false);
 
 	pr_info("tvafe: shutdown module\n");*/
+	adc_set_pll_reset();
 
 	return;
 }

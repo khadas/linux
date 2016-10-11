@@ -1,6 +1,7 @@
 /******************************Includes************************************/
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 /*#include <mach/am_regs.h>*/
 
 /*#include <mach/am_regs.h>*/
@@ -4093,73 +4094,90 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 
 void adc_set_pll_cntl(bool on, unsigned int module_sel)
 {
+	unsigned int adc_pll_lock_cnt = 0;
 	mutex_lock(&pll_mutex);
 	if (!on) {
 		adc_pll_chg &= ~module_sel;
-		/* pr_info("\n%s: init flag on:%d,module:0x%x,flag:0x%x...\n",
-			__func__, on, module_sel, adc_pll_chg); */
+		if (tvafe_dbg_enable)
+			pr_info("\n%s: init flag on:%d,module:0x%x,flag:0x%x\n",
+				__func__, on, module_sel, adc_pll_chg);
 		mutex_unlock(&pll_mutex);
 		return;
 	}
-
 	switch (module_sel) {
 	case ADC_EN_ATV_DEMOD: /* atv demod */
 		if (adc_pll_chg & ADC_EN_TVAFE)
 			break;
-		if (is_meson_txl_cpu()) {
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
-			W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-			/*0x5ba00380 from pll;0x5ba00384 clk
-			form crystal*/
-			W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
-			W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-			W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-		} else {
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
-			W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
-			W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
-			/* TVFE reset */
-			W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
-		}
+		do {
+			if (is_meson_txl_cpu()) {
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
+				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
+				/*0x5ba00380 from pll;0x5ba00384 clk
+				form crystal*/
+				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
+				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
+				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+			} else {
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
+				W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
+				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+				/* TVFE reset */
+				W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
+			}
+			udelay(100);
+			adc_pll_lock_cnt++;
+		} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1) &&
+			(adc_pll_lock_cnt < 10));
 		adc_pll_chg |= ADC_EN_ATV_DEMOD;
-		/* pr_info("\n%s: on:%d,module:0x%x,flag:0x%x...\n", __func__,
-			on, module_sel, adc_pll_chg); */
+		if (adc_pll_lock_cnt == 10)
+			pr_info("%s: adc pll lock fail!!!\n", __func__);
+		if (tvafe_dbg_enable)
+			pr_info("\n%s: on:%d,module:0x%x,flag:0x%x...\n",
+				__func__, on, module_sel, adc_pll_chg);
 		break;
 	case ADC_EN_TVAFE: /* tvafe */
 		if (adc_pll_chg & ADC_EN_ATV_DEMOD)
 			break;
-		if (is_meson_txl_cpu()) {
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
-			W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-			/*0x5ba00380 from pll;0x5ba00384 clk
-			form crystal*/
-			W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
-			W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-			W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-		} else {
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-			W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
-			W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
-			W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
-			/* TVFE reset */
-			W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
-		}
+		do {
+			if (is_meson_txl_cpu()) {
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
+				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
+				/*0x5ba00380 from pll;0x5ba00384 clk
+				form crystal*/
+				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
+				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
+				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+			} else {
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
+				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
+				W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
+				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
+				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+				/* TVFE reset */
+				W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
+			}
+			udelay(100);
+			adc_pll_lock_cnt++;
+		} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1) &&
+			(adc_pll_lock_cnt < 10));
 		adc_pll_chg |= ADC_EN_TVAFE;
-		/* pr_info("\n%s: on:%d,module:0x%x,flag:0x%x...\n", __func__,
-			on, module_sel, adc_pll_chg); */
+		if (adc_pll_lock_cnt == 10)
+			pr_info("%s: adc pll lock fail!!!\n", __func__);
+		if (tvafe_dbg_enable)
+			pr_info("\n%s: on:%d,module:0x%x,flag:0x%x...\n",
+				__func__, on, module_sel, adc_pll_chg);
 		break;
 	default:
 		pr_err("%s:module: 0x%x wrong module index !! ",
@@ -4169,6 +4187,11 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 	mutex_unlock(&pll_mutex);
 }
 EXPORT_SYMBOL(adc_set_pll_cntl);
+
+void adc_set_pll_reset(void)
+{
+	adc_pll_chg = 0;
+}
 
 /*
  * tvafe init the whole module
