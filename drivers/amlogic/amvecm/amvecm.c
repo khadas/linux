@@ -80,6 +80,7 @@ struct vpp_hist_param_s vpp_hist_param;
 static unsigned int pre_hist_height, pre_hist_width;
 static unsigned int pc_mode = 0xff;
 static unsigned int pc_mode_last = 0xff;
+static struct hdr_metadata_info_s vpp_hdr_metadata_s;
 
 void __iomem *amvecm_hiu_reg_base;/* = *ioremap(0xc883c000, 0x2000); */
 
@@ -846,6 +847,29 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 			VI_HIST_ON_BIN_63_BIT, VI_HIST_ON_BIN_63_WID);
 }
 
+static void ioctrl_get_hdr_metadata(struct vframe_s *vf)
+{
+	if (((vf->signal_type >> 16) & 0xff) == 9) {
+		if (vf->prop.master_display_colour.present_flag) {
+
+			memcpy(vpp_hdr_metadata_s.primaries,
+				vf->prop.master_display_colour.primaries,
+				sizeof(u32)*6);
+			memcpy(vpp_hdr_metadata_s.white_point,
+				vf->prop.master_display_colour.white_point,
+				sizeof(u32)*2);
+			vpp_hdr_metadata_s.luminance[0] =
+				vf->prop.master_display_colour.luminance[0];
+			vpp_hdr_metadata_s.luminance[1] =
+				vf->prop.master_display_colour.luminance[1];
+		} else
+			memset(vpp_hdr_metadata_s.primaries, 0,
+					10 * sizeof(unsigned int));
+	} else
+		memset(vpp_hdr_metadata_s.primaries, 0,
+				10 * sizeof(unsigned int));
+}
+
 
 void amvecm_video_latch(void)
 {
@@ -875,6 +899,8 @@ void amvecm_on_vs(struct vframe_s *vf)
 		amvecm_bricon_process(
 			vd1_brightness,
 			vd1_contrast + vd1_contrast_offset, vf);
+
+		ioctrl_get_hdr_metadata(vf);
 	} else
 		amvecm_matrix_process(NULL);
 
@@ -986,6 +1012,12 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 		else if (copy_to_user(argp, &vpp_hist_param,
 					sizeof(struct vpp_hist_param_s)))
+			ret = -EFAULT;
+		break;
+	case AMVECM_IOC_G_HDR_METADATA:
+		argp = (void __user *)arg;
+		if (copy_to_user(argp, &vpp_hdr_metadata_s,
+					sizeof(struct hdr_metadata_info_s)))
 			ret = -EFAULT;
 		break;
 	/**********************************************************************
@@ -1811,6 +1843,70 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 
 }
 
+static ssize_t set_hdr_289lut_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	int i;
+	for (i = 0; i < 289; i++) {
+		pr_info("0x%-8x\t", lut_289_mapping[i]);
+		if ((i + 1) % 8 == 0)
+			pr_info("\n");
+	}
+	return 0;
+}
+static ssize_t set_hdr_289lut_store(struct class *cls,
+			struct class_attribute *attr,
+			const char *buffer, size_t count)
+{
+	int n = 0;
+	char *buf_orig, *ps, *token;
+	char *parm[4];
+	unsigned short *Hdr289lut;
+	unsigned int gamma_count;
+	char gamma[4];
+	int i = 0;
+	long val;
+	char deliml[2] = " ";
+	char delim2[2] = "\n";
+	strcat(deliml, delim2);
+
+	Hdr289lut = kmalloc(289 * sizeof(unsigned short), GFP_KERNEL);
+
+	buf_orig = kstrdup(buffer, GFP_KERNEL);
+	ps = buf_orig;
+
+	while (1) {
+		token = strsep(&ps, deliml);
+		if (token == NULL)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+
+	memset(Hdr289lut, 0, 289 * sizeof(unsigned short));
+	gamma_count = (strlen(parm[0]) + 2) / 3;
+	if (gamma_count > 289)
+		gamma_count = 289;
+
+	for (i = 0; i < gamma_count; ++i) {
+		gamma[0] = parm[0][3 * i + 0];
+		gamma[1] = parm[0][3 * i + 1];
+		gamma[2] = parm[0][3 * i + 2];
+		gamma[3] = '\0';
+		if (kstrtol(gamma, 16, &val) < 0)
+			return -EINVAL;
+		Hdr289lut[i] = val;
+	}
+
+	for (i = 0; i < gamma_count; i++)
+		lut_289_mapping[i] = Hdr289lut[i];
+
+	kfree(buf_orig);
+	kfree(Hdr289lut);
+	return count;
+
+}
 
 static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
@@ -2433,6 +2529,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		set_gamma_pattern_show, set_gamma_pattern_store),
 	__ATTR(pc_mode, S_IRUGO | S_IWUSR,
 		amvecm_pc_mode_show, amvecm_pc_mode_store),
+	__ATTR(set_hdr_289lut, S_IRUGO | S_IWUSR,
+		set_hdr_289lut_show, set_hdr_289lut_store),
 	__ATTR_NULL
 };
 

@@ -4739,10 +4739,18 @@ void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
 	} else {
 		if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 			(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
-			(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
-			(vf->source_type == VFRAME_SOURCE_TYPE_HDMI))
+			(vf->source_type == VFRAME_SOURCE_TYPE_COMP))
 			vd1_brightness = bri_val;
-		else {
+		else if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
+			if ((((vf->signal_type >> 29) & 0x1) == 1) &&
+				(((vf->signal_type >> 16) & 0xff) == 9)) {
+					bri_val += ao0;
+					if (bri_val < -1024)
+						bri_val = -1024;
+					vd1_brightness = bri_val;
+			} else
+				vd1_brightness = bri_val;
+		} else {
 			bri_val += ao0;
 			if (bri_val < -1024)
 				bri_val = -1024;

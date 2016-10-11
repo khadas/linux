@@ -95,6 +95,11 @@ struct matrix_s {
 	u16 right_shift;
 };
 
+#define LUT_289_SIZE	289
+extern unsigned int lut_289_mapping[LUT_289_SIZE];
+extern int dnlp_en;
+/*extern int cm_en;*/
+
 extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
 

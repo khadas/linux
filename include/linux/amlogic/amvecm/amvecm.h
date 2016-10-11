@@ -72,6 +72,7 @@
 #define AMVECM_IOC_VE_DNLP_DIS  _IO(_VE_CM, 0x24)
 #define AMVECM_IOC_VE_NEW_DNLP  _IOW(_VE_CM, 0x25, struct ve_dnlp_table_s)
 #define AMVECM_IOC_G_HIST_BIN   _IOW(_VE_CM, 0x26, struct vpp_hist_param_s)
+#define AMVECM_IOC_G_HDR_METADATA _IOW(_VE_CM, 0x27, struct hdr_metadata_info_s)
 
 
 /* VPP.CM IOCTL command list */
@@ -153,6 +154,13 @@ extern signed int vd1_brightness, vd1_contrast;
 extern void amvecm_on_vs(struct vframe_s *vf);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
+
+/* master_display_info for display device */
+struct hdr_metadata_info_s {
+	u32 primaries[3][2];		/* normalized 50000 in G,B,R order */
+	u32 white_point[2];		/* normalized 50000 */
+	u32 luminance[2];		/* max/min lumin, normalized 10000 */
+};
 
 #endif /* AMVECM_H */
 
