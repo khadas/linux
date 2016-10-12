@@ -187,6 +187,11 @@ static int lcd_set_vframe_rate_hint(int duration)
 	struct lcd_vframe_match_s *vtable = lcd_vframe_match_table_1;
 	int fps, i, n;
 
+	if (lcd_drv->lcd_status == 0) {
+		LCDPR("%s: lcd is disabled, exit\n", __func__);
+		return 0;
+	}
+
 	info = lcd_drv->lcd_info;
 
 	fr_policy = lcd_drv->fr_auto_policy;
@@ -237,6 +242,11 @@ static int lcd_set_vframe_rate_end_hint(void)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vinfo_s *info;
+
+	if (lcd_drv->lcd_status == 0) {
+		LCDPR("%s: lcd is disabled, exit\n", __func__);
+		return 0;
+	}
 
 	if (lcd_debug_print_flag)
 		LCDPR("fr_auto_policy = %d\n", lcd_drv->fr_auto_policy);
