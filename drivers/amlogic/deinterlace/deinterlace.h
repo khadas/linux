@@ -468,6 +468,7 @@ struct di_dev_s {
 	dev_t			   devt;
 	struct cdev		   cdev; /* The cdev structure */
 	struct device	   *dev;
+	struct platform_device	*pdev;
 	struct task_struct *task;
 	unsigned char	   di_event;
 	unsigned int	   di_irq;
@@ -477,11 +478,15 @@ struct di_dev_s {
 	unsigned int	   buffer_size;
 	unsigned int	   buf_num_avail;
 	unsigned int	   hw_version;
-	int							rdma_handle;
+	int		rdma_handle;
 	/* is surpport nr10bit */
 	unsigned int	   nr10bit_surpport;
 	/* is DI surpport post wr to mem for OMX */
 	unsigned int       post_wr_surpport;
+	unsigned int	   flag_cma;
+	unsigned int	   cma_alloc[10];
+	unsigned int	   buffer_addr[10];
+	struct page	*pages[10];
 };
 #define di_dev_t struct di_dev_s
 

@@ -50,7 +50,7 @@
 			size = <0x0 0x2000000>;
 			no-map;
 		};*/
-
+		/*di reserved mem*/
 		di_reserved:linux,di {
 			compatible = "amlogic, di-mem";
 			/* buffer_size = 3621952(yuv422 8bit) | 4736064(yuv422 10bit) | 4179008(yuv422 10bit full pack mode) */
@@ -60,6 +60,17 @@
 			size = <0x0 0x2e00000>;
 			//no-map;
 		};
+		/*di CMA pool */
+		//di_cma_reserved:linux,di_cma {
+			//compatible = "shared-dma-pool";
+			//reusable;
+			/* buffer_size = 3621952(yuv422 8bit) | 4736064(yuv422 10bit) | 4179008(yuv422 10bit full pack mode) */
+			/** 10x3621952=34.6M(0x23) support 8bit **/
+			/** 10x4736064=45.2M(0x2e) support 12bit **/
+			/** 10x4179008=40M(0x28) support 10bit **/
+			//size = <0x0 0x03000000>;
+			//alignment = <0x0 0x400000>;
+		//};
 
 
 		ion_reserved:linux,ion-dev {
