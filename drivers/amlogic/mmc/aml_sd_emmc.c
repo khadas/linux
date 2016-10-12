@@ -801,8 +801,10 @@ tunning:
 	}
 	if (best_win_size <= 0) {
 		if ((tuning_num++ > MAX_TUNING_RETRY)
-			|| (clkc->div <= 10)) {
+			|| (clkc->div >= 10)) {
 			kfree(blk_test);
+			pr_info("%s: final result of tuning failed\n",
+				 mmc_hostname(host->mmc));
 			return -1;
 		}
 		clkc->div += 1;
