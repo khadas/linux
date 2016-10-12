@@ -91,6 +91,7 @@
 #define PTS_MODE_SWITCHING_RECOVERY_THREASHOLD 3
 
 #define DUR2PTS(x) ((x)*90/96)
+#define HEVC_SIZE (4096*2304)
 
 struct hevc_state_s;
 static int hevc_print(struct hevc_state_s *hevc,
@@ -4166,6 +4167,15 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 #endif
 		}
 
+		if (HEVC_SIZE < hevc->pic_w * hevc->pic_h) {
+			pr_info("over size : %u x %u.\n",
+				hevc->pic_w, hevc->pic_h);
+			debug |= (H265_DEBUG_DIS_LOC_ERROR_PROC |
+				H265_DEBUG_DIS_SYS_ERROR_PROC);
+			hevc->fatal_error |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+			return -1;
+		}
+
 		/* it will cause divide 0 error */
 		if (hevc->pic_w == 0 || hevc->pic_h == 0) {
 			if (debug) {
@@ -6941,7 +6951,7 @@ static void vh265_prot_init(struct hevc_state_s *hevc)
 static int vh265_local_init(struct hevc_state_s *hevc)
 {
 	int i;
-	int ret;
+	int ret = -1;
 #ifdef DEBUG_PTS
 	hevc->pts_missed = 0;
 	hevc->pts_hit = 0;
@@ -6953,6 +6963,12 @@ static int vh265_local_init(struct hevc_state_s *hevc)
 	hevc->get_frame_dur = false;
 	hevc->frame_width = hevc->vh265_amstream_dec_info.width;
 	hevc->frame_height = hevc->vh265_amstream_dec_info.height;
+	if (HEVC_SIZE < hevc->frame_width * hevc->frame_height) {
+		pr_info("over size : %u x %u.\n",
+			hevc->frame_width, hevc->frame_height);
+		hevc->fatal_error |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+		return ret;
+	}
 	hevc->frame_dur =
 		(hevc->vh265_amstream_dec_info.rate ==
 		 0) ? 3600 : hevc->vh265_amstream_dec_info.rate;
