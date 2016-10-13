@@ -131,7 +131,6 @@ static void do_aml_restart(enum reboot_mode reboot_mode, const char *cmd)
 
 static void do_aml_poweroff(void)
 {
-	gpio_direction_output(poweroff_gpio, 1);
 	/* TODO: Add poweroff capability */
 	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
 	__invoke_psci_fn_smc(psci_function_id_poweroff,
