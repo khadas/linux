@@ -1358,6 +1358,7 @@ static ssize_t store_aud_output_chs(struct device *dev,
 	int tmp = -1;
 	int ret = 0;
 	unsigned long msk;
+	static unsigned int update_flag = -1;
 
 	if (isdigit(buf[0]))
 		tmp = buf[0] - '0';
@@ -1365,7 +1366,10 @@ static ssize_t store_aud_output_chs(struct device *dev,
 	if (!((tmp == 2) || (tmp == 4) || (tmp == 6) || (tmp == 8))) {
 		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
 		hdev->aud_output_ch = 0;
-		hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
+		if (update_flag != hdev->aud_output_ch) {
+			update_flag = hdev->aud_output_ch;
+			hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
+		}
 		return count;
 	}
 
@@ -1380,9 +1384,10 @@ static ssize_t store_aud_output_chs(struct device *dev,
 	}
 
 	hdev->aud_output_ch = (tmp << 4) + msk;
-
-	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
-
+	if (update_flag != hdev->aud_output_ch) {
+		update_flag = hdev->aud_output_ch;
+		hdmitx_set_audio(hdev, &(hdev->cur_audio_param), 0);
+	}
 	return count;
 }
 
