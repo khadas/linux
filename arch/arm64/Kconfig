@@ -103,7 +103,7 @@ config ARCH_MMAP_RND_BITS_MAX
        default 33 if ARM64_VA_BITS=48
        default 14 if ARM64_64K_PAGES
        default 16 if ARM64_16K_PAGES
-       default 18
+       default 24
 
 config ARCH_MMAP_RND_COMPAT_BITS_MIN
        default 7 if ARM64_64K_PAGES
