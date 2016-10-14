@@ -561,7 +561,7 @@ void lcd_vbyone_wait_stable(void)
 	int i = 5000;
 
 	while (((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) != 0x20) && (i > 0)) {
-		udelay(10);
+		udelay(50);
 		i--;
 	}
 	LCDPR("%s status: 0x%x, i=%d\n",
@@ -613,22 +613,22 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 		data32_1 |= (1 << 0);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, data32_1, 0, 9);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
-	LCDPR("vx1 interrupt status = 0x%04x\n", data32);
+	LCDPR("vx1 intr status = 0x%04x\n", data32);
 
 	if (data32 & 0x200) {
-		LCDPR("vx1 htpdn fall edge occurred\n");
+		LCDPR("vx1 htpdn fall occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
 #if 0
 	if (data32 & 0x400) {
-		LCDPR("vx1 htpdn raise edge occurred\n");
+		LCDPR("vx1 htpdn raise occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
 #endif
 	if (data32 & 0x800) {
-		LCDPR("vx1 lockn fall edge occurred\n");
+		LCDPR("vx1 lockn fall occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 		if (vx1_lockn_wait_cnt++ > VX1_LOCKN_WAIT_TIMEOUT) {
@@ -649,7 +649,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 	}
 #if 0
 	if (data32 & 0x1000) {
-		LCDPR("vx1 lockn raise edge occurred\n");
+		LCDPR("vx1 lockn raise occurred\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 	}
@@ -686,7 +686,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 	}
 
 	if (data32 & 0x1ff) {
-		LCDPR("vx1 sw reset\n");
+		LCDPR("vx1 sw reset for timing err\n");
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, data32_1, 0, 9);
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
@@ -707,6 +707,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 	if ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) == 0x20) {
 		vx1_lockn_wait_cnt = 0;
 		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
+		LCDPR("vx1 fsm stable\n");
 	}
 
 	/* enable interrupt */

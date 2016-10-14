@@ -111,6 +111,7 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 
 	lcd_vcbus_write(L_RGB_BASE_ADDR, 0);
 	lcd_vcbus_write(L_RGB_COEFF_ADDR, 0x400);
+	aml_lcd_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE, NULL);
 
 	if (pconf->lcd_basic.lcd_bits == 6)
 		lcd_vcbus_write(L_DITH_CNTL_ADDR,  0x600);
