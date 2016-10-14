@@ -49,6 +49,7 @@ struct wifi_plat_info {
 
 	int power_on_pin;
 	int power_on_pin_level;
+	int power_on_pin_OD;
 	int power_on_pin2;
 
 	int clock_32k_pin;
@@ -124,12 +125,29 @@ static struct wifi_plat_info *wifi_get_driver_data
 
 static int set_power(int value)
 {
-	if (wifi_info.power_on_pin_level)
-		return gpio_direction_output(wifi_info.power_on_pin,
-				!value);
-	else
-		return gpio_direction_output(wifi_info.power_on_pin,
-				value);
+	if (!wifi_info.power_on_pin_OD) {
+		if (wifi_info.power_on_pin_level)
+			return gpio_direction_output(wifi_info.power_on_pin,
+					!value);
+		else
+			return gpio_direction_output(wifi_info.power_on_pin,
+					value);
+	} else {
+		if (wifi_info.power_on_pin_level) {
+			if (value)
+				gpio_direction_input(wifi_info.power_on_pin);
+			else
+				gpio_direction_output(wifi_info.power_on_pin,
+					0);
+		} else {
+			if (value)
+				gpio_direction_output(wifi_info.power_on_pin,
+					0);
+			else
+				gpio_direction_input(wifi_info.power_on_pin);
+		}
+	}
+	return 0;
 }
 
 static int set_power2(int value)
@@ -419,6 +437,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 		if (ret) {
 			WIFI_INFO("no power_on_pin");
 			plat->power_on_pin = 0;
+			plat->power_on_pin_OD = 0;
 		} else {
 			wifi_power_gpio = 1;
 			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
@@ -430,6 +449,11 @@ static int wifi_dev_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(pdev->dev.of_node,
 		"power_on_pin_level", &plat->power_on_pin_level);
 
+		ret = of_property_read_u32(pdev->dev.of_node,
+		"power_on_pin_OD", &plat->power_on_pin_OD);
+		if (ret)
+			plat->power_on_pin_OD = 0;
+		pr_info("wifi: power_on_pin_OD = %d;\n", plat->power_on_pin_OD);
 		ret = of_property_read_string(pdev->dev.of_node,
 			"power_on_pin2", &value);
 		if (ret) {
