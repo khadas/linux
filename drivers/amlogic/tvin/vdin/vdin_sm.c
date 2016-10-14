@@ -498,7 +498,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 1;
 			}
 		}
-		hdmirx_color_fmt_handler(devp);
+		/* hdmirx_color_fmt_handler(devp); */
 #if 0
 			if (sm_ops->pll_lock(devp->frontend)) {
 				pll_lock = true;
@@ -567,6 +567,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				}
 			}
 			sm_p->state_cnt = 0;
+			hdmirx_color_fmt_handler(devp);
 		}
 		break;
 	}

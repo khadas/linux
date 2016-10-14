@@ -578,7 +578,7 @@ static int sm_pause;
 static int ddc_state_err_cnt;
 static int irq_video_mute_flag;
 static bool edid_addr_intr_flag;
-
+int skip_frame_num = 5;
 /***********************
   TVIN driver interface
 ************************/
@@ -1227,6 +1227,7 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 			hdcp22_capable_sts = HDCP22_AUTH_STATE_NOT_VALID;
 
 		if (get(intr_hdcp22, _BIT(2)) != 0) {
+			rx.change = skip_frame_num;
 			hdcp22_auth_lost = HDCP22_AUTH_STATE_VALID;
 			hdcp22_auth_pre_sts = 2;
 		}
@@ -3105,14 +3106,13 @@ void hdmirx_hw_monitor(void)
 			pll_stable_protect_cnt--;
 
 		if (hdmirx_tmds_pll_lock() == false) {
-			rx.change = 1;
+			rx.change = skip_frame_num;
 			if ((sig_lost_lock_cnt++ >= sig_lost_lock_max) &&
 				(pll_stable_protect_cnt == 0)) {
 				rx.state = FSM_WAIT_CLK_STABLE;
 				rx.pre_state = FSM_SIG_READY;
 				audio_sample_rate = 0;
-
-				hdmirx_set_video_mute(1);
+				/* hdmirx_set_video_mute(1); */
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				/* #ifdef HDCP22_ENABLE
@@ -3136,8 +3136,8 @@ void hdmirx_hw_monitor(void)
 				rx_pr("sig_lost_lock_cnt = %d",
 							 sig_lost_lock_cnt);
 		    sig_lost_lock_cnt = 0;
-			if (pll_stable_protect_cnt == 0)
-				rx.change = 0;
+			if (rx.change > 0)
+				rx.change--;
 		}
 
 	    hdmirx_get_video_info(&rx.ctrl, &rx.cur_params);
@@ -3151,7 +3151,7 @@ void hdmirx_hw_monitor(void)
 				&rx.cur_params)) ||
 			(is_packetinfo_change(&rx.pre_params,
 				&rx.cur_params))) {
-			rx.change = 1;
+			rx.change = skip_frame_num;
 			if (stable_protect_cnt != 0)
 				break;
 			if (++sig_unready_cnt >= sig_unready_max) {
@@ -3159,8 +3159,7 @@ void hdmirx_hw_monitor(void)
 				sig_unready_cnt = 0;
 				audio_sample_rate = 0;
 				unstable_protect_cnt = 0;
-				rx.change = 1;
-				hdmirx_set_video_mute(1);
+				/* hdmirx_set_video_mute(1); */
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				/* hdmirx_audio_fifo_rst(); */
@@ -3189,8 +3188,8 @@ void hdmirx_hw_monitor(void)
 				sig_unready_cnt = 0;
 			}
 
-			if (stable_protect_cnt == 0)
-				rx.change = 0;
+			if (rx.change > 0)
+				rx.change--;
 
 			if (irq_video_mute_flag) {
 				irq_video_mute_flag = false;
@@ -4677,7 +4676,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		if (0 == get_cur_hpd_sts())
 			rx.state = FSM_HPD_HIGH;
 		else
-			rx.state = FSM_SIG_UNSTABLE;
+			rx.state = FSM_SIG_STABLE;
 	}
 	rx_pr("%s %d nosignal:%d\n", __func__, rx.port, rx.no_signal);
 
