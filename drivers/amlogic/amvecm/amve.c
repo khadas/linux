@@ -4881,6 +4881,17 @@ void amvecm_bricon_process(unsigned int bri_val,
 }
 /* brightness/contrast adjust process end */
 
+void amvecm_color_process(unsigned int sat_val,
+		unsigned int hue_val, struct vframe_s *vf)
+{
+	if (vecm_latch_flag & FLAG_VADJ1_COLOR) {
+		vecm_latch_flag &= ~FLAG_VADJ1_COLOR;
+		vpp_vd_adj1_saturation_hue(sat_val, hue_val, vf);
+		pr_amve_dbg("\n[amve..] set vpp_vd_adj1_saturation_hue OK!!!\n");
+	}
+}
+/* saturation/hue adjust process end */
+
 /* 3d process begin */
 void amvecm_3d_black_process(void)
 {

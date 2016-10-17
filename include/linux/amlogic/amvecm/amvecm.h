@@ -27,7 +27,7 @@
 /* struct ve_dnlp_s          video_ve_dnlp; */
 
 #define FLAG_RSV31              (1 << 31)
-#define FLAG_RSV30              (1 << 30)
+#define FLAG_VADJ1_COLOR        (1 << 30)
 #define FLAG_VE_DNLP            (1 << 29)
 #define FLAG_VE_NEW_DNLP        (1 << 28)
 #define FLAG_RSV27              (1 << 27)
@@ -162,5 +162,7 @@ struct hdr_metadata_info_s {
 	u32 luminance[2];		/* max/min lumin, normalized 10000 */
 };
 
+extern void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
+	unsigned int hue_val, struct vframe_s *vf);
 #endif /* AMVECM_H */
 

@@ -34,6 +34,8 @@
 
 signed int vd1_contrast_offset;
 
+signed int saturation_offset;
+
 struct hdr_osd_reg_s hdr_osd_reg = {
 	0x00000001, /* VIU_OSD1_MATRIX_CTRL 0x1a90 */
 	0x00ba0273, /* VIU_OSD1_MATRIX_COEF00_01 0x1a91 */
@@ -82,7 +84,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 			0x3c00, 0x3e00, 0x4000
 		},
 		/* oetf table */
-		{ /* ob map */
+		{ /* or map */
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -91,7 +93,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000
 		},
-		{ /* ob map */
+		{ /* og map */
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 			0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -166,6 +168,14 @@ module_param(cur_hdr_support, uint, 0664);
 MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
 
 #define MAX_KNEE_SETTING	35
+/* bit 0: use source primary,
+   bit 1: use display primary,
+   bit 2: adjust contrast according to source lumin,
+   bit 3: adjust saturation according to source lumin */
+static uint hdr_flag = (1 << 1) | (1 << 2) | (1 << 3);
+module_param(hdr_flag, uint, 0664);
+MODULE_PARM_DESC(hdr_flag, "\n set hdr_flag\n");
+
 /* recommended setting for 100 nits panel: */
 /* 0,16,96,224,320,544,720,864,1000,1016,1023 */
 /* knee factor = 256 */
@@ -291,7 +301,7 @@ static uint customer_matrix_param[NUM_MATRIX_PARAM] = {
 	1
 };
 
-static bool customer_matrix_en = 1;
+static bool customer_matrix_en;
 
 #define INORM	50000
 #define BL		16
@@ -316,13 +326,44 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
+/* 0: off, 1: on */
+static int customer_master_display_en;
+static uint num_customer_master_display_param = 12;
+static uint customer_master_display_param[12] = {
+	0.17 * INORM + 0.5, 0.797 * INORM + 0.5,      /* G */
+	0.131 * INORM + 0.5, 0.046 * INORM + 0.5,     /* B */
+	0.708 * INORM + 0.5, 0.292 * INORM + 0.5,     /* R */
+	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5,   /* W */
+	5000 * 10000, 50,
+	/* man/min lumin */
+	5000, 50
+	/* content lumin and frame average */
+};
+
 module_param(customer_matrix_en, bool, 0664);
 MODULE_PARM_DESC(customer_matrix_en, "\n if enable customer matrix\n");
 
 module_param_array(customer_matrix_param, uint,
 	&num_customer_matrix_param, 0664);
 MODULE_PARM_DESC(customer_matrix_param,
-	 "\n matrix from source primary to panel primary\n");
+	"\n matrix from source primary to panel primary\n");
+
+module_param(customer_master_display_en, int, 0664);
+MODULE_PARM_DESC(customer_master_display_en,
+	"\n if enable customer primaries and white point\n");
+
+module_param_array(customer_master_display_param, uint,
+	&num_customer_master_display_param, 0664);
+MODULE_PARM_DESC(customer_master_display_param,
+	"\n matrix from source primary and white point\n");
+
+/* sat offset when > 1200 and <= 1200 */
+static uint num_extra_sat_lut = 2;
+static uint extra_sat_lut[] = {32, 48};
+module_param_array(extra_sat_lut, uint,
+	&num_extra_sat_lut, 0664);
+MODULE_PARM_DESC(extra_sat_lut,
+	 "\n lookup table for saturation match source luminance.\n");
 
 /* norm to 128 as 1, LUT can be changed */
 static uint num_extra_con_lut = 5;
@@ -595,7 +636,6 @@ static unsigned int reload_lut;
 
 /******************** osd oetf **************/
 
-#define OSD_OETF_LUT_SIZE 41
 static unsigned int num_osd_oetf_r_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_r_mapping[OSD_OETF_LUT_SIZE] = {
 		0, 150, 250, 330,
@@ -941,7 +981,6 @@ static int YUV709f_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
-
 static int YUV709l_to_RGB709_coeff[MATRIX_5x3_COEF_SIZE] = {
 	-64, -512, -512, /* pre offset */
 	COEFF_NORM(1.16895),	COEFF_NORM(0.00000),	COEFF_NORM(1.79977),
@@ -1010,15 +1049,6 @@ static unsigned int eotf_33_linear_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-/* eotf lut: 2084 src_lum_max = 800 nits, maximum of 10000 nits */
-static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
-	    0,     0,     2,     6,    12,    23,    40,    67,
-	  106,   161,   240,   351,   503,   712,   994,  1376,
-	 1889,  2575,  3491,  4709,  6328,  8477, 11329, 15114,
-	20140, 21164, 22188, 23212, 24236, 25260, 26284, 27308,
-	28332
-};
-
 /* osd oetf lut: linear */
 static unsigned int oetf_41_linear_mapping[OSD_OETF_LUT_SIZE] = {
 	0, 0, 0, 0,
@@ -1034,45 +1064,58 @@ static unsigned int oetf_41_linear_mapping[OSD_OETF_LUT_SIZE] = {
 	1023
 };
 
-static unsigned int oetf_289_hlg_mapping[VIDEO_OETF_LUT_SIZE] = {
-	    0,     7,    14,    21,    28,    36,    43,    50,
-	   57,    64,    71,    78,    85,    92,   100,   107,
-	  114,   121,   128,   157,   181,   202,   222,   239,
-	  256,   272,   286,   300,   314,   326,   339,   351,
-	  362,   373,   384,   395,   405,   415,   425,   434,
-	  443,   453,   462,   470,   479,   487,   496,   504,
-	  512,   520,   527,   535,   541,   548,   555,   561,
-	  567,   573,   578,   584,   589,   594,   599,   604,
-	  609,   614,   618,   623,   627,   631,   635,   639,
-	  643,   647,   651,   655,   658,   662,   665,   669,
-	  672,   675,   679,   682,   685,   688,   691,   694,
-	  697,   700,   703,   706,   708,   711,   714,   716,
-	  719,   722,   724,   727,   729,   731,   734,   736,
-	  739,   741,   743,   745,   748,   750,   752,   754,
-	  756,   758,   760,   762,   765,   767,   769,   770,
-	  772,   774,   776,   778,   780,   782,   784,   785,
-	  787,   789,   791,   792,   794,   796,   798,   799,
-	  801,   803,   804,   806,   807,   809,   811,   812,
-	  814,   815,   817,   818,   820,   821,   823,   824,
-	  826,   827,   828,   830,   831,   833,   834,   835,
-	  837,   838,   840,   841,   842,   843,   845,   846,
-	  847,   849,   850,   851,   852,   854,   855,   856,
-	  857,   859,   860,   861,   862,   863,   864,   866,
-	  867,   868,   869,   870,   871,   872,   874,   875,
-	  876,   877,   878,   879,   880,   881,   882,   883,
-	  884,   885,   886,   887,   889,   890,   891,   892,
-	  893,   894,   895,   896,   897,   898,   898,   899,
-	  900,   901,   902,   903,   904,   905,   906,   907,
-	  908,   909,   910,   911,   912,   912,   913,   914,
-	  915,   916,   917,   918,   919,   920,   920,   921,
-	  922,   923,   924,   925,   925,   926,   927,   928,
-	  929,   930,   930,   931,   932,   933,   934,   934,
-	  935,   936,   937,   938,   938,   939,   940,   941,
-	  941,   942,   943,   944,   945,   945,   946,   947,
-	  948,   952,   957,   961,   966,   970,   975,   979,
-	  984,   988,   993,   997,  1002,  1006,  1011,  1015,
-	 1020
+/* eotf lut: for 2084, maximum of 10000 nits */
+static unsigned int display_scale_factor =
+	(unsigned int)((((2.124023) * 4096.0) + 1) / 2);
+static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
+	    0,    10,    20,    31,    42,    54,    69,    85,
+	  105,   129,   159,   196,   245,   308,   390,   498,
+	  639,   824,  1117,  1507,  2025,  2713,  3625,  4836,
+	 6445,  8583,  9697, 10811, 11926, 13040, 14154, 15269,
+	16383
 };
+
+static unsigned int oetf_289_hlg_mapping[VIDEO_OETF_LUT_SIZE] = {
+	   0,    1,    3,    4,    6,    7,    9,   10,
+	  12,   13,   15,   16,   18,   19,   21,   22,
+	  24,   25,   82,  128,  168,  205,  240,  272,
+	 304,  322,  340,  356,  372,  387,  402,  416,
+	 430,  443,  456,  468,  480,  492,  504,  514,
+	 525,  534,  543,  552,  560,  568,  576,  583,
+	 590,  597,  603,  609,  615,  621,  627,  632,
+	 638,  643,  648,  653,  658,  662,  667,  671,
+	 675,  679,  684,  688,  691,  695,  699,  703,
+	 706,  710,  713,  717,  720,  723,  726,  730,
+	 733,  736,  739,  742,  744,  747,  750,  753,
+	 756,  758,  761,  763,  766,  769,  771,  773,
+	 776,  778,  781,  783,  785,  788,  790,  792,
+	 794,  796,  798,  801,  803,  805,  807,  809,
+	 811,  813,  815,  816,  818,  820,  822,  824,
+	 826,  828,  829,  831,  833,  835,  836,  838,
+	 840,  841,  843,  845,  846,  848,  849,  851,
+	 853,  854,  856,  857,  859,  860,  862,  863,
+	 865,  866,  868,  869,  870,  872,  873,  875,
+	 876,  877,  879,  880,  881,  883,  884,  885,
+	 887,  888,  889,  890,  892,  893,  894,  895,
+	 897,  898,  899,  900,  901,  903,  904,  905,
+	 906,  907,  908,  909,  911,  912,  913,  914,
+	 915,  916,  917,  918,  919,  920,  921,  923,
+	 924,  925,  926,  927,  928,  929,  930,  931,
+	 932,  933,  934,  935,  936,  937,  938,  939,
+	 940,  940,  941,  942,  943,  944,  945,  946,
+	 947,  948,  949,  950,  951,  952,  952,  953,
+	 954,  955,  956,  957,  958,  959,  959,  960,
+	 961,  962,  963,  964,  964,  965,  966,  967,
+	 968,  969,  969,  970,  971,  972,  973,  973,
+	 974,  975,  976,  976,  977,  978,  979,  980,
+	 980,  981,  982,  983,  983,  984,  985,  985,
+	 986,  987,  988,  988,  989,  990,  991,  991,
+	 992,  994,  996,  998, 1000, 1002, 1004, 1006,
+	1008, 1010, 1012, 1014, 1016, 1018, 1020, 1022,
+	1023
+};
+module_param(display_scale_factor, uint, 0664);
+MODULE_PARM_DESC(display_scale_factor, "\n display scale factor\n");
 
 /* video oetf: linear */
 #if 0
@@ -1113,19 +1156,6 @@ static unsigned int oetf_289_linear_mapping[VIDEO_OETF_LUT_SIZE] = {
 	 996, 1000, 1004, 1008, 1012, 1016, 1020, 1023,
 	1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
 	1023
-};
-
-/* eotf lut: 2084 */
-static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
-	0, 0, 0, 0,
-	1, 2, 3, 5,
-	8, 13, 19, 28,
-	40, 57, 80, 110,
-	151, 206, 279, 377,
-	506, 678, 906, 1209,
-	1611, 2146, 2857, 3807,
-	5077, 6781, 9075, 12175,
-	16384,
 };
 
 /* video oetf: 709 */
@@ -1209,25 +1239,28 @@ static void print_vpp_matrix(int m_select, int *s, int on)
 	pr_csc("%s matrix %s:\n", matrix_name[m_select],
 		on ? "on" : "off");
 
-if (size == MATRIX_5x3_COEF_SIZE) {
-	pr_csc("\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
-			SIGN(s[0]), DECI(s[0]), FRAC(s[0]),
-			SIGN(s[3]), DECI(s[3]), FRAC(s[3]),
-			SIGN(s[4]), DECI(s[4]), FRAC(s[4]),
-			SIGN(s[5]), DECI(s[5]), FRAC(s[5]),
-			SIGN(s[18]), DECI(s[18]), FRAC(s[18]));
-	pr_csc("\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
-			SIGN(s[1]), DECI(s[1]), FRAC(s[1]),
-			SIGN(s[6]), DECI(s[6]), FRAC(s[6]),
-			SIGN(s[7]), DECI(s[7]), FRAC(s[7]),
-			SIGN(s[8]), DECI(s[8]), FRAC(s[8]),
-			SIGN(s[19]), DECI(s[19]), FRAC(s[19]));
-	pr_csc("\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
-			SIGN(s[2]), DECI(s[2]), FRAC(s[2]),
-			SIGN(s[9]), DECI(s[9]), FRAC(s[9]),
-			SIGN(s[10]), DECI(s[10]), FRAC(s[10]),
-			SIGN(s[11]), DECI(s[11]), FRAC(s[11]),
-			SIGN(s[20]), DECI(s[20]), FRAC(s[20]));
+	if (size == MATRIX_5x3_COEF_SIZE) {
+		pr_csc(
+		"\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
+				SIGN(s[0]), DECI(s[0]), FRAC(s[0]),
+				SIGN(s[3]), DECI(s[3]), FRAC(s[3]),
+				SIGN(s[4]), DECI(s[4]), FRAC(s[4]),
+				SIGN(s[5]), DECI(s[5]), FRAC(s[5]),
+				SIGN(s[18]), DECI(s[18]), FRAC(s[18]));
+		pr_csc(
+		"\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
+				SIGN(s[1]), DECI(s[1]), FRAC(s[1]),
+				SIGN(s[6]), DECI(s[6]), FRAC(s[6]),
+				SIGN(s[7]), DECI(s[7]), FRAC(s[7]),
+				SIGN(s[8]), DECI(s[8]), FRAC(s[8]),
+				SIGN(s[19]), DECI(s[19]), FRAC(s[19]));
+		pr_csc(
+		"\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
+				SIGN(s[2]), DECI(s[2]), FRAC(s[2]),
+				SIGN(s[9]), DECI(s[9]), FRAC(s[9]),
+				SIGN(s[10]), DECI(s[10]), FRAC(s[10]),
+				SIGN(s[11]), DECI(s[11]), FRAC(s[11]),
+				SIGN(s[20]), DECI(s[20]), FRAC(s[20]));
 		if (s[21]) {
 			pr_csc("\t\t%s%1d.%04d\t%s%1d.%04d\t%s%1d.%04d\n",
 				SIGN(s[12]), DECI(s[12]), FRAC(s[12]),
@@ -2020,6 +2053,7 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 	int i, j;
 	struct vframe_master_display_colour_s *p_cur;
 	struct vframe_master_display_colour_s *p_new;
+	struct vframe_master_display_colour_s cus;
 
 	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
@@ -2063,6 +2097,28 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 
 	p_new = &vf->prop.master_display_colour;
 	p_cur = &cur_master_display_colour;
+	/* customer overwrite */
+	if (customer_master_display_en) {
+		signal_type =	  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (9 << 16)	/* 2020 */
+				| (16 << 8)	/* 2084 */
+				| (9 << 0);	/* 2020 */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				cus.primaries[i][j] =
+					customer_master_display_param[i*2+j];
+		for (i = 0; i < 2; i++)
+			cus.white_point[i] =
+				customer_master_display_param[6+i];
+		for (i = 0; i < 2; i++)
+			cus.luminance[i] =
+				customer_master_display_param[8+i];
+		cus.present_flag = 1;
+		p_new = &cus;
+	}
 	if (p_new->present_flag) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
@@ -2299,6 +2355,29 @@ static void gamut_mtx(
 	mtx_mul_mtx(out, Tsrc, Tout, 1 << obl);
 }
 
+static void apply_scale_factor(int64_t (*in)[3], int32_t *rs)
+{
+	int i, j;
+	int32_t right_shift;
+
+	if (display_scale_factor > 2 * 2048)
+		right_shift = -2;
+	else if (display_scale_factor > 2048)
+		right_shift = -1;
+	else
+		right_shift = 0;
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++) {
+			in[i][j] *= display_scale_factor;
+			in[i][j] >>= 11 - right_shift;
+		}
+	right_shift += 1;
+	if (right_shift < 0)
+		*rs = 8 + right_shift;
+	else
+		*rs = right_shift;
+}
+
 static void N2C(int64_t (*in)[3], int32_t ibl, int32_t obl)
 {
 	int i, j;
@@ -2317,6 +2396,8 @@ static void cal_mtx_seting(
 	struct matrix_s *m)
 {
 	int i, j;
+	int32_t right_shift;
+	apply_scale_factor(in, &right_shift);
 	N2C(in, ibl, obl);
 	pr_csc("\tHDR color convert matrix:\n");
 	for (i = 0; i < 3; i++) {
@@ -2329,7 +2410,7 @@ static void cal_mtx_seting(
 			(int)(m->matrix[i][1] & 0xffff),
 			(int)(m->matrix[i][2] & 0xffff));
 	}
-	m->right_shift = 1;
+	m->right_shift = right_shift;
 }
 
 static int check_primaries(
@@ -2342,75 +2423,89 @@ static int check_primaries(
 	int32_t (*si)[4][2], int32_t (*di)[4][2])
 {
 	int i, j;
-	int need_calculate_mtx = 0;
+	/* always calculate to apply scale factor */
+	int need_calculate_mtx = 1;
 	const struct master_display_info_s *d;
 
 	/* check and copy primaries */
-	if (((*p)[0][1] > (*p)[1][1])
-		&& ((*p)[0][1] > (*p)[2][1])
-		&& ((*p)[2][0] > (*p)[0][0])
-		&& ((*p)[2][0] > (*p)[1][0])) {
-		/* reasonable g,b,r */
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				(*si)[i][j] = (*p)[(i + 2) % 3][j];
-			if ((*si)[i][j] != bt2020_primaries[(i + 2) % 3][j])
-				need_calculate_mtx = 1;
-			}
-	} else if (((*p)[0][0] > (*p)[1][0])
-		&& ((*p)[0][0] > (*p)[2][0])
-		&& ((*p)[1][1] > (*p)[0][1])
-		&& ((*p)[1][1] > (*p)[2][1])) {
-		/* reasonable r,g,b */
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				(*si)[i][j] = (*p)[i][j];
-			if ((*si)[i][j] != bt2020_primaries[(i + 2) % 3][j])
-				need_calculate_mtx = 1;
-			}
-	} else {
-		/* source not usable, use standard bt2020 */
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++)
-				(*si)[i][j] = bt2020_primaries[(i + 2) % 3][j];
-	}
-
-	/* check white point */
-	if (need_calculate_mtx == 1) {
-		if (((*w)[0] > (*si)[2][0]) &&
-			((*w)[0] < (*si)[0][0]) &&
-			((*w)[1] > (*si)[2][1]) &&
-			((*w)[1] < (*si)[1][1])) {
-				for (i = 0; i < 2; i++)
-					(*si)[3][i] = (*w)[i];
+	if (hdr_flag & 1) {
+		if (((*p)[0][1] > (*p)[1][1])
+			&& ((*p)[0][1] > (*p)[2][1])
+			&& ((*p)[2][0] > (*p)[0][0])
+			&& ((*p)[2][0] > (*p)[1][0])) {
+			/* reasonable g,b,r */
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					(*si)[i][j] = (*p)[(i + 2) % 3][j];
+				if ((*si)[i][j] !=
+				bt2020_primaries[(i + 2) % 3][j])
+					need_calculate_mtx = 1;
+				}
+		} else if (((*p)[0][0] > (*p)[1][0])
+			&& ((*p)[0][0] > (*p)[2][0])
+			&& ((*p)[1][1] > (*p)[0][1])
+			&& ((*p)[1][1] > (*p)[2][1])) {
+			/* reasonable r,g,b */
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					(*si)[i][j] = (*p)[i][j];
+					if ((*si)[i][j] !=
+					bt2020_primaries[(i + 2) % 3][j])
+						need_calculate_mtx = 1;
+				}
 		} else {
+			/* source not usable, use standard bt2020 */
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++)
 					(*si)[i][j] =
-				bt2020_primaries[(i + 2) % 3][j];
-
-			for (i = 0; i < 2; i++)
-				(*si)[3][i] = bt2020_white_point[i];
-			need_calculate_mtx = 0;
+						bt2020_primaries
+						[(i + 2) % 3][j];
 		}
-	} else {
-		if (((*w)[0] > (*si)[2][0]) &&
-			((*w)[0] < (*si)[0][0]) &&
-			((*w)[1] > (*si)[2][1]) &&
-			((*w)[1] < (*si)[1][1])) {
-			for (i = 0; i < 2; i++) {
-				(*si)[3][i] = (*w)[i];
-				if ((*si)[3][i] != bt2020_white_point[i])
-					need_calculate_mtx = 1;
+		/* check white point */
+		if (need_calculate_mtx == 1) {
+			if (((*w)[0] > (*si)[2][0]) &&
+				((*w)[0] < (*si)[0][0]) &&
+				((*w)[1] > (*si)[2][1]) &&
+				((*w)[1] < (*si)[1][1])) {
+					for (i = 0; i < 2; i++)
+						(*si)[3][i] = (*w)[i];
+			} else {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++)
+						(*si)[i][j] =
+					bt2020_primaries[(i + 2) % 3][j];
+
+				for (i = 0; i < 2; i++)
+					(*si)[3][i] = bt2020_white_point[i];
+				/* need_calculate_mtx = 0; */
 			}
 		} else {
-			for (i = 0; i < 2; i++)
-				(*si)[3][i] = bt2020_white_point[i];
+			if (((*w)[0] > (*si)[2][0]) &&
+				((*w)[0] < (*si)[0][0]) &&
+				((*w)[1] > (*si)[2][1]) &&
+				((*w)[1] < (*si)[1][1])) {
+				for (i = 0; i < 2; i++) {
+					(*si)[3][i] = (*w)[i];
+					if ((*si)[3][i] !=
+					bt2020_white_point[i])
+						need_calculate_mtx = 1;
+				}
+			} else {
+				for (i = 0; i < 2; i++)
+					(*si)[3][i] = bt2020_white_point[i];
+			}
 		}
+	} else {
+		/* use standard bt2020 */
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				(*si)[i][j] = bt2020_primaries[(i + 2) % 3][j];
+		for (i = 0; i < 2; i++)
+			(*si)[3][i] = bt2020_white_point[i];
 	}
 
 	/* check display */
-	if (v->master_display_info.present_flag) {
+	if ((v->master_display_info.present_flag) && (hdr_flag & 2)) {
 		d = &v->master_display_info;
 		for (i = 0; i < 3; i++) {
 			for (j = 0; j < 2; j++) {
@@ -2525,23 +2620,22 @@ static void print_primaries_info(struct vframe_master_display_colour_s *p)
 }
 
 static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
-		struct vframe_s *vf)
+		struct vframe_master_display_colour_s *p)
 {
 	int i, j;
 
 	if (((hdr_data->features >> 16) & 0xff) == 9) {
-		if (vf->prop.master_display_colour.present_flag) {
-
+		if (p->present_flag) {
 			memcpy(hdr_data->primaries,
-				vf->prop.master_display_colour.primaries,
+				p->primaries,
 				sizeof(u32)*6);
 			memcpy(hdr_data->white_point,
-				vf->prop.master_display_colour.white_point,
+				p->white_point,
 				sizeof(u32)*2);
 			hdr_data->luminance[0] =
-				vf->prop.master_display_colour.luminance[0];
+				p->luminance[0];
 			hdr_data->luminance[1] =
-				vf->prop.master_display_colour.luminance[1];
+				p->luminance[1];
 		} else {
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++)
@@ -2549,10 +2643,9 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 							bt2020_primaries[i][j];
 			hdr_data->white_point[0] = bt709_white_point[0];
 			hdr_data->white_point[1] = bt709_white_point[1];
-			/* default luminance
-			 * (got from exodus uhd hdr exodus draft.mp4) */
-			hdr_data->luminance[0] = 0xb71b00;
-			hdr_data->luminance[1] = 0xc8;
+			/* default luminance */
+			hdr_data->luminance[0] = 5000 * 10000;
+			hdr_data->luminance[1] = 50;
 		}
 		hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
 		hdr_data->present_flag = 1;
@@ -2576,7 +2669,8 @@ static int hdr_process(
 	struct vinfo_s *vinfo,
 	struct vframe_master_display_colour_s *master_info)
 {
-	int need_adjust_contrast = 0;
+	int need_adjust_contrast_saturation = 0;
+	int max_lumin = 10000;
 	struct matrix_s m = {
 		{0, 0, 0},
 		{
@@ -2606,16 +2700,15 @@ static int hdr_process(
 				&master_info->primaries,
 				&master_info->white_point,
 				vinfo, &m);
-		need_adjust_contrast = 1;
+		need_adjust_contrast_saturation |= 1;
 	} else {
 		/* use bt2020 primaries */
 		pr_csc("\tNo master_display_colour.\n");
 		csc_type =
-		prepare_customer_matrix(
+			prepare_customer_matrix(
 			&bt2020_primaries,
 			&bt2020_white_point,
 			vinfo, &m);
-		need_adjust_contrast = 0;
 	}
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -2669,6 +2762,23 @@ static int hdr_process(
 			eotf_33_2084_mapping, /* B */
 			CSC_ON);
 
+		need_adjust_contrast_saturation = 0;
+		saturation_offset =	0;
+		if (hdr_flag & 8) {
+			need_adjust_contrast_saturation |= 2;
+			saturation_offset =	extra_sat_lut[0];
+		}
+		if (master_info->present_flag) {
+			max_lumin = master_info->luminance[0]
+				/ 10000;
+			if ((max_lumin <= 1200) && (max_lumin > 0)) {
+				if (hdr_flag & 4)
+					need_adjust_contrast_saturation |= 1;
+				if (hdr_flag & 8)
+					saturation_offset =
+						extra_sat_lut[1];
+			}
+		}
 		/* eotf matrix RGB2020 to RGB709 */
 		mtx[EOTF_COEFF_SIZE - 1] = m.right_shift;
 		for (i = 0; i < 3; i++)
@@ -2699,8 +2809,6 @@ static int hdr_process(
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				bypass_coeff,
 				CSC_ON);
-		/* not adjust contrast in gxl for now */
-		need_adjust_contrast = 0;
 	} else {
 
 		/* turn vd1 matrix on */
@@ -2724,7 +2832,7 @@ static int hdr_process(
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
-	return need_adjust_contrast;
+	return need_adjust_contrast_saturation;
 }
 
 static void bypass_hdr_process(
@@ -2894,7 +3002,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 	int signal_change_flag = 0;
 	struct vframe_master_display_colour_s *p = &cur_master_display_colour;
 	struct master_display_info_s send_info;
-	int need_adjust_contrast = 0;
+	int need_adjust_contrast_saturation = 0;
 
 	vinfo = get_current_vinfo();
 
@@ -2951,7 +3059,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 					| (1 << 8)	/* bt709 */
 					| (1 << 0);	/* bt709 */
 		}
-		amvecm_cp_hdr_info(&send_info, vf);
+		amvecm_cp_hdr_info(&send_info, p);
 		if (vinfo->fresh_tx_hdr_pkt)
 			vinfo->fresh_tx_hdr_pkt(&send_info);
 	}
@@ -2970,7 +3078,7 @@ static void vpp_matrix_update(struct vframe_s *vf)
 				) ||
 				(cur_csc_type <
 					VPP_MATRIX_BT2020YUV_BT2020RGB)) {
-				need_adjust_contrast =
+				need_adjust_contrast_saturation =
 					hdr_process(csc_type, vinfo, p);
 			}
 		} else {
@@ -2981,22 +3089,30 @@ static void vpp_matrix_update(struct vframe_s *vf)
 				(get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB))
 				csc_type = VPP_MATRIX_YUV709_RGB;
 		}
-		if (need_adjust_contrast) {
+		if (need_adjust_contrast_saturation & 1) {
 			if (lut_289_en)
 				vd1_contrast_offset = 0;
 			else
 				vd1_contrast_offset =
 				calculate_contrast_adj(p->luminance[0] / 10000);
 			vecm_latch_flag |= FLAG_VADJ1_CON;
-		} else{
+		} else {
 			vd1_contrast_offset = 0;
 			vecm_latch_flag |= FLAG_VADJ1_CON;
+		}
+		if (need_adjust_contrast_saturation & 2) {
+			vecm_latch_flag |= FLAG_VADJ1_COLOR;
+		} else {
+			saturation_offset =	0;
+			vecm_latch_flag |= FLAG_VADJ1_COLOR;
 		}
 		if (cur_csc_type != csc_type) {
 			pr_csc("CSC from 0x%x to 0x%x.\n",
 				cur_csc_type, csc_type);
 			pr_csc("contrast offset = %d.\n",
 				vd1_contrast_offset);
+			pr_csc("saturation offset = %d.\n",
+				saturation_offset);
 			cur_csc_type = csc_type;
 		}
 	}

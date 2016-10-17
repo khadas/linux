@@ -102,6 +102,7 @@ extern int dnlp_en;
 
 extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
+extern signed int saturation_offset;
 
 extern void amvecm_matrix_process(struct vframe_s *vf);
 extern int amvecm_hdr_dbg(u32 sel);

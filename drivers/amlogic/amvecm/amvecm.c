@@ -901,6 +901,9 @@ void amvecm_on_vs(struct vframe_s *vf)
 			vd1_contrast + vd1_contrast_offset, vf);
 
 		ioctrl_get_hdr_metadata(vf);
+		amvecm_color_process(
+			saturation_pre + saturation_offset,
+			hue_pre, vf);
 	} else
 		amvecm_matrix_process(NULL);
 
@@ -1272,17 +1275,9 @@ static int parse_para_pq(const char *para, int para_num, int *result)
 	return count;
 }
 
-
-static ssize_t amvecm_saturation_hue_pre_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
+	unsigned int hue_val, struct vframe_s *vf)
 {
-	return snprintf(buf, 20, "%d %d\n", saturation_pre, hue_pre);
-}
-
-static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int parsed[2];
 	int i, ma, mb, mab, mc, md;
 	int hue_cos[] = {
 			/*0~12*/
@@ -1301,18 +1296,10 @@ static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
 		68,  74,   80,   86,   92,	98,  104,  109,  115,  121,
 		126,  132, 137, 142, 147 /*13~25*/
 	};
-	if (likely(parse_para_pq(buf, 2, parsed) != 2))
-		return -EINVAL;
 
-	if ((parsed[0] < -128) || (parsed[0] > 128) ||
-		(parsed[1] < -25) || (parsed[1] > 25)) {
-		return -EINVAL;
-	}
-	saturation_pre = parsed[0];
-	hue_pre = parsed[1];
-	i = (hue_pre > 0) ? hue_pre : -hue_pre;
-	ma = (hue_cos[i]*(saturation_pre + 128)) >> 7;
-	mb = (hue_sin[25+hue_pre]*(saturation_pre + 128)) >> 7;
+	i = (hue_val > 0) ? hue_val : -hue_val;
+	ma = (hue_cos[i]*(sat_val + 128)) >> 7;
+	mb = (hue_sin[25+hue_val]*(sat_val + 128)) >> 7;
 	if (ma > 511)
 		ma = 511;
 	if (ma < -512)
@@ -1323,7 +1310,7 @@ static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
 		mb = -512;
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	pr_info("\n[amvideo..] saturation_pre:%d hue_pre:%d mab:%x\n",
-			saturation_pre, hue_pre, mab);
+			sat_val, hue_val, mab);
 	WRITE_VPP_REG(VPP_VADJ2_MA_MB, mab);
 	mc = (s16)((mab<<22)>>22); /* mc = -mb */
 	mc = 0 - mc;
@@ -1335,6 +1322,29 @@ static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 	WRITE_VPP_REG(VPP_VADJ1_MC_MD, mab);
 	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
+};
+
+static ssize_t amvecm_saturation_hue_pre_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 20, "%d %d\n", saturation_pre, hue_pre);
+}
+
+static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int parsed[2];
+	if (likely(parse_para_pq(buf, 2, parsed) != 2))
+		return -EINVAL;
+
+	if ((parsed[0] < -128) || (parsed[0] > 128) ||
+		(parsed[1] < -25) || (parsed[1] > 25)) {
+		return -EINVAL;
+	}
+	saturation_pre = parsed[0];
+	hue_pre = parsed[1];
+	vecm_latch_flag |= FLAG_VADJ1_COLOR;
+
 	return count;
 }
 
