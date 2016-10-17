@@ -344,6 +344,7 @@ static void meson_uart_shutdown(struct uart_port *port)
 	val = readl(port->membase + AML_UART_CONTROL);
 	val &= ~(AML_UART_RX_EN | AML_UART_TX_EN);
 	val &= ~(AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
+	val |= (0x1 << 31);
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -520,6 +521,7 @@ static int meson_uart_startup(struct uart_port *port)
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	val |= (AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
+	val &= ~(0x1 << 31);
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	return ret;
@@ -582,6 +584,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 
 	val = readl(port->membase + AML_UART_CONTROL);
 
+
 	val &= ~AML_UART_DATA_LEN_MASK;
 	switch (cflags & CSIZE) {
 	case CS8:
@@ -620,6 +623,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 		val |= AML_UART_TWO_WIRE_EN;
 
 	writel(val, port->membase + AML_UART_CONTROL);
+
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	baud = uart_get_baud_rate(port, termios, old, 9600, 4000000);
@@ -691,6 +695,9 @@ static int meson_uart_request_port(struct uart_port *port)
 						port->line, port->membase);
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel(val, port->membase + AML_UART_MISC);
+
+	writel(readl(port->membase + AML_UART_CONTROL)|(1<<31),
+			port->membase + AML_UART_CONTROL);
 
 	ret = request_irq(port->irq, meson_uart_interrupt, 0,
 			  meson_uart_type(port), port);
