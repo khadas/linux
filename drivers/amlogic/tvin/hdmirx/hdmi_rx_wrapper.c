@@ -3106,7 +3106,11 @@ void hdmirx_hw_monitor(void)
 			pll_stable_protect_cnt--;
 
 		if (hdmirx_tmds_pll_lock() == false) {
-			rx.change = skip_frame_num;
+			if (sig_lost_lock_cnt < 2)
+				rx.change = skip_frame_num *
+					(sig_lost_lock_cnt++);
+			else
+				rx.change = (skip_frame_num * 3);
 			if ((sig_lost_lock_cnt++ >= sig_lost_lock_max) &&
 				(pll_stable_protect_cnt == 0)) {
 				rx.state = FSM_WAIT_CLK_STABLE;
@@ -3136,8 +3140,8 @@ void hdmirx_hw_monitor(void)
 				rx_pr("sig_lost_lock_cnt = %d",
 							 sig_lost_lock_cnt);
 		    sig_lost_lock_cnt = 0;
-			if (rx.change > 0)
-				rx.change--;
+			/* if (rx.change > 0) */
+				/* rx.change--; */
 		}
 
 	    hdmirx_get_video_info(&rx.ctrl, &rx.cur_params);
@@ -3151,7 +3155,11 @@ void hdmirx_hw_monitor(void)
 				&rx.cur_params)) ||
 			(is_packetinfo_change(&rx.pre_params,
 				&rx.cur_params))) {
-			rx.change = skip_frame_num;
+			if (sig_unready_cnt < 2)
+				rx.change = skip_frame_num *
+					(sig_unready_cnt++);
+			else
+				rx.change = (skip_frame_num * 3);
 			if (stable_protect_cnt != 0)
 				break;
 			if (++sig_unready_cnt >= sig_unready_max) {
@@ -3188,8 +3196,8 @@ void hdmirx_hw_monitor(void)
 				sig_unready_cnt = 0;
 			}
 
-			if (rx.change > 0)
-				rx.change--;
+			/* if (rx.change > 0) */
+				/* rx.change--; */
 
 			if (irq_video_mute_flag) {
 				irq_video_mute_flag = false;
@@ -3205,6 +3213,12 @@ void hdmirx_hw_monitor(void)
 
 		if (rx.no_signal == true)
 			rx.no_signal = false;
+
+		if (rx.change > 0) {
+			rx.change--;
+			if (log_flag & VIDEO_LOG)
+				rx_pr("rc--%d\n", rx.change);
+		}
 
 		if ((0 == audio_enable) ||
 			(rx.pre_params.sw_dvi == 1))
