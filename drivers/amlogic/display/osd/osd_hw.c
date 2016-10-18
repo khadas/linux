@@ -250,7 +250,7 @@ static unsigned int *filter_table[] = {
 const u16 osd_reg_backup[OSD_REG_BACKUP_COUNT] = {
 	0x1a10, 0x1a11, 0x1a12, 0x1a13,
 	0x1a17, 0x1a18, 0x1a19, 0x1a1a, 0x1a1b, 0x1a1c, 0x1a1d, 0x1a1e,
-	0x1a2b, 0x1a2c, 0x1a2d,
+	0x1a2b, 0x1a2c, 0x1a2d
 };
 
 const u16 osd_afbc_reg_backup[OSD_AFBC_REG_BACKUP_COUNT] = {
@@ -589,129 +589,6 @@ static inline void walk_through_update_list(void)
 }
 
 /*************** for GXL/GXM hardware alpha bug workaround ***************/
-#ifdef CONFIG_AM_VECM
-static void hdr_load_osd_csc(void)
-{
-	u32 i = 0;
-	u32 addr_port;
-	u32 data_port;
-	struct hdr_osd_lut_s *lut = &hdr_osd_reg.lut_val;
-
-	/* check osd matrix enable status */
-	if ((hdr_osd_reg.viu_osd1_matrix_ctrl & 0x00000001) != 0x0) {
-		/* osd matrix, VPP_MATRIX_0 */
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_PRE_OFFSET0_1,
-			hdr_osd_reg.viu_osd1_matrix_pre_offset0_1);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_PRE_OFFSET0_1,
-			hdr_osd_reg.viu_osd1_matrix_pre_offset0_1);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF00_01,
-			hdr_osd_reg.viu_osd1_matrix_coef00_01);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF02_10,
-			hdr_osd_reg.viu_osd1_matrix_coef02_10);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF11_12,
-			hdr_osd_reg.viu_osd1_matrix_coef11_12);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF20_21,
-			hdr_osd_reg.viu_osd1_matrix_coef20_21);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF22_30,
-			hdr_osd_reg.viu_osd1_matrix_coef22_30);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF31_32,
-			hdr_osd_reg.viu_osd1_matrix_coef31_32);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COEF40_41,
-			hdr_osd_reg.viu_osd1_matrix_coef40_41);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_COLMOD_COEF42,
-			hdr_osd_reg.viu_osd1_matrix_colmod_coef42);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_OFFSET0_1,
-			hdr_osd_reg.viu_osd1_matrix_offset0_1);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_OFFSET2,
-			hdr_osd_reg.viu_osd1_matrix_offset2);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_MATRIX_CTRL,
-			hdr_osd_reg.viu_osd1_matrix_ctrl);
-	}
-
-	/* restore eotf lut */
-	if ((hdr_osd_reg.viu_osd1_eotf_ctl & 0x80000000) != 0) {
-		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
-		data_port = VIU_OSD1_EOTF_LUT_DATA_PORT;
-		VSYNCOSD_EX_WR_MPEG_REG(addr_port, 0);
-		for (i = 0; i < 16; i++)
-			VSYNCOSD_EX_WR_MPEG_REG(data_port,
-				lut->r_map[i * 2]
-				| (lut->r_map[i * 2 + 1] << 16));
-		VSYNCOSD_EX_WR_MPEG_REG(data_port,
-			lut->r_map[33 - 1]
-			| (lut->g_map[0] << 16));
-		for (i = 0; i < 16; i++)
-			VSYNCOSD_EX_WR_MPEG_REG(data_port,
-				lut->g_map[i * 2 + 1]
-				| (lut->b_map[i * 2 + 2] << 16));
-		for (i = 0; i < 16; i++)
-			VSYNCOSD_EX_WR_MPEG_REG(data_port,
-				lut->b_map[i * 2]
-				| (lut->b_map[i * 2 + 1] << 16));
-		VSYNCOSD_EX_WR_MPEG_REG(data_port, lut->b_map[33 - 1]);
-
-		/* load eotf matrix */
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_EOTF_COEF00_01,
-			hdr_osd_reg.viu_osd1_eotf_coef00_01);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_EOTF_COEF02_10,
-			hdr_osd_reg.viu_osd1_eotf_coef02_10);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_EOTF_COEF11_12,
-			hdr_osd_reg.viu_osd1_eotf_coef11_12);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_EOTF_COEF20_21,
-			hdr_osd_reg.viu_osd1_eotf_coef20_21);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_EOTF_COEF22_RS,
-			hdr_osd_reg.viu_osd1_eotf_coef22_rs);
-		VSYNCOSD_EX_WR_MPEG_REG(
-			VIU_OSD1_EOTF_CTL,
-			hdr_osd_reg.viu_osd1_eotf_ctl);
-	}
-	/* restore oetf lut */
-	if ((hdr_osd_reg.viu_osd1_oetf_ctl & 0xe0000000) != 0) {
-		addr_port = VIU_OSD1_OETF_LUT_ADDR_PORT;
-		data_port = VIU_OSD1_OETF_LUT_DATA_PORT;
-		VSYNCOSD_EX_WR_MPEG_REG(addr_port, 0);
-		for (i = 0; i < 20; i++)
-			VSYNCOSD_EX_WR_MPEG_REG(data_port,
-				lut->or_map[i * 2]
-				| (lut->or_map[i * 2 + 1] << 16));
-		VSYNCOSD_EX_WR_MPEG_REG(data_port,
-			lut->or_map[41 - 1]
-			| (lut->og_map[0] << 16));
-		for (i = 0; i < 20; i++)
-			VSYNCOSD_EX_WR_MPEG_REG(data_port,
-				lut->og_map[i * 2 + 1]
-				| (lut->og_map[i * 2 + 2] << 16));
-		for (i = 0; i < 20; i++)
-			VSYNCOSD_EX_WR_MPEG_REG(data_port,
-				lut->ob_map[i * 2]
-				| (lut->ob_map[i * 2 + 1] << 16));
-		VSYNCOSD_EX_WR_MPEG_REG(data_port,
-			lut->ob_map[41 - 1]);
-
-		VSYNCOSD_EX_WR_MPEG_REG
-			(VIU_OSD1_OETF_CTL,
-			hdr_osd_reg.viu_osd1_oetf_ctl);
-	}
-}
-#endif
 
 void osd_hw_reset(void)
 {
@@ -727,9 +604,12 @@ void osd_hw_reset(void)
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)
 		return;
 	if (osd_hw.osd_afbcd[OSD1].enable &&
-		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)))
-		reset_bit = 1<<31;
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB))
+		reset_bit = 1 << 31;
+	/* same bit, but gxm only reset hardware, not top reg*/
+	if (osd_hw.osd_afbcd[OSD1].enable &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))
+		reset_bit = 1 << 31;
 #ifdef CONFIG_AM_VECM
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
 		&& (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXL)) {
@@ -759,7 +639,9 @@ void osd_hw_reset(void)
 				osd_reg_backup[i]);
 	}
 
-	if (reset_bit & 0x80000000) {
+	if ((reset_bit & 0x80000000) &&
+		(get_cpu_type() ==
+		MESON_CPU_MAJOR_ID_GXTVBB)) {
 		/* backup osd afbc regs */
 		for (i = 0; i < OSD_AFBC_REG_BACKUP_COUNT; i++)
 			osd_afbc_value_backup[i] =
@@ -780,7 +662,9 @@ void osd_hw_reset(void)
 				osd_value_backup[i]);
 	}
 
-	if (reset_bit & 0x80000000) {
+	if ((reset_bit & 0x80000000) &&
+		(get_cpu_type() ==
+		MESON_CPU_MAJOR_ID_GXTVBB)) {
 		/* restore osd regs */
 		for (i = 0; i < OSD_AFBC_REG_BACKUP_COUNT; i++) {
 			if (osd_afbc_reg_backup[i]
@@ -802,8 +686,6 @@ void osd_hw_reset(void)
 #endif
 #else
 	/* wrtie into rdma local buffer and flush into rdma table at last */
-	if (reset_bit & 1)
-		hdr_load_osd_csc();
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	osd_rdma_reset_and_flush(reset_bit);
 	spin_unlock_irqrestore(&osd_lock, lock_flags);

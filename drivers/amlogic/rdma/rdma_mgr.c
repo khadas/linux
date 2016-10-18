@@ -51,7 +51,7 @@
 #define rdma_io_write(addr, val) writel((val), addr);
 
 #define RDMA_VSYNC_INPUT_TRIG		0x1
-#define SKIP_OSD_CHANNEL
+/* #define SKIP_OSD_CHANNEL */
 
 int rdma_mgr_irq_request;
 
@@ -641,7 +641,7 @@ static int rdma_probe(struct platform_device *pdev)
 	}
 	WRITE_MPEG_REG(RESET4_REGISTER,
 				   (1 << 5));
-#if 1
+#ifdef SKIP_OSD_CHANNEL
 	info->rdma_ins[3].used = 1; /* OSD driver uses this channel */
 #endif
 	if (int_rdma  == -ENXIO) {

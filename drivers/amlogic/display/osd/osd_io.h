@@ -22,6 +22,7 @@
 #include <linux/amlogic/iomap.h>
 
 #include "osd_log.h"
+extern void update_backup_reg(u32 addr, u32 value);
 
 static inline uint32_t osd_cbus_read(uint32_t reg)
 {
@@ -58,6 +59,7 @@ static inline void osd_reg_write(uint32_t reg,
 				 const uint32_t val)
 {
 	aml_write_vcbus(reg, val);
+	update_backup_reg(reg, val);
 	osd_log_dbg3("%s(0x%x, 0x%x)\n", __func__, reg, val);
 };
 
