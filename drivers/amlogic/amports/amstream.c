@@ -2278,6 +2278,8 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 		if ((this->type & PORT_TYPE_VIDEO) && (arg < VFORMAT_MAX)) {
 			this->vformat = (enum vformat_e)arg;
 			this->flag |= PORT_FLAG_VFORMAT;
+
+			vdec_set_format(priv->vdec, this->vformat);
 		} else
 			r = -EINVAL;
 		break;
