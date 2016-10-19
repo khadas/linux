@@ -915,24 +915,6 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 				m4k_size = 32 * SZ_1M;
 			if ((m4k_size > 0) && (m4k_size < 200 * SZ_1M))
 				alloc_size = m4k_size;
-			if ((vdec->format == VFORMAT_HEVC) &&
-				get_mmu_mode() &&
-				(get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
-#ifdef CONFIG_MULTI_DEC
-				if (p->use_vfm_path)
-					alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9 * 2]
-					* SZ_1M;
-				else
-					alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9
-						* 2 + 1] * SZ_1M;
-#else
-				alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9]
-					* SZ_1M;
-#endif
-			}
 
 #ifdef VP9_10B_MMU
 			if ((vdec->format == VFORMAT_VP9) &&
@@ -956,6 +938,26 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		} else if (more_buffers) {
 			alloc_size = alloc_size + 16 * SZ_1M;
 		}
+
+		if ((vdec->format == VFORMAT_HEVC)
+			&& get_mmu_mode()
+			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
+#ifdef CONFIG_MULTI_DEC
+				if (p->use_vfm_path)
+					alloc_size =
+					vdec_default_buf_size[VFORMAT_VP9 * 2]
+					* SZ_1M;
+				else
+					alloc_size =
+					vdec_default_buf_size[VFORMAT_VP9
+					* 2 + 1] * SZ_1M;
+#else
+				alloc_size =
+					vdec_default_buf_size[VFORMAT_VP9]
+					* SZ_1M;
+#endif
+		}
+
 		p->mem_start = codec_mm_alloc_for_dma(MEM_NAME,
 			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_CPU |

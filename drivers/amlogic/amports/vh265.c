@@ -325,7 +325,7 @@ static u32 error_handle_system_threshold = 30;
 static u32 interlace_enable = 1;
 static u32 parser_sei_enable;
 /* this is only for h265 mmu enable */
-static u32 mmu_enable;
+static u32 mmu_enable = 1;
 
 
 
