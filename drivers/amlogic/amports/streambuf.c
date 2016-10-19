@@ -75,6 +75,13 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 			flags |= CODEC_MM_FLAGS_DMA_CPU;
 		}
 
+		if (buf->type == BUF_TYPE_VIDEO
+			&& codec_mm_get_total_size() <= 68 * SZ_1M) {
+			buf->buf_size = (1024*1024*10);
+			buf->buf_page_num =
+			PAGE_ALIGN(buf->buf_size) / PAGE_SIZE;
+		}
+
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
 			buf->buf_page_num, 4+PAGE_SHIFT, flags);
 		if (!buf->buf_start) {

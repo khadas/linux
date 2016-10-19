@@ -51,13 +51,11 @@
 #define DRIVER_NAME "amvdec_h264"
 #define MODULE_NAME "amvdec_h264"
 #define MEM_NAME "codec_264"
-
 #define HANDLE_H264_IRQ
 /* #define DEBUG_PTS */
 #if 0 /* MESON_CPU_TYPE <= MESON_CPU_TYPE_MESON6TV */
 #define DROP_B_FRAME_FOR_1080P_50_60FPS
 #endif
-
 #define RATE_MEASURE_NUM 8
 #define RATE_CORRECTION_THRESHOLD 5
 #define RATE_24_FPS  4004	/* 23.97 */
@@ -776,6 +774,10 @@ static void vh264_set_params(struct work_struct *work)
 				max_reference_size) / (mb_total * 384);
 		actual_dpb_size = min(actual_dpb_size, VF_BUF_NUM);
 		max_dpb_size = get_max_dpb_size(level_idc, mb_width, mb_height);
+		if (max_reference_size > 1)
+			max_dpb_size = max_reference_size - 1;
+		else
+			max_dpb_size = max_reference_size;
 		if (actual_dpb_size < (max_dpb_size + 4)) {
 			actual_dpb_size = max_dpb_size + 4;
 			if (actual_dpb_size > VF_BUF_NUM)

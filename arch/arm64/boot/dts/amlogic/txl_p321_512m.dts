@@ -332,12 +332,12 @@
 			"vdec";
 	};
 
-	amvideocap {
+/*	amvideocap {
 		compatible = "amlogic, amvideocap";
 		dev_name = "amvideocap.0";
 		status = "okay";
 		max_size = <8>;//8M
-	};
+	};*/
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";
@@ -520,7 +520,7 @@
 		uart_scl_c_pin =  <&gpio       GPIOW_11      GPIO_ACTIVE_HIGH>;
  	};
 
-	amvenc_avc {
+/*	amvenc_avc {
 		compatible = "amlogic, amvenc_avc";
 		//memory-region = <&amvenc_avc_reserved>;
 		//memory-region = <&avc_cma_reserved>;
@@ -528,7 +528,7 @@
 		status = "okay";
 		interrupts = <0 45 1>;
 		interrupt-names = "mailbox_2";
-	};
+	};*/
 
 	vpu {
 		compatible = "amlogic, vpu";
