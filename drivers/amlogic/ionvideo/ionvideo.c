@@ -23,6 +23,8 @@
 #define IONVIDEO_VERSION "1.0"
 #define RECEIVER_NAME "ionvideo"
 
+#define V4L2_CID_USER_AMLOGIC_IONVIDEO_BASE  (V4L2_CID_USER_BASE + 0x1100)
+
 static struct mutex ppmgr2_ge2d_canvas_mutex;
 
 static unsigned video_nr_base = 13;
@@ -42,6 +44,10 @@ MODULE_PARM_DESC(debug, "activates debug info");
 static unsigned int vid_limit = 16;
 module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
+
+static unsigned int freerun_mode = 1;
+module_param(freerun_mode, uint, 0664);
+MODULE_PARM_DESC(freerun_mode, "av synchronization");
 
 static const struct ionvideo_fmt formats[] = {
 	{.name = "RGB32 (LE)",
@@ -76,6 +82,35 @@ static const struct ionvideo_fmt formats[] = {
 	.fourcc = V4L2_PIX_FMT_YVU420,
 	.depth = 12, }
 };
+
+/* supported controls
+static struct v4l2_queryctrl ionvideo_node_qctrl[] =
+{
+	{
+	.id = V4L2_CID_USER_AMLOGIC_IONVIDEO_BASE,
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.name = "freerun_mode",
+	.minimum = 0,
+	.maximum = 1,
+	.step = 1,
+	.default_value = 1,
+	.flags = V4L2_CTRL_FLAG_SLIDER,
+	}
+}; */
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct ionvideo_dev *dev = video_drvdata(file);
+
+	if (ctrl->id == V4L2_CID_USER_AMLOGIC_IONVIDEO_BASE) {
+		if (ctrl->value) {
+			dev->freerun_mode = 1;
+			IONVID_INFO("ionvideo: set freerun mode\n");
+		}
+	}
+	return 0;
+}
 
 static const struct ionvideo_fmt *__get_format(u32 pixelformat)
 {
@@ -594,7 +629,9 @@ static int vidioc_open(struct file *file)
 	dev->once_record = 1;
 	dev->ppmgr2_dev.bottom_first = 0;
 	dev->skip_frames = 0;
-	dev->freerun_mode = 1;
+
+	/*for libplayer osd*/
+	dev->freerun_mode = freerun_mode;
 	dprintk(dev, 2, "vidioc_open\n");
 	IONVID_INFO("ionvideo open\n");
 	init_waitqueue_head(&dev->wq);
@@ -964,21 +1001,27 @@ static const struct v4l2_file_operations ionvideo_fops = {
 	.mmap = vb2_fop_mmap, };
 
 static const struct v4l2_ioctl_ops ionvideo_ioctl_ops = {
-	.vidioc_querycap = vidioc_querycap, .vidioc_enum_fmt_vid_cap =
-		vidioc_enum_fmt_vid_cap, .vidioc_g_fmt_vid_cap =
-		vidioc_g_fmt_vid_cap, .vidioc_try_fmt_vid_cap =
-		vidioc_try_fmt_vid_cap, .vidioc_s_fmt_vid_cap =
-		vidioc_s_fmt_vid_cap, .vidioc_enum_framesizes =
-		vidioc_enum_framesizes, .vidioc_reqbufs = vb2_ioctl_reqbufs,
-	.vidioc_create_bufs = vb2_ioctl_create_bufs, .vidioc_prepare_buf =
-		vb2_ioctl_prepare_buf, .vidioc_querybuf = vb2_ioctl_querybuf,
-	.vidioc_qbuf = vidioc_qbuf, .vidioc_dqbuf = vidioc_dqbuf,
+	.vidioc_querycap = vidioc_querycap,
+	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap = vidioc_s_fmt_vid_cap,
+	.vidioc_enum_framesizes = vidioc_enum_framesizes,
+	.vidioc_reqbufs = vb2_ioctl_reqbufs,
+	.vidioc_create_bufs = vb2_ioctl_create_bufs,
+	.vidioc_prepare_buf = vb2_ioctl_prepare_buf,
+	.vidioc_querybuf = vb2_ioctl_querybuf,
+	.vidioc_qbuf = vidioc_qbuf,
+	.vidioc_dqbuf = vidioc_dqbuf,
 	.vidioc_enum_input = vidioc_enum_input,
-	.vidioc_g_input = vidioc_g_input, .vidioc_s_input = vidioc_s_input,
-	.vidioc_streamon = vb2_ioctl_streamon, .vidioc_streamoff =
-		vb2_ioctl_streamoff, .vidioc_log_status = v4l2_ctrl_log_status,
+	.vidioc_g_input = vidioc_g_input,
+	.vidioc_s_input = vidioc_s_input,
+	.vidioc_streamon = vb2_ioctl_streamon,
+	.vidioc_streamoff = vb2_ioctl_streamoff,
+	.vidioc_log_status = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
-	.vidioc_unsubscribe_event = v4l2_event_unsubscribe, };
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
+	.vidioc_s_ctrl = vidioc_s_ctrl,};
 
 static const struct video_device ionvideo_template = {
 	.name = "ionvideo", .fops = &ionvideo_fops, .ioctl_ops =
