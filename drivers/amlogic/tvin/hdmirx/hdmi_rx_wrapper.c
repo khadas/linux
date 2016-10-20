@@ -2816,10 +2816,13 @@ void hdmirx_hw_monitor(void)
 		return;
 	} else {
 		if (rx.state != FSM_SIG_READY) {
-			if (wait_no_sig_cnt == wait_no_sig_max)
+			if (wait_no_sig_cnt >= wait_no_sig_max)
 				rx.no_signal = true;
-			else
+			else {
 				wait_no_sig_cnt++;
+				if (rx.no_signal)
+					rx.no_signal = false;
+			}
 		}
 	}
 	switch (rx.state) {
@@ -2829,7 +2832,6 @@ void hdmirx_hw_monitor(void)
 			/* hdmi_rx_ctrl_edid_update(); */
 		rx.state = FSM_HPD_LOW;
 		rx.pre_state = FSM_INIT;
-		wait_no_sig_cnt = 0;
 		rx_pr("INIT->5V_LOW\n");
 		break;
 	case FSM_HPD_LOW:
@@ -3113,7 +3115,7 @@ void hdmirx_hw_monitor(void)
 				rx.change = (skip_frame_num * 3);
 			if ((sig_lost_lock_cnt++ >= sig_lost_lock_max) &&
 				(pll_stable_protect_cnt == 0)) {
-				rx.state = FSM_WAIT_CLK_STABLE;
+				rx.state = FSM_SIG_UNSTABLE;
 				rx.pre_state = FSM_SIG_READY;
 				audio_sample_rate = 0;
 				/* hdmirx_set_video_mute(1); */
@@ -3171,7 +3173,7 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				/* hdmirx_audio_fifo_rst(); */
-				rx.state = FSM_WAIT_CLK_STABLE;
+				rx.state = FSM_SIG_UNSTABLE;
 				rx.pre_state = FSM_SIG_READY;
 				wait_no_sig_cnt = 0;
 				rx.aud_sr_stable_cnt = 0;
@@ -4664,6 +4666,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.ctrl.tmds_clk = 0;
 	rx.ctrl.tmds_clk2 = 0;
 	rx.ctrl.acr_mode = acr_mode;
+	wait_no_sig_cnt = 0;
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
 	else
