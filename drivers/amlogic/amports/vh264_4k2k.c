@@ -442,7 +442,7 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 
 			if (!buffer_spec[i].phy_addr) {
 				if (!codec_mm_enough_for_size(
-					page_count * PAGE_SIZE)) {
+					page_count * PAGE_SIZE, 1)) {
 					buffer_spec[i].alloc_count = 0;
 					fatal_error =
 						DECODER_FATAL_ERROR_NO_MEM;

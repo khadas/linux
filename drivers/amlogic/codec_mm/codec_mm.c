@@ -486,6 +486,13 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	mem->align2n = align2n;
 	mem->flags = memflags;
 	ret = codec_mm_alloc_in(mgt, mem);
+	if (ret == -10003 &&
+		!(memflags & CODEC_MM_FLAGS_FOR_SCATTER)) {
+		/*if not scatter, free scatter caches.*/
+		pr_err(" No mem ret=%d, clear scatter cache!!\n", ret);
+		codec_mm_scatter_free_all_ignorecache();
+		ret = codec_mm_alloc_in(mgt, mem);
+	}
 	if (ret < 0) {
 		pr_err("not enough mem for %s size %d, ret=%d\n",
 				owner, size, ret);
@@ -1002,12 +1009,21 @@ int codec_mm_get_reserved_size(void)
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	return mgt->total_reserved_size;
 }
-
-int codec_mm_enough_for_size(int size)
+/*
+with_wait:
+1: if no mem, do wait and free some cache.
+0: do not wait.
+*/
+int codec_mm_enough_for_size(int size, int with_wait)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	int have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
-	if (!have_mem) {
+	if (!have_mem && with_wait) {
+		pr_err(" No mem, clear scatter cache!!\n");
+		codec_mm_scatter_free_all_ignorecache();
+		have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
+		if (have_mem)
+			return 1;
 		if (debug_mode & 0x20)
 			dump_mem_infos(NULL, 0);
 		return 0;

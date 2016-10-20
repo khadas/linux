@@ -51,7 +51,10 @@ clear thie buffer cache.
 /*used in codec_mm owner.
 don't not set on others.
 */
-#define CODEC_MM_FLAGS_FOR_LOCAL_MGR 0x8000000
+#define CODEC_MM_FLAGS_FOR_LOCAL_MGR  0x8000000
+/*used scatter manager
+*/
+#define CODEC_MM_FLAGS_FOR_SCATTER  0x10000000
 
 #define CODEC_MM_FLAGS_FROM_MASK \
 	(CODEC_MM_FLAGS_DMA |\
@@ -82,7 +85,7 @@ void codec_mm_dma_flush(void *vaddr,
 int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
 int codec_mm_get_reserved_size(void);
-int codec_mm_enough_for_size(int size);
+int codec_mm_enough_for_size(int size, int with_wait);
 int codec_mm_video_tvp_enabled(void);
 
 

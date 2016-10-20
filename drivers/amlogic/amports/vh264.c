@@ -846,7 +846,7 @@ static void vh264_set_params(struct work_struct *work)
 				}
 				if (!buffer_spec[i].phy_addr) {
 					if (!codec_mm_enough_for_size(
-						page_count * PAGE_SIZE)) {
+						page_count * PAGE_SIZE, 1)) {
 						buffer_spec[i].alloc_count = 0;
 						fatal_error_flag =
 						DECODER_FATAL_ERROR_NO_MEM;
@@ -2421,7 +2421,7 @@ static s32 vh264_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
 		struct buffer_spec_s *s = &fense_buffer_spec[i];
-		if (!codec_mm_enough_for_size(3 * SZ_1M))
+		if (!codec_mm_enough_for_size(3 * SZ_1M, 1))
 			return -ENOMEM;
 
 		s->alloc_count = 3 * SZ_1M / PAGE_SIZE;
