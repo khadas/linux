@@ -1560,12 +1560,12 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 #endif
 	if (osd_hw.free_dst_data[index].y_end >= 2159) {
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00202000);
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x002020ff);
 		else if (get_cpu_type() ==
 			MESON_CPU_MAJOR_ID_GXTVBB)
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
 		else
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x008080ff);
 	}
 	osd_update_window_axis = true;
 	mutex_unlock(&osd_mutex);
@@ -3751,12 +3751,12 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 1;
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00202000);
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x002020ff);
 		else if (get_cpu_type() ==
 			MESON_CPU_MAJOR_ID_GXTVBB)
 			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0xff);
 		else
-			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x00808000);
+			osd_reg_write(VPP_OSD_SC_DUMMY_DATA, 0x008080ff);
 	} else {
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 0;
