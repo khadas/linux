@@ -114,6 +114,9 @@ static struct hdmitx_dev hdmitx_device;
 static struct switch_dev sdev = { /* android ics switch device */
 	.name = "hdmi_hpd",
 };
+static struct switch_dev hdmi_audio = {
+	.name = "hdmi_audio",
+};
 static struct switch_dev hdmi_power = { /* android ics switch device */
 	.name = "hdmi_power",
 };
@@ -2170,6 +2173,7 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	switch_set_state(&sdev, 1);
+	switch_set_state(&hdmi_audio, 1);
 
 	mutex_unlock(&setclk_mutex);
 }
@@ -2223,6 +2227,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	switch_set_state(&sdev, 0);
+	switch_set_state(&hdmi_audio, 0);
 	mutex_unlock(&setclk_mutex);
 }
 
@@ -2815,6 +2820,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		clk_prepare_enable(hdmitx_device.clk_pixel);
 
 	switch_dev_register(&sdev);
+	switch_dev_register(&hdmi_audio);
 	switch_dev_register(&hdmi_power);
 	switch_dev_register(&hdmi_hdr);
 
@@ -2838,6 +2844,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 {
 	struct device *dev = hdmitx_device.hdtx_dev;
 	switch_dev_unregister(&sdev);
+	switch_dev_unregister(&hdmi_audio);
 	switch_dev_unregister(&hdmi_power);
 	switch_dev_unregister(&hdmi_hdr);
 	cancel_work_sync(&hdmitx_device.work_hdr);
