@@ -2268,6 +2268,26 @@ static int get_timing_fmt(struct hdmi_rx_ctrl_video *video_par)
 	return ret;
 }
 
+void update_hpd_sts(int pwr_sts)
+{
+	int cur_sts, hpd_sts;
+
+	if (is_meson_gxtvbb_cpu())
+		return;
+
+	if (rx.port > 4)
+		hpd_sts = ~pwr_sts & 0xf;
+	else {
+		hpd_sts = ~pwr_sts & 0xf;
+		cur_sts = hdmirx_rd_top(TOP_HPD_PWR5V) >> rx.port & 1;
+		hpd_sts = (hpd_sts & (~(1 << rx.port))) | cur_sts;
+	}
+	hdmirx_wr_top(TOP_HPD_PWR5V, hpd_sts | _BIT(4));
+	if (log_flag & VIDEO_LOG)
+		rx_pr("set top_hpd->%x\n", hpd_sts);
+}
+
+
 /*
  * init audio information
  */
@@ -2321,6 +2341,7 @@ void rx_5v_det(void)
 	}
 	check_cnt = 0;
 	pwr_sts = tmp_5v;
+	update_hpd_sts(pwr_sts);
 	rx_pr("hotplg-%x", pwr_sts);
 	hdmirx_wait_query();
 }
@@ -3110,7 +3131,7 @@ void hdmirx_hw_monitor(void)
 		if (hdmirx_tmds_pll_lock() == false) {
 			if (sig_lost_lock_cnt < 2)
 				rx.change = skip_frame_num *
-					(sig_lost_lock_cnt++);
+					(sig_lost_lock_cnt + 1);
 			else
 				rx.change = (skip_frame_num * 3);
 			if ((sig_lost_lock_cnt++ >= sig_lost_lock_max) &&
@@ -3159,7 +3180,7 @@ void hdmirx_hw_monitor(void)
 				&rx.cur_params))) {
 			if (sig_unready_cnt < 2)
 				rx.change = skip_frame_num *
-					(sig_unready_cnt++);
+					(sig_unready_cnt + 1);
 			else
 				rx.change = (skip_frame_num * 3);
 			if (stable_protect_cnt != 0)
