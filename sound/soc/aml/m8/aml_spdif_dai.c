@@ -493,13 +493,6 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		audio_in_spdif_set_buf(runtime->dma_addr,
 				       runtime->dma_bytes * 2);
 		memset((void *)runtime->dma_area, 0, runtime->dma_bytes * 2);
-		/*{
-			int *ppp =
-			    (int *)(runtime->dma_area + runtime->dma_bytes * 2 -
-				    8);
-			ppp[0] = 0x78787878;
-			ppp[1] = 0x78787878;
-		}*/
 	}
 
 	return 0;

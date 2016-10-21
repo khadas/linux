@@ -656,6 +656,19 @@ static int aml_card_dais_parse_of(struct snd_soc_card *card)
 	return ret;
 }
 
+static void aml_pinmux_work_func(struct work_struct *pinmux_work)
+{
+	struct aml_audio_private_data *p_aml_audio = NULL;
+	struct snd_soc_card *card = NULL;
+	p_aml_audio = container_of(pinmux_work,
+				  struct aml_audio_private_data, pinmux_work);
+	card = (struct snd_soc_card *)p_aml_audio->data;
+
+	aml_m8_pinmux_init(card);
+
+	return;
+}
+
 static int aml_m8_audio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -718,7 +731,12 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	}
 
 	aml_i2s_play();
-	aml_m8_pinmux_init(card);
+
+	p_aml_audio->data = (void *)card;
+	INIT_WORK(&p_aml_audio->pinmux_work, aml_pinmux_work_func);
+	schedule_work(&p_aml_audio->pinmux_work);
+
+	/*aml_m8_pinmux_init(card);*/
 	return 0;
  err:
 	dev_err(dev, "Can't probe snd_soc_card\n");
