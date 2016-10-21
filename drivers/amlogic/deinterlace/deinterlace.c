@@ -1826,6 +1826,7 @@ struct di_pre_stru_s {
 	int	static_frame_count;
 	bool force_interlace;
 	bool bypass_pre;
+	bool invert_flag;
 	int nr_size;
 	int count_size;
 	int mcinfo_size;
@@ -1898,6 +1899,8 @@ static void dump_di_pre_stru(void)
 		di_pre_stru.vdin2nr);
 	pr_info("bypass_pre		   = %s\n",
 		di_pre_stru.bypass_pre ? "true" : "false");
+	pr_info("invert_flag	   = %s\n",
+		di_pre_stru.invert_flag ? "true" : "false");
 }
 
 struct di_post_stru_s {
@@ -5483,7 +5486,12 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		di_pre_stru.source_trans_fmt = vframe->trans_fmt;
 		di_pre_stru.left_right = di_pre_stru.left_right ? 0 : 1;
 
-		if (((invert_top_bot & 0x2) != 0) &&
+		di_pre_stru.invert_flag =
+			(vframe->type & TB_DETECT_MASK) ? true : false;
+		vframe->type &= ~TB_DETECT_MASK;
+
+		if ((((invert_top_bot & 0x2) != 0) ||
+				di_pre_stru.invert_flag) &&
 		    (!is_progressive(vframe))) {
 			if (
 				(vframe->type & VIDTYPE_TYPEMASK) ==

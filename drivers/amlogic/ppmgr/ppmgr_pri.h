@@ -39,4 +39,9 @@ extern int ppmgr_buffer_uninit(void);
 extern void vf_ppmgr_reset(int type);
 extern int ppmgr_register(void);
 
+/* for thread of tb detect. */
+extern int start_tb_task(void);
+extern void stop_tb_task(void);
+extern void get_tb_detect_status(void);
+
 #endif /* _PPMGR_PRI_INCLUDE__ */

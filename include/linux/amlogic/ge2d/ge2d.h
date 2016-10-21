@@ -117,6 +117,9 @@
 #define FILTER_TYPE_BICUBIC     1
 #define FILTER_TYPE_BILINEAR    2
 #define FILTER_TYPE_TRIANGLE    3
+#define FILTER_TYPE_GAU0    4
+#define FILTER_TYPE_GAU0_BOT    5
+#define FILTER_TYPE_GAU1    6
 
 #define MATRIX_YCC_TO_RGB               1
 #define MATRIX_RGB_TO_YCC               2

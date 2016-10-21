@@ -57,6 +57,15 @@
 #define DISP_RATIO_ASPECT_RATIO_BIT     8
 #define DISP_RATIO_ASPECT_RATIO_MAX     0x3ff
 
+#define TB_DETECT_MASK    0x00000040
+#define TB_DETECT_MASK_BIT     6
+#define TB_DETECT_NONE          0
+#define TB_DETECT_INVERT       1
+#define TB_DETECT_NC               0
+#define TB_DETECT_TFF             1
+#define TB_DETECT_BFF             2
+#define TB_DETECT_TBF             3
+
 #define VFRAME_FLAG_NO_DISCONTINUE      1
 #define VFRAME_FLAG_SWITCHING_FENSE     2
 
