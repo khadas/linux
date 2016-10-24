@@ -329,6 +329,10 @@ module_param(vert_chroma_filter_force_en, bool, 0664);
 MODULE_PARM_DESC(vert_chroma_filter_force_en,
 	"force enable vertical chromafilter\n");
 
+uint vert_chroma_filter_limit = 480;
+module_param(vert_chroma_filter_limit, uint, 0664);
+MODULE_PARM_DESC(vert_chroma_filter_limit, "vertical chromafilter limit\n");
+
 uint num_chroma_filter = TOTAL_FILTERS;
 module_param_array(chroma_filter_table, uint, &num_chroma_filter, 0664);
 MODULE_PARM_DESC(chroma_filter_table, "\n chroma_filter_table\n");
@@ -1282,7 +1286,8 @@ RESTART:
 	/* TODO: add 420 check for local */
 	if (vert_chroma_filter_force_en || (vert_chroma_filter_en
 	&& (((vf->source_type == VFRAME_SOURCE_TYPE_OTHERS)
-	 && ((vf->type_original & VIDTYPE_TYPEMASK) != VIDTYPE_PROGRESSIVE))
+	 && (((vf->type_original & VIDTYPE_TYPEMASK) != VIDTYPE_PROGRESSIVE) ||
+	 (vf->height < vert_chroma_filter_limit)))
 	|| (vf->source_type == VFRAME_SOURCE_TYPE_CVBS)
 	|| (vf->source_type == VFRAME_SOURCE_TYPE_TUNER)))) {
 		cur_vert_chroma_filter
