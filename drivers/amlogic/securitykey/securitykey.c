@@ -48,6 +48,9 @@ static unsigned long storage_status_func;
 static unsigned long storage_verify_func;
 static unsigned long storage_list_func;
 static unsigned long storage_remove_func;
+static unsigned long storage_set_enctype_func;
+static unsigned long storage_get_enctype_func;
+static unsigned long storage_version_func;
 
 static DEFINE_SPINLOCK(storage_lock);
 static unsigned long lockflags;
@@ -59,6 +62,19 @@ static uint64_t storage_smc_ops(uint64_t func)
 		__asmeq("%0", "x0")
 		"smc	#0\n"
 		: "+r" (x0));
+
+	return x0;
+}
+static uint64_t storage_smc_ops2(uint64_t func, uint64_t arg1)
+{
+	register unsigned long x0 asm("x0") = func;
+	register unsigned long x1 asm("x1") = arg1;
+	asm volatile(
+		__asmeq("%0", "x0")
+		__asmeq("%1", "x1")
+		"smc    #0\n"
+		: "+r" (x0)
+		: "r"(x1));
 
 	return x0;
 }
@@ -240,6 +256,32 @@ int32_t secure_storage_remove(uint8_t *keyname)
 	spin_unlock_irqrestore(&storage_lock, lockflags);
 	return smc_to_linux_errno(ret);
 }
+
+int32_t secure_storage_set_enctype(uint32_t type)
+{
+	uint64_t ret;
+	spin_lock_irqsave(&storage_lock, lockflags);
+	ret = storage_smc_ops2(storage_set_enctype_func, type);
+	spin_unlock_irqrestore(&storage_lock, lockflags);
+	return smc_to_linux_errno(ret);
+}
+int32_t secure_storage_get_enctype(void)
+{
+	uint64_t ret;
+	spin_lock_irqsave(&storage_lock, lockflags);
+	ret = storage_smc_ops(storage_get_enctype_func);
+	spin_unlock_irqrestore(&storage_lock, lockflags);
+	return smc_to_linux_errno(ret);
+}
+int32_t secure_storage_version(void)
+{
+	uint64_t ret;
+	spin_lock_irqsave(&storage_lock, lockflags);
+	ret = storage_smc_ops(storage_version_func);
+	spin_unlock_irqrestore(&storage_lock, lockflags);
+	return smc_to_linux_errno(ret);
+}
+
 static int storage_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -271,6 +313,12 @@ static int storage_probe(struct platform_device *pdev)
 		storage_list_func = id;
 	if (!of_property_read_u32(np, "storage_remove", &id))
 		storage_remove_func = id;
+	if (!of_property_read_u32(np, "storage_set_enctype", &id))
+		storage_set_enctype_func = id;
+	if (!of_property_read_u32(np, "storage_get_enctype", &id))
+		storage_get_enctype_func = id;
+	if (!of_property_read_u32(np, "storage_version", &id))
+		storage_version_func = id;
 
 	storage_in_base = ioremap_cache(phy_storage_in_base,
 					storage_block_size);

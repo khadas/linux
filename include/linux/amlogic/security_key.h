@@ -17,5 +17,7 @@ int32_t secure_storage_query(uint8_t *keyname, uint32_t *retval);
 int32_t secure_storage_tell(uint8_t *keyname, uint32_t *retval);
 int32_t secure_storage_status(uint8_t *keyname, uint32_t *retval);
 void *secure_storage_getbuffer(uint32_t *size);
-
+int32_t secure_storage_set_enctype(uint32_t type);
+int32_t secure_storage_get_enctype(void);
+int32_t secure_storage_version(void);
 #endif
