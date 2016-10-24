@@ -396,27 +396,26 @@ void atv_dmd_misc(void)
 	atv_dmd_wr_long(0x19, 0x00, 0x4a4000);/*zhuangwei*/
 	/*atv_dmd_wr_byte(0x0c,0x01,0x28);//pwd-out gain*/
 	/*atv_dmd_wr_byte(0x0c,0x04,0xc0);//pwd-out offset*/
-	if (is_meson_gxtvbb_cpu()) {
-		aml_audio_valume_gain_set(audio_gain_val);
-		/* 20160121 fix audio demodulation over */
-		atv_dmd_wr_long(0x09, 0x00, 0x1030501);
-		atv_dmd_wr_long(0x09, 0x04, 0x1900000);
-		if (aud_dmd_jilinTV)
-			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
-		if (non_std_en == 1) {
-			atv_dmd_wr_long(0x09, 0x00, 0x2030503);
-			atv_dmd_wr_long(0x0f, 0x44, 0x7c8808c1);
-			atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
-		} else {
-			atv_dmd_wr_long(0x09, 0x00, 0x1030501);
-			if (atv_video_gain)
-				atv_dmd_wr_long(0x0f, 0x44, atv_video_gain);
-			else
-				atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
-			atv_dmd_wr_long(0x06, 0x24, 0xc030901);
-		}
 
+	aml_audio_valume_gain_set(audio_gain_val);
+	/* 20160121 fix audio demodulation over */
+	atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+	atv_dmd_wr_long(0x09, 0x04, 0x1900000);
+	if (aud_dmd_jilinTV)
+		atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+	if (non_std_en == 1) {
+		atv_dmd_wr_long(0x09, 0x00, 0x2030503);
+		atv_dmd_wr_long(0x0f, 0x44, 0x7c8808c1);
+		atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
+	} else {
+		atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+		if (atv_video_gain)
+			atv_dmd_wr_long(0x0f, 0x44, atv_video_gain);
+		else
+			atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
+		atv_dmd_wr_long(0x06, 0x24, 0xc030901);
 	}
+
 }
 
 /*Broadcast_Standard*/
