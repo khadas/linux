@@ -622,6 +622,8 @@ static void lcd_config_print(struct lcd_config_s *pconf)
 			pconf->lcd_control.lvds_config->dual_port);
 		LCDPR("port_swap = %d\n",
 			pconf->lcd_control.lvds_config->port_swap);
+		LCDPR("lane_reverse = %d\n",
+			pconf->lcd_control.lvds_config->lane_reverse);
 	}
 }
 
@@ -735,14 +737,27 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 	case LCD_LVDS:
 		lvdsconf = pconf->lcd_control.lvds_config;
 		ret = of_property_read_u32_array(child, "lvds_attr",
-			&para[0], 4);
+			&para[0], 5);
 		if (ret) {
-			LCDERR("failed to get lvds_attr\n");
+			if (lcd_debug_print_flag)
+				LCDERR("load 4 parameters in lvds_attr\n");
+			ret = of_property_read_u32_array(child, "lvds_attr",
+				&para[0], 4);
+			if (ret) {
+				if (lcd_debug_print_flag)
+					LCDPR("failed to get lvds_attr\n");
+			} else {
+				lvdsconf->lvds_repack = para[0];
+				lvdsconf->dual_port = para[1];
+				lvdsconf->pn_swap = para[2];
+				lvdsconf->port_swap = para[3];
+			}
 		} else {
-			lvdsconf->lvds_repack = para[0];
-			lvdsconf->dual_port = para[1];
-			lvdsconf->pn_swap = para[2];
-			lvdsconf->port_swap = para[3];
+				lvdsconf->lvds_repack = para[0];
+				lvdsconf->dual_port = para[1];
+				lvdsconf->pn_swap = para[2];
+				lvdsconf->port_swap = para[3];
+				lvdsconf->lane_reverse = para[4];
 		}
 		ret = of_property_read_u32_array(child, "phy_attr",
 			&para[0], 4);
@@ -963,8 +978,11 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		pconf->lcd_control.lvds_config->phy_clk_preem  =
 				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_7;
-		/* dummy pointer */
+		pconf->lcd_control.lvds_config->port_swap  =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_8;
+
+		/* dummy pointer */
 		p += LCD_UKEY_IF_ATTR_9;
 	} else {
 		LCDERR("unsupport lcd_type: %d\n", pconf->lcd_basic.lcd_type);

@@ -216,6 +216,7 @@ static void lcd_info_print(void)
 			"dual_port         %u\n"
 			"pn_swap           %u\n"
 			"port_swap         %u\n"
+			"lane_reverse      %u\n"
 			"phy_vswing        %u\n"
 			"phy_preem         %u\n"
 			"phy_clk_vswing    %u\n"
@@ -224,6 +225,7 @@ static void lcd_info_print(void)
 			pconf->lcd_control.lvds_config->dual_port,
 			pconf->lcd_control.lvds_config->pn_swap,
 			pconf->lcd_control.lvds_config->port_swap,
+			pconf->lcd_control.lvds_config->lane_reverse,
 			pconf->lcd_control.lvds_config->phy_vswing,
 			pconf->lcd_control.lvds_config->phy_preem,
 			pconf->lcd_control.lvds_config->phy_clk_vswing,
@@ -1146,12 +1148,13 @@ static const char *lcd_ttl_debug_usage_str = {
 
 static const char *lcd_lvds_debug_usage_str = {
 "Usage:\n"
-"    echo <repack> <dual_port> <pn_swap> <port_swap> > lvds ; set lvds config\n"
+"    echo <repack> <dual_port> <pn_swap> <port_swap> <lane_reverse> > lvds ; set lvds config\n"
 "data format:\n"
 "    <repack>    : 0=JEIDA mode, 1=VESA mode\n"
 "    <dual_port> : 0=single port, 1=dual port\n"
 "    <pn_swap>   : 0=normal, 1=swap p/n channels\n"
 "    <port_swap> : 0=normal, 1=swap A/B port\n"
+"	 <lane_reverse> : 0=normal, 1=swap A0-A4/B0-B4\n"
 "\n"
 "    echo <vswing> <preem> > phy ; set vbyone phy config\n"
 "data format:\n"
@@ -1271,14 +1274,16 @@ static ssize_t lcd_lvds_debug_store(struct class *class,
 	struct lvds_config_s *lvds_conf;
 
 	lvds_conf = lcd_drv->lcd_config->lcd_control.lvds_config;
-	ret = sscanf(buf, "%d %d %d %d",
+	ret = sscanf(buf, "%d %d %d %d %d",
 		&lvds_conf->lvds_repack, &lvds_conf->dual_port,
-		&lvds_conf->pn_swap, &lvds_conf->port_swap);
-	if (ret == 4) {
+		&lvds_conf->pn_swap, &lvds_conf->port_swap,
+		&lvds_conf->lane_reverse);
+	if (ret == 5 || ret == 4) {
 		pr_info("set lvds config:\n"
-			"repack=%d, dual_port=%d, pn_swap=%d, port_swap=%d\n",
+			"repack=%d, dual_port=%d, pn_swap=%d, port_swap=%d, lane_reverse=%d\n",
 			lvds_conf->lvds_repack, lvds_conf->dual_port,
-			lvds_conf->pn_swap, lvds_conf->port_swap);
+			lvds_conf->pn_swap, lvds_conf->port_swap,
+			lvds_conf->lane_reverse);
 		lcd_debug_config_update();
 	} else {
 		pr_info("invalid data\n");

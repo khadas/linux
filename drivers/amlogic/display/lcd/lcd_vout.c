@@ -64,6 +64,7 @@ static struct lvds_config_s lcd_lvds_config = {
 	.dual_port = 0,
 	.pn_swap = 0,
 	.port_swap = 0,
+	.lane_reverse = 0,
 	.port_sel = 0,
 	.phy_vswing = LVDS_PHY_VSWING_DFT,
 	.phy_preem = LVDS_PHY_PREEM_DFT,
