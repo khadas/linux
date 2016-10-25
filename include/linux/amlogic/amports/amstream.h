@@ -496,7 +496,7 @@ int vcodec_profile_register(const struct codec_profile_t *vdec_profile);
 ssize_t vcodec_profile_read(char *buf);
 
 #ifdef __KERNEL__
-#ifdef ENABLE_DEMUX_DRIVER
+#include <linux/interrupt.h>
 /*TS demux operation interface*/
 struct tsdemux_ops {
 
@@ -524,7 +524,6 @@ struct tsdemux_ops {
 void tsdemux_set_ops(struct tsdemux_ops *ops);
 int tsdemux_set_reset_flag(void);
 
-#endif				/*ENABLE_DEMUX_DRIVER */
 void set_adec_func(int (*adec_func)(struct adec_status *));
 void wakeup_sub_poll(void);
 void set_userdata_poc(struct userdata_poc_info_t poc);
