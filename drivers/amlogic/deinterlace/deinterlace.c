@@ -9205,7 +9205,7 @@ static void set_di_flag(void)
 			di_force_bit_mode = 8;
 		if (is_meson_txl_cpu()) {
 			full_422_pack = true;
-			tff_bff_enable = true;
+			tff_bff_enable = false;
 			dejaggy_enable = 0;
 		}
 	} else {
