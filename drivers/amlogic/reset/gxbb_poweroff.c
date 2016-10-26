@@ -50,9 +50,10 @@
 #define	MESONGXBB_NORMAL_BOOT					0x1
 #define	MESONGXBB_FACTORY_RESET_REBOOT				0x2
 #define	MESONGXBB_UPDATE_REBOOT					0x3
-#define	MESONGXBB_USB_BURNER_REBOOT				0x4
+#define	MESONGXBB_FASTBOOT_REBOOT				0x4
 #define MESONGXBB_UBOOT_SUSPEND					0x5
 #define MESONGXBB_HIBERNATE					0x6
+#define MESONGXBB_BOOTLOADER_REBOOT				7
 #define	MESONGXBB_CRASH_REBOOT					11
 #define	MESONGXBB_KERNEL_PANIC					12
 
@@ -72,14 +73,14 @@ static u32 parse_reason(const char *cmd)
 			reboot_reason = MESONGXBB_FACTORY_RESET_REBOOT;
 		else if (strcmp(cmd, "update") == 0)
 			reboot_reason = MESONGXBB_UPDATE_REBOOT;
+		else if (strcmp(cmd, "fastboot") == 0)
+			reboot_reason = MESONGXBB_FASTBOOT_REBOOT;
+		else if (strcmp(cmd, "bootloader") == 0)
+			reboot_reason = MESONGXBB_BOOTLOADER_REBOOT;
 		else if (strcmp(cmd, "report_crash") == 0)
 			reboot_reason = MESONGXBB_CRASH_REBOOT;
-		else if (strcmp(cmd, "usb_burner_reboot") == 0)
-			reboot_reason = MESONGXBB_USB_BURNER_REBOOT;
 		else if (strcmp(cmd, "uboot_suspend") == 0)
 			reboot_reason = MESONGXBB_UBOOT_SUSPEND;
-		else if (strcmp(cmd, "hibernate") == 0)
-			reboot_reason = MESONGXBB_HIBERNATE;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0)
