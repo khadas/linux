@@ -103,6 +103,7 @@ static int _dtb_write(struct mmc_card *mmc,
 
 	src = (unsigned char *)buf;
 
+	mmc_claim_host(mmc->host);
 	do {
 		ret = mmc_write_internal(mmc, blk, MAX_TRANS_BLK, src);
 		if (ret) {
@@ -114,6 +115,7 @@ static int _dtb_write(struct mmc_card *mmc,
 		cnt -= MAX_TRANS_BLK;
 		src = (unsigned char *)buf + MAX_TRANS_SIZE;
 	} while (cnt != 0);
+	mmc_release_host(mmc->host);
 
 	return ret;
 }
@@ -128,7 +130,7 @@ static int _dtb_read(struct mmc_card *mmc,
 	int cnt = CONFIG_DTB_SIZE >> bit;
 
 	dst = (unsigned char *)buf;
-
+	mmc_claim_host(mmc->host);
 	do {
 		ret = mmc_read_internal(mmc, blk, MAX_TRANS_BLK, dst);
 		if (ret) {
@@ -140,7 +142,7 @@ static int _dtb_read(struct mmc_card *mmc,
 		cnt -= MAX_TRANS_BLK;
 		dst = (unsigned char *)buf + MAX_TRANS_SIZE;
 	} while (cnt != 0);
-
+	mmc_release_host(mmc->host);
 	return ret;
 }
 
@@ -293,7 +295,7 @@ ssize_t mmc_dtb_read(struct file *file,
 		return -ENOMEM;
 	}
 
-	mmc_claim_host(card_dtb->host);
+	/* mmc_claim_host(card_dtb->host); */
 	ret = amlmmc_dtb_read(card_dtb,
 			(unsigned char *)dtb_ptr,
 			CONFIG_DTB_SIZE);
@@ -309,7 +311,7 @@ ssize_t mmc_dtb_read(struct file *file,
 	ret = copy_to_user(buf, (dtb_ptr + *ppos), read_size);
 	*ppos += read_size;
 exit:
-	mmc_release_host(card_dtb->host);
+	/* mmc_release_host(card_dtb->host); */
 	vfree(dtb_ptr);
 	return read_size;
 }
@@ -334,7 +336,7 @@ ssize_t mmc_dtb_write(struct file *file,
 		pr_err("%s: malloc buf failed", __func__);
 		return -ENOMEM;
 	}
-	mmc_claim_host(card_dtb->host);
+	/* mmc_claim_host(card_dtb->host); */
 
 	if ((*ppos + count) > CONFIG_DTB_SIZE)
 		write_size = CONFIG_DTB_SIZE - *ppos;
@@ -353,7 +355,7 @@ ssize_t mmc_dtb_write(struct file *file,
 
 	*ppos += write_size;
 exit:
-	mmc_release_host(card_dtb->host);
+	/* mmc_release_host(card_dtb->host); */
 	/* kfree(dtb_ptr); */
 	vfree(dtb_ptr);
 	return write_size;
