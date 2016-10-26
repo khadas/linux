@@ -2938,6 +2938,39 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		dd();
 		hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
 		hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
+		return;
+	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
+		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 1, 3, 1);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 0);
+			return;
+		}
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+		hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+		hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+		if (strncmp(tmpbuf+4, "line", 4) == 0) {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 2);
+			return;
+		}
+		if (strncmp(tmpbuf+4, "dot", 3) == 0) {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 3);
+			return;
+		}
+		if (strncmp(tmpbuf+4, "start", 5) == 0) {
+			ret = kstrtoul(tmpbuf + 4, 10, &value);
+			hd_write_reg(P_VENC_VIDEO_TST_CLRBAR_STRT, value);
+			return;
+		}
+		if (strncmp(tmpbuf+4, "shift", 5) == 0) {
+			ret = kstrtoul(tmpbuf + 4, 10, &value);
+			hd_write_reg(P_VENC_VIDEO_TST_VDCNT_STSET, value);
+			return;
+		}
+		hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 1);
+		value = 1920;
+		ret = kstrtoul(tmpbuf + 4, 10, &value);
+		hd_write_reg(P_VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
+		return;
 	} else if (strncmp(tmpbuf, "dumptiming", 10) == 0) {
 		hdmitx_dump_inter_timing();
 		return;
