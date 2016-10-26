@@ -2987,28 +2987,28 @@ static void log_buffer_state(unsigned char *tag)
 
 static void dump_di_buf(struct di_buf_s *di_buf)
 {
-	pr_dbg("di_buf %p vframe %p:\n", di_buf, di_buf->vframe);
-	pr_dbg("index %d, post_proc_flag %d, new_format_flag %d, type %d,",
+	pr_info("di_buf %p vframe %p:\n", di_buf, di_buf->vframe);
+	pr_info("index %d, post_proc_flag %d, new_format_flag %d, type %d,",
 		di_buf->index, di_buf->post_proc_flag,
 		di_buf->new_format_flag, di_buf->type);
-	pr_dbg("seq %d, pre_ref_count %d,post_ref_count %d, queue_index %d,",
+	pr_info("seq %d, pre_ref_count %d,post_ref_count %d, queue_index %d,",
 		di_buf->seq, di_buf->pre_ref_count, di_buf->post_ref_count,
 		di_buf->queue_index);
-	pr_dbg("pulldown_mode %d process_fun_index %d\n",
+	pr_info("pulldown_mode %d process_fun_index %d\n",
 		di_buf->pulldown_mode, di_buf->process_fun_index);
-	pr_dbg("di_buf: %p, %p, di_buf_dup_p: %p, %p, %p, %p, %p\n",
+	pr_info("di_buf: %p, %p, di_buf_dup_p: %p, %p, %p, %p, %p\n",
 		di_buf->di_buf[0], di_buf->di_buf[1], di_buf->di_buf_dup_p[0],
 		di_buf->di_buf_dup_p[1], di_buf->di_buf_dup_p[2],
 		di_buf->di_buf_dup_p[3], di_buf->di_buf_dup_p[4]);
-	pr_dbg(
+	pr_info(
 	"nr_adr 0x%lx, nr_canvas_idx 0x%x, mtn_adr 0x%lx, mtn_canvas_idx 0x%x",
 		di_buf->nr_adr, di_buf->nr_canvas_idx, di_buf->mtn_adr,
 		di_buf->mtn_canvas_idx);
 #ifdef NEW_DI_V1
-	pr_dbg("cnt_adr 0x%lx, cnt_canvas_idx 0x%x\n",
+	pr_info("cnt_adr 0x%lx, cnt_canvas_idx 0x%x\n",
 		di_buf->cnt_adr, di_buf->cnt_canvas_idx);
 #endif
-	pr_dbg("di_cnt %d, priveated %u.\n",
+	pr_info("di_cnt %d, priveated %u.\n",
 			atomic_read(&di_buf->di_cnt), di_buf->privated);
 }
 
@@ -3017,42 +3017,42 @@ static void dump_pool(int index)
 	int j;
 	queue_t *q = &queue[index];
 
-	pr_dbg("queue[%d]: in_idx %d, out_idx %d, num %d, type %d\n",
+	pr_info("queue[%d]: in_idx %d, out_idx %d, num %d, type %d\n",
 		index, q->in_idx, q->out_idx, q->num, q->type);
 	for (j = 0; j < MAX_QUEUE_POOL_SIZE; j++) {
-		pr_dbg("0x%x ", q->pool[j]);
+		pr_info("0x%x ", q->pool[j]);
 		if (((j + 1) % 16) == 0)
 			pr_debug("\n");
 	}
-	pr_debug("\n");
+	pr_info("\n");
 }
 
 static void dump_vframe(vframe_t *vf)
 {
-	pr_dbg("vframe %p:\n", vf);
-	pr_dbg("index %d, type 0x%x, type_backup 0x%x, blend_mode %d bitdepth %d\n",
+	pr_info("vframe %p:\n", vf);
+	pr_info("index %d, type 0x%x, type_backup 0x%x, blend_mode %d bitdepth %d\n",
 		vf->index, vf->type, vf->type_backup,
 		vf->blend_mode, (vf->bitdepth&BITDEPTH_Y10)?10:8);
-	pr_dbg("duration %d, duration_pulldown %d, pts %d, flag 0x%x\n",
+	pr_info("duration %d, duration_pulldown %d, pts %d, flag 0x%x\n",
 		vf->duration, vf->duration_pulldown, vf->pts, vf->flag);
-	pr_dbg("canvas0Addr 0x%x, canvas1Addr 0x%x, bufWidth %d\n",
+	pr_info("canvas0Addr 0x%x, canvas1Addr 0x%x, bufWidth %d\n",
 		vf->canvas0Addr, vf->canvas1Addr, vf->bufWidth);
-	pr_dbg("width %d, height %d, ratio_control 0x%x, orientation 0x%x\n",
+	pr_info("width %d, height %d, ratio_control 0x%x, orientation 0x%x\n",
 		vf->width, vf->height, vf->ratio_control, vf->orientation);
-	pr_dbg("source_type %d, phase %d, soruce_mode %d, sig_fmt %d\n",
+	pr_info("source_type %d, phase %d, soruce_mode %d, sig_fmt %d\n",
 		vf->source_type, vf->phase, vf->source_mode, vf->sig_fmt);
-	pr_dbg(
+	pr_info(
 		"trans_fmt 0x%x, lefteye(%d %d %d %d), righteye(%d %d %d %d)\n",
 		vf->trans_fmt, vf->left_eye.start_x, vf->left_eye.start_y,
 		vf->left_eye.width, vf->left_eye.height,
 		vf->right_eye.start_x, vf->right_eye.start_y,
 		vf->right_eye.width, vf->right_eye.height);
-	pr_dbg("mode_3d_enable %d, use_cnt %d,",
+	pr_info("mode_3d_enable %d, use_cnt %d,",
 		vf->mode_3d_enable, atomic_read(&vf->use_cnt));
-	pr_dbg("early_process_fun 0x%p, process_fun 0x%p, private_data %p\n",
+	pr_info("early_process_fun 0x%p, process_fun 0x%p, private_data %p\n",
 		vf->early_process_fun,
 		vf->process_fun, vf->private_data);
-	pr_dbg("pixel_ratio %d list %p\n",
+	pr_info("pixel_ratio %d list %p\n",
 		vf->pixel_ratio, &vf->list);
 }
 
@@ -5085,18 +5085,28 @@ static void pre_de_done_buf_config(void)
 		}
 	}
 
-	if (di_pre_stru.di_post_inp_buf) {
+	if (di_pre_stru.di_post_inp_buf && di_pre_rdma_enable) {
 		di_print("%s: %s[%d] => recycle_list\n", __func__,
-			vframe_type_name[di_pre_stru.di_inp_buf->type],
-			di_pre_stru.di_inp_buf->index);
+			vframe_type_name[di_pre_stru.di_post_inp_buf->type],
+			di_pre_stru.di_post_inp_buf->index);
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
 		queue_in(di_pre_stru.di_post_inp_buf, QUEUE_RECYCLE);
 		di_pre_stru.di_post_inp_buf = NULL;
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 	}
 	if (di_pre_stru.di_inp_buf) {
-		di_pre_stru.di_post_inp_buf = di_pre_stru.di_inp_buf;
-		di_pre_stru.di_inp_buf = NULL;
+		if (!di_pre_rdma_enable) {
+			di_print("%s: %s[%d] => recycle_list\n", __func__,
+			vframe_type_name[di_pre_stru.di_inp_buf->type],
+			di_pre_stru.di_inp_buf->index);
+			di_lock_irqfiq_save(irq_flag2, fiq_flag);
+			queue_in(di_pre_stru.di_inp_buf, QUEUE_RECYCLE);
+			di_pre_stru.di_inp_buf = NULL;
+			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
+		} else {
+			di_pre_stru.di_post_inp_buf = di_pre_stru.di_inp_buf;
+			di_pre_stru.di_inp_buf = NULL;
+		}
 	}
 }
 
@@ -5599,6 +5609,14 @@ static unsigned char pre_de_buf_config(void)
 
 			top_bot_config(di_buf);
 			queue_in(di_buf, QUEUE_PRE_READY);
+			/*if previous isn't bypass post_wr_buf not recycled */
+			if (di_pre_stru.di_post_wr_buf && di_pre_rdma_enable) {
+				queue_in(
+					di_pre_stru.di_post_inp_buf,
+					QUEUE_RECYCLE);
+				di_pre_stru.di_post_inp_buf = NULL;
+			}
+
 			if (
 				(bypass_pre & 0x2) &&
 				!di_pre_stru.cur_prog_flag)
