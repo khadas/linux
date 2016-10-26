@@ -4704,9 +4704,16 @@ static int alloc_keep_buffer(void)
 	return -ENOMEM;
 }
 
-void try_free_keep_video(void)
+/*
+flags,used per bit:
+deflaut free alloced keeper buffer.
+0x1: free scatters keeper..
+0x2:
+*/
+void try_free_keep_video(int flags)
 {
-	if (keep_video_on) {
+	int free_scatter_keeper = flags & 0x1;
+	if (keep_video_on || free_scatter_keeper) {
 		pr_info("disbled keep video before free keep buffer.\n");
 		keep_video_on = 0;
 		cur_dispbuf = NULL;
@@ -4718,7 +4725,7 @@ void try_free_keep_video(void)
 			safe_disble_videolayer();
 		}
 	}
-	if (keep_id > 0) {
+	if (free_scatter_keeper && keep_id > 0) {
 		codec_mm_keeper_unmask_keeper(keep_id);
 		keep_id = -1;
 	}
@@ -4863,7 +4870,7 @@ static void video_vf_unreg_provider(void)
 
 	if (blackout | force_blackout) {
 		safe_disble_videolayer();
-		try_free_keep_video();
+		try_free_keep_video(1);
 	}
 
 	vsync_pts_100 = 0;
@@ -7311,7 +7318,7 @@ static ssize_t video_free_keep_buffer_store(struct class *cla,
 	if (r != 1)
 		return -EINVAL;
 	if (val == 1)
-		try_free_keep_video();
+		try_free_keep_video(1);
 	return count;
 }
 

@@ -834,7 +834,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 
 	if (vdec->format == VFORMAT_H264_4K2K ||
 		(vdec->format == VFORMAT_HEVC && is_4k)) {
-		try_free_keep_video();
+		try_free_keep_video(0);
 	}
 
 	/*when blackout_policy was set, vdec would not free cma buffer, if
@@ -855,7 +855,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 			vdec->format,
 			vdec_default_buf_size[vdec->format] * SZ_1M);
 #endif
-		try_free_keep_video();
+		try_free_keep_video(0);
 		vdec_free_cmabuf();
 	}
 
@@ -966,7 +966,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 			if (retry_num < 1) {
 				pr_err("vdec base CMA allocation failed,try again\\n");
 				retry_num++;
-				try_free_keep_video();
+				try_free_keep_video(0);
 				continue;/*retry alloc*/
 			}
 			pr_err("vdec base CMA allocation failed.\n");
