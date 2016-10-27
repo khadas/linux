@@ -325,6 +325,45 @@
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
 		};
+		/* fixme, begin; yyh */
+		sd_to_ao_uart_pins:sd_to_ao_uart_pins{
+			amlogic,setmask = <AO 0x1800>;
+			amlogic,clrmask=<6 0x300>;
+			amlogic,pins="CARD_5";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		ao_to_sd_uart_pins:ao_to_sd_uart_pins{
+			amlogic,setmask=<6 0x300>;
+			amlogic,clrmask=<AO 0x00001800>,
+					<6 0xc000c03>;
+			amlogic,pins = "CARD_4","CARD_5";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		/* switch jtag pins to card from apao */
+		ao_to_sd_jtag_pins:ao_to_sd_jtag_pins{
+			amlogic,setmask=<6 0x300>; /*set for uart-ee, fixme? */
+			amlogic,clrmask=<6 0xf000f03f>, /* clear for jtag */
+					<AO 0x1800>;	/* clear for uart-ee, fixme? */
+			amlogic,pins = "CARD_0"; /* should be CARD_0/1/2/3 */
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		/* switch jtag pins to apao from card */
+		sd_to_ao_jtag_pins:sd_to_ao_jtag_pins{
+			amlogic,setmask=<AO 0x1800>;
+			amlogic,clrmask=<6 0x300>;
+			amlogic,pins = "CARD_0";
+			amlogic,enable-output=<1>; /* 0:output, 1:input */
+			amlogic,pullup=<1>;
+			amlogic,pullupen=<1>;
+		};
+		/* fixme, end; yyh */
+
 		emmc_clk_cmd_pins:emmc_clk_cmd_pins{
 			amlogic,setmask=<7 0x60000000>;
 			amlogic,pins = "BOOT_8","BOOT_10"; /** BOOT_10:CMD, BOOT_8:CLK */
