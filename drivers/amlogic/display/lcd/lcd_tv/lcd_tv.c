@@ -1035,10 +1035,10 @@ static void lcd_config_init(struct lcd_config_s *pconf)
 	pconf->lcd_timing.lcd_clk_dft = pconf->lcd_timing.lcd_clk;
 	pconf->lcd_timing.h_period_dft = pconf->lcd_basic.h_period;
 	pconf->lcd_timing.v_period_dft = pconf->lcd_basic.v_period;
+	lcd_tcon_config(pconf); /* before vmode_init to avoid period changing */
 
 	lcd_vmode_init(pconf);
 
-	lcd_tcon_config(pconf);
 	lcd_clk_generate_parameter(pconf);
 	ss_level = pconf->lcd_timing.ss_level;
 	cconf->ss_level = (ss_level >= cconf->ss_level_max) ? 0 : ss_level;

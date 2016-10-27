@@ -569,8 +569,9 @@ void lcd_tcon_config(struct lcd_config_s *pconf)
 		h_delay = 0;
 		break;
 	}
-	h_period = pconf->lcd_basic.h_period;
-	v_period = pconf->lcd_basic.v_period;
+	/* use peroid_dft to avoid period changing offset */
+	h_period = pconf->lcd_timing.h_period_dft;
+	v_period = pconf->lcd_timing.v_period_dft;
 	h_active = pconf->lcd_basic.h_active;
 	v_active = pconf->lcd_basic.v_active;
 	hsync_bp = pconf->lcd_timing.hsync_bp;
