@@ -1205,9 +1205,15 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 
 static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 {
+	int memstart_dtmb;
 	pr_dbg("gxtv_demod_fe_resume\n");
 /*	demod_power_switch(PWR_ON);*/
-/*	Gxtv_Demod_Dtmb_Init(dev);*/
+	Gxtv_Demod_Dtmb_Init(dev);
+	memstart_dtmb = dev->fe->dtv_demod->mem_start;
+	pr_dbg("[im]memstart is %x\n", memstart_dtmb);
+	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
+	pr_dbg("[dtmb]mem_buf is 0x%x\n",
+	dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
 	return 0;
 }
 
