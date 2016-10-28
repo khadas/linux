@@ -315,8 +315,10 @@ void set_video_gain_val(int val)
 
 void atv_dmd_soft_reset(void)
 {
+	atv_dmd_wr_long(0x1d, 0x0, 0x1035);/* disable dac */
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x0);
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x1);
+	atv_dmd_wr_long(0x1d, 0x0, 0x1037);/* enable dac */
 }
 
 void atv_dmd_input_clk_32m(void)
@@ -1573,7 +1575,7 @@ int atvdemod_init(void)
 		timer_init_flag = 1;
 	}
 	#endif
-	pr_info("delay done\n");
+	pr_err("%s done\n", __func__);
 	return 0;
 }
 void atvdemod_uninit(void)
