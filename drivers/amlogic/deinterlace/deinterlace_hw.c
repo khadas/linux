@@ -1563,6 +1563,11 @@ void di_post_switch_buffer(
 	ei_only = ei_en && !blend_en && (di_vpp_en || di_ddr_en);
 	buf1_en =  (!ei_only && (di_ddr_en || di_vpp_en));
 
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5)
+			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
+	}
+
 	if (ei_en || di_vpp_en || di_ddr_en)
 		set_di_if0_mif(di_buf0_mif, urgent, hold_line);
 
