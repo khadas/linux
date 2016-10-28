@@ -3081,7 +3081,7 @@ static void hevc_init_decoder_hw(struct hevc_state_s *hevc,
 	WRITE_VREG(HEVC_DECODE_PIC_BEGIN_REG, 0);
 	/*WRITE_VREG(HEVC_DECODE_PIC_NUM_REG, 0xffffffff);*/
 	/*WRITE_VREG(HEVC_DECODE_SIZE, 0);*/
-	WRITE_VREG(HEVC_DECODE_SIZE, 0xffffffff);
+	WRITE_VREG(HEVC_DECODE_SIZE, 0);
 	/* Send parser_cmd */
 	if (debug)
 		pr_info("[test.c] SEND Parser Command ...\n");
