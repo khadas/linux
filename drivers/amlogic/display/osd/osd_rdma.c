@@ -558,7 +558,7 @@ void set_reset_rdma_trigger_line(void)
 	int trigger_line;
 	switch (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
 	case 0:
-		trigger_line = aml_read_vcbus(ENCP_VIDEO_VAVON_ELINE)
+		trigger_line = aml_read_vcbus(ENCL_VIDEO_VAVON_ELINE)
 			- aml_read_vcbus(ENCL_VIDEO_VSO_BLINE) - reset_line;
 		break;
 	case 1:
@@ -573,7 +573,7 @@ void set_reset_rdma_trigger_line(void)
 				- reset_line;
 		break;
 	case 3:
-		trigger_line = aml_read_vcbus(ENCP_VIDEO_VAVON_ELINE)
+		trigger_line = aml_read_vcbus(ENCT_VIDEO_VAVON_ELINE)
 			- aml_read_vcbus(ENCT_VIDEO_VSO_BLINE) - reset_line;
 		break;
 	}
