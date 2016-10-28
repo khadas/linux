@@ -562,7 +562,10 @@ void set_reset_rdma_trigger_line(void)
 			- aml_read_vcbus(ENCL_VIDEO_VSO_BLINE) - reset_line;
 		break;
 	case 1:
-		trigger_line = aml_read_vcbus(ENCI_DE_V_END_EVEN);
+		if ((aml_read_vcbus(ENCI_VIDEO_MODE) & 1) == 0)
+			trigger_line = 260; /* 480i */
+		else
+			trigger_line = 310; /* 576i */
 		break;
 	case 2:
 		if (aml_read_vcbus(ENCP_VIDEO_MODE) & (1 << 12))
