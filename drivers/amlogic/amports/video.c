@@ -1071,6 +1071,8 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 	struct vppfilter_mode_s *vpp_filter = &framePtr->vpp_filter;
 	u32 r, afbc_enble_flag;
 	u32 y_lines;
+	u32 v_phase;
+	u32 v_skip_flag = 0;
 	r = framePtr->VPP_vsc_endp - framePtr->VPP_vsc_startp;
 	afbc_enble_flag = 0;
 	if (is_meson_gxbb_cpu())
@@ -1082,12 +1084,33 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT)
 			| (((framePtr->VPP_vsc_endp + 1) & VPP_VD_SIZE_MASK) <<
 			VPP_VD1_END_BIT));
-	else
-		VSYNC_WR_MPEG_REG(VPP_POSTBLEND_VD1_V_START_END +
+	else {
+		afbc_enble_flag = READ_VCBUS_REG(AFBC_ENABLE) & 0x100;
+		v_phase = vpp_filter->vpp_vsc_start_phase_step;
+		if (v_phase * (framePtr->vscale_skip_count + 1) > 0x1000000) {
+			if (afbc_enble_flag) {
+				if ((framePtr->VPP_vsc_endp < 0x250) ||
+				(framePtr->VPP_vsc_endp <
+				framePtr->VPP_post_blend_vd_v_end_/2)) {
+					if (framePtr->VPP_vsc_endp > 0x6)
+						v_skip_flag = 1;
+				}
+			}
+		}
+		if (v_skip_flag == 1) {
+			VSYNC_WR_MPEG_REG(VPP_POSTBLEND_VD1_V_START_END +
+			cur_dev->vpp_off, ((framePtr->VPP_vsc_startp &
+			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT)
+			| (((framePtr->VPP_vsc_endp - 6) & VPP_VD_SIZE_MASK) <<
+			VPP_VD1_END_BIT));
+		} else {
+			VSYNC_WR_MPEG_REG(VPP_POSTBLEND_VD1_V_START_END +
 			cur_dev->vpp_off, ((framePtr->VPP_vsc_startp &
 			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT)
 			| ((framePtr->VPP_vsc_endp & VPP_VD_SIZE_MASK) <<
 			VPP_VD1_END_BIT));
+		}
+	}
 
 	if (platform_type == 1) {
 		y_lines = zoom_end_y_lines / (framePtr->vscale_skip_count + 1);
@@ -1538,14 +1561,8 @@ static void zoom_display_vert(void)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		int t_aligned;
 		int b_aligned;
-		if ((zoom_start_y_lines > 0) ||
-		(zoom_end_y_lines < ori_end_y_lines)) {
-			t_aligned = round_down(ori_start_y_lines, 4);
-			b_aligned = round_up(ori_end_y_lines + 1, 4);
-		} else {
-			t_aligned = round_down(zoom_start_y_lines, 4);
-			b_aligned = round_up(zoom_end_y_lines + 1, 4);
-		}
+		t_aligned = round_down(zoom_start_y_lines, 4);
+		b_aligned = round_up(zoom_end_y_lines + 1, 4);
 		VSYNC_WR_MPEG_REG(AFBC_VD_CFMT_H,
 		    b_aligned - t_aligned);
 
@@ -3829,7 +3846,7 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		}
 
 #if (!HAS_VPU_PROT)
-		if (is_meson_gxbb_cpu()) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
 				cur_frame_par->VPP_pic_in_height_ =
 				zoom_end_y_lines - zoom_start_y_lines + 1;
