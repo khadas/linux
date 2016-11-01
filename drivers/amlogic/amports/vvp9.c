@@ -44,6 +44,7 @@
 #define MEM_NAME "codec_vp9"
 /* #include <mach/am_regs.h> */
 #include "vdec_reg.h"
+#include "video.h"
 
 #include "vdec.h"
 #include "amvdec.h"
@@ -1995,7 +1996,9 @@ static struct BuffInfo_s amvvp9_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = 0x5000, /*2*16*(more than 2304)/4, 4K*/
 		},
 		.cm_header = {
-			.buf_size = MMU_COMPRESS_HEADER_SIZE*8,
+			/*add one for keeper.*/
+			.buf_size = MMU_COMPRESS_HEADER_SIZE *
+						(FRAME_BUFFERS + 1),
 			/* 0x44000 = ((1088*2*1024*4)/32/4)*(32/8) */
 		},
 #endif
@@ -2082,7 +2085,9 @@ static struct BuffInfo_s amvvp9_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = 0x5000,/*2*16*(more than 2304)/4, 4K*/
 		},
 		.cm_header = {
-			.buf_size = MMU_COMPRESS_HEADER_SIZE*8,
+			/*add one for keeper.*/
+			.buf_size = MMU_COMPRESS_HEADER_SIZE *
+						(FRAME_BUFFERS + 1),
 			/* 0x44000 = ((1088*2*1024*4)/32/4)*(32/8) */
 		},
 #endif
@@ -3542,7 +3547,8 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 }
 #endif
 static int config_pic(struct VP9Decoder_s *pbi,
-				struct PIC_BUFFER_CONFIG_s *pic_config)
+				struct PIC_BUFFER_CONFIG_s *pic_config,
+				unsigned long last_disp_addr)
 {
 	int ret = -1;
 	int i;
@@ -3604,7 +3610,7 @@ static int config_pic(struct VP9Decoder_s *pbi,
 
 #ifdef VP9_10B_MMU
 	if ((pbi->work_space_buf->cm_header.buf_start +
-		((pic_config->index + 1)
+		((pic_config->index + 2)
 		* MMU_COMPRESS_HEADER_SIZE))
 		> (pbi->work_space_buf->cm_header.buf_start +
 		pbi->work_space_buf->cm_header.buf_size)) {
@@ -3614,6 +3620,14 @@ static int config_pic(struct VP9Decoder_s *pbi,
 
 	pic_config->header_adr = pbi->work_space_buf->cm_header.buf_start
 		+ (pic_config->index * MMU_COMPRESS_HEADER_SIZE);
+	if (last_disp_addr && pic_config->header_adr == last_disp_addr) {
+		/*if same as disp add used last one.*/
+		pr_info("same as disp %d: %ld\n",
+			pic_config->index, pic_config->header_adr);
+		pic_config->header_adr =
+			pbi->work_space_buf->cm_header.buf_start +
+			(FRAME_BUFFERS * MMU_COMPRESS_HEADER_SIZE);
+	}
 	if (debug & VP9_DEBUG_BUFMGR) {
 		pr_info("MMU header_adr %d: %ld\n",
 			pic_config->index, pic_config->header_adr);
@@ -3750,12 +3764,26 @@ static void init_pic_list(struct VP9Decoder_s *pbi)
 	int i;
 	struct VP9_Common_s *cm = &pbi->common;
 	struct PIC_BUFFER_CONFIG_s *pic_config;
-
+	struct vframe_s vf;
+	unsigned long disp_addr = 0;
+	if (!get_video0_frame_info(&vf)) {
+		if (vf.type & VIDTYPE_SCATTER) {
+			/*sc only used header.*/
+			disp_addr = vf.compHeadAddr;
+		} else if (vf.type & VIDTYPE_COMPRESS) {
+			/*sc checked body.*/
+			disp_addr = vf.compBodyAddr;
+		} else {
+			struct canvas_s cur_canvas;
+			canvas_read(vf.canvas0Addr & 0xff, &cur_canvas);
+			disp_addr = cur_canvas.addr;
+		}
+	}
 	for (i = 0; i < FRAME_BUFFERS; i++) {
 		pic_config = &cm->buffer_pool->frame_bufs[i].buf;
 		pic_config->index = i;
 		pic_config->BUF_index = -1;
-		if (config_pic(pbi, pic_config) < 0) {
+		if (config_pic(pbi, pic_config, disp_addr) < 0) {
 			if (debug)
 				pr_info("Config_pic %d fail\n",
 					pic_config->index);

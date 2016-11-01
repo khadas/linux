@@ -76,8 +76,8 @@ struct vframe_s *vf_get(const char *receiver);
 void vf_put(struct vframe_s *vf, const char *receiver);
 
 unsigned int get_post_canvas(void);
-unsigned int vf_keep_current(void);
-void get_video_keep_buffer(unsigned long *addr, unsigned long *phys_addr);
+
+
 struct vframe_s *get_cur_dispbuf(void);
 int query_video_status(int type, int *value);
 

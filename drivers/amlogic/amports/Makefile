@@ -83,8 +83,8 @@ amvenc_jpeg-y    := jpegenc.o
 obj-$(CONFIG_AM_PIC_DEC) += picdec.o
 obj-$(CONFIG_AM_VIDEO) += amvideo.o
 
-amvideo-objs := video.o vpp.o
-amvideo-y    := video.o vpp.o
+amvideo-objs := video.o vpp.o video_keeper.o
+amvideo-y    := video.o vpp.o video_keeper.o
 
 #amvideo-objs := video_prot.o
 #amvideo-y    := video_prot.o
