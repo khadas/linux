@@ -45,6 +45,10 @@ extern int aml_lcd_extern_default_probe(
 extern int aml_lcd_extern_i2c_T5800Q_probe(
 	struct aml_lcd_extern_driver_s *ext_drv);
 #endif
+#ifdef CONFIG_AML_LCD_EXTERN_I2C_DLPC3439
+extern int aml_lcd_extern_i2c_DLPC3439_probe(
+	struct aml_lcd_extern_driver_s *ext_drv);
+#endif
 #ifdef CONFIG_AML_LCD_EXTERN_I2C_TC101
 extern int aml_lcd_extern_i2c_tc101_probe(
 	struct aml_lcd_extern_driver_s *ext_drv);

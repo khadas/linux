@@ -11,6 +11,13 @@ config AML_LCD_EXTERN_I2C_T5800Q
 	help
 		"Amlogic LCD external i2c_T5800Q init driver support"
 
+config AML_LCD_EXTERN_I2C_DLPC3439
+	boolean "lcd external i2c DLPC3439 init driver"
+	default n
+	depends on AML_LCD_EXTERN
+	help
+		"Amlogic LCD external i2c_DLPC3439 init driver support"
+
 config AML_LCD_EXTERN_I2C_ANX6345
 	boolean "lcd external i2c ANX6345 init driver"
 	default n
