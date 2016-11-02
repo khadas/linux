@@ -2358,6 +2358,8 @@ static int stmmac_hw_setup(struct net_device *dev)
 	return 0;
 }
 
+static struct workqueue_struct *moniter_tx_wq;
+static struct delayed_work moniter_tx_worker;
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -2442,6 +2444,7 @@ static int stmmac_open(struct net_device *dev)
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
 
+	queue_delayed_work(moniter_tx_wq, &moniter_tx_worker, HZ);
 	return 0;
 
 lpiirq_error:
@@ -3368,7 +3371,36 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 
 	return 0;
 }
+static int stmmac_release(struct net_device *dev);
+static int stmmac_open(struct net_device *dev);
+static void moniter_tx_handler(struct work_struct *work)
+{
+	static int i;
+	struct stmmac_priv *priv;
+	static int last_dirty_tx;
+	static int check_tx;
+	priv = netdev_priv(c_phy_dev->attached_dev);
+	if (c_phy_dev->link) {
+		if (priv->dirty_tx != priv->cur_tx && check_tx == 0) {
+			pr_info("tx queueing\n");
+			check_tx = 1;
+			last_dirty_tx = priv->dirty_tx;
+		}
+		if (check_tx == 1)
+			i++;
+		if (i == 5) {
+			i = 0;
+			check_tx = 0;
+			if (last_dirty_tx == priv->dirty_tx) {
+				pr_info("tx stop, recover eth new\n");
+				stmmac_release(priv->dev);
+				stmmac_open(priv->dev);
+			}
+		}
+	}
 
+	queue_delayed_work(moniter_tx_wq, &moniter_tx_worker, HZ);
+}
 /**
  * stmmac_dvr_probe
  * @device: device pointer
@@ -3384,7 +3416,8 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	int ret = 0;
 	struct net_device *ndev = NULL;
 	struct stmmac_priv *priv;
-
+	moniter_tx_wq = create_singlethread_workqueue("eth_moniter_tx_wq");
+	INIT_DELAYED_WORK(&moniter_tx_worker, moniter_tx_handler);
 	ndev = alloc_etherdev(sizeof(struct stmmac_priv));
 	if (!ndev)
 		return NULL;

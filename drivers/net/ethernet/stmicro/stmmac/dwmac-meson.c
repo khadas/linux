@@ -27,6 +27,7 @@ void __iomem *PREG_ETH_REG4;
 struct meson_dwmac {
 	struct device *dev;
 	void __iomem *reg;
+	void __iomem *preg_power_reg;
 };
 
 static void meson_dwmac_fix_mac_speed(void *priv, unsigned int speed)
@@ -116,7 +117,8 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 static void *meson_dwmac_setup(struct platform_device *pdev)
 {
 	struct meson_dwmac *dwmac;
-
+	struct resource  *res;
+	struct device *dev = &pdev->dev;
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
 		return ERR_PTR(-ENOMEM);
@@ -124,11 +126,38 @@ static void *meson_dwmac_setup(struct platform_device *pdev)
 	dwmac->reg = network_interface_setup(pdev);
 	if (IS_ERR(dwmac->reg))
 		return dwmac->reg;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	if (res) {
+		dwmac->preg_power_reg = devm_ioremap_resource(dev, res);
+		if (dwmac->preg_power_reg != NULL)
+			writel(readl(dwmac->preg_power_reg) |
+				(0x1<<11), dwmac->preg_power_reg);
+	}
 
 	return dwmac;
 }
 
+static void meson_dwmac_exit(struct platform_device *pdev, void *priv)
+{
+	struct meson_dwmac *dwmac = priv;
+	if (dwmac->preg_power_reg != NULL)
+		writel(readl(dwmac->preg_power_reg) & ~(0x1<<11),
+			dwmac->preg_power_reg);
+	return;
+}
+
+static int meson_dwmac_init(struct platform_device *pdev, void *priv)
+{
+	struct meson_dwmac *dwmac = priv;
+
+	if (dwmac->preg_power_reg != NULL)
+		writel(readl(dwmac->preg_power_reg) | (0x1<<11),
+			dwmac->preg_power_reg);
+	return 0;
+}
 const struct stmmac_of_data meson_dwmac_data = {
 	.setup = meson_dwmac_setup,
+	.init = meson_dwmac_init,
+	.exit = meson_dwmac_exit,
 	.fix_mac_speed = meson_dwmac_fix_mac_speed,
 };

@@ -1132,7 +1132,7 @@ static int internal_phy_read_status(struct phy_device *phydev)
 			tx_packets_omiphy, rx_packets_omiphy);
 	}
 
-	if (phydev->link) {
+	if (phydev->link && phydev->speed == SPEED_100) {
 		if ((wol_reg12 & 0x1000))
 			omiphy_count_start = 0;
 		if (!(wol_reg12 & 0x1000)) {
