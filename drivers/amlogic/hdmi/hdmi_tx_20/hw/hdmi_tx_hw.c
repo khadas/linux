@@ -2071,17 +2071,15 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, DB[0]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID1, DB[1]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID2, DB[2]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, HB[2]);
 		if (DB[3] == 0x20) { /* set HDMI VIC */
 			hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 5);
 		}
 		if (DB[3] == 0x40) { /* 3D VSI */
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 6);
 		}
 		/* Enable VSI packet */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
@@ -3805,6 +3803,16 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 		}
 		if (argv == CLR_AVI_BT2020)
 			hdmitx_set_avi_colorimetry(hdev->para);
+		break;
+	case CONF_AVI_RGBYCC_INDIC:
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, argv, 0, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0, 7, 1);
+		break;
+	case CONF_AVI_Q01:
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, argv, 2, 2);
+		break;
+	case CONF_AVI_YQ01:
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, argv, 2, 2);
 		break;
 	default:
 		hdmi_print(ERR, "config: ""hdmitx: unknown cmd: 0x%x\n", cmd);

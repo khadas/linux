@@ -58,6 +58,7 @@
 #define HDMI_EDID_BLOCK_TYPE_EXTENDED_TAG       7
 
 /* DRM stands for "Dynamic Range and Mastering " */
+#define EXTENSION_VENDOR_SPECIFIC 0x1
 #define EXTENSION_COLORMETRY_TAG 0x5
 #define EXTENSION_DRM_TAG	0x6
 #define EXTENSION_Y420_VDB_TAG	0xe
@@ -823,6 +824,87 @@ static void Edid_ParsingSpeakerDATABlock(struct hdmitx_info *info,
 	}
 }
 
+static void Edid_ParsingVendSpec(struct rx_cap *pRXCap,
+	unsigned char *buf)
+{
+	struct dv_info *dv = &pRXCap->dv_info;
+	unsigned char *dat = buf;
+	unsigned char len;
+	unsigned char pos = 0;
+
+	len = dat[pos] & 0x1f;
+	pos++;
+
+	if (dat[pos] != 1) {
+		pr_info("hdmitx: edid: parsing fail %s[%d]\n", __func__,
+			__LINE__);
+		return;
+	} else
+		pos++;
+
+	dv->ieeeoui = dat[pos++];
+	dv->ieeeoui += dat[pos++] << 8;
+	dv->ieeeoui += dat[pos++] << 16;
+
+	dv->ver = (dat[pos] >> 5) & 0x7;
+	/* Refer to DV 2.6 Page 11 */
+	if (dv->ver == 0) {
+		dv->sup_yuv422_12bit = dat[pos] & 0x1;
+		dv->sup_2160p60hz = (dat[pos] >> 1) & 0x1;
+		dv->sup_global_dimming = (dat[pos] >> 2) & 0x1;
+		pos++;
+		dv->vers.ver0.chrom_red_primary_x =
+			(dat[pos+1] << 8) | (dat[pos] >> 4);
+		dv->vers.ver0.chrom_red_primary_y =
+			(dat[pos+2] << 8) | (dat[pos] & 0xf);
+		pos += 3;
+		dv->vers.ver0.chrom_green_primary_x =
+			(dat[pos+1] << 8) | (dat[pos] >> 4);
+		dv->vers.ver0.chrom_green_primary_y =
+			(dat[pos+2] << 8) | (dat[pos] & 0xf);
+		pos += 3;
+		dv->vers.ver0.chrom_blue_primary_x =
+			(dat[pos+1] << 8) | (dat[pos] >> 4);
+		dv->vers.ver0.chrom_blue_primary_y =
+			(dat[pos+2] << 8) | (dat[pos] & 0xf);
+		pos += 3;
+		dv->vers.ver0.chrom_white_primary_x =
+			(dat[pos+1] << 8) | (dat[pos] >> 4);
+		dv->vers.ver0.chrom_white_primary_y =
+			(dat[pos+2] << 8) | (dat[pos] & 0xf);
+		pos += 3;
+		dv->vers.ver0.target_min_pq =
+			(dat[pos+1] << 8) | (dat[pos] >> 4);
+		dv->vers.ver0.target_max_pq =
+			(dat[pos+2] << 8) | (dat[pos] & 0xf);
+		pos += 3;
+		dv->vers.ver0.dm_major_ver = dat[pos] >> 4;
+		dv->vers.ver0.dm_minor_ver = dat[pos] & 0xf;
+		pos++;
+	}
+	/* Refer to DV 2.6 Page 14 */
+	if (dv->ver == 1) {
+		dv->vers.ver1.dm_version = (dat[pos] >> 2) & 0x7;
+		dv->sup_yuv422_12bit = dat[pos] & 0x1;
+		dv->sup_2160p60hz = (dat[pos] >> 1) & 0x1;
+		pos++;
+		dv->sup_global_dimming = dat[pos] & 0x1;
+		dv->vers.ver1.target_max_lum = dat[pos] >> 1;
+		pos++;
+		dv->colorimetry = dat[pos] & 0x1;
+		dv->vers.ver1.target_min_lum = dat[pos] >> 1;
+		pos += 2; /* byte8 is reserved as 0 */
+		dv->vers.ver1.chrom_red_primary_x = dat[pos++];
+		dv->vers.ver1.chrom_red_primary_y = dat[pos++];
+		dv->vers.ver1.chrom_green_primary_x = dat[pos++];
+		dv->vers.ver1.chrom_green_primary_y = dat[pos++];
+		dv->vers.ver1.chrom_blue_primary_x = dat[pos++];
+		dv->vers.ver1.chrom_blue_primary_y = dat[pos++];
+	}
+	if (pos > len)
+		pr_info("hdmitx: edid: maybe invalid dv%d data\n", dv->ver);
+	return;
+}
 
 /* ----------------------------------------------------------- */
 static int Edid_ParsingY420VDBBlock(struct rx_cap *pRXCap,
@@ -1324,6 +1406,10 @@ case_next:
 
 				ext_tag = BlockBuf[offset+1];
 				switch (ext_tag) {
+				case EXTENSION_VENDOR_SPECIFIC:
+					Edid_ParsingVendSpec(pRXCap,
+						&BlockBuf[offset]);
+					break;
 				case EXTENSION_COLORMETRY_TAG:
 					pRXCap->colorimetry_data =
 						BlockBuf[offset + 2];
@@ -2172,6 +2258,15 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 			pRXCap->support_3d_format[pRXCap->VIC[i]].side_by_side);
 	}
 #endif
+
+	if (pRXCap->dv_info.ieeeoui == 0x00d046)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			"  DolbyVision%d", pRXCap->dv_info.ver);
+	if (pRXCap->hdr_sup_eotf_smpte_st_2084)
+		pos += snprintf(buffer+pos, buffer_len-pos, "  HDR");
+	if (pRXCap->dc_y444 || pRXCap->dc_30bit || pRXCap->dc_30bit_420)
+		pos += snprintf(buffer+pos, buffer_len-pos, "  DeepColor");
+	pos += snprintf(buffer+pos, buffer_len-pos, "\n");
 
 	/* for checkvalue which maybe used by application to adjust
 		whether edid is changed */

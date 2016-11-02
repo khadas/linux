@@ -698,7 +698,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdmitx_device,
 	unsigned char VEN_HB[3];
 	VEN_HB[0] = 0x81;
 	VEN_HB[1] = 0x01;
-	VEN_HB[2] = 0x6;
+	VEN_HB[2] = 0x5;
 
 	for (i = 0; i < 0x6; i++)
 		VEN_DB[i] = 0;

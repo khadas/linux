@@ -25,6 +25,7 @@
 #include <linux/clk-private.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
+#include <linux/amlogic/vout/vinfo.h>
 /* #include <linux/amlogic/aml_gpio_consumer.h> */
 
 /*****************************
@@ -107,6 +108,7 @@ struct rx_cap {
 		unsigned char top_and_bottom;
 		unsigned char side_by_side;
 	} support_3d_format[VIC_MAX_NUM];
+	struct dv_info dv_info;
 	/*blk0 check sum*/
 	unsigned char blk0_chksum;
 };
@@ -322,6 +324,17 @@ struct hdmitx_dev {
 #define CONF_AVI_BT2020		(CMD_CONF_OFFSET + 0X2000 + 0x00)
 	#define CLR_AVI_BT2020	0x0
 	#define SET_AVI_BT2020	0x1
+/* set value as COLORSPACE_RGB444, YUV422, YUV444, YUV420 */
+#define CONF_AVI_RGBYCC_INDIC	(CMD_CONF_OFFSET + 0X2000 + 0x01)
+#define CONF_AVI_Q01		(CMD_CONF_OFFSET + 0X2000 + 0x02)
+	#define RGB_RANGE_DEFAULT	0
+	#define RGB_RANGE_LIM		1
+	#define RGB_RANGE_FUL		2
+	#define RGB_RANGE_RSVD		3
+#define CONF_AVI_YQ01		(CMD_CONF_OFFSET + 0X2000 + 0x03)
+	#define YCC_RANGE_LIM		0
+	#define YCC_RANGE_FUL		1
+	#define YCC_RANGE_RSVD		2
 
 /***********************************************************************
  *             MISC control, hpd, hpll //CntlMisc
@@ -336,6 +349,7 @@ struct hdmitx_dev {
 #define TMDS_PHY_ENABLE     0x1
 #define TMDS_PHY_DISABLE    0x2
 #define MISC_VIID_IS_USING      (CMD_MISC_OFFSET + 0x05)
+#define MISC_CONF_MODE420       (CMD_MISC_OFFSET + 0x06)
 #define MISC_TMDS_CLK_DIV40     (CMD_MISC_OFFSET + 0x07)
 #define MISC_COMP_HPLL         (CMD_MISC_OFFSET + 0x08)
 #define COMP_HPLL_SET_OPTIMISE_HPLL1    0x1
