@@ -1941,18 +1941,19 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	    (cur_dispbuf->width != vf->width) ||
 	    (cur_dispbuf->height != vf->height) ||
 	    (cur_dispbuf->bitdepth != vf->bitdepth) ||
-	     (cur_dispbuf->trans_fmt != vf->trans_fmt) ||
-	     (last_process_3d_type != process_3d_type) ||
+	    (cur_dispbuf->trans_fmt != vf->trans_fmt) ||
+	    (last_process_3d_type != process_3d_type) ||
 	    (cur_dispbuf->ratio_control != vf->ratio_control) ||
 	    ((cur_dispbuf->type_backup & VIDTYPE_INTERLACE) !=
 	     (vf->type_backup & VIDTYPE_INTERLACE)) ||
 	    (cur_dispbuf->type != vf->type)
 #if HAS_VPU_PROT
 	    || (cur_dispbuf->video_angle != vf->video_angle)
-	    || video_prot.angle_changed
-#endif
+	    || video_prot.angle_changed) {
+#else
 	    ) {
-	    last_process_3d_type = process_3d_type;
+#endif
+		last_process_3d_type = process_3d_type;
 		atomic_inc(&video_sizechange);
 		wake_up_interruptible(&amvideo_sizechange_wait);
 		amlog_mask(LOG_MASK_FRAMEINFO,
@@ -3042,6 +3043,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #ifdef CONFIG_AM_VIDEO_LOG
 	int toggle_cnt;
 #endif
+	struct vframe_s *toggle_vf = NULL;
+	int ret;
+
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
 
@@ -3332,6 +3336,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #if defined(CONFIG_AM_VECM)
 			refresh_on_vs(vf);
 #endif
+			if (is_dolby_vision_enable())
+				metadata_wait(vf);
 
 			vf = video_vf_get();
 			if (!vf)
@@ -3352,6 +3358,26 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				}
 			}
 			vsync_toggle_frame(vf);
+			if (is_dolby_vision_enable()) {
+				ret = dolby_vision_update_metadata(vf);
+				if (ret == 0) {
+					toggle_vf = vf;
+					dolby_vision_set_toggle_flag(1);
+					break;
+				} else if (ret == -1) {
+					/* not enough meta, wait */
+					toggle_vf = NULL;
+					dolby_vision_set_toggle_flag(0);
+					break;
+				} else if (ret == -2) {
+					/* no meta, mostly SDR */
+					toggle_vf = NULL;
+					dolby_vision_set_toggle_flag(1);
+					dolby_vision_process(toggle_vf);
+					break;
+				}
+			}
+
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
 #ifdef CONFIG_VSYNC_RDMA
@@ -3440,6 +3466,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		toggle_cnt++;
 #endif
 	}
+	if (toggle_vf && is_dolby_vision_enable())
+		dolby_vision_process(toggle_vf);
 
 #ifdef INTERLACE_FIELD_MATCH_PROCESS
 	if (interlace_field_type_need_match(vout_type, vf)) {

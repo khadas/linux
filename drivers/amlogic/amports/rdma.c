@@ -52,7 +52,7 @@
 /*#define CONFIG_RDMA_IN_RDMAIRQ*/
 /*#define CONFIG_RDMA_IN_TASK*/
 
-#define RDMA_TABLE_SIZE                    (2 * (PAGE_SIZE))
+#define RDMA_TABLE_SIZE                    (8 * (PAGE_SIZE))
 
 static int vsync_rdma_handle;
 

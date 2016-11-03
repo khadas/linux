@@ -3516,6 +3516,9 @@ void amvecm_matrix_process(struct vframe_s *vf)
 		(cur_eye_protect_mode == wb_val[0]))
 		return;
 
+	if (is_dolby_vision_on())
+		return;
+
 	if (vf != NULL) {
 		vpp_matrix_update(vf, vinfo);
 		last_vf = vf;

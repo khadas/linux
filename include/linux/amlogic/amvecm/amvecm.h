@@ -169,5 +169,20 @@ struct hdr_metadata_info_s {
 
 extern void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
 	unsigned int hue_val, struct vframe_s *vf);
+
+extern int metadata_read_u32(uint32_t *value);
+extern int metadata_wait(struct vframe_s *vf);
+extern int metadata_sync(uint32_t frame_id, uint64_t pts);
+
+extern void enable_dolby_vision(int enable);
+extern bool is_dolby_vision_enable(void);
+extern bool is_dolby_vision_on(void);
+extern void set_dolby_vision_mode(int mode);
+extern int get_dolby_vision_mode(void);
+extern void dolby_vision_set_toggle_flag(int flag);
+extern int dolby_vision_pop_metadata(void);
+extern int dolby_vision_update_metadata(struct vframe_s *vf);
+extern int dolby_vision_process(struct vframe_s *vf);
+
 #endif /* AMVECM_H */
 
