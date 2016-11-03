@@ -200,8 +200,22 @@
 	sysled {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
+		status = "okay";
+		led_gpio = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_LOW>;
+	};
+
+	pwmled {
+		compatible = "amlogic, pwmled";
+		dev_name = "pwmled";
 		status = "disable";
-		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_LOW>;
+		pwm = <PWM_AO_A>;
+		polarity = <1>; /* 0-normal 1-inversed */
+		max_brightness = <255>;
+		pinctrl-names = "pwm_ao_a_pins";
+		pinctrl-0 = <&pwm_ao_a_pins>;
+		/* led timer data */
+		expires = <400>; /* ms */
+		expires_count = <8>;
 	};
 
 	avin_detect {
@@ -1382,6 +1396,14 @@
 		amlogic,clrmask = <5  0x0000ff00>;
 		amlogic,pins = "GPIOW_4";
 	};
+
+	/* pwm_ao_a */
+	pwm_ao_a_pins:pwm_ao_a_pins {
+		amlogic,setmask=<AO 0x400000>;
+		amlogic,clrmask=<AO 0x280>;
+		amlogic,pins="GPIOAO_3";
+	};
+
 };
 
 &pinmux {
