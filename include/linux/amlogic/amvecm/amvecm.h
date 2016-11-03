@@ -64,6 +64,11 @@
 #define VPP_VADJ1_BLMINUS_EN        (1 << 1)
 #define VPP_VADJ1_EN                (1 << 0)
 
+#define VPP_DEMO_DNLP_DIS           (1 << 3)
+#define VPP_DEMO_DNLP_EN            (1 << 2)
+#define VPP_DEMO_CM_DIS             (1 << 1)
+#define VPP_DEMO_CM_EN              (1 << 0)
+
 #define _VE_CM  'C'
 
 #define AMVECM_IOC_VE_DNLP      _IOW(_VE_CM, 0x21, struct ve_dnlp_s)

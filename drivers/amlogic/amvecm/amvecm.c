@@ -92,6 +92,10 @@ unsigned int vecm_latch_flag;
 module_param(vecm_latch_flag, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag, "\n vecm_latch_flag\n");
 
+unsigned int vpp_demo_latch_flag;
+module_param(vpp_demo_latch_flag, uint, 0664);
+MODULE_PARM_DESC(vpp_demo_latch_flag, "\n vpp_demo_latch_flag\n");
+
 unsigned int pq_load_en = 1;/* load pq table enable/disable */
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
@@ -870,6 +874,42 @@ static void ioctrl_get_hdr_metadata(struct vframe_s *vf)
 				10 * sizeof(unsigned int));
 }
 
+void vpp_demo_config(struct vframe_s *vf)
+{
+	unsigned int reg_value;
+	/*dnlp demo config*/
+	if (vpp_demo_latch_flag & VPP_DEMO_DNLP_EN) {
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 18, 1);
+		/*bit14-15   left: 2   right: 3*/
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 2, 14, 2);
+		reg_value = READ_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 0, 1);
+		if (((vf->height > 1080) && (vf->width > 1920)) ||
+			(reg_value == 0))
+			WRITE_VPP_REG_BITS(VPP_VE_DEMO_LEFT_TOP_SCREEN_WIDTH,
+				1920, 0, 12);
+		else
+			WRITE_VPP_REG_BITS(VPP_VE_DEMO_LEFT_TOP_SCREEN_WIDTH,
+				960, 0, 12);
+		vpp_demo_latch_flag &= ~VPP_DEMO_DNLP_EN;
+	} else if (vpp_demo_latch_flag & VPP_DEMO_DNLP_DIS) {
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 18, 1);
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 14, 2);
+		WRITE_VPP_REG_BITS(VPP_VE_DEMO_LEFT_TOP_SCREEN_WIDTH,
+				0xfff, 0, 12);
+		vpp_demo_latch_flag &= ~VPP_DEMO_DNLP_DIS;
+	}
+	/*cm demo config*/
+	if (vpp_demo_latch_flag & VPP_DEMO_CM_EN) {
+		/*left: 0x1   right: 0x4*/
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x20f);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x1);
+		vpp_demo_latch_flag &= ~VPP_DEMO_CM_EN;
+	} else if (vpp_demo_latch_flag & VPP_DEMO_CM_DIS) {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x20f);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x0);
+		vpp_demo_latch_flag &= ~VPP_DEMO_CM_DIS;
+	}
+}
 
 void amvecm_video_latch(void)
 {
@@ -904,6 +944,8 @@ void amvecm_on_vs(struct vframe_s *vf)
 		amvecm_color_process(
 			saturation_pre + saturation_offset,
 			hue_pre, vf);
+
+		vpp_demo_config(vf);
 	} else
 		amvecm_matrix_process(NULL);
 
@@ -2268,6 +2310,36 @@ void pc_mode_process(void)
 		pc_mode_last = pc_mode;
 	}
 }
+
+static ssize_t amvecm_vpp_demo_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t amvecm_vpp_demo_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	r = sscanf(buf, "%x", &val);
+	if ((r != 1))
+		return -EINVAL;
+
+	if (val & VPP_DEMO_CM_EN)
+		vpp_demo_latch_flag |= VPP_DEMO_CM_EN;
+	else if (val & VPP_DEMO_CM_DIS)
+		vpp_demo_latch_flag |= VPP_DEMO_CM_DIS;
+
+	if (val & VPP_DEMO_DNLP_EN)
+		vpp_demo_latch_flag |= VPP_DEMO_DNLP_EN;
+	else if (val & VPP_DEMO_DNLP_DIS)
+		vpp_demo_latch_flag |= VPP_DEMO_DNLP_DIS;
+
+	return count;
+}
+
 static void dump_vpp_size_info(void)
 {
 	unsigned int vpp_input_h, vpp_input_v,
@@ -2541,6 +2613,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_pc_mode_show, amvecm_pc_mode_store),
 	__ATTR(set_hdr_289lut, S_IRUGO | S_IWUSR,
 		set_hdr_289lut_show, set_hdr_289lut_store),
+	__ATTR(vpp_demo, S_IRUGO | S_IWUSR,
+		amvecm_vpp_demo_show, amvecm_vpp_demo_store),
 	__ATTR_NULL
 };
 
