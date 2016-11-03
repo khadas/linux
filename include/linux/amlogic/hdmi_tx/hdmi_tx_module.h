@@ -142,6 +142,14 @@ struct audcts_log {
 	unsigned int stable:1;
 };
 
+struct frac_rate_table {
+	char *hz;
+	u32 sync_num_int;
+	u32 sync_den_int;
+	u32 sync_num_dec;
+	u32 sync_den_dec;
+};
+
 #define EDID_MAX_BLOCK              4
 #define HDMI_TMP_BUF_SIZE           1024
 struct hdmitx_dev {
@@ -260,6 +268,8 @@ struct hdmitx_dev {
 	struct clk *clk_phy;
 	struct clk *clk_vid;
 	unsigned int gpio_i2c_enable;
+	/* 0.1% clock shift, 1080p60hz->59.94hz */
+	unsigned int frac_rate_policy;
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	unsigned int aud_output_ch;
@@ -482,12 +492,7 @@ extern void hdmitx_output_rgb(void);
 
 extern int get_cur_vout_index(void);
 extern struct vinfo_s *hdmi_get_current_vinfo(void);
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-extern enum fine_tune_mode_e get_hpll_tune_mode(void);
-extern void register_hdmi_edid_supported_func(int (*pfunc)(char *mode_name));
-#endif
 void phy_pll_off(void);
-
 
 extern int get_hpd_state(void);
 

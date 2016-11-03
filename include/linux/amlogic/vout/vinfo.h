@@ -84,6 +84,7 @@ enum vmode_e {
 	VMODE_WSXGA,
 	VMODE_FHDVGA,
 	VMODE_LCD,
+	VMODE_NULL, /* null mode is used as temporary witch mode state */
 	VMODE_MAX,
 	VMODE_INIT_NULL,
 	VMODE_MASK = 0xFF,
@@ -148,6 +149,7 @@ enum tvmode_e {
 	TVMODE_SXGA,
 	TVMODE_WSXGA,
 	TVMODE_FHDVGA,
+	TVMODE_NULL, /* null mode is used as temporary witch mode state */
 	TVMODE_MAX
 };
 

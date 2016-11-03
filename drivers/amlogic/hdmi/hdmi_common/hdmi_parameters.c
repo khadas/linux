@@ -29,6 +29,7 @@ static struct hdmi_format_para fmt_para_1920x1080p60_16x9 = {
 	.tmds_clk = 148500,
 	.timing = {
 		.pixel_freq = 148500,
+		.frac_freq = 148352,
 		.h_freq = 67500,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -60,6 +61,7 @@ static struct hdmi_format_para fmt_para_1920x1080p30_16x9 = {
 	.tmds_clk = 74250,
 	.timing = {
 		.pixel_freq = 74250,
+		.frac_freq = 74176,
 		.h_freq = 67500,
 		.v_freq = 30000,
 		.vsync_polarity = 1,
@@ -121,7 +123,7 @@ static struct hdmi_format_para fmt_para_1920x1080p25_16x9 = {
 	.tmds_clk_div40 = 0,
 	.tmds_clk = 148500,
 	.timing = {
-		.pixel_freq = 148500,
+		.pixel_freq = 74250,
 		.h_freq = 56250,
 		.v_freq = 50000,
 		.vsync_polarity = 1,
@@ -153,6 +155,7 @@ static struct hdmi_format_para fmt_para_1920x1080p24_16x9 = {
 	.tmds_clk = 74250,
 	.timing = {
 		.pixel_freq = 74250,
+		.frac_freq = 74176,
 		.h_freq = 27000,
 		.v_freq = 24000,
 		.vsync_polarity = 1,
@@ -184,6 +187,7 @@ static struct hdmi_format_para fmt_para_3840x2160p30_16x9 = {
 	.tmds_clk = 297000,
 	.timing = {
 		.pixel_freq = 297000,
+		.frac_freq = 296703,
 		.h_freq = 67500,
 		.v_freq = 30000,
 		.vsync_polarity = 1,
@@ -215,6 +219,7 @@ static struct hdmi_format_para fmt_para_3840x2160p60_16x9 = {
 	.tmds_clk = 594000,
 	.timing = {
 		.pixel_freq = 594000,
+		.frac_freq = 593407,
 		.h_freq = 135000,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -308,6 +313,7 @@ static struct hdmi_format_para fmt_para_3840x2160p24_16x9 = {
 	.tmds_clk = 297000,
 	.timing = {
 		.pixel_freq = 297000,
+		.frac_freq = 296703,
 		.h_freq = 54000,
 		.v_freq = 24000,
 		.vsync_polarity = 1,
@@ -339,6 +345,7 @@ static struct hdmi_format_para fmt_para_4096x2160p24_256x135 = {
 	.tmds_clk = 297000,
 	.timing = {
 		.pixel_freq = 297000,
+		.frac_freq = 296703,
 		.h_freq = 54000,
 		.v_freq = 24000,
 		.vsync_polarity = 1,
@@ -401,6 +408,7 @@ static struct hdmi_format_para fmt_para_4096x2160p30_256x135 = {
 	.tmds_clk = 297000,
 	.timing = {
 		.pixel_freq = 297000,
+		.frac_freq = 296703,
 		.h_freq = 67500,
 		.v_freq = 30000,
 		.vsync_polarity = 1,
@@ -463,6 +471,7 @@ static struct hdmi_format_para fmt_para_4096x2160p60_256x135 = {
 	.tmds_clk = 594000,
 	.timing = {
 		.pixel_freq = 594000,
+		.frac_freq = 593407,
 		.h_freq = 135000,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -494,6 +503,7 @@ static struct hdmi_format_para fmt_para_1920x1080i60_16x9 = {
 	.tmds_clk = 74250,
 	.timing = {
 		.pixel_freq = 74250,
+		.frac_freq = 74176,
 		.h_freq = 33750,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -556,6 +566,7 @@ static struct hdmi_format_para fmt_para_1280x720p60_16x9 = {
 	.tmds_clk = 74250,
 	.timing = {
 		.pixel_freq = 74250,
+		.frac_freq = 74176,
 		.h_freq = 45000,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -617,7 +628,8 @@ static struct hdmi_format_para fmt_para_720x480p60_16x9 = {
 	.tmds_clk_div40 = 0,
 	.tmds_clk = 27000,
 	.timing = {
-		.pixel_freq = 27000,
+		.pixel_freq = 27027,
+		.frac_freq = 27000,
 		.h_freq = 31469,
 		.v_freq = 59940,
 		.vsync_polarity = 0,
@@ -648,7 +660,8 @@ static struct hdmi_format_para fmt_para_720x480i60_16x9 = {
 	.tmds_clk_div40 = 0,
 	.tmds_clk = 27000,
 	.timing = {
-		.pixel_freq = 27000,
+		.pixel_freq = 27027,
+		.frac_freq = 27000,
 		.h_freq = 15734,
 		.v_freq = 59940,
 		.vsync_polarity = 0,
@@ -742,6 +755,7 @@ static struct hdmi_format_para fmt_para_3840x1080p120_16x9 = {
 	.tmds_clk = 594000,
 	.timing = {
 		.pixel_freq = 594000,
+		.frac_freq = 593407,
 		.h_freq = 135000,
 		.v_freq = 120000,
 		.vsync_polarity = 1,
@@ -804,6 +818,7 @@ static struct hdmi_format_para fmt_para_3840x540p240_16x9 = {
 	.tmds_clk = 594000,
 	.timing = {
 		.pixel_freq = 594000,
+		.frac_freq = 593407,
 		.h_freq = 135000,
 		.v_freq = 120000,
 		.vsync_polarity = 1,
@@ -930,6 +945,7 @@ static struct hdmi_format_para fmt_para_3840x2160p60_16x9_y420 = {
 	.tmds_clk = 594000,
 	.timing = {
 		.pixel_freq = 594000,
+		.frac_freq = 593407,
 		.h_freq = 135000,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -962,6 +978,7 @@ static struct hdmi_format_para fmt_para_4096x2160p60_256x135_y420 = {
 	.tmds_clk = 594000,
 	.timing = {
 		.pixel_freq = 594000,
+		.frac_freq = 593407,
 		.h_freq = 135000,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -1033,7 +1050,7 @@ struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic)
 		if (vic == all_fmt_paras[i]->vic)
 			return all_fmt_paras[i];
 	}
-	return NULL;
+	return &fmt_para_non_hdmi_fmt;
 }
 
 static struct parse_cd parse_cd_[] = {
@@ -1303,6 +1320,16 @@ struct hdmi_audio_fs_ncts aud_32k_para = {
 		.n = 3072,
 		.cts = 222750,
 	},
+	.array[12] = {
+		.tmds_clk = 593407,
+		.n = 5824,
+		.cts = 843750,
+	},
+	.array[13] = {
+		.tmds_clk = 594000,
+		.n = 3072,
+		.cts = 445500,
+	},
 	.def_n = 4096,
 };
 
@@ -1408,6 +1435,16 @@ struct hdmi_audio_fs_ncts aud_44k1_para = {
 		.n = 4707,
 		.cts = 247500,
 	},
+	.array[12] = {
+		.tmds_clk = 593407,
+		.n = 8918,
+		.cts = 937500,
+	},
+	.array[13] = {
+		.tmds_clk = 594000,
+		.n = 9408,
+		.cts = 990000,
+	},
 	.def_n = 6272,
 };
 
@@ -1512,6 +1549,16 @@ struct hdmi_audio_fs_ncts aud_48k_para = {
 		.tmds_clk = 297000,
 		.n = 5120,
 		.cts = 247500,
+	},
+	.array[12] = {
+		.tmds_clk = 593407,
+		.n = 5824,
+		.cts = 562500,
+	},
+	.array[13] = {
+		.tmds_clk = 594000,
+		.n = 6144,
+		.cts = 594000,
 	},
 	.def_n = 6144,
 };

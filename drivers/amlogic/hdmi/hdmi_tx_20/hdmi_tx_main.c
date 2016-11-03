@@ -107,9 +107,7 @@ const struct vinfo_s *get_current_vinfo(void)
 #endif
 
 struct hdmi_config_platform_data *hdmi_pdata;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 static int suspend_flag;
-#endif
 
 static struct hdmitx_dev hdmitx_device;
 static struct switch_dev sdev = { /* android ics switch device */
@@ -135,9 +133,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	if (info && (strncmp(info->name, "panel", 5) == 0
 		|| strncmp(info->name, "null", 4) == 0))
 		return;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	suspend_flag = 1;
-#endif
 	phdmi->hpd_lock = 1;
 	hdcp_tst_sig = 1;
 	msleep(20);
@@ -203,9 +199,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_device.internal_mode_change = 0;
 	set_disp_mode_auto();
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	suspend_flag = 0;
-#endif
 	switch_set_state(&sdev, hdmitx_device.hpd_state);
 	switch_set_state(&hdmi_power, hdmitx_device.hpd_state);
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
@@ -360,12 +354,6 @@ static  int  set_disp_mode(const char *mode)
 		vic = HDMI_4k2k_24;
 	else if (strncmp(mode, "smpte24hz", strlen("smpte24hz")) == 0)
 		vic = HDMI_4k2k_smpte_24;
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	else if (strncmp(mode, "4k2k29hz", strlen("4k2k29hz")) == 0)
-		vic = HDMI_4k2k_30;
-	else if (strncmp(mode, "4k2k23hz", strlen("4k2k23hz")) == 0)
-		vic = HDMI_4k2k_24;
-#endif
 	else
 		;/* nothing */
 
@@ -435,7 +423,6 @@ static void hdmitx_pre_display_init(void)
 	hdmitx_device.internal_mode_change = 0;
 }
 
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 /*  */
 /* input para: name of vmode, such as "1080p50hz" */
 /* return values: */
@@ -460,7 +447,38 @@ int hdmitx_is_vmode_supported(char *mode_name)
 }
 EXPORT_SYMBOL(hdmitx_is_vmode_supported);
 
-#endif
+/* fr_tab[]
+ * 1080p24hz, 24:1
+ * 1080p23.976hz, 2997:125
+ * 25/50/100/200hz, no change
+ */
+static struct frac_rate_table fr_tab[] = {
+	{"24hz", 24, 1, 2997, 125},
+	{"30hz", 30, 1, 2997, 100},
+	{"60hz", 60, 1, 2997, 50},
+	{"120hz", 120, 1, 2997, 25},
+	{"240hz", 120, 1, 5994, 25},
+	{NULL},
+};
+
+static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
+{
+	struct frac_rate_table *fr = &fr_tab[0];
+
+	while (fr->hz) {
+		if (strstr(info->name, fr->hz)) {
+			if (frac) {
+				info->sync_duration_num = fr->sync_num_dec;
+				info->sync_duration_den = fr->sync_den_dec;
+			} else {
+				info->sync_duration_num = fr->sync_num_int;
+				info->sync_duration_den = fr->sync_den_int;
+			}
+			break;
+		}
+		fr++;
+	}
+}
 
 static int set_disp_mode_auto(void)
 {
@@ -533,10 +551,8 @@ static int set_disp_mode_auto(void)
 	else {
 	/* nothing */
 	}
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
 		vic_ready = HDMI_Unkown;
-#endif
 	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
 		hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
@@ -564,6 +580,11 @@ static int set_disp_mode_auto(void)
 	hdev->cur_VIC = HDMI_Unkown;
 /* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(hdev, vic);
+	pr_info("%s %d %d\n", info->name, info->sync_duration_num,
+		info->sync_duration_den);
+	recalc_vinfo_sync_duration(info, hdev->frac_rate_policy);
+	pr_info("%s %d %d\n", info->name, info->sync_duration_num,
+		info->sync_duration_den);
 	if (ret >= 0) {
 		hdev->HWOp.Cntl(hdev, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
 		hdev->cur_VIC = vic;
@@ -1590,6 +1611,34 @@ static ssize_t show_phy(struct device *dev,
 	return 0;
 }
 
+static ssize_t store_frac_rate(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info("hdmitx: set frac_rate_policy as %d\n", val);
+		if ((val == 0) || (val == 1))
+			hdmitx_device.frac_rate_policy = val;
+		else
+			pr_info("only accept as 0 or 1\n");
+	}
+
+	return count;
+}
+
+static ssize_t show_frac_rate(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		hdmitx_device.frac_rate_policy);
+
+	return pos;
+}
+
 static ssize_t store_hdcp_clkdis(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -1927,6 +1976,8 @@ static DEVICE_ATTR(avmute, S_IWUSR | S_IRUGO | S_IWGRP, show_avmute,
 	store_avmute);
 static DEVICE_ATTR(vic, S_IWUSR | S_IRUGO | S_IWGRP, show_vic, store_vic);
 static DEVICE_ATTR(phy, S_IWUSR | S_IRUGO | S_IWGRP, show_phy, store_phy);
+static DEVICE_ATTR(frac_rate_policy, S_IWUSR | S_IRUGO | S_IWGRP,
+	show_frac_rate, store_frac_rate);
 static DEVICE_ATTR(hdcp_clkdis, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_clkdis,
 	store_hdcp_clkdis);
 static DEVICE_ATTR(hdcp_pwr, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_pwr,
@@ -1953,19 +2004,15 @@ static DEVICE_ATTR(support_3d, S_IRUGO, show_support_3d, NULL);
 static int hdmitx_notify_callback_v(struct notifier_block *block,
 	unsigned long cmd , void *para)
 {
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	enum hdmi_vic vic_ready = HDMI_Unkown;
 	enum hdmi_vic vic_now = HDMI_Unkown;
 	const struct vinfo_s *info = NULL;
-	enum fine_tune_mode_e fine_tune_mode = get_hpll_tune_mode();
-#endif
 	if (get_cur_vout_index() != 1)
 		return 0;
 
 	if (cmd != VOUT_EVENT_MODE_CHANGE)
 		return 0;
 
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	if (suspend_flag == 1)
 		return 0;
 	/* vic_ready got from IP */
@@ -1979,14 +2026,6 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 	}
 
 	vic_now = hdmitx_edid_get_VIC(&hdmitx_device, info->name, 1);
-	if ((HDMI_Unkown != vic_ready) && (vic_ready == vic_now)) {
-		if (KEEP_HPLL != fine_tune_mode) {
-			hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
-				MISC_FINE_TUNE_HPLL, fine_tune_mode);
-			return 0;
-		}
-	}
-#endif
 	if (hdmitx_device.vic_count == 0) {
 		if (is_dispmode_valid_for_hdmi()) {
 			hdmitx_device.mux_hpd_if_pin_high_flag = 1;
@@ -2812,6 +2851,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_avmute);
 	ret = device_create_file(dev, &dev_attr_vic);
 	ret = device_create_file(dev, &dev_attr_phy);
+	ret = device_create_file(dev, &dev_attr_frac_rate_policy);
 	ret = device_create_file(dev, &dev_attr_hdcp_clkdis);
 	ret = device_create_file(dev, &dev_attr_hdcp_pwr);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
@@ -2825,9 +2865,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_ready);
 	ret = device_create_file(dev, &dev_attr_support_3d);
 	ret = device_create_file(dev, &dev_attr_dc_cap);
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	register_hdmi_edid_supported_func(hdmitx_is_vmode_supported);
-#endif
 
 #ifdef CONFIG_AM_TV_OUTPUT
 	vout_register_client(&hdmitx_notifier_nb_v);
@@ -3022,6 +3059,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_avmute);
 	device_remove_file(dev, &dev_attr_vic);
+	device_remove_file(dev, &dev_attr_frac_rate_policy);
 	device_remove_file(dev, &dev_attr_hdcp_pwr);
 	device_remove_file(dev, &dev_attr_aud_output_chs);
 	device_remove_file(dev, &dev_attr_div40);

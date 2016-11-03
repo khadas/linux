@@ -450,21 +450,7 @@ static int hdmitx_uboot_already_display(void)
 /* for 30bits colordepth */
 static void set_vmode_clk(struct hdmitx_dev *hdev)
 {
-	enum hdmi_vic vic = hdev->cur_VIC;
-
-	pr_info("hdmitx: set clk: VIC = %d  cd = %d\n", vic, hdev->para->cd);
-	if (hdev->para->cs != COLORSPACE_YUV422) {
-		switch (hdev->para->cd) {
-		case COLORDEPTH_30B:
-			hdmitx_set_clk_30b(vic);
-			break;
-		case COLORDEPTH_24B:
-		default:
-			hdmitx_set_clk(vic);
-			break;
-		}
-	} else
-		hdmitx_set_clk(vic);
+	hdmitx_set_clk(hdev);
 }
 
 static void hdmi_hwp_init(struct hdmitx_dev *hdev)
@@ -1701,17 +1687,8 @@ static void hdmitx_set_pll(struct hdmitx_dev *hdev)
 	hdmi_print(IMP, SYS "param->VIC:%d\n", hdev->cur_video_param->VIC);
 
 	cur_vout_index = get_cur_vout_index();
-/* TODO
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	if (hdmitx_set_pll_fr_auto(hdev))
-		return;
-#endif
-*/
 	set_vmode_clk(hdev);
 
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	hdev->HWOp.CntlMisc(hdev, MISC_FINE_TUNE_HPLL, get_hpll_tune_mode());
-#endif
 }
 
 static void set_phy_by_mode(unsigned int mode)
@@ -2381,7 +2358,7 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 {
 	unsigned int data32;
 	unsigned int aud_n_para;
-
+	unsigned int char_rate;
 
 	/* audio packetizer config */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, tx_aud_src ? 4 : 0);
@@ -2390,12 +2367,16 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	|| (audio_param->type == CT_DTS_HD_MA))
 		hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, 2);
 
+	if ((hdev->frac_rate_policy) && (hdev->para->timing.frac_freq))
+		char_rate = hdev->para->timing.frac_freq;
+	else
+		char_rate = hdev->para->timing.pixel_freq;
 	if (hdev->para->cs == COLORSPACE_YUV422)
 		aud_n_para = hdmi_get_aud_n_paras(audio_param->sample_rate,
-			COLORDEPTH_24B, hdev->para->timing.pixel_freq);
+			COLORDEPTH_24B, char_rate);
 	else
 		aud_n_para = hdmi_get_aud_n_paras(audio_param->sample_rate,
-			hdev->para->cd, hdev->para->timing.pixel_freq);
+			hdev->para->cd, char_rate);
 	/* N must mutiples 4 for DD+ */
 	switch (audio_param->type) {
 	case CT_DOLBY_D:
@@ -3908,32 +3889,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 	case MISC_AVMUTE_OP:
 		config_avmute(argv);
 		break;
-	case MISC_FINE_TUNE_HPLL:
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-		if (hdmi_get_current_vinfo()) {
-			switch (hdmi_get_current_vinfo()->mode) {
-			case VMODE_720P:
-			case VMODE_1080I:
-			case VMODE_1080P:
-			case VMODE_1080P_24HZ:
-			case VMODE_4K2K_30HZ:
-			case VMODE_4K2K_24HZ:
-			case VMODE_4K2K_60HZ_Y420:
-			case VMODE_4K2K_SMPTE_60HZ_Y420:
-				hdmitx_fine_tune_hpll(argv);
-				break;
-			case VMODE_4K2K_60HZ:
-				if (argv == DOWN_HPLL)
-					pr_info("TODO: 4k60hz\n");
-				 else if (argv == UP_HPLL)
-					pr_info("TODO: 4k60hz\n");
-				break;
-			default:
-				break;
-			}
-		}
-		break;
-#endif
 	case MISC_HDCP_CLKDIS:
 		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, argv, 6, 1);
 		break;

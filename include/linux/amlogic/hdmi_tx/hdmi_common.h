@@ -214,6 +214,7 @@ enum hdmi_audio_fs;
 /* CEA TIMING STRUCT DEFINITION */
 struct hdmi_cea_timing {
 	unsigned int pixel_freq; /* Unit: 1000 */
+	unsigned int frac_freq; /* 1.001 shift */
 	unsigned int h_freq; /* Unit: Hz */
 	unsigned int v_freq; /* Unit: 0.001 Hz */
 	unsigned int vsync_polarity:1;
@@ -503,7 +504,7 @@ struct hdmi_rx_audioinfo {
 	unsigned CTS;
 };
 
-#define AUDIO_PARA_MAX_NUM       13
+#define AUDIO_PARA_MAX_NUM       14
 struct hdmi_audio_fs_ncts {
 	struct {
 		unsigned int tmds_clk;

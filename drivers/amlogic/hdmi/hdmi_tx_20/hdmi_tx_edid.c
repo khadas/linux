@@ -1870,54 +1870,25 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 }
 
 static struct dispmode_vic dispmode_vic_tab[] = {
-	{"480i_4_3",  HDMI_480i60},
-	{"480i_rpt",  HDMI_480i60_16x9_rpt},
-	{"480i60hz",	  HDMI_480i60_16x9},
-	{"480p_4_3",  HDMI_480p60},
-	{"480p_rpt",  HDMI_480p60_16x9_rpt},
-	{"480p60hz",	  HDMI_480p60_16x9},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"480p59hz",  HDMI_480p60_16x9},
-#endif
-	{"576i_4_3",  HDMI_576i50},
-	{"576i_rpt",  HDMI_576i50_16x9_rpt},
-	{"576i50hz",	  HDMI_576i50_16x9},
-	{"576p_4_3",  HDMI_576p50},
-	{"576p_rpt",  HDMI_576p50_16x9_rpt},
-	{"576p50hz",	  HDMI_576p50_16x9},
-	{"720p50hz",  HDMI_720p50},
-	{"720p60hz",	  HDMI_720p60},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"720p59hz",  HDMI_720p60},
-#endif
+	{"480i60hz", HDMI_480i60_16x9},
+	{"480p60hz", HDMI_480p60_16x9},
+	{"576i50hz", HDMI_576i50_16x9},
+	{"576p50hz", HDMI_576p50_16x9},
+	{"720p50hz", HDMI_720p50},
+	{"720p60hz", HDMI_720p60},
 	{"1080i50hz", HDMI_1080i50},
-	{"1080i60hz",	 HDMI_1080i60},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"1080i59hz", HDMI_1080i60},
-#endif
+	{"1080i60hz", HDMI_1080i60},
 	{"1080p50hz", HDMI_1080p50},
 	{"1080p30hz", HDMI_1080p30},
 	{"1080p25hz", HDMI_1080p25},
 	{"1080p24hz", HDMI_1080p24},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"1080p23hz", HDMI_1080p24},
-#endif
 	{"1080p60hz",	 HDMI_1080p60},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"1080p59hz", HDMI_1080p60},
-#endif
 	{"2160p30hz44410bit", HDMI_3840x2160p30_16x9},
 	{"2160p25hz44410bit", HDMI_3840x2160p25_16x9},
 	{"2160p24hz44410bit", HDMI_3840x2160p24_16x9},
 	{"2160p30hz",  HDMI_4k2k_30},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"4k2k29hz",  HDMI_4k2k_30},
-#endif
 	{"2160p25hz",  HDMI_4k2k_25},
 	{"2160p24hz",  HDMI_4k2k_24},
-#ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
-	{"4k2k23hz",  HDMI_4k2k_24},
-#endif
 	{"smpte24hz", HDMI_4k2k_smpte_24},
 	{"smpte25hz", HDMI_4096x2160p25_256x135},
 	{"smpte30hz", HDMI_4096x2160p30_256x135},

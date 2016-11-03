@@ -1246,6 +1246,19 @@ static struct vinfo_s tv_info[] = {
 		.video_clk         = 148500000,
 		.viu_color_fmt     = TVIN_YUV444,
 	},
+	{ /* NULL mode, used as temporary witch mode state */
+		.name              = "null",
+		.mode              = VMODE_NULL,
+		.width             = 1920,
+		.height            = 1080,
+		.field_height      = 1080,
+		.aspect_ratio_num  = 16,
+		.aspect_ratio_den  = 9,
+		.sync_duration_num = 60,
+		.sync_duration_den = 1,
+		.video_clk         = 1485000000,
+		.viu_color_fmt     = TVIN_YUV444,
+	},
 };
 
 #endif
