@@ -315,9 +315,13 @@ enum div_sel_e {
 #define CRT_VID_CLK_IN_MAX_TXL      (3100 * 1000)
 #define ENCL_CLK_IN_MAX_TXL         (620 * 1000)
 
+extern int meson_clk_measure(unsigned int clk_mux);
 
 extern struct lcd_clk_config_s *get_lcd_clk_config(void);
 extern void lcd_clk_config_print(void);
+
+extern int lcd_encl_clk_msr(void);
+extern void lcd_pll_reset(void);
 
 extern char *lcd_get_spread_spectrum(void);
 extern void lcd_set_spread_spectrum(void);

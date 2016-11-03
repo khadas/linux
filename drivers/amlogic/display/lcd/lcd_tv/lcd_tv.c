@@ -801,6 +801,15 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 			pconf->lcd_control.vbyone_config->byte_mode = para[2];
 			pconf->lcd_control.vbyone_config->color_fmt = para[3];
 		}
+		ret = of_property_read_u32_array(child, "vbyone_intr_enable",
+			&para[0], 2);
+		if (ret) {
+			LCDERR("failed to get vbyone_intr_enable\n");
+		} else {
+			pconf->lcd_control.vbyone_config->intr_en = para[0];
+			pconf->lcd_control.vbyone_config->vsync_intr_en =
+				para[1];
+		}
 		ret = of_property_read_u32_array(child, "phy_attr",
 			&para[0], 2);
 		if (ret) {
@@ -945,12 +954,16 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		pconf->lcd_control.vbyone_config->phy_vswing =
 				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_4;
-		pconf->lcd_control.vbyone_config->phy_preem  =
+		pconf->lcd_control.vbyone_config->phy_preem =
 				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_5;
-		/* dummy pointer */
+		pconf->lcd_control.vbyone_config->intr_en =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_6;
+		pconf->lcd_control.vbyone_config->vsync_intr_en =
+				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_7;
+		/* dummy pointer */
 		p += LCD_UKEY_IF_ATTR_8;
 		p += LCD_UKEY_IF_ATTR_9;
 	} else if (pconf->lcd_basic.lcd_type == LCD_LVDS) {
@@ -981,7 +994,6 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		pconf->lcd_control.lvds_config->port_swap  =
 				(*p | ((*(p + 1)) << 8)) & 0xff;
 		p += LCD_UKEY_IF_ATTR_8;
-
 		/* dummy pointer */
 		p += LCD_UKEY_IF_ATTR_9;
 	} else {
@@ -1154,6 +1166,8 @@ int lcd_tv_probe(struct device *dev)
 	lcd_drv->driver_init_pre = lcd_tv_driver_init_pre;
 	lcd_drv->driver_init = lcd_tv_driver_init;
 	lcd_drv->driver_disable = lcd_tv_driver_disable;
+	lcd_drv->driver_tiny_enable = lcd_tv_driver_tiny_enable;
+	lcd_drv->driver_tiny_disable = lcd_tv_driver_tiny_disable;
 
 	lcd_get_config(lcd_drv->lcd_config, dev);
 

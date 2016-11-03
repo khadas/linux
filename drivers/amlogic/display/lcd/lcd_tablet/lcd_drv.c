@@ -433,3 +433,56 @@ void lcd_tablet_driver_disable(void)
 		LCDPR("%s finished\n", __func__);
 }
 
+void lcd_tablet_driver_tiny_enable(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
+	/* init driver */
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_TTL:
+		lcd_ttl_control_set(pconf);
+		lcd_ttl_pinmux_set(1);
+		break;
+	case LCD_LVDS:
+		lcd_lvds_control_set(pconf);
+		lcd_lvds_phy_set(pconf, 1);
+		break;
+	default:
+		break;
+	}
+
+	LCDPR("enable driver\n");
+}
+
+void lcd_tablet_driver_tiny_disable(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	LCDPR("disable driver\n");
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_TTL:
+		lcd_ttl_pinmux_set(0);
+		break;
+	case LCD_LVDS:
+		lcd_lvds_phy_set(pconf, 0);
+		lcd_lvds_disable();
+		break;
+	default:
+		break;
+	}
+}
+

@@ -24,5 +24,7 @@
 extern void lcd_tablet_driver_init_pre(void);
 extern int lcd_tablet_driver_init(void);
 extern void lcd_tablet_driver_disable(void);
+extern void lcd_tablet_driver_tiny_enable(void);
+extern void lcd_tablet_driver_tiny_disable(void);
 
 #endif

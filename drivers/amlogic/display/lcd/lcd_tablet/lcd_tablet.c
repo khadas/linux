@@ -975,6 +975,8 @@ int lcd_tablet_probe(struct device *dev)
 	lcd_drv->driver_init_pre = lcd_tablet_driver_init_pre;
 	lcd_drv->driver_init = lcd_tablet_driver_init;
 	lcd_drv->driver_disable = lcd_tablet_driver_disable;
+	lcd_drv->driver_tiny_enable = lcd_tablet_driver_tiny_enable;
+	lcd_drv->driver_tiny_disable = lcd_tablet_driver_tiny_disable;
 
 	lcd_get_config(lcd_drv->lcd_config, dev);
 

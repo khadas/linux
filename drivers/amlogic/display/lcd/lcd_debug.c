@@ -238,14 +238,18 @@ static void lcd_info_print(void)
 			"color_fmt         %u\n"
 			"bit_rate          %u\n"
 			"phy_vswing        %u\n"
-			"phy_preemphasis   %u\n\n",
+			"phy_preemphasis   %u\n"
+			"intr_en           %u\n"
+			"vsync_intr_en     %u\n\n",
 			pconf->lcd_control.vbyone_config->lane_count,
 			pconf->lcd_control.vbyone_config->region_num,
 			pconf->lcd_control.vbyone_config->byte_mode,
 			pconf->lcd_control.vbyone_config->color_fmt,
 			pconf->lcd_control.vbyone_config->bit_rate,
 			pconf->lcd_control.vbyone_config->phy_vswing,
-			pconf->lcd_control.vbyone_config->phy_preem);
+			pconf->lcd_control.vbyone_config->phy_preem,
+			pconf->lcd_control.vbyone_config->intr_en,
+			pconf->lcd_control.vbyone_config->vsync_intr_en);
 		break;
 	case LCD_MIPI:
 		dconf = pconf->lcd_control.mipi_config;
@@ -714,7 +718,7 @@ static ssize_t lcd_debug_store(struct class *class,
 		ret = sscanf(buf, "power %d", &temp);
 		if (ret == 1) {
 			LCDPR("power: %d\n", temp);
-			LCDPR("to do\n");
+			lcd_drv->power_tiny_ctrl(temp);
 		} else {
 			LCDERR("invalid data\n");
 			return -EINVAL;
@@ -1177,9 +1181,14 @@ static const char *lcd_vbyone_debug_usage_str = {
 "    <preem>  : preemphasis level, support 0~7\n"
 "    <byte_mode>  : 3/4/5\n"
 "\n"
-"    echo intr <en> > vbyone; enable or disable vbyone interrupt\n"
+"    echo intr <state> <en> > vbyone; enable or disable vbyone interrupt\n"
 "data format:\n"
-"    <en> : 0=disable, 1=enable\n"
+"    <state> : 0=temp no use intr, 1=temp use intr. keep effect until reset lcd driver\n"
+"    <en>    : 0=disable intr, 1=enable intr\n"
+"\n"
+"    echo vintr <en> > vbyone; enable or disable vbyone interrupt\n"
+"data format:\n"
+"    <en>    : 0=disable vsync monitor intr, 1=enable vsync monitor intr\n"
 "\n"
 };
 
@@ -1219,7 +1228,6 @@ static ssize_t lcd_lvds_debug_show(struct class *class,
 	return sprintf(buf, "%s\n", lcd_lvds_debug_usage_str);
 }
 
-static int lcd_vx1_intr_enable = 1;
 static ssize_t lcd_vx1_debug_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -1293,23 +1301,43 @@ static ssize_t lcd_lvds_debug_store(struct class *class,
 	return count;
 }
 
+static int vx1_intr_state = 1;
 static ssize_t lcd_vx1_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vbyone_config_s *vx1_conf;
-	int val;
+	int val[2];
 
 	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
-	if (buf[0] == 'i') {
-		ret = sscanf(buf, "intr %d", &val);
+	if (buf[0] == 'i') { /* intr */
+		ret = sscanf(buf, "intr %d %d", &val[0], &val[1]);
 		if (ret == 1) {
-			pr_info("set vbyone interrupt enable: %d\n", val);
-			lcd_vbyone_interrupt_enable(val);
-			lcd_vx1_intr_enable = val;
+			pr_info("set vbyone interrupt enable: %d\n", val[0]);
+			vx1_intr_state = val[0];
+			lcd_vbyone_interrupt_enable(vx1_intr_state);
+		} else if (ret == 2) {
+			pr_info("set vbyone interrupt enable: %d %d\n",
+				val[0], val[1]);
+			vx1_intr_state = val[0];
+			vx1_conf->intr_en = val[1];
+			lcd_vbyone_interrupt_enable(vx1_intr_state);
 		} else {
-			pr_info("vx1_intr_enable: %d\n", lcd_vx1_intr_enable);
+			pr_info("vx1_intr_enable: %d %d\n",
+				vx1_intr_state, vx1_conf->intr_en);
+			return -EINVAL;
+		}
+	} else if (buf[0] == 'v') { /* vintr */
+		ret = sscanf(buf, "vintr %d", &val[0]);
+		if (ret == 1) {
+			pr_info("set vbyone vsync interrupt enable: %d\n",
+				val[0]);
+			vx1_conf->vsync_intr_en = val[0];
+			lcd_vbyone_interrupt_enable(vx1_intr_state);
+		} else {
+			pr_info("vx1_vsync_intr_enable: %d\n",
+				vx1_conf->vsync_intr_en);
 			return -EINVAL;
 		}
 	} else {

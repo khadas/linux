@@ -46,6 +46,15 @@
 
 static int vx1_fsm_acq_st;
 
+#define VX1_TRAINING_TIMEOUT    60  /* vsync cnt */
+static int vx1_training_wait_cnt;
+static int vx1_training_stable_cnt;
+static int vx1_timeout_reset_flag;
+static struct tasklet_struct  lcd_vx1_reset_tasklet;
+
+#define VX1_HPLL_INTERVAL (HZ)
+static struct timer_list vx1_hpll_timer;
+
 static int lcd_type_supported(struct lcd_config_s *pconf)
 {
 	int lcd_type = pconf->lcd_basic.lcd_type;
@@ -520,19 +529,43 @@ static void lcd_vbyone_disable(void)
 			/* enable htpdn_fail,lockn_fail,acq_hold */
 void lcd_vbyone_interrupt_enable(int flag)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vbyone_config_s *vx1_conf;
+
 	if (lcd_debug_print_flag)
 		LCDPR("%s: %d\n", __func__, flag);
 
+	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
 	if (flag) {
-		vx1_fsm_acq_st = 0;
-		/* clear interrupt */
-		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9);
-		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
+		if (vx1_conf->intr_en) {
+			vx1_fsm_acq_st = 0;
+			/* clear interrupt */
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9);
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
 
-		/* set hold in FSM_ACQ */
-		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
-		/* enable interrupt */
-		lcd_vcbus_setb(VBO_INTR_UNMASK, VBYONE_INTR_UNMASK, 0, 15);
+			/* set hold in FSM_ACQ */
+			lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
+			/* enable interrupt */
+			lcd_vcbus_setb(VBO_INTR_UNMASK,
+				VBYONE_INTR_UNMASK, 0, 15);
+		} else {
+			/* mask interrupt */
+			lcd_vcbus_write(VBO_INTR_UNMASK, 0x0);
+			if (vx1_conf->vsync_intr_en) {
+				/* keep holder for vsync monitor enabled */
+				/* set hold in FSM_ACQ */
+				lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
+			} else {
+				/* release holder for vsync monitor disabled */
+				/* release hold in FSM_ACQ */
+				lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0, 0, 16);
+			}
+
+			vx1_fsm_acq_st = 0;
+			/* clear interrupt */
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9);
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
+		}
 	} else {
 		/* mask interrupt */
 		lcd_vcbus_write(VBO_INTR_UNMASK, 0x0);
@@ -574,6 +607,9 @@ void lcd_vbyone_wait_stable(void)
 	}
 	LCDPR("%s status: 0x%x, i=%d\n",
 		__func__, lcd_vcbus_read(VBO_STATUS_L), (5000 - i));
+	vx1_training_wait_cnt = 0;
+	vx1_training_stable_cnt = 0;
+	vx1_fsm_acq_st = 0;
 	lcd_vbyone_interrupt_enable(1);
 }
 
@@ -594,23 +630,179 @@ static void lcd_vx1_wait_hpd(void)
 			((lcd_vcbus_read(VBO_STATUS_L) >> 6) & 0x1), i);
 }
 
+#define LCD_PCLK_TOLERANCE     2000000  /* 2M */
+static void lcd_vx1_hpll_timer_handler(unsigned long arg)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	int encl_clk;
+#if 0
+	int pclk, pclk_min, pclk_max;
+#endif
+
+	if (lcd_drv->lcd_status == 0)
+		goto vx1_hpll_timer_end;
+
+#if 0
+	pclk = lcd_drv->lcd_config->lcd_timing.lcd_clk;
+	pclk_min = pclk - LCD_PCLK_TOLERANCE;
+	pclk_max = pclk + LCD_PCLK_TOLERANCE;
+	encl_clk = lcd_encl_clk_msr();
+	if ((encl_clk < pclk_min) || (encl_clk > pclk_max)) {
+		LCDPR("%s: pll frequency error: %d\n", __func__, encl_clk);
+		lcd_pll_reset();
+	}
+#else
+	encl_clk = lcd_encl_clk_msr();
+	if (encl_clk == 0) {
+		LCDPR("%s: pll frequency error: %d\n", __func__, encl_clk);
+		lcd_pll_reset();
+	}
+#endif
+
+vx1_hpll_timer_end:
+	vx1_hpll_timer.expires = jiffies + VX1_HPLL_INTERVAL;
+	add_timer(&vx1_hpll_timer);
+}
+
+static void lcd_vx1_hold_reset(void)
+{
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
+
+	vx1_fsm_acq_st = 0;
+	lcd_vcbus_write(VBO_INTR_UNMASK, 0x0); /* mask interrupt */
+	/* clear interrupt */
+	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0x01ff, 0, 9);
+	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
+
+	/* clear FSM_continue */
+	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
+
+	/* force PHY to 0 */
+	lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
+	lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
+	udelay(5);
+	/* clear lockn raising flag */
+	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 1, 7, 1);
+	/* realease PHY */
+	lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 8, 2);
+	/* clear lockn raising flag */
+	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 7, 1);
+	lcd_vcbus_write(VBO_SOFT_RST, 0);
+
+	/* enable interrupt */
+	lcd_vcbus_setb(VBO_INTR_UNMASK, VBYONE_INTR_UNMASK, 0, 15);
+}
+
+static void lcd_vx1_timeout_reset(unsigned long data)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (vx1_timeout_reset_flag == 0)
+		return;
+
+	LCDPR("%s\n", __func__);
+	if (vx1_timeout_reset_flag == 1)
+		lcd_drv->module_reset();
+	else
+		lcd_drv->module_tiny_reset();
+	if (lcd_drv->lcd_config->lcd_control.vbyone_config->intr_en)
+		lcd_vx1_hold_reset();
+	vx1_timeout_reset_flag = 0;
+}
+
 static irqreturn_t lcd_vbyone_vsync_isr(int irq, void *dev_id)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vbyone_config_s *vx1_conf;
+
+	if (lcd_drv->lcd_status == 0)
+		return IRQ_HANDLED;
+	if (lcd_vcbus_read(VBO_STATUS_L) & 0x40) /* hpd detect */
+		return IRQ_HANDLED;
+
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 1, 0, 1);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 1);
+
+	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
+	if (vx1_conf->vsync_intr_en == 0) {
+		vx1_training_wait_cnt = 0;
+		return IRQ_HANDLED;
+	}
+
+#if 0
+	if (vx1_conf->intr_en == 0) {
+		if ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) != 0x20)
+			if (vx1_timeout_reset_flag == 0) {
+				vx1_timeout_reset_flag = 1;
+				tasklet_schedule(&lcd_vx1_reset_tasklet);
+			}
+		}
+		return IRQ_HANDLED;
+	}
+#endif
+
+#if 1
+	if (vx1_training_wait_cnt >= VX1_TRAINING_TIMEOUT) {
+		if ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) != 0x20) {
+			if (vx1_timeout_reset_flag == 0) {
+				vx1_timeout_reset_flag = 1;
+				tasklet_schedule(&lcd_vx1_reset_tasklet);
+			}
+		} else {
+			vx1_training_stable_cnt++;
+			if (vx1_training_stable_cnt >= 5) {
+				vx1_training_wait_cnt = 0;
+				vx1_training_stable_cnt = 0;
+			}
+		}
+	} else {
+		vx1_training_wait_cnt++;
+	}
+#else
+	if ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) != 0x20) {
+		if (vx1_training_wait_cnt >= VX1_TRAINING_TIMEOUT) {
+			if (vx1_timeout_reset_flag == 0) {
+				vx1_timeout_reset_flag = 1;
+				tasklet_schedule(&lcd_vx1_reset_tasklet);
+			}
+		} else {
+			vx1_training_wait_cnt++;
+		}
+	} else {
+		vx1_training_stable_cnt++;
+		if (vx1_training_stable_cnt >= 5) {
+			vx1_training_wait_cnt = 0;
+			vx1_training_stable_cnt = 0;
+		}
+	}
+#endif
 
 	return IRQ_HANDLED;
 }
 
-#define VX1_LOCKN_WAIT_TIMEOUT    100
+#define VX1_LOCKN_WAIT_TIMEOUT    50
 static int vx1_lockn_wait_cnt;
+
+#define VX1_FSM_ACQ_NEXT_STEP_CONTINUE     0
+#define VX1_FSM_ACQ_NEXT_RELEASE_HOLDER    1
+#define VX1_FSM_ACQ_NEXT                   VX1_FSM_ACQ_NEXT_STEP_CONTINUE
 static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 {
 	unsigned int data32, data32_1;
+	int encl_clk;
 
 	lcd_vcbus_write(VBO_INTR_UNMASK, 0x0);  /* mask interrupt */
 
+	encl_clk = lcd_encl_clk_msr();
 	data32 = (lcd_vcbus_read(VBO_INTR_STATE) & 0x7fff);
+#if 0
+	if (data32 & 0x1ff) { /* timing error */
+		LCDPR("vx1 timing err: VDE_CHK_LH=0x%04x,0x%04x\n",
+			lcd_vcbus_read(VBO_TMCHK_VDE_STATE_L),
+			lcd_vcbus_read(VBO_TMCHK_VDE_STATE_H));
+	}
+#endif
 	/* clear the interrupt */
 	data32_1 = ((data32 >> 9) << 3);
 	if (data32 & 0x1c0)
@@ -621,7 +813,8 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 		data32_1 |= (1 << 0);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, data32_1, 0, 9);
 	lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
-	LCDPR("vx1 intr status = 0x%04x\n", data32);
+	LCDPR("vx1 intr status = 0x%04x, encl_clkmsr = %d",
+		data32, encl_clk);
 
 	if (data32 & 0x200) {
 		LCDPR("vx1 htpdn fall occurred\n");
@@ -640,6 +833,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 		vx1_fsm_acq_st = 0;
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
 		if (vx1_lockn_wait_cnt++ > VX1_LOCKN_WAIT_TIMEOUT) {
+#if 0
 			LCDPR("vx1 sw reset for lockn timeout\n");
 			/* force PHY to 0 */
 			lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
@@ -653,6 +847,14 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 7, 1);
 			lcd_vcbus_write(VBO_SOFT_RST, 0);
 			vx1_lockn_wait_cnt = 0;
+#else
+			if (vx1_timeout_reset_flag == 0) {
+				vx1_timeout_reset_flag = 1;
+				tasklet_schedule(&lcd_vx1_reset_tasklet);
+				vx1_lockn_wait_cnt = 0;
+				return IRQ_HANDLED;
+			}
+#endif
 		}
 	}
 #if 0
@@ -663,7 +865,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 	}
 #endif
 	if (data32 & 0x2000) {
-		LCDPR("vx1 fsm_acq wait end\n");
+		/* LCDPR("vx1 fsm_acq wait end\n"); */
 		if (lcd_debug_print_flag) {
 			LCDPR("vx1 status 0: 0x%x, fsm_acq_st: %d\n",
 				lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
@@ -687,17 +889,21 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 		} else {
 			vx1_fsm_acq_st = 2;
 			/* set FSM_continue */
+#if (VX1_FSM_ACQ_NEXT == VX1_FSM_ACQ_NEXT_RELEASE_HOLDER)
 			lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0, 0, 16);
+#else
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 15, 1);
+			lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 1, 15, 1);
+#endif
 		}
 		LCDPR("vx1 status 1: 0x%x, fsm_acq_st: %d\n",
 			lcd_vcbus_read(VBO_STATUS_L), vx1_fsm_acq_st);
 	}
 
 	if (data32 & 0x1ff) {
-		LCDPR("vx1 sw reset for timing err\n");
+		LCDPR("vx1 reset for timing err\n");
 		vx1_fsm_acq_st = 0;
-		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, data32_1, 0, 9);
-		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 0, 9);
+#if 1
 		/* force PHY to 0 */
 		lcd_hiu_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
 		lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
@@ -709,22 +915,27 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 		/* clear lockn raising flag */
 		lcd_vcbus_setb(VBO_INTR_STATE_CTRL, 0, 7, 1);
 		lcd_vcbus_write(VBO_SOFT_RST, 0);
+#else
+		if (vx1_timeout_reset_flag == 0) {
+			vx1_timeout_reset_flag = 2;
+			tasklet_schedule(&lcd_vx1_reset_tasklet);
+			return IRQ_HANDLED;
+		}
+#endif
 	}
 
 	udelay(20);
 	if ((lcd_vcbus_read(VBO_STATUS_L) & 0x3f) == 0x20) {
 		vx1_lockn_wait_cnt = 0;
+		/* vx1_training_wait_cnt = 0; */
+#if (VX1_FSM_ACQ_NEXT == VX1_FSM_ACQ_NEXT_RELEASE_HOLDER)
 		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0xffff, 0, 16);
+#endif
 		LCDPR("vx1 fsm stable\n");
 	}
 
 	/* enable interrupt */
 	lcd_vcbus_setb(VBO_INTR_UNMASK, VBYONE_INTR_UNMASK, 0, 15);
-
-	if (lcd_debug_print_flag) {
-		LCDPR("vx1 vx1_fsm_acq_st: %d\n", vx1_fsm_acq_st);
-		LCDPR("vx1 status: 0x%x\n\n", lcd_vcbus_read(VBO_STATUS_L));
-	}
 
 	return IRQ_HANDLED;
 }
@@ -977,6 +1188,9 @@ void lcd_tv_driver_disable(void)
 	struct lcd_config_s *pconf;
 	int ret;
 
+	vx1_training_wait_cnt = 0;
+	vx1_timeout_reset_flag = 0;
+
 	LCDPR("disable driver\n");
 	pconf = lcd_drv->lcd_config;
 	ret = lcd_type_supported(pconf);
@@ -1011,12 +1225,76 @@ void lcd_tv_driver_disable(void)
 		LCDPR("%s finished\n", __func__);
 }
 
+void lcd_tv_driver_tiny_enable(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
+		lcd_lvds_control_set(pconf);
+		lcd_lvds_phy_set(pconf, 1);
+		break;
+	case LCD_VBYONE:
+		lcd_vbyone_pinmux_set(1);
+		lcd_vbyone_control_set(pconf);
+		lcd_vx1_wait_hpd();
+		lcd_vbyone_phy_set(pconf, 1);
+		lcd_vbyone_wait_stable();
+		break;
+	default:
+		break;
+	}
+
+	LCDPR("enable driver\n");
+}
+
+void lcd_tv_driver_tiny_disable(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	LCDPR("disable driver\n");
+	pconf = lcd_drv->lcd_config;
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return;
+
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
+		lcd_lvds_phy_set(pconf, 0);
+		lcd_lvds_disable();
+		break;
+	case LCD_VBYONE:
+		lcd_vbyone_interrupt_enable(0);
+		lcd_vbyone_phy_set(pconf, 0);
+		lcd_vbyone_pinmux_set(0);
+		lcd_vbyone_disable();
+		break;
+	default:
+		break;
+	}
+}
+
 #define VBYONE_IRQF   IRQF_SHARED /* IRQF_DISABLED */ /* IRQF_SHARED */
 
 void lcd_vbyone_interrupt_up(void)
 {
 	lcd_vbyone_interrupt_init();
 	vx1_lockn_wait_cnt = 0;
+	vx1_training_wait_cnt = 0;
+	vx1_timeout_reset_flag = 0;
+	vx1_training_stable_cnt = 0;
+
+	tasklet_init(&lcd_vx1_reset_tasklet, lcd_vx1_timeout_reset,
+		(unsigned long)123);
 
 	if (request_irq(INT_VIU_VSYNC, &lcd_vbyone_vsync_isr,
 		IRQF_SHARED, "vbyone_vsync", (void *)"vbyone_vsync")) {
@@ -1034,13 +1312,24 @@ void lcd_vbyone_interrupt_up(void)
 			LCDPR("request vbyone irq successful\n");
 	}
 	lcd_vbyone_interrupt_enable(1);
+
+	/* add timer to monitor hpll frequency */
+	init_timer(&vx1_hpll_timer);
+	/* vx1_hpll_timer.data = NULL; */
+	vx1_hpll_timer.function = lcd_vx1_hpll_timer_handler;
+	vx1_hpll_timer.expires = jiffies + VX1_HPLL_INTERVAL;
+	add_timer(&vx1_hpll_timer);
+	LCDPR("add vbyone hpll timer handler\n");
 }
 
 void lcd_vbyone_interrupt_down(void)
 {
+	del_timer_sync(&vx1_hpll_timer);
+
 	lcd_vbyone_interrupt_enable(0);
 	free_irq(INT_VENC_VX1, (void *)"vbyone");
 	free_irq(INT_VIU_VSYNC, (void *)"vbyone");
+	tasklet_kill(&lcd_vx1_reset_tasklet);
 	if (lcd_debug_print_flag)
-			LCDPR("free vbyone irq\n");
+		LCDPR("free vbyone irq\n");
 }

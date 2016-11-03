@@ -434,6 +434,11 @@ static void lcd_set_pll_ss_m8(struct lcd_clk_config_s *cConf)
 		lcd_pll_ss_table_m8[cConf->ss_level]);
 }
 
+static void lcd_pll_reset_m8(void)
+{
+	LCDPR("%s: to do\n", __func__);
+}
+
 static void lcd_set_pll_m8(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_reg;
@@ -541,6 +546,11 @@ static void lcd_set_pll_ss_m8b(struct lcd_clk_config_s *cConf)
 {
 	LCDPR("set pll spread spectrum: %s, to do\n",
 		lcd_pll_ss_table_m8b[cConf->ss_level]);
+}
+
+static void lcd_pll_reset_m8b(void)
+{
+	LCDPR("%s: to do\n", __func__);
 }
 
 static void lcd_set_pll_m8b(struct lcd_clk_config_s *cConf)
@@ -703,6 +713,11 @@ static void lcd_set_pll_ss_g9tv(struct lcd_clk_config_s *cConf)
 		lcd_pll_ss_table_g9tv[cConf->ss_level]);
 }
 
+static void lcd_pll_reset_g9tv(void)
+{
+	LCDPR("%s: to do\n", __func__);
+}
+
 static void lcd_set_pll_g9tv(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl2;
@@ -756,6 +771,11 @@ static void lcd_set_pll_ss_g9bb(struct lcd_clk_config_s *cConf)
 	}
 	LCDPR("set pll spread spectrum: %s\n",
 		lcd_pll_ss_table_g9bb[cConf->ss_level]);
+}
+
+static void lcd_pll_reset_g9bb(void)
+{
+	LCDPR("%s: to do\n", __func__);
 }
 
 static void lcd_set_pll_g9bb(struct lcd_clk_config_s *cConf)
@@ -877,6 +897,13 @@ static void lcd_set_pll_ss_gxtvbb(struct lcd_clk_config_s *cConf)
 		lcd_pll_ss_table_gxtvbb[cConf->ss_level]);
 }
 
+static void lcd_pll_reset_gxtvbb(void)
+{
+	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 1, LCD_PLL_RST_GXTVBB, 1);
+	udelay(10);
+	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 0, LCD_PLL_RST_GXTVBB, 1);
+}
+
 static void lcd_set_pll_gxtvbb(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl2;
@@ -928,6 +955,13 @@ static void lcd_update_pll_frac_gxtvbb(struct lcd_clk_config_s *cConf)
 static void lcd_set_pll_ss_txl(struct lcd_clk_config_s *cConf)
 {
 	/* to do */
+}
+
+static void lcd_pll_reset_txl(void)
+{
+	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 1, LCD_PLL_RST_TXL, 1);
+	udelay(10);
+	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 0, LCD_PLL_RST_TXL, 1);
 }
 
 static void lcd_set_pll_txl(struct lcd_clk_config_s *cConf)
@@ -2262,6 +2296,52 @@ void lcd_set_spread_spectrum(void)
 	default:
 		break;
 	}
+	spin_unlock_irqrestore(&lcd_clk_lock, flags);
+}
+
+int lcd_encl_clk_msr(void)
+{
+	unsigned int clk_mux;
+	int encl_clk = 0;
+
+	clk_mux = 9;
+	encl_clk = meson_clk_measure(clk_mux);
+
+	return encl_clk;
+}
+
+void lcd_pll_reset(void)
+{
+	unsigned long flags = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	spin_lock_irqsave(&lcd_clk_lock, flags);
+	LCDPR("%s\n", __func__);
+
+	switch (lcd_drv->chip_type) {
+	case LCD_CHIP_M8:
+	case LCD_CHIP_M8M2:
+		lcd_pll_reset_m8();
+		break;
+	case LCD_CHIP_M8B:
+		lcd_pll_reset_m8b();
+		break;
+	case LCD_CHIP_G9TV:
+		lcd_pll_reset_g9tv();
+		break;
+	case LCD_CHIP_G9BB:
+		lcd_pll_reset_g9bb();
+		break;
+	case LCD_CHIP_GXTVBB:
+		lcd_pll_reset_gxtvbb();
+		break;
+	case LCD_CHIP_TXL:
+		lcd_pll_reset_txl();
+		break;
+	default:
+		break;
+	}
+
 	spin_unlock_irqrestore(&lcd_clk_lock, flags);
 }
 

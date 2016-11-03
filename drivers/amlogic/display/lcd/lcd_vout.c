@@ -79,6 +79,8 @@ static struct vbyone_config_s lcd_vbyone_config = {
 	.bit_rate = 0,
 	.phy_vswing = VX1_PHY_VSWING_DFT,
 	.phy_preem = VX1_PHY_PREEM_DFT,
+	.intr_en = 1,
+	.vsync_intr_en = 1,
 };
 
 static unsigned char dsi_init_on_table[DSI_INIT_ON_MAX] = {0xff, 0xff};
@@ -179,6 +181,75 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(void)
 	return lcd_driver;
 }
 /* ********************************************************* */
+static void lcd_power_tiny_ctrl(int status)
+{
+	struct lcd_power_ctrl_s *lcd_power = lcd_driver->lcd_config->lcd_power;
+	struct lcd_power_step_s *power_step;
+#ifdef CONFIG_AML_LCD_EXTERN
+	struct aml_lcd_extern_driver_s *ext_drv;
+#endif
+	int i, index;
+
+	LCDPR("%s: %d\n", __func__, status);
+	i = 0;
+	while (i < LCD_PWR_STEP_MAX) {
+		if (status)
+			power_step = &lcd_power->power_on_step[i];
+		else
+			power_step = &lcd_power->power_off_step[i];
+
+		if (power_step->type >= LCD_POWER_TYPE_MAX)
+			break;
+		if (lcd_debug_print_flag) {
+			LCDPR("power_tiny_ctrl: %d, step %d\n", status, i);
+			LCDPR("type=%d, index=%d, value=%d, delay=%d\n",
+				power_step->type, power_step->index,
+				power_step->value, power_step->delay);
+		}
+		switch (power_step->type) {
+		case LCD_POWER_TYPE_CPU:
+			index = power_step->index;
+			lcd_cpu_gpio_set(index, power_step->value);
+			break;
+		case LCD_POWER_TYPE_PMU:
+			LCDPR("to do\n");
+			break;
+		case LCD_POWER_TYPE_SIGNAL:
+			if (status)
+				lcd_driver->driver_tiny_enable();
+			else
+				lcd_driver->driver_tiny_disable();
+			break;
+#ifdef CONFIG_AML_LCD_EXTERN
+		case LCD_POWER_TYPE_EXTERN:
+			index = power_step->index;
+			ext_drv = aml_lcd_extern_get_driver(index);
+			if (ext_drv) {
+				if (status) {
+					if (ext_drv->power_on)
+						ext_drv->power_on();
+					else
+						LCDERR("no ext power on\n");
+				} else {
+					if (ext_drv->power_off)
+						ext_drv->power_off();
+					else
+						LCDERR("no ext power off\n");
+				}
+			}
+			break;
+#endif
+		default:
+			break;
+		}
+		if (power_step->delay)
+			mdelay(power_step->delay);
+		i++;
+	}
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %d finished\n", __func__, status);
+}
 
 static void lcd_power_ctrl(int status)
 {
@@ -268,8 +339,17 @@ static void lcd_module_disable(void)
 static void lcd_module_reset(void)
 {
 	lcd_module_disable();
-	mdelay(200);
+	mdelay(500);
 	lcd_module_enable();
+}
+
+static void lcd_module_tiny_reset(void)
+{
+	lcd_driver->lcd_status = 0;
+	lcd_power_tiny_ctrl(0);
+	mdelay(500);
+	lcd_power_tiny_ctrl(1);
+	lcd_driver->lcd_status = 1;
 }
 
 /* ****************************************
@@ -527,6 +607,8 @@ static int lcd_config_probe(void)
 	lcd_driver->vpp_sel = 1;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
+	lcd_driver->power_tiny_ctrl = lcd_power_tiny_ctrl;
+	lcd_driver->module_tiny_reset = lcd_module_tiny_reset;
 	lcd_config_default();
 	lcd_init_vout();
 

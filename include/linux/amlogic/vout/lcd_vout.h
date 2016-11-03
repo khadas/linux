@@ -230,6 +230,8 @@ struct vbyone_config_s {
 	unsigned int bit_rate;
 	unsigned int phy_vswing;
 	unsigned int phy_preem;
+	unsigned int intr_en;
+	unsigned int vsync_intr_en;
 };
 
 /* mipi-dsi config */
@@ -389,6 +391,10 @@ struct aml_lcd_drv_s {
 	int (*driver_init)(void);
 	void (*driver_disable)(void);
 	void (*module_reset)(void);
+	void (*power_tiny_ctrl)(int status);
+	void (*driver_tiny_enable)(void);
+	void (*driver_tiny_disable)(void);
+	void (*module_tiny_reset)(void);
 	/*void (*module_enable)(void);
 	void (*module_disable)(void);
 	void (*set_gamma_table)(unsigned int gamma_en);
