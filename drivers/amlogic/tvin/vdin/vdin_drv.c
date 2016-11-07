@@ -2521,7 +2521,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct vdin_dev_s *vdevp;
 	struct resource *res;
-	unsigned int bit_mode = 8;
+	unsigned int bit_mode = VDIN_WR_COLOR_DEPTH_8BIT;
 	/* const void *name; */
 	/* int offset, size; */
 	/* struct device_node *of_node = pdev->dev.of_node; */
@@ -2694,10 +2694,14 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	}
 	/* vdin0 for tv */
 	if (vdevp->index == 0) {
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"tv_bit_mode", &bit_mode);
-		if (ret)
-			pr_info("no bit mode found, set 8bit as default\n");
+		/* only gxtvbb & txl support 10bit mode@20161108 */
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
+			ret = of_property_read_u32(pdev->dev.of_node,
+					"tv_bit_mode", &bit_mode);
+			if (ret)
+				pr_info("no bit mode found, set 8bit as default\n");
+		}
 		vdevp->color_depth_support = bit_mode;
 		vdevp->color_depth_config = 0;
 	}

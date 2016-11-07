@@ -2810,13 +2810,9 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		break;
 	case 0:
 		/* vdin_bit_depth is set to 0 by defaut, in this case,
-		devp->source_bitdepth is controled by colordepth */
-		if (8 == devp->prop.colordepth) {
-			devp->source_bitdepth = 8;
-			wr_bits(offset, VDIN_WR_CTRL2, 0,
-				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-		} else if ((10 == devp->prop.colordepth) &&
-		(devp->color_depth_support & VDIN_WR_COLOR_DEPTH_10BIT)) {
+		devp->source_bitdepth is controled by colordepth
+		change default to 10bit for 8in8out detail maybe lost */
+		if (devp->color_depth_support & VDIN_WR_COLOR_DEPTH_10BIT) {
 			devp->source_bitdepth = 10;
 			wr_bits(offset, VDIN_WR_CTRL2, 1,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
