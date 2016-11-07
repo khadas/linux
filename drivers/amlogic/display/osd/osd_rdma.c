@@ -158,7 +158,8 @@ static inline void reset_rdma_table(void)
 			old_count = 0;
 		osd_reg_write(END_ADDR, table_paddr - 1);
 		if (old_count < item_count) {
-			for (i = 0; i < item_count - old_count; i++) {
+			for (i = 0; i < (int)(item_count - old_count);
+				i++) {
 				if (rdma_table[old_count + i].addr
 					== OSD_RDMA_FLAG_REG)
 					continue;
@@ -296,7 +297,8 @@ static inline u32 read_reg_internal(u32 addr)
 	int  i;
 	u32 val = 0;
 	if (rdma_enable) {
-		for (i = (item_count - 1); i >= 0; i--) {
+		for (i = (int)(item_count - 1);
+			i >= 0; i--) {
 			if (addr == rdma_table[i].addr) {
 				val = rdma_table[i].val;
 				break;
@@ -346,7 +348,8 @@ u32 VSYNCOSD_RD_MPEG_REG(u32 addr)
 
 	if (rdma_enable) {
 		spin_lock_irqsave(&rdma_lock, flags);
-		for (i = (item_count - 1); i >= 0; i--) {
+		for (i = (int)(item_count - 1);
+			i >= 0; i--) {
 			if (addr == rdma_table[i].addr) {
 				val = rdma_table[i].val;
 				break;
@@ -548,6 +551,18 @@ void update_backup_reg(u32 addr, u32 value)
 		}
 }
 EXPORT_SYMBOL(update_backup_reg);
+
+s32 get_backup_reg(u32 addr, u32 *value)
+{
+	int i;
+	for (i = 0; i < OSD_REG_BACKUP_COUNT; i++)
+		if (addr == osd_reg_backup[i]) {
+			*value = osd_backup[i];
+			return 0;
+		}
+	return -1;
+}
+EXPORT_SYMBOL(get_backup_reg);
 
 #ifdef CONFIG_AML_RDMA
 static int osd_reset_rdma_handle = -1;
@@ -869,11 +884,15 @@ static int stop_rdma(char channel)
 
 void osd_rdma_interrupt_done_clear(void)
 {
+	u32 rdma_status;
 	if (rdma_reset_tigger_flag) {
-		pr_info("osd rdma restart!\n");
+		rdma_status =
+			osd_reg_read(RDMA_STATUS);
+		pr_info("osd rdma restart! 0x%x\n",
+			rdma_status);
 		rdma_reset_tigger_flag = 0;
 		osd_rdma_enable(0);
-		osd_rdma_enable(1);
+		osd_rdma_enable(2);
 	}
 }
 int read_rdma_table(void)
@@ -900,7 +919,8 @@ int osd_rdma_enable(u32 enable)
 	int ret = 0;
 	unsigned long flags;
 
-	if (enable == rdma_enable)
+	if ((enable && rdma_enable)
+		|| (!enable && !rdma_enable))
 		return 0;
 
 	ret = osd_rdma_init();
@@ -914,13 +934,18 @@ int osd_rdma_enable(u32 enable)
 		osd_reg_write(START_ADDR, table_paddr);
 		osd_reg_write(END_ADDR, table_paddr - 1);
 		item_count = 0;
-		backup_enable |= 1;
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
-			backup_osd_regs(0x80000001);
-		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
-			backup_osd_regs(0x1);
-		else
-			backup_osd_regs(0x1);
+		if (enable == 1) {
+			/* only first start */
+			backup_enable |= 1;
+			if (get_cpu_type() ==
+				MESON_CPU_MAJOR_ID_GXTVBB)
+				backup_osd_regs(0x80000001);
+			else if (get_cpu_type() ==
+				MESON_CPU_MAJOR_ID_GXM)
+				backup_osd_regs(0x1);
+			else
+				backup_osd_regs(0x1);
+		}
 		spin_unlock_irqrestore(&rdma_lock, flags);
 		reset_rdma_table();
 		start_osd_rdma(OSD_RDMA_CHANNEL_INDEX);

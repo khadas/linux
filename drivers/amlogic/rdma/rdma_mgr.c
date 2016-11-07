@@ -296,11 +296,11 @@ QUERY:
 			if (debug_flag & 2)
 				pr_info("%s: process %d\r\n", __func__, i);
 
-			WRITE_VCBUS_REG(RDMA_CTRL,
-				(1 << ins->rdma_regadr->clear_irq_bitpos));
-
 			if (ins->op && ins->op->irq_cb)
 				ins->op->irq_cb(ins->op->arg);
+
+			WRITE_VCBUS_REG(RDMA_CTRL,
+				(1 << ins->rdma_regadr->clear_irq_bitpos));
 		}
 	}
 	rdma_status = READ_VCBUS_REG(RDMA_STATUS);

@@ -1256,7 +1256,8 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 		osd_log_err("current vinfo NULL\n");
 		return -1;
 	}
-	osd_log_info("current vmode=%s\n", vinfo->name);
+	osd_log_info("current vmode=%s, cmd: 0x%lx\n",
+		vinfo->name, cmd);
 	switch (cmd) {
 #if 0
 	case VOUT_EVENT_MODE_CHANGE_PRE:
