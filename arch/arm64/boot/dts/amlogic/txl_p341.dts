@@ -1056,7 +1056,11 @@
 		pinctrl-names = "aml_snd_g9tv";
 		pinctrl-0 = <&audio_pins>;
 		mute_gpio-gpios = <&gpio GPIOZ_13 GPIO_ACTIVE_HIGH>;
-		sleep_time = <20>;
+		av_mute_gpio-gpios = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
+		sleep_time = <0>;
+		hp_det-gpios = <&gpio GPIODV_10 GPIO_ACTIVE_HIGH>;
+		hp_disable = <1>;  /* if 1, used as LINE OUT， if 0, used as headset */
+		hp_paraments = <800 300 0 5 1>;
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;

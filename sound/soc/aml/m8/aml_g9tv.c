@@ -548,16 +548,217 @@ static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
 			 NULL),
 };
 
+/* T950, P341, only check GPIO status to judge whether headset insert */
+#define T950_P341_HS_DET
+
+static void aml_audio_start_timer(struct aml_audio_private_data *p_aml_audio,
+				  unsigned long delay)
+{
+	p_aml_audio->timer.expires = jiffies + delay;
+	p_aml_audio->timer.data = (unsigned long)p_aml_audio;
+	p_aml_audio->detect_flag = -1;
+	add_timer(&p_aml_audio->timer);
+	p_aml_audio->timer_en = 1;
+}
+
+static void aml_audio_stop_timer(struct aml_audio_private_data *p_aml_audio)
+{
+	del_timer_sync(&p_aml_audio->timer);
+	cancel_work_sync(&p_aml_audio->work);
+	p_aml_audio->timer_en = 0;
+	p_aml_audio->detect_flag = -1;
+}
+
+static int hp_det_adc_value(struct aml_audio_private_data *p_aml_audio)
+{
+	int ret, hp_value;
+	int hp_val_sum = 0;
+	int loop_num = 0;
+#ifndef T950_P341_HS_DET
+	unsigned int mic_ret = 0;
+#endif
+
+	while (loop_num < 8) {
+#ifdef T950_P341_HS_DET
+		hp_value = gpiod_get_value(p_aml_audio->hp_det_desc);
+#else
+		/*hp_value = get_adc_sample(p_aml_audio->hp_adc_ch);*/
+#endif
+		if (hp_value < 0) {
+			pr_info("hp detect get error adc value!\n");
+			return -1;	/* continue; */
+		}
+		hp_val_sum += hp_value;
+		loop_num++;
+		msleep_interruptible(15);
+	}
+	hp_val_sum = hp_val_sum >> 3;
+#ifdef T950_P341_HS_DET
+	if (hp_value > 0) {
+		/* unplug */
+		ret = 0;
+	} else {
+		/* plug in,  */
+		ret = 1;
+	}
+#else
+	/* pr_info("00000000000hp_val_sum = %hx\n",hp_val_sum); */
+	if (hp_val_sum >= p_aml_audio->hp_val_h) {
+		ret = 0;
+	} else if ((hp_val_sum < (p_aml_audio->hp_val_l)) && hp_val_sum >= 0) {
+		ret = 1;
+		if (p_aml_audio->mic_det) {
+			if (hp_val_sum <= p_aml_audio->mic_val) {
+				mic_ret = 8;
+				ret |= mic_ret;
+			}
+		}
+	} else {
+		ret = 2;
+		if (p_aml_audio->mic_det) {
+			ret = 0;
+			mic_ret = 8;
+			ret |= mic_ret;
+		}
+
+	}
+#endif
+	return ret;
+}
+
+static int aml_audio_hp_detect(struct aml_audio_private_data *p_aml_audio)
+{
+	int loop_num = 0;
+	int ret;
+	p_aml_audio->hp_det_status = false;
+	/* mutex_lock(&p_aml_audio->lock); */
+
+	while (loop_num < 3) {
+		ret = hp_det_adc_value(p_aml_audio);
+		if (p_aml_audio->hp_last_state != ret) {
+			msleep_interruptible(50);
+			if (ret < 0)
+				ret = p_aml_audio->hp_last_state;
+			else
+				p_aml_audio->hp_last_state = ret;
+		} else
+			msleep_interruptible(50);
+
+		loop_num = loop_num + 1;
+	}
+
+	/* mutex_unlock(&p_aml_audio->lock); */
+
+	return ret;
+}
+
+
+static void aml_asoc_work_func(struct work_struct *work)
+{
+	struct aml_audio_private_data *p_aml_audio = NULL;
+	struct snd_soc_card *card = NULL;
+	int flag = -1;
+	int status = SND_JACK_HEADPHONE;
+	p_aml_audio = container_of(work, struct aml_audio_private_data, work);
+	card = (struct snd_soc_card *)p_aml_audio->data;
+
+
+	flag = aml_audio_hp_detect(p_aml_audio);
+
+	if (p_aml_audio->detect_flag != flag) {
+
+		p_aml_audio->detect_flag = flag;
+
+		if (flag & 0x1) {
+			/* 1 :have mic ;  2 no mic */
+			switch_set_state(&p_aml_audio->sdev, 2);
+			pr_info("aml aduio hp pluged 3 jack_type: %d\n",
+			       SND_JACK_HEADPHONE);
+			snd_soc_jack_report(&p_aml_audio->jack, status,
+					    SND_JACK_HEADPHONE);
+
+			/* mic port detect */
+			if (p_aml_audio->mic_det) {
+				if (flag & 0x8) {
+					switch_set_state(&p_aml_audio->mic_sdev,
+							 1);
+					pr_info("aml aduio mic pluged jack_type: %d\n",
+					       SND_JACK_MICROPHONE);
+					snd_soc_jack_report(&p_aml_audio->jack,
+						status, SND_JACK_HEADPHONE);
+				}
+			}
+
+		} else if (flag & 0x2) {
+			/* 1 :have mic ;  2 no mic */
+			switch_set_state(&p_aml_audio->sdev, 1);
+			pr_info("aml aduio hp pluged 4 jack_type: %d\n",
+			       SND_JACK_HEADSET);
+			snd_soc_jack_report(&p_aml_audio->jack, status,
+					    SND_JACK_HEADPHONE);
+		} else {
+			pr_info("aml audio hp unpluged\n");
+			switch_set_state(&p_aml_audio->sdev, 0);
+			snd_soc_jack_report(&p_aml_audio->jack, 0,
+					    SND_JACK_HEADPHONE);
+
+			/* mic port detect */
+			if (p_aml_audio->mic_det) {
+				if (flag & 0x8) {
+					switch_set_state(&p_aml_audio->mic_sdev,
+							 1);
+					pr_info("aml aduio mic pluged jack_type: %d\n",
+					       SND_JACK_MICROPHONE);
+					snd_soc_jack_report(&p_aml_audio->jack,
+						status, SND_JACK_HEADPHONE);
+				}
+			}
+		}
+
+	}
+
+	p_aml_audio->hp_det_status = true;
+}
+
+static void aml_asoc_timer_func(unsigned long data)
+{
+	struct aml_audio_private_data *p_aml_audio =
+	    (struct aml_audio_private_data *)data;
+	unsigned long delay = msecs_to_jiffies(150);
+
+	if (p_aml_audio->hp_det_status &&
+			!p_aml_audio->suspended) {
+		schedule_work(&p_aml_audio->work);
+	}
+	mod_timer(&p_aml_audio->timer, jiffies + delay);
+}
+
 static int aml_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
 
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
+
+	if (!p_aml_audio->hp_disable) {
+		/* stop timer */
+		mutex_lock(&p_aml_audio->lock);
+		p_aml_audio->suspended = true;
+		if (p_aml_audio->timer_en)
+			aml_audio_stop_timer(p_aml_audio);
+
+		mutex_unlock(&p_aml_audio->lock);
+	}
+
 	if (!IS_ERR(p_aml_audio->mute_desc)) {
 		gpiod_direction_output(p_aml_audio->mute_desc,
 					GPIOF_OUT_INIT_LOW);
 	};
+	if (!IS_ERR(p_aml_audio->av_mute_desc)) {
+		gpiod_direction_output(p_aml_audio->av_mute_desc,
+					GPIOF_OUT_INIT_LOW);
+	};
+
 	return 0;
 }
 
@@ -580,12 +781,29 @@ static int aml_resume_post(struct snd_soc_card *card)
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
+	if (!p_aml_audio->hp_disable) {
+		mutex_lock(&p_aml_audio->lock);
+		p_aml_audio->suspended = false;
+		if (!p_aml_audio->timer_en) {
+			aml_audio_start_timer(p_aml_audio,
+					      msecs_to_jiffies(100));
+		}
+		mutex_unlock(&p_aml_audio->lock);
+	}
+
 	if (!IS_ERR(p_aml_audio->mute_desc)) {
 		if (p_aml_audio->sleep_time)
 			msleep(p_aml_audio->sleep_time);
 		gpiod_direction_output(p_aml_audio->mute_desc,
 					GPIOF_OUT_INIT_HIGH);
 	}
+	if (!IS_ERR(p_aml_audio->av_mute_desc)) {
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		gpiod_direction_output(p_aml_audio->av_mute_desc,
+					GPIOF_OUT_INIT_HIGH);
+	}
+
 	return 0;
 }
 
@@ -612,12 +830,20 @@ static struct snd_soc_ops aml_asoc_ops = {
 	.hw_params	= aml_asoc_hw_params,
 };
 
+static struct snd_soc_jack_pin jack_pins[] = {
+	{
+	 .pin = "HP",
+	 .mask = SND_JACK_HEADPHONE,
+	 }
+};
+
 static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct aml_audio_private_data *p_aml_audio;
+	int hp_paraments[5];
 	int ret = 0;
 
 	pr_info("enter %s\n", __func__);
@@ -631,6 +857,95 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	/* Add specific widgets */
 	snd_soc_dapm_new_controls(dapm, aml_asoc_dapm_widgets,
 				  ARRAY_SIZE(aml_asoc_dapm_widgets));
+
+	of_property_read_u32(card->dev->of_node,
+		"hp_disable",
+		&p_aml_audio->hp_disable);
+
+	pr_info("headphone detection disable=%d\n", p_aml_audio->hp_disable);
+
+	if (!p_aml_audio->hp_disable) {
+		/* headphone dection gipo */
+		p_aml_audio->hp_det_desc = gpiod_get(card->dev, "hp_det");
+		if (!IS_ERR(p_aml_audio->hp_det_desc))
+			gpiod_direction_input(p_aml_audio->hp_det_desc);
+		else
+			pr_err("ASoC: hp_det-gpio failed\n");
+
+		/* for report headphone to android */
+		p_aml_audio->sdev.name = "h2w";
+		ret = switch_dev_register(&p_aml_audio->sdev);
+		if (ret < 0) {
+			pr_err("ASoC: register hp switch dev failed\n");
+			return ret;
+		}
+
+		/* for micphone detect */
+		p_aml_audio->mic_sdev.name = "mic_dev";
+		ret = switch_dev_register(&p_aml_audio->mic_sdev);
+		if (ret < 0) {
+			pr_err("ASoC: register mic switch dev failed\n");
+			return ret;
+		}
+		ret =
+		    snd_soc_jack_new(codec, "hp switch", SND_JACK_HEADPHONE,
+				     &p_aml_audio->jack);
+		if (ret < 0) {
+			pr_info("Failed to alloc resource for hp switch\n");
+		} else {
+			ret = snd_soc_jack_add_pins(&p_aml_audio->jack,
+						  ARRAY_SIZE(jack_pins),
+						  jack_pins);
+			if (ret < 0)
+				pr_info("Failed to setup hp pins\n");
+		}
+
+		p_aml_audio->hp_det_status = true;
+		p_aml_audio->mic_det =
+		    of_property_read_bool(card->dev->of_node, "mic_det");
+
+		pr_info("entern %s : mic_det=%d\n", __func__,
+		       p_aml_audio->mic_det);
+		ret =
+		    of_property_read_u32_array(card->dev->of_node,
+					       "hp_paraments", &hp_paraments[0],
+					       5);
+		if (ret)
+			pr_info("falied to get hp detect paraments\n");
+		else {
+			/* hp adc value higher base, hp unplugged */
+			p_aml_audio->hp_val_h = hp_paraments[0];
+			/* hp adc value low base, 3 section hp plugged. */
+			p_aml_audio->hp_val_l = hp_paraments[1];
+			/* hp adc value mic detect value. */
+			p_aml_audio->mic_val = hp_paraments[2];
+			/* hp adc value test toerance */
+			p_aml_audio->hp_detal = hp_paraments[3];
+			/* get adc value from which adc port for hp detect */
+			p_aml_audio->hp_adc_ch = hp_paraments[4];
+
+			pr_info("hp detect paraments: h=%d,	l=%d,mic=%d,det=%d,ch=%d\n",
+				p_aml_audio->hp_val_h, p_aml_audio->hp_val_l,
+				p_aml_audio->mic_val, p_aml_audio->hp_detal,
+				p_aml_audio->hp_adc_ch);
+		}
+
+		init_timer(&p_aml_audio->timer);
+		p_aml_audio->timer.function = aml_asoc_timer_func;
+		p_aml_audio->timer.data = (unsigned long)p_aml_audio;
+		p_aml_audio->data = (void *)card;
+		p_aml_audio->suspended = false;
+
+		INIT_WORK(&p_aml_audio->work, aml_asoc_work_func);
+		mutex_init(&p_aml_audio->lock);
+
+		mutex_lock(&p_aml_audio->lock);
+		if (!p_aml_audio->timer_en) {
+			aml_audio_start_timer(p_aml_audio,
+					      msecs_to_jiffies(100));
+		}
+		mutex_unlock(&p_aml_audio->lock);
+	}
 
 	return 0;
 }
@@ -654,9 +969,21 @@ static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 				&p_aml_audio->sleep_time);
 		if (p_aml_audio->sleep_time)
 			msleep(p_aml_audio->sleep_time);
-		pr_info("make av unmute! sleep %d ms\n",
+		pr_info("make amp unmute! sleep %d ms\n",
 				p_aml_audio->sleep_time);
 		gpiod_direction_output(p_aml_audio->mute_desc,
+					   GPIOF_OUT_INIT_HIGH);
+	}
+
+	p_aml_audio->av_mute_desc = gpiod_get(card->dev, "av_mute_gpio");
+	if (!IS_ERR(p_aml_audio->av_mute_desc)) {
+		ret = of_property_read_u32(card->dev->of_node, "sleep_time",
+				&p_aml_audio->sleep_time);
+		if (p_aml_audio->sleep_time)
+			msleep(p_aml_audio->sleep_time);
+		pr_info("make av/line_out unmute! sleep %d ms\n",
+				p_aml_audio->sleep_time);
+		gpiod_direction_output(p_aml_audio->av_mute_desc,
 					   GPIOF_OUT_INIT_HIGH);
 	}
 
