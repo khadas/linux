@@ -471,14 +471,20 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 
 	if (!enable_demux_driver()) {
 		WRITE_MPEG_REG(FM_WR_DATA,
-				(((vid & 0x1fff) | (VIDEO_PACKET << 13)) << 16)
-				| ((aid & 0x1fff) | (AUDIO_PACKET << 13)));
+				(((vid < 0x1fff)
+					? (vid & 0x1fff) | (VIDEO_PACKET << 13)
+					: 0xffff) << 16)
+				| ((aid < 0x1fff)
+					? (aid & 0x1fff) | (AUDIO_PACKET << 13)
+					: 0xffff));
 		WRITE_MPEG_REG(FM_WR_ADDR, 0x8000);
 		while (READ_MPEG_REG(FM_WR_ADDR) & 0x8000)
 			;
 
 		WRITE_MPEG_REG(FM_WR_DATA,
-				(((sid & 0x1fff) | (SUB_PACKET << 13)) << 16)
+				(((sid < 0x1fff)
+					? (sid & 0x1fff) | (SUB_PACKET << 13)
+					: 0xffff) << 16)
 				| 0xffff);
 		WRITE_MPEG_REG(FM_WR_ADDR, 0x8001);
 		while (READ_MPEG_REG(FM_WR_ADDR) & 0x8000)
