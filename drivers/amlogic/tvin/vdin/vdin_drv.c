@@ -293,12 +293,20 @@ static const struct vframe_operations_s vdin_vf_ops = {
 };
 
 #ifdef CONFIG_CMA
-void vdin_cma_alloc(struct vdin_dev_s *devp)
+/* return val:1: fail;0: ok */
+unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 {
 	char vdin_name[5];
 	unsigned int mem_size, h_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_CPU;
+	if ((devp->cma_config_en == 0) ||
+		(devp->cma_mem_alloc[devp->index] == 1)) {
+		pr_err(KERN_ERR "\nvdin%d %s fail for (%d,%d)!!!\n",
+			devp->index, __func__, devp->cma_config_en,
+			devp->cma_mem_alloc[devp->index]);
+		return 1;
+	}
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
@@ -328,11 +336,6 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
 		mem_size = devp->cma_mem_size[devp->index];
-	if (devp->cma_config_en == 0)
-		return;
-	if (devp->cma_mem_alloc[devp->index] == 1)
-		return;
-	devp->cma_mem_alloc[devp->index] = 1;
 	if (devp->cma_config_flag == 1) {
 		if (devp->index == 0)
 			strcpy(vdin_name, "vdin0");
@@ -341,10 +344,13 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->mem_start = codec_mm_alloc_for_dma(vdin_name,
 			mem_size/PAGE_SIZE, 0, flags);
 		devp->mem_size = mem_size;
-		if (devp->mem_start == 0)
+		if (devp->mem_start == 0) {
 			pr_err(KERN_ERR "\nvdin%d codec alloc fail!!!\n",
 				devp->index);
-		else {
+			devp->cma_mem_alloc[devp->index] = 0;
+			return 1;
+		} else {
+			devp->cma_mem_alloc[devp->index] = 1;
 			pr_info("vdin%d mem_start = 0x%x, mem_size = 0x%x\n",
 				devp->index, devp->mem_start, devp->mem_size);
 			pr_info("vdin%d codec cma alloc ok!\n", devp->index);
@@ -357,43 +363,53 @@ void vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->mem_start =
 				page_to_phys(devp->venc_pages[devp->index]);
 			devp->mem_size  = mem_size;
+			devp->cma_mem_alloc[devp->index] = 1;
 			pr_info("vdin%d mem_start = 0x%x, mem_size = 0x%x\n",
 				devp->index, devp->mem_start, devp->mem_size);
 			pr_info("vdin%d cma alloc ok!\n", devp->index);
 		} else {
+			devp->cma_mem_alloc[devp->index] = 0;
 			pr_err(KERN_ERR "\nvdin%d cma mem undefined2.\n",
 				devp->index);
+			return 1;
 		}
 	}
+	return 0;
 }
 
 void vdin_cma_release(struct vdin_dev_s *devp)
 {
 	char vdin_name[5];
-	if (devp->cma_config_en == 0)
+	if ((devp->cma_config_en == 0) ||
+		(devp->cma_mem_alloc[devp->index] == 0)) {
+		pr_err(KERN_ERR "\nvdin%d %s fail for (%d,%d)!!!\n",
+			devp->index, __func__, devp->cma_config_en,
+			devp->cma_mem_alloc[devp->index]);
 		return;
-	if ((devp->cma_config_flag == 1) && devp->mem_start
-		&& (devp->cma_mem_alloc[devp->index] == 1)) {
+	}
+	if ((devp->cma_config_flag == 1) && devp->mem_start) {
 		if (devp->index == 0)
 			strcpy(vdin_name, "vdin0");
 		else if (devp->index == 1)
 			strcpy(vdin_name, "vdin1");
 		codec_mm_free_for_dma(vdin_name, devp->mem_start);
-		devp->mem_start = 0;
-		devp->mem_size = 0;
-		devp->cma_mem_alloc[devp->index] = 0;
 		pr_info("vdin%d codec cma release ok!\n", devp->index);
 	} else if (devp->venc_pages[devp->index]
 		&& devp->cma_mem_size[devp->index]
-		&& (devp->cma_mem_alloc[devp->index] == 1)
 		&& (devp->cma_config_flag == 0)) {
-		devp->cma_mem_alloc[devp->index] = 0;
 		dma_release_from_contiguous(
 			&(devp->this_pdev[devp->index]->dev),
 			devp->venc_pages[devp->index],
 			devp->cma_mem_size[devp->index] >> PAGE_SHIFT);
 		pr_info("vdin%d cma release ok!\n", devp->index);
+	} else {
+		pr_err(KERN_ERR "\nvdin%d %s fail for (%d,%d,%d)!!!\n",
+			devp->index, __func__, devp->cma_mem_size[devp->index],
+			devp->cma_config_flag, devp->mem_start);
 	}
+	devp->mem_start = 0;
+	devp->mem_size = 0;
+	devp->cma_mem_alloc[devp->index] = 0;
 }
 #endif
 /*
@@ -841,7 +857,11 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 				devp->parm.h_reverse,
 				devp->parm.v_reverse);
 #ifdef CONFIG_CMA
-	vdin_cma_alloc(devp);
+	if (vdin_cma_alloc(devp)) {
+		pr_err(KERN_ERR "\nvdin%d %s fail for alloc fail!!!\n",
+			devp->index, __func__);
+		return;
+	}
 #endif
 	/* h_active/v_active will be used by bellow calling */
 	if (canvas_config_mode == 1)
@@ -955,7 +975,12 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	/* avoid null pointer oops */
 	if (!devp || !devp->frontend)
 		return;
-
+#ifdef CONFIG_CMA
+	if (devp->cma_mem_alloc[devp->index] == 0) {
+		pr_info("%s:cma not alloc,don't need do others!\n", __func__);
+		return;
+	}
+#endif
 	disable_irq_nosync(devp->irq);
 	vdin_hw_disable(devp->addr_offset);
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
