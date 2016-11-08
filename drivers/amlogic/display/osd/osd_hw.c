@@ -853,6 +853,9 @@ int osd_set_scan_mode(u32 index)
 
 void  osd_set_gbl_alpha_hw(u32 index, u32 gbl_alpha)
 {
+	/* normalized */
+	if (gbl_alpha == 0xff)
+		gbl_alpha = 0x100;
 	if (osd_hw.gbl_alpha[index] != gbl_alpha) {
 		osd_hw.gbl_alpha[index] = gbl_alpha;
 		add_to_update_list(index, OSD_GBL_ALPHA);

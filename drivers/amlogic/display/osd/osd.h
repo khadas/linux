@@ -74,7 +74,7 @@
 #define OSD_RIGHT 1
 #define OSD_ORDER_01 1
 #define OSD_ORDER_10 2
-#define OSD_GLOBAL_ALPHA_DEF 0xff
+#define OSD_GLOBAL_ALPHA_DEF 0x100
 #define OSD_DATA_BIG_ENDIAN 0
 #define OSD_DATA_LITTLE_ENDIAN 1
 #define OSD_TC_ALPHA_ENABLE_DEF 0  /* disable tc_alpha */
