@@ -183,7 +183,8 @@ struct amlsd_platform {
 	/*for inand partition: struct mtd_partition, easy porting from nand*/
 	struct mtd_partition *parts;
 	unsigned int nr_parts;
-
+	/* fixme, debug code */
+	unsigned int desc_cnt;
 	struct resource *resource;
 	void (*xfer_pre)(struct amlsd_platform *pdata);
 	void (*xfer_post)(struct amlsd_platform *pdata);
