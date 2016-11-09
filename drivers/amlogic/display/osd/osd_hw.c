@@ -125,6 +125,10 @@ static unsigned int osd_v_filter_mode = 1;
 module_param(osd_v_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_v_filter_mode, "osd_v_filter_mode");
 
+static unsigned int osd_auto_adjust_filter = 1;
+module_param(osd_auto_adjust_filter, uint, 0664);
+MODULE_PARM_DESC(osd_auto_adjust_filter, "osd_auto_adjust_filter");
+
 static int osd_init_hw_flag;
 static int osd_logo_index = 1;
 module_param(osd_logo_index, int, 0664);
@@ -777,11 +781,13 @@ int osd_set_scan_mode(u32 index)
 	vinfo = get_current_vinfo();
 	if (vinfo) {
 		osd_hw.scale_workaround = 0;
+		if (osd_auto_adjust_filter) {
+			osd_h_filter_mode = 1;
+			osd_v_filter_mode = 1;
+		}
 		switch (vinfo->mode) {
 		case VMODE_480I:
 		case VMODE_480CVBS:
-		case VMODE_576I:
-		case VMODE_576CVBS:
 			if (osd_hw.free_scale_mode[index]) {
 				osd_hw.field_out_en = 1;
 				switch (osd_hw.free_scale_data[index].y_end) {
@@ -797,6 +803,32 @@ int osd_set_scan_mode(u32 index)
 				}
 			}
 			osd_hw.scan_mode = real_scan_mode = SCAN_MODE_INTERLACE;
+			if (osd_auto_adjust_filter) {
+				osd_h_filter_mode = 6;
+				osd_v_filter_mode = 6;
+			}
+			break;
+		case VMODE_576I:
+		case VMODE_576CVBS:
+			if (osd_hw.free_scale_mode[index]) {
+				osd_hw.field_out_en = 1;
+				switch (osd_hw.free_scale_data[index].y_end) {
+				case 719:
+					osd_hw.bot_type = 2;
+					break;
+				case 1079:
+					osd_hw.bot_type = 2;
+					break;
+				default:
+					osd_hw.bot_type = 2;
+					break;
+				}
+			}
+			osd_hw.scan_mode = real_scan_mode = SCAN_MODE_INTERLACE;
+			if (osd_auto_adjust_filter) {
+				osd_h_filter_mode = 6;
+				osd_v_filter_mode = 6;
+			}
 			break;
 		case VMODE_1080I:
 		case VMODE_1080I_50HZ:
@@ -829,6 +861,12 @@ int osd_set_scan_mode(u32 index)
 			}
 			osd_hw.field_out_en = 0;
 			break;
+		case VMODE_480P:
+		case VMODE_576P:
+			if (osd_auto_adjust_filter) {
+				osd_h_filter_mode = 6;
+				osd_v_filter_mode = 6;
+			}
 		default:
 			if (osd_hw.free_scale_mode[index])
 				osd_hw.field_out_en = 0;
