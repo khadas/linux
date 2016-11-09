@@ -677,6 +677,11 @@ store_dbg(struct device *dev,
 		pr_info("[0x%x][0x%x]=0x%x\n",
 			0xd0100000 + (0x1aa7 << 2),
 			0x1aa7, Rd(0x1aa7));
+		pr_info("----dump dnr reg----\n");
+		for (i = 0; i < 29; i++)
+			pr_info("[0x%x][0x%x]=0x%x\n",
+					0xd0100000 + ((0x2d00 + i) << 2),
+					0x2d00 + i, Rd(0x2d00 + i));
 		pr_info("----dump reg done----\n");
 	} else if (strncmp(buf, "robust_test", 11) == 0) {
 		recovery_flag = 1;
@@ -2091,7 +2096,7 @@ reg_cfg_t di_default_post = {
 		{DI_MTN_1_CTRL2, 0x141a2062, 0, 31},
 		{DI_MTN_1_CTRL3, 0x1520050a, 0, 31},
 		{DI_MTN_1_CTRL4, 0x08800840, 0, 31},
-		{DI_MTN_1_CTRL5, 0x74000d0d, 0, 31},
+		{DI_MTN_1_CTRL5, 0x74200d0d, 0, 31},
 /* #define DI_MTN_1_CTRL6 */
 		{DI_MTN_1_CTRL6, 0x0d5a1520, 0, 31},
 /* #define DI_MTN_1_CTRL7 */
@@ -3889,7 +3894,7 @@ static unsigned int combing_pure_still_setting[MAX_NUM_DI_REG] = {
 	0x1A1A3A62,
 	0x15200A0A,
 	0x01800880,
-	0x74000D0D,
+	0x74200D0D,
 	0x0D5A1520,
 	0x0A800480,
 	0x1A1A2662,
@@ -3908,7 +3913,7 @@ static unsigned int combing_bias_static_setting[MAX_NUM_DI_REG] = {
 	0x1A1A3A62,
 	0x15200A0A,
 	0x01800880,
-	0x74000D0D,
+	0x74200D0D,
 	0x0D5A1520,
 	0x0A800480,
 	0x1A1A2662,
@@ -3928,7 +3933,7 @@ static unsigned int combing_normal_setting[MAX_NUM_DI_REG] = {
 	0x1A1A3A62,
 	0x15200a0a,
 	0x01000880,
-	0x74000D0D,
+	0x74200D0D,
 	0x0D5A1520,
 	0x0A0A0201,
 	0x1A1A2662,
@@ -3947,7 +3952,7 @@ static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
 	0x1A1A3A62,
 	0x15200101,
 	0x01200440,
-	0x74000D0D,
+	0x74200D0D,
 	0x0D5A1520,
 	0x0A0A0201,
 	0x1A1A2662,
@@ -3966,7 +3971,7 @@ static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
 	0x1A1A3A62,
 	0x15200101,
 	0x01200440,
-	0x74000D0D,
+	0x74200D0D,
 	0x0D5A1520,
 	0x0A0A0201,
 	0x1A1A2662,
@@ -3985,7 +3990,7 @@ static unsigned int combing_resolution_setting[MAX_NUM_DI_REG] = {
 	0x141a3a62,
 	0x15200a0a,
 	0x01800880,
-	0x74000d0d,
+	0x74200d0d,
 	0x0d5a1520,
 	0x0a800480,
 	0x1a1a2662,
@@ -6216,7 +6221,6 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	if (flag) {
 		if (mcpre_en)
 			get_mcinfo_from_reg_in_irq();
-
 #ifdef NEW_DI_V4
 		if (dnr_en)
 			run_dnr_in_irq(
@@ -8928,7 +8932,7 @@ static void di_vf_put(vframe_t *vf, void *arg)
 static int di_event_cb(int type, void *data, void *private_data)
 {
 	if (type == VFRAME_EVENT_RECEIVER_FORCE_UNREG) {
-		di_print("%s: VFRAME_EVENT_RECEIVER_FORCE_UNREG\n", __func__);
+		pr_dbg("%s: VFRAME_EVENT_RECEIVER_FORCE_UNREG\n", __func__);
 		di_pre_stru.force_unreg_req_flag = 1;
 		provider_vframe_level = 0;
 		bypass_dynamic_flag = 0;
@@ -9338,7 +9342,6 @@ static int di_probe(struct platform_device *pdev)
 /* Disable MCDI when code does not surpport MCDI */
 	if (!mcpre_en)
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 1);
-
 /* timer */
 	INIT_WORK(&di_pre_work, di_timer_handle);
 	init_timer(&di_pre_timer);
