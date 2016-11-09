@@ -772,5 +772,6 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device)
 		strncpy(&SPD_DB[8], vend_data->product_desc,
 			(len > 16) ? 16 : len);
 	}
+	SPD_DB[24] = 0x1;
 	hdmitx_device->HWOp.SetPacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
 }

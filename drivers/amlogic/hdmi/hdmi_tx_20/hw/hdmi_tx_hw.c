@@ -2108,6 +2108,11 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		break;
 	case HDMI_SOURCE_DESCRIPTION:
 		pkt_data_len = 25;
+		for (i = 0; i < 25; i++)
+			hdmitx_wr_reg(HDMITX_DWC_FC_SPDVENDORNAME0 + i, DB[i]);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 4, 1);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO2, 0x1, 4, 4);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
 	default:
 		break;
 	}

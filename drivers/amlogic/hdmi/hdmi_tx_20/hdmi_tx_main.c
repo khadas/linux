@@ -2699,6 +2699,41 @@ static struct i2c_driver i2c_gpio_edid_driver = {
 	},
 };
 
+static int get_dt_vend_init_data(struct device_node *np,
+	struct vendor_info_data *vend)
+{
+	int ret;
+
+	ret = of_property_read_string(np, "vendor_name",
+		(const char **)&(vend->vendor_name));
+	if (ret)
+		hdmi_print(INF, SYS "not find vendor name\n");
+
+	ret = of_property_read_u32(np, "vendor_id", &(vend->vendor_id));
+	if (ret)
+		hdmi_print(INF, SYS "not find vendor id\n");
+
+	ret = of_property_read_string(np, "product_desc",
+		(const char **)&(vend->product_desc));
+	if (ret)
+		hdmi_print(INF, SYS "not find product desc\n");
+#if 0
+	ret = of_property_read_string(np, "cec_osd_string",
+		(const char **)&(vend->cec_osd_string));
+	if (ret)
+		hdmi_print(INF, SYS "not find cec osd string\n");
+
+	ret = of_property_read_u32(np, "cec_config", &(vend->cec_config));
+	if (ret)
+		hdmi_print(INF, SYS "not find cec config\n");
+
+	ret = of_property_read_u32(np, "ao_cec", &(vend->ao_cec));
+	if (ret)
+		hdmi_print(INF, SYS "not find ao cec\n");
+#endif
+	return 0;
+}
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -2851,7 +2886,11 @@ static int amhdmitx_probe(struct platform_device *pdev)
 			sizeof(struct vendor_info_data), GFP_KERNEL);
 		if (!hdmitx_device.config_data.vend_data)
 			hdmi_print(INF, SYS
-				"can not get vend_data mem\n");
+				"can not get vend_data dat\n");
+		ret = get_dt_vend_init_data(init_data,
+			hdmitx_device.config_data.vend_data);
+		if (ret)
+			hdmi_print(INF, SYS "not find vend_init_data\n");
 	}
 /* Get power control */
 		ret = of_property_read_u32(pdev->dev.of_node,
