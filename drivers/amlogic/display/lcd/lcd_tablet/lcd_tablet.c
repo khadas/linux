@@ -92,7 +92,8 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 static int lcd_vmode_is_supported(enum vmode_e mode)
 {
 	mode &= VMODE_MODE_BIT_MASK;
-	LCDPR("%s vmode = %d\n", __func__, mode);
+	if (lcd_debug_print_flag)
+		LCDPR("%s vmode = %d\n", __func__, mode);
 
 	if (mode == VMODE_LCD)
 		return true;

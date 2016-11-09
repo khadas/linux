@@ -442,7 +442,7 @@ static void lcd_init_vout(void)
 		break;
 #endif
 	default:
-		LCDPR("invalid lcd mode\n");
+		LCDERR("invalid lcd mode: %d\n", lcd_driver->lcd_mode);
 		break;
 	}
 }
@@ -479,14 +479,14 @@ static int lcd_mode_probe(struct device *dev)
 		break;
 #endif
 	default:
-		LCDPR("invalid lcd mode\n");
+		LCDERR("invalid lcd mode: %d\n", lcd_driver->lcd_mode);
 		break;
 	}
 
 	lcd_class_creat();
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
 	if (ret)
-		LCDERR("register aml_bl_on_notifier failed\n");
+		LCDERR("register aml_bl_select_notifier failed\n");
 	ret = aml_lcd_notifier_register(&lcd_power_nb);
 	if (ret)
 		LCDPR("register lcd_power_notifier failed\n");
@@ -640,6 +640,8 @@ static int lcd_config_probe(void)
 
 static int lcd_probe(struct platform_device *pdev)
 {
+	int ret = 0;
+
 #ifdef LCD_DEBUG_INFO
 	lcd_debug_print_flag = 1;
 #else
@@ -647,7 +649,7 @@ static int lcd_probe(struct platform_device *pdev)
 #endif
 	lcd_driver = kmalloc(sizeof(struct aml_lcd_drv_s), GFP_KERNEL);
 	if (!lcd_driver) {
-		LCDERR("probe: Not enough memory\n");
+		LCDERR("%s: lcd driver no enough memory\n", __func__);
 		return -ENOMEM;
 	}
 	lcd_driver->dev = &pdev->dev;
@@ -662,9 +664,9 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_chip_detect();
 	lcd_ioremap();
 	lcd_clk_config_probe();
-	lcd_config_probe();
+	ret = lcd_config_probe();
 
-	LCDPR("%s\n", __func__);
+	LCDPR("%s %s\n", __func__, (ret ? "failed" : "ok"));
 	return 0;
 }
 
@@ -684,6 +686,8 @@ static int lcd_remove(struct platform_device *pdev)
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 	}
+
+	LCDPR("%s\n", __func__);
 	return 0;
 }
 
@@ -711,7 +715,7 @@ static struct platform_driver lcd_platform_driver = {
 static int __init lcd_init(void)
 {
 	if (platform_driver_register(&lcd_platform_driver)) {
-		LCDPR("failed to register lcd driver module\n");
+		LCDERR("failed to register lcd driver module\n");
 		return -ENODEV;
 	}
 
@@ -726,15 +730,15 @@ static void __exit lcd_exit(void)
 arch_initcall(lcd_init);
 module_exit(lcd_exit);
 
-static int __init lcd_boot_para_setup(char *s)
+static int __init lcd_panel_type_para_setup(char *str)
 {
-	if (NULL != s)
-		sprintf(lcd_propname, "%s", s);
+	if (str != NULL)
+		sprintf(lcd_propname, "%s", str);
 
 	LCDPR("panel_type: %s\n", lcd_propname);
 	return 0;
 }
-__setup("panel_type=", lcd_boot_para_setup);
+__setup("panel_type=", lcd_panel_type_para_setup);
 
 MODULE_DESCRIPTION("Meson LCD Panel Driver");
 MODULE_LICENSE("GPL");

@@ -342,6 +342,8 @@ struct lcd_power_ctrl_s {
 	struct lcd_pmu_gpio_s pmu_gpio[LCD_PMU_GPIO_NUM_MAX];
 	struct lcd_power_step_s power_on_step[LCD_PWR_STEP_MAX];
 	struct lcd_power_step_s power_off_step[LCD_PWR_STEP_MAX];
+	int power_on_step_max; /*  internal use for debug */
+	int power_off_step_max; /* internal use for debug */
 };
 
 struct lcd_clk_gate_ctrl_s {

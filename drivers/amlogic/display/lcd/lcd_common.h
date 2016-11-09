@@ -36,6 +36,7 @@ extern void lcd_cpu_gpio_set(unsigned int index, int value);
 extern unsigned int lcd_cpu_gpio_get(unsigned int index);
 extern void lcd_ttl_pinmux_set(int status);
 extern void lcd_vbyone_pinmux_set(int status);
+extern unsigned int lcd_lvds_channel_on_value(struct lcd_config_s *pconf);
 extern int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 		struct device_node *child);
 extern int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,

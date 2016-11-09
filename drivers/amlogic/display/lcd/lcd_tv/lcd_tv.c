@@ -300,8 +300,11 @@ static int lcd_vmode_is_supported(enum vmode_e mode)
 
 	mode &= VMODE_MODE_BIT_MASK;
 	lcd_vmode = lcd_get_vmode(mode);
-	LCDPR("%s vmode = %d, lcd_vmode = %d(%s)\n",
-		__func__, mode, lcd_vmode, lcd_vmode_info[lcd_vmode].name);
+	if (lcd_debug_print_flag) {
+		LCDPR("%s vmode = %d, lcd_vmode = %d(%s)\n",
+			__func__, mode, lcd_vmode,
+			lcd_vmode_info[lcd_vmode].name);
+	}
 
 	if (lcd_vmode < LCD_VMODE_MAX)
 		return true;
@@ -774,20 +777,25 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 				lvdsconf->phy_preem = para[1];
 				lvdsconf->phy_clk_vswing = 0;
 				lvdsconf->phy_clk_preem = 0;
-				LCDPR("set phy vswing=%d, preemphasis=%d\n",
+				if (lcd_debug_print_flag) {
+					LCDPR("phy vswing=%d, preemphasis=%d\n",
 					lvdsconf->phy_vswing,
 					lvdsconf->phy_preem);
+				}
 			}
 		} else {
 			lvdsconf->phy_vswing = para[0];
 			lvdsconf->phy_preem = para[1];
 			lvdsconf->phy_clk_vswing = para[2];
 			lvdsconf->phy_clk_preem = para[3];
-			LCDPR("set phy vswing=%d, preemphasis=%d\n",
-				lvdsconf->phy_vswing, lvdsconf->phy_preem);
-			LCDPR("set phy_clk vswing=%d, preemphasis=%d\n",
-				lvdsconf->phy_clk_vswing,
-				lvdsconf->phy_clk_preem);
+			if (lcd_debug_print_flag) {
+				LCDPR("phy vswing=%d, preemphasis=%d\n",
+					lvdsconf->phy_vswing,
+					lvdsconf->phy_preem);
+				LCDPR("phy_clk vswing=%d, preemphasis=%d\n",
+					lvdsconf->phy_clk_vswing,
+					lvdsconf->phy_clk_preem);
+			}
 		}
 		break;
 	case LCD_VBYONE:
@@ -818,9 +826,11 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 		} else {
 			pconf->lcd_control.vbyone_config->phy_vswing = para[0];
 			pconf->lcd_control.vbyone_config->phy_preem = para[1];
-			LCDPR("set phy vswing=%d, preemphasis=%d\n",
+			if (lcd_debug_print_flag) {
+				LCDPR("phy vswing=%d, preemphasis=%d\n",
 				pconf->lcd_control.vbyone_config->phy_vswing,
 				pconf->lcd_control.vbyone_config->phy_preem);
+			}
 		}
 		break;
 	default:
@@ -1074,11 +1084,13 @@ static int lcd_get_config(struct lcd_config_s *pconf, struct device *dev)
 			load_id = 1;
 	}
 	if (load_id) {
-		LCDPR("%s from unifykey\n", __func__);
+		if (lcd_debug_print_flag)
+			LCDPR("%s from unifykey\n", __func__);
 		lcd_drv->lcd_config_load = 1;
 		lcd_config_load_from_unifykey(pconf);
 	} else {
-		LCDPR("%s from dts\n", __func__);
+		if (lcd_debug_print_flag)
+			LCDPR("%s from dts\n", __func__);
 		lcd_drv->lcd_config_load = 0;
 		lcd_config_load_from_dts(pconf, dev);
 	}
