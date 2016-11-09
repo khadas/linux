@@ -577,30 +577,31 @@
 
 
 
-	sdio{
+	sd {
 		compatible = "amlogic, aml_sd_emmc";
 		dev_name = "aml_newsd.0";
 		status = "okay";
 		reg = <0x0 0xd0072000 0x0 0x2000>;
-		interrupts = <	0 217 1>;
-		pinctrl-names =  "sdio_clk_cmd_pins", "sdio_all_pins";
-		pinctrl-0 = <&sdio_clk_cmd_pins>;
-		pinctrl-1 = <&sdio_all_pins>;
-		sdio{
+		interrupts = <	0 217 4>;
+		pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins";
+		pinctrl-0 = <&sd_clk_cmd_pins>;
+		pinctrl-1 = <&sd_all_pins>;
+		sd {
 			status = "okay";
-			pinname = "sdio";
-			ocr_avail = <0x00200080>;  /*3.3:0x200000, 1.8+3.3:0x00200080 */
+	   		pinname = "sd";
+	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
 			caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-				"MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
-				"MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
-				"MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
-				"MMC_PM_KEEP_POWER";
-				f_min = <400000>;
-				f_max = <200000000>;
-				max_req_size = <0x20000>;          /**128KB*/
-				card_type = <3>;  /*3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, */
+	                             "MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
+	                             "MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
+                                     "MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
+                                     "MMC_PM_KEEP_POWER","MMC_CAP_SDIO_IRQ";
+	   		f_min = <400000>;
+	   		f_max = <200000000>;
+	   		max_req_size = <0x20000>; /**128KB*/
+	   		card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
 		};
 	};
+
 	partitions: partitions {
 		parts = <12>;
 		part-0 = <&logo>;

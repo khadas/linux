@@ -3546,6 +3546,18 @@ int is_storage_emmc(void)
 		ret = 1;
 	return ret;
 }
+
+/*this function tells wifi is using sd(sdiob) or sdio(sdioa)*/
+const char *get_wifi_inf(void)
+{
+	if (sdio_host != NULL)
+		return mmc_hostname(sdio_host);
+	else
+		return "sdio";
+
+}
+EXPORT_SYMBOL(get_wifi_inf);
+
 static int aml_sd_emmc_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = NULL;

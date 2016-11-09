@@ -36,6 +36,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/io.h>
+#include <linux/uaccess.h>
 
 #define OWNER_NAME "sdio_wifi"
 
@@ -70,6 +71,7 @@ struct wifi_plat_info {
 #define USB_POWER_DOWN  _IO('m', 2)
 #define SDIO_POWER_UP    _IO('m', 3)
 #define SDIO_POWER_DOWN  _IO('m', 4)
+#define SDIO_GET_DEV_TYPE  _IO('m', 5)
 static struct wifi_plat_info wifi_info;
 static dev_t wifi_power_devno;
 static struct cdev *wifi_power_cdev;
@@ -229,10 +231,10 @@ static int  wifi_power_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
-
 static long wifi_power_ioctl(struct file *filp,
 	unsigned int cmd, unsigned long arg)
 {
+	char dev_type[10] = {'\0'};
 
 	switch (cmd) {
 	case USB_POWER_UP:
@@ -254,6 +256,14 @@ static long wifi_power_ioctl(struct file *filp,
 		break;
 	case SDIO_POWER_DOWN:
 		extern_wifi_set_enable(0);
+		break;
+	case SDIO_GET_DEV_TYPE:
+		memcpy(dev_type, get_wifi_inf(), strlen(get_wifi_inf()));
+		WIFI_INFO("wifi interface dev type: %s, length = %d\n",
+				dev_type, (int)strlen(dev_type));
+		if (copy_to_user((char __user *)arg,
+				dev_type, strlen(dev_type)))
+			return -ENOTTY;
 		break;
 	default:
 		WIFI_INFO("usb wifi_power_ioctl: default !!!\n");
