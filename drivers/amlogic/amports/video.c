@@ -5742,7 +5742,7 @@ static ssize_t video_test_screen_store(struct class *cla,
 	r = sscanf(buf, "0x%x", &test_screen);
 	if (r != 1)
 		return -EINVAL;
-
+#if 0/*no use now*/
 	/* vdin0 pre post blend enable or disabled */
 	data = READ_VCBUS_REG(VPP_MISC);
 	if (test_screen & 0x01000000)
@@ -5754,6 +5754,7 @@ static ssize_t video_test_screen_store(struct class *cla,
 		data |= VPP_VD1_POSTBLEND;
 	else
 		data &= (~VPP_VD1_POSTBLEND);
+#endif
 	/*
 	   if (test_screen & 0x04000000)
 	   data |= VPP_VD2_PREBLEND;
@@ -5786,8 +5787,9 @@ static ssize_t video_test_screen_store(struct class *cla,
 				yuv2rgb(test_screen & 0x00ffffff));
 		}
 	}
+#if 0/*no use*/
 	WRITE_VCBUS_REG(VPP_MISC, data);
-
+#endif
 	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
 		pr_info("%s write(VPP_MISC,%x) write(VPP_DUMMY_DATA1, %x)\n",
 		       __func__, data, test_screen & 0x00ffffff);
