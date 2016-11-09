@@ -286,14 +286,14 @@
 					<3 0x218000>;
 			amlogic,pins="GPIOZ_0", "GPIOZ_1";
 		};
-		sd_clk_cmd_pins:sd_clk_cmd_pins{
+		sdio_clk_cmd_pins:sdio_clk_cmd_pins{
 			amlogic,setmask=<6 0x0000000c>;
 			amlogic,pins = "CARD_2","CARD_3"; /* CARD_2:CLK, CARD_3:CMD */
 			amlogic,enable-output=<1>; /* 0:output, 1:input */
 			amlogic,pullup=<1>;
 			amlogic,pullupen=<1>;
 		};
-		sd_all_pins:sd_all_pins{
+		sdio_all_pins:sdio_all_pins{
 			amlogic,setmask=<6 0x0000003f>;
 			amlogic,clrmask=<6 0xFC00FF00>;
 			amlogic,pins="CARD_0","CARD_1","CARD_2","CARD_3","CARD_4","CARD_5";

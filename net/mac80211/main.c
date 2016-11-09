@@ -745,6 +745,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 	return 0;
 }
 
+
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1014,6 +1015,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (result)
 			wiphy_warn(local->hw.wiphy,
 				   "Failed to add default virtual iface\n");
+	}
+
+	if (local->hw.wiphy->interface_modes &
+	(BIT(NL80211_IFTYPE_P2P_GO) | BIT(NL80211_IFTYPE_P2P_CLIENT))) {
+		result = ieee80211_if_add(local, "p2p%d",
+			NULL, NL80211_IFTYPE_STATION, NULL);
+		if (result)
+			wiphy_warn(local->hw.wiphy,
+			"Failed to add default virtual ifacep:p2p0\n");
 	}
 
 	rtnl_unlock();
