@@ -80,5 +80,5 @@ struct mmc_storage_info_t {
 };
 
 extern int mmc_storage_probe(struct mmc_card *card);
-
+u32 get_storage_dev(void);
 #endif

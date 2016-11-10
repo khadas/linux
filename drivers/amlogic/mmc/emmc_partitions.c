@@ -619,12 +619,7 @@ static int store_device = -1;
 static ssize_t store_device_flag_get(struct class *class,
 	struct class_attribute *attr, char *buf)
 {
-	if (store_device == -1) {
-		pr_info("[%s]  get store device flag something wrong !\n",
-			__func__);
-	}
-
-	return sprintf(buf, "%d", store_device);
+	return sprintf(buf, "%d", get_storage_dev());
 }
 
 static ssize_t get_bootloader_offset(struct class *class,

@@ -342,8 +342,7 @@ static ssize_t nand_part_table_get(struct class *class,
 static ssize_t store_device_flag_get(struct class *class,
 			struct class_attribute *attr, char *buf)
 {
-	sprintf(buf, "%d", boot_device_flag);
-	return 0;
+	return sprintf(buf, "%d", get_storage_dev());
 }
 
 static struct class_attribute aml_version =
@@ -457,95 +456,7 @@ static int get_nand_platform(struct aml_nand_device *aml_nand_dev,
 }
 */
 #endif	/* CONFIG_OF */
-
-/***
-*boot_device_flag = 0 ; indicate spi+nand boot
-*boot_device_flag = 1;  indicate nand  boot
-***/
 #if 0
-int poc_cfg_parse(void)
-{
-	int boot_flag;
-	u32 cpu_type, poc_value;
-
-	poc_value =
-		amlnf_read_reg32(aml_nand_dev->platform_data->poc_cfg_reg);
-
-	cpu_type = get_cpu_type();
-	if (cpu_type == MESON_CPU_MAJOR_ID_GXBB) {
-		poc_value = (poc_value >> 6) & 0x03;
-	} else if (cpu_type >= MESON_CPU_MAJOR_ID_M8)
-		poc_value = ((((poc_value >> 0x09) & 0x01) << 2) |
-			((poc_value >> 6) & 0x03));
-	else
-		poc_value = (poc_value & 0x07);
-
-	if (cpu_type == MESON_CPU_MAJOR_ID_GXBB) {
-		if (poc_value & 0x2)
-			boot_flag = SPI_BOOT_FLAG;
-		else {
-			/* fixme, ... */
-			boot_flag = NAND_BOOT_FLAG;
-		}
-
-	} else if (cpu_type > MESON_CPU_MAJOR_ID_M8) {
-		if (poc_value == 0x05)
-			boot_flag = SPI_BOOT_FLAG;
-		if ((poc_value == 0x03) || (poc_value == 0x01))
-			boot_flag = EMMC_BOOT_FLAG;
-	} else {
-		if ((poc_value == 0x05) || (poc_value == 0x04))
-			boot_flag = SPI_BOOT_FLAG;
-		if (poc_value == 0x03)
-			boot_flag = EMMC_BOOT_FLAG;
-	}
-
-	if ((poc_value == 0x07) || (poc_value == 0x06))
-		boot_flag = NAND_BOOT_FLAG;
-	if (poc_value == 0x00)
-		boot_flag = EMMC_BOOT_FLAG;
-
-	return boot_flag;
-}
-
-
-int check_storage_device(void)
-{
-	int value = -1, poc_cfg = -1;
-
-	poc_cfg = poc_cfg_parse();
-	value = boot_device_flag;
-
-	if ((value == 0)
-		|| (value == SPI_NAND_FLAG)
-		|| (value == NAND_BOOT_FLAG)) {
-		if ((value == 0) || (value == -1)) {
-			if (poc_cfg == NAND_BOOT_FLAG)
-				boot_device_flag = 1;
-			else if (poc_cfg == EMMC_BOOT_FLAG)
-				boot_device_flag = -1;
-			else if (poc_cfg == SPI_BOOT_FLAG)
-				boot_device_flag = 0;
-			else if (poc_cfg == CARD_BOOT_FLAG)
-				boot_device_flag = 1;
-		} else if (value == SPI_NAND_FLAG)
-			boot_device_flag = 0;
-		else
-			boot_device_flag = 1;
-	} else
-		boot_device_flag = -1;
-	/* fixme, debug code... */
-	boot_device_flag = 1;
-
-	if ((boot_device_flag == 0) || (boot_device_flag == 1))
-		return 0;
-	else {
-		boot_device_flag = value;
-		return -NAND_FAILED;
-	}
-}
-EXPORT_SYMBOL(check_storage_device);
-#endif
 /* return storage device */
 static u32 _get_storage_dev_by_gp(void)
 {
@@ -621,6 +532,7 @@ u32 get_storage_dev(void)
 	aml_nand_msg("%s return %d\n", __func__, ret);
 	return ret;
 }
+#endif
 
 int check_storage_device(void)
 {

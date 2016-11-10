@@ -3547,7 +3547,7 @@ static u32 get_storage_dev_by_clk(void)
  return  1: emmc
 		 2: nand
  */
-static u32 get_storage_dev(void)
+u32 get_storage_dev(void)
 {
 	u32 ret;
 
@@ -3559,6 +3559,7 @@ static u32 get_storage_dev(void)
 	pr_err("%s return %d\n", __func__, ret);
 	return ret;
 }
+EXPORT_SYMBOL(get_storage_dev);
 
 int is_storage_emmc(void)
 {
