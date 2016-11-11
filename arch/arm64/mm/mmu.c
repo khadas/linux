@@ -33,6 +33,7 @@
 #include <asm/sizes.h>
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
+#include <asm/memblock.h>
 
 #include "mm.h"
 
@@ -394,12 +395,21 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
 	unsigned long addr = start;
 	unsigned long next;
+	struct page *page;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 
+	page = (struct page *)start;
 	do {
 		next = pmd_addr_end(addr, end);
+
+		/* page address may not just same as next */
+		while (((unsigned long)page) <= next)
+			page++;
+
+		if (check_pfn_overflow(page_to_pfn(page)))
+			break;
 
 		pgd = vmemmap_pgd_populate(addr, node);
 		if (!pgd)

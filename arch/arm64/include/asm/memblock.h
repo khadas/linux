@@ -17,5 +17,6 @@
 #define __ASM_MEMBLOCK_H
 
 extern void arm64_memblock_init(void);
+extern int check_pfn_overflow(unsigned long pfn);
 
 #endif

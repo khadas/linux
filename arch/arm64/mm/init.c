@@ -206,6 +206,17 @@ static void arm64_memory_present(void)
 		memory_present(0, memblock_region_memory_base_pfn(reg),
 			       memblock_region_memory_end_pfn(reg));
 }
+
+int __init check_pfn_overflow(unsigned long pfn)
+{
+	/*
+	 * reserve pfn is larger than max_pfn, we don't need to reserve memory
+	 * this can help for memory less than 1GB platform
+	 */
+	if (pfn > (max_pfn + PMD_SIZE / (sizeof(struct page))))
+		return -1;
+	return 0;
+}
 #endif
 
 void __init arm64_memblock_init(void)
@@ -262,6 +273,7 @@ void __init bootmem_init(void)
 	min = PFN_UP(memblock_start_of_DRAM());
 	max = PFN_DOWN(memblock_end_of_DRAM());
 
+	max_pfn = max_low_pfn = max;
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
 	 * done after the fixed reservations.
@@ -272,7 +284,6 @@ void __init bootmem_init(void)
 	zone_sizes_init(min, max);
 
 	high_memory = __va((max << PAGE_SHIFT) - 1) + 1;
-	max_pfn = max_low_pfn = max;
 }
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
