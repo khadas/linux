@@ -608,7 +608,7 @@
 		};
 		instaboot:instaboot{
 			pname = "instaboot";
-			size = <0x0 0x20000000>;
+			size = <0x0 0x400000>;
 			mask = <1>;
 		};
 		boot:boot
@@ -620,7 +620,7 @@
 		system:system
 		{
 			pname = "system";
-			size = <0x0 0x40000000>;
+			size = <0x0 0x80000000>;
 			mask = <1>;
 		};
 		cache:cache
