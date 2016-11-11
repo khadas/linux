@@ -1089,9 +1089,11 @@ int codec_mm_mgt_init(struct device *dev)
 	}
 	mgt->total_cma_size = dma_get_cma_size_int_byte(mgt->dev);
 	mgt->total_codec_mem_size += mgt->total_cma_size;
-	mgt->tvp_pool.default_size = mgt->total_reserved_size + SZ_1M*32;
 	/*2M for audio not protect.*/
 	mgt->tvp_pool.default_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
+	/*97MB -> 160MB, may not enough for h265*/
+	mgt->tvp_pool.default_size = mgt->total_codec_mem_size > SZ_1M * 160 ?
+			SZ_1M * 160 : mgt->tvp_pool.default_4k_size;
 
 	mgt->cma_res_pool.default_size = mgt->total_cma_size;
 	mgt->cma_res_pool.default_4k_size = mgt->total_cma_size;
