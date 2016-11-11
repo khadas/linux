@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/kernel.h>
 #include <linux/amlogic/cpu_version.h>
@@ -6,7 +7,11 @@
 #include "mach_reg_gxtvbb.h"
 #include "hw_clk.h"
 
+/* local frac_rate flag */
 static uint32_t frac_rate;
+/* enable or disable HDMITX SSPLL, enable by default */
+static int sspll_en = 1;
+
 /*
  * HDMITX Clock configuration
  */
@@ -336,6 +341,23 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 		case HDMI_1920x1080i50_16x9:
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x864348c4);
 			break;
+		case HDMI_3840x2160p50_16x9:
+		case HDMI_3840x2160p60_16x9:
+		case HDMI_4096x2160p50_256x135:
+		case HDMI_4096x2160p60_256x135:
+			break;
+		case HDMI_3840x2160p50_16x9_Y420:
+		case HDMI_3840x2160p60_16x9_Y420:
+		case HDMI_4096x2160p50_256x135_Y420:
+		case HDMI_4096x2160p60_256x135_Y420:
+		case HDMI_3840x2160p30_16x9:
+		case HDMI_3840x2160p25_16x9:
+		case HDMI_3840x2160p24_16x9:
+		case HDMI_4096x2160p30_256x135:
+		case HDMI_4096x2160p25_256x135:
+		case HDMI_4096x2160p24_256x135:
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x862b44c4);
+			break;
 		default:
 			break;
 		}
@@ -635,7 +657,7 @@ static struct hw_enc_clk_val_group setting_enc_clk_val[] = {
 	  HDMI_4096x2160p25_256x135,
 	  HDMI_4096x2160p30_256x135,
 	  HDMI_VIC_END},
-		2970000, 1, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
+		5940000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
 	{{HDMI_3840x2160p60_16x9,
 	  HDMI_3840x2160p50_16x9,
 	  HDMI_4096x2160p60_256x135,
@@ -647,7 +669,7 @@ static struct hw_enc_clk_val_group setting_enc_clk_val[] = {
 	  HDMI_3840x2160p60_16x9_Y420,
 	  HDMI_3840x2160p50_16x9_Y420,
 	  HDMI_VIC_END},
-		2970000, 1, 1, 1, VID_PLL_DIV_5, 1, 2, 1, -1},
+		5940000, 2, 1, 1, VID_PLL_DIV_5, 1, 2, 1, -1},
 	{{HDMI_VIC_FAKE,
 	  HDMI_VIC_END},
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
@@ -700,7 +722,8 @@ static void hdmitx_set_clk_24b(enum hdmi_vic vic)
 next:
 	set_hdmitx_sys_clk();
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
-	set_hpll_sspll(vic);
+	if (sspll_en)
+		set_hpll_sspll(vic);
 	set_hpll_od1(p_enc[j].od1);
 	set_hpll_od2(p_enc[j].od2);
 	set_hpll_od3(p_enc[j].od3);
@@ -784,3 +807,7 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 	} else
 		hdmitx_set_clk_24b(vic);
 }
+
+MODULE_PARM_DESC(sspll_en, "\n hdmitx sspll_en\n");
+module_param(sspll_en, int, 0664);
+
