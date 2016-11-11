@@ -395,7 +395,7 @@ void di_post_read_reverse(bool reverse);
 void di_post_read_reverse_irq(bool reverse);
 extern void recycle_keep_buffer(void);
 
-#undef DI_DEBUG
+/* #define DI_BUFFER_DEBUG */
 
 #define DI_LOG_MTNINFO		0x02
 #define DI_LOG_PULLDOWN		0x10
@@ -463,7 +463,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 	unsigned int start, unsigned int len);
 
 #define DI_COUNT   1
-
+#define DI_MAP_FLAG	0x1
 struct di_dev_s {
 	dev_t			   devt;
 	struct cdev		   cdev; /* The cdev structure */
@@ -472,6 +472,7 @@ struct di_dev_s {
 	struct task_struct *task;
 	unsigned char	   di_event;
 	unsigned int	   di_irq;
+	unsigned int	   flags;
 	unsigned int	   timerc_irq;
 	unsigned long	   mem_start;
 	unsigned int	   mem_size;
