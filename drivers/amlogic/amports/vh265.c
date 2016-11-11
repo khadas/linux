@@ -62,6 +62,7 @@
 
 #include "vdec.h"
 #include "amvdec.h"
+#include "video.h"
 
 #define SUPPORT_10BIT
 /* #define ERROR_HANDLE_DEBUG */
@@ -216,7 +217,7 @@ static u32 pts_unstable;
 #define ONLY_RESET_AT_START             0x80000000
 #endif
 #define MAX_BUF_NUM 24
-#define MAX_REF_PIC_NUM 20
+#define MAX_REF_PIC_NUM 24
 #define MAX_REF_ACTIVE  16
 
 const u32 h265_version = 201602101;
@@ -777,7 +778,7 @@ static struct BuffInfo_s amvh265_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = 0x5000, /*2*16*2304/4, 4K*/
 		},
 		.cm_header = {/* 0x44000 = ((1088*2*1024*4)/32/4)*(32/8)*/
-			.buf_size = MMU_COMPRESS_HEADER_SIZE*16,
+			.buf_size = MMU_COMPRESS_HEADER_SIZE*(16+1),
 		},
 		.mpred_above = {
 			.buf_size = 0x8000,
@@ -789,7 +790,7 @@ static struct BuffInfo_s amvh265_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = RPM_BUF_SIZE,
 		},
 		.lmem = {
-			.buf_size = 0x400 * 2,
+			.buf_size = 0x500 * 2,
 		}
 	},
 	{
@@ -857,7 +858,7 @@ static struct BuffInfo_s amvh265_workbuff_spec[WORK_BUF_SPEC_NUM] = {
 			.buf_size = 0x5000, /*2*16*2304/4, 4K*/
 		},
 		.cm_header = {/*0x44000 = ((1088*2*1024*4)/32/4)*(32/8)*/
-			.buf_size = MMU_COMPRESS_HEADER_SIZE * 16,
+			.buf_size = MMU_COMPRESS_HEADER_SIZE * (16+1),
 		},
 		.mpred_above = {
 			.buf_size = 0x8000,
@@ -1865,12 +1866,12 @@ static void init_buf_list(struct hevc_state_s *hevc)
 	}
 	put_cma_alloc_ref();
 	pr_info("allocate end\n");
-
 	hevc->buf_num = i;
 
 }
 
-static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
+static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic,
+						unsigned int last_disp_addr)
 {
 	int ret = -1;
 	int i;
@@ -1949,6 +1950,14 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic)
 
 		   pic->header_adr = hevc->work_space_buf->cm_header.buf_start +
 				(pic->index * MMU_COMPRESS_HEADER_SIZE);
+	if (last_disp_addr && pic->header_adr == last_disp_addr) {
+		/*if same as disp add used last one.*/
+		pr_info("same as disp %d: %d\n",
+			pic->index, pic->header_adr);
+		pic->header_adr =
+			hevc->work_space_buf->cm_header.buf_start +
+			(16 * MMU_COMPRESS_HEADER_SIZE);
+	}
 			if (debug&H265_DEBUG_BUFMGR) {
 				pr_info("MMU header_adr %d: %x\n",
 					pic->index, pic->header_adr);
@@ -2133,12 +2142,30 @@ static int recycle_buf(struct hevc_state_s *hevc)
 static void init_pic_list(struct hevc_state_s *hevc)
 {
 	int i;
+	struct vframe_s vf;
+	unsigned long flags;
+	unsigned long disp_addr = 0;
+	if (!get_video0_frame_info(&vf)) {
+		spin_lock_irqsave(&lock, flags);
+		if (vf.type & VIDTYPE_SCATTER) {
+			/*sc only used header.*/
+			disp_addr = (VSYNC_RD_MPEG_REG(AFBC_HEAD_BADDR) << 4);
+		} else if (vf.type & VIDTYPE_COMPRESS) {
+			/*sc checked body.*/
+			disp_addr = (VSYNC_RD_MPEG_REG(AFBC_BODY_BADDR) << 4);
+		} else {
+			struct canvas_s cur_canvas;
+			canvas_read(vf.canvas0Addr & 0xff, &cur_canvas);
+			disp_addr = cur_canvas.addr;
+		}
+		spin_unlock_irqrestore(&lock, flags);
+	}
 	for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 		struct PIC_s *pic = &hevc->m_PIC[i];
 		memset(pic, 0, sizeof(struct PIC_s));
 		pic->index = i;
 		pic->BUF_index = -1;
-		if (config_pic(hevc, pic) < 0) {
+		if (config_pic(hevc, pic, disp_addr) < 0) {
 			if (debug)
 				pr_info("Config_pic %d fail\n", pic->index);
 			pic->index = -1;
@@ -3851,7 +3878,7 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 			/* re config pic for new resolution */
 			recycle_buf(hevc);
 			/* if(new_pic->BUF_index == -1){ */
-			if (config_pic(hevc, new_pic) < 0) {
+			if (config_pic(hevc, new_pic, 0) < 0) {
 				if (debug & H265_DEBUG_BUFMGR_MORE) {
 					pr_info("Config_pic %d fail\n",
 					new_pic->index);
@@ -7627,7 +7654,9 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 
 	hevc->buf_start = pdata->mem_start;
 	hevc->buf_size = pdata->mem_end - pdata->mem_start + 1;
-
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL
+			|| double_write_mode == 0x10)
+		mmu_enable = 0;
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
 		(parser_sei_enable & 0x100) == 0)
 		parser_sei_enable = 1;

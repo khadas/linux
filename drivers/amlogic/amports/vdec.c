@@ -944,17 +944,11 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)) {
 #ifdef CONFIG_MULTI_DEC
 				if (p->use_vfm_path)
-					alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9 * 2]
-					* SZ_1M;
+					alloc_size = 33 * SZ_1M;
 				else
-					alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9
-					* 2 + 1] * SZ_1M;
+					alloc_size = 33 * SZ_1M;
 #else
-				alloc_size =
-					vdec_default_buf_size[VFORMAT_VP9]
-					* SZ_1M;
+				alloc_size = 33 * SZ_1M;
 #endif
 		}
 
