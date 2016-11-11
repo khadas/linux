@@ -62,6 +62,8 @@
 
 /* vpp */
 #define VPP_VDO_MEAS_CTRL 0x1da8
+#define VPP_POSTBLEND_VD1_H_START_END 0x1d1c
+#define VPP_POSTBLEND_VD1_V_START_END 0x1d1d
 
 /* VDIN0        8'h00 - 8'h7f */
 /* VDIN1        8'h80 - 8'hef */

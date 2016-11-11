@@ -1401,6 +1401,31 @@ static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
 	/*if (is_meson_gxbb_cpu())*/
 	wr_bits(offset, VDIN_WR_CTRL, 1, 19, 1);
 }
+
+/* set vdin1_wr_mif for video only */
+void vdin1_set_wr_mif(struct vdin_dev_s *devp)
+{
+	int height, width;
+	static unsigned int temp_height;
+	static unsigned int temp_width;
+
+	height = ((rd(0, VPP_POSTBLEND_VD1_V_START_END) & 0xfff) -
+				((rd(0, VPP_POSTBLEND_VD1_V_START_END) >> 16) &
+				0xfff) + 1);
+	width = ((rd(0, VPP_POSTBLEND_VD1_H_START_END) & 0xfff) -
+				((rd(0, VPP_POSTBLEND_VD1_H_START_END) >> 16) &
+				0xfff) + 1);
+	if ((devp->parm.port == TVIN_PORT_VIDEO) && (devp->index == 1) &&
+			((height != temp_height) && (width != temp_width))) {
+		wr_bits(devp->addr_offset, VDIN_WR_H_START_END,
+				(width - 1), WR_HEND_BIT, WR_HEND_WID);
+		wr_bits(devp->addr_offset, VDIN_WR_V_START_END,
+				(height - 1), WR_VEND_BIT, WR_VEND_WID);
+		temp_height = height;
+		temp_width = width;
+	}
+}
+
 #if 0
 void set_wr_ctrl(int h_pos, int v_pos, struct vdin_dev_s *devp)
 {

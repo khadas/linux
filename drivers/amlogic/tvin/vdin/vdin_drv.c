@@ -1792,6 +1792,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (devp)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_vstamp(offset);
+	/* if win_size changed for video only */
+	vdin1_set_wr_mif(devp);
 	if (!devp->curr_wr_vfe) {
 		devp->curr_wr_vfe = provider_vf_get(devp->vfp);
 		/*save the first field stamp*/
@@ -1889,6 +1891,16 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 	if (curr_wr_vfe) {
 		curr_wr_vfe->flag |= VF_FLAG_NORMAL_FRAME;
+		if (devp->parm.port == TVIN_PORT_VIDEO) {
+			curr_wr_vf->height =
+				((rd(0, VPP_POSTBLEND_VD1_V_START_END) &
+				0xfff) - ((rd(0, VPP_POSTBLEND_VD1_V_START_END)
+				>> 16) & 0xfff) + 1);
+			curr_wr_vf->width =
+				((rd(0, VPP_POSTBLEND_VD1_H_START_END) &
+				0xfff) - ((rd(0, VPP_POSTBLEND_VD1_H_START_END)
+				>> 16) & 0xfff) + 1);
+		}
 		/* provider_vf_put(curr_wr_vfe, devp->vfp); */
 		devp->last_wr_vfe = curr_wr_vfe;
 	}
