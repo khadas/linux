@@ -219,7 +219,7 @@
 		};
 
 		avin_gpio_disable_pull:avin_gpio_disable_pull{
-			amlogic,pins = "GPIODV_8","GPIODV_7";
+			amlogic,pins = "GPIODV_8","GPIODV_6";
 			amlogic,enable-output=<1>;
 			amlogic,pullupen=<0>;
 		};
