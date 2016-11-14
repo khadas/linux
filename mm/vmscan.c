@@ -1214,6 +1214,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 }
 bool __isolate_cma_ornot(int migrate_type)
 {
+#if 0
 	unsigned long free_cma = 0, total_free = 0;
 
 /*	if (migrate_type != MIGRATE_MOVABLE) { */
@@ -1224,6 +1225,7 @@ bool __isolate_cma_ornot(int migrate_type)
 		if (free_cma > total_free)
 			return false;
 /*	} */
+#endif
 
 	return true;
 }

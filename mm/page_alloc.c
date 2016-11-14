@@ -1009,14 +1009,6 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
 	struct free_area *area;
 	struct page *page;
 
-#ifdef CONFIG_CMA
-	if (migratetype == MIGRATE_CMA && !can_use_cma(flags))
-		return NULL;
-
-	/* use cma instead of migrate type */
-	if (cma_fallback(migratetype) && can_use_cma(flags))
-		migratetype = MIGRATE_CMA;
-#endif
 	/* Find a page of the appropriate size in the preferred list */
 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
 		area = &(zone->free_area[current_order]);
@@ -1252,7 +1244,18 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
 				int migratetype, gfp_t gfp_flag)
 {
 	struct page *page;
-
+#ifdef CONFIG_CMA
+	/* try to use cma first for moveable pages */
+	if (cma_fallback(migratetype) && can_use_cma(gfp_flag)) {
+		page = __rmqueue_smallest(zone, order, MIGRATE_CMA, gfp_flag);
+		if (!page) {
+			/* all cma pages has been used, try curr migratetype */
+			goto retry_reserve;
+		}
+		trace_mm_page_alloc_zone_locked(page, order, MIGRATE_CMA);
+		return page;
+	}
+#endif
 retry_reserve:
 	page = __rmqueue_smallest(zone, order, migratetype, gfp_flag);
 
@@ -1664,13 +1667,36 @@ again:
 		if (!can_use_cma(gfp_flags) && cma_page(page)) {
 			spin_lock(&zone->lock);
 			page = __rmqueue(zone, order, migratetype, gfp_flags);
-			spin_unlock(&zone->lock);
-			if (!page)
+			if (!page) {
+				spin_unlock(&zone->lock);
 				goto failed;
+			}
 			__mod_zone_freepage_state(zone, -(1 << order),
 						get_freepage_migratetype(page));
+			spin_unlock(&zone->lock);
 			goto alloc_sucess;
+		} else if (migratetype == MIGRATE_MOVABLE &&
+			   can_use_cma(gfp_flags)) {
+			/* if can use cam but got a no cma pages for movable
+			 * then try cma pages again
+			 */
+			if (get_freepage_migratetype(page) != MIGRATE_CMA) {
+				struct page *tmp_page;
+				spin_lock(&zone->lock);
+				tmp_page = __rmqueue(zone, order,
+						 MIGRATE_CMA, gfp_flags);
+				if (!tmp_page) {
+					spin_unlock(&zone->lock);
+					goto use_pcp;
+				}
+				page = tmp_page;
+				__mod_zone_freepage_state(zone, -(1 << order),
+						get_freepage_migratetype(page));
+				spin_unlock(&zone->lock);
+				goto alloc_sucess;
+			}
 		}
+use_pcp:
 	#endif
 		list_del(&page->lru);
 		pcp->count--;
@@ -1690,11 +1716,13 @@ again:
 		}
 		spin_lock_irqsave(&zone->lock, flags);
 		page = __rmqueue(zone, order, migratetype, gfp_flags);
-		spin_unlock(&zone->lock);
-		if (!page)
+		if (!page) {
+			spin_unlock(&zone->lock);
 			goto failed;
+		}
 		__mod_zone_freepage_state(zone, -(1 << order),
 					  get_freepage_migratetype(page));
+		spin_unlock(&zone->lock);
 	}
 #ifdef CONFIG_CMA
 alloc_sucess:
@@ -3291,7 +3319,7 @@ void show_free_areas(unsigned int filter)
 		" unevictable:%lu"
 		" dirty:%lu writeback:%lu unstable:%lu\n"
 		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu used_cma:%lu\n"
 		" free_cma:%lu\n",
 		global_page_state(NR_ACTIVE_ANON),
 		global_page_state(NR_INACTIVE_ANON),
@@ -3310,6 +3338,7 @@ void show_free_areas(unsigned int filter)
 		global_page_state(NR_SHMEM),
 		global_page_state(NR_PAGETABLE),
 		global_page_state(NR_BOUNCE),
+		get_cma_allocated(),
 		global_page_state(NR_FREE_CMA_PAGES)
 		);
 
@@ -5826,9 +5855,9 @@ static void __setup_per_zone_wmarks(void)
 		}
 
 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) +
-					(min >> 2);
+					low + (min >> 2);
 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) +
-					(min >> 1);
+					low + (min >> 1);
 
 		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
 			high_wmark_pages(zone) - low_wmark_pages(zone) -
@@ -5885,6 +5914,8 @@ static void __meminit calculate_zone_inactive_ratio(struct zone *zone)
 	gb = zone->managed_pages >> (30 - PAGE_SHIFT);
 	if (gb)
 		ratio = int_sqrt(10 * gb);
+	else if ((zone->managed_pages >> (20 - PAGE_SHIFT)) >= 512)
+		ratio = 2;
 	else
 		ratio = 1;
 

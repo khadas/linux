@@ -82,6 +82,9 @@ extern void put_cma_alloc_ref(void);
 extern bool cma_page(struct page *page);
 extern int mark_cma_migrate_page(struct page *page);
 extern int migrate_cma_page(unsigned long pfn);
+extern unsigned long get_cma_allocated(void);
+#else
+static inline unsigned long get_cma_allocated(void) { return 0; }
 #endif
 #include <asm/page.h>
 #include <asm/pgtable.h>
