@@ -172,7 +172,7 @@ static int aml_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot)
 	}
 	return 0;
 }
-/**\brief aml_ci_slot_status:control slot ts
+/**\brief aml_ci_ts_control:control slot ts
  * \param en50221: en50221 obj,used this data to get dvb_ci obj
  * \param slot: slot index
  * \return

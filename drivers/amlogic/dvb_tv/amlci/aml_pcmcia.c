@@ -31,8 +31,10 @@ static int pcmcia_plugin(struct aml_pcmcia *pc)
 		pc->init_irq(pc, IRQF_TRIGGER_RISING);
 		udelay(500);
 		pc->slot_state = MODULE_INSERTED;
+	} else {
+		pr_error("repeat into pcmcia insert \r\n");
+		aml_pcmcia_reset(pc);
 	}
-	aml_pcmcia_reset(pc);
 	udelay(100);
 	pc->pcmcia_plugin(pc, 1);
 
@@ -43,8 +45,8 @@ static int pcmcia_unplug(struct aml_pcmcia *pc)
 {
 	if (pc->slot_state == MODULE_INSERTED) {
 		pr_dbg(" CAM Unplugged: Adapter(%d) Slot(0)\n", 0);
-		udelay(50);
-		aml_pcmcia_reset(pc);
+		/*udelay(50);*/
+		/*aml_pcmcia_reset(pc);*/
 		/*wait plugin*/
 		pc->init_irq(pc, IRQF_TRIGGER_FALLING);
 		udelay(500);
@@ -125,14 +127,16 @@ EXPORT_SYMBOL(aml_pcmcia_exit);
 
 int aml_pcmcia_reset(struct aml_pcmcia *pc)
 {
-	pr_dbg("CAM RESET-->\n");
-	pc->rst(pc, AML_L);/* efaule LOW */
-	mdelay(100); /* Wait.. */
-	pc->rst(pc, AML_H);/*HI is reset*/
-	mdelay(1000);
-	pc->rst(pc, AML_L);/*defaule LOW*/
-	msleep(1000);
-	pr_dbg("CAM RESET--end\n");
+		pr_dbg("CAM RESET-->\n");
+		/* viaccess neotion cam need delay 2000 and 3000 */
+		/* smit cam need delay 1000 and 1500 */
+		/* need change delay according cam vendor */
+		pc->rst(pc, AML_H);/*HI is reset*/
+		mdelay(1000);
+		pc->rst(pc, AML_L);/*defaule LOW*/
+		pr_dbg("CAM RESET--\n");
+		mdelay(1500);
+		pr_dbg("CAM RESET--end\n");
 	return 0;
 }
 EXPORT_SYMBOL(aml_pcmcia_reset);

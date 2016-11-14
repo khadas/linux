@@ -436,6 +436,8 @@ static int aml_ci_io_write_by_spi(
 	u16 addres = addr;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
+	/*add by chl,need add time delay*/
+	mdelay(10);
 	aml_init_send_buf(AM_CI_CMD_IOW, data, addres);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_IOW);
 	/*pr_dbg("write : ATTR[%d] = 0x%x\n", addr, data);*/

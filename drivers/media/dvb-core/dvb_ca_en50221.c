@@ -54,7 +54,7 @@ MODULE_PARM_DESC(cam_debug, "enable verbose debug messages");
 	} while (0)
 #define pr_error(fmt, args...) printk("CA EN50211: " fmt, ## args)
 
-#define INIT_TIMEOUT_SECS 10
+#define INIT_TIMEOUT_SECS 40
 
 #define HOST_LINK_BUF_SIZE 0x200
 
