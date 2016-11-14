@@ -124,7 +124,7 @@ int decoder_mmu_box_alloc_idx(
 
 	}
 	if (!sc) {
-		sc = codec_mm_scatter_alloc(num_pages * 2, num_pages);
+		sc = codec_mm_scatter_alloc(num_pages + 64, num_pages);
 		if (!sc) {
 			mutex_unlock(&box->mutex);
 			pr_err("alloc mmu failed, need pages=%d\n",

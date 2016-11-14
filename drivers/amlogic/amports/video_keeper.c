@@ -691,7 +691,8 @@ void try_free_keep_video(int flags)
 		}
 	}
 	if (free_scatter_keeper && keep_id > 0) {
-		codec_mm_keeper_unmask_keeper(keep_id);
+		pr_info("try_free_keep_video keepid\n");
+		codec_mm_keeper_unmask_keeper(keep_id, 0);
 		keep_id = -1;
 	}
 	free_alloced_keep_buffer();
@@ -725,11 +726,13 @@ void get_video_keep_buffer(ulong *addr, ulong *phys_addr)
 void video_keeper_new_frame_notify(void)
 {
 	if (keep_video_on) {
-		pr_info("toggle new frame after keep.\n");
+		pr_info("new toggle keep_id\n");
 		keep_video_on = 0;
 	}
 	if (keep_id > 0) {
-		codec_mm_keeper_unmask_keeper(keep_id);
+		/*wait 80 ms for vsync post.*/
+		pr_info("new frame show, free keeper\n");
+		codec_mm_keeper_unmask_keeper(keep_id, 120);
 		keep_id = -1;
 	}
 	return;
@@ -775,10 +778,13 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 		int old_keep = keep_id;
 		int ret = codec_mm_keeper_mask_keep_mem(cur_dispbuf->mem_handle,
 			MEM_TYPE_CODEC_MM_SCATTER);
-		if (ret > 0)
+		if (ret > 0) {
 			keep_id = ret;
-		if (old_keep)
-			codec_mm_keeper_unmask_keeper(old_keep);
+			if (old_keep > 0 && keep_id != old_keep) {
+				/*wait 80 ms for vsync post.*/
+				codec_mm_keeper_unmask_keeper(old_keep, 120);
+			}
+		}
 		return 0;
 	}
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&

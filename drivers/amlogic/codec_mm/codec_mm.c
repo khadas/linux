@@ -79,6 +79,19 @@ trace memory alloc/free info:0x20,
 
 */
 static u32 debug_mode;
+
+static u32 debug_sc_mode;
+u32 codec_mm_get_sc_debug_mode(void)
+{
+	return debug_sc_mode;
+}
+static u32 debug_keep_mode;
+u32 codec_mm_get_keep_debug_mode(void)
+{
+	return debug_keep_mode;
+}
+
+
 #define TVP_MAX_SLOT 8
 struct extpool_mgt_s {
 	struct gen_pool *gen_pool[TVP_MAX_SLOT];
@@ -108,6 +121,8 @@ struct codec_mm_mgt_s {
 	int alloced_res_size;
 	int alloced_cma_size;
 	int alloced_sys_size;
+	int alloced_for_sc_size;
+	int alloced_for_sc_cnt;
 
 	int alloc_from_sys_pages_max;
 	int enable_kmalloc_on_nomem;
@@ -422,6 +437,10 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 {
 	if (!(mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR))
 		mgt->total_alloced_size -= mem->buffer_size;
+	if (mem->flags & CODEC_MM_FLAGS_FOR_SCATTER) {
+		mgt->alloced_for_sc_size -= mem->buffer_size;
+		mgt->alloced_for_sc_cnt--;
+	}
 
 	if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA) {
 		dma_release_from_contiguous(mgt->dev,
@@ -487,6 +506,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	mem->flags = memflags;
 	ret = codec_mm_alloc_in(mgt, mem);
 	if (ret == -10003 &&
+		mgt->alloced_for_sc_cnt > 0 && /*have used for scatter.*/
 		!(memflags & CODEC_MM_FLAGS_FOR_SCATTER)) {
 		/*if not scatter, free scatter caches.*/
 		pr_err(" No mem ret=%d, clear scatter cache!!\n", ret);
@@ -530,6 +550,10 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		mgt->total_alloced_size += mem->buffer_size;
 		if (mgt->total_alloced_size > mgt->max_used_mem_size)
 			mgt->max_used_mem_size = mgt->total_alloced_size;
+	}
+	if ((mem->flags & CODEC_MM_FLAGS_FOR_SCATTER)) {
+		mgt->alloced_for_sc_size += mem->buffer_size;
+		mgt->alloced_for_sc_cnt++;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	if (debug_mode & 0x20)
@@ -1018,7 +1042,7 @@ int codec_mm_enough_for_size(int size, int with_wait)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	int have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
-	if (!have_mem && with_wait) {
+	if (!have_mem && with_wait && mgt->alloced_for_sc_cnt > 0) {
 		pr_err(" No mem, clear scatter cache!!\n");
 		codec_mm_scatter_free_all_ignorecache();
 		have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
@@ -1540,6 +1564,9 @@ RESERVEDMEM_OF_DECLARE(codec_mm_reserved, "amlogic, codec-mm-reserved",
 
 module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");
-
+module_param(debug_sc_mode, uint, 0664);
+MODULE_PARM_DESC(debug_sc_mode, "\n debug scatter module\n");
+module_param(debug_keep_mode, uint, 0664);
+MODULE_PARM_DESC(debug_keep_mode, "\n debug keep module\n");
 
 

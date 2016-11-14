@@ -38,6 +38,7 @@ struct keep_mem_info {
 	int keep_id;
 	int type;
 	int user;
+	u64 delay_on_jiffies64;
 };
 
 struct codec_mm_keeper_mgr {
@@ -67,6 +68,8 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 	int ret;
 	int slot_i = -1;
 	int have_samed = 0;
+	if (codec_mm_get_keep_debug_mode() & 1)
+		pr_err("codec_mm_keeper_mask_keep_mem %p\n", mem_handle);
 	if (!mem_handle) {
 		pr_err("NULL mem_handle for keeper!!\n");
 		return -2;
@@ -77,7 +80,9 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 	}
 	ret = codec_mm_scatter_inc_for_keeper(mem_handle);
 	if (ret < 0) {
-		pr_err("keeper scatter failed,%d\n", ret);
+		pr_err("keeper scatter failed,%d,handle:%p\n", ret, mem_handle);
+		if (codec_mm_get_keep_debug_mode() & 1)
+			codec_mm_dump_all_scatters();
 		return -4;
 	}
 	spin_lock_irqsave(&mgr->lock, flags);
@@ -108,17 +113,24 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 			pr_err("keep mem failed because keep buffer fulled!!!\n");
 	}
 	spin_unlock_irqrestore(&mgr->lock, flags);
+	if (codec_mm_get_keep_debug_mode() & 1) {
+		/*keeped info*/
+		pr_err("codec_mm_keeper_mask_keep_mem %p id=%d\n",
+			mem_handle, keep_id);
+	}
 	return keep_id;
 }
 
 /*
 can call in irq
 */
-int codec_mm_keeper_unmask_keeper(int keep_id)
+int codec_mm_keeper_unmask_keeper(int keep_id, int delayms)
 {
 	struct codec_mm_keeper_mgr *mgr = get_codec_mm_keeper_mgr();
 	int i;
 	unsigned long flags;
+	if (codec_mm_get_keep_debug_mode() & 1)
+		pr_err("codec_mm_keeper_unmask_keeper %d\n", keep_id);
 	if (keep_id < START_KEEP_ID || keep_id >= MAX_KEEP_ID) {
 		pr_err("invalid keepid %d\n", keep_id);
 		return -1;
@@ -126,35 +138,28 @@ int codec_mm_keeper_unmask_keeper(int keep_id)
 	spin_lock_irqsave(&mgr->lock, flags);
 	for (i = 0; i < MAX_KEEP_FRAME; i++) {
 		if (keep_id == mgr->keep_list[i].keep_id) {
-			mgr->keep_list[i].user--;	/*mask can free. */
+			mgr->keep_list[i].user--;/*mask can free. */
+			mgr->keep_list[i].delay_on_jiffies64 =
+				get_jiffies_64() + delayms * HZ/1000;
 			break;
 		}
 	}
 	spin_unlock_irqrestore(&mgr->lock, flags);
-	schedule_delayed_work(&mgr->dealy_work, 0);	/*do free later, */
+	schedule_delayed_work(&mgr->dealy_work, delayms);/*do free later, */
 	return 0;
 }
 
-static int codec_mm_keeper_free_keep(int keep_id)
+static int codec_mm_keeper_free_keep(int index)
 {
 	struct codec_mm_keeper_mgr *mgr = get_codec_mm_keeper_mgr();
 	void *mem_handle = NULL;
 	int type;
-	int i;
 	unsigned long flags;
-	if (keep_id < START_KEEP_ID || keep_id > MAX_KEEP_ID) {
-		pr_err("invalid keepid %d\n", keep_id);
-		return -1;
-	}
 	spin_lock_irqsave(&mgr->lock, flags);
-	for (i = 0; i < MAX_KEEP_FRAME; i++) {
-		if (keep_id == mgr->keep_list[i].keep_id) {
-			mem_handle = mgr->keep_list[i].handle;
-			type = mgr->keep_list[i].type;
-			mgr->keep_list[i].handle = NULL;
-			break;
-		}
-	}
+	mem_handle = mgr->keep_list[index].handle;
+	type = mgr->keep_list[index].type;
+	mgr->keep_list[index].handle = NULL;
+	mgr->keep_list[index].delay_on_jiffies64 = 0;
 	spin_unlock_irqrestore(&mgr->lock, flags);
 	if (!mem_handle)
 		return -1;
@@ -180,8 +185,10 @@ int codec_mm_keeper_free_all_keep(int force)
 		struct keep_mem_info *info = &mgr->keep_list[i];
 		if (info->handle &&
 			info->keep_id > 0 &&
+			time_after64(get_jiffies_64(),
+				info->delay_on_jiffies64) &&
 			(force || info->user <= 0))
-			codec_mm_keeper_free_keep(info->keep_id);
+			codec_mm_keeper_free_keep(i);
 	}
 
 	return 0;

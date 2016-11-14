@@ -106,5 +106,10 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 void codec_mm_release(struct codec_mm_s *mem, const char *owner);
 u32 get_codec_mm_profiles(void);
 
-#endif				/*
-				 */
+u32 codec_mm_get_sc_debug_mode(void);
+u32 codec_mm_get_keep_debug_mode(void);
+
+
+
+#endif/**/
+

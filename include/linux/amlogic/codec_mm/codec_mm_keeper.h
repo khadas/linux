@@ -28,7 +28,7 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type);
 /*
 can call in irq
 */
-int codec_mm_keeper_unmask_keeper(int keep_id);
+int codec_mm_keeper_unmask_keeper(int keep_id, int delayms);
 
 #endif				/*
 				 */
