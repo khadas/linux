@@ -245,7 +245,8 @@ static int misc_property_setup(struct platform_device *pdev,
 
 	/* Set default value for unicast filter entries */
 	plat->unicast_filter_entries = 1;
-
+	plat->mdio_bus_data->probed_phy_irq =
+		platform_get_irq_byname(pdev, "phyirq");
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added

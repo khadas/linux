@@ -1056,7 +1056,6 @@ void internal_config(struct phy_device *phydev)
 	/*set reg27[12] = 1*/
 	value = phy_read(phydev, 0x1b);
 	phy_write(phydev, 0x1b, value|0x1000);
-
 	phy_write(phydev, 0x11, 0x0080);
 	/*Enable Analog and DSP register Bank access by*/
 	phy_write(phydev, 0x14, 0x0000);
@@ -1083,6 +1082,8 @@ void internal_config(struct phy_device *phydev)
 	phy_write(phydev, 0x14, 0x4417); /* A6_CONFIG */
 	phy_write(phydev, 0x17, 0x6400);
 	phy_write(phydev, 0x14, 0x441A); /* A8_CONFIG */
+	/*enable link interrupt*/
+	phy_write(phydev, 0x1E, 0x50);
 }
 
 void wol_test(struct phy_device *phydev)
@@ -1116,6 +1117,8 @@ static int internal_phy_read_status(struct phy_device *phydev)
 	static int val;
 	static int i;
 	static int omiphy_count_start;
+	/*read clear interrupt status to reenable interrupt*/
+	phy_read(phydev, 0x1d);
 	/* Update the link, but return if there was an error */
 	/* Bit 15: READ*/
 	/*Bit 14: Write*/
@@ -1304,6 +1307,7 @@ static int internal_config_init(struct phy_device *phydev)
 {
 	pr_info("patch1 link down dump phyreg\n");
 	pr_info("patch2 set driving length\n");
+
 	/*internal_wol_init(phydev);*/
 	internal_config(phydev);
 	return genphy_config_init(phydev);
