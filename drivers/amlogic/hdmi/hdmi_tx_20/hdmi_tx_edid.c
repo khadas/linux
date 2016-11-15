@@ -1685,6 +1685,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		EDID_buf = hdmitx_device->EDID_buf;
 	else
 		EDID_buf = hdmitx_device->EDID_buf1;
+	hdmitx_device->edid_ptr = EDID_buf;
 	hdmi_print(0, "EDID Parser:\n");
 	memset(rptx_edid_buf, 0, sizeof(rptx_edid_buf));
 	rptx_edid_aud = &rptx_edid_buf[0];

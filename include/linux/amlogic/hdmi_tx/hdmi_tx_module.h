@@ -221,6 +221,7 @@ struct hdmitx_dev {
 	unsigned cur_phy_block_ptr;
 	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
 	unsigned char EDID_buf1[EDID_MAX_BLOCK*128]; /* for second read */
+	unsigned char *edid_ptr;
 	unsigned char EDID_hash[20];
 	struct rx_cap RXCap;
 	struct hdmitx_vidpara *cur_video_param;

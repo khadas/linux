@@ -2943,12 +2943,12 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			return;
 		}
 		if (strncmp(tmpbuf+4, "start", 5) == 0) {
-			ret = kstrtoul(tmpbuf + 4, 10, &value);
+			ret = kstrtoul(tmpbuf + 9, 10, &value);
 			hd_write_reg(P_VENC_VIDEO_TST_CLRBAR_STRT, value);
 			return;
 		}
 		if (strncmp(tmpbuf+4, "shift", 5) == 0) {
-			ret = kstrtoul(tmpbuf + 4, 10, &value);
+			ret = kstrtoul(tmpbuf + 9, 10, &value);
 			hd_write_reg(P_VENC_VIDEO_TST_VDCNT_STSET, value);
 			return;
 		}

@@ -124,6 +124,8 @@ static struct switch_dev hdmi_hdr = {
 };
 static int edid_read_flag __nosavedata;
 
+static int hdmi_init;
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static void hdmitx_early_suspend(struct early_suspend *h)
@@ -894,13 +896,13 @@ static ssize_t show_rawedid(struct device *dev,
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int num;
 
-	if (hdev->EDID_buf[0x7e] < 4)
-		num = (hdev->EDID_buf[0x7e]+1)*0x80;
+	if (hdev->edid_ptr[0x7e] < 4)
+		num = (hdev->edid_ptr[0x7e]+1)*0x80;
 	else
 		num = 0x100;
 
 	for (i = 0; i < num; i++)
-		pos += snprintf(buf+pos, PAGE_SIZE, "%02x", hdev->EDID_buf[i]);
+		pos += snprintf(buf+pos, PAGE_SIZE, "%02x", hdev->edid_ptr[i]);
 
 	pos += snprintf(buf+pos, PAGE_SIZE, "\n");
 
@@ -1191,7 +1193,7 @@ static ssize_t store_debug(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	hdmitx_device.HWOp.DebugFun(&hdmitx_device, buf);
-	return 16;
+	return count;
 }
 
 /* support format lists */
@@ -1910,6 +1912,15 @@ static ssize_t show_hpd_state(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_hdmi_init(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n\r", hdmi_init);
+	return pos;
+}
+
 static ssize_t show_ready(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1994,6 +2005,7 @@ static DEVICE_ATTR(disp_cap_3d, S_IRUGO, show_disp_cap_3d, NULL);
 static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info, NULL);
 static DEVICE_ATTR(hdcp_ver, S_IRUGO, show_hdcp_ver, NULL);
 static DEVICE_ATTR(hpd_state, S_IRUGO, show_hpd_state, NULL);
+static DEVICE_ATTR(hdmi_init, S_IRUGO, show_hdmi_init, NULL);
 static DEVICE_ATTR(ready, S_IWUSR | S_IRUGO | S_IWGRP, show_ready, store_ready);
 static DEVICE_ATTR(support_3d, S_IRUGO, show_support_3d, NULL);
 
@@ -2299,7 +2311,6 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	pr_info("hdmitx: plugin\n");
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	/* start reading E-EDID */
-	hdev->hpd_state = 1;
 	rx_repeat_hpd_state(1);
 	hdmitx_get_edid(hdev);
 	if (check_fbc_special(&hdev->EDID_buf[0])
@@ -2313,6 +2324,7 @@ void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	set_disp_mode_auto();
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
+	hdev->hpd_state = 1;
 	switch_set_state(&sdev, 1);
 	switch_set_state(&hdmi_audio, 1);
 
@@ -2351,7 +2363,6 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		return;
 	}
 	hdev->ready = 0;
-	hdev->hpd_state = 0;
 	rx_repeat_hpd_state(0);
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
@@ -2367,6 +2378,7 @@ void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	clear_hdr_info(hdev);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
+	hdev->hpd_state = 0;
 	switch_set_state(&sdev, 0);
 	switch_set_state(&hdmi_audio, 0);
 	mutex_unlock(&setclk_mutex);
@@ -2441,6 +2453,7 @@ static int hdmi_task_handle(void *data)
 		HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH, 0);
 
 	hdmitx_device->HWOp.SetupIRQ(hdmitx_device);
+	hdmi_init = 1;
 	return 0;
 }
 
@@ -2862,6 +2875,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_div40);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctrl);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
+	ret = device_create_file(dev, &dev_attr_hdmi_init);
 	ret = device_create_file(dev, &dev_attr_ready);
 	ret = device_create_file(dev, &dev_attr_support_3d);
 	ret = device_create_file(dev, &dev_attr_dc_cap);
@@ -3055,6 +3069,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_dv_cap);
 	device_remove_file(dev, &dev_attr_dc_cap);
 	device_remove_file(dev, &dev_attr_hpd_state);
+	device_remove_file(dev, &dev_attr_hdmi_init);
 	device_remove_file(dev, &dev_attr_ready);
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_avmute);
