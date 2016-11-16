@@ -134,7 +134,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, UShort *rPstCYWnd0, UShort *rPstCYWnd1,
 		 UShort *rPstCYWnd2, UShort *rPstCYWnd3, UShort *rPstCYWnd4,
 		 UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		 UINT32 *rROFldDif01, UINT32 *rROFrmDif02, UINT32 *rROCmbInf,
-		 int *tTCNm,
+		 UINT32 glb_frame_mot_num, UINT32 glb_field_mot_num, int *tTCNm,
 		 struct sFlmSftPar *pPar, int nROW, int nCOL);
 
 /* length of pFlm01/nDif01: [0:5]; */
@@ -176,5 +176,6 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	      int nROW, int nCOL);
 
 extern UINT32 field_count;
+extern unsigned int frame_diff_avg;
 
 #endif

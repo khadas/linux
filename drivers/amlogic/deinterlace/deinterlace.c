@@ -4019,6 +4019,12 @@ static unsigned int (*combing_setting_values[6])[MAX_NUM_DI_REG] = {
  * from low motion to high motion level
  * take 720x480 as example */
 static unsigned int combing_glb_mot_thr_LH[4] = {1440, 2880, 4760, 9520};
+
+/* >> 4 */
+static unsigned int combing_glbmot_radprat[4] = {32, 48, 64, 80};
+static unsigned int num_glbmot_radprat = 4;
+module_param_array(combing_glbmot_radprat, uint, &num_glbmot_radprat, 0664);
+
 /* level:    0<-1  1<-2   2<-3   3<-4
  * from high motion to low motion level */
 static unsigned int combing_glb_mot_thr_HL[4] = {720, 1440, 2880, 5760};
@@ -4086,14 +4092,23 @@ static void combing_threshold_config(unsigned int  width)
 {
 	int i = 0;
 	/* init combing threshold */
+	/*
 	for (i = 0; i < 4; i++) {
 		combing_glb_mot_thr_LH[i] = (width<<1)*(i+1);
 		combing_glb_mot_thr_HL[i] = width<<i;
 	}
 	combing_glb_mot_thr_LH[3] = width*13;
+	*/
+
+	for (i = 0; i < 4; i++) {
+		combing_glb_mot_thr_LH[i] =
+			((width * combing_glbmot_radprat[i] + 8) >> 4);
+		combing_glb_mot_thr_HL[i] =
+			combing_glb_mot_thr_LH[i] - width;
+	}
 }
 
-unsigned int adp_set_level(unsigned int diff)
+unsigned int adp_set_level(unsigned int diff, unsigned int field_diff_num)
 {
 	unsigned int rst = 0;
 	char tlog[] = "LHM";
@@ -4105,7 +4120,8 @@ unsigned int adp_set_level(unsigned int diff)
 		rst = 2;
 
 	if (cmb_adpset_cnt > 0) {
-		pr_info("\ndiff=%d lvl=%c\n", diff, tlog[rst]);
+		pr_info("\field-num=%04d frame-num=%04d lvl=%c\n",
+			field_diff_num, diff, tlog[rst]);
 		cmb_adpset_cnt--;
 	}
 
@@ -4275,12 +4291,18 @@ unsigned int adp_set_mtn_ctrl7(unsigned int diff, unsigned int dlvel)
 	}*/
 	return rst;
 }
+static unsigned int small_local_mtn = 70;
+module_param(small_local_mtn, uint, 0644);
+MODULE_PARM_DESC(small_local_mtn, "small_local_mtn");
 
 unsigned int adp_set_mtn_ctrl10(unsigned int diff, unsigned int dlvel)
 {
 	int istp = 0, idats = 0, idatm = 0, idatr = 0;
 	unsigned int rst = 0;
-	if (dlvel == 0)
+
+	if (frame_diff_avg < small_local_mtn)
+		rst = combing_very_motion_setting[9];
+	else if (dlvel == 0)
 		rst = combing_pure_still_setting[9];
 	else if (dlvel == 1)
 		rst = combing_very_motion_setting[9];
@@ -4313,10 +4335,11 @@ unsigned int adp_set_mtn_ctrl10(unsigned int diff, unsigned int dlvel)
 			idatr = ((idats - idatm) * istp >> 6) + idatm;
 			rst = (rst<<8) | (idatr & 0xff);
 	}
-	/*
+
 	if (cmb_adpset_cnt > 0) {
-		pr_info("mtn_ctr10=%8x\n", rst);
-	}*/
+		pr_info("mtn_ctr10=0x%08x (frame_dif_avg=%03d)\n",
+			rst, frame_diff_avg);
+	}
 	return rst;
 }
 
@@ -4492,7 +4515,7 @@ static void adaptive_combing_fixing(
 
 	if ((force_lev > 5) && (di_debug_new_en == 1) &&
 		(glb_mot[1] != glb_mot[0])) {
-		dlvl = adp_set_level(glb_mot[0]);
+		dlvl = adp_set_level(glb_mot[0], field_pd_info->field_diff_num);
 		diff = glb_mot[0];
 		pre_dat[0] = Rd(DI_MTN_1_CTRL3);
 		wt_dat = adp_set_mtn_ctrl3(diff, dlvl);
@@ -4508,9 +4531,8 @@ static void adaptive_combing_fixing(
 		if (pre_dat[1] != wt_dat) {
 			DI_Wr(DI_MTN_1_CTRL4, wt_dat);
 			if (prt_flg)
-				pr_info("set mtn04 %08x -> %08x (%d).\n",
-				pre_dat[1], wt_dat,
-				field_pd_info->field_diff_num);
+				pr_info("set mtn04 %08x -> %08x.\n",
+				pre_dat[1], wt_dat);
 			pre_dat[1] = wt_dat;
 		}
 
@@ -4615,6 +4637,10 @@ module_param(flmxx_sure_num, uint, 0644);
 MODULE_PARM_DESC(flmxx_sure_num, "ture film-xx/n");
 */
 
+static unsigned int flm22_sure_smnum = 70;
+static unsigned int flm22_ratio = 100;
+/* 79 for iptv test pd22 ts */
+module_param_named(flm22_ratio, flm22_ratio, uint, 0644);
 /* static unsigned int flmxx_sure_num[7]
  = {50, 50, 50, 50, 50, 50, 50}; */
 static unsigned int flmxx_sure_num[7] = {20, 20, 20, 20, 20, 20, 20};
@@ -4650,10 +4676,13 @@ static void pre_de_done_buf_config(void)
 	bool flm22 = false;
 	bool flmxx = false;
 	int tb_chk_ret = 0;
-	unsigned int glb_mot = 0;
+
+	unsigned int glb_frame_mot_num = 0;
+	unsigned int glb_field_mot_num = 0;
 	unsigned int mot_row = 0;
 	unsigned int mot_max = 0;
-
+	unsigned int flm22_surenum = flm22_sure_num;
+	unsigned int ntmp = 0;
 	if (di_pre_stru.di_wr_buf) {
 		if (di_pre_stru.pre_throw_flag > 0) {
 			di_pre_stru.di_wr_buf->throw_flag = 1;
@@ -4707,9 +4736,12 @@ static void pre_de_done_buf_config(void)
 		if (!di_pre_stru.cur_prog_flag) {
 			/* always read and print data */
 			read_new_pulldown_info(&flmreg);
-
 			/* read_new_pulldown_info(&flmreg); */
 			if ((pldn_calc_en == 1) && pulldown_enable) {
+				glb_frame_mot_num = di_pre_stru.di_post_wr_buf->
+						field_pd_info.frame_diff_num;
+				glb_field_mot_num = di_pre_stru.di_post_wr_buf->
+						field_pd_info.field_diff_num;
 				dectres.rF22Flag = FlmVOFSftTop(
 					&(dectres.rCmb32Spcl),
 					dectres.rPstCYWnd0,
@@ -4723,6 +4755,8 @@ static void pre_de_done_buf_config(void)
 					flmreg.rROFldDif01,
 					flmreg.rROFrmDif02,
 					flmreg.rROCmbInf,
+					glb_frame_mot_num,
+					glb_field_mot_num,
 					&tTCNm,
 					&pd_param,
 					hHeight + 1,
@@ -4802,11 +4836,19 @@ static void pre_de_done_buf_config(void)
 				flm32 = (dectres.rFlmPstMod == 2 &&
 					dectres.rFlmPstGCm == 0);
 
+				ntmp = (glb_frame_mot_num + glb_field_mot_num) /
+					(wWidth + 1);
+				if (flm22_sure_num > ntmp + flm22_sure_smnum)
+					flm22_surenum = flm22_sure_num - ntmp;
+				else
+					flm22_surenum = flm22_sure_smnum;
+
+				if (cmb_adpset_cnt > 0)
+					pr_info("flm22_surenum = %2d\n",
+						flm22_surenum);
 				if (di_debug_new_en &&
 					(dectres.rFlmPstMod == 1)) {
-					glb_mot = di_pre_stru.di_post_wr_buf->
-						field_pd_info.frame_diff_num;
-					mot_row = glb_mot *
+					mot_row = glb_frame_mot_num *
 					flm22_glbpxlnum_rat / (wWidth + 1);
 					mot_max = (flm22_glbpxl_maxrow *
 						hHeight + 128) >> 8;
@@ -4830,7 +4872,7 @@ static void pre_de_done_buf_config(void)
 				}
 
 				flm22 = (dectres.rFlmPstMod == 1  &&
-					dectres.rF22Flag >= flm22_sure_num);
+					dectres.rF22Flag >= flm22_surenum);
 				if (dectres.rFlmPstMod >= 4)
 					flmxx = (dectres.rF22Flag >=
 					flmxx_sure_num[dectres.rFlmPstMod - 4]);
@@ -7742,6 +7784,8 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
 				if (ready_di_buf->new_format_flag &&
 				(ready_di_buf->type == VFRAME_TYPE_IN)) {
+					pr_info("DI:%d disable post.\n",
+						__LINE__);
 					di_buf->vframe->early_process_fun
 						= de_post_disable_fun;
 				} else {
@@ -8210,6 +8254,11 @@ static void di_reg_process_irq(void)
 		}
 
 		reset_pulldown_state();
+		if (pulldown_enable) {
+			FlmVOFSftInt(&pd_param);
+			flm22_sure_num = (vframe->height * 100)/480;
+			flm22_sure_smnum = (flm22_sure_num * flm22_ratio)/100;
+		}
 		combing_threshold_config(vframe->width);
 		if (is_meson_txl_cpu()) {
 			combing_pd22_window_config(vframe->width,

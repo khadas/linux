@@ -1,6 +1,8 @@
 /* Film Detection and VOF detection Software implementation
 * Designer: Xin.Hu@amlogic.com
-* Date: 12/06/13 */
+*/
+
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include "film_vof_soft.h"
@@ -91,6 +93,10 @@ int flm22_mim_frms = 60;
 module_param(flm22_mim_frms, int, 0644);
 MODULE_PARM_DESC(flm22_mim_frms, "flm22_mim_frms");
 
+int flm22_mim_smfrms = 40;
+module_param(flm22_mim_smfrms, int, 0644);
+MODULE_PARM_DESC(flm22_mim_smfrms, "flm22_mim_smfrms");
+
 int flm32_f2fdif_min0 = 11;
 module_param(flm32_f2fdif_min0, int, 0644);
 MODULE_PARM_DESC(flm32_f2fdif_min0, "flm32_f2fdif_min0");
@@ -168,13 +174,26 @@ int flm22_anti_ck141 = 80;
 module_param(flm22_anti_ck141, int, 0644);
 MODULE_PARM_DESC(flm22_anti_ck141, "flm22_anti_ck141");
 
+int flm22_frmdif_max = 50;
+module_param(flm22_frmdif_max, int, 0644);
+MODULE_PARM_DESC(flm22_frmdif_max, "flm22_frmdif_max");
+
+int flm22_flddif_max = 100;
+module_param(flm22_flddif_max, int, 0644);
+MODULE_PARM_DESC(flm22_flddif_max, "flm22_flddif_max");
+
+int flm22_minus_cntmax = 2;
+module_param(flm22_minus_cntmax, int, 0644);
+MODULE_PARM_DESC(flm22_minus_cntmax, "flm22_minus_cntmax");
+
+unsigned int frame_diff_avg = 0;
 
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 unsigned short *rPstCYWnd1, unsigned short *rPstCYWnd2,
 		 unsigned short *rPstCYWnd3, unsigned short *rPstCYWnd4,
 		 UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		 UINT32 *rROFldDif01, UINT32 *rROFrmDif02, UINT32 *rROCmbInf,
-		 int *tTCNm,
+		 UINT32 glb_frame_mot_num, UINT32 glb_field_mot_num, int *tTCNm,
 		 struct sFlmSftPar *pPar, int nROW, int nCOL)
 {
 	static UINT32 DIF01[HISDIFNUM]; /* Last one is global */
@@ -184,10 +203,13 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 
 	static struct sFlmDatSt pRDat;
 	static int pre22lvl;
+	static UINT32 pre_fld_motnum;
 
 	int nDIF01[HISDIFNUM];
 	int nDIF02[HISDIFNUM];
 	/* UINT32 nCb32=0; */
+	unsigned int ntmp = 0;
+	unsigned int flm22_mim_numb = 0;
 
 	/* int nRCMB[ROWCMBNUM]; */
 	int mDly = pPar->mPstDlyPre;
@@ -258,9 +280,13 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	DIF01[HISDIFNUM - 1] = rROFldDif01[0];	/* 5windows+global */
 	DIF02[HISDIFNUM - 1] = rROFrmDif02[0];	/* 5windows+global */
 
-	if (pr_pd)
+	if (pr_pd) {
 		sprintf(debug_str, "\nField#%5d: [%4dx%4d]\n",
 			field_count, nROW, nCOL);
+		sprintf(debug_str + strlen(debug_str),
+		"diff counter: %4d %4d\n",
+			glb_field_mot_num, glb_frame_mot_num);
+	}
 
 	prt_flg = (pr_pd & 0x1);
 	if (prt_flg) {
@@ -339,6 +365,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	/* Only frame (t-1) */
 	/* pFMReg->rFlmPstGCm = 0; */
 	*rFlmPstGCm = 0;
+	frame_diff_avg = DIF02[HISDIFNUM-1] / (glb_frame_mot_num + 1);
 	/* rFlmPstGCm = 1; */
 	if (pRDat.pMod32[HISDETNUM - 1 - mDly] == 3) {
 		nT0 = pRDat.pFlg32[HISDETNUM - 1 - mDly] % 2;
@@ -359,10 +386,54 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		00: global combing, 01: 2-2 film, 10: 2-3 film, 11:-others */
 		*rFlmPstMod = 1;
 
+		ntmp = (glb_frame_mot_num + glb_field_mot_num) /
+				(nCOL + 1);
+		if (flm22_mim_frms > ntmp +  flm22_mim_smfrms)
+			flm22_mim_numb = flm22_mim_frms - ntmp;
+		else
+			flm22_mim_numb = flm22_mim_smfrms;
+
+		if (pr_pd)
+			pr_info("diff02-avg=%4d\n", frame_diff_avg);
+		if (frame_diff_avg > flm22_frmdif_max) {
+			ntmp = frame_diff_avg - flm22_frmdif_max;
+			if (ntmp > flm22_minus_cntmax)
+				ntmp = flm22_minus_cntmax;
+			if (pRDat.mNum22[HISDETNUM - 1] > ntmp)
+				pRDat.mNum22[HISDETNUM - 1] =
+					pRDat.mNum22[HISDETNUM - 1] - ntmp;
+			else
+				pRDat.mNum22[HISDETNUM - 1] = 0;
+		}
+
+		if (DIF01[HISDIFNUM-1] < DIF01[HISDIFNUM-2]) {
+			/*ntmp = DIF01[HISDIFNUM-1] / (glb_field_mot_num + 1);*/
+			/* min / max */
+			ntmp = DIF01[HISDIFNUM-1] / (pre_fld_motnum + 1);
+
+			if (pr_pd)
+				pr_info("diff01-avg=%4d\n", ntmp);
+			if (ntmp > flm22_flddif_max) {
+				ntmp = ntmp - flm22_flddif_max;
+
+				if (ntmp > flm22_minus_cntmax)
+					ntmp = flm22_minus_cntmax;
+
+				if (pRDat.mNum22[HISDETNUM - 1] > ntmp)
+					pRDat.mNum22[HISDETNUM - 1] =
+					pRDat.mNum22[HISDETNUM - 1] - ntmp;
+				else
+					pRDat.mNum22[HISDETNUM - 1] = 0;
+			}
+		}
+
 		/* param: at least 60 field+4 */
-		if (pRDat.mNum22[HISDETNUM - 1] < flm22_mim_frms) {
+		if (pRDat.mNum22[HISDETNUM - 1] < flm22_mim_numb) {
 			*rFlmSltPre = 0;
 			*rFlmPstMod = 0;
+			if (pr_pd)
+				pr_info("mNum22(%3d) < %03d => set to mod=0\n",
+				pRDat.mNum22[HISDETNUM - 1], flm22_mim_frms);
 		}
 	} else {
 		*rFlmSltPre = 0;
@@ -371,6 +442,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		*rFlmPstMod = 0;
 		nS1 = 0;
 	}
+	pre_fld_motnum = glb_field_mot_num;
 
 	VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
 		rPstCYWnd0, rPstCYWnd1, rPstCYWnd2, rPstCYWnd3,
