@@ -76,6 +76,10 @@ static int vga_yuv422_enable;
 module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
 
+static int cutwindow_val = TVAFE_VS_VE_VAL;
+module_param(cutwindow_val, int, 0664);
+MODULE_PARM_DESC(cutwindow_val, "cutwindow_val");
+
 bool tvafe_dbg_enable;
 module_param(tvafe_dbg_enable, bool, 0644);
 MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
@@ -93,9 +97,116 @@ void get_afe_version(const char **ver, const char **last_ver)
 	return;
 }
 
-
-
-
+static void tvafe_state(struct tvafe_dev_s *devp)
+{
+	struct tvin_parm_s *parm = &devp->tvafe.parm;
+	struct tvafe_cvd2_s *cvd2 = &devp->tvafe.cvd2;
+	struct tvin_info_s *tvin_info = &parm->info;
+	struct tvafe_cvd2_info_s *cvd2_info = &cvd2->info;
+	struct tvafe_cvd2_lines_s *vlines = &cvd2_info->vlines;
+	struct tvafe_cvd2_hw_data_s *hw = &cvd2->hw;
+	/* top dev info */
+	pr_info("\n!!tvafe_dev_s info:\n");
+	pr_info("[tvafe..]tvafe_dev_s->index:%d\n", devp->index);
+	pr_info("[tvafe..]tvafe_dev_s->flags:0x%x\n", devp->flags);
+	pr_info("[tvafe..]tvafe_dev_s->cma_config_en:%d\n",
+		devp->cma_config_en);
+	pr_info("[tvafe..]tvafe_dev_s->cma_config_flag:0x%x\n",
+		devp->cma_config_flag);
+	#ifdef CONFIG_CMA
+	pr_info("[tvafe..]devp->cma_mem_size:0x%x\n", devp->cma_mem_size);
+	pr_info("[tvafe..]devp->cma_mem_alloc:%d\n", devp->cma_mem_alloc);
+	#endif
+	/* tvafe_dev_s->tvin_parm_s struct info */
+	pr_info("\n!!tvafe_dev_s->tvin_parm_s struct info:\n");
+	pr_info("[tvafe..]tvin_parm_s->index:%d\n", parm->index);
+	pr_info("[tvafe..]tvin_parm_s->port:0x%x\n", parm->port);
+	pr_info("[tvafe..]tvin_parm_s->hist_pow:0x%x\n", parm->hist_pow);
+	pr_info("[tvafe..]tvin_parm_s->luma_sum:0x%x\n", parm->luma_sum);
+	pr_info("[tvafe..]tvin_parm_s->pixel_sum:0x%x\n", parm->pixel_sum);
+	pr_info("[tvafe..]tvin_parm_s->flag:0x%x\n", parm->flag);
+	pr_info("[tvafe..]tvin_parm_s->dest_width:0x%x\n", parm->dest_width);
+	pr_info("[tvafe..]tvin_parm_s->dest_height:0x%x\n", parm->dest_height);
+	pr_info("[tvafe..]tvin_parm_s->h_reverse:%d\n", parm->h_reverse);
+	pr_info("[tvafe..]tvin_parm_s->v_reverse:%d\n", parm->v_reverse);
+	/* tvafe_dev_s->tvafe_cvd2_s struct info */
+	pr_info("\n!!tvafe_dev_s->tvafe_cvd2_s struct info:\n");
+	pr_info("[tvafe..]tvafe_cvd2_s->config_fmt:0x%x\n", cvd2->config_fmt);
+	pr_info("[tvafe..]tvafe_cvd2_s->manual_fmt:0x%x\n", cvd2->manual_fmt);
+	pr_info("[tvafe..]tvafe_cvd2_s->vd_port:0x%x\n", cvd2->vd_port);
+	pr_info("[tvafe..]tvafe_cvd2_s->cvd2_init_en:%d\n", cvd2->cvd2_init_en);
+	/* tvin_parm_s->tvin_info_s struct info */
+	pr_info("\n!!tvin_parm_s->tvin_info_s struct info:\n");
+	pr_info("[tvafe..]tvin_info_s->trans_fmt:0x%x\n", tvin_info->trans_fmt);
+	pr_info("[tvafe..]tvin_info_s->fmt:0x%x\n", tvin_info->fmt);
+	pr_info("[tvafe..]tvin_info_s->status:0x%x\n", tvin_info->status);
+	pr_info("[tvafe..]tvin_info_s->cfmt:%d\n", tvin_info->cfmt);
+	pr_info("[tvafe..]tvin_info_s->fps:%d\n", tvin_info->fps);
+	/* tvafe_cvd2_s->tvafe_cvd2_info_s struct info */
+	pr_info("\n!!tvafe_cvd2_s->tvafe_cvd2_info_s struct info:\n");
+	pr_info("[tvafe..]tvafe_cvd2_info_s->state:0x%x\n", cvd2_info->state);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->state_cnt:0x%x\n",
+		cvd2_info->state_cnt);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->non_std_enable:%d\n",
+		cvd2_info->non_std_enable);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->non_std_config:%d\n",
+		cvd2_info->non_std_config);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->non_std_worst:%d\n",
+		cvd2_info->non_std_worst);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->adc_reload_en:%d\n",
+		cvd2_info->adc_reload_en);
+	/* tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info */
+	pr_info("\n!!tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info:\n");
+	pr_info("[tvafe..]tvafe_cvd2_lines_s->check_cnt:0x%x\n",
+		vlines->check_cnt);
+	pr_info("[tvafe..]tvafe_cvd2_lines_s->de_offset:0x%x\n",
+		vlines->de_offset);
+	pr_info("[tvafe..]tvafe_cvd2_lines_s->val[0]:0x%x\n",
+		vlines->val[0]);
+	pr_info("[tvafe..]tvafe_cvd2_lines_s->val[1]:0x%x\n",
+		vlines->val[1]);
+	pr_info("[tvafe..]tvafe_cvd2_lines_s->val[2]:0x%x\n",
+		vlines->val[2]);
+	pr_info("[tvafe..]tvafe_cvd2_lines_s->val[3]:0x%x\n",
+		vlines->val[3]);
+	/* tvafe_cvd2_s->tvafe_cvd2_hw_data_s struct info */
+	pr_info("\n!!tvafe_cvd2_s->tvafe_cvd2_hw_data_s struct info:\n");
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->no_sig:%d\n", hw->no_sig);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->h_lock:%d\n", hw->h_lock);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->v_lock:%d\n", hw->v_lock);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->h_nonstd:%d\n", hw->h_nonstd);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->v_nonstd:%d\n", hw->v_nonstd);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->no_color_burst:%d\n",
+		hw->no_color_burst);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->comb3d_off:%d\n",
+		hw->comb3d_off);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->chroma_lock:%d\n",
+		hw->chroma_lock);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->pal:%d\n", hw->pal);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->secam:%d\n", hw->secam);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->line625:%d\n", hw->line625);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->noisy:%d\n", hw->noisy);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->vcr:%d\n", hw->vcr);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->vcrtrick:%d\n", hw->vcrtrick);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->vcrff:%d\n", hw->vcrff);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->vcrrew:%d\n", hw->vcrrew);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->noisy:%d\n", hw->noisy);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->acc4xx_cnt:%d\n",
+		hw->acc4xx_cnt);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->acc425_cnt:%d\n",
+		hw->acc425_cnt);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->acc3xx_cnt:%d\n",
+		hw->acc3xx_cnt);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->acc358_cnt:%d\n",
+		hw->acc358_cnt);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->secam_detected:%d\n",
+		hw->secam_detected);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->secam_phase:%d\n",
+		hw->secam_phase);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->fsc_358:%d\n", hw->fsc_358);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->fsc_425:%d\n", hw->fsc_425);
+	pr_info("[tvafe..]tvafe_cvd2_hw_data_s->fsc_443:%d\n", hw->fsc_443);
+}
 
 /*default only one tvafe ,echo cvdfmt pali/palm/ntsc/secam >dir*/
 static ssize_t tvafe_store(struct device *dev,
@@ -244,8 +355,7 @@ static ssize_t tvafe_store(struct device *dev,
 		devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
 		pr_info("[tvafe..]%s:tvafe snowoff\n", __func__);
 	} else if (!strncmp(buff, "state", strlen("state"))) {
-		pr_info("[tvafe..]%s:devp->flags:0x%x\n",
-			__func__, devp->flags);
+		tvafe_state(devp);
 	} else
 		pr_info("[%s]:invaild command.\n", __func__);
 	return count;
@@ -940,7 +1050,6 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	enum tvin_port_e port = tvafe->parm.port;
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-
 		pr_err("[tvafe..] tvafe havn't opened, isr error!!!\n");
 		return true;
 	}
@@ -949,27 +1058,21 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 		return 0;
 	/* if there is any error or overflow, do some reset, then rerurn -1;*/
 	if ((tvafe->parm.info.status != TVIN_SIG_STATUS_STABLE) ||
-		(tvafe->parm.info.fmt == TVIN_SIG_FMT_NULL)) {
+		(tvafe->parm.info.fmt == TVIN_SIG_FMT_NULL))
 		return -1;
-	}
 
 	/* TVAFE CVD2 3D works abnormally => reset cvd2 */
 	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7))
-
 		tvafe_cvd2_check_3d_comb(&tvafe->cvd2);
 
 #ifdef TVAFE_SET_CVBS_PGA_EN
 	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_SVIDEO7) &&
 		(port != TVIN_PORT_CVBS3))
-
 		tvafe_cvd2_adj_pga(&tvafe->cvd2);
-
 #endif
 #ifdef TVAFE_SET_CVBS_CDTO_EN
 	if (tvafe->parm.info.fmt == TVIN_SIG_FMT_CVBS_PAL_I)
-
 		tvafe_cvd2_adj_cdto(&tvafe->cvd2, hcnt64);
-
 #endif
 
 	/* tvafe_adc_clamp_adjust(devp); */
@@ -1154,6 +1257,17 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 		prop->color_format = TVIN_YUV444;
 		prop->dest_cfmt = TVIN_YUV422;
 	}
+#ifdef TVAFE_CVD2_AUTO_DE_ENABLE
+	if ((port == TVIN_PORT_CVBS0) || (port == TVIN_PORT_CVBS3)) {
+		if (tvafe->cvd2.info.vlines.de_offset != 0) {
+			prop->vs = cutwindow_val;
+			prop->ve = cutwindow_val;
+		} else {
+			prop->vs = 0;
+			prop->ve = 0;
+		}
+	}
+#endif
 	prop->color_fmt_range = TVIN_YUV_LIMIT;
 	prop->aspect_ratio = TVIN_ASPECT_NULL;
 	prop->decimation_ratio = 0;

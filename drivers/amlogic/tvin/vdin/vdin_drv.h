@@ -267,6 +267,9 @@ struct vdin_dev_s {
 	*1: full pack mode;config 10bit as 10bit
 	*0: config 10bit as 12bit*/
 	unsigned int			color_depth_mode;
+	/* cutwindow config */
+	unsigned int		cutwindow_cfg;
+	unsigned int		auto_cutwindow_en;
 };
 
 

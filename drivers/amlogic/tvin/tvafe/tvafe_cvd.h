@@ -40,7 +40,8 @@ Do not trust Reg no signal flag */
 #define TVAFE_CVD2_PAL_DE_START             0x17
 /* default de start value for pal */
 
-
+/* test with vlsi guys */
+#define TVAFE_VS_VE_VAL                     4
 /**************************************** */
 /* *** enum definitions *****************/
 /* **************************************/

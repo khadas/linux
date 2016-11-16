@@ -248,6 +248,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("color_depth_mode:%d\n", devp->color_depth_mode);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:%d\n", devp->cma_config_flag);
+	pr_info("auto_cutwindow_en:%d\n", devp->auto_cutwindow_en);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe(%u):\n", vf->index);
@@ -855,6 +856,12 @@ start_chk:
 		devp->color_depth_mode = val;
 		pr_info("color_depth_mode(%d):%d\n\n", devp->index,
 			devp->color_depth_mode);
+	} else if (!strcmp(parm[0], "auto_cutwindow_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		devp->auto_cutwindow_en = val;
+		pr_info("auto_cutwindow_en(%d):%d\n\n", devp->index,
+			devp->auto_cutwindow_en);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

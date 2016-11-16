@@ -212,6 +212,36 @@ static void hdmirx_color_fmt_handler(struct vdin_dev_s *devp)
 	}
 }
 
+/* check auto de to adjust vdin cutwindow */
+void vdin_auto_de_handler(struct vdin_dev_s *devp)
+{
+	struct tvin_state_machine_ops_s *sm_ops;
+	struct tvin_sig_property_s *prop;
+	unsigned int cur_vs, pre_vs;
+	if (!devp || !devp->frontend) {
+		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
+		return;
+	}
+	if (devp->auto_cutwindow_en == 0)
+		return;
+	prop = &devp->prop;
+	sm_ops = devp->frontend->sm_ops;
+	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
+		(sm_ops->get_sig_propery)) {
+		sm_ops->get_sig_propery(devp->frontend, prop);
+		cur_vs = prop->vs;
+		pre_vs = prop->pre_vs;
+		if (pre_vs != cur_vs) {
+			pr_info("[smr.%d] pre_vs(%d->%d),cutwindow_cfg:0x%x\n",
+				devp->index, pre_vs, cur_vs,
+				devp->cutwindow_cfg);
+			devp->cutwindow_cfg = 1;
+		} else {
+			devp->cutwindow_cfg = 0;
+		}
+	}
+}
+
 void tvin_smr_init_counter(int index)
 {
 	sm_dev[index].state_cnt          = 0;
@@ -498,6 +528,10 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 1;
 			}
 		}
+		/* dynamic adjust cutwindow for atv test */
+		if ((port == TVIN_PORT_CVBS3) ||
+			(port == TVIN_PORT_CVBS0))
+			vdin_auto_de_handler(devp);
 		/* hdmirx_color_fmt_handler(devp); */
 #if 0
 			if (sm_ops->pll_lock(devp->frontend)) {

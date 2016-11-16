@@ -917,7 +917,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		devp->frontend->dec_ops &&
 		devp->frontend->dec_ops->start &&
-		(devp->parm.port != TVIN_PORT_CVBS3))
+		((devp->parm.port != TVIN_PORT_CVBS3) ||
+		((devp->flags & VDIN_FLAG_SNOW_FLAG) == 0)))
 		devp->frontend->dec_ops->start(devp->frontend,
 				devp->parm.info.fmt);
 
@@ -986,7 +987,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		devp->frontend->dec_ops &&
 		devp->frontend->dec_ops->stop &&
-		(devp->parm.port != TVIN_PORT_CVBS3))
+		((devp->parm.port != TVIN_PORT_CVBS3) ||
+		((devp->flags & VDIN_FLAG_SNOW_FLAG) == 0)))
 		devp->frontend->dec_ops->stop(devp->frontend, devp->parm.port);
 	vdin_set_default_regmap(devp->addr_offset);
 
@@ -1659,6 +1661,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		pre_prop->color_format = prop->color_format;
 		pre_prop->vdin_hdr_Flag = prop->vdin_hdr_Flag;
 		pre_prop->color_fmt_range = prop->color_fmt_range;
+	}
+	/* change cutwindow */
+	if ((devp->cutwindow_cfg != 0) && (devp->auto_cutwindow_en == 1)) {
+		prop = &devp->prop;
+		if (prop->pre_vs)
+			devp->v_active += (prop->pre_vs + prop->pre_ve);
+		vdin_set_cutwin(devp);
+		prop->pre_vs = prop->vs;
+		prop->pre_ve = prop->ve;
+		devp->cutwindow_cfg = 0;
 	}
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
@@ -2795,6 +2807,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/*disable vdin hardware*/
 	vdin_enable_module(vdevp->addr_offset, false);
 
+	/*enable auto cutwindow for atv*/
+	if (vdevp->index == 0)
+		vdevp->auto_cutwindow_en = 1;
 	vdevp->sig_wq = create_singlethread_workqueue(vdevp->name);
 	INIT_DELAYED_WORK(&vdevp->sig_dwork, vdin_sig_dwork);
 

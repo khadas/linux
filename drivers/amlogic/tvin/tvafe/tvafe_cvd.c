@@ -271,6 +271,10 @@ static unsigned int acd_h_config = 0x8e035e;
 module_param(acd_h_config, uint, 0664);
 MODULE_PARM_DESC(acd_h_config, "acd_h_config");
 
+static unsigned int acd_h = 0X880358;
+module_param(acd_h, uint, 0664);
+MODULE_PARM_DESC(acd_h, "acd_h");
+
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 static unsigned int cvd2_filter_config_level;
 module_param(cvd2_filter_config_level, uint, 0664);
@@ -1872,7 +1876,6 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 	lines->val[2] = lines->val[3];
 	lines->val[3] = R_APB_REG(CVD2_REG_E6);
 	for (i = 0; i < 4; i++) {
-
 		if (l_max < lines->val[i])
 			l_max = lines->val[i];
 		if (l_min > lines->val[i])
@@ -1902,7 +1905,6 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 					pr_info("%s: vlines:%d, de_offset:%d tmp:%x\n",
 				__func__, l_ave, lines->de_offset, tmp);
 			}
-
 		} else {
 			if (lines->de_offset > 0) {
 				tmp = ((TVAFE_CVD2_PAL_DE_START -
@@ -2372,6 +2374,7 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 	unsigned int cur_cdto = 0, diff = 0;
 	u64 cal_cdto = 0;
 
+
 	if ((cvd_isr_en & 0x001) == 0)
 		return;
 
@@ -2384,7 +2387,6 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 	cvd2->info.hcnt64[2] = cvd2->info.hcnt64[3];
 	cvd2->info.hcnt64[3] = hcnt64;
 	for (i = 0; i < 4; i++) {
-
 		if (hcnt64_max < cvd2->info.hcnt64[i])
 			hcnt64_max = cvd2->info.hcnt64[i];
 		if (hcnt64_min > cvd2->info.hcnt64[i])
@@ -2418,7 +2420,6 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 					(unsigned int)CVD2_CHROMA_DTO_PAL_I);
 			cvd2->info.non_std_worst = 0;
 			return;
-
 		} else
 			cvd2->info.non_std_worst = 1;
 
@@ -2598,7 +2599,7 @@ void tvafe_snow_config_acd(void)
 void tvafe_snow_config_acd_resume(void)
 {
 	/*@todo,0x880358 must be same with cvbs_acd_table/rf_acd_table*/
-	if (R_APB_REG(ACD_REG_2D) != 0X880358)
-		W_APB_REG(ACD_REG_2D, 0X880358);
+	if (R_APB_REG(ACD_REG_2D) != acd_h)
+		W_APB_REG(ACD_REG_2D, acd_h);
 }
 
