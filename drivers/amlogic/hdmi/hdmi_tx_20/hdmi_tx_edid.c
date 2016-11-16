@@ -1358,7 +1358,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				goto case_hf;
 			pRXCap->ColorDeepSupport =
 				(unsigned long)BlockBuf[offset+5];
-			pRXCap->Max_TMDS_Clock =
+			pRXCap->Max_TMDS_Clock1 =
 				(unsigned long)BlockBuf[offset+6];
 			if (count > 7) {
 				tmp = BlockBuf[offset+7];
@@ -1391,6 +1391,7 @@ case_hf:
 				(BlockBuf[offset+1] == 0x5d) &&
 				(BlockBuf[offset+2] == 0xc4))
 				pRXCap->HF_IEEEOUI = 0xd85dc4;
+			pRXCap->Max_TMDS_Clock2 = BlockBuf[offset+4];
 			pRXCap->scdc_present =
 				!!(BlockBuf[offset+5] & (1 << 7));
 			pRXCap->scdc_rr_capable =
@@ -1899,28 +1900,21 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"1080p30hz", HDMI_1080p30},
 	{"1080p25hz", HDMI_1080p25},
 	{"1080p24hz", HDMI_1080p24},
-	{"1080p60hz",	 HDMI_1080p60},
-	{"2160p30hz44410bit", HDMI_3840x2160p30_16x9},
-	{"2160p25hz44410bit", HDMI_3840x2160p25_16x9},
-	{"2160p24hz44410bit", HDMI_3840x2160p24_16x9},
-	{"2160p30hz",  HDMI_4k2k_30},
-	{"2160p25hz",  HDMI_4k2k_25},
-	{"2160p24hz",  HDMI_4k2k_24},
+	{"1080p60hz", HDMI_1080p60},
+	{"2160p30hz", HDMI_4k2k_30},
+	{"2160p25hz", HDMI_4k2k_25},
+	{"2160p24hz", HDMI_4k2k_24},
 	{"smpte24hz", HDMI_4k2k_smpte_24},
 	{"smpte25hz", HDMI_4096x2160p25_256x135},
 	{"smpte30hz", HDMI_4096x2160p30_256x135},
 	{"smpte50hz", HDMI_4096x2160p50_256x135},
-	{"2160p60hz42010bit", HDMI_4k2k_60_y420},
-	{"2160p50hz42010bit", HDMI_4k2k_50_y420},
-	{"2160p60hz42210bit", HDMI_4k2k_60},
-	{"2160p50hz42210bit", HDMI_4k2k_50},
 	{"smpte50hz420", HDMI_4096x2160p50_256x135_Y420},
 	{"smpte60hz", HDMI_4096x2160p60_256x135},
 	{"smpte60hz420", HDMI_4096x2160p60_256x135_Y420},
 	{"2160p60hz", HDMI_4k2k_60},
 	{"2160p50hz", HDMI_4k2k_50},
-	{"2160p60hz420", HDMI_4k2k_60_y420},
-	{"2160p50hz420", HDMI_4k2k_50_y420},
+	{"2160p60hz420", HDMI_3840x2160p60_16x9_Y420},
+	{"2160p50hz420", HDMI_3840x2160p50_16x9_Y420},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)
@@ -1968,12 +1962,134 @@ const char *hdmitx_edid_vic_tab_map_string(enum hdmi_vic vic)
 	return disp_str;
 }
 
+/* For some TV's EDID, there maybe exist some information ambiguous.
+ * Such as EDID declears support 2160p60hz(Y444 8bit), but no valid
+ * Max_TMDS_Clock2 to indicate that it can support 5.94G signal.
+ */
+bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
+	struct hdmi_format_para *para)
+{
+	bool valid = 0;
+	struct rx_cap *pRXCap = NULL;
+	unsigned int rx_max_tmds_clk = 0;
+	unsigned int calc_tmds_clk = 0;
+	int i = 0;
+	int svd_flag = 0;
+
+	if (!hdev || !para)
+		return 0;
+
+	if (strcmp(para->sname, "invalid") == 0)
+		return 0;
+	/* exclude such as: 2160p60hz YCbCr444 10bit */
+	switch (para->vic) {
+	case HDMI_3840x2160p50_16x9:
+	case HDMI_3840x2160p60_16x9:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
+	case HDMI_3840x2160p50_64x27:
+	case HDMI_3840x2160p60_64x27:
+		if ((para->cs == COLORSPACE_RGB444) ||
+			(para->cs == COLORSPACE_YUV444))
+			if (para->cd != COLORDEPTH_24B)
+				return 0;
+		if (para->cs == COLORSPACE_YUV422)
+			if (para->cd != COLORDEPTH_48B)
+				return 0;
+		break;
+	default:
+		break;
+	}
+
+	pRXCap = &(hdev->RXCap);
+
+	/* DVI case, only 8bit */
+	if (pRXCap->IEEEOUI != 0x0c03) {
+		if (para->cd != COLORDEPTH_24B)
+			return 0;
+	}
+
+	/* target mode is not contained at RX SVD */
+	for (i = 0; (i < pRXCap->VIC_count) && (i < VIC_MAX_NUM); i++) {
+		if ((para->vic & 0xff) == (pRXCap->VIC[i] & 0xff))
+			svd_flag = 1;
+	}
+	if (svd_flag == 0)
+		return 0;
+
+	/* Get RX Max_TMDS_Clock */
+	if (pRXCap->Max_TMDS_Clock2)
+		rx_max_tmds_clk = pRXCap->Max_TMDS_Clock2 * 5;
+	else {
+		/* Default min is 74.25 / 5 */
+		if (pRXCap->Max_TMDS_Clock1 < 0xf)
+			pRXCap->Max_TMDS_Clock1 = 0x1e;
+		rx_max_tmds_clk = pRXCap->Max_TMDS_Clock1 * 5;
+	}
+
+	calc_tmds_clk = para->tmds_clk;
+	if (para->cs == COLORSPACE_YUV420)
+		calc_tmds_clk = calc_tmds_clk / 2;
+	if (para->cs != COLORSPACE_YUV422) {
+		switch (para->cd) {
+		case COLORDEPTH_30B:
+			calc_tmds_clk = calc_tmds_clk * 5 / 4;
+			break;
+		case COLORDEPTH_36B:
+			calc_tmds_clk = calc_tmds_clk * 3 / 2;
+			break;
+		case COLORDEPTH_48B:
+			calc_tmds_clk = calc_tmds_clk * 2;
+			break;
+		case COLORDEPTH_24B:
+		default:
+			calc_tmds_clk = calc_tmds_clk * 1;
+			break;
+		}
+	}
+	calc_tmds_clk = calc_tmds_clk / 1000;
+	pr_info("RX tmds clk: %d   Calc clk: %d\n", rx_max_tmds_clk,
+		calc_tmds_clk);
+	if (calc_tmds_clk < rx_max_tmds_clk)
+		valid = 1;
+	else
+		valid = 0;
+
+	return valid;
+}
+
+/*
+ * For some TVs, their EDID declare support 2160p60hz(>3.4Gbps) on SVDs,
+ * but no HF_IEEEOUT, so consider they don't support that format.
+ */
+static enum hdmi_vic hdmitx_edid_recheck_format(struct hdmitx_dev *hdev,
+	enum hdmi_vic vic)
+{
+	struct rx_cap *pRXCap = &(hdev->RXCap);
+
+	switch (vic) {
+	case HDMI_3840x2160p50_16x9:
+	case HDMI_3840x2160p60_16x9:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
+	case HDMI_3840x2160p50_64x27:
+	case HDMI_3840x2160p60_64x27:
+		break;
+	default:
+		return vic;
+	}
+
+	if (!pRXCap->HF_IEEEOUI || ((pRXCap->Max_TMDS_Clock2 * 5) < 340))
+		vic = HDMI_Unkown;
+	return vic;
+}
+
 /* force_flag: 0 means check with RX's edid */
 /* 1 means no check wich RX's edid */
-enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
+enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 	const char *disp_mode, char force_flag)
 {
-	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
+	struct rx_cap *pRXCap = &(hdev->RXCap);
 	int  j;
 	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
 
@@ -1987,6 +2103,7 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 				vic = HDMI_Unkown;
 		}
 	}
+	vic = hdmitx_edid_recheck_format(hdev, vic);
 	return vic;
 }
 
@@ -2200,8 +2317,7 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		pRXCap->native_Mode, pRXCap->native_VIC);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"ColorDeepSupport %x, MaxTMDSClock %d\n",
-		pRXCap->ColorDeepSupport, pRXCap->Max_TMDS_Clock);
+		"ColorDeepSupport %x\n", pRXCap->ColorDeepSupport);
 
 	for (i = 0 ; i < pRXCap->VIC_count ; i++) {
 		pos += snprintf(buffer+pos, buffer_len-pos, "%d ",
@@ -2222,8 +2338,16 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Speaker Allocation: %x\n", pRXCap->RxSpeakerAllocation);
 	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%x\n",
 		pRXCap->IEEEOUI);
-	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",
-		pRXCap->HF_IEEEOUI);
+
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"MaxTMDSClock1 %d MHz\n", pRXCap->Max_TMDS_Clock1 * 5);
+
+	if (pRXCap->HF_IEEEOUI) {
+		pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",
+			pRXCap->HF_IEEEOUI);
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			"MaxTMDSClock2 %d MHz\n", pRXCap->Max_TMDS_Clock2 * 5);
+	}
 	if (pRXCap->colorimetry_data)
 		pos += snprintf(buffer+pos, buffer_len-pos,
 			"ColorMetry: 0x%x\n", pRXCap->colorimetry_data);

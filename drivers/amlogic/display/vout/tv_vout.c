@@ -697,8 +697,6 @@ static const struct vinfo_s *get_valid_vinfo(char  *mode)
 			}
 		}
 	}
-	if (vinfo)
-		strcpy(vinfo->ext_name, mode);
 	return vinfo;
 }
 

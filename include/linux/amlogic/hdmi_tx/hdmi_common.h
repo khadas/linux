@@ -346,7 +346,10 @@ unsigned int hdmi_get_csc_coef(
 	unsigned int input_format, unsigned int output_format,
 	unsigned int color_depth, unsigned int color_format,
 	unsigned char **coef_array, unsigned int *coef_length);
-struct hdmi_format_para *hdmi_get_fmt_name(char const *name);
+struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr);
+const char *hdmi_get_str_cd(struct hdmi_format_para *para);
+const char *hdmi_get_str_cs(struct hdmi_format_para *para);
+const char *hdmi_get_str_cr(struct hdmi_format_para *para);
 unsigned int hdmi_get_aud_n_paras(enum hdmi_audio_fs fs,
 	enum hdmi_color_depth cd, unsigned int tmds_clk);
 

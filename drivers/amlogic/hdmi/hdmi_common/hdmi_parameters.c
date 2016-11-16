@@ -121,7 +121,7 @@ static struct hdmi_format_para fmt_para_1920x1080p25_16x9 = {
 	.progress_mode = 1,
 	.scrambler_en = 0,
 	.tmds_clk_div40 = 0,
-	.tmds_clk = 148500,
+	.tmds_clk = 74250,
 	.timing = {
 		.pixel_freq = 74250,
 		.h_freq = 56250,
@@ -626,7 +626,7 @@ static struct hdmi_format_para fmt_para_720x480p60_16x9 = {
 	.progress_mode = 1,
 	.scrambler_en = 0,
 	.tmds_clk_div40 = 0,
-	.tmds_clk = 27000,
+	.tmds_clk = 27027,
 	.timing = {
 		.pixel_freq = 27027,
 		.frac_freq = 27000,
@@ -658,7 +658,7 @@ static struct hdmi_format_para fmt_para_720x480i60_16x9 = {
 	.progress_mode = 0,
 	.scrambler_en = 0,
 	.tmds_clk_div40 = 0,
-	.tmds_clk = 27000,
+	.tmds_clk = 27027,
 	.timing = {
 		.pixel_freq = 27027,
 		.frac_freq = 27000,
@@ -1072,6 +1072,39 @@ static struct parse_cr parse_cr_[] = {
 	{COLORRANGE_FUL, "full",},
 };
 
+const char *hdmi_get_str_cd(struct hdmi_format_para *para)
+{
+	int i;
+
+	for (i = 0; i < sizeof(parse_cd_) / sizeof(struct parse_cd); i++) {
+		if (para->cd == parse_cd_[i].cd)
+			return parse_cd_[i].name;
+	}
+	return NULL;
+}
+
+const char *hdmi_get_str_cs(struct hdmi_format_para *para)
+{
+	int i;
+
+	for (i = 0; i < sizeof(parse_cs_) / sizeof(struct parse_cs); i++) {
+		if (para->cs == parse_cs_[i].cs)
+			return parse_cs_[i].name;
+	}
+	return NULL;
+}
+
+const char *hdmi_get_str_cr(struct hdmi_format_para *para)
+{
+	int i;
+
+	for (i = 0; i < sizeof(parse_cr_) / sizeof(struct parse_cr); i++) {
+		if (para->cr == parse_cr_[i].cr)
+			return parse_cr_[i].name;
+	}
+	return NULL;
+}
+
 /* parse the string from "dhmitx output FORMAT" */
 static void hdmi_parse_attr(struct hdmi_format_para *para, char const *name)
 {
@@ -1116,7 +1149,7 @@ static void hdmi_parse_attr(struct hdmi_format_para *para, char const *name)
  * or 3840x2160p60hz, 2160p60hz
  * or 3840x2160p60hz420, 2160p60hz420 (Y420 mode)
  */
-struct hdmi_format_para *hdmi_get_fmt_name(char const *name)
+struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 {
 	int i;
 	char *lname;
@@ -1126,8 +1159,7 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name)
 	if (!name)
 		return NULL;
 
-	for (i = 0; i < sizeof(all_fmt_paras) /
-		sizeof(struct hdmi_format_para *); i++) {
+	for (i = 0; all_fmt_paras[i]; i++) {
 		lname = all_fmt_paras[i]->name;
 		if (lname && (strncmp(name, lname, strlen(lname)) == 0)) {
 			vic = all_fmt_paras[i]->vic;
@@ -1145,10 +1177,14 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name)
 		memset(&para->ext_name[0], 0, sizeof(para->ext_name));
 		memcpy(&para->ext_name[0], name, strlen(name));
 		hdmi_parse_attr(para, name);
+		hdmi_parse_attr(para, attr);
 	} else {
 		para = &fmt_para_non_hdmi_fmt;
 		hdmi_parse_attr(para, name);
+		hdmi_parse_attr(para, attr);
 	}
+	if (strstr(name, "420"))
+		para->cs = COLORSPACE_YUV420;
 	return para;
 }
 

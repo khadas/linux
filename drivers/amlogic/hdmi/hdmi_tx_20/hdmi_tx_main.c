@@ -86,6 +86,9 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode);
 static int check_fbc_special(unsigned char *edid_dat);
 static int hdcp_tst_sig;
 
+/* add attr for hdmi output colorspace and colordepth */
+static char fmt_attr[16];
+
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
 const struct vinfo_s vinfo_1080p60hz = {
@@ -526,7 +529,7 @@ static int set_disp_mode_auto(void)
 		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
-		hdev->para = para = hdmi_get_fmt_name("invalid");
+		hdev->para = para = hdmi_get_fmt_name("invalid", fmt_attr);
 		return -1;
 	} else {
 		memcpy(mode, info->name, strlen(info->name));
@@ -544,7 +547,7 @@ static int set_disp_mode_auto(void)
 			}
 		}
 	}
-	para = hdmi_get_fmt_name(mode);
+	para = hdmi_get_fmt_name(mode, fmt_attr);
 	hdev->para = para;
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
@@ -656,7 +659,23 @@ static ssize_t store_disp_mode(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	set_disp_mode(buf);
-	return 16;
+	return count;
+}
+
+static ssize_t show_attr(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n\r", fmt_attr);
+	return pos;
+}
+
+static ssize_t store_attr(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	memcpy(fmt_attr, buf, sizeof(fmt_attr));
+	return count;
 }
 
 /*aud_mode attr*/
@@ -1383,40 +1402,104 @@ static ssize_t show_aud_cap(struct device *dev,
 static ssize_t show_dc_cap(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
+	enum hdmi_vic vic = HDMI_Unkown;
 	int pos = 0;
 	struct rx_cap *pRXCap = &(hdmitx_device.RXCap);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "DeepColor:\n");
-
+#if 0
+	if (pRXCap->dc_48bit_420)
+		pos += snprintf(buf + pos, PAGE_SIZE, "420,16bit\n");
+	if (pRXCap->dc_36bit_420)
+		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
+#endif
+	if (pRXCap->dc_30bit_420) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "420,10bit\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
+	} else {
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, "2160p60hz420", 0);
+		if (vic != HDMI_Unkown) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
+			goto next444;
+		}
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, "2160p50hz420", 0);
+		if (vic != HDMI_Unkown) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
+			goto next444;
+		}
+	}
+next444:
 	if (pRXCap->dc_y444) {
-		if (pRXCap->dc_30bit)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  Y444 10bit\n");
+#if 0
 		if (pRXCap->dc_36bit)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  Y444 12bit\n");
+			pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
+		if (pRXCap->dc_36bit)
+			pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
+#endif
+		if (pRXCap->dc_30bit) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
+			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
+		}
+#if 0
 		if (pRXCap->dc_48bit)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  Y444 16bit\n");
-		if (pRXCap->dc_30bit)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  Y422 10bit\n");
-		if (pRXCap->dc_36bit)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  Y422 12bit\n");
+			pos += snprintf(buf + pos, PAGE_SIZE, "444,16bit\n");
+#endif
+		if (pRXCap->dc_30bit) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
+			pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
+			goto nextrgb;
+		}
+	} else {
+		if (pRXCap->native_Mode & (1 << 5))
+			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
+		if (pRXCap->native_Mode & (1 << 4))
+			pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
+	}
+nextrgb:
+#if 0
+	if (pRXCap->dc_48bit)
+		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,16bit\n");
+	if (pRXCap->dc_36bit)
+		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,12bit\n");
+#endif
+	if (pRXCap->dc_30bit)
+		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,10bit\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
+	return pos;
+}
+
+static bool valid_mode;
+static char cvalid_mode[32];
+static ssize_t show_valid_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmi_format_para *para = NULL;
+
+	if (cvalid_mode[0])
+		para = hdmi_get_fmt_name(cvalid_mode, cvalid_mode);
+	if (para) {
+		pr_info("sname = %s\n", para->sname);
+		pr_info("char_clk = %d\n", para->tmds_clk);
+		pr_info("cd = %d\n", para->cd);
+		pr_info("cs = %d\n", para->cs);
 	}
 
-	if (pRXCap->dc_30bit)
-		pos += snprintf(buf + pos, PAGE_SIZE, "  RGB 10bit\n");
-	if (pRXCap->dc_36bit)
-		pos += snprintf(buf + pos, PAGE_SIZE, "  RGB 12bit\n");
-	if (pRXCap->dc_48bit)
-		pos += snprintf(buf + pos, PAGE_SIZE, "  RGB 16bit\n");
+	valid_mode = hdmitx_edid_check_valid_mode(&hdmitx_device, para);
 
-	if (pRXCap->dc_30bit_420)
-		pos += snprintf(buf + pos, PAGE_SIZE, "  Y420 10bit\n");
-	if (pRXCap->dc_36bit_420)
-		pos += snprintf(buf + pos, PAGE_SIZE, "  Y420 12bit\n");
-	if (pRXCap->dc_48bit_420)
-		pos += snprintf(buf + pos, PAGE_SIZE, "  Y420 16bit\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r", valid_mode);
 
 	return pos;
 }
+
+static ssize_t store_valid_mode(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	memset(cvalid_mode, 0, sizeof(cvalid_mode));
+	memcpy(cvalid_mode, buf, sizeof(cvalid_mode));
+	cvalid_mode[31] = '\0';
+	return count;
+}
+
 
 /**/
 static ssize_t show_hdr_cap(struct device *dev,
@@ -2002,6 +2085,7 @@ void hdmi_print(int dbg_lvl, const char *fmt, ...)
 
 static DEVICE_ATTR(disp_mode, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_disp_mode, store_disp_mode);
+static DEVICE_ATTR(attr, S_IWUSR | S_IRUGO | S_IWGRP, show_attr, store_attr);
 static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
@@ -2014,6 +2098,8 @@ static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
 static DEVICE_ATTR(hdr_cap, S_IRUGO, show_hdr_cap, NULL);
 static DEVICE_ATTR(dv_cap, S_IRUGO, show_dv_cap, NULL);
 static DEVICE_ATTR(dc_cap, S_IRUGO, show_dc_cap, NULL);
+static DEVICE_ATTR(valid_mode, S_IWUSR | S_IRUGO | S_IWGRP, show_valid_mode,
+	store_valid_mode);
 static DEVICE_ATTR(aud_ch, S_IWUSR | S_IRUGO | S_IWGRP, show_aud_ch,
 	store_aud_ch);
 static DEVICE_ATTR(aud_output_chs, S_IWUSR | S_IRUGO | S_IWGRP,
@@ -2839,7 +2925,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #endif
 	hdmitx_device.hdtx_dev = &pdev->dev;
 	/* init para for NULL protection */
-	hdmitx_device.para = hdmi_get_fmt_name("invalid");
+	hdmitx_device.para = hdmi_get_fmt_name("invalid", fmt_attr);
 	hdmi_print(IMP, SYS "amhdmitx_probe\n");
 
 	r = alloc_chrdev_region(&hdmitx_id, 0, HDMI_TX_COUNT,
@@ -2889,6 +2975,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 	hdmitx_device.hdtx_dev = dev;
 	ret = device_create_file(dev, &dev_attr_disp_mode);
+	ret = device_create_file(dev, &dev_attr_attr);
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_edid);
 	ret = device_create_file(dev, &dev_attr_rawedid);
@@ -2919,6 +3006,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_ready);
 	ret = device_create_file(dev, &dev_attr_support_3d);
 	ret = device_create_file(dev, &dev_attr_dc_cap);
+	ret = device_create_file(dev, &dev_attr_valid_mode);
 
 #ifdef CONFIG_AM_TV_OUTPUT
 	vout_register_client(&hdmitx_notifier_nb_v);
@@ -3098,6 +3186,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 
 	/* Remove the cdev */
 	device_remove_file(dev, &dev_attr_disp_mode);
+	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_edid);
 	device_remove_file(dev, &dev_attr_rawedid);
@@ -3108,6 +3197,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdr_cap);
 	device_remove_file(dev, &dev_attr_dv_cap);
 	device_remove_file(dev, &dev_attr_dc_cap);
+	device_remove_file(dev, &dev_attr_valid_mode);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_hdmi_init);
 	device_remove_file(dev, &dev_attr_ready);

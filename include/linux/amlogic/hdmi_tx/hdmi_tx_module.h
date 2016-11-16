@@ -64,7 +64,9 @@ struct rx_cap {
 	unsigned char RxSpeakerAllocation;
 	/*vendor*/
 	unsigned int IEEEOUI;
+	unsigned int Max_TMDS_Clock1; /* HDMI1.4b TMDS_CLK */
 	unsigned int HF_IEEEOUI;	/* For HDMI Forum */
+	unsigned int Max_TMDS_Clock2; /* HDMI2.0 TMDS_CLK */
 	/* CEA861-F, Table 56, Colorimetry Data Block */
 	unsigned int colorimetry_data;
 	unsigned int scdc_present:1;
@@ -92,7 +94,6 @@ struct rx_cap {
 	unsigned char edid_version;
 	unsigned char edid_revision;
 	unsigned int ColorDeepSupport;
-	unsigned int Max_TMDS_Clock;
 	unsigned int Video_Latency;
 	unsigned int Audio_Latency;
 	unsigned int Interlaced_Video_Latency;
@@ -254,10 +255,6 @@ struct hdmitx_dev {
 	unsigned int tv_no_edid;
 	unsigned int hpd_lock;
 	struct hdmi_format_para *para;
-	/* 0: RGB444  1: Y444  2: Y422  3: Y420 */
-	enum hdmi_color_space colorspace;
-	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
-	enum hdmi_color_depth colordepth;
 	/* if equals to 1, means current video & audio output are blank */
 	unsigned int output_blank_flag;
 	unsigned int audio_notify_flag;
@@ -424,6 +421,9 @@ extern int hdmitx_edid_VIC_support(enum hdmi_vic vic);
 
 extern int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	int buffer_len);
+
+bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
+	struct hdmi_format_para *para);
 
 extern void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device);
 
