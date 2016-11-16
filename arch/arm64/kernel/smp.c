@@ -531,9 +531,17 @@ static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 		crash_save_cpu(regs, cpu);
 #endif /* CONFIG_KEXEC */
 
-
+	/* Amlogic: fixed idle autoshutdown fail.*/
+	/* Secondary CPUs must be WFI when power off*/
+#if 1
+	__asm__ volatile("dsb sy");
+	__asm__ volatile("isb");
+	while (1)
+		__asm__ volatile("wfi");
+#else
 	while (1)
 		cpu_relax();
+#endif
 }
 
 /*
