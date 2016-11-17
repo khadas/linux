@@ -1198,7 +1198,7 @@ static DEVICE_ATTR(tvp_region, 0444, show_tvp_region, NULL);
 /***************************
 * di buffer management
 ***************************/
-#define MAX_IN_BUF_NUM            16
+#define MAX_IN_BUF_NUM            20
 #define MAX_LOCAL_BUF_NUM         12
 #define MAX_POST_BUF_NUM          16
 
@@ -5338,7 +5338,7 @@ static unsigned char pre_de_buf_config(void)
 
 	if (di_blocking)
 		return 0;
-	if ((queue_empty(QUEUE_IN_FREE) && (!di_pre_stru.di_inp_buf_next)) ||
+	if ((list_count(QUEUE_IN_FREE) < 2 && (!di_pre_stru.di_inp_buf_next)) ||
 	    (queue_empty(QUEUE_LOCAL_FREE)))
 		return 0;
 
@@ -5703,6 +5703,11 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 
 				di_buf_tmp =
 					get_di_buf_head(QUEUE_IN_FREE);
+				if (check_di_buf(di_buf_tmp, 10)) {
+					recycle_vframe_type_pre(di_buf);
+					pr_err("DI:no free in_buffer for progressive skip.\n");
+					return 0;
+				}
 				di_buf_tmp->vframe->private_data
 					= di_buf_tmp;
 				di_buf_tmp->seq = di_pre_stru.in_seq;
