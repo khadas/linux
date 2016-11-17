@@ -113,7 +113,7 @@ static int suspend_flag;
 
 static struct hdmitx_dev hdmitx_device;
 static struct switch_dev sdev = { /* android ics switch device */
-	.name = "hdmi_hpd",
+	.name = "hdmi",
 };
 static struct switch_dev hdmi_audio = {
 	.name = "hdmi_audio",
