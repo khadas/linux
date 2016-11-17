@@ -30,6 +30,7 @@
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/canvas/canvas.h>
+#include <linux/slab.h>
 
 #include "vdec_reg.h"
 #include "vmpeg4.h"
@@ -152,6 +153,7 @@ static u32 last_vop_time_inc, last_duration;
 static u32 last_anch_pts, vop_time_inc_since_last_anch,
 	   frame_num_since_last_anch;
 static u64 last_anch_pts_us64;
+static struct vdec_info *gvs;
 
 #ifdef CONFIG_AM_VDEC_MPEG4_LOG
 u32 pts_hit, pts_missed, pts_i_hit, pts_i_missed;
@@ -558,6 +560,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 		WRITE_VREG(MREG_BUFFEROUT, 0);
 
 		last_vop_time_inc = vop_time_inc;
+
+		/*count info*/
+		gvs->frame_dur = duration;
+		vdec_count_info(gvs, 0, offset);
 	}
 
 	WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
@@ -671,17 +677,40 @@ static void vmpeg_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vmpeg4_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vmpeg4_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = vmpeg4_amstream_dec_info.width;
-	vstatus->height = vmpeg4_amstream_dec_info.height;
+	vstatus->frame_width = vmpeg4_amstream_dec_info.width;
+	vstatus->frame_height = vmpeg4_amstream_dec_info.height;
 	if (0 != vmpeg4_amstream_dec_info.rate)
-		vstatus->fps = DURATION_UNIT / vmpeg4_amstream_dec_info.rate;
+		vstatus->frame_rate =
+			DURATION_UNIT / vmpeg4_amstream_dec_info.rate;
 	else
-		vstatus->fps = DURATION_UNIT;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = READ_VREG(MP4_ERR_COUNT);
 	vstatus->status = stat;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
 
+	return 0;
+}
+
+static int vmpeg4_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -1030,9 +1059,12 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 
 	pdata->dec_status = vmpeg4_dec_status;
 
+	vmpeg4_vdec_info_init();
+
 	if (vmpeg4_init() < 0) {
 		amlog_level(LOG_LEVEL_ERROR, "amvdec_mpeg4 init failed.\n");
-
+		kfree(gvs);
+		gvs = NULL;
 		return -ENODEV;
 	}
 
@@ -1071,6 +1103,8 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
 			   pts_missed, pts_i_hit, pts_i_missed);
 	amlog_mask(LOG_MASK_PTS, "total frame %d, rate %d\n", total_frame,
 			   vmpeg4_amstream_dec_info.rate);
+	kfree(gvs);
+	gvs = NULL;
 
 	return 0;
 }

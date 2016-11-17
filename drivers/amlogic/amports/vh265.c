@@ -415,6 +415,7 @@ void WRITE_VREG_DBG(unsigned adr, unsigned val)
 
 static DEFINE_MUTEX(vh265_mutex);
 
+static struct vdec_info *gvs;
 
 /**************************************************
 
@@ -4947,6 +4948,11 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 
 			if (hevc->cur_pic->error_mark
 				&& ((hevc->ignore_bufmgr_error & 0x1) == 0)) {
+
+				/*count info*/
+				vdec_count_info(gvs, hevc->cur_pic->error_mark,
+					hevc->cur_pic->stream_offset);
+
 				return 2;
 			}
 		} else
@@ -4970,6 +4976,10 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 			hevc_print(hevc, 0,
 			"Discard this picture index %d\n",
 					hevc->cur_pic->index);
+		/*count info*/
+		vdec_count_info(gvs, hevc->cur_pic->error_mark,
+			hevc->cur_pic->stream_offset);
+
 		return 2;
 	}
 #ifdef MCRCC_ENABLE
@@ -5053,7 +5063,8 @@ static void hevc_local_uninit(struct hevc_state_s *hevc)
 			hevc->frame_mmu_map_addr = NULL;
 	}
 
-
+	kfree(gvs);
+	gvs = NULL;
 }
 
 static int hevc_local_init(struct hevc_state_s *hevc)
@@ -6187,6 +6198,8 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		pic->vf_ref = 1;
 		kfifo_put(&hevc->display_q, (const struct vframe_s *)vf);
 #endif
+		/*count info*/
+		vdec_count_info(gvs, 0, stream_offset);
 
 		vf_notify_receiver(hevc->provider_name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
@@ -7029,6 +7042,7 @@ send_again:
 						vui_num_units_in_tick,
 						vui_time_scale);
 				hevc->get_frame_dur = true;
+				gvs->frame_dur = hevc->frame_dur;
 			}
 
 			if (hevc->video_signal_type !=
@@ -7139,6 +7153,7 @@ send_again:
 #endif
 	} else {
 		/* skip, search next start code */
+		gvs->drop_frame_count++;
 		WRITE_VREG(HEVC_WAIT_FLAG, READ_VREG(HEVC_WAIT_FLAG) & (~0x2));
 			hevc->skip_flag = 1;
 		WRITE_VREG(HEVC_DEC_STATUS_REG,	HEVC_ACTION_DONE);
@@ -7520,20 +7535,43 @@ void vh265_free_cmabuf(void)
 }
 
 #ifdef MULTI_INSTANCE_SUPPORT
-int vh265_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vh265_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 #else
-int vh265_dec_status(struct vdec_status *vstatus)
+int vh265_dec_status(struct vdec_info *vstatus)
 #endif
 {
 	struct hevc_state_s *hevc = &gHevc;
-	vstatus->width = hevc->frame_width;
-	vstatus->height = hevc->frame_height;
+	vstatus->frame_width = hevc->frame_width;
+	vstatus->frame_height = hevc->frame_height;
 	if (hevc->frame_dur != 0)
-		vstatus->fps = 96000 / hevc->frame_dur;
+		vstatus->frame_rate = 96000 / hevc->frame_dur;
 	else
-		vstatus->fps = -1;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = 0;
 	vstatus->status = hevc->stat | hevc->fatal_error;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = hevc->frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
+
+	return 0;
+}
+
+static int vh265_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -7673,6 +7711,7 @@ static int vh265_local_init(struct hevc_state_s *hevc)
 	hevc->frame_dur =
 		(hevc->vh265_amstream_dec_info.rate ==
 		 0) ? 3600 : hevc->vh265_amstream_dec_info.rate;
+	gvs->frame_dur = hevc->frame_dur;
 	if (hevc->frame_width && hevc->frame_height)
 		hevc->frame_ar = hevc->frame_height * 0x100 / hevc->frame_width;
 
@@ -7921,6 +7960,9 @@ static int vh265_stop(struct hevc_state_s *hevc)
 	}
 	uninit_mmu_buffers(hevc);
 	amhevc_disable();
+
+	kfree(gvs);
+	gvs = NULL;
 
 	return 0;
 }
@@ -8514,6 +8556,8 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 		workaround_enable &= ~3;
 #endif
 	hevc->cma_dev = pdata->cma_dev;
+	vh265_vdec_info_init();
+
 #ifdef MULTI_INSTANCE_SUPPORT
 	pdata->private = hevc;
 	pdata->dec_status = vh265_dec_status;

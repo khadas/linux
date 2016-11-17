@@ -2159,15 +2159,15 @@ static long amstream_ioctl_get_ex(struct port_priv_s *priv, ulong arg)
 			pr_err("no video\n");
 			return -EINVAL;
 		} else {
-			struct vdec_status vstatus;
+			struct vdec_info vstatus;
 			struct am_ioctl_parm_ex *p = &parm;
 			if (p == NULL)
 				return -EINVAL;
 			if (vdec_status(priv->vdec, &vstatus) == -1)
 				return -ENODEV;
-			p->vstatus.width = vstatus.width;
-			p->vstatus.height = vstatus.height;
-			p->vstatus.fps = vstatus.fps;
+			p->vstatus.width = vstatus.frame_width;
+			p->vstatus.height = vstatus.frame_height;
+			p->vstatus.fps = vstatus.frame_rate;
 			p->vstatus.error_count = vstatus.error_count;
 			p->vstatus.status = vstatus.status;
 		}
@@ -2634,19 +2634,34 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 		if ((this->type & PORT_TYPE_VIDEO) == 0)
 			return -EINVAL;
 		{
-			struct vdec_status vstatus;
+			struct vdec_info vstatus;
 			struct am_io_param para;
 			struct am_io_param *p = &para;
 			if (p == NULL)
 				return -EINVAL;
 			if (vdec_status(priv->vdec, &vstatus) == -1)
 				return -ENODEV;
-			p->vstatus.width = vstatus.width;
-			p->vstatus.height = vstatus.height;
-			p->vstatus.fps = vstatus.fps;
+			p->vstatus.width = vstatus.frame_width;
+			p->vstatus.height = vstatus.frame_height;
+			p->vstatus.fps = vstatus.frame_rate;
 			p->vstatus.error_count = vstatus.error_count;
 			p->vstatus.status = vstatus.status;
 			if (copy_to_user((void *)arg, p, sizeof(para)))
+				r = -EFAULT;
+			return r;
+		}
+
+	case AMSTREAM_IOC_VDECINFO:
+		if ((this->type & PORT_TYPE_VIDEO) == 0)
+			return -EINVAL;
+		{
+			struct vdec_info vinfo;
+			struct am_io_param para;
+
+			if (vdec_status(priv->vdec, &vinfo) == -1)
+				return -ENODEV;
+			memcpy(&para.vinfo, &vinfo, sizeof(struct vdec_info));
+			if (copy_to_user((void *)arg, &para, sizeof(para)))
 				r = -EFAULT;
 			return r;
 		}

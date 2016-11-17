@@ -86,6 +86,7 @@
 #define AMSTREAM_IOC_TS_SKIPBYTE _IOW((_A_M), 0x1d, int)
 #define AMSTREAM_IOC_SUB_TYPE    _IOW((_A_M), 0x1e, int)
 #define AMSTREAM_IOC_CLEAR_VIDEO _IOW((_A_M), 0x1f, int)
+#define AMSTREAM_IOC_VDECINFO _IOR((_A_M), 0x20, int)
 
 #define AMSTREAM_IOC_APTS             _IOR((_A_M), 0x40, int)
 #define AMSTREAM_IOC_VPTS             _IOR((_A_M), 0x41, int)
@@ -255,6 +256,26 @@ struct vdec_status {
 	unsigned int status;
 };
 
+struct vdec_info {
+	char vdec_name[16];
+	unsigned int ver;
+	unsigned int frame_width;
+	unsigned int frame_height;
+	unsigned int frame_rate;
+	unsigned int bit_rate;
+	unsigned int frame_dur;
+	unsigned int frame_data;
+	unsigned int error_count;
+	unsigned int status;
+	unsigned int frame_count;
+	unsigned int error_frame_count;
+	unsigned int drop_frame_count;
+	unsigned long long total_data;
+	unsigned int samp_cnt;
+	unsigned int offset;
+	char reserved[32];
+};
+
 struct adec_status {
 	unsigned int channels;
 	unsigned int sample_rate;
@@ -278,6 +299,7 @@ struct am_io_param {
 
 		struct vdec_status vstatus;
 		struct adec_status astatus;
+		struct vdec_info vinfo;
 	};
 };
 struct audio_info {

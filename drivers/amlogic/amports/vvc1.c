@@ -30,6 +30,7 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
+#include <linux/slab.h>
 
 #include "vdec_reg.h"
 #include "amvdec.h"
@@ -75,6 +76,7 @@
 #define MEM_FIFO_CNT_BIT        16
 #define MEM_LEVEL_CNT_BIT       18
 #endif
+static struct vdec_info *gvs;
 
 static struct vframe_s *vvc1_vf_peek(void *);
 static struct vframe_s *vvc1_vf_get(void *);
@@ -610,6 +612,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 		frame_dur = vvc1_amstream_dec_info.rate;
 		total_frame++;
 
+		/*count info*/
+		gvs->frame_dur = frame_dur;
+		vdec_count_info(gvs, 0, offset);
+
 		/* pr_info("PicType = %d, PTS = 0x%x, repeat
 		count %d\n", picture_type, vf->pts, repeat_count); */
 		WRITE_VREG(VC1_BUFFEROUT, 0);
@@ -682,17 +688,39 @@ static int vvc1_event_cb(int type, void *data, void *private_data)
 	return 0;
 }
 
-int vvc1_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vvc1_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = vvc1_amstream_dec_info.width;
-	vstatus->height = vvc1_amstream_dec_info.height;
-	if (0 != vvc1_amstream_dec_info.rate)
-		vstatus->fps = 96000 / vvc1_amstream_dec_info.rate;
+	vstatus->frame_width = vvc1_amstream_dec_info.width;
+	vstatus->frame_height = vvc1_amstream_dec_info.height;
+	if (vvc1_amstream_dec_info.rate != 0)
+		vstatus->frame_rate = 96000 / vvc1_amstream_dec_info.rate;
 	else
-		vstatus->fps = 96000;
-	vstatus->error_count = READ_VREG(AV_SCRATCH_4);
+		vstatus->frame_rate = -1;
+	vstatus->error_count = READ_VREG(AV_SCRATCH_C);
 	vstatus->status = stat;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = vvc1_amstream_dec_info.rate;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
 
+	return 0;
+}
+
+static int vvc1_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -1052,9 +1080,12 @@ static int amvdec_vc1_probe(struct platform_device *pdev)
 
 	pdata->dec_status = vvc1_dec_status;
 
+	vvc1_vdec_info_init();
+
 	if (vvc1_init() < 0) {
 		pr_info("amvdec_vc1 init failed.\n");
-
+		kfree(gvs);
+		gvs = NULL;
 		return -ENODEV;
 	}
 
@@ -1095,6 +1126,8 @@ static int amvdec_vc1_remove(struct platform_device *pdev)
 		total_frame, avi_flag,
 		vvc1_amstream_dec_info.rate);
 #endif
+	kfree(gvs);
+	gvs = NULL;
 
 	return 0;
 }

@@ -80,6 +80,7 @@ static struct page *vdec_cma_page;
 int vdec_mem_alloced_from_codec, delay_release;
 static unsigned long reserved_mem_start, reserved_mem_end;
 static int hevc_max_reset_count;
+
 static DEFINE_SPINLOCK(vdec_spin_lock);
 
 #define HEVC_TEST_LIMIT 100
@@ -175,7 +176,7 @@ static int get_canvas(unsigned int index, unsigned int base)
 }
 
 
-int vdec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vdec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
 	if (vdec->dec_status)
 		return vdec->dec_status(vdec, vstatus);
@@ -196,6 +197,35 @@ int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode)
 	}
 
 	return -1;
+}
+
+void  vdec_count_info(struct vdec_info *vs, unsigned int err,
+	unsigned int offset)
+{
+	if (err)
+		vs->error_frame_count++;
+	if (offset) {
+		if (0 == vs->frame_count) {
+			vs->offset = 0;
+			vs->samp_cnt = 0;
+		}
+		vs->frame_data = offset > vs->total_data ?
+			offset - vs->total_data : vs->total_data - offset;
+		vs->total_data = offset;
+		if (vs->samp_cnt < 96000 * 2) { /* 2s */
+			if (0 == vs->samp_cnt)
+				vs->offset = offset;
+			vs->samp_cnt += vs->frame_dur;
+		} else {
+			vs->bit_rate = (offset - vs->offset) / 2;
+			/*pr_info("bitrate : %u\n",vs->bit_rate);*/
+			vs->samp_cnt = 0;
+		}
+		vs->frame_count++;
+	}
+	/*pr_info("size : %u, offset : %u, dur : %u, cnt : %u\n",
+		vs->offset,offset,vs->frame_dur,vs->samp_cnt);*/
+	return;
 }
 
 /*
@@ -2866,6 +2896,78 @@ static ssize_t core_show(struct class *class, struct class_attribute *attr,
 	return pbuf - buf;
 }
 
+static ssize_t vdec_status_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	char *pbuf = buf;
+	struct vdec_s *vdec;
+	struct vdec_info vs;
+	unsigned char vdec_num = 0;
+	struct vdec_core_s *core = vdec_core;
+	unsigned long flags = vdec_core_lock(vdec_core);
+
+	if (list_empty(&core->connected_vdec_list)) {
+		pbuf += sprintf(pbuf, "No vdec.\n");
+		goto out;
+	}
+
+	list_for_each_entry(vdec, &core->connected_vdec_list, list) {
+		if (VDEC_STATUS_CONNECTED == vdec->status) {
+			if (vdec_status(vdec, &vs)) {
+				pbuf += sprintf(pbuf, "err.\n");
+				goto out;
+			}
+			pbuf += sprintf(pbuf,
+				"vdec channel %u statistics:\n",
+				vdec_num);
+			pbuf += sprintf(pbuf,
+				"%13s : %s\n", "device name",
+				vs.vdec_name);
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "frame width",
+				vs.frame_width);
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "frame height",
+				vs.frame_height);
+			pbuf += sprintf(pbuf,
+				"%13s : %u %s\n", "frame rate",
+				vs.frame_rate, "fps");
+			pbuf += sprintf(pbuf,
+				"%13s : %u %s\n", "bit rate",
+				vs.bit_rate / 1024 * 8, "kbps");
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "status",
+				vs.status);
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "frame dur",
+				vs.frame_dur);
+			pbuf += sprintf(pbuf,
+				"%13s : %u %s\n", "frame data",
+				vs.frame_data / 1024, "KB");
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "frame count",
+				vs.frame_count);
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "drop count",
+				vs.drop_frame_count);
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "fra err count",
+				vs.error_frame_count);
+			pbuf += sprintf(pbuf,
+				"%13s : %u\n", "hw err count",
+				vs.error_count);
+			pbuf += sprintf(pbuf,
+				"%13s : %llu %s\n\n", "total data",
+				vs.total_data / 1024, "KB");
+
+			vdec_num++;
+		}
+	}
+out:
+	vdec_core_unlock(vdec_core, flags);
+	return pbuf - buf;
+}
+
 static struct class_attribute vdec_class_attrs[] = {
 	__ATTR_RO(amrisc_regs),
 	__ATTR_RO(dump_trace),
@@ -2877,6 +2979,7 @@ static struct class_attribute vdec_class_attrs[] = {
 	__ATTR(keep_vdec_mem, S_IRUGO | S_IWUSR | S_IWGRP,
 	show_keep_vdec_mem, store_keep_vdec_mem),
 	__ATTR_RO(core),
+	__ATTR_RO(vdec_status),
 	__ATTR_NULL
 };
 

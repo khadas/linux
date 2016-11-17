@@ -313,6 +313,8 @@ static bool pts_discontinue;
 
 static struct ge2d_context_s *ge2d_videoh264_context;
 
+static struct vdec_info *gvs;
+
 static int ge2d_videoh264task_init(void)
 {
 	if (ge2d_videoh264_context == NULL)
@@ -1440,6 +1442,9 @@ static void vh264_isr(void)
 				break;
 			}
 
+			if (error)
+				gvs->drop_frame_count++;
+
 			/* add 64bit pts us ; */
 			if (unlikely
 				((b_offset == first_offset)
@@ -1596,6 +1601,11 @@ static void vh264_isr(void)
 			 * force no VPTS discontinue reporting if we saw
 			 errors earlier but only once.
 			 */
+
+			/*count info*/
+			gvs->frame_dur = frame_dur;
+			vdec_count_info(gvs, error, b_offset);
+
 			if ((pts_valid) && (check_pts_discontinue)
 					&& (!error)) {
 				if (pts_discontinue) {
@@ -2066,18 +2076,41 @@ exit:
 	add_timer(timer);
 }
 
-int vh264_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vh264_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = frame_width;
-	vstatus->height = frame_height;
+	vstatus->frame_width = frame_width;
+	vstatus->frame_height = frame_height;
 	if (frame_dur != 0)
-		vstatus->fps = 96000 / frame_dur;
+		vstatus->frame_rate = 96000 / frame_dur;
 	else
-		vstatus->fps = -1;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = READ_VREG(AV_SCRATCH_D);
 	vstatus->status = stat;
 	if (fatal_error_reset)
 		vstatus->status |= fatal_error_flag;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
+
+	return 0;
+}
+
+static int vh264_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -2275,6 +2308,7 @@ static void vh264_local_init(void)
 
 static s32 vh264_init(void)
 {
+	int ret = 0;
 	int trickmode_fffb = 0;
 	int firmwareloaded = 0;
 	int i;
@@ -2295,6 +2329,12 @@ static s32 vh264_init(void)
 	saved_resolution = 0;
 	iponly_early_mode = 0;
 	saved_idc_level = 0;
+
+	/*init vdec status*/
+	ret = vh264_vdec_info_init();
+	if (0 != ret)
+		return -ret;
+
 	vh264_local_init();
 
 	query_video_status(0, &trickmode_fffb);
@@ -2842,6 +2882,8 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 
 	if (vh264_init() < 0) {
 		pr_info("\namvdec_h264 init failed.\n");
+		kfree(gvs);
+		gvs = NULL;
 		mutex_unlock(&vh264_mutex);
 		return -ENODEV;
 	}
@@ -2874,6 +2916,8 @@ static int amvdec_h264_remove(struct platform_device *pdev)
 	pr_info("sync_outside %d, use_idr_framerate %d\n",
 			sync_outside, use_idr_framerate);
 #endif
+	kfree(gvs);
+	gvs = NULL;
 	mutex_unlock(&vh264_mutex);
 	return 0;
 }

@@ -356,6 +356,8 @@ void WRITE_VREG_DBG2(unsigned adr, unsigned val)
 #define WRITE_VREG WRITE_VREG_DBG2
 #endif
 
+static struct vdec_info *gvs;
+
 /**************************************************
 
 VP9 buffer management start
@@ -4773,6 +4775,8 @@ static void vp9_local_uninit(struct VP9Decoder_s *pbi)
 	kfree(seg_4lf);
 	seg_4lf = NULL;
 #endif
+	kfree(gvs);
+	gvs = NULL;
 }
 
 static int vp9_local_init(struct VP9Decoder_s *pbi)
@@ -5339,6 +5343,11 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		}
 		inc_vf_ref(pbi, pic_config->index);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
+
+		/*count info*/
+		gvs->frame_dur = pbi->frame_dur;
+		vdec_count_info(gvs, 0, stream_offset);
+
 		vf_notify_receiver(pbi->provider_name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	}
@@ -5941,17 +5950,40 @@ static void vvp9_put_timer_func(unsigned long arg)
 }
 
 
-int vvp9_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vvp9_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	struct VP9Decoder_s *pbi = &gHevc;
-	vstatus->width = frame_width;
-	vstatus->height = frame_height;
-	if (pbi->frame_dur != 0)
-		vstatus->fps = 96000 / pbi->frame_dur;
+	struct VP9Decoder_s *vp9 = &gHevc;
+	vstatus->frame_width = frame_width;
+	vstatus->frame_height = frame_height;
+	if (vp9->frame_dur != 0)
+		vstatus->frame_rate = 96000 / vp9->frame_dur;
 	else
-		vstatus->fps = -1;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = 0;
-	vstatus->status = pbi->stat | pbi->fatal_error;
+	vstatus->status = vp9->stat | vp9->fatal_error;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = vp9->frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
+
+	return 0;
+}
+
+static int vvp9_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -6243,6 +6275,9 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 #endif
 	uninit_mmu_buffers(pbi);
 
+	kfree(gvs);
+	gvs = NULL;
+
 	return 0;
 }
 
@@ -6334,6 +6369,8 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	cma_dev = pdata->cma_dev;
 #endif
 	pdata->dec_status = vvp9_dec_status;
+
+	vvp9_vdec_info_init();
 
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");

@@ -82,6 +82,7 @@ static void vh264mvc_put_timer_func(unsigned long arg);
 static const char vh264mvc_dec_id[] = "vh264mvc-dev";
 
 #define PROVIDER_NAME   "decoder.h264mvc"
+static struct vdec_info *gvs;
 
 static const struct vframe_operations_s vh264mvc_vf_provider = {
 	.peek = vh264mvc_vf_peek,
@@ -993,6 +994,11 @@ static void vh264mvc_isr(void)
 				vfpool_idx[slot].used = 1;
 				INCPTR(fill_ptr);
 				set_frame_info(vf);
+
+				gvs->frame_dur = frame_dur;
+				vdec_count_info(gvs, 0,
+						vfpool_idx[slot].stream_offset);
+
 				vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
@@ -1078,16 +1084,39 @@ static void vh264mvc_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vh264mvc_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vh264mvc_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = frame_width;
-	vstatus->height = frame_height;
+	vstatus->frame_width = frame_width;
+	vstatus->frame_height = frame_height;
 	if (frame_dur != 0)
-		vstatus->fps = 96000 / frame_dur;
+		vstatus->frame_rate = 96000 / frame_dur;
 	else
-		vstatus->fps = -1;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = READ_VREG(AV_SCRATCH_D);
 	vstatus->status = stat;
+	vstatus->bit_rate = gvs->bit_rate;
+	vstatus->frame_dur = frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
+
+	return 0;
+}
+
+static int vh264mvc_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -1308,12 +1337,17 @@ static void vh264mvc_local_init(void)
 
 static s32 vh264mvc_init(void)
 {
+	int ret = 0;
 	int r1, r2, r3, r4;
 	unsigned int cpu_type = get_cpu_type();
 	pr_info("\nvh264mvc_init\n");
 	init_timer(&recycle_timer);
 
 	stat |= STAT_TIMER_INIT;
+
+	ret = vh264mvc_vdec_info_init();
+	if (0 != ret)
+		return -ret;
 
 	vh264mvc_local_init();
 
@@ -1511,6 +1545,8 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 
 	if (vh264mvc_init() < 0) {
 		pr_info("\namvdec_h264mvc init failed.\n");
+		kfree(gvs);
+		gvs = NULL;
 
 		return -ENODEV;
 	}
@@ -1545,6 +1581,8 @@ static int amvdec_h264mvc_remove(struct platform_device *pdev)
 #ifdef DEBUG_SKIP
 	pr_info("view_total = %ld, dropped %ld\n", view_total, view_dropped);
 #endif
+	kfree(gvs);
+	gvs = NULL;
 
 	return 0;
 }

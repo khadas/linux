@@ -2716,7 +2716,7 @@ static void check_timer_func(unsigned long arg)
 	add_timer(&hw->check_timer);
 }
 
-static int dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+static int dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
 	struct vdec_h264_hw_s *hw = (struct vdec_h264_hw_s *)vdec->private;
 	vstatus->width = hw->frame_width;

@@ -271,7 +271,7 @@ static int vmjpeg_vf_states(struct vframe_states *states, void *op_arg)
 	return 0;
 }
 
-static int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+static int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
 	struct vdec_mjpeg_hw_s *hw = (struct vdec_mjpeg_hw_s *)vdec->private;
 	vstatus->width = hw->frame_width;

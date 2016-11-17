@@ -184,7 +184,7 @@ struct vdec_s {
 	/* canvas */
 	int (*get_canvas)(unsigned int index, unsigned int base);
 
-	int (*dec_status)(struct vdec_s *vdec, struct vdec_status *vstatus);
+	int (*dec_status)(struct vdec_s *vdec, struct vdec_info *vstatus);
 	int (*set_trickmode)(struct vdec_s *vdec, unsigned long trickmode);
 
 	bool (*run_ready)(struct vdec_s *vdec);
@@ -296,7 +296,7 @@ extern int vdec_init(struct vdec_s *vdec, int is_4k);
 
 extern void vdec_release(struct vdec_s *vdec);
 
-extern int vdec_status(struct vdec_s *vdec, struct vdec_status *vstatus);
+extern int vdec_status(struct vdec_s *vdec, struct vdec_info *vstatus);
 
 extern int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode);
 
@@ -311,5 +311,8 @@ extern const char *vdec_status_str(struct vdec_s *vdec);
 extern const char *vdec_type_str(struct vdec_s *vdec);
 
 extern const char *vdec_device_name_str(struct vdec_s *vdec);
+
+extern void  vdec_count_info(struct vdec_info *vs, unsigned int err,
+	unsigned int offset);
 
 #endif				/* VDEC_H */
