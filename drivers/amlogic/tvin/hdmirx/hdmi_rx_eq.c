@@ -43,9 +43,7 @@ int eq_setting_back = 0;
 int fat_bit_status = 0;
 static int min_max_diff = 4;
 
-int hdmirx_log_flag = 1;
-MODULE_PARM_DESC(hdmirx_log_flag, "\n hdmirx_log_flag\n");
-module_param(hdmirx_log_flag, int, 0664);
+
 
 static int tmds_valid_cnt_max = 2;
 MODULE_PARM_DESC(tmds_valid_cnt_max, "\n tmds_valid_cnt_max\n");
@@ -235,7 +233,7 @@ uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
 	if (ch_data->validLongSetting  == 1 &&
 		ch_data->acc > AccLimit) {
 		ch_data->bestsetting = ch_data->bestLongSetting;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("longcable1");
 		return 1;
 	}
@@ -245,7 +243,7 @@ uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
 		ch_data->acc < AccLimit &&
 		ch_data->validShortSetting == 1) {
 		ch_data->bestsetting = ch_data->bestShortSetting;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("shortcable");
 		return 2;
 	}
@@ -257,13 +255,13 @@ uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
 		(ch_data->acc > AccLimit) &&
 		(stepSlope > minSlope)) {
 		ch_data->bestsetting = eq_max_setting;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("longcable2");
 		return 3;
 	}
 	/* error cable */
 	if (setting == eq_max_setting) {
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("errcable");
 		ch_data->bestsetting = ErrorcableSetting;
 		return 255;
@@ -414,17 +412,17 @@ uint8_t SettingFinder(void)
 		/* check for cable type, stop after detection */
 		if (retcodeCH0 == 0) {
 			retcodeCH0 = testType(actSetting, &eq_ch0);
-			if ((log_flag & EQ_LOG) && retcodeCH0)
+			if ((log_level & EQ_LOG) && retcodeCH0)
 				rx_pr("-CH0\n");
 		}
 		if (retcodeCH1 == 0) {
 			retcodeCH1 = testType(actSetting, &eq_ch1);
-			if ((log_flag & EQ_LOG) && retcodeCH1)
+			if ((log_level & EQ_LOG) && retcodeCH1)
 				rx_pr("-CH1\n");
 		}
 		if (retcodeCH2 == 0) {
 			retcodeCH2 = testType(actSetting, &eq_ch2);
-			if ((log_flag & EQ_LOG) && retcodeCH2)
+			if ((log_level & EQ_LOG) && retcodeCH2)
 				rx_pr("-CH2\n");
 		}
 
@@ -440,7 +438,7 @@ void hdmirx_phy_conf_eq_setting(int rx_port_sel, int ch0Setting,
 				int ch1Setting, int ch2Setting)
 {
 	unsigned int data32;
-	if (hdmirx_log_flag&VIDEO_LOG_ENABLE)
+	if (log_level & VIDEO_LOG)
 		rx_pr("hdmirx_phy_conf_eq_setting\n");
 	/* PDDQ = 1'b1; PHY_RESET = 1'b0; */
 	data32  = 0;
@@ -519,24 +517,24 @@ bool rx_need_eq_workaround(void)
 	if (hdmirx_tmds_6g()) {
 		fat_bit_status = EQ_FATBIT_MASK_HDMI20;
 		min_max_diff = MINMAX_maxDiff_HDMI20;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("EQ_6G\n");
 	} else if ((mfsm_status & 0x600) == 0x00) {
 		fat_bit_status = EQ_FATBIT_MASK_4k;
 		min_max_diff = MINMAX_maxDiff;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("EQ_3G\n");
 	} else if ((mfsm_status & 0x400) == 0x400) {
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINMAX_maxDiff;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("EQ_low_freq\n");
 		return false;
 	} else {
 		/* 94.5 ~ 148.5 */
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINMAX_maxDiff;
-		if (log_flag & EQ_LOG)
+		if (log_level & EQ_LOG)
 			rx_pr("EQ_1.5G\n");
 	}
 

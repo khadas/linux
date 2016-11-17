@@ -242,6 +242,14 @@
 			amlogic,clrmask=<AO  0x00028000>;
 			amlogic,pins="GPIOAO_7";
 		};
+		hdmirx_pins: hdmirx_pins {
+                amlogic,setmask = <5  0xffff0000>;
+                amlogic,clrmask = <5  0x0000ff00>;
+                amlogic,pins = "GPIOW_6","GPIOW_8",
+                        "GPIOW_10","GPIOW_12",
+                        "GPIOW_14","GPIOW_16",
+                        "GPIOW_17","GPIOW_18","GPIOW_19","GPIOW_20";
+    };
 		remote_pins:remote_pin{
 			amlogic,setmask = <AO 0x1>;
 			amlogic,clrmask = <AO 0x200000>;
