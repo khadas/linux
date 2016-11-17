@@ -3566,9 +3566,9 @@ static int config_pic(struct VP9Decoder_s *pbi,
 				: pic_height_32 / lcu_size;
 	int lcu_total       = pic_width_lcu * pic_height_lcu;
 
-	int mpred_mv_end = pbi->work_space_buf->mpred_mv.buf_start +
+	u32 mpred_mv_end = pbi->work_space_buf->mpred_mv.buf_start +
 			pbi->work_space_buf->mpred_mv.buf_size;
-	int y_adr = 0;
+	u32 y_adr = 0;
 	int buf_size = 0;
 
 	int losless_comp_header_size =

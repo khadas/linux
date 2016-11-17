@@ -1285,7 +1285,8 @@ static void vh264_isr(void)
 		SET_VREG_MASK(AV_SCRATCH_F, 0x8);
 #endif
 	if ((decoder_force_reset == 1)
-			|| ((no_idr_error_count >= no_idr_error_max)
+			|| ((error_recovery_mode != 1)
+			&& (no_idr_error_count >= no_idr_error_max)
 			&& (ucode_type != UCODE_IP_ONLY_PARAM))) {
 		vh264_running = 0;
 		pr_info("force reset decoder  %d!!!\n", no_idr_error_count);
