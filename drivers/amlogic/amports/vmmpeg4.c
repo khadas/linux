@@ -799,7 +799,7 @@ static int  vmpeg_vf_states(struct vframe_states *states, void *op_arg)
 }
 
 
-static int dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+static int dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
 	struct vdec_mpeg4_hw_s *hw = (struct vdec_mpeg4_hw_s *)vdec->private;
 

@@ -34,7 +34,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/delay.h>
-
+#include <linux/slab.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
 
 
@@ -280,6 +280,7 @@ static s32 vfbuf_use[DECODE_BUFFER_NUM_MAX];
 static struct vframe_s vfpool[VF_POOL_SIZE];
 
 static struct work_struct alloc_work;
+static struct vdec_info *gvs;
 
 static void set_frame_info(struct vframe_s *vf)
 {
@@ -823,6 +824,12 @@ static irqreturn_t vh264_4k2k_isr(int irq, void *dev_id)
 				spec2canvas(&buffer_spec[display_buff_id]);
 			set_frame_info(vf);
 
+			if (error)
+				gvs->drop_frame_count++;
+
+			gvs->frame_dur = frame_dur;
+			vdec_count_info(gvs, error, stream_offset);
+
 			if (((error_recovery_mode & 2) && error)
 				|| (!first_i_recieved
 					&& (slice_type != SLICE_TYPE_I))) {
@@ -1021,16 +1028,38 @@ static void vh264_4k2k_put_timer_func(unsigned long arg)
 	add_timer(timer);
 }
 
-int vh264_4k2k_dec_status(struct vdec_s *vdec, struct vdec_status *vstatus)
+int vh264_4k2k_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	vstatus->width = frame_width;
-	vstatus->height = frame_height;
+	vstatus->frame_width = frame_width;
+	vstatus->frame_height = frame_height;
 	if (frame_dur != 0)
-		vstatus->fps = 96000 / frame_dur;
+		vstatus->frame_rate = 96000 / frame_dur;
 	else
-		vstatus->fps = -1;
+		vstatus->frame_rate = -1;
 	vstatus->error_count = 0;
 	vstatus->status = stat | fatal_error;
+	vstatus->frame_dur = frame_dur;
+	vstatus->frame_data = gvs->frame_data;
+	vstatus->total_data = gvs->total_data;
+	vstatus->frame_count = gvs->frame_count;
+	vstatus->error_frame_count = gvs->error_frame_count;
+	vstatus->drop_frame_count = gvs->drop_frame_count;
+	vstatus->total_data = gvs->total_data;
+	vstatus->samp_cnt = gvs->samp_cnt;
+	vstatus->offset = gvs->offset;
+	snprintf(vstatus->vdec_name, sizeof(vstatus->vdec_name),
+		"%s", DRIVER_NAME);
+
+	return 0;
+}
+
+static int vh264_4k2k_vdec_info_init(void)
+{
+	gvs = kzalloc(sizeof(struct vdec_info), GFP_KERNEL);
+	if (NULL == gvs) {
+		pr_info("the struct of vdec status malloc failed.\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -1396,6 +1425,7 @@ static void vh264_4k2k_local_init(void)
 
 static s32 vh264_4k2k_init(void)
 {
+	int ret = 0;
 	int r1 , r2, r3;
 
 	pr_info("\nvh264_4k2k_init\n");
@@ -1572,6 +1602,10 @@ static s32 vh264_4k2k_init(void)
 		amvdec2_start();
 
 	stat |= STAT_VDEC_RUN;
+
+	ret = vh264_4k2k_vdec_info_init();
+	if (0 != ret)
+		return -ret;
 
 	return 0;
 }
@@ -1766,6 +1800,9 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 		}
 #endif
 		mutex_unlock(&vh264_4k2k_mutex);
+		kfree(gvs);
+		gvs = NULL;
+
 		return -ENODEV;
 	}
 #if 1/*MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8*/
@@ -1809,6 +1846,9 @@ static int amvdec_h264_4k2k_remove(struct platform_device *pdev)
 		remove_callback();
 
 	mutex_unlock(&vh264_4k2k_mutex);
+
+	kfree(gvs);
+	gvs = NULL;
 
 	pr_info("amvdec_h264_4k2k_remove\n");
 	return 0;
