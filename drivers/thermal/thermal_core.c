@@ -427,11 +427,14 @@ static bool can_notify(struct thermal_zone_device *tz,
 		       long trip_temp)
 {
 	unsigned long hyst = 0;
-	int diff, rem, cur_step;
 
 	if (trip_type != THERMAL_TRIP_HOT)
 		return false;
 	tz->ops->get_trip_hyst(tz, trip, &hyst);
+
+	if (tz->temperature < 0)
+		return false;
+
 	/* increase each hyst step */
 	if (tz->temperature >= (trip_temp + tz->hot_step * hyst)) {
 		tz->hot_step++;
@@ -440,24 +443,10 @@ static bool can_notify(struct thermal_zone_device *tz,
 			 tz->temperature, hyst, trip_temp, tz->hot_step);
 		return true;
 	}
-	/* decrease each hyst step */
-	if (tz->hot_step && tz->temperature < trip_temp) {
-		diff = trip_temp - tz->temperature;
-		rem  = diff % hyst;
-		diff = diff / hyst;
-		if (rem != 0)
-			return false;
-		/* remember step in MSB */
-		if (tz->hot_step < 0xffff)
-			tz->hot_step <<= 16;
-		cur_step = tz->hot_step & 0xffff;
-		if (diff == cur_step)
-			return false;
-		cur_step++;
-		tz->hot_step &= ~0xffff;
-		tz->hot_step |= cur_step;
-		if (cur_step == (tz->hot_step >> 16))
-			tz->hot_step = 0;
+	/* reserve a step gap */
+	if (tz->temperature <= (trip_temp + (tz->hot_step - 2) * hyst) &&
+	    tz->hot_step) {
+		tz->hot_step--;
 		dev_info(&tz->device,
 			 "temp:%d decrease, hyst:%ld, trip_temp:%ld, hot:%x\n",
 			 tz->temperature, hyst, trip_temp, tz->hot_step);
