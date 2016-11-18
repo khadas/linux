@@ -27,8 +27,9 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
+
 #define RX_VER0 "Ref.2016/11/22"
-#define RX_VER1 "Ref.2016/09/13"
+#define RX_VER1 "Ref.2016/11/21"
 #define RX_VER2 "Ref.2016/09/27"
 #define RX_VER3 "Ref.2016/11/23"
 
@@ -470,6 +471,8 @@ struct rx_s {
 	uint change;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
 	unsigned port;
+	/*first boot flag*/
+	bool boot_flag;
 	/** HDMI RX PHY context */
 	struct hdmi_rx_phy phy;
 	/** HDMI RX controller context */

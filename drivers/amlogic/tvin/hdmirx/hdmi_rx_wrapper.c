@@ -2451,6 +2451,7 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_HPD_LOW:
 		/* set_scdc_cfg(1, 1); */
+		hdmirx_set_hpd(rx.port, 0);
 		audio_status_init();
 		Signal_status_init();
 		hdmirx_phy_init(rx.port, 0);
@@ -4178,7 +4179,11 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		#endif
 		rx.state = FSM_HPD_LOW;
 		pre_port = rx.port;
-		hdmirx_set_hpd(rx.port, 0);
+		if (rx.boot_flag) {
+			rx.boot_flag = FALSE;
+			hdmirx_set_hpd(rx.port, 1);
+		} else
+			hdmirx_set_hpd(rx.port, 0);
 		hdmirx_hw_config();
 	} else {
 		if (0 == get_cur_hpd_sts())
