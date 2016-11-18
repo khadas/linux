@@ -374,7 +374,6 @@ error_ret:
 	cur_streamline_val--; /* pt or fence fail,restore timeline value. */
 	osd_log_err("fence obj create fail\n");
 	put_unused_fd(out_fence_fd);
-	*release_fence_fd = -1;
 	return -1;
 }
 
@@ -383,7 +382,6 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 {
 	int out_fence_fd = -1;
 	int buf_num = 0;
-	struct sync_fence *in_fence;
 	struct osd_fence_map_s *fence_map =
 		kzalloc(sizeof(struct osd_fence_map_s), GFP_KERNEL);
 	buf_num = find_buf_num(yres, yoffset);
@@ -391,27 +389,21 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 		osd_log_err("could not allocate osd_fence_map\n");
 		return -ENOMEM;
 	}
-	in_fence = sync_fence_fdget(in_fence_fd);
-	if (in_fence == NULL) {
-		out_fence_fd = -1;
-	} else {
-		mutex_lock(&post_fence_list_lock);
-		fence_map->fb_index = index;
-		fence_map->buf_num = buf_num;
-		fence_map->yoffset = yoffset;
-		fence_map->xoffset = xoffset;
-		fence_map->yres = yres;
-		fence_map->in_fd = in_fence_fd;
-		fence_map->in_fence = in_fence;
-		fence_map->files = current->files;
-		fence_map->out_fd =
-			out_fence_create(&out_fence_fd,
-				&fence_map->val, buf_num);
-		list_add_tail(&fence_map->list, &post_fence_list);
-		mutex_unlock(&post_fence_list_lock);
-		queue_kthread_work(&buffer_toggle_worker,
-			&buffer_toggle_work);
-	}
+	mutex_lock(&post_fence_list_lock);
+	fence_map->fb_index = index;
+	fence_map->buf_num = buf_num;
+	fence_map->yoffset = yoffset;
+	fence_map->xoffset = xoffset;
+	fence_map->yres = yres;
+	fence_map->in_fd = in_fence_fd;
+	fence_map->in_fence = sync_fence_fdget(in_fence_fd);
+	fence_map->files = current->files;
+	fence_map->out_fd =
+		out_fence_create(&out_fence_fd, &fence_map->val, buf_num);
+	list_add_tail(&fence_map->list, &post_fence_list);
+	mutex_unlock(&post_fence_list_lock);
+	queue_kthread_work(&buffer_toggle_worker, &buffer_toggle_work);
+
 	return  out_fence_fd;
 }
 
