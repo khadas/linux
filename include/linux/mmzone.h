@@ -165,6 +165,9 @@ enum zone_stat_item {
 	NR_INACTIVE_FILE_TEST,	/*  "     "     "   "       "         */
 	NR_ACTIVE_FILE_TEST,		/*  "     "     "   "       "         */
 	NR_UNEVICTABLE_FILE_TEST,		/*  " "       "         */
+#ifdef CONFIG_CMA
+	NR_CMA_ISOLATED,		/* cma isolate */
+#endif
 	NR_VM_ZONE_STAT_ITEMS };
 
 /*

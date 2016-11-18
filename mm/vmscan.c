@@ -1517,7 +1517,7 @@ int isolate_lru_page(struct page *page)
 static int too_many_isolated(struct zone *zone, int file,
 		struct scan_control *sc)
 {
-	unsigned long inactive, isolated;
+	signed long inactive, isolated;
 
 	if (current_is_kswapd())
 		return 0;
@@ -1533,6 +1533,9 @@ static int too_many_isolated(struct zone *zone, int file,
 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
 	}
 
+#ifdef CONFIG_CMA
+	isolated -= zone_page_state(zone, NR_CMA_ISOLATED);
+#endif
 	/*
 	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so they
 	 * won't get blocked by normal direct-reclaimers, forming a circular
@@ -1541,6 +1544,12 @@ static int too_many_isolated(struct zone *zone, int file,
 	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
 		inactive >>= 3;
 
+#ifdef CONFIG_CMA
+	WARN_ONCE(isolated > inactive,
+		  "isolated:%ld, cma:%ld, inactive:%ld, mask:%x, file:%d\n",
+		  isolated, zone_page_state(zone, NR_CMA_ISOLATED),
+		  inactive, sc->gfp_mask, file);
+#endif
 	return isolated > inactive;
 }
 

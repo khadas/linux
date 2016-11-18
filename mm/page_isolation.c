@@ -128,7 +128,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 {
 	unsigned long pfn;
 	unsigned long undo_pfn;
-	struct page *page;
+	struct page *page = NULL;
 
 	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
 	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
@@ -143,6 +143,11 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			goto undo;
 		}
 	}
+#ifdef CONFIG_CMA
+	if (migratetype == MIGRATE_CMA && page)
+		__mod_zone_page_state(page_zone(page),
+				      NR_CMA_ISOLATED, end_pfn - start_pfn);
+#endif
 	return 0;
 undo:
 	for (pfn = start_pfn;
@@ -160,7 +165,7 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			    unsigned migratetype)
 {
 	unsigned long pfn;
-	struct page *page;
+	struct page *page = NULL;
 	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
 	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
 	for (pfn = start_pfn;
@@ -171,6 +176,11 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			continue;
 		unset_migratetype_isolate(page, migratetype);
 	}
+#ifdef CONFIG_CMA
+	if (migratetype == MIGRATE_CMA && page)
+		__mod_zone_page_state(page_zone(page),
+				      NR_CMA_ISOLATED, start_pfn - end_pfn);
+#endif
 	return 0;
 }
 /*
