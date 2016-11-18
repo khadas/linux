@@ -159,13 +159,16 @@ static uint cur_hdr_process_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr */
 module_param(hdr_process_mode, uint, 0444);
 MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 
-static uint sdr_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr, 2:auto */
+uint sdr_mode = 0; /* 0: sdr->sdr, 1:sdr->hdr, 2:auto */
 static uint sdr_process_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr */
 static uint cur_sdr_process_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr */
+static uint sdr_saturation_offset = 20; /* 0: sdr->sdr, 1:sdr->hdr */
 module_param(sdr_mode, uint, 0664);
 MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
 module_param(sdr_process_mode, uint, 0444);
 MODULE_PARM_DESC(sdr_process_mode, "\n current hdr_process_mode\n");
+module_param(sdr_saturation_offset, uint, 0664);
+MODULE_PARM_DESC(sdr_saturation_offset, "\n add saturation\n");
 
 static uint force_csc_type = 0xff;
 module_param(force_csc_type, uint, 0664);
@@ -569,6 +572,34 @@ static void load_knee_lut(int on)
 }
 
 /***************************** gxl hdr ****************************/
+#define EOTF_INV_LUT_NEG2048_SIZE 16 /* 16 for [-2048, 0), 32 for [0, 1024), 17 for [1024, 2048) */
+#define EOTF_INV_LUT_SIZE 32
+#define EOTF_INV_LUT_1024_SIZE 17
+
+static unsigned int num_invlut_neg_mapping = EOTF_INV_LUT_NEG2048_SIZE;
+static int invlut_y_neg[EOTF_INV_LUT_NEG2048_SIZE] = {
+	-2048, -1920, -1792, -1664,
+	-1536, -1408, -1280, -1152,
+	-1024, -896, -768, -640,
+	-512, -384, -256, -128
+};
+
+static unsigned int num_invlut_mapping = EOTF_INV_LUT_SIZE;
+static unsigned int invlut_y[EOTF_INV_LUT_SIZE] = {
+	0, 32, 64, 96, 128, 160, 192, 224,
+	256, 288, 320, 352, 384, 416, 448, 480,
+	512, 544, 576, 608, 640, 672, 704, 736,
+	768, 800, 832, 864, 896, 928, 960, 992
+};
+
+static unsigned int num_invlut_1024_mapping = EOTF_INV_LUT_1024_SIZE;
+static unsigned int invlut_y_1024[EOTF_INV_LUT_1024_SIZE] = {
+	1024, 1088, 1152, 1216,
+	1280, 1344, 1408, 1472,
+	1536, 1600, 1664, 1728,
+	1792, 1856, 1920, 1984,
+	2047
+};
 
 #define EOTF_LUT_SIZE 33
 static unsigned int num_osd_eotf_r_mapping = EOTF_LUT_SIZE;
@@ -927,6 +958,18 @@ module_param_array(osd_matrix_coeff, int,
 MODULE_PARM_DESC(osd_matrix_coeff, "\n coef for osd matrix\n");
 
 /****************** video eotf ********************/
+module_param_array(invlut_y_neg, int,
+	&num_invlut_neg_mapping, 0664);
+MODULE_PARM_DESC(invlut_y_neg, "\n lut for inv y -2048..0 eotf\n");
+
+module_param_array(invlut_y, uint,
+	&num_invlut_mapping, 0664);
+MODULE_PARM_DESC(invlut_y, "\n lut for inv y 0..1024 eotf\n");
+
+module_param_array(invlut_y_1024, uint,
+	&num_invlut_1024_mapping, 0664);
+MODULE_PARM_DESC(invlut_y_1024, "\n lut for inv y 1024..2048 eotf\n");
+
 module_param_array(video_eotf_coeff, int,
 	&num_video_eotf_coeff, 0664);
 MODULE_PARM_DESC(video_eotf_coeff, "\n matrix for video eotf\n");
@@ -1601,11 +1644,12 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	}
 }
 
-const char lut_name[4][16] = {
+const char lut_name[NUM_LUT][16] = {
 	"OSD_EOTF",
 	"OSD_OETF",
 	"EOTF",
 	"OETF",
+	"INV_EOTF"
 };
 /* VIDEO_OETF_LUT_SIZE 289 >
 	OSD_OETF_LUT_SIZE 41 >
@@ -1641,6 +1685,10 @@ static void print_vpp_lut(
 		addr_port = XVYCC_LUT_R_ADDR_PORT;
 		data_port = XVYCC_LUT_R_DATA_PORT;
 		ctrl_port = XVYCC_LUT_CTL;
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		addr_port = XVYCC_INV_LUT_Y_ADDR_PORT;
+		data_port = XVYCC_INV_LUT_Y_DATA_PORT;
+		ctrl_port = XVYCC_INV_LUT_CTL;
 	} else
 		return;
 	if (lut_sel == VPP_LUT_OSD_OETF) {
@@ -1750,6 +1798,24 @@ static void print_vpp_lut(
 		pr_csc("\n");
 		if (on)
 			WRITE_VPP_REG(ctrl_port, 0x7f);
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		WRITE_VPP_REG_BITS(ctrl_port, 0, 12, 3);
+		pr_csc("%s lut %s:\n", lut_name[lut_sel], on ? "on" : "off");
+		for (i = 0;
+			i < EOTF_INV_LUT_NEG2048_SIZE +
+			EOTF_INV_LUT_SIZE + EOTF_INV_LUT_1024_SIZE;
+			i++) {
+			WRITE_VPP_REG(addr_port, i);
+			data = READ_VPP_REG(data_port) & 0xfff;
+			if (data & 0x800)
+				pr_csc("\t[%d] = %d\n",
+					i, -(~(data|0xfffff000) + 1));
+			else
+				pr_csc("\t[%d] = %d\n", i, data);
+		}
+		pr_csc("\n");
+		if (on)
+			WRITE_VPP_REG_BITS(ctrl_port, 1<<2, 12, 3);
 	}
 }
 
@@ -1803,6 +1869,10 @@ void set_vpp_lut(
 		data_port = XVYCC_LUT_R_DATA_PORT;
 		ctrl_port = XVYCC_LUT_CTL;
 #endif
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		addr_port = XVYCC_INV_LUT_Y_ADDR_PORT;
+		data_port = XVYCC_INV_LUT_Y_DATA_PORT;
+		ctrl_port = XVYCC_INV_LUT_CTL;
 	} else
 		return;
 
@@ -1906,6 +1976,26 @@ void set_vpp_lut(
 			knee_lut_on = 0;
 		}
 		cur_knee_factor = knee_factor;
+	} else if (lut_sel == VPP_LUT_INV_EOTF) {
+		WRITE_VPP_REG(addr_port, 0);
+		for (i = 0; i < EOTF_INV_LUT_NEG2048_SIZE; i++) {
+			WRITE_VPP_REG(addr_port, i);
+			WRITE_VPP_REG(data_port, invlut_y_neg[i]);
+		}
+		for (i = 0; i < EOTF_INV_LUT_SIZE; i++) {
+			WRITE_VPP_REG(addr_port, EOTF_INV_LUT_NEG2048_SIZE + i);
+			WRITE_VPP_REG(data_port, invlut_y[i]);
+		}
+		for (i = 0; i < EOTF_INV_LUT_1024_SIZE; i++) {
+			WRITE_VPP_REG(addr_port,
+				EOTF_INV_LUT_NEG2048_SIZE +
+				EOTF_INV_LUT_SIZE + i);
+			WRITE_VPP_REG(data_port, invlut_y_1024[i]);
+		}
+		if (on)
+			WRITE_VPP_REG_BITS(ctrl_port, 1<<2, 12, 3);
+		else
+			WRITE_VPP_REG_BITS(ctrl_port, 0, 12, 3);
 	}
 	print_vpp_lut(lut_sel, on);
 }
@@ -2194,6 +2284,7 @@ static struct vframe_master_display_colour_s cur_master_display_colour = {
 #define SIG_HDR_MODE	0x10
 #define SIG_HDR_SUPPORT	0x20
 #define SIG_WB_CHG	0x40
+
 int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	u32 signal_type = 0;
@@ -3120,6 +3211,20 @@ static void bypass_hdr_process(
 			set_vpp_matrix(VPP_MATRIX_POST,
 				YUV709l_to_RGB709_coeff,
 				CSC_ON);
+		/* xvycc inv lut */
+		if (sdr_process_mode)
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_ON);
+		else
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_OFF);
+
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_EOTF,
 			eotf_33_linear_mapping, /* R */
@@ -3171,6 +3276,20 @@ static void bypass_hdr_process(
 			csc_type, NULL);
 		/* xvycc lut off */
 		load_knee_lut(CSC_OFF);
+		/* xvycc inv lut */
+
+		if (sdr_process_mode)
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_ON);
+		else
+			set_vpp_lut(VPP_LUT_INV_EOTF,
+				NULL,
+				NULL,
+				NULL,
+				CSC_OFF);
 
 		vecm_latch_flag |= FLAG_VADJ1_BRI;
 		hdr_process_pq_enable(1);
@@ -3190,7 +3309,8 @@ static void sdr_hdr_process(
 	enum vpp_matrix_csc_e csc_type,
 	struct vinfo_s *vinfo)
 {
-	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_OSD_EOTF,
 			eotf_33_linear_mapping, /* R */
@@ -3268,6 +3388,9 @@ static void sdr_hdr_process(
 		set_vpp_matrix(VPP_MATRIX_XVYCC,
 			RGB2020_to_YUV2020l_coeff,
 			CSC_ON);
+	} else if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
+		bypass_hdr_process(csc_type, vinfo);
 	}
 }
 
@@ -3340,7 +3463,11 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 		if ((vinfo->hdr_info.hdr_support & 0x4) &&
 		((get_cpu_type() == MESON_CPU_MAJOR_ID_GXL) ||
 		 (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)))
-			sdr_process_mode = 1; /* sdr->hdr*/
+			sdr_process_mode = 1; /*box sdr->hdr*/
+		else if ((vinfo->viu_color_fmt == TVIN_RGB444) &&
+			((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)))
+			sdr_process_mode = 1; /*tv sdr->hdr*/
 		else
 			sdr_process_mode = 0; /* sdr->sdr*/
 	} else
@@ -3448,7 +3575,12 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 		if (need_adjust_contrast_saturation & 2) {
 			vecm_latch_flag |= FLAG_VADJ1_COLOR;
 		} else {
-			saturation_offset =	0;
+			if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) &&
+				(sdr_process_mode == 1))
+				saturation_offset = sdr_saturation_offset;
+			else
+				saturation_offset =	0;
 			vecm_latch_flag |= FLAG_VADJ1_COLOR;
 		}
 		if (cur_csc_type != csc_type) {

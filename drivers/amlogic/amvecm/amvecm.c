@@ -3043,6 +3043,11 @@ static int aml_vecm_probe(struct platform_device *pdev)
 
 	memset(&vpp_hist_param.vpp_histgram[0],
 		0, sizeof(unsigned short) * 64);
+	/*box sdr_mode:auto   tv sdr_mode:off*/
+	if (is_meson_gxl_cpu() || is_meson_gxm_cpu())
+		sdr_mode = 2;
+	else
+		sdr_mode = 0;
 
 	aml_vecm_dt_parse(pdev);
 	probe_ok = 1;

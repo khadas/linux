@@ -83,9 +83,10 @@ enum vpp_lut_sel_e {
 	VPP_LUT_OSD_EOTF = 0,
 	VPP_LUT_OSD_OETF,
 	VPP_LUT_EOTF,
-	VPP_LUT_OETF
+	VPP_LUT_OETF,
+	VPP_LUT_INV_EOTF
 };
-#define NUM_LUT 4
+#define NUM_LUT 5
 
 /* matrix registers */
 struct matrix_s {
@@ -103,6 +104,7 @@ extern int dnlp_en;
 extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
 extern signed int saturation_offset;
+extern uint sdr_mode;
 
 extern void amvecm_matrix_process(struct vframe_s *vf);
 extern int amvecm_hdr_dbg(u32 sel);
