@@ -490,8 +490,8 @@
 		interrupts = <0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_HIGH";
 		power_on_pin = <&gpio_ao       GPIOAO_6       GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "wifi_32k_pins";
-		pinctrl-0 = <&wifi_32k_pins>;
+		//pinctrl-names = "wifi_32k_pins";
+		//pinctrl-0 = <&wifi_32k_pins>;
 	};
 	emmc{
 		compatible = "amlogic, aml_sd_emmc";
