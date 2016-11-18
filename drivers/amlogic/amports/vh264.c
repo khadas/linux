@@ -845,8 +845,17 @@ static void vh264_set_params(struct work_struct *work)
 					pr_info("Re-use CMA buffer %d\n", i);
 				}
 				if (!buffer_spec[i].phy_addr) {
-					if (!codec_mm_enough_for_size(
-						page_count * PAGE_SIZE, 1)) {
+					if (codec_mm_get_free_size()
+						< (codec_mm_get_total_size()
+						- (page_count * PAGE_SIZE))) {
+						pr_err
+						("CMA force free keep buf %d\n",
+						i);
+						try_free_keep_video(1);
+					}
+
+					if (!codec_mm_enough_for_size
+						(page_count * PAGE_SIZE, 1)) {
 						buffer_spec[i].alloc_count = 0;
 						fatal_error_flag =
 						DECODER_FATAL_ERROR_NO_MEM;

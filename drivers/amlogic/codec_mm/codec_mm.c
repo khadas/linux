@@ -1048,6 +1048,7 @@ int codec_mm_enough_for_size(int size, int with_wait)
 		have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
 		if (have_mem)
 			return 1;
+
 		if (debug_mode & 0x20)
 			dump_mem_infos(NULL, 0);
 		return 0;
