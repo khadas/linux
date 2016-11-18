@@ -133,6 +133,7 @@ static unsigned char rx_len;
 static unsigned int  new_msg;
 static bool wake_ok = 1;
 static bool ee_cec;
+static bool pin_status;
 bool cec_msg_dbg_en = 0;
 
 #define CEC_ERR(format, args...)				\
@@ -297,6 +298,7 @@ static int cec_pick_msg(unsigned char *msg, unsigned char *out_len)
 	mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	CEC_INFO("%s", msg_log_buf);
 	*out_len = len;
+	pin_status = 1;
 	return 0;
 }
 
@@ -569,6 +571,7 @@ int cec_ll_rx(unsigned char *msg, unsigned char *len)
 	aocec_wr_reg(CEC_RX_MSG_CMD, RX_ACK_CURRENT);
 	aocec_wr_reg(CEC_RX_MSG_CMD, RX_NO_OP);
 	cec_rx_buf_clear();
+	pin_status = 1;
 	return ret;
 }
 
@@ -1457,6 +1460,31 @@ static ssize_t port_status_show(struct class *cla,
 	}
 }
 
+static ssize_t pin_status_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	unsigned int tx_hpd;
+	char p;
+
+	tx_hpd = cec_dev->tx_dev->hpd_state;
+	if (cec_dev->dev_type == DEV_TYPE_PLAYBACK) {
+		if (!tx_hpd) {
+			pin_status = 0;
+			return sprintf(buf, "%s\n", "disconnected");
+		}
+		if (pin_status == 0) {
+			p = (cec_dev->cec_info.log_addr << 4) | CEC_TV_ADDR;
+			if (cec_ll_tx(&p, 1) == CEC_FAIL_NONE)
+				return sprintf(buf, "%s\n", "ok");
+			else
+				return sprintf(buf, "%s\n", "fail");
+		} else
+			return sprintf(buf, "%s\n", "ok");
+	} else {
+		return sprintf(buf, "%s\n", pin_status ? "ok" : "fail");
+	}
+}
+
 static ssize_t physical_addr_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
@@ -1552,6 +1580,7 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR_RO(osd_name),
 	__ATTR_RO(dump_reg),
 	__ATTR_RO(port_status),
+	__ATTR_RO(pin_status),
 	__ATTR_RO(arc_port),
 	__ATTR_RO(wake_up),
 	__ATTR(physical_addr, 0664, physical_addr_show, physical_addr_store),
