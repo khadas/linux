@@ -183,14 +183,14 @@ static struct meson_bank pmx_ee_banks[] = {
 
 	BANK("BOOT",	PIN_BOOT_0,	PIN_BOOT_11,
 			PULL_EN_REG2,	0,
-			PULL_UP_REG1,	0,
+			PULL_UP_REG2,	0,
 			GPIO_D_REG2,	0,
 			GPIO_O_REG2,	0,
 			GPIO_I_REG2,	0),
 
 	BANK("CARD",	PIN_CARD_0,	PIN_CARD_6,
 			PULL_EN_REG2,	20,
-			PULL_UP_REG1,	20,
+			PULL_UP_REG2,	20,
 			GPIO_D_REG2,	20,
 			GPIO_O_REG2,	20,
 			GPIO_I_REG2,	20),
