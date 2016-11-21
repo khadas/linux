@@ -4412,7 +4412,7 @@ void set_combing_regs(int lvl)
 			register only in GCTVBB */
 			ndat = (*combing_setting_values[lvl])[i];
 			DI_Wr(combing_setting_registers[i], ndat);
-		} else if (is_meson_gxtvbb_cpu())
+		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 			DI_Wr(combing_setting_registers[i],
 				((*combing_setting_values[lvl])[i] &
 				combing_setting_masks[i]) |
