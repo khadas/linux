@@ -2732,6 +2732,13 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	else
 		enable_reset = 0;
 
+	/* 1: gxtvbb vdin out full range, */
+	/* 0: >=txl vdin out limit range, */
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		vdevp->color_range_mode = 1;
+	else
+		vdevp->color_range_mode = 0;
+
 	/* create vf pool */
 	vdevp->vfp = vf_pool_alloc(VDIN_CANVAS_MAX_CNT);
 	if (vdevp->vfp == NULL) {

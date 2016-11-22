@@ -270,6 +270,11 @@ struct vdin_dev_s {
 	/* cutwindow config */
 	unsigned int		cutwindow_cfg;
 	unsigned int		auto_cutwindow_en;
+	/*
+	*1:vdin out limit range
+	*0:vdin out full range
+	*/
+	unsigned int			color_range_mode;
 };
 
 

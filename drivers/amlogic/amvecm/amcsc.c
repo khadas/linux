@@ -2299,15 +2299,26 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_HDMI)) {
-		default_signal_type =
-			/* default 709 full */
-			  (1 << 29)	/* video available */
-			| (5 << 26)	/* unspecified */
-			| (1 << 25)	/* full */
-			| (1 << 24)	/* color available */
-			| (1 << 16)	/* bt709 */
-			| (1 << 8)	/* bt709 */
-			| (1 << 0);	/* bt709 */
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+			default_signal_type =
+				/* default 709 full */
+				  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (1 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (1 << 16)	/* bt709 */
+				| (1 << 8)	/* bt709 */
+				| (1 << 0);	/* bt709 */
+		else
+			default_signal_type =
+				/* default 709 limit */
+				  (1 << 29)	/* video available */
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (1 << 16)	/* bt709 */
+				| (1 << 8)	/* bt709 */
+				| (1 << 0);	/* bt709 */
 	} else { /* for local play */
 		if (vf->height >= 720)
 			default_signal_type =
