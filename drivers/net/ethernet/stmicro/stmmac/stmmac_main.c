@@ -3379,26 +3379,30 @@ static void moniter_tx_handler(struct work_struct *work)
 	struct stmmac_priv *priv;
 	static int last_dirty_tx;
 	static int check_tx;
-	priv = netdev_priv(c_phy_dev->attached_dev);
-	if (c_phy_dev->link) {
-		if (priv->dirty_tx != priv->cur_tx && check_tx == 0) {
-			pr_info("tx queueing\n");
-			check_tx = 1;
-			last_dirty_tx = priv->dirty_tx;
-		}
-		if (check_tx == 1)
-			i++;
-		if (i == 5) {
-			i = 0;
-			check_tx = 0;
-			if (last_dirty_tx == priv->dirty_tx) {
-				pr_info("tx stop, recover eth new\n");
-				stmmac_release(priv->dev);
-				stmmac_open(priv->dev);
+	if (c_phy_dev->attached_dev) {
+		priv = netdev_priv(c_phy_dev->attached_dev);
+		if (priv) {
+			if (c_phy_dev->link) {
+				if (priv->dirty_tx != priv->cur_tx &&
+						check_tx == 0) {
+					pr_info("tx queueing\n");
+					check_tx = 1;
+					last_dirty_tx = priv->dirty_tx;
+				}
+				if (check_tx == 1)
+					i++;
+				if (i == 5) {
+					i = 0;
+					check_tx = 0;
+					if (last_dirty_tx == priv->dirty_tx) {
+						pr_info("tx stop, recover eth new\n");
+						stmmac_release(priv->dev);
+						stmmac_open(priv->dev);
+					}
+				}
 			}
 		}
 	}
-
 	queue_delayed_work(moniter_tx_wq, &moniter_tx_worker, HZ);
 }
 /**
