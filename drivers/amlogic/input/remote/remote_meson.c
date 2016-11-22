@@ -217,7 +217,8 @@ static void amlremote_tasklet(unsigned long data)
 	} else if (status & REMOTE_REPEAT) {
 		remote_printk(4, "receive repeat\n");
 		remote_keydown(chip->r_dev, scancode, status);
-	}
+	} else
+		remote_printk(4, "receive error %d\n", status);
 }
 
 static irqreturn_t ir_interrupt(int irq, void *dev_id)

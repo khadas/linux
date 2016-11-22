@@ -129,8 +129,11 @@ static int ir_nec_get_decode_status(struct remote_chip *chip)
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= REMOTE_REPEAT;
+	/*
+	it is error,if the custom_code is not mask.
 	if (decode_status & 0x02)
 		status |= REMOTE_CUSTOM_ERROR;
+	*/
 	if (decode_status & 0x04)
 		status |= REMOTE_DATA_ERROR;
 	return status;
@@ -245,8 +248,11 @@ static int ir_duokan_get_decode_status(struct remote_chip *chip)
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= REMOTE_REPEAT;
+	/*
+	it is error,if the custom_code is not mask.
 	if (decode_status & 0x02)
 		status |= REMOTE_CUSTOM_ERROR;
+	*/
 	if (decode_status & 0x04)
 		status |= REMOTE_DATA_ERROR;
 	return status;
