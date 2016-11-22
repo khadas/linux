@@ -2363,8 +2363,13 @@ static unsigned char is_bypass(vframe_t *vf_in)
 
 	if (((bypass_trick_mode) &&
 	     (new_keep_last_frame_enable == 0)) || (bypass_trick_mode & 0x2)) {
-		int trick_mode;
-		query_video_status(0, &trick_mode);
+		int trick_mode_fffb = 0;
+		int trick_mode_i = 0;
+		if (bypass_trick_mode&0x1)
+			query_video_status(0, &trick_mode_fffb);
+		if (bypass_trick_mode&0x2)
+			query_video_status(1, &trick_mode_i);
+		trick_mode = trick_mode_fffb | (trick_mode_i << 1);
 		if (trick_mode)
 			return 1;
 	}
@@ -5391,6 +5396,7 @@ static unsigned char pre_de_buf_config(void)
 		/* some provider has problem if receiver
 		 * get all buffers of provider */
 		int in_buf_num = 0;
+		cur_lev = 0;
 		for (i = 0; i < MAX_IN_BUF_NUM; i++)
 			if (vframe_in[i] != NULL)
 				in_buf_num++;
@@ -5509,6 +5515,11 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 
 		if (force_height)
 			vframe->height = force_height;
+
+		/* backup frame motion info */
+		vframe->combing_cur_lev = cur_lev;
+
+		di_print("%s: vf_get => 0x%p\n", __func__, vframe);
 
 		provider_vframe_level--;
 		di_buf = get_di_buf_head(QUEUE_IN_FREE);
@@ -5668,6 +5679,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			/* bypass progressive */
 			di_buf->seq = di_pre_stru.pre_ready_seq++;
 			di_buf->post_ref_count = 0;
+			cur_lev = 0;
 			if (di_pre_stru.source_change_flag) {
 				di_buf->new_format_flag = 1;
 				di_pre_stru.source_change_flag = 0;
@@ -7053,8 +7065,10 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 	}
 
 #ifdef NEW_DI_V1
-	if (di_post_stru.update_post_reg_flag)
+	if (di_post_stru.update_post_reg_flag && (!combing_fix_en)) {
 		di_apply_reg_cfg(1);
+		last_lev = -1;
+	}
 
 #endif
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
@@ -8275,6 +8289,7 @@ static void di_reg_process_irq(void)
 		}
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
+		last_lev = -1;
 	}
 }
 

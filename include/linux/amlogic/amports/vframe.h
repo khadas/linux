@@ -294,7 +294,8 @@ struct vframe_s {
 	 *1: process p from decoder as filed;
 	 *0: process p from decoder as frame*/
 	u32 prog_proc_config;
-
+	/* used for indicate current video is motion or static */
+	int combing_cur_lev;
 	/*for vframe's memory,
 	used by memory owner.*/
 	void *mem_handle;

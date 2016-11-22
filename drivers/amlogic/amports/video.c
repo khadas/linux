@@ -4260,6 +4260,9 @@ int query_video_status(int type, int *value)
 	case 0:
 		*value = trickmode_fffb;
 		break;
+	case 1:
+		*value = trickmode_i;
+		break;
 	default:
 		break;
 	}
@@ -5207,11 +5210,15 @@ static ssize_t video_state_show(struct class *cla,
 	len +=
 	    sprintf(buf + len, "pps pre vsc enable %d.\n",
 		    vpp_filter->vpp_pre_vsc_en);
+	len +=
 	    sprintf(buf + len, "hscale filter coef %d.\n",
 		    vpp_filter->vpp_horz_filter);
 	len +=
 	    sprintf(buf + len, "vscale filter coef %d.\n",
 		    vpp_filter->vpp_vert_filter);
+	len +=
+	    sprintf(buf + len, "vpp_vert_chroma_filter_en %d.\n",
+		    vpp_filter->vpp_vert_chroma_filter_en);
 	len +=
 	    sprintf(buf + len, "post_blend_vd_h_start 0x%x.\n",
 		    cur_frame_par->VPP_post_blend_vd_h_start_);
