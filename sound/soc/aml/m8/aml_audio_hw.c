@@ -90,61 +90,6 @@ unsigned audioin_mode = I2SIN_MASTER_MODE;
 /* 1 => 'h800000 */
 unsigned int dac_mute_const = 0x800000;
 
-/*
-				fIn * (M)
-	    Fout   =  -----------------------------
-			    (N) * (OD+1) * (XD)
-*/
-int audio_clock_config_table[][13][2] = {
-	{
-	 /* 256 */
-#if OVERCLOCK == 0
-	 {0x0005cc08, (60 - 1)},	/* 32 */
-	 {0x0005e965, (40 - 1)},	/* 44.1 */
-	 {0x0007c4e6, (23 - 1)},	/* 48K */
-	 {0x0005cc08, (20 - 1)},	/* 96k ,24.576M */
-	 {0x0005cc08, (10 - 1)},	/* 192k, 49.152M */
-	 {0x0007f400, (125 - 1)},	/* 8k */
-	 {0x0006c6f6, (116 - 1)},	/* 11.025 */
-	 {0x0007e47f, (86 - 1)},	/* 12 */
-	 {0x0004f880, (100 - 1)},	/* 16 */
-	 {0x0004c4a4, (87 - 1)},	/* 22.05 */
-	 {0x0007e47f, (43 - 1)},	/* 24 */
-	 {0x0007f3f0, (127 - 1)},	/* 7875 */
-	 {0x0005c88b, (22 - 1)},	/* 88.2k ,22.579M */
-#else
-	 /* 512FS */
-	 {0x0004f880, (25 - 1)},	/* 32 */
-	 {0x0004cdf3, (21 - 1)},	/* 44.1 */
-	 {0x0006d0a4, (13 - 1)},	/* 48 */
-	 {0x0004e15a, (9 - 1)},
-	 {0x0006f207, (3 - 1)},
-	 {0x0004f880, (100 - 1)},	/* 8k */
-	 {0x0004c4a4, (87 - 1)},	/* 11.025 */
-	 {0x0007e47f, (43 - 1)},	/* 12 */
-	 {0x0004f880, (50 - 1)},	/* 16 */
-	 {0x0004cdf3, (42 - 1)},	/* 22.05 */
-	 {0x0007c4e6, (23 - 1)},	/* 24 */
-	 {0x0006e1b6, (76 - 1)},	/* 7875 */
-#endif
-	 },
-	{
-	 /* 384 */
-	 {0x0007c4e6, (23 - 1)},	/* 32 */
-	 {0x0004c4a4, (29 - 1)},	/* 44.1 */
-	 {0x0004cb18, (26 - 1)},	/* 48 */
-	 {0x0004cb18, (13 - 1)},	/* 96 */
-	 {0x0004e15a, (6 - 1)},
-	 {0x0007e47f, (86 - 1)},	/* 8k */
-	 {0x0007efa5, (61 - 1)},	/* 11.025 */
-	 {0x0006de98, (67 - 1)},	/* 12 */
-	 {0x0007e47f, (43 - 1)},	/* 16 */
-	 {0x0004c4a4, (58 - 1)},	/* 22.05 */
-	 {0x0004c60e, (53 - 1)},	/* 24 */
-	 {0x0007fdfa, (83 - 1)},	/* 7875 */
-	 }
-};
-
 void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 {
 #ifdef CONFIG_SND_AML_SPLIT_MODE
@@ -635,42 +580,6 @@ void audio_set_i2s_mode(u32 mode)
  *  This is dolby digital plus's spec
  */
 
-void audio_util_set_dac_format(unsigned format)
-{
-	/* 958 divisor more, if true, divided by 2, 4, 6, 8. */
-	aml_write_cbus(AIU_CLK_CTRL, (0 << 12) |
-	/* alrclk skew: 1=alrclk transitions on the cycle before msb is sent */
-		       (1 << 8) |
-		       (1 << 6) |
-	/* invert aoclk */
-		       (1 << 7) |
-	/* invert lrclk */
-#if OVERCLOCK == 1
-	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-		       (1 << 4) |
-	/* i2s divisor: 0=no div; 1=div by 2; 2=div by 4; 3=div by 8. */
-		       (3 << 2) |
-#else
-	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-		       (1 << 4) |
-	/* i2s divisor: 0=no div; 1=div by 2; 2=div by 4; 3=div by 8. */
-		       (2 << 2) |
-#endif
-		       (1 << 1) |	/* enable 958 clock */
-		       (1 << 0));	/* enable I2S clock */
-	if (format == AUDIO_ALGOUT_DAC_FORMAT_DSP)
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 8, 1 << 8);
-	else if (format == AUDIO_ALGOUT_DAC_FORMAT_LEFT_JUSTIFY)
-		aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 8, 0);
-
-	if (dac_mute_const == 0x800000)
-		aml_write_cbus(AIU_I2S_DAC_CFG, 0x000f);
-	else
-		/* Payload 24-bit, Msb first, alrclk = aoclk/64 */
-		aml_write_cbus(AIU_I2S_DAC_CFG, 0x0007);
-	aml_write_cbus(AIU_I2S_SOURCE_DESC, 0x0001);	/* four 2-channel */
-}
-
 /* iec958 and i2s clock are separated after M6TV. */
 void audio_util_set_dac_958_format(unsigned format)
 {
@@ -695,12 +604,13 @@ void audio_util_set_dac_i2s_format(unsigned format)
 	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 7, 1 << 7);
 	/* alrclk skew: 1=alrclk transitions on the cycle before msb is sent */
 	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 8, 1 << 8);
-#if OVERCLOCK == 1
+#if MCLKFS_RATIO == 512
 	/* i2s divisor: 0=no div; 1=div by 2; 2=div by 4; 3=div by 8. */
 	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 2, 0x3 << 2);
-#else
-	/* i2s divisor: 0=no div; 1=div by 2; 2=div by 4; 3=div by 8. */
+#elif MCLKFS_RATIO == 256
 	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 2, 0x2 << 2);
+#else
+	aml_cbus_update_bits(AIU_CLK_CTRL, 0x3 << 2, 0x1 << 2);
 #endif
 	/* enable I2S clock */
 	aml_cbus_update_bits(AIU_CLK_CTRL, 1, 1);

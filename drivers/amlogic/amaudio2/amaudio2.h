@@ -86,6 +86,7 @@ extern unsigned long aml_i2s_playback_start_addr;
 extern unsigned long aml_i2s_playback_phy_start_addr;
 extern unsigned long aml_i2s_alsa_write_addr;
 extern unsigned int aml_i2s_playback_channel;
+extern unsigned int aml_i2s_playback_format;
 
 #define AMAUDIO_IOC_MAGIC  'A'
 

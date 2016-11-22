@@ -63,6 +63,9 @@ EXPORT_SYMBOL(aml_i2s_alsa_write_addr);
 unsigned int aml_i2s_playback_channel = 2;
 EXPORT_SYMBOL(aml_i2s_playback_channel);
 
+unsigned int aml_i2s_playback_format = 16;
+EXPORT_SYMBOL(aml_i2s_playback_format);
+
 static int trigger_underrun;
 void aml_audio_hw_trigger(void)
 {
@@ -295,8 +298,15 @@ static int aml_i2s_prepare(struct snd_pcm_substream *substream)
 		dev_info(substream->pcm->card->dev, "clear i2s out trigger underrun\n");
 		trigger_underrun = 0;
 	}
-	if (s && s->device_type == AML_AUDIO_I2SOUT)
+	if (s && s->device_type == AML_AUDIO_I2SOUT) {
 		aml_i2s_playback_channel = runtime->channels;
+		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+			aml_i2s_playback_format = 16;
+		else if (runtime->format == SNDRV_PCM_FORMAT_S32_LE)
+			aml_i2s_playback_format = 32;
+		else if (runtime->format == SNDRV_PCM_FORMAT_S24_LE)
+			aml_i2s_playback_format = 24;
+	}
 	tmp_buf->cached_len = 0;
 	return 0;
 }
@@ -587,10 +597,6 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 {
 	int res = 0;
 	int n;
-#ifndef CONFIG_SND_AML_SPLIT_MODE
-	int i = 0, j = 0;
-	int align = runtime->channels * 32;
-#endif
 	unsigned long offset = frames_to_bytes(runtime, pos);
 	char *hwbuf = runtime->dma_area + offset;
 	struct aml_runtime_data *prtd = runtime->private_data;
@@ -600,6 +606,8 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 	struct audio_stream *s = &prtd->s;
 	struct device *dev = substream->pcm->card->dev;
 #ifndef CONFIG_SND_AML_SPLIT_MODE
+	int i = 0, j = 0;
+	int align = runtime->channels * 32;
 	int cached_len = tmp_buf->cached_len;
 	char *cache_buffer_bytes = tmp_buf->cache_buffer_bytes;
 #endif
@@ -658,51 +666,115 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 		memcpy(hwbuf, ubuf, n);
 #else
 		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
-
-			int16_t *tfrom, *to, *left, *right;
+			int16_t *tfrom, *to;
 			tfrom = (int16_t *) ubuf;
 			to = (int16_t *) hwbuf;
 
-			left = to;
-			right = to + 16;
-
-			for (j = 0; j < n; j += 64) {
-				for (i = 0; i < 16; i++) {
-					*left++ = (*tfrom++);
-					*right++ = (*tfrom++);
+			if (runtime->channels == 8) {
+				int16_t *lf, *cf, *rf, *ls,
+						*rs, *lef, *sbl, *sbr;
+				lf = to;
+				cf = to + 16 * 1;
+				rf = to + 16 * 2;
+				ls = to + 16 * 3;
+				rs = to + 16 * 4;
+				lef = to + 16 * 5;
+				sbl = to + 16 * 6;
+				sbr = to + 16 * 7;
+				for (j = 0; j < n; j += 256) {
+					for (i = 0; i < 16; i++) {
+						*lf++ = (*tfrom++);
+						*cf++ = (*tfrom++);
+						*rf++ = (*tfrom++);
+						*ls++ = (*tfrom++);
+						*rs++ = (*tfrom++);
+						*lef++ = (*tfrom++);
+						*sbl++ = (*tfrom++);
+						*sbr++ = (*tfrom++);
+					}
+					lf += 7 * 16;
+					cf += 7 * 16;
+					rf += 7 * 16;
+					ls += 7 * 16;
+					rs += 7 * 16;
+					lef += 7 * 16;
+					sbl += 7 * 16;
+					sbr += 7 * 16;
 				}
-				left += 16;
-				right += 16;
+			} else if (runtime->channels == 2) {
+				int16_t *left, *right;
+				left = to;
+				right = to + 16;
+
+				for (j = 0; j < n; j += 64) {
+					for (i = 0; i < 16; i++) {
+						*left++ = (*tfrom++);
+						*right++ = (*tfrom++);
+					}
+					left += 16;
+					right += 16;
+				}
 			}
 		} else if (runtime->format == SNDRV_PCM_FORMAT_S24_LE
 			   && I2S_MODE == AIU_I2S_MODE_PCM24) {
-			int32_t *tfrom, *to, *left, *right;
+			int32_t *tfrom, *to;
 			tfrom = (int32_t *) ubuf;
 			to = (int32_t *) hwbuf;
 
-			left = to;
-			right = to + 8;
-
-			for (j = 0; j < n; j += 64) {
-				for (i = 0; i < 8; i++) {
-					*left++ = (*tfrom++);
-					*right++ = (*tfrom++);
+			if (runtime->channels == 8) {
+				int32_t *lf, *cf, *rf, *ls,
+					*rs, *lef, *sbl, *sbr;
+				lf = to;
+				cf = to + 8 * 1;
+				rf = to + 8 * 2;
+				ls = to + 8 * 3;
+				rs = to + 8 * 4;
+				lef = to + 8 * 5;
+				sbl = to + 8 * 6;
+				sbr = to + 8 * 7;
+				for (j = 0; j < n; j += 256) {
+					for (i = 0; i < 8; i++) {
+						*lf++ = (*tfrom++);
+						*cf++ = (*tfrom++);
+						*rf++ = (*tfrom++);
+						*ls++ = (*tfrom++);
+						*rs++ = (*tfrom++);
+						*lef++ = (*tfrom++);
+						*sbl++ = (*tfrom++);
+						*sbr++ = (*tfrom++);
+					}
+					lf += 7 * 8;
+					cf += 7 * 8;
+					rf += 7 * 8;
+					ls += 7 * 8;
+					rs += 7 * 8;
+					lef += 7 * 8;
+					sbl += 7 * 8;
+					sbr += 7 * 8;
 				}
-				left += 8;
-				right += 8;
+			} else if (runtime->channels == 2) {
+				int32_t *left, *right;
+				left = to;
+				right = to + 8;
+
+				for (j = 0; j < n; j += 64) {
+					for (i = 0; i < 8; i++) {
+						*left++ = (*tfrom++);
+						*right++ = (*tfrom++);
+					}
+					left += 8;
+					right += 8;
+				}
 			}
 
 		} else if (runtime->format == SNDRV_PCM_FORMAT_S32_LE) {
-			int32_t *tfrom, *to, *left, *right;
+			int32_t *tfrom, *to;
 			tfrom = (int32_t *) ubuf;
 			to = (int32_t *) hwbuf;
 
-			left = to;
-			right = to + 8;
-
 			if (runtime->channels == 8) {
-				int32_t *lf, *cf, *rf, *ls, *rs, *lef, *sbl,
-				    *sbr;
+				int32_t *lf, *cf, *rf, *ls,
+					*rs, *lef, *sbl, *sbr;
 				lf = to;
 				cf = to + 8 * 1;
 				rf = to + 8 * 2;
@@ -731,7 +803,11 @@ static int aml_i2s_copy_playback(struct snd_pcm_runtime *runtime, int channel,
 					sbl += 7 * 8;
 					sbr += 7 * 8;
 				}
-			} else {
+			} else if (runtime->channels == 2) {
+				int32_t *left, *right;
+				left = to;
+				right = to + 8;
+
 				for (j = 0; j < n; j += 64) {
 					for (i = 0; i < 8; i++) {
 						*left++ = (*tfrom++) >> 8;

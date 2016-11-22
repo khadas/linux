@@ -16,7 +16,6 @@
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
-static struct early_suspend early_suspend;
 static void tas5707_early_suspend(struct early_suspend *h);
 static void tas5707_late_resume(struct early_suspend *h);
 #endif
@@ -78,6 +77,7 @@ struct tas5707_priv {
 	unsigned char Ch2_vol;
 	unsigned char master_vol;
 	unsigned mclk;
+	struct early_suspend early_suspend;
 };
 
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12700, 50, 1);
@@ -496,11 +496,11 @@ static int tas5707_probe(struct snd_soc_codec *codec)
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
-	early_suspend.suspend = tas5707_early_suspend;
-	early_suspend.resume = tas5707_late_resume;
-	early_suspend.param = codec;
-	register_early_suspend(&early_suspend);
+	tas5707->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	tas5707->early_suspend.suspend = tas5707_early_suspend;
+	tas5707->early_suspend.resume = tas5707_late_resume;
+	tas5707->early_suspend.param = codec;
+	register_early_suspend(&(tas5707->early_suspend));
 #endif
 
 	tas5707->pdata = pdata;
@@ -517,7 +517,8 @@ static int tas5707_probe(struct snd_soc_codec *codec)
 static int tas5707_remove(struct snd_soc_codec *codec)
 {
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&early_suspend);
+	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
+	unregister_early_suspend(&(tas5707->early_suspend));
 #endif
 
 	return 0;
@@ -568,33 +569,11 @@ static int tas5707_resume(struct snd_soc_codec *codec)
 static void tas5707_early_suspend(struct early_suspend *h)
 {
 	return;
-	/*struct snd_soc_codec *codec = NULL;
-	struct tas57xx_platform_data *pdata = NULL;
-
-	codec = (struct snd_soc_codec *)(h->param);
-	pdata = dev_get_platdata(codec->dev);
-
-	dev_info(codec->dev, "tas5707_early_suspend!\n");
-	if (pdata && pdata->early_suspend_func)
-		pdata->early_suspend_func();
-
-	snd_soc_write(codec, DDX_MASTER_VOLUME, 0xFF);*/
 }
 
 static void tas5707_late_resume(struct early_suspend *h)
 {
 	return;
-	/*struct snd_soc_codec *codec = NULL;
-	struct tas57xx_platform_data *pdata = NULL;
-
-	codec = (struct snd_soc_codec *)(h->param);
-	pdata = dev_get_platdata(codec->dev);
-
-	dev_info(codec->dev, "tas5707_late_resume!\n");
-	if (pdata && pdata->late_resume_func)
-		pdata->late_resume_func();
-
-	tas5707_set_master_vol(codec);*/
 }
 #endif
 

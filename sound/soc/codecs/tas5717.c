@@ -18,8 +18,6 @@
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
-static struct early_suspend early_suspend;
-struct task_struct *phone_task;
 static void tas5717_early_suspend(struct early_suspend *h);
 static void tas5717_late_resume(struct early_suspend *h);
 #endif
@@ -99,6 +97,8 @@ struct tas5717_priv {
 	unsigned char Ch2_vol;
 	unsigned char master_vol;
 	unsigned mclk;
+	struct early_suspend early_suspend;
+	struct task_struct *phone_task;
 };
 /*Master Volume*/
 static int tad5717_mv_16bit_get(struct snd_kcontrol *kcontrol,
@@ -683,15 +683,15 @@ static int tas5717_init(struct snd_soc_codec *codec)
 	}
 	/*kthread for phone*/
 	if (tas5717->pdata->scan_pin > 0) {
-		phone_task =
+		tas5717->phone_task =
 			kthread_create(phone_thread, codec, "phone_thread");
-		if (IS_ERR(phone_task)) {
+		if (IS_ERR(tas5717->phone_task)) {
 			dev_err(codec->dev, "Unable to start kernel thread./n");
-			err = PTR_ERR(phone_task);
-			phone_task = NULL;
+			err = PTR_ERR(tas5717->phone_task);
+			tas5717->phone_task = NULL;
 			return err;
 		}
-		wake_up_process(phone_task);
+		wake_up_process(tas5717->phone_task);
 	}
 	return 0;
 }
@@ -703,11 +703,11 @@ static int tas5717_probe(struct snd_soc_codec *codec)
 	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
-	early_suspend.suspend = tas5717_early_suspend;
-	early_suspend.resume = tas5717_late_resume;
-	early_suspend.param = codec;
-	register_early_suspend(&early_suspend);
+	tas5717->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	tas5717->early_suspend.suspend = tas5717_early_suspend;
+	tas5717->early_suspend.resume = tas5717_late_resume;
+	tas5717->early_suspend.param = codec;
+	register_early_suspend(&(tas5717->early_suspend));
 #endif
 
 	tas5717->pdata = pdata;
@@ -723,12 +723,13 @@ static int tas5717_probe(struct snd_soc_codec *codec)
 
 static int tas5717_remove(struct snd_soc_codec *codec)
 {
+	struct tas5717_priv *tas5717 = snd_soc_codec_get_drvdata(codec);
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&early_suspend);
+	unregister_early_suspend(&(tas5717->early_suspend));
 #endif
-	if (phone_task) {
-		kthread_stop(phone_task);
-		phone_task = NULL;
+	if (tas5717->phone_task) {
+		kthread_stop(tas5717->phone_task);
+		tas5717->phone_task = NULL;
 	}
 	return 0;
 }
@@ -778,33 +779,11 @@ static int tas5717_resume(struct snd_soc_codec *codec)
 static void tas5717_early_suspend(struct early_suspend *h)
 {
 	return;
-	/*struct snd_soc_codec *codec = NULL;
-	struct tas57xx_platform_data *pdata = NULL;
-
-	codec = (struct snd_soc_codec *)(h->param);
-	pdata = dev_get_platdata(codec->dev);
-
-	dev_info(codec->dev, "tas5717_early_suspend!\n");
-	if (pdata && pdata->early_suspend_func)
-		pdata->early_suspend_func();
-
-	snd_soc_write(codec, DDX_MASTER_VOLUME, 0xFF);*/
 }
 
 static void tas5717_late_resume(struct early_suspend *h)
 {
 	return;
-	/*struct snd_soc_codec *codec = NULL;
-	struct tas57xx_platform_data *pdata = NULL;
-
-	codec = (struct snd_soc_codec *)(h->param);
-	pdata = dev_get_platdata(codec->dev);
-
-	dev_info(codec->dev, "tas5717_late_resume!\n");
-	if (pdata && pdata->late_resume_func)
-		pdata->late_resume_func();
-
-	tas5717_set_master_vol(codec);*/
 }
 #endif
 

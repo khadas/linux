@@ -139,7 +139,6 @@ void audio_i2s_unmute(void);
 void audio_i2s_mute(void);
 void aml_audio_i2s_unmute(void);
 void aml_audio_i2s_mute(void);
-void audio_util_set_dac_format(unsigned format);
 void audio_util_set_dac_i2s_format(unsigned format);
 void audio_util_set_dac_958_format(unsigned format);
 void audio_set_958_mode(unsigned mode, struct _aiu_958_raw_setting_t *set);
@@ -151,7 +150,6 @@ int if_audio_in_spdif_enable(void);
 void audio_out_i2s_enable(unsigned flag);
 void audio_hw_958_enable(unsigned flag);
 void audio_out_enabled(int flag);
-void audio_util_set_dac_format(unsigned format);
 unsigned int audio_hdmi_init_ready(void);
 unsigned int read_iec958_rd_ptr(void);
 void audio_in_spdif_enable(int flag);
@@ -163,15 +161,24 @@ void audio_i2s_958_same_source(unsigned int same);
 extern unsigned int IEC958_mode_codec;
 extern unsigned int clk81;
 
-/*OVERCLOCK == 1,our SOC privide 512fs mclk,OVERCLOCK == 0 ,256fs*/
+/*OVERCLOCK == 1, our SOC privide 512fs mclk;
+  DOWNCLOCK == 1, 128fs;
+  normal mclk : 256fs */
 #define OVERCLOCK 0
+#define DOWNCLOCK 0
+
 #define IEC958_OVERCLOCK 1
 
 #if (OVERCLOCK == 1)
 #define MCLKFS_RATIO 512
+#elif (DOWNCLOCK == 1)
+#define MCLKFS_RATIO 128
 #else
 #define MCLKFS_RATIO 256
 #endif
+
+#define DEFAULT_SAMPLERATE 48000
+#define DEFAULT_MCLK_RATIO_SR MCLKFS_RATIO
 
 #define I2S_PLL_SRC         1	/* MPLL0 */
 #define MPLL_I2S_CNTL		HHI_MPLL_MP0

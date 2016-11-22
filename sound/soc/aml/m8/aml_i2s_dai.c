@@ -50,8 +50,6 @@ struct aml_dai_info dai_info[3] = { {0} };
 static int i2s_pos_sync;
 
 /* extern int set_i2s_iec958_samesource(int enable); */
-#define DEFAULT_SAMPLERATE 48000
-#define DEFAULT_MCLK_RATIO_SR 256
 
 /*
 the I2S hw  and IEC958 PCM output initation,958 initation here,
@@ -117,7 +115,7 @@ static void aml_dai_i2s_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	if (IEC958_mode_codec == 0)
-		aml_spdif_play(1);
+		aml_spdif_play(0);
 	return;
 }
 

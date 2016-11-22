@@ -74,7 +74,7 @@ static int flag_samesrc = -1;
 
 void aml_spdif_play(int samesrc)
 {
-	if (is_meson_gxtvbb_cpu() == false) {
+	if ((is_meson_gxtvbb_cpu() == false) && (is_meson_txl_cpu() == false)) {
 		static int iec958buf[32 + 16];
 		struct _aiu_958_raw_setting_t set;
 		struct _aiu_958_channel_status_t chstat;
@@ -119,7 +119,7 @@ void aml_spdif_play(int samesrc)
 		aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 		audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 		/*clear the same source function as new raw data output */
-		audio_i2s_958_same_source(0);
+		audio_i2s_958_same_source(samesrc);
 		memset(iec958buf, 0, sizeof(iec958buf));
 		audio_set_958outbuf((virt_to_phys(iec958buf) + 63) & (~63),
 					128, 0);
