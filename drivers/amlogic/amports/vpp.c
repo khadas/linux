@@ -644,7 +644,9 @@ vpp_process_speed_check(s32 width_in,
 					 (vinfo->sync_duration_num >
 					  (30 * vinfo->sync_duration_den)) &&
 					 (get_cpu_type() !=
-						MESON_CPU_MAJOR_ID_GXTVBB))
+						MESON_CPU_MAJOR_ID_GXTVBB) &&
+					 (get_cpu_type() !=
+						MESON_CPU_MAJOR_ID_GXM))
 					return SPEED_CHECK_VSKIP;
 				else
 					return SPEED_CHECK_DONE;
