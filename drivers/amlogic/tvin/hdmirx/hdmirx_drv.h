@@ -27,7 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 
-#define RX_VER0 "Ref.2016/11/17"
+#define RX_VER0 "Ref.2016/11/22"
 #define RX_VER1 "Ref.2016/09/13"
 #define RX_VER2 "Ref.2016/09/27"
 #define RX_VER3 "Ref.2016/11/02"
