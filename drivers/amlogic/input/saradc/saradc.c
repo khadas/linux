@@ -25,6 +25,7 @@
 #include <linux/reset.h>
 #include <linux/amlogic/saradc.h>
 #include <linux/amlogic/cpu_version.h>
+#include <asm/barrier.h>
 #include "saradc_reg.h"
 
 /* #define ENABLE_DYNAMIC_POWER */
@@ -238,6 +239,9 @@ int get_adc_sample_early(int dev_id, int ch, char if_10bit)
 	spin_lock_irqsave(&adc->lock, flags);
 	adc->state = SARADC_STATE_BUSY;
 	setb(mem_base, FLAG_BUSY_KERNEL, 1);
+	isb();
+	dsb(sy);
+	udelay(1);
 	if (getb(mem_base, FLAG_BUSY_BL30)) {
 		value = -1;
 		goto end;
@@ -317,6 +321,9 @@ end1:
 #endif
 end:
 	setb(mem_base, FLAG_BUSY_KERNEL, 0);
+	isb();
+	dsb(sy);
+	udelay(1);
 	adc->state = SARADC_STATE_IDLE;
 	spin_unlock_irqrestore(&adc->lock, flags);
 	return value;
