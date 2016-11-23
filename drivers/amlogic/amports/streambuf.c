@@ -112,7 +112,8 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 				"Subtitle", (void *)buf->buf_start,
 				buf->buf_size);
 	}
-
+	if (buf->buf_size < buf->canusebuf_size)
+		buf->canusebuf_size = buf->buf_size;
 	buf->flag |= BUF_FLAG_ALLOC;
 
 	return 0;
