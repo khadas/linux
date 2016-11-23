@@ -606,9 +606,9 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 
 		vfmt_rpt_first = 1;
 		if (mif->output_field_num == 0)
-			vt_ini_phase = 0xa;
-		else
 			vt_ini_phase = 0xe;
+		else
+			vt_ini_phase = 0xa;
 
 		if (mif->src_prog) {
 			if (mif->output_field_num == 0) {
