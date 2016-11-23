@@ -442,6 +442,15 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     aml_output_swap_set_enum),
 };
 
+static int set_HW_resample_pause_thd(unsigned int thd)
+{
+	aml_write_cbus(AUD_RESAMPLE_CTRL2,
+			(1 << 24) /* enable HW_resample_pause*/
+			| (thd << 11) /* set HW resample pause thd (sample)*/
+			);
+	return 0;
+}
+
 static int aml_get_cbus_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol) {
 
@@ -1539,6 +1548,7 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
 					ARRAY_SIZE(aml_EQ_DRC_controls));
 		aml_EQ_DRC_parse_of(card);
+		set_HW_resample_pause_thd(128);
 	}
 
 	aml_g9tv_pinmux_init(card);
