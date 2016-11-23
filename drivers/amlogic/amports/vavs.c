@@ -1237,17 +1237,17 @@ static s32 vavs_init(void)
 
 	vavs_local_init();
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
 		if (debug_flag & 2) {
 			if (amvdec_loadmc_ex(VFORMAT_AVS,
-				"txl_vavs_mc_debug", NULL) < 0) {
+				"gxm_vavs_mc_debug", NULL) < 0) {
 				amvdec_disable();
 				pr_info("failed\n");
 				return -EBUSY;
 			}
 		} else {
 			if (amvdec_loadmc_ex(VFORMAT_AVS,
-				"txl_vavs_mc", NULL) < 0) {
+				"gxm_vavs_mc", NULL) < 0) {
 				amvdec_disable();
 				pr_info("failed\n");
 				return -EBUSY;
@@ -1345,9 +1345,8 @@ static int amvdec_avs_probe(struct platform_device *pdev)
 		pr_info("amvdec_avs memory resource undefined.\n");
 		return -EFAULT;
 	}
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM)
 		firmware_sel = 1;
-	}
 
 	if (firmware_sel == 1) {
 		vf_buf_num = 4;
