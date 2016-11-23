@@ -7526,6 +7526,9 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
 		amvh265_workbuff_spec[i].start_adr = pdata->mem_start;
 	*/
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL
+		|| double_write_mode == 0x10)
+		mmu_enable = 0;
 	if (debug) {
 		pr_info("===H.265 decoder mem resource 0x%lx -- 0x%lx\n",
 			   pdata->mem_start, pdata->mem_end + 1);
