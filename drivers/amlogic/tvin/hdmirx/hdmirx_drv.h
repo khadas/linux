@@ -30,7 +30,7 @@
 #define RX_VER0 "Ref.2016/11/22"
 #define RX_VER1 "Ref.2016/09/13"
 #define RX_VER2 "Ref.2016/09/27"
-#define RX_VER3 "Ref.2016/11/02"
+#define RX_VER3 "Ref.2016/11/23"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -576,6 +576,7 @@ enum edid_list_e {
 	EDID_LIST_DOMY,
 	EDID_LIST_V2,
 	EDID_LIST_ATMOS,
+	EDID_LIST_TRUEHD,
 	EDID_LIST_NUM
 };
 
