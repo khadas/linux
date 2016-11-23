@@ -513,19 +513,18 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 }
 
 int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
-		unsigned char *buf, int key_len)
+		unsigned char *buf, int key_len, int len)
 {
-	int i, len;
+	int i;
 	unsigned char *p;
 	unsigned int index;
 	int ret;
 
-	len = 10 + 36 + 18 + 31 + 20;
 	/* power: (5byte * n) */
 	p = buf + len;
-	i = 0;
 	if (lcd_debug_print_flag)
 		LCDPR("power_on step:\n");
+	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
 		pconf->lcd_power->power_on_step_max = i;
 		len += 5;
@@ -535,6 +534,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			pconf->lcd_power->power_on_step[i].index = 0;
 			pconf->lcd_power->power_on_step[i].value = 0;
 			pconf->lcd_power->power_on_step[i].delay = 0;
+			LCDERR("unifykey power_on length is incorrect\n");
 			return -1;
 		}
 		pconf->lcd_power->power_on_step[i].type = *p;
@@ -571,9 +571,10 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			i++;
 		}
 	}
-	i = 0;
+
 	if (lcd_debug_print_flag)
 		LCDPR("power_off step:\n");
+	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
 		pconf->lcd_power->power_off_step_max = i;
 		len += 5;
@@ -583,6 +584,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			pconf->lcd_power->power_off_step[i].index = 0;
 			pconf->lcd_power->power_off_step[i].value = 0;
 			pconf->lcd_power->power_off_step[i].delay = 0;
+			LCDERR("unifykey power_off length is incorrect\n");
 			return -1;
 		}
 		pconf->lcd_power->power_off_step[i].type = *p;
@@ -621,6 +623,28 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 	}
 
 	return 0;
+}
+
+void lcd_hdr_vinfo_update(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	struct master_display_info_s *hdr_vinfo;
+
+	pconf = lcd_drv->lcd_config;
+	hdr_vinfo = &lcd_drv->lcd_info->master_display_info;
+	hdr_vinfo->present_flag = pconf->hdr_info.hdr_support;
+	hdr_vinfo->features = pconf->hdr_info.features;
+	hdr_vinfo->primaries[0][0] = pconf->hdr_info.primaries_r_x;
+	hdr_vinfo->primaries[0][1] = pconf->hdr_info.primaries_r_y;
+	hdr_vinfo->primaries[1][0] = pconf->hdr_info.primaries_g_x;
+	hdr_vinfo->primaries[1][1] = pconf->hdr_info.primaries_g_y;
+	hdr_vinfo->primaries[2][0] = pconf->hdr_info.primaries_b_x;
+	hdr_vinfo->primaries[2][1] = pconf->hdr_info.primaries_b_y;
+	hdr_vinfo->white_point[0] = pconf->hdr_info.white_point_x;
+	hdr_vinfo->white_point[1] = pconf->hdr_info.white_point_y;
+	hdr_vinfo->luminance[0] = pconf->hdr_info.luma_max;
+	hdr_vinfo->luminance[1] = pconf->hdr_info.luma_min;
 }
 
 void lcd_tcon_config(struct lcd_config_s *pconf)

@@ -356,6 +356,7 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	const struct vinfo_s *info = NULL;
+	ssize_t len = 0;
 
 	info = get_current_vinfo();
 	if (info == NULL) {
@@ -363,7 +364,7 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		return sprintf(buf, "\n");
 	}
 
-	pr_info("current vinfo:\n"
+	len = sprintf(buf, "current vinfo:\n"
 		"    name:                  %s\n"
 		"    mode:                  %d\n"
 		"    width:                 %d\n"
@@ -376,14 +377,34 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		"    screen_real_width:     %d\n"
 		"    screen_real_height:    %d\n"
 		"    video_clk:             %d\n"
-		"    viu_color_fmt:         %d\n",
+		"    viu_color_fmt:         %d\n\n",
 		info->name, info->mode,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->sync_duration_num, info->sync_duration_den,
 		info->screen_real_width, info->screen_real_height,
 		info->video_clk, info->viu_color_fmt);
-	return sprintf(buf, "\n");
+	len += sprintf(buf+len, "hdr_info:\n"
+		"    present_flag          %d\n"
+		"    features              0x%x\n"
+		"    primaries             0x%x, 0x%x\n"
+		"                          0x%x, 0x%x\n"
+		"                          0x%x, 0x%x\n"
+		"    white_point           0x%x, 0x%x\n"
+		"    luminance             %d, %d\n\n",
+		info->master_display_info.present_flag,
+		info->master_display_info.features,
+		info->master_display_info.primaries[0][0],
+		info->master_display_info.primaries[0][1],
+		info->master_display_info.primaries[1][0],
+		info->master_display_info.primaries[1][1],
+		info->master_display_info.primaries[2][0],
+		info->master_display_info.primaries[2][1],
+		info->master_display_info.white_point[0],
+		info->master_display_info.white_point[1],
+		info->master_display_info.luminance[0],
+		info->master_display_info.luminance[1]);
+	return len;
 }
 
 static struct  class_attribute  class_attr_vinfo =

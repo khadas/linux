@@ -195,6 +195,25 @@ struct lcd_effect_s {
 */
 };
 
+/* **********************************
+ * HDR info define
+ * ********************************** */
+struct lcd_hdr_info_s {
+	unsigned int hdr_support;
+	unsigned int features;
+	unsigned int primaries_r_x;
+	unsigned int primaries_r_y;
+	unsigned int primaries_g_x;
+	unsigned int primaries_g_y;
+	unsigned int primaries_b_x;
+	unsigned int primaries_b_y;
+	unsigned int white_point_x;
+	unsigned int white_point_y;
+	unsigned int luma_max;
+	unsigned int luma_min;
+	unsigned int luma_avg;
+};
+
 struct ttl_config_s {
 	unsigned int clk_pol;
 	unsigned int sync_valid; /* [1]DE, [0]hvsync */
@@ -361,6 +380,7 @@ struct lcd_config_s {
 	struct lcd_basic_s lcd_basic;
 	struct lcd_timing_s lcd_timing;
 	struct lcd_effect_s lcd_effect;
+	struct lcd_hdr_info_s hdr_info;
 	struct lcd_control_config_s lcd_control;
 	struct lcd_power_ctrl_s *lcd_power;
 	struct pinctrl *pin;
@@ -385,6 +405,7 @@ struct aml_lcd_drv_s {
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
 	struct vinfo_s *lcd_info;
+	struct class *lcd_debug_class;
 	int fr_auto_policy;
 	struct lcd_duration_s std_duration;
 
@@ -418,8 +439,17 @@ struct aml_lcd_drv_s {
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);
 
+
 /* **********************************
- * global control
+ * IOCTL define
  * ********************************** */
+#define LCD_IOC_TYPE               'C'
+#define LCD_IOC_NR_GET_HDR_INFO    0x0
+#define LCD_IOC_NR_SET_HDR_INFO    0x1
+
+#define LCD_IOC_CMD_GET_HDR_INFO   \
+	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_hdr_info_s)
+#define LCD_IOC_CMD_SET_HDR_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_NR_SET_HDR_INFO, struct lcd_hdr_info_s)
 
 #endif

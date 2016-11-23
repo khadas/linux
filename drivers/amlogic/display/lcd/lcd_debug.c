@@ -69,6 +69,8 @@ static const char *lcd_debug_usage_str = {
 "    echo info > debug ; show lcd infomation\n"
 "    echo reg > debug ; show lcd registers\n"
 "    echo dump > debug ; show lcd infomation & registers\n"
+"    echo key > debug ; show lcd_key_valid config, and lcd unifykey raw data\n"
+"\n"
 "    echo reset > debug; reset lcd driver\n"
 "    echo power <0|1> > debug ; lcd power control: 0=power off, 1=power on\n"
 };
@@ -504,6 +506,33 @@ static void lcd_reg_print(void)
 	}
 }
 
+static void lcd_hdr_info_print(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+
+	pconf = lcd_drv->lcd_config;
+	pr_info("lcd hdr info:\n"
+		"hdr_support          %d\n"
+		"features             %d\n"
+		"primaries_r_x        %d\n"
+		"primaries_r_y        %d\n"
+		"primaries_g_x        %d\n"
+		"primaries_g_y        %d\n"
+		"primaries_b_x        %d\n"
+		"primaries_b_y        %d\n"
+		"white_point_x        %d\n"
+		"white_point_y        %d\n"
+		"luma_max             %d\n"
+		"luma_min             %d\n\n",
+		pconf->hdr_info.hdr_support, pconf->hdr_info.features,
+		pconf->hdr_info.primaries_r_x, pconf->hdr_info.primaries_r_y,
+		pconf->hdr_info.primaries_g_x, pconf->hdr_info.primaries_g_y,
+		pconf->hdr_info.primaries_b_x, pconf->hdr_info.primaries_b_y,
+		pconf->hdr_info.white_point_x, pconf->hdr_info.white_point_y,
+		pconf->hdr_info.luma_max, pconf->hdr_info.luma_min);
+}
+
 #define LCD_ENC_TST_NUM_MAX    8
 static char *lcd_enc_tst_str[] = {
 	"0-None",        /* 0 */
@@ -612,7 +641,7 @@ static ssize_t lcd_debug_store(struct class *class,
 
 	pconf = lcd_drv->lcd_config;
 	switch (buf[0]) {
-	case 'c':
+	case 'c': /* clk */
 		ret = sscanf(buf, "clk %d", &temp);
 		if (ret == 1) {
 			if (temp > 200) {
@@ -674,7 +703,7 @@ static ssize_t lcd_debug_store(struct class *class,
 			}
 		}
 		break;
-	case 's':
+	case 's': /* sync */
 		ret = sscanf(buf, "sync %d %d %d %d %d %d",
 			&val[0], &val[1], &val[2], &val[3], &val[4], &val[5]);
 		if (ret == 6) {
@@ -695,7 +724,7 @@ static ssize_t lcd_debug_store(struct class *class,
 			return -EINVAL;
 		}
 		break;
-	case 't':
+	case 't': /* test */
 		ret = sscanf(buf, "test %d", &temp);
 		if (ret == 1) {
 			lcd_test(temp);
@@ -704,17 +733,17 @@ static ssize_t lcd_debug_store(struct class *class,
 			return -EINVAL;
 		}
 		break;
-	case 'i':
+	case 'i': /* info */
 		LCDPR("driver version: %s\n", lcd_drv->version);
 		lcd_info_print();
 		break;
 	case 'r':
-		if (buf[2] == 'g') {
+		if (buf[2] == 'g') { /* reg */
 			LCDPR("driver version: %s\n", lcd_drv->version);
 			lcd_reg_print();
-		} else if (buf[2] == 's') {
+		} else if (buf[2] == 's') { /* reset */
 			lcd_drv->module_reset();
-		} else if (buf[2] == 'a') {
+		} else if (buf[2] == 'a') { /* range */
 			ret = sscanf(buf, "range %d %d %d %d %d %d",
 				&val[0], &val[1], &val[2], &val[3],
 				&val[4], &val[5]);
@@ -740,13 +769,24 @@ static ssize_t lcd_debug_store(struct class *class,
 			}
 		}
 		break;
-	case 'd':
+	case 'd': /* dump */
 		LCDPR("driver version: %s\n", lcd_drv->version);
 		lcd_info_print();
 		pr_info("\n");
 		lcd_reg_print();
+		pr_info("\n");
+		lcd_hdr_info_print();
 		break;
-	case 'p':
+	case 'k': /* key */
+		LCDPR("key_valid: %d, config_load: %d\n",
+			lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load);
+		if (lcd_drv->lcd_key_valid)
+			lcd_unifykey_print();
+		break;
+	case 'h': /* hdr */
+		lcd_hdr_info_print();
+		break;
+	case 'p': /* power */
 		ret = sscanf(buf, "power %d", &temp);
 		if (ret == 1) {
 			LCDPR("power: %d\n", temp);
@@ -1186,29 +1226,6 @@ static ssize_t lcd_debug_print_store(struct class *class,
 	return count;
 }
 
-static ssize_t lcd_debug_key_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	lcd_unifykey_print();
-	return sprintf(buf, "\n");
-}
-
-static ssize_t lcd_debug_key_valid_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	return sprintf(buf, "%d\n", lcd_drv->lcd_key_valid);
-}
-
-static ssize_t lcd_debug_config_load_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	return sprintf(buf, "%d\n", lcd_drv->lcd_config_load);
-}
-
 static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(help,        S_IRUGO | S_IWUSR, lcd_debug_common_help, NULL),
 	__ATTR(debug,       S_IRUGO | S_IWUSR, lcd_debug_show, lcd_debug_store),
@@ -1226,10 +1243,6 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 	__ATTR(reg,         S_IRUGO | S_IWUSR, NULL, lcd_debug_reg_store),
 	__ATTR(print,       S_IRUGO | S_IWUSR,
 		lcd_debug_print_show, lcd_debug_print_store),
-	__ATTR(key,         S_IRUGO | S_IWUSR, lcd_debug_key_show, NULL),
-	__ATTR(key_valid,   S_IRUGO | S_IWUSR, lcd_debug_key_valid_show, NULL),
-	__ATTR(config_load, S_IRUGO | S_IWUSR,
-		lcd_debug_config_load_show, NULL),
 };
 
 static const char *lcd_ttl_debug_usage_str = {
@@ -1632,22 +1645,20 @@ static struct class_attribute lcd_phy_debug_class_attrs[] = {
 		lcd_phy_debug_show, lcd_phy_debug_store),
 };
 
-static struct class *lcd_debug_class;
-
 int lcd_class_creat(void)
 {
 	int i;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	int type;
 
-	lcd_debug_class = class_create(THIS_MODULE, "lcd");
-	if (IS_ERR(lcd_debug_class)) {
+	lcd_drv->lcd_debug_class = class_create(THIS_MODULE, "lcd");
+	if (IS_ERR(lcd_drv->lcd_debug_class)) {
 		LCDERR("create lcd debug class fail\n");
 		return -1;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(lcd_debug_class_attrs); i++) {
-		if (class_create_file(lcd_debug_class,
+		if (class_create_file(lcd_drv->lcd_debug_class,
 			&lcd_debug_class_attrs[i])) {
 			LCDERR("create lcd debug attribute %s fail\n",
 				lcd_debug_class_attrs[i].attr.name);
@@ -1659,7 +1670,7 @@ int lcd_class_creat(void)
 		if (strcmp(lcd_interface_debug_class_attrs[i].attr.name,
 			lcd_type_type_to_str(type)))
 			continue;
-		if (class_create_file(lcd_debug_class,
+		if (class_create_file(lcd_drv->lcd_debug_class,
 			&lcd_interface_debug_class_attrs[i])) {
 			LCDERR("create lcd_interface debug attribute %s fail\n",
 				lcd_interface_debug_class_attrs[i].attr.name);
@@ -1670,7 +1681,7 @@ int lcd_class_creat(void)
 	case LCD_LVDS:
 	case LCD_VBYONE:
 		for (i = 0; i < ARRAY_SIZE(lcd_phy_debug_class_attrs); i++) {
-			if (class_create_file(lcd_debug_class,
+			if (class_create_file(lcd_drv->lcd_debug_class,
 				&lcd_phy_debug_class_attrs[i])) {
 				LCDERR("create phy debug attribute %s fail\n",
 					lcd_phy_debug_class_attrs[i].attr.name);
@@ -1690,20 +1701,22 @@ int lcd_class_remove(void)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	int type;
 
-	for (i = 0; i < ARRAY_SIZE(lcd_debug_class_attrs); i++)
-		class_remove_file(lcd_debug_class, &lcd_debug_class_attrs[i]);
+	for (i = 0; i < ARRAY_SIZE(lcd_debug_class_attrs); i++) {
+		class_remove_file(lcd_drv->lcd_debug_class,
+			&lcd_debug_class_attrs[i]);
+	}
 
 	type = lcd_drv->lcd_config->lcd_basic.lcd_type;
 	for (i = 0; i < ARRAY_SIZE(lcd_interface_debug_class_attrs); i++) {
 		if (strcmp(lcd_interface_debug_class_attrs[i].attr.name,
 			lcd_type_type_to_str(type)))
 			continue;
-		class_remove_file(lcd_debug_class,
+		class_remove_file(lcd_drv->lcd_debug_class,
 			&lcd_interface_debug_class_attrs[i]);
 	}
 
-	class_destroy(lcd_debug_class);
-	lcd_debug_class = NULL;
+	class_destroy(lcd_drv->lcd_debug_class);
+	lcd_drv->lcd_debug_class = NULL;
 
 	return 0;
 }

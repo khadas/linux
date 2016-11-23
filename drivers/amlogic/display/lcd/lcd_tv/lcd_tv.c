@@ -226,6 +226,8 @@ static void lcd_vmode_vinfo_update(enum vmode_e mode)
 	lcd_drv->lcd_info->sync_duration_num = info->frame_rate;
 	lcd_drv->lcd_info->sync_duration_den = 1;
 	lcd_drv->lcd_info->video_clk = pconf->lcd_timing.lcd_clk;
+
+	lcd_hdr_vinfo_update();
 }
 
 /* ************************************************** *
@@ -865,22 +867,31 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		return -1;
 	}
 
-	/* check lcd unifykey length */
-	len = 10 + 36 + 18 + 31 + 20;
+	/* step 1: check header */
+	len = LCD_UKEY_HEAD_SIZE;
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
+		LCDERR("unifykey header length is incorrect\n");
 		kfree(para);
 		return -1;
 	}
 
-	/* header: 10byte */
 	lcd_unifykey_header_check(para, &lcd_header);
+	len = 10 + 36 + 18 + 31 + 20;
 	if (lcd_debug_print_flag) {
 		LCDPR("unifykey header:\n");
 		LCDPR("crc32             = 0x%08x\n", lcd_header.crc32);
 		LCDPR("data_len          = %d\n", lcd_header.data_len);
 		LCDPR("version           = 0x%04x\n", lcd_header.version);
 		LCDPR("reserved          = 0x%04x\n", lcd_header.reserved);
+	}
+
+	/* step 2: check lcd parameters */
+	ret = lcd_unifykey_len_check(key_len, len);
+	if (ret < 0) {
+		LCDERR("unifykey parameters length is incorrect\n");
+		kfree(para);
+		return -1;
 	}
 
 	/* basic: 36byte */
@@ -1020,7 +1031,8 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		p += LCD_UKEY_IF_ATTR_9;
 	}
 
-	ret = lcd_power_load_from_unifykey(pconf, para, key_len);
+	/* step 3: check power sequence */
+	ret = lcd_power_load_from_unifykey(pconf, para, key_len, len);
 	if (ret < 0) {
 		kfree(para);
 		return -1;

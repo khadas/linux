@@ -22,6 +22,9 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/fs.h>
+#include <linux/cdev.h>
+#include <linux/uaccess.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -44,10 +47,20 @@
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
+#define LCD_CDEV_NAME  "lcd"
+
 unsigned int lcd_debug_print_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
 static char lcd_propname[20] = "lvds_0";
+
+struct lcd_cdev_s {
+	dev_t           devno;
+	struct cdev     cdev;
+	struct device   *dev;
+};
+
+static struct lcd_cdev_s *lcd_cdev;
 
 /* *********************************************************
  * lcd config define
@@ -160,6 +173,21 @@ static struct lcd_config_s lcd_config_dft = {
 		.gamma_b_coeff = 100,
 		*/
 	},
+	.hdr_info = {
+		.hdr_support = 0,
+		.features = 0,
+		.primaries_r_x = 0,
+		.primaries_r_y = 0,
+		.primaries_g_x = 0,
+		.primaries_g_y = 0,
+		.primaries_b_x = 0,
+		.primaries_b_y = 0,
+		.white_point_x = 0,
+		.white_point_y = 0,
+		.luma_max = 0,
+		.luma_min = 0,
+		.luma_avg = 0,
+	},
 	.lcd_control = {
 		.ttl_config = &lcd_ttl_config,
 		.lvds_config = &lcd_lvds_config,
@@ -181,6 +209,39 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(void)
 	return lcd_driver;
 }
 /* ********************************************************* */
+
+static void lcd_chip_detect(void)
+{
+	unsigned int cpu_type;
+
+	cpu_type = get_cpu_type();
+	switch (cpu_type) {
+	case MESON_CPU_MAJOR_ID_M8:
+		lcd_driver->chip_type = LCD_CHIP_M8;
+		break;
+	case MESON_CPU_MAJOR_ID_M8B:
+		lcd_driver->chip_type = LCD_CHIP_M8B;
+		break;
+	case MESON_CPU_MAJOR_ID_M8M2:
+		lcd_driver->chip_type = LCD_CHIP_M8M2;
+		break;
+	case MESON_CPU_MAJOR_ID_MG9TV:
+		lcd_driver->chip_type = LCD_CHIP_G9TV;
+		break;
+	case MESON_CPU_MAJOR_ID_GXTVBB:
+		lcd_driver->chip_type = LCD_CHIP_GXTVBB;
+		break;
+	case MESON_CPU_MAJOR_ID_TXL:
+		lcd_driver->chip_type = LCD_CHIP_TXL;
+		break;
+	default:
+		lcd_driver->chip_type = LCD_CHIP_MAX;
+	}
+
+	if (lcd_debug_print_flag)
+		LCDPR("check chip: %d\n", lcd_driver->chip_type);
+}
+
 static void lcd_power_tiny_ctrl(int status)
 {
 	struct lcd_power_ctrl_s *lcd_power = lcd_driver->lcd_config->lcd_power;
@@ -324,7 +385,6 @@ static void lcd_power_ctrl(int status)
 
 static void lcd_module_enable(void)
 {
-	/*LCDPR("driver version: %s\n", lcd_driver->version);*/
 	lcd_driver->driver_init_pre();
 	lcd_driver->power_ctrl(1);
 	lcd_driver->lcd_status = 1;
@@ -394,39 +454,180 @@ static int lcd_bl_select_notifier(struct notifier_block *nb,
 static struct notifier_block lcd_bl_select_nb = {
 	.notifier_call = lcd_bl_select_notifier,
 };
+
+static int lcd_reboot_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	if (lcd_debug_print_flag)
+		LCDPR("%s: %lu\n", __func__, event);
+	if (lcd_driver->lcd_status == 0)
+		return NOTIFY_DONE;
+
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+
+	return NOTIFY_OK;
+}
+static struct notifier_block lcd_reboot_nb = {
+	.notifier_call = lcd_reboot_notifier,
+};
 /* **************************************** */
 
-static void lcd_chip_detect(void)
+/* ************************************************************* */
+/* lcd ioctl                                                     */
+/* ************************************************************* */
+static int lcd_io_open(struct inode *inode, struct file *file)
 {
-	unsigned int cpu_type;
+	struct lcd_cdev_s *lcd_cdev;
 
-	cpu_type = get_cpu_type();
-	switch (cpu_type) {
-	case MESON_CPU_MAJOR_ID_M8:
-		lcd_driver->chip_type = LCD_CHIP_M8;
+	LCDPR("%s\n", __func__);
+	lcd_cdev = container_of(inode->i_cdev, struct lcd_cdev_s, cdev);
+	file->private_data = lcd_cdev;
+	return 0;
+}
+
+static int lcd_io_release(struct inode *inode, struct file *file)
+{
+	LCDPR("%s\n", __func__);
+	file->private_data = NULL;
+	return 0;
+}
+
+static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	void __user *argp;
+	int mcd_nr;
+	struct lcd_hdr_info_s *hdr_info = &lcd_driver->lcd_config->hdr_info;
+
+	mcd_nr = _IOC_NR(cmd);
+	LCDPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
+		__func__, _IOC_DIR(cmd), mcd_nr);
+
+	argp = (void __user *)arg;
+	switch (mcd_nr) {
+	case LCD_IOC_NR_GET_HDR_INFO:
+		if (copy_to_user(argp, hdr_info, sizeof(struct lcd_hdr_info_s)))
+			ret = -EFAULT;
 		break;
-	case MESON_CPU_MAJOR_ID_M8B:
-		lcd_driver->chip_type = LCD_CHIP_M8B;
-		break;
-	case MESON_CPU_MAJOR_ID_M8M2:
-		lcd_driver->chip_type = LCD_CHIP_M8M2;
-		break;
-	case MESON_CPU_MAJOR_ID_MG9TV:
-		lcd_driver->chip_type = LCD_CHIP_G9TV;
-		break;
-	case MESON_CPU_MAJOR_ID_GXTVBB:
-		lcd_driver->chip_type = LCD_CHIP_GXTVBB;
-		break;
-	case MESON_CPU_MAJOR_ID_TXL:
-		lcd_driver->chip_type = LCD_CHIP_TXL;
+	case LCD_IOC_NR_SET_HDR_INFO:
+		if (copy_from_user(hdr_info, argp,
+			sizeof(struct lcd_hdr_info_s))) {
+			ret = -EFAULT;
+		} else {
+			lcd_hdr_vinfo_update();
+			if (lcd_debug_print_flag) {
+				LCDPR("set hdr_info:\n"
+					"hdr_support          %d\n"
+					"features             %d\n"
+					"primaries_r_x        %d\n"
+					"primaries_r_y        %d\n"
+					"primaries_g_x        %d\n"
+					"primaries_g_y        %d\n"
+					"primaries_b_x        %d\n"
+					"primaries_b_y        %d\n"
+					"white_point_x        %d\n"
+					"white_point_y        %d\n"
+					"luma_max             %d\n"
+					"luma_min             %d\n\n",
+					hdr_info->hdr_support,
+					hdr_info->features,
+					hdr_info->primaries_r_x,
+					hdr_info->primaries_r_y,
+					hdr_info->primaries_g_x,
+					hdr_info->primaries_g_y,
+					hdr_info->primaries_b_x,
+					hdr_info->primaries_b_y,
+					hdr_info->white_point_x,
+					hdr_info->white_point_y,
+					hdr_info->luma_max,
+					hdr_info->luma_min);
+			}
+		}
 		break;
 	default:
-		lcd_driver->chip_type = LCD_CHIP_MAX;
+		LCDERR("not support ioctl cmd_nr: 0x%x\n", mcd_nr);
+		ret = -EINVAL;
+		break;
 	}
 
-	if (lcd_debug_print_flag)
-		LCDPR("check chip: %d\n", lcd_driver->chip_type);
+	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long lcd_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	unsigned long ret;
+
+	arg = (unsigned long)compat_ptr(arg);
+	ret = lcd_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
+
+static const struct file_operations lcd_fops = {
+	.owner          = THIS_MODULE,
+	.open           = lcd_io_open,
+	.release        = lcd_io_release,
+	.unlocked_ioctl = lcd_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = lcd_compat_ioctl,
+#endif
+};
+
+static int lcd_fops_create(void)
+{
+	int ret = 0;
+
+	lcd_cdev = kmalloc(sizeof(struct lcd_cdev_s), GFP_KERNEL);
+	if (!lcd_cdev) {
+		LCDERR("%s: failed to allocate lcd_cdev\n", __func__);
+		return -1;
+	}
+
+	ret = alloc_chrdev_region(&lcd_cdev->devno, 0, 1, LCD_CDEV_NAME);
+	if (ret < 0) {
+		LCDERR("%s: faild to alloc devno\n", __func__);
+		kfree(lcd_cdev);
+		lcd_cdev = NULL;
+		return -1;
+	}
+
+	cdev_init(&lcd_cdev->cdev, &lcd_fops);
+	lcd_cdev->cdev.owner = THIS_MODULE;
+	ret = cdev_add(&lcd_cdev->cdev, lcd_cdev->devno, 1);
+	if (ret) {
+		LCDERR("%s: failed to add cdev\n", __func__);
+		unregister_chrdev_region(lcd_cdev->devno, 1);
+		kfree(lcd_cdev);
+		lcd_cdev = NULL;
+		return -1;
+	}
+
+	lcd_cdev->dev = device_create(lcd_driver->lcd_debug_class, NULL,
+			lcd_cdev->devno, NULL, LCD_CDEV_NAME);
+	if (IS_ERR(lcd_cdev->dev)) {
+		LCDERR("%s: failed to add device\n", __func__);
+		ret = PTR_ERR(lcd_cdev->dev);
+		cdev_del(&lcd_cdev->cdev);
+		unregister_chrdev_region(lcd_cdev->devno, 1);
+		kfree(lcd_cdev);
+		lcd_cdev = NULL;
+		return -1;
+	}
+
+	LCDPR("%s OK\n", __func__);
+	return 0;
+}
+
+static void lcd_fops_remove(void)
+{
+	cdev_del(&lcd_cdev->cdev);
+	unregister_chrdev_region(lcd_cdev->devno, 1);
+	kfree(lcd_cdev);
+	lcd_cdev = NULL;
+}
+/* ************************************************************* */
 
 static void lcd_init_vout(void)
 {
@@ -446,22 +647,6 @@ static void lcd_init_vout(void)
 		break;
 	}
 }
-
-static int lcd_reboot_notifier(struct notifier_block *nb,
-		unsigned long event, void *data)
-{
-	if (lcd_debug_print_flag)
-		LCDPR("%s: %lu\n", __func__, event);
-	if (lcd_driver->lcd_status == 0)
-		return NOTIFY_DONE;
-
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
-
-	return NOTIFY_OK;
-}
-static struct notifier_block lcd_reboot_nb = {
-	.notifier_call = lcd_reboot_notifier,
-};
 
 static int lcd_mode_probe(struct device *dev)
 {
@@ -484,6 +669,7 @@ static int lcd_mode_probe(struct device *dev)
 	}
 
 	lcd_class_creat();
+	lcd_fops_create();
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
 	if (ret)
 		LCDERR("register aml_bl_select_notifier failed\n");
@@ -681,6 +867,8 @@ static int lcd_remove(struct platform_device *pdev)
 	if (lcd_driver) {
 		aml_lcd_notifier_unregister(&lcd_power_nb);
 		aml_lcd_notifier_unregister(&lcd_bl_select_nb);
+
+		lcd_fops_remove();
 		lcd_class_remove();
 		lcd_mode_remove(lcd_driver->dev);
 		kfree(lcd_driver);
