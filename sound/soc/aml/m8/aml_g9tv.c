@@ -583,13 +583,25 @@ static int hp_det_adc_value(struct aml_audio_private_data *p_aml_audio)
 		msleep_interruptible(15);
 	}
 	hp_val_sum = hp_val_sum >> 3;
-	if (hp_value > 0) {
-		/* unplug */
-		ret = 0;
+
+	if (p_aml_audio->hp_det_inv) {
+		if (hp_val_sum > 0) {
+			/* plug in */
+			ret = 1;
+		} else {
+			/* unplug */
+			ret = 0;
+		}
 	} else {
-		/* plug in,  */
-		ret = 1;
+		if (hp_val_sum > 0) {
+			/* unplug */
+			ret = 0;
+		} else {
+			/* plug in */
+			ret = 1;
+		}
 	}
+
 	return ret;
 }
 
@@ -632,31 +644,29 @@ static void aml_asoc_work_func(struct work_struct *work)
 		p_aml_audio->detect_flag = flag;
 
 		if (flag & 0x1) {
-			/* 1 :have mic ;  2 no mic */
 			pr_info("aml aduio hp pluged\n");
 
 			if (!IS_ERR(p_aml_audio->mute_desc)) {
 				gpiod_direction_output(
 					p_aml_audio->mute_desc,
-					GPIOF_OUT_INIT_LOW);
+					GPIOF_OUT_INIT_HIGH);
 			}
 			if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
 				gpiod_direction_output(
 					p_aml_audio->amp_mute_desc,
-					GPIOF_OUT_INIT_HIGH);
+					GPIOF_OUT_INIT_LOW);
 			}
-
 		} else {
 			pr_info("aml audio hp unpluged\n");
 			if (!IS_ERR(p_aml_audio->mute_desc)) {
 				gpiod_direction_output(
 					p_aml_audio->mute_desc,
-					GPIOF_OUT_INIT_HIGH);
+					GPIOF_OUT_INIT_LOW);
 			}
 			if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
 				gpiod_direction_output(
 					p_aml_audio->amp_mute_desc,
-					GPIOF_OUT_INIT_LOW);
+					GPIOF_OUT_INIT_HIGH);
 			}
 		}
 
@@ -806,6 +816,16 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 			gpiod_direction_input(p_aml_audio->hp_det_desc);
 		else
 			pr_err("ASoC: hp_det-gpio failed\n");
+
+		of_property_read_u32(card->dev->of_node,
+			"hp_det_inv",
+			&p_aml_audio->hp_det_inv);
+		pr_info("hp_det_inv:%d, %s\n",
+			p_aml_audio->hp_det_inv,
+			p_aml_audio->hp_det_inv ?
+			"hs pluged, HP_DET:1;hs unpluged, HS_DET:0"
+			:
+			"hs pluged, HP_DET:0;hs unpluged, HS_DET:1");
 
 		p_aml_audio->hp_det_status = true;
 

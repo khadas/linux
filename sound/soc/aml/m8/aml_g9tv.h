@@ -35,6 +35,7 @@ struct aml_audio_private_data {
 	int hp_last_state;
 	bool hp_det_status;
 	int av_hs_switch;
+	int hp_det_inv;
 	int timer_en;
 	int detect_flag;
 	struct work_struct work;
