@@ -188,7 +188,11 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 	if ((r != 1) || (val < -255) || (val > 255))
 		return -EINVAL;
 
-	WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 8, 9);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 8, 9);
+	else
+		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val << 1, 8, 10);
+
 	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ1_EN);
 
 	return count;
@@ -242,7 +246,11 @@ static ssize_t video_adj2_brightness_store(struct class *cla,
 	if ((r != 1) || (val < -255) || (val > 255))
 		return -EINVAL;
 
-	WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val, 8, 9);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+		WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val, 8, 9);
+	else
+		WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val << 1, 8, 10);
+
 	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ2_EN);
 
 	return count;
@@ -1562,7 +1570,6 @@ static int parse_para_pq(const char *para, int para_num, int *result)
 	int *out = result;
 	int len = 0, count = 0;
 	int res = 0;
-	int ret = 0;
 
 	if (!para)
 		return 0;
@@ -1580,8 +1587,7 @@ static int parse_para_pq(const char *para, int para_num, int *result)
 		}
 		if (len == 0)
 			break;
-		ret = kstrtoint(token, 0, &res);
-		if (ret < 0)
+		if (!token || kstrtoint(token, 0, &res) < 0)
 			break;
 		len = strlen(token);
 		*out++ = res;

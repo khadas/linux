@@ -5431,7 +5431,13 @@ static ssize_t video_brightness_store(struct class *cla,
 	if ((r != 1) || (val < -255) || (val > 255))
 		return -EINVAL;
 
-	WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y + cur_dev->vpp_off, val, 8, 9);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
+			cur_dev->vpp_off, val, 8, 9);
+	else
+		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
+			cur_dev->vpp_off, val << 1, 8, 10);
+
 	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
 
 	return count;
@@ -5486,7 +5492,13 @@ static ssize_t vpp_brightness_store(struct class *cla,
 	if ((r != 1) || (val < -255) || (val > 255))
 		return -EINVAL;
 
-	WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y + cur_dev->vpp_off, val, 8, 9);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
+			cur_dev->vpp_off, val, 8, 9);
+	else
+		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
+			cur_dev->vpp_off, val << 1, 8, 10);
+
 	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ2_EN);
 
 	return count;
