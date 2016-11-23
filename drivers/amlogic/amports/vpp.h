@@ -152,6 +152,13 @@ enum select_scaler_path_e {
 	sup0_pp_sp1_scpath,
 	sup0_pp_post_blender,
 };
+/*
+* note frome vlsi!!!
+* if core0 v enable,core0 input width max=1024;
+* if core0 v disable,core0 input width max=2048;
+* if core1 v enable,core1 input width max=2048;
+* if core1 v disable,core1 input width max=4096;
+*/
 #define SUPER_CORE0_WIDTH_MAX  2048
 #define SUPER_CORE1_WIDTH_MAX  4096
 
