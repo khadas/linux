@@ -541,12 +541,9 @@ enum vdin_format_convert_e vdin_get_format_convert_matrix1(
 void vdin_get_prob_rgb(unsigned int offset,
 		unsigned int *r, unsigned int *g, unsigned int *b)
 {
-	*b = rgb_info_b = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 0, 10)
-			<< 8) >> 10);
-	*g = rgb_info_g = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 10, 10)
-			<< 8) >> 10);
-	*r =  rgb_info_r = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 20, 10)
-			<< 8) >> 10);
+	*b = rgb_info_b = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 0, 10);
+	*g = rgb_info_g = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 10, 10);
+	*r = rgb_info_r = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR, 20, 10);
 }
 
 static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
