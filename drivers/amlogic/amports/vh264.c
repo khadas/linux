@@ -225,7 +225,8 @@ static u32 max_refer_buf = 1;
 static u32 decoder_force_reset;
 static unsigned int no_idr_error_count;
 static unsigned int no_idr_error_max = 60;
-
+static unsigned int enable_switch_fense = 1;
+#define EN_SWITCH_FENCE() (enable_switch_fense && !is_4k)
 #if 0
 static u32 vh264_no_disp_wd_count;
 #endif
@@ -424,7 +425,7 @@ static void prepare_display_q(void)
 		kfifo_len(&newframe_q);
 
 	if ((vh264_stream_switching_state != SWITCHING_STATE_OFF)
-		|| is_4k)
+		|| !EN_SWITCH_FENCE())
 		count = 0;
 	else
 		count = (count < 2) ? 0 : 2;
@@ -2428,22 +2429,23 @@ static s32 vh264_init(void)
 	}
 
 	stat |= STAT_MC_LOAD;
+	if (enable_switch_fense) {
+		for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
+			struct buffer_spec_s *s = &fense_buffer_spec[i];
+			if (!codec_mm_enough_for_size(3 * SZ_1M, 1))
+				return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(fense_buffer_spec); i++) {
-		struct buffer_spec_s *s = &fense_buffer_spec[i];
-		if (!codec_mm_enough_for_size(3 * SZ_1M, 1))
-			return -ENOMEM;
-
-		s->alloc_count = 3 * SZ_1M / PAGE_SIZE;
-		s->phy_addr = codec_mm_alloc_for_dma(MEM_NAME,
-			s->alloc_count,
-			4 + PAGE_SHIFT,
-			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_FOR_VDECODER);
-		s->y_canvas_index = 2 * i;
-		s->u_canvas_index = 2 * i + 1;
-		s->v_canvas_index = 2 * i + 1;
+			s->alloc_count = 3 * SZ_1M / PAGE_SIZE;
+			s->phy_addr = codec_mm_alloc_for_dma(MEM_NAME,
+				s->alloc_count,
+				4 + PAGE_SHIFT,
+				CODEC_MM_FLAGS_CMA_CLEAR |
+				CODEC_MM_FLAGS_FOR_VDECODER);
+			s->y_canvas_index = 2 * i;
+			s->u_canvas_index = 2 * i + 1;
+			s->v_canvas_index = 2 * i + 1;
+		}
 	}
-
 	/* enable AMRISC side protocol */
 	vh264_prot_init();
 
@@ -2696,7 +2698,7 @@ static void stream_switching_do(struct work_struct *work)
 			buffer_spec[buffer_index].u_canvas_width,
 			buffer_spec[buffer_index].u_canvas_height);
 #endif
-		if (!is_4k) {
+		if (EN_SWITCH_FENCE()) {
 			y_index = buffer_spec[buffer_index].y_canvas_index;
 			u_index = buffer_spec[buffer_index].u_canvas_index;
 
@@ -2733,7 +2735,7 @@ static void stream_switching_do(struct work_struct *work)
 		fense_vf[i] = *vf;
 		fense_vf[i].index = -1;
 
-		if (!is_4k)
+		if (EN_SWITCH_FENCE())
 			fense_vf[i].canvas0Addr =
 				spec2canvas(&fense_buffer_spec[i]);
 		else
@@ -2925,6 +2927,9 @@ MODULE_PARM_DESC(decoder_force_reset,
 module_param(no_idr_error_max, uint, 0664);
 MODULE_PARM_DESC(no_idr_error_max,
 		"\n print no_idr_error_max\n");
+module_param(enable_switch_fense, uint, 0664);
+MODULE_PARM_DESC(enable_switch_fense,
+		"\n enable switch fense\n");
 
 
 module_init(amvdec_h264_driver_init_module);

@@ -100,6 +100,20 @@ u32 amstream_buf_num;
 
 static int debugflags;
 
+#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*10)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*15)
+
+#define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
+#define DEFAULT_SUBTITLE_BUFFER_SIZE     (1024*256)
+
+static int def_4k_vstreambuf_sizeM =
+	(DEFAULT_VIDEO_BUFFER_SIZE_4K >> 20);
+static int def_vstreambuf_sizeM =
+	(DEFAULT_VIDEO_BUFFER_SIZE >> 20);
+static int debugflags;
+
+
+
 /* #define DATA_DEBUG */
 static int use_bufferlevelx10000 = 10000;
 static int reset_canuse_buferlevel(int level);
@@ -142,11 +156,7 @@ void debug_file_write(const char __user *buf, size_t count)
 }
 #endif
 
-#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*15)
-#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*15)
 
-#define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
-#define DEFAULT_SUBTITLE_BUFFER_SIZE     (1024*256)
 
 static int amstream_open(struct inode *inode, struct file *file);
 static int amstream_release(struct inode *inode, struct file *file);
@@ -484,16 +494,16 @@ static void amstream_change_vbufsize(struct port_priv_s *priv,
 		return;
 	}
 	if (pvbuf->for_4k) {
-		pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K;
+		pvbuf->buf_size = def_4k_vstreambuf_sizeM * SZ_1M;
 		if ((pvbuf->buf_size > 30 * SZ_1M) &&
 		(codec_mm_get_total_size() < 220 * SZ_1M)) {
 			/*if less than 250M, used 20M for 4K & 265*/
 			pvbuf->buf_size = pvbuf->buf_size >> 1;
 		}
-	} else if (pvbuf->buf_size > DEFAULT_VIDEO_BUFFER_SIZE) {
-		pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
+	} else if (pvbuf->buf_size > def_vstreambuf_sizeM * SZ_1M) {
+		pvbuf->buf_size = def_vstreambuf_sizeM * SZ_1M;
 	} else {
-		pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE;
+		pvbuf->buf_size = def_vstreambuf_sizeM * SZ_1M;
 	}
 	reset_canuse_buferlevel(10000);
 
@@ -568,6 +578,8 @@ static int video_port_init(struct port_priv_s *priv,
 		(priv->vdec->sys_info->height *
 			priv->vdec->sys_info->width) > 1920*1088) {
 		pbuf->for_4k = 1;
+	} else {
+		pbuf->for_4k = 0;
 	}
 
 	if (port->type & PORT_TYPE_FRAME) {
@@ -829,7 +841,7 @@ static int amstream_port_init(struct port_priv_s *priv)
 		pubuf->buf_start = 0;
 		pubuf->buf_wp = 0;
 		pubuf->buf_rp = 0;
-		pubuf->for_4k = 0;
+		pvbuf->for_4k = 0;
 		if (has_hevc_vdec()) {
 			if (port->vformat == VFORMAT_HEVC ||
 				port->vformat == VFORMAT_VP9)
@@ -3474,110 +3486,21 @@ static void __exit amstream_module_exit(void)
 	platform_driver_unregister(&amstream_driver);
 	return;
 }
-#if 0
-static int amstream_mem_device_init(struct reserved_mem *rmem,
-					struct device *dev)
-{
-	struct resource *res;
-	int r;
-	res = &memobj;
 
-	res->start = (phys_addr_t) rmem->base;
-	res->end = res->start + (phys_addr_t) rmem->size - 1;
-	if (!res) {
-		pr_err(
-		"Can not get I/O memory, and will allocate stream buffer!\n");
-
-		if (stbuf_change_size(&bufs[BUF_TYPE_VIDEO],
-				DEFAULT_VIDEO_BUFFER_SIZE) != 0) {
-			r = (-ENOMEM);
-			goto error4;
-		}
-		if (stbuf_change_size
-			(&bufs[BUF_TYPE_AUDIO],
-				DEFAULT_AUDIO_BUFFER_SIZE) != 0) {
-			r = (-ENOMEM);
-			goto error5;
-		}
-		if (stbuf_change_size
-			(&bufs[BUF_TYPE_SUBTITLE],
-			 DEFAULT_SUBTITLE_BUFFER_SIZE) != 0) {
-			r = (-ENOMEM);
-			goto error6;
-		}
-	} else {
-		bufs[BUF_TYPE_VIDEO].buf_start = res->start;
-		bufs[BUF_TYPE_VIDEO].buf_size =
-			resource_size(res) - DEFAULT_AUDIO_BUFFER_SIZE -
-			DEFAULT_SUBTITLE_BUFFER_SIZE;
-		bufs[BUF_TYPE_VIDEO].flag |= BUF_FLAG_IOMEM;
-		bufs[BUF_TYPE_VIDEO].default_buf_size =
-			bufs[BUF_TYPE_VIDEO].buf_size;
-
-		bufs[BUF_TYPE_AUDIO].buf_start =
-			res->start + bufs[BUF_TYPE_VIDEO].buf_size;
-		bufs[BUF_TYPE_AUDIO].buf_size = DEFAULT_AUDIO_BUFFER_SIZE;
-		bufs[BUF_TYPE_AUDIO].flag |= BUF_FLAG_IOMEM;
-
-		if (stbuf_change_size
-			(&bufs[BUF_TYPE_SUBTITLE],
-			 DEFAULT_SUBTITLE_BUFFER_SIZE) != 0) {
-			r = (-ENOMEM);
-			goto error4;
-		}
-	}
-
-	if (has_hevc_vdec()) {
-		bufs[BUF_TYPE_HEVC].buf_start = bufs[BUF_TYPE_VIDEO].buf_start;
-		bufs[BUF_TYPE_HEVC].buf_size = bufs[BUF_TYPE_VIDEO].buf_size;
-
-		if (bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_IOMEM)
-			bufs[BUF_TYPE_HEVC].flag |= BUF_FLAG_IOMEM;
-
-		bufs[BUF_TYPE_HEVC].default_buf_size =
-			bufs[BUF_TYPE_VIDEO].default_buf_size;
-	}
-
-	if (stbuf_fetch_init() != 0) {
-		r = (-ENOMEM);
-		goto error7;
-	}
-
-	return 0;
-
-error7:
-	if (bufs[BUF_TYPE_SUBTITLE].flag & BUF_FLAG_ALLOC)
-		stbuf_change_size(&bufs[BUF_TYPE_SUBTITLE], 0);
-error6:
-	if (bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_ALLOC)
-		stbuf_change_size(&bufs[BUF_TYPE_AUDIO], 0);
-error5:
-	if (bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_ALLOC)
-		stbuf_change_size(&bufs[BUF_TYPE_VIDEO], 0);
-error4:
-	return 0;
-}
-
-static const struct reserved_mem_ops rmem_amstream_ops = {
-	.device_init = amstream_mem_device_init,
-};
-
-static int __init amstream_mem_setup(struct reserved_mem *rmem)
-{
-	rmem->ops = &rmem_amstream_ops;
-	pr_err("share mem setup\n");
-
-	return 0;
-}
-RESERVEDMEM_OF_DECLARE(mesonstream,
-		"amlogic, stream-memory", amstream_mem_setup);
-
-#endif
 module_init(amstream_module_init);
 module_exit(amstream_module_exit);
 
 module_param(debugflags, uint, 0664);
 MODULE_PARM_DESC(debugflags, "\n amstream debugflags\n");
+
+module_param(def_4k_vstreambuf_sizeM, uint, 0664);
+MODULE_PARM_DESC(def_4k_vstreambuf_sizeM,
+	"\nDefault video Stream buf size for 4K MByptes\n");
+
+module_param(def_vstreambuf_sizeM, uint, 0664);
+MODULE_PARM_DESC(def_vstreambuf_sizeM,
+	"\nDefault video Stream buf size for < 1080p MByptes\n");
+
 
 
 MODULE_DESCRIPTION("AMLOGIC streaming port driver");
