@@ -3639,6 +3639,9 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 {
 	int i;
 	int cnt = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vpp_lcd_gamma_lock, flags);
 
 	while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
 		udelay(10);
@@ -3666,6 +3669,8 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 	WRITE_VPP_REG(L_GAMMA_ADDR_PORT, (0x1 << H_AUTO_INC) |
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
+
+	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
 
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)

@@ -65,6 +65,8 @@ extern struct tcon_gamma_table_s video_gamma_table_g_adj;
 extern struct tcon_gamma_table_s video_gamma_table_b_adj;
 extern struct tcon_rgb_ogo_s     video_rgb_ogo;
 
+extern spinlock_t vpp_lcd_gamma_lock;
+
 void ve_on_vs(struct vframe_s *vf);
 
 void ve_set_bext(struct ve_bext_s *p);

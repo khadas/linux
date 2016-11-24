@@ -68,6 +68,7 @@ struct amvecm_dev_s {
 
 static struct amvecm_dev_s amvecm_dev;
 
+spinlock_t vpp_lcd_gamma_lock;
 
 signed int vd1_brightness = 0, vd1_contrast;
 
@@ -2991,9 +2992,15 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 	if ((event & LCD_EVENT_GAMMA_UPDATE) == 0)
 		return NOTIFY_DONE;
 
+#if 0
 	vpp_set_lcd_gamma_table(video_gamma_table_r.data, H_SEL_R);
 	vpp_set_lcd_gamma_table(video_gamma_table_g.data, H_SEL_G);
 	vpp_set_lcd_gamma_table(video_gamma_table_b.data, H_SEL_B);
+#else
+	vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+	vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+#endif
 
 	return NOTIFY_OK;
 }
@@ -3036,6 +3043,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		goto fail_create_device;
 	}
 
+	spin_lock_init(&vpp_lcd_gamma_lock);
 #ifdef CONFIG_AML_LCD
 	ret = aml_lcd_notifier_register(&aml_lcd_gamma_nb);
 	if (ret)
