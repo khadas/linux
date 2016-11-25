@@ -136,6 +136,15 @@
 /* nv12 &nv21, only works on m6*/
 #define GE2D_COLOR_MAP_NV12		(15 << GE2D_COLOR_MAP_SHIFT)
 #define GE2D_COLOR_MAP_NV21		(14 << GE2D_COLOR_MAP_SHIFT)
+
+/* deep color, only works after TXL */
+#define GE2D_COLOR_MAP_10BIT_YUV444		(0 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_10BIT_VUY444		(5 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_10BIT_YUV422		(0 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_10BIT_YVU422		(1 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_12BIT_YUV422		(8 << GE2D_COLOR_MAP_SHIFT)
+#define GE2D_COLOR_MAP_12BIT_YVU422		(9 << GE2D_COLOR_MAP_SHIFT)
+
 /* 16 bit */
 #define GE2D_COLOR_MAP_YUV422		(0 << GE2D_COLOR_MAP_SHIFT)
 #define GE2D_COLOR_MAP_RGB655		(1 << GE2D_COLOR_MAP_SHIFT)
@@ -178,8 +187,9 @@
 #define GE2D_COLOR_MAP_VUYA8888     (3 << GE2D_COLOR_MAP_SHIFT)
 
 /* format code is defined as:
-[11] : 1-YUV color space, 0-RGB color space
-[10] : compress_range
+[18] : 1-deep color mode(10/12 bit), 0-8bit mode
+[17] : 1-YUV color space, 0-RGB color space
+[16] : compress_range
 [9:8]: format
 [7:6]: 8bit_mode_sel
 [5]  : LUT_EN
@@ -193,6 +203,7 @@
 #define GE2D_BPP_16BIT                  0x00100
 #define GE2D_BPP_24BIT                  0x00200
 #define GE2D_BPP_32BIT                  0x00300
+#define GE2D_FORMAT_DEEP_COLOR   0x40000
 #define GE2D_FORMAT_YUV                 0x20000
 #define GE2D_FORMAT_COMP_RANGE          0x10000
 /*bit8(2)  format   bi6(2) mode_8b_sel  bit5(1)lut_en   bit2 sep_en*/
@@ -229,6 +240,20 @@
 #define GE2D_FMT_S16_YUV422B	0x20138 /* 01_00_0_11_0_00 */
 #define GE2D_FMT_S24_YUV444T	0x20210 /* 10_00_0_10_0_00 */
 #define GE2D_FMT_S24_YUV444B	0x20218 /* 10_00_0_11_0_00 */
+
+/* only works after TXL and for src1. */
+#define GE2D_FMT_S24_10BIT_YUV444		0x60200
+#define GE2D_FMT_S24_10BIT_YUV444T		0x60210
+#define GE2D_FMT_S24_10BIT_YUV444B		0x60218
+
+#define GE2D_FMT_S16_10BIT_YUV422		0x60102
+#define GE2D_FMT_S16_10BIT_YUV422T		0x60112
+#define GE2D_FMT_S16_10BIT_YUV422B		0x6011a
+
+#define GE2D_FMT_S16_12BIT_YUV422		0x60102
+#define GE2D_FMT_S16_12BIT_YUV422T		0x60112
+#define GE2D_FMT_S16_12BIT_YUV422B		0x6011a
+
 
 /* back compatible defines */
 #define GE2D_FORMAT_S8_Y            (GE2D_FORMAT_YUV|GE2D_FMT_S8_Y)
@@ -285,6 +310,25 @@
 #define GE2D_FORMAT_S32_ABGR (GE2D_FMT_S32_RGBA | GE2D_COLOR_MAP_ABGR8888)
 #define GE2D_FORMAT_S32_BGRA (GE2D_FMT_S32_RGBA | GE2D_COLOR_MAP_BGRA8888)
 
+/* format added in TXL */
+#define GE2D_FORMAT_S24_10BIT_YUV444 \
+	(GE2D_FMT_S24_10BIT_YUV444 | GE2D_COLOR_MAP_10BIT_YUV444)
+
+#define GE2D_FORMAT_S24_10BIT_VUY444 \
+	(GE2D_FMT_S24_10BIT_YUV444 | GE2D_COLOR_MAP_10BIT_VUY444)
+
+#define GE2D_FORMAT_S16_10BIT_YUV422 \
+	(GE2D_FMT_S16_10BIT_YUV422 | GE2D_COLOR_MAP_10BIT_YUV422)
+
+#define GE2D_FORMAT_S16_10BIT_YVU422 \
+	(GE2D_FMT_S16_10BIT_YUV422 | GE2D_COLOR_MAP_10BIT_YVU422)
+
+#define GE2D_FORMAT_S16_12BIT_YUV422 \
+	(GE2D_FMT_S16_12BIT_YUV422 | GE2D_COLOR_MAP_12BIT_YUV422)
+
+#define GE2D_FORMAT_S16_12BIT_YVU422 \
+	(GE2D_FMT_S16_12BIT_YUV422 | GE2D_COLOR_MAP_12BIT_YVU422)
+
 
 #define	UPDATE_SRC_DATA     0x01
 #define	UPDATE_SRC_GEN      0x02
@@ -334,6 +378,7 @@ struct ge2d_src1_data_s {
 
 	unsigned char     mode_8b_sel;
 	unsigned char     lut_en;
+	unsigned char     deep_color;
 	unsigned int      def_color;
 	unsigned int      format_all;
 };

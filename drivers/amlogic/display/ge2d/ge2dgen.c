@@ -42,6 +42,11 @@ static inline void _set_src1_format(struct ge2d_src1_data_s *src1_data_cfg,
 	src1_data_cfg->x_yc_ratio  = (format_src >> 1) & 1;
 	src1_data_cfg->y_yc_ratio  = (format_src >> 0) & 1;
 
+	if (format_src & GE2D_FORMAT_DEEP_COLOR)
+		src1_data_cfg->deep_color = 1;
+	else
+		src1_data_cfg->deep_color = 0;
+
 	if ((format_src & GE2D_FORMAT_YUV) &&
 	    ((format_dst & GE2D_FORMAT_YUV) == 0)) {
 		dp_gen_cfg->use_matrix_default =

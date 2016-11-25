@@ -300,6 +300,8 @@ void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL2, cfg->endian, 7, 1);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL2, cfg->color_map, 3, 4);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL2, cfg->format, 0, 2);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)
+		ge2d_reg_set_bits(GE2D_GEN_CTRL2, cfg->deep_color, 2, 1);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->mode_8b_sel, 5, 2);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->lut_en, 3, 1);
 

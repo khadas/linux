@@ -291,7 +291,8 @@ static ssize_t amvideocap_YUV_to_RGB(
 	intfmt = amvideocap_get_input_format(vf);
 
 	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		(intfmt == GE2D_FORMAT_S16_YUV422)) {
+		(intfmt == GE2D_FORMAT_S16_YUV422) &&
+		(get_cpu_type() < MESON_CPU_MAJOR_ID_TXL)) {
 		temp_canvas_idx =
 			canvas_pool_map_alloc_canvas(amvideocap_owner);
 		if (temp_canvas_idx < 0) {
@@ -352,7 +353,9 @@ static ssize_t amvideocap_YUV_to_RGB(
 
 	height_after_di = vf->height;
 	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		(intfmt == GE2D_FORMAT_S16_YUV422)) {
+		((intfmt == GE2D_FORMAT_S16_YUV422) ||
+		((intfmt == GE2D_FORMAT_S24_YUV444) &&
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)))) {
 		pr_info("input_height = %d , vf->type_original = %x\n" ,
 			input_height, vf->type_original);
 		if ((vf->source_type == VFRAME_SOURCE_TYPE_HDMI) ||
@@ -393,7 +396,8 @@ static ssize_t amvideocap_YUV_to_RGB(
 	canvas_read(v_index, &cs2);
 
 	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		(intfmt == GE2D_FORMAT_S16_YUV422)) {
+		(intfmt == GE2D_FORMAT_S16_YUV422) &&
+		(get_cpu_type() < MESON_CPU_MAJOR_ID_TXL)) {
 		pr_info("vf->width = %d , vf->height = %d , vf->bitdepth = %d\n",
 		vf->width, vf->height, vf->bitdepth);
 		do_gettimeofday(&start);
@@ -501,7 +505,8 @@ static ssize_t amvideocap_YUV_to_RGB(
 			u_index, cur_index);
 
 	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		(intfmt == GE2D_FORMAT_S16_YUV422)) {
+		(intfmt == GE2D_FORMAT_S16_YUV422) &&
+		(get_cpu_type() < MESON_CPU_MAJOR_ID_TXL)) {
 		ge2d_config.src_planes[0].addr = temp_cs0.addr;
 		ge2d_config.src_planes[0].w = temp_cs0.width;
 		ge2d_config.src_planes[0].h = temp_cs0.height;
@@ -533,13 +538,41 @@ static ssize_t amvideocap_YUV_to_RGB(
 	ge2d_config.src_key.key_color = 0;
 
 	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		(intfmt == GE2D_FORMAT_S16_YUV422))
+		(intfmt == GE2D_FORMAT_S16_YUV422) &&
+		(get_cpu_type() < MESON_CPU_MAJOR_ID_TXL))
 		ge2d_config.src_para.canvas_index = temp_canvas_idx;
 	else
 		ge2d_config.src_para.canvas_index = cur_index;
 
 	ge2d_config.src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config.src_para.format = intfmt;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL) {
+		if (intfmt == GE2D_FORMAT_S16_YUV422) {
+			if ((vf->bitdepth & BITDEPTH_Y10) &&
+				(vf->bitdepth & FULL_PACK_422_MODE)) {
+				pr_info("format is yuv422 10bit .\n");
+				ge2d_config.src_para.format =
+					GE2D_FORMAT_S16_10BIT_YUV422;
+			} else if (vf->bitdepth & BITDEPTH_Y10) {
+				pr_info("format is yuv422 12bit .\n");
+				ge2d_config.src_para.format =
+					GE2D_FORMAT_S16_12BIT_YUV422;
+			} else {
+				ge2d_config.src_para.format = intfmt;
+			}
+		} else if (intfmt == GE2D_FORMAT_S24_YUV444) {
+			if (vf->bitdepth & BITDEPTH_Y10) {
+				pr_info("format is yuv444 10bit .\n");
+				ge2d_config.src_para.format =
+					GE2D_FORMAT_S24_10BIT_YUV444;
+			} else {
+				ge2d_config.src_para.format = intfmt;
+			}
+		} else {
+			ge2d_config.src_para.format = intfmt;
+		}
+	} else {
+		ge2d_config.src_para.format = intfmt;
+	}
 	ge2d_config.src_para.fill_color_en = 0;
 	ge2d_config.src_para.fill_mode = 0;
 	ge2d_config.src_para.x_rev = 0;
@@ -588,7 +621,8 @@ static ssize_t amvideocap_YUV_to_RGB(
 		canvas_pool_map_free_canvas(canvas_idx);
 
 	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		(intfmt == GE2D_FORMAT_S16_YUV422)) {
+		(intfmt == GE2D_FORMAT_S16_YUV422) &&
+		(get_cpu_type() < MESON_CPU_MAJOR_ID_TXL)) {
 		if (phybufaddr_8bit) {
 			ret = codec_mm_free_for_dma(CMA_NAME, phybufaddr_8bit);
 			if (ret != 0)
