@@ -152,6 +152,13 @@
 /* write 1 to load address to AUDIN_FIFO0. */
 #define AUDIN_FIFO0_LOAD	2
 
+enum data_source {
+	SPDIF_IN,
+	I2S_IN,
+	PCM_IN,
+	HDMI_IN,
+	PAO_IN
+};
 #define AUDIN_FIFO0_DIN_SEL	3
 	    /* 0     spdifIN */
 	    /* 1     i2Sin */

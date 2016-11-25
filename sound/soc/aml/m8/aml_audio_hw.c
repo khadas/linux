@@ -318,7 +318,7 @@ static void spdifin_reg_set(void)
 
 }
 
-static void spdifin_fifo1_set_buf(u32 addr, u32 size)
+static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 {
 	aml_write_cbus(AUDIN_SPDIF_MODE,
 		       aml_read_cbus(AUDIN_SPDIF_MODE) & 0x7fffffff);
@@ -328,7 +328,7 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size)
 		       (addr & 0xffffffc0) + (size & 0xffffffc0) - 8);
 	aml_write_cbus(AUDIN_FIFO1_CTRL, (1 << AUDIN_FIFO1_EN)	/* FIFO0_EN */
 		       |(1 << AUDIN_FIFO1_LOAD)	/* load start address. */
-		       |(0 << AUDIN_FIFO1_DIN_SEL)
+		       |(src << AUDIN_FIFO1_DIN_SEL)
 
 		       /* DIN from i2sin. */
 		       /* |(1<<6)   // 32 bits data in. */
@@ -349,8 +349,21 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size)
 	 *  the last 14 bit and reg Spdif_fs_clk_rltn(0x2801)
 	 */
 	spdifin_reg_set();
-	/*3 byte mode, (27:4)*/
-	aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
+	/*3 byte mode, (23:0)*/
+	if (src == PAO_IN) {
+		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x08);
+	} else if (src == HDMI_IN) {
+		/* there are two inputs for HDMI_IN. New I2S:SPDIF */
+		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x08);
+		if (1) {
+			/* new SPDIF in module */
+			aml_write_cbus(AUDIN_DECODE_FORMAT, 1<<24);
+		} else {
+			/* new I2S in module */
+			aml_write_cbus(AUDIN_DECODE_FORMAT, 0x103ad);
+		}
+	} else
+		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
 }
 
 void audio_in_i2s_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
@@ -360,11 +373,10 @@ void audio_in_i2s_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
 	audio_in_buf_ready = 1;
 }
 
-void audio_in_spdif_set_buf(u32 addr, u32 size)
+void audio_in_spdif_set_buf(u32 addr, u32 size, u32 src)
 {
-	pr_info("spdifin_fifo1_set_buf\n");
-	spdifin_fifo1_set_buf(addr, size);
-
+	pr_info("spdifin_fifo1_set_buf, src = %d\n", src);
+	spdifin_fifo1_set_buf(addr, size, src);
 }
 
 /* extern void audio_in_enabled(int flag); */
