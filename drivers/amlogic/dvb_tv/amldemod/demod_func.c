@@ -1376,6 +1376,20 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 			msleep(demod_timeout);
 			time_cnt++;
 			dtmb_information();
+			if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
+				>> 21) & 0x1) == 0x1) {
+				pr_dbg("4qam-nr,need set spectrum\n");
+				if (dtmb_spectrum == 1) {
+					dtmb_write_reg
+					(DTMB_TOP_CTRL_TPS, 0x1010406);
+				} else if (dtmb_spectrum == 0) {
+					dtmb_write_reg
+					(DTMB_TOP_CTRL_TPS, 0x1010402);
+				} else {
+					dtmb_write_reg
+					(DTMB_TOP_CTRL_TPS, 0x1010002);
+				}
+			}
 			if (time_cnt > 8)
 				pr_dbg
 					("* time_cnt = %d\n", time_cnt);
@@ -1384,6 +1398,10 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 			time_cnt = 0;
 			dtmb_register_reset();
 			dtmb_all_reset();
+			if	(dtmb_spectrum == 0)
+				dtmb_spectrum = 1;
+			else
+				dtmb_spectrum = 0;
 			pr_dbg
 				("*all reset,timeout is %d\n", demod_timeout);
 		}
