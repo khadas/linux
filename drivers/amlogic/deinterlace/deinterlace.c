@@ -9231,6 +9231,9 @@ static void set_di_flag(void)
 		tbbtff_dly = 0;
 	}
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXBB))
+		dnr_dm_en = true;
+
 	return;
 }
 

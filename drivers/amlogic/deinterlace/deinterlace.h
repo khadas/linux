@@ -409,6 +409,7 @@ extern unsigned int di_log_flag;
 extern unsigned int di_debug_flag;
 extern bool mcpre_en;
 extern bool dnr_reg_update;
+extern bool dnr_dm_en;
 extern int mpeg2vdin_flag;
 extern int di_vscale_skip_count_real;
 extern unsigned int pulldown_enable;
