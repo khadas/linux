@@ -559,9 +559,13 @@ static int remote_resume(struct platform_device *pdev)
 
 	pr_info("remote_resume\n");
 
+	/*resume register config*/
+	chip->set_register_config(chip, chip->protocol);
+
 	/*
 		read REG_STATUS and REG_FRAME to clear status
 	*/
+
 	remote_reg_read(chip, REG_STATUS, &val);
 	remote_reg_read(chip, REG_FRAME, &val);
 

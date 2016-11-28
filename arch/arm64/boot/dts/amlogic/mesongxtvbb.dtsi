@@ -801,7 +801,7 @@
 		map_1: map_1{
 			mapname = "amlogic-remote-2";
 			customcode = <0xfe01>;
-			size  = <54>;
+			size  = <53>;
 			keymap = <REMOTE_KEY(0x01, KEY_1)
 				REMOTE_KEY(0x02, KEY_2)
 				REMOTE_KEY(0x03, KEY_3)
@@ -844,7 +844,6 @@
 				REMOTE_KEY(0x38, KEY_SCROLLLOCK)
 				REMOTE_KEY(0x57, KEY_FN)
 				REMOTE_KEY(0x5b, KEY_FN_ESC)
-				REMOTE_KEY(0x13, 195)
 				REMOTE_KEY(0x54, KEY_RED)
 				REMOTE_KEY(0x4c, KEY_GREEN)
 				REMOTE_KEY(0x4e, KEY_YELLOW)
