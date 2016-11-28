@@ -109,7 +109,7 @@ MODULE_PARM_DESC(sig_lost_lock_max, "\n sig_lost_lock_max\n");
 module_param(sig_lost_lock_max, int, 0664);
 
 static int sig_stable_cnt;
-static int sig_stable_max = 20;
+static int sig_stable_max = 40;
 MODULE_PARM_DESC(sig_stable_max, "\n sig_stable_max\n");
 module_param(sig_stable_max, int, 0664);
 
@@ -463,9 +463,12 @@ int wait_hpd_reset_max = 300;
 module_param(wait_hpd_reset_max, int, 0664);
 MODULE_PARM_DESC(wait_hpd_reset_max, "wait_hpd_reset_max");
 
-bool use_dwc_reset;
+bool use_dwc_reset = true;
 MODULE_PARM_DESC(use_dwc_reset, "\n use_dwc_reset\n");
 module_param(use_dwc_reset, bool, 0664);
+bool is_hdcp_source = true;
+MODULE_PARM_DESC(is_hdcp_source, "\n is_hdcp_source\n");
+module_param(is_hdcp_source, bool, 0664);
 
 int stable_check_lvl = 0x2ff;
 module_param(stable_check_lvl, int, 0664);
@@ -1123,6 +1126,7 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 			if (log_level & HDCP_LOG)
 				rx_pr("[**receive aksv**\n");
 			/*clk_handle_flag = true;*/
+			is_hdcp_source = true;
 			if (hdmirx_repeat_support()) {
 				rx.hdcp.hdcp_version = HDCP_VERSION_14;
 				queue_delayed_work(eq_wq, &eq_dwork,
@@ -2422,6 +2426,7 @@ void hdmirx_hw_monitor(void)
 			hdmirx_set_hpd(rx.port, 0);
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
+			is_hdcp_source = true;
 			rx.state = FSM_INIT;
 		}
 		#ifdef HDCP22_ENABLE
@@ -2632,7 +2637,11 @@ void hdmirx_hw_monitor(void)
 					if (sig_stable_cnt < (sig_stable_max*7))
 						break;
 				}
-
+				if ((is_hdcp_source) &&
+					(rx.pre.hdcp_enc_state != 3)) {
+					if (sig_stable_cnt < (sig_stable_max*7))
+						break;
+				}
 				sig_stable_cnt = 0;
 				sig_unstable_cnt = 0;
 				rx.change = 0;
@@ -2671,6 +2680,9 @@ void hdmirx_hw_monitor(void)
 		}
 		break;
 	case FSM_CHECK_DDC_CORRECT:
+		if ((rx.pre.hdcp_enc_state == 0) ||
+			(rx.pre.hdcp_enc_state == 2))
+			is_hdcp_source = false;
 		rx.state = FSM_SIG_READY;
 		rx_pr("DDCERROR->READY\n");
 		break;
@@ -4159,6 +4171,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.ctrl.tmds_clk = 0;
 	rx.ctrl.acr_mode = acr_mode;
 	wait_no_sig_cnt = 0;
+	is_hdcp_source = true;
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
 	else
