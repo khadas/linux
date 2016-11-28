@@ -173,7 +173,7 @@ static int ge2d_store_frame_YUV444(u32 cur_index)
 	ge2d_config.src_para.left = 0;
 	ge2d_config.src_para.width = cs.width;
 	ge2d_config.src_para.height = cs.height;
-
+	ge2d_config.src2_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.dst_para.canvas_index = des_index;
 	ge2d_config.dst_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.dst_para.format = GE2D_FORMAT_M24_YUV444;
@@ -258,7 +258,7 @@ static int ge2d_store_frame_NV21(u32 cur_index)
 	ge2d_config.src_para.left = 0;
 	ge2d_config.src_para.width = cs0.width;
 	ge2d_config.src_para.height = cs0.height;
-
+	ge2d_config.src2_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.dst_para.canvas_index = des_index;
 	ge2d_config.dst_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.dst_para.format = GE2D_FORMAT_M24_NV21;
@@ -346,7 +346,7 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 	ge2d_config.src_para.left = 0;
 	ge2d_config.src_para.width = cs.width;
 	ge2d_config.src_para.height = cs.height;
-
+	ge2d_config.src2_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.dst_para.canvas_index = ydupindex;
 	ge2d_config.dst_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.dst_para.format = GE2D_FMT_S8_Y;
