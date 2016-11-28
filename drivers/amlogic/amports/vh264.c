@@ -209,6 +209,8 @@ static u32 num_units_in_tick;
 static u32 time_scale;
 static u32 h264_ar;
 static u32 decoder_debug_flag;
+static u32 dpb_size_adj = 6;
+
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 static u32 last_interlaced;
 #endif
@@ -754,14 +756,21 @@ static void vh264_set_params(struct work_struct *work)
 
 	 /*max_reference_size <= max_dpb_size <= actual_dpb_size*/
 	 is_4k = (mb_total > 8160) ? true:false;
-	if (is_4k) {
+
+	if (is_4k || dpb_size_adj) {
 		/*4k2k*/
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 			max_dpb_size = get_max_dpb_size(
 					level_idc, mb_width, mb_height);
 			actual_dpb_size = max_dpb_size + 4;
-		      if (actual_dpb_size > VF_BUF_NUM)
-			actual_dpb_size = VF_BUF_NUM;
+			if (dpb_size_adj)
+				actual_dpb_size
+				= max_reference_size + dpb_size_adj;
+			if (actual_dpb_size > VF_BUF_NUM)
+				actual_dpb_size = VF_BUF_NUM;
+			pr_info
+			("actual_dpb_size %d max_ref_size %d\n",
+			actual_dpb_size, max_reference_size);
 		} else {
 			vh264_running = 0;
 			fatal_error_flag =
@@ -787,6 +796,7 @@ static void vh264_set_params(struct work_struct *work)
 		 pr_info("actual_dpb_size %d max_dpb_size %d\n",
 				 actual_dpb_size, max_dpb_size);
 	}
+
 	if (max_dpb_size == 0)
 		max_dpb_size = actual_dpb_size;
 	else
@@ -847,8 +857,7 @@ static void vh264_set_params(struct work_struct *work)
 				}
 				if (!buffer_spec[i].phy_addr) {
 					if (codec_mm_get_free_size()
-						< (codec_mm_get_total_size()
-						- (page_count * PAGE_SIZE))) {
+						< (page_count * PAGE_SIZE)) {
 						pr_err
 						("CMA force free keep buf %d\n",
 						i);
@@ -2878,8 +2887,12 @@ static int __init amvdec_h264_driver_init_module(void)
 		pr_err("failed to register amvdec_h264 driver\n");
 		return -ENODEV;
 	}
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB
+		&& (codec_mm_get_total_size() > 80 * SZ_1M)) {
 		amvdec_h264_profile.profile = "4k";
+		dpb_size_adj = 0;
+	}
+
 	vcodec_profile_register(&amvdec_h264_profile);
 	return 0;
 }
@@ -2920,6 +2933,11 @@ MODULE_PARM_DESC(fixed_frame_rate_flag,
 module_param(decoder_debug_flag, uint, 0664);
 MODULE_PARM_DESC(decoder_debug_flag,
 				 "\n amvdec_h264 decoder_debug_flag\n");
+
+module_param(dpb_size_adj, uint, 0664);
+MODULE_PARM_DESC(dpb_size_adj,
+				 "\n amvdec_h264 dpb_size_adj\n");
+
 
 module_param(decoder_force_reset, uint, 0664);
 MODULE_PARM_DESC(decoder_force_reset,

@@ -952,6 +952,20 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 #endif
 		}
 
+		if ((vdec->format == VFORMAT_H264)
+			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
+			&& codec_mm_get_total_size() <= 80 * SZ_1M) {
+#ifdef CONFIG_MULTI_DEC
+			if (p->use_vfm_path)
+				alloc_size = 32 * SZ_1M;
+			else
+				alloc_size = 32 * SZ_1M;
+#else
+			alloc_size = 32 * SZ_1M;
+#endif
+		}
+
+
 		p->mem_start = codec_mm_alloc_for_dma(MEM_NAME,
 			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_CPU |
