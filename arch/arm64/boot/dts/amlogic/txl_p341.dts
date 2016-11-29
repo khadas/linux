@@ -530,7 +530,7 @@
 		compatible = "amlogic, vpu";
 		dev_name = "vpu";
 		status = "ok";
-		clk_level = <7>;
+		clk_level = <5>;
 		/**	0: 100.0M    1: 166.7M    2: 200.0M
 			3: 250.0M    4: 333.3M    5: 400.0M
 			6: 500.0M    7: 666.7M */
@@ -592,32 +592,6 @@
 		};
 	};
 
-
-
-	sd {
-		compatible = "amlogic, aml_sd_emmc";
-		dev_name = "aml_newsd.0";
-		status = "okay";
-		reg = <0x0 0xd0072000 0x0 0x2000>;
-		interrupts = <	0 217 4>;
-		pinctrl-names = "sd_clk_cmd_pins", "sd_all_pins";
-		pinctrl-0 = <&sd_clk_cmd_pins>;
-		pinctrl-1 = <&sd_all_pins>;
-		sd {
-			status = "okay";
-	   		pinname = "sd";
-	   		ocr_avail = <0x00200080>; // 3.3:0x200000, 1.8+3.3:0x00200080
-			caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED",
-	                             "MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
-	                             "MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
-                                     "MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
-                                     "MMC_CAP_SDIO_IRQ";
-	   		f_min = <400000>;
-	   		f_max = <200000000>;
-	   		max_req_size = <0x20000>; /**128KB*/
-	   		card_type = <3>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
-		};
-	};
 
 	partitions: partitions {
 		parts = <11>;
