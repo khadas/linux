@@ -1227,13 +1227,13 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 			if (log_level & 0x100)
 				rx_pr("[irq] OVERFL\n");
 			error |= hdmirx_audio_fifo_rst();
-			rx.change = skip_frame_num;
+			/* rx.change = skip_frame_num; */
 		}
 		if (get(intr_aud_fifo, UNDERFL) != 0) {
 			if (log_level & 0x100)
 				rx_pr("[irq] UNDERFL\n");
 			error |= hdmirx_audio_fifo_rst();
-			rx.change = skip_frame_num;
+			/* rx.change = skip_frame_num; */
 		}
 		ctx->debug_irq_audio_fifo++;
 	}

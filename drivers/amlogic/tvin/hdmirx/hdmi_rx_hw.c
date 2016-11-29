@@ -471,7 +471,7 @@ static int packet_init(void)
 	data32 |= 1 << 4;	/* PD_FIFO_WE */
 	data32 |= 1 << 0;	/* PDEC_BCH_EN */
 	data32 &= (~GCP_GLOBAVMUTE);
-	data32 |= GCP_GLOBAVMUTE_EN;
+	data32 |= GCP_GLOBAVMUTE_EN << 15;
 	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
 
 	return error;
