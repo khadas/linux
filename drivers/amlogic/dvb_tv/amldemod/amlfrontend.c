@@ -1283,6 +1283,8 @@ static int gxtv_demod_fe_enter_mode(struct aml_fe *fe, int mode)
 		dtmb_write_reg(DTMB_FRONT_MEM_ADDR, memstart_dtmb);
 		pr_dbg("[dtmb]mem_buf is 0x%x\n",
 			dtmb_read_reg(DTMB_FRONT_MEM_ADDR));
+		/* open arbit */
+		demod_set_demod_reg(0x8, DEMOD_REG4);
 	} else if (mode == AM_FE_QAM) {
 		Gxtv_Demod_Dvbc_Init(dev, Adc_mode);
 	}
@@ -1298,6 +1300,8 @@ static int gxtv_demod_fe_leave_mode(struct aml_fe *fe, int mode)
 	if (cci_thread)
 		dvbc_kill_cci_task();
 	if (mode == AM_FE_DTMB) {
+		/* close arbit */
+		demod_set_demod_reg(0x0, DEMOD_REG4);
 		if (fe->dtv_demod->cma_flag == 1)
 			dtmb_cma_release(dev);
 	}

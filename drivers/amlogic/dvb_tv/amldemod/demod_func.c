@@ -1570,7 +1570,7 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	/* init for dtmb */
 	if (dvb_mode == Gxtv_Dtmb) {
 		/* open arbit */
-		demod_set_demod_reg(0x8, DEMOD_REG4);
+	/*	demod_set_demod_reg(0x8, DEMOD_REG4);*/
 	}
 	demod_sta->adc_freq = clk_adc;
 	demod_sta->clk_freq = clk_dem;
