@@ -128,6 +128,42 @@ static unsigned int sr1_index;/* for sr1 read */
 module_param(sr1_index, uint, 0664);
 MODULE_PARM_DESC(sr1_index, "\n sr1_index\n");
 
+
+/* vpp brightness/contrast/saturation/hue */
+static int __init amvecm_load_pq_val(char *str)
+{
+	int i = 0, err = 0;
+	char *tk = NULL, *tmp[4];
+	long val;
+
+	if (str == NULL) {
+		pr_err("[amvecm] pq val error !!!\n");
+		return 0;
+	}
+
+	for (tk = strsep(&str, ","); tk != NULL; tk = strsep(&str, ",")) {
+		tmp[i] = tk;
+		err = kstrtol(tmp[i], 10, &val);
+		if (err) {
+			pr_err("[amvecm] pq string error !!!\n");
+			break;
+		}
+		/* pr_err("[amvecm] pq[%d]: %d\n", i, (int)val[i]); */
+
+		/* only need to get sat/hue value,
+		brightness/contrast can be got from registers */
+		if (i == 2)
+			saturation_post = (int)val;
+		else if (i == 3)
+			hue_post = (int)val;
+		i++;
+	}
+
+	return 0;
+}
+__setup("pq=", amvecm_load_pq_val);
+
+
 static void amvecm_size_patch(void)
 {
 	unsigned int hs, he, vs, ve;
@@ -151,13 +187,19 @@ static void amvecm_size_patch(void)
 static ssize_t video_adj1_brightness_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	s32 val;
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
-		val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x1ff;
-	else
-		val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x3ff;
+	s32 val = 0;
 
-	return sprintf(buf, "%d\n", val);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+		val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x1ff;
+		val = (val << 23) >> 23;
+
+		return sprintf(buf, "%d\n", val);
+	} else {
+		val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x3ff;
+		val = (val << 23) >> 23;
+
+		return sprintf(buf, "%d\n", val >> 1);
+	}
 }
 
 static ssize_t video_adj1_brightness_store(struct class *cla,
@@ -176,7 +218,7 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val << 1, 8, 10);
 
-	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ1_EN);
+	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
 
 	return count;
 }
@@ -202,7 +244,7 @@ static ssize_t video_adj1_contrast_store(struct class *cla,
 	val += 0x80;
 
 	WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 0, 8);
-	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ1_EN);
+	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
 
 	return count;
 }
@@ -211,13 +253,19 @@ static ssize_t video_adj1_contrast_store(struct class *cla,
 static ssize_t video_adj2_brightness_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	s32 val;
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
-		val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x1ff;
-	else
-		val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x3ff;
+	s32 val = 0;
 
-	return sprintf(buf, "%d\n", val);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+		val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x1ff;
+		val = (val << 23) >> 23;
+
+		return sprintf(buf, "%d\n", val);
+	} else {
+		val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x3ff;
+		val = (val << 23) >> 23;
+
+		return sprintf(buf, "%d\n", val >> 1);
+	}
 }
 
 static ssize_t video_adj2_brightness_store(struct class *cla,
@@ -236,7 +284,7 @@ static ssize_t video_adj2_brightness_store(struct class *cla,
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val << 1, 8, 10);
 
-	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ2_EN);
+	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
 
 	return count;
 }
@@ -262,7 +310,7 @@ static ssize_t video_adj2_contrast_store(struct class *cla,
 	val += 0x80;
 
 	WRITE_VPP_REG_BITS(VPP_VADJ2_Y, val, 0, 8);
-	WRITE_VPP_REG(VPP_VADJ_CTRL, VPP_VADJ2_EN);
+	WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
 
 	return count;
 }
