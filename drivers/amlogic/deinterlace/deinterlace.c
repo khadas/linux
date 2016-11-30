@@ -1971,7 +1971,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 	if (0 == strcmp(parm[0], "capture"))
 		di_buf = di_pre_stru.di_mem_buf_dup_p;
 	else if (0 == strcmp(parm[0], "capture_post"))
-		di_buf = di_pre_stru.di_post_wr_buf;
+		di_buf = di_post_stru.cur_post_buf;
 	else {
 		pr_err("wrong dump cmd\n");
 		return len;

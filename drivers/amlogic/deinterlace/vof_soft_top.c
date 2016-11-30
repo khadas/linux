@@ -9,7 +9,7 @@ int cmb32_blw_wnd = 180; /*192 */
 module_param(cmb32_blw_wnd, int, 0644);
 MODULE_PARM_DESC(cmb32_blw_wnd, "cmb32_blw_wnd");
 
-int cmb32_wnd_ext = 4;
+static int cmb32_wnd_ext = 11;
 module_param(cmb32_wnd_ext, int, 0644);
 MODULE_PARM_DESC(cmb32_wnd_ext, "cmb32_wnd_ext");
 
