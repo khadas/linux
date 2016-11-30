@@ -429,7 +429,7 @@ void vdac_enable(bool on, unsigned int module_sel)
 			pri_flag &= ~VDAC_MODULE_ATV_DEMOD;
 			if (pri_flag & VDAC_MODULE_CVBS_OUT)
 				break;
-			vdac_out_cntl0_bit0(0, 0x4);
+			vdac_out_cntl0_bit0(0, VDAC_MODULE_ATV_DEMOD);
 			/* Disable AFE output buffer */
 			vdac_hiu_reg_setb(HHI_VDAC_CNTL0, 0, 10, 1);
 			/* enable dac output */
