@@ -187,12 +187,14 @@
 			      "vid_pll_clk",
 			      "fclk_div4",
 			      "fclk_div3";
-		clock-select 	 = <0x0>,<0x0>,<0x0>,<0x0>,
-			       	   <0x0>,<0x0>,<0x0>,<0x0>;
-		clock-select-new = <0x0>,<0x0>,<0x0>,<0x0>,
-		                   <0x0>,<0x0>,<0x0>,<0x0>,
-		                   <0x0>,<0x0>,<0x0>,<0x0>,
-		                   <0x0>,<0x0>,<0x0>,<0x0>;
+		clock-select = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+			       	   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+		clock-select-new = <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,
+		                   <XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>,<XTAL_CLK>;
+		                   /*all channels use the default clock source XTAL_CLK*/
+		                   /*and you can shoose it in file dt-bindings/pwm/meson.h*/
 	};
 	sysled {
 		compatible = "amlogic, sysled";
@@ -511,6 +513,13 @@
 		interrupts = <	0 68 4>;
 		irq_trigger_type = "GPIO_IRQ_HIGH";
 		//power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
+		pwm_config = <&wifi_pwm_conf>;
+	};
+ 	wifi_pwm_conf:wifi_pwm_conf{
+		pwm_channel1 = <PWM_C>;
+		pwm_channel2 = <PWM_C2>;
+		pwm_channel1_conf = <30541 15270 6>;
+		pwm_channel2_conf = <30518 15259 9>;
 	};
 
 	emmc {

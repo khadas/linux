@@ -37,11 +37,32 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/pwm.h>
+#include <linux/amlogic/pwm_meson.h>
 
 #define OWNER_NAME "sdio_wifi"
 
 int wifi_power_gpio = 0;
 int wifi_power_gpio2 = 0;
+
+
+/*
+*there are two pwm channel outputs using one gpio
+*for gxtvbb and the follows soc
+*/
+struct pwm_config_gxtvbb {
+	unsigned int pwm_channel1;
+	unsigned int pwm_channel2;
+	unsigned int pwm_config1[3];
+	unsigned int pwm_config2[3];
+	/*pwm_config is used to storage peroid , duty and times*/
+};
+
+struct pwm_config_gxbb {
+	unsigned int pwm_channel;
+	unsigned int pwm_config[2];
+	/*pwm_config is used to storage peroid and duty*/
+};
 
 struct wifi_plat_info {
 	int interrupt_pin;
@@ -60,6 +81,8 @@ struct wifi_plat_info {
 	int plat_info_valid;
 	struct pinctrl *p;
 	struct device		*dev;
+	struct pwm_config_gxtvbb gxtv_conf;
+	struct pwm_config_gxbb gxb_conf;
 };
 
 #define WIFI_POWER_MODULE_NAME	"wifi_power"
@@ -383,6 +406,194 @@ static void wifi_teardown_dt(void)
 
 }
 
+
+/*
+* fot gxb soc
+*/
+int pwm_single_channel_conf_dt(struct wifi_plat_info *plat)
+{
+	phandle pwm_phandle;
+	int val;
+	int ret;
+	int count = 2;
+	struct device_node *np_wifi_pwm_conf = plat->dev->of_node;
+
+	ret = of_property_read_u32(np_wifi_pwm_conf, "pwm_config", &val);
+	if (ret) {
+		pr_err("not match wifi_pwm_config node\n");
+		return -1;
+	} else {
+		pwm_phandle = val;
+		np_wifi_pwm_conf = of_find_node_by_phandle(pwm_phandle);
+		if (!np_wifi_pwm_conf) {
+			pr_err("can't find wifi_pwm_config node\n");
+			return -1;
+		}
+	}
+
+	ret = of_property_read_u32(np_wifi_pwm_conf, "pwm_channel",
+		  &(plat->gxb_conf.pwm_channel));
+	if (ret) {
+		pr_err("not config pwm channel num\n");
+		return -1;
+	}
+
+	ret = of_property_read_u32_array(np_wifi_pwm_conf, "pwm_channel_conf",
+		(plat->gxb_conf.pwm_config), count);
+	if (ret) {
+		pr_err("not config pwm channel parameters\n");
+		return -1;
+	}
+
+	WIFI_INFO("pwm phandle val=%x,pwm-channel=%d\n",
+	val, plat->gxb_conf.pwm_channel);
+	WIFI_INFO("pwm_config[0] = %d,pwm_config[1] = %d\n",
+	plat->gxb_conf.pwm_config[0], plat->gxb_conf.pwm_config[1]);
+	WIFI_INFO("wifi pwm dt ok\n");
+
+	return 0;
+}
+
+/*
+*configuration for single pwm
+*/
+int pwm_single_channel_conf(struct wifi_plat_info *plat)
+{
+	struct pwm_device *pwm_ch = NULL;
+	struct aml_pwm_chip *aml_chip = NULL;
+	struct pwm_config_gxbb pg = plat->gxb_conf;
+	unsigned int pwm_num = pg.pwm_channel;
+	unsigned int pwm_period = pg.pwm_config[0];
+	unsigned int pwm_duty = pg.pwm_config[1];
+
+	pwm_ch = pwm_request(pwm_num, NULL);
+	if (IS_ERR(pwm_ch)) {
+		WIFI_INFO("request pwm %d failed\n",
+		plat->gxb_conf.pwm_channel);
+	}
+	aml_chip = to_aml_pwm_chip(pwm_ch->chip);
+	pwm_set_period(pwm_ch, pwm_period);
+	pwm_config(pwm_ch, pwm_duty, pwm_period);
+	pwm_enable(pwm_ch);
+	WIFI_INFO("wifi pwm conf ok\n");
+
+	return 0;
+}
+
+/*
+* for gxtvbb,gxl,gxm,txl soc
+*/
+int pwm_double_channel_conf_dt(struct wifi_plat_info *plat)
+{
+	phandle pwm_phandle;
+	int val;
+	int ret;
+	int count = 3;
+	int i;
+	struct device_node *np_wifi_pwm_conf = plat->dev->of_node;
+
+	ret = of_property_read_u32(np_wifi_pwm_conf, "pwm_config", &val);
+	if (ret) {
+		pr_err("not match wifi_pwm_config node\n");
+		return -1;
+	} else {
+		pwm_phandle = val;
+		np_wifi_pwm_conf = of_find_node_by_phandle(pwm_phandle);
+		if (!np_wifi_pwm_conf) {
+			pr_err("can't find wifi_pwm_config node\n");
+			return -1;
+		}
+	}
+
+	ret = of_property_read_u32(np_wifi_pwm_conf, "pwm_channel1",
+		  &(plat->gxtv_conf.pwm_channel1));
+	if (ret) {
+		pr_err("not config pwm channel 1 num\n");
+		return -1;
+	}
+	ret = of_property_read_u32(np_wifi_pwm_conf, "pwm_channel2",
+		&(plat->gxtv_conf.pwm_channel2));
+	if (ret) {
+		pr_err("not config pwm channel 2 num\n");
+		return -1;
+	}
+	ret = of_property_read_u32_array(np_wifi_pwm_conf, "pwm_channel1_conf",
+		(plat->gxtv_conf.pwm_config1), count);
+	if (ret) {
+		pr_err("not config pwm channel 1 parameters\n");
+		return -1;
+	}
+	ret = of_property_read_u32_array(np_wifi_pwm_conf, "pwm_channel2_conf",
+		(plat->gxtv_conf.pwm_config2), count);
+	if (ret) {
+		pr_err("not config pwm channel 2 parameters\n");
+		return -1;
+	}
+
+	WIFI_INFO("pwm phandle val=%x;pwm-channel1=%d;pwm-channel2=%d\n",
+			val, plat->gxtv_conf.pwm_channel1,
+			plat->gxtv_conf.pwm_channel2);
+	for (i = 0; i < count; i++) {
+		WIFI_INFO("pwm_config1[%d] = %d\n",
+		i, plat->gxtv_conf.pwm_config1[i]);
+		WIFI_INFO("pwm_config2[%d] = %d\n",
+		i, plat->gxtv_conf.pwm_config2[i]);
+	}
+	WIFI_INFO("wifi pwm dt ok\n");
+
+	return 0;
+}
+
+/*
+*configuration for double pwm
+*/
+int pwm_double_channel_conf(struct wifi_plat_info *plat)
+{
+	struct pwm_device *pwm_ch1 = NULL;
+	struct pwm_device *pwm_ch2 = NULL;
+	struct aml_pwm_chip *aml_chip1 = NULL;
+	struct aml_pwm_chip *aml_chip2 = NULL;
+	struct pwm_config_gxtvbb pg = plat->gxtv_conf;
+	unsigned int pwm_ch1_num = pg.pwm_channel1;
+	unsigned int pwm_ch2_num = pg.pwm_channel2;
+	unsigned int pwm_ch1_period = pg.pwm_config1[0];
+	unsigned int pwm_ch1_duty = pg.pwm_config1[1];
+	unsigned int pwm_ch1_times = pg.pwm_config1[2];
+	unsigned int pwm_ch2_period = pg.pwm_config2[0];
+	unsigned int pwm_ch2_duty = pg.pwm_config2[1];
+	unsigned int pwm_ch2_times = pg.pwm_config2[2];
+
+
+	pwm_ch1 = pwm_request(pwm_ch1_num, NULL);
+	if (IS_ERR(pwm_ch1)) {
+		WIFI_INFO("request pwm %d failed\n",
+		plat->gxtv_conf.pwm_channel1);
+	}
+	pwm_ch2 = pwm_request(pwm_ch2_num, NULL);
+	if (IS_ERR(pwm_ch2)) {
+		WIFI_INFO("request pwm %d failed\n",
+		plat->gxtv_conf.pwm_channel2);
+	}
+
+	aml_chip1 = to_aml_pwm_chip(pwm_ch1->chip);
+	aml_chip2 = to_aml_pwm_chip(pwm_ch2->chip);
+
+	pwm_set_period(pwm_ch1, pwm_ch1_period);
+	pwm_set_period(pwm_ch2, pwm_ch2_period);
+
+	pwm_config(pwm_ch1, pwm_ch1_duty, pwm_ch1_period);
+	pwm_config(pwm_ch2, pwm_ch2_duty, pwm_ch2_period);
+
+	pwm_set_times(aml_chip1, pwm_ch1_num, pwm_ch1_times);
+	pwm_set_times(aml_chip2, pwm_ch2_num, pwm_ch2_times);
+
+	pwm_enable(pwm_ch1);
+	pwm_enable(pwm_ch2);
+	WIFI_INFO("wifi pwm conf ok\n");
+
+	return 0;
+}
+
 static int wifi_dev_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -490,35 +701,12 @@ static int wifi_dev_probe(struct platform_device *pdev)
 		if (of_get_property(pdev->dev.of_node,
 			"pinctrl-names", NULL)) {
 			unsigned int pwm_misc;
-			unsigned int pwm_time_count;
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
-				WIFI_INFO("set pwm as 32k output");
-				aml_write_cbus(0x21b0, 0x16d016e);
-				aml_write_cbus(0x21b5, 0x16d016d);
-
-				pwm_time_count = aml_read_cbus(0x21b4);
-				pwm_time_count &= ~(0xffff << 16);
-				pwm_time_count |= ((3 << 16) | (2 << 24));
-				aml_write_cbus(0x21b4, pwm_time_count);
-
-				pwm_misc = aml_read_cbus(0x21b2);
-				pwm_misc &= ~((0x7f << 8) | (3 << 4) |
-					(1 << 2) | (1 << 0));
-				pwm_misc |= ((1 << 25) | (1 << 15) |
-					(0 << 8) | (0 << 4));
-				aml_write_cbus(0x21b2, (pwm_misc | (1 << 0)));
-
+				pwm_double_channel_conf_dt(plat);
+				pwm_double_channel_conf(plat);
 			} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB) {
-				/* pwm_e */
-				WIFI_INFO("set pwm as 32k output");
-				aml_write_cbus(0x21b0, 0x7f107f2);
-				pwm_misc = aml_read_cbus(0x21b2);
-				pwm_misc &= ~((0x7f << 8) | (3 << 4) |
-					(1 << 2) | (1 << 0));
-				pwm_misc |= ((1 << 15) | (4 << 8) | (3 << 4));
-				aml_write_cbus(0x21b2, pwm_misc);
-				aml_write_cbus(0x21b2, (pwm_misc | (1 << 0)));
-
+				pwm_single_channel_conf_dt(plat);
+				pwm_single_channel_conf(plat);
 			} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8B) {
 				/* pwm_e */
 				WIFI_INFO("set pwm as 32k output");

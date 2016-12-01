@@ -20,7 +20,7 @@
 #define	PWM_AO_B		7
 
 /*
- * Addtional 8 channels for txl
+ * Addtional 8 channels for gxtvbb , gxl ,gxm and txl
  */
 #define	PWM_A2			8
 #define	PWM_B2			9
@@ -32,7 +32,13 @@
 #define	PWM_AO_B2		15
 
 
-
-
+/*
+ * 4 clock sources to choose
+ * keep the same order with pwm_aml_clk function in pwm driver
+ */
+#define	XTAL_CLK			0
+#define	VID_PLL_CLK			1
+#define	FCLK_DIV4_CLK		2
+#define	FCLK_DIV3_CLK		3
 
 #endif

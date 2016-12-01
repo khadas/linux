@@ -107,10 +107,14 @@ struct aml_pwm_variant {
 	u8 output_mask;
 	u16 output_mask_new;
 /*
- *add for txl
+ *add for gxtvbb , gxl , gxm
+ */
+	unsigned int times;
+
+/*
+ *include above and add for txl
  */
 	unsigned int constant;
-	unsigned int times;
 	unsigned int blink_enable;
 	unsigned int blink_times;
 };
@@ -129,6 +133,8 @@ struct aml_pwm_chip {
 	struct clk	*fclk_div3_clk;
 
 };
+
+struct aml_pwm_chip *to_aml_pwm_chip(struct pwm_chip *chip);
 
 void pwm_set_reg_bits(void __iomem  *reg,
 						unsigned int mask,

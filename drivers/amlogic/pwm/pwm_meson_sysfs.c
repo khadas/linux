@@ -26,8 +26,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pwm.h>
-#include "pwm_meson.h"
-
+#include <linux/amlogic/pwm_meson.h>
 
 /**
  * pwm_constant_enable()
