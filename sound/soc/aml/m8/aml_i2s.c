@@ -116,7 +116,8 @@ static const struct snd_pcm_hardware aml_i2s_capture = {
 	    SNDRV_PCM_INFO_MMAP |
 	    SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_PAUSE,
 
-	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+	    SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min = 64,
 	.period_bytes_max = 32 * 1024,
 	.periods_min = 2,
@@ -427,7 +428,10 @@ static snd_pcm_uframes_t aml_i2s_pointer(struct snd_pcm_substream *substream)
 		else
 			ptr = audio_in_spdif_wr_ptr();
 		addr = ptr - s->I2S_addr;
-		return bytes_to_frames(runtime, addr) / 2;
+		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+			return bytes_to_frames(runtime, addr) >> 1;
+		else
+			return bytes_to_frames(runtime, addr);
 	}
 
 	return 0;
@@ -476,23 +480,28 @@ static void aml_i2s_timer_callback(unsigned long data)
 			last_ptr = audio_in_i2s_wr_ptr();
 		else
 			last_ptr = audio_in_spdif_wr_ptr();
+
 		if (last_ptr < s->last_ptr) {
-			size =
-				runtime->dma_bytes + (last_ptr -
-						  (s->last_ptr)) / 2;
+			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+				size = runtime->dma_bytes +
+					(last_ptr - (s->last_ptr)) / 2;
+			else
+				size = runtime->dma_bytes +
+					(last_ptr - (s->last_ptr));
 			prtd->xrun_num = 0;
 		} else if (last_ptr == s->last_ptr) {
 			if (prtd->xrun_num++ > XRUN_NUM) {
-				/*dev_info(substream->pcm->card->dev,
-					"alsa capture long time no data, quit xrun!\n");
-				*/
 				prtd->xrun_num = 0;
 				s->size = runtime->period_size;
 			}
 		} else {
-			size = (last_ptr - (s->last_ptr)) / 2;
+			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+				size = (last_ptr - (s->last_ptr)) / 2;
+			else
+				size = last_ptr - (s->last_ptr);
 			prtd->xrun_num = 0;
 		}
+
 		s->last_ptr = last_ptr;
 		s->size += bytes_to_frames(substream->runtime, size);
 		if (s->size >= runtime->period_size) {
@@ -830,45 +839,68 @@ static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 				void __user *buf, snd_pcm_uframes_t count,
 				struct snd_pcm_substream *substream)
 {
-	unsigned int *tfrom, *left, *right;
-	unsigned short *to;
-	int res = 0, n = 0, i = 0, j = 0;
-	unsigned int t1, t2;
-	unsigned char r_shift = 8;
-	char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos) * 2;
+	struct device *dev = substream->pcm->card->dev;
 	struct snd_dma_buffer *buffer = &substream->dma_buffer;
 	struct aml_audio_buffer *tmp_buf = buffer->private_data;
 	void *ubuf = tmp_buf->buffer_start;
-	struct device *dev = substream->pcm->card->dev;
-	to = (unsigned short *)ubuf;	/* tmp buf; */
-	tfrom = (unsigned int *)hwbuf;	/* 32bit buffer */
+	unsigned long offset = frames_to_bytes(runtime, pos);
+	int res = 0, n = 0, i = 0, j = 0;
+	unsigned char r_shift = 8;
 	n = frames_to_bytes(runtime, count);
+
+	/*amlogic HW only supports 32bit mode by capture*/
 	if (access_ok(VERIFY_WRITE, buf, frames_to_bytes(runtime, count))) {
 		if (runtime->channels == 2) {
-			left = tfrom;
-			right = tfrom + 8;
 			if (pos % 8)
 				dev_err(dev, "audio data unligned\n");
 
-			if ((n * 2) % 64)
-				dev_err(dev, "audio data unaligned 64 bytes\n");
+			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
+				char *hwbuf = runtime->dma_area + offset * 2;
+				int32_t *tfrom = (int32_t *)hwbuf;
+				int16_t *to = (int16_t *)ubuf;
+				int32_t *left = tfrom;
+				int32_t *right = tfrom + 8;
 
-			for (j = 0; j < n * 2; j += 64) {
-				for (i = 0; i < 8; i++) {
-					t1 = (*left++);
-					t2 = (*right++);
-					*to++ =
-					    (unsigned short)((t1 >> r_shift) &
-							     0xffff);
-					*to++ =
-					    (unsigned short)((t2 >> r_shift) &
-							     0xffff);
+				if ((n * 2) % 64)
+					dev_err(dev, "audio data unaligned 64 bytes\n");
+
+				for (j = 0; j < n * 2; j += 64) {
+					for (i = 0; i < 8; i++) {
+						*to++ = (int16_t)
+							((*left++) >> r_shift);
+						*to++ = (int16_t)
+							((*right++) >> r_shift);
+					}
+					left += 8;
+					right += 8;
 				}
-				left += 8;
-				right += 8;
+				/* clean hw buffer */
+				memset(hwbuf, 0, n * 2);
+			} else {
+				char *hwbuf = runtime->dma_area + offset;
+				int32_t *tfrom = (int32_t *)hwbuf;
+				int32_t *to = (int32_t *)ubuf;
+				int32_t *left = tfrom;
+				int32_t *right = tfrom + 8;
+
+				if (n % 64)
+					dev_err(dev, "audio data unaligned 64 bytes\n");
+
+				if (runtime->format == SNDRV_PCM_FORMAT_S24_LE)
+					r_shift = 0;
+
+				for (j = 0; j < n; j += 64) {
+					for (i = 0; i < 8; i++) {
+						*to++ = (int32_t)
+							((*left++) << r_shift);
+						*to++ = (int32_t)
+							((*right++) << r_shift);
+					}
+					left += 8;
+					right += 8;
+				}
+				memset(hwbuf, 0, n);
 			}
-			/* clean hw buffer */
-			memset(hwbuf, 0, n * 2);
 		}
 	}
 	res = copy_to_user(buf, ubuf, n);

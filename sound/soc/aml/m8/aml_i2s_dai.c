@@ -148,31 +148,40 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		audio_out_i2s_enable(0);
-		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
-	}
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		s->i2s_mode = dai_info[dai->id].i2s_mode;
-		audio_in_i2s_set_buf(runtime->dma_addr, runtime->dma_bytes * 2,
-				     0, i2s_pos_sync);
-		memset((void *)runtime->dma_area, 0, runtime->dma_bytes * 2);
+		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
+			audio_in_i2s_set_buf(runtime->dma_addr,
+					runtime->dma_bytes * 2,
+					0, i2s_pos_sync);
+			memset((void *)runtime->dma_area, 0,
+					runtime->dma_bytes * 2);
+		} else {
+			audio_in_i2s_set_buf(runtime->dma_addr,
+					runtime->dma_bytes,
+					0, i2s_pos_sync);
+			memset((void *)runtime->dma_area, 0,
+					runtime->dma_bytes);
+		}
 		s->device_type = AML_AUDIO_I2SIN;
 	} else {
 		s->device_type = AML_AUDIO_I2SOUT;
+		audio_out_i2s_enable(0);
+		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 		aml_hw_i2s_init(runtime);
 		/* i2s/958 share the same audio hw buffer when PCM mode */
 		if (IEC958_mode_codec == 0) {
 			aml_hw_iec958_init(substream, 1);
 			/* use the hw same sync for i2s/958 */
 			dev_info(substream->pcm->card->dev, "i2s/958 same source\n");
-			/* aml_set_spdif_clk(runtime->rate*512, 0); */
 			audio_i2s_958_same_source(1);
 		}
-	}
-	if (runtime->channels == 8) {
-		dev_info(substream->pcm->card->dev, "8ch PCM output->notify HDMI\n");
-		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
+		if (runtime->channels == 8) {
+			dev_info(substream->pcm->card->dev,
+				"8ch PCM output->notify HDMI\n");
+			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
+				substream);
+		}
 	}
 	return 0;
 }
