@@ -491,6 +491,7 @@
 			"xtal",
 			"fclk_div5";
 		hdmirx_id = <0>;
+		en_4k_2_2k = <0>;
  	};
 
 	amvenc_avc {

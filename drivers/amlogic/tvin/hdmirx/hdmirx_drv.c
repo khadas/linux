@@ -105,7 +105,7 @@ int suspend_pddq = 1;
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
-
+int en_4k_2_2k;
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
@@ -589,6 +589,20 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	break;
 	default:
 	break;
+	}
+
+	if (en_4k_2_2k) {
+		if (TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) {
+			prop->hs = 128;
+			prop->he = 128;
+			prop->vs = 0;
+			prop->ve = 0;
+			prop->scaling4w = 1920;
+			prop->scaling4h = 1080;
+		} else if (TVIN_SIG_FMT_HDMI_3840_2160_00HZ == sig_fmt) {
+			prop->scaling4h = 1080;
+			prop->scaling4w = 1920;
+		}
 	}
 }
 
@@ -1265,6 +1279,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	esm_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
 	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				"en_4k_2_2k", &en_4k_2_2k);
+	if (ret) {
+			pr_err("%s:don't find  en_4k_2_2k.\n", __func__);
+			en_4k_2_2k = 0;
+	}
 
 	hdmirx_hw_probe();
 

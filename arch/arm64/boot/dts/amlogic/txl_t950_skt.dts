@@ -516,6 +516,7 @@
 			"xtal",
 			"fclk_div5";
 		hdmirx_id = <0>;
+		en_4k_2_2k = <1>;
 		uart_scl_a_pin =  <&gpio       GPIOW_7       GPIO_ACTIVE_HIGH>;
 		uart_scl_b_pin =  <&gpio       GPIOW_15      GPIO_ACTIVE_HIGH>;
 		uart_scl_c_pin =  <&gpio       GPIOW_11      GPIO_ACTIVE_HIGH>;
