@@ -25,6 +25,8 @@
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
+extern struct mutex lcd_vout_mutex;
+
 /* lcd common */
 extern int lcd_type_str_to_type(const char *str);
 extern char *lcd_type_type_to_str(int type);

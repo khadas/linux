@@ -45,8 +45,6 @@
 static unsigned int lcd_output_vmode;
 static char lcd_output_name[30];
 
-static DEFINE_MUTEX(lcd_vout_mutex);
-
 /* ************************************************** *
    lcd mode function
  * ************************************************** */
@@ -282,8 +280,7 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		switch (mode & VMODE_MODE_BIT_MASK) {
 		case VMODE_LCD:
-			lcd_drv->driver_init_pre();
-			ret = lcd_drv->driver_init();
+			ret = lcd_drv->driver_change();
 			break;
 		default:
 			ret = -EINVAL;
@@ -1190,6 +1187,7 @@ int lcd_tv_probe(struct device *dev)
 	lcd_drv->driver_init_pre = lcd_tv_driver_init_pre;
 	lcd_drv->driver_init = lcd_tv_driver_init;
 	lcd_drv->driver_disable = lcd_tv_driver_disable;
+	lcd_drv->driver_change = lcd_tv_driver_change;
 	lcd_drv->driver_tiny_enable = lcd_tv_driver_tiny_enable;
 	lcd_drv->driver_tiny_disable = lcd_tv_driver_tiny_disable;
 

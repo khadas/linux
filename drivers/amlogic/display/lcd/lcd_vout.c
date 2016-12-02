@@ -52,6 +52,8 @@
 unsigned int lcd_debug_print_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
+struct mutex lcd_vout_mutex;
+
 static char lcd_propname[20] = "lvds_0";
 
 struct lcd_cdev_s {
@@ -385,31 +387,52 @@ static void lcd_power_ctrl(int status)
 
 static void lcd_module_enable(void)
 {
+	mutex_lock(&lcd_vout_mutex);
+
 	lcd_driver->driver_init_pre();
 	lcd_driver->power_ctrl(1);
 	lcd_driver->lcd_status = 1;
+
+	mutex_unlock(&lcd_vout_mutex);
 }
 
 static void lcd_module_disable(void)
 {
+	mutex_lock(&lcd_vout_mutex);
+
 	lcd_driver->lcd_status = 0;
 	lcd_driver->power_ctrl(0);
+
+	mutex_unlock(&lcd_vout_mutex);
 }
 
 static void lcd_module_reset(void)
 {
-	lcd_module_disable();
+	mutex_lock(&lcd_vout_mutex);
+
+	lcd_driver->lcd_status = 0;
+	lcd_driver->power_ctrl(0);
+
 	mdelay(500);
-	lcd_module_enable();
+
+	lcd_driver->driver_init_pre();
+	lcd_driver->power_ctrl(1);
+	lcd_driver->lcd_status = 1;
+
+	mutex_unlock(&lcd_vout_mutex);
 }
 
 static void lcd_module_tiny_reset(void)
 {
+	mutex_lock(&lcd_vout_mutex);
+
 	lcd_driver->lcd_status = 0;
 	lcd_power_tiny_ctrl(0);
 	mdelay(500);
 	lcd_power_tiny_ctrl(1);
 	lcd_driver->lcd_status = 1;
+
+	mutex_unlock(&lcd_vout_mutex);
 }
 
 /* ****************************************
@@ -801,7 +824,7 @@ static int lcd_config_probe(void)
 	if (lcd_driver->lcd_key_valid) {
 		if (lcd_driver->workqueue) {
 			queue_delayed_work(lcd_driver->workqueue,
-				&lcd_driver->lcd_delayed_work,
+				&lcd_driver->lcd_probe_delayed_work,
 				msecs_to_jiffies(2000));
 		} else {
 			LCDPR("Warning: no lcd_probe_delayed workqueue\n");
@@ -840,10 +863,12 @@ static int lcd_probe(struct platform_device *pdev)
 	}
 	lcd_driver->dev = &pdev->dev;
 
+	mutex_init(&lcd_vout_mutex);
+
 	/* init workqueue */
-	INIT_DELAYED_WORK(&lcd_driver->lcd_delayed_work,
+	INIT_DELAYED_WORK(&lcd_driver->lcd_probe_delayed_work,
 		lcd_config_probe_delayed);
-	lcd_driver->workqueue = create_workqueue("lcd_probe_queue");
+	lcd_driver->workqueue = create_workqueue("lcd_work_queue");
 	if (lcd_driver->workqueue == NULL)
 		LCDERR("can't create lcd workqueue\n");
 
@@ -860,7 +885,7 @@ static int lcd_remove(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = cancel_delayed_work(&lcd_driver->lcd_delayed_work);
+	ret = cancel_delayed_work(&lcd_driver->lcd_probe_delayed_work);
 	if (lcd_driver->workqueue)
 		destroy_workqueue(lcd_driver->workqueue);
 

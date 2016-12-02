@@ -44,8 +44,6 @@
 
 #define PANEL_NAME    "panel"
 
-static DEFINE_MUTEX(lcd_vout_mutex);
-
 /* ************************************************** *
    vout server api
  * ************************************************** */

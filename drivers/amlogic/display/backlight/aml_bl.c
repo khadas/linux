@@ -68,6 +68,7 @@ MODULE_PARM_DESC(brightness_bypass, "bl_brightness_bypass");
 
 static unsigned int bl_pwm_bypass; /* debug flag */
 static unsigned int bl_pwm_duty_free; /* debug flag */
+static int bl_on_request; /* for lcd power sequence */
 
 static DEFINE_MUTEX(bl_power_mutex);
 static DEFINE_MUTEX(bl_level_mutex);
@@ -2143,6 +2144,9 @@ static void aml_bl_delayd_on(struct work_struct *work)
 	if (aml_bl_check_driver())
 		return;
 
+	if (bl_on_request == 0)
+		return;
+
 	/* lcd power on backlight flag */
 	bl_drv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	BLPR("%s: bl_level=%u, state=0x%x\n",
@@ -2169,6 +2173,7 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	bconf = bl_drv->bconf;
+	bl_on_request = 1;
 	/* lcd power on sequence control */
 	if (bconf->method < BL_CTRL_MAX) {
 		if (bl_drv->workqueue) {
@@ -2207,6 +2212,7 @@ static int aml_bl_off_notifier(struct notifier_block *nb,
 	if (aml_bl_check_driver())
 		return NOTIFY_DONE;
 
+	bl_on_request = 0;
 	bl_drv->state &= ~(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	if (brightness_bypass) {
 		if (bl_drv->state & BL_STATE_BL_ON)
@@ -2957,6 +2963,7 @@ static int aml_bl_probe(struct platform_device *pdev)
 	/* update bl status */
 	bl_drv->state = (BL_STATE_LCD_ON |
 			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
+	bl_on_request = 1;
 
 	if (brightness_bypass)
 		aml_bl_set_level(bl_level_uboot);

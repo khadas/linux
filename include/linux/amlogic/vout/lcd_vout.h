@@ -413,6 +413,7 @@ struct aml_lcd_drv_s {
 	void (*driver_init_pre)(void);
 	int (*driver_init)(void);
 	void (*driver_disable)(void);
+	int (*driver_change)(void);
 	void (*module_reset)(void);
 	void (*power_tiny_ctrl)(int status);
 	void (*driver_tiny_enable)(void);
@@ -434,7 +435,8 @@ struct aml_lcd_drv_s {
 	void (*power_ctrl)(int status);
 
 	struct workqueue_struct *workqueue;
-	struct delayed_work     lcd_delayed_work;
+	struct delayed_work     lcd_probe_delayed_work;
+	struct delayed_work     lcd_vx1_delayed_work;
 };
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);

@@ -51,6 +51,7 @@ static int vx1_training_wait_cnt;
 static int vx1_training_stable_cnt;
 static int vx1_timeout_reset_flag;
 static struct tasklet_struct  lcd_vx1_reset_tasklet;
+static int lcd_vx1_intr_request;
 
 #define VX1_HPLL_INTERVAL (HZ)
 static struct timer_list vx1_hpll_timer;
@@ -589,6 +590,7 @@ void lcd_vbyone_interrupt_enable(int flag)
 		lcd_vcbus_write(VBO_INTR_UNMASK, 0x0);
 		/* release hold in FSM_ACQ */
 		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0, 0, 16);
+		lcd_vx1_intr_request = 0;
 	}
 }
 
@@ -631,6 +633,15 @@ void lcd_vbyone_wait_stable(void)
 	lcd_vbyone_interrupt_enable(1);
 }
 
+#define LCD_VX1_WAIT_STABLE_DELAY    300 /* ms */
+static void lcd_vx1_wait_stable_delayed(struct work_struct *work)
+{
+	if (lcd_vx1_intr_request == 0)
+		return;
+
+	lcd_vbyone_wait_stable();
+}
+
 static void lcd_vx1_wait_hpd(void)
 {
 	int i = 0;
@@ -652,7 +663,9 @@ static void lcd_vx1_wait_hpd(void)
 			((lcd_vcbus_read(VBO_STATUS_L) >> 6) & 0x1), i);
 }
 
-#define LCD_PCLK_TOLERANCE     2000000  /* 2M */
+#define LCD_PCLK_TOLERANCE          2000000  /* 2M */
+#define LCD_ENCL_CLK_ERR_CNT_MAX    3
+static unsigned char lcd_encl_clk_err_cnt;
 static void lcd_vx1_hpll_timer_handler(unsigned long arg)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
@@ -675,9 +688,14 @@ static void lcd_vx1_hpll_timer_handler(unsigned long arg)
 	}
 #else
 	encl_clk = lcd_encl_clk_msr();
-	if (encl_clk == 0) {
+	if (encl_clk == 0)
+		lcd_encl_clk_err_cnt++;
+	else
+		lcd_encl_clk_err_cnt = 0;
+	if (lcd_encl_clk_err_cnt >= LCD_ENCL_CLK_ERR_CNT_MAX) {
 		LCDPR("%s: pll frequency error: %d\n", __func__, encl_clk);
 		lcd_pll_reset();
+		lcd_encl_clk_err_cnt = 0;
 	}
 #endif
 
@@ -1132,7 +1150,6 @@ void lcd_tv_driver_init_pre(void)
 	if (ret)
 		return;
 
-	lcd_tv_config_update(pconf);
 #ifdef CONFIG_AML_VPU
 	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
 	switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_ON);
@@ -1147,11 +1164,10 @@ void lcd_tv_driver_init_pre(void)
 	default:
 		break;
 	}
-	if (lcd_drv->lcd_status == 0) { /* init */
-		lcd_clk_set(pconf);
-		lcd_venc_set(pconf);
-		lcd_tcon_set(pconf);
-	}
+
+	lcd_clk_set(pconf);
+	lcd_venc_set(pconf);
+	lcd_tcon_set(pconf);
 }
 
 int lcd_tv_driver_init(void)
@@ -1165,37 +1181,24 @@ int lcd_tv_driver_init(void)
 	if (ret)
 		return -1;
 
-	if (lcd_drv->lcd_status == 0) { /* init */
-		switch (pconf->lcd_basic.lcd_type) {
-		case LCD_LVDS:
-			lcd_lvds_control_set(pconf);
-			lcd_lvds_phy_set(pconf, 1);
-			break;
-		case LCD_VBYONE:
-			lcd_vbyone_pinmux_set(1);
-			lcd_vbyone_control_set(pconf);
-			lcd_vx1_wait_hpd();
-			lcd_vbyone_phy_set(pconf, 1);
-			break;
-		default:
-			break;
-		}
-	} else { /* change */
-		switch (pconf->lcd_timing.clk_change) {
-		case LCD_CLK_PLL_CHANGE:
-			lcd_clk_generate_parameter(pconf);
-			lcd_clk_set(pconf);
-			break;
-		case LCD_CLK_FRAC_UPDATE:
-			lcd_clk_update(pconf);
-			break;
-		default:
-			break;
-		}
-		lcd_venc_change(pconf);
+	switch (pconf->lcd_basic.lcd_type) {
+	case LCD_LVDS:
+		lcd_lvds_control_set(pconf);
+		lcd_lvds_phy_set(pconf, 1);
+		break;
+	case LCD_VBYONE:
+		lcd_vbyone_pinmux_set(1);
+		lcd_vbyone_control_set(pconf);
+		lcd_vx1_wait_hpd();
+		lcd_vbyone_phy_set(pconf, 1);
+		lcd_vx1_intr_request = 1;
+		queue_delayed_work(lcd_drv->workqueue,
+				&lcd_drv->lcd_vx1_delayed_work,
+				msecs_to_jiffies(LCD_VX1_WAIT_STABLE_DELAY));
+		break;
+	default:
+		break;
 	}
-	if (pconf->lcd_basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_wait_stable();
 
 	lcd_vcbus_write(VENC_INTCTRL, 0x200);
 
@@ -1245,6 +1248,59 @@ void lcd_tv_driver_disable(void)
 
 	if (lcd_debug_print_flag)
 		LCDPR("%s finished\n", __func__);
+}
+
+int lcd_tv_driver_change(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct lcd_config_s *pconf;
+	int ret;
+
+	pconf = lcd_drv->lcd_config;
+	LCDPR("tv driver change(ver %s): %s\n", lcd_drv->version,
+		lcd_type_type_to_str(pconf->lcd_basic.lcd_type));
+	ret = lcd_type_supported(pconf);
+	if (ret)
+		return -1;
+
+	lcd_tv_config_update(pconf);
+#ifdef CONFIG_AML_VPU
+	request_vpu_clk_vmod(pconf->lcd_timing.lcd_clk, VPU_VENCL);
+#endif
+
+	if (lcd_drv->lcd_status == 0) {
+		/* only change parameters when panel is off */
+		switch (pconf->lcd_timing.clk_change) {
+		case LCD_CLK_PLL_CHANGE:
+			lcd_clk_generate_parameter(pconf);
+			break;
+		default:
+			break;
+		}
+	} else {
+		if (pconf->lcd_basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_interrupt_enable(0);
+
+		switch (pconf->lcd_timing.clk_change) {
+		case LCD_CLK_PLL_CHANGE:
+			lcd_clk_generate_parameter(pconf);
+			lcd_clk_set(pconf);
+			break;
+		case LCD_CLK_FRAC_UPDATE:
+			lcd_clk_update(pconf);
+			break;
+		default:
+			break;
+		}
+		lcd_venc_change(pconf);
+
+		if (pconf->lcd_basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_wait_stable();
+	}
+
+	if (lcd_debug_print_flag)
+		LCDPR("%s finished\n", __func__);
+	return 0;
 }
 
 void lcd_tv_driver_tiny_enable(void)
@@ -1309,14 +1365,21 @@ void lcd_tv_driver_tiny_disable(void)
 
 void lcd_vbyone_interrupt_up(void)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
 	lcd_vbyone_interrupt_init();
 	vx1_lockn_wait_cnt = 0;
 	vx1_training_wait_cnt = 0;
 	vx1_timeout_reset_flag = 0;
 	vx1_training_stable_cnt = 0;
+	lcd_vx1_intr_request = 0;
+	lcd_encl_clk_err_cnt = 0;
 
 	tasklet_init(&lcd_vx1_reset_tasklet, lcd_vx1_timeout_reset,
 		(unsigned long)123);
+
+	INIT_DELAYED_WORK(&lcd_drv->lcd_vx1_delayed_work,
+		lcd_vx1_wait_stable_delayed);
 
 	if (request_irq(INT_VIU_VSYNC, &lcd_vbyone_vsync_isr,
 		IRQF_SHARED, "vbyone_vsync", (void *)"vbyone_vsync")) {
@@ -1333,6 +1396,7 @@ void lcd_vbyone_interrupt_up(void)
 		if (lcd_debug_print_flag)
 			LCDPR("request vbyone irq successful\n");
 	}
+	lcd_vx1_intr_request = 1;
 	lcd_vbyone_interrupt_enable(1);
 
 	/* add timer to monitor hpll frequency */
@@ -1346,12 +1410,16 @@ void lcd_vbyone_interrupt_up(void)
 
 void lcd_vbyone_interrupt_down(void)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
 	del_timer_sync(&vx1_hpll_timer);
 
 	lcd_vbyone_interrupt_enable(0);
 	free_irq(INT_VENC_VX1, (void *)"vbyone");
 	free_irq(INT_VIU_VSYNC, (void *)"vbyone");
 	tasklet_kill(&lcd_vx1_reset_tasklet);
+	cancel_delayed_work(&lcd_drv->lcd_vx1_delayed_work);
+
 	if (lcd_debug_print_flag)
 		LCDPR("free vbyone irq\n");
 }
