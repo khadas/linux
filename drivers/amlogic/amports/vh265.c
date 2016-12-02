@@ -5110,7 +5110,9 @@ static int hevc_local_init(struct hevc_state_s *hevc)
 
 	if (mmu_enable) {
 		hevc->mmu_box = decoder_mmu_box_alloc_box(DRIVER_NAME,
-			0, MAX_REF_PIC_NUM);
+			0, MAX_REF_PIC_NUM,
+			64 * SZ_1M
+			);
 		if (!hevc->mmu_box) {
 			pr_err("h265 alloc mmu box failed!!\n");
 			return -1;

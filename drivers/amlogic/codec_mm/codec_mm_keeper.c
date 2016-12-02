@@ -103,6 +103,7 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 		mgr->keep_list[slot_i].keep_id = keep_id;
 		mgr->keep_list[slot_i].type = type;
 		mgr->keep_list[slot_i].user = 1;
+		mgr->num++;
 	} else {
 		if (!have_samed)
 			keep_id = -1;
@@ -160,6 +161,7 @@ static int codec_mm_keeper_free_keep(int index)
 	type = mgr->keep_list[index].type;
 	mgr->keep_list[index].handle = NULL;
 	mgr->keep_list[index].delay_on_jiffies64 = 0;
+	mgr->num--;
 	spin_unlock_irqrestore(&mgr->lock, flags);
 	if (!mem_handle)
 		return -1;
@@ -211,9 +213,10 @@ int codec_mm_keeper_dump_info(void *buf, int size)
 			pbuf += s;\
 		} while (0)\
 
-	BUFPRINT("dump keep list:next_id=%d,work_run:%d\n",
+	BUFPRINT("dump keep list:next_id=%d,work_run:%d,num=%d\n",
 			mgr->next_id,
-			mgr->work_runs);
+			mgr->work_runs,
+			mgr->num);
 	for (i = 0; i < MAX_KEEP_FRAME; i++) {
 		BUFPRINT("keeper:[%d]:\t\tid:%d\thandle:%p,type:%d,user:%d\n",
 			i,
@@ -235,6 +238,8 @@ static void codec_mm_keeper_monitor(struct work_struct *work)
 					dealy_work.work);
 	mgr->work_runs++;
 	codec_mm_keeper_free_all_keep(0);
+	if (mgr->num > 0) /*have some not free, run later.*/
+		schedule_delayed_work(&mgr->dealy_work, 10);
 }
 
 int codec_mm_keeper_mgr_init(void)

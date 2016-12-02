@@ -72,7 +72,11 @@ static int decoder_mmu_box_mgr_del_box(struct decoder_mmu_box *box)
 
 
 
-void *decoder_mmu_box_alloc_box(const char *name, int channel_id, int max_num)
+void *decoder_mmu_box_alloc_box(const char *name,
+	int channel_id,
+	int max_num,
+	int min_size_M)
+/*min_size_M:wait alloc this size*/
 {
 	struct decoder_mmu_box *box;
 	int size;
@@ -91,7 +95,8 @@ void *decoder_mmu_box_alloc_box(const char *name, int channel_id, int max_num)
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
 	decoder_mmu_box_mgr_add_box(box);
-	codec_mm_scatter_mgt_delay_free_swith(1, 0);
+	codec_mm_scatter_mgt_delay_free_swith(1, 2000,
+		min_size_M);
 	return (void *)box;
 }
 
@@ -204,7 +209,7 @@ int decoder_mmu_box_free(void *handle)
 	mutex_unlock(&box->mutex);
 	decoder_mmu_box_mgr_del_box(box);
 	kfree(box);
-	codec_mm_scatter_mgt_delay_free_swith(0, 2000);
+	codec_mm_scatter_mgt_delay_free_swith(0, 2000, 0);
 	return 0;
 }
 

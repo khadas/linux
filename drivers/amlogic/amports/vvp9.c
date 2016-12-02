@@ -4922,7 +4922,9 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 	init_buff_spec(pbi, cur_buf_info);
 #ifdef VP9_10B_MMU
 	pbi->mmu_box = decoder_mmu_box_alloc_box(DRIVER_NAME,
-		0, FRAME_BUFFERS);
+		0, FRAME_BUFFERS,
+		48 * SZ_1M
+		);
 	if (!pbi->mmu_box) {
 		pr_err("vp9 alloc mmu box failed!!\n");
 		return -1;

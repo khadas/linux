@@ -1369,6 +1369,9 @@ static ssize_t codec_mm_debug_show(struct class *class,
 	"n=5: free all free slot now!\n");
 
 	size += sprintf(buf + size,
+	"n=6: clear all time infos!\n");
+
+	size += sprintf(buf + size,
 	"n=10: force free all keeper\n");
 
 	size += sprintf(buf + size,
@@ -1406,6 +1409,9 @@ static ssize_t codec_mm_debug_store(struct class *class,
 		break;
 	case 5:
 		codec_mm_free_all_free_slots();
+		break;
+	case 6:
+		codec_mm_clear_alloc_infos();
 		break;
 	case 10:
 		codec_mm_keeper_free_all_keep(1);

@@ -17,8 +17,11 @@
 
 #ifndef DECODER_BUFFER_BOX
 #define DECODER_BUFFER_BOX
+
 void *decoder_mmu_box_alloc_box(const char *name,
-	int player_id, int max_num);
+	int channel_id,
+	int max_num,
+	int min_size_M);
 
 int decoder_mmu_box_alloc_idx(
 	void *handle, int idx, int num_pages,
