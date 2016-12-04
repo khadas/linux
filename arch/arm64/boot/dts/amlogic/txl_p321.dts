@@ -167,6 +167,11 @@
 		//	size = <0x0 0x00800000>;
 		//	alignment = <0x0 0x400000>;
 		//};
+		/*vbi reserved mem*/
+		vbi_reserved:linux,vbi {
+			compatible = "amlogic, vbi-mem";
+			size = <0x0 0x100000>;
+		};
 	};
 
 	pwm {
@@ -449,6 +454,14 @@
                         2       /*// TVAFE_CVBS_IN1,  //CVBS_IN2*/
                         4       /*// TVAFE_CVBS_IN3,    //CVBS_IN3,*/
 		>;
+	};
+	vbi {
+		compatible = "amlogic, vbi";
+		memory-region = <&vbi_reserved>;
+		dev_name = "vbi";
+		status = "ok";
+		interrupts = <0 83 1>;
+		reserve-iomap = "true";
 	};
 	amlvecm {
 		compatible = "amlogic, vecm";

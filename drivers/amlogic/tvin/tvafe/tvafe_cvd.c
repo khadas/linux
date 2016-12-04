@@ -327,6 +327,10 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 		return;
 	}
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+		cvd2_addr = mem->start >> 4;
+	else
+		cvd2_addr = mem->start >> 3;
 	/* CVD2 mem addr is based on 64bit, system mem is based on 8bit*/
 	W_APB_REG(CVD2_REG_96, cvd2_addr);
 	W_APB_REG(ACD_REG_30, (cvd2_addr + DECODER_MOTION_BUFFER_ADDR_OFFSET));
