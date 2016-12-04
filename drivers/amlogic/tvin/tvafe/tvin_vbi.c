@@ -246,7 +246,11 @@ static void vbi_hw_init(struct vbi_dev_s *devp)
 	/* vbi memory setting */
 	memset(devp->pac_addr_start, 0, devp->mem_size);
 	W_APB_REG(ACD_REG_2F, devp->mem_start >> 4);
-	W_APB_BIT(ACD_REG_21, ((devp->mem_size >> 4) - 1), 16, 16);
+	if (0) {/*(is_meson_txlx_cpu()) {*/
+		W_APB_BIT(ACD_REG_42, ((devp->mem_size >> 4) - 1), 0, 24);
+		W_APB_BIT(ACD_REG_42, 1, 31, 1);
+	} else
+		W_APB_BIT(ACD_REG_21, ((devp->mem_size >> 4) - 1), 16, 16);
 	W_APB_BIT(ACD_REG_21, 0, AML_VBI_START_ADDR_BIT,
 		AML_VBI_START_ADDR_WID);
 	/*disable vbi*/
@@ -431,7 +435,10 @@ static void vbi_slicer_task(unsigned long arg)
 			bytes_buffer, rptr);
 		goto err_exit;
 	}
-	devp->current_pac_wptr = devp->mem_start + (devp->pac_addr -
+	if (0)/*(is_meson_txlx_cpu())*/
+		devp->current_pac_wptr = R_APB_REG(ACD_REG_43) << 4;
+	else
+		devp->current_pac_wptr = devp->mem_start + (devp->pac_addr -
 		devp->pac_addr_start) + bytes_buffer;
 	/*reg ACD_REG_0C is not used ?!! hope add in next ic!!*/
 	/*devp->current_pac_wptr = R_APB_REG(ACD_REG_0C);*/
