@@ -474,6 +474,15 @@
 #define SRSHARP1_VLTI_FLT_CON_CLP     0x32ba/*bit14*/
 #define SRSHARP1_VCTI_FLT_CON_CLP     0x32bf
 
+/*sr0 sr1 dejaggy/direction/dering*/
+#define SRSHARP0_DEJ_CTRL				0x3264/*bit 0*/
+#define SRSHARP0_SR3_DRTLPF_EN			0x3266/*bit 0-2*/
+#define SRSHARP0_SR3_DERING_CTRL		0x326b/*bit 28-30*/
+
+#define SRSHARP1_DEJ_CTRL				0x32e4/*bit 0*/
+#define SRSHARP1_SR3_DRTLPF_EN			0x32e6/*bit 0-2*/
+#define SRSHARP1_SR3_DERING_CTRL		0x32eb/*bit 28-30*/
+
 /* for pll bug */
 #define HHI_HDMI_PLL_CNTL			    0x10c8
 #define HHI_HDMI_PLL_CNTL2			    0x10c9

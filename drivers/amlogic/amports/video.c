@@ -5758,6 +5758,20 @@ static u32 eight2ten(u32 yuv)
 	return  (y << 20) | (cb << 10) | cr;
 }
 
+static u32 rgb2yuv(u32 rgb)
+{
+	int r = (rgb >> 16) & 0xff;
+	int g = (rgb >> 8) & 0xff;
+	int b = rgb & 0xff;
+	int y, u, v;
+
+	y = ((66*r + 129*g + 25*b + 128) >> 8) + 16;
+	u = ((-38*r - 74*g + 112*b + 128) >> 8) + 128;
+	v = ((112*r - 94*g - 18*b + 128) >> 8) + 128;
+
+	return  (y << 16) | (u << 8) | v;
+}
+
 static ssize_t video_test_screen_store(struct class *cla,
 				       struct class_attribute *attr,
 				       const char *buf, size_t count)
@@ -5859,6 +5873,10 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 		if (!(READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80))
 			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				rgb_screen & 0x00ffffff);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+		if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+				rgb2yuv(rgb_screen & 0x00ffffff));
 	}
 	WRITE_VCBUS_REG(VPP_MISC, data);
 
