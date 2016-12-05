@@ -159,6 +159,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	int ret = 0;
 #ifdef CONFIG_COMPAT
 	struct compat_config_para_s __user *uf;
+	struct compat_config_para_ex_s __user *uf_ex;
 	int r = 0;
 	int i, j;
 #endif
@@ -169,12 +170,45 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 
 	context = (struct ge2d_context_s *)filp->private_data;
 	memset(&ge2d_config, 0, sizeof(struct config_para_s));
+	memset(&ge2d_config_ex, 0, sizeof(struct config_para_ex_s));
 	switch (cmd) {
 	case GE2D_CONFIG:
 	case GE2D_SRCCOLORKEY:
 		ret = copy_from_user(&ge2d_config,
 				argp, sizeof(struct config_para_s));
 		break;
+#ifdef CONFIG_COMPAT
+	case GE2D_SRCCOLORKEY32:
+		uf = (struct compat_config_para_s *)argp;
+		r = get_user(ge2d_config.src_dst_type, &uf->src_dst_type);
+		r |= get_user(ge2d_config.alu_const_color,
+			&uf->alu_const_color);
+		r |= get_user(ge2d_config.src_format, &uf->src_format);
+		r |= get_user(ge2d_config.dst_format, &uf->dst_format);
+		for (i = 0; i < 4; i++) {
+			r |= get_user(ge2d_config.src_planes[i].addr,
+				&uf->src_planes[i].addr);
+			r |= get_user(ge2d_config.src_planes[i].w,
+				&uf->src_planes[i].w);
+			r |= get_user(ge2d_config.src_planes[i].h,
+				&uf->src_planes[i].h);
+		}
+		for (j = 0; j < 4; j++) {
+			r |= get_user(ge2d_config.dst_planes[j].addr,
+				&uf->dst_planes[j].addr);
+			r |= get_user(ge2d_config.dst_planes[j].w,
+				&uf->dst_planes[j].w);
+			r |= get_user(ge2d_config.dst_planes[j].h,
+				&uf->dst_planes[j].h);
+		}
+		r |= copy_from_user(&ge2d_config.src_key, &uf->src_key,
+			sizeof(struct src_key_ctrl_s));
+		if (r) {
+			pr_err("GE2D_SRCCOLORKEY32 get parameter failed .\n");
+			return -EFAULT;
+			}
+		break;
+#endif
 #ifdef CONFIG_COMPAT
 	case GE2D_CONFIG32:
 		uf = (struct compat_config_para_s *)argp;
@@ -212,9 +246,97 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		ret = copy_from_user(&ge2d_config_ex, argp,
 				sizeof(struct config_para_ex_s));
 		break;
+#ifdef CONFIG_COMPAT
+	case GE2D_CONFIG_EX32:
+		uf_ex = (struct compat_config_para_ex_s *)argp;
+		r = copy_from_user(&ge2d_config_ex.src_para, &uf_ex->src_para,
+			sizeof(struct src_dst_para_ex_s));
+		r |= copy_from_user(&ge2d_config_ex.src2_para,
+			&uf_ex->src2_para,
+			sizeof(struct src_dst_para_ex_s));
+		r |= copy_from_user(&ge2d_config_ex.dst_para, &uf_ex->dst_para,
+			sizeof(struct src_dst_para_ex_s));
+
+		r |= copy_from_user(&ge2d_config_ex.src_key, &uf_ex->src_key,
+			sizeof(struct src_key_ctrl_s));
+		r |= copy_from_user(&ge2d_config_ex.src2_key, &uf_ex->src2_key,
+			sizeof(struct src_key_ctrl_s));
+
+		r |= get_user(ge2d_config_ex.alu_const_color,
+			&uf_ex->alu_const_color);
+		r |= get_user(ge2d_config_ex.src1_gb_alpha,
+			&uf_ex->src1_gb_alpha);
+		r |= get_user(ge2d_config_ex.op_mode, &uf_ex->op_mode);
+		r |= get_user(ge2d_config_ex.bitmask_en, &uf_ex->bitmask_en);
+		r |= get_user(ge2d_config_ex.bytemask_only,
+			&uf_ex->bytemask_only);
+		r |= get_user(ge2d_config_ex.bitmask, &uf_ex->bitmask);
+		r |= get_user(ge2d_config_ex.dst_xy_swap, &uf_ex->dst_xy_swap);
+		r |= get_user(ge2d_config_ex.hf_init_phase,
+			&uf_ex->hf_init_phase);
+		r |= get_user(ge2d_config_ex.hf_rpt_num, &uf_ex->hf_rpt_num);
+		r |= get_user(ge2d_config_ex.hsc_start_phase_step,
+			&uf_ex->hsc_start_phase_step);
+		r |= get_user(ge2d_config_ex.hsc_phase_slope,
+			&uf_ex->hsc_phase_slope);
+		r |= get_user(ge2d_config_ex.vf_init_phase,
+			&uf_ex->vf_init_phase);
+		r |= get_user(ge2d_config_ex.vf_rpt_num, &uf_ex->vf_rpt_num);
+		r |= get_user(ge2d_config_ex.vsc_start_phase_step,
+			&uf_ex->vsc_start_phase_step);
+		r |= get_user(ge2d_config_ex.vsc_phase_slope,
+			&uf_ex->vsc_phase_slope);
+		r |= get_user(ge2d_config_ex.src1_vsc_phase0_always_en,
+			&uf_ex->src1_vsc_phase0_always_en);
+		r |= get_user(ge2d_config_ex.src1_hsc_phase0_always_en,
+			&uf_ex->src1_hsc_phase0_always_en);
+		r |= get_user(ge2d_config_ex.src1_hsc_rpt_ctrl,
+			&uf_ex->src1_hsc_rpt_ctrl);
+		r |= get_user(ge2d_config_ex.src1_vsc_rpt_ctrl,
+			&uf_ex->src1_vsc_rpt_ctrl);
+
+		for (i = 0; i < 4; i++) {
+			r |= get_user(ge2d_config_ex.src_planes[i].addr,
+				&uf_ex->src_planes[i].addr);
+			r |= get_user(ge2d_config_ex.src_planes[i].w,
+				&uf_ex->src_planes[i].w);
+			r |= get_user(ge2d_config_ex.src_planes[i].h,
+				&uf_ex->src_planes[i].h);
+		}
+
+		for (i = 0; i < 4; i++) {
+			r |= get_user(ge2d_config_ex.src2_planes[i].addr,
+				&uf_ex->src2_planes[i].addr);
+			r |= get_user(ge2d_config_ex.src2_planes[i].w,
+				&uf_ex->src2_planes[i].w);
+			r |= get_user(ge2d_config_ex.src2_planes[i].h,
+				&uf_ex->src2_planes[i].h);
+		}
+
+		for (j = 0; j < 4; j++) {
+			r |= get_user(ge2d_config_ex.dst_planes[j].addr,
+				&uf_ex->dst_planes[j].addr);
+			r |= get_user(ge2d_config_ex.dst_planes[j].w,
+				&uf_ex->dst_planes[j].w);
+			r |= get_user(ge2d_config_ex.dst_planes[j].h,
+				&uf_ex->dst_planes[j].h);
+		}
+
+		if (r) {
+			pr_err("GE2D_CONFIG_EX32 get parameter failed .\n");
+			return -EFAULT;
+			}
+		break;
+#endif
+
 	case GE2D_SET_COEF:
 	case GE2D_ANTIFLICKER_ENABLE:
 		break;
+	case GE2D_CONFIG_OLD:
+	case GE2D_CONFIG_EX_OLD:
+	case GE2D_SRCCOLORKEY_OLD:
+		pr_err("ioctl not support yed.\n");
+		return -EINVAL;
 	default:
 		ret = copy_from_user(&para, argp, sizeof(struct ge2d_para_s));
 		break;
@@ -229,6 +351,9 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		ret = ge2d_context_config(context, &ge2d_config);
 		break;
 	case GE2D_CONFIG_EX:
+#ifdef CONFIG_COMPAT
+	case GE2D_CONFIG_EX32:
+#endif
 		ret = ge2d_context_config_ex(context, &ge2d_config_ex);
 		break;
 	case GE2D_SET_COEF:
@@ -238,6 +363,15 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		ge2d_antiflicker_enable(context, args);
 		break;
 	case GE2D_SRCCOLORKEY:
+#ifdef CONFIG_COMPAT
+	case GE2D_SRCCOLORKEY32:
+#endif
+		ge2d_log_dbg("src colorkey...,key_enable=0x%x,key_color=0x%x,key_mask=0x%x,key_mode=0x%x\n",
+			     ge2d_config.src_key.key_enable,
+			     ge2d_config.src_key.key_color,
+			     ge2d_config.src_key.key_mask,
+			     ge2d_config.src_key.key_mode);
+
 		ge2dgen_src_key(context , ge2d_config.src_key.key_enable,
 				ge2d_config.src_key.key_color,
 				ge2d_config.src_key.key_mask,

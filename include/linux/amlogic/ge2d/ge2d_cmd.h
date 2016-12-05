@@ -34,10 +34,10 @@
 #define	GE2D_BLIT                           0x46ff
 #define	GE2D_STRETCHBLIT                    0x46fe
 #define	GE2D_FILLRECTANGLE                  0x46fd
-#define	GE2D_SRCCOLORKEY                    0x46fc
+#define	GE2D_SRCCOLORKEY_OLD                0x46fc
 #define	GE2D_SET_COEF                       0x46fb
-/* #define	GE2D_CONFIG_EX                      0x46fa */
-/* #define	GE2D_CONFIG                         0x46f9 */
+#define	GE2D_CONFIG_EX_OLD                  0x46fa
+#define	GE2D_CONFIG_OLD                     0x46f9
 #define	GE2D_ANTIFLICKER_ENABLE             0x46f8
 
 #endif

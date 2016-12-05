@@ -818,6 +818,14 @@ struct compat_config_para_ex_s {
 	_IOW(GE2D_IOC_MAGIC, 0x01,  struct compat_config_para_ex_s)
 #endif
 
+
+#define	GE2D_SRCCOLORKEY     _IOW(GE2D_IOC_MAGIC, 0x02, struct config_para_s)
+
+#ifdef CONFIG_COMPAT
+#define	GE2D_SRCCOLORKEY32   \
+	_IOW(GE2D_IOC_MAGIC, 0x02, struct compat_config_para_s)
+#endif
+
 extern void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
 extern void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
 extern void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg);
