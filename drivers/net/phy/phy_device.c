@@ -1047,7 +1047,8 @@ void internal_wol_init(struct phy_device *phydev)
 	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x9);
 	phy_write(phydev, 0x14, 0x4800|0x03);
 	/*enable interrupt*/
-	phy_write(phydev, 0x1E, 0xe00);
+	val = phy_read(phydev, 0x1E);
+	phy_write(phydev, 0x1E, val | 0xe00);
 }
 
 void internal_config(struct phy_device *phydev)
@@ -1083,7 +1084,8 @@ void internal_config(struct phy_device *phydev)
 	phy_write(phydev, 0x17, 0x6400);
 	phy_write(phydev, 0x14, 0x441A); /* A8_CONFIG */
 	/*enable link interrupt*/
-	phy_write(phydev, 0x1E, 0x50);
+	value = phy_read(phydev, 0x1E);
+	phy_write(phydev, 0x1E, value | 0x50);
 }
 
 void wol_test(struct phy_device *phydev)
@@ -1322,6 +1324,24 @@ static int internal_phy_resume(struct phy_device *phydev)
 }
 
 
+int internal_phy_suspend(struct phy_device *phydev)
+{
+	int value;
+	/*don't power off if wol is needed*/
+
+	mutex_lock(&phydev->lock);
+
+	/*disable link interrupt*/
+	value = phy_read(phydev, 0x1E);
+	phy_write(phydev, 0x1E, value & ~0x50);
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
 int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
@@ -1516,7 +1536,7 @@ static struct phy_driver internal_phy = {
 	.features	= 0x10f,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= internal_phy_read_status,
-	.suspend	= genphy_suspend,
+	.suspend	= internal_phy_suspend,
 	.resume		= internal_phy_resume,
 	.driver		= { .owner = THIS_MODULE, },
 };
