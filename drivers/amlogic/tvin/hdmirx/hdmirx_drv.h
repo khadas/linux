@@ -29,7 +29,7 @@
 
 
 #define RX_VER0 "Ref.2016/11/25"
-#define RX_VER1 "Ref.2016/11/21"
+#define RX_VER1 "Ref.2016/12/02"
 #define RX_VER2 "Ref.2016/09/27"
 #define RX_VER3 "Ref.2016/12/07"
 
@@ -209,6 +209,11 @@ enum port_sts {
 	E_INIT = 0xff,
 };
 
+enum hdcp_type {
+	E_HDCP14,
+	E_HDCP22
+};
+
 enum repeater_state_e {
 	REPEATER_STATE_WAIT_KSV,
 	REPEATER_STATE_WAIT_ACK,
@@ -287,6 +292,7 @@ struct hdmi_rx_phy {
 struct hdmi_rx_ctrl_video {
 	/** DVI detection status: DVI (true) or HDMI (false) */
 	bool hw_dvi;
+	unsigned hdcp_type;
 	unsigned hdcp_enc_state;
 	/** Deep color mode: 24, 30, 36 or 48 [bits per pixel] */
 	unsigned colordepth;
@@ -777,6 +783,7 @@ extern void cecrx_irq_handle(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
 extern void esm_set_stable(bool stable);
 extern void rx_5v_det(void);
+extern void hdmirx_hdcp22_hpd(bool value);
 extern void hdmirx_set_hdmi20_force(int port, bool value);
 extern bool hdmirx_get_hdmi20_force(int port);
 /* vdac ctrl,adc/dac ref signal,cvbs out signal

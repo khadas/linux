@@ -701,8 +701,11 @@ void control_reset(void)
 	hdmirx_wr_dwc(DWC_DMI_DISABLE_IF, data32);
 
 	mdelay(1);
+
 	/* Reset functional modules */
-	hdmirx_wr_dwc(DWC_DMI_SW_RST,     0x0000001F);
+	data32 = hdmirx_rd_dwc(DWC_SNPS_PHYG3_CTRL);
+	hdmirx_wr_dwc(DWC_DMI_SW_RST,	0x0000001F);
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 	cecrx_hw_init();
 }
 
@@ -830,6 +833,16 @@ void clk_init(void)
 	data32 |= 0 << 1;   /* [1]      bus_clk_inv */
 	data32 |= 0 << 0;   /* [0]      hdmi_clk_inv */
 	hdmirx_wr_top(TOP_CLK_CNTL, data32);    /* DEFAULT: {32'h0} */
+}
+
+void hdmirx_hdcp22_hpd(bool value)
+{
+	unsigned long data32 = hdmirx_rd_dwc(DWC_HDCP22_CONTROL);
+	if (value)
+		data32 |= 0x1000;
+	else
+		data32 &= (~0x1000);
+	hdmirx_wr_dwc(DWC_HDCP22_CONTROL, data32);
 }
 
 void hdmirx_20_init(void)
@@ -1165,7 +1178,12 @@ void hdmirx_get_video_info(void)
 	/* DVI mode */
 	rx.cur.hw_dvi = hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET) != 0;
 	/* hdcp encrypted state */
-	rx.cur.hdcp_enc_state = (hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3;
+	tmp = hdmirx_rd_dwc(DWC_HDCP22_STATUS);
+	rx.cur.hdcp_type = (tmp >> 4) & 1;
+	if (rx.cur.hdcp_type == 0)
+		rx.cur.hdcp_enc_state = (hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3;
+	else
+		rx.cur.hdcp_enc_state = tmp & 1;
 	/* AVI parameters */
 	rx.cur.colorspace =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VIDEO_FORMAT);

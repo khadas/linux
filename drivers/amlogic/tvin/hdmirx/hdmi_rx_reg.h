@@ -355,6 +355,7 @@
 #define DWC_SCDC_WRDATA6                0x0878
 #define DWC_SCDC_WRDATA7                0x087C
 #define DWC_HDMI20_STATUS               0x08E0
+#define DWC_HDCP22_STATUS               0x08FC
 
 /*
  * hdcp register

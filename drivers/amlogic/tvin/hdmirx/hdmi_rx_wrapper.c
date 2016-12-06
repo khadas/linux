@@ -128,7 +128,7 @@ MODULE_PARM_DESC(sig_unstable_max, "\n sig_unstable_max\n");
 module_param(sig_unstable_max, int, 0664);
 
 static int sig_unready_cnt;
-static int sig_unready_max = 5;/* 10; */
+static int sig_unready_max = 8;/* 10; */
 MODULE_PARM_DESC(sig_unready_max, "\n sig_unready_max\n");
 module_param(sig_unready_max, int, 0664);
 
@@ -1959,16 +1959,23 @@ static bool is_timing_stable(void)
 				rx.pre.interlaced,
 				rx.cur.interlaced);
 	}
+	if ((ret == false) & (log_level & VIDEO_LOG))
+		rx_pr("\n");
+	return ret;
+}
+
+static bool is_hdcp_enc_stable(void)
+{
+	bool ret = true;
 	if ((rx.pre.hdcp_enc_state != rx.cur.hdcp_enc_state) &&
+		(rx.pre.hdcp_type == E_HDCP14) &&
 		(stable_check_lvl & 0x200)) {
 		ret = false;
 		if (log_level & VIDEO_LOG)
-			rx_pr("hdcp_enc_state(%d=>%d),",
+			rx_pr("hdcp_enc_state(%d=>%d)\n",
 				rx.pre.hdcp_enc_state,
 				rx.cur.hdcp_enc_state);
 	}
-	if ((ret == false) & (log_level & VIDEO_LOG))
-		rx_pr("\n");
 	return ret;
 }
 
@@ -2374,7 +2381,7 @@ void hdmirx_esm_hw_fault_detect(void)
 
 void esm_set_stable(bool stable)
 {
-	if (log_level & HDCP_LOG)
+	if (log_level & VIDEO_LOG)
 		rx_pr("esm set stable:%d\n", stable);
 	video_stable_to_esm = stable;
 }
@@ -2421,6 +2428,7 @@ void hdmirx_hw_monitor(void)
 		if (rx.state != FSM_INIT) {
 			rx_pr("5v_lost->FSM_INIT\n");
 			pre_port = E_5V_LOST;
+			use_dwc_reset = true;
 			set_scdc_cfg(1, 0);
 			hdmirx_audio_enable(0);
 			hdmirx_set_hpd(rx.port, 0);
@@ -2428,11 +2436,12 @@ void hdmirx_hw_monitor(void)
 			rx_aud_pll_ctl(0);
 			is_hdcp_source = true;
 			rx.state = FSM_INIT;
+			#ifdef HDCP22_ENABLE
+			if (hdcp22_on)
+				esm_set_stable(0);
+			#endif
 		}
-		#ifdef HDCP22_ENABLE
-		if (hdcp22_on)
-			esm_set_stable(0);
-		#endif
+
 		return;
 	} else {
 		if (rx.state != FSM_SIG_READY) {
@@ -2456,6 +2465,7 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_HPD_LOW:
 		/* set_scdc_cfg(1, 1); */
+		use_dwc_reset = true;
 		hdmirx_set_hpd(rx.port, 0);
 		audio_status_init();
 		Signal_status_init();
@@ -2494,13 +2504,17 @@ void hdmirx_hw_monitor(void)
 		wait_clk_stable_cnt++;
 		if (wait_clk_stable_cnt == wait_clk_stable_max) {
 			hdmirx_phy_init(rx.port, 0);
+			if (log_level & VIDEO_LOG)
+				rx_pr("FSM_WAIT_CLK_STABLE phy init\n");
 			break;
 		}
 		if (wait_clk_stable_cnt >= wait_clk_stable_max*2) {
 			rx.state = FSM_HPD_LOW;
-			hdmirx_set_hpd(rx.port, 0);
+			/*hdmirx_set_hpd(rx.port, 0);*/
 			pre_port = E_HPD_RESET;
 			wait_clk_stable_cnt = 0;
+			if (log_level & VIDEO_LOG)
+				rx_pr("FSM_WAIT_CLK_STABLE send hpd\n");
 			break;
 		}
 		break;
@@ -2565,8 +2579,10 @@ void hdmirx_hw_monitor(void)
 			if (sig_pll_lock_cnt > sig_pll_lock_max) {
 				rx.state = FSM_DWC_RST_WAIT;
 				rx.scdc_tmds_cfg = 0;
-				if (use_dwc_reset)
+				if (use_dwc_reset) {
 					rx_dwc_reset();
+					/*use_dwc_reset = false;*/
+				}
 				#ifdef HDCP22_ENABLE
 				if (hdcp22_on)
 					esm_set_stable(1);
@@ -2624,7 +2640,8 @@ void hdmirx_hw_monitor(void)
 		memcpy(&rx.pre, &rx.cur,
 			sizeof(struct hdmi_rx_ctrl_video));
 		hdmirx_get_video_info();
-		if (is_timing_stable() || force_ready) {
+		if ((is_timing_stable() && is_hdcp_enc_stable()) ||
+			force_ready) {
 			if (sig_stable_cnt++ > sig_stable_max) {
 				get_timing_fmt();
 				if ((rx.pre.sw_vic == HDMI_UNSUPPORT) ||
@@ -2644,10 +2661,23 @@ void hdmirx_hw_monitor(void)
 						break;
 				}
 				if ((is_hdcp_source) &&
-					(rx.pre.hdcp_enc_state != 3)) {
+					(rx.pre.hdcp_type == E_HDCP14) &&
+					(rx.pre.hdcp_enc_state != 3) &&
+					(rx.pre.hdcp_enc_state != 0)) {
+					if (log_level & VIDEO_LOG)
+						rx_pr("hdcp14 sts unstable\n");
 					if (sig_stable_cnt < (sig_stable_max*7))
 						break;
 				}
+				/*
+				if ((rx.pre.hdcp_type == E_HDCP22) &&
+					(rx.pre.hdcp_enc_state != 1) &&
+					(hdcp22_capable_sts != 0)) {
+					if (log_level & VIDEO_LOG)
+						rx_pr("hdcp22 sts unstable\n");
+					if (sig_stable_cnt < (sig_stable_max*7))
+						break;
+				} */
 				sig_stable_cnt = 0;
 				sig_unstable_cnt = 0;
 				rx.change = 0;
@@ -4177,6 +4207,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 	rx.ctrl.tmds_clk = 0;
 	rx.ctrl.acr_mode = acr_mode;
 	wait_no_sig_cnt = 0;
+	use_dwc_reset = true;
 	is_hdcp_source = true;
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
