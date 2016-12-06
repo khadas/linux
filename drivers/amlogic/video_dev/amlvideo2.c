@@ -141,6 +141,13 @@ static unsigned int amlvideo2_dbg_en;
 module_param(amlvideo2_dbg_en, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_dbg_en, "enable/disable amlvideo2 debug information");
 
+static unsigned int amlvideo2_scaledown1 = 2;
+module_param(amlvideo2_scaledown1, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_scaledown1, "amlvideo2_scaledown1");
+static unsigned int amlvideo2_scaledown2 = 2;
+module_param(amlvideo2_scaledown2, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_scaledown2, "amlvideo2_scaledown2");
+
 
 static struct v4l2_fract amlvideo2_frmintervals_active = {
 	.numerator = 1, .denominator = DEF_FRAMERATE, };
@@ -391,6 +398,7 @@ bool pflag;
 struct completion plug_sema;
 bool field_flag;
 bool field_condition_flag;
+bool ge2d_multi_process_flag;
 };
 
 struct amlvideo2_fh {
@@ -2773,6 +2781,212 @@ struct amlvideo2_node *node)
 	return output_canvas;
 }
 
+int amlvideo2_ge2d_multi_pre_process(struct vframe_s *vf,
+				struct ge2d_context_s *context,
+				struct config_para_ex_s *ge2d_config,
+				struct amlvideo2_output *output,
+				struct amlvideo2_node *node)
+{
+	int src_top, src_left, src_width, src_height;
+	int dst_top, dst_left, dst_width, dst_height;
+	struct canvas_s cs0, cs1, cs2, cd;
+	int current_mirror = 0;
+	int cur_angle = 0;
+	int output_canvas = output->canvas_id;
+	int temp_canvas = AMLVIDEO2_1_RES_CANVAS + 8;
+	unsigned long temp_start = node->vid_dev->buffer_start +
+		(CMA_ALLOC_SIZE * SZ_1M);
+	int temp_w = vf->width/4;
+	int temp_h = vf->height/4;
+	u32 h_scale_coef_type =
+		context->config.h_scale_coef_type;
+	u32 v_scale_coef_type =
+		context->config.v_scale_coef_type;
+
+	temp_w = (temp_w + 31) & (~31);
+	temp_h = (temp_h + 1) & (~1);
+
+	if (amlvideo2_dbg_en & 4) {
+		pr_info("vf->width = %d, vf->height = %d\n",
+			vf->width, vf->height);
+	}
+
+	if (amlvideo2_scaledown1 == 0) {
+		context->config.h_scale_coef_type = FILTER_TYPE_BICUBIC;
+		context->config.v_scale_coef_type = FILTER_TYPE_BICUBIC;
+	} else if (amlvideo2_scaledown1 == 1) {
+		context->config.h_scale_coef_type = FILTER_TYPE_BILINEAR;
+		context->config.v_scale_coef_type = FILTER_TYPE_BILINEAR;
+	} else if (amlvideo2_scaledown1 == 2) {
+		context->config.h_scale_coef_type = FILTER_TYPE_TRIANGLE;
+		context->config.v_scale_coef_type = FILTER_TYPE_TRIANGLE;
+	} else {
+		context->config.h_scale_coef_type = FILTER_TYPE_BICUBIC;
+		context->config.v_scale_coef_type = FILTER_TYPE_BICUBIC;
+	}
+	canvas_config(temp_canvas,
+		(unsigned long)temp_start,
+		temp_w, temp_h,
+		CANVAS_ADDR_NOWRAP,
+		CANVAS_BLKMODE_LINEAR);
+
+	src_top = 4;
+	src_left = 4;
+	src_width = vf->width;
+	src_height = vf->height;
+	dst_top = 0;
+	dst_left = 0;
+	dst_width = output->width;
+	dst_height = output->height;
+
+	current_mirror = 0;
+	cur_angle = 0;
+
+
+	dst_width = dst_width & 0xfffffffe;
+	dst_height = dst_height & 0xfffffffe;
+	dst_top = (output->height - dst_height) / 2;
+	dst_left = (output->width - dst_width) / 2;
+	dst_top = dst_top & 0xfffffffe;
+	dst_left = dst_left & 0xfffffffe;
+	node->crop_info.source_top_crop = dst_top;
+	node->crop_info.source_left_crop = dst_left;
+	node->crop_info.source_width_crop = dst_width;
+	node->crop_info.source_height_crop = dst_height;
+	/* data operating. */
+
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+	ge2d_config->alu_const_color = 0;
+	ge2d_config->bitmask_en = 0;
+	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
+	ge2d_config->dst_xy_swap = 0;
+
+	canvas_read(vf->canvas0Addr & 0xff, &cs0);
+	canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
+	canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
+	ge2d_config->src_planes[0].addr = cs0.addr;
+	ge2d_config->src_planes[0].w = cs0.width;
+	ge2d_config->src_planes[0].h = cs0.height;
+	ge2d_config->src_planes[1].addr = cs1.addr;
+	ge2d_config->src_planes[1].w = cs1.width;
+	ge2d_config->src_planes[1].h = cs1.height;
+	ge2d_config->src_planes[2].addr = cs2.addr;
+	ge2d_config->src_planes[2].w = cs2.width;
+	ge2d_config->src_planes[2].h = cs2.height;
+	canvas_read(output_canvas & 0xff, &cd);
+	ge2d_config->dst_planes[0].addr = cd.addr;
+	ge2d_config->dst_planes[0].w = cd.width;
+	ge2d_config->dst_planes[0].h = cd.height;
+	ge2d_config->src_key.key_enable = 0;
+	ge2d_config->src_key.key_mask = 0;
+	ge2d_config->src_key.key_mode = 0;
+	ge2d_config->src_para.canvas_index = vf->canvas0Addr;
+	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->src_para.format = get_input_format(vf);
+	ge2d_config->src_para.fill_color_en = 0;
+	ge2d_config->src_para.fill_mode = 0;
+	ge2d_config->src_para.x_rev = 0;
+	ge2d_config->src_para.y_rev = 0;
+	ge2d_config->src_para.color = 0xffffffff;
+	ge2d_config->src_para.top = 0;
+	ge2d_config->src_para.left = 0;
+	ge2d_config->src_para.width = vf->width;
+	ge2d_config->src_para.height = vf->height;
+	/* pr_err("vf_width is %d ,
+	 * vf_height is %d\n",vf->width ,vf->height); */
+	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.canvas_index = temp_canvas & 0xff;
+
+	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.format = GE2D_FORMAT_S8_Y | GE2D_LITTLE_ENDIAN;
+	ge2d_config->dst_para.fill_color_en = 0;
+	ge2d_config->dst_para.fill_mode = 0;
+	ge2d_config->dst_para.x_rev = 0;
+	ge2d_config->dst_para.y_rev = 0;
+	ge2d_config->dst_para.color = 0;
+	ge2d_config->dst_para.top = 0;
+	ge2d_config->dst_para.left = 0;
+	ge2d_config->dst_para.width = temp_w;
+	ge2d_config->dst_para.height = temp_h;
+
+	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
+		pr_err("++ge2d configing error.\n");
+		return -1;
+	}
+	stretchblt_noalpha(context, src_left, src_top, src_width - src_left,
+		src_height - src_top, 0, 0, temp_w,
+		temp_h);
+
+	if (amlvideo2_scaledown2 == 0) {
+		context->config.h_scale_coef_type = FILTER_TYPE_BICUBIC;
+		context->config.v_scale_coef_type = FILTER_TYPE_BICUBIC;
+	} else if (amlvideo2_scaledown2 == 1) {
+		context->config.h_scale_coef_type = FILTER_TYPE_BILINEAR;
+		context->config.v_scale_coef_type = FILTER_TYPE_BILINEAR;
+	} else if (amlvideo2_scaledown2 == 2) {
+		context->config.h_scale_coef_type = FILTER_TYPE_TRIANGLE;
+		context->config.v_scale_coef_type = FILTER_TYPE_TRIANGLE;
+	}
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+	ge2d_config->alu_const_color = 0;
+	ge2d_config->bitmask_en = 0;
+	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
+	ge2d_config->dst_xy_swap = 0;
+
+	canvas_read(temp_canvas & 0xff, &cs0);
+	ge2d_config->src_planes[0].addr = cs0.addr;
+	ge2d_config->src_planes[0].w = cs0.width;
+	ge2d_config->src_planes[0].h = cs0.height;
+	canvas_read(output_canvas & 0xff, &cd);
+	ge2d_config->dst_planes[0].addr = cd.addr;
+	ge2d_config->dst_planes[0].w = cd.width;
+	ge2d_config->dst_planes[0].h = cd.height;
+	ge2d_config->src_key.key_enable = 0;
+	ge2d_config->src_key.key_mask = 0;
+	ge2d_config->src_key.key_mode = 0;
+	ge2d_config->src_para.canvas_index = temp_canvas;
+	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->src_para.format = GE2D_FORMAT_S8_Y | GE2D_LITTLE_ENDIAN;
+	ge2d_config->src_para.fill_color_en = 0;
+	ge2d_config->src_para.fill_mode = 0;
+	ge2d_config->src_para.x_rev = 0;
+	ge2d_config->src_para.y_rev = 0;
+	ge2d_config->src_para.color = 0xffffffff;
+	ge2d_config->src_para.top = 0;
+	ge2d_config->src_para.left = 0;
+	ge2d_config->src_para.width = temp_w;
+	ge2d_config->src_para.height = temp_h;
+	/* pr_err("vf_width is %d ,
+	 * vf_height is %d\n",vf->width ,vf->height); */
+	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.canvas_index = output_canvas & 0xff;
+
+	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.format = GE2D_FORMAT_S8_Y | GE2D_LITTLE_ENDIAN;
+	ge2d_config->dst_para.fill_color_en = 0;
+	ge2d_config->dst_para.fill_mode = 0;
+	ge2d_config->dst_para.x_rev = 0;
+	ge2d_config->dst_para.y_rev = 0;
+	ge2d_config->dst_para.color = 0;
+	ge2d_config->dst_para.top = 0;
+	ge2d_config->dst_para.left = 0;
+	ge2d_config->dst_para.width = output->width;
+	ge2d_config->dst_para.height = output->height;
+
+	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
+		pr_err("++ge2d configing error.\n");
+		return -1;
+	}
+	stretchblt_noalpha(context, 0, 0, temp_w, temp_h,
+		0, 0, output->width, output->height);
+
+	context->config.h_scale_coef_type =
+		h_scale_coef_type;
+	context->config.v_scale_coef_type =
+		v_scale_coef_type;
+	return output_canvas;
+}
+
 int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 				struct ge2d_context_s *context,
 				struct config_para_ex_s *ge2d_config,
@@ -3293,7 +3507,12 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 				&output, node);
 			}
 		} else {
-			src_canvas = amlvideo2_ge2d_pre_process(
+			if (node->ge2d_multi_process_flag)
+				src_canvas = amlvideo2_ge2d_multi_pre_process(
+				vf, node->context,
+				&ge2d_config, &output, node);
+			else
+				src_canvas = amlvideo2_ge2d_pre_process(
 				vf, node->context,
 				&ge2d_config, &output, node);
 		}
@@ -3359,8 +3578,12 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	int i_ret = 0;
 
 	dpr_err(node->vid_dev, 1, "Thread tick\n");
-	if (amlvideo2_dbg_en & 2)
-		pr_info("Enter amlvideo2 thread tick\n");
+	if (amlvideo2_dbg_en & 2) {
+		if (node->vid == 0)
+			pr_info("Enter amlvideo2.0 thread tick\n");
+		else
+			pr_info("Enter amlvideo2.1 thread tick\n");
+	}
 
 	if (kthread_should_stop()) {
 		if (amlvideo2_dbg_en & 2)
@@ -3626,11 +3849,19 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	}
 	#endif
 
-	if (amlvideo2_dbg_en & 2)
-		pr_info(" fillbuff start .\n");
+	if (amlvideo2_dbg_en & 2) {
+		if (node->vid == 0)
+			pr_info("node0 fillbuff start .\n");
+		else
+			pr_info("node1 fillbuff start .\n");
+	}
 	amlvideo2_fillbuff(fh, buf, vf);
-	if (amlvideo2_dbg_en & 2)
-		pr_info(" fillbuff end .\n");
+	if (amlvideo2_dbg_en & 2) {
+		if (node->vid == 0)
+			pr_info("node0 fillbuff end .\n");
+		else
+			pr_info("node1 fillbuff end .\n");
+	}
 	#ifdef USE_VDIN_PTS
 	buf->vb.ts.tv_sec = vf->pts_us64 & 0xFFFFFFFF;
 	buf->vb.ts.tv_usec = vf->pts;
@@ -3739,49 +3970,83 @@ static int amlvideo2_thread(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 
-	if (amlvideo2_dbg_en)
-		pr_info("start amlvideo2 thread.\n");
+	if (amlvideo2_dbg_en) {
+		if (node->vid == 0)
+			pr_info("start amlvideo2.0 thread.\n");
+		else
+			pr_info("start amlvideo2.1 thread.\n");
+	}
 	dpr_err(node->vid_dev, 1, "thread started\n");
 
 	set_freezable();
 
 	while (1) {
 		if (kthread_should_stop()) {
-			if (amlvideo2_dbg_en & 2)
-				pr_info("kthread stop 1.\n");
+			if (amlvideo2_dbg_en & 2) {
+				if (node->vid == 0)
+					pr_info("node0 kthread stop 1.\n");
+				else
+					pr_info("node1 kthread stop 1.\n");
+			}
 			break;
 		}
 
 	#ifdef USE_SEMA_QBUF
 		ret = wake_up_interruptible(&node->vidq.qbuf_comp);
 	#endif
-		if (amlvideo2_dbg_en & 2)
-			pr_info("task_running = %d\n", node->vidq.task_running);
+		if (amlvideo2_dbg_en & 2) {
+			if (node->vid == 0)
+				pr_info("node0 task_running = %d\n",
+				node->vidq.task_running);
+			else
+				pr_info("node1 task_running = %d\n",
+				node->vidq.task_running);
+		}
 		if (!node->vidq.task_running) {
-			if (amlvideo2_dbg_en & 2)
-				pr_info("here break.\n");
+			if (amlvideo2_dbg_en & 2) {
+				if (node->vid == 0)
+					pr_info("node0 here break.\n");
+				else
+					pr_info("node1 here break.\n");
+			}
 			break;
 		}
 
 		amlvideo2_sleep(fh);
 		if (kthread_should_stop()) {
-			if (amlvideo2_dbg_en & 2)
-				pr_info("kthread stop 2.\n");
+			if (amlvideo2_dbg_en & 2) {
+				if (node->vid == 0)
+					pr_info("node0 kthread stop 2.\n");
+				else
+					pr_info("node1 kthread stop 2.\n");
+			}
 			break;
 		}
-		if (amlvideo2_dbg_en & 2)
-			pr_info("amlvideo2_thread while 1 .\n");
+		if (amlvideo2_dbg_en & 2) {
+			if (node->vid == 0)
+				pr_info("amlvideo2.0_thread while 1 .\n");
+			else
+				pr_info("amlvideo2.1_thread while 1 .\n");
+		}
 	}
 	while (!kthread_should_stop()) {
-		if (amlvideo2_dbg_en & 2)
-			pr_info("amlvideo2_thread while 2 .\n");
+		if (amlvideo2_dbg_en & 2) {
+			if (node->vid == 0)
+				pr_info("amlvideo2.0_thread while 2 .\n");
+			else
+				pr_info("amlvideo2.1_thread while 2 .\n");
+		}
 		usleep_range(9000, 10000);
 	}
 		/*msleep(10);*/
 
 	node->tmp_vf = NULL;
-	if (amlvideo2_dbg_en)
-		pr_info("amlvideo2 thread exit.\n");
+	if (amlvideo2_dbg_en) {
+		if (node->vid == 0)
+			pr_info("amlvideo2.0 thread exit.\n");
+		else
+			pr_info("amlvideo2.1 thread exit.\n");
+	}
 	dpr_err(node->vid_dev, 1, "thread: exit\n");
 	return ret;
 }
@@ -3839,8 +4104,12 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 	struct amlvideo2_node *node =
 		container_of(dma_q, struct amlvideo2_node, vidq);
 	dpr_err(node->vid_dev, 1, "%s\n", __func__);
-	if (amlvideo2_dbg_en & 1)
-		pr_info("begin to stop amlvideo2 thread\n");
+	if (amlvideo2_dbg_en & 1) {
+		if (node->vid == 0)
+			pr_info("begin to stop amlvideo2.0 thread\n");
+		else
+			pr_info("begin to stop amlvideo2.1 thread\n");
+	}
 	mutex_lock(&node->mutex);
 	/* shutdown control thread */
 	if (!IS_ERR(dma_q->kthread)) {
@@ -3851,8 +4120,12 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 	#endif
 		complete(&node->plug_sema);
 		wake_up_interruptible(&dma_q->wq);
-		if (amlvideo2_dbg_en & 1)
-			pr_info("ready to stop amlvideo2 thread\n");
+		if (amlvideo2_dbg_en & 1) {
+			if (node->vid == 0)
+				pr_info("ready to stop amlvideo2.0 thread\n");
+			else
+				pr_info("ready to stop amlvideo2.1 thread\n");
+		}
 		ret = kthread_stop(dma_q->kthread);
 		if (ret < 0)
 			pr_info("%s, ret = %d .\n", __func__, ret);
@@ -3860,8 +4133,12 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 		dma_q->kthread = NULL;
 	}
 	mutex_unlock(&node->mutex);
-	if (amlvideo2_dbg_en & 1)
-		pr_info("finish stop amlvideo2 thread\n");
+	if (amlvideo2_dbg_en & 1) {
+		if (node->vid == 0)
+			pr_info("finish stop amlvideo2.0 thread\n");
+		else
+			pr_info("finish stop amlvideo2.1 thread\n");
+	}
 }
 
 enum aml_provider_type_e get_provider_type(const char *name)
@@ -4040,8 +4317,8 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 
 	BUG_ON(NULL == fh->fmt);
 
-	if (fh->width < 48 || fh->width > norm_maxw() ||
-	fh->height < 32 || fh->height > norm_maxh())
+	if (fh->width < 16 || fh->width > norm_maxw() ||
+	fh->height < 16 || fh->height > norm_maxh())
 		return -EINVAL;
 
 	buf->vb.size = (fh->width * fh->height * fh->fmt->depth) >> 3;
@@ -4190,8 +4467,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.field = field;
 	v4l_bound_align_image(
-		&f->fmt.pix.width, 48,
-		maxw, 2, &f->fmt.pix.height, 32,
+		&f->fmt.pix.width, 16,
+		maxw, 2, &f->fmt.pix.height, 16,
 		maxh, 0, 0);
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -4408,7 +4685,6 @@ static enum tvin_scan_mode_e vmode2scan_mode(enum vmode_e mode)
 /*the counter of AMLVIDEO2*/
 #define AMLVIDEO2_MAX_NODE		2
 static struct amlvideo2_node  *gAmlvideo2_Node[AMLVIDEO2_MAX_NODE];
-
 static int amlvideo2_stop_tvin_service(struct amlvideo2_node *node)
 {
 	int ret = 0;
@@ -4606,6 +4882,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 	if (amlvideo2_dbg_en)
 		pr_info("finish amlvideo2_notify_callback .\n");
 	return ret;
+	return 0;
 }
 
 
@@ -4639,9 +4916,11 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		if (ret < 0) {
 			pr_err("notify amvideo failed.\n");
 			node->mode = AML_SCREEN_MODE_RATIO;
+			/* AML_SCREEN_MODE_RATIO; */
 		} else {
 			node->has_amvideo_node = true;
 			node->mode = AML_SCREEN_MODE_ADAPTIVE;
+			/* AML_SCREEN_MODE_ADAPTIVE; */
 			if (amlvideo2_dbg_en) {
 				pr_info("screen:h_start = %d,h_end = %d\n",
 				node->display_info.screen_vd_h_start_,
@@ -4720,8 +4999,13 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (TVIN_SCAN_MODE_INTERLACED == para.scan_mode)
 		para.dest_vactive = para.dest_vactive / 2;
 	if (TVIN_PORT_VIDEO == para.port) {
-		para.dest_hactive = 0;
-		para.dest_vactive = 0;
+		if (node->ge2d_multi_process_flag) {
+			para.dest_hactive = 384;
+			para.dest_vactive = 216;
+		} else {
+			para.dest_hactive = 0;
+			para.dest_vactive = 0;
+		}
 	}
 	if (amlvideo2_dbg_en) {
 		pr_info("para.h_active: %d, para.v_active: %d,",
@@ -4893,12 +5177,15 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	node->start_vdin_flag = (i >> 28);
 	/*bit 24 : vdin device num : 0 or 1 */
 	node->vdin_device_num = (i >> 24) & 1;
+	node->ge2d_multi_process_flag = (i >> 16) & 1;
 	node->porttype = (i & 0xffff);
 	if (amlvideo2_dbg_en) {
 		pr_info("porttype:%x ,start_vdin_flag = %d.\n",
 			node->porttype, node->start_vdin_flag);
 		pr_info("%s, vdin_device_num = %d\n",
 			__func__, node->vdin_device_num);
+		pr_info("%s, ge2d_multi_process_flag = %d\n",
+			__func__, node->ge2d_multi_process_flag);
 	}
 	return 0;
 }
@@ -5000,21 +5287,46 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 		} else {
 			flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
 			if (node_id == 0) {
-				vid_dev->buffer_start = codec_mm_alloc_for_dma(
+				if (vid_dev->node[node_id]->
+					ge2d_multi_process_flag == 1)
+					vid_dev->buffer_start =
+					codec_mm_alloc_for_dma(
 					"amlvideo2.0",
-					(CMA_ALLOC_SIZE*SZ_1M)/PAGE_SIZE,
+					((CMA_ALLOC_SIZE +
+					4) * SZ_1M)/PAGE_SIZE,
+					0, flags);
+				else
+					vid_dev->buffer_start =
+					codec_mm_alloc_for_dma(
+					"amlvideo2.0",
+					(CMA_ALLOC_SIZE * SZ_1M)/PAGE_SIZE,
 					0, flags);
 			} else {
-				vid_dev->buffer_start = codec_mm_alloc_for_dma(
+				if (vid_dev->node[node_id]->
+					ge2d_multi_process_flag == 1)
+					vid_dev->buffer_start =
+					codec_mm_alloc_for_dma(
 					"amlvideo2.1",
-					(CMA_ALLOC_SIZE*SZ_1M)/PAGE_SIZE,
+					((CMA_ALLOC_SIZE +
+					4) * SZ_1M)/PAGE_SIZE,
+					0, flags);
+				else
+					vid_dev->buffer_start =
+					codec_mm_alloc_for_dma(
+					"amlvideo2.1",
+					(CMA_ALLOC_SIZE * SZ_1M)/PAGE_SIZE,
 					0, flags);
 			}
 	    if (!(vid_dev->buffer_start)) {
 		pr_err("amlvideo2 alloc cma buffer failed\n");
 		return -1;
 	    } else {
-		vid_dev->buffer_size = (CMA_ALLOC_SIZE*SZ_1M);
+			if (vid_dev->node[node_id]->ge2d_multi_process_flag
+				== 1)
+				vid_dev->buffer_size = ((CMA_ALLOC_SIZE
+				+ 4)*SZ_1M);
+			else
+				vid_dev->buffer_size = (CMA_ALLOC_SIZE * SZ_1M);
 	    }
 		}
 		if (node_id == 0)
@@ -5575,6 +5887,7 @@ static int amlvideo2_create_node(struct platform_device *pdev)
 		vid_node->pflag = false;
 		vid_node->field_flag = false;
 		vid_node->field_condition_flag = false;
+		vid_node->ge2d_multi_process_flag = false;
 		vid_node->r_type = AML_RECEIVER_NONE;
 		vid_dev->node[i] = vid_node;
 		v4l2_info(&vid_dev->v4l2_dev, "V4L2 device registered as %s\n",
