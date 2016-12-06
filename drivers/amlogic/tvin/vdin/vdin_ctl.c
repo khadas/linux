@@ -1221,7 +1221,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
 		vdin_set_color_matrix0(devp->addr_offset, devp->fmt_info_p,
-				devp->format_convert,
+				format_convert_matrix0,
 				devp->parm.port,
 				devp->prop.color_fmt_range,
 				devp->prop.vdin_hdr_Flag,
