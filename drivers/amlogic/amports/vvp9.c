@@ -40,6 +40,7 @@
 #include "amports_priv.h"
 #include <linux/amlogic/codec_mm/codec_mm.h>
 #include "decoder/decoder_mmu_box.h"
+#include "decoder/decoder_bmmu_box.h"
 
 #define MEM_NAME "codec_vp9"
 /* #include <mach/am_regs.h> */
@@ -540,7 +541,8 @@ normal reference pool.*/
 
 #define FRAME_CONTEXTS_LOG2 2
 #define FRAME_CONTEXTS (1 << FRAME_CONTEXTS_LOG2)
-
+#define MAX_BMMU_BUFFER_NUM (FRAME_BUFFERS + 1)
+#define WORK_SPACE_BUF_ID (FRAME_BUFFERS)
 
 struct RefCntBuffer_s {
 	int ref_count;
@@ -1179,13 +1181,7 @@ struct VP9Decoder_s {
 	dma_addr_t frame_mmu_map_phy_addr;
 #endif
 	unsigned int use_cma_flag;
-#ifndef VP9_10B_MMU
 
-	unsigned long pre_last_frame_alloc_addr;
-	unsigned long pre_last_frame_alloc_size;
-	u32 predisp_addr;
-	u32 predisp_size;
-#endif
 	struct BUF_s m_BUF[MAX_BUF_NUM];
 	u32 used_buf_num;
 	DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
@@ -1255,6 +1251,7 @@ struct VP9Decoder_s {
 	u32 last_put_idx;
 	int new_frame_displayed;
 	void *mmu_box;
+	void *bmmu_box;
 } VP9Decoder;
 
 static int vp9_print(struct VP9Decoder_s *pbi,
@@ -3342,143 +3339,18 @@ if (cur_kf == 0) {
 
 }
 
-#ifdef VP9_10B_MMU
+
 static void uninit_mmu_buffers(struct VP9Decoder_s *pbi)
 {
-	struct VP9_Common_s *cm = &pbi->common;
-	struct PIC_BUFFER_CONFIG_s *pic_config;
-	int i;
+
 	decoder_mmu_box_free(pbi->mmu_box);
 	pbi->mmu_box = NULL;
 
-	for (i = 0; i < FRAME_BUFFERS; i++) {
-		pic_config = &cm->buffer_pool->frame_bufs[i].buf;
-		if (pic_config->cma_alloc_addr) {
-			codec_mm_free_for_dma(MEM_NAME,
-				pic_config->cma_alloc_addr);
-			pic_config->cma_alloc_addr = 0;
-		}
-	}
+	if (pbi->bmmu_box)
+		decoder_bmmu_box_free(pbi->bmmu_box);
+	pbi->bmmu_box = NULL;
 }
-#else
 
-/*USE_BUF_BLOCK*/
-static void uninit_buf_list(struct VP9Decoder_s *pbi)
-{
-	int i;
-	struct VP9_Common_s *cm = &pbi->common;
-	uint8_t release_cma_flag = 0;
-	uint8_t blackout = get_blackout_policy();
-	u32 buffer_mode_real =
-		(buffer_mode & ((buffer_mode_dbg >> 16) & 0xfff)) |
-		(buffer_mode_dbg & 0xfff);
-	blackout &= ((buffer_mode_dbg >> 28) & 0xf);
-	blackout |=  ((buffer_mode_dbg >> 12) & 0xf);
-
-	pbi->predisp_addr = 0;
-
-	if (buffer_mode_real & 1) {
-		if (blackout == 1)
-			release_cma_flag = 1;
-	} else {
-		if (buffer_mode_real & 2)
-			;
-		else
-			release_cma_flag = 1;
-	}
-
-	if (blackout != 1) {
-		struct PIC_BUFFER_CONFIG_s *pic_config;
-		if ((release_cma_flag == 1) &&
-				(buffer_mode_real & 8)) {
-			release_cma_flag = 2;
-		}
-
-		msleep(50); /* ensure RDMA for display is done */
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB &&
-			double_write_mode == 0) {
-			pbi->predisp_addr =
-			READ_VCBUS_REG(AFBC_BODY_BADDR) << 4;
-		} else {
-			struct canvas_s cur_canvas;
-			canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
-				 &cur_canvas);
-			pbi->predisp_addr = cur_canvas.addr;
-		}
-
-		for (i = 0; i < FRAME_BUFFERS; i++) {
-			pic_config = &cm->buffer_pool->frame_bufs[i].buf;
-			if (pic_config->index == -1)
-				continue;
-			if (pbi->predisp_addr == pic_config->mc_y_adr) {
-				pbi->predisp_size = pic_config->buf_size;
-				pr_info("%s, set  pbi->predisp_size = %d\n",
-					__func__, pic_config->buf_size);
-				break;
-			}
-		}
-	}
-
-	if (pbi->pre_last_frame_alloc_addr) {
-		if (blackout == 1 || pbi->predisp_addr == 0
-			|| pbi->predisp_addr < pbi->pre_last_frame_alloc_addr
-			|| pbi->predisp_addr >=
-			(pbi->pre_last_frame_alloc_addr
-				+ pbi->pre_last_frame_alloc_size)
-			) {
-			codec_mm_free_for_dma(MEM_NAME,
-				pbi->pre_last_frame_alloc_addr);
-			pr_info("release pre_last_frame cma buffer %ld\n",
-				pbi->pre_last_frame_alloc_addr);
-			pbi->pre_last_frame_alloc_addr = 0;
-			pbi->pre_last_frame_alloc_size = 0;
-		}
-	}
-
-	if (release_cma_flag) {
-		for (i = 0; i < pbi->used_buf_num; i++) {
-			if (pbi->m_BUF[i].alloc_addr != 0
-				&& pbi->m_BUF[i].cma_page_count > 0) {
-				if ((release_cma_flag == 2)
-					&& (pbi->predisp_addr >=
-						pbi->m_BUF[i].start_adr)
-					&& (pbi->predisp_addr <
-					(pbi->m_BUF[i].start_adr +
-						pbi->m_BUF[i].size))) {
-					if (pbi->pre_last_frame_alloc_addr)
-						pr_info("last buf not free\n");
-					else {
-						pbi->pre_last_frame_alloc_addr
-						=
-						pbi->m_BUF[i].alloc_addr;
-						pbi->pre_last_frame_alloc_size
-						    = pbi->m_BUF[i].size;
-						pbi->m_BUF[i].alloc_addr = 0;
-						pbi->m_BUF[i].
-						cma_page_count = 0;
-						continue;
-					}
-				}
-
-				pr_info("release cma buffer[%d] (%d %ld)\n", i,
-					pbi->m_BUF[i].cma_page_count,
-					pbi->m_BUF[i].alloc_addr);
-				codec_mm_free_for_dma(MEM_NAME,
-					pbi->m_BUF[i].alloc_addr);
-				pbi->m_BUF[i].alloc_addr = 0;
-				pbi->m_BUF[i].cma_page_count = 0;
-
-			}
-		}
-	}
-	pr_info("%s, blackout %x r%x buf_mode %x r%x rel_cma_flag %x pbi->predisp_addr %d pre_alloc_addr(%ld, %ld)\n",
-		__func__, get_blackout_policy(), blackout,
-		buffer_mode, buffer_mode_real, release_cma_flag,
-		pbi->predisp_addr, pbi->pre_last_frame_alloc_addr,
-		pbi->pre_last_frame_alloc_size);
-	pbi->buf_num = 0;
-}
-#endif
 #ifndef VP9_10B_MMU
 static void init_buf_list(struct VP9Decoder_s *pbi)
 {
@@ -3560,68 +3432,28 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 		if (use_cma == 2)
 			pbi->use_cma_flag = 1;
 		if (pbi->use_cma_flag) {
-			if ((pbi->m_BUF[i].cma_page_count != 0)
-				&& (pbi->m_BUF[i].alloc_addr != 0)
-				&& (pbi->m_BUF[i].size != buf_size)) {
-				if ((pbi->predisp_addr >=
-						pbi->m_BUF[i].alloc_addr)
-					&& (pbi->predisp_addr <
-					(pbi->m_BUF[i].alloc_addr +
-						pbi->m_BUF[i].size))) {
-					pbi->pre_last_frame_alloc_addr =
-						pbi->m_BUF[i].alloc_addr;
-					pbi->pre_last_frame_alloc_size =
-						pbi->m_BUF[i].size;
-				} else {
-					codec_mm_free_for_dma(MEM_NAME,
-						pbi->m_BUF[i].alloc_addr);
-					pr_info("release cma buffer[%d] (%d %ld)\n",
-					i, pbi->m_BUF[i].cma_page_count,
-						pbi->m_BUF[i].alloc_addr);
-				}
-				pbi->m_BUF[i].alloc_addr = 0;
-				pbi->m_BUF[i].cma_page_count = 0;
-			}
-			if (pbi->m_BUF[i].alloc_addr == 0) {
-				if (!codec_mm_enough_for_size(buf_size, 1)) {
-					/*
-					not enough mem for buffer.
-					*/
-					pr_info("not enought buffer for [%d],%d\n",
-						i, buf_size);
-					pbi->m_BUF[i].cma_page_count = 0;
-					if (i <= 8) {
-						/*if alloced (i+1)>=9
-						don't send errors.*/
-						/*pbi->fatal_error |=
-						DECODER_FATAL_ERROR_NO_MEM;*/
-					}
-					break;
-				}
+			if (!decoder_bmmu_box_alloc_idx_wait(
+					pbi->bmmu_box,
+					i,
+					buf_size,
+					-1,
+					-1,
+					BMMU_ALLOC_FLAGS_WAITCLEAR)) {
+				pbi->m_BUF[i].alloc_addr =
+					decoder_bmmu_box_get_phy_addr(
+						pbi->bmmu_box,
+						i);
 				pbi->m_BUF[i].cma_page_count =
 					PAGE_ALIGN(buf_size) / PAGE_SIZE;
-				pbi->m_BUF[i].alloc_addr =
-				    codec_mm_alloc_for_dma(
-					MEM_NAME, pbi->m_BUF[i].cma_page_count,
-					4 + PAGE_SHIFT,
-					CODEC_MM_FLAGS_FOR_VDECODER);
-				if (pbi->m_BUF[i].alloc_addr == 0) {
-					pr_info("alloc cma buffer[%d] fail\n",
-					i);
-					pbi->m_BUF[i].cma_page_count = 0;
-					break;
-				}
-				pr_info("allocate cma buffer[%d] (%d,%ld,%ld)\n",
-						i,
-						pbi->m_BUF[i].cma_page_count,
-						pbi->m_BUF[i].alloc_addr,
-						pbi->m_BUF[i].start_adr);
+				pr_info("CMA malloc ok  %d\n", i);
 			} else {
-				pr_info("reuse cma buffer[%d] (%d,%ld,%ld)\n",
-						i,
-						pbi->m_BUF[i].cma_page_count,
-						pbi->m_BUF[i].alloc_addr,
-						pbi->m_BUF[i].start_adr);
+				pbi->m_BUF[i].cma_page_count = 0;
+				pr_info("CMA malloc failed  %d\n", i);
+				if (i <= 5) {
+					pbi->fatal_error |=
+					DECODER_FATAL_ERROR_NO_MEM;
+				}
+				break;
 			}
 			pbi->m_BUF[i].start_adr =  pbi->m_BUF[i].alloc_addr;
 		} else {
@@ -3771,9 +3603,21 @@ static int config_pic(struct VP9Decoder_s *pbi,
 			pbi->mc_buf->buf_end)
 			y_adr = pbi->mc_buf->buf_start + i * buf_size;
 		else {
-			pic_config->cma_alloc_addr = codec_mm_alloc_for_dma(
-				MEM_NAME, buf_size/PAGE_SIZE, 4 + PAGE_SHIFT,
-				CODEC_MM_FLAGS_FOR_VDECODER);
+			if (!decoder_bmmu_box_alloc_idx_wait(
+					pbi->bmmu_box,
+					i,
+					buf_size,
+					-1,
+					-1,
+					BMMU_ALLOC_FLAGS_WAITCLEAR
+					)) {
+				pic_config->cma_alloc_addr =
+					decoder_bmmu_box_get_phy_addr(
+						pbi->bmmu_box,
+						i);
+			} else {
+				pr_err("alloc cma buffer failed %d\n", i);
+			}
 			if (pic_config->cma_alloc_addr)
 				y_adr = pic_config->cma_alloc_addr;
 			else
@@ -3821,26 +3665,6 @@ static int config_pic(struct VP9Decoder_s *pbi,
 			pbi->work_space_buf->mpred_mv.buf_start +
 					((pic_config->index * lcu_total)
 					* MV_MEM_UNIT);
-#ifndef VP9_10B_MMU
-			if ((pbi->predisp_addr != 0) &&
-				(pbi->predisp_size != 0) &&
-				(buffer_mode & 0x4) == 0) {
-				if ((pic_config->mc_y_adr >=
-					(pbi->predisp_addr +
-					pbi->predisp_size)) ||
-					((pic_config->mc_y_adr
-					+ pic_config->buf_size)
-					<= pbi->predisp_addr)) {
-					pic_config->used_by_display = 0;
-				} else {
-					pic_config->used_by_display = 1;
-					pr_info
-					("%s,pic_config%d is displayed\n",
-						__func__, i);
-				}
-			} else
-#endif
-				pic_config->used_by_display = 0;
 
 			if (debug) {
 				pr_info
@@ -4920,17 +4744,6 @@ static int vp9_local_init(struct VP9Decoder_s *pbi)
 #endif
 
 	init_buff_spec(pbi, cur_buf_info);
-#ifdef VP9_10B_MMU
-	pbi->mmu_box = decoder_mmu_box_alloc_box(DRIVER_NAME,
-		0, FRAME_BUFFERS,
-		48 * SZ_1M
-		);
-	if (!pbi->mmu_box) {
-		pr_err("vp9 alloc mmu box failed!!\n");
-		return -1;
-	}
-#endif
-
 	pbi->mc_buf_spec.buf_start = (cur_buf_info->end_adr + 0xffff)
 	    & (~0xffff);
 	pbi->mc_buf_spec.buf_size = (pbi->mc_buf_spec.buf_end
@@ -5449,8 +5262,15 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 			else
 				vf->duration = 0;
 		}
-		vf->mem_handle = decoder_mmu_box_get_mem_handle(
-			pbi->mmu_box, pic_config->index);
+		if (vf->type & VIDTYPE_SCATTER) {
+			vf->mem_handle = decoder_mmu_box_get_mem_handle(
+				pbi->mmu_box,
+				pic_config->index);
+		} else {
+			vf->mem_handle = decoder_bmmu_box_get_mem_handle(
+				pbi->bmmu_box,
+				pic_config->index);
+		}
 		inc_vf_ref(pbi, pic_config->index);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
 		vf_notify_receiver(pbi->provider_name,
@@ -6278,59 +6098,57 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 	}
 	vp9_local_uninit(pbi);
 
-	if (use_cma) {
-		/*USE_BUF_BLOCK*/
-#ifdef VP9_10B_MMU
-		uninit_mmu_buffers(pbi);
-#else
-		uninit_buf_list(pbi);
-		pr_info("uninit list\n");
-#endif
-	}
 #ifdef MULTI_INSTANCE_SUPPORT
 	if (pbi->m_ins_flag) {
 		cancel_work_sync(&pbi->work);
-		if (pbi->cma_alloc_addr) {
-			pr_info("codec_mm release buffer 0x%lx\n",
-				pbi->cma_alloc_addr);
-			codec_mm_free_for_dma(MEM_NAME, pbi->cma_alloc_addr);
-			pbi->cma_alloc_count = 0;
-			pbi->cma_alloc_addr = 0;
-		}
-	} else
-#endif
+	} else {
 		amhevc_disable();
+	}
+#else
+	amhevc_disable();
+#endif
+	uninit_mmu_buffers(pbi);
 
 	return 0;
 }
 
+static int amvdec_vp9_mmu_init(struct VP9Decoder_s *pbi)
+{
+#ifdef VP9_10B_MMU
+	pbi->mmu_box = decoder_mmu_box_alloc_box(DRIVER_NAME,
+		0, FRAME_BUFFERS,
+		48 * SZ_1M
+		);
+	if (!pbi->mmu_box) {
+		pr_err("vp9 alloc mmu box failed!!\n");
+		return -1;
+	}
+#endif
+	pbi->bmmu_box = decoder_bmmu_box_alloc_box(
+			DRIVER_NAME,
+			pbi->index,
+			MAX_BMMU_BUFFER_NUM,
+			4 + PAGE_SHIFT,
+			CODEC_MM_FLAGS_CMA_CLEAR |
+			CODEC_MM_FLAGS_FOR_VDECODER);
+	if (!pbi->bmmu_box) {
+		pr_err("vp9 alloc bmmu box failed!!\n");
+		return -1;
+	}
+	return 0;
+}
 static int amvdec_vp9_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
-#ifndef VP9_10B_MMU
-	u32 predisp_addr;
-	unsigned long pre_last_frame_alloc_addr, pre_last_frame_alloc_size;
-#endif
 	struct BUF_s BUF[MAX_BUF_NUM];
 	struct VP9Decoder_s *pbi = &gHevc;
 	pr_info("%s\n", __func__);
 	mutex_lock(&vvp9_mutex);
 
-#ifdef VP9_10B_MMU
 	memcpy(&BUF[0], &pbi->m_BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 	memset(pbi, 0, sizeof(VP9Decoder));
 	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
-#else
-	predisp_addr = pbi->predisp_addr;
-	pre_last_frame_alloc_addr = pbi->pre_last_frame_alloc_addr;
-	pre_last_frame_alloc_size = pbi->pre_last_frame_alloc_size;
-	memcpy(&BUF[0], &pbi->m_BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
-	memset(pbi, 0, sizeof(VP9Decoder));
-	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
-	pbi->predisp_addr = predisp_addr;
-	pbi->pre_last_frame_alloc_addr = pre_last_frame_alloc_addr;
-	pbi->pre_last_frame_alloc_size = pre_last_frame_alloc_size;
-#endif
+
 	pbi->init_flag = 0;
 	pbi->fatal_error = 0;
 	pbi->show_frame_num = 0;
@@ -6348,6 +6166,10 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
 		amvvp9_workbuff_spec[i].start_adr = pdata->mem_start;
 #endif
+	if (amvdec_vp9_mmu_init(pbi) < 0) {
+		pr_err("vp9 alloc bmmu box failed!!\n");
+		return -1;
+	}
 	if (debug) {
 		pr_info("===VP9 decoder mem resource 0x%lx -- 0x%lx\n",
 			   pdata->mem_start, pdata->mem_end + 1);
@@ -6691,10 +6513,7 @@ static irqreturn_t vp9_threaded_irq_cb(struct vdec_s *vdec)
 static int ammvdec_vp9_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
-#ifndef VP9_10B_MMU
-	u32 predisp_addr;
-	unsigned long pre_last_frame_alloc_addr, pre_last_frame_alloc_size;
-#endif
+
 	struct BUF_s BUF[MAX_BUF_NUM];
 	struct VP9Decoder_s *pbi = NULL;
 	pr_info("%s\n", __func__);
@@ -6719,21 +6538,11 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 
 	pdata->id = pdev->id;
 
-#ifdef VP9_10B_MMU
+
 	memcpy(&BUF[0], &pbi->m_BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 	memset(pbi, 0, sizeof(VP9Decoder));
 	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
-#else
-	predisp_addr = pbi->predisp_addr;
-	pre_last_frame_alloc_addr = pbi->pre_last_frame_alloc_addr;
-	pre_last_frame_alloc_size = pbi->pre_last_frame_alloc_size;
-	memcpy(&BUF[0], &pbi->m_BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
-	memset(pbi, 0, sizeof(VP9Decoder));
-	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
-	pbi->predisp_addr = predisp_addr;
-	pbi->pre_last_frame_alloc_addr = pre_last_frame_alloc_addr;
-	pbi->pre_last_frame_alloc_size = pre_last_frame_alloc_size;
-#endif
+
 	pbi->index = get_free_decoder_id(pdata);
 
 	if (pdata->use_vfm_path)
@@ -6754,15 +6563,31 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	pbi->buf_start = pdata->mem_start;
 	pbi->buf_size = pdata->mem_end - pdata->mem_start + 1;
 #else
+	if (amvdec_vp9_mmu_init(pbi) < 0) {
+		pr_err("vp9 alloc bmmu box failed!!\n");
+		devm_kfree(&pdev->dev, (void *)pbi);
+		return -1;
+	}
+
 	pbi->cma_alloc_count = PAGE_ALIGN(work_buf_size) / PAGE_SIZE;
-	pbi->cma_alloc_addr = codec_mm_alloc_for_dma(MEM_NAME,
-				pbi->cma_alloc_count,
-				4, CODEC_MM_FLAGS_FOR_VDECODER);
-	if (!pbi->cma_alloc_addr) {
+	if (!decoder_bmmu_box_alloc_idx_wait(
+			pbi->bmmu_box,
+			WORK_SPACE_BUF_ID,
+			pbi->cma_alloc_count * PAGE_SIZE,
+			-1,
+			-1,
+			BMMU_ALLOC_FLAGS_WAITCLEAR
+			))	{
+		pbi->cma_alloc_addr = decoder_bmmu_box_get_phy_addr(
+					pbi->bmmu_box,
+					WORK_SPACE_BUF_ID);
+	} else {
 		vp9_print(pbi, 0,
 			"codec_mm alloc failed, request buf size 0x%lx\n",
 				pbi->cma_alloc_count * PAGE_SIZE);
 		pbi->cma_alloc_count = 0;
+		uninit_mmu_buffers(pbi);
+		devm_kfree(&pdev->dev, (void *)pbi);
 		return -ENOMEM;
 	}
 	pbi->buf_start = pbi->cma_alloc_addr;
@@ -6775,6 +6600,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	pbi->show_frame_num = 0;
 	if (pdata == NULL) {
 		pr_info("\namvdec_vp9 memory resource undefined.\n");
+		uninit_mmu_buffers(pbi);
+		devm_kfree(&pdev->dev, (void *)pbi);
 		return -EFAULT;
 	}
 
@@ -6797,6 +6624,8 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	if (vvp9_init(pbi) < 0) {
 		pr_info("\namvdec_vp9 init failed.\n");
 		vp9_local_uninit(pbi);
+		uninit_mmu_buffers(pbi);
+		devm_kfree(&pdev->dev, (void *)pbi);
 		return -ENODEV;
 	}
 	return 0;
@@ -6818,7 +6647,7 @@ static int ammvdec_vp9_remove(struct platform_device *pdev)
 	pr_info("pts missed %ld, pts hit %ld, duration %d\n",
 		   pbi->pts_missed, pbi->pts_hit, pbi->frame_dur);
 #endif
-
+	devm_kfree(&pdev->dev, (void *)pbi);
 	return 0;
 }
 

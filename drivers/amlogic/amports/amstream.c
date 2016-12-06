@@ -1493,7 +1493,6 @@ static int amstream_open(struct inode *inode, struct file *file)
 	port->pcrid = 0xffff;
 	file->f_op = port->fops;
 	file->private_data = priv;
-
 	port->flag = PORT_FLAG_IN_USE;
 	port->pcr_inited = 0;
 #ifdef DATA_DEBUG
@@ -1509,6 +1508,7 @@ static int amstream_open(struct inode *inode, struct file *file)
 		priv->vdec = vdec_create(port, NULL);
 
 		if (priv->vdec == NULL) {
+			port->flag = 0;
 			kfree(priv);
 			pr_err("amstream: vdec creation failed\n");
 			return -ENOMEM;
@@ -1519,13 +1519,13 @@ static int amstream_open(struct inode *inode, struct file *file)
 
 			if (priv->vdec->slave == NULL) {
 				vdec_release(priv->vdec);
+				port->flag = 0;
 				kfree(priv);
 				pr_err("amstream: sub vdec creation failed\n");
 				return -ENOMEM;
 			}
 		}
 	}
-
 	return 0;
 }
 

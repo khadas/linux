@@ -324,10 +324,11 @@ struct vdec_s *vdec_create(struct stream_port_s *port,
 			VDEC_TYPE_FRAME_BLOCK :
 			VDEC_TYPE_STREAM_PARSER;
 
-	vdec = kzalloc(sizeof(struct vdec_s), GFP_KERNEL);
+	vdec = vmalloc(sizeof(struct vdec_s));
 
 	/* TBD */
 	if (vdec) {
+		memset(vdec, 0, sizeof(struct vdec_s));
 		vdec->magic = 0x43454456;
 		vdec->id = 0;
 		vdec->type = type;
@@ -895,7 +896,7 @@ int vdec_destroy(struct vdec_s *vdec)
 	vdec_profile_flush(vdec);
 #endif
 
-	kfree(vdec);
+	vfree(vdec);
 
 	atomic_dec(&vdec_core->vdec_nr);
 

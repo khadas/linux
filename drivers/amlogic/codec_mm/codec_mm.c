@@ -182,6 +182,24 @@ static void *codec_mm_extpool_free(struct gen_pool *from_pool,
 }
 
 
+static int codec_mm_valid_mm_locked(struct codec_mm_s *mmhandle)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct codec_mm_s *mem;
+	int have_found = 0;
+
+	if (!list_empty(&mgt->mem_list)) {
+		list_for_each_entry(mem, &mgt->mem_list, list) {
+			if (mem == mmhandle) {
+				have_found =  1;
+				break;
+			}
+		}
+	}
+	return have_found;
+}
+
+
 /*
 have_space:
 1:	can alloced from reserved
@@ -597,6 +615,20 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	return;
 }
 
+void codec_mm_release_with_check(struct codec_mm_s *mem, const char *owner)
+{
+	unsigned long flags;
+	int ret;
+	spin_lock_irqsave(&mem->lock, flags);
+	ret = codec_mm_valid_mm_locked(mem);
+	spin_unlock_irqrestore(&mem->lock, flags);
+	if (ret) {
+		/*for check,*/
+		return codec_mm_release(mem, owner);
+	}
+	return;
+}
+
 void codec_mm_dma_flush(void *vaddr,
 	int size,
 	enum dma_data_direction dir)
@@ -609,11 +641,27 @@ void codec_mm_dma_flush(void *vaddr,
 	return;
 }
 
+
 int codec_mm_request_shared_mem(struct codec_mm_s *mem, const char *owner)
 {
-	if (!mem || atomic_read(&mem->use_cnt) > 7)
-		return -1;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	unsigned long flags;
+	int ret = -1;
+	spin_lock_irqsave(&mgt->lock, flags);
+	if (!codec_mm_valid_mm_locked(mem)) {
+		ret = -2;
+		goto out;
+	}
+	if (atomic_read(&mem->use_cnt) > 7) {
+		ret = -3;
+		goto out;
+	}
+	ret = 0;
 	mem->owner[atomic_inc_return(&mem->use_cnt) - 1] = owner;
+
+out:
+	spin_unlock_irqrestore(&mgt->lock, flags);
+
 	return 0;
 }
 
@@ -634,6 +682,8 @@ static struct codec_mm_s *codec_mm_get_by_val_off(unsigned long val, int off)
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	return want_mem;
 }
+
+
 
 unsigned long codec_mm_alloc_for_dma(const char *owner, int page_cnt,
 		int align2n, int memflags)

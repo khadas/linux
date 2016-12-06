@@ -774,10 +774,14 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 		pr_info("keep exit is skip VPP_VD1_POSTBLEND\n");
 		return 0;
 	}
-	if (cur_dispbuf->type & VIDTYPE_SCATTER) {
+	if (1) {
+		int ret;
 		int old_keep = keep_id;
-		int ret = codec_mm_keeper_mask_keep_mem(cur_dispbuf->mem_handle,
-			MEM_TYPE_CODEC_MM_SCATTER);
+		int type = MEM_TYPE_CODEC_MM;
+		if (cur_dispbuf->type & VIDTYPE_SCATTER)
+			type = MEM_TYPE_CODEC_MM_SCATTER;
+		ret = codec_mm_keeper_mask_keep_mem(cur_dispbuf->mem_handle,
+			type);
 		if (ret > 0) {
 			keep_id = ret;
 			if (old_keep > 0 && keep_id != old_keep) {

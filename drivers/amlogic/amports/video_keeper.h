@@ -17,6 +17,8 @@
 
 #ifndef VIDEO_KEEPER_HEADER___
 #define VIDEO_KEEPER_HEADER___
+#include <linux/amlogic/amports/vframe.h>
+
 void video_keeper_new_frame_notify(void);
 void try_free_keep_video(int flags);
 

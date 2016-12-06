@@ -28,7 +28,7 @@
 #include <linux/workqueue.h>
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
-
+#define KEEP_NAME "keeper"
 #define MAX_KEEP_FRAME 4
 #define START_KEEP_ID 0x9
 #define MAX_KEEP_ID    (INT_MAX - 1)
@@ -74,16 +74,27 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 		pr_err("NULL mem_handle for keeper!!\n");
 		return -2;
 	}
-	if (type != MEM_TYPE_CODEC_MM_SCATTER) {
+	if (type != MEM_TYPE_CODEC_MM_SCATTER &&
+		type != MEM_TYPE_CODEC_MM) {
 		pr_err("not valid type for keeper!!,%d\n", type);
 		return -3;
 	}
-	ret = codec_mm_scatter_inc_for_keeper(mem_handle);
-	if (ret < 0) {
-		pr_err("keeper scatter failed,%d,handle:%p\n", ret, mem_handle);
-		if (codec_mm_get_keep_debug_mode() & 1)
-			codec_mm_dump_all_scatters();
-		return -4;
+	if (type == MEM_TYPE_CODEC_MM_SCATTER) {
+		ret = codec_mm_scatter_inc_for_keeper(mem_handle);
+		if (ret < 0) {
+			pr_err("keeper scatter failed,%d,handle:%p\n",
+				ret, mem_handle);
+			if (codec_mm_get_keep_debug_mode() & 1)
+				codec_mm_dump_all_scatters();
+			return -4;
+		}
+	} else if (type == MEM_TYPE_CODEC_MM) {
+		ret = codec_mm_request_shared_mem(mem_handle, KEEP_NAME);
+		if (ret < 0) {
+			pr_err("keeper codec mm failed,%d,handle:%p\n",
+				ret, mem_handle);
+			return -4;
+		}
 	}
 	spin_lock_irqsave(&mgr->lock, flags);
 	keep_id = mgr->next_id++;
@@ -109,7 +120,10 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 			keep_id = -1;
 	}
 	if (keep_id < 0 || have_samed) {
-		ret = codec_mm_scatter_dec_keeper_user(mem_handle, 0);
+		if (type == MEM_TYPE_CODEC_MM_SCATTER)
+			ret = codec_mm_scatter_dec_keeper_user(mem_handle, 0);
+		else if (type == MEM_TYPE_CODEC_MM)
+			codec_mm_release_with_check(mem_handle, KEEP_NAME);
 		if (keep_id < 0)
 			pr_err("keep mem failed because keep buffer fulled!!!\n");
 	}
@@ -166,7 +180,7 @@ static int codec_mm_keeper_free_keep(int index)
 	if (!mem_handle)
 		return -1;
 	if (type == MEM_TYPE_CODEC_MM)
-		codec_mm_free_for_dma("mem_keeper", (unsigned long)mem_handle);
+		codec_mm_release_with_check(mem_handle, KEEP_NAME);
 	else if (type == MEM_TYPE_CODEC_MM_SCATTER) {
 		struct codec_mm_scatter *sc = mem_handle;
 		codec_mm_scatter_dec_keeper_user(sc, 0);

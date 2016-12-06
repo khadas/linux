@@ -110,9 +110,8 @@ int decoder_mmu_box_alloc_idx(
 	int i;
 
 	if (!box || idx < 0 || idx >= box->max_sc_num) {
-		pr_err("can't alloc mmu box(%p),idx:%d in (%d-%d)\n",
-			box, idx, 0,
-			box->max_sc_num - 1);
+		pr_err("can't alloc mmu box(%p),idx:%d\n",
+			box, idx);
 		return -1;
 	}
 	mutex_lock(&box->mutex);
