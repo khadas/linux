@@ -27,6 +27,7 @@
 #include "ge2d_log.h"
 #include "ge2d_io.h"
 #include "ge2d_reg.h"
+
 static const  unsigned int filt_coef_gau1[] = { /* gau1+phase */
 	0x20402000,
 	0x203f2001,
@@ -613,6 +614,7 @@ void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg)
 		cfg->matrix_sat_in_en = 0;
 		cfg->matrix_minus_16_ctrl = 0;
 		cfg->matrix_sign_ctrl = 0;
+
 	} else if (cfg->use_matrix_default == MATRIX_FULL_RANGE_YCC_TO_RGB) {
 		/* ycbcr (0-255) to rgb(0-255) */
 		/* 1,     0,      1.402 */
@@ -633,6 +635,22 @@ void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg)
 		cfg->matrix_sat_in_en = 0;
 		cfg->matrix_minus_16_ctrl = 0;
 		cfg->matrix_sign_ctrl = 0x3;
+	} else if (cfg->use_matrix_default == MATRIX_RGB_TO_FULL_RANGE_YCC) {
+		cfg->matrix_coef[0] = 0x132;
+		cfg->matrix_coef[1] = 0x259;
+		cfg->matrix_coef[2] = 0x75;
+		cfg->matrix_coef[3] = 0x1f53;
+		cfg->matrix_coef[4] = 0x1ead;
+		cfg->matrix_coef[5] = 0x200;
+		cfg->matrix_coef[6] = 0x200;
+		cfg->matrix_coef[7] = 0x1e53;
+		cfg->matrix_coef[8] = 0x1fad;
+		cfg->matrix_offset[0] = 0;
+		cfg->matrix_offset[1] = 128;
+		cfg->matrix_offset[2] = 128;
+		cfg->matrix_sat_in_en = 0;
+		cfg->matrix_minus_16_ctrl = 0;
+		cfg->matrix_sign_ctrl = 0;
 	}
 
 	if (cfg->matrix_minus_16_ctrl)

@@ -124,6 +124,7 @@
 #define MATRIX_YCC_TO_RGB               1
 #define MATRIX_RGB_TO_YCC               2
 #define MATRIX_FULL_RANGE_YCC_TO_RGB    3
+#define MATRIX_RGB_TO_FULL_RANGE_YCC    4
 
 
 #define GE2D_ENDIAN_SHIFT	24
@@ -206,6 +207,8 @@
 #define GE2D_FORMAT_DEEP_COLOR   0x40000
 #define GE2D_FORMAT_YUV                 0x20000
 #define GE2D_FORMAT_COMP_RANGE          0x10000
+
+
 /*bit8(2)  format   bi6(2) mode_8b_sel  bit5(1)lut_en   bit2 sep_en*/
 /*M  seperate block S one block.*/
 

@@ -1435,9 +1435,9 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 
 	ge2d_config->src_para.left = 0;
 
-	ge2d_config->src_para.width = frame_width;
+	ge2d_config->src_para.width = picdec_device.origin_width;
 
-	ge2d_config->src_para.height = frame_height;
+	ge2d_config->src_para.height = picdec_device.origin_height;
 
 	/* pr_info("vf_width is %d , vf_height is %d\n",
 	   vf->width ,vf->height); */
