@@ -1118,7 +1118,7 @@ void hdmirx_hw_config(void)
 	hdmirx_wr_top(TOP_INTR_MASKN, 0);
 	control_reset();
 	hdmirx_irq_close();
-	/* hdmi_rx_ctrl_edid_update(); */
+	hdmi_rx_ctrl_edid_update();
 	if (hdcp_enable)
 		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
 	else

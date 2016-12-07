@@ -31,7 +31,7 @@
 #define RX_VER0 "Ref.2016/11/25"
 #define RX_VER1 "Ref.2016/11/21"
 #define RX_VER2 "Ref.2016/09/27"
-#define RX_VER3 "Ref.2016/12/01"
+#define RX_VER3 "Ref.2016/12/07"
 
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))

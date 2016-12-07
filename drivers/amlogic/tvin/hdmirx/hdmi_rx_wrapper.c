@@ -2464,9 +2464,15 @@ void hdmirx_hw_monitor(void)
 		rx_pr("HPD_LOW\n");
 		break;
 	case FSM_HPD_HIGH:
+		hpd_wait_cnt++;
 		if ((0 == get_cur_hpd_sts()) &&
-			(++hpd_wait_cnt <= hpd_wait_max))
+			(hpd_wait_cnt <= hpd_wait_max))
 			break;
+		if (rx.boot_flag) {
+			if (hpd_wait_cnt <= hpd_wait_max*10)
+				break;
+			rx.boot_flag = FALSE;
+		}
 		hpd_wait_cnt = 0;
 		rx.scdc_tmds_cfg = 0;
 		pre_port = rx.port;
@@ -4193,7 +4199,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		rx.state = FSM_HPD_LOW;
 		pre_port = rx.port;
 		if (rx.boot_flag) {
-			rx.boot_flag = FALSE;
+			/* rx.boot_flag = FALSE; */
 			hdmirx_set_hpd(rx.port, 1);
 		} else
 			hdmirx_set_hpd(rx.port, 0);
