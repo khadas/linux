@@ -169,13 +169,6 @@ static int aml_i2s_audio_type_get_enum(
 	return 0;
 }
 
-static int aml_i2s_audio_type_set_enum(
-	struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	return 0;
-}
-
 /* spdif in audio format detect: LPCM or NONE-LPCM */
 struct sppdif_audio_info {
 	unsigned char aud_type;
@@ -321,26 +314,6 @@ static int aml_hardware_resample_set_enum(
 	return 0;
 }
 
-static const char *const output_swap_texts[] = { "L/R", "L/L", "R/R", "R/L" };
-
-static const struct soc_enum output_swap_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(output_swap_texts),
-			output_swap_texts);
-
-static int aml_output_swap_get_enum(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.enumerated.item[0] = read_i2s_mute_swap_reg();
-	return 0;
-}
-
-static int aml_output_swap_set_enum(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	audio_i2s_swap_left_right(ucontrol->value.enumerated.item[0]);
-	return 0;
-}
-
 static const struct snd_soc_dapm_widget aml_asoc_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINEIN"),
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
@@ -408,6 +381,29 @@ static int set_internal_EQ_volume(unsigned master_volume,
 	return 0;
 }
 
+static int Speaker_Channel_Mask;
+static const char *const Speaker_Channel_Mask_texts[] = {
+	"Channel0/1", "Channel2/3", "Channe4/5", "Channe6/7" };
+
+static const struct soc_enum Speaker_Channel_Mask_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+			ARRAY_SIZE(Speaker_Channel_Mask_texts),
+			Speaker_Channel_Mask_texts);
+
+static int aml_Speaker_Channel_Mask_get_enum(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = Speaker_Channel_Mask;
+	return 0;
+}
+
+static int aml_Speaker_Channel_Mask_set_enum(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	Speaker_Channel_Mask = ucontrol->value.enumerated.item[0];
+	return 0;
+}
+
 static const struct snd_kcontrol_new av_controls[] = {
 	SOC_ENUM_EXT("AudioIn Switch",
 			 audio_in_switch_enum,
@@ -424,7 +420,7 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 	SOC_ENUM_EXT("I2SIN Audio Type",
 		     i2s_audio_type_enum,
 		     aml_i2s_audio_type_get_enum,
-		     aml_i2s_audio_type_set_enum),
+		     NULL),
 
 	SOC_ENUM_EXT("SPDIFIN Audio Type",
 		     spdif_audio_type_enum,
@@ -436,10 +432,10 @@ static const struct snd_kcontrol_new aml_g9tv_controls[] = {
 		     aml_hardware_resample_get_enum,
 		     aml_hardware_resample_set_enum),
 
-	SOC_ENUM_EXT("Output Swap",
-		     output_swap_enum,
-		     aml_output_swap_get_enum,
-		     aml_output_swap_set_enum),
+	SOC_ENUM_EXT("Speaker Channel Mask",
+		     Speaker_Channel_Mask_enum,
+		     aml_Speaker_Channel_Mask_get_enum,
+		     aml_Speaker_Channel_Mask_set_enum),
 };
 
 static int set_HW_resample_pause_thd(unsigned int thd)
@@ -1317,6 +1313,7 @@ static int aml_aux_dev_parse_of(struct snd_soc_card *card)
 		}
 		codec_get_of_pdata(pdata, child);
 		client->dev.platform_data = pdata;
+		Speaker_Channel_Mask = 1;
 	}
 	return 0;
 }

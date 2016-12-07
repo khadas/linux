@@ -101,28 +101,32 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 #endif
 
 	if (channel == 8) {
+		/*select cts_aoclkx2_int as AIU clk to hdmi_tx_audio_mster_clk*/
 		aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 1 << 6, 1 << 6);
+		/*unmute all channels*/
+		aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0xff << 8, 0 << 8);
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
 			(addr & 0xffffff00) + (size & 0xffffff00) - 256);
 #else
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
-			       (addr & 0xffffffc0) + (size & 0xffffffc0) - 256);
+			(addr & 0xffffffc0) + (size & 0xffffffc0) - 256);
 #endif
 	} else {
+		/*select cts_clk_i958 as AIU clk to hdmi_tx_audio_mster_clk*/
 		aml_cbus_update_bits(AIU_CLK_CTRL_MORE, 1 << 6, 0 << 6);
+		/*unmute 0/1 channel*/
+		aml_cbus_update_bits(AIU_I2S_MUTE_SWAP, 0xff << 8, 0xfc << 8);
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
 			(addr & 0xffffff00) + (size & 0xffffff00) - 256);
 #else
 		aml_write_cbus(AIU_MEM_I2S_END_PTR,
-			       (addr & 0xffffffc0) + (size & 0xffffffc0) - 64);
+			(addr & 0xffffffc0) + (size & 0xffffffc0) - 64);
 #endif
 	}
 	/* Hold I2S */
 	aml_write_cbus(AIU_I2S_MISC, 0x0004);
-	/* No mute, no swap */
-	/*aml_write_cbus(AIU_I2S_MUTE_SWAP, 0x0000);*/
 	/* Release hold and force audio data to left or right */
 	aml_write_cbus(AIU_I2S_MISC, 0x0010);
 
@@ -130,25 +134,25 @@ void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel)
 		pr_info("%s channel == 8\n", __func__);
 		/* [31:16] IRQ block. */
 		aml_write_cbus(AIU_MEM_I2S_MASKS, (24 << 16) |
-		/*  [15: 8] chan_mem_mask.
+		/* [15: 8] chan_mem_mask.
 		*  Each bit indicates which channels exist in memory
 		*/
-			       (0xff << 8) |
-		/*  [ 7: 0] chan_rd_mask.
+				   (0xff << 8) |
+		/* [ 7: 0] chan_rd_mask.
 		*  Each bit indicates which channels are READ from memory
 		*/
-			       (0xff << 0));
+				   (0xff << 0));
 	} else {
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 		/* [31:16] IRQ block. */
 		aml_write_cbus(AIU_MEM_I2S_MASKS, (24 << 16) |
-			(0xff << 8) |
-			(0xff << 0));
+					(0xff << 8) |
+					(0xff << 0));
 #else
 		/* [31:16] IRQ block. */
 		aml_write_cbus(AIU_MEM_I2S_MASKS, (24 << 16) |
-			       (0x3 << 8) |
-			       (0x3 << 0));
+				   (0x3 << 8) |
+				   (0x3 << 0));
 #endif
 	}
 	/* 16 bit PCM mode */
@@ -178,8 +182,8 @@ void audio_set_958outbuf(u32 addr, u32 size, int flag)
 			/* this is for 16bit 2 channel */
 #ifdef CONFIG_SND_AML_SPLIT_MODE
 			aml_write_cbus(AIU_MEM_IEC958_END_PTR,
-				(addr & 0xffffffc0) +
-				(size & 0xffffffc0) - 8);
+				       (addr & 0xffffffc0) +
+				       (size & 0xffffffc0) - 8);
 #else
 			aml_write_cbus(AIU_MEM_IEC958_END_PTR,
 				       (addr & 0xffffffc0) +
@@ -953,7 +957,7 @@ unsigned int read_i2s_mute_swap_reg(void)
 
 void audio_i2s_swap_left_right(unsigned int flag)
 {
-/*only LPCM output can set aiu hw channel swap*/
+    /*only LPCM output can set aiu hw channel swap*/
 	if (ENABLE_IEC958 && (IEC958_mode_codec == 0 || IEC958_mode_codec == 9))
 		aml_cbus_update_bits(AIU_958_CTRL, 0x3 << 1, flag << 1);
 

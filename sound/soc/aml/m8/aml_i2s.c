@@ -1071,6 +1071,26 @@ static int aml_i2s_resume(struct snd_soc_dai *dai)
 #define aml_i2s_resume	NULL
 #endif
 
+static const char *const output_swap_texts[] = { "L/R", "L/L", "R/R", "R/L" };
+
+static const struct soc_enum output_swap_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(output_swap_texts),
+			output_swap_texts);
+
+static int aml_output_swap_get_enum(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = read_i2s_mute_swap_reg();
+	return 0;
+}
+
+static int aml_output_swap_set_enum(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	audio_i2s_swap_left_right(ucontrol->value.enumerated.item[0]);
+	return 0;
+}
+
 bool aml_audio_i2s_mute_flag = 0;
 static int aml_audio_set_i2s_mute(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
@@ -1095,7 +1115,13 @@ static const struct snd_kcontrol_new aml_i2s_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Audio i2s mute",
 				0, aml_audio_get_i2s_mute,
 				aml_audio_set_i2s_mute),
+
+	SOC_ENUM_EXT("Output Swap",
+				output_swap_enum,
+				aml_output_swap_get_enum,
+				aml_output_swap_set_enum),
 };
+
 static int aml_i2s_probe(struct snd_soc_platform *platform)
 {
 	return snd_soc_add_platform_controls(platform,
