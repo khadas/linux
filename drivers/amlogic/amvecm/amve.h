@@ -103,10 +103,10 @@ extern void ve_new_dnlp_param_update(void);
 extern void ve_ogo_param_update(void);
 extern void am_set_regmap(struct am_regs_s *p);
 extern void sharpness_process(struct vframe_s *vf);
-extern void amvecm_bricon_process(unsigned int bri_val,
-				unsigned int cont_val, struct vframe_s *vf);
-extern void amvecm_color_process(unsigned int sat_val,
-	unsigned int hue_val, struct vframe_s *vf);
+extern void amvecm_bricon_process(signed int bri_val,
+				signed int cont_val, struct vframe_s *vf);
+extern void amvecm_color_process(signed int sat_val,
+	signed int hue_val, struct vframe_s *vf);
 extern void amvecm_3d_black_process(void);
 extern void amvecm_3d_sync_process(void);
 extern void amve_vlock_process(struct vframe_s *vf);

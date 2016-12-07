@@ -167,8 +167,8 @@ struct hdr_metadata_info_s {
 	u32 luminance[2];		/* max/min lumin, normalized 10000 */
 };
 
-extern void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
-	unsigned int hue_val, struct vframe_s *vf);
+extern void vpp_vd_adj1_saturation_hue(signed int sat_val,
+	signed int hue_val, struct vframe_s *vf);
 
 extern int metadata_read_u32(uint32_t *value);
 extern int metadata_wait(struct vframe_s *vf);

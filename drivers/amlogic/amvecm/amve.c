@@ -33,7 +33,7 @@
 
 #define pr_amve_dbg(fmt, args...)\
 	do {\
-		if (dnlp_debug)\
+		if (dnlp_debug&0x1)\
 			pr_info("AMVE: " fmt, ## args);\
 	} while (0)\
 /* #define pr_amve_error(fmt, args...) */
@@ -4860,13 +4860,16 @@ static void vd1_brightness_contrast(signed int brightness,
 	WRITE_VPP_REG(VPP_MATRIX_CTRL         , ori);
 }
 
-void amvecm_bricon_process(unsigned int bri_val,
-		unsigned int cont_val, struct vframe_s *vf)
+void amvecm_bricon_process(signed int bri_val,
+		signed int cont_val, struct vframe_s *vf)
 {
 	if (vecm_latch_flag & FLAG_VADJ1_BRI) {
 		vecm_latch_flag &= ~FLAG_VADJ1_BRI;
 		vpp_vd_adj1_brightness(bri_val, vf);
 		pr_amve_dbg("\n[amve..] set vd1_brightness OK!!!\n");
+		if (dnlp_debug&0x100)
+			pr_info("\n[amve..]%s :brightness:%d!!!\n",
+				__func__, bri_val);
 	}
 
 	if (vecm_latch_flag & FLAG_VADJ1_CON) {
@@ -4876,6 +4879,9 @@ void amvecm_bricon_process(unsigned int bri_val,
 		else
 			vpp_vd_adj1_contrast(cont_val, vf);
 		pr_amve_dbg("\n[amve..] set vd1_contrast OK!!!\n");
+		if (dnlp_debug&0x100)
+			pr_info("\n[amve..]%s :contrast:%d!!!\n",
+				__func__, cont_val);
 	}
 
 	if (0) { /* vecm_latch_flag & FLAG_BRI_CON) { */
@@ -4886,13 +4892,15 @@ void amvecm_bricon_process(unsigned int bri_val,
 }
 /* brightness/contrast adjust process end */
 
-void amvecm_color_process(unsigned int sat_val,
-		unsigned int hue_val, struct vframe_s *vf)
+void amvecm_color_process(signed int sat_val,
+		signed int hue_val, struct vframe_s *vf)
 {
 	if (vecm_latch_flag & FLAG_VADJ1_COLOR) {
 		vecm_latch_flag &= ~FLAG_VADJ1_COLOR;
 		vpp_vd_adj1_saturation_hue(sat_val, hue_val, vf);
-		pr_amve_dbg("\n[amve..] set vpp_vd_adj1_saturation_hue OK!!!\n");
+		if (dnlp_debug&0x100)
+			pr_info("\n[amve..]%s :saturation:%d,hue:%d!!!\n",
+				__func__, sat_val, hue_val);
 	}
 }
 /* saturation/hue adjust process end */

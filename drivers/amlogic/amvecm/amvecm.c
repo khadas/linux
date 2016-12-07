@@ -1486,8 +1486,8 @@ static int parse_para_pq(const char *para, int para_num, int *result)
 	return count;
 }
 
-void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
-	unsigned int hue_val, struct vframe_s *vf)
+void vpp_vd_adj1_saturation_hue(signed int sat_val,
+	signed int hue_val, struct vframe_s *vf)
 {
 	int i, ma, mb, mab, mc, md;
 	int hue_cos[] = {
