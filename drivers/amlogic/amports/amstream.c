@@ -111,6 +111,8 @@ static int def_4k_vstreambuf_sizeM =
 static int def_vstreambuf_sizeM =
 	(DEFAULT_VIDEO_BUFFER_SIZE >> 20);
 static int debugflags;
+static int slow_input;
+
 
 
 
@@ -1089,6 +1091,10 @@ static ssize_t amstream_vbuf_write(struct file *file, const char *buf,
 		r = drm_write(file, pbuf, buf, count);
 	else
 		r = esparser_write(file, pbuf, buf, count);
+	if (slow_input) {
+		pr_info("slow_input: es codec write size %x\n", r);
+		msleep(3000);
+	}
 #ifdef DATA_DEBUG
 	debug_file_write(buf, r);
 #endif
@@ -1154,6 +1160,10 @@ static ssize_t amstream_mpts_write(struct file *file, const char *buf,
 		r = drm_tswrite(file, pvbuf, pabuf, buf, count);
 	else
 		r = tsdemux_write(file, pvbuf, pabuf, buf, count);
+	if (slow_input) {
+		pr_info("slow_input: ts codec write size %x\n", r);
+		msleep(3000);
+	}
 	return r;
 }
 
@@ -3586,6 +3596,8 @@ module_param(def_vstreambuf_sizeM, uint, 0664);
 MODULE_PARM_DESC(def_vstreambuf_sizeM,
 	"\nDefault video Stream buf size for < 1080p MByptes\n");
 
+module_param(slow_input, uint, 0664);
+MODULE_PARM_DESC(slow_input, "\n amstream slow_input\n");
 
 
 MODULE_DESCRIPTION("AMLOGIC streaming port driver");
