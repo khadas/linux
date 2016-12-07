@@ -92,8 +92,6 @@ static unsigned char osd_ext_vf_prov_init;
 static int g_vf_visual_width;
 static int g_vf_width;
 static int g_vf_height;
-static int g_rotation_width;
-static int g_rotation_height;
 
 static unsigned int filt_coef0[] = { /* bicubic */
 	0x00800000,
@@ -452,19 +450,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	unsigned int odd_even;
 	unsigned int scan_line_number = 0;
 	unsigned char output_type = 0;
-	u32 data32 = 0;
-
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8) {
-		if (osd_ext_hw.rotate[OSD1].on_off > 0 &&
-				osd_ext_hw.rotate[OSD1].angle > 0) {
-			data32 = ((osd_ext_hw.rotation_pandata[OSD1].y_start +
-				   osd_ext_hw.pandata[OSD1].y_start) & 0x1fff)
-				 | ((osd_ext_hw.rotation_pandata[OSD1].y_end +
-					osd_ext_hw.pandata[OSD1].y_start) &
-						 0x1fff) << 16;
-			osd_reg_write(VPU_PROT1_Y_START_END, data32);
-		}
-	}
 
 	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0xc;
 	osd_ext_hw.scan_mode = SCAN_MODE_PROGRESSIVE;
@@ -536,10 +521,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	walk_through_update_list();
 	osd_ext_update_3d_mode(osd_ext_hw.mode_3d[OSD1].enable,
 			       osd_ext_hw.mode_3d[OSD2].enable);
-
-	if (osd_ext_hw.rotate[OSD1].on_off > 0 &&
-			osd_ext_hw.rotate[OSD1].angle > 0)
-		osd_reg_write(VIU2_OSD1_BLK0_CFG_W2, data32);
 
 	if (!vsync_hit) {
 #ifdef FIQ_VSYNC
@@ -716,29 +697,15 @@ void osd_ext_setup(struct osd_ctl_s *osd_ext_ctl,
 	disp_data.y_start = disp_start_y;
 
 	if (likely(osd_ext_hw.free_scale_enable[OSD1] && index == OSD1)) {
-		if (!osd_ext_hw.free_scale_mode[OSD1]) {
-			pan_data.x_end = xoffset + g_vf_visual_width;
-			pan_data.y_end = yoffset + g_vf_height;
-			disp_data.x_end = disp_start_x + g_vf_width;
-			disp_data.y_end = disp_start_y + g_vf_height;
-		} else {
-			pan_data.x_end = xoffset + (disp_end_x - disp_start_x);
-			pan_data.y_end = yoffset + (disp_end_y - disp_start_y);
-			disp_data.x_end = disp_end_x;
-			disp_data.y_end = disp_end_y;
-		}
+		pan_data.x_end = xoffset + (disp_end_x - disp_start_x);
+		pan_data.y_end = yoffset + (disp_end_y - disp_start_y);
+		disp_data.x_end = disp_end_x;
+		disp_data.y_end = disp_end_y;
 	} else {
 		pan_data.x_end = xoffset + (disp_end_x - disp_start_x);
 		pan_data.y_end = yoffset + (disp_end_y - disp_start_y);
-
-		if (likely(osd_ext_hw.rotate[index].on_off &&
-			   osd_ext_hw.rotate[index].on_off > 0)) {
-			disp_data.x_end = disp_start_x + g_rotation_height;
-			disp_data.y_end = disp_start_y + g_rotation_width;
-		} else {
-			disp_data.x_end = disp_end_x;
-			disp_data.y_end = disp_end_y;
-		}
+		disp_data.x_end = disp_end_x;
+		disp_data.y_end = disp_end_y;
 	}
 
 	if (osd_ext_hw.fb_gem[index].addr != fbmem ||
@@ -1221,108 +1188,6 @@ void osd_ext_enable_3d_mode_hw(int index, int enable)
 	}
 }
 
-void osd_ext_set_rotate_angle_hw(u32 index, u32 angle)
-{
-	osd_ext_hw.rotate[index].angle = angle;
-	add_to_update_list(index, DISP_OSD_ROTATE);
-	osd_ext_wait_vsync_hw();
-}
-
-void osd_ext_get_rotate_angle_hw(u32 index, u32 *angle)
-{
-	*angle = osd_ext_hw.rotate[index].angle;
-}
-
-void osd_ext_set_rotate_on_hw(u32 index, u32 on_off)
-{
-	static struct pandata_s save_disp_data = {0, 0, 0, 0};
-	static struct pandata_s save_disp_data2 = {0, 0, 0, 0};
-
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_M8)
-		return;
-
-	osd_ext_hw.rotate[index].on_off = on_off;
-
-	if (on_off) {
-		if (index == OSD1)
-			memcpy(&save_disp_data, &osd_ext_hw.dispdata[index],
-					sizeof(struct pandata_s));
-		else if (index == OSD2)
-			memcpy(&save_disp_data2, &osd_ext_hw.dispdata[index],
-					sizeof(struct pandata_s));
-
-		g_rotation_width = osd_ext_hw.rotation_pandata[index].x_end -
-				   osd_ext_hw.rotation_pandata[index].x_start;
-		g_rotation_height = osd_ext_hw.rotation_pandata[index].y_end -
-				    osd_ext_hw.rotation_pandata[index].y_start;
-		osd_ext_hw.dispdata[index].x_end =
-			osd_ext_hw.dispdata[OSD1].x_start + g_rotation_height;
-		osd_ext_hw.dispdata[index].y_end =
-			osd_ext_hw.dispdata[OSD1].y_start + g_rotation_width;
-	} else {
-		osd_reg_set_mask(VPU_SW_RESET, 1 << 8);
-		osd_reg_clr_mask(VPU_SW_RESET, 1 << 8);
-
-		if (index == OSD1) {
-			osd_reg_set_mask(VIU2_SW_RESET, 1 << 0);
-			osd_reg_clr_mask(VIU2_SW_RESET, 1 << 0);
-			osd_reg_set_mask(VIU2_OSD1_FIFO_CTRL_STAT, 1 << 0);
-			memcpy(&osd_ext_hw.dispdata[index], &save_disp_data,
-					sizeof(struct pandata_s));
-		} else {
-			osd_reg_set_mask(VIU2_SW_RESET, 1 << 1);
-			osd_reg_clr_mask(VIU2_SW_RESET, 1 << 1);
-			osd_reg_set_mask(VIU2_OSD1_FIFO_CTRL_STAT, 1 << 0);
-			memcpy(&osd_ext_hw.dispdata[index], &save_disp_data2,
-					sizeof(struct pandata_s));
-		}
-	}
-
-	add_to_update_list(index, OSD_COLOR_MODE);
-	add_to_update_list(index, DISP_GEOMETRY);
-	add_to_update_list(index, DISP_OSD_ROTATE);
-	osd_ext_wait_vsync_hw();
-}
-
-void osd_ext_get_rotate_on_hw(u32 index, u32 *on_off)
-{
-	*on_off = osd_ext_hw.rotate[index].on_off;
-}
-
-
-void osd_ext_set_prot_canvas_hw(u32 index, s32 x_start, s32 y_start, s32 x_end,
-				s32 y_end)
-{
-	osd_ext_hw.rotation_pandata[index].x_start = x_start;
-	osd_ext_hw.rotation_pandata[index].y_start = y_start;
-	osd_ext_hw.rotation_pandata[index].x_end = x_end;
-	osd_ext_hw.rotation_pandata[index].y_end = y_end;
-
-	if (osd_ext_hw.rotate[index].on_off &&
-			osd_ext_hw.rotate[index].angle > 0) {
-		g_rotation_width = osd_ext_hw.rotation_pandata[index].x_end -
-				   osd_ext_hw.rotation_pandata[index].x_start;
-		g_rotation_height = osd_ext_hw.rotation_pandata[index].y_end -
-				    osd_ext_hw.rotation_pandata[index].y_start;
-		osd_ext_hw.dispdata[index].x_end =
-			osd_ext_hw.dispdata[OSD1].x_start + g_rotation_height;
-		osd_ext_hw.dispdata[index].y_end =
-			osd_ext_hw.dispdata[OSD1].y_start + g_rotation_width;
-
-		add_to_update_list(index, DISP_GEOMETRY);
-		add_to_update_list(index, OSD_COLOR_MODE);
-	}
-}
-
-void osd_ext_get_prot_canvas_hw(u32 index, s32 *x_start, s32 *y_start,
-				s32 *x_end, s32 *y_end)
-{
-	*x_start = osd_ext_hw.rotation_pandata[index].x_start;
-	*y_start = osd_ext_hw.rotation_pandata[index].y_start;
-	*x_end = osd_ext_hw.rotation_pandata[index].x_end;
-	*y_end = osd_ext_hw.rotation_pandata[index].y_end;
-}
-
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 void osd_ext_pan_display_fence(struct osd_fence_map_s *fence_map)
 {
@@ -1726,9 +1591,8 @@ static void osd1_update_color_mode(void)
 		data32 |= osd_reg_read(VIU2_OSD1_BLK0_CFG_W0) & 0x30007040;
 		data32 |= osd_ext_hw.fb_gem[OSD1].canvas_idx << 16;
 
-		if (!osd_ext_hw.rotate[OSD1].on_off)
-			data32 |= OSD_DATA_LITTLE_ENDIAN << 15;
-
+		/* if (!osd_ext_hw.rotate[OSD1].on_off) */
+		data32 |= OSD_DATA_LITTLE_ENDIAN << 15;
 		data32 |= osd_ext_hw.color_info[OSD1]->hw_colormat << 2;
 
 		if (osd_ext_hw.color_info[OSD1]->color_index <
@@ -1755,8 +1619,8 @@ static void osd2_update_color_mode(void)
 		data32 |= osd_reg_read(VIU2_OSD2_BLK0_CFG_W0) & 0x30007040;
 		data32 |= osd_ext_hw.fb_gem[OSD2].canvas_idx << 16;
 
-		if (!osd_ext_hw.rotate[OSD1].on_off)
-			data32 |= OSD_DATA_LITTLE_ENDIAN << 15;
+		/* if (!osd_ext_hw.rotate[OSD1].on_off) */
+		data32 |= OSD_DATA_LITTLE_ENDIAN << 15;
 
 		data32 |= osd_ext_hw.color_info[OSD2]->hw_colormat << 2;
 
@@ -1852,155 +1716,12 @@ static void osd2_update_enable(void)
 
 static void osd1_update_disp_osd_rotate(void)
 {
-	unsigned char x_rev = 0, y_rev = 0;
-	unsigned char bpp = 32;
-	unsigned int x_start;
-	unsigned int x_end;
-	unsigned int y_start;
-	unsigned int y_end;
-	unsigned int y_len_m1;
-
-	if (osd_ext_hw.color_info[OSD1]->color_index <= COLOR_INDEX_08_PAL256)
-		bpp = 8;
-	else if (osd_ext_hw.color_info[OSD1]->color_index <= COLOR_INDEX_16_565)
-		bpp = 16;
-	else if (osd_ext_hw.color_info[OSD1]->color_index <= COLOR_INDEX_24_RGB)
-		bpp = 24;
-	else if (osd_ext_hw.color_info[OSD1]->color_index <=
-			COLOR_INDEX_32_ARGB)
-		bpp = 32;
-
-	switch (osd_ext_hw.rotate[OSD1].angle) {
-	case 0:/* clockwise H flip (dst ) */
-		x_rev = 0;
-		y_rev = 0;
-		break;/* clockwise */
-
-	case 1:
-		y_rev = 1;
-		break;
-
-	case 2:/* anti-clockwise */
-		x_rev = 1;
-		break;
-
-	case 3:/* anti-clockwise H flip(dst) */
-		x_rev = 1;
-		y_rev = 1;
-		break;
-	}
-
-	x_start = osd_ext_hw.rotation_pandata[OSD1].x_start;
-	x_end = osd_ext_hw.rotation_pandata[OSD1].x_end;
-	y_start = osd_ext_hw.rotation_pandata[OSD1].y_start;
-	y_end = osd_ext_hw.rotation_pandata[OSD1].y_end;
-	y_len_m1 = y_end - y_start;
-
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8) {
-		osd_ext_set_prot(
-			x_rev,
-			y_rev,
-			(bpp >> 3) - 1, /* bytes_per_pixel, */
-			0, /* conv_422to444, */
-			OSD_DATA_LITTLE_ENDIAN, /* little_endian, */
-			HOLD_LINES, /* hold_lines, */
-			x_start,
-			x_end,
-			y_start,
-			y_end,
-			y_len_m1,
-			Y_STEP,
-			PAT_START_PTR,
-			PAT_END_PTR,
-			PAT_VAL,
-			osd_ext_hw.fb_gem[OSD1].canvas_idx,
-			CID_VALUE,
-			CID_MODE,
-			CUGT, /* urgent bit */
-			REQ_ONOFF_EN,
-			REQ_ON_MAX,
-			REQ_OFF_MIN,
-			OSD1,
-			osd_ext_hw.rotate[OSD1].on_off);
-		remove_from_update_list(OSD1, DISP_OSD_ROTATE);
-	}
+	remove_from_update_list(OSD1, DISP_OSD_ROTATE);
 }
 
 static void osd2_update_disp_osd_rotate(void)
 {
-	unsigned char	x_rev = 0, y_rev = 0;
-	unsigned char	bpp = 32;
-	unsigned int	x_start;
-	unsigned int	x_end;
-	unsigned int	y_start;
-	unsigned int	y_end;
-	unsigned int	y_len_m1;
-
-	if (osd_ext_hw.color_info[OSD2]->color_index <= COLOR_INDEX_08_PAL256)
-		bpp = 8;
-	else if (osd_ext_hw.color_info[OSD2]->color_index <= COLOR_INDEX_16_565)
-		bpp = 16;
-	else if (osd_ext_hw.color_info[OSD2]->color_index <= COLOR_INDEX_24_RGB)
-		bpp = 24;
-	else if (osd_ext_hw.color_info[OSD2]->color_index <=
-			COLOR_INDEX_32_ARGB)
-		bpp = 32;
-
-	switch (osd_ext_hw.rotate[OSD2].angle) {
-	case 0:/* clockwise H flip (dst ) */
-		x_rev = 0;
-		y_rev = 0;
-		break;/* clockwise */
-
-	case 1:
-		y_rev = 1;
-		break;
-
-	case 2:/* anti-clockwise */
-		x_rev = 1;
-		break;
-
-	case 3:/* anti-clockwise H flip(dst) */
-		x_rev = 1;
-		y_rev = 1;
-		break;
-	}
-
-	x_start = osd_ext_hw.rotation_pandata[OSD2].x_start;
-	x_end = osd_ext_hw.rotation_pandata[OSD2].x_end;
-	y_start = osd_ext_hw.rotation_pandata[OSD2].y_start;
-	y_end = osd_ext_hw.rotation_pandata[OSD2].y_end;
-	y_len_m1 = y_end - y_start;
-
-	/* #if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8 */
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_M8) {
-		osd_ext_set_prot(
-			x_rev,
-			y_rev,
-			(bpp >> 3) - 1, /* bytes_per_pixel, */
-			0, /* conv_422to444, */
-			OSD_DATA_LITTLE_ENDIAN, /* little_endian, */
-			HOLD_LINES, /* hold_lines, */
-			x_start,
-			x_end,
-			y_start,
-			y_end,
-			y_len_m1,
-			Y_STEP,
-			PAT_START_PTR,
-			PAT_END_PTR,
-			PAT_VAL,
-			osd_ext_hw.fb_gem[OSD2].canvas_idx,
-			CID_VALUE,
-			CID_MODE,
-			CUGT, /* urgent bit */
-			REQ_ONOFF_EN,
-			REQ_ON_MAX,
-			REQ_OFF_MIN,
-			OSD2,
-			osd_ext_hw.rotate[OSD2].on_off);
-		remove_from_update_list(OSD2, DISP_OSD_ROTATE);
-	}
+	remove_from_update_list(OSD2, DISP_OSD_ROTATE);
 }
 
 static void osd1_update_color_key(void)
@@ -2315,35 +2036,20 @@ static void osd1_update_disp_geometry(void)
 				HW_OSD_BLOCK_ENABLE_MASK);
 		osd_reg_write(VIU2_OSD1_CTRL_STAT, data32);
 	} else {
-		if (osd_ext_hw.rotate[OSD1].on_off > 0 &&
-				osd_ext_hw.rotate[OSD1].angle > 0) {
-			data32 = (osd_ext_hw.dispdata[OSD1].x_start & 0xfff) |
-				((osd_ext_hw.dispdata[OSD1].x_start +
-				  g_rotation_height) & 0xfff) << 16;
-			osd_reg_write(VIU2_OSD1_BLK0_CFG_W3, data32);
-			data32 = (osd_ext_hw.dispdata[OSD1].y_start & 0xfff) |
-				((osd_ext_hw.dispdata[OSD1].y_start +
-				  g_rotation_width) & 0xfff) << 16;
-			osd_reg_write(VIU2_OSD1_BLK0_CFG_W4, data32);
-		} else {
-			data32 = (osd_ext_hw.dispdata[OSD1].x_start & 0xfff) |
-			    (osd_ext_hw.dispdata[OSD1].x_end & 0xfff) << 16;
-			osd_reg_write(VIU2_OSD1_BLK0_CFG_W3, data32);
-
-			if (osd_ext_hw.scan_mode == SCAN_MODE_INTERLACE)
-				data32 = ((osd_ext_hw.dispdata[OSD1].y_start >>
-						1) & 0xfff)
-					| ((((osd_ext_hw.dispdata[OSD1].y_end +
-						1) >> 1) - 1) & 0xfff) << 16;
-			else
-				data32 = (osd_ext_hw.dispdata[OSD1].y_start &
-						0xfff)
-					| (osd_ext_hw.dispdata[OSD1].y_end &
-						0xfff) << 16;
-
-			osd_reg_write(VIU2_OSD1_BLK0_CFG_W4, data32);
-		}
-
+		data32 = (osd_ext_hw.dispdata[OSD1].x_start & 0xfff) |
+			(osd_ext_hw.dispdata[OSD1].x_end & 0xfff) << 16;
+		osd_reg_write(VIU2_OSD1_BLK0_CFG_W3, data32);
+		if (osd_ext_hw.scan_mode == SCAN_MODE_INTERLACE)
+			data32 = ((osd_ext_hw.dispdata[OSD1].y_start >>
+				1) & 0xfff)
+				| ((((osd_ext_hw.dispdata[OSD1].y_end +
+				1) >> 1) - 1) & 0xfff) << 16;
+		else
+			data32 = (osd_ext_hw.dispdata[OSD1].y_start &
+				0xfff)
+				| (osd_ext_hw.dispdata[OSD1].y_end &
+					0xfff) << 16;
+		osd_reg_write(VIU2_OSD1_BLK0_CFG_W4, data32);
 		/* enable osd 2x scale */
 		if (osd_ext_hw.scale[OSD1].h_enable ||
 				osd_ext_hw.scale[OSD1].v_enable) {
@@ -2400,14 +2106,6 @@ static void osd1_update_disp_geometry(void)
 				   osd_ext_hw.pandata[OSD1].y_start)
 				  & 0x1fff) << 16;
 			osd_reg_write(VIU2_OSD1_BLK0_CFG_W2, data32);
-		} else if (osd_ext_hw.rotate[OSD1].on_off > 0
-			   && osd_ext_hw.rotate[OSD1].angle > 0) {
-			/* enable osd rotation */
-			data32 = (osd_ext_hw.rotation_pandata[OSD1].x_start
-					& 0x1fff)
-				| (osd_ext_hw.rotation_pandata[OSD1].x_end
-					& 0x1fff) << 16;
-			osd_reg_write(VIU2_OSD1_BLK0_CFG_W1, data32);
 		} else {
 			/* normal mode */
 			data32 =
@@ -2571,12 +2269,13 @@ void osd_ext_init_hw(u32 logo_loaded)
 	osd_ext_hw.scale[OSD2].h_enable = osd_ext_hw.scale[OSD2].v_enable = 0;
 	osd_ext_hw.mode_3d[OSD2].enable = osd_ext_hw.mode_3d[OSD1].enable = 0;
 	osd_ext_hw.block_mode[OSD1] = osd_ext_hw.block_mode[OSD2] = 0;
+	/*
 	osd_ext_hw.rotation_pandata[OSD1].x_start =
 		osd_ext_hw.rotation_pandata[OSD1].y_start = 0;
 	osd_ext_hw.rotation_pandata[OSD2].x_start =
 		osd_ext_hw.rotation_pandata[OSD2].y_start = 0;
 	memset(osd_ext_hw.rotate, 0, sizeof(struct osd_rotate_s));
-
+	*/
 	osd_get_hw_para(&osd_hw);
 
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
@@ -2750,31 +2449,16 @@ void osd_ext_clone_pan(u32 index)
 	py0 = osd_ext_hw.pandata[index].y_start;
 	py1 = osd_ext_hw.pandata[index].y_end;
 	if (osd_ext_hw.clone[index]) {
-		if (osd_ext_hw.rotate[index].on_off > 0 &&
-				osd_ext_hw.rotate[index].angle > 0) {
-			if (osd_hw->pandata[index].y_start < height_osd0) {
-				if (py0 >= height_osd2)
-					offset -= g_rotation_height + 1;
-				else
-					offset = 0;
-			} else {
-				if (py0 < height_osd2)
-					offset += g_rotation_height + 1;
-				else
-					offset = 0;
-			}
+		if (py0 < height_osd0) {
+			if (py0 >= height_osd2)
+				offset -= py1 - py0 + 1;
+			else
+				offset = 0;
 		} else {
-			if (py0 < height_osd0) {
-				if (py0 >= height_osd2)
-					offset -= py1 - py0 + 1;
-				else
-					offset = 0;
-			} else {
-				if (py0 < height_osd2)
-					offset += py1 - py0 + 1;
-				else
-					offset = 0;
-			}
+			if (py0 < height_osd2)
+				offset += py1 - py0 + 1;
+			else
+				offset = 0;
 		}
 
 		osd_ext_hw.pandata[index].y_start += offset;

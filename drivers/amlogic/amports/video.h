@@ -71,6 +71,7 @@ extern bool pre_scaler_en;
 
 #define VIU_MISC_AFBC_VD1           (1 << 20)
 
+#define VPP_CM_ENABLE            (1 << 28)
 #define VPP_VD2_ALPHA_WID           9
 #define VPP_VD2_ALPHA_MASK          0x1ff
 #define VPP_VD2_ALPHA_BIT           18

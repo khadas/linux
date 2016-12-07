@@ -103,6 +103,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/amlogic/amports/video_prot.h>
 #include "video.h"
 
+static u32 osd_vpp_misc;
+static u32 osd_vpp_misc_mask;
+static bool update_osd_vpp_misc;
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -3965,6 +3968,17 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
  exit:
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off);
 	vpp_misc_set = vpp_misc_save;
+#ifdef CONFIG_AM_VECM
+	vpp_misc_set |= VPP_CM_ENABLE;
+#endif
+	if (update_osd_vpp_misc) {
+		vpp_misc_set &= ~osd_vpp_misc_mask;
+		vpp_misc_set |=
+			(osd_vpp_misc & osd_vpp_misc_mask);
+		if (vpp_misc_set &
+			(VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND))
+			vpp_misc_set |= VPP_POSTBLEND_EN;
+	}
 	if ((video_enabled == 1) && ((vpp_misc_save & VPP_VD1_POSTBLEND) == 0)
 	&& (video_onoff_state == VIDEO_ENABLE_STATE_IDLE)) {
 		SET_VCBUS_REG_MASK(VPP_MISC + cur_dev->vpp_off,
@@ -5806,26 +5820,22 @@ static ssize_t video_test_screen_store(struct class *cla,
 	   data &= (~VPP_VD2_POSTBLEND);
 	 */
 	/* show test screen  YUV blend*/
-	if (is_meson_gxm_cpu()) {/* bit width change to 10bit in gxm */
-		if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
-			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
-				eight2ten(test_screen & 0x00ffffff));
-		else /* RGB blend */
-			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
-				eight2ten(yuv2rgb(test_screen & 0x00ffffff)));
-	} else {
+	if (is_meson_gxm_cpu()) /* bit width change to 10bit in gxm */
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+			eight2ten(test_screen & 0x00ffffff));
+	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+			yuv2rgb(test_screen & 0x00ffffff));
+	else if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB)
 		if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
 			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				test_screen & 0x00ffffff);
-		else {/* RGB blend */
-			if (is_meson_txl_cpu())
-				WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
-					test_screen & 0x00ffffff);
-			else
-				WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+		else /* RGB blend */
+			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				yuv2rgb(test_screen & 0x00ffffff));
-		}
-	}
+	else
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+			test_screen & 0x00ffffff);
 #if 0/*no use*/
 	WRITE_VCBUS_REG(VPP_MISC, data);
 #endif
@@ -5841,12 +5851,13 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 				       const char *buf, size_t count)
 {
 	size_t r;
-	unsigned data = 0x0;
+	/* unsigned data = 0x0; */
 	r = sscanf(buf, "0x%x", &rgb_screen);
 	if (r != 1)
 		return -EINVAL;
 
 	/* vdin0 pre post blend enable or disabled */
+	/*
 	data = READ_VCBUS_REG(VPP_MISC);
 	if (rgb_screen & 0x01000000)
 		data |= VPP_VD1_PREBLEND;
@@ -5857,6 +5868,7 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 		data |= VPP_VD1_POSTBLEND;
 	else
 		data &= (~VPP_VD1_POSTBLEND);
+	*/
 	/*
 	   if (test_screen & 0x04000000)
 	   data |= VPP_VD2_PREBLEND;
@@ -5870,19 +5882,17 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 	 */
 	/* show test screen  YUV blend*/
 	if (is_meson_gxtvbb_cpu())   {
-		if (!(READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80))
-			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
-				rgb_screen & 0x00ffffff);
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+			rgb_screen & 0x00ffffff);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-		if (READ_VCBUS_REG(VIU_OSD1_BLK0_CFG_W0) & 0x80)
-			WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
-				rgb2yuv(rgb_screen & 0x00ffffff));
+		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
+			rgb2yuv(rgb_screen & 0x00ffffff));
 	}
-	WRITE_VCBUS_REG(VPP_MISC, data);
+	/* WRITE_VCBUS_REG(VPP_MISC, data); */
 
 	if (debug_flag & DEBUG_FLAG_BLACKOUT) {
-		pr_info("%s write(VPP_MISC,%x) write(VPP_DUMMY_DATA1, %x)\n",
-		       __func__, data, rgb_screen & 0x00ffffff);
+		pr_info("%s write(VPP_DUMMY_DATA1, %x)\n",
+		       __func__, rgb_screen & 0x00ffffff);
 	}
 	return count;
 }
@@ -6987,6 +6997,53 @@ static void vout_hook(void)
 }
 #endif
 
+static int amvideo_notify_callback(
+	struct notifier_block *block,
+	unsigned long cmd,
+	void *para)
+{
+	u32 *p, val;
+	switch (cmd) {
+	case AMVIDEO_UPDATE_OSD_MODE:
+		p = (u32 *)para;
+		if (!update_osd_vpp_misc)
+			osd_vpp_misc_mask = p[1];
+		val = osd_vpp_misc
+			& (~osd_vpp_misc_mask);
+		val |= (p[0] & osd_vpp_misc_mask);
+		osd_vpp_misc = val;
+		if (!update_osd_vpp_misc)
+			update_osd_vpp_misc = true;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block amvideo_notifier = {
+	.notifier_call = amvideo_notify_callback,
+};
+
+static BLOCKING_NOTIFIER_HEAD(amvideo_notifier_list);
+int amvideo_register_client(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&amvideo_notifier_list, nb);
+}
+EXPORT_SYMBOL(amvideo_register_client);
+
+int amvideo_unregister_client(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&amvideo_notifier_list, nb);
+}
+EXPORT_SYMBOL(amvideo_unregister_client);
+
+int amvideo_notifier_call_chain(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&amvideo_notifier_list, val, v);
+}
+EXPORT_SYMBOL_GPL(amvideo_notifier_call_chain);
+
 #if 1		/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 
 static void do_vpu_delay_work(struct work_struct *work)
@@ -7201,6 +7258,7 @@ static int __init video_init(void)
 #endif
 
 	cur_dispbuf = NULL;
+	amvideo_register_client(&amvideo_notifier);
 
 #ifdef FIQ_VSYNC
 	/* enable fiq bridge */
@@ -7352,6 +7410,7 @@ static int __init video_init(void)
 #ifdef FIQ_VSYNC
  err0:
 #endif
+	amvideo_unregister_client(&amvideo_notifier);
 	return r;
 }
 
@@ -7380,8 +7439,7 @@ static void __exit video_exit(void)
 
 	class_unregister(&amvideo_class);
 	class_unregister(&amvideo_poll_class);
-
-
+	amvideo_unregister_client(&amvideo_notifier);
 }
 
 

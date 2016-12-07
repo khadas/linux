@@ -319,9 +319,6 @@ static void vfm_init(void)
 				 */
 #endif				/*
 				 */
-	char def_osd_id[] = "default_osd";
-	char def_osd_name_chain[] = "osd amvideo4osd";
-	/* char def_osd_name_chain[] = "osd amvideo"; */
 #ifdef CONFIG_VDIN_MIPI
 	char def_mipi_id[] = "default_mipi";
 	char def_mipi_name_chain[] = "vdin mipi";
@@ -354,7 +351,6 @@ static void vfm_init(void)
 	int i;
 	for (i = 0; i < VFM_MAP_COUNT; i++)
 		vfm_map[i] = NULL;
-	vfm_map_add(def_osd_id, def_osd_name_chain);
 	vfm_map_add(def_id, def_name_chain);
 #ifdef CONFIG_VDIN_MIPI
 	vfm_map_add(def_mipi_id, def_mipi_name_chain);

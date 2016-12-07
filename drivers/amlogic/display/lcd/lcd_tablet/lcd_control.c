@@ -755,7 +755,7 @@ static void lcd_set_tcon_t(struct Lcd_Config_s *pConf)
 
 	if (pConf->lcd_misc_ctrl.vpp_sel)
 		lcd_reg_clr_mask(VPP2_MISC, (VPP_OUT_SATURATE));
-	else
+	else if (lcd_reg_read(VPP_MISC) & VPP_OUT_SATURATE)
 		lcd_reg_clr_mask(VPP_MISC, (VPP_OUT_SATURATE));
 }
 
@@ -886,7 +886,7 @@ static void lcd_set_tcon_l(struct Lcd_Config_s *pConf)
 
 	if (pConf->lcd_misc_ctrl.vpp_sel)
 		lcd_reg_clr_mask(VPP2_MISC, (VPP_OUT_SATURATE));
-	else
+	else if (lcd_reg_read(VPP_MISC) & VPP_OUT_SATURATE)
 		lcd_reg_clr_mask(VPP_MISC, (VPP_OUT_SATURATE));
 }
 

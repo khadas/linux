@@ -81,14 +81,6 @@ extern void osd_ext_set_block_mode_hw(u32 index, u32 mode);
 extern void osd_ext_enable_3d_mode_hw(int index, int enable);
 extern void osd_ext_set_2x_scale_hw(u32 index, u16 h_scale_enable,
 				    u16 v_scale_enable);
-extern void osd_ext_set_rotate_on_hw(u32 index, u32 on_off);
-extern void osd_ext_get_rotate_on_hw(u32 index, u32 *on_off);
-extern void osd_ext_set_rotate_angle_hw(u32 index, u32 angle);
-extern void osd_ext_get_rotate_angle_hw(u32 index, u32 *angle);
-extern void osd_ext_get_prot_canvas_hw(u32 index, s32 *x_start, s32 *y_start,
-				       s32 *x_end, s32 *y_end);
-extern void osd_ext_set_prot_canvas_hw(u32 index, s32 x_start, s32 y_start,
-				       s32 x_end, s32 y_end);
 extern void osd_ext_setpal_hw(u32 index, unsigned regno, unsigned red,
 			      unsigned green, unsigned blue, unsigned transp);
 extern void osd_ext_enable_hw(u32 index, int enable);

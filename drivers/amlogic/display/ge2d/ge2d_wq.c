@@ -42,6 +42,8 @@
 #include "ge2d_reg.h"
 #include "ge2d_wq.h"
 
+#include "osd_io.h"
+
 #define OSD1_CANVAS_INDEX 0x40
 #define OSD2_CANVAS_INDEX 0x43
 #define OSD3_CANVAS_INDEX 0x41
@@ -543,8 +545,12 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 
 	index = (index == OSD1_CANVAS_INDEX ? 0 : 1);
 	ge2d_log_dbg("osd%d ", index);
-	data32 = ge2d_vcbus_read(VIU_OSD1_BLK0_CFG_W0 + REG_OFFSET * index);
-
+#ifdef CONFIG_AM_FB
+	data32 = VSYNCOSD_RD_MPEG_REG(
+		VIU_OSD1_BLK0_CFG_W0 + REG_OFFSET * index);
+#else
+	data32 = 0;
+#endif
 	index = (data32 >> 8) & 0xf;
 	bpp = block_mode[index]; /* OSD_BLK_MODE[8..11] */
 	ge2d_log_dbg("%d bpp\n", bpp);
@@ -556,7 +562,7 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 	src_dst->xres = canvas.width / (bpp >> 3);
 	src_dst->yres = canvas.height;
 	if (index == 3) /* yuv422 32bit for two pixel. */
-		src_dst->ge2d_color_index =	GE2D_FORMAT_S16_YUV422;
+		src_dst->ge2d_color_index = GE2D_FORMAT_S16_YUV422;
 	else { /* for block mode=4,5,7 */
 		/* color mode [2..5] */
 		index = bpp - 16 + ((data32 >> 2) & 0xf);

@@ -419,10 +419,8 @@ static int osd_ext_ioctl(struct fb_info *info, unsigned int cmd,
 				1 : 0, arg & 0xffff ? 1 : 0);
 		break;
 	case FBIOPUT_OSD_ROTATE_ON:
-		osd_ext_set_rotate_on_hw(info->node - 2, arg);
 		break;
 	case FBIOPUT_OSD_ROTATE_ANGLE:
-		osd_ext_set_rotate_angle_hw(info->node - 2, arg);
 		break;
 	case FBIOPUT_OSD_SRCCOLORKEY:
 		switch (fbdev->color->color_index) {
@@ -678,8 +676,10 @@ int osd_ext_notify_callback(struct notifier_block *block, unsigned long cmd,
 			if (!disp_rect)
 				break;
 			fb_dev = gp_fbdev_list[i];
+			/*
 			if (fb_dev->preblend_enable)
 				break;
+			*/
 			fb_dev->osd_ctl.disp_start_x = disp_rect->x;
 			fb_dev->osd_ctl.disp_start_y = disp_rect->y;
 			osd_log_info("set disp axis: x:%d y:%d w:%d h:%d\n",
@@ -716,30 +716,6 @@ int osd_ext_notify_callback(struct notifier_block *block, unsigned long cmd,
 static struct notifier_block osd_ext_notifier_nb = {
 	.notifier_call	= osd_ext_notify_callback,
 };
-
-static ssize_t store_preblend_enable(struct device *device,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)fb_info->par;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	fbdev->preblend_enable = res;
-	vout_notifier_call_chain(VOUT_EVENT_OSD_PREBLEND_ENABLE,
-				 &fbdev->preblend_enable);
-	return count;
-}
-
-static ssize_t show_preblend_enable(struct device *device,
-		struct device_attribute *attr, char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "preblend[%s]\n",
-			fbdev->preblend_enable ? "enable" : "disable");
-}
 
 static ssize_t store_enable_3d(struct device *device,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -1314,91 +1290,6 @@ static ssize_t store_angle(struct device *device, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_rotate_on(struct device *device,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_ext_rotate = 0;
-
-	osd_ext_get_rotate_on_hw(fb_info->node - 2, &osd_ext_rotate);
-	return snprintf(buf, PAGE_SIZE, "osd_ext_rotate:[%s]\n",
-			osd_ext_rotate ? "ON" : "OFF");
-}
-
-static ssize_t store_rotate_on(struct device *device,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_rotate = 0;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	osd_rotate = res;
-	osd_ext_set_rotate_on_hw(fb_info->node - 2, osd_rotate);
-
-	return count;
-}
-
-static ssize_t show_rotate_angle(struct device *device,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_ext_rotate_angle = 0;
-
-	osd_ext_get_rotate_angle_hw(fb_info->node - 2, &osd_ext_rotate_angle);
-	return snprintf(buf, PAGE_SIZE, "osd_ext_rotate:%d\n",
-			osd_ext_rotate_angle);
-}
-
-static ssize_t store_rotate_angle(struct device *device,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_rotate_angle = 0;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	osd_rotate_angle = res;
-	osd_ext_set_rotate_angle_hw(fb_info->node - 2, osd_rotate_angle);
-
-	return count;
-}
-
-static ssize_t show_prot_canvas(struct device *device,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	int x_start, y_start, x_end, y_end;
-
-	osd_ext_get_prot_canvas_hw(fb_info->node - 2,
-			&x_start, &y_start, &x_end, &y_end);
-
-	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
-			x_start, y_start, x_end, y_end);
-}
-
-static ssize_t store_prot_canvas(struct device *device,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	int parsed[4];
-
-	if (likely(parse_para(buf, 4, parsed) == 4))
-		osd_ext_set_prot_canvas_hw(fb_info->node - 2,
-				parsed[0], parsed[1], parsed[2], parsed[3]);
-	else
-		osd_log_err("set prot canvas error\n");
-
-	return count;
-}
 static struct device_attribute osd_ext_attrs[] = {
 	__ATTR(scale, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_scale, store_scale),
@@ -1406,8 +1297,6 @@ static struct device_attribute osd_ext_attrs[] = {
 			show_order, store_order),
 	__ATTR(enable_3d, S_IRUGO | S_IWUSR,
 			show_enable_3d, store_enable_3d),
-	__ATTR(preblend_enable, S_IRUGO | S_IWUSR,
-			show_preblend_enable, store_preblend_enable),
 	__ATTR(free_scale, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_free_scale, store_free_scale),
 	__ATTR(scale_axis, S_IRUGO | S_IWUSR,
@@ -1438,12 +1327,6 @@ static struct device_attribute osd_ext_attrs[] = {
 			show_clone, store_clone),
 	__ATTR(angle, S_IRUGO | S_IWUSR,
 			show_angle, store_angle),
-	__ATTR(prot_on, S_IRUGO | S_IWUSR | S_IWGRP,
-			show_rotate_on, store_rotate_on),
-	__ATTR(prot_angle, S_IRUGO | S_IWUSR,
-			show_rotate_angle, store_rotate_angle),
-	__ATTR(prot_canvas, S_IRUGO | S_IWUSR,
-			show_prot_canvas, store_prot_canvas),
 };
 
 #ifdef CONFIG_PM

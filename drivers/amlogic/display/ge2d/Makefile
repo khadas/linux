@@ -9,3 +9,4 @@ ge2d-objs = bitblt.o \
 
 obj-$(CONFIG_AM_GE2D) += ge2d.o
 ccflags-y += -Iinclude/linux/ge2d/
+ccflags-y += -Idrivers/amlogic/display/osd/

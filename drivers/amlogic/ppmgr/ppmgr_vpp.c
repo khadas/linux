@@ -2767,8 +2767,7 @@ static int ppmgr_task(void *data)
 #endif
 		if (still_picture_notify) {
 			still_picture_notify = 0;
-			DisableVideoLayer()
-			;
+			/* DisableVideoLayer(); */
 
 			vf = get_cur_dispbuf();
 			if (!is_valid_ppframe(to_ppframe(vf)))
@@ -2787,8 +2786,7 @@ static int ppmgr_task(void *data)
 				vf = vfq_peek(&q_ready);
 			}
 			vfq_lookup_end(&q_ready);
-			EnableVideoLayer()
-			;
+			/* EnableVideoLayer(); */
 			up(&thread_sem);
 			continue;
 		}

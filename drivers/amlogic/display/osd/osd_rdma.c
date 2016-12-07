@@ -40,7 +40,7 @@
 #include "osd_reg.h"
 #include "osd_rdma.h"
 #include "osd_hw.h"
-
+#include "osd_backup.h"
 #ifdef CONFIG_AML_RDMA
 #include <linux/amlogic/rdma/rdma_mgr.h>
 #ifdef CONFIG_AM_VECM
@@ -56,7 +56,6 @@
 
 static DEFINE_SPINLOCK(rdma_lock);
 static struct rdma_table_item *rdma_table;
-static struct rdma_table_item *rdma_table_internal;
 static struct device *osd_rdma_dev;
 static struct page *table_pages;
 static void *osd_rdma_table_virt;
@@ -65,7 +64,6 @@ static u32 table_paddr;
 static void *table_vaddr;
 static u32 rdma_enable;
 static u32 item_count;
-static u32 item_count_internal;
 static u32 rdma_debug;
 static bool osd_rdma_init_flag;
 static int ctrl_ahb_rd_burst_size = 3;
@@ -75,6 +73,7 @@ static unsigned int debug_rdma_status;
 static unsigned int rdma_irq_count;
 static unsigned int rdma_lost_count;
 static unsigned int dump_reg_trigger;
+static unsigned int rdma_recovery_count;
 #ifdef OSD_RDMA_ISR
 static unsigned int second_rdma_irq;
 #endif
@@ -134,6 +133,8 @@ EXPORT_SYMBOL(osd_rdma_update_config);
 
 static inline void reset_rdma_table(void)
 {
+	struct rdma_table_item *temp_tbl = NULL;
+	struct rdma_table_item request_item;
 	unsigned long flags;
 	u32 old_count;
 	u32 end_addr;
@@ -151,32 +152,78 @@ static inline void reset_rdma_table(void)
 
 	spin_lock_irqsave(&rdma_lock, flags);
 	if (!OSD_RDMA_STATUS_IS_REJECT) {
+		u32 val, mask;
+		int iret;
+		if (item_count > 2)
+			temp_tbl = kzalloc(
+				sizeof(struct rdma_table_item)
+				* item_count, GFP_KERNEL);
 		end_addr = osd_reg_read(END_ADDR) + 1;
 		if (end_addr > table_paddr)
 			old_count = (end_addr - table_paddr) >> 3;
 		else
 			old_count = 0;
 		osd_reg_write(END_ADDR, table_paddr - 1);
-		if (old_count < item_count) {
-			for (i = 0; i < (int)(item_count - old_count);
-				i++) {
-				if (rdma_table[old_count + i].addr
-					== OSD_RDMA_FLAG_REG)
-					continue;
+
+		for (i = (int)(item_count - 1);
+			i >= 0; i--) {
+			if (!temp_tbl)
+				break;
+			if (rdma_table[i].addr ==
+				OSD_RDMA_FLAG_REG)
+				continue;
+			if (rdma_table[i].addr ==
+				VPP_MISC)
+				continue;
+			iret = get_recovery_item(
+					rdma_table[i].addr,
+					&val, &mask);
+			if (!iret) {
+				request_item.addr =
+					rdma_table[i].addr;
+				request_item.val = val;
 				osd_rdma_mem_cpy(
-					&rdma_table[1 + j],
-					&rdma_table[old_count + i], 8);
+					&temp_tbl[j], &request_item, 8);
 				j++;
+				pr_debug(
+					"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
+					rdma_table[i].addr,
+					val, mask);
+				rdma_recovery_count++;
+			} else if ((iret < 0) && (i >= old_count)) {
+				request_item.addr =
+					rdma_table[i].addr;
+				request_item.val =
+					rdma_table[i].val;
+				osd_rdma_mem_cpy(
+					&temp_tbl[j], &request_item, 8);
+				j++;
+				pr_debug(
+					"recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
+					rdma_table[i].addr,
+					rdma_table[i].val,
+					mask);
+				pr_debug(
+					"recovery -- i:%d, item_count:%d, old_count:%d\n",
+					i, item_count, old_count);
+				rdma_recovery_count++;
 			}
-			item_count = j + 2;
-		} else {
-			item_count = 2;
 		}
+		for (i = 0; i < j; i++) {
+			osd_rdma_mem_cpy(
+				&rdma_table[1 + i],
+				&temp_tbl[j - i - 1], 8);
+			update_recovery_item(
+				temp_tbl[j - i - 1].addr,
+				temp_tbl[j - i - 1].val);
+		}
+		item_count = j + 2;
 		osd_rdma_mem_cpy(rdma_table, &reset_item[0], 8);
 		osd_rdma_mem_cpy(&rdma_table[item_count - 1],
 			&reset_item[1], 8);
 		osd_reg_write(END_ADDR,
 			(table_paddr + item_count * 8 - 1));
+		kfree(temp_tbl);
 	}
 	spin_unlock_irqrestore(&rdma_lock, flags);
 }
@@ -215,6 +262,7 @@ retry:
 		request_item.addr = addr;
 		request_item.val = val;
 		update_backup_reg(addr, val);
+		update_recovery_item(addr, val);
 		osd_rdma_mem_cpy(
 			&rdma_table[item_count - 1],
 			&request_item, 8);
@@ -252,6 +300,7 @@ retry:
 	request_item.addr = addr;
 	request_item.val = val;
 	update_backup_reg(addr, val);
+	update_recovery_item(addr, val);
 	osd_rdma_mem_cpy(&rdma_table[item_count - 1], &request_item, 8);
 	item_count++;
 	paddr = table_paddr + item_count * 8 - 1;
@@ -272,24 +321,6 @@ retry:
 	/*atom_lock_end:*/
 	spin_unlock_irqrestore(&rdma_lock, flags);
 	return ret;
-}
-
-static inline int update_table_item_internal(u32 addr, u32 val)
-{
-	struct rdma_table_item request_item;
-	if (item_count_internal > 500) {
-		/* rdma table is full */
-		pr_info("update_table_item_internal overflow!\n");
-		return -1;
-	}
-	request_item.addr = addr;
-	request_item.val = val;
-	update_backup_reg(addr, val);
-	memcpy(
-		&rdma_table_internal[item_count_internal],
-		&request_item, 8);
-	item_count_internal++;
-	return 0;
 }
 
 static inline u32 read_reg_internal(u32 addr)
@@ -327,13 +358,14 @@ static inline int wrtie_reg_internal(u32 addr, u32 val)
 	/* TODO remove the Done write operation to save the time */
 	request_item.addr = OSD_RDMA_FLAG_REG;
 	request_item.val = OSD_RDMA_STATUS_MARK_TBL_DONE;
-	memcpy(
+	osd_rdma_mem_cpy(
 		&rdma_table[item_count],
 		&request_item, 8);
 	request_item.addr = addr;
 	request_item.val = val;
 	update_backup_reg(addr, val);
-	memcpy(
+	update_recovery_item(addr, val);
+	osd_rdma_mem_cpy(
 		&rdma_table[item_count - 1],
 		&request_item, 8);
 	item_count++;
@@ -343,11 +375,13 @@ static inline int wrtie_reg_internal(u32 addr, u32 val)
 u32 VSYNCOSD_RD_MPEG_REG(u32 addr)
 {
 	int  i;
+	bool find = false;
 	u32 val = 0;
 	unsigned long flags;
 
 	if (rdma_enable) {
 		spin_lock_irqsave(&rdma_lock, flags);
+		/* 1st, read from rdma table */
 		for (i = (int)(item_count - 1);
 			i >= 0; i--) {
 			if (addr == rdma_table[i].addr) {
@@ -355,10 +389,16 @@ u32 VSYNCOSD_RD_MPEG_REG(u32 addr)
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&rdma_lock, flags);
 		if (i >= 0)
+			find = true;
+		else if (get_backup_reg(addr, &val) == 0)
+			find = true;
+		 /* 2nd, read from backup reg */
+		spin_unlock_irqrestore(&rdma_lock, flags);
+		if (find)
 			return val;
 	}
+	/* 3rd, read from osd reg */
 	return osd_reg_read(addr);
 }
 EXPORT_SYMBOL(VSYNCOSD_RD_MPEG_REG);
@@ -431,142 +471,17 @@ int VSYNCOSD_IRQ_WR_MPEG_REG(u32 addr, u32 val)
 }
 EXPORT_SYMBOL(VSYNCOSD_IRQ_WR_MPEG_REG);
 
-int VSYNCOSD_IRQ_WR_MPEG_REG_BITS(u32 addr, u32 val, u32 start, u32 len)
-{
-	unsigned long read_val;
-	unsigned long write_val;
-	int ret = 0;
-	if (rdma_enable) {
-		read_val = VSYNCOSD_RD_MPEG_REG(addr);
-		write_val = (read_val & ~(((1L << (len)) - 1) << (start)))
-			    | ((unsigned int)(val) << (start));
-		ret = update_table_item(addr, write_val, 1);
-	} else
-		osd_reg_set_bits(addr, val, start, len);
-	return ret;
-}
-EXPORT_SYMBOL(VSYNCOSD_IRQ_WR_MPEG_REG_BITS);
-
-int VSYNCOSD_IRQ_SET_MPEG_REG_MASK(u32 addr, u32 _mask)
-{
-	unsigned long read_val;
-	unsigned long write_val;
-	int ret = 0;
-	if (rdma_enable) {
-		read_val = VSYNCOSD_RD_MPEG_REG(addr);
-		write_val = read_val | _mask;
-		ret = update_table_item(addr, write_val, 1);
-	} else
-		osd_reg_set_mask(addr, _mask);
-	return ret;
-}
-EXPORT_SYMBOL(VSYNCOSD_IRQ_SET_MPEG_REG_MASK);
-
-int VSYNCOSD_IRQ_CLR_MPEG_REG_MASK(u32 addr, u32 _mask)
-{
-	unsigned long read_val;
-	unsigned long write_val;
-	int ret = 0;
-	if (rdma_enable) {
-		read_val = VSYNCOSD_RD_MPEG_REG(addr);
-		write_val = read_val & (~_mask);
-		ret = update_table_item(addr, write_val, 1);
-	} else
-		osd_reg_clr_mask(addr, _mask);
-	return ret;
-}
-EXPORT_SYMBOL(VSYNCOSD_IRQ_CLR_MPEG_REG_MASK);
-
-int VSYNCOSD_EX_WR_MPEG_REG(u32 addr, u32 val)
-{
-	int ret = -1;
-	if (rdma_enable && rdma_table_internal)
-		ret = update_table_item_internal(addr, val);
-	if (ret != 0) {
-		ret = 0;
-		if (rdma_enable)
-			ret = update_table_item(addr, val, 1);
-		else
-			osd_reg_write(addr, val);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(VSYNCOSD_EX_WR_MPEG_REG);
-
 /* number lines before vsync for reset */
 static unsigned int reset_line;
 module_param(reset_line, uint, 0664);
 MODULE_PARM_DESC(reset_line, "reset_line");
 
-/*	0: use vpp line intr reset
-	1: use vsync reset
-	2: do not reset */
-static unsigned int osd_rdma_reset;
-module_param(osd_rdma_reset, uint, 0664);
-MODULE_PARM_DESC(osd_rdma_reset, "osd_rdma_reset");
-
-static u32 osd_backup_count = OSD_REG_BACKUP_COUNT;
-static u32 osd_backup[OSD_REG_BACKUP_COUNT];
-static u32 afbc_backup_count = OSD_AFBC_REG_BACKUP_COUNT;
-static u32 afbc_backup[OSD_AFBC_REG_BACKUP_COUNT];
-module_param_array(osd_backup, uint, &osd_backup_count, 0444);
-MODULE_PARM_DESC(osd_backup, "\n osd register backup\n");
-module_param_array(afbc_backup, uint, &afbc_backup_count, 0444);
-MODULE_PARM_DESC(afbc_backup, "\n afbc register backup\n");
-
-/* 0: not backup, 1: backup once, 2: always backup */
-static uint backup_enable = 1;
-module_param(backup_enable, uint, 0664);
-static void backup_osd_regs(u32 reset_bit)
-{
-	int i = 0;
-	if (backup_enable) {
-		while ((reset_bit & 1)
-			&& (i < OSD_REG_BACKUP_COUNT)) {
-			osd_backup[i] = read_reg_internal(
-				osd_reg_backup[i]);
-			i++;
-		}
-		backup_enable &= ~1;
-	}
-	i = 0;
-	while ((reset_bit & 0x80000000)
-		&& (i < OSD_AFBC_REG_BACKUP_COUNT)) {
-		afbc_backup[i] = read_reg_internal(
-			osd_afbc_reg_backup[i]);
-		i++;
-	}
-}
-
-void update_backup_reg(u32 addr, u32 value)
-{
-	int i;
-
-	if (backup_enable >= 2)
-		return;
-	for (i = 0; i < OSD_REG_BACKUP_COUNT; i++)
-		if (addr == osd_reg_backup[i]) {
-			osd_backup[i] = value;
-			return;
-		}
-}
-EXPORT_SYMBOL(update_backup_reg);
-
-s32 get_backup_reg(u32 addr, u32 *value)
-{
-	int i;
-	for (i = 0; i < OSD_REG_BACKUP_COUNT; i++)
-		if (addr == osd_reg_backup[i]) {
-			*value = osd_backup[i];
-			return 0;
-		}
-	return -1;
-}
-EXPORT_SYMBOL(get_backup_reg);
+static unsigned int disable_osd_rdma_reset;
+module_param(disable_osd_rdma_reset, uint, 0664);
+MODULE_PARM_DESC(disable_osd_rdma_reset, "disable_osd_rdma_reset");
 
 #ifdef CONFIG_AML_RDMA
 static int osd_reset_rdma_handle = -1;
-static int reset_mask;
 
 void set_reset_rdma_trigger_line(void)
 {
@@ -606,7 +521,8 @@ static void hdr_restore_osd_csc(void)
 	u32 data_port;
 	struct hdr_osd_lut_s *lut = &hdr_osd_reg.lut_val;
 
-	if ((osd_reset_rdma_handle == -1) || osd_rdma_reset || (reset_mask & 1))
+	if ((osd_reset_rdma_handle == -1)
+		|| disable_osd_rdma_reset)
 		return;
 	/* check osd matrix enable status */
 	if (hdr_osd_reg.viu_osd1_matrix_ctrl & 0x00000001) {
@@ -781,9 +697,10 @@ static void hdr_restore_osd_csc(void)
 }
 #endif
 
-static void osd_reset_rdma_func(void)
+static void osd_reset_rdma_func(u32 reset_bit)
 {
-	if (osd_rdma_reset == 0) {
+	if ((disable_osd_rdma_reset == 0)
+		&& reset_bit){
 		rdma_write_reg(osd_reset_rdma_handle,
 			VIU_SW_RESET, 1);
 		rdma_write_reg(osd_reset_rdma_handle,
@@ -812,7 +729,6 @@ static void osd_rdma_irq(void *arg)
 	debug_rdma_status = rdma_status;
 	OSD_RDMA_STATUS_CLEAR_REJECT;
 	reset_rdma_table();
-	item_count_internal = 0;
 	osd_update_scan_mode();
 	osd_update_3d_mode();
 	osd_update_vsync_hit();
@@ -934,18 +850,6 @@ int osd_rdma_enable(u32 enable)
 		osd_reg_write(START_ADDR, table_paddr);
 		osd_reg_write(END_ADDR, table_paddr - 1);
 		item_count = 0;
-		if (enable == 1) {
-			/* only first start */
-			backup_enable |= 1;
-			if (get_cpu_type() ==
-				MESON_CPU_MAJOR_ID_GXTVBB)
-				backup_osd_regs(0x80000001);
-			else if (get_cpu_type() ==
-				MESON_CPU_MAJOR_ID_GXM)
-				backup_osd_regs(0x1);
-			else
-				backup_osd_regs(0x1);
-		}
 		spin_unlock_irqrestore(&rdma_lock, flags);
 		reset_rdma_table();
 		start_osd_rdma(OSD_RDMA_CHANNEL_INDEX);
@@ -959,76 +863,57 @@ EXPORT_SYMBOL(osd_rdma_enable);
 
 int osd_rdma_reset_and_flush(u32 reset_bit)
 {
-	unsigned long read_val;
-	unsigned long write_val;
-	struct rdma_table_item request_item;
 	int i, ret = 0;
 	unsigned long flags;
 	u32 reset_reg_mask;
+	u32 base;
+	u32 addr;
+	u32 value;
 
 	spin_lock_irqsave(&rdma_lock, flags);
-
 	reset_reg_mask = reset_bit;
-	/* same bit, but gxm only reset hardware, not top reg*/
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
-		reset_bit &= 0x7fffffff;
-
-	if (osd_rdma_reset == 0) {
-		backup_osd_regs(reset_bit);
-		reset_reg_mask &= 0xfffffffe;
-	} else if (osd_rdma_reset == 1)
-		backup_osd_regs(reset_bit);
-	else if (osd_rdma_reset == 2) {
+	reset_reg_mask &= ~HW_RESET_OSD1_REGS;
+	if (disable_osd_rdma_reset != 0) {
 		reset_reg_mask = 0;
 		reset_bit = 0;
 	}
-	reset_mask = reset_reg_mask;
 
-	read_val = read_reg_internal(VIU_SW_RESET);
-	write_val = read_val | reset_reg_mask;
-	wrtie_reg_internal(VIU_SW_RESET, write_val);
+	if (reset_reg_mask) {
+		wrtie_reg_internal(VIU_SW_RESET,
+			reset_reg_mask);
+		wrtie_reg_internal(VIU_SW_RESET, 0);
+	}
 
-	read_val = read_reg_internal(VIU_SW_RESET);
-	write_val = read_val & (~reset_reg_mask);
-	wrtie_reg_internal(VIU_SW_RESET, write_val);
+	/* same bit, but gxm only reset hardware, not top reg*/
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+		reset_bit &= ~HW_RESET_AFBCD_REGS;
 
 	i = 0;
-	while ((reset_bit & 1)
+	base = VIU_OSD1_CTRL_STAT;
+	while ((reset_bit & HW_RESET_OSD1_REGS)
 		&& (i < OSD_REG_BACKUP_COUNT)) {
+		addr = osd_reg_backup[i];
 		wrtie_reg_internal(
-			osd_reg_backup[i], osd_backup[i]);
+			addr, osd_backup[addr - base]);
 		i++;
 	}
 	i = 0;
-	while ((reset_bit & 0x80000000)
+	base = OSD1_AFBCD_ENABLE;
+	while ((reset_bit & HW_RESET_AFBCD_REGS)
 		&& (i < OSD_AFBC_REG_BACKUP_COUNT)) {
-		if (osd_afbc_reg_backup[i]
-			== OSD1_AFBCD_ENABLE)
-			wrtie_reg_internal(
-				osd_afbc_reg_backup[i],
-				afbc_backup[i] | 0x100);
-		else
-			wrtie_reg_internal(
-				osd_afbc_reg_backup[i],
-				afbc_backup[i]);
+		addr = osd_afbc_reg_backup[i];
+		value = osd_afbc_backup[addr - base];
+		if (addr == OSD1_AFBCD_ENABLE)
+			value |=  0x100;
+		wrtie_reg_internal(
+			addr, value);
 		i++;
 	}
-	if (item_count + item_count_internal < 500) {
-		request_item.addr = OSD_RDMA_FLAG_REG;
-		request_item.val = OSD_RDMA_STATUS_MARK_TBL_DONE;
-		memcpy(
-			&rdma_table[item_count + item_count_internal - 1],
-			&request_item, 8);
-		memcpy(
-			&rdma_table[item_count - 1],
-			&rdma_table_internal[0],
-			8 * item_count_internal);
-		item_count = item_count + item_count_internal;
+	if (item_count < 500)
 		osd_reg_write(END_ADDR, (table_paddr + item_count * 8 - 1));
-	} else {
-		pr_info("osd_rdma_reset_and_flush item overflow %d + %d\n",
-			item_count, item_count_internal);
-		osd_reg_write(END_ADDR, (table_paddr + item_count * 8 - 1));
+	else {
+		pr_info("osd_rdma_reset_and_flush item overflow %d\n",
+			item_count);
 		ret = -1;
 	}
 	if (dump_reg_trigger > 0) {
@@ -1041,7 +926,8 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 
 #ifdef CONFIG_AML_RDMA
 	if (osd_reset_rdma_handle != -1)
-		osd_reset_rdma_func();
+		osd_reset_rdma_func(
+			reset_bit & HW_RESET_OSD1_REGS);
 #endif
 
 	spin_unlock_irqrestore(&rdma_lock, flags);
@@ -1063,8 +949,6 @@ static void osd_rdma_release(struct device *dev)
 #endif
 	kfree(dev);
 	osd_rdma_dev = NULL;
-	kfree(rdma_table_internal);
-	rdma_table_internal = NULL;
 }
 
 #ifdef OSD_RDMA_ISR
@@ -1076,7 +960,6 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 	if (rdma_status & (1 << (24 + OSD_RDMA_CHANNEL_INDEX))) {
 		OSD_RDMA_STATUS_CLEAR_REJECT;
 		reset_rdma_table();
-		item_count_internal = 0;
 		osd_update_scan_mode();
 		osd_update_3d_mode();
 		osd_update_vsync_hit();
@@ -1130,15 +1013,6 @@ static int osd_rdma_init(void)
 		goto error2;
 	}
 
-	rdma_table_internal = kzalloc(
-		RDMA_TABLE_INTERNAL_COUNT * sizeof(struct rdma_table_item),
-		GFP_KERNEL);
-
-	if (!rdma_table_internal) {
-		osd_log_err("osd rdma dma alloc failed2!\n");
-		goto error2;
-	}
-	item_count_internal = 0;
 #ifdef OSD_RDMA_ISR
 	second_rdma_irq = 0;
 #endif
@@ -1166,6 +1040,7 @@ static int osd_rdma_init(void)
 	}
 #endif
 	osd_rdma_init_flag = true;
+	osd_reg_write(OSD_RDMA_FLAG_REG, 0x0);
 
 #ifdef CONFIG_AML_RDMA
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL)
@@ -1176,8 +1051,6 @@ static int osd_rdma_init(void)
 			NULL, PAGE_SIZE);
 		pr_info("%s:osd reset rdma handle = %d.\n", __func__,
 				osd_reset_rdma_handle);
-	} else {
-		osd_rdma_reset = 1;
 	}
 	osd_rdma_op.arg = osd_rdma_dev;
 	osd_rdma_handle =
@@ -1194,8 +1067,6 @@ static int osd_rdma_init(void)
 error2:
 	kfree(osd_rdma_dev);
 	osd_rdma_dev = NULL;
-	kfree(rdma_table_internal);
-	rdma_table_internal = NULL;
 	return -1;
 }
 
@@ -1219,4 +1090,7 @@ module_param(rdma_lost_count, uint, 0664);
 
 MODULE_PARM_DESC(dump_reg_trigger, "\n dump_reg_trigger\n");
 module_param(dump_reg_trigger, uint, 0664);
+
+MODULE_PARM_DESC(rdma_recovery_count, "\n rdma_recovery_count\n");
+module_param(rdma_recovery_count, uint, 0664);
 

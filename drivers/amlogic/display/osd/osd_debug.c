@@ -168,6 +168,9 @@ static void osd_debug_dump_register_all(void)
 
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)) {
+		reg = VIU_MISC_CTRL1;
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				reg, osd_reg_read(reg));
 		for (reg = OSD1_AFBCD_ENABLE;
 			reg <= OSD1_AFBCD_PIXEL_VSCOPE; reg++)
 			osd_log_info("reg[0x%x]: 0x%08x\n",

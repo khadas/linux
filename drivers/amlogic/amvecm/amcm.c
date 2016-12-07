@@ -203,11 +203,14 @@ void am_set_regmap(struct am_regs_s *p)
 						sr1_regs[sr1_temp].val;
 				aml_write_vcbus(p->am_reg[i].addr,
 					sr1_regs[sr1_temp].val);
-			} else
+			} else {
+				if (p->am_reg[i].addr == 0x1d26)
+					break;
 				aml_write_vcbus(p->am_reg[i].addr,
 					(aml_read_vcbus(p->am_reg[i].addr) &
 					(~(p->am_reg[i].mask))) |
 					(p->am_reg[i].val & p->am_reg[i].mask));
+			}
 			break;
 /* #endif */
 		default:
@@ -219,12 +222,26 @@ void am_set_regmap(struct am_regs_s *p)
 
 void amcm_disable(void)
 {
-	WRITE_VPP_REG_BITS(VPP_MISC, 0, 28, 1);
+	int temp;
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	if (temp & 0x2) {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp & 0xfffffffd);
+	}
 }
 
 void amcm_enable(void)
 {
-	WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+	int temp;
+	if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
+		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	if (!(temp & 0x2)) {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
+	}
 }
 
 
@@ -237,6 +254,7 @@ void cm_regmap_latch(struct am_regs_s *am_regs, unsigned int reg_map)
 
 void amcm_level_sel(unsigned int cm_level)
 {
+	int temp;
 	if (cm_level == 1)
 		am_set_regmap(&cmreg_lever1);
 	else if (cm_level == 2)
@@ -247,18 +265,31 @@ void amcm_level_sel(unsigned int cm_level)
 		am_set_regmap(&cmreg_enhancement);
 	else
 		am_set_regmap(&cmreg_optimize);
-	WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+
+	if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
+		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	if (!(temp & 0x2)) {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
+	}
+
 }
 
 void cm2_frame_size_patch(unsigned int width, unsigned int height)
 {
 	unsigned int vpp_size;
+	int temp;
 	if (width < cm_width_limit)
 		amcm_disable();
 	else if (cm_en)
 		amcm_enable();
 	/*check if the cm2 enable/disable to config the cm2 size*/
-	if (!(READ_VPP_REG(VPP_MISC)&(0x1<<28)))
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	if (!(temp & 0x2))
 		return;
 	vpp_size = width|(height << 16);
 	if (cm_size != vpp_size) {

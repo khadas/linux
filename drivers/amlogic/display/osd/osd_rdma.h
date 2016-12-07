@@ -70,8 +70,4 @@ extern int rdma_mgr_irq_request;
 #ifdef CONFIG_VSYNC_RDMA
 extern void osd_rdma_interrupt_done_clear(void);
 #endif
-
-#ifdef CONFIG_FB_OSD_VSYNC_RDMA
-extern s32 get_backup_reg(u32 addr, u32 *value);
-#endif
 #endif

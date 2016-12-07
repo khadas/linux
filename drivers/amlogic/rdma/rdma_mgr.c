@@ -289,7 +289,7 @@ QUERY:
 		if (i == 3)
 			continue;
 #endif
-		if (ins->prev_trigger_type	== RDMA_VSYNC_INPUT_TRIG) {
+		if (ins->prev_trigger_type == RDMA_VSYNC_INPUT_TRIG) {
 			rdma_vsync_isr_done = 1;
 		}
 		if (rdma_status & (1 << ins->rdma_regadr->irq_status_bitpos)) {
@@ -638,6 +638,7 @@ static int rdma_probe(struct platform_device *pdev)
 			info->rdma_ins[i].keep_buf = 1;
 			/*do not change it in normal case*/
 			info->rdma_ins[i].used = 0;
+			info->rdma_ins[i].prev_trigger_type = 0;
 	}
 	WRITE_MPEG_REG(RESET4_REGISTER,
 				   (1 << 5));

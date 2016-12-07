@@ -194,8 +194,9 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 		break;
 	}
 
-	lcd_vcbus_write(VPP_MISC,
-		lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
+	if (lcd_vcbus_read(VPP_MISC) & VPP_OUT_SATURATE)
+		lcd_vcbus_write(VPP_MISC,
+			lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
 }
 
 static void lcd_lvds_clk_util_set(struct lcd_config_s *pconf)

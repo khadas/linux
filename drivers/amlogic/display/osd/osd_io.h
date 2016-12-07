@@ -22,7 +22,7 @@
 #include <linux/amlogic/iomap.h>
 
 #include "osd_log.h"
-extern void update_backup_reg(u32 addr, u32 value);
+#include "osd_backup.h"
 
 static inline uint32_t osd_cbus_read(uint32_t reg)
 {
@@ -49,6 +49,8 @@ static inline uint32_t osd_reg_read(uint32_t reg)
 {
 	uint32_t ret = 0;
 
+	/* if (get_backup_reg(reg, &ret) != 0) */
+	/* not read from bakcup */
 	ret = (uint32_t)aml_read_vcbus(reg);
 	osd_log_dbg3("%s(0x%x)=0x%x\n", __func__, reg, ret);
 
@@ -93,11 +95,6 @@ int VSYNCOSD_SET_MPEG_REG_MASK(u32 reg, u32 mask);
 int VSYNCOSD_CLR_MPEG_REG_MASK(u32 reg, u32 mask);
 
 int VSYNCOSD_IRQ_WR_MPEG_REG(u32 reg, u32 val);
-int VSYNCOSD_IRQ_WR_MPEG_REG_BITS(u32 reg, u32 val, u32 start, u32 len);
-int VSYNCOSD_IRQ_SET_MPEG_REG_MASK(u32 reg, u32 mask);
-int VSYNCOSD_IRQ_CLR_MPEG_REG_MASK(u32 reg, u32 mask);
-/* write to the rdma local buffer and flush into reg buffer at end */
-int VSYNCOSD_EX_WR_MPEG_REG(u32 reg, u32 val);
 #else
 #define VSYNCOSD_RD_MPEG_REG(reg) osd_reg_read(reg)
 #define VSYNCOSD_WR_MPEG_REG(reg, val) osd_reg_write(reg, val)
@@ -107,11 +104,6 @@ int VSYNCOSD_EX_WR_MPEG_REG(u32 reg, u32 val);
 #define VSYNCOSD_CLR_MPEG_REG_MASK(reg, mask) osd_reg_clr_mask(reg, mask)
 
 #define VSYNCOSD_IRQ_WR_MPEG_REG(reg, val) osd_reg_write(reg, val)
-#define VSYNCOSD_IRQ_WR_MPEG_REG_BITS(reg, val, start, len) \
-	osd_reg_set_bits(reg, val, start, len)
-#define VSYNCOSD_IRQ_SET_MPEG_REG_MASK(reg, mask) osd_reg_set_mask(reg, mask)
-#define VSYNCOSD_IRQ_CLR_MPEG_REG_MASK(reg, mask) osd_reg_clr_mask(reg, mask)
-#define VSYNCOSD_EX_WR_MPEG_REG(reg, val) osd_reg_write(reg, val)
 #endif
 
 #endif

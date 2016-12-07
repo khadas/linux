@@ -251,7 +251,7 @@ struct hw_para_s {
 	struct pandata_s scaledata[HW_OSD_COUNT];
 	struct pandata_s free_scale_data[HW_OSD_COUNT];
 	struct pandata_s free_dst_data[HW_OSD_COUNT];
-	struct pandata_s rotation_pandata[HW_OSD_COUNT];
+	/* struct pandata_s rotation_pandata[HW_OSD_COUNT]; */
 	struct pandata_s cursor_dispdata[HW_OSD_COUNT];
 
 	u32 gbl_alpha[HW_OSD_COUNT];
@@ -277,7 +277,7 @@ struct hw_para_s {
 	u32 block_mode[HW_OSD_COUNT];
 	u32 free_scale_mode[HW_OSD_COUNT];
 	u32 osd_reverse[HW_OSD_COUNT];
-	struct osd_rotate_s rotate[HW_OSD_COUNT];
+	/* struct osd_rotate_s rotate[HW_OSD_COUNT]; */
 	struct hw_list_s reg[HW_OSD_COUNT][HW_REG_INDEX_MAX];
 	u32 field_out_en;
 	u32 scale_workaround;
@@ -286,6 +286,7 @@ struct hw_para_s {
 	u32 angle[HW_OSD_COUNT];
 	u32 clone[HW_OSD_COUNT];
 	u32 bot_type;
+	u32 hw_reset_flag;
 	struct afbcd_data_s osd_afbcd[HW_OSD_COUNT];
 };
 

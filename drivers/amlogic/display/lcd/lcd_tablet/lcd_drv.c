@@ -194,8 +194,9 @@ static void lcd_tcon_set(struct lcd_config_s *pconf)
 	lcd_vcbus_write(L_TCON_MISC_SEL_ADDR,
 		((1 << STV1_SEL) | (1 << STV2_SEL)));
 
-	lcd_vcbus_write(VPP_MISC,
-		lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
+	if (lcd_vcbus_read(VPP_MISC) & VPP_OUT_SATURATE)
+		lcd_vcbus_write(VPP_MISC,
+			lcd_vcbus_read(VPP_MISC) & ~(VPP_OUT_SATURATE));
 }
 
 static void lcd_ttl_control_set(struct lcd_config_s *pconf)

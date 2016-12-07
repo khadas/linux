@@ -286,6 +286,8 @@ static int early_suspend_flag;
 static int early_resume_flag;
 #endif
 
+static int osd_shutdown_flag;
+
 unsigned int osd_log_level;
 int int_viu_vsync = -ENXIO;
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
@@ -741,10 +743,8 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		osd_set_reverse_hw(info->node, arg);
 		break;
 	case FBIOPUT_OSD_ROTATE_ON:
-		osd_set_rotate_on_hw(info->node, arg);
 		break;
 	case FBIOPUT_OSD_ROTATE_ANGLE:
-		osd_set_rotate_angle_hw(info->node, arg);
 		break;
 	case FBIOPUT_OSD_SRCCOLORKEY:
 		switch (fbdev->color->color_index) {
@@ -1312,9 +1312,9 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			/*
 			 * if osd layer preblend,
 			 * it's position is controlled by vpp.
-			 */
 			if (fb_dev->preblend_enable)
 				break;
+			*/
 			fb_dev->osd_ctl.disp_start_x = disp_rect->x;
 			fb_dev->osd_ctl.disp_start_y = disp_rect->y;
 			osd_log_dbg("set disp axis: x:%d y:%d w:%d h:%d\n",
@@ -1350,31 +1350,6 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 static struct notifier_block osd_notifier_nb = {
 	.notifier_call	= osd_notify_callback,
 };
-static ssize_t store_preblend_enable(struct device *device,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)fb_info->par;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	fbdev->preblend_enable = res;
-	vout_notifier_call_chain(VOUT_EVENT_OSD_PREBLEND_ENABLE,
-				 &fbdev->preblend_enable);
-	return count;
-}
-
-static ssize_t show_preblend_enable(struct device *device,
-				    struct device_attribute *attr,
-				    char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "preblend[%s]\n",
-			fbdev->preblend_enable ? "enable" : "disable");
-}
 
 static ssize_t store_enable_3d(struct device *device,
 			       struct device_attribute *attr,
@@ -1938,94 +1913,6 @@ static ssize_t store_osd_reverse(struct device *device,
 
 	return count;
 }
-static ssize_t show_rotate_on(struct device *device,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_rotate = 0;
-	osd_get_rotate_on_hw(fb_info->node, &osd_rotate);
-	return snprintf(buf, PAGE_SIZE, "osd_rotate:[%s]\n",
-			osd_rotate ? "ON" : "OFF");
-}
-
-static ssize_t store_rotate_on(struct device *device,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_rotate = 0;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	osd_rotate = res;
-	osd_set_rotate_on_hw(fb_info->node, osd_rotate);
-	return count;
-}
-
-static ssize_t show_prot_state(struct device *device,
-			       struct device_attribute *attr,
-			       char *buf)
-{
-	int pos = 0;
-	unsigned int osd_rotate = 0;
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	osd_get_rotate_on_hw(fb_info->node, &osd_rotate);
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d", osd_rotate);
-	return pos;
-}
-
-static ssize_t show_rotate_angle(struct device *device,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_rotate_angle = 0;
-	osd_get_rotate_angle_hw(fb_info->node, &osd_rotate_angle);
-	return snprintf(buf, PAGE_SIZE, "osd_rotate:%d\n", osd_rotate_angle);
-}
-
-static ssize_t store_rotate_angle(struct device *device,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int osd_rotate_angle = 0;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	osd_rotate_angle = res;
-	osd_set_rotate_angle_hw(fb_info->node, osd_rotate_angle);
-	return count;
-}
-
-static ssize_t show_prot_canvas(struct device *device,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	int x_start, y_start, x_end, y_end;
-	osd_get_prot_canvas_hw(fb_info->node,
-			&x_start, &y_start, &x_end, &y_end);
-	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
-			x_start, y_start, x_end, y_end);
-}
-
-static ssize_t store_prot_canvas(struct device *device,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	int parsed[4];
-	if (likely(parse_para(buf, 4, parsed) == 4))
-		osd_set_prot_canvas_hw(fb_info->node, parsed[0],
-				parsed[1], parsed[2], parsed[3]);
-	else
-		osd_log_err("set prot canvas error\n");
-	return count;
-}
 
 static ssize_t show_antiflicker(struct device *device,
 				struct device_attribute *attr,
@@ -2068,9 +1955,7 @@ static ssize_t show_update_freescale(struct device *device,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int update_state = 0;
-	osd_get_update_state_hw(fb_info->node, &update_state);
 	return snprintf(buf, PAGE_SIZE, "update_state:[%s]\n",
 			update_state ? "TRUE" : "FALSE");
 }
@@ -2079,14 +1964,12 @@ static ssize_t store_update_freescale(struct device *device,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int update_state = 0;
 	int res = 0;
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
 	update_state = res;
-	osd_set_update_state_hw(fb_info->node, update_state);
 	return count;
 }
 
@@ -2298,8 +2181,6 @@ static struct device_attribute osd_attrs[] = {
 			show_order, store_order),
 	__ATTR(enable_3d, S_IRUGO | S_IWUSR,
 			show_enable_3d, store_enable_3d),
-	__ATTR(preblend_enable, S_IRUGO | S_IWUSR,
-			show_preblend_enable, store_preblend_enable),
 	__ATTR(free_scale, S_IRUGO | S_IWUSR | S_IWGRP,
 			show_free_scale, store_free_scale),
 	__ATTR(scale_axis, S_IRUGO | S_IWUSR,
@@ -2330,16 +2211,8 @@ static struct device_attribute osd_attrs[] = {
 			show_freescale_mode, store_freescale_mode),
 	__ATTR(flush_rate, S_IRUGO | S_IRUSR,
 			show_flush_rate, NULL),
-	__ATTR(prot_on, S_IRUGO | S_IWUSR | S_IWGRP,
-			show_rotate_on, store_rotate_on),
-	__ATTR(prot_angle, S_IRUGO | S_IWUSR | S_IWGRP,
-			show_rotate_angle, store_rotate_angle),
-	__ATTR(prot_canvas, S_IRUGO | S_IWUSR | S_IWGRP,
-			show_prot_canvas, store_prot_canvas),
 	__ATTR(osd_reverse, S_IRUGO | S_IWUSR,
 			show_osd_reverse, store_osd_reverse),
-	__ATTR(prot_state, S_IRUGO | S_IRUSR,
-			show_prot_state, NULL),
 	__ATTR(osd_antiflicker, S_IRUGO | S_IWUSR,
 			show_antiflicker, store_antiflicker),
 	__ATTR(update_freescale, S_IRUGO | S_IWUSR,
@@ -2477,7 +2350,6 @@ static int osd_probe(struct platform_device *pdev)
 	enum vmode_e logo_init = 0;
 	const void *prop;
 	int prop_idx = 0;
-	int rotation = 0;
 	const char *str;
 	int i;
 	int ret = 0;
@@ -2587,14 +2459,7 @@ static int osd_probe(struct platform_device *pdev)
 					fb_def_var[index].bits_per_pixel = 32;
 			}
 		}
-		/* get roataion from dtd */
-		if (index == DEV_OSD0) {
-			prop = of_get_property(pdev->dev.of_node,
-					"rotation", NULL);
-			if (prop)
-				prop_idx = of_read_ulong(prop, 1);
-			rotation = prop_idx;
-		}
+
 		_fbdev_set_default(fbdev, index);
 		if (NULL == fbdev->color) {
 			osd_log_err("fbdev->color NULL\n");
@@ -2639,17 +2504,7 @@ static int osd_probe(struct platform_device *pdev)
 	early_suspend.resume = osd_late_resume;
 	register_early_suspend(&early_suspend);
 #endif
-	/* init osd rotate */
-	if (rotation == 90 || rotation == 270) {
-		osd_set_prot_canvas_hw(0, 0, 0,
-				var_screeninfo[0] - 1, var_screeninfo[1] - 1);
-		if (rotation == 90)
-			osd_set_rotate_angle_hw(0, 1);
-		else {
-			osd_set_rotate_angle_hw(0, 2);
-			osd_set_rotate_on_hw(0, 1);
-		}
-	}
+
 	/* init osd reverse */
 	if (osd_info.index == DEV_ALL) {
 		osd_set_reverse_hw(0, osd_info.osd_reverse);
@@ -2699,6 +2554,15 @@ static int osd_remove(struct platform_device *pdev)
 		}
 	}
 	return 0;
+}
+
+static void osd_shutdown(struct platform_device *pdev)
+{
+	if (!osd_shutdown_flag) {
+		osd_shutdown_flag = 1;
+		osd_shutdown_hw();
+	}
+	return;
 }
 
 /* Process kernel command line parameters */
@@ -2770,6 +2634,7 @@ const struct dev_pm_ops osd_pm = {
 static struct platform_driver osd_driver = {
 	.probe      = osd_probe,
 	.remove     = osd_remove,
+	.shutdown = osd_shutdown,
 #ifdef CONFIG_PM
 	.suspend  = osd_suspend,
 	.resume    = osd_resume,

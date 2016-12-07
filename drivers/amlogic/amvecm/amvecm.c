@@ -2846,7 +2846,12 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	/* init module status */
 	amvecm_wb_init(wb_en);
 	amvecm_gamma_init(gamma_en);
-	WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1);
+	WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+	if (cm_en)
+		amcm_enable();
+	else
+		amcm_disable();
+	/* WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1); */
 }
 
 #ifdef CONFIG_AML_LCD

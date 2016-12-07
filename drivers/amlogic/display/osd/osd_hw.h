@@ -21,16 +21,10 @@
 #include "osd.h"
 
 #define REG_OFFSET (0x20)
-#define OSD_RELATIVE_BITS 0x33370
+#define OSD_RELATIVE_BITS 0x33330
 #ifdef CONFIG_FB_OSD_VSYNC_RDMA
 #include "osd_rdma.h"
 #endif
-
-#define OSD_REG_BACKUP_COUNT 15
-#define OSD_AFBC_REG_BACKUP_COUNT 10
-
-extern const u16 osd_reg_backup[OSD_REG_BACKUP_COUNT];
-extern const u16 osd_afbc_reg_backup[OSD_AFBC_REG_BACKUP_COUNT];
 
 #ifdef CONFIG_HIBERNATION
 extern void osd_freeze_hw(void);
@@ -102,24 +96,14 @@ extern void osd_set_2x_scale_hw(u32 index, u16 h_scale_enable,
 extern void osd_get_flush_rate_hw(u32 *break_rate);
 extern void osd_set_reverse_hw(u32 index, u32 reverse);
 extern void osd_get_reverse_hw(u32 index, u32 *reverse);
-extern void osd_set_rotate_on_hw(u32 index, u32 on_off);
-extern void osd_get_rotate_on_hw(u32 index, u32 *on_off);
 extern void osd_set_antiflicker_hw(u32 index, u32 vmode, u32 yres);
 extern void osd_get_antiflicker_hw(u32 index, u32 *on_off);
-extern void osd_set_update_state_hw(u32 index, u32 up_free);
-extern void osd_get_update_state_hw(u32 index, u32 *up_free);
 extern void osd_get_angle_hw(u32 index, u32 *angle);
 extern void osd_set_angle_hw(u32 index, u32 angle, u32  virtual_osd1_yres,
 			     u32 virtual_osd2_yres);
 extern void osd_get_clone_hw(u32 index, u32 *clone);
 extern void osd_set_clone_hw(u32 index, u32 clone);
 extern void osd_set_update_pan_hw(u32 index);
-extern void osd_set_rotate_angle_hw(u32 index, u32 angle);
-extern void osd_get_rotate_angle_hw(u32 index, u32 *angle);
-extern void osd_get_prot_canvas_hw(u32 index, s32 *x_start, s32 *y_start,
-				   s32 *x_end, s32 *y_end);
-extern void osd_set_prot_canvas_hw(u32 index, s32 x_start, s32 y_start,
-				   s32 x_end, s32 y_end);
 extern void osd_setpal_hw(u32 index, unsigned regno, unsigned red,
 			  unsigned green, unsigned blue, unsigned transp);
 extern void osd_enable_hw(u32 index, u32 enable);
@@ -135,6 +119,7 @@ extern void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart,
 extern void osd_init_scan_mode(void);
 extern void osd_suspend_hw(void);
 extern void osd_resume_hw(void);
+extern void osd_shutdown_hw(void);
 extern void osd_init_hw(u32 logo_loaded);
 extern void osd_init_scan_mode(void);
 extern void osd_set_logo_index(int index);

@@ -372,11 +372,6 @@ static int pre_process_time_force;
 static int used_local_buf_index[USED_LOCAL_BUF_MAX];
 static int used_post_buf_index = -1;
 
-#define DisableVideoLayer() \
-	CLEAR_MPEG_REG_MASK(VPP_MISC, \
-	VPP_VD1_PREBLEND | VPP_VD2_PREBLEND | \
-	VPP_VD2_POSTBLEND | VPP_VD1_POSTBLEND); \
-
 static int di_receiver_event_fun(int type, void *data, void *arg);
 static void di_uninit_buf(void);
 static unsigned char is_bypass(vframe_t *vf_in);
@@ -617,9 +612,6 @@ store_dbg(struct device *dev,
 			init_flag = 1;
 		else
 			init_flag = 0;
-	}	else if (strncmp(buf, "show_osd", 8) == 0) {
-		DI_Wr(VIU_OSD1_CTRL_STAT,
-			Rd(VIU_OSD1_CTRL_STAT) | (0xff << 12));
 	} else if (strncmp(buf, "run", 3) == 0) {
 		/* timestamp_pcrscr_enable(1); */
 		run_flag = DI_RUN_FLAG_RUN;
