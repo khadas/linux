@@ -2252,7 +2252,7 @@ static int dmx_enable(struct aml_dmx *dmx)
 			      (0 << BYPASS_USE_RECODER_PATH) |
 			      (0 << INSERT_AUDIO_PES_STRONG_SYNC) |
 			      (0 << INSERT_VIDEO_PES_STRONG_SYNC) |
-			      (1 << OTHER_INT_AT_PES_BEGINING) |
+			      (0 << OTHER_INT_AT_PES_BEGINING) |
 			      (0 << DISCARD_AV_PACKAGE) |
 			      ((!!dmx->dump_ts_select) << TS_RECORDER_SELECT) |
 			      (record << TS_RECORDER_ENABLE) |
