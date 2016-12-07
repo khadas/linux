@@ -215,6 +215,7 @@
 						clocks = <&clock CLK_81>;
 						clock-names = "ethclk81";
 						internal_phy=<1>;
+						wol=<0>;
     };
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";

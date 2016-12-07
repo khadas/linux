@@ -354,7 +354,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	struct stmmac_priv *priv = NULL;
 	struct plat_stmmacenet_data *plat_dat = NULL;
 	const char *mac = NULL;
-
+	struct device_node *np = pdev->dev.of_node;
 	pr_debug("..........enter ethernet probe\n");
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = devm_ioremap_resource(dev, res);
@@ -411,7 +411,10 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		       "information not found\n", __func__);
 		return -ENXIO;
 	}
-
+	if (of_property_read_u32(np, "wol", &priv->phy_wol))
+		pr_debug("wol not set\n");
+	else
+		pr_debug("Ethernet :got wol %d .set it\n", priv->phy_wol);
 	/*
 	 * On some platforms e.g. SPEAr the wake up irq differs from the mac irq
 	 * The external wake up irq can be passed through the platform code

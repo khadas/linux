@@ -1483,7 +1483,10 @@ static int stmmac_init_phy(struct net_device *dev)
 						phy_id_fmt, interface);
 
 	phydev = phy_connect(dev, phy_id_fmt, &stmmac_adjust_link, interface);
-
+	if (priv->phy_wol == 1) {
+		/*bit 15 of features indicate the wol feature*/
+		phydev->drv->features |= 0x8000;
+	}
 	if (IS_ERR(phydev)) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);

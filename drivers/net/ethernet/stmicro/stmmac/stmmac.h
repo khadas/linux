@@ -111,6 +111,7 @@ struct stmmac_priv {
 	int use_riwt;
 	int irq_wake;
 	spinlock_t ptp_lock;
+	int phy_wol;
 };
 
 int stmmac_mdio_unregister(struct net_device *ndev);

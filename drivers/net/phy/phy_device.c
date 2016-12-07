@@ -1037,11 +1037,11 @@ void internal_wol_init(struct phy_device *phydev)
 	val &= ~0x1000;
 	phy_write(phydev, 0x14, val);/*write data to wol register bank*/
 	/*write mac address*/
-	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[0]|mac_addr[1]<<8);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[5]|mac_addr[4]<<8);
 	phy_write(phydev, 0x14, 0x4800|0x00);
-	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[2]|mac_addr[3]<<8);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[3]|mac_addr[2]<<8);
 	phy_write(phydev, 0x14, 0x4800|0x01);
-	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[4]|mac_addr[5]<<8);
+	phy_write(phydev, SMI_ADDR_TSTWRITE, mac_addr[1]|mac_addr[0]<<8);
 	phy_write(phydev, 0x14, 0x4800|0x02);
 	/*enable wol*/
 	phy_write(phydev, SMI_ADDR_TSTWRITE, 0x9);
@@ -1307,10 +1307,8 @@ static int gen10g_config_init(struct phy_device *phydev)
 
 static int internal_config_init(struct phy_device *phydev)
 {
-	pr_info("patch1 link down dump phyreg\n");
-	pr_info("patch2 set driving length\n");
-
-	/*internal_wol_init(phydev);*/
+	if (phydev->attached_dev != NULL)
+		internal_wol_init(phydev);
 	internal_config(phydev);
 	return genphy_config_init(phydev);
 }
@@ -1327,13 +1325,14 @@ static int internal_phy_resume(struct phy_device *phydev)
 int internal_phy_suspend(struct phy_device *phydev)
 {
 	int value;
-	/*don't power off if wol is needed*/
-
-	mutex_lock(&phydev->lock);
-
 	/*disable link interrupt*/
 	value = phy_read(phydev, 0x1E);
 	phy_write(phydev, 0x1E, value & ~0x50);
+	/*don't power off if wol is needed*/
+	if (phydev->drv->features & 0x8000)
+		return 0;
+
+	mutex_lock(&phydev->lock);
 
 	value = phy_read(phydev, MII_BMCR);
 	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
