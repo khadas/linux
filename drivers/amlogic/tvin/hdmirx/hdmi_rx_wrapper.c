@@ -1417,7 +1417,9 @@ int hdmirx_hw_get_color_fmt(void)
 	int color_format = 0;
 	int format = rx.pre.colorspace;
 	if (rx.pre.sw_dvi) {
-		if (HDMI_640x480p60 == rx.pre.sw_vic)
+		if (HDMI_640x480p60 == rx.pre.sw_vic ||
+			HDMI_640x480p72 == rx.pre.sw_vic ||
+			HDMI_640x480p75 == rx.pre.sw_vic)
 			format = E_COLOR_RGB;
 
 		if ((HDMI_800_600 <= rx.pre.sw_vic) &&
@@ -1614,9 +1616,14 @@ struct freq_ref_s freq_ref[] = {
 	{HDMI_1440_900, 0, 0, 1440, 900, 900, 900, 0, 0},
 	{HDMI_1400_1050, 0, 0, 1400, 1050, 1050, 1050, 0, 0},
 	{HDMI_1680_1050, 0, 0, 1680, 1050, 1050, 1050, 0, 0},
+
 	/* 4k2k mode */
 	{HDMI_3840_2160p, 0, 0, 3840, 2160, 2160, 2160, 0, 0},
 	{HDMI_4096_2160p, 0, 0, 4096, 2160, 2160, 2160, 0, 0},
+
+	{HDMI_640x480p72, 0, 30000, 640, 480, 480, 480, 0, 3600},
+	{HDMI_640x480p75, 0, 31250, 640, 480, 480, 480, 0, 3750},
+
 	/* 4k2k 420mode hactive = hactive/2 */
 	{HDMI_2160p_50hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
 	{HDMI_2160p_60hz_420, 0, 0, 1920, 2160, 2160, 2160, 0, 0},
@@ -1857,6 +1864,12 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		break;
 	case HDMI_1680_1050:
 		fmt = TVIN_SIG_FMT_HDMI_1680X1050_00HZ;
+		break;
+	case HDMI_640x480p72:
+		fmt = TVIN_SIG_FMT_HDMI_640X480P_72HZ;
+		break;
+	case HDMI_640x480p75:
+		fmt = TVIN_SIG_FMT_HDMI_640X480P_75HZ;
 		break;
 		/* 4k2k mode */
 	case HDMI_3840_2160p:
@@ -2474,6 +2487,7 @@ void hdmirx_hw_monitor(void)
 			hdmirx_audio_fifo_rst();
 			rx_aud_pll_ctl(0);
 			is_hdcp_source = true;
+			rx.no_signal = true;
 			rx.state = FSM_INIT;
 			#ifdef HDCP22_ENABLE
 			if (hdcp22_on)
