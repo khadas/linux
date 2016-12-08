@@ -1555,6 +1555,16 @@ err:
 	return ret;
 }
 
+static void aml_g9tv_audio_shutdown(struct platform_device *pdev)
+{
+	struct snd_soc_card *card;
+
+	card = platform_get_drvdata(pdev);
+	aml_suspend_pre(card);
+	return;
+}
+
+
 static const struct of_device_id amlogic_audio_of_match[] = {
 	{ .compatible = "aml, aml_snd_g9tv", },
 	{},
@@ -1568,6 +1578,7 @@ static struct platform_driver aml_g9tv_audio_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe			= aml_g9tv_audio_probe,
+	.shutdown		= aml_g9tv_audio_shutdown,
 };
 
 module_platform_driver(aml_g9tv_audio_driver);
