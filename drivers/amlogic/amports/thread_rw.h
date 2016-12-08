@@ -27,5 +27,9 @@ int threadrw_freefifo_len(struct stream_buf_s *stbuf);
 int threadrw_passed_len(struct stream_buf_s *stbuf);
 int threadrw_flush_buffers(struct stream_buf_s *stbuf);
 int threadrw_dataoffset(struct stream_buf_s *stbuf);
+int threadrw_alloc_more_buffer_size(
+	struct stream_buf_s *stbuf,
+	int size);
+int threadrw_support_more_buffers(struct stream_buf_s *stbuf);
 
 #endif

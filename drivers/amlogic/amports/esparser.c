@@ -873,8 +873,39 @@ ssize_t esparser_write(struct file *file,
 			struct stream_buf_s *stbuf,
 			const char __user *buf, size_t count)
 {
-	if (stbuf->write_thread)
-		return threadrw_write(file, stbuf, buf, count);
+	if (stbuf->write_thread) {
+		ssize_t ret;
+		ret = threadrw_write(file, stbuf, buf, count);
+		if (ret == -EAGAIN) {
+			u32 a, b;
+			int vdelay, adelay;
+			if ((stbuf->type != BUF_TYPE_VIDEO) &&
+				(stbuf->type != BUF_TYPE_HEVC))
+				return ret;
+			if (stbuf->buf_size > (SZ_1M * 30) ||
+				(threadrw_buffer_size(stbuf) > SZ_1M * 10) ||
+				!threadrw_support_more_buffers(stbuf))
+				return ret;
+			/*only chang buffer for video.*/
+			vdelay = calculation_stream_delayed_ms(
+					PTS_TYPE_VIDEO, &a, &b);
+			adelay = calculation_stream_delayed_ms(
+					PTS_TYPE_AUDIO, &a, &b);
+			if ((vdelay > 100 && vdelay < 2000) && /*vdelay valid.*/
+				((vdelay < 500) ||/*video delay is short!*/
+				(adelay > 0 && adelay < 1000))/*audio is low.*/
+				) {
+				/*on buffer fulled.
+				if delay is less than 100ms we think errors,
+				And we add more buffer on delay < 2s.
+				*/
+				int new_size = 1024 * 1024;
+				threadrw_alloc_more_buffer_size(
+						stbuf, new_size);
+			}
+		}
+		return ret;
+	}
 	return esparser_write_ex(file, stbuf, buf, count, 0);
 }
 
