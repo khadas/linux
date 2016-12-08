@@ -1069,6 +1069,10 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 				 ((sif_deemp & 0xff) << 16) | 0x0500 |
 				 sif_fm_gain));
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x06, sif_cfg_demod);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x24,
+				(((sif_bb_bw & 0xff) << 24) |
+				 0xfffff));
+		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x1c, 0x1f000);
 	}
 
 	if (Broadcast_Standard != AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) {
@@ -1575,7 +1579,7 @@ int atvdemod_init(void)
 		timer_init_flag = 1;
 	}
 	#endif
-	pr_err("%s done\n", __func__);
+	pr_info("%s done\n", __func__);
 	return 0;
 }
 void atvdemod_uninit(void)
@@ -2071,4 +2075,48 @@ void aml_fix_PWM_adjust(int enable)
 	}
 }
 
+void aml_audio_overmodulation(int enable)
+{
+	static int ov_flag;
+	unsigned long tmp_v;
+	unsigned long tmp_v1;
+	u32 Broadcast_Standard = broad_std;
+	if (enable && Broadcast_Standard ==
+		AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK) {
+		tmp_v = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0x28);
+		tmp_v = tmp_v&0xffff;
+		if (tmp_v >= 0x10 && ov_flag == 0) {
+			tmp_v1 =
+				atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
+			tmp_v1 = (tmp_v1&0xffffff)|(1<<24);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x14, 0x8000015);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x1c, 0x0f000);
+		} else if (tmp_v >= 0x2500 && ov_flag == 0) {
+			tmp_v1 = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
+			tmp_v1 = (tmp_v1&0xffffff)|(1<<24);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x14, 0xf400015);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x18, 0xc000);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x1c, 0x0f000);
+			ov_flag = 1;
+		} else if (tmp_v <= 0x10 && ov_flag == 1) {
+			tmp_v1 = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
+			tmp_v1 = (tmp_v1&0xffffff)|(0<<24);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x14, 0xf400000);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x18, 0xc000);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
+					0x1c, 0x1f000);
+			ov_flag = 0;
+		}
+	}
+}
 

@@ -290,9 +290,18 @@ static void aml_fe_do_work(struct work_struct *work)
 	struct dvb_frontend *fe = dvb->fe;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int afc = 100;
+	int lock = 0;
+	static int audio_overmodul;
 	static int afc_wave_cnt;
 	struct aml_fe *fee;
 	fee = fe->demodulator_priv;
+
+	retrieve_vpll_carrier_lock(&lock);/* 0 means lock, 1 means unlock */
+	if (!lock) {
+		if (0 == ((audio_overmodul++)%10))
+			aml_audio_overmodulation(1);
+	}
+
 	retrieve_frequency_offset(&afc);
 	afc = afc*488/1000;
 	if (abs(afc) < AFC_BEST_LOCK) {
