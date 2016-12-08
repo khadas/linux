@@ -16,6 +16,7 @@
 #define PRINT_FLAG_TIME_STAMP         0x0080
 #define PRINT_FLAG_RUN_SCHEDULE       0x0100
 #define PRINT_FLAG_DEBUG_POC          0x0200
+#define PRINT_FLAG_VDEC_DATA          0x0400
 #define DISABLE_ERROR_HANDLE          0x10000
 #define OUTPUT_CURRENT_BUF            0x20000
 #define ONLY_RESET_AT_START           0x40000
@@ -749,6 +750,8 @@ extern unsigned int h264_debug_flag;
 extern unsigned int h264_debug_mask;
 
 int dpb_print(int indext, int debug_flag, const char *fmt, ...);
+
+unsigned char dpb_is_debug(int index, int debug_flag);
 
 int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame);
 

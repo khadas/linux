@@ -90,6 +90,10 @@
 #undef pr_info
 #define pr_info printk
 
+#define DECODE_MODE_SINGLE				0
+#define DECODE_MODE_MULTI_STREAMBASE	1
+#define DECODE_MODE_MULTI_FRAMEBASE		2
+
 /*---------------------------------------------------
  Include "parser_cmd.h"
 ---------------------------------------------------*/
@@ -321,7 +325,7 @@ typedef unsigned short u16;
 #define PRINT_FLAG_UCODE_EVT             0x10000000
 #define PRINT_FLAG_VDEC_STATUS             0x20000000
 #define PRINT_FLAG_VDEC_DETAIL             0x40000000
-#define ONLY_RESET_AT_START             0x80000000
+#define PRINT_FLAG_VDEC_DATA             0x80000000
 #endif
 
 static u32 debug;
@@ -1273,26 +1277,22 @@ static int vp9_print(struct VP9Decoder_s *pbi,
 	}
 	return 0;
 }
-#if 0
+
+#ifdef MULTI_INSTANCE_SUPPORT
 static int vp9_print_cont(struct VP9Decoder_s *pbi,
 	int flag, const char *fmt, ...)
 {
-#define HEVC_PRINT_BUF		128
 	unsigned char buf[HEVC_PRINT_BUF];
 	int len = 0;
-#ifdef MULTI_INSTANCE_SUPPORT
 	if (pbi == NULL ||
 		(flag == 0) ||
-		(debug[pbi->index] & flag)) {
-#endif
+		(debug & flag)) {
 		va_list args;
 		va_start(args, fmt);
 		vsnprintf(buf + len, HEVC_PRINT_BUF - len, fmt, args);
 		pr_info("%s", buf);
 		va_end(args);
-#ifdef MULTI_INSTANCE_SUPPORT
 	}
-#endif
 	return 0;
 }
 #endif
@@ -1872,6 +1872,7 @@ const u32 vp9_version = 201602101;
 static u32 debug;
 static u32 radr;
 static u32 rval;
+static u32 pop_shorts;
 static u32 dbg_cmd;
 static u32 dbg_skip_decode_index;
 static u32 endian = 0xff0;
@@ -2015,7 +2016,7 @@ bit [17]: for NAL_SEI when bit0 is 0:
 bit [31:20]: used by ucode for debug purpose
 */
 #define NAL_SEARCH_CTL            HEVC_ASSIST_SCRATCH_I
-#define CUR_NAL_UNIT_TYPE       HEVC_ASSIST_SCRATCH_J
+#define DECODE_MODE              HEVC_ASSIST_SCRATCH_J
 #define DECODE_STOP_POS         HEVC_ASSIST_SCRATCH_K
 
 #ifdef MULTI_INSTANCE_SUPPORT
@@ -4454,7 +4455,7 @@ void vp9_loop_filter_frame_init(struct segmentation *seg,
 /* VP9_LPF_LVL_UPDATE */
 #endif
 
-static void vp9_init_decoder_hw(void)
+static void vp9_init_decoder_hw(struct VP9Decoder_s *pbi)
 {
 	unsigned int data32;
 	int i;
@@ -4523,9 +4524,14 @@ static void vp9_init_decoder_hw(void)
 	WRITE_VREG(HEVC_STREAM_SWAP_TEST, 0);
 #endif
 #ifdef MULTI_INSTANCE_SUPPORT
+	if (pbi->platform_dev && vdec_frame_based(hw_to_vdec(pbi)))
+		WRITE_VREG(DECODE_MODE, DECODE_MODE_MULTI_FRAMEBASE);
+	else
+		WRITE_VREG(DECODE_MODE, DECODE_MODE_MULTI_STREAMBASE);
 	WRITE_VREG(HEVC_DECODE_SIZE, 0);
 	WRITE_VREG(HEVC_DECODE_COUNT, 0);
 #else
+	WRITE_VREG(DECODE_MODE, DECODE_MODE_SINGLE);
 	WRITE_VREG(HEVC_DECODE_PIC_BEGIN_REG, 0);
 	WRITE_VREG(HEVC_DECODE_PIC_NUM_REG, 0x7fffffff); /*to remove*/
 #endif
@@ -5304,7 +5310,6 @@ static void debug_buffer_mgr_more(struct VP9Decoder_s *pbi)
 	if (!(debug & VP9_DEBUG_BUFMGR_MORE))
 		return;
 	pr_info("vp9_param: (%d)\n", pbi->slice_idx);
-	pbi->slice_idx++;
 	for (i = 0; i < (RPM_END-RPM_BEGIN); i++) {
 		pr_info("%04x ", vp9_param.l.data[i]);
 		if (((i + 1) & 0xf) == 0)
@@ -5421,6 +5426,7 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	bit_depth_chroma = vp9_param.p.bit_depth;
 
 	ret = vp9_bufmgr_process(pbi, &vp9_param);
+	pbi->slice_idx++;
 	if (ret < 0) {
 		pr_info("vp9_bufmgr_process=> %d, VP9_10B_DISCARD_NAL\r\n",
 		 ret);
@@ -5622,8 +5628,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 				pbi->dec_result = DEC_RESULT_AGAIN;
 			else
 				pbi->dec_result = DEC_RESULT_DONE;
-			if ((debug & ONLY_RESET_AT_START) == 0)
-				amhevc_stop();
+			amhevc_stop();
 #endif
 			schedule_work(&pbi->work);
 		}
@@ -5632,8 +5637,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	} else if (dec_status == HEVC_DECPIC_DATA_DONE) {
 		if (pbi->m_ins_flag) {
 			pbi->dec_result = DEC_RESULT_DONE;
-			if ((debug & ONLY_RESET_AT_START) == 0)
-				amhevc_stop();
+			amhevc_stop();
 			schedule_work(&pbi->work);
 		}
 
@@ -5651,8 +5655,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 					__func__, READ_VREG(HEVC_STREAM_LEVEL));
 				goto send_again;
 			}
-			if ((debug & ONLY_RESET_AT_START) == 0)
-				amhevc_stop();
+			amhevc_stop();
 			vp9_print(pbi, PRINT_FLAG_UCODE_EVT,
 				"%s %s\n", __func__,
 				(dec_status == HEVC_SEARCH_BUFEMPTY) ?
@@ -5772,6 +5775,25 @@ static void vvp9_put_timer_func(unsigned long arg)
 		rval = 0;
 		radr = 0;
 	}
+	if (pop_shorts != 0) {
+		int i;
+		u32 sum = 0;
+		pr_info("pop stream 0x%x shorts\r\n", pop_shorts);
+		for (i = 0; i < pop_shorts; i++) {
+			u32 data =
+			(READ_HREG(HEVC_SHIFTED_DATA) >> 16);
+			WRITE_HREG(HEVC_SHIFT_COMMAND,
+			(1<<7)|16);
+			if ((i & 0xf) == 0)
+				pr_info("%04x:", i);
+			pr_info("%04x ", data);
+			if (((i + 1) & 0xf) == 0)
+				pr_info("\r\n");
+			sum += data;
+		}
+		pr_info("\r\nsum = %x\r\n", sum);
+		pop_shorts = 0;
+	}
 	if (dbg_cmd != 0) {
 		if (dbg_cmd == 1) {
 			u32 disp_laddr;
@@ -5849,7 +5871,7 @@ static void vvp9_prot_init(struct VP9Decoder_s *pbi)
 	vp9_config_work_space_hw(pbi);
 	init_pic_list_hw(pbi);
 
-	vp9_init_decoder_hw();
+	vp9_init_decoder_hw(pbi);
 
 #ifdef VP9_LPF_LVL_UPDATE
 	vp9_loop_filter_init();
@@ -6270,6 +6292,41 @@ static unsigned int get_free_decoder_id(struct vdec_s *vdec)
 	return 0;
 }
 
+static unsigned char get_data_check_sum
+	(struct VP9Decoder_s *pbi, int size)
+{
+	int jj;
+	int sum = 0;
+	u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
+		pbi->chunk->offset;
+	for (jj = 0; jj < size; jj++)
+		sum += data[jj];
+	return sum;
+}
+
+static void dump_data(struct VP9Decoder_s *pbi, int size)
+{
+	int jj;
+	u8 *data = ((u8 *)pbi->chunk->block->start_virt) +
+		pbi->chunk->offset;
+	for (jj = 0; jj < size; jj++) {
+		if ((jj & 0xf) == 0)
+			vp9_print(pbi,
+				0,
+				"%06x:", jj);
+		vp9_print_cont(pbi,
+			0,
+			"%02x ", data[jj]);
+		if (((jj + 1) & 0xf) == 0)
+			vp9_print(pbi,
+			 0,
+				"\n");
+	}
+	vp9_print(pbi,
+	 0,
+		"\n");
+}
+
 static void vp9_work(struct work_struct *work)
 {
 	struct VP9Decoder_s *pbi = container_of(work,
@@ -6308,8 +6365,14 @@ static void vp9_work(struct work_struct *work)
 			}
 			pbi->dec_result = DEC_RESULT_NONE;
 			vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
-				"%s: chunk size 0x%x\n",
-				__func__, r);
+				"%s: chunk size 0x%x sum 0x%x\n",
+				__func__, r,
+				(debug & PRINT_FLAG_VDEC_STATUS) ?
+				get_data_check_sum(pbi, r) : 0
+				);
+
+			if (debug & PRINT_FLAG_VDEC_DATA)
+				dump_data(pbi, pbi->chunk->size);
 			WRITE_VREG(HEVC_DECODE_SIZE, r);
 
 			vdec_enable_input(vdec);
@@ -6444,8 +6507,11 @@ static void run(struct vdec_s *vdec,
 	pbi->dec_result = DEC_RESULT_NONE;
 
 	vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
-		"%s: %x (%x %x %x)\n",
+		"%s: size 0x%x sum 0x%x (%x %x %x)\n",
 		__func__, r,
+		(vdec_frame_based(vdec) &&
+		(debug & PRINT_FLAG_VDEC_STATUS)) ?
+		get_data_check_sum(pbi, r) : 0,
 	READ_VREG(HEVC_STREAM_LEVEL),
 	READ_VREG(HEVC_STREAM_WR_PTR),
 	READ_VREG(HEVC_STREAM_RD_PTR));
@@ -6466,11 +6532,14 @@ static void run(struct vdec_s *vdec,
 
 	WRITE_VREG(HEVC_DEC_STATUS_REG, HEVC_ACTION_DONE);
 
-	if (vdec_frame_based(vdec))
-		WRITE_VREG(HEVC_SHIFT_BYTE_COUNT, 0);
+	if (vdec_frame_based(vdec)) {
+		if (debug & PRINT_FLAG_VDEC_DATA)
+			dump_data(pbi, pbi->chunk->size);
 
+		WRITE_VREG(HEVC_SHIFT_BYTE_COUNT, 0);
+	}
 	WRITE_VREG(HEVC_DECODE_SIZE, r);
-	WRITE_VREG(HEVC_DECODE_COUNT, pbi->decode_idx);
+	WRITE_VREG(HEVC_DECODE_COUNT, pbi->slice_idx);
 	pbi->init_flag = 1;
 
 	vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
@@ -6738,6 +6807,9 @@ MODULE_PARM_DESC(radr, "\nradr\n");
 
 module_param(rval, uint, 0664);
 MODULE_PARM_DESC(rval, "\nrval\n");
+
+module_param(pop_shorts, uint, 0664);
+MODULE_PARM_DESC(pop_shorts, "\nrval\n");
 
 module_param(dbg_cmd, uint, 0664);
 MODULE_PARM_DESC(dbg_cmd, "\dbg_cmd\n");

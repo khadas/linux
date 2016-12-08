@@ -135,7 +135,8 @@ int amports_get_debug_flags(void)
 
 #ifdef DATA_DEBUG
 #include <linux/fs.h>
-#define DEBUG_FILE_NAME     "/tmp/debug.tmp"
+
+#define DEBUG_FILE_NAME     "/sdcard/debug.tmp"
 static struct file *debug_filp;
 static loff_t debug_file_pos;
 
@@ -328,8 +329,7 @@ static struct stream_port_s ports[] = {
 #ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_vbuf",
-		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO |
-			PORT_TYPE_DECODER_SCHED,
+		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO,
 		.fops = &vbuf_fops,
 	},
 	{
@@ -360,8 +360,7 @@ static struct stream_port_s ports[] = {
 	{
 		.name = "amstream_mpts",
 		.type = PORT_TYPE_MPTS | PORT_TYPE_VIDEO |
-			PORT_TYPE_AUDIO | PORT_TYPE_SUB |
-			PORT_TYPE_DECODER_SCHED,
+			PORT_TYPE_AUDIO | PORT_TYPE_SUB,
 		.fops = &mpts_fops,
 	},
 	{
@@ -408,10 +407,17 @@ static struct stream_port_s ports[] = {
 #ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_hevc",
+#ifdef CONFIG_AM_VDEC_DV
+/*test dobly vision, remove later*/
 		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC |
-			PORT_TYPE_DECODER_SCHED,
+			PORT_TYPE_DECODER_SCHED | PORT_TYPE_DUALDEC,
 		.fops = &vbuf_fops,
 		.vformat = VFORMAT_HEVC,
+#else
+		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC,
+		.fops = &vbuf_fops,
+		.vformat = VFORMAT_HEVC,
+#endif
 	},
 	{
 		.name = "amstream_hevc_frame",
@@ -589,6 +595,8 @@ static void video_port_release(struct port_priv_s *priv,
 			esparser_release(pbuf);
 	/*fallthrough*/
 	case 3:
+		if (vdec->slave)
+			vdec_release(vdec->slave);
 		vdec_release(vdec);
 		priv->vdec = NULL;
 	/*fallthrough*/
@@ -1106,7 +1114,9 @@ static ssize_t amstream_vframe_write(struct file *file, const char *buf,
 					   size_t count, loff_t *ppos)
 {
 	struct port_priv_s *priv = (struct port_priv_s *)file->private_data;
-
+#ifdef DATA_DEBUG
+	debug_file_write(buf, count);
+#endif
 	return vdec_write_vframe(priv->vdec, buf, count);
 }
 

@@ -473,12 +473,66 @@ static void vfm_dump_provider(const char *name)
 #define VFM_CMD_ADD 1
 #define VFM_CMD_RM  2
 #define VFM_CMD_DUMP  3
+#define VFM_CMD_ADDDUMMY 4
+
+/*
+    dummy receiver
+*/
+
+static int dummy_receiver_event_fun(int type, void *data, void *arg)
+{
+	struct vframe_receiver_s *dummy_vf_recv
+		= (struct vframe_receiver_s *)arg;
+	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
+		char *provider_name = (char *)data;
+		pr_info("%s, provider %s unregistered\n",
+			__func__, provider_name);
+	} else if (type ==
+		VFRAME_EVENT_PROVIDER_VFRAME_READY) {
+		struct vframe_s *vframe_tmp = vf_get(dummy_vf_recv->name);
+		while (vframe_tmp) {
+			vf_put(vframe_tmp, dummy_vf_recv->name);
+			vf_notify_provider(dummy_vf_recv->name,
+				VFRAME_EVENT_RECEIVER_PUT, NULL);
+			vframe_tmp = vf_get(dummy_vf_recv->name);
+		}
+	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
+		return RECEIVER_ACTIVE;
+	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
+		char *provider_name = (char *)data;
+		pr_info("%s, provider %s registered\n",
+			__func__, provider_name);
+	}
+	return 0;
+}
+
+static const struct vframe_receiver_op_s dummy_vf_receiver = {
+	.event_cb = dummy_receiver_event_fun
+};
+
+static void add_dummy_receiver(char *vfm_name_)
+{
+	struct vframe_receiver_s *dummy_vf_recv =
+	 kmalloc(sizeof(struct vframe_receiver_s), GFP_KERNEL);
+	pr_info("%s(%s)\n", __func__, vfm_name_);
+	if (dummy_vf_recv) {
+		char *vfm_name = kmalloc(16, GFP_KERNEL);
+		snprintf(vfm_name, 16, "%s", vfm_name_);
+		vf_receiver_init(dummy_vf_recv, vfm_name,
+			&dummy_vf_receiver, dummy_vf_recv);
+		vf_reg_receiver(dummy_vf_recv);
+		pr_info("%s: %s\n", __func__, dummy_vf_recv->name);
+	}
+}
+
+/**/
 
 /*
  * echo add <name> <node1 node2 ...> > /sys/class/vfm/map
  * echo rm <name>                    > /sys/class/vfm/map
  * echo rm all                       > /sys/class/vfm/map
  * echo dump providername			> /sys/class/vfm/map
+ * echo dummy name > /sys/class/vfm/map
  * <name> the name of the path.
  * <node1 node2 ...> the name of the nodes in the path.
 */
@@ -491,7 +545,7 @@ static ssize_t vfm_map_store(struct class *class,
 	int cmd = 0;
 	char *id = NULL;
 #ifdef CONFIG_MULTI_DEC
-	if (1)
+	if (strncmp(buf, "dummy", 5))
 #else
 	if (vfm_debug_flag & 0x10000)
 #endif
@@ -512,6 +566,8 @@ static ssize_t vfm_map_store(struct class *class,
 				cmd = VFM_CMD_RM;
 			else if (!strcmp(token, "dump"))
 				cmd = VFM_CMD_DUMP;
+			else if (!strcmp(token, "dummy"))
+				cmd = VFM_CMD_ADDDUMMY;
 			else
 				break;
 		} else if (i == 1) {
@@ -525,6 +581,8 @@ static ssize_t vfm_map_store(struct class *class,
 					count = 0;
 			} else if (cmd == VFM_CMD_DUMP) {
 				vfm_dump_provider(token);
+			} else if (cmd == VFM_CMD_ADDDUMMY) {
+				add_dummy_receiver(token);
 			}
 			break;
 		}

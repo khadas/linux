@@ -30,17 +30,19 @@
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/canvas/canvas.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 
 #include "vdec_reg.h"
 #include "vmpeg4.h"
 #include "arch/register.h"
 #include "amports_priv.h"
 
-
 #include "amvdec.h"
 
 #define DRIVER_NAME "ammvdec_mpeg4"
 #define MODULE_NAME "ammvdec_mpeg4"
+
+#define MEM_NAME "codec_mpeg4"
 
 #define DEBUG_PTS
 
@@ -139,7 +141,7 @@ struct vdec_mpeg4_hw_s {
 	u32 stat;
 	u32 buf_start;
 	u32 buf_size;
-	struct page *cma_alloc_pages;
+	unsigned long cma_alloc_addr;
 	int cma_alloc_count;
 	u32 vmpeg4_ratio;
 	u64 vmpeg4_ratio64;
@@ -368,7 +370,6 @@ static irqreturn_t vmpeg4_isr(struct vdec_s *vdec)
 
 	if (reg == 2) {
 		/* timeout when decoding next frame */
-		pr_info("Insufficient data\n");
 
 		/* for frame based case, insufficient result may happen
 		 * at the begining when only VOL head is available save
@@ -1202,16 +1203,21 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pdata);
 
 	hw->platform_dev = pdev;
-	hw->buf_start = pdata->mem_start;
-	hw->buf_size = pdata->mem_end - pdata->mem_start + 1;
+	hw->cma_dev = pdata->cma_dev;
 
-	if (hw->buf_size < DEFAULT_MEM_SIZE) {
-		pr_info("\nammvdec_mpeg4 memory size not enough[0x%lx-0x%lx].\n",
-			pdata->mem_start, pdata->mem_end);
+	hw->cma_alloc_count = PAGE_ALIGN(DEFAULT_MEM_SIZE) / PAGE_SIZE;
+	hw->cma_alloc_addr = codec_mm_alloc_for_dma(MEM_NAME,
+				hw->cma_alloc_count,
+				4, CODEC_MM_FLAGS_FOR_VDECODER);
+
+	if (!hw->cma_alloc_addr) {
+		pr_err("codec_mm alloc failed, request buf size 0x%lx\n",
+			hw->cma_alloc_count * PAGE_SIZE);
+		hw->cma_alloc_count = 0;
 		return -ENOMEM;
 	}
-
-	hw->cma_dev = pdata->cma_dev;
+	hw->buf_start = hw->cma_alloc_addr;
+	hw->buf_size = DEFAULT_MEM_SIZE;
 
 	if (pdata->sys_info)
 		hw->vmpeg4_amstream_dec_info = *pdata->sys_info;
@@ -1233,6 +1239,12 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
 
 
 	amvdec_disable();
+
+	if (hw->cma_alloc_addr) {
+		pr_info("codec_mm release buffer 0x%lx\n", hw->cma_alloc_addr);
+		codec_mm_free_for_dma(MEM_NAME, hw->cma_alloc_addr);
+		hw->cma_alloc_count = 0;
+	}
 
 	pr_info("pts hit %d, pts missed %d, i hit %d, missed %d\n", hw->pts_hit,
 		   hw->pts_missed, hw->pts_i_hit, hw->pts_i_missed);

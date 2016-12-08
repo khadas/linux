@@ -44,7 +44,7 @@
 #include "amports_config.h"
 #include "arch/firmware.h"
 
-#define MC_SIZE (4096 * 4)
+#define MC_SIZE (4096 * 16)
 
 #ifdef CONFIG_WAKELOCK
 static struct wake_lock amvdec_lock;

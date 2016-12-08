@@ -239,7 +239,7 @@ static const char * const vdec_device_name[] = {
 
 static int vdec_default_buf_size[] = {
 	32, 32, /*"amvdec_mpeg12",*/
-	32, 32, /*"amvdec_mpeg4",*/
+	32, 0,  /*"amvdec_mpeg4",*/
 	48, 0,  /*"amvdec_h264",*/
 	32, 32, /*"amvdec_mjpeg",*/
 	32, 32, /*"amvdec_real",*/
@@ -324,11 +324,10 @@ struct vdec_s *vdec_create(struct stream_port_s *port,
 			VDEC_TYPE_FRAME_BLOCK :
 			VDEC_TYPE_STREAM_PARSER;
 
-	vdec = vmalloc(sizeof(struct vdec_s));
+	vdec = vzalloc(sizeof(struct vdec_s));
 
 	/* TBD */
 	if (vdec) {
-		memset(vdec, 0, sizeof(struct vdec_s));
 		vdec->magic = 0x43454456;
 		vdec->id = 0;
 		vdec->type = type;
@@ -409,7 +408,8 @@ int vdec_write_vframe(struct vdec_s *vdec, const char *buf, size_t count)
 #define FIFO_ALIGN 8
 int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 {
-	struct vdec_input_s *input = &vdec->input;
+	struct vdec_input_s *input = (vdec->master) ?
+		&vdec->master->input : &vdec->input;
 	struct vframe_chunk_s *chunk = NULL;
 	struct vframe_block_list_s *block = NULL;
 	int dummy;
@@ -697,7 +697,8 @@ void vdec_vframe_dirty(struct vdec_s *vdec, struct vframe_chunk_s *chunk)
 
 void vdec_save_input_context(struct vdec_s *vdec)
 {
-	struct vdec_input_s *input = &vdec->input;
+	struct vdec_input_s *input = (vdec->master) ?
+		&vdec->master->input : &vdec->input;
 
 #ifdef CONFIG_MULTI_DEC
 	vdec_profile(vdec, VDEC_PROFILE_EVENT_SAVE_INPUT);

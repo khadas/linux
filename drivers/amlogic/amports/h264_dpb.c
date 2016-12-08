@@ -29,6 +29,15 @@ int dpb_print(int index, int debug_flag, const char *fmt, ...)
 	return 0;
 }
 
+unsigned char dpb_is_debug(int index, int debug_flag)
+{
+	if (((h264_debug_flag & debug_flag) &&
+		((1 << index) & h264_debug_mask))
+		|| (debug_flag == PRINT_FLAG_ERROR))
+		return 1;
+	return 0;
+}
+
 #define CHECK_VALID(list_size, mark) {\
 	if (list_size > MAX_LIST_SIZE || list_size < 0) { \
 		dpb_print(p_H264_Dpb->decoder_index, PRINT_FLAG_ERROR, \

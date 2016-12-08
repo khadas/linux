@@ -47,6 +47,7 @@ struct provider_aux_req_s {
 	/*output*/
 	char *aux_buf;
 	int aux_size;
+	int dv_enhance_exist;
 };
 
 struct vframe_operations_s {
