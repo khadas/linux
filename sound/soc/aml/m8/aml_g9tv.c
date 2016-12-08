@@ -571,6 +571,27 @@ static void aml_audio_stop_timer(struct aml_audio_private_data *p_aml_audio)
 	p_aml_audio->detect_flag = -1;
 }
 
+static int audio_hp_status;
+static int aml_get_audio_hp_status(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = audio_hp_status;
+	return 0;
+}
+
+static const char * const audio_hp_status_texts[] = {"Unpluged", "Pluged"};
+
+static const struct soc_enum audio_hp_status_enum = SOC_ENUM_SINGLE(
+			   SND_SOC_NOPM, 0, ARRAY_SIZE(audio_hp_status_texts),
+			   audio_hp_status_texts);
+
+static const struct snd_kcontrol_new hp_controls[] = {
+	   SOC_ENUM_EXT("Hp Status",
+			   audio_hp_status_enum,
+			   aml_get_audio_hp_status,
+			   NULL),
+};
+
 static int hp_det_adc_value(struct aml_audio_private_data *p_aml_audio)
 {
 	int ret, hp_value;
@@ -633,7 +654,6 @@ static int aml_audio_hp_detect(struct aml_audio_private_data *p_aml_audio)
 	return ret;
 }
 
-
 static void aml_asoc_work_func(struct work_struct *work)
 {
 	struct aml_audio_private_data *p_aml_audio = NULL;
@@ -650,7 +670,7 @@ static void aml_asoc_work_func(struct work_struct *work)
 
 		if (flag & 0x1) {
 			pr_info("aml aduio hp pluged\n");
-
+			audio_hp_status = 1;
 			if (!IS_ERR(p_aml_audio->mute_desc)) {
 				gpiod_direction_output(
 					p_aml_audio->mute_desc,
@@ -663,6 +683,7 @@ static void aml_asoc_work_func(struct work_struct *work)
 			}
 		} else {
 			pr_info("aml audio hp unpluged\n");
+			audio_hp_status = 0;
 			if (!IS_ERR(p_aml_audio->mute_desc)) {
 				gpiod_direction_output(
 					p_aml_audio->mute_desc,
@@ -801,8 +822,6 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 
 	ret = snd_soc_add_card_controls(codec->card, aml_g9tv_controls,
 					ARRAY_SIZE(aml_g9tv_controls));
-	if (ret)
-		return ret;
 
 	/* Add specific widgets */
 	snd_soc_dapm_new_controls(dapm, aml_asoc_dapm_widgets,
@@ -849,6 +868,9 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 					      msecs_to_jiffies(100));
 		}
 		mutex_unlock(&p_aml_audio->lock);
+
+		ret = snd_soc_add_card_controls(codec->card,
+					hp_controls, ARRAY_SIZE(hp_controls));
 	}
 
 	return 0;
