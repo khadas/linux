@@ -494,7 +494,7 @@ static void stmmac_pltfr_shutdown(struct device *dev)
 
 	/* Stop phy immediately instead call phy_stop() */
 	if (priv->phydev)
-		genphy_suspend(ndev->phydev);
+		priv->phydev->drv->suspend(priv->phydev);
 
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
