@@ -528,6 +528,13 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	/* 3D comb filter buffer assignment */
 	tvafe_cvd2_memory_init(mem, cvd2->config_fmt);
 
+	/*set for wipe off vertical stripes*/
+	if ((cvd2->vd_port > TVIN_PORT_CVBS0) &&
+		(cvd2->vd_port <= TVIN_PORT_CVBS7) &&
+		(cvd2->vd_port != TVIN_PORT_CVBS3) &&
+		(get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL))
+		W_APB_REG(ACD_REG_25, 0x00e941a8);
+
 	/* enable CVD2 */
 	W_APB_BIT(CVD2_RESET_REGISTER, 0, SOFT_RST_BIT, SOFT_RST_WID);
 
