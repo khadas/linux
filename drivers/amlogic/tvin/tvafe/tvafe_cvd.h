@@ -177,6 +177,7 @@ extern void tvafe_snow_config(unsigned int onoff);
 extern void tvafe_snow_config_clamp(unsigned int onoff);
 extern void tvafe_snow_config_acd(void);
 extern void tvafe_snow_config_acd_resume(void);
+extern enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void);
 
 extern bool tvafe_snow_function_flag;
 

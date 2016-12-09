@@ -277,6 +277,8 @@ struct vdin_dev_s {
 	*0:vdin out full range
 	*/
 	unsigned int			color_range_mode;
+	/*auto detect av/atv input ratio*/
+	unsigned int		auto_ratio_en;
 };
 
 

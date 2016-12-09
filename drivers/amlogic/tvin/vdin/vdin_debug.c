@@ -235,10 +235,10 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("color_format	= %s(%d)\n",
 		tvin_color_fmt_str(devp->prop.color_format),
 		devp->prop.color_format);
-	pr_info(" format_convert = %s(%d)\n",
+	pr_info("format_convert = %s(%d)\n",
 		vdin_fmt_convert_str(devp->format_convert),
 		devp->format_convert);
-	pr_info("aspect_ratio	= %s(%d)\n decimation_ratio/dvi	= %u / %u\n",
+	pr_info("aspect_ratio	= %s(%d)\ndecimation_ratio/dvi	= %u / %u\n",
 		tvin_aspect_ratio_str(devp->prop.aspect_ratio),
 		devp->prop.aspect_ratio,
 		devp->prop.decimation_ratio, devp->prop.dvi_info);
@@ -249,35 +249,31 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:%d\n", devp->cma_config_flag);
 	pr_info("auto_cutwindow_en:%d\n", devp->auto_cutwindow_en);
+	pr_info("auto_ratio_en:%d\n", devp->auto_ratio_en);
+	pr_info("cma_mem_alloc:%d\n", devp->cma_mem_alloc[devp->index]);
+	pr_info("cma_mem_size:0x%x\n", devp->cma_mem_size[devp->index]);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
-		pr_info("current vframe(%u):\n", vf->index);
-		pr_info(" buf(w%u, h%u),type(0x%x, %u), duration(%d),",
+		pr_info("current vframe index(%u):\n", vf->index);
+		pr_info("\t buf(w%u, h%u),type(0x%x, %u), duration(%d),",
 		vf->width, vf->height, vf->type, vf->type, vf->duration);
-		pr_info("ratio_control(0x%x).\n", vf->ratio_control);
-		pr_info(" trans fmt %u, left_start_x %u,",
+		pr_info("\t ratio_control(0x%x).\n", vf->ratio_control);
+		pr_info("\t trans fmt %u, left_start_x %u,",
 			vf->trans_fmt, vf->left_eye.start_x);
-		pr_info("right_start_x %u, width_x %u\n",
+		pr_info("\t right_start_x %u, width_x %u\n",
 			vf->right_eye.start_x, vf->left_eye.width);
-		pr_info("left_start_y %u, right_start_y %u, height_y %u\n",
+		pr_info("\t left_start_y %u, right_start_y %u, height_y %u\n",
 			vf->left_eye.start_y, vf->right_eye.start_y,
 			vf->left_eye.height);
-		pr_info("current parameters:\n");
-		pr_info(" frontend of vdin index :  %d, 3d flag : 0x%x,",
-			curparm->index,  curparm->flag);
-		pr_info("reserved 0x%x, devp->flags:0x%x,",
-			curparm->reserved, devp->flags);
-		pr_info("max buffer num %u.\n", devp->canvas_max_num);
 	}
-	pr_info(" format_convert = %s(%d)\n",
-		vdin_fmt_convert_str(devp->format_convert),
-		devp->format_convert);
-	pr_info("color fmt(%d),csc_cfg:0x%x\n",
-		devp->prop.color_format,
-		devp->csc_cfg);
+	pr_info("current parameters:\n");
+	pr_info("\t frontend of vdin index :  %d, 3d flag : 0x%x,",
+		curparm->index,  curparm->flag);
+	pr_info("\t reserved 0x%x, devp->flags:0x%x,",
+		curparm->reserved, devp->flags);
+	pr_info("max buffer num %u.\n", devp->canvas_max_num);
 	pr_info("range(%d),csc_cfg:0x%x\n",
-		devp->prop.color_fmt_range,
-		devp->csc_cfg);
+		devp->prop.color_fmt_range, devp->csc_cfg);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
 
@@ -862,6 +858,12 @@ start_chk:
 		devp->auto_cutwindow_en = val;
 		pr_info("auto_cutwindow_en(%d):%d\n\n", devp->index,
 			devp->auto_cutwindow_en);
+	} else if (!strcmp(parm[0], "auto_ratio_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		devp->auto_ratio_en = val;
+		pr_info("auto_ratio_en(%d):%d\n\n", devp->index,
+			devp->auto_ratio_en);
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

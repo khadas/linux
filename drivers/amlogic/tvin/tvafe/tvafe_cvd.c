@@ -337,7 +337,11 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 
 	/* vbi memory setting */
 	W_APB_REG(ACD_REG_2F, (cvd2_addr + DECODER_VBI_ADDR_OFFSET));
-	W_APB_BIT(ACD_REG_21, DECODER_VBI_VBI_SIZE,
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+		W_APB_BIT(ACD_REG_21, (DECODER_VBI_VBI_SIZE >> 4),
+			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
+	else
+		W_APB_BIT(ACD_REG_21, (DECODER_VBI_VBI_SIZE >> 3),
 			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
 	W_APB_BIT(ACD_REG_21, DECODER_VBI_START_ADDR,
 			AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
@@ -502,6 +506,32 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	W_APB_REG(ACD_REG_22, 0x04080000);
 	/* vbi reset release, vbi agent enable */
 #endif
+#if 1/* TVAFE_CVD2_WSS_ENABLE */
+	/* config data type */
+	/*line17 for PAL M*/
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17, 0xcc);
+	/*line23 for PAL B,D,G,H,I,N,CN*/
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0xcc);
+	/* config wss dto */
+	W_APB_REG(CVD2_VBI_WSS_DTO_MSB, 0x20);
+	W_APB_REG(CVD2_VBI_WSS_DTO_LSB, 0x66);
+
+	/*disable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x14);
+	/* config vbi start line */
+	W_APB_REG(CVD2_VBI_WSS_START, 0x54);
+	W_APB_BIT(CVD2_VBI_CONTROL, 1, 0, 1);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
+	/* be care the polarity bellow!!! */
+	W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
+	/*enable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x15);
+	/* manuel reset vbi */
+	W_APB_REG(ACD_REG_22, 0x82080000);
+	W_APB_REG(ACD_REG_22, 0x04080000);
+#endif
+
 #if defined(CONFIG_TVIN_TUNER_SI2176)
 	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
 		(cvd2->vd_port == TVIN_PORT_CVBS0)) {
@@ -2609,5 +2639,19 @@ void tvafe_snow_config_acd_resume(void)
 	/*@todo,0x880358 must be same with cvbs_acd_table/rf_acd_table*/
 	if (R_APB_REG(ACD_REG_2D) != acd_h)
 		W_APB_REG(ACD_REG_2D, acd_h);
+}
+
+enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void)
+{
+	unsigned int full_format = 0;
+	enum tvin_aspect_ratio_e aspect_ratio = TVIN_ASPECT_NULL;
+	full_format = R_APB_BIT(CVD2_VBI_WSS_DATA1, 0, 4);
+	if (full_format == 0x8)
+		aspect_ratio = TVIN_ASPECT_4x3;
+	else if (full_format == 0x7)
+		aspect_ratio = TVIN_ASPECT_16x9;
+	else
+		aspect_ratio = TVIN_ASPECT_NULL;
+	return aspect_ratio;
 }
 

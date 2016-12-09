@@ -88,6 +88,10 @@ MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 0: off snow function*/
 bool tvafe_snow_function_flag;
 
+static unsigned int tvafe_ratio_cnt = 50;
+module_param(tvafe_ratio_cnt, uint, 0644);
+MODULE_PARM_DESC(tvafe_ratio_cnt, "tvafe aspect ratio valid cnt");
+
 static struct tvafe_info_s *g_tvafe_info;
 
 /***********the  version of changing log************************/
@@ -121,6 +125,12 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	pr_info("[tvafe..]devp->cma_mem_size:0x%x\n", devp->cma_mem_size);
 	pr_info("[tvafe..]devp->cma_mem_alloc:%d\n", devp->cma_mem_alloc);
 	#endif
+	pr_info("[tvafe..]tvafe_info_s->aspect_ratio:%d\n",
+		devp->tvafe.aspect_ratio);
+	pr_info("[tvafe..]tvafe_info_s->aspect_ratio_last:%d\n",
+		devp->tvafe.aspect_ratio_last);
+	pr_info("[tvafe..]tvafe_info_s->aspect_ratio_cnt:%d\n",
+		devp->tvafe.aspect_ratio_cnt);
 	/* tvafe_dev_s->tvin_parm_s struct info */
 	pr_info("\n!!tvafe_dev_s->tvin_parm_s struct info:\n");
 	pr_info("[tvafe..]tvin_parm_s->index:%d\n", parm->index);
@@ -1054,6 +1064,7 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 						frontend);
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	enum tvin_port_e port = tvafe->parm.port;
+	enum tvin_aspect_ratio_e aspect_ratio = TVIN_ASPECT_NULL;
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
 		pr_err("[tvafe..] tvafe havn't opened, isr error!!!\n");
@@ -1097,6 +1108,20 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if ((port >= TVIN_PORT_COMP0) && (port <= TVIN_PORT_COMP7))
 		tvafe_get_wss_data(&tvafe->comp_wss);
 #endif
+	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7)) {
+		aspect_ratio = tvafe_cvd2_get_wss();
+		if (tvafe_dbg_enable)
+			pr_info("current aspect_ratio:%d,aspect_ratio_last:%d\n",
+				aspect_ratio, tvafe->aspect_ratio_last);
+		if (aspect_ratio != tvafe->aspect_ratio_last) {
+			tvafe->aspect_ratio_last = aspect_ratio;
+			tvafe->aspect_ratio_cnt = 0;
+		} else if (++(tvafe->aspect_ratio_cnt) > tvafe_ratio_cnt) {
+			tvafe->aspect_ratio = aspect_ratio;
+			/* avoid overflow */
+			tvafe->aspect_ratio_cnt = tvafe_ratio_cnt;
+		}
+	}
 
 	return 0;
 }
@@ -1276,7 +1301,7 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 	}
 #endif
 	prop->color_fmt_range = TVIN_YUV_LIMIT;
-	prop->aspect_ratio = TVIN_ASPECT_NULL;
+	prop->aspect_ratio = tvafe->aspect_ratio;
 	prop->decimation_ratio = 0;
 	prop->dvi_info = 0;
 }

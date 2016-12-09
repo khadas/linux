@@ -539,6 +539,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 		if ((port == TVIN_PORT_CVBS3) ||
 			(port == TVIN_PORT_CVBS0))
 			vdin_auto_de_handler(devp);
+		if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7) &&
+			devp->auto_ratio_en && sm_ops->get_sig_propery)
+			sm_ops->get_sig_propery(devp->frontend, prop);
 		/* hdmirx_color_fmt_handler(devp); */
 #if 0
 			if (sm_ops->pll_lock(devp->frontend)) {

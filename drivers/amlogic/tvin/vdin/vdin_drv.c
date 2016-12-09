@@ -727,10 +727,11 @@ static void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
  1.h_active
  2.v_active
 */
-static void vdin_set_display_ratio(struct vframe_s *vf)
+static void vdin_set_display_ratio(struct vdin_dev_s *devp,
+		struct vframe_s *vf)
 {
 	unsigned int re = 0;
-
+	enum tvin_aspect_ratio_e aspect_ratio = devp->prop.aspect_ratio;
 	if (vf->width == 0 || vf->height == 0)
 		return;
 
@@ -740,7 +741,17 @@ static void vdin_set_display_ratio(struct vframe_s *vf)
 	else if (re > 56)
 		vf->ratio_control = 0x90 << DISP_RATIO_ASPECT_RATIO_BIT;
 	else
-		vf->ratio_control = 0x100 << DISP_RATIO_ASPECT_RATIO_BIT;
+		vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
+
+	if (aspect_ratio == TVIN_ASPECT_4x3)
+		vf->ratio_control = 0xc0 << DISP_RATIO_ASPECT_RATIO_BIT;
+	else if (aspect_ratio == TVIN_ASPECT_16x9)
+		vf->ratio_control = 0x90 << DISP_RATIO_ASPECT_RATIO_BIT;
+	else
+		vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
+	if (vdin_dbg_en)
+		pr_info("current aspect_ratio:%d,ratio_control:0x%x\n",
+			aspect_ratio, vf->ratio_control);
 }
 
 static inline void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
@@ -827,7 +838,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		/* set pixel aspect ratio */
 		vdin_set_pixel_aspect_ratio(devp, vf);
 		/*set display ratio control */
-		vdin_set_display_ratio(vf);
+		vdin_set_display_ratio(devp, vf);
 		vdin_set_source_bitdepth(devp, vf);
 		/* init slave vframe */
 		slave  = vf_get_slave(p, i);
@@ -1693,6 +1704,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 	if (devp->last_wr_vfe && (devp->flags&VDIN_FLAG_RDMA_ENABLE)) {
+		/* debug for video latency */
+		devp->last_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(devp->last_wr_vfe, devp->vfp);
 		devp->last_wr_vfe = NULL;
 		vf_notify_receiver(devp->name,
@@ -1850,15 +1863,19 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		(devp->flags & VDIN_FLAG_SNOW_FLAG))
 		curr_wr_vf->height = 480;
 	curr_wr_vfe->flag |= VF_FLAG_NORMAL_FRAME;
+	if (devp->auto_ratio_en && (devp->parm.port >= TVIN_PORT_CVBS0) &&
+		(devp->parm.port <= TVIN_PORT_CVBS7))
+		vdin_set_display_ratio(devp, curr_wr_vf);
 	if (devp->flags&VDIN_FLAG_RDMA_ENABLE)
 		devp->last_wr_vfe = curr_wr_vfe;
-	else
+	else {
+		/* debug for video latency */
+		curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(curr_wr_vfe, devp->vfp);
+	}
 
 	/* prepare for next input data */
 	next_wr_vfe = provider_vf_get(devp->vfp);
-	/* debug for video latency */
-	next_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 	vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
 			(next_wr_vfe->vf.canvas0Addr&0xff));
 	/* prepare for chroma canvas*/
@@ -2901,8 +2918,10 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdin_enable_module(vdevp->addr_offset, false);
 
 	/*enable auto cutwindow for atv*/
-	if (vdevp->index == 0)
+	if (vdevp->index == 0) {
 		vdevp->auto_cutwindow_en = 1;
+		vdevp->auto_ratio_en = 1;
+	}
 	vdevp->sig_wq = create_singlethread_workqueue(vdevp->name);
 	INIT_DELAYED_WORK(&vdevp->sig_dwork, vdin_sig_dwork);
 
