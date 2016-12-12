@@ -3652,7 +3652,7 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 	if (pdata->caps & MMC_CAP_NONREMOVABLE)
 		pdata->is_in = true;
 
-	if (pdata->caps & MMC_PM_KEEP_POWER)
+	if (pdata->pm_caps & MMC_PM_KEEP_POWER)
 		mmc->pm_caps |= MMC_PM_KEEP_POWER;
 	pdata->host = host;
 	pdata->mmc = mmc;

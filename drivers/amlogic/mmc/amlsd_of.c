@@ -59,7 +59,6 @@ static const struct sd_caps host_caps[] = {
 	SD_CAPS(MMC_CAP_HW_RESET, "MMC_CAP_HW_RESET"),
 	SD_CAPS(MMC_CAP_RUNTIME_RESUME, "MMC_CAP_RUNTIME_RESUME"),
 	SD_CAPS(MMC_CAP_AGGRESSIVE_PM, "MMC_CAP_AGGRESSIVE_PM"),
-	SD_CAPS(MMC_PM_KEEP_POWER, "MMC_PM_KEEP_POWER"),
 };
 
 static int amlsd_get_host_caps(struct device_node *of_node,
@@ -119,6 +118,25 @@ static int amlsd_get_host_caps2(struct device_node *of_node,
 	pr_info("%s:pdata->caps2 = %x\n", pdata->pinname, pdata->caps2);
 	return 0;
 }
+
+
+static int amlsd_get_host_pm_caps(struct device_node *of_node,
+		struct amlsd_platform *pdata)
+{
+	const char *str_caps;
+	struct property *prop;
+	u32 caps = 0;
+
+	of_property_for_each_string(of_node, "caps", prop, str_caps) {
+			if (!strcasecmp("MMC_PM_KEEP_POWER", str_caps))
+				caps |= MMC_PM_KEEP_POWER;
+	};
+
+	pdata->pm_caps = caps;
+	pr_info("%s:pdata->pm_caps = %x\n", pdata->pinname, pdata->pm_caps);
+	return 0;
+}
+
 
 int amlsd_get_reg_base(struct platform_device *pdev,
 				struct amlsd_host *host)
@@ -253,6 +271,7 @@ int amlsd_get_platform_data(struct platform_device *pdev,
 						str, pdata->hw_reset);
 		amlsd_get_host_caps(child, pdata);
 		amlsd_get_host_caps2(child, pdata);
+		amlsd_get_host_pm_caps(child, pdata);
 		pdata->port_init = of_amlsd_init;
 		pdata->pwr_pre = of_amlsd_pwr_prepare;
 		pdata->pwr_on = of_amlsd_pwr_on;

@@ -611,7 +611,7 @@
 	                             "MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE",
 	                             "MMC_CAP_UHS_SDR12","MMC_CAP_UHS_SDR25",
                                      "MMC_CAP_UHS_SDR50","MMC_CAP_UHS_SDR104",
-                                     "MMC_PM_KEEP_POWER","MMC_CAP_SDIO_IRQ";
+                                     "MMC_CAP_SDIO_IRQ";
 	   		f_min = <400000>;
 	   		f_max = <200000000>;
 	   		max_req_size = <0x20000>; /**128KB*/

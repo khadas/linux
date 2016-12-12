@@ -98,6 +98,7 @@ struct amlsd_platform {
 	unsigned int width;
 	unsigned int caps;
 	unsigned int caps2;
+	unsigned int pm_caps;
 	unsigned int card_capacity;
 	unsigned int tx_phase;
 	unsigned int tx_delay;
