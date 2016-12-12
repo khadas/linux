@@ -4139,10 +4139,6 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 	cur_rdma_buf = cur_dispbuf;
 	/* vsync_rdma_config(); */
 	vsync_rdma_process();
-	if (frame_par_di_set) {
-		start_rdma();
-		/* work around, need set one frame without RDMA??? */
-	}
 	if (debug_flag & DEBUG_FLAG_PRINT_RDMA) {
 		if (enable_rdma_log_count == 0)
 			enable_rdma_log(0);

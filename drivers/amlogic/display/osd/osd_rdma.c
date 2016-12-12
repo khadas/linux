@@ -66,8 +66,6 @@ static u32 rdma_enable;
 static u32 item_count;
 static u32 rdma_debug;
 static bool osd_rdma_init_flag;
-static int ctrl_ahb_rd_burst_size = 3;
-static int ctrl_ahb_wr_burst_size = 3;
 #define OSD_RDMA_UPDATE_RETRY_COUNT 100
 static unsigned int debug_rdma_status;
 static unsigned int rdma_irq_count;
@@ -100,36 +98,6 @@ static inline void osd_rdma_mem_cpy(struct rdma_table_item *dst,
 		: "r" (src), "r" (dst), "r" (len)
 		: "x5", "x6");
 }
-
-/*once init, will update config in every osd rdma interrupt*/
-int osd_rdma_update_config(char is_init)
-{
-	static u32 config;
-
-	if (is_init) {
-		config  = 0;
-		config |= 1                         << 7;   /* [31: 6] Rsrv.*/
-		config |= 1                         << 6;   /* [31: 6] Rsrv.*/
-		config |= ctrl_ahb_wr_burst_size    <<
-			4;
-		/* [ 5: 4] ctrl_ahb_wr_burst_size. 0=16; 1=24; 2=32; 3=48.*/
-		config |= ctrl_ahb_rd_burst_size    <<
-			2;
-		/* [ 3: 2] ctrl_ahb_rd_burst_size. 0=16; 1=24; 2=32; 3=48.*/
-		config |= 0                         << 1;
-		/* [    1] ctrl_sw_reset.*/
-		config |= 0                         << 0;
-		/* [    0] ctrl_free_clk_enable.*/
-		osd_reg_write(RDMA_CTRL, config);
-	} else {
-		osd_reg_write(RDMA_CTRL,
-			(1 << (OSD_RDMA_CHANNEL_INDEX + 24))
-			| config);
-	}
-	return 0;
-
-}
-EXPORT_SYMBOL(osd_rdma_update_config);
 
 static inline void reset_rdma_table(void)
 {
@@ -754,13 +722,23 @@ static struct rdma_op_s osd_rdma_op = {
 
 static int start_osd_rdma(char channel)
 {
+#ifndef CONFIG_AML_RDMA
 	char intr_bit = 8 * channel;
 	char rw_bit = 4 + channel;
 	char inc_bit = channel;
 	u32 data32;
-	char is_init = 1;
-
-	osd_rdma_update_config(is_init);
+	data32  = 0;
+	data32 |= 1 << 7; /* [31: 6] Rsrv. */
+	data32 |= 1 << 6; /* [31: 6] Rsrv. */
+	data32 |= 3 << 4;
+	/* [ 5: 4] ctrl_ahb_wr_burst_size. 0=16; 1=24; 2=32; 3=48. */
+	data32 |= 3 << 2;
+	/* [ 3: 2] ctrl_ahb_rd_burst_size. 0=16; 1=24; 2=32; 3=48. */
+	data32 |= 0 << 1;
+	/* [    1] ctrl_sw_reset.*/
+	data32 |= 0 << 0;
+	/* [    0] ctrl_free_clk_enable.*/
+	osd_reg_write(RDMA_CTRL, data32);
 
 	data32  = osd_reg_read(RDMA_ACCESS_AUTO);
 	/*
@@ -776,11 +754,17 @@ static int start_osd_rdma(char channel)
 	 */
 	data32 &= ~(1 << inc_bit);
 	osd_reg_write(RDMA_ACCESS_AUTO, data32);
+#else
+	rdma_config(channel,
+		RDMA_TRIGGER_VSYNC_INPUT
+		| RDMA_AUTO_START_MASK);
+#endif
 	return 1;
 }
 
 static int stop_rdma(char channel)
 {
+#ifndef CONFIG_AML_RDMA
 	char intr_bit = 8 * channel;
 	u32 data32 = 0x0;
 
@@ -790,7 +774,8 @@ static int stop_rdma(char channel)
 	/* [23: 16] interrupt inputs enable mask
 	for auto-start 1: vsync int bit 0*/
 	osd_reg_write(RDMA_ACCESS_AUTO, data32);
-#ifdef CONFIG_AML_RDMA
+#else
+	rdma_clear(channel);
 	if (osd_reset_rdma_handle != -1)
 		rdma_clear(osd_reset_rdma_handle);
 #endif
