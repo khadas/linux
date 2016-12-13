@@ -258,7 +258,7 @@
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1280 720 1280 1440 32>; //1280*720*4*2 = 8MB
-		pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+		pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 	};
 
 	ge2d {
