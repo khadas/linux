@@ -178,5 +178,7 @@ extern void tvafe_snow_config_clamp(unsigned int onoff);
 extern void tvafe_snow_config_acd(void);
 extern void tvafe_snow_config_acd_resume(void);
 
+extern bool tvafe_snow_function_flag;
+
 #endif /* _TVAFE_CVD_H */
 

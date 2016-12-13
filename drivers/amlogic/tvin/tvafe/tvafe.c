@@ -84,6 +84,10 @@ bool tvafe_dbg_enable;
 module_param(tvafe_dbg_enable, bool, 0644);
 MODULE_PARM_DESC(tvafe_dbg_enable, "enable/disable tvafe debug enable");
 
+/*1: snow function on;
+0: off snow function*/
+bool tvafe_snow_function_flag;
+
 static struct tvafe_info_s *g_tvafe_info;
 
 /***********the  version of changing log************************/
@@ -346,6 +350,7 @@ static ssize_t tvafe_store(struct device *dev,
 		tvafe_snow_config(1);
 		tvafe_snow_config_clamp(1);
 		devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
+		tvafe_snow_function_flag = true;
 		pr_info("[tvafe..]%s:tvafe snowon\n", __func__);
 	} else if (!strncmp(buff, "snowoff", strlen("snowoff"))) {
 		tvafe_snow_config(0);
@@ -1515,6 +1520,7 @@ static long tvafe_ioctl(struct file *file,
 		    }
 		case TVIN_IOC_S_AFE_SONWON:
 			devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
+			tvafe_snow_function_flag = true;
 			tvafe_snow_config(1);
 			if (tvafe_dbg_enable)
 				pr_info("[tvafe..]TVIN_IOC_S_AFE_SONWON\n");

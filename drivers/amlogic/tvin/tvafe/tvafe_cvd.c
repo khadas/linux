@@ -2578,9 +2578,10 @@ void tvafe_cvd2_set_reg8a(unsigned int v)
 	cvd_reg8a = v;
 	W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, cvd_reg8a);
 }
-
 void tvafe_snow_config(unsigned int onoff)
 {
+	if (tvafe_snow_function_flag == 0)
+		return;
 	if (onoff) {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
 	} else {

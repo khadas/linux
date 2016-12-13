@@ -285,7 +285,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:
 		++sm_p->state_cnt;
-		if (port == TVIN_PORT_CVBS3)
+		if ((port == TVIN_PORT_CVBS3) &&
+			(devp->flags & VDIN_FLAG_SNOW_FLAG))
 			tvafe_snow_config_clamp(1);
 		if (sm_ops->nosig(devp->frontend)) {
 			sm_p->exit_nosig_cnt = 0;
@@ -346,7 +347,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_p->back_stable_cnt = 0;
 				if (((port == TVIN_PORT_CVBS3) ||
 					(port == TVIN_PORT_CVBS0)) &&
-					devp->unstable_flag)
+					devp->unstable_flag &&
+					(devp->flags & VDIN_FLAG_SNOW_FLAG))
 					/* UNSTABLE_ATV_MAX_CNT; */
 					unstb_in = sm_p->atv_unstable_in_cnt;
 				else
@@ -370,8 +372,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 				}
 			} else {
 				++sm_p->back_stable_cnt;
-				if ((port == TVIN_PORT_CVBS3) ||
-					(port == TVIN_PORT_CVBS0))
+				if (((port == TVIN_PORT_CVBS3) ||
+					(port == TVIN_PORT_CVBS0)) &&
+					(devp->flags & VDIN_FLAG_SNOW_FLAG))
 					unstb_in = sm_p->atv_unstable_out_cnt;
 				else if ((port >= TVIN_PORT_HDMI0) &&
 						 (port <= TVIN_PORT_HDMI7))
@@ -439,7 +442,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 		bool nosig = false, fmt_changed = false;
 		unsigned int prestable_out_cnt = 0;
 		devp->unstable_flag = true;
-		if (port == TVIN_PORT_CVBS3)
+		if ((port == TVIN_PORT_CVBS3) &&
+			(devp->flags & VDIN_FLAG_SNOW_FLAG))
 			tvafe_snow_config_clamp(0);
 		if (sm_ops->nosig(devp->frontend)) {
 			nosig = true;
@@ -461,7 +465,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 		if (nosig || fmt_changed) {
 			++sm_p->state_cnt;
-			if (port == TVIN_PORT_CVBS3)
+			if ((port == TVIN_PORT_CVBS3) &&
+				(devp->flags & VDIN_FLAG_SNOW_FLAG))
 				prestable_out_cnt = atv_prestable_out_cnt;
 			else
 				prestable_out_cnt = other_stable_out_cnt;
@@ -480,7 +485,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 		} else {
 			sm_p->state_cnt = 0;
 
-			if (port == TVIN_PORT_CVBS3) {
+			if ((port == TVIN_PORT_CVBS3) &&
+				(devp->flags & VDIN_FLAG_SNOW_FLAG)) {
 				++sm_p->exit_prestable_cnt;
 				if (sm_p->exit_prestable_cnt <
 					atv_prestable_out_cnt)
@@ -546,8 +552,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 		if (nosig || fmt_changed /* || !pll_lock */) {
 			++sm_p->state_cnt;
-			if ((port == TVIN_PORT_CVBS3) ||
-				(port == TVIN_PORT_CVBS0))
+			if (((port == TVIN_PORT_CVBS3) ||
+				(port == TVIN_PORT_CVBS0)) &&
+				(devp->flags & VDIN_FLAG_SNOW_FLAG))
 				stable_out_cnt = sm_p->atv_stable_out_cnt;
 			else if ((port >= TVIN_PORT_HDMI0) &&
 					(port <= TVIN_PORT_HDMI7))
@@ -556,7 +563,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 				stable_out_cnt = other_stable_out_cnt;
 			/*add for atv snow*/
 			if ((sm_p->state_cnt >= atv_stable_fmt_check_cnt) &&
-				(port == TVIN_PORT_CVBS3))
+				(port == TVIN_PORT_CVBS3) &&
+				(devp->flags & VDIN_FLAG_SNOW_FLAG))
 				atv_stable_fmt_check_enable = 1;
 			if (sm_p->state_cnt >= stable_out_cnt) {
 				tvin_smr_init_counter(devp->index);
@@ -576,6 +584,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			/*add for atv snow*/
 			if ((port == TVIN_PORT_CVBS3) &&
 				atv_stable_fmt_check_enable &&
+				(devp->flags & VDIN_FLAG_SNOW_FLAG) &&
 				(sm_ops->get_fmt && sm_ops->get_sig_propery)) {
 				sm_p->state_cnt = 0;
 				stable_fmt =
