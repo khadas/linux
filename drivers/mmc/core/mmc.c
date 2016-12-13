@@ -1745,7 +1745,7 @@ static int _mmc_resume(struct mmc_host *host)
 		goto out;
 
 	mmc_power_up(host, host->card->ocr);
-	err = mmc_init_card(host, host->card->ocr, host->card);
+	mmc_hw_reset(host);
 	mmc_card_clr_suspended(host->card);
 
 out:
