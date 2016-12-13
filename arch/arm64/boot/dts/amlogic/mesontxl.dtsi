@@ -405,6 +405,11 @@
 			amlogic,clrmask=<2  0x980000>;
 			amlogic,pins="GPIODV_2";
 		};
+		ao_i2c_master:ao_i2c{
+			amlogic,setmask=<AO 0x60>;
+			amlogic,clrmask=<AO 0x1800006>;
+			amlogic,pins="GPIOAO_4","GPIOAO_5";
+		};
 		i2c_a_master:i2c_a{
 			amlogic,setmask=<4 0x1800>;
 			amlogic,clrmask=<3 0x200000>;
@@ -421,7 +426,7 @@
 		};
 		i2c_d_master:i2c_d{
 			amlogic,setmask=<4 0x00300000>;
-			amlogic,clrmask=<4 0x30c00000 3 0x00006000>;
+			amlogic,clrmask=<4 0x30c00000 3 0x00206000>;
 			amlogic,pins="GPIOZ_2","GPIOZ_3";
 		};
 		lcd_vbyone_pins:lcd_vbyone_pin {
@@ -440,6 +445,22 @@
 		       0x0 0xc1108764 0x0 0x4>;
 	};
 
+	i2c_ao: i2c@c8100500{ /*I2C-AO*/
+		compatible = "amlogic, meson-i2c";
+		dev_name = "i2c-AO";
+		status = "disabled";
+		reg = <0x0 0xc8100500 0x0 0x1d>;
+		device_id = <0>;
+		pinctrl-names="default";
+		pinctrl-0=<&ao_i2c_master>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		use_pio = <0>;
+		master_i2c_speed = <300000>;
+		clocks = <&clock CLK_81>;
+		clock-names = "clk_i2c";
+		resets = <&clock GCLK_IDX_I2C>;
+	};
 	i2c_a: i2c@c1108500 { /*I2C-A*/
 		compatible = "amlogic, meson-i2c";
 		dev_name = "i2c-A";
