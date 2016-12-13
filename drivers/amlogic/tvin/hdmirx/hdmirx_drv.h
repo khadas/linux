@@ -29,10 +29,13 @@
 
 
 #define RX_VER0 "Ref.2016/11/25"
-#define RX_VER1 "Ref.2016/12/23"
+/*------------------------------*/
+#define RX_VER1 "Ref.2016/12/26"
+/*------------------------------*/
 #define RX_VER2 "Ref.2016/09/27"
+/*------------------------------*/
 #define RX_VER3 "Ref.2016/12/07"
-
+/*------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
@@ -49,6 +52,11 @@
 #define FALSE 0
 #define CFG_CLK 24000
 #define MODET_CLK 24000
+
+#define HDCP_AUTH_COME_DELAY 150
+#define HDCP_AUTH_END_DELAY (HDCP_AUTH_COME_DELAY + 150)
+#define HDCP_AUTH_COUNT_MAX 5
+#define HDCP_AUTH_HOLD_TIME 500
 
 struct hdmirx_dev_s {
 	int                         index;
@@ -185,6 +193,7 @@ enum fsm_states_e {
 	FSM_WAIT_HDCP_SWITCH,
 	FSM_SIG_UNSTABLE,
 	FSM_DWC_RST_WAIT,
+	FSM_DWC_HDCP_WAIT,
 	FSM_SIG_STABLE,
 	FSM_CHECK_DDC_CORRECT,
 	FSM_SIG_READY,
@@ -430,6 +439,10 @@ struct hdmi_rx_ctrl_hdcp {
 	uint32_t keys[HDCP_KEYS_SIZE];
 	struct switch_dev switch_hdcp_auth;
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
+	bool onoff;
+	bool pass;
+	uint32_t hdcp_auth_count;/*hdcp auth times*/
+	uint32_t hdcp_auth_time;/*the time to clear auth count*/
 };
 
 #define CHANNEL_STATUS_SIZE   24
@@ -789,6 +802,7 @@ extern void hdmirx_hdcp22_hpd(bool value);
 extern void hdmirx_set_hdmi20_force(int port, bool value);
 extern bool hdmirx_get_hdmi20_force(int port);
 extern bool esm_print_device_info(void);
+extern void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp);
 /* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02;
  * tvafe:0x4; dac:0x8, audio pll:0x10

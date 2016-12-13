@@ -625,13 +625,14 @@ bool hdmirx_is_key_write(void)
 }
 
 #define HDCP_KEY_WR_TRIES		(5)
-static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
+void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 {
 	int error = 0;
 	unsigned i = 0;
 	unsigned k = 0;
+	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 1);
 	hdmirx_wr_bits_dwc(DWC_HDCP_SETTINGS, HDCP_FAST_MODE, 0);
-	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
+	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE, 0);
 	/* hdmirx_wr_bits_dwc(ctx, DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 1); */
 	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 0);
 	hdmirx_wr_dwc(DWC_HDCP_SEED, hdcp->seed);
@@ -658,7 +659,7 @@ static void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 	/* nothing attached downstream */
 	hdmirx_wr_dwc(DWC_HDCP_RPT_BSTATUS, 0);
 
-	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 1);
+	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE, 1);
 }
 
 void hdmirx_set_hpd(int port, unsigned char val)
@@ -1017,6 +1018,11 @@ int hdmirx_audio_init(void)
 	data32 |= 1	<< 0;
 	hdmirx_wr_dwc(DWC_AUD_SAO_CTRL, data32);
 
+	data32  = 0;
+	data32 |= 1	<< 6;
+	data32 |= 0xf	<< 2;
+	hdmirx_wr_dwc(DWC_PDEC_ASP_CTRL, data32);
+
 	return err;
 }
 
@@ -1134,10 +1140,8 @@ void hdmirx_hw_config(void)
 	control_reset();
 	hdmirx_irq_close();
 	hdmi_rx_ctrl_edid_update();
-	if (hdcp_enable)
-		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
-	else
-		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
+	/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2); */
+	hdmirx_wr_dwc(DWC_HDCP_CTRL, 0);
 	hdmirx_audio_init();
 	packet_init();
 	hdmirx_20_init();

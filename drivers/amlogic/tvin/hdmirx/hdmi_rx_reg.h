@@ -809,10 +809,12 @@
  */
 /** Register address: control */
 #define DWC_HDCP_CTRL			(0x0C0UL)
+/** HDCP enable */
+#define		HDCP_ENABLE		_BIT(24)
 /** HDCP key decryption */
 #define		KEY_DECRYPT_ENABLE		_BIT(1)
 /** HDCP activation */
-#define		HDCP_ENABLE				_BIT(0)
+#define		ENCRIPTION_ENABLE				_BIT(0)
 /** Register address: configuration */
 #define DWC_HDCP_SETTINGS		(0x0C4UL)
 /*fast mode*/

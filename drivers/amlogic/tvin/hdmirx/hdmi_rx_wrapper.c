@@ -1127,8 +1127,8 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 				rx_pr("[**receive aksv**\n");
 			/*clk_handle_flag = true;*/
 			is_hdcp_source = true;
+			rx.hdcp.hdcp_version = HDCP_VERSION_14;
 			if (hdmirx_repeat_support()) {
-				rx.hdcp.hdcp_version = HDCP_VERSION_14;
 				queue_delayed_work(eq_wq, &eq_dwork,
 						msecs_to_jiffies(5));
 				rx_start_repeater_auth();
@@ -1164,8 +1164,15 @@ static int hdmi_rx_ctrl_irq_handler(struct hdmi_rx_ctrl *ctx)
 			hdcp22_capable_sts = HDCP22_AUTH_STATE_NOT_CAPBLE;
 		if (get(intr_hdcp22, _BIT(2)) != 0)
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_LOST;
-		if (get(intr_hdcp22, _BIT(3)) != 0)
+		if (get(intr_hdcp22, _BIT(3)) != 0) {
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_SUCCESS;
+			if ((intr_hdcp22 & 0x01) == 0) {
+				rx.hdcp.hdcp_version = HDCP_VERSION_22;
+				rx.hdcp.pass = 1;
+			}
+			rx_pr("hdcp 2.2 state:%#x\n",
+				hdmirx_rd_dwc(DWC_HDCP22_STATUS));
+		}
 		if (get(intr_hdcp22, _BIT(4)) != 0) {
 			hdcp22_auth_sts = HDCP22_AUTH_STATE_FAILED;
 			if (hdcp22_capable_sts == HDCP22_AUTH_STATE_CAPBLE)
@@ -1303,6 +1310,11 @@ reisr:hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* if (log_level & 0x400) */
 	/* rx_print("[HDMIrx isr] 5v fall\n"); */
 	/* } */
+
+	if (hdmirx_top_intr_stat & (1 << 15))
+		rx_pr("[isr] enc rise---\n");
+	else if (hdmirx_top_intr_stat & (1 << 16))
+		rx_pr("[isr] enc fall---\n");
 
 	/* must clear ip interrupt quickly */
 	if (hdmirx_top_intr_stat & (~(1 << 30))) {
@@ -2399,6 +2411,85 @@ void esm_rst_monitor(void)
 	}
 }
 
+bool hdcp_14_auth_success(void)
+{
+	if ((((hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3) >= 2) &&
+		((hdmirx_rd_dwc(DWC_HDCP_DBG) & 0xFF) > 0) &&
+		(((hdmirx_rd_dwc(DWC_HDCP_DBG)>>16) & 0x3F) >= 0x10)) {
+		if (log_level & VIDEO_LOG)
+			rx_pr("HDCP 1.4 auth pass\n");
+		return TRUE;
+	} else {
+		if (log_level & VIDEO_LOG)
+			rx_pr("HDCP 1.4 auth encryption:%d,dbg:%#x\n",
+			((hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3),
+			hdmirx_rd_dwc(DWC_HDCP_DBG));
+		return FALSE;
+	}
+}
+
+void hdcp_close(void)
+{
+	#ifdef HDCP22_ENABLE
+	if (hdcp22_on && (rx.hdcp.hdcp_version != HDCP_VERSION_14)) {
+		esm_set_stable(0);
+		rx_pr("close hdcp2.2-----\n");
+	}
+	#endif
+	/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2); */
+	if (rx.hdcp.hdcp_version != HDCP_VERSION_22) {
+		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE, 0);
+		rx_pr("close hdcp1.4-----\n");
+		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 0);
+	}
+	/* rx.hdcp.hdcp_version = HDCP_VERSION_NONE; */
+	rx.hdcp.onoff = 0;
+	rx.hdcp.pass = 0;
+	rx.hdcp.hdcp_auth_count++;
+}
+
+void hdcp_open(void)
+{
+	/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x10000); */
+	if ((hdcp_enable) && (!hdmirx_rd_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE)
+		|| !hdmirx_rd_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE))) {
+		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
+		if ((rx.hdcp.hdcp_auth_count > HDCP_AUTH_COUNT_MAX) &&
+			rx.hdcp.hdcp_version == HDCP_VERSION_14) {
+			hdmirx_set_hpd(rx.port, 0);
+			rx.state = FSM_HPD_LOW;
+			rx.hdcp.hdcp_auth_count = 0;
+		}
+
+	}
+	#ifdef HDCP22_ENABLE
+	if (hdcp22_on) {
+		if (rx.hdcp.hdcp_auth_count > HDCP_AUTH_COUNT_MAX) {
+			hdmirx_hdcp22_reauth();
+			rx.hdcp.hdcp_auth_count = 0;
+		} else
+			esm_set_stable(1);
+	}
+	#endif
+	rx.hdcp.onoff = 1;
+	rx_pr("Open hdcp-----\n");
+}
+
+void hdcp_check_onoff(void)
+{
+	if ((rx.state == FSM_SIG_READY) && rx.hdcp.hdcp_auth_count) {
+		if (rx.hdcp.hdcp_auth_time++ > HDCP_AUTH_HOLD_TIME) {
+			rx.hdcp.hdcp_auth_count = 0;
+			rx.hdcp.hdcp_auth_time = 0;
+		}
+	} else {
+		if (rx.hdcp.hdcp_auth_time)
+			rx.hdcp.hdcp_auth_time = 0;
+	}
+	if (rx.hdcp.onoff && rx.state <= FSM_SIG_UNSTABLE)
+		hdcp_close();
+}
+
 void hdmirx_hw_monitor(void)
 {
 	int pre_sample_rate;
@@ -2418,11 +2509,12 @@ void hdmirx_hw_monitor(void)
 		rx.state = FSM_HPD_LOW;
 		rx_pr("esm err->FSM_HDMI5V_HIGH\n");
 	}
-	if ((hdcp22_on) && (rx.state > FSM_SIG_UNSTABLE)) {
+	if ((hdcp22_on) && (rx.state > FSM_DWC_RST_WAIT)) {
 		monitor_capable_sts();
 		esm_rst_monitor();
 	}
 	#endif
+	hdcp_check_onoff();
 
 	if (rx.cur_5v_sts == 0) {
 		if (rx.state != FSM_INIT) {
@@ -2494,6 +2586,7 @@ void hdmirx_hw_monitor(void)
 	case FSM_WAIT_CLK_STABLE:
 		if (is_clk_stable()) {
 			if (is_clk_stable_cnt++ > is_clk_stable_max) {
+				rx_pr("EQ_INIT\n");
 				rx.state = FSM_EQ_INIT;
 				wait_clk_stable_cnt = 0;
 				is_clk_stable_cnt = 0;
@@ -2583,10 +2676,6 @@ void hdmirx_hw_monitor(void)
 					rx_dwc_reset();
 					/*use_dwc_reset = false;*/
 				}
-				#ifdef HDCP22_ENABLE
-				if (hdcp22_on)
-					esm_set_stable(1);
-				#endif
 				sig_pll_unlock_cnt = 0;
 				sig_pll_lock_cnt = 0;
 				rx.no_signal = false;
@@ -2625,6 +2714,9 @@ void hdmirx_hw_monitor(void)
 		break;
 	case FSM_DWC_RST_WAIT:
 		dwc_rst_wait_cnt++;
+		if ((dwc_rst_wait_cnt > 15 || dwc_rst_wait_cnt >=
+				dwc_rst_wait_cnt_max) && !rx.hdcp.onoff)
+			hdcp_open();
 		if ((do_hpd_reset_flag) &&
 			(dwc_rst_wait_cnt < wait_hpd_reset_max))
 			break;
@@ -2633,8 +2725,27 @@ void hdmirx_hw_monitor(void)
 			break;
 		do_hpd_reset_flag = 0;
 		dwc_rst_wait_cnt = 0;
+		rx.state = FSM_DWC_HDCP_WAIT;
+		rx_pr("DWC_RST->HDCP_WAIT\n");
+		break;
+
+	case FSM_DWC_HDCP_WAIT:
+		dwc_rst_wait_cnt++;
+		if (dwc_rst_wait_cnt < HDCP_AUTH_END_DELAY) {
+			if ((dwc_rst_wait_cnt < HDCP_AUTH_COME_DELAY) ||
+				(rx.hdcp.hdcp_version != HDCP_VERSION_NONE)) {
+				if ((rx.hdcp.hdcp_version == HDCP_VERSION_14) &&
+					hdcp_14_auth_success()) {
+					rx.hdcp.pass = TRUE;
+				}
+
+				if (!rx.hdcp.pass)
+					break;
+			}
+		}
 		rx.state = FSM_SIG_STABLE;
-		rx_pr("DWC_RST->STABLE\n");
+		dwc_rst_wait_cnt = 0;
+		rx_pr("HDCP_WAIT->STABLE\n");
 		break;
 	case FSM_SIG_STABLE:
 		memcpy(&rx.pre, &rx.cur,
@@ -2737,7 +2848,7 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				/* hdmirx_audio_fifo_rst(); */
-				rx.state = FSM_SIG_UNSTABLE;
+				rx.state = FSM_HPD_HIGH;
 				rx.pre_state = FSM_SIG_READY;
 				wait_no_sig_cnt = 0;
 				rx.aud_sr_stable_cnt = 0;
@@ -4254,6 +4365,10 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		hdmirx_wr_top(TOP_HPD_PWR5V, 0x1f & (~(1<<rx.port)));
 	*/
 	if (pre_port != rx.port) {
+		rx.hdcp.hdcp_version = HDCP_VERSION_NONE;
+		rx.hdcp.onoff = 0;
+		rx.hdcp.pass = 0;
+		rx.hdcp.hdcp_auth_count = 0;
 		#ifdef HDCP22_ENABLE
 		if (hdcp22_on) {
 			esm_set_stable(0);
@@ -4266,7 +4381,7 @@ void hdmirx_hw_init(enum tvin_port_e port)
 		rx.state = FSM_HPD_LOW;
 		pre_port = rx.port;
 		if (rx.boot_flag) {
-			/* rx.boot_flag = FALSE; */
+			rx.boot_flag = FALSE;
 			hdmirx_set_hpd(rx.port, 1);
 		} else
 			hdmirx_set_hpd(rx.port, 0);
@@ -4285,6 +4400,8 @@ void hdmirx_hw_uninit(void)
 {
 	if (sm_pause)
 		return;
+
+	/* hdcp_close(); */
 
 	/* set all hpd low  */
 	/* aml_write_cbus(PREG_PAD_GPIO5_O, */
