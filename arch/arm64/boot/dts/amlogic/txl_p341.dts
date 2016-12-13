@@ -554,12 +554,12 @@
 	wifi {
 		compatible = "amlogic, aml_wifi";
 		dev_name = "aml_wifi";
-		status = "okay";
+		status = "disabled";
 		power_on_pin = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
 		pwm_config = <&wifi_pwm_conf>;
 	};
  	wifi_pwm_conf:wifi_pwm_conf{
-		pwm_channel1 = <PWM_C>;
+		pwm_channel1 = <PWM_C>;/*change it actually*/
 		pwm_channel2 = <PWM_C2>;
 		pwm_channel1_conf = <30541 15270 6>;
 		pwm_channel2_conf = <30518 15259 9>;
