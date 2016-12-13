@@ -2250,11 +2250,13 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
 	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		/* list_type may change after try_to_steal_freepages */
 		list_type = fallback_mt;
-		if (can_steal)
+		if (can_steal &&
+			get_pageblock_migratetype(page) != MIGRATE_HIGHATOMIC)
 			steal_suitable_fallback(zone, page, start_migratetype,
 						&list_type);
 	#else
-		if (can_steal)
+		if (can_steal &&
+			get_pageblock_migratetype(page) != MIGRATE_HIGHATOMIC)
 			steal_suitable_fallback(zone, page, start_migratetype);
 	#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
 
@@ -2743,7 +2745,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
 		struct page *endpage = page + (1 << order) - 1;
 		for (; page < endpage; page += pageblock_nr_pages) {
 			int mt = get_pageblock_migratetype(page);
-			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt))
+			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
+				&& mt != MIGRATE_HIGHATOMIC)
 				set_pageblock_migratetype(page,
 							  MIGRATE_MOVABLE);
 		}
