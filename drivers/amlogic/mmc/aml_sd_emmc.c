@@ -89,6 +89,7 @@ u8 max_index;
 #define MAX_CALI_RETRY	(3)
 #define MAX_DELAY_CNT	(16)
 #define CALI_BLK_CNT	(10)
+#define CALI_PATTERN_OFFSET	((SZ_1M * (36 + 3)) / 512)
 
 static int is_larger(u8 value, u8 base, u8 wrap)
 {
@@ -145,7 +146,7 @@ static int aml_sd_emmc_cali_transfer(struct mmc_host *mmc,
 	struct scatterlist sg;
 
 	cmd.opcode = opcode;
-	cmd.arg = 0;
+	cmd.arg = CALI_PATTERN_OFFSET;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 
 	stop.opcode = MMC_STOP_TRANSMISSION;
