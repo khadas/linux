@@ -185,6 +185,10 @@
 		sys_max = <1536000000>;
 	};
 
+	cpu_info {
+		compatible = "amlogic, cpuinfo";
+		cpuinfo_cmd = <0x82000044>;
+	};
 	pinmux: pinmux{
 		compatible = "amlogic, pinmux-gxtvbb";
 		dev_name = "pinmux";
