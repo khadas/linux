@@ -2331,7 +2331,8 @@ static void init_pic_list_hw(struct hevc_state_s *hevc)
 					| 0x1);
 		}
 	}
-
+	if (cur_pic_num == 0)
+		return;
 	for (; i < MAX_REF_PIC_NUM; i++) {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			if (mmu_enable)
