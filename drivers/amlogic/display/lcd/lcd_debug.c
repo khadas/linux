@@ -557,10 +557,9 @@ static unsigned int lcd_enc_tst[][7] = {
 	{0,    0x074,   0x3fd,  0x1ad,   1,      0,        1},  /* 7 */
 };
 
-static void lcd_test(unsigned int num)
+static void lcd_debug_test(unsigned int num)
 {
-	unsigned int h_active;
-	unsigned int video_on_pixel;
+	unsigned int h_active, video_on_pixel;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	int flag;
 
@@ -583,6 +582,35 @@ static void lcd_test(unsigned int num)
 		LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
 	} else {
 		LCDPR("disable test pattern\n");
+	}
+}
+
+static void lcd_test_check(void)
+{
+	unsigned int h_active, video_on_pixel;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	unsigned int num;
+	int flag;
+
+	num = lcd_drv->lcd_test_flag;
+	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
+	flag = (num > 0) ? 1 : 0;
+	aml_lcd_notifier_call_chain(LCD_EVENT_TEST_PATTERN, &flag);
+
+	h_active = lcd_drv->lcd_config->lcd_basic.h_active;
+	video_on_pixel = lcd_drv->lcd_config->lcd_timing.video_on_pixel;
+	if (num >= 0) {
+		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, lcd_enc_tst[num][6]);
+		lcd_vcbus_write(ENCL_TST_MDSEL, lcd_enc_tst[num][0]);
+		lcd_vcbus_write(ENCL_TST_Y, lcd_enc_tst[num][1]);
+		lcd_vcbus_write(ENCL_TST_CB, lcd_enc_tst[num][2]);
+		lcd_vcbus_write(ENCL_TST_CR, lcd_enc_tst[num][3]);
+		lcd_vcbus_write(ENCL_TST_CLRBAR_STRT, video_on_pixel);
+		lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH, (h_active / 9));
+		lcd_vcbus_write(ENCL_TST_EN, lcd_enc_tst[num][4]);
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, lcd_enc_tst[num][5], 3, 1);
+		if (num > 0)
+			LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
 	}
 }
 
@@ -727,7 +755,8 @@ static ssize_t lcd_debug_store(struct class *class,
 	case 't': /* test */
 		ret = sscanf(buf, "test %d", &temp);
 		if (ret == 1) {
-			lcd_test(temp);
+			lcd_drv->lcd_test_flag = (unsigned char)temp;
+			lcd_debug_test(temp);
 		} else {
 			LCDERR("invalid data\n");
 			return -EINVAL;
@@ -1004,10 +1033,12 @@ static ssize_t lcd_debug_test_store(struct class *class,
 {
 	int ret = 0;
 	unsigned int temp = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	ret = sscanf(buf, "%d", &temp);
 	if (ret == 1) {
-		lcd_test(temp);
+		lcd_drv->lcd_test_flag = (unsigned char)temp;
+		lcd_debug_test(temp);
 	} else {
 		pr_info("invalid data\n");
 		return -EINVAL;
@@ -1650,6 +1681,8 @@ int lcd_class_creat(void)
 	int i;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	int type;
+
+	lcd_drv->lcd_test_check = lcd_test_check;
 
 	lcd_drv->lcd_debug_class = class_create(THIS_MODULE, "lcd");
 	if (IS_ERR(lcd_drv->lcd_debug_class)) {

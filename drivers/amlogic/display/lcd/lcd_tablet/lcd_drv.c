@@ -375,6 +375,7 @@ void lcd_tablet_driver_init_pre(void)
 	lcd_clk_set(pconf);
 	lcd_venc_set(pconf);
 	lcd_tcon_set(pconf);
+	lcd_drv->lcd_test_check();
 }
 
 int lcd_tablet_driver_init(void)

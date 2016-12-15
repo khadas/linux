@@ -401,6 +401,7 @@ struct aml_lcd_drv_s {
 	unsigned char lcd_key_valid;
 	unsigned char lcd_config_load;
 	unsigned char vpp_sel; /*0:vpp, 1:vpp2 */
+	unsigned char lcd_test_flag;
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
@@ -419,6 +420,7 @@ struct aml_lcd_drv_s {
 	void (*driver_tiny_enable)(void);
 	void (*driver_tiny_disable)(void);
 	void (*module_tiny_reset)(void);
+	void (*lcd_test_check)(void);
 	/*void (*module_enable)(void);
 	void (*module_disable)(void);
 	void (*set_gamma_table)(unsigned int gamma_en);
