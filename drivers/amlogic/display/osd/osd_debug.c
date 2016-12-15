@@ -103,7 +103,7 @@ static void osd_debug_dump_value(void)
 		osd_log_info("\ty_start: 0x%08x, y_end: 0x%08x\n",
 				pdata->y_start, pdata->y_end);
 
-		pdata = &hwpara->free_scale_data[index];
+		pdata = &hwpara->free_src_data[index];
 		osd_log_info("free-scale src data:\n");
 		osd_log_info("\tx_start: 0x%08x, x_end: 0x%08x\n",
 				pdata->x_start, pdata->x_end);

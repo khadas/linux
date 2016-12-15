@@ -162,6 +162,8 @@ enum osd_dev_e {
 enum reverse_info_e {
 	REVERSE_FALSE = 0,
 	REVERSE_TRUE,
+	REVERSE_X,
+	REVERSE_Y,
 	REVERSE_MAX
 };
 
@@ -249,7 +251,7 @@ struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
 	struct pandata_s scaledata[HW_OSD_COUNT];
-	struct pandata_s free_scale_data[HW_OSD_COUNT];
+	struct pandata_s free_src_data[HW_OSD_COUNT];
 	struct pandata_s free_dst_data[HW_OSD_COUNT];
 	/* struct pandata_s rotation_pandata[HW_OSD_COUNT]; */
 	struct pandata_s cursor_dispdata[HW_OSD_COUNT];
@@ -265,15 +267,13 @@ struct hw_para_s {
 	struct osd_scale_s scale[HW_OSD_COUNT];
 	struct osd_scale_s free_scale[HW_OSD_COUNT];
 	u32 free_scale_enable[HW_OSD_COUNT];
-	u32 free_scale_width[HW_OSD_COUNT];
-	u32 free_scale_height[HW_OSD_COUNT];
 	struct fb_geometry_s fb_gem[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_info[HW_OSD_COUNT];
 	u32 scan_mode;
 	u32 order;
 	struct osd_3d_mode_s mode_3d[HW_OSD_COUNT];
 	u32 updated[HW_OSD_COUNT];
-	u32 block_windows[HW_OSD_COUNT][HW_OSD_BLOCK_REG_COUNT];
+	/* u32 block_windows[HW_OSD_COUNT][HW_OSD_BLOCK_REG_COUNT]; */
 	u32 block_mode[HW_OSD_COUNT];
 	u32 free_scale_mode[HW_OSD_COUNT];
 	u32 osd_reverse[HW_OSD_COUNT];

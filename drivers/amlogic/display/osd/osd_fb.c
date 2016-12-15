@@ -711,12 +711,6 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		osd_get_order_hw(info->node, &osd_order);
 		ret = copy_to_user(argp, &osd_order, sizeof(u32));
 		break;
-	case FBIOPUT_OSD_FREE_SCALE_WIDTH:
-		osd_set_free_scale_width_hw(info->node, arg);
-		break;
-	case FBIOPUT_OSD_FREE_SCALE_HEIGHT:
-		osd_set_free_scale_height_hw(info->node, arg);
-		break;
 	case FBIOPUT_OSD_FREE_SCALE_ENABLE:
 		osd_set_free_scale_enable_hw(info->node, arg);
 		break;
@@ -740,6 +734,8 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		break;
 	case FBIOPUT_OSD_REVERSE:
+		if (arg >= REVERSE_MAX)
+			arg = REVERSE_FALSE;
 		osd_set_reverse_hw(info->node, arg);
 		break;
 	case FBIOPUT_OSD_ROTATE_ON:
@@ -1584,21 +1580,6 @@ static ssize_t store_scale_axis(struct device *device,
 	return count;
 }
 
-static ssize_t store_scale_width(struct device *device,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int free_scale_width = 0;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0 , &res);
-	free_scale_width = res;
-	osd_set_free_scale_width_hw(fb_info->node, free_scale_width);
-
-	return count;
-}
 
 static ssize_t show_scale_width(struct device *device,
 				struct device_attribute *attr,
@@ -1609,21 +1590,6 @@ static ssize_t show_scale_width(struct device *device,
 	osd_get_free_scale_width_hw(fb_info->node, &free_scale_width);
 	return snprintf(buf, PAGE_SIZE, "free_scale_width:%d\n",
 			free_scale_width);
-}
-
-static ssize_t store_scale_height(struct device *device,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(device);
-	unsigned int free_scale_height = 0;
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0 , &res);
-	free_scale_height = res;
-	osd_set_free_scale_height_hw(fb_info->node, free_scale_height);
-	return count;
 }
 
 static ssize_t show_scale_height(struct device *device,
@@ -1891,11 +1857,14 @@ static ssize_t show_osd_reverse(struct device *device,
 				struct device_attribute *attr,
 				char *buf)
 {
+	char *str[4] = {"NONE", "ALL", "X_REV", "Y_REV"};
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int osd_reverse = 0;
 	osd_get_reverse_hw(fb_info->node, &osd_reverse);
+	if (osd_reverse >= REVERSE_MAX)
+		osd_reverse = REVERSE_FALSE;
 	return snprintf(buf, PAGE_SIZE, "osd_reverse:[%s]\n",
-			osd_reverse ? "TRUE" : "FALSE");
+			str[osd_reverse]);
 }
 
 static ssize_t store_osd_reverse(struct device *device,
@@ -1909,8 +1878,9 @@ static ssize_t store_osd_reverse(struct device *device,
 
 	ret = kstrtoint(buf, 0, &res);
 	osd_reverse = res;
+	if (osd_reverse >= REVERSE_MAX)
+		osd_reverse = REVERSE_FALSE;
 	osd_set_reverse_hw(fb_info->node, osd_reverse);
-
 	return count;
 }
 
@@ -2097,17 +2067,27 @@ static struct para_osd_info_s para_osd_info[OSD_END + 2] = {
 	},
 	/* reverse_mode */
 	{
-		"true",	REVERSE_TRUE,
-		OSD_SECOND_GROUP_START - 1, OSD_SECOND_GROUP_START + 1,
-		OSD_SECOND_GROUP_START,	OSD_END
-	},
-	{
 		"false", REVERSE_FALSE,
-		OSD_SECOND_GROUP_START,	OSD_SECOND_GROUP_START + 2,
+		OSD_SECOND_GROUP_START - 1, OSD_SECOND_GROUP_START + 1,
 		OSD_SECOND_GROUP_START, OSD_END
 	},
 	{
-		"tail",	OSD_INVALID_INFO, OSD_END,
+		"true", REVERSE_TRUE,
+		OSD_SECOND_GROUP_START, OSD_SECOND_GROUP_START + 2,
+		OSD_SECOND_GROUP_START, OSD_END
+	},
+	{
+		"x_rev", REVERSE_X,
+		OSD_SECOND_GROUP_START + 1, OSD_SECOND_GROUP_START + 3,
+		OSD_SECOND_GROUP_START, OSD_END
+	},
+	{
+		"y_rev", REVERSE_Y,
+		OSD_SECOND_GROUP_START + 2, OSD_SECOND_GROUP_START + 4,
+		OSD_SECOND_GROUP_START, OSD_END
+	},
+	{
+		"tail", OSD_INVALID_INFO, OSD_END,
 		0, 0,
 		OSD_END + 1
 	},
@@ -2185,10 +2165,10 @@ static struct device_attribute osd_attrs[] = {
 			show_free_scale, store_free_scale),
 	__ATTR(scale_axis, S_IRUGO | S_IWUSR,
 			show_scale_axis, store_scale_axis),
-	__ATTR(scale_width, S_IRUGO | S_IWUSR | S_IWGRP,
-			show_scale_width, store_scale_width),
-	__ATTR(scale_height, S_IRUGO | S_IWUSR | S_IWGRP,
-			show_scale_height, store_scale_height),
+	__ATTR(scale_width, S_IRUGO | S_IRUSR,
+			show_scale_width, NULL),
+	__ATTR(scale_height, S_IRUGO | S_IRUSR,
+			show_scale_height, NULL),
 	__ATTR(color_key, S_IRUGO | S_IWUSR,
 			show_color_key, store_color_key),
 	__ATTR(enable_key, S_IRUGO | S_IWUSR | S_IWGRP,
