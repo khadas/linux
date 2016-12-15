@@ -295,8 +295,10 @@ static int lcd_suspend(void)
 }
 static int lcd_resume(void)
 {
+#if 0
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 	LCDPR("%s finished\n", __func__);
+#endif
 	return 0;
 }
 #endif

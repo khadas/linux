@@ -437,6 +437,7 @@ struct aml_lcd_drv_s {
 	struct workqueue_struct *workqueue;
 	struct delayed_work     lcd_probe_delayed_work;
 	struct delayed_work     lcd_vx1_delayed_work;
+	struct work_struct      lcd_resume_work;
 };
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);

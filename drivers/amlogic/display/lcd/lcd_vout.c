@@ -847,6 +847,12 @@ static int lcd_config_probe(void)
 	return 0;
 }
 
+static void lcd_resume_work(struct work_struct *p_work)
+{
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+	LCDPR("%s finished\n", __func__);
+}
+
 static int lcd_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -871,6 +877,8 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_driver->workqueue = create_workqueue("lcd_work_queue");
 	if (lcd_driver->workqueue == NULL)
 		LCDERR("can't create lcd workqueue\n");
+
+	INIT_WORK(&(lcd_driver->lcd_resume_work), lcd_resume_work);
 
 	lcd_chip_detect();
 	lcd_ioremap();
@@ -904,6 +912,23 @@ static int lcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int lcd_resume(struct platform_device *pdev)
+{
+	queue_work(lcd_driver->workqueue, &(lcd_driver->lcd_resume_work));
+
+	return 0;
+}
+
+static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (lcd_driver->lcd_status) {
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+		LCDPR("%s finished\n", __func__);
+		}
+	return 0;
+}
+
+
 #ifdef CONFIG_OF
 static const struct of_device_id lcd_dt_match[] = {
 	{
@@ -916,6 +941,8 @@ static const struct of_device_id lcd_dt_match[] = {
 static struct platform_driver lcd_platform_driver = {
 	.probe = lcd_probe,
 	.remove = lcd_remove,
+	.suspend = lcd_suspend,
+	.resume = lcd_resume,
 	.driver = {
 		.name = "mesonlcd",
 		.owner = THIS_MODULE,
