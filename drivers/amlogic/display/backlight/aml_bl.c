@@ -974,7 +974,7 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 {
 	unsigned int pwm_hi = 0, pwm_lo = 0;
 	unsigned int port = bl_pwm->pwm_port;
-	unsigned int vs[4], ve[4], sw, n, i;
+	unsigned int vs[4], ve[4], sw, n, i, pol = 0;
 
 	if (bl_drv->state & BL_STATE_BL_ON)
 		bl_set_pwm_gpio_check(bl_pwm);
@@ -983,10 +983,12 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 	case BL_PWM_POSITIVE:
 		pwm_hi = bl_pwm->pwm_level;
 		pwm_lo = bl_pwm->pwm_cnt - bl_pwm->pwm_level;
+		pol = 0;
 		break;
 	case BL_PWM_NEGATIVE:
 		pwm_lo = bl_pwm->pwm_level;
 		pwm_hi = bl_pwm->pwm_cnt - bl_pwm->pwm_level;
+		pol = 1;
 		break;
 	default:
 		BLERR("port %d: invalid pwm_method %d\n",
@@ -1008,6 +1010,7 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 		bl_cbus_write(pwm_reg[port], (pwm_hi << 16) | pwm_lo);
 		break;
 	case BL_PWM_VS:
+		pwm_hi = bl_pwm->pwm_level;
 		memset(vs, 0xffff, sizeof(unsigned int) * 4);
 		memset(ve, 0xffff, sizeof(unsigned int) * 4);
 		n = bl_pwm->pwm_freq;
@@ -1024,7 +1027,9 @@ static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 					i, vs[i], i, ve[i]);
 			}
 		}
-		bl_vcbus_write(VPU_VPU_PWM_V0, (ve[0] << 16) | (vs[0]));
+		bl_vcbus_write(VPU_VPU_PWM_V0, (pol << 31) |
+				(2 << 14) | /* vsync latch */
+				(ve[0] << 16) | (vs[0]));
 		bl_vcbus_write(VPU_VPU_PWM_V1, (ve[1] << 16) | (vs[1]));
 		bl_vcbus_write(VPU_VPU_PWM_V2, (ve[2] << 16) | (vs[2]));
 		bl_vcbus_write(VPU_VPU_PWM_V3, (ve[3] << 16) | (vs[3]));
