@@ -108,5 +108,11 @@ extern uint sdr_mode;
 
 extern void amvecm_matrix_process(struct vframe_s *vf);
 extern int amvecm_hdr_dbg(u32 sel);
+#ifdef CONFIG_VSYNC_RDMA
+extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+extern u32 VSYNC_RD_MPEG_REG(u32 adr);
+extern int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+#endif
+
 #endif /* AM_CSC_H */
 

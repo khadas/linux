@@ -1481,8 +1481,8 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	int *m = NULL;
 	int size = 0;
 	int i;
-
-	print_vpp_matrix(m_select, s, on);
+	if (debug_csc)
+		print_vpp_matrix(m_select, s, on);
 	if (m_select == VPP_MATRIX_OSD) {
 		m = osd_matrix_coeff;
 		size = MATRIX_5x3_COEF_SIZE;
@@ -1555,12 +1555,12 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	} else if (m_select == VPP_MATRIX_EOTF) {
 		/* eotf matrix, VPP_MATRIX_EOTF */
 		for (i = 0; i < 5; i++)
-			WRITE_VPP_REG(VIU_EOTF_CTL + i + 1,
+			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL + i + 1,
 				((m[i * 2] & 0x1fff) << 16)
 				| (m[i * 2 + 1] & 0x1fff));
 
-		WRITE_VPP_REG_BITS(VIU_EOTF_CTL, on, 30, 1);
-		WRITE_VPP_REG_BITS(VIU_EOTF_CTL, on, 31, 1);
+		VSYNC_WR_MPEG_REG_BITS(VIU_EOTF_CTL, on, 30, 1);
+		VSYNC_WR_MPEG_REG_BITS(VIU_EOTF_CTL, on, 31, 1);
 	} else if (m_select == VPP_MATRIX_OSD_EOTF) {
 		/* osd eotf matrix, VPP_MATRIX_OSD_EOTF */
 
@@ -1926,28 +1926,35 @@ void set_vpp_lut(
 		if (r && r_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				b_map[i] = b[i];
-		WRITE_VPP_REG(addr_port, 0);
-		for (i = 0; i < 16; i++)
-			WRITE_VPP_REG(data_port,
+		for (i = 0; i < 16; i++) {
+			VSYNC_WR_MPEG_REG(addr_port, i);
+			VSYNC_WR_MPEG_REG(data_port,
 				r_map[i * 2]
 				| (r_map[i * 2 + 1] << 16));
-		WRITE_VPP_REG(data_port,
+		}
+		VSYNC_WR_MPEG_REG(addr_port, 16);
+		VSYNC_WR_MPEG_REG(data_port,
 			r_map[EOTF_LUT_SIZE - 1]
 			| (g_map[0] << 16));
-		for (i = 0; i < 16; i++)
-			WRITE_VPP_REG(data_port,
+		for (i = 0; i < 16; i++) {
+			VSYNC_WR_MPEG_REG(addr_port, i + 17);
+			VSYNC_WR_MPEG_REG(data_port,
 				g_map[i * 2 + 1]
 				| (g_map[i * 2 + 2] << 16));
-		for (i = 0; i < 16; i++)
-			WRITE_VPP_REG(data_port,
+		}
+		for (i = 0; i < 16; i++) {
+			VSYNC_WR_MPEG_REG(addr_port, i + 33);
+			VSYNC_WR_MPEG_REG(data_port,
 				b_map[i * 2]
 				| (b_map[i * 2 + 1] << 16));
-		WRITE_VPP_REG(data_port, b_map[EOTF_LUT_SIZE - 1]);
+		}
+		VSYNC_WR_MPEG_REG(addr_port, 49);
+		VSYNC_WR_MPEG_REG(data_port, b_map[EOTF_LUT_SIZE - 1]);
 		if (on)
-			WRITE_VPP_REG_BITS(ctrl_port, 7, 27, 3);
+			VSYNC_WR_MPEG_REG_BITS(ctrl_port, 7, 27, 3);
 		else
-			WRITE_VPP_REG_BITS(ctrl_port, 0, 27, 3);
-		WRITE_VPP_REG_BITS(ctrl_port, 1, 31, 1);
+			VSYNC_WR_MPEG_REG_BITS(ctrl_port, 0, 27, 3);
+		VSYNC_WR_MPEG_REG_BITS(ctrl_port, 1, 31, 1);
 	} else if (lut_sel == VPP_LUT_OETF) {
 		if (r && r_map)
 			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
@@ -1958,46 +1965,51 @@ void set_vpp_lut(
 		if (r && r_map)
 			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
 				b_map[i] = b[i];
-		WRITE_VPP_REG(ctrl_port, 0x0);
-		WRITE_VPP_REG(addr_port, 0);
-		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-			WRITE_VPP_REG(data_port, r_map[i]);
-		WRITE_VPP_REG(addr_port + 2, 0);
-		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-			WRITE_VPP_REG(data_port + 2, g_map[i]);
-		WRITE_VPP_REG(addr_port + 4, 0);
-		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-			WRITE_VPP_REG(data_port + 4, b_map[i]);
+		VSYNC_WR_MPEG_REG(ctrl_port, 0x0);
+		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {
+			VSYNC_WR_MPEG_REG(addr_port, i);
+			VSYNC_WR_MPEG_REG(data_port, r_map[i]);
+		}
+		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {
+			VSYNC_WR_MPEG_REG(addr_port + 2, i);
+			VSYNC_WR_MPEG_REG(data_port + 2, g_map[i]);
+		}
+		for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {
+			VSYNC_WR_MPEG_REG(addr_port + 4, i);
+			VSYNC_WR_MPEG_REG(data_port + 4, b_map[i]);
+		}
 		if (on) {
-			WRITE_VPP_REG(ctrl_port, 0x7f);
+			VSYNC_WR_MPEG_REG(ctrl_port, 0x7f);
 			knee_lut_on = 1;
 		} else {
-			WRITE_VPP_REG(ctrl_port, 0x0);
+			VSYNC_WR_MPEG_REG(ctrl_port, 0x0);
 			knee_lut_on = 0;
 		}
 		cur_knee_factor = knee_factor;
 	} else if (lut_sel == VPP_LUT_INV_EOTF) {
-		WRITE_VPP_REG(addr_port, 0);
+		VSYNC_WR_MPEG_REG(addr_port, 0);
 		for (i = 0; i < EOTF_INV_LUT_NEG2048_SIZE; i++) {
-			WRITE_VPP_REG(addr_port, i);
-			WRITE_VPP_REG(data_port, invlut_y_neg[i]);
+			VSYNC_WR_MPEG_REG(addr_port, i);
+			VSYNC_WR_MPEG_REG(data_port, invlut_y_neg[i]);
 		}
 		for (i = 0; i < EOTF_INV_LUT_SIZE; i++) {
-			WRITE_VPP_REG(addr_port, EOTF_INV_LUT_NEG2048_SIZE + i);
-			WRITE_VPP_REG(data_port, invlut_y[i]);
+			VSYNC_WR_MPEG_REG(addr_port,
+				EOTF_INV_LUT_NEG2048_SIZE + i);
+			VSYNC_WR_MPEG_REG(data_port, invlut_y[i]);
 		}
 		for (i = 0; i < EOTF_INV_LUT_1024_SIZE; i++) {
-			WRITE_VPP_REG(addr_port,
+			VSYNC_WR_MPEG_REG(addr_port,
 				EOTF_INV_LUT_NEG2048_SIZE +
 				EOTF_INV_LUT_SIZE + i);
-			WRITE_VPP_REG(data_port, invlut_y_1024[i]);
+			VSYNC_WR_MPEG_REG(data_port, invlut_y_1024[i]);
 		}
 		if (on)
-			WRITE_VPP_REG_BITS(ctrl_port, 1<<2, 12, 3);
+			VSYNC_WR_MPEG_REG_BITS(ctrl_port, 1<<2, 12, 3);
 		else
-			WRITE_VPP_REG_BITS(ctrl_port, 0, 12, 3);
+			VSYNC_WR_MPEG_REG_BITS(ctrl_port, 0, 12, 3);
 	}
-	print_vpp_lut(lut_sel, on);
+	if (debug_csc)
+		print_vpp_lut(lut_sel, on);
 }
 
 /***************************** end of gxl hdr **************************/
@@ -3238,9 +3250,9 @@ static void bypass_hdr_process(
 
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_EOTF,
-			eotf_33_linear_mapping, /* R */
-			eotf_33_linear_mapping, /* G */
-			eotf_33_linear_mapping, /* B */
+			NULL, /* R */
+			NULL, /* G */
+			NULL, /* B */
 			CSC_OFF);
 
 		/* eotf matrix bypass */
