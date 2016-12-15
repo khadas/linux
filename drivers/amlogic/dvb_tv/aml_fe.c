@@ -291,34 +291,68 @@ static void aml_fe_do_work(struct work_struct *work)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int afc = 100;
 	int lock = 0;
+	int tmp = 0;
 	static int audio_overmodul;
 	static int afc_wave_cnt;
+	static int afc_wrong_lock;
 	struct aml_fe *fee;
 	fee = fe->demodulator_priv;
 
-	retrieve_vpll_carrier_lock(&lock);/* 0 means lock, 1 means unlock */
-	if (!lock) {
+	retrieve_vpll_carrier_lock(&tmp);/* 0 means lock, 1 means unlock */
+	lock = !tmp;
+	if (lock) {
 		if (0 == ((audio_overmodul++)%10))
 			aml_audio_overmodulation(1);
 	}
 
 	retrieve_frequency_offset(&afc);
+	if (debug_fe & 0x4)
+		pr_err("%s,afc raw val:%d, lock:%d\n", __func__, afc, lock);
 	afc = afc*488/1000;
-	if (abs(afc) < AFC_BEST_LOCK) {
-		afc_wave_cnt = 0;
+	if (lock && (abs(afc) < AFC_BEST_LOCK)) {
+		if (debug_fe & 0x4)
+			pr_err("%s,afc lock, set wave_cnt 0\n", __func__);
+		/* afc_wave_cnt = 0; */
+		afc_wrong_lock = 0;
 		return;
 	} else {
 		afc_wave_cnt++;
+		if (!lock && (abs(afc) < AFC_BEST_LOCK))
+			afc_wrong_lock++;
+		else
+			afc_wrong_lock = 0;
+		if (debug_fe & 0x4)
+			pr_err("%s afc_wrong_lock:%d\n",
+				__func__, afc_wrong_lock);
 	}
-	if (afc_wave_cnt < 10) {
+	if (afc_wave_cnt < 15) {
 		if (debug_fe & 0x1)
-			pr_err("%s,afc is wave,ignore\n", __func__);
+			pr_err("%s,afc:%d is wave,lock:%d ignore\n",
+				__func__, afc, lock);
 		return;
 	}
+	if (14 == (afc_wrong_lock % 15)) {
+		c->frequency -= afc_offset*1000;
+		c->frequency += 1;
+		if (debug_fe & 0x4)
+			pr_err("%s,afc is ok,but unlock, set freq:%d\n",
+					__func__, c->frequency);
+		if (fe->ops.tuner_ops.set_params)
+			fe->ops.tuner_ops.set_params(fe);
+
+		afc_offset = 0;
+		return;
+
+	}
+	if (afc_wrong_lock > 0)
+		return;
 	if (abs(afc_offset) >= 2000) {
 		no_sig_cnt++;
 		if (no_sig_cnt == 20) {
 			c->frequency -= afc_offset*1000;
+			if (debug_fe & 0x4)
+				pr_err("%s,afc no_sig trig, set freq:%d\n",
+						__func__, c->frequency);
 			if (fe->ops.tuner_ops.set_params)
 				fe->ops.tuner_ops.set_params(fe);
 			afc_offset = 0;
@@ -328,6 +362,9 @@ static void aml_fe_do_work(struct work_struct *work)
 	no_sig_cnt = 0;
 	c->frequency += afc*1000;
 	afc_offset += afc;
+	if (debug_fe & 0x4)
+		pr_err("%s,afc:%d , set freq:%d\n",
+				__func__, afc, c->frequency);
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
 }
