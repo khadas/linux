@@ -44,10 +44,15 @@ struct aml_audio_private_data {
 
 	struct pinctrl *pin_ctl;
 	struct timer_list timer;
-	struct gpio_desc *mute_desc;
+	struct gpio_desc *av_mute_desc;
+	int av_mute_inv;
 	struct gpio_desc *amp_mute_desc;
+	int amp_mute_inv;
 	struct clk *clk;
 	int sleep_time;
+	struct work_struct pinmux_work;
+	int aml_EQ_enable;
+	int aml_DRC_enable;
 };
 
 struct aml_audio_codec_info {

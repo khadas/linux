@@ -1045,12 +1045,19 @@
 		aml_sound_card,name = "AML-G9TVAUDIO";
 		pinctrl-names = "aml_snd_g9tv";
 		pinctrl-0 = <&audio_pins>;
-		mute_gpio-gpios = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
-		amp_mute_gpio-gpios = <&gpio GPIOZ_13 GPIO_ACTIVE_HIGH>;
+		/*avout mute gpio, if av_mute_inv = 1, invert gpio*/
+		mute_gpio-gpios = <&gpio GPIODV_11 GPIO_ACTIVE_LOW>;
+		av_mute_inv = <0>;
+		/*after sleep time, unmute avout*/
 		sleep_time = <0>;
-		av_hs_switch = <1>; /* if 1, enable switch AV / HS Detect */
+		/*analog amp mute pinmux*/
+		amp_mute_gpio-gpios = <&gpio GPIOZ_13 GPIO_ACTIVE_LOW>;
+		amp_mute_inv = <0>;
+		/* if 1, enable switch AV / HS Detect */
+		av_hs_switch = <1>;
 		hp_det-gpios = <&gpio GPIODV_10 GPIO_ACTIVE_HIGH>;
 		hp_det_inv = <0>;
+		/*audio soc*/
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
@@ -1073,6 +1080,7 @@
 			sound-dai = <&pcm_codec>;
 		};
 		aml_EQ_DRC {
+			EQ_enable = <1>;
 			eq_table = /bits/ 32 <
 				/*channel 1*/
 				0x00800000 0x00000000 0x00000000 0x00000000 0x00000000 /*eq_coef0*/
@@ -1097,6 +1105,7 @@
 				0x00800000 0x00000000 0x00000000 0x00000000 0x00000000 /*eq_coef8*/
 				0x00800000 0x00000000 0x00000000 0x00000000 0x00000000 /*eq_coef9*/
 			>;
+			DRC_enable = <1>;
 			drc_table = /bits/ 32 <
 				0x0000111c 0x0380111c /*drc_ae && drc_ae_1m*/
 				0x00081bfc 0x03881bfc /*drc_aa && drc_aa_1m*/

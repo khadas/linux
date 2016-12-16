@@ -654,6 +654,40 @@ static int aml_audio_hp_detect(struct aml_audio_private_data *p_aml_audio)
 	return ret;
 }
 
+/*mute: 1, ummute: 0*/
+static int aml_mute_unmute(struct snd_soc_card *card, int av_mute, int amp_mute)
+{
+	struct aml_audio_private_data *p_aml_audio;
+
+	p_aml_audio = snd_soc_card_get_drvdata(card);
+
+	if (!IS_ERR(p_aml_audio->av_mute_desc)) {
+		if (p_aml_audio->av_mute_inv ^ av_mute) {
+			gpiod_direction_output(
+				p_aml_audio->av_mute_desc, GPIOF_OUT_INIT_LOW);
+			pr_info("set av out GPIOF_OUT_INIT_LOW!\n");
+		} else {
+			gpiod_direction_output(
+				p_aml_audio->av_mute_desc, GPIOF_OUT_INIT_HIGH);
+			pr_info("set av out GPIOF_OUT_INIT_HIGH!\n");
+		}
+	}
+
+	if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
+		if (p_aml_audio->amp_mute_inv ^ amp_mute) {
+			gpiod_direction_output(
+				p_aml_audio->amp_mute_desc, GPIOF_OUT_INIT_LOW);
+			pr_info("set amp out GPIOF_OUT_INIT_LOW!\n");
+		} else {
+			gpiod_direction_output(
+				p_aml_audio->amp_mute_desc,
+				GPIOF_OUT_INIT_HIGH);
+			pr_info("set amp out GPIOF_OUT_INIT_HIGH!\n");
+		}
+	}
+	return 0;
+}
+
 static void aml_asoc_work_func(struct work_struct *work)
 {
 	struct aml_audio_private_data *p_aml_audio = NULL;
@@ -662,38 +696,19 @@ static void aml_asoc_work_func(struct work_struct *work)
 	p_aml_audio = container_of(work, struct aml_audio_private_data, work);
 	card = (struct snd_soc_card *)p_aml_audio->data;
 
-
 	flag = aml_audio_hp_detect(p_aml_audio);
-	if (p_aml_audio->detect_flag != flag) {
 
+	if (p_aml_audio->detect_flag != flag) {
 		p_aml_audio->detect_flag = flag;
 
 		if (flag & 0x1) {
 			pr_info("aml aduio hp pluged\n");
 			audio_hp_status = 1;
-			if (!IS_ERR(p_aml_audio->mute_desc)) {
-				gpiod_direction_output(
-					p_aml_audio->mute_desc,
-					GPIOF_OUT_INIT_HIGH);
-			}
-			if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
-				gpiod_direction_output(
-					p_aml_audio->amp_mute_desc,
-					GPIOF_OUT_INIT_LOW);
-			}
+			aml_mute_unmute(card, 0, 1);
 		} else {
 			pr_info("aml audio hp unpluged\n");
 			audio_hp_status = 0;
-			if (!IS_ERR(p_aml_audio->mute_desc)) {
-				gpiod_direction_output(
-					p_aml_audio->mute_desc,
-					GPIOF_OUT_INIT_LOW);
-			}
-			if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
-				gpiod_direction_output(
-					p_aml_audio->amp_mute_desc,
-					GPIOF_OUT_INIT_HIGH);
-			}
+			aml_mute_unmute(card, 1, 0);
 		}
 
 	}
@@ -731,15 +746,7 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 		mutex_unlock(&p_aml_audio->lock);
 	}
 
-	if (!IS_ERR(p_aml_audio->mute_desc)) {
-		gpiod_direction_output(p_aml_audio->mute_desc,
-					GPIOF_OUT_INIT_LOW);
-	};
-	if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
-		gpiod_direction_output(p_aml_audio->amp_mute_desc,
-					GPIOF_OUT_INIT_LOW);
-	};
-
+	aml_mute_unmute(card, 1, 1);
 	return 0;
 }
 
@@ -762,26 +769,7 @@ static int aml_resume_post(struct snd_soc_card *card)
 	pr_info("enter %s\n", __func__);
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	if (p_aml_audio->av_hs_switch) {
-		mutex_lock(&p_aml_audio->lock);
-		p_aml_audio->suspended = false;
-		if (!p_aml_audio->timer_en) {
-			aml_audio_start_timer(p_aml_audio,
-					      msecs_to_jiffies(100));
-		}
-		mutex_unlock(&p_aml_audio->lock);
-	}
-
-	if (!IS_ERR(p_aml_audio->mute_desc)) {
-		if (p_aml_audio->sleep_time)
-			msleep(p_aml_audio->sleep_time);
-		gpiod_direction_output(p_aml_audio->mute_desc,
-					GPIOF_OUT_INIT_HIGH);
-	}
-	if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
-		gpiod_direction_output(p_aml_audio->amp_mute_desc,
-					GPIOF_OUT_INIT_HIGH);
-	}
+	schedule_work(&p_aml_audio->pinmux_work);
 
 	return 0;
 }
@@ -827,14 +815,31 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_new_controls(dapm, aml_asoc_dapm_widgets,
 				  ARRAY_SIZE(aml_asoc_dapm_widgets));
 
-	of_property_read_u32(card->dev->of_node,
-		"av_hs_switch",
+	p_aml_audio->pin_ctl =
+		devm_pinctrl_get_select(card->dev, "aml_snd_g9tv");
+	if (IS_ERR(p_aml_audio->pin_ctl)) {
+		pr_info("%s, aml_g9tv_pinmux_init error!\n", __func__);
+		return 0;
+	}
+
+	/*read avmute pinmux from dts*/
+	p_aml_audio->av_mute_desc = gpiod_get(card->dev, "mute_gpio");
+	of_property_read_u32(card->dev->of_node, "av_mute_inv",
+		&p_aml_audio->av_mute_inv);
+	of_property_read_u32(card->dev->of_node, "sleep_time",
+		&p_aml_audio->sleep_time);
+
+	/*read amp mute pinmux from dts*/
+	p_aml_audio->amp_mute_desc = gpiod_get(card->dev, "amp_mute_gpio");
+	of_property_read_u32(card->dev->of_node, "amp_mute_inv",
+		&p_aml_audio->amp_mute_inv);
+
+	/*read headset pinmux from dts*/
+	of_property_read_u32(card->dev->of_node, "av_hs_switch",
 		&p_aml_audio->av_hs_switch);
 
-	pr_info("av/hs detection =%d\n", p_aml_audio->av_hs_switch);
-
 	if (p_aml_audio->av_hs_switch) {
-		/* headphone dection gipo */
+		/* headset dection gipo */
 		p_aml_audio->hp_det_desc = gpiod_get(card->dev, "hp_det");
 		if (!IS_ERR(p_aml_audio->hp_det_desc))
 			gpiod_direction_input(p_aml_audio->hp_det_desc);
@@ -847,9 +852,9 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		pr_info("hp_det_inv:%d, %s\n",
 			p_aml_audio->hp_det_inv,
 			p_aml_audio->hp_det_inv ?
-			"hs pluged, HP_DET:1;hs unpluged, HS_DET:0"
+			"hs pluged, HP_DET:1; hs unpluged, HS_DET:0"
 			:
-			"hs pluged, HP_DET:0;hs unpluged, HS_DET:1");
+			"hs pluged, HP_DET:0; hs unpluged, HS_DET:1");
 
 		p_aml_audio->hp_det_status = true;
 
@@ -857,20 +862,21 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		p_aml_audio->timer.function = aml_asoc_timer_func;
 		p_aml_audio->timer.data = (unsigned long)p_aml_audio;
 		p_aml_audio->data = (void *)card;
-		p_aml_audio->suspended = false;
 
 		INIT_WORK(&p_aml_audio->work, aml_asoc_work_func);
 		mutex_init(&p_aml_audio->lock);
 
-		mutex_lock(&p_aml_audio->lock);
-		if (!p_aml_audio->timer_en) {
-			aml_audio_start_timer(p_aml_audio,
-					      msecs_to_jiffies(100));
-		}
-		mutex_unlock(&p_aml_audio->lock);
-
 		ret = snd_soc_add_card_controls(codec->card,
 					hp_controls, ARRAY_SIZE(hp_controls));
+	}
+
+	/*It is used for KaraOK, */
+	av_source = gpiod_get(card->dev, "av_source");
+	if (!IS_ERR(av_source)) {
+		pr_info("%s, make av_source gpio low!\n", __func__);
+		gpiod_direction_output(av_source, GPIOF_OUT_INIT_LOW);
+		snd_soc_add_card_controls(card, av_controls,
+					ARRAY_SIZE(av_controls));
 	}
 
 	return 0;
@@ -879,41 +885,31 @@ static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static void aml_g9tv_pinmux_init(struct snd_soc_card *card)
 {
 	struct aml_audio_private_data *p_aml_audio;
-	int ret = 0;
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
-	p_aml_audio->pin_ctl =
-		devm_pinctrl_get_select(card->dev, "aml_snd_g9tv");
-	if (IS_ERR(p_aml_audio->pin_ctl)) {
-		pr_info("%s, aml_g9tv_pinmux_init error!\n", __func__);
-		return;
-	}
 
-	p_aml_audio->mute_desc = gpiod_get(card->dev, "mute_gpio");
-	if (!IS_ERR(p_aml_audio->mute_desc)) {
-		ret = of_property_read_u32(card->dev->of_node, "sleep_time",
-				&p_aml_audio->sleep_time);
-		if (p_aml_audio->sleep_time)
+	if (!p_aml_audio->av_hs_switch) {
+		if (p_aml_audio->sleep_time &&
+				(!IS_ERR(p_aml_audio->av_mute_desc)))
 			msleep(p_aml_audio->sleep_time);
-		pr_info("make amp unmute! sleep %d ms\n",
-				p_aml_audio->sleep_time);
-		gpiod_direction_output(p_aml_audio->mute_desc,
-					   GPIOF_OUT_INIT_HIGH);
+		aml_mute_unmute(card, 0, 0);
+		pr_info("av_mute_inv:%d, amp_mute_inv:%d, sleep %d ms\n",
+			p_aml_audio->av_mute_inv, p_aml_audio->amp_mute_inv,
+			p_aml_audio->sleep_time);
+	} else {
+		if (p_aml_audio->sleep_time &&
+				(!IS_ERR(p_aml_audio->av_mute_desc)))
+			msleep(p_aml_audio->sleep_time);
+		pr_info("aml audio hs detect enable!\n");
+		p_aml_audio->suspended = false;
+		mutex_lock(&p_aml_audio->lock);
+		if (!p_aml_audio->timer_en) {
+			aml_audio_start_timer(p_aml_audio,
+						  msecs_to_jiffies(100));
+		}
+		mutex_unlock(&p_aml_audio->lock);
 	}
 
-	p_aml_audio->amp_mute_desc = gpiod_get(card->dev, "amp_mute_gpio");
-	if (!IS_ERR(p_aml_audio->amp_mute_desc)) {
-		gpiod_direction_output(p_aml_audio->amp_mute_desc,
-					   GPIOF_OUT_INIT_HIGH);
-	}
-
-	av_source = gpiod_get(card->dev, "av_source");
-	if (!IS_ERR(av_source)) {
-		pr_info("%s, make av_source gpio low!\n", __func__);
-		gpiod_direction_output(av_source, GPIOF_OUT_INIT_LOW);
-		snd_soc_add_card_controls(card, av_controls,
-					ARRAY_SIZE(av_controls));
-	}
 	return;
 }
 
@@ -1432,10 +1428,13 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 {
 	struct device_node *audio_codec_node = card->dev->of_node;
 	struct device_node *child;
+	struct aml_audio_private_data *p_aml_audio;
 	int length = 0;
 	int ret = 0;
 	int i = 0;
 	u32 *reg_ptr = &aml_EQ_param[0][0];
+
+	p_aml_audio = snd_soc_card_get_drvdata(card);
 
 	child = of_get_child_by_name(audio_codec_node, "aml_EQ_DRC");
 	if (child == NULL) {
@@ -1460,6 +1459,12 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 				reg_ptr++;
 			}
 		}
+	}
+
+	of_property_read_u32(child, "EQ_enable", &p_aml_audio->aml_EQ_enable);
+	if (p_aml_audio->aml_EQ_enable) {
+		aml_cbus_update_bits(AED_EQ_EN, 0x1, 0x1);
+		pr_info("aml EQ enable!\n");
 	}
 
 	reg_ptr = &drc_table[0][0];
@@ -1507,7 +1512,26 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 			drc_tko_table[0][2], drc_tko_table[1][2]);*/
 		}
 	}
+
+	of_property_read_u32(child, "DRC_enable", &p_aml_audio->aml_DRC_enable);
+	if (p_aml_audio->aml_DRC_enable) {
+		aml_cbus_update_bits(AED_DRC_EN, 0x1, 0x1);
+		pr_info("aml DRC enable!\n");
+	}
+
 	return 0;
+}
+
+static void aml_pinmux_work_func(struct work_struct *pinmux_work)
+{
+	struct aml_audio_private_data *p_aml_audio = NULL;
+	struct snd_soc_card *card = NULL;
+	p_aml_audio = container_of(pinmux_work,
+				  struct aml_audio_private_data, pinmux_work);
+	card = (struct snd_soc_card *)p_aml_audio->data;
+
+	aml_g9tv_pinmux_init(card);
+	return;
 }
 
 static int aml_g9tv_audio_probe(struct platform_device *pdev)
@@ -1519,7 +1543,7 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 
 	p_aml_audio =
 		devm_kzalloc(dev, sizeof(struct aml_audio_private_data),
-			     GFP_KERNEL);
+				 GFP_KERNEL);
 	if (!p_aml_audio) {
 		dev_err(&pdev->dev, "Can't allocate aml_audio_private_data\n");
 		ret = -ENOMEM;
@@ -1570,7 +1594,10 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 		set_HW_resample_pause_thd(128);
 	}
 
-	aml_g9tv_pinmux_init(card);
+	p_aml_audio->data = (void *)card;
+	INIT_WORK(&p_aml_audio->pinmux_work, aml_pinmux_work_func);
+	schedule_work(&p_aml_audio->pinmux_work);
+
 	return 0;
 err:
 	dev_err(dev, "Can't probe snd_soc_card\n");
