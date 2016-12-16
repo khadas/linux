@@ -954,7 +954,15 @@ static void hdr_work_func(struct work_struct *work)
 	struct hdmitx_dev *hdev =
 		container_of(work, struct hdmitx_dev, work_hdr);
 
-	switch_set_state(&hdmi_hdr, hdev->hdr_src_feature);
+	if (hdev->hdr_src_feature == 0) {
+		unsigned char DRM_HB[3] = {0x87, 0x1, 26};
+		unsigned char DRM_DB[26] = {0x0};
+		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
+		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
+		msleep(1500);
+		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
+	}
+	/* switch_set_state(&hdmi_hdr, hdev->hdr_src_feature); */
 }
 
 #define GET_LOW8BIT(a)	((a) & 0xff)
