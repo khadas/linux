@@ -81,9 +81,10 @@ void *decoder_bmmu_box_alloc_box(const char *name,
 	struct decoder_bmmu_box *box;
 	int size;
 	int tvp_flags;
-	tvp_flags = codec_mm_video_tvp_enabled() ?
+	tvp_flags = (mem_flags & CODEC_MM_FLAGS_TVP) ?
 		CODEC_MM_FLAGS_TVP : 0;
-	/*TODO.changed to vdec-tvp flags*/
+
+	pr_info("decoder_bmmu_box_alloc_box, tvp_flags = %x\n", tvp_flags);
 
 	size = sizeof(struct decoder_bmmu_box) + sizeof(struct codec_mm_s *) *
 		   max_num;

@@ -46,12 +46,19 @@ struct vdec_input_s {
 	struct vdec_s *vdec;
 	bool swap_valid;
 	bool swap_needed;
+	bool eos;
 	struct page *swap_page;
-	int total_wr_count;
-	int total_rd_count;
+	unsigned long swap_page_phys;
+	u64 total_wr_count;
+	u64 total_rd_count;
+	u64 streaming_rp;
+	u32 swap_rp;
+	bool last_swap_slave;
+	int dirty_count;
 	u64 sequence;
 	unsigned start;
 	unsigned size;
+	int prepare_level;
 	int stream_cookie; /* wrap count for vld_mem and
 			      HEVC_SHIFT_BYTE_COUNT for hevc */
 };

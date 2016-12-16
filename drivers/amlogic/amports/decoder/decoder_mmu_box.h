@@ -21,7 +21,8 @@
 void *decoder_mmu_box_alloc_box(const char *name,
 	int channel_id,
 	int max_num,
-	int min_size_M);
+	int min_size_M,
+	int mem_flags);
 
 int decoder_mmu_box_alloc_idx(
 	void *handle, int idx, int num_pages,

@@ -552,11 +552,7 @@ static ssize_t vfm_map_store(struct class *class,
 	int i = 0;
 	int cmd = 0;
 	char *id = NULL;
-#ifdef CONFIG_MULTI_DEC
-	if (strncmp(buf, "dummy", 5))
-#else
 	if (vfm_debug_flag & 0x10000)
-#endif
 		return count;
 	pr_err("%s:%s\n", __func__, buf);
 	buf_orig = kstrdup(buf, GFP_KERNEL);

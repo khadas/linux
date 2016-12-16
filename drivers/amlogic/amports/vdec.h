@@ -129,7 +129,8 @@ enum vformat_t;
 #define VDEC_RECEIVER_NAME_SIZE 16
 #define VDEC_MAP_NAME_SIZE      40
 
-#define VDEC_FLAG_INPUT_KEEP_CONTEXT 0x01
+#define VDEC_FLAG_OTHER_INPUT_CONTEXT 0x0
+#define VDEC_FLAG_SELF_INPUT_CONTEXT 0x01
 
 struct vdec_s {
 	u32 magic;
@@ -220,7 +221,10 @@ struct vdec_s {
 #define vdec_single(vdec) \
 	((vdec)->type == VDEC_TYPE_SINGLE)
 #define vdec_dual(vdec) \
-	((vdec)->port->type & PORT_TYPE_DUALDEC)
+	(((vdec)->port->type & PORT_TYPE_DUALDEC) ||\
+	 (amports_get_debug_flags() & 0x100))
+#define vdec_secure(vdec) \
+	(((vdec)->port_flag & PORT_FLAG_DRM))
 
 /* construct vdec strcture */
 extern struct vdec_s *vdec_create(struct stream_port_s *port,
@@ -253,6 +257,15 @@ extern void vdec_clean_input(struct vdec_s *vdec);
 
 /* enable decoder input */
 extern void vdec_enable_input(struct vdec_s *vdec);
+
+/* set decoder input prepare level */
+extern void vdec_set_prepare_level(struct vdec_s *vdec, int level);
+
+/* set vdec input */
+extern int vdec_set_input_buffer(struct vdec_s *vdec, u32 start, u32 size);
+
+/* check if decoder can get more input */
+extern bool vdec_has_more_input(struct vdec_s *vdec);
 
 /* allocate input chain
  * register vdec_device
@@ -288,6 +301,8 @@ extern int vdec_status(struct vdec_s *vdec, struct vdec_status *vstatus);
 extern int vdec_set_trickmode(struct vdec_s *vdec, unsigned long trickmode);
 
 extern void vdec_set_flag(struct vdec_s *vdec, u32 flag);
+
+extern void vdec_set_eos(struct vdec_s *vdec, bool eos);
 
 extern void vdec_set_next_sched(struct vdec_s *vdec, struct vdec_s *next_vdec);
 
