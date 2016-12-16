@@ -420,6 +420,7 @@
  */
 /** Register address: audio mode control */
 #define DWC_AUD_CTRL             (0x200UL)
+#define DWC_AUD_HBR_ENABLE	_BIT(8)
 /** Register address: audio PLL control */
 #define DWC_AUD_PLL_CTRL         (0x208UL)
 /** Register address: audio PLL lock */

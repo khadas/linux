@@ -1002,6 +1002,8 @@ int hdmirx_audio_init(void)
 	/* DEFAULT: {27'd0, 3'd0, 2'd1} */
 	hdmirx_wr_dwc(DWC_PDEC_ACRM_CTRL, data32);
 
+	hdmirx_wr_bits_dwc(DWC_AUD_CTRL, DWC_AUD_HBR_ENABLE, 1);
+
 	data32 = 0;
 	/* mute */
 	data32 |= 1	<< 10;
