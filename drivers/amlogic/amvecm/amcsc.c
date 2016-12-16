@@ -162,12 +162,12 @@ MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 uint sdr_mode = 0; /* 0: sdr->sdr, 1:sdr->hdr, 2:auto */
 static uint sdr_process_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr */
 static uint cur_sdr_process_mode = 2; /* 0: sdr->sdr, 1:sdr->hdr */
-static uint sdr_saturation_offset = 20; /* 0: sdr->sdr, 1:sdr->hdr */
+static int sdr_saturation_offset = 20; /* 0: sdr->sdr, 1:sdr->hdr */
 module_param(sdr_mode, uint, 0664);
 MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
 module_param(sdr_process_mode, uint, 0444);
 MODULE_PARM_DESC(sdr_process_mode, "\n current hdr_process_mode\n");
-module_param(sdr_saturation_offset, uint, 0664);
+module_param(sdr_saturation_offset, int, 0664);
 MODULE_PARM_DESC(sdr_saturation_offset, "\n add saturation\n");
 
 static uint force_csc_type = 0xff;

@@ -76,6 +76,12 @@ static int hue_pre;  /*-25~25*/
 static int saturation_pre;  /*-128~127*/
 static int hue_post;  /*-25~25*/
 static int saturation_post;  /*-128~127*/
+
+static s16 saturation_ma;
+static s16 saturation_mb;
+static s16 saturation_ma_shift;
+static s16 saturation_mb_shift;
+
 unsigned int sr1_reg_val[101];
 unsigned int sr1_ret_val[101];
 struct vpp_hist_param_s vpp_hist_param;
@@ -1416,11 +1422,20 @@ static ssize_t amvecm_saturation_hue_store(struct class *cla,
 	size_t r;
 	s32 mab = 0;
 	s16 mc = 0, md = 0;
+	s16 ma, mb;
 
 	r = sscanf(buf, "0x%x", &mab);
 	if ((r != 1) || (mab&0xfc00fc00))
 		return -EINVAL;
+	ma = (s16)((mab << 6) >> 22);
+	mb = (s16)((mab << 22) >> 22);
 
+	saturation_ma = ma - 0x100;
+	saturation_mb = mb;
+
+	ma += saturation_ma_shift;
+	mb += saturation_mb_shift;
+	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
 	mc = (s16)((mab<<22)>>22); /* mc = -mb */
 	mc = 0 - mc;
@@ -1496,6 +1511,11 @@ void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
 	i = (hue_val > 0) ? hue_val : -hue_val;
 	ma = (hue_cos[i]*(sat_val + 128)) >> 7;
 	mb = (hue_sin[25+hue_val]*(sat_val + 128)) >> 7;
+	saturation_ma_shift = ma - 0x100;
+	saturation_mb_shift = mb;
+
+	ma += saturation_ma;
+	mb += saturation_mb;
 	if (ma > 511)
 		ma = 511;
 	if (ma < -512)
@@ -1507,7 +1527,7 @@ void vpp_vd_adj1_saturation_hue(unsigned int sat_val,
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	pr_info("\n[amvideo..] saturation_pre:%d hue_pre:%d mab:%x\n",
 			sat_val, hue_val, mab);
-	WRITE_VPP_REG(VPP_VADJ2_MA_MB, mab);
+	WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
 	mc = (s16)((mab<<22)>>22); /* mc = -mb */
 	mc = 0 - mc;
 	if (mc > 511)
