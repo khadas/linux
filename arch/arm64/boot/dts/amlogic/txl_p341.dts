@@ -554,7 +554,7 @@
 	wifi {
 		compatible = "amlogic, aml_wifi";
 		dev_name = "aml_wifi";
-		status = "disabled";
+		status = "okay";
 		power_on_pin = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
 		pwm_config = <&wifi_pwm_conf>;
 	};
