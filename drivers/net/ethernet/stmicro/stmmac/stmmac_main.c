@@ -2258,8 +2258,8 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 static void stmmac_tx_timer(unsigned long data)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)data;
-
-	stmmac_tx_clean(priv);
+	if (priv->dma_tx != NULL)
+		stmmac_tx_clean(priv);
 }
 
 /**
