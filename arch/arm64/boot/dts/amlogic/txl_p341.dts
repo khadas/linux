@@ -255,6 +255,7 @@
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1280 720 1280 1440 32>; //1280*720*4*2 = 8MB
 		pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+		ddr_urgent = <0>; /* osd ddr urgent */
 	};
 
 	ge2d {

@@ -1683,6 +1683,18 @@ void osd_switch_free_scale(
 	}
 }
 
+void osd_get_urgent(u32 index, u32 *urgent)
+{
+	*urgent = osd_hw.urgent[index];
+}
+
+void osd_set_urgent(u32 index, u32 urgent)
+{
+	osd_hw.urgent[index] = urgent;
+	add_to_update_list(index, OSD_FIFO);
+	osd_wait_vsync_hw();
+}
+
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 {
@@ -3014,6 +3026,54 @@ static void osd2_update_disp_3d_mode(void)
 	osd_hw.mode_3d[OSD2].left_right ^= 1;
 }
 
+static void osd1_update_fifo(void)
+{
+	u32 data32;
+	data32 = osd_hw.urgent[OSD1] & 1;
+	data32 |= 4 << 5; /* hold_fifo_lines */
+	/* burst_len_sel: 3=64 */
+	data32 |= 3  << 10;
+	/* fifo_depth_val: 32*8=256 */
+	data32 |= 32 << 12;
+	/* if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) */
+	/*
+	 * bit 23:22, fifo_ctrl
+	 * 00 : for 1 word in 1 burst
+	 * 01 : for 2 words in 1 burst
+	 * 10 : for 4 words in 1 burst
+	 * 11 : reserved
+	*/
+	data32 |= 2 << 22;
+	/* bit 28:24, fifo_lim */
+	data32 |= 2 << 24;
+	VSYNCOSD_WR_MPEG_REG(VIU_OSD1_FIFO_CTRL_STAT, data32);
+	remove_from_update_list(OSD1, OSD_FIFO);
+}
+
+static void osd2_update_fifo(void)
+{
+	u32 data32;
+	data32 = osd_hw.urgent[OSD2] & 1;
+	data32 |= 4 << 5; /* hold_fifo_lines */
+	/* burst_len_sel: 3=64 */
+	data32 |= 3  << 10;
+	/* fifo_depth_val: 32*8=256 */
+	data32 |= 32 << 12;
+	/* if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) */
+	/*
+	 * bit 23:22, fifo_ctrl
+	 * 00 : for 1 word in 1 burst
+	 * 01 : for 2 words in 1 burst
+	 * 10 : for 4 words in 1 burst
+	 * 11 : reserved
+	*/
+	data32 |= 2 << 22;
+	/* bit 28:24, fifo_lim */
+	data32 |= 2 << 24;
+	VSYNCOSD_WR_MPEG_REG(VIU_OSD2_FIFO_CTRL_STAT, data32);
+	remove_from_update_list(OSD2, OSD_FIFO);
+}
+
 void osd_init_scan_mode(void)
 {
 #define	VOUT_ENCI	1
@@ -3058,6 +3118,9 @@ void osd_init_hw(u32 logo_loaded)
 				hw_func_array[group][idx];
 	osd_hw.updated[OSD1] = 0;
 	osd_hw.updated[OSD2] = 0;
+	osd_hw.urgent[OSD1] = 1;
+	osd_hw.urgent[OSD2] = 1;
+
 	osd_hdr_on = false;
 	osd_hw.hw_reset_flag = HW_RESET_NONE;
 

@@ -180,6 +180,7 @@ enum hw_reg_index_e {
 	DISP_FREESCALE_ENABLE,
 	DISP_OSD_REVERSE,
 	DISP_OSD_ROTATE,
+	OSD_FIFO,
 	HW_REG_INDEX_MAX
 };
 
@@ -288,6 +289,7 @@ struct hw_para_s {
 	u32 bot_type;
 	u32 hw_reset_flag;
 	struct afbcd_data_s osd_afbcd[HW_OSD_COUNT];
+	u32 urgent[HW_OSD_COUNT];
 };
 
 #endif /* _OSD_H_ */

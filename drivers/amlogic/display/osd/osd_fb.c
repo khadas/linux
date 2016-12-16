@@ -2384,6 +2384,14 @@ static int osd_probe(struct platform_device *pdev)
 	if (prop)
 		prop_idx = of_read_ulong(prop, 1);
 	osd_set_pxp_mode(prop_idx);
+
+	prop = of_get_property(pdev->dev.of_node, "ddr_urgent", NULL);
+	if (prop) {
+		prop_idx = of_read_ulong(prop, 1);
+		osd_set_urgent(0, (prop_idx != 0) ? 1 : 0);
+		osd_set_urgent(1, (prop_idx != 0) ? 1 : 0);
+	}
+
 	/* if osd_init_hw is not set by logo, set vmode and init osd hw */
 	logo_init = osd_get_init_hw_flag();
 	if (logo_init == 0) {
