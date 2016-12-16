@@ -243,6 +243,7 @@ static s32 vh264_eos;
 static struct vframe_s *p_last_vf;
 static s32 iponly_early_mode;
 static void *mm_blk_handle;
+static int tvp_flag;
 
 /*TODO irq*/
 #if 1
@@ -2205,7 +2206,8 @@ static void vh264_local_init(void)
 			MAX_BLK_BUFFERS,
 			4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR |
-			CODEC_MM_FLAGS_FOR_VDECODER);
+			CODEC_MM_FLAGS_FOR_VDECODER |
+			tvp_flag);
 
 	pr_info
 	("H264 sysinfo: %dx%d duration=%d, pts_outside=%d, ",
@@ -2815,6 +2817,7 @@ static int amvdec_h264_probe(struct platform_device *pdev)
 	else
 		buf_start = V_BUF_ADDR_OFFSET + pdata->mem_start;
 	buf_end = pdata->mem_end;
+	tvp_flag = vdec_secure(pdata) ? CODEC_MM_FLAGS_TVP : 0;
 	if (pdata->sys_info)
 		vh264_amstream_dec_info = *pdata->sys_info;
 	if (NULL == sei_data_buffer) {

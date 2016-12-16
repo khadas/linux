@@ -1027,6 +1027,53 @@ int pts_set_rec_size(u8 type, u32 val)
 	}
 }
 EXPORT_SYMBOL(pts_set_rec_size);
+
+/**
+ * return number of recs if the offset is bigger
+ */
+int pts_get_rec_num(u8 type, u32 val)
+{
+	ulong flags;
+	struct pts_table_s *pTable;
+	struct pts_rec_s *p;
+	int r = 0;
+
+	if (type >= PTS_TYPE_MAX)
+		return 0;
+
+	pTable = &pts_table[type];
+
+	if (list_empty(&pTable->valid_list))
+		return 0;
+
+	spin_lock_irqsave(&lock, flags);
+
+	if (pTable->pts_search == &pTable->valid_list) {
+		p = list_entry(pTable->valid_list.next,
+			struct pts_rec_s, list);
+	} else {
+		p = list_entry(pTable->pts_search, struct pts_rec_s,
+			list);
+	}
+
+	if (OFFSET_LATER(val, p->offset)) {
+		list_for_each_entry_continue(p, &pTable->valid_list,
+					list) {
+			if (OFFSET_LATER(p->offset, val))
+				break;
+		}
+	}
+
+	list_for_each_entry_continue(p, &pTable->valid_list, list) {
+		r++;
+	}
+
+	spin_unlock_irqrestore(&lock, flags);
+
+	return r;
+}
+EXPORT_SYMBOL(pts_get_rec_num);
+
 /* #define SIMPLE_ALLOC_LIST */
 static void free_pts_list(struct pts_table_s *pTable)
 {

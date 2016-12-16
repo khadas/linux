@@ -59,6 +59,7 @@ struct stream_buf_s {
 	u64 last_write_jiffies64;
 	void *write_thread;
 	int for_4k;
+	bool is_secure;
 } /*stream_buf_t */;
 
 struct stream_port_s {
@@ -121,7 +122,8 @@ extern u32 stbuf_canusesize(struct stream_buf_s *buf);
 extern s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec);
 extern s32 stbuf_wait_space(struct stream_buf_s *stream_buf, size_t count);
 extern void stbuf_release(struct stream_buf_s *buf);
-extern int stbuf_change_size(struct stream_buf_s *buf, int size);
+extern int stbuf_change_size(struct stream_buf_s *buf, int size,
+				bool is_secure);
 extern int stbuf_fetch_init(void);
 extern void stbuf_fetch_release(void);
 extern u32 stbuf_sub_rp_get(void);

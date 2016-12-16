@@ -177,9 +177,20 @@ int vdec_input_set_buffer(struct vdec_input_s *input, u32 start, u32 size)
 
 	input->start = start;
 	input->size = size;
-	input->swap_page = alloc_page(GFP_KERNEL);
+	input->swap_rp = start;
 
-	if (input->swap_page == NULL)
+	if (vdec_secure(input->vdec))
+		input->swap_page_phys = codec_mm_alloc_for_dma("SWAP",
+			1, 0, CODEC_MM_FLAGS_TVP);
+	else {
+		input->swap_page = alloc_page(GFP_KERNEL);
+		if (input->swap_page) {
+			input->swap_page_phys =
+				page_to_phys(input->swap_page);
+		}
+	}
+
+	if (input->swap_page_phys == 0)
 		return -ENOMEM;
 
 	return 0;
@@ -505,12 +516,16 @@ void vdec_input_release(struct vdec_input_s *input)
 		vdec_input_remove_block(input, block);
 	}
 
-	/* release swap page */
-	if (input->swap_page) {
-		__free_page(input->swap_page);
+	/* release swap pages */
+	if (input->swap_page_phys) {
+		if (vdec_secure(input->vdec))
+			codec_mm_free_for_dma("SWAP", input->swap_page_phys);
+		else
+			__free_page(input->swap_page);
 		input->swap_page = NULL;
-		input->swap_valid = false;
+		input->swap_page_phys = 0;
 	}
+	input->swap_valid = false;
 }
 
 

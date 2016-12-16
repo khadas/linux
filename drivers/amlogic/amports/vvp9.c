@@ -163,8 +163,20 @@ unsigned short parser_cmd[PARSER_CMD_NUMBER] = {
 #endif
 
 #ifdef MULTI_INSTANCE_SUPPORT
-#define MAX_DECODE_INSTANCE_NUM     5
+#define MAX_DECODE_INSTANCE_NUM     12
 #define MULTI_DRIVER_NAME "ammvdec_vp9"
+
+static unsigned int max_decode_instance_num
+				= MAX_DECODE_INSTANCE_NUM;
+static unsigned int decode_frame_count[MAX_DECODE_INSTANCE_NUM];
+static unsigned int max_process_time[MAX_DECODE_INSTANCE_NUM];
+
+static u32 decode_timeout_val = 100;
+static int start_decode_buf_level = 0x8000;
+#ifdef VP9_10B_MMU
+static u32 work_buf_size = 24 * 1024 * 1024;
+#else
+static u32 work_buf_size = 32 * 1024 * 1024;
 #endif
 
 #define DRIVER_NAME "amvdec_vp9"
@@ -445,6 +457,8 @@ struct PIC_BUFFER_CONFIG_s {
 	int slice_type;
 	int num_reorder_pic;
 	int stream_offset;
+	u32 pts;
+	u64 pts64;
 	uint8_t used_by_display;
 	uint8_t referenced;
 	uint8_t output_mark;
@@ -1130,6 +1144,8 @@ struct BuffInfo_s {
 #define DEC_UNINIT_PICLIST			6
 #define DEC_RESULT_GET_DATA         7
 #define DEC_RESULT_GET_DATA_RETRY   8
+#define DEC_RESULT_EOS              9
+#define DEC_RESULT_FORCE_EXIT       10
 
 static void vp9_work(struct work_struct *work);
 #endif
@@ -1151,6 +1167,12 @@ struct VP9Decoder_s {
 	u32 buf_size;
 	u32 cma_alloc_count;
 	unsigned long cma_alloc_addr;
+	uint8_t eos;
+	unsigned long int start_process_time;
+	unsigned timeout_num;
+#endif
+#ifdef VP9_10B_MMU
+	long used_4k_num;
 #endif
 	unsigned char m_ins_flag;
 	char *provider_name;
@@ -1295,6 +1317,35 @@ static int vp9_print_cont(struct VP9Decoder_s *pbi,
 	}
 	return 0;
 }
+
+static void reset_process_time(struct VP9Decoder_s *pbi)
+{
+	if (pbi->start_process_time) {
+		unsigned process_time =
+			1000 * (jiffies - pbi->start_process_time) / HZ;
+		pbi->start_process_time = 0;
+		if (process_time > max_process_time[pbi->index])
+			max_process_time[pbi->index] = process_time;
+	}
+}
+
+static void start_process_time(struct VP9Decoder_s *pbi)
+{
+	pbi->start_process_time = jiffies;
+}
+
+static void timeout_process(struct VP9Decoder_s *pbi)
+{
+	pbi->timeout_num++;
+	amhevc_stop();
+	vp9_print(pbi,
+		0, "%s decoder timeout\n", __func__);
+
+	pbi->dec_result = DEC_RESULT_DONE;
+	reset_process_time(pbi);
+	schedule_work(&pbi->work);
+}
+
 #endif
 
 #ifdef VP9_10B_MMU
@@ -1435,10 +1486,11 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 	pbi->has_keyframe = 1;
 	on_no_keyframe_skiped = 0;
 #ifdef VP9_10B_MMU
+	if (!pbi->m_ins_flag)
+		pbi->used_4k_num = (READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
 	if (cm->prev_fb_idx >= 0) {
-		long used_4k_num = (READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
 		decoder_mmu_box_free_idx_tail(pbi->mmu_box,
-		cm->prev_fb_idx, used_4k_num);
+		cm->prev_fb_idx, pbi->used_4k_num);
 	}
 #endif
 	if (cm->new_fb_idx >= 0
@@ -4524,7 +4576,9 @@ static void vp9_init_decoder_hw(struct VP9Decoder_s *pbi)
 	WRITE_VREG(HEVC_STREAM_SWAP_TEST, 0);
 #endif
 #ifdef MULTI_INSTANCE_SUPPORT
-	if (pbi->platform_dev && vdec_frame_based(hw_to_vdec(pbi)))
+	if (!pbi->m_ins_flag)
+		WRITE_VREG(DECODE_MODE, DECODE_MODE_SINGLE);
+	else if (vdec_frame_based(hw_to_vdec(pbi)))
 		WRITE_VREG(DECODE_MODE, DECODE_MODE_MULTI_FRAMEBASE);
 	else
 		WRITE_VREG(DECODE_MODE, DECODE_MODE_MULTI_STREAMBASE);
@@ -5105,6 +5159,12 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		set_canvas(pic_config);
 	}
 	if (vf) {
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (vdec_frame_based(hw_to_vdec(pbi))) {
+			vf->pts = pic_config->pts;
+			vf->pts_us64 = pic_config->pts64;
+		} else
+#endif
 		/* if (pts_lookup_offset(PTS_TYPE_VIDEO,
 		   stream_offset, &vf->pts, 0) != 0) { */
 		if (pts_lookup_offset_us64
@@ -5384,9 +5444,16 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	/*if (pbi->wait_buf)
 		pr_info("set wait_buf to 0\r\n");
 	*/
+	if (pbi->eos)
+		return IRQ_HANDLED;
 	pbi->wait_buf = 0;
 
 	if (dec_status == VP9_EOS) {
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (pbi->m_ins_flag)
+			reset_process_time(pbi);
+#endif
+
 		pr_info("VP9_EOS, flush buffer\r\n");
 
 		vp9_bufmgr_postproc(pbi);
@@ -5394,6 +5461,13 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		pr_info("send VP9_10B_DISCARD_NAL\r\n");
 		WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DISCARD_NAL);
 		pbi->process_busy = 0;
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (pbi->m_ins_flag) {
+			pbi->dec_result = DEC_RESULT_DONE;
+			amhevc_stop();
+			schedule_work(&pbi->work);
+		}
+#endif
 		return IRQ_HANDLED;
 	}
 
@@ -5401,6 +5475,12 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		pbi->process_busy = 0;
 		return IRQ_HANDLED;
 	}
+
+#ifdef MULTI_INSTANCE_SUPPORT
+	if (pbi->m_ins_flag)
+		reset_process_time(pbi);
+#endif
+
 	if (pbi->frame_count > 0)
 		vp9_bufmgr_postproc(pbi);
 
@@ -5432,11 +5512,27 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		 ret);
 		WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DISCARD_NAL);
 		pbi->process_busy = 0;
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (pbi->m_ins_flag) {
+			pbi->dec_result = DEC_RESULT_DONE;
+			amhevc_stop();
+			schedule_work(&pbi->work);
+		}
+#endif
 		return IRQ_HANDLED;
 	} else if (ret == 0) {
 		pbi->frame_count++;
+		decode_frame_count[pbi->index] = pbi->frame_count;
 		/*pr_info("Decode Frame Data %d\n", pbi->frame_count);*/
 		config_pic_size(pbi, vp9_param.p.bit_depth);
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (pbi->chunk) {
+			struct PIC_BUFFER_CONFIG_s *cur_pic_config =
+				&cm->cur_frame->buf;
+			cur_pic_config->pts = pbi->chunk->pts;
+			cur_pic_config->pts64 = pbi->chunk->pts64;
+		}
+#endif
 		if ((pbi->common.frame_type != KEY_FRAME)
 			&& (!pbi->common.intra_only)) {
 			config_mc_buffer(pbi, vp9_param.p.bit_depth);
@@ -5478,7 +5574,6 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 	vp9_loop_filter_frame_init(seg_4lf, lfi, lf, default_filt_lvl);
 #endif
 	/*pr_info("HEVC_DEC_STATUS_REG <= VP9_10B_DECODE_SLICE\n");*/
-
 	WRITE_VREG(HEVC_DEC_STATUS_REG, VP9_10B_DECODE_SLICE);
 	} else {
 	pr_info("Skip search next start code\n");
@@ -5501,6 +5596,11 @@ static irqreturn_t vvp9_isr_thread_fn(int irq, void *data)
 		pbi->last_put_idx = -1;
 	}
 #endif
+#ifdef MULTI_INSTANCE_SUPPORT
+	if (pbi->m_ins_flag)
+		start_process_time(pbi);
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -5511,6 +5611,9 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 	struct VP9Decoder_s *pbi = (struct VP9Decoder_s *)data;
 	unsigned int adapt_prob_status;
 	struct VP9_Common_s *const cm = &pbi->common;
+
+	WRITE_VREG(HEVC_ASSIST_MBOX1_CLR_REG, 1);
+
 	dec_status = READ_VREG(HEVC_DEC_STATUS_REG);
 	adapt_prob_status = READ_VREG(VP9_ADAPT_PROB_REG);
 	if (pbi->init_flag == 0)
@@ -5552,25 +5655,30 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 		}
 
 	}
+#ifdef MULTI_INSTANCE_SUPPORT
+	if (!pbi->m_ins_flag) {
+#endif
+		if (pbi->error_flag == 1) {
+			pbi->error_flag = 2;
+			pbi->process_busy = 0;
+			return IRQ_HANDLED;
+		} else if (pbi->error_flag == 3) {
+			pbi->process_busy = 0;
+			return IRQ_HANDLED;
+		}
 
-	if (pbi->error_flag == 1) {
-		pbi->error_flag = 2;
-		pbi->process_busy = 0;
-		return IRQ_HANDLED;
-	} else if (pbi->error_flag == 3) {
-		pbi->process_busy = 0;
-		return IRQ_HANDLED;
+		if (is_buffer_empty(cm)) {
+			/*
+			if (pbi->wait_buf == 0)
+				pr_info("set wait_buf to 1\r\n");
+			*/
+			pbi->wait_buf = 1;
+			pbi->process_busy = 0;
+			return IRQ_HANDLED;
+		}
+#ifdef MULTI_INSTANCE_SUPPORT
 	}
-
-	if (is_buffer_empty(cm)) {
-		/*
-		if (pbi->wait_buf == 0)
-			pr_info("set wait_buf to 1\r\n");
-		*/
-		pbi->wait_buf = 1;
-		pbi->process_busy = 0;
-		return IRQ_HANDLED;
-	}
+#endif
 	if ((adapt_prob_status & 0xff) == 0xfd) {
 		/*VP9_REQ_ADAPT_PROB*/
 		int pre_fc = (cm->frame_type == KEY_FRAME) ? 1 : 0;
@@ -5580,7 +5688,10 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 		uint8_t *cur_prob_b =
 		((uint8_t *)pbi->prob_buffer_addr) + 0x4000;
 		uint8_t *count_b = (uint8_t *)pbi->count_buffer_addr;
-
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (pbi->m_ins_flag)
+			reset_process_time(pbi);
+#endif
 		adapt_coef_probs(pbi->pic_count,
 			(cm->last_frame_type == KEY_FRAME),
 			pre_fc, (adapt_prob_status >> 8),
@@ -5590,31 +5701,17 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 		memcpy(prev_prob_b, cur_prob_b, PROB_SIZE);
 		WRITE_VREG(VP9_ADAPT_PROB_REG, 0);
 		pbi->pic_count += 1;
+#ifdef MULTI_INSTANCE_SUPPORT
+		if (pbi->m_ins_flag)
+			start_process_time(pbi);
+#endif
 
 		/*return IRQ_HANDLED;*/
 	}
 #ifdef MULTI_INSTANCE_SUPPORT
-#if 0
-	if ((dec_status == HEVC_DECPIC_DATA_DONE) && (pbi->m_ins_flag)) {
-		if (pbi->chunk) {
-			pbi->cur_pic->pts = pbi->chunk->pts;
-			pbi->cur_pic->pts64 = pbi->chunk->pts64;
-		} else if (pts_lookup_offset_us64
-			(PTS_TYPE_VIDEO,
-			pbi->cur_pic->stream_offset,
-			&pbi->cur_pic->pts,
-			0,
-			&pbi->cur_pic->pts64) != 0) {
-#ifdef DEBUG_PTS
-			pbi->pts_missed++;
-#endif
-			pbi->cur_pic->pts = 0;
-			pbi->cur_pic->pts64 = 0;
-		}
-	}
-#endif
 	if (dec_status == HEVC_NAL_DECODE_DONE) {
 		if (pbi->m_ins_flag) {
+			reset_process_time(pbi);
 #if 0
 			if (!vdec_frame_based(hw_to_vdec(hevc))) {
 				pbi->dec_result = DEC_RESULT_AGAIN;
@@ -5636,6 +5733,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	} else if (dec_status == HEVC_DECPIC_DATA_DONE) {
 		if (pbi->m_ins_flag) {
+			reset_process_time(pbi);
 			pbi->dec_result = DEC_RESULT_DONE;
 			amhevc_stop();
 			schedule_work(&pbi->work);
@@ -5647,6 +5745,7 @@ static irqreturn_t vvp9_isr(int irq, void *data)
 			(dec_status == HEVC_SEARCH_BUFEMPTY) ||
 			(dec_status == HEVC_DECODE_BUFEMPTY) ||
 			(dec_status == HEVC_DECODE_TIMEOUT)) {
+		reset_process_time(pbi);
 		if (vdec_frame_based(hw_to_vdec(pbi)) ||
 			(READ_VREG(HEVC_STREAM_LEVEL) > 0x200)) {
 			if (debug & VP9_DEBUG_DIS_LOC_ERROR_PROC) {
@@ -5692,7 +5791,7 @@ static void vvp9_put_timer_func(unsigned long arg)
 	if (pbi->m_ins_flag) {
 		if (hw_to_vdec(pbi)->next_status
 			== VDEC_STATUS_DISCONNECTED) {
-			pbi->dec_result = DEC_RESULT_DONE;
+			pbi->dec_result = DEC_RESULT_FORCE_EXIT;
 			schedule_work(&pbi->work);
 			pr_info(
 			"vdec requested to be disconnected\n");
@@ -5745,6 +5844,19 @@ static void vvp9_put_timer_func(unsigned long arg)
 			}
 		}
 	}
+#ifdef MULTI_INSTANCE_SUPPORT
+	else {
+		if ((input_frame_based(hw_to_vdec(pbi)) ||
+			(READ_VREG(HEVC_STREAM_LEVEL) > 0x200)) &&
+			(decode_timeout_val > 0) &&
+			(pbi->start_process_time > 0) &&
+			((1000 * (jiffies - pbi->start_process_time) / HZ)
+				> decode_timeout_val)
+		)
+			timeout_process(pbi);
+
+	}
+#endif
 
 	if (decode_stop_pos != decode_stop_pos_pre) {
 		WRITE_VREG(DECODE_STOP_POS, decode_stop_pos);
@@ -6002,6 +6114,7 @@ static s32 vvp9_init(struct VP9Decoder_s *pbi)
 		add_timer(&pbi->timer);
 
 		pbi->stat |= STAT_TIMER_ARM;
+		pbi->stat |= STAT_ISR_REG;
 
 		INIT_WORK(&pbi->work, vp9_work);
 		return 0;
@@ -6121,11 +6234,10 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 	vp9_local_uninit(pbi);
 
 #ifdef MULTI_INSTANCE_SUPPORT
-	if (pbi->m_ins_flag) {
+	if (pbi->m_ins_flag)
 		cancel_work_sync(&pbi->work);
-	} else {
+	else
 		amhevc_disable();
-	}
 #else
 	amhevc_disable();
 #endif
@@ -6136,10 +6248,14 @@ static int vvp9_stop(struct VP9Decoder_s *pbi)
 
 static int amvdec_vp9_mmu_init(struct VP9Decoder_s *pbi)
 {
+	int tvp_flag = vdec_secure(hw_to_vdec(pbi)) ?
+		CODEC_MM_FLAGS_TVP : 0;
+
 #ifdef VP9_10B_MMU
 	pbi->mmu_box = decoder_mmu_box_alloc_box(DRIVER_NAME,
 		0, FRAME_BUFFERS,
-		48 * SZ_1M
+		48 * SZ_1M,
+		tvp_flag
 		);
 	if (!pbi->mmu_box) {
 		pr_err("vp9 alloc mmu box failed!!\n");
@@ -6152,7 +6268,8 @@ static int amvdec_vp9_mmu_init(struct VP9Decoder_s *pbi)
 			MAX_BMMU_BUFFER_NUM,
 			4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR |
-			CODEC_MM_FLAGS_FOR_VDECODER);
+			CODEC_MM_FLAGS_FOR_VDECODER |
+			tvp_flag);
 	if (!pbi->bmmu_box) {
 		pr_err("vp9 alloc bmmu box failed!!\n");
 		return -1;
@@ -6172,6 +6289,11 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 
 	pbi->init_flag = 0;
+#ifdef MULTI_INSTANCE_SUPPORT
+	pbi->eos = 0;
+	pbi->start_process_time = 0;
+	pbi->timeout_num = 0;
+#endif
 	pbi->fatal_error = 0;
 	pbi->show_frame_num = 0;
 	if (pdata == NULL) {
@@ -6183,6 +6305,8 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 #ifdef MULTI_INSTANCE_SUPPORT
 	pbi->buf_start = pdata->mem_start;
 	pbi->buf_size = pdata->mem_end - pdata->mem_start + 1;
+	pbi->platform_dev = pdev;
+	platform_set_drvdata(pdev, pdata);
 #else
 	pbi->mc_buf_spec.buf_end = pdata->mem_end + 1;
 	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
@@ -6268,30 +6392,6 @@ static struct codec_profile_t amvdec_vp9_profile = {
 	.profile = ""
 };
 
-#ifdef MULTI_INSTANCE_SUPPORT
-static unsigned int start_decode_buf_level = 0x8000;
-#ifdef VP9_10B_MMU
-static u32 work_buf_size = 24 * 1024 * 1024;
-#else
-static u32 work_buf_size = 32 * 1024 * 1024;
-#endif
-
-static unsigned char decoder_id_used[MAX_DECODE_INSTANCE_NUM];
-static unsigned int get_free_decoder_id(struct vdec_s *vdec)
-{
-	/*stream base decoder always has id of 0*/
-	int i;
-	if (vdec_frame_based(vdec)) {
-		for (i = 1; i < decoder_id_used[i]; i++) {
-			if (!decoder_id_used[i]) {
-				decoder_id_used[i] = 1;
-				return i;
-			}
-		}
-	}
-	return 0;
-}
-
 static unsigned char get_data_check_sum
 	(struct VP9Decoder_s *pbi, int size)
 {
@@ -6336,9 +6436,22 @@ static void vp9_work(struct work_struct *work)
 	/* finished decoding one frame or error,
 	 * notify vdec core to switch context
 	 */
+	vp9_print(pbi, PRINT_FLAG_VDEC_DETAIL,
+		"%s dec_result %d %x %x %x\n",
+		__func__,
+		pbi->dec_result,
+		READ_VREG(HEVC_STREAM_LEVEL),
+		READ_VREG(HEVC_STREAM_WR_PTR),
+		READ_VREG(HEVC_STREAM_RD_PTR));
 
 	if ((pbi->dec_result == DEC_RESULT_GET_DATA) ||
 		(pbi->dec_result == DEC_RESULT_GET_DATA_RETRY)) {
+		if (!vdec_has_more_input(vdec)) {
+			pbi->dec_result = DEC_RESULT_EOS;
+			schedule_work(&pbi->work);
+			return;
+		}
+
 		if (pbi->dec_result == DEC_RESULT_GET_DATA) {
 			vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
 				"%s DEC_RESULT_GET_DATA %x %x %x\n",
@@ -6370,7 +6483,6 @@ static void vp9_work(struct work_struct *work)
 				(debug & PRINT_FLAG_VDEC_STATUS) ?
 				get_data_check_sum(pbi, r) : 0
 				);
-
 			if (debug & PRINT_FLAG_VDEC_DATA)
 				dump_data(pbi, pbi->chunk->size);
 			WRITE_VREG(HEVC_DECODE_SIZE, r);
@@ -6378,6 +6490,9 @@ static void vp9_work(struct work_struct *work)
 			vdec_enable_input(vdec);
 
 			WRITE_VREG(HEVC_DEC_STATUS_REG, HEVC_ACTION_DONE);
+
+			start_process_time(pbi);
+
 		} else{
 			pbi->dec_result = DEC_RESULT_GET_DATA_RETRY;
 
@@ -6390,6 +6505,10 @@ static void vp9_work(struct work_struct *work)
 	} else if (pbi->dec_result == DEC_RESULT_DONE) {
 		/* if (!pbi->ctx_valid)
 			pbi->ctx_valid = 1; */
+#ifdef VP9_10B_MMU
+		pbi->used_4k_num =
+			(READ_VREG(HEVC_SAO_MMU_STATUS) >> 16);
+#endif
 		vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
 			"%s dec_result %d %x %x %x\n",
 			__func__,
@@ -6398,14 +6517,38 @@ static void vp9_work(struct work_struct *work)
 			READ_VREG(HEVC_STREAM_WR_PTR),
 			READ_VREG(HEVC_STREAM_RD_PTR));
 		vdec_vframe_dirty(hw_to_vdec(pbi), pbi->chunk);
-	} else {
-		vp9_print(pbi, PRINT_FLAG_VDEC_DETAIL,
-			"%s dec_result %d %x %x %x\n",
-			__func__,
-			pbi->dec_result,
-			READ_VREG(HEVC_STREAM_LEVEL),
-			READ_VREG(HEVC_STREAM_WR_PTR),
-			READ_VREG(HEVC_STREAM_RD_PTR));
+	} else if (pbi->dec_result == DEC_RESULT_AGAIN) {
+		/*
+			stream base: stream buf empty or timeout
+			frame base: vdec_prepare_input fail
+		*/
+		if (!vdec_has_more_input(vdec)) {
+			pbi->dec_result = DEC_RESULT_EOS;
+			schedule_work(&pbi->work);
+			return;
+		}
+
+	} else if (pbi->dec_result == DEC_RESULT_EOS) {
+		vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
+			"%s: end of stream\n",
+			__func__);
+		pbi->eos = 1;
+		vp9_bufmgr_postproc(pbi);
+		vdec_vframe_dirty(hw_to_vdec(pbi), pbi->chunk);
+	} else if (pbi->dec_result == DEC_RESULT_FORCE_EXIT) {
+		vp9_print(pbi, PRINT_FLAG_VDEC_STATUS,
+			"%s: force exit\n",
+			__func__);
+		if (pbi->stat & STAT_VDEC_RUN) {
+			amhevc_stop();
+			pbi->stat &= ~STAT_VDEC_RUN;
+		}
+
+		if (pbi->stat & STAT_ISR_REG) {
+			WRITE_VREG(HEVC_ASSIST_MBOX1_MASK, 0);
+			vdec_free_irq(VDEC_IRQ_1, (void *)pbi);
+			pbi->stat &= ~STAT_ISR_REG;
+		}
 	}
 
 	/* mark itself has all HW resource released and input released */
@@ -6430,28 +6573,8 @@ static bool run_ready(struct vdec_s *vdec)
 
 	vp9_print(pbi,
 		PRINT_FLAG_VDEC_DETAIL, "%s\r\n", __func__);
-
-	if ((!vdec_frame_based(vdec)) && (start_decode_buf_level > 0)) {
-		u32 rp, wp;
-		u32 level;
-
-		rp = READ_MPEG_REG(PARSER_VIDEO_RP);
-		wp = READ_MPEG_REG(PARSER_VIDEO_WP);
-
-		if (wp < rp)
-			level = vdec->input.size + wp - rp;
-		else
-			level = wp - rp;
-
-		if (level < start_decode_buf_level) {
-			vp9_print(pbi, 0,
-				"level %d not run_ready\n", level);
-			return false;
-		}
-	} else if (vdec_frame_based(vdec)) {
-		if (!vdec_input_next_input_chunk(&vdec->input))
-			return false;
-	}
+	if (pbi->eos)
+		return 0;
 
 	return !is_buffer_empty(cm);
 }
@@ -6550,7 +6673,9 @@ static void run(struct vdec_s *vdec,
 		READ_VREG(HEVC_MPSR));
 
 	amhevc_start();
+	pbi->stat |= STAT_VDEC_RUN;
 
+	start_process_time(pbi);
 }
 
 static void reset(struct vdec_s *vdec)
@@ -6612,7 +6737,7 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	memset(pbi, 0, sizeof(VP9Decoder));
 	memcpy(&pbi->m_BUF[0], &BUF[0], sizeof(struct BUF_s) * MAX_BUF_NUM);
 
-	pbi->index = get_free_decoder_id(pdata);
+	pbi->index = pdev->id;
 
 	if (pdata->use_vfm_path)
 		snprintf(pdata->vf_provider_name, VDEC_PROVIDER_NAME_SIZE,
@@ -6697,6 +6822,9 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		devm_kfree(&pdev->dev, (void *)pbi);
 		return -ENODEV;
 	}
+
+	vdec_set_prepare_level(pdata, start_decode_buf_level);
+
 	return 0;
 }
 
@@ -6887,9 +7015,19 @@ module_param(on_no_keyframe_skiped, uint, 0664);
 MODULE_PARM_DESC(on_no_keyframe_skiped, "\n on_no_keyframe_skiped\n");
 
 #ifdef MULTI_INSTANCE_SUPPORT
-module_param(start_decode_buf_level, uint, 0664);
+module_param(start_decode_buf_level, int, 0664);
 MODULE_PARM_DESC(start_decode_buf_level,
-		"\n ammvdec_h264 start_decode_buf_level\n");
+		"\n vp9 start_decode_buf_level\n");
+
+module_param(decode_timeout_val, uint, 0664);
+MODULE_PARM_DESC(decode_timeout_val,
+	"\n vp9 decode_timeout_val\n");
+
+module_param_array(decode_frame_count, uint,
+	&max_decode_instance_num, 0664);
+
+module_param_array(max_process_time, uint,
+	&max_decode_instance_num, 0664);
 #endif
 
 module_init(amvdec_vp9_driver_init_module);

@@ -76,7 +76,7 @@ static unsigned video_nr_base = 10;
 /* MODULE_PARM_DESC(video_nr_base, "videoX start number, 10 is defaut"); */
 
 #ifdef CONFIG_MULTI_DEC
-static unsigned n_devs = 2;
+static unsigned n_devs = 1;
 #else
 static unsigned n_devs = 1;
 #endif
@@ -799,7 +799,7 @@ static int __init amlvideo_create_instance(int inst)
 		goto rel_vdev;
 
 	dev->inst = inst;
-#ifdef CONFIG_MULTI_DEC
+#if 0
 	snprintf(dev->vf_receiver_name, AMLVIDEO_VF_NAME_SIZE,
 		(0) ? RECEIVER_NAME : RECEIVER_NAME ".%x",
 		inst & 0xff);

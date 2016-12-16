@@ -77,11 +77,14 @@ static int decoder_mmu_box_mgr_del_box(struct decoder_mmu_box *box)
 void *decoder_mmu_box_alloc_box(const char *name,
 	int channel_id,
 	int max_num,
-	int min_size_M)
+	int min_size_M,
+	int mem_flags)
 /*min_size_M:wait alloc this size*/
 {
 	struct decoder_mmu_box *box;
 	int size;
+
+	pr_info("decoder_mmu_box_alloc_box, mem_flags = 0x%x\n", mem_flags);
 
 	size = sizeof(struct decoder_mmu_box) +
 			sizeof(struct codec_mm_scatter *) *
@@ -95,9 +98,8 @@ void *decoder_mmu_box_alloc_box(const char *name,
 	box->max_sc_num = max_num;
 	box->name = name;
 	box->channel_id = channel_id;
-	box->tvp_mode = codec_mm_video_tvp_enabled() ?
-		CODEC_MM_FLAGS_TVP : 0;
-	/*TODO.changed to tvp flags from decoder init*/
+	box->tvp_mode = mem_flags;
+
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
 	decoder_mmu_box_mgr_add_box(box);
