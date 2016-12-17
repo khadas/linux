@@ -119,6 +119,9 @@ static int rdma_en;
 module_param(rdma_en, int, 0664);
 MODULE_PARM_DESC(rdma_en, "rdma_en");
 
+static int di_reg_unreg_cnt = 10;
+module_param(di_reg_unreg_cnt, int, 0664);
+MODULE_PARM_DESC(di_reg_unreg_cnt, "di_reg_unreg_cnt");
 
 static bool overturn;
 module_param(overturn, bool, 0664);
@@ -158,7 +161,7 @@ static dev_t di_devno;
 static struct class *di_clsp;
 
 #define INIT_FLAG_NOT_LOAD 0x80
-static const char version_s[] = "2016-09-29a";
+static const char version_s[] = "2016-12-18a";
 static unsigned char boot_init_flag;
 static int receiver_is_amvideo = 1;
 
@@ -1770,8 +1773,10 @@ struct di_pre_stru_s {
 	/* flag is set when VFRAME_EVENT_PROVIDER_UNREG*/
 	int	unreg_req_flag;
 	int	unreg_req_flag_irq;
+	int	unreg_req_flag_cnt;
 	int	reg_req_flag;
 	int	reg_req_flag_irq;
+	int	reg_req_flag_cnt;
 	int	force_unreg_req_flag;
 	int	disable_req_flag;
 	/* current source info */
@@ -1916,6 +1921,8 @@ struct di_post_stru_s {
 	int de_post_process_done;
 	int post_de_busy;
 	int di_post_num;
+	unsigned int di_post_process_cnt;
+	unsigned int check_recycle_buf_cnt;
 };
 static struct di_post_stru_s di_post_stru;
 static void dump_di_post_stru(void)
@@ -8372,8 +8379,15 @@ static void di_process(void)
 		}
 
 		di_lock_irqfiq_save(irq_flag2, fiq_flag);
-		while (check_recycle_buf() & 1)
-			;
+		di_post_stru.check_recycle_buf_cnt = 0;
+		while (check_recycle_buf() & 1) {
+			if (di_post_stru.check_recycle_buf_cnt++ >
+				MAX_IN_BUF_NUM) {
+				di_pr_info("%s: check_recycle_buf time out!!\n",
+					__func__);
+				break;
+			}
+		}
 		di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 		if ((di_pre_stru.pre_de_busy == 0) &&
 		    (di_pre_stru.pre_de_process_done == 0)) {
@@ -8385,9 +8399,15 @@ static void di_process(void)
 					pre_de_process();
 			}
 		}
-
-		while (process_post_vframe())
-			;
+		di_post_stru.di_post_process_cnt = 0;
+		while (process_post_vframe()) {
+			if (di_post_stru.di_post_process_cnt++ >
+				MAX_POST_BUF_NUM) {
+				di_pr_info("%s: process_post_vframe time out!!\n",
+					__func__);
+				break;
+			}
+		}
 		if ((post_wr_en && post_wr_surpport)) {
 			if (di_post_stru.post_de_busy == 0 &&
 			di_post_stru.de_post_process_done) {
@@ -8532,8 +8552,18 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		post_ready_empty_count = 0;
 		vdin_source_flag = 0;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
-		while (di_pre_stru.unreg_req_flag)
+		di_pre_stru.unreg_req_flag_cnt = 0;
+		while (di_pre_stru.unreg_req_flag) {
 			usleep_range(10000, 10001);
+			di_pr_info("%s:unreg_req_flag_cnt:%d!!!\n",
+				__func__, di_pre_stru.unreg_req_flag_cnt);
+			if (di_pre_stru.unreg_req_flag_cnt++ >
+				di_reg_unreg_cnt) {
+				di_pr_info("%s:unreg_reg_flag timeout!!!\n",
+					__func__);
+				break;
+			}
+		}
 #ifdef SUPPORT_MPEG_TO_VDIN
 		if (mpeg2vdin_flag) {
 			struct vdin_arg_s vdin_arg;
@@ -8714,8 +8744,17 @@ light_unreg:
 		di_pre_stru.reg_req_flag = 1;
 		pr_dbg("%s: vframe provider reg\n", __func__);
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
-		while (di_pre_stru.reg_req_flag)
+		di_pre_stru.reg_req_flag_cnt = 0;
+		while (di_pre_stru.reg_req_flag) {
 			usleep_range(10000, 10001);
+			di_pr_info("%s:reg_req_flag_cnt:%d!!!\n",
+				__func__, di_pre_stru.reg_req_flag_cnt);
+			if (di_pre_stru.reg_req_flag_cnt++ > di_reg_unreg_cnt) {
+				di_pr_info("%s:reg_req_flag timeout!!!\n",
+					__func__);
+				break;
+			}
+		}
 
 		aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 14, 0 << 14);
 		aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 4, 0 << 4);
@@ -8779,8 +8818,15 @@ static void fast_process(void)
 			}
 
 			di_lock_irqfiq_save(irq_flag2, fiq_flag);
-			while (check_recycle_buf() & 1)
-				;
+			di_post_stru.check_recycle_buf_cnt = 0;
+			while (check_recycle_buf() & 1) {
+				if (di_post_stru.check_recycle_buf_cnt++ >
+					MAX_IN_BUF_NUM) {
+					di_pr_info("%s: check_recycle_buf time out!!\n",
+						__func__);
+					break;
+				}
+			}
 			di_unlock_irqfiq_restore(irq_flag2, fiq_flag);
 
 			if ((di_pre_stru.pre_de_busy == 0) &&
@@ -8794,8 +8840,15 @@ static void fast_process(void)
 						pre_de_process();
 				}
 			}
-
-			while (process_post_vframe());
+			di_post_stru.di_post_process_cnt = 0;
+			while (process_post_vframe()) {
+				if (di_post_stru.di_post_process_cnt++ >
+					MAX_POST_BUF_NUM) {
+					di_pr_info("%s: process_post_vframe time out!!\n",
+						__func__);
+					break;
+				}
+			}
 
 			spin_unlock_irqrestore(&plist_lock, flags);
 		}
@@ -9008,8 +9061,19 @@ static int di_event_cb(int type, void *data, void *private_data)
 		post_ready_empty_count = 0;
 
 		trigger_pre_di_process(TRIGGER_PRE_BY_FORCE_UNREG);
-		while (di_pre_stru.force_unreg_req_flag)
+		di_pre_stru.unreg_req_flag_cnt = 0;
+		while (di_pre_stru.force_unreg_req_flag) {
 			usleep_range(1000, 1001);
+			di_pr_info("%s:unreg_req_flag_cnt:%d!!!\n",
+				__func__, di_pre_stru.unreg_req_flag_cnt);
+			if (di_pre_stru.unreg_req_flag_cnt++ >
+				di_reg_unreg_cnt) {
+				di_pre_stru.unreg_req_flag_cnt = 0;
+				di_pr_info("%s:unreg_reg_flag timeout!!!\n",
+					__func__);
+				break;
+			}
+		}
 	}
 	return 0;
 }
