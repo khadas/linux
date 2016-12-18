@@ -67,4 +67,15 @@ config AML_LED_TRIGGER_SCPISTOP
 	  Enable this option to allow the userspace to scpi send to stop
 	  the led timer of firmware.
 
+config AML_LED_TRIGGER_DISTURB
+	tristate "led disturb trigger support"
+	depends on LEDS_TRIGGERS
+	default n
+	help
+	  This option enables support for led disturb trigger drivers.
+
+	  Enable this option to allow the userspace to send scpi led timer
+	  command to the firmware.
+
+
 endif
