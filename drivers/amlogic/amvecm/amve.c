@@ -589,7 +589,7 @@ module_param(ve_dnlp_pavg_btsft, int, 0664);
 MODULE_PARM_DESC(ve_dnlp_pavg_btsft, "ve_dnlp_pavg_btsft");
 
 /* limit range */
-static bool ve_dnlp_limit_rng;
+static bool ve_dnlp_limit_rng = 1;
 module_param(ve_dnlp_limit_rng, bool, 0664);
 MODULE_PARM_DESC(ve_dnlp_limit_rng, "input limit range");
 
