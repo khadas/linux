@@ -2974,12 +2974,16 @@ static int aml_vecm_probe(struct platform_device *pdev)
 
 	memset(&vpp_hist_param.vpp_histgram[0],
 		0, sizeof(unsigned short) * 64);
-	/*box sdr_mode:auto   tv sdr_mode:off*/
-	if (is_meson_gxl_cpu() || is_meson_gxm_cpu())
+	/* box sdr_mode:auto, tv sdr_mode:off */
+	/* disable contrast and saturation adjustment for HDR on TV */
+	/* disable SDR to HDR convert on TV */
+	if (is_meson_gxl_cpu() || is_meson_gxm_cpu()) {
 		sdr_mode = 2;
-	else
+		hdr_flag = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
+	} else {
 		sdr_mode = 0;
-
+		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
+	}
 	aml_vecm_dt_parse(pdev);
 	probe_ok = 1;
 	pr_info("%s: ok\n", __func__);

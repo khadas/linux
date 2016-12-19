@@ -186,7 +186,7 @@ MODULE_PARM_DESC(range_control, "\n range_control 0:limit 1:full\n");
    bit 1: use display primary,
    bit 2: adjust contrast according to source lumin,
    bit 3: adjust saturation according to source lumin */
-static uint hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
+uint hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
 module_param(hdr_flag, uint, 0664);
 MODULE_PARM_DESC(hdr_flag, "\n set hdr_flag\n");
 
@@ -399,7 +399,7 @@ MODULE_PARM_DESC(customer_hdmi_display_param,
 
 /* sat offset when > 1200 and <= 1200 */
 static uint num_extra_sat_lut = 2;
-static uint extra_sat_lut[] = {32, 48};
+static uint extra_sat_lut[] = {16, 32};
 module_param_array(extra_sat_lut, uint,
 	&num_extra_sat_lut, 0664);
 MODULE_PARM_DESC(extra_sat_lut,
@@ -1205,7 +1205,9 @@ static unsigned int oetf_41_linear_mapping[OSD_OETF_LUT_SIZE] = {
 		1023
 };
 
-/* eotf lut: for 2084, maximum of 10000 nits */
+/* following array generated from model, do not edit */
+
+/* gamma=2.200000 lumin=500 boost=0.075000 */
 static unsigned int display_scale_factor =
 	(unsigned int)((((1.000000) * 4096.0) + 1) / 2);
 
@@ -1217,7 +1219,7 @@ static unsigned int eotf_33_2084_mapping[EOTF_LUT_SIZE] = {
 	16383
 };
 
-static unsigned int oetf_289_hlg_mapping[VIDEO_OETF_LUT_SIZE] = {
+static unsigned int oetf_289_gamma22_mapping[VIDEO_OETF_LUT_SIZE] = {
 	   0,    0,    0,    0,    0,    0,    0,    0,
 	   0,    0,    0,    0,    0,    0,    0,    0,
 	   0,  104,  141,  169,  192,  212,  231,  248,
@@ -1256,6 +1258,27 @@ static unsigned int oetf_289_hlg_mapping[VIDEO_OETF_LUT_SIZE] = {
 	1020, 1020, 1021, 1021, 1022, 1022, 1023, 1023,
 	1023
 };
+
+/* osd eotf lut: 709 */
+static unsigned int osd_eotf_33_709_mapping[EOTF_LUT_SIZE] = {
+	    0,   512,  1024,  1536,  2048,  2560,  3072,  3584,
+	 4096,  4608,  5120,  5632,  6144,  6656,  7168,  7680,
+	 8192,  8704,  9216,  9728, 10240, 10752, 11264, 11776,
+	12288, 12800, 13312, 13824, 14336, 14848, 15360, 15872,
+	16383
+};
+
+/* osd oetf lut: 2084 */
+static unsigned int osd_oetf_41_2084_mapping[OSD_OETF_LUT_SIZE] = {
+	   0,   21,   43,   64,   79,   90,  101,  111,
+	 120,  174,  208,  233,  277,  313,  344,  372,
+	 398,  420,  440,  459,  476,  492,  507,  522,
+	 536,  549,  561,  574,  585,  596,  606,  616,
+	 624,  632,  642,  661,  684,  706,  727,  749,
+	1023
+};
+
+/* end of array generated from model */
 
 /* sdr oetf lut: 2084 */
 static unsigned int oetf_sdr_2084_mapping[VIDEO_OETF_LUT_SIZE] = {
@@ -2806,7 +2829,8 @@ enum vpp_matrix_csc_e prepare_customer_matrix(
 	u32 (*s)[3][2],	/* source primaries */
 	u32 (*w)[2],	/* source white point */
 	const struct vinfo_s *v, /* vinfo carry display primaries */
-	struct matrix_s *m)
+	struct matrix_s *m,
+	bool inverse_flag)
 {
 	int32_t prmy_src[4][2];
 	int32_t prmy_dst[4][2];
@@ -2828,11 +2852,15 @@ enum vpp_matrix_csc_e prepare_customer_matrix(
 			customer_matrix_param[15];
 		return VPP_MATRIX_BT2020RGB_CUSRGB;
 	} else {
-		if (check_primaries(s, w, v, &prmy_src, &prmy_dst)) {
-			gamut_mtx(prmy_src, prmy_dst, out, INORM, BL);
+		if (inverse_flag) {
+			gamut_mtx(prmy_dst, prmy_src, out, INORM, BL);
 			cal_mtx_seting(out, BL, 13, m);
-			return VPP_MATRIX_BT2020RGB_CUSRGB;
+		} else {
+			if (check_primaries(s, w, v, &prmy_src, &prmy_dst))
+				gamut_mtx(prmy_src, prmy_dst, out, INORM, BL);
+			cal_mtx_seting(out, BL, 13, m);
 		}
+		return VPP_MATRIX_BT2020RGB_CUSRGB;
 	}
 	return VPP_MATRIX_BT2020YUV_BT2020RGB;
 }
@@ -2971,6 +2999,16 @@ static int hdr_process(
 		{0, 0, 0},
 		1
 	};
+	struct matrix_s osd_m = {
+		{0, 0, 0},
+		{
+			{0x505, 0x2A2, 0x059},
+			{0x08E, 0x75B, 0x017},
+			{0x022, 0x0B4, 0x72A},
+		},
+		{0, 0, 0},
+		1
+	};
 	int mtx[EOTF_COEFF_SIZE] = {
 		EOTF_COEFF_NORM(1.6607056/2), EOTF_COEFF_NORM(-0.5877533/2),
 		EOTF_COEFF_NORM(-0.0729065/2),
@@ -2980,25 +3018,48 @@ static int hdr_process(
 		EOTF_COEFF_NORM(1.1186371/2),
 		EOTF_COEFF_RIGHTSHIFT,
 	};
+	int osd_mtx[EOTF_COEFF_SIZE] = {
+		EOTF_COEFF_NORM(0.627441),	EOTF_COEFF_NORM(0.329285),
+		EOTF_COEFF_NORM(0.043274),
+		EOTF_COEFF_NORM(0.069092),	EOTF_COEFF_NORM(0.919556),
+		EOTF_COEFF_NORM(0.011322),
+		EOTF_COEFF_NORM(0.016418),	EOTF_COEFF_NORM(0.088058),
+		EOTF_COEFF_NORM(0.895554),
+		EOTF_COEFF_RIGHTSHIFT
+	};
 	int i, j;
 
 	if (master_info->present_flag & 1) {
 		pr_csc("\tMaster_display_colour available.\n");
 		print_primaries_info(master_info);
+		/* for VIDEO */
 		csc_type =
 			prepare_customer_matrix(
 				&master_info->primaries,
 				&master_info->white_point,
-				vinfo, &m);
+				vinfo, &m, 0);
+		/* for OSD */
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
+			prepare_customer_matrix(
+				&master_info->primaries,
+				&master_info->white_point,
+				vinfo, &osd_m, 1);
 		need_adjust_contrast_saturation |= 1;
 	} else {
 		/* use bt2020 primaries */
 		pr_csc("\tNo master_display_colour.\n");
+		/* for VIDEO */
 		csc_type =
 			prepare_customer_matrix(
 			&bt2020_primaries,
 			&bt2020_white_point,
-			vinfo, &m);
+			vinfo, &m, 0);
+		/* for OSD */
+		if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB)
+			prepare_customer_matrix(
+				&bt2020_primaries,
+				&bt2020_white_point,
+				vinfo, &osd_m, 1);
 	}
 
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -3012,21 +3073,30 @@ static int hdr_process(
 
 		/* eotf lut 709 */
 		set_vpp_lut(VPP_LUT_OSD_EOTF,
-			eotf_33_709_mapping, /* R */
-			eotf_33_709_mapping, /* G */
-			eotf_33_709_mapping, /* B */
+			osd_eotf_33_709_mapping, /* R */
+			osd_eotf_33_709_mapping, /* G */
+			osd_eotf_33_709_mapping, /* B */
 			CSC_ON);
 
 		/* eotf matrix 709->2020 */
+		osd_mtx[EOTF_COEFF_SIZE - 1] = osd_m.right_shift;
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 3; j++) {
+				if (osd_m.matrix[i][j] & 0x1000)
+					osd_mtx[i * 3 + j] =
+					-(((~osd_m.matrix[i][j]) & 0xfff) + 1);
+				else
+					osd_mtx[i * 3 + j] = osd_m.matrix[i][j];
+			}
 		set_vpp_matrix(VPP_MATRIX_OSD_EOTF,
-			eotf_RGB709_to_RGB2020_coeff,
+			osd_mtx,
 			CSC_ON);
 
 		/* oetf lut 2084 */
 		set_vpp_lut(VPP_LUT_OSD_OETF,
-			oetf_41_2084_mapping, /* R */
-			oetf_41_2084_mapping, /* G */
-			oetf_41_2084_mapping, /* B */
+			osd_oetf_41_2084_mapping, /* R */
+			osd_oetf_41_2084_mapping, /* G */
+			osd_oetf_41_2084_mapping, /* B */
 			CSC_ON);
 
 		/* osd matrix RGB2020 to YUV2020 limit */
@@ -3085,9 +3155,9 @@ static int hdr_process(
 
 		/* oetf lut bypass */
 		set_vpp_lut(VPP_LUT_OETF,
-			oetf_289_hlg_mapping,
-			oetf_289_hlg_mapping,
-			oetf_289_hlg_mapping,
+			oetf_289_gamma22_mapping,
+			oetf_289_gamma22_mapping,
+			oetf_289_gamma22_mapping,
 			CSC_ON);
 
 		/* xvyccc matrix3: bypass */
