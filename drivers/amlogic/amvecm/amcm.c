@@ -281,16 +281,11 @@ void amcm_level_sel(unsigned int cm_level)
 void cm2_frame_size_patch(unsigned int width, unsigned int height)
 {
 	unsigned int vpp_size;
-	int temp;
 	if (width < cm_width_limit)
 		amcm_disable();
-	else if (cm_en)
-		amcm_enable();
-	/*check if the cm2 enable/disable to config the cm2 size*/
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
-	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-	if (!(temp & 0x2))
+	if (!cm_en)
 		return;
+
 	vpp_size = width|(height << 16);
 	if (cm_size != vpp_size) {
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x205);
@@ -353,7 +348,7 @@ void cm_latch_process(void)
 	} while (0);
 	if (cm_en && (cm_level_last != cm_level)) {
 		cm_level_last = cm_level;
-		if (!is_meson_gxtvbb_cpu())
+		if ((!is_meson_gxtvbb_cpu()) && (!is_meson_txl_cpu()))
 			amcm_level_sel(cm_level);
 		amcm_enable();
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");
