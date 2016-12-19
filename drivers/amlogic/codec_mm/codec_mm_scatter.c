@@ -156,6 +156,7 @@ struct codec_mm_scatter_mgt {
 	struct codec_mm_scatter *cache_sc;
 	int cached_pages;
 	spinlock_t list_lock;
+	struct mutex monitor_lock;
 	struct list_head free_list;	/*slot */
 	struct list_head scatter_list;	/*scatter list */
 	struct codec_mm_scatter *scmap[MAX_SC_LIST];/*used for valid check.*/
@@ -2210,6 +2211,7 @@ int codec_mm_scatter_free_all_ignorecache(void)
 	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int need_retry = 1;
 	int retry_num = 0;
+	mutex_lock(&smgt->monitor_lock);
 	pr_info("force free all scatter ignorecache!\n");
 	do {
 		struct codec_mm_scatter *mms;
@@ -2241,6 +2243,7 @@ int codec_mm_scatter_free_all_ignorecache(void)
 		pr_info("Some slots have not free!!\n\n");
 		codec_mm_dump_all_hash_table();
 	}
+	mutex_unlock(&smgt->monitor_lock);
 	return smgt->total_page_num;
 }
 
@@ -2251,6 +2254,7 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 					struct codec_mm_scatter_mgt,
 					dealy_work.work);
 	int needretry = 0;
+	mutex_lock(&smgt->monitor_lock);
 	smgt->scatter_task_run_num++;
 
 	codec_mm_scatter_scatter_arrange(smgt);
@@ -2261,6 +2265,7 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 	else if (smgt->scatters_cnt > 0)
 		codec_mm_schedule_delay_work(100, 0);
 	codec_mm_scatter_cache_manage(smgt);
+	mutex_unlock(&smgt->monitor_lock);
 }
 
 int codec_mm_scatter_mgt_init(void)
@@ -2285,6 +2290,7 @@ int codec_mm_scatter_mgt_init(void)
 		scatter_mgt->enable_slot_from_sys;
 	INIT_LIST_HEAD(&scatter_mgt->free_list);
 	INIT_LIST_HEAD(&scatter_mgt->scatter_list);
+	mutex_init(&scatter_mgt->monitor_lock);
 
 	INIT_DELAYED_WORK(&scatter_mgt->dealy_work,
 				codec_mm_scatter_monitor);

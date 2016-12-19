@@ -91,6 +91,8 @@ void *decoder_bmmu_box_alloc_box(const char *name,
 	box->max_mm_num = max_num;
 	box->name = name;
 	box->channel_id = channel_id;
+	box->align2n = aligned;
+	box->mem_flags = mem_flags;
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
 	decoder_bmmu_box_mgr_add_box(box);

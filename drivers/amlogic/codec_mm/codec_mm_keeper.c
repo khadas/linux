@@ -197,13 +197,22 @@ int codec_mm_keeper_free_all_keep(int force)
 {
 	struct codec_mm_keeper_mgr *mgr = get_codec_mm_keeper_mgr();
 	int i;
+	int time_after, want_free;
 	for (i = 0; i < MAX_KEEP_FRAME; i++) {
 		struct keep_mem_info *info = &mgr->keep_list[i];
-		if (info->handle &&
-			info->keep_id > 0 &&
-			time_after64(get_jiffies_64(),
-				info->delay_on_jiffies64) &&
-			(force || info->user <= 0))
+		if (!info->handle || info->keep_id < 0)
+			continue;
+		want_free = 0;
+		time_after = time_after64(get_jiffies_64(),
+				info->delay_on_jiffies64);
+		if (force == 1)
+			want_free = 1;
+		else if (force == 2 && info->user <= 0)
+			want_free = 1;
+		else if (info->user <= 0 && time_after)
+			want_free = 1;
+
+		if (want_free)
 			codec_mm_keeper_free_keep(i);
 	}
 

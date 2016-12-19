@@ -1263,6 +1263,7 @@ static ssize_t tvp_enable_store(struct class *class,
 	always free all scatter cache for
 	tvp changes.
 	*/
+	codec_mm_keeper_free_all_keep(2);
 	codec_mm_scatter_free_all_ignorecache();
 	switch (val) {
 	case 0:

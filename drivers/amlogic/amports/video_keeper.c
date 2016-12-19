@@ -789,7 +789,6 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 				codec_mm_keeper_unmask_keeper(old_keep, 120);
 			}
 		}
-		return 0;
 	}
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
 		(cur_dispbuf->type & VIDTYPE_COMPRESS)) {

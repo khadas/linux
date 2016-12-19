@@ -2464,14 +2464,14 @@ static s32 vh264_init(void)
 			if (!decoder_bmmu_box_alloc_idx_wait(
 					mm_blk_handle,
 					FENSE_BUFFER_IDX(i),
-					s->alloc_count,
+					3 * SZ_1M,
 					-1,
 					-1,
 					BMMU_ALLOC_FLAGS_WAITCLEAR
 					)) {
 				s->phy_addr = decoder_bmmu_box_get_phy_addr(
 					mm_blk_handle,
-					i);
+					FENSE_BUFFER_IDX(i));
 			} else {
 				return -ENOMEM;
 			}
@@ -2749,6 +2749,9 @@ static void stream_switching_do(struct work_struct *work)
 				src_index,
 				des_index);
 		}
+		vf->mem_handle = decoder_bmmu_box_get_mem_handle(
+			mm_blk_handle,
+			FENSE_BUFFER_IDX(i));
 		fense_vf[i] = *vf;
 		fense_vf[i].index = -1;
 
@@ -2757,9 +2760,6 @@ static void stream_switching_do(struct work_struct *work)
 				spec2canvas(&fense_buffer_spec[i]);
 		else
 			fense_vf[i].flag |= VFRAME_FLAG_SWITCHING_FENSE;
-		vf->mem_handle = decoder_bmmu_box_get_mem_handle(
-			mm_blk_handle,
-			FENSE_BUFFER_IDX(i));
 		/* send clone to receiver */
 		kfifo_put(&display_q,
 			(const struct vframe_s *)&fense_vf[i]);
