@@ -2192,6 +2192,7 @@ static void init_pic_list(struct hevc_state_s *hevc)
 				hevc_print(hevc, 0,
 					"Config_pic %d fail\n", pic->index);
 			pic->index = -1;
+			i++;
 			break;
 		}
 		pic->width = hevc->pic_w;
