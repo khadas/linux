@@ -363,7 +363,6 @@ static u32 mmu_enable;
 static u32 mmu_enable = 1;
 #endif
 
-
 #ifdef MULTI_INSTANCE_SUPPORT
 static u32 work_buf_size = 48 * 1024 * 1024;
 static unsigned int max_decode_instance_num
@@ -7965,6 +7964,8 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL
 		|| double_write_mode == 0x10)
 		mmu_enable = 0;
+	else
+		mmu_enable = 1;
 #endif
 	if (get_dbg_flag(hevc)) {
 		hevc_print(hevc, 0,
@@ -8464,8 +8465,6 @@ MODULE_PARM_DESC(parser_sei_enable, "\n parser_sei_enable\n");
 module_param(parser_dolby_vision_enable, uint, 0664);
 MODULE_PARM_DESC(parser_dolby_vision_enable,
 	"\n parser_dolby_vision_enable\n");
-module_param(mmu_enable, uint, 0664);
-MODULE_PARM_DESC(mmu_enable, "\n mmu_enable\n");
 
 #ifdef MULTI_INSTANCE_SUPPORT
 module_param(start_decode_buf_level, uint, 0664);
