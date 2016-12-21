@@ -604,6 +604,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 	int audio = 0;
 	int try_ntsc = 0, get_vfmt_maxcnt = 50;
 	int varify_cnt = 0, i = 0;
+	int double_check_cnt = 1;
 
 #ifdef DEBUG_TIME_CUS
 	unsigned int time_start, time_end, time_delta;
@@ -1105,7 +1106,13 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		}
 		pr_dbg("[%s] freq[analog.std:0x%08x] is[%d] unlock\n",
 			__func__, (uint32_t)p->analog.std, p->frequency);
-		p->frequency += afc_step;
+		if (p->frequency >= 44200000 && p->frequency <= 44300000
+				&& double_check_cnt) {
+			double_check_cnt--;
+			p->frequency -= afc_step;
+			pr_err("%s 44.25Mhz double check\n", __func__);
+		} else
+			p->frequency += afc_step;
 		if (p->frequency > maxafcfreq) {
 			pr_dbg("[%s] p->frequency=[%d] over maxafcfreq=[%d].search failed.\n",
 				__func__, p->frequency, maxafcfreq);
@@ -1150,8 +1157,9 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 			__func__, freq_success, c->frequency,
 			minafcfreq, maxafcfreq);
 
-	/* avoid more search the same program */
-	if (abs(c->frequency - freq_success) < 3000000) {
+	/* avoid more search the same program, except < 45.00Mhz */
+	if (abs(c->frequency - freq_success) < 3000000
+			&& c->frequency > 45000000) {
 		ktime_get_ts(&time_now);
 		if (debug_fe & 0x2)
 			pr_err("%s: tv_sec now:%ld,tv_sec success:%ld\n",
