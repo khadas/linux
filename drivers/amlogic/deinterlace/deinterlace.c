@@ -1045,8 +1045,8 @@ static void parse_cmd_params(char *buf_orig, char **parm)
 	char delim2[2] = "\n";
 	unsigned int n = 0;
 
-	ps = buf_orig;
 	strcat(delim1, delim2);
+	ps = buf_orig;
 	while (1) {
 		token = strsep(&ps, delim1);
 		if (token == NULL)
@@ -3422,7 +3422,8 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 		di_mtnwr_mif->canvas_num = di_buf->mtn_canvas_idx;
 	}
 }
-
+static bool force_prog;
+module_param_named(force_prog, force_prog, bool, 0664);
 static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 {
 	if (di_buf == NULL)
@@ -3502,7 +3503,7 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 			di_mif->chroma_y_end0 =
 				di_buf->vframe->height / 2 - 1;
 		} else {
-			di_mif->src_prog = di_pre_stru.cur_prog_flag;
+			di_mif->src_prog = force_prog?1:0;
 			di_mif->src_field_mode = 1;
 			if (
 				(di_buf->vframe->type & VIDTYPE_TYPEMASK) ==
@@ -8179,6 +8180,8 @@ static struct rdma_op_s di_rdma_op = {
 	NULL
 };
 #endif
+static int nr_level;
+
 static void di_reg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
@@ -8277,7 +8280,7 @@ static void di_reg_process_irq(void)
 			spin_unlock_irqrestore(&plist_lock, flags);
 #endif
 		}
-
+		di_nr_level_config(nr_level);
 		reset_pulldown_state();
 		if (pulldown_enable) {
 			FlmVOFSftInt(&pd_param);

@@ -26,7 +26,7 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 
 	pPar->sF32Dif01A1 = 65;
 	pPar->sF32Dif01T1 = 128;
-	pPar->sF32Dif01A2 = 65;
+	pPar->sF32Dif01A2 = 60;
 	pPar->sF32Dif01T2 = 128;
 
 	pPar->rCmbRwMinCt0 = 8;	/* for film 3-2 */
@@ -88,6 +88,10 @@ MODULE_PARM_DESC(flmxx_maybe_num,
 int flm32_mim_frms = 6;
 module_param(flm32_mim_frms, int, 0644);
 MODULE_PARM_DESC(flm32_mim_frms, "flm32_mim_frms");
+
+int flm32_dif01a_flag = 1;
+module_param(flm32_dif01a_flag, int, 0644);
+MODULE_PARM_DESC(flm32_dif01a_flag, "flm32_dif01a_flag");
 
 int flm22_mim_frms = 60;
 module_param(flm22_mim_frms, int, 0644);
@@ -186,6 +190,15 @@ int flm22_minus_cntmax = 2;
 module_param(flm22_minus_cntmax, int, 0644);
 MODULE_PARM_DESC(flm22_minus_cntmax, "flm22_minus_cntmax");
 
+static int flagdif01chk = 1;
+module_param(flagdif01chk,  int, 0644);
+MODULE_PARM_DESC(flagdif01chk, "flagdif01chk");
+
+static int dif01_ratio = 10;
+module_param(dif01_ratio,  int, 0644);
+MODULE_PARM_DESC(dif01_ratio, "dif01_ratio");
+
+
 unsigned int frame_diff_avg = 0;
 
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
@@ -204,6 +217,11 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	static struct sFlmDatSt pRDat;
 	static int pre22lvl;
 	static UINT32 pre_fld_motnum;
+	static int modpre;
+	static int num;
+	static int num32;
+	static int flag_pre;
+	int dif01th = 0;
 
 	int nDIF01[HISDIFNUM];
 	int nDIF02[HISDIFNUM];
@@ -220,6 +238,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int nS0 = 0;
 	int nS1 = 0;
 	int nMod = 0;
+	int difflag = 0;
 
 	/* difference */
 	pRDat.rROFrmDif02 = rROFrmDif02;
@@ -455,6 +474,39 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		*rFlmPstMod = 4 + pRDat.pModXx[HISDETNUM - 1 - mDly];
 		nS1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	}
+	if (num32 > 0 && *rFlmPstMod != 2)
+		num32 = num32-1;
+	if (pRDat.pFlg32[HISDETNUM - 1 - mDly] == 3) {
+		if (DIF01[HISDIFNUM - 2] > DIF01[HISDIFNUM - 1])
+			num32 = num32 + 1;
+		else if (num32 > 0)
+			num32 = num32-1;
+	}
+	if (modpre != *rFlmPstMod && modpre != 0 && *rFlmPstMod != 0 &&
+		num32 == 0) {
+		flag_pre = 1;
+		num = 0;
+	} else {
+		if (modpre == 0 || *rFlmPstMod == 0)
+			num = 0;
+		else if (num <= 255)
+			num = num + 1;
+	}
+
+	if (num > 5 || num32 > 0)
+		flag_pre = 0;
+
+	if (DIF01[HISDIFNUM - 2] < DIF01[HISDIFNUM - 1])
+		difflag = 1;
+	else
+		difflag = 0;
+
+	dif01th = (DIF01[HISDIFNUM - 2] + DIF01[HISDIFNUM - 1]) / dif01_ratio;
+
+	if (abs(DIF01[HISDIFNUM - 2] - DIF01[HISDIFNUM - 1]) > dif01th &&
+		flag_pre && flagdif01chk)
+		*rFlmSltPre = difflag;
+	modpre = *rFlmPstMod;
 
 	*tTCNm = pRDat.TCNm[HISCMBNUM - 1];
 	return nS1;

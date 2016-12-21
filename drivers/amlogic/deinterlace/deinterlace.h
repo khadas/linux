@@ -259,10 +259,10 @@ struct DI_MIF_s {
 	unsigned short	chroma_y_end0;
 	unsigned		set_separate_en:2;
 	unsigned		src_field_mode:1;
-	unsigned		src_prog:1;
 	unsigned		video_mode:1;
 	unsigned		output_field_num:1;
 	unsigned		bit_mode:2;
+	unsigned		src_prog:1;
 	/*
 	unsigned		burst_size_y:2; set 3 as default
 	unsigned		burst_size_cb:2;set 1 as default
@@ -348,7 +348,7 @@ void deinterlace_init(void);
 void initial_di_pre_aml(int hsize_pre, int vsize_pre, int hold_line);
 
 void initial_di_post_2(int hsize_post, int vsize_post, int hold_line);
-
+void di_nr_level_config(int level);
 void enable_di_post_2(
 	struct DI_MIF_s		*di_buf0_mif,
 	struct DI_MIF_s		*di_buf1_mif,
