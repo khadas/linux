@@ -641,7 +641,10 @@ static int picdec_start(void)
 
 	unsigned map_start, map_size = 0;
 
-	picdec_buffer_init();
+	if (picdec_buffer_init() < 0) {
+		aml_pr_info(0, "no memory, open fail\n");
+		return -1;
+	}
 
 	get_picdec_buf_info(&buf_start, &buf_size, NULL);
 
@@ -1767,7 +1770,7 @@ int picdec_cma_buf_uninit(void)
 int picdec_buffer_init(void)
 {
 	int i;
-
+	int ret = 0;
 	u32 canvas_width, canvas_height;
 
 	u32 decbuf_size;
@@ -1784,8 +1787,10 @@ int picdec_buffer_init(void)
 
 	sema_init(&pic_vb_done_sema, 1);/*init 1*/
 
-	if (!buf_start || !buf_size)
+	if (!buf_start || !buf_size) {
+		ret = -1;
 		goto exit;
+	}
 
 	picdec_device.vinfo = get_current_vinfo();
 
@@ -1830,7 +1835,7 @@ int picdec_buffer_init(void)
 	picdec_device.assit_buf_start =
 		buf_start + canvas_width * canvas_height * 3;
 exit:
-	return 0;
+	return ret;
 
 }
 
