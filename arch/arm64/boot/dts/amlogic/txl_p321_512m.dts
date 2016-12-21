@@ -1390,6 +1390,11 @@
 		amlogic,clrmask = <5  0x0000ff00>;
 		amlogic,pins = "GPIOW_4";
 	};
+	avin_gpio_disable_pull:avin_gpio_disable_pull{
+		amlogic,pins = "GPIODV_8";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<0>;
+	};
 };
 
 &pinmux {

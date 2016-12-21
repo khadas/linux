@@ -1873,7 +1873,11 @@
 		amlogic,pins = "GPIOW_15","GPIOW_16";
 	};
         };
-
+	avin_gpio_disable_pull:avin_gpio_disable_pull{
+		amlogic,pins = "GPIOW_3","GPIOW_4";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<0>;
+	};
 	/* pwm_ao_a */
 	pwm_ao_a_pins:pwm_ao_a_pins {
 		amlogic,setmask=<AO 0x80000>;

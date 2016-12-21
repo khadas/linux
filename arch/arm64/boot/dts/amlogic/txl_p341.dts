@@ -236,7 +236,6 @@
 		set_detect_times = <5>;
 		set_fault_tolerance = <1>;
 	};
-
 	meson-vout {
 		compatible = "amlogic, meson-vout";
 		dev_name = "meson-vout";
@@ -1296,6 +1295,11 @@
 			<AO 0x1800>;
 		amlogic,clrmask = <5  0x0000ff00>;
 		amlogic,pins = "GPIOW_4";
+	};
+	avin_gpio_disable_pull:avin_gpio_disable_pull{
+		amlogic,pins = "GPIODV_8","GPIODV_6";
+		amlogic,enable-output=<1>;
+		amlogic,pullupen=<0>;
 	};
 };
 
