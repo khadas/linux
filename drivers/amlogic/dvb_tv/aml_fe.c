@@ -87,6 +87,7 @@ struct timer_list aml_timer;
 #define AML_INTERVAL		(HZ/100)   /* 10ms, #define HZ 100 */
 static unsigned int timer_init_state;
 static unsigned int aft_thread_enable;
+static unsigned int aft_thread_enable_cache;
 static unsigned int aml_timer_en = 1;
 module_param(aml_timer_en, uint, 0644);
 MODULE_PARM_DESC(aml_timer_en, "\n aml_timer_en\n");
@@ -2626,7 +2627,11 @@ static int aml_fe_remove(struct platform_device *pdev)
 static int aml_fe_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
+	struct aml_dvb *dvb = aml_get_dvb_device();
 
+	cancel_work_sync(&dvb->aml_fe_wq);
+	aft_thread_enable_cache = aft_thread_enable;
+	aft_thread_enable = 0;
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		struct aml_fe *fe = &fe_man.fe[i];
 
@@ -2664,6 +2669,7 @@ static int aml_fe_resume(struct platform_device *dev)
 		    && fe->dtv_demod->drv->resume)
 			fe->dtv_demod->drv->resume(fe->dtv_demod);
 	}
+	aft_thread_enable = aft_thread_enable_cache;
 
 	return 0;
 }
