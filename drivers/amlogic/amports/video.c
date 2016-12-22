@@ -4543,7 +4543,7 @@ int _video_set_disable(u32 val)
 		if ((disable_video == VIDEO_DISABLE_FORNEXT) && cur_dispbuf
 		    && (cur_dispbuf != &vf_local))
 			video_property_changed = true;
-
+		try_free_keep_video(0);
 	} else {
 		if (cur_dispbuf && (cur_dispbuf != &vf_local))
 			EnableVideoLayer();
