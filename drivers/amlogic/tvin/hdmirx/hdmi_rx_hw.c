@@ -1336,6 +1336,16 @@ unsigned int hdmirx_get_pixel_clock(void)
 	return clk_util_clk_msr(29);
 }
 
+unsigned int hdmirx_get_audio_pll_clock(void)
+{
+	return clk_util_clk_msr(24);
+}
+
+unsigned int hdmirx_get_esm_clock(void)
+{
+	return clk_util_clk_msr(68);
+}
+
 void hdmirx_read_audio_info(struct aud_info_s *audio_info)
 {
 	/*get AudioInfo */

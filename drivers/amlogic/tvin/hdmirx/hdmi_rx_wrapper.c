@@ -838,7 +838,7 @@ static void dump_audio_info(unsigned char enable);
 static void rx_modify_edid(unsigned char *buffer,
 				int len, unsigned char *addition);
 static void rx_start_repeater_auth(void);
-
+static void dump_hdcp_data(void);
 void eq_algorithm(struct work_struct *work)
 {
 	unsigned int i;
@@ -3635,7 +3635,7 @@ int hdmirx_hw_dump_reg(unsigned char *buf, int size)
 
 static void dump_state(unsigned char enable)
 {
-	int error = 0;
+	/*int error = 0;*/
 	/* int i = 0; */
 	struct hdmi_rx_ctrl_video v;
 	static struct aud_info_s a;
@@ -3643,17 +3643,18 @@ static void dump_state(unsigned char enable)
 
 	hdmirx_get_video_info();
 	if (enable & 1) {
-		rx_pr("[HDMI info]error %d", error);
+		rx_pr("[HDMI info]");
 		rx_pr("colorspace %d,", rx.pre.colorspace);
-		rx_pr("hw_vic %d dvi %d", rx.pre.hw_vic, rx.pre.hw_dvi);
+		rx_pr("hw_vic %d,", rx.pre.hw_vic);
+		rx_pr("dvi %d,", rx.pre.hw_dvi);
 		rx_pr("interlace %d\n", rx.pre.interlaced);
-		rx_pr(" htotal %d", rx.pre.htotal);
-		rx_pr(" hactive %d", rx.pre.hactive);
-		rx_pr(" vtotal %d", rx.pre.vtotal);
-		rx_pr(" vactive %d", rx.pre.vactive);
-		rx_pr(" repetition %d\n", rx.pre.repeat);
-		rx_pr(" colordepth %d", rx.pre.colordepth);
-		rx_pr(" refresh_rate %d\n", rx.pre.refresh_rate);
+		rx_pr("htotal %d", rx.pre.htotal);
+		rx_pr("hactive %d", rx.pre.hactive);
+		rx_pr("vtotal %d", rx.pre.vtotal);
+		rx_pr("vactive %d", rx.pre.vactive);
+		rx_pr("repetition %d\n", rx.pre.repeat);
+		rx_pr("colordepth %d", rx.pre.colordepth);
+		rx_pr("refresh_rate %d\n", rx.pre.refresh_rate*2);
 	}
 	if (enable & 2) {
 		hdmirx_read_audio_info(&a);
@@ -3673,9 +3674,13 @@ static void dump_state(unsigned char enable)
 			a.arc);
 	}
 	rx_pr("TMDS clock = %d,",
-			hdmirx_get_tmds_clock());
+		hdmirx_get_tmds_clock());
 	rx_pr("Pixel clock = %d\n",
 		hdmirx_get_pixel_clock());
+	rx_pr("Audio PLL clock = %d",
+		hdmirx_get_audio_pll_clock());
+	rx_pr("ESM clock = %d",
+		hdmirx_get_esm_clock());
 
 	rx_pr("rx.no_signal=%d,rx.state=%d,",
 			rx.no_signal,
@@ -3694,6 +3699,37 @@ static void dump_state(unsigned char enable)
 		hdmirx_rd_dwc(DWC_HDCP_DBG));
 	rx_pr("HDCP encrypted state:%d\n",
 		rx.pre.hdcp_enc_state);
+	rx_pr("audio receive data:%d\n",
+		auds_rcv_sts);
+	/***************hdcp*****************/
+	rx_pr("HDCP version:%d\n", rx.hdcp.hdcp_version);
+	rx_pr("HDCP22 sts = %x\n",
+		rx_hdcp22_rd_reg(0x60));
+	rx_pr("HDCP22_on = %d\n",
+		hdcp22_on);
+	rx_pr("HDCP22_auth_sts = %d\n",
+		hdcp22_auth_sts);
+	rx_pr("HDCP22_capable_sts = %d\n",
+		hdcp22_capable_sts);
+	rx_pr("video_stable_to_esm = %d\n",
+		video_stable_to_esm);
+	rx_pr("hpd_to_esm = %d\n",
+		hpd_to_esm);
+	rx_pr("sts8fc = %x",
+		hdmirx_rd_dwc(DWC_HDCP22_STATUS));
+	rx_pr("sts81c = %x",
+		hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
+	dump_hdcp_data();
+	if (!esm_print_device_info())
+		rx_pr("\n !!No esm rx opened\n");
+	/*--------------edid-------------------*/
+	rx_pr("edid index: %d\n", edid_mode);
+	rx_pr("edid phy addr: %#x,%#x,current port: %d, up phy addr:%#x\n",
+		hdmirx_rd_top(TOP_EDID_RAM_OVR1_DATA),
+		hdmirx_rd_top(TOP_EDID_RAM_OVR2_DATA), rx.port, up_phy_addr);
+	rx_pr("edid downstream come: %d hpd:%d hdr lume:%d\n",
+		new_edid, repeat_plug, new_hdr_lum);
+
 }
 
 static void dump_audio_info(unsigned char enable)
@@ -3825,7 +3861,7 @@ void dump_reg(void)
 }
 
 
-void dump_hdcp_data(void)
+static void dump_hdcp_data(void)
 {
 	rx_pr("\n*************HDCP");
 	rx_pr("***************");
@@ -3835,7 +3871,7 @@ void dump_hdcp_data(void)
 	rx_pr("\n hdcp-ksv = %x---%x",
 		rx.hdcp.bksv[0],
 		rx.hdcp.bksv[1]);
-	rx_pr("\n*************HDCP");
+	rx_pr("\n*************HDCP end**********\n");
 }
 
 void dump_edid_reg(void)

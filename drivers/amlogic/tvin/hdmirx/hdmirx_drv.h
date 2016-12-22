@@ -29,7 +29,7 @@
 
 
 #define RX_VER0 "Ref.2016/11/25"
-#define RX_VER1 "Ref.2016/12/02"
+#define RX_VER1 "Ref.2016/12/23"
 #define RX_VER2 "Ref.2016/09/27"
 #define RX_VER3 "Ref.2016/12/07"
 
@@ -740,6 +740,8 @@ void hdmirx_config_video(void);
 unsigned int hdmirx_get_tmds_clock(void);
 unsigned int hdmirx_get_pixel_clock(void);
 unsigned int hdmirx_get_audio_clock(void);
+unsigned int hdmirx_get_audio_pll_clock(void);
+unsigned int hdmirx_get_esm_clock(void);
 
 void hdmirx_read_audio_info(struct aud_info_s *audio_info);
 void hdmirx_read_vendor_specific_info_frame(struct vendor_specific_info_s *vs);
@@ -786,6 +788,7 @@ extern void rx_5v_det(void);
 extern void hdmirx_hdcp22_hpd(bool value);
 extern void hdmirx_set_hdmi20_force(int port, bool value);
 extern bool hdmirx_get_hdmi20_force(int port);
+extern bool esm_print_device_info(void);
 /* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02;
  * tvafe:0x4; dac:0x8, audio pll:0x10

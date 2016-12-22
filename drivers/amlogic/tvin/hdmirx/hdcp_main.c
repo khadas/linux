@@ -45,7 +45,7 @@
 #ifdef HDCP22_ENABLE
 #define ESM_DEVICE_MAJOR   60
 #define MAX_ESM_DEVICES    6
-
+#define ESM_RX_HPI_BASE    0xd0076000
 /* ESM Device */
 struct esm_device {
 	int allocated;
@@ -62,6 +62,8 @@ struct esm_device {
 	ulong hpi_size;
 	uint8_t *hpi;
 	int hpi_mem_region_requested;
+	bool code_alloc_err;
+	bool data_alloc_err;
 };
 
 /* Configuration parameters */
@@ -81,6 +83,7 @@ static struct class *device_class;
 
 /* ESM devices */
 static struct esm_device esm_devices[MAX_ESM_DEVICES];
+static void dump_device_info(struct esm_device *dev);
 
 /*---------------------------------------------------------------------------
 //              Processing of the requests from the userspace
@@ -684,9 +687,11 @@ static long cmd_esm_open(struct file *f,
 				if (!esm->code) {
 					pr_info("%sFailed alloca (%ld bytes)\n",
 						MY_TAG, esm->code_size);
+					esm->code_alloc_err = TRUE;
 					ret = ESM_HL_DRIVER_NO_MEMORY;
 					break;
 				}
+			esm->code_alloc_err = FALSE;
 			esm->code_base = dh;
 			pr_info("%sBase allocated: phys=0x%lx virt=%p\n",
 				MY_TAG, esm->code_base, esm->code);
@@ -705,10 +710,11 @@ static long cmd_esm_open(struct file *f,
 			if (!esm->data) {
 				pr_info("%sFailed to allocate (%ld bytes)\n",
 					MY_TAG, esm->data_size);
+				esm->data_alloc_err = TRUE;
 				ret = ESM_HL_DRIVER_NO_MEMORY;
 				break;
 			}
-
+			esm->data_alloc_err = FALSE;
 			esm->data_base = dh;
 			pr_info("%sBaseAddr of allocated: phys=0x%lx virt=%p\n",
 				MY_TAG, esm->data_base, esm->data);
@@ -738,6 +744,18 @@ static long cmd_esm_open(struct file *f,
 	if (r)
 		pr_info("copy left %ld Bytes\n", r);
 	return 0;
+}
+
+bool esm_print_device_info(void)
+{
+	int i;
+	for (i = 0; i < MAX_ESM_DEVICES; i++) {
+		if (esm_devices[i].allocated &&
+			esm_devices[i].hpi_base == ESM_RX_HPI_BASE)
+			dump_device_info(&esm_devices[i]);
+			return TRUE;
+	}
+	return FALSE;
 }
 
 /*---------------------------------------------------------------------------
@@ -845,6 +863,7 @@ static long device_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 static void dump_device_info(struct esm_device *dev)
 {
+	pr_info("  --------------esm info-------------------\n");
 	pr_info("  allocated = %d\n", dev->allocated);
 	pr_info("  code_loaded = %d\n", dev->code_loaded);
 	pr_info("  code_is_phys_mem = %d\n", dev->code_is_phys_mem);
@@ -855,6 +874,8 @@ static void dump_device_info(struct esm_device *dev)
 	pr_info("  data_base = 0x%lx\n", dev->data_base);
 	pr_info("  data_size = %lu\n", dev->data_size);
 	pr_info("  data = 0x%p\n", dev->data);
+	pr_info("  code alloc error = %d\n", dev->code_alloc_err);
+	pr_info("  data alloc error = %d\n", dev->data_alloc_err);
 	pr_info("  hpi_base = 0x%lx\n", dev->hpi_base);
 	pr_info("  hpi_size = %lu\n", dev->hpi_size);
 	pr_info("  hpi = 0x%p\n", dev->hpi);
