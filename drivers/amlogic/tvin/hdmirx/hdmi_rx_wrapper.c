@@ -2101,7 +2101,7 @@ static void Signal_status_init(void)
 	sig_unstable_cnt = 0;
 	sig_unready_cnt = 0;
 	sig_unstable_reset_hpd_cnt = 0;
-	wait_no_sig_cnt = 0;
+	/*wait_no_sig_cnt = 0;*/
 	/* rx.no_signal = false; */
 	rx.pre_state = 0;
 }
