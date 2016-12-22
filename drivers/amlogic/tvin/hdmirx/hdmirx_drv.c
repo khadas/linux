@@ -604,6 +604,11 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 			prop->scaling4w = 1920;
 		}
 	}
+	if (((TVIN_SIG_FMT_HDMI_2880X480I_60HZ == sig_fmt) ||
+			(TVIN_SIG_FMT_HDMI_2880X576I_50HZ == sig_fmt)) &&
+			((prop->decimation_ratio & 0xF) == 0)) {
+			prop->scaling4w = 1440;
+		}
 }
 
 bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
