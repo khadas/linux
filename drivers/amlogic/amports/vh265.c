@@ -1785,10 +1785,10 @@ static void init_buf_list(struct hevc_state_s *hevc)
 	if (get_double_write_mode(hevc)) {
 		int pic_width_dw = ((get_double_write_mode(hevc) == 2) ||
 			(get_double_write_mode(hevc) == 3)) ?
-			pic_width / 2 : pic_width;
+			pic_width / 4 : pic_width;
 		int pic_height_dw = ((get_double_write_mode(hevc) == 2) ||
 			(get_double_write_mode(hevc) == 3)) ?
-			pic_height / 2 : pic_height;
+			pic_height / 4 : pic_height;
 		int lcu_size = hevc->lcu_size;
 		int pic_width_lcu  = (pic_width_dw % lcu_size)
 			? pic_width_dw / lcu_size
@@ -1807,8 +1807,13 @@ static void init_buf_list(struct hevc_state_s *hevc)
 	if (mc_buffer_size & 0xffff) { /*64k alignment*/
 		mc_buffer_size_h += 1;
 	}
-	if ((get_double_write_mode(hevc) & 0x10) == 0)
-		buf_size += (mc_buffer_size_h << 16);
+	if (mmu_enable) {
+		if (get_double_write_mode(hevc) == 1)
+			buf_size += (mc_buffer_size_h << 16);
+	} else {
+		if ((get_double_write_mode(hevc) & 0x10) == 0)
+			buf_size += (mc_buffer_size_h << 16);
+	}
 #else
 		int lcu_size = hevc->lcu_size;
 		int pic_width_lcu =
@@ -1955,10 +1960,10 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic,
 	if (get_double_write_mode(hevc)) {
 		int pic_width_dw = ((get_double_write_mode(hevc) == 2) ||
 			(get_double_write_mode(hevc) == 3)) ?
-			pic_width / 2 : pic_width;
+			pic_width / 4 : pic_width;
 		int pic_height_dw = ((get_double_write_mode(hevc) == 2) ||
 			(get_double_write_mode(hevc) == 3)) ?
-			pic_height / 2 : pic_height;
+			pic_height / 4 : pic_height;
 		int pic_width_lcu_dw = (pic_width_dw % lcu_size) ?
 			pic_width_dw / lcu_size + 1 :
 			pic_width_dw / lcu_size;
@@ -1975,8 +1980,13 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic,
 	if (mc_buffer_size & 0xffff) { /*64k alignment*/
 		mc_buffer_size_h += 1;
 	}
-	if ((get_double_write_mode(hevc) & 0x10) == 0)
-		buf_size += (mc_buffer_size_h << 16);
+	if (mmu_enable) {
+		if (get_double_write_mode(hevc) == 1)
+			buf_size += (mc_buffer_size_h << 16);
+	} else {
+		if ((get_double_write_mode(hevc) & 0x10) == 0)
+			buf_size += (mc_buffer_size_h << 16);
+	}
 #else
 	int mc_buffer_size_u_v = lcu_total * lcu_size * lcu_size / 2;
 	int mc_buffer_size_u_v_h = (mc_buffer_size_u_v + 0xffff) >> 16;
@@ -2066,8 +2076,10 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic,
 						decoder_bmmu_box_get_phy_addr(
 							hevc->bmmu_box,
 							pic->BUF_index);
-					y_adr = hevc->mc_buf->buf_start
-							+ i * buf_size;
+					if (pic->cma_alloc_addr)
+						y_adr = pic->cma_alloc_addr;
+					else
+						return -1;
 				}
 			}
 			pic->mc_canvas_y = pic->index;
@@ -5678,6 +5690,8 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 			vf->type |= VIDTYPE_VIU_NV21;
 			if (get_double_write_mode(hevc) == 3)
 				vf->type |= VIDTYPE_COMPRESS;
+			if (mmu_enable)
+				vf->type |= VIDTYPE_SCATTER;
 #ifdef MULTI_INSTANCE_SUPPORT
 			if (hevc->m_ins_flag) {
 					vf->canvas0Addr = vf->canvas1Addr = -1;
@@ -5699,9 +5713,8 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		} else {
 			vf->canvas0Addr = vf->canvas1Addr = 0;
 			vf->type = VIDTYPE_COMPRESS | VIDTYPE_VIU_FIELD;
-		if (mmu_enable)
-			vf->type |= VIDTYPE_SCATTER;
-
+			if (mmu_enable)
+				vf->type |= VIDTYPE_SCATTER;
 		}
 		vf->compWidth = pic->width;
 		vf->compHeight = pic->height;
