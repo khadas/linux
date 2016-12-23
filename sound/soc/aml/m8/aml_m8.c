@@ -48,7 +48,7 @@
 #include <linux/of_gpio.h>
 #include <linux/io.h>
 #include <linux/amlogic/jtag.h>
-
+#include <sound/tlv320aic32x4.h>
 
 #define DRV_NAME "aml_snd_m8_card"
 
@@ -402,6 +402,57 @@ static const struct snd_kcontrol_new aml_m8_controls[] = {
 			    aml_m8_set_spk),
 };
 
+static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
+		struct snd_pcm_hw_params *params)
+{
+	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+
+	pr_info("enter %s stream: %s rate: %d format: %d\n", __func__,
+			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+				"playback" : "capture",
+			params_rate(params), params_format(params));
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0) {
+		pr_err("%s: set codec dai fmt failed!\n", __func__);
+		return ret;
+	}
+	/* set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+			SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0) {
+		pr_err("%s: set cpu dai fmt failed!\n", __func__);
+		return ret;
+	}
+	/* set codec DAI clock */
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+			params_rate(params) * DEFAULT_MCLK_RATIO_SR,
+			SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		pr_err("%s: set codec dai sysclk failed (rate: %d)!\n",
+				__func__, params_rate(params));
+		return ret;
+	}
+	/* set cpu DAI clock */
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0,
+			params_rate(params) * DEFAULT_MCLK_RATIO_SR,
+			SND_SOC_CLOCK_OUT);
+	if (ret < 0) {
+		pr_err("%s: set cpu dai sysclk failed (rate: %d)!\n",
+				__func__, params_rate(params));
+		return ret;
+	}
+
+	return 0;
+}
+static struct snd_soc_ops aml_asoc_ops = {
+	.hw_params = aml_asoc_hw_params,
+};
+
 static int aml_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
@@ -572,6 +623,170 @@ static int aml_card_dai_parse_of(struct device *dev,
 	return ret;
 }
 
+static int get_audio_codec_i2c_info(struct device_node *p_node,
+				struct aml_audio_codec_info *audio_codec_dev)
+{
+	const char *str;
+	int ret = 0;
+	unsigned i2c_addr;
+
+	ret = of_property_read_string(p_node, "codec_name",
+				      &audio_codec_dev->name);
+	if (ret) {
+		pr_info("get audio codec name failed!\n");
+		goto err_out;
+	}
+
+	ret = of_property_match_string(p_node, "status", "okay");
+	if (ret) {
+		pr_info("%s:this audio codec is disabled!\n",
+			audio_codec_dev->name);
+		goto err_out;
+	}
+
+	pr_debug("use audio aux codec %s\n", audio_codec_dev->name);
+
+	ret = of_property_read_string(p_node, "i2c_bus", &str);
+	if (ret) {
+		pr_err("%s: faild to get i2c_bus str,use default i2c bus!\n",
+		       audio_codec_dev->name);
+		audio_codec_dev->i2c_bus_type = AML_I2C_BUS_D;
+	} else {
+		if (!strncmp(str, "i2c_bus_ao", 10))
+			audio_codec_dev->i2c_bus_type = AML_I2C_BUS_AO;
+		else if (!strncmp(str, "i2c_bus_b", 9))
+			audio_codec_dev->i2c_bus_type = AML_I2C_BUS_B;
+		else if (!strncmp(str, "i2c_bus_c", 9))
+			audio_codec_dev->i2c_bus_type = AML_I2C_BUS_C;
+		else if (!strncmp(str, "i2c_bus_d", 9))
+			audio_codec_dev->i2c_bus_type = AML_I2C_BUS_D;
+		else if (!strncmp(str, "i2c_bus_a", 9))
+			audio_codec_dev->i2c_bus_type = AML_I2C_BUS_A;
+		else
+			audio_codec_dev->i2c_bus_type = AML_I2C_BUS_D;
+	}
+
+	ret = of_property_read_u32(p_node, "i2c_addr", &i2c_addr);
+	if (!ret)
+		audio_codec_dev->i2c_addr = i2c_addr;
+	pr_info("audio aux codec addr: 0x%x, audio codec i2c bus: %d\n",
+	       audio_codec_dev->i2c_addr, audio_codec_dev->i2c_bus_type);
+err_out:
+	return ret;
+}
+
+static int aic32x4_of_get_resetpin_pdata(struct aic32x4_pdata *pdata,
+				 struct device_node *p_node)
+{
+	struct gpio_desc *reset_desc;
+	int reset_pin = 0;
+
+	reset_desc = of_get_named_gpiod_flags(p_node, "reset_pin", 0, NULL);
+	if (IS_ERR(reset_desc)) {
+		pr_err("%s fail to get reset pin from dts!\n", __func__);
+	} else {
+		reset_pin = desc_to_gpio(reset_desc);
+		gpio_request(reset_pin, NULL);
+		/* gpio_direction_output(reset_pin, GPIOF_OUT_INIT_HIGH);
+		msleep(10); */
+		gpio_direction_output(reset_pin, GPIOF_OUT_INIT_LOW);
+		usleep_range(10*1000, 10*1000+100);
+
+		pdata->rstn_gpio = reset_pin;
+		pr_info("%s pdata->rstn_gpio = %d!\n", __func__,
+			pdata->rstn_gpio);
+	}
+	return 0;
+}
+
+static int __maybe_unused aic32x4_reset(struct aic32x4_pdata *pdata, int val)
+{
+	if (pdata == NULL)
+		return 0;
+	if (pdata->rstn_gpio)
+		return gpio_direction_output(pdata->rstn_gpio, val);
+
+	return 0;
+}
+
+static int aml_multi_dev_parse_of(struct snd_soc_card *card,
+		struct aic32x4_pdata **ppriv)
+{
+	struct device_node *audio_codec_node = card->dev->of_node;
+	struct device_node *child, *codec_node;
+	struct i2c_board_info board_info;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client[4];
+	struct aml_audio_codec_info temp_audio_codec;
+	struct aic32x4_pdata *pdata;
+	static const char *multi_dev;
+	int i = 0;
+
+	pr_info("%s ...\n", __func__);
+	if (multi_dev != NULL)
+		return 0;
+
+	if (of_property_read_string(audio_codec_node, "multi_dev",
+				&multi_dev)) {
+		pr_info("no multi dev!\n");
+		return -ENODEV;
+	}
+	pr_info("multi_dev name = %s\n", multi_dev);
+	child = of_get_child_by_name(audio_codec_node, multi_dev);
+	if (child == NULL) {
+		/* pr_info("failed to find multi dev node %s\n", multi_dev);*/
+		codec_node = of_parse_phandle(audio_codec_node,
+				"codec_list", 0);
+		child = of_parse_phandle(codec_node, "sound-dai", 0);
+		if (child == NULL) {
+			pr_err("%s final can not find of node for %s\n",
+					__func__, multi_dev);
+			return -1;
+		}
+	}
+
+	memset(&temp_audio_codec, 0, sizeof(struct aml_audio_codec_info));
+	/*pr_info("%s, child name:%s\n", __func__, child->name);*/
+
+	if (get_audio_codec_i2c_info(child, &temp_audio_codec) == 0) {
+		memset(&board_info, 0, sizeof(board_info));
+		strncpy(board_info.type, temp_audio_codec.name, I2C_NAME_SIZE);
+		adapter = i2c_get_adapter(temp_audio_codec.i2c_bus_type);
+		if (adapter == NULL) {
+			pr_err("%s failed to i2c_get_adapter\n", __func__);
+			return -ENOMEM;
+		}
+		pdata = kzalloc(sizeof(struct aic32x4_pdata),
+				GFP_KERNEL);
+		if (!pdata) {
+			pr_err("error: malloc aic32x4_pdata!\n");
+			return -ENOMEM;
+		}
+		if (ppriv != NULL)
+			*ppriv = pdata;
+
+		aic32x4_of_get_resetpin_pdata(pdata, child);
+
+		for (i = 0; i < 4; i++) {
+			board_info.addr = temp_audio_codec.i2c_addr + i;
+			board_info.platform_data = pdata;
+			client[i] = i2c_new_device(adapter, &board_info);
+			if (client[i] == NULL) {
+				pr_err("%s id:%d failed to i2c_new_device\n",
+						__func__, i);
+				kfree(pdata);
+				return -ENOMEM;
+			}
+			client[i]->dev.platform_data = pdata;
+			client[i]->dev.of_node = child;
+		}
+		i2c_put_adapter(adapter);
+	}
+
+	pr_info("%s done\n", __func__);
+	return 0;
+}
+
 static int aml_card_dais_parse_of(struct snd_soc_card *card)
 {
 	struct device_node *np = card->dev->of_node;
@@ -651,6 +866,8 @@ static int aml_card_dais_parse_of(struct snd_soc_card *card)
 		    aml_card_dai_parse_of(dev, &dai_links[i], init, cpu_node,
 					  codec_node, plat_node);
 	}
+	if (NULL != strstr(dai_links[0].codec_dai_name, "tlv320aic32x4"))
+		dai_links[0].ops = &aml_asoc_ops;
 
  err:
 	return ret;
@@ -675,6 +892,7 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	struct aml_audio_private_data *p_aml_audio;
+	struct aic32x4_pdata *aic32x4_p = NULL;
 	int ret;
 
 	p_aml_audio =
@@ -712,6 +930,7 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+	aml_multi_dev_parse_of(card, &aic32x4_p);
 
 	ret = aml_card_dais_parse_of(card);
 	if (ret < 0) {
@@ -719,6 +938,8 @@ static int aml_m8_audio_probe(struct platform_device *pdev)
 			ret);
 		goto err;
 	}
+
+	aic32x4_reset(aic32x4_p, 1); /* enable all tlv320aic32x4 */
 
 	card->suspend_pre = aml_suspend_pre,
 	card->suspend_post = aml_suspend_post,

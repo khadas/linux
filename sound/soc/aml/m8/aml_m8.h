@@ -20,6 +20,13 @@
 
 #include <sound/soc.h>
 #include <linux/gpio/consumer.h>
+
+#define AML_I2C_BUS_AO 0
+#define AML_I2C_BUS_A 1
+#define AML_I2C_BUS_B 2
+#define AML_I2C_BUS_C 3
+#define AML_I2C_BUS_D 4
+
 struct aml_audio_private_data {
 #if 0
 
@@ -72,7 +79,30 @@ struct aml_audio_private_data {
 	struct work_struct pinmux_work;
 };
 
+struct aml_audio_codec_info {
+	const char *name;
+	const char *status;
+	struct device_node *p_node;
+	unsigned i2c_bus_type;
+	unsigned i2c_addr;
+	unsigned id_reg;
+	unsigned id_val;
+	unsigned capless;
+};
+
+struct codec_info {
+	char name[I2C_NAME_SIZE];
+	char name_bus[I2C_NAME_SIZE];
+};
+
+struct codec_probe_priv {
+	int num_eq;
+	struct tas57xx_eq_cfg *eq_configs;
+};
+
 void aml_spdif_pinmux_init(struct device *pdev);
 void aml_spdif_pinmux_deinit(struct device *pdev);
+extern int i2c_transfer(struct i2c_adapter *adap,
+		struct i2c_msg *msgs, int num);
 #endif
 

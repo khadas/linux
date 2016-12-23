@@ -119,10 +119,10 @@ static const struct snd_pcm_hardware aml_i2s_capture = {
 	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 	    SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min = 64,
-	.period_bytes_max = 32 * 1024,
+	.period_bytes_max = 32 * 1024 * 2,
 	.periods_min = 2,
 	.periods_max = 1024,
-	.buffer_bytes_max = 64 * 1024,
+	.buffer_bytes_max = 64 * 1024 * 4,
 
 	.rate_min = 8000,
 	.rate_max = 48000,
@@ -898,6 +898,30 @@ static int aml_i2s_copy_capture(struct snd_pcm_runtime *runtime, int channel,
 					}
 					left += 8;
 					right += 8;
+				}
+				memset(hwbuf, 0, n);
+			}
+		} else if (runtime->channels == 8) {
+			/* for fifo0 1 ch mode, i2s_ctrl b[13:10]=0xf */
+			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
+				char *hwbuf = runtime->dma_area + offset*2;
+				int32_t *tfrom = (int32_t *)hwbuf;
+				int16_t *to = (int16_t *)ubuf;
+				for (j = 0; j < n*2; j += 4) {
+					*to++ = (int16_t)(((*tfrom++) >> 8)
+							& 0xffff);
+				}
+				memset(hwbuf, 0, n*2);
+			} else {
+				/* S24_LE or S32_LE */
+				char *hwbuf = runtime->dma_area + offset;
+				int32_t *tfrom = (int32_t *)hwbuf;
+				int32_t *to = (int32_t *)ubuf;
+				if (runtime->format == SNDRV_PCM_FORMAT_S24_LE)
+					r_shift = 0;
+				for (j = 0; j < n; j += 4) {
+					*to++ = (int32_t)((*tfrom++)
+						       << r_shift);
 				}
 				memset(hwbuf, 0, n);
 			}

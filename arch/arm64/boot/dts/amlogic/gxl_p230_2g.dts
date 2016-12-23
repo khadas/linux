@@ -972,7 +972,7 @@
 		clocks = <&clock CLK_MPLL2>,
 			<&clock CLK_AMCLK>;
 		clock-names = "mpll2", "mclk";
-		DMIC;
+		//DMIC;
 		compatible = "amlogic, aml-i2s-dai";
 	};
 	spdif_dai: SPDIF {
@@ -1034,6 +1034,7 @@
 		reg = <0x0 0xc8832000 0x0 0x14>;
 		status = "okay";
 	};
+
 	dmic:snd_dmic {
 		#sound-dai-cells = <0>;
 		compatible = "aml, aml_snd_dmic";
@@ -1049,6 +1050,19 @@
 			<&clock CLK_AMCLK>;
 		clock-names = "pdm", "mclk";
 	};
+
+	tlv320aic32x4_codec:ti{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, ti_codec_tlv320aic32x4";
+		codec_name = "tlv320aic32x4";
+		status = "okay";
+		i2c_addr = <0x18>;
+		i2c_bus = "i2c_bus_ao";
+		reset_pin = <&gpio_ao GPIOAO_9 0>;
+		id_reg = <0x03>;
+		id_val = <0x00>;
+	};
+
 	aml_m8_snd {
 		compatible = "aml, aml_snd_m8";
 		status = "okay";
@@ -1065,6 +1079,7 @@
 		hp_paraments = <800 300 0 5 1>;
 		pinctrl-names = "aml_snd_m8";
 		pinctrl-0 = <&audio_pins>;
+		//multi_dev = "tlv320aic32x4";
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
@@ -1079,6 +1094,7 @@
 		};
 		codec0: codec0 {
 			sound-dai = <&amlogic_codec>;
+			//sound-dai = <&tlv320aic32x4_codec>;
 		};
 		codec1: codec1 {
 			sound-dai = <&spdif_codec>;
@@ -1290,6 +1306,15 @@
 		amlogic,setmask=<6 0x7800000>;
 		amlogic,clrmask=<6 0x07e0000>;
 		amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9";
+		/*
+		amlogic,setmask=<6 0x7800000
+						 3 0x38000000>;
+		amlogic,clrmask=<6 0x07e0000
+						 3 0x19800
+						 4 0x1c0000
+						 AO 0x50000>;//for 4 i2s in interface
+		amlogic,pins = "GPIOH_6","GPIOH_7","GPIOH_8","GPIOH_9", "GPIOAO_6", "GPIOZ_2", "GPIOZ_3","GPIOZ_4";
+		*/
 	};
 
 	audio_spdif_pins:audio_pin1{

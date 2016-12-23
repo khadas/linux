@@ -10,6 +10,7 @@ menuconfig SND_AML_M8
 	select SND_SOC_TAS5731
 	select SND_SOC_AMLT9015
 	select SND_SOC_AMLT9015S
+	select SND_SOC_TLV320AIC32X4
 
 if SND_AML_M8
 
