@@ -751,6 +751,44 @@ void hdcp22_clk_init(void)
 	data32 |= (hdcp22_on << 3);
 	hdmirx_wr_top(TOP_CLK_CNTL, data32);    /* DEFAULT: {32'h0} */
 }
+
+void hdcp22_suspend(void)
+{
+	wr_reg(HHI_HDCP22_CLK_CNTL, 0);
+	hdmirx_wr_top(TOP_CLK_CNTL,
+		hdmirx_rd_top(TOP_CLK_CNTL)&(~(7<<3)));
+	hdmirx_set_hpd(rx.port, 0);
+	hpd_to_esm = 0;
+	do_esm_rst_flag = 1;
+	if (mute_kill_en)
+		mute_kill_en = 0;
+	hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
+				0x0);
+	if (hdcp22_kill_esm == 0) {
+		rx_pr("kill = 1\n");
+		hdmirx_hdcp22_esm_rst();
+		msleep(20);
+	}
+	rx_pr("hdcp22 off\n");
+}
+
+void hdcp22_resume(void)
+{
+	switch_set_state(&rx.hpd_sdev, 0x0);
+	hdcp22_clk_init();
+	hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
+				0x1000);
+	hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
+				0x1000);
+	hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
+	hdmirx_hw_config();
+	switch_set_state(&rx.hpd_sdev, 0x01);
+	hpd_to_esm = 1;
+	mdelay(900);
+	hdmirx_set_hpd(rx.port, 1);
+	rx_pr("hdcp22 on\n");
+}
+
 #endif
 
 void clk_init(void)

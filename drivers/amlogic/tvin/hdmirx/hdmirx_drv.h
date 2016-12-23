@@ -34,7 +34,7 @@
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/1/10"
 /*------------------------------*/
-#define RX_VER3 "Ref.2017/01/09"
+#define RX_VER3 "Ref.2017/01/17"
 /*------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -694,6 +694,8 @@ extern struct device *hdmirx_dev;
 extern int esm_err_force_14;
 extern int pc_mode_en;
 extern int do_hpd_reset_flag;
+extern bool hdcp22_kill_esm;
+extern bool mute_kill_en;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);
@@ -803,6 +805,8 @@ extern void cecrx_hw_init(void);
 extern void cecrx_irq_handle(void);
 extern int  meson_clk_measure(unsigned int clk_mux);
 extern void esm_set_stable(bool stable);
+extern void hdcp22_suspend(void);
+extern void hdcp22_resume(void);
 extern void rx_5v_det(void);
 extern void hdmirx_hdcp22_hpd(bool value);
 extern void hdmirx_set_hdmi20_force(int port, bool value);

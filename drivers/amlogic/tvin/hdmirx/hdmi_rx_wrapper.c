@@ -196,7 +196,7 @@ static int force_ready;
 MODULE_PARM_DESC(force_ready, "\n force_ready\n");
 module_param(force_ready, int, 0664);
 
-static bool hdcp22_kill_esm;
+bool hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
 module_param(hdcp22_kill_esm, bool, 0664);
 
@@ -2437,6 +2437,13 @@ void hdmirx_hw_monitor(void)
 
 	if (clk_debug)
 		monitor_cable_clk_sts();
+
+	if (mute_kill_en) {
+		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, _BIT(16), 1);
+		mute_kill_en = 0;
+		if (log_level & VIDEO_LOG)
+			rx_pr("****esm kill mute****\n");
+	}
 
 	if (sm_pause)
 		return;
