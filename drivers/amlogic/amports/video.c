@@ -161,6 +161,9 @@ static struct vframe_receiver_s video4osd_vf_recv;
 
 static struct vframe_provider_s *osd_prov;
 
+static struct device *amvideo_dev;
+static struct device *amvideo_poll_dev;
+
 #define DRIVER_NAME "amvideo"
 #define MODULE_NAME "amvideo"
 #define DEVICE_NAME "amvideo"
@@ -751,6 +754,9 @@ static struct vpp_frame_par_s frame_parms[2];
 
 /* vsync pass flag */
 static u32 wait_sync;
+
+/* is fffb or seeking*/
+static u32 video_seek_flag;
 
 #ifdef FIQ_VSYNC
 static bridge_item_t vsync_fiq_bridge;
@@ -4434,6 +4440,8 @@ static int  get_display_info(void *data)
 
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
+	char *configured[2];
+	char framerate[20] = {0};
 #ifdef CONFIG_AM_VIDEO2
 	char *provider_name;
 #endif
@@ -4477,12 +4485,31 @@ alternative mode,passing two buffer in one frame */
 		}
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
 #ifdef CONFIG_AM_VOUT
-		if (data != NULL)
-			set_vframe_rate_hint((unsigned long)(data));
+		if (data != NULL) {
+			if (video_seek_flag == 0) {
+				/*set_vframe_rate_hint((unsigned long)(data));*/
+				sprintf(framerate, "FRAME_RATE_HINT=%lu",
+						(unsigned long)data);
+				configured[0] = framerate;
+				configured[1] = NULL;
+				kobject_uevent_env(&(amvideo_dev->kobj),
+						KOBJ_CHANGE, configured);
+				pr_info("%s: sent uevent %s\n",
+					__func__, configured[0]);
+			}
+		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
-		set_vframe_rate_end_hint();
+		if (video_seek_flag == 0) {
+			configured[0] = "FRAME_RATE_END_HINT";
+			configured[1] = NULL;
+			/*set_vframe_rate_end_hint();*/
+			kobject_uevent_env(&(amvideo_dev->kobj),
+					KOBJ_CHANGE, configured);
+			pr_info("%s: sent uevent %s\n",
+				__func__, configured[0]);
+		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO) {
 		get_display_info(data);
@@ -5432,6 +5459,26 @@ static ssize_t video_blackout_policy_store(struct class *cla,
 
 	if (debug_flag & DEBUG_FLAG_BLACKOUT)
 		pr_info("%s(%d)\n", __func__, blackout);
+	if (r != 1)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t video_seek_flag_show(struct class *cla,
+					  struct class_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "%d\n", video_seek_flag);
+}
+
+static ssize_t video_seek_flag_store(struct class *cla,
+					   struct class_attribute *attr,
+					   const char *buf, size_t count)
+{
+	size_t r;
+
+	r = sscanf(buf, "%d", &video_seek_flag);
 	if (r != 1)
 		return -EINVAL;
 
@@ -6607,6 +6654,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       video_blackout_policy_show,
 	       video_blackout_policy_store),
+	__ATTR(video_seek_flag,
+	       S_IRUGO | S_IWUSR | S_IWGRP,
+	       video_seek_flag_show,
+	       video_seek_flag_store),
 	__ATTR(disable_video,
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       video_disable_show,
@@ -6883,10 +6934,6 @@ struct vframe_s *get_cur_dispbuf(void)
 {
 	return cur_dispbuf;
 }
-
-static struct device *amvideo_dev;
-static struct device *amvideo_poll_dev;
-
 
 #ifdef CONFIG_AM_VOUT
 int vout_notify_callback(struct notifier_block *block, unsigned long cmd,

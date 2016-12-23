@@ -32,6 +32,7 @@ module_param(video_nr_base, uint, 0644);
 MODULE_PARM_DESC(video_nr_base, "videoX start number, 13 is the base nr");
 
 static int scaling_rate = 100;
+static int ionvideo_seek_flag;
 
 static unsigned n_devs = 4;
 module_param(n_devs, uint, 0644);
@@ -1063,7 +1064,8 @@ static int ionvideo_release(void)
 
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
-
+	char *configured[2];
+	char framerate[20] = {0};
 	struct ionvideo_dev *dev = (struct ionvideo_dev *)private_data;
 
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
@@ -1079,13 +1081,29 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		return RECEIVER_ACTIVE;
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
+		if ((data != NULL) && (ionvideo_seek_flag == 0)) {
 #ifdef CONFIG_AM_VOUT
-		if (data != NULL)
-			set_vframe_rate_hint((unsigned long)(data));
+			/*set_vframe_rate_hint((unsigned long)(data));*/
+			sprintf(framerate, "FRAME_RATE_HINT=%lu",
+			(unsigned long)data);
+			configured[0] = framerate;
+			configured[1] = NULL;
+			kobject_uevent_env(&(dev->vdev.dev.kobj),
+				KOBJ_CHANGE, configured);
+			pr_info("%s: sent uevent %s\n",
+					__func__, configured[0]);
+		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
-		set_vframe_rate_end_hint();
+		if (ionvideo_seek_flag == 0) {
+			configured[0] = "FRAME_RATE_END_HINT";
+			configured[1] = NULL;
+			kobject_uevent_env(&(dev->vdev.dev.kobj),
+					KOBJ_CHANGE, configured);
+			pr_info("%s: sent uevent %s\n",
+				__func__, configured[0]);
+		}
 #endif
 	}
 	return 0;
@@ -1307,12 +1325,34 @@ static ssize_t scaling_rate_write(struct class *cla,
 	size = endp - buf;
 	return count;
 }
+
+static ssize_t scaling_ionvideo_seek_flag_show(struct class *cla,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", ionvideo_seek_flag);
+}
+
+static ssize_t scaling_ionvideo_seek_flag_write(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	size_t r;
+	r = sscanf(buf, "%d", &ionvideo_seek_flag);
+	if (r != 1)
+		return -EINVAL;
+	return count;
+}
+
 static struct class_attribute ion_video_class_attrs[] = {
 __ATTR_RO(vframe_states),
 __ATTR(scaling_rate,
 S_IRUGO | S_IWUSR,
 scaling_rate_show,
 scaling_rate_write),
+__ATTR(ionvideo_seek_flag,
+S_IRUGO | S_IWUSR,
+scaling_ionvideo_seek_flag_show,
+scaling_ionvideo_seek_flag_write),
 __ATTR_NULL };
 static struct class ionvideo_class = {.name = "ionvideo", .class_attrs =
 ion_video_class_attrs, };
