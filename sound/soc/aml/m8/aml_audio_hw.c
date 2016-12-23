@@ -325,7 +325,9 @@ static void spdifin_reg_set(void)
 static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 {
 	aml_write_cbus(AUDIN_SPDIF_MODE,
-		       aml_read_cbus(AUDIN_SPDIF_MODE) & 0x7fffffff);
+			   aml_read_cbus(AUDIN_SPDIF_MODE) & 0x7fffffff);
+	/*set channel invert from old spdif in mode*/
+	aml_cbus_update_bits(AUDIN_SPDIF_MODE, (1 << 19), (1 << 19));
 	aml_write_cbus(AUDIN_FIFO1_START, addr & 0xffffffc0);
 	aml_write_cbus(AUDIN_FIFO1_PTR, (addr & 0xffffffc0));
 	aml_write_cbus(AUDIN_FIFO1_END,
