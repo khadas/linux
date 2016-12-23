@@ -66,9 +66,11 @@ static unsigned int brightness_bypass;
 module_param(brightness_bypass, uint, 0664);
 MODULE_PARM_DESC(brightness_bypass, "bl_brightness_bypass");
 
-static unsigned int bl_pwm_bypass; /* debug flag */
-static unsigned int bl_pwm_duty_free; /* debug flag */
-static int bl_on_request; /* for lcd power sequence */
+static unsigned char bl_pwm_bypass; /* debug flag */
+static unsigned char bl_pwm_duty_free; /* debug flag */
+static unsigned char bl_on_request; /* for lcd power sequence */
+static unsigned char bl_step_on_flag;
+static unsigned int bl_on_level;
 
 static DEFINE_MUTEX(bl_power_mutex);
 static DEFINE_MUTEX(bl_level_mutex);
@@ -1046,7 +1048,7 @@ static void bl_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 
 	if (bl_pwm_duty_free) {
 		if (bl_pwm->pwm_duty > 100) {
-			BLERR("pwm_duty %d%% is bigger 100%%\n",
+			BLERR("pwm_duty %d%% is bigger than 100%%\n",
 				bl_pwm->pwm_duty);
 			bl_pwm->pwm_duty = 100;
 			BLPR("reset to 100%%\n");
@@ -1065,7 +1067,8 @@ static void bl_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 		}
 	}
 
-	bl_pwm->pwm_level = bl_pwm->pwm_cnt * bl_pwm->pwm_duty / 100;
+	bl_pwm->pwm_level =
+		(((bl_pwm->pwm_cnt * bl_pwm->pwm_duty / 10) + 5) / 10);
 	if (bl_debug_print_flag) {
 		BLPR("pwm port %d: duty=%d%%, duty_max=%d, duty_min=%d\n",
 			bl_pwm->pwm_port, bl_pwm->pwm_duty,
@@ -1093,14 +1096,17 @@ static void bl_set_level_pwm(struct bl_pwm_config_s *bl_pwm, unsigned int level)
 		bl_pwm->pwm_level = ((pwm_max - pwm_min) * (level - min) /
 			(max - min)) + pwm_min;
 	}
+
+	bl_pwm->pwm_duty =
+		(((bl_pwm->pwm_level * 1000 / bl_pwm->pwm_cnt) + 5) / 10);
 	if (bl_debug_print_flag) {
 		BLPR("port %d mapping: level=%d, level_max=%d, level_min=%d\n",
 			bl_pwm->pwm_port, level, max, min);
 		BLPR("port %d: pwm_max=%d, pwm_min=%d, pwm_level=%d\n",
 			bl_pwm->pwm_port, pwm_max, pwm_min, bl_pwm->pwm_level);
+		BLPR("port %d: duty=%d%%\n",
+			bl_pwm->pwm_port, bl_pwm->pwm_duty);
 	}
-
-	bl_pwm->pwm_duty = bl_pwm->pwm_level * 100 / bl_pwm->pwm_cnt;
 
 	bl_set_pwm(bl_pwm);
 }
@@ -2144,14 +2150,8 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 /* ****************************************
  * lcd notify
  * **************************************** */
-static void aml_bl_delayd_on(struct work_struct *work)
+static void aml_bl_on_function(void)
 {
-	if (aml_bl_check_driver())
-		return;
-
-	if (bl_on_request == 0)
-		return;
-
 	/* lcd power on backlight flag */
 	bl_drv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	BLPR("%s: bl_level=%u, state=0x%x\n",
@@ -2160,8 +2160,32 @@ static void aml_bl_delayd_on(struct work_struct *work)
 		if ((bl_drv->state & BL_STATE_BL_ON) == 0)
 			bl_power_on();
 	} else {
+		if (bl_step_on_flag) {
+			bl_on_level = bl_drv->bldev->props.brightness;
+			bl_drv->bldev->props.brightness = bl_level_uboot;
+			BLPR("bl_step_on: %d\n",
+				bl_drv->bldev->props.brightness);
+		}
 		aml_bl_update_status(bl_drv->bldev);
+		if (bl_step_on_flag) {
+			mdelay(100);
+			bl_drv->bldev->props.brightness = bl_on_level;
+			BLPR("bl_step_on: %d\n",
+				bl_drv->bldev->props.brightness);
+			aml_bl_update_status(bl_drv->bldev);
+		}
 	}
+}
+
+static void aml_bl_delayd_on(struct work_struct *work)
+{
+	if (aml_bl_check_driver())
+		return;
+
+	if (bl_on_request == 0)
+		return;
+
+	aml_bl_on_function();
 }
 
 static int aml_bl_on_notifier(struct notifier_block *nb,
@@ -2189,15 +2213,7 @@ static int aml_bl_on_notifier(struct notifier_block *nb,
 			BLPR("Warning: no bl workqueue\n");
 			if (bconf->power_on_delay)
 				msleep(bconf->power_on_delay);
-			/* lcd power on backlight flag */
-			bl_drv->state |=
-				(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
-			if (brightness_bypass) {
-				if ((bl_drv->state & BL_STATE_BL_ON) == 0)
-					bl_power_on();
-			} else {
-				aml_bl_update_status(bl_drv->bldev);
-			}
+			aml_bl_on_function();
 		}
 	} else {
 		BLERR("wrong backlight control method\n");
@@ -2705,7 +2721,7 @@ static ssize_t bl_debug_pwm_store(struct class *class,
 			bl_debug_pwm_set(index, val, BL_DEBUG_PWM_FREQ);
 		} else if (buf[3] == 'e') { /* duty free */
 			ret = sscanf(buf, "free %d", &val);
-			bl_pwm_duty_free = val;
+			bl_pwm_duty_free = (unsigned char)val;
 			BLPR("set bl_pwm_duty_free: %d\n", bl_pwm_duty_free);
 		}
 		break;
@@ -2719,7 +2735,7 @@ static ssize_t bl_debug_pwm_store(struct class *class,
 		break;
 	case 'b': /* bypass */
 		ret = sscanf(buf, "bypass %d", &val);
-		bl_pwm_bypass = val;
+		bl_pwm_bypass = (unsigned char)val;
 		BLPR("set bl_pwm_bypass: %d\n", bl_pwm_bypass);
 		break;
 	default:
@@ -2729,6 +2745,30 @@ static ssize_t bl_debug_pwm_store(struct class *class,
 
 	if (ret != 1 || ret != 2)
 		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t bl_debug_step_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "bl_step_on_flag: %d\n", bl_step_on_flag);
+}
+
+static ssize_t bl_debug_step_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int temp = 0;
+
+	ret = sscanf(buf, "%d", &temp);
+	if (ret == 1) {
+		bl_step_on_flag = (unsigned char)temp;
+		pr_info("set bl_step_on_flag: %d\n", bl_step_on_flag);
+	} else {
+		pr_info("invalid data\n");
+		return -EINVAL;
+	}
 
 	return count;
 }
@@ -2777,6 +2817,36 @@ static ssize_t bl_debug_power_store(struct class *class,
 	return count;
 }
 
+static ssize_t bl_debug_delay_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	struct bl_config_s *bconf = bl_drv->bconf;
+
+	return sprintf(buf, "bl power delay: on=%dms, off=%dms\n",
+		bconf->power_on_delay, bconf->power_off_delay);
+}
+
+static ssize_t bl_debug_delay_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int val[2];
+	struct bl_config_s *bconf = bl_drv->bconf;
+
+	ret = sscanf(buf, "%d %d", &val[0], &val[1]);
+	if (ret == 2) {
+		bconf->power_on_delay = val[0];
+		bconf->power_off_delay = val[1];
+		pr_info("set bl power_delay: on=%dms, off=%dms\n",
+			val[0], val[1]);
+	} else {
+		pr_info("invalid data\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static ssize_t bl_debug_key_valid_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -2819,8 +2889,12 @@ static struct class_attribute bl_debug_class_attrs[] = {
 	__ATTR(status, S_IRUGO | S_IWUSR, bl_status_read, NULL),
 	__ATTR(pwm, S_IRUGO | S_IWUSR, bl_debug_pwm_show,
 			bl_debug_pwm_store),
+	__ATTR(step_on, S_IRUGO | S_IWUSR, bl_debug_step_show,
+			bl_debug_step_store),
 	__ATTR(power, S_IRUGO | S_IWUSR, bl_debug_power_show,
 			bl_debug_power_store),
+	__ATTR(delay, S_IRUGO | S_IWUSR, bl_debug_delay_show,
+			bl_debug_delay_store),
 	__ATTR(key_valid,   S_IRUGO | S_IWUSR, bl_debug_key_valid_show, NULL),
 	__ATTR(config_load, S_IRUGO | S_IWUSR,
 		bl_debug_config_load_show, NULL),
@@ -2910,6 +2984,7 @@ static int aml_bl_probe(struct platform_device *pdev)
 	brightness_bypass = 0;
 	bl_pwm_bypass = 0;
 	bl_pwm_duty_free = 0;
+	bl_step_on_flag = 1;
 
 	bl_chip_type = aml_bl_check_chip();
 	bl_drv = kzalloc(sizeof(struct aml_bl_drv_s), GFP_KERNEL);
@@ -2970,10 +3045,13 @@ static int aml_bl_probe(struct platform_device *pdev)
 			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
 	bl_on_request = 1;
 
-	if (brightness_bypass)
+	if (brightness_bypass) {
 		aml_bl_set_level(bl_level_uboot);
-	else
+		bl_on_level = bl_level_uboot;
+	} else {
 		aml_bl_update_status(bl_drv->bldev);
+		bl_on_level = bconf->level_default;
+	}
 
 	BLPR("probe OK\n");
 	return 0;
