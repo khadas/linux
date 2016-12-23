@@ -503,7 +503,7 @@ static int add_emmc_partition(struct gendisk *disk,
 	return 0;
 }
 
-static int is_card_emmc(struct mmc_card *card)
+int is_card_emmc(struct mmc_card *card)
 {
 	struct mmc_host *mmc = card->host;
 
