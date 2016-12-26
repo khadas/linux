@@ -2000,7 +2000,7 @@ static int get_timing_fmt(void)
 	rx.pre.sw_alternative = 0;
 	frame_rate = rx.pre.refresh_rate * 2;
 
-	for (i = 0; freq_ref[i].vic < HDMI_UNSUPPORT; i++) {
+	for (i = 0; i < sizeof(freq_ref)/sizeof(struct freq_ref_s); i++) {
 		if ((abs(rx.pre.hactive - freq_ref[i].hactive)
 				<= diff_pixel_th)
 			&& (freq_ref[i].interlace == rx.pre.interlaced)
@@ -2018,7 +2018,7 @@ static int get_timing_fmt(void)
 				break;
 		}
 	}
-	if (i == HDMI_UNSUPPORT)
+	if (i == sizeof(freq_ref)/sizeof(struct freq_ref_s))
 		return i;
 
 	rx.pre.sw_vic = freq_ref[i].vic;
