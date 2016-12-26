@@ -66,7 +66,7 @@ struct fec_header {
 	__le32 fec_size;
 	__le64 inp_size;
 	u8 hash[SHA256_DIGEST_SIZE];
-};
+} __packed;
 
 struct android_metadata_header {
 	__le32 magic_number;

@@ -110,6 +110,7 @@ static char * __init dm_setup_parse_device_args(char *str)
 {
 	char *next = NULL;
 	size_t len = 0;
+	strreplace(str, '.', ' ');
 
 	/* Grab the logical name of the device to be exported to udev */
 	len = get_dm_option(str, &next, DM_FIELD_SEP);

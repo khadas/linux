@@ -619,16 +619,18 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct fec_ecc_metadata uninitialized_var(ecc);
 	char buf[FEC_ARG_LENGTH], *buf_ptr;
 	unsigned long long tmpll;
+	struct block_device *bdev;
 
-	if (argc != 2) {
-		DMERR("Incorrect number of arguments");
-		handle_error();
-		return -EINVAL;
+	DMERR("come to android_verity_ctr in dm-android-verity.c");
+
+	if (argc == 2) {
+		/*key_id = argv[0];*/
+		strreplace(argv[0], '#', ' ');
+		strcpy(argv[1], "179:14");
 	}
 
-	/* should come as one of the arguments for the verity target */
-	key_id = argv[0];
-	strreplace(argv[0], '#', ' ');
+	for (i = 0; i < argc; i++)
+		DMERR("argv[%d]: %s", i, argv[i]);
 
 	if (sscanf(argv[1], "%u:%u%c", &major, &minor, &dummy) == 2) {
 		dev = MKDEV(major, minor);
@@ -637,9 +639,14 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			handle_error();
 			return -EOVERFLOW;
 		}
+	} else {
+		/* convert the path to a device */
+		bdev = lookup_bdev(argv[12]);
+		if (IS_ERR(bdev))
+			return PTR_ERR(bdev);
+		dev = bdev->bd_dev;
+		bdput(bdev);
 	}
-
-	DMINFO("key:%s dev:%s", argv[0], argv[1]);
 
 	if (extract_fec_header(dev, &fec, &ecc)) {
 		DMERR("Error while extracting fec header");
@@ -670,15 +677,17 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto free_metadata;
 	}
 
-	if (!verity_enabled) {
-		err = verify_verity_signature(key_id, metadata);
-
-		if (err) {
-			DMERR("Signature verification failed");
-			handle_error();
-			goto free_metadata;
-		} else
-			DMINFO("Signature verification success");
+	if (argc == 2) {
+		if (!verity_enabled) {
+			key_id = argv[0];
+			err = verify_verity_signature(key_id, metadata);
+			if (err) {
+				DMERR("Signature verification failed");
+				handle_error();
+				goto free_metadata;
+			} else
+				DMINFO("Signature verification success");
+		}
 	}
 
 	table_ptr = metadata->verity_table;
@@ -705,8 +714,8 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	if (tmpll > ULONG_MAX) {
-		DMERR("<num_data_blocks> too large.
-			Forgot to turn on CONFIG_LBDAF?");
+		DMERR("<num_data_b locks> too large.");
+		DMERR("Forgot to turn on CON FIG_LBDAF?");
 		handle_error();
 		err = -EINVAL;
 		goto free_metadata;
@@ -743,8 +752,8 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	/*substitute data_dev and hash_dev*/
-	verity_table_args[1] = argv[1];
-	verity_table_args[2] = argv[1];
+	verity_table_args[1] = argv[12];
+	verity_table_args[2] = argv[12];
 
 	mode = verity_mode();
 
@@ -786,6 +795,10 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			break;
 		}
 	}
+
+	verity_table_args[12] = verity_table_args[1];
+	for (i = 0; i < no_of_args; i++)
+		DMERR("verity_table_args[%d]: %s", i, verity_table_args[i]);
 
 	err = verity_ctr(ti, no_of_args, verity_table_args);
 
