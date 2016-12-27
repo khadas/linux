@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2016/11/8"
+#define VDIN_VER "Ref.2016/12/27"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -78,6 +78,8 @@
 #define VDIN_FLAG_SNOW_FLAG             0x00004000
 /*flag for disable vdin sm*/
 #define VDIN_FLAG_SM_DISABLE            0x00008000
+/*flag for vdin suspend state*/
+#define VDIN_FLAG_SUSPEND               0x00010000
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
 #define VDIN_BYPASS_CYC_CHECK           0x00000002

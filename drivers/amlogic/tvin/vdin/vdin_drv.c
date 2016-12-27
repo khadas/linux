@@ -2888,6 +2888,7 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 #endif
 	cpumask_copy(&vdinirq_mask, mask);
 	}
+	vdevp->flags |= VDIN_FLAG_SUSPEND;
 	vdin_enable_module(vdevp->addr_offset, false);
 	pr_info("%s ok.\n", __func__);
 	return 0;
@@ -2906,6 +2907,7 @@ static int vdin_drv_resume(struct platform_device *pdev)
 			irq_set_affinity(vdevp->irq, &vdinirq_mask);
 
 	}
+	vdevp->flags &= (~VDIN_FLAG_SUSPEND);
 	pr_info("%s ok.\n", __func__);
 	return 0;
 }
@@ -2915,6 +2917,7 @@ static void vdin_drv_shutdown(struct platform_device *pdev)
 {
 	struct vdin_dev_s *vdevp;
 	vdevp = platform_get_drvdata(pdev);
+	vdevp->flags |= VDIN_FLAG_SM_DISABLE;
 	vdin_enable_module(vdevp->addr_offset, false);
 	pr_info("%s ok.\n", __func__);
 	return;

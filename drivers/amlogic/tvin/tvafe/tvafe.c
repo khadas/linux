@@ -88,7 +88,7 @@ static struct tvafe_info_s *g_tvafe_info;
 
 /***********the  version of changing log************************/
 static const char last_version_s[] = "2013-11-29||11-28";
-static const char version_s[] = "2015-07-08||17-23";
+static const char version_s[] = "2016-12-27||17-23";
 /***************************************************************************/
 void get_afe_version(const char **ver, const char **last_ver)
 {
@@ -257,6 +257,7 @@ static ssize_t tvafe_store(struct device *dev,
 		devp->tvafe.adc.vga_auto.phase_state = VGA_VDIN_BORDER_DET;
 #endif
 	} else if (!strncmp(buff, "pdown", strlen("pdown"))) {
+		devp->flags |= TVAFE_POWERDOWN_IN_IDLE;
 		tvafe_enable_module(false);
 #if 0
 	} else if (!strncmp(buff, "vga_edid", strlen("vga_edid"))) {
@@ -322,17 +323,14 @@ static ssize_t tvafe_store(struct device *dev,
 		tvafe_vga_set_edid(&edid);
 #endif
 	} else if (!strncmp(buff, "tvafe_enable", strlen("tvafe_enable"))) {
-
-			tvafe_enable_module(true);
-			pr_info("[tvafe..]%s:tvafe enable\n", __func__);
-
+		tvafe_enable_module(true);
+		devp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
+		pr_info("[tvafe..]%s:tvafe enable\n", __func__);
 	} else if (!strncmp(buff, "tvafe_down", strlen("tvafe_down"))) {
-
-			tvafe_enable_module(false);
-			pr_info("[tvafe..]%s:tvafe down\n", __func__);
-
+		devp->flags |= TVAFE_POWERDOWN_IN_IDLE;
+		tvafe_enable_module(false);
+		pr_info("[tvafe..]%s:tvafe down\n", __func__);
 	} else if (!strncmp(buff, "afe_ver", strlen("afe_ver"))) {
-
 		const char *afe_version = NULL, *last_afe_version = NULL;
 		const char *adc_version = NULL, *last_adc_version = NULL;
 		const char *cvd_version = NULL, *last_cvd_version = NULL;
@@ -842,6 +840,7 @@ int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
 	/**enable and reset tvafe clock**/
 	tvafe_enable_module(true);
+	devp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
 
 	/* set APB bus register accessing error exception */
 	tvafe_set_apb_bus_err_ctrl();
@@ -960,7 +959,8 @@ void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 	/* need to do ... */
 	/** write 7740 register for cvbs clamp **/
-	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_SVIDEO7)) {
+	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_SVIDEO7) &&
+		!(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 
 		tvafe->cvd2.fmt_loop_cnt = 0;
 		/* reset loop cnt after channel switch */
@@ -1021,6 +1021,7 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 
 #ifdef TVAFE_POWERDOWN_IN_IDLE
 	/**disable tvafe clock**/
+	devp->flags |= TVAFE_POWERDOWN_IN_IDLE;
 	tvafe_enable_module(false);
 	if (tvafe->parm.port == TVIN_PORT_CVBS3)
 		adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD);
@@ -1117,9 +1118,10 @@ bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	enum tvin_port_e port = tvafe->parm.port;
 
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-
-		pr_err("[tvafe..] tvafe havn't opened, check no sig error!!!\n");
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		pr_err("[tvafe..] tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+			devp->flags);
 		return true;
 	}
 	if (force_stable)
@@ -2330,7 +2332,8 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	dev_set_drvdata(tdevp->dev, tdevp);
 	platform_set_drvdata(pdev, tdevp);
 
-    /**disable tvafe clock**/
+	/**disable tvafe clock**/
+	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
 	tvafe_enable_module(false);
 
 	pr_info("tvafe: driver probe ok\n");
@@ -2386,8 +2389,8 @@ static int tvafe_drv_suspend(struct platform_device *pdev,
 		/**disable av out**/
 		tvafe_enable_avout(tvafe->parm.port, false);
 	}
-
 	/*disable and reset tvafe clock*/
+	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
 	tvafe_enable_module(false);
 	adc_set_pll_reset();
 
@@ -2404,6 +2407,7 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 	/*disable and reset tvafe clock*/
 	adc_set_pll_reset();
 	tvafe_enable_module(true);
+	tdevp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
 	pr_info("tvafe: resume module\n");
 	return 0;
 }
@@ -2430,13 +2434,12 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 		tvafe_enable_avout(tvafe->parm.port, false);
 	}
 
-    /*disable and reset tvafe clock*/
+	/*disable and reset tvafe clock*/
 	/*this cause crash when cmd reboot..*/
-	/*tvafe_enable_module(false);
-
-	pr_info("tvafe: shutdown module\n");*/
+	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
+	tvafe_enable_module(false);
 	adc_set_pll_reset();
-
+	pr_info("tvafe: shutdown module\n");
 	return;
 }
 
