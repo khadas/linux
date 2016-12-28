@@ -3039,10 +3039,14 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 		memcpy(hdr_data->white_point,
 			&customer_hdmi_display_param[8],
 			sizeof(u32)*2);
-			hdr_data->luminance[0] =
+		hdr_data->luminance[0] =
 				customer_hdmi_display_param[10];
-			hdr_data->luminance[1] =
+		hdr_data->luminance[1] =
 				customer_hdmi_display_param[11];
+		hdr_data->max_content =
+				customer_hdmi_display_param[12];
+		hdr_data->max_frame_average =
+				customer_hdmi_display_param[13];
 	} else if (((hdr_data->features >> 16) & 0xff) == 9) {
 		if (p->present_flag & 1) {
 			memcpy(hdr_data->primaries,
@@ -3055,6 +3059,15 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 				p->luminance[0];
 			hdr_data->luminance[1] =
 				p->luminance[1];
+			if (p->content_light_level.present_flag == 1) {
+				hdr_data->max_content =
+					p->content_light_level.max_content;
+				hdr_data->max_frame_average =
+					p->content_light_level.max_pic_average;
+			} else {
+				hdr_data->max_content = 0;
+				hdr_data->max_frame_average = 0;
+			}
 		} else {
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++)
@@ -3065,6 +3078,10 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 			/* default luminance */
 			hdr_data->luminance[0] = 5000 * 10000;
 			hdr_data->luminance[1] = 50;
+
+			/* content_light_level */
+			hdr_data->max_content = 0;
+			hdr_data->max_frame_average = 0;
 		}
 		hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
 		hdr_data->present_flag = 1;

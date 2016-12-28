@@ -1023,6 +1023,10 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	DRM_DB[19] = GET_HIGH8BIT(data->luminance[0]);
 	DRM_DB[20] = GET_LOW8BIT(data->luminance[1]);
 	DRM_DB[21] = GET_HIGH8BIT(data->luminance[1]);
+	DRM_DB[22] = GET_LOW8BIT(data->max_content);
+	DRM_DB[23] = GET_HIGH8BIT(data->max_content);
+	DRM_DB[24] = GET_LOW8BIT(data->max_frame_average);
+	DRM_DB[25] = GET_HIGH8BIT(data->max_frame_average);
 
 	hdmitx_device.HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
 	hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_AVI_BT2020,

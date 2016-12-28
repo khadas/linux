@@ -162,6 +162,8 @@ struct master_display_info_s {
 	u32 primaries[3][2];		/* normalized 50000 in G,B,R order */
 	u32 white_point[2];		/* normalized 50000 */
 	u32 luminance[2];		/* max/min lumin, normalized 10000 */
+	u32 max_content;		/* Maximum Content Light Level */
+	u32 max_frame_average;	/* Maximum Frame-average Light Level */
 };
 
 struct hdr_info {

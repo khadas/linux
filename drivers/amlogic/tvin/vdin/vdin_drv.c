@@ -192,18 +192,30 @@ char *vf_get_receiver_name(const char *provider_name);
 static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
+	struct vframe_master_display_colour_s *vf_dp
+		= &vf->prop.master_display_colour;
+
 	if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
-		memcpy(vf->prop.master_display_colour.primaries,
+		memcpy(vf_dp->primaries,
 			devp->prop.hdr_info.hdr_data.primaries,
 			sizeof(u32)*6);
-		memcpy(vf->prop.master_display_colour.white_point,
+		memcpy(vf_dp->white_point,
 			&devp->prop.hdr_info.hdr_data.white_points,
 			sizeof(u32)*2);
-		memcpy(vf->prop.master_display_colour.luminance,
+		memcpy(vf_dp->luminance,
 			&devp->prop.hdr_info.hdr_data.master_lum,
 			sizeof(u32)*2);
+		/* content_light_level */
+		vf_dp->content_light_level.max_content =
+			devp->prop.hdr_info.hdr_data.mcll;
+		vf_dp->content_light_level.max_pic_average =
+			devp->prop.hdr_info.hdr_data.mfall;
 
-		vf->prop.master_display_colour.present_flag = true;
+		if ((devp->prop.hdr_info.hdr_data.mcll != 0) &&
+			(devp->prop.hdr_info.hdr_data.mfall != 0))
+			vf_dp->content_light_level.present_flag = 1;
+		else
+			vf_dp->content_light_level.present_flag = 0;
 
 		if ((devp->prop.hdr_info.hdr_data.eotf == EOTF_SMPTE_ST_2048) ||
 			(devp->prop.hdr_info.hdr_data.eotf == EOTF_HDR)) {
@@ -225,7 +237,7 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		devp->prop.hdr_info.hdr_state = HDR_STATE_SET;
 	} else if (devp->prop.hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_Flag = false;
-		vf->prop.master_display_colour.present_flag = false;
+		vf_dp->present_flag = false;
 		vf->signal_type &= ~(1 << 29);
 		vf->signal_type &= ~(1 << 25);
 	}

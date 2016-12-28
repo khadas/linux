@@ -1227,6 +1227,7 @@ struct tile_s {
 };
 
 #define SEI_MASTER_DISPLAY_COLOR_MASK 0x00000001
+#define SEI_CONTENT_LIGHT_LEVEL_MASK  0x00000002
 
 #define VF_POOL_SIZE        32
 
@@ -1444,6 +1445,8 @@ struct hevc_state_s {
 	unsigned int primaries[3][2];
 	unsigned int white_point[2];
 	unsigned int luminance[2];
+	/* data for SEI_CONTENT_LIGHT_LEVEL */
+	unsigned int content_light_level[2];
 
 	struct PIC_s *pre_top_pic;
 	struct PIC_s *pre_bot_pic;
@@ -1811,8 +1814,8 @@ static void init_buf_list(struct hevc_state_s *hevc)
 		if (get_double_write_mode(hevc) == 1)
 			buf_size += (mc_buffer_size_h << 16);
 	} else {
-		if ((get_double_write_mode(hevc) & 0x10) == 0)
-			buf_size += (mc_buffer_size_h << 16);
+	if ((get_double_write_mode(hevc) & 0x10) == 0)
+		buf_size += (mc_buffer_size_h << 16);
 	}
 #else
 		int lcu_size = hevc->lcu_size;
@@ -1984,8 +1987,8 @@ static int config_pic(struct hevc_state_s *hevc, struct PIC_s *pic,
 		if (get_double_write_mode(hevc) == 1)
 			buf_size += (mc_buffer_size_h << 16);
 	} else {
-		if ((get_double_write_mode(hevc) & 0x10) == 0)
-			buf_size += (mc_buffer_size_h << 16);
+	if ((get_double_write_mode(hevc) & 0x10) == 0)
+		buf_size += (mc_buffer_size_h << 16);
 	}
 #else
 	int mc_buffer_size_u_v = lcu_total * lcu_size * lcu_size / 2;
@@ -4048,6 +4051,8 @@ static struct PIC_s *get_new_pic(struct hevc_state_s *hevc,
 		new_pic->losless_comp_body_size = hevc->losless_comp_body_size;
 		new_pic->POC = hevc->curr_POC;
 		new_pic->pic_struct = hevc->curr_pic_struct;
+		if (new_pic->aux_data_buf)
+			release_aux_data(hevc, new_pic);
 	}
 
 	if (mmu_enable) {
@@ -4182,7 +4187,7 @@ static void set_aux_data(struct hevc_state_s *hevc,
 		hevc_print(hevc, 0, "%s:old size %d count %d,suf %d\r\n",
 			__func__, pic->aux_data_size, aux_count, suffix_flag);
 	}
-	if (aux_size > 0) {
+	if (aux_size > 0 && aux_count > 0) {
 		int heads_size = 0;
 		int new_size;
 		char *new_buf;
@@ -4693,6 +4698,20 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 				return -1;
 			}
 		} else {
+#ifdef CONFIG_AM_VDEC_DV
+			if (vdec->master == NULL &&
+				vdec->slave == NULL) {
+				if (hevc->cur_pic != NULL) {
+					set_aux_data(hevc, hevc->cur_pic, 1);
+					set_aux_data(hevc, hevc->cur_pic, 0);
+				}
+			}
+#else
+			if (hevc->cur_pic != NULL) {
+				set_aux_data(hevc, hevc->cur_pic, 1);
+				set_aux_data(hevc, hevc->cur_pic, 0);
+			}
+#endif
 			if (hevc->pic_list_init_flag != 3
 				|| hevc->cur_pic == NULL) {
 				/* make it dec from the first slice segment */
@@ -5237,10 +5256,113 @@ static int init_buf_spec(struct hevc_state_s *hevc)
 	return 0;
 }
 
+static int parse_sei(struct hevc_state_s *hevc, char *sei_buf, uint32_t size)
+{
+	char *p = sei_buf;
+	char *p_sei;
+	uint16_t header;
+	uint8_t nal_unit_type;
+	uint8_t payload_type, payload_size;
+	int i, j;
+
+	if (size < 2)
+		return 0;
+	header = *p++;
+	header <<= 8;
+	header += *p++;
+	nal_unit_type = header >> 9;
+	if ((nal_unit_type != NAL_UNIT_SEI)
+	&& (nal_unit_type != NAL_UNIT_SEI_SUFFIX))
+		return 0;
+	while (p+2 <= sei_buf+size) {
+		payload_type = *p++;
+		payload_size = *p++;
+		if (p+payload_size <= sei_buf+size) {
+			switch (payload_type) {
+			case SEI_MasteringDisplayColorVolume:
+				hevc_print(hevc, 0,
+					"sei type: primary display color volume %d, size %d\n",
+					payload_type,
+					payload_size);
+				/* master_display_colour */
+				p_sei = p;
+				for (i = 0; i < 3; i++) {
+					for (j = 0; j < 2; j++) {
+						hevc->primaries[i][j]
+							= (*p_sei<<8)
+							| *(p_sei+1);
+						p_sei += 2;
+					}
+				}
+				for (i = 0; i < 2; i++) {
+					hevc->white_point[i]
+						= (*p_sei<<8)
+						| *(p_sei+1);
+					p_sei += 2;
+				}
+				for (i = 0; i < 2; i++) {
+					hevc->luminance[i]
+						= (*p_sei<<24)
+						| (*(p_sei+1)<<16)
+						| (*(p_sei+2)<<8)
+						| *(p_sei+3);
+					p_sei += 4;
+				}
+				hevc->sei_present_flag |=
+					SEI_MASTER_DISPLAY_COLOR_MASK;
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++)
+						hevc_print(hevc, 0,
+						"\tprimaries[%1d][%1d] = %04x\n",
+						i, j,
+						hevc->primaries[i][j]);
+				hevc_print(hevc, 0,
+					"\twhite_point = (%04x, %04x)\n",
+					hevc->white_point[0],
+					hevc->white_point[1]);
+				hevc_print(hevc, 0,
+					"\tmax,min luminance = %08x, %08x\n",
+					hevc->luminance[0],
+					hevc->luminance[1]);
+				break;
+			case SEI_ContentLightLevel:
+				hevc_print(hevc, 0,
+					"sei type: max content light level %d, size %d\n",
+					payload_type, payload_size);
+				/* content_light_level */
+				p_sei = p;
+				hevc->content_light_level[0]
+					= (*p_sei<<8) | *(p_sei+1);
+				p_sei += 2;
+				hevc->content_light_level[1]
+					= (*p_sei<<8) | *(p_sei+1);
+				p_sei += 2;
+				hevc->sei_present_flag |=
+					SEI_CONTENT_LIGHT_LEVEL_MASK;
+				hevc_print(hevc, 0,
+					"\tmax cll = %04x, max_pa_cll = %04x\n",
+					hevc->content_light_level[0],
+					hevc->content_light_level[1]);
+				break;
+			default:
+				break;
+			}
+		}
+		p += payload_size;
+	}
+	return 0;
+}
+
 static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 {
 	unsigned int ar;
 	int i, j;
+	unsigned char index;
+	char *p;
+	unsigned size = 0;
+	unsigned type = 0;
+	struct vframe_master_display_colour_s *vf_dp
+		= &vf->prop.master_display_colour;
 
 	if ((get_double_write_mode(hevc) == 2) ||
 		(get_double_write_mode(hevc) == 3)) {
@@ -5263,22 +5385,55 @@ static void set_frame_info(struct hevc_state_s *hevc, struct vframe_s *vf)
 	else
 		vf->signal_type = 0;
 
+	/* parser sei */
+	index = vf->index & 0xff;
+	if (index != 0xff && index >= 0
+		&& index < MAX_REF_PIC_NUM
+		&& hevc->m_PIC[index]
+		&& hevc->m_PIC[index]->aux_data_buf
+		&& hevc->m_PIC[index]->aux_data_size) {
+		p = hevc->m_PIC[index]->aux_data_buf;
+		while (p < hevc->m_PIC[index]->aux_data_buf
+			+ hevc->m_PIC[index]->aux_data_size - 8) {
+			size = *p++;
+			size = (size << 8) | *p++;
+			size = (size << 8) | *p++;
+			size = (size << 8) | *p++;
+			type = *p++;
+			type = (type << 8) | *p++;
+			type = (type << 8) | *p++;
+			type = (type << 8) | *p++;
+			if (type == 0x02000000) {
+				/* hevc_print(hevc, 0, "sei(%d)\n", size); */
+				parse_sei(hevc, p, size);
+			}
+			p += size;
+		}
+	}
+
 	/* master_display_colour */
 	if (hevc->sei_present_flag & SEI_MASTER_DISPLAY_COLOR_MASK) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++)
-				vf->prop.master_display_colour.primaries[i][j]
-					= hevc->primaries[i][j];
+				vf_dp->primaries[i][j] = hevc->primaries[i][j];
 		for (i = 0; i < 2; i++) {
-			vf->prop.master_display_colour.white_point[i]
-				= hevc->white_point[i];
-			vf->prop.master_display_colour.luminance[i]
+			vf_dp->white_point[i] = hevc->white_point[i];
+			vf_dp->luminance[i]
 				= hevc->luminance[i];
 		}
-		vf->prop.master_display_colour.present_flag = 1;
+		vf_dp->present_flag = 1;
 	} else
-		vf->prop.master_display_colour.present_flag = 0;
+		vf_dp->present_flag = 0;
 
+	/* content_light_level */
+	if (hevc->sei_present_flag & SEI_CONTENT_LIGHT_LEVEL_MASK) {
+		vf_dp->content_light_level.max_content
+			= hevc->content_light_level[0];
+		vf_dp->content_light_level.max_pic_average
+			= hevc->content_light_level[1];
+		vf_dp->content_light_level.present_flag = 1;
+	} else
+		vf_dp->content_light_level.present_flag = 0;
 	return;
 }
 
@@ -5375,7 +5530,6 @@ static void vh265_vf_put(struct vframe_s *vf, void *op_arg)
 
 			if (hevc->m_PIC[index_top]->vf_ref == 0) {
 				hevc->m_PIC[index_top]->output_ready = 0;
-				release_aux_data(hevc, hevc->m_PIC[index_top]);
 				if (mmu_enable)
 					hevc->m_PIC[index_top]->
 						used_by_display	= 0;
@@ -5396,7 +5550,6 @@ static void vh265_vf_put(struct vframe_s *vf, void *op_arg)
 			if (hevc->m_PIC[index_bot]->vf_ref == 0) {
 				clear_used_by_display_flag(hevc);
 				hevc->m_PIC[index_bot]->output_ready = 0;
-				release_aux_data(hevc, hevc->m_PIC[index_bot]);
 				hevc->last_put_idx_b = index_bot;
 				if (hevc->wait_buf != 0)
 					WRITE_VREG(HEVC_ASSIST_MBOX1_IRQ_REG,
@@ -5600,9 +5753,8 @@ static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
 		else
 			hevc->pts_hit++;
 #endif
-		if (pts_unstable && (hevc->frame_dur > 0)) {
+		if (pts_unstable && (hevc->frame_dur > 0))
 			hevc->pts_mode = PTS_NONE_REF_USE_DURATION;
-		}
 
 		if ((hevc->pts_mode == PTS_NORMAL) && (vf->pts != 0)
 			&& hevc->get_frame_dur) {
