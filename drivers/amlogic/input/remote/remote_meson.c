@@ -144,12 +144,14 @@ static u32 getkeycode(struct remote_dev *dev, u32 scancode)
 	struct custom_table *ct = chip->cur_custom;
 	int i;
 
+
 	if (!ct) {
 		pr_err("cur_custom is nulll\n");
 		return KEY_RESERVED;
 	}
 	for (i = 0; i < ct->map_size; i++) {
-		if (ct->codemap[i].map.scancode == scancode)
+		if ((ct->codemap + i) &&
+			(ct->codemap[i].map.scancode == scancode))
 			return ct->codemap[i].map.keycode;
 	}
 
@@ -167,7 +169,7 @@ static bool is_valid_custom(struct remote_dev *dev)
 	if (!chip->get_custom_code)
 		return true;
 	custom_code = chip->get_custom_code(chip);
-	for (i = 0; i < CUSTOM_TABLES_SIZE; i++) {
+	for (i = 0; i < chip->custom_num; i++) {
 		if (ct->custom_code == custom_code) {
 			chip->cur_custom = ct;
 			return true;
@@ -201,16 +203,15 @@ static void amlremote_tasklet(unsigned long data)
 	struct remote_chip *chip = (struct remote_chip *)data;
 	int status = -1;
 	int scancode = -1;
-
+	unsigned long flags;
     /*need first get_scancode, then get_decode_status,the status
       may was set flag from get_scancode function
 	*/
+	spin_lock_irqsave(&chip->slock, flags);
 	if (chip->get_scancode)
 		scancode = chip->get_scancode(chip);
-
 	if (chip->get_decode_status)
 		status = chip->get_decode_status(chip);
-
 	if (status == REMOTE_NORMAL) {
 		remote_printk(2, "receive scancode=0x%x\n", scancode);
 		remote_keydown(chip->r_dev, scancode, status);
@@ -219,6 +220,7 @@ static void amlremote_tasklet(unsigned long data)
 		remote_keydown(chip->r_dev, scancode, status);
 	} else
 		remote_printk(4, "receive error %d\n", status);
+	spin_unlock_irqrestore(&chip->slock, flags);
 }
 
 static irqreturn_t ir_interrupt(int irq, void *dev_id)
@@ -493,9 +495,11 @@ static int remote_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&chip->file_lock);
+	spin_lock_init(&chip->slock);
 
 	chip->r_dev = dev;
 	chip->dev = &pdev->dev;
+	chip->sys_custom = NULL;
 
 	chip->r_dev->platform_data = (void *)chip;
 	chip->r_dev->getkeycode    = getkeycode;
@@ -556,16 +560,16 @@ static int remote_resume(struct platform_device *pdev)
 {
 	struct remote_chip *chip = platform_get_drvdata(pdev);
 	unsigned int val;
+	unsigned long flags;
 
 	pr_info("remote_resume\n");
-
 	/*resume register config*/
+	spin_lock_irqsave(&chip->slock, flags);
 	chip->set_register_config(chip, chip->protocol);
-
+	spin_unlock_irqrestore(&chip->slock, flags);
 	/*
 		read REG_STATUS and REG_FRAME to clear status
 	*/
-
 	remote_reg_read(chip, REG_STATUS, &val);
 	remote_reg_read(chip, REG_FRAME, &val);
 
@@ -585,17 +589,17 @@ static int remote_resume(struct platform_device *pdev)
 		input_sync(chip->r_dev->input_device);
 	}
 
-	disable_irq(chip->irqno);
-	udelay(1000);
-	enable_irq(chip->irqno);
-
 	irq_set_affinity(chip->irqno, cpumask_of(chip->irq_cpumask));
+	enable_irq(chip->irqno);
 	return 0;
 }
 
 static int remote_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct remote_chip *chip = platform_get_drvdata(pdev);
+
 	pr_info("remote_suspend\n");
+	disable_irq(chip->irqno);
 	return 0;
 }
 

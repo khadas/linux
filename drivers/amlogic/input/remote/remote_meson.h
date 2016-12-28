@@ -67,13 +67,16 @@ struct remote_chip {
 	struct class  *chr_class;
 	struct cdev chrdev;
 	struct mutex  file_lock;
+	spinlock_t slock;
 
 	bool debug_enable;
 #define CUSTOM_TABLES_SIZE 20
 #define CUSTOM_NUM_MAX 20
 	struct custom_table *custom_tables;
 	struct custom_table *cur_custom;
+	struct custom_table *sys_custom;
 	int custom_num;
+	int decode_status;
 
 	const char *keymap_name;
 	void __iomem *remote_regs; /*register*/

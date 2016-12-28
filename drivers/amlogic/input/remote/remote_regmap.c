@@ -111,10 +111,16 @@ void set_hardcode(struct remote_chip *chip, int code)
 static int ir_nec_get_scancode(struct remote_chip *chip)
 {
 	int  code = 0;
+	int decode_status = 0;
+	int status = 0;
 
+
+	remote_reg_read(chip, REG_STATUS, &decode_status);
+	if (decode_status & 0x01)
+		status |= REMOTE_REPEAT;
+	chip->decode_status = status; /*set decode status*/
 	remote_reg_read(chip, REG_FRAME, &code);
 	remote_printk(2, "framecode=0x%x\n", code);
-
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 16) & 0xff;
 	return code;
@@ -122,20 +128,7 @@ static int ir_nec_get_scancode(struct remote_chip *chip)
 
 static int ir_nec_get_decode_status(struct remote_chip *chip)
 {
-	int decode_status = 0;
-	int status = 0;
-
-	remote_reg_read(chip, REG_STATUS, &decode_status);
-	decode_status &= 0xf;
-	if (decode_status & 0x01)
-		status |= REMOTE_REPEAT;
-	/*
-	it is error,if the custom_code is not mask.
-	if (decode_status & 0x02)
-		status |= REMOTE_CUSTOM_ERROR;
-	*/
-	if (decode_status & 0x04)
-		status |= REMOTE_DATA_ERROR;
+	int status = chip->decode_status;
 	return status;
 }
 
