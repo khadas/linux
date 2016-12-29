@@ -203,6 +203,7 @@ static u32 dec_control;
 static u32 vh264_ratio;
 static u32 vh264_rotation;
 static u32 use_idr_framerate;
+static u32 high_bandwith;
 
 static u32 seq_info;
 static u32 timing_info_present_flag;
@@ -1697,6 +1698,13 @@ static void vh264_isr(void)
 				vf->type |= VIDTYPE_VIU_NV21;
 				vf->type |= VIDTYPE_INTERLACE_FIRST;
 
+				high_bandwith |=
+				((codec_mm_get_total_size() < 80 * SZ_1M)
+				& ((READ_VREG(AV_SCRATCH_N) & 0xf) == 3)
+				& ((frame_width * frame_height) >= 1920*1080));
+				if (high_bandwith)
+					vf->flag |= VFRAME_FLAG_HIGH_BANDWITH;
+
 				vf->duration >>= 1;
 				vf->duration_pulldown = 0;
 				vf->signal_type = video_signal_from_vui;
@@ -1761,6 +1769,8 @@ static void vh264_isr(void)
 					spec2canvas(&buffer_spec[buffer_index]);
 				vf->type_original = vf->type;
 				vfbuf_use[buffer_index]++;
+				if (high_bandwith)
+					vf->flag |= VFRAME_FLAG_HIGH_BANDWITH;
 
 				p_last_vf = vf;
 				vf->ready_jiffies64 = jiffies_64;
@@ -2139,6 +2149,7 @@ static void vh264_prot_init(void)
 	WRITE_VREG(AV_SCRATCH_7, 0);
 	WRITE_VREG(AV_SCRATCH_8, 0);
 	WRITE_VREG(AV_SCRATCH_9, 0);
+	WRITE_VREG(AV_SCRATCH_N, 0);
 
 	error_recovery_mode_use =
 		(error_recovery_mode !=
@@ -2255,6 +2266,7 @@ static void vh264_local_init(void)
 	wait_buffer_counter = 0;
 	vh264_no_disp_count = 0;
 	fatal_error_flag = 0;
+	high_bandwith = 0;
 	vh264_stream_switching_state = SWITCHING_STATE_OFF;
 #ifdef DEBUG_PTS
 	pts_missed = 0;

@@ -68,6 +68,7 @@
 
 #define VFRAME_FLAG_NO_DISCONTINUE      1
 #define VFRAME_FLAG_SWITCHING_FENSE     2
+#define VFRAME_FLAG_HIGH_BANDWITH	4
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
