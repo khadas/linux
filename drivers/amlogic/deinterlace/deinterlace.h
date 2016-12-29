@@ -452,6 +452,7 @@ void config_di_bit_mode(vframe_t *vframe, unsigned int bypass_flag);
 void combing_pd22_window_config(unsigned int width, unsigned int height);
 int tff_bff_check(int height, int width);
 void tbff_init(void);
+void di_hw_disable(void);
 #ifdef CONFIG_AM_ATVDEMOD
 extern int aml_atvdemod_get_snr_ex(void);
 #endif

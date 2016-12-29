@@ -8116,6 +8116,7 @@ static void di_unreg_process_irq(void)
 #endif
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
+		di_hw_disable();
 		DI_Wr(DI_CLKG_CTRL, 0x80000000);
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_OFF);
 	}

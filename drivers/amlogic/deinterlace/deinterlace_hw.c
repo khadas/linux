@@ -1757,6 +1757,29 @@ void disable_post_deinterlace_2(void)
 Rd(DI_IF1_GEN_REG) & 0xfffffffe); */
 }
 
+static void enable_di_post_mif(bool enable)
+{
+	DI_Wr(DI_POST_SIZE, (32-1) | ((128-1) << 16));
+	DI_Wr(DI_IF1_GEN_REG, 0x3 << 30);
+	if (is_meson_txl_cpu())
+		DI_Wr(DI_IF2_GEN_REG, 0x3 << 30);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		/* disable ma,enable if0 to vpp,enable afbc to vpp */
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 4) != 0)
+			DI_Wr_reg_bits(VIU_MISC_CTRL0, 0, 16, 4);
+		/* DI inp(current data) switch to memory */
+		DI_Wr_reg_bits(VIUB_MISC_CTRL0, 0, 16, 1);
+	}
+}
+
+void di_hw_disable(void)
+{
+	DI_Wr(DI_PRE_CTRL, 0x3 << 30);
+	enable_di_pre_mif(false);
+	DI_Wr(DI_POST_CTRL, 0x3 << 30);
+	enable_di_post_mif(false);
+}
+
 void enable_film_mode_check(unsigned int width, unsigned int height,
 		enum vframe_source_type_e source_type)
 {
