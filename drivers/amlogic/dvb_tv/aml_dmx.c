@@ -3328,7 +3328,7 @@ static void dmx_remove_filter(struct aml_dmx *dmx, int cid, int fid)
 
 static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 {
-	int ret;
+	int ret = 0;
 
 	struct aml_dvb *dvb = (struct aml_dvb *)src_dmx->demux.priv;
 	struct aml_swfilter *sf = &dvb->swfilter;
@@ -3339,8 +3339,10 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 	if (!sf->user) {
 		void *mem;
 		mem = vmalloc(SF_BUFFER_SIZE);
-		if (!mem)
-			return -ENOMEM;
+		if (!mem) {
+			ret = -ENOMEM;
+			goto fail;
+		}
 		dvb_ringbuffer_init(&sf->rbuf, mem, SF_BUFFER_SIZE);
 
 		sf->dmx = &dvb->dmx[SF_DMX_ID];
@@ -3357,7 +3359,8 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 		pr_error(" pid=%d[src:%d] already used with sfdmx%d[src:%d]\n",
 			 feed->pid, src_dmx->source, sf->dmx->id,
 			 sf->dmx->source);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto fail;
 	}
 
 	/*setup feed */
@@ -3367,14 +3370,16 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 			 feed->pid, src_dmx->id,
 			 ((struct aml_dmx *)sf->dmx->channel[ret].feed->
 			 demux)->id);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto fail;
 	}
 	ret =
 	     dmx_alloc_chan(sf->dmx, DMX_TYPE_TS, DMX_PES_OTHER,
 			    feed->pid);
 	if (ret < 0) {
 		pr_error(" %s: alloc chan error, ret=%d\n", __func__, ret);
-		return ret;
+		ret = -EBUSY;
+		goto fail;
 	}
 	sf->dmx->channel[ret].feed = feed;
 	feed->priv = (void *)(long)ret;
@@ -3387,6 +3392,10 @@ static int sf_add_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 	dmx_enable(sf->dmx);
 
 	return 0;
+
+fail:
+	feed->priv = (void *)-1;
+	return ret;
 }
 
 static int sf_remove_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
@@ -3397,6 +3406,10 @@ static int sf_remove_feed(struct aml_dmx *src_dmx, struct dvb_demux_feed *feed)
 	struct aml_swfilter *sf = &dvb->swfilter;
 
 	if (!sf->user || (sf->dmx->source != src_dmx->source))
+		return 0;
+
+	/*add fail, no need to remove*/
+	if (((long)feed->priv) < 0)
 		return 0;
 
 	ret = dmx_get_chan(sf->dmx, feed->pid);
@@ -3521,7 +3534,8 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 					/*dvr feed already work */
 					pr_error("PID %d already used(DVR)\n",
 						 feed->pid);
-					return -EBUSY;
+					ret = -EBUSY;
+					goto fail;
 				}
 				if (sf_ret) {
 					/*if sf_on, we do not reset the
@@ -3543,7 +3557,8 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 				} else {
 					pr_error("PID %d already used\n",
 						 feed->pid);
-					return -EBUSY;
+					ret = -EBUSY;
+					goto fail;
 				}
 			}
 		}
@@ -3555,7 +3570,8 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 			if (ret < 0) {
 				pr_dbg("%s: alloc chan error, ret=%d\n",
 				       __func__, ret);
-				return ret;
+				ret = -EBUSY;
+				goto fail;
 			}
 			dmx->channel[ret].feed = feed;
 			feed->priv = (void *)(long)ret;
@@ -3591,14 +3607,19 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 				}
 			} else {
 				pr_error("PID %d already used\n", feed->pid);
-				return -EBUSY;
+				ret = -EBUSY;
+				goto fail;
 			}
 		}
 		if (sf_ret) {	/*not sf feed. */
 			id = dmx_alloc_chan(dmx, feed->type,
 				feed->pes_type, feed->pid);
-			if (id < 0)
-				return id;
+			if (id < 0) {
+				pr_dbg("%s: alloc chan error, ret=%d\n",
+				       __func__, id);
+				ret = -EBUSY;
+				goto fail;
+			}
 			for (filter = feed->filter; filter;
 				filter = filter->next) {
 				ret = dmx_chan_add_filter(dmx, id, filter);
@@ -3628,6 +3649,10 @@ static int dmx_add_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 	dmx->feed_count++;
 
 	return 0;
+
+fail:
+	feed->priv = (void *)-1;
+	return ret;
 }
 
 static int dmx_remove_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
@@ -3636,6 +3661,10 @@ static int dmx_remove_feed(struct aml_dmx *dmx, struct dvb_demux_feed *feed)
 	struct dvb_demux_feed *dfeed = NULL;
 
 	int sf_ret = 0;		/*<0:error, =0:sf_on, >0:sf_off */
+
+	/*add fail, no need to remove*/
+	if (((long)feed->priv) < 0)
+		return 0;
 
 	sf_ret = sf_check_feed(dmx, feed, 0/*SF_FEED_OP_RM */);
 	if (sf_ret <= 0)
@@ -3825,6 +3854,10 @@ int aml_dmx_hw_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	spin_lock_irqsave(&dvb->slock, flags);
 	ret = dmx_add_feed(dmx, dvbdmxfeed);
 	spin_unlock_irqrestore(&dvb->slock, flags);
+
+	/*handle errors silently*/
+	if (ret != 0)
+		ret = 0;
 
 	return ret;
 }
