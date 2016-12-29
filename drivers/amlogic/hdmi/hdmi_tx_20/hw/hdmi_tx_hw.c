@@ -4056,12 +4056,15 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 	case HDMI_720x480i240_16x9:
 		/* C1C0 601 */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 1, 6, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
 		break;
 	default:
 		/* C1C0 709 */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
 		break;
 	}
+#if 0
 	switch (para->vic) {
 	case HDMI_3840x2160p24_16x9:
 	case HDMI_3840x2160p25_16x9:
@@ -4088,6 +4091,7 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 	default:
 		break;
 	}
+#endif
 }
 
 /*
