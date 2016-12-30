@@ -773,7 +773,7 @@ static void vh264_set_params(struct work_struct *work)
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) {
 			max_dpb_size = get_max_dpb_size(
 					level_idc, mb_width, mb_height);
-			actual_dpb_size = max_dpb_size + 4;
+			actual_dpb_size = max_dpb_size + 5;
 			if (dpb_size_adj)
 				actual_dpb_size
 				= max_reference_size + dpb_size_adj;
