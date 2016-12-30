@@ -204,6 +204,20 @@ void *decoder_bmmu_box_get_mem_handle(void *box_handle, int idx)
 	return box->mm_list[idx];
 }
 
+int decoder_bmmu_box_get_mem_size(void *box_handle, int idx)
+{
+	struct decoder_bmmu_box *box = box_handle;
+	int size = 0;
+	if (!box || idx < 0 || idx >= box->max_mm_num)
+		return 0;
+	mutex_lock(&box->mutex);
+	if (box->mm_list[idx] != NULL)
+		size = box->mm_list[idx]->buffer_size;
+	mutex_unlock(&box->mutex);
+	return size;
+}
+
+
 unsigned long decoder_bmmu_box_get_phy_addr(void *box_handle, int idx)
 {
 	struct decoder_bmmu_box *box = box_handle;
@@ -251,6 +265,8 @@ int decoder_bmmu_box_alloc_idx_wait(
 {
 	int have_space;
 	int ret = -1;
+	if (decoder_bmmu_box_get_mem_size(handle, idx) >= size)
+		return 0;/*have alloced memery before.*/
 	have_space = decoder_bmmu_box_check_and_wait_size(
 					size,
 					wait_flags);

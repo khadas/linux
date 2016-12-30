@@ -49,7 +49,7 @@ struct threadrw_buf {
 	int from_cma;
 };
 
-#define MAX_MM_BUFFER_NUM 10
+#define MAX_MM_BUFFER_NUM 16
 struct threadrw_write_task {
 	struct file *file;
 	struct delayed_work write_work;
@@ -212,7 +212,7 @@ static int do_write_work_in(struct threadrw_write_task *task)
 			rwbuf->from_cma &&
 			!rwbuf->write_off)
 		codec_mm_dma_flush(rwbuf->vbuffer,
-						rwbuf->data_size,
+						rwbuf->buffer_size,
 						DMA_TO_DEVICE);
 	if (task->manual_write) {
 		ret = task->write(task->file, task->sbuf,
@@ -285,7 +285,11 @@ static int alloc_task_buffers_inlock(struct threadrw_write_task *task,
 	int new_num = new_bubffers;
 	int mm_slot = -1;
 	int start_idx = task->bufs_num;
-	if (task->bufs_num > 0)
+	int total_mm = 0;
+	unsigned long addr;
+
+	if (codec_mm_get_total_size() < 80 ||
+		codec_mm_get_free_size() < 40)
 		used_codec_mm = 0;
 	if (task->bufs_num + new_num > task->max_bufs)
 		new_num = task->max_bufs - task->bufs_num;
@@ -297,10 +301,12 @@ static int alloc_task_buffers_inlock(struct threadrw_write_task *task,
 	}
 	if (mm_slot < 0)
 		used_codec_mm = 0;
+	if (block_size <= 0)
+		block_size = DEFAULT_BLOCK_SIZE;
 
 	if (used_codec_mm && (block_size * new_num) >= 128 * 1024) {
-		int total_mm = ALIGN(block_size * new_num, (1 << 17));
-		unsigned long addr =
+		total_mm = ALIGN(block_size * new_num, (1 << 17));
+		addr =
 				codec_mm_alloc_for_dma(BUF_NAME,
 					total_mm / PAGE_SIZE, 0,
 					CODEC_MM_FLAGS_DMA_CPU);
@@ -314,14 +320,12 @@ static int alloc_task_buffers_inlock(struct threadrw_write_task *task,
 	for (i = 0; i < new_num; i++) {
 		int bufidx = start_idx + i;
 		rwbuf = &task->buf[bufidx];
-		rwbuf->buffer_size = block_size > 0 ?
-					block_size : DEFAULT_BLOCK_SIZE;
+		rwbuf->buffer_size = block_size;
 		if (used_codec_mm) {
 			unsigned long start_addr =
 					task->codec_mm_buffer[mm_slot];
-			rwbuf->buffer_size = block_size;
 			if (i == new_num - 1)
-				rwbuf->buffer_size = task->buffer_size -
+				rwbuf->buffer_size = total_mm -
 						block_size * i;
 			rwbuf->dma_handle = (dma_addr_t) start_addr +
 						block_size * i;
@@ -390,7 +394,7 @@ static struct threadrw_write_task *threadrw_alloc_in(int num,
 	int ret;
 
 	if (!(flags & 1)) /*not audio*/
-		max_bufs = 200; /*can great for video bufs.*/
+		max_bufs = 300; /*can great for video bufs.*/
 	task_buffer_size = sizeof(struct threadrw_write_task) +
 				sizeof(struct threadrw_buf) * max_bufs;
 	task = vmalloc(task_buffer_size);

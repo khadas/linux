@@ -259,6 +259,7 @@ static uint error_recovery_mode_in = 3;
 static uint error_recovery_mode_use = 3;
 
 static uint mb_total = 0, mb_width = 0, mb_height;
+static uint saved_idc_level;
 #define UCODE_IP_ONLY 2
 #define UCODE_IP_ONLY_PARAM 1
 static uint ucode_type;
@@ -662,6 +663,10 @@ static void vh264_set_params(struct work_struct *work)
 	num_units_in_tick = READ_VREG(AV_SCRATCH_4);
 	time_scale = READ_VREG(AV_SCRATCH_5);
 	level_idc = READ_VREG(AV_SCRATCH_A);
+	if (level_idc > 0)
+		saved_idc_level = level_idc;
+	else if (saved_idc_level > 0)
+		level_idc = saved_idc_level;
 	video_signal = READ_VREG(AV_SCRATCH_H);
 	video_signal_from_vui =
 				((video_signal & 0xffff) << 8) |
@@ -789,6 +794,7 @@ static void vh264_set_params(struct work_struct *work)
 		actual_dpb_size = (frame_buffer_size - mb_total * mb_mv_byte *
 				max_reference_size) / (mb_total * 384);
 		actual_dpb_size = min(actual_dpb_size, VF_BUF_NUM);
+
 		max_dpb_size = get_max_dpb_size(level_idc, mb_width, mb_height);
 		if (max_reference_size > 1)
 			max_dpb_size = max_reference_size - 1;
@@ -849,18 +855,6 @@ static void vh264_set_params(struct work_struct *work)
 					PAGE_ALIGN((mb_total << 8) +
 						(mb_total << 7)) / PAGE_SIZE;
 #endif
-				if (!decoder_bmmu_box_check_and_wait_size(
-						page_count * PAGE_SIZE,
-						1)) {
-					buffer_spec[i].alloc_count = 0;
-					fatal_error_flag =
-					DECODER_FATAL_ERROR_NO_MEM;
-					vh264_running = 0;
-					mutex_unlock(&vh264_mutex);
-					pr_err("CMA  not enough mem! %d\n",
-						i);
-					return;
-				}
 				buffer_spec[i].alloc_count = page_count;
 				if (!decoder_bmmu_box_alloc_idx_wait(
 					mm_blk_handle,
@@ -2298,6 +2292,7 @@ static s32 vh264_init(void)
 	fixed_frame_rate_check_count = 0;
 	saved_resolution = 0;
 	iponly_early_mode = 0;
+	saved_idc_level = 0;
 	vh264_local_init();
 
 	query_video_status(0, &trickmode_fffb);

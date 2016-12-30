@@ -101,6 +101,7 @@ struct codec_mm_s {
 	char *pagemap;
 	int pagemap_size;
 	int alloced_page_num;
+	int mem_id;
 	int next_bit;
 	struct list_head list;
 };

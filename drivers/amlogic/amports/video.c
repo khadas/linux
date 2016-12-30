@@ -6371,21 +6371,35 @@ static ssize_t vframe_states_show(struct class *cla,
 				"cur vpts=%d\n",
 				timestamp_vpts_get());
 			ret += sprintf(buf + ret,
-				"vf canvas0Addr=%x\n", vf->canvas0Addr);
-			ret += sprintf(buf + ret,
-				"vf canvas1Addr=%x\n", vf->canvas1Addr);
-			ret += sprintf(buf + ret,
-				"vf canvas0Addr.y.addr=%x(%d)\n",
-				canvas_get_addr(
-				canvasY(vf->canvas0Addr)),
-				canvas_get_addr(
-				canvasY(vf->canvas0Addr)));
-			ret += sprintf(buf + ret,
-				"vf canvas0Adr.uv.adr=%x(%d)\n",
-				canvas_get_addr(
-				canvasUV(vf->canvas0Addr)),
-				canvas_get_addr(
-				canvasUV(vf->canvas0Addr)));
+				"vf type=%d\n",
+				vf->type);
+			if (vf->type & VIDTYPE_COMPRESS) {
+				ret += sprintf(buf + ret,
+					"vf compHeadAddr=%x\n",
+						vf->compHeadAddr);
+				ret += sprintf(buf + ret,
+					"vf compBodyAddr =%x\n",
+						vf->compBodyAddr);
+			} else {
+				ret += sprintf(buf + ret,
+					"vf canvas0Addr=%x\n",
+						vf->canvas0Addr);
+				ret += sprintf(buf + ret,
+					"vf canvas1Addr=%x\n",
+						vf->canvas1Addr);
+				ret += sprintf(buf + ret,
+					"vf canvas0Addr.y.addr=%x(%d)\n",
+					canvas_get_addr(
+					canvasY(vf->canvas0Addr)),
+					canvas_get_addr(
+					canvasY(vf->canvas0Addr)));
+				ret += sprintf(buf + ret,
+					"vf canvas0Adr.uv.adr=%x(%d)\n",
+					canvas_get_addr(
+					canvasUV(vf->canvas0Addr)),
+					canvas_get_addr(
+					canvasUV(vf->canvas0Addr)));
+			}
 		}
 		spin_unlock_irqrestore(&lock, flags);
 

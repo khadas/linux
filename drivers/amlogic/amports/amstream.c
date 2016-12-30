@@ -100,8 +100,11 @@ u32 amstream_buf_num;
 
 static int debugflags;
 
-#define DEFAULT_VIDEO_BUFFER_SIZE       (1024*1024*10)
-#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024*1024*15)
+#define DEFAULT_VIDEO_BUFFER_SIZE       (1024 * 1024 * 3)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024 * 1024 * 6)
+#define DEFAULT_VIDEO_BUFFER_SIZE_TVP       (1024 * 1024 * 10)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K_TVP       (1024 * 1024 * 15)
+
 
 #define DEFAULT_AUDIO_BUFFER_SIZE       (1024*768*2)
 #define DEFAULT_SUBTITLE_BUFFER_SIZE     (1024*256)
@@ -541,15 +544,20 @@ static void amstream_change_vbufsize(struct port_priv_s *priv,
 	}
 	if (pvbuf->for_4k) {
 		pvbuf->buf_size = def_4k_vstreambuf_sizeM * SZ_1M;
+		if (codec_mm_video_tvp_enabled())
+			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K_TVP;
 		if ((pvbuf->buf_size > 30 * SZ_1M) &&
 		(codec_mm_get_total_size() < 220 * SZ_1M)) {
 			/*if less than 250M, used 20M for 4K & 265*/
 			pvbuf->buf_size = pvbuf->buf_size >> 1;
 		}
 	} else if (pvbuf->buf_size > def_vstreambuf_sizeM * SZ_1M) {
-		pvbuf->buf_size = def_vstreambuf_sizeM * SZ_1M;
+		if (codec_mm_video_tvp_enabled())
+			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_TVP;
 	} else {
 		pvbuf->buf_size = def_vstreambuf_sizeM * SZ_1M;
+		if (codec_mm_video_tvp_enabled())
+			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_TVP;
 	}
 	reset_canuse_buferlevel(10000);
 

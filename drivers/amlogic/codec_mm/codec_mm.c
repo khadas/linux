@@ -127,7 +127,7 @@ struct codec_mm_mgt_s {
 	int alloc_from_sys_pages_max;
 	int enable_kmalloc_on_nomem;
 	int res_mem_flags;
-
+	int global_memid;
 	/*1:for 1080p,2:for 4k*/
 	int tvp_enable;
 	/*1:for 1080p,2:for 4k*/
@@ -544,6 +544,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	mem->owner[0] = owner;
 	spin_lock_init(&mem->lock);
 	spin_lock_irqsave(&mgt->lock, flags);
+	mem->mem_id = mgt->global_memid++;
 	list_add_tail(&mem->list, &mgt->mem_list);
 	switch (mem->from_flags) {
 	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_PAGES:
@@ -1018,7 +1019,8 @@ static int dump_mem_infos(void *buf, int size)
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
 		s = sprintf(pbuf,
-		"\towner: %s:%s,addr=%p,s=%d,from=%d,cnt=%d\n",
+		"\towner:[%d] %s:%s,addr=%p,s=%d,from=%d,cnt=%d\n",
+		mem->mem_id,
 		mem->owner[0] ? mem->owner[0] : "no",
 		mem->owner[1] ? mem->owner[1] : "no",
 		(void *)mem->phy_addr,
@@ -1148,6 +1150,7 @@ int codec_mm_mgt_init(struct device *dev)
 
 	mgt->cma_res_pool.default_size = mgt->total_cma_size;
 	mgt->cma_res_pool.default_4k_size = mgt->total_cma_size;
+	mgt->global_memid = 0;
 	spin_lock_init(&mgt->lock);
 	return 0;
 }
@@ -1426,11 +1429,49 @@ static ssize_t codec_mm_debug_show(struct class *class,
 	"n=10: force free all keeper\n");
 
 	size += sprintf(buf + size,
+	"n=20: dump memory,# 20 #addr(hex) #len\n");
+
+	size += sprintf(buf + size,
 	"n==100: cmd mode p1 p ##mode:0,dump, 1,alloc 2,more,3,free some,4,free all\n");
 	return size;
 }
 
-
+static int codec_mm_mem_dump(unsigned long addr, int isphy, int len)
+{
+	void *vaddr;
+	int is_map = 0;
+	pr_info("start dump addr: %p %d\n", (void *)addr, len);
+	if (!isphy) {
+		vaddr = (void *)addr;
+	} else {
+		vaddr = ioremap_nocache(
+					addr, len);
+		if (!vaddr) {
+			pr_info("map addr: %p len: %d, failed\n",
+				(void *)addr, len);
+			vaddr = codec_mm_phys_to_virt(addr);
+		} else {
+			is_map = 1;
+		}
+	}
+	if (vaddr) {
+		unsigned int *p, *vint;
+		int i;
+		vint = (unsigned int *)vaddr;
+		for (i = 0; i <= len - 32; i += sizeof(int) * 8) {
+			p = (int *)&vint[i];
+			pr_info("%p: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			p,
+			p[0], p[1], p[2], p[3],
+			p[4], p[5], p[6], p[7]);
+		}
+	}
+	if (vaddr && is_map) {
+		/*maped free...*/
+		iounmap(vaddr);
+	}
+	return 0;
+}
 
 static ssize_t codec_mm_debug_store(struct class *class,
 		struct class_attribute *attr,
@@ -1466,6 +1507,16 @@ static ssize_t codec_mm_debug_store(struct class *class,
 		break;
 	case 10:
 		codec_mm_keeper_free_all_keep(1);
+		break;
+	case 20: {
+		int cmd, len;
+		unsigned int addr;
+		cmd = len = 0;
+		addr = 0;
+		ret = sscanf(buf, "%d %x %d", &cmd, &addr, &len);
+		if (addr > 0 && len > 0)
+			codec_mm_mem_dump(addr, 1, len);
+		}
 		break;
 	case 100: {
 		int cmd, mode, p1, p2;

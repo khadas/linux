@@ -586,7 +586,7 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 		int block_size = (buf->type == BUF_TYPE_AUDIO) ?
 			PAGE_SIZE : PAGE_SIZE << 4;
 		int buf_num = (buf->type == BUF_TYPE_AUDIO) ?
-			20 : 10;
+			20 : (2 * SZ_1M)/(PAGE_SIZE << 4);
 		if (!(buf->type == BUF_TYPE_SUBTITLE))
 			buf->write_thread = threadrw_alloc(buf_num,
 				block_size,
@@ -899,7 +899,7 @@ ssize_t esparser_write(struct file *file,
 				if delay is less than 100ms we think errors,
 				And we add more buffer on delay < 2s.
 				*/
-				int new_size = 1024 * 1024;
+				int new_size = 2 * 1024 * 1024;
 				threadrw_alloc_more_buffer_size(
 						stbuf, new_size);
 			}

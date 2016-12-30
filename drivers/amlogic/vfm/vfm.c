@@ -451,18 +451,26 @@ static void vfm_dump_provider(const char *name)
 				HZ);
 			pr_info("vf index=%d\n", vf->index);
 			pr_info("vf->pts=%d\n", vf->pts);
-			pr_info("vf canvas0Addr=%x\n", vf->canvas0Addr);
-			pr_info("vf canvas1Addr=%x\n", vf->canvas1Addr);
-			pr_info("vf canvas0Addr.y.addr=%x(%d)\n",
-				canvas_get_addr(
-				canvasY(vf->canvas0Addr)),
-				canvas_get_addr(
-				canvasY(vf->canvas0Addr)));
-			pr_info("vf canvas0Adr.uv.adr=%x(%d)\n",
-				canvas_get_addr(
-				canvasUV(vf->canvas0Addr)),
-				canvas_get_addr(
-				canvasUV(vf->canvas0Addr)));
+			pr_info("vf->type=%d\n", vf->type);
+			if (vf->type & VIDTYPE_COMPRESS) {
+				pr_info("vf compHeadAddr=%x\n",
+						vf->compHeadAddr);
+				pr_info("vf compBodyAddr =%x\n",
+						vf->compBodyAddr);
+			} else {
+				pr_info("vf canvas0Addr=%x\n", vf->canvas0Addr);
+				pr_info("vf canvas1Addr=%x\n", vf->canvas1Addr);
+				pr_info("vf canvas0Addr.y.addr=%x(%d)\n",
+					canvas_get_addr(
+					canvasY(vf->canvas0Addr)),
+					canvas_get_addr(
+					canvasY(vf->canvas0Addr)));
+				pr_info("vf canvas0Adr.uv.adr=%x(%d)\n",
+					canvas_get_addr(
+					canvasUV(vf->canvas0Addr)),
+					canvas_get_addr(
+					canvasUV(vf->canvas0Addr)));
+			}
 		}
 		spin_unlock_irqrestore(&lock, flags);
 	}
