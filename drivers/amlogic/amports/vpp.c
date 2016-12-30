@@ -1281,8 +1281,9 @@ RESTART:
 			next_frame_par->vscale_skip_count = skip_policy & 0xf;
 			goto RESTART;
 		} else if (skip_policy & 0x80) {
-			if ((vf->width >= 4096) &&
-			(!(vf->type & VIDTYPE_COMPRESS))
+			if ((((vf->width >= 4096) &&
+			(!(vf->type & VIDTYPE_COMPRESS))) ||
+			(vf->flag & VFRAME_FLAG_HIGH_BANDWITH))
 			&& (next_frame_par->vscale_skip_count == 0)) {
 				next_frame_par->vscale_skip_count =
 				skip_policy & 0xf;
