@@ -412,6 +412,7 @@ extern void hdmitx_init_parameters(struct hdmitx_info *info);
 extern enum hdmi_vic hdmitx_edid_vic_tab_map_vic(const char *disp_mode);
 
 extern int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device);
+extern int check_dvi_hdmi_edid_valid(unsigned char *buf);
 
 enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 	const char *disp_mode, char force_flag);

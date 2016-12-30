@@ -1557,7 +1557,7 @@ static int edid_check_valid(unsigned char *buf)
 }
 
 /* retrun 1 valid edid */
-static int check_dvi_hdmi_edid_valid(unsigned char *buf)
+int check_dvi_hdmi_edid_valid(unsigned char *buf)
 {
 	unsigned int chksum = 0;
 	unsigned int i = 0;
@@ -1681,9 +1681,11 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	struct vinfo_s *info = NULL;
 
-	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf))
+	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf)) {
 		EDID_buf = hdmitx_device->EDID_buf;
-	else
+		memcpy(hdmitx_device->EDID_buf1, hdmitx_device->EDID_buf,
+			EDID_MAX_BLOCK * 128);
+	} else
 		EDID_buf = hdmitx_device->EDID_buf1;
 	hdmitx_device->edid_ptr = EDID_buf;
 	hdmi_print(0, "EDID Parser:\n");

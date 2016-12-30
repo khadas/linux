@@ -2261,9 +2261,12 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 			return;
 		} else {
 			hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
-			gpio_read_edid(hdev->EDID_buf1);
-			msleep(20);
 			gpio_read_edid(hdev->EDID_buf);
+			/* If EDID is not correct at first time, then retry */
+			if (!check_dvi_hdmi_edid_valid(hdev->EDID_buf)) {
+				msleep(40);
+				gpio_read_edid(hdev->EDID_buf1);
+			}
 			edid_read_flag = 1;
 		}
 	} else {
@@ -2278,8 +2281,10 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 		hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 1);
 		hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
 	}
-	/* compare EDID_buf & EDID_buf1 */
-	hdmitx_edid_buf_compare_print(hdev);
+	if (!check_dvi_hdmi_edid_valid(hdev->EDID_buf)) {
+		/* compare EDID_buf & EDID_buf1 */
+		hdmitx_edid_buf_compare_print(hdev);
+	}
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_parse(hdev);
 	mutex_unlock(&getedid_mutex);
@@ -2293,9 +2298,9 @@ static int get_downstream_hdcp_ver(void)
 		goto next;
 	if (hdcp_rd_hdcp22_ver())
 		return 22;
-next:	if (hdcp_rd_hdcp14_ver())
-		return 14;
-	return 0;
+next:
+	/* if (hdcp_rd_hdcp14_ver()) */
+	return 14;
 }
 
 static DEFINE_MUTEX(setclk_mutex);
