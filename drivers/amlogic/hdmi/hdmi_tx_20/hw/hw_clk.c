@@ -624,7 +624,7 @@ static void set_enci_div(unsigned div)
 /* mode hpll_clk_out od1 od2(PHY) od3
  * vid_pll_div vid_clk_div hdmi_tx_pixel_div encp_div enci_div
  */
-static struct hw_enc_clk_val_group setting_enc_clk_val[] = {
+static struct hw_enc_clk_val_group setting_enc_clk_val_24b[] = {
 	{{HDMI_720x480i60_16x9,
 	  HDMI_720x576i50_16x9,
 	  HDMI_VIC_END},
@@ -699,14 +699,36 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_30[] = {
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 };
 
+/* For 3D Frame Packing Clock Setting
+ * mode hpll_clk_out od1 od2(PHY) od3
+ * vid_pll_div vid_clk_div hdmi_tx_pixel_div encp_div enci_div
+ */
+static struct hw_enc_clk_val_group setting_3dfp_enc_clk_val[] = {
+	{{HDMI_1920x1080p60_16x9,
+	  HDMI_1920x1080p50_16x9,
+	  HDMI_VIC_END},
+		2970000, 1, 1, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
+	{{HDMI_1280x720p50_16x9,
+	  HDMI_1280x720p60_16x9,
+	  HDMI_1920x1080p30_16x9,
+	  HDMI_1920x1080p24_16x9,
+	  HDMI_1920x1080p25_16x9,
+	  HDMI_VIC_END},
+		2970000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
+	/* NO 2160p mode*/
+	{{HDMI_VIC_FAKE,
+	  HDMI_VIC_END},
+		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
+};
+
 static void hdmitx_set_clk_24b(enum hdmi_vic vic)
 {
 	int i = 0;
 	int j = 0;
 	struct hw_enc_clk_val_group *p_enc = NULL;
 
-	p_enc = &setting_enc_clk_val[0];
-	for (j = 0; j < sizeof(setting_enc_clk_val)
+	p_enc = &setting_enc_clk_val_24b[0];
+	for (j = 0; j < sizeof(setting_enc_clk_val_24b)
 		/ sizeof(struct hw_enc_clk_val_group); j++) {
 		for (i = 0; ((i < GROUP_MAX) && (p_enc[j].group[i]
 			!= HDMI_VIC_END)); i++) {
@@ -714,7 +736,7 @@ static void hdmitx_set_clk_24b(enum hdmi_vic vic)
 				goto next;
 		}
 	}
-	if (j == sizeof(setting_enc_clk_val)
+	if (j == sizeof(setting_enc_clk_val_24b)
 		/ sizeof(struct hw_enc_clk_val_group)) {
 		pr_info("Not find VIC = %d for hpll setting\n", vic);
 		return;
@@ -769,6 +791,41 @@ next:
 	set_enci_div(p_enc[j].enci_div);
 }
 
+static void hdmitx_set_3dfp_clk(enum hdmi_vic vic)
+{
+	int i = 0;
+	int j = 0;
+	struct hw_enc_clk_val_group *p_enc = NULL;
+
+	p_enc = &setting_3dfp_enc_clk_val[0];
+	for (j = 0; j < sizeof(setting_3dfp_enc_clk_val)
+		/ sizeof(struct hw_enc_clk_val_group); j++) {
+		for (i = 0; ((i < GROUP_MAX) && (p_enc[j].group[i]
+			!= HDMI_VIC_END)); i++) {
+			if (vic == p_enc[j].group[i])
+				goto next;
+		}
+	}
+	if (j == sizeof(setting_3dfp_enc_clk_val)
+		/ sizeof(struct hw_enc_clk_val_group)) {
+		pr_info("Not find VIC = %d for hpll setting\n", vic);
+		return;
+	}
+next:
+	set_hdmitx_sys_clk();
+	set_hpll_clk_out(p_enc[j].hpll_clk_out);
+	set_hpll_sspll(vic);
+	set_hpll_od1(p_enc[j].od1);
+	set_hpll_od2(p_enc[j].od2);
+	set_hpll_od3(p_enc[j].od3);
+	set_hpll_od3_clk_div(p_enc[j].vid_pll_div);
+	pr_info("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
+	set_vid_clk_div(p_enc[j].vid_clk_div);
+	set_hdmi_tx_pixel_div(p_enc[j].hdmi_tx_pixel_div);
+	set_encp_div(p_enc[j].encp_div);
+	set_enci_div(p_enc[j].enci_div);
+}
+
 static int likely_frac_rate_mode(char *m)
 {
 	if (strstr(m, "24hz") || strstr(m, "30hz") || strstr(m, "60hz")
@@ -792,6 +849,11 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 	else {
 		pr_info("hdmitx: %s doesn't have frac_rate\n", para->name);
 		frac_rate = 0;
+	}
+
+	if (hdev->flag_3dfp) {
+		hdmitx_set_3dfp_clk(vic);
+		return;
 	}
 
 	if (hdev->para->cs != COLORSPACE_YUV422) {

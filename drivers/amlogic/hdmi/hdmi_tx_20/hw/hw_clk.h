@@ -39,3 +39,4 @@ struct hw_enc_clk_val_group {
 void hdmitx_set_clk(struct hdmitx_dev *hdev);
 
 #endif
+

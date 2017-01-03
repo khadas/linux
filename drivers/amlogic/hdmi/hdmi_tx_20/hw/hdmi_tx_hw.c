@@ -1792,10 +1792,16 @@ do { \
 		break;
 	case HDMI_1080p60:
 	case HDMI_1080p50:
-		set_phy_by_mode(3);
+		if (hdev->flag_3dfp)
+			set_phy_by_mode(2);
+		else
+			set_phy_by_mode(3);
 		break;
 	default:
-		set_phy_by_mode(4);
+		if (hdev->flag_3dfp)
+			set_phy_by_mode(3);
+		else
+			set_phy_by_mode(4);
 		break;
 	}
 	hdmi_print(IMP, SYS "PHY Setting Done\n");
@@ -1893,7 +1899,15 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		hdev->cur_video_param->color = COLORSPACE_f;
 	hdmitx_set_pll(hdev);
 	/*hdmitx_set_phy(hdev);*/
-	set_vmode_enc_hw(hdev->cur_video_param->VIC);
+	if (hdev->flag_3dfp)
+		set_vmode_3dfp_enc_hw(hdev->cur_video_param->VIC);
+	else
+		set_vmode_enc_hw(hdev->cur_video_param->VIC);
+	/* Ignore 3dfp hdmi_tvenc_set, move to set_vmode_3dfp_enc_hw */
+	if (hdev->flag_3dfp) {
+		hd_write_reg(P_VPU_HDMI_SETTING, 0x8e);
+		goto next;
+	}
 	switch (hdev->cur_video_param->VIC) {
 	case HDMI_480i60:
 	case HDMI_480i60_16x9:
@@ -1926,6 +1940,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	default:
 		hdmi_tvenc_set(hdev->cur_video_param);
 	}
+next:
 /* [ 3: 2] chroma_dnsmp. 0=use pixel 0; 1=use pixel 1; 2=use average. */
 /* [	5] hdmi_dith_md: random noise selector. */
 	hd_write_reg(P_VPU_HDMI_FMT_CTRL, (((TX_INPUT_COLOR_FORMAT ==
@@ -1982,7 +1997,9 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	/* move hdmitx_set_pll() to the end of this function. */
 	/* hdmitx_set_pll(param); */
 	hdev->cur_VIC = hdev->cur_video_param->VIC;
-	hdmitx_set_phy(hdev);
+	/* For 3D, enable phy by SystemControl at last step */
+	if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) && (!hdev->flag_3dss))
+		hdmitx_set_phy(hdev);
 	switch (hdev->cur_video_param->VIC) {
 	case HDMI_480i60:
 	case HDMI_480i60_16x9:
@@ -2041,7 +2058,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	case HDMI_PACKET_AVI:
 		break;
 	case HDMI_PACKET_VEND:
-		if (!DB) {
+		if ((!DB) || (!HB)) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
 			return;
 		}
@@ -2057,6 +2074,10 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		if (DB[3] == 0x40) { /* 3D VSI */
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
+			if ((DB[4] >> 4) == T3D_FRAME_PACKING)
+				hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 5);
+			else
+				hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 6);
 		}
 		/* Enable VSI packet */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
@@ -3804,11 +3825,13 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case CONF_CLR_AVI_PACKET:
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
+		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
 		hd_write_reg(P_ISA_DEBUG_REG0, 0);
 		break;
 	case CONF_CLR_VSDB_PACKET:
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
+		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
 		break;
 	case CONF_VIDEO_MAPPING:
 		config_video_mapping(hdev->para->cs, hdev->para->cd);
@@ -4363,11 +4386,16 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32  = (GET_TIMING(h_blank)>>8)&0x1f;
 	hdmitx_wr_reg(HDMITX_DWC_FC_INHBLANK1,  data32);
 
-	data32  = GET_TIMING(v_active)&0xff;
-	hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV0,   data32);
-	data32  = (GET_TIMING(v_active)>>8)&0x1f;
-	hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV1,   data32);
-
+	if (hdev->flag_3dfp) {
+		data32 = (((GET_TIMING(v_active)) * 2) + (GET_TIMING(v_blank)));
+		hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV0, data32 & 0xff);
+		hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV1, (data32 >> 8) & 0x1f);
+	} else {
+		data32 = GET_TIMING(v_active) & 0xff;
+		hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV0, data32);
+		data32 = (GET_TIMING(v_active) >> 8) & 0x1f;
+		hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV1, data32);
+	}
 	data32  = GET_TIMING(v_blank)&0xff;
 	hdmitx_wr_reg(HDMITX_DWC_FC_INVBLANK,   data32);
 
@@ -4538,15 +4566,9 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_CTRLQLOW, 3);
 
 	/* packet scheduller configuration for SPD, VSD, ISRC1/2, ACP. */
-	data32  = 0;
-	data32 |= (0 << 4);
-	data32 |= (0 << 3);
-	data32 |= (0 << 2);
-	data32 |= (0 << 1);
-	data32 |= (0 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO0, data32);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 0, 3);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 4, 4);
 	hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO1, 0);
-	hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO2, 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_DATMAN, 0);
 
 	/* packet scheduller configuration for AVI, GCP, AUDI, ACR. */

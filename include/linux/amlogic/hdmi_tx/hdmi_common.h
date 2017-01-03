@@ -254,6 +254,19 @@ enum hdmi_color_range {
 	COLORRANGE_FUL,
 };
 
+enum hdmi_3d_type {
+	T3D_FRAME_PACKING = 0,
+	T3D_FIELD_ALTER = 1,
+	T3D_LINE_ALTER = 2,
+	T3D_SBS_FULL = 3,
+	T3D_L_DEPTH = 4,
+	T3D_L_DEPTH_GRAPHICS = 5,
+	T3D_TAB = 6, /* Top and Buttom */
+	T3D_RSVD = 7,
+	T3D_SBS_HALF = 8,
+	T3D_DISABLE,
+};
+
 /* get hdmi cea timing */
 /* t: struct hdmi_cea_timing * */
 #define GET_TIMING(name)      (t->name)

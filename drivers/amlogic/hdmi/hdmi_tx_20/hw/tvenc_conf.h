@@ -18,3 +18,4 @@
 #include <linux/amlogic/hdmi_tx/hdmi_info_global.h>
 
 void set_vmode_enc_hw(enum hdmi_vic vic);
+void set_vmode_3dfp_enc_hw(enum hdmi_vic vic); /* For 3D Frame Packing */

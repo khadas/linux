@@ -1187,70 +1187,84 @@ static int hdmitx_edid_3d_parse(struct rx_cap *pRXCap, unsigned char *dat,
 	unsigned size)
 {
 	int j = 0;
-	int bit = 16;
 	unsigned int base = 0;
 	unsigned int pos = base + 1;
 
-	if (dat[base] & (1<<7))
+	if (dat[base] & (1 << 7))
 		pos += 2;
-	if (dat[base] & (1<<6))
+	if (dat[base] & (1 << 6))
 		pos += 2;
-	if (dat[base] & (1<<5)) {
+	if (dat[base] & (1 << 5)) {
 		pRXCap->threeD_present = dat[pos] >> 7;
 		pRXCap->threeD_Multi_present = (dat[pos] >> 5) & 0x3;
 		pos += 1;
-		pRXCap->hdmi_vic_LEN = (dat[pos]) >> 5;
-		pRXCap->HDMI_3D_LEN = (dat[pos]) & 0x1f;
+		pRXCap->hdmi_vic_LEN = dat[pos] >> 5;
+		pRXCap->HDMI_3D_LEN = dat[pos] & 0x1f;
 		pos += pRXCap->hdmi_vic_LEN + 1;
-		if ((pRXCap->threeD_Multi_present == 0x01) ||
-			(pRXCap->threeD_Multi_present == 0x2)) {
+
+		if (pRXCap->threeD_Multi_present == 0x01) {
+			pRXCap->threeD_Structure_ALL_15_0 =
+				(dat[pos] << 8) + dat[pos+1];
+			pRXCap->threeD_MASK_15_0 = 0;
+			pos += 2;
+		}
+		if (pRXCap->threeD_Multi_present == 0x02) {
 			pRXCap->threeD_Structure_ALL_15_0 =
 				(dat[pos] << 8) + dat[pos+1];
 			pos += 2;
-		}
-		if (pRXCap->threeD_Multi_present == 0x2) {
-			pRXCap->threeD_MASK_15_0 = (dat[pos] << 8)
-				+ dat[pos+1];
+			pRXCap->threeD_MASK_15_0 = (dat[pos] << 8) + dat[pos+1];
 			pos += 2;
 		}
 	}
 	while (pos < size) {
-		if ((dat[pos] & 0xf) == 0x0) { /* frame packing */
-			pRXCap->support_3d_format[pRXCap->VIC[((dat[pos]
-				& 0xf0) >> 4)]].frame_packing = 1;
-			pRXCap->support_3d_format[pRXCap->VIC[((
-				dat[pos+1] & 0xf0) >> 4)]].frame_packing = 1;
-		}
-		if ((dat[pos] & 0xf) == 0x6) { /* top and bottom */
-			pRXCap->support_3d_format[pRXCap->VIC[((dat[pos]
-				& 0xf0) >> 4)]].top_and_bottom = 1;
-			pRXCap->support_3d_format[pRXCap->VIC[((dat[pos+1]
-				& 0xf0) >> 4)]].top_and_bottom = 1;
-		}
-		if ((dat[pos] & 0xf) == 0x8) { /* top and bottom */
-			pRXCap->support_3d_format[pRXCap->VIC[((dat[pos]
-				& 0xf0) >> 4)]].side_by_side = 1;
-			pRXCap->support_3d_format[pRXCap->VIC[((dat[pos+1]
-				& 0xf0) >> 4)]].side_by_side = 1;
-		}
-		pos += 2;
-	}
-
-	while (bit--) {
-		if (((pRXCap->threeD_MASK_15_0) >> j) & 0x1) {
+		if ((dat[pos] & 0xf) < 0x8) {
 			/* frame packing */
-			if (pRXCap->threeD_Structure_ALL_15_0 & (1 << 0))
-				pRXCap->support_3d_format[pRXCap->VIC[j]].
-					frame_packing = 1;
+			if ((dat[pos] & 0xf) == T3D_FRAME_PACKING)
+				pRXCap->support_3d_format[pRXCap->VIC[((dat[pos]
+					& 0xf0) >> 4)]].frame_packing = 1;
 			/* top and bottom */
-			if (pRXCap->threeD_Structure_ALL_15_0 & (1 << 6))
-				pRXCap->support_3d_format[pRXCap->VIC[j]].
-					top_and_bottom = 1;
-			/* top and bottom */
-			if (pRXCap->threeD_Structure_ALL_15_0 & (1 << 8))
-				pRXCap->support_3d_format[pRXCap->VIC[j]].
-					side_by_side = 1;
-		j++;
+			if ((dat[pos] & 0xf) == T3D_TAB)
+				pRXCap->support_3d_format[pRXCap->VIC[((dat[pos]
+					& 0xf0) >> 4)]].top_and_bottom = 1;
+			pos += 1;
+		} else {
+			/* SidebySide */
+			if ((dat[pos] & 0xf) == T3D_SBS_HALF)
+				if ((dat[pos+1] >> 4) < 0xb)
+					pRXCap->support_3d_format[pRXCap->VIC[
+						((dat[pos] & 0xf0) >> 4)]]
+						.side_by_side = 1;
+			pos += 2;
+		}
+	}
+	if (pRXCap->threeD_MASK_15_0 == 0) {
+		for (j = 0; (j < 16) && (j < pRXCap->VIC_count); j++) {
+			pRXCap->support_3d_format[pRXCap->VIC[j]].frame_packing
+				= 1;
+			pRXCap->support_3d_format[pRXCap->VIC[j]].top_and_bottom
+				= 1;
+			pRXCap->support_3d_format[pRXCap->VIC[j]].side_by_side
+				= 1;
+		}
+	} else {
+		for (j = 0; j < 16; j++) {
+			if (((pRXCap->threeD_MASK_15_0) >> j) & 0x1) {
+				/* frame packing */
+				if (pRXCap->threeD_Structure_ALL_15_0
+					& (1 << 0))
+					pRXCap->support_3d_format[pRXCap->
+						VIC[j]].frame_packing = 1;
+				/* top and bottom */
+				if (pRXCap->threeD_Structure_ALL_15_0
+					& (1 << 6))
+					pRXCap->support_3d_format[pRXCap->
+						VIC[j]].top_and_bottom = 1;
+				/* top and bottom */
+				if (pRXCap->threeD_Structure_ALL_15_0
+					& (1 << 8))
+					pRXCap->support_3d_format[pRXCap->
+						VIC[j]].side_by_side = 1;
+			}
 		}
 	}
 	return 1;

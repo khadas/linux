@@ -712,7 +712,7 @@ struct vic_tvregs_set {
 	const struct reg_s *reg_setting;
 };
 
-/* Using tvmode as index */
+/* Using HDMI VIC as index */
 static struct vic_tvregs_set tvregsTab[] = {
 	{HDMI_720x480i60_16x9, tvregs_480i},
 	{HDMI_2880x480i60_16x9, tvregs_480i},
@@ -771,6 +771,242 @@ void set_vmode_enc_hw(enum hdmi_vic vic)
 
 	if (s) {
 		pr_info("hdmitx: set enc for VIC: %d\n", vic);
+		while (MREG_END_MARKER != s->reg)
+			setreg(s++);
+	} else
+		pr_info("hdmitx: not find VIC: %d\n", vic);
+}
+
+/*
+ * For 3D FramePacket Setting
+ */
+static const struct reg_s tvregs_3dfp_1080p60[] = {
+	{P_ENCP_VIDEO_EN, 0},
+	{P_ENCI_VIDEO_EN, 0},
+
+	{P_ENCP_VIDEO_MODE, 0x4040,},
+	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0x897,},
+	{P_ENCP_VIDEO_MAX_LNCNT, 0x8C9,},
+	{P_ENCP_VIDEO_HAVON_BEGIN, 0xC0,},
+	{P_ENCP_VIDEO_HAVON_END, 0x83F,},
+	{P_ENCP_VIDEO_VAVON_BLINE, 0x29,},
+	{P_ENCP_VIDEO_VAVON_ELINE, 0x8C5,},
+	{P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+	{P_ENCP_VIDEO_HSO_END, 0x2C,},
+	{P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+	{P_ENCP_VIDEO_VSO_END, 0x32,},
+	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+	{P_ENCP_VIDEO_VSO_ELINE, 0x5,},
+	{P_ENCP_DVI_HSO_BEGIN, 0x2,},
+	{P_ENCP_DVI_HSO_END, 0x2E,},
+	{P_ENCP_DVI_VSO_BLINE_EVN, 0x0,},
+	{P_ENCP_DVI_VSO_BLINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_ELINE_EVN, 0x5,},
+	{P_ENCP_DVI_VSO_ELINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_BEGIN_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_BEGIN_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_END_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_END_ODD, 0x0,},
+	{P_ENCP_DE_H_BEGIN, 0xC2,},
+	{P_ENCP_DE_H_END, 0x842,},
+	{P_ENCP_DE_V_BEGIN_EVEN, 0x29,},
+	{P_ENCP_DE_V_END_EVEN, 0x8C6,},
+	{P_ENCP_DE_V_BEGIN_ODD, 0x0,},
+	{P_ENCP_DE_V_END_ODD, 0x0,},
+
+	{P_ENCI_VIDEO_EN, 0},
+	{P_ENCP_VIDEO_EN, 1},
+	{MREG_END_MARKER, 0},
+};
+
+static const struct reg_s tvregs_3dfp_1080p24[] = {
+	{P_ENCP_VIDEO_EN, 0},
+	{P_ENCI_VIDEO_EN, 0},
+
+	{P_ENCP_VIDEO_MODE, 0x4040,},
+	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0xABD,},
+	{P_ENCP_VIDEO_MAX_LNCNT, 0x8C9,},
+	{P_ENCP_VIDEO_HAVON_BEGIN, 0xC0,},
+	{P_ENCP_VIDEO_HAVON_END, 0x83F,},
+	{P_ENCP_VIDEO_VAVON_BLINE, 0x29,},
+	{P_ENCP_VIDEO_VAVON_ELINE, 0x8C5,},
+	{P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+	{P_ENCP_VIDEO_HSO_END, 0x2C,},
+	{P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+	{P_ENCP_VIDEO_VSO_END, 0x32,},
+	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+	{P_ENCP_VIDEO_VSO_ELINE, 0x5,},
+	{P_ENCP_DVI_HSO_BEGIN, 0x2,},
+	{P_ENCP_DVI_HSO_END, 0x2E,},
+	{P_ENCP_DVI_VSO_BLINE_EVN, 0x0,},
+	{P_ENCP_DVI_VSO_BLINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_ELINE_EVN, 0x5,},
+	{P_ENCP_DVI_VSO_ELINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_BEGIN_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_BEGIN_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_END_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_END_ODD, 0x0,},
+	{P_ENCP_DE_H_BEGIN, 0xC2,},
+	{P_ENCP_DE_H_END, 0x842,},
+	{P_ENCP_DE_V_BEGIN_EVEN, 0x29,},
+	{P_ENCP_DE_V_END_EVEN, 0x8C6,},
+	{P_ENCP_DE_V_BEGIN_ODD, 0x0,},
+	{P_ENCP_DE_V_END_ODD, 0x0,},
+
+	{P_ENCI_VIDEO_EN, 0},
+	{P_ENCP_VIDEO_EN, 1},
+	{MREG_END_MARKER, 0},
+};
+
+static const struct reg_s tvregs_3dfp_1080p50[] = {
+	{P_ENCP_VIDEO_EN, 0},
+	{P_ENCI_VIDEO_EN, 0},
+
+	{P_ENCP_VIDEO_MODE, 0x4040,},
+	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0xA4F,},
+	{P_ENCP_VIDEO_MAX_LNCNT, 0x8C9,},
+	{P_ENCP_VIDEO_HAVON_BEGIN, 0xC0,},
+	{P_ENCP_VIDEO_HAVON_END, 0x83F,},
+	{P_ENCP_VIDEO_VAVON_BLINE, 0x29,},
+	{P_ENCP_VIDEO_VAVON_ELINE, 0x8C5,},
+	{P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+	{P_ENCP_VIDEO_HSO_END, 0x2C,},
+	{P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+	{P_ENCP_VIDEO_VSO_END, 0x32,},
+	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+	{P_ENCP_VIDEO_VSO_ELINE, 0x5,},
+	{P_ENCP_DVI_HSO_BEGIN, 0x2,},
+	{P_ENCP_DVI_HSO_END, 0x2E,},
+	{P_ENCP_DVI_VSO_BLINE_EVN, 0x0,},
+	{P_ENCP_DVI_VSO_BLINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_ELINE_EVN, 0x5,},
+	{P_ENCP_DVI_VSO_ELINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_BEGIN_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_BEGIN_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_END_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_END_ODD, 0x0,},
+	{P_ENCP_DE_H_BEGIN, 0xC2,},
+	{P_ENCP_DE_H_END, 0x842,},
+	{P_ENCP_DE_V_BEGIN_EVEN, 0x29,},
+	{P_ENCP_DE_V_END_EVEN, 0x8C6,},
+	{P_ENCP_DE_V_BEGIN_ODD, 0x0,},
+	{P_ENCP_DE_V_END_ODD, 0x0,},
+
+	{P_ENCI_VIDEO_EN, 0},
+	{P_ENCP_VIDEO_EN, 1},
+	{MREG_END_MARKER, 0},
+};
+
+static const struct reg_s tvregs_3dfp_720p50[] = {
+	{P_ENCP_VIDEO_EN, 0},
+	{P_ENCI_VIDEO_EN, 0},
+
+	{P_ENCP_VIDEO_MODE, 0x4040,},
+	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0x7BB,},
+	{P_ENCP_VIDEO_MAX_LNCNT, 0x5DB,},
+	{P_ENCP_VIDEO_HAVON_BEGIN, 0x104,},
+	{P_ENCP_VIDEO_HAVON_END, 0x603,},
+	{P_ENCP_VIDEO_VAVON_BLINE, 0x19,},
+	{P_ENCP_VIDEO_VAVON_ELINE, 0x5D6,},
+	{P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+	{P_ENCP_VIDEO_HSO_END, 0x28,},
+	{P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+	{P_ENCP_VIDEO_VSO_END, 0x32,},
+	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+	{P_ENCP_VIDEO_VSO_ELINE, 0x5,},
+	{P_ENCP_DVI_HSO_BEGIN, 0x2,},
+	{P_ENCP_DVI_HSO_END, 0x2A,},
+	{P_ENCP_DVI_VSO_BLINE_EVN, 0x0,},
+	{P_ENCP_DVI_VSO_BLINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_ELINE_EVN, 0x5,},
+	{P_ENCP_DVI_VSO_ELINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_BEGIN_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_BEGIN_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_END_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_END_ODD, 0x0,},
+	{P_ENCP_DE_H_BEGIN, 0x106,},
+	{P_ENCP_DE_H_END, 0x606,},
+	{P_ENCP_DE_V_BEGIN_EVEN, 0x19,},
+	{P_ENCP_DE_V_END_EVEN, 0x5D7,},
+	{P_ENCP_DE_V_BEGIN_ODD, 0x0,},
+	{P_ENCP_DE_V_END_ODD, 0x0,},
+
+	{P_ENCI_VIDEO_EN, 0},
+	{P_ENCP_VIDEO_EN, 1},
+	{MREG_END_MARKER, 0},
+};
+
+static const struct reg_s tvregs_3dfp_720p60[] = {
+	{P_ENCP_VIDEO_EN, 0},
+	{P_ENCI_VIDEO_EN, 0},
+
+	{P_ENCP_VIDEO_MODE, 0x4040,},
+	{P_ENCP_VIDEO_MODE_ADV, 0x18,},
+	{P_ENCP_VIDEO_MAX_PXCNT, 0x671,},
+	{P_ENCP_VIDEO_MAX_LNCNT, 0x5DB,},
+	{P_ENCP_VIDEO_HAVON_BEGIN, 0x104,},
+	{P_ENCP_VIDEO_HAVON_END, 0x603,},
+	{P_ENCP_VIDEO_VAVON_BLINE, 0x19,},
+	{P_ENCP_VIDEO_VAVON_ELINE, 0x5D6,},
+	{P_ENCP_VIDEO_HSO_BEGIN, 0x0,},
+	{P_ENCP_VIDEO_HSO_END, 0x28,},
+	{P_ENCP_VIDEO_VSO_BEGIN, 0x1E,},
+	{P_ENCP_VIDEO_VSO_END, 0x32,},
+	{P_ENCP_VIDEO_VSO_BLINE, 0x0,},
+	{P_ENCP_VIDEO_VSO_ELINE, 0x5,},
+	{P_ENCP_DVI_HSO_BEGIN, 0x2,},
+	{P_ENCP_DVI_HSO_END, 0x2A,},
+	{P_ENCP_DVI_VSO_BLINE_EVN, 0x0,},
+	{P_ENCP_DVI_VSO_BLINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_ELINE_EVN, 0x5,},
+	{P_ENCP_DVI_VSO_ELINE_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_BEGIN_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_BEGIN_ODD, 0x0,},
+	{P_ENCP_DVI_VSO_END_EVN, 0x2,},
+	{P_ENCP_DVI_VSO_END_ODD, 0x0,},
+	{P_ENCP_DE_H_BEGIN, 0x106,},
+	{P_ENCP_DE_H_END, 0x606,},
+	{P_ENCP_DE_V_BEGIN_EVEN, 0x19,},
+	{P_ENCP_DE_V_END_EVEN, 0x5D7,},
+	{P_ENCP_DE_V_BEGIN_ODD, 0x0,},
+	{P_ENCP_DE_V_END_ODD, 0x0,},
+
+	{P_ENCI_VIDEO_EN, 0},
+	{P_ENCP_VIDEO_EN, 1},
+	{MREG_END_MARKER, 0},
+};
+
+/* Using HDMI VIC as index */
+static struct vic_tvregs_set tvregsTab_3dfp[] = {
+	{HDMI_1920x1080p60_16x9, tvregs_3dfp_1080p60},
+	{HDMI_1920x1080p30_16x9, tvregs_3dfp_1080p60},
+	{HDMI_1920x1080p50_16x9, tvregs_3dfp_1080p50},
+	{HDMI_1920x1080p25_16x9, tvregs_3dfp_1080p50},
+	{HDMI_1920x1080p24_16x9, tvregs_3dfp_1080p24},
+	{HDMI_1280x720p60_16x9, tvregs_3dfp_720p60},
+	{HDMI_1280x720p50_16x9, tvregs_3dfp_720p50},
+};
+
+static const struct reg_s *tvregs_3dfp_setting_mode(enum hdmi_vic vic)
+{
+	int i = 0;
+	for (i = 0; i < ARRAY_SIZE(tvregsTab_3dfp); i++) {
+		if (vic == tvregsTab_3dfp[i].vic)
+			return tvregsTab_3dfp[i].reg_setting;
+	}
+	return NULL;
+}
+
+void set_vmode_3dfp_enc_hw(enum hdmi_vic vic)
+{
+	const struct reg_s *s = tvregs_3dfp_setting_mode(vic);
+
+	if (s) {
+		pr_info("hdmitx: set 3dfp enc for VIC: %d\n", vic);
 		while (MREG_END_MARKER != s->reg)
 			setreg(s++);
 	} else

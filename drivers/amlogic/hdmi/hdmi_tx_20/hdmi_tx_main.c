@@ -528,14 +528,23 @@ static int set_disp_mode_auto(void)
 		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
 		hdev->para = para = hdmi_get_fmt_name("invalid");
 		return -1;
-	} else
+	} else {
 		memcpy(mode, info->name, strlen(info->name));
-	if ((info->name) && (info->name[0]))
-		para = hdmi_get_fmt_name(info->name);
-	if ((info->ext_name) && (info->ext_name[0])) {
-		para = hdmi_get_fmt_name(info->ext_name);
-		pr_info("hdmitx: get ext_name %s\n", hdev->para->ext_name);
+		if (strstr(mode, "fp")) {
+			int i = 0;
+			for (; mode[i]; i++) {
+				if ((mode[i] == 'f') && (mode[i + 1] == 'p')) {
+					/* skip "f", 1080fp60hz -> 1080p60hz */
+					do {
+						mode[i] = mode[i + 1];
+						i++;
+					} while (mode[i]);
+					break;
+				}
+			}
+		}
 	}
+	para = hdmi_get_fmt_name(mode);
 	hdev->para = para;
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
@@ -909,52 +918,6 @@ static ssize_t show_rawedid(struct device *dev,
 	return pos;
 }
 
-static void dump_tx_info(void)
-{
-	struct hdmitx_dev *hdev = &hdmitx_device;
-
-	pr_info("dump tx info\n");
-	pr_info("cur_VIC=%d\n", hdev->cur_VIC);
-	if (hdev->cur_video_param)
-		pr_info("cur_video_param->VIC=%d\n",
-			hdev->cur_video_param->VIC);
-	if (hdev->para) {
-		pr_info("name=%s\n", hdev->para->ext_name);
-		pr_info("cd=%d\n", hdev->para->cd);
-		pr_info("cs=%d\n", hdev->para->cs);
-	}
-}
-
-/*config attr*/
-static ssize_t show_config(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-	unsigned char *aud_conf;
-
-	dump_tx_info();
-	switch (hdmitx_device.tx_aud_cfg) {
-	case 0:
-	aud_conf = "off";
-	break;
-	case 1:
-	aud_conf = "on";
-	break;
-	case 2:
-	aud_conf = "auto";
-	break;
-	default:
-	aud_conf = "none";
-	}
-	pos += snprintf(buf+pos, PAGE_SIZE,
-		"disp switch (force or edid): %s\n",
-		(hdmitx_device.disp_switch_config ==
-		DISP_SWITCH_FORCE)?"force":"edid");
-	pos += snprintf(buf+pos, PAGE_SIZE, "audio config: %s\n",
-		aud_conf);
-	return pos;
-}
-
 void hdmitx_audio_mute_op(unsigned int flag)
 {
 	hdmitx_device.tx_aud_cfg = flag;
@@ -1120,6 +1083,53 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode)
 	}
 }
 
+/*config attr*/
+static ssize_t show_config(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	unsigned char *conf;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->cur_VIC);
+	if (hdev->cur_video_param)
+		pos += snprintf(buf+pos, PAGE_SIZE,
+			"cur_video_param->VIC=%d\n",
+			hdev->cur_video_param->VIC);
+	if (hdev->para) {
+		pos += snprintf(buf+pos, PAGE_SIZE, "cd = %d\n",
+			hdev->para->cd);
+		pos += snprintf(buf+pos, PAGE_SIZE, "cs = %d\n",
+			hdev->para->cs);
+	}
+
+	switch (hdev->tx_aud_cfg) {
+	case 0:
+		conf = "off";
+		break;
+	case 1:
+		conf = "on";
+		break;
+	case 2:
+		conf = "auto";
+		break;
+	default:
+		conf = "none";
+	}
+	pos += snprintf(buf+pos, PAGE_SIZE, "audio config: %s\n", conf);
+
+	if (hdev->flag_3dfp)
+		conf = "FramePacking";
+	else if (hdev->flag_3dss)
+		conf = "SidebySide";
+	else if (hdev->flag_3dtb)
+		conf = "TopButtom";
+	else
+		conf = "off";
+	pos += snprintf(buf+pos, PAGE_SIZE, "3D config: %s\n", conf);
+	return pos;
+}
+
 static ssize_t store_config(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -1136,25 +1146,35 @@ static ssize_t store_config(struct device *dev,
 		else
 			hdmitx_device.unplug_powerdown = 1;
 	} else if (strncmp(buf, "3d", 2) == 0) {
-		/* First, disable HDMI TMDS */
-		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
-			MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		/* Second, set 3D parameters */
-		if (strncmp(buf+2, "tb", 2) == 0)
-			hdmi_set_3d(&hdmitx_device, 6, 0);
-		else if (strncmp(buf+2, "lr", 2) == 0) {
+		if (strncmp(buf+2, "tb", 2) == 0) {
+			hdmitx_device.flag_3dtb = 1;
+			hdmitx_device.flag_3dss = 0;
+			hdmitx_device.flag_3dfp = 0;
+			hdmi_set_3d(&hdmitx_device, T3D_TAB, 0);
+		} else if ((strncmp(buf+2, "lr", 2) == 0) ||
+			(strncmp(buf+2, "ss", 2) == 0)) {
 			unsigned long sub_sample_mode = 0;
+			hdmitx_device.flag_3dtb = 0;
+			hdmitx_device.flag_3dss = 1;
+			hdmitx_device.flag_3dfp = 0;
 			if (buf[2])
 				ret = kstrtoul(buf+2, 10,
 					&sub_sample_mode);
-		/* side by side */
-			hdmi_set_3d(&hdmitx_device, 8, sub_sample_mode);
-		} else if (strncmp(buf+2, "off", 3) == 0)
-			hdmi_set_3d(&hdmitx_device, 0xf, 0);
-		/* Last, delay sometime and enable HDMI TMDS */
-		msleep(20);
-		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
-			MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
+			/* side by side */
+			hdmi_set_3d(&hdmitx_device, T3D_SBS_HALF,
+				sub_sample_mode);
+		} else if (strncmp(buf+2, "fp", 2) == 0) {
+			hdmitx_device.flag_3dtb = 0;
+			hdmitx_device.flag_3dss = 0;
+			hdmitx_device.flag_3dfp = 1;
+			hdmi_set_3d(&hdmitx_device, T3D_FRAME_PACKING, 0);
+		} else if (strncmp(buf+2, "off", 3) == 0) {
+			hdmitx_device.flag_3dfp = 0;
+			hdmitx_device.flag_3dtb = 0;
+			hdmitx_device.flag_3dss = 0;
+			hdmi_set_3d(&hdmitx_device, T3D_DISABLE, 0);
+		}
 	} else if (strncmp(buf, "audio_", 6) == 0) {
 		if (strncmp(buf+6, "off", 3) == 0) {
 			hdmitx_audio_mute_op(0);
@@ -1198,14 +1218,8 @@ static ssize_t store_debug(struct device *dev,
 
 /* support format lists */
 const char *disp_mode_t[] = {
-	"480i60hz",
-	"480i_rpt",
 	"480p60hz",
-	"480p_rpt",
-	"576i50hz",
-	"576i_rpt",
 	"576p50hz",
-	"576p_rpt",
 	"720p60hz",
 	"1080i60hz",
 	"1080p60hz",
@@ -1264,6 +1278,23 @@ static ssize_t show_disp_cap(struct device *dev,
 
 
 /**/
+static int local_support_3dfp(enum hdmi_vic vic)
+{
+	switch (vic) {
+	case HDMI_1280x720p50_16x9:
+	case HDMI_1280x720p60_16x9:
+	case HDMI_1920x1080p24_16x9:
+	case HDMI_1920x1080p25_16x9:
+	case HDMI_1920x1080p30_16x9:
+	case HDMI_1920x1080p50_16x9:
+	case HDMI_1920x1080p60_16x9:
+		return 1;
+		break;
+	default:
+		return 0;
+		break;
+	}
+}
 static ssize_t show_disp_cap_3d(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1271,23 +1302,28 @@ static ssize_t show_disp_cap_3d(struct device *dev,
 	int j = 0;
 	enum hdmi_vic vic;
 
+	pos += snprintf(buf+pos, PAGE_SIZE, "3D support lists:\n");
 	for (i = 0; disp_mode_t[i]; i++) {
+		/* 3D is not supported under 4k modes */
+		if (strstr(disp_mode_t[i], "2160p") ||
+			strstr(disp_mode_t[i], "smpte"))
+			continue;
 		vic = hdmitx_edid_get_VIC(&hdmitx_device,
 			disp_mode_t[i], 0);
-	if (vic == hdmitx_device.cur_VIC) {
 		for (j = 0; j < hdmitx_device.RXCap.VIC_count; j++) {
 			if (vic == hdmitx_device.RXCap.VIC[j])
 				break;
 		}
-		pos += snprintf(buf+pos, PAGE_SIZE, "%s ",
+		pos += snprintf(buf+pos, PAGE_SIZE, "\n%s ",
 			disp_mode_t[i]);
-		if (hdmitx_device.RXCap.support_3d_format[
-			hdmitx_device.RXCap.VIC[j]].frame_packing == 1){
+		if (local_support_3dfp(vic)
+			&& (hdmitx_device.RXCap.support_3d_format[
+			hdmitx_device.RXCap.VIC[j]].frame_packing == 1)) {
 			pos += snprintf(buf+pos, PAGE_SIZE,
 				"FramePacking ");
 		}
 		if (hdmitx_device.RXCap.support_3d_format[
-			hdmitx_device.RXCap.VIC[j]].top_and_bottom == 1){
+			hdmitx_device.RXCap.VIC[j]].top_and_bottom == 1) {
 			pos += snprintf(buf+pos, PAGE_SIZE,
 				"TopBottom ");
 		}
@@ -1296,7 +1332,6 @@ static ssize_t show_disp_cap_3d(struct device *dev,
 			pos += snprintf(buf+pos, PAGE_SIZE,
 				"SidebySide ");
 		}
-	}
 	}
 	pos += snprintf(buf+pos, PAGE_SIZE, "\n");
 
