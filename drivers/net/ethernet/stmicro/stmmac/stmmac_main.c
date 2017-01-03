@@ -2505,6 +2505,9 @@ static int stmmac_release(struct net_device *dev)
 	priv->hw->dma->stop_tx(priv->ioaddr);
 	priv->hw->dma->stop_rx(priv->ioaddr);
 
+	/*delay to make sure the xmit is finished*/
+	msleep(100);
+
 	/* Release and free the Rx/Tx resources */
 	free_dma_desc_resources(priv);
 
