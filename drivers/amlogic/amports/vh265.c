@@ -8168,6 +8168,13 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 		mutex_unlock(&vh265_mutex);
 		return -EFAULT;
 	}
+#ifndef CONFIG_MULTI_DEC
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL
+		|| double_write_mode == 0x10)
+		mmu_enable = 0;
+	else
+		mmu_enable = 1;
+#endif
 	if (init_mmu_buffers(hevc)) {
 		hevc_print(hevc, 0,
 			"\n 265 mmu init failed!\n");
@@ -8181,13 +8188,7 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
 		amvh265_workbuff_spec[i].start_adr = pdata->mem_start;
 	*/
-#ifndef CONFIG_MULTI_DEC
-	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXL
-		|| double_write_mode == 0x10)
-		mmu_enable = 0;
-	else
-		mmu_enable = 1;
-#endif
+
 	if (get_dbg_flag(hevc)) {
 		hevc_print(hevc, 0,
 			"===H.265 decoder mem resource 0x%lx -- 0x%lx\n",
