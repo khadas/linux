@@ -497,16 +497,18 @@ static int lcd_get_vframe_rate_policy(void)
 static int lcd_suspend(void)
 {
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+	lcd_resume_flag = 0;
 	LCDPR("%s finished\n", __func__);
 	return 0;
 }
 
 static int lcd_resume(void)
 {
-#if 0
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
-	LCDPR("%s finished\n", __func__);
-#endif
+	if (lcd_resume_flag == 0) {
+		lcd_resume_flag = 1;
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+		LCDPR("%s finished\n", __func__);
+	}
 
 	return 0;
 }

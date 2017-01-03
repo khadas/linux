@@ -29,7 +29,7 @@
  * ********************************** */
 /* #define LCD_DEBUG_INFO */
 
-extern unsigned int lcd_debug_print_flag;
+extern unsigned char lcd_debug_print_flag;
 #define LCDPR(fmt, args...)     pr_info("lcd: "fmt"", ## args)
 #define LCDERR(fmt, args...)    pr_info("lcd: error: "fmt"", ## args)
 

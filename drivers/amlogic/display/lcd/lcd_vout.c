@@ -49,7 +49,8 @@
 
 #define LCD_CDEV_NAME  "lcd"
 
-unsigned int lcd_debug_print_flag;
+unsigned char lcd_debug_print_flag;
+unsigned char lcd_resume_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
 struct mutex lcd_vout_mutex;
@@ -763,10 +764,13 @@ static void lcd_config_default(void)
 			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
 	pconf->lcd_basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
 			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
-	if (lcd_vcbus_read(ENCL_VIDEO_EN))
+	if (lcd_vcbus_read(ENCL_VIDEO_EN)) {
 		lcd_driver->lcd_status = 1;
-	else
+		lcd_resume_flag = 1;
+	} else {
 		lcd_driver->lcd_status = 0;
+		lcd_resume_flag = 0;
+	}
 	LCDPR("status: %d\n", lcd_driver->lcd_status);
 }
 
@@ -814,6 +818,7 @@ static int lcd_config_probe(void)
 	lcd_driver->lcd_config = &lcd_config_dft;
 	lcd_driver->lcd_config->pinmux_flag = 0;
 	lcd_driver->vpp_sel = 1;
+	lcd_driver->lcd_test_flag = 0;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
 	lcd_driver->power_tiny_ctrl = lcd_power_tiny_ctrl;
@@ -849,6 +854,7 @@ static int lcd_config_probe(void)
 
 static void lcd_resume_work(struct work_struct *p_work)
 {
+	lcd_resume_flag = 1;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 	LCDPR("%s finished\n", __func__);
 }
@@ -923,8 +929,9 @@ static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	if (lcd_driver->lcd_status) {
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
+		lcd_resume_flag = 0;
 		LCDPR("%s finished\n", __func__);
-		}
+	}
 	return 0;
 }
 

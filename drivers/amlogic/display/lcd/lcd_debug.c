@@ -1247,7 +1247,7 @@ static ssize_t lcd_debug_print_store(struct class *class,
 
 	ret = sscanf(buf, "%d", &temp);
 	if (ret == 1) {
-		lcd_debug_print_flag = temp;
+		lcd_debug_print_flag = (unsigned char)temp;
 		LCDPR("set debug print flag: %d\n", lcd_debug_print_flag);
 	} else {
 		pr_info("invalid data\n");
