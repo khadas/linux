@@ -181,6 +181,9 @@ enum select_scaler_path_e {
 #define MODE_3D_OUT_LR	0x00020000
 #define MODE_FORCE_3D_TO_2D_LR	0x00100000
 #define MODE_FORCE_3D_TO_2D_TB	0x00200000
+#define MODE_FORCE_3D_LR	0x01000000
+#define MODE_FORCE_3D_TB	0x02000000
+#define MODE_3D_FP			0x04000000
 
 /*when the output mode is field alterlative*/
 /* LRLRLRLRL mode */
@@ -213,7 +216,7 @@ enum select_scaler_path_e {
 extern
 void vpp_set_3d_scale(bool enable);
 extern
-void get_vpp_3d_mode(u32 trans_fmt, u32 *vpp_3d_mode);
+void get_vpp_3d_mode(u32 process_3d_type, u32 trans_fmt, u32 *vpp_3d_mode);
 #endif
 
 extern void

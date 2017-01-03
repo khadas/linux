@@ -1864,7 +1864,7 @@ static void vpp_set_scaler(u32 process_3d_type, u32 src_width,
 }
 
 #ifdef TV_3D_FUNCTION_OPEN
-void get_vpp_3d_mode(u32 trans_fmt, u32 *vpp_3d_mode)
+void get_vpp_3d_mode(u32 process_3d_type, u32 trans_fmt, u32 *vpp_3d_mode)
 {
 	switch (trans_fmt) {
 	case TVIN_TFMT_3D_LRH_OLOR:
@@ -1879,6 +1879,8 @@ void get_vpp_3d_mode(u32 trans_fmt, u32 *vpp_3d_mode)
 	case TVIN_TFMT_3D_DET_TB:
 	case TVIN_TFMT_3D_FA:
 		*vpp_3d_mode = VPP_3D_MODE_TB;
+		if (process_3d_type & MODE_3D_MVC)
+			*vpp_3d_mode = VPP_3D_MODE_FA;
 		break;
 	case TVIN_TFMT_3D_LA:
 	case TVIN_TFMT_3D_DET_INTERLACE:
@@ -1947,7 +1949,8 @@ vpp_get_video_source_size(u32 *src_width, u32 *src_height,
 			break;
 		}
 
-	} else if (process_3d_type & MODE_3D_LR) {
+	} else if ((process_3d_type & MODE_3D_LR) ||
+	(process_3d_type & MODE_FORCE_3D_LR)) {
 		next_frame_par->vpp_3d_mode = VPP_3D_MODE_LR;
 		if (process_3d_type & MODE_3D_TO_2D_MASK) {
 			*src_width = vf->width >> 1;
@@ -1962,7 +1965,8 @@ vpp_get_video_source_size(u32 *src_width, u32 *src_height,
 			next_frame_par->vpp_2pic_mode = 1;
 		}
 
-	} else if (process_3d_type & MODE_3D_TB) {
+	} else if ((process_3d_type & MODE_3D_TB) ||
+	(process_3d_type & MODE_FORCE_3D_TB)) {
 		next_frame_par->vpp_3d_mode = VPP_3D_MODE_TB;
 		if (process_3d_type & MODE_3D_TO_2D_MASK) {
 			*src_width = vf->width;
@@ -1975,6 +1979,12 @@ vpp_get_video_source_size(u32 *src_width, u32 *src_height,
 			*src_width = vf->width;
 			*src_height = vf->height;
 			next_frame_par->vpp_2pic_mode = 1;
+		}
+		if (process_3d_type & MODE_3D_MVC) {
+			*src_width = vf->width;
+			*src_height = vf->height << 1;
+			next_frame_par->vpp_2pic_mode = 2;
+			next_frame_par->vpp_3d_mode = VPP_3D_MODE_FA;
 		}
 	} else if (process_3d_type & MODE_3D_LA) {
 		next_frame_par->vpp_3d_mode = VPP_3D_MODE_LA;
@@ -2082,7 +2092,7 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 		next_frame_par->vpp_3d_scale = 0;
 	}
 	next_frame_par->trans_fmt = vf->trans_fmt;
-	get_vpp_3d_mode(next_frame_par->trans_fmt,
+	get_vpp_3d_mode(process_3d_type, next_frame_par->trans_fmt,
 		&next_frame_par->vpp_3d_mode);
 	if (vpp_3d_scale)
 		next_frame_par->vpp_3d_scale = 1;

@@ -454,7 +454,10 @@ static int vsync_exit_line_max;
 #ifdef CONFIG_VSYNC_RDMA
 static int vsync_rdma_line_max;
 #endif
-
+static u32 framepacking_support __nosavedata;
+static unsigned int framepacking_width = 1920;
+static unsigned int framepacking_height = 2205;
+static unsigned int framepacking_blank = 45;
 static unsigned int process_3d_type;
 static unsigned int last_process_3d_type;
 #ifdef TV_3D_FUNCTION_OPEN
@@ -857,7 +860,11 @@ static inline struct vframe_s *video_vf_get(void)
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET;
 		atomic_set(&vf->use_cnt, 1);
 		/*always to 1,for first get from vfm provider */
-
+		if ((vf->type & VIDTYPE_MVC) && (framepacking_support)
+		&&(framepacking_width) && (framepacking_height)) {
+			vf->width = framepacking_width;
+			vf->height = framepacking_height;
+		}
 #ifdef TV_3D_FUNCTION_OPEN
 		/*can be moved to h264mvc.c */
 		if ((vf->type & VIDTYPE_MVC)
@@ -869,7 +876,8 @@ static inline struct vframe_s *video_vf_get(void)
 			process_3d_type &= (~MODE_3D_MVC);
 			mvc_flag = 0;
 		}
-		if ((process_3d_type & MODE_FORCE_3D_TO_2D_LR)
+		if (((process_3d_type & MODE_FORCE_3D_TO_2D_LR)
+		|| (process_3d_type & MODE_FORCE_3D_LR))
 		&& (!(vf->type & VIDTYPE_MVC))) {
 			vf->trans_fmt = TVIN_TFMT_3D_DET_LR;
 			vf->left_eye.start_x = 0;
@@ -881,7 +889,8 @@ static inline struct vframe_s *video_vf_get(void)
 			vf->right_eye.start_y = 0;
 			vf->right_eye.width = vf->width / 2;
 		}
-		if ((process_3d_type & MODE_FORCE_3D_TO_2D_TB)
+		if (((process_3d_type & MODE_FORCE_3D_TO_2D_TB)
+		|| (process_3d_type & MODE_FORCE_3D_TB))
 		&& (!(vf->type & VIDTYPE_MVC))) {
 			vf->trans_fmt = TVIN_TFMT_3D_TB;
 			vf->left_eye.start_x = 0;
@@ -941,6 +950,16 @@ int ext_put_video_frame(struct vframe_s *vf)
 	video_vf_put(vf);
 	return 0;
 }
+int is_need_framepacking_output(void)
+{
+	int ret = 0;
+	if ((framepacking_support) &&
+	(cur_dispbuf) && (cur_dispbuf->type & VIDTYPE_MVC)) {
+		ret = 1;
+	}
+	return ret;
+}
+
 
 int ext_register_end_frame_callback(struct amvideocap_req *req)
 {
@@ -1165,12 +1184,23 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 				VPP_VD_SIZE_MASK) <<
 				VPP_VD1_END_BIT));
 			}
-			VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
-			cur_dev->vpp_off,
-			(((framePtr->VPP_vd_end_lines_ / 2) &
-			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
-			(((framePtr->VPP_vd_end_lines_) &
-			VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+			if (is_need_framepacking_output()) {
+				VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
+				cur_dev->vpp_off,
+				(((((framePtr->VPP_vd_end_lines_ -
+			framepacking_blank + 1) / 2) + framepacking_blank) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
+				(((framePtr->VPP_vd_end_lines_) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+			} else {
+				VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
+				cur_dev->vpp_off,
+				((((framePtr->VPP_vd_end_lines_ + 1) / 2) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
+				(((framePtr->VPP_vd_end_lines_) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+			}
+
 		}
 	} else {
 			if ((framePtr->VPP_post_blend_vd_v_end_ -
@@ -1193,12 +1223,23 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 					VPP_VD_SIZE_MASK) <<
 					VPP_VD1_END_BIT));
 			}
-			VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
-			cur_dev->vpp_off,
-			((((framePtr->VPP_vd_end_lines_ + 1) / 2) &
-			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
-			(((framePtr->VPP_vd_end_lines_) &
-			VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+			if (is_need_framepacking_output()) {
+				VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
+				cur_dev->vpp_off,
+				(((((framePtr->VPP_vd_end_lines_ -
+			framepacking_blank + 1) / 2) + framepacking_blank) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
+				(((framePtr->VPP_vd_end_lines_) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+			} else {
+				VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
+				cur_dev->vpp_off,
+				((((framePtr->VPP_vd_end_lines_ + 1) / 2) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
+				(((framePtr->VPP_vd_end_lines_) &
+				VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+			}
+
 	}
 	VSYNC_WR_MPEG_REG(VPP_VSC_REGION12_STARTP + cur_dev->vpp_off, 0);
 	VSYNC_WR_MPEG_REG(VPP_VSC_REGION34_STARTP + cur_dev->vpp_off,
@@ -1516,21 +1557,39 @@ static void zoom_display_vert(void)
 	}
 
 	if ((cur_dispbuf) && (cur_dispbuf->type & VIDTYPE_MVC)) {
-		VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_Y0 + cur_dev->viu_off,
-				(ls * 2 << VDIF_PIC_START_BIT) |
-				((le * 2 - 1) << VDIF_PIC_END_BIT));
+		if (is_need_framepacking_output()) {
+			VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_Y0,
+					(ls << VDIF_PIC_START_BIT) |
+					(le << VDIF_PIC_END_BIT));
 
-		VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_Y0 + cur_dev->viu_off,
-				((ls) << VDIF_PIC_START_BIT) |
-				((le - 1) << VDIF_PIC_END_BIT));
+			VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_Y0,
+					((ls / 2) << VDIF_PIC_START_BIT) |
+					((le / 2) << VDIF_PIC_END_BIT));
 
-		VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_Y0,
-				(ls * 2 << VDIF_PIC_START_BIT) |
-				((le * 2 - 1) << VDIF_PIC_END_BIT));
+			VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_Y0,
+					(rs << VDIF_PIC_START_BIT) |
+					(re << VDIF_PIC_END_BIT));
 
-		VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_Y0,
-				((ls) << VDIF_PIC_START_BIT) |
-				((le - 1) << VDIF_PIC_END_BIT));
+			VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_Y0,
+					((rs / 2) << VDIF_PIC_START_BIT) |
+					((re / 2) << VDIF_PIC_END_BIT));
+		} else {
+			VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_Y0 + cur_dev->viu_off,
+					(ls * 2 << VDIF_PIC_START_BIT) |
+					((le * 2 - 1) << VDIF_PIC_END_BIT));
+
+			VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_Y0 + cur_dev->viu_off,
+					((ls) << VDIF_PIC_START_BIT) |
+					((le - 1) << VDIF_PIC_END_BIT));
+
+			VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_Y0,
+					(ls * 2 << VDIF_PIC_START_BIT) |
+					((le * 2 - 1) << VDIF_PIC_END_BIT));
+
+			VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_Y0,
+					((ls) << VDIF_PIC_START_BIT) |
+					((le - 1) << VDIF_PIC_END_BIT));
+		}
 	} else {
 		VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_Y0 + cur_dev->viu_off,
 				(ls << VDIF_PIC_START_BIT) |
@@ -2464,7 +2523,11 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			pat = vpat[frame_par->vscale_skip_count >> 1];
 	} else if (type & VIDTYPE_MVC) {
 		loop = 0x11;
-		pat = 0x80;
+		if (is_need_framepacking_output()) {
+			pat = 0;
+		} else {
+			pat = 0x80;
+		}
 	} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 		loop = 0x11;
 		pat <<= 4;
@@ -2488,8 +2551,12 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	VSYNC_WR_MPEG_REG(VD1_IF0_LUMA1_RPT_PAT + cur_dev->viu_off, pat);
 	VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA1_RPT_PAT + cur_dev->viu_off, pat);
 
-	if (type & VIDTYPE_MVC)
-		pat = 0x88;
+	if (type & VIDTYPE_MVC) {
+		if (is_need_framepacking_output())
+			pat = 0;
+		else
+			pat = 0x88;
+	}
 
 	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA0_RPT_PAT, pat);
 	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA0_RPT_PAT, pat);
@@ -3737,12 +3804,18 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 					zoom_end_y =
 					cur_frame_par->VPP_vd_end_lines_;
 				} else {
-					zoom_start_y =
-					cur_frame_par->VPP_vd_start_lines_
-					>> 1;
-					zoom_end_y =
-					((cur_frame_par->VPP_vd_end_lines_ +
-					1) >> 1) - 1;
+					if (is_need_framepacking_output()) {
+						zoom_start_y =
+	cur_frame_par->VPP_vd_start_lines_ >> 1;
+						zoom_end_y =
+	((cur_frame_par->VPP_vd_end_lines_
+	- framepacking_blank + 1) >> 1) - 1;
+					} else {
+						zoom_start_y =
+	cur_frame_par->VPP_vd_start_lines_ >> 1;
+						zoom_end_y =
+	((cur_frame_par->VPP_vd_end_lines_ + 1) >> 1) - 1;
+					}
 				}
 			}
 
@@ -3877,6 +3950,10 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				(cur_frame_par->vscale_skip_count + 1);
 				if (cur_dispbuf->type & VIDTYPE_MVC)
 					cur_frame_par->VPP_pic_in_height_ *= 2;
+				if (is_need_framepacking_output()) {
+					cur_frame_par->VPP_pic_in_height_ +=
+					framepacking_blank;
+				}
 				cur_frame_par->VPP_line_in_length_ =
 				(zoom_end_x_lines - zoom_start_x_lines + 1) /
 				(cur_frame_par->hscale_skip_count + 1);
@@ -3897,6 +3974,10 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				cur_frame_par->supsc0_vert_ratio;
 				if (cur_dispbuf->type & VIDTYPE_MVC)
 					cur_frame_par->VPP_pic_in_height_ *= 2;
+				if (is_need_framepacking_output()) {
+					cur_frame_par->VPP_pic_in_height_ +=
+					framepacking_blank;
+				}
 				cur_frame_par->VPP_line_in_length_ =
 				((zoom_end_x_lines - zoom_start_x_lines + 1) /
 				(cur_frame_par->hscale_skip_count + 1)) <<
@@ -4982,8 +5063,8 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			source_video_3d_type =
 		VPP_3D_MODE_NULL;
 		else
-			get_vpp_3d_mode(cur_frame_par->trans_fmt,
-		&source_video_3d_type);
+			get_vpp_3d_mode(process_3d_type,
+			cur_frame_par->trans_fmt, &source_video_3d_type);
 		put_user(source_video_3d_type, (u32 __user *)argp);
 	}
 #endif
@@ -7578,6 +7659,18 @@ module_param(platform_type, bool, 0664);
 MODULE_PARM_DESC(process_3d_type, "\n process_3d_type\n");
 module_param(process_3d_type, uint, 0664);
 
+
+MODULE_PARM_DESC(framepacking_support, "\n framepacking_support\n");
+module_param(framepacking_support, uint, 0664);
+
+MODULE_PARM_DESC(framepacking_width, "\n framepacking_width\n");
+module_param(framepacking_width, uint, 0664);
+
+MODULE_PARM_DESC(framepacking_height, "\n framepacking_height\n");
+module_param(framepacking_height, uint, 0664);
+
+MODULE_PARM_DESC(framepacking_blank, "\n framepacking_blank\n");
+module_param(framepacking_blank, uint, 0664);
 
 #ifdef TV_REVERSE
 module_param(reverse, bool, 0644);
