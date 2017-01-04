@@ -112,8 +112,6 @@ static void vframe_block_add_chunk(struct vframe_block_list_s *block,
 
 static void vframe_block_free_storage(struct vframe_block_list_s *block)
 {
-	struct vdec_input_s *input = block->input;
-
 	if (block->addr) {
 		dma_unmap_single(
 			amports_get_dma_device(),
@@ -126,12 +124,6 @@ static void vframe_block_free_storage(struct vframe_block_list_s *block)
 		block->addr = 0;
 		block->start_virt = NULL;
 		block->start = 0;
-	}
-
-	if (input->swap_page) {
-		__free_page(input->swap_page);
-		input->swap_page = NULL;
-		input->swap_valid = false;
 	}
 
 	block->size = 0;
@@ -511,6 +503,13 @@ void vdec_input_release(struct vdec_input_s *input)
 		struct vframe_block_list_s *block = list_entry(
 			p, struct vframe_block_list_s, list);
 		vdec_input_remove_block(input, block);
+	}
+
+	/* release swap page */
+	if (input->swap_page) {
+		__free_page(input->swap_page);
+		input->swap_page = NULL;
+		input->swap_valid = false;
 	}
 }
 
