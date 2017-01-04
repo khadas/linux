@@ -3071,6 +3071,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 	struct vframe_s *toggle_vf = NULL;
 	int ret;
+	int video1_off_req = 0;
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
@@ -3522,9 +3523,12 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	if (cur_dispbuf) {
 		struct f2v_vphase_s *vphase;
 		u32 vin_type = cur_dispbuf->type & VIDTYPE_TYPEMASK;
-
 		{
-			if (frame_par_ready_to_set)
+			int need_afbc = (cur_dispbuf->type & VIDTYPE_COMPRESS);
+			int afbc_need_reset = video_enabled && need_afbc &&
+			(!(READ_VCBUS_REG(AFBC_ENABLE) & 0x100));
+			/*video on && afbc is off && is compress frame.*/
+			if (frame_par_ready_to_set || afbc_need_reset)
 				viu_set_dcu(cur_frame_par, cur_dispbuf);
 		}
 		{
@@ -4065,6 +4069,7 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				VPU_VIDEO_LAYER1_CHANGED;
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncDisableVideoLayer\n");
+			video1_off_req = 1;
 		}
 
 		spin_unlock_irqrestore(&video_onoff_lock, flags);
@@ -4126,13 +4131,21 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncDisableVideoLayer2\n");
 		}
-
 		spin_unlock_irqrestore(&video2_onoff_lock, flags);
 	}
 
 	if (vpp_misc_save != vpp_misc_set) {
 		VSYNC_WR_MPEG_REG(VPP_MISC + cur_dev->vpp_off,
 			vpp_misc_set);
+	}
+	/*vpp_misc_set maybe have same,but need off.*/
+	if (video1_off_req) {
+		/*video layer off, swith off afbc,
+		will enabled on new frame coming.
+		*/
+		if (debug_flag & DEBUG_FLAG_BLACKOUT)
+			pr_info("AFBC off now.\n");
+		VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0);
 	}
 
 #ifdef CONFIG_VSYNC_RDMA
