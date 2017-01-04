@@ -135,6 +135,7 @@ struct vfq_s q_ready, q_free;
 static int display_mode_change = VF_POOL_SIZE;
 static struct semaphore thread_sem;
 static DEFINE_MUTEX(ppmgr_mutex);
+static bool ppmgr_quit_flag;
 
 #ifdef PPMGR_TB_DETECT
 #define TB_DETECT_BUFFER_MAX_SIZE 16
@@ -172,6 +173,7 @@ static u32 tb_buffer_len = TB_DETECT_BUFFER_MAX_SIZE;
 static atomic_t tb_reset_flag;
 static u32 tb_init_mute;
 static atomic_t tb_skip_flag;
+static bool tb_quit_flag;
 static struct TB_DetectFuncPtr *gfunc;
 static int tb_buffer_init(void);
 #endif
@@ -2727,7 +2729,7 @@ static int ppmgr_task(void *data)
 	while (down_interruptible(&thread_sem) == 0) {
 		struct vframe_s *vf = NULL;
 
-		if (kthread_should_stop())
+		if (kthread_should_stop() || ppmgr_quit_flag)
 			break;
 
 #ifdef CONFIG_POST_PROCESS_MANAGER_PPSCALER
@@ -3529,6 +3531,7 @@ int start_ppmgr_task(void)
 		ppmgr_reset_type = 0;
 		set_buff_change(0);
 		ppmgr_buffer_status = 0;
+		ppmgr_quit_flag = false;
 		task = kthread_run(ppmgr_task, 0, "ppmgr");
 	}
 	task_running = 1;
@@ -3541,8 +3544,11 @@ void stop_ppmgr_task(void)
 	stop_tb_task();
 #endif
 	if (task) {
-		send_sig(SIGTERM, task, 1);
+		/* send_sig(SIGTERM, task, 1); */
+		ppmgr_quit_flag = true;
+		up(&thread_sem);
 		kthread_stop(task);
+		ppmgr_quit_flag = false;
 		task = NULL;
 	}
 	task_running = 0;
@@ -3639,6 +3645,7 @@ static void tb_detect_init(void)
 	tb_buffer_start = 0;
 	tb_buffer_size = 0;
 	tb_first_frame_type = 0;
+	tb_quit_flag = false;
 	tb_init_mute =
 		ppmgr_device.tb_detect_init_mute;
 }
@@ -3658,7 +3665,7 @@ static int tb_task(void *data)
 		gfunc->stats_init((&pReg), TB_DETECT_H, TB_DETECT_W);
 	allow_signal(SIGTERM);
 	while (down_interruptible(&tb_sem) == 0) {
-		if (kthread_should_stop())
+		if (kthread_should_stop() || tb_quit_flag)
 			break;
 		if (tb_buff_rptr == 0) {
 			if (atomic_read(&tb_reset_flag) != 0)
@@ -3746,9 +3753,14 @@ int start_tb_task(void)
 
 void stop_tb_task(void)
 {
+	int val = 0;
 	if (tb_detect_task) {
-		send_sig(SIGTERM, tb_detect_task, 1);
+		tb_quit_flag = true;
+		up(&tb_sem);
+		/* send_sig(SIGTERM, tb_detect_task, 1); */
 		kthread_stop(tb_detect_task);
+		tb_quit_flag = false;
+		sema_init(&tb_sem, val);
 		tb_detect_task = NULL;
 	}
 	tb_task_running = 0;
