@@ -10,6 +10,7 @@
 #define     REMOTE_TYPE_NEC         0x01
 #define     REMOTE_TYPE_DUOKAN      0x02
 #define     REMOTE_TYPE_XMP_1       0x03
+#define     REMOTE_TYPE_RC5         0x04
 #define     REMOTE_TYPE_RAW_NEC     0x101
 #define     REMOTE_TYPE_RAW_XMP_1   0x103
 

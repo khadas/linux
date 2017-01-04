@@ -183,6 +183,8 @@ struct remote_dev *remote_allocate_device(void)
 
 	setup_timer(&dev->timer_keyup, ir_timer_keyup, (unsigned long)dev);
 
+	spin_lock_init(&dev->keylock);
+
 	dev->wait_next_repeat = 0;
 	return dev;
 }

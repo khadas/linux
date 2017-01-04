@@ -19,15 +19,6 @@
 #include "remote_core.h"
 #include "remote_meson.h"
 
-
-static int ir_nec_get_scancode(struct remote_chip *ar);
-static int ir_nec_get_decode_status(struct remote_chip *ar);
-static u32 ir_nec_get_custom_code(struct remote_chip *chip);
-
-static int ir_duokan_get_scancode(struct remote_chip *ar);
-static int ir_duokan_get_decode_status(struct remote_chip *ar);
-static u32 ir_duokan_get_custom_code(struct remote_chip *chip);
-
 static struct remote_reg_map regs_default_nec[] = {
 	{ REG_LDR_ACTIVE,  ((unsigned)500 << 16) | ((unsigned)400 << 0)},
 	{ REG_LDR_IDLE  ,  300 << 16 | 200 << 0},
@@ -97,6 +88,23 @@ static struct remote_reg_map regs_default_nec_sw[] = {
 	{ REG_DURATN2    ,  0           },
 	{ REG_DURATN3    ,  0           },
 	{ REG_REG3       ,  0           }
+};
+
+static struct remote_reg_map regs_default_rc5[] = {
+	{ REG_LDR_ACTIVE ,  0            },
+	{ REG_LDR_IDLE   ,  0            },
+	{ REG_LDR_REPEAT ,  0            },
+	{ REG_BIT_0      ,  0            },
+	{ REG_REG0       ,  ((3 << 28) | (0x1644 << 12) | 0x13)},
+	{ REG_STATUS     ,  (1 << 30)    },
+	{ REG_REG1       ,  ((1 << 15) | (13 << 8))},
+	/*bit[0-3]: RC5; bit[8]: MSB first mode; bit[11]: compare frame method*/
+	{ REG_REG2       ,  ((1 << 13) | (1 << 11) | (1 << 8) | 0x7)},
+	/*Half bit for RC5 format: 888.89us*/
+	{ REG_DURATN2    ,  ((49 << 16) | (40 << 0))  },
+	/*RC5 typically 1777.78us for whole bit*/
+	{ REG_DURATN3    ,  ((94 << 16) | (83 << 0))  },
+	{ REG_REG3       ,  0			 }
 };
 
 void set_hardcode(struct remote_chip *chip, int code)
@@ -281,7 +289,46 @@ static bool ir_raw_xmp_set_custom_code(struct remote_chip *chip, u32 code)
 	return 0;
 }
 
+/*
+* RC5 decoder interface
+* 14bit of one frame is stored in [13:0]:
+*      bit[13:11] is S1, S2, Toggle
+*      bit[10:6] is system_code/custom_code
+*      bit [5:0] is data_code/scan_code
+*/
 
+static int ir_rc5_get_scancode(struct remote_chip *chip)
+{
+	int code = 0;
+	int status = 0;
+	int decode_status = 0;
+
+	remote_reg_read(chip, REG_STATUS, &decode_status);
+	decode_status &= 0xf;
+	if (decode_status & 0x01)
+		status |= REMOTE_REPEAT;
+	chip->decode_status = status;
+	remote_reg_read(chip, REG_FRAME, &code);
+	remote_printk(2, "framecode=0x%x\n", code);
+	chip->r_dev->cur_hardcode = code;
+	code = code & 0x3f;
+	return code;
+}
+
+static int ir_rc5_get_decode_status(struct remote_chip *chip)
+{
+	int status = chip->decode_status;
+
+	return status;
+}
+
+static u32 ir_rc5_get_custom_code(struct remote_chip *chip)
+{
+	u32 custom_code;
+
+	custom_code = (chip->r_dev->cur_hardcode >> 6) & 0x1f;
+	return custom_code;
+}
 
 static struct aml_remote_reg_proto reg_nec = {
 	.protocol = REMOTE_TYPE_NEC,
@@ -334,12 +381,23 @@ static struct aml_remote_reg_proto reg_nec_sw = {
 	.get_custom_code   = NULL,
 };
 
+static struct aml_remote_reg_proto reg_rc5 = {
+	.protocol = REMOTE_TYPE_RC5,
+	.name	  = "RC5",
+	.reg_map      = regs_default_rc5,
+	.reg_map_size = ARRAY_SIZE(regs_default_rc5),
+	.get_scancode      = ir_rc5_get_scancode,
+	.get_decode_status = ir_rc5_get_decode_status,
+	.get_custom_code   = ir_rc5_get_custom_code,
+};
+
 const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_nec,
 	&reg_duokan,
 	&reg_xmp_1,
 	&reg_xmp_1_sw,
 	&reg_nec_sw,
+	&reg_rc5,
 	NULL
 };
 
