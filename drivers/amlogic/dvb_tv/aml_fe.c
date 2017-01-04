@@ -2624,7 +2624,7 @@ static int aml_fe_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_fe_suspend(struct platform_device *dev, pm_message_t state)
+int aml_fe_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
 	struct aml_dvb *dvb = aml_get_dvb_device();
@@ -2651,8 +2651,9 @@ static int aml_fe_suspend(struct platform_device *dev, pm_message_t state)
 
 	return 0;
 }
+EXPORT_SYMBOL(aml_fe_suspend);
 
-static int aml_fe_resume(struct platform_device *dev)
+int aml_fe_resume(struct platform_device *dev)
 {
 	int i;
 
@@ -2673,6 +2674,7 @@ static int aml_fe_resume(struct platform_device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(aml_fe_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id aml_fe_dt_match[] = {
@@ -2686,8 +2688,6 @@ static const struct of_device_id aml_fe_dt_match[] = {
 static struct platform_driver aml_fe_driver = {
 	.probe = aml_fe_probe,
 	.remove = aml_fe_remove,
-	.suspend = aml_fe_suspend,
-	.resume = aml_fe_resume,
 	.driver = {
 		   .name = "amlogic-dvb-fe",
 		   .owner = THIS_MODULE,

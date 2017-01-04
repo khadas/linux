@@ -43,6 +43,8 @@
 #include "aml_dvb.h"
 #include "aml_dvb_reg.h"
 
+#include "aml_fe.h"
+
 #define pr_dbg(args...)\
 	do {\
 		if (debug_dvb)\
@@ -1603,6 +1605,26 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int aml_dvb_suspend(struct platform_device *dev, pm_message_t state)
+{
+	aml_fe_suspend(dev, state);
+	return 0;
+}
+
+static int aml_dvb_resume(struct platform_device *dev)
+{
+	struct aml_dvb *dvb = &aml_dvb_device;
+	int i;
+
+	aml_fe_resume(dev);
+
+	for (i = 0; i < DMX_DEV_COUNT; i++)
+		dmx_reset_dmx_id_hw_ex(dvb, i, 0);
+
+	pr_inf("dvb resume\n");
+	return 0;
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id aml_dvb_dt_match[] = {
 	{
@@ -1615,6 +1637,8 @@ static const struct of_device_id aml_dvb_dt_match[] = {
 static struct platform_driver aml_dvb_driver = {
 	.probe = aml_dvb_probe,
 	.remove = aml_dvb_remove,
+	.suspend = aml_dvb_suspend,
+	.resume = aml_dvb_resume,
 	.driver = {
 		   .name = "amlogic-dvb",
 		   .owner = THIS_MODULE,

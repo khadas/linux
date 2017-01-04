@@ -194,6 +194,8 @@ extern int aml_register_fe_drv(enum aml_fe_dev_type_t	type,
 			       struct aml_fe_drv *drv);
 extern int aml_unregister_fe_drv(enum aml_fe_dev_type_t type,
 				 struct aml_fe_drv *drv);
+extern int aml_fe_suspend(struct platform_device *dev, pm_message_t state);
+extern int aml_fe_resume(struct platform_device *dev);
 
 extern struct dvb_frontend *get_si2177_tuner(void);
 extern const char *soundsys_to_str(unsigned short soundsys);
