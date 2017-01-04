@@ -92,16 +92,6 @@ static struct hdr_metadata_info_s vpp_hdr_metadata_s;
 
 void __iomem *amvecm_hiu_reg_base;/* = *ioremap(0xc883c000, 0x2000); */
 
-#define MD_BLOCK_SIZE 128
-static char *metadata_buf;
-static int metadata_buf_size = 1024 * 1024 + MD_BLOCK_SIZE;
-static int metadata_buf_level;
-static char *metadata_buf_rd;
-static char *metadata_buf_wr;
-static bool metabuf_reset;
-module_param(metabuf_reset, bool, 0664);
-MODULE_PARM_DESC(metabuf_reset, "\n metabuf_reset\n");
-
 static bool debug_amvecm;
 module_param(debug_amvecm, bool, 0664);
 MODULE_PARM_DESC(debug_amvecm, "\n debug_amvecm\n");
@@ -829,7 +819,8 @@ void amvecm_video_latch(void)
 
 void amvecm_on_vs(struct vframe_s *vf)
 {
-	if ((probe_ok == 0) || is_dolby_vision_on())
+	if ((probe_ok == 0) ||
+	(is_meson_gxm_cpu() && is_dolby_vision_on()))
 		return;
 
 	if (vf != NULL) {
@@ -857,7 +848,7 @@ EXPORT_SYMBOL(amvecm_on_vs);
 
 void refresh_on_vs(struct vframe_s *vf)
 {
-	if (is_dolby_vision_on())
+	if (is_meson_gxm_cpu() && is_dolby_vision_on())
 		return;
 	if (vf != NULL) {
 		vpp_get_vframe_hist_info(vf);
@@ -875,268 +866,6 @@ static int amvecm_open(struct inode *inode, struct file *file)
 	file->private_data = devp;
 	return 0;
 }
-
-static ssize_t amvecm_read(struct file *filp,
-	char *buffer,    /* The buffer to fill with data */
-	size_t length,   /* The length of the buffer     */
-	loff_t *offset)  /* Our offset in the file       */
-{
-	/* Number of bytes actually written to the buffer */
-	int bytes_read = 0;
-
-	/* Actually put the data into the buffer */
-	while (length && metadata_buf_level)  {
-		/* The buffer is in the user data segment,
-		* not the kernel segment;
-		* assignment won't work.
-		* We have to use put_user which copies data from
-		* the kernel data segment to the user data segment. */
-		put_user(*metadata_buf_rd, buffer++);
-		metadata_buf_rd++;
-		if (metadata_buf_rd == metadata_buf + metadata_buf_size)
-			metadata_buf_rd = metadata_buf + MD_BLOCK_SIZE;
-		length--;
-		metadata_buf_level--;
-		bytes_read++;
-	}
-
-	/* Most read functions return the number of
-	bytes put into the buffer */
-	return bytes_read;
-}
-
-static ssize_t amvecm_write(
-	struct file *file,
-	const char *buf,
-	size_t len,
-	loff_t *off)
-{
-	int i;
-
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_GXM)
-		return 0;
-	if (metadata_buf == NULL) {
-		metadata_buf = vmalloc(metadata_buf_size);
-		if (metadata_buf == NULL)
-			return -ENOSPC;
-		metadata_buf_rd = metadata_buf + MD_BLOCK_SIZE;
-		metadata_buf_wr = metadata_buf + MD_BLOCK_SIZE;
-		metadata_buf_level = 0;
-		pr_amvecm_dbg("malloc %d bytes %p for meta data.\n",
-			metadata_buf_size, (void *)metadata_buf);
-	}
-	if (metabuf_reset) {
-		metadata_buf_rd = metadata_buf + MD_BLOCK_SIZE;
-		metadata_buf_wr = metadata_buf + MD_BLOCK_SIZE;
-		metadata_buf_level = 0;
-		metabuf_reset = false;
-	}
-	if (len + MD_BLOCK_SIZE >=
-		metadata_buf_size - metadata_buf_level - MD_BLOCK_SIZE)
-		return -ENOSPC;
-	for (i = 0; i < len; i++) {
-		*metadata_buf_wr = buf[i];
-		metadata_buf_wr++;
-		if (metadata_buf_wr == metadata_buf + metadata_buf_size)
-			metadata_buf_wr = metadata_buf + MD_BLOCK_SIZE;
-		*metadata_buf_wr = 0;
-	}
-	metadata_buf_level += len;
-
-/*
-	pr_amvecm_dbg("wr md %d (wr=%lx,lvl=%d).\n",
-		(int)len,
-		(unsigned long)(metadata_buf_wr
-			- (metadata_buf + MD_BLOCK_SIZE)),
-		metadata_buf_level);
-*/
-	return len;
-}
-
-static int meta_timeout_count;
-static uint32_t meta_wait_level;
-int metadata_read_u32(uint32_t *value)
-{
-	char *token;
-	char *next_token;
-
-	char tempbuf[64];
-	size_t tail_size;
-	int ret = -1;
-	int error;
-	int i;
-
-	if ((metadata_buf == NULL) || (metadata_buf_level == 0))
-		return -4;
-	tail_size = metadata_buf + metadata_buf_size - metadata_buf_rd;
-	if (tail_size < MD_BLOCK_SIZE) {
-		if (metadata_buf_level < tail_size)
-			tail_size = metadata_buf_level + 1;
-		memcpy(metadata_buf + MD_BLOCK_SIZE - tail_size,
-			metadata_buf_rd, tail_size);
-		metadata_buf_rd = metadata_buf + MD_BLOCK_SIZE - tail_size;
-	}
-	next_token = metadata_buf_rd;
-
-	tempbuf[0] = '0';
-	tempbuf[1] = 'x';
-	while (next_token != NULL && ret == -1
-		&& (metadata_buf_level > 0)) {
-		token = strsep(&next_token, " \r\n");
-		if (token != NULL) {
-			if ((token[0] == 'f') && (token[1] == 'r')) {
-				ret = -1; /* skip */
-			} else if ((token[0] == 'p')
-				&& (token[1] == 't')
-				&& (token[2] == 's')) {
-				ret = -2;
-			} else if ((token[0] == 'l')
-				&& (token[1] == 'e')
-				&& (token[2] == 'n')) {
-				ret = -3;
-			} else {
-				strcpy(tempbuf + 2, token);
-				for (i = 2; i < strlen(tempbuf); i++)
-					if ((tempbuf[i] == 0x0d)
-						|| (tempbuf[i] == 0x0a)
-						|| (tempbuf[i] == ' '))
-						tempbuf[i] = 0;
-				if (strlen(tempbuf) > 2) {
-					error = kstrtouint(tempbuf, 16, value);
-					if (error == 0)
-						ret = 0;
-					else
-						pr_info("token = %s", tempbuf);
-				}
-			}
-		}
-		if (next_token != NULL) {
-			metadata_buf_level -= next_token - metadata_buf_rd;
-			if (metadata_buf_level <= 0) {
-				pr_info("*** meta underflow: rd=%llx next=%llx ***\n",
-					(unsigned long long)metadata_buf_rd,
-					(unsigned long long)next_token);
-				metadata_buf_rd = metadata_buf + MD_BLOCK_SIZE;
-				metadata_buf_wr = metadata_buf + MD_BLOCK_SIZE;
-				metadata_buf_level = 0;
-				ret = -4;
-			}
-			metadata_buf_rd = next_token;
-		} else {
-			metadata_buf_rd = metadata_buf + MD_BLOCK_SIZE;
-			metadata_buf_wr = metadata_buf + MD_BLOCK_SIZE;
-			metadata_buf_level = 0;
-			pr_info("*** meta empty ***\n");
-			ret = -4;
-		}
-	}
-	return ret;
-}
-EXPORT_SYMBOL(metadata_read_u32);
-
-int metadata_wait(struct vframe_s *vf)
-{
-	int ret = 0;
-	int data;
-
-	if (meta_wait_level == 0) {
-		if (metadata_buf_level < 256)
-			return 1;
-		while (ret == 0) {
-			ret = metadata_read_u32(&data);
-			if (ret == -3) {
-				meta_timeout_count = 0;
-				if (metadata_read_u32(&data) == 0)
-					meta_wait_level = data;
-				/* pr_info("*** frame len = %d lvl = %d ***\n",
-					meta_wait_level, metadata_buf_level); */
-				break;
-			}
-		}
-		if (ret != -3)
-			return 1;
-	}
-	if (metadata_buf_level < meta_wait_level + 256) {
-		meta_timeout_count++;
-		if (meta_timeout_count < 10) {
-			ret = 1;
-		} else {
-			pr_info("======= wait meta level %d %d time out ========\n",
-			metadata_buf_level, meta_wait_level);
-			ret = 0;
-		}
-		return ret;
-	}
-	meta_timeout_count = 0;
-	return 0;
-}
-EXPORT_SYMBOL(metadata_wait);
-
-static int last_pts_invalid = 1;
-int metadata_sync(uint32_t frame_id, uint64_t pts)
-{
-	uint32_t data;
-	uint32_t pts_lo;
-	uint32_t pts_hi;
-	uint64_t pts64;
-	int pts_invalid;
-	int ret = 0;
-
-	while (ret == 0) {
-		if (meta_wait_level) {
-			if (meta_wait_level > metadata_buf_level)
-				return -1;
-		}
-		ret = metadata_read_u32(&data);
-		if (ret == -2) {
-			metadata_read_u32(&data);
-			metadata_read_u32(&pts_lo);
-			metadata_read_u32(&pts_hi);
-			pts_invalid = pts_hi & 0x80000000;
-			pts_hi &= 0x7fffffff;
-			pts64 = ((uint64_t)pts_hi << 32) | pts_lo;
-			if ((pts == pts64) || pts_invalid || last_pts_invalid) {
-				pr_amvecm_dbg("*** sync %d[%lld],%d[%lld] lvl=%d size=%d %s meta ***\n",
-					data, pts64, frame_id, pts,
-					metadata_buf_level, meta_wait_level,
-					pts_invalid ? "without" : "with");
-				last_pts_invalid = pts_invalid;
-				meta_wait_level = 0;
-				if (pts_invalid)
-					return 1;
-				else
-					return 0;
-			} else if (pts64 < pts) {
-				pr_info("*** drop %d[%lld] %d[%lld], lvl=%d size=%d %s meta ***\n",
-					data, pts64, frame_id, pts,
-					metadata_buf_level, meta_wait_level,
-					pts_invalid ? "without" : "with");
-				dolby_vision_pop_metadata();
-				last_pts_invalid = pts_invalid;
-				meta_wait_level = 0;
-				ret = 0;
-			} else {
-				pr_info("*** miss %d[%lld] %d[%lld], lvl=%d size=%d %s meta ***\n",
-					data, pts64, frame_id, pts,
-					metadata_buf_level, meta_wait_level,
-					pts_invalid ? "without" : "with");
-				last_pts_invalid = pts_invalid;
-				return -1;
-			}
-		} else if (ret == -3) {
-			data = 0;
-			metadata_read_u32(&data);
-			meta_wait_level = data;
-			pr_info("*** next frame meta len = %d ***\n",
-				meta_wait_level);
-			ret = 0;
-		} else if (ret == -4) {
-			return 2;
-		}
-	}
-	return -1;
-}
-EXPORT_SYMBOL(metadata_sync);
 
 static int amvecm_release(struct inode *inode, struct file *file)
 {
@@ -2694,7 +2423,7 @@ static ssize_t amvecm_dv_mode_show(struct class *cla,
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_HDR10		3\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_SDR10		4\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_SDR8		5\n");
-	if (is_dolby_vision_on())
+	if (is_meson_gxm_cpu() && is_dolby_vision_on())
 		pr_info("current dv_mode = %d\n", get_dolby_vision_mode()+1);
 	else
 		pr_info("current dv_mode = %d\n", 0);
@@ -2707,15 +2436,17 @@ static ssize_t amvecm_dv_mode_store(struct class *cla,
 {
 	size_t r;
 	int val;
-	r = sscanf(buf, "0x%x", &val);
-	if ((r != 1))
-		return -EINVAL;
 
-	if (val == 0)
-		enable_dolby_vision(0);
-	else if (val > 0)
-		set_dolby_vision_mode(val - 1);
+	if (is_meson_gxm_cpu()) {
+		r = sscanf(buf, "0x%x", &val);
+		if ((r != 1))
+			return -EINVAL;
 
+		if (val == 0)
+			enable_dolby_vision(0);
+		else if (val > 0)
+			set_dolby_vision_mode(val - 1);
+	}
 	return count;
 }
 
@@ -2879,8 +2610,6 @@ static struct class_attribute amvecm_class_attrs[] = {
 static const struct file_operations amvecm_fops = {
 	.owner   = THIS_MODULE,
 	.open    = amvecm_open,
-	.read    = amvecm_read,
-	.write   = amvecm_write,
 	.release = amvecm_release,
 	.unlocked_ioctl   = amvecm_ioctl,
 #ifdef CONFIG_COMPAT
@@ -3005,6 +2734,8 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
 	}
 	aml_vecm_dt_parse(pdev);
+	if (is_meson_gxm_cpu())
+		dolby_vision_init_receiver();
 	probe_ok = 1;
 	pr_info("%s: ok\n", __func__);
 	return 0;
@@ -3034,10 +2765,6 @@ fail_alloc_region:
 static int __exit aml_vecm_remove(struct platform_device *pdev)
 {
 	struct amvecm_dev_s *devp = &amvecm_dev;
-	if (metadata_buf) {
-		vfree(metadata_buf);
-		metadata_buf = NULL;
-	}
 	device_destroy(devp->clsp, devp->devno);
 	cdev_del(&devp->cdev);
 	class_destroy(devp->clsp);

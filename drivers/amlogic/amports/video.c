@@ -679,6 +679,16 @@ static u32 ori_end_x_lines;
 static u32 ori_start_y_lines;
 static u32 ori_end_y_lines;
 
+static u32 zoom2_start_x_lines;
+static u32 zoom2_end_x_lines;
+static u32 zoom2_start_y_lines;
+static u32 zoom2_end_y_lines;
+
+static u32 ori2_start_x_lines;
+static u32 ori2_end_x_lines;
+static u32 ori2_start_y_lines;
+static u32 ori2_end_y_lines;
+
 /* wide settings */
 static u32 wide_setting;
 
@@ -715,6 +725,7 @@ static const struct vinfo_s *vinfo;
 
 /* config */
 static struct vframe_s *cur_dispbuf;
+static struct vframe_s *cur_dispbuf2;
 void update_cur_dispbuf(void *buf)
 {
 	cur_dispbuf = buf;
@@ -928,6 +939,8 @@ static inline void video_vf_put(struct vframe_s *vf)
 	struct vframe_provider_s *vfp = vf_get_provider(RECEIVER_NAME);
 	if (vfp && atomic_dec_and_test(&vf->use_cnt)) {
 		vf_put(vf, RECEIVER_NAME);
+		if (is_dolby_vision_enable())
+			dolby_vision_vf_put(vf);
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
 	}
 }
@@ -1094,6 +1107,26 @@ static void vpp_settings_h(struct vpp_frame_par_s *framePtr)
 			framePtr->VPP_line_in_length_);
 }
 
+
+static void vd2_settings_h(struct vframe_s *vf)
+{
+	u32 VPP_hd_start_lines_;
+	u32 VPP_hd_end_lines_;
+
+	if (vf) {
+		VPP_hd_start_lines_ = 0;
+		VPP_hd_end_lines_ = ((vf->type & VIDTYPE_COMPRESS) ?
+		vf->compWidth : vf->width) - 1;
+		VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_H_START_END +
+		cur_dev->vpp_off,
+		((VPP_hd_start_lines_ &
+		VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
+		((VPP_hd_end_lines_ &
+		VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+	}
+}
+
+
 static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 {
 	struct vppfilter_mode_s *vpp_filter = &framePtr->vpp_filter;
@@ -1254,6 +1287,26 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 
 	VSYNC_WR_MPEG_REG(VPP_VSC_START_PHASE_STEP + cur_dev->vpp_off,
 			vpp_filter->vpp_vsc_start_phase_step);
+}
+
+
+static void vd2_settings_v(struct vframe_s *vf)
+{
+	u32 VPP_vd_start_lines_;
+	u32 VPP_vd_end_lines_;
+
+	if (vf) {
+		VPP_vd_start_lines_ = 0;
+		VPP_vd_end_lines_ = ((vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height) - 1;
+
+		VSYNC_WR_MPEG_REG(VPP_BLEND_VD2_V_START_END +
+			cur_dev->vpp_off,
+			((VPP_vd_start_lines_ &
+			VPP_VD_SIZE_MASK) << VPP_VD1_START_BIT) |
+			(((VPP_vd_end_lines_) &
+			VPP_VD_SIZE_MASK) << VPP_VD1_END_BIT));
+	}
 }
 
 #ifdef TV_3D_FUNCTION_OPEN
@@ -1532,6 +1585,79 @@ static void zoom_display_horz(int hscale)
 			     1) >> hscale) << VD1_FMT_CHROMA_WIDTH_BIT));
 }
 
+static void vd2_zoom_display_horz(int hscale)
+{
+	u32 ls, le, rs, re;
+	int content_w, content_l, content_r;
+
+	ls = rs = zoom2_start_x_lines;
+	le = re = zoom2_end_x_lines;
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		int l_aligned;
+		int r_aligned;
+		if ((zoom2_start_x_lines > 0) ||
+		(zoom2_end_x_lines < ori2_end_x_lines)) {
+			l_aligned = round_down(ori2_start_x_lines, 32);
+			r_aligned = round_up(ori2_end_x_lines + 1, 32);
+		} else {
+			l_aligned = round_down(ori2_start_x_lines, 32);
+			r_aligned = round_up(ori2_end_x_lines + 1, 32);
+		}
+		VSYNC_WR_MPEG_REG(VD2_AFBC_VD_CFMT_W,
+			  ((r_aligned - l_aligned) << 16) |
+			  (r_aligned / 2 - l_aligned / 2));
+		VSYNC_WR_MPEG_REG(VD2_AFBC_MIF_HOR_SCOPE,
+			  ((l_aligned / 32) << 16) |
+			  ((r_aligned / 32) - 1));
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
+			VSYNC_WR_MPEG_REG(VD2_AFBC_SIZE_OUT,
+				(VSYNC_RD_MPEG_REG(VD2_AFBC_SIZE_OUT) &
+				0xffff) | ((r_aligned - l_aligned) << 16));
+		}
+#ifdef TV_REVERSE
+		if (reverse) {
+			content_w = zoom2_end_x_lines - zoom2_start_x_lines + 1;
+			content_l = (r_aligned - zoom2_end_x_lines - 1) +
+			(zoom2_start_x_lines - l_aligned);
+			content_r = content_l + content_w - 1;
+			VSYNC_WR_MPEG_REG(VD2_AFBC_PIXEL_HOR_SCOPE,
+				  (content_l << 16) | content_r);
+		} else
+#endif
+		{
+			VSYNC_WR_MPEG_REG(VD2_AFBC_PIXEL_HOR_SCOPE,
+				  ((zoom2_start_x_lines - l_aligned) << 16) |
+				  (zoom2_end_x_lines - l_aligned));
+		}
+		VSYNC_WR_MPEG_REG(VD2_AFBC_SIZE_IN,
+			 (VSYNC_RD_MPEG_REG(VD2_AFBC_SIZE_IN) & 0xffff) |
+			 ((r_aligned - l_aligned) << 16));
+	}
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_X0,
+			  (ls << VDIF_PIC_START_BIT) |
+			  (le << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_X0,
+			  (ls / 2 << VDIF_PIC_START_BIT) |
+			  (le / 2 << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_X1,
+			  (rs << VDIF_PIC_START_BIT) |
+			  (re << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_X1,
+			  (rs / 2 << VDIF_PIC_START_BIT) |
+			  (re / 2 << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VIU_VD2_FMT_W + cur_dev->viu_off,
+			  (((zoom2_end_x_lines - zoom2_start_x_lines +
+			     1) >> hscale) << VD1_FMT_LUMA_WIDTH_BIT) |
+			  (((zoom2_end_x_lines / 2 - zoom2_start_x_lines / 2 +
+			     1) >> hscale) << VD1_FMT_CHROMA_WIDTH_BIT));
+}
+
 static void zoom_display_vert(void)
 {
 
@@ -1647,8 +1773,62 @@ static void zoom_display_vert(void)
 		(b_aligned - t_aligned));
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
 			VSYNC_WR_MPEG_REG(AFBC_SIZE_OUT,
-				(VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) & 0xffff0000)
-				| (b_aligned - t_aligned));
+				(VSYNC_RD_MPEG_REG(AFBC_SIZE_OUT) &
+				0xffff0000) | (b_aligned - t_aligned));
+		}
+	}
+}
+
+static void vd2_zoom_display_vert(void)
+{
+
+	u32 ls, le, rs, re;
+
+	ls = rs = zoom2_start_x_lines;
+	le = re = zoom2_end_x_lines;
+
+	/* vd2 */
+	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_Y0,
+			(ls << VDIF_PIC_START_BIT) |
+			(le << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_Y0,
+			((ls / 2) << VDIF_PIC_START_BIT) |
+			((le / 2) << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_Y1,
+			(rs << VDIF_PIC_START_BIT) |
+			(re << VDIF_PIC_END_BIT));
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_Y1,
+			((rs / 2) << VDIF_PIC_START_BIT) |
+			((re / 2) << VDIF_PIC_END_BIT));
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		int t_aligned;
+		int b_aligned;
+
+		t_aligned = round_down(zoom2_start_y_lines, 4);
+		b_aligned = round_up(zoom2_end_y_lines + 1, 4);
+
+		VSYNC_WR_MPEG_REG(VD2_AFBC_VD_CFMT_H,
+		    b_aligned - t_aligned);
+
+		VSYNC_WR_MPEG_REG(VD2_AFBC_MIF_VER_SCOPE,
+		    ((t_aligned / 4) << 16) |
+		    ((b_aligned / 4) - 1));
+
+		VSYNC_WR_MPEG_REG(VD2_AFBC_PIXEL_VER_SCOPE,
+		    ((zoom2_start_y_lines - t_aligned) << 16) |
+		    (zoom2_end_y_lines - t_aligned));
+
+		VSYNC_WR_MPEG_REG(VD2_AFBC_SIZE_IN,
+			(VSYNC_RD_MPEG_REG(VD2_AFBC_SIZE_IN) & 0xffff0000) |
+			(b_aligned - t_aligned));
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXL) {
+			VSYNC_WR_MPEG_REG(VD2_AFBC_SIZE_OUT,
+			(VSYNC_RD_MPEG_REG(VD2_AFBC_SIZE_OUT) & 0xffff0000)
+			| (b_aligned - t_aligned));
 		}
 	}
 }
@@ -2203,12 +2383,14 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 		if (first_picture && (disable_video != VIDEO_DISABLE_NORMAL)) {
 			EnableVideoLayer();
 
-			if (vf->type & VIDTYPE_MVC)
+			if ((vf->type & VIDTYPE_MVC) ||
+			(cur_dispbuf2 && (cur_dispbuf2->type & VIDTYPE_VD2)))
 				EnableVideoLayer2();
 		}
 	}
 	if (cur_dispbuf && (cur_dispbuf->type != vf->type)) {
-		if (vf->type & VIDTYPE_MVC)
+		if ((vf->type & VIDTYPE_MVC) ||
+		(cur_dispbuf2 && (cur_dispbuf2->type & VIDTYPE_VD2)))
 			EnableVideoLayer2();
 		else
 			DisableVideoLayer2();
@@ -2648,10 +2830,238 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VSYNC_WR_MPEG_REG(VD1_IF0_LUMA_PSEL +
 				cur_dev->viu_off, 0);
 				VSYNC_WR_MPEG_REG(VD1_IF0_CHROMA_PSEL +
-						  cur_dev->viu_off, 0);
+				cur_dev->viu_off, 0);
 				VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_PSEL, 0);
 				VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_PSEL, 0);
 			}
+		}
+	}
+}
+
+static void vd2_set_dcu(struct vframe_s *vf)
+{
+	u32 r;
+	u32 vphase, vini_phase;
+	u32 pat, loop;
+	static const u32 vpat[] = { 0, 0x8, 0x9, 0xa, 0xb, 0xc };
+	u32 u, v;
+	u32 type = vf->type;
+	u32 skip_count = 0;
+
+	pr_info("set dcu for vd2\n");
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		if (type & VIDTYPE_COMPRESS) {
+			r = (3 << 24) |
+			    (17 << 16) |
+			    (1 << 14) | /*burst1 1*/
+			    (vf->bitdepth & BITDEPTH_MASK);
+
+			if (skip_count)
+				r |= 0x33;
+			if (skip_count)
+				r |= 0xcc;
+
+#ifdef TV_REVERSE
+			if (reverse)
+				r |= (1<<26)|(1<<27);
+#endif
+			if (vf->bitdepth & BITDEPTH_SAVING_MODE)
+				r |= (1<<28); /* mem_saving_mode */
+			VSYNC_WR_MPEG_REG(VD2_AFBC_MODE, r);
+			VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE, 0x1700);
+			VSYNC_WR_MPEG_REG(VD2_AFBC_CONV_CTRL, 0x100);
+			u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
+			v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
+			VSYNC_WR_MPEG_REG(VD2_AFBC_DEC_DEF_COLOR,
+				0x3FF00000 | /*Y,bit20+*/
+				0x80 << (u + 10) |
+				0x80 << v);
+			/* chroma formatter */
+#ifdef TV_REVERSE
+			if (reverse) {
+				VSYNC_WR_MPEG_REG(VD2_AFBC_VD_CFMT_CTRL,
+					/*HFORMATTER_RRT_PIXEL0 |*/
+					HFORMATTER_YC_RATIO_2_1 |
+					HFORMATTER_EN |
+					VFORMATTER_RPTLINE0_EN |
+					/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
+					(0x8 << VFORMATTER_PHASE_BIT) |
+					VFORMATTER_EN);
+			} else
+#endif
+			{
+				VSYNC_WR_MPEG_REG(VD2_AFBC_VD_CFMT_CTRL,
+					HFORMATTER_RRT_PIXEL0 |
+					HFORMATTER_YC_RATIO_2_1 |
+					HFORMATTER_EN |
+					VFORMATTER_RPTLINE0_EN |
+					/*(0xa << VFORMATTER_INIPHASE_BIT) |*/
+					(0x8 << VFORMATTER_PHASE_BIT) |
+					VFORMATTER_EN);
+			}
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL1 +
+					cur_dev->viu_off, 1, 1, 1);
+			return;
+
+		} else {
+			VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL1 +
+					cur_dev->viu_off, 0, 1, 1);
+			VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE, 0);
+		}
+	}
+
+	r = (3 << VDIF_URGENT_BIT) |
+	    (17 << VDIF_HOLD_LINES_BIT) |
+	    VDIF_FORMAT_SPLIT |
+	    VDIF_CHRO_RPT_LAST | VDIF_ENABLE;
+	/*  | VDIF_RESET_ON_GO_FIELD;*/
+	if (debug_flag & DEBUG_FLAG_GOFIELD_MANUL)
+		r |= 1<<7; /*for manul triggle gofiled.*/
+
+	if ((type & VIDTYPE_VIU_SINGLE_PLANE) == 0)
+		r |= VDIF_SEPARATE_EN;
+	else {
+		if (type & VIDTYPE_VIU_422)
+			r |= VDIF_FORMAT_422;
+		else {
+			r |= VDIF_FORMAT_RGB888_YUV444 |
+			    VDIF_DEMUX_MODE_RGB_444;
+		}
+	}
+
+	if (skip_count)
+		r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG, r);
+
+#ifdef TV_REVERSE
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
+		if (reverse) {
+				VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
+					cur_dev->viu_off), 0xf, 2, 4);
+		} else {
+				VSYNC_WR_MPEG_REG_BITS((VD2_IF0_GEN_REG2 +
+					cur_dev->viu_off), 0, 2, 4);
+		}
+	}
+#endif
+
+	/* chroma formatter */
+	if (type & VIDTYPE_VIU_444) {
+		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+				  HFORMATTER_YC_RATIO_1_1);
+	} else if (type & VIDTYPE_VIU_FIELD) {
+		vini_phase = 0xc << VFORMATTER_INIPHASE_BIT;
+		vphase =
+		    ((type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
+		    VFORMATTER_PHASE_BIT;
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
+		if ((vf->width >= 3840) &&
+			(vf->height >= 2160) &&
+			(type & VIDTYPE_VIU_422)) {
+
+			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+			HFORMATTER_RRT_PIXEL0 | HFORMATTER_YC_RATIO_2_1 |
+			HFORMATTER_EN | VFORMATTER_RPTLINE0_EN |
+			vini_phase | vphase);
+			} else {
+			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+			HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
+			VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
+			VFORMATTER_EN);
+			}
+		} else {
+
+			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
+				VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
+				VFORMATTER_EN);
+		}
+	} else if (type & VIDTYPE_MVC) {
+		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
+				HFORMATTER_YC_RATIO_2_1 |
+				HFORMATTER_EN |
+				VFORMATTER_RPTLINE0_EN |
+				(0xe << VFORMATTER_INIPHASE_BIT) |
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
+				VFORMATTER_RPTLINE0_EN | (0xa <<
+				VFORMATTER_INIPHASE_BIT) |
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+	} else if ((type & VIDTYPE_INTERLACE)
+		   &&
+		   (((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP))) {
+		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+				HFORMATTER_YC_RATIO_2_1 |
+				HFORMATTER_EN |
+				VFORMATTER_RPTLINE0_EN |
+				(0xe << VFORMATTER_INIPHASE_BIT) |
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+	} else {
+		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+				HFORMATTER_YC_RATIO_2_1 |
+				HFORMATTER_EN |
+				VFORMATTER_RPTLINE0_EN |
+				(0xa << VFORMATTER_INIPHASE_BIT) |
+				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+	}
+	/* LOOP/SKIP pattern */
+	pat = vpat[skip_count];
+
+	if (type & VIDTYPE_VIU_FIELD) {
+		loop = 0;
+
+	if (type & VIDTYPE_INTERLACE)
+			pat = vpat[skip_count >> 1];
+	} else if (type & VIDTYPE_MVC) {
+		loop = 0x11;
+		pat = 0x80;
+	} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
+		loop = 0x11;
+		pat <<= 4;
+	} else
+		loop = 0;
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_RPT_LOOP,
+			(loop << VDIF_CHROMA_LOOP1_BIT) |
+			(loop << VDIF_LUMA_LOOP1_BIT) |
+			(loop << VDIF_CHROMA_LOOP0_BIT) |
+			(loop << VDIF_LUMA_LOOP0_BIT));
+
+	if (type & VIDTYPE_MVC)
+		pat = 0x88;
+
+	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA0_RPT_PAT, pat);
+	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA0_RPT_PAT, pat);
+	VSYNC_WR_MPEG_REG(VD2_IF0_LUMA1_RPT_PAT, pat);
+	VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA1_RPT_PAT, pat);
+
+	if (platform_type == 0) {
+		/* picture 0/1 control */
+		if (((type & VIDTYPE_INTERLACE) == 0) &&
+			((type & VIDTYPE_VIU_FIELD) == 0) &&
+			((type & VIDTYPE_MVC) == 0)) {
+			/* progressive frame in two pictures */
+
+		} else {
+			VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_PSEL, 0);
+			VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_PSEL, 0);
+		}
+	} else {
+		/* picture 0/1 control */
+		if ((((type & VIDTYPE_INTERLACE) == 0) &&
+			 ((type & VIDTYPE_VIU_FIELD) == 0) &&
+			 ((type & VIDTYPE_MVC) == 0))) {
+			/* progressive frame in two pictures */
+
+		} else {
+			VSYNC_WR_MPEG_REG(VD2_IF0_LUMA_PSEL, 0);
+			VSYNC_WR_MPEG_REG(VD2_IF0_CHROMA_PSEL, 0);
 		}
 	}
 }
@@ -3433,11 +3843,15 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			amlog_mask_if(toggle_cnt > 0, LOG_MASK_FRAMESKIP,
 				      "skipped\n");
 
+			if (is_dolby_vision_enable()) {
+				ret = dolby_vision_wait_metadata(vf);
+				if (ret == 2)
+					break;
+			}
+
 #if defined(CONFIG_AM_VECM)
 			refresh_on_vs(vf);
 #endif
-			if (is_dolby_vision_enable())
-				metadata_wait(vf);
 
 			vf = video_vf_get();
 			if (!vf)
@@ -3460,10 +3874,28 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			vsync_toggle_frame(vf);
 			if (is_dolby_vision_enable()) {
 				ret = dolby_vision_update_metadata(vf);
+				cur_dispbuf2 = dolby_vision_vf_peek_el(vf);
+				if (cur_dispbuf2) {
+					VSYNC_WR_MPEG_REG(VD2_AFBC_HEAD_BADDR,
+						cur_dispbuf2->compHeadAddr>>4);
+					VSYNC_WR_MPEG_REG(VD2_AFBC_BODY_BADDR,
+						cur_dispbuf2->compBodyAddr>>4);
+					ori2_start_x_lines = 0;
+					ori2_end_x_lines =
+						((cur_dispbuf2->type
+						& VIDTYPE_COMPRESS) ?
+						cur_dispbuf2->compWidth :
+						cur_dispbuf2->width) - 1;
+					ori2_start_y_lines = 0;
+					ori2_end_y_lines =
+						((cur_dispbuf2->type
+						& VIDTYPE_COMPRESS) ?
+						cur_dispbuf2->compHeight :
+						cur_dispbuf2->height) - 1;
+				}
 				if (ret == 0) {
 					toggle_vf = vf;
 					dolby_vision_set_toggle_flag(1);
-					break;
 				} else if (ret == -1) {
 					/* not enough meta, wait */
 					toggle_vf = NULL;
@@ -3476,7 +3908,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 					dolby_vision_process(toggle_vf);
 					break;
 				}
-			}
+			} else
+				cur_dispbuf2 = NULL;
 
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
@@ -3603,6 +4036,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			/*video on && afbc is off && is compress frame.*/
 			if (frame_par_ready_to_set || afbc_need_reset)
 				viu_set_dcu(cur_frame_par, cur_dispbuf);
+			if ((cur_dispbuf2)
+			&& (frame_par_ready_to_set || afbc_need_reset))
+					vd2_set_dcu(cur_dispbuf2);
 		}
 		{
 #if 0
@@ -3827,6 +4263,15 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 			zoom_start_y_lines = zoom_start_y;
 			zoom_end_y_lines = zoom_end_y;
 			zoom_display_vert();
+
+			if (is_dolby_vision_enable() && cur_dispbuf2) {
+				zoom2_start_x_lines = ori2_start_x_lines;
+				zoom2_end_x_lines = ori2_end_x_lines;
+				vd2_zoom_display_horz(0);
+				zoom2_start_y_lines = ori2_start_y_lines;
+				zoom2_end_y_lines = ori2_end_y_lines;
+				vd2_zoom_display_vert();
+			}
 		}
 
 		/* vpp super scaler */
@@ -4033,6 +4478,10 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 
 		vpp_settings_h(cur_frame_par);
 		vpp_settings_v(cur_frame_par);
+		if (is_dolby_vision_enable() && cur_dispbuf2) {
+			vd2_settings_h(cur_dispbuf2);
+			vd2_settings_v(cur_dispbuf2);
+		}
 		frame_par_ready_to_set = 0;
 		frame_par_force_to_set = 0;
 		first_set = 1;
@@ -7409,6 +7858,7 @@ static int __init video_init(void)
 #endif
 
 	cur_dispbuf = NULL;
+	cur_dispbuf2 = NULL;
 	amvideo_register_client(&amvideo_notifier);
 
 #ifdef FIQ_VSYNC

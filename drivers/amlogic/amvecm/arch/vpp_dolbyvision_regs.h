@@ -64,6 +64,7 @@
 #define VIU_SW_RESET			0x1a01
 #define VPU_HDMI_FMT_CTRL		0x2743
 
+#if 0
 /* core 1 display manager 24 registers */
 struct dm_register_ipcore_1_s {
 	uint32_t SRange;
@@ -93,7 +94,7 @@ struct dm_register_ipcore_1_s {
 };
 
 /* core 1 composer 173 registers */
-struct composer_register_ipcore_1_s {
+struct composer_register_ipcore_s {
 	uint32_t Composer_Mode;
 	uint32_t VDR_Resolution;
 	uint32_t Bit_Depth;
@@ -195,5 +196,6 @@ struct dm_lut_ipcore_s {
 struct md_reister_ipcore_3_s {
 	uint32_t raw_metadata[128];
 };
+#endif
 
 #endif

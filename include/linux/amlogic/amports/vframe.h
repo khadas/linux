@@ -44,6 +44,7 @@
 #define VIDTYPE_COMPRESS                0x100000
 #define VIDTYPE_PIC		        0x200000
 #define VIDTYPE_SCATTER                 0x400000
+#define VIDTYPE_VD2						0x800000
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
