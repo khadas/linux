@@ -2509,7 +2509,7 @@ void hdmirx_hw_monitor(void)
 		if ((0 == get_cur_hpd_sts()) &&
 			(hpd_wait_cnt <= hpd_wait_max))
 			break;
-		if (rx.boot_flag) {
+		if (rx.boot_flag || do_hpd_reset_flag) {
 			if (hpd_wait_cnt <= hpd_wait_max*10)
 				break;
 			rx.boot_flag = FALSE;
@@ -3743,25 +3743,27 @@ static void dump_state(unsigned char enable)
 		auds_rcv_sts);
 	/***************hdcp*****************/
 	rx_pr("HDCP version:%d\n", rx.hdcp.hdcp_version);
-	rx_pr("HDCP22 sts = %x\n",
-		rx_hdcp22_rd_reg(0x60));
-	rx_pr("HDCP22_on = %d\n",
-		hdcp22_on);
-	rx_pr("HDCP22_auth_sts = %d\n",
-		hdcp22_auth_sts);
-	rx_pr("HDCP22_capable_sts = %d\n",
-		hdcp22_capable_sts);
-	rx_pr("video_stable_to_esm = %d\n",
-		video_stable_to_esm);
-	rx_pr("hpd_to_esm = %d\n",
-		hpd_to_esm);
-	rx_pr("sts8fc = %x",
-		hdmirx_rd_dwc(DWC_HDCP22_STATUS));
-	rx_pr("sts81c = %x",
-		hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
-	dump_hdcp_data();
-	if (!esm_print_device_info())
-		rx_pr("\n !!No esm rx opened\n");
+	if (hdcp22_on) {
+		rx_pr("HDCP22 sts = %x\n",
+			rx_hdcp22_rd_reg(0x60));
+		rx_pr("HDCP22_on = %d\n",
+			hdcp22_on);
+		rx_pr("HDCP22_auth_sts = %d\n",
+			hdcp22_auth_sts);
+		rx_pr("HDCP22_capable_sts = %d\n",
+			hdcp22_capable_sts);
+		rx_pr("video_stable_to_esm = %d\n",
+			video_stable_to_esm);
+		rx_pr("hpd_to_esm = %d\n",
+			hpd_to_esm);
+		rx_pr("sts8fc = %x",
+			hdmirx_rd_dwc(DWC_HDCP22_STATUS));
+		rx_pr("sts81c = %x",
+			hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
+		dump_hdcp_data();
+		if (!esm_print_device_info())
+			rx_pr("\n !!No esm rx opened\n");
+	}
 	/*--------------edid-------------------*/
 	rx_pr("edid index: %d\n", edid_mode);
 	rx_pr("edid phy addr: %#x,%#x,current port: %d, up phy addr:%#x\n",
