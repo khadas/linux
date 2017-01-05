@@ -30,10 +30,10 @@
 
 #define RX_VER0 "Ref.2016/11/25"
 /*------------------------------*/
-#define RX_VER1 "Ref.2016/12/28"
-/*------------------------------*/
+#define RX_VER1 "Ref.2017/01/05"
 /*------------------------------*/
 #define RX_VER2 "Ref.2016/12/30"
+/*------------------------------*/
 #define RX_VER3 "Ref.2016/12/07"
 /*------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
@@ -193,7 +193,6 @@ enum fsm_states_e {
 	FSM_WAIT_HDCP_SWITCH,
 	FSM_SIG_UNSTABLE,
 	FSM_DWC_RST_WAIT,
-	FSM_DWC_HDCP_WAIT,
 	FSM_SIG_STABLE,
 	FSM_CHECK_DDC_CORRECT,
 	FSM_SIG_READY,

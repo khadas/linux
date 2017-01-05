@@ -73,7 +73,7 @@ static int aud_avmute_en = 1;
 MODULE_PARM_DESC(aud_avmute_en, "\n aud_avmute_en\n");
 module_param(aud_avmute_en, int, 0664);
 
-int aud_mute_sel = 0;
+int aud_mute_sel = 2;
 MODULE_PARM_DESC(aud_mute_sel, "\n aud_mute_sel\n");
 module_param(aud_mute_sel, int, 0664);
 
@@ -630,7 +630,7 @@ void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp)
 	int error = 0;
 	unsigned i = 0;
 	unsigned k = 0;
-	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, HDCP_ENABLE, 1);
+
 	hdmirx_wr_bits_dwc(DWC_HDCP_SETTINGS, HDCP_FAST_MODE, 0);
 	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE, 0);
 	/* hdmirx_wr_bits_dwc(ctx, DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 1); */
@@ -1141,7 +1141,10 @@ void hdmirx_hw_config(void)
 	hdmirx_irq_close();
 	hdmi_rx_ctrl_edid_update();
 	/* hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2); */
-	hdmirx_wr_dwc(DWC_HDCP_CTRL, 0);
+	if (hdcp_enable)
+		hdmi_rx_ctrl_hdcp_config(&rx.hdcp);
+	else
+		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE, 0);
 	hdmirx_audio_init();
 	packet_init();
 	hdmirx_20_init();
