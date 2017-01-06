@@ -186,6 +186,7 @@
 #define VPP_OSD_SCALE_COEF_IDX 0x1dcc
 #define VPP_OSD_SCALE_COEF 0x1dcd
 #define VPP_INT_LINE_NUM 0x1dce
+#define VPP_XVYCC_MISC 0x1dcf
 
 #define VPP_CLIP_MISC0 0x1dd9
 
