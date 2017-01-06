@@ -1449,7 +1449,6 @@ int gmac_remove_sysfs(struct phy_device *phy_dev)
 }
 #endif
 
-
 /**
  * stmmac_init_phy - PHY initialization
  * @dev: net device structure
@@ -1506,9 +1505,11 @@ static int stmmac_init_phy(struct net_device *dev)
 	 * device as well.
 	 * Note: phydev->phy_id is the result of reading the UID PHY registers.
 	 */
-	if (phydev->phy_id == 0) {
-		phy_disconnect(phydev);
-		return -ENODEV;
+	if (chip_simulation == 0) {
+		if (phydev->phy_id == 0) {
+			phy_disconnect(phydev);
+			return -ENODEV;
+		}
 	}
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);

@@ -87,6 +87,13 @@ static unsigned char chartonum(char c)
 	return 0;
 
 }
+int chip_simulation = 0;
+static int __init get_chip_simulation(char *chip_simulation_status)
+{
+	chip_simulation = chartonum(chip_simulation_status[0]);
+	return 1;
+}
+__setup("chip_simulation_status=", get_chip_simulation);
 
 static int __init mac_addr_set(char *line)
 {

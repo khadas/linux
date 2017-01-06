@@ -32,8 +32,8 @@
 #include <linux/phy.h>
 #include <linux/mdio.h>
 #include <linux/io.h>
+#include <linux/stmmac.h>
 #include <linux/uaccess.h>
-
 #include <asm/irq.h>
 
 MODULE_DESCRIPTION("PHY library");
@@ -348,8 +348,9 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 		return ERR_PTR(r);
 
 	/* If the phy_id is mostly Fs, there is no device there */
-	if (phy_id == 0 || ((phy_id & 0x1fffffff) == 0x1fffffff))
-		return NULL;
+	if (chip_simulation != 1)
+		if (phy_id == 0 || ((phy_id & 0x1fffffff) == 0x1fffffff))
+			return NULL;
 
 	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
@@ -570,7 +571,7 @@ int phy_init_hw(struct phy_device *phydev)
 	return phydev->drv->config_init(phydev);
 }
 EXPORT_SYMBOL(phy_init_hw);
-
+struct phy_driver pxp_phy;
 /**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
@@ -599,7 +600,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 			d->driver = &genphy_driver[GENPHY_DRV_10G].driver;
 		else
 			d->driver = &genphy_driver[GENPHY_DRV_1G].driver;
-
+		if (chip_simulation)
+			d->driver = &pxp_phy.driver;
 		err = d->driver->probe(d);
 		if (err >= 0)
 			err = device_bind_driver(d);
