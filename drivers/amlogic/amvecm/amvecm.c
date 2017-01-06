@@ -2998,7 +2998,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* disable contrast and saturation adjustment for HDR on TV */
 	/* disable SDR to HDR convert on TV */
 	if (is_meson_gxl_cpu() || is_meson_gxm_cpu()) {
-		sdr_mode = 2;
+		sdr_mode = 0;
 		hdr_flag = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
 	} else {
 		sdr_mode = 0;

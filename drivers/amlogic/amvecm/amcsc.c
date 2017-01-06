@@ -3329,7 +3329,10 @@ static void bypass_hdr_process(
 		/* WRITE_VPP_REG_BITS(VIU_OSD1_BLK0_CFG_W0,
 			0, 7, 1);
 		*/
-		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
+		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
+			(((vinfo->hdr_info.hdr_support & 0x4) &&
+			(vinfo->viu_color_fmt != TVIN_RGB444)) ||
+			(vinfo->viu_color_fmt == TVIN_RGB444))) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
 			set_vpp_lut(VPP_LUT_OSD_EOTF,
@@ -3947,6 +3950,7 @@ int amvecm_hdr_dbg(u32 sel)
 	if (dbg_vf == NULL)
 		goto hdr_dump;
 
+	/*
 	pr_err("----vframe info----\n");
 	pr_err("index:%d, type:0x%x, type_backup:0x%x, blend_mode:%d\n",
 		dbg_vf->index, dbg_vf->type,
@@ -3966,7 +3970,6 @@ int amvecm_hdr_dbg(u32 sel)
 	pr_err("source_type:%d, phase:%d, soruce_mode:%d, sig_fmt:0x%x\n",
 		dbg_vf->source_type, dbg_vf->phase,
 		dbg_vf->source_mode, dbg_vf->sig_fmt);
-	/*
 	pr_err(
 		"trans_fmt 0x%x, lefteye(%d %d %d %d), righteye(%d %d %d %d)\n",
 		vf->trans_fmt, vf->left_eye.start_x, vf->left_eye.start_y,
@@ -4004,41 +4007,64 @@ int amvecm_hdr_dbg(u32 sel)
 	 vs_cycle %d, vs_stamp %d\n",
 		vf->prop.meas.hs_cnt2, vf->prop.meas.hs_cnt3,
 		vf->prop.meas.vs_cycle, vf->prop.meas.vs_stamp);
-	*/
+
 	pr_err("pixel_ratio:%d list:%p ready_jiffies64:%lld, frame_dirty %d\n",
 		dbg_vf->pixel_ratio, &dbg_vf->list,
 		dbg_vf->ready_jiffies64, dbg_vf->frame_dirty);
+	*/
 
-	pr_err("----Source HDR info----\n");
-	pr_err("\tsignal_type:0x%x, present_flag:%d\n",
+	pr_err("----Video frame info----\n");
+	pr_err("bitdepth:0x%x, signal_type:0x%x, present_flag:0x%x\n",
+		dbg_vf->bitdepth,
 		dbg_vf->signal_type,
 		dbg_vf->prop.master_display_colour.present_flag);
-	for (i = 0; i < 3; i++)
-		for (j = 0; j < 2; j++)
-			pr_err(
-				"\tprimaries[%1d][%1d] = %04x\n",
-			i, j,
+
+	if (((dbg_vf->signal_type >> 16) & 0xff) == 9) {
+		pr_err("HDR color primaries:0x%x\n",
+			((dbg_vf->signal_type >> 16) & 0xff));
+		pr_err("HDR transfer_characteristic:0x%x\n",
+			((dbg_vf->signal_type >> 8) & 0xff));
+	} else
+		pr_err("SDR color primaries:0x%x\n", signal_color_primaries);
+
+	if (dbg_vf->prop.master_display_colour.present_flag == 1) {
+		pr_err("----SEI info----\n");
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				pr_err(
+					"\tprimaries[%1d][%1d] = %04x\n",
+				i, j,
 			dbg_vf->prop.master_display_colour.primaries[i][j]);
-	pr_err("\twhite_point = (%04x, %04x)\n",
-		dbg_vf->prop.master_display_colour.white_point[0],
-		dbg_vf->prop.master_display_colour.white_point[1]);
-	pr_err("\tmax,min luminance = %08x, %08x\n",
-		dbg_vf->prop.master_display_colour.luminance[0],
-		dbg_vf->prop.master_display_colour.luminance[1]);
+		pr_err("\twhite_point = (%04x, %04x)\n",
+			dbg_vf->prop.master_display_colour.white_point[0],
+			dbg_vf->prop.master_display_colour.white_point[1]);
+		pr_err("\tmax,min luminance = %08x, %08x\n",
+			dbg_vf->prop.master_display_colour.luminance[0],
+			dbg_vf->prop.master_display_colour.luminance[1]);
+	}
+
 hdr_dump:
 	pr_err("----HDR process info----\n");
+	pr_err("customer_master_display_en:0x%x\n", customer_master_display_en);
 
-	pr_err("hdr_mode:0x%x, hdr_process_mode:0x%x, force_csc_type:0x%x\n",
-		hdr_mode, hdr_process_mode, force_csc_type);
+	pr_err("hdr_mode:0x%x, hdr_process_mode:0x%x, cur_hdr_process_mode:0x%x\n",
+		hdr_mode, hdr_process_mode, cur_hdr_process_mode);
+
+	pr_err("sdr_mode:0x%x, sdr_process_mode:0x%x, cur_sdr_process_mode:0x%x\n",
+		sdr_mode, sdr_process_mode, cur_sdr_process_mode);
+
+	pr_err("hdr_flag:0x%x,     fg_vf_sw_dbg:0x%x\n",
+		hdr_flag, fg_vf_sw_dbg);
 	pr_err("cur_signal_type:0x%x, cur_csc_mode:0x%x, cur_csc_type:0x%x\n",
 		cur_signal_type, cur_csc_mode, cur_csc_type);
 
 	pr_err("knee_lut_on:0x%x,knee_interpolation_mode:0x%x,cur_knee_factor:0x%x\n",
 		knee_lut_on, knee_interpolation_mode, cur_knee_factor);
-	pr_err("fg_vf_sw_dbg: 0x%x\n", fg_vf_sw_dbg);
 
+	if ((receiver_hdr_info.hdr_support & 0x4) == 0)
+		goto dbg_end;
 	pr_err("----TV EDID info----\n");
-	pr_err("hdr_support:0x%x,lumi_max:%d,lumi_avg:%d,lumi_min:%d\n",
+	pr_err("hdr_support:0x%x, lumi_max:%d, lumi_avg:%d, lumi_min:%d\n",
 		receiver_hdr_info.hdr_support,
 		receiver_hdr_info.lumi_max,
 		receiver_hdr_info.lumi_avg,
