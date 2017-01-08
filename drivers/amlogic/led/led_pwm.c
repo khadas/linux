@@ -61,6 +61,11 @@ static void aml_pwmled_work(struct work_struct *work)
 
 	/*  @todo pwm setup */
 	pwm_config(ldev->pwmd, new_duty, ldev->period);
+
+	if (new_duty == 0)
+		pwm_disable(ldev->pwmd);
+	else
+		pwm_enable(ldev->pwmd);
 }
 
 
@@ -77,7 +82,7 @@ static void aml_pwmled_brightness_set(struct led_classdev *cdev,
 
 	max = ldev->cdev.max_brightness;
 	/* calculate new duty */
-	duty = brightness * 1024; /* 1024: max pwm duty cycle */
+	duty = brightness * ldev->period;
 	do_div(duty, max);
 	/* save new duty */
 	ldev->new_duty = duty;
@@ -114,19 +119,28 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 		return -1;
 	}
 
-	ret = of_property_read_u32(node, "pwm", &ldev->pwm);
-	if (ret < 0) {
-		pr_err("failed to get pwm index\n");
-		return -1;
+	ldev->pwmd = devm_of_pwm_get(&pdev->dev, node, NULL);
+	if (IS_ERR(ldev->pwmd)) {
+		pr_info("unable to request pwm device for %s\n",
+			node->full_name);
+		ret = PTR_ERR(ldev->pwmd);
+		return ret;
 	}
-	pr_info("get pwm index %u\n", ldev->pwm);
+
+	/* Get the period from PWM core when n*/
+	ldev->period = pwm_get_period(ldev->pwmd);
 
 	ret = of_property_read_u32(node, "polarity", &ldev->polarity);
 	if (ret < 0) {
 		pr_err("failed to get polarity\n");
 		return -1;
 	}
+
 	pr_info("get polarity %u\n", ldev->polarity);
+
+	/* set pwm device polarity */
+	pwm_set_polarity(ldev->pwmd, ldev->polarity);
+
 
 	ret = of_property_read_u32(node, "max_brightness",
 			&ldev->cdev.max_brightness);
@@ -196,23 +210,6 @@ static int aml_pwmled_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		kfree(ldev);
 		return ret;
-	}
-
-	/* @todo get pwm configuration from pwm driver */
-	/* get pwm device */
-	ldev->pwmd = pwm_request(6, AML_DEV_NAME);
-	if (IS_ERR(ldev->pwmd)) {
-		pr_err("failed to request pwm device\n");
-		return PTR_ERR(ldev->pwmd);
-	}
-	/* set pwm device polarity */
-	pwm_set_polarity(ldev->pwmd, ldev->polarity);
-	/* first get period from pwm device, if failed set default */
-	ldev->period = pwm_get_period(ldev->pwmd);
-	pr_info("period = %u\n", ldev->period);
-	if (!ldev->period) {
-		ldev->period = DEFAULT_PWM_PERIOD;
-		pr_err("set default period = %u\n", ldev->period);
 	}
 
 	pr_info("module probed ok\n");
