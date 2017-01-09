@@ -58,10 +58,22 @@
 #include "wss.h"
 #endif
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+/* interrupt source */
+#define INT_VIU_VSYNC    35
+#endif
+
 #define PIN_MUX_REG_0 0x202c
 #define P_PIN_MUX_REG_0 CBUS_REG_ADDR(PIN_MUX_REG_0)
 static struct disp_module_info_s disp_module_info __nosavedata;
 static struct disp_module_info_s *info __nosavedata;
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+static struct CCring_MGR_s CC_ringbuf;
+static spinlock_t tvout_clk_lock;
+static unsigned int vsync_empty_flag;
+static unsigned int vsync_empty_flag_evn;
+static unsigned int vsync_empty_flag_odd;
+#endif
 
 static void vdac_power_level_store(char *para);
 SET_TV_CLASS_ATTR(vdac_power_level, vdac_power_level_store)
@@ -98,7 +110,6 @@ struct class_attribute class_TV_attr_wss = __ATTR(wss, S_IRUGO | S_IWUSR,
 static int tv_vdac_power_level;
 
 static DEFINE_MUTEX(setmode_mutex);
-static DEFINE_MUTEX(CC_mutex);
 
 static enum tvmode_e vmode_to_tvmode(enum vmode_e mode);
 static void cvbs_config_vdac(unsigned int flag, unsigned int cfg);
@@ -609,8 +620,11 @@ static int vout_release(struct inode *inode, struct file *file)
 static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
 	unsigned int CC_2byte_data = 0;
+	unsigned long flags = 0;
 	void __user *argp = (void __user *)arg;
+#endif
 	vout_log_info("[tv..] %s: cmd_nr = 0x%x\n",
 			__func__, _IOC_NR(cmd));
 	if (_IOC_TYPE(cmd) != _TM_V) {
@@ -618,36 +632,51 @@ static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ENOSYS;
 	}
 	switch (cmd) {
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
 	case VOUT_IOC_CC_OPEN:
+		spin_lock_irqsave(&tvout_clk_lock, flags);
+		memset(&CC_ringbuf, 0, sizeof(struct CCring_MGR_s));
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
 		tv_out_reg_setb(ENCI_VBI_SETTING, 0x3, 0, 2);
 		break;
 	case VOUT_IOC_CC_CLOSE:
+		spin_lock_irqsave(&tvout_clk_lock, flags);
+		memset(&CC_ringbuf, 0, sizeof(struct CCring_MGR_s));
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
 		tv_out_reg_setb(ENCI_VBI_SETTING, 0x0, 0, 2);
 		break;
 	case VOUT_IOC_CC_DATA: {
 		struct vout_CCparm_s parm = {0};
-		mutex_lock(&CC_mutex);
+		spin_lock_irqsave(&tvout_clk_lock, flags);
 		if (copy_from_user(&parm, argp,
 				sizeof(struct vout_CCparm_s))) {
 			vout_log_err("VOUT_IOC_CC_DATAinvalid parameter\n");
 			ret = -EFAULT;
-			mutex_unlock(&CC_mutex);
+			spin_unlock_irqrestore(&tvout_clk_lock, flags);
+			break;
+		}
+
+		if (parm.type != 0) {
+			spin_unlock_irqrestore(&tvout_clk_lock, flags);
 			break;
 		}
 		/*cc standerd:nondisplay control byte + display control byte
 		our chip high-low 16bits is opposite*/
 		CC_2byte_data = parm.data2 << 8 | parm.data1;
-		if (parm.type == 0)
-			tv_out_reg_write(ENCI_VBI_CCDT_EVN, CC_2byte_data);
-		else if (parm.type == 1)
-			tv_out_reg_write(ENCI_VBI_CCDT_ODD, CC_2byte_data);
+		if ((CC_ringbuf.wp + 1)%MAX_RING_BUFF_LEN != CC_ringbuf.rp) {
+			CC_ringbuf.CCdata[CC_ringbuf.wp].type = parm.type;
+			CC_ringbuf.CCdata[CC_ringbuf.wp].data = CC_2byte_data;
+			CC_ringbuf.wp = (CC_ringbuf.wp + 1)%MAX_RING_BUFF_LEN;
+			/*vout_log_info("CCringbuf Write :0x%x wp:%d\n",
+						CC_2byte_data, CC_ringbuf.wp);*/
+		}
 		else
-			vout_log_err("CC type:%d,Unknown.\n", parm.type);
-		vout_log_info("VOUT_IOC_CC_DATA..type:%d,0x%x\n",
-					parm.type, CC_2byte_data);
-		mutex_unlock(&CC_mutex);
+			vout_log_err("CCringbuf is FULL!! can't write.\n");
+
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
 		break;
 	}
+#endif
 	default:
 		ret = -ENOIOCTLCMD;
 		vout_log_err("%s %d is not supported command\n",
@@ -1792,8 +1821,6 @@ static  struct  class_attribute   *tv_attr[] = {
 #endif
 };
 
-
-
 static int create_tv_attr(struct disp_module_info_s *info)
 {
 	/* create base class for display */
@@ -1870,6 +1897,111 @@ static struct syscore_ops tvconf_ops = {
 };
 #endif
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+static irqreturn_t tvout_vsync_isr(int irq, void *dev_id)
+{
+	unsigned int CC_2byte_data;
+	unsigned long flags = 0;
+	struct vout_CCparm_s parm = {0};
+
+	spin_lock_irqsave(&tvout_clk_lock, flags);
+	if (CC_ringbuf.rp != CC_ringbuf.wp) {
+		parm.type = CC_ringbuf.CCdata[CC_ringbuf.rp].type;
+		CC_2byte_data = CC_ringbuf.CCdata[CC_ringbuf.rp].data;
+		vsync_empty_flag = 0;
+		vsync_empty_flag_evn = 0;
+		vsync_empty_flag_odd = 0;
+	} else {
+		if (vsync_empty_flag == 0) {
+			if ((tv_out_reg_read(ENCI_INFO_READ)&
+							0x20000000) == 0x0) {
+				tv_out_reg_write(ENCI_VBI_CCDT_EVN, 0x8080);
+				vsync_empty_flag_evn = 1;
+				/*vout_log_info("empty!W EVN 0.encinfo:0x%x\n",
+				tv_out_reg_read(ENCI_INFO_READ));*/
+			} else {
+				tv_out_reg_write(ENCI_VBI_CCDT_ODD, 0x8080);
+				vsync_empty_flag_odd = 1;
+				/*vout_log_info("empty! W ODD 0.encinfo:0x%x\n",
+				tv_out_reg_read(ENCI_INFO_READ));*/
+			}
+			vsync_empty_flag = vsync_empty_flag_evn &
+					vsync_empty_flag_odd;
+		}
+		spin_unlock_irqrestore(&tvout_clk_lock, flags);
+		return IRQ_HANDLED;
+	}
+
+	if (parm.type == 0) {
+		if ((((CC_2byte_data>>8)&0x7f) >= 0x1) &&
+				(((CC_2byte_data>>8)&0x7f) < 0x10)) {
+			/*vout_log_info("W xds_odd_DATA:0x%x\n",
+				CC_2byte_data);*/
+			if ((tv_out_reg_read(ENCI_INFO_READ)&
+							0x20000000) != 0x0) {
+				tv_out_reg_write(ENCI_VBI_CCDT_ODD,
+								CC_2byte_data);
+				if (((tv_out_reg_read(ENCI_INFO_READ)>>16)&
+							0xff) <= 0x15)
+					CC_ringbuf.rp = (CC_ringbuf.rp +
+							1)%MAX_RING_BUFF_LEN;
+				/*else
+					vout_log_info("enci xds send late\n");*/
+			} else {
+				/*vout_log_info("ENV VYSNC.encinfo:0x%x.\n",
+					tv_out_reg_read(ENCI_INFO_READ));*/
+				tv_out_reg_write(ENCI_VBI_CCDT_ODD, 0x8080);
+			}
+		} else {
+			if ((tv_out_reg_read(ENCI_INFO_READ)&
+						0x20000000) == 0x0){
+				/*vout_log_info("W ENV_DATA:0x%x, rp:%d\n",
+						CC_2byte_data, CC_ringbuf.rp);*/
+				tv_out_reg_write(ENCI_VBI_CCDT_EVN,
+						CC_2byte_data);
+				if (((tv_out_reg_read(ENCI_INFO_READ)>>16)&
+							0xff) <= 0x15)
+					CC_ringbuf.rp = (CC_ringbuf.rp +
+						1)%MAX_RING_BUFF_LEN;
+				/*else
+					vout_log_info("enci ENV send late\n");*/
+			} else {
+				/*vout_log_info("now ODD VYSNC.encinfo:0x%x.\n",
+					tv_out_reg_read(ENCI_INFO_READ));*/
+				tv_out_reg_write(ENCI_VBI_CCDT_EVN, 0x8080);
+			}
+		}
+	}
+#if 0
+	else if (parm.type == 1) {
+		if ((tv_out_reg_read(ENCI_INFO_READ)&0x20000000) != 0x0) {
+			/*vout_log_info("W ODD_DATA:0x%x, rp:%d\n",
+					CC_2byte_data, CC_ringbuf.rp);*/
+			tv_out_reg_write(ENCI_VBI_CCDT_ODD,
+					CC_2byte_data);
+			/*vout_log_info("R ODD ENCI_INFO:0x%x\n",
+					tv_out_reg_read(ENCI_INFO_READ));*/
+			if (((tv_out_reg_read(ENCI_INFO_READ)>>16)&
+					0xff) <= 0x15)
+					CC_ringbuf.rp = (CC_ringbuf.rp +
+						1)%MAX_RING_BUFF_LEN;
+				/*else
+					vout_log_info("enci ODD send late\n");*/
+		} else {
+			/*vout_log_info("now ENV VYSNC.encinfo:0x%x.\n",
+					tv_out_reg_read(ENCI_INFO_READ));*/
+			tv_out_reg_write(ENCI_VBI_CCDT_ODD, 0x8080);
+		}
+	}
+#endif
+	else
+		vout_log_err("vsync_isr.type:%d Unknown\n",
+			parm.type);
+	spin_unlock_irqrestore(&tvout_clk_lock, flags);
+	return IRQ_HANDLED;
+}
+#endif
+
 static int tvout_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1880,6 +2012,11 @@ static int tvout_probe(struct platform_device *pdev)
 	tv_out_ioremap();
 	info = &disp_module_info;
 	vout_log_info("%s\n", __func__);
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	memset(&CC_ringbuf, 0, sizeof(struct CCring_MGR_s));
+	CC_ringbuf.max_len = MAX_RING_BUFF_LEN;
+	spin_lock_init(&tvout_clk_lock);
+#endif
 	sprintf(info->name, TV_CLASS_NAME);
 	/*ret = register_chrdev(0, info->name, &am_tv_fops);*/
 	ret = alloc_chrdev_region(&info->devno, 0, 1, info->name);
@@ -1899,6 +2036,13 @@ static int tvout_probe(struct platform_device *pdev)
 		vout_log_err("create_tv_attr error\n");
 		return -1;
 	}
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	if (request_irq(INT_VIU_VSYNC, &tvout_vsync_isr,
+		IRQF_SHARED, "tvout_vsync", (void *)"tvout_vsync")) {
+		vout_log_err("can't request vsync_irq for tvout\n");
+	} else
+		vout_log_info("request tvout vsync_irq successful\n");
+#endif
 	vout_log_info("%s OK\n", __func__);
 
 	return 0;
@@ -1908,6 +2052,9 @@ static int tvout_remove(struct platform_device *pdev)
 {
 	int i;
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	free_irq(INT_VIU_VSYNC, (void *)"tvout_vsync");
+#endif
 	if (info->base_class) {
 		for (i = 0; i < ARRAY_SIZE(tv_attr); i++)
 			class_remove_file(info->base_class, tv_attr[i]);
@@ -1951,7 +2098,10 @@ static int __init tv_init_module(void)
 		vout_log_err("%s failed to register module\n", __func__);
 		return -ENODEV;
 	}
-
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+	memset(&CC_ringbuf, 0, sizeof(struct CCring_MGR_s));
+	CC_ringbuf.max_len = MAX_RING_BUFF_LEN;
+#endif
 	return 0;
 }
 

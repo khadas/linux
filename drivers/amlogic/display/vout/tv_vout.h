@@ -26,10 +26,12 @@
 #define	MAX_NUMBER_PARA  10
 
 #define _TM_V 'V'
-
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+#define MAX_RING_BUFF_LEN 128
 #define VOUT_IOC_CC_OPEN           _IO(_TM_V, 0x01)
 #define VOUT_IOC_CC_CLOSE          _IO(_TM_V, 0x02)
 #define VOUT_IOC_CC_DATA           _IOW(_TM_V, 0x03, struct vout_CCparm_s)
+#endif
 
 #define print_info(fmt, args...) pr_info(fmt, ##args)
 
@@ -72,11 +74,26 @@ struct disp_module_info_s {
 
 static  DEFINE_MUTEX(TV_mutex);
 
+#ifdef CONFIG_AML_VOUT_CC_BYPASS
+struct CCparm_s {
+	unsigned int type;
+	unsigned int data;
+};
+
+struct CCring_MGR_s {
+	unsigned int max_len;
+	unsigned int rp;
+	unsigned int wp;
+	int over_flag;
+	struct CCparm_s CCdata[MAX_RING_BUFF_LEN];
+};
+
 struct vout_CCparm_s {
 	unsigned int type;
 	unsigned char data1;
 	unsigned char data2;
 };
+#endif
 
 struct vmode_tvmode_tab_s {
 	enum tvmode_e tvmode;

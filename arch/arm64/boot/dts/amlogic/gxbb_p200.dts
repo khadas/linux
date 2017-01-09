@@ -806,6 +806,8 @@
 		compatible = "amlogic, tvout";
 		dev_name = "tvout";
 		status = "okay";
+		interrupts = <0 3 1>;
+		interrupt-names = "tvout_vsync";
 	};
 
 	i2c_gpio: i2c_gpio {
