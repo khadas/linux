@@ -121,19 +121,6 @@ static ssize_t log_level_store(struct class *cla,
 	return count;
 }
 
-static bool command_valid(unsigned int cmd)
-{
-	bool ret = false;
-#ifdef CONFIG_COMPAT
-	ret = (cmd <= GE2D_CONFIG_EX32 &&
-		cmd >= GE2D_ANTIFLICKER_ENABLE);
-#else
-	ret = (cmd <= GE2D_CONFIG_EX &&
-		cmd >= GE2D_ANTIFLICKER_ENABLE);
-#endif
-	return ret;
-}
-
 static int ge2d_open(struct inode *inode, struct file *file)
 {
 	struct ge2d_context_s *context = NULL;
@@ -164,9 +151,6 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	int i, j;
 #endif
 	void __user *argp = (void __user *)args;
-
-	if (!command_valid(cmd))
-		return -1;
 
 	context = (struct ge2d_context_s *)filp->private_data;
 	memset(&ge2d_config, 0, sizeof(struct config_para_s));
@@ -465,6 +449,28 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 			    para.dst_rect.x, para.dst_rect.y,
 			    para.dst_rect.w, para.dst_rect.h,
 			    para.op);
+		break;
+	case GE2D_BLEND_NOALPHA:
+		ge2d_log_dbg("blend_noalpha ...\n");
+		blend_noalpha(context,
+			  para.src1_rect.x, para.src1_rect.y,
+			  para.src1_rect.w, para.src1_rect.h,
+			  para.src2_rect.x, para.src2_rect.y,
+			  para.src2_rect.w, para.src2_rect.h,
+			  para.dst_rect.x, para.dst_rect.y,
+			  para.dst_rect.w, para.dst_rect.h,
+			  para.op);
+			break;
+	case GE2D_BLEND_NOALPHA_NOBLOCK:
+		ge2d_log_dbg("blend_noalpha ...,noblk\n");
+		blend_noalpha_noblk(context,
+				para.src1_rect.x, para.src1_rect.y,
+				para.src1_rect.w, para.src1_rect.h,
+				para.src2_rect.x, para.src2_rect.y,
+				para.src2_rect.w, para.src2_rect.h,
+				para.dst_rect.x, para.dst_rect.y,
+				para.dst_rect.w, para.dst_rect.h,
+				para.op);
 		break;
 	case GE2D_BLIT_NOALPHA:
 		/* bitblt_noalpha */

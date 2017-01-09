@@ -173,6 +173,76 @@ static inline  int  work_queue_no_space(struct ge2d_context_s *queue)
 	return  list_empty(&queue->free_queue);
 }
 
+static void ge2d_dump_cmd(struct ge2d_cmd_s *cfg)
+{
+	ge2d_log_dbg("src1_x_start=%d,src1_y_start=%d\n",
+		cfg->src1_x_start, cfg->src1_y_start);
+	ge2d_log_dbg("src1_x_end=%d,src1_y_end=%d\n",
+		cfg->src1_x_end, cfg->src1_y_end);
+	ge2d_log_dbg("src1_x_rev=%d,src1_y_rev=%d\n",
+		cfg->src1_x_rev, cfg->src1_y_rev);
+	ge2d_log_dbg("src1_fill_color_en=%d\n",
+		cfg->src1_fill_color_en);
+
+	ge2d_log_dbg("src2_x_start=%d,src2_y_start=%d\n",
+		cfg->src2_x_start, cfg->src2_y_start);
+	ge2d_log_dbg("src2_x_end=%d,src2_y_end=%d\n",
+		cfg->src2_x_end, cfg->src2_y_end);
+	ge2d_log_dbg("src2_x_rev=%d,src2_y_rev=%d\n",
+		cfg->src2_x_rev, cfg->src2_y_rev);
+	ge2d_log_dbg("src2_fill_color_en=%d\n",
+		cfg->src2_fill_color_en);
+
+	ge2d_log_dbg("dst_x_start=%d,dst_y_start=%d\n",
+		cfg->dst_x_start, cfg->dst_y_start);
+	ge2d_log_dbg("dst_x_end=%d,dst_y_end=%d\n",
+		cfg->dst_x_end, cfg->dst_y_end);
+	ge2d_log_dbg("dst_x_rev=%d,dst_y_rev=%d\n",
+		cfg->dst_x_rev, cfg->dst_y_rev);
+	ge2d_log_dbg("dst_xy_swap=%d\n",
+		cfg->dst_xy_swap);
+
+	ge2d_log_dbg("color_blend_mode=0x%x\n",
+		cfg->color_blend_mode);
+	ge2d_log_dbg("color_src_blend_factor=0x%x\n",
+		cfg->color_src_blend_factor);
+	ge2d_log_dbg("color_dst_blend_factor=0x%x\n",
+		cfg->color_dst_blend_factor);
+	ge2d_log_dbg("color_logic_op=0x%x\n",
+		cfg->color_logic_op);
+	ge2d_log_dbg("alpha_blend_mode=0x%x\n",
+		cfg->alpha_blend_mode);
+	ge2d_log_dbg("alpha_src_blend_factor=0x%x\n",
+		cfg->alpha_src_blend_factor);
+	ge2d_log_dbg("alpha_src_blend_factor=0x%x\n",
+		cfg->alpha_dst_blend_factor);
+	ge2d_log_dbg("alpha_logic_op=0x%x\n",
+		cfg->alpha_logic_op);
+
+	ge2d_log_dbg("sc_prehsc_en=%d\n", cfg->sc_prehsc_en);
+	ge2d_log_dbg("sc_prevsc_en=%d\n", cfg->sc_prevsc_en);
+	ge2d_log_dbg("sc_hsc_en=%d\n", cfg->sc_hsc_en);
+	ge2d_log_dbg("sc_vsc_en=%d\n", cfg->sc_vsc_en);
+	ge2d_log_dbg("vsc_phase_step=%d\n", cfg->vsc_phase_step);
+	ge2d_log_dbg("vsc_phase_slope=%d\n", cfg->vsc_phase_slope);
+	ge2d_log_dbg("vsc_rpt_l0_num=%d\n", cfg->vsc_rpt_l0_num);
+	ge2d_log_dbg("vsc_ini_phase=%d\n", cfg->vsc_ini_phase);
+	ge2d_log_dbg("hsc_phase_step=%d\n", cfg->hsc_phase_step);
+	ge2d_log_dbg("hsc_phase_slope=%d\n", cfg->hsc_phase_slope);
+	ge2d_log_dbg("hsc_rpt_p0_num=%d\n", cfg->hsc_rpt_p0_num);
+	ge2d_log_dbg("hsc_ini_phase=%d\n", cfg->hsc_ini_phase);
+	ge2d_log_dbg("hsc_div_en=%d\n", cfg->hsc_div_en);
+	ge2d_log_dbg("hsc_div_length=%d\n", cfg->hsc_div_length);
+	ge2d_log_dbg("hsc_adv_num=%d\n", cfg->hsc_adv_num);
+	ge2d_log_dbg("hsc_adv_phase=%d\n", cfg->hsc_adv_phase);
+	ge2d_log_dbg("src1_cmult_asel=%d\n", cfg->src1_cmult_asel);
+	ge2d_log_dbg("src2_cmult_asel=%d\n", cfg->src2_cmult_asel);
+
+	ge2d_log_dbg("GE2D_STATUS0=0x%x\n", ge2d_reg_read(GE2D_STATUS0));
+	ge2d_log_dbg("GE2D_STATUS1=0x%x\n", ge2d_reg_read(GE2D_STATUS1));
+}
+
+
 static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 {
 	struct ge2d_config_s *cfg;
@@ -181,7 +251,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	struct list_head  *head = &wq->work_queue, *pos;
 	int ret = 0;
 	unsigned int block_mode;
-
+	int timeout = 0;
 	ge2d_manager.ge2d_state = GE2D_STATE_RUNNING;
 	pos = head->next;
 	if (pos != head) { /* current work queue not empty. */
@@ -243,9 +313,18 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		/* list_move_tail(&pitem->list,&wq->free_queue); */
 		/* spin_unlock(&wq->lock); */
 
-		while (ge2d_is_busy())
-			interruptible_sleep_on_timeout(
-					&ge2d_manager.event.cmd_complete, 1);
+		while (ge2d_is_busy()) {
+			timeout = wait_event_interruptible_timeout(
+					ge2d_manager.event.cmd_complete,
+					!ge2d_is_busy(),
+					100);
+			if (timeout == 0) {
+				ge2d_log_err("ge2d timeout!!!\n");
+				ge2d_dump_cmd(&pitem->cmd);
+				ge2d_soft_rst();
+				break;
+			}
+		}
 		/* if block mode (cmd) */
 		if (block_mode) {
 			pitem->cmd.wait_done_flag = 0;
@@ -323,10 +402,12 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq)
 	if (work_queue_no_space(wq)) {
 		ge2d_log_dbg("work queue no space\n");
 		/* we should wait for queue empty at this point. */
+		#if 0
 		while (work_queue_no_space(wq))
 			interruptible_sleep_on_timeout(
 					&ge2d_manager.event.cmd_complete, 3);
-		ge2d_log_dbg("got free space\n");
+		#endif
+		return -1;
 	}
 
 	pitem = list_entry(wq->free_queue.next, struct ge2d_queue_item_s, list);
@@ -428,6 +509,9 @@ static inline int bpp(unsigned format)
 	case GE2D_BPP_16BIT:
 		return 16;
 	case GE2D_BPP_24BIT:
+		if ((GE2D_COLOR_MAP_NV21 == (format & GE2D_COLOR_MAP_NV21)) ||
+			(GE2D_COLOR_MAP_NV12 == (format & GE2D_COLOR_MAP_NV12)))
+			return 8;
 		return 24;
 	case GE2D_BPP_32BIT:
 	default:
@@ -770,6 +854,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 			ge2d_log_dbg("ge2d src error: out of range\n");
 			return -1;
 		}
+		ge2d_config->src_para.width = tmp.xres;
+		ge2d_config->src_para.height = tmp.yres;
 		break;
 	case CANVAS_ALLOC:
 		top = ge2d_config->src_para.top;
@@ -818,6 +904,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 				ge2d_config->src2_para.mem_type - CANVAS_OSD0);
 			return -1;
 		}
+		ge2d_config->src2_para.width = tmp.xres;
+		ge2d_config->src2_para.height = tmp.yres;
 		break;
 	case  CANVAS_ALLOC:
 		top = ge2d_config->src2_para.top;
@@ -869,6 +957,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 				ge2d_config->dst_para.mem_type - CANVAS_OSD0);
 			return -1;
 		}
+		ge2d_config->dst_para.width = tmp.xres;
+		ge2d_config->dst_para.height = tmp.yres;
 		break;
 	case  CANVAS_ALLOC:
 		top = ge2d_config->dst_para.top;
