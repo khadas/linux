@@ -584,9 +584,9 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	if (!(amports_get_debug_flags() & 1) &&
 		!codec_mm_video_tvp_enabled()) {
 		int block_size = (buf->type == BUF_TYPE_AUDIO) ?
-			PAGE_SIZE << 2 : PAGE_SIZE << 4;
+			PAGE_SIZE : PAGE_SIZE << 4;
 		int buf_num = (buf->type == BUF_TYPE_AUDIO) ?
-			5 : 10;
+			20 : 10;
 		if (!(buf->type == BUF_TYPE_SUBTITLE))
 			buf->write_thread = threadrw_alloc(buf_num,
 				block_size,
