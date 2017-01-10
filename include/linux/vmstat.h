@@ -270,8 +270,16 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
 					     int migratetype)
 {
 	__mod_zone_page_state(zone, NR_FREE_PAGES, nr_pages);
-	if (is_migrate_cma(migratetype))
-		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, nr_pages);
+}
+
+static inline void __mod_zone_migrate_state(struct zone *zone, int nr_pages,
+					    int migratetype)
+{
+	if (migratetype >= MIGRATE_TYPES || migratetype < MIGRATE_UNMOVABLE) {
+		WARN(1, "wrong type:%d\n", migratetype);
+		return;
+	}
+	zone_page_state_add(nr_pages, zone, NR_FREE_UNMOVABLE + migratetype);
 }
 
 extern const char * const vmstat_text[];

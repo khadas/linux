@@ -67,7 +67,7 @@ static unsigned cma_area_count;
 static DEFINE_MUTEX(cma_mutex);
 
 static atomic_t cma_allocate;
-static __read_mostly unsigned long total_cma_pages;
+__read_mostly unsigned long total_cma_pages;
 static int __init setup_cma_first(char *buf)
 {
 	if (!strcmp(buf, "0"))
@@ -103,6 +103,12 @@ unsigned long get_cma_allocated(void)
 	return atomic_long_read(&nr_cma_allocated);
 }
 EXPORT_SYMBOL(get_cma_allocated);
+
+unsigned long get_total_cmapages(void)
+{
+	return total_cma_pages;
+}
+EXPORT_SYMBOL(get_total_cmapages);
 
 bool can_use_cma(gfp_t gfp_flags)
 {
@@ -327,7 +333,6 @@ static int __init cma_init_reserved_areas(void)
 {
 	int i;
 
-	total_cma_pages = 0;
 	for (i = 0; i < cma_area_count; i++) {
 		int ret = cma_activate_area(&cma_areas[i]);
 
@@ -502,6 +507,19 @@ err:
 	return ret;
 }
 
+void update_cma_ip(struct page *page, int count, unsigned long ip)
+{
+	int i;
+
+	if (!page)
+		return;
+	for (i = 0; i < count; i++) {
+		relpace_page_ip(page, ip);
+		page->alloc_mask = __GFP_BDEV;
+		page++;
+	}
+}
+
 /**
  * cma_alloc() - allocate pages from contiguous area
  * @cma:   Contiguous memory region for which the allocation is performed.
@@ -567,6 +585,7 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 	}
 	put_cma_alloc_ref();
 	atomic_long_add(count, &nr_cma_allocated);
+	update_cma_ip(page, count, _RET_IP_);
 	pr_debug("%s(): returned %p\n", __func__, page);
 	return page;
 }
