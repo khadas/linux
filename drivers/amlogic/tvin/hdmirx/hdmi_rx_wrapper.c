@@ -2576,6 +2576,8 @@ void hdmirx_hw_monitor(void)
 			rx.state = FSM_SIG_UNSTABLE;
 			break;
 		} else {
+			if (hdcp22_on)
+				esm_set_stable(0);
 			rx.state = FSM_EQ_CALIBRATION;
 			queue_delayed_work(eq_wq,
 				&eq_dwork, msecs_to_jiffies(1));
@@ -2770,7 +2772,7 @@ void hdmirx_hw_monitor(void)
 				rx_aud_pll_ctl(0);
 				hdmirx_audio_enable(0);
 				/* hdmirx_audio_fifo_rst(); */
-				rx.state = FSM_SIG_UNSTABLE;
+				rx.state = FSM_WAIT_CLK_STABLE;
 				rx.pre_state = FSM_SIG_READY;
 				wait_no_sig_cnt = 0;
 				rx.aud_sr_stable_cnt = 0;

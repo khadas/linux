@@ -510,23 +510,39 @@ bool hdmirx_phy_check_tmds_valid(void)
 
 bool rx_need_eq_workaround(void)
 {
-
+	static char pre_eq_freq = E_EQ_LOW_FREQ;
 	int mfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 
 	/* configure FATBITS PHY */
 	if (hdmirx_tmds_6g()) {
 		fat_bit_status = EQ_FATBIT_MASK_HDMI20;
 		min_max_diff = MINMAX_maxDiff_HDMI20;
+		if (pre_eq_freq == E_EQ_6G)
+			return false;
+		else
+			pre_eq_freq = E_EQ_6G;
 		if (log_level & EQ_LOG)
 			rx_pr("EQ_6G\n");
 	} else if ((mfsm_status & 0x600) == 0x00) {
 		fat_bit_status = EQ_FATBIT_MASK_4k;
 		min_max_diff = MINMAX_maxDiff;
+		if (pre_eq_freq == E_EQ_3G)
+			return false;
+		else
+			pre_eq_freq = E_EQ_3G;
 		if (log_level & EQ_LOG)
 			rx_pr("EQ_3G\n");
 	} else if ((mfsm_status & 0x400) == 0x400) {
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINMAX_maxDiff;
+		hdmirx_phy_conf_eq_setting(rx.port,
+				0,
+				0,
+				0);
+		if (pre_eq_freq == E_EQ_LOW_FREQ)
+			return false;
+		else
+			pre_eq_freq = E_EQ_LOW_FREQ;
 		if (log_level & EQ_LOG)
 			rx_pr("EQ_low_freq\n");
 		return false;
@@ -534,6 +550,10 @@ bool rx_need_eq_workaround(void)
 		/* 94.5 ~ 148.5 */
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINMAX_maxDiff;
+		if (pre_eq_freq == E_EQ_HD_FREQ)
+			return false;
+		else
+			pre_eq_freq = E_EQ_HD_FREQ;
 		if (log_level & EQ_LOG)
 			rx_pr("EQ_1.5G\n");
 	}

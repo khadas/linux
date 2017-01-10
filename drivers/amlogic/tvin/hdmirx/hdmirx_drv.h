@@ -32,7 +32,7 @@
 /*------------------------------*/
 #define RX_VER1 "Ref.2017/01/05"
 /*------------------------------*/
-#define RX_VER2 "Ref.2016/12/30"
+#define RX_VER2 "Ref.2017/1/10"
 /*------------------------------*/
 #define RX_VER3 "Ref.2017/01/09"
 /*------------------------------*/
@@ -220,6 +220,13 @@ enum port_sts {
 enum hdcp_type {
 	E_HDCP14,
 	E_HDCP22
+};
+
+enum eq_sts {
+	E_EQ_LOW_FREQ,
+	E_EQ_HD_FREQ,
+	E_EQ_3G,
+	E_EQ_6G
 };
 
 enum repeater_state_e {
