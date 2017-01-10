@@ -467,7 +467,8 @@ static int ge2d_monitor_thread(void *data)
 		while ((manager->current_wq =
 				get_next_work_queue(manager)) != NULL)
 			ge2d_process_work_queue(manager->current_wq);
-		ge2d_clk_config(false);
+		if (!ge2d_dump_reg_enable)
+			ge2d_clk_config(false);
 	}
 	ge2d_log_info("exit ge2d_monitor_thread\n");
 	return 0;

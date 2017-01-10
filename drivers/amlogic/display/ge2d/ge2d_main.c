@@ -58,6 +58,8 @@ struct ge2d_device_s {
 static struct ge2d_device_s ge2d_device;
 static DEFINE_MUTEX(ge2d_mutex);
 unsigned int ge2d_log_level;
+unsigned int ge2d_dump_reg_enable;
+unsigned int ge2d_dump_reg_cnt;
 
 static int ge2d_open(struct inode *inode, struct file *file);
 static long ge2d_ioctl(struct file *filp, unsigned int cmd,
@@ -73,6 +75,19 @@ static ssize_t log_level_show(struct class *cla,
 static ssize_t log_level_store(struct class *cla,
 			       struct class_attribute *attr,
 			       const char *buf, size_t count);
+static ssize_t dump_reg_enable_show(struct class *cla,
+			      struct class_attribute *attr,
+			      char *buf);
+static ssize_t dump_reg_enable_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count);
+static ssize_t dump_reg_cnt_show(struct class *cla,
+			      struct class_attribute *attr,
+			      char *buf);
+static ssize_t dump_reg_cnt_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count);
+
 
 static const struct file_operations ge2d_fops = {
 	.owner		= THIS_MODULE,
@@ -91,6 +106,10 @@ static struct class_attribute ge2d_class_attrs[] = {
 			free_queue_status_show, NULL),
 	__ATTR(log_level, S_IRUGO | S_IWUSR,
 			log_level_show, log_level_store),
+	__ATTR(dump_reg_enable, S_IRUGO | S_IWUSR,
+			dump_reg_enable_show, dump_reg_enable_store),
+	__ATTR(dump_reg_cnt, S_IRUGO | S_IWUSR,
+			dump_reg_cnt_show, dump_reg_cnt_store),
 	__ATTR_NULL
 };
 
@@ -99,6 +118,47 @@ static struct class ge2d_class = {
 	.class_attrs = ge2d_class_attrs,
 };
 
+static ssize_t dump_reg_enable_show(struct class *cla,
+			      struct class_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", ge2d_dump_reg_enable);
+}
+
+static ssize_t dump_reg_enable_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	ge2d_log_info("ge2d dump_reg_enbale: %d->%d\n",
+		ge2d_dump_reg_enable, res);
+	ge2d_dump_reg_enable = res;
+
+	return count;
+}
+
+static ssize_t dump_reg_cnt_show(struct class *cla,
+			      struct class_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", ge2d_dump_reg_cnt);
+}
+
+static ssize_t dump_reg_cnt_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	ge2d_log_info("ge2d dump_reg: %d->%d\n", ge2d_dump_reg_cnt, res);
+	ge2d_dump_reg_cnt = res;
+	return count;
+}
 
 static ssize_t log_level_show(struct class *cla,
 			      struct class_attribute *attr,

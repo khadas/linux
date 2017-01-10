@@ -26,6 +26,8 @@
 #include "ge2d_log.h"
 
 #define GE2DBUS_REG_ADDR(reg) (((reg - 0x1800) << 2))
+extern unsigned int ge2d_dump_reg_cnt;
+extern unsigned int ge2d_dump_reg_enable;
 
 struct reg_map_s {
 	unsigned int phy_addr;
@@ -75,7 +77,6 @@ static uint32_t ge2d_reg_read(unsigned int reg)
 
 static void ge2d_reg_write(unsigned int reg, unsigned int val)
 {
-	unsigned int ret = 0;
 	unsigned int addr = 0;
 
 	if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR)
@@ -89,8 +90,11 @@ static void ge2d_reg_write(unsigned int reg, unsigned int val)
 		writel(val, reg_map.vir_addr + addr);
 		/* ret = readl(reg_map.vir_addr + addr); */
 	}
-	ge2d_log_dbg2("write(0x%x, 0x%x)=0x%x\n",
-			reg_map.phy_addr + addr, val, ret);
+	if (ge2d_dump_reg_enable && (ge2d_dump_reg_cnt > 0)) {
+		ge2d_log_info("write(0x%x) = 0x%x\n",
+				reg, val);
+		ge2d_dump_reg_cnt--;
+	}
 }
 
 static inline uint32_t ge2d_vcbus_read(uint32_t reg)
