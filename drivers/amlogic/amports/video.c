@@ -1134,6 +1134,7 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 	u32 y_lines;
 	u32 v_phase;
 	u32 v_skip_flag = 0;
+	int x, y, w, h;
 	r = framePtr->VPP_vsc_endp - framePtr->VPP_vsc_startp;
 	afbc_enble_flag = 0;
 	if (is_meson_gxbb_cpu())
@@ -1148,8 +1149,9 @@ static void vpp_settings_v(struct vpp_frame_par_s *framePtr)
 	else {
 		afbc_enble_flag = READ_VCBUS_REG(AFBC_ENABLE) & 0x100;
 		v_phase = vpp_filter->vpp_vsc_start_phase_step;
+		vpp_get_video_layer_position(&x, &y, &w, &h);
 		if (v_phase * (framePtr->vscale_skip_count + 1) > 0x1000000) {
-			if (afbc_enble_flag) {
+			if ((afbc_enble_flag) && (y < 0)) {
 				if ((framePtr->VPP_vsc_endp < 0x250) ||
 				(framePtr->VPP_vsc_endp <
 				framePtr->VPP_post_blend_vd_v_end_/2)) {
