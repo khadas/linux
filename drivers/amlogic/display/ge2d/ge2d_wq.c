@@ -633,6 +633,8 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 #ifdef CONFIG_AM_FB
 	data32 = VSYNCOSD_RD_MPEG_REG(
 		VIU_OSD1_BLK0_CFG_W0 + REG_OFFSET * index);
+	src_dst->canvas_index = (data32 >> 16) & 0xff;
+	canvas_read(src_dst->canvas_index, &canvas);
 #else
 	data32 = 0;
 #endif
