@@ -784,7 +784,7 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 				lvdsconf->phy_clk_vswing = 0;
 				lvdsconf->phy_clk_preem = 0;
 				if (lcd_debug_print_flag) {
-					LCDPR("phy vswing=%d, preemphasis=%d\n",
+					LCDPR("phy vswing=0x%x, preem=0x%x\n",
 					lvdsconf->phy_vswing,
 					lvdsconf->phy_preem);
 				}
@@ -795,10 +795,10 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 			lvdsconf->phy_clk_vswing = para[2];
 			lvdsconf->phy_clk_preem = para[3];
 			if (lcd_debug_print_flag) {
-				LCDPR("phy vswing=%d, preemphasis=%d\n",
+				LCDPR("phy vswing=0x%x, preemphasis=0x%x\n",
 					lvdsconf->phy_vswing,
 					lvdsconf->phy_preem);
-				LCDPR("phy_clk vswing=%d, preemphasis=%d\n",
+				LCDPR("phy_clk vswing=0x%x, preemphasis=0x%x\n",
 					lvdsconf->phy_clk_vswing,
 					lvdsconf->phy_clk_preem);
 			}
@@ -833,7 +833,7 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 			pconf->lcd_control.vbyone_config->phy_vswing = para[0];
 			pconf->lcd_control.vbyone_config->phy_preem = para[1];
 			if (lcd_debug_print_flag) {
-				LCDPR("phy vswing=%d, preemphasis=%d\n",
+				LCDPR("phy vswing=0x%x, preemphasis=0x%x\n",
 				pconf->lcd_control.vbyone_config->phy_vswing,
 				pconf->lcd_control.vbyone_config->phy_preem);
 			}
