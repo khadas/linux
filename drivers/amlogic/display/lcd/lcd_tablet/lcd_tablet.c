@@ -631,7 +631,7 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 				lvdsconf->phy_preem = para[1];
 				lvdsconf->phy_clk_vswing = 0;
 				lvdsconf->phy_clk_preem = 0;
-				LCDPR("set phy vswing=%d, preemphasis=%d\n",
+				LCDPR("set phy vswing=0x%x, preemphasis=0x%x\n",
 					lvdsconf->phy_vswing,
 					lvdsconf->phy_preem);
 			}
@@ -640,9 +640,9 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 			lvdsconf->phy_preem = para[1];
 			lvdsconf->phy_clk_vswing = para[2];
 			lvdsconf->phy_clk_preem = para[3];
-			LCDPR("set phy vswing=%d, preemphasis=%d\n",
+			LCDPR("set phy vswing=0x%x, preemphasis=0x%x\n",
 				lvdsconf->phy_vswing, lvdsconf->phy_preem);
-			LCDPR("set phy_clk vswing=%d, preemphasis=%d\n",
+			LCDPR("set phy_clk vswing=0x%x, preemphasis=0x%x\n",
 				lvdsconf->phy_clk_vswing,
 				lvdsconf->phy_clk_preem);
 		}

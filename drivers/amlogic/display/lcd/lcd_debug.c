@@ -223,10 +223,10 @@ static void lcd_info_print(void)
 			"pn_swap           %u\n"
 			"port_swap         %u\n"
 			"lane_reverse      %u\n"
-			"phy_vswing        %u\n"
-			"phy_preem         %u\n"
-			"phy_clk_vswing    %u\n"
-			"phy_clk_preem     %u\n\n",
+			"phy_vswing        0x%x\n"
+			"phy_preem         0x%x\n"
+			"phy_clk_vswing    0x%x\n"
+			"phy_clk_preem     0x%x\n\n",
 			pconf->lcd_control.lvds_config->lvds_repack,
 			pconf->lcd_control.lvds_config->dual_port,
 			pconf->lcd_control.lvds_config->pn_swap,
@@ -243,8 +243,8 @@ static void lcd_info_print(void)
 			"byte_mode         %u\n"
 			"color_fmt         %u\n"
 			"bit_rate          %u\n"
-			"phy_vswing        %u\n"
-			"phy_preemphasis   %u\n"
+			"phy_vswing        0x%x\n"
+			"phy_preemphasis   0x%x\n"
 			"intr_en           %u\n"
 			"vsync_intr_en     %u\n\n",
 			pconf->lcd_control.vbyone_config->lane_count,
@@ -678,9 +678,8 @@ static ssize_t lcd_debug_store(struct class *class,
 				pr_info("set frame_rate: %dHz\n", temp);
 				temp = pconf->lcd_basic.h_period *
 					pconf->lcd_basic.v_period * temp;
+				pr_info("set clk: %dHz\n", temp);
 			}
-			pr_info("set frame rate: %d.%02dHz\n",
-				(temp / 100), (temp % 100));
 			lcd_debug_clk_change(temp);
 		} else {
 			LCDERR("invalid data\n");
@@ -1518,7 +1517,7 @@ static void lcd_phy_config_update(unsigned int *para, int cnt)
 	struct lcd_config_s *pconf;
 	struct lvds_config_s *lvdsconf;
 	int type;
-	unsigned int data32;
+	unsigned int data32, vswing, preem, ext_pullup;
 
 	pconf = lcd_drv->lcd_config;
 	type = pconf->lcd_basic.lcd_type;
@@ -1527,11 +1526,11 @@ static void lcd_phy_config_update(unsigned int *para, int cnt)
 		lvdsconf = pconf->lcd_control.lvds_config;
 		if (cnt == 4) {
 			if ((para[0] > 7) || (para[1] > 7) ||
-				(para[2] > 7) || (para[3] > 7)) {
+				(para[2] > 3) || (para[3] > 7)) {
 				LCDERR("%s: wrong value:\n", __func__);
-				pr_info("vswing=%d, preemphasis=%d\n",
+				pr_info("vswing=0x%x, preemphasis=0x%x\n",
 					para[0], para[1]);
-				pr_info("clk_vswing=%d, clk_preemphasis=%d\n",
+				pr_info("clk_vswing=0x%x, clk_preem=0x%x\n",
 					para[2], para[3]);
 				return;
 			}
@@ -1540,30 +1539,38 @@ static void lcd_phy_config_update(unsigned int *para, int cnt)
 			lvdsconf->phy_preem = para[1];
 			lvdsconf->phy_clk_vswing = para[2];
 			lvdsconf->phy_clk_preem = para[3];
-			data32 = 0x606cca80 | (para[0] << 26) | (para[1] << 0);
+
+			data32 = lcd_hiu_read(HHI_DIF_CSI_PHY_CNTL1);
+			data32 &= ~((0x7 << 26) | (0x7 << 0));
+			data32 |= ((para[0] << 26) | (para[1] << 0));
 			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
-			data32 = 0x0fff0800 | (para[2] << 8) | (para[3] << 5);
+			data32 = lcd_hiu_read(HHI_DIF_CSI_PHY_CNTL3);
+			data32 &= ~((0x3 << 8) | (0x7 << 5));
+			data32 |= ((para[2] << 8) | (para[3] << 5));
 			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, data32);
 
 			LCDPR("%s:\n", __func__);
-			pr_info("vswing=%d, preemphasis=%d\n",
+			pr_info("vswing=0x%x, preemphasis=0x%x\n",
 				para[0], para[1]);
-			pr_info("clk_vswing=%d, clk_preemphasis=%d\n",
+			pr_info("clk_vswing=0x%x, clk_preemphasis=0x%x\n",
 				para[2], para[3]);
 		} else if (cnt == 2) {
 			if ((para[0] > 7) || (para[1] > 7)) {
 				LCDERR("%s: wrong value:\n", __func__);
-				pr_info("vswing=%d, preemphasis=%d\n",
+				pr_info("vswing=0x%x, preemphasis=0x%x\n",
 					para[0], para[1]);
 				return;
 			}
 
 			lvdsconf->phy_vswing = para[0];
 			lvdsconf->phy_preem = para[1];
-			data32 = 0x606cca80 | (para[0] << 26) | (para[1] << 0);
+
+			data32 = lcd_hiu_read(HHI_DIF_CSI_PHY_CNTL1);
+			data32 &= ~((0x7 << 26) | (0x7 << 0));
+			data32 |= ((para[0] << 26) | (para[1] << 0));
 			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
 
-			LCDPR("%s: vswing=%d, preemphasis=%d\n",
+			LCDPR("%s: vswing=0x%x, preemphasis=0x%x\n",
 				__func__, para[0], para[1]);
 		} else {
 			LCDERR("%s: invalid parameters cnt: %d\n",
@@ -1572,21 +1579,31 @@ static void lcd_phy_config_update(unsigned int *para, int cnt)
 		break;
 	case LCD_VBYONE:
 		if (cnt >= 2) {
-			if ((para[0] > 7) || (para[1] > 7)) {
+			ext_pullup = (para[0] >> 4) & 1;
+			vswing = para[0] & 0xf;
+			preem = para[1];
+			if ((vswing > 7) || (preem > 7)) {
 				LCDERR("%s: wrong value:\n", __func__);
-				pr_info("vswing=%d, preemphasis=%d\n",
-					para[0], para[1]);
+				pr_info("vswing=0x%x, preemphasis=0x%x\n",
+					vswing, preem);
 				return;
 			}
 
 			pconf->lcd_control.vbyone_config->phy_vswing = para[0];
 			pconf->lcd_control.vbyone_config->phy_preem = para[1];
-			data32 = 0x6e0ec900 | (para[0] << 3);
+
+			data32 = lcd_hiu_read(HHI_DIF_CSI_PHY_CNTL1);
+			data32 &= ~((0x7 << 3) | (1 << 10));
+			data32 |= ((vswing << 3) | (ext_pullup << 10));
+			if (ext_pullup)
+				data32 &= ~(1 << 15);
 			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
-			data32 = 0x00000a7c | (para[1] << 20);
+			data32 =  lcd_hiu_read(HHI_DIF_CSI_PHY_CNTL2);
+			data32 &= ~(0x7 << 20);
+			data32 |= (preem << 20);
 			lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, data32);
 
-			LCDPR("%s: vswing=%d, preemphasis=%d\n",
+			LCDPR("%s: vswing=0x%x, preemphasis=0x%x\n",
 				__func__, para[0], para[1]);
 		} else {
 			LCDERR("%s: invalid parameters cnt: %d\n",
@@ -1617,16 +1634,17 @@ static ssize_t lcd_phy_debug_show(struct class *class,
 		clk_vswing = pconf->lcd_control.lvds_config->phy_clk_vswing;
 		clk_preem = pconf->lcd_control.lvds_config->phy_clk_preem;
 		len += sprintf(buf+len, "%s:\n", __func__);
-		len += sprintf(buf+len, "vswing=%d, preemphasis=%d\n",
+		len += sprintf(buf+len, "vswing=0x%x, preemphasis=0x%x\n",
 			vswing, preem);
-		len += sprintf(buf+len, "clk_vswing=%d, clk_preemphasis=%d\n",
+		len += sprintf(buf+len,
+			"clk_vswing=0x%x, clk_preemphasis=0x%x\n",
 			clk_vswing, clk_preem);
 		break;
 	case LCD_VBYONE:
 		vswing = pconf->lcd_control.vbyone_config->phy_vswing;
 		preem = pconf->lcd_control.vbyone_config->phy_preem;
 		len += sprintf(buf+len, "%s:\n", __func__);
-		len += sprintf(buf+len, "vswing=%d, preemphasis=%d\n",
+		len += sprintf(buf+len, "vswing=0x%x, preemphasis=0x%x\n",
 			vswing, preem);
 		break;
 	default:
@@ -1643,7 +1661,7 @@ static ssize_t lcd_phy_debug_store(struct class *class,
 	int ret = 0;
 	unsigned int para[4];
 
-	ret = sscanf(buf, "%d %d %d %d",
+	ret = sscanf(buf, "%x %x %x %x",
 		&para[0], &para[1], &para[2], &para[3]);
 
 	if (ret == 4) {
