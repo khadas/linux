@@ -52,7 +52,8 @@
 
 #define DRV_NAME "aml_snd_card_g9tv"
 
-int aml_audio_Hardware_resample = 0;
+static int aml_audio_Hardware_resample;
+static int hardware_resample_locked_flag;
 unsigned int clk_rate = 0;
 
 static u32 aml_EQ_param[20][5] = {
@@ -203,6 +204,7 @@ static int aml_spdif_audio_type_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	static int last_audio_type;
 	int audio_type = 0;
 	int i;
 	int total_num = sizeof(type_texts)/sizeof(struct sppdif_audio_info);
@@ -215,6 +217,26 @@ static int aml_spdif_audio_type_get_enum(
 		}
 	}
 	ucontrol->value.enumerated.item[0] = audio_type;
+	if (last_audio_type != audio_type) {
+		if (audio_type == 0) {
+			/*In LPCM, use old spdif mode*/
+			aml_cbus_update_bits(AUDIN_FIFO1_CTRL,
+				(0x7 << AUDIN_FIFO1_DIN_SEL),
+				(SPDIF_IN << AUDIN_FIFO1_DIN_SEL));
+			/*spdif-in data fromat:(27:4)*/
+			aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
+			hardware_resample_locked_flag = 0;
+		} else {
+			/*In RAW data, use PAO mode*/
+			aml_cbus_update_bits(AUDIN_FIFO1_CTRL,
+				(0x7 << AUDIN_FIFO1_DIN_SEL),
+				(PAO_IN << AUDIN_FIFO1_DIN_SEL));
+			/*spdif-in data fromat:(23:0)*/
+			aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x8);
+			hardware_resample_locked_flag = 1;
+		}
+		last_audio_type = audio_type;
+	}
 	return 0;
 }
 
@@ -225,7 +247,6 @@ static int aml_spdif_audio_type_set_enum(
 	return 0;
 }
 
-int hardware_resample_locked_flag = 0;
 #define RESAMPLE_BUFFER_SOURCE 1
 /*Cnt_ctrl = mclk/fs_out-1 ; fest 256fs */
 #define RESAMPLE_CNT_CONTROL 255
@@ -235,8 +256,10 @@ static int hardware_resample_enable(int input_sr)
 	u16 Avg_cnt_init = 0;
 	unsigned int clk_rate = clk81;
 
-	if (hardware_resample_locked_flag == 1)
+	if (hardware_resample_locked_flag == 1) {
+		pr_info("HW resample is locked in RAW data.\n");
 		return 0;
+	}
 
 	if (input_sr < 8000 || input_sr > 48000) {
 		pr_err("Error input sample rate,input_sr = %d!\n", input_sr);
