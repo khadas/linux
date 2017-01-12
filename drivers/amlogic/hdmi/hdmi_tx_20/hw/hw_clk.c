@@ -457,6 +457,7 @@ static void set_hpll_clk_out(unsigned clk)
 	pr_info("config HPLL done\n");
 }
 
+/* HERE MUST BE BIT OPERATION!!! */
 static void set_hpll_sspll(enum hdmi_vic vic)
 {
 	switch (get_cpu_type()) {
@@ -469,13 +470,13 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 		switch (vic) {
 		case HDMI_1920x1080p60_16x9:
 		case HDMI_1920x1080p50_16x9:
-			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x868b48c4);
+			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0x68b48c4, 0, 30);
 			break;
 		case HDMI_1280x720p60_16x9:
 		case HDMI_1280x720p50_16x9:
 		case HDMI_1920x1080i60_16x9:
 		case HDMI_1920x1080i50_16x9:
-			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x864348c4);
+			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0x64348c4, 0, 30);
 			break;
 		case HDMI_3840x2160p50_16x9:
 		case HDMI_3840x2160p60_16x9:
@@ -492,7 +493,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 		case HDMI_4096x2160p30_256x135:
 		case HDMI_4096x2160p25_256x135:
 		case HDMI_4096x2160p24_256x135:
-			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x862b44c4);
+			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0x62b44c4, 0, 30);
 			break;
 		default:
 			break;
