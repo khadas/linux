@@ -207,7 +207,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		 UINT32 *rROFldDif01, UINT32 *rROFrmDif02, UINT32 *rROCmbInf,
 		 UINT32 glb_frame_mot_num, UINT32 glb_field_mot_num, int *tTCNm,
-		 struct sFlmSftPar *pPar, int nROW, int nCOL)
+		 struct sFlmSftPar *pPar, int nROW, int nCOL, bool reverse)
 {
 	static UINT32 DIF01[HISDIFNUM]; /* Last one is global */
 	static UINT32 DIF02[HISDIFNUM]; /* Last one is global */
@@ -465,7 +465,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 
 	VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
 		rPstCYWnd0, rPstCYWnd1, rPstCYWnd2, rPstCYWnd3,
-		nMod, rROCmbInf, &pRDat, pPar, nROW, nCOL);
+		nMod, rROCmbInf, &pRDat, pPar, nROW, nCOL, reverse);
 
 	nT1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	if ((*rFlmPstMod == 0) && (nT1 > flmxx_maybe_num)

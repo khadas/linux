@@ -4771,7 +4771,8 @@ static void pre_de_done_buf_config(void)
 					&tTCNm,
 					&pd_param,
 					hHeight + 1,
-					wWidth  + 1);
+					wWidth + 1,
+					overturn);
 
 				if (hHeight >= 289) /*full hd */
 					tTCNm = tTCNm << 1;
@@ -6223,16 +6224,32 @@ static void get_mcinfo_from_reg_in_irq(void)
 		}
 	}
 }
+
+static unsigned int bit_reverse(unsigned int val)
+{
+	unsigned int i = 0, res = 0;
+	for (i = 0; i < 16; i++) {
+		res |= (((val&(1<<i))>>i)<<(31-i));
+		res |= (((val&(1<<(31-i)))<<i)>>(31-i));
+	}
+	return res;
+}
+
 static void set_post_mcinfo(struct mcinfo_pre_s *curr_field_mcinfo)
 {
-	unsigned int i = 0;
+	unsigned int i = 0, value = 0;
 
 	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_REL_GAIN_OFFST_0,
 		curr_field_mcinfo->highvertfrqflg, 24, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_REL_GAIN_OFFST_0,
 		curr_field_mcinfo->motionparadoxflg, 25, 1);
-	for (i = 0; i < 26; i++)
-		DI_VSYNC_WR_MPEG_REG(0x2f78 + i, curr_field_mcinfo->regs[i]);
+	for (i = 0; i < 26; i++) {
+		if (overturn)
+			value = bit_reverse(curr_field_mcinfo->regs[i]);
+		else
+			value = curr_field_mcinfo->regs[i];
+		DI_VSYNC_WR_MPEG_REG(0x2f78 + i, value);
+	}
 }
 
 static irqreturn_t de_irq(int irq, void *dev_instance)
@@ -6531,7 +6548,7 @@ static int do_pre_only_fun(void *arg, vframe_t *disp_vf)
 static void config_fftffb_mode(struct di_buf_s *di_buf,
 	unsigned int *post_field_type, char fftffb_mode)
 {
-	unsigned char tmp_canvas_idx = 0;
+	unsigned char tmp_idx = 0;
 	switch (fftffb_mode) {
 	case 1:
 		*post_field_type =
@@ -6576,12 +6593,13 @@ static void config_fftffb_mode(struct di_buf_s *di_buf,
 		di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		break;
 	}
+
 	if (is_meson_txl_cpu() && overturn) {
-		/* swap if1&if2 mean negation of mv */
-		tmp_canvas_idx = di_post_stru.di_buf1_mif.canvas0_addr0;
+		/* swap if1&if2 mean negation of mv for normal di*/
+		tmp_idx = di_post_stru.di_buf1_mif.canvas0_addr0;
 		di_post_stru.di_buf1_mif.canvas0_addr0 =
-			di_post_stru.di_buf2_mif.canvas0_addr0;
-		di_post_stru.di_buf2_mif.canvas0_addr0 = tmp_canvas_idx;
+		di_post_stru.di_buf2_mif.canvas0_addr0;
+		di_post_stru.di_buf2_mif.canvas0_addr0 = tmp_idx;
 	}
 
 }
@@ -6622,6 +6640,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 	unsigned int post_blend_en = 0, post_blend_mode = 0,
 		     blend_mtn_en = 0, ei_en = 0, post_field_num = 0;
 	int di_vpp_en, di_ddr_en;
+	unsigned char mc_pre_flag = 0;
 
 	if ((di_get_power_control(1) == 0) || di_post_stru.vscale_skip_flag)
 		return 0;
@@ -6891,18 +6910,30 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 	if ((di_buf->di_buf_dup_p[1]->vframe == NULL) ||
 		di_buf->di_buf_dup_p[0]->vframe == NULL)
 		return 0;
-	switch (di_buf->pulldown_mode) {
+
+	if (is_meson_txl_cpu() && overturn && di_buf->di_buf_dup_p[2]) {
+		if (post_blend == PULL_DOWN_BLEND_2)
+			post_blend = PULL_DOWN_BLEND_0;
+		else if (post_blend == PULL_DOWN_BLEND_0)
+			post_blend = PULL_DOWN_BLEND_2;
+	}
+
+	switch (post_blend) {
 	case PULL_DOWN_BLEND_0:
 	case PULL_DOWN_NORMAL:
 		config_fftffb_mode(di_buf, &post_field_num,
 			(di_buf->di_buf_dup_p[tbbtff_dly]->privated&0x3));
-		if (mcpre_en)
+		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL) {
+			post_blend_mode = 3;
+			mc_pre_flag = is_meson_txl_cpu()?2:(overturn?0:1);
+		} else {
+			post_blend_mode = 1;
+			mc_pre_flag = is_meson_txl_cpu()?0:(overturn?0:1);
+		}
+		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
-		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL)
-			post_blend_mode = 3;
-		else
-			post_blend_mode = 1;
+		}
 		blend_mtn_en = 1;
 		post_ei = ei_en = 1;
 		post_blend_en = 1;
@@ -6920,15 +6951,23 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			di_buf->di_buf_dup_p[0]->nr_canvas_idx;
 		di_post_stru.di_mtnprd_mif.canvas_num =
 			di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
-		if (mcpre_en)
+		if (is_meson_txl_cpu() && overturn) {
+			di_post_stru.di_buf1_mif.canvas0_addr0 =
+			di_post_stru.di_buf2_mif.canvas0_addr0;
+		}
+		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
-
+			mc_pre_flag = is_meson_txl_cpu()?0:(overturn?1:0);
+			if (!overturn)
+				di_post_stru.di_buf2_mif.canvas0_addr0 =
+			di_buf->di_buf_dup_p[2]->nr_canvas_idx;
+		}
 		if ((post_wr_en && post_wr_surpport))
 			di_post_stru.di_diwr_mif.canvas_num =
 				di_post_idx[di_post_stru.canvas_id][4];
 
-				post_blend_mode = 1;
+		post_blend_mode = 1;
 		blend_mtn_en = 1;
 		post_ei = ei_en = 1;
 		post_blend_en = 1;
@@ -7075,7 +7114,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 #endif
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
-		di_post_read_reverse_irq(overturn);
+		di_post_read_reverse_irq(overturn, mc_pre_flag);
 	if (mcpre_en) {
 		if (di_buf->di_buf_dup_p[2])
 			set_post_mcinfo(&di_buf->di_buf_dup_p[2]

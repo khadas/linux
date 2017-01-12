@@ -392,7 +392,7 @@ void read_mtn_info(unsigned long *mtn_info, unsigned long*);
 
 /* for video reverse */
 void di_post_read_reverse(bool reverse);
-void di_post_read_reverse_irq(bool reverse);
+void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag);
 extern void recycle_keep_buffer(void);
 
 /* #define DI_BUFFER_DEBUG */
