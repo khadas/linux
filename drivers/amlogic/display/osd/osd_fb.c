@@ -46,6 +46,8 @@
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/instaboot/instaboot.h>
+#include <sw_sync.h>
+#include <sync.h>
 
 /* Local Headers */
 #include "osd.h"
@@ -643,6 +645,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	unsigned long ret;
 	u32 flush_rate;
 	struct fb_sync_request_s sync_request;
+	struct fb_sync_request_render_s sync_request_render;
 	struct fb_dmabuf_export dmaexp;
 
 	switch (cmd) {
@@ -661,6 +664,10 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIOPUT_OSD_SYNC_ADD:
 		ret = copy_from_user(&sync_request, argp,
 				sizeof(struct fb_sync_request_s));
+		break;
+	case FBIOPUT_OSD_SYNC_RENDER_ADD:
+		ret = copy_from_user(&sync_request_render, argp,
+				sizeof(struct fb_sync_request_render_s));
 		break;
 	case FBIO_WAITFORVSYNC:
 	case FBIOGET_OSD_SCALE_AXIS:
@@ -851,6 +858,20 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			info->var.yoffset = sync_request.yoffset;
 		}
 		break;
+	case FBIOPUT_OSD_SYNC_RENDER_ADD:
+		sync_request_render.out_fen_fd =
+			osd_sync_request_render(info->node, info->var.yres,
+				&sync_request_render);
+		ret = copy_to_user(argp, &sync_request_render,
+				sizeof(struct fb_sync_request_render_s));
+		if (sync_request_render.out_fen_fd  < 0) {
+			/* fence create fail. */
+			ret = -1;
+		} else {
+			info->var.xoffset = sync_request_render.xoffset;
+			info->var.yoffset = sync_request_render.yoffset;
+		}
+		break;
 	case FBIOGET_DMABUF:
 		{
 			if (info->node == DEV_OSD0 && osd_get_afbc()) {
@@ -874,6 +895,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIO_WAITFORVSYNC:
 		osd_wait_vsync_event();
 		ret = copy_to_user(argp, &ret, sizeof(u32));
+		break;
 	default:
 		break;
 	}
@@ -938,9 +960,9 @@ static int osd_compat_ioctl(struct fb_info *info,
 	arg = (unsigned long)compat_ptr(arg);
 
 	/* handle fbio cursor command for 32-bit app */
-	if ((cmd & 0xFFFF) == (FBIO_CURSOR & 0xFFFF)) {
+	if ((cmd & 0xFFFF) == (FBIO_CURSOR & 0xFFFF))
 		ret = osd_compat_cursor(info, arg);
-	} else
+	else
 		ret = osd_ioctl(info, cmd, arg);
 
 	return ret;

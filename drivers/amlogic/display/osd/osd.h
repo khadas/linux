@@ -49,6 +49,7 @@
 #define FBIOPUT_OSD_ROTATE_ON            0x4516
 #define FBIOPUT_OSD_ROTATE_ANGLE         0x4517
 #define FBIOPUT_OSD_SYNC_ADD             0x4518
+#define FBIOPUT_OSD_SYNC_RENDER_ADD      0x4519
 
 /* OSD color definition */
 #define KEYCOLOR_FLAG_TARGET  1
@@ -196,6 +197,8 @@ struct fb_geometry_s {
 	u32 height;
 	u32 canvas_idx;
 	u32 addr;
+	u32 xres;
+	u32 yres;
 };
 
 struct osd_scale_s {
@@ -229,6 +232,10 @@ struct osd_fence_map_s {
 	s32 in_fd;
 	s32 out_fd;
 	u32 val;
+	u32 ext_addr;
+	u32 format;
+	u32 width;
+	u32 height;
 	struct sync_fence *in_fence;
 	struct files_struct *files;
 };
@@ -270,6 +277,7 @@ struct hw_para_s {
 	u32 free_scale_enable[HW_OSD_COUNT];
 	struct fb_geometry_s fb_gem[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_info[HW_OSD_COUNT];
+	const struct color_bit_define_s *color_backup[HW_OSD_COUNT];
 	u32 scan_mode;
 	u32 order;
 	struct osd_3d_mode_s mode_3d[HW_OSD_COUNT];

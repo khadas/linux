@@ -19,6 +19,7 @@
 #define _OSD_HW_H_
 
 #include "osd.h"
+#include "osd_sync.h"
 
 #define REG_OFFSET (0x20)
 #define OSD_RELATIVE_BITS 0x33330
@@ -109,6 +110,8 @@ extern void osd_pan_display_hw(u32 index, unsigned int xoffset,
 			       unsigned int yoffset);
 extern int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 			    s32 in_fence_fd);
+extern int osd_sync_request_render(u32 index, u32 yres,
+	struct fb_sync_request_render_s *request);
 extern s32  osd_wait_vsync_event(void);
 #if defined(CONFIG_FB_OSD2_CURSOR)
 extern void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart,

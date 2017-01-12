@@ -117,6 +117,9 @@ static int meson_ion_get_phys(
 		dprintk(0, "meson_ion_get_phys error, ret=%d\n", ret);
 		return ret;
 	}
+
+	ion_free(client, handle);
+
 	data.phys_addr = (unsigned int)addr;
 	data.size = (unsigned int)len;
 	if (copy_to_user((void __user *)arg, &data,

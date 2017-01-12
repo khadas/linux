@@ -385,6 +385,47 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 	return  out_fence_fd;
 }
 
+int osd_sync_request_render(u32 index, u32 yres,
+	struct fb_sync_request_render_s *request)
+{
+	int out_fence_fd = -1;
+	int buf_num = 0;
+	u32 xoffset, yoffset;
+	s32 in_fence_fd;
+	struct osd_fence_map_s *fence_map =
+		kzalloc(sizeof(struct osd_fence_map_s), GFP_KERNEL);
+	xoffset = request->xoffset;
+	yoffset = request->yoffset;
+	in_fence_fd = request->in_fen_fd;
+	buf_num = find_buf_num(yres, yoffset);
+	if (!fence_map) {
+		osd_log_err("could not allocate osd_fence_map\n");
+		return -ENOMEM;
+	}
+	mutex_lock(&post_fence_list_lock);
+	fence_map->fb_index = index;
+	fence_map->buf_num = buf_num;
+	fence_map->yoffset = yoffset;
+	fence_map->xoffset = xoffset;
+	fence_map->yres = yres;
+	fence_map->in_fd = in_fence_fd;
+	fence_map->ext_addr = request->paddr;
+	if (fence_map->ext_addr) {
+		fence_map->format = request->format;
+		fence_map->width = request->width;
+		fence_map->height = request->height;
+	}
+	fence_map->in_fence = sync_fence_fdget(in_fence_fd);
+	fence_map->files = current->files;
+	fence_map->out_fd =
+		out_fence_create(&out_fence_fd, &fence_map->val, buf_num);
+	list_add_tail(&fence_map->list, &post_fence_list);
+	mutex_unlock(&post_fence_list_lock);
+	queue_kthread_work(&buffer_toggle_worker, &buffer_toggle_work);
+	request->out_fen_fd = out_fence_fd;
+	return  out_fence_fd;
+}
+
 static int osd_wait_buf_ready(struct osd_fence_map_s *fence_map)
 {
 	s32 ret = -1;
@@ -398,7 +439,7 @@ static int osd_wait_buf_ready(struct osd_fence_map_s *fence_map)
 		ret = -1;/* no fence ,output directly. */
 		return ret;
 	}
-	ret = sync_fence_wait(buf_ready_fence, -1);
+	ret = sync_fence_wait(buf_ready_fence, 4000);
 	if (ret < 0) {
 		osd_log_err("Sync Fence wait error:%d\n", ret);
 		osd_log_err("-----wait buf idx:[%d] ERROR\n"
@@ -415,6 +456,14 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 		     s32 in_fence_fd)
 {
 	osd_log_err("osd_sync_request not supported\n");
+	return -5566;
+}
+
+
+int osd_sync_request_render(u32 index, u32 yres,
+	struct fb_sync_request_render_s *request)
+{
+	osd_log_err("osd_sync_request_render not supported\n");
 	return -5566;
 }
 #endif
@@ -828,6 +877,9 @@ int osd_set_scan_mode(u32 index)
 				osd_h_filter_mode = 6;
 				osd_v_filter_mode = 6;
 			}
+			if (osd_hw.free_scale_mode[index])
+				osd_hw.field_out_en = 0;
+			break;
 		default:
 			if (osd_hw.free_scale_mode[index])
 				osd_hw.field_out_en = 0;
@@ -923,6 +975,7 @@ void osd_set_color_mode(u32 index, const struct color_bit_define_s *color)
 {
 	if (color != osd_hw.color_info[index]) {
 		osd_hw.color_info[index] = color;
+		osd_hw.color_backup[index] = color;
 		add_to_update_list(index, OSD_COLOR_MODE);
 	}
 }
@@ -1053,6 +1106,8 @@ void osd_setup_hw(u32 index,
 			else
 				osd_hw.osd_afbcd[index].conv_lbuf_len = 1024;
 		}
+		osd_hw.fb_gem[index].xres = xres;
+		osd_hw.fb_gem[index].yres = yres;
 		osd_log_info("osd[%d] canvas.idx =0x%x\n",
 			index, osd_hw.fb_gem[index].canvas_idx);
 		osd_log_info("osd[%d] canvas.addr=0x%x\n",
@@ -1062,9 +1117,9 @@ void osd_setup_hw(u32 index,
 		osd_log_info("osd[%d] canvas.height=%d\n",
 			index, osd_hw.fb_gem[index].height);
 		osd_log_info("osd[%d] frame.width=%d\n",
-			index, xres);
+			index, osd_hw.fb_gem[index].xres);
 		osd_log_info("osd[%d] frame.height=%d\n",
-			index, yres);
+			index, osd_hw.fb_gem[index].yres);
 #ifdef CONFIG_AML_CANVAS
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
 			osd_hw.fb_gem[index].addr,
@@ -1078,6 +1133,7 @@ void osd_setup_hw(u32 index,
 	if ((color != osd_hw.color_info[index]) || (index == OSD2)) {
 		update_color_mode = 1;
 		osd_hw.color_info[index] = color;
+		osd_hw.color_backup[index] = color;
 	}
 	/* osd blank only control by /sys/class/graphcis/fbx/blank */
 #if 0
@@ -1573,6 +1629,7 @@ void osd_set_clone_hw(u32 index, u32 clone)
 	if (osd_hw.clone[index]) {
 		if (osd_hw.angle[index]) {
 			osd_hw.color_info[index] = osd_hw.color_info[OSD1];
+			osd_hw.color_backup[index] = osd_hw.color_info[OSD1];
 			ret = osd_clone_task_start();
 			if (ret)
 				osd_clone_pan(index,
@@ -1696,6 +1753,65 @@ void osd_set_urgent(u32 index, u32 urgent)
 }
 
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
+enum {
+	HAL_PIXEL_FORMAT_RGBA_8888 = 1,
+	HAL_PIXEL_FORMAT_RGBX_8888 = 2,
+	HAL_PIXEL_FORMAT_RGB_888 = 3,
+	HAL_PIXEL_FORMAT_RGB_565 = 4,
+	HAL_PIXEL_FORMAT_BGRA_8888 = 5,
+};
+
+static u32 extern_canvas[2] = {EXTERN1_CANVAS, EXTERN2_CANVAS};
+static int ext_canvas_id;
+static bool use_ext;
+const struct color_bit_define_s extern_color_format_array[] = {
+	/*32 bit color RGBA */
+	{
+		COLOR_INDEX_32_ABGR, 2, 5,
+		0, 8, 0, 8, 8, 0, 16, 8, 0, 24, 8, 0,
+		0, 4
+	},
+	/*32 bit color RGBX */
+	{
+		COLOR_INDEX_32_XBGR, 2, 5,
+		0, 8, 0, 8, 8, 0, 16, 8, 0, 24, 0, 0,
+		0, 4
+	},
+	/*24 bit color RGB */
+	{
+		COLOR_INDEX_24_RGB, 5, 7,
+		16, 8, 0, 8, 8, 0, 0, 8, 0, 0, 0, 0,
+		0, 3
+	},
+	/*16 bit color BGR */
+	{
+		COLOR_INDEX_16_565, 4, 4,
+		11, 5, 0, 5, 6, 0, 0, 5, 0, 0, 0, 0,
+		0, 2
+	},
+	/*32 bit color BGRA */
+	{
+		COLOR_INDEX_32_ARGB, 1, 5,
+		16, 8, 0, 8, 8, 0, 0, 8, 0, 24, 8, 0,
+		0, 4
+	},
+};
+
+static const struct color_bit_define_s *convert_hal_format(u32 format)
+{
+	const struct color_bit_define_s *color = NULL;
+	switch (format) {
+	case HAL_PIXEL_FORMAT_RGBA_8888:
+	case HAL_PIXEL_FORMAT_RGBX_8888:
+	case HAL_PIXEL_FORMAT_RGB_888:
+	case HAL_PIXEL_FORMAT_RGB_565:
+	case HAL_PIXEL_FORMAT_BGRA_8888:
+		color = &extern_color_format_array[format - 1];
+		break;
+	}
+	return color;
+}
+
 static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 {
 	s32 ret = 1;
@@ -1703,6 +1819,9 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 	u32 index = fence_map->fb_index;
 	u32 xoffset = fence_map->xoffset;
 	u32 yoffset = fence_map->yoffset;
+	u32 ext_addr = fence_map->ext_addr;
+	const struct color_bit_define_s *color = NULL;
+	bool color_mode = false;
 	if (index >= 2)
 		return;
 	if (timeline_created) { /* out fence created success. */
@@ -1711,15 +1830,77 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			osd_log_dbg("fence wait ret %d\n", ret);
 	}
 	if (ret) {
-		if (xoffset != osd_hw.pandata[index].x_start
-		    || yoffset != osd_hw.pandata[index].y_start) {
+		if (ext_addr && fence_map->width
+				&& fence_map->height && index == OSD1) {
 			spin_lock_irqsave(&osd_lock, lock_flags);
-			diff_x = xoffset - osd_hw.pandata[index].x_start;
-			diff_y = yoffset - osd_hw.pandata[index].y_start;
-			osd_hw.pandata[index].x_start += diff_x;
-			osd_hw.pandata[index].x_end   += diff_x;
-			osd_hw.pandata[index].y_start += diff_y;
-			osd_hw.pandata[index].y_end   += diff_y;
+			use_ext = true;
+			osd_hw.fb_gem[index].canvas_idx =
+				extern_canvas[ext_canvas_id];
+			ext_canvas_id ^= 1;
+			color = convert_hal_format(fence_map->format);
+			if (color)
+				osd_hw.color_info[index] = color;
+			else
+				osd_log_err("fence color format error %d\n",
+					fence_map->format);
+			canvas_config(osd_hw.fb_gem[index].canvas_idx,
+				ext_addr,
+				fence_map->width *
+				osd_hw.color_info[index]->bpp,
+				fence_map->height,
+				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			osd_hw.pandata[index].x_start = 0;
+			osd_hw.pandata[index].x_end = fence_map->width - 1;
+			osd_hw.pandata[index].y_start = 0;
+			osd_hw.pandata[index].y_end = fence_map->height - 1;
+			if (index == OSD1 &&
+				osd_hw.osd_afbcd[index].enable == ENABLE) {
+				osd_hw.osd_afbcd[index].phy_addr =
+					ext_addr;
+			}
+			osd_hw.reg[index][OSD_COLOR_MODE].update_func();
+			osd_hw.reg[index][DISP_GEOMETRY].update_func();
+			if (osd_hw.free_scale_enable[index]
+					&& osd_update_window_axis) {
+				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
+					.update_func();
+				osd_update_window_axis = false;
+			}
+			spin_unlock_irqrestore(&osd_lock, lock_flags);
+			osd_wait_vsync_hw();
+		} else if (xoffset != osd_hw.pandata[index].x_start
+			|| yoffset != osd_hw.pandata[index].y_start
+			|| (use_ext && index == OSD1)) {
+			spin_lock_irqsave(&osd_lock, lock_flags);
+			if ((use_ext) && (index == OSD1)) {
+				osd_hw.fb_gem[index].canvas_idx =
+					OSD1_CANVAS_INDEX;
+				osd_hw.pandata[index].x_start = xoffset;
+				osd_hw.pandata[index].x_end   = xoffset -
+					osd_hw.fb_gem[index].xres + 1;
+				osd_hw.pandata[index].y_start = yoffset;
+				osd_hw.pandata[index].x_end   = yoffset -
+					osd_hw.fb_gem[index].yres + 1;
+				osd_hw.color_info[index] =
+					osd_hw.color_backup[index];
+				canvas_config(osd_hw.fb_gem[0].canvas_idx,
+					osd_hw.fb_gem[0].addr,
+					osd_hw.fb_gem[0].width,
+					osd_hw.fb_gem[0].height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+				use_ext = false;
+				color_mode = true;
+			} else {
+				diff_x = xoffset -
+					osd_hw.pandata[index].x_start;
+				diff_y = yoffset -
+					osd_hw.pandata[index].y_start;
+				osd_hw.pandata[index].x_start += diff_x;
+				osd_hw.pandata[index].x_end   += diff_x;
+				osd_hw.pandata[index].y_start += diff_y;
+				osd_hw.pandata[index].y_end   += diff_y;
+			}
 			if (index == OSD1 &&
 				osd_hw.osd_afbcd[index].enable == ENABLE) {
 				/*osd_hw.osd_afbcd[index].phy_addr =
@@ -1734,6 +1915,8 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 					[osd_hw.pandata[index].y_start /
 					osd_hw.osd_afbcd[index].frame_height];
 			}
+			if (color_mode)
+				osd_hw.reg[index][OSD_COLOR_MODE].update_func();
 			osd_hw.reg[index][DISP_GEOMETRY].update_func();
 			if (osd_hw.free_scale_enable[index]
 					&& osd_update_window_axis) {
@@ -3204,10 +3387,16 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.enable[OSD2] = osd_hw.enable[OSD1] = DISABLE;
 	osd_hw.fb_gem[OSD1].canvas_idx = OSD1_CANVAS_INDEX;
 	osd_hw.fb_gem[OSD2].canvas_idx = OSD2_CANVAS_INDEX;
+	osd_hw.fb_gem[OSD1].xres = 0;
+	osd_hw.fb_gem[OSD1].yres = 0;
+	osd_hw.fb_gem[OSD2].xres = 0;
+	osd_hw.fb_gem[OSD2].yres = 0;
 	osd_hw.gbl_alpha[OSD1] = OSD_GLOBAL_ALPHA_DEF;
 	osd_hw.gbl_alpha[OSD2] = OSD_GLOBAL_ALPHA_DEF;
 	osd_hw.color_info[OSD1] = NULL;
 	osd_hw.color_info[OSD2] = NULL;
+	osd_hw.color_backup[OSD1] = NULL;
+	osd_hw.color_backup[OSD2] = NULL;
 	osd_hw.color_key[OSD1] = osd_hw.color_key[OSD2] = 0xffffffff;
 	osd_hw.free_scale_enable[OSD1] = osd_hw.free_scale_enable[OSD2] = 0;
 	osd_hw.scale[OSD1].h_enable = osd_hw.scale[OSD1].v_enable = 0;
