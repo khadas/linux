@@ -4383,7 +4383,7 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 		}
 
 #if (!HAS_VPU_PROT)
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB && cur_dispbuf) {
 			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
 				cur_frame_par->VPP_pic_in_height_ =
 				zoom_end_y_lines - zoom_start_y_lines + 1;
@@ -4404,7 +4404,8 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				(cur_frame_par->hscale_skip_count + 1);
 			}
 		}
-		if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
+		if ((is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) &&
+			cur_dispbuf) {
 			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
 				cur_frame_par->VPP_pic_in_height_ =
 				(zoom_end_y_lines - zoom_start_y_lines + 1)  <<
