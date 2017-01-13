@@ -112,8 +112,14 @@ ONE_PAGE_SID: MAX_SID
 
 #endif
 #define MAX_SC_LIST 64
+#define MK_TAG(a, b, c, d) (((a) << 24) | ((b) << 16) |\
+					((c) << 8) | d)
+#define SMGT_IDENTIFY_TAG MK_TAG('Z', 'S', 'C', 'Z')
+
 struct codec_mm_scatter_mgt {
+	unsigned int tag;/*=*/
 	struct codec_mm_slot *slot_list_map[MAX_SID];
+	int tvp_mode;
 	int codec_mm_num;
 	int total_page_num;
 	int alloced_page_num;
@@ -131,6 +137,7 @@ struct codec_mm_scatter_mgt {
 	int slot_cnt;
 	int reserved_block_mm_M;
 	int keep_size_PAGE;
+	int mem_flags;
 
 	int alloc_from_sys_sc_cnt;
 	int alloc_from_sys_page_cnt;
@@ -167,11 +174,18 @@ struct codec_mm_scatter_mgt {
 
 
 static struct codec_mm_scatter_mgt *scatter_mgt;
-
-static struct codec_mm_scatter_mgt *codec_mm_get_scatter_mgt(void)
+static struct codec_mm_scatter_mgt *scatter_tvp_mgt;
+static struct codec_mm_scatter_mgt *codec_mm_get_scatter_mgt(
+	int is_tvp)
 {
+	if (is_tvp)
+		return scatter_tvp_mgt;
 	return scatter_mgt;
 }
+static int codec_mm_scatter_valid_locked(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_scatter *mms);
+
 /*#define MY_MUTEX_DEBUG*/
 #ifdef MY_MUTEX_DEBUG
 #define codec_mm_scatter_lock(s) \
@@ -259,21 +273,24 @@ static inline void codec_mm_list_unlock(
 }
 
 static int codec_mm_scatter_alloc_want_pages_in(
+		struct codec_mm_scatter_mgt *smgt,
 		struct codec_mm_scatter *mms,
 		int want_pages);
 
 static struct workqueue_struct *codec_mm_scatter_wq_get(void)
 {
-	static struct workqueue_struct *codec_mm_scatter;
-	if (!codec_mm_scatter)
-		codec_mm_scatter = create_singlethread_workqueue("codec_mm_sc");
-	return codec_mm_scatter;
+	static struct workqueue_struct *codec_mm_scatter_wq;
+	if (!codec_mm_scatter_wq) {
+		codec_mm_scatter_wq =
+			create_singlethread_workqueue("codec_mm_sc");
+	}
+	return codec_mm_scatter_wq;
 }
 
 
-static int codec_mm_schedule_delay_work(int delay_ms, int for_update)
+static int codec_mm_schedule_delay_work(struct codec_mm_scatter_mgt *smgt,
+	int delay_ms, int for_update)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	bool ret;
 	if (!for_update && delayed_work_pending(&smgt->dealy_work))
 		return 0;
@@ -295,9 +312,9 @@ static inline u64 codec_mm_get_current_us(void)
 	return div64_u64(timeval_to_ns(&tv), 1000);
 }
 
-static void codec_mm_update_alloc_time(u64 startus)
+static void codec_mm_update_alloc_time(
+	struct codec_mm_scatter_mgt *smgt, u64 startus)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int spend_time_us;
 
 	spend_time_us = (int)(codec_mm_get_current_us() - startus);
@@ -329,9 +346,9 @@ static void codec_mm_update_alloc_time(u64 startus)
 	}
 }
 
-void codec_mm_clear_alloc_infos(void)
+static void codec_mm_clear_alloc_infos_in(
+	struct codec_mm_scatter_mgt *smgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	smgt->alloc_cnt = 0;
 	smgt->alloc_10us_less_cnt = 0;
 	smgt->alloc_10_50us_cnt = 0;
@@ -344,11 +361,17 @@ void codec_mm_clear_alloc_infos(void)
 	smgt->alloc_max_us = 0;
 	return;
 }
-
-
-static int codec_mm_set_slot_in_hash(struct codec_mm_slot *slot)
+void codec_mm_clear_alloc_infos(void)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	codec_mm_clear_alloc_infos_in(codec_mm_get_scatter_mgt(0));
+	codec_mm_clear_alloc_infos_in(codec_mm_get_scatter_mgt(1));
+}
+
+
+static int codec_mm_set_slot_in_hash(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_slot *slot)
+{
 
 	page_sid_type sid = SLOT_TO_SID(slot);
 	if (sid < 0 || sid > MAX_SID) {
@@ -383,9 +406,9 @@ static int codec_mm_set_slot_in_hash(struct codec_mm_slot *slot)
 }
 
 static struct codec_mm_slot *codec_mm_find_slot_in_hash(
+	struct codec_mm_scatter_mgt *smgt,
 	page_sid_type sid, ulong addr)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_slot *fslot, *slot;
 
 	if (!VALID_SID(sid))
@@ -425,9 +448,10 @@ err:
 	return NULL;
 }
 
-static int codec_mm_slot_free(struct codec_mm_slot *slot)
+static int codec_mm_slot_free(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_slot *slot)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int ret = 0;
 	codec_mm_list_lock(smgt);
 	if (slot->alloced_page_num > 0 || slot->on_alloc_free) {
@@ -480,17 +504,17 @@ static int codec_mm_slot_free(struct codec_mm_slot *slot)
 	kfree(slot);
 	return 0;
 }
-static int codec_mm_slot_try_free(struct codec_mm_slot *slot)
+static int codec_mm_slot_try_free(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_slot *slot)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
-
 	if (smgt->keep_size_PAGE > 0) {
 		/*delay free, when size < delay_free_M MB*/
 		int free_pages  = smgt->total_page_num - smgt->alloced_page_num;
 		if (free_pages < smgt->keep_size_PAGE)
 			return -1;
 	}
-	return codec_mm_slot_free(slot);
+	return codec_mm_slot_free(smgt, slot);
 }
 
 static inline int  codec_mm_slot_init_bitmap(struct codec_mm_slot *slot)
@@ -513,9 +537,10 @@ static inline int  codec_mm_slot_init_bitmap(struct codec_mm_slot *slot)
 /*
 flags : 1. don't used codecmm.
 */
-static struct codec_mm_slot *codec_mm_slot_alloc(int size, int flags)
+static struct codec_mm_slot *codec_mm_slot_alloc(
+	struct codec_mm_scatter_mgt *smgt,
+	int size, int flags)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_slot *slot;
 	struct codec_mm_s *mm;
 	int try_alloc_size = size;
@@ -544,7 +569,10 @@ static struct codec_mm_slot *codec_mm_slot_alloc(int size, int flags)
 			mm = codec_mm_alloc(SCATTER_MEM, try_alloc_size, 0,
 					CODEC_MM_FLAGS_CMA_FIRST |
 					CODEC_MM_FLAGS_FOR_VDECODER |
-					CODEC_MM_FLAGS_FOR_SCATTER);
+					CODEC_MM_FLAGS_FOR_SCATTER |
+					(smgt->tvp_mode ?
+						CODEC_MM_FLAGS_TVP : 0)
+					);
 			if (mm != NULL) {
 				slot->from_type = SLOT_FROM_CODEC_MM;
 				slot->mm = mm;
@@ -577,7 +605,7 @@ static struct codec_mm_slot *codec_mm_slot_alloc(int size, int flags)
 			goto error;	/*don't alloc 1 page with slot. */
 		}
 	}
-	if (!have_alloced && codec_mm_video_tvp_enabled()) {
+	if (!have_alloced && smgt->tvp_mode) {
 		/*tvp not support alloc from sys.*/
 		goto error;
 	}
@@ -618,7 +646,7 @@ static struct codec_mm_slot *codec_mm_slot_alloc(int size, int flags)
 		have_alloced = 1;
 		break;
 	}
-	codec_mm_set_slot_in_hash(slot);
+	codec_mm_set_slot_in_hash(smgt, slot);
 
 	return slot;
 error:
@@ -626,9 +654,10 @@ error:
 	return NULL;
 }
 
-static int codec_mm_slot_free_page(struct codec_mm_slot *slot, ulong phy_addr)
+static int codec_mm_slot_free_page(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_slot *slot, ulong phy_addr)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int bit;
 
 	if (!slot || !slot->pagemap || slot->page_num <= 0)
@@ -652,10 +681,11 @@ static int codec_mm_slot_free_page(struct codec_mm_slot *slot, ulong phy_addr)
 	return 0;
 }
 
-static int codec_mm_slot_alloc_pages(struct codec_mm_slot *slot,
-		phy_addr_type  *pages, int num)
+static int codec_mm_slot_alloc_pages(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_slot *slot,
+	phy_addr_type  *pages, int num)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int alloced = 0;
 	int need = num;
 	int can_alloced;
@@ -727,23 +757,24 @@ static inline page_sid_type codec_mm_get_page_sid(
 	return PAGE_SID(page);
 }
 
-static int codec_mm_page_free_to_slot(page_sid_type sid, ulong addr)
+static int codec_mm_page_free_to_slot(
+	struct codec_mm_scatter_mgt *smgt,
+	page_sid_type sid, ulong addr)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_slot *slot;
 	int ret;
 	int slot_free = 0;
 
-	slot = codec_mm_find_slot_in_hash(sid, addr);
+	slot = codec_mm_find_slot_in_hash(smgt, sid, addr);
 	if (!slot)
 		return -1;
-	ret = codec_mm_slot_free_page(slot, addr);
+	ret = codec_mm_slot_free_page(smgt, slot, addr);
 	if (ret != 0)
 		ERR_LOG("free slot addr error =%p ret=%d\n",
 			(void *)addr, ret);
 
 	if (slot->alloced_page_num == 0)
-		slot_free = (codec_mm_slot_try_free(slot) == 0);
+		slot_free = (codec_mm_slot_try_free(smgt, slot) == 0);
 
 	if (!slot_free) {/*move to have free list. */
 		codec_mm_list_lock(smgt);
@@ -760,9 +791,10 @@ static int codec_mm_page_free_to_slot(page_sid_type sid, ulong addr)
 	return 0;
 }
 
-static int codec_mm_page_alloc_from_one_pages(phy_addr_type *pages, int num)
+static int codec_mm_page_alloc_from_one_pages(
+	struct codec_mm_scatter_mgt *smgt,
+	phy_addr_type *pages, int num)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int neednum = num;
 	int alloced = 0;
 
@@ -793,9 +825,10 @@ static int codec_mm_page_alloc_from_one_pages(phy_addr_type *pages, int num)
 
 
 
-static int codec_mm_page_alloc_from_slot(phy_addr_type *pages, int num)
+static int codec_mm_page_alloc_from_slot(
+	struct codec_mm_scatter_mgt *smgt,
+	phy_addr_type *pages, int num)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_slot *slot = NULL;
 	int alloced = 0;
 	int neednum = num;
@@ -817,7 +850,7 @@ static int codec_mm_page_alloc_from_slot(phy_addr_type *pages, int num)
 			smgt->alloced_page_num == smgt->total_page_num ||
 			list_empty(&smgt->free_list)) {
 			/*codec_mm_scatter_info_dump(NULL, 0);*/
-			slot = codec_mm_slot_alloc(0, 0);
+			slot = codec_mm_slot_alloc(smgt, 0, 0);
 			if (!slot) {
 				/*
 				ERR_LOG("can't alloc slot from system\n");
@@ -850,7 +883,8 @@ static int codec_mm_page_alloc_from_slot(phy_addr_type *pages, int num)
 		}
 		codec_mm_list_unlock(smgt);
 		if (slot) {
-			n = codec_mm_slot_alloc_pages(slot,
+			n = codec_mm_slot_alloc_pages(smgt,
+				slot,
 				&pages[alloced], neednum);
 			codec_mm_list_lock(smgt);
 			slot->on_alloc_free--;/*alloc use end*/
@@ -906,9 +940,9 @@ static int codec_mm_page_alloc_from_slot(phy_addr_type *pages, int num)
 
 
 static int codec_mm_page_alloc_from_free_scatter(
+	struct codec_mm_scatter_mgt *smgt,
 	phy_addr_type *pages, int num)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_scatter *mms;
 	int need = num;
 	int alloced = 0;
@@ -943,6 +977,7 @@ static int codec_mm_page_alloc_from_free_scatter(
 }
 
 static int codec_mm_page_alloc_all_locked(
+		struct codec_mm_scatter_mgt *smgt,
 		phy_addr_type * pages, int num, int iscache)
 {
 	int alloced = 0;
@@ -954,18 +989,21 @@ static int codec_mm_page_alloc_all_locked(
 		new_alloc = 0;
 		if (can_from_scatter) {
 			new_alloc = codec_mm_page_alloc_from_free_scatter(
+				smgt,
 				pages + alloced,
 				num - alloced);
 			if (new_alloc <= 0)
 				can_from_scatter = 0;
 		} else if (can_from_slot) {
 			new_alloc = codec_mm_page_alloc_from_slot(
+				smgt,
 				pages + alloced,
 				num - alloced);
 			if (new_alloc <= 0)
 				can_from_slot = 0;
-		} else if (!codec_mm_video_tvp_enabled()) {
+		} else if (!smgt->tvp_mode) {
 			new_alloc = codec_mm_page_alloc_from_one_pages(
+				smgt,
 				pages + alloced,
 				num - alloced);
 			if (new_alloc <= 0)
@@ -979,9 +1017,9 @@ static int codec_mm_page_alloc_all_locked(
 }
 
 static int codec_mm_pages_free_to_scatter(
+	struct codec_mm_scatter_mgt *smgt,
 	struct codec_mm_scatter *src_mms)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_scatter *dst_mms;
 	int moved = 0;
 	int left;
@@ -1013,38 +1051,15 @@ static int codec_mm_pages_free_to_scatter(
 	return moved;
 }
 
-#if 0
-/*
-return:
-1:for valid;
-0:no valid mms.
-must check in
-codec_mm_list_lock
-*/
-static int codec_mm_scatter_valid_check_inlock(struct codec_mm_scatter *mms)
-{
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
-	struct list_head *pos, *to_check_list;
-	if (!mms)
-		return 0;
-	to_check_list = &mms->list;
-	if (list_empty(&smgt->scatter_list))
-		return 0;
-	list_for_each(pos, &smgt->scatter_list) {
-		if (pos == to_check_list)
-			return 1;
-	}
-	return 0;
-}
-#endif
+
 
 /*
 free one page in mms;
 */
 static int codec_mm_scatter_free_page_id_locked(
+	struct codec_mm_scatter_mgt *smgt,
 	struct codec_mm_scatter *mms, int id)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	page_sid_type sid;
 	int ret;
 
@@ -1063,7 +1078,7 @@ static int codec_mm_scatter_free_page_id_locked(
 		mms->page_cnt--;
 		return 0;
 	}
-	ret = codec_mm_page_free_to_slot(sid, PAGE_ADDR_OF_MMS(mms, id));
+	ret = codec_mm_page_free_to_slot(smgt, sid, PAGE_ADDR_OF_MMS(mms, id));
 	if (!ret) {
 		mms->page_cnt--;
 		mms->page_tail--;
@@ -1073,10 +1088,12 @@ static int codec_mm_scatter_free_page_id_locked(
 /*
 free one page in mms;
 */
-static int codec_mm_scatter_free_pages_in_locked(struct codec_mm_scatter *mms,
+static int codec_mm_scatter_free_pages_in_locked(
+	struct codec_mm_scatter *mms,
 	int start_id)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt =
+		(struct codec_mm_scatter_mgt *)mms->manager;
 	int i;
 	int ret;
 	int id = start_id;
@@ -1084,7 +1101,7 @@ static int codec_mm_scatter_free_pages_in_locked(struct codec_mm_scatter *mms,
 	int not_continue_print = 1;
 
 	for (i = mms->page_tail; i >= id; i--) {
-		ret = codec_mm_scatter_free_page_id_locked(mms, i);
+		ret = codec_mm_scatter_free_page_id_locked(smgt, mms, i);
 		if (ret < 0) {
 			if (not_continue_print) {
 				ERR_LOG("page free error.%d,id=%d, addr:%d\n",
@@ -1113,13 +1130,14 @@ static int codec_mm_scatter_free_tail_pages_in(
 	int fast)
 {
 	int id = start_free_id;
-
+	struct codec_mm_scatter_mgt *smgt;
 	if (!mms || id < 0 || id >= mms->page_cnt || mms->page_tail < 0) {
 		if (mms)
 			ERR_LOG("free mm scatters error id %d,page_cnt=%d\n",
 				id, mms->page_cnt);
 		return -1;
 	}
+	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
 	codec_mm_scatter_lock(mms);
 	mms->page_used = start_free_id;
 
@@ -1128,7 +1146,7 @@ static int codec_mm_scatter_free_tail_pages_in(
 		return 0;
 	}
 	if (fast == 2 || fast == 3) {
-		codec_mm_pages_free_to_scatter(mms);
+		codec_mm_pages_free_to_scatter(smgt, mms);
 		if (fast == 2 || mms->page_used == mms->page_cnt) {
 			codec_mm_scatter_unlock(mms);
 			return 0;
@@ -1139,24 +1157,32 @@ static int codec_mm_scatter_free_tail_pages_in(
 	return 0;
 }
 
-int codec_mm_scatter_free_tail_pages(struct codec_mm_scatter *mms,
-				int start_free_id)
+int codec_mm_scatter_free_tail_pages(
+		struct codec_mm_scatter *mms,
+		int start_free_id)
 {
 	int ret = 0;
 	if (start_free_id < mms->page_cnt)
-		ret = codec_mm_scatter_free_tail_pages_in(mms,
+		ret = codec_mm_scatter_free_tail_pages_in(
+			mms,
 			start_free_id, 0);
 	return ret;
 }
 
-int codec_mm_scatter_free_tail_pages_fast(struct codec_mm_scatter *mms,
-				int start_free_id)
+int codec_mm_scatter_free_tail_pages_fast(
+	struct codec_mm_scatter *mms,
+	int start_free_id)
 {
 	int ret = 0;
+	if (!mms)
+		return -1;
 	if (start_free_id < mms->page_cnt)
-		ret = codec_mm_scatter_free_tail_pages_in(mms,
-			start_free_id, 2);
-	codec_mm_schedule_delay_work(100, 0);
+		ret = codec_mm_scatter_free_tail_pages_in(
+				mms,
+				start_free_id, 2);
+	codec_mm_schedule_delay_work(
+		(struct codec_mm_scatter_mgt *)mms->manager,
+		100, 0);
 	return ret;
 }
 
@@ -1180,9 +1206,9 @@ int codec_mm_scatter_free_all_pages(struct codec_mm_scatter *mms)
 }
 
 static inline int codec_mm_scatter_map_add_locked(
+	struct codec_mm_scatter_mgt *smgt,
 	struct codec_mm_scatter *mms)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int i;
 	for (i = 0; i < MAX_SC_LIST; i++) {
 		if (smgt->scmap[i] == NULL) {
@@ -1194,9 +1220,9 @@ static inline int codec_mm_scatter_map_add_locked(
 }
 
 static inline int codec_mm_scatter_map_del_locked(
+	struct codec_mm_scatter_mgt *smgt,
 	struct codec_mm_scatter *mms)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int i;
 	for (i = 0; i < MAX_SC_LIST; i++) {
 		if (smgt->scmap[i] == mms) {
@@ -1207,9 +1233,10 @@ static inline int codec_mm_scatter_map_del_locked(
 	return 0;
 }
 
-int codec_mm_scatter_valid_locked(struct codec_mm_scatter *mms)
+int codec_mm_scatter_valid_locked(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_scatter *mms)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int i;
 	int valid = 0;
 	for (i = 0; i < MAX_SC_LIST; i++) {
@@ -1222,9 +1249,11 @@ int codec_mm_scatter_valid_locked(struct codec_mm_scatter *mms)
 }
 
 /*free scatter's all */
-static int codec_mm_scatter_free_on_nouser(struct codec_mm_scatter *mms)
+static int codec_mm_scatter_free_on_nouser_ext(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_scatter *mms,
+	int not_in_mgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int ret = 0;
 	int free;
 	codec_mm_scatter_lock(mms);
@@ -1241,8 +1270,11 @@ static int codec_mm_scatter_free_on_nouser(struct codec_mm_scatter *mms)
 	free = mms->page_cnt;
 	if (!list_empty(&mms->list))
 		list_del(&mms->list);
-	smgt->scatters_cnt--;
-	codec_mm_scatter_map_del_locked(mms);
+	if (!not_in_mgt) {
+		smgt->scatters_cnt--;
+	codec_mm_scatter_map_del_locked(smgt, mms);
+	}
+
 	codec_mm_list_unlock(smgt);
 	codec_mm_scatter_unlock(mms);
 	if (mms->page_cnt > 0)
@@ -1261,6 +1293,14 @@ static int codec_mm_scatter_free_on_nouser(struct codec_mm_scatter *mms)
 	SC_FREE(mms);
 	return ret;
 }
+/*free scatter's all */
+static int codec_mm_scatter_free_on_nouser(
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_scatter *mms)
+{
+	return codec_mm_scatter_free_on_nouser_ext(
+		smgt, mms, 0);
+}
 
 /*
 mask for other use it.
@@ -1268,13 +1308,16 @@ mask for other use it.
 static int codec_mm_scatter_inc_user_in(struct codec_mm_scatter *mms,
 	int cnt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt;
 	int ret = -1;
 	int old_user;
 	if (!mms)
 		return -1;
+	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
+	if (smgt->tag != SMGT_IDENTIFY_TAG)
+		return -2;/*not valid tag*/
 	codec_mm_list_lock(smgt);
-	if (!codec_mm_scatter_valid_locked(mms)) {
+	if (!codec_mm_scatter_valid_locked(smgt, mms)) {
 		codec_mm_list_unlock(smgt);
 		return -1;
 	}
@@ -1289,15 +1332,19 @@ static int codec_mm_scatter_inc_user_in(struct codec_mm_scatter *mms,
 }
 
 /*mask scatter's to free.*/
-static int codec_mm_scatter_dec_user_in(struct codec_mm_scatter *mms,
-	int delay_free_ms, int cnt)
+static int codec_mm_scatter_dec_user_in(
+		struct codec_mm_scatter *mms,
+		int delay_free_ms, int cnt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt;
 	int after_users = 1;
 	if (!mms)
 		return -1;
+	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
+	if (smgt->tag != SMGT_IDENTIFY_TAG)
+		return -2;/*not valid tag*/
 	codec_mm_list_lock(smgt);
-	if (!codec_mm_scatter_valid_locked(mms)) {
+	if (!codec_mm_scatter_valid_locked(smgt, mms)) {
 		codec_mm_list_unlock(smgt);
 		return -1;
 	}
@@ -1316,7 +1363,7 @@ static int codec_mm_scatter_dec_user_in(struct codec_mm_scatter *mms,
 	}
 	codec_mm_list_unlock(smgt);
 	if (after_users == 0)
-		codec_mm_schedule_delay_work(0, 1);
+		codec_mm_schedule_delay_work(smgt, 0, 1);
 	return 0;
 }
 
@@ -1354,12 +1401,13 @@ maybe:
 	max pages == support 4k,need pages;
 	page num = current size need pages;
 */
-struct codec_mm_scatter *codec_mm_scatter_alloc_new(int max_page, int page_num)
+struct codec_mm_scatter *codec_mm_scatter_alloc_new(
+	struct codec_mm_scatter_mgt *smgt,
+	int max_page,
+	int page_num)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_scatter *mms;
 	int ret;
-
 	if (max_page < page_num)
 		return NULL;
 
@@ -1376,11 +1424,13 @@ struct codec_mm_scatter *codec_mm_scatter_alloc_new(int max_page, int page_num)
 	memset(mms->pages_list, 0, sizeof(phy_addr_type) * max_page);
 	mms->page_cnt = 0;
 	mms->page_tail = -1;
+	mms->manager = (void *)smgt;
 	atomic_set(&mms->user_cnt, 0);
 	mutex_init(&mms->mutex);
 	if (page_num > 0) {
-		ret = codec_mm_page_alloc_all_locked(mms->pages_list, page_num,
-			mms == smgt->cache_sc);
+		ret = codec_mm_page_alloc_all_locked(smgt,
+				mms->pages_list, page_num,
+				mms == smgt->cache_sc);
 		if (ret <= 0)
 			goto error;
 		mms->page_cnt = ret;
@@ -1391,11 +1441,11 @@ struct codec_mm_scatter *codec_mm_scatter_alloc_new(int max_page, int page_num)
 	mms->page_used = mms->page_cnt;
 	list_add_tail(&mms->list, &smgt->scatter_list);
 	smgt->scatters_cnt++;
-	codec_mm_scatter_map_add_locked(mms);
+	codec_mm_scatter_map_add_locked(smgt, mms);
 	codec_mm_list_unlock(smgt);
 	return mms;
 error:
-	codec_mm_scatter_free_on_nouser(mms);
+	codec_mm_scatter_free_on_nouser_ext(smgt, mms, 1);
 	return NULL;
 }
 /*
@@ -1404,15 +1454,19 @@ want pages now,
 maybe:
 	max pages == support 4k,need pages;
 	page num = current size need pages;
+	tvpmode = is tvp need  memory.
 */
-struct codec_mm_scatter *codec_mm_scatter_alloc(int max_page, int page_num)
+struct codec_mm_scatter *codec_mm_scatter_alloc(
+	int max_page, int page_num,
+	int istvp)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt;
 	struct codec_mm_scatter *mms, *alloced_mms;
 	struct list_head *pos, *next;
 	int ret;
 	u64 startus;
 
+	smgt = codec_mm_get_scatter_mgt(istvp);
 	startus = codec_mm_get_current_us();
 	alloced_mms = NULL;
 	codec_mm_list_lock(smgt);
@@ -1439,35 +1493,35 @@ struct codec_mm_scatter *codec_mm_scatter_alloc(int max_page, int page_num)
 		/*just alloc mms first,
 		alloc pages later.
 		*/
-		alloced_mms = codec_mm_scatter_alloc_new(max_page, 0);
+		alloced_mms = codec_mm_scatter_alloc_new(smgt, max_page, 0);
 	}
 	if (alloced_mms) {
-		ret = codec_mm_scatter_alloc_want_pages_in(alloced_mms,
+		ret = codec_mm_scatter_alloc_want_pages_in(smgt, alloced_mms,
 			page_num);
 		if (ret < 0) {
 			atomic_sub(1000, &alloced_mms->user_cnt);
 			return NULL;
 		}
 		/*pr_info("reused old mms! %p\n", alloced_mms);*/
-		codec_mm_update_alloc_time(startus);
+		codec_mm_update_alloc_time(smgt, startus);
 		return alloced_mms;
 	}
 	return NULL;
 }
 
 static int codec_mm_scatter_alloc_want_pages_in(
-		struct codec_mm_scatter *mms,
-		int want_pages)
+	struct codec_mm_scatter_mgt *smgt,
+	struct codec_mm_scatter *mms,
+	int want_pages)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	int ret;
-
 	if (want_pages > mms->page_max_cnt)
 		return CODEC_MM_S_ERR(100);
 	codec_mm_scatter_lock(mms);
 	mms->page_used = want_pages;
 	if (want_pages > mms->page_cnt) {
 		ret = codec_mm_page_alloc_all_locked(
+				smgt,
 				&mms->pages_list[mms->page_tail + 1],
 					want_pages - mms->page_cnt,
 				mms == smgt->cache_sc);
@@ -1488,7 +1542,7 @@ static int codec_mm_scatter_alloc_want_pages_in(
 	codec_mm_scatter_unlock(mms);
 	if (smgt->cached_pages < smgt->keep_size_PAGE / 2) {
 		/*try alloc more cache.*/
-		codec_mm_schedule_delay_work(0, 1);
+		codec_mm_schedule_delay_work(smgt, 0, 1);
 	}
 	return 0;
 }
@@ -1497,19 +1551,22 @@ int codec_mm_scatter_alloc_want_pages(
 		struct codec_mm_scatter *mms,
 		int want_pages)
 {
+	struct codec_mm_scatter_mgt *smgt;
 	int ret;
 	u64 startus;
+	if (!mms)
+		return -1;
+	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
 	startus = codec_mm_get_current_us();
-	ret = codec_mm_scatter_alloc_want_pages_in(mms, want_pages);
-	codec_mm_update_alloc_time(startus);
+	ret = codec_mm_scatter_alloc_want_pages_in(
+		smgt, mms, want_pages);
+	codec_mm_update_alloc_time(smgt, startus);
 	return ret;
 }
 
-int codec_mm_free_all_free_slots(void)
+int codec_mm_free_all_free_slots_in(struct codec_mm_scatter_mgt *smgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_slot *slot, *to_free;
-
 	do {
 		to_free = NULL;
 		codec_mm_list_lock(smgt);
@@ -1531,15 +1588,21 @@ int codec_mm_free_all_free_slots(void)
 		codec_mm_list_unlock(smgt);
 		if (!to_free)
 			break;
-		codec_mm_slot_free(to_free);
+		codec_mm_slot_free(smgt, to_free);
 	} while (1);
 	return 0;
 }
-
-
-int codec_mm_scatter_info_dump(void *buf, int size)
+int codec_mm_free_all_free_slots(void)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	codec_mm_free_all_free_slots_in(codec_mm_get_scatter_mgt(0));
+	codec_mm_free_all_free_slots_in(codec_mm_get_scatter_mgt(1));
+	return 0;
+}
+
+static int codec_mm_scatter_info_dump_in(
+	struct codec_mm_scatter_mgt *smgt,
+	void *buf, int size)
+{
 	char *pbuf = buf;
 	char sbuf[512];
 	int tsize = 0;
@@ -1556,7 +1619,8 @@ int codec_mm_scatter_info_dump(void *buf, int size)
 			pbuf += s; \
 		} while (0)
 
-	BUFPRINT("codec scattered memory info:\n");
+	BUFPRINT("codec %sscattered memory info:\n",
+		smgt->tvp_mode ? "TVP " : "");
 	BUFPRINT("\ttotal size:%dM, %d Bytes,pages:%d\n",
 			 (smgt->total_page_num << PAGE_SHIFT) / SZ_1M,
 			 smgt->total_page_num << PAGE_SHIFT,
@@ -1624,6 +1688,26 @@ int codec_mm_scatter_info_dump(void *buf, int size)
 		INFO_LOG("%s", sbuf);
 	return tsize;
 }
+int codec_mm_scatter_info_dump(
+	void *buf, int size)
+{
+	char *pbuf = buf;
+	int esize = size;
+	int ret;
+	ret = codec_mm_scatter_info_dump_in(
+		codec_mm_get_scatter_mgt(0),
+		pbuf,
+		esize);
+	if (buf != NULL && ret > 0) {
+		pbuf += ret;
+		esize -= ret;
+	}
+	ret += codec_mm_scatter_info_dump_in(
+		codec_mm_get_scatter_mgt(1),
+		pbuf,
+		esize);
+	return ret;
+}
 
 int codec_mm_dump_slot(struct codec_mm_slot *slot, void *buf, int size)
 {
@@ -1679,9 +1763,9 @@ int codec_mm_dump_slot(struct codec_mm_slot *slot, void *buf, int size)
 
 }
 
-int codec_mm_dump_all_slots(void)
+
+int codec_mm_dump_all_slots_in(struct codec_mm_scatter_mgt *smgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_slot *slot, *fslot;
 	int total_pages = 0;
 	int alloced_pages = 0;
@@ -1709,7 +1793,6 @@ int codec_mm_dump_all_slots(void)
 				}
 			}
 		}
-
 	}
 	codec_mm_list_unlock(smgt);
 	INFO_LOG("end dump, slot cnt:%d total pages:%d, free:%d\n",
@@ -1718,10 +1801,17 @@ int codec_mm_dump_all_slots(void)
 		total_pages - alloced_pages);
 	return 0;
 }
-
-int codec_mm_dump_all_hash_table(void)
+int codec_mm_dump_all_slots(void)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	codec_mm_dump_all_slots_in(codec_mm_get_scatter_mgt(0));
+	codec_mm_dump_all_slots_in(codec_mm_get_scatter_mgt(1));
+	return 0;
+}
+
+
+int codec_mm_dump_all_hash_table_in(
+	struct codec_mm_scatter_mgt *smgt)
+{
 	struct codec_mm_slot *slot, *fslot;
 	int i;
 	int total_pages = 0;
@@ -1763,11 +1853,16 @@ int codec_mm_dump_all_hash_table(void)
 		total_pages, total_pages - alloced_pages);
 	return 0;
 }
-
-
-int codec_mm_dump_free_slots(void)
+int codec_mm_dump_all_hash_table(void)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	codec_mm_dump_all_hash_table_in(codec_mm_get_scatter_mgt(0));
+	codec_mm_dump_all_hash_table_in(codec_mm_get_scatter_mgt(1));
+	return 0;
+}
+
+
+static int codec_mm_dump_free_slots_in(struct codec_mm_scatter_mgt *smgt)
+{
 	struct codec_mm_slot *slot;
 	int total_pages = 0;
 	int alloced_pages = 0;
@@ -1793,8 +1888,16 @@ int codec_mm_dump_free_slots(void)
 		total_pages - alloced_pages);
 	return 0;
 }
+int codec_mm_dump_free_slots(void)
+{
+	codec_mm_dump_free_slots_in(codec_mm_get_scatter_mgt(0));
+	codec_mm_dump_free_slots_in(codec_mm_get_scatter_mgt(1));
+	return 0;
+}
 
-int codec_mm_dump_scatter(struct codec_mm_scatter *mms, void *buf, int size)
+int codec_mm_dump_scatter(
+	struct codec_mm_scatter *mms,
+	void *buf, int size)
 {
 	char *pbuf = buf;
 	char sbuf[512];
@@ -1833,9 +1936,8 @@ int codec_mm_dump_scatter(struct codec_mm_scatter *mms, void *buf, int size)
 
 }
 
-int codec_mm_dump_all_scatters(void)
+static  int codec_mm_dump_all_scatters_in(struct codec_mm_scatter_mgt *smgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
 	struct codec_mm_scatter *mms;
 	struct list_head *pos, *tmp;
 	INFO_LOG("start dump all scatters!\n");
@@ -1853,6 +1955,12 @@ int codec_mm_dump_all_scatters(void)
 		codec_mm_dump_scatter(smgt->cache_sc, 0, 0);
 	codec_mm_list_unlock(smgt);
 	INFO_LOG("finished dump all scatters!\n");
+	return 0;
+}
+int codec_mm_dump_all_scatters(void)
+{
+	codec_mm_dump_all_scatters_in(codec_mm_get_scatter_mgt(0));
+	codec_mm_dump_all_scatters_in(codec_mm_get_scatter_mgt(1));
 	return 0;
 }
 
@@ -1882,9 +1990,9 @@ struct sc_configs sc_global_config[] = {
 	{ID6_NO_CACHE_SIZE, "no_cache_size_M"},
 };
 
-static int codec_mm_scatter_mgt_get_config_in(int id)
+static int codec_mm_scatter_mgt_get_config_in(int tvp, int id)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(tvp);
 
 	switch (id) {
 	case ID0_KEEP_SIZE:
@@ -1906,9 +2014,9 @@ static int codec_mm_scatter_mgt_get_config_in(int id)
 	}
 	return -1;
 }
-static int codec_mm_scatter_mgt_set_config_in(int id, int newset)
+static int codec_mm_scatter_mgt_set_config_in(int tvp, int id, int newset)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(tvp);
 	int val;
 	switch (id) {
 	case ID0_KEEP_SIZE:
@@ -1947,7 +2055,13 @@ int codec_mm_scatter_mgt_get_config(char *buf)
 		ret += sprintf(buf + ret,
 			"scatter:%s:%d\n",
 			sc_global_config[i].name,
-			codec_mm_scatter_mgt_get_config_in(i));
+			codec_mm_scatter_mgt_get_config_in(0, i));
+	}
+	for (i = 0; i < IDX_MAX; i++) {
+		ret += sprintf(buf + ret,
+			"scatter_tvp:%s:%d\n",
+			sc_global_config[i].name,
+			codec_mm_scatter_mgt_get_config_in(1, i));
 	}
 	return ret;
 }
@@ -1957,7 +2071,7 @@ int codec_mm_scatter_mgt_set_config(const char *buf, size_t size)
 	char *str;
 	int i;
 	int val;
-
+	int is_tvp = strstr(buf, "scatter_tvp:") != NULL;
 	for (i = 0; i < IDX_MAX; i++) {
 		str = strstr(buf, sc_global_config[i].name);
 		if (!str)
@@ -1967,7 +2081,8 @@ int codec_mm_scatter_mgt_set_config(const char *buf, size_t size)
 			continue;/*to next.*/
 		ret = sscanf(str, ":%d", &val);
 		if (ret == 1) {
-			codec_mm_scatter_mgt_set_config_in(i, val);
+			codec_mm_scatter_mgt_set_config_in(is_tvp,
+				i, val);
 			return size;
 		}
 	}
@@ -1975,11 +2090,14 @@ int codec_mm_scatter_mgt_set_config(const char *buf, size_t size)
 	return -1;
 }
 
-int codec_mm_scatter_mgt_delay_free_swith(int on,
+int codec_mm_scatter_mgt_delay_free_swith(
+	int on,
 	int delay_ms,
-	int wait_size_M)
+	int wait_size_M,
+	int is_tvp)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt;
+	smgt = codec_mm_get_scatter_mgt(is_tvp);
 	codec_mm_list_lock(smgt);
 	if (on) {
 		smgt->delay_free_on++;
@@ -2001,7 +2119,7 @@ int codec_mm_scatter_mgt_delay_free_swith(int on,
 		smgt->force_cache_page_cnt = wait_size_M >> PAGE_SHIFT;
 		smgt->delay_free_timeout_jiffies64 =
 			get_jiffies_64() + 10000 * HZ/1000;
-		codec_mm_schedule_delay_work(0, 1);/*start cache*/
+		codec_mm_schedule_delay_work(smgt, 0, 1);/*start cache*/
 		while (smgt->cached_pages < smgt->force_cache_page_cnt) {
 			if (smgt->cache_sc &&
 				(smgt->cached_pages >=
@@ -2022,13 +2140,14 @@ int codec_mm_scatter_mgt_delay_free_swith(int on,
 		smgt->delay_free_timeout_jiffies64 =
 			get_jiffies_64() + delay_ms * HZ/1000;
 	} else if (on) {
-		codec_mm_schedule_delay_work(0, 1);
+		codec_mm_schedule_delay_work(smgt, 0, 1);
 	} else {
-		codec_mm_schedule_delay_work(delay_ms, 0);
+		codec_mm_schedule_delay_work(smgt, delay_ms, 0);
 	}
 	return 0;
 }
-static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
+static void codec_mm_scatter_cache_manage(
+	struct codec_mm_scatter_mgt *smgt)
 {
 	struct codec_mm_scatter *mms;
 	int alloced = 0;
@@ -2071,6 +2190,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 				if (need > mms->page_cnt) {
 					alloced =
 					!codec_mm_scatter_alloc_want_pages_in(
+						smgt,
 						mms,
 						need);
 				} else {
@@ -2079,9 +2199,6 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 			} else {
 				alloced = 0;
 			}
-			/*int from_sys = codec_mm_get_free_size() < 16 * SZ_1M;
-			alloced = !!codec_mm_slot_alloc(0, (from_sys ? 1 : 0));
-			*/
 		} else if ((smgt->cached_pages >
 			(smgt->keep_size_PAGE + 1000)) &&
 			time_after64(get_jiffies_64(),
@@ -2095,34 +2212,35 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 				codec_mm_scatter_free_tail_pages(mms,
 					free_start);
 			}
-			codec_mm_free_all_free_slots();
+			codec_mm_free_all_free_slots_in(smgt);
 			/*free some slots.*/
 		}
 	} else if (smgt->delay_free_on <= 0 &&
 			time_after64(get_jiffies_64(),
 			smgt->delay_free_timeout_jiffies64)) {
 		/*free all free pages, no delay needed.*/
-		codec_mm_free_all_free_slots();
+		codec_mm_free_all_free_slots_in(smgt);
 	}
 	if (smgt->keep_size_PAGE > 0 && smgt->delay_free_on) {
 		if (((smgt->force_cache_on ||
 			  (total_free_page < smgt->keep_size_PAGE)) &&
-			!codec_mm_video_tvp_enabled()) &&
+			!smgt->tvp_mode) &&
 			alloced) {/*if failed may deadlock...*/
 			/*ignore keep on tvp mode.*/
 			if (smgt->force_cache_on)
-				codec_mm_schedule_delay_work(0, 1);
+				codec_mm_schedule_delay_work(smgt, 0, 1);
 			else
-				codec_mm_schedule_delay_work(10, 0);
+				codec_mm_schedule_delay_work(smgt, 10, 0);
 		} else
-			codec_mm_schedule_delay_work(100, 0);
+			codec_mm_schedule_delay_work(smgt, 100, 0);
 	} else if (!smgt->delay_free_on && smgt->total_page_num > 0) {
-		codec_mm_schedule_delay_work(100, 0);
+		codec_mm_schedule_delay_work(smgt, 100, 0);
 	}
 }
 
 
-static int codec_mm_scatter_scatter_arrange(struct codec_mm_scatter_mgt *smgt)
+static int codec_mm_scatter_scatter_arrange(
+	struct codec_mm_scatter_mgt *smgt)
 {
 	struct codec_mm_scatter *mms;
 	struct codec_mm_scatter *first_free_mms = NULL;
@@ -2131,7 +2249,7 @@ static int codec_mm_scatter_scatter_arrange(struct codec_mm_scatter_mgt *smgt)
 
 	if (smgt->delay_free_on > 0 && !smgt->cache_sc) {
 		/*no free scatter.*/
-		mms = codec_mm_scatter_alloc_new(16384, 0);
+		mms = codec_mm_scatter_alloc_new(smgt, 16384, 0);
 		if (mms) {
 			codec_mm_list_lock(smgt);
 			list_del_init(&mms->list);
@@ -2148,7 +2266,7 @@ static int codec_mm_scatter_scatter_arrange(struct codec_mm_scatter_mgt *smgt)
 		smgt->cached_pages = 0;
 		codec_mm_list_unlock(smgt);
 		codec_mm_scatter_dec_owner_user(mms, 0);
-		codec_mm_scatter_free_on_nouser(mms);
+		codec_mm_scatter_free_on_nouser(smgt, mms);
 	}
 
 	codec_mm_list_lock(smgt);
@@ -2216,7 +2334,7 @@ static int codec_mm_scatter_scatter_clear(
 	}
 	codec_mm_list_unlock(smgt);
 	if (to_free_mms != NULL)
-		codec_mm_scatter_free_on_nouser(to_free_mms);
+		codec_mm_scatter_free_on_nouser(smgt, to_free_mms);
 	if (less_page_mms && (less_page_mms != to_free_mms))
 		codec_mm_scatter_free_unused_pages(less_page_mms);
 	return (to_free_mms != NULL)  || (less_page_mms != NULL);
@@ -2230,7 +2348,7 @@ N is have some pages not alloced.
 */
 int codec_mm_scatter_free_all_ignorecache(void)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt();
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(0);
 	int need_retry = 1;
 	int retry_num = 0;
 	mutex_lock(&smgt->monitor_lock);
@@ -2247,7 +2365,7 @@ int codec_mm_scatter_free_all_ignorecache(void)
 		codec_mm_list_unlock(smgt);
 		if (mms) {
 			codec_mm_scatter_dec_owner_user(mms, 0);
-			codec_mm_scatter_free_on_nouser(mms);
+			codec_mm_scatter_free_on_nouser(smgt, mms);
 		}
 		/*alloced again on timer?
 		check again.*/
@@ -2259,7 +2377,7 @@ int codec_mm_scatter_free_all_ignorecache(void)
 		pr_info("can't free all scatter, because some have used!!\n");
 		codec_mm_dump_all_scatters();
 	}
-	codec_mm_free_all_free_slots();
+	codec_mm_free_all_free_slots_in(smgt);
 	if (smgt->total_page_num > 0) {
 		/*have some not free,dump tables for debug*/
 		pr_info("Some slots have not free!!\n\n");
@@ -2283,46 +2401,60 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 	needretry = codec_mm_scatter_scatter_clear(smgt, 0);
 
 	if (needretry)
-		codec_mm_schedule_delay_work(10, 0);
+		codec_mm_schedule_delay_work(smgt, 10, 0);
 	else if (smgt->scatters_cnt > 0)
-		codec_mm_schedule_delay_work(100, 0);
+		codec_mm_schedule_delay_work(smgt, 100, 0);
 	codec_mm_scatter_cache_manage(smgt);
 	mutex_unlock(&smgt->monitor_lock);
 }
 
-int codec_mm_scatter_mgt_init(void)
+static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 {
-	scatter_mgt = kmalloc(sizeof(struct codec_mm_scatter_mgt), GFP_KERNEL);
-	if (!scatter_mgt) {
+	struct codec_mm_scatter_mgt *smgt;
+	smgt = kmalloc(sizeof(struct codec_mm_scatter_mgt), GFP_KERNEL);
+	if (!smgt) {
 		ERR_LOG("ERR:codec mm mpt init ERROR\n");
 		return -1;
 	}
-	memset(scatter_mgt, 0, sizeof(struct codec_mm_scatter_mgt));
-	spin_lock_init(&scatter_mgt->list_lock);
-	scatter_mgt->alloced_page_num = 0;
-	scatter_mgt->try_alloc_in_cma_page_cnt = (4 * 1024 * 1024) / PAGE_SIZE;
-	scatter_mgt->try_alloc_in_sys_page_cnt_max = MAX_SYS_BLOCK_PAGE;
-	scatter_mgt->try_alloc_in_sys_page_cnt = MAX_SYS_BLOCK_PAGE;
-	scatter_mgt->try_alloc_in_sys_page_cnt_min = MIN_SYS_BLOCK_PAGE;
-	scatter_mgt->reserved_block_mm_M = 64;
-	scatter_mgt->keep_size_PAGE = 20 * SZ_1M >> PAGE_SHIFT;
-	scatter_mgt->alloc_from_cma_first = 1;
-	scatter_mgt->enable_slot_from_sys = 1;
-	scatter_mgt->support_from_slot_sys =
-		scatter_mgt->enable_slot_from_sys;
+	memset(smgt, 0, sizeof(struct codec_mm_scatter_mgt));
+	spin_lock_init(&smgt->list_lock);
+	smgt->tag = SMGT_IDENTIFY_TAG;
+	smgt->alloced_page_num = 0;
+	smgt->try_alloc_in_cma_page_cnt = (4 * 1024 * 1024) / PAGE_SIZE;
+	smgt->try_alloc_in_sys_page_cnt_max = MAX_SYS_BLOCK_PAGE;
+	smgt->try_alloc_in_sys_page_cnt = MAX_SYS_BLOCK_PAGE;
+	smgt->try_alloc_in_sys_page_cnt_min = MIN_SYS_BLOCK_PAGE;
+	smgt->reserved_block_mm_M = 64;
+	smgt->keep_size_PAGE = 20 * SZ_1M >> PAGE_SHIFT;
+	smgt->alloc_from_cma_first = 1;
+	smgt->enable_slot_from_sys = 1;
+	smgt->support_from_slot_sys =
+		smgt->enable_slot_from_sys;
+	smgt->mem_flags = CODEC_MM_FLAGS_CMA_FIRST |
+					CODEC_MM_FLAGS_FOR_VDECODER |
+					CODEC_MM_FLAGS_FOR_SCATTER;
 	if ((totalram_pages << PAGE_SHIFT) < 800 * SZ_1M) {
 		/*less memory boards don't cache more,
 		after alloced many pages.*/
-		scatter_mgt->no_cache_size_M = 100;
+		smgt->no_cache_size_M = 100;
 	} else
-		scatter_mgt->no_cache_size_M = 0;
-	INIT_LIST_HEAD(&scatter_mgt->free_list);
-	INIT_LIST_HEAD(&scatter_mgt->scatter_list);
-	mutex_init(&scatter_mgt->monitor_lock);
+		smgt->no_cache_size_M = 0;
+	INIT_LIST_HEAD(&smgt->free_list);
+	INIT_LIST_HEAD(&smgt->scatter_list);
+	mutex_init(&smgt->monitor_lock);
 
-	INIT_DELAYED_WORK(&scatter_mgt->dealy_work,
+	INIT_DELAYED_WORK(&smgt->dealy_work,
 				codec_mm_scatter_monitor);
+	*psmgt = smgt;
+	return 0;
+}
 
+int codec_mm_scatter_mgt_init(void)
+{
+	codec_mm_scatter_mgt_alloc_in(&scatter_mgt);
+	codec_mm_scatter_mgt_alloc_in(&scatter_tvp_mgt);
+	scatter_tvp_mgt->tvp_mode = 1;
+	scatter_tvp_mgt->mem_flags |= CODEC_MM_FLAGS_TVP;
 	return 0;
 }
 
@@ -2418,8 +2550,10 @@ int codec_mm_scatter_test(int mode, int p1, int p2)
 		INFO_LOG(" alloc sc[%d] num %d:\n", p1, p2);
 		if (p1 > 0 && p1 < 64) {
 			if (sc[p1])
-				codec_mm_scatter_free_on_nouser(sc[p1]);
-			sc[p1] = codec_mm_scatter_alloc(p2 * 2, p2);
+				codec_mm_scatter_free_on_nouser(
+				(struct codec_mm_scatter_mgt *)sc[p1]->manager,
+				sc[p1]);
+			sc[p1] = codec_mm_scatter_alloc(p2 * 2, p2, 0);
 		}
 		break;
 	case 2:/*alloc more*/
@@ -2435,7 +2569,9 @@ int codec_mm_scatter_test(int mode, int p1, int p2)
 	case 4:
 		INFO_LOG(" free sc[%d] all\n", p1);
 		if (p1 > 0 && p1 < 64 && sc[p1]) {
-			codec_mm_scatter_free_on_nouser(sc[p1]);
+			codec_mm_scatter_free_on_nouser(
+			(struct codec_mm_scatter_mgt *)sc[p1]->manager,
+			sc[p1]);
 			sc[p1] = NULL;
 		}
 		break;

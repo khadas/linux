@@ -930,6 +930,10 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 	int retry_num = 0;
 	int more_buffers = 0;
 	const char *dev_name;
+	int tvp_flags;
+	tvp_flags = codec_mm_video_tvp_enabled() ?
+		CODEC_MM_FLAGS_TVP : 0;
+	/*TODO.changed to vdec-tvp flags*/
 
 	if (is_4k && vdec->format < VFORMAT_H264) {
 		/*old decoder don't support 4k
@@ -1096,7 +1100,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 		p->mem_start = codec_mm_alloc_for_dma(MEM_NAME,
 			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
 			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_CPU |
-			CODEC_MM_FLAGS_FOR_VDECODER);
+			CODEC_MM_FLAGS_FOR_VDECODER | tvp_flags);
 		if (!p->mem_start) {
 			if (retry_num < 1) {
 				pr_err("vdec base CMA allocation failed,try again\\n");

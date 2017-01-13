@@ -67,7 +67,7 @@ int codec_mm_scatter_mgt_get_config(char *buf);
 int codec_mm_scatter_mgt_set_config(const char *buf, size_t size);
 
 int codec_mm_scatter_free_all_ignorecache(void);
-int codec_mm_scatter_valid_locked(struct codec_mm_scatter *mms);
+
 
 void codec_mm_clear_alloc_infos(void);
 
