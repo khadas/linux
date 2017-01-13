@@ -39,7 +39,7 @@ for less memory fragment;
 #define CODEC_MM_FLAGS_CMA_FIRST 0x400
 
 /*
-flags can used for DRM:
+flags show user for more alloc:
 */
 #define CODEC_MM_FLAGS_FOR_VDECODER 0x1000
 #define CODEC_MM_FLAGS_FOR_ADECODER 0x2000

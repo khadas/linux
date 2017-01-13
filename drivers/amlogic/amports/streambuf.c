@@ -74,9 +74,12 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf)
 			flags |= CODEC_MM_FLAGS_FOR_ADECODER;
 			flags |= CODEC_MM_FLAGS_DMA_CPU;
 		}
+		if ((flags & CODEC_MM_FLAGS_FOR_VDECODER) &&
+			codec_mm_video_tvp_enabled())/*TVP TODO for MULTI*/
+			flags |= CODEC_MM_FLAGS_TVP;
 
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
-			buf->buf_page_num, 4+PAGE_SHIFT, flags);
+			buf->buf_page_num, 4 + PAGE_SHIFT, flags);
 		if (!buf->buf_start) {
 			int is_video = (buf->type == BUF_TYPE_HEVC) ||
 					(buf->type == BUF_TYPE_VIDEO);

@@ -80,6 +80,11 @@ void *decoder_bmmu_box_alloc_box(const char *name,
 {
 	struct decoder_bmmu_box *box;
 	int size;
+	int tvp_flags;
+	tvp_flags = codec_mm_video_tvp_enabled() ?
+		CODEC_MM_FLAGS_TVP : 0;
+	/*TODO.changed to vdec-tvp flags*/
+
 	size = sizeof(struct decoder_bmmu_box) + sizeof(struct codec_mm_s *) *
 		   max_num;
 	box = kmalloc(size, GFP_KERNEL);
@@ -92,7 +97,7 @@ void *decoder_bmmu_box_alloc_box(const char *name,
 	box->name = name;
 	box->channel_id = channel_id;
 	box->align2n = aligned;
-	box->mem_flags = mem_flags;
+	box->mem_flags = mem_flags | tvp_flags;
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
 	decoder_bmmu_box_mgr_add_box(box);
@@ -343,8 +348,10 @@ static int decoder_bmmu_box_dump_all(void *buf, int size)
 	while (list != head) {
 		struct decoder_bmmu_box *box;
 		box = list_entry(list, struct decoder_bmmu_box, list);
-		BUFPRINT("box[%d]: %s, player_id:%d, max_num:%d, size:%d\n",
+		BUFPRINT("box[%d]: %s, %splayer_id:%d, max_num:%d, size:%d\n",
 				 i, box->name,
+				 (box->mem_flags & CODEC_MM_FLAGS_TVP) ?
+				 "TVP mode " : "",
 				 box->channel_id,
 				 box->max_mm_num,
 				 box->total_size);

@@ -25,12 +25,14 @@
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 #include <linux/amlogic/codec_mm/codec_mm_scatter.h>
 #include <linux/platform_device.h>
 struct decoder_mmu_box {
 	int max_sc_num;
 	const char *name;
 	int channel_id;
+	int tvp_mode;
 	struct mutex mutex;
 	struct list_head list;
 	struct codec_mm_scatter *sc_list[1];
@@ -80,6 +82,7 @@ void *decoder_mmu_box_alloc_box(const char *name,
 {
 	struct decoder_mmu_box *box;
 	int size;
+
 	size = sizeof(struct decoder_mmu_box) +
 			sizeof(struct codec_mm_scatter *) *
 			max_num;
@@ -92,11 +95,14 @@ void *decoder_mmu_box_alloc_box(const char *name,
 	box->max_sc_num = max_num;
 	box->name = name;
 	box->channel_id = channel_id;
+	box->tvp_mode = codec_mm_video_tvp_enabled() ?
+		CODEC_MM_FLAGS_TVP : 0;
+	/*TODO.changed to tvp flags from decoder init*/
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
 	decoder_mmu_box_mgr_add_box(box);
 	codec_mm_scatter_mgt_delay_free_swith(1, 2000,
-		min_size_M);
+		min_size_M, box->tvp_mode);
 	return (void *)box;
 }
 
@@ -128,7 +134,8 @@ int decoder_mmu_box_alloc_idx(
 
 	}
 	if (!sc) {
-		sc = codec_mm_scatter_alloc(num_pages + 64, num_pages);
+		sc = codec_mm_scatter_alloc(num_pages + 64, num_pages,
+			box->tvp_mode);
 		if (!sc) {
 			mutex_unlock(&box->mutex);
 			pr_err("alloc mmu failed, need pages=%d\n",
@@ -207,8 +214,8 @@ int decoder_mmu_box_free(void *handle)
 	}
 	mutex_unlock(&box->mutex);
 	decoder_mmu_box_mgr_del_box(box);
+	codec_mm_scatter_mgt_delay_free_swith(0, 2000, 0, box->tvp_mode);
 	kfree(box);
-	codec_mm_scatter_mgt_delay_free_swith(0, 2000, 0);
 	return 0;
 }
 
@@ -281,9 +288,10 @@ static int decoder_mmu_box_dump_all(void *buf, int size)
 		struct decoder_mmu_box *box;
 		box = list_entry(list, struct decoder_mmu_box,
 							list);
-		BUFPRINT("box[%d]: %s, player_id:%d, max_num:%d\n",
+		BUFPRINT("box[%d]: %s, %splayer_id:%d, max_num:%d\n",
 			i,
 			box->name,
+			box->tvp_mode ? "TVP mode " : "",
 			box->channel_id,
 			box->max_sc_num);
 		if (buf) {
