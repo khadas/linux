@@ -748,6 +748,7 @@
 		dev_name = "amhdmitx";
 		status = "okay";
 		vend-data = <&vend_data>;
+		hdmi5v_pwr_ctrl = <&gpio GPIOH_3 GPIO_ACTIVE_LOW>;
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;

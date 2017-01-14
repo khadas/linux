@@ -35,6 +35,8 @@
 #include <linux/switch.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#include <linux/err.h>
+
 /* #include <mach/am_regs.h> */
 
 /* #include <linux/amlogic/osd/osd_dev.h> */
@@ -2089,6 +2091,22 @@ static ssize_t show_hpd_state(struct device *dev,
 	return pos;
 }
 
+static ssize_t store_hpd_state(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	if (!hdev->config_data.pwr_ctl)
+		return count;
+	dev_warn(dev, "set hdmi5v pwr: %s\n", buf);
+	if (strncmp(buf, "1", 1) == 0)
+		gpio_direction_output(hdev->config_data.pwr_ctl->pin,
+			!hdev->config_data.pwr_ctl->active);
+	else
+		gpio_direction_output(hdev->config_data.pwr_ctl->pin,
+			!!hdev->config_data.pwr_ctl->active);
+	return count;
+}
+
 static ssize_t show_hdmi_init(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -2186,7 +2204,7 @@ static DEVICE_ATTR(hdcp_ctrl, S_IWUSR | S_IRUGO | S_IWGRP, show_hdcp_ctrl,
 static DEVICE_ATTR(disp_cap_3d, S_IRUGO, show_disp_cap_3d, NULL);
 static DEVICE_ATTR(hdcp_ksv_info, S_IRUGO, show_hdcp_ksv_info, NULL);
 static DEVICE_ATTR(hdcp_ver, S_IRUGO, show_hdcp_ver, NULL);
-static DEVICE_ATTR(hpd_state, S_IRUGO, show_hpd_state, NULL);
+static DEVICE_ATTR(hpd_state, S_IRUGO, show_hpd_state, store_hpd_state);
 static DEVICE_ATTR(hdmi_init, S_IRUGO, show_hdmi_init, NULL);
 static DEVICE_ATTR(ready, S_IWUSR | S_IRUGO | S_IWGRP, show_ready, store_ready);
 static DEVICE_ATTR(support_3d, S_IRUGO, show_support_3d, NULL);
@@ -2697,78 +2715,6 @@ struct hdmitx_dev *get_hdmitx_device(void)
 }
 EXPORT_SYMBOL(get_hdmitx_device);
 
-#ifdef CONFIG_OF
-static int pwr_type_match(struct device_node *np, const char *str,
-	int idx, struct hdmi_pwr_ctl *pwr, char *pwr_col)
-{
-	static char * const pwr_types_id[] = {"none", "cpu", "pmu",
-		NULL};	 /* match with dts file */
-	int i = 0;
-	int ret = 0;
-
-	struct pwr_ctl_var *var = (struct pwr_ctl_var *)pwr;
-
-	while (pwr_types_id[i]) {
-		if (strcasecmp(pwr_types_id[i], str) == 0) {
-			ret = 1;
-			break;
-		}
-		i++;
-	}
-
-	var += idx;
-
-	switch (i) {
-	case CPU_GPO:
-	var->type = CPU_GPO;
-	ret = of_property_read_string_index(np, pwr_col, 1, &str);
-	break;
-	case PMU:
-	var->type = PMU;
-/* TODO later */
-	break;
-	default:
-	var->type = NONE;
-	};
-	return ret;
-}
-
-static int get_dt_pwr_init_data(struct device_node *np,
-	struct hdmi_pwr_ctl *pwr)
-{
-	int ret = 0;
-	int idx = 0;
-	const char *str = NULL;
-	char *hdmi_pwr_string[] = {"pwr_5v_on", "pwr_5v_off",
-		"pwr_3v3_on", "pwr_3v3_off", "pwr_hpll_vdd_on",
-		"pwr_hpll_vdd_off", NULL};  /* match with dts file */
-
-	while (hdmi_pwr_string[idx]) {
-		ret = of_property_read_string_index(np,
-			hdmi_pwr_string[idx], 0, &str);
-		if (!ret)
-			pwr_type_match(np, str, idx, pwr,
-				hdmi_pwr_string[idx]);
-		idx++;
-	}
-
-	if (np != NULL)
-		ret = of_property_read_u32(np, "pwr_level",
-			&pwr->pwr_level);
-#if 0
-	struct pwr_ctl_var (*var)[HDMI_TX_PWR_CTRL_NUM] =
-		(struct pwr_ctl_var (*)[HDMI_TX_PWR_CTRL_NUM])pwr;
-	for (idx = 0; idx < HDMI_TX_PWR_CTRL_NUM; idx++) {
-		hdmi_print(INF, SYS "%d %d %d\n", var[idx]->type,
-			var[idx]->var.gpo.pin, var[idx]->var.gpo.val);
-		return 1;
-	}
-#endif
-	return 0;
-}
-
-#endif
-
 #if 0
 static int edid_tx_data(unsigned char *tx_data, int length)
 {
@@ -2977,9 +2923,11 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct device *dev;
 
 #ifdef CONFIG_OF
-	int psize, val;
+	int val;
 	phandle phandle;
 	struct device_node *init_data;
+	struct gpio_desc *desc;
+	enum of_gpio_flags flags;
 #endif
 	hdmitx_device.hdtx_dev = &pdev->dev;
 	/* init para for NULL protection */
@@ -3092,25 +3040,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "gpio_i2c_en", &val);
 	if (!ret)
 		hdmitx_device.gpio_i2c_enable = val;
-/* Get physical setting data */
-	ret = of_property_read_u32(pdev->dev.of_node, "phy-size", &psize);
-	if (!ret) {
-		hdmitx_device.config_data.phy_data = kzalloc(sizeof
-			(struct hdmi_phy_set_data)*psize, GFP_KERNEL);
-		if (!hdmitx_device.config_data.phy_data) {
-			hdmi_print(INF, SYS
-				"can not get phy_data mem\n");
-		} else {
-		ret = of_property_read_u32_array(pdev->dev.of_node,
-			"phy-data",
-			(unsigned int *)
-			(hdmitx_device.config_data.phy_data),
-			(sizeof(struct hdmi_phy_set_data))*psize/sizeof
-			(struct hdmi_phy_set_data *));
-		if (ret)
-			hdmi_print(INF, SYS "not find match psize\n");
-		}
-	}
 /* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 			"vend-data", &val);
@@ -3131,30 +3060,23 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		if (ret)
 			hdmi_print(INF, SYS "not find vend_init_data\n");
 	}
-/* Get power control */
-		ret = of_property_read_u32(pdev->dev.of_node,
-			"pwr-ctrl", &val);
-	if (ret)
-		hdmi_print(INF, SYS "not find match pwr-ctl\n");
-	if (ret == 0) {
-		phandle = val;
-		init_data = of_find_node_by_phandle(phandle);
-		if (!init_data)
-			hdmi_print(INF, SYS "not find device node\n");
-		hdmitx_device.config_data.pwr_ctl = kzalloc((sizeof(
-			struct hdmi_pwr_ctl)) * HDMI_TX_PWR_CTRL_NUM,
-			GFP_KERNEL);
-		if (!hdmitx_device.config_data.pwr_ctl)
-			hdmi_print(INF, SYS"can not get pwr_ctl mem\n");
-		memset(hdmitx_device.config_data.pwr_ctl, 0,
-			sizeof(struct hdmi_pwr_ctl));
-		ret = get_dt_pwr_init_data(init_data,
-			hdmitx_device.config_data.pwr_ctl);
-		if (ret)
-			hdmi_print(INF, SYS "not find pwr_ctl\n");
-	}
-	}
+/* Get HDMI5V power control */
+	desc = of_get_named_gpiod_flags(pdev->dev.of_node,
+			"hdmi5v_pwr_ctrl", 0, &flags);
+	if (desc != ERR_PTR(-ENOENT)) {
+		hdmitx_device.config_data.pwr_ctl = kzalloc(
+			sizeof(struct hdmi5v_pwr_ctrl), GFP_KERNEL);
+		hdmitx_device.config_data.pwr_ctl->pin = desc_to_gpio(desc);
+		hdmitx_device.config_data.pwr_ctl->active =
+			flags & OF_GPIO_ACTIVE_LOW;
+		gpio_request(hdmitx_device.config_data.pwr_ctl->pin,
+			DEVICE_NAME);
+		gpio_direction_output(hdmitx_device.config_data.pwr_ctl->pin,
+			!hdmitx_device.config_data.pwr_ctl->active);
+	} else
+		hdmitx_device.config_data.pwr_ctl = NULL;
 
+	}
 #else
 	hdmi_pdata = pdev->dev.platform_data;
 	if (!hdmi_pdata) {
