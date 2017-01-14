@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/gxl_p212.dts
+ * arch/arm64/boot/dts/amlogic/kvim.dts
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
@@ -22,7 +22,7 @@
 #include <dt-bindings/gpio/gxl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxl.h>
-#include "mesongxl.dtsi"
+#include "amlogic/mesongxl.dtsi"
 / {
 	model = "Amlogic";
 	amlogic-dt-id = "kvim";
