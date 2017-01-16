@@ -715,6 +715,7 @@ static unsigned int di_printk_flag;
 unsigned int di_log_flag = 0;
 unsigned int buf_state_log_threshold = 16;
 unsigned int buf_state_log_start = 0;
+static unsigned int timerc_cnt;
 /*  set to 1 by condition of "post_ready count < buf_state_log_threshold",
  * reset to 0 by set buf_state_log_threshold as 0 */
 
@@ -8107,12 +8108,14 @@ static void di_unreg_process(void)
 {
 	if (reg_flag) {
 		field_count = 0;
+		pr_dbg("%s unreg start %d.\n", __func__, reg_flag);
 		vf_unreg_provider(&di_vf_prov);
 		reg_flag = 0;
 		unreg_cnt++;
 		if (unreg_cnt > 0x3fffffff)
 			unreg_cnt = 0;
-		di_print("########%s\n", __func__);
+		pr_dbg("%s unreg stop %d.\n", __func__, reg_flag);
+		di_pre_stru.pre_de_busy = 0;
 		di_pre_stru.unreg_req_flag_irq = 1;
 		trigger_pre_di_process(TRIGGER_PRE_BY_UNREG);
 	} else {
@@ -8126,7 +8129,7 @@ static void di_unreg_process(void)
 static void di_unreg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
-
+	pr_dbg("%s unreg irq start.\n", __func__);
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
 	spin_lock_irqsave(&plist_lock, flags);
 #endif
@@ -8180,6 +8183,7 @@ static void di_unreg_process_irq(void)
 #endif
 	di_pre_stru.unreg_req_flag = 0;
 	di_pre_stru.unreg_req_flag_irq = 0;
+	pr_info("%s unreg irq stop.\n", __func__);
 }
 
 static void di_reg_process(void)
@@ -8523,10 +8527,14 @@ static int di_task_handle(void *data)
 			if ((di_pre_stru.unreg_req_flag ||
 				di_pre_stru.force_unreg_req_flag ||
 				di_pre_stru.disable_req_flag) &&
-				(di_pre_stru.pre_de_busy == 0))
+				(di_pre_stru.pre_de_busy == 0)) {
+				pr_dbg("%s,up enter unreg process.\n",
+					__func__);
 				di_unreg_process();
+			}
 			if (di_pre_stru.reg_req_flag_irq ||
 				di_pre_stru.reg_req_flag) {
+				pr_dbg("%s,up enter reg process.\n", __func__);
 				di_reg_process();
 				di_pre_stru.reg_req_flag = 0;
 				di_pre_stru.reg_req_flag_irq = 0;
@@ -8555,7 +8563,7 @@ static irqreturn_t timer_irq(int irq, void *dev_instance)
 {
 /* unsigned int data32; */
 	int i;
-
+	timerc_cnt++;
 	if (active_flag) {
 		if (di_pre_stru.unreg_req_flag_irq)
 			di_unreg_process_irq();
@@ -8584,13 +8592,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	} else if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		pr_dbg("%s , is_bypass() %d trick_mode %d bypass_all %d\n",
 			__func__, is_bypass(NULL), trick_mode, bypass_all);
-
-		if ((Rd(DI_IF1_GEN_REG) & 0x1) && get_blackout_policy())
-			/* disable post di, so can call vf_keep_current()
-			 * to keep displayed vframe */
-				pr_info("DI: disabled, not keep buffer.\n");
-
-		pr_dbg("%s: vf_notify_receiver unreg\n", __func__);
+		pr_info("%s: vf_notify_receiver unreg\n", __func__);
 
 		di_pre_stru.unreg_req_flag = 1;
 		provider_vframe_level = 0;
@@ -8601,12 +8603,13 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		di_pre_stru.unreg_req_flag_cnt = 0;
 		while (di_pre_stru.unreg_req_flag) {
 			usleep_range(10000, 10001);
-			di_pr_info("%s:unreg_req_flag_cnt:%d!!!\n",
-				__func__, di_pre_stru.unreg_req_flag_cnt);
+			di_pr_info("%s:unreg_req_flag_cnt:%d timerc_cnt %u!!!\n",
+			__func__, di_pre_stru.unreg_req_flag_cnt, timerc_cnt);
 			if (di_pre_stru.unreg_req_flag_cnt++ >
 				di_reg_unreg_cnt) {
 				di_pr_info("%s:unreg_reg_flag timeout!!!\n",
 					__func__);
+				dump_di_pre_stru();
 				break;
 			}
 		}
@@ -9100,7 +9103,9 @@ static void di_vf_put(vframe_t *vf, void *arg)
 static int di_event_cb(int type, void *data, void *private_data)
 {
 	if (type == VFRAME_EVENT_RECEIVER_FORCE_UNREG) {
-		pr_dbg("%s: VFRAME_EVENT_RECEIVER_FORCE_UNREG\n", __func__);
+		pr_info("%s: RECEIVER_FORCE_UNREG return\n",
+			__func__);
+		return 0;
 		di_pre_stru.force_unreg_req_flag = 1;
 		provider_vframe_level = 0;
 		bypass_dynamic_flag = 0;
