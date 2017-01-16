@@ -4094,19 +4094,20 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 void adc_set_pll_cntl(bool on, unsigned int module_sel)
 {
 	unsigned int adc_pll_lock_cnt = 0;
-	mutex_lock(&pll_mutex);
 	if (!on) {
+		mutex_lock(&pll_mutex);
 		adc_pll_chg &= ~module_sel;
+		mutex_unlock(&pll_mutex);
 		if (tvafe_dbg_enable)
 			pr_info("\n%s: init flag on:%d,module:0x%x,flag:0x%x\n",
 				__func__, on, module_sel, adc_pll_chg);
-		mutex_unlock(&pll_mutex);
 		return;
 	}
 	switch (module_sel) {
 	case ADC_EN_ATV_DEMOD: /* atv demod */
 		if (adc_pll_chg & ADC_EN_TVAFE)
 			break;
+		mutex_lock(&pll_mutex);
 		do {
 			if (is_meson_txl_cpu()) {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
@@ -4135,6 +4136,7 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 		} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1) &&
 			(adc_pll_lock_cnt < 10));
 		adc_pll_chg |= ADC_EN_ATV_DEMOD;
+		mutex_unlock(&pll_mutex);
 		if (adc_pll_lock_cnt == 10)
 			pr_info("%s: adc pll lock fail!!!\n", __func__);
 		if (tvafe_dbg_enable)
@@ -4144,6 +4146,7 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 	case ADC_EN_TVAFE: /* tvafe */
 		if (adc_pll_chg & ADC_EN_ATV_DEMOD)
 			break;
+		mutex_lock(&pll_mutex);
 		do {
 			if (is_meson_txl_cpu()) {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
@@ -4172,6 +4175,7 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 		} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1) &&
 			(adc_pll_lock_cnt < 10));
 		adc_pll_chg |= ADC_EN_TVAFE;
+		mutex_unlock(&pll_mutex);
 		if (adc_pll_lock_cnt == 10)
 			pr_info("%s: adc pll lock fail!!!\n", __func__);
 		if (tvafe_dbg_enable)
@@ -4183,13 +4187,22 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 			__func__, module_sel);
 		break;
 	}
-	mutex_unlock(&pll_mutex);
 }
 EXPORT_SYMBOL(adc_set_pll_cntl);
 
 void adc_set_pll_reset(void)
 {
 	adc_pll_chg = 0;
+}
+
+int tvafe_adc_get_pll_flag(void)
+{
+	unsigned int ret = 0;
+	if (!mutex_trylock(&pll_mutex))
+		return 0;
+	ret = adc_pll_chg;
+	mutex_unlock(&pll_mutex);
+	return ret;
 }
 
 /*
