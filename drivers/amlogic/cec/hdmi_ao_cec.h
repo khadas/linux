@@ -188,6 +188,7 @@ extern void hdmirx_wr_dwc(uint16_t addr, uint32_t data);
 
 unsigned int aocec_rd_reg(unsigned long addr);
 void aocec_wr_reg(unsigned long addr, unsigned long data);
+void cecrx_irq_handle(void);
 
 #define TOP_CLK_CNTL			0x001
 #define TOP_EDID_GEN_CNTL		0x004
@@ -261,6 +262,7 @@ void aocec_wr_reg(unsigned long addr, unsigned long data);
 #define CEC_IRQ_TX_ERR_INITIATOR	(1 << 20)
 #define CEC_IRQ_RX_ERR_FOLLOWER		(1 << 21)
 #define CEC_IRQ_RX_WAKEUP		(1 << 22)
+#define EE_CEC_IRQ_EN_MASK		(0xf << 16)
 
 #define EDID_CEC_ID_ADDR		0x00a100a0
 #define EDID_AUTO_CEC_EN		0

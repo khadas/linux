@@ -227,6 +227,19 @@ void cecrx_hw_reset(void)
 {
 	/* cec disable */
 	hdmirx_set_bits_dwc(DWC_DMI_DISABLE_IF, 0, 5, 1);
+	udelay(500);
+}
+
+static void cecrx_check_irq_enable(void)
+{
+	unsigned int reg32;
+
+	reg32 = hdmirx_rd_dwc(DWC_AUD_CLK_IEN);
+	if ((reg32 & EE_CEC_IRQ_EN_MASK) != EE_CEC_IRQ_EN_MASK) {
+		CEC_INFO("irq_en is wrong:%x, checker:%pf\n",
+			 reg32, (void *)_RET_IP_);
+		hdmirx_wr_dwc(DWC_AUD_CLK_IEN_SET, EE_CEC_IRQ_EN_MASK);
+	}
 }
 
 static int cecrx_trigle_tx(const unsigned char *msg, unsigned char len)
@@ -234,11 +247,15 @@ static int cecrx_trigle_tx(const unsigned char *msg, unsigned char len)
 	int i = 0, size = 0;
 	int lock;
 
+	cecrx_check_irq_enable();
 	while (1) {
 		/* send is in process */
 		lock = hdmirx_rd_dwc(DWC_CEC_LOCK);
-		if (lock)
+		if (lock) {
 			CEC_ERR("recevie msg in tx\n");
+			cecrx_irq_handle();
+			return -1;
+		}
 		if (hdmirx_rd_dwc(DWC_CEC_CTRL) & 0x01)
 			i++;
 		else
@@ -269,7 +286,7 @@ int cec_has_irq(void)
 {
 	unsigned int intr_cec;
 	intr_cec = hdmirx_rd_dwc(DWC_AUD_CLK_ISTS) &
-		   hdmirx_rd_dwc(DWC_AUD_CLK_IEN);
+		   EE_CEC_IRQ_EN_MASK;
 
 	if (intr_cec)
 		return 1;
@@ -297,7 +314,11 @@ static int cec_pick_msg(unsigned char *msg, unsigned char *out_len)
 	hdmirx_wr_dwc(DWC_CEC_LOCK, 0);
 	mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	CEC_INFO("%s", msg_log_buf);
-	*out_len = len;
+	if (((msg[0] & 0xf0) >> 4) == cec_dev->cec_info.log_addr) {
+		*out_len = 0;
+		CEC_ERR("bad iniator with self:%s", msg_log_buf);
+	} else
+		*out_len = len;
 	pin_status = 1;
 	return 0;
 }
@@ -305,9 +326,9 @@ static int cec_pick_msg(unsigned char *msg, unsigned char *out_len)
 void cecrx_irq_handle(void)
 {
 	uint32_t intr_cec;
+	uint32_t lock;
 
-	intr_cec = hdmirx_rd_dwc(DWC_AUD_CLK_ISTS) &
-		   hdmirx_rd_dwc(DWC_AUD_CLK_IEN);
+	intr_cec = (hdmirx_rd_dwc(DWC_AUD_CLK_ISTS) & EE_CEC_IRQ_EN_MASK);
 
 	/* clear irq */
 	if (intr_cec != 0)
@@ -321,9 +342,9 @@ void cecrx_irq_handle(void)
 		cec_tx_result = CEC_FAIL_NONE;
 		complete(&cec_dev->tx_ok);
 	}
-
+	lock = hdmirx_rd_dwc(DWC_CEC_LOCK);
 	/* EOM irq, message is comming */
-	if (intr_cec & CEC_IRQ_RX_EOM) {
+	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
 		cec_pick_msg(rx_msg, &rx_len);
 		complete(&cec_dev->rx_ok);
 	}
@@ -336,8 +357,12 @@ void cecrx_irq_handle(void)
 			CEC_ERR("tx msg failed, flag:%08x\n", intr_cec);
 		if (intr_cec & CEC_IRQ_TX_NACK)
 			cec_tx_result = CEC_FAIL_NACK;
-		else if (intr_cec & CEC_IRQ_TX_ARB_LOST)
+		else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
+			/* clear start */
+			hdmirx_wr_dwc(DWC_CEC_TX_CNT, 0);
+			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
+		}
 		else
 			cec_tx_result = CEC_FAIL_OTHER;
 		complete(&cec_dev->tx_ok);
@@ -386,7 +411,7 @@ int cecrx_hw_init(void)
 	hdmirx_set_bits_top(TOP_EDID_GEN_CNTL, EDID_AUTO_CEC_EN, 11, 1);
 
 	/* enable all cec irq */
-	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_SET, (0x7f << 16));
+	hdmirx_wr_dwc(DWC_AUD_CLK_IEN_SET, EE_CEC_IRQ_EN_MASK);
 	/* clear all wake up source */
 	hdmirx_wr_dwc(DWC_CEC_WKUPCTRL, 0);
 	/* cec enable */
@@ -524,8 +549,15 @@ void cec_rx_buf_clear(void)
 
 int cec_rx_buf_check(void)
 {
-	unsigned int rx_num_msg = aocec_rd_reg(CEC_RX_NUM_MSG);
+	unsigned int rx_num_msg;
 
+	if (ee_cec) {
+		cecrx_check_irq_enable();
+		cecrx_irq_handle();
+		return 0;
+	}
+
+	rx_num_msg = aocec_rd_reg(CEC_RX_NUM_MSG);
 	if (rx_num_msg)
 		CEC_INFO("rx msg num:0x%02x\n", rx_num_msg);
 
@@ -713,7 +745,7 @@ static int check_confilct(void)
 {
 	int i;
 
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < 200; i++) {
 		/*
 		 * sleep 20ms and using hrtimer to check cec line every 1ms
 		 */
@@ -726,7 +758,7 @@ static int check_confilct(void)
 		else
 			CEC_INFO("line busy:%d\n", cec_line_cnt);
 	}
-	if (i >= 50)
+	if (i >= 200)
 		return -EBUSY;
 	else
 		return 0;
@@ -1273,7 +1305,7 @@ static void cec_task(struct work_struct *work)
 	   !(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))) {
 		cec_rx_process();
 	}
-	if (!ee_cec && !cec_late_check_rx_buffer())
+	if (!cec_late_check_rx_buffer())
 		queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
 }
 
