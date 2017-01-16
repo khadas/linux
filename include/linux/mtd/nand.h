@@ -636,6 +636,12 @@ struct nand_chip {
 #define NAND_MFR_SANDISK	0x45
 #define NAND_MFR_INTEL		0x89
 
+/* add extra flash manufacturer ID Codes */
+#ifdef CONFIG_AMLOGIC_NAND
+#define NAND_ID_WINBOND		0xef
+#define NAND_ID_ESMT		0xc8
+#endif
+
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
 
