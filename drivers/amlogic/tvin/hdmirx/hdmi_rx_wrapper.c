@@ -499,6 +499,7 @@ static int acr_mode;
 int pre_port = 0xff;
 int skip_frame_num = 3;
 int skip_frame_max = 15;
+
 /***********************
   TVIN driver interface
 ************************/
@@ -2887,6 +2888,9 @@ void hdmirx_hw_monitor(void)
 		}
 		auds_rcv_sts =
 			rx.aud_info.aud_packet_received;
+		rgb_quant_range = rx.cur.rgb_quant_range;
+		yuv_quant_range = rx.cur.yuv_quant_range;
+		it_content = rx.cur.it_content;
 		break;
 	default:
 		break;
