@@ -31,6 +31,7 @@
 #include "../aml_fe.h"
 #include <uapi/linux/dvb/frontend.h>
 #include <linux/amlogic/tvin/tvin.h>
+#include "../../tvin/tvafe/tvafe_general.h"
 
 #define ATVDEMOD_DEVICE_NAME                "amlatvdemod"
 #define ATVDEMOD_DRIVER_NAME	"amlatvdemod"
@@ -262,6 +263,7 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 				amlatvdemod_devp->pin_name);
 	/* printk("\n%s: set atvdemod pll...\n",__func__); */
 	adc_set_pll_cntl(1, 0x1);
+	usleep_range(2000, 2100);
 	atvdemod_clk_init();
 	err_code = atvdemod_init();
 	if (err_code) {
@@ -629,12 +631,20 @@ void __iomem *amlatvdemod_hiu_reg_base;
 void __iomem *amlatvdemod_periphs_reg_base;
 int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
 {
+	if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
+		pr_info("%s atv demod pll not init\n", __func__);
+		return 0;
+	}
 	*val = readl(amlatvdemod_reg_base + reg);
 	return 0;
 }
 
 int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 {
+	if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
+		pr_info("%s atv demod pll not init\n", __func__);
+		return 0;
+	}
 	writel(val, (amlatvdemod_reg_base + reg));
 	return 0;
 }

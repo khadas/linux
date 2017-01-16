@@ -216,6 +216,7 @@ extern void tvafe_enable_avout(enum tvin_port_e port, bool enable);
 */
 void vdac_enable(bool on, unsigned int module_sel);
 extern void adc_set_pll_reset(void);
+extern int tvafe_adc_get_pll_flag(void);
 
 extern struct mutex pll_mutex;
 extern bool tvafe_dbg_enable;
