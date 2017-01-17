@@ -1943,6 +1943,10 @@ EXPORT_SYMBOL(direct_hdcptx14_stop);
 static ssize_t store_hdcp_ctrl(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+	if (hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_14_LSTORE,
+		0) == 0)
+		return count;
+
 	dev_warn(dev, "hdmitx20: %s\n", buf);
 	if (strncmp(buf, "stop", 4) == 0) {
 		if (strncmp(buf+4, "14", 2) == 0)
