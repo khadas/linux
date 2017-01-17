@@ -141,6 +141,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	suspend_flag = 1;
 	phdmi->hpd_lock = 1;
 	hdcp_tst_sig = 1;
+	pr_info("%s[%d] set hdcp_pwr as %d\n", __func__, __LINE__,
+		hdcp_tst_sig);
 	msleep(20);
 	phdmi->HWOp.CntlMisc(phdmi, MISC_AVMUTE_OP, SET_AVMUTE);
 	mdelay(100);
@@ -1790,6 +1792,11 @@ static ssize_t show_hdcp_clkdis(struct device *dev,
 static ssize_t store_hdcp_pwr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
+	if (buf[0] == '1') {
+		hdcp_tst_sig = 1;
+		pr_info("%s[%d] set hdcp_pwr as %d\n", __func__, __LINE__,
+			hdcp_tst_sig);
+	}
 	return count;
 }
 
@@ -1799,9 +1806,11 @@ static ssize_t show_hdcp_pwr(struct device *dev,
 	int pos = 0;
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", !!hdcp_tst_sig);
-	if (hdcp_tst_sig == 1)
+	if (hdcp_tst_sig == 1) {
 		hdcp_tst_sig = 0;
-
+		pr_info("%s[%d] set hdcp_pwr as %d\n", __func__, __LINE__,
+			hdcp_tst_sig);
+	}
 	return pos;
 }
 
