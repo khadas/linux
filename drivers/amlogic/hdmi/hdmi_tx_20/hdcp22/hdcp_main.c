@@ -354,14 +354,12 @@ static long cmd_hpi_write(struct esm_device *esm,
 	if (ret)
 		pr_info("copy left %ld Bytes\n", ret);
 	if (krequest.offset == 0x40) {
-		hd_set_reg_bits(P_PREG_PAD_GPIO1_EN_N, 3, 21, 2);
-		hd_set_reg_bits(P_PERIPHS_PIN_MUX_1, 3, 24, 2); /* MUX DDC */
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_CTRL, 0x6);
 		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
 		udelay(10);
 		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
 		udelay(10);
-		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MASK, 0);
 		hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MUTE, 0);
 		set_pkf_duk_nonce();

@@ -3553,7 +3553,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case DDC_HDCP_MUX_INIT:
 		if (argv == 2)
-			; /* hdmitx_hdcp_opr(5); */
+			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 		if (argv == 1)
 			hdmitx_hdcp_opr(6);
 		break;
