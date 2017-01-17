@@ -1913,7 +1913,7 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 			first_picture = 1;
 		}
 	} else {
-		if (READ_VCBUS_REG(DI_IF1_GEN_REG) & 0x1) {
+		if (VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) {
 			/* disable post di */
 			VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
 			VSYNC_WR_MPEG_REG(DI_POST_SIZE,
@@ -2470,7 +2470,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					(0x8 << VFORMATTER_PHASE_BIT) |
 					VFORMATTER_EN);
 			}
-			if ((READ_VCBUS_REG(DI_POST_CTRL) & 0x100) == 0)
+			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
 
@@ -2499,7 +2499,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			if (is_meson_txl_cpu())
 				VSYNC_WR_MPEG_REG_BITS(DI_IF2_GEN_REG3,
 				(bit_mode&0x3), 8, 2);
-			if ((READ_VCBUS_REG(DI_POST_CTRL) & 0x100) == 0)
+			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
 

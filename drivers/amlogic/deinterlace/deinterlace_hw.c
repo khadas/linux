@@ -1536,7 +1536,7 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 		);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* enable ma,disable if0 to vpp */
-		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5) {
+		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000) {
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 			if (post_wr_en)
 				DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0,
@@ -1567,7 +1567,7 @@ void di_post_switch_buffer(
 	buf1_en =  (!ei_only && (di_ddr_en || di_vpp_en));
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 3) != 5)
+		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 	}
 
@@ -1605,11 +1605,11 @@ void di_post_switch_buffer(
 	}
 
 	if (di_ddr_en) {
-			DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
-				di_diwr_mif->canvas_num |
-					(urgent << 16)	|
-					(2 << 26)		|
-					(di_ddr_en << 30));
+		DI_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
+			di_diwr_mif->canvas_num |
+				(urgent << 16)	|
+				(2 << 26)		|
+				(di_ddr_en << 30));
 	}
 	if ((pldn_ctrl_rflsh == 1) && pulldown_enable) {
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL, blend_en, 31, 1);
@@ -1748,7 +1748,7 @@ void disable_post_deinterlace_2(void)
 		DI_VSYNC_WR_MPEG_REG(DI_IF2_GEN_REG, 0x3 << 30);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* disable ma,enable if0 to vpp,enable afbc to vpp */
-		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 4) != 0)
+		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
 		/* DI inp(current data) switch to memory */
 		DI_VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);
