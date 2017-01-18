@@ -472,32 +472,35 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 	kfree(buf_orig);
 	return count;
 }
-static void amvecm_vlock_status(void)
-{
-	pr_info("\n current vlock state:\n");
-	pr_info("vlock_mode:%d\n", vlock_mode);
-	pr_info("vlock_en:%d\n", vlock_en);
-	pr_info("vlock_adapt:%d\n", vlock_adapt);
-	pr_info("vlock_dis_cnt_limit:%d\n", vlock_dis_cnt_limit);
-}
+
 static ssize_t amvecm_vlock_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
 	len += sprintf(buf+len,
-		"echo vlock_mode val(D) > /sys/class/amvecm/vlock\n");
+		"echo vlock_mode val(0/1/2) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
-		"echo vlock_en val(D) > /sys/class/amvecm/vlock\n");
+		"echo vlock_en val(0/1) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
-		"echo vlock_adapt val(D) > /sys/class/amvecm/vlock\n");
+		"echo vlock_adapt val(0/1) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo vlock_dis_cnt_limit val(D) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_delta_limit val(D) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_debug val(0x111) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_dynamic_adjust val(0/1) > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo vlock_dis_cnt_no_vf_limit val(D) > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo enable > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo disable > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf+len,
 		"echo status > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf+len,
+		"echo dump_reg > /sys/class/amvecm/vlock\n");
 	return len;
 }
 
@@ -507,6 +510,8 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val;
+	unsigned int temp_val;
+	enum vlock_param_e sel = VLOCK_PARAM_MAX;
 
 	if (!buf)
 		return count;
@@ -522,26 +527,56 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 	if (!strncmp(parm[0], "vlock_mode", 10)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		vlock_mode = val;
+		temp_val = val;
+		sel = VLOCK_MODE;
 	} else if (!strncmp(parm[0], "vlock_en", 8)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		vlock_en = val;
+		temp_val = val;
+		sel = VLOCK_EN;
 	} else if (!strncmp(parm[0], "vlock_adapt", 11)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		vlock_adapt = val;
+		temp_val = val;
+		sel = VLOCK_ADAPT;
 	} else if (!strncmp(parm[0], "vlock_dis_cnt_limit", 19)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		vlock_dis_cnt_limit = val;
+		temp_val = val;
+		sel = VLOCK_DIS_CNT_LIMIT;
+	} else if (!strncmp(parm[0], "vlock_delta_limit", 17)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_DELTA_LIMIT;
+	} else if (!strncmp(parm[0], "vlock_debug", 11)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_DEBUG;
+	} else if (!strncmp(parm[0], "vlock_dynamic_adjust", 20)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_DYNAMIC_ADJUST;
+	} else if (!strncmp(parm[0], "vlock_dis_cnt_no_vf_limit", 25)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_DIS_CNT_NO_VF_LIMIT;
 	} else if (!strncmp(parm[0], "enable", 6)) {
 		vecm_latch_flag |= FLAG_VLOCK_EN;
 	} else if (!strncmp(parm[0], "disable", 7)) {
 		vecm_latch_flag |= FLAG_VLOCK_DIS;
 	} else if (!strncmp(parm[0], "status", 6)) {
-		amvecm_vlock_status();
+		vlock_status();
+	} else if (!strncmp(parm[0], "dump_reg", 8)) {
+		vlock_reg_dump();
+	} else {
+		pr_info("unsupport cmd!!\n");
 	}
+	if (sel < VLOCK_PARAM_MAX)
+		vlock_param_set(temp_val, sel);
 	kfree(buf_orig);
 	return count;
 }
@@ -839,6 +874,13 @@ void amvecm_on_vs(struct vframe_s *vf)
 		vpp_demo_config(vf);
 	} else
 		amvecm_matrix_process(NULL);
+	/* vlock processs */
+	if ((is_meson_g9tv_cpu() || (get_cpu_type() >=
+		MESON_CPU_MAJOR_ID_GXBB)) && (vf != NULL))
+		amve_vlock_process(vf);
+	else if ((is_meson_g9tv_cpu() || (get_cpu_type() >=
+		MESON_CPU_MAJOR_ID_GXBB)) && (vf == NULL))
+		amve_vlock_resume();
 
 	/* pq latch process */
 	amvecm_video_latch();

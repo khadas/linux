@@ -189,6 +189,7 @@ static int invert_top_bot;
 static int skip_top_bot;/*1or2: may affect atv when bypass di*/
 static char interlace_output_flag;
 static int bypass_get_buf_threshold = 4;
+static int bypass_hdmi_get_buf_threshold = 3;
 
 static int post_hold_line = 17;/* for m8 1080i/50 output */
 static int force_update_post_reg = 0x10;
@@ -5414,11 +5415,16 @@ static unsigned char pre_de_buf_config(void)
 		/* some provider has problem if receiver
 		 * get all buffers of provider */
 		int in_buf_num = 0;
+		int bypass_buf_threshold = bypass_get_buf_threshold;
+		if ((di_pre_stru.cur_inp_type & VIDTYPE_VIU_444) &&
+			(di_pre_stru.cur_source_type ==
+			VFRAME_SOURCE_TYPE_HDMI))
+			bypass_buf_threshold = bypass_hdmi_get_buf_threshold;
 		cur_lev = 0;
 		for (i = 0; i < MAX_IN_BUF_NUM; i++)
 			if (vframe_in[i] != NULL)
 				in_buf_num++;
-		if (in_buf_num > bypass_get_buf_threshold
+		if (in_buf_num > bypass_buf_threshold
 #ifdef DET3D
 		    && (di_pre_stru.vframe_interleave_flag == 0)
 #endif
@@ -8910,8 +8916,12 @@ static void fast_process(void)
 {
 	int i;
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
+	unsigned int bypass_buf_threshold = bypass_get_buf_threshold;
 
-	if (active_flag && is_bypass(NULL) && (bypass_get_buf_threshold <= 1) &&
+	if ((di_pre_stru.cur_inp_type & VIDTYPE_VIU_444) &&
+		(di_pre_stru.cur_source_type == VFRAME_SOURCE_TYPE_HDMI))
+		bypass_buf_threshold = bypass_hdmi_get_buf_threshold;
+	if (active_flag && is_bypass(NULL) && (bypass_buf_threshold <= 1) &&
 		init_flag && mem_flag && (recovery_flag == 0) &&
 		(dump_state_flag == 0)) {
 		if (vf_peek(VFM_NAME) == NULL)
@@ -9815,6 +9825,9 @@ module_param(force_height, int, 0664);
 
 MODULE_PARM_DESC(bypass_get_buf_threshold, "\n bypass_get_buf_threshold\n");
 module_param(bypass_get_buf_threshold, uint, 0664);
+
+MODULE_PARM_DESC(bypass_hdmi_get_buf_threshold, "\n bypass_hdmi_get_buf_threshold\n");
+module_param(bypass_hdmi_get_buf_threshold, uint, 0664);
 
 MODULE_PARM_DESC(pulldown_detect, "\n pulldown_detect\n");
 module_param(pulldown_detect, int, 0664);

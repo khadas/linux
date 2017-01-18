@@ -88,17 +88,26 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
+	unsigned int max_bufffer_num = max_buf_num;
 
 	if (is_meson_g9tv_cpu())
 		canvas_max_w = VDIN_CANVAS_MAX_WIDTH_UHD << 1;
 	else
 		canvas_max_w = VDIN_CANVAS_MAX_WIDTH_HD << 1;
 
+	/* todo: if new add output YUV444 format,this place should add too!!*/
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
-	    (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
-	    (devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
-	    (devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)) {
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
 		devp->canvas_w = devp->h_active * 3;
+		/*when vdin output YUV444/RGB444,Di will bypass dynamic;
+		4 frame buffer may not enough,result in frame loss;
+		After test on gxtvbb(input 1080p60,output 4k42210bit),
+		6 frame is enough.*/
+		max_bufffer_num = max_buf_num + 2;
 	} else if ((devp->prop.dest_cfmt == TVIN_NV12) ||
 		(devp->prop.dest_cfmt == TVIN_NV21)) {
 		if (is_meson_g9tv_cpu())
@@ -131,7 +140,7 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 			PAGE_ALIGN((canvas_max_w*canvas_max_h+chroma_size));
 	devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size;
 	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
-	devp->canvas_max_num = min(devp->canvas_max_num, max_buf_num);
+	devp->canvas_max_num = min(devp->canvas_max_num, max_bufffer_num);
 	devp->canvas_w = roundup(devp->canvas_w, 32);
 	devp->mem_start = roundup(devp->mem_start, 32);
 	pr_info("vdin.%d cnavas configuration table:\n", devp->index);
@@ -170,15 +179,24 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
+	unsigned int max_bufffer_num = max_buf_num;
 
+	/* todo: if new add output YUV444 format,this place should add too!!*/
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)) {
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
 		if (devp->source_bitdepth > 8)
 			devp->canvas_w = devp->h_active * 4;
 		else
 			devp->canvas_w = devp->h_active * 3;
+		/*when vdin output YUV444/RGB444,Di will bypass dynamic;
+		4 frame buffer may not enough,result in frame loss;
+		After test on gxtvbb(input 1080p60,output 4k42210bit),
+		6 frame is enough.*/
+		max_bufffer_num = max_buf_num + 2;
 	} else if (((devp->prop.dest_cfmt == TVIN_NV12) ||
 		(devp->prop.dest_cfmt == TVIN_NV21)) &&
 		(devp->source_bitdepth <= 8)) {
@@ -213,7 +231,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size;
 
 	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
-	devp->canvas_max_num = min(devp->canvas_max_num, max_buf_num);
+	devp->canvas_max_num = min(devp->canvas_max_num, max_bufffer_num);
 
 	devp->mem_start = roundup(devp->mem_start, 32);
 #ifdef VDIN_DEBUG

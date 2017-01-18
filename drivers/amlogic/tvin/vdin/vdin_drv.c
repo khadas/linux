@@ -160,6 +160,10 @@ static unsigned int vdin_irq_flag;
 module_param(vdin_irq_flag, uint, 0664);
 MODULE_PARM_DESC(vdin_irq_flag, "vdin_irq_flag");
 
+static unsigned int vdin_drop_cnt;
+module_param(vdin_drop_cnt, uint, 0664);
+MODULE_PARM_DESC(vdin_drop_cnt, "vdin_drop_cnt");
+
 /* viu isr select:
    enable viu_hw_irq for the bandwidth is enough on gxbb/gxtvbb and laters ic*/
 static unsigned int viu_hw_irq = 1;
@@ -374,6 +378,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	unsigned int mem_size, h_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_CPU;
+	unsigned int max_bufffer_num = max_buf_num;
+
 	if ((devp->cma_config_en == 0) ||
 		(devp->cma_mem_alloc[devp->index] == 1)) {
 		pr_err(KERN_ERR "\nvdin%d %s fail for (%d,%d)!!!\n",
@@ -384,11 +390,15 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)) {
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
 		if (devp->source_bitdepth > 8)
 			h_size = roundup(devp->h_active * 4, 32);
 		else
 			h_size = roundup(devp->h_active * 3, 32);
+		/*todo change with canvas alloc!!*/
+		max_bufffer_num = max_buf_num + 2;
 	} else {
 		/* txl new add mode yuv422 pack mode:canvas-w=h*2*10/8
 		*canvas_w must ensure divided exact by 256bit(32byte*/
@@ -406,7 +416,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			h_size = roundup(devp->h_active * 2, 32);
 	}
 	mem_size = h_size * devp->v_active;
-	mem_size = PAGE_ALIGN(mem_size)*max_buf_num;
+	mem_size = PAGE_ALIGN(mem_size)*max_bufffer_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
 		mem_size = devp->cma_mem_size[devp->index];
@@ -1700,7 +1710,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/*save the first field stamp*/
 		devp->stamp = stamp;
 		vdin_irq_flag = 3;
-
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	if (devp->last_wr_vfe && (devp->flags&VDIN_FLAG_RDMA_ENABLE)) {
@@ -1715,7 +1725,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (vdin_check_cycle(devp) && (!(isr_flag & VDIN_BYPASS_CYC_CHECK))
 		&& (!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		vdin_irq_flag = 4;
-
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 
@@ -1727,7 +1737,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		(!(isr_flag & VDIN_BYPASS_VSYNC_CHECK))
 		&& (!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		vdin_irq_flag = 5;
-
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	sm_ops = devp->frontend->sm_ops;
@@ -1741,6 +1751,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		(state != TVIN_SM_STATUS_STABLE)) &&
 		(!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		vdin_irq_flag = 6;
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 
@@ -1753,6 +1764,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				VIDTYPE_INTERLACE_BOTTOM)
 	   ) {
 		vdin_irq_flag = 7;
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	curr_wr_vfe = devp->curr_wr_vfe;
@@ -1780,6 +1792,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
 		vdin_irq_flag = 8;
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	if ((devp->parm.port >= TVIN_PORT_CVBS0) &&
@@ -1791,21 +1804,21 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (ignore_frames < max_ignore_frames) {
 		ignore_frames++;
 		vdin_irq_flag = 12;
-
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 
 	if (sm_ops->check_frame_skip &&
 		sm_ops->check_frame_skip(devp->frontend)) {
 		vdin_irq_flag = 13;
-
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 	if (!next_wr_vfe) {
 		vdin_irq_flag = 14;
-
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	vdin2nr = vf_notify_receiver(devp->name,

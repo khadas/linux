@@ -158,6 +158,42 @@ static ssize_t vdin_attr_show(struct device *dev,
 		"abnormal cnt %u\n", devp->abnormal_cnt);
 	return len;
 }
+static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
+	unsigned int buf_num)
+{
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+	unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w;
+	mm_segment_t old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
+
+	if (IS_ERR(filp)) {
+		pr_info(KERN_ERR"create %s error.\n", path);
+		return;
+	}
+	if ((devp->cma_config_flag == 1) &&
+		(devp->cma_mem_alloc[devp->index] == 0)) {
+		pr_info("%s:no cma alloc mem!!!\n", __func__);
+		return;
+	}
+	if (buf_num < devp->canvas_max_num) {
+		if (devp->cma_config_flag == 1)
+			buf = codec_mm_phys_to_virt(devp->mem_start +
+				devp->canvas_max_size*buf_num);
+		else
+			buf = phys_to_virt(devp->mem_start +
+				devp->canvas_max_size*buf_num);
+		vfs_write(filp, buf, canvas_real_size, &pos);
+		pr_info("write buffer %2d of %2u  to %s.\n",
+				buf_num, devp->canvas_max_num, path);
+	}
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+}
+
 static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 {
 	struct file *filp = NULL;
@@ -428,6 +464,12 @@ static ssize_t vdin_attr_store(struct device *dev,
 				return -EINVAL;
 			offset = val;
 			dump_other_mem(parm[1], start, offset);
+		} else if (parm[2] != NULL) {
+			unsigned int buf_num;
+			if (kstrtol(parm[2], 10, &val) < 0)
+				return -EINVAL;
+			buf_num = val;
+			vdin_dump_one_buf_mem(parm[1], devp, buf_num);
 		} else if (parm[1] != NULL) {
 			vdin_dump_mem(parm[1], devp);
 		}
