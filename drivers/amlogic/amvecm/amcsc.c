@@ -1495,6 +1495,7 @@ static void print_vpp_matrix(int m_select, int *s, int on)
 	pr_csc("\n");
 }
 
+static int *cur_osd_mtx = RGB709_to_YUV709l_coeff;
 void set_vpp_matrix(int m_select, int *s, int on)
 {
 	int *m = NULL;
@@ -1505,6 +1506,7 @@ void set_vpp_matrix(int m_select, int *s, int on)
 	if (m_select == VPP_MATRIX_OSD) {
 		m = osd_matrix_coeff;
 		size = MATRIX_5x3_COEF_SIZE;
+		cur_osd_mtx = s;
 	} else if (m_select == VPP_MATRIX_POST)	{
 		m = post_matrix_coeff;
 		size = MATRIX_5x3_COEF_SIZE;
@@ -1758,6 +1760,27 @@ void set_vpp_matrix(int m_select, int *s, int on)
 		}
 	}
 }
+
+void enable_osd_path(int on)
+{
+	static int *osd1_mtx_backup;
+	static uint32_t osd1_eotf_ctl_backup;
+	static uint32_t osd1_oetf_ctl_backup;
+	if (!on) {
+		osd1_mtx_backup = cur_osd_mtx;
+		osd1_eotf_ctl_backup = hdr_osd_reg.viu_osd1_eotf_ctl;
+		osd1_oetf_ctl_backup = hdr_osd_reg.viu_osd1_oetf_ctl;
+
+		set_vpp_matrix(VPP_MATRIX_OSD, bypass_coeff, CSC_ON);
+		hdr_osd_reg.viu_osd1_eotf_ctl &= 0x07ffffff;
+		hdr_osd_reg.viu_osd1_oetf_ctl &= 0x1fffffff;
+	} else {
+		set_vpp_matrix(VPP_MATRIX_OSD, osd1_mtx_backup, CSC_ON);
+		hdr_osd_reg.viu_osd1_eotf_ctl = osd1_eotf_ctl_backup;
+		hdr_osd_reg.viu_osd1_eotf_ctl = osd1_oetf_ctl_backup;
+	}
+}
+EXPORT_SYMBOL(enable_osd_path);
 
 const char lut_name[NUM_LUT][16] = {
 	"OSD_EOTF",

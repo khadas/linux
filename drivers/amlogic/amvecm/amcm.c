@@ -234,13 +234,15 @@ void amcm_disable(void)
 void amcm_enable(void)
 {
 	int temp;
-	if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
-		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
-	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-	if (!(temp & 0x2)) {
+	if (!is_dolby_vision_enable()) {
+		if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
+			WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
+		temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+		if (!(temp & 0x2)) {
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
+		}
 	}
 }
 
@@ -266,16 +268,16 @@ void amcm_level_sel(unsigned int cm_level)
 	else
 		am_set_regmap(&cmreg_optimize);
 
-	if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
-		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
-
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
-	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-	if (!(temp & 0x2)) {
+	if (!is_dolby_vision_enable()) {
+		if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
+			WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
+		temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+		if (!(temp & 0x2)) {
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
+		}
 	}
-
 }
 
 void cm2_frame_size_patch(unsigned int width, unsigned int height)

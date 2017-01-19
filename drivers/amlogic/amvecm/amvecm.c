@@ -2473,20 +2473,40 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	return count;
 }
 
+/* supported mode: IPT_TUNNEL/HDR10/SDR10 */
+static const int dv_mode_table[6] = {
+	5, /*DOLBY_VISION_OUTPUT_MODE_BYPASS*/
+	0, /*DOLBY_VISION_OUTPUT_MODE_IPT*/
+	1, /*DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL*/
+	2, /*DOLBY_VISION_OUTPUT_MODE_HDR10*/
+	3, /*DOLBY_VISION_OUTPUT_MODE_SDR10*/
+	4, /*DOLBY_VISION_OUTPUT_MODE_SDR8*/
+};
+
+static const char dv_mode_str[6][12] = {
+	"IPT",
+	"IPT_TUNNEL",
+	"HDR10",
+	"SDR10",
+	"SDR8",
+	"BYPASS"
+};
+
 static ssize_t amvecm_dv_mode_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
 	pr_info("usage: echo mode > /sys/class/amvecm/dv_mode\n");
-	pr_info("\tDOLBY_VISION_OUTPUT_MODE_OFF			0\n");
+	pr_info("\tDOLBY_VISION_OUTPUT_MODE_BYPASS		0\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_IPT			1\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL	2\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_HDR10		3\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_SDR10		4\n");
 	pr_info("\tDOLBY_VISION_OUTPUT_MODE_SDR8		5\n");
-	if (is_meson_gxm_cpu() && is_dolby_vision_on())
-		pr_info("current dv_mode = %d\n", get_dolby_vision_mode()+1);
+	if (is_meson_gxm_cpu() && is_dolby_vision_enable())
+		pr_info("current dv_mode = %s\n",
+			dv_mode_str[get_dolby_vision_mode()]);
 	else
-		pr_info("current dv_mode = %d\n", 0);
+		pr_info("current dv_mode = off\n");
 	return 0;
 }
 
@@ -2501,11 +2521,12 @@ static ssize_t amvecm_dv_mode_store(struct class *cla,
 		r = sscanf(buf, "0x%x", &val);
 		if ((r != 1))
 			return -EINVAL;
-
-		if (val == 0)
-			enable_dolby_vision(0);
-		else if (val > 0)
-			set_dolby_vision_mode(val - 1);
+		if ((val >= 0) && (val < 6))
+			set_dolby_vision_mode(dv_mode_table[val]);
+		else if (val & 0x200)
+			dolby_vision_dump_struct();
+		else if (val & 0x70)
+			dolby_vision_dump_setting(val);
 	}
 	return count;
 }
@@ -2674,7 +2695,8 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	/* init module status */
 	amvecm_wb_init(wb_en);
 	amvecm_gamma_init(gamma_en);
-	WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+	if (!is_dolby_vision_enable())
+		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
 	if (cm_en)
 		amcm_enable();
 	else
