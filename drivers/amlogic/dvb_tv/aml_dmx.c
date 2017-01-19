@@ -597,6 +597,27 @@ static inline int sec_filter_match(struct aml_dmx *dmx, struct aml_filter *f,
 	return 1;
 }
 
+static void trigger_crc_monitor(struct aml_dmx *dmx)
+{
+	if (!dmx->crc_check_time) {
+		dmx->crc_check_time = jiffies;
+		dmx->crc_check_count = 0;
+	}
+
+	if (dmx->crc_check_count > 100) {
+		if (jiffies_to_msecs(jiffies - dmx->crc_check_time) <= 1000) {
+			struct aml_dvb *dvb = (struct aml_dvb *)dmx->demux.priv;
+			pr_error("Too many crc fail (%d crc fail in %d ms)!\n",
+				dmx->crc_check_count,
+				jiffies_to_msecs(jiffies - dmx->crc_check_time)
+			);
+			dmx_reset_dmx_hw_ex_unlock(dvb, dmx, 0);
+		}
+		dmx->crc_check_time = 0;
+	}
+
+	dmx->crc_check_count++;
+}
 static int section_crc(struct aml_dmx *dmx, struct aml_filter *f, u8 *p)
 {
 	int sec_len = (((p[1] & 0xF) << 8) | p[2]) + 3;
@@ -614,15 +635,25 @@ static int section_crc(struct aml_dmx *dmx, struct aml_filter *f, u8 *p)
 			pr_error("section CRC check failed!\n");
 
 #if 0
-			int i;
-
+{
+	int i;
+	pr_error("sec:[%#lx:%#lx:%#lx-%#lx:%#lx:%#lx-%#lx:%#lx:%#lx]\n",
+	dmx->sec_cnt[0], dmx->sec_cnt_match[0], dmx->sec_cnt_crc_fail[0],
+	dmx->sec_cnt[1], dmx->sec_cnt_match[1], dmx->sec_cnt_crc_fail[1],
+	dmx->sec_cnt[2], dmx->sec_cnt_match[2], dmx->sec_cnt_crc_fail[2]);
+		pr_error("bad sec[%d]:\n", sec_len);
+		/*
+			if (sec_len > 256)
+				sec_len = 256;
 			for (i = 0; i < sec_len; i++) {
-				pr_dbg("%02x ", p[i]);
+				pr_err("%02x ", p[i]);
 				if (!((i + 1) % 16))
-					pr_dbg("\n");
+					pr_err("\n");
 			}
-			pr_dbg("\nerror section data\n");
+		*/
+}
 #endif
+			trigger_crc_monitor(dmx);
 			return 0;
 		}
 #if 0
@@ -669,17 +700,21 @@ static void hardware_match_section(struct aml_dmx *dmx,
 	f = &dmx->filter[sec_num];
 	chid = f->chan_id;
 
+	dmx->sec_cnt[SEC_CNT_HW]++;
+
 	for (i = 0; i < FILTER_COUNT; i++) {
 		f = &dmx->filter[i];
 		if (f->chan_id != chid)
 			continue;
 		if (sec_filter_match(dmx, f, p)) {
 			if (need_crc) {
-				if (!section_crc(dmx, f, p))
+				dmx->sec_cnt_match[SEC_CNT_HW]++;
+				if (!section_crc(dmx, f, p)) {
+					dmx->sec_cnt_crc_fail[SEC_CNT_HW]++;
 					return;
+				}
 				need_crc = 0;
 			}
-
 			section_notify(dmx, f, p);
 		}
 	}
@@ -695,6 +730,8 @@ static void software_match_section(struct aml_dmx *dmx, u16 buf_num)
 				dmx->sec_pages_map + (buf_num << 0x0c),
 				(1 << 0x0c), DMA_FROM_DEVICE);
 
+	dmx->sec_cnt[SEC_CNT_SW]++;
+
 	for (i = 0; i < FILTER_COUNT; i++) {
 		f = &dmx->filter[i];
 
@@ -705,7 +742,7 @@ static void software_match_section(struct aml_dmx *dmx, u16 buf_num)
 				fmatch = f;
 				fid = i;
 			} else {
-				pr_dbg("software match]Muli-filter match this\n"
+				pr_error("[sw match]Muli-filter match this\n"
 					"section, will skip this section\n");
 				return;
 			}
@@ -716,8 +753,11 @@ static void software_match_section(struct aml_dmx *dmx, u16 buf_num)
 		pr_dbg("[software match]dispatch\n"
 			"section to filter %d pid %d\n",
 			fid, dmx->channel[fmatch->chan_id].pid);
+		dmx->sec_cnt_match[SEC_CNT_SW]++;
 		if (section_crc(dmx, fmatch, p))
 			section_notify(dmx, fmatch, p);
+		else
+			dmx->sec_cnt_crc_fail[SEC_CNT_SW]++;
 	} else {
 		pr_dbg("[software match]this section do not\n"
 			"match any filter!!!\n");
@@ -827,17 +867,21 @@ static void smallsection_match_section(struct aml_dmx *dmx, u8 *p, u16 sec_num)
 	f = &dmx->filter[sec_num];
 	chid = f->chan_id;
 
+	dmx->sec_cnt[SEC_CNT_SS]++;
+
 	for (i = 0; i < FILTER_COUNT; i++) {
 		f = &dmx->filter[i];
 		if (f->chan_id != chid)
 			continue;
 		if (sec_filter_match(dmx, f, p)) {
 			if (need_crc) {
-				if (!section_crc(dmx, f, p))
+				dmx->sec_cnt_match[SEC_CNT_SS]++;
+				if (!section_crc(dmx, f, p)) {
+					dmx->sec_cnt_crc_fail[SEC_CNT_SS]++;
 					return;
+				}
 				need_crc = 0;
 			}
-
 			section_notify(dmx, f, p);
 		}
 	}
@@ -1211,10 +1255,10 @@ static irqreturn_t dmx_irq_handler(int irq_number, void *para)
 	if (status & (1 << VIDEO_SPLICING_POINT)) {
 	}
 	if (status & (1 << AUDIO_SPLICING_POINT)) {
-	}
+	}*/
 	if (status & (1 << TS_ERROR_PIN)) {
 		pr_error("TS_ERROR_PIN\n");
-	}*/
+	}
 
 	if (status & (1 << NEW_PDTS_READY)) {
 		u32 pdts_status = DMX_READ_REG(dmx->id, STB_PTS_DTS_STATUS);
@@ -2528,7 +2572,7 @@ static int dmx_enable(struct aml_dmx *dmx)
 	record = dmx_get_record_flag(dmx);
 	if (use_of_sop == 1) {
 		use_sop = 1;
-		pr_dbg("dmx use of sop input\r\n");
+		pr_inf("dmx use of sop input\r\n");
 	}
 	switch (dmx->source) {
 	case AM_TS_SRC_TS0:
@@ -3517,6 +3561,12 @@ void dmx_reset_dmx_hw_ex_unlock(struct aml_dvb *dvb, struct aml_dmx *dmx,
 
 			if (filter->used)
 				dmx_set_filter_regs(dmx, n);
+		}
+
+		for (n = 0; n < SEC_CNT_MAX; n++) {
+			dmx->sec_cnt[n] = 0;
+			dmx->sec_cnt_match[n] = 0;
+			dmx->sec_cnt_crc_fail[n] = 0;
 		}
 
 		dmx_enable(dmx);
@@ -4989,7 +5039,9 @@ static ssize_t dmx_reg_value_show_source(struct class *class,
 static ssize_t dmx_reg_value_store_source(struct class *class,
 					  struct class_attribute *attr,
 					  const char *buf, size_t size);
-
+static ssize_t dmx_sec_statistics_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf);
 static int reg_addr;
 
 static struct class_attribute aml_dmx_class_attrs[] = {
@@ -5027,6 +5079,7 @@ static struct class_attribute aml_dmx_class_attrs[] = {
 	__ATTR(ciplus_output_ctrl,  S_IRUGO | S_IWUSR,
 			ciplus_output_ctrl_show,
 			ciplus_output_ctrl_store),
+	__ATTR_RO(dmx_sec_statistics),
 	__ATTR_NULL
 };
 
@@ -5104,6 +5157,28 @@ static ssize_t dmx_reg_value_store_source(struct class *class,
 		value = (int)val;
 	WRITE_MPEG_REG(reg_addr, value);
 	return size;
+}
+
+static ssize_t dmx_sec_statistics_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf)
+{
+	ssize_t ret;
+	char tmp[128];
+	struct aml_dvb *dvb = aml_get_dvb_device();
+	ret = sprintf(tmp, "[hw]%#lx:%#lx:%#lx\n[sw]%#lx:%#lx:%#lx\n",
+			dvb->dmx[dmx_id].sec_cnt[SEC_CNT_HW],
+			dvb->dmx[dmx_id].sec_cnt_match[SEC_CNT_HW],
+			dvb->dmx[dmx_id].sec_cnt_crc_fail[SEC_CNT_HW],
+			dvb->dmx[dmx_id].sec_cnt[SEC_CNT_SW],
+			dvb->dmx[dmx_id].sec_cnt_match[SEC_CNT_SW],
+			dvb->dmx[dmx_id].sec_cnt_crc_fail[SEC_CNT_SW]);
+	ret = sprintf(buf, "%s[ss]%#lx:%#lx:%#lx\n",
+			tmp,
+			dvb->dmx[dmx_id].sec_cnt[SEC_CNT_SS],
+			dvb->dmx[dmx_id].sec_cnt_match[SEC_CNT_SS],
+			dvb->dmx[dmx_id].sec_cnt_crc_fail[SEC_CNT_SS]);
+	return ret;
 }
 
 int aml_regist_dmx_class(void)

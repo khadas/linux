@@ -194,6 +194,17 @@ struct aml_dmx {
 	struct aml_dmxtimeout timeout;
 
 	int                  demux_filter_user;
+
+	unsigned long sec_cnt[3];
+	unsigned long sec_cnt_match[3];
+	unsigned long sec_cnt_crc_fail[3];
+	#define SEC_CNT_HW (0)
+	#define SEC_CNT_SW (1)
+	#define SEC_CNT_SS (2)
+	#define SEC_CNT_MAX (3)
+
+	int                   crc_check_count;
+	u32                 crc_check_time;
 };
 
 struct aml_asyncfifo {

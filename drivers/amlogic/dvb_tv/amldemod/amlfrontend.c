@@ -51,6 +51,7 @@ module_param(debug_aml, int, 0644);
 		} \
 	} while (0)
 #define pr_error(fmt, args ...) pr_err("GXTV_DEMOD: "fmt, ## args)
+#define pr_inf(fmt, args...)  pr_err("GXTV_DEMOD: " fmt, ## args)
 
 static int last_lock = -1;
 #define DEMOD_DEVICE_NAME  "gxtv_demod"
@@ -1206,7 +1207,7 @@ static int gxtv_demod_fe_get_ops(struct aml_fe_dev *dev, int mode, void *ops)
 static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 {
 	int memstart_dtmb;
-	pr_dbg("gxtv_demod_fe_resume\n");
+	pr_inf("gxtv_demod_fe_resume\n");
 /*	demod_power_switch(PWR_ON);*/
 	Gxtv_Demod_Dtmb_Init(dev);
 	memstart_dtmb = dev->fe->dtv_demod->mem_start;
@@ -1219,7 +1220,7 @@ static int gxtv_demod_fe_resume(struct aml_fe_dev *dev)
 
 static int gxtv_demod_fe_suspend(struct aml_fe_dev *dev)
 {
-	pr_dbg("gxtv_demod_fe_suspend\n");
+	pr_inf("gxtv_demod_fe_suspend\n");
 /*	demod_power_switch(PWR_OFF);*/
 	return 0;
 }
