@@ -821,6 +821,10 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 			devp->prop.hs, devp->prop.he,
 			devp->prop.vs, devp->prop.ve);
 	} else {
+		wr(offset, VDIN_WIN_H_START_END, 0);
+		wr(offset, VDIN_WIN_V_START_END, 0);
+		wr_bits(offset, VDIN_COM_CTRL0, 0,
+				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
 		pr_info("%s disable cutwin!!! hs=%d, he=%d,  vs=%d, ve=%d\n",
 			__func__,
 			devp->prop.hs, devp->prop.he,

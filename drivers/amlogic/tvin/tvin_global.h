@@ -406,6 +406,8 @@ struct tvin_sig_property_s {
 	unsigned int		ve;	/* for vertical end cut window */
 	unsigned int		pre_vs;	/* for vertical start cut window */
 	unsigned int		pre_ve;	/* for vertical end cut window */
+	unsigned int		pre_hs;	/* for horizontal start cut window */
+	unsigned int		pre_he;	/* for horizontal end cut window */
 	unsigned int		decimation_ratio;	/* for decimation */
 	unsigned int		colordepth; /* for color bit depth */
 	unsigned int		vdin_hdr_Flag;

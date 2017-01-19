@@ -219,8 +219,9 @@ module_param(force_nostd, uint, 0644);
 MODULE_PARM_DESC(force_nostd,
 			"fixed nosig problem by removing the nostd config.\n");
 
-/*0x001:enable cdto adj 0x010:enable 3d adj 0x100:enable pga*/
-static unsigned int  cvd_isr_en = 0x111;
+/*0x001:enable cdto adj 0x010:enable 3d adj 0x100:enable pga;
+0x1000:enable hs adj,which can instead cdto*/
+static unsigned int  cvd_isr_en = 0x1110;
 module_param(cvd_isr_en, uint, 0644);
 MODULE_PARM_DESC(cvd_isr_en, "cvd_isr_en\n");
 
@@ -280,6 +281,26 @@ static unsigned int cvd2_filter_config_level;
 module_param(cvd2_filter_config_level, uint, 0664);
 MODULE_PARM_DESC(cvd2_filter_config_level, "cvd2_filter_config_level");
 
+static unsigned int hs_adj_th_level0 = 0x260;
+module_param(hs_adj_th_level0, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level0, "hs_adj_th_level0");
+
+static unsigned int hs_adj_th_level1 = 0x4f0;
+module_param(hs_adj_th_level1, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level1, "hs_adj_th_level1");
+
+static unsigned int hs_adj_th_level2 = 0x770;
+module_param(hs_adj_th_level2, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level2, "hs_adj_th_level2");
+
+static unsigned int hs_adj_th_level3 = 0x9e0;
+module_param(hs_adj_th_level3, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level3, "hs_adj_th_level3");
+
+static unsigned int hs_adj_th_level4 = 0xc50;
+module_param(hs_adj_th_level4, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level4, "hs_adj_th_level4");
+
 static unsigned int try_format_cnt;
 
 static bool cvd_pr_flag;
@@ -300,8 +321,8 @@ static unsigned int noise3;
 static short print_cnt;
 
 /*****************the  version of changing log**********************/
-static  const char last_version_s[] = "2015-06-01|17-18";
-static  const char version_s[] = "2015-07-06|15-16";
+static  const char last_version_s[] = "2015-07-06a";
+static  const char version_s[] = "2017-01-19a";
 /**********************************************************/
 
 void get_cvd_version(const char **ver, const char **last_ver)
@@ -2403,7 +2424,79 @@ static void tvafe_cvd2_cdto_tune(unsigned int cur, unsigned int dest)
 	W_APB_REG(CVD2_CHROMA_DTO_INCREMENT_7_0,   (cur >>  0) & 0x000000ff);
 
 }
+inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
+			unsigned int hcnt64)
+{
+	unsigned int hcnt64_max, hcnt64_min;
+	unsigned int diff, hcnt64_ave, i, hcnt64_standard;
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+		hcnt64_standard = 0x31380;
+	else
+		hcnt64_standard = 0x17a00;
+
+	if ((cvd_isr_en & 0x1000) == 0)
+		return;
+
+	/* only for pal-i adjusment */
+	if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I)
+		return;
+
+	cvd2->info.hcnt64[0] = cvd2->info.hcnt64[1];
+	cvd2->info.hcnt64[1] = cvd2->info.hcnt64[2];
+	cvd2->info.hcnt64[2] = cvd2->info.hcnt64[3];
+	cvd2->info.hcnt64[3] = hcnt64;
+	hcnt64_ave = 0;
+	hcnt64_max = 0;
+	hcnt64_min = 0xffffffff;
+	for (i = 0; i < 4; i++) {
+		if (hcnt64_max < cvd2->info.hcnt64[i])
+			hcnt64_max = cvd2->info.hcnt64[i];
+		if (hcnt64_min > cvd2->info.hcnt64[i])
+			hcnt64_min = cvd2->info.hcnt64[i];
+		hcnt64_ave += cvd2->info.hcnt64[i];
+	}
+	if (++cvd2->info.hcnt64_cnt >= 300)
+		cvd2->info.hcnt64_cnt = 300;
+	if (cvd2->info.hcnt64_cnt == 300) {
+		hcnt64_ave = (hcnt64_ave - hcnt64_max - hcnt64_min + 1) >> 1;
+		if (hcnt64_ave == 0)  /* to avoid kernel crash */
+			return;
+		diff = abs(hcnt64_ave - hcnt64_standard);
+		if (diff > hs_adj_th_level0) {
+			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x11)
+				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x11);
+			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xc)
+				W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xc);
+			if (R_APB_REG(CVD2_REG_87) != 0xc0)
+				W_APB_REG(CVD2_REG_87, 0xc0);
+			cvd2->info.hs_adj_en = 1;
+			if (diff > hs_adj_th_level4)
+				cvd2->info.hs_adj_level = 4;
+			else if (diff > hs_adj_th_level3)
+				cvd2->info.hs_adj_level = 3;
+			else if (diff > hs_adj_th_level2)
+				cvd2->info.hs_adj_level = 2;
+			else if (diff > hs_adj_th_level1)
+				cvd2->info.hs_adj_level = 1;
+			else
+				cvd2->info.hs_adj_level = 0;
+			if (hcnt64_ave > hcnt64_standard)
+				cvd2->info.hs_adj_dir = 1;
+			else
+				cvd2->info.hs_adj_dir = 0;
+		} else {
+			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
+				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
+			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xd)
+				W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xd);
+			if (R_APB_REG(CVD2_REG_87) != 0x0)
+				W_APB_REG(CVD2_REG_87, 0x0);
+			cvd2->info.hs_adj_en = 0;
+			cvd2->info.hs_adj_level = 0;
+		}
+	}
+}
 /*
  * tvafe cvd2 cdto adjustment in vsync interval
  */

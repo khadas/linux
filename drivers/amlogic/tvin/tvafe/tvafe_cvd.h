@@ -108,6 +108,7 @@ struct tvafe_cvd2_info_s {
 	unsigned int                hcnt64[4];
 	unsigned int                hcnt64_cnt;
 #endif
+	unsigned int		    hs_adj_level;
 #ifdef TVAFE_SET_CVBS_PGA_EN
 	unsigned short              dgain[4];
 	unsigned short              dgain_cnt;
@@ -118,6 +119,9 @@ struct tvafe_cvd2_info_s {
 	bool                        non_std_config;
 	bool                        non_std_worst;
 	bool                        adc_reload_en;
+	bool			    hs_adj_en;
+	/*0:+;1:-*/
+	bool			    hs_adj_dir;
 
 
 #ifdef TVAFE_CVD2_ADC_REG_CHECK
@@ -162,6 +166,9 @@ extern void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2);
 extern void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 			unsigned int hcnt64);
 #endif
+extern void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
+			unsigned int hcnt64);
+
 extern void tvafe_cvd2_set_default_cdto(struct tvafe_cvd2_s *cvd2);
 extern void tvafe_cvd2_set_default_de(struct tvafe_cvd2_s *cvd2);
 extern void tvafe_cvd2_check_3d_comb(struct tvafe_cvd2_s *cvd2);

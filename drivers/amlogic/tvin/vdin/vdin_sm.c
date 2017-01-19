@@ -217,7 +217,8 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_sig_property_s *prop;
-	unsigned int cur_vs, pre_vs;
+	unsigned int cur_vs, cur_ve, pre_vs, pre_ve;
+	unsigned int cur_hs, cur_he, pre_hs, pre_he;
 	if (!devp || !devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return;
@@ -230,10 +231,18 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		(sm_ops->get_sig_propery)) {
 		sm_ops->get_sig_propery(devp->frontend, prop);
 		cur_vs = prop->vs;
+		cur_ve = prop->ve;
+		cur_hs = prop->hs;
+		cur_he = prop->he;
 		pre_vs = prop->pre_vs;
-		if (pre_vs != cur_vs) {
-			pr_info("[smr.%d] pre_vs(%d->%d),cutwindow_cfg:0x%x\n",
-				devp->index, pre_vs, cur_vs,
+		pre_ve = prop->pre_ve;
+		pre_hs = prop->pre_hs;
+		pre_he = prop->pre_he;
+		if ((pre_vs != cur_vs) || (pre_ve != cur_ve) ||
+			(pre_hs != cur_hs) || (pre_he != cur_he)) {
+			pr_info("[smr.%d] pre_vs(%d->%d),pre_ve(%d->%d),pre_hs(%d->%d),pre_he(%d->%d),cutwindow_cfg:0x%x\n",
+				devp->index, pre_vs, cur_vs, pre_ve, cur_ve,
+				pre_hs, cur_hs, pre_he, cur_he,
 				devp->cutwindow_cfg);
 			devp->cutwindow_cfg = 1;
 		} else {
@@ -536,8 +545,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 			}
 		}
 		/* dynamic adjust cutwindow for atv test */
-		if ((port == TVIN_PORT_CVBS3) ||
-			(port == TVIN_PORT_CVBS0))
+		if ((port >= TVIN_PORT_CVBS0) &&
+			(port <= TVIN_PORT_CVBS7))
 			vdin_auto_de_handler(devp);
 		if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7) &&
 			devp->auto_ratio_en && sm_ops->get_sig_propery)

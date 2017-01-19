@@ -76,9 +76,25 @@ static int vga_yuv422_enable;
 module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
 
-static int cutwindow_val = TVAFE_VS_VE_VAL;
-module_param(cutwindow_val, int, 0664);
-MODULE_PARM_DESC(cutwindow_val, "cutwindow_val");
+static int cutwindow_val_v = TVAFE_VS_VE_VAL;
+module_param(cutwindow_val_v, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v, "cutwindow_val_v");
+
+static int cutwindow_val_h_level1 = 6;
+module_param(cutwindow_val_h_level1, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level1, "cutwindow_val_h_level1");
+
+static int cutwindow_val_h_level2 = 8;
+module_param(cutwindow_val_h_level2, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level2, "cutwindow_val_h_level2");
+
+static int cutwindow_val_h_level3 = 16;
+module_param(cutwindow_val_h_level3, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level3, "cutwindow_val_h_level3");
+
+static int cutwindow_val_h_level4 = 18;
+module_param(cutwindow_val_h_level4, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level4, "cutwindow_val_h_level4");
 
 bool tvafe_dbg_enable;
 module_param(tvafe_dbg_enable, bool, 0644);
@@ -159,7 +175,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	/* tvafe_cvd2_s->tvafe_cvd2_info_s struct info */
 	pr_info("\n!!tvafe_cvd2_s->tvafe_cvd2_info_s struct info:\n");
 	pr_info("[tvafe..]tvafe_cvd2_info_s->state:0x%x\n", cvd2_info->state);
-	pr_info("[tvafe..]tvafe_cvd2_info_s->state_cnt:0x%x\n",
+	pr_info("[tvafe..]tvafe_cvd2_info_s->state_cnt:%d\n",
 		cvd2_info->state_cnt);
 	pr_info("[tvafe..]tvafe_cvd2_info_s->non_std_enable:%d\n",
 		cvd2_info->non_std_enable);
@@ -169,6 +185,22 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		cvd2_info->non_std_worst);
 	pr_info("[tvafe..]tvafe_cvd2_info_s->adc_reload_en:%d\n",
 		cvd2_info->adc_reload_en);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hs_adj_en:%d\n",
+		cvd2_info->hs_adj_en);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hs_adj_dir:%d\n",
+		cvd2_info->hs_adj_dir);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hs_adj_level:%d\n",
+		cvd2_info->hs_adj_level);
+#ifdef TVAFE_SET_CVBS_CDTO_EN
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hcnt64[0]:0x%x\n",
+		cvd2_info->hcnt64[0]);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hcnt64[1]:0x%x\n",
+		cvd2_info->hcnt64[1]);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hcnt64[2]:0x%x\n",
+		cvd2_info->hcnt64[2]);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->hcnt64[3]:0x%x\n",
+		cvd2_info->hcnt64[3]);
+#endif
 	/* tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info */
 	pr_info("\n!!tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info:\n");
 	pr_info("[tvafe..]tvafe_cvd2_lines_s->check_cnt:0x%x\n",
@@ -1091,6 +1123,9 @@ int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if (tvafe->parm.info.fmt == TVIN_SIG_FMT_CVBS_PAL_I)
 		tvafe_cvd2_adj_cdto(&tvafe->cvd2, hcnt64);
 #endif
+	if (tvafe->parm.info.fmt == TVIN_SIG_FMT_CVBS_PAL_I)
+		tvafe_cvd2_adj_hs(&tvafe->cvd2, hcnt64);
+
 
 	/* tvafe_adc_clamp_adjust(devp); */
 #if 0
@@ -1275,6 +1310,7 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 						frontend);
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	enum tvin_port_e port = tvafe->parm.port;
+	unsigned int hs_adj_lev = cutwindow_val_h_level1;
 
 	prop->trans_fmt = TVIN_TFMT_2D;
 	if ((port >= TVIN_PORT_VGA0) &&
@@ -1290,13 +1326,36 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 		prop->dest_cfmt = TVIN_YUV422;
 	}
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
-	if ((port == TVIN_PORT_CVBS0) || (port == TVIN_PORT_CVBS3)) {
+	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7)) {
 		if (tvafe->cvd2.info.vlines.de_offset != 0) {
-			prop->vs = cutwindow_val;
-			prop->ve = cutwindow_val;
+			prop->vs = cutwindow_val_v;
+			prop->ve = cutwindow_val_v;
 		} else {
 			prop->vs = 0;
 			prop->ve = 0;
+		}
+		if (tvafe->cvd2.info.hs_adj_en) {
+			if (tvafe->cvd2.info.hs_adj_level == 1)
+				hs_adj_lev = cutwindow_val_h_level1;
+			else if (tvafe->cvd2.info.hs_adj_level == 2)
+				hs_adj_lev = cutwindow_val_h_level2;
+			else if (tvafe->cvd2.info.hs_adj_level == 3)
+				hs_adj_lev = cutwindow_val_h_level3;
+			else if (tvafe->cvd2.info.hs_adj_level == 4)
+				hs_adj_lev = cutwindow_val_h_level4;
+			else
+				hs_adj_lev = 0;
+			if (tvafe->cvd2.info.hs_adj_dir == true) {
+				prop->hs = 0;
+				prop->he = hs_adj_lev;
+			} else {
+				prop->hs = hs_adj_lev;
+				prop->he = 0;
+			}
+
+		} else {
+			prop->hs = 0;
+			prop->he = 0;
 		}
 	}
 #endif

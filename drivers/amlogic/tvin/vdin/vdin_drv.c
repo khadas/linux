@@ -1782,13 +1782,22 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	/* change cutwindow */
 	if ((devp->cutwindow_cfg != 0) && (devp->auto_cutwindow_en == 1)) {
 		prop = &devp->prop;
-		if (prop->pre_vs)
+		if (prop->pre_vs || prop->pre_ve)
 			devp->v_active += (prop->pre_vs + prop->pre_ve);
+		if (prop->pre_hs || prop->pre_he)
+			devp->h_active += (prop->pre_hs + prop->pre_he);
 		vdin_set_cutwin(devp);
 		prop->pre_vs = prop->vs;
 		prop->pre_ve = prop->ve;
+		prop->pre_hs = prop->hs;
+		prop->pre_he = prop->he;
 		devp->cutwindow_cfg = 0;
 	}
+	if ((devp->auto_cutwindow_en == 1) &&
+		(devp->parm.port >= TVIN_PORT_CVBS0) &&
+		(devp->parm.port <= TVIN_PORT_CVBS7))
+		curr_wr_vf->width = devp->h_active;
+
 	decops = devp->frontend->dec_ops;
 	if (decops->decode_isr(devp->frontend, devp->hcnt64) == TVIN_BUF_SKIP) {
 		vdin_irq_flag = 8;
