@@ -61,7 +61,7 @@
 #define REG_TIME_AO_AB			0x10
 #define REG_PWM_AO_A2			0x14
 #define REG_PWM_AO_B2			0x18
-#define REG_BLINK_AO_AB			0x1c
+#define REG_BLINK_AO_AB			0x0
 
 
 #define FIN_FREQ			(24 * 1000)
@@ -123,6 +123,7 @@ struct aml_pwm_chip {
 	struct pwm_chip chip;
 	void __iomem *base;
 	void __iomem *ao_base;
+	void __iomem *ao_blink_base;
 	struct aml_pwm_variant variant;
 	u8 inverter_mask;
 

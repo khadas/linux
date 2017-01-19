@@ -366,11 +366,11 @@ int pwm_blink_enable(struct aml_pwm_chip *chip, int index)
 						(1 << 9), (1 << 9));
 		break;
 	case PWM_AO_A:
-		pwm_set_reg_bits(our_chip->ao_base + REG_BLINK_AO_AB,
+		pwm_set_reg_bits(our_chip->ao_blink_base + REG_BLINK_AO_AB,
 						(1 << 8), (1 << 8));
 		break;
 	case PWM_AO_B:
-		pwm_set_reg_bits(our_chip->ao_base + REG_BLINK_AO_AB,
+		pwm_set_reg_bits(our_chip->ao_blink_base + REG_BLINK_AO_AB,
 						(1 << 9), (1 << 9));
 		break;
 	default:
@@ -399,35 +399,35 @@ int pwm_blink_disable(struct aml_pwm_chip *chip , int index)
 	switch (id) {
 	case PWM_A:
 		pwm_set_reg_bits(our_chip->base + REG_BLINK_AB,
-						(0 << 8), (0 << 8));
+						(1 << 8), (0 << 8));
 		break;
 	case PWM_B:
 		pwm_set_reg_bits(our_chip->base + REG_BLINK_AB,
-						(0 << 9), (0 << 9));
+						(1 << 9), (0 << 9));
 		break;
 	case PWM_C:
 		pwm_set_reg_bits(our_chip->base + REG_BLINK_CD,
-						(0 << 8), (0 << 8));
+						(1 << 8), (0 << 8));
 		break;
 	case PWM_D:
 		pwm_set_reg_bits(our_chip->base + REG_BLINK_CD,
-						(0 << 9), (0 << 9));
+						(1 << 9), (0 << 9));
 		break;
 	case PWM_E:
 		pwm_set_reg_bits(our_chip->base + REG_BLINK_EF,
-						(0 << 8), (0 << 8));
+						(1 << 8), (0 << 8));
 		break;
 	case PWM_F:
 		pwm_set_reg_bits(our_chip->base + REG_BLINK_EF,
-						(0 << 9), (0 << 9));
+						(1 << 9), (0 << 9));
 		break;
 	case PWM_AO_A:
-		pwm_set_reg_bits(our_chip->ao_base + REG_BLINK_AO_AB,
-						(0 << 8), (0 << 8));
+		pwm_set_reg_bits(our_chip->ao_blink_base + REG_BLINK_AO_AB,
+						(1 << 8), (0 << 8));
 		break;
 	case PWM_AO_B:
-		pwm_set_reg_bits(our_chip->ao_base + REG_BLINK_AO_AB,
-						(0 << 9), (0 << 9));
+		pwm_set_reg_bits(our_chip->ao_blink_base + REG_BLINK_AO_AB,
+						(1 << 9), (0 << 9));
 		break;
 	default:
 	break;
@@ -529,13 +529,16 @@ int pwm_set_blink_times(struct aml_pwm_chip *chip,
 		pwm_write_reg(our_chip->base + REG_BLINK_EF, val<<4);
 		break;
 	case PWM_AO_A:
-		pwm_clear_reg_bits(our_chip->ao_base + REG_BLINK_AO_AB, 0xf);
-		pwm_write_reg(our_chip->ao_base + REG_BLINK_AO_AB, val);
+		pwm_clear_reg_bits(our_chip->ao_blink_base +
+							REG_BLINK_AO_AB, 0xf);
+		pwm_write_reg(our_chip->ao_blink_base +
+						REG_BLINK_AO_AB, val);
 		break;
 	case PWM_AO_B:
-		pwm_clear_reg_bits(our_chip->ao_base + REG_BLINK_AO_AB,
+		pwm_clear_reg_bits(our_chip->ao_blink_base + REG_BLINK_AO_AB,
 							0xf << 4);
-		pwm_write_reg(our_chip->ao_base + REG_BLINK_AO_AB, val<<4);
+		pwm_write_reg(our_chip->ao_blink_base + REG_BLINK_AO_AB,
+							val<<4);
 		break;
 	default:
 	break;

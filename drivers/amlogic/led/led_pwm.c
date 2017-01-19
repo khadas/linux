@@ -32,15 +32,21 @@
 #include <linux/amlogic/led.h>
 #include <linux/amlogic/scpi_protocol.h>
 
+#include <linux/pwm.h>
+#include <linux/amlogic/pwm_meson.h>
+
 #include "led_pwm.h"
 
 #define AML_DEV_NAME		"pwmled"
 #define AML_LED_NAME		"led-pwm"
 
 #define DEFAULT_PWM_PERIOD	100000;
+#define LED_ON  1
+#define LED_OFF 0
 
 static unsigned int ledmode;
-
+static struct timer_list timer;
+static void pwmled_timer_sr(unsigned long data);
 static int __init ledmode_setup(char *str)
 {
 	ledmode = lwm_parse_workmode(str);
@@ -49,7 +55,6 @@ static int __init ledmode_setup(char *str)
 }
 
 __setup("ledmode=", ledmode_setup);
-
 
 static void aml_pwmled_work(struct work_struct *work)
 {
@@ -61,11 +66,7 @@ static void aml_pwmled_work(struct work_struct *work)
 
 	/*  @todo pwm setup */
 	pwm_config(ldev->pwmd, new_duty, ldev->period);
-
-	if (new_duty == 0)
-		pwm_disable(ldev->pwmd);
-	else
-		pwm_enable(ldev->pwmd);
+	pwm_enable(ldev->pwmd);
 }
 
 
@@ -79,10 +80,11 @@ static void aml_pwmled_brightness_set(struct led_classdev *cdev,
 
 	pdev = to_platform_device(cdev->dev->parent);
 	ldev = platform_get_drvdata(pdev);
+	duty = ldev->period;
 
 	max = ldev->cdev.max_brightness;
 	/* calculate new duty */
-	duty = brightness * ldev->period;
+	duty *= brightness;
 	do_div(duty, max);
 	/* save new duty */
 	ldev->new_duty = duty;
@@ -93,7 +95,32 @@ static void aml_pwmled_brightness_set(struct led_classdev *cdev,
 	schedule_work(&ldev->work);
 }
 
+/**clear_pwm_ao_a:clear pwm ao a config
+*if not, the config in uboot ,bl301 will
+*affect kernel.
+*/
+static int clear_pwm_ao_a(struct platform_device *pdev)
+{
 
+	struct pwm_device *pwm_ch1 = NULL;
+	struct aml_pwm_chip *aml_chip = NULL;
+	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
+
+	/*get pwm device*/
+	pwm_ch1 = ldev->pwmd;
+	aml_chip = to_aml_pwm_chip(pwm_ch1->chip);
+	/*clear duty A1 A2*/
+	pwm_write_reg(aml_chip->ao_base + REG_PWM_AO_A, 0);
+	pwm_write_reg(aml_chip->ao_base + REG_PWM_AO_A2, 0);
+	/*clear clock ,blink, times,output enable and so on*/
+	pwm_clear_reg_bits(aml_chip->ao_base + REG_MISC_AO_AB,
+	(0x1<<0)|(0x3<<4)|(0xff<<8)|(1<<25)|(1<<26));
+	pwm_clear_reg_bits(aml_chip->ao_base + REG_TIME_AO_AB, (0xffff<<16));
+	pwm_clear_reg_bits(aml_chip->ao_blink_base + REG_BLINK_AO_AB,
+	(0xff)|(1<<8));
+
+	return 0;
+}
 static int aml_pwmled_dt_parse(struct platform_device *pdev)
 {
 	struct device_node *node;
@@ -121,15 +148,26 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 
 	ldev->pwmd = devm_of_pwm_get(&pdev->dev, node, NULL);
 	if (IS_ERR(ldev->pwmd)) {
-		pr_info("unable to request pwm device for %s\n",
+		pr_err("unable to request pwm device for %s\n",
 			node->full_name);
 		ret = PTR_ERR(ldev->pwmd);
 		return ret;
 	}
 
+	/*request ao a2*/
+	ldev->pwmd2 = pwm_request(ldev->pwmd->hwpwm + 8, NULL);
+	if (IS_ERR(ldev->pwmd2)) {
+		pr_err("request pwm A2 failed\n");
+		ret = PTR_ERR(ldev->pwmd);
+		return ret;
+	}
+	ret = clear_pwm_ao_a(pdev);
+	if (ret)
+		pr_err("clear ao a failed\n");
 	/* Get the period from PWM core when n*/
 	ldev->period = pwm_get_period(ldev->pwmd);
 
+	ldev->pwmd2->hwpwm = ldev->pwmd->hwpwm + 8;
 	ret = of_property_read_u32(node, "polarity", &ldev->polarity);
 	if (ret < 0) {
 		pr_err("failed to get polarity\n");
@@ -170,6 +208,7 @@ static int aml_pwmled_dt_parse(struct platform_device *pdev)
 
 	ldev->ltd.led_mode = ledmode;
 
+	platform_set_drvdata(pdev, ldev);
 	return 0;
 }
 
@@ -182,6 +221,28 @@ static const struct of_device_id aml_pwmled_dt_match[] = {
 	{},
 };
 
+/**
+*pwmled_output_init,turn off the led Initialized.
+*for txl p320 low level off.(shuld set polarity as 0)   0% output
+*for tcl p332,high level off.(shuld set polarity as 1)  100% output
+*polarity set 0 : 0%   off
+*                 100%  on
+*polarity set 1:  0%   on
+*                 100% off
+*/
+static int pwmled_output_init(struct platform_device *pdev)
+{
+	int duty_off;
+	int period;
+	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
+
+	period = ldev->period;
+	duty_off = period-period;/*0% pwm output*/
+	pwm_set_period(ldev->pwmd, period);
+	pwm_config(ldev->pwmd, duty_off, period);
+	pwm_enable(ldev->pwmd);
+	return 0;
+}
 
 static int aml_pwmled_probe(struct platform_device *pdev)
 {
@@ -202,8 +263,10 @@ static int aml_pwmled_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	setup_timer(&timer, pwmled_timer_sr, (unsigned long)pdev);
 	/* register led class device */
 	ldev->cdev.name = AML_LED_NAME;
+	pwmled_output_init(pdev);
 	ldev->cdev.brightness_set = aml_pwmled_brightness_set;
 	INIT_WORK(&ldev->work, aml_pwmled_work);
 	ret = led_classdev_register(&pdev->dev, &ldev->cdev);
@@ -228,6 +291,129 @@ static int __exit aml_pwmled_remove(struct platform_device *pdev)
 	return 0;
 }
 
+int pwmled_on_off(struct platform_device *pdev, int led_switch)
+{
+	struct pwm_device *pwm_ch1 = NULL;
+	struct pwm_device *pwm_ch2 = NULL;
+	struct aml_pwm_chip *aml_chip1 = NULL;
+	unsigned int ch1_num;
+	unsigned int period;
+	unsigned int duty_on;
+	unsigned int duty_off;
+	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
+
+	/*get pwm device*/
+	pwm_ch1 = ldev->pwmd;
+	pwm_ch2 = ldev->pwmd2;
+	/*get aml_pwm device*/
+	aml_chip1 = to_aml_pwm_chip(pwm_ch1->chip);
+
+	/*get 2 channel num*/
+	ch1_num = ldev->pwmd->hwpwm;
+	/*get period and duty*/
+	/*duty setting is related to polarity and active level,
+	for example :high level lights led*/
+	period = ldev->period;
+	/*if polarity is 0,will output 0%
+	*if polarity is 1,wil output 100%
+	*/
+	duty_on = period;
+	duty_off = period - period;
+	/*if not this function,blink 3 times works only one time,why?*/
+
+	pwm_disable(pwm_ch1);
+	pwm_disable(pwm_ch2);
+	pwm_blink_disable(aml_chip1, ch1_num);
+	pwm_set_period(pwm_ch1, period);
+	if (LED_ON == led_switch)
+		pwm_config(pwm_ch1, duty_on, period);
+	else
+		pwm_config(pwm_ch1, duty_off, period);
+	pwm_enable(pwm_ch1);
+	return 0;
+}
+static int pwmled_blink_times(struct platform_device *pdev, int times)
+{
+	struct pwm_device *pwm_ch1 = NULL;
+	struct pwm_device *pwm_ch2 = NULL;
+	struct aml_pwm_chip *aml_chip1 = NULL;
+	struct aml_pwm_chip *aml_chip2 = NULL;
+	unsigned int ch1_num;
+	unsigned int ch2_num;
+	unsigned int period;
+	unsigned int duty1;
+	unsigned int duty2;
+
+	struct aml_pwmled_dev *ldev = platform_get_drvdata(pdev);
+
+	/*get pwm device*/
+	pwm_ch1 = ldev->pwmd;
+	pwm_ch2 = ldev->pwmd2;
+
+	/*get aml_pwm device*/
+	aml_chip1 = to_aml_pwm_chip(pwm_ch1->chip);
+	aml_chip2 = to_aml_pwm_chip(pwm_ch2->chip);
+
+	/*get 2 channel num*/
+	ch1_num = ldev->pwmd->hwpwm;
+	ch2_num = ch1_num + 8;
+	ldev->pwmd2->hwpwm = ch1_num + 8;
+	/*get period and duty*/
+	period = ldev->period;
+	/*duty setting is related to polarity and active level,
+	for example :high level lights led*/
+	if (ldev->polarity)
+		duty2 = period - period;
+	else
+		duty2 = period;/*should be duty2 =period - period;*/
+	/*may change here to set duty cycle,
+	*when blink,duty set the brightness
+	*/
+	duty1 = period/2;
+
+	/*if not this function,blink 3 times works only one time,why?*/
+	pwm_disable(pwm_ch1);
+	pwm_disable(pwm_ch2);
+	pwm_blink_disable(aml_chip1, ch1_num);
+
+	pwm_set_period(pwm_ch1, period);
+	pwm_set_period(pwm_ch2, period);
+	pwm_config(pwm_ch1, duty1, period);
+	pwm_config(pwm_ch2, duty2, period);
+	pwm_set_times(aml_chip1, ch1_num, 99);
+	pwm_set_times(aml_chip2, ch2_num, 99);
+	pwm_set_blink_times(aml_chip1, ch1_num, times-1);
+
+	pwm_blink_enable(aml_chip1, ch1_num);
+	pwm_enable(pwm_ch1);
+	pwm_enable(pwm_ch2);
+	return 0;
+}
+static int aml_pwmled_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	pr_info("enter aml_pwmled_suspend\n");
+	del_timer_sync(&timer);
+	return 0;
+}
+static void pwmled_timer_sr(unsigned long data)
+{
+	int mode;
+	struct platform_device *pdev = (struct platform_device *)data;
+	return;
+	mode = lwm_get_standby(ledmode);
+	if (mode == LWM_BREATH)
+		pwmled_on_off(pdev, LED_ON);
+	else
+		pwmled_on_off(pdev, LED_OFF);
+}
+static int aml_pwmled_resume(struct platform_device *pdev)
+{
+	pr_info("aml_pwmled_resume\n");
+	pwmled_blink_times(pdev, 3);
+	setup_timer(&timer, pwmled_timer_sr, (unsigned long)pdev);
+	mod_timer(&timer, jiffies+msecs_to_jiffies(2500));
+	return 0;
+}
 
 static struct platform_driver aml_pwmled_driver = {
 	.driver = {
@@ -237,6 +423,8 @@ static struct platform_driver aml_pwmled_driver = {
 	},
 	.probe = aml_pwmled_probe,
 	.remove = __exit_p(aml_pwmled_remove),
+	.suspend = aml_pwmled_suspend,
+	.resume = aml_pwmled_resume,
 };
 
 

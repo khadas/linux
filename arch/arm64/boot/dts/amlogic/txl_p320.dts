@@ -168,9 +168,10 @@
 		//};
 	};
 
-	pwm {
+	pwm:meson-pwm {
 		compatible = "amlogic, meson-pwm";
 		status = "okay";
+		#pwm-cells = <2>;
 		pwm-outputs 	= <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
 			      	  <PWM_E>,<PWM_F>,<PWM_AO_A>,<PWM_AO_B>;
 		pwm-outputs-new = <PWM_A>,<PWM_B>,<PWM_C>,<PWM_D>,
@@ -178,7 +179,8 @@
 			          <PWM_A2>,<PWM_B2>,<PWM_C2>,<PWM_D2>,
 			          <PWM_E2>,<PWM_F2>,<PWM_AO_A2>,<PWM_AO_B2>;
 		reg = <0x0 0xc1108550 0x0 0x30>,
-		      <0x0 0xc8100550  0x0 0x10>;
+		      <0x0 0xc8100550  0x0 0x20>,
+		      <0x0 0xc810041c  0x0 0x4>;
 		clocks = <&clock CLK_XTAL>,
 			 <&clock CLK_VID_PLL>,
 			 <&clock CLK_FPLL_DIV4>,
@@ -200,16 +202,16 @@
 	sysled {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
-		status = "okay";
+		status = "disabled";
 		led_gpio = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_LOW>;
 	};
 
 	pwmled {
 		compatible = "amlogic, pwmled";
 		dev_name = "pwmled";
-		status = "disable";
-		pwm = <PWM_AO_A>;
-		polarity = <1>; /* 0-normal 1-inversed */
+		status = "okay";
+		pwms = <&pwm PWM_AO_A 5555555>;/*180HZ */
+		polarity = <0>; /* 0-normal 1-inversed */
 		max_brightness = <255>;
 		pinctrl-names = "pwm_ao_a_pins";
 		pinctrl-0 = <&pwm_ao_a_pins>;

@@ -424,6 +424,38 @@ static void pwm_aml_disable(struct pwm_chip *chip,
 		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
 						(1 << 1), (0 << 1));
 		break;
+	case PWM_A2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(25 << 1), (0 << 25));
+		break;
+	case PWM_B2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_AB,
+						(24 << 1), (0 << 24));
+		break;
+	case PWM_C2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 25), (0 << 25));
+		break;
+	case PWM_D2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_CD,
+						(1 << 25), (0 << 24));
+		break;
+	case PWM_E2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 25), (0 << 25));
+		break;
+	case PWM_F2:
+		pwm_set_reg_bits(our_chip->base + REG_MISC_EF,
+						(1 << 24), (0 << 24));
+		break;
+	case PWM_AO_A2:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 25), (0 << 25));
+		break;
+	case PWM_AO_B2:
+		pwm_set_reg_bits(our_chip->ao_base + REG_MISC_AO_AB,
+						(1 << 24), (0 << 24));
+		break;
 	default:
 	break;
 	}
@@ -757,6 +789,9 @@ static int pwm_aml_parse_dt(struct aml_pwm_chip *chip)
 	chip->ao_base = of_iomap(chip->chip.dev->of_node, 1);
 	if (IS_ERR(chip->ao_base))
 		return PTR_ERR(chip->ao_base);
+	chip->ao_blink_base = of_iomap(chip->chip.dev->of_node, 2);
+	if (IS_ERR(chip->ao_blink_base))
+		return PTR_ERR(chip->ao_blink_base);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		of_property_for_each_u32(np,
@@ -901,13 +936,18 @@ static int pwm_aml_suspend(struct device *dev)
 {
 	struct aml_pwm_chip *chip = dev_get_drvdata(dev);
 	unsigned int i;
+	unsigned int num;
 
 /*
 	 * No one preserves these values during suspend so reset them.
 	 * Otherwise driver leaves PWM unconfigured if same values are
 	 * passed to pwm_config() next time.
 */
-	for (i = 0; i < AML_PWM_NUM; ++i) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+		num = AML_PWM_NUM_NEW;
+	else
+		num = AML_PWM_NUM;
+	for (i = 0; i < num; ++i) {
 		struct pwm_device *pwm = &chip->chip.pwms[i];
 		struct aml_pwm_channel *chan = pwm_get_chip_data(pwm);
 		if (!chan)
