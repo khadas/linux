@@ -739,7 +739,8 @@ static void ve_hist_gamma_tgt(struct vframe_s *vf)
 	video_ve_hist.ave =
 		video_ve_hist.sum/(video_ve_hist.height*
 				video_ve_hist.width);
-	if (vf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {
+	if ((vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) &&
+		(is_meson_gxtvbb_cpu())) {
 		ave_luma = video_ve_hist.ave;
 		ave_luma = (ave_luma - 16) < 0 ? 0 : (ave_luma - 16);
 		video_ve_hist.ave = ave_luma*255/(235-16);
@@ -4700,14 +4701,15 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 	cont_val = ((cont_val + 1024) >> 3);
 	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
 	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
-	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
-		if (!vdj1_ctl)
-			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
-	} else {
-		if (vdj1_ctl)
-			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+	if (is_meson_gxtvbb_cpu()) {
+		if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
+			if (!vdj1_ctl)
+				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
+		} else {
+			if (vdj1_ctl)
+				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
+		}
 	}
-
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x3ff00) |
 						(cont_val << 0);

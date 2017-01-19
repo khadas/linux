@@ -189,6 +189,60 @@ static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
 char *vf_get_receiver_name(const char *provider_name);
 
+static int vdin_hdr_sei_error_check(struct vdin_dev_s *devp)
+{
+	int primary_data[3][2];
+	int i;
+	/*GBR compare with standard 709 primary*/
+	for (i = 0; i < 3; i++) {
+		primary_data[i][0] =
+			devp->prop.hdr_info.hdr_data.primaries[i].x;
+		primary_data[i][1] =
+			devp->prop.hdr_info.hdr_data.primaries[i].y;
+	}
+	if (((primary_data[0][0] + 250) / 500 == 30) &&
+		((primary_data[0][1] + 250) / 500 == 60) &&
+		((primary_data[1][0] + 250) / 500 == 15) &&
+		((primary_data[1][1] + 250) / 500 == 6) &&
+		((primary_data[2][0] + 250) / 500 == 64) &&
+		((primary_data[2][1] + 250) / 500 == 33))
+		return 1;
+
+	/*RGB compare with standard 709 primary*/
+	for (i = 0; i < 3; i++) {
+		primary_data[(i + 2) % 3][0] =
+			devp->prop.hdr_info.hdr_data.primaries[i].x;
+		primary_data[(i + 2) % 3][1] =
+			devp->prop.hdr_info.hdr_data.primaries[i].y;
+	}
+
+	if (((primary_data[0][0] + 250) / 500 == 30) &&
+		((primary_data[0][1] + 250) / 500 == 60) &&
+		((primary_data[1][0] + 250) / 500 == 15) &&
+		((primary_data[1][1] + 250) / 500 == 6) &&
+		((primary_data[2][0] + 250) / 500 == 64) &&
+		((primary_data[2][1] + 250) / 500 == 33))
+		return 1;
+
+	/*GxBxRxGyByRy compare with standard 709 primary*/
+	primary_data[0][0] = devp->prop.hdr_info.hdr_data.primaries[0].x;
+	primary_data[0][1] = devp->prop.hdr_info.hdr_data.primaries[1].y;
+	primary_data[1][0] = devp->prop.hdr_info.hdr_data.primaries[0].y;
+	primary_data[1][1] = devp->prop.hdr_info.hdr_data.primaries[2].x;
+	primary_data[2][0] = devp->prop.hdr_info.hdr_data.primaries[1].x;
+	primary_data[2][1] = devp->prop.hdr_info.hdr_data.primaries[2].y;
+
+	if (((primary_data[0][0] + 250) / 500 == 30) &&
+		((primary_data[0][1] + 250) / 500 == 60) &&
+		((primary_data[1][0] + 250) / 500 == 15) &&
+		((primary_data[1][1] + 250) / 500 == 6) &&
+		((primary_data[2][0] + 250) / 500 == 64) &&
+		((primary_data[2][1] + 250) / 500 == 33))
+		return 1;
+	else
+		return 0;
+}
+
 static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
@@ -196,45 +250,53 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 		= &vf->prop.master_display_colour;
 
 	if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
-		memcpy(vf_dp->primaries,
-			devp->prop.hdr_info.hdr_data.primaries,
-			sizeof(u32)*6);
-		memcpy(vf_dp->white_point,
-			&devp->prop.hdr_info.hdr_data.white_points,
-			sizeof(u32)*2);
-		memcpy(vf_dp->luminance,
-			&devp->prop.hdr_info.hdr_data.master_lum,
-			sizeof(u32)*2);
-		/* content_light_level */
-		vf_dp->content_light_level.max_content =
-			devp->prop.hdr_info.hdr_data.mcll;
-		vf_dp->content_light_level.max_pic_average =
-			devp->prop.hdr_info.hdr_data.mfall;
-
-		if ((devp->prop.hdr_info.hdr_data.mcll != 0) &&
-			(devp->prop.hdr_info.hdr_data.mfall != 0))
-			vf_dp->content_light_level.present_flag = 1;
-		else
-			vf_dp->content_light_level.present_flag = 0;
-
-		if ((devp->prop.hdr_info.hdr_data.eotf == EOTF_SMPTE_ST_2048) ||
-			(devp->prop.hdr_info.hdr_data.eotf == EOTF_HDR)) {
-			vf->signal_type |= (1 << 29);
-			vf->signal_type |= (0 << 25);/*0:limit*/
-			vf->signal_type = ((9 << 16) |
-				(vf->signal_type & (~0xFF0000)));
-			vf->signal_type = ((16 << 8) |
-				(vf->signal_type & (~0xFF00)));
-			vf->signal_type = ((9 << 0) |
-				(vf->signal_type & (~0xFF)));
-		} else {
+		if (vdin_hdr_sei_error_check(devp) == 1) {
+			devp->prop.vdin_hdr_Flag = false;
+			vf_dp->present_flag = false;
 			vf->signal_type &= ~(1 << 29);
 			vf->signal_type &= ~(1 << 25);
+		} else {
+			memcpy(vf_dp->primaries,
+				devp->prop.hdr_info.hdr_data.primaries,
+				sizeof(u32)*6);
+			memcpy(vf_dp->white_point,
+				&devp->prop.hdr_info.hdr_data.white_points,
+				sizeof(u32)*2);
+			memcpy(vf_dp->luminance,
+				&devp->prop.hdr_info.hdr_data.master_lum,
+				sizeof(u32)*2);
+			/* content_light_level */
+			vf_dp->content_light_level.max_content =
+				devp->prop.hdr_info.hdr_data.mcll;
+			vf_dp->content_light_level.max_pic_average =
+				devp->prop.hdr_info.hdr_data.mfall;
+
+			if ((devp->prop.hdr_info.hdr_data.mcll != 0) &&
+				(devp->prop.hdr_info.hdr_data.mfall != 0))
+				vf_dp->content_light_level.present_flag = 1;
+			else
+				vf_dp->content_light_level.present_flag = 0;
+
+			if ((devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_SMPTE_ST_2048) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HDR)) {
+				vf->signal_type |= (1 << 29);
+				vf->signal_type |= (0 << 25);/*0:limit*/
+				vf->signal_type = ((9 << 16) |
+					(vf->signal_type & (~0xFF0000)));
+				vf->signal_type = ((16 << 8) |
+					(vf->signal_type & (~0xFF00)));
+				vf->signal_type = ((9 << 0) |
+					(vf->signal_type & (~0xFF)));
+			} else {
+				vf->signal_type &= ~(1 << 29);
+				vf->signal_type &= ~(1 << 25);
+			}
+
+			devp->prop.vdin_hdr_Flag = true;
 		}
-
-		devp->prop.vdin_hdr_Flag = true;
-
-		devp->prop.hdr_info.hdr_state = HDR_STATE_SET;
+			devp->prop.hdr_info.hdr_state = HDR_STATE_SET;
 	} else if (devp->prop.hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_Flag = false;
 		vf_dp->present_flag = false;
