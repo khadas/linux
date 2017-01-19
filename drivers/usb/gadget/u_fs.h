@@ -249,6 +249,9 @@ struct ffs_data {
 	 * destroyed by ffs_epfiles_destroy().
 	 */
 	struct ffs_epfile		*epfiles;
+	char *data_ep0;
+	char *data_ep_in;
+	char *data_ep_out;
 };
 
 
