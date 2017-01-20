@@ -69,6 +69,7 @@ module_param(eq_max_setting, int, 0664);
 struct st_eq_data eq_ch0;
 struct st_eq_data eq_ch1;
 struct st_eq_data eq_ch2;
+char pre_eq_freq = E_EQ_NONE;
 
 
 bool eq_maxvsmin(int ch0Setting, int ch1Setting, int ch2Setting)
@@ -510,7 +511,6 @@ bool hdmirx_phy_check_tmds_valid(void)
 
 bool rx_need_eq_workaround(void)
 {
-	static char pre_eq_freq = E_EQ_LOW_FREQ;
 	int mfsm_status = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 
 	/* configure FATBITS PHY */

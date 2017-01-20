@@ -574,6 +574,7 @@
 /** Register address: Packet Decoder Audio Status*/
 #define DWC_PDEC_AUD_STS         (0x364UL)
 #define AUDS_RCV					MSK(1, 0)
+#define AUDS_HBR_RCV			_BIT(3)
 /** Register address: general control packet AV mute */
 #define DWC_PDEC_GCP_AVMUTE      (0x380UL)
 /** Register address: audio clock regeneration */

@@ -1168,6 +1168,8 @@ void hdmirx_phy_init(int rx_port_sel, int dcm)
 	data32 |= 0 << 0;
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 
+	pre_eq_freq = E_EQ_NONE;
+
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 }
 
@@ -1412,7 +1414,7 @@ void hdmirx_read_audio_info(struct aud_info_s *audio_info)
 	audio_info->level_shift_value =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB1, LEVEL_SHIFT_VAL);
 	audio_info->aud_packet_received =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AUD_STS, AUDS_RCV);
+			hdmirx_rd_bits_dwc(DWC_PDEC_AUD_STS, AUDS_RCV);
 
 	audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
 	audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);

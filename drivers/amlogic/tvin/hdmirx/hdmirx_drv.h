@@ -30,7 +30,7 @@
 
 #define RX_VER0 "Ref.2016/11/25"
 /*------------------------------*/
-#define RX_VER1 "Ref.2017/01/05"
+#define RX_VER1 "Ref.2017/01/20"
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/1/10"
 /*------------------------------*/
@@ -225,6 +225,7 @@ enum hdcp_type {
 };
 
 enum eq_sts {
+	E_EQ_NONE,
 	E_EQ_LOW_FREQ,
 	E_EQ_HD_FREQ,
 	E_EQ_3G,
@@ -698,6 +699,7 @@ extern int pc_mode_en;
 extern int do_hpd_reset_flag;
 extern bool hdcp22_kill_esm;
 extern bool mute_kill_en;
+extern char pre_eq_freq;
 
 unsigned int rd_reg(unsigned int addr);
 void wr_reg(unsigned int addr, unsigned int val);
