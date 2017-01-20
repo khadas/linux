@@ -774,6 +774,7 @@ void hdcp22_suspend(void)
 
 void hdcp22_resume(void)
 {
+	hdcp22_kill_esm = 0;
 	switch_set_state(&rx.hpd_sdev, 0x0);
 	hdcp22_clk_init();
 	hdmirx_wr_dwc(DWC_HDCP22_CONTROL,

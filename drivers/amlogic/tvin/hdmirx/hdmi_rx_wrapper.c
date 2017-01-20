@@ -2441,6 +2441,7 @@ void hdmirx_hw_monitor(void)
 	if (mute_kill_en) {
 		hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, _BIT(16), 1);
 		mute_kill_en = 0;
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
 		if (log_level & VIDEO_LOG)
 			rx_pr("****esm kill mute****\n");
 	}
