@@ -55,6 +55,8 @@
 #define MESONGXBB_HIBERNATE					0x6
 #define	MESONGXBB_CRASH_REBOOT					11
 #define	MESONGXBB_KERNEL_PANIC					12
+#define MESONGXBB_UBUNTU_BOOT                   14
+#define MESONGXBB_LIBREELEC_BOOT                  15
 
 
 #define AO_RTI_STATUS_REG1	((0x00 << 10) | (0x01 << 2))
@@ -80,6 +82,10 @@ static u32 parse_reason(const char *cmd)
 			reboot_reason = MESONGXBB_UBOOT_SUSPEND;
 		else if (strcmp(cmd, "hibernate") == 0)
 			reboot_reason = MESONGXBB_HIBERNATE;
+		else if (strcmp(cmd, "ubuntu") == 0)
+			reboot_reason = MESONGXBB_UBUNTU_BOOT;
+		else if (strcmp(cmd, "libreelec") == 0)
+			reboot_reason = MESONGXBB_LIBREELEC_BOOT;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0)
