@@ -675,8 +675,18 @@ store_dbg(struct device *dev,
 		pr_info("----dump dnr reg----\n");
 		for (i = 0; i < 29; i++)
 			pr_info("[0x%x][0x%x]=0x%x\n",
-					0xd0100000 + ((0x2d00 + i) << 2),
-					0x2d00 + i, Rd(0x2d00 + i));
+				0xd0100000 + ((0x2d00 + i) << 2),
+				0x2d00 + i, Rd(0x2d00 + i));
+		pr_info("----dump if0 reg----\n");
+		for (i = 0; i < 26; i++)
+			pr_info("[0x%x][0x%x]=0x%x\n",
+				0xd0100000 + ((0x1a60 + i) << 2),
+				0x1a50 + i, Rd(0x1a50 + i));
+		pr_info("----dump if2 reg----\n");
+		for (i = 0; i < 29; i++)
+			pr_info("[0x%x][0x%x]=0x%x\n",
+				0xd0100000 + ((0x2010 + i) << 2),
+				0x2010 + i, Rd(0x2010 + i));
 		pr_info("----dump reg done----\n");
 	} else if (strncmp(buf, "robust_test", 11) == 0) {
 		recovery_flag = 1;
@@ -6610,6 +6620,44 @@ static void get_vscale_skip_count(unsigned par)
 	di_vscale_skip_count_real = (par >> 24) & 0xff;
 }
 
+static void recalc_pd_wnd(struct di_buf_s *di_buf, unsigned short offset)
+{
+	if (di_buf->reg0_s > offset)
+		di_buf->reg0_s -= offset;
+	else
+		di_buf->reg0_s = 0;
+	if (di_buf->reg0_e > offset)
+		di_buf->reg0_e -= offset;
+	else
+		di_buf->reg0_e = 0;
+
+	if (di_buf->reg1_s > offset)
+		di_buf->reg1_s -= offset;
+	else
+		di_buf->reg1_s = 0;
+	if (di_buf->reg1_e > offset)
+		di_buf->reg1_e -= offset;
+	else
+		di_buf->reg1_e = 0;
+
+	if (di_buf->reg2_s > offset)
+		di_buf->reg2_s -= offset;
+	else
+		di_buf->reg2_s = 0;
+	if (di_buf->reg2_e > offset)
+		di_buf->reg2_e -= offset;
+	else
+		di_buf->reg2_e = 0;
+
+	if (di_buf->reg3_s > offset)
+		di_buf->reg3_s -= offset;
+	else
+		di_buf->reg3_s = 0;
+	if (di_buf->reg3_e > offset)
+		di_buf->reg3_e -= offset;
+	else
+		di_buf->reg3_e = 0;
+}
 #define get_vpp_reg_update_flag(par) ((par >> 16) & 0x1)
 
 static unsigned int pldn_dly = 1;
@@ -6798,7 +6846,7 @@ de_post_process(void *arg, unsigned zoom_start_x_lines,
 			di_post_stru.di_mcvecrd_mif.size_x =
 				(di_end_x + 1 + 4) / 5 - 1 - di_start_x / 5;
 			di_post_stru.di_mcvecrd_mif.size_y =
-				(di_height >> 1) - 1;
+				(di_height >> 1);
 		}
 		di_post_stru.update_post_reg_flag = update_post_reg_count;
 		/* if height decrease, mtn will not enough */
@@ -7060,7 +7108,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 	}
 
 	if (mcpre_en)
-		di_post_stru.di_mcvecrd_mif.blend_mode = post_blend_mode;
+		di_post_stru.di_mcvecrd_mif.blend_en = post_blend_en;
 
 	if ((di_post_stru.update_post_reg_flag) &&
 	    ((force_update_post_reg & 0x80) == 0)) {
@@ -7128,6 +7176,10 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 
 	if (di_pldn_buf && pulldown_enable &&
 		!di_pre_stru.cur_prog_flag) {
+		unsigned short offset = (di_start_y>>1);
+		if (overturn)
+			offset = ((di_buf->vframe->height - di_end_y)>>1);
+		recalc_pd_wnd(di_pldn_buf, offset);
 		if (pldn_wnd_flsh == 1) {
 			DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_REG0_Y,
 				di_pldn_buf->reg0_s, 17, 12);

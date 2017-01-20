@@ -534,7 +534,7 @@ void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 						(0x31<<16));
 	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, di_mcvecrd_mif->vecrd_offset,
 		12, 3);
-	if (di_mcvecrd_mif->blend_mode == 3)
+	if (di_mcvecrd_mif->blend_en)
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
 	else
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
@@ -1615,12 +1615,12 @@ void di_post_switch_buffer(
 	(urgent << 8));
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 			di_mcvecrd_mif->vecrd_offset, 12, 3);
-		if (di_mcvecrd_mif->blend_mode == 3)
+		if (di_mcvecrd_mif->blend_en)
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 				mcen_mode, 0, 2);
 		else
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
-				0, 0, 2);
+					0, 0, 2);
 	}
 	DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 		((ei_en|blend_en) << 0) | /* line buf 0 enable */

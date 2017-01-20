@@ -286,7 +286,7 @@ struct DI_MC_MIF_s {
 	unsigned short size_x;
 	unsigned short size_y;
 	unsigned short canvas_num;
-	unsigned short blend_mode;
+	unsigned short blend_en;
 	unsigned short vecrd_offset;
 };
 void disable_deinterlace(void);
