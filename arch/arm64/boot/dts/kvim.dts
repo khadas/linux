@@ -23,6 +23,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/aml_gxl.h>
 #include "amlogic/mesongxl.dtsi"
+#include "partitions.dtsi"
 / {
 	model = "Amlogic";
 	amlogic-dt-id = "kvim";
@@ -518,30 +519,7 @@
 						status = "okay";
 					};
 	};*/
-	partitions: partitions{
-        parts = <3>;
-		part-0 = <&logo>;
-		part-1 = <&ramdisk>;
-		part-2 = <&rootfs>;
 
-		logo:logo{
-			pname = "logo";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		ramdisk:ramdisk
-		{
-			pname = "ramdisk";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		rootfs:rootfs
-		{
-			pname = "rootfs";
-			size = <0xffffffff 0xffffffff>;
-			mask = <4>;
-		};
-	};
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
