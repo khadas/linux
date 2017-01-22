@@ -1109,8 +1109,8 @@ void wol_test(struct phy_device *phydev)
 	pr_info("wol_reg12 test\n");
 }
 
-unsigned long rx_packets_omiphy = 0;
-unsigned long tx_packets_omiphy = 0;
+unsigned long rx_packets_internal_phy = 0;
+unsigned long tx_packets_internal_phy = 0;
 
 static int internal_phy_read_status(struct phy_device *phydev)
 {
@@ -1118,9 +1118,8 @@ static int internal_phy_read_status(struct phy_device *phydev)
 	int reg31 = 0;
 	int wol_reg12;
 	int linkup = 0;
-	static int val;
-	static int i;
-	static int omiphy_count_start;
+	int val;
+	struct intenal_phy_priv *priv = phydev->priv;
 	/*read clear interrupt status to reenable interrupt*/
 	phy_read(phydev, 0x1d);
 	/* Update the link, but return if there was an error */
@@ -1136,30 +1135,31 @@ static int internal_phy_read_status(struct phy_device *phydev)
 	wol_reg12 = phy_read(phydev, 0x15);
 	if (ethernet_debug) {
 		pr_info("reg12:0x%x, tx:%ld, rx:%ld\n", wol_reg12,
-			tx_packets_omiphy, rx_packets_omiphy);
+			tx_packets_internal_phy, rx_packets_internal_phy);
 	}
 
 	if (phydev->link && phydev->speed == SPEED_100) {
 		if ((wol_reg12 & 0x1000))
-			omiphy_count_start = 0;
+			priv->internal_phy_count_start = 0;
 		if (!(wol_reg12 & 0x1000)) {
-			omiphy_count_start++;
+			priv->internal_phy_count_start++;
 			pr_info("wol_reg12[12]==0, error\n");
 		}
-		if (omiphy_count_start >= (phydev->drv->features & 0xff)) {
-			omiphy_count_start = 0;
+		if (priv->internal_phy_count_start >=
+				(phydev->drv->features & 0xff)) {
+			priv->internal_phy_count_start = 0;
 			wol_test(phydev);
 		}
 	} else
-		omiphy_count_start = 0;
+		priv->internal_phy_count_start = 0;
 
-	if (i%15 == 0 && ethernet_debug) {
+	if (priv->read_count%15 == 0 && ethernet_debug) {
 		am_net_dump_phyreg();
 		am_net_dump_phy_extended_reg();
 		am_net_dump_phy_wol_reg();
 		am_net_dump_phy_bist_reg();
 	}
-	i++;
+	priv->read_count++;
 	linkup = phydev->link;
 	err = genphy_update_link(phydev);
 	if (err)
@@ -1214,12 +1214,31 @@ static int internal_phy_read_status(struct phy_device *phydev)
 		phydev->pause = 0;
 		phydev->asym_pause = 0;
 	}
+	if (phydev->link == 0) {
+		if (priv->force_10m_full_mode == 1) {
+			priv->force_10m_full_mode = 0;
+			phy_write(phydev, 0, priv->restore_reg0);
+		}
+	} else if (priv->force_10m_full_mode == 1) {
+		if (phydev->speed == SPEED_10 &&
+				phydev->duplex == DUPLEX_FULL)
+			phydev->duplex = DUPLEX_HALF;
+	} else {
+		if (phydev->speed == SPEED_10 &&
+			phydev->duplex == DUPLEX_HALF) {
+			priv->force_10m_full_mode = 1;
+			priv->restore_reg0 = phy_read(phydev, 0);
+	/* bit 12 disable auto negotiation, bit 8 enable full mode*/
+			val = priv->restore_reg0 & (~(1 << 12));
+			val |= 1 << 8;
+			phy_write(phydev, 0, val);
+		}
+	}
 	/*every time link up, set a3 config*/
 	if ((linkup == 0) && (phydev->link == 1)) {
 		if (phydev->speed == SPEED_100)
 			set_a3_config(phydev);
 	}
-
 
 	return 0;
 }
@@ -1309,6 +1328,18 @@ static int gen10g_config_init(struct phy_device *phydev)
 
 static int internal_config_init(struct phy_device *phydev)
 {
+	struct intenal_phy_priv *priv = NULL;
+	if (phydev->priv == NULL) {
+		priv = kzalloc(sizeof(struct intenal_phy_priv), GFP_KERNEL);
+		if (!priv)
+			return -ENODEV;
+		phydev->priv = priv;
+	}
+	priv = phydev->priv;
+	priv->force_10m_full_mode = 0;
+	priv->restore_reg0 = 0;
+	priv->read_count = 0;
+	priv->internal_phy_count_start = 0;
 	if (phydev->attached_dev != NULL)
 		internal_wol_init(phydev);
 	internal_config(phydev);

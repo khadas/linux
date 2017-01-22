@@ -1962,7 +1962,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 						      priv->ioaddr);
 			if (likely(tx_error == 0)) {
 				priv->dev->stats.tx_packets++;
-				tx_packets_omiphy++;
+				tx_packets_internal_phy++;
 				priv->xstats.tx_pkt_n++;
 			} else
 				priv->dev->stats.tx_errors++;
@@ -2847,7 +2847,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			napi_gro_receive(&priv->napi, skb);
 
 			priv->dev->stats.rx_packets++;
-			rx_packets_omiphy++;
+			rx_packets_internal_phy++;
 			priv->dev->stats.rx_bytes += frame_len;
 		}
 		entry = next_entry;

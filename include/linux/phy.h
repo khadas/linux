@@ -649,9 +649,14 @@ void phy_ethtool_get_wol(struct phy_device *phydev,
 int phy_init_hw(struct phy_device *phydev);
 void internal_config(struct phy_device *phydev);
 void wol_test(struct phy_device *phydev);
-extern unsigned long rx_packets_omiphy;
-extern unsigned long tx_packets_omiphy;
-
+extern unsigned long rx_packets_internal_phy;
+extern unsigned long tx_packets_internal_phy;
+struct intenal_phy_priv {
+	int force_10m_full_mode;
+	int restore_reg0;
+	int read_count;
+	int internal_phy_count_start;
+};
 void am_net_dump_phyreg(void);
 void am_net_dump_phy_extended_reg(void);
 void am_net_dump_phy_wol_reg(void);
