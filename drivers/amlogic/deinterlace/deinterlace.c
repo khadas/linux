@@ -2723,6 +2723,8 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	unsigned int di_buf_size = 0, di_post_buf_size = 0, mtn_size = 0;
 	unsigned int nr_size = 0, count_size = 0, mv_size = 0, mc_size = 0;
 	unsigned int nr_width = width, mtn_width = width, mv_width = width;
+	unsigned int nr_canvas_width = width, mtn_canvas_width = width;
+	unsigned int mv_canvas_width = width;
 	unsigned long di_post_mem = 0;
 	frame_count = 0;
 	disp_frame_count = 0;
@@ -2738,21 +2740,22 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	memset(&di_pre_stru, 0, sizeof(di_pre_stru));
 	if (nr10bit_surpport) {
 		if (full_422_pack)
-			nr_width = (width * 5) / 4;/* 2400 roundup to 2432*/
+			nr_width = (width * 5) / 4;
 		else
-			nr_width = (width * 3) / 2;/* 2880 roundup to 2944*/
+			nr_width = (width * 3) / 2;
 	} else {
 		nr_width = width;
 	}
-	/* make sure canvas width must be divided by 256 */
-	if ((nr_width<<1)%256)
-		nr_width = roundup(nr_width, (256>>1));
-
-	if ((mtn_width>>1)%256)
-		mtn_width = roundup(mtn_width, (256<<1)); /* roundup to 2048*/
-
-	if (((mv_width<<1)/5)%256)
-		mv_width = roundup(mv_width, ((256*5)>>1));
+	/* make sure canvas width must be divided by 256bit|32byte align */
+	nr_canvas_width = nr_width << 1;
+	mtn_canvas_width = mtn_width >> 1;
+	mv_canvas_width = (mv_width << 1) / 5;
+	nr_canvas_width = roundup(nr_canvas_width, 32);
+	mtn_canvas_width = roundup(mtn_canvas_width, 32);
+	mv_canvas_width = roundup(mv_canvas_width, 32);
+	nr_width = nr_canvas_width >> 1;
+	mtn_width = mtn_canvas_width << 1;
+	mv_width = (mv_canvas_width * 5) >> 1;
 
 	if (prog_flag) {
 		di_pre_stru.prog_proc_type = 1;
@@ -2835,9 +2838,9 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			di_buf->type = VFRAME_TYPE_LOCAL;
 			di_buf->pre_ref_count = 0;
 			di_buf->post_ref_count = 0;
-			di_buf->canvas_width[NR_CANVAS] = (nr_width<<1);
-			di_buf->canvas_width[MTN_CANVAS] = (mtn_width>>1);
-			di_buf->canvas_width[MV_CANVAS] = (mv_width<<1)/5;
+			di_buf->canvas_width[NR_CANVAS] = nr_canvas_width;
+			di_buf->canvas_width[MTN_CANVAS] = mtn_canvas_width;
+			di_buf->canvas_width[MV_CANVAS] = mv_canvas_width;
 			if (prog_flag) {
 				di_buf->canvas_height = canvas_height;
 				di_buf->nr_adr = de_devp->mem_start +
@@ -8213,7 +8216,10 @@ static void di_unreg_process_irq(void)
 		di_set_power_control(1, 0);
 		di_hw_disable();
 		DI_Wr(DI_CLKG_CTRL, 0x80000000);
-		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_OFF);
+		if (!is_meson_gxl_cpu() && !is_meson_gxm_cpu() &&
+			!is_meson_gxbb_cpu())
+			switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+				VPU_CLK_GATE_OFF);
 	}
 	if ((post_wr_en && post_wr_surpport)) {
 		diwr_set_power_control(0);

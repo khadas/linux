@@ -239,7 +239,10 @@ void di_hw_init(void)
 		DI_Wr(DI_CLKG_CTRL, 0x80000000); /* di clock div enable for pq load */
 	} else {
 		DI_Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
-		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_OFF);
+		if (!is_meson_gxl_cpu() && !is_meson_gxm_cpu() &&
+			!is_meson_gxbb_cpu())
+			switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+				VPU_CLK_GATE_OFF);
 	}
 }
 
