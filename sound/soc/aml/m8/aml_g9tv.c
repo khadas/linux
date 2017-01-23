@@ -92,7 +92,21 @@ static u32 drc_tko_table[2][3] = {
 	{0x0, 0x0, 0x40000}, /*offset, thd, k*/
 };
 
-static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI" };
+static int DRC0_enable(int enable)
+{
+	if ((aml_read_cbus(AED_DRC_EN) & 1) == 1) {
+		if (enable == 1) {
+			aml_write_cbus(AED_DRC_THD0, drc_tko_table[0][1]);
+			aml_write_cbus(AED_DRC_K0, drc_tko_table[0][2]);
+		} else {
+			aml_write_cbus(AED_DRC_THD0, 0xbf000000);
+			aml_write_cbus(AED_DRC_K0, 0x40000);
+		}
+	}
+	return 0;
+}
+
+static const char *const audio_in_source_texts[] = { "LINEIN", "ATV", "HDMI"};
 
 static const struct soc_enum audio_in_source_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_in_source_texts),
@@ -101,14 +115,10 @@ static const struct soc_enum audio_in_source_enum =
 static int aml_audio_get_in_source(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	int value = aml_read_cbus(AUDIN_SOURCE_SEL) & 0x3;
+	int value = audio_in_source;
 
-	if (value == 0)
-		ucontrol->value.enumerated.item[0] = 0;
-	else if (value == 1)
-		ucontrol->value.enumerated.item[0] = 1;
-	else if (value == 2)
-		ucontrol->value.enumerated.item[0] = 2;
+	ucontrol->value.enumerated.item[0] = value;
+
 	return 0;
 }
 
@@ -117,18 +127,22 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 {
 	if (ucontrol->value.enumerated.item[0] == 0) {
 		if (is_meson_txl_cpu()) {
-			/* select internal acodec output in TXL as I2S source */
+			/* select internal codec ADC in TXL as I2S source */
 			aml_write_cbus(AUDIN_SOURCE_SEL, 3);
 		} else
-			/* select external codec output as I2S source */
+			/* select external codec ADC as I2S source */
 			aml_write_cbus(AUDIN_SOURCE_SEL, 0);
 		audio_in_source = 0;
+		if (is_meson_txl_cpu())
+			DRC0_enable(0);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
 		aml_write_cbus(AUDIN_SOURCE_SEL, 1);
 		audio_in_source = 1;
+		if (is_meson_txl_cpu())
+			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 2) {
-		/* select HDMI-rx as I2S source */
+		/* select HDMI-rx as Audio In source */
 		/* [14:12]cntl_hdmirx_chsts_sel: */
 		/* 0=Report chan1 status; 1=Report chan2 status */
 		/* [11:8] cntl_hdmirx_chsts_en */
@@ -137,9 +151,12 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 		/* [1:0] i2sin_src_sel: */
 		/*2=Select HDMIRX I2S output as AUDIN source */
 		aml_write_cbus(AUDIN_SOURCE_SEL, (0 << 12) |
-			       (0xf << 8) | (1 << 4) | (2 << 0));
+				   (0xf << 8) | (1 << 4) | (2 << 0));
 		audio_in_source = 2;
+		if (is_meson_txl_cpu())
+			DRC0_enable(0);
 	}
+
 	set_i2s_source(audio_in_source);
 	return 0;
 }
@@ -200,11 +217,11 @@ static const struct soc_enum spdif_audio_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdif_audio_type_texts),
 			spdif_audio_type_texts);
 
+static int last_audio_type = -1;
 static int aml_spdif_audio_type_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	static int last_audio_type;
 	int audio_type = 0;
 	int i;
 	int total_num = sizeof(type_texts)/sizeof(struct sppdif_audio_info);
@@ -805,9 +822,15 @@ static int aml_asoc_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai,
+	if (is_meson_txl_cpu())
+		ret = snd_soc_dai_set_fmt(cpu_dai,
+				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				  | SND_SOC_DAIFMT_CBM_CFM);
+	else
+		ret = snd_soc_dai_set_fmt(cpu_dai,
 				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_IB_NF
 				  | SND_SOC_DAIFMT_CBM_CFM);
+
 	if (ret < 0) {
 		pr_err("%s: set cpu dai fmt failed!\n", __func__);
 		return ret;
@@ -1466,82 +1489,98 @@ static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
 	}
 
 	if (of_find_property(child, "eq_table", &length) == NULL) {
-		pr_err("[%s] not found!\n", "eq_table");
+		pr_err("[%s] node not found!\n", "eq_table");
 	} else {
-		/*pr_info("child name: %s, length = %d\n",
-			child->name, length);*/
-		ret = of_property_read_u32_array(child, "eq_table",
+		of_property_read_u32(child, "EQ_enable",
+				&p_aml_audio->aml_EQ_enable);
+		/*read EQ value from dts*/
+		if (p_aml_audio->aml_EQ_enable) {
+			ret = of_property_read_u32_array(child, "eq_table",
 					reg_ptr, 100);
-		if (ret) {
-			pr_err("Can't get EQ param [%s]!\n", "eq_table");
-		} else {
-			for (i = 0; i < 100; i++) {
-				aml_write_cbus(AED_EQ_CH1_COEF00 + i, *reg_ptr);
-				/*pr_info("EQ value[%d]: 0x%x\n",
-					i, *reg_ptr);*/
-				reg_ptr++;
+			if (ret) {
+				pr_err("Can't get EQ param [%s]!\n",
+					"eq_table");
+			} else {
+				for (i = 0; i < 100; i++) {
+					aml_write_cbus(AED_EQ_CH1_COEF00 + i,
+						*reg_ptr);
+					/*pr_info("EQ value[%d]: 0x%x\n",
+						i, *reg_ptr);*/
+					reg_ptr++;
+				}
+				/*enable aml EQ*/
+				aml_cbus_update_bits(AED_EQ_EN, 0x1, 0x1);
+				pr_info("aml EQ enable!\n");
 			}
 		}
 	}
 
-	of_property_read_u32(child, "EQ_enable", &p_aml_audio->aml_EQ_enable);
-	if (p_aml_audio->aml_EQ_enable) {
-		aml_cbus_update_bits(AED_EQ_EN, 0x1, 0x1);
-		pr_info("aml EQ enable!\n");
-	}
-
-	reg_ptr = &drc_table[0][0];
-	if (of_find_property(child, "drc_table", &length) == NULL) {
-		pr_err("[%s] not found!\n", "drc_table");
+	if (of_find_property(child, "drc_table", &length) == NULL ||
+			of_find_property(child, "drc_tko_table", &length)
+			== NULL) {
+		pr_err("[%s or %s] not found!\n", "drc_table", "drc_tko_table");
 	} else {
-		ret = of_property_read_u32_array(child, "drc_table",
+		/*read DRC value from dts*/
+		of_property_read_u32(child, "DRC_enable",
+			&p_aml_audio->aml_DRC_enable);
+		if (p_aml_audio->aml_DRC_enable) {
+			reg_ptr = &drc_table[0][0];
+			ret = of_property_read_u32_array(child, "drc_table",
 					reg_ptr, 6);
-		if (ret) {
-			pr_err("Can't get drc param [%s]!\n", "drc_table");
-		} else {
-			aml_write_cbus(AED_DRC_AE, drc_table[0][0]);
-			aml_write_cbus(AED_DRC_AA, drc_table[1][0]);
-			aml_write_cbus(AED_DRC_AD, drc_table[2][0]);
-			aml_write_cbus(AED_DRC_AE_1M, drc_table[0][1]);
-			aml_write_cbus(AED_DRC_AA_1M, drc_table[1][1]);
-			aml_write_cbus(AED_DRC_AD_1M, drc_table[2][1]);
-			/*pr_info("DRC table: 0x%x, 0x%x,"
-					"0x%x, 0x%x, 0x%x, 0x%x,\n",
-					drc_table[0][0], drc_table[0][1],
-					drc_table[1][0], drc_table[1][1],
-					drc_table[2][0], drc_table[2][1]);*/
+			if (ret) {
+				pr_err("Can't get drc param [%s]!\n",
+					"drc_table");
+			} else {
+				aml_write_cbus(AED_DRC_AE,
+					drc_table[0][0]);
+				aml_write_cbus(AED_DRC_AA,
+					drc_table[1][0]);
+				aml_write_cbus(AED_DRC_AD,
+					drc_table[2][0]);
+				aml_write_cbus(AED_DRC_AE_1M,
+					drc_table[0][1]);
+				aml_write_cbus(AED_DRC_AA_1M,
+					drc_table[1][1]);
+				aml_write_cbus(AED_DRC_AD_1M,
+					drc_table[2][1]);
+				/*pr_info("DRC table: 0x%x, 0x%x,"
+				"0x%x, 0x%x, 0x%x, 0x%x,\n",
+				drc_table[0][0], drc_table[0][1],
+				drc_table[1][0], drc_table[1][1],
+				drc_table[2][0], drc_table[2][1]);*/
+			}
+
+			reg_ptr = &drc_tko_table[0][0];
+			ret = of_property_read_u32_array(child, "drc_tko_table",
+						reg_ptr, 6);
+			if (ret) {
+				pr_err("Can't get drc param [%s]!\n",
+					"drc_tko_table");
+			} else {
+				aml_write_cbus(AED_DRC_OFFSET0,
+					drc_tko_table[0][0]);
+				aml_write_cbus(AED_DRC_OFFSET1,
+					drc_tko_table[1][0]);
+				aml_write_cbus(AED_DRC_THD0,
+					drc_tko_table[0][1]);
+				aml_write_cbus(AED_DRC_THD1,
+					drc_tko_table[1][1]);
+				aml_write_cbus(AED_DRC_K0,
+					drc_tko_table[0][2]);
+				aml_write_cbus(AED_DRC_K1,
+					drc_tko_table[1][2]);
+				/*pr_info("DRC tko: 0x%x, 0x%x,"
+				"0x%x, 0x%x, 0x%x, 0x%x,\n",
+				drc_tko_table[0][0], drc_tko_table[1][0],
+				drc_tko_table[0][1], drc_tko_table[1][1],
+				drc_tko_table[0][2], drc_tko_table[1][2]);*/
+
+				/*enable aml DRC*/
+				aml_cbus_update_bits(AED_DRC_EN, 0x1, 0x1);
+				pr_info("aml DRC enable!\n");
+			}
 		}
 	}
-
-	reg_ptr = &drc_tko_table[0][0];
-	if (of_find_property(child, "drc_tko_table", &length) == NULL) {
-		pr_err("[%s] not found!\n", "drc_tko_table");
-	} else {
-		ret = of_property_read_u32_array(child, "drc_tko_table",
-					reg_ptr, 6);
-		if (ret) {
-			pr_err("Can't get drc param [%s]!\n", "drc_tko_table");
-		} else {
-			aml_write_cbus(AED_DRC_OFFSET0, drc_tko_table[0][0]);
-			aml_write_cbus(AED_DRC_OFFSET1, drc_tko_table[1][0]);
-			aml_write_cbus(AED_DRC_THD0, drc_tko_table[0][1]);
-			aml_write_cbus(AED_DRC_THD1, drc_tko_table[1][1]);
-			aml_write_cbus(AED_DRC_K0, drc_tko_table[0][2]);
-			aml_write_cbus(AED_DRC_K1, drc_tko_table[1][2]);
-			/*pr_info("DRC tko: 0x%x, 0x%x,"
-			"0x%x, 0x%x, 0x%x, 0x%x,\n",
-			drc_tko_table[0][0], drc_tko_table[1][0],
-			drc_tko_table[0][1], drc_tko_table[1][1],
-			drc_tko_table[0][2], drc_tko_table[1][2]);*/
-		}
-	}
-
-	of_property_read_u32(child, "DRC_enable", &p_aml_audio->aml_DRC_enable);
-	if (p_aml_audio->aml_DRC_enable) {
-		aml_cbus_update_bits(AED_DRC_EN, 0x1, 0x1);
-		pr_info("aml DRC enable!\n");
-	}
-
 	return 0;
 }
 

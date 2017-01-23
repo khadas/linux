@@ -1113,7 +1113,7 @@
 				0x00001571 0x03801571 /*drc_ad && drc_ad_1m*/
 			>;
 			drc_tko_table = /bits/ 32 <
-				0x00000000 0xc4000000 0x00060000 /*offset, thd, k*/
+				0x00000000 0xd0000000 0x000f0000 /*offset, thd, k*/
 				0x00000000 0xf6000000 0x00028000 /*offset, thd, k*/
 			>;
 		};
