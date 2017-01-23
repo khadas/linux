@@ -2492,13 +2492,13 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			} else {
 				bit_mode = 0;
 			}
-			VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
-				(bit_mode&0x3), 8, 2);
-			VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
-				(bit_mode&0x3), 8, 2);
+			VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG3,
+				((bit_mode&0x3)<<8) | (3<<4) | 3);
+			VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG3,
+				((bit_mode&0x3)<<8) | (3<<4) | 3);
 			if (is_meson_txl_cpu())
-				VSYNC_WR_MPEG_REG_BITS(DI_IF2_GEN_REG3,
-				(bit_mode&0x3), 8, 2);
+				VSYNC_WR_MPEG_REG(DI_IF2_GEN_REG3,
+				((bit_mode&0x3)<<8) | (3<<4) | 3);
 			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
