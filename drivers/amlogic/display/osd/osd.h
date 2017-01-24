@@ -236,6 +236,8 @@ struct osd_fence_map_s {
 	u32 format;
 	u32 width;
 	u32 height;
+	u32 op;
+	u32 reserve;
 	struct sync_fence *in_fence;
 	struct files_struct *files;
 };

@@ -368,6 +368,7 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 		return -ENOMEM;
 	}
 	mutex_lock(&post_fence_list_lock);
+	fence_map->op = 0xffffffff;
 	fence_map->fb_index = index;
 	fence_map->buf_num = buf_num;
 	fence_map->yoffset = yoffset;
@@ -403,6 +404,7 @@ int osd_sync_request_render(u32 index, u32 yres,
 		return -ENOMEM;
 	}
 	mutex_lock(&post_fence_list_lock);
+	fence_map->op = 0xffffffff;
 	fence_map->fb_index = index;
 	fence_map->buf_num = buf_num;
 	fence_map->yoffset = yoffset;
@@ -414,7 +416,9 @@ int osd_sync_request_render(u32 index, u32 yres,
 		fence_map->format = request->format;
 		fence_map->width = request->width;
 		fence_map->height = request->height;
+		fence_map->reserve = request->reserve;
 	}
+	fence_map->op = request->op;
 	fence_map->in_fence = sync_fence_fdget(in_fence_fd);
 	fence_map->files = current->files;
 	fence_map->out_fd =
@@ -1822,6 +1826,8 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 	u32 ext_addr = fence_map->ext_addr;
 	const struct color_bit_define_s *color = NULL;
 	bool color_mode = false;
+	u32 osd_enable = 0;
+	bool skip = false;
 	if (index >= 2)
 		return;
 	if (timeline_created) { /* out fence created success. */
@@ -1830,6 +1836,10 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			osd_log_dbg("fence wait ret %d\n", ret);
 	}
 	if (ret) {
+		if (fence_map->op == 0xffffffff)
+			skip = true;
+		else
+			osd_enable = (fence_map->op & 1) ? DISABLE : ENABLE;
 		if (ext_addr && fence_map->width
 				&& fence_map->height && index == OSD1) {
 			spin_lock_irqsave(&osd_lock, lock_flags);
@@ -1865,6 +1875,12 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
 					.update_func();
 				osd_update_window_axis = false;
+			}
+			if ((osd_hw.osd_afbcd[index].enable == DISABLE)
+				&& (osd_enable != osd_hw.enable[index])
+				&& skip == false) {
+				osd_hw.enable[index] = osd_enable;
+				osd_hw.reg[index][OSD_ENABLE].update_func();
 			}
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw();
@@ -1923,6 +1939,21 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
 					.update_func();
 				osd_update_window_axis = false;
+			}
+			if ((osd_hw.osd_afbcd[index].enable == DISABLE)
+				&& (osd_enable != osd_hw.enable[index])
+				&& skip == false) {
+				osd_hw.enable[index] = osd_enable;
+				osd_hw.reg[index][OSD_ENABLE].update_func();
+			}
+			spin_unlock_irqrestore(&osd_lock, lock_flags);
+			osd_wait_vsync_hw();
+		} else if ((osd_enable != osd_hw.enable[index])
+					&& skip == false) {
+			spin_lock_irqsave(&osd_lock, lock_flags);
+			if (osd_hw.osd_afbcd[index].enable == DISABLE) {
+				osd_hw.enable[index] = osd_enable;
+				osd_hw.reg[index][OSD_ENABLE].update_func();
 			}
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw();
