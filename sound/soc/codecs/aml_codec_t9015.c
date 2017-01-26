@@ -407,6 +407,13 @@ struct snd_soc_dai_driver aml_T9015_audio_dai[] = {
 		      .rates = T9015_AUDIO_STEREO_RATES,
 		      .formats = T9015_AUDIO_FORMATS,
 		      },
+	 .capture = {
+			 .stream_name = "HIFI Capture",
+			 .channels_min = 2,
+			 .channels_max = 8,
+			 .rates = T9015_AUDIO_STEREO_RATES,
+			 .formats = T9015_AUDIO_FORMATS,
+			 },
 	 .ops = &T9015_audio_aif_dai_ops,
 	 },
 };

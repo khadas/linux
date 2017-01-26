@@ -1051,6 +1051,21 @@
 			sound-dai = <&pcm_codec>;
 		};
 	};
+	dmic:snd_dmic {
+		#sound-dai-cells = <0>;
+		compatible = "aml, aml_snd_dmic";
+		reg = <0x0 0xd0042000 0x0 0x2000>;
+		status = "okay";
+		resets = <
+			&clock GCLK_IDX_PDM
+		>;
+		reset-names =	"pdm";
+		pinctrl-names = "aml_dmic_pins";
+		pinctrl-0 = <&aml_dmic>;
+		clocks = <&clock CLK_PDM>,
+			<&clock CLK_AMCLK>;
+		clock-names = "pdm", "mclk";
+	};
 	/* END OF AUDIO board specific */
 
 	pwm {
@@ -1103,6 +1118,13 @@
 		amlogic,clrmask=<3 0x00803280
 				4 0xc0>;
 		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
+	};
+
+	aml_dmic:audio_dmic{
+		amlogic,setmask=<1 0xc00>;
+		amlogic,clrmask=<1 0xc0000>;
+		amlogic,pins = "GPIOY_13","GPIOY_14";
+
 	};
 };
 &efuse {

@@ -147,19 +147,20 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
+	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		s->i2s_mode = dai_info[dai->id].i2s_mode;
 		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
 			audio_in_i2s_set_buf(runtime->dma_addr,
 					runtime->dma_bytes * 2,
-					0, i2s_pos_sync);
+					0, i2s_pos_sync, i2s->audin_fifo_src);
 			memset((void *)runtime->dma_area, 0,
 					runtime->dma_bytes * 2);
 		} else {
 			audio_in_i2s_set_buf(runtime->dma_addr,
 					runtime->dma_bytes,
-					0, i2s_pos_sync);
+					0, i2s_pos_sync, i2s->audin_fifo_src);
 			memset((void *)runtime->dma_area, 0,
 					runtime->dma_bytes);
 		}
@@ -385,6 +386,14 @@ static int aml_i2s_dai_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Can't enable I2S mclk clock: %d\n", ret);
 		goto err;
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "DMIC")) {
+		i2s->audin_fifo_src = 3;
+		dev_info(&pdev->dev, "DMIC is in platform!\n");
+	} else {
+		i2s->audin_fifo_src = 1;
+		dev_info(&pdev->dev, "I2S Mic is in platform!\n");
 	}
 
 	ret = snd_soc_register_component(&pdev->dev, &aml_component,

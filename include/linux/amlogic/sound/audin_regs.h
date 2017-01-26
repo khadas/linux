@@ -160,11 +160,18 @@ enum data_source {
 	PAO_IN
 };
 #define AUDIN_FIFO0_DIN_SEL	3
-	    /* 0     spdifIN */
-	    /* 1     i2Sin */
-	    /* 2     PCMIN */
-	    /* 3     HDMI in */
-	    /* 4     DEMODULATOR IN */
+ /* MBOX platform*/
+		/* 0	 spdifIN */
+		/* 1	 i2Sin */
+		/* 2	 PCMIN */
+		/* 3	 Dmic in */
+ /* TV platform*/
+		/* 0	 spdifIN */
+		/* 1	 i2Sin */
+		/* 2	 PCMIN */
+		/* 3	 HDMI in */
+		/* 4	 DEMODULATOR IN */
+
 /* 10:8   data endian control. */
 #define AUDIN_FIFO0_ENDIAN	8
 /* 14:11   channel number. */

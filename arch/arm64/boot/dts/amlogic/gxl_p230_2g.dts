@@ -139,7 +139,7 @@
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
 		status = "okay";
-		led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+		//led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
 		led_active_low = <1>;
 	};
 
@@ -849,7 +849,7 @@
 		clock-names = "clk_uart";
 		fifosize = < 64 >;
 		pinctrl-names = "default";
-		pinctrl-0 = <&b_uart_pins>;
+		//pinctrl-0 = <&b_uart_pins>;
 		resets = <&clock GCLK_IDX_UART1>;
 	};
 	uart_C: serial@c1108700 {
@@ -972,6 +972,7 @@
 		clocks = <&clock CLK_MPLL2>,
 			<&clock CLK_AMCLK>;
 		clock-names = "mpll2", "mclk";
+		DMIC;
 		compatible = "amlogic, aml-i2s-dai";
 	};
 	spdif_dai: SPDIF {
@@ -1032,6 +1033,21 @@
 		compatible = "amlogic, aml_codec_T9015";
 		reg = <0x0 0xc8832000 0x0 0x14>;
 		status = "okay";
+	};
+	dmic:snd_dmic {
+		#sound-dai-cells = <0>;
+		compatible = "aml, aml_snd_dmic";
+		reg = <0x0 0xd0042000 0x0 0x2000>;
+		status = "okay";
+		resets = <
+			&clock GCLK_IDX_PDM
+		>;
+		reset-names =	"pdm";
+		pinctrl-names = "aml_dmic_pins";
+		pinctrl-0 = <&aml_dmic>;
+		clocks = <&clock CLK_PDM>,
+			<&clock CLK_AMCLK>;
+		clock-names = "pdm", "mclk";
 	};
 	aml_m8_snd {
 		compatible = "aml, aml_snd_m8";
@@ -1287,6 +1303,14 @@
 		amlogic,setmask=<5 0xf00000>;
 		amlogic,clrmask=<5 0x3c33>;
 		amlogic,pins ="GPIOX_8", "GPIOX_9", "GPIOX_10", "GPIOX_11";
+	};
+
+	aml_dmic:audio_dmic{
+		amlogic,setmask=<2 0xc0>;
+		amlogic,clrmask=<1 0x60c000
+						 2 0x18000
+						 3 0x18>;
+		amlogic,pins = "GPIODV_24","GPIODV_25";
 	};
 };
 &efuse {

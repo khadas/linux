@@ -216,15 +216,19 @@ void audio_set_958outbuf(u32 addr, u32 size, int flag)
 
 /*
 i2s mode 0: master 1: slave
+din_sel 0:spdif 1:i2s 2:pcm 3: dmic
 */
-static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
+static void i2sin_fifo0_set_buf(u32 addr, u32 size,
+				u32 i2s_mode, u32 i2s_sync, u32 din_sel)
 {
 	unsigned char mode = 0;
-	unsigned int sync_mode = 0;
+	unsigned int sync_mode = 0, din_pos = 0;
 	if (i2s_sync)
 		sync_mode = i2s_sync;
 	if (i2s_mode & I2SIN_SLAVE_MODE)
 		mode = 1;
+	if (din_sel != 1)
+		din_pos = 1;
 	aml_write_cbus(AUDIN_FIFO0_START, addr & 0xffffffc0);
 	aml_write_cbus(AUDIN_FIFO0_PTR, (addr & 0xffffffc0));
 	aml_write_cbus(AUDIN_FIFO0_END,
@@ -232,7 +236,7 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
 
 	aml_write_cbus(AUDIN_FIFO0_CTRL, (1 << AUDIN_FIFO0_EN)	/* FIFO0_EN */
 		       |(1 << AUDIN_FIFO0_LOAD)	/* load start address */
-		       |(1 << AUDIN_FIFO0_DIN_SEL)
+		       |(din_sel << AUDIN_FIFO0_DIN_SEL)
 
 		       /* DIN from i2sin */
 		       /* |(1<<6)    // 32 bits data in. */
@@ -250,7 +254,7 @@ static void i2sin_fifo0_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
 
 	aml_write_cbus(AUDIN_FIFO0_CTRL1, 0 << 4	/* fifo0_dest_sel */
 		       | 2 << 2	/* fifo0_din_byte_num */
-		       | 0 << 0);	/* fifo0_din_pos */
+		       | din_pos << 0);	/* fifo0_din_pos */
 
 	if (audio_in_source == 0) {
 		aml_write_cbus(AUDIN_I2SIN_CTRL, (1 << I2SIN_CHAN_EN)
@@ -361,10 +365,11 @@ static void spdifin_fifo1_set_buf(u32 addr, u32 size, u32 src)
 		aml_write_cbus(AUDIN_FIFO1_CTRL1, 0x88);
 }
 
-void audio_in_i2s_set_buf(u32 addr, u32 size, u32 i2s_mode, u32 i2s_sync)
+void audio_in_i2s_set_buf(u32 addr, u32 size,
+	u32 i2s_mode, u32 i2s_sync, u32 din_sel)
 {
 	pr_info("i2sin_fifo0_set_buf\n");
-	i2sin_fifo0_set_buf(addr, size, i2s_mode, i2s_sync);
+	i2sin_fifo0_set_buf(addr, size, i2s_mode, i2s_sync, din_sel);
 	audio_in_buf_ready = 1;
 }
 
