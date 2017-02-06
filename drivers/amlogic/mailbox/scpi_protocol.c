@@ -83,6 +83,7 @@ static int high_priority_cmds[] = {
 	SCPI_CMD_GET_PSU,
 	SCPI_CMD_SENSOR_CFG_PERIODIC,
 	SCPI_CMD_SENSOR_CFG_BOUNDS,
+	SCPI_CMD_WAKEUP_REASON_GET,
 };
 
 static struct scpi_opp *scpi_opps[MAX_DVFS_DOMAINS];
@@ -485,3 +486,23 @@ int scpi_set_vrtc(u32 vrtc_val)
 }
 EXPORT_SYMBOL_GPL(scpi_set_vrtc);
 
+int scpi_get_wakeup_reason(u32 *wakeup_reason)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u32 temp = 0;
+	struct __packed {
+		u32 status;
+		u32 reason;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_WAKEUP_REASON_GET, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	*wakeup_reason = buf.reason;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_get_wakeup_reason);
