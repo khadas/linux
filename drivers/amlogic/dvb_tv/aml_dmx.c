@@ -41,6 +41,7 @@
 
 #define ENABLE_SEC_BUFF_WATCHDOG
 #define USE_AHB_MODE
+#define PR_ERROR_SPEED_LIMIT
 
 #define pr_dbg_flag(_f, _args...)\
 	do {\
@@ -61,7 +62,20 @@
 #define pr_dbg_irq_ss(args...) pr_dbg_irq_flag(0x8, args)
 #define pr_dbg_irq_pes(args...) pr_dbg_irq_flag(0x10, args)
 
-#define pr_error(fmt, args...) printk("DVB: " fmt, ## args)
+#ifdef PR_ERROR_SPEED_LIMIT
+static u32 last_pr_error_time;
+#define pr_error(fmt, _args...)\
+	do {\
+		u32 diff = jiffies_to_msecs(jiffies - last_pr_error_time);\
+		if (!last_pr_error_time || diff > 50) {\
+			pr_err("DVB:" fmt, ## _args);\
+			last_pr_error_time = jiffies;\
+		} \
+	} while (0)
+#else
+#define pr_error(fmt, args...) pr_err("DVB: " fmt, ## args)
+#endif
+
 #define pr_inf(fmt, args...)  printk("DVB: " fmt, ## args)
 
 #define dump(b, l) \

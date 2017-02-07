@@ -232,6 +232,10 @@ static int aml_dvb_dmx_init(struct aml_dvb *advb, struct aml_dmx *dmx, int id)
 	dmx->timeout.trigger = 0;
 	dmx->timeout.dmx = dmx;
 
+	/*CRC monitor*/
+	dmx->crc_check_count = 0;
+	dmx->crc_check_time = 0;
+
 	ret = aml_dmx_hw_init(dmx);
 	if (ret < 0) {
 		pr_error("demux hw init error %d", ret);
