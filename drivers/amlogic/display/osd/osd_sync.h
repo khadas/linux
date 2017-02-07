@@ -34,8 +34,8 @@ struct fb_sync_request_render_s {
 	int             width;
 	int             height;
 	int             format;
-	u32             paddr;
-	u32				op;
-	u32				reserve;
+	int             shared_fd;
+	u32             op;
+	u32             reserve;
 };
 #endif

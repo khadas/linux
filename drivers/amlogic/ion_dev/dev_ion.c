@@ -75,18 +75,31 @@ struct ion_client *meson_ion_client_create(unsigned int heap_mask,
 }
 EXPORT_SYMBOL(meson_ion_client_create);
 
-int meson_ion_share_fd_to_phys(struct ion_client *client,
-		int share_fd, ion_phys_addr_t *addr, size_t *len)
+int meson_ion_share_fd_to_phys(
+	struct ion_client *client, int share_fd,
+	ion_phys_addr_t *addr, size_t *len)
 {
-	struct ion_handle *handle = NULL;
+	struct ion_handle *handle;
+	int ret;
 
 	handle = ion_import_dma_buf(client, share_fd);
 	if (IS_ERR_OR_NULL(handle)) {
-		dprintk(0, "EINVAL, client=%p, share_fd=%d\n",
-				client, share_fd);
+		/* pr_err("%s,EINVAL, client=%p, share_fd=%d\n",
+		 *	 __func__, client, share_fd);
+		*/
+		return PTR_ERR(handle);
 	}
 
-	return ion_phys(client, handle, addr, len);
+	ret = ion_phys(client, handle, addr, (size_t *)len);
+	pr_debug("ion_phys ret=%d, phys=0x%lx\n", ret, *addr);
+	if (ret < 0) {
+		pr_err("ion_get_phys error, ret=%d\n", ret);
+		return ret;
+	}
+
+	ion_free(client, handle);
+
+	return 0;
 }
 EXPORT_SYMBOL(meson_ion_share_fd_to_phys);
 

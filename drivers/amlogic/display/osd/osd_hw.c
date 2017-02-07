@@ -48,6 +48,7 @@
 #endif
 #include <linux/amlogic/amports/video.h>
 
+
 /* Local Headers */
 #include <vout/vpp.h>
 #include "osd_canvas.h"
@@ -387,7 +388,8 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 }
 
 int osd_sync_request_render(u32 index, u32 yres,
-	struct fb_sync_request_render_s *request)
+	struct fb_sync_request_render_s *request,
+	u32 phys_addr)
 {
 	int out_fence_fd = -1;
 	int buf_num = 0;
@@ -395,6 +397,7 @@ int osd_sync_request_render(u32 index, u32 yres,
 	s32 in_fence_fd;
 	struct osd_fence_map_s *fence_map =
 		kzalloc(sizeof(struct osd_fence_map_s), GFP_KERNEL);
+
 	xoffset = request->xoffset;
 	yoffset = request->yoffset;
 	in_fence_fd = request->in_fen_fd;
@@ -411,7 +414,7 @@ int osd_sync_request_render(u32 index, u32 yres,
 	fence_map->xoffset = xoffset;
 	fence_map->yres = yres;
 	fence_map->in_fd = in_fence_fd;
-	fence_map->ext_addr = request->paddr;
+	fence_map->ext_addr = phys_addr;
 	if (fence_map->ext_addr) {
 		fence_map->format = request->format;
 		fence_map->width = request->width;
@@ -465,7 +468,8 @@ int osd_sync_request(u32 index, u32 yres, u32 xoffset, u32 yoffset,
 
 
 int osd_sync_request_render(u32 index, u32 yres,
-	struct fb_sync_request_render_s *request)
+	struct fb_sync_request_render_s *request,
+	u32 phys_addr)
 {
 	osd_log_err("osd_sync_request_render not supported\n");
 	return -5566;

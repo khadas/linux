@@ -41,7 +41,6 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
-#include <ion/ion.h>
 #include <meson_ion.h>
 /* Amlogic Headers */
 #include <linux/amlogic/vout/vout_notify.h>
@@ -859,17 +858,33 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case FBIOPUT_OSD_SYNC_RENDER_ADD:
-		sync_request_render.out_fen_fd =
-			osd_sync_request_render(info->node, info->var.yres,
-				&sync_request_render);
-		ret = copy_to_user(argp, &sync_request_render,
+		{
+			ion_phys_addr_t addr;
+			size_t len;
+			u32 phys_addr;
+
+			ret = meson_ion_share_fd_to_phys(fb_ion_client,
+				sync_request_render.shared_fd, &addr, &len);
+			if (ret == 0) {
+				phys_addr = addr +
+					sync_request_render.yoffset
+					* info->fix.line_length;
+			} else
+				phys_addr = 0;
+			sync_request_render.out_fen_fd =
+				osd_sync_request_render(info->node,
+				info->var.yres,
+				&sync_request_render, phys_addr);
+			ret = copy_to_user(argp,
+				&sync_request_render,
 				sizeof(struct fb_sync_request_render_s));
-		if (sync_request_render.out_fen_fd  < 0) {
-			/* fence create fail. */
-			ret = -1;
-		} else {
-			info->var.xoffset = sync_request_render.xoffset;
-			info->var.yoffset = sync_request_render.yoffset;
+			if (sync_request_render.out_fen_fd  < 0) {
+				/* fence create fail. */
+				ret = -1;
+			} else {
+				info->var.xoffset = sync_request_render.xoffset;
+				info->var.yoffset = sync_request_render.yoffset;
+			}
 		}
 		break;
 	case FBIOGET_DMABUF:
@@ -1068,6 +1083,8 @@ static int osd_open(struct fb_info *info, int arg)
 				(unsigned long)fb_rmem_size[fb_index] / SZ_1M);
 		}
 	} else {
+		if (!fb_ion_client)
+			fb_ion_client = meson_ion_client_create(-1, "meson-fb");
 		fb_rmem_size[fb_index] = fb_memsize[fb_index];
 		if (fb_index == DEV_OSD0)
 			fb_rmem_paddr[fb_index] = fb_rmem.base;
