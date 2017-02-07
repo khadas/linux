@@ -1451,10 +1451,10 @@ static void vdac_power_level_store(char *para)
  */
 static void policy_framerate_automation_store(char *para)
 {
-	int policy = 0;
+	unsigned long policy = 0;
 	int ret = 0;
-	ret = kstrtoul(para, 10, (unsigned long *)&policy);
-	if ((policy >= 0) && (policy < 3)) {
+	ret = kstrtoul(para, 10, &policy);
+	if (policy < 3) {
 		fr_auto_policy_hold = policy;
 		fr_auto_policy = fr_auto_policy_hold;
 		snprintf(policy_fr_auto_switch, 40, "%d\n", fr_auto_policy);
@@ -1466,10 +1466,10 @@ static void policy_framerate_automation_store(char *para)
 
 static void policy_framerate_automation_switch_store(char *para)
 {
-	int policy = 0;
+	unsigned long policy = 0;
 	int ret = 0;
-	ret = kstrtoul(para, 10, (unsigned long *)&policy);
-	if ((policy >= 0) && (policy < 3)) {
+	ret = kstrtoul(para, 10, &policy);
+	if (policy < 3) {
 		fr_auto_policy = policy;
 	} else if (policy == 3) {
 		fr_auto_policy = fr_auto_policy_hold;
