@@ -20,6 +20,7 @@
 #include "arch/vpp_regs.h"
 #include "../tvin/tvin_global.h"
 #include "arch/vpp_hdr_regs.h"
+#include "arch/hdr_curve.h"
 
 /* use osd rdma reg w/r */
 #include "../display/osd/osd_rdma.h"
@@ -2636,6 +2637,26 @@ enum vpp_matrix_csc_e get_csc_type(void)
 	return csc_type;
 }
 
+static void cal_out_curve(uint panel_luma)
+{
+	int index;
+	if (panel_luma == 0)
+		return;
+
+	if (panel_luma <= 500) {
+		if (panel_luma < 250)
+			panel_luma = 250;
+		index = (panel_luma - 250) / 20;
+	} else {
+		if (panel_luma > 1000)
+			panel_luma = 1000;
+		index = ((500 - 240) / 20) + (panel_luma - 500) / 100;
+	}
+	memcpy(eotf_33_2084_mapping,
+		eotf_33_2084_table[index], sizeof(int) * 33);
+	memcpy(oetf_289_gamma22_mapping,
+		oetf_289_gamma22_table[index], sizeof(int) * 289);
+}
 static void mtx_dot_mul(
 	int64_t (*a)[3], int64_t (*b)[3],
 	int64_t (*out)[3], int32_t norm)
@@ -2912,6 +2933,8 @@ static int check_primaries(
 			if ((*di)[3][i] != bt709_white_point[i])
 				need_calculate_mtx = 1;
 		}
+		if (v->hdr_info.sink_flag)
+			cal_out_curve(v->hdr_info.lumi_max);
 	} else {
 		for (i = 0; i < 3; i++) {
 			for (j = 0; j < 2; j++)

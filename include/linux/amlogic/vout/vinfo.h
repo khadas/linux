@@ -171,6 +171,7 @@ struct hdr_info {
 	u32 lumi_max; /* RX EDID Lumi Max value */
 	u32 lumi_avg; /* RX EDID Lumi Avg value */
 	u32 lumi_min; /* RX EDID Lumi Min value */
+	u8 sink_flag; /*0 = hdmi, 1 = panel*/
 };
 
 /* Refer ot DolbyVision 2.6, Page 35
