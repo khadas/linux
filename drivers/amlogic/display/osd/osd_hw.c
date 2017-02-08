@@ -1357,6 +1357,7 @@ void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 {
 	const struct vinfo_s *vinfo;
+	s32 temp_y0, temp_y1;
 	vinfo = get_current_vinfo();
 	mutex_lock(&osd_mutex);
 	if (vinfo) {
@@ -1367,25 +1368,27 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 		case VMODE_576CVBS:
 		case VMODE_1080I:
 		case VMODE_1080I_50HZ:
-			osd_hw.free_dst_data[index].y_start = y0 / 2;
-			osd_hw.free_dst_data[index].y_end = y1 / 2;
+			temp_y0 = y0 / 2;
+			temp_y1 = y1 / 2;
 			break;
 		default:
-			osd_hw.free_dst_data[index].y_start = y0;
-			osd_hw.free_dst_data[index].y_end = y1;
+			temp_y0 = y0;
+			temp_y1 = y1;
 			break;
 		}
 	} else {
-		osd_hw.free_dst_data[index].y_start = y0;
-		osd_hw.free_dst_data[index].y_end = y1;
+		temp_y0 = y0;
+		temp_y1 = y1;
 	}
+	osd_hw.free_dst_data[index].y_start = temp_y0;
+	osd_hw.free_dst_data[index].y_end = temp_y1;
 	osd_hw.free_dst_data[index].x_start = x0;
 	osd_hw.free_dst_data[index].x_end = x1;
 #if defined(CONFIG_FB_OSD2_CURSOR)
 	osd_hw.cursor_dispdata[index].x_start = x0;
 	osd_hw.cursor_dispdata[index].x_end = x1;
-	osd_hw.cursor_dispdata[index].y_start = y0;
-	osd_hw.cursor_dispdata[index].y_end = y1;
+	osd_hw.cursor_dispdata[index].y_start = temp_y0;
+	osd_hw.cursor_dispdata[index].y_end = temp_y1;
 #endif
 	if (osd_hw.free_dst_data[index].y_end >= 2159) {
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
@@ -3527,30 +3530,12 @@ void osd_cursor_hw(u32 index, s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w,
 	    && (osd_hw.scaledata[OSD2].x_end > 0)) {
 		x = x * osd_hw.scaledata[OSD2].x_end /
 			osd_hw.scaledata[OSD2].x_start;
-		if (osd_hw.scaledata[OSD2].x_end >
-				osd_hw.scaledata[OSD2].x_start) {
-			disp_tmp.x_start = osd_hw.dispdata[OSD1].x_start *
-				osd_hw.scaledata[OSD2].x_end /
-				osd_hw.scaledata[OSD2].x_start;
-			disp_tmp.x_end = osd_hw.dispdata[OSD1].x_end *
-				osd_hw.scaledata[OSD2].x_end /
-				osd_hw.scaledata[OSD2].x_start;
-		}
 	}
 	if (osd_hw.scale[OSD2].v_enable && (osd_hw.scaledata[OSD2].y_start > 0)
 	    && (osd_hw.scaledata[OSD2].y_end > 0)) {
 		y = y * osd_hw.scaledata[OSD2].y_end /
 			osd_hw.scaledata[OSD2].y_start;
-		if (osd_hw.scaledata[OSD2].y_end >
-				osd_hw.scaledata[OSD2].y_start) {
-			disp_tmp.y_start = osd_hw.dispdata[OSD1].y_start *
-				osd_hw.scaledata[OSD2].y_end /
-				osd_hw.scaledata[OSD2].y_start;
-			disp_tmp.y_end = osd_hw.dispdata[OSD1].y_end *
-				osd_hw.scaledata[OSD2].y_end /
-					 osd_hw.scaledata[OSD2].y_start;
 		}
-	}
 	x += xstart;
 	y += ystart;
 	/*
