@@ -1376,7 +1376,8 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 	if (suspend_pddq)
 		hdmirx_phy_pddq(1);
-	hdcp22_suspend();
+	if (hdcp22_on)
+		hdcp22_suspend();
 	/*clk_off();*/
 	rx_pr("[hdmirx]: suspend success\n");
 	return 0;
@@ -1392,7 +1393,8 @@ static int hdmirx_resume(struct platform_device *pdev)
 		;
 	if ((resume_flag == 0) && (rx.open_fg == 1))
 		add_timer(&devp_hdmirx_suspend->timer);
-	hdcp22_resume();
+	if (hdcp22_on)
+		hdcp22_resume();
 	rx_pr("hdmirx: resume module---end,rx.open_fg:%d\n", rx.open_fg);
 	pre_port = 0xff;
 	return 0;
