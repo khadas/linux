@@ -328,7 +328,6 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	struct ionvideo_buffer *buf;
 	unsigned long flags = 0;
 	struct vframe_s *vf;
-	int vf_wait_cnt = 0;
 
 	int w, h;
 	dprintk(dev, 4, "Thread tick\n");
@@ -339,7 +338,7 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf) {
-		vf_wait_cnt++;
+		dev->vf_wait_cnt++;
 		/* msleep(5); */
 		usleep_range(1000, 2000);
 		return;
@@ -373,7 +372,7 @@ static void ionvideo_thread_tick(struct ionvideo_dev *dev)
 	/* Fill buffer */
 	if (ionvideo_fillbuff(dev, buf))
 		return;
-	vf_wait_cnt = 0;
+	dev->vf_wait_cnt = 0;
 
 	spin_lock_irqsave(&dev->slock, flags);
 	list_del(&buf->list);
@@ -630,7 +629,7 @@ static int vidioc_open(struct file *file)
 	dev->once_record = 1;
 	dev->ppmgr2_dev.bottom_first = 0;
 	dev->skip_frames = 0;
-
+	dev->vf_wait_cnt = 0;
 	/*for libplayer osd*/
 	dev->freerun_mode = freerun_mode;
 	dprintk(dev, 2, "vidioc_open\n");
@@ -1079,6 +1078,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->ppmgr2_dev.interlaced_num = 0;
 		IONVID_INFO("reg:ionvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
+		if (dev->vf_wait_cnt > 1)
+			return RECEIVER_INACTIVE;
 		return RECEIVER_ACTIVE;
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
 		if ((data != NULL) && (ionvideo_seek_flag == 0)) {

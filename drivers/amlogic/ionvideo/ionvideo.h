@@ -178,6 +178,7 @@ struct ionvideo_dev {
 	int inst;
 	bool mapped;
 	bool thread_stoped;
+	int vf_wait_cnt;
 };
 
 unsigned get_ionvideo_debug(void);
