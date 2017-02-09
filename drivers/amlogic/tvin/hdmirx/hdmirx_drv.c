@@ -104,6 +104,11 @@ bool mute_kill_en;
 MODULE_PARM_DESC(mute_kill_en, "\n mute_kill_en\n");
 module_param(mute_kill_en, bool, 0664);
 
+static bool en_4096_2_3840 = true;
+MODULE_PARM_DESC(en_4096_2_3840, "\n en_4096_2_3840\n");
+module_param(en_4096_2_3840, bool, 0664);
+
+
 int suspend_pddq = 1;
 
 unsigned int hdmirx_addr_port;
@@ -594,7 +599,15 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	default:
 	break;
 	}
-
+	/*in some PC case, 4096X2160 show in 3840X2160 monitor will
+	result in blurred, so adjust hactive to 3840 to show dot by dot*/
+	if (en_4096_2_3840) {
+		if ((TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) &&
+			(prop->color_format == TVIN_RGB444)) {
+			prop->hs = 128;
+			prop->he = 128;
+		}
+	}
 	if (en_4k_2_2k) {
 		if (TVIN_SIG_FMT_HDMI_4096_2160_00HZ == sig_fmt) {
 			prop->hs = 128;
