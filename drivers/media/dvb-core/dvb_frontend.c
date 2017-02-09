@@ -2527,7 +2527,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			goto out;
 		}
 #ifdef CONFIG_COMPAT
-		if (copy_from_user(tvp, compat_ptr((unsigned long)tvps->props),
+		if (copy_from_user(tvp, tvps->props,
 				tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
@@ -2566,7 +2566,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			goto out;
 		}
 #ifdef CONFIG_COMPAT
-		if (copy_from_user(tvp, compat_ptr((unsigned long)tvps->props),
+		if (copy_from_user(tvp, tvps->props,
 				tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
@@ -2594,7 +2594,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			(tvp + i)->result = err;
 		}
 #ifdef CONFIG_COMPAT
-		if (copy_to_user(compat_ptr((unsigned long)tvps->props), tvp,
+		if (copy_to_user(tvps->props, tvp,
 				tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
@@ -3308,8 +3308,13 @@ static long dvb_frontend_compat_ioctl(struct file *filp,
 			unsigned int cmd, unsigned long args)
 {
 	unsigned long ret;
+	struct dtv_properties *tvps = NULL;
 
 	args = (unsigned long)compat_ptr(args);
+	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY)) {
+		tvps = (struct dtv_properties __user *)args;
+		tvps->props = compat_ptr((unsigned long)tvps->props);
+	}
 	ret = dvb_generic_ioctl(filp, cmd, args);
 	return ret;
 }
