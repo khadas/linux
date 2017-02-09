@@ -30,6 +30,15 @@
 
 #include "pinctrl_gxtvbb.h"
 
+struct gxtb_od_gpio {
+	int start;
+	int end;
+};
+
+static const struct gxtb_od_gpio gxtvbb_all_od_gpios[] = {
+	{GPIOW_5, GPIOW_20},
+	{GPIOH_3, GPIOH_5},
+};
 
 struct pinctrl_pin_desc gxtvbb_pads[] = {
 
@@ -715,6 +724,17 @@ int gxtvbb_extern_gpio_get(struct meson_domain *domain, unsigned int pin)
 	return -1;
 }
 
+static int is_gxtvbb_gpio_in_od_domain(unsigned int pin)
+{
+	int i = 0;
+	int len = sizeof(gxtvbb_all_od_gpios)/sizeof(gxtvbb_all_od_gpios[0]);
+	for (i = 0; i < len; i++) {
+		if ((pin >= gxtvbb_all_od_gpios[i].start)
+			&& (pin <= gxtvbb_all_od_gpios[i].end))
+			return 1;
+	}
+	return 0;
+}
 
 static struct amlogic_pinctrl_soc_data gxtvbb_pinctrl_data = {
 	.pins = gxtvbb_pads,
@@ -725,6 +745,7 @@ static struct amlogic_pinctrl_soc_data gxtvbb_pinctrl_data = {
 	.name_to_pin = gxtvbb_gpio_name_to_num,
 	.soc_extern_gpio_output = gxtvbb_extern_gpio_output,
 	.soc_extern_gpio_get = gxtvbb_extern_gpio_get,
+	.is_od_domain = is_gxtvbb_gpio_in_od_domain,
 };
 
 

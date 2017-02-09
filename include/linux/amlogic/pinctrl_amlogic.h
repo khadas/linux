@@ -169,6 +169,7 @@ struct amlogic_pinctrl_soc_data {
 
 	int (*soc_extern_gpio_get)(struct meson_domain *domain,
 				   unsigned int pin);
+	int (*is_od_domain)(unsigned int pin);
 };
 
 struct amlogic_pmx {
