@@ -939,6 +939,25 @@ static ssize_t show_rawedid(struct device *dev,
 	return pos;
 }
 
+/*
+ * edid_parsing attr
+ * If RX edid data are all correct, HEAD(00 ff ff ff ff ff ff 00), checksum,
+ * version, etc), then return "ok". Otherwise, "ng"
+ */
+static ssize_t show_edid_parsing(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (hdev->edid_parsing)
+		pos += snprintf(buf+pos, PAGE_SIZE, "ok\n");
+	else
+		pos += snprintf(buf+pos, PAGE_SIZE, "ng\n");
+
+	return pos;
+}
+
 void hdmitx_audio_mute_op(unsigned int flag)
 {
 	hdmitx_device.tx_aud_cfg = flag;
@@ -2115,6 +2134,7 @@ static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
 static DEVICE_ATTR(rawedid, S_IRUGO, show_rawedid, NULL);
+static DEVICE_ATTR(edid_parsing, S_IRUGO, show_edid_parsing, NULL);
 static DEVICE_ATTR(config, S_IWUSR | S_IRUGO | S_IWGRP, show_config,
 	store_config);
 static DEVICE_ATTR(debug, S_IWUSR, NULL, store_debug);
@@ -3004,6 +3024,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_edid);
 	ret = device_create_file(dev, &dev_attr_rawedid);
+	ret = device_create_file(dev, &dev_attr_edid_parsing);
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_disp_cap);
@@ -3215,6 +3236,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_edid);
 	device_remove_file(dev, &dev_attr_rawedid);
+	device_remove_file(dev, &dev_attr_edid_parsing);
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_disp_cap);

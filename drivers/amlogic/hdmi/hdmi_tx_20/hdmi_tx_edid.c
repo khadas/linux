@@ -1698,6 +1698,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf)) {
 		EDID_buf = hdmitx_device->EDID_buf;
+		hdmitx_device->edid_parsing = 1;
 		memcpy(hdmitx_device->EDID_buf1, hdmitx_device->EDID_buf,
 			EDID_MAX_BLOCK * 128);
 	} else
@@ -2186,6 +2187,7 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 		sizeof(hdmitx_device->RXCap.support_3d_format));
 	memset(&hdmitx_device->EDID_hash[0], 0,
 		sizeof(hdmitx_device->EDID_hash));
+	hdmitx_device->edid_parsing = 0;
 }
 
 /*
