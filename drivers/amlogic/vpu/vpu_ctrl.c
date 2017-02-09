@@ -55,7 +55,6 @@ static spinlock_t vpu_clk_gate_lock;
 */
 void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 {
-	unsigned int vpu_mod;
 	unsigned long flags = 0;
 	unsigned int _reg0, _reg1, _reg2;
 	unsigned int val;
@@ -68,25 +67,11 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	spin_lock_irqsave(&vpu_mem_lock, flags);
 
 	val = (flag == VPU_MEM_POWER_ON) ? 0 : 3;
-	switch (vpu_chip_type) {
-	case VPU_CHIP_M8:
-	case VPU_CHIP_M8B:
-	case VPU_CHIP_M8M2:
-	case VPU_CHIP_G9TV:
-	case VPU_CHIP_G9BB:
-		_reg0 = HHI_VPU_MEM_PD_REG0;
-		_reg1 = HHI_VPU_MEM_PD_REG1;
-		_reg2 = 0;
-		break;
-	default:
-		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
-		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
-		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
-		break;
-	}
+	_reg0 = HHI_VPU_MEM_PD_REG0;
+	_reg1 = HHI_VPU_MEM_PD_REG1;
+	_reg2 = HHI_VPU_MEM_PD_REG2;
 
-	vpu_mod = get_vpu_mod(vmod);
-	switch (vpu_mod) {
+	switch (vmod) {
 	case VPU_VIU_OSD1:
 		vpu_hiu_setb(_reg0, val, 0, 2);
 		break;
@@ -200,7 +185,8 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 	case VPU_VIU1_WM:
 		if ((vpu_chip_type == VPU_CHIP_GXL) ||
 			(vpu_chip_type == VPU_CHIP_GXM) ||
-			(vpu_chip_type == VPU_CHIP_TXL)) {
+			(vpu_chip_type == VPU_CHIP_TXL) ||
+			(vpu_chip_type == VPU_CHIP_TXLX)) {
 			vpu_hiu_setb(_reg2, val, 0, 2);
 		}
 		break;
@@ -213,7 +199,7 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 
 	if (vpu_debug_print_flag) {
 		VPUPR("switch_vpu_mem_pd: %s %s\n",
-			vpu_mod_table[vpu_mod],
+			vpu_mod_table[vmod],
 			((flag == VPU_MEM_POWER_ON) ? "ON" : "OFF"));
 		dump_stack();
 	}
@@ -238,7 +224,6 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 #define VPU_MEM_PD_ERR        0xffff
 int get_vpu_mem_pd_vmod(unsigned int vmod)
 {
-	unsigned int vpu_mod;
 	unsigned int _reg0, _reg1, _reg2;
 	unsigned int val;
 	int ret = 0;
@@ -247,25 +232,11 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	if (ret)
 		return -1;
 
-	switch (vpu_chip_type) {
-	case VPU_CHIP_M8:
-	case VPU_CHIP_M8B:
-	case VPU_CHIP_M8M2:
-	case VPU_CHIP_G9TV:
-	case VPU_CHIP_G9BB:
-		_reg0 = HHI_VPU_MEM_PD_REG0;
-		_reg1 = HHI_VPU_MEM_PD_REG1;
-		_reg2 = 0;
-		break;
-	default:
-		_reg0 = HHI_VPU_MEM_PD_REG0_GX;
-		_reg1 = HHI_VPU_MEM_PD_REG1_GX;
-		_reg2 = HHI_VPU_MEM_PD_REG2_GX;
-		break;
-	}
+	_reg0 = HHI_VPU_MEM_PD_REG0;
+	_reg1 = HHI_VPU_MEM_PD_REG1;
+	_reg2 = HHI_VPU_MEM_PD_REG2;
 
-	vpu_mod = get_vpu_mod(vmod);
-	switch (vpu_mod) {
+	switch (vmod) {
 	case VPU_VIU_OSD1:
 		val = vpu_hiu_getb(_reg0, 0, 2);
 		break;
@@ -383,7 +354,8 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 	case VPU_VIU1_WM:
 		if ((vpu_chip_type == VPU_CHIP_GXL) ||
 			(vpu_chip_type == VPU_CHIP_GXM) ||
-			(vpu_chip_type == VPU_CHIP_TXL)) {
+			(vpu_chip_type == VPU_CHIP_TXL) ||
+			(vpu_chip_type == VPU_CHIP_TXLX)) {
 			val = vpu_hiu_getb(_reg2, 0, 2);
 		} else {
 			val = VPU_MEM_PD_ERR;
@@ -423,7 +395,6 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 */
 void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 {
-	unsigned vpu_mod;
 	unsigned long flags = 0;
 	unsigned int val;
 	int ret = 0;
@@ -436,8 +407,7 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 
 	val = (flag == VPU_CLK_GATE_ON) ? 1 : 0;
 
-	vpu_mod = get_vpu_mod(vmod);
-	switch (vpu_mod) {
+	switch (vmod) {
 	case VPU_VPU_TOP:
 		vpu_vcbus_setb(VPU_CLK_GATE, val, 1, 1); /* vpu_system_clk */
 		break;
@@ -445,7 +415,8 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 		if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
 			(vpu_chip_type == VPU_CHIP_GXL) ||
 			(vpu_chip_type == VPU_CHIP_GXM) ||
-			(vpu_chip_type == VPU_CHIP_TXL)) {
+			(vpu_chip_type == VPU_CHIP_TXL) ||
+			(vpu_chip_type == VPU_CHIP_TXLX)) {
 			vpu_vcbus_setb(VPU_CLK_GATE, val, 8, 1); /* clkb_gen */
 			vpu_vcbus_setb(VPU_CLK_GATE, val, 9, 1); /* clkb_gen */
 			/* clkb_gen_en */
@@ -455,7 +426,8 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
 			(vpu_chip_type == VPU_CHIP_GXL) ||
 			(vpu_chip_type == VPU_CHIP_GXM) ||
-			(vpu_chip_type == VPU_CHIP_TXL)) {
+			(vpu_chip_type == VPU_CHIP_TXL) ||
+			(vpu_chip_type == VPU_CHIP_TXLX)) {
 			/* clkb_gate */
 			vpu_vcbus_setb(VPU_CLK_GATE, val, 16, 1);
 		}
@@ -465,7 +437,8 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 			(vpu_chip_type == VPU_CHIP_GXTVBB) ||
 			(vpu_chip_type == VPU_CHIP_GXL) ||
 			(vpu_chip_type == VPU_CHIP_GXM) ||
-			(vpu_chip_type == VPU_CHIP_TXL)) {
+			(vpu_chip_type == VPU_CHIP_TXL) ||
+			(vpu_chip_type == VPU_CHIP_TXLX)) {
 			vpu_vcbus_setb(VPU_CLK_GATE, val, 15, 1); /* rdma_clk */
 		}
 		break;
@@ -534,20 +507,24 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 		break;
 	case VPU_DI:
 		if (flag == VPU_CLK_GATE_ON) {
-			vpu_vcbus_set_mask(DI_CLKG_CTRL, 0x1d1e0003);
-			if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			if ((vpu_chip_type == VPU_CHIP_G9TV) ||
+				(vpu_chip_type == VPU_CHIP_GXBB)) {
+				vpu_vcbus_set_mask(DI_CLKG_CTRL, 0x1d1e0003);
+			} else if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
 				(vpu_chip_type == VPU_CHIP_GXL) ||
 				(vpu_chip_type == VPU_CHIP_GXM) ||
 				(vpu_chip_type == VPU_CHIP_TXL)) {
-				vpu_vcbus_set_mask(DI_CLKG_CTRL, 0x60200000);
+				vpu_vcbus_set_mask(DI_CLKG_CTRL, 0x7d3e0003);
 			}
 		} else {
-			vpu_vcbus_clr_mask(DI_CLKG_CTRL, 0x1d1e0003);
-			if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
+			if ((vpu_chip_type == VPU_CHIP_G9TV) ||
+				(vpu_chip_type == VPU_CHIP_GXBB)) {
+				vpu_vcbus_clr_mask(DI_CLKG_CTRL, 0x1d1e0003);
+			} else if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
 				(vpu_chip_type == VPU_CHIP_GXL) ||
 				(vpu_chip_type == VPU_CHIP_GXM) ||
 				(vpu_chip_type == VPU_CHIP_TXL)) {
-				vpu_vcbus_clr_mask(DI_CLKG_CTRL, 0x60200000);
+				vpu_vcbus_clr_mask(DI_CLKG_CTRL, 0x7d3e0003);
 			}
 		}
 		break;
@@ -557,7 +534,8 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 			if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
 				(vpu_chip_type == VPU_CHIP_GXL) ||
 				(vpu_chip_type == VPU_CHIP_GXM) ||
-				(vpu_chip_type == VPU_CHIP_TXL)) {
+				(vpu_chip_type == VPU_CHIP_TXL) ||
+				(vpu_chip_type == VPU_CHIP_TXLX)) {
 				vpu_vcbus_set_mask(VPP_GCLK_CTRL0, 0xc030);
 			}
 			vpu_vcbus_set_mask(VPP_GCLK_CTRL1, 0xfff);
@@ -573,7 +551,8 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 			if ((vpu_chip_type == VPU_CHIP_GXTVBB) ||
 				(vpu_chip_type == VPU_CHIP_GXL) ||
 				(vpu_chip_type == VPU_CHIP_GXM) ||
-				(vpu_chip_type == VPU_CHIP_TXL)) {
+				(vpu_chip_type == VPU_CHIP_TXL) ||
+				(vpu_chip_type == VPU_CHIP_TXLX)) {
 				vpu_vcbus_clr_mask(VPP_GCLK_CTRL0, 0xc030);
 			}
 			vpu_vcbus_clr_mask(VPP_GCLK_CTRL1, 0xfff);
@@ -595,7 +574,7 @@ void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag)
 
 	if (vpu_debug_print_flag) {
 		VPUPR("switch_vpu_clk_gate: %s %s\n",
-			vpu_mod_table[vpu_mod],
+			vpu_mod_table[vmod],
 			((flag == VPU_CLK_GATE_ON) ? "ON" : "OFF"));
 		dump_stack();
 	}
