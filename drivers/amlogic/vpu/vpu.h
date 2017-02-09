@@ -17,11 +17,13 @@
 
 #ifndef __VPU_PARA_H__
 #define __VPU_PARA_H__
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 /*#define VPU_DEBUG_PRINT*/
 
 #define VPUPR(fmt, args...)     pr_info("vpu: "fmt"", ## args)
-#define VPUERR(fmt, args...)    pr_info("vpu: error: "fmt"", ## args)
+#define VPUERR(fmt, args...)    pr_err("vpu: error: "fmt"", ## args)
 
 enum vpu_chip_e {
 	VPU_CHIP_M8 = 0,
@@ -34,20 +36,10 @@ enum vpu_chip_e {
 	VPU_CHIP_GXL,
 	VPU_CHIP_GXM,
 	VPU_CHIP_TXL,
+	VPU_CHIP_TXLX,
 	VPU_CHIP_MAX,
 };
-/*
-static char *vpu_chip_name[] = {
-	"m8",
-	"m8baby",
-	"m8m2",
-	"g9tv",
-	"g9baby",
-	"gxbaby",
-	"gxtvbaby",
-	"invalid",
-};
-*/
+
 struct vpu_conf_s {
 	unsigned int     clk_level_dft;
 	unsigned int     clk_level_max;
@@ -55,6 +47,9 @@ struct vpu_conf_s {
 	unsigned int     fclk_type;
 	unsigned int     mem_pd0;
 	unsigned int     mem_pd1;
+	struct clk       *clk_vpu_clk0;
+	struct clk       *clk_vpu_clk1;
+	struct clk       *clk_vpu_clk;
 };
 
 /* ************************************************ */
