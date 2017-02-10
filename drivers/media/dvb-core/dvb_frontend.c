@@ -126,8 +126,8 @@ static int LOCK_TIMEOUT = 2000;
 struct dvb_frontend_private {
 	/* thread/frontend values */
 	struct dvb_device *dvbdev;
-	struct dvb_frontend_parameters parameters_in;
-	struct dvb_frontend_parameters parameters_out;
+	struct dvb_frontend_parameters_ex parameters_in;
+	struct dvb_frontend_parameters_ex parameters_out;
 	struct dvb_fe_events events;
 	struct semaphore sem;
 	struct dvbsx_blindscan_events blindscan_events;
@@ -172,8 +172,19 @@ struct dvb_frontend_private {
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 static int dtv_get_frontend(struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p_out);
+static int dtv_get_frontend_ex(struct dvb_frontend *fe,
+			    struct dvb_frontend_parameters *p_out,
+			    struct dvb_frontend_parameters_ex *p_ex_out);
 static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
-					   struct dvb_frontend_parameters *p);
+			    struct dvb_frontend_parameters *p);
+static int dtv_property_legacy_params_sync_ex(struct dvb_frontend *fe,
+			    struct dvb_frontend_parameters_ex *p_ex);
+static int dtv_legacy_params_sync_from_ex(
+			    struct dvb_frontend_parameters *p,
+			    const struct dvb_frontend_parameters_ex *pext);
+static int dtv_legacy_params_sync_to_ex(
+			    struct dvb_frontend_parameters_ex *pext,
+			    const struct dvb_frontend_parameters *p);
 
 static bool has_get_frontend(struct dvb_frontend *fe)
 {
@@ -243,10 +254,10 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 
 	if (fe->dtv_property_cache.delivery_system == SYS_ANALOG) {
 		if ((status & FE_HAS_LOCK) && has_get_frontend(fe))
-			dtv_get_frontend(fe, &fepriv->parameters_out);
+			dtv_get_frontend_ex(fe, NULL, &fepriv->parameters_out);
 	} else{
 		if (/*(status & FE_HAS_LOCK) && */has_get_frontend(fe))
-			dtv_get_frontend(fe, &fepriv->parameters_out);
+			dtv_get_frontend_ex(fe, NULL, &fepriv->parameters_out);
 	}
 	mutex_lock(&events->mtx);
 
@@ -258,7 +269,8 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 
 	e = &events->events[events->eventw];
 	e->status = status;
-	e->parameters = fepriv->parameters_out;
+	dtv_legacy_params_sync_from_ex(&e->parameters, &fepriv->parameters_out);
+	/*e->parameters = fepriv->parameters_out;*/
 	events->eventw = wp;
 
 	mutex_unlock(&events->mtx);
@@ -1074,16 +1086,22 @@ restart:
 				/* Track the carrier if the search was successful */
 				if (fepriv->algo_status
 					== DVBFE_ALGO_SEARCH_SUCCESS) {
-					if (fe->ops.track)
-						fe->ops.track(fe,
-						&fepriv->parameters_in);
+					if (fe->ops.track) {
+						struct dvb_frontend_parameters
+									para;
+						dtv_legacy_params_sync_from_ex(
+							&para,
+							&fepriv->parameters_in);
+						fe->ops.track(fe, &para);
+					}
 					s = FE_HAS_LOCK;
 				} else {
 			/*fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;*/
 					fepriv->delay = HZ / 2;
 					s = FE_TIMEDOUT;
 				}
-				dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
+				dtv_property_legacy_params_sync_ex(fe,
+					&fepriv->parameters_out);
 				/*fe->ops.read_status(fe, &s);*/
 				if (s != fepriv->status) {
 					dvb_frontend_add_event(fe, s); /* update event list */
@@ -1649,7 +1667,6 @@ static int dtv_property_cache_sync(struct dvb_frontend *fe,
 		c->transmission_mode = p->u.ofdm.transmission_mode;
 		c->guard_interval = p->u.ofdm.guard_interval;
 		c->hierarchy = p->u.ofdm.hierarchy_information;
-		c->ofdm_mode = p->u.ofdm.ofdm_mode;
 		break;
 	case DVBV3_ATSC:
 		dev_dbg(fe->dvb->device, "%s: Preparing ATSC req\n", __func__);
@@ -1661,19 +1678,13 @@ static int dtv_property_cache_sync(struct dvb_frontend *fe,
 		else
 			c->delivery_system = SYS_DVBC_ANNEX_B;
 		break;
-	case DVBV3_ANALOG:
-		c->analog.soundsys  = p->u.analog.soundsys;
-		c->analog.audmode   = p->u.analog.audmode;
-		c->analog.std       = p->u.analog.std;
-		c->analog.flag      = p->u.analog.flag;
-		c->analog.afc_range = p->u.analog.afc_range;
-		c->analog.reserved  = p->u.analog.reserved;
-		break;
 	case DVBV3_UNKNOWN:
 		dev_err(fe->dvb->device,
 				"%s: doesn't know how to handle a DVBv3 call to delivery system %i\n",
 				__func__, c->delivery_system);
 		return -EINVAL;
+	default:
+		break;
 	}
 
 	return 0;
@@ -1738,11 +1749,75 @@ static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
 		p->u.ofdm.transmission_mode = c->transmission_mode;
 		p->u.ofdm.guard_interval = c->guard_interval;
 		p->u.ofdm.hierarchy_information = c->hierarchy;
-		p->u.ofdm.ofdm_mode = c->ofdm_mode;
 		break;
 	case DVBV3_ATSC:
 		dev_dbg(fe->dvb->device, "%s: Preparing VSB req\n", __func__);
 		p->u.vsb.modulation = c->modulation;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int dtv_legacy_params_sync_from_ex(
+	struct dvb_frontend_parameters *p,
+	const struct dvb_frontend_parameters_ex *pext)
+{
+	memcpy(p, pext, sizeof(*p));
+	return 0;
+}
+
+static int dtv_legacy_params_sync_to_ex(
+	struct dvb_frontend_parameters_ex *pext,
+	const struct dvb_frontend_parameters *p)
+{
+	memcpy(pext, p, sizeof(*p));
+	return 0;
+}
+
+static int dtv_property_cache_sync_ex(struct dvb_frontend *fe,
+				   struct dtv_frontend_properties *c,
+				   const struct dvb_frontend_parameters_ex *p)
+{
+	struct dvb_frontend_parameters org;
+
+	switch (dvbv3_type(c->delivery_system)) {
+	case DVBV3_OFDM:
+		c->ofdm_mode = p->u.ofdm.ofdm_mode;
+		break;
+	case DVBV3_ANALOG:
+		c->analog.soundsys  = p->u.analog.soundsys;
+		c->analog.audmode   = p->u.analog.audmode;
+		c->analog.std       = p->u.analog.std;
+		c->analog.flag      = p->u.analog.flag;
+		c->analog.afc_range = p->u.analog.afc_range;
+		c->analog.reserved  = p->u.analog.reserved;
+		break;
+	default:
+		break;
+	}
+
+	dtv_legacy_params_sync_from_ex(&org, p);
+
+	return dtv_property_cache_sync(fe, c, &org);
+}
+
+static int dtv_property_legacy_params_sync_ex(struct dvb_frontend *fe,
+					struct dvb_frontend_parameters_ex *p)
+{
+	const struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct dvb_frontend_parameters org;
+
+	int ret = dtv_property_legacy_params_sync(fe, &org);
+	if (ret != 0)
+		return ret;
+
+	dtv_legacy_params_sync_to_ex(p, &org);
+
+	switch (dvbv3_type(c->delivery_system)) {
+	case DVBV3_OFDM:
+		p->u.ofdm.ofdm_mode = c->ofdm_mode;
 		break;
 	case DVBV3_ANALOG:
 		p->u.analog.soundsys = c->analog.soundsys;
@@ -1752,8 +1827,31 @@ static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
 		p->u.analog.afc_range = c->analog.afc_range;
 		p->u.analog.reserved = c->analog.reserved;
 		break;
-
+	default:
+		break;
 	}
+	return 0;
+}
+
+
+static int dtv_get_frontend_ex(struct dvb_frontend *fe,
+			    struct dvb_frontend_parameters *p_out,
+			    struct dvb_frontend_parameters_ex *p_ex_out)
+{
+	int r;
+
+	if (fe->ops.get_frontend) {
+		r = fe->ops.get_frontend(fe);
+		if (unlikely(r < 0))
+			return r;
+		if (p_out)
+			dtv_property_legacy_params_sync(fe, p_out);
+		if (p_ex_out)
+			dtv_property_legacy_params_sync_ex(fe, p_ex_out);
+		return 0;
+	}
+
+	/* As everything is in cache, get_frontend fops are always supported */
 	return 0;
 }
 
@@ -1770,19 +1868,7 @@ static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
 static int dtv_get_frontend(struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p_out)
 {
-	int r;
-
-	if (fe->ops.get_frontend) {
-		r = fe->ops.get_frontend(fe);
-		if (unlikely(r < 0))
-			return r;
-		if (p_out)
-			dtv_property_legacy_params_sync(fe, p_out);
-		return 0;
-	}
-
-	/* As everything is in cache, get_frontend fops are always supported */
-	return 0;
+	return dtv_get_frontend_ex(fe, p_out, NULL);
 }
 
 static int dvb_frontend_ioctl_legacy(struct file *file,
@@ -2630,7 +2716,7 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 	 * the user. FE_SET_FRONTEND triggers an initial frontend event
 	 * with status = 0, which copies output parameters to userspace.
 	 */
-	dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
+	dtv_property_legacy_params_sync_ex(fe, &fepriv->parameters_out);
 
 	/*
 	 * Be sure that the bandwidth will be filled for all
@@ -2973,16 +3059,12 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 
 	case FE_SET_FRONTEND:
-		if (disable_set_frotend_param)
-			break;
-		dev_dbg(fe->dvb->device, "FE_SET_FRONTEND\n");
 		err = dvbv3_set_delivery_system(fe);
 		if (err)
 			break;
 		err = dtv_property_cache_sync(fe, c, parg);
 		if (err)
 			break;
-		jiffiestime = jiffies_to_msecs(jiffies);
 		err = dtv_set_frontend(fe);
 		break;
 
@@ -2997,6 +3079,24 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	case FE_SET_FRONTEND_TUNE_MODE:
 		fepriv->tune_mode_flags = (unsigned long) parg;
 		err = 0;
+		break;
+
+	case FE_SET_FRONTEND_EX:
+		if (disable_set_frotend_param)
+			break;
+		dev_dbg(fe->dvb->device, "FE_SET_FRONTEND\n");
+		err = dvbv3_set_delivery_system(fe);
+		if (err)
+			break;
+		err = dtv_property_cache_sync_ex(fe, c, parg);
+		if (err)
+			break;
+		jiffiestime = jiffies_to_msecs(jiffies);
+		err = dtv_set_frontend(fe);
+		break;
+
+	case FE_GET_FRONTEND_EX:
+		err = dtv_get_frontend_ex(fe, NULL, parg);
 		break;
 
 	case FE_SET_DELAY:
