@@ -110,6 +110,11 @@ struct rx_cap {
 		unsigned char side_by_side;
 	} support_3d_format[VIC_MAX_NUM];
 	struct dv_info dv_info;
+	enum hdmi_vic preferred_mode;
+	struct dtd dtd[16];
+	unsigned char dtd_idx;
+	unsigned char flag_vfpdb;
+	unsigned char number_of_dtd;
 	/*blk0 check sum*/
 	unsigned char blk0_chksum;
 };
@@ -425,7 +430,7 @@ extern int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 
 bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	struct hdmi_format_para *para);
-
+extern const char *hdmitx_edid_vic_to_string(enum hdmi_vic vic);
 extern void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device);
 
 extern void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device);
