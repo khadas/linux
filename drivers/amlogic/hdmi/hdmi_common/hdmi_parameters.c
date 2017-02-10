@@ -1053,6 +1053,33 @@ struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic)
 	return &fmt_para_non_hdmi_fmt;
 }
 
+struct hdmi_format_para *hdmi_match_dtd_paras(struct dtd *t)
+{
+	int i;
+
+	if (!t)
+		return NULL;
+	for (i = 0; all_fmt_paras[i]; i++) {
+		/*
+		 * struct hdmi_format_para.timing.pixel_freq must divide 10
+		 * to match with t->pixel_clock
+		 */
+		if ((t->pixel_clock == all_fmt_paras[i]->timing.pixel_freq / 10)
+		    && (t->h_active == all_fmt_paras[i]->timing.h_active) &&
+		    (t->h_blank == all_fmt_paras[i]->timing.h_blank) &&
+		    (t->v_active == all_fmt_paras[i]->timing.v_active) &&
+		    (t->v_blank == all_fmt_paras[i]->timing.v_blank) &&
+		    (t->h_sync_offset == all_fmt_paras[i]->timing.h_front) &&
+		    (t->h_sync == all_fmt_paras[i]->timing.h_sync) &&
+		    (t->v_sync_offset == all_fmt_paras[i]->timing.v_front) &&
+		    (t->v_sync == all_fmt_paras[i]->timing.v_sync)
+		    )
+			return all_fmt_paras[i];
+	}
+
+	return NULL;
+}
+
 static struct parse_cd parse_cd_[] = {
 	{COLORDEPTH_24B, "8bit",},
 	{COLORDEPTH_30B, "10bit"},

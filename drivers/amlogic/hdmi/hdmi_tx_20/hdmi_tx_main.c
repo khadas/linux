@@ -926,6 +926,9 @@ static ssize_t show_rawedid(struct device *dev,
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int num;
 
+	/* prevent null prt */
+	if (!hdev->edid_ptr)
+		hdev->edid_ptr = hdev->EDID_buf;
 	if (hdev->edid_ptr[0x7e] < 4)
 		num = (hdev->edid_ptr[0x7e]+1)*0x80;
 	else
@@ -1328,6 +1331,17 @@ static ssize_t show_disp_cap(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_preferred_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct rx_cap *pRXCap = &hdmitx_device.RXCap;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n",
+		hdmitx_edid_vic_to_string(pRXCap->preferred_mode));
+
+	return pos;
+}
 
 /**/
 static int local_support_3dfp(enum hdmi_vic vic)
@@ -2139,6 +2153,7 @@ static DEVICE_ATTR(config, S_IWUSR | S_IRUGO | S_IWGRP, show_config,
 	store_config);
 static DEVICE_ATTR(debug, S_IWUSR, NULL, store_debug);
 static DEVICE_ATTR(disp_cap, S_IRUGO, show_disp_cap, NULL);
+static DEVICE_ATTR(preferred_mode, S_IRUGO, show_preferred_mode, NULL);
 static DEVICE_ATTR(aud_cap, S_IRUGO, show_aud_cap, NULL);
 static DEVICE_ATTR(hdr_cap, S_IRUGO, show_hdr_cap, NULL);
 static DEVICE_ATTR(dv_cap, S_IRUGO, show_dv_cap, NULL);
@@ -2447,12 +2462,9 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 		hdev->HWOp.CntlDDC(hdev, DDC_EDID_GET_DATA, 1);
 		hdev->HWOp.CntlDDC(hdev, DDC_PIN_MUX_OP, PIN_UNMUX);
 	}
-	if (!check_dvi_hdmi_edid_valid(hdev->EDID_buf)) {
-		/* compare EDID_buf & EDID_buf1 */
-		hdmitx_edid_buf_compare_print(hdev);
-	}
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_parse(hdev);
+	hdmitx_edid_buf_compare_print(hdev);
 	mutex_unlock(&getedid_mutex);
 }
 
@@ -3028,6 +3040,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_disp_cap);
+	ret = device_create_file(dev, &dev_attr_preferred_mode);
 	ret = device_create_file(dev, &dev_attr_disp_cap_3d);
 	ret = device_create_file(dev, &dev_attr_aud_cap);
 	ret = device_create_file(dev, &dev_attr_hdr_cap);
@@ -3240,6 +3253,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_disp_cap);
+	device_remove_file(dev, &dev_attr_preferred_mode);
 	device_remove_file(dev, &dev_attr_disp_cap_3d);
 	device_remove_file(dev, &dev_attr_hdr_cap);
 	device_remove_file(dev, &dev_attr_dv_cap);
