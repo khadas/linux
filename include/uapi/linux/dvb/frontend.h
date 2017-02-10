@@ -39,13 +39,6 @@ typedef enum fe_type {
 	FE_ISDBT
 } fe_type_t;
 
-enum fe_layer {
-	Layer_A_B_C,
-	Layer_A,
-	Layer_B,
-	Layer_C,
-};
-
 enum fe_caps {
 	FE_IS_STUPID = 0,
 	FE_CAN_INVERSION_AUTO = 0x1,
@@ -251,11 +244,6 @@ enum fe_interleaving {
 	INTERLEAVING_720,
 };
 
-enum fe_ofdm_mode {
-	OFDM_DVBT,
-	OFDM_DVBT2,
-};
-
 /*#if defined(__DVB_CORE__) || !defined (__KERNEL__)*/
 struct dvb_qpsk_parameters {
 	__u32 symbol_rate;	/* symbol rate in Symbols per second */
@@ -287,21 +275,6 @@ struct dvb_ofdm_parameters {
 	enum fe_transmit_mode transmission_mode;
 	enum fe_guard_interval guard_interval;
 	enum fe_hierarchy hierarchy_information;
-	enum fe_ofdm_mode ofdm_mode;
-};
-
-#define ANALOG_FLAG_ENABLE_AFC                 0X00000001
-#define  ANALOG_FLAG_MANUL_SCAN                0x00000011
-struct dvb_analog_parameters {
-	/*V4L2_TUNER_MODE_MONO,V4L2_TUNER_MODE_STEREO,
-	   V4L2_TUNER_MODE_LANG2,V4L2_TUNER_MODE_SAP,
-	   V4L2_TUNER_MODE_LANG1,V4L2_TUNER_MODE_LANG1_LANG2 */
-	unsigned int audmode;
-	unsigned int soundsys;	/*A2,BTSC,EIAJ,NICAM */
-	v4l2_std_id std;
-	unsigned int flag;
-	unsigned int afc_range;
-	unsigned int reserved;
 };
 
 struct dvb_frontend_parameters {
@@ -314,7 +287,6 @@ struct dvb_frontend_parameters {
 		struct dvb_qam_parameters qam;
 		struct dvb_ofdm_parameters ofdm;
 		struct dvb_vsb_parameters vsb;
-		struct dvb_analog_parameters analog;
 	} u;
 };
 
@@ -452,9 +424,9 @@ typedef enum fe_delivery_system {
 	SYS_CMMB,
 	SYS_DAB,
 	SYS_DVBT2,
-	SYS_ANALOG,
 	SYS_TURBO,
-	SYS_DVBC_ANNEX_C
+	SYS_DVBC_ANNEX_C,
+	SYS_ANALOG
 } fe_delivery_system_t;
 
 /* backward compatibility */
@@ -599,6 +571,11 @@ struct dtv_properties {
 		__u64 reserved;
 	};
 };
+
+#define FE_SET_PROPERTY		   _IOW('o', 82, struct dtv_properties)
+#define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
+
+
 /* for atv */
 struct tuner_status_s {
 	unsigned int frequency;
@@ -654,8 +631,59 @@ struct tuner_param_s {
 	unsigned int resvred;
 };
 
-#define FE_SET_PROPERTY		   _IOW('o', 82, struct dtv_properties)
-#define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
+enum fe_ofdm_mode {
+	OFDM_DVBT,
+	OFDM_DVBT2,
+};
+
+enum fe_layer {
+	Layer_A_B_C,
+	Layer_A,
+	Layer_B,
+	Layer_C,
+};
+
+struct dvb_ofdm_parameters_ex {
+	enum fe_bandwidth bandwidth;
+	/* high priority stream code rate */
+	enum fe_code_rate code_rate_HP;
+	/* low priority stream code rate */
+	enum fe_code_rate code_rate_LP;
+	/* modulation type (see above) */
+	enum fe_modulation constellation;
+	enum fe_transmit_mode transmission_mode;
+	enum fe_guard_interval guard_interval;
+	enum fe_hierarchy hierarchy_information;
+	enum fe_ofdm_mode ofdm_mode;
+};
+
+#define ANALOG_FLAG_ENABLE_AFC                 0X00000001
+#define  ANALOG_FLAG_MANUL_SCAN                0x00000011
+struct dvb_analog_parameters {
+	/*V4L2_TUNER_MODE_MONO,V4L2_TUNER_MODE_STEREO,
+	   V4L2_TUNER_MODE_LANG2,V4L2_TUNER_MODE_SAP,
+	   V4L2_TUNER_MODE_LANG1,V4L2_TUNER_MODE_LANG1_LANG2 */
+	unsigned int audmode;
+	unsigned int soundsys;	/*A2,BTSC,EIAJ,NICAM */
+	v4l2_std_id std;
+	unsigned int flag;
+	unsigned int afc_range;
+	unsigned int reserved;
+};
+
+struct dvb_frontend_parameters_ex {
+	/* (absolute) frequency in Hz for QAM/OFDM/ATSC */
+	__u32 frequency;
+	/* intermediate frequency in kHz for QPSK */
+	fe_spectral_inversion_t inversion;
+	union {
+		struct dvb_qpsk_parameters qpsk;
+		struct dvb_qam_parameters qam;
+		struct dvb_ofdm_parameters_ex ofdm;
+		struct dvb_vsb_parameters vsb;
+		struct dvb_analog_parameters analog;
+	} u;
+};
 
 /* Satellite blind scan settings */
 struct dvbsx_blindscanpara {
@@ -693,7 +721,7 @@ struct dvbsx_blindscanevent {
 		__u32 m_uistartfreq_khz;
 		/* The start scan frequency in units of kHz.
 		   The minimum value depends on the tuner specification. */
-		struct dvb_frontend_parameters parameters;
+		struct dvb_frontend_parameters_ex parameters;
 		/* Blind scan channel info. */
 	} u;
 };
@@ -710,6 +738,7 @@ struct dvbsx_blindscanevent {
  * reopened read-write.
  */
 #define FE_TUNE_MODE_ONESHOT 0x01
+
 
 #define FE_GET_INFO		   _IOR('o', 61, struct dvb_frontend_info)
 
@@ -745,4 +774,8 @@ struct dvbsx_blindscanevent {
 #define FE_READ_TS                 _IOR('o', 96, int)
 /*set & get the tuner parameters only atv*/
 #define FE_SET_PARAM_BOX           _IOWR('o', 97, struct tuner_param_s)
+
+#define FE_SET_FRONTEND_EX     _IOW('o', 101, struct dvb_frontend_parameters_ex)
+#define FE_GET_FRONTEND_EX     _IOR('o', 102, struct dvb_frontend_parameters_ex)
+
 #endif /*_DVBFRONTEND_H_*/
