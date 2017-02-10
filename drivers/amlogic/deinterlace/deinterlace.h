@@ -476,6 +476,7 @@ struct di_dev_s {
 	unsigned int	   di_irq;
 	unsigned int	   flags;
 	unsigned int	   timerc_irq;
+	unsigned long	   jiffy;
 	unsigned long	   mem_start;
 	unsigned int	   mem_size;
 	unsigned int	   buffer_size;

@@ -322,7 +322,7 @@ static int start_frame_drop_count = 2;
 static int force_trig_cnt;
 static int di_process_cnt;
 static int video_peek_cnt;
-static int force_bob_flag;
+static unsigned long reg_unreg_timeout_cnt;
 int di_vscale_skip_count = 0;
 int di_vscale_skip_count_real = 0;
 static int vpp_3d_mode;
@@ -413,7 +413,9 @@ static struct vframe_provider_s di_vf_prov;
 
 int di_sema_init_flag = 0;
 static struct semaphore di_sema;
-
+#ifdef USE_HRTIMER
+static struct tasklet_struct di_pre_tasklet;
+#endif
 void trigger_pre_di_process(char idx)
 {
 	if (di_sema_init_flag == 0)
@@ -424,28 +426,21 @@ void trigger_pre_di_process(char idx)
 			"put" : ((idx == 'r') ? "rdy" : "oth")));
 
 #if (defined RUN_DI_PROCESS_IN_IRQ)
+#ifdef USE_HRTIMER
+	/* tasklet_hi_schedule(&di_pre_tasklet); */
+	tasklet_schedule(&di_pre_tasklet);
+	de_devp->jiffy = jiffies_64;
+#else
 	aml_write_cbus(ISA_TIMERC, 1);
+#endif
 	/* trigger di_reg_process and di_unreg_process */
 	if ((idx != 'p') && (idx != 'i'))
 		up(&di_sema);
 #endif
 }
 
-#define DI_PRE_INTERVAL         (HZ / 100)
-
-static struct timer_list di_pre_timer;
-static struct work_struct di_pre_work;
 static unsigned int di_printk_flag;
-
-static void di_pre_timer_cb(unsigned long arg)
-{
-	struct timer_list *timer = (struct timer_list *)arg;
-
-	schedule_work(&di_pre_work);
-
-	timer->expires = jiffies + DI_PRE_INTERVAL;
-	add_timer(timer);
-}
+#define DI_PRE_INTERVAL         (HZ / 100)
 
 
 static void set_output_mode_info(void)
@@ -726,7 +721,6 @@ static unsigned int di_printk_flag;
 unsigned int di_log_flag = 0;
 unsigned int buf_state_log_threshold = 16;
 unsigned int buf_state_log_start = 0;
-static unsigned int timerc_cnt;
 /*  set to 1 by condition of "post_ready count < buf_state_log_threshold",
  * reset to 0 by set buf_state_log_threshold as 0 */
 
@@ -3328,6 +3322,7 @@ static void dump_state(void)
 		vf_peek(VFM_NAME), di_process_cnt);
 	pr_info("video_peek_cnt = %d,force_trig_cnt = %d\n",
 		video_peek_cnt, force_trig_cnt);
+	pr_info("reg_unreg_timerout = %lu\n", reg_unreg_timeout_cnt);
 	dump_state_flag = 0;
 }
 
@@ -8167,10 +8162,14 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
  */
 static void di_unreg_process(void)
 {
+	unsigned long start_jiffes = 0;
 	if (reg_flag) {
 		field_count = 0;
 		pr_dbg("%s unreg start %d.\n", __func__, reg_flag);
+		start_jiffes = jiffies_64;
 		vf_unreg_provider(&di_vf_prov);
+		pr_dbg("%s vf unreg cost %u ms.\n", __func__,
+			jiffies_to_msecs(jiffies_64 - start_jiffes));
 		reg_flag = 0;
 		unreg_cnt++;
 		if (unreg_cnt > 0x3fffffff)
@@ -8184,13 +8183,13 @@ static void di_unreg_process(void)
 		di_pre_stru.disable_req_flag = 0;
 		recovery_flag = 0;
 		di_pre_stru.unreg_req_flag = 0;
+		trigger_pre_di_process(TRIGGER_PRE_BY_UNREG);
 	}
 }
 
 static void di_unreg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
-	pr_dbg("%s unreg irq start.\n", __func__);
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
 	spin_lock_irqsave(&plist_lock, flags);
 #endif
@@ -8247,7 +8246,6 @@ static void di_unreg_process_irq(void)
 #endif
 	di_pre_stru.unreg_req_flag = 0;
 	di_pre_stru.unreg_req_flag_irq = 0;
-	pr_info("%s unreg irq stop.\n", __func__);
 }
 
 static void di_reg_process(void)
@@ -8538,29 +8536,29 @@ static void di_process(void)
 }
 static unsigned int nr_done_check_cnt = 5;
 module_param_named(nr_done_check_cnt, nr_done_check_cnt, uint, 0644);
-void di_timer_handle(struct work_struct *work)
+static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 {
 
-	if (di_pre_stru.pre_de_busy) {
-		di_pre_stru.pre_de_busy_timer_count++;
-		if (di_pre_stru.pre_de_busy_timer_count >= nr_done_check_cnt) {
+	if (pre_stru_p->pre_de_busy) {
+		pre_stru_p->pre_de_busy_timer_count++;
+		if (pre_stru_p->pre_de_busy_timer_count >= nr_done_check_cnt) {
 			enable_di_pre_mif(0);
-			di_pre_stru.pre_de_busy_timer_count = 0;
-			di_pre_stru.pre_de_irq_timeout_count++;
+			pre_stru_p->pre_de_busy_timer_count = 0;
+			pre_stru_p->pre_de_irq_timeout_count++;
 			if (timeout_miss_policy == 0) {
-				di_pre_stru.pre_de_process_done = 1;
-				di_pre_stru.pre_de_busy = 0;
-				di_pre_stru.pre_de_clear_flag = 2;
+				pre_stru_p->pre_de_process_done = 1;
+				pre_stru_p->pre_de_busy = 0;
+				pre_stru_p->pre_de_clear_flag = 2;
 			} else if (timeout_miss_policy == 1) {
-				di_pre_stru.pre_de_clear_flag = 1;
-				di_pre_stru.pre_de_busy = 0;
+				pre_stru_p->pre_de_clear_flag = 1;
+				pre_stru_p->pre_de_busy = 0;
 			} /* else if (timeout_miss_policy == 2) {
 			   * }*/
 			pr_info("***** DI ****** wait %d pre_de_irq timeout\n",
-				di_pre_stru.field_count_for_cont);
+				pre_stru_p->field_count_for_cont);
 		}
 	} else {
-		di_pre_stru.pre_de_busy_timer_count = 0;
+		pre_stru_p->pre_de_busy_timer_count = 0;
 	}
 
 	/* if(force_trig){ */
@@ -8592,13 +8590,10 @@ static int di_task_handle(void *data)
 				di_pre_stru.force_unreg_req_flag ||
 				di_pre_stru.disable_req_flag) &&
 				(di_pre_stru.pre_de_busy == 0)) {
-				pr_dbg("%s,up enter unreg process.\n",
-					__func__);
 				di_unreg_process();
 			}
 			if (di_pre_stru.reg_req_flag_irq ||
 				di_pre_stru.reg_req_flag) {
-				pr_dbg("%s,up enter reg process.\n", __func__);
 				di_reg_process();
 				di_pre_stru.reg_req_flag = 0;
 				di_pre_stru.reg_req_flag_irq = 0;
@@ -8623,24 +8618,60 @@ static int di_task_handle(void *data)
 	return 0;
 }
 
-static irqreturn_t timer_irq(int irq, void *dev_instance)
+static void di_pre_process_irq(struct di_pre_stru_s *pre_stru_p)
 {
-/* unsigned int data32; */
 	int i;
-	timerc_cnt++;
 	if (active_flag) {
-		if (di_pre_stru.unreg_req_flag_irq)
+		if (pre_stru_p->unreg_req_flag_irq)
 			di_unreg_process_irq();
-		if (init_flag == 0 && di_pre_stru.reg_req_flag_irq == 0)
+		if (init_flag == 0 && pre_stru_p->reg_req_flag_irq == 0)
 			di_reg_process_irq();
 	}
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < 2; i++) {
 		if (active_flag)
 			di_process();
+	}
 	log_buffer_state("pro");
+}
+#ifdef USE_HRTIMER
+static struct hrtimer di_pre_hrtimer;
+static void pre_tasklet(unsigned long arg)
+{
+	if (jiffies_to_msecs(jiffies_64 - de_devp->jiffy) > 10)
+		pr_err("DI: tasklet schedule over 10ms.\n");
+	di_pre_process_irq((struct di_pre_stru_s *)arg);
+}
+
+static enum hrtimer_restart di_pre_hrtimer_func(struct hrtimer *timer)
+{
+	di_pre_trigger_work(&di_pre_stru);
+	hrtimer_forward_now(&di_pre_hrtimer, ms_to_ktime(10));
+	return HRTIMER_RESTART;
+}
+#else
+static struct timer_list di_pre_timer;
+static struct work_struct di_pre_work;
+static void di_pre_timer_cb(unsigned long arg)
+{
+	struct timer_list *timer = (struct timer_list *)arg;
+	schedule_work(&di_pre_work);
+	timer->expires = jiffies + DI_PRE_INTERVAL;
+	add_timer(timer);
+}
+
+static void di_per_work_func(struct work_struct *work)
+{
+	di_pre_trigger_work(&di_pre_stru);
+}
+
+static irqreturn_t timer_irq(int irq, void *dev_instance)
+{
+	di_pre_process_irq(&di_pre_stru);
 	return IRQ_HANDLED;
 }
+
+#endif
 /*
  * provider/receiver interface
  */
@@ -8663,17 +8694,16 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		bypass_dynamic_flag = 0;
 		post_ready_empty_count = 0;
 		vdin_source_flag = 0;
+		di_pre_stru.pre_de_busy = 0;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
 		di_pre_stru.unreg_req_flag_cnt = 0;
 		while (di_pre_stru.unreg_req_flag) {
 			usleep_range(10000, 10001);
-			di_pr_info("%s:unreg_req_flag_cnt:%d timerc_cnt %u!!!\n",
-			__func__, di_pre_stru.unreg_req_flag_cnt, timerc_cnt);
 			if (di_pre_stru.unreg_req_flag_cnt++ >
 				di_reg_unreg_cnt) {
-				di_pr_info("%s:unreg_reg_flag timeout!!!\n",
+				reg_unreg_timeout_cnt++;
+				pr_dbg("%s:unreg_reg_flag timeout!!!\n",
 					__func__);
-				dump_di_pre_stru();
 				break;
 			}
 		}
@@ -8860,20 +8890,19 @@ light_unreg:
 		di_pre_stru.reg_req_flag_cnt = 0;
 		while (di_pre_stru.reg_req_flag) {
 			usleep_range(10000, 10001);
-			di_pr_info("%s:reg_req_flag_cnt:%d!!!\n",
-				__func__, di_pre_stru.reg_req_flag_cnt);
 			if (di_pre_stru.reg_req_flag_cnt++ > di_reg_unreg_cnt) {
-				di_pr_info("%s:reg_req_flag timeout!!!\n",
+				reg_unreg_timeout_cnt++;
+				pr_dbg("%s:reg_req_flag timeout!!!\n",
 					__func__);
 				break;
 			}
 		}
-
+#ifndef USE_HRTIMER
 		aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 14, 0 << 14);
 		aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 4, 0 << 4);
 		aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 1 << 18);
 		aml_write_cbus(ISA_TIMERC, 1);
-
+#endif
 		if (strncmp(provider_name, "vdin", 4) == 0) {
 			vdin_source_flag = 1;
 		} else {
@@ -9597,17 +9626,22 @@ static int di_probe(struct platform_device *pdev)
 /* Disable MCDI when code does not surpport MCDI */
 	if (!mcpre_en)
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 1);
-/* timer */
-	INIT_WORK(&di_pre_work, di_timer_handle);
+#ifdef USE_HRTIMER
+	tasklet_init(&di_pre_tasklet, pre_tasklet,
+		(unsigned long)(&di_pre_stru));
+	tasklet_disable(&di_pre_tasklet);
+	hrtimer_init(&di_pre_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	di_pre_hrtimer.function = di_pre_hrtimer_func;
+	hrtimer_start(&di_pre_hrtimer, ms_to_ktime(10), HRTIMER_MODE_REL);
+	tasklet_enable(&di_pre_tasklet);
+#else
+	/* timer */
+	INIT_WORK(&di_pre_work, di_per_work_func);
 	init_timer(&di_pre_timer);
 	di_pre_timer.data = (ulong) &di_pre_timer;
 	di_pre_timer.function = di_pre_timer_cb;
 	di_pre_timer.expires = jiffies + DI_PRE_INTERVAL;
 	add_timer(&di_pre_timer);
-/**/
-	di_devp->task = kthread_run(di_task_handle, di_devp, "kthread_di");
-	di_pr_info("%s here.\n", __func__);
-
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 14, 0 << 14);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 4, 0 << 4);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 1 << 18);
@@ -9615,6 +9649,10 @@ static int di_probe(struct platform_device *pdev)
 	ret = request_irq(di_devp->timerc_irq, &timer_irq,
 		IRQF_SHARED, "timerC",
 		(void *)"timerC");
+#endif
+	di_devp->task = kthread_run(di_task_handle, di_devp, "kthread_di");
+	if (IS_ERR(di_devp->task))
+		pr_err("%s create kthread error.\n", __func__);
 	di_set_power_control(0, 0);
 	di_set_power_control(1, 0);
 fail_kmalloc_dev:
@@ -9630,6 +9668,13 @@ static int di_remove(struct platform_device *pdev)
 	di_hw_uninit();
 	di_devp->di_event = 0xff;
 	kthread_stop(di_devp->task);
+#ifdef USE_HRTIMER
+	hrtimer_cancel(&di_pre_hrtimer);
+	tasklet_disable(&di_pre_tasklet);
+	tasklet_kill(&di_pre_tasklet);
+#else
+	del_timer(&di_pre_timer);
+#endif
 #ifdef CONFIG_AML_RDMA
 /* rdma handle */
 	if (di_devp->rdma_handle > 0)
@@ -9666,8 +9711,9 @@ static int save_init_flag;
 static int save_mem_flag;
 static int di_suspend(struct platform_device *pdev, pm_message_t state)
 {
+#ifndef USE_HRTIMER
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
-
+#endif
 
 /* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
@@ -9700,11 +9746,12 @@ static int di_resume(struct platform_device *pdev)
 		di_set_power_control(0, 1);
 		di_set_power_control(1, 1);
 	}
-
+#ifndef USE_HRTIMER
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 14, 0 << 14);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 3 << 4, 0 << 4);
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 1 << 18);
 	aml_write_cbus(ISA_TIMERC, 1);
+#endif
 	di_pr_info("di_hdmirx: resume module\n");
 	return 0;
 }
@@ -9885,9 +9932,6 @@ module_param(buf_state_log_threshold, int, 0664);
 
 MODULE_PARM_DESC(bypass_state, "\n bypass_state\n");
 module_param(bypass_state, uint, 0664);
-
-MODULE_PARM_DESC(force_bob_flag, "\n force_bob_flag\n");
-module_param(force_bob_flag, uint, 0664);
 
 MODULE_PARM_DESC(di_vscale_skip_enable, "\n di_vscale_skip_enable\n");
 module_param(di_vscale_skip_enable, uint, 0664);
