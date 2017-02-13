@@ -2909,6 +2909,8 @@ static int __init amvdec_h264_driver_init_module(void)
 		amvdec_h264_profile.profile = "4k";
 		dpb_size_adj = 0;
 	}
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXBB)
+		dpb_size_adj = 0;
 
 	vcodec_profile_register(&amvdec_h264_profile);
 	return 0;
