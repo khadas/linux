@@ -1419,6 +1419,16 @@
 		amlogic,clrmask = <4 0x00002000 3 0x00200000>;
 		amlogic,pins = "GPIOZ_7";
 	};
+	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
+		amlogic,setmask = <4 0x00008000>;
+		amlogic,clrmask = <4 0x00010000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_6";
+	};
+	bl_pwm_combo_1_vs_on_pins:bl_pwm_combo_1_vs_on_pin {
+		amlogic,setmask = <4 0x00002000>;
+		amlogic,clrmask = <4 0x00004000 3 0x00200000>;
+		amlogic,pins = "GPIOZ_7";
+	};
 };
 
 &audio_data{

@@ -414,11 +414,15 @@ static void bl_gpio_multiplex_set(int index, int value)
 }
 /* ****************************************************** */
 static char *bl_pinmux_str[] = {
-	"pwm_on",           /* 0 */
-	"pwm_vs_on",        /* 1 */
-	"pwm_combo_on",     /* 2 */
-	"pwm_combo_0_on",   /* 3 */
-	"pwm_combo_1_on",   /* 4 */
+	"pwm_on",               /* 0 */
+	"pwm_vs_on",            /* 1 */
+	"pwm_combo_0_1_on",     /* 2 */
+	"pwm_combo_0_vs_1_on",  /* 3 */
+	"pwm_combo_0_1_vs_on",  /* 4 */
+	"pwm_combo_0_on",       /* 5 */
+	"pwm_combo_0_vs_on",    /* 6 */
+	"pwm_combo_1_on",       /* 7 */
+	"pwm_combo_1_vs_on",    /* 8 */
 };
 
 static void bl_pwm_pinmux_gpio_set(int pwm_index, int gpio_level)
@@ -439,15 +443,21 @@ static void bl_pwm_pinmux_gpio_set(int pwm_index, int gpio_level)
 	case BL_CTRL_PWM_COMBO:
 		if (pwm_index == 0) {
 			bl_pwm = bconf->bl_pwm_combo0;
-			if (bconf->bl_pwm_combo1->pinmux_flag > 0)
-				index = 4;
-			else
+			if (bconf->bl_pwm_combo1->pinmux_flag > 0) {
+				if (bconf->bl_pwm_combo1->pwm_port == BL_PWM_VS)
+					index = 8;
+				else
+					index = 7;
+			} else
 				index = 0xff;
 		} else {
 			bl_pwm = bconf->bl_pwm_combo1;
-			if (bconf->bl_pwm_combo0->pinmux_flag > 0)
-				index = 3;
-			else
+			if (bconf->bl_pwm_combo0->pinmux_flag > 0) {
+				if (bconf->bl_pwm_combo0->pwm_port == BL_PWM_VS)
+					index = 6;
+				else
+					index = 5;
+			} else
 				index = 0xff;
 		}
 		break;
@@ -524,21 +534,49 @@ static void bl_pwm_pinmux_gpio_clr(unsigned int pwm_index)
 	case BL_CTRL_PWM_COMBO:
 		if (pwm_index == 0) {
 			bl_pwm = bconf->bl_pwm_combo0;
-			if (bconf->bl_pwm_combo1->pinmux_flag > 0) {
-				index = 2;
-				release_flag = 1;
+			if (bconf->bl_pwm_combo0->pwm_port == BL_PWM_VS) {
+				if (bconf->bl_pwm_combo1->pinmux_flag > 0) {
+					index = 3;
+					release_flag = 1;
+				} else {
+					index = 6;
+					release_flag = 0;
+				}
 			} else {
-				index = 3;
-				release_flag = 0;
+				if (bconf->bl_pwm_combo1->pinmux_flag > 0) {
+					if (bconf->bl_pwm_combo1->pwm_port ==
+						BL_PWM_VS)
+						index = 4;
+					else
+						index = 2;
+					release_flag = 1;
+				} else {
+					index = 5;
+					release_flag = 0;
+				}
 			}
 		} else {
 			bl_pwm = bconf->bl_pwm_combo1;
-			if (bconf->bl_pwm_combo0->pinmux_flag > 0) {
-				index = 2;
-				release_flag = 1;
+			if (bconf->bl_pwm_combo1->pwm_port == BL_PWM_VS) {
+				if (bconf->bl_pwm_combo0->pinmux_flag > 0) {
+					index = 4;
+					release_flag = 1;
+				} else {
+					index = 8;
+					release_flag = 0;
+				}
 			} else {
-				index = 4;
-				release_flag = 0;
+				if (bconf->bl_pwm_combo0->pinmux_flag > 0) {
+					if (bconf->bl_pwm_combo0->pwm_port ==
+						BL_PWM_VS)
+						index = 3;
+					else
+						index = 2;
+					release_flag = 1;
+				} else {
+					index = 7;
+					release_flag = 0;
+				}
 			}
 		}
 		break;
@@ -2365,6 +2403,7 @@ static const char *bl_debug_usage_str = {
 "    echo duty <index> <pwm_duty> > pwm ; set pwm duty cycle(unit: %)\n"
 "    echo pol <index> <pwm_pol> > pwm ; set pwm polarity(unit: %)\n"
 "    cat pwm ; dump pwm state\n"
+"	 echo free <0|1> > pwm ; set bl_pwm_duty_free enable or disable\n"
 "\n"
 "    echo <0|1> > power ; backlight power ctrl\n"
 "    cat power ; print backlight power state\n"
