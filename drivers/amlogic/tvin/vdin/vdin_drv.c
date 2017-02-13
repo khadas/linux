@@ -375,7 +375,7 @@ static const struct vframe_operations_s vdin_vf_ops = {
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 {
 	char vdin_name[5];
-	unsigned int mem_size, h_size;
+	unsigned int mem_size, h_size, v_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_CPU;
 	unsigned int max_bufffer_num = max_buf_num;
@@ -387,16 +387,25 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->cma_mem_alloc[devp->index]);
 		return 1;
 	}
+	h_size = devp->h_active;
+	v_size = devp->v_active;
+	if (canvas_config_mode == 1) {
+		h_size = max_buf_width;
+		v_size = max_buf_height;
+	}
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
-		if (devp->source_bitdepth > 8)
-			h_size = roundup(devp->h_active * 4, 32);
-		else
-			h_size = roundup(devp->h_active * 3, 32);
+		if (devp->source_bitdepth > 8) {
+			h_size = roundup(h_size * 4, 32);
+			devp->canvas_alin_w = h_size / 4;
+		} else {
+			h_size = roundup(h_size * 3, 32);
+			devp->canvas_alin_w = h_size / 3;
+		}
 		/*todo change with canvas alloc!!*/
 		max_bufffer_num = max_buf_num + 2;
 	} else {
@@ -407,15 +416,19 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == 1))
-			h_size = roundup((devp->h_active * 5)/2, 32);
-		else if ((devp->source_bitdepth > 8) &&
-			(devp->color_depth_mode == 0))
-			h_size = roundup(devp->h_active * 3, 32);
-		else
-			h_size = roundup(devp->h_active * 2, 32);
+		(devp->color_depth_mode == 1)) {
+			h_size = roundup((h_size * 5)/2, 32);
+			devp->canvas_alin_w = (h_size * 2) / 5;
+		} else if ((devp->source_bitdepth > 8) &&
+			(devp->color_depth_mode == 0)) {
+			h_size = roundup(h_size * 3, 32);
+			devp->canvas_alin_w = h_size / 3;
+		} else {
+			h_size = roundup(h_size * 2, 32);
+			devp->canvas_alin_w = h_size / 2;
+		}
 	}
-	mem_size = h_size * devp->v_active;
+	mem_size = h_size * v_size;
 	mem_size = PAGE_ALIGN(mem_size)*max_bufffer_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
@@ -1961,7 +1974,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_vstamp(offset);
 	/* if win_size changed for video only */
-	vdin1_set_wr_mif(devp);
+	vdin_set_wr_mif(devp);
 	if (!devp->curr_wr_vfe) {
 		devp->curr_wr_vfe = provider_vf_get(devp->vfp);
 		/*save the first field stamp*/

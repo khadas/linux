@@ -3425,6 +3425,7 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 			(di_buf->vframe->bitdepth & FULL_PACK_422_MODE)?3:1;
 	else
 		di_nrwr_mif->bit_mode = 0;
+
 	if (di_pre_stru.prog_proc_type == 0)
 		di_nrwr_mif->end_y = in_vframe->height / 2 - 1;
 	else
@@ -5503,8 +5504,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			force_height = 1080;
 		else
 			force_height = 0;
-		if (
-			(vframe->source_type == VFRAME_SOURCE_TYPE_OTHERS) &&
+		if ((vframe->source_type == VFRAME_SOURCE_TYPE_OTHERS) &&
 			(vframe->width % 2 == 1)) {
 			force_width = vframe->width - 1;
 			if (force_width != (vframe->width - 1))
