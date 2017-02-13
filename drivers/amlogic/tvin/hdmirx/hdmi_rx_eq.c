@@ -447,14 +447,19 @@ void hdmirx_phy_conf_eq_setting(int rx_port_sel, int ch0Setting,
 	data32 |= 1             << 4;   /* [5:4]    cfgclkfreq */
 	data32 |= rx_port_sel   << 2;   /* [3:2]    portselect */
 	data32 |= 1             << 1;   /* [1]      phypddq */
-	data32 |= 0             << 0;   /* [0]      phyreset */
+	data32 |= 1             << 0;   /* [0]      phyreset */
 	/*DEFAULT: {27'd0, 3'd0, 2'd1} */
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
-	hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, ch0Setting);
-	hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, ch1Setting);
-	hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, ch2Setting);
-	hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
-
+	if ((ch0Setting == 0) &&
+		(ch1Setting == 0) &&
+		(ch2Setting == 0))
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x0);
+	else {
+		hdmirx_wr_phy(PHY_CH0_EQ_CTRL3, ch0Setting);
+		hdmirx_wr_phy(PHY_CH1_EQ_CTRL3, ch1Setting);
+		hdmirx_wr_phy(PHY_CH2_EQ_CTRL3, ch2Setting);
+		hdmirx_wr_phy(PHY_MAIN_FSM_OVERRIDE2, 0x40);
+	}
 	/* PDDQ = 1'b0; PHY_RESET = 1'b0; */
 	data32  = 0;
 	data32 |= 1             << 6;   /* [6]      physvsretmodez */
@@ -535,14 +540,15 @@ bool rx_need_eq_workaround(void)
 	} else if ((mfsm_status & 0x400) == 0x400) {
 		fat_bit_status = EQ_FATBIT_MASK;
 		min_max_diff = MINMAX_maxDiff;
-		hdmirx_phy_conf_eq_setting(rx.port,
+		if (pre_eq_freq == E_EQ_LOW_FREQ)
+			return false;
+		else {
+			hdmirx_phy_conf_eq_setting(rx.port,
 				0,
 				0,
 				0);
-		if (pre_eq_freq == E_EQ_LOW_FREQ)
-			return false;
-		else
 			pre_eq_freq = E_EQ_LOW_FREQ;
+		}
 		if (log_level & EQ_LOG)
 			rx_pr("EQ_low_freq\n");
 		return false;
