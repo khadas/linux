@@ -1399,9 +1399,10 @@ static inline void vdin_set_hist_mux(struct vdin_dev_s *devp)
 			HIST_HIST_DIN_SEL_BIT, HIST_HIST_DIN_SEL_WID);
 }
 
-static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
-		unsigned int h, enum vdin_format_convert_e format_convert,
-		unsigned int color_depth_mode, unsigned int source_bitdeth)
+static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
+	unsigned int offset, unsigned int v,
+	unsigned int h, enum vdin_format_convert_e format_convert,
+	unsigned int color_depth_mode, unsigned int source_bitdeth)
 {
 	unsigned int write_format444 = 0, swap_cbcr = 0;
 	/* unsigned int def_canvas_id = offset?
@@ -1435,6 +1436,13 @@ static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
 		write_format444 = 3;
 
 	/* win_he */
+	if ((h%2) && (devp->source_bitdepth > 8) &&
+		(devp->color_depth_mode == 1) &&
+		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)))
+			h += 1;
 	wr_bits(offset, VDIN_WR_H_START_END, (h - 1), WR_HEND_BIT, WR_HEND_WID);
 	/* win_ve */
 	wr_bits(offset, VDIN_WR_V_START_END, (v - 1), WR_VEND_BIT, WR_VEND_WID);
@@ -1488,8 +1496,8 @@ static inline void vdin_set_wr_ctrl(unsigned int offset, unsigned int v,
 	wr_bits(offset, VDIN_WR_CTRL, 1, 19, 1);
 }
 
-/* set vdin1_wr_mif for video only */
-void vdin1_set_wr_mif(struct vdin_dev_s *devp)
+/* set vdin_wr_mif for video only */
+void vdin_set_wr_mif(struct vdin_dev_s *devp)
 {
 	int height, width;
 	static unsigned int temp_height;
@@ -1503,6 +1511,13 @@ void vdin1_set_wr_mif(struct vdin_dev_s *devp)
 				0xfff) + 1);
 	if ((devp->parm.port == TVIN_PORT_VIDEO) && (devp->index == 1) &&
 			((height != temp_height) && (width != temp_width))) {
+		if ((width%2) && (devp->source_bitdepth > 8) &&
+		(devp->color_depth_mode == 1) &&
+		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)))
+			width += 1;
 		wr_bits(devp->addr_offset, VDIN_WR_H_START_END,
 				(width - 1), WR_HEND_BIT, WR_HEND_WID);
 		wr_bits(devp->addr_offset, VDIN_WR_V_START_END,
@@ -1995,7 +2010,7 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 	/* hist mux selecttion */
 	vdin_set_hist_mux(devp);
 	/* write sub-module */
-	vdin_set_wr_ctrl(devp->addr_offset, devp->v_active,
+	vdin_set_wr_ctrl(devp, devp->addr_offset, devp->v_active,
 			devp->h_active, devp->format_convert,
 			devp->color_depth_mode, devp->source_bitdepth);
 

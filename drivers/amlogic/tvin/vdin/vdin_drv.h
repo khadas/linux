@@ -182,6 +182,7 @@ struct vdin_dev_s {
 	unsigned int			*canvas_ids;
 	unsigned int			canvas_h;
 	unsigned int			canvas_w;
+	unsigned int			canvas_alin_w;
 	unsigned int			canvas_max_size;
 	unsigned int			canvas_max_num;
 	struct vf_entry			*curr_wr_vfe;
@@ -292,6 +293,8 @@ enum tvin_sig_fmt_e vdin_ctrl_get_fmt(int no);
 #endif
 extern bool enable_reset;
 extern unsigned int max_buf_num;
+extern unsigned int max_buf_width;
+extern unsigned int max_buf_height;
 extern unsigned int   vdin_ldim_max_global[100];
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);

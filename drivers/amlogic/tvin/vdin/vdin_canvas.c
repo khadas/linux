@@ -34,6 +34,14 @@ unsigned int max_buf_num = 4;
 module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
 
+unsigned int max_buf_width = VDIN_CANVAS_MAX_WIDTH_HD;
+module_param(max_buf_width, uint, 0664);
+MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
+
+unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGH;
+module_param(max_buf_height, uint, 0664);
+MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
+
 const unsigned int vdin_canvas_ids[2][VDIN_CANVAS_MAX_CNT] = {
 	{
 		38, 39, 40, 41, 42,
@@ -81,19 +89,13 @@ void vdin_canvas_init(struct vdin_dev_s *devp)
 
 void vdin_canvas_start_config(struct vdin_dev_s *devp)
 {
-	int i, canvas_id;
+	int i = 0;
+	int canvas_id;
 	unsigned long canvas_addr;
-	unsigned int canvas_max_w = 0;
-	unsigned int canvas_max_h = VDIN_CANVAS_MAX_HEIGH;
-	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
+	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
 	unsigned int max_bufffer_num = max_buf_num;
-
-	if (is_meson_g9tv_cpu())
-		canvas_max_w = VDIN_CANVAS_MAX_WIDTH_UHD << 1;
-	else
-		canvas_max_w = VDIN_CANVAS_MAX_WIDTH_HD << 1;
 
 	/* todo: if new add output YUV444 format,this place should add too!!*/
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
@@ -102,67 +104,76 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
-		devp->canvas_w = devp->h_active * 3;
+		if (devp->source_bitdepth > 8)
+			devp->canvas_w = max_buf_width * 4;
+		else
+			devp->canvas_w = max_buf_height * 3;
 		/*when vdin output YUV444/RGB444,Di will bypass dynamic;
 		4 frame buffer may not enough,result in frame loss;
 		After test on gxtvbb(input 1080p60,output 4k42210bit),
 		6 frame is enough.*/
 		max_bufffer_num = max_buf_num + 2;
-	} else if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21)) {
-		if (is_meson_g9tv_cpu())
-			canvas_max_w = VDIN_CANVAS_MAX_WIDTH_UHD;
-		else
-			canvas_max_w = VDIN_CANVAS_MAX_WIDTH_HD;
-		canvas_max_h = VDIN_CANVAS_MAX_HEIGH;
-		canvas_num >>= 1;
+	} else if (((devp->prop.dest_cfmt == TVIN_NV12) ||
+		(devp->prop.dest_cfmt == TVIN_NV21)) &&
+		(devp->source_bitdepth <= 8)) {
+		devp->canvas_w = max_buf_width;
+		canvas_num = canvas_num/2;
 		canvas_step = 2;
-		devp->canvas_w = devp->h_active;
-	} else{
-		devp->canvas_w = devp->h_active * 2;
+	} else{/*YUV422*/
+		/* txl new add yuv422 pack mode:canvas-w=h*2*10/8*/
+		if ((devp->source_bitdepth > 8) &&
+		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
+		(devp->color_depth_mode == 1))
+			devp->canvas_w = (max_buf_width * 5)/2;
+		else if ((devp->source_bitdepth > 8) &&
+			(devp->color_depth_mode == 0))
+			devp->canvas_w = max_buf_width * 3;
+		else
+			devp->canvas_w = max_buf_width * 2;
 	}
-	if (devp->source_bitdepth > 8)
-		devp->canvas_w = devp->canvas_w * 3 / 2;
-#if 0
-	const struct tvin_format_s *fmt_info =
-			tvin_get_fmt_info(devp->parm.info.fmt);
-	if (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		devp->canvas_h = devp->v_active * 2;
-	else
-		devp->canvas_h = devp->v_active;
-#else
+	/*canvas_w must ensure divided exact by 256bit(32byte)*/
+	devp->canvas_w = roundup(devp->canvas_w, 32);
 	devp->canvas_h = devp->v_active;
-#endif
+
 	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
 		(devp->prop.dest_cfmt == TVIN_NV21))
-		chroma_size = canvas_max_w*canvas_max_h/2;
-	devp->canvas_max_size =
-			PAGE_ALIGN((canvas_max_w*canvas_max_h+chroma_size));
+		chroma_size = devp->canvas_w*devp->canvas_h/2;
+
+	devp->canvas_max_size = PAGE_ALIGN(devp->canvas_w*
+			devp->canvas_h+chroma_size);
 	devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size;
+
 	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
 	devp->canvas_max_num = min(devp->canvas_max_num, max_bufffer_num);
-	devp->canvas_w = roundup(devp->canvas_w, 32);
+
 	devp->mem_start = roundup(devp->mem_start, 32);
-	pr_info("vdin.%d cnavas configuration table:\n", devp->index);
+#ifdef VDIN_DEBUG
+	pr_info("vdin%d cnavas auto configuration table:\n", devp->index);
+#endif
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		canvas_id = vdin_canvas_ids[devp->index][i*canvas_step];
-		/* canvas_addr = canvas_get_addr(canvas_id); */
-		/*reinitlize the canvas*/
 		canvas_addr = devp->mem_start + devp->canvas_max_size * i;
-		canvas_config(canvas_id, canvas_addr, devp->canvas_w,
-				devp->canvas_h,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(canvas_id, canvas_addr,
+			devp->canvas_w, devp->canvas_h,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		if (chroma_size)
 			canvas_config(canvas_id+1,
 				canvas_addr+devp->canvas_w*devp->canvas_h,
-				devp->canvas_w, devp->canvas_h/2,
+				devp->canvas_w,
+				devp->canvas_h/2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		pr_info("\t0x%2x: 0x%lx-0x%lx %ux%u\n",
-				canvas_id, canvas_addr,
-				canvas_addr + devp->canvas_max_size,
-				devp->canvas_w, devp->canvas_h);
+#ifdef VDIN_DEBUG
+		pr_info("\t%3d: 0x%lx-0x%lx %ux%u\n",
+			canvas_id, canvas_addr,
+			canvas_addr + devp->canvas_max_size,
+			devp->canvas_w, devp->canvas_h);
+#endif
 	}
 }
+
 /*
 *this function used for configure canvas base on the input format
 *also used for input resalution over 1080p such as camera input 200M,500M

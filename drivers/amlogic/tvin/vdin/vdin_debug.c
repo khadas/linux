@@ -260,8 +260,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	struct tvin_parm_s *curparm = &devp->parm;
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
-	pr_info("canvas_w = %d, canvas_h = %d\n",
-		devp->canvas_w, devp->canvas_h);
+	pr_info("canvas_w = %d, canvas_h = %d, canvas_alin_w = %d\n",
+		devp->canvas_w, devp->canvas_h, devp->canvas_alin_w);
 	pr_info("signal format	= %s(0x%x)\n",
 		tvin_sig_fmt_str(devp->parm.info.fmt),
 		devp->parm.info.fmt);
