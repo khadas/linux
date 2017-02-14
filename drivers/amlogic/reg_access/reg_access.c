@@ -64,14 +64,19 @@ static ssize_t paddr_read_file(struct file *file, char __user *userbuf,
 	ssize_t len;
 	int ret;
 
-	ret = indio_dev->debugfs_reg_access(indio_dev,
+	/* if reg addr is not cached, return err message */
+	if (aml_dev.cached_reg_addr == 0)
+		len = snprintf(buf, sizeof(buf), "paddr not initialized\n");
+	else {
+		ret = indio_dev->debugfs_reg_access(indio_dev,
 						  indio_dev->cached_reg_addr,
 						  0, &val);
-	if (ret)
-		pr_err("%s: read failed\n", __func__);
+		if (ret)
+			pr_err("%s: read failed\n", __func__);
 
-	len = snprintf(buf, sizeof(buf), "[0x%x] = 0x%X\n",
-		       indio_dev->cached_reg_addr, val);
+		len = snprintf(buf, sizeof(buf), "[0x%x] = 0x%X\n",
+			       indio_dev->cached_reg_addr, val);
+	}
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
 
@@ -187,6 +192,7 @@ static int __init aml_debug_init(void)
 		debugfs_root = NULL;
 		return -1;
 	}
+	aml_dev.cached_reg_addr    = 0;
 	aml_dev.debugfs_reg_access = aml_reg_access;
 
 	debugfs_create_file("paddr", S_IFREG | S_IRUGO,
