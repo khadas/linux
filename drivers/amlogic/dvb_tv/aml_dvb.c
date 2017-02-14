@@ -1774,14 +1774,7 @@ static int aml_tsdemux_set_vid(int vpid)
 	spin_lock_irqsave(&dvb->slock, flags);
 
 	dmx = get_stb_dmx();
-
-	spin_unlock_irqrestore(&dvb->slock, flags);
-
 	if (dmx) {
-		mutex_lock(&dmx->dmxdev.mutex);
-
-		spin_lock_irqsave(&dvb->slock, flags);
-
 		if (dmx->vid_chan != -1) {
 			dmx_free_chan(dmx, dmx->vid_chan);
 			dmx->vid_chan = -1;
@@ -1794,11 +1787,9 @@ static int aml_tsdemux_set_vid(int vpid)
 			if (dmx->vid_chan == -1)
 				ret = -1;
 		}
-
-		spin_unlock_irqrestore(&dvb->slock, flags);
-
-		mutex_unlock(&dmx->dmxdev.mutex);
 	}
+
+	spin_unlock_irqrestore(&dvb->slock, flags);
 
 	return ret;
 }
@@ -1814,14 +1805,7 @@ static int aml_tsdemux_set_aid(int apid)
 	spin_lock_irqsave(&dvb->slock, flags);
 
 	dmx = get_stb_dmx();
-
-	spin_unlock_irqrestore(&dvb->slock, flags);
-
 	if (dmx) {
-		mutex_lock(&dmx->dmxdev.mutex);
-
-		spin_lock_irqsave(&dvb->slock, flags);
-
 		if (dmx->aud_chan != -1) {
 			dmx_free_chan(dmx, dmx->aud_chan);
 			dmx->aud_chan = -1;
@@ -1834,11 +1818,9 @@ static int aml_tsdemux_set_aid(int apid)
 			if (dmx->aud_chan == -1)
 				ret = -1;
 		}
-
-		spin_unlock_irqrestore(&dvb->slock, flags);
-
-		mutex_unlock(&dmx->dmxdev.mutex);
 	}
+
+	spin_unlock_irqrestore(&dvb->slock, flags);
 
 	return ret;
 }
@@ -1854,14 +1836,7 @@ static int aml_tsdemux_set_sid(int spid)
 	spin_lock_irqsave(&dvb->slock, flags);
 
 	dmx = get_stb_dmx();
-
-	spin_unlock_irqrestore(&dvb->slock, flags);
-
 	if (dmx) {
-		mutex_lock(&dmx->dmxdev.mutex);
-
-		spin_lock_irqsave(&dvb->slock, flags);
-
 		if (dmx->sub_chan != -1) {
 			dmx_free_chan(dmx, dmx->sub_chan);
 			dmx->sub_chan = -1;
@@ -1874,11 +1849,9 @@ static int aml_tsdemux_set_sid(int spid)
 			if (dmx->sub_chan == -1)
 				ret = -1;
 		}
-
-		spin_unlock_irqrestore(&dvb->slock, flags);
-
-		mutex_unlock(&dmx->dmxdev.mutex);
 	}
+
+	spin_unlock_irqrestore(&dvb->slock, flags);
 
 	return ret;
 }
@@ -1893,14 +1866,7 @@ static int aml_tsdemux_set_pcrid(int pcrpid)
 	spin_lock_irqsave(&dvb->slock, flags);
 
 	dmx = get_stb_dmx();
-
-	spin_unlock_irqrestore(&dvb->slock, flags);
-
 	if (dmx) {
-		mutex_lock(&dmx->dmxdev.mutex);
-
-		spin_lock_irqsave(&dvb->slock, flags);
-
 		if (dmx->pcr_chan != -1) {
 			dmx_free_chan(dmx, dmx->pcr_chan);
 			dmx->pcr_chan = -1;
@@ -1913,11 +1879,9 @@ static int aml_tsdemux_set_pcrid(int pcrpid)
 			if (dmx->pcr_chan == -1)
 				ret = -1;
 		}
-
-		spin_unlock_irqrestore(&dvb->slock, flags);
-
-		mutex_unlock(&dmx->dmxdev.mutex);
 	}
+
+	spin_unlock_irqrestore(&dvb->slock, flags);
 
 	return ret;
 }
