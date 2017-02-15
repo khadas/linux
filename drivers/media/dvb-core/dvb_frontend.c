@@ -3308,12 +3308,18 @@ static long dvb_frontend_compat_ioctl(struct file *filp,
 			unsigned int cmd, unsigned long args)
 {
 	unsigned long ret;
-	struct dtv_properties *tvps = NULL;
+	struct dtv_properties tvps;
 
-	args = (unsigned long)compat_ptr(args);
+	args  = (unsigned long)compat_ptr(args);
+
 	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY)) {
-		tvps = (struct dtv_properties __user *)args;
-		tvps->props = compat_ptr((unsigned long)tvps->props);
+		if (copy_from_user(&tvps, (void *)args,
+			sizeof(struct dtv_properties)))
+			return -EFAULT;
+		tvps.props = compat_ptr((unsigned long)tvps.props);
+		if (copy_to_user((void *)args, (void *)&tvps,
+			sizeof(struct dtv_properties)))
+			return -EFAULT;
 	}
 	ret = dvb_generic_ioctl(filp, cmd, args);
 	return ret;
