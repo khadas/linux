@@ -818,11 +818,13 @@ static int meson_gpio_direction_output(struct gpio_chip *chip, unsigned gpio,
 	int ret;
 	int odval;
 
-	odval = gl_pmx->soc->is_od_domain(gpio);
-	if (unlikely(odval) && (value == 1)) {
-		pr_info("change od high_level\n");
-		meson_gpio_direction_input(chip, gpio);
-		return 0;
+	if (gl_pmx->soc->is_od_domain) {
+		odval = gl_pmx->soc->is_od_domain(gpio);
+		if (unlikely(odval) && (value == 1)) {
+			pr_info("change od high_level\n");
+			meson_gpio_direction_input(chip, gpio);
+			return 0;
+		}
 	}
 
 	pin = domain->data->pin_base + gpio;
@@ -853,16 +855,18 @@ static void meson_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 	int ret;
 	int odval;
 
-	odval = gl_pmx->soc->is_od_domain(gpio);
-	if (unlikely(odval)) {
-		if (value == 1) {
-			pr_info("change od high_level\n");
-			meson_gpio_direction_output(chip, gpio, 1);
-			return;
-		} else if (value == 0) {
-			pr_info("change od low_level\n");
-			meson_gpio_direction_output(chip, gpio, 0);
-			return;
+	if (gl_pmx->soc->is_od_domain) {
+		odval = gl_pmx->soc->is_od_domain(gpio);
+		if (unlikely(odval)) {
+			if (value == 1) {
+				pr_info("change od high_level\n");
+				meson_gpio_direction_output(chip, gpio, 1);
+				return;
+			} else if (value == 0) {
+				pr_info("change od low_level\n");
+				meson_gpio_direction_output(chip, gpio, 0);
+				return;
+			}
 		}
 	}
 
