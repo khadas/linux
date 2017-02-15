@@ -56,8 +56,9 @@ static int cur_enable;
 static int pre_enable_;
 static int debug_flag;
 static int vsync_cfg_count;
-static bool force_rdma_config;
+static u32 force_rdma_config;
 static bool first_config;
+static bool rdma_done;
 
 static void vsync_rdma_irq(void *arg);
 
@@ -79,24 +80,34 @@ void vsync_rdma_config(void)
 		cur_enable = enable;
 		pre_enable_ = enable_;
 		first_config = true;
+		rdma_done = false;
 		return;
 	}
 
 	/* if rdma mode changed, reset rdma */
 	if (pre_enable_ != enable_) {
 		rdma_clear(vsync_rdma_handle);
-		force_rdma_config = true;
+		force_rdma_config = 1;
 	}
 
-	/* not vsync mode */
-	if (enable_ != 1)
-		force_rdma_config = true;
+	if (force_rdma_config)
+		rdma_done = true;
 
-	if (enable_ == 1)
-		rdma_watchdog_setting(1);
-	else
-		rdma_watchdog_setting(0);
+	if (enable_ == 1) {
+		if (rdma_done)
+			iret = rdma_watchdog_setting(0);
+		else
+			iret = rdma_watchdog_setting(1);
+	} else {
+		/* not vsync mode */
+		iret = rdma_watchdog_setting(0);
+		force_rdma_config = 1;
+	}
+	rdma_done = false;
+	if (iret)
+		force_rdma_config = 1;
 
+	iret = 0;
 	if (force_rdma_config) {
 		if (enable_ == 1) {
 			iret = rdma_config(vsync_rdma_handle,
@@ -118,9 +129,9 @@ void vsync_rdma_config(void)
 		else if (enable_ == 6)
 			;
 		if (!iret)
-			force_rdma_config = true;
+			force_rdma_config = 1;
 		else
-			force_rdma_config = false;
+			force_rdma_config = 0;
 	}
 	pre_enable_ = enable_;
 	cur_enable = enable;
@@ -156,9 +167,10 @@ static void vsync_rdma_irq(void *arg)
 	pre_enable_ = enable_;
 
 	if ((!iret) || (enable_ != 1))
-		force_rdma_config = true;
+		force_rdma_config = 1;
 	else
-		force_rdma_config = false;
+		force_rdma_config = 0;
+	rdma_done = true;
 	irq_count++;
 	return;
 }
@@ -244,7 +256,7 @@ static int  __init rdma_init(void)
 		vsync_rdma_handle);
 	cur_enable = 0;
 	enable = 1;
-	force_rdma_config = true;
+	force_rdma_config = 1;
 	return 0;
 }
 module_init(rdma_init);
@@ -260,3 +272,6 @@ module_param(debug_flag, uint, 0664);
 
 MODULE_PARM_DESC(vsync_cfg_count, "\n vsync_cfg_count\n");
 module_param(vsync_cfg_count, uint, 0664);
+
+MODULE_PARM_DESC(force_rdma_config, "\n force_rdma_config\n");
+module_param(force_rdma_config, uint, 0664);

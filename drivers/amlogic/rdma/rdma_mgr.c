@@ -53,16 +53,15 @@
 /* #define SKIP_OSD_CHANNEL */
 
 int rdma_mgr_irq_request;
+int rdma_reset_tigger_flag;
 
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
-static int rdma_watchdog = 4;
+static int rdma_watchdog = 10;
 static int reset_count;
 static int rdma_watchdog_count;
-static int rdma_vsync_isr_done;
-static int rdma_monitor_reg;
 static int rdma_force_reset = -1;
 static u16 trace_reg;
 
@@ -266,15 +265,17 @@ static void rdma_reset(unsigned char external_reset)
 		pr_info("%s(%d)\n",
 			__func__, external_reset);
 
-	if (external_reset)	{
-		WRITE_MPEG_REG(RESET4_REGISTER,
-				   (1 << 5));
+	if (external_reset) {
+		WRITE_MPEG_REG(
+			RESET4_REGISTER,
+			(1 << 5));
 	} else {
 		WRITE_VCBUS_REG(RDMA_CTRL, (0x1 << 1));
 		WRITE_VCBUS_REG(RDMA_CTRL, (0x1 << 1));
-		WRITE_VCBUS_REG(RDMA_CTRL, (ctrl_ahb_wr_burst_size << 4) |
+		WRITE_VCBUS_REG(RDMA_CTRL,
+			(ctrl_ahb_wr_burst_size << 4) |
 			(ctrl_ahb_rd_burst_size << 2) |
-			 (0x0 << 1));
+			(0x0 << 1));
 	}
 	reset_count++;
 }
@@ -304,9 +305,6 @@ QUERY:
 		if (i == 3)
 			continue;
 #endif
-		if (ins->prev_trigger_type == RDMA_TRIGGER_VSYNC_INPUT) {
-			rdma_vsync_isr_done = 1;
-		}
 		if (rdma_status & (1 << ins->rdma_regadr->irq_status_bitpos)) {
 			if (debug_flag & 2)
 				pr_info("%s: process %d\r\n", __func__, i);
@@ -405,7 +403,6 @@ int rdma_config(int handle, int trigger_type)
 		WRITE_VCBUS_REG_BITS(
 			ins->rdma_regadr->trigger_mask_reg,
 			0, ins->rdma_regadr->trigger_mask_reg_bitpos, 8);
-		rdma_vsync_isr_done = 1;
 		ins->rdma_write_count = 0;
 		ret = 0;
 	} else {
@@ -593,22 +590,32 @@ u32 rdma_read_reg(int handle, u32 adr)
 }
 EXPORT_SYMBOL(rdma_read_reg);
 
-int rdma_reset_tigger_flag = 0;
 int rdma_watchdog_setting(int flag)
 {
-	if (rdma_vsync_isr_done) {
-		rdma_watchdog_count = 0;
-		rdma_vsync_isr_done = 0;
-	}
+	int ret = 0;
 	if (flag == 0)
 		rdma_watchdog_count = 0;
 	else
 		rdma_watchdog_count++;
+
 	if (debug_flag & 8) {
 		rdma_force_reset = 1;
 		debug_flag = 0;
 	}
-	return 0;
+	if (((rdma_watchdog > 0) &&
+		(rdma_watchdog_count > rdma_watchdog))
+		|| (rdma_force_reset > 0)) {
+		pr_info("%s rdma reset: %d, force flag:%d\n",
+			__func__,
+			rdma_watchdog_count,
+			rdma_force_reset);
+		rdma_watchdog_count = 0;
+		rdma_force_reset = 0;
+		rdma_reset(1);
+		rdma_reset_tigger_flag = 1;
+		ret = 1;
+	}
+	return ret;
 }
 EXPORT_SYMBOL(rdma_watchdog_setting);
 
@@ -648,22 +655,6 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 			handle, adr,
 			val,
 			ins->rdma_item_count);
-	if ((rdma_watchdog > 0) && (rdma_watchdog_count > rdma_watchdog)) {
-		pr_info("%s rdma reset :%d\n",
-		__func__, rdma_watchdog_count);
-		rdma_watchdog_count = 0;
-		rdma_reset(1);
-		rdma_config(handle, ins->prev_trigger_type);
-		rdma_reset_tigger_flag = 1;
-	}
-	if (rdma_force_reset == 1) {
-		rdma_force_reset = 0;
-		rdma_reset_tigger_flag = 1;
-		rdma_watchdog_count = 0;
-		rdma_reset(1);
-		rdma_config(handle, ins->prev_trigger_type);
-		pr_info("%s rdma force reset\n", __func__);
-	}
 	return 0;
 }
 EXPORT_SYMBOL(rdma_write_reg);
@@ -748,9 +739,6 @@ module_param(rdma_watchdog, uint, 0664);
 
 MODULE_PARM_DESC(reset_count, "\n reset_count\n");
 module_param(reset_count, uint, 0664);
-
-MODULE_PARM_DESC(rdma_monitor_reg, "\n rdma_monitor_reg\n");
-module_param(rdma_monitor_reg, uint, 0664);
 
 MODULE_PARM_DESC(ctrl_ahb_rd_burst_size, "\n ctrl_ahb_rd_burst_size\n");
 module_param(ctrl_ahb_rd_burst_size, uint, 0664);
