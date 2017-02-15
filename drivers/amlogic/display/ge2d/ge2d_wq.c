@@ -253,6 +253,8 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	int ret = 0;
 	unsigned int block_mode;
 	int timeout = 0;
+	if (wq->ge2d_request_exit)
+		goto exit;
 	ge2d_manager.ge2d_state = GE2D_STATE_RUNNING;
 	pos = head->next;
 	if (pos != head) { /* current work queue not empty. */
@@ -340,7 +342,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	} while (pos != head);
 	ge2d_manager.last_wq = wq;
 exit:
-	if (ge2d_manager.ge2d_state == GE2D_STATE_REMOVING_WQ)
+	if (wq->ge2d_request_exit)
 		complete(&ge2d_manager.event.process_complete);
 	ge2d_manager.ge2d_state = GE2D_STATE_IDLE;
 	return ret;
@@ -1453,6 +1455,7 @@ struct ge2d_context_s *create_ge2d_work_queue(void)
 	ge2d_work_queue = kzalloc(sizeof(struct ge2d_context_s), GFP_KERNEL);
 	ge2d_work_queue->config.h_scale_coef_type = FILTER_TYPE_BILINEAR;
 	ge2d_work_queue->config.v_scale_coef_type = FILTER_TYPE_BILINEAR;
+	ge2d_work_queue->ge2d_request_exit = 0;
 	if (IS_ERR(ge2d_work_queue)) {
 		ge2d_log_err("can't create work queue\n");
 		return NULL;
@@ -1495,9 +1498,10 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 		spin_unlock(&ge2d_manager.event.sem_lock);
 		if ((ge2d_manager.current_wq == ge2d_work_queue) &&
 		    (ge2d_manager.ge2d_state == GE2D_STATE_RUNNING)) {
-			ge2d_manager.ge2d_state = GE2D_STATE_REMOVING_WQ;
-			wait_for_completion(
-				&ge2d_manager.event.process_complete);
+			ge2d_work_queue->ge2d_request_exit = 1;
+			wait_for_completion_timeout(
+				&ge2d_manager.event.process_complete,
+				msecs_to_jiffies(500));
 			/* condition so complex ,simplify it . */
 			ge2d_manager.last_wq = NULL;
 		} /* else we can delete it safely. */

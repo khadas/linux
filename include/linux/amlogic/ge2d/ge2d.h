@@ -623,6 +623,7 @@ struct ge2d_context_s {
 	wait_queue_head_t	cmd_complete;
 	int				queue_dirty;
 	int				queue_need_recycle;
+	int				ge2d_request_exit;
 	spinlock_t		lock;	/* for get and release item. */
 };
 
