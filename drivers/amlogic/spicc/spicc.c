@@ -15,6 +15,9 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/of.h>
 #include <linux/reset.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/of_irq.h>
 #include "spicc.h"
 
 /**
@@ -45,17 +48,55 @@ struct spicc {
 	int bits_per_word;
 	int mode;
 	int speed;
+	unsigned int dma_tx_threshold;
+	unsigned int dma_rx_threshold;
+	unsigned int dma_num_per_read_burst;
+	unsigned int dma_num_per_write_burst;
+	int irq;
+	struct completion completion;
+#define FLAG_DMA_EN 0
+#define FLAG_TEST_DATA_AUTO_INC 1
+	unsigned int flags;
+	u8 test_data;
 };
 
 
-static void spicc_chip_select(struct spi_device *spi, bool select)
+/* Note this is chip_select enable or disable */
+void spicc_chip_select(struct spi_device *spi, bool select)
 {
+	struct spicc *spicc;
+	unsigned int level;
+
+	spicc = spi_master_get_devdata(spi->master);
+	level = (spi->mode & SPI_CS_HIGH) ? select : !select;
+
 	if (spi->mode & SPI_NO_CS)
 		return;
-	if (!(spi->mode & SPI_CS_HIGH))
-		select = !select;
-	if (spi->cs_gpio)
-		gpio_direction_output(spi->cs_gpio, select);
+	if (spi->cs_gpio >= 0) {
+		gpio_direction_output(spi->cs_gpio, level);
+	} else {
+		setb(spicc->regs, CON_CHIP_SELECT, spi->chip_select);
+		setb(spicc->regs, CON_SS_POL, !!(spi->mode & SPI_CS_HIGH));
+	}
+}
+EXPORT_SYMBOL(spicc_chip_select);
+
+static inline bool spicc_get_flag(struct spicc *spicc, unsigned int flag)
+{
+	bool ret;
+	ret = (spicc->flags >> flag) & 1;
+	return ret;
+}
+
+static inline void spicc_set_flag(
+		struct spicc *spicc,
+		unsigned int flag,
+		bool value)
+{
+	if (value)
+		spicc->flags |= 1<<flag;
+	else
+		spicc->flags &= ~(1<<flag);
 }
 
 static inline void spicc_set_bit_width(struct spicc *spicc, u8 bw)
@@ -124,54 +165,188 @@ static inline void spicc_enable(struct spicc *spicc, bool en)
 	setb(spicc->regs, CON_ENABLE, en);
 }
 
-static int spicc_wait_complete(struct spicc *spicc, int max)
+static int spicc_wait_complete(struct spicc *spicc, int max_us)
 {
 	void __iomem *mem_base = spicc->regs;
-	int i;
+	int i, err = -ETIMEDOUT;
 
-	for (i = 0; i < max; i++) {
-		if (getb(mem_base, STA_RX_READY))
-			return 0;
+	if (spicc->irq) {
+		wait_for_completion_interruptible_timeout(
+			&spicc->completion, msecs_to_jiffies(10));
+		err = 0;
 	}
-	dev_err(spicc->master->dev.parent, "timeout\n");
-	return -1;
+	for (i = 0; i < max_us; i++) {
+		if (getb(mem_base, STA_XFER_COM)) {
+			err = 0;
+			break;
+		}
+		udelay(1);
+	}
+	setb(mem_base, STA_XFER_COM, 1);
+	if (err)
+		dev_err(spicc->master->dev.parent, "timeout\n");
+	return err;
+}
+
+static irqreturn_t spicc_xfer_complete_isr(int irq, void *dev_id)
+{
+	struct spicc *spicc = (struct spicc *)dev_id;
+	complete(&spicc->completion);
+	return IRQ_HANDLED;
+}
+
+#define INVALID_DMA_ADDRESS 0xffffffff
+/*
+ * For DMA, tx_buf/tx_dma have the same relationship as rx_buf/rx_dma:
+ *  - The buffer is either valid for CPU access, else NULL
+ *  - If the buffer is valid, so is its DMA address
+ *
+ * This driver manages the dma address unless message->is_dma_mapped.
+ */
+static int spicc_dma_map(struct spicc *spicc, struct spi_transfer *t)
+{
+	struct device *dev = spicc->master->dev.parent;
+	u8 buf[8], *p = (u8 *)t->tx_buf;
+	int i, len = 0;
+
+	t->tx_dma = t->rx_dma = INVALID_DMA_ADDRESS;
+	if (t->tx_buf) {
+		while (len < t->len) {
+			memcpy(buf, p, 8);
+			for (i = 0; i < 8; i++)
+				*p++ = buf[7-i];
+			len += 8;
+		}
+		t->tx_dma = dma_map_single(dev,
+				(void *)t->tx_buf, t->len, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, t->tx_dma)) {
+			dev_err(dev, "tx_dma map failed\n");
+			return -ENOMEM;
+		}
+	}
+	if (t->rx_buf) {
+		t->rx_dma = dma_map_single(dev,
+				t->rx_buf, t->len, DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, t->rx_dma)) {
+			if (t->tx_buf) {
+				dev_err(dev, "rx_dma map failed\n");
+				dma_unmap_single(dev, t->tx_dma, t->len,
+						DMA_TO_DEVICE);
+			}
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+static void spicc_dma_unmap(struct spicc *spicc, struct spi_transfer *t)
+{
+	struct device *dev = spicc->master->dev.parent;
+	u8 buf[8], *p = (u8 *)t->rx_buf;
+	int i, len = 0;
+
+	if (t->tx_dma != INVALID_DMA_ADDRESS)
+		dma_unmap_single(dev, t->tx_dma, t->len, DMA_TO_DEVICE);
+	if (t->rx_dma != INVALID_DMA_ADDRESS) {
+		dma_unmap_single(dev, t->rx_dma, t->len, DMA_FROM_DEVICE);
+		while (len < t->len) {
+			memcpy(buf, p, 8);
+			for (i = 0; i < 8; i++)
+				*p++ = buf[7-i];
+			len += 8;
+		}
+	}
+}
+
+
+static int spicc_dma_xfer(struct spicc *spicc, struct spi_transfer *t)
+{
+	void __iomem *mem_base = spicc->regs;
+	int burst_len, remain;
+
+	setb(mem_base, RX_FIFO_RESET, 1);
+	setb(mem_base, TX_FIFO_RESET, 1);
+	setb(mem_base, CON_SMC, 0);
+	setb(mem_base, CON_XCH, 0);
+	spicc_set_bit_width(spicc, 64);
+	if (t->tx_dma != INVALID_DMA_ADDRESS)
+		writel(t->tx_dma, mem_base + SPICC_REG_DRADDR);
+	if (t->rx_dma != INVALID_DMA_ADDRESS)
+		writel(t->rx_dma, mem_base + SPICC_REG_DWADDR);
+	setb(mem_base, DMA_EN, 1);
+	if (spicc->irq) {
+		setb(mem_base, INT_XFER_COM_EN, 1);
+		enable_irq(spicc->irq);
+	}
+	setb(mem_base, STA_XFER_COM, 1);
+
+	remain = ((t->len - 1) >> 3) + 1;
+	while (remain > 0) {
+		burst_len = min_t(size_t, remain, BURST_LEN_MAX);
+		setb(mem_base, CON_BURST_LEN, burst_len - 1);
+		setb(mem_base, CON_XCH, 1);
+		spicc_wait_complete(spicc, burst_len<<4);
+		remain -= burst_len;
+	}
+
+	setb(mem_base, DMA_EN, 0);
+	if (spicc->irq) {
+		disable_irq_nosync(spicc->irq);
+		setb(mem_base, INT_XFER_COM_EN, 0);
+	}
+	return 0;
 }
 
 static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 {
-	int num, i, j, bytes;
+	void __iomem *mem_base = spicc->regs;
+	int burst_len, remain, bytes_per_word;
+	int i, j;
 	unsigned int dat;
 
-	bytes = ((spicc->bits_per_word - 1)>>3) + 1;
-	len /= bytes;
+	setb(mem_base, RX_FIFO_RESET, 1);
+	setb(mem_base, TX_FIFO_RESET, 1);
+	setb(mem_base, CON_SMC, 0);
+	setb(mem_base, CON_XCH, 0);
+	if (spicc->irq) {
+		setb(mem_base, INT_XFER_COM_EN, 1);
+		enable_irq(spicc->irq);
+	}
+	setb(mem_base, STA_XFER_COM, 1);
 
-	while (len > 0) {
-		num = (len > SPICC_FIFO_SIZE) ? SPICC_FIFO_SIZE : len;
-		for (i = 0; i < num; i++) {
+	bytes_per_word = ((spicc->bits_per_word - 1)>>3) + 1;
+	remain = len / bytes_per_word;
+	while (remain > 0) {
+		burst_len = min_t(size_t, remain, SPICC_FIFO_SIZE);
+		for (i = 0; i < burst_len; i++) {
 			dat = 0;
 			if (txp) {
-				for (j = 0; j < bytes; j++) {
+				for (j = 0; j < bytes_per_word; j++) {
 					dat <<= 8;
 					dat += *txp++;
 				}
 			}
 			spicc_set_txfifo(spicc, dat);
-			/* printk("txdata[%d] = 0x%x\n", i, dat); */
 		}
+		setb(mem_base, CON_BURST_LEN, burst_len - 1);
+		setb(mem_base, CON_XCH, 1);
+		spicc_wait_complete(spicc, (burst_len*bytes_per_word)<<1);
+		setb(mem_base, STA_XFER_COM, 1);
 
-		for (i = 0; i < num; i++) {
-			if (spicc_wait_complete(spicc, 1000))
-				return -ETIMEDOUT;
+		for (i = 0; i < burst_len; i++) {
 			dat = spicc_get_rxfifo(spicc);
-			/* printk("rxdata[%d] = 0x%x\n", i, dat); */
 			if (rxp) {
-				for (j = 0; j < bytes; j++) {
+				for (j = 0; j < bytes_per_word; j++) {
 					*rxp++ = dat & 0xff;
 					dat >>= 8;
 				}
 			}
 		}
-		len -= num;
+		remain -= burst_len;
+	}
+	if (spicc->irq) {
+		disable_irq_nosync(spicc->irq);
+		setb(mem_base, INT_XFER_COM_EN, 0);
 	}
 	return 0;
 }
@@ -187,8 +362,18 @@ static void spicc_hw_init(struct spicc *spicc)
 	setb(mem_base, CLK_FREE_EN, 1);
 	setb(mem_base, CON_MODE, 1); /* 0-slave, 1-master */
 	setb(mem_base, CON_XCH, 0);
-	setb(mem_base, CON_SMC, 1); /* 0-dma, 1-pio */
+	setb(mem_base, CON_SMC, 1);
 	setb(mem_base, CON_SS_CTL, 1);
+	spicc_enable(spicc, 1);
+	writel((0x00<<26 |
+					0x00<<20 |
+					0x0<<19 |
+					spicc->dma_num_per_write_burst<<15 |
+					spicc->dma_num_per_read_burst<<11 |
+					spicc->dma_rx_threshold<<6 |
+					spicc->dma_tx_threshold<<1 |
+					0x0<<0),
+					mem_base + SPICC_REG_DMA);
 	spicc_set_bit_width(spicc, 8);
 	spicc_set_mode(spicc, SPI_MODE_0);
 	spicc_set_clk(spicc, 3000000);
@@ -252,7 +437,7 @@ static int spicc_setup(struct spi_device *spi)
 	spicc_set_clk(spicc, spi->max_speed_hz);
 	spicc_set_mode(spicc, spi->mode);
 	spicc_enable(spicc, 1);
-	spicc_chip_select(spi, 1);
+	spicc_chip_select(spi, 0);
 
 	return 0;
 }
@@ -275,15 +460,25 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 	struct spi_transfer *t;
 	int ret = 0;
 
-	spicc_set_bit_width(spicc, spi->bits_per_word);
-	spicc_set_clk(spicc, spi->max_speed_hz);
-	spicc_set_mode(spicc, spi->mode);
-	spicc_enable(spicc, 1);
-	spicc_chip_select(spi, 1);
+	/* spicc_enable(spicc, 1); */
+	if (spi) {
+		spicc_set_bit_width(spicc,
+				spi->bits_per_word ? : SPICC_DEFAULT_BIT_WIDTH);
+		spicc_set_clk(spicc,
+				spi->max_speed_hz ? : SPICC_DEFAULT_SPEED_HZ);
+		spicc_set_mode(spicc, spi->mode);
+		spicc_chip_select(spi, 1);
+	}
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->speed_hz)
 			spicc_set_clk(spicc, t->speed_hz);
-		if (spicc_hw_xfer(spicc, (u8 *)t->tx_buf,
+		if (spicc_get_flag(spicc, FLAG_DMA_EN)) {
+			if (!m->is_dma_mapped)
+				spicc_dma_map(spicc, t);
+			spicc_dma_xfer(spicc, t);
+			if (!m->is_dma_mapped)
+				spicc_dma_unmap(spicc, t);
+		} else if (spicc_hw_xfer(spicc, (u8 *)t->tx_buf,
 				(u8 *)t->rx_buf, t->len) < 0)
 			goto spicc_handle_end;
 		m->actual_length += t->len;
@@ -292,9 +487,9 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 	}
 
 spicc_handle_end:
-	spicc_chip_select(spi, 0);
-	spicc_enable(spicc, 0);
-	spicc_set_clk(spicc, 0);
+	if (spi)
+		spicc_chip_select(spi, 0);
+	/* spicc_enable(spicc, 0); */
 
 	m->status = ret;
 	if (m->context)
@@ -335,59 +530,152 @@ static void spicc_work(struct work_struct *work)
 	spin_unlock_irqrestore(&spicc->lock, flags);
 }
 
+static ssize_t show_setting(struct class *class,
+	struct class_attribute *attr, char *buf)
+{
+	int ret = 0;
+	struct spicc *spicc = container_of(class, struct spicc, cls);
 
+	if (!strcmp(attr->attr.name, "speed"))
+		ret = sprintf(buf, "speed=%d\n", spicc->speed);
+	else if (!strcmp(attr->attr.name, "mode"))
+		ret = sprintf(buf, "mode=%d\n", spicc->mode);
+	else if (!strcmp(attr->attr.name, "bit_width"))
+		ret = sprintf(buf, "bit_width=%d\n", spicc->bits_per_word);
+	else if (!strcmp(attr->attr.name, "flags"))
+		ret = sprintf(buf, "flags=0x%x\n", spicc->flags);
+	else if (!strcmp(attr->attr.name, "test_data"))
+		ret = sprintf(buf, "test_data=0x%x\n", spicc->test_data);
+	return ret;
+}
+
+
+static ssize_t store_setting(
+		struct class *class,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned int value;
+	struct spicc *spicc = container_of(class, struct spicc, cls);
+
+	if (sscanf(buf, "%d", &value) != 1)
+		return -EINVAL;
+	if (!strcmp(attr->attr.name, "speed"))
+		spicc_set_clk(spicc, value);
+	else if (!strcmp(attr->attr.name, "mode"))
+		spicc_set_mode(spicc, value);
+	else if (!strcmp(attr->attr.name, "bit_width"))
+		spicc_set_bit_width(spicc, value);
+	else if (!strcmp(attr->attr.name, "flags"))
+		spicc->flags = value;
+	else if (!strcmp(attr->attr.name, "test_data"))
+		spicc->test_data = (u8)(value & 0xff);
+	return count;
+}
+
+#define TRANSFER_BYTES_MAX 128
+#define ARGS_MAX (TRANSFER_BYTES_MAX+2)
 static ssize_t store_test(
 		struct class *class,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct spicc *spicc = container_of(class, struct spicc, cls);
-	unsigned int i, cs_gpio, speed, mode, num;
-	u8 wbuf[4] = {0}, rbuf[128] = {0};
-	unsigned long flags;
+	unsigned int chip_select, num;
+	u8 *tx_buf = 0, *rx_buf = 0;
+	unsigned long value;
 	struct device *dev = spicc->master->dev.parent;
+	char *kbuf, *p, *argv[ARGS_MAX];
+	int argn;
+	int cs_gpio = -1;
+	int i;
+	struct spi_transfer t;
+	struct spi_message m;
+
+	memset(argv, 0, sizeof(argv));
+	kbuf = kstrdup(buf, GFP_KERNEL);
+	p = kbuf;
+	for (argn = 0; argn < ARGS_MAX; argn++) {
+		argv[argn] = strsep(&p, " ");
+		if (argv[argn] == NULL)
+			break;
+	}
 
 	if (buf[0] == 'h') {
 		dev_info(dev, "SPI device test help\n");
-		dev_info(dev, "You can test the SPI device even without its driver through this sysfs node\n");
-		dev_info(dev, "echo cs_gpio speed num [wdata1 wdata2 wdata3 wdata4] >test\n");
+		dev_info(dev, "echo chip_select num [wbyte1 wbyte2...] >test\n");
 		return count;
 	}
 
-	i = sscanf(buf, "%d%d%d%d%x%x%x%x", &cs_gpio, &speed, &mode, &num,
-			(unsigned int *)&wbuf[0], (unsigned int *)&wbuf[1],
-			(unsigned int *)&wbuf[2], (unsigned int *)&wbuf[3]);
-	dev_info(dev, "cs_gpio=%d, speed=%d, mode=%d, num=%d\n",
-			cs_gpio, speed, mode, num);
-	if ((i < (num+4)) || (!cs_gpio) || (!speed) || (num > sizeof(wbuf))) {
+	if ((argv[0] == NULL) || (argv[1] == NULL) ||
+		 (kstrtoul(argv[0], 0, (long *)&chip_select)) ||
+		 (kstrtoul(argv[1], 0, (long *)&num))) {
 		dev_info(dev, "invalid data\n");
 		return -EINVAL;
 	}
+	tx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
+	rx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
+	if (IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
+		dev_err(dev, "failed to alloc tx rx buffer\n");
+		return -ENOMEM;
+	}
 
-	spin_lock_irqsave(&spicc->lock, flags);
-	gpio_request(cs_gpio, "spicc_cs");
-	gpio_direction_output(cs_gpio, 0);
-	spicc_set_clk(spicc, speed);
-	spicc_set_mode(spicc, mode);
-	setb(spicc->regs, CON_ENABLE, 1); /* enable SPICC */
-/* spicc_dump(spicc); */
+	spi_message_init(&m);
+	memset(&t, 0, sizeof(t));
+	t.tx_buf = (void *)tx_buf;
+	t.rx_buf = (void *)rx_buf;
+	t.len = num;
+	spi_message_add_tail(&t, &m);
 
-	spicc_hw_xfer(spicc, wbuf, rbuf, num);
-	dev_info(dev, "read back data: ");
-	for (i = 0; i < num; i++)
-		dev_info(dev, "0x%x, ", rbuf[i]);
-	dev_info(dev, "\n");
+	for (i = 0; i < num; i++) {
+		if (!argv[i+2] || (kstrtoul(argv[i+2], 16, &value))) {
+			tx_buf[i] = spicc->test_data;
+			if (spicc_get_flag(spicc, FLAG_TEST_DATA_AUTO_INC))
+				spicc->test_data++;
+		} else {
+			tx_buf[i] = (u8)(value & 0xff);
+		}
+		dev_info(dev, "tx_data[%d]=0x%x\n", i, tx_buf[i]);
+	}
 
-	setb(spicc->regs, CON_ENABLE, 0); /* disable SPICC */
-	spicc_set_clk(spicc, 0);
-	gpio_direction_input(cs_gpio);
-	gpio_free(cs_gpio);
-	spin_unlock_irqrestore(&spicc->lock, flags);
+	dev_info(dev, "\nchip_select=%d, num=%d\n", chip_select, num);
+	if (chip_select >= spicc->master->num_chipselect) {
+		dev_info(dev, "error chip select\n");
+		return -EINVAL;
+	}
+	if (spicc->master->cs_gpios)
+		cs_gpio = spicc->master->cs_gpios[chip_select];
+	if (cs_gpio >= 0) {
+		dev_info(dev, "set gpio %d to 0\n", cs_gpio);
+		gpio_request(cs_gpio, "spicc_cs");
+		gpio_direction_output(cs_gpio, !!(spicc->mode & SPI_CS_HIGH));
+	} else {
+		dev_info(dev, "use spicc ss\n");
+		setb(spicc->regs, CON_CHIP_SELECT, chip_select);
+		setb(spicc->regs, CON_SS_POL, !!(spicc->mode & SPI_CS_HIGH));
+	}
+	spicc_handle_one_msg(spicc, &m);
+	if (cs_gpio >= 0) {
+		gpio_direction_output(cs_gpio, !(spicc->mode & SPI_CS_HIGH));
+		gpio_free(cs_gpio);
+	}
+	dev_info(dev, "read back data ok\n");
+	for (i = 0; i < min_t(size_t, 32, num); i++)
+		dev_info(dev, "rx_data[%d]=0x%x\n", i, rx_buf[i]);
 
+	kfree(tx_buf);
+	kfree(rx_buf);
+	kfree(kbuf);
 	return count;
 }
+
 static struct class_attribute spicc_class_attrs[] = {
-		__ATTR(test,  S_IWUSR, NULL,    store_test),
+		__ATTR(test, S_IWUSR, NULL, store_test),
+		__ATTR(test_data, S_IRUGO|S_IWUSR, show_setting, store_setting),
+		__ATTR(speed, S_IRUGO|S_IWUSR, show_setting, store_setting),
+		__ATTR(mode, S_IRUGO|S_IWUSR, show_setting, store_setting),
+		__ATTR(bit_width, S_IRUGO|S_IWUSR, show_setting, store_setting),
+		__ATTR(flags, S_IRUGO|S_IWUSR, show_setting, store_setting),
 		__ATTR_NULL
 };
 
@@ -400,12 +688,27 @@ static int of_spicc_get_data(
 	struct resource *res;
 	struct reset_control *rst;
 	int err;
+	unsigned int value;
 
 	err = of_property_read_u32(np, "device_id", &spicc->device_id);
 	if (err) {
 		dev_err(&pdev->dev, "get device_id fail\n");
 		return err;
 	}
+
+	err = of_property_read_u32(np, "dma_en", &value);
+	spicc_set_flag(spicc, FLAG_DMA_EN, err ? 0 : (!!value));
+	dev_info(&pdev->dev, "dma_en=%d\n", spicc_get_flag(spicc, FLAG_DMA_EN));
+	err = of_property_read_u32(np, "dma_tx_threshold", &value);
+	spicc->dma_tx_threshold = err ? 3 : value;
+	err = of_property_read_u32(np, "dma_rx_threshold", &value);
+	spicc->dma_rx_threshold = err ? 3 : value;
+	err = of_property_read_u32(np, "dma_num_per_read_burst", &value);
+	spicc->dma_num_per_read_burst = err ? 3 : value;
+	err = of_property_read_u32(np, "dma_num_per_write_burst", &value);
+	spicc->dma_num_per_write_burst = err ? 3 : value;
+	spicc->irq = irq_of_parse_and_map(np, 0);
+	dev_info(&pdev->dev, "irq = 0x%x\n", spicc->irq);
 
 	spicc->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(spicc->pinctrl)) {
@@ -488,6 +791,16 @@ static int spicc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&spicc->msg_queue);
 
 	spicc_hw_init(spicc);
+	init_completion(&spicc->completion);
+	if (spicc->irq) {
+		if (request_irq(spicc->irq, spicc_xfer_complete_isr,
+				IRQF_DISABLED, "spicc", spicc)) {
+			dev_err(&pdev->dev, "master %d request irq(%d) failed!\n",
+					master->bus_num, spicc->irq);
+			spicc->irq = 0;
+		} else
+			disable_irq_nosync(spicc->irq);
+	}
 
 	/*setup class*/
 	spicc->cls.name = kzalloc(10, GFP_KERNEL);

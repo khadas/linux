@@ -4,6 +4,8 @@
 #include <linux/amlogic/saradc.h>
 
 #define SPICC_FIFO_SIZE 16
+#define SPICC_DEFAULT_BIT_WIDTH 8
+#define SPICC_DEFAULT_SPEED_HZ 3000000
 
 #define SPICC_REG_RXDATA (0<<2)
 #define SPICC_REG_TXDATA (1<<2)
@@ -29,6 +31,7 @@
 #define CON_DATA_RATE_DIV bits_desc(SPICC_REG_CON, 16, 3)
 #define CON_BITS_PER_WORD bits_desc(SPICC_REG_CON, 19, 6)
 #define CON_BURST_LEN bits_desc(SPICC_REG_CON, 25, 7)
+#define BURST_LEN_MAX 128
 
 #define INT_TX_EMPTY_EN bits_desc(SPICC_REG_INT, 0, 1)
 #define INT_TX_HALF_EN bits_desc(SPICC_REG_INT, 1, 1)
@@ -57,6 +60,11 @@
 #define STA_RX_OF bits_desc(SPICC_REG_STA, 6, 1)
 #define STA_XFER_COM bits_desc(SPICC_REG_STA, 7, 1)
 
+#define TX_COUNT bits_desc(SPICC_REG_TEST, 0, 5)
+#define RX_COUNT bits_desc(SPICC_REG_TEST, 5, 5)
+#define DELAY_CONTROL bits_desc(SPICC_REG_TEST, 16, 6)
+#define RX_FIFO_RESET bits_desc(SPICC_REG_TEST, 22, 1)
+#define TX_FIFO_RESET bits_desc(SPICC_REG_TEST, 23, 1)
 #define CLK_FREE_EN bits_desc(SPICC_REG_TEST, 24, 1)
 
 struct spicc_platform_data {
