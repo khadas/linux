@@ -269,14 +269,14 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 		return err_code;
 	}
 
-	set_aft_thread_enable(1);
+	set_aft_thread_enable(1, 100);
 	atvdemod_state = ATVDEMOD_STATE_WORK;
 	return 0;
 }
 
 static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 {
-	set_aft_thread_enable(0);
+	set_aft_thread_enable(0, 0);
 	atvdemod_uninit();
 	if (amlatvdemod_devp->pin != NULL) {
 		devm_pinctrl_put(amlatvdemod_devp->pin);
