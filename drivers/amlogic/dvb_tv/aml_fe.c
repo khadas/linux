@@ -87,6 +87,7 @@ struct timer_list aml_timer;
 #define AML_INTERVAL		(HZ/100)   /* 10ms, #define HZ 100 */
 static unsigned int timer_init_state;
 static unsigned int aft_thread_enable;
+static unsigned int aft_thread_delaycnt;
 static unsigned int aft_thread_enable_cache;
 static unsigned int aml_timer_en = 1;
 module_param(aml_timer_en, uint, 0644);
@@ -280,9 +281,10 @@ struct dvb_frontend *get_si2177_tuner(void)
 }
 EXPORT_SYMBOL(get_si2177_tuner);
 
-void set_aft_thread_enable(int enable)
+void set_aft_thread_enable(int enable, u32_t delay)
 {
 	aft_thread_enable = enable;
+	aft_thread_delaycnt = delay;
 }
 
 static void aml_fe_do_work(struct work_struct *work)
@@ -308,7 +310,8 @@ static void aml_fe_do_work(struct work_struct *work)
 
 	retrieve_frequency_offset(&afc);
 	if (debug_fe & 0x4)
-		pr_err("%s,afc raw val:%d, lock:%d\n", __func__, afc, lock);
+		pr_err("%s,afc raw val:%d,afc:%d lock:%d\n", __func__,
+				afc, afc*488/1000, lock);
 	afc = afc*488/1000;
 	if (lock && (abs(afc) < AFC_BEST_LOCK)) {
 		if (debug_fe & 0x4)
@@ -374,10 +377,14 @@ void aml_timer_hander(unsigned long arg)
 {
 	struct dvb_frontend *fe = (struct dvb_frontend *)arg;
 	struct aml_dvb *dvb = aml_get_dvb_device();
-	aml_timer.expires = jiffies + AML_INTERVAL*10;/* 100ms timer */
+	aml_timer.expires = jiffies + AML_INTERVAL*20;/* 100ms timer */
 	add_timer(&aml_timer);
 	if (!aft_thread_enable) {
 		pr_info("%s, stop aft thread\n", __func__);
+		return;
+	}
+	if (aft_thread_delaycnt > 0) {
+		aft_thread_delaycnt--;
 		return;
 	}
 	if ((aml_timer_en == 0) || (FE_ANALOG != fe->ops.info.type))
