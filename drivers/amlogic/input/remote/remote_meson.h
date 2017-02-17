@@ -18,6 +18,16 @@
 #ifndef _REMOTE_AML_H
 #define _REMOTE_AML_H
 #include <linux/cdev.h>
+#include "remote_core.h"
+
+#define IR_DATA_IS_VALID(data) (data & 0x8)
+#define IR_CONTROLLER_BUSY(x) ((x >> 7) & 0x1)
+
+enum IR_CONTR_NUMBER {
+	MULTI_IR_ID = 0,
+	LEGACY_IR_ID,
+	IR_ID_MAX
+};
 
 struct remote_range {
 	struct range active;
@@ -53,14 +63,31 @@ struct custom_table {
 };
 
 struct cdev;
+struct remote_chip;
 
+/**
+  *struct remote_contr_desc - describe the different properties and methods
+  *for the Legacy IR controller and multi-format IR controller.
+  *TODO: compatible with the "struct aml_remote_reg_proto"
+  */
+struct remote_contr_desc {
+	void __iomem *remote_regs;
+	char *proto_name;
+	int (*get_scancode)(struct remote_chip *chip);
+	int (*get_decode_status)(struct remote_chip *chip);
+	u32 (*get_custom_code)(struct remote_chip *chip);
+	bool (*set_custom_code)(struct remote_chip *chip, u32 code);
+};
+/**
+  *struct remote_chip - describe the common properties and methods
+  * for the Legacy IR controller and multi-format IR controller.
+  */
 struct remote_chip {
 	struct device *dev;
 	struct remote_dev *r_dev;
 	struct remote_range reg_duration;
 	char *dev_name;
 	int protocol;
-	char *proto_name;
 	int release_delay;
 
 	dev_t chr_devno;
@@ -79,16 +106,22 @@ struct remote_chip {
 	int decode_status;
 
 	const char *keymap_name;
-	void __iomem *remote_regs; /*register*/
 	int	irqno;       /*irq number*/
 	int	irq_cpumask;
+	/**
+	  *indicate which ir controller working.
+	  *0: multi format IR
+	  *1: legacy IR
+	  */
+	unsigned char ir_work;
+	/**
+	  *multi_format IR controller register saved to ir_contr[0]
+	  *legacy IR controller register saved to ir_contr[1]
+	  */
+	struct remote_contr_desc ir_contr[2];
 
 	int (*report_key)(struct remote_chip *chip);
 	int (*release_key)(struct remote_chip *chip);
-	int (*get_scancode)(struct remote_chip *chip);
-	int (*get_decode_status)(struct remote_chip *chip);
-	u32 (*get_custom_code)(struct remote_chip *chip);
-	bool (*set_custom_code)(struct remote_chip *chip, u32 code);
 	int (*set_register_config)(struct remote_chip *chip, int type);
 	int (*debug_printk)(const char *, ...);
 };
@@ -192,9 +225,9 @@ enum remote_reg {
 #define   REMOTE_IOC_SET_RELT_DELAY     _IOW('I', 140, u32)
 
 int ir_register_default_config(struct remote_chip *chip, int type);
-int remote_reg_read(struct remote_chip *chip,
+int remote_reg_read(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int *val);
-int remote_reg_write(struct remote_chip *chip,
+int remote_reg_write(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int val);
 
 
