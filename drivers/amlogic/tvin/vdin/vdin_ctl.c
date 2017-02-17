@@ -2163,7 +2163,8 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* [11: 0]       write.lfifo_buf_size   = 0x100 */
 	if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
 		is_meson_m8m2_cpu() || is_meson_m8b_cpu() ||
-		is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
+		is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+		is_meson_txlx_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);

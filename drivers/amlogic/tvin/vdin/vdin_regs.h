@@ -577,6 +577,20 @@
 /* Bit 5:0, vdi9_asfifo_cnt */
 #define VDIN_COM_STATUS3         ((0x1273))/* + 0xd0100000) */
 
+/* dolby vdin regs */
+#define VDIN_DOLBY_DSC_CTRL0                       0x1275
+/*((0x1275  << 2) + 0xff900000)*/
+#define VDIN_DOLBY_DSC_CTRL1                       0x1276
+#define VDIN_DOLBY_DSC_CTRL2                       0x1277
+#define VDIN_DOLBY_DSC_CTRL3                       0x1278
+#define VDIN_DOLBY_AXI_CTRL0                       0x1279
+#define VDIN_DOLBY_AXI_CTRL1                       0x127a
+#define VDIN_DOLBY_AXI_CTRL2                       0x127b
+#define VDIN_DOLBY_AXI_CTRL3                       0x127c
+#define VDIN_DOLBY_DSC_STATUS0                     0x127d
+#define VDIN_DOLBY_DSC_STATUS1                     0x127e
+#define VDIN_DOLBY_DSC_STATUS2                     0x127f
+#define VDIN_DOLBY_DSC_STATUS3                     0x121d
 
 
 

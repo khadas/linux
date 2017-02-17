@@ -3990,7 +3990,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 #endif
 	/*config adc*/
 	if (port == TVIN_PORT_CVBS3) {
-		if (is_meson_txl_cpu()) {
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			/** DADC CNTL for LIF signal input **/
 			W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
 			W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
@@ -4003,7 +4003,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			W_HIU_REG(HHI_DADC_CNTL4, 0x80600240);
 		}
 	} else{
-		if (is_meson_txl_cpu()) {
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			W_HIU_REG(HHI_CADC_CNTL, 0x02000A08);
 			W_HIU_REG(HHI_CADC_CNTL2, 0x04007B05);
 		} else if (is_meson_gxtvbb_cpu()) {
@@ -4109,7 +4109,7 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 			break;
 		mutex_lock(&pll_mutex);
 		do {
-			if (is_meson_txl_cpu()) {
+			if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
 				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
@@ -4148,7 +4148,7 @@ void adc_set_pll_cntl(bool on, unsigned int module_sel)
 			break;
 		mutex_lock(&pll_mutex);
 		do {
-			if (is_meson_txl_cpu()) {
+			if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
 				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);

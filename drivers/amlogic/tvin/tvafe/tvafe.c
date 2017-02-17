@@ -2404,8 +2404,13 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	size_io_reg = resource_size(res);
-	pr_info("tvafe_probe reg=%p,size=%x\n",
-			(void *)res->start, size_io_reg);
+	pr_info("%s:tvafe reg base=%p,size=%x\n",
+		__func__, (void *)res->start, size_io_reg);
+	if (!devm_request_mem_region(&pdev->dev,
+				res->start, size_io_reg, pdev->name)) {
+		dev_err(&pdev->dev, "Memory region busy\n");
+		return -EBUSY;
+	}
 	tvafe_reg_base =
 		devm_ioremap_nocache(&pdev->dev, res->start, size_io_reg);
 	if (!tvafe_reg_base) {
@@ -2416,7 +2421,10 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 			__func__, tvafe_reg_base, size_io_reg);
 
 	/*remap hiu mem*/
-	tvafe_hiu_reg_base = ioremap(0xc883c000, 0x2000);
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXL)
+		tvafe_hiu_reg_base = ioremap(0xc883c000, 0x2000);
+	else
+		tvafe_hiu_reg_base = ioremap(0xff63c000, 0x2000);
 	/* frontend */
 	tvin_frontend_init(&tdevp->frontend, &tvafe_dec_ops,
 						&tvafe_sm_ops, tdevp->index);
@@ -2452,7 +2460,13 @@ static int tvafe_drv_remove(struct platform_device *pdev)
 {
 	struct tvafe_dev_s *tdevp;
 	tdevp = platform_get_drvdata(pdev);
-
+	if (tvafe_hiu_reg_base)
+		iounmap(tvafe_hiu_reg_base);
+	if (tvafe_reg_base) {
+		devm_iounmap(&pdev->dev, tvafe_reg_base);
+		devm_release_mem_region(&pdev->dev, tvafe_memobj.start,
+			resource_size(&tvafe_memobj));
+	}
 	mutex_destroy(&tdevp->afe_mutex);
 	mutex_destroy(&pll_mutex);
 	tvin_unreg_frontend(&tdevp->frontend);
