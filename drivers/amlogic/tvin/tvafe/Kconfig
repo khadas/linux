@@ -37,4 +37,10 @@ config TVIN_VBI
 		Only for ATV input,
 		By now,wo only test CC is ok on M6TV & G9TV
 		CC is usually used in USA
+config TVIN_AVIN_DETECT
+	tristate "Amlogic AVIN DETECT device"
+	default n
+	help
+		avin detect devices driver
+		Only for av input
 endif

@@ -973,7 +973,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_set_decimation(devp);
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() || is_meson_txlx_cpu())
 		vdin_set_bitdepth(devp);
 	/* txl new add fix for hdmi switch resolution cause cpu holding */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)
@@ -2857,12 +2857,19 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		pr_err("don't find  match rdma irq, disable rdma\n");
 		vdevp->rdma_irq = 0;
 	}
-	/* after_eq gxtvbb support 10bit mode@20161108 */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
-		ret = of_property_read_u32(pdev->dev.of_node,
-				"tv_bit_mode", &bit_mode);
-		if (ret)
-			pr_info("no bit mode found, set 8bit as default\n");
+	/* vdin0 for tv */
+	if (vdevp->index == 0) {
+		/* only gxtvbb & txl support 10bit mode@20161108 */
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL) ||
+			(get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)) {
+			ret = of_property_read_u32(pdev->dev.of_node,
+					"tv_bit_mode", &bit_mode);
+			if (ret)
+				pr_info("no bit mode found, set 8bit as default\n");
+		}
+		vdevp->color_depth_support = bit_mode;
+		vdevp->color_depth_config = 0;
 	}
 	vdevp->color_depth_support = bit_mode;
 	vdevp->color_depth_config = 0;
