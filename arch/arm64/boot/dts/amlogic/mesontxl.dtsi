@@ -587,8 +587,9 @@
 	remote:rc@c8100580 {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
-		reg = <0x0 0xc8100580 0x00 0x11>;
-		status = "ok";
+		reg = <0x0 0xc8100580 0x00 0x44>, /*Multi-format IR controller*/
+			<0x0 0xc8100480 0x00 0x20>; /*Legacy IR controller*/
+		status = "okay";
 		protocol = <REMOTE_TYPE_NEC>;
 		interrupts = <0 196 1>;
 		pinctrl-names = "default";

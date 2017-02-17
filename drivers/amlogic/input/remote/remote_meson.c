@@ -39,7 +39,6 @@
 #include <linux/of_address.h>
 
 #include "remote_meson.h"
-#include "remote_core.h"
 
 #include <linux/amlogic/iomap.h>
 #include "sysfs.h"
@@ -52,18 +51,29 @@ static void amlremote_tasklet(unsigned long data);
 
 DECLARE_TASKLET_DISABLED(tasklet, amlremote_tasklet, 0);
 
-
-int remote_reg_read(struct remote_chip *chip,
+int remote_reg_read(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int *val)
 {
-	*val = readl((chip->remote_regs+reg));
+	if (id >= IR_ID_MAX) {
+		pr_err("remote: invalid id:[%d] in %s\n", id, __func__);
+		return -EINVAL;
+	}
+
+	*val = readl((chip->ir_contr[id].remote_regs+reg));
+
 	return 0;
 }
 
-int remote_reg_write(struct remote_chip *chip,
+int remote_reg_write(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int val)
 {
-	writel(val, (chip->remote_regs+reg));
+	if (id >= IR_ID_MAX) {
+		pr_err("remote: invalid id:[%d] in %s\n", id, __func__);
+		return -EINVAL;
+	}
+
+	writel(val, (chip->ir_contr[id].remote_regs+reg));
+
 	return 0;
 }
 
@@ -164,10 +174,9 @@ static bool is_valid_custom(struct remote_dev *dev)
 	struct custom_table *ct = chip->custom_tables;
 	int i;
 	int custom_code;
-
-	if (!chip->get_custom_code)
+	if (!chip->ir_contr[chip->ir_work].get_custom_code)
 		return true;
-	custom_code = chip->get_custom_code(chip);
+	custom_code = chip->ir_contr[chip->ir_work].get_custom_code(chip);
 	for (i = 0; i < chip->custom_num; i++) {
 		if (ct->custom_code == custom_code) {
 			chip->cur_custom = ct;
@@ -181,10 +190,17 @@ static bool is_valid_custom(struct remote_dev *dev)
 static bool is_next_repeat(struct remote_dev *dev)
 {
 	unsigned int val;
+	unsigned char fbusy = 0;
+	unsigned char cnt;
 
 	struct remote_chip *chip = (struct remote_chip *)dev->platform_data;
-	remote_reg_read(chip, REG_STATUS, &val);
-	if (!dev->wait_next_repeat && val)
+
+	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2:1); cnt++) {
+		remote_reg_read(chip, cnt, REG_STATUS, &val);
+		fbusy |= IR_CONTROLLER_BUSY(val);
+	}
+	remote_printk(2, "ir controller busy flag = %d\n", fbusy);
+	if (!dev->wait_next_repeat && fbusy)
 		return true;
 	else
 		return false;
@@ -194,23 +210,25 @@ static bool set_custom_code(struct remote_dev *dev, u32 code)
 {
 	struct remote_chip *chip = (struct remote_chip *)dev->platform_data;
 
-	return chip->set_custom_code(chip, code);
+	return chip->ir_contr[chip->ir_work].set_custom_code(chip, code);
 }
 
 static void amlremote_tasklet(unsigned long data)
 {
 	struct remote_chip *chip = (struct remote_chip *)data;
+	unsigned long flags;
 	int status = -1;
 	int scancode = -1;
-	unsigned long flags;
-    /*need first get_scancode, then get_decode_status,the status
-      may was set flag from get_scancode function
-	*/
+
+	/**
+	  *need first get_scancode, then get_decode_status, the status
+	  *may was set flag from get_scancode function
+	  */
 	spin_lock_irqsave(&chip->slock, flags);
-	if (chip->get_scancode)
-		scancode = chip->get_scancode(chip);
-	if (chip->get_decode_status)
-		status = chip->get_decode_status(chip);
+	if (chip->ir_contr[chip->ir_work].get_scancode)
+		scancode = chip->ir_contr[chip->ir_work].get_scancode(chip);
+	if (chip->ir_contr[chip->ir_work].get_decode_status)
+		status = chip->ir_contr[chip->ir_work].get_decode_status(chip);
 	if (status == REMOTE_NORMAL) {
 		remote_printk(2, "receive scancode=0x%x\n", scancode);
 		remote_keydown(chip->r_dev, scancode, status);
@@ -220,22 +238,29 @@ static void amlremote_tasklet(unsigned long data)
 	} else
 		remote_printk(4, "receive error %d\n", status);
 	spin_unlock_irqrestore(&chip->slock, flags);
+
 }
 
 static irqreturn_t ir_interrupt(int irq, void *dev_id)
 {
 	struct remote_chip *rc = (struct remote_chip *)dev_id;
+	int contr_status;
 	int val = 0;
 	u32 duration;
 	char buf[50];
+	unsigned char cnt;
 	enum raw_event_type type = RAW_SPACE;
 
-	remote_reg_read(rc, REG_REG1, &val);
+	remote_reg_read(rc, MULTI_IR_ID, REG_REG1, &val);
 	val = (val & 0x1FFF0000) >> 16;
 	sprintf(buf, "d:%d\n", val);
 	debug_log_printk(rc->r_dev, buf);
-
-	if ((rc->protocol >> 8)) {
+	/**
+	  *software decode multiple protocols by using Time Measurement of
+	  *multif-format IR controller
+	  */
+	if (MULTI_IR_SOFTWARE_DECODE(rc->protocol)) {
+		rc->ir_work = MULTI_IR_ID;
 		duration = val*10*1000;
 		type    = RAW_PULSE;
 		sprintf(buf, "------\n");
@@ -243,9 +268,23 @@ static irqreturn_t ir_interrupt(int irq, void *dev_id)
 		remote_raw_event_store_edge(rc->r_dev, type, duration);
 		remote_raw_event_handle(rc->r_dev);
 	} else {
+		for (cnt = 0; cnt < (ENABLE_LEGACY_IR(rc->protocol)
+				? 2:1); cnt++) {
+			remote_reg_read(rc, cnt, REG_STATUS, &contr_status);
+			if (IR_DATA_IS_VALID(contr_status)) {
+				rc->ir_work = cnt;
+				break;
+			}
+		}
+
+		if (cnt == IR_ID_MAX) {
+			pr_err("remote: invalid interrupt.\n");
+			return IRQ_HANDLED;
+		}
+
 		tasklet_schedule(&tasklet);
 	}
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int get_custom_tables(struct device_node *node,
@@ -352,10 +391,11 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 {
 	struct resource *res_irq;
 	struct resource *res_mem;
-	resource_size_t *res_start;
+	resource_size_t *res_start[2];
 	struct pinctrl *p;
 	int ret;
 	int value;
+	unsigned char i;
 
 
 	struct remote_chip *chip = platform_get_drvdata(pdev);
@@ -366,7 +406,7 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 		pr_info("remote:don't find the node <protocol>\n");
 		chip->protocol = 1;
 	}
-	pr_info("remote:protocol=%d\n", chip->protocol);
+	pr_info("remote: protocol = 0x%x\n", chip->protocol);
 
 	p = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(p)) {
@@ -374,12 +414,17 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 		return -1;
 	}
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (IS_ERR_OR_NULL(res_mem)) {
-		pr_err("remote: Get IORESOURCE_MEM error, %ld\n", PTR_ERR(p));
-		return PTR_ERR(res_mem);
+	for (i = 0; i < 2; i++) {
+		res_mem = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (IS_ERR_OR_NULL(res_mem)) {
+			pr_err("remote: Get IORESOURCE_MEM error, %ld\n",
+					PTR_ERR(p));
+			return PTR_ERR(res_mem);
+		}
+		res_start[i] = devm_ioremap_resource(&pdev->dev, res_mem);
+		chip->ir_contr[i].remote_regs = (void __iomem *)res_start[i];
 	}
-	res_start = devm_ioremap_resource(&pdev->dev, res_mem);
+
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (IS_ERR_OR_NULL(res_irq)) {
 		pr_err("remote: Get IORESOURCE_IRQ error, %ld\n", PTR_ERR(p));
@@ -387,7 +432,7 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 	}
 
 	chip->irqno = res_irq->start;
-	chip->remote_regs = (void __iomem *)res_start;
+
 
 	pr_info("remote: platform_data irq =%d\n", chip->irqno);
 
@@ -560,17 +605,18 @@ static int remote_resume(struct platform_device *pdev)
 	struct remote_chip *chip = platform_get_drvdata(pdev);
 	unsigned int val;
 	unsigned long flags;
+	unsigned char cnt;
 
 	pr_info("remote_resume\n");
 	/*resume register config*/
 	spin_lock_irqsave(&chip->slock, flags);
 	chip->set_register_config(chip, chip->protocol);
+	/* read REG_STATUS and REG_FRAME to clear status */
+	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2:1); cnt++) {
+		remote_reg_read(chip, cnt, REG_STATUS, &val);
+		remote_reg_read(chip, cnt, REG_FRAME, &val);
+	}
 	spin_unlock_irqrestore(&chip->slock, flags);
-	/*
-		read REG_STATUS and REG_FRAME to clear status
-	*/
-	remote_reg_read(chip, REG_STATUS, &val);
-	remote_reg_read(chip, REG_FRAME, &val);
 
 	if (get_resume_method() == REMOTE_WAKEUP) {
 		input_event(chip->r_dev->input_device,

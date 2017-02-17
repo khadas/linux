@@ -15,21 +15,29 @@
  *
 */
 
-
-#include "remote_core.h"
 #include "remote_meson.h"
 
+static struct remote_reg_map regs_legacy_nec[] = {
+	{REG_LDR_ACTIVE ,   ((unsigned)500 << 16) | ((unsigned)400 << 0)},
+	{REG_LDR_IDLE   ,   300 << 16 | 200 << 0},
+	{REG_LDR_REPEAT ,   150 << 16 | 80 << 0},
+	{REG_BIT_0      ,   72 << 16 | 40 << 0 },
+	{REG_REG0       ,   7 << 28 | (0xFA0 << 12) | 0x13},
+	{REG_STATUS     ,   (134 << 20) | (90 << 10)},
+	{REG_REG1       ,   0x9f00},
+};
+
 static struct remote_reg_map regs_default_nec[] = {
-	{ REG_LDR_ACTIVE,  ((unsigned)500 << 16) | ((unsigned)400 << 0)},
-	{ REG_LDR_IDLE  ,  300 << 16 | 200 << 0},
-	{ REG_LDR_REPEAT,  150 << 16 | 80 << 0},
-	{ REG_BIT_0     ,  72 << 16 | 40 << 0},
-	{ REG_REG0      ,  7 << 28 | (0xFA0 << 12) | 0x13},
-	{ REG_STATUS    ,  (134 << 20) | (90 << 10)},
-	{ REG_REG1      ,  0x9f00},
-	{ REG_REG2      ,  0x00},
-	{ REG_DURATN2   ,  0x00},
-	{ REG_DURATN3   ,  0x00}
+	{ REG_LDR_ACTIVE ,  ((unsigned)500 << 16) | ((unsigned)400 << 0)},
+	{ REG_LDR_IDLE   ,  300 << 16 | 200 << 0},
+	{ REG_LDR_REPEAT ,  150 << 16 | 80 << 0},
+	{ REG_BIT_0      ,  72 << 16 | 40 << 0},
+	{ REG_REG0       ,  7 << 28 | (0xFA0 << 12) | 0x13},
+	{ REG_STATUS     ,  (134 << 20) | (90 << 10)},
+	{ REG_REG1       ,  0x9f00},
+	{ REG_REG2       ,  0x00},
+	{ REG_DURATN2    ,  0x00},
+	{ REG_DURATN3    ,  0x00}
 };
 
 static struct remote_reg_map regs_default_duokan[] = {
@@ -75,7 +83,6 @@ static struct remote_reg_map regs_default_xmp_1[] = {
 	{ REG_REG3       ,  0           }
 };
 
-
 static struct remote_reg_map regs_default_nec_sw[] = {
 	{ REG_LDR_ACTIVE ,  0            },
 	{ REG_LDR_IDLE   ,  0            },
@@ -107,10 +114,49 @@ static struct remote_reg_map regs_default_rc5[] = {
 	{ REG_REG3       ,  0			 }
 };
 
+static struct remote_reg_map regs_default_rc6[] = {
+	{REG_LDR_ACTIVE , ((unsigned)210 << 16) | ((unsigned)125 << 0)},
+	/*rca leader 4000us,200* timebase*/
+	{REG_LDR_IDLE   , 50 << 16 | 38 << 0},     /* leader idle 400*/
+	{REG_LDR_REPEAT , 145 << 16 | 125 << 0}, /* leader repeat*/
+	{REG_BIT_0      , 51 << 16 | 38 << 0 },   /* logic '0' or '00' 1500us*/
+	{REG_REG0       , (7 << 28)|(0xFA0 << 12)|0x13},
+	/* sys clock boby time.base time = 20 body frame*/
+	{REG_STATUS     , (94 << 20) | (82 << 10)},
+	/*20bit:9440 32bit:9f40 36bit:a340 37bit:a440*/
+	{REG_REG1       , 0xa440},
+	/*it may get the wrong customer value and key value from register if
+	the value is set to 0x4,so the register value must set to 0x104*/
+	{REG_REG2       , 0x2909},
+	{REG_DURATN2    , ((28 << 16) | (16 << 0))},
+	{REG_DURATN3    , ((51 << 16) | (38 << 0))},
+};
+
 void set_hardcode(struct remote_chip *chip, int code)
 {
 	remote_printk(2, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
+}
+
+/**
+  * legacy nec hardware interface
+  * other interface share with the multi-format NEC
+  */
+static int ir_legacy_nec_get_scancode(struct remote_chip *chip)
+{
+	int  code = 0;
+	int decode_status = 0;
+	int status = 0;
+
+	remote_reg_read(chip, LEGACY_IR_ID, REG_STATUS, &decode_status);
+	if (decode_status & 0x01)
+		status |= REMOTE_REPEAT;
+	chip->decode_status = status; /*set decode status*/
+	remote_reg_read(chip, LEGACY_IR_ID, REG_FRAME, &code);
+	remote_printk(2, "framecode=0x%x\n", code);
+	chip->r_dev->cur_hardcode = code;
+	code = (code >> 16) & 0xff;
+	return code;
 }
 
 /*
@@ -122,12 +168,11 @@ static int ir_nec_get_scancode(struct remote_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-
-	remote_reg_read(chip, REG_STATUS, &decode_status);
+	remote_reg_read(chip, MULTI_IR_ID, REG_STATUS, &decode_status);
 	if (decode_status & 0x01)
 		status |= REMOTE_REPEAT;
 	chip->decode_status = status; /*set decode status*/
-	remote_reg_read(chip, REG_FRAME, &code);
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
 	remote_printk(2, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 16) & 0xff;
@@ -156,7 +201,7 @@ static int ir_xmp_get_scancode(struct remote_chip *chip)
 {
 	int  code = 0;
 
-	remote_reg_read(chip, REG_FRAME, &code);
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
 	remote_printk(2, "framecode=0x%x\n", code);
 	if (!xmp_decode_second) {
 		chip->r_dev->cur_hardcode = 0;
@@ -229,7 +274,7 @@ static int ir_duokan_get_scancode(struct remote_chip *chip)
 {
 	int  code = 0;
 
-	remote_reg_read(chip, REG_FRAME, &code);
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
 	if (duokan_parity_check(code) < 0) {
 		set_hardcode(chip, 0);
 		return 0;
@@ -245,7 +290,7 @@ static int ir_duokan_get_decode_status(struct remote_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-	remote_reg_read(chip, REG_STATUS, &decode_status);
+	remote_reg_read(chip, MULTI_IR_ID, REG_STATUS, &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= REMOTE_REPEAT;
@@ -303,12 +348,12 @@ static int ir_rc5_get_scancode(struct remote_chip *chip)
 	int status = 0;
 	int decode_status = 0;
 
-	remote_reg_read(chip, REG_STATUS, &decode_status);
+	remote_reg_read(chip, MULTI_IR_ID, REG_STATUS, &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= REMOTE_REPEAT;
 	chip->decode_status = status;
-	remote_reg_read(chip, REG_FRAME, &code);
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
 	remote_printk(2, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = code & 0x3f;
@@ -329,6 +374,58 @@ static u32 ir_rc5_get_custom_code(struct remote_chip *chip)
 	custom_code = (chip->r_dev->cur_hardcode >> 6) & 0x1f;
 	return custom_code;
 }
+
+/*RC6 decode interface*/
+static int ir_rc6_get_scancode(struct remote_chip *chip)
+{
+	int code = 0;
+	int code1 = 0;
+	int status = 0;
+	int decode_status = 0;
+
+	remote_reg_read(chip, MULTI_IR_ID, REG_STATUS, &decode_status);
+	decode_status &= 0xf;
+	if (decode_status & 0x01)
+		status |= REMOTE_REPEAT;
+	chip->decode_status = status;
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
+	remote_printk(2, "framecode=0x%x\n", code);
+	/**
+	  *if the frame length larger than 32Bit, we must read the REG_FRAME1.
+	  *Otherwise it will affect the update of the 'frame1' and repeat frame
+	  *detect
+	  */
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME1, &code1);
+	chip->r_dev->cur_hardcode = code;
+	code = code & 0xff;
+	return code;
+}
+
+static int ir_rc6_get_decode_status(struct remote_chip *chip)
+{
+	int status = chip->decode_status;
+
+	return status;
+}
+
+static u32 ir_rc6_get_custom_code(struct remote_chip *chip)
+{
+	u32 custom_code;
+
+	custom_code = (chip->r_dev->cur_hardcode >> 16) & 0xffff;
+	return custom_code;
+}
+
+/*legacy IR controller support protocols*/
+static struct aml_remote_reg_proto reg_legacy_nec = {
+	.protocol = REMOTE_TYPE_LEGACY_NEC,
+	.name     = "LEGACY_NEC",
+	.reg_map      = regs_legacy_nec,
+	.reg_map_size = sizeof(regs_legacy_nec)/sizeof(regs_legacy_nec[0]),
+	.get_scancode      = ir_legacy_nec_get_scancode,
+	.get_decode_status = ir_nec_get_decode_status,
+	.get_custom_code   = ir_nec_get_custom_code
+};
 
 static struct aml_remote_reg_proto reg_nec = {
 	.protocol = REMOTE_TYPE_NEC,
@@ -391,6 +488,17 @@ static struct aml_remote_reg_proto reg_rc5 = {
 	.get_custom_code   = ir_rc5_get_custom_code,
 };
 
+static struct aml_remote_reg_proto reg_rc6 = {
+	.protocol = REMOTE_TYPE_RC6,
+	.name	  = "RC6",
+	.reg_map      = regs_default_rc6,
+	.reg_map_size = ARRAY_SIZE(regs_default_rc6),
+	.get_scancode      = ir_rc6_get_scancode,
+	.get_decode_status = ir_rc6_get_decode_status,
+	.get_custom_code   = ir_rc6_get_custom_code,
+};
+
+
 const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_nec,
 	&reg_duokan,
@@ -398,65 +506,81 @@ const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_xmp_1_sw,
 	&reg_nec_sw,
 	&reg_rc5,
+	&reg_rc6,
+	&reg_legacy_nec,
 	NULL
 };
 
-int ir_register_default_config(struct remote_chip *chip, int type)
+static int ir_contr_init(struct remote_chip *chip, int type, unsigned char id)
 {
-	const struct aml_remote_reg_proto **reg_proto;
+	const struct aml_remote_reg_proto **reg_proto = remote_reg_proto;
 	struct remote_reg_map *reg_map;
 	int size;
 	int status;
 
-	reg_proto = remote_reg_proto;
 	for ( ; (*reg_proto) != NULL ; ) {
 		if ((*reg_proto)->protocol == type)
 			break;
 		reg_proto++;
 	}
 	if (!*reg_proto) {
-		pr_err("remote:%s,protocol set err %d\n", __func__, type);
+		pr_err("remote:%s, protocol set err %d\n", __func__, type);
 		return -EINVAL;
 	}
 
-	remote_reg_read(chip, REG_STATUS, &status);
-	remote_reg_read(chip, REG_FRAME,  &status);
+	remote_reg_read(chip, id, REG_STATUS, &status);
+	remote_reg_read(chip, id, REG_FRAME,  &status);
 	/*
-		reset ir decoder and disable the state machine
-		of IR decoder.
-		[15] = 0 ,disable the machine of IR decoder
-		[13:8] = 0x1f,means default 32 bits frame body
-		[0] = 0x01,set to 1 to reset the IR decoder
+	 * reset ir decoder and disable the state machine
+	 * of IR decoder.
+	 * [15] = 0 ,disable the machine of IR decoder
+	 * [0] = 0x01,set to 1 to reset the IR decoder
 	*/
-	remote_reg_write(chip, REG_REG1, 0x1f01);
-
-	pr_info("remote:default protocol=%d\n", (*reg_proto)->protocol);
+	remote_reg_write(chip, id, REG_REG1, 0x01);
+	pr_info("remote: default protocol = 0x%x and id = %d\n",
+				(*reg_proto)->protocol, id);
 	reg_map = (*reg_proto)->reg_map;
 	size    = (*reg_proto)->reg_map_size;
 
 	for (  ; size > 0;  ) {
-		remote_reg_write(chip, reg_map->reg, reg_map->val);
+		remote_reg_write(chip, id, reg_map->reg, reg_map->val);
 		pr_info("reg=0x%x, val=0x%x\n", reg_map->reg, reg_map->val);
 		reg_map++;
 		size--;
 	}
-
 	/*
-		when we reinstall remote controller register,
-		we need reset IR decoder, set 1 to REG_REG1 bit0,
-		after IR decoder reset, we need to clear the bit0
+	 * when we reinstall remote controller register,
+	 * we need reset IR decoder, set 1 to REG_REG1 bit0,
+	 * after IR decoder reset, we need to clear the bit0
 	*/
-	remote_reg_read(chip, REG_REG1, &status);
+	remote_reg_read(chip, id, REG_REG1, &status);
 	status |= 1;
-	remote_reg_write(chip, REG_REG1, status);
+	remote_reg_write(chip, id, REG_REG1, status);
 	status &= ~0x01;
-	remote_reg_write(chip, REG_REG1, status);
-	chip->get_scancode            = (*reg_proto)->get_scancode;
-	chip->get_decode_status       = (*reg_proto)->get_decode_status;
-	chip->proto_name			  = (*reg_proto)->name;
-	chip->get_custom_code         = (*reg_proto)->get_custom_code;
-	chip->set_custom_code         = (*reg_proto)->set_custom_code;
+	remote_reg_write(chip, id, REG_REG1, status);
+	chip->ir_contr[id].get_scancode      = (*reg_proto)->get_scancode;
+	chip->ir_contr[id].get_decode_status = (*reg_proto)->get_decode_status;
+	chip->ir_contr[id].proto_name        = (*reg_proto)->name;
+	chip->ir_contr[id].get_custom_code   = (*reg_proto)->get_custom_code;
+	chip->ir_contr[id].set_custom_code   = (*reg_proto)->set_custom_code;
+
 	return 0;
+}
+
+int ir_register_default_config(struct remote_chip *chip, int type)
+{
+	if (ENABLE_LEGACY_IR(type)) {
+		/*initialize registers for legacy IR controller*/
+		ir_contr_init(chip, LEGACY_IR_TYPE_MASK(type), LEGACY_IR_ID);
+	} else {
+		/*disable legacy IR controller: REG_REG1[15]*/
+		remote_reg_write(chip, LEGACY_IR_ID, REG_REG1, 0x0);
+	}
+	/*initialize registers for Multi-format IR controller*/
+	ir_contr_init(chip, MULTI_IR_TYPE_MASK(type), MULTI_IR_ID);
+
+	return 0;
+
 }
 EXPORT_SYMBOL(ir_register_default_config);
 

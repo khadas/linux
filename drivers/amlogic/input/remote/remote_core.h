@@ -24,6 +24,12 @@
 #include <linux/kfifo.h>
 #include <dt-bindings/input/meson_rc.h>
 
+#define MULTI_IR_TYPE_MASK(type) (type & 0xff)  /*8bit*/
+#define LEGACY_IR_TYPE_MASK(type) ((type >> 8) & 0xff) /*8bit*/
+/*bit[7] identify whether software decode or not*/
+#define MULTI_IR_SOFTWARE_DECODE(type) ((MULTI_IR_TYPE_MASK(type) >> 7) == 0x1)
+#define ENABLE_LEGACY_IR(type) (LEGACY_IR_TYPE_MASK(type) == 0xff)
+
 enum remote_status {
 	REMOTE_NORMAL = 0x00,
 	REMOTE_REPEAT = 1<<0,
