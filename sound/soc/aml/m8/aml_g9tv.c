@@ -134,7 +134,7 @@ static int aml_audio_set_in_source(struct snd_kcontrol *kcontrol,
 			aml_write_cbus(AUDIN_SOURCE_SEL, 0);
 		audio_in_source = 0;
 		if (is_meson_txl_cpu())
-			DRC0_enable(0);
+			DRC0_enable(1);
 	} else if (ucontrol->value.enumerated.item[0] == 1) {
 		/* select ATV output as I2S source */
 		aml_write_cbus(AUDIN_SOURCE_SEL, 1);
