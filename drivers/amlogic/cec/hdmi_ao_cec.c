@@ -120,6 +120,7 @@ enum {
 	HDMI_OPTION_ENABLE_CEC = 2,
 	HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
 	HDMI_OPTION_SET_LANG = 5,
+	HDMI_OPTION_SERVICE_FLAG = 16,
 };
 
 static struct ao_cec_dev *cec_dev;
@@ -1296,15 +1297,24 @@ static void cec_rx_process(void)
 	new_msg = 0;
 }
 
+static bool cec_service_suspended(void)
+{
+	/* service is not enabled */
+	if (!(cec_dev->hal_flag & (1 << HDMI_OPTION_SERVICE_FLAG)))
+		return false;
+	if (!(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))
+		return true;
+	return false;
+}
+
 static void cec_task(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 
 	dwork = &cec_dev->cec_work;
-	if (cec_dev && (!wake_ok ||
-	   !(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))) {
+	if (cec_dev && (!wake_ok || cec_service_suspended()))
 		cec_rx_process();
-	}
+
 	if (!cec_late_check_rx_buffer())
 		queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
 }
@@ -1878,6 +1888,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			cec_config(0x2f, 1);
 		} else
 			cec_dev->hal_flag &= ~(tmp);
+		cec_dev->hal_flag |= (1 << HDMI_OPTION_SERVICE_FLAG);
 		break;
 
 	case CEC_IOC_SET_OPTION_SET_LANG:
