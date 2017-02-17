@@ -56,8 +56,10 @@ struct spicc {
 	struct completion completion;
 #define FLAG_DMA_EN 0
 #define FLAG_TEST_DATA_AUTO_INC 1
+#define FLAG_SSCTL 2
 	unsigned int flags;
 	u8 test_data;
+	unsigned int delay_control;
 };
 
 
@@ -74,9 +76,9 @@ void spicc_chip_select(struct spi_device *spi, bool select)
 		return;
 	if (spi->cs_gpio >= 0) {
 		gpio_direction_output(spi->cs_gpio, level);
-	} else {
+	} else if (select) {
 		setb(spicc->regs, CON_CHIP_SELECT, spi->chip_select);
-		setb(spicc->regs, CON_SS_POL, !!(spi->mode & SPI_CS_HIGH));
+		setb(spicc->regs, CON_SS_POL, level);
 	}
 }
 EXPORT_SYMBOL(spicc_chip_select);
@@ -121,7 +123,6 @@ static void spicc_set_mode(struct spicc *spicc, u8 mode)
 
 	setb(spicc->regs, CON_CLK_PHA, cpha);
 	setb(spicc->regs, CON_CLK_POL, cpol);
-	setb(spicc->regs, CON_DRCTL, 0);
 }
 
 static void spicc_set_clk(struct spicc *spicc, int speed)
@@ -266,7 +267,6 @@ static int spicc_dma_xfer(struct spicc *spicc, struct spi_transfer *t)
 
 	setb(mem_base, RX_FIFO_RESET, 1);
 	setb(mem_base, TX_FIFO_RESET, 1);
-	setb(mem_base, CON_SMC, 0);
 	setb(mem_base, CON_XCH, 0);
 	spicc_set_bit_width(spicc, 64);
 	if (t->tx_dma != INVALID_DMA_ADDRESS)
@@ -306,7 +306,6 @@ static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 
 	setb(mem_base, RX_FIFO_RESET, 1);
 	setb(mem_base, TX_FIFO_RESET, 1);
-	setb(mem_base, CON_SMC, 0);
 	setb(mem_base, CON_XCH, 0);
 	if (spicc->irq) {
 		setb(mem_base, INT_XFER_COM_EN, 1);
@@ -362,9 +361,11 @@ static void spicc_hw_init(struct spicc *spicc)
 	setb(mem_base, CLK_FREE_EN, 1);
 	setb(mem_base, CON_MODE, 1); /* 0-slave, 1-master */
 	setb(mem_base, CON_XCH, 0);
-	setb(mem_base, CON_SMC, 1);
-	setb(mem_base, CON_SS_CTL, 1);
+	setb(mem_base, CON_SMC, 0);
+	setb(mem_base, CON_SS_CTL, spicc_get_flag(spicc, FLAG_SSCTL));
+	setb(mem_base, CON_DRCTL, 0);
 	spicc_enable(spicc, 1);
+	setb(mem_base, DELAY_CONTROL, spicc->delay_control);
 	writel((0x00<<26 |
 					0x00<<20 |
 					0x0<<19 |
@@ -374,9 +375,10 @@ static void spicc_hw_init(struct spicc *spicc)
 					spicc->dma_tx_threshold<<1 |
 					0x0<<0),
 					mem_base + SPICC_REG_DMA);
-	spicc_set_bit_width(spicc, 8);
+	spicc_set_bit_width(spicc, SPICC_DEFAULT_BIT_WIDTH);
 	spicc_set_mode(spicc, SPI_MODE_0);
-	spicc_set_clk(spicc, 3000000);
+	spicc_set_clk(spicc, SPICC_DEFAULT_SPEED_HZ);
+	/* spicc_enable(spicc, 0); */
 }
 
 
@@ -426,31 +428,19 @@ static int spicc_setup(struct spi_device *spi)
 	struct spicc *spicc;
 
 	spicc = spi_master_get_devdata(spi->master);
-	if (!spi->cs_gpio &&
-	(spi->chip_select < spi->master->num_chipselect))
-		spi->cs_gpio = spi->master->cs_gpios[spi->chip_select];
-	dev_info(&spi->dev, "cs_gpio=%d,mode=%d, speed=%d\n",
-			spi->cs_gpio, spi->mode, spi->max_speed_hz);
-	if (spi->cs_gpio)
+	if (spi->cs_gpio >= 0)
 		gpio_request(spi->cs_gpio, "spicc");
-	spicc_set_bit_width(spicc, spi->bits_per_word);
-	spicc_set_clk(spicc, spi->max_speed_hz);
-	spicc_set_mode(spicc, spi->mode);
-	spicc_enable(spicc, 1);
+	dev_info(&spi->dev, "chip_select=%d cs_gpio=%d mode=%d speed=%d\n",
+			spi->chip_select, spi->cs_gpio,
+			spi->mode, spi->max_speed_hz);
 	spicc_chip_select(spi, 0);
-
 	return 0;
 }
 
 static void spicc_cleanup(struct spi_device *spi)
 {
-	struct spicc *spicc;
-
-	spicc = spi_master_get_devdata(spi->master);
 	spicc_chip_select(spi, 0);
-	spicc_enable(spicc, 0);
-	spicc_set_clk(spicc, 0);
-	if (spi->cs_gpio)
+	if (spi->cs_gpio >= 0)
 		gpio_free(spi->cs_gpio);
 }
 
@@ -459,6 +449,7 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 	struct spi_device *spi = m->spi;
 	struct spi_transfer *t;
 	int ret = 0;
+	bool cs_changed = 0;
 
 	/* spicc_enable(spicc, 1); */
 	if (spi) {
@@ -470,8 +461,17 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 		spicc_chip_select(spi, 1);
 	}
 	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (t->bits_per_word)
+			spicc_set_bit_width(spicc, t->bits_per_word);
 		if (t->speed_hz)
 			spicc_set_clk(spicc, t->speed_hz);
+		if (spi && cs_changed) {
+			spicc_chip_select(spi, 1);
+			cs_changed = 0;
+		}
+		if (t->delay_usecs >> 10)
+			udelay(t->delay_usecs >> 10);
+
 		if (spicc_get_flag(spicc, FLAG_DMA_EN)) {
 			if (!m->is_dma_mapped)
 				spicc_dma_map(spicc, t);
@@ -482,8 +482,15 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 				(u8 *)t->rx_buf, t->len) < 0)
 			goto spicc_handle_end;
 		m->actual_length += t->len;
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
+
+		/* to delay after this transfer before
+		(optionally) changing the chipselect status. */
+		if (t->delay_usecs & 0x3ff)
+			udelay(t->delay_usecs & 0x3ff);
+		if (spi && t->cs_change) {
+			spicc_chip_select(spi, 0);
+			cs_changed = 1;
+		}
 	}
 
 spicc_handle_end:
@@ -546,6 +553,11 @@ static ssize_t show_setting(struct class *class,
 		ret = sprintf(buf, "flags=0x%x\n", spicc->flags);
 	else if (!strcmp(attr->attr.name, "test_data"))
 		ret = sprintf(buf, "test_data=0x%x\n", spicc->test_data);
+	else if (!strcmp(attr->attr.name, "help")) {
+		pr_info("SPI device test help\n");
+		pr_info("echo cs_gpio speed mode bits_per_word num");
+		pr_info("[wbyte1 wbyte2...] >test\n");
+	}
 	return ret;
 }
 
@@ -573,99 +585,77 @@ static ssize_t store_setting(
 	return count;
 }
 
-#define TRANSFER_BYTES_MAX 128
-#define ARGS_MAX (TRANSFER_BYTES_MAX+2)
 static ssize_t store_test(
 		struct class *class,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct spicc *spicc = container_of(class, struct spicc, cls);
-	unsigned int chip_select, num;
-	u8 *tx_buf = 0, *rx_buf = 0;
-	unsigned long value;
 	struct device *dev = spicc->master->dev.parent;
-	char *kbuf, *p, *argv[ARGS_MAX];
-	int argn;
-	int cs_gpio = -1;
+	unsigned int cs_gpio, speed, mode, bits_per_word, num;
+	u8 *tx_buf, *rx_buf;
+	unsigned long value;
+	char *kstr, *str_temp, *token;
 	int i;
 	struct spi_transfer t;
 	struct spi_message m;
 
-	memset(argv, 0, sizeof(argv));
-	kbuf = kstrdup(buf, GFP_KERNEL);
-	p = kbuf;
-	for (argn = 0; argn < ARGS_MAX; argn++) {
-		argv[argn] = strsep(&p, " ");
-		if (argv[argn] == NULL)
-			break;
-	}
-
-	if (buf[0] == 'h') {
-		dev_info(dev, "SPI device test help\n");
-		dev_info(dev, "echo chip_select num [wbyte1 wbyte2...] >test\n");
+	if (sscanf(buf, "%d%d%d%d%d", &cs_gpio, &speed,
+			&mode, &bits_per_word, &num) != 5) {
+		dev_err(dev, "error test data\n");
 		return count;
 	}
-
-	if ((argv[0] == NULL) || (argv[1] == NULL) ||
-		 (kstrtoul(argv[0], 0, (long *)&chip_select)) ||
-		 (kstrtoul(argv[1], 0, (long *)&num))) {
-		dev_info(dev, "invalid data\n");
-		return -EINVAL;
-	}
+	kstr = kstrdup(buf, GFP_KERNEL);
 	tx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
 	rx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
-	if (IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
+	if (IS_ERR(kstr) || IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
 		dev_err(dev, "failed to alloc tx rx buffer\n");
-		return -ENOMEM;
+		goto test_end;
+	}
+
+	str_temp = kstr;
+	/* skip pass over "cs_gpio speed mode bits_per_word num" */
+	for (i = 0; i < 5; i++)
+		strsep(&str_temp, ", ");
+	for (i = 0; i < num; i++) {
+		token = strsep(&str_temp, ", ");
+		if (!token || kstrtoul(token, 16, &value))
+			break;
+		tx_buf[i] = (u8)(value & 0xff);
+	}
+	for (; i < num; i++) {
+		tx_buf[i] = spicc->test_data;
+		if (spicc_get_flag(spicc, FLAG_TEST_DATA_AUTO_INC))
+			spicc->test_data++;
 	}
 
 	spi_message_init(&m);
+	m.spi = spi_alloc_device(spicc->master);
+	if (cs_gpio < 1000)
+		m.spi->cs_gpio = cs_gpio;
+	else {
+		m.spi->cs_gpio = -ENOENT;
+		m.spi->chip_select = cs_gpio - 1000;
+	}
+	m.spi->max_speed_hz = speed;
+	m.spi->mode = mode;
+	m.spi->bits_per_word = bits_per_word;
+	spicc_setup(m.spi);
 	memset(&t, 0, sizeof(t));
 	t.tx_buf = (void *)tx_buf;
 	t.rx_buf = (void *)rx_buf;
 	t.len = num;
 	spi_message_add_tail(&t, &m);
-
-	for (i = 0; i < num; i++) {
-		if (!argv[i+2] || (kstrtoul(argv[i+2], 16, &value))) {
-			tx_buf[i] = spicc->test_data;
-			if (spicc_get_flag(spicc, FLAG_TEST_DATA_AUTO_INC))
-				spicc->test_data++;
-		} else {
-			tx_buf[i] = (u8)(value & 0xff);
-		}
-		dev_info(dev, "tx_data[%d]=0x%x\n", i, tx_buf[i]);
-	}
-
-	dev_info(dev, "\nchip_select=%d, num=%d\n", chip_select, num);
-	if (chip_select >= spicc->master->num_chipselect) {
-		dev_info(dev, "error chip select\n");
-		return -EINVAL;
-	}
-	if (spicc->master->cs_gpios)
-		cs_gpio = spicc->master->cs_gpios[chip_select];
-	if (cs_gpio >= 0) {
-		dev_info(dev, "set gpio %d to 0\n", cs_gpio);
-		gpio_request(cs_gpio, "spicc_cs");
-		gpio_direction_output(cs_gpio, !!(spicc->mode & SPI_CS_HIGH));
-	} else {
-		dev_info(dev, "use spicc ss\n");
-		setb(spicc->regs, CON_CHIP_SELECT, chip_select);
-		setb(spicc->regs, CON_SS_POL, !!(spicc->mode & SPI_CS_HIGH));
-	}
 	spicc_handle_one_msg(spicc, &m);
-	if (cs_gpio >= 0) {
-		gpio_direction_output(cs_gpio, !(spicc->mode & SPI_CS_HIGH));
-		gpio_free(cs_gpio);
-	}
+	spi_dev_put(m.spi);
+
 	dev_info(dev, "read back data ok\n");
 	for (i = 0; i < min_t(size_t, 32, num); i++)
-		dev_info(dev, "rx_data[%d]=0x%x\n", i, rx_buf[i]);
-
+		dev_info(dev, "[%d]: 0x%2x, 0x%2x\n", i, tx_buf[i], rx_buf[i]);
+test_end:
+	kfree(kstr);
 	kfree(tx_buf);
 	kfree(rx_buf);
-	kfree(kbuf);
 	return count;
 }
 
@@ -676,6 +666,7 @@ static struct class_attribute spicc_class_attrs[] = {
 		__ATTR(mode, S_IRUGO|S_IWUSR, show_setting, store_setting),
 		__ATTR(bit_width, S_IRUGO|S_IWUSR, show_setting, store_setting),
 		__ATTR(flags, S_IRUGO|S_IWUSR, show_setting, store_setting),
+		__ATTR(help, S_IRUGO, show_setting, NULL),
 		__ATTR_NULL
 };
 
@@ -709,25 +700,24 @@ static int of_spicc_get_data(
 	spicc->dma_num_per_write_burst = err ? 3 : value;
 	spicc->irq = irq_of_parse_and_map(np, 0);
 	dev_info(&pdev->dev, "irq = 0x%x\n", spicc->irq);
+	err = of_property_read_u32(np, "delay_control", &value);
+	spicc->delay_control = err ? 0x15 : value;
+	dev_info(&pdev->dev, "delay_control=%d\n", spicc->delay_control);
+	err = of_property_read_u32(np, "ssctl", &value);
+	spicc_set_flag(spicc, FLAG_SSCTL, err ? 0 : (!!value));
 
 	spicc->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(spicc->pinctrl)) {
 		dev_err(&pdev->dev, "get pinctrl fail\n");
 		return PTR_ERR(spicc->pinctrl);
 	}
+	spicc->pullup = pinctrl_lookup_state(spicc->pinctrl, "default");
+	if (!IS_ERR(spicc->pullup))
+		pinctrl_select_state(spicc->pinctrl, spicc->pullup);
 	spicc->pullup = pinctrl_lookup_state(
 			spicc->pinctrl, "spicc_pullup");
-	if (IS_ERR(spicc->pullup)) {
-		dev_err(&pdev->dev, "lookup pullup fail\n");
-		return PTR_ERR(spicc->pullup);
-	}
 	spicc->pulldown = pinctrl_lookup_state(
 			spicc->pinctrl, "spicc_pulldown");
-	if (IS_ERR(spicc->pulldown)) {
-		dev_err(&pdev->dev, "lookup spicc_pulldown fail\n");
-		return PTR_ERR(spicc->pulldown);
-	}
-	pinctrl_select_state(spicc->pinctrl, spicc->pullup);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spicc->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -769,12 +759,14 @@ static int spicc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "of error=%d\n", ret);
 		goto err;
 	}
+	spicc_hw_init(spicc);
+
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = spicc->device_id;
 	master->setup = spicc_setup;
 	master->transfer = spicc_transfer;
 	master->cleanup = spicc_cleanup;
-	master->mode_bits = SPI_MODE_3;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	ret = spi_register_master(master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "register spi master failed! (%d)\n", ret);
@@ -790,7 +782,6 @@ static int spicc_probe(struct platform_device *pdev)
 	spin_lock_init(&spicc->lock);
 	INIT_LIST_HEAD(&spicc->msg_queue);
 
-	spicc_hw_init(spicc);
 	init_completion(&spicc->completion);
 	if (spicc->irq) {
 		if (request_irq(spicc->irq, spicc_xfer_complete_isr,
@@ -811,8 +802,11 @@ static int spicc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "register class failed! (%d)\n", ret);
 
 	dev_info(&pdev->dev, "cs_num=%d\n", master->num_chipselect);
-	for (i = 0; i < master->num_chipselect; i++)
-		dev_info(&pdev->dev, "cs[%d]=%d\n", i, master->cs_gpios[i]);
+	if (master->cs_gpios) {
+		for (i = 0; i < master->num_chipselect; i++)
+			dev_info(&pdev->dev, "cs[%d]=%d\n", i,
+					master->cs_gpios[i]);
+	}
 	return ret;
 err:
 	spi_master_put(master);

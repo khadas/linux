@@ -1195,5 +1195,7 @@
 	dma_rx_threshold = <3>;
 	dma_num_per_read_burst = <3>;
 	dma_num_per_write_burst = <3>;
+	delay_control = <0x15>;
+	ssctl = <0>;
 };
 
