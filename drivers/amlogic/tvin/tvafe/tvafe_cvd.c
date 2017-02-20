@@ -2726,6 +2726,8 @@ void tvafe_snow_config(unsigned int onoff)
 
 void tvafe_snow_config_clamp(unsigned int onoff)
 {
+	if (tvafe_snow_function_flag == 0)
+		return;
 	if (onoff)
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
 	else
@@ -2734,6 +2736,8 @@ void tvafe_snow_config_clamp(unsigned int onoff)
 /*only for pal-i*/
 void tvafe_snow_config_acd(void)
 {
+	if (tvafe_snow_function_flag == 0)
+		return;
 	/*0x8e035e is debug test result*/
 	if (acd_h_config)
 		W_APB_REG(ACD_REG_2D, acd_h_config);
@@ -2741,6 +2745,8 @@ void tvafe_snow_config_acd(void)
 /*only for pal-i*/
 void tvafe_snow_config_acd_resume(void)
 {
+	if (tvafe_snow_function_flag == 0)
+		return;
 	/*@todo,0x880358 must be same with cvbs_acd_table/rf_acd_table*/
 	if (R_APB_REG(ACD_REG_2D) != acd_h)
 		W_APB_REG(ACD_REG_2D, acd_h);

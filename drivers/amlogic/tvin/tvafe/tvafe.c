@@ -1606,11 +1606,13 @@ static long tvafe_ioctl(struct file *file,
 			devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
 			tvafe_snow_function_flag = true;
 			tvafe_snow_config(1);
+			tvafe_snow_config_clamp(1);
 			if (tvafe_dbg_enable)
 				pr_info("[tvafe..]TVIN_IOC_S_AFE_SONWON\n");
 			break;
 		case TVIN_IOC_S_AFE_SONWOFF:
 			tvafe_snow_config(0);
+			tvafe_snow_config_clamp(0);
 			devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
 			if (tvafe_dbg_enable)
 				pr_info("[tvafe..]TVIN_IOC_S_AFE_SONWOFF\n");
