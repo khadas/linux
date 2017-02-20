@@ -23,10 +23,12 @@
  * register offset address define
  * ********************************* */
 /* base & offset */
+#if 0
 #define LCD_REG_BASE_PERIPHS                      (0xc8834400L)
 #define LCD_REG_BASE_CBUS                         (0xc1100000L)
 #define LCD_REG_BASE_HIU                          (0xc883c000L)
 #define LCD_REG_BASE_VCBUS                        (0xd0100000L)
+#endif
 #define LCD_REG_OFFSET_PERIPHS(reg)               ((reg << 2))
 #define LCD_REG_OFFSET_CBUS(reg)                  ((reg << 2))
 #define LCD_REG_OFFSET_HIU(reg)                   ((reg << 2))

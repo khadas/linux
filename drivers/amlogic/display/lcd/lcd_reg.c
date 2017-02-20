@@ -39,15 +39,18 @@ struct reg_map_s {
 	void __iomem *p;
 	int flag;
 };
+static struct reg_map_s *lcd_map;
+static int lcd_map_num;
 
-#define LCD_MAP_CBUS      0
+#define LCD_MAP_HIUBUS    0
 #define LCD_MAP_VCBUS     1
-#define LCD_MAP_HIUBUS    2
-#define LCD_MAP_PERIPHS   3
-static struct reg_map_s lcd_reg_maps[] = {
-	{ /* CBUS */
-		.base_addr = 0xc1100000,
-		.size = 0x8000,
+#define LCD_MAP_PERIPHS   2
+#define LCD_MAP_CBUS      3
+
+static struct reg_map_s lcd_reg_maps_gxb[] = {
+	{ /* HIU */
+		.base_addr = 0xc883c000,
+		.size = 0x400,
 		.flag = 0,
 	},
 	{ /* VCBUS */
@@ -55,13 +58,31 @@ static struct reg_map_s lcd_reg_maps[] = {
 		.size = 0x10000,
 		.flag = 0,
 	},
+	{ /* PERIPHS */
+		.base_addr = 0xc8834400,
+		.size = 0x100,
+		.flag = 0,
+	},
+	{ /* CBUS */
+		.base_addr = 0xc1100000,
+		.size = 0x8000,
+		.flag = 0,
+	},
+};
+
+static struct reg_map_s lcd_reg_maps_txlx[] = {
 	{ /* HIU */
-		.base_addr = 0xc883c000,
+		.base_addr = 0xff63c000,
 		.size = 0x400,
 		.flag = 0,
 	},
+	{ /* VCBUS */
+		.base_addr = 0xff900000,
+		.size = 0xa000,
+		.flag = 0,
+	},
 	{ /* PERIPHS */
-		.base_addr = 0xc8834400,
+		.base_addr = 0xff634000,
 		.size = 0x100,
 		.flag = 0,
 	},
@@ -71,20 +92,35 @@ int lcd_ioremap(void)
 {
 	int i;
 	int ret = 0;
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	for (i = 0; i < 4; i++) {
-		lcd_reg_maps[i].p = ioremap(lcd_reg_maps[i].base_addr,
-					lcd_reg_maps[i].size);
-		if (lcd_reg_maps[i].p == NULL) {
-			lcd_reg_maps[i].flag = 0;
+	lcd_map = NULL;
+	lcd_map_num = 0;
+
+	switch (lcd_drv->chip_type) {
+	case LCD_CHIP_TXLX:
+		lcd_map = lcd_reg_maps_txlx;
+		lcd_map_num = ARRAY_SIZE(lcd_reg_maps_txlx);
+		break;
+	default:
+		lcd_map = lcd_reg_maps_gxb;
+		lcd_map_num = ARRAY_SIZE(lcd_reg_maps_gxb);
+		break;
+	}
+
+	for (i = 0; i < lcd_map_num; i++) {
+		lcd_map[i].p = ioremap(lcd_map[i].base_addr,
+					lcd_map[i].size);
+		if (lcd_map[i].p == NULL) {
+			lcd_map[i].flag = 0;
 			LCDPR("reg map failed: 0x%x\n",
-				lcd_reg_maps[i].base_addr);
+				lcd_map[i].base_addr);
 			ret = -1;
 		} else {
-			lcd_reg_maps[i].flag = 1;
+			lcd_map[i].flag = 1;
 			if (lcd_debug_print_flag) {
 				LCDPR("reg mapped: 0x%x -> %p\n",
-				lcd_reg_maps[i].base_addr, lcd_reg_maps[i].p);
+				lcd_map[i].base_addr, lcd_map[i].p);
 			}
 		}
 	}
@@ -93,9 +129,14 @@ int lcd_ioremap(void)
 
 static int check_lcd_ioremap(int n)
 {
-	if (lcd_reg_maps[n].flag == 0) {
+	if (lcd_map == NULL)
+		return -1;
+	if (n >= lcd_map_num)
+		return -1;
+
+	if (lcd_map[n].flag == 0) {
 		LCDPR("reg 0x%x mapped error\n",
-			lcd_reg_maps[n].base_addr);
+			lcd_map[n].base_addr);
 		return -1;
 	}
 	return 0;
@@ -121,7 +162,7 @@ static inline void __iomem *check_lcd_vcbus_reg(unsigned int _reg)
 	if (check_lcd_ioremap(reg_bus))
 		return NULL;
 
-	p = lcd_reg_maps[reg_bus].p + LCD_REG_OFFSET_VCBUS(_reg);
+	p = lcd_map[reg_bus].p + LCD_REG_OFFSET_VCBUS(_reg);
 	return p;
 }
 
@@ -139,9 +180,9 @@ static inline void __iomem *check_lcd_hiu_reg(unsigned int _reg)
 
 	if (reg_bus == LCD_MAP_HIUBUS) {
 		_reg = LCD_HIU_REG_GX(_reg);
-		p = lcd_reg_maps[reg_bus].p + LCD_REG_OFFSET_HIU(_reg);
+		p = lcd_map[reg_bus].p + LCD_REG_OFFSET_HIU(_reg);
 	} else {
-		p = lcd_reg_maps[reg_bus].p + LCD_REG_OFFSET_CBUS(_reg);
+		p = lcd_map[reg_bus].p + LCD_REG_OFFSET_CBUS(_reg);
 	}
 	return p;
 }
@@ -153,7 +194,7 @@ static inline void __iomem *check_lcd_cbus_reg(unsigned int _reg)
 	if (check_lcd_ioremap(LCD_MAP_CBUS))
 		return NULL;
 
-	p = lcd_reg_maps[LCD_MAP_CBUS].p + LCD_REG_OFFSET_CBUS(_reg);
+	p = lcd_map[LCD_MAP_CBUS].p + LCD_REG_OFFSET_CBUS(_reg);
 	return p;
 }
 
@@ -171,9 +212,9 @@ static inline void __iomem *check_lcd_periphs_reg(unsigned int _reg)
 
 	if (reg_bus == LCD_MAP_PERIPHS) {
 		_reg = LCD_PERIPHS_REG_GX(_reg);
-		p = lcd_reg_maps[reg_bus].p + LCD_REG_OFFSET_PERIPHS(_reg);
+		p = lcd_map[reg_bus].p + LCD_REG_OFFSET_PERIPHS(_reg);
 	} else {
-		p = lcd_reg_maps[reg_bus].p + LCD_REG_OFFSET_CBUS(_reg);
+		p = lcd_map[reg_bus].p + LCD_REG_OFFSET_CBUS(_reg);
 	}
 	return p;
 }
