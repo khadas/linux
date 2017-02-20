@@ -3,6 +3,7 @@
 #define __HDMITX_HW_COMMON_H__
 
 #include <linux/amlogic/hdmi_tx/hdmi_tx_ddc.h>
+#include <linux/amlogic/hdmi_tx/hdmi_common.h>
 #include "mach_reg.h"
 #include "hdmi_tx_reg.h"
 /*
@@ -28,5 +29,10 @@ int hdmitx_ddc_hw_op_gxtvbb(enum ddc_op cmd);
 int hdmitx_hpd_hw_op_gxl(enum hpd_op cmd);
 int read_hpd_gpio_gxl(void);
 int hdmitx_ddc_hw_op_gxl(enum ddc_op cmd);
+void set_gxl_hpll_clk_out(unsigned frac_rate, unsigned clk);
+void set_hpll_sspll_gxl(enum hdmi_vic vic);
+void set_hpll_od1_gxl(unsigned div);
+void set_hpll_od2_gxl(unsigned div);
+void set_hpll_od3_gxl(unsigned div);
 
 #endif

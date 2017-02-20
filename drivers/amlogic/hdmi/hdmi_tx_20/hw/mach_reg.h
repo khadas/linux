@@ -18,6 +18,7 @@
 #ifndef __MACH_REG_H__
 #define __MACH_REG_H__
 #include <linux/amlogic/iomap.h>
+#include <linux/delay.h>
 
 #define OFFSET	24
 #define CBUS_REG_ADDR(reg)  ((IO_CBUS_BASE << OFFSET) + (reg << 2))
@@ -33,6 +34,24 @@ void hd_set_reg_bits(unsigned int addr, unsigned int value, unsigned int offset,
 void sec_reg_write(unsigned *addr, unsigned value);
 unsigned sec_reg_read(unsigned *addr);
 void init_reg_map(void);
+
+#define WAIT_FOR_PLL_LOCKED(reg)				\
+	do {							\
+		unsigned int st = 0, cnt = 10;			\
+		while (cnt--) {                                 \
+			udelay(5);				\
+			st = !!(hd_read_reg(reg) & (1 << 31));	\
+			if (st)					\
+				break;				\
+			else {					\
+				/* reset hpll */		\
+				hd_set_reg_bits(reg, 1, 28, 1);	\
+				hd_set_reg_bits(reg, 0, 28, 1);	\
+			}					\
+		}						\
+		if (cnt < 9)					\
+			pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
+	} while (0)
 
 #define P_PREG_PAD_GPIO6_EN_N nCBUS_REG_ADDR(0x08)
 #define P_PREG_PAD_GPIO6_O    nCBUS_REG_ADDR(0x09)
