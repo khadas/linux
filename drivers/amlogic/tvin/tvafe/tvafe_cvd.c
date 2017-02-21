@@ -339,6 +339,9 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 				enum tvin_sig_fmt_e fmt)
 {
 	unsigned int cvd2_addr = mem->start >> 4;/*gxtvbb >>4;g9tv >>3*/
+	unsigned int motion_offset = DECODER_MOTION_BUFFER_ADDR_OFFSET;
+	unsigned int vbi_offset = DECODER_VBI_ADDR_OFFSET;
+	unsigned int vbi_size = DECODER_VBI_VBI_SIZE;
 
 	if ((mem->start == 0) || (mem->size == 0)) {
 
@@ -348,28 +351,31 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 		return;
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		cvd2_addr = mem->start >> 4;
-	else
+		motion_offset = motion_offset >> 4;
+		vbi_offset = vbi_offset >> 4;
+		vbi_size = vbi_size >> 4;
+	} else {
 		cvd2_addr = mem->start >> 3;
+		motion_offset = motion_offset >> 3;
+		vbi_offset = vbi_offset >> 3;
+		vbi_size = vbi_size >> 3;
+	}
 	/* CVD2 mem addr is based on 64bit, system mem is based on 8bit*/
 	W_APB_REG(CVD2_REG_96, cvd2_addr);
-	W_APB_REG(ACD_REG_30, (cvd2_addr + DECODER_MOTION_BUFFER_ADDR_OFFSET));
+	W_APB_REG(ACD_REG_30, (cvd2_addr + motion_offset));
 	/* 4frame mode memory setting */
 	W_APB_BIT(ACD_REG_2A ,
 		cvd_mem_4f_length[fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
-			REG_4F_MOTION_LENGTH_BIT, REG_4F_MOTION_LENGTH_WID);
+		REG_4F_MOTION_LENGTH_BIT, REG_4F_MOTION_LENGTH_WID);
 
 	/* vbi memory setting */
-	W_APB_REG(ACD_REG_2F, (cvd2_addr + DECODER_VBI_ADDR_OFFSET));
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
-		W_APB_BIT(ACD_REG_21, (DECODER_VBI_VBI_SIZE >> 4),
-			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
-	else
-		W_APB_BIT(ACD_REG_21, (DECODER_VBI_VBI_SIZE >> 3),
-			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
+	W_APB_REG(ACD_REG_2F, (cvd2_addr + vbi_offset));
+	W_APB_BIT(ACD_REG_21, vbi_size,
+		AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
 	W_APB_BIT(ACD_REG_21, DECODER_VBI_START_ADDR,
-			AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
+		AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
 	/*open front lpf for av ring*/
 	W_APB_BIT(ACD_REG_26, 1, 8, 1);
 
@@ -531,31 +537,6 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	W_APB_REG(ACD_REG_22, 0x04080000);
 	/* vbi reset release, vbi agent enable */
 #endif
-#if 1/* TVAFE_CVD2_WSS_ENABLE */
-	/* config data type */
-	/*line17 for PAL M*/
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17, 0xcc);
-	/*line23 for PAL B,D,G,H,I,N,CN*/
-	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0xcc);
-	/* config wss dto */
-	W_APB_REG(CVD2_VBI_WSS_DTO_MSB, 0x20);
-	W_APB_REG(CVD2_VBI_WSS_DTO_LSB, 0x66);
-
-	/*disable vbi*/
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x14);
-	/* config vbi start line */
-	W_APB_REG(CVD2_VBI_WSS_START, 0x54);
-	W_APB_BIT(CVD2_VBI_CONTROL, 1, 0, 1);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
-	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
-	/* be care the polarity bellow!!! */
-	W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
-	/*enable vbi*/
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x15);
-	/* manuel reset vbi */
-	W_APB_REG(ACD_REG_22, 0x82080000);
-	W_APB_REG(ACD_REG_22, 0x04080000);
-#endif
 
 #if defined(CONFIG_TVIN_TUNER_SI2176)
 	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
@@ -580,8 +561,35 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		&& (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I))
 		W_APB_REG(CVD2_OUTPUT_CONTROL, cvd_reg07_pal);
 
+	/*disable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x14);
+
 	/* 3D comb filter buffer assignment */
 	tvafe_cvd2_memory_init(mem, cvd2->config_fmt);
+
+#if 1/* TVAFE_CVD2_WSS_ENABLE */
+	/* config data type */
+	/*line17 for PAL M*/
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE17, 0xcc);
+	/*line23 for PAL B,D,G,H,I,N,CN*/
+	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0xcc);
+	/* config wss dto */
+	W_APB_REG(CVD2_VBI_WSS_DTO_MSB, 0x20);
+	W_APB_REG(CVD2_VBI_WSS_DTO_LSB, 0x66);
+
+	/* config vbi start line */
+	W_APB_REG(CVD2_VBI_WSS_START, 0x54);
+	W_APB_BIT(CVD2_VBI_CONTROL, 1, 0, 1);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
+	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
+	/* be care the polarity bellow!!! */
+	W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
+	/*enable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x15);
+	/* manuel reset vbi */
+	W_APB_REG(ACD_REG_22, 0x82080000);
+	W_APB_REG(ACD_REG_22, 0x04080000);
+#endif
 
 	/*set for wipe off vertical stripes*/
 	if ((cvd2->vd_port > TVIN_PORT_CVBS0) &&
