@@ -429,9 +429,9 @@ bool enable_hdcp22_esm_log;
 MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
 module_param(enable_hdcp22_esm_log, bool, 0664);
 
-int hdcp22_firmware_ok_flag = 1;
+bool hdcp22_firmware_ok_flag = 1;
 MODULE_PARM_DESC(hdcp22_firmware_ok_flag, "\n hdcp22_firmware_ok_flag\n");
-module_param(hdcp22_firmware_ok_flag, int, 0664);
+module_param(hdcp22_firmware_ok_flag, bool, 0664);
 
 int esm_err_force_14;
 MODULE_PARM_DESC(esm_err_force_14, "\n esm_err_force_14\n");
@@ -2463,7 +2463,7 @@ void hdmirx_hw_monitor(void)
 	if (sm_pause)
 		return;
 	#ifdef HDCP22_ENABLE
-	if ((esm_error_flag) && (hdcp22_on)) {
+	if (esm_error_flag && hdcp22_on && hdcp22_firmware_ok_flag) {
 		esm_error_flag = 0;
 		queue_delayed_work(esm_wq,
 				&esm_dwork, msecs_to_jiffies(1));
