@@ -2459,6 +2459,12 @@ void hdmirx_hw_monitor(void)
 		if (log_level & VIDEO_LOG)
 			rx_pr("****esm kill mute****\n");
 	}
+	if (rx.state > FSM_WAIT_CLK_STABLE) {
+		if (hdmirx_phy_clk_rate_monitor()) {
+			rx.state = FSM_WAIT_CLK_STABLE;
+			rx_pr("clk rate changed, try EQ again\n");
+		}
+	}
 
 	if (sm_pause)
 		return;

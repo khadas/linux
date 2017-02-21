@@ -447,7 +447,7 @@ void hdmirx_phy_conf_eq_setting(int rx_port_sel, int ch0Setting,
 	data32 |= 1             << 4;   /* [5:4]    cfgclkfreq */
 	data32 |= rx_port_sel   << 2;   /* [3:2]    portselect */
 	data32 |= 1             << 1;   /* [1]      phypddq */
-	data32 |= 1             << 0;   /* [0]      phyreset */
+	data32 |= 0             << 0;   /* [0]      phyreset */
 	/*DEFAULT: {27'd0, 3'd0, 2'd1} */
 	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 	if ((ch0Setting == 0) &&
@@ -476,28 +476,32 @@ bool hdmirx_phy_clk_rate_monitor(void)
 	unsigned int clk_rate;
 	bool changed = false;
 	int i;
+	int error = 0;
+	static unsigned int last_clk_rate;
 
 	if (force_clk_rate & 0x10)
 		clk_rate = force_clk_rate & 1;
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
 
-	if (clk_rate != hdmirx_tmds_6g()) {
+	if (clk_rate != last_clk_rate) {
 		changed = true;
 		for (i = 0; i < 3; i++) {
 			if (1 == clk_rate) {
-				hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+				error = hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
 					hdmirx_rd_phy(PHY_CDR_CTRL_CNT)|(1<<8));
 			} else {
-				hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
+				error = hdmirx_wr_phy(PHY_CDR_CTRL_CNT,
 					hdmirx_rd_phy(
 						PHY_CDR_CTRL_CNT)&(~(1<<8)));
 			}
-
-			if ((hdmirx_rd_phy(PHY_CDR_CTRL_CNT) & 0x100) ==
-				(clk_rate << 8))
+			if (error == 0)
 				break;
 		}
+		if (log_level & EQ_LOG)
+			rx_pr("clk_rate:%d, last_clk_rate: %d\n",
+			clk_rate, last_clk_rate);
+		last_clk_rate = clk_rate;
 	}
 	return changed;
 }
