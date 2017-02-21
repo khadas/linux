@@ -34,7 +34,7 @@
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/2/15"
 /*------------------------------*/
-#define RX_VER3 "Ref.2017/02/13"
+#define RX_VER3 "Ref.2017/02/22"
 /*------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -689,7 +689,7 @@ extern int rgb_quant_range;
 extern int yuv_quant_range;
 extern int hdcp22_on;
 extern int do_esm_rst_flag;
-extern int hdcp22_firmware_ok_flag;
+extern bool hdcp22_firmware_ok_flag;
 extern int force_hdcp14_en;
 extern int pre_port;
 extern struct device *hdmirx_dev;
