@@ -28,6 +28,7 @@
 #define GE2DBUS_REG_ADDR(reg) (((reg - 0x1800) << 2))
 extern unsigned int ge2d_dump_reg_cnt;
 extern unsigned int ge2d_dump_reg_enable;
+extern void __iomem *ge2d_reg_map;
 
 struct reg_map_s {
 	unsigned int phy_addr;
@@ -43,18 +44,26 @@ static struct reg_map_s reg_map = {
 
 static int check_map_flag(unsigned int addr)
 {
+	int ret = 0;
 	if (reg_map.flag)
 		return 1;
 
+	if (ge2d_reg_map) {
+		reg_map.vir_addr = ge2d_reg_map;
+		reg_map.flag = 1;
+		ret = 1;
+	} else {
 	reg_map.vir_addr = ioremap(reg_map.phy_addr, reg_map.size);
 	if (!reg_map.vir_addr) {
 		pr_info("failed map phy: 0x%x\n", addr);
-		return 0;
+			ret = 0;
 	} else {
 		reg_map.flag = 1;
 		pr_info("mapped phy: 0x%x\n", reg_map.phy_addr);
-		return 1;
+			ret = 1;
+		}
 	}
+	return ret;
 }
 
 static uint32_t ge2d_reg_read(unsigned int reg)
