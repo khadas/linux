@@ -2596,9 +2596,13 @@ enum vpp_matrix_csc_e get_csc_type(void)
 			csc_type = VPP_MATRIX_YUV601_RGB;
 		else
 			csc_type = VPP_MATRIX_YUV601F_RGB;
-	} else if (signal_color_primaries == 9) {
+	} else if ((signal_color_primaries == 9) ||
+			(signal_transfer_characteristic == 16)) {
 		if (signal_transfer_characteristic == 16) {
 			/* smpte st-2084 */
+			if (signal_color_primaries != 9)
+				pr_csc("\tWARNING: non-standard HDR!!!\n");
+
 			if (signal_range == 0)
 				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 			else {
