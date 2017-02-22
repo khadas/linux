@@ -82,6 +82,7 @@ static struct early_suspend aocec_suspend_handler;
 #define CEC_DEEP_SUSPEND	(1 << 1)
 
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
+#define MAX_INT    0x7ffffff
 
 /* global struct for tx and rx */
 struct ao_cec_dev {
@@ -765,6 +766,25 @@ static int check_confilct(void)
 		return 0;
 }
 
+static bool check_physical_addr_valid(int timeout)
+{
+	while (timeout > 0) {
+		if (cec_dev->dev_type == DEV_TYPE_TV)
+			break;
+		if (phy_addr_test)
+			break;
+		/* physical address for box */
+		if (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0) {
+			msleep(100);
+			timeout--;
+		} else
+			break;
+	}
+	if (timeout <= 0)
+		return false;
+	return true;
+}
+
 /* Return value: < 0: fail, > 0: success */
 int cec_ll_tx(const unsigned char *msg, unsigned char len)
 {
@@ -776,6 +796,9 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 		return CEC_FAIL_NONE;
 
 	mutex_lock(&cec_dev->cec_mutex);
+	/* make sure we got valid physical address */
+	if (len >= 2 && msg[1] == CEC_OC_REPORT_PHYSICAL_ADDRESS)
+		check_physical_addr_valid(20);
 
 try_again:
 	reinit_completion(&cec_dev->tx_ok);
@@ -1044,7 +1067,7 @@ void cec_give_version(unsigned int dest)
 	if (0xf != dest) {
 		msg[0] = ((index & 0xf) << 4) | dest;
 		msg[1] = CEC_OC_CEC_VERSION;
-		msg[2] = CEC_VERSION_14A;
+		msg[2] = cec_dev->cec_info.cec_version;
 		cec_ll_tx(msg, 3);
 	}
 }
@@ -1615,6 +1638,12 @@ static ssize_t fun_cfg_show(struct class *cla,
 	return sprintf(buf, "0x%x\n", reg & 0xff);
 }
 
+static ssize_t cec_version_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", cec_dev->cec_info.cec_version);
+}
+
 static struct class_attribute aocec_class_attr[] = {
 	__ATTR_WO(cmd),
 	__ATTR_RO(port_num),
@@ -1623,6 +1652,7 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR_RO(dump_reg),
 	__ATTR_RO(port_status),
 	__ATTR_RO(pin_status),
+	__ATTR_RO(cec_version),
 	__ATTR_RO(arc_port),
 	__ATTR_RO(wake_up),
 	__ATTR(physical_addr, 0664, physical_addr_show, physical_addr_store),
@@ -1766,6 +1796,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	switch (cmd) {
 	case CEC_IOC_GET_PHYSICAL_ADDR:
+		check_physical_addr_valid(20);
 		if (cec_dev->dev_type ==  DEV_TYPE_PLAYBACK && !phy_addr_test) {
 			/* physical address for mbox */
 			if (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0)
@@ -1800,7 +1831,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	case CEC_IOC_GET_VERSION:
-		tmp = CEC_VERSION_14A;
+		tmp = cec_dev->cec_info.cec_version;
 		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd)))
 			return -EINVAL;
 		break;
@@ -1823,6 +1854,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			CEC_ERR("no memory\n");
 			return -EINVAL;
 		}
+		check_physical_addr_valid(20);
 		if (cec_dev->dev_type == DEV_TYPE_PLAYBACK) {
 			/* for tx only 1 port */
 			a = cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.a;
@@ -1924,7 +1956,6 @@ static long hdmitx_cec_ioctl(struct file *f,
 		cec_dev->cec_info.log_addr = tmp;
 		cec_dev->cec_info.power_status = POWER_ON;
 
-		cec_dev->cec_info.cec_version = CEC_VERSION_14A;
 		cec_dev->cec_info.vendor_id = cec_dev->v_data.vendor_id;
 		strcpy(cec_dev->cec_info.osd_name,
 		       cec_dev->v_data.cec_osd_string);
@@ -2188,6 +2219,13 @@ static int aml_cec_probe(struct platform_device *pdev)
 	if (r) {
 		CEC_INFO("not find cec osd string\n");
 		strcpy(vend->cec_osd_string, "AML TV/BOX");
+	}
+	r = of_property_read_u32(node, "cec_version",
+				 &(cec_dev->cec_info.cec_version));
+	if (r) {
+		/* default set to 2.0 */
+		CEC_INFO("not find cec_version\n");
+		cec_dev->cec_info.cec_version = CEC_VERSION_20;
 	}
 
 	/* get port sequence */
