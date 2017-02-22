@@ -61,6 +61,7 @@
 #endif
 #include "register.h"
 #include "deinterlace.h"
+#include "deinterlace_hw.h"
 #include "deinterlace_pd.h"
 #include "../amports/video.h"
 #ifdef CONFIG_VSYNC_RDMA
@@ -72,9 +73,7 @@
 #ifdef DET3D
 #include "detect3d.h"
 #endif
-#ifdef NEW_DI_V4
-#include "dnr.h"
-#endif
+#include "nr.h"
 
 #define RUN_DI_PROCESS_IN_IRQ
 
@@ -135,13 +134,6 @@ bool mcpre_en = true;
 module_param(mcpre_en, bool, 0664);
 MODULE_PARM_DESC(mcpre_en, "enable/disable me in pre");
 
-#ifdef NEW_DI_V4
-static bool dnr_en = 1;
-module_param(dnr_en, bool, 0664);
-MODULE_PARM_DESC(dnr_en, "enable/disable dnr in pre");
-
-
-#endif
 static unsigned int di_pre_rdma_enable;
 
 static int difflag = 2;
@@ -379,7 +371,9 @@ static int post_urgent = 1;
 /*pre process speed debug */
 static int pre_process_time;
 static int pre_process_time_force;
-/**/
+static unsigned int ISA_TIMER_MUX = 0x2650;
+static unsigned int ISA_TIMERC = 0x2653;
+static unsigned int ISA_TIMERE = 0x2655;
 #define USED_LOCAL_BUF_MAX 3
 static int used_local_buf_index[USED_LOCAL_BUF_MAX];
 static int used_post_buf_index = -1;
@@ -686,6 +680,14 @@ store_dbg(struct device *dev,
 			pr_info("[0x%x][0x%x]=0x%x\n",
 				0xd0100000 + ((0x1a60 + i) << 2),
 				0x1a50 + i, Rd(0x1a50 + i));
+		pr_info("----dump gate reg----\n");
+		for (i = 0; i < 5; i++)
+			pr_info("[0x%x][0x%x]=0x%x\n",
+				0xd0100000 + ((0x2006 + i) << 2),
+				0x2006 + i, Rd(0x2006 + i));
+		pr_info("[0x%x][0x%x]=0x%x\n",
+			0xd0100000 + ((0x2dff) << 2),
+			0x2dff, Rd(0x2dff));
 		pr_info("----dump if2 reg----\n");
 		for (i = 0; i < 29; i++)
 			pr_info("[0x%x][0x%x]=0x%x\n",
@@ -2265,6 +2267,11 @@ static void dis2_di(void)
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
 		DI_Wr(DI_CLKG_CTRL, 0x2);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+			enable_di_post_mif(false);
+			di_post_gate_control(false);
+			di_top_gate_control(false);
+		}
 	}
 
 	if (post_wr_en && post_wr_surpport) {
@@ -3768,10 +3775,6 @@ static void pre_de_process(void)
 		di_mtn_1_ctrl1 |= 1 << 29;/* enable txt */
 		RDMA_WR(DI_PRE_CTRL,
 			RDMA_RD(DI_PRE_CTRL) | (cont_rd << 25));
-#ifdef NEW_DI_V4
-		if ((!dnr_en) && (Rd(DNR_CTRL) != 0) && dnr_reg_update)
-			RDMA_WR(DNR_CTRL, 0);
-#endif
 		if (mcpre_en) {
 			if ((di_pre_stru.cur_prog_flag == 0) &&
 				(di_pre_stru.enable_mtnwr == 1)
@@ -3830,7 +3833,7 @@ static void pre_de_process(void)
 #endif
 
 	/* enable pre mif*/
-	enable_di_pre_mif(1);
+	enable_di_pre_mif(true);
 	di_print("DI:buf[%d] irq start.\n", di_pre_stru.di_inp_buf->seq);
 #ifdef CONFIG_AML_RDMA
 	if (di_pre_rdma_enable & 0x2)
@@ -6377,16 +6380,10 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		if (mcpre_en)
 			get_mcinfo_from_reg_in_irq();
 #ifdef NEW_DI_V4
-		if (dnr_en)
-			run_dnr_in_irq(
-				di_pre_stru.di_nrwr_mif.end_x + 1,
-				di_pre_stru.di_nrwr_mif.end_y + 1);
-		else
-			if ((Rd(DNR_CTRL) != 0) && dnr_reg_update)
-				DI_Wr(DNR_CTRL, 0);
+		nr_process_in_irq();
 #endif
 		/* disable mif */
-		enable_di_pre_mif(0);
+		enable_di_pre_mif(false);
 		di_pre_stru.pre_de_process_done = 1;
 		di_pre_stru.pre_de_busy = 0;
 
@@ -8275,17 +8272,27 @@ static void di_unreg_process_irq(void)
 	DI_Wr(DI_CLKG_CTRL, 0xff0000);
 /* di enable nr clock gate */
 #else
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
-		enable_di_pre_mif(0);
+
+	enable_di_pre_mif(false);
+	di_hw_uninit();
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		di_pre_gate_control(false);
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
-	} else
+	else
 		DI_Wr(DI_CLKG_CTRL, 0xf60000);
 /* nr/blend0/ei0/mtn0 clock gate */
 #endif
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
-		di_hw_disable();
-		DI_Wr(DI_CLKG_CTRL, 0x80000000);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+			enable_di_post_mif(false);
+			di_post_gate_control(false);
+			di_top_gate_control(false);
+		} else {
+			di_hw_disable();
+			DI_Wr(DI_CLKG_CTRL, 0x80000000);
+		}
 		if (!is_meson_gxl_cpu() && !is_meson_gxm_cpu() &&
 			!is_meson_gxbb_cpu())
 			switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
@@ -8350,7 +8357,6 @@ static struct rdma_op_s di_rdma_op = {
 	NULL
 };
 #endif
-static int nr_level;
 
 static void di_reg_process_irq(void)
 {
@@ -8377,8 +8383,8 @@ static void di_reg_process_irq(void)
 			bypass_4K = 0;
 		#endif
 		/* patch for vdin progressive input */
-		if (((vframe->type & VIDTYPE_VIU_422) &&
-		    ((vframe->type & VIDTYPE_PROGRESSIVE) == 0))
+		if ((is_from_vdin(vframe) &&
+		    is_progressive(vframe))
 			#ifdef DET3D
 			|| det3d_en
 			#endif
@@ -8400,9 +8406,19 @@ static void di_reg_process_irq(void)
 		DI_Wr(DI_CLKG_CTRL, 0xfeff0000);
 		/* di enable nr clock gate */
 #else
-		/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
-		DI_Wr(DI_CLKG_CTRL, 0xfef60001);
-		/* nr/blend0/ei0/mtn0 clock gate */
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+			di_top_gate_control(true);
+			enable_di_pre_mif(true);
+			di_pre_gate_control(true);
+			if (!use_2_interlace_buff) {
+				di_post_gate_control(true);
+				enable_di_post_mif(true);
+			}
+		} else {
+			/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
+			DI_Wr(DI_CLKG_CTRL, 0xfef60001);
+			/* nr/blend0/ei0/mtn0 clock gate */
+		}
 #endif
 		/* add for di Reg re-init */
 #ifdef NEW_DI_TV
@@ -8450,7 +8466,7 @@ static void di_reg_process_irq(void)
 			spin_unlock_irqrestore(&plist_lock, flags);
 #endif
 		}
-		di_nr_level_config(nr_level);
+		nr_all_config(vframe->width, (vframe->height>>1));
 		reset_pulldown_state();
 		if (pulldown_enable) {
 			field_count = 0;
@@ -8607,7 +8623,7 @@ static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 	if (pre_stru_p->pre_de_busy && init_flag) {
 		pre_stru_p->pre_de_busy_timer_count++;
 		if (pre_stru_p->pre_de_busy_timer_count >= nr_done_check_cnt) {
-			enable_di_pre_mif(0);
+			enable_di_pre_mif(false);
 			pre_stru_p->pre_de_busy_timer_count = 0;
 			pre_stru_p->pre_de_irq_timeout_count++;
 			if (timeout_miss_policy == 0) {
@@ -9462,7 +9478,8 @@ unsigned int RDMA_WR_BITS(unsigned int adr, unsigned int val,
 
 static void set_di_flag(void)
 {
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+		is_meson_txlx_cpu()) {
 		mcpre_en = true;
 		pulldown_mode = 1;
 		pulldown_enable = 1;
@@ -9474,10 +9491,15 @@ static void set_di_flag(void)
 			di_force_bit_mode = 10;
 		else
 			di_force_bit_mode = 8;
-		if (is_meson_txl_cpu()) {
+		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			full_422_pack = true;
 			tff_bff_enable = false;
 			dejaggy_enable = 0;
+		}
+		if (is_meson_txlx_cpu()) {
+			ISA_TIMER_MUX = 0x3c50;
+			ISA_TIMERC = 0x3c53;
+			ISA_TIMERE = 0x3c62;
 		}
 	} else {
 		mcpre_en = false;
@@ -9498,9 +9520,6 @@ static void set_di_flag(void)
 		pldn_dly1 = 2;
 		tbbtff_dly = 0;
 	}
-
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXBB))
-		dnr_dm_en = true;
 
 	return;
 }
@@ -9538,7 +9557,6 @@ static int di_probe(struct platform_device *pdev)
 /* struct resource *res_irq = NULL; */
 	int buf_num_avail = 0;
 	struct di_dev_s *di_devp = NULL;
-
 /* const void *name = NULL; */
 	di_pr_info("di_probe\n");
 	di_devp = kmalloc(sizeof(struct di_dev_s), GFP_KERNEL);
@@ -9591,7 +9609,23 @@ static int di_probe(struct platform_device *pdev)
 #endif
 	di_pr_info("%s allocate rdma channel %d.\n", __func__,
 		di_devp->rdma_handle);
-
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		struct clk *clk_div4, *vpu_clkb_tmp;
+		clk_div4 = clk_get(&pdev->dev, "fclk_div4");
+		if (IS_ERR(clk_div4))
+			pr_err("%s: get clk div4 error.\n", __func__);
+		vpu_clkb_tmp = clk_get(&pdev->dev, "cts_vpu_clkb_tmp");
+		if (IS_ERR(vpu_clkb_tmp))
+			pr_err("%s: get vpu clkb tmp error.\n", __func__);
+		di_devp->vpu_clkb = clk_get(&pdev->dev, "cts_vpu_clkb");
+		if (IS_ERR(di_devp->vpu_clkb))
+			pr_err("%s: get vpu clkb gate error.\n", __func__);
+		clk_set_parent(vpu_clkb_tmp, clk_div4);
+		clk_set_rate(vpu_clkb_tmp, 500000000);
+		clk_set_rate(di_devp->vpu_clkb, 250000000);
+		clk_prepare_enable(vpu_clkb_tmp);
+		clk_prepare_enable(di_devp->vpu_clkb);
+	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 		"buffer-size", &(di_devp->buffer_size));
 	if (ret)
@@ -9647,9 +9681,8 @@ static int di_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_frame_format);
 	device_create_file(di_devp->dev, &dev_attr_pd_param);
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
-#ifdef NEW_DI_V4
-	dnr_init(di_devp->dev);
-#endif
+
+	nr_drv_init(di_devp->dev);
 /* get resource as memory,irq...*/
 /* mem = &memobj; */
 	for (i = 0; i < USED_LOCAL_BUF_MAX; i++)
@@ -9728,6 +9761,8 @@ static int di_remove(struct platform_device *pdev)
 
 	di_devp = platform_get_drvdata(pdev);
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		clk_disable_unprepare(di_devp->vpu_clkb);
 	di_hw_uninit();
 	di_devp->di_event = 0xff;
 	kthread_stop(di_devp->task);
@@ -9757,7 +9792,7 @@ static int di_remove(struct platform_device *pdev)
 	device_remove_file(di_devp->dev, &dev_attr_dump_pic);
 	device_remove_file(di_devp->dev, &dev_attr_parameters);
 	device_remove_file(di_devp->dev, &dev_attr_status);
-
+	nr_drv_uninit(di_devp->dev);
 	cdev_del(&di_devp->cdev);
 
 	device_destroy(di_clsp, di_devno);
@@ -9774,10 +9809,13 @@ static int save_init_flag;
 static int save_mem_flag;
 static int di_suspend(struct platform_device *pdev, pm_message_t state)
 {
+
+	struct di_dev_s *di_devp = NULL;
 #ifndef USE_HRTIMER
 	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 #endif
-
+	di_devp = platform_get_drvdata(pdev);
+	aml_cbus_update_bits(ISA_TIMER_MUX, 1 << 18, 0 << 18);
 /* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
 	save_mem_flag = mem_flag;
@@ -9797,12 +9835,19 @@ static int di_suspend(struct platform_device *pdev, pm_message_t state)
 
 	di_set_power_control(0, 0);
 	di_set_power_control(1, 0);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		clk_disable_unprepare(di_devp->vpu_clkb);
 	di_pr_info("di: di_suspend\n");
 	return 0;
 }
 
 static int di_resume(struct platform_device *pdev)
 {
+	struct di_dev_s *di_devp = NULL;
+
+	di_devp = platform_get_drvdata(pdev);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
 	mem_flag = save_mem_flag;
 	if (init_flag && mem_flag) {

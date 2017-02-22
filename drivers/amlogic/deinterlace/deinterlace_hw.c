@@ -9,14 +9,15 @@
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/vframe_provider.h>
-/* #include <linux/iw7023.h> */
 #include "deinterlace.h"
+#include "deinterlace_hw.h"
 #include "register.h"
 #ifdef DET3D
 #include "detect3d.h"
 #endif
 
 #include "film_vof_soft.h"
+#include "nr.h"
 
 #ifndef DI_CHAN2_CANVAS
 #define DI_CHAN2_CANVAS DI_CHAN2_CANVAS0
@@ -142,28 +143,29 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
 static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
-static void di_nr_init(void);
 #if (defined NEW_DI_V2 && !defined NEW_DI_TV)
 static void ma_di_init(void)
 {
 	/* 420->422 chrome difference is large motion is large,flick */
 	DI_Wr(DI_MTN_1_CTRL4, 0x01800880);
 	DI_Wr(DI_MTN_1_CTRL7, 0x0a800480);
+	/* mtn setting */
+	DI_Wr(DI_MTN_1_CTRL1, 0xa0202015);
+}
+#endif
+static void ei_hw_init(void)
+{
 	/* ei setting */
 	DI_Wr(DI_EI_CTRL0, 0x00ff0100);
 	DI_Wr(DI_EI_CTRL1, 0x5a0a0f2d);
 	DI_Wr(DI_EI_CTRL2, 0x050a0a5d);
 	DI_Wr(DI_EI_CTRL3, 0x80000013);
-	/* mtn setting */
-	DI_Wr(DI_MTN_1_CTRL1, 0xa0202015);
-	#if 0
-	/* no use from g9tv */
-	DI_Wr(DI_MTN_CTRL, 0xe228c440);
-	DI_Wr(DI_BLEND_CTRL1, 0xc4402840);
-	DI_Wr(DI_BLEND_CTRL2, 0x430);
-	#endif
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		DI_Wr_reg_bits(DI_EI_DRT_CTRL, 1, 30, 1);
+		DI_Wr_reg_bits(DI_EI_DRT_CTRL, 1, 31, 1);
+	}
+
 }
-#endif
 
 static void mc_di_param_init(void)
 {
@@ -193,14 +195,18 @@ void di_hw_init(void)
 	unsigned short fifo_size_di = 0xc0;
 #endif
 #ifdef NEW_DI_V1
-	switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
+	if (!is_meson_txlx_cpu())
+		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 	/* enable old DI mode for m6tv */
-	if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu() || is_meson_gxm_cpu())
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		di_top_gate_control(true);
+	else if (is_meson_gxtvbb_cpu() || is_meson_gxl_cpu()
+			|| is_meson_gxm_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
 	else
 		DI_Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 
-	if (is_meson_txl_cpu()) {
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		/* vpp fifo max size on txl :128*3=384[0x180] */
 		/* di fifo max size on txl :96*3=288[0x120] */
 		fifo_size_vpp = 0x180;
@@ -215,8 +221,14 @@ void di_hw_init(void)
 	/* 17e5 is DI_MEM_luma_fifo_size */
 	DI_Wr(DI_IF1_LUMA_FIFO_SIZE,	fifo_size_di);
 	/* 17f2 is  DI_IF1_luma_fifo_size */
+	DI_Wr(DI_IF2_LUMA_FIFO_SIZE,	fifo_size_di);
+	/* 201a is if2 fifo size */
 	DI_Wr(DI_CHAN2_LUMA_FIFO_SIZE, fifo_size_di);
 	/* 17b3 is DI_chan2_luma_fifo_size */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		di_pre_gate_control(true);
+		di_post_gate_control(true);
+	}
 #endif
 	DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
 
@@ -226,18 +238,21 @@ void di_hw_init(void)
 	/* DI_Wr_reg_bits(DI_CLKG_CTRL, 0x0, 0, 2);
 	// bit 0: 1, no clock; bit 1: 0, auto clock gate */
 #endif
-	/* nr default setting */
-	di_nr_init();
 #if (defined NEW_DI_V2 && !defined NEW_DI_TV)
 	ma_di_init();
 #endif
-
+	ei_hw_init();
+	nr_hw_init();
 	if (pulldown_enable)
 		init_field_mode();
 
 	if (mcpre_en)
 		mc_di_param_init();
-	if (is_meson_txl_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		di_pre_gate_control(false);
+		di_post_gate_control(false);
+		di_top_gate_control(false);
+	} else if (is_meson_txl_cpu()) {
 		DI_Wr(DI_CLKG_CTRL, 0x80000000); /* di clock div enable for pq load */
 	} else {
 		DI_Wr(DI_CLKG_CTRL, 0x2); /* di clock gate all */
@@ -250,6 +265,8 @@ void di_hw_init(void)
 
 void di_hw_uninit(void)
 {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		nr_gate_control(false);
 }
 
 /* config di pre bit mode */
@@ -267,10 +284,6 @@ static void pre_bit_mode_config(unsigned char inp,
 		RDMA_WR_BITS(DI_NRWR_CTRL, 0x3, 22, 2);
 }
 
-unsigned int nr2_en = 0x1;
-module_param(nr2_en, uint, 0644);
-MODULE_PARM_DESC(nr2_en, "\n nr2_en\n");
-
 void enable_di_pre_aml(
 	struct DI_MIF_s		   *di_inp_mif,
 	struct DI_MIF_s		   *di_mem_mif,
@@ -287,9 +300,7 @@ void enable_di_pre_aml(
 	int hold_line, int urgent)
 {
 	int hist_check_only = 0;
-#ifdef NEW_DI_V1
-	int nr_w = 0, nr_h = 0;
-#endif
+
 	pd32_check_en = 1; /* for progressive luma detection */
 
 	hist_check_only = hist_check_en && !nr_en && !mtn_en &&
@@ -357,24 +368,6 @@ void enable_di_pre_aml(
 						(urgent << 8));	/* urgent. */
 		RDMA_WR(DI_MTN_CTRL1, (0 << 8) | 2);
 	}
-
-#ifdef NEW_DI_V1
-	nr_w = (di_nrwr_mif->end_x - di_nrwr_mif->start_x + 1);
-	nr_h = (di_nrwr_mif->end_y - di_nrwr_mif->start_y + 1);
-	RDMA_WR(NR2_FRM_SIZE, (nr_h<<16)|nr_w);
-	/*gate for nr*/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
-		RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
-	else {
-		/*only process sd,avoid affecting sharp*/
-		if ((nr_h<<1) >= 720 || nr_w >= 1280)
-			RDMA_WR_BITS(NR2_SW_EN, 0, 4, 1);
-		else
-			RDMA_WR_BITS(NR2_SW_EN, nr2_en, 4, 1);
-	}
-	/*enable noise meter*/
-	RDMA_WR_BITS(NR2_SW_EN, 1, 17, 1);
-#endif
 
 	/* frame + soft reset for the pre modules. */
 	RDMA_WR(DI_PRE_CTRL, Rd(DI_PRE_CTRL) | 3 << 30);
@@ -543,7 +536,7 @@ void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcen_mode, 0, 2);
 	else
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
-	if (is_meson_txl_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcuv_en, 10, 1);
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 11, 1);
 	} else
@@ -1496,7 +1489,7 @@ void initial_di_post_2(int hsize_post, int vsize_post, int hold_line)
 (0x2 << 20) |	/* top mode. EI only */
 25); /* KDEINT */
 #endif
-	/* if post size < MIN_POST_WIDTH, force old ei */
+	/* if post size < MIN_POST_WIDTH, force old ei,remove old from txlx */
 	if (hsize_post < MIN_POST_WIDTH)
 		DI_VSYNC_WR_MPEG_REG_BITS(DI_EI_CTRL3, 0, 31, 1);
 	else
@@ -1566,7 +1559,7 @@ void di_post_switch_buffer(
 	ei_only = ei_en && !blend_en && (di_vpp_en || di_ddr_en);
 	buf1_en =  (!ei_only && (di_ddr_en || di_vpp_en));
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXBB)) {
 		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 	}
@@ -1579,7 +1572,7 @@ void di_post_switch_buffer(
 			(di_buf1_mif->canvas0_addr2 << 16) |
 			(di_buf1_mif->canvas0_addr1 << 8) |
 			(di_buf1_mif->canvas0_addr0 << 0));
-		if (is_meson_txl_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
 			DI_VSYNC_WR_MPEG_REG(DI_IF2_CANVAS0,
 				(di_buf2_mif->canvas0_addr2 << 16) |
 				(di_buf2_mif->canvas0_addr1 << 8) |
@@ -1669,7 +1662,7 @@ void enable_di_post_2(
 
 	/* if (!ei_only && (di_ddr_en || di_vpp_en)) */
 		set_di_if1_mif(di_buf1_mif, di_vpp_en, hold_line);
-		if (is_meson_txl_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
 			set_di_if2_mif(di_buf2_mif, di_vpp_en, hold_line);
 
 	/* printk("%s: ei_only %d,buf1_en %d,ei_en %d,di_vpp_en %d,
@@ -1734,7 +1727,7 @@ void disable_post_deinterlace_2(void)
 	DI_VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
 	DI_VSYNC_WR_MPEG_REG(DI_POST_SIZE, (32-1) | ((128-1) << 16));
 	DI_VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG, 0x3 << 30);
-	if (is_meson_txl_cpu())
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
 		DI_VSYNC_WR_MPEG_REG(DI_IF2_GEN_REG, 0x3 << 30);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		/* disable ma,enable if0 to vpp,enable afbc to vpp */
@@ -1747,18 +1740,32 @@ void disable_post_deinterlace_2(void)
 Rd(DI_IF1_GEN_REG) & 0xfffffffe); */
 }
 
-static void enable_di_post_mif(bool enable)
+void enable_di_post_mif(bool enable)
 {
-	DI_Wr(DI_POST_SIZE, (32-1) | ((128-1) << 16));
-	DI_Wr(DI_IF1_GEN_REG, 0x3 << 30);
-	if (is_meson_txl_cpu())
-		DI_Wr(DI_IF2_GEN_REG, 0x3 << 30);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
-		/* disable ma,enable if0 to vpp,enable afbc to vpp */
-		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 4) != 0)
-			DI_Wr_reg_bits(VIU_MISC_CTRL0, 0, 16, 4);
-		/* DI inp(current data) switch to memory */
-		DI_Wr_reg_bits(VIUB_MISC_CTRL0, 0, 16, 1);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		if (enable) {
+			/* enable if1 external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 2, 2);
+			/* enable if2 external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 4, 2);
+			/* enable di wr external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 6, 2);
+			/* enable mtn rd external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 8, 2);
+			/* enable mv rd external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 10, 2);
+		} else {
+			/* disable if1 external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 2, 2);
+			/* disable if2 external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 4, 2);
+			/* disable di wr external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 6, 2);
+			/* disable mtn rd external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 8, 2);
+			/* disable mv rd external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 10, 2);
+		}
 	}
 }
 
@@ -1767,7 +1774,23 @@ void di_hw_disable(void)
 	DI_Wr(DI_PRE_CTRL, 0x3 << 30);
 	enable_di_pre_mif(false);
 	DI_Wr(DI_POST_CTRL, 0x3 << 30);
-	enable_di_post_mif(false);
+	DI_Wr(DI_POST_SIZE, (32-1) | ((128-1) << 16));
+	DI_Wr(DI_IF1_GEN_REG, 0x3 << 30);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
+		DI_Wr(DI_IF2_GEN_REG, 0x3 << 30);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		/* disable ma,enable if0 to vpp,enable afbc to vpp */
+		if (Rd_reg_bits(VIU_MISC_CTRL0, 16, 4) != 0)
+			DI_Wr_reg_bits(VIU_MISC_CTRL0, 0, 16, 4);
+		/* DI inp(current data) switch to memory */
+		DI_Wr_reg_bits(VIUB_MISC_CTRL0, 0, 16, 1);
+	}
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		di_pre_gate_control(false);
+		di_post_gate_control(false);
+		di_top_gate_control(false);
+	}
 }
 
 void enable_film_mode_check(unsigned int width, unsigned int height,
@@ -1941,7 +1964,7 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 			/* motion vector read reverse*/
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
-			if (is_meson_txl_cpu()) {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 				mc_pre_flag, 8, 2);
 				/* disable if2 for wave if1 case,
@@ -1966,7 +1989,7 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 		if (mcpre_en) {
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
-			if (is_meson_txl_cpu()) {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 2);
 				/* disable if2 for wave if1 case */
@@ -1976,7 +1999,7 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 					DI_VSYNC_WR_MPEG_REG_BITS(
 					MCDI_MC_CRTL, 0, 11, 1);
 				}
-			}	else
+			} else
 				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 1);
 		}
@@ -2023,162 +2046,117 @@ unsigned char di_get_power_control(unsigned char type)
 	}
 
 }
+void di_top_gate_control(bool enable)
+{
+	if (enable) {
+		/* enable clkb input */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 0, 1);
+		/* enable slow clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 10, 1);
+		/* enable di arb */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 0, 2);
+	} else {
+		/* disable clkb input */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 0, 1);
+		/* disable slow clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 10, 1);
+		/* disable di arb */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 0, 2);
+	}
+}
+void di_pre_gate_control(bool gate)
+{
+	if (gate) {
+		/* enable ma pre clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 8, 1);
+		/* enable mc clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 11, 1);
+		/* enable pd clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 2, 2);
+		/* enable motion clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 4, 2);
+		/* enable input mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 16, 2);
+		/* enable mem mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 18, 2);
+		/* enable chan2 mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 20, 2);
+		/* enable nr wr mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 22, 2);
+		/* enable mtn wr mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 24, 2);
+		if (mcpre_en) {
+			/* enable me clk always run vlsi issue */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 3, 12, 2);
+			/*
+			 * enable mc pre mv(wr) mcinfo w/r
+			 * mif external gate
+			 */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1,
+					0, 26, 2);
+		}
+	} else {
+		/* disable ma pre clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 8, 1);
+		/* disable mc clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 11, 1);
+		/* disable pd clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 2, 2);
+		/* disable motion clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 4, 2);
+		/* disable input mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 16, 2);
+		/* disable mem mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 18, 2);
+		/* disable chan2 mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 20, 2);
+		/* disable nr wr mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 22, 2);
+		/* disable mtn wr mif external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 24, 2);
+		if (mcpre_en) {
+			/* disable mc pre mv(wr) mcinfo
+			 * w/r mif external gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL1,
+					1, 26, 2);
+			/* disable me clk gate */
+			DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 12, 2);
+		}
+	}
 
-static void di_nr_init(void)
-{
-#if 0
-	DI_Wr(DI_NR_CTRL0, 0xc60c0804);
-	DI_Wr(DI_NR_CTRL1, 0x403e3c3a);
-	DI_Wr(DI_NR_CTRL2, 0x08010a01);
-	DI_Wr(NR2_MET_NM_CCTRL, 0x45056410);
-	DI_Wr(NR2_MATNR_SNR_NRM_GAIN, 0x4);
-	DI_Wr(NR2_MATNR_SNR_LPF_CFG, 0xc2b64);
-	DI_Wr(NR2_MATNR_SNR_EDGE2B, 0xcff08);
-	DI_Wr(NR2_MATNR_YBETA_SCL, 0x00ff2000);
-	DI_Wr(NR2_MATNR_MTN_CRTL2, 0x32020);
-	DI_Wr(NR2_MATNR_MTN_COR, 0x3333);
-	DI_Wr(NR2_MATNR_DEGHOST, 0x133);
-	DI_Wr(NR2_MATNR_ALPHALP_LUT0, 0x99999a9a);
-	DI_Wr(NR2_MATNR_ALPHALP_LUT1, 0x9aa0a6e3);
-	DI_Wr(NR2_MATNR_ALPHALP_LUT2, 0x90808080);
-	DI_Wr(NR2_MATNR_ALPHALP_LUT3, 0xffe0c0a4);
-	DI_Wr(NR2_MATNR_ALPHAHP_LUT1, 0x80805040);
-	DI_Wr(NR2_MATNR_ALPHAHP_LUT2, 0x90808080);
-	DI_Wr(NR2_MATNR_ALPHAHP_LUT3, 0xffe0c0a4);
-#endif
-	DI_Wr(NR3_MODE, 0x3);
-	DI_Wr(NR3_COOP_PARA, 0x28ff00);
-	DI_Wr(NR3_CNOOP_GAIN, 0x881900);
-	DI_Wr(NR3_YMOT_PARA, 0x0c0a1e);
-	DI_Wr(NR3_CMOT_PARA, 0x08140f);
-	DI_Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
-	DI_Wr(NR3_SUREMOT_CGAIN, 0x22264014);
 }
-static void nr_level_strong(void)
+void di_post_gate_control(bool gate)
 {
-	DI_Wr(0x1751, 0x132f);
-	DI_Wr(0x1752, 0x8d);
-	DI_Wr(0x1753, 0x40ff00);
-	DI_Wr(0x1754, 0x4);
-	DI_Wr(0x1755, 0xc2b64);
-	DI_Wr(0x1756, 0x0);
-	DI_Wr(0x1757, 0x3608);
-	DI_Wr(0x1758, 0x420);
-	DI_Wr(0x1759, 0xa06664);
-	DI_Wr(0x175a, 0xe0000);
-	DI_Wr(0x175b, 0x991c00);
-	DI_Wr(0x175c, 0x991000);
-	DI_Wr(0x175d, 0xf9f3e);
-	DI_Wr(0x175e, 0x7292abcd);
-	DI_Wr(0x175f, 0x1c23314f);
-	DI_Wr(0x1760, 0xf111317);
-	DI_Wr(0x1761, 0x8090a0c);
-	DI_Wr(0x1762, 0x80a0e0ff);
-	DI_Wr(0x1763, 0x4102050);
-	DI_Wr(0x1764, 0x2);
-	DI_Wr(0x1765, 0x0);
-	DI_Wr(0x1766, 0x20100400);
-	DI_Wr(0x1767, 0xc4804030);
-	DI_Wr(0x1768, 0xfffff0e0);
-	DI_Wr(0x1769, 0xffffffff);
-	DI_Wr(0x176a, 0x1133);
-	DI_Wr(0x176b, 0x32020);
-	DI_Wr(0x176c, 0x3030);
-	DI_Wr(0x176d, 0x3f3f3e3f);
-	DI_Wr(0x176e, 0x153);
-	DI_Wr(0x176f, 0x50505050);
-	DI_Wr(0x1770, 0x5c4d3232);
-	DI_Wr(0x1771, 0x7b716a66);
-	DI_Wr(0x1772, 0xffffffa9);
-	DI_Wr(0x1773, 0x28282828);
-	DI_Wr(0x1774, 0x493f2828);
-	DI_Wr(0x1775, 0x7e625854);
-	DI_Wr(0x1776, 0xfffff99c);
-	DI_Wr(0x1777, 0xa06663);
-	DI_Wr(0x1778, 0x372);
-	DI_Wr(0x1779, 0x14141414);
-	DI_Wr(0x177a, 0x1400);
-	DI_Wr(0x177b, 0x80064);
-	DI_Wr(0x177c, 0x80064);
-	DI_Wr(0x177d, 0x80a0a);
-	DI_Wr(0x177e, 0x4281e);
-	DI_Wr(0x177f, 0x0);
-}
+	if (gate) {
+		/* enable clk post div */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 12, 1);
+		/* enable post line buf/fifo/mux clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 1, 9, 1);
+		/* enable blend1 clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL3, 0, 0, 2);
+		/* enable ei clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL3, 0, 2, 2);
+		/* enable ei_0 clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL3, 0, 4, 2);
+	} else {
+		/* disable clk post div */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 12, 1);
+		/* disable post line buf/fifo/mux clk */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL0, 0, 9, 1);
+		/* disable blend1 clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL3, 1, 0, 2);
+		/* disable ei clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL3, 1, 2, 2);
+		/* disable ei_0 clk gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL3, 1, 4, 2);
+	}
 
-static void nr_level_normal(void)
-{
-	DI_Wr(0x1745, 0x5056410);
-	DI_Wr(0x1746, 0x45056410);
-	DI_Wr(0x1747, 0x45056410);
-	DI_Wr(0x1748, 0x1);
-	DI_Wr(0x1749, 0x7c3a);
-	DI_Wr(0x174a, 0x29e77);
-	DI_Wr(0x174b, 0x9f1a);
-	DI_Wr(0x174c, 0x2822c);
-	DI_Wr(0x174d, 0x77);
-	DI_Wr(0x174e, 0x3030);
-	DI_Wr(0x174f, 0x20030);
-	DI_Wr(0x1750, 0xf002d0);
-	DI_Wr(0x1751, 0x132f);
-	DI_Wr(0x1752, 0x8d);
-	DI_Wr(0x1753, 0x40ff00);
-	DI_Wr(0x1754, 0x4);
-	DI_Wr(0x1755, 0xc2b64);
-	DI_Wr(0x1756, 0x0);
-	DI_Wr(0x1757, 0x3608);
-	DI_Wr(0x1758, 0x420);
-	DI_Wr(0x1759, 0xa06664);
-	DI_Wr(0x175a, 0xe0000);
-	DI_Wr(0x175b, 0x991c00);
-	DI_Wr(0x175c, 0x991000);
-	DI_Wr(0x175d, 0xf9f3e);
-	DI_Wr(0x175e, 0x7292abcd);
-	DI_Wr(0x175f, 0x1c23314f);
-	DI_Wr(0x1760, 0xf111317);
-	DI_Wr(0x1761, 0x8090a0c);
-	DI_Wr(0x1762, 0x80a0e0ff);
-	DI_Wr(0x1763, 0x4102050);
-	DI_Wr(0x1764, 0x2);
-	DI_Wr(0x1765, 0x0);
-	DI_Wr(0x1766, 0x20100400);
-	DI_Wr(0x1767, 0xc4804030);
-	DI_Wr(0x1768, 0xfffff0e0);
-	DI_Wr(0x1769, 0xffffffff);
-	DI_Wr(0x176a, 0x1132);
-	DI_Wr(0x176b, 0x32020);
-	DI_Wr(0x176c, 0x3333);
-	DI_Wr(0x176d, 0x4b4e4b4d);
-	DI_Wr(0x176e, 0x111);
-	DI_Wr(0x176f, 0x32181818);
-	DI_Wr(0x1770, 0x80644032);
-	DI_Wr(0x1771, 0x9e808080);
-	DI_Wr(0x1772, 0xffffffff);
-	DI_Wr(0x1773, 0x32181818);
-	DI_Wr(0x1774, 0x80644032);
-	DI_Wr(0x1775, 0xa5808080);
-	DI_Wr(0x1776, 0xffffffff);
-	DI_Wr(0x1777, 0xa06663);
-	DI_Wr(0x1778, 0x372);
-	DI_Wr(0x1779, 0x14141414);
-	DI_Wr(0x177a, 0x1400);
-	DI_Wr(0x177b, 0x80064);
-	DI_Wr(0x177c, 0x80064);
-	DI_Wr(0x177d, 0x80a0a);
-	DI_Wr(0x177e, 0x4281e);
-	DI_Wr(0x177f, 0x0);
-	DI_Wr(0x179c, 0x11b);
-	DI_Wr(0x179d, 0x202220);
 }
-void di_nr_level_config(int level)
-{
-	if (level == 1)
-		nr_level_strong();
-	else
-		nr_level_normal();
-}
-void enable_di_pre_mif(int en)
+void enable_di_pre_mif(bool en)
 {
 	if (en) {
+		/* enable di nr/mtn/mv mif */
+		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f);
 		/* enable input mif*/
 		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
 		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
@@ -2191,9 +2169,9 @@ void enable_di_pre_mif(int en)
 			/* gate clk */
 			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 0, 9, 1);
 		}
-		/* enable di nr/mtn/mv mif */
-		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f);
 	} else {
+		/* disable nr cont mtn mv minfo mif */
+		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b);
 		/* nrwr no clk gate en=1 */
 		RDMA_WR_BITS(DI_NRWR_CTRL, 1, 24, 1);
 		/* nr wr req en =0 */
@@ -2214,14 +2192,12 @@ void enable_di_pre_mif(int en)
 			/* mcinfo rd req en = 0 */
 			RDMA_WR_BITS(MCDI_MCINFORD_CTRL, 0, 9, 1);
 		}
-		/* disable nr cont mtn mv minfo mif */
-		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b);
-		/* disable cont rd */
-		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
 		/* disable input mif*/
 		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
 		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
 		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
+		/* disable cont rd */
+		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
 	}
 }
 
@@ -2249,6 +2225,4 @@ void combing_pd22_window_config(unsigned int width, unsigned int height)
 	DI_Wr_reg_bits(MCDI_PD_22_CHK_WND1_X, 0, 0, 13);/* pd x0 */
 	DI_Wr_reg_bits(MCDI_PD_22_CHK_WND1_X , (width-1), 16, 13);/* pd x1 */
 	DI_Wr_reg_bits(MCDI_PD_22_CHK_WND1_Y, (y1+1), 0, 13);/* pd y0 */
-	DI_Wr_reg_bits(DECOMB_WIND11, y2, 16, 13);/* pd y1 */
-
 }
