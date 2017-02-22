@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_address.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
 #ifdef CONFIG_COMPAT
@@ -57,6 +58,7 @@ struct ge2d_device_s {
 	struct device *dev;
 };
 
+void __iomem *ge2d_reg_map;
 static struct ge2d_device_s ge2d_device;
 static DEFINE_MUTEX(ge2d_mutex);
 unsigned int ge2d_log_level;
@@ -752,6 +754,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	int irq = 0;
 	struct reset_control *rstc = NULL;
 	struct clk *clk;
+	struct resource res;
 	/* get interrupt resource */
 	irq = platform_get_irq_byname(pdev, "ge2d");
 	if (irq == -ENXIO) {
@@ -787,6 +790,26 @@ static int ge2d_probe(struct platform_device *pdev)
 				vapb_rate/1000000);
 		}
 	}
+
+	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
+	if (ret == 0) {
+		ge2d_log_info("find address resource\n");
+		if (res.start != 0) {
+			ge2d_reg_map =
+				ioremap(res.start, resource_size(&res));
+			if (ge2d_reg_map) {
+				ge2d_log_info("map io source 0x%p,size=%d to 0x%p\n",
+					(void *)res.start,
+					(int)resource_size(&res),
+					ge2d_reg_map);
+			}
+		} else {
+			ge2d_reg_map = 0;
+			ge2d_log_info("ignore io source start %p,size=%d\n",
+			(void *)res.start, (int)resource_size(&res));
+		}
+	}
+
 	ret = ge2d_wq_init(pdev, irq, rstc, clk);
 #ifdef CONFIG_AMLOGIC_ION
 	if (!ge2d_ion_client)
