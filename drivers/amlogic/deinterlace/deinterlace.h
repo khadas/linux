@@ -4,6 +4,7 @@
 #include <linux/amlogic/amports/vframe.h>
 #include <linux/amlogic/amports/video.h>
 #include <linux/atomic.h>
+#include <linux/clk.h>
 
 /* di hardware version m8m2*/
 #define NEW_DI_V1 0x00000002 /* from m6tvc */
@@ -227,7 +228,6 @@ extern void di_hw_init(void);
 
 extern void di_hw_uninit(void);
 
-extern void enable_di_pre_mif(int enable);
 
 extern int di_vscale_skip_count;
 
@@ -409,8 +409,6 @@ extern void recycle_keep_buffer(void);
 extern unsigned int di_log_flag;
 extern unsigned int di_debug_flag;
 extern bool mcpre_en;
-extern bool dnr_reg_update;
-extern bool dnr_dm_en;
 extern int mpeg2vdin_flag;
 extern int di_vscale_skip_count_real;
 extern unsigned int pulldown_enable;
@@ -473,6 +471,7 @@ struct di_dev_s {
 	struct device	   *dev;
 	struct platform_device	*pdev;
 	struct task_struct *task;
+	struct clk	*vpu_clkb;
 	unsigned char	   di_event;
 	unsigned int	   di_irq;
 	unsigned int	   flags;

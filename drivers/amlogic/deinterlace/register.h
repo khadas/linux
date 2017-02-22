@@ -130,12 +130,6 @@ when bit 11 is 1, this bit should be 1. */
 /* Bit 7:0 Write luma canvas address */
 
 /* timerc */
-#define ISA_TIMER_MUX					0x2650
-		/* 0xc1109940 */
-#define ISA_TIMERC						0x2653
-		/* 0xc110994c */
-#define ISA_TIMERE						0x2655
-		/* 0xc1109954 */
 /* vd1 */
 #define VD1_IF0_LUMA_FIFO_SIZE			0x1a63
 		/* 0xd010698c */
@@ -288,7 +282,10 @@ meaning always */
 		/* 0xd0106818 */
 #define VIUB_MISC_CTRL0					0x2006
 		/* 0xd0108018 */
-/*txl new add begin*/
+#define VIUB_GCLK_CTRL0					0x2007
+#define VIUB_GCLK_CTRL1					0x2008
+#define VIUB_GCLK_CTRL2					0x2009
+#define VIUB_GCLK_CTRL3					0x200a
 #define DI_IF2_GEN_REG					0x2010
 #define DI_IF2_CANVAS0					0x2011
 #define DI_IF2_LUMA_X0					0x2012
@@ -1236,6 +1233,19 @@ relationship between CUE_difP1 and CUE_difEP1 */
 current field/frame middle line chroma difference (CUE_difEP1) threshold. */
 /* Bit  7: 0,	reg_CUE_CON_difP1_thrd2	U8,  P1 field Intra-Field top/below line
 chroma difference threshold (tighter), */
+/* change from txlx */
+#define DI_EI_DRT_CTRL                  ((0x1778))
+
+#define DI_EI_DRT_PIXTH                 ((0x1779))
+
+#define DI_EI_DRT_CORRPIXTH             ((0x177a))
+
+#define DI_EI_DRT_RECTG_WAVE            ((0x177b))
+
+#define DI_EI_DRT_PIX_DIFFTH            ((0x177c))
+
+#define DI_EI_DRT_UNBITREND_TH          ((0x177d))
+
 #define NR2_CUE_PRG_DIF                  ((0x177e)) /* << 2) + 0xd0100000) */
 /* Bit 20,	    reg_CUE_PRG_Enable	    Enable bit for progressive video CUE
 detection.If interlace input video, */
