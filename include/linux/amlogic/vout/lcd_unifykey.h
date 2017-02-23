@@ -137,7 +137,9 @@ struct aml_lcd_unifykey_header_s {
 /* ********************************
  * backlight
  * ********************************* */
-#define LCD_UKEY_BL_SIZE            92
+/* V1: 92 */
+/* V2: 102 */
+#define LCD_UKEY_BL_SIZE            102
 
 /* header (10Byte) */
 /* LCD_UKEY_HEAD_SIZE */
@@ -178,7 +180,12 @@ struct aml_lcd_unifykey_header_s {
 #define LCD_UKEY_BL_PWM_LEVEL_MIN   2
 #define LCD_UKEY_BL_PWM2_LEVEL_MAX  2
 #define LCD_UKEY_BL_PWM2_LEVEL_MIN  2
-
+/* customer(10Byte) */ /* V2 */
+#define LCD_UKEY_BL_CUST_VAL_0      2
+#define LCD_UKEY_BL_CUST_VAL_1      2
+#define LCD_UKEY_BL_CUST_VAL_2      2
+#define LCD_UKEY_BL_CUST_VAL_3      2
+#define LCD_UKEY_BL_CUST_VAL_4      2
 
 /* ********************************
  * API
