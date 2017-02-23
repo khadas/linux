@@ -57,52 +57,52 @@ static int aml_audio_Hardware_resample;
 static int hardware_resample_locked_flag;
 unsigned int clk_rate = 0;
 
-static u32 aml_EQ_param[20][5] = {
+static unsigned aml_EQ_param_length = 100;
+static unsigned aml_EQ_param[100] = {
 	/*channel 1 param*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef0*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef1*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef2*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef3*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef4*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef5*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef6*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef7*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef8*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch1_coef9*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef0*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef1*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef2*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef3*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef4*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef5*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef6*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef7*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef8*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef9*/
 	/*channel 2 param*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef0*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef1*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef2*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef3*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef4*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef5*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef6*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef7*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef8*/
-	{0x800000, 0x00, 0x00, 0x00, 0x00}, /*eq_ch2_coef9*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef0*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef1*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef2*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef3*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef4*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef5*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef6*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef7*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef8*/
+	0x800000, 0x00, 0x00, 0x00, 0x00, /*eq_ch1_coef9*/
 };
 
-static u32 drc_table[3][2] = {
-	{0x800000, 0x00}, /*drc_ae && drc_ae_1m*/
-	{0x800000, 0x00}, /*drc_aa && drc_aa_1m*/
-	{0x800000, 0x00}, /*drc_ad && drc_ad_1m*/
+static unsigned aml_DRC_param_length = 6;
+static u32 aml_drc_table[6] = {
+	0x0000111c, 0x00081bfc, 0x00001571,  /*drc_ae, drc_aa, drc_ad*/
+	0x0380111c, 0x03881bfc, 0x03801571,  /*drc_ae_1m, drc_aa_1m, drc_ad_1m*/
 };
 
-static u32 drc_tko_table[2][3] = {
-	{0x0, 0xbf000000, 0x40000}, /*offset, thd, k*/
-	{0x0, 0x0, 0x40000}, /*offset, thd, k*/
+static u32 aml_drc_tko_table[6] = {
+	0x0,		0x0,	 /*offset0, offset1*/
+	0xcb000000, 0x0,	 /*thd0, thd1*/
+	0xa0000,	0x40000, /*k0, k1*/
 };
 
 static int DRC0_enable(int enable)
 {
-	if ((aml_read_cbus(AED_DRC_EN) & 1) == 1) {
-		if (enable == 1) {
-			aml_write_cbus(AED_DRC_THD0, drc_tko_table[0][1]);
-			aml_write_cbus(AED_DRC_K0, drc_tko_table[0][2]);
-		} else {
-			aml_write_cbus(AED_DRC_THD0, 0xbf000000);
-			aml_write_cbus(AED_DRC_K0, 0x40000);
-		}
+	if (enable == 1) {
+		aml_eqdrc_write(AED_DRC_THD0, aml_drc_tko_table[2]);
+		aml_eqdrc_write(AED_DRC_K0, aml_drc_tko_table[4]);
+	} else {
+		aml_eqdrc_write(AED_DRC_THD0, 0xbf000000);
+		aml_eqdrc_write(AED_DRC_K0, 0x40000);
 	}
 	return 0;
 }
@@ -570,6 +570,49 @@ static int aml_set_audin_reg(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int set_aml_EQ_param(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	unsigned int value = ucontrol->value.integer.value[0];
+	int i = 0;
+	u32 *reg_ptr = &aml_EQ_param[0];
+
+	if (value == 1) {
+		for (i = 0; i < 100; i++) {
+			aml_eqdrc_write(AED_EQ_CH1_COEF00 + i, *reg_ptr);
+			/*pr_info("EQ value[%d]: 0x%x\n", i, *reg_ptr);*/
+			reg_ptr++;
+		}
+	}
+	aml_eqdrc_update_bits(AED_EQ_EN, 1, value);
+	return 0;
+}
+
+static int set_aml_DRC_param(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	unsigned int value = ucontrol->value.integer.value[0];
+	int i = 0;
+	u32 *reg_ptr = &aml_drc_table[0];
+
+	if (value == 1) {
+		for (i = 0; i < 6; i++) {
+			aml_eqdrc_write(AED_DRC_AE + i, *reg_ptr);
+			/*pr_info("DRC table value[%d]: 0x%x\n", i, *reg_ptr);*/
+			reg_ptr++;
+		}
+
+		reg_ptr = &aml_drc_tko_table[0];
+		for (i = 0; i < 6; i++) {
+			aml_eqdrc_write(AED_DRC_OFFSET0 + i, *reg_ptr);
+			/*pr_info("DRC tko value[%d]: 0x%x\n", i, *reg_ptr);*/
+			reg_ptr++;
+		}
+	}
+	aml_eqdrc_update_bits(AED_DRC_EN, 1, value);
+	return 0;
+}
+
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12276, 12, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -12750, 50, 1);
 
@@ -596,12 +639,12 @@ static const struct snd_kcontrol_new aml_EQ_DRC_controls[] = {
 
 	SOC_SINGLE_EXT_TLV("EQ enable",
 			 AED_EQ_EN, 0, 0x1, 0,
-			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
+			 aml_get_eqdrc_reg, set_aml_EQ_param,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("DRC enable",
 			 AED_DRC_EN, 0, 0x1, 0,
-			 aml_get_eqdrc_reg, aml_set_eqdrc_reg,
+			 aml_get_eqdrc_reg, set_aml_DRC_param,
 			 NULL),
 
 	SOC_SINGLE_EXT_TLV("NG enable",
@@ -1038,7 +1081,6 @@ static struct snd_soc_codec_conf g9tv_audio_codec_conf[] = {
 		.name_prefix = "AMP",
 	},
 };
-static struct codec_probe_priv prob_priv;
 static struct codec_info codec_info_aux;
 
 static int get_audio_codec_i2c_info(struct device_node *p_node,
@@ -1093,192 +1135,6 @@ err_out:
 	return ret;
 }
 
-static char drc1_table[15] = "drc1_table_0";
-static char drc1_tko_table[20] = "drc1_tko_table_0";
-static char drc2_table[15] = "drc2_table_0";
-static char drc2_tko_table[20] = "drc2_tko_table_0";
-static int aml_drc_type_select(char *s)
-{
-	char *sel = s;
-
-	if (NULL != s) {
-		sprintf(drc1_table, "%s%s", "drc1_table_", sel);
-		sprintf(drc1_tko_table, "%s%s", "drc1_tko_table_", sel);
-		sprintf(drc2_table, "%s%s", "drc2_table_", sel);
-		sprintf(drc2_tko_table, "%s%s", "drc2_tko_table_", sel);
-		pr_info("select drc type: %s\n", sel);
-	}
-	return 0;
-}
-__setup("amp_drc_type=", aml_drc_type_select);
-
-static char table[10] = "table_0";
-static char wall[10] = "wall_0";
-static char sub_bq_table[20] = "sub_bq_table_0";
-static int aml_eq_type_select(char *s)
-{
-	char *sel = s;
-
-	if (NULL != s) {
-		sprintf(table, "%s%s", "table_", sel);
-		sprintf(wall, "%s%s", "wall_", sel);
-		sprintf(sub_bq_table, "%s%s", "sub_bq_table_", sel);
-		pr_info("select eq type: %s\n", sel);
-	}
-	return 0;
-}
-__setup("amp_eq_type=", aml_eq_type_select);
-
-static void *alloc_and_get_data_array(struct device_node *p_node, char *str,
-				      int *lenp)
-{
-	int ret = 0, length = 0;
-	char *p = NULL;
-
-	if (of_find_property(p_node, str, &length) == NULL) {
-		pr_err("DTD of %s not found!\n", str);
-		goto exit;
-	}
-	pr_debug("prop name=%s,length=%d\n", str, length);
-	p = kzalloc(length * sizeof(char *), GFP_KERNEL);
-	if (p == NULL) {
-		pr_err("ERROR, NO enough mem for %s!\n", str);
-		length = 0;
-		goto exit;
-	}
-
-	ret = of_property_read_u8_array(p_node, str, p, length);
-	if (ret) {
-		pr_err("no of property %s!\n", str);
-		kfree(p);
-		p = NULL;
-		goto exit;
-	}
-
-	*lenp = length;
-
-exit: return p;
-}
-
-static int of_get_eq_pdata(struct tas57xx_platform_data *pdata,
-			   struct device_node *p_node)
-{
-	int length = 0;
-	char *regs = NULL;
-	int ret = 0;
-
-	ret = of_property_read_u32(p_node, "eq_enable", &pdata->eq_enable);
-	if (pdata->eq_enable == 0 || ret != 0) {
-		pr_err("Fail to get eq_enable node or EQ disable!\n");
-		return -2;
-	}
-
-	prob_priv.num_eq = 2;
-	pdata->num_eq_cfgs = prob_priv.num_eq;
-
-	prob_priv.eq_configs = kzalloc(
-		prob_priv.num_eq * sizeof(struct tas57xx_eq_cfg), GFP_KERNEL);
-
-	regs = alloc_and_get_data_array(p_node, table, &length);
-	if (regs == NULL) {
-		kfree(prob_priv.eq_configs);
-		return -2;
-	}
-	strncpy(prob_priv.eq_configs[0].name, table, NAME_SIZE);
-	prob_priv.eq_configs[0].regs = regs;
-	prob_priv.eq_configs[0].reg_bytes = length;
-
-	regs = alloc_and_get_data_array(p_node, wall, &length);
-	if (regs == NULL) {
-		kfree(prob_priv.eq_configs);
-		return -2;
-	}
-	strncpy(prob_priv.eq_configs[1].name, wall, NAME_SIZE);
-	prob_priv.eq_configs[1].regs = regs;
-	prob_priv.eq_configs[1].reg_bytes = length;
-
-	pdata->eq_cfgs = prob_priv.eq_configs;
-	return 0;
-}
-
-static int of_get_drc_pdata(struct tas57xx_platform_data *pdata,
-			    struct device_node *p_node)
-{
-	int length = 0;
-	char *pd = NULL;
-	int ret = 0;
-
-	ret = of_property_read_u32(p_node, "drc_enable", &pdata->drc_enable);
-	if (pdata->drc_enable == 0 || ret != 0) {
-		pr_err("Fail to get drc_enable node or DRC disable!\n");
-		return -2;
-	}
-
-	/* get drc1 table */
-	pd = alloc_and_get_data_array(p_node, drc1_table, &length);
-	if (pd == NULL)
-		return -2;
-	pdata->custom_drc1_table_len = length;
-	pdata->custom_drc1_table = pd;
-
-	/* get drc1 tko table */
-	length = 0;
-	pd = NULL;
-
-	pd = alloc_and_get_data_array(p_node, drc1_tko_table, &length);
-	if (pd == NULL)
-		return -2;
-	pdata->custom_drc1_tko_table_len = length;
-	pdata->custom_drc1_tko_table = pd;
-	pdata->enable_ch1_drc = 1;
-
-	/* get drc2 table */
-	length = 0;
-	pd = NULL;
-	pd = alloc_and_get_data_array(p_node, drc2_table, &length);
-	if (pd == NULL)
-		return -1;
-	pdata->custom_drc2_table_len = length;
-	pdata->custom_drc2_table = pd;
-
-	/* get drc2 tko table */
-	length = 0;
-	pd = NULL;
-	pd = alloc_and_get_data_array(p_node, drc2_tko_table, &length);
-	if (pd == NULL)
-		return -1;
-	pdata->custom_drc2_tko_table_len = length;
-	pdata->custom_drc2_tko_table = pd;
-	pdata->enable_ch2_drc = 1;
-
-	return 0;
-}
-
-static int of_get_init_pdata(struct tas57xx_platform_data *pdata,
-			     struct device_node *p_node)
-{
-	int length = 0;
-	char *pd = NULL;
-
-	pd = alloc_and_get_data_array(p_node, "input_mux_reg_buf", &length);
-	if (pd == NULL) {
-		pr_err("%s : can't get input_mux_reg_buf\n", __func__);
-		return -1;
-	}
-
-	/*Now only support 0x20 input mux init*/
-	pdata->num_init_regs = length;
-	pdata->init_regs = pd;
-
-	if (of_property_read_u32(p_node, "master_vol",
-				 &pdata->custom_master_vol)) {
-		pr_err("%s fail to get master volume\n", __func__);
-		return -1;
-	}
-
-	return 0;
-}
-
 static int of_get_resetpin_pdata(struct tas57xx_platform_data *pdata,
 				 struct device_node *p_node)
 {
@@ -1315,6 +1171,7 @@ static int of_get_phonepin_pdata(struct tas57xx_platform_data *pdata,
 	}
 	return 0;
 }
+
 static int of_get_scanpin_pdata(struct tas57xx_platform_data *pdata,
 				 struct device_node *p_node)
 {
@@ -1342,6 +1199,7 @@ static int codec_get_of_pdata(struct tas57xx_platform_data *pdata,
 	if (ret)
 		pr_info("codec reset pin is not found in dts\n");
 	ret = of_get_phonepin_pdata(pdata, p_node);
+
 	if (ret)
 		pr_info("codec phone pin is not found in dtd\n");
 
@@ -1349,17 +1207,6 @@ static int codec_get_of_pdata(struct tas57xx_platform_data *pdata,
 	if (ret)
 		pr_info("codec scanp pin is not found in dtd\n");
 
-	ret = of_get_drc_pdata(pdata, p_node);
-	if (ret == -2)
-		pr_info("codec DRC configs are not found in dts\n");
-
-	ret = of_get_eq_pdata(pdata, p_node);
-	if (ret)
-		pr_info("codec EQ configs are not found in dts\n");
-
-	ret = of_get_init_pdata(pdata, p_node);
-	if (ret)
-		pr_info("codec init configs are not found in dts\n");
 	return ret;
 }
 
@@ -1423,6 +1270,7 @@ static int aml_aux_dev_parse_of(struct snd_soc_card *card)
 	}
 	return 0;
 }
+
 static int aml_card_dais_parse_of(struct snd_soc_card *card)
 {
 	struct device_node *np = card->dev->of_node;
@@ -1512,120 +1360,6 @@ err:
 	return ret;
 }
 
-static int aml_EQ_DRC_parse_of(struct snd_soc_card *card)
-{
-	struct device_node *audio_codec_node = card->dev->of_node;
-	struct device_node *child;
-	struct aml_audio_private_data *p_aml_audio;
-	int length = 0;
-	int ret = 0;
-	int i = 0;
-	u32 *reg_ptr = &aml_EQ_param[0][0];
-
-	p_aml_audio = snd_soc_card_get_drvdata(card);
-
-	child = of_get_child_by_name(audio_codec_node, "aml_EQ_DRC");
-	if (child == NULL) {
-		pr_err("Error: failed to find node %s\n", "aml_EQ_DRC");
-		return -1;
-	}
-
-	if (of_find_property(child, "eq_table", &length) == NULL) {
-		pr_err("[%s] node not found!\n", "eq_table");
-	} else {
-		of_property_read_u32(child, "EQ_enable",
-				&p_aml_audio->aml_EQ_enable);
-		/*read EQ value from dts*/
-		if (p_aml_audio->aml_EQ_enable) {
-			ret = of_property_read_u32_array(child, "eq_table",
-					reg_ptr, 100);
-			if (ret) {
-				pr_err("Can't get EQ param [%s]!\n",
-					"eq_table");
-			} else {
-				for (i = 0; i < 100; i++) {
-					aml_write_cbus(AED_EQ_CH1_COEF00 + i,
-						*reg_ptr);
-					/*pr_info("EQ value[%d]: 0x%x\n",
-						i, *reg_ptr);*/
-					reg_ptr++;
-				}
-				/*enable aml EQ*/
-				aml_cbus_update_bits(AED_EQ_EN, 0x1, 0x1);
-				pr_info("aml EQ enable!\n");
-			}
-		}
-	}
-
-	if (of_find_property(child, "drc_table", &length) == NULL ||
-			of_find_property(child, "drc_tko_table", &length)
-			== NULL) {
-		pr_err("[%s or %s] not found!\n", "drc_table", "drc_tko_table");
-	} else {
-		/*read DRC value from dts*/
-		of_property_read_u32(child, "DRC_enable",
-			&p_aml_audio->aml_DRC_enable);
-		if (p_aml_audio->aml_DRC_enable) {
-			reg_ptr = &drc_table[0][0];
-			ret = of_property_read_u32_array(child, "drc_table",
-					reg_ptr, 6);
-			if (ret) {
-				pr_err("Can't get drc param [%s]!\n",
-					"drc_table");
-			} else {
-				aml_write_cbus(AED_DRC_AE,
-					drc_table[0][0]);
-				aml_write_cbus(AED_DRC_AA,
-					drc_table[1][0]);
-				aml_write_cbus(AED_DRC_AD,
-					drc_table[2][0]);
-				aml_write_cbus(AED_DRC_AE_1M,
-					drc_table[0][1]);
-				aml_write_cbus(AED_DRC_AA_1M,
-					drc_table[1][1]);
-				aml_write_cbus(AED_DRC_AD_1M,
-					drc_table[2][1]);
-				/*pr_info("DRC table: 0x%x, 0x%x,"
-				"0x%x, 0x%x, 0x%x, 0x%x,\n",
-				drc_table[0][0], drc_table[0][1],
-				drc_table[1][0], drc_table[1][1],
-				drc_table[2][0], drc_table[2][1]);*/
-			}
-
-			reg_ptr = &drc_tko_table[0][0];
-			ret = of_property_read_u32_array(child, "drc_tko_table",
-						reg_ptr, 6);
-			if (ret) {
-				pr_err("Can't get drc param [%s]!\n",
-					"drc_tko_table");
-			} else {
-				aml_write_cbus(AED_DRC_OFFSET0,
-					drc_tko_table[0][0]);
-				aml_write_cbus(AED_DRC_OFFSET1,
-					drc_tko_table[1][0]);
-				aml_write_cbus(AED_DRC_THD0,
-					drc_tko_table[0][1]);
-				aml_write_cbus(AED_DRC_THD1,
-					drc_tko_table[1][1]);
-				aml_write_cbus(AED_DRC_K0,
-					drc_tko_table[0][2]);
-				aml_write_cbus(AED_DRC_K1,
-					drc_tko_table[1][2]);
-				/*pr_info("DRC tko: 0x%x, 0x%x,"
-				"0x%x, 0x%x, 0x%x, 0x%x,\n",
-				drc_tko_table[0][0], drc_tko_table[1][0],
-				drc_tko_table[0][1], drc_tko_table[1][1],
-				drc_tko_table[0][2], drc_tko_table[1][2]);*/
-
-				/*enable aml DRC*/
-				aml_cbus_update_bits(AED_DRC_EN, 0x1, 0x1);
-				pr_info("aml DRC enable!\n");
-			}
-		}
-	}
-	return 0;
-}
-
 static void aml_pinmux_work_func(struct work_struct *pinmux_work)
 {
 	struct aml_audio_private_data *p_aml_audio = NULL;
@@ -1695,7 +1429,6 @@ static int aml_g9tv_audio_probe(struct platform_device *pdev)
 		init_EQ_DRC_module();
 		snd_soc_add_card_controls(card, aml_EQ_DRC_controls,
 					ARRAY_SIZE(aml_EQ_DRC_controls));
-		aml_EQ_DRC_parse_of(card);
 		set_HW_resample_pause_thd(128);
 	}
 
@@ -1734,6 +1467,15 @@ static struct platform_driver aml_g9tv_audio_driver = {
 	.probe			= aml_g9tv_audio_probe,
 	.shutdown		= aml_g9tv_audio_shutdown,
 };
+
+module_param_array(aml_EQ_param, uint, &aml_EQ_param_length, 0664);
+MODULE_PARM_DESC(aml_EQ_param, "An array of aml EQ param");
+
+module_param_array(aml_drc_table, uint, &aml_DRC_param_length, 0664);
+MODULE_PARM_DESC(aml_drc_table, "An array of aml DRC table param");
+
+module_param_array(aml_drc_tko_table, uint, &aml_DRC_param_length, 0664);
+MODULE_PARM_DESC(aml_drc_tko_table, "An array of aml DRC tko table param");
 
 module_platform_driver(aml_g9tv_audio_driver);
 

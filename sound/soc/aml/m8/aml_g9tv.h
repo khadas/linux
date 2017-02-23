@@ -76,8 +76,10 @@ struct codec_probe_priv {
 	struct tas57xx_eq_cfg *eq_configs;
 };
 
-extern struct device *spdif_dev;
-extern void aml_spdif_pinmux_init(struct device *pdev);
-extern void aml_spdif_pinmux_deinit(struct device *pdev);
+static int aml_get_eqdrc_reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol);
+static int aml_set_eqdrc_reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol);
+
 
 #endif

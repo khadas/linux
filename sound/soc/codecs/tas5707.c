@@ -42,22 +42,67 @@ static const u8 tas5707_regs[DDX_NUM_BYTE_REG] = {
 	0x00, 0x30, 0x0F, 0x82, 0x02,
 };
 
-static u8 TAS5707_drc1_table[3][8] = {
-	/* 0x3A drc1_ae */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
-	/* 0x3B drc1_aa */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
-	/* 0x3C drc1_ad */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+static unsigned tas5707_EQ_table_length = 280;
+static unsigned tas5707_EQ_table[280] = {
+	/*0x29---ch1_bq[0]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x2A---ch1_bq[1]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x2B---ch1_bq[2]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x2C---ch1_bq[3]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x2D---ch1_bq[4]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x2E---ch1_bq[5]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x2F---ch1_bq[6]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x30---ch2_bq[0]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x31---ch2_bq[1]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x32---ch2_bq[2]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x33---ch2_bq[3]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x34---ch2_bq[4]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x35---ch2_bq[5]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/*0x36---ch2_bq[6]*/
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static u8 tas5707_drc1_tko_table[3][4] = {
-	/* 0x40 drc1_t */
-	{ 0x00, 0x00, 0x00, 0x00 },
-	/* 0x41 drc1_k */
-	{ 0x00, 0x00, 0x00, 0x00 },
-	/* 0x42 drc1_o */
-	{ 0x00, 0x00, 0x00, 0x00 }
+static unsigned tas5707_drc1_table_length = 24;
+static unsigned tas5707_drc1_table[24] = {
+	/* 0x3A drc1_ae */
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* 0x3B drc1_aa */
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	/* 0x3C drc1_ad */
+	0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static unsigned tas5707_drc1_tko_length = 12;
+static unsigned tas5707_drc1_tko_table[12] = {
+	0xFD, 0xA2, 0x14, 0x90, /*0x40---drc1_t*/
+	0x03, 0x84, 0x21, 0x09, /*0x41---drc1_k*/
+	0x00, 0x08, 0x42, 0x10, /*0x42---drc1_o*/
 };
 
 /* codec private data */
@@ -80,20 +125,33 @@ struct tas5707_priv {
 	struct early_suspend early_suspend;
 };
 
+static int tas5707_set_EQ_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol);
+static int tas5707_get_EQ_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol);
+static int tas5707_set_DRC_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol);
+static int tas5707_get_DRC_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol);
+
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12700, 50, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);
 
 static const struct snd_kcontrol_new tas5707_snd_controls[] = {
 	SOC_SINGLE_TLV("Master Volume", DDX_MASTER_VOLUME, 0,
-		       0xff, 1, mvol_tlv),
+			   0xff, 1, mvol_tlv),
 	SOC_SINGLE_TLV("Ch1 Volume", DDX_CHANNEL1_VOL, 0,
-		       0xff, 1, chvol_tlv),
+			   0xff, 1, chvol_tlv),
 	SOC_SINGLE_TLV("Ch2 Volume", DDX_CHANNEL2_VOL, 0,
-		       0xff, 1, chvol_tlv),
+			   0xff, 1, chvol_tlv),
 	SOC_SINGLE("Ch1 Switch", DDX_SOFT_MUTE, 0, 1, 1),
 	SOC_SINGLE("Ch2 Switch", DDX_SOFT_MUTE, 1, 1, 1),
 	SOC_SINGLE_RANGE("Fine Master Volume", DDX_CHANNEL3_VOL, 0,
 			   0x80, 0x83, 0),
+	SOC_SINGLE_BOOL_EXT("Set EQ Enable", 0,
+			   tas5707_get_EQ_enum, tas5707_set_EQ_enum),
+	SOC_SINGLE_BOOL_EXT("Set DRC Enable", 0,
+			   tas5707_get_DRC_enum, tas5707_set_DRC_enum),
 };
 
 static int tas5707_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -224,9 +282,7 @@ static int tas5707_set_master_vol(struct snd_soc_codec *codec)
 		snd_soc_write(codec, DDX_MASTER_VOLUME,
 			      (0xff - pdata->custom_master_vol));
 	} else {
-		pr_debug
-			("get dtd master_vol failed:using default setting\n");
-		snd_soc_write(codec, DDX_MASTER_VOLUME, 0x30);
+		snd_soc_write(codec, DDX_MASTER_VOLUME, 0x69);
 	}
 
 	return 0;
@@ -236,81 +292,59 @@ static int tas5707_set_master_vol(struct snd_soc_codec *codec)
 static int tas5707_set_drc1(struct snd_soc_codec *codec)
 {
 	int i = 0, j = 0;
-	u8 *p = NULL;
-	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
+	unsigned *p = NULL;
+	u8 tas5707_drc1_table_tmp[8];
+	u8 tas5707_drc1_tko_table_tmp[4];
 
-	if (pdata && pdata->custom_drc1_table
-	    && pdata->custom_drc1_table_len == 24) {
-		p = pdata->custom_drc1_table;
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 8; j++)
-				TAS5707_drc1_table[i][j] = p[i * 8 + j];
+	p = &tas5707_drc1_table[0];
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 8; j++)
+			tas5707_drc1_table_tmp[j] = p[i * 8 + j];
 
-			regmap_raw_write(codec->control_data, DDX_DRC1_AE + i,
-					 TAS5707_drc1_table[i], 8);
-			/*for (j = 0; j < 8; j++)
-				pr_info("TAS5707_drc1_table[%d][%d]: %x\n",
-					 i, j, TAS5707_drc1_table[i][j]);*/
-		}
-	} else {
-		return -1;
+		regmap_raw_write(codec->control_data, DDX_DRC1_AE + i,
+					tas5707_drc1_table_tmp, 8);
+		/*for (j = 0; j < 8; j++)
+			pr_info("TAS5707_drc1_table[%d][%d]: %x\n",
+					i, j, tas5707_drc1_table_tmp[j]);*/
 	}
 
-	if (pdata && pdata->custom_drc1_tko_table
-	    && pdata->custom_drc1_tko_table_len == 12) {
-		p = pdata->custom_drc1_tko_table;
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 4; j++)
-				tas5707_drc1_tko_table[i][j] = p[i * 4 + j];
+	p = &tas5707_drc1_tko_table[0];
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 4; j++)
+			tas5707_drc1_tko_table_tmp[j] = p[i * 4 + j];
 
-			regmap_raw_write(codec->control_data, DDX_DRC1_T + i,
-					 tas5707_drc1_tko_table[i], 4);
-			/*for (j = 0; j < 4; j++)
-				pr_info("tas5707_drc1_tko_table[%d][%d]: %x\n",
-					 i, j, tas5707_drc1_tko_table[i][j]);*/
-		}
-	} else {
-		return -1;
+		regmap_raw_write(codec->control_data, DDX_DRC1_T + i,
+					tas5707_drc1_tko_table_tmp, 4);
+		/*for (j = 0; j < 4; j++)
+			pr_info("tas5707_drc1_tko_table[%d][%d]: %x\n",
+					i, j, tas5707_drc1_tko_table_tmp[j]);*/
 	}
-
 	return 0;
 }
 
 static int tas5707_set_drc(struct snd_soc_codec *codec)
 {
-	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
 	char drc_mask = 0;
 	u8 tas5707_drc_ctl_table[] = { 0x00, 0x00, 0x00, 0x00 };
 
-	if (pdata && pdata->enable_ch1_drc && pdata->drc_enable) {
-		drc_mask |= 0x01;
-		tas5707_drc_ctl_table[3] = drc_mask;
-		tas5707_set_drc1(codec);
-	    regmap_raw_write(codec->control_data, DDX_DRC_CTL,
-			 tas5707_drc_ctl_table, 4);
-	    return 0;
-	}
-	return -1;
+	regmap_raw_write(codec->control_data, DDX_DRC_CTL,
+		tas5707_drc_ctl_table, 4);
+	drc_mask |= 0x01;
+	tas5707_drc_ctl_table[3] = drc_mask;
+	tas5707_set_drc1(codec);
+	regmap_raw_write(codec->control_data, DDX_DRC_CTL,
+		tas5707_drc_ctl_table, 4);
+	return 0;
 }
 
 static int tas5707_set_eq_biquad(struct snd_soc_codec *codec)
 {
 	int i = 0, j = 0, k = 0;
-	u8 *p = NULL;
+	unsigned *p = NULL;
 	u8 addr;
 	u8 tas5707_bq_table[20];
-	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
-	struct tas57xx_platform_data *pdata = tas5707->pdata;
-	struct tas57xx_eq_cfg *cfg;
 
-	if (!pdata)
-		return 0;
-
-	cfg = pdata->eq_cfgs;
-	if (!(cfg))
-		return 0;
-
-	p = cfg[tas5707->eq_cfg].regs;
+	p = &tas5707_EQ_table[0];
 
 	for (i = 0; i < 2; i++) {
 		for (j = 0; j < 7; j++) {
@@ -328,101 +362,63 @@ static int tas5707_set_eq_biquad(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int tas5707_put_eq_enum(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
-	struct tas57xx_platform_data *pdata = tas5707->pdata;
-	int value = ucontrol->value.integer.value[0];
-
-	if (value >= pdata->num_eq_cfgs)
-		return -EINVAL;
-
-	tas5707->eq_cfg = value;
-	tas5707_set_eq_biquad(codec);
-
-	return 0;
-}
-
-static int tas5707_get_eq_enum(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
-
-	ucontrol->value.enumerated.item[0] = tas5707->eq_cfg;
-
-	return 0;
-}
-
 static int tas5707_set_eq(struct snd_soc_codec *codec)
 {
-	int i = 0, ret = 0;
-	struct tas5707_priv *tas5707 = snd_soc_codec_get_drvdata(codec);
-	struct tas57xx_platform_data *pdata = tas5707->pdata;
 	u8 tas5707_eq_ctl_table[] = { 0x00, 0x00, 0x00, 0x80 };
-	struct tas57xx_eq_cfg *cfg = pdata->eq_cfgs;
 
-	if (!pdata || !pdata->eq_enable)
-		return -ENOENT;
-
-	if (pdata->num_eq_cfgs && (tas5707->eq_conf_texts == NULL)) {
-		struct snd_kcontrol_new control =
-			SOC_ENUM_EXT("EQ Mode", tas5707->eq_conf_enum,
-				     tas5707_get_eq_enum, tas5707_put_eq_enum);
-
-		tas5707->eq_conf_texts =
-			kzalloc(sizeof(char *) * pdata->num_eq_cfgs,
-				GFP_KERNEL);
-		if (!tas5707->eq_conf_texts) {
-			dev_err(codec->dev,
-				"Fail to allocate %d EQ config tests\n",
-				pdata->num_eq_cfgs);
-			return -ENOMEM;
-		}
-
-		for (i = 0; i < pdata->num_eq_cfgs; i++)
-			tas5707->eq_conf_texts[i] = cfg[i].name;
-
-		tas5707->eq_conf_enum.max = pdata->num_eq_cfgs;
-		tas5707->eq_conf_enum.texts = tas5707->eq_conf_texts;
-
-		ret = snd_soc_add_codec_controls(codec, &control, 1);
-		if (ret != 0)
-			dev_err(codec->dev, "Fail to add EQ mode control: %d\n",
-				ret);
-	}
-
+	regmap_raw_write(codec->control_data, DDX_BANKSWITCH_AND_EQCTL,
+			 tas5707_eq_ctl_table, 4);
 	tas5707_set_eq_biquad(codec);
-
 	tas5707_eq_ctl_table[3] &= 0x7F;
 	regmap_raw_write(codec->control_data, DDX_BANKSWITCH_AND_EQCTL,
 			 tas5707_eq_ctl_table, 4);
 	return 0;
 }
 
-static int tas5707_customer_init(struct snd_soc_codec *codec)
+bool EQ_enum_value = 1;
+static int tas5707_set_EQ_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
 {
-	int i = 0;
-	u8 data[4] = {0x00, 0x00, 0x00, 0x00};
-	struct tas57xx_platform_data *pdata = dev_get_platdata(codec->dev);
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	u8 tas5707_eq_ctl_table[] = { 0x00, 0x00, 0x00, 0x80 };
+	EQ_enum_value = ucontrol->value.integer.value[0];
 
-	if (pdata && pdata->init_regs) {
-		if (pdata->num_init_regs != 4) {
-			dev_err(codec->dev, "num_init_regs = %d\n",
-				pdata->num_init_regs);
-			return -1;
-		}
-		for (i = 0; i < pdata->num_init_regs; i++)
-			data[i] = pdata->init_regs[i];
-		/*pr_info("init_regs[]: [%x][%x][%x][%x]\n",
-			data[0], data[1], data[2], data[3]);*/
-	} else {
-		return -1;
-	}
+	if (EQ_enum_value == 1)
+		tas5707_set_eq(codec);
+	else
+		regmap_raw_write(codec->control_data,
+			DDX_BANKSWITCH_AND_EQCTL,
+			tas5707_eq_ctl_table, 4);
 
-	regmap_raw_write(codec->control_data, DDX_INPUT_MUX, data, 4);
+	return 0;
+}
+static int tas5707_get_EQ_enum(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = EQ_enum_value;
+	return 0;
+}
+
+bool DRC_enum_value = 1;
+static int tas5707_set_DRC_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	u8 tas5707_drc_ctl_table[] = { 0x00, 0x00, 0x00, 0x00 };
+	DRC_enum_value = ucontrol->value.integer.value[0];
+
+	if (DRC_enum_value == 1)
+		tas5707_set_drc(codec);
+	else
+		regmap_raw_write(codec->control_data, DDX_DRC_CTL,
+			tas5707_drc_ctl_table, 4);
+
+	return 0;
+}
+static int tas5707_get_DRC_enum(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = DRC_enum_value;
 	return 0;
 }
 
@@ -463,20 +459,16 @@ static int tas5707_init(struct snd_soc_codec *codec)
 	regmap_raw_write(codec->control_data, DDX_PWM_MUX, burst_data[2], 4);
 
 	/*drc */
-	if ((tas5707_set_drc(codec)) < 0)
-		dev_err(codec->dev, "fail to set tas5707 drc!\n");
+	tas5707_set_drc(codec);
 	/*eq */
-	if ((tas5707_set_eq(codec)) < 0)
-		dev_err(codec->dev, "fail to set tas5707 eq!\n");
-	/*init */
-	if ((tas5707_customer_init(codec)) < 0)
-		dev_err(codec->dev, " fail to set tas5707 customer init!\n");
+	tas5707_set_eq(codec);
 
 	snd_soc_write(codec, DDX_VOLUME_CONFIG, 0xD1);
 	snd_soc_write(codec, DDX_SYS_CTL_2, 0x84);
 	snd_soc_write(codec, DDX_START_STOP_PERIOD, 0x95);
 	snd_soc_write(codec, DDX_PWM_SHUTDOWN_GROUP, 0x30);
 	snd_soc_write(codec, DDX_MODULATION_LIMIT, 0x02);
+
 	/*normal operation */
 	if ((tas5707_set_master_vol(codec)) < 0)
 		dev_err(codec->dev, "fail to set tas5707 master vol!\n");
@@ -677,6 +669,21 @@ static void __exit aml_tas5707_exit(void)
 	platform_driver_unregister(&aml_tas5707_codec_platform_driver);
 	i2c_del_driver(&tas5707_i2c_driver);
 }
+
+module_param_array(tas5707_EQ_table,
+		uint, &tas5707_EQ_table_length, 0664);
+MODULE_PARM_DESC(tas5707_EQ_table,
+		"An array of tas5707 EQ param");
+
+module_param_array(tas5707_drc1_table,
+		uint, &tas5707_drc1_table_length, 0664);
+MODULE_PARM_DESC(tas5707_drc1_table,
+		"An array of tas5707 DRC table param");
+
+module_param_array(tas5707_drc1_tko_table,
+		uint, &tas5707_drc1_tko_length, 0664);
+MODULE_PARM_DESC(tas5707_drc1_tko_table,
+		"An array of tas5707 DRC tko table param");
 
 module_init(aml_tas5707_modinit);
 module_exit(aml_tas5707_exit);
