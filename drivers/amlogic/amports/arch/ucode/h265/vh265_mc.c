@@ -3365,10 +3365,10 @@ const u32  vh265_mc_mmu[] __initconst = {
 
 #define FOR_VFORMAT VFORMAT_HEVC
 
-
-#define FOR_CPUS_MMU {	MESON_CPU_MAJOR_ID_GXL,\
-						MESON_CPU_MAJOR_ID_GXM,\
-						MESON_CPU_MAJOR_ID_TXL, 0}
+#define FOR_CPUS_MMU {	MESON_CPU_MAJOR_ID_GXL, \
+						MESON_CPU_MAJOR_ID_GXM, \
+						MESON_CPU_MAJOR_ID_TXL, \
+						MESON_CPU_MAJOR_ID_TXLX, 0}
 
 #define REG_FIRMWARE_ALL()\
 	do {\
