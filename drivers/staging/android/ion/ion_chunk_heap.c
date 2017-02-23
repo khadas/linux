@@ -41,16 +41,14 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 	struct ion_chunk_heap *chunk_heap =
 		container_of(heap, struct ion_chunk_heap, heap);
 	struct sg_table *table;
-	struct scatterlist *sg;
-	int ret, i;
-	unsigned long num_chunks;
+	int ret;
+	ion_phys_addr_t paddr;
 	unsigned long allocated_size;
 
 	if (align > chunk_heap->chunk_size)
 		return -EINVAL;
 
 	allocated_size = ALIGN(size, chunk_heap->chunk_size);
-	num_chunks = allocated_size / chunk_heap->chunk_size;
 
 	if (allocated_size > chunk_heap->size - chunk_heap->allocated)
 		return -ENOMEM;
@@ -58,36 +56,27 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
-	ret = sg_alloc_table(table, num_chunks, GFP_KERNEL);
-	if (ret) {
-		kfree(table);
-		return ret;
+	ret = sg_alloc_table(table, 1, GFP_KERNEL);
+	if (ret)
+		goto err_free;
+
+	paddr = gen_pool_alloc(chunk_heap->pool, allocated_size);
+	if (!paddr) {
+		ret = -ENOMEM;
+		goto err_free_table;
 	}
 
-	sg = table->sgl;
-	for (i = 0; i < num_chunks; i++) {
-		unsigned long paddr = gen_pool_alloc(chunk_heap->pool,
-						     chunk_heap->chunk_size);
-		if (!paddr)
-			goto err;
-		sg_set_page(sg, pfn_to_page(PFN_DOWN(paddr)),
-				chunk_heap->chunk_size, 0);
-		sg = sg_next(sg);
-	}
-
+	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)),
+			allocated_size, 0);
 	buffer->priv_virt = table;
 	chunk_heap->allocated += allocated_size;
 	return 0;
-err:
-	sg = table->sgl;
-	for (i -= 1; i >= 0; i--) {
-		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
-			      sg->length);
-		sg = sg_next(sg);
-	}
+
+err_free_table:
 	sg_free_table(table);
+err_free:
 	kfree(table);
-	return -ENOMEM;
+	return ret;
 }
 
 static void ion_chunk_heap_free(struct ion_buffer *buffer)
@@ -96,9 +85,9 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 	struct ion_chunk_heap *chunk_heap =
 		container_of(heap, struct ion_chunk_heap, heap);
 	struct sg_table *table = buffer->priv_virt;
-	struct scatterlist *sg;
-	int i;
 	unsigned long allocated_size;
+	struct page *page = sg_page(table->sgl);
+	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 
 	allocated_size = ALIGN(buffer->size, chunk_heap->chunk_size);
 
@@ -108,13 +97,24 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 		dma_sync_sg_for_device(NULL, table->sgl, table->nents,
 								DMA_BIDIRECTIONAL);
 
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
-			      sg->length);
-	}
+	gen_pool_free(chunk_heap->pool, paddr, allocated_size);
+
 	chunk_heap->allocated -= allocated_size;
 	sg_free_table(table);
 	kfree(table);
+}
+
+static int ion_chunk_heap_phys(struct ion_heap *heap,
+				  struct ion_buffer *buffer,
+				  ion_phys_addr_t *addr, size_t *len)
+{
+	struct sg_table *table = buffer->priv_virt;
+	struct page *page = sg_page(table->sgl);
+	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+
+	*addr = paddr;
+	*len = buffer->size;
+	return 0;
 }
 
 static struct sg_table *ion_chunk_heap_map_dma(struct ion_heap *heap,
@@ -132,6 +132,7 @@ static void ion_chunk_heap_unmap_dma(struct ion_heap *heap,
 static struct ion_heap_ops chunk_heap_ops = {
 	.allocate = ion_chunk_heap_allocate,
 	.free = ion_chunk_heap_free,
+	.phys = ion_chunk_heap_phys,
 	.map_dma = ion_chunk_heap_map_dma,
 	.unmap_dma = ion_chunk_heap_unmap_dma,
 	.map_user = ion_heap_map_user,
@@ -159,9 +160,8 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	if (!chunk_heap)
 		return ERR_PTR(-ENOMEM);
 
-	chunk_heap->chunk_size = (unsigned long)heap_data->priv;
-	chunk_heap->pool = gen_pool_create(get_order(chunk_heap->chunk_size) +
-					   PAGE_SHIFT, -1);
+	chunk_heap->chunk_size = PAGE_SIZE;
+	chunk_heap->pool = gen_pool_create(12, -1);
 	if (!chunk_heap->pool) {
 		ret = -ENOMEM;
 		goto error_gen_pool_create;
