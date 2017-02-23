@@ -115,7 +115,7 @@ static void aml_dai_i2s_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	if (IEC958_mode_codec == 0)
-		aml_spdif_play(0);
+		aml_spdif_play(1);
 	return;
 }
 
@@ -177,7 +177,6 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 			aml_hw_iec958_init(substream, 1);
 			/* use the hw same sync for i2s/958 */
 			dev_info(substream->pcm->card->dev, "i2s/958 same source\n");
-			audio_i2s_958_same_source(1);
 		}
 		if (runtime->channels == 8) {
 			dev_info(substream->pcm->card->dev,
