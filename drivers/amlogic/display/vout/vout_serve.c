@@ -51,7 +51,7 @@ static int early_suspend_flag;
 static int early_resume_flag;
 #endif
 
-
+#define VOUT_CDEV_NAME  "display"
 #define VOUT_CLASS_NAME "display"
 #define	MAX_NUMBER_PARA 10
 
@@ -62,6 +62,14 @@ static char vout_mode[64] __nosavedata;
 static char vout_axis[64] __nosavedata;
 static u32 vout_init_vmode = VMODE_INIT_NULL;
 static int uboot_display;
+
+struct vout_cdev_s {
+	dev_t           devno;
+	struct cdev     cdev;
+	struct device   *dev;
+};
+
+static struct vout_cdev_s *vout_cdev;
 
 void update_vout_mode_attr(const struct vinfo_s *vinfo)
 {
@@ -450,6 +458,123 @@ static int create_vout_attr(void)
 	return ret;
 }
 
+/* ************************************************************* */
+/* vout ioctl                                                    */
+/* ************************************************************* */
+static int vout_io_open(struct inode *inode, struct file *file)
+{
+	struct vout_cdev_s *vcdev;
+
+	vout_log_info("%s\n", __func__);
+	vcdev = container_of(inode->i_cdev, struct vout_cdev_s, cdev);
+	file->private_data = vcdev;
+	return 0;
+}
+
+static int vout_io_release(struct inode *inode, struct file *file)
+{
+	vout_log_info("%s\n", __func__);
+	file->private_data = NULL;
+	return 0;
+}
+
+static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	void __user *argp;
+	int mcd_nr;
+	struct vinfo_s *info = NULL;
+
+	mcd_nr = _IOC_NR(cmd);
+	vout_log_info("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
+		__func__, _IOC_DIR(cmd), mcd_nr);
+
+	argp = (void __user *)arg;
+	switch (mcd_nr) {
+	case VOUT_IOC_NR_GET_VINFO:
+		info = get_current_vinfo();
+		if (info == NULL)
+			ret = -EFAULT;
+		else if (info->mode == VMODE_INIT_NULL)
+			ret = -EFAULT;
+		else if (copy_to_user(argp, info, sizeof(struct vinfo_s)))
+			ret = -EFAULT;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long vout_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	unsigned long ret;
+
+	arg = (unsigned long)compat_ptr(arg);
+	ret = vout_ioctl(file, cmd, arg);
+	return ret;
+}
+#endif
+
+static const struct file_operations vout_fops = {
+	.owner          = THIS_MODULE,
+	.open           = vout_io_open,
+	.release        = vout_io_release,
+	.unlocked_ioctl = vout_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = vout_compat_ioctl,
+#endif
+};
+
+static int create_vout_fops(void)
+{
+	int ret = 0;
+
+	vout_cdev = kmalloc(sizeof(struct vout_cdev_s), GFP_KERNEL);
+	if (!vout_cdev) {
+		vout_log_info("error: failed to allocate vout_cdev\n");
+		return -1;
+	}
+
+	ret = alloc_chrdev_region(&vout_cdev->devno, 0, 1, VOUT_CDEV_NAME);
+	if (ret < 0) {
+		vout_log_info("error: faild to alloc devno\n");
+		kfree(vout_cdev);
+		vout_cdev = NULL;
+		return -1;
+	}
+
+	cdev_init(&vout_cdev->cdev, &vout_fops);
+	vout_cdev->cdev.owner = THIS_MODULE;
+	ret = cdev_add(&vout_cdev->cdev, vout_cdev->devno, 1);
+	if (ret) {
+		vout_log_info("error: failed to add device\n");
+		unregister_chrdev_region(vout_cdev->devno, 1);
+		kfree(vout_cdev);
+		vout_cdev = NULL;
+		return -1;
+	}
+
+	vout_cdev->dev = device_create(vout_class, NULL, vout_cdev->devno,
+			NULL, VOUT_CDEV_NAME);
+	if (IS_ERR(vout_cdev->dev)) {
+		ret = PTR_ERR(vout_cdev->dev);
+		cdev_del(&vout_cdev->cdev);
+		unregister_chrdev_region(vout_cdev->devno, 1);
+		kfree(vout_cdev);
+		vout_cdev = NULL;
+		return -1;
+	}
+
+	vout_log_info("%s OK\n", __func__);
+	return 0;
+}
+/* ************************************************************* */
+
 #ifdef CONFIG_PM
 static int  meson_vout_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -568,6 +693,7 @@ static int meson_vout_probe(struct platform_device *pdev)
 
 	vout_class = NULL;
 	ret = create_vout_attr();
+	ret = create_vout_fops();
 
 	if (ret == 0)
 		vout_log_info("create vout attribute OK\n");
@@ -591,6 +717,12 @@ static int meson_vout_remove(struct platform_device *pdev)
 	class_remove_file(vout_class, &class_attr_fr_policy);
 	class_remove_file(vout_class, &class_attr_vinfo);
 	class_destroy(vout_class);
+
+	cdev_del(&vout_cdev->cdev);
+	unregister_chrdev_region(vout_cdev->devno, 1);
+	kfree(vout_cdev);
+	vout_cdev = NULL;
+
 	return 0;
 }
 

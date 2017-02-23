@@ -1728,6 +1728,17 @@ static void Edid_VersionParse(struct rx_cap *pRxCap,
 	return;
 }
 
+static void Edid_PhyscialSizeParse(struct rx_cap *pRxCap,
+		unsigned char *data)
+{
+	if ((data[0] != 0) && (data[1] != 0)) {
+		pRxCap->physcial_weight = data[0];
+		pRxCap->physcial_height = data[1];
+	}
+
+	return;
+}
+
 /* if edid block 0 are all zeros, then consider RX as HDMI device */
 static int edid_zero_data(unsigned char *buf)
 {
@@ -1869,6 +1880,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	Edid_ManufactureDateParse(&hdmitx_device->RXCap, &EDID_buf[16]);
 
 	Edid_VersionParse(&hdmitx_device->RXCap, &EDID_buf[18]);
+
+	Edid_PhyscialSizeParse(&hdmitx_device->RXCap, &EDID_buf[21]);
 
 	Edid_DecodeStandardTiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
 	Edid_ParseCEADetailedTimingDescriptors(&hdmitx_device->hdmi_info,
@@ -2401,6 +2414,10 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Week: %d\n", pRXCap->manufacture_week);
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Manufacture Year: %d\n", pRXCap->manufacture_year+1990);
+
+	pos += snprintf(buffer+pos, buffer_len-pos,
+		"Physcial size(cm): %d x %d\n",
+		pRXCap->physcial_weight, pRXCap->physcial_height);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"EDID Verison: %d.%d\n",

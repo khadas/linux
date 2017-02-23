@@ -91,6 +91,9 @@ static struct vinfo_s vinfo_invalid = {
 	.aspect_ratio_den  = 9,
 	.sync_duration_num = 60,
 	.sync_duration_den = 1,
+	.screen_real_width = 16,
+	.screen_real_height = 9,
+	.video_clk = 148500000,
 	.viu_color_fmt = TVIN_RGB444,
 };
 

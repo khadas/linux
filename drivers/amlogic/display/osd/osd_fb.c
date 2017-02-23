@@ -994,6 +994,7 @@ static int osd_open(struct fb_info *info, int arg)
 	struct fb_fix_screeninfo *fix = NULL;
 	struct fb_var_screeninfo *var = NULL;
 	struct platform_device *pdev = NULL;
+	const struct vinfo_s *vinfo;
 
 	fbdev = (struct osd_fb_dev_s *)info->par;
 	if (info->screen_base != NULL)
@@ -1002,6 +1003,17 @@ static int osd_open(struct fb_info *info, int arg)
 	fb_index = fbdev->fb_index;
 	fix = &info->fix;
 	var = &info->var;
+
+	if (fb_index == DEV_OSD0) {
+		vinfo = get_current_vinfo();
+		if (!vinfo) {
+			osd_log_err("current vinfo NULL\n");
+			return -1;
+		}
+		var->width = vinfo->screen_real_width;
+		var->height = vinfo->screen_real_height;
+	}
+
 	if (fb_rmem.base == 0) {
 		pr_info("use ion buffer for fb memory\n");
 		if (!fb_ion_client)
@@ -1310,6 +1322,14 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			fb_dev = gp_fbdev_list[i];
 			if (NULL == fb_dev)
 				continue;
+
+			if (i == DEV_OSD0) {
+				fb_dev->fb_info->var.width =
+					vinfo->screen_real_width;
+				fb_dev->fb_info->var.height =
+					vinfo->screen_real_height;
+			}
+
 			set_default_display_axis(&fb_dev->fb_info->var,
 					&fb_dev->osd_ctl, vinfo);
 			console_lock();
