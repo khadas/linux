@@ -250,7 +250,8 @@
 			/* duty_max, duty_min: unit in % */
 			bl_pwm_port = "PWM_B"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			bl_pwm_attr = <0 180 100 25>; /* pwm_method, pwm_freq, duty_max, duty_min */
-			bl_pwm_power = <1 0 10 10>; /* pwm_gpio_index, pwm_gpio_off, pwm_on_delay, pwm_off_delay */
+			bl_pwm_power = <1 1 10 10>; /* pwm_gpio_index, pwm_gpio_off, pwm_on_delay, pwm_off_delay */
+			bl_pwm_en_sequence_reverse = <0>; /* 1 for reverse */
 		};
 		backlight_1{
 			index = <1>;
@@ -267,6 +268,7 @@
 			bl_pwm_port = "PWM_VS"; /* PWM_A, PWM_B, PWM_C, PWM_D, PWM_VS */
 			bl_pwm_attr = <1 2 100 25>; /* pwm_method, pwm_freq, duty_max, duty_min */
 			bl_pwm_power = <1 0 10 10>; /* pwm_gpio_index, pwm_off_value, pwm_on_delay, pwm_off_delay */
+			bl_pwm_en_sequence_reverse = <0>; /* 1 for reverse */
 		};
 		backlight_2{
 			index = <2>;
@@ -285,6 +287,7 @@
 			bl_pwm_combo_attr = <1 180 100 25
 					     1 18000 100 20>; /* pwm_method, pwm_freq, duty_max, duty_min */
 			bl_pwm_combo_power = <1 0 2 0 10 10>; /* pwm0_gpio_index, pwm0_gpio_off, pwm1_gpio_index, pwm1_gpio_off, pwm_on_delay, pwm_off_delay */
+			bl_pwm_en_sequence_reverse = <0>; /* 1 for reverse */
 		};
 		backlight_3{
 			index = <3>;
@@ -303,6 +306,7 @@
 			bl_pwm_combo_attr = <1 180 100 25
 					     1 18000 80 80>; /* pwm_method, pwm_freq, duty_max, duty_min */
 			bl_pwm_combo_power = <1 0 2 0 10 10>; /* pwm0_gpio_index, pwm0_gpio_off, pwm1_gpio_index, pwm1_gpio_off, pwm_on_delay, pwm_off_delay */
+			bl_pwm_en_sequence_reverse = <0>; /* 1 for reverse */
 		};
 	};
 };/* end of / */
