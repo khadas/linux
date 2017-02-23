@@ -52,13 +52,21 @@ static bool audio_det_en;
 module_param(audio_det_en, bool, 0644);
 MODULE_PARM_DESC(audio_det_en, "\n audio_det_en\n");
 
-static bool non_std_en;
-module_param(non_std_en, bool, 0644);
-MODULE_PARM_DESC(non_std__en, "\n non_std_en\n");
+static int non_std_en;
+module_param(non_std_en, int, 0644);
+MODULE_PARM_DESC(non_std_en, "\n non_std_en\n");
 
 static int atv_video_gain;
 module_param(atv_video_gain, int, 0644);
-MODULE_PARM_DESC(atv_video_gain, "\n atv_video_gain\n");
+MODULE_PARM_DESC(atv_video_gain, "\n atv_video_gain reg:0x0f44\n");
+
+static int carrier_amplif_val = 0xc030901;
+module_param(carrier_amplif_val, int, 0644);
+MODULE_PARM_DESC(carrier_amplif_val, "\ncarrier_amplif_val (reg 0x0624)\n");
+
+static int extra_input_fil_val = 0x1030501;
+module_param(extra_input_fil_val, int, 0644);
+MODULE_PARM_DESC(extra_input_fil_val, "\nextra_input_fil_val (reg 0x0900)\n");
 
 static int audio_det_mode = AUDIO_AUTO_DETECT;
 module_param(audio_det_mode, int, 0644);
@@ -421,14 +429,21 @@ void atv_dmd_misc(void)
 	if (non_std_en == 1) {
 		atv_dmd_wr_long(0x09, 0x00, 0x2030503);
 		atv_dmd_wr_long(0x0f, 0x44, 0x7c8808c1);
-		atv_dmd_wr_long(0x06, 0x24, 0x0c010801);
-	} else {
+		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0x0c010801);
+	} else if (non_std_en == 2) {
+		/* fix vsync signal is too weak */
 		atv_dmd_wr_long(0x09, 0x00, 0x1030501);
+		atv_dmd_wr_long(0x0f, 0x44, 0x8c0808c1);
+		atv_dmd_wr_long(0x0f, 0x0c, 0x387c0831);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0xc030901);
+	} else {
+		atv_dmd_wr_long(0x09, 0x00, extra_input_fil_val);
 		if (atv_video_gain)
 			atv_dmd_wr_long(0x0f, 0x44, atv_video_gain);
 		else
 			atv_dmd_wr_long(0x0f, 0x44, 0xfc0808c1);
-		atv_dmd_wr_long(0x06, 0x24, 0xc030901);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24,
+			carrier_amplif_val);
 	}
 
 }
