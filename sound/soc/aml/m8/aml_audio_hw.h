@@ -111,7 +111,6 @@ enum {
 #define AUDIO_ALGOUT_DAC_FORMAT_DSP             0
 #define AUDIO_ALGOUT_DAC_FORMAT_LEFT_JUSTIFY    1
 
-extern unsigned ENABLE_IEC958;
 extern unsigned IEC958_MODE;
 extern unsigned I2S_MODE;
 extern unsigned audio_in_source;
@@ -133,7 +132,7 @@ void audio_set_i2s_mode(u32 mode, unsigned int channel);
 void audio_set_i2s_mode(u32 mode);
 #endif
 void audio_set_i2s_clk_div(void);
-void audio_set_spdif_clk_div(void);
+void audio_set_spdif_clk_div(uint div);
 void audio_enable_ouput(int flag);
 unsigned int read_i2s_rd_ptr(void);
 void audio_i2s_unmute(void);
