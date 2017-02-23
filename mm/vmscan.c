@@ -203,7 +203,7 @@ struct dentry *debug_file;
 static int debug_shrinker_show(struct seq_file *s, void *unused)
 {
 	struct shrinker *shrinker;
-	struct shrink_control sc;
+	struct shrink_control sc = {};
 
 	sc.gfp_mask = -1;
 	sc.nr_to_scan = 0;
