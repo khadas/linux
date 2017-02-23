@@ -204,7 +204,15 @@ static ssize_t efuse_read(struct file *file, char __user *buf,
 {
 	int ret;
 	int local_count = 0;
-	unsigned char *local_buf = kzalloc(sizeof(char)*count, GFP_KERNEL);
+	unsigned char *local_buf;
+
+	if (count > efuse_get_max()) {
+		pr_err("%s: can not read %Zd bytes from efuse\n",
+			   __func__, count);
+		return -EINVAL;
+	}
+
+	local_buf = kzalloc(sizeof(char)*count, GFP_KERNEL);
 	if (!local_buf) {
 		pr_info("memory not enough\n");
 		return -ENOMEM;
