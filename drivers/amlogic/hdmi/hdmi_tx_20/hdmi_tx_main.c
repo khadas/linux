@@ -36,7 +36,6 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/err.h>
-
 /* #include <mach/am_regs.h> */
 
 /* #include <linux/amlogic/osd/osd_dev.h> */
@@ -489,6 +488,29 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
 	}
 }
 
+static void hdmi_physcial_size_update(struct vinfo_s *info,
+		struct hdmitx_dev *hdev)
+{
+	unsigned int width, height;
+
+	if (info == NULL) {
+		hdmi_print(ERR, VID "cann't get valid mode\n");
+		return;
+	}
+
+	width = hdev->RXCap.physcial_weight;
+	height = hdev->RXCap.physcial_height;
+	if ((width == 0) || (height == 0)) {
+		info->screen_real_width = info->aspect_ratio_num;
+		info->screen_real_height = info->aspect_ratio_den;
+	} else {
+		info->screen_real_width = width * 10; /* transfer mm */
+		info->screen_real_height = height * 10; /* transfer mm */
+	}
+	pr_info("hdmitx: update physcial size: %d %d\n",
+		info->screen_real_width, info->screen_real_height);
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -521,6 +543,7 @@ static int set_disp_mode_auto(void)
 	info->hdr_info.lumi_min = hdev->RXCap.hdr_lum_min;
 	pr_info("hdmitx: update rx hdr info %x\n",
 		info->hdr_info.hdr_support);
+	hdmi_physcial_size_update(info, hdev);
 
 	/* If info->name equals to cvbs, then set mode to I mode to hdmi
 	 */

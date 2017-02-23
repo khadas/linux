@@ -91,6 +91,8 @@ struct rx_cap {
 	unsigned char ReceiverProductName[16];
 	unsigned char manufacture_week;
 	unsigned char manufacture_year;
+	unsigned char physcial_weight;
+	unsigned char physcial_height;
 	unsigned char edid_version;
 	unsigned char edid_revision;
 	unsigned int ColorDeepSupport;
