@@ -275,6 +275,8 @@ static void vdin_set_drm_data(struct vdin_dev_s *devp,
 			vf_dp->content_light_level.max_pic_average =
 				devp->prop.hdr_info.hdr_data.mfall;
 
+			vf_dp->present_flag = true;
+
 			if ((devp->prop.hdr_info.hdr_data.mcll != 0) &&
 				(devp->prop.hdr_info.hdr_data.mfall != 0))
 				vf_dp->content_light_level.present_flag = 1;
