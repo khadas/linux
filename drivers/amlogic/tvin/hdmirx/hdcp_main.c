@@ -80,6 +80,7 @@ static struct device *device;
 static int device_range_registered;
 static int device_class_created;
 static struct class *device_class;
+static int is_esmmem_created;
 
 /* ESM devices */
 static struct esm_device esm_devices[MAX_ESM_DEVICES];
@@ -738,6 +739,15 @@ static long cmd_esm_open(struct file *f,
 		ret = ESM_HL_DRIVER_TOO_MANY_ESM_DEVICES;
 	}
 
+
+	/* create the /dev/esmmem */
+	if (!is_esmmem_created) {
+		if ((esm->data_base) && (esm->code_base)) {
+			hdmirx_dev_init();
+			is_esmmem_created = 1;
+			pr_info("create /dev/esmmem\n");
+		}
+	}
 	krequest.returned_status = ret;
 	r = copy_to_user(request, &krequest,
 		sizeof(struct esm_hld_ioctl_esm_open));
