@@ -4500,7 +4500,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 
 	hdmitx_set_avi_colorimetry(para);
 	if (hdev->hdr_src_feature)
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
+		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, SET_AVI_BT2020);
 
 	data32  = 0;
 	data32 |= (((0 == COLORRANGE_FUL) ? 1 : 0) << 2);
