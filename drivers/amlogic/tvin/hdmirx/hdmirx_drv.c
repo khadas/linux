@@ -108,13 +108,16 @@ static bool en_4096_2_3840 = true;
 MODULE_PARM_DESC(en_4096_2_3840, "\n en_4096_2_3840\n");
 module_param(en_4096_2_3840, bool, 0664);
 
+static int en_4k_2_2k;
+MODULE_PARM_DESC(en_4k_2_2k, "\n en_4k_2_2k\n");
+module_param(en_4k_2_2k, int, 0664);
 
 int suspend_pddq = 1;
 
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
-int en_4k_2_2k;
+/* int en_4k_2_2k; */
 struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
