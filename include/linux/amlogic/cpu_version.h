@@ -1,7 +1,7 @@
 /*
  * include/linux/amlogic/cpu_version.h
  *
- * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 Amlogic, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,9 +56,10 @@
 #define MESON_CPU_VERSION_LVL_PACK	2
 #define MESON_CPU_VERSION_LVL_MISC	3
 #define MESON_CPU_VERSION_LVL_MAX	MESON_CPU_VERSION_LVL_MISC
-void cpuinfo_get_chipid(unsigned int *low0, unsigned int *low1,
-		unsigned int *high0, unsigned int *high1);
+
+void cpuinfo_get_chipid(unsigned char cid[16]);
 int  meson_cpu_version_init(void);
+
 #ifdef CONFIG_AML_CPU_VERSION
 int get_meson_cpu_version(int level);
 int arch_big_cpu(int cpu);
