@@ -183,7 +183,7 @@ MODULE_PARM_DESC(vdin_reset_flag1, "vdin_reset_flag1");
  *1:enable auto rdma
  *0:no support rdma
 */
-static unsigned int rdma_enable;
+static unsigned int rdma_enable = 1;
 module_param(rdma_enable, uint, 0664);
 MODULE_PARM_DESC(rdma_enable, "rdma_enable");
 
