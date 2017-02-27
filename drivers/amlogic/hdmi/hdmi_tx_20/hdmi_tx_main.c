@@ -984,7 +984,8 @@ static void hdr_work_func(struct work_struct *work)
 		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
 		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, CLR_AVI_BT2020);
 		msleep(1500);
-		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
+		if (hdev->hdr_src_feature == 0)
+			hdev->HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
 	}
 	/* switch_set_state(&hdmi_hdr, hdev->hdr_src_feature); */
 }
