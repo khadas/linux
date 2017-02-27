@@ -146,7 +146,8 @@ static unsigned int di_pre_rdma_enable;
 
 static bool full_422_pack;
 static bool tff_bff_enable;
-
+/* destory unnecessary frames befor display */
+static int hold_video;
 #define CHECK_VDIN_BUF_ERROR
 
 #define DEVICE_NAME "deinterlace"
@@ -2249,22 +2250,28 @@ store_config(struct device *dev,
 	     struct device_attribute *attr,
 	     const char *buf, size_t count)
 {
+	char *parm[2] = { NULL }, *buf_orig;
+	int rc = 0;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_cmd_params(buf_orig, (char **)(&parm));
+
 	if (strncmp(buf, "disable", 7) == 0) {
-
 		di_print("%s: disable\n", __func__);
-
 		if (init_flag && mem_flag) {
 			di_pre_stru.disable_req_flag = 1;
 			provider_vframe_level = 0;
 			bypass_dynamic_flag = 0;
 			post_ready_empty_count = 0;
-
 			trigger_pre_di_process(TRIGGER_PRE_BY_DEBUG_DISABLE);
 			while (di_pre_stru.disable_req_flag)
 				usleep_range(1000, 1001);
 		}
 	} else if (strncmp(buf, "dis2", 4) == 0) {
 		dis2_di();
+	} else if (strcmp(parm[0], "hold_video") == 0) {
+		pr_info("%s(%s %s)\n", __func__, parm[0], parm[1]);
+		rc = kstrtoint(parm[1], 10, &hold_video);
 	}
 	return count;
 }
@@ -5483,7 +5490,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		vframe->prog_proc_config = (prog_proc_config&0x20) >> 5;
 
 		if (vframe->width > 10000 || vframe->height > 10000 ||
-		    di_pre_stru.bad_frame_throw_count > 0) {
+		    hold_video || di_pre_stru.bad_frame_throw_count > 0) {
 			if (vframe->width > 10000 || vframe->height > 10000)
 				di_pre_stru.bad_frame_throw_count = 10;
 			di_pre_stru.bad_frame_throw_count--;
@@ -9583,7 +9590,6 @@ static int di_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_frame_format);
 	device_create_file(di_devp->dev, &dev_attr_pd_param);
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
-
 #ifdef NEW_DI_V4
 	dnr_init(di_devp->dev);
 #endif
