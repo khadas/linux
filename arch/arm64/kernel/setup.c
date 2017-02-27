@@ -439,7 +439,7 @@ static int c_show(struct seq_file *m, void *v)
 {
 	int i;
 #ifdef CONFIG_AMLOGIC_CPU_INFO
-	unsigned int low0, low1, high0, high1;
+	unsigned char chipid[16];
 #endif
 
 	seq_printf(m, "Processor\t: %s rev %d (%s)\n",
@@ -484,9 +484,11 @@ static int c_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 #ifdef CONFIG_AMLOGIC_CPU_INFO
-	cpuinfo_get_chipid(&low0, &low1, &high0, &high1);
-	seq_printf(m, "Serial\t\t: %08x%08x%08x%08x\n",
-		   high1, high0, low1, low0);
+	cpuinfo_get_chipid(chipid);
+	seq_puts(m, "Serial\t\t: ");
+	for (i = 0; i < 16; i++)
+		seq_printf(m, "%02x", chipid[i]);
+	seq_puts(m, "\n");
 #endif
 	return 0;
 }
