@@ -34,7 +34,7 @@
 /*------------------------------*/
 #define RX_VER2 "Ref.2017/2/21"
 /*------------------------------*/
-#define RX_VER3 "Ref.2017/02/22"
+#define RX_VER3 "Ref.2017/02/27"
 /*------------------------------*/
 #define HDMI_STATE_CHECK_FREQ     (20*5)
 #define ABS(x) ((x) < 0 ? -(x) : (x))
@@ -823,4 +823,5 @@ extern void hdmi_rx_ctrl_hdcp_config(const struct hdmi_rx_ctrl_hdcp *hdcp);
 */
 extern void vdac_enable(bool on, unsigned int module_sel);
 extern void hdmirx_phy_bist_test(int lvl);
+extern int hdmirx_dev_init(void);
 #endif  /* _TVHDMI_H */

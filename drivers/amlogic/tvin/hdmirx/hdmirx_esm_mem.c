@@ -205,33 +205,32 @@ static char *mem_devnode(struct device *dev, umode_t *mode)
 
 static struct class *mem_class;
 
-static int __init hdmirx_dev_init(void)
+int hdmirx_dev_init(void)
 {
 	int minor;
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
-		pr_info("esmmem Initializing...\n");
-		if (register_chrdev(ESMMEM_MAJOR, "esmmem", &memory_fops))
-			rx_pr("unable to get major %d for esm memory devs\n",
-				ESMMEM_MAJOR);
+	pr_info("esmmem Initializing...\n");
+	if (register_chrdev(ESMMEM_MAJOR, "esmmem", &memory_fops))
+		rx_pr("unable to get major %d for esm memory devs\n",
+			ESMMEM_MAJOR);
 
-		mem_class = class_create(THIS_MODULE, "esmmem");
-		if (IS_ERR(mem_class))
-			return PTR_ERR(mem_class);
-		mem_class->devnode = mem_devnode;
-		for (minor = 1; minor < ARRAY_SIZE(esmdevlist); minor++) {
-			if (!esmdevlist[minor].name)
-				continue;
-			/*
-			 * Create /dev/port?
-			 */
-			if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
-				continue;
-			device_create(mem_class, NULL,
-					MKDEV(ESMMEM_MAJOR, minor),
-				      NULL, esmdevlist[minor].name);
-		}
+	mem_class = class_create(THIS_MODULE, "esmmem");
+	if (IS_ERR(mem_class))
+		return PTR_ERR(mem_class);
+	mem_class->devnode = mem_devnode;
+	for (minor = 1; minor < ARRAY_SIZE(esmdevlist); minor++) {
+		if (!esmdevlist[minor].name)
+			continue;
+		/*
+		 * Create /dev/port?
+		 */
+		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
+			continue;
+		device_create(mem_class, NULL,
+				MKDEV(ESMMEM_MAJOR, minor),
+			      NULL, esmdevlist[minor].name);
 	}
+
 	return 0;
 }
 
-fs_initcall(hdmirx_dev_init);
+/* fs_initcall(hdmirx_dev_init); */
