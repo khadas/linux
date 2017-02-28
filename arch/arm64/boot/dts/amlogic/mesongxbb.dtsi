@@ -602,14 +602,14 @@
 	remote:rc@c8100580 {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
-		reg = <0x0 0xc8100580 0x00 0x11>;
-		status = "ok";
+		reg = <0x0 0xc8100580 0x00 0x44>, /*Multi-format IR controller*/
+			<0x0 0xc8100480 0x00 0x20>; /*Legacy IR controller*/
+		status = "okay";
 		protocol = <REMOTE_TYPE_NEC>;
 		interrupts = <0 196 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&remote_pins>;
 		map = <&custom_maps>;
-		release_delay = <80>;
 		max_frame_time = <200>; /*set software decoder max frame time*/
 	};
 
@@ -620,6 +620,7 @@
 		map_0: map_0{
 			mapname = "amlogic-remote-1";
 			customcode = <0xfb04>;
+			release_delay = <80>;
 			size  = <44>;   /*keymap size*/
 			keymap = <REMOTE_KEY(0x47, KEY_0)
 				REMOTE_KEY(0x13, KEY_1)
@@ -669,6 +670,7 @@
 		map_1: map_1{
 			mapname = "amlogic-remote-2";
 			customcode = <0xfe01>;
+			release_delay = <80>;
 			size  = <53>;
 			keymap = <REMOTE_KEY(0x01, KEY_1)
 				REMOTE_KEY(0x02, KEY_2)

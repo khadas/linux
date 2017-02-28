@@ -13,7 +13,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
-*/
+ */
 
 
 #include <linux/module.h>
@@ -69,6 +69,7 @@ static ssize_t protocol_store(struct device *dev,
 		pr_err("input parameter error\n");
 		return -EINVAL;
 	}
+
 	spin_lock_irqsave(&chip->slock, flags);
 	chip->protocol = protocol;
 	chip->set_register_config(chip, chip->protocol);
@@ -86,25 +87,33 @@ static ssize_t protocol_store(struct device *dev,
 	return count;
 }
 
-
 static ssize_t keymap_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
+	struct ir_map_tab_list *map_tab;
+	unsigned long flags;
 	int i, len;
-	struct custom_table *ct = chip->sys_custom;
-	if (!ct) {
-		pr_err("please set keymap name first\n");
+
+	spin_lock_irqsave(&chip->slock, flags);
+	map_tab = seek_map_tab(chip,  chip->sys_custom_code);
+	if (!map_tab) {
+		pr_err("please set valid keymap name first\n");
+		spin_unlock_irqrestore(&chip->slock, flags);
 		return 0;
 	}
-	len = sprintf(buf, "custom_code=0x%x\n", ct->custom_code);
-	len += sprintf(buf+len, "custom_name=%s\n", ct->custom_name);
-	len += sprintf(buf+len, "map_size=%d\n" , ct->map_size);
+	len = sprintf(buf, "custom_code=0x%x\n", map_tab->tab.custom_code);
+	len += sprintf(buf+len, "custom_name=%s\n",  map_tab->tab.custom_name);
+	len += sprintf(buf+len, "release_delay=%d\n",
+						map_tab->tab.release_delay);
+	len += sprintf(buf+len, "map_size=%d\n" ,  map_tab->tab.map_size);
 	len += sprintf(buf+len, "keycode scancode\n");
-	for (i = 0; i < ct->map_size; i++) {
-		len += sprintf(buf+len, "%4d %4d\n", ct->codemap[i].map.keycode,
-			ct->codemap[i].map.scancode);
+	for (i = 0; i <  map_tab->tab.map_size; i++) {
+		len += sprintf(buf+len, "%4d %4d\n",
+			map_tab->tab.codemap[i].map.keycode,
+			map_tab->tab.codemap[i].map.scancode);
 	}
+	spin_unlock_irqrestore(&chip->slock, flags);
 	return len;
 }
 
@@ -113,22 +122,15 @@ static ssize_t keymap_store(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
-	int cnt;
 	int ret;
 	int value;
-	struct custom_table *ct = chip->custom_tables;
 
 	ret = kstrtoint(buf, 0, &value);
 	if (ret != 0) {
 		pr_err("keymap_store input err\n");
 		return -EINVAL;
 	}
-	for (cnt = 0; cnt < chip->custom_num; cnt++, ct++) {
-		if (ct->custom_code == value) {
-			chip->sys_custom = ct;
-			break;
-		}
-	}
+	chip->sys_custom_code = value;
 	return count;
 }
 
@@ -217,14 +219,14 @@ static ssize_t debug_log_store(struct device *dev,
 	return count;
 }
 
-static ssize_t release_delay_show(struct device *dev,
+static ssize_t repeat_enable_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
-	return sprintf(buf, "%lu\n", chip->r_dev->keyup_delay);
+	return sprintf(buf, "%u\n", chip->repeat_enable);
 }
 
-static ssize_t release_delay_store(struct device *dev,
+static ssize_t repeat_enable_store(struct device *dev,
 				   struct device_attribute *attr,
 					const char *buf, size_t count)
 {
@@ -235,33 +237,36 @@ static ssize_t release_delay_store(struct device *dev,
 	ret = kstrtoint(buf, 0, &val);
 	if (ret != 0)
 		return -EINVAL;
-	chip->r_dev->keyup_delay = val;
+	chip->repeat_enable = val;
 	return count;
 }
 
-static ssize_t custom_maps_show(struct device *dev,
+static ssize_t map_tables_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
-	struct custom_table *ct = chip->custom_tables;
+	struct ir_map_tab_list *ir_map;
+	unsigned long flags;
 	int len = 0;
 	int cnt = 0;
 
-	len += sprintf(buf, "custom_num = %d\n", chip->custom_num);
-	for (cnt = 0; cnt < chip->custom_num; cnt++, ct++) {
+	spin_lock_irqsave(&chip->slock, flags);
+	list_for_each_entry(ir_map, &chip->map_tab_head, list) {
 		len += sprintf(buf+len, "%d. 0x%x,%s\n",
-			cnt, ct->custom_code, ct->custom_name);
+			cnt, ir_map->tab.custom_code, ir_map->tab.custom_name);
+		cnt++;
 	}
+	spin_unlock_irqrestore(&chip->slock, flags);
 	return len;
 }
 
-DEVICE_ATTR_RW(release_delay);
+DEVICE_ATTR_RW(repeat_enable);
 DEVICE_ATTR_RW(protocol);
 DEVICE_ATTR_RW(keymap);
 DEVICE_ATTR_RW(debug_enable);
 DEVICE_ATTR_RW(debug_level);
 DEVICE_ATTR_RW(debug_log);
-DEVICE_ATTR_RO(custom_maps);
+DEVICE_ATTR_RO(map_tables);
 
 /*
 static DEVICE_ATTR(custom_maps, S_IRUGO,
@@ -288,9 +293,9 @@ static DEVICE_ATTR(debug_log, (S_IRUGO | S_IWUGO),
 
 static struct attribute *remote_attrs[] = {
 	&dev_attr_protocol.attr,
-	&dev_attr_custom_maps.attr,
+	&dev_attr_map_tables.attr,
 	&dev_attr_keymap.attr,
-	&dev_attr_release_delay.attr,
+	&dev_attr_repeat_enable.attr,
 	&dev_attr_debug_enable.attr,
 	&dev_attr_debug_level.attr,
 	&dev_attr_debug_log.attr,

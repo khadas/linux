@@ -31,6 +31,7 @@
 #include <linux/io.h>
 #include <linux/major.h>
 #include <linux/slab.h>
+#include <linux/list.h>
 #include <linux/uaccess.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
@@ -41,10 +42,6 @@
 #include "remote_meson.h"
 
 #include <linux/amlogic/iomap.h>
-#include "sysfs.h"
-
-#include <linux/cdev.h>
-
 
 static void amlremote_tasklet(unsigned long data);
 
@@ -77,112 +74,98 @@ int remote_reg_write(struct remote_chip *chip, unsigned char id,
 	return 0;
 }
 
-static int remote_open(struct inode *inode, struct file *file)
+int ir_scancode_sort(struct ir_map_tab *ir_map)
 {
-	struct remote_chip *chip;
+	bool is_sorted;
+	u32 tmp;
+	int i;
+	int j;
 
-	chip = container_of(inode->i_cdev, struct remote_chip, chrdev);
-	file->private_data = chip;
+	for (i = 0; i < ir_map->map_size - 1; i++) {
+		is_sorted = true;
+		for (j = 0; j < ir_map->map_size - i - 1; j++) {
+			if (ir_map->codemap[j].map.scancode >
+					ir_map->codemap[j+1].map.scancode) {
+				is_sorted = false;
+				tmp = ir_map->codemap[j].code;
+				ir_map->codemap[j].code  =
+						ir_map->codemap[j+1].code;
+				ir_map->codemap[j+1].code = tmp;
+			}
+		}
+		if (is_sorted)
+			break;
+	}
 
-	pr_info("remote:remote_open\n");
 	return 0;
 }
 
-
-static int remote_release(struct inode *inode, struct file *file)
+struct ir_map_tab_list *seek_map_tab(struct remote_chip *chip, int custom_code)
 {
-	file->private_data = NULL;
-	return 0;
+	struct ir_map_tab_list *ir_map = NULL;
+
+	list_for_each_entry(ir_map, &chip->map_tab_head, list) {
+		if (ir_map->tab.custom_code == custom_code)
+			return ir_map;
+	}
+	return NULL;
 }
 
-static const struct file_operations remote_fops = {
-	.owner = THIS_MODULE,
-	.open = remote_open,
-	.release = remote_release,
-};
-
-#define AML_REMOTE_NAME "amremote"
-
-static int ir_cdev_init(struct remote_chip *chip)
+void ir_tab_free(struct ir_map_tab_list *ir_map_list)
 {
-	int ret = 0;
-
-	chip->dev_name  = AML_REMOTE_NAME;
-	ret = alloc_chrdev_region(&chip->chr_devno,
-		0, 1, AML_REMOTE_NAME);
-	if (ret < 0) {
-		pr_err("remote: failed to allocate major number\n");
-		ret = -ENODEV;
-		goto err_end;
-	}
-	cdev_init(&chip->chrdev, &remote_fops);
-	chip->chrdev.owner = THIS_MODULE;
-	ret = cdev_add(&chip->chrdev, chip->chr_devno, 1);
-	if (ret < 0) {
-		pr_err("remote: failed to cdev_add\n");
-		goto err_cdev_add;
-	}
-
-	ret = ir_sys_device_attribute_init(chip);
-	if (ret < 0) {
-		pr_err("remote: failed to ir_sys create %d\n", ret);
-		goto err_ir_sys;
-	}
-	return 0;
-
-err_ir_sys:
-	pr_err("remote: err_ir_sys\n");
-	cdev_del(&chip->chrdev);
-err_cdev_add:
-	pr_err("remote: err_cdev_add\n");
-	unregister_chrdev_region(chip->chr_devno, 1);
-err_end:
-	return ret;
+	kfree((void *)ir_map_list);
+	ir_map_list = NULL;
 }
 
-static void ir_cdev_free(struct remote_chip *chip)
+static int ir_lookup_by_scancode(struct ir_map_tab *ir_map,
+					  unsigned int scancode)
 {
-	ir_sys_device_attribute_sys(chip);
-	cdev_del(&chip->chrdev);
-	unregister_chrdev_region(chip->chr_devno, 1);
+	int start = 0;
+	int end = ir_map->map_size - 1;
+	int mid;
+
+	while (start <= end) {
+		mid = (start + end) >> 1;
+		if (ir_map->codemap[mid].map.scancode < scancode)
+			start = mid + 1;
+		else if (ir_map->codemap[mid].map.scancode > scancode)
+			end = mid - 1;
+		else
+			return mid;
+	}
+
+	return -1;
 }
 
 static u32 getkeycode(struct remote_dev *dev, u32 scancode)
 {
 	struct remote_chip *chip = (struct remote_chip *)dev->platform_data;
-	struct custom_table *ct = chip->cur_custom;
-	int i;
-
+	struct ir_map_tab_list *ct = chip->cur_tab;
+	int index;
 
 	if (!ct) {
 		pr_err("cur_custom is nulll\n");
 		return KEY_RESERVED;
 	}
-	for (i = 0; i < ct->map_size; i++) {
-		if ((ct->codemap + i) &&
-			(ct->codemap[i].map.scancode == scancode))
-			return ct->codemap[i].map.keycode;
+	index = ir_lookup_by_scancode(&ct->tab, scancode);
+	if (index < 0) {
+		remote_printk(2, "scancode %d undefined\n", scancode);
+		return KEY_RESERVED;
 	}
-
-	remote_printk(2, "scancode %d undefined\n", scancode);
-	return KEY_RESERVED;
+	return ct->tab.codemap[index].map.keycode;
 }
-
 static bool is_valid_custom(struct remote_dev *dev)
 {
 	struct remote_chip *chip = (struct remote_chip *)dev->platform_data;
-	struct custom_table *ct = chip->custom_tables;
-	int i;
 	int custom_code;
+
 	if (!chip->ir_contr[chip->ir_work].get_custom_code)
 		return true;
 	custom_code = chip->ir_contr[chip->ir_work].get_custom_code(chip);
-	for (i = 0; i < chip->custom_num; i++) {
-		if (ct->custom_code == custom_code) {
-			chip->cur_custom = ct;
-			return true;
-		}
-		ct++;
+	chip->cur_tab = seek_map_tab(chip, custom_code);
+	if (chip->cur_tab) {
+		dev->keyup_delay = chip->cur_tab->tab.release_delay;
+		return true;
 	}
 	return false;
 }
@@ -297,7 +280,8 @@ static int get_custom_tables(struct device_node *node,
 	int index;
 	char *propname;
 	const char *uname;
-	struct custom_table *ptable;
+	unsigned long flags;
+	struct ir_map_tab_list *ptable;
 
 	phandle = of_get_property(node, "map", NULL);
 	if (!phandle) {
@@ -322,67 +306,81 @@ static int get_custom_tables(struct device_node *node,
 
 	pr_info("custom_number = %d\n", chip->custom_num);
 
-	if (chip->custom_num) {
-		chip->custom_tables = kzalloc(chip->custom_num *
-			sizeof(struct custom_table), GFP_KERNEL);
-		if (!chip->custom_tables) {
-			pr_err("%s custom_tables alloc err\n", __func__);
-			return -1;
-		}
-	}
-
 	for (index = 0; index < chip->custom_num; index++) {
-		ptable = &chip->custom_tables[index];
 		propname = kasprintf(GFP_KERNEL, "map%d", index);
 		phandle = of_get_property(custom_maps, propname, NULL);
 		if (!phandle) {
 			pr_err("%s:don't find match map%d\n", __func__, index);
-			goto err;
+			return -1;
 		}
 		map = of_find_node_by_phandle(be32_to_cpup(phandle));
 		if (!map) {
 			pr_err("can't find device node key\n");
-			goto err;
+			return -1;
 		}
+
+		ret = of_property_read_u32(map, "size", &value);
+		if (ret || value > MAX_KEYMAP_SIZE) {
+			pr_err("no config size item or err\n");
+			return -1;
+		}
+
+		/*alloc memory*/
+		ptable = kzalloc(sizeof(struct ir_map_tab_list) +
+				    value * sizeof(union _codemap), GFP_KERNEL);
+		if (!ptable) {
+			pr_err("%s ir map table alloc err\n", __func__);
+			return -1;
+		}
+
+		ptable->tab.map_size = value;
+		pr_info("ptable->map_size = %d\n", ptable->tab.map_size);
+
 		ret = of_property_read_string(map, "mapname", &uname);
 		if (ret) {
 			pr_err("please config mapname item\n");
 			goto err;
 		}
-		ptable->custom_name = uname;
-		pr_info("ptable->custom_name = %s\n", ptable->custom_name);
+		strncpy(ptable->tab.custom_name, uname, CUSTOM_NAME_LEN);
+
+		pr_info("ptable->custom_name = %s\n", ptable->tab.custom_name);
+
 		ret = of_property_read_u32(map, "customcode", &value);
 		if (ret) {
 			pr_err("please config customcode item\n");
 			goto err;
 		}
-		ptable->custom_code = value;
-		pr_info("ptable->custom_code = 0x%x\n", ptable->custom_code);
-		ret = of_property_read_u32(map, "size", &value);
-		if (ret || value > MAX_KEYMAP_SIZE) {
-			pr_err("no config size item or err\n");
-			goto err;
-		}
-		ptable->map_size = value;
-		pr_info("ptable->map_size = 0x%x\n", ptable->map_size);
+		ptable->tab.custom_code = value;
+		pr_info("ptable->custom_code = 0x%x\n",
+						ptable->tab.custom_code);
 
-		/*alloc space of codemap*/
-		ptable->codemap = kzalloc(value*sizeof(*ptable->codemap),
-								GFP_KERNEL);
-		if (!ptable->codemap) {
-			pr_err("%s custom_tables alloc err\n", __func__);
+		ret = of_property_read_u32(map, "release_delay", &value);
+		if (ret) {
+			pr_info("remote:don't find the node <release_delay>\n");
 			goto err;
 		}
+		ptable->tab.release_delay = value;
+		pr_info("ptable->release_delay = %d\n",
+						ptable->tab.release_delay);
+
 		ret = of_property_read_u32_array(map,
-			    "keymap", (u32 *)ptable->codemap, ptable->map_size);
+				"keymap", (u32 *)&ptable->tab.codemap[0],
+					ptable->tab.map_size);
 		if (ret) {
 			pr_err("please config keymap item\n");
 			goto err;
 		}
+
+		ir_scancode_sort(&ptable->tab);
+		/*insert list*/
+		spin_lock_irqsave(&chip->slock, flags);
+		list_add_tail(&ptable->list, &chip->map_tab_head);
+		spin_unlock_irqrestore(&chip->slock, flags);
+
 	}
 	return 0;
 err:
-	kfree(chip->custom_tables);
+	ir_tab_free(ptable);
 	return -1;
 }
 
@@ -433,17 +431,7 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 
 	chip->irqno = res_irq->start;
 
-
 	pr_info("remote: platform_data irq =%d\n", chip->irqno);
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-				"release_delay", &value);
-	if (ret) {
-		pr_info("remote:don't find the node <release_delay>\n");
-		value = 70;
-	}
-
-	chip->r_dev->keyup_delay = value;
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				"max_frame_time", &value);
@@ -455,8 +443,10 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 	chip->r_dev->max_frame_time = value;
 
 
-	/*create custom table */
-	get_custom_tables(pdev->dev.of_node, chip);
+	/*create map table */
+	ret = get_custom_tables(pdev->dev.of_node, chip);
+	if (ret < 0)
+		return -1;
 
 	return 0;
 }
@@ -540,10 +530,10 @@ static int remote_probe(struct platform_device *pdev)
 
 	mutex_init(&chip->file_lock);
 	spin_lock_init(&chip->slock);
+	INIT_LIST_HEAD(&chip->map_tab_head);
 
 	chip->r_dev = dev;
 	chip->dev = &pdev->dev;
-	chip->sys_custom = NULL;
 
 	chip->r_dev->platform_data = (void *)chip;
 	chip->r_dev->getkeycode    = getkeycode;
@@ -555,18 +545,17 @@ static int remote_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, chip);
 
 	ir_input_device_init(dev->input_device, &pdev->dev, "aml_keypad");
-	ret = ir_cdev_init(chip);
-	if (ret < 0)
-		goto err_cdev_init;
 
 	ret = ir_hardware_init(pdev);
 	if (ret < 0)
 		goto err_hard_init;
 
+	ret = ir_cdev_init(chip);
+	if (ret < 0)
+		goto err_cdev_init;
+
 	dev->rc_type = chip->protocol;
-
 	ret = remote_register_device(dev);
-
 	if (ret)
 		goto error_register_remote;
 
@@ -574,10 +563,10 @@ static int remote_probe(struct platform_device *pdev)
 
 error_register_remote:
 	ir_hardware_free(pdev);
-err_hard_init:
-	ir_cdev_free(chip);
 err_cdev_init:
 	remote_free_device(dev);
+err_hard_init:
+	ir_cdev_free(chip);
 err_alloc_remote_dev:
 	kfree(chip);
 err_end:

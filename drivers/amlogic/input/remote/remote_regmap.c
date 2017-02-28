@@ -24,7 +24,7 @@ static struct remote_reg_map regs_legacy_nec[] = {
 	{REG_BIT_0      ,   72 << 16 | 40 << 0 },
 	{REG_REG0       ,   7 << 28 | (0xFA0 << 12) | 0x13},
 	{REG_STATUS     ,   (134 << 20) | (90 << 10)},
-	{REG_REG1       ,   0x9f00},
+	{REG_REG1       ,   0xbe00},
 };
 
 static struct remote_reg_map regs_default_nec[] = {
