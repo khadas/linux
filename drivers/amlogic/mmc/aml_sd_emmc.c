@@ -3719,6 +3719,10 @@ static int aml_sd_emmc_probe(struct platform_device *pdev)
 
 	if (pdata->pm_caps & MMC_PM_KEEP_POWER)
 		mmc->pm_caps |= MMC_PM_KEEP_POWER;
+	if (pdata->base != 0) {
+		iounmap(host->base);
+		host->base = ioremap(pdata->base, 0x200);
+	}
 	pdata->host = host;
 	pdata->mmc = mmc;
 	pdata->is_fir_init = true;
