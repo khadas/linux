@@ -134,6 +134,7 @@ struct amlsd_platform {
 	unsigned int gpio_dat3;
 	unsigned int hw_reset;
 	unsigned int jtag_pin;
+	unsigned int base;
 	int is_sduart;
 	unsigned int card_in_delay;
 	bool is_in;
