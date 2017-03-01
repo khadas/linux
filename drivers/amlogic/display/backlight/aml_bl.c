@@ -1514,25 +1514,6 @@ static void aml_bl_config_print(struct bl_config_s *bconf)
 	}
 }
 
-static int aml_bl_pinmux_load(struct bl_config_s *bconf)
-{
-	switch (bconf->method) {
-	case BL_CTRL_PWM:
-	case BL_CTRL_PWM_COMBO:
-		/* get pinmux ctrl */
-		bl_pwm_pinmux_ctrl(bconf, 1);
-		break;
-	case BL_CTRL_LOCAL_DIMING:
-		break;
-	case BL_CTRL_EXTERN:
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		struct platform_device *pdev)
 {
@@ -2170,7 +2151,6 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 		ret = aml_bl_config_load_from_dts(bconf, pdev);
 #endif
 	}
-	aml_bl_pinmux_load(bconf);
 	aml_bl_config_print(bconf);
 
 	switch (bconf->method) {
