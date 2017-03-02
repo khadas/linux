@@ -57,9 +57,11 @@ struct spicc {
 #define FLAG_DMA_EN 0
 #define FLAG_TEST_DATA_AUTO_INC 1
 #define FLAG_SSCTL 2
+#define FLAG_ENHANCE 3
 	unsigned int flags;
 	u8 test_data;
 	unsigned int delay_control;
+	unsigned int cs_delay;
 };
 
 
@@ -116,11 +118,12 @@ static void spicc_set_mode(struct spicc *spicc, u8 mode)
 		return;
 
 	spicc->mode = mode;
-	if (cpol)
-		pinctrl_select_state(spicc->pinctrl, spicc->pullup);
-	else
-		pinctrl_select_state(spicc->pinctrl, spicc->pulldown);
-
+	if (!spicc_get_flag(spicc, FLAG_ENHANCE)) {
+		if (cpol && !IS_ERR(spicc->pullup))
+			pinctrl_select_state(spicc->pinctrl, spicc->pullup);
+		else if (!cpol && !IS_ERR(spicc->pulldown))
+			pinctrl_select_state(spicc->pinctrl, spicc->pulldown);
+	}
 	setb(spicc->regs, CON_CLK_PHA, cpha);
 	setb(spicc->regs, CON_CLK_POL, cpol);
 }
@@ -141,14 +144,20 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 	clk_prepare_enable(spicc->clk);
 	sys_clk_rate = clk_get_rate(spicc->clk);
 
-	/* actually, speed = sys_clk_rate / 2^(conreg.data_rate_div+2) */
-	mid_speed = (sys_clk_rate * 3) >> 4;
-	for (div = 0; div < 7; div++) {
-		if (speed >= mid_speed)
-			break;
-		mid_speed >>= 1;
+	if (spicc_get_flag(spicc, FLAG_ENHANCE)) {
+		div = (sys_clk_rate/speed)-1;
+		setb(spicc->regs, ENHANCE_CLK_DIV, div);
+		setb(spicc->regs, ENHANCE_CLK_DIV_SELECT, 1);
+	} else {
+		/* speed = sys_clk_rate / 2^(conreg.data_rate_div+2) */
+		mid_speed = (sys_clk_rate * 3) >> 4;
+		for (div = 0; div < 7; div++) {
+			if (speed >= mid_speed)
+				break;
+			mid_speed >>= 1;
+		}
+		setb(spicc->regs, CON_DATA_RATE_DIV, div);
 	}
-	setb(spicc->regs, CON_DATA_RATE_DIV, div);
 }
 
 static inline void spicc_set_txfifo(struct spicc *spicc, u32 dat)
@@ -378,6 +387,13 @@ static void spicc_hw_init(struct spicc *spicc)
 	spicc_set_bit_width(spicc, SPICC_DEFAULT_BIT_WIDTH);
 	spicc_set_mode(spicc, SPI_MODE_0);
 	spicc_set_clk(spicc, SPICC_DEFAULT_SPEED_HZ);
+	if (spicc_get_flag(spicc, FLAG_ENHANCE)) {
+		setb(spicc->regs, MOSI_OEN, 1);
+		setb(spicc->regs, CLK_OEN, 1);
+		setb(mem_base, CS_OEN, 1);
+		setb(mem_base, CS_DELAY, spicc->cs_delay);
+		setb(mem_base, CS_DELAY_EN, 1);
+	}
 	/* spicc_enable(spicc, 0); */
 }
 
@@ -703,6 +719,12 @@ static int of_spicc_get_data(
 	err = of_property_read_u32(np, "delay_control", &value);
 	spicc->delay_control = err ? 0x15 : value;
 	dev_info(&pdev->dev, "delay_control=%d\n", spicc->delay_control);
+	err = of_property_read_u32(np, "enhance", &value);
+	spicc_set_flag(spicc, FLAG_ENHANCE, err ? 0 : (!!value));
+	dev_info(&pdev->dev, "enhance=%d\n",
+			spicc_get_flag(spicc, FLAG_ENHANCE));
+	err = of_property_read_u32(np, "cs_delay", &value);
+	spicc->cs_delay = err ? 0 : value;
 	err = of_property_read_u32(np, "ssctl", &value);
 	spicc_set_flag(spicc, FLAG_SSCTL, err ? 0 : (!!value));
 

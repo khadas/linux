@@ -426,6 +426,11 @@
 			amlogic,setmask = <0 0xC0000000>;
 			amlogic,pins = "GPIOH_0","GPIOH_1";
 		};
+		spicc_pins: spicc_pins{
+			amlogic,setmask=<4 0xF0000000>;
+			amlogic,clrmask=<4 0x3F00000 3 0x21E000>;
+			amlogic,pins="GPIOZ_0","GPIOZ_1","GPIOZ_2", "GPIOZ_3";
+		};
 	}; /* end of pinmux */
 
 	cpu_version {
@@ -755,12 +760,13 @@
 	spicc:spicc {
 		compatible = "amlogic, spicc";
 		status = "disabled";
-		reg = <0x0 0xc1108d80 0x0 0x28>;
+		reg = <0x0 0xc1108d80 0x0 0x3c>;
 		resets = <&clock GCLK_IDX_SPICC>;
 		clocks = <&clock CLK_81>;
 		clock-names = "spicc_clk";
 		interrupts = <0 81 1>;
 		device_id = <0>;
+		enhance = <1>;
 	};
 
 	aml_aes {
