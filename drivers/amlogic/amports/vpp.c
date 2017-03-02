@@ -305,8 +305,8 @@ static uint coeff(uint *settings, uint ratio, uint phase,
 	}
 	coeff_type = settings[coeff_select];
 	/* TODO: add future TV chips */
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+		is_meson_txlx_cpu()) {
 		if (coeff_type == COEF_BICUBIC_SHARP)
 			coeff_type = COEF_BICUBIC;
 	} else {
@@ -403,7 +403,7 @@ static unsigned int super_debug;
 module_param(super_debug, uint, 0664);
 MODULE_PARM_DESC(super_debug, "super_debug");
 
-static unsigned int super_scaler = 1;
+unsigned int super_scaler = 1;
 module_param(super_scaler, uint, 0664);
 MODULE_PARM_DESC(super_scaler, "super_scaler");
 
@@ -676,6 +676,8 @@ vpp_process_speed_check(s32 width_in,
 					  (30 * vinfo->sync_duration_den)) &&
 					 (get_cpu_type() !=
 						MESON_CPU_MAJOR_ID_GXTVBB) &&
+					 (get_cpu_type() !=
+						MESON_CPU_MAJOR_ID_TXLX) &&
 					 (get_cpu_type() !=
 						MESON_CPU_MAJOR_ID_GXM))
 					return SPEED_CHECK_VSKIP;
@@ -2440,8 +2442,8 @@ void vpp_set_3d_scale(bool enable)
 
 void vpp_super_scaler_support(void)
 {
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+		is_meson_txlx_cpu())
 		super_scaler = 1;
 	else
 		super_scaler = 0;
@@ -2449,9 +2451,8 @@ void vpp_super_scaler_support(void)
 
 void vpp_bypass_ratio_config(void)
 {
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM))
+	if (is_meson_gxbb_cpu() || is_meson_gxl_cpu() ||
+		is_meson_gxm_cpu())
 		bypass_ratio = 125;
 	else
 		bypass_ratio = 205;

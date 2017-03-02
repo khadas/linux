@@ -2571,13 +2571,13 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			} else {
 				bit_mode = 0;
 			}
-			VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG3,
-				((bit_mode&0x3)<<8) | (3<<4) | 3);
-			VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG3,
-				((bit_mode&0x3)<<8) | (3<<4) | 3);
-			if (is_meson_txl_cpu())
-				VSYNC_WR_MPEG_REG(DI_IF2_GEN_REG3,
-				((bit_mode&0x3)<<8) | (3<<4) | 3);
+			VSYNC_WR_MPEG_REG_BITS(VD1_IF0_GEN_REG3,
+				(bit_mode&0x3), 8, 2);
+			VSYNC_WR_MPEG_REG_BITS(DI_IF1_GEN_REG3,
+				(bit_mode&0x3), 8, 2);
+			if (is_meson_txl_cpu() || is_meson_txlx_cpu())
+				VSYNC_WR_MPEG_REG_BITS(DI_IF2_GEN_REG3,
+				(bit_mode&0x3), 8, 2);
 			if ((VSYNC_RD_MPEG_REG(DI_POST_CTRL) & 0x100) == 0)
 				VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0 +
 					cur_dev->viu_off, 0, 16, 3);
@@ -2684,22 +2684,19 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		vphase =
 		    ((type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
 		    VFORMATTER_PHASE_BIT;
-		if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
-			if ((vf->width >= 3840) &&
-				(vf->height >= 2160) &&
-				(type & VIDTYPE_VIU_422)) {
-				VSYNC_WR_MPEG_REG(
-				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
-				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
-				VFORMATTER_RPTLINE0_EN | vini_phase | vphase);
-				if (!vf_with_el)
-					VSYNC_WR_MPEG_REG(
-					VIU_VD2_FMT_CTRL + cur_dev->viu_off,
-					HFORMATTER_RRT_PIXEL0 |
-					HFORMATTER_YC_RATIO_2_1 |
-					HFORMATTER_EN |
-					VFORMATTER_RPTLINE0_EN |
-					vini_phase | vphase);
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+		is_meson_txlx_cpu()) {
+		if ((vf->width >= 3840) &&
+			(vf->height >= 2160) &&
+			(type & VIDTYPE_VIU_422)) {
+			VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
+			HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
+			VFORMATTER_RPTLINE0_EN | vini_phase | vphase);
+
+			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
+			HFORMATTER_RRT_PIXEL0 | HFORMATTER_YC_RATIO_2_1 |
+			HFORMATTER_EN | VFORMATTER_RPTLINE0_EN |
+			vini_phase | vphase);
 			} else {
 				VSYNC_WR_MPEG_REG(
 				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -3076,7 +3073,8 @@ static void vd2_set_dcu(struct vframe_s *vf)
 		vphase =
 		    ((type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
 		    VFORMATTER_PHASE_BIT;
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+		is_meson_txlx_cpu()) {
 		if ((vf->width >= 3840) &&
 			(vf->height >= 2160) &&
 			(type & VIDTYPE_VIU_422)) {
@@ -4604,8 +4602,7 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 				(cur_frame_par->hscale_skip_count + 1);
 			}
 		}
-		if ((is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) &&
-			cur_dispbuf) {
+		if (super_scaler && cur_dispbuf) {
 			if (cur_dispbuf->type & VIDTYPE_INTERLACE) {
 				cur_frame_par->VPP_pic_in_height_ =
 				(zoom_end_y_lines - zoom_start_y_lines + 1)  <<
@@ -7971,7 +7968,7 @@ static int __init video_early_init(void)
 	WRITE_VCBUS_REG(VPP_PREBLEND_VD1_H_START_END, 4096);
 	WRITE_VCBUS_REG(VPP_BLEND_VD2_H_START_END, 4096);
 #endif
-	if (is_meson_txl_cpu()) {
+	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		/* fifo max size on txl :128*3=384[0x180]  */
 		WRITE_VCBUS_REG(VD1_IF0_LUMA_FIFO_SIZE, 0x180);
 		WRITE_VCBUS_REG(VD2_IF0_LUMA_FIFO_SIZE, 0x180);

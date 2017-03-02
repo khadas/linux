@@ -148,6 +148,8 @@ struct vpp_frame_par_s {
 extern bool reverse;
 #endif
 extern bool platform_type;
+extern unsigned int super_scaler;
+
 enum select_scaler_path_e {
 	sup0_pp_sp1_scpath,
 	sup0_pp_post_blender,

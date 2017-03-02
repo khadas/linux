@@ -57,6 +57,8 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 	0x08000000, /* VIU_OSD1_EOTF_COEF11_12 0x1ad7 */
 	0x00000000, /* VIU_OSD1_EOTF_COEF20_21 0x1ad8 */
 	0x08000001, /* VIU_OSD1_EOTF_COEF22_RS 0x1ad9 */
+	0x0,		/* VIU_OSD1_EOTF_3X3_OFST_0 0x1aa0 */
+	0x0,		/* VIU_OSD1_EOTF_3X3_OFST_1 0x1aa1 */
 	0x01c00000, /* VIU_OSD1_OETF_CTL 0x1adc */
 	{
 		/* eotf table */
@@ -1584,6 +1586,10 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL + i + 1,
 				((m[i * 2] & 0x1fff) << 16)
 				| (m[i * 2 + 1] & 0x1fff));
+		if (is_meson_txlx_cpu()) {
+			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL + 8, 0);
+			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL + 9, 0);
+		}
 		WRITE_VPP_REG_BITS(VIU_EOTF_CTL, on, 30, 1);
 		WRITE_VPP_REG_BITS(VIU_EOTF_CTL, on, 31, 1);
 	} else if (m_select == VPP_MATRIX_OSD_EOTF) {
@@ -3407,6 +3413,7 @@ static int hdr_process(
 				else
 					mtx[i * 3 + j] = m.matrix[i][j];
 			}
+
 		set_vpp_matrix(VPP_MATRIX_EOTF,
 			mtx,
 			CSC_ON);
