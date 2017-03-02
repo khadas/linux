@@ -17,6 +17,11 @@
 #define SPICC_REG_TEST   (7<<2)
 #define SPICC_REG_DRADDR (8<<2)
 #define SPICC_REG_DWADDR (9<<2)
+#define SPICC_REG_LD_CNTL0 (10<<2)
+#define SPICC_REG_LD_CNTL1 (11<<2)
+#define SPICC_REG_LD_RADDR (12<<2)
+#define SPICC_REG_LD_WADDR (13<<2)
+#define SPICC_REG_ENHANCE_CNTL (14<<2)
 
 #define CON_ENABLE bits_desc(SPICC_REG_CON, 0, 1)
 #define CON_MODE bits_desc(SPICC_REG_CON, 1, 1)
@@ -66,6 +71,16 @@
 #define RX_FIFO_RESET bits_desc(SPICC_REG_TEST, 22, 1)
 #define TX_FIFO_RESET bits_desc(SPICC_REG_TEST, 23, 1)
 #define CLK_FREE_EN bits_desc(SPICC_REG_TEST, 24, 1)
+
+#define CS_DELAY bits_desc(SPICC_REG_ENHANCE_CNTL, 0, 16)
+#define ENHANCE_CLK_DIV bits_desc(SPICC_REG_ENHANCE_CNTL, 16, 8)
+#define ENHANCE_CLK_DIV_SELECT bits_desc(SPICC_REG_ENHANCE_CNTL, 24, 1)
+#define MOSI_OEN bits_desc(SPICC_REG_ENHANCE_CNTL, 25, 1)
+#define CLK_OEN bits_desc(SPICC_REG_ENHANCE_CNTL, 26, 1)
+#define CS_OEN bits_desc(SPICC_REG_ENHANCE_CNTL, 27, 1)
+#define CS_DELAY_EN bits_desc(SPICC_REG_ENHANCE_CNTL, 28, 1)
+#define MAIN_CLK_AO bits_desc(SPICC_REG_ENHANCE_CNTL, 29, 1)
+
 
 struct spicc_platform_data {
 	int device_id;
