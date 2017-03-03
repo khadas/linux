@@ -39,6 +39,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
 
+
 #include "remote_meson.h"
 
 #include <linux/amlogic/iomap.h>
@@ -52,7 +53,7 @@ int remote_reg_read(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int *val)
 {
 	if (id >= IR_ID_MAX) {
-		pr_err("remote: invalid id:[%d] in %s\n", id, __func__);
+		dev_err(chip->dev, "invalid id:[%d] in %s\n", id, __func__);
 		return -EINVAL;
 	}
 
@@ -65,7 +66,7 @@ int remote_reg_write(struct remote_chip *chip, unsigned char id,
 	unsigned int reg, unsigned int val)
 {
 	if (id >= IR_ID_MAX) {
-		pr_err("remote: invalid id:[%d] in %s\n", id, __func__);
+		dev_err(chip->dev, "invalid id:[%d] in %s\n", id, __func__);
 		return -EINVAL;
 	}
 
@@ -144,12 +145,12 @@ static u32 getkeycode(struct remote_dev *dev, u32 scancode)
 	int index;
 
 	if (!ct) {
-		pr_err("cur_custom is nulll\n");
+		dev_err(chip->dev, "cur_custom is nulll\n");
 		return KEY_RESERVED;
 	}
 	index = ir_lookup_by_scancode(&ct->tab, scancode);
 	if (index < 0) {
-		remote_printk(2, "scancode %d undefined\n", scancode);
+		dev_err(chip->dev, "scancode %d undefined\n", scancode);
 		return KEY_RESERVED;
 	}
 	return ct->tab.codemap[index].map.keycode;
@@ -182,7 +183,7 @@ static bool is_next_repeat(struct remote_dev *dev)
 		remote_reg_read(chip, cnt, REG_STATUS, &val);
 		fbusy |= IR_CONTROLLER_BUSY(val);
 	}
-	remote_printk(2, "ir controller busy flag = %d\n", fbusy);
+	remote_dbg(chip->dev, "ir controller busy flag = %d\n", fbusy);
 	if (!dev->wait_next_repeat && fbusy)
 		return true;
 	else
@@ -213,13 +214,13 @@ static void amlremote_tasklet(unsigned long data)
 	if (chip->ir_contr[chip->ir_work].get_decode_status)
 		status = chip->ir_contr[chip->ir_work].get_decode_status(chip);
 	if (status == REMOTE_NORMAL) {
-		remote_printk(2, "receive scancode=0x%x\n", scancode);
+		remote_dbg(chip->dev, "receive scancode=0x%x\n", scancode);
 		remote_keydown(chip->r_dev, scancode, status);
 	} else if (status & REMOTE_REPEAT) {
-		remote_printk(4, "receive repeat\n");
+		remote_dbg(chip->dev, "receive repeat\n");
 		remote_keydown(chip->r_dev, scancode, status);
 	} else
-		remote_printk(4, "receive error %d\n", status);
+		dev_err(chip->dev, "receive error %d\n", status);
 	spin_unlock_irqrestore(&chip->slock, flags);
 
 }
@@ -261,7 +262,7 @@ static irqreturn_t ir_interrupt(int irq, void *dev_id)
 		}
 
 		if (cnt == IR_ID_MAX) {
-			pr_err("remote: invalid interrupt.\n");
+			dev_err(rc->dev, "invalid interrupt.\n");
 			return IRQ_HANDLED;
 		}
 
@@ -285,43 +286,44 @@ static int get_custom_tables(struct device_node *node,
 
 	phandle = of_get_property(node, "map", NULL);
 	if (!phandle) {
-		pr_err("%s:don't find match custom\n", __func__);
+		dev_err(chip->dev, "%s:don't find match custom\n", __func__);
 		return -1;
 	} else {
 		custom_maps = of_find_node_by_phandle(be32_to_cpup(phandle));
 		if (!custom_maps) {
-			pr_err("can't find device node key\n");
+			dev_err(chip->dev, "can't find device node key\n");
 			return -1;
 		}
 	}
 
 	ret = of_property_read_u32(custom_maps, "mapnum", &value);
 	if (ret) {
-		pr_err("please config correct mapnum item\n");
+		dev_err(chip->dev, "please config correct mapnum item\n");
 		return -1;
 	}
 	chip->custom_num = value;
 	if (chip->custom_num > CUSTOM_NUM_MAX)
 		chip->custom_num = CUSTOM_NUM_MAX;
 
-	pr_info("custom_number = %d\n", chip->custom_num);
+	dev_info(chip->dev, "custom_number = %d\n", chip->custom_num);
 
 	for (index = 0; index < chip->custom_num; index++) {
 		propname = kasprintf(GFP_KERNEL, "map%d", index);
 		phandle = of_get_property(custom_maps, propname, NULL);
 		if (!phandle) {
-			pr_err("%s:don't find match map%d\n", __func__, index);
+			dev_err(chip->dev, "%s:don't find match map%d\n",
+					__func__, index);
 			return -1;
 		}
 		map = of_find_node_by_phandle(be32_to_cpup(phandle));
 		if (!map) {
-			pr_err("can't find device node key\n");
+			dev_err(chip->dev, "can't find device node key\n");
 			return -1;
 		}
 
 		ret = of_property_read_u32(map, "size", &value);
 		if (ret || value > MAX_KEYMAP_SIZE) {
-			pr_err("no config size item or err\n");
+			dev_err(chip->dev, "no config size item or err\n");
 			return -1;
 		}
 
@@ -329,45 +331,48 @@ static int get_custom_tables(struct device_node *node,
 		ptable = kzalloc(sizeof(struct ir_map_tab_list) +
 				    value * sizeof(union _codemap), GFP_KERNEL);
 		if (!ptable) {
-			pr_err("%s ir map table alloc err\n", __func__);
+			dev_err(chip->dev, "%s ir map table alloc err\n",
+					__func__);
 			return -1;
 		}
 
 		ptable->tab.map_size = value;
-		pr_info("ptable->map_size = %d\n", ptable->tab.map_size);
+		dev_info(chip->dev, "ptable->map_size = %d\n",
+							ptable->tab.map_size);
 
 		ret = of_property_read_string(map, "mapname", &uname);
 		if (ret) {
-			pr_err("please config mapname item\n");
+			dev_err(chip->dev, "please config mapname item\n");
 			goto err;
 		}
 		strncpy(ptable->tab.custom_name, uname, CUSTOM_NAME_LEN);
 
-		pr_info("ptable->custom_name = %s\n", ptable->tab.custom_name);
+		dev_info(chip->dev, "ptable->custom_name = %s\n",
+						ptable->tab.custom_name);
 
 		ret = of_property_read_u32(map, "customcode", &value);
 		if (ret) {
-			pr_err("please config customcode item\n");
+			dev_err(chip->dev, "please config customcode item\n");
 			goto err;
 		}
 		ptable->tab.custom_code = value;
-		pr_info("ptable->custom_code = 0x%x\n",
+		dev_info(chip->dev, "ptable->custom_code = 0x%x\n",
 						ptable->tab.custom_code);
 
 		ret = of_property_read_u32(map, "release_delay", &value);
 		if (ret) {
-			pr_info("remote:don't find the node <release_delay>\n");
+			dev_err(chip->dev, "remote:don't find the node <release_delay>\n");
 			goto err;
 		}
 		ptable->tab.release_delay = value;
-		pr_info("ptable->release_delay = %d\n",
+		dev_info(chip->dev, "ptable->release_delay = %d\n",
 						ptable->tab.release_delay);
 
 		ret = of_property_read_u32_array(map,
 				"keymap", (u32 *)&ptable->tab.codemap[0],
 					ptable->tab.map_size);
 		if (ret) {
-			pr_err("please config keymap item\n");
+			dev_err(chip->dev, "please config keymap item\n");
 			goto err;
 		}
 
@@ -401,21 +406,21 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"protocol", &chip->protocol);
 	if (ret) {
-		pr_info("remote:don't find the node <protocol>\n");
+		dev_err(chip->dev, "don't find the node <protocol>\n");
 		chip->protocol = 1;
 	}
-	pr_info("remote: protocol = 0x%x\n", chip->protocol);
+	dev_info(chip->dev, "protocol = 0x%x\n", chip->protocol);
 
 	p = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(p)) {
-		pr_err("remote: pinctrl error, %ld\n", PTR_ERR(p));
+		dev_err(chip->dev, "pinctrl error, %ld\n", PTR_ERR(p));
 		return -1;
 	}
 
 	for (i = 0; i < 2; i++) {
 		res_mem = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (IS_ERR_OR_NULL(res_mem)) {
-			pr_err("remote: Get IORESOURCE_MEM error, %ld\n",
+			dev_err(chip->dev, "get IORESOURCE_MEM error, %ld\n",
 					PTR_ERR(p));
 			return PTR_ERR(res_mem);
 		}
@@ -425,18 +430,19 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (IS_ERR_OR_NULL(res_irq)) {
-		pr_err("remote: Get IORESOURCE_IRQ error, %ld\n", PTR_ERR(p));
+		dev_err(chip->dev, "get IORESOURCE_IRQ error, %ld\n",
+				PTR_ERR(p));
 		return PTR_ERR(res_irq);
 	}
 
 	chip->irqno = res_irq->start;
 
-	pr_info("remote: platform_data irq =%d\n", chip->irqno);
+	dev_info(chip->dev, "platform_data irq =%d\n", chip->irqno);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				"max_frame_time", &value);
 	if (ret) {
-		pr_info("remote:don't find the node <max_frame_time>\n");
+		dev_err(chip->dev, "don't find the node <max_frame_time>\n");
 		value = 200; /*default value*/
 	}
 
@@ -458,7 +464,7 @@ static int ir_hardware_init(struct platform_device *pdev)
 	struct remote_chip *chip = platform_get_drvdata(pdev);
 
 	if (!pdev->dev.of_node) {
-		pr_err("remote: pdev->dev.of_node == NULL!\n");
+		dev_err(chip->dev, "pdev->dev.of_node == NULL!\n");
 		return -1;
 	}
 
@@ -480,7 +486,7 @@ static int ir_hardware_init(struct platform_device *pdev)
 	return 0;
 
 error_irq:
-	pr_info("remote:request_irq error %d\n", ret);
+	dev_err(chip->dev, "request_irq error %d\n", ret);
 
 	return ret;
 
@@ -513,17 +519,17 @@ static int remote_probe(struct platform_device *pdev)
 	int ret;
 	struct remote_chip *chip;
 
-	pr_info("remote_probe\n");
+	pr_info("%s: remote_probe\n", DRIVER_NAME);
 	chip = kzalloc(sizeof(struct remote_chip), GFP_KERNEL);
 	if (!chip) {
-		pr_err("remote: kzalloc remote_chip error!\n");
+		pr_err("%s: kzalloc remote_chip error!\n", DRIVER_NAME);
 		ret = -ENOMEM;
 		goto err_end;
 	}
 
 	dev = remote_allocate_device();
 	if (!dev) {
-		pr_err("remote: kzalloc remote_dev error!\n");
+		pr_err("%s: kzalloc remote_dev error!\n", DRIVER_NAME);
 		ret = -ENOMEM;
 		goto err_alloc_remote_dev;
 	}
@@ -535,13 +541,13 @@ static int remote_probe(struct platform_device *pdev)
 	chip->r_dev = dev;
 	chip->dev = &pdev->dev;
 
+	chip->r_dev->dev = &pdev->dev;
 	chip->r_dev->platform_data = (void *)chip;
 	chip->r_dev->getkeycode    = getkeycode;
 	chip->r_dev->set_custom_code = set_custom_code;
 	chip->r_dev->is_valid_custom = is_valid_custom;
 	chip->r_dev->is_next_repeat  = is_next_repeat;
 	chip->set_register_config = ir_register_default_config;
-	remote_debug_set_enable(false);
 	platform_set_drvdata(pdev, chip);
 
 	ir_input_device_init(dev->input_device, &pdev->dev, "aml_keypad");
@@ -596,7 +602,7 @@ static int remote_resume(struct platform_device *pdev)
 	unsigned long flags;
 	unsigned char cnt;
 
-	pr_info("remote_resume\n");
+	dev_info(chip->dev, "remote resume\n");
 	/*resume register config*/
 	spin_lock_irqsave(&chip->slock, flags);
 	chip->set_register_config(chip, chip->protocol);
@@ -632,7 +638,7 @@ static int remote_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct remote_chip *chip = platform_get_drvdata(pdev);
 
-	pr_info("remote_suspend\n");
+	dev_info(chip->dev, "remote suspend\n");
 	disable_irq(chip->irqno);
 	return 0;
 }
@@ -650,20 +656,20 @@ static struct platform_driver remote_driver = {
 	.suspend = remote_suspend,
 	.resume = remote_resume,
 	.driver = {
-		.name = "meson-remote",
+		.name = DRIVER_NAME,
 		.of_match_table = remote_dt_match,
 	},
 };
 
 static int __init remote_init(void)
 {
-	pr_info("remote: Driver init\n");
+	pr_info("%s: Driver init\n", DRIVER_NAME);
 	return platform_driver_register(&remote_driver);
 }
 
 static void __exit remote_exit(void)
 {
-	pr_info("remote: exit\n");
+	pr_info("%s: Driver exit\n", DRIVER_NAME);
 	platform_driver_unregister(&remote_driver);
 }
 

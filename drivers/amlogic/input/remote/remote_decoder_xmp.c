@@ -17,7 +17,7 @@
 
 #include <linux/bitrev.h>
 #include <linux/module.h>
-#include "remote_core.h"
+#include "remote_meson.h"
 
 #define XMP_UNIT		  136000 /* ns */
 #define XMP_LEADER		  210000 /* ns */
@@ -229,12 +229,13 @@ static int __init ir_xmp_decode_init(void)
 {
 	xmp_handler.data = kzalloc(sizeof(struct xmp_dec), GFP_KERNEL);
 	if (!xmp_handler.data) {
-		pr_err("ir_xmp_decode_init alloc xmp_dec failure\n");
+		pr_err("%s: ir_xmp_decode_init alloc xmp_dec failure\n",
+					DRIVER_NAME);
 		return -1;
 	}
 	remote_raw_handler_register(&xmp_handler);
 
-	pr_info("IR XMP protocol handler initialized\n");
+	pr_info("%s: IR XMP protocol handler initialized\n", DRIVER_NAME);
 	return 0;
 }
 

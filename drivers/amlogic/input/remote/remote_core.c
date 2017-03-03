@@ -38,24 +38,18 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
-
 #include "remote_core.h"
 
-int remote_debug_level = 3;
-bool remote_debug_enable = 0;
+/**
+  *global variable for debug
+  *disable: 0
+  *enable: 1
+  */
+static bool remote_debug_enable;
 
-int remote_printk(int level, const char *fmt, ...)
+void remote_repeat(struct remote_dev *dev)
 {
-	va_list args;
-	int r;
 
-	if (remote_debug_enable == false || level > remote_debug_level)
-		return 0;
-	pr_warn("remote: ");
-	va_start(args, fmt);
-	r = vprintk(fmt, args);
-	va_end(args);
-	return r;
 }
 
 void remote_debug_set_enable(bool enable)
@@ -68,28 +62,13 @@ bool remote_debug_get_enable(void)
 	return remote_debug_enable;
 }
 
-void remote_debug_set_level(int level)
-{
-	remote_debug_level = level;
-}
-
-int remote_debug_get_level(void)
-{
-	return remote_debug_level;
-}
-
-void remote_repeat(struct remote_dev *dev)
-{
-
-}
-
 static void ir_do_keyup(struct remote_dev *dev)
 {
 	input_report_key(dev->input_device, dev->last_keycode, 0);
 	input_sync(dev->input_device);
 	dev->keypressed = false;
 	dev->last_scancode = -1;
-	remote_printk(2, "remote:keyup!!\n");
+	remote_dbg(dev->dev, "keyup!!\n");
 }
 
 static void ir_timer_keyup(unsigned long cookie)
@@ -105,7 +84,7 @@ static void ir_timer_keyup(unsigned long cookie)
 			msecs_to_jiffies(dev->keyup_delay);
 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 		dev->wait_next_repeat = 1;
-		remote_printk(2, "remote:wait for repeat\n");
+		remote_dbg(dev->dev, "wait for repeat\n");
 	} else {
 		if (time_is_before_eq_jiffies(dev->keyup_jiffies))
 			ir_do_keyup(dev);
@@ -117,7 +96,7 @@ static void ir_timer_keyup(unsigned long cookie)
 static void ir_do_keydown(struct remote_dev *dev, int scancode,
 			  u32 keycode)
 {
-	remote_printk(2, "keypressed=0x%x\n", dev->keypressed);
+	remote_dbg(dev->dev, "keypressed=0x%x\n", dev->keypressed);
 
 	if (dev->keypressed)
 		ir_do_keyup(dev);
@@ -128,9 +107,9 @@ static void ir_do_keydown(struct remote_dev *dev, int scancode,
 		dev->last_keycode = keycode;
 		input_report_key(dev->input_device, keycode, 1);
 		input_sync(dev->input_device);
-		remote_printk(2, "report key!!\n");
+		remote_dbg(dev->dev, "report key!!\n");
 	} else {
-		remote_printk(2, "no handle key");
+		dev_err(dev->dev, "no valid key to handle");
 	}
 }
 
@@ -143,7 +122,7 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 	if (REMOTE_REPEAT != status) {
 		if (dev->is_valid_custom &&
 			(false == dev->is_valid_custom(dev))) {
-			remote_printk(2, "invalid custom:0x%x\n",
+			dev_err(dev->dev, "invalid custom:0x%x\n",
 				dev->cur_hardcode);
 			return;
 		}
@@ -220,7 +199,7 @@ int remote_register_device(struct remote_dev *dev)
 	dev->debug_buffer_size = 4096;
 	dev->debug_buffer = kzalloc(dev->debug_buffer_size, GFP_KERNEL);
 	if (!dev->debug_buffer) {
-		pr_err("remote: kzalloc debug_buffer error!\n");
+		dev_err(dev->dev, "kzalloc debug_buffer error!\n");
 		ret = -ENOMEM;
 	}
 

@@ -21,11 +21,8 @@
 #include <linux/kmod.h>
 #include <linux/sched.h>
 #include <linux/freezer.h>
-
-#include "remote_core.h"
 #include <linux/jiffies.h>
-
-
+#include "remote_meson.h"
 
 static DEFINE_MUTEX(remote_raw_handler_lock);
 static LIST_HEAD(remote_raw_handler_list);
@@ -131,7 +128,7 @@ int remote_raw_event_register(struct remote_dev *dev)
 {
 	int ret;
 
-	pr_info("remote_raw_event_register\n");
+	dev_info(dev->dev, "remote_raw_event_register\n");
 	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
 	if (!dev->raw)
 		return -ENOMEM;
@@ -199,7 +196,7 @@ void remote_raw_init(void)
 
 	if (!raw_init) {
 		raw_init = true;
-		pr_info("loading raw decoder\n");
+		pr_info("%s: loading raw decoder\n", DRIVER_NAME);
 
 		/* Load the decoder modules */
 		request_module_nowait("remote_decoder_xmp");

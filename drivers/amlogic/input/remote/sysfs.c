@@ -66,7 +66,7 @@ static ssize_t protocol_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &protocol);
 	if (ret != 0) {
-		pr_err("input parameter error\n");
+		dev_err(chip->dev, "input parameter error\n");
 		return -EINVAL;
 	}
 
@@ -76,7 +76,7 @@ static ssize_t protocol_store(struct device *dev,
 	if (MULTI_IR_SOFTWARE_DECODE(chip->r_dev->rc_type) &&
 				!MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
 		remote_raw_event_unregister(chip->r_dev); /*raw->no raw*/
-		pr_info("remote_raw_event_unregister\n");
+		dev_info(chip->dev, "remote_raw_event_unregister\n");
 	} else if (!MULTI_IR_SOFTWARE_DECODE(chip->r_dev->rc_type) &&
 				MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
 		remote_raw_init();
@@ -98,7 +98,7 @@ static ssize_t keymap_show(struct device *dev,
 	spin_lock_irqsave(&chip->slock, flags);
 	map_tab = seek_map_tab(chip,  chip->sys_custom_code);
 	if (!map_tab) {
-		pr_err("please set valid keymap name first\n");
+		dev_err(chip->dev, "please set valid keymap name first\n");
 		spin_unlock_irqrestore(&chip->slock, flags);
 		return 0;
 	}
@@ -127,7 +127,7 @@ static ssize_t keymap_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &value);
 	if (ret != 0) {
-		pr_err("keymap_store input err\n");
+		dev_err(chip->dev, "keymap_store input err\n");
 		return -EINVAL;
 	}
 	chip->sys_custom_code = value;
@@ -154,28 +154,6 @@ static ssize_t debug_enable_store(struct device *dev,
 	if (ret != 0)
 		return -EINVAL;
 	remote_debug_set_enable(debug_enable);
-	return count;
-}
-
-static ssize_t debug_level_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int debug_level;
-
-	debug_level = remote_debug_get_level();
-	return sprintf(buf, "%d\n", debug_level);
-}
-
-static ssize_t debug_level_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	int debug_level;
-	int ret;
-
-	ret = kstrtoint(buf, 0, &debug_level);
-	if (ret != 0)
-		return -EINVAL;
-	remote_debug_set_level(debug_level);
 	return count;
 }
 
@@ -264,7 +242,6 @@ DEVICE_ATTR_RW(repeat_enable);
 DEVICE_ATTR_RW(protocol);
 DEVICE_ATTR_RW(keymap);
 DEVICE_ATTR_RW(debug_enable);
-DEVICE_ATTR_RW(debug_level);
 DEVICE_ATTR_RW(debug_log);
 DEVICE_ATTR_RO(map_tables);
 
@@ -295,9 +272,8 @@ static struct attribute *remote_attrs[] = {
 	&dev_attr_protocol.attr,
 	&dev_attr_map_tables.attr,
 	&dev_attr_keymap.attr,
-	&dev_attr_repeat_enable.attr,
 	&dev_attr_debug_enable.attr,
-	&dev_attr_debug_level.attr,
+	&dev_attr_repeat_enable.attr,
 	&dev_attr_debug_log.attr,
 	NULL,
 };

@@ -21,6 +21,8 @@
 #include <uapi/linux/rc_common.h>
 #include "remote_core.h"
 
+#define DRIVER_NAME "meson-remote"
+
 #define IR_DATA_IS_VALID(data) (data & 0x8)
 #define IR_CONTROLLER_BUSY(x) ((x >> 7) & 0x1)
 
