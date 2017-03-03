@@ -53,6 +53,7 @@ static struct ion_device *idev;
 static int num_heaps;
 static struct ion_heap **heaps;
 static struct ion_platform_heap my_ion_heap[MAX_HEAP];
+static struct reserved_mem sr_rmem;
 
 struct ion_client *meson_ion_client_create(unsigned int heap_mask,
 		const char *name) {
@@ -170,6 +171,14 @@ int dev_ion_probe(struct platform_device *pdev)
 	my_ion_heap[num_heaps].name = "codec_mm_ion";
 	my_ion_heap[num_heaps].base = (ion_phys_addr_t) NULL;
 	my_ion_heap[num_heaps].size = 32 * 1024 * 1024;
+	num_heaps++;
+
+	/* add chunk ion heap */
+	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_CHUNK;
+	my_ion_heap[num_heaps].id = ION_HEAP_TYPE_CHUNK;
+	my_ion_heap[num_heaps].name = "chunck_mm_ion";
+	my_ion_heap[num_heaps].base = (ion_phys_addr_t) sr_rmem.base;
+	my_ion_heap[num_heaps].size = sr_rmem.size;
 	num_heaps++;
 
 	/* init reserved memory */
@@ -292,6 +301,33 @@ static void __exit ion_exit(void)
 {
 	platform_driver_unregister(&ion_driver);
 }
+
+static int ion_chunk_device_init(struct reserved_mem *rmem, struct device *dev)
+{
+	return 0;
+}
+
+static const struct reserved_mem_ops sr_rmem_ops = {
+	.device_init = ion_chunk_device_init,
+};
+
+static int __init ion_chunk_setup(struct reserved_mem *rmem)
+{
+	phys_addr_t align = PAGE_SIZE;
+	phys_addr_t mask = align - 1;
+	if ((rmem->base & mask) || (rmem->size & mask)) {
+		pr_err("Reserved memory: incorrect alignment of region\n");
+		return -EINVAL;
+	}
+
+	rmem->ops = &sr_rmem_ops;
+	sr_rmem.base = rmem->base;
+	sr_rmem.size = rmem->size;
+
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(ion_chunk, "amlogic, chunk-reserve", ion_chunk_setup);
 
 module_init(ion_init);
 module_exit(ion_exit);

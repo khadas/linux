@@ -80,6 +80,11 @@
 			//no-map;
 		};
 
+		chunk_reserved:linux,chunk-reserve {
+			compatible = "amlogic, chunk-reserve";
+			size = <0x0 0x4000000>;
+		};
+
 		ion_reserved:linux,ion-dev {
 			compatible = "amlogic, idev-mem";
 			size = <0x0 0x3000000>;
@@ -142,6 +147,12 @@
 		status = "okay";
 		led_gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
 		led_active_low = <1>;
+	};
+
+	chunk-reserve {
+		compatible = "amlogic, chunk-reserve";
+		memory-region = <&chunk_reserved>;
+		status = "okay";
 	};
 
 	meson-vout {
