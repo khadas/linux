@@ -134,7 +134,7 @@ static struct remote_reg_map regs_default_rc6[] = {
 
 void set_hardcode(struct remote_chip *chip, int code)
 {
-	remote_printk(2, "framecode=0x%x\n", code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 }
 
@@ -153,7 +153,7 @@ static int ir_legacy_nec_get_scancode(struct remote_chip *chip)
 		status |= REMOTE_REPEAT;
 	chip->decode_status = status; /*set decode status*/
 	remote_reg_read(chip, LEGACY_IR_ID, REG_FRAME, &code);
-	remote_printk(2, "framecode=0x%x\n", code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 16) & 0xff;
 	return code;
@@ -173,7 +173,7 @@ static int ir_nec_get_scancode(struct remote_chip *chip)
 		status |= REMOTE_REPEAT;
 	chip->decode_status = status; /*set decode status*/
 	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
-	remote_printk(2, "framecode=0x%x\n", code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 16) & 0xff;
 	return code;
@@ -202,7 +202,7 @@ static int ir_xmp_get_scancode(struct remote_chip *chip)
 	int  code = 0;
 
 	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
-	remote_printk(2, "framecode=0x%x\n", code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	if (!xmp_decode_second) {
 		chip->r_dev->cur_hardcode = 0;
 		chip->r_dev->cur_customcode = code;
@@ -242,7 +242,7 @@ static u32 ir_xmp_get_custom_code(struct remote_chip *chip)
 	u32 custom_code;
 
 	custom_code = chip->r_dev->cur_customcode & 0xffff;
-	remote_printk(2, "custom_code=0x%x\n", custom_code);
+	remote_dbg(chip->dev, "custom_code=0x%x\n", custom_code);
 	return custom_code;
 }
 
@@ -265,7 +265,7 @@ static int duokan_parity_check(int code)
 	if (p30 == data)
 		return 0;
 	else {
-		remote_printk(2, "parity check error code=0x%x\n", code);
+		pr_err("%s: parity check error code=0x%x\n", DRIVER_NAME, code);
 		return -1;
 	}
 }
@@ -312,7 +312,7 @@ static u32 ir_duokan_get_custom_code(struct remote_chip *chip)
 
 	custom_code = (chip->r_dev->cur_hardcode >> 12) & 0xffff;
 	chip->r_dev->cur_customcode = custom_code;
-	remote_printk(2, "custom_code=0x%x\n", custom_code);
+	remote_dbg(chip->dev, "custom_code=0x%x\n", custom_code);
 	return custom_code;
 }
 
@@ -324,7 +324,7 @@ static u32 ir_raw_xmp_get_custom_code(struct remote_chip *chip)
 	u32 custom_code;
 
 	custom_code = chip->r_dev->cur_customcode;
-	remote_printk(2, "custom_code=0x%x\n", custom_code);
+	remote_dbg(chip->dev, "custom_code=0x%x\n", custom_code);
 	return custom_code;
 }
 
@@ -354,7 +354,7 @@ static int ir_rc5_get_scancode(struct remote_chip *chip)
 		status |= REMOTE_REPEAT;
 	chip->decode_status = status;
 	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
-	remote_printk(2, "framecode=0x%x\n", code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = code & 0x3f;
 	return code;
@@ -389,7 +389,7 @@ static int ir_rc6_get_scancode(struct remote_chip *chip)
 		status |= REMOTE_REPEAT;
 	chip->decode_status = status;
 	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
-	remote_printk(2, "framecode=0x%x\n", code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	/**
 	  *if the frame length larger than 32Bit, we must read the REG_FRAME1.
 	  *Otherwise it will affect the update of the 'frame1' and repeat frame
@@ -524,7 +524,7 @@ static int ir_contr_init(struct remote_chip *chip, int type, unsigned char id)
 		reg_proto++;
 	}
 	if (!*reg_proto) {
-		pr_err("remote:%s, protocol set err %d\n", __func__, type);
+		dev_err(chip->dev, "%s, protocol set err %d\n", __func__, type);
 		return -EINVAL;
 	}
 
@@ -537,14 +537,15 @@ static int ir_contr_init(struct remote_chip *chip, int type, unsigned char id)
 	 * [0] = 0x01,set to 1 to reset the IR decoder
 	*/
 	remote_reg_write(chip, id, REG_REG1, 0x01);
-	pr_info("remote: default protocol = 0x%x and id = %d\n",
+	dev_info(chip->dev, "default protocol = 0x%x and id = %d\n",
 				(*reg_proto)->protocol, id);
 	reg_map = (*reg_proto)->reg_map;
 	size    = (*reg_proto)->reg_map_size;
 
 	for (  ; size > 0;  ) {
 		remote_reg_write(chip, id, reg_map->reg, reg_map->val);
-		pr_info("reg=0x%x, val=0x%x\n", reg_map->reg, reg_map->val);
+		dev_info(chip->dev, "reg=0x%x, val=0x%x\n",
+				reg_map->reg, reg_map->val);
 		reg_map++;
 		size--;
 	}

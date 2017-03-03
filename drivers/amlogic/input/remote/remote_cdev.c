@@ -34,7 +34,7 @@ static long remote_ioctl(struct file *file, unsigned int cmd,
 	int retval = 0;
 
 	if (!parg) {
-		pr_err("%s invalid user space pointer\n", __func__);
+		dev_err(chip->dev, "%s invalid user space pointer\n", __func__);
 		return -EINVAL;
 	}
 
@@ -64,7 +64,8 @@ static long remote_ioctl(struct file *file, unsigned int cmd,
 				chip->key_num.value * sizeof(union _codemap),
 			    GFP_KERNEL);
 		    if (!ir_map) {
-				pr_err("%s ir map table alloc err\n", __func__);
+				dev_err(chip->dev, "%s ir map table alloc err\n",
+						__func__);
 				retval = -ENOMEM;
 				goto err;
 			}
@@ -144,7 +145,7 @@ int ir_cdev_init(struct remote_chip *chip)
 	ret = alloc_chrdev_region(&chip->chr_devno,
 		0, 1, AML_REMOTE_NAME);
 	if (ret < 0) {
-		pr_err("remote: failed to allocate major number\n");
+		dev_err(chip->dev, "failed to allocate major number\n");
 		ret = -ENODEV;
 		goto err_end;
 	}
@@ -152,22 +153,22 @@ int ir_cdev_init(struct remote_chip *chip)
 	chip->chrdev.owner = THIS_MODULE;
 	ret = cdev_add(&chip->chrdev, chip->chr_devno, 1);
 	if (ret < 0) {
-		pr_err("remote: failed to cdev_add\n");
+		dev_err(chip->dev, "failed to cdev_add\n");
 		goto err_cdev_add;
 	}
 
 	ret = ir_sys_device_attribute_init(chip);
 	if (ret < 0) {
-		pr_err("remote: failed to ir_sys create %d\n", ret);
+		dev_err(chip->dev, "failed to ir_sys create %d\n", ret);
 		goto err_ir_sys;
 	}
 	return 0;
 
 err_ir_sys:
-	pr_err("remote: err_ir_sys\n");
+	dev_err(chip->dev, "err_ir_sys\n");
 	cdev_del(&chip->chrdev);
 err_cdev_add:
-	pr_err("remote: err_cdev_add\n");
+	dev_err(chip->dev, "err_cdev_add\n");
 	unregister_chrdev_region(chip->chr_devno, 1);
 err_end:
 	return ret;

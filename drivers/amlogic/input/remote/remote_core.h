@@ -15,13 +15,13 @@
  *
 */
 
-
 #ifndef _REMOTE_MAIN_MY_H
 #define _REMOTE_MAIN_MY_H
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/kfifo.h>
+#include <linux/device.h>
 #include <dt-bindings/input/meson_rc.h>
 
 #define MULTI_IR_TYPE_MASK(type) (type & 0xff)  /*8bit*/
@@ -29,6 +29,16 @@
 /*bit[7] identify whether software decode or not*/
 #define MULTI_IR_SOFTWARE_DECODE(type) ((MULTI_IR_TYPE_MASK(type) >> 7) == 0x1)
 #define ENABLE_LEGACY_IR(type) (LEGACY_IR_TYPE_MASK(type) == 0xff)
+
+#define remote_dbg(dev, format, arg...)     \
+do {                                        \
+	if (remote_debug_get_enable()) {        \
+		if (likely(dev))                    \
+			dev_info(dev, format, ##arg);   \
+		else                                \
+			pr_info(format, ##arg);         \
+	}                                       \
+} while (0)
 
 enum remote_status {
 	REMOTE_NORMAL = 0x00,
@@ -51,32 +61,32 @@ enum raw_event_type {
 
 struct remote_raw_handle;
 struct remote_dev {
-	struct device		*dev;
+	struct device *dev;
 	struct input_dev *input_device;
 	struct list_head reg_list;
 	struct list_head aml_list;
 	struct remote_raw_handle *raw;
 	spinlock_t keylock;
 
-	struct timer_list	timer_keyup;
-	unsigned long		keyup_jiffies;
-	unsigned long       keyup_delay;
-	bool				keypressed;
+	struct timer_list timer_keyup;
+	unsigned long keyup_jiffies;
+	unsigned long keyup_delay;
+	bool keypressed;
 
-	u32					last_scancode;
-	u32					last_keycode;
-	int                 rc_type;
-	u32					cur_hardcode;
-	u32                 cur_customcode;
-	u32                 repeat_time;
-	u32					max_frame_time;
-	int					wait_next_repeat;
-	void                *platform_data;
+	u32 last_scancode;
+	u32 last_keycode;
+	int rc_type;
+	u32 cur_hardcode;
+	u32 cur_customcode;
+	u32 repeat_time;
+	u32 max_frame_time;
+	int wait_next_repeat;
+	void *platform_data;
 
 	/*debug*/
 	char *debug_buffer;
-	int   debug_buffer_size;
-	int   debug_current;
+	int debug_buffer_size;
+	int debug_current;
 
 	u32 (*getkeycode)(struct remote_dev *dev, u32 scancode);
 	bool (*set_custom_code)(struct remote_dev *dev, u32 code);
@@ -85,16 +95,16 @@ struct remote_dev {
 };
 
 struct remote_raw_handle {
-	struct list_head		list;
-	struct remote_dev		*dev;
-	struct task_struct		*thread;
-	struct kfifo_rec_ptr_1	kfifo;/* fifo for the pulse/space durations */
-	spinlock_t       lock;
+	struct list_head list;
+	struct remote_dev *dev;
+	struct task_struct *thread;
+	struct kfifo_rec_ptr_1 kfifo;/* fifo for the pulse/space durations */
+	spinlock_t lock;
 
 	enum raw_event_type last_type;
-	unsigned long              jiffies_old;
-	unsigned long              repeat_time;
-	unsigned long              max_frame_time;
+	unsigned long jiffies_old;
+	unsigned long repeat_time;
+	unsigned long max_frame_time;
 };
 
 struct remote_map_table {
@@ -104,9 +114,9 @@ struct remote_map_table {
 
 struct remote_map {
 	struct remote_map_table *scan;
-	int     rc_type;
-	const char           *name;
-	u32                  size;
+	int rc_type;
+	const char *name;
+	u32 size;
 };
 
 struct remote_map_list {
@@ -188,11 +198,8 @@ int remote_raw_event_store_edge(struct remote_dev *dev,
 void remote_raw_init(void);
 
 /*debug printk */
-int remote_printk(int level, const char *fmt, ...);
-void remote_debug_set_level(int level);
 void remote_debug_set_enable(bool enable);
 bool remote_debug_get_enable(void);
-int remote_debug_get_level(void);
 int debug_log_printk(struct remote_dev *dev, const char *fmt);
 
 #endif
