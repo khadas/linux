@@ -1425,7 +1425,7 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 	u32 fifo;
 	int ret;
 	bool remove_from_hanger = true;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct brcmf_skbuff_cb *skcb;
 	struct brcmf_fws_mac_descriptor *entry = NULL;
 
