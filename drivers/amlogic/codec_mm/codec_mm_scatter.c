@@ -2346,9 +2346,9 @@ return the total num alloced.
 0 is all freeed.
 N is have some pages not alloced.
 */
-int codec_mm_scatter_free_all_ignorecache(void)
+static int codec_mm_scatter_free_all_ignorecache_in(
+	struct codec_mm_scatter_mgt *smgt)
 {
-	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(0);
 	int need_retry = 1;
 	int retry_num = 0;
 	mutex_lock(&smgt->monitor_lock);
@@ -2387,6 +2387,16 @@ int codec_mm_scatter_free_all_ignorecache(void)
 	return smgt->total_page_num;
 }
 
+int codec_mm_scatter_free_all_ignorecache(int flags)
+{
+	if (flags & 1)
+		codec_mm_scatter_free_all_ignorecache_in(
+			codec_mm_get_scatter_mgt(0));
+	if (flags & 2)
+		codec_mm_scatter_free_all_ignorecache_in(
+			codec_mm_get_scatter_mgt(1));
+	return 0;
+}
 
 static void codec_mm_scatter_monitor(struct work_struct *work)
 {
