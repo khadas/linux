@@ -937,7 +937,7 @@ static int vf_get_states(struct vframe_states *states)
 static inline void video_vf_put(struct vframe_s *vf)
 {
 	struct vframe_provider_s *vfp = vf_get_provider(RECEIVER_NAME);
-	if (vfp && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
 		vf_put(vf, RECEIVER_NAME);
 		if (is_dolby_vision_enable())
 			dolby_vision_vf_put(vf);
@@ -1317,8 +1317,9 @@ static void zoom_get_horz_pos(struct vframe_s *vf, u32 vpp_3d_mode, u32 *ls,
 			      u32 *le, u32 *rs, u32 *re)
 {
 	u32 crop_sx, crop_ex, crop_sy, crop_ey;
+	if (!vf)
+		return;
 	vpp_get_video_source_crop(&crop_sy, &crop_sx, &crop_ey, &crop_ex);
-
 	switch (vpp_3d_mode) {
 	case VPP_3D_MODE_LR:
 		/*half width,double height */
@@ -1918,7 +1919,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	u32 first_picture = 0;
 	unsigned long flags = 0;
 	bool vf_with_el = false;
-
+	if (vf == NULL)
+		return;
 	frame_count++;
 	if (is_dolby_vision_enable())
 		vf_with_el = has_enhanced_layer(vf);
@@ -2249,8 +2251,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	}
 
 	/* enable new config on the new frames */
-	if ((first_picture) ||
-	    (cur_dispbuf->bufWidth != vf->bufWidth) ||
+	if ((first_picture) ||  (cur_dispbuf &&
+	    ((cur_dispbuf->bufWidth != vf->bufWidth) ||
 	    (cur_dispbuf->width != vf->width) ||
 	    (cur_dispbuf->height != vf->height) ||
 	    (cur_dispbuf->bitdepth != vf->bitdepth) ||
@@ -2261,10 +2263,10 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 	     (vf->type_backup & VIDTYPE_INTERLACE)) ||
 	    (cur_dispbuf->type != vf->type)
 #if HAS_VPU_PROT
-	    || (cur_dispbuf->video_angle != vf->video_angle)
+	    || cur_dispbuf && (cur_dispbuf->video_angle != vf->video_angle)
 	    || video_prot.angle_changed) {
 #else
-	    ) {
+	    ))) {
 #endif
 		last_process_3d_type = process_3d_type;
 		atomic_inc(&video_sizechange);
@@ -2290,7 +2292,8 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 				struct vframe_s tmp_vf = *vf;
 				video_prot.angle = vf->video_angle;
 				if ((first_picture) || video_prot.angle_changed
-				    || (cur_dispbuf->video_angle !=
+				    || cur_dispbuf &&
+					(cur_dispbuf->video_angle !=
 					vf->video_angle
 					|| cur_dispbuf->width != vf->width
 					|| cur_dispbuf->height != vf->height)) {
@@ -3977,7 +3980,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		} else if ((cur_dispbuf == &vf_local)
 			   && (video_property_changed)) {
 			if (!(blackout | force_blackout)) {
-				if ((READ_VCBUS_REG(DI_IF1_GEN_REG) &
+				if (cur_dispbuf &&
+					(READ_VCBUS_REG(DI_IF1_GEN_REG) &
 					0x1) == 0) {
 					/* setting video display
 					property in unregister mode */
@@ -4221,7 +4225,8 @@ SET_FILTER:
 
 		if (platform_type == 1) {
 			if ((cur_frame_par->hscale_skip_count)
-				&& (cur_dispbuf->type & VIDTYPE_VIU_FIELD)) {
+				&& cur_dispbuf &&
+				(cur_dispbuf->type & VIDTYPE_VIU_FIELD)) {
 				VSYNC_WR_MPEG_REG_BITS(VIU_VD1_FMT_CTRL +
 					cur_dev->viu_off, 0, 20, 1);
 				/* HFORMATTER_EN */
@@ -5651,7 +5656,8 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 					process_3d_type |= MODE_3D_MVC;
 				video_property_changed = true;
 				if ((process_3d_type & MODE_3D_FA)
-						&& !cur_dispbuf->trans_fmt)
+					&& cur_dispbuf
+					&& !cur_dispbuf->trans_fmt)
 					/*notify di 3d mode is frame
 					  alternative mode,passing two
 					  buffer in one frame */
@@ -6761,7 +6767,8 @@ static ssize_t threedim_mode_store(struct class *cla,
 		if (mvc_flag)
 			process_3d_type |= MODE_3D_MVC;
 		video_property_changed = true;
-		if ((process_3d_type & MODE_3D_FA) && !cur_dispbuf->trans_fmt)
+		if ((process_3d_type & MODE_3D_FA)
+			&& cur_dispbuf && !cur_dispbuf->trans_fmt)
 			/*notify di 3d mode is frame alternative mode,
 			passing two buffer in one frame */
 			vf_notify_receiver_by_name("deinterlace",
