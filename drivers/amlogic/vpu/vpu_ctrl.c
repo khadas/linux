@@ -134,18 +134,23 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 			vpu_hiu_setb(_reg1, ((val << 2) | val), 0, 4);
 		break;
 	case VPU_VIU2_VD1:
+	case VPU_VKSTONE:
 		vpu_hiu_setb(_reg1, val, 4, 2);
 		break;
 	case VPU_VIU2_CHROMA:
+	case VPU_DOLBY_CORE3:
 		vpu_hiu_setb(_reg1, val, 6, 2);
 		break;
 	case VPU_VIU2_OFIFO:
+	case VPU_DOLBY0:
 		vpu_hiu_setb(_reg1, val, 8, 2);
 		break;
 	case VPU_VIU2_SCALE:
+	case VPU_DOLBY1A:
 		vpu_hiu_setb(_reg1, val, 10, 2);
 		break;
 	case VPU_VIU2_OSD_SCALE:
+	case VPU_DOLBY1B:
 		vpu_hiu_setb(_reg1, val, 12, 2);
 		break;
 	case VPU_VDIN_AM_ASYNC:
@@ -160,6 +165,10 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 		break;
 	case VPU_VPUARB2_AM_ASYNC:
 		if (vpu_chip_type == VPU_CHIP_G9TV)
+			vpu_hiu_setb(_reg1, val, 18, 2);
+		break;
+	case VPU_OSD_AFBCD:
+		if (vpu_chip_type == VPU_CHIP_TXLX)
 			vpu_hiu_setb(_reg1, val, 18, 2);
 		break;
 	case VPU_VENCP:
@@ -301,18 +310,23 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 			val = VPU_MEM_PD_ERR;
 		break;
 	case VPU_VIU2_VD1:
+	case VPU_VKSTONE:
 		val = vpu_hiu_getb(_reg1, 4, 2);
 		break;
 	case VPU_VIU2_CHROMA:
+	case VPU_DOLBY_CORE3:
 		val = vpu_hiu_getb(_reg1, 6, 2);
 		break;
 	case VPU_VIU2_OFIFO:
+	case VPU_DOLBY0:
 		val = vpu_hiu_getb(_reg1, 8, 2);
 		break;
 	case VPU_VIU2_SCALE:
+	case VPU_DOLBY1A:
 		val = vpu_hiu_getb(_reg1, 10, 2);
 		break;
 	case VPU_VIU2_OSD_SCALE:
+	case VPU_DOLBY1B:
 		val = vpu_hiu_getb(_reg1, 12, 2);
 		break;
 	case VPU_VDIN_AM_ASYNC:
@@ -327,6 +341,12 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		break;
 	case VPU_VPUARB2_AM_ASYNC:
 		if (vpu_chip_type == VPU_CHIP_G9TV)
+			val = vpu_hiu_getb(_reg0, 18, 2);
+		else
+			val = VPU_MEM_PD_ERR;
+		break;
+	case VPU_OSD_AFBCD:
+		if (vpu_chip_type == VPU_CHIP_TXLX)
 			val = vpu_hiu_getb(_reg0, 18, 2);
 		else
 			val = VPU_MEM_PD_ERR;
