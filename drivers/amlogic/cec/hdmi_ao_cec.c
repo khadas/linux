@@ -1630,8 +1630,6 @@ static int hdmitx_cec_open(struct inode *inode, struct file *file)
 	cec_dev->cec_info.open_count++;
 	if (cec_dev->cec_info.open_count) {
 		cec_dev->cec_info.hal_ctl = 1;
-		/* enable all cec features */
-		cec_config(0x2f, 1);
 		/* set default logical addr flag for uboot */
 		cec_set_reg_bits(AO_DEBUG_REG1, 0xf, 16, 4);
 	}
@@ -1641,12 +1639,8 @@ static int hdmitx_cec_open(struct inode *inode, struct file *file)
 static int hdmitx_cec_release(struct inode *inode, struct file *file)
 {
 	cec_dev->cec_info.open_count--;
-	if (!cec_dev->cec_info.open_count) {
+	if (!cec_dev->cec_info.open_count)
 		cec_dev->cec_info.hal_ctl = 0;
-		/* disable all cec features */
-		cec_config(0x0, 1);
-		cec_set_reg_bits(AO_DEBUG_REG1, 0xf, 16, 4);
-	}
 	return 0;
 }
 
@@ -1867,19 +1861,22 @@ static long hdmitx_cec_ioctl(struct file *f,
 		tmp = (1 << HDMI_OPTION_ENABLE_CEC);
 		if (arg) {
 			cec_dev->hal_flag |= tmp;
+			cec_config(0x2f, 1);
 			cec_pre_init();
 		} else {
 			cec_dev->hal_flag &= ~(tmp);
 			CEC_INFO("disable CEC\n");
+			cec_config(0x0, 1);
 			cec_keep_reset();
 		}
 		break;
 
 	case CEC_IOC_SET_OPTION_SYS_CTRL:
 		tmp = (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL);
-		if (arg)
+		if (arg) {
 			cec_dev->hal_flag |= tmp;
-		else
+			cec_config(0x2f, 1);
+		} else
 			cec_dev->hal_flag &= ~(tmp);
 		break;
 
