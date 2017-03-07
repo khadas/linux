@@ -537,7 +537,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		!(memflags & CODEC_MM_FLAGS_FOR_SCATTER)) {
 		/*if not scatter, free scatter caches.*/
 		pr_err(" No mem ret=%d, clear scatter cache!!\n", ret);
-		codec_mm_scatter_free_all_ignorecache();
+		codec_mm_scatter_free_all_ignorecache(1);
 		ret = codec_mm_alloc_in(mgt, mem);
 	}
 	if (ret < 0) {
@@ -1105,7 +1105,7 @@ int codec_mm_enough_for_size(int size, int with_wait)
 	int have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
 	if (!have_mem && with_wait && mgt->alloced_for_sc_cnt > 0) {
 		pr_err(" No mem, clear scatter cache!!\n");
-		codec_mm_scatter_free_all_ignorecache();
+		codec_mm_scatter_free_all_ignorecache(1);
 		have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
 		if (have_mem)
 			return 1;
@@ -1280,7 +1280,7 @@ static ssize_t tvp_enable_store(struct class *class,
 	tvp changes.
 	*/
 	codec_mm_keeper_free_all_keep(2);
-	codec_mm_scatter_free_all_ignorecache();
+	codec_mm_scatter_free_all_ignorecache(3);
 	switch (val) {
 	case 0:
 		ret = codec_mm_extpool_pool_release(&mgt->tvp_pool);

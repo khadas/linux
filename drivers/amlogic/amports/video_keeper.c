@@ -628,6 +628,10 @@ static int alloc_keep_buffer(void)
 	flags = CODEC_MM_FLAGS_DMA_CPU |
 	CODEC_MM_FLAGS_FOR_VDECODER;
 #endif
+	if ((flags & CODEC_MM_FLAGS_FOR_VDECODER) &&
+			codec_mm_video_tvp_enabled())/*TVP TODO for MULTI*/
+		flags |= CODEC_MM_FLAGS_TVP;
+
 	if (!keep_y_addr) {
 		keep_y_addr = codec_mm_alloc_for_dma(
 				MEM_NAME,
