@@ -142,9 +142,11 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 
 	if (REMOTE_REPEAT != status) {
 		if (dev->is_valid_custom &&
-			(false == dev->is_valid_custom(dev)))
+			(false == dev->is_valid_custom(dev))) {
 			remote_printk(2, "invalid custom:0x%x\n",
 				dev->cur_hardcode);
+			return;
+		}
 	}
 	spin_lock_irqsave(&dev->keylock, flags);
 	if (status == REMOTE_NORMAL) {
