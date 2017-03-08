@@ -21,6 +21,7 @@
 #include <linux/time.h>
 
 #include "atvdemod_func.h"
+#include "atvauddemod_func.h"
 #include "../aml_dvb_reg.h"
 
 static int broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC;
@@ -1538,8 +1539,32 @@ int atvdemod_clk_init(void)
 	return 0;
 }
 
+int amlfmt_aud_standard(int broad_std)
+{
+	int aud_std = 0;
+	switch (broad_std) {
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
+		aud_std = AUDIO_STANDARD_BTSC;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
+		aud_std = AUDIO_STANDARD_NICAM_BG;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
+		aud_std = AUDIO_STANDARD_NICAM_DK;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
+		aud_std = AUDIO_STANDARD_NICAM_I;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L:
+		aud_std = AUDIO_STANDARD_NICAM_L;
+		break;
+	}
+	return aud_std;
+}
+
 int atvdemod_init(void)
 {
+	int aud_std = AUDIO_STANDARD_NICAM_DK;
 	/* unsigned long data32; */
 	if (atvdemod_timer_en == 1) {
 		if (timer_init_flag == 1) {
@@ -1548,10 +1573,13 @@ int atvdemod_init(void)
 		}
 	}
 
+	if (is_meson_txlx_cpu())
+		sound_format = 1;
 	/* 1.set system clock when atv enter*/
 
 	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
 	atv_dmd_misc();
+
 	/*4.software reset*/
 	atv_dmd_soft_reset();
 	atv_dmd_soft_reset();
@@ -1579,6 +1607,11 @@ int atvdemod_init(void)
 		timer_init_flag = 1;
 	}
 	#endif
+	if (is_meson_txlx_cpu()) {
+		aud_std = amlfmt_aud_standard(broad_std);
+		configure_adec(aud_std);
+		adec_soft_reset();
+	}
 	pr_info("%s done\n", __func__);
 	return 0;
 }
