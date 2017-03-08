@@ -321,7 +321,7 @@ static int gpio_key_probe(struct platform_device *pdev)
 			goto get_key_param_failed;
 		}
 		desc = of_get_named_gpiod_flags(pdev->dev.of_node ,
-			"key_pin" ,  0 ,  NULL);
+			"key_pin" ,  i ,  NULL);
 		pdata->key[i].pin = desc_to_gpio(desc);
 		dev_info(&pdev->dev, "gpio_key: %d %s(%d)\n", i,
 			 (pdata->key[i].name) ,  pdata->key[i].pin);
@@ -383,9 +383,9 @@ static int gpio_key_probe(struct platform_device *pdev)
 	key = pdata->key;
 
 	for (i = 0; i < kp->key_num; i++) {
-		set_bit(key->code ,  input_dev->keybit);
+		set_bit(pdata->key[i].code ,  input_dev->keybit);
 		dev_info(&pdev->dev, "%s key(%d) registed.\n",
-			 key->name , key->code);
+			 key->name , pdata->key[i].code);
 	}
 	input_dev->name = "gpio_keypad";
 	input_dev->phys = "gpio_keypad/input0";
