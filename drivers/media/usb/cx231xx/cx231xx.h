@@ -73,6 +73,10 @@
 #define CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2 16
 #define CX231XX_BOARD_OTG102 17
 #define CX231XX_BOARD_KWORLD_UB445_USB_HYBRID 18
+#define CX231XX_BOARD_HAUPPAUGE_955Q 19
+#define CX231XX_BOARD_AVERMEDIA_H837A 20
+#define CX231XX_BOARD_AVERMEDIA_H837B 21
+#define CX231XX_BOARD_AVERMEDIA_H837M 22
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -122,6 +126,7 @@
 #define SLEEP_S5H1432    30
 #define CX23417_OSC_EN   8
 #define CX23417_RESET    9
+#define AVERMEDIA_H837_LED_PIN 27
 
 struct cx23417_fmt {
 	char  *name;
@@ -970,8 +975,8 @@ extern void cx231xx_417_unregister(struct cx231xx *dev);
 int cx231xx_ir_init(struct cx231xx *dev);
 void cx231xx_ir_exit(struct cx231xx *dev);
 #else
-#define cx231xx_ir_init(dev)	(0)
-#define cx231xx_ir_exit(dev)	(0)
+#define cx231xx_ir_init(dev)
+#define cx231xx_ir_exit(dev)
 #endif
 
 
@@ -1006,4 +1011,16 @@ static inline unsigned int norm_maxh(struct cx231xx *dev)
 	else
 		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
 }
+
+static inline bool is_model_avermedia_h837_series(int model)
+{
+	switch (model) {
+	case CX231XX_BOARD_AVERMEDIA_H837A:
+	case CX231XX_BOARD_AVERMEDIA_H837B:
+	case CX231XX_BOARD_AVERMEDIA_H837M:
+			return true;
+	}
+	return false;
+}
+
 #endif

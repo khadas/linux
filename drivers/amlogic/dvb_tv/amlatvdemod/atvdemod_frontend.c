@@ -373,7 +373,7 @@ int aml_atvdemod_get_snr_ex(void)
 EXPORT_SYMBOL(aml_atvdemod_get_snr_ex);
 
 /*tuner lock status & demod lock status should be same in silicon tuner*/
-static int aml_atvdemod_get_status(struct dvb_frontend *fe, void *stat)
+static int aml_atvdemod_get_status(struct dvb_frontend *fe, u32 *stat)
 {
 	int video_lock;
 	fe_status_t *status = (fe_status_t *) stat;

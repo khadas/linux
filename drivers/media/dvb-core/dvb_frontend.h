@@ -232,7 +232,7 @@ struct dvb_tuner_ops {
 
 #define TUNER_STATUS_LOCKED 1
 #define TUNER_STATUS_STEREO 2
-	int (*get_status)(struct dvb_frontend *fe, void *status);
+	int (*get_status)(struct dvb_frontend *fe, u32 *status);
 	void (*get_pll_status)(struct dvb_frontend *fe, void *status);
 	int (*get_rf_strength)(struct dvb_frontend *fe, u16 *strength);
 	int (*get_afc)(struct dvb_frontend *fe, s32 *afc);
@@ -276,7 +276,7 @@ struct analog_demod_ops {
 	int (*get_afc)(struct dvb_frontend *fe, s32 *afc);
 	int (*is_stereo)(struct dvb_frontend *fe);
 	int (*get_snr)(struct dvb_frontend *fe);
-	int (*get_status)(struct dvb_frontend *fe, void *status);
+	int (*get_status)(struct dvb_frontend *fe, u32 *status);
 	void (*get_pll_status)(struct dvb_frontend *fe, void *status);
 	void (*tuner_status)(struct dvb_frontend *fe);
 	void (*standby)(struct dvb_frontend *fe);
