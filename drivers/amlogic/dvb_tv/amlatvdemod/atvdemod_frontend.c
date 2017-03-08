@@ -28,6 +28,7 @@
 
 /* Local Headers */
 #include "atvdemod_func.h"
+#include "atvauddemod_func.h"
 #include "../aml_fe.h"
 #include <uapi/linux/dvb/frontend.h>
 #include <linux/amlogic/tvin/tvin.h>
@@ -96,6 +97,12 @@ static ssize_t aml_atvdemod_store(struct class *cls,
 		ret = aml_atvdemod_enter_mode(atvdemod_fe, 0);
 		if (ret)
 			pr_info("[tuner..] atv_restart error.\n");
+	} else if (!strncmp(parm[0], "clk", 3)) {
+		adc_set_pll_cntl(1, 0x1);
+		atvdemod_clk_init();
+		if (is_meson_txlx_cpu())
+			aud_demod_clk_gate(1);
+		pr_info("atvdemod_clk_init done ....\n");
 	} else if (!strcmp(parm[0], "tune")) {
 		/* val  = simple_strtol(parm[1], NULL, 10); */
 	} else if (!strcmp(parm[0], "set")) {
@@ -265,6 +272,8 @@ static int aml_atvdemod_enter_mode(struct aml_fe *fe, int mode)
 	adc_set_pll_cntl(1, 0x1);
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
+	if (is_meson_txlx_cpu())
+		aud_demod_clk_gate(1);
 	err_code = atvdemod_init();
 	if (err_code) {
 		pr_dbg("[amlatvdemod..]%s init atvdemod error.\n", __func__);
@@ -287,6 +296,8 @@ static int aml_atvdemod_leave_mode(struct aml_fe *fe, int mode)
 	/* reset adc pll flag */
 	/* printk("\n%s: init atvdemod flag...\n",__func__); */
 	adc_set_pll_cntl(0, 0x1);
+	if (is_meson_txlx_cpu())
+		aud_demod_clk_gate(0);
 	atvdemod_state = ATVDEMOD_STATE_IDEL;
 	return 0;
 }
@@ -627,6 +638,7 @@ static void aml_atvdemod_dt_parse(struct platform_device *pdev)
 }
 static struct resource amlatvdemod_memobj;
 void __iomem *amlatvdemod_reg_base;
+void __iomem *atvaudiodem_reg_base;
 void __iomem *amlatvdemod_hiu_reg_base;
 void __iomem *amlatvdemod_periphs_reg_base;
 int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
@@ -646,6 +658,19 @@ int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 		return 0;
 	}
 	writel(val, (amlatvdemod_reg_base + reg));
+	return 0;
+}
+int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
+{
+	if (atvaudiodem_reg_base)
+		*val = readl(atvaudiodem_reg_base + reg);
+	return 0;
+}
+
+int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
+{
+	if (atvaudiodem_reg_base)
+		writel(val, (atvaudiodem_reg_base + reg));
 	return 0;
 }
 
@@ -711,10 +736,35 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	}
 	pr_info("%s: amlatvdemod maped reg_base =%p, size=%x\n",
 			__func__, amlatvdemod_reg_base, size_io_reg);
+	/* get audio demod IOMEM addr */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res) {
+		dev_err(&pdev->dev, "no audio demod memory resource\n");
+		atvaudiodem_reg_base = NULL;
+	} else {
+		size_io_reg = resource_size(res);
+		pr_info("amlatvdemod_probe reg=%p,size=%x\n",
+				(void *)res->start, size_io_reg);
+		atvaudiodem_reg_base =
+			devm_ioremap_nocache(&pdev->dev, res->start,
+					size_io_reg);
+		if (!atvaudiodem_reg_base) {
+			dev_err(&pdev->dev, "aml atvaudiodemod ioremap failed\n");
+			return -ENOMEM;
+		}
+		pr_info("%s: atvaudiodemod maped reg_base =%p, size=%x\n",
+			__func__, atvaudiodem_reg_base, size_io_reg);
+	}
 	/*remap hiu mem*/
-	amlatvdemod_hiu_reg_base = ioremap(0xc883c000, 0x2000);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		amlatvdemod_hiu_reg_base = ioremap(0xff63c000, 0x2000);
+	else
+		amlatvdemod_hiu_reg_base = ioremap(0xc883c000, 0x2000);
 	/*remap periphs mem*/
-	amlatvdemod_periphs_reg_base = ioremap(0xc8834000, 0x2000);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		amlatvdemod_periphs_reg_base = ioremap(0xff634000, 0x2000);
+	else
+		amlatvdemod_periphs_reg_base = ioremap(0xc8834000, 0x2000);
 
 	/*initialize the tuner common struct and register*/
 	aml_register_fe_drv(AM_DEV_ATV_DEMOD, &aml_atvdemod_drv);
