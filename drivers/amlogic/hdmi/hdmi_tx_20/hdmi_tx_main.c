@@ -141,9 +141,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		return;
 	suspend_flag = 1;
 	phdmi->hpd_lock = 1;
-	hdcp_tst_sig = 1;
-	pr_info("%s[%d] set hdcp_pwr as %d\n", __func__, __LINE__,
-		hdcp_tst_sig);
 	msleep(20);
 	phdmi->HWOp.CntlMisc(phdmi, MISC_AVMUTE_OP, SET_AVMUTE);
 	mdelay(100);
@@ -659,14 +656,6 @@ static int set_disp_mode_auto(void)
 	}
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->output_blank_flag = 1;
-	if (hdev->hdcp_mode == 1) {
-		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 1);
-		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_ON);
-	}
-	if (hdev->hdcp_mode == 2) {
-		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_MUX_INIT, 2);
-		hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP22_ON);
-	}
 	hdev->ready = 1;
 	return ret;
 }
@@ -1844,10 +1833,8 @@ static ssize_t show_frac_rate(struct device *dev,
 static ssize_t store_hdcp_clkdis(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	pr_info("set hdcp clkdis: %s\n", buf);
-
 	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_HDCP_CLKDIS,
-		(buf[0] == '1') ? 1 : 0);
+		buf[0] == '1' ? 1 : 0);
 	return count;
 }
 
@@ -1860,11 +1847,6 @@ static ssize_t show_hdcp_clkdis(struct device *dev,
 static ssize_t store_hdcp_pwr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	if (buf[0] == '1') {
-		hdcp_tst_sig = 1;
-		pr_info("%s[%d] set hdcp_pwr as %d\n", __func__, __LINE__,
-			hdcp_tst_sig);
-	}
 	return count;
 }
 
@@ -1873,19 +1855,14 @@ static ssize_t show_hdcp_pwr(struct device *dev,
 {
 	int pos = 0;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", !!hdcp_tst_sig);
-	if (hdcp_tst_sig == 1) {
-		hdcp_tst_sig = 0;
-		pr_info("%s[%d] set hdcp_pwr as %d\n", __func__, __LINE__,
-			hdcp_tst_sig);
-	}
 	return pos;
 }
 
 static ssize_t store_hdcp_byp(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_BYP, 0);
+	hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_HDCP_CLKDIS,
+		buf[0] == '1' ? 1 : 0);
 
 	return count;
 }
@@ -1977,22 +1954,22 @@ static ssize_t store_hdcp_mode(struct device *dev,
 {
 	pr_info("hdcp: set mode as %s\n", buf);
 	hdmitx_device.HWOp.CntlDDC(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
-	if (strncmp(buf, "-1", 2) == 0) {
-		hdmitx_device.hdcp_mode = -1;
-		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
-			DDC_HDCP_OP, HDCP14_OFF);
-	}
 	if (strncmp(buf, "0", 1) == 0) {
 		hdmitx_device.hdcp_mode = 0;
+		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
+			DDC_HDCP_OP, HDCP14_OFF);
+		hdmitx_hdcp_do_work(&hdmitx_device);
 	}
 	if (strncmp(buf, "1", 1) == 0) {
 		pr_info("%s[%d]", __func__, __LINE__);
 		hdmitx_device.hdcp_mode = 1;
+		hdmitx_hdcp_do_work(&hdmitx_device);
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_OP, HDCP14_ON);
 	}
 	if (strncmp(buf, "2", 1) == 0) {
 		hdmitx_device.hdcp_mode = 2;
+		hdmitx_hdcp_do_work(&hdmitx_device);
 		hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 			DDC_HDCP_MUX_INIT, 2);
 	}
@@ -2032,6 +2009,8 @@ static ssize_t store_hdcp_ctrl(struct device *dev,
 		if (strncmp(buf+4, "22", 2) == 0)
 			hdmitx_device.HWOp.CntlDDC(&hdmitx_device,
 				DDC_HDCP_OP, HDCP22_OFF);
+		hdmitx_device.hdcp_mode = 0;
+		hdmitx_hdcp_do_work(&hdmitx_device);
 	}
 
 	return count;
@@ -2985,7 +2964,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.vic_count = 0;
 	hdmitx_device.auth_process_timer = 0;
 	hdmitx_device.force_audio_flag = 0;
-	hdmitx_device.hdcp_mode = -1; /* no hdcp by default */
+	hdmitx_device.hdcp_mode = 0;
 	hdmitx_device.ready = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

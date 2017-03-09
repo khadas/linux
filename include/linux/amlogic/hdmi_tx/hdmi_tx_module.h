@@ -174,6 +174,7 @@ struct hdmitx_dev {
 	struct delayed_work work_hpd_plugout;
 	struct work_struct work_internal_intr;
 	struct work_struct work_hdr;
+	struct delayed_work work_do_hdcp;
 #ifdef CONFIG_AML_HDMI_TX_14
 	struct delayed_work cec_work;
 #endif
@@ -302,7 +303,6 @@ struct hdmitx_dev {
 	#define HDCP14_OFF	0x2
 	#define HDCP22_ON	0x3
 	#define HDCP22_OFF	0x4
-#define DDC_HDCP_BYP		(CMD_DDC_OFFSET + 0x03)
 #define DDC_IS_HDCP_ON          (CMD_DDC_OFFSET + 0x04)
 #define DDC_HDCP_GET_AKSV       (CMD_DDC_OFFSET + 0x05)
 #define DDC_HDCP_GET_BKSV       (CMD_DDC_OFFSET + 0x06)
@@ -508,7 +508,7 @@ extern struct vinfo_s *hdmi_get_current_vinfo(void);
 void phy_pll_off(void);
 
 extern int get_hpd_state(void);
-
+void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev);
 
 /***********************************************************************
  *    hdmitx hardware level interface

@@ -467,6 +467,9 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 /* [ 6: 0] clk_div. Divide by 1. = 24/1 = 24 MHz */
 	hd_set_reg_bits(P_HHI_HDMI_CLK_CNTL, 0x100, 0, 16);
 
+	hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
+	hd_set_reg_bits(P_HHI_GCLK_MPEG2, 1, 3, 1);
+
 /* Enable clk81_hdmitx_pclk */
 	hd_set_reg_bits(P_HHI_GCLK_MPEG2, 1, 4, 1);
 	/* wire	wr_enable = control[3]; */
@@ -495,6 +498,16 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 {
 	unsigned int data32 = 0;
+
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
+	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x7);
+	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x53);
+	/* Enable skpclk to HDCP2.2 IP */
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 7, 1);
+	/* Enable esmclk to HDCP2.2 IP */
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 6, 1);
+	/* Enable tmds_clk to HDCP2.2 IP */
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 5, 1);
 
 	hdmitx_hpd_hw_op(HPD_INIT_DISABLE_PULLUP);
 	hdmitx_hpd_hw_op(HPD_INIT_SET_FILTER);
@@ -2658,19 +2671,7 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned cmd, unsigned argv)
 			pr_info("hdmitx: swrstzreq\n");
 		}
 		return 0;
-	} else if (cmd == HDMITX_HDCP_MONITOR) {
-		/* TODO */
-		return 0;
-	} else if (cmd == HDMITX_IP_SW_RST) {
-		return 0;	/* TODO */
-	} else if (cmd == HDMITX_CBUS_RST) {
-		return 0;/* todo */
-		hd_set_reg_bits(P_RESET2_REGISTER, 1, 15, 1);
-		return 0;
-	} else if (cmd == HDMITX_INTR_MASKN_CNTL)
-		/* TODO */
-		return 0;
-	else if (cmd == HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH) {
+	} else if (cmd == HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH) {
 		/* turnon digital module if gpio is high */
 		if (hdmitx_hpd_hw_op(HPD_IS_HPD_MUXED) == 0) {
 			if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO)) {
@@ -2768,7 +2769,7 @@ static void cts_test(struct hdmitx_dev *hdev)
 				cts_buf[i].val, i - 1, cts_buf[i - 1].val);
 		}
 
-	for (i = 0; i < AUD_CTS_LOG_NUM; i++) {
+	for (i = 0, min = max = cts_buf[0].val; i < AUD_CTS_LOG_NUM; i++) {
 		total += cts_buf[i].val;
 		if (min > cts_buf[i].val)
 			min = cts_buf[i].val;
@@ -3510,6 +3511,31 @@ static void hdcp_start_timer(struct hdmitx_dev *hdev)
 	mod_timer(&hdev->hdcp_timer, jiffies + HZ / 100);
 }
 
+static void set_pkf_duk_nonce(void)
+{
+	static int nonce_mode = 1; /* 1: use HW nonce   0: use SW nonce */
+
+	/* Configure duk/pkf */
+	hdmitx_hdcp_opr(0xc);
+	if (nonce_mode == 1)
+		hdmitx_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xf);
+	else {
+		hdmitx_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xe);
+/* Configure nonce[127:0].
+ * MSB must be written the last to assert nonce_vld signal.
+ */
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_0,  0x32107654);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_1,  0xba98fedc);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_2,  0xcdef89ab);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_3,  0x45670123);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_0,  0x76543210);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_1,  0xfedcba98);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_2,  0x89abcdef);
+		hdmitx_wr_reg(HDMITX_TOP_NONCE_3,  0x01234567);
+	}
+	udelay(10);
+}
+
 static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 	unsigned long argv)
 {
@@ -3552,8 +3578,19 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 
 		break;
 	case DDC_HDCP_MUX_INIT:
-		if (argv == 2)
+		if (argv == 2) {
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
+			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
+			udelay(5);
+			hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_CTRL, 0x6);
+			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
+			udelay(10);
+			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
+			udelay(10);
+			hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MASK, 0);
+			hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MUTE, 0);
+			set_pkf_duk_nonce();
+		}
 		if (argv == 1)
 			hdmitx_hdcp_opr(6);
 		break;
@@ -3563,7 +3600,6 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 			rptx_ksv_no = 0;
 			memset(rptx_ksv_buf, 0, sizeof(rptx_ksv_buf));
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
-			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 0, 6, 1);
 			hdmitx_hdcp_opr(6);
 			hdmitx_hdcp_opr(1);
 			hdcp_start_timer(hdev);
@@ -3602,9 +3638,6 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 		break;
 	case DDC_HDCP_22_LSTORE:
 		return hdmitx_hdcp_opr(0xb);
-		break;
-	case DDC_HDCP_BYP:
-		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
 		if (argv == 1) {
@@ -3913,7 +3946,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned cmd,
 		config_avmute(argv);
 		break;
 	case MISC_HDCP_CLKDIS:
-		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, argv, 6, 1);
+		pr_info("set hdcp clkdis: %d\n", !!argv);
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, !!argv, 6, 1);
 		break;
 	default:
 		hdmi_print(ERR, "misc: " "hdmitx: unknown cmd: 0x%x\n", cmd);
@@ -4170,13 +4204,6 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
  * until later enable by test.c
  */
 	data32  = 0;
-	data32 |= (0 << 6);
-	data32 |= (0 << 5);
-	data32 |= (0 << 4);
-	data32 |= (0 << 3);
-	data32 |= (0 << 2);
-	data32 |= (0 << 1);
-	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_MC_CLKDIS, data32);
 
 	/* Enable normal output to PHY */
