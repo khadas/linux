@@ -125,6 +125,10 @@ int flm32_chk3_rtn = 16;
 module_param(flm32_chk3_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk3_rtn, "flm32_chk3_rtn");
 
+int flm32_dif02_ratio = 8;
+module_param(flm32_dif02_ratio, int, 0644);
+MODULE_PARM_DESC(flm32_dif02_ratio, "flm32_dif02_ratio");
+
 int flm22_chk20_sml = 6;
 module_param(flm22_chk20_sml, int, 0644);
 MODULE_PARM_DESC(flm22_chk20_sml, "flm22_chk20_sml");
@@ -682,9 +686,8 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	if (nMn <= (1 << flm32_f2fdif_min0)) {
 		nSTP = nT2;
 	} else {
-		nSTP =
-		    16 * (nDif02[HISDIFNUM - 1] - nMn) + (nAV1 - nMn +
-							  sFrmDifLgTDif) / 2;
+		nSTP = flm32_dif02_ratio * (nDif02[HISDIFNUM - 1] - nMn) +
+				(nAV1 - nMn + sFrmDifLgTDif) / 2;
 		nSTP = nSTP / (nAV1 - nMn + sFrmDifLgTDif);
 
 		/* ======================== */
