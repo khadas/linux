@@ -248,6 +248,9 @@ extern int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p);
 /* clean decoder input */
 extern void vdec_clean_input(struct vdec_s *vdec);
 
+/* sync decoder input */
+extern int vdec_sync_input(struct vdec_s *vdec);
+
 /* enable decoder input */
 extern void vdec_enable_input(struct vdec_s *vdec);
 

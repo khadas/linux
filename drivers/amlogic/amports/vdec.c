@@ -60,6 +60,7 @@
 #include "vdec_input.h"
 
 #include "arch/clk.h"
+#include "arch/secprot.h"
 #include <linux/reset.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/codec_mm/codec_mm.h>
@@ -309,7 +310,7 @@ struct vdec_s *vdec_create(struct stream_port_s *port,
 	struct vdec_s *vdec;
 	int type = VDEC_TYPE_SINGLE;
 
-	if (port->type & PORT_TYPE_DECODER_SCHED)
+	if (is_mult_inc(port->type))
 		type = (port->type & PORT_TYPE_FRAME) ?
 			VDEC_TYPE_FRAME_BLOCK :
 			VDEC_TYPE_STREAM_PARSER;
@@ -372,6 +373,7 @@ int vdec_set_pts(struct vdec_s *vdec, u32 pts)
 int vdec_set_pts64(struct vdec_s *vdec, u64 pts64)
 {
 	vdec->pts64 = pts64;
+	vdec->pts = (u32)div64_u64(pts64 * 9, 100);
 	vdec->pts_valid = true;
 
 	trace_vdec_set_pts64(vdec, pts64);
@@ -674,6 +676,8 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 				vdec_sync_input_write(vdec);
 
 				wp = READ_VREG(HEVC_STREAM_WR_PTR);
+
+				/*pr_info("vdec: restore context\r\n");*/
 			}
 
 		} else {
@@ -943,6 +947,8 @@ void vdec_save_input_context(struct vdec_s *vdec)
 		}
 
 		input->swap_valid = true;
+		input->swap_needed = false;
+		/*pr_info("vdec: save context\r\n");*/
 
 		vdec_sync_input_read(vdec);
 
@@ -969,6 +975,37 @@ void vdec_clean_input(struct vdec_s *vdec)
 			break;
 	}
 	vdec_save_input_context(vdec);
+}
+
+int vdec_sync_input(struct vdec_s *vdec)
+{
+	struct vdec_input_s *input = &vdec->input;
+	u32 rp = 0, wp = 0, fifo_len = 0;
+	int size;
+
+	vdec_sync_input_read(vdec);
+	vdec_sync_input_write(vdec);
+	if (input->target == VDEC_INPUT_TARGET_VLD) {
+		rp = READ_VREG(VLD_MEM_VIFIFO_RP);
+		wp = READ_VREG(VLD_MEM_VIFIFO_WP);
+
+	} else if (input->target == VDEC_INPUT_TARGET_HEVC) {
+		rp = READ_VREG(HEVC_STREAM_RD_PTR);
+		wp = READ_VREG(HEVC_STREAM_WR_PTR);
+		fifo_len = (READ_VREG(HEVC_STREAM_FIFO_CTL)
+				>> 16) & 0x7f;
+	}
+	if (wp >= rp)
+		size = wp - rp + fifo_len;
+	else
+		size = wp + input->size - rp + fifo_len;
+	if (size < 0) {
+		pr_info("%s error: input->size %x wp %x rp %x fifo_len %x => size %x\r\n",
+			__func__, input->size, wp, rp, fifo_len, size);
+		size = 0;
+	}
+	return size;
+
 }
 
 const char *vdec_status_str(struct vdec_s *vdec)
@@ -1351,7 +1388,10 @@ void vdec_release(struct vdec_s *vdec)
 		 * for either un-initialized vdec or a ionvideo
 		 * instance reserved for legacy path.
 		 */
-		ionvideo_release_map(vdec->vf_receiver_inst);
+		if (vdec->frame_base_video_path == FRAME_BASE_PATH_IONVIDEO
+				&& !vdec_dual(vdec)) {
+			ionvideo_release_map(vdec->vf_receiver_inst);
+		}
 	}
 
 	platform_device_unregister(vdec->dev);
@@ -1553,6 +1593,25 @@ static inline bool vdec_ready_to_run(struct vdec_s *vdec)
 	return r;
 }
 
+/*
+ * Set up secure protection for each decoder instance running.
+ * Note: The operation from REE side only resets memory access
+ * to a default policy and even a non_secure type will still be
+ * changed to secure type automatically when secure source is
+ * detected inside TEE.
+ */
+static inline void vdec_prepare_run(struct vdec_s *vdec)
+{
+	struct vdec_input_s *input = &vdec->input;
+	int type = (vdec_secure(vdec)) ? DMC_DEV_TYPE_SECURE :
+			DMC_DEV_TYPE_NON_SECURE;
+
+	if (input->target == VDEC_INPUT_TARGET_VLD)
+		tee_config_device_secure(DMC_DEV_ID_VDEC, type);
+	else if (input->target == VDEC_INPUT_TARGET_HEVC)
+		tee_config_device_secure(DMC_DEV_ID_HEVC, type);
+}
+
 /* struct vdec_core_shread manages all decoder instance in active list. When
  * a vdec is added into the active list, it can onlt be in two status:
  * VDEC_STATUS_CONNECTED(the decoder does not own HW resource and ready to run)
@@ -1677,6 +1736,8 @@ static int vdec_core_thread(void *data)
 #ifdef CONFIG_MULTI_DEC
 			vdec_profile(vdec, VDEC_PROFILE_EVENT_RUN);
 #endif
+			vdec_prepare_run(vdec);
+
 			vdec->run(vdec, vdec_callback, core);
 		}
 

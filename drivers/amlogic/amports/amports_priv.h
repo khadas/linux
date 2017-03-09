@@ -52,4 +52,5 @@ struct device *amports_get_dma_device(void);
 struct device *get_codec_cma_device(void);
 int amports_get_debug_flags(void);
 
+unsigned char is_mult_inc(unsigned int);
 #endif
