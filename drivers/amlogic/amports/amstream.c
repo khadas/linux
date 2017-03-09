@@ -513,6 +513,17 @@ struct stream_buf_s *get_buf_by_type(u32 type)
 	return NULL;
 }
 
+unsigned char is_mult_inc(unsigned int type)
+{
+	unsigned char ret = 0;
+	if (amports_get_debug_flags() & 0xf000)
+		ret = (amports_get_debug_flags() & 0x1000)
+			? 1 : 0;
+	else if (type & PORT_TYPE_DECODER_SCHED)
+		ret = 1;
+	return ret;
+}
+
 void set_sample_rate_info(int arg)
 {
 	audio_dec_info.sample_rate = arg;
@@ -1429,7 +1440,7 @@ static int amstream_open(struct inode *inode, struct file *file)
 
 	if (port->type & PORT_TYPE_VIDEO) {
 		for (s = &ports[0], i = 0; i < amstream_port_num; i++, s++) {
-			if (((s->type & PORT_TYPE_DECODER_SCHED) == 0) &&
+			if ((!is_mult_inc(s->type)) &&
 				(s->type & PORT_TYPE_VIDEO) &&
 				(s->flag & PORT_FLAG_IN_USE)) {
 				mutex_unlock(&amstream_mutex);
@@ -2066,7 +2077,7 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 		break;
 	}
 	case AMSTREAM_SET_FRAME_BASE_PATH:
-		if ((this->type & PORT_TYPE_DECODER_SCHED) &&
+		if (is_mult_inc(this->type) &&
 			(parm.frame_base_video_path < FRAME_BASE_PATH_MAX)) {
 			vdec_set_video_path(priv->vdec, parm.data_32);
 		} else
