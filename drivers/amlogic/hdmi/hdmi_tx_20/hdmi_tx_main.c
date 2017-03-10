@@ -984,6 +984,29 @@ static ssize_t show_edid_parsing(struct device *dev,
 	return pos;
 }
 
+/*
+ * sink_type attr
+ * sink, or repeater
+ */
+static ssize_t show_sink_type(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (!hdev->hpd_state) {
+		pos += snprintf(buf+pos, PAGE_SIZE, "none\n");
+		return pos;
+	}
+
+	if (hdev->hdmi_info.vsdb_phy_addr.b)
+		pos += snprintf(buf+pos, PAGE_SIZE, "repeater\n");
+	else
+		pos += snprintf(buf+pos, PAGE_SIZE, "sink\n");
+
+	return pos;
+}
+
 void hdmitx_audio_mute_op(unsigned int flag)
 {
 	hdmitx_device.tx_aud_cfg = flag;
@@ -2178,6 +2201,7 @@ static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
 static DEVICE_ATTR(rawedid, S_IRUGO, show_rawedid, NULL);
+static DEVICE_ATTR(sink_type, S_IRUGO, show_sink_type, NULL);
 static DEVICE_ATTR(edid_parsing, S_IRUGO, show_edid_parsing, NULL);
 static DEVICE_ATTR(config, S_IWUSR | S_IRUGO | S_IWGRP, show_config,
 	store_config);
@@ -2996,6 +3020,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_edid);
 	ret = device_create_file(dev, &dev_attr_rawedid);
+	ret = device_create_file(dev, &dev_attr_sink_type);
 	ret = device_create_file(dev, &dev_attr_edid_parsing);
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
@@ -3183,6 +3208,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_edid);
 	device_remove_file(dev, &dev_attr_rawedid);
+	device_remove_file(dev, &dev_attr_sink_type);
 	device_remove_file(dev, &dev_attr_edid_parsing);
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
