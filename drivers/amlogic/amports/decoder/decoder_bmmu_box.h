@@ -43,6 +43,11 @@ void *decoder_bmmu_box_get_virt_addr(
 int decoder_bmmu_box_check_and_wait_size(
 	int size, int flags);
 
+int decoder_bmmu_box_alloc_buf_phy(
+	void *handle, int idx,
+	int size, unsigned char *driver_name,
+	unsigned long *buf_phy_addr);
+
 #define BMMU_ALLOC_FLAGS_WAIT (1 << 0)
 #define BMMU_ALLOC_FLAGS_CAN_CLEAR_KEEPER (1 << 1)
 #define BMMU_ALLOC_FLAGS_WAITCLEAR \

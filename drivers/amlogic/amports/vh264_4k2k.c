@@ -49,6 +49,7 @@
 #include "amports_priv.h"
 #include "vdec.h"
 #include "amvdec.h"
+#include "decoder/decoder_bmmu_box.h"
 
 
 #if  0 /* MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6TVD */
@@ -60,6 +61,12 @@
 
 #define PUT_INTERVAL        (HZ/100)
 #define ERROR_RESET_COUNT   500
+#define DECODE_BUFFER_NUM_MAX    32
+#define DISPLAY_BUFFER_NUM       6
+#define MAX_BMMU_BUFFER_NUM	(DECODE_BUFFER_NUM_MAX + DISPLAY_BUFFER_NUM)
+#define VF_BUFFER_IDX(n) (2  + n)
+#define DECODER_WORK_SPACE_SIZE 0x800000
+
 
 #if  1 /* MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV */
 #define H264_4K2K_SINGLE_CORE 1
@@ -76,7 +83,7 @@ static void vh264_4k2k_vf_put(struct vframe_s *, void *);
 static int vh264_4k2k_event_cb(int type, void *data, void *private_data);
 
 static void vh264_4k2k_prot_init(void);
-static void vh264_4k2k_local_init(void);
+static int vh264_4k2k_local_init(void);
 static void vh264_4k2k_put_timer_func(unsigned long arg);
 
 static const char vh264_4k2k_dec_id[] = "vh264_4k2k-dev";
@@ -91,7 +98,7 @@ static const struct vframe_operations_s vh264_4k2k_vf_provider = {
 	.event_cb = vh264_4k2k_event_cb,
 	.vf_states = vh264_4k2k_vf_states,
 };
-
+static void *mm_blk_handle;
 static struct vframe_provider_s vh264_4k2k_vf_prov;
 
 static u32 mb_width_old, mb_height_old;
@@ -226,14 +233,12 @@ static struct device *cma_dev;
 #define MC_TOTAL_SIZE           (28*SZ_1K)
 #define MC_SWAP_SIZE            (4*SZ_1K)
 
-static unsigned long work_space_adr, decoder_buffer_start, decoder_buffer_end;
+static unsigned long work_space_adr, ref_start_addr;
 static unsigned long reserved_buffer;
 
-#define DECODE_BUFFER_NUM_MAX    32
-#define DISPLAY_BUFFER_NUM       6
 
 #define video_domain_addr(adr) (adr&0x7fffffff)
-#define DECODER_WORK_SPACE_SIZE 0x400000
+
 
 struct buffer_spec_s {
 	unsigned int y_addr;
@@ -255,8 +260,7 @@ struct buffer_spec_s {
 	int alloc_count;
 };
 
-static struct buffer_spec_s buffer_spec[DECODE_BUFFER_NUM_MAX +
-					DISPLAY_BUFFER_NUM];
+static struct buffer_spec_s buffer_spec[MAX_BMMU_BUFFER_NUM];
 
 #ifdef DOUBLE_WRITE
 #define spec2canvas(x)  \
@@ -370,132 +374,61 @@ static int vh264_4k2k_event_cb(int type, void *data, void *private_data)
 	return 0;
 }
 
-int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
-		int mb_height, struct buffer_spec_s *buffer_spec)
+static int init_canvas(int refbuf_size, long dpb_size, int dpb_number,
+		int mb_width, int mb_height,
+		struct buffer_spec_s *buffer_spec)
 {
-	unsigned long dpb_addr, addr;
-	int i;
+	unsigned long  addr;
+	int i, j, ret = -1;
 	int mb_total;
 	int canvas_addr = ANC0_CANVAS_ADDR;
 	int vdec2_canvas_addr = VDEC2_ANC0_CANVAS_ADDR;
 	int index = AMVDEC_H264_4K2K_CANVAS_INDEX;
-	u32 disp_addr = 0xffffffff;
-	bool use_alloc = false;
-	int alloc_count = 0;
-	struct canvas_s cur_canvas;
-
-	dpb_addr = start_addr + dpb_size;
 
 	mb_total = mb_width * mb_height;
-
-	canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff), &cur_canvas);
-	disp_addr = (cur_canvas.addr + 7) >> 3;
-
 	mutex_lock(&vh264_4k2k_mutex);
 
-	for (i = 0; i < dpb_number; i++) {
-		WRITE_VREG(canvas_addr++,
-				   index | ((index + 1) << 8) |
-				   ((index + 1) << 16));
-		if (!H264_4K2K_SINGLE_CORE) {
-			WRITE_VREG(vdec2_canvas_addr++,
-					index | ((index + 1) << 8) |
-					((index + 1) << 16));
-		}
-
-		if (((dpb_addr + (mb_total << 8) + (mb_total << 7)) >=
-			 decoder_buffer_end) && (!use_alloc)) {
-			pr_info("start alloc for %d/%d\n", i, dpb_number);
-			use_alloc = true;
-		}
-
-		if (use_alloc) {
-#ifdef DOUBLE_WRITE
-			int page_count =
-				PAGE_ALIGN((mb_total << 8) + (mb_total << 7) +
-						   (mb_total << 6) +
-						   (mb_total << 5)) / PAGE_SIZE;
-#else
-			int page_count =
-				PAGE_ALIGN((mb_total << 8) +
-						(mb_total << 7)) / PAGE_SIZE;
-#endif
-
-			if (buffer_spec[i].phy_addr) {
-				if (page_count != buffer_spec[i].alloc_count) {
-					pr_info("Delay release CMA buffer%d\n",
-						   i);
-
-					/*dma_release_from_contiguous(cma_dev,
-							buffer_spec[i].
-							alloc_pages,
-							buffer_spec[i].
-							alloc_count);
-							*/
-					codec_mm_free_for_dma(MEM_NAME,
-						buffer_spec[i].phy_addr);
-					buffer_spec[i].phy_addr = 0;
-					buffer_spec[i].alloc_pages = NULL;
-					buffer_spec[i].alloc_count = 0;
-				} else
-					pr_info("Re-use CMA buffer %d\n", i);
-			}
-
-			if (!buffer_spec[i].phy_addr) {
-				if (codec_mm_get_free_size()
-					< (page_count * PAGE_SIZE)) {
-					pr_err
-					("CMA not enough free keep buf! %d\n",
-					i);
-					try_free_keep_video(1);
-				}
-				if (!codec_mm_enough_for_size(
-					page_count * PAGE_SIZE, 1)) {
-					buffer_spec[i].alloc_count = 0;
-					fatal_error =
-						DECODER_FATAL_ERROR_NO_MEM;
-					mutex_unlock(&vh264_4k2k_mutex);
-					return -1;
-				}
-				buffer_spec[i].alloc_count = page_count;
-				buffer_spec[i].phy_addr =
-					codec_mm_alloc_for_dma(
-					MEM_NAME, buffer_spec[i].alloc_count,
-					4 + PAGE_SHIFT,
-					CODEC_MM_FLAGS_CMA_CLEAR |
-					CODEC_MM_FLAGS_FOR_VDECODER);
-			}
-			alloc_count++;
-
-			if (!buffer_spec[i].phy_addr) {
-				buffer_spec[i].alloc_count = 0;
-				pr_info
-				("264 4K2K decoder memory alloc failed %d.\n",
-				 i);
+	for (j = 0; j < (dpb_number + 1); j++) {
+		int page_count;
+		if (j == 0) {
+			ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle, 1,
+				refbuf_size, DRIVER_NAME, &ref_start_addr);
+			if (ret < 0) {
 				mutex_unlock(&vh264_4k2k_mutex);
-				return -1;
+				return ret;
 			}
-			addr = buffer_spec[i].phy_addr;
-			dpb_addr = addr;
-		} else {
-			if (buffer_spec[i].phy_addr) {
-				codec_mm_free_for_dma(MEM_NAME,
-					buffer_spec[i].phy_addr);
-				buffer_spec[i].phy_addr = 0;
-				buffer_spec[i].alloc_pages = NULL;
-				buffer_spec[i].alloc_count = 0;
-			}
+		continue;
+	}
 
-			addr = dpb_addr;
-			dpb_addr += dpb_size;
+	WRITE_VREG(canvas_addr++, index | ((index + 1) << 8) |
+			((index + 1) << 16));
+	if (!H264_4K2K_SINGLE_CORE) {
+		WRITE_VREG(vdec2_canvas_addr++,
+			index | ((index + 1) << 8) |
+			((index + 1) << 16));
+	}
+
+	i = j - 1;
 #ifdef DOUBLE_WRITE
-			dpb_addr += dpb_size / 4;
+	 page_count =
+		PAGE_ALIGN((mb_total << 8) + (mb_total << 7) +
+			   (mb_total << 6) + (mb_total << 5)) / PAGE_SIZE;
+#else
+	 page_count =
+		PAGE_ALIGN((mb_total << 8) + (mb_total << 7)) / PAGE_SIZE;
 #endif
-		}
 
-		if (((addr + 7) >> 3) == disp_addr)
-			addr = start_addr;
+	ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle,
+			VF_BUFFER_IDX(i), page_count << PAGE_SHIFT,
+				DRIVER_NAME, &buffer_spec[i].phy_addr);
 
+			if (ret < 0) {
+				buffer_spec[i].alloc_count = 0;
+				mutex_unlock(&vh264_4k2k_mutex);
+				return ret;
+			}
+		addr = buffer_spec[i].phy_addr;
+		buffer_spec[i].alloc_count = page_count;
 		buffer_spec[i].y_addr = addr;
 		buffer_spec[i].y_canvas_index = index;
 		canvas_config(index,
@@ -538,7 +471,6 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 				mb_height << 2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 
-		addr += mb_total << 5;
 		index++;
 #endif
 	}
@@ -547,8 +479,6 @@ int init_canvas(int start_addr, long dpb_size, int dpb_number, int mb_width,
 
 	pr_info
 	("H264 4k2k decoder canvas allocation successful, ");
-	pr_info("%d CMA blocks allocated, canvas %d-%d\n",
-	 alloc_count, AMVDEC_H264_4K2K_CANVAS_INDEX, index - 1);
 
 	return 0;
 }
@@ -630,14 +560,14 @@ static void do_alloc_work(struct work_struct *work)
 {
 	int level_idc, max_reference_frame_num, mb_width, mb_height,
 		frame_mbs_only_flag;
-	int dpb_size, ref_size;
-	int dpb_start_addr, ref_start_addr, max_dec_frame_buffering,
+	int dpb_size, ref_size, refbuf_size;
+	int max_dec_frame_buffering,
 		total_dec_frame_buffering;
 	unsigned int chroma444;
 	unsigned int crop_infor, crop_bottom, crop_right;
 	int ret = READ_VREG(MAILBOX_COMMAND);
 
-	ref_start_addr = decoder_buffer_start;
+
 	ret = READ_VREG(MAILBOX_DATA_0);
 	/*  MAILBOX_DATA_1 :
 		bit15    : frame_mbs_only_flag
@@ -699,17 +629,13 @@ static void do_alloc_work(struct work_struct *work)
 
 	dpb_size = mb_width * mb_height * 384;
 	ref_size = mb_width * mb_height * 96;
-	dpb_start_addr =
-		ref_start_addr + (ref_size * (max_reference_frame_num + 1)) * 2;
-	/* dpb_start_addr = reserved_buffer + dpb_size; */
+	refbuf_size = ref_size * (max_reference_frame_num + 1) * 2;
 
-	pr_info
-	("dpb_start_addr=0x%x, dpb_size=%d, total_dec_frame_buffering=%d, ",
-	 dpb_start_addr, dpb_size, total_dec_frame_buffering);
+
 	pr_info("mb_width=%d, mb_height=%d\n",
 	 mb_width, mb_height);
 
-	ret = init_canvas(dpb_start_addr, dpb_size,
+	ret = init_canvas(refbuf_size,  dpb_size,
 			total_dec_frame_buffering, mb_width, mb_height,
 			buffer_spec);
 
@@ -736,27 +662,7 @@ static void do_alloc_work(struct work_struct *work)
 	WRITE_VREG(MAILBOX_COMMAND, CMD_FINISHED);
 
 	/* ///////////// FAKE FIRST PIC */
-#if 0
 
-	pr_info("Debug: send a fake picture to config VPP %dx%d\n", frame_width,
-		   frame_height);
-	WRITE_VREG(DOS_SCRATCH0, 4);
-	WRITE_VREG(DOS_SCRATCH1, 0x004c);
-
-	if (kfifo_get(&newframe_q, &vf)) {
-		vfbuf_use[0]++;
-		vf->index = 0;
-		vf->pts = 0;
-		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
-		vf->canvas0Addr = vf->canvas1Addr =
-			spec2canvas(&buffer_spec[0]);
-		set_frame_info(vf);
-		kfifo_put(&display_q, (const struct vframe_s *)vf);
-		vf_notify_receiver(PROVIDER_NAME,
-				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
-	}
-	/* ///////////// FAKE END */
-#endif
 }
 
 static irqreturn_t vh264_4k2k_isr(int irq, void *dev_id)
@@ -838,6 +744,10 @@ static irqreturn_t vh264_4k2k_isr(int irq, void *dev_id)
 			} else {
 				p_last_vf = vf;
 				first_i_recieved = 1;
+				vf->mem_handle =
+				decoder_bmmu_box_get_mem_handle(
+					mm_blk_handle,
+					VF_BUFFER_IDX(display_buff_id));
 				kfifo_put(&display_q,
 						  (const struct vframe_s *)vf);
 
@@ -1370,9 +1280,9 @@ static void vh264_4k2k_prot_init(void)
 #endif
 }
 
-static void vh264_4k2k_local_init(void)
+static int vh264_4k2k_local_init(void)
 {
-	int i;
+	int i, size, ret;
 
 #ifdef DEBUG_PTS
 	pts_missed = 0;
@@ -1420,22 +1330,39 @@ static void vh264_4k2k_local_init(void)
 	first_i_recieved = 0;
 	INIT_WORK(&alloc_work, do_alloc_work);
 
-	return;
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
+
+	mm_blk_handle = decoder_bmmu_box_alloc_box(
+		DRIVER_NAME,
+		0,
+		MAX_BMMU_BUFFER_NUM,
+		4 + PAGE_SHIFT,
+		CODEC_MM_FLAGS_CMA_CLEAR |
+		CODEC_MM_FLAGS_FOR_VDECODER);
+
+	size = DECODER_WORK_SPACE_SIZE;
+	ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle, 0,
+		size, DRIVER_NAME, &work_space_adr);
+	return ret;
 }
 
 static s32 vh264_4k2k_init(void)
 {
-	int ret = 0;
-	int r1 , r2, r3;
 
+	int ret = 0;
+	int r, r1 , r2, r3;
 	pr_info("\nvh264_4k2k_init\n");
 
 	init_timer(&recycle_timer);
 
 	stat |= STAT_TIMER_INIT;
 
-	vh264_4k2k_local_init();
-
+	r = vh264_4k2k_local_init();
+	if (r < 0)
+		return r;
 	amvdec_enable();
 
 	/* -- ucode loading (amrisc and swap code) */
@@ -1612,9 +1539,6 @@ static s32 vh264_4k2k_init(void)
 
 static int vh264_4k2k_stop(void)
 {
-	int i;
-	u32 disp_addr = 0xffffffff;
-	struct canvas_s cur_canvas;
 
 	if (stat & STAT_VDEC_RUN) {
 		amvdec_stop();
@@ -1670,30 +1594,9 @@ static int vh264_4k2k_stop(void)
 #ifdef CONFIG_VSYNC_RDMA
 	msleep(100);
 #endif
-	if (!get_blackout_policy()) {
-		canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
-			&cur_canvas);
-		disp_addr = cur_canvas.addr;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(buffer_spec); i++) {
-		if (buffer_spec[i].phy_addr) {
-			if (disp_addr ==
-				(u32)buffer_spec[i].phy_addr)
-				pr_info("Skip releasing CMA buffer %d\n", i);
-			else {
-				codec_mm_free_for_dma(MEM_NAME,
-					buffer_spec[i].phy_addr);
-				buffer_spec[i].phy_addr = 0;
-				buffer_spec[i].alloc_pages = NULL;
-				buffer_spec[i].alloc_count = 0;
-			}
-		}
-
-		if (buffer_spec[i].y_addr == disp_addr) {
-			pr_info("4K2K dec stop, keeping buffer index = %d\n",
-				   i);
-		}
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
 	}
 
 	return 0;
@@ -1738,16 +1641,10 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	work_space_adr = pdata->mem_start;
-	decoder_buffer_start = pdata->mem_start + DECODER_WORK_SPACE_SIZE;
-	decoder_buffer_end = pdata->mem_end + 1;
-
 	if (pdata->sys_info)
 		vh264_4k2k_amstream_dec_info = *pdata->sys_info;
 	cma_dev = pdata->cma_dev;
 
-	pr_info("H.264 4k2k decoder mem resource 0x%x -- 0x%x\n",
-		   (u32)decoder_buffer_start, (u32)decoder_buffer_end);
 	pr_info("                   sysinfo: %dx%d, rate = %d, param = 0x%lx\n",
 		   vh264_4k2k_amstream_dec_info.width,
 		   vh264_4k2k_amstream_dec_info.height,

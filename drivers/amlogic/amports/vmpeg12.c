@@ -38,6 +38,7 @@
 #include "vmpeg12.h"
 #include "arch/register.h"
 #include "amports_priv.h"
+#include "decoder/decoder_bmmu_box.h"
 
 
 #ifdef CONFIG_AM_VDEC_MPEG12_LOG
@@ -88,6 +89,10 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 #define VF_POOL_SIZE        32
 #define DECODE_BUFFER_NUM_MAX 8
 #define PUT_INTERVAL        (HZ/100)
+/*(1 * SZ_1M + CCBUF_SIZE)*/
+#define WORKSPACE_SIZE		(SZ_64K + CCBUF_SIZE)
+#define MAX_BMMU_BUFFER_NUM (DECODE_BUFFER_NUM_MAX + 1)
+
 
 #define INCPTR(p) ptr_atomic_wrap_inc(&p)
 
@@ -118,7 +123,7 @@ static void vmpeg_vf_put(struct vframe_s *, void *);
 static int vmpeg_vf_states(struct vframe_states *states, void *);
 static int vmpeg_event_cb(int type, void *data, void *private_data);
 
-static void vmpeg12_prot_init(void);
+static int vmpeg12_prot_init(void);
 static void vmpeg12_local_init(void);
 
 static const char vmpeg12_dec_id[] = "vmpeg12-dev";
@@ -130,7 +135,7 @@ static const struct vframe_operations_s vmpeg_vf_provider = {
 	.event_cb = vmpeg_event_cb,
 	.vf_states = vmpeg_vf_states,
 };
-
+static void *mm_blk_handle;
 static struct vframe_provider_s vmpeg_vf_prov;
 
 static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
@@ -155,7 +160,7 @@ static u32 frame_width, frame_height, frame_dur, frame_prog;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
-static unsigned long buf_start;
+
 static u32 buf_size, ccbuf_phyAddress;
 static void *ccbuf_phyAddress_virt;
 static int ccbuf_phyAddress_is_remaped_nocache;
@@ -407,6 +412,10 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 				kfifo_put(&recycle_q,
 						  (const struct vframe_s *)vf);
 			} else {
+				vf->mem_handle =
+					decoder_bmmu_box_get_mem_handle(
+						mm_blk_handle,
+						index);
 				kfifo_put(&display_q,
 						  (const struct vframe_s *)vf);
 				vf_notify_receiver(PROVIDER_NAME,
@@ -480,6 +489,10 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 				kfifo_put(&recycle_q,
 						  (const struct vframe_s *)vf);
 			} else {
+				vf->mem_handle =
+					decoder_bmmu_box_get_mem_handle(
+						mm_blk_handle,
+						index);
 				kfifo_put(&display_q,
 						  (const struct vframe_s *)vf);
 				vf_notify_receiver(PROVIDER_NAME,
@@ -525,6 +538,10 @@ static irqreturn_t vmpeg12_isr(int irq, void *dev_id)
 				kfifo_put(&recycle_q,
 					(const struct vframe_s *)vf);
 			} else {
+				vf->mem_handle =
+					decoder_bmmu_box_get_mem_handle(
+						mm_blk_handle,
+						index);
 				kfifo_put(&display_q,
 					(const struct vframe_s *)vf);
 				vf_notify_receiver(PROVIDER_NAME,
@@ -723,12 +740,12 @@ static int vmpeg12_vdec_info_init(void)
 }
 
 /****************************************/
-static void vmpeg12_canvas_init(void)
+static int vmpeg12_canvas_init(void)
 {
-	int i;
+	int i, ret;
 	u32 canvas_width, canvas_height;
 	u32 decbuf_size, decbuf_y_size, decbuf_uv_size;
-	u32 disp_addr = 0xffffffff;
+	static unsigned long buf_start;
 
 	if (buf_size <= 0x00400000) {
 		/* SD only */
@@ -746,65 +763,58 @@ static void vmpeg12_canvas_init(void)
 		decbuf_size = 0x300000;
 	}
 
-	if (is_vpp_postblend()) {
-		struct canvas_s cur_canvas;
 
-		canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
-					&cur_canvas);
-		disp_addr = (cur_canvas.addr + 7) >> 3;
-	}
+	for (i = 0; i < MAX_BMMU_BUFFER_NUM; i++) {
 
-	for (i = 0; i < 8; i++) {
-		if (((buf_start + i * decbuf_size + 7) >> 3) == disp_addr) {
-#ifdef NV21
-			canvas_config(2 * i + 0,
-				buf_start + 8 * decbuf_size,
-				canvas_width, canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-			canvas_config(2 * i + 1,
-				buf_start + 8 * decbuf_size +
-				decbuf_y_size, canvas_width,
-				canvas_height / 2, CANVAS_ADDR_NOWRAP,
-				CANVAS_BLKMODE_32X32);
-#else
-			canvas_config(3 * i + 0,
-				buf_start + 8 * decbuf_size,
-				canvas_width, canvas_height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-			canvas_config(3 * i + 1,
-				buf_start + 8 * decbuf_size +
-				decbuf_y_size, canvas_width / 2,
-				canvas_height / 2, CANVAS_ADDR_NOWRAP,
-						  CANVAS_BLKMODE_32X32);
-			canvas_config(3 * i + 2,
-			buf_start + 8 * decbuf_size +
-			decbuf_y_size + decbuf_uv_size,
-			canvas_width / 2, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
-#endif
+		if (i == (MAX_BMMU_BUFFER_NUM - 1)) /* workspace mem */
+			decbuf_size = WORKSPACE_SIZE;
+
+		ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle, i,
+				decbuf_size, DRIVER_NAME, &buf_start);
+		if (ret < 0)
+			return ret;
+
+		if (i == (MAX_BMMU_BUFFER_NUM - 1)) {
+
+			WRITE_VREG(MREG_CO_MV_START, buf_start);
+			if (!ccbuf_phyAddress) {
+				ccbuf_phyAddress
+				= (u32)(buf_start + SZ_64K + CCBUF_SIZE);
+
+				ccbuf_phyAddress_virt
+				= codec_mm_phys_to_virt(ccbuf_phyAddress);
+				if (!ccbuf_phyAddress_virt) {
+					ccbuf_phyAddress_virt
+					= ioremap_nocache(
+					ccbuf_phyAddress,
+					CCBUF_SIZE);
+					ccbuf_phyAddress_is_remaped_nocache = 1;
+				}
+			}
+
 		} else {
 #ifdef NV21
 			canvas_config(2 * i + 0,
-				buf_start + i * decbuf_size,
+				buf_start,
 				canvas_width, canvas_height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 			canvas_config(2 * i + 1,
-				buf_start + i * decbuf_size +
+				buf_start +
 				decbuf_y_size, canvas_width,
 				canvas_height / 2, CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_32X32);
 #else
 			canvas_config(3 * i + 0,
-				buf_start + i * decbuf_size,
+				buf_start,
 				canvas_width, canvas_height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 			canvas_config(3 * i + 1,
-				buf_start + i * decbuf_size +
+				buf_start +
 				decbuf_y_size, canvas_width / 2,
 				canvas_height / 2, CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_32X32);
 			canvas_config(3 * i + 2,
-				buf_start + i * decbuf_size +
+				buf_start +
 				decbuf_y_size + decbuf_uv_size,
 				canvas_width / 2, canvas_height / 2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
@@ -812,23 +822,12 @@ static void vmpeg12_canvas_init(void)
 		}
 	}
 
-	WRITE_VREG(MREG_CO_MV_START,
-		buf_start + 9 * decbuf_size + CCBUF_SIZE);
-	if (!ccbuf_phyAddress) {
-		ccbuf_phyAddress = (u32)(buf_start + 9 * decbuf_size);
-		ccbuf_phyAddress_virt = codec_mm_phys_to_virt(ccbuf_phyAddress);
-		if (!ccbuf_phyAddress_virt) {
-			ccbuf_phyAddress_virt = ioremap_nocache(
-				ccbuf_phyAddress,
-				CCBUF_SIZE);
-			ccbuf_phyAddress_is_remaped_nocache = 1;
-		}
-	}
-
+	return 0;
 }
 
-static void vmpeg12_prot_init(void)
+static int vmpeg12_prot_init(void)
 {
+	int ret;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M6) {
 		int save_reg = READ_VREG(POWER_CTL_VLD);
 
@@ -860,7 +859,7 @@ static void vmpeg12_prot_init(void)
 	} else
 		WRITE_MPEG_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
 
-	vmpeg12_canvas_init();
+	ret = vmpeg12_canvas_init();
 
 #ifdef NV21
 	WRITE_VREG(AV_SCRATCH_0, 0x010100);
@@ -908,6 +907,7 @@ static void vmpeg12_prot_init(void)
 #ifdef NV21
 	SET_VREG_MASK(MDEC_PIC_DC_CTRL, 1 << 17);
 #endif
+	return ret;
 }
 
 static void vmpeg12_local_init(void)
@@ -934,6 +934,19 @@ static void vmpeg12_local_init(void)
 
 	for (i = 0; i < DECODE_BUFFER_NUM_MAX; i++)
 		vfbuf_use[i] = 0;
+
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
+
+		mm_blk_handle = decoder_bmmu_box_alloc_box(
+			DRIVER_NAME,
+			0,
+			MAX_BMMU_BUFFER_NUM,
+			4 + PAGE_SHIFT,
+			CODEC_MM_FLAGS_CMA_CLEAR |
+			CODEC_MM_FLAGS_FOR_VDECODER);
 
 
 	frame_width = frame_height = frame_dur = frame_prog = 0;
@@ -964,7 +977,9 @@ static s32 vmpeg12_init(void)
 	stat |= STAT_MC_LOAD;
 
 	/* enable AMRISC side protocol */
-	vmpeg12_prot_init();
+	r = vmpeg12_prot_init();
+	if (r < 0)
+		return r;
 
 	r = vdec_request_irq(VDEC_IRQ_1, vmpeg12_isr,
 		    "vmpeg12-irq", (void *)vmpeg12_dec_id);
@@ -1022,8 +1037,7 @@ static int amvdec_mpeg12_probe(struct platform_device *pdev)
 	if (pdata->sys_info)
 		vmpeg12_amstream_dec_info = *pdata->sys_info;
 
-	buf_start = pdata->mem_start;
-	buf_size = pdata->mem_end - pdata->mem_start + 1;
+	buf_size = pdata->alloc_mem_size;
 
 	pdata->dec_status = vmpeg12_dec_status;
 
@@ -1074,6 +1088,11 @@ static int amvdec_mpeg12_remove(struct platform_device *pdev)
 	ccbuf_phyAddress_virt = NULL;
 	ccbuf_phyAddress = 0;
 	ccbuf_phyAddress_is_remaped_nocache = 0;
+
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mpeg12 remove.\n");
 
 	kfree(gvs);

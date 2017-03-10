@@ -285,6 +285,40 @@ int decoder_bmmu_box_alloc_idx_wait(
 	return ret;
 }
 
+int decoder_bmmu_box_alloc_buf_phy(
+	void *handle, int idx,
+	int size, unsigned char *driver_name,
+	unsigned long *buf_phy_addr)
+{
+	if (!decoder_bmmu_box_check_and_wait_size(
+			size,
+			1)) {
+		pr_info("%s not enough buf for buf_idx = %d\n",
+					driver_name, idx);
+		return	-ENOMEM;
+	}
+	if (!decoder_bmmu_box_alloc_idx_wait(
+			handle,
+			idx,
+			size,
+			-1,
+			-1,
+			BMMU_ALLOC_FLAGS_WAITCLEAR
+			)) {
+		*buf_phy_addr =
+			decoder_bmmu_box_get_phy_addr(
+			handle,
+			idx);
+		pr_info("%s malloc buf_idx = %d addr = %ld size = %d\n",
+			driver_name, idx, *buf_phy_addr, size);
+		} else {
+		pr_info("%s malloc failed  %d\n", driver_name, idx);
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int decoder_bmmu_box_dump(struct decoder_bmmu_box *box, void *buf,
 								 int size)
 {

@@ -234,8 +234,9 @@ static u32 pts_unstable;
 #define MAX_REF_PIC_NUM 24
 #define MAX_REF_ACTIVE  16
 
-#define BMMU_MAX_BUFFERS (MAX_BUF_NUM + 1)
-#define BMMU_WORKSPACE_ID (MAX_BUF_NUM)
+#define BMMU_MAX_BUFFERS (MAX_BUF_NUM + 1 + 1) /* workspace */
+#define VF_BUFFER_IDX(n)	(1 + n)
+#define BMMU_WORKSPACE_ID	(MAX_BUF_NUM)
 
 const u32 h265_version = 201602101;
 static u32 debug_mask = 0xffffffff;
@@ -367,7 +368,7 @@ static u32 mmu_enable = 1;
 static u32 mmu_enable_force;
 
 #ifdef MULTI_INSTANCE_SUPPORT
-static u32 work_buf_size = 48 * 1024 * 1024;
+static u32 work_buf_size = 33 * 1024 * 1024;
 static unsigned int max_decode_instance_num
 				= MAX_DECODE_INSTANCE_NUM;
 static unsigned int decode_frame_count[MAX_DECODE_INSTANCE_NUM];
@@ -1874,20 +1875,11 @@ static void init_buf_list(struct hevc_state_s *hevc)
 			if (use_cma == 2)
 				hevc->use_cma_flag = 1;
 			if (hevc->use_cma_flag) {
-				if (decoder_bmmu_box_alloc_idx_wait(
-				hevc->bmmu_box,
-				i,
-				buf_size,
-				-1,
-				-1,
-				BMMU_ALLOC_FLAGS_WAITCLEAR
-				) < 0) {
-					/*
-					not enough mem for buffer.
-					*/
-					hevc_print(hevc, 0,
-						"not enought buffer for [%d],%d\n",
-						i, buf_size);
+				if (decoder_bmmu_box_alloc_buf_phy
+					(hevc->bmmu_box,
+					VF_BUFFER_IDX(i), buf_size,
+					DRIVER_NAME,
+					&hevc->m_BUF[i].start_adr) < 0) {
 					hevc->m_BUF[i].start_adr = 0;
 					if (i <= 8) {
 						/*if alloced (i+1)>=9
@@ -1897,13 +1889,6 @@ static void init_buf_list(struct hevc_state_s *hevc)
 					}
 					break;
 				}
-				hevc->m_BUF[i].start_adr =
-					decoder_bmmu_box_get_phy_addr(
-						hevc->bmmu_box,
-						i);
-				pr_debug("allocate cma buffer[%d] %ld\n",
-					i,
-					hevc->m_BUF[i].start_adr);
 			} else {
 				hevc->m_BUF[i].start_adr =
 					hevc->mc_buf->buf_start + i * buf_size;
@@ -5761,7 +5746,7 @@ static void update_vf_memhandle(struct hevc_state_s *hevc,
 	else
 		vf->mem_handle =
 			decoder_bmmu_box_get_mem_handle(
-				hevc->bmmu_box, index);
+				hevc->bmmu_box, VF_BUFFER_IDX(index));
 	return;
 }
 static int prepare_display_buf(struct hevc_state_s *hevc, struct PIC_s *pic)
@@ -8489,6 +8474,7 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 		(struct vdec_dev_reg_s *)pdev->dev.platform_data;
 #endif
 	struct hevc_state_s *hevc = &gHevc;
+	int ret;
 
 	if (get_dbg_flag(hevc))
 		hevc_print(hevc, 0, "%s\r\n", __func__);
@@ -8526,18 +8512,22 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 		mutex_unlock(&vh265_mutex);
 		return -EFAULT;
 	}
-	hevc->buf_start = pdata->mem_start;
-	hevc->buf_size = pdata->mem_end - pdata->mem_start + 1;
-	/*
-	hevc->mc_buf_spec.buf_end = pdata->mem_end + 1;
-	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
-		amvh265_workbuff_spec[i].start_adr = pdata->mem_start;
-	*/
+	/* alloc_mem_size is work space size */
+	hevc->buf_size = pdata->alloc_mem_size;
+
+	ret = decoder_bmmu_box_alloc_buf_phy(hevc->bmmu_box, 0,
+			hevc->buf_size, DRIVER_NAME, &hevc->buf_start);
+	if (ret < 0) {
+		uninit_mmu_buffers(hevc);
+		devm_kfree(&pdev->dev, (void *)hevc);
+		mutex_unlock(&vh265_mutex);
+		return ret;
+	}
 
 	if (get_dbg_flag(hevc)) {
 		hevc_print(hevc, 0,
 			"===H.265 decoder mem resource 0x%lx -- 0x%lx\n",
-			pdata->mem_start, pdata->mem_end + 1);
+			hevc->buf_size, hevc->buf_size);
 	}
 
 	if (pdata->sys_info)
@@ -8624,6 +8614,7 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	struct hevc_state_s *hevc = NULL;
+	int ret;
 #ifdef CONFIG_MULTI_DEC
 	int config_val;
 #endif
@@ -8740,23 +8731,15 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 	hevc->buf_size = pdata->mem_end - pdata->mem_start + 1;
 #else
 
-	if (decoder_bmmu_box_alloc_idx_wait(
-		hevc->bmmu_box,
-		BMMU_WORKSPACE_ID,
-		work_buf_size,
-		-1,
-		-1,
-		BMMU_ALLOC_FLAGS_WAITCLEAR) < 0) {
-		hevc_print(hevc, 0,
-			"workbuf alloc failed, request buf size 0x%lx\n",
-				work_buf_size);
+	ret = decoder_bmmu_box_alloc_buf_phy(hevc->bmmu_box,
+			BMMU_WORKSPACE_ID, work_buf_size,
+			DRIVER_NAME, &hevc->buf_start);
+	if (ret < 0) {
 		uninit_mmu_buffers(hevc);
 		devm_kfree(&pdev->dev, (void *)hevc);
-		return -ENOMEM;
+		mutex_unlock(&vh265_mutex);
+		return ret;
 	}
-	hevc->buf_start = decoder_bmmu_box_get_phy_addr(
-		hevc->bmmu_box,
-		BMMU_WORKSPACE_ID);
 	hevc->buf_size = work_buf_size;
 #endif
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
