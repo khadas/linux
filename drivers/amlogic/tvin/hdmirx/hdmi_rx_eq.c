@@ -42,6 +42,7 @@
 int eq_setting_back = 0;
 int fat_bit_status = 0;
 static int min_max_diff = 4;
+static int long_cable_best_setting = 6;
 
 
 
@@ -61,7 +62,7 @@ static int eq_sts_stable_max = 2;
 MODULE_PARM_DESC(eq_sts_stable_max, "\n eq_sts_stable_max\n");
 module_param(eq_sts_stable_max, int, 0664);
 
-static int eq_max_setting = 6;
+static int eq_max_setting = 14;
 MODULE_PARM_DESC(eq_max_setting, "\n eq_max_setting\n");
 module_param(eq_max_setting, int, 0664);
 
@@ -234,6 +235,8 @@ uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
 	if (ch_data->validLongSetting  == 1 &&
 		ch_data->acc > AccLimit) {
 		ch_data->bestsetting = ch_data->bestLongSetting;
+		if (ch_data->bestsetting > long_cable_best_setting)
+			ch_data->bestsetting = long_cable_best_setting;
 		if (log_level & EQ_LOG)
 			rx_pr("longcable1");
 		return 1;
@@ -255,7 +258,7 @@ uint8_t testType(uint16_t setting, struct st_eq_data *ch_data)
 		(ch_data->tmdsvalid == 1) &&
 		(ch_data->acc > AccLimit) &&
 		(stepSlope > minSlope)) {
-		ch_data->bestsetting = eq_max_setting;
+		ch_data->bestsetting = long_cable_best_setting;
 		if (log_level & EQ_LOG)
 			rx_pr("longcable2");
 		return 3;

@@ -478,6 +478,10 @@ int stable_check_lvl = 0x2ff;
 module_param(stable_check_lvl, int, 0664);
 MODULE_PARM_DESC(stable_check_lvl, "stable_check_lvl");
 
+static bool use_eq_workaround;
+module_param(use_eq_workaround, bool, 0664);
+MODULE_PARM_DESC(use_eq_workaround, "use_eq_workaround");
+
 /****************************/
 /*  func enhancements  */
 /****************************/
@@ -2599,9 +2603,27 @@ void hdmirx_hw_monitor(void)
 				eq_dbg_ch0,
 				eq_dbg_ch1,
 				eq_dbg_ch2);
-			rx.state = FSM_SIG_UNSTABLE;
+			eq_ch0.bestsetting = eq_dbg_ch0;
+			eq_ch1.bestsetting = eq_dbg_ch1;
+			eq_ch2.bestsetting = eq_dbg_ch2;
+			rx.state = FSM_EQ_END;
 			break;
 		} else if (!rx_need_eq_workaround()) {
+			/*for some DVD, 480i/576i eq0-0-0 no signal*/
+			if (use_eq_workaround) {
+				if (pre_eq_freq == E_EQ_LOW_FREQ) {
+					if (rx.pre_state == FSM_EQ_INIT) {
+						rx_pr("use a default EQ\n");
+						hdmirx_phy_conf_eq_setting(
+						rx.port,
+						4,
+						4,
+						4);
+						rx.pre_state = FSM_SIG_UNSTABLE;
+					} else
+						rx.pre_state = FSM_EQ_INIT;
+				}
+			}
 			rx.state = FSM_SIG_UNSTABLE;
 			break;
 		} else {
@@ -2759,7 +2781,6 @@ void hdmirx_hw_monitor(void)
 			sig_stable_cnt = 0;
 			if (sig_unstable_cnt++ > sig_unstable_max) {
 				rx.state = FSM_WAIT_CLK_STABLE;
-				rx.pre_state = FSM_SIG_STABLE;
 				sig_stable_cnt = 0;
 				sig_unstable_cnt = 0;
 				hdmirx_error_count_config();
