@@ -31,11 +31,13 @@
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/amlogic/canvas/canvas.h>
 #include <linux/slab.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
 
 #include "vdec_reg.h"
 #include "vmpeg4.h"
 #include "arch/register.h"
 #include "amports_priv.h"
+#include "decoder/decoder_bmmu_box.h"
 
 
 /* #define CONFIG_AM_VDEC_MPEG4_LOG */
@@ -98,6 +100,10 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 #define VF_POOL_SIZE          32
 #define DECODE_BUFFER_NUM_MAX 8
 #define PUT_INTERVAL        (HZ/100)
+#define WORKSPACE_SIZE		(1 * SZ_1M)
+#define MAX_BMMU_BUFFER_NUM	(DECODE_BUFFER_NUM_MAX + 1)
+#define DCAC_BUFF_START_IP	0x02b00000
+
 
 #define RATE_DETECT_COUNT   5
 #define DURATION_UNIT       96000
@@ -111,7 +117,7 @@ static void vmpeg_vf_put(struct vframe_s *, void *);
 static int vmpeg_vf_states(struct vframe_states *states, void *);
 static int vmpeg_event_cb(int type, void *data, void *private_data);
 
-static void vmpeg4_prot_init(void);
+static int vmpeg4_prot_init(void);
 static void vmpeg4_local_init(void);
 
 static const char vmpeg4_dec_id[] = "vmpeg4-dev";
@@ -128,7 +134,7 @@ static const struct vframe_operations_s vmpeg_vf_provider = {
 	.event_cb = vmpeg_event_cb,
 	.vf_states = vmpeg_vf_states,
 };
-
+static void *mm_blk_handle;
 static struct vframe_provider_s vmpeg_vf_prov;
 
 static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
@@ -141,7 +147,6 @@ static u32 frame_width, frame_height, frame_dur, frame_prog;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
-static unsigned long buf_start;
 static u32 buf_size, buf_offset;
 static u32 vmpeg4_ratio;
 static u64 vmpeg4_ratio64;
@@ -462,6 +467,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 			set_aspect_ratio(vf, READ_VREG(MP4_PIC_RATIO));
 
 			vfbuf_use[buffer_index]++;
+			vf->mem_handle =
+				decoder_bmmu_box_get_mem_handle(
+					mm_blk_handle,
+					buffer_index);
 
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 
@@ -499,6 +508,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 			set_aspect_ratio(vf, READ_VREG(MP4_PIC_RATIO));
 
 			vfbuf_use[buffer_index]++;
+			vf->mem_handle =
+				decoder_bmmu_box_get_mem_handle(
+					mm_blk_handle,
+					buffer_index);
 
 			amlog_mask(LOG_MASK_PTS,
 			"[%s:%d] [inte] dur=0x%x rate=%d picture_type=%d\n",
@@ -547,6 +560,10 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 			vmpeg4_amstream_dec_info.rate, picture_type);
 
 			vfbuf_use[buffer_index]++;
+			vf->mem_handle =
+				decoder_bmmu_box_get_mem_handle(
+					mm_blk_handle,
+					buffer_index);
 
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 
@@ -715,13 +732,12 @@ static int vmpeg4_vdec_info_init(void)
 }
 
 /****************************************/
-static void vmpeg4_canvas_init(void)
+static int vmpeg4_canvas_init(void)
 {
-	int i;
+	int i, ret;
 	u32 canvas_width, canvas_height;
-	u32 decbuf_size, decbuf_y_size, decbuf_uv_size;
-	u32 disp_addr = 0xffffffff;
-	u32 buff_off = 0;
+	unsigned long buf_start;
+	u32 alloc_size, decbuf_size, decbuf_y_size, decbuf_uv_size;
 
 	if (buf_size <= 0x00400000) {
 		/* SD only */
@@ -767,71 +783,57 @@ static void vmpeg4_canvas_init(void)
 		}
 	}
 
-	if (is_vpp_postblend()) {
-		struct canvas_s cur_canvas;
+	for (i = 0; i < MAX_BMMU_BUFFER_NUM; i++) {
+		/* workspace mem */
+		if (i == (MAX_BMMU_BUFFER_NUM - 1))
+			alloc_size =  WORKSPACE_SIZE;
+		else
+			alloc_size = decbuf_size;
 
-		canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
-					&cur_canvas);
-		disp_addr = (cur_canvas.addr + 7) >> 3;
-	}
+		ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle, i,
+				alloc_size, DRIVER_NAME, &buf_start);
+		if (ret < 0)
+			return ret;
+		if (i == (MAX_BMMU_BUFFER_NUM - 1)) {
+			buf_offset = buf_start - DCAC_BUFF_START_IP;
+			continue;
+		}
 
-	for (i = 0; i < 8; i++) {
-		u32 one_buf_start = buf_start + buff_off;
-		if (((one_buf_start + 7) >> 3) == disp_addr) {
-			/*last disp buffer, to next..*/
-			buff_off += decbuf_size;
-			one_buf_start = buf_start + buff_off;
-			pr_info("one_buf_start %d,=== %x disp_addr %x",
-				i, one_buf_start, disp_addr);
-		}
-		if (buff_off < 0x02000000 &&
-			buff_off + decbuf_size > 0x01b00000){
-			/*0x01b00000 is references buffer.
-			to next 32M;*/
-			buff_off = 32 * SZ_1M;/*next 32M*/
-			one_buf_start = buf_start + buff_off;
-		}
-		if (buff_off + decbuf_size > buf_size) {
-			pr_err("ERROR::too small buffer for buf%d %d x%d ,size =%d\n",
-				i,
-				canvas_width,
-				canvas_height,
-				buf_size);
-		}
-		pr_debug("alloced buffer %d at %x,%d\n",
-				i, one_buf_start, decbuf_size);
+
 #ifdef NV21
 		canvas_config(2 * i + 0,
-			one_buf_start,
+			buf_start,
 			canvas_width, canvas_height,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 		canvas_config(2 * i + 1,
-			one_buf_start +
+			buf_start +
 			decbuf_y_size, canvas_width,
 			canvas_height / 2, CANVAS_ADDR_NOWRAP,
 			CANVAS_BLKMODE_32X32);
 #else
 		canvas_config(3 * i + 0,
-			one_buf_start,
+			buf_start,
 			canvas_width, canvas_height,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 		canvas_config(3 * i + 1,
-			one_buf_start +
+			buf_start +
 			decbuf_y_size, canvas_width / 2,
 			canvas_height / 2, CANVAS_ADDR_NOWRAP,
 			CANVAS_BLKMODE_32X32);
 		canvas_config(3 * i + 2,
-			one_buf_start +
+			buf_start +
 			decbuf_y_size + decbuf_uv_size,
 			canvas_width / 2, canvas_height / 2,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 #endif
-		buff_off = buff_off + decbuf_size;
+
 	}
+	return 0;
 }
 
-static void vmpeg4_prot_init(void)
+static int vmpeg4_prot_init(void)
 {
+	int r;
 #if 1	/* /MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 	WRITE_VREG(DOS_SW_RESET0, (1 << 7) | (1 << 6));
 	WRITE_VREG(DOS_SW_RESET0, 0);
@@ -839,7 +841,7 @@ static void vmpeg4_prot_init(void)
 	WRITE_MPEG_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
 #endif
 
-	vmpeg4_canvas_init();
+	r = vmpeg4_canvas_init();
 
 	/* index v << 16 | u << 8 | y */
 #ifdef NV21
@@ -869,6 +871,9 @@ static void vmpeg4_prot_init(void)
 	/* disable PSCALE for hardware sharing */
 	WRITE_VREG(PSCALE_CTRL, 0);
 
+	/* clear repeat count */
+	WRITE_VREG(MP4_NOT_CODED_CNT, 0);
+
 	WRITE_VREG(MREG_BUFFERIN, 0);
 	WRITE_VREG(MREG_BUFFEROUT, 0);
 
@@ -878,8 +883,7 @@ static void vmpeg4_prot_init(void)
 	/* enable mailbox interrupt */
 	WRITE_VREG(ASSIST_MBOX1_MASK, 1);
 
-	/* clear repeat count */
-	WRITE_VREG(MP4_NOT_CODED_CNT, 0);
+
 
 #ifdef NV21
 	SET_VREG_MASK(MDEC_PIC_DC_CTRL, 1 << 17);
@@ -893,6 +897,7 @@ static void vmpeg4_prot_init(void)
 	WRITE_VREG(MP4_PIC_WH, (vmpeg4_amstream_dec_info.
 		width << 16) | vmpeg4_amstream_dec_info.height);
 	WRITE_VREG(MP4_SYS_RATE, vmpeg4_amstream_dec_info.rate);
+	return r;
 }
 
 static void vmpeg4_local_init(void)
@@ -937,10 +942,23 @@ static void vmpeg4_local_init(void)
 		vfpool[i].index = DECODE_BUFFER_NUM_MAX;
 		kfifo_put(&newframe_q, (const struct vframe_s *)vf);
 	}
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
+
+		mm_blk_handle = decoder_bmmu_box_alloc_box(
+			DRIVER_NAME,
+			0,
+			MAX_BMMU_BUFFER_NUM,
+			4 + PAGE_SHIFT,
+			CODEC_MM_FLAGS_CMA_CLEAR |
+			CODEC_MM_FLAGS_FOR_VDECODER);
 }
 
 static s32 vmpeg4_init(void)
 {
+	int r;
 	int trickmode_fffb = 0;
 
 	query_video_status(0, &trickmode_fffb);
@@ -999,7 +1017,9 @@ static s32 vmpeg4_init(void)
 	stat |= STAT_MC_LOAD;
 
 	/* enable AMRISC side protocol */
-	vmpeg4_prot_init();
+	r = vmpeg4_prot_init();
+	if (r < 0)
+		return r;
 
 	if (vdec_request_irq(VDEC_IRQ_1, vmpeg4_isr,
 			"vmpeg4-irq", (void *)vmpeg4_dec_id)) {
@@ -1050,9 +1070,7 @@ static int amvdec_mpeg4_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	buf_start = pdata->mem_start;
-	buf_size = pdata->mem_end - pdata->mem_start + 1;
-	buf_offset = buf_start - ORI_BUFFER_START_ADDR;
+	buf_size = pdata->alloc_mem_size;
 
 	if (pdata->sys_info)
 		vmpeg4_amstream_dec_info = *pdata->sys_info;
@@ -1097,6 +1115,11 @@ static int amvdec_mpeg4_remove(struct platform_device *pdev)
 	}
 
 	amvdec_disable();
+
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
 
 	amlog_mask(LOG_MASK_PTS,
 		"pts hit %d, pts missed %d, i hit %d, missed %d\n", pts_hit,

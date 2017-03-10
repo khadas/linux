@@ -76,9 +76,6 @@ static unsigned int debug_trace_num = 16 * 20;
 static int step_mode;
 static unsigned int clk_config;
 
-static struct page *vdec_cma_page;
-int vdec_mem_alloced_from_codec, delay_release;
-static unsigned long reserved_mem_start, reserved_mem_end;
 static int hevc_max_reset_count;
 
 static DEFINE_SPINLOCK(vdec_spin_lock);
@@ -1185,7 +1182,6 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 {
 	int r = 0;
 	struct vdec_s *p = vdec;
-	int retry_num = 0;
 	int more_buffers = 0;
 	const char *dev_name;
 	int tvp_flags;
@@ -1354,40 +1350,10 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k)
 #endif
 		}
 
-
-		p->mem_start = codec_mm_alloc_for_dma(MEM_NAME,
-			alloc_size / PAGE_SIZE, 4 + PAGE_SHIFT,
-			CODEC_MM_FLAGS_CMA_CLEAR | CODEC_MM_FLAGS_CPU |
-			CODEC_MM_FLAGS_FOR_VDECODER | tvp_flags);
-		if (!p->mem_start) {
-			if (retry_num < 1) {
-				pr_err("vdec base CMA allocation failed,try again\\n");
-				retry_num++;
-				try_free_keep_video(0);
-				continue;/*retry alloc*/
-			}
-			pr_err("vdec base CMA allocation failed.\n");
-
-			mutex_lock(&vdec_mutex);
-			inited_vcodec_num--;
-			mutex_unlock(&vdec_mutex);
-
-			return -ENOMEM;
-		}
-
-		p->mem_end = p->mem_start + alloc_size - 1;
-		pr_info("vdec base memory alloced [%p -- %p]\n",
-			(void *)p->mem_start,
-			(void *)p->mem_end);
-
+		p->alloc_mem_size = alloc_size;
 		break;/*alloc end*/
 	}
 
-	if (vdec_single(vdec)) {
-		vdec_core->mem_start = p->mem_start;
-		vdec_core->mem_end = p->mem_end;
-		vdec_mem_alloced_from_codec = 1;
-	}
 
 /*alloc end:*/
 	/* vdec_dev_reg.flag = 0; */
@@ -1579,15 +1545,6 @@ void vdec_release(struct vdec_s *vdec)
 			vdec->mem_start = 0;
 			vdec->mem_end = 0;
 		}
-	} else if (delay_release-- <= 0 &&
-			!keep_vdec_mem &&
-			vdec_mem_alloced_from_codec &&
-			vdec_core->mem_start &&
-			get_blackout_policy()) {
-		codec_mm_free_for_dma(MEM_NAME, vdec_core->mem_start);
-		vdec_cma_page = NULL;
-		vdec_core->mem_start = reserved_mem_start;
-		vdec_core->mem_end = reserved_mem_end;
 	}
 
 	vdec_destroy(vdec);
@@ -1645,15 +1602,6 @@ void vdec_free_cmabuf(void)
 		mutex_unlock(&vdec_mutex);
 		return;
 	}
-
-	if (vdec_mem_alloced_from_codec && vdec_core->mem_start) {
-		codec_mm_free_for_dma(MEM_NAME, vdec_core->mem_start);
-		vdec_cma_page = NULL;
-		vdec_core->mem_start = reserved_mem_start;
-		vdec_core->mem_end = reserved_mem_end;
-		pr_info("force free vdec memory\n");
-	}
-
 	mutex_unlock(&vdec_mutex);
 }
 
@@ -2988,30 +2936,6 @@ static struct class vdec_class = {
 		.class_attrs = vdec_class_attrs,
 	};
 
-
-/*
-pre alloced enough memory for decoder
-fast start.
-*/
-void pre_alloc_vdec_memory(void)
-{
-	if (!keep_vdec_mem || vdec_core->mem_start)
-		return;
-
-	vdec_core->mem_start = codec_mm_alloc_for_dma(MEM_NAME,
-		CMA_ALLOC_SIZE / PAGE_SIZE, 4 + PAGE_SHIFT,
-		CODEC_MM_FLAGS_CMA_CLEAR |
-		CODEC_MM_FLAGS_FOR_VDECODER);
-	if (!vdec_core->mem_start)
-		return;
-	pr_debug("vdec base memory alloced %p\n",
-	(void *)vdec_core->mem_start);
-
-	vdec_core->mem_end = vdec_core->mem_start + CMA_ALLOC_SIZE - 1;
-	vdec_mem_alloced_from_codec = 1;
-	delay_release = 3;
-}
-
 static int vdec_probe(struct platform_device *pdev)
 {
 	s32 i, r;
@@ -3075,7 +2999,6 @@ static int vdec_probe(struct platform_device *pdev)
 
 		/*all reserved size for prealloc*/
 	}
-	pre_alloc_vdec_memory();
 
 	INIT_LIST_HEAD(&vdec_core->connected_vdec_list);
 	spin_lock_init(&vdec_core->lock);

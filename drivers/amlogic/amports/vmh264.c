@@ -1886,25 +1886,15 @@ static int vh264_set_params(struct vdec_h264_hw_s *hw)
 				continue;
 			canvas = vdec->get_canvas(j, 2);
 #ifdef USE_CMA
-			if (!decoder_bmmu_box_alloc_idx_wait(
-						hw->bmmu_box,
-						i,
-						PAGE_ALIGN(buf_size) +
-						(1024 * 1024),
-						-1,
-						-1,
-						BMMU_ALLOC_FLAGS_WAITCLEAR
-						)) {
-				hw->buffer_spec[i].cma_alloc_addr =
-					decoder_bmmu_box_get_phy_addr(
-						hw->bmmu_box, i);
-			} else {
-				dpb_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
-				"CMA alloc failed, request buf size 0x%lx\n",
-					buf_size);
+
+			if (decoder_bmmu_box_alloc_buf_phy(hw->bmmu_box, i,
+				PAGE_ALIGN(buf_size) +
+						(1024 * 1024), DRIVER_NAME,
+				&hw->buffer_spec[i].cma_alloc_addr) < 0){
 				ret = -1;
 				break;
 			}
+
 			hw->buffer_spec[i].buf_adr =
 			hw->buffer_spec[i].cma_alloc_addr;
 			addr = hw->buffer_spec[i].buf_adr;
@@ -1977,24 +1967,11 @@ static int vh264_set_params(struct vdec_h264_hw_s *hw)
 					mb_mv_byte *
 					hw->max_reference_size);
 #endif
-		if (!decoder_bmmu_box_alloc_idx_wait(
-				hw->bmmu_box,
-				BMMU_REF_IDX,
-				buf_size,
-				-1,
-				-1,
-				BMMU_ALLOC_FLAGS_WAITCLEAR
-				)) {
-			hw->collocate_cma_alloc_addr =
-				decoder_bmmu_box_get_phy_addr(
-				hw->bmmu_box,
-				BMMU_REF_IDX);
-		} else {
-			dpb_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
-			"decoder mm refbuf alloc failed, request buf size 0x%lx\n",
-				buf_size);
-			ret = -1;
-		}
+
+		if (decoder_bmmu_box_alloc_buf_phy(hw->bmmu_box, BMMU_REF_IDX,
+			buf_size, DRIVER_NAME,
+			&hw->collocate_cma_alloc_addr) < 0)
+			return -1;
 
 		hw->dpb.colocated_mv_addr_start =
 			hw->collocate_cma_alloc_addr;
@@ -3608,25 +3585,11 @@ static int ammvdec_h264_probe(struct platform_device *pdev)
 #endif
 
 #ifdef USE_CMA
-	if (!decoder_bmmu_box_alloc_idx_wait(
-			hw->bmmu_box,
-			BMMU_DPB_IDX,
-			V_BUF_ADDR_OFFSET,
-			-1,
-			-1,
-			BMMU_ALLOC_FLAGS_WAITCLEAR
-			)) {
-		hw->cma_alloc_addr = decoder_bmmu_box_get_phy_addr(
-			hw->bmmu_box,
-			BMMU_DPB_IDX);
-	} else {
-		dpb_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
-		"decoder mm alloc failed, request buf size 0x%lx\n",
-		V_BUF_ADDR_OFFSET);
-		ammvdec_h264_mmu_release(hw);
-		devm_kfree(&pdev->dev, (void *)hw);
+
+	if (decoder_bmmu_box_alloc_buf_phy(hw->bmmu_box, BMMU_DPB_IDX,
+		V_BUF_ADDR_OFFSET, DRIVER_NAME, &hw->cma_alloc_addr) < 0)
 		return -ENOMEM;
-	}
+
 	hw->buf_offset = hw->cma_alloc_addr - DEF_BUF_START_ADDR;
 #else
 	hw->buf_offset = pdata->mem_start - DEF_BUF_START_ADDR;

@@ -561,7 +561,8 @@ normal reference pool.*/
 
 #define FRAME_CONTEXTS_LOG2 2
 #define FRAME_CONTEXTS (1 << FRAME_CONTEXTS_LOG2)
-#define MAX_BMMU_BUFFER_NUM (FRAME_BUFFERS + 1)
+#define MAX_BMMU_BUFFER_NUM (FRAME_BUFFERS + 1 + 1) /* workspace */
+#define VF_BUFFER_IDX(n) (1 + n)
 #define WORK_SPACE_BUF_ID (FRAME_BUFFERS)
 
 struct RefCntBuffer_s {
@@ -3487,23 +3488,12 @@ static void init_buf_list(struct VP9Decoder_s *pbi)
 		if (use_cma == 2)
 			pbi->use_cma_flag = 1;
 		if (pbi->use_cma_flag) {
-			if (!decoder_bmmu_box_alloc_idx_wait(
-					pbi->bmmu_box,
-					i,
-					buf_size,
-					-1,
-					-1,
-					BMMU_ALLOC_FLAGS_WAITCLEAR)) {
-				pbi->m_BUF[i].alloc_addr =
-					decoder_bmmu_box_get_phy_addr(
-						pbi->bmmu_box,
-						i);
-				pbi->m_BUF[i].cma_page_count =
+			pbi->m_BUF[i].cma_page_count =
 					PAGE_ALIGN(buf_size) / PAGE_SIZE;
-				pr_info("CMA malloc ok  %d\n", i);
-			} else {
+			if (decoder_bmmu_box_alloc_buf_phy(pbi->bmmu_box,
+					VF_BUFFER_IDX(i), buf_size, DRIVER_NAME,
+					&pbi->m_BUF[i].alloc_addr) < 0) {
 				pbi->m_BUF[i].cma_page_count = 0;
-				pr_info("CMA malloc failed  %d\n", i);
 				if (i <= 5) {
 					pbi->fatal_error |=
 					DECODER_FATAL_ERROR_NO_MEM;
@@ -3658,21 +3648,13 @@ static int config_pic(struct VP9Decoder_s *pbi,
 			pbi->mc_buf->buf_end)
 			y_adr = pbi->mc_buf->buf_start + i * buf_size;
 		else {
-			if (!decoder_bmmu_box_alloc_idx_wait(
-					pbi->bmmu_box,
-					i,
-					buf_size,
-					-1,
-					-1,
-					BMMU_ALLOC_FLAGS_WAITCLEAR
-					)) {
-				pic_config->cma_alloc_addr =
-					decoder_bmmu_box_get_phy_addr(
-						pbi->bmmu_box,
-						i);
-			} else {
-				pr_err("alloc cma buffer failed %d\n", i);
-			}
+			ret = decoder_bmmu_box_alloc_buf_phy(pbi->bmmu_box,
+					VF_BUFFER_IDX(i),
+					buf_size, DRIVER_NAME,
+					&pic_config->cma_alloc_addr);
+			if (ret < 0)
+				return ret;
+
 			if (pic_config->cma_alloc_addr)
 				y_adr = pic_config->cma_alloc_addr;
 			else
@@ -5339,7 +5321,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		} else {
 			vf->mem_handle = decoder_bmmu_box_get_mem_handle(
 				pbi->bmmu_box,
-				pic_config->index);
+				VF_BUFFER_IDX(pic_config->index));
 		}
 		inc_vf_ref(pbi, pic_config->index);
 		kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
@@ -6316,6 +6298,10 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	struct BUF_s BUF[MAX_BUF_NUM];
 	struct VP9Decoder_s *pbi = &gHevc;
+	int ret;
+#ifndef MULTI_INSTANCE_SUPPORT
+	int i;
+#endif
 	pr_info("%s\n", __func__);
 	mutex_lock(&vvp9_mutex);
 
@@ -6338,19 +6324,32 @@ static int amvdec_vp9_probe(struct platform_device *pdev)
 	}
 	pbi->m_ins_flag = 0;
 #ifdef MULTI_INSTANCE_SUPPORT
-	pbi->buf_start = pdata->mem_start;
-	pbi->buf_size = pdata->mem_end - pdata->mem_start + 1;
 	pbi->platform_dev = pdev;
 	platform_set_drvdata(pdev, pdata);
-#else
-	pbi->mc_buf_spec.buf_end = pdata->mem_end + 1;
-	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
-		amvvp9_workbuff_spec[i].start_adr = pdata->mem_start;
 #endif
 	if (amvdec_vp9_mmu_init(pbi) < 0) {
+		mutex_unlock(&vvp9_mutex);
 		pr_err("vp9 alloc bmmu box failed!!\n");
 		return -1;
 	}
+	/* alloc_mem_size is work space size */
+	pbi->buf_size = pdata->alloc_mem_size;
+	ret = decoder_bmmu_box_alloc_buf_phy(pbi->bmmu_box, 0,
+			pbi->buf_size, DRIVER_NAME, &pdata->mem_start);
+	if (ret < 0) {
+		mutex_unlock(&vvp9_mutex);
+		return ret;
+	}
+
+#ifdef MULTI_INSTANCE_SUPPORT
+	pbi->buf_start = pdata->mem_start;
+#else
+	pbi->mc_buf_spec.buf_end = pdata->mem_start + pbi->buf_size;
+	for (i = 0; i < WORK_BUF_SPEC_NUM; i++)
+		amvvp9_workbuff_spec[i].start_adr = pdata->mem_start;
+#endif
+
+
 	if (debug) {
 		pr_info("===VP9 decoder mem resource 0x%lx -- 0x%lx\n",
 			   pdata->mem_start, pdata->mem_end + 1);
@@ -6744,7 +6743,7 @@ static irqreturn_t vp9_threaded_irq_cb(struct vdec_s *vdec)
 static int ammvdec_vp9_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
-
+	int ret;
 	struct BUF_s BUF[MAX_BUF_NUM];
 	struct VP9Decoder_s *pbi = NULL;
 	pr_info("%s\n", __func__);
@@ -6799,27 +6798,14 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		devm_kfree(&pdev->dev, (void *)pbi);
 		return -1;
 	}
-
 	pbi->cma_alloc_count = PAGE_ALIGN(work_buf_size) / PAGE_SIZE;
-	if (!decoder_bmmu_box_alloc_idx_wait(
-			pbi->bmmu_box,
-			WORK_SPACE_BUF_ID,
-			pbi->cma_alloc_count * PAGE_SIZE,
-			-1,
-			-1,
-			BMMU_ALLOC_FLAGS_WAITCLEAR
-			))	{
-		pbi->cma_alloc_addr = decoder_bmmu_box_get_phy_addr(
-					pbi->bmmu_box,
-					WORK_SPACE_BUF_ID);
-	} else {
-		vp9_print(pbi, 0,
-			"codec_mm alloc failed, request buf size 0x%lx\n",
-				pbi->cma_alloc_count * PAGE_SIZE);
-		pbi->cma_alloc_count = 0;
+	ret = decoder_bmmu_box_alloc_buf_phy(pbi->bmmu_box, WORK_SPACE_BUF_ID,
+			pbi->cma_alloc_count * PAGE_SIZE, DRIVER_NAME,
+			&pbi->cma_alloc_addr);
+	if (ret < 0) {
 		uninit_mmu_buffers(pbi);
 		devm_kfree(&pdev->dev, (void *)pbi);
-		return -ENOMEM;
+		return ret;
 	}
 	pbi->buf_start = pbi->cma_alloc_addr;
 	pbi->buf_size = work_buf_size;
@@ -6861,7 +6847,6 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 	}
 
 	vdec_set_prepare_level(pdata, start_decode_buf_level);
-
 	return 0;
 }
 

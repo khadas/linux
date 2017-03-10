@@ -34,6 +34,8 @@
 #include <linux/atomic.h>
 
 #include <linux/module.h>
+#include <linux/amlogic/codec_mm/codec_mm.h>
+
 #include <linux/slab.h>
 #include "amports_priv.h"
 
@@ -42,6 +44,8 @@
 #include "vdec_reg.h"
 
 #include "amvdec.h"
+#include "decoder/decoder_bmmu_box.h"
+
 
 #define TIME_TASK_PRINT_ENABLE  0x100
 #define PUT_PRINT_ENABLE    0x200
@@ -76,13 +80,17 @@ static void vh264mvc_vf_put(struct vframe_s *, void *);
 static int vh264mvc_event_cb(int type, void *data, void *private_data);
 
 static void vh264mvc_prot_init(void);
-static void vh264mvc_local_init(void);
+static int vh264mvc_local_init(void);
 static void vh264mvc_put_timer_func(unsigned long arg);
 
 static const char vh264mvc_dec_id[] = "vh264mvc-dev";
 
 #define PROVIDER_NAME   "decoder.h264mvc"
+
 static struct vdec_info *gvs;
+static struct work_struct alloc_work;
+
+static DEFINE_MUTEX(vh264_mvc_mutex);
 
 static const struct vframe_operations_s vh264mvc_vf_provider = {
 	.peek = vh264mvc_vf_peek,
@@ -177,14 +185,19 @@ unsigned DECODE_BUFFER_END = 0x05000000;
 
 #define DECODE_BUFFER_NUM_MAX    16
 #define DISPLAY_BUFFER_NUM         4
+#define MAX_BMMU_BUFFER_NUM	(DECODE_BUFFER_NUM_MAX + DISPLAY_BUFFER_NUM)
+#define TOTAL_BMMU_BUFF_NUM     (MAX_BMMU_BUFFER_NUM * 2 + 3)
+#define VF_BUFFER_IDX(n) (2  + n)
+
+#define DECODER_WORK_SPACE_SIZE 0xa0000
+
 
 static unsigned int ANC_CANVAS_ADDR;
 static unsigned int index;
-static unsigned int dpb_start_addr[3];
-static unsigned int ref_start_addr[2];
+static unsigned long ref_start_addr[2];
 static unsigned int max_dec_frame_buffering[2];
 static unsigned int total_dec_frame_buffering[2];
-static unsigned int level_idc, max_reference_frame_num, mb_width, mb_height;
+
 static unsigned int dpb_size, ref_size;
 
 static int display_buff_id;
@@ -193,8 +206,7 @@ static int display_POC;
 static int stream_offset;
 
 #define video_domain_addr(adr) (adr&0x7fffffff)
-static unsigned work_space_adr;
-static unsigned work_space_size = 0xa0000;
+static unsigned long work_space_adr;
 
 struct buffer_spec_s {
 	unsigned int y_addr;
@@ -204,11 +216,14 @@ struct buffer_spec_s {
 	int y_canvas_index;
 	int u_canvas_index;
 	int v_canvas_index;
+
+	struct page *alloc_pages;
+	unsigned long phy_addr;
+	int alloc_count;
 };
-static struct buffer_spec_s buffer_spec0[DECODE_BUFFER_NUM_MAX +
-			DISPLAY_BUFFER_NUM];
-static struct buffer_spec_s buffer_spec1[DECODE_BUFFER_NUM_MAX +
-			DISPLAY_BUFFER_NUM];
+static struct buffer_spec_s buffer_spec0[MAX_BMMU_BUFFER_NUM];
+static struct buffer_spec_s buffer_spec1[MAX_BMMU_BUFFER_NUM];
+static void *mm_blk_handle;
 
 /*
     dbg_mode:
@@ -224,7 +239,7 @@ static int view_mode =
 static int drop_rate = 2;
 static int drop_thread_hold;
 /**/
-#define MVC_BUF_NUM     (DECODE_BUFFER_NUM_MAX+DISPLAY_BUFFER_NUM)
+
 struct mvc_buf_s {
 	struct list_head list;
 	struct vframe_s vframe;
@@ -522,65 +537,92 @@ static int vh264mvc_event_cb(int type, void *data, void *private_data)
 }
 
 /**/
-static long init_canvas(int start_addr, long dpb_size, int dpb_number,
-		int mb_width, int mb_height,
+static long init_canvas(int view_index, int refbuf_size, long dpb_size,
+		int dpb_number,	int mb_width, int mb_height,
 		struct buffer_spec_s *buffer_spec)
 {
 
-	int dpb_addr, addr;
-	int i;
-	int mb_total;
-
+	unsigned long addr;
+	int i, j, bmmu_index;
+	int mb_total, ret = -1;
 	/* cav_con canvas; */
-
-	dpb_addr = start_addr;
-
 	mb_total = mb_width * mb_height;
+	mutex_lock(&vh264_mvc_mutex);
 
-	for (i = 0; i < dpb_number; i++) {
+	for (j = 0; j < (dpb_number + 1); j++) {
+		int page_count;
+		if (j == 0) {
+			if (!view_index)
+				bmmu_index = 1;
+			else
+				bmmu_index =  dpb_number + 2;
+
+			ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle,
+				bmmu_index, refbuf_size, DRIVER_NAME,
+				&ref_start_addr[view_index]);
+
+			if (ret < 0) {
+				mutex_unlock(&vh264_mvc_mutex);
+				return ret;
+			}
+
+			continue;
+		}
+		 /* canvas buf */
 		WRITE_VREG(ANC_CANVAS_ADDR,
 				index | ((index + 1) << 8) |
 				((index + 2) << 16));
 		ANC_CANVAS_ADDR++;
 
-		addr = dpb_addr;
+			i = j - 1;
+		if (!view_index)
+			bmmu_index = VF_BUFFER_IDX(i);
+		else
+			bmmu_index	= VF_BUFFER_IDX(i) + dpb_number + 1;
+#ifdef DOUBLE_WRITE
+		 page_count = PAGE_ALIGN((mb_total << 8) + (mb_total << 7) +
+				(mb_total << 6) + (mb_total << 5)) / PAGE_SIZE;
+#else
+		 page_count = PAGE_ALIGN((mb_total << 8) +
+				(mb_total << 7)) / PAGE_SIZE;
+#endif
+
+		ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle,
+			bmmu_index, page_count << PAGE_SHIFT,
+			DRIVER_NAME, &buffer_spec[i].phy_addr);
+
+		if (ret < 0) {
+			buffer_spec[i].alloc_count = 0;
+			mutex_unlock(&vh264_mvc_mutex);
+			return ret;
+		}
+
+		addr = buffer_spec[i].phy_addr;
+		buffer_spec[i].alloc_count = page_count;
 		buffer_spec[i].y_addr = addr;
 		buffer_spec[i].y_canvas_index = index;
-		canvas_config(index,
-				addr,
-				mb_width << 4,
-				mb_height << 4,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
+		canvas_config(index, addr,
+			mb_width << 4, mb_height << 4,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 
 		addr += mb_total << 8;
 		index++;
 		buffer_spec[i].u_addr = addr;
 		buffer_spec[i].u_canvas_index = index;
-		canvas_config(index,
-				addr,
-				mb_width << 3,
-				mb_height << 3,
+		canvas_config(index, addr, mb_width << 3, mb_height << 3,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 
 		addr += mb_total << 6;
 		index++;
 		buffer_spec[i].v_addr = addr;
 		buffer_spec[i].v_canvas_index = index;
-		canvas_config(index,
-				addr,
-				mb_width << 3,
-				mb_height << 3,
+		canvas_config(index, addr, mb_width << 3, mb_height << 3,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_32X32);
 
-		addr += mb_total << 6;
 		index++;
-
-		dpb_addr = dpb_addr + dpb_size;
-		if (dpb_addr >= DECODE_BUFFER_END)
-			return -1;
 	}
-
-	return dpb_addr;
+	mutex_unlock(&vh264_mvc_mutex);
+	return 0;
 }
 
 static int get_max_dec_frame_buf_size(int level_idc,
@@ -669,29 +711,19 @@ int check_in_list(int pos, int *slot)
 	return ret;
 }
 
-#ifdef HANDLE_h264mvc_IRQ
-static irqreturn_t vh264mvc_isr(int irq, void *dev_id)
-#else
-static void vh264mvc_isr(void)
-#endif
+static void do_alloc_work(struct work_struct *work)
 {
-	int drop_status;
-	struct vframe_s *vf;
-	unsigned int pts, pts_valid = 0;
-	u64 pts_us64;
+	int level_idc, max_reference_frame_num, mb_width, mb_height;
+	int refbuf_size;
 	int ret = READ_VREG(MAILBOX_COMMAND);
-	/* pr_info("vh264mvc_isr, cmd =%x\n", ret); */
+
 	switch (ret & 0xff) {
 	case CMD_ALLOC_VIEW_0:
 		if (dbg_mode & 0x1) {
 			pr_info
-			("Start H264 display buffer allocation for view 0\n");
+			("Start H264 display buffer for view 0\n");
 		}
-		if ((dpb_start_addr[0] != -1) | (dpb_start_addr[1] != -1)) {
-			dpb_start_addr[0] = -1;
-			dpb_start_addr[1] = -1;
-		}
-		dpb_start_addr[0] = DECODE_BUFFER_START;
+
 		ret = READ_VREG(MAILBOX_DATA_0);
 		level_idc = (ret >> 24) & 0xff;
 		max_reference_frame_num = (ret >> 16) & 0xff;
@@ -719,46 +751,33 @@ static void vh264mvc_isr(void)
 			pr_info("max_reference_frame_num: 0x%x\n",
 				   max_reference_frame_num);
 		}
-		ref_start_addr[0] = dpb_start_addr[0] +
-			(dpb_size * total_dec_frame_buffering[0]);
-		dpb_start_addr[1] = ref_start_addr[0] +
-			(ref_size * (max_reference_frame_num + 1));
-
-		if (dbg_mode & 0x1) {
-			pr_info("dpb_start_addr[0]: 0x%x\n", dpb_start_addr[0]);
-			pr_info("ref_start_addr[0]: 0x%x\n", ref_start_addr[0]);
-			pr_info("dpb_start_addr[1]: 0x%x\n", dpb_start_addr[1]);
-		}
-		if (dpb_start_addr[1] >= DECODE_BUFFER_END) {
-			pr_info(" No enough memory for alloc view 0\n");
-			goto exit;
-		}
+		refbuf_size
+			= ref_size * (max_reference_frame_num + 1) * 2;
 
 		index = CANVAS_INDEX_START;
 		ANC_CANVAS_ADDR = ANC0_CANVAS_ADDR;
 
 		ret =
-			init_canvas(dpb_start_addr[0], dpb_size,
-					total_dec_frame_buffering[0], mb_width,
-					mb_height, buffer_spec0);
+			init_canvas(0, refbuf_size, dpb_size,
+				total_dec_frame_buffering[0], mb_width,
+				mb_height, buffer_spec0);
 
-		if (ret == -1) {
+		if (ret < 0) {
 			pr_info(" Un-expected memory alloc problem\n");
-			goto exit;
+			return;
 		}
 
 		WRITE_VREG(REF_START_VIEW_0,
-				   video_domain_addr(ref_start_addr[0]));
+			   video_domain_addr(ref_start_addr[0]));
 		WRITE_VREG(MAILBOX_DATA_0,
-				   (max_dec_frame_buffering[0] << 8) |
-				   (total_dec_frame_buffering[0] << 0)
-				  );
+			   (max_dec_frame_buffering[0] << 8) |
+			   (total_dec_frame_buffering[0] << 0));
 		WRITE_VREG(MAILBOX_DATA_1, ref_size);
 		WRITE_VREG(MAILBOX_COMMAND, CMD_FINISHED);
 
 		if (dbg_mode & 0x1) {
 			pr_info
-			("End H264 display buffer allocation for view 0\n");
+			("End H264 display buffer for view 0\n");
 		}
 		if (frame_width == 0) {
 			if (vh264mvc_amstream_dec_info.width)
@@ -775,12 +794,9 @@ static void vh264mvc_isr(void)
 	case CMD_ALLOC_VIEW_1:
 		if (dbg_mode & 0x1) {
 			pr_info
-			("Start H264 display buffer allocation for view 1\n");
+			("Start H264 display buffer for view 1\n");
 		}
-		if ((dpb_start_addr[0] == -1) | (dpb_start_addr[1] == -1)) {
-			pr_info("Error: allocation view 1 before view 0 !!!\n");
-			break;
-		}
+
 		ret = READ_VREG(MAILBOX_DATA_0);
 		level_idc = (ret >> 24) & 0xff;
 		max_reference_frame_num = (ret >> 16) & 0xff;
@@ -807,61 +823,45 @@ static void vh264mvc_isr(void)
 
 		dpb_size = mb_width * mb_height * 384;
 		ref_size = mb_width * mb_height * 96;
-
+		refbuf_size = ref_size * (max_reference_frame_num + 1) * 2;
 		if (dbg_mode & 0x1) {
 			pr_info("dpb_size: 0x%x\n", dpb_size);
 			pr_info("ref_size: 0x%x\n", ref_size);
 			pr_info("total_dec_frame_buffering[1] : 0x%x\n",
-				   total_dec_frame_buffering[1]);
+			   total_dec_frame_buffering[1]);
 			pr_info("max_reference_frame_num: 0x%x\n",
 				   max_reference_frame_num);
-		}
-		ref_start_addr[1] = dpb_start_addr[1] +
-			(dpb_size * total_dec_frame_buffering[1]);
-		dpb_start_addr[2] = ref_start_addr[1] +
-			(ref_size * (max_reference_frame_num + 1));
-
-		if (dbg_mode & 0x1) {
-			pr_info("dpb_start_addr[1]: 0x%x\n", dpb_start_addr[1]);
-			pr_info("ref_start_addr[1]: 0x%x\n", ref_start_addr[1]);
-			pr_info("dpb_start_addr[2]: 0x%x\n", dpb_start_addr[2]);
-		}
-		if (dpb_start_addr[2] >= DECODE_BUFFER_END) {
-			pr_info(" No enough memory for alloc view 1\n");
-			goto exit;
 		}
 
 		index = CANVAS_INDEX_START + total_dec_frame_buffering[0] * 3;
 		ANC_CANVAS_ADDR =
 			ANC0_CANVAS_ADDR + total_dec_frame_buffering[0];
 
-		ret =
-			init_canvas(dpb_start_addr[1], dpb_size,
-					total_dec_frame_buffering[1], mb_width,
-					mb_height, buffer_spec1);
+		ret = init_canvas(1, refbuf_size, dpb_size,
+				total_dec_frame_buffering[1], mb_width,
+				mb_height, buffer_spec1);
 
-		if (ret == -1) {
+		if (ret < 0) {
 			pr_info(" Un-expected memory alloc problem\n");
-			goto exit;
+			return;
 		}
 
 		WRITE_VREG(REF_START_VIEW_1,
-				   video_domain_addr(ref_start_addr[1]));
+				video_domain_addr(ref_start_addr[1]));
 		WRITE_VREG(MAILBOX_DATA_0,
-				   (max_dec_frame_buffering[1] << 8) |
-				   (total_dec_frame_buffering[1] << 0)
-				  );
+			   (max_dec_frame_buffering[1] << 8) |
+			   (total_dec_frame_buffering[1] << 0));
 		WRITE_VREG(MAILBOX_DATA_1, ref_size);
 		WRITE_VREG(MAILBOX_COMMAND, CMD_FINISHED);
 
 		if (dbg_mode & 0x1) {
 			pr_info
-			("End H264 display buffer allocation for view 1\n");
+			("End H264 buffer allocation for view 1\n");
 		}
 		if (frame_width == 0) {
 			if (vh264mvc_amstream_dec_info.width)
 				frame_width = vh264mvc_amstream_dec_info.width;
-			else
+		else
 				frame_width = mb_width << 4;
 		}
 		if (frame_height == 0) {
@@ -869,6 +869,28 @@ static void vh264mvc_isr(void)
 			if (frame_height == 1088)
 				frame_height = 1080;
 		}
+	break;
+	}
+
+}
+
+
+#ifdef HANDLE_h264mvc_IRQ
+static irqreturn_t vh264mvc_isr(int irq, void *dev_id)
+#else
+static void vh264mvc_isr(void)
+#endif
+{
+	int drop_status;
+	struct vframe_s *vf;
+	unsigned int pts, pts_valid = 0;
+	u64 pts_us64;
+	int ret = READ_VREG(MAILBOX_COMMAND);
+	/* pr_info("vh264mvc_isr, cmd =%x\n", ret); */
+	switch (ret & 0xff) {
+	case CMD_ALLOC_VIEW_0:
+	case CMD_ALLOC_VIEW_1:
+		schedule_work(&alloc_work);
 		break;
 	case CMD_FRAME_DISPLAY:
 		ret = READ_VREG(MAILBOX_DATA_0);
@@ -955,7 +977,6 @@ static void vh264mvc_isr(void)
 						stream_offset;
 					vfpool_idx[slot].view0_drop =
 						drop_status;
-
 				}
 				if (display_view_id == 1) {
 					vfpool_idx[slot].view1_buf_id =
@@ -965,14 +986,24 @@ static void vh264mvc_isr(void)
 						drop_status;
 				}
 				vf = &vfpool[slot];
-#if 0
-				if (pts_lookup_offset
-					(PTS_TYPE_VIDEO,
-					 vfpool_idx[slot].stream_offset,
-					 &vf->pts,
-					 0) != 0)
-					vf->pts = 0;
-#endif
+
+				if (display_view_id == 0) {
+					vf->mem_handle =
+					decoder_bmmu_box_get_mem_handle(
+						mm_blk_handle,
+						VF_BUFFER_IDX(display_buff_id));
+
+				} else if (display_view_id == 1) {
+					vf->mem_handle =
+					decoder_bmmu_box_get_mem_handle(
+						mm_blk_handle,
+						VF_BUFFER_IDX(display_buff_id)
+						+ total_dec_frame_buffering[0]
+						+ 1);
+				}
+
+
+
 				if (vfpool_idx[slot].stream_offset == 0) {
 					pr_info
 					("error case, invalid stream offset\n");
@@ -1013,7 +1044,6 @@ static void vh264mvc_isr(void)
 	default:
 		break;
 	}
-exit:
 #ifdef HANDLE_h264mvc_IRQ
 	return IRQ_HANDLED;
 #else
@@ -1275,9 +1305,9 @@ static void vh264mvc_prot_init(void)
 #endif
 }
 
-static void vh264mvc_local_init(void)
+static int vh264mvc_local_init(void)
 {
-	int i;
+	int i, size, ret;
 	display_buff_id = -1;
 	display_view_id = -1;
 	display_POC = -1;
@@ -1309,9 +1339,8 @@ static void vh264mvc_local_init(void)
 	pts_outside = ((unsigned long) vh264mvc_amstream_dec_info.param) & 0x01;
 	sync_outside = ((unsigned long) vh264mvc_amstream_dec_info.param & 0x02)
 			>> 1;
+	INIT_WORK(&alloc_work, do_alloc_work);
 
-	/**/ dpb_start_addr[0] = -1;
-	dpb_start_addr[1] = -1;
 	max_dec_frame_buffering[0] = -1;
 	max_dec_frame_buffering[1] = -1;
 	fill_ptr = get_ptr = put_ptr = putting_ptr = 0;
@@ -1332,13 +1361,32 @@ static void vh264mvc_local_init(void)
 	for (i = 0; i < VF_POOL_SIZE; i++)
 		memset(&vfpool[i], 0, sizeof(struct vframe_s));
 	init_vf_buf();
-	return;
+
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
+
+	mm_blk_handle = decoder_bmmu_box_alloc_box(
+		DRIVER_NAME,
+		0,
+		TOTAL_BMMU_BUFF_NUM,
+		4 + PAGE_SHIFT,
+		CODEC_MM_FLAGS_CMA_CLEAR |
+		CODEC_MM_FLAGS_FOR_VDECODER);
+
+	size = DECODER_WORK_SPACE_SIZE;
+	ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle, 0,
+		size, DRIVER_NAME, &work_space_adr);
+
+	return ret;
 }
 
 static s32 vh264mvc_init(void)
 {
+
 	int ret = 0;
-	int r1, r2, r3, r4;
+	int r, r1, r2, r3, r4;
 	unsigned int cpu_type = get_cpu_type();
 	pr_info("\nvh264mvc_init\n");
 	init_timer(&recycle_timer);
@@ -1349,7 +1397,9 @@ static s32 vh264mvc_init(void)
 	if (0 != ret)
 		return -ret;
 
-	vh264mvc_local_init();
+	r = vh264mvc_local_init();
+	if (r < 0)
+		return r;
 
 	amvdec_enable();
 
@@ -1492,6 +1542,10 @@ static int vh264mvc_stop(void)
 
 	amvdec_disable();
 
+	if (mm_blk_handle) {
+		decoder_bmmu_box_free(mm_blk_handle);
+		mm_blk_handle = NULL;
+	}
 	uninit_vf_buf();
 	return 0;
 }
@@ -1506,12 +1560,10 @@ static void error_do_work(struct work_struct *work)
 
 static int amvdec_h264mvc_probe(struct platform_device *pdev)
 {
-	struct resource mem;
-	int buf_size;
-
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 
 	pr_info("amvdec_h264mvc probe start.\n");
+	mutex_lock(&vh264_mvc_mutex);
 
 #if 0
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1522,21 +1574,11 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 #endif
 
 	if (pdata == NULL) {
+		mutex_unlock(&vh264_mvc_mutex);
 		pr_info("\namvdec_h264mvc memory resource undefined.\n");
 		return -EFAULT;
 	}
-	mem.start = pdata->mem_start;
-	mem.end = pdata->mem_end;
 
-	buf_size = mem.end - mem.start + 1;
-	/* buf_offset = mem->start - DEF_BUF_START_ADDR; */
-	work_space_adr = mem.start;
-	DECODE_BUFFER_START = work_space_adr + work_space_size;
-	DECODE_BUFFER_END = mem.start + buf_size;
-
-	pr_info
-	("work_space_adr %x, DECODE_BUFFER_START %x, DECODE_BUFFER_END %x\n",
-	 work_space_adr, DECODE_BUFFER_START, DECODE_BUFFER_END);
 	if (pdata->sys_info)
 		vh264mvc_amstream_dec_info = *pdata->sys_info;
 
@@ -1547,13 +1589,15 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 		pr_info("\namvdec_h264mvc init failed.\n");
 		kfree(gvs);
 		gvs = NULL;
-
+		mutex_unlock(&vh264_mvc_mutex);
 		return -ENODEV;
 	}
 
 	INIT_WORK(&error_wd_work, error_do_work);
 
 	atomic_set(&vh264mvc_active, 1);
+
+	mutex_unlock(&vh264_mvc_mutex);
 
 	pr_info("amvdec_h264mvc probe end.\n");
 
@@ -1563,6 +1607,7 @@ static int amvdec_h264mvc_probe(struct platform_device *pdev)
 static int amvdec_h264mvc_remove(struct platform_device *pdev)
 {
 	pr_info("amvdec_h264mvc_remove\n");
+	cancel_work_sync(&alloc_work);
 	cancel_work_sync(&error_wd_work);
 	vh264mvc_stop();
 	frame_width = 0;
