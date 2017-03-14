@@ -94,7 +94,18 @@ struct tcon_gamma_table_s video_gamma_table_b;
 struct tcon_gamma_table_s video_gamma_table_r_adj;
 struct tcon_gamma_table_s video_gamma_table_g_adj;
 struct tcon_gamma_table_s video_gamma_table_b_adj;
-struct tcon_rgb_ogo_s     video_rgb_ogo;
+struct tcon_rgb_ogo_s video_rgb_ogo = {
+	0, /* wb enable */
+	0, /* -1024~1023, r_pre_offset */
+	0, /* -1024~1023, g_pre_offset */
+	0, /* -1024~1023, b_pre_offset */
+	1024, /* 0~2047, r_gain */
+	1024, /* 0~2047, g_gain */
+	1024, /* 0~2047, b_gain */
+	0, /* -1024~1023, r_post_offset */
+	0, /* -1024~1023, g_post_offset */
+	0  /* -1024~1023, b_post_offset */
+};
 
 #define FLAG_LVDS_FREQ_SW1       (1 <<  6)
 
@@ -195,6 +206,13 @@ static int video_rgb_ogo_mode_sw;
 module_param(video_rgb_ogo_mode_sw, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_mode_sw,
 		"enable/disable video_rgb_ogo_mode_sw");
+
+static int video_rgb_ogo_xvy_mtx = 1;
+module_param(video_rgb_ogo_xvy_mtx, int, 0664);
+MODULE_PARM_DESC(video_rgb_ogo_xvy_mtx,
+		"enable/disable video_rgb_ogo_xvy_mtx");
+
+int video_rgb_ogo_xvy_mtx_latch = 1;
 
 static int ve_dnlp_adj_level = 6;
 module_param(ve_dnlp_adj_level, int, 0664);
@@ -3676,24 +3694,132 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
 
+#define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
+#define MATRIX_5x3_COEF_SIZE 24
+
+static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
+	0, 0, 0, /* pre offset */
+	COEFF_NORM(0.181873),	COEFF_NORM(0.611831),	COEFF_NORM(0.061765),
+	COEFF_NORM(-0.100251),	COEFF_NORM(-0.337249),	COEFF_NORM(0.437500),
+	COEFF_NORM(0.437500),	COEFF_NORM(-0.397384),	COEFF_NORM(-0.040116),
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	64, 512, 512, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
+static int bypass_coeff[MATRIX_5x3_COEF_SIZE] = {
+	0, 0, 0, /* pre offset */
+	COEFF_NORM(1.0),	COEFF_NORM(0.0),	COEFF_NORM(0.0),
+	COEFF_NORM(0.0),	COEFF_NORM(1.0),	COEFF_NORM(0.0),
+	COEFF_NORM(0.0),	COEFF_NORM(0.0),	COEFF_NORM(1.0),
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	0, 0, 0, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 {
+	int m[24];
+	int i;
 	/* write to registers */
-	WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
-			((p->en << 31) & 0x80000000) |
-			((p->r_gain << 16) & 0x07ff0000) |
-			((p->g_gain <<  0) & 0x000007ff));
-	WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
-			((p->b_gain << 16) & 0x07ff0000) |
-			((p->r_post_offset <<  0) & 0x000007ff));
-	WRITE_VPP_REG(VPP_GAINOFF_CTRL2,
-			((p->g_post_offset << 16) & 0x07ff0000) |
-			((p->b_post_offset <<  0) & 0x000007ff));
-	WRITE_VPP_REG(VPP_GAINOFF_CTRL3,
-			((p->r_pre_offset  << 16) & 0x07ff0000) |
-			((p->g_pre_offset  <<  0) & 0x000007ff));
-	WRITE_VPP_REG(VPP_GAINOFF_CTRL4,
-			((p->b_pre_offset  <<  0) & 0x000007ff));
+	if (video_rgb_ogo_xvy_mtx) {
+		if (video_rgb_ogo_xvy_mtx_latch & MTX_BYPASS_RGB_OGO) {
+			memcpy(m, bypass_coeff, sizeof(int) * 24);
+			video_rgb_ogo_xvy_mtx_latch &= ~MTX_BYPASS_RGB_OGO;
+		} else if (video_rgb_ogo_xvy_mtx_latch & MTX_RGB2YUVL_RGB_OGO) {
+			memcpy(m, RGB709_to_YUV709l_coeff, sizeof(int) * 24);
+			video_rgb_ogo_xvy_mtx_latch &= ~MTX_RGB2YUVL_RGB_OGO;
+		} else
+			memcpy(m, bypass_coeff, sizeof(int) * 24);
+
+		m[3] = p->r_gain * m[3] / COEFF_NORM(1.0);
+		m[4] = p->r_gain * m[4] / COEFF_NORM(1.0);
+		m[5] = p->r_gain * m[5] / COEFF_NORM(1.0);
+		m[6] = p->g_gain * m[6] / COEFF_NORM(1.0);
+		m[7] = p->g_gain * m[7] / COEFF_NORM(1.0);
+		m[8] = p->g_gain * m[8] / COEFF_NORM(1.0);
+		m[9] = p->b_gain * m[9] / COEFF_NORM(1.0);
+		m[10] = p->b_gain * m[10] / COEFF_NORM(1.0);
+		m[11] = p->b_gain * m[11] / COEFF_NORM(1.0);
+
+		m[18] = (p->r_pre_offset + m[18] + 1024)
+			* p->r_gain / COEFF_NORM(1.0)
+			- p->r_gain + p->r_post_offset;
+		m[19] = (p->g_pre_offset + m[19] + 1024)
+			* p->g_gain / COEFF_NORM(1.0)
+			- p->g_gain + p->g_post_offset;
+		m[20] = (p->b_pre_offset + m[20] + 1024)
+			* p->b_gain / COEFF_NORM(1.0)
+			- p->b_gain + p->b_post_offset;
+
+		for (i = 18; i < 21; i++) {
+			if (m[i] > 1023)
+				m[i] = 1023;
+			if (m[i] < -1024)
+				m[i] = -1024;
+		}
+
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, p->en, 6, 1);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 2);
+
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
+			((m[0] & 0xfff) << 16)
+			| (m[1] & 0xfff));
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
+			m[2] & 0xfff);
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
+			((m[3] & 0x1fff) << 16)
+			| (m[4] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
+			((m[5]	& 0x1fff) << 16)
+			| (m[6] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
+			((m[7] & 0x1fff) << 16)
+			| (m[8] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
+			((m[9] & 0x1fff) << 16)
+			| (m[10] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF22,
+			m[11] & 0x1fff);
+		if (m[21]) {
+			WRITE_VPP_REG(VPP_MATRIX_COEF13_14,
+				((m[12] & 0x1fff) << 16)
+				| (m[13] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF15_25,
+				((m[14] & 0x1fff) << 16)
+				| (m[17] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF23_24,
+				((m[15] & 0x1fff) << 16)
+				| (m[16] & 0x1fff));
+		}
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
+			((m[18] & 0xfff) << 16)
+			| (m[19] & 0xfff));
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
+			m[20] & 0xfff);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+			m[21], 3, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+			m[22], 5, 3);
+	} else {
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
+				((p->en << 31) & 0x80000000) |
+				((p->r_gain << 16) & 0x07ff0000) |
+				((p->g_gain <<  0) & 0x000007ff));
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
+				((p->b_gain << 16) & 0x07ff0000) |
+				((p->r_post_offset <<  0) & 0x000007ff));
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL2,
+				((p->g_post_offset << 16) & 0x07ff0000) |
+				((p->b_post_offset <<  0) & 0x000007ff));
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL3,
+				((p->r_pre_offset  << 16) & 0x07ff0000) |
+				((p->g_pre_offset  <<  0) & 0x000007ff));
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL4,
+				((p->b_pre_offset  <<  0) & 0x000007ff));
+	}
 }
 
 void ve_enable_dnlp(void)

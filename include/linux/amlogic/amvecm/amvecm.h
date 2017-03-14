@@ -69,6 +69,10 @@
 #define VPP_DEMO_CM_DIS             (1 << 1)
 #define VPP_DEMO_CM_EN              (1 << 0)
 
+/*white balance latch*/
+#define MTX_BYPASS_RGB_OGO			(1 << 0)
+#define MTX_RGB2YUVL_RGB_OGO		(1 << 1)
+
 #define _VE_CM  'C'
 
 #define AMVECM_IOC_VE_DNLP      _IOW(_VE_CM, 0x21, struct ve_dnlp_s)
