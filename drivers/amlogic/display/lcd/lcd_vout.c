@@ -53,7 +53,9 @@ unsigned char lcd_debug_print_flag;
 unsigned char lcd_resume_flag;
 static struct aml_lcd_drv_s *lcd_driver;
 
+struct mutex lcd_power_mutex;
 struct mutex lcd_vout_mutex;
+int lcd_vout_serve_bypass;
 
 static char lcd_propname[20] = "lvds_0";
 
@@ -460,6 +462,27 @@ static struct notifier_block lcd_power_nb = {
 	.priority = LCD_PRIORITY_POWER_LCD,
 };
 
+static int lcd_interface_notifier(struct notifier_block *nb,
+		unsigned long event, void *data)
+{
+	if (lcd_debug_print_flag)
+		LCDPR("%s: 0x%lx\n", __func__, event);
+
+	if (event & LCD_EVENT_IF_ON)
+		lcd_driver->power_tiny_ctrl(1);
+	else if (event & LCD_EVENT_IF_OFF)
+		lcd_driver->power_tiny_ctrl(0);
+	else
+		return NOTIFY_DONE;
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block lcd_interface_nb = {
+	.notifier_call = lcd_interface_notifier,
+	.priority = LCD_PRIORITY_POWER_LCD,
+};
+
 static int lcd_bl_select_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
@@ -694,6 +717,10 @@ static int lcd_mode_probe(struct device *dev)
 
 	lcd_class_creat();
 	lcd_fops_create();
+
+	ret = aml_lcd_notifier_register(&lcd_interface_nb);
+	if (ret)
+		LCDERR("register aml_bl_select_notifier failed\n");
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
 	if (ret)
 		LCDERR("register aml_bl_select_notifier failed\n");
@@ -854,9 +881,11 @@ static int lcd_config_probe(void)
 
 static void lcd_resume_work(struct work_struct *p_work)
 {
+	mutex_lock(&lcd_power_mutex);
 	lcd_resume_flag = 1;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 	LCDPR("%s finished\n", __func__);
+	mutex_unlock(&lcd_power_mutex);
 }
 
 static int lcd_probe(struct platform_device *pdev)
@@ -876,6 +905,8 @@ static int lcd_probe(struct platform_device *pdev)
 	lcd_driver->dev = &pdev->dev;
 
 	mutex_init(&lcd_vout_mutex);
+	mutex_init(&lcd_power_mutex);
+	lcd_vout_serve_bypass = 0;
 
 	/* init workqueue */
 	INIT_DELAYED_WORK(&lcd_driver->lcd_probe_delayed_work,
@@ -906,6 +937,7 @@ static int lcd_remove(struct platform_device *pdev)
 	if (lcd_driver) {
 		aml_lcd_notifier_unregister(&lcd_power_nb);
 		aml_lcd_notifier_unregister(&lcd_bl_select_nb);
+		aml_lcd_notifier_unregister(&lcd_interface_nb);
 
 		lcd_fops_remove();
 		lcd_class_remove();
@@ -927,11 +959,13 @@ static int lcd_resume(struct platform_device *pdev)
 
 static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	mutex_lock(&lcd_power_mutex);
 	if (lcd_driver->lcd_status) {
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 		lcd_resume_flag = 0;
 		LCDPR("%s finished\n", __func__);
 	}
+	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
 

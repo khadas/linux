@@ -24,29 +24,38 @@
 #define LCD_PRIORITY_INIT_CONFIG       4
 #define LCD_PRIORITY_INIT_VOUT         3
 
+#define LCD_PRIORITY_BLACK_SCREEN      3
 #define LCD_PRIORITY_POWER_BL_OFF      2
 #define LCD_PRIORITY_POWER_LCD         1
 #define LCD_PRIORITY_POWER_BL_ON       0
 
 #define LCD_EVENT_BL_ON             (1 << 0)
 #define LCD_EVENT_LCD_ON            (1 << 1)
+#define LCD_EVENT_IF_ON             (1 << 2)
 #define LCD_EVENT_POWER_ON          (LCD_EVENT_BL_ON | LCD_EVENT_LCD_ON)
-#define LCD_EVENT_BL_OFF            (1 << 2)
-#define LCD_EVENT_LCD_OFF           (1 << 3)
-#define LCD_EVENT_POWER_OFF         (LCD_EVENT_BL_OFF | LCD_EVENT_LCD_OFF)
-/* lcd backlight index select */
-#define LCD_EVENT_BACKLIGHT_SEL     (1 << 4)
-/* lcd backlight pwm_vs vfreq change occurred */
-#define LCD_EVENT_BACKLIGHT_UPDATE  (1 << 5)
+#define LCD_EVENT_IF_POWER_ON       (LCD_EVENT_BL_ON | LCD_EVENT_IF_ON)
+#define LCD_EVENT_BLACK_SCREEN      (1 << 3)
+#define LCD_EVENT_BL_OFF            (1 << 4)
+#define LCD_EVENT_LCD_OFF           (1 << 5)
+#define LCD_EVENT_IF_OFF            (1 << 6)
+#define LCD_EVENT_POWER_OFF         (LCD_EVENT_BL_OFF | LCD_EVENT_LCD_OFF |\
+					LCD_EVENT_BLACK_SCREEN)
+#define LCD_EVENT_IF_POWER_OFF      (LCD_EVENT_BL_OFF | LCD_EVENT_IF_OFF |\
+					LCD_EVENT_BLACK_SCREEN)
 
-#define LCD_EVENT_GAMMA_UPDATE  (1 << 6)
+/* lcd backlight index select */
+#define LCD_EVENT_BACKLIGHT_SEL     (1 << 8)
+/* lcd backlight pwm_vs vfreq change occurred */
+#define LCD_EVENT_BACKLIGHT_UPDATE  (1 << 9)
+
+#define LCD_EVENT_GAMMA_UPDATE      (1 << 10)
 
 /* lcd frame rate change occurred */
-#define LCD_EVENT_FRAME_RATE_ADJUST (1 << 8)
+#define LCD_EVENT_FRAME_RATE_ADJUST (1 << 12)
 /* lcd config change occurred */
-#define LCD_EVENT_CONFIG_UPDATE     (1 << 9)
+#define LCD_EVENT_CONFIG_UPDATE     (1 << 13)
 /* lcd bist pattern test occurred */
-#define LCD_EVENT_TEST_PATTERN      (1 << 10)
+#define LCD_EVENT_TEST_PATTERN      (1 << 14)
 
 extern int aml_lcd_notifier_register(struct notifier_block *nb);
 extern int aml_lcd_notifier_unregister(struct notifier_block *nb);
