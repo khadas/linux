@@ -237,6 +237,13 @@ struct osd_fence_map_s {
 	u32 width;
 	u32 height;
 	u32 op;
+	u32 compose_type;
+	u32 dst_x;
+	u32 dst_y;
+	u32 dst_w;
+	u32 dst_h;
+	int byte_stride;
+	int pxiel_stride;
 	u32 reserve;
 	struct sync_fence *in_fence;
 	struct files_struct *files;
@@ -260,9 +267,13 @@ struct hw_list_s {
 struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
+	struct pandata_s dispdata_backup[HW_OSD_COUNT];
 	struct pandata_s scaledata[HW_OSD_COUNT];
 	struct pandata_s free_src_data[HW_OSD_COUNT];
 	struct pandata_s free_dst_data[HW_OSD_COUNT];
+	struct pandata_s free_src_data_backup[HW_OSD_COUNT];
+	struct pandata_s free_dst_data_backup[HW_OSD_COUNT];
+
 	/* struct pandata_s rotation_pandata[HW_OSD_COUNT]; */
 	struct pandata_s cursor_dispdata[HW_OSD_COUNT];
 
@@ -276,7 +287,9 @@ struct hw_para_s {
 #endif
 	struct osd_scale_s scale[HW_OSD_COUNT];
 	struct osd_scale_s free_scale[HW_OSD_COUNT];
+	struct osd_scale_s free_scale_backup[HW_OSD_COUNT];
 	u32 free_scale_enable[HW_OSD_COUNT];
+	u32 free_scale_enable_backup[HW_OSD_COUNT];
 	struct fb_geometry_s fb_gem[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_info[HW_OSD_COUNT];
 	const struct color_bit_define_s *color_backup[HW_OSD_COUNT];
@@ -287,6 +300,7 @@ struct hw_para_s {
 	/* u32 block_windows[HW_OSD_COUNT][HW_OSD_BLOCK_REG_COUNT]; */
 	u32 block_mode[HW_OSD_COUNT];
 	u32 free_scale_mode[HW_OSD_COUNT];
+	u32 free_scale_mode_backup[HW_OSD_COUNT];
 	u32 osd_reverse[HW_OSD_COUNT];
 	/* struct osd_rotate_s rotate[HW_OSD_COUNT]; */
 	struct hw_list_s reg[HW_OSD_COUNT][HW_REG_INDEX_MAX];

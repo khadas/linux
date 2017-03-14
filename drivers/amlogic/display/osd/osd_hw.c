@@ -103,6 +103,7 @@ static __nosavedata int use_h_filter_mode = -1;
 static __nosavedata int use_v_filter_mode = -1;
 
 static unsigned int osd_h_filter_mode = 1;
+#define CANVAS_ALIGNED(x)	(((x) + 31) & ~31)
 module_param(osd_h_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_h_filter_mode, "osd_h_filter_mode");
 
@@ -419,8 +420,15 @@ int osd_sync_request_render(u32 index, u32 yres,
 		fence_map->format = request->format;
 		fence_map->width = request->width;
 		fence_map->height = request->height;
+		fence_map->dst_x = request->dst_x;
+		fence_map->dst_y = request->dst_y;
+		fence_map->dst_w = request->dst_w;
+		fence_map->dst_h = request->dst_h;
+		fence_map->byte_stride = request->byte_stride;
+		fence_map->pxiel_stride = request->pxiel_stride;
 		fence_map->reserve = request->reserve;
 	}
+	fence_map->compose_type = request->type;
 	fence_map->op = request->op;
 	fence_map->in_fence = sync_fence_fdget(in_fence_fd);
 	fence_map->files = current->files;
@@ -1023,6 +1031,8 @@ void osd_update_disp_axis_hw(
 	/* if output mode change then reset pan ofFfset. */
 	memcpy(&osd_hw.pandata[index], &pan_data, sizeof(struct pandata_s));
 	memcpy(&osd_hw.dispdata[index], &disp_data, sizeof(struct pandata_s));
+	memcpy(&osd_hw.dispdata_backup[index],
+		&disp_data, sizeof(struct pandata_s));
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (mode_change) /* modify pandata . */
 		osd_hw.reg[index][OSD_COLOR_MODE].update_func();
@@ -1160,6 +1170,8 @@ void osd_setup_hw(u32 index,
 				sizeof(struct pandata_s));
 		memcpy(&osd_hw.dispdata[index], &disp_data,
 				sizeof(struct pandata_s));
+		memcpy(&osd_hw.dispdata_backup[index], &disp_data,
+				sizeof(struct pandata_s));
 	}
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (update_color_mode)
@@ -1228,7 +1240,11 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 	v_enable = (enable & 0xffff ? 1 : 0);
 	osd_hw.free_scale[index].h_enable = h_enable;
 	osd_hw.free_scale[index].v_enable = v_enable;
+	osd_hw.free_scale_backup[index].h_enable = h_enable;
+	osd_hw.free_scale_backup[index].v_enable = v_enable;
 	osd_hw.free_scale_enable[index] = enable;
+	osd_hw.free_scale_enable_backup[index] = enable;
+
 	if (osd_hw.free_scale_enable[index]) {
 		ret = osd_set_scan_mode(index);
 		spin_lock_irqsave(&osd_lock, lock_flags);
@@ -1254,6 +1270,8 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 
 void osd_set_free_scale_enable_hw(u32 index, u32 enable)
 {
+	osd_log_info("osd_set_free_scale_enable_hw\n");
+
 	if (osd_hw.free_scale_mode[index])
 		osd_set_free_scale_enable_mode1(index, enable);
 	else if (enable)
@@ -1270,6 +1288,8 @@ void osd_get_free_scale_enable_hw(u32 index, u32 *free_scale_enable)
 void osd_set_free_scale_mode_hw(u32 index, u32 freescale_mode)
 {
 	osd_hw.free_scale_mode[index] = freescale_mode;
+	osd_hw.free_scale_mode_backup[index] = freescale_mode;
+	osd_log_info("osd_set_free_scale_mode_hw\n");
 }
 
 void osd_get_free_scale_mode_hw(u32 index, u32 *freescale_mode)
@@ -1284,22 +1304,22 @@ void osd_set_4k2k_fb_mode_hw(u32 fb_for_4k2k)
 
 void osd_get_free_scale_width_hw(u32 index, u32 *free_scale_width)
 {
-	*free_scale_width = osd_hw.free_src_data[index].x_end -
-		osd_hw.free_src_data[index].x_start + 1;
+	*free_scale_width = osd_hw.free_src_data_backup[index].x_end -
+		osd_hw.free_src_data_backup[index].x_start + 1;
 }
 
 void osd_get_free_scale_height_hw(u32 index, u32 *free_scale_height)
 {
-	*free_scale_height = osd_hw.free_src_data[index].y_end -
-		osd_hw.free_src_data[index].y_start + 1;
+	*free_scale_height = osd_hw.free_src_data_backup[index].y_end -
+		osd_hw.free_src_data_backup[index].y_start + 1;
 }
 
 void osd_get_free_scale_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 {
-	*x0 = osd_hw.free_src_data[index].x_start;
-	*y0 = osd_hw.free_src_data[index].y_start;
-	*x1 = osd_hw.free_src_data[index].x_end;
-	*y1 = osd_hw.free_src_data[index].y_end;
+	*x0 = osd_hw.free_src_data_backup[index].x_start;
+	*y0 = osd_hw.free_src_data_backup[index].y_start;
+	*x1 = osd_hw.free_src_data_backup[index].x_end;
+	*y1 = osd_hw.free_src_data_backup[index].y_end;
 }
 
 void osd_set_free_scale_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
@@ -1308,6 +1328,12 @@ void osd_set_free_scale_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.free_src_data[index].y_start = y0;
 	osd_hw.free_src_data[index].x_end = x1;
 	osd_hw.free_src_data[index].y_end = y1;
+
+	osd_hw.free_src_data_backup[index].x_start = x0;
+	osd_hw.free_src_data_backup[index].y_start = y0;
+	osd_hw.free_src_data_backup[index].x_end = x1;
+	osd_hw.free_src_data_backup[index].y_end = y1;
+
 }
 
 void osd_get_scale_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
@@ -1339,23 +1365,23 @@ void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 		case VMODE_576CVBS:
 		case VMODE_1080I:
 		case VMODE_1080I_50HZ:
-			height = osd_hw.free_dst_data[index].y_end -
-				osd_hw.free_dst_data[index].y_start + 1;
+			height = osd_hw.free_dst_data_backup[index].y_end -
+				osd_hw.free_dst_data_backup[index].y_start + 1;
 			height *= 2;
-			*y0 = osd_hw.free_dst_data[index].y_start * 2;
+			*y0 = osd_hw.free_dst_data_backup[index].y_start * 2;
 			*y1 = height + *y0 - 1;
 			break;
 		default:
-			*y0 = osd_hw.free_dst_data[index].y_start;
-			*y1 = osd_hw.free_dst_data[index].y_end;
+			*y0 = osd_hw.free_dst_data_backup[index].y_start;
+			*y1 = osd_hw.free_dst_data_backup[index].y_end;
 			break;
 		}
 	} else {
-		*y0 = osd_hw.free_dst_data[index].y_start;
-		*y1 = osd_hw.free_dst_data[index].y_end;
+		*y0 = osd_hw.free_dst_data_backup[index].y_start;
+		*y1 = osd_hw.free_dst_data_backup[index].y_end;
 	}
-	*x0 = osd_hw.free_dst_data[index].x_start;
-	*x1 = osd_hw.free_dst_data[index].x_end;
+	*x0 = osd_hw.free_dst_data_backup[index].x_start;
+	*x1 = osd_hw.free_dst_data_backup[index].x_end;
 }
 
 void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
@@ -1388,6 +1414,11 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.free_dst_data[index].y_end = temp_y1;
 	osd_hw.free_dst_data[index].x_start = x0;
 	osd_hw.free_dst_data[index].x_end = x1;
+
+	osd_hw.free_dst_data_backup[index].y_start = temp_y0;
+	osd_hw.free_dst_data_backup[index].y_end = temp_y1;
+	osd_hw.free_dst_data_backup[index].x_start = x0;
+	osd_hw.free_dst_data_backup[index].x_end = x1;
 #if defined(CONFIG_FB_OSD2_CURSOR)
 	osd_hw.cursor_dispdata[index].x_start = x0;
 	osd_hw.cursor_dispdata[index].x_end = x1;
@@ -1708,6 +1739,12 @@ void osd_switch_free_scale(
 		osd_hw.free_scale[pre_index].h_enable = h_enable;
 		osd_hw.free_scale[pre_index].v_enable = v_enable;
 		osd_hw.free_scale_enable[pre_index] = pre_scale;
+		osd_hw.free_scale_backup[pre_index].h_enable
+			= h_enable;
+		osd_hw.free_scale_backup[pre_index].v_enable
+			= v_enable;
+		osd_hw.free_scale_enable_backup[pre_index]
+			= pre_scale;
 		osd_hw.enable[pre_index] = pre_enable;
 
 		h_enable = (next_scale & 0xffff0000 ? 1 : 0);
@@ -1715,6 +1752,10 @@ void osd_switch_free_scale(
 		osd_hw.free_scale[next_index].h_enable = h_enable;
 		osd_hw.free_scale[next_index].v_enable = v_enable;
 		osd_hw.free_scale_enable[next_index] = next_scale;
+		osd_hw.free_scale_backup[next_index].h_enable = h_enable;
+		osd_hw.free_scale_backup[next_index].v_enable = v_enable;
+		osd_hw.free_scale_enable_backup[next_index] = next_scale;
+
 		osd_hw.enable[next_index] = next_enable;
 
 		osd_set_scan_mode(next_index);
@@ -1823,6 +1864,135 @@ static const struct color_bit_define_s *convert_hal_format(u32 format)
 	return color;
 }
 
+
+
+static bool osd_ge2d_compose_pan_display(struct osd_fence_map_s *fence_map)
+{
+	u32 index = fence_map->fb_index;
+	bool free_scale_set = false;
+
+	canvas_config(osd_hw.fb_gem[index].canvas_idx,
+		fence_map->ext_addr,
+		CANVAS_ALIGNED(fence_map->width *
+		osd_hw.color_info[index]->bpp),
+		fence_map->height,
+		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+
+	osd_hw.pandata[index].x_start = 0;
+	osd_hw.pandata[index].x_end = fence_map->width - 1;
+	osd_hw.pandata[index].y_start = 0;
+	osd_hw.pandata[index].y_end = fence_map->height - 1;
+	return free_scale_set;
+}
+
+static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
+{
+	u32 index = fence_map->fb_index;
+	u32 ext_addr = fence_map->ext_addr;
+	u32 width_src, width_dst, height_src, height_dst;
+	bool freescale_update = false;
+
+	ext_addr = ext_addr + fence_map->byte_stride * fence_map->yoffset;
+
+	canvas_config(osd_hw.fb_gem[index].canvas_idx,
+		ext_addr,
+		fence_map->byte_stride,
+		fence_map->height,
+		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+
+	width_dst = osd_hw.free_dst_data_backup[index].x_end -
+		osd_hw.free_dst_data_backup[index].x_start;
+	width_src = osd_hw.free_src_data_backup[index].x_end -
+		osd_hw.free_src_data_backup[index].x_start;
+
+	height_dst = osd_hw.free_dst_data_backup[index].y_end -
+		osd_hw.free_dst_data_backup[index].y_start;
+	height_src = osd_hw.free_src_data_backup[index].y_end -
+		osd_hw.free_src_data_backup[index].y_start;
+
+	if (osd_hw.free_scale_enable[index] ||
+		(width_src != width_dst) ||
+		(height_src != height_dst) ||
+		(fence_map->width != fence_map->dst_w) ||
+		(fence_map->height != fence_map->dst_h)) {
+		osd_hw.free_scale[index].h_enable = 1;
+		osd_hw.free_scale[index].v_enable = 1;
+		osd_hw.free_scale_enable[index] = 0x10001;
+		osd_hw.free_scale_mode[index] = 1;
+
+		osd_hw.pandata[index].x_start = fence_map->xoffset;
+		osd_hw.pandata[index].x_end =
+			fence_map->xoffset +
+			fence_map->width - 1;
+		osd_hw.pandata[index].y_start = 0;
+		osd_hw.pandata[index].y_end =
+			fence_map->height - 1;
+
+		osd_hw.dispdata[index].x_start =
+			osd_hw.dispdata_backup[index].x_start +
+			(fence_map->dst_x * width_dst) /
+			width_src;
+		osd_hw.dispdata[index].x_end =
+			osd_hw.dispdata_backup[index].x_start +
+			((fence_map->dst_x + fence_map->dst_w) *
+			width_dst) / width_src - 1;
+
+		osd_hw.dispdata[index].y_start =
+			osd_hw.dispdata_backup[index].y_start +
+			(fence_map->dst_y * height_dst) /
+			height_src;
+		osd_hw.dispdata[index].y_end =
+			osd_hw.dispdata_backup[index].y_start +
+			((fence_map->dst_y + fence_map->dst_h) *
+			height_dst) / height_src - 1;
+
+		if (memcmp(&(osd_hw.free_src_data[index]),
+			&osd_hw.pandata[index],
+			sizeof(struct pandata_s)) != 0 ||
+			memcmp(&(osd_hw.free_dst_data[index]),
+			&osd_hw.dispdata[index],
+			sizeof(struct pandata_s)) != 0) {
+				memcpy(&(osd_hw.free_src_data[index]),
+					&osd_hw.pandata[index],
+					sizeof(struct pandata_s));
+				memcpy(&(osd_hw.free_dst_data[index]),
+					&osd_hw.dispdata[index],
+					sizeof(struct pandata_s));
+				freescale_update = true;
+
+			osd_log_dbg("direct pandata x=%d,x_end=%d,y=%d,y_end=%d\n",
+				osd_hw.pandata[index].x_start,
+				osd_hw.pandata[index].x_end,
+				osd_hw.pandata[index].y_start,
+				osd_hw.pandata[index].y_end);
+			osd_log_dbg("fence_map:width=%d,height=%d,dst_w=%d,dst_h=%d,byte_stride=%d\n",
+				fence_map->width,
+				fence_map->height,
+				fence_map->dst_w,
+				fence_map->dst_h,
+				fence_map->byte_stride);
+		}
+	} else {
+		osd_hw.pandata[index].x_start = 0;
+		osd_hw.pandata[index].x_end =
+			fence_map->width - 1;
+		osd_hw.pandata[index].y_start = 0;
+		osd_hw.pandata[index].y_end =
+			fence_map->height - 1;
+
+		osd_hw.dispdata[index].x_start =
+			fence_map->dst_x;
+		osd_hw.dispdata[index].x_end =
+			fence_map->dst_x + fence_map->dst_w - 1;
+		osd_hw.dispdata[index].y_start =
+			fence_map->dst_y;
+		osd_hw.dispdata[index].y_end =
+			fence_map->dst_y + fence_map->dst_h - 1;
+	}
+	fence_map->ext_addr = ext_addr;
+	return freescale_update;
+}
+
 static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 {
 	s32 ret = 1;
@@ -1830,9 +2000,9 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 	u32 index = fence_map->fb_index;
 	u32 xoffset = fence_map->xoffset;
 	u32 yoffset = fence_map->yoffset;
-	u32 ext_addr = fence_map->ext_addr;
 	const struct color_bit_define_s *color = NULL;
 	bool color_mode = false;
+	bool freescale_update = false;
 	u32 osd_enable = 0;
 	bool skip = false;
 	if (index >= 2)
@@ -1842,12 +2012,14 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 		if (ret < 0)
 			osd_log_dbg("fence wait ret %d\n", ret);
 	}
+
+
 	if (ret) {
 		if (fence_map->op == 0xffffffff)
 			skip = true;
 		else
 			osd_enable = (fence_map->op & 1) ? DISABLE : ENABLE;
-		if (ext_addr && fence_map->width
+		if (fence_map->ext_addr && fence_map->width
 				&& fence_map->height && index == OSD1) {
 			spin_lock_irqsave(&osd_lock, lock_flags);
 			use_ext = true;
@@ -1855,30 +2027,31 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 				extern_canvas[ext_canvas_id];
 			ext_canvas_id ^= 1;
 			color = convert_hal_format(fence_map->format);
-			if (color)
+			if (color) {
 				osd_hw.color_info[index] = color;
+			}
 			else
 				osd_log_err("fence color format error %d\n",
 					fence_map->format);
-			canvas_config(osd_hw.fb_gem[index].canvas_idx,
-				ext_addr,
-				fence_map->width *
-				osd_hw.color_info[index]->bpp,
-				fence_map->height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-			osd_hw.pandata[index].x_start = 0;
-			osd_hw.pandata[index].x_end = fence_map->width - 1;
-			osd_hw.pandata[index].y_start = 0;
-			osd_hw.pandata[index].y_end = fence_map->height - 1;
+
+			if (DIRECT_COMPOSE_MODE ==
+				fence_map->compose_type)
+				freescale_update =
+				osd_direct_compose_pan_display(fence_map);
+			else if (GE2D_COMPOSE_MODE ==
+				fence_map->compose_type)
+				freescale_update =
+				osd_ge2d_compose_pan_display(fence_map);
 			if (index == OSD1 &&
-				osd_hw.osd_afbcd[index].enable == ENABLE) {
+				osd_hw.osd_afbcd[index].enable == ENABLE)
 				osd_hw.osd_afbcd[index].phy_addr =
-					ext_addr;
-			}
+					fence_map->ext_addr;
+
 			osd_hw.reg[index][OSD_COLOR_MODE].update_func();
 			osd_hw.reg[index][DISP_GEOMETRY].update_func();
-			if (osd_hw.free_scale_enable[index]
-					&& osd_update_window_axis) {
+			if ((osd_hw.free_scale_enable[index]
+					&& osd_update_window_axis)
+					|| freescale_update) {
 				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
 					.update_func();
 				osd_update_window_axis = false;
@@ -1898,14 +2071,48 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			if ((use_ext) && (index == OSD1)) {
 				osd_hw.fb_gem[index].canvas_idx =
 					OSD1_CANVAS_INDEX;
+
 				osd_hw.pandata[index].x_start = xoffset;
-				osd_hw.pandata[index].x_end   = xoffset -
-					osd_hw.fb_gem[index].xres + 1;
+				osd_hw.pandata[index].x_end   = xoffset +
+					osd_hw.fb_gem[index].xres - 1;
 				osd_hw.pandata[index].y_start = yoffset;
-				osd_hw.pandata[index].x_end   = yoffset -
-					osd_hw.fb_gem[index].yres + 1;
+				osd_hw.pandata[index].y_end   = yoffset +
+					osd_hw.fb_gem[index].yres - 1;
+
+				osd_hw.dispdata[index].x_start =
+					osd_hw.dispdata_backup[index].x_start;
+				osd_hw.dispdata[index].x_end =
+					osd_hw.dispdata_backup[index].x_end;
+				osd_hw.dispdata[index].y_start =
+					osd_hw.dispdata_backup[index].y_start;
+				osd_hw.dispdata[index].y_end =
+					osd_hw.dispdata_backup[index].y_end;
+
+				/* restore free_scale info */
+				osd_hw.free_scale[index].h_enable =
+				osd_hw.free_scale_backup[index].h_enable;
+				osd_hw.free_scale[index].v_enable =
+				osd_hw.free_scale_backup[index].v_enable;
+				osd_hw.free_scale_enable[index] =
+					osd_hw.free_scale_enable_backup[index];
+				osd_hw.free_scale_mode[index] =
+					osd_hw.free_scale_mode_backup[index];
+
+				memcpy(&osd_hw.free_src_data[index],
+					&osd_hw.free_src_data_backup[index],
+					sizeof(struct pandata_s));
+				memcpy(&osd_hw.free_dst_data[index],
+					&osd_hw.free_dst_data_backup[index],
+					sizeof(struct pandata_s));
+				osd_log_dbg("switch back dispdata_backup x=%d,x_end=%d,y=%d,y_end=%d\n",
+					osd_hw.dispdata_backup[index].x_start,
+					osd_hw.dispdata_backup[index].x_end,
+					osd_hw.dispdata_backup[index].y_start,
+					osd_hw.dispdata_backup[index].y_end);
+
 				osd_hw.color_info[index] =
 					osd_hw.color_backup[index];
+
 				canvas_config(osd_hw.fb_gem[0].canvas_idx,
 					osd_hw.fb_gem[0].addr,
 					osd_hw.fb_gem[0].width,
@@ -1914,6 +2121,7 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 					CANVAS_BLKMODE_LINEAR);
 				use_ext = false;
 				color_mode = true;
+				freescale_update = true;
 			} else {
 				diff_x = xoffset -
 					osd_hw.pandata[index].x_start;
@@ -1941,8 +2149,10 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 			if (color_mode)
 				osd_hw.reg[index][OSD_COLOR_MODE].update_func();
 			osd_hw.reg[index][DISP_GEOMETRY].update_func();
-			if (osd_hw.free_scale_enable[index]
-					&& osd_update_window_axis) {
+			if ((osd_hw.free_scale_enable[index]
+					&& osd_update_window_axis)
+					|| (osd_hw.free_scale_enable[index]
+					&& freescale_update)) {
 				osd_hw.reg[index][DISP_FREESCALE_ENABLE]
 					.update_func();
 				osd_update_window_axis = false;
@@ -1976,6 +2186,7 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 	if (ret)
 		osd_ext_clone_pan(index);
 #endif
+
 	osd_log_dbg2("offset[%d-%d]x[%d-%d]y[%d-%d]\n",
 		    xoffset, yoffset,
 		    osd_hw.pandata[index].x_start,
@@ -1983,8 +2194,9 @@ static void osd_pan_display_fence(struct osd_fence_map_s *fence_map)
 		    osd_hw.pandata[index].y_start,
 		    osd_hw.pandata[index].y_end);
 }
-#endif
 
+
+#endif
 void osd_pan_display_hw(u32 index, unsigned int xoffset, unsigned int yoffset)
 {
 	long diff_x, diff_y;
@@ -3439,12 +3651,22 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.free_scale_enable[OSD1] = osd_hw.free_scale_enable[OSD2] = 0;
 	osd_hw.scale[OSD1].h_enable = osd_hw.scale[OSD1].v_enable = 0;
 	osd_hw.scale[OSD2].h_enable = osd_hw.scale[OSD2].v_enable = 0;
+
+	osd_hw.free_scale_enable_backup[OSD1] =
+		osd_hw.free_scale_enable_backup[OSD2] = 0;
+
 	osd_hw.mode_3d[OSD2].enable = osd_hw.mode_3d[OSD1].enable = 0;
 	osd_hw.block_mode[OSD1] = osd_hw.block_mode[OSD2] = 0;
 	osd_hw.free_scale[OSD1].h_enable = 0;
 	osd_hw.free_scale[OSD1].h_enable = 0;
 	osd_hw.free_scale[OSD2].v_enable = 0;
 	osd_hw.free_scale[OSD2].v_enable = 0;
+
+	osd_hw.free_scale_backup[OSD1].h_enable = 0;
+	osd_hw.free_scale_backup[OSD1].h_enable = 0;
+	osd_hw.free_scale_backup[OSD2].v_enable = 0;
+	osd_hw.free_scale_backup[OSD2].v_enable = 0;
+
 	osd_hw.osd_reverse[OSD1] = REVERSE_FALSE;
 	osd_hw.osd_reverse[OSD2] = REVERSE_FALSE;
 	/*
@@ -3465,6 +3687,15 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_src_data[OSD2].x_end = 0;
 		osd_hw.free_src_data[OSD2].y_start = 0;
 		osd_hw.free_src_data[OSD2].y_end = 0;
+		osd_hw.free_src_data_backup[OSD1].x_start = 0;
+		osd_hw.free_src_data_backup[OSD1].x_end = 0;
+		osd_hw.free_src_data_backup[OSD1].y_start = 0;
+		osd_hw.free_src_data_backup[OSD1].y_end = 0;
+		osd_hw.free_src_data_backup[OSD2].x_start = 0;
+		osd_hw.free_src_data_backup[OSD2].x_end = 0;
+		osd_hw.free_src_data_backup[OSD2].y_start = 0;
+		osd_hw.free_src_data_backup[OSD2].y_end = 0;
+
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 1;
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)

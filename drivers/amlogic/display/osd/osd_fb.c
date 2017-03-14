@@ -866,11 +866,16 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			ret = meson_ion_share_fd_to_phys(fb_ion_client,
 				sync_request_render.shared_fd, &addr, &len);
 			if (ret == 0) {
-				phys_addr = addr +
-					sync_request_render.yoffset
-					* info->fix.line_length;
+				if (sync_request_render.type ==
+					GE2D_COMPOSE_MODE) {
+					phys_addr = addr +
+						sync_request_render.yoffset
+						* info->fix.line_length;
+				} else
+					phys_addr = addr;
 			} else
 				phys_addr = 0;
+
 			sync_request_render.out_fen_fd =
 				osd_sync_request_render(info->node,
 				info->var.yres,
@@ -1218,8 +1223,9 @@ static int osd_pan_display(struct fb_var_screeninfo *var,
 			   struct fb_info *fbi)
 {
 	osd_pan_display_hw(fbi->node, var->xoffset, var->yoffset);
-	osd_log_dbg("osd_pan_display:=>osd%d xoff=%d, yoff=%d\n",
+	/* osd_log_dbg("osd_pan_display:=>osd%d xoff=%d, yoff=%d\n",
 			fbi->node, var->xoffset, var->yoffset);
+	*/
 	return 0;
 }
 
