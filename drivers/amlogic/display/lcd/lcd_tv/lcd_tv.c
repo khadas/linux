@@ -236,6 +236,10 @@ static enum vmode_e lcd_validate_vmode(char *mode)
 	int lcd_vmode, frame_rate;
 	int ret;
 
+	if (lcd_vout_serve_bypass) {
+		LCDPR("vout_serve bypass\n");
+		return VMODE_MAX;
+	}
 	if (mode == NULL)
 		return VMODE_MAX;
 
@@ -272,6 +276,10 @@ static int lcd_set_current_vmode(enum vmode_e mode)
 	int ret = 0;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (lcd_vout_serve_bypass) {
+		LCDPR("vout_serve bypass\n");
+		return 0;
+	}
 	mutex_lock(&lcd_vout_mutex);
 
 	/* do not change mode value here, for bit mask is useful */
@@ -393,6 +401,10 @@ static int lcd_set_vframe_rate_hint(int duration)
 	struct lcd_vframe_match_s *vtable = lcd_vframe_match_table_1;
 	int fps, i, n;
 
+	if (lcd_vout_serve_bypass) {
+		LCDPR("vout_serve bypass\n");
+		return 0;
+	}
 	if (lcd_drv->lcd_status == 0) {
 		LCDPR("%s: lcd is disabled, exit\n", __func__);
 		return 0;
@@ -449,6 +461,10 @@ static int lcd_set_vframe_rate_end_hint(void)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vinfo_s *info;
 
+	if (lcd_vout_serve_bypass) {
+		LCDPR("vout_serve bypass\n");
+		return 0;
+	}
 	if (lcd_drv->lcd_status == 0) {
 		LCDPR("%s: lcd is disabled, exit\n", __func__);
 		return 0;
@@ -476,6 +492,10 @@ static int lcd_set_vframe_rate_policy(int policy)
 #ifdef CONFIG_AML_VOUT_FRAMERATE_AUTOMATION
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
+	if (lcd_vout_serve_bypass) {
+		LCDPR("vout_serve bypass\n");
+		return 0;
+	}
 	lcd_drv->fr_auto_policy = policy;
 	LCDPR("%s: %d\n", __func__, lcd_drv->fr_auto_policy);
 #endif
@@ -496,20 +516,23 @@ static int lcd_get_vframe_rate_policy(void)
 #ifdef CONFIG_PM
 static int lcd_suspend(void)
 {
+	mutex_lock(&lcd_power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, NULL);
 	lcd_resume_flag = 0;
 	LCDPR("%s finished\n", __func__);
+	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
 
 static int lcd_resume(void)
 {
+	mutex_lock(&lcd_power_mutex);
 	if (lcd_resume_flag == 0) {
 		lcd_resume_flag = 1;
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
 		LCDPR("%s finished\n", __func__);
 	}
-
+	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
 
