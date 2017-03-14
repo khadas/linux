@@ -3333,10 +3333,6 @@ static int hdr_process(
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				RGB709_to_YUV709l_coeff,
 				CSC_ON);
-		else /* xvycc matrix bypass for LCD */
-			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				bypass_coeff,
-				CSC_OFF);
 	} else {
 
 		/* turn vd1 matrix on */
@@ -3561,20 +3557,10 @@ static void bypass_hdr_process(
 			CSC_OFF);
 
 		/* xvycc matrix full2limit or bypass */
-		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
+		if (range_control)
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				bypass_coeff,
-				CSC_OFF);
-		} else {
-			if (range_control)
-				set_vpp_matrix(VPP_MATRIX_XVYCC,
-					YUV709f_to_YUV709l_coeff,
-					CSC_ON);
-			else
-				set_vpp_matrix(VPP_MATRIX_XVYCC,
-					bypass_coeff,
-					CSC_OFF);
-		}
+				YUV709f_to_YUV709l_coeff,
+				CSC_ON);
 	} else {
 		/* OSD */
 		/* keep RGB */
@@ -3746,9 +3732,7 @@ static int vpp_eye_protection_process(
 	if ((vinfo->viu_color_fmt != TVIN_RGB444) &&
 		(cur_eye_protect_mode == 1))
 		/*  for eye protect mode */
-		set_vpp_matrix(VPP_MATRIX_XVYCC,
-			RGB709_to_YUV709l_coeff,
-			CSC_ON);
+		video_rgb_ogo_xvy_mtx_latch &= MTX_RGB2YUVL_RGB_OGO;
 	else /* matrix yuv2rgb for LCD */
 		set_vpp_matrix(VPP_MATRIX_XVYCC,
 			bypass_coeff,

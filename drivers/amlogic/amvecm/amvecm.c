@@ -1691,6 +1691,172 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 
 }
 
+void white_balance_adjust(int sel, int value)
+{
+	switch (sel) {
+	/*0: en*/
+	/*1: pre r   2: pre g   3: pre b*/
+	/*4: gain r  5: gain g  6: gain b*/
+	/*7: post r  8: post g  9: post b*/
+	case 0:
+		video_rgb_ogo.en = value;
+		break;
+	case 1:
+		video_rgb_ogo.r_pre_offset = value;
+		break;
+	case 2:
+		video_rgb_ogo.g_pre_offset = value;
+		break;
+	case 3:
+		video_rgb_ogo.b_pre_offset = value;
+		break;
+	case 4:
+		video_rgb_ogo.r_gain = value;
+		break;
+	case 5:
+		video_rgb_ogo.g_gain = value;
+		break;
+	case 6:
+		video_rgb_ogo.b_gain = value;
+		break;
+	case 7:
+		video_rgb_ogo.r_post_offset = value;
+		break;
+	case 8:
+		video_rgb_ogo.g_post_offset = value;
+		break;
+	case 9:
+		video_rgb_ogo.b_post_offset = value;
+		break;
+	default:
+		break;
+	}
+	ve_ogo_param_update();
+}
+
+static ssize_t amvecm_wb_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	pr_info("read:	echo r gain_r > /sys/class/amvecm/wb\n");
+	pr_info("read:	echo r pre_r > /sys/class/amvecm/wb\n");
+	pr_info("read:	echo r post_r > /sys/class/amvecm/wb\n");
+	pr_info("write:	echo gain_r value > /sys/class/amvecm/wb\n");
+	pr_info("write:	echo preofst_r value > /sys/class/amvecm/wb\n");
+	pr_info("write:	echo postofst_r value > /sys/class/amvecm/wb\n");
+	return 0;
+}
+
+static ssize_t amvecm_wb_store(struct class *cls,
+			struct class_attribute *attr,
+			const char *buffer, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+	long value;
+	if (!buffer)
+		return count;
+	buf_orig = kstrdup(buffer, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (!strncmp(parm[0], "r", 1)) {
+		if (!strncmp(parm[1], "pre_r", 5))
+			pr_info("\t Pre_R = %d\n", video_rgb_ogo.r_pre_offset);
+		else if (!strncmp(parm[1], "pre_g", 5))
+			pr_info("\t Pre_G = %d\n", video_rgb_ogo.g_pre_offset);
+		else if (!strncmp(parm[1], "pre_b", 5))
+			pr_info("\t Pre_B = %d\n", video_rgb_ogo.b_pre_offset);
+		else if (!strncmp(parm[1], "gain_r", 6))
+			pr_info("\t Gain_R = %d\n", video_rgb_ogo.r_gain);
+		else if (!strncmp(parm[1], "gain_g", 6))
+			pr_info("\t Gain_G = %d\n", video_rgb_ogo.g_gain);
+		else if (!strncmp(parm[1], "gain_b", 6))
+			pr_info("\t Gain_B = %d\n", video_rgb_ogo.b_gain);
+		else if (!strncmp(parm[1], "post_r", 6))
+			pr_info("\t Post_R = %d\n",
+				video_rgb_ogo.r_post_offset);
+		else if (!strncmp(parm[1], "post_g", 6))
+			pr_info("\t Post_G = %d\n",
+				video_rgb_ogo.g_post_offset);
+		else if (!strncmp(parm[1], "post_b", 6))
+			pr_info("\t Post_B = %d\n",
+				video_rgb_ogo.b_post_offset);
+		else if (!strncmp(parm[1], "en", 2))
+			pr_info("\t En = %d\n", video_rgb_ogo.en);
+	} else {
+		if (kstrtol(parm[1], 10, &value) < 0)
+			return -EINVAL;
+		if (!strncmp(parm[0], "wb_en", 5)) {
+			white_balance_adjust(0, value);
+			pr_info("\t set wb en\n");
+		} else if (!strncmp(parm[0], "preofst_r", 9)) {
+			if ((value > 1023) || (value < -1024))
+				pr_info("\t preofst r over range\n");
+			else {
+				white_balance_adjust(1, value);
+				pr_info("\t set wb preofst r\n");
+			}
+		} else if (!strncmp(parm[0], "preofst_g", 9)) {
+			if ((value > 1023) || (value < -1024))
+				pr_info("\t preofst g over range\n");
+			else {
+				white_balance_adjust(2, value);
+				pr_info("\t set wb preofst g\n");
+			}
+		} else if (!strncmp(parm[0], "preofst_b", 9)) {
+			if ((value > 1023) || (value < -1024))
+				pr_info("\t preofst b over range\n");
+			else {
+				white_balance_adjust(3, value);
+				pr_info("\t set wb preofst b\n");
+			}
+		} else if (!strncmp(parm[0], "gain_r", 6)) {
+			if ((value > 2047) || (value < 0))
+				pr_info("\t gain r over range\n");
+			else {
+				white_balance_adjust(4, value);
+				pr_info("\t set wb gain r\n");
+			}
+		} else if (!strncmp(parm[0], "gain_g", 6)) {
+			if ((value > 2047) || (value < 0))
+				pr_info("\t gain g over range\n");
+			else {
+				white_balance_adjust(5, value);
+				pr_info("\t set wb gain g\n");
+			}
+		} else if (!strncmp(parm[0], "gain_b", 6)) {
+			if ((value > 2047) || (value < 0))
+				pr_info("\t gain b over range\n");
+			else {
+				white_balance_adjust(6, value);
+				pr_info("\t set wb gain b\n");
+			}
+		} else if (!strncmp(parm[0], "postofst_r", 10)) {
+			if ((value > 1023) || (value < -1024))
+				pr_info("\t postofst r over range\n");
+			else {
+				white_balance_adjust(7, value);
+				pr_info("\t set wb postofst r\n");
+			}
+		} else if (!strncmp(parm[0], "postofst_g", 10)) {
+			if ((value > 1023) || (value < -1024))
+				pr_info("\t postofst g over range\n");
+			else {
+				white_balance_adjust(8, value);
+				pr_info("\t set wb postofst g\n");
+			}
+		} else if (!strncmp(parm[0], "postofst_b", 10)) {
+			if ((value > 1023) || (value < -1024))
+				pr_info("\t postofst b over range\n");
+			else {
+				white_balance_adjust(9, value);
+				pr_info("\t set wb postofst b\n");
+			}
+		}
+	}
+
+	kfree(buf_orig);
+	return count;
+}
+
 static ssize_t set_hdr_289lut_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
@@ -2633,6 +2799,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(gamma, S_IRUGO | S_IWUSR,
 		amvecm_gamma_show,
 		amvecm_gamma_store),
+	__ATTR(wb, S_IRUGO | S_IWUSR,
+		amvecm_wb_show,
+		amvecm_wb_store),
 	__ATTR(brightness1, S_IRUGO | S_IWUSR,
 		video_adj1_brightness_show,
 		video_adj1_brightness_store),
