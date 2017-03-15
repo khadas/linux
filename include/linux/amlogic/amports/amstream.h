@@ -299,9 +299,21 @@ struct am_io_param {
 
 		struct vdec_status vstatus;
 		struct adec_status astatus;
+	};
+};
+
+struct am_io_info {
+	union {
+		int data;
+		int id;
+	};
+	int len;
+	union {
+		char buf[1];
 		struct vdec_info vinfo;
 	};
 };
+
 struct audio_info {
 
 	int valid;

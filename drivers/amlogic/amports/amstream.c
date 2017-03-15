@@ -2656,7 +2656,7 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 			return -EINVAL;
 		{
 			struct vdec_info vinfo;
-			struct am_io_param para;
+			struct am_io_info para;
 
 			if (vdec_status(priv->vdec, &vinfo) == -1)
 				return -ENODEV;
