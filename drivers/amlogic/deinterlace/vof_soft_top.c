@@ -77,6 +77,8 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 	static UINT8 NumSmFd;  /* counter for same field */
 
 	int mDly = pPar->mPstDlyPre;
+	int flm22_flag = pPar->flm22_flag;
+	int cmb22_nocmb_num = pPar->cmb22_nocmb_num;
 
 	/* UINT8 *PREWV = pRDat.pFlg32; or pRDat.pFlg22 */
 	/* static int TCNm[HISCMBNUM]; history: the number of combing-rows */
@@ -345,13 +347,17 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		} /* here for vertical moving VOF */
 	} else if ((pMod22[HISDETNUM-1] == 2) &&
 		(pFlg22[HISDETNUM-1] & 0x1)) {
-		nT2 = ((nROW * cmb22_gcmb_rnum + 8) >> 4);
+		if (flm22_flag)
+			nT2 = 288 - cmb22_nocmb_num;
+		else
+			nT2 = ((nROW * cmb22_gcmb_rnum + 8) >> 4);
 		if (nCSum > nT2)
 			WGlb[HISDETNUM-1] = 1; /*global combing*/
-
+		else
+			WGlb[HISDETNUM-1] = 0; /*global combing*/
 		if (prt_flg)
 			sprintf(debug_str + strlen(debug_str),
-				"WGlb22=%d\n", WGlb[HISDETNUM-1]);
+					"WGlb22=%d\n", WGlb[HISDETNUM-1]);
 
 		for (nT0 = 0; nT0 < ROWCMBLEN; nT0++)
 			nRCmbAd[nT0] = HSCMB[HISCMBNUM-1][nT0];
@@ -558,7 +564,7 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 		pr_info("%s", debug_str);
 	}
 
-	return nWCmb;
+	return nCSum;
 }
 
 /* int *PREWV:5*2 */
