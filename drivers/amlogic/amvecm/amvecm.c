@@ -76,6 +76,8 @@ static int hue_pre;  /*-25~25*/
 static int saturation_pre;  /*-128~127*/
 static int hue_post;  /*-25~25*/
 static int saturation_post;  /*-128~127*/
+/*contrast add saturation add*/
+static int satu_shift_by_con;  /*-128~127*/
 
 static s16 saturation_ma;
 static s16 saturation_mb;
@@ -882,7 +884,8 @@ void amvecm_on_vs(struct vframe_s *vf)
 
 		ioctrl_get_hdr_metadata(vf);
 		amvecm_color_process(
-			saturation_pre + saturation_offset,
+			saturation_pre + saturation_offset
+			+ satu_shift_by_con,
 			hue_pre, vf);
 
 		vpp_demo_config(vf);
@@ -1192,6 +1195,12 @@ static ssize_t amvecm_contrast_store(struct class *cla,
 	vd1_contrast = val;
 	/*vecm_latch_flag |= FLAG_BRI_CON;*/
 	vecm_latch_flag |= FLAG_VADJ1_CON;
+
+	if (val > 0)
+		satu_shift_by_con = val >> 3;
+	else
+		satu_shift_by_con = 0;
+	vecm_latch_flag |= FLAG_VADJ1_COLOR;
 	return count;
 }
 
