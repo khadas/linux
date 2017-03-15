@@ -3485,7 +3485,7 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 			check_sum &= 0xff;
 		}
 		if (i == 255) {
-			value = (0x100-check_sum)&0xff;
+			value = check_sum & 0xff;
 			check_sum = 0;
 		}
 		ram_addr = TOP_EDID_OFFSET + i;
@@ -3496,16 +3496,16 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 	for (i = 0; i < 3; i++) {
 		if (((port >> i*4) & 0xf) == 0) {
 			phy_addr[0] = ((i + 1) << 4);
-			checksum[0] = (0x100 + value +
-				phy_addr[0] - 0x10);
+			checksum[0] = (0x100 - (value +
+				(phy_addr[0] - 0x10))) & 0xff;
 		} else if (((port >> i*4) & 0xf) == 1) {
 			phy_addr[1] = ((i + 1) << 4);
-			checksum[1] = (0x100 + value +
-				phy_addr[1] - 0x10) & 0xff;
+			checksum[1] = (0x100 - (value +
+				(phy_addr[1] - 0x10))) & 0xff;
 		} else if (((port >> i*4) & 0xf) == 2) {
 			phy_addr[2] = ((i + 1) << 4);
-			checksum[2] = (0x100 + value +
-				phy_addr[2] - 0x10) & 0xff;
+			checksum[2] = (0x100 - (value +
+				(phy_addr[2] - 0x10))) & 0xff;
 		}
 	}
 	hdmirx_wr_top(TOP_EDID_RAM_OVR1,
@@ -3519,6 +3519,7 @@ void hdmi_rx_load_edid_data(unsigned char *buffer, int port)
 			checksum[0]|checksum[1]<<8|checksum[2]<<16);
 
 }
+
 
 
 void hdmi_rx_load_edid_data_repeater(unsigned char *buffer, int port)
