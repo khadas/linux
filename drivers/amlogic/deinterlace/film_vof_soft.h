@@ -97,6 +97,13 @@ struct sFlmSftPar {
 	int mPstDlyPre;
 	/* pre-processing (t-0), pre-processing f(t+mNxtDlySft); default=1 */
 	int mNxtDlySft;
+	int cmb22_nocmb_num;
+	int flm22_en;
+	int flm32_en;
+	int flm22_flag;
+	int flm22_comlev;
+	int flm22_comlev1;
+	int flm22_comnum;
 
 	UINT32 sF32Dif02M0;	/* mpeg-4096, cvbs-8192 */
 	UINT32 sF32Dif02M1;	/* mpeg-4096, cvbs-8192 */

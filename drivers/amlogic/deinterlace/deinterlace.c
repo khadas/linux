@@ -1107,11 +1107,25 @@ static struct pd_param_s pd_params[] = {
 	  &(pd_param.mPstDlyPre)    },
 	{ "mNxtDlySft",
 	  &(pd_param.mNxtDlySft)    },
+	{ "cmb22_nocmb_num",
+	 &(pd_param.cmb22_nocmb_num)},
+	{ "flm22_en",
+	  &(pd_param.flm22_en)      },
+	{ "flm32_en",
+	     &(pd_param.flm32_en)   },
+	{ "flm22_flag",
+	  &(pd_param.flm22_flag)    },
+	{ "flm22_comlev",
+	  &(pd_param.flm22_comlev)  },
+	{ "flm22_comlev1",
+	  &(pd_param.flm22_comlev1) },
+	{ "flm22_comnum",
+	  &(pd_param.flm22_comnum)  },
 	{ "sF32Dif02M0",
-	  &(pd_param.sF32Dif02M0)   },        /* mpeg-4096, cvbs-8192 */
+	  &(pd_param.sF32Dif02M0)   },/* mpeg-4096, cvbs-8192 */
 	{ "sF32Dif02M1",
-	  &(pd_param.sF32Dif02M1)   },        /* mpeg-4096, cvbs-8192 */
-	{ "",		  NULL          }
+	  &(pd_param.sF32Dif02M1)   },/* mpeg-4096, cvbs-8192 */
+	{ "",	  NULL              }
 };
 
 static ssize_t pd_param_store(struct device *dev,
@@ -6688,6 +6702,7 @@ MODULE_PARM_DESC(post_blend, "/n show blend mode/n");
 static unsigned int post_ei;
 module_param(post_ei, uint, 0664);
 MODULE_PARM_DESC(post_ei, "/n show blend mode/n");
+
 static int
 de_post_process(void *arg, unsigned zoom_start_x_lines,
 		unsigned zoom_end_x_lines, unsigned zoom_start_y_lines,
@@ -8396,7 +8411,7 @@ static void di_reg_process_irq(void)
 		di_nr_level_config(nr_level);
 		reset_pulldown_state();
 		if (pulldown_enable) {
-			FlmVOFSftInt(&pd_param);
+			field_count = 0;
 			flm22_sure_num = (vframe->height * 100)/480;
 			flm22_sure_smnum = (flm22_sure_num * flm22_ratio)/100;
 		}
