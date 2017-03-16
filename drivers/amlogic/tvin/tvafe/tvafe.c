@@ -1052,9 +1052,6 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
-#ifdef CONFIG_CMA
-	tvafe_cma_release(devp);
-#endif
 	/*del_timer_sync(&devp->timer);*/
 #ifdef CONFIG_AM_DVB
 	g_tvafe_info = NULL;
@@ -1077,6 +1074,9 @@ void tvafe_dec_close(struct tvin_frontend_s *fe)
 		adc_set_pll_cntl(0, ADC_EN_TVAFE);
 #endif
 
+#ifdef CONFIG_CMA
+	tvafe_cma_release(devp);
+#endif
 	/* init variable */
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
 
