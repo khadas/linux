@@ -203,6 +203,14 @@
 #define VPP_VD2_CLIP_MISC0 0x1de3
 #define VPP_VD2_CLIP_MISC1 0x1de4
 
+/*txlx new add*/
+#define VPP_DAT_CONV_PARA0 0x1d94
+#define VPP_DAT_CONV_PARA1 0x1d95
+
+#define VD1_IF0_GEN_REG3 0x1aa7
+#define VD2_IF0_GEN_REG3 0x1aa8
+
+
 #define VPP2_DUMMY_DATA 0x1900
 #define VPP2_LINE_IN_LENGTH 0x1901
 #define VPP2_PIC_IN_HEIGHT 0x1902

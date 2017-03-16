@@ -130,6 +130,9 @@ int try_count_max = 3;
 module_param(try_count_max, int, 0664);
 MODULE_PARM_DESC(try_count_max, "try_count_max");
 
+bool dolby_input;
+module_param(dolby_input, bool, 0664);
+MODULE_PARM_DESC(dolby_input, "dolby_input");
 
 unsigned int vpu_reg_27af = 0x3;
 
@@ -493,6 +496,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		break;
 		}
 	}
+	if (dolby_input)
+		format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 	devp->format_convert = format_convert;
 }
 
@@ -2933,5 +2938,23 @@ void vdin_force_gofiled(struct vdin_dev_s *devp)
 	unsigned int offset = devp->addr_offset;
 	wr_bits(offset, VDIN_COM_CTRL0, 1, 28, 1);
 	wr_bits(offset, VDIN_COM_CTRL0, 0, 28, 1);
+}
+
+void vdin_dolby_config(struct vdin_dev_s *devp)
+{
+
+	unsigned int offset = devp->addr_offset;
+	/*mem*/
+	wr(offset, VDIN_DOLBY_AXI_CTRL1,
+		devp->mem_start + devp->mem_size -
+		dolby_size_byte * devp->canvas_max_num);
+	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 30, 1);
+	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 26, 1);
+	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 0, 26, 1);
+	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1,  4, 1);
+	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1,  5, 1);
+	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0,  5, 1);
+	wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0,  4, 1);
+	wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x1180c0d5);
 }
 

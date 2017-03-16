@@ -181,6 +181,7 @@ extern void vdin_set_mpegin(struct vdin_dev_s *devp);
 extern void vdin_force_gofiled(struct vdin_dev_s *devp);
 extern void vdin_set_config(struct vdin_dev_s *devp);
 extern void vdin_set_wr_mif(struct vdin_dev_s *devp);
+extern void vdin_dolby_config(struct vdin_dev_s *devp);
 
 #endif
 

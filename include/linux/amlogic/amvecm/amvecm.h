@@ -196,5 +196,7 @@ extern struct vframe_s *dolby_vision_vf_peek_el(struct vframe_s *vf);
 extern void dolby_vision_dump_setting(int debug_flag);
 extern void dolby_vision_dump_struct(void);
 extern void enable_osd_path(int);
+extern void tv_dolby_vision_config(void);
+
 #endif /* AMVECM_H */
 

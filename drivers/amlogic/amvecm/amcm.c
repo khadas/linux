@@ -25,6 +25,7 @@
 #include "arch/cm_regs.h"
 #include "amcm.h"
 #include "amcm_regmap.h"
+#include "bitdepth.h"
 
 #define pr_amcm_dbg(fmt, args...)\
 	do {\
@@ -241,8 +242,8 @@ void amcm_disable(void)
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp & 0xfffffffd);
 	}
 	/* output 10bit when cm disable */
-	/*if (is_meson_txlx_cpu())
-		vpp_set_pre_s2u(U10_TO_U12);*/
+	if (is_meson_txlx_cpu())
+		vpp_set_pre_s2u(U10_TO_U12);
 }
 
 void amcm_enable(void)
@@ -258,9 +259,9 @@ void amcm_enable(void)
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp | 0x2);
 		}
 	}
-	/* output U10bit when cm enable */
-	/*if (is_meson_txlx_cpu())
-		vpp_set_pre_s2u(S12_TO_U12);*/
+	/* output s12bit when cm enable */
+	if (is_meson_txlx_cpu())
+		vpp_set_pre_s2u(S12_TO_U12);
 }
 
 

@@ -44,6 +44,7 @@
 #include "amcm.h"
 #include "amcsc.h"
 #include "keystone_correction.h"
+#include "bitdepth.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -2798,6 +2799,7 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_mtx post_12 yuv2rgb > /sys/class/amvecm/debug; 12bit post mtx\n"
 	"echo vpp_mtx vd1_12 rgb2yuv > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo vpp_mtx vd1_12 yuv2rgb > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
+	"echo bitdepth 10/12/other-num > /sys/class/amvecm/debug; config data path\n"
 };
 static ssize_t amvecm_debug_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -2987,6 +2989,15 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			return -EINVAL;
 		vks_param_val = val;
 		keystone_correction_config(vks_param, vks_param_val);
+	} else if (!strcmp(parm[0], "bitdepth")) {
+		unsigned int bitdepth;
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		bitdepth = val;
+		vpp_datapath_config(bitdepth);
+	} else if (!strcmp(parm[0], "dolby_config")) {
+		tv_dolby_vision_config();
+		pr_info("tv_dolby_vision_config done!\n");
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -3381,6 +3392,12 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* #endif */
 	vpp_get_hist_en();
 
+	if (is_meson_txlx_cpu()) {
+		vpp_set_12bit_datapath2();
+		/*post matrix 12bit yuv2rgb*/
+		/* mtx_sel_dbg |= 1 << VPP_MATRIX_2; */
+		/* amvecm_vpp_mtx_debug(mtx_sel_dbg, 1);*/
+	}
 	memset(&vpp_hist_param.vpp_histgram[0],
 		0, sizeof(unsigned short) * 64);
 	/* box sdr_mode:auto, tv sdr_mode:off */
