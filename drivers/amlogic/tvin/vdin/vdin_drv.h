@@ -50,7 +50,7 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2016/12/27"
+#define VDIN_VER "Ref.2017/02/09"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2

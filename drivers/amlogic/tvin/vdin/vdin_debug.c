@@ -77,7 +77,7 @@ static void vdin_set_before_after_mat0(unsigned int offset,
 			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
 }
 
-static void parse_param(char *buf_orig, char **parm)
+static void vdin_parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
 	char delim1[2] = " ";
@@ -164,7 +164,6 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
-	unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w;
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -185,7 +184,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		else
 			buf = phys_to_virt(devp->mem_start +
 				devp->canvas_max_size*buf_num);
-		vfs_write(filp, buf, canvas_real_size, &pos);
+		vfs_write(filp, buf, devp->canvas_max_size, &pos);
 		pr_info("write buffer %2d of %2u  to %s.\n",
 				buf_num, devp->canvas_max_num, path);
 	}
@@ -200,7 +199,6 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	loff_t pos = 0;
 	void *buf = NULL;
 	int i = 0;
-	unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w;
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -216,14 +214,14 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	}
 
 	for (i = 0; i < devp->canvas_max_num; i++) {
-		pos = canvas_real_size * i;
+		pos = devp->canvas_max_size * i;
 		if (devp->cma_config_flag == 1)
 			buf = codec_mm_phys_to_virt(devp->mem_start +
 				devp->canvas_max_size*i);
 		else
 			buf = phys_to_virt(devp->mem_start +
 				devp->canvas_max_size*i);
-		vfs_write(filp, buf, canvas_real_size, &pos);
+		vfs_write(filp, buf, devp->canvas_max_size, &pos);
 		pr_info("write buffer %2d of %2u  to %s.\n",
 				i, devp->canvas_max_num, path);
 	}
@@ -308,11 +306,13 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 			vf->left_eye.height);
 	}
 	pr_info("current parameters:\n");
-	pr_info("\t frontend of vdin index :  %d, 3d flag : 0x%x,",
+	pr_info("\t frontend of vdin index :  %d, 3d flag : 0x%x\n",
 		curparm->index,  curparm->flag);
-	pr_info("\t reserved 0x%x, devp->flags:0x%x,",
+	pr_info("\t reserved 0x%x, devp->flags:0x%x\n",
 		curparm->reserved, devp->flags);
-	pr_info("max buffer num %u.\n", devp->canvas_max_num);
+	pr_info("max buffer num %u, msr_clk_val:%d.\n",
+		devp->canvas_max_num, devp->msr_clk_val);
+	pr_info("canvas buffer size %u.\n", devp->canvas_max_size);
 	pr_info("range(%d),csc_cfg:0x%x\n",
 		devp->prop.color_fmt_range, devp->csc_cfg);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
@@ -331,7 +331,7 @@ static void vdin_dump_histgram(struct vdin_dev_s *devp)
 
 static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 {
-	unsigned int real_size = 0, size = 0, vtype = 0;
+	unsigned int size = 0, vtype = 0;
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	mm_segment_t old_fs;
@@ -364,26 +364,21 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 			VIDTYPE_VIU_FIELD | VIDTYPE_VIU_422;
 	if (vtype == 1) {
 		devp->curr_wr_vfe->vf.type |= VIDTYPE_INTERLACE_TOP;
-		real_size = (devp->curr_wr_vfe->vf.width *
-				devp->curr_wr_vfe->vf.height);
 		pr_info("current vframe type is top.\n");
 	} else if (vtype == 3) {
 		devp->curr_wr_vfe->vf.type |= VIDTYPE_INTERLACE_BOTTOM;
-		real_size = (devp->curr_wr_vfe->vf.width *
-				devp->curr_wr_vfe->vf.height);
 		pr_info("current vframe type is bottom.\n");
 	} else {
-		real_size = (devp->curr_wr_vfe->vf.width *
-				devp->curr_wr_vfe->vf.height<<1);
+		devp->curr_wr_vfe->vf.type |= VIDTYPE_PROGRESSIVE;
 	}
 	addr = canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr);
 	/* dts = ioremap(canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr), */
 	/* real_size); */
 	dts = phys_to_virt(addr);
-	size = vfs_read(filp, dts, real_size, &pos);
-	if (size < real_size) {
+	size = vfs_read(filp, dts, devp->canvas_max_size, &pos);
+	if (size < devp->canvas_max_size) {
 		pr_info("%s read %u < %u error.\n",
-				__func__, size, real_size);
+				__func__, size, devp->canvas_max_size);
 		return;
 	}
 	vfs_fsync(filp, 0);
@@ -394,6 +389,89 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type, char *path)
 	devp->curr_wr_vfe = NULL;
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,
 			NULL);
+}
+
+static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
+	char *path, char *num)
+{
+	unsigned int size = 0, i = 0;
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	mm_segment_t old_fs;
+	void *dts = NULL;
+	long field_num;
+	unsigned long addr;
+
+	/* vtype = simple_strtol(type, NULL, 10); */
+
+	if (kstrtol(num, 10, &field_num) < 0)
+		return;
+
+	if (!devp->curr_wr_vfe) {
+		devp->curr_wr_vfe = provider_vf_get(devp->vfp);
+		if (!devp->curr_wr_vfe) {
+			pr_info("no buffer to write.\n");
+			return;
+		}
+	}
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	pr_info("bin file path = %s\n", path);
+	filp = filp_open(path, O_RDONLY, 0);
+	if (IS_ERR(filp)) {
+		pr_info(KERN_ERR"read %s error.\n", path);
+		return;
+	}
+	for (i = 0; i < field_num; i++) {
+		if (!devp->curr_wr_vfe) {
+			devp->curr_wr_vfe = provider_vf_get(devp->vfp);
+			if (!devp->curr_wr_vfe) {
+					pr_info("no buffer to write.\n");
+					return;
+			}
+		}
+		if (!strcmp("top", type)) {
+			if (i%2 == 0) {
+				devp->curr_wr_vfe->vf.type |=
+					VIDTYPE_INTERLACE_TOP;
+				pr_info("current vframe type is top.\n");
+			} else {
+				devp->curr_wr_vfe->vf.type |=
+					VIDTYPE_INTERLACE_BOTTOM;
+				pr_info("current vframe type is bottom.\n");
+			}
+		} else if (!strcmp("bot", type)) {
+			if (i%2 == 1) {
+				devp->curr_wr_vfe->vf.type |=
+					VIDTYPE_INTERLACE_TOP;
+				pr_info("current vframe type is top.\n");
+			} else {
+				devp->curr_wr_vfe->vf.type |=
+					VIDTYPE_INTERLACE_BOTTOM;
+				pr_info("current vframe type is bottom.\n");
+			}
+		} else {
+			devp->curr_wr_vfe->vf.type |= VIDTYPE_PROGRESSIVE;
+		}
+		addr = canvas_get_addr(devp->curr_wr_vfe->vf.canvas0Addr);
+		/* real_size); */
+		dts = phys_to_virt(addr);
+		size = vfs_read(filp, dts, devp->canvas_max_size, &pos);
+		if (size < devp->canvas_max_size) {
+			pr_info("%s read %u < %u error.\n",
+				__func__, size, devp->canvas_max_size);
+			return;
+		}
+		vfs_fsync(filp, 0);
+		provider_vf_put(devp->curr_wr_vfe, devp->vfp);
+		devp->curr_wr_vfe = NULL;
+		vf_notify_receiver(devp->name,
+			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		iounmap(dts);
+	}
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+
 }
 
 #ifdef CONFIG_AML_LOCAL_DIMMING
@@ -447,7 +525,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	/* pr_info(KERN_INFO "input cmd : %s",buf_orig); */
 	devp = dev_get_drvdata(dev);
-	parse_param(buf_orig, (char **)&parm);
+	vdin_parse_param(buf_orig, (char **)&parm);
 
 	if (!strncmp(parm[0], "fps", 3)) {
 		if (devp->cycle)
@@ -738,6 +816,8 @@ start_chk:
 		devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 	} else if (!strcmp(parm[0], "read_pic")) {
 		vdin_write_mem(devp, parm[1], parm[2]);
+	} else if (!strcmp(parm[0], "read_bin")) {
+		vdin_write_cont_mem(devp, parm[1], parm[2], parm[3]);
 	} else if (!strcmp(parm[0], "dump_reg")) {
 		unsigned int reg;
 		unsigned int offset = devp->addr_offset;
@@ -893,6 +973,12 @@ start_chk:
 		devp->color_depth_config = val;
 		pr_info("color_depth(%d):%d\n\n", devp->index,
 			devp->color_depth_config);
+	} else if (!strcmp(parm[0], "color_depth_support")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		devp->color_depth_support = val;
+		pr_info("color_depth_support(%d):%d\n\n", devp->index,
+			devp->color_depth_support);
 	} else if (!strcmp(parm[0], "color_depth_mode")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
@@ -991,7 +1077,7 @@ static ssize_t vdin_debug_for_isp_store(struct device *dev,
 		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	devp = dev_get_drvdata(dev);
-	parse_param(buf_orig, (char **)&parm);
+	vdin_parse_param(buf_orig, (char **)&parm);
 
 	if (!strcmp(parm[0], "bypass_isp")) {
 		vdin_bypass_isp(devp->addr_offset);
@@ -1067,7 +1153,7 @@ struct device_attribute *attr, const char *buf, size_t count)
 	if (!buf)
 		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	parse_param(buf_orig, parm);
+	vdin_parse_param(buf_orig, parm);
 
 	/* crop->hs = simple_strtol(parm[0], NULL, 10); */
 	/* crop->he = simple_strtol(parm[1], NULL, 10); */

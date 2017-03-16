@@ -410,6 +410,14 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 		/*todo change with canvas alloc!!*/
 		max_bufffer_num = max_buf_num + 2;
+	} else if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12) ||
+		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)) {
+		h_size = roundup(h_size, 32);
+		devp->canvas_alin_w = h_size;
+		/*todo change with canvas alloc!!*/
+		/* nv21/nv12 only have 8bit mode */
 	} else {
 		/* txl new add mode yuv422 pack mode:canvas-w=h*2*10/8
 		*canvas_w must ensure divided exact by 256bit(32byte*/
@@ -431,6 +439,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 	}
 	mem_size = h_size * v_size;
+	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) ||
+		(devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21))
+		mem_size = (mem_size * 3)/2;
 	mem_size = PAGE_ALIGN(mem_size)*max_bufffer_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
@@ -559,7 +570,8 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	vdin_set_default_regmap(devp->addr_offset);
 
 	/* vdin msr clock gate enable */
-	clk_prepare_enable(devp->msr_clk);
+	if (devp->msr_clk != NULL)
+		clk_prepare_enable(devp->msr_clk);
 
 	if (devp->frontend->dec_ops && devp->frontend->dec_ops->open)
 		ret = devp->frontend->dec_ops->open(devp->frontend, port);
@@ -598,7 +610,8 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 	devp->dec_enable = 0;  /* disable decoder */
 
 	/* bt656 clock gate disable */
-	clk_disable_unprepare(devp->msr_clk);
+	if (devp->msr_clk != NULL)
+		clk_disable_unprepare(devp->msr_clk);
 
 	vdin_hw_disable(devp->addr_offset);
 	del_timer_sync(&devp->timer);
@@ -960,7 +973,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_set_decimation(devp);
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 		vdin_set_bitdepth(devp);
 	/* txl new add fix for hdmi switch resolution cause cpu holding */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)
@@ -1236,7 +1249,8 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 		devp->frontend   = fe;
 
 		/* vdin msr clock gate enable */
-		clk_prepare_enable(devp->msr_clk);
+		if (devp->msr_clk != NULL)
+			clk_prepare_enable(devp->msr_clk);
 
 		if (fe->dec_ops->open)
 			fe->dec_ops->open(fe, fe->port);
@@ -1732,6 +1746,20 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* debug for video latency */
 		devp->last_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(devp->last_wr_vfe, devp->vfp);
+		/* prepare for next input data */
+		if (provider_vf_peek(devp->vfp) != NULL) {
+			curr_wr_vfe = provider_vf_get(devp->vfp);
+			vdin_set_canvas_id(devp,
+				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
+				(curr_wr_vfe->vf.canvas0Addr&0xff));
+			/* prepare for chroma canvas*/
+			if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+				(devp->prop.dest_cfmt == TVIN_NV21))
+				vdin_set_chma_canvas_id(devp,
+					(devp->flags&VDIN_FLAG_RDMA_ENABLE),
+					(curr_wr_vfe->vf.canvas0Addr>>8)&0xff);
+			devp->curr_wr_vfe = curr_wr_vfe;
+		}
 		devp->last_wr_vfe = NULL;
 		vf_notify_receiver(devp->name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
@@ -1836,6 +1864,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		sm_ops->check_frame_skip(devp->frontend)) {
 		vdin_irq_flag = 13;
 		vdin_drop_cnt++;
+		if (devp->flags&VDIN_FLAG_RDMA_ENABLE)
+			ignore_frames = 0;
 		goto irq_handled;
 	}
 
@@ -1849,7 +1879,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR, NULL);
 	/*if vdin-nr,di must get
 	 * vdin current field type which di pre will read*/
-	if (vdin2nr || (devp->flags & VDIN_FLAG_RDMA_ENABLE))
+	if (vdin2nr)
 		curr_wr_vf->type = devp->curr_field_type;
 	else
 		curr_wr_vf->type = last_field_type;
@@ -1909,24 +1939,20 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* debug for video latency */
 		curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 		provider_vf_put(curr_wr_vfe, devp->vfp);
-	}
-
-	/* prepare for next input data */
-	next_wr_vfe = provider_vf_get(devp->vfp);
-	vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
+		/* prepare for next input data */
+		next_wr_vfe = provider_vf_get(devp->vfp);
+		vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
 			(next_wr_vfe->vf.canvas0Addr&0xff));
-	/* prepare for chroma canvas*/
-	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21))
-		vdin_set_chma_canvas_id(devp,
+		/* prepare for chroma canvas*/
+		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+			(devp->prop.dest_cfmt == TVIN_NV21))
+			vdin_set_chma_canvas_id(devp,
 				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
 				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
-
-	devp->curr_wr_vfe = next_wr_vfe;
-	if (!(devp->flags&VDIN_FLAG_RDMA_ENABLE))
+		devp->curr_wr_vfe = next_wr_vfe;
 		vf_notify_receiver(devp->name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
-
+	}
 
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
@@ -2828,19 +2854,15 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		pr_err("don't find  match rdma irq, disable rdma\n");
 		vdevp->rdma_irq = 0;
 	}
-	/* vdin0 for tv */
-	if (vdevp->index == 0) {
-		/* only gxtvbb & txl support 10bit mode@20161108 */
-		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-			(get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
-			ret = of_property_read_u32(pdev->dev.of_node,
-					"tv_bit_mode", &bit_mode);
-			if (ret)
-				pr_info("no bit mode found, set 8bit as default\n");
-		}
-		vdevp->color_depth_support = bit_mode;
-		vdevp->color_depth_config = 0;
+	/* after_eq gxtvbb support 10bit mode@20161108 */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+				"tv_bit_mode", &bit_mode);
+		if (ret)
+			pr_info("no bit mode found, set 8bit as default\n");
 	}
+	vdevp->color_depth_support = bit_mode;
+	vdevp->color_depth_config = 0;
 	if (vdevp->color_depth_support&VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE)
 		vdevp->color_depth_mode = 1;
 	else

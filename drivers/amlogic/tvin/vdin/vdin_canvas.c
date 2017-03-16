@@ -113,9 +113,8 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 		After test on gxtvbb(input 1080p60,output 4k42210bit),
 		6 frame is enough.*/
 		max_bufffer_num = max_buf_num + 2;
-	} else if (((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21)) &&
-		(devp->source_bitdepth <= 8)) {
+	} else if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+		(devp->prop.dest_cfmt == TVIN_NV21)) {
 		devp->canvas_w = max_buf_width;
 		canvas_num = canvas_num/2;
 		canvas_step = 2;
@@ -208,13 +207,13 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		After test on gxtvbb(input 1080p60,output 4k42210bit),
 		6 frame is enough.*/
 		max_bufffer_num = max_buf_num + 2;
-	} else if (((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21)) &&
-		(devp->source_bitdepth <= 8)) {
-		devp->canvas_w = devp->h_active;
+	} else if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+		(devp->prop.dest_cfmt == TVIN_NV21)) {
 		canvas_num = canvas_num/2;
 		canvas_step = 2;
-	} else{/*YUV422*/
+		devp->canvas_w = devp->h_active;
+		/* nv21/nv12 only have 8bit mode */
+	} else {/*YUV422*/
 		/* txl new add yuv422 pack mode:canvas-w=h*2*10/8*/
 		if ((devp->source_bitdepth > 8) &&
 		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
