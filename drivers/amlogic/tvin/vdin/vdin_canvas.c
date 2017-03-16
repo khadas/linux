@@ -41,6 +41,10 @@ MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
 unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGH;
 module_param(max_buf_height, uint, 0664);
 MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
+/* one frame max metadata size:32x280 bits = 1120bytes */
+unsigned int dolby_size_byte = 1120;
+module_param(dolby_size_byte, uint, 0664);
+MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
 
 const unsigned int vdin_canvas_ids[2][VDIN_CANVAS_MAX_CNT] = {
 	{

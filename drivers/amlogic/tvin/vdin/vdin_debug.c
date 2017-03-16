@@ -260,6 +260,11 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d, canvas_alin_w = %d\n",
 		devp->canvas_w, devp->canvas_h, devp->canvas_alin_w);
+	pr_info("mem_start = %d, mem_size = %d\n",
+		devp->mem_start, devp->mem_size);
+	pr_info("dolby_mem_start = %d, dolby_mem_size = %d\n",
+		(devp->mem_start + devp->mem_size -
+		dolby_size_byte*devp->canvas_max_num), dolby_size_byte);
 	pr_info("signal format	= %s(0x%x)\n",
 		tvin_sig_fmt_str(devp->parm.info.fmt),
 		devp->parm.info.fmt);
@@ -474,6 +479,16 @@ static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
 
 }
 
+static void dump_dolby_metadata(struct vdin_dev_s *devp)
+{
+	unsigned *addr;
+	unsigned int i;
+	addr = phys_to_virt(devp->mem_start + devp->mem_size -
+		dolby_size_byte*devp->canvas_max_num);
+	pr_info("*****dolby_metadata(%d byte):*****\n", dolby_size_byte);
+	for (i = 0; i < dolby_size_byte/4; i++)
+		pr_info("\t0x%x", *(addr + i));
+}
 #ifdef CONFIG_AML_LOCAL_DIMMING
 
 static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
@@ -997,6 +1012,12 @@ start_chk:
 		devp->auto_ratio_en = val;
 		pr_info("auto_ratio_en(%d):%d\n\n", devp->index,
 			devp->auto_ratio_en);
+	} else if (!strcmp(parm[0], "dolby_config")) {
+		vdin_dolby_config(devp);
+		pr_info("dolby_config done\n");
+	} else if (!strcmp(parm[0], "metadata")) {
+		dump_dolby_metadata(devp);
+		pr_info("dolby_config done\n");
 	} else {
 		/* pr_info("parm[0]:%s [1]:%s [2]:%s [3]:%s\n", */
 		/* parm[0],parm[1],parm[2],parm[3]); */

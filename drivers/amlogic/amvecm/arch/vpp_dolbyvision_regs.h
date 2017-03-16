@@ -68,6 +68,26 @@
 #define VIU_SW_RESET			0x1a01
 #define VPU_HDMI_FMT_CTRL		0x2743
 
+/*txlx new add*/
+#define DOLBY_TV_REG_START		0x3300
+#define DOLBY_TV_CLKGATE_CTRL		0x33f1
+#define DOLBY_TV_SWAP_CTRL0		0x33f2
+#define DOLBY_TV_SWAP_CTRL1		0x33f3
+#define DOLBY_TV_SWAP_CTRL2		0x33f4
+#define DOLBY_TV_SWAP_CTRL3		0x33f5
+#define DOLBY_TV_SWAP_CTRL4		0x33f6
+#define DOLBY_TV_SWAP_CTRL5		0x33f7
+#define DOLBY_TV_SWAP_CTRL6		0x33f8
+#define DOLBY_TV_SWAP_CTRL7		0x33f9
+#define DOLBY_TV_DMA_CTRL		0x33f9
+#define DOLBY_TV_AXI2DMA_CTRL0		0x33fa
+#define DOLBY_TV_AXI2DMA_CTRL1		0x33fb
+#define DOLBY_TV_AXI2DMA_CTRL2		0x33fc
+#define DOLBY_TV_AXI2DMA_CTRL3		0x33fd
+#define DOLBY_TV_STATUS0		0x33fe
+#define DOLBY_TV_STATUS1		0x33ff
+
+
 #if 0
 /* core 1 display manager 24 registers */
 struct dm_register_ipcore_1_s {

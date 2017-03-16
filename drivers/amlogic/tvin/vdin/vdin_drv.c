@@ -442,7 +442,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) ||
 		(devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21))
 		mem_size = (mem_size * 3)/2;
-	mem_size = PAGE_ALIGN(mem_size)*max_bufffer_num;
+	mem_size = PAGE_ALIGN(mem_size) * max_buf_num +
+		dolby_size_byte * max_buf_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 	if (mem_size > devp->cma_mem_size[devp->index])
 		mem_size = devp->cma_mem_size[devp->index];
