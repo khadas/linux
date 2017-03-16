@@ -8218,9 +8218,10 @@ static void di_unreg_process_irq(void)
 	DI_Wr(DI_CLKG_CTRL, 0xff0000);
 /* di enable nr clock gate */
 #else
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
+		enable_di_pre_mif(0);
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
-	else
+	} else
 		DI_Wr(DI_CLKG_CTRL, 0xf60000);
 /* nr/blend0/ei0/mtn0 clock gate */
 #endif
@@ -8546,7 +8547,7 @@ module_param_named(nr_done_check_cnt, nr_done_check_cnt, uint, 0644);
 static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 {
 
-	if (pre_stru_p->pre_de_busy) {
+	if (pre_stru_p->pre_de_busy && init_flag) {
 		pre_stru_p->pre_de_busy_timer_count++;
 		if (pre_stru_p->pre_de_busy_timer_count >= nr_done_check_cnt) {
 			enable_di_pre_mif(0);
@@ -8701,7 +8702,6 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		bypass_dynamic_flag = 0;
 		post_ready_empty_count = 0;
 		vdin_source_flag = 0;
-		di_pre_stru.pre_de_busy = 0;
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
 		di_pre_stru.unreg_req_flag_cnt = 0;
 		while (di_pre_stru.unreg_req_flag) {
