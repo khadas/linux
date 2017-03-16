@@ -260,10 +260,17 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 	DI_Wr(DNR_CTRL, 0x1df00);
 	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 11));
 	/* dm for sd, hd will slower */
-	if (width >= 1920)
-		DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
-	else
-		DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		if (width > 1920)
+			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+		else
+			DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+	} else {
+		if (width >= 1920)
+			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+		else
+			DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+	}
 }
 static void nr4_config(struct NR4_PARM_s *nr4_parm_p,
 		unsigned short width, unsigned short height)
@@ -849,19 +856,19 @@ static ssize_t nr4_param_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buff, size_t count)
 {
-	int i = 0, vaule = 0;
+	long i = 0, value = 0;
 	char *parm[2] = {NULL}, *buf_orig;
 
 	buf_orig = kstrdup(buff, GFP_KERNEL);
 	parse_cmd_params(buf_orig, (char **)(&parm));
-	for (i = 0; nr4_params[i].addr; i++) {
+	for (i = 0; i < 29; i++) {
 		if (!strcmp(parm[0], nr4_params[i].name)) {
 			if (parm[1]) {
-				vaule = kstrtol(parm[1], 10, NULL);
-				*(nr4_params[i].addr) = vaule;
+				if (kstrtol(parm[1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*(nr4_params[i].addr) = value;
 			}
-			pr_info("%s=%d.\n", nr4_params[i].name,
-							*(nr4_params[i].addr));
+			pr_info(" %d\n",	*(nr4_params[i].addr));
 		}
 	}
 
@@ -874,7 +881,7 @@ static ssize_t nr4_param_show(struct device *dev,
 {
 	ssize_t len = 0;
 	int i = 0;
-	for (i = 0; nr4_params[i].addr; i++)
+	for (i = 0; i < 29; i++)
 		len += sprintf(buff+len, "%s=%d.\n",
 		nr4_params[i].name, *(nr4_params[i].addr));
 	return len;
@@ -994,8 +1001,6 @@ void nr_gate_control(bool gate)
 	if (gate) {
 		/* enable nr auto gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 0, 2);
-		/* enable deband auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 6, 2);
 		/* enable dnr auto gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 8, 2);
 		/* enable nr/dm blend auto gate */
@@ -1015,8 +1020,6 @@ void nr_gate_control(bool gate)
 	} else {
 		/* enable nr auto gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 0, 2);
-		/* enable deband auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 6, 2);
 		/* enable dnr auto gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 8, 2);
 		/* disable nr/dm blend auto gate */
@@ -1053,7 +1056,7 @@ void nr_drv_init(struct device *dev)
 		else {
 			nr4_params_init(nr_param.pnr4_parm);
 			nr4_param_init(nr_param.pnr4_parm);
-			device_create_file(dev, &dev_attr_dnr_param);
+			device_create_file(dev, &dev_attr_nr4_param);
 		}
 	}
 	dnr_prm_init(&dnr_param);

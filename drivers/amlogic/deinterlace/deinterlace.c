@@ -2268,7 +2268,7 @@ static void dis2_di(void)
 		di_set_power_control(1, 0);
 		DI_Wr(DI_CLKG_CTRL, 0x2);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-			enable_di_post_mif(false);
+			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false);
 		}
@@ -7192,7 +7192,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			enable_mc_di_post(
 				&di_post_stru.di_mcvecrd_mif, post_urgent,
 				overturn);
-		else if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 	} else {
 		di_post_switch_buffer(
@@ -7221,7 +7221,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 	}
 
 #endif
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() || is_meson_txlx_cpu())
 		di_post_read_reverse_irq(overturn, mc_pre_flag);
 	if (mcpre_en) {
 		if (di_buf->di_buf_dup_p[2])
@@ -8286,7 +8286,7 @@ static void di_unreg_process_irq(void)
 	if (get_blackout_policy()) {
 		di_set_power_control(1, 0);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-			enable_di_post_mif(false);
+			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false);
 		} else {
@@ -8362,6 +8362,7 @@ static void di_reg_process_irq(void)
 {
 	ulong flags = 0, fiq_flag = 0, irq_flag2 = 0;
 	vframe_t *vframe;
+	unsigned short nr_height = 0;
 
 	if ((pre_run_flag != DI_RUN_FLAG_RUN) &&
 	    (pre_run_flag != DI_RUN_FLAG_STEP))
@@ -8389,10 +8390,13 @@ static void di_reg_process_irq(void)
 			|| det3d_en
 			#endif
 			|| (use_2_interlace_buff & 0x2)
-			)
+			) {
 			use_2_interlace_buff = 1;
-		else
+			nr_height = vframe->height;
+		} else {
 			use_2_interlace_buff = 0;
+			nr_height = (vframe->height>>1);
+		}
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 		di_set_power_control(0, 1);
 		di_set_power_control(1, 1);
@@ -8412,7 +8416,8 @@ static void di_reg_process_irq(void)
 			di_pre_gate_control(true);
 			if (!use_2_interlace_buff) {
 				di_post_gate_control(true);
-				enable_di_post_mif(true);
+				/* freerun for reg configuration */
+				enable_di_post_mif(GATE_AUTO);
 			}
 		} else {
 			/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
@@ -8446,6 +8451,7 @@ static void di_reg_process_irq(void)
 
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
 			spin_unlock_irqrestore(&plist_lock, flags);
+			nr_height = vframe->height;
 #endif
 		} else {
 #if (!(defined RUN_DI_PROCESS_IN_IRQ)) || (defined ENABLE_SPIN_LOCK_ALWAYS)
@@ -8466,7 +8472,7 @@ static void di_reg_process_irq(void)
 			spin_unlock_irqrestore(&plist_lock, flags);
 #endif
 		}
-		nr_all_config(vframe->width, (vframe->height>>1));
+		nr_all_config(vframe->width, nr_height);
 		reset_pulldown_state();
 		if (pulldown_enable) {
 			field_count = 0;
@@ -8476,7 +8482,7 @@ static void di_reg_process_irq(void)
 		combing_threshold_config(vframe->width);
 		if (is_meson_txl_cpu()) {
 			combing_pd22_window_config(vframe->width,
-				(vframe->height>>1));
+				nr_height);
 			tbff_init();
 		}
 		init_flag = 1;
