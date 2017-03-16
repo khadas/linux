@@ -143,7 +143,6 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
 static void set_di_if0_mif(struct DI_MIF_s *mif, int urgent, int hold_line);
 
-#if (defined NEW_DI_V2 && !defined NEW_DI_TV)
 static void ma_di_init(void)
 {
 	/* 420->422 chrome difference is large motion is large,flick */
@@ -151,8 +150,10 @@ static void ma_di_init(void)
 	DI_Wr(DI_MTN_1_CTRL7, 0x0a800480);
 	/* mtn setting */
 	DI_Wr(DI_MTN_1_CTRL1, 0xa0202015);
+	/* invert chan2 field num */
+	DI_Wr(DI_MTN_CTRL1, (1 << 17) | 2);
 }
-#endif
+
 static void ei_hw_init(void)
 {
 	/* ei setting */
@@ -238,9 +239,7 @@ void di_hw_init(void)
 	/* DI_Wr_reg_bits(DI_CLKG_CTRL, 0x0, 0, 2);
 	// bit 0: 1, no clock; bit 1: 0, auto clock gate */
 #endif
-#if (defined NEW_DI_V2 && !defined NEW_DI_TV)
 	ma_di_init();
-#endif
 	ei_hw_init();
 	nr_hw_init();
 	if (pulldown_enable)
@@ -366,7 +365,6 @@ void enable_di_pre_aml(
 			(di_mtnwr_mif->end_y));
 		RDMA_WR(DI_MTNWR_CTRL, di_mtnwr_mif->canvas_num|
 						(urgent << 8));	/* urgent. */
-		RDMA_WR(DI_MTN_CTRL1, (0 << 8) | 2);
 	}
 
 	/* frame + soft reset for the pre modules. */
@@ -1740,32 +1738,33 @@ void disable_post_deinterlace_2(void)
 Rd(DI_IF1_GEN_REG) & 0xfffffffe); */
 }
 
-void enable_di_post_mif(bool enable)
+void enable_di_post_mif(enum gate_mode_e mode)
 {
+	unsigned char gate = 0;
+	switch (mode) {
+	case GATE_OFF:
+		gate = 1;
+		break;
+	case GATE_ON:
+		gate = 2;
+		break;
+	case GATE_AUTO:
+		gate = 0;
+		break;
+	default:
+		gate = 0;
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
-		if (enable) {
-			/* enable if1 external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 2, 2);
-			/* enable if2 external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 4, 2);
-			/* enable di wr external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 6, 2);
-			/* enable mtn rd external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 8, 2);
-			/* enable mv rd external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 10, 2);
-		} else {
-			/* disable if1 external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 2, 2);
-			/* disable if2 external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 4, 2);
-			/* disable di wr external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 6, 2);
-			/* disable mtn rd external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 8, 2);
-			/* disable mv rd external gate */
-			DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 10, 2);
-		}
+		/* enable if1 external gate freerun hw issue */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, ((gate == 0)?2:gate), 2, 2);
+		/* enable if2 external gate freerun hw issue */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, ((gate == 0)?2:gate), 4, 2);
+		/* enable di wr external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, gate, 6, 2);
+		/* enable mtn rd external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, gate, 8, 2);
+		/* enable mv rd external gate */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, gate, 10, 2);
 	}
 }
 
@@ -1949,6 +1948,8 @@ void di_post_read_reverse(bool reverse)
 static bool if2_disable;
 module_param_named(if2_disable, if2_disable, bool, 0644);
 
+static unsigned short pre_flag = 2;
+module_param_named(pre_flag, pre_flag, ushort, 0644);
 void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 {
 
@@ -1965,8 +1966,15 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 1, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 1, 30, 1);
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
-				mc_pre_flag, 8, 2);
+				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+					pre_flag, 8, 2);
+					DI_VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL,
+					1, 14, 1);
+				} else {
+					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+					mc_pre_flag, 8, 2);
+				}
 				/* disable if2 for wave if1 case,
 				 *disable mc for pq issue */
 				if (if2_disable) {
@@ -1990,8 +1998,15 @@ void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag)
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_X, 0, 30, 1);
 			DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_Y, 0, 30, 1);
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-				DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+				if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
+					pre_flag, 8, 2);
+					DI_VSYNC_WR_MPEG_REG_BITS(DI_POST_CTRL,
+					0, 14, 1);
+				} else {
+					DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					mc_pre_flag, 8, 2);
+				}
 				/* disable if2 for wave if1 case */
 				if (if2_disable) {
 					DI_VSYNC_WR_MPEG_REG_BITS(
@@ -2075,6 +2090,8 @@ void di_pre_gate_control(bool gate)
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 2, 2);
 		/* enable motion clk gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 4, 2);
+		/* enable deband clk gate freerun for hw issue */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 2, 6, 2);
 		/* enable input mif external gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 0, 16, 2);
 		/* enable mem mif external gate */
@@ -2104,6 +2121,8 @@ void di_pre_gate_control(bool gate)
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 2, 2);
 		/* disable motion clk gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 4, 2);
+		/* disable deband clk gate freerun for hw issue */
+		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 6, 2);
 		/* disable input mif external gate */
 		DI_Wr_reg_bits(VIUB_GCLK_CTRL1, 1, 16, 2);
 		/* disable mem mif external gate */
@@ -2155,8 +2174,6 @@ void di_post_gate_control(bool gate)
 void enable_di_pre_mif(bool en)
 {
 	if (en) {
-		/* enable di nr/mtn/mv mif */
-		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f);
 		/* enable input mif*/
 		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) | 0x1);
 		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) | 0x1);
@@ -2169,9 +2186,9 @@ void enable_di_pre_mif(bool en)
 			/* gate clk */
 			RDMA_WR_BITS(MCDI_MCINFOWR_CTRL, 0, 9, 1);
 		}
+		/* enable di nr/mtn/mv mif */
+		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x3f);
 	} else {
-		/* disable nr cont mtn mv minfo mif */
-		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b);
 		/* nrwr no clk gate en=1 */
 		RDMA_WR_BITS(DI_NRWR_CTRL, 1, 24, 1);
 		/* nr wr req en =0 */
@@ -2192,12 +2209,14 @@ void enable_di_pre_mif(bool en)
 			/* mcinfo rd req en = 0 */
 			RDMA_WR_BITS(MCDI_MCINFORD_CTRL, 0, 9, 1);
 		}
+		/* disable nr cont mtn mv minfo mif */
+		RDMA_WR(VPU_WRARB_REQEN_SLV_L1C1, 0x2b);
+		/* disable cont rd */
+		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
 		/* disable input mif*/
 		DI_Wr(DI_CHAN2_GEN_REG, Rd(DI_CHAN2_GEN_REG) & ~0x1);
 		DI_Wr(DI_MEM_GEN_REG, Rd(DI_MEM_GEN_REG) & ~0x1);
 		DI_Wr(DI_INP_GEN_REG, Rd(DI_INP_GEN_REG) & ~0x1);
-		/* disable cont rd */
-		DI_Wr(DI_PRE_CTRL, Rd(DI_PRE_CTRL) & ~(1 << 25));
 	}
 }
 
