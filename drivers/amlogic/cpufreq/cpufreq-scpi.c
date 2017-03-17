@@ -174,6 +174,28 @@ static unsigned int meson_cpufreq_get(unsigned int cpu)
 	return rate;
 }
 
+static ssize_t opp_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	int size = 0;
+	struct dev_pm_opp *opp;
+	unsigned long freq = 0, voltage;
+
+	while (1) {
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR_OR_NULL(opp)) {
+			pr_debug("can't found opp for freq:%ld\n", freq);
+			break;
+		}
+		freq = dev_pm_opp_get_freq(opp);
+		voltage = dev_pm_opp_get_voltage(opp);
+		size += sprintf(buf + size, "%10ld  %7ld\n", freq, voltage);
+		freq += 1;	/* increase for next freq */
+	}
+	return size;
+}
+static DEVICE_ATTR(opp, 0444, opp_show, NULL);
+
 static int meson_cpufreq_init(struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *freq_table = NULL;
@@ -202,16 +224,21 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	meson_freq_table = kzalloc(sizeof(*meson_freq_table) * (max_opp + 1),
 								GFP_KERNEL);
 	for (idx = 0; idx < max_opp; idx++, opp++) {
-			meson_freq_table[idx].driver_data = idx;
-			meson_freq_table[idx].frequency = opp->freq_hz/1000;
-			ret = dev_pm_opp_add(cpu_dev, opp->freq_hz,
-					     opp->volt_mv*1000);
-			if (ret) {
-				pr_warn("failed to add opp %uHz %umV\n",
-					opp->freq_hz, opp->volt_mv);
+		meson_freq_table[idx].driver_data = idx;
+		meson_freq_table[idx].frequency = opp->freq_hz/1000;
+		ret = dev_pm_opp_add(cpu_dev, opp->freq_hz,
+				     opp->volt_mv*1000);
+		if (ret) {
+			pr_warn("failed to add opp %uHz %umV\n",
+				opp->freq_hz, opp->volt_mv);
 			return ret;
 		}
 	}
+
+	ret = device_create_file(cpu_dev, &dev_attr_opp);
+	if (ret < 0)
+		dev_err(cpu_dev, "create opp sysfs failed\n");
+
 	meson_freq_table[idx].driver_data = idx;
 	meson_freq_table[idx].frequency = CPUFREQ_TABLE_END;
 	cpufreq_frequency_table_get_attr(meson_freq_table,
