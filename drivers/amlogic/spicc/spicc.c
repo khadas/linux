@@ -40,6 +40,7 @@ struct spicc {
 	struct class cls;
 
 	int device_id;
+	struct reset_control *rst;
 	struct clk *clk;
 	void __iomem *regs;
 	struct pinctrl *pinctrl;
@@ -133,15 +134,14 @@ static void spicc_set_clk(struct spicc *spicc, int speed)
 	unsigned sys_clk_rate;
 	unsigned div, mid_speed;
 
-	if (!speed) {
-		clk_disable(spicc->clk);
-		return;
-	}
-	if (speed == spicc->speed)
+	if (!speed)
+		reset_control_assert(spicc->rst);
+	else
+		reset_control_deassert(spicc->rst);
+	if (!speed || (speed == spicc->speed))
 		return;
 
 	spicc->speed = speed;
-	clk_prepare_enable(spicc->clk);
 	sys_clk_rate = clk_get_rate(spicc->clk);
 
 	if (spicc_get_flag(spicc, FLAG_ENHANCE)) {
@@ -693,7 +693,6 @@ static int of_spicc_get_data(
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
-	struct reset_control *rst;
 	int err;
 	unsigned int value;
 
@@ -748,11 +747,11 @@ static int of_spicc_get_data(
 		return PTR_ERR(spicc->regs);
 	}
 
-	rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (!IS_ERR(rst))
-		reset_control_deassert(rst);
+	spicc->rst = devm_reset_control_get(&pdev->dev, "spicc_clk");
+	if (IS_ERR(spicc->rst))
+		dev_err(&pdev->dev, "open spicc clk gate failed\n");
 
-	spicc->clk = devm_clk_get(&pdev->dev, "spicc_clk");
+	spicc->clk = devm_clk_get(&pdev->dev, "clk81");
 	if (IS_ERR(spicc->clk)) {
 		dev_err(&pdev->dev, "get clk fail\n");
 		return PTR_ERR(spicc->clk);
