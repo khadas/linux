@@ -771,6 +771,37 @@
 		};
         };//End unifykey
 
+	amhdmitx: amhdmitx {
+		compatible = "amlogic, amhdmitx";
+		dev_name = "amhdmitx";
+		status = "okay";
+		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
+		pinctrl-0=<&hdmitx_hpd>;
+		pinctrl-1=<&hdmitx_ddc>;
+		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
+		interrupts = <0 57 1>;
+		interrupt-names = "hdmitx_hpd";
+		gpio_i2c_en = <0x1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	};
+
+	i2c_gpio: i2c_gpio {
+		compatible = "i2c-gpio";
+		dev_name = "i2c-gpio";
+		i2c-gpio,delay-us = <10>; /* 50 kHz */
+		gpios = <&gpio GPIOH_2 0
+			&gpio GPIOH_3 0>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		i2c-gpio,timeout-ms = <10>;
+		i2c_gpio_edid: i2c_gpio_edid {
+			compatible = "i2c-gpio-edid";
+			reg = <0x50 0x0 0x0 0x0>;
+		};
+	};
+
 	aocec: aocec {
 		compatible = "amlogic, amlogic-aocec";
 		device_name = "aocec";

@@ -791,11 +791,16 @@
 		};
         };//End unifykey
 
+	tvout {
+		compatible = "amlogic, tvout";
+		dev_name = "tvout";
+		status = "okay";
+	};
+
 	amhdmitx: amhdmitx {
 		compatible = "amlogic, amhdmitx";
 		dev_name = "amhdmitx";
 		status = "okay";
-		chip_type = <1>;
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
@@ -806,12 +811,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-	};
-
-	tvout {
-		compatible = "amlogic, tvout";
-		dev_name = "tvout";
-		status = "okay";
 	};
 
 	i2c_gpio: i2c_gpio {

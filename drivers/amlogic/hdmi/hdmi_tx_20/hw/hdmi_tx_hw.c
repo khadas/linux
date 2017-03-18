@@ -159,6 +159,9 @@ static int hdmitx_hpd_hw_op(enum hpd_op cmd)
 	case MESON_CPU_MAJOR_ID_GXM:
 		return hdmitx_hpd_hw_op_gxl(cmd);
 		break;
+	case MESON_CPU_MAJOR_ID_TXLX:
+		return hdmitx_hpd_hw_op_txlx(cmd);
+		break;
 	default:
 		break;
 	}
@@ -177,6 +180,9 @@ int read_hpd_gpio(void)
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
 		return read_hpd_gpio_gxl();
+		break;
+	case MESON_CPU_MAJOR_ID_TXLX:
+		return read_hpd_gpio_txlx();
 		break;
 	default:
 		break;
@@ -197,6 +203,9 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	case MESON_CPU_MAJOR_ID_GXL:
 	case MESON_CPU_MAJOR_ID_GXM:
 		return hdmitx_ddc_hw_op_gxl(cmd);
+		break;
+	case MESON_CPU_MAJOR_ID_TXLX:
+		return hdmitx_ddc_hw_op_txlx(cmd);
 		break;
 	default:
 		break;
@@ -618,7 +627,7 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	hdev->HWOp.CntlPacket = hdmitx_cntl;
 	hdev->HWOp.CntlConfig = hdmitx_cntl_config;
 	hdev->HWOp.CntlMisc = hdmitx_cntl_misc;
-	init_reg_map();
+	init_reg_map(hdev->chip_type);
 	digital_clk_on(0xff);
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);

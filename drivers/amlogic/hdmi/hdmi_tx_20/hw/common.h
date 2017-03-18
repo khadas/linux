@@ -35,4 +35,8 @@ void set_hpll_od1_gxl(unsigned div);
 void set_hpll_od2_gxl(unsigned div);
 void set_hpll_od3_gxl(unsigned div);
 
+int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd);
+int read_hpd_gpio_txlx(void);
+int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd);
+
 #endif

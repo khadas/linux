@@ -41,132 +41,140 @@ struct reg_map {
 	unsigned int phy_addr;
 	unsigned int size;
 	void __iomem *p;
-	int flag;
 };
 
-static struct reg_map reg_maps[] = {
-	{ /* CBUS */
-		.phy_addr = 0xc0800000,
+/* For gxb/gxl/gxm */
+static struct reg_map reg_maps_def[] = {
+	[CBUS_REG_IDX] = { /* CBUS */
+		.phy_addr = 0xc1100000,
 		.size = 0xa00000,
 	},
-	{ /* RESET */
-		.phy_addr = 0xc1104400,
-		.size = 0x100,
+	[PERIPHS_REG_IDX] = { /* PERIPHS */
+		.phy_addr = 0xc8834400,
+		.size = 0x200,
 	},
-	{ /* RTI */
-		.phy_addr = 0xc8100000,
-		.size = 0x100000,
-	},
-	{ /* PERIPHS */
-		.phy_addr = 0xc8834000,
-		.size = 0x2000,
-	},
-	{ /* HDMITX NON-SECURE*/
-		.phy_addr = 0xc883a000,
-		.size = 0x2000,
-	},
-	{ /* HIU */
-		.phy_addr = 0xc883c000,
-		.size = 0x2000,
-	},
-	{ /* VPU */
+	[VCBUS_REG_IDX] = { /* VPU */
 		.phy_addr = 0xd0100000,
 		.size = 0x40000,
 	},
-	{ /* HDMITX SECURE */
+	[AOBUS_REG_IDX] = { /* RTI */
+		.phy_addr = 0xc8100000,
+		.size = 0x100000,
+	},
+	[HHI_REG_IDX] = { /* HIU */
+		.phy_addr = 0xc883c000,
+		.size = 0x2000,
+	},
+	[RESET_CBUS_REG_IDX] = { /* RESET */
+		.phy_addr = 0xc1104400,
+		.size = 0x100,
+	},
+	[HDMITX_SEC_REG_IDX] = { /* HDMITX SECURE */
 		.phy_addr = 0xda83a000,
 		.size = 0x2000,
 	},
+	[HDMITX_REG_IDX] = { /* HDMITX NON-SECURE*/
+		.phy_addr = 0xc883a000,
+		.size = 0x2000,
+	},
+	[ELP_ESM_REG_IDX] = {
+		.phy_addr = 0xd0044000,
+		.size = 0x100,
+	},
 };
 
-static int in_reg_maps_idx(unsigned int addr)
+/* For gxb/gxl/gxm */
+static struct reg_map reg_maps_txlx[] = {
+	[CBUS_REG_IDX] = { /* CBUS */
+		.phy_addr = 0xffd00000,
+		.size = 0xa00000,
+	},
+	[PERIPHS_REG_IDX] = { /* PERIPHS */
+		.phy_addr = 0xff634400,
+		.size = 0x2000,
+	},
+	[VCBUS_REG_IDX] = { /* VPU */
+		.phy_addr = 0xff900000,
+		.size = 0x40000,
+	},
+	[AOBUS_REG_IDX] = { /* RTI */
+		.phy_addr = 0xff800000,
+		.size = 0x100000,
+	},
+	[HHI_REG_IDX] = { /* HIU */
+		.phy_addr = 0xff63c000,
+		.size = 0x2000,
+	},
+	[RESET_CBUS_REG_IDX] = { /* RESET */
+		.phy_addr = 0xffd01000,
+		.size = 0x100,
+	},
+	[HDMITX_SEC_REG_IDX] = { /* HDMITX SECURE */
+		.phy_addr = 0xda83a000,
+		.size = 0x2000,
+	},
+	[HDMITX_REG_IDX] = { /* HDMITX NON-SECURE*/
+		.phy_addr = 0xff63a000,
+		.size = 0x2000,
+	},
+	[ELP_ESM_REG_IDX] = {
+		.phy_addr = 0xffe01000,
+		.size = 0x100,
+	},
+};
+
+static struct reg_map *map;
+
+void init_reg_map(unsigned int type)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
-		if ((addr >= reg_maps[i].phy_addr) &&
-			(addr < (reg_maps[i].phy_addr + reg_maps[i].size))) {
-			return i;
-		}
+	switch (type) {
+	case 1:
+		map = reg_maps_txlx;
+		break;
+	default:
+		map = reg_maps_def;
+		break;
 	}
 
-	return -1;
-}
-
-static int check_map_flag(unsigned int addr)
-{
-	int idx;
-
-	idx = in_reg_maps_idx(addr);
-	if ((idx != -1) && (reg_maps[idx].flag))
-		return 1;
-	else {
-		pr_info("hdmitx20: not Mapped PHY 0x%x\n", addr);
-		return 0;
-	}
-}
-
-void init_reg_map(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(reg_maps); i++) {
-		reg_maps[i].p = ioremap(reg_maps[i].phy_addr, reg_maps[i].size);
-		if (!reg_maps[i].p) {
+	for (i = 0; i < REG_IDX_END; i++) {
+		map[i].p = ioremap(map[i].phy_addr, map[i].size);
+		if (!map[i].p) {
 			pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
-				reg_maps[i].phy_addr);
-		} else
-			reg_maps[i].flag = 1;
+				map[i].phy_addr);
+		} else {
+			pr_info("hdmitx20: Mapped PHY: 0x%x\n",
+				map[i].phy_addr);
+		}
 	}
 }
 
 unsigned int hd_read_reg(unsigned int addr)
 {
-	int ret = 0;
-	int idx = in_reg_maps_idx(addr);
+	int idx = (addr >> BASE_REG_OFFSET);
+	int offset = addr & ((1 << BASE_REG_OFFSET) - 1);
 	unsigned int val = 0;
-	unsigned int type = (addr >> OFFSET);
-	unsigned int reg = addr & ((1 << OFFSET) - 1);
+	unsigned int paddr = map[idx].phy_addr + offset;
 
-	if ((idx != -1) && check_map_flag(addr)) {
-		val = readl(reg_maps[idx].p + (addr - reg_maps[idx].phy_addr));
-		goto end;
-	}
+	val = readl(map[idx].p + offset);
 
-	ret = aml_reg_read(type, reg, &val);
-
-	if (ret < 0) {
-		pr_info("Rd[0x%x] Error\n", addr);
-		return val;
-	}
-end:
 	if (dbg_en)
-		pr_info("Rd[0x%x] 0x%x\n", addr, val);
+		pr_info("Rd[0x%x] 0x%x\n", paddr, val);
+
 	return val;
 }
 
 void hd_write_reg(unsigned int addr, unsigned int val)
 {
-	int ret = 0;
-	int idx = in_reg_maps_idx(addr);
-	unsigned int type = (addr >> OFFSET);
-	unsigned int reg = addr & ((1 << OFFSET) - 1);
+	int idx = (addr >> BASE_REG_OFFSET);
+	int offset = addr & ((1 << BASE_REG_OFFSET) - 1);
+	unsigned int paddr = map[idx].phy_addr + offset;
 
-	if ((idx != -1) && check_map_flag(addr)) {
-		writel(val, reg_maps[idx].p + (addr - reg_maps[idx].phy_addr));
-		goto end;
-	}
+	writel(val, map[idx].p + offset);
 
-	ret = aml_reg_write(type, reg, val);
-
-	if (ret < 0) {
-		pr_info("Wr[0x%x] 0x%x Error\n", addr, val);
-		return;
-	}
-
-end:
 	if (dbg_en)
-		pr_info("Wr[0x%x] 0x%x\n", addr, val);
+		pr_info("Wr[0x%x] 0x%x\n", paddr, val);
 }
 
 void hd_set_reg_bits(unsigned int addr, unsigned int value,
