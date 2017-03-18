@@ -1708,9 +1708,11 @@ static void vpp_set_scaler(u32 process_3d_type, u32 src_width,
 			(next_frame_par->supsc1_hori_ratio ||
 			next_frame_par->supsc1_enable) ? 1 : 0;
 	} else {
-		next_frame_par->supsc0_enable = 0;
+		next_frame_par->supsc0_enable =
+			next_frame_par->supsc0_vert_ratio ? 1 : 0;
 		next_frame_par->supsc0_hori_ratio = 0;
-		next_frame_par->supsc1_enable = 0;
+		next_frame_par->supsc1_enable =
+			next_frame_par->supsc1_vert_ratio ? 1 : 0;
 		next_frame_par->supsc1_hori_ratio = 0;
 	}
 	/*double check core1 input width for core1_vert_ratio!!!*/
