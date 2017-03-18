@@ -39,6 +39,7 @@
 /* #include <mach/am_regs.h> */
 
 /* #include <linux/amlogic/osd/osd_dev.h> */
+#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/amlogic/vout/vout_notify.h>
 
@@ -3121,6 +3122,20 @@ static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev, char *attr)
 	}
 }
 
+static void hdmi_init_chip_type(void)
+{
+	/* auto detect chip_type for registers ioremap */
+	switch (get_cpu_type()) {
+	case MESON_CPU_MAJOR_ID_TXLX:
+		hdmitx_device.chip_type = 1;
+		break;
+	default:
+		break;
+	}
+
+	pr_info("hdmitx: %s: %d\n", __func__, hdmitx_device.chip_type);
+}
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -3244,6 +3259,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		(long int)&hdmitx_notifier_nb_a;
 #endif
 
+	hdmi_init_chip_type();
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		memset(&hdmitx_device.config_data, 0,
@@ -3305,34 +3321,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	pr_info("hdmitx hpd irq = %d\n" , hdmitx_device.irq_hpd);
-	hdmitx_device.clk_sys = NULL;
-	hdmitx_device.clk_encp = NULL;
-	hdmitx_device.clk_enci = NULL;
-	hdmitx_device.clk_pixel = NULL;
-	hdmitx_device.clk_phy = NULL;
-	hdmitx_device.clk_sys = clk_get(&pdev->dev, "hdmitx_clk_sys");
-	if (hdmitx_device.clk_sys)
-		clk_prepare_enable(hdmitx_device.clk_sys);
-
-	hdmitx_device.clk_phy = clk_get(&pdev->dev, "hdmitx_clk_phy");
-	if (hdmitx_device.clk_phy)
-		clk_prepare_enable(hdmitx_device.clk_phy);
-
-	hdmitx_device.clk_vid = clk_get(&pdev->dev, "hdmitx_clk_vid");
-	if (hdmitx_device.clk_vid)
-		clk_prepare_enable(hdmitx_device.clk_vid);
-
-	hdmitx_device.clk_encp = clk_get(&pdev->dev, "hdmitx_clk_encp");
-	if (hdmitx_device.clk_encp)
-		clk_prepare_enable(hdmitx_device.clk_encp);
-
-	hdmitx_device.clk_enci = clk_get(&pdev->dev, "hdmitx_clk_enci");
-	if (hdmitx_device.clk_enci)
-		clk_prepare_enable(hdmitx_device.clk_enci);
-
-	hdmitx_device.clk_pixel = clk_get(&pdev->dev, "hdmitx_clk_pixel");
-	if (hdmitx_device.clk_pixel)
-		clk_prepare_enable(hdmitx_device.clk_pixel);
 
 	switch_dev_register(&sdev);
 	switch_dev_register(&hdmi_audio);

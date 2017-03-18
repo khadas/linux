@@ -181,6 +181,7 @@ struct hdmitx_dev {
 	struct delayed_work cec_work;
 #endif
 	struct timer_list hdcp_timer;
+	int chip_type;
 	int hdcp_try_times;
 	/* -1, no hdcp; 0, NULL; 1, 1.4; 2, 2.2 */
 	int hdcp_mode;
