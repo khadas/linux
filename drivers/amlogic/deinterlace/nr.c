@@ -348,14 +348,6 @@ static void nr_level_strong(void)
 	DI_Wr(0x1775, 0x7e625854);
 	DI_Wr(0x1776, 0xfffff99c);
 	DI_Wr(0x1777, 0xa06663);
-	DI_Wr(0x1778, 0x372);
-	DI_Wr(0x1779, 0x14141414);
-	DI_Wr(0x177a, 0x1400);
-	DI_Wr(0x177b, 0x80064);
-	DI_Wr(0x177c, 0x80064);
-	DI_Wr(0x177d, 0x80a0a);
-	DI_Wr(0x177e, 0x4281e);
-	DI_Wr(0x177f, 0x0);
 }
 
 static void nr_level_normal(void)
@@ -411,14 +403,6 @@ static void nr_level_normal(void)
 	DI_Wr(0x1775, 0xa5808080);
 	DI_Wr(0x1776, 0xffffffff);
 	DI_Wr(0x1777, 0xa06663);
-	DI_Wr(0x1778, 0x372);
-	DI_Wr(0x1779, 0x14141414);
-	DI_Wr(0x177a, 0x1400);
-	DI_Wr(0x177b, 0x80064);
-	DI_Wr(0x177c, 0x80064);
-	DI_Wr(0x177d, 0x80a0a);
-	DI_Wr(0x177e, 0x4281e);
-	DI_Wr(0x177f, 0x0);
 	DI_Wr(0x179c, 0x11b);
 	DI_Wr(0x179d, 0x202220);
 }
@@ -433,7 +417,7 @@ static void nr2_config(unsigned short width,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
 	else {
-		DI_Wr(NR2_FRM_SIZE, height|width);
+		DI_Wr(NR2_FRM_SIZE, (height<<16)|width);
 		DI_Wr_reg_bits(NR2_SW_EN, nr2_en, 4, 1);
 	}
 }
@@ -528,6 +512,7 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 		unsigned field_cnt)
 {
 	unsigned int val1 = 0, val2 = 0, field_sad = 0, field_var = 0;
+	int val = 0;
 	val1 = Rd(NR4_RO_NM_SAD_CNT);
 	val2 = Rd(NR4_RO_NM_SAD_SUM);
 
@@ -551,15 +536,21 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 		nr4_param_p->sw_nr4_scene_change_flg[1];
 	nr4_param_p->sw_nr4_scene_change_flg[1] =
 		nr4_param_p->sw_nr4_scene_change_flg[2];
-	val1 = field_sad - nr4_param_p->sw_nr4_field_sad[1];
+	val = field_sad - nr4_param_p->sw_nr4_field_sad[1];
 	if (field_cnt > 2
-		&& (val1 > nr4_param_p->sw_nr4_scene_change_thd))
+		&& (val > nr4_param_p->sw_nr4_scene_change_thd)) {
 		nr4_param_p->sw_nr4_scene_change_flg[2] = 1;
-	else
+		if (nr4_param_p->nr4_debug) {
+			pr_info("NR4 current field_sad=%d, sad[1]=%d, val=%d",
+			field_sad, nr4_param_p->sw_nr4_field_sad[1], val);
+		}
+	} else
 		nr4_param_p->sw_nr4_scene_change_flg[2] = 0;
 	if (nr4_param_p->sw_nr4_scene_change_flg[1] ||
 		nr4_param_p->sw_nr4_scene_change_flg[2])
 		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 0, 1);
+	else
+		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
 	nr4_param_p->sw_nr4_field_sad[0] = nr4_param_p->sw_nr4_field_sad[1];
 	nr4_param_p->sw_nr4_field_sad[1] = field_sad;
 }
@@ -790,7 +781,7 @@ static ssize_t dnr_param_show(struct device *dev,
 	return len;
 }
 
-static nr4_param_t nr4_params[29];
+static nr4_param_t nr4_params[30];
 static void nr4_params_init(struct NR4_PARM_s *nr4_parm_p)
 {
 	nr4_params[0].name = "prm_nr4_srch_stp";
@@ -851,6 +842,9 @@ static void nr4_params_init(struct NR4_PARM_s *nr4_parm_p)
 	nr4_params[27].addr = &(nr4_parm_p->sw_nr4_sad2gain_lut[14]);
 	nr4_params[28].name = "sw_nr4_sad2gain_lut[15]";
 	nr4_params[28].addr = &(nr4_parm_p->sw_nr4_sad2gain_lut[15]);
+	nr4_params[29].name = "nr4_debug";
+	nr4_params[29].addr = &(nr4_parm_p->nr4_debug);
+
 };
 static ssize_t nr4_param_store(struct device *dev,
 				struct device_attribute *attr,
@@ -861,7 +855,7 @@ static ssize_t nr4_param_store(struct device *dev,
 
 	buf_orig = kstrdup(buff, GFP_KERNEL);
 	parse_cmd_params(buf_orig, (char **)(&parm));
-	for (i = 0; i < 29; i++) {
+	for (i = 0; i < 30; i++) {
 		if (!strcmp(parm[0], nr4_params[i].name)) {
 			if (parm[1]) {
 				if (kstrtol(parm[1], 10, &value) < 0)
@@ -881,7 +875,7 @@ static ssize_t nr4_param_show(struct device *dev,
 {
 	ssize_t len = 0;
 	int i = 0;
-	for (i = 0; i < 29; i++)
+	for (i = 0; i < 30; i++)
 		len += sprintf(buff+len, "%s=%d.\n",
 		nr4_params[i].name, *(nr4_params[i].addr));
 	return len;
@@ -893,6 +887,7 @@ static void nr4_param_init(struct NR4_PARM_s *nr4_parm_p)
 {
 	int k = 0;
 	nr4_parm_p->border_offset = 8;
+	nr4_parm_p->nr4_debug = 0;
 	nr4_parm_p->prm_nr4_srch_stp = 1;
 	nr4_parm_p->sw_nr4_field_sad[0] = 0;
 	nr4_parm_p->sw_nr4_field_sad[1] = 0;

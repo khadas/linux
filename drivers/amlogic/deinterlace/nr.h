@@ -45,6 +45,7 @@ struct NR4_PARM_s {
 	int sw_nr4_scene_change_flg[3];
 	int sw_nr4_sad2gain_en;
 	int sw_nr4_sad2gain_lut[16];
+	int nr4_debug;
 	unsigned short width;
 	unsigned short height;
 	unsigned short border_offset;
