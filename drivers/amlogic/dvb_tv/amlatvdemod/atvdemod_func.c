@@ -386,7 +386,7 @@ void atv_dmd_misc(void)
 
 	if (amlatvdemod_devp->parm.tuner_id == AM_TUNER_MXL661) {
 		atv_dmd_wr_long(0x0c, 0x04, 0xbffa0000) ;/*test in sky*/
-		atv_dmd_wr_long(0x0c, 0x00, 0x5a4000);/*test in sky*/
+		atv_dmd_wr_long(0x0c, 0x00, 0x6f4000);/*test in sky*/
 		/*guanzhong@20151013 fix nonstd def is:0x0c010301;0x0c020601*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0x0c030901);
 	} else {

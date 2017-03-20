@@ -720,7 +720,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 				fe->ops.analog_ops.get_atv_status(fe,
 					&atv_status);
 				if (atv_status.atv_lock)
-					usleep_range(20*1000, 20*1000+100);
+					usleep_range(30*1000, 30*1000+100);
 			}
 			if (fee->tuner->drv->id == AM_TUNER_MXL661)
 				usleep_range(40*1000, 40*1000+100);
@@ -734,7 +734,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					(V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I);
 				p->frequency += 1;
 				fe->ops.set_frontend(fe);
-				usleep_range(10*1000, 10*1000+100);
+				usleep_range(20*1000, 20*1000+100);
 
 			while (1) {
 				for (i = 0; i < get_vfmt_maxcnt; i++) {
@@ -753,7 +753,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						p->frequency += 1;
 						fe->ops.set_frontend(fe);
 					}
-					usleep_range(20*1000, 20*1000+100);
+					usleep_range(30*1000, 30*1000+100);
 				}
 				if (std_bk == 0) {
 					pr_err("%s, failed to get v fmt !!\n",
@@ -770,8 +770,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 							| V4L2_STD_NTSC_M);
 						p->frequency += 1;
 						fe->ops.set_frontend(fe);
-						usleep_range(10*1000,
-							10*1000+100);
+						usleep_range(20*1000,
+							20*1000+100);
 						try_ntsc++;
 						continue;
 					}
@@ -783,7 +783,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					(V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK);
 				p->frequency += 1;
 				fe->ops.set_frontend(fe);
-				usleep_range(10*1000, 10*1000+100);
+				usleep_range(20*1000, 20*1000+100);
 			}
 			std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
 			if (std_bk == V4L2_COLOR_STD_NTSC) {
@@ -831,8 +831,9 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 
 			}
 		}
-		usleep_range(10*1000, 10*1000+100);
+		usleep_range(20*1000, 20*1000+100);
 		p->frequency += afc_step;
+		fe->ops.set_frontend(fe);
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 	/**enter auto search mode**/
@@ -943,8 +944,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 		tuner_status_cnt_local = tuner_status_cnt;
 		do {
 			if (fee->tuner->drv->id == AM_TUNER_MXL661)
-				usleep_range((delay_cnt+15)*1000,
-					(delay_cnt+15)*1000+100);
+				usleep_range((delay_cnt+20)*1000,
+					(delay_cnt+20)*1000+100);
 /*			if (fee->tuner->drv->id == AM_TUNER_R840)
 				usleep_range(delay_cnt*1000,
 					 delay_cnt*1000+100);
@@ -998,7 +999,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 				fe->ops.analog_ops.get_atv_status(fe,
 					&atv_status);
 				if (atv_status.atv_lock)
-					usleep_range(20*1000, 20*1000+100);
+					usleep_range(30*1000, 30*1000+100);
 			}
 			if (aml_fe_afc_closer(fe, minafcfreq,
 				maxafcfreq + ATV_AFC_500KHZ, 1) == 0) {
@@ -1025,7 +1026,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 						p->frequency += 1;
 						fe->ops.set_frontend(fe);
 					}
-					usleep_range(20*1000, 20*1000+100);
+					usleep_range(30*1000, 30*1000+100);
 				}
 				if (debug_fe & 0x2)
 					pr_err("get std_bk cnt:%d\n", i);
@@ -1045,8 +1046,8 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 							| V4L2_STD_NTSC_M);
 						p->frequency += 1;
 						fe->ops.set_frontend(fe);
-						usleep_range(10*1000,
-							10*1000+100);
+						usleep_range(20*1000,
+							20*1000+100);
 						try_ntsc++;
 						continue;
 					}
@@ -1058,7 +1059,7 @@ static enum dvbfe_search aml_fe_analog_search(struct dvb_frontend *fe)
 					| V4L2_STD_PAL_DK);
 				p->frequency += 1;
 				fe->ops.set_frontend(fe);
-				usleep_range(10*1000, 10*1000+100);
+				usleep_range(20*1000, 20*1000+100);
 			}
 			std_bk = trans_tvin_fmt_to_v4l2_std(std_bk);
 
@@ -1190,7 +1191,7 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 				|| fee->tuner->drv->id == AM_TUNER_R840)
 			usleep_range(10*1000, 10*1000+100);
 		else if (fee->tuner->drv->id == AM_TUNER_MXL661)
-			usleep_range(20*1000, 20*1000+100);
+			usleep_range(30*1000, 30*1000+100);
 		/*****************************/
 		set_freq = c->frequency;
 		while (abs(afc) > AFC_BEST_LOCK) {
@@ -1291,7 +1292,7 @@ static int aml_fe_afc_closer(struct dvb_frontend *fe, int minafcfreq,
 
 			/*delete it will miss program*/
 			if (fee->tuner->drv->id == AM_TUNER_MXL661)
-				usleep_range(20*1000, 20*1000+100);
+				usleep_range(30*1000, 30*1000+100);
 			else
 				usleep_range(10*1000, 10*1000+100);
 
