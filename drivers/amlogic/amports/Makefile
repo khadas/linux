@@ -5,7 +5,7 @@
 # Object file lists.
 
 
-
+CFLAGS_vdec.o := -I$(src)
 obj-$(CONFIG_AM_STREAMING) += amports.o
 
 AMPORTS_OBJS = amstream.o streambuf.o vdec.o adec.o tsdemux.o psparser.o esparser.o amvdec.o amstream_profile.o tsync_pcr.o amports_gate.o gp_pll.o thread_rw.o vdec_input.o
