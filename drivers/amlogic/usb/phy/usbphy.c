@@ -396,9 +396,6 @@ int clk_enable_usb_gxl(struct platform_device *pdev,
 	usb_reset = devm_reset_control_get(&pdev->dev, "usb_general");
 	reset_control_deassert(usb_reset);
 	p_clk_reset[pdev->id].usb_reset_usb_general = usb_reset;
-	usb_reset = devm_reset_control_get(&pdev->dev, "usb1");
-	reset_control_deassert(usb_reset);
-	p_clk_reset[pdev->id].usb_reset_usb = usb_reset;
 	usb_reset = devm_reset_control_get(&pdev->dev, "usb1_to_ddr");
 	reset_control_deassert(usb_reset);
 	p_clk_reset[pdev->id].usb_reset_usb_to_ddr = usb_reset;
@@ -429,8 +426,6 @@ void clk_disable_usb_gxl(struct platform_device *pdev,
 	struct reset_control *usb_reset;
 
 	usb_reset = p_clk_reset[pdev->id].usb_reset_usb_general;
-	reset_control_assert(usb_reset);
-	usb_reset = p_clk_reset[pdev->id].usb_reset_usb;
 	reset_control_assert(usb_reset);
 	usb_reset = p_clk_reset[pdev->id].usb_reset_usb_to_ddr;
 	reset_control_assert(usb_reset);
@@ -476,14 +471,10 @@ int clk_resume_usb_gxl(struct platform_device *pdev,
 	if (0 == pdev->id) {
 		usb_reset = p_clk_reset[pdev->id].usb_reset_usb_general;
 		reset_control_deassert(usb_reset);
-		usb_reset = p_clk_reset[pdev->id].usb_reset_usb;
-		reset_control_deassert(usb_reset);
 		usb_reset = p_clk_reset[pdev->id].usb_reset_usb_to_ddr;
 		reset_control_deassert(usb_reset);
 	} else if (1 == pdev->id) {
 		usb_reset = p_clk_reset[pdev->id].usb_reset_usb_general;
-		reset_control_deassert(usb_reset);
-		usb_reset = p_clk_reset[pdev->id].usb_reset_usb;
 		reset_control_deassert(usb_reset);
 		usb_reset = p_clk_reset[pdev->id].usb_reset_usb_to_ddr;
 		reset_control_deassert(usb_reset);
