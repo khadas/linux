@@ -148,13 +148,13 @@ MODULE_PARM_DESC(use_of_sop, "\n\t\t Enable use of sop input");
 static int use_of_sop;
 module_param(use_of_sop, int, 0644);
 
-#define CIPLUS_KEY0   0x16f8
+/*#define CIPLUS_KEY0   0x16f8
 #define CIPLUS_KEY1   0x16f9
 #define CIPLUS_KEY2   0x16fa
 #define CIPLUS_KEY3   0x16fb
 #define CIPLUS_KEY_WR 0x16fc
 #define CIPLUS_CONFIG 0x16fd
-#define CIPLUS_ENDIAN 0x16fe
+#define CIPLUS_ENDIAN 0x16fe*/
 
 static u32 old_stb_top_config = 0x0;
 static u32 old_fec_input_control = 0x0;
@@ -1762,14 +1762,14 @@ static int dsc_set_csa_key(struct aml_dsc_channel *ch, int type, u8 *key)
 }
 
 /************************* AES DESC************************************/
-#define STB_TOP_CONFIG 0x16f0
+/*#define STB_TOP_CONFIG 0x16f0
 #define CIPLUS_KEY0   0x16f8
 #define CIPLUS_KEY1   0x16f9
 #define CIPLUS_KEY2   0x16fa
 #define CIPLUS_KEY3   0x16fb
 #define CIPLUS_KEY_WR 0x16fc
 #define CIPLUS_CONFIG 0x16fd
-#define CIPLUS_ENDIAN 0x16fe
+#define CIPLUS_ENDIAN 0x16fe*/
 
 #define ENABLE_DEC_PL     7
 #define ENABLE_DES_PL_CLK 15

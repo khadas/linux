@@ -18,7 +18,7 @@
 /*  STB Registers Start*/
 /*=================================================*/
 /* -----------------------------------------------*/
-#define STB_CBUS_BASE           0x1600
+/*#define STB_CBUS_BASE           0x1600*/
 /* -----------------------------------------------*/
 /* There are two instantiations under one CBUS slave.
  * Each CBUS slave can support*/
@@ -26,9 +26,9 @@
  * Each demux is allocated 128 registers so set the offset in*/
 /* the middle*/
 /* Copy this define but don't add a base address*/
-#define DEMUX_1_OFFSET         0x00
-#define DEMUX_2_OFFSET         0x50
-#define DEMUX_3_OFFSET         0xa0
+/*#define DEMUX_1_OFFSET         0x00*/
+/*#define DEMUX_2_OFFSET         0x50*/
+/*#define DEMUX_3_OFFSET         0xa0*/
 /*======================================================*/
 /*  STB TOP Registers                   (8'hf0 - 8'hf7)*/
 /*======================================================*/
@@ -147,7 +147,7 @@
 /* bit 4:2 -- use_des_2  bit[2] -- demux0, bit[3] -- demux1, bit[4] -- demux2*/
 /* bit 1:0 -- des_i_sel_2 00 -- select_fec_0, 01 -- select_fec_1,
  *                        10 -- select_fec_2, 11 - reserved*/
-#define COMM_DESC_2_CTL     (STB_CBUS_BASE + 0xff) /*0x16ff*/
+/*#define COMM_DESC_2_CTL     (STB_CBUS_BASE + 0xff) *//*0x16ff*/
 
 /*=======================================================*/
 /*  Multiple STB Registers                  (8'h00 - 8'h45)*/
@@ -632,12 +632,12 @@
 /* default : 0x807f*/
 /* bit 15:9  -- MAX OM DMA COUNT  (default: 0x40)*/
 /* bit 8:0   -- LAST ADDR OF OM ADDR (default: 127)*/
-#define STB_OM_CTL \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x22) /* 0x1622*/
-#define STB_OM_CTL_2 \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x22) /* 0x1672*/
-#define STB_OM_CTL_3 \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x22) /* 0x16c2*/
+/*#define STB_OM_CTL \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x22) // 0x1622*/
+/*#define STB_OM_CTL_2 \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x22) // 0x1672*/
+/*#define STB_OM_CTL_3 \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x22) // 0x16c2*/
 /*----------- bit define -----------*/
 #define MAX_OM_DMA_COUNT           9
 #define LAST_OM_ADDR               0
@@ -1050,52 +1050,52 @@
 
 
 /* bit[31:0] - channel_reset_timeout_disable*/
-#define DEMUX_INPUT_TIMEOUT_C   \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x46)         /* 0x1646*/
-#define DEMUX_INPUT_TIMEOUT_C_2 \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x46)         /* 0x1696*/
-#define DEMUX_INPUT_TIMEOUT_C_3 \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x46)         /* 0x16e6*/
+/*#define DEMUX_INPUT_TIMEOUT_C   \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x46) // 0x1646*/
+/*#define DEMUX_INPUT_TIMEOUT_C_2 \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x46) // 0x1696*/
+/*#define DEMUX_INPUT_TIMEOUT_C_3 \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x46) // 0x16e6*/
 /* bit[31] - no_match_reset_timeout_disable*/
 /* bit[30:0] input_time_out_int_cnt (0 -- means disable) Wr-setting, Rd-count*/
-#define DEMUX_INPUT_TIMEOUT     \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x47)         /* 0x1647*/
-#define DEMUX_INPUT_TIMEOUT_2   \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x47)         /* 0x1697*/
-#define DEMUX_INPUT_TIMEOUT_3   \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x47)         /* 0x16e7*/
+/*#define DEMUX_INPUT_TIMEOUT     \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x47) // 0x1647*/
+/*#define DEMUX_INPUT_TIMEOUT_2   \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x47) // 0x1697*/
+/*#define DEMUX_INPUT_TIMEOUT_3   \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x47) // 0x16e7*/
 
 /* bit[31:0] - channel_packet_count_disable*/
-#define DEMUX_PACKET_COUNT_C    \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x48)         /* 0x1648*/
-#define DEMUX_PACKET_COUNT_C_2  \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x48)         /* 0x1698*/
-#define DEMUX_PACKET_COUNT_C_3  \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x48)         /* 0x16e8*/
+/*#define DEMUX_PACKET_COUNT_C    \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x48) // 0x1648*/
+/*#define DEMUX_PACKET_COUNT_C_2  \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x48) // 0x1698*/
+/*#define DEMUX_PACKET_COUNT_C_3  \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x48)*/         /* 0x16e8*/
 /* bit[31] - no_match_packet_count_disable*/
 /* bit[30:0] input_packet_count*/
-#define DEMUX_PACKET_COUNT      \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x49)         /* 0x1649*/
-#define DEMUX_PACKET_COUNT_2    \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x49)         /* 0x1699*/
-#define DEMUX_PACKET_COUNT_3    \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x49)         /* 0x16e9*/
+/*#define DEMUX_PACKET_COUNT      \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x49) // 0x1649*/
+/*#define DEMUX_PACKET_COUNT_2    \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x49) // 0x1699*/
+/*#define DEMUX_PACKET_COUNT_3    \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x49) // 0x16e9*/
 
 /* bit[31:0] channel_record_enable*/
-#define DEMUX_CHAN_RECORD_EN    \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4a)         /* 0x164a*/
-#define DEMUX_CHAN_RECORD_EN_2  \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4a)         /* 0x169a*/
-#define DEMUX_CHAN_RECORD_EN_3  \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4a)         /* 0x16ea*/
+/*#define DEMUX_CHAN_RECORD_EN    \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4a) // 0x164a*/
+/*#define DEMUX_CHAN_RECORD_EN_2  \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4a) // 0x169a*/
+/*#define DEMUX_CHAN_RECORD_EN_3  \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4a) // 0x16ea*/
 
 /* bit[31:0] channel_process_enable*/
-#define DEMUX_CHAN_PROCESS_EN   \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4b)         /* 0x164b*/
-#define DEMUX_CHAN_PROCESS_EN_2 \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4b)         /* 0x169b*/
-#define DEMUX_CHAN_PROCESS_EN_3 \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4b)         /* 0x16eb*/
+/*#define DEMUX_CHAN_PROCESS_EN   \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4b) // 0x164b*/
+/*#define DEMUX_CHAN_PROCESS_EN_2 \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4b)  */      /* 0x169b*/
+/*#define DEMUX_CHAN_PROCESS_EN_3 \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4b) // 0x16eb*/
 
 /* bit[31:24] small_sec_size ((n+1) * 256 Bytes)*/
 /* bit[23:16] small_sec_rd_ptr */
@@ -1103,19 +1103,19 @@
 /* bit[7:2]   reserved*/
 /* bit[1] small_sec_wr_ptr_wr_enable*/
 /* bit[0] small_section_enable*/
-#define DEMUX_SMALL_SEC_CTL     \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4c)         /* 0x164c*/
-#define DEMUX_SMALL_SEC_CTL_2   \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4c)         /* 0x169c*/
-#define DEMUX_SMALL_SEC_CTL_3   \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4c)         /* 0x16ec*/
+/*#define DEMUX_SMALL_SEC_CTL     \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4c)*/         /* 0x164c*/
+/*#define DEMUX_SMALL_SEC_CTL_2   \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4c)  // 0x169c*/
+/*#define DEMUX_SMALL_SEC_CTL_3   \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4c)   // 0x16ec*/
 /* bit[31:0] small_sec_start_addr*/
-#define DEMUX_SMALL_SEC_ADDR    \
-	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4d)         /* 0x164d*/
-#define DEMUX_SMALL_SEC_ADDR_2  \
-	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4d)         /* 0x169d*/
-#define DEMUX_SMALL_SEC_ADDR_3  \
-	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4d)         /* 0x16ed*/
+/*#define DEMUX_SMALL_SEC_ADDR    \
+	(STB_CBUS_BASE + DEMUX_1_OFFSET + 0x4d)  // 0x164d*/
+/*#define DEMUX_SMALL_SEC_ADDR_2  \
+	(STB_CBUS_BASE + DEMUX_2_OFFSET + 0x4d)  // 0x169d*/
+/*#define DEMUX_SMALL_SEC_ADDR_3  \
+	(STB_CBUS_BASE + DEMUX_3_OFFSET + 0x4d)  // 0x16ed*/
 
 
 /*======================================================*/

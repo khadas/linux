@@ -830,13 +830,11 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 /*      struct aml_demod_sta demod_sta;*/
 /*      struct aml_demod_sts demod_sts;*/
 	struct aml_demod_i2c demod_i2c;
-	int error, times;
 	struct aml_fe *afe = fe->demodulator_priv;
 	struct aml_fe_dev *dev = afe->dtv_demod;
 
 	demod_i2c.tuner = dev->drv->id;
 	demod_i2c.addr = dev->i2c_addr;
-	times = 2;
 
 	memset(&param, 0, sizeof(param));
 	param.ch_freq = c->frequency / 1000;
@@ -846,48 +844,8 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	atsc_mode = c->modulation;
 	/* param.mode = amdemod_qam(p->u.vsb.modulation);*/
 	param.mode = c->modulation;
-
-retry:
-	aml_dmx_before_retune(AM_TS_SRC_TS2, fe);
 	aml_fe_analog_set_frontend(fe);
 	atsc_set_ch(&demod_status, &demod_i2c, &param);
-
-	/*{
-	 * int ret;
-	 * ret = wait_event_interruptible_timeout(
-	 *              dev->lock_wq, amdemod_atsc_stat_islock(dev), 4*HZ);
-	 * if(!ret)     pr_error("amlfe wait lock timeout.\n");
-	 * } */
-/*rsj_debug*/
-	/*      int count;
-	 * for(count=0;count<10;count++){
-	 * if(amdemod_atsc_stat_islock(dev)){
-	 * pr_dbg("first lock success\n");
-	 * break;
-	 * }
-	 *
-	 * msleep(200);
-	 * }    */
-
-	times--;
-	if (amdemod_atsc_stat_islock(dev) && times) {
-		int lock;
-
-		aml_dmx_start_error_check(AM_TS_SRC_TS2, fe);
-		msleep(20);
-		error = aml_dmx_stop_error_check(AM_TS_SRC_TS2, fe);
-		lock = amdemod_atsc_stat_islock(dev);
-		if ((error > 200) || !lock) {
-			pr_error
-				("amlfe too many error,\t"
-				"error count:%d lock statuc:%d, retry\n",
-				error, lock);
-			goto retry;
-		}
-	}
-
-	aml_dmx_after_retune(AM_TS_SRC_TS2, fe);
-
 	afe->params = *c;
 	/*pr_dbg("AML amldemod => frequency=%d,symbol_rate=%d\r\n",
 	 * p->frequency,p->u.qam.symbol_rate);*/
@@ -916,9 +874,9 @@ int Gxtv_Demod_Atsc_Init(struct aml_fe_dev *dev)
 	memset(&demod_status, 0, sizeof(demod_status));
 	/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC*/
 	demod_status.dvb_mode = Gxtv_Atsc;
-	sys.adc_clk = Adc_Clk_25_2M;    /*Adc_Clk_26M;*/
-	sys.demod_clk = Demod_Clk_75M;  /*Demod_Clk_71M;//Demod_Clk_78M;*/
-	demod_status.ch_if = 6350;
+	sys.adc_clk = Adc_Clk_25M;    /*Adc_Clk_26M;*/
+	sys.demod_clk = Demod_Clk_225M;  /*Demod_Clk_71M;//Demod_Clk_78M;*/
+	demod_status.ch_if = 5000;
 	demod_status.tmp = Adc_mode;
 	demod_set_sys(&demod_status, &i2c, &sys);
 	return 0;

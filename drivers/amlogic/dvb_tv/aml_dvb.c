@@ -101,17 +101,19 @@ static int control_ts_on_csi_port(int tsin, int enable)
 {
 /*#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8*/
 	if (is_meson_m8_cpu() || is_meson_m8b_cpu() || is_meson_m8m2_cpu()) {
-		unsigned int temp_data;
+		/*unsigned int temp_data;*/
 		if (tsin == 2 && enable) {
 			/*TS2 is on CSI port. */
 			/*power on mipi csi phy */
 			pr_error("power on mipi csi phy for TSIN2\n");
+#ifdef MESON_M8_CPU
 			WRITE_CBUS_REG(HHI_CSI_PHY_CNTL0, 0xfdc1ff81);
 			WRITE_CBUS_REG(HHI_CSI_PHY_CNTL1, 0x3fffff);
 			temp_data = READ_CBUS_REG(HHI_CSI_PHY_CNTL2);
 			temp_data &= 0x7ff00000;
 			temp_data |= 0x80000fc0;
 			WRITE_CBUS_REG(HHI_CSI_PHY_CNTL2, temp_data);
+#endif
 		}
 	}
 /*#endif*/
