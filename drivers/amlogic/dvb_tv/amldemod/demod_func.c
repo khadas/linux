@@ -54,265 +54,12 @@ static struct mutex mp;
 static struct mutex dtvpll_init_lock;
 static int dtvpll_init;
 static int dtmb_spectrum = 2;
+#if defined DEMOD_FPGA_VERSION
+static int fpga_version = 1;
+#else
+static int fpga_version = -1;
+#endif
 
-
-/* 8vsb */
-static struct atsc_cfg list_8vsb[22] = {
-	{0x0733, 0x00, 0},
-	{0x0734, 0xff, 0},
-	{0x0716, 0x02, 0},	/* F06[7] invert spectrum  0x02 0x06 */
-	{0x05e7, 0x00, 0},
-	{0x05e8, 0x00, 0},
-	{0x0f06, 0x80, 0},
-	{0x0f09, 0x04, 0},
-	{0x070c, 0x18, 0},
-	{0x070d, 0x9d, 0},
-	{0x070e, 0x89, 0},
-	{0x070f, 0x6a, 0},
-	{0x0710, 0x75, 0},
-	{0x0711, 0x6f, 0},
-	{0x072a, 0x02, 0},
-	{0x072c, 0x02, 0},
-	{0x090d, 0x03, 0},
-	{0x090e, 0x02, 0},
-	{0x090f, 0x00, 0},
-	{0x0900, 0x01, 0},
-	{0x0900, 0x00, 0},
-	{0x0f00, 0x01, 0},
-	{0x0000, 0x00, 1}
-};
-
-/* 64qam */
-static struct atsc_cfg list_qam64[111] = {
-	{0x0900, 0x01, 0},
-	{0x0f04, 0x08, 0},
-	{0x0f06, 0x80, 0},
-	{0x0f07, 0x00, 0},
-	{0x0f00, 0xe0, 0},
-	{0x0f00, 0xec, 0},
-	{0x0001, 0x05, 0},
-	{0x0002, 0x61, 0},	/* /0x61 invert spectrum */
-	{0x0003, 0x3e, 0},
-	{0x0004, 0xed, 0},	/* 0x9d */
-	{0x0005, 0x10, 0},
-	{0x0006, 0xc0, 0},
-	{0x0007, 0x5c, 0},
-	{0x0008, 0x0f, 0},
-	{0x0009, 0x4f, 0},
-	{0x000a, 0xfc, 0},
-	{0x000b, 0x0c, 0},
-	{0x000c, 0x6c, 0},
-	{0x000d, 0x3a, 0},
-	{0x000e, 0x10, 0},
-	{0x000f, 0x02, 0},
-	{0x0011, 0x00, 0},
-	{0x0012, 0xf5, 0},
-	{0x0013, 0x74, 0},
-	{0x0014, 0xb9, 0},
-	{0x0015, 0x1f, 0},
-	{0x0016, 0x80, 0},
-	{0x0017, 0x1f, 0},
-	{0x0018, 0x0f, 0},
-	{0x001e, 0x00, 0},
-	{0x001f, 0x00, 0},
-	{0x0023, 0x03, 0},
-	{0x0025, 0x20, 0},
-	{0x0026, 0xff, 0},
-	{0x0027, 0xff, 0},
-	{0x0028, 0xf8, 0},
-	{0x0200, 0x20, 0},
-	{0x0201, 0x62, 0},
-	{0x0202, 0x23, 0},
-	{0x0204, 0x19, 0},
-	{0x0205, 0x74, 0},
-	{0x0206, 0xab, 0},
-	{0x0207, 0xff, 0},
-	{0x0208, 0xc0, 0},
-	{0x0209, 0xff, 0},
-	{0x0211, 0xc0, 0},
-	{0x0212, 0xb0, 0},
-	{0x0213, 0x05, 0},
-	{0x0215, 0x08, 0},
-	{0x0222, 0xe0, 0},
-	{0x0223, 0xf0, 0},
-	{0x0226, 0x40, 0},
-	{0x0229, 0x23, 0},
-	{0x022a, 0x02, 0},
-	{0x022c, 0x01, 0},
-	{0x022e, 0x01, 0},
-	{0x022f, 0x25, 0},
-	{0x0230, 0x40, 0},
-	{0x0231, 0x01, 0},
-	{0x0734, 0xff, 0},
-	{0x073a, 0xff, 0},
-	{0x073b, 0x04, 0},
-	{0x073c, 0x08, 0},
-	{0x073d, 0x08, 0},
-	{0x073e, 0x01, 0},
-	{0x073f, 0xf8, 0},
-	{0x0740, 0xf1, 0},
-	{0x0741, 0xf3, 0},
-	{0x0742, 0xff, 0},
-	{0x0743, 0x0f, 0},
-	{0x0744, 0x1a, 0},
-	{0x0745, 0x16, 0},
-	{0x0746, 0x00, 0},
-	{0x0747, 0xe3, 0},
-	{0x0748, 0xce, 0},
-	{0x0749, 0xd4, 0},
-	{0x074a, 0x00, 0},
-	{0x074b, 0x4b, 0},
-	{0x074c, 0x00, 0},
-	{0x074d, 0xa2, 0},
-	{0x074e, 0x00, 0},
-	{0x074f, 0xe6, 0},
-	{0x0750, 0x00, 0},
-	{0x0751, 0x00, 0},
-	{0x0752, 0x01, 0},
-	{0x0753, 0x03, 0},
-	{0x0400, 0x00, 0},
-	{0x0408, 0x04, 0},
-	{0x040e, 0xe0, 0},
-	{0x0500, 0x02, 0},
-	{0x05e7, 0x00, 0},
-	{0x05e8, 0x00, 0},
-	{0x0f09, 0x18, 0},
-	{0x070c, 0x20, 0},
-	{0x070d, 0x41, 0},	/* 0x49 */
-	{0x070e, 0x04, 0},	/* 0x37 */
-	{0x070f, 0x00, 0},
-	{0x0710, 0x00, 0},
-	{0x0711, 0x00, 0},
-	{0x0716, 0xf0, 0},
-	{0x090f, 0x00, 0},
-	{0x0900, 0x01, 1},
-	{0x0900, 0x00, 0},
-	{0x0001, 0xf5, 0},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0x05, 0},
-	{0x0001, 0x05, 1},
-	{0x0000, 0x00, 1}
-};
-
-/* 256qam */
-static struct atsc_cfg list_qam256[113] = {
-	{0x0900, 0x01, 0},
-	{0x0f04, 0x08, 0},
-	{0x0f06, 0x80, 0},
-	{0x0f00, 0xe0, 0},
-	{0x0f00, 0xec, 0},
-	{0x0001, 0x05, 0},
-	{0x0002, 0x01, 0},	/* 0x09 */
-	{0x0003, 0x2c, 0},
-	{0x0004, 0x91, 0},
-	{0x0005, 0x10, 0},
-	{0x0006, 0xc0, 0},
-	{0x0007, 0x5c, 0},
-	{0x0008, 0x0f, 0},
-	{0x0009, 0x4f, 0},
-	{0x000a, 0xfc, 0},
-	{0x000b, 0x0c, 0},
-	{0x000c, 0x6c, 0},
-	{0x000d, 0x3a, 0},
-	{0x000e, 0x10, 0},
-	{0x000f, 0x02, 0},
-	{0x0011, 0x80, 0},
-	{0x0012, 0xf5, 0},	/* a5 */
-	{0x0013, 0x74, 0},
-	{0x0014, 0xb9, 0},
-	{0x0015, 0x1f, 0},
-	{0x0016, 0x80, 0},
-	{0x0017, 0x1f, 0},
-	{0x0018, 0x0f, 0},
-	{0x001e, 0x00, 0},
-	{0x001f, 0x00, 0},
-	{0x0023, 0x03, 0},
-	{0x0025, 0x20, 0},
-	{0x0026, 0xff, 0},
-	{0x0027, 0xff, 0},
-	{0x0028, 0xf8, 0},
-	{0x0200, 0x20, 0},
-	{0x0201, 0x62, 0},
-	{0x0202, 0x23, 0},
-	{0x0204, 0x19, 0},
-	{0x0205, 0x76, 0},
-	{0x0206, 0xd2, 0},
-	{0x0207, 0xff, 0},
-	{0x0208, 0xc0, 0},
-	{0x0209, 0xff, 0},
-	{0x0211, 0xc0, 0},
-	{0x0212, 0xb0, 0},
-	{0x0213, 0x05, 0},
-	{0x0215, 0x08, 0},
-	{0x0222, 0xf0, 0},
-	{0x0223, 0xff, 0},
-	{0x0226, 0x40, 0},
-	{0x0229, 0x23, 0},
-	{0x022a, 0x02, 0},
-	{0x022c, 0x01, 0},
-	{0x022e, 0x01, 0},
-	{0x022f, 0x05, 0},
-	{0x0230, 0x40, 0},
-	{0x0231, 0x01, 0},
-	{0x0400, 0x02, 0},
-	{0x0401, 0x30, 0},
-	{0x0402, 0x13, 0},
-	{0x0406, 0x06, 0},
-	{0x0408, 0x04, 0},
-	{0x040e, 0xe0, 0},
-	{0x0411, 0x02, 0},
-	{0x073a, 0x02, 0},
-	{0x073b, 0x09, 0},
-	{0x073c, 0x0c, 0},
-	{0x073d, 0x08, 0},
-	{0x073e, 0xfd, 0},
-	{0x073f, 0xf2, 0},
-	{0x0740, 0xed, 0},
-	{0x0741, 0xf4, 0},
-	{0x0742, 0x03, 0},
-	{0x0743, 0x15, 0},
-	{0x0744, 0x1d, 0},
-	{0x0745, 0x15, 0},
-	{0x0746, 0xfc, 0},
-	{0x0747, 0xde, 0},
-	{0x0748, 0xcc, 0},
-	{0x0749, 0xd6, 0},
-	{0x074a, 0x04, 0},
-	{0x074b, 0x4f, 0},
-	{0x074c, 0x00, 0},
-	{0x074d, 0xa2, 0},
-	{0x074e, 0x00, 0},
-	{0x074f, 0xe3, 0},
-	{0x0750, 0x00, 0},
-	{0x0751, 0xfc, 0},
-	{0x0752, 0x00, 0},
-	{0x0753, 0x03, 0},
-	{0x0500, 0x02, 0},
-	{0x05e7, 0x00, 0},
-	{0x05e8, 0x00, 0},
-	{0x0f09, 0x18, 0},
-	{0x070c, 0x20, 0},
-	{0x070d, 0x49, 0},
-	{0x070e, 0x37, 0},
-	{0x070f, 0x00, 0},
-	{0x0710, 0x00, 0},
-	{0x0711, 0x00, 0},
-	{0x0716, 0xf0, 0},
-	{0x090f, 0x00, 0},
-	{0x0900, 0x01, 1},
-	{0x0900, 0x00, 0},
-	{0x0001, 0xf5, 0},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0xf5, 1},
-	{0x0001, 0x05, 0},
-	{0x0001, 0x05, 1},
-	{0x0000, 0x00, 1}
-};
 
 void dtvpll_lock_init(void)
 {
@@ -384,7 +131,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 	pll_n = 1;
 	for (pll_m = 1; pll_m < 512; pll_m++) {
 		/* for (pll_n=1; pll_n<=5; pll_n++) { */
-		if (is_meson_txl_cpu()) {
+		if ((is_meson_txl_cpu()) || (is_meson_txlx_cpu())) {
 			freq_dco = freq_osc * pll_m / pll_n / 2;/*txl add div2*/
 			if (freq_dco < 700 * unit || freq_dco > 1000 * unit)
 				continue;
@@ -411,7 +158,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 		adc_pll_cntl.b.pll_od1 = pll_od_a;
 		adc_pll_cntl.b.pll_xd0 = pll_xd_b;
 		adc_pll_cntl.b.pll_xd1 = pll_xd_a;
-		if (is_meson_txl_cpu()) {
+		if ((is_meson_txl_cpu()) || (is_meson_txlx_cpu())) {
 			adc_pll_cntl4.b.pll_od3 = 0;
 			adc_pll_cntl.b.pll_od2 = 0;
 		} else {
@@ -430,7 +177,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 	pll_xd_b = adc_pll_cntl.b.pll_xd0;
 	pll_xd_a = adc_pll_cntl.b.pll_xd1;
 
-	if (is_meson_txl_cpu())
+	if ((is_meson_txl_cpu()) || (is_meson_txlx_cpu()))
 		div2 = 1;
 	else
 		div2 = adc_pll_cntl2.b.div2_ctrl;
@@ -446,7 +193,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 		pr_dbg(" ERROR can't setup %7ld kHz %7ld kHz\n",
 		       freq_b / (unit / 1000), freq_a / (unit / 1000));
 	} else {
-		if (is_meson_txl_cpu())
+		if ((is_meson_txl_cpu()) || (is_meson_txlx_cpu()))
 			freq_dco = freq_osc * pll_m / pll_n / 2;
 		else
 			freq_dco = freq_osc * pll_m / pll_n;
@@ -486,7 +233,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 
 		/* *p_demod_dig_clk = dig_clk_cfg.d32; */
 	}
-	if (is_meson_txl_cpu()) {
+	if ((is_meson_txl_cpu()) || (is_meson_txlx_cpu())) {
 		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
 		demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
 		demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
@@ -605,7 +352,7 @@ void demod_set_demod_reg(unsigned data, unsigned addr)
 {
 	void __iomem *vaddr;
 	mutex_lock(&mp);
-/* printk("[demod][write]%x,data is %x\n",(addr),data); */
+	/* printk("[demod][write]%x,data is %x\n",(addr),data);*/
 	vaddr = ioremap((addr), 0x4);
 	writel(data, vaddr);
 	iounmap(vaddr);
@@ -681,8 +428,25 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 	union demod_cfg2 cfg2;
 
 	demod_power_switch(PWR_ON);
+	if (is_meson_txlx_cpu()) {
+		pr_dbg("TXLX_TV config\n");
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLTV_ADC_REG1_VALUE, ADC_REG1);
+		demod_set_demod_reg(TXLTV_ADC_REGB_VALUE, ADC_REGB);
+		demod_set_demod_reg(TXLTV_ADC_REG2_VALUE, ADC_REG2);
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLTV_ADC_REG4_VALUE, ADC_REG4);
+		demod_set_demod_reg(TXLTV_ADC_REGC_VALUE, ADC_REGC);
+		demod_set_demod_reg(TXLTV_ADC_REGD_VALUE, ADC_REGD);
+		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
+		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
 
-	if (is_meson_gxtvbb_cpu()) {
+		/* dadc */
+		demod_set_demod_reg(TXLTV_ADC_REG7_VALUE, ADC_REG7);
+		demod_set_demod_reg(TXLTV_ADC_REG8_VALUE, ADC_REG8);
+		demod_set_demod_reg(TXLTV_ADC_REG9_VALUE, ADC_REG9);
+		demod_set_demod_reg(TXLTV_ADC_REGE_VALUE, ADC_REGE);
+	} else if (is_meson_gxtvbb_cpu()) {
 		pr_dbg("GX_TV config\n");
 		demod_set_demod_reg(ADC_RESET_VALUE, ADC_REG3);
 		demod_set_demod_reg(ADC_REG1_VALUE, ADC_REG1);
@@ -717,22 +481,29 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 	demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
 	demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
 	demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
-	cfg0.b.mode = 7;
 	cfg0.b.adc_format = 1;
-	if (dvb_mode == Gxtv_Dvbc) {	/* // 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
-		cfg0.b.ts_sel = 2;
-	} else if ((dvb_mode == Gxtv_Dvbt_Isdbt) || (dvb_mode == Gxtv_Dtmb)) {
+	cfg0.b.adc_regout = 1;
+	if (dvb_mode == Gxtv_Dtmb) {	/* // 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
 		cfg0.b.ts_sel = 1;
-		cfg0.b.adc_regout = 1;
+		cfg0.b.mode = 1;
+	} else if (dvb_mode == Gxtv_Dvbt_Isdbt) {
+		cfg0.b.ts_sel = 1<<1;
+		cfg0.b.mode = 1<<1;
 	} else if (dvb_mode == Gxtv_Atsc) {
-		cfg0.b.ts_sel = 4;
+		cfg0.b.ts_sel = 1<<2;
+		cfg0.b.mode = 1<<2;
+		cfg0.b.adc_format = 0;
+		cfg0.b.adc_regadj = 2;
+	} else if (dvb_mode == Gxtv_Dvbc) {
+		cfg0.b.ts_sel = 1<<3;
+		cfg0.b.mode = 1<<3;
 	}
 	demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
 	cfg2.b.biasgen_en = 1;
 	cfg2.b.en_adc = 1;
 	demod_set_demod_reg(cfg2.d32, DEMOD_REG3);
-	pr_dbg("0xc8020c00 is %x,dvb_mode is %d\n",
-	       demod_read_demod_reg(DEMOD_REG1), dvb_mode);
+	pr_dbg("demod cfg[%x] is %x,dvb_mode is %d\n",
+	       DEMOD_REG1, demod_read_demod_reg(DEMOD_REG1), dvb_mode);
 }
 
 void dtmb_write_reg(int reg_addr, int reg_data)
@@ -750,252 +521,6 @@ int dtmb_read_reg(int reg_addr)
 	return demod_read_demod_reg(reg_addr);	/* apb_read_reg(reg_addr); */
 }
 
-void atsc_write_reg(int reg_addr, int reg_data)
-{
-	if (!get_dtvpll_init_flag())
-		return;
-	apb_write_reg(ATSC_BASE, (reg_addr & 0xffff) << 8 | (reg_data & 0xff));
-}
-
-unsigned long atsc_read_reg(int reg_addr)
-{
-	unsigned long tmp;
-
-	if (!get_dtvpll_init_flag())
-		return 0;
-	apb_write_reg(ATSC_BASE + 4, (reg_addr & 0xffff) << 8);
-	tmp = apb_read_reg(ATSC_BASE);
-
-	return tmp & 0xff;
-}
-
-unsigned long atsc_read_iqr_reg(void)
-{
-	unsigned long tmp;
-
-	tmp = apb_read_reg(ATSC_BASE + 8);
-	pr_dbg("[atsc irq] is %lx\n", tmp);
-	return tmp & 0xffffffff;
-}
-
-int atsc_qam_set(fe_modulation_t mode)
-{
-	int i, j;
-
-	if (mode == VSB_8) {	/* 5-8vsb, 2-64qam, 4-256qam */
-		for (i = 0; list_8vsb[i].adr != 0; i++) {
-			if (list_8vsb[i].rw)
-				atsc_read_reg(list_8vsb[i].adr);
-			/* msleep(20); */
-			else
-				atsc_write_reg(list_8vsb[i].adr,
-					       list_8vsb[i].dat);
-			/* msleep(20); */
-		}
-		j = 15589;
-		pr_dbg("8-vsb mode\n");
-	} else if (mode == QAM_64) {
-		for (i = 0; list_qam64[i].adr != 0; i++) {
-			if (list_qam64[i].rw) {
-				atsc_read_reg(list_qam64[i].adr);
-				msleep(20);
-			} else {
-				atsc_write_reg(list_qam64[i].adr,
-					       list_qam64[i].dat);
-				msleep(20);
-			}
-		}
-		j = 16588;	/* 33177; */
-		pr_dbg("64qam mode\n");
-	} else if (mode == QAM_256) {
-		for (i = 0; list_qam256[i].adr != 0; i++) {
-			if (list_qam256[i].rw) {
-				atsc_read_reg(list_qam256[i].adr);
-				msleep(20);
-			} else {
-				atsc_write_reg(list_qam256[i].adr,
-					       list_qam256[i].dat);
-				msleep(20);
-			}
-		}
-		j = 15649;	/* 31298; */
-		pr_dbg("256qam mode\n");
-	} else {
-		for (i = 0; list_qam256[i].adr != 0; i++) {
-			if (list_qam256[i].rw) {
-				atsc_read_reg(list_qam256[i].adr);
-				msleep(20);
-			} else {
-				atsc_write_reg(list_qam256[i].adr,
-					       list_qam256[i].dat);
-				msleep(20);
-			}
-		}
-		j = 15649;	/* 31298; */
-		pr_dbg("256qam mode\n");
-	}
-	return j;
-}
-
-void atsc_initial(struct aml_demod_sta *demod_sta)
-{
-	int fc, fs, cr, ck, j;
-	fe_modulation_t mode;
-
-	mode = demod_sta->ch_mode;
-
-	j = atsc_qam_set(mode);	/* set mode */
-
-	fs = demod_sta->adc_freq;	/* KHZ 25200 */
-	fc = demod_sta->ch_if;	/* KHZ 6350 */
-
-	cr = (fc * (1 << 17) / fs) * (1 << 6);
-	ck = fs * j / 10 - (1 << 25);
-	/* ck_rate = (f_samp / f_vsb /2 -1)*(1<<25);
-	double f_vsb = 10.76238;// double f_64q = 5.056941;
-	// double f_256q = 5.360537; */
-
-	atsc_write_reg(0x070e, cr & 0xff);
-	atsc_write_reg(0x070d, (cr >> 8) & 0xff);
-	atsc_write_reg(0x070c, (cr >> 16) & 0xff);
-
-	if (demod_sta->ch_mode == VSB_8) {
-		atsc_write_reg(0x0711, ck & 0xff);
-		atsc_write_reg(0x0710, (ck >> 8) & 0xff);
-		atsc_write_reg(0x070f, (ck >> 16) & 0xff);
-	}
-	pr_dbg("0x70e is %x, 0x70d is %x, 0x70c is %x\n", cr & 0xff,
-	       (cr >> 8) & 0xff, (cr >> 16) & 0xff);
-	pr_dbg("fs is %d(SR),fc is %d(IF),cr is %x,ck is %x\n", fs, fc, cr, ck);
-}
-
-int atsc_set_ch(struct aml_demod_sta *demod_sta,
-		struct aml_demod_i2c *demod_i2c,
-		struct aml_demod_atsc *demod_atsc)
-{
-	int ret = 0;
-	u8 demod_mode;
-	u8 bw, sr, ifreq, agc_mode;
-	u32 ch_freq;
-
-	bw = demod_atsc->bw;
-	sr = demod_atsc->sr;
-	ifreq = demod_atsc->ifreq;
-	agc_mode = demod_atsc->agc_mode;
-	ch_freq = demod_atsc->ch_freq;
-	demod_mode = demod_atsc->dat0;
-	demod_sta->ch_mode = demod_atsc->mode;	/* TODO */
-	demod_sta->agc_mode = agc_mode;
-	demod_sta->ch_freq = ch_freq;
-	demod_sta->dvb_mode = demod_mode;
-	demod_sta->ch_bw = (8 - bw) * 1000;
-	atsc_initial(demod_sta);
-	pr_dbg("ATSC mode\n");
-	return ret;
-}
-
-#if 0
-static dtmb_cfg_t list_dtmb_v1[99] = {
-	{0x00000000, 0x01, 0},
-	{0x00001000, 0x02, 0},
-	{0x00000000, 0x03, 0},
-	{0x00000000, 0x04, 0},
-	{0x00000000, 0x05, 0},
-	{0x00000000, 0x06, 0},
-	{0x007fffff, 0x07, 0},
-	{0x0000000f, 0x08, 0},
-	{0x00003000, 0x09, 0},
-	{0x00000001, 0x0a, 0},
-	{0x0c403006, 0x0b, 0},
-	{0x44444400, 0x0c, 0},
-	{0x1412c320, 0x0d, 0},
-	{0x00000152, 0x10, 0},
-	{0x47080137, 0x11, 0},
-	{0x02200a16, 0x12, 0},
-	{0x42190190, 0x13, 0},
-	{0x7f807f80, 0x14, 0},
-	{0x0000199a, 0x15, 0},
-	{0x000a1466, 0x18, 0},
-	{0x00274217, 0x1a, 0},
-	{0x00131036, 0x1b, 1},
-	{0x00000396, 0x1c, 0},
-	{0x0037f3cc, 0x1d, 0},
-	{0x00000029, 0x1e, 0},
-	{0x0004f031, 0x1f, 0},
-	{0x00f3cbd4, 0x20, 0},
-	{0x0000007e, 0x21, 0},
-	{0x23270b6a, 0x22, 0},
-	{0x5f700c1b, 0x23, 0},
-	{0x00133c2b, 0x24, 0},
-	{0x2d3e0f12, 0x25, 0},
-	{0x06363038, 0x26, 0},
-	{0x060e0a3e, 0x27, 0},
-	{0x0015161f, 0x28, 0},
-	{0x0809031b, 0x29, 0},
-	{0x181c0307, 0x2a, 0},
-	{0x051f1a1b, 0x2b, 0},
-	{0x00451dce, 0x2c, 0},
-	{0x242fde12, 0x2d, 0},
-	{0x0034e8fa, 0x2e, 0},
-	{0x00000007, 0x30, 0},
-	{0x16000d0c, 0x31, 0},
-	{0x0000011f, 0x32, 0},
-	{0x01000200, 0x33, 0},
-	{0x10bbf376, 0x34, 0},
-	{0x00000044, 0x35, 0},
-	{0x00000000, 0x36, 0},
-	{0x00000000, 0x37, 0},
-	{0x00000000, 0x38, 0},
-	{0x00000000, 0x39, 0},
-	{0x00000031, 0x3a, 0},
-	{0x4d6b0a58, 0x3b, 0},
-	{0x00000c04, 0x3c, 0},
-	{0x0d3b0a50, 0x3d, 0},
-	{0x03140480, 0x3e, 0},
-	{0x05e60452, 0x3f, 0},
-	{0x05780400, 0x40, 0},
-	{0x0063c025, 0x41, 0},
-	{0x05050202, 0x42, 0},
-	{0x5e4a0a14, 0x43, 0},
-	{0x00003b42, 0x44, 0},
-	{0xa53080ff, 0x45, 0},
-	{0x00000000, 0x46, 0},
-	{0x00133202, 0x47, 0},
-	{0x01f00000, 0x48, 0},
-	{0x00000000, 0x49, 0},
-	{0x00000000, 0x4a, 0},
-	{0x00000000, 0x4b, 0},
-	{0x00000000, 0x4c, 0},
-	{0x20405dc8, 0x4d, 0},
-	{0x00000000, 0x4e, 0},
-	{0x1f0205df, 0x4f, 0},
-	{0x00001120, 0x50, 0},
-	{0x4f190803, 0x51, 0},
-	{0x00000000, 0x52, 0},
-	{0x00000040, 0x53, 0},
-	{0x00100050, 0x54, 0},
-	{0x00cd1000, 0x55, 0},
-	{0x00010fab, 0x56, 0},
-	{0x03f0fc3f, 0x58, 0},
-	{0x02005014, 0x59, 0},
-	{0x01405014, 0x5a, 0},
-	{0x00014284, 0x5b, 0},
-	{0x00000320, 0x5c, 0},
-	{0x14130e05, 0x5d, 0},
-	{0x4321c963, 0x5f, 0},
-	{0x624668f8, 0x60, 0},
-	{0xccc08888, 0x61, 0},
-	{0x13212111, 0x62, 0},
-	{0x21100000, 0x63, 0},
-	{0x624668f8, 0x64, 0},
-	{0xccc08888, 0x65, 0},
-	{0x13212111, 0x66, 0},
-	{0x21100000, 0x67, 0},
-	{0x624668f8, 0x68, 0},
-	{0xccc08888, 0x69, 0},
-	{0x0, 0x0, 0}
-};
-#endif
 
 void dtmb_all_reset(void)
 {
@@ -1509,7 +1034,7 @@ int dvbt_set_ch(struct aml_demod_sta *demod_sta,
 /* bw=0; */
 	demod_mode = 1;
 	/* for si2176 IF:5M   sr 28.57 */
-	sr = 4;
+	sr = 5;
 	ifreq = 4;
 	if (bw == BANDWIDTH_AUTO)
 		demod_mode = 2;
@@ -1549,7 +1074,9 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 	mutex_init(&mp);
 	clocks_set_sys_defaults(dvb_mode);
 	/* open dtv adc pinmux */
-	if (is_meson_txl_cpu()) {
+	if (is_meson_txlx_cpu()) {
+		pr_dbg("[R840][txlx]set adc pinmux\n");
+	} else if (is_meson_txl_cpu()) {
 		gpioDV_2 = demod_read_demod_reg(0xc8834400 + (0x2e << 2));
 		pr_dbg("[R840]set adc pinmux,gpioDV_2 %x\n", gpioDV_2);
 		gpioDV_2 = gpioDV_2 | (0x1 << 22);
@@ -1579,83 +1106,91 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 
 void demod_set_reg(struct aml_demod_reg *demod_reg)
 {
-	switch (demod_reg->mode) {
-	case 0:
-		demod_reg->addr = demod_reg->addr + QAM_BASE;
-		break;
-	case 1:
-	case 2:
-		demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
-		break;
-	case 3:
-		/* demod_reg->addr=ATSC_BASE; */
-		break;
-	case 4:
-		demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
-		break;
-	case 5:
-		demod_reg->addr = demod_reg->addr + DEMOD_BASE;
-		break;
-	case 6:
-		/* demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
-		break;
-	case 11:
-		demod_reg->addr = demod_reg->addr;
-		break;
-	case 10:
-		/* demod_reg->addr=(u32_t)phys_to_virt(demod_reg->addr); */
-		break;
-	}
+	if (fpga_version == 1) {
+		#if defined DEMOD_FPGA_VERSION
+			fpga_write_reg(demod_reg->mode, demod_reg->addr,
+				demod_reg->val);
+		#endif
+	} else {
+		switch (demod_reg->mode) {
+		case AMLOGIC_DVBC_J83B:
+			demod_reg->addr = demod_reg->addr + QAM_BASE;
+			break;
+		case AMLOGIC_DVBT_ISDBT:
+			demod_reg->addr = demod_reg->addr * 4 + DVBT_BASE;
+			break;
+		case AMLOGIC_DTMB:
+			demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
+			break;
+		case AMLOGIC_ATSC:
+			/* demod_reg->addr=ATSC_BASE; */
+			break;
+		case AMLOGIC_DEMOD_CFG:
+			demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
+			break;
+		case AMLOGIC_DEMOD_BASE:
+			demod_reg->addr = demod_reg->addr + DEMOD_BASE;
+			break;
+		case AMLOGIC_DEMOD_FPGA:
+			break;
+		case AMLOGIC_DEMOD_OTHERS:
+			demod_reg->addr = demod_reg->addr;
+			break;
+		case AMLOGIC_DEMOD_COLLECT_DATA:
+			break;
+		}
 
-	if (demod_reg->mode == 3)
-		atsc_write_reg(demod_reg->addr, demod_reg->val);
-	else if (demod_reg->mode == 11)
-		demod_set_cbus_reg(demod_reg->val, demod_reg->addr);
-	else if (demod_reg->mode == 10)
-		apb_write_reg_collect(demod_reg->addr, demod_reg->val);
-	/* demod_reg->val_high = apb_read_reg_high(demod_reg->addr); */
-	else
-		demod_set_demod_reg(demod_reg->val, demod_reg->addr);
+		if (demod_reg->mode == AMLOGIC_ATSC)
+			atsc_write_reg(demod_reg->addr, demod_reg->val);
+		else if (demod_reg->mode == AMLOGIC_DEMOD_OTHERS)
+			demod_set_cbus_reg(demod_reg->val, demod_reg->addr);
+		else if (demod_reg->mode == AMLOGIC_DEMOD_FPGA)
+			;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_COLLECT_DATA)
+			apb_write_reg_collect(demod_reg->addr, demod_reg->val);
+		else
+			demod_set_demod_reg(demod_reg->val, demod_reg->addr);
+
+	}
 }
 
 void demod_get_reg(struct aml_demod_reg *demod_reg)
 {
-	if (demod_reg->mode == 0) {
-		demod_reg->addr = demod_reg->addr + QAM_BASE;
-	} else if ((demod_reg->mode == 1) || (demod_reg->mode == 2)) {
-		demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
-	} else if (demod_reg->mode == 3) {
-		/* demod_reg->addr=demod_reg->addr+ATSC_BASE; */
-	} else if (demod_reg->mode == 4) {
-		demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
-	} else if (demod_reg->mode == 5) {
-		demod_reg->addr = demod_reg->addr + DEMOD_BASE;
-	} else if (demod_reg->mode == 6) {
-		/* demod_reg->addr=demod_reg->addr*4+DEMOD_CFG_BASE; */
-	} else if (demod_reg->mode == 11) {
-		demod_reg->addr = demod_reg->addr;
-	} else if (demod_reg->mode == 10) {
-		/* printk("demod_reg->addr is %x\n",demod_reg->addr); */
-		/* test=(unsigned long)phys_to_virt(test); */
-/* demod_reg->addr=(unsigned long)phys_to_virt(demod_reg->addr); */
-/* printk("demod_reg->addr is %lx %x\n",test,demod_reg->addr); */
-	}
-
-	if (demod_reg->mode == 3) {
-		demod_reg->val = atsc_read_reg(demod_reg->addr);
-		/* apb_write_reg(ATSC_BASE+4, (demod_reg->addr&0xffff)<<8); */
-		/* demod_reg->val = apb_read_reg(ATSC_BASE)&0xff; */
-	} else if (demod_reg->mode == 6) {
-		demod_reg->val = atsc_read_iqr_reg();
-		/* apb_write_reg(ATSC_BASE+4, (demod_reg->addr&0xffff)<<8); */
-		/* demod_reg->val = apb_read_reg(ATSC_BASE)&0xff; */
-	} else if (demod_reg->mode == 11) {
-		demod_reg->val = demod_read_cbus_reg(demod_reg->addr);
-	} else if (demod_reg->mode == 10) {
-		demod_reg->val = apb_read_reg_collect(demod_reg->addr);
-	/*	demod_reg->val_high = apb_read_reg_high(demod_reg->addr);*/
+	if (fpga_version == 1) {
+		#if defined DEMOD_FPGA_VERSION
+		demod_reg->val = fpga_read_reg(demod_reg->mode,
+			demod_reg->addr);
+		#endif
 	} else {
-		demod_reg->val = demod_read_demod_reg(demod_reg->addr);
+		if (demod_reg->mode == AMLOGIC_DVBC_J83B)
+			demod_reg->addr = demod_reg->addr + QAM_BASE;
+		else if (demod_reg->mode == AMLOGIC_DTMB)
+			demod_reg->addr = DTMB_TOP_ADDR(demod_reg->addr);
+		else if (demod_reg->mode == AMLOGIC_DVBT_ISDBT)
+			demod_reg->addr = demod_reg->addr * 4 + DVBT_BASE;
+		else if (demod_reg->mode == AMLOGIC_ATSC)
+			;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_CFG)
+			demod_reg->addr = demod_reg->addr * 4 + DEMOD_CFG_BASE;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_BASE)
+			demod_reg->addr = demod_reg->addr + DEMOD_BASE;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_FPGA)
+			;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_OTHERS)
+			demod_reg->addr = demod_reg->addr;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_COLLECT_DATA)
+			;
+
+		if (demod_reg->mode == AMLOGIC_ATSC)
+			demod_reg->val = atsc_read_reg(demod_reg->addr);
+		else if (demod_reg->mode == AMLOGIC_DEMOD_FPGA)
+			;
+		else if (demod_reg->mode == AMLOGIC_DEMOD_OTHERS)
+			demod_reg->val = demod_read_cbus_reg(demod_reg->addr);
+		else if (demod_reg->mode == AMLOGIC_DEMOD_COLLECT_DATA)
+			demod_reg->val = apb_read_reg_collect(demod_reg->addr);
+		else
+			demod_reg->val = demod_read_demod_reg(demod_reg->addr);
 	}
 }
 
@@ -1878,10 +1413,11 @@ void ofdm_initial(int bandwidth,
 		/* 0: Unsigned, 1:TC */
 		)
 {
-#if 0
+#if 1
 	int tmp;
 	int ch_if;
 	int adc_freq;
+	int memstart;
 	pr_dbg
 	    ("[ofdm_initial]bandwidth is %d,samplerate is %d",
 	     bandwidth, samplerate);
@@ -1924,6 +1460,9 @@ void ofdm_initial(int bandwidth,
 	case 4:
 		adc_freq = 24000;
 		break;
+	case 5:
+		adc_freq = 25000;
+		break;
 	default:
 		adc_freq = 28571;
 		break;
@@ -1953,6 +1492,9 @@ void ofdm_initial(int bandwidth,
 		case 4:
 			apb_write_reg(DVBT_BASE + (0x08 << 2), 0x00003000);
 			break;	/* 24 */
+		case 5:
+			apb_write_reg(DVBT_BASE + (0x08 << 2), 0x00003200);
+			break;	/* 25 */
 		default:
 			apb_write_reg(DVBT_BASE + (0x08 << 2), 0x00003924);
 			break;	/* 28.571 */
@@ -1979,7 +1521,7 @@ void ofdm_initial(int bandwidth,
 			break;	/* 28.571 */
 		}
 	}
-/* memstart=0x93900000; */
+	memstart = 0x35400000;
 	pr_dbg("memstart is %x\n", memstart);
 	apb_write_reg(DVBT_BASE + (0x10 << 2), memstart);
 	/* 0x8f300000 */
@@ -2530,416 +2072,3 @@ void monitor_isdbt(void)
 	pr_dbg("\n");
 }
 
-int find_2(int data, int *table, int len)
-{
-	int end;
-	int index;
-	int start;
-	int cnt = 0;
-
-	start = 0;
-	end = len;
-	/* printf("data is %d\n",data); */
-	while ((len > 1) && (cnt < 10)) {
-		cnt++;
-		index = (len / 2);
-		if (data > table[start + index]) {
-			start = start + index;
-			len = len - index - 1;
-		}
-		if (data < table[start + index]) {
-			len = index + 1;
-		} else if (data == table[start + index]) {
-			start = start + index;
-			break;
-		}
-	}
-	return start;
-}
-
-int read_atsc_all_reg(void)
-{
-	return 0;
-#if 0
-	int i, j, k;
-	j = 4;
-	unsigned long data;
-	pr_dbg("system agc is:");	/* system agc */
-	for (i = 0xc00; i <= 0xc0c; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0xc80; i <= 0xc87; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n vsb control is:");	/*vsb control */
-	j = 4;
-	for (i = 0x900; i <= 0x905; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x908; i <= 0x912; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x917; i <= 0x91b; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x980; i <= 0x992; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n vsb demod is:");	/*vsb demod */
-	j = 4;
-	for (i = 0x700; i <= 0x711; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x716; i <= 0x720; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x722; i <= 0x724; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x726; i <= 0x72c; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x730; i <= 0x732; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x735; i <= 0x751; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x780; i <= 0x795; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x752; i <= 0x755; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n vsb equalizer is:");	/*vsb equalizer */
-	j = 4;
-	for (i = 0x501; i <= 0x5ff; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n vsb fec is:");	/*vsb fec */
-	j = 4;
-	for (i = 0x601; i <= 0x601; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x682; i <= 0x685; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n qam demod is:");	/*qam demod */
-	j = 4;
-	for (i = 0x1; i <= 0x1a; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x25; i <= 0x28; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x101; i <= 0x10b; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x206; i <= 0x207; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n qam equalize is:");	/*qam equalize */
-	j = 4;
-	for (i = 0x200; i <= 0x23d; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	j = 4;
-	for (i = 0x260; i <= 0x275; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n qam fec is:");	/*qam fec */
-	j = 4;
-	for (i = 0x400; i <= 0x418; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n system mpeg formatter is:");	/*system mpeg formatter */
-	j = 4;
-	for (i = 0xf00; i <= 0xf09; i++) {
-		data = atsc_read_reg(i);
-		if (j == 4) {
-			pr_dbg("\n[addr:0x%x]", i);
-			j = 0;
-		}
-		pr_dbg("%02x   ", data);
-		j++;
-	}
-	pr_dbg("\n\n");
-	return 0;
-#endif
-}
-
-int check_atsc_fsm_status(void)
-{
-	int SNR;
-	int atsc_snr = 0;
-	int SNR_dB;
-	int SNR_table[56] = { 0, 7, 9, 11, 14,
-		17,
-		22,
-		27, 34, 43, 54,
-		68, 86, 108, 136, 171,
-		215,
-		271, 341,
-		429, 540,
-		566, 592, 620, 649, 680,
-		712,
-		746, 781,
-		818, 856,
-		896, 939, 983, 1029, 1078,
-		1182,
-		1237,
-		1237, 1296, 1357,
-		1708, 2150, 2707, 3408, 4291,
-		5402,
-		6800,
-		8561, 10778, 13568,
-		16312, 17081, 18081, 19081, 65536
-	};
-	int SNR_dB_table[56] = { 360, 350, 340, 330, 320, 310, 300,
-		290,
-		280,
-		270, 260,
-		250, 240, 230, 220, 210, 200, 190,
-		180,
-		170,
-		160,
-		158, 156, 154, 152, 150, 148, 146,
-		144,
-		142,
-		140,
-		138, 136, 134, 132, 130, 128, 126,
-		124,
-		122,
-		120,
-		110, 100, 90, 80, 70, 60, 50,
-		40,
-		30,
-		20,
-		12, 10, 4, 2, 0
-	};
-
-	int tmp[3];
-	int cr;
-	int ck;
-	int SM;
-	int tni;
-	int ber;
-	int per;
-
-	int cnt;
-
-	cnt = 0;
-	ber = 0;
-	per = 0;
-
-/* g_demod_mode    = 2; */
-	tni = atsc_read_reg((0x08) >> 16);
-/* g_demod_mode    = 4; */
-	tmp[0] = atsc_read_reg(0x0511);
-	tmp[1] = atsc_read_reg(0x0512);
-	SNR = (tmp[0] << 8) + tmp[1];
-	SNR_dB = SNR_dB_table[find_2(SNR, SNR_table, 56)];
-
-	tmp[0] = atsc_read_reg(0x0780);
-	tmp[1] = atsc_read_reg(0x0781);
-	tmp[2] = atsc_read_reg(0x0782);
-	cr = tmp[0] + (tmp[1] << 8) + (tmp[2] << 16);
-	tmp[0] = atsc_read_reg(0x0786);
-	tmp[1] = atsc_read_reg(0x0787);
-	tmp[2] = atsc_read_reg(0x0788);
-	ck = (tmp[0] << 16) + (tmp[1] << 8) + tmp[2];
-	ck = (ck > 8388608) ? ck - 16777216 : ck;
-	SM = atsc_read_reg(0x0980);
-/* ber per */
-	atsc_write_reg(0x0601, atsc_read_reg(0x0601) & (~(1 << 3)));
-	atsc_write_reg(0x0601, atsc_read_reg(0x0601) | (1 << 3));
-	ber = atsc_read_reg(0x0683) + (atsc_read_reg(0x0682) << 8);
-	per = atsc_read_reg(0x0685) + (atsc_read_reg(0x0684) << 8);
-
-/* read_atsc_all_reg(); */
-
-	pr_dbg
-	    ("INT %x SNR %x SNRdB %d.%d FSM %x cr %d ck %d",
-	     tni, SNR, (SNR_dB / 10)
-	     , (SNR_dB - (SNR_dB / 10) * 10)
-	     , SM, cr, ck);
-	pr_dbg
-		("ber is %d, per is %d\n",
-		ber, per);
-
-	atsc_snr = (SNR_dB / 10);
-	return atsc_snr;
-
-	/*   unsigned long sm,snr1,snr2,snr;
-	 * static int fec_lock_cnt = 0;
-	 *
-	 * delay_us(10000);
-	 * sm = atsc_read_reg(0x0980);
-	 * snr1 = atsc_read_reg(0x0511)&0xff;
-	 * snr2 = atsc_read_reg(0x0512)&0xff;
-	 * snr  = (snr1 << 8) + snr2;
-	 *
-	 * printk(">>>>>>>>>>>>>>>>>>>>>>>>>
-	 OFDM FSM %x    SNR %x\n", sm&0xff, snr);
-	 *
-	 * if (sm == 0x79) stimulus_finish_pass();*/
-}

@@ -14,7 +14,11 @@
 #include "c_stb_define.h"
 #include "c_stb_regs_define.h"
 #include <linux/io.h>
-
+#include <linux/jiffies.h>
+#include "atsc_func.h"
+#if defined DEMOD_FPGA_VERSION
+#include "fpga_func.h"
+#endif
 /* #define G9_TV */
 #define GX_TV
 #define safe_addr
@@ -24,20 +28,51 @@
 
 #define dtmb_mobile_mode
 
-
 /* void __iomem *meson_reg_demod_map[1024]; */
 
+#define TXLX
+#ifdef TXLX
+#define IO_AOBUS_BASE           (0xff800000)
+#define IO_HIU_BASE             (0xff63c000)
 #define IO_CBUS_PHY_BASE        (0xc0800000)
+#define RESET0_LEVEL			(0xffd01080)
+#define HHI_DEMOD_MEM_PD_REG	(0xff63c000 + (0x43 << 2))
 
+#define DEMOD_BASE 0xff644000
+#define IO_DEMOD_BASE 0xff644000
+#define DTMB_BASE  (DEMOD_BASE+0x000)
+#define DVBT_BASE  (DEMOD_BASE+0x400)
+#define ISDBT_BASE (DEMOD_BASE+0x400)
+#define ATSC_BASE  (DEMOD_BASE+0x800)
+#define QAM_BASE   (DEMOD_BASE+0xC00)
+#define DEMOD_CFG_BASE  (DEMOD_BASE+0xF00)
+#define DEMOD_REG_OFFSET(reg)           (reg & 0xfffff)
+#define DEMOD_REG_ADDR(reg)             (IO_DEMOD_BASE + DEMOD_REG_OFFSET(reg))
+#define DEMOD_REG1               (DEMOD_BASE + 0xF00)
+#define DEMOD_REG2               (DEMOD_BASE + 0xF04)
+#define DEMOD_REG3               (DEMOD_BASE + 0xF08)
+#define DEMOD_REG4               (DEMOD_BASE + 0xF0c)
+
+
+#else
 #ifdef safe_addr
 #define IO_DEMOD_BASE           (0xc8844000)
 #define IO_AOBUS_BASE           (0xc8100000)
-#define IO_HIU_BASE                     (0xc883c000)
+#define IO_HIU_BASE				(0xc883c000)
+#define PREG_PAD_GPIO3_O	(0xc8834400 + (0x16 << 2))
+#define PREG_PAD_GPIO3_EN_N	(0xc8834400 + (0x15 << 2))
+#define PREG_PAD_GPIO3_I	(0xc8834400 + (0x17 << 2))
+#define PERIPHS_PIN_MUX_3	(0xc8834400 + (0x2f << 2))
+#define PERIPHS_PIN_MUX_4	(0xc8834400 + (0x30 << 2))
+
 #else
 #define IO_DEMOD_BASE           (0xda844000)
 #define IO_AOBUS_BASE           (0xda100000)
 #define IO_HIU_BASE                     (0xda83c000)
 #endif
+#define RESET0_LEVEL		0xc1104480
+#define HHI_DEMOD_MEM_PD_REG         (0xc883c000 + (0x43 << 2))
+#define IO_CBUS_PHY_BASE        (0xc0800000)
 
 #define DEMOD_REG_OFFSET(reg)           (reg & 0xfffff)
 #define DEMOD_REG_ADDR(reg)             (IO_DEMOD_BASE + DEMOD_REG_OFFSET(reg))
@@ -50,6 +85,7 @@
 #define DEMOD_AOBUS_REG_ADDR(reg)               (IO_AOBUS_BASE + \
 						 DEMOD_AOBUS_REG_OFFSET(reg))
 
+
 /* #define DEMOD_BASE     APB_REG_ADDR(0x20000) */
 #define DEMOD_BASE DEMOD_REG_ADDR(0x0)	/* 0xc8020000 */
 
@@ -60,6 +96,13 @@
 #define QAM_BASE   (DEMOD_BASE + 0x400)
 #define ATSC_BASE  (DEMOD_BASE + 0x800)
 #define DEMOD_CFG_BASE  (DEMOD_BASE + 0xC00)
+
+#define DEMOD_REG1               (DEMOD_BASE + 0xc00)
+#define DEMOD_REG2               (DEMOD_BASE + 0xc04)
+#define DEMOD_REG3               (DEMOD_BASE + 0xc08)
+#define DEMOD_REG4               (DEMOD_BASE + 0xc0c)
+
+#endif
 
 /* #ifdef TXL_TV */
 #define TXLTV_ADC_RESET_VALUE          0xca6a2110	/* 0xce7a2110 */
@@ -80,23 +123,33 @@
 
 
 /* DADC DPLL */
+/*HHI_ADC_PLL_CNTL   HHI_ADC_PLL_CNTL2
+HHI_ADC_PLL_CNTL3 HHI_ADC_PLL_CNTL4*/
 #define ADC_REG1         (IO_HIU_BASE + (0xaa << 2))
 #define ADC_REG2         (IO_HIU_BASE + (0xab << 2))
 #define ADC_REG3         (IO_HIU_BASE + (0xac << 2))
 #define ADC_REG4         (IO_HIU_BASE + (0xad << 2))
 
+/*HHI_HDMI_CLK_CNTL   HHI_DEMOD_CLK_CNTL */
 #define ADC_REG5         (IO_HIU_BASE + (0x73 << 2))
 #define ADC_REG6         (IO_HIU_BASE + (0x74 << 2))
 
+/*HHI_ADC_PLL_CNTL1   HHI_ADC_PLL_CNTL5
+HHI_ADC_PLL_CNTL6*/
 #define ADC_REGB         (IO_HIU_BASE + (0xaf << 2))
 #define ADC_REGC         (IO_HIU_BASE + (0x9e << 2))
 #define ADC_REGD         (IO_HIU_BASE + (0x9f << 2))
 
 /* DADC REG */
+/*HHI_DADC_CNTL*/
 #define ADC_REG7         (IO_HIU_BASE + (0x27 << 2))
+/*HHI_DADC_CNTL2*/
 #define ADC_REG8         (IO_HIU_BASE + (0x28 << 2))
+/*HHI_DADC_CNTL3*/
 #define ADC_REG9         (IO_HIU_BASE + (0x2a << 2))
+/*HHI_DADC_CNTL4*/
 #define ADC_REGA         (IO_HIU_BASE + (0x2b << 2))
+/*HHI_VDAC_CNTL0*/
 #define ADC_REGE         (IO_HIU_BASE + (0xbd << 2))
 
 /* #endif  */
@@ -184,10 +237,6 @@
 #define DEMOD_REG2_VALUE                 0x2e805400
 #define DEMOD_REG3_VALUE                 0x201
 
-#define DEMOD_REG1               (DEMOD_BASE + 0xc00)
-#define DEMOD_REG2               (DEMOD_BASE + 0xc04)
-#define DEMOD_REG3               (DEMOD_BASE + 0xc08)
-#define DEMOD_REG4               (DEMOD_BASE + 0xc0c)
 
 /* #define Wr(addr, data)   WRITE_CBUS_REG(addr, data)*/
 /* #define Rd(addr)             READ_CBUS_REG(addr)  */
@@ -204,6 +253,19 @@ enum {
 	OPEN_TIME_EQ,
 	CLOSE_TIME_EQ
 };
+
+enum {
+	AMLOGIC_DTMB = 1,
+	AMLOGIC_DVBT_ISDBT,
+	AMLOGIC_ATSC = 4,
+	AMLOGIC_DVBC_J83B,
+	AMLOGIC_DEMOD_CFG,
+	AMLOGIC_DEMOD_BASE,
+	AMLOGIC_DEMOD_FPGA,
+	AMLOGIC_DEMOD_COLLECT_DATA = 10,
+	AMLOGIC_DEMOD_OTHERS
+};
+
 
 enum {
 	AMLOGIC_DTMB_STEP0,
@@ -293,22 +355,6 @@ int dvbc_get_cci_task(void);
 void dvbc_create_cci_task(void);
 void dvbc_kill_cci_task(void);
 
-/* atsc */
-
-int atsc_set_ch(struct aml_demod_sta *demod_sta,
-		struct aml_demod_i2c *demod_i2c,
-		struct aml_demod_atsc *demod_atsc);
-int check_atsc_fsm_status(void);
-
-void atsc_write_reg(int reg_addr, int reg_data);
-
-unsigned long atsc_read_reg(int reg_addr);
-
-unsigned long atsc_read_iqr_reg(void);
-
-int atsc_qam_set(fe_modulation_t mode);
-
-void qam_initial(int qam_id);
 
 /* dtmb */
 
@@ -600,5 +646,6 @@ void demod_set_adc_core_clk_fix(int clk_adc, int clk_dem);
 void calculate_cordic_para(void);
 void ofdm_read_all_regs(void);
 extern int aml_fe_analog_set_frontend(struct dvb_frontend *fe);
+int get_dtvpll_init_flag(void);
 
 #endif
