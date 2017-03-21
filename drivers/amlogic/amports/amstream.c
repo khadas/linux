@@ -2756,7 +2756,7 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 				val = sub_wp - sub_rp;
 			else
 				val = psbuf->buf_size - (sub_rp - sub_wp);
-			put_user(val, (unsigned long __user *)arg);
+			put_user(val, (int __user *)arg);
 		} else
 			r = -EINVAL;
 		break;
