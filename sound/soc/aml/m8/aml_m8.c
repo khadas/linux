@@ -276,15 +276,14 @@ static int aml_suspend_pre(struct snd_soc_card *card)
 		mutex_unlock(&p_aml_audio->lock);
 	}
 
-	if (IS_ERR_OR_NULL(p_aml_audio->pin_ctl)) {
-		pr_info("no audio pin_ctrl to suspend\n");
-		return 0;
-	}
-
-	state = pinctrl_lookup_state(p_aml_audio->pin_ctl, "aml_snd_suspend");
-	if (!IS_ERR(state)) {
-		pr_info("enter %s set pin_ctl suspend state\n", __func__);
-		pinctrl_select_state(p_aml_audio->pin_ctl, state);
+	if (!IS_ERR_OR_NULL(p_aml_audio->pin_ctl)) {
+		state = pinctrl_lookup_state(p_aml_audio->pin_ctl,
+				"aml_snd_suspend");
+		if (!IS_ERR(state)) {
+			pr_info("enter %s set pin_ctl suspend state\n",
+				__func__);
+			pinctrl_select_state(p_aml_audio->pin_ctl, state);
+		}
 	}
 
 	if (!IS_ERR(p_aml_audio->mute_desc)) {
@@ -327,15 +326,14 @@ static int aml_resume_post(struct snd_soc_card *card)
 		mutex_unlock(&p_aml_audio->lock);
 	}
 
-	if (IS_ERR_OR_NULL(p_aml_audio->pin_ctl)) {
-		pr_info("no audio pin_ctrl to resume\n");
-		return 0;
-	}
-
-	state = pinctrl_lookup_state(p_aml_audio->pin_ctl, "aml_snd_m8");
-	if (!IS_ERR(state)) {
-		pr_info("enter %s set pin_ctl working state\n", __func__);
-		pinctrl_select_state(p_aml_audio->pin_ctl, state);
+	if (!IS_ERR_OR_NULL(p_aml_audio->pin_ctl)) {
+		state = pinctrl_lookup_state(p_aml_audio->pin_ctl,
+					"aml_snd_m8");
+		if (!IS_ERR(state)) {
+			pr_info("enter %s set pin_ctl working state\n",
+					__func__);
+		    pinctrl_select_state(p_aml_audio->pin_ctl, state);
+	    }
 	}
 
 	if (!IS_ERR(p_aml_audio->mute_desc)) {
