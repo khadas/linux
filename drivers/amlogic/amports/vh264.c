@@ -768,8 +768,17 @@ static void vh264_set_params(struct work_struct *work)
 
 
 	max_dpb_size = get_max_dpb_size(level_idc, mb_width, mb_height);
-	actual_dpb_size = max_dpb_size + dpb_size_adj;
-	actual_dpb_size = min(actual_dpb_size, VF_BUF_NUM);
+	if (max_dpb_size > 15
+		&& get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB
+		&& (codec_mm_get_total_size() < 80 * SZ_1M)) {
+				actual_dpb_size
+				= max_reference_size + dpb_size_adj;
+			if (actual_dpb_size > VF_BUF_NUM)
+				actual_dpb_size = VF_BUF_NUM;
+	} else {
+		actual_dpb_size = max_dpb_size + dpb_size_adj;
+		actual_dpb_size = min(actual_dpb_size, VF_BUF_NUM);
+	}
 	max_reference_size++;
 	pr_info("actual_dpb_size %d max_dpb_size %d max_ref %d\n",
 				actual_dpb_size, max_dpb_size,
