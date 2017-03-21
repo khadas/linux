@@ -475,6 +475,10 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 				(cvd_part2_table[cvd2->config_fmt-
 				TVIN_SIG_FMT_CVBS_NTSC_M][i]));
 	}
+	if (((cvd2->vd_port == TVIN_PORT_CVBS1) ||
+		(cvd2->vd_port == TVIN_PORT_CVBS2)) &&
+		(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M))
+		W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0x7d);
 
 	/* reload CVD2 reg 0x87, 0x93, 0x94, 0x95, 0x96, 0xe6, 0xfa (int) */
 	W_APB_REG(((CVD_BASE_ADD+CVD_PART3_REG_0)<<2),
