@@ -1245,7 +1245,7 @@ RESTART:
 			(next_frame_par->vscale_skip_count + 1),
 			next_frame_par->VPP_vsc_endp -
 			next_frame_par->VPP_vsc_startp,
-			height_out >>
+			vinfo->height >>
 			((vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0),
 			next_frame_par,
 			vinfo,
