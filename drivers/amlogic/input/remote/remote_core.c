@@ -118,7 +118,6 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 	unsigned long flags;
 	u32 keycode;
 
-
 	if (REMOTE_REPEAT != status) {
 		if (dev->is_valid_custom &&
 			(false == dev->is_valid_custom(dev))) {
@@ -127,9 +126,25 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 			return;
 		}
 	}
+
 	spin_lock_irqsave(&dev->keylock, flags);
+	/**
+	 *only a few keys which be set in key map table support
+	 *report relative axes event in mouse mode, other keys
+	 *will continue to report key event.
+	 */
+	if (status == REMOTE_NORMAL ||
+			status == REMOTE_REPEAT) {
+		/*to report relative axes event*/
+		if (0 == dev->ir_report_rel(dev, scancode, status)) {
+			spin_unlock_irqrestore(&dev->keylock, flags);
+			return;
+		}
+	}
+
 	if (status == REMOTE_NORMAL) {
 		keycode = dev->getkeycode(dev, scancode);
+		/*to report key event*/
 		ir_do_keydown(dev, scancode, keycode);
 	}
 
@@ -187,8 +202,19 @@ int remote_register_device(struct remote_dev *dev)
 	}
 
 	__set_bit(EV_KEY, dev->input_device->evbit);
+
 	for (i = 0; i < KEY_MAX; i++)
 		__set_bit(i, dev->input_device->keybit);
+
+	__set_bit(BTN_MOUSE, dev->input_device->keybit);
+	__set_bit(BTN_LEFT, dev->input_device->keybit);
+	__set_bit(BTN_RIGHT, dev->input_device->keybit);
+	__set_bit(BTN_MIDDLE, dev->input_device->keybit);
+
+	__set_bit(EV_REL, dev->input_device->evbit);
+	__set_bit(REL_X, dev->input_device->relbit);
+	__set_bit(REL_Y, dev->input_device->relbit);
+	__set_bit(REL_WHEEL, dev->input_device->relbit);
 
 	dev->input_device->keycodesize = sizeof(unsigned short);
 	dev->input_device->keycodemax = 0x1ff;
