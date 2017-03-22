@@ -20,6 +20,18 @@
 #include <linux/of_irq.h>
 #include "spicc.h"
 
+#define CONFIG_SPICC_LOG
+#ifdef CONFIG_SPICC_LOG
+struct my_log {
+	struct timeval tv;
+	unsigned int irq_data;
+	unsigned int reg_val[13];
+	unsigned int param[8];
+	unsigned int param_count;
+	const char *comment;
+};
+#endif
+
 /**
  * struct spicc
  * @lock: spinlock for SPICC controller.
@@ -63,8 +75,130 @@ struct spicc {
 	u8 test_data;
 	unsigned int delay_control;
 	unsigned int cs_delay;
+	int remain;
+	u8 *txp;
+	u8 *rxp;
+	int burst_len;
+#ifdef CONFIG_SPICC_LOG
+	struct my_log *log;
+	int log_size;
+	int log_count;
+#endif
 };
 
+#ifdef CONFIG_SPICC_LOG
+enum {
+	PROBE_BEGIN,
+	PROBE_END,
+	REQUEST_IRQ,
+	HAND_MSG_BEGIN,
+	HAND_MSG_END,
+	XFER_COMP_ISR,
+	XFER_COMP_POLLING,
+	DMA_BEGIN,
+	DMA_END,
+	PIO_BEGIN,
+	PIO_END,
+};
+
+static const char * const log_comment[] = {
+	"probe begin",
+	"probe end",
+	"request irq",
+	"handle msg begin",
+	"handle msg end",
+	"xfer complete isr",
+	"xfer complete polling",
+	"dma begin",
+	"dma end",
+	"pio begin",
+	"pio end"
+};
+
+static void spicc_log_init(struct spicc *spicc)
+{
+	spicc->log = 0;
+	spicc->log_count = 0;
+	if (spicc->log_size)
+		spicc->log = kzalloc(spicc->log_size *
+			sizeof(struct my_log), GFP_KERNEL);
+	pr_info("spicc: log_size=%d, log=%p",
+			spicc->log_size, spicc->log);
+}
+
+static void spicc_log_exit(struct spicc *spicc)
+{
+	spicc->log = 0;
+	spicc->log_count = 0;
+	spicc->log_size = 0;
+	kfree(spicc->log);
+}
+
+static void spicc_log(
+	struct spicc *spicc,
+	unsigned int *param,
+	int param_count,
+	int comment_id)
+{
+	struct my_log *log;
+	struct irq_desc *desc;
+	int i;
+
+	if (IS_ERR_OR_NULL(spicc->log))
+		return;
+	log = &spicc->log[spicc->log_count];
+	log->tv = ktime_to_timeval(ktime_get());
+	if (spicc->irq) {
+		desc = irq_to_desc(spicc->irq);
+		log->irq_data = desc->irq_data.state_use_accessors;
+	}
+	for (i = 0; i < ARRAY_SIZE(log->reg_val); i++)
+		log->reg_val[i] = readl(spicc->regs + ((i+2)<<2));
+
+	if (param) {
+		if (param_count > ARRAY_SIZE(log->param))
+			param_count = ARRAY_SIZE(log->param);
+		for (i = 0; i < param_count; i++)
+			log->param[i] = param[i];
+		log->param_count = param_count;
+	}
+	log->comment = log_comment[comment_id];
+
+	if (++spicc->log_count > spicc->log_size)
+		spicc->log_count = 0;
+}
+
+static void spicc_log_print(struct spicc *spicc)
+{
+	struct my_log *log;
+	int i, j;
+	unsigned int *p;
+
+	if (IS_ERR_OR_NULL(spicc->log))
+		return;
+	pr_info("log total:%d\n", spicc->log_count);
+	for (i = 0; i < spicc->log_count; i++) {
+		log = &spicc->log[i];
+		pr_info("[%6u.%6u]spicc-%d: %s\n",
+				(unsigned int)log->tv.tv_sec,
+				(unsigned int)log->tv.tv_usec,
+				i, log->comment);
+		pr_info("irq_data=0x%x\n", log->irq_data);
+		p = log->reg_val;
+		for (j = 0; j < ARRAY_SIZE(log->reg_val); j++)
+			if (*p)
+				pr_info("reg[%2d]=0x%x\n", j+2, *p++);
+		p = log->param;
+		for (j = 0; j < log->param_count; j++)
+			pr_info("param[%d]=0x%x\n", j, *p++);
+	}
+}
+#else
+#define spicc_log_init(spicc)
+#define spicc_log_exit(spicc)
+#define spicc_log(spicc, param, param_count, comment_id)
+#define spicc_log_print(spicc)
+#endif
 
 /* Note this is chip_select enable or disable */
 void spicc_chip_select(struct spi_device *spi, bool select)
@@ -120,9 +254,9 @@ static void spicc_set_mode(struct spicc *spicc, u8 mode)
 
 	spicc->mode = mode;
 	if (!spicc_get_flag(spicc, FLAG_ENHANCE)) {
-		if (cpol && !IS_ERR(spicc->pullup))
+		if (cpol && !IS_ERR_OR_NULL(spicc->pullup))
 			pinctrl_select_state(spicc->pinctrl, spicc->pullup);
-		else if (!cpol && !IS_ERR(spicc->pulldown))
+		else if (!cpol && !IS_ERR_OR_NULL(spicc->pulldown))
 			pinctrl_select_state(spicc->pinctrl, spicc->pulldown);
 	}
 	setb(spicc->regs, CON_CLK_PHA, cpha);
@@ -175,33 +309,102 @@ static inline void spicc_enable(struct spicc *spicc, bool en)
 	setb(spicc->regs, CON_ENABLE, en);
 }
 
-static int spicc_wait_complete(struct spicc *spicc, int max_us)
+static void dma_one_burst(struct spicc *spicc)
 {
 	void __iomem *mem_base = spicc->regs;
-	int i, err = -ETIMEDOUT;
 
-	if (spicc->irq) {
-		wait_for_completion_interruptible_timeout(
-			&spicc->completion, msecs_to_jiffies(10));
-		err = 0;
+	setb(mem_base, STA_XFER_COM, 1);
+	if (spicc->remain > 0) {
+		spicc->burst_len = min_t(size_t, spicc->remain, BURST_LEN_MAX);
+		setb(mem_base, CON_BURST_LEN, spicc->burst_len - 1);
+		setb(mem_base, CON_XCH, 1);
+		spicc->remain -= spicc->burst_len;
 	}
-	for (i = 0; i < max_us; i++) {
+}
+
+static void pio_one_burst_recv(struct spicc *spicc)
+{
+	int bytes_per_word;
+	unsigned int dat;
+	int i, j;
+
+	bytes_per_word = ((spicc->bits_per_word - 1)>>3) + 1;
+	for (i = 0; i < spicc->burst_len; i++) {
+		dat = spicc_get_rxfifo(spicc);
+		if (spicc->rxp) {
+			for (j = 0; j < bytes_per_word; j++) {
+				*spicc->rxp++ = dat & 0xff;
+				dat >>= 8;
+			}
+		}
+	}
+}
+
+static void pio_one_burst_send(struct spicc *spicc)
+{
+	void __iomem *mem_base = spicc->regs;
+	int bytes_per_word;
+	unsigned int dat;
+	int i, j;
+
+	setb(mem_base, STA_XFER_COM, 1);
+	bytes_per_word = ((spicc->bits_per_word - 1)>>3) + 1;
+	if (spicc->remain > 0) {
+		spicc->burst_len = min_t(size_t, spicc->remain,
+				SPICC_FIFO_SIZE);
+		for (i = 0; i < spicc->burst_len; i++) {
+			dat = 0;
+			if (spicc->txp) {
+				for (j = 0; j < bytes_per_word; j++) {
+					dat <<= 8;
+					dat += *spicc->txp++;
+				}
+			}
+			spicc_set_txfifo(spicc, dat);
+		}
+		setb(mem_base, CON_BURST_LEN, spicc->burst_len - 1);
+		setb(mem_base, CON_XCH, 1);
+		spicc->remain -= spicc->burst_len;
+	}
+}
+
+/**
+ * Return: same with wait_for_completion_interruptible_timeout
+ *   =0: timed out,
+ *   >0: completed, number of usec left till timeout.
+ */
+static int spicc_wait_complete(struct spicc *spicc, int us)
+{
+	void __iomem *mem_base = spicc->regs;
+	int i;
+
+	for (i = 0; i < us; i++) {
+		udelay(1);
 		if (getb(mem_base, STA_XFER_COM)) {
-			err = 0;
+			setb(spicc->regs, STA_XFER_COM, 1); /* set 1 to clear */
 			break;
 		}
-		udelay(1);
 	}
-	setb(mem_base, STA_XFER_COM, 1);
-	if (err)
-		dev_err(spicc->master->dev.parent, "timeout\n");
-	return err;
+	return us - i;
 }
 
 static irqreturn_t spicc_xfer_complete_isr(int irq, void *dev_id)
 {
 	struct spicc *spicc = (struct spicc *)dev_id;
-	complete(&spicc->completion);
+	unsigned long flags;
+
+	spin_lock_irqsave(&spicc->lock, flags);
+	spicc_wait_complete(spicc, 100);
+	spicc_log(spicc, &spicc->remain, 1, XFER_COMP_ISR);
+	if (!spicc_get_flag(spicc, FLAG_DMA_EN))
+		pio_one_burst_recv(spicc);
+	if (!spicc->remain)
+		complete(&spicc->completion);
+	else if (spicc_get_flag(spicc, FLAG_DMA_EN))
+		dma_one_burst(spicc);
+	else
+		pio_one_burst_send(spicc);
+	spin_unlock_irqrestore(&spicc->lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -268,11 +471,15 @@ static void spicc_dma_unmap(struct spicc *spicc, struct spi_transfer *t)
 	}
 }
 
-
+/**
+ * Return:
+ *   =0: xfer success,
+ *   -ETIMEDOUT: timeout.
+ */
 static int spicc_dma_xfer(struct spicc *spicc, struct spi_transfer *t)
 {
 	void __iomem *mem_base = spicc->regs;
-	int burst_len, remain;
+	int ret;
 
 	setb(mem_base, RX_FIFO_RESET, 1);
 	setb(mem_base, TX_FIFO_RESET, 1);
@@ -283,80 +490,74 @@ static int spicc_dma_xfer(struct spicc *spicc, struct spi_transfer *t)
 	if (t->rx_dma != INVALID_DMA_ADDRESS)
 		writel(t->rx_dma, mem_base + SPICC_REG_DWADDR);
 	setb(mem_base, DMA_EN, 1);
+	spicc->remain = ((t->len - 1) >> 3) + 1;
+	spicc->burst_len = 0;
+	spicc_log(spicc, &spicc->remain, 1, DMA_BEGIN);
 	if (spicc->irq) {
 		setb(mem_base, INT_XFER_COM_EN, 1);
 		enable_irq(spicc->irq);
-	}
-	setb(mem_base, STA_XFER_COM, 1);
-
-	remain = ((t->len - 1) >> 3) + 1;
-	while (remain > 0) {
-		burst_len = min_t(size_t, remain, BURST_LEN_MAX);
-		setb(mem_base, CON_BURST_LEN, burst_len - 1);
-		setb(mem_base, CON_XCH, 1);
-		spicc_wait_complete(spicc, burst_len<<4);
-		remain -= burst_len;
-	}
-
-	setb(mem_base, DMA_EN, 0);
-	if (spicc->irq) {
+		dma_one_burst(spicc);
+		ret = wait_for_completion_interruptible_timeout(
+			&spicc->completion, msecs_to_jiffies(2000));
 		disable_irq_nosync(spicc->irq);
 		setb(mem_base, INT_XFER_COM_EN, 0);
+	} else {
+		while (spicc->remain) {
+			dma_one_burst(spicc);
+			ret = spicc_wait_complete(spicc,
+					spicc->burst_len << 13);
+			spicc_log(spicc, &spicc->remain, 1, XFER_COMP_POLLING);
+			if (!ret)
+				break;
+		}
 	}
-	return 0;
+	setb(mem_base, DMA_EN, 0);
+	ret = ret ? 0 : -ETIMEDOUT;
+	spicc_log(spicc, &ret, 1, DMA_END);
+	return ret;
 }
 
+/**
+ * Return:
+ *   =0: xfer success,
+ *   -ETIMEDOUT: timeout.
+ */
 static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 {
 	void __iomem *mem_base = spicc->regs;
-	int burst_len, remain, bytes_per_word;
-	int i, j;
-	unsigned int dat;
+	int bytes_per_word;
+	int ret;
 
 	setb(mem_base, RX_FIFO_RESET, 1);
 	setb(mem_base, TX_FIFO_RESET, 1);
 	setb(mem_base, CON_XCH, 0);
+	bytes_per_word = ((spicc->bits_per_word - 1)>>3) + 1;
+	spicc->remain = len / bytes_per_word;
+	spicc->txp = txp;
+	spicc->rxp = rxp;
+	spicc_log(spicc, &spicc->remain, 1, PIO_BEGIN);
 	if (spicc->irq) {
 		setb(mem_base, INT_XFER_COM_EN, 1);
 		enable_irq(spicc->irq);
-	}
-	setb(mem_base, STA_XFER_COM, 1);
-
-	bytes_per_word = ((spicc->bits_per_word - 1)>>3) + 1;
-	remain = len / bytes_per_word;
-	while (remain > 0) {
-		burst_len = min_t(size_t, remain, SPICC_FIFO_SIZE);
-		for (i = 0; i < burst_len; i++) {
-			dat = 0;
-			if (txp) {
-				for (j = 0; j < bytes_per_word; j++) {
-					dat <<= 8;
-					dat += *txp++;
-				}
-			}
-			spicc_set_txfifo(spicc, dat);
-		}
-		setb(mem_base, CON_BURST_LEN, burst_len - 1);
-		setb(mem_base, CON_XCH, 1);
-		spicc_wait_complete(spicc, (burst_len*bytes_per_word)<<1);
-		setb(mem_base, STA_XFER_COM, 1);
-
-		for (i = 0; i < burst_len; i++) {
-			dat = spicc_get_rxfifo(spicc);
-			if (rxp) {
-				for (j = 0; j < bytes_per_word; j++) {
-					*rxp++ = dat & 0xff;
-					dat >>= 8;
-				}
-			}
-		}
-		remain -= burst_len;
-	}
-	if (spicc->irq) {
+		pio_one_burst_send(spicc);
+		ret = wait_for_completion_interruptible_timeout(
+			&spicc->completion, msecs_to_jiffies(2000));
 		disable_irq_nosync(spicc->irq);
 		setb(mem_base, INT_XFER_COM_EN, 0);
+	} else {
+		while (spicc->remain) {
+			pio_one_burst_send(spicc);
+			ret = spicc_wait_complete(spicc,
+					spicc->burst_len << 10);
+			spicc_log(spicc, &spicc->remain, 1, XFER_COMP_POLLING);
+			if (!ret)
+				break;
+			pio_one_burst_recv(spicc);
+		}
 	}
-	return 0;
+	ret = ret ? 0 : -ETIMEDOUT;
+	spicc_log(spicc, &ret, 1, PIO_END);
+	return ret;
 }
 
 static void spicc_hw_init(struct spicc *spicc)
@@ -467,6 +668,7 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 	int ret = 0;
 	bool cs_changed = 0;
 
+	spicc_log(spicc, 0, 0, HAND_MSG_BEGIN);
 	/* spicc_enable(spicc, 1); */
 	if (spi) {
 		spicc_set_bit_width(spicc,
@@ -491,11 +693,14 @@ static void spicc_handle_one_msg(struct spicc *spicc, struct spi_message *m)
 		if (spicc_get_flag(spicc, FLAG_DMA_EN)) {
 			if (!m->is_dma_mapped)
 				spicc_dma_map(spicc, t);
-			spicc_dma_xfer(spicc, t);
+			ret = spicc_dma_xfer(spicc, t);
 			if (!m->is_dma_mapped)
 				spicc_dma_unmap(spicc, t);
-		} else if (spicc_hw_xfer(spicc, (u8 *)t->tx_buf,
-				(u8 *)t->rx_buf, t->len) < 0)
+		} else {
+			ret = spicc_hw_xfer(spicc, (u8 *)t->tx_buf,
+				(u8 *)t->rx_buf, t->len);
+		}
+		if (ret)
 			goto spicc_handle_end;
 		m->actual_length += t->len;
 
@@ -513,10 +718,10 @@ spicc_handle_end:
 	if (spi)
 		spicc_chip_select(spi, 0);
 	/* spicc_enable(spicc, 0); */
-
 	m->status = ret;
 	if (m->context)
 		m->complete(m->context);
+	spicc_log(spicc, 0, 0, HAND_MSG_END);
 }
 
 static int spicc_transfer(struct spi_device *spi, struct spi_message *m)
@@ -574,6 +779,12 @@ static ssize_t show_setting(struct class *class,
 		pr_info("echo cs_gpio speed mode bits_per_word num");
 		pr_info("[wbyte1 wbyte2...] >test\n");
 	}
+#ifdef CONFIG_SPICC_LOG
+	else if (!strcmp(attr->attr.name, "log")) {
+		spicc_log_print(spicc);
+		spicc->log_count = 0;
+	}
+#endif
 	return ret;
 }
 
@@ -624,7 +835,9 @@ static ssize_t store_test(
 	kstr = kstrdup(buf, GFP_KERNEL);
 	tx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
 	rx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
-	if (IS_ERR(kstr) || IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
+	if (IS_ERR_OR_NULL(kstr) ||
+			IS_ERR_OR_NULL(tx_buf) ||
+			IS_ERR_OR_NULL(rx_buf)) {
 		dev_err(dev, "failed to alloc tx rx buffer\n");
 		goto test_end;
 	}
@@ -683,6 +896,9 @@ static struct class_attribute spicc_class_attrs[] = {
 		__ATTR(bit_width, S_IRUGO|S_IWUSR, show_setting, store_setting),
 		__ATTR(flags, S_IRUGO|S_IWUSR, show_setting, store_setting),
 		__ATTR(help, S_IRUGO, show_setting, NULL),
+#ifdef CONFIG_SPICC_LOG
+		__ATTR(log, S_IRUGO, show_setting, NULL),
+#endif
 		__ATTR_NULL
 };
 
@@ -726,14 +942,16 @@ static int of_spicc_get_data(
 	spicc->cs_delay = err ? 0 : value;
 	err = of_property_read_u32(np, "ssctl", &value);
 	spicc_set_flag(spicc, FLAG_SSCTL, err ? 0 : (!!value));
+	err = of_property_read_u32(np, "log_size", &value);
+	spicc->log_size = err ? 0 : value;
 
 	spicc->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(spicc->pinctrl)) {
+	if (IS_ERR_OR_NULL(spicc->pinctrl)) {
 		dev_err(&pdev->dev, "get pinctrl fail\n");
 		return PTR_ERR(spicc->pinctrl);
 	}
 	spicc->pullup = pinctrl_lookup_state(spicc->pinctrl, "default");
-	if (!IS_ERR(spicc->pullup))
+	if (!IS_ERR_OR_NULL(spicc->pullup))
 		pinctrl_select_state(spicc->pinctrl, spicc->pullup);
 	spicc->pullup = pinctrl_lookup_state(
 			spicc->pinctrl, "spicc_pullup");
@@ -742,17 +960,17 @@ static int of_spicc_get_data(
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spicc->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(spicc->regs)) {
+	if (IS_ERR_OR_NULL(spicc->regs)) {
 		dev_err(&pdev->dev, "get resource fail\n");
 		return PTR_ERR(spicc->regs);
 	}
 
 	spicc->rst = devm_reset_control_get(&pdev->dev, "spicc_clk");
-	if (IS_ERR(spicc->rst))
+	if (IS_ERR_OR_NULL(spicc->rst))
 		dev_err(&pdev->dev, "open spicc clk gate failed\n");
 
 	spicc->clk = devm_clk_get(&pdev->dev, "clk81");
-	if (IS_ERR(spicc->clk)) {
+	if (IS_ERR_OR_NULL(spicc->clk)) {
 		dev_err(&pdev->dev, "get clk fail\n");
 		return PTR_ERR(spicc->clk);
 	}
@@ -767,11 +985,10 @@ static int spicc_probe(struct platform_device *pdev)
 
 	BUG_ON(!pdev->dev.of_node);
 	master = spi_alloc_master(&pdev->dev, sizeof(*spicc));
-	if (IS_ERR(master)) {
+	if (IS_ERR_OR_NULL(master)) {
 		dev_err(&pdev->dev, "allocate spi master failed!\n");
 		return -ENOMEM;
 	}
-
 	spicc = spi_master_get_devdata(master);
 	spicc->master = master;
 	dev_set_drvdata(&pdev->dev, spicc);
@@ -781,6 +998,8 @@ static int spicc_probe(struct platform_device *pdev)
 		goto err;
 	}
 	spicc_hw_init(spicc);
+	spicc_log_init(spicc);
+	spicc_log(spicc, 0, 0, PROBE_BEGIN);
 
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = spicc->device_id;
@@ -813,6 +1032,7 @@ static int spicc_probe(struct platform_device *pdev)
 		} else
 			disable_irq_nosync(spicc->irq);
 	}
+	spicc_log(spicc, &spicc->irq, 1, REQUEST_IRQ);
 
 	/*setup class*/
 	spicc->cls.name = kzalloc(10, GFP_KERNEL);
@@ -828,6 +1048,7 @@ static int spicc_probe(struct platform_device *pdev)
 			dev_info(&pdev->dev, "cs[%d]=%d\n", i,
 					master->cs_gpios[i]);
 	}
+	spicc_log(spicc, 0, 0, PROBE_END);
 	return ret;
 err:
 	spi_master_put(master);
@@ -839,6 +1060,7 @@ static int spicc_remove(struct platform_device *pdev)
 	struct spicc *spicc;
 
 	spicc = (struct spicc *)dev_get_drvdata(&pdev->dev);
+	spicc_log_exit(spicc);
 	spi_unregister_master(spicc->master);
 	destroy_workqueue(spicc->wq);
 	if (spicc->pinctrl)
