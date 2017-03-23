@@ -377,7 +377,7 @@ static int osddev_setcolreg(unsigned regno, u16 red, u16 green, u16 blue,
 		mutex_lock(&fbdev->lock);
 		osd_setpal_hw(fbdev->fb_info->node, regno, red, green,
 				blue, transp);
-		mutex_lock(&fbdev->lock);
+		mutex_unlock(&fbdev->lock);
 	}
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v, r, g, b, a;
@@ -2098,6 +2098,31 @@ static ssize_t free_scale_switch(struct device *device,
 	return count;
 }
 
+static ssize_t show_osd_deband(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	u32 osd_deband_enable;
+	osd_get_deband(&osd_deband_enable);
+	return snprintf(buf, 40, "%d\n",
+		osd_deband_enable);
+}
+
+static ssize_t store_osd_deband(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_set_deband(res);
+
+	return count;
+}
+
+
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -2276,6 +2301,8 @@ static struct device_attribute osd_attrs[] = {
 			show_reset_status, NULL),
 	__ATTR(free_scale_switch, S_IWUSR | S_IWGRP,
 			NULL, free_scale_switch),
+	__ATTR(osd_deband, S_IRUGO | S_IWUSR,
+			show_osd_deband, store_osd_deband),
 };
 
 #ifdef CONFIG_PM

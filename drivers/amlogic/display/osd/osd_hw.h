@@ -146,4 +146,6 @@ extern void osd_switch_free_scale(
 	u32 next_index, u32 next_enable, u32 next_scale);
 extern void osd_get_urgent(u32 index, u32 *urgent);
 extern void osd_set_urgent(u32 index, u32 urgent);
+void osd_get_deband(u32 *osd_deband_enable);
+void osd_set_deband(u32 osd_deband_enable);
 #endif
