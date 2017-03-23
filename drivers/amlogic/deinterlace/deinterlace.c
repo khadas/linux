@@ -6985,7 +6985,7 @@ di_buf, di_post_idx[di_post_stru.canvas_id][4], -1);
 			(di_buf->di_buf_dup_p[tbbtff_dly]->privated&0x3));
 		if (di_buf->pulldown_mode == PULL_DOWN_NORMAL) {
 			post_blend_mode = 3;
-			mc_pre_flag = is_meson_txl_cpu()?2:(overturn?0:1);
+			mc_pre_flag = is_meson_txl_cpu()?1:(overturn?0:1);
 		} else {
 			post_blend_mode = 1;
 			mc_pre_flag = is_meson_txl_cpu()?0:(overturn?0:1);
