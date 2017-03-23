@@ -82,14 +82,17 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	struct sg_table *sgt = NULL;
 	int ret;
 
+	DEFINE_DMA_ATTRS(attrs);
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+
 	size = round_up(size, PAGE_SIZE);
 
 	cma_obj = __drm_gem_cma_create(drm, size);
 	if (IS_ERR(cma_obj))
 		return cma_obj;
 
-	cma_obj->vaddr = dma_alloc_writecombine(drm->dev, size,
-			&cma_obj->paddr, GFP_KERNEL | __GFP_NOWARN);
+	cma_obj->vaddr = dma_alloc_attrs(drm->dev, size,
+			&cma_obj->paddr,  GFP_KERNEL | __GFP_NOWARN, &attrs);
 	if (!cma_obj->vaddr) {
 		dev_err(drm->dev, "failed to allocate buffer with size %d\n",
 			size);
@@ -173,7 +176,7 @@ void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 	cma_obj = to_drm_gem_cma_obj(gem_obj);
 
 	if (cma_obj->vaddr) {
-		dma_free_writecombine(gem_obj->dev->dev, cma_obj->base.size,
+		dma_free_coherent(gem_obj->dev->dev, cma_obj->base.size,
 				      cma_obj->vaddr, cma_obj->paddr);
 		if (cma_obj->sgt) {
 			sg_free_table(cma_obj->sgt);
@@ -201,6 +204,7 @@ int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 {
 	struct drm_gem_cma_object *cma_obj;
 	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+	min_pitch = (min_pitch + 7) - (min_pitch + 7)%8;
 
 	if (args->pitch < min_pitch)
 		args->pitch = min_pitch;
@@ -292,7 +296,7 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m
 
 	off = drm_vma_node_start(&obj->vma_node);
 
-	seq_printf(m, "%2d (%2d) %08llx %08Zx %p %d",
+	seq_printf(m, "%2d (%2d) %08llx %llx %p %Zx",
 			obj->name, obj->refcount.refcount.counter,
 			off, cma_obj->paddr, cma_obj->vaddr, obj->size);
 
@@ -342,7 +346,8 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
 	cma_obj->paddr = sg_dma_address(sgt->sgl);
 	cma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = %zu\n", cma_obj->paddr, size);
+	DRM_DEBUG_PRIME("dma_addr = 0x%llx, size = %zu\n",
+			cma_obj->paddr, size);
 
 	return &cma_obj->base;
 }

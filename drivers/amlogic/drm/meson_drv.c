@@ -27,11 +27,16 @@
 #include <linux/of_graph.h>
 
 #include <drm/drmP.h>
+
+/* #define MUSE */
+#ifdef MUSE
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
+#endif
+
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_rect.h>
@@ -65,13 +70,13 @@
  * - Powering Up HDMI controller and PHY
  */
 
+#ifdef MUSE
 static void meson_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct meson_drm *priv = dev->dev_private;
 
 	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
-
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.output_poll_changed = meson_fb_output_poll_changed,
 	.atomic_check        = drm_atomic_helper_check,
@@ -106,6 +111,7 @@ static irqreturn_t meson_irq(int irq, void *arg)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
@@ -122,6 +128,9 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver meson_driver = {
+	.driver_features	=  DRIVER_GEM | DRIVER_PRIME,
+
+#ifdef MUSE
 	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM |
 				  DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
@@ -133,6 +142,7 @@ static struct drm_driver meson_driver = {
 
 	/* IRQ */
 	.irq_handler		= meson_irq,
+#endif
 
 	/* PRIME Ops */
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
@@ -149,7 +159,7 @@ static struct drm_driver meson_driver = {
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
+	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
 	/* Misc */
@@ -161,6 +171,7 @@ static struct drm_driver meson_driver = {
 	.minor			= 0,
 };
 
+#ifdef MUSE
 static bool meson_vpu_has_available_connectors(struct device *dev)
 {
 	struct device_node *ep, *remote;
@@ -182,21 +193,25 @@ static struct regmap_config meson_regmap_config = {
 	.reg_stride     = 4,
 	.max_register   = 0x1000,
 };
+#endif
 
 static int meson_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct meson_drm *priv;
 	struct drm_device *drm;
+	int ret;
+
+#ifdef MUSE
 	struct resource *res;
 	void __iomem *regs;
-	int ret;
 
 	/* Checks if an output connector is available */
 	if (!meson_vpu_has_available_connectors(dev)) {
 		dev_err(dev, "No output connector available\n");
 		return -ENODEV;
 	}
+#endif
 
 	drm = drm_dev_alloc(&meson_driver, dev);
 	if (IS_ERR(drm))
@@ -211,6 +226,7 @@ static int meson_drv_probe(struct platform_device *pdev)
 	priv->drm = drm;
 	priv->dev = dev;
 
+#ifdef MUSE
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpu");
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs))
@@ -287,6 +303,7 @@ static int meson_drv_probe(struct platform_device *pdev)
 	}
 
 	drm_kms_helper_poll_init(drm);
+#endif
 
 	platform_set_drvdata(pdev, priv);
 
@@ -297,7 +314,11 @@ static int meson_drv_probe(struct platform_device *pdev)
 	return 0;
 
 free_drm:
+	DRM_DEBUG("free-drm");
+
+#ifdef MUSE
 	drm_dev_unref(drm);
+#endif
 
 	return ret;
 }
@@ -305,14 +326,18 @@ free_drm:
 static int meson_drv_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = dev_get_drvdata(&pdev->dev);
+#ifdef MUSE
 	struct meson_drm *priv = drm->dev_private;
+#endif
 
 	drm_dev_unregister(drm);
+#ifdef MUSE
 	drm_kms_helper_poll_fini(drm);
 	drm_fbdev_cma_fini(priv->fbdev);
 	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
 	drm_dev_unref(drm);
+#endif
 
 	return 0;
 }
