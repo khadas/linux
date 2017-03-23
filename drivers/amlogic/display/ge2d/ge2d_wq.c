@@ -308,6 +308,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 			mask = mask << 1;
 
 		}
+		pitem->cmd.hang_flag = 1;
 		ge2d_set_cmd(&pitem->cmd);/* set START_FLAG in this func. */
 		/* remove item */
 		block_mode = pitem->cmd.wait_done_flag;
@@ -1568,6 +1569,12 @@ int ge2d_wq_init(struct platform_device *pdev,
 	ge2d_gen_cfg.dp_off_cnt      = 0;
 	ge2d_gen_cfg.dp_onoff_mode   = 0;
 	ge2d_gen_cfg.vfmt_onoff_en   = 0;
+	/*  fifo size control, 00: 512, 01: 256, 10: 128 11: 96 */
+	ge2d_gen_cfg.fifo_size = 0;
+	/* fifo burst control, 00: 24x64, 01: 32x64
+	 * 10: 48x64, 11:64x64
+	 */
+	ge2d_gen_cfg.burst_ctrl = 0;
 	ge2d_set_gen(&ge2d_gen_cfg);
 	ge2d_clk_config(false);
 
