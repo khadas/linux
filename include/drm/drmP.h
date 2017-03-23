@@ -469,6 +469,7 @@ struct drm_file {
 	int event_space;
 
 	struct drm_prime_file_private prime;
+	void *client;
 };
 
 /** Wait queue */
