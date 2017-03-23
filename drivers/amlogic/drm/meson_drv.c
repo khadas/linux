@@ -52,6 +52,8 @@
 #include "meson_venc.h"
 #include "meson_canvas.h"
 #include "meson_registers.h"
+#include "meson_gem.h"
+#include "meson_dmabuf.h"
 
 #define DRIVER_NAME "meson"
 #define DRIVER_DESC "Amlogic Meson DRM driver"
@@ -147,20 +149,17 @@ static struct drm_driver meson_driver = {
 	/* PRIME Ops */
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import	= drm_gem_prime_import,
-	.gem_prime_export	= drm_gem_prime_export,
-	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
+	.gem_prime_import	= meson_dmabuf_prime_import,
+	.gem_prime_export	= meson_dmabuf_prime_export,
 
 	/* GEM Ops */
-	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_destroy		= drm_gem_dumb_destroy,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.gem_free_object	= drm_gem_cma_free_object,
-	.gem_vm_ops		= &drm_gem_cma_vm_ops,
+	.open				= meson_drm_gem_open,
+	.postclose			= meson_drm_gem_close,
+	.dumb_create		= meson_drm_gem_dumb_create,
+	.dumb_destroy		= meson_drm_gem_dumb_destroy,
+	.dumb_map_offset	= meson_drm_gem_dumb_map_offset,
+	.gem_free_object	= meson_drm_gem_free_object,
+	.gem_vm_ops			= &drm_gem_cma_vm_ops,
 
 	/* Misc */
 	.fops			= &fops,
