@@ -1198,8 +1198,14 @@ void osd_setpal_hw(u32 index,
 		   unsigned transp
 		  )
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB)
-		return;
+	int do_lut;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX)
+			&& (index == OSD2))
+			do_lut = 1;
+		 else
+			return;
+	}
 
 	if (regno < 256) {
 		u32 pal;
@@ -1804,6 +1810,42 @@ void osd_set_urgent(u32 index, u32 urgent)
 	osd_wait_vsync_hw();
 }
 
+void osd_get_deband(u32 *osd_deband_enable)
+{
+	*osd_deband_enable = osd_hw.osd_deband_enable;
+}
+
+void osd_set_deband(u32 osd_deband_enable)
+{
+	u32 data32;
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXLX) {
+		if (osd_hw.free_scale_enable[OSD1]
+			|| osd_hw.free_scale_enable[OSD2]) {
+			osd_hw.osd_deband_enable = osd_deband_enable;
+
+			spin_lock_irqsave(&osd_lock, lock_flags);
+
+			data32 = VSYNCOSD_RD_MPEG_REG(OSD_DB_FLT_CTRL);
+			if (osd_deband_enable) {
+				/* Bit 23	 debanding registers of side
+				 * lines, [0] for luma
+				 * Bit 22	 debanding registers of side
+				 * lines, [1] for chroma
+				 * Bit 5debanding registers,for luma
+				 * Bit 4debanding registers,for chroma
+				 */
+				data32 |= 3 << 4;
+				data32 |= 3 << 22;
+			} else {
+				data32 |= 0 << 4;
+				data32 |= 0 << 22;
+			}
+			VSYNCOSD_WR_MPEG_REG(OSD_DB_FLT_CTRL, data32);
+			spin_unlock_irqrestore(&osd_lock, lock_flags);
+			osd_wait_vsync_hw();
+		}
+	}
+}
 #ifdef CONFIG_FB_OSD_SUPPORT_SYNC_FENCE
 enum {
 	HAL_PIXEL_FORMAT_RGBA_8888 = 1,
@@ -3675,6 +3717,7 @@ void osd_init_hw(u32 logo_loaded)
 	osd_hw.rotation_pandata[OSD2].y_start = 0;
 	*/
 	osd_hw.antiflicker_mode = 0;
+	osd_hw.osd_deband_enable = 1;
 	osd_hw.color_key_enable[OSD1] = 0;
 	osd_hw.color_key_enable[OSD2] = 0;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) {
@@ -3708,6 +3751,7 @@ void osd_init_hw(u32 logo_loaded)
 		osd_hw.free_scale_mode[OSD1] = 0;
 		osd_hw.free_scale_mode[OSD2] = 0;
 	}
+	osd_set_deband(osd_hw.osd_deband_enable);
 	/* osd_hw.osd_afbcd[OSD1].enable = 0;
 		osd_hw.osd_afbcd[OSD2].enable = 0; */
 	/* memset(osd_hw.rotate, 0, sizeof(struct osd_rotate_s)); */
