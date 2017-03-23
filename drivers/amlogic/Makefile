@@ -135,4 +135,7 @@ obj-$(CONFIG_AML_AO_CEC) += cec/
 obj-$(CONFIG_CRYPTO_AML)	+= crypto/
 
 obj-$(CONFIG_AMLOGIC_WATCHPOINT) += watchpoint/
+
 obj-$(CONFIG_AML_ESM) += esm/
+
+obj-$(CONFIG_DRM_MESON) += drm/
