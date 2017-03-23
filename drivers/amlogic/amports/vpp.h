@@ -184,6 +184,9 @@ enum select_scaler_path_e {
 #define MODE_FORCE_3D_LR	0x01000000
 #define MODE_FORCE_3D_TB	0x02000000
 #define MODE_3D_FP			0x04000000
+#define MODE_FORCE_3D_FA_LR	0x10000000
+#define MODE_FORCE_3D_FA_TB	0x20000000
+
 
 /*when the output mode is field alterlative*/
 /* LRLRLRLRL mode */
