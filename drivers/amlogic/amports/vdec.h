@@ -97,15 +97,6 @@ extern s32 vdec_request_irq(enum vdec_irq_num num, irq_handler_t handler,
 	const char *devname, void *dev);
 extern void vdec_free_irq(enum vdec_irq_num num, void *dev);
 
-enum vdec2_usage_e {
-	USAGE_NONE,
-	USAGE_DEC_4K2K,
-	USAGE_ENCODE,
-};
-
-extern void set_vdec2_usage(enum vdec2_usage_e usage);
-extern enum vdec2_usage_e get_vdec2_usage(void);
-
 extern void dma_contiguous_early_fixup(phys_addr_t base, unsigned long size);
 unsigned int get_vdec_clk_config_settings(void);
 void update_vdec_clk_config_settings(unsigned int config);

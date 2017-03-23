@@ -882,9 +882,6 @@ void vreal_set_fatal_flag(int flag)
 		fatal_flag = PARSER_FATAL_ERROR;
 }
 
-/*TODO encoder*/
-/* extern void AbortEncodeWithVdec2(int abort); */
-
 static int amvdec_real_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
@@ -895,27 +892,6 @@ static int amvdec_real_probe(struct platform_device *pdev)
 	}
 	if (pdata->sys_info)
 		vreal_amstream_dec_info = *pdata->sys_info;
-	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC)) */
-	/* if(IS_MESON_M8_CPU){ */
-	if (has_hdec()) {
-		/* disable vdec2 dblk when miracast. */
-		int count = 0;
-		if (get_vdec2_usage() != USAGE_NONE)
-			/*TODO encoder */
-			/* AbortEncodeWithVdec2(1); */
-			while ((get_vdec2_usage() != USAGE_NONE)
-				   && (count < 10)) {
-				msleep(50);
-				count++;
-			}
-
-		if (get_vdec2_usage() != USAGE_NONE) {
-			pr_info("\namvdec_real_probe --- stop vdec2 fail.\n");
-			return -EBUSY;
-		}
-	}
-	/* } */
-	/* #endif */
 
 	pdata->dec_status = vreal_dec_status;
 	pdata->set_isreset = vreal_set_isreset;
@@ -923,13 +899,6 @@ static int amvdec_real_probe(struct platform_device *pdev)
 
 	if (vreal_init(pdata) < 0) {
 		pr_info("amvdec_real init failed.\n");
-		/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC) */
-		/* if(IS_MESON_M8_CPU) */
-		if (has_hdec()) {
-			/*TODO encoder */
-			/* AbortEncodeWithVdec2(0); */
-		}
-		/* #endif */
 		return -ENODEV;
 	}
 
@@ -973,17 +942,10 @@ static int amvdec_real_remove(struct platform_device *pdev)
 
 	amvdec_disable();
 
-	/* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8)&&(HAS_HDEC) */
-	/* if(IS_MESON_M8_CPU) */
-	if (has_hdec()) {
-		/*TODO encoder */
-		/* AbortEncodeWithVdec2(0); */
-	}
 	if (mm_blk_handle) {
 		decoder_bmmu_box_free(mm_blk_handle);
 		mm_blk_handle = NULL;
 	}
-	/* #endif */
 	pr_info("frame duration %d, frames %d\n", frame_dur, frame_count);
 	return 0;
 }

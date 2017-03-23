@@ -32,7 +32,6 @@ struct port_priv_s {
 
 struct stream_buf_s *get_buf_by_type(u32 type);
 
-extern void amvenc_dos_top_reg_fix(void);
 /*video.c provide*/
 extern u32 trickmode_i;
 struct amvideocap_req;

@@ -1220,8 +1220,6 @@ static void vh264_4k2k_prot_init(void)
 	WRITE_VREG(MDEC_PIC_DC_THRESH, 0x404038aa);
 	if (!H264_4K2K_SINGLE_CORE) {
 		WRITE_VREG(VDEC2_MDEC_PIC_DC_THRESH, 0x404038aa);
-		/*TODO for M8
-		amvenc_dos_top_reg_fix();*/
 	}
 #ifdef DOUBLE_WRITE
 	WRITE_VREG(MDEC_DOUBLEW_CFG0, (0 << 31) |	/* half y address */
@@ -1622,10 +1620,6 @@ void vh264_4k_free_cmabuf(void)
 	mutex_unlock(&vh264_4k2k_mutex);
 }
 
-#if 0 /* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (HAS_HDEC) */
-/* extern void AbortEncodeWithVdec2(int abort); */
-#endif
-
 static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 {
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
@@ -1653,31 +1647,10 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 		   (unsigned long) vh264_4k2k_amstream_dec_info.param);
 
 	if (!H264_4K2K_SINGLE_CORE) {
-#if 1 /* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (has_hdec()) */
-		int count = 0;
-		if (get_vdec2_usage() != USAGE_NONE)
-			/* AbortEncodeWithVdec2(1); */ /*TODO*/
-		while ((get_vdec2_usage() != USAGE_NONE) && (count < 10)) {
-			msleep(50);
-			count++;
-		}
-
-		if (get_vdec2_usage() != USAGE_NONE) {
-			pr_info
-			("\namvdec_h264_4k2k - vdec2 is used by encode now.\n");
-			mutex_unlock(&vh264_4k2k_mutex);
-			return -EBUSY;
-		}
-#endif
-
 		if (vdec_on(VDEC_2)) {	/* ++++ */
 			vdec_poweroff(VDEC_2);	/* ++++ */
 			mdelay(10);
 		}
-#if 1 /* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (has_hdec()) */
-		set_vdec2_usage(USAGE_DEC_4K2K);
-		/* AbortEncodeWithVdec2(0); */ /*TODO*/
-#endif
 		vdec_poweron(VDEC_2);
 	}
 
@@ -1691,12 +1664,6 @@ static int amvdec_h264_4k2k_probe(struct platform_device *pdev)
 
 	if (vh264_4k2k_init() < 0) {
 		pr_info("\namvdec_h264_4k2k init failed.\n");
-#if 1/* (MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (has_hdec()) */
-		if (!H264_4K2K_SINGLE_CORE) {
-			set_vdec2_usage(USAGE_NONE);
-			/*AbortEncodeWithVdec2(0);*/ /*TODO*/
-		}
-#endif
 		mutex_unlock(&vh264_4k2k_mutex);
 		kfree(gvs);
 		gvs = NULL;
@@ -1731,9 +1698,6 @@ static int amvdec_h264_4k2k_remove(struct platform_device *pdev)
 
 	if (!H264_4K2K_SINGLE_CORE) {
 		vdec_poweroff(VDEC_2);
-#if 1/*(MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8) && (has_hdec())*/
-		set_vdec2_usage(USAGE_NONE);
-#endif
 	}
 #ifdef DEBUG_PTS
 	pr_info("pts missed %ld, pts hit %ld, duration %d\n",

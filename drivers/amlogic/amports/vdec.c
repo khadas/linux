@@ -2381,24 +2381,6 @@ int hevc_source_changed(int format, int width, int height, int fps)
 	return ret;
 }
 
-static enum vdec2_usage_e vdec2_usage = USAGE_NONE;
-void set_vdec2_usage(enum vdec2_usage_e usage)
-{
-	if (has_vdec2()) {
-		mutex_lock(&vdec_mutex);
-		vdec2_usage = usage;
-		mutex_unlock(&vdec_mutex);
-	}
-}
-
-enum vdec2_usage_e get_vdec2_usage(void)
-{
-	if (has_vdec2())
-		return vdec2_usage;
-	else
-		return 0;
-}
-
 static struct am_reg am_risc[] = {
 	{"MSP", 0x300},
 	{"MPSR", 0x301},

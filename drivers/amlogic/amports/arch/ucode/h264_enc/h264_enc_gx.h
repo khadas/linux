@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/amports/arch/m8_m8m2/h264_enc/h264_enc_gx.h
+ * drivers/amlogic/amports/arch/ucode/h264_enc/h264_enc_gx.h
  *
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  *
