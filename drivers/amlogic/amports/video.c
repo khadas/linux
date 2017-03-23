@@ -5206,15 +5206,17 @@ alternative mode,passing two buffer in one frame */
 		}
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
 #ifdef CONFIG_AM_VOUT
-		if (data != NULL) {
-			if (video_seek_flag == 0) {
-				/*set_vframe_rate_hint((unsigned long)(data));*/
+		if ((data != NULL) && (video_seek_flag == 0)) {
+			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+			|| get_cpu_type() == MESON_CPU_MAJOR_ID_TXL) {
+				set_vframe_rate_hint((unsigned long)data);
+			} else {
 				sprintf(framerate, "FRAME_RATE_HINT=%lu",
-						(unsigned long)data);
+					(unsigned long)data);
 				configured[0] = framerate;
 				configured[1] = NULL;
 				kobject_uevent_env(&(amvideo_dev->kobj),
-						KOBJ_CHANGE, configured);
+					KOBJ_CHANGE, configured);
 				pr_info("%s: sent uevent %s\n",
 					__func__, configured[0]);
 			}
@@ -5223,13 +5225,17 @@ alternative mode,passing two buffer in one frame */
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
 #ifdef CONFIG_AM_VOUT
 		if (video_seek_flag == 0) {
-			configured[0] = "FRAME_RATE_END_HINT";
-			configured[1] = NULL;
-			/*set_vframe_rate_end_hint();*/
-			kobject_uevent_env(&(amvideo_dev->kobj),
+			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
+			|| get_cpu_type() == MESON_CPU_MAJOR_ID_TXL) {
+				set_vframe_rate_end_hint();
+			} else {
+				configured[0] = "FRAME_RATE_END_HINT";
+				configured[1] = NULL;
+				kobject_uevent_env(&(amvideo_dev->kobj),
 					KOBJ_CHANGE, configured);
-			pr_info("%s: sent uevent %s\n",
-				__func__, configured[0]);
+				pr_info("%s: sent uevent %s\n",
+					__func__, configured[0]);
+			}
 		}
 #endif
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO) {

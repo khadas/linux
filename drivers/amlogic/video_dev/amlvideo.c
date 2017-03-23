@@ -258,6 +258,12 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 						VFRAME_EVENT_PROVIDER_START,
 						NULL);
 		}
+	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
+		vf_notify_receiver(dev->vf_provider_name,
+			VFRAME_EVENT_PROVIDER_FR_HINT, data);
+	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
+		vf_notify_receiver(dev->vf_provider_name,
+		VFRAME_EVENT_PROVIDER_FR_END_HINT, data);
 	}
 	return 0;
 }
