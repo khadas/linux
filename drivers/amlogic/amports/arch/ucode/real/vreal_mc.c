@@ -18,7 +18,7 @@
 #include "../firmware_def.h"
 
 #define VERSTR "00000"
-const u32 vreal_mc_8[] __initconst = {
+static const u32 vreal_mc_8[] __initconst = {
 	0x00000000, 0x06805dc1, 0x06800000, 0x0d000001, 0x07400040,
 	0x0c00bcc0, 0x0680001e, 0x0c02c200, 0x00000000, 0x080c0002,
 	0x06bfda00, 0x06030400, 0x00400000, 0x00000000, 0x00000000,
@@ -692,7 +692,7 @@ const u32 vreal_mc_8[] __initconst = {
 	0x0cc00000, 0x00000000
 };
 
-const u32 vreal_mc_9[] = {
+static const u32 vreal_mc_9[] __initconst = {
 	0x00000000, 0x06805dc1, 0x06800000, 0x0d000001, 0x07400040,
 	0x0c00a780, 0x0680001e, 0x0c02e1c0, 0x00000000, 0x080c0002,
 	0x06bfda00, 0x06030400, 0x00400000, 0x00000000, 0x00000000,
@@ -1359,10 +1359,27 @@ const u32 vreal_mc_9[] = {
 
 #define FOR_VFORMAT VFORMAT_REAL
 
+#undef DEF_FIRMEARE_FOR_GXBB
+#define DEF_FIRMEARE_FOR_GXBB(n) \
+		REGISTER_FIRMARE_PER_CPU(MESON_CPU_MAJOR_ID_GXBB,\
+		FOR_VFORMAT, n)
+
+#define DEF_FIRMEARE_FOR_GXM(n) \
+		REGISTER_FIRMARE_PER_CPU(MESON_CPU_MAJOR_ID_GXM,\
+		FOR_VFORMAT, n)
+
+#define DEF_FIRMEARE_FOR_TXL(n) \
+		REGISTER_FIRMARE_PER_CPU(MESON_CPU_MAJOR_ID_TXL,\
+		FOR_VFORMAT, n)
+
 #define REG_FIRMWARE_ALL()\
 	do {\
-		DEF_FIRMWARE_VER(vreal_mc_8, VERSTR);\
-		DEF_FIRMWARE_VER(vreal_mc_9, VERSTR);\
+		DEF_FIRMEARE_FOR_GXBB(vreal_mc_8);\
+		DEF_FIRMEARE_FOR_GXBB(vreal_mc_9);\
+		DEF_FIRMEARE_FOR_GXM(vreal_mc_8);\
+		DEF_FIRMEARE_FOR_GXM(vreal_mc_9);\
+		DEF_FIRMEARE_FOR_TXL(vreal_mc_8);\
+		DEF_FIRMEARE_FOR_TXL(vreal_mc_9);\
 	} while (0)
 
 INIT_DEF_FIRMWARE();
