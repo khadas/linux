@@ -37,12 +37,13 @@ Do not trust Reg no signal flag */
 #define TVAFE_CVD2_AUTO_DE_CHECK_CNT        100
 /* check lines counter 100*10ms */
 #define TVAFE_CVD2_AUTO_DE_TH               0xd0
+#define TVAFE_CVD2_AUTO_VS_TH               0x6
 /* audo de threshold */
 #define TVAFE_CVD2_PAL_DE_START             0x17
 /* default de start value for pal */
 
 /* test with vlsi guys */
-#define TVAFE_VS_VE_VAL                     4
+#define TVAFE_VS_VE_VAL                     20
 /**************************************** */
 /* *** enum definitions *****************/
 /* **************************************/
@@ -110,6 +111,7 @@ struct tvafe_cvd2_info_s {
 	unsigned int                hcnt64_cnt;
 #endif
 	unsigned int		    hs_adj_level;
+	unsigned int		    vs_adj_level;
 #ifdef TVAFE_SET_CVBS_PGA_EN
 	unsigned short              dgain[4];
 	unsigned short              dgain_cnt;
@@ -121,6 +123,7 @@ struct tvafe_cvd2_info_s {
 	bool                        non_std_worst;
 	bool                        adc_reload_en;
 	bool			    hs_adj_en;
+	bool			    vs_adj_en;
 	/*0:+;1:-*/
 	bool			    hs_adj_dir;
 

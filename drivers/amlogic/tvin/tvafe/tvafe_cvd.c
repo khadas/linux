@@ -124,6 +124,10 @@ static int scene_colorful_old;
 static int auto_de_en = 1;
 static int lock_cnt;
 static unsigned int cvd_reg8a = 0xa;
+static int auto_vs_en = 1;
+
+module_param(auto_vs_en, int, 0664);
+MODULE_PARM_DESC(auto_vs_en, "auto_vs_en\n");
 
 module_param(auto_de_en, int, 0664);
 MODULE_PARM_DESC(auto_de_en, "auto_de_en\n");
@@ -268,6 +272,7 @@ MODULE_PARM_DESC(acd_h_config, "acd_h_config");
 static unsigned int acd_h = 0X880358;
 module_param(acd_h, uint, 0664);
 MODULE_PARM_DESC(acd_h, "acd_h");
+static unsigned int acd_h_back = 0X880358;
 
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 static unsigned int cvd2_filter_config_level;
@@ -275,25 +280,34 @@ module_param(cvd2_filter_config_level, uint, 0664);
 MODULE_PARM_DESC(cvd2_filter_config_level, "cvd2_filter_config_level");
 
 static unsigned int hs_adj_th_level0 = 0x260;
-module_param(hs_adj_th_level0, uint, 0664);
-MODULE_PARM_DESC(hs_adj_th_level0, "hs_adj_th_level0");
-
 static unsigned int hs_adj_th_level1 = 0x4f0;
-module_param(hs_adj_th_level1, uint, 0664);
-MODULE_PARM_DESC(hs_adj_th_level1, "hs_adj_th_level1");
-
 static unsigned int hs_adj_th_level2 = 0x770;
-module_param(hs_adj_th_level2, uint, 0664);
-MODULE_PARM_DESC(hs_adj_th_level2, "hs_adj_th_level2");
-
 static unsigned int hs_adj_th_level3 = 0x9e0;
-module_param(hs_adj_th_level3, uint, 0664);
-MODULE_PARM_DESC(hs_adj_th_level3, "hs_adj_th_level3");
-
 static unsigned int hs_adj_th_level4 = 0xc50;
-module_param(hs_adj_th_level4, uint, 0664);
-MODULE_PARM_DESC(hs_adj_th_level4, "hs_adj_th_level4");
-
+/*0.5hz*/
+static unsigned int vs_adj_th_level0 = 0xfa;
+/*1.5hz*/
+static unsigned int vs_adj_th_level1 = 0xee;
+/*2.5hz*/
+static unsigned int vs_adj_th_level2 = 0xe2;
+/*3hz*/
+static unsigned int vs_adj_th_level3 = 0xdc;
+/*3.5hz*/
+static unsigned int vs_adj_th_level4 = 0xd8;
+/*-0.5hz*/
+static unsigned int vs_adj_th_level00 = 0x6;
+/*-1.0hz*/
+static unsigned int vs_adj_th_level01 = 0xc;
+/*-1.5hz*/
+static unsigned int vs_adj_th_level02 = 0x12;
+/*-3hz*/
+static unsigned int vs_adj_th_level03 = 0x20;
+/*-3.5hz*/
+static unsigned int vs_adj_th_level04 = 0x28;
+static unsigned int cvd_2e = 0x8c;
+static unsigned int cvd_2e_l1 = 0x5c;
+static unsigned int acd_128 = 0x14;
+static unsigned int acd_128_l1 = 0x1f;
 static unsigned int try_format_cnt;
 
 static bool cvd_pr_flag;
@@ -2022,6 +2036,59 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 		}
 	}
 }
+/* vlis advice new add @20170329 */
+static void tvafe_cvd2_adj_vs(struct tvafe_cvd2_s *cvd2)
+{
+	struct tvafe_cvd2_lines_s *lines = &cvd2->info.vlines;
+	unsigned int i = 0, l_ave = 0, l_max = 0, l_min = 0xff;
+	if (!cvd2->hw.line625 || (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I))
+		return;
+	if (auto_de_en == 0) {
+		lines->val[0] = lines->val[1];
+		lines->val[1] = lines->val[2];
+		lines->val[2] = lines->val[3];
+		lines->val[3] = R_APB_REG(CVD2_REG_E6);
+	}
+	for (i = 0; i < 4; i++) {
+		if (l_max < lines->val[i])
+			l_max = lines->val[i];
+		if (l_min > lines->val[i])
+			l_min = lines->val[i];
+		l_ave += lines->val[i];
+	}
+	if (lines->check_cnt++ == TVAFE_CVD2_AUTO_DE_CHECK_CNT)
+		lines->check_cnt = TVAFE_CVD2_AUTO_DE_CHECK_CNT;
+	if (lines->check_cnt == TVAFE_CVD2_AUTO_DE_CHECK_CNT) {
+		l_ave = (l_ave - l_max - l_min + 1) >> 1;
+		if (l_ave > TVAFE_CVD2_AUTO_VS_TH) {
+			cvd2->info.vs_adj_en = 1;
+			/*vlsi test result*/
+			if (R_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE) != 3)
+				W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, 0x3);
+		} else {
+			cvd2->info.vs_adj_en = 0;
+			if (R_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE) != 0xa)
+				W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, 0xa);
+		}
+		/* get the average value */
+		if ((l_ave > vs_adj_th_level0) || (l_ave < vs_adj_th_level00))
+			cvd2->info.vs_adj_level = 0;
+		else if ((l_ave > vs_adj_th_level1) ||
+			(l_ave < vs_adj_th_level01))
+			cvd2->info.vs_adj_level = 1;
+		else if ((l_ave > vs_adj_th_level2) ||
+			(l_ave < vs_adj_th_level02))
+			cvd2->info.vs_adj_level = 2;
+		else if ((l_ave > vs_adj_th_level3) ||
+			(l_ave < vs_adj_th_level03))
+			cvd2->info.vs_adj_level = 3;
+		else if ((l_ave > vs_adj_th_level4) ||
+			(l_ave < vs_adj_th_level04))
+			cvd2->info.vs_adj_level = 4;
+		else
+			cvd2->info.vs_adj_level = 0xff;
+	}
+}
 #endif
 /*set default de according to config fmt*/
 void tvafe_cvd2_set_default_de(struct tvafe_cvd2_s *cvd2)
@@ -2193,12 +2260,13 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 		ret = false;
 		cvd2->cvd2_init_en = false;
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
-	if ((!scene_colorful) && auto_de_en)
-		tvafe_cvd2_auto_de(cvd2);
-	else
+	if (((!scene_colorful) && auto_de_en) || auto_vs_en) {
+		if (auto_de_en)
+			tvafe_cvd2_auto_de(cvd2);
+		if (auto_vs_en)
+			tvafe_cvd2_adj_vs(cvd2);
+	} else
 		tvafe_cvd2_set_default_de(cvd2);
-
-
 #endif
 	}
 	if (ret&try_format_cnt) {
@@ -2466,7 +2534,7 @@ static void tvafe_cvd2_cdto_tune(unsigned int cur, unsigned int dest)
 inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			unsigned int hcnt64)
 {
-	unsigned int hcnt64_max, hcnt64_min;
+	unsigned int hcnt64_max, hcnt64_min, temp, delta;
 	unsigned int diff, hcnt64_ave, i, hcnt64_standard;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
@@ -2524,6 +2592,42 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				cvd2->info.hs_adj_dir = 1;
 			else
 				cvd2->info.hs_adj_dir = 0;
+			/*@20170420 vlsi adjust new add,optimize for display*/
+			if (cvd2->info.hs_adj_dir == 1) {
+				/* 0x2e: 0x5c is test result, 0x9c is default */
+				temp = (cvd_2e - cvd_2e_l1) *
+					cvd2->info.hs_adj_level;
+				delta = temp / 4;
+				temp = cvd_2e - delta;
+				W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, temp,
+					HACTIVE_START_BIT, HACTIVE_START_WID);
+				/* 0x12d */
+				temp = delta << 16;
+				temp = temp | delta;
+				temp = acd_h_back - temp;
+				W_APB_REG(ACD_REG_2D, temp);
+				acd_h = temp;
+			} else {
+				/*0x128*/
+				temp = (acd_128_l1 - acd_128) *
+					cvd2->info.hs_adj_level;
+				temp = temp / 4;
+				temp = temp + acd_128;
+				W_APB_BIT(ACD_REG_28, temp, 16, 5);
+				/*0x166 bit31*/
+				if (cvd2->info.hs_adj_level > 0)
+					W_APB_BIT(ACD_REG_66, 0,
+						AML_2DCOMB_EN_BIT,
+						AML_2DCOMB_EN_WID);
+				/*0x12d, 0x94 is test result, 0x88 is default*/
+				temp = (0x94 - 0x88) * cvd2->info.hs_adj_level;
+				delta = temp / 4;
+				temp = delta << 16;
+				temp = temp | delta;
+				temp = acd_h_back + temp;
+				W_APB_REG(ACD_REG_2D, temp);
+				acd_h = temp;
+			}
 		} else {
 			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
 				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
@@ -2531,6 +2635,10 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xd);
 			if (R_APB_REG(CVD2_REG_87) != 0x0)
 				W_APB_REG(CVD2_REG_87, 0x0);
+			W_APB_REG(ACD_REG_2D, acd_h_back);
+			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, cvd_2e,
+					HACTIVE_START_BIT, HACTIVE_START_WID);
+			W_APB_BIT(ACD_REG_28, acd_128, 16, 5);
 			cvd2->info.hs_adj_en = 0;
 			cvd2->info.hs_adj_level = 0;
 		}
@@ -2796,4 +2904,62 @@ enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void)
 		aspect_ratio = TVIN_ASPECT_NULL;
 	return aspect_ratio;
 }
+/*only for develop debug*/
+#ifdef TVAFE_CVD_DEBUG
+module_param(hs_adj_th_level0, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level0, "hs_adj_th_level0");
 
+module_param(hs_adj_th_level1, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level1, "hs_adj_th_level1");
+
+module_param(hs_adj_th_level2, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level2, "hs_adj_th_level2");
+
+module_param(hs_adj_th_level3, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level3, "hs_adj_th_level3");
+
+module_param(hs_adj_th_level4, uint, 0664);
+MODULE_PARM_DESC(hs_adj_th_level4, "hs_adj_th_level4");
+
+module_param(vs_adj_th_level0, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level0, "vs_adj_th_level0");
+
+module_param(vs_adj_th_level1, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level1, "vs_adj_th_level1");
+
+module_param(vs_adj_th_level2, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level2, "vs_adj_th_level2");
+
+module_param(vs_adj_th_level3, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level3, "vs_adj_th_level3");
+
+module_param(vs_adj_th_level4, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level4, "vs_adj_th_level4");
+
+module_param(vs_adj_th_level00, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level00, "vs_adj_th_level00");
+
+module_param(vs_adj_th_level01, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level01, "vs_adj_th_level01");
+
+module_param(vs_adj_th_level02, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level02, "vs_adj_th_level02");
+
+module_param(vs_adj_th_level03, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level03, "vs_adj_th_level03");
+
+module_param(vs_adj_th_level04, uint, 0664);
+MODULE_PARM_DESC(vs_adj_th_level04, "vs_adj_th_level04");
+
+module_param(cvd_2e, uint, 0664);
+MODULE_PARM_DESC(cvd_2e, "cvd_2e");
+
+module_param(cvd_2e_l1, uint, 0664);
+MODULE_PARM_DESC(cvd_2e_l1, "cvd_2e_l1");
+
+module_param(acd_128, uint, 0664);
+MODULE_PARM_DESC(acd_128, "acd_128");
+
+module_param(acd_128_l1, uint, 0664);
+MODULE_PARM_DESC(acd_128_l1, "acd_128_l1");
+#endif
