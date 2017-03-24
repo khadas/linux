@@ -627,11 +627,12 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 
 void codec_mm_release_with_check(struct codec_mm_s *mem, const char *owner)
 {
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	unsigned long flags;
 	int ret;
-	spin_lock_irqsave(&mem->lock, flags);
+	spin_lock_irqsave(&mgt->lock, flags);
 	ret = codec_mm_valid_mm_locked(mem);
-	spin_unlock_irqrestore(&mem->lock, flags);
+	spin_unlock_irqrestore(&mgt->lock, flags);
 	if (ret) {
 		/*for check,*/
 		return codec_mm_release(mem, owner);
