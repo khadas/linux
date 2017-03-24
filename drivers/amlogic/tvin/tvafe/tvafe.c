@@ -77,24 +77,15 @@ module_param(vga_yuv422_enable, int, 0664);
 MODULE_PARM_DESC(vga_yuv422_enable, "vga_yuv422_enable");
 
 static int cutwindow_val_v = TVAFE_VS_VE_VAL;
-module_param(cutwindow_val_v, int, 0664);
-MODULE_PARM_DESC(cutwindow_val_v, "cutwindow_val_v");
-
-static int cutwindow_val_h_level1 = 6;
-module_param(cutwindow_val_h_level1, int, 0664);
-MODULE_PARM_DESC(cutwindow_val_h_level1, "cutwindow_val_h_level1");
-
-static int cutwindow_val_h_level2 = 8;
-module_param(cutwindow_val_h_level2, int, 0664);
-MODULE_PARM_DESC(cutwindow_val_h_level2, "cutwindow_val_h_level2");
-
-static int cutwindow_val_h_level3 = 16;
-module_param(cutwindow_val_h_level3, int, 0664);
-MODULE_PARM_DESC(cutwindow_val_h_level3, "cutwindow_val_h_level3");
-
-static int cutwindow_val_h_level4 = 18;
-module_param(cutwindow_val_h_level4, int, 0664);
-MODULE_PARM_DESC(cutwindow_val_h_level4, "cutwindow_val_h_level4");
+static int cutwindow_val_v_level0 = 4;
+static int cutwindow_val_v_level1 = 8;
+static int cutwindow_val_v_level2 = 14;
+static int cutwindow_val_v_level3 = 16;
+static int cutwindow_val_v_level4 = 24;
+static int cutwindow_val_h_level1 = 10;
+static int cutwindow_val_h_level2 = 18;
+static int cutwindow_val_h_level3 = 20;
+static int cutwindow_val_h_level4 = 48;
 
 bool tvafe_dbg_enable;
 module_param(tvafe_dbg_enable, bool, 0644);
@@ -191,6 +182,10 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		cvd2_info->hs_adj_dir);
 	pr_info("[tvafe..]tvafe_cvd2_info_s->hs_adj_level:%d\n",
 		cvd2_info->hs_adj_level);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->vs_adj_level:%d\n",
+		cvd2_info->vs_adj_level);
+	pr_info("[tvafe..]tvafe_cvd2_info_s->vs_adj_en:%d\n",
+		cvd2_info->vs_adj_en);
 #ifdef TVAFE_SET_CVBS_CDTO_EN
 	pr_info("[tvafe..]tvafe_cvd2_info_s->hcnt64[0]:0x%x\n",
 		cvd2_info->hcnt64[0]);
@@ -1340,6 +1335,7 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	enum tvin_port_e port = tvafe->parm.port;
 	unsigned int hs_adj_lev = cutwindow_val_h_level1;
+	unsigned int vs_adj_lev = cutwindow_val_v_level1;
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
@@ -1362,9 +1358,21 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 	}
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS7)) {
-		if (tvafe->cvd2.info.vlines.de_offset != 0) {
-			prop->vs = cutwindow_val_v;
-			prop->ve = cutwindow_val_v;
+		if (tvafe->cvd2.info.vs_adj_en) {
+			if (tvafe->cvd2.info.vs_adj_level == 0)
+				vs_adj_lev = cutwindow_val_v_level0;
+			else if (tvafe->cvd2.info.vs_adj_level == 1)
+				vs_adj_lev = cutwindow_val_v_level1;
+			else if (tvafe->cvd2.info.vs_adj_level == 2)
+				vs_adj_lev = cutwindow_val_v_level2;
+			else if (tvafe->cvd2.info.vs_adj_level == 3)
+				vs_adj_lev = cutwindow_val_v_level3;
+			else if (tvafe->cvd2.info.vs_adj_level == 4)
+				vs_adj_lev = cutwindow_val_v_level4;
+			else
+				vs_adj_lev = 0;
+			prop->vs = vs_adj_lev;
+			prop->ve = vs_adj_lev;
 		} else {
 			prop->vs = 0;
 			prop->ve = 0;
@@ -1376,9 +1384,11 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 				hs_adj_lev = cutwindow_val_h_level2;
 			else if (tvafe->cvd2.info.hs_adj_level == 3)
 				hs_adj_lev = cutwindow_val_h_level3;
-			else if (tvafe->cvd2.info.hs_adj_level == 4)
+			else if (tvafe->cvd2.info.hs_adj_level == 4) {
 				hs_adj_lev = cutwindow_val_h_level4;
-			else
+				prop->vs = cutwindow_val_v;
+				prop->ve = cutwindow_val_v;
+			} else
 				hs_adj_lev = 0;
 			if (tvafe->cvd2.info.hs_adj_dir == true) {
 				prop->hs = 0;
@@ -1387,7 +1397,6 @@ void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 				prop->hs = hs_adj_lev;
 				prop->he = 0;
 			}
-
 		} else {
 			prop->hs = 0;
 			prop->he = 0;
@@ -2668,6 +2677,39 @@ RESERVEDMEM_OF_DECLARE(tvafe, "amlogic, tvafe_memory",
 	tvafe_mem_setup);
 
 MODULE_VERSION(TVAFE_VER);
+
+/*only for develop debug*/
+#ifdef TVAFE_DEBUG
+module_param(cutwindow_val_v, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v, "cutwindow_val_v");
+
+module_param(cutwindow_val_v_level0, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v_level0, "cutwindow_val_v_level0");
+
+module_param(cutwindow_val_v_level1, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v_level1, "cutwindow_val_v_level1");
+
+module_param(cutwindow_val_v_level2, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v_level2, "cutwindow_val_v_level2");
+
+module_param(cutwindow_val_v_level3, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v_level3, "cutwindow_val_v_level3");
+
+module_param(cutwindow_val_v_level4, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_v_level4, "cutwindow_val_v_level4");
+
+module_param(cutwindow_val_h_level1, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level1, "cutwindow_val_h_level1");
+
+module_param(cutwindow_val_h_level2, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level2, "cutwindow_val_h_level2");
+
+module_param(cutwindow_val_h_level3, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level3, "cutwindow_val_h_level3");
+
+module_param(cutwindow_val_h_level4, int, 0664);
+MODULE_PARM_DESC(cutwindow_val_h_level4, "cutwindow_val_h_level4");
+#endif
 
 MODULE_DESCRIPTION("AMLOGIC TVAFE driver");
 MODULE_LICENSE("GPL");
