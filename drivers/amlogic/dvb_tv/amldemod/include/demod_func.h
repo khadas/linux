@@ -108,7 +108,7 @@
 #define TXLTV_ADC_RESET_VALUE          0xca6a2110	/* 0xce7a2110 */
 #define TXLTV_ADC_REG1_VALUE           0x5d414260
 #define TXLTV_ADC_REG2_VALUE           0x5ba00384	/* 0x34e0bf81 */
-#define TXLTV_ADC_REG2_VALUE_CRY       0x34e0bf81
+#define TXLTV_ADC_REG2_VALUE_CRY       0x5ba00385
 #define TXLTV_ADC_REG3_VALUE           0x4a6a2110	/* 0x4e7a2110 */
 #define TXLTV_ADC_REG4_VALUE           0x02913004
 #define TXLTV_ADC_REG4_CRY_VALUE 0x301
@@ -647,5 +647,6 @@ void calculate_cordic_para(void);
 void ofdm_read_all_regs(void);
 extern int aml_fe_analog_set_frontend(struct dvb_frontend *fe);
 int get_dtvpll_init_flag(void);
+void demod_set_mode_ts(unsigned char dvb_mode);
 
 #endif

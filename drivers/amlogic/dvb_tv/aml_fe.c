@@ -45,7 +45,7 @@
 #define AML_FE_MAX_RES          50
 
 MODULE_PARM_DESC(debug_fe, "\n\t\t Enable frontend debug information");
-static int debug_fe;
+static int debug_fe = 1;
 module_param(debug_fe, int, 0644);
 
 static int slow_mode;
@@ -1317,7 +1317,7 @@ static int aml_fe_set_mode(struct dvb_frontend *dev, fe_type_t type)
 	int ret = 0;
 
 	fe = dev->demodulator_priv;
-	/*type=FE_ATSC; */
+	/*type = FE_ATSC;*/
 	switch (type) {
 	case FE_QPSK:
 		mode = AM_FE_QPSK;
