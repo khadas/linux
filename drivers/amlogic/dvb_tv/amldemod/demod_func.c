@@ -237,6 +237,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys)
 		demod_set_demod_reg(TXLTV_ADC_RESET_VALUE, ADC_REG3);
 		demod_set_demod_reg(adc_pll_cntl.d32, ADC_REG1);
 		demod_set_demod_reg(dig_clk_cfg.d32, ADC_REG6);
+		demod_set_demod_reg(0x502, ADC_REG6);
 		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
 		/* debug */
 		pr_dbg("[adc][%x]%x\n", ADC_REG1,
@@ -421,10 +422,36 @@ void demod_power_switch(int pwr_cntl)
 	}
 #endif
 }
+/* // 0 -DVBC J.83B, 1-DVBT, ISDBT, 2-ATSC,3-DTMB */
+void demod_set_mode_ts(unsigned char dvb_mode)
+{
+	union demod_cfg0 cfg0;
+	cfg0.b.adc_format = 1;
+	cfg0.b.adc_regout = 1;
+	if (dvb_mode == Gxtv_Dtmb) {
+		cfg0.b.ts_sel = 1;
+		cfg0.b.mode = 1;
+	} else if (dvb_mode == Gxtv_Dvbt_Isdbt) {
+		cfg0.b.ts_sel = 1<<1;
+		cfg0.b.mode = 1<<1;
+	} else if (dvb_mode == Gxtv_Atsc) {
+		cfg0.b.ts_sel = 1<<2;
+		cfg0.b.mode = 1<<2;
+		cfg0.b.adc_format = 0;
+		cfg0.b.adc_regout = 1;
+		cfg0.b.adc_regadj = 2;
+	} else if (dvb_mode == Gxtv_Dvbc) {
+		cfg0.b.ts_sel = 1<<3;
+		cfg0.b.mode = 1<<3;
+		cfg0.b.adc_format = 0;
+		cfg0.b.adc_regout = 0;
+	}
+	demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
+
+}
 
 static void clocks_set_sys_defaults(unsigned char dvb_mode)
 {
-	union demod_cfg0 cfg0;
 	union demod_cfg2 cfg2;
 
 	demod_power_switch(PWR_ON);
@@ -433,7 +460,7 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
 		demod_set_demod_reg(TXLTV_ADC_REG1_VALUE, ADC_REG1);
 		demod_set_demod_reg(TXLTV_ADC_REGB_VALUE, ADC_REGB);
-		demod_set_demod_reg(TXLTV_ADC_REG2_VALUE, ADC_REG2);
+		demod_set_demod_reg(TXLTV_ADC_REG2_VALUE_CRY, ADC_REG2);
 		demod_set_demod_reg(TXLTV_ADC_REG3_VALUE, ADC_REG3);
 		demod_set_demod_reg(TXLTV_ADC_REG4_VALUE, ADC_REG4);
 		demod_set_demod_reg(TXLTV_ADC_REGC_VALUE, ADC_REGC);
@@ -481,24 +508,7 @@ static void clocks_set_sys_defaults(unsigned char dvb_mode)
 	demod_set_demod_reg(DEMOD_REG1_VALUE, DEMOD_REG1);
 	demod_set_demod_reg(DEMOD_REG2_VALUE, DEMOD_REG2);
 	demod_set_demod_reg(DEMOD_REG3_VALUE, DEMOD_REG3);
-	cfg0.b.adc_format = 1;
-	cfg0.b.adc_regout = 1;
-	if (dvb_mode == Gxtv_Dtmb) {	/* // 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
-		cfg0.b.ts_sel = 1;
-		cfg0.b.mode = 1;
-	} else if (dvb_mode == Gxtv_Dvbt_Isdbt) {
-		cfg0.b.ts_sel = 1<<1;
-		cfg0.b.mode = 1<<1;
-	} else if (dvb_mode == Gxtv_Atsc) {
-		cfg0.b.ts_sel = 1<<2;
-		cfg0.b.mode = 1<<2;
-		cfg0.b.adc_format = 0;
-		cfg0.b.adc_regadj = 2;
-	} else if (dvb_mode == Gxtv_Dvbc) {
-		cfg0.b.ts_sel = 1<<3;
-		cfg0.b.mode = 1<<3;
-	}
-	demod_set_demod_reg(cfg0.d32, DEMOD_REG1);
+	demod_set_mode_ts(dvb_mode);
 	cfg2.b.biasgen_en = 1;
 	cfg2.b.en_adc = 1;
 	demod_set_demod_reg(cfg2.d32, DEMOD_REG3);

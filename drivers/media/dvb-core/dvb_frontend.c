@@ -121,7 +121,7 @@ static DEFINE_MUTEX(frontend_mutex);
 /*extern unsigned int jiffies_to_msecs(const unsigned long j);*/
 int jiffiestime;
 /*define LOCK_TIMEOUT 2000*/
-static int LOCK_TIMEOUT = 2000;
+static int LOCK_TIMEOUT = 4000;
 
 struct dvb_frontend_private {
 	/* thread/frontend values */
@@ -816,7 +816,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 #if 1
 	/*signal_detec dtmb   201512-rsj*/
 		if (fe->ops.read_dtmb_fsm) {
-			LOCK_TIMEOUT = 10000;
+			LOCK_TIMEOUT = 4000;
 			has_singal = 0;
 			msleep(200);
 			/*fsm status is 4,maybe analog signal*/

@@ -14,8 +14,14 @@
 #define pr_error(fmt, args ...) pr_info("FE: " fmt, ## args)
 
 MODULE_PARM_DESC(debug_atsc, "\n\t\t Enable frontend atsc debug information");
-static int debug_atsc;
+static int debug_atsc = 1;
 module_param(debug_atsc, int, 0644);
+
+MODULE_PARM_DESC(atsc_thread_enable, "\n\t\t Enable frontend debug information");
+static int atsc_thread_enable;
+module_param(atsc_thread_enable, int, 0644);
+
+static int dagc_switch;
 
 /* 8vsb */
 static struct atsc_cfg list_8vsb[22] = {
@@ -404,13 +410,21 @@ int read_snr_atsc_tune(void)
 
 void set_cr_ck_rate(void)
 {
-	atsc_write_reg(0x0f07, 0x20);
-	atsc_write_reg(0x070c, 0x19);
+	atsc_write_reg(0x0f07, 0x50);
+	/*25M ADC B2*/
+	/*atsc_write_reg(0x070c, 0x19);
 	atsc_write_reg(0x070d, 0x30);
 	atsc_write_reg(0x070e, 0xbe);
 	atsc_write_reg(0x070f, 0x52);
 	atsc_write_reg(0x0710, 0xab);
-	atsc_write_reg(0x0711, 0xfe);
+	atsc_write_reg(0x0711, 0xfe);*/
+	/*24M Crystal*/
+	atsc_write_reg(0x70c, 0x1a);
+	atsc_write_reg(0x70d, 0xaa);
+	atsc_write_reg(0x70e, 0xaa);
+	atsc_write_reg(0x70f, 0x3a);
+	atsc_write_reg(0x710, 0xe5);
+	atsc_write_reg(0x711, 0xc9);
 	atsc_write_reg(0x0f06, 0x00);
 	atsc_write_reg(0x0580, 0x01);
 	atsc_write_reg(0x0520, 0x09);
@@ -475,10 +489,12 @@ void set_cr_ck_rate(void)
 	/* decrease lock time 0x88->0x82  */
 	atsc_write_reg(0x05f3, 0x82);
 	/* decrease lock time 0x88->0x82  */
-	atsc_write_reg(0x0f2b, 0x14);
-	/*OPEN AR*/
-	atsc_write_reg(0x0f28, 0xc);
-	/*OPEN AR*/
+	atsc_write_reg(0x736,  0x60);
+	atsc_write_reg(0x737,  0x00);
+	atsc_write_reg(0x738,  0x00);
+	atsc_write_reg(0x739,  0x00);
+	atsc_write_reg(0x735,  0x83);
+	atsc_write_reg(0x918,  0x0);
 }
 
 
@@ -536,8 +552,7 @@ int atsc_set_ch(struct aml_demod_sta *demod_sta,
 	demod_sta->ch_bw = (8 - bw) * 1000;
 	/*atsc_initial(demod_sta);*/
 	set_cr_ck_rate();
-	atsc_write_reg(0x716, 0x0);/*open dagc*/
-	atsc_write_reg(0x718, 0x15);/*open dagc*/
+	dagc_switch = Dagc_Open;
 	pr_dbg("ATSC mode\n");
 	return ret;
 }
@@ -588,6 +603,17 @@ void atsc_reset(void)
 }
 
 
+int atsc_read_snr(void)
+{
+	int SNR;
+	int SNR_dB;
+	SNR = (atsc_read_reg(0x0511) << 8) +
+			atsc_read_reg(0x0512);
+	SNR_dB = SNR_dB_table[atsc_find(SNR, SNR_table, 56)];
+	return SNR_dB/10;
+
+}
+
 int check_snr_ser(int ser_threshholds)
 {
 	int ser_be, ser_af;
@@ -627,8 +653,8 @@ int cci_run(void)
 		max_b[ck0] = 0;
 	}
 	time[1] = jiffies_to_msecs(jiffies);
-	pr_dbg("[cci_run1,%d ms]\n",
-		(time[1] - time[0])/1000);
+	pr_dbg("[atsc_time][cci_run1,%d ms]\n",
+		(time[1] - time[0]));
 	for (ck0 = 0; ck0 < avg_len; ck0++) {
 		/* step1: set 0x918[0] = 1;*/
 		atsc_write_reg(0x918, 0x3);
@@ -671,8 +697,8 @@ int cci_run(void)
 			bin[3], peak[bin[3]]);
 	}
 	time[2] = jiffies_to_msecs(jiffies);
-	pr_dbg("[cci_run2,%d ms]\n",
-		(time[2] - time[1])/1000);
+	pr_dbg("[atsc_time][cci_run2,%d ms]\n",
+		(time[2] - time[1]));
 	cci_cnt = 0;
 	for (ck0 = 0; ck0 < 2048; ck0++) {
 		if (peak[ck0] > threshold) {
@@ -689,8 +715,8 @@ int cci_run(void)
 		}
 	}
 	time[3] = jiffies_to_msecs(jiffies);
-	pr_dbg("[cci_run3,%d ms]\n",
-		(time[3] - time[2])/1000);
+	pr_dbg("[atsc_time][cci_run3,%d ms]\n",
+		(time[3] - time[2]));
 	atsc_write_reg(0x736, ((max_b[0]>>8)&0x7) + 0x40);
 	atsc_write_reg(0x737, max_b[0]&0xff);
 	atsc_write_reg(0x738, (max_b[1]>>8)&0x7);
@@ -701,8 +727,8 @@ int cci_run(void)
 			cci_cnt, ck0, max_b[ck0], max_p[ck0]);
 	}
 	time[4] = jiffies_to_msecs(jiffies);
-	pr_dbg("[cci_run4,%d ms]\n", (time[4] - time[3])/1000);
-	pr_dbg("--------printf cost %d us\n",
+	pr_dbg("[atsc_time][cci_run4,%d ms]\n", (time[4] - time[3]));
+	pr_dbg("[atsc_time]--------printf cost %d us\n",
 		jiffies_to_msecs(jiffies) - time[4]);
 	return 0;
 }
@@ -721,18 +747,20 @@ int cfo_run(void)
 		-200, 200, -250, 250};
 	int scan_range;
 	int Offset;
-	Fcent = 4950;
-	Fs = 25000;
+	Fcent = Si2176_5M_If*1000;/*if*/
+	Fs = Adc_Clk_24M;/*crystal*/
 	cfo_sta = 0;
 	cr_peak_sta = 0;
 	table_count = 0;
 	scan_range = 10;
 	Offset = freq_table[table_count];
+	pr_dbg("Fcent[%d], Fs[%d]\n", Fcent, Fs);
 	for (i = -(scan_range-1); i <= scan_range+1; i++) {
 		atsc_reset();
 		cfo_sta = UnLock;
 		cr_peak_sta = UnLock;
-		crRate = (1<<23)*(Fcent+Offset)/Fs;
+		crRate = (1<<10)*(Fcent+Offset)/Fs;
+		crRate *= (1<<13);
 		crRate0 = crRate&0xff;
 		crRate1 = (crRate>>8)&0xff;
 		crRate2 = (crRate>>16)&0xff;
@@ -821,34 +849,34 @@ void atsc_thread(void)
 	int i;
 	int time[10];
 	int ret;
-	int dagc_switch;
 	int ser_thresholds;
 	static int fsm_status;
 	fsm_status = Idle;
-	dagc_switch = Dagc_Open;
 	ser_thresholds = 200;
 	time[4] = jiffies_to_msecs(jiffies);
-	while (1) {
-		time[4] = jiffies_to_msecs(jiffies);
+	fsm_status = read_atsc_fsm();
+	if (atsc_thread_enable) {
 		if (fsm_status < Atsc_Lock) {
 			/*step1:open dagc*/
-			if (dagc_switch == Dagc_Close) {
+			/*if (dagc_switch == Dagc_Close) {
 				atsc_write_reg(0x716, 0x0);
 				dagc_switch = Dagc_Open;
-		}
+		}*/
 		fsm_status = read_atsc_fsm();
 		pr_dbg("fsm[%x]not lock,need to run cci\n", fsm_status);
 		time[0] = jiffies_to_msecs(jiffies);
 		/*step2:run cci*/
+		set_cr_ck_rate();
+		atsc_reset();
 		ret = cci_run();
 		atsc_reset();
 		time[1] = jiffies_to_msecs(jiffies);
-		time_table[0] = (time[1]-time[0])/1000;
+		time_table[0] = (time[1]-time[0]);
 		fsm_status = read_atsc_fsm();
-		pr_dbg("fsm[%x]cci finish,need to run cfo,cost %d ms\n",
+		pr_dbg("fsm[%x][atsc_time]cci finish,need to run cfo,cost %d ms\n",
 			fsm_status, time_table[0]);
 		if (fsm_status == Atsc_Lock) {
-			continue;
+			return;
 		} else if (fsm_status < CR_Lock) {
 			/*step3:run cfo*/
 			ret = cfo_run();
@@ -857,28 +885,30 @@ void atsc_thread(void)
 			msleep(100);
 		}
 		time[2] = jiffies_to_msecs(jiffies);
-		time_table[1] = (time[2] - time[1])/1000;
-		pr_dbg("fsm[%x]cfo done,cost %d ms,\n",
+		time_table[1] = (time[2] - time[1]);
+		pr_dbg("fsm[%x][atsc_time]cfo done,cost %d ms,\n",
 			read_atsc_fsm(), time_table[1]);
 		if (ret == Cfo_Fail)
-			continue;
+			return;
 		/*step4:check AR*/
-		AR_run();
+		/*AR_run();*/
 		for (i = 0; i < 50; i++) {
 			fsm_status = read_atsc_fsm();
 			if (fsm_status == Atsc_Lock) {
 				time[3] = jiffies_to_msecs(jiffies);
 				pr_dbg("----------------------\n");
-				time_table[2] = (time[3] - time[2])/1000;
-				time_table[3] = (time[3] - time[0])/1000;
-				time_table[4] = (time[3] - time[5])/1000;
-				pr_dbg("fsm[%x]cfo->fec lock cost %d ms\n",
+				time_table[2] = (time[3] - time[2]);
+				time_table[3] = (time[3] - time[0]);
+				time_table[4] = (time[3] - time[5]);
+				pr_dbg("fsm[%x][atsc_time]cfo->fec lock cost %d ms\n",
 					fsm_status, time_table[2]);
-				pr_dbg("fsm[%x]lock,one cost %d ms,\n",
+				pr_dbg("fsm[%x][atsc_time]lock,one cost %d ms,\n",
 					fsm_status, time_table[3]);
 				break;
 			} else if (fsm_status <= Idle) {
-				pr_dbg("atsc idle,retune\n");
+				pr_dbg("atsc idle,retune, and reset\n");
+				set_cr_ck_rate();
+				atsc_reset();
 				break;
 			}
 			msleep(20);
@@ -890,18 +920,16 @@ void atsc_thread(void)
 		pr_dbg("lock\n");
 		msleep(1000);
 		/*step5:close dagc*/
-		if (dagc_switch == Dagc_Open) {
+		/*if (dagc_switch == Dagc_Open) {
 			atsc_write_reg(0x716, 0x2);
 			dagc_switch = Dagc_Close;
-		}
+		}*/
 		if (check_snr_ser(ser_thresholds) != 0) {
 			fsm_status = Idle;
 			time[5] = jiffies_to_msecs(jiffies);
 		}
-		break;
 		}
 	}
-
 }
 
 
