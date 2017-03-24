@@ -270,15 +270,15 @@ static long wifi_power_ioctl(struct file *filp,
 		WIFI_INFO(KERN_INFO "Set usb_sdio wifi power down!\n");
 		break;
 	case SDIO_POWER_UP:
-		extern_wifi_set_enable(0);
+		set_usb_wifi_power(0);
 		mdelay(200);
-		extern_wifi_set_enable(1);
+		set_usb_wifi_power(1);
 		mdelay(200);
 		sdio_reinit();
 		WIFI_INFO("Set sdio wifi power up!\n");
 		break;
 	case SDIO_POWER_DOWN:
-		extern_wifi_set_enable(0);
+		set_usb_wifi_power(0);
 		break;
 	case SDIO_GET_DEV_TYPE:
 		memcpy(dev_type, get_wifi_inf(), strlen(get_wifi_inf()));

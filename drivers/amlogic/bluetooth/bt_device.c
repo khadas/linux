@@ -43,7 +43,6 @@ static struct early_suspend bt_early_suspend;
 #endif
 
 #define BT_RFKILL "bt_rfkill"
-
 struct bt_dev_runtime_data {
 	struct rfkill *bt_rfk;
 	struct bt_dev_data *pdata;
@@ -85,8 +84,7 @@ static void bt_device_on(struct bt_dev_data *pdata)
 			&& (pdata->power_low_level)) {
 				gpio_direction_input(pdata->gpio_en);
 		} else {
-			gpio_direction_output(pdata->gpio_en,
-				pdata->power_low_level);
+			 set_usb_bt_power(0);
 		}
 	}
 	msleep(200);
@@ -104,8 +102,7 @@ static void bt_device_on(struct bt_dev_data *pdata)
 			&& (!pdata->power_low_level)) {
 				gpio_direction_input(pdata->gpio_en);
 		} else {
-			gpio_direction_output(pdata->gpio_en,
-				!pdata->power_low_level);
+				set_usb_bt_power(1);
 		}
 	}
 	msleep(200);
@@ -127,8 +124,7 @@ static void bt_device_off(struct bt_dev_data *pdata)
 			&& (pdata->power_low_level)) {
 				gpio_direction_input(pdata->gpio_en);
 		} else {
-			gpio_direction_output(pdata->gpio_en,
-				pdata->power_low_level);
+				 set_usb_bt_power(0);
 		}
 	}
 	msleep(20);
@@ -140,10 +136,10 @@ static int bt_set_block(void *data, bool blocked)
 	pr_info("BT_RADIO going: %s\n", blocked ? "off" : "on");
 
 	if (!blocked) {
-		pr_info("BCM_BT: going ON\n");
+		pr_err("BCM_BT: going ON\n");
 		bt_device_on(pdata);
 	} else {
-		pr_info("BCM_BT: going OFF\n");
+		pr_err("BCM_BT: going OFF\n");
 	bt_device_off(pdata);
 	}
 	return 0;
