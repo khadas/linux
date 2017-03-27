@@ -237,6 +237,7 @@ struct vdin_dev_s {
 	struct workqueue_struct *sig_wq;
 	struct switch_dev       sig_sdev;
 	struct tvin_info_s      pre_info;
+	struct delayed_work     dv_dwork;
 
 	struct vdin_debug_s			debug;
 	unsigned int			cma_config_en;
@@ -280,6 +281,14 @@ struct vdin_dev_s {
 	unsigned int			color_range_mode;
 	/*auto detect av/atv input ratio*/
 	unsigned int		auto_ratio_en;
+	unsigned int			dv_cur_index;
+	unsigned int			dv_next_index;
+	unsigned int			dv_last_index;
+	dma_addr_t dv_dma_paddr;
+	void *dv_dma_vaddr;
+	bool	dv_index_update;
+	bool	dv_flag;
+	bool	dv_config;
 };
 
 
@@ -291,12 +300,15 @@ int vdin_ctrl_start_fe(int no, struct vdin_parm_s *para);
 int vdin_ctrl_stop_fe(int no);
 enum tvin_sig_fmt_e vdin_ctrl_get_fmt(int no);
 #endif
+extern bool dolby_input;
 extern bool enable_reset;
 extern unsigned int max_buf_num;
 extern unsigned int max_buf_width;
 extern unsigned int max_buf_height;
 extern unsigned int dolby_size_byte;
 extern unsigned int   vdin_ldim_max_global[100];
+extern unsigned int dv_dbg_mask;
+
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);
 

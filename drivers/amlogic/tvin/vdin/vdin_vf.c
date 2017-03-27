@@ -34,7 +34,7 @@
 
 /* Local Headers */
 #include "vdin_vf.h"
-
+#include "vdin_ctl.h"
 static bool vf_log_enable = true;
 static bool vf_log_fe = true;
 static bool vf_log_be = true;
@@ -47,7 +47,6 @@ MODULE_PARM_DESC(vf_log_fe, "enable/disable vframe manager log frontend");
 
 module_param(vf_log_be, bool, 0664);
 MODULE_PARM_DESC(vf_log_be, "enable/disable vframe manager log backen");
-
 
 #ifdef VF_LOG_EN
 void vf_log_init(struct vf_pool *p)
@@ -314,6 +313,7 @@ struct vf_pool *vf_pool_alloc(int size)
 	spin_lock_init(&p->wt_lock);
 	spin_lock_init(&p->fz_lock);
 	spin_lock_init(&p->tmp_lock);
+	spin_lock_init(&p->dv_lock);
 	/* initialize list head */
 	INIT_LIST_HEAD(&p->wr_list);
 	INIT_LIST_HEAD(&p->rd_list);
@@ -378,6 +378,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 	p->tmp_list_size = 0;
 	/* initialize provider write list */
 	for (i = 0; i < size; i++) {
+		p->dv_buf_size[i] = 0;
 		master = vf_get_master(p, i);
 		if (master == NULL) {
 			log_state = false;
@@ -739,6 +740,13 @@ void vdin_vf_put(struct vframe_s *vf, void *op_arg)
 		return;
 	p = (struct vf_pool *)op_arg;
 	receiver_vf_put(vf, p);
+	/*clean dv-buf-size*/
+	if (vf && (dv_dbg_mask & DV_CLEAN_UP_MEM)) {
+		p->dv_buf_size[vf->index] = 0;
+		if (p->dv_buf_ori[vf->index])
+			memset(p->dv_buf_ori[vf->index], 0, dolby_size_byte);
+
+	}
 }
 int vdin_vf_states(struct vframe_states *vf_ste, void *op_arg)
 {

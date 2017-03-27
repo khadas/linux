@@ -39,6 +39,8 @@
 /* only log backend opertations */
 #define VF_LOG_BE
 
+#define VDIN_DV_MAX_NUM		        9
+
 enum vf_operation_e {
 	VF_OPERATION_INIT = 0,
 	VF_OPERATION_FPEEK,
@@ -129,6 +131,7 @@ struct vf_pool {
 	struct list_head tmp_list;
 	spinlock_t tmp_lock;
 	spinlock_t lock;
+	spinlock_t dv_lock;/*dolby vision lock*/
 #ifdef VF_LOG_EN
 	struct vf_log_s log;
 #endif
@@ -136,7 +139,13 @@ struct vf_pool {
 	struct isr_log_s isr_log;
 #endif
 	atomic_t buffer_cnt;
+	unsigned int	dv_buf_mem[VDIN_DV_MAX_NUM];
+	unsigned int	dv_buf_size[VDIN_DV_MAX_NUM];
+	char	*dv_buf[VDIN_DV_MAX_NUM];
+	char	*dv_buf_ori[VDIN_DV_MAX_NUM];
 };
+extern unsigned int dolby_size_byte;
+extern unsigned int dv_dbg_mask;
 
 extern void vf_log_init(struct vf_pool *p);
 extern void vf_log_print(struct vf_pool *p);
@@ -173,5 +182,6 @@ extern void vdin_vf_freeze(struct vf_pool *p, unsigned hold_num);
 extern void vdin_vf_unfreeze(struct vf_pool *p);
 
 extern void vdin_dump_vf_state(struct vf_pool *p);
+
 #endif /* __VDIN_VF_H */
 

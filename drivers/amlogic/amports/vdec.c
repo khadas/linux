@@ -956,8 +956,8 @@ void vdec_save_input_context(struct vdec_s *vdec)
 			struct vdec_s *master = (vdec->slave) ?
 				vdec : vdec->master;
 			master->input.last_swap_slave = (master->slave == vdec);
-			pr_info("master->input.last_swap_slave = %d\n",
-				master->input.last_swap_slave);
+			/* pr_info("master->input.last_swap_slave = %d\n",
+				master->input.last_swap_slave); */
 		}
 	}
 }

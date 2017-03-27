@@ -190,13 +190,19 @@ extern int dolby_vision_wait_metadata(struct vframe_s *vf);
 extern int dolby_vision_pop_metadata(void);
 extern int dolby_vision_update_metadata(struct vframe_s *vf);
 extern int dolby_vision_process(struct vframe_s *vf);
-extern void dolby_vision_init_receiver(void);
+extern void dolby_vision_init_receiver(void *pdev);
 extern void dolby_vision_vf_put(struct vframe_s *vf);
 extern struct vframe_s *dolby_vision_vf_peek_el(struct vframe_s *vf);
 extern void dolby_vision_dump_setting(int debug_flag);
 extern void dolby_vision_dump_struct(void);
 extern void enable_osd_path(int);
-extern void tv_dolby_vision_config(void);
+extern void tv_dolby_vision_config(int);
+extern void dolby_vision_update_pq_config(char *);
+extern int dolby_vision_update_setting(void);
+extern bool is_dolby_vision_stb_mode(void);
+extern void tv_dolby_vision_crc_clear(int flag);
+extern char *tv_dolby_vision_get_crc(u32 *len);
+extern void tv_dolby_vision_insert_crc(u32 crc);
 
 #endif /* AMVECM_H */
 

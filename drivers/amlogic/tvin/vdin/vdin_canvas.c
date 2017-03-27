@@ -25,6 +25,7 @@
 #include "../tvin_format_table.h"
 #include "vdin_drv.h"
 #include "vdin_canvas.h"
+#include "vdin_ctl.h"
 #ifndef VDIN_DEBUG
 #undef  pr_info
 #define pr_info(fmt, ...)
@@ -41,8 +42,8 @@ MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
 unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGH;
 module_param(max_buf_height, uint, 0664);
 MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
-/* one frame max metadata size:32x280 bits = 1120bytes */
-unsigned int dolby_size_byte = 1120;
+/* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
+unsigned int dolby_size_byte = PAGE_SIZE;
 module_param(dolby_size_byte, uint, 0664);
 MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
 

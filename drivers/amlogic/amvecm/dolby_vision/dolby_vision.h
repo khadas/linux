@@ -2,9 +2,21 @@
 #define _DV_H_
 
 #include <linux/types.h>
+#include "target_display_config.h"
 
 #define DEF_G2L_LUT_SIZE_2P        8
 #define DEF_G2L_LUT_SIZE           (1 << DEF_G2L_LUT_SIZE_2P)
+
+enum input_mode_e {
+	INPUT_MODE_OTT  = 0,
+	INPUT_MODE_HDMI = 1
+};
+
+struct ui_menu_params_s {
+	uint16_t u16BackLightUIVal;
+	uint16_t u16BrightnessUIVal;
+	uint16_t u16ContrastUIVal;
+};
 
 enum signal_format_e {
 	FORMAT_DOVI  = 0,
@@ -24,6 +36,7 @@ enum cp_signal_range_e {
 };
 
 struct composer_register_ipcore_s {
+	/* offset 0xc8 */
 	uint32_t Composer_Mode;
 	uint32_t VDR_Resolution;
 	uint32_t Bit_Depth;
@@ -70,6 +83,9 @@ struct dm_register_ipcore_1_s {
 	uint32_t Y2RGB_Offset_2;
 	uint32_t Y2RGB_Offset_3;
 	uint32_t EOTF;
+/*	uint32_t Sparam_1;
+	uint32_t Sparam_2;
+	uint32_t Sgamma; */
 	uint32_t A2B_Coefficient_1;
 	uint32_t A2B_Coefficient_2;
 	uint32_t A2B_Coefficient_3;
@@ -239,6 +255,33 @@ extern int control_path(
 	int set_no_el,
 	struct hdr10_param_s *hdr10_param,
 	struct dovi_setting_s *output);
+
+struct tv_dovi_setting_s {
+	uint64_t core1_reg_lut[3754];
+	/* current process */
+	enum signal_format_e src_format;
+	enum signal_format_e dst_format;
+	/* enhanced layer */
+	bool el_flag;
+	bool el_halfsize_flag;
+	/* frame width & height */
+	uint32_t video_width;
+	uint32_t video_height;
+	enum input_mode_e input_mode;
+};
+
+extern int tv_control_path(
+	enum signal_format_e in_format,
+	enum input_mode_e in_mode,
+	char *in_comp, int in_comp_size,
+	char *in_md, int in_md_size,
+	int set_bit_depth, int set_chroma_format, int set_yuv_range,
+	struct pq_config_s *pq_config,
+	struct ui_menu_params_s *menu_param,
+	int set_no_el,
+	struct hdr10_param_s *hdr10_param,
+	struct tv_dovi_setting_s *output);
+
 extern void *metadata_parser_init(int flag);
 extern int metadata_parser_reset(int flag);
 extern int metadata_parser_process(
@@ -248,7 +291,7 @@ extern int metadata_parser_process(
 extern void metadata_parser_release(void);
 
 struct dolby_vision_func_s {
-	void * (*metadata_parser_init)(int);
+	void * (*metadata_parser_init)(int flag);
 	int (*metadata_parser_reset)(int flag);
 	int (*metadata_parser_process)(
 		char  *src_rpu, int rpu_len,
@@ -267,6 +310,17 @@ struct dolby_vision_func_s {
 		int set_no_el,
 		struct hdr10_param_s *hdr10_param,
 		struct dovi_setting_s *output);
+	int (*tv_control_path)(
+		enum signal_format_e in_format,
+		enum input_mode_e in_mode,
+		char *in_comp, int in_comp_size,
+		char *in_md, int in_md_size,
+		int set_bit_depth, int set_chroma_format, int set_yuv_range,
+		struct pq_config_s *pq_config,
+		struct ui_menu_params_s *menu_param,
+		int set_no_el,
+		struct hdr10_param_s *hdr10_param,
+		struct tv_dovi_setting_s *output);
 };
 
 extern int register_dv_functions(const struct dolby_vision_func_s *func);

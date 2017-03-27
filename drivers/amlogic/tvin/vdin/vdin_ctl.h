@@ -118,7 +118,12 @@ struct vdin_hist_cfg_s {
 	unsigned int                vstart;
 	unsigned int                vend;
 };
-
+#define DV_SWAP_EN	(1 << 0)
+#define DV_BUF_START_RESET	(1 << 1)
+#define DV_FRAME_BUF_START_RESET	(1 << 2)
+#define DV_UPDATE_DATA_MODE_DELBY_WORK	(1 << 4)
+#define DV_CLEAN_UP_MEM	(1 << 5)
+#define DV_READ_MODE_AXI	(1 << 6)
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ************************************************************************ */
@@ -182,6 +187,13 @@ extern void vdin_force_gofiled(struct vdin_dev_s *devp);
 extern void vdin_set_config(struct vdin_dev_s *devp);
 extern void vdin_set_wr_mif(struct vdin_dev_s *devp);
 extern void vdin_dolby_config(struct vdin_dev_s *devp);
+extern void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
+	unsigned int index);
+extern void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index);
+extern void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size);
+extern void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size);
+extern int vdin_event_cb(int type, void *data, void *op_arg);
+extern void vdin_dolby_metadata_swap(char *buf);
 
 #endif
 

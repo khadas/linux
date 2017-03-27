@@ -1588,10 +1588,8 @@ void set_vpp_matrix(int m_select, int *s, int on)
 			m = osd_matrix_coeff;
 
 			if (on) {
-
 				VSYNC_WR_MPEG_REG_BITS(VPP_MATRIX_CTRL,
 					4, 8, 3);
-
 				VSYNC_WR_MPEG_REG(VPP_MATRIX_PRE_OFFSET0_1,
 					((m[0] & 0xfff) << 16)
 					| (m[1] & 0xfff));
