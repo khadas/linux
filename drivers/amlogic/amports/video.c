@@ -1779,6 +1779,12 @@ static void zoom_display_vert(void)
 		VSYNC_WR_MPEG_REG(AFBC_PIXEL_VER_SCOPE,
 		    ((zoom_start_y_lines - t_aligned) << 16) |
 		    (zoom_end_y_lines - t_aligned));
+	/* afbc pixel vertical output region must be
+	 * [0, zoom_end_y_lines - zoom_start_y_lines]
+	 */
+		VSYNC_WR_MPEG_REG(AFBC_PIXEL_VER_SCOPE,
+		(zoom_end_y_lines - zoom_start_y_lines));
+
 
 	VSYNC_WR_MPEG_REG(AFBC_SIZE_IN,
 		(VSYNC_RD_MPEG_REG(AFBC_SIZE_IN) & 0xffff0000) |
